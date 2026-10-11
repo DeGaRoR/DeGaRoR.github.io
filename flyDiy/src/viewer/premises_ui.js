@@ -28,14 +28,20 @@
 if (typeof window === 'undefined') return;
 const PG = window.PREMISES_GEN;
 
+// THE TABS ARE PALETTES (G2910 SCENERY-ED-2; the user: "the tabs control the displayed action buttons, the right zone being
+// a generic inspector"): a tab lights its tools and its palette drawer under them (the catalogue, the pickers, the file,
+// the view, the life); the right plate is the SELECTION's inspector whatever tab is lit. Every polygon a tool draws is ONE
+// AREA (contract v1.36) with the tool's properties attached - the inspector adds and removes the rest.
 const SECTIONS = [
-  { k: 'terrain',    label: 'TERRAIN',    icon: '⛰', tools: ['select', 'flatten', 'raise', 'ramp', 'surface', 'material', 'probe'] },
+  { k: 'terrain',    label: 'TERRAIN',    icon: '⛰', tools: ['select', 'area', 'flatten', 'raise', 'ramp', 'surface', 'material', 'probe'] },
+  { k: 'areas',      label: 'AREAS',      icon: '▱',  tools: ['select', 'area', 'rect', 'concrete', 'parking', 'dock', 'hatch', 'probe'] },
   { k: 'airfield',   label: 'AIRFIELD',   icon: '✈',  tools: ['select', 'runway', 'apron', 'pad', 'stand', 'probe'] },
   { k: 'roads',      label: 'ROADS',      icon: '⌇',  tools: ['select', 'road', 'probe'] },
   { k: 'zones',      label: 'ZONES',      icon: '▦',  tools: ['select', 'zone', 'probe'] },
   { k: 'vegetation', label: 'TREES',      icon: '♣',  tools: ['select', 'forest', 'biome', 'clear', 'tree', 'probe'] },
   { k: 'sites',      label: 'SITES',      icon: '⌂',  tools: ['select', 'building', 'theme', 'cable', 'probe'] },
   { k: 'objects',    label: 'OBJECTS',    icon: '⚑',  tools: ['select', 'prop', 'billboard', 'aircraft', 'animal', 'probe'] },
+  { k: 'assets',     label: 'ASSETS',     icon: '▣',  tools: ['select', 'place', 'scatter'] },   // G2914: the model placer
   { k: 'file',       label: 'FILE',       icon: '▤',  tools: [] },
   { k: 'view',       label: 'VIEW',       icon: '◎',  tools: [] },
   { k: 'life',       label: 'LIFE',       icon: '☺',  tools: [] },   // SCENERY LIFE: the record's life block (last: the 1-9 keys keep their sections)
@@ -46,6 +52,8 @@ const ICONS = {
   airfield: 'M4.5 16L8 2|M10 2l3.5 14|M9 6v1.5|M9 9.5V11|M9 13v1.5',
   roads: 'M3 15.5c3-5 9-3 12-8.5|M3 11.5c3-5 9-3 12-8.5|M7 12.5l.6-1|M10 8.5l.6-1',
   zones: 'M3 3h12v12H3Z|M3 9h12|M9 3v12',
+  areas: 'M3 6l5-3.5 7 2.5-1.5 9.5L5 15.5Z|M6.5 9.5h5|M6.5 12h3',
+  assets: 'M2.5 5.5L9 2l6.5 3.5v7L9 16l-6.5-3.5Z|M2.5 5.5L9 9l6.5-3.5|M9 9v7',
   vegetation: 'M9 2l5 8h-3l3 5H4l3-5H4Z|M9 15v1.5',
   sites: 'M3 9l6-6 6 6|M5 8v7h8V8|M8 15v-4h2v4',
   objects: 'M5 16V2|M5 3h9l-2 3 2 3H5',
@@ -54,11 +62,19 @@ const ICONS = {
   life: 'M7 5a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2Z|M4.5 16l1.3-6.2L7 7.2l1.4 2.4L9.5 16|M4 10.5l3-3.3 3 3.3|M13 16V9.5|M11.5 9.5h3l.4-2.5h-3.8Z',
 };
 const iconSvg = k => { const d = ICONS[k]; if (!d) return null; const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 18 18'); svg.setAttribute('aria-hidden', 'true'); for (const q of d.split('|')) { const pth = document.createElementNS('http://www.w3.org/2000/svg', 'path'); pth.setAttribute('d', q); svg.appendChild(pth); } return svg; };
-const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', biome: 'vegetation', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', pad: 'round pad', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', aircraft: 'an aeroplane', animal: 'animals', probe: 'probe' };
+const TOOL_LABEL = { area: 'an area', rect: 'a rectangle', concrete: 'concrete', parking: 'parking', dock: 'a dock', hatch: 'keep clear', place: 'place a model', scatter: 'scatter', select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', biome: 'vegetation', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', pad: 'round pad', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', aircraft: 'an aeroplane', animal: 'animals', probe: 'probe' };
 const TOOL_HELP = {
   // G2890 (the user: "I don't know how to edit an existing polygon"): the shape's whole grammar, said where the tool is
   select: 'click a feature to select it. Its shape: drag an orange disc to move a corner, a faint one to add a corner there, click its edge to add one; click a corner (white) and Del removes it - Del with no corner picked deletes the feature. A smooth road: drag a cyan disc to bend it',
   flatten: 'click the corners of the flat, then ✓ close (or double-click)',
+  area: 'click the corners, close: ONE area with nothing attached yet - the inspector adds what it does (the ground, the wheels, a drawn surface, marks, no trees, a cover)',
+  rect: 'click one corner, then the opposite one: a rectangle area (its turn, size and rounded corners in the inspector)',
+  concrete: 'click the corners, close: poured concrete, drawn without repetition (the pavement), the wheels on paved, no trees or plots inside',
+  parking: 'click one corner of the lot, then the opposite one: concrete with weathered parking bays (bay, depth, aisle in the inspector)',
+  dock: 'click the corners of the quay, close: concrete with its edge line and bollard spots along the side that meets the water',
+  hatch: 'click the corners, close: concrete with keep-clear hatching',
+  place: 'pick a model in the palette, then click the ground to drop it; R turns the ghost 15 degrees, Alt + wheel scales it; each drop is one record you can select, drag, turn and scale',
+  scatter: 'pick a model, click the ground: n of it within the radius (the palette sets them), each its own record',
   raise: 'click the corners, close; then set the lift in the inspector',
   ramp: 'click the corners, close: a constant slope, the middle at the height you set, rising toward the heading you set',
   road: 'click the road\'s points, then ✓ close (or double-click) — it is graded and worn; zones grow plots off it',
@@ -82,13 +98,13 @@ const TOOL_HELP = {
   aircraft: 'pick a build in the inspector (an archetype, a stock design, one of yours), click the apron to park it there, nose along its turn; captured through the workshop, so a moment to stand',
   animal: 'pick a species in the inspector and click the ground (or the water, for a whale): ONE record is a HOTSPOT - how many live there and over what radius. The land animals wander between idle bouts, a pod swims a circuit and dives, a flock circles. Drag the disc to move the lot.',
 };
-const POLY_TOOLS = { flatten: 'terrain', raise: 'terrain', ramp: 'terrain', surface: 'surface', apron: 'surface', material: 'material', zone: 'zones', forest: 'zones', clear: 'zones', biome: 'ttype' };
+const POLY_TOOLS = { area: 'areas', flatten: 'areas', raise: 'areas', ramp: 'areas', surface: 'areas', apron: 'areas', material: 'areas', concrete: 'areas', dock: 'areas', hatch: 'areas', zone: 'zones', forest: 'zones', clear: 'areas', biome: 'areas' };
 // the PBR sets the page has (the lot's and the site's texture sets), read at call time - a name each
 function materialSets() {
   const S = Object.assign({}, (typeof LOT_TEX_SETS !== 'undefined' && LOT_TEX_SETS) || {}, (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS) || {});
   return Object.keys(S).filter(k => S[k] && S[k].diff).map(k => [k, (S[k].name || k) + ' · ' + S[k].tile + ' m']);
 }
-const TWO_POINT_TOOLS = { runway: 'runways', pad: 'material' };   // (G2890: the round pad - its centre, then its rim)
+const TWO_POINT_TOOLS = { runway: 'runways', pad: 'areas', rect: 'areas', parking: 'areas' };   // (G2890: the round pad - its centre, then its rim; G2910: a rectangle's two corners)
 const LINE_TOOLS = { road: 'roads' };
 const POINT_TOOLS = { tree: 'objects', building: 'sites', theme: 'sites', prop: 'objects', billboard: 'objects', aircraft: 'objects', animal: 'objects' };
 const OBJ_PICK = { prop: null, billboard: null, aircraft: null, animal: null };   // what the prop, billboard, aircraft and animal tools stand
@@ -176,7 +192,8 @@ function mount(host, ctx) {
   }
   function bboxOf(entry) {
     if (!entry) return null;
-    if (entry.poly) { const b = PG.polyBBox(entry.poly); const f = (+entry.falloff || 0) + 4; return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
+    // (G2910: an area's reach is its terraform's falloff, and a drawn pavement's band past its edge)
+    if (entry.poly) { const b = PG.polyBBox(entry.poly), AP = entry.props || {}; const f = (+entry.falloff || +(AP.terraform && AP.terraform.falloff) || 0) + (AP.draw ? 12 : 0) + 4; return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
     if (entry.pts) { const b = PG.polyBBox(entry.curve === 'spline' ? PG.roadLine(entry) : entry.pts);   /* (G2890: a spline bows off its points) */ const f = (+entry.falloff || 6) + (+entry.w || +entry.width || 4); return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
     if (entry.kind === 'tree') return { x0: entry.x - 4, z0: entry.z - 4, x1: entry.x + 4, z1: entry.z + 4 };
     if (entry.c && entry.len) { const b = PG.polyBBox(PG.runwayBox(Object.assign({}, PG.RUNWAY_DEF, entry), 40)); return b; }
@@ -185,15 +202,19 @@ function mount(host, ctx) {
   }
   const union = (a, b) => (!a ? b : !b ? a : { x0: Math.min(a.x0, b.x0), z0: Math.min(a.z0, b.z0), x1: Math.max(a.x1, b.x1), z1: Math.max(a.z1, b.z1) });
   // which layers move the GROUND (and so the chunks): terrain, and roads (graded)
-  const groundLayer = layer => layer === 'terrain' || layer === 'roads' || layer === 'runways' || layer === 'material';
+  const groundLayer = layer => layer === 'terrain' || layer === 'roads' || layer === 'runways' || layer === 'material' || layer === 'areas';
+  // (G2914: a command may carry MANY entries - the scatter's models - one undo step, one rebuild)
+  const cmdBox = c => (c.many ? c.many.reduce((b, q) => union(b, union(bboxOf(q.before), bboxOf(q.after))), null) : union(bboxOf(c.before), bboxOf(c.after)));
+  const cmdLayer = c => (c.many ? c.many[0].layer : c.layer);
   function run(cmd, isRedo) {
-    applyEntry(cmd.layer, cmd.id, clone(cmd.after));
+    if (cmd.many) for (const q of cmd.many) applyEntry(q.layer, q.id, clone(q.after));
+    else applyEntry(cmd.layer, cmd.id, clone(cmd.after));
     undoS.push(cmd); if (!isRedo) redoS.length = 0;
     if (undoS.length > 200) undoS.shift();
-    dirty(cmd.layer, union(bboxOf(cmd.before), bboxOf(cmd.after)), groundOf(cmd.layer, cmd.before, cmd.after));
+    dirty(cmdLayer(cmd), cmdBox(cmd), cmd.many ? undefined : groundOf(cmd.layer, cmd.before, cmd.after));
     strip.status('' + cmd.label);
   }
-  function undo() { const c = undoS.pop(); if (!c) return; applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(c.layer, union(bboxOf(c.before), bboxOf(c.after)), groundOf(c.layer, c.before, c.after)); strip.status('undo: ' + c.label); }
+  function undo() { const c = undoS.pop(); if (!c) return; if (c.many) for (const q of c.many.slice().reverse()) applyEntry(q.layer, q.id, clone(q.before)); else applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(cmdLayer(c), cmdBox(c), c.many ? undefined : groundOf(c.layer, c.before, c.after)); strip.status('undo: ' + c.label); }
   function redo() { const c = redoS.pop(); if (!c) return; run(c, true); }
   let coalesce = null;
   function edit(id, layer, mutate, label, key) {
@@ -255,11 +276,17 @@ function mount(host, ctx) {
       n + ' feature' + (n === 1 ? '' : 's') + ' · ' + (R.plots ? R.plots().length : 0) + ' plots · undo ' + undoS.length + (ctx.frameText ? '<br>' + ctx.frameText() : '');
   }
 
-  // ---- the layout: rail | (strip over the view) | inspector -------------------
+  // ---- the layout: rail | (strip + its palette over the view) | inspector -------------------
+  // (G2910: the host may stand the rail apart - els.rail, the game's left plate - so the right plate is the inspector alone)
   host.innerHTML = '';
   const rail = $('div', { class: 'pr-rail' });
   const insp = $('div', { class: 'pr-insp' });
-  host.appendChild(rail); host.appendChild(insp);
+  if (els.rail) { els.rail.innerHTML = ''; els.rail.appendChild(rail); } else host.appendChild(rail);
+  host.appendChild(insp);
+  // THE PALETTE DRAWER (G2910): what a tab offers besides its tools - the building catalogue, the objects' pickers, the
+  // model bank, the file, the view, the life - under the tool strip, never in the inspector
+  const pal = $('div', { class: 'pr-insp pr-pal' });
+  if (!els.strip) host.appendChild(pal);
   const strip = { el: els.strip, status(t) { if (statusEl) statusEl.textContent = t; }, help(t) { if (helpEl) helpEl.textContent = t; } };
   let statusEl = null, helpEl = null, toolBtns = {}, drawBtns = null;
   let section = 'terrain', tool = 'select';
@@ -288,9 +315,11 @@ function mount(host, ctx) {
     const ok = $('button', { class: 'pr-tool pill', text: '✓ close', title: 'close the polygon (Enter)', type: 'button' }); ok.onclick = () => { commitDrawing(); ok.blur(); };
     const no = $('button', { class: 'pr-tool pill', text: '✕ cancel', title: 'drop the points (Esc)', type: 'button' }); no.onclick = () => { cancelTool(); no.blur(); };
     drawBtns.appendChild(ok); drawBtns.appendChild(no); els.strip.appendChild(drawBtns);
+    els.strip.appendChild(pal);
   }
-  function setSection(k) { section = k; cancelTool(); tool = 'select'; buildRail(); buildStrip(); inspector.refresh(); ctx.onSection && ctx.onSection(SECTIONS.find(s => s.k === k)); }
-  function setTool(t) { cancelTool(); tool = t; for (const k in toolBtns) toolBtns[k].classList.toggle('on', k === t); strip.help(TOOL_HELP[t] || ''); if (t !== 'select') select(null); }
+  // (G2910: a tab lights its tools and its palette; the inspector keeps the selection)
+  function setSection(k) { section = k; cancelTool(); tool = 'select'; buildRail(); buildStrip(); palette.refresh(); inspector.refresh(); ctx.onSection && ctx.onSection(SECTIONS.find(s => s.k === k)); }
+  function setTool(t) { cancelTool(); tool = t; for (const k in toolBtns) toolBtns[k].classList.toggle('on', k === t); strip.help(TOOL_HELP[t] || ''); if (t !== 'select') select(null); if (typeof armGhost === 'function') armGhost(); }
 
   // ---- the tool state machine ----------------------------------------------------
   const T = { state: 'armed', pts: [] };
@@ -331,7 +360,7 @@ function mount(host, ctx) {
   // the CORNER picked: an orange disc clicked (or dragged) turns white; Del removes that corner, not the feature
   let corner = null;
   const setCorner = i => { corner = (i === null || i === undefined || !isFinite(+i)) ? null : +i; if (R.corner) R.corner(corner); };
-  const shapeOf = e => (e && !PG.roundOk(e.round) ? (e.poly || e.pts || null) : null);
+  const shapeOf = e => (e && !PG.roundOk(e.round) && !PG.rectOk(e.rect) ? (e.poly || e.pts || null) : null);   // (a round or a rectangle has no corners until freed)
   function removeCorner(id, i) {
     const f = PG.findById(rec, id); if (!f) return false;
     const arr = shapeOf(f.entry); if (!arr || !(i >= 0 && i < arr.length)) return false;
@@ -439,7 +468,7 @@ function mount(host, ctx) {
       if (f.entry.poly && (T.pts.length < 3 || !PG.polySimple(T.pts))) { strip.status(T.pts.length < 3 ? 'a polygon needs three corners' : 'refused: the polygon crosses itself'); return; }
       if (f.entry.pts && T.pts.length < 2) { strip.status('a road needs two points'); return; }
       const pts = T.pts.map(q => [q[0], q[1]]);
-      edit(id, f.layer, x => { if (x.poly) x.poly = pts; else { x.pts = pts; if (Array.isArray(x.tan)) delete x.tan; } }, 'corners of ' + id);
+      edit(id, f.layer, x => { if (x.poly) { x.poly = pts; delete x.round; delete x.rect; } else { x.pts = pts; if (Array.isArray(x.tan)) delete x.tan; } }, 'corners of ' + id);
       cancelTool(); select(id); strip.status(id + ' validated with ' + pts.length + (f.entry.poly ? ' corners' : ' points'));
       return;
     }
@@ -449,8 +478,20 @@ function mount(host, ctx) {
       const c = [+T.pts[0][0].toFixed(2), +T.pts[0][1].toFixed(2)], r = +Math.hypot(T.pts[1][0] - c[0], T.pts[1][1] - c[1]).toFixed(2);
       if (r < 3) { strip.status('refused: a pad is at least 3 m across its radius (' + r.toFixed(1) + ')'); return; }
       const round = { c, r };
-      const e = { id: PG.newId(rec, 'material'), poly: PG.roundPoly(round), round, look: 'concrete', set: 'cracked', tile: null, fade: 0, z: 0 };
-      run({ layer: 'material', id: e.id, before: null, after: e, label: 'round pad ' + e.id });
+      // (G2910: an AREA - its circle, concrete drawn, the wheels on paved; the inspector changes either)
+      const e = { id: PG.newId(rec, 'areas'), poly: PG.roundPoly(round), round, props: { wheels: { surface: PG.SURFACE.PAVED }, draw: { look: 'concrete', z: 0 } } };
+      run({ layer: 'areas', id: e.id, before: null, after: e, label: 'round pad ' + e.id });
+      cancelTool(); select(e.id); return;
+    }
+    if (tool === 'rect' || tool === 'parking') {
+      // A RECTANGLE (G2910): two opposite corners, square to the premises frame (its turn in the inspector); a parking lot is
+      // one drawn concrete with its bays - the bays along its long side
+      if (T.pts.length < 2) { strip.status('click the opposite corner'); return; }
+      const a = T.pts[0], b = T.pts[1], hw = Math.abs(b[0] - a[0]) / 2, hd = Math.abs(b[1] - a[1]) / 2;
+      if (hw < 1.5 || hd < 1.5) { strip.status('refused: a rectangle is at least 3 m each way'); return; }
+      const rect = { c: [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)], hw: +hw.toFixed(2), hd: +hd.toFixed(2), yaw: 0, radius: 0 };
+      const e = { id: PG.newId(rec, 'areas'), poly: PG.rectPoly(rect), rect, props: tool === 'parking' ? areaPreset('parking', null, rect) : {} };
+      run({ layer: 'areas', id: e.id, before: null, after: e, label: (tool === 'parking' ? 'parking lot ' : 'rectangle ') + e.id });
       cancelTool(); select(e.id); return;
     }
     if (TWO_POINT_TOOLS[tool]) {
@@ -476,24 +517,58 @@ function mount(host, ctx) {
     const poly = PG.ensureCCW(T.pts);
     const layer = POLY_TOOLS[tool];
     let e;
-    if (tool === 'flatten') { const lv = medianLevel(poly); e = { id: PG.newId(rec, 'terrain'), kind: 'flatten', poly, level: lv, falloff: bankFor(poly, lv, 10), abs: false, order: 0 }; }
-    else if (tool === 'raise') e = { id: PG.newId(rec, 'terrain'), kind: 'raise', poly, dh: 2, falloff: 10 };
-    else if (tool === 'material') { const sets = materialSets(); e = { id: PG.newId(rec, 'material'), poly, set: sets.length ? sets[0][0] : '', tile: null, fade: 4, z: 0 }; }
-    else if (tool === 'ramp') { const lv = medianLevel(poly); e = { id: PG.newId(rec, 'terrain'), kind: 'ramp', poly, level: lv, slope: 0.02, hdg: 0, falloff: bankFor(poly, lv, 8) }; }
-    else if (tool === 'surface') e = { id: PG.newId(rec, 'surface'), poly, surface: PG.SURFACE.GRAVEL };
-    else if (tool === 'apron') e = { id: PG.newId(rec, 'surface'), poly, surface: PG.SURFACE.PAVED, apron: true };
-    else if (tool === 'zone') e = { id: PG.newId(rec, 'zones'), kind: 'residential', poly, density: 1, seed: null, palette: null, rules: {} };
+    if (tool === 'zone') e = { id: PG.newId(rec, 'zones'), kind: 'residential', poly, density: 1, seed: null, palette: null, rules: {} };
     else if (tool === 'forest') e = { id: PG.newId(rec, 'zones'), kind: 'forest', poly, density: 1, seed: null, palette: null, rules: {} };
-    else if (tool === 'clear') e = { id: PG.newId(rec, 'zones'), kind: 'clear', poly, density: 1, seed: null, palette: null, rules: {} };
-    // G1385: a cover polygon that says only what grows (no terrain type stamped); the first biome until picked
-    else if (tool === 'biome') { const bs = biomeNames(); e = { id: PG.newId(rec, 'ttype'), poly, code: null, veg: bs.length ? { mode: 'biome', mix: bs[0] } : { mode: 'none' } }; }
-    run({ layer, id: e.id, before: null, after: e, label: (e.kind || layer) + ' ' + e.id });
+    // (G2910) every other polygon is ONE AREA, the tool's properties attached
+    else e = { id: PG.newId(rec, 'areas'), poly, props: areaPreset(tool, poly) };
+    run({ layer, id: e.id, before: null, after: e, label: (e.kind || (layer === 'areas' ? TOOL_LABEL[tool] || 'area' : layer)) + ' ' + e.id });
     cancelTool(); select(e.id);
+  }
+  // WHAT A TOOL ATTACHES TO ITS AREA (G2910): the old tools' records, as properties - a flatten's level and bank, a gravel
+  // patch that now DRAWS its gravel (the user: "the polygons saying 'gravel' ... do not seem to draw anything"), an apron
+  // in concrete, a texture, no trees, a vegetation; the concrete, parking, dock and keep-clear presets
+  function areaPreset(t, poly, rect) {
+    const P = {};
+    if (t === 'flatten') { const lv = medianLevel(poly); P.terraform = { kind: 'flatten', level: lv, falloff: bankFor(poly, lv, 10), abs: false, order: 0 }; }
+    else if (t === 'raise') P.terraform = { kind: 'raise', dh: 2, falloff: 10 };
+    else if (t === 'ramp') { const lv = medianLevel(poly); P.terraform = { kind: 'ramp', level: lv, slope: 0.02, hdg: 0, falloff: bankFor(poly, lv, 8) }; }
+    else if (t === 'surface') { P.wheels = { surface: PG.SURFACE.GRAVEL }; P.draw = { look: 'gravel', z: 0 }; }
+    else if (t === 'apron') { P.wheels = { surface: PG.SURFACE.PAVED, apron: true }; P.draw = { look: 'concrete', z: 0 }; }
+    else if (t === 'material') { const sets = materialSets(); P.draw = { set: sets.length ? sets[0][0] : 'cracked', tile: null, fade: 4, z: 0 }; }
+    else if (t === 'clear') P.exclude = { what: ['trees'] };
+    // G1385: a cover polygon that says only what grows (no terrain type stamped); the first biome until picked
+    else if (t === 'biome') { const bs = biomeNames(); P.cover = { code: null, veg: bs.length ? { mode: 'biome', mix: bs[0] } : { mode: 'none' } }; }
+    else if (t === 'concrete' || t === 'parking' || t === 'dock' || t === 'hatch') {
+      P.wheels = { surface: PG.SURFACE.PAVED }; P.draw = { look: 'concrete', z: 0 };
+      if (t !== 'concrete') P.marks = { kind: t };
+      // the marks' frame: a lot's bays run along its long side, a quay's line along the water, the hatching square to the shape
+      if (t === 'parking' && rect) P.draw.yaw = +((rect.yaw || 0) + (rect.hw >= rect.hd ? 0 : Math.PI / 2)).toFixed(4);
+      else if (poly) { const ed = t === 'dock' ? waterEdge(poly) : longestEdge(poly); if (ed) P.draw.yaw = +Math.atan2(ed[1][1] - ed[0][1], ed[1][0] - ed[0][0]).toFixed(4); }
+    }
+    return P;
+  }
+  // how much of each edge's outside is water (3 points 4 m out, the water 20 cm over the ground); null with no water here
+  function waterWet(poly) {
+    const F = R.overlay && R.overlay.frame; if (!F || !world.waterH) return null;
+    return poly.map((a, i) => {
+      const b = poly[(i + 1) % poly.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nx = (b[1] - a[1]) / L, nz = -(b[0] - a[0]) / L;
+      let wet = 0;
+      for (const t of [0.25, 0.5, 0.75]) { const mx = a[0] + (b[0] - a[0]) * t, mz = a[1] + (b[1] - a[1]) * t, sg = PG.inPoly(poly, mx + nx * 0.5, mz + nz * 0.5) ? -1 : 1, w = F.toWorld(mx + nx * 4 * sg, mz + nz * 4 * sg), wl = world.waterH(w[0], w[1]); if (isFinite(wl) && wl > world.terrainH(w[0], w[1]) + 0.2) wet++; }
+      return wet / 3;
+    });
+  }
+  const longestEdge = poly => { let best = null, bl = -1; for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (l > bl) { bl = l; best = [a, b]; } } return best; };
+  // the edge whose outside is water (the longest of them), else the longest: three points 4 m out, the water over the ground
+  function waterEdge(poly) {
+    const W = waterWet(poly); if (!W) return longestEdge(poly);
+    let best = null, bs = -1;
+    for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length], sc = Math.hypot(b[0] - a[0], b[1] - a[1]) * (W[i] >= 0.6 ? 10 : 1); if (sc > bs) { bs = sc; best = [a, b]; } }
+    return best;
   }
 
   // ---- selection, handles, dragging -------------------------------------------------
   let selected = null, drag = null;
-  function select(id) { if (id !== selected) { corner = null; if (T.plotPick && T.plotPick !== id) T.plotPick = null; } selected = id; R.select(id); inspector.refresh(); ctx.redraw && ctx.redraw(); }
+  function select(id) { if (id !== selected) { corner = null; if (T.plotPick && T.plotPick !== id) T.plotPick = null; } selected = id; R.select(id); inspector.refresh(); ctx.onSelect && ctx.onSelect(id); ctx.redraw && ctx.redraw(); }
   function onDown(ev) {
     if (ev.button !== 0) return false;
     if (tool === 'select' && selected) {
@@ -530,6 +605,7 @@ function mount(host, ctx) {
         if (found.layer === 'sites') { drag = { id: selected, layer: 'sites', site: h.key, before, F }; if (h.key.indexOf('i:') === 0) ITEM_FOCUS = h.key.slice(2); return true; }
         // G2890: a round pad's centre / rim, a spline road's handle (keys 'rc' / 'rr', 'h<i>')
         if (PG.roundOk(e.round) && (h.key === 'rc' || h.key === 'rr')) { drag = { id: selected, layer: found.layer, round: h.key, before, F }; return true; }
+        if (PG.rectOk(e.rect) && (h.key === 'qc' || h.key === 'qs')) { drag = { id: selected, layer: found.layer, rect: h.key, before, F }; return true; }   // (G2910: a rectangle's centre, its corner)
         if (e.pts && /^h[0-9]+$/.test(h.key)) { drag = { id: selected, layer: found.layer, tan: +h.key.slice(1), before, F }; return true; }
         const arr = e.poly || e.pts;
         if (h.mid) {
@@ -545,6 +621,8 @@ function mount(host, ctx) {
     return false;
   }
   function onMove(ev) {
+    // (G2914) the model placer's ghost follows the cursor on the ground
+    if (!drag && (tool === 'place' || tool === 'scatter') && ASSET.key) { const g = ctx.ground(ev.clientX, ev.clientY); if (g) armGhost(g); return false; }
     if (!drag) return false;
     const g = ctx.ground(ev.clientX, ev.clientY);
     if (!g) return true;
@@ -604,6 +682,13 @@ function mount(host, ctx) {
       if (drag.round === 'rc') e.round.c = [+L[0].toFixed(2), +L[1].toFixed(2)];
       else e.round.r = +Math.max(3, Math.hypot(L[0] - e.round.c[0], L[1] - e.round.c[1])).toFixed(2);
       e.poly = PG.roundPoly(e.round);
+    }
+    else if (drag.rect) {
+      // a rectangle: the centre carries it, the corner disc sizes it in its own frame; the polygon is the rectangle's again
+      const e = found.entry, Q = e.rect;
+      if (drag.rect === 'qc') Q.c = [+L[0].toFixed(2), +L[1].toFixed(2)];
+      else { const cs = Math.cos(+Q.yaw || 0), sn = Math.sin(+Q.yaw || 0), dx = L[0] - Q.c[0], dz = L[1] - Q.c[1]; Q.hw = +Math.max(1.5, Math.abs(dx * cs + dz * sn)).toFixed(2); Q.hd = +Math.max(1.5, Math.abs(-dx * sn + dz * cs)).toFixed(2); }
+      e.poly = PG.rectPoly(Q);
     }
     else if (drag.tan !== undefined) {
       // a spline road's handle: where the disc is, relative to its point, is that point's outgoing handle
@@ -691,19 +776,19 @@ function mount(host, ctx) {
         // a theme without a mountain works: the yard is its gravel, no cut (G393.3)
         const SF = PG.siteFrame(e), Y = TH.yard;
         const poly = [[Y.x0, Y.z0], [Y.x1, Y.z0], [Y.x1, Y.z1], [Y.x0, Y.z1]].map(q => SF.toLocal(q[0], q[1]).map(v => +v.toFixed(2)));
-        run({ layer: 'surface', id: PG.newId(rec, 'surface'), before: null, after: { id: PG.newId(rec, 'surface'), poly, surface: TH.yardKind === 'paved' ? PG.SURFACE.PAVED : PG.SURFACE.GRAVEL, yard: sid }, label: 'the yard' });
-        // a paved apron wears the cracked concrete (G405)
-        if (TH.yardKind === 'paved') { const mid = PG.newId(rec, 'material'); run({ layer: 'material', id: mid, before: null, after: { id: mid, poly, set: 'cracked', tile: null, fade: 4, z: 0 }, label: 'the apron' }); }
+        // (G2910: ONE area - the yard's wheels, and a paved apron wears the cracked concrete, G405)
+        const yid = PG.newId(rec, 'areas');
+        run({ layer: 'areas', id: yid, before: null, after: { id: yid, name: 'the yard', poly, props: Object.assign({ wheels: { surface: TH.yardKind === 'paved' ? PG.SURFACE.PAVED : PG.SURFACE.GRAVEL, yard: sid } }, TH.yardKind === 'paved' ? { draw: { set: 'cracked', tile: null, fade: 4, z: 0 } } : {}) }, label: 'the yard' });
       }
       if (TH.yard && TH.tram) {
         const SF = PG.siteFrame(e), Y = TH.yard;
         const poly = [[Y.x0, Y.z0], [Y.x1, Y.z0], [Y.x1, Y.z1], [Y.x0, Y.z1]].map(q => SF.toLocal(q[0], q[1]).map(v => +v.toFixed(2)));
-        run({ layer: 'surface', id: PG.newId(rec, 'surface'), before: null, after: { id: PG.newId(rec, 'surface'), poly, surface: PG.SURFACE.GRAVEL, yard: sid }, label: 'the yard' });
+        { const yid = PG.newId(rec, 'areas'); run({ layer: 'areas', id: yid, before: null, after: { id: yid, name: 'the yard', poly, props: { wheels: { surface: PG.SURFACE.GRAVEL, yard: sid } } }, label: 'the yard' }); }
         // THE WORKS STAND ON A FLAT (the village pinned the mountain's foot behind the row, G340): the lower yard -
         // the row, the shop, the office, the sheds, the receiving shed - flattened to its median; the mill climbs the hill above it
         const fpoly = [[Y.x0, Y.z0], [Y.x1, Y.z0], [Y.x1, 30], [Y.x0, 30]].map(q => SF.toLocal(q[0], q[1]).map(v => +v.toFixed(2)));
-        const fid = PG.newId(rec, 'terrain');
-        run({ layer: 'terrain', id: fid, before: null, after: { id: fid, kind: 'flatten', poly: PG.ensureCCW(fpoly), level: medianLevel(fpoly), falloff: bankFor(fpoly, medianLevel(fpoly), 14), abs: false, order: 0 }, label: 'the works flat' });
+        const fid = PG.newId(rec, 'areas');
+        run({ layer: 'areas', id: fid, before: null, after: { id: fid, name: 'the works flat', poly: PG.ensureCCW(fpoly), props: { terraform: { kind: 'flatten', level: medianLevel(fpoly), falloff: bankFor(fpoly, medianLevel(fpoly), 14), abs: false, order: 0 } } }, label: 'the works flat' });
       }
       select(sid); return;
     }
@@ -719,6 +804,8 @@ function mount(host, ctx) {
       setTool('select'); select(best.r.id);
       return;
     }
+    if (tool === 'place') { const id = placeAsset(L); if (id) { strip.status('dropped ' + id + ' (' + ASSET.key + ') - click to drop another, Esc stops'); } return; }
+    if (tool === 'scatter') { scatterAsset(L); return; }
     if (tool === 'prop' || tool === 'billboard' || tool === 'aircraft' || tool === 'animal') {
       const key = OBJ_PICK[tool] || (objectKeys(tool, rec)[0] || [null])[0];
       if (!key) { strip.status('no ' + tool + ' to place here'); return; }
@@ -758,7 +845,9 @@ function mount(host, ctx) {
     else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's') { save(recName); ev.preventDefault(); }
     else if (ev.key === 'Tab') { ctx.cameras && ctx.cameras.toggle(); ev.preventDefault(); }
     else if (ev.key >= '1' && ev.key <= String(Math.min(9, SECTIONS.length))) setSection(SECTIONS[+ev.key - 1].k);
-    else if (ev.key === 'r' && selected) { const f = PG.findById(rec, selected); if (f && f.entry.at) edit(selected, 'sites', x => { x.at.yaw = ((x.at.yaw || 0) + Math.PI / 12); }, 'turn ' + selected); }
+    // R turns 15 degrees: the placer's ghost, a selected site or model / object
+    else if (ev.key === 'r' && (tool === 'place' || tool === 'scatter')) { ASSET.yaw = (ASSET.yaw + (ev.shiftKey ? -1 : 1) * Math.PI / 12) % (Math.PI * 2); armGhost(); palette.refresh(); }
+    else if (ev.key === 'r' && selected) { const f = PG.findById(rec, selected); if (f && f.entry.at) edit(selected, 'sites', x => { x.at.yaw = ((x.at.yaw || 0) + Math.PI / 12); }, 'turn ' + selected); else if (f && f.layer === 'objects' && isFinite(+f.entry.x)) edit(selected, 'objects', x => { x.yaw = +(((+x.yaw || 0) + (ev.shiftKey ? -1 : 1) * Math.PI / 12)).toFixed(4); }, 'turn ' + selected, 'yaw'); }
     else if (ev.key === 'f' && tool === 'select' && ctx.cameras && ctx.cameras.frame) { const f = selected && PG.findById(rec, selected); if (f) ctx.cameras.frame(bboxOf(f.entry)); }
   }
   function deleteSelected() {
@@ -810,55 +899,62 @@ function mount(host, ctx) {
     else rows.note(insp, 'the mix "@' + id + '": the trees share the density by their shares, the bushes the bushes\' count, the grass and flowers their own density x the grass factor - the same rules as every biome');
   }
 
+  // ---- THE INSPECTOR (G2910 SCENERY-ED-2): the SELECTION's plate, whatever tab is lit -----------------------------
+  // The user (11 Oct): "The content of the right panel does not follow the tab selection ... the tabs control the
+  // displayed action buttons, the right zone being a generic inspector" · "provide more info on selection. Clicking on a
+  // polygon leaves very little options". The plate's head says what is selected; nothing selected, it is the scenery's
+  // outline (every feature by kind, a click selects and frames it). The tabs' own rows are the palette's (palette below).
+  const KIND_WORD = { areas: 'area', terrain: 'terrain', surface: 'surface', material: 'material', exclude: 'exclude', roads: 'road', runways: 'runway', zones: 'zone', sites: 'site', links: 'link', objects: 'object', ttype: 'cover' };
+  function selHead(kind, id, label) {
+    const d = $('div', { class: 'pr-selhd' });
+    d.appendChild($('span', { class: 'sk', text: id ? 'SELECTED' : 'NOTHING SELECTED' }));
+    if (id) d.appendChild($('span', { class: 'sn', text: String(kind).toUpperCase() + ' ' + id + (label ? ' · ' + label : ''), title: id }));
+    if (id) { const x = $('button', { class: 'pill', type: 'button', text: '✕', title: 'nothing selected (Esc)' }); x.onclick = () => { select(null); x.blur && x.blur(); }; d.appendChild(x); }
+    insp.appendChild(d);
+    return d;
+  }
+  // the scenery's outline: every feature by kind, each row selects and frames it
+  function outlineRows() {
+    selHead(null, null);
+    rows.section(insp, 'THE SCENERY');   // (G2890: the scenery editor's record)
+    rows.note(insp, rec.name || '(unnamed)');
+    rows.note(insp, PG.LAYERS.filter(k => rec.layers[k].length).map(k => k + ' ' + rec.layers[k].length).join(' · ') || 'nothing yet — pick a tab, a tool, and click the ground');
+    const groups = [['areas', 'AREAS', e => PG.areaLabel(e)], ['runways', 'RUNWAYS', e => e.name || ''], ['roads', 'ROADS', e => (e.cls || '') + ' ' + (+e.w || 3.6).toFixed(1) + ' m'], ['zones', 'ZONES', e => e.kind],
+                    ['sites', 'SITES', e => e.name || ''], ['objects', 'OBJECTS', e => e.kind + ' ' + (e.key || '')], ['terrain', 'TERRAIN (lines and the rest)', e => e.kind], ['surface', 'SURFACES', e => ''], ['material', 'MATERIALS', e => e.look || e.set || ''],
+                    ['exclude', 'EXCLUSIONS', e => (e.what || []).join(', ')], ['ttype', 'COVERS', e => ''], ['links', 'LINKS', e => e.kind]];
+    for (const [k, title, lab] of groups) {
+      const L = rec.layers[k] || []; if (!L.length) continue;
+      const d = $('details', { class: 'pr-outline' }); d.appendChild($('summary', { text: title + ' · ' + L.length })); insp.appendChild(d);
+      const fill = () => {
+        if (d.children.length > 1) return;
+        for (const e of L.slice(0, 400)) {
+          const r = $('div', { class: 'r item', style: 'cursor:pointer' });
+          r.appendChild($('span', { class: 'k', text: e.id + (lab(e) ? ' · ' + lab(e) : ''), title: e.id }));
+          r.onclick = () => { select(e.id); if (ctx.cameras && ctx.cameras.frame) { const b = bboxOf(e); if (b) ctx.cameras.frame(b); } };
+          d.appendChild(r);
+        }
+        if (L.length > 400) d.appendChild($('div', { class: 'note', text: (L.length - 400) + ' more: select them on the map' }));
+      };
+      d.addEventListener('toggle', fill);
+      if (OUTLINE_OPEN === k) { d.setAttribute('open', ''); fill(); }
+    }
+    rows.note(insp, 'select a feature on the map (or above) to see everything about it here; the tabs on the left hold the tools and their palettes');
+  }
+  let OUTLINE_OPEN = null;
   const inspector = { refresh() {
     insp.innerHTML = '';
-    if (section === 'file') return fileRows();
-    if (section === 'view') return viewRows();
-    if (section === 'life') return lifeRows();
     const f = selected && PG.findById(rec, selected);
-    if (!f) {
-      rows.section(insp, 'THE SCENERY');   // (G2890: the scenery editor's record)
-      rows.note(insp, rec.name || '(unnamed)');
-      rows.note(insp, PG.LAYERS.filter(k => rec.layers[k].length).map(k => k + ' ' + rec.layers[k].length).join(' · ') || 'nothing yet — pick a tool above and click the ground');
-      const feats = [];
-      for (const k of ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'objects', 'ttype']) for (const e of rec.layers[k]) feats.push([e.id, (e.kind || k.replace(/s$/, '')) + ' ' + e.id + (e.name ? ' ' + e.name : '')]);
-      if (feats.length) rows.select(insp, 'features', feats, () => '', v => select(v));
-      if (section === 'zones') rows.note(insp, 'a zone sows plots along the ROADS inside it; the house generator stands a house on each. Trace a road first.');
-      if (section === 'sites' && ctx.catalogue) {
-        // THE PALETTE BY CATEGORY (v9): the theme's seven words as pills, the entries of the one picked
-        // in the select (a preset's name and its generator's word); 'all' lists the whole catalogue
-        const TH = PG.themeOf(rec), cats = TH.categories || PG.CATEGORIES;
-        const keysOf = c => (c === 'all' ? ctx.catalogue.keys() : ctx.catalogue.byCat(c).map(q => q.key));
-        const nOf = c => keysOf(c).length;
-        if (!PALETTE_CAT || (PALETTE_CAT !== 'all' && !nOf(PALETTE_CAT))) PALETTE_CAT = cats.find(c => nOf(c)) || 'all';
-        const label = k => { const i = k.indexOf('/'); return i < 0 ? k : k.slice(i + 1) + ' · ' + k.slice(0, i); };
-        rows.pills(insp, 'category', [['all', 'all', 'the whole catalogue']].concat(cats.map(c => [c, c, nOf(c) + ' in the catalogue'])), () => PALETTE_CAT, v => { PALETTE_CAT = v; const ks = keysOf(v); if (ks.indexOf(PALETTE_KEY) < 0) PALETTE_KEY = ks[0] || null; inspector.refresh(); });
-        const keys = keysOf(PALETTE_CAT);
-        if (!PALETTE_KEY || keys.indexOf(PALETTE_KEY) < 0) PALETTE_KEY = keys[0] || null;
-        if (keys.length) rows.select(insp, 'building', keys.map(k => [k, label(k)]), () => PALETTE_KEY || '', v => { PALETTE_KEY = v; });
-        else rows.note(insp, 'nothing of that category in this catalogue');
-        rows.note(insp, ctx.catalogue.keys().length + ' entries in the catalogue under the ' + TH.name + ' theme; pick one, then click the ground with the building tool');
-        // THE SITE THEMES (G393.3): a whole site - the mine, the sports ground - stood by the theme tool
-        const THS = window.VILLAGE_GEN && window.VILLAGE_GEN.THEMES;
-        if (THS) { const tk = Object.keys(THS); if (!SITE_THEME || tk.indexOf(SITE_THEME) < 0) SITE_THEME = tk[0]; rows.select(insp, 'site theme', tk.map(k => [k, THS[k].name]), () => SITE_THEME, v => { SITE_THEME = v; }); }
-      }
-      if (section === 'objects') {
-        for (const kind of ['prop', 'billboard', 'aircraft', 'animal']) {
-          const keys = objectKeys(kind, rec);
-          if (!keys.length) { rows.note(insp, 'no ' + kind + 's registered here'); continue; }
-          if (!OBJ_PICK[kind]) OBJ_PICK[kind] = keys[0][0];
-          rows.select(insp, kind, keys, () => OBJ_PICK[kind] || '', v => { OBJ_PICK[kind] = v; });
-        }
-        rows.note(insp, 'a prop stands on the composed ground where you click, tilted to it; a billboard is a painted sign on its posts; an aeroplane is a build parked on its wheels, nose along its turn. Each is ONE record: drag its disc to move it.');
-        rows.note(insp, 'an ANIMAL record is a HOTSPOT, not one animal: how many of the species live there and over what radius. They sow themselves inside it, seeded per individual, so changing the count never moves the ones already standing.');
-      }
-      if (section === 'airfield') rows.note(insp, 'a runway is a PROFILE: two clicks place it, the inspector sets its length, width, heading, surface and slope; the ground is graded to it, its class reaches the wheels, the pilot\'s pattern and the PAPI are derived. ?world=A stands it on the flight world.');
-      if (section === 'vegetation') rows.note(insp, 'a forest polygon plants the wood (its density and species in the inspector); a vegetation polygon says what the island grows inside it - none, any biome, or a new biome of its own; a no-trees polygon keeps the trees out; a tree by hand is one record.');
-      return;
-    }
+    if (!f) return outlineRows();
     const e = f.entry, id = e.id, layer = f.layer;
     const ed = (mut, label, key) => edit(id, layer, mut, label, key);
-    rows.section(insp, (e.kind || layer.replace(/s$/, '')).toUpperCase() + ' ' + id);
+    if (layer === 'areas') {
+      selHead('area', id, PG.areaLabel(e));
+      areaRows(e, ed);
+      shapeRows(e, id);
+      rows.button(insp, 'delete ' + id, deleteSelected);
+      return;
+    }
+    selHead(layer === 'objects' ? (e.kind || 'object') : (layer === 'zones' ? (e.kind || 'zone') + ' zone' : KIND_WORD[layer] || layer), id, layer === 'objects' ? (e.key || '') : (e.name || ''));
     // THE LIFE HERE (SCENERY LIFE, contract v1.22.1): the premises' own, people only (a ceremony ground: no mast, no
     // cars, no clutter), or none; a block written by hand (any other keys) shows as its own and is kept
     if (/^(zones|sites|runways|roads)$/.test(layer) && window.SCENERY_LIFE) {
@@ -1111,6 +1207,11 @@ function mount(host, ctx) {
       if (e.kind === 'prop') {
         rows.slider(insp, 'lift (m)', -1, 3, 0.05, () => e.dy || 0, v => ed(x => { x.dy = v; }, 'lift of ' + id, 'dy'), v => v.toFixed(2));
         rows.select(insp, 'stands', [['ground', 'on the ground, tilted to it'], ['flat', 'level']], () => e.on || 'ground', v => ed(x => { x.on = v; }, 'stance of ' + id));
+        // (G2914) its size: the model scaled whole (the placer's Alt + wheel; 1 = as baked)
+        rows.slider(insp, 'scale', 0.25, 4, 0.05, () => (+e.s > 0 ? +e.s : 1), v => ed(x => { if (Math.abs(v - 1) < 1e-3) delete x.s; else x.s = +v.toFixed(3); }, 'scale of ' + id, 's'), v => 'x' + (+v).toFixed(2));
+        const PRk = propRegOf(), pk = PRk && PRk.props[e.key];
+        if (pk) rows.note(insp, (pk.label || e.key) + (pk.dim ? ' · ' + pk.dim.map(v => (v * (+e.s || 1)).toFixed(1)).join(' x ') + ' m' : '') + (pk.nt ? ' · ' + pk.nt.toLocaleString() + ' triangles' : '') + (pk.group ? ' · ' + pk.group : ''));
+        rows.note(insp, 'drag its disc to move it; R turns it 15 degrees (Shift+R back)');
       } else if (e.kind === 'billboard') rows.slider(insp, 'width (m)', 2, 6, 0.1, () => e.w || 3.6, v => ed(x => { x.w = v; }, 'width of ' + id, 'w'), v => v.toFixed(1));
     } else if (layer === 'ttype') vegRows(e, id, ed);
     else if (layer === 'objects' && e.kind === 'tree') {
@@ -1119,13 +1220,28 @@ function mount(host, ctx) {
       rows.slider(insp, 'size', 0.4, 1.8, 0.02, () => e.size || 1, v => ed(x => { x.size = v; }, 'size of ' + id, 'size'));
       rows.slider(insp, 'turn (°)', 0, 360, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
     }
-    // THE SHAPE (G2890; the user: "I don't know how to edit an existing polygon ... add more sides, subdivide the shape, move
-    // the points individually"): what the hand does, the corner picked, and the buttons that do it without the mouse's art
+    shapeRows(e, id);
+    rows.button(insp, 'delete ' + id, deleteSelected);
+  } };
+  // ---- THE SHAPE (G2890; the user: "I don't know how to edit an existing polygon ... add more sides, subdivide the shape,
+  // move the points individually"): what the hand does, the corner picked, and the buttons that do it without the mouse's
+  // art. G2910: an area's round or rectangle too
+  function shapeRows(e, id) {
+    const ed = (mut, label, key) => { const f = PG.findById(rec, id); if (f) edit(id, f.layer, mut, label, key); };
     if (PG.roundOk(e.round)) {
       rows.section(insp, 'SHAPE · ROUND');
       rows.slider(insp, 'radius (m)', 3, 200, 0.5, () => +e.round.r, v => ed(x => { x.round = Object.assign({}, x.round, { r: v }); x.poly = PG.roundPoly(x.round); }, 'radius of ' + id, 'padR'), v => v.toFixed(1) + ' m');
       rows.note(insp, 'the orange disc moves the pad, the cyan one on its rim sets its radius');
       rows.button(insp, 'free corners (a 12-sided polygon to shape by hand)', () => ed(x => { x.poly = PG.roundPoly({ c: x.round.c, r: x.round.r, n: 12 }); delete x.round; }, 'free corners of ' + id));
+    } else if (PG.rectOk(e.rect)) {
+      const Q = e.rect, setQ = (patch, label, key) => ed(x => { x.rect = Object.assign({}, x.rect, patch); x.poly = PG.rectPoly(x.rect); }, label + ' of ' + id, key);
+      rows.section(insp, 'SHAPE · RECTANGLE');
+      rows.slider(insp, 'length (m)', 3, 400, 0.5, () => 2 * Q.hw, v => setQ({ hw: v / 2 }, 'length', 'qw'), v => v.toFixed(1) + ' m');
+      rows.slider(insp, 'width (m)', 3, 400, 0.5, () => 2 * Q.hd, v => setQ({ hd: v / 2 }, 'width', 'qd'), v => v.toFixed(1) + ' m');
+      rows.slider(insp, 'turn (°)', -180, 180, 1, () => (+Q.yaw || 0) * 180 / Math.PI, v => setQ({ yaw: +(v * Math.PI / 180).toFixed(4) }, 'turn', 'qy'), v => v.toFixed(0) + '°');
+      rows.slider(insp, 'rounded corners (m)', 0, 30, 0.5, () => +Q.radius || 0, v => setQ({ radius: v }, 'corners', 'qr'), v => v ? v.toFixed(1) + ' m' : 'square');
+      rows.note(insp, 'the orange disc moves it, the cyan one on its corner sizes it');
+      rows.button(insp, 'free corners (its outline to shape by hand)', () => ed(x => { delete x.rect; }, 'free corners of ' + id));
     } else if (e.poly || e.pts) {
       const arr = e.poly || e.pts, word = e.poly ? 'corner' : 'point';
       rows.section(insp, 'SHAPE · ' + arr.length + ' ' + word.toUpperCase() + 'S');
@@ -1137,8 +1253,351 @@ function mount(host, ctx) {
       rows.button(insp, 'subdivide: a ' + word + ' mid-way on every edge', () => subdivide(id));
       rows.button(insp, 'continue drawing from the last ' + word, () => resumeDrawing(id));
     }
-    rows.button(insp, 'delete ' + id, deleteSelected);
+  }
+
+  // ---- AN AREA (G2910): the facts, what it does, what it overlaps, then a section per property ----------------------------
+  const PROP_TITLE = { terraform: 'TERRAFORM', wheels: 'WHEELS', draw: 'DRAW', marks: 'MARKS', exclude: 'EXCLUDE', cover: 'COVER' };
+  const PROP_WHY = { terraform: 'moves the ground: flat, raised or lowered, a slope', wheels: 'the class the wheels feel (a hard one keeps the trees and plots out)', draw: 'a surface drawn on the ground: a pavement (concrete, asphalt, gravel, dirt, sand, grass) or a texture',
+                     marks: 'weathered paint on the pavement: parking bays, a dock\'s edge, keep-clear hatching', exclude: 'keeps the trees and / or the plots out', cover: 'what grows here and the terrain type it stamps' };
+  const HARD = [PG.SURFACE.PAVED, PG.SURFACE.GRAVEL, PG.SURFACE.SAND];
+  const lookCls = d => (d && d.look && PG.RUNWAY_LOOKS[d.look] && PG.RUNWAY_LOOKS[d.look].cls) || null;
+  const m2 = A => (A >= 10000 ? (A / 10000).toFixed(2) + ' ha' : Math.round(A).toLocaleString() + ' m²');
+  // a fresh property, the way the tools make it (the defaults follow the draw: a pavement proposes the wheels it implies)
+  function propDefault(a, k) {
+    const P = a.props || {}, poly = a.poly || [];
+    if (k === 'terraform') { const lv = medianLevel(poly); return { kind: 'flatten', level: lv, falloff: bankFor(poly, lv, 10), abs: false, order: 0 }; }
+    if (k === 'wheels') { const L = P.draw && P.draw.look && PG.RUNWAY_LOOKS[P.draw.look]; return { surface: L && L.surface !== null && L.surface !== undefined ? +L.surface : PG.SURFACE.GRAVEL }; }
+    if (k === 'draw') return { look: 'concrete', z: 0 };
+    if (k === 'marks') return { kind: 'parking' };
+    if (k === 'exclude') return { what: ['trees'] };
+    if (k === 'cover') { const bs = biomeNames(); return { code: null, veg: bs.length ? { mode: 'biome', mix: bs[0] } : { mode: 'none' } }; }
+    return {};
+  }
+  function addProp(id, k) {
+    const f = PG.findById(rec, id); if (!f || f.layer !== 'areas') return false;
+    const a = f.entry;
+    edit(id, 'areas', x => {
+      x.props = Object.assign({}, x.props);
+      x.props[k] = propDefault(x, k);
+      // the defaults follow the draw: a pavement wheels its class, marks want a pavement (concrete) turned to the long side
+      if (k === 'draw' && !x.props.wheels) x.props.wheels = { surface: PG.SURFACE.PAVED };
+      if (k === 'marks') {
+        if (!lookCls(x.props.draw)) { x.props.draw = Object.assign({ z: 0 }, x.props.draw || {}, { look: 'concrete' }); delete x.props.draw.set; if (!x.props.wheels) x.props.wheels = { surface: PG.SURFACE.PAVED }; }
+        if (x.props.draw.yaw === undefined) { const ed0 = PG.rectOk(x.rect) ? null : longestEdge(x.poly); x.props.draw.yaw = PG.rectOk(x.rect) ? +((x.rect.yaw || 0) + (x.rect.hw >= x.rect.hd ? 0 : Math.PI / 2)).toFixed(4) : ed0 ? +Math.atan2(ed0[1][1] - ed0[0][1], ed0[1][0] - ed0[0][0]).toFixed(4) : 0; }
+      }
+    }, k + ' added to ' + id);
+    return !!a;
+  }
+  function removeProp(id, k) {
+    const f = PG.findById(rec, id); if (!f || f.layer !== 'areas' || !(f.entry.props || {})[k]) return false;
+    edit(id, 'areas', x => { x.props = Object.assign({}, x.props); delete x.props[k]; if (k === 'draw') delete x.props.marks; }, k + ' removed from ' + id);
+    return true;
+  }
+  // what overlaps an area: the other areas, the zones, the strips, the roads crossing it (each a chip that selects it)
+  function overlapsOf(a) {
+    const out = [], poly = a.poly; if (!poly || poly.length < 3) return out;
+    const bb = PG.polyBBox(poly), hitBB = q => !(q.x1 < bb.x0 || q.x0 > bb.x1 || q.z1 < bb.z0 || q.z0 > bb.z1);
+    for (const b of rec.layers.areas) if (b !== a && b.poly && b.poly.length >= 3 && hitBB(PG.polyBBox(b.poly)) && PG.polysOverlap(poly, b.poly)) out.push([b.id, PG.areaLabel(b)]);
+    for (const z of rec.layers.zones) if (z.poly && z.poly.length >= 3 && hitBB(PG.polyBBox(z.poly)) && PG.polysOverlap(poly, z.poly)) out.push([z.id, z.kind + ' zone']);
+    for (const r of rec.layers.runways) if (r.c && r.len > 0 && r.wid > 0) { const box = PG.runwayBox(Object.assign({}, PG.RUNWAY_DEF, r), 0); if (hitBB(PG.polyBBox(box)) && PG.polysOverlap(poly, box)) out.push([r.id, r.name || 'strip']); }
+    for (const r of rec.layers.roads) if (r.pts && r.pts.length >= 2) {
+      const ln = PG.roadLine(r); let hit = false;
+      for (let i = 0; i + 1 < ln.length && !hit; i++) { const p = ln[i], q = ln[i + 1], n = Math.max(1, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 4)); for (let k = 0; k <= n && !hit; k++) { const x = p[0] + (q[0] - p[0]) * k / n, z = p[1] + (q[1] - p[1]) * k / n; if (x >= bb.x0 && x <= bb.x1 && z >= bb.z0 && z <= bb.z1 && PG.inPoly(poly, x, z)) hit = true; } }
+      if (hit) out.push([r.id, 'road']);
+    }
+    return out;
+  }
+  function areaRows(a, ed) {
+    const id = a.id, P = a.props || {}, poly = a.poly || [];
+    const nm = $('input', { type: 'text', value: a.name || '', placeholder: 'its name (optional)' }); nm.className = 'pr-name'; nm.onchange = () => ed(x => { if (nm.value) x.name = nm.value; else delete x.name; }, 'name of ' + id); insp.appendChild(nm);
+    // THE FACTS: its size, its corners, its box; what the wheels feel at its middle (the composed answer, every layer said)
+    if (poly.length >= 3) {
+      let per = 0; for (let i = 0; i < poly.length; i++) { const p = poly[i], q = poly[(i + 1) % poly.length]; per += Math.hypot(q[0] - p[0], q[1] - p[1]); }
+      const bb = PG.polyBBox(poly), c = PG.polyCentroid(poly);
+      rows.note(insp, m2(Math.abs(PG.polyArea(poly))) + ' · ' + per.toFixed(0) + ' m round · ' + (PG.roundOk(a.round) ? 'a circle r ' + (+a.round.r).toFixed(1) + ' m' : PG.rectOk(a.rect) ? 'a rectangle' : poly.length + ' corners') + ' · ' + (bb.x1 - bb.x0).toFixed(0) + ' x ' + (bb.z1 - bb.z0).toFixed(0) + ' m');
+      const O = R.overlay;
+      if (O && O.frame) { const w = O.frame.toWorld(c[0], c[1]); const s = O.surfaceAt ? PG.SURFACE_NAMES[O.surfaceAt(w[0], w[1])] : null; const tx = O.excludeAt ? O.excludeAt(w[0], w[1], 'trees') : false;
+        rows.note(insp, 'at its middle: ' + (s ? 'the wheels feel ' + s.toLowerCase() : 'the island\'s own ground') + (tx ? ' · no trees' : '') + ' · ' + (R.heightAt(w[0], w[1]) - O.frame.y0).toFixed(1) + ' m over the anchor'); }
+    }
+    // WHAT IT DOES, one line each - and what it does NOT (the surprise the user met: a gravel band that draws nothing)
+    const does = [], keeps = new Set((P.exclude && P.exclude.what) || []);
+    if (P.terraform) does.push('moves the ground: ' + (P.terraform.kind === 'flatten' ? 'flat at ' + (+P.terraform.level || 0).toFixed(1) + ' m' : P.terraform.kind === 'raise' ? ((+P.terraform.dh || 0) >= 0 ? 'raised ' : 'lowered ') + Math.abs(+P.terraform.dh || 0).toFixed(1) + ' m' : 'a ' + ((+P.terraform.slope || 0) * 100).toFixed(1) + ' % slope'));
+    if (P.wheels) { does.push('the wheels feel ' + (PG.SURFACE_NAMES[+P.wheels.surface] || '?').toLowerCase() + (P.wheels.apron ? ' (an apron)' : '')); if (HARD.indexOf(+P.wheels.surface) >= 0) { keeps.add('trees'); keeps.add('plots'); } }
+    if (P.draw) does.push('draws ' + (lookCls(P.draw) ? (PG.RUNWAY_LOOKS[P.draw.look].name || P.draw.look) + ' (the pavement: no repetition)' : 'the texture ' + P.draw.set));
+    if (P.marks) does.push('paints ' + P.marks.kind + ' marks');
+    if (keeps.size) does.push('keeps out: ' + Array.from(keeps).join(', '));
+    if (P.cover) does.push(P.cover.code !== null && P.cover.code !== undefined && P.cover.code !== '' ? 'stamps terrain type ' + P.cover.code : 'grows ' + (P.cover.veg ? (P.cover.veg.mode === 'biome' ? 'the biome ' + P.cover.veg.mix : P.cover.veg.mode === 'none' ? 'nothing of a biome' : 'its own biome') : 'its type\'s biome'));
+    rows.section(insp, 'WHAT IT DOES');
+    if (!does.length) rows.note(insp, 'nothing yet: a sketch - add a property below', 'warn');
+    for (const t of does) rows.note(insp, t, 'ok');
+    if (P.wheels && !P.draw) rows.note(insp, 'it draws NOTHING: the wheels feel ' + (PG.SURFACE_NAMES[+P.wheels.surface] || '?').toLowerCase() + ' and the trees keep out, but the ground looks as it was - add a DRAW', 'warn');
+    const ov = overlapsOf(a);
+    if (ov.length) {
+      const d = $('div', { class: 'r' }); d.appendChild($('span', { class: 'k', text: 'overlaps', title: 'the features that share its ground - a click selects one' }));
+      const w = $('span', { class: 'pills' });
+      for (const [oid, lab] of ov.slice(0, 16)) { const b = $('button', { class: 'pill', type: 'button', text: oid, title: lab }); b.onclick = () => { select(oid); const f2 = PG.findById(rec, oid); if (f2 && ctx.cameras && ctx.cameras.frame) ctx.cameras.frame(bboxOf(f2.entry)); }; w.appendChild(b); }
+      d.appendChild(w); insp.appendChild(d);
+    }
+    // its issues (the record's, naming it or one of its entries)
+    try { const iss = PG.issues({ layers: { areas: [a] } }).filter(t => t.indexOf(id) >= 0 && !/duplicate id/.test(t)); for (const t of iss.slice(0, 4)) rows.note(insp, '⚠ ' + t, 'bad'); } catch (err) {}
+    // THE PROPERTIES, in the order they compose
+    const sec = (k, summary) => { rows.section(insp, PROP_TITLE[k] + (summary ? ' · ' + summary : '')); };
+    const rm = k => rows.button(insp, '✕ remove the ' + PROP_TITLE[k].toLowerCase(), () => removeProp(id, k));
+    const edP = (k, mut, label, key) => ed(x => { x.props = x.props || {}; if (!x.props[k]) x.props[k] = {}; mut(x.props[k], x); }, label + ' of ' + id, key);
+    if (P.terraform) {
+      const t = P.terraform, edT = (mut, label, key) => edP('terraform', mut, label, key);
+      sec('terraform', t.kind);
+      rows.pills(insp, 'kind', [['flatten', 'flat', 'the ground inside at one level'], ['raise', 'raise / lower', 'the ground lifted or dropped by a height'], ['ramp', 'slope', 'a constant slope through a height at the middle']], () => t.kind,
+        v => edT(q => { const lv = medianLevel(poly); if (v === 'flatten') { q.kind = 'flatten'; if (!isFinite(+q.level)) q.level = lv; delete q.dh; } else if (v === 'raise') { q.kind = 'raise'; if (!isFinite(+q.dh)) q.dh = 2; } else { q.kind = 'ramp'; if (!isFinite(+q.level)) q.level = lv; if (!isFinite(+q.slope)) q.slope = 0.02; if (!isFinite(+q.hdg)) q.hdg = 0; } }, 'terraform'));
+      if (t.kind === 'flatten' || t.kind === 'ramp') {
+        rows.slider(insp, t.kind === 'ramp' ? 'height at the middle (m)' : 'level (m)', -40, 80, 0.1, () => +t.level || 0, v => edT(q => { q.level = v; }, 'level', 'level'), v => v.toFixed(1) + ' m');
+        rows.check(insp, 'absolute height', () => !!t.abs, v => edT(q => { q.abs = v; }, 'absolute'));
+        rows.button(insp, 'level to the ground under it (its median)', () => edT(q => { q.level = medianLevel(poly); q.abs = false; }, 'level'));
+      }
+      if (t.kind === 'ramp') {
+        rows.slider(insp, 'slope (%)', 0, 15, 0.1, () => (+t.slope || 0) * 100, v => edT(q => { q.slope = v / 100; }, 'slope', 'slope'), v => v.toFixed(1) + ' %');
+        rows.slider(insp, 'rising toward (°)', 0, 360, 1, () => ((+t.hdg || 0) + 360) % 360, v => edT(q => { q.hdg = v; }, 'heading', 'hdg'), v => v.toFixed(0) + '°');
+      }
+      if (t.kind === 'raise') rows.slider(insp, 'lift (m)', -30, 30, 0.1, () => +t.dh || 0, v => edT(q => { q.dh = v; }, 'lift', 'dh'), v => (v >= 0 ? '+' : '') + v.toFixed(1) + ' m');
+      rows.slider(insp, 'falloff (m)', 1, 120, 1, () => +t.falloff || 10, v => edT(q => { q.falloff = v; }, 'falloff', 'falloff'), v => v.toFixed(0) + ' m');
+      rm('terraform');
+    }
+    if (P.wheels) {
+      const w = P.wheels, edW = (mut, label, key) => edP('wheels', mut, label, key);
+      sec('wheels', (PG.SURFACE_NAMES[+w.surface] || '?').toLowerCase());
+      rows.select(insp, 'the wheels feel', [['0', 'grass'], ['6', 'gravel'], ['5', 'paved'], ['7', 'sand'], ['1', 'rock'], ['2', 'scree'], ['3', 'forest floor']], () => String(+w.surface), v => edW(q => { q.surface = +v; }, 'wheels'));
+      rows.check(insp, 'an apron (the pilot lists it)', () => !!w.apron, v => edW(q => { if (v) q.apron = true; else delete q.apron; }, 'apron'));
+      rows.slider(insp, 'priority', -5, 5, 1, () => +w.z || 0, v => edW(q => { if (v) q.z = v; else delete q.z; }, 'priority', 'wz'), v => v.toFixed(0) + (v > 0 ? ' (over)' : v < 0 ? ' (under)' : ''));
+      if (HARD.indexOf(+w.surface) >= 0) rows.note(insp, 'a hard surface: no tree grows and no plot is sown inside (always so - shown in WHAT IT DOES)');
+      rm('wheels');
+    }
+    if (P.draw) {
+      const d = P.draw, edD = (mut, label, key) => edP('draw', mut, label, key), pave = !!lookCls(d);
+      sec('draw', pave ? (PG.RUNWAY_LOOKS[d.look].name || d.look) : 'texture ' + (d.set || '?'));
+      rows.pills(insp, 'drawn as', [['pave', 'a pavement', 'concrete, asphalt, gravel, dirt, sand, grass - hex-tiled, never repeating, with its wear'], ['set', 'a texture', 'a PBR set projected on the ground, its edge faded']], () => (pave ? 'pave' : 'set'),
+        v => edD(q => { if (v === 'pave') { q.look = q.look && PG.RUNWAY_LOOKS[q.look] && PG.RUNWAY_LOOKS[q.look].cls ? q.look : 'concrete'; } else { delete q.look; q.set = q.set || (materialSets()[0] || ['cracked'])[0]; if (q.fade === undefined) q.fade = 4; } }, 'draw'));
+      if (pave) {
+        rows.select(insp, 'surface', Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].cls).map(k => [k, PG.RUNWAY_LOOKS[k].name]), () => d.look,
+          v => edD((q, x) => { q.look = v; const L = PG.RUNWAY_LOOKS[v]; if (!x.props.wheels && L && L.surface !== null && L.surface !== undefined) x.props.wheels = { surface: +L.surface }; }, 'surface'));
+        rows.slider(insp, 'lanes turned (°)', -180, 180, 1, () => (+d.yaw || 0) * 180 / Math.PI, v => edD(q => { q.yaw = v * Math.PI / 180; }, 'yaw', 'yaw'), v => v.toFixed(0) + '°');
+        rows.button(insp, 'turn the lanes along its longest side', () => { const e0 = longestEdge(poly); if (e0) edD(q => { q.yaw = +Math.atan2(e0[1][1] - e0[0][1], e0[1][0] - e0[0][0]).toFixed(4); }, 'yaw'); });
+        // (the band, the wear and the paint's age - the pavement's rows, on this draw)
+        pavRows(d, id, 'material', (mut, label, key) => ed(x => { mut(x.props.draw); }, label, key), PG.RUNWAY_LOOKS[d.look]);
+      } else {
+        const sets = materialSets();
+        if (sets.length) rows.select(insp, 'set', sets, () => d.set || '', v => edD(q => { q.set = v; }, 'set')); else rows.note(insp, 'no texture sets on this page');
+        rows.slider(insp, 'tile (m, 0 = the set\'s own)', 0, 16, 0.5, () => +d.tile || 0, v => edD(q => { q.tile = v > 0 ? v : null; }, 'tile', 'tile'), v => (v > 0 ? v.toFixed(1) + ' m' : 'the set\'s'));
+        rows.slider(insp, 'fade (m)', 0, 40, 0.5, () => +d.fade || 0, v => edD(q => { q.fade = v; }, 'fade', 'fade'), v => v.toFixed(1) + ' m');
+        rows.note(insp, 'a texture repeats at its tile; a pavement never does - prefer the pavement for concrete. A premises wears up to four sets (the map has four slots)');
+      }
+      rows.slider(insp, 'priority', -5, 5, 1, () => +d.z || 0, v => edD(q => { q.z = v; }, 'priority', 'dz'), v => v.toFixed(0) + (v > 0 ? ' (over)' : v < 0 ? ' (under)' : ''));
+      rm('draw');
+    }
+    if (P.marks) {
+      const mk = P.marks, D0 = PG.MARK_DEF[mk.kind] || {}, edM = (mut, label, key) => edP('marks', mut, label, key), V = k => (mk[k] !== undefined && mk[k] !== null ? +mk[k] : D0[k]);
+      // the marks as the renderer paints them (in the area's frame; the count and what is wrong)
+      const c = PG.polyBBox(poly), Wt = mk.kind === 'dock' ? waterWet(poly) : null, AM = PG.areaMarks(poly, mk, { cx: (c.x0 + c.x1) / 2, cz: (c.z0 + c.z1) / 2, yaw: +(P.draw && P.draw.yaw) || 0 }, Wt ? (i => Wt[i] || 0) : null);
+      sec('marks', mk.kind + (AM.n ? ' · ' + AM.n + (mk.kind === 'parking' ? ' bays' : mk.kind === 'dock' ? ' (line + bollards)' : ' bars') : ''));
+      rows.pills(insp, 'kind', [['parking', 'parking', 'rows of bays across an aisle'], ['dock', 'dock', 'the quay\'s edge line and the bollard spots, on the side that meets the water'], ['hatch', 'keep clear', 'hatching bars inside an outline']], () => mk.kind, v => edM(q => { for (const k of Object.keys(q)) delete q[k]; q.kind = v; }, 'marks'));
+      rows.pills(insp, 'paint', [['white', 'white'], ['yellow', 'yellow']], () => mk.colour || D0.colour, v => edM(q => { q.colour = v; }, 'paint'));
+      if (mk.kind === 'parking') {
+        rows.slider(insp, 'bay width (m)', 2, 4, 0.1, () => V('bay'), v => edM(q => { q.bay = v; }, 'bay', 'mBay'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, 'bay depth (m)', 3, 8, 0.1, () => V('depth'), v => edM(q => { q.depth = v; }, 'depth', 'mDepth'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, 'aisle (m)', 0, 12, 0.5, () => V('aisle'), v => edM(q => { q.aisle = v; }, 'aisle', 'mAisle'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, 'rows (0 = as many as fit)', 0, 12, 1, () => V('rows'), v => edM(q => { q.rows = v; }, 'rows', 'mRows'), v => v ? String(v) : 'all');
+      } else if (mk.kind === 'dock') {
+        rows.slider(insp, 'bollards every (m)', 3, 30, 0.5, () => V('bollard'), v => edM(q => { q.bollard = v; }, 'bollards', 'mBol'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, 'line width (m)', 0.1, 0.5, 0.01, () => V('line'), v => edM(q => { q.line = v; }, 'line', 'mLine'), v => v.toFixed(2) + ' m');
+        rows.select(insp, 'the quay', [['', 'the edge that meets the water']].concat(poly.map((q, i) => [String(i), 'edge ' + (i + 1)])), () => (mk.edge === null || mk.edge === undefined ? '' : String(mk.edge)), v => edM(q => { if (v === '') delete q.edge; else q.edge = +v; }, 'quay'));
+        rows.button(insp, 'turn the pavement to the quay', () => { const w0 = waterEdge(poly), e0 = (mk.edge !== undefined && mk.edge !== null && poly[+mk.edge]) ? [poly[+mk.edge], poly[(+mk.edge + 1) % poly.length]] : w0; if (e0) ed(x => { x.props.draw.yaw = +Math.atan2(e0[1][1] - e0[0][1], e0[1][0] - e0[0][0]).toFixed(4); }, 'yaw of ' + id); });
+      } else if (mk.kind === 'hatch') {
+        rows.slider(insp, 'bars every (m)', 0.6, 4, 0.1, () => V('pitch'), v => edM(q => { q.pitch = v; }, 'pitch', 'mPitch'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, 'bar width (m)', 0.15, 1.5, 0.05, () => V('bar'), v => edM(q => { q.bar = v; }, 'bar', 'mBar'), v => v.toFixed(2) + ' m');
+      }
+      rows.slider(insp, 'kept inside by (m)', 0, 4, 0.1, () => V('inset'), v => edM(q => { q.inset = v; }, 'inset', 'mIns'), v => v.toFixed(1) + ' m');
+      const age = (P.draw && P.draw.pav && P.draw.pav.paintAge !== undefined) ? +P.draw.pav.paintAge : null;
+      rows.slider(insp, 'paint age', 0, 1, 0.05, () => (age === null ? (PAVM ? PAVM.RECIPE.paintAge : 0.5) : age), v => ed(x => { x.props.draw.pav = Object.assign({}, x.props.draw.pav, { paintAge: v }); }, 'paint age of ' + id, 'mAge'), v => (v < 0.25 ? 'fresh ' : v > 0.75 ? 'worn ' : '') + v.toFixed(2));
+      for (const t of AM.issues) rows.note(insp, t, 'warn');
+      rows.note(insp, 'the marks follow the pavement\'s lanes (DRAW > lanes turned); they wear its paint age - chipped, rubbed off where the wheels run');
+      rm('marks');
+    }
+    if (P.exclude) {
+      const x0 = P.exclude, what = Array.isArray(x0.what) ? x0.what : ['trees'];
+      sec('exclude', what.join(', ') || 'nothing');
+      const d = $('div', { class: 'r' }); d.appendChild($('span', { class: 'k', text: 'keeps out' }));
+      const w = $('span', { class: 'pills' });
+      for (const [k, lab, why] of [['trees', 'trees', 'no tree stands inside - drawn or collidable; they come back the moment this goes'], ['plots', 'plots', 'no zone sows a plot inside, no forest plants it']]) {
+        const on = what.indexOf(k) >= 0, b = $('button', { class: 'pill' + (on ? ' on' : ''), type: 'button', text: lab, title: why });
+        b.onclick = () => ed(x => { const q = Object.assign({}, x.props.exclude); delete q.zone; const l = (Array.isArray(q.what) ? q.what : ['trees']).slice(); const i = l.indexOf(k); if (i >= 0) l.splice(i, 1); else l.push(k); q.what = l; x.props.exclude = q; }, 'exclude of ' + id);
+        w.appendChild(b);
+      }
+      d.appendChild(w); insp.appendChild(d);
+      if (x0.zone) rows.note(insp, 'it came from a "no trees" zone: changing what it keeps out makes it an exclusion of its own');
+      rm('exclude');
+    }
+    if (P.cover) {
+      sec('cover', P.cover.code !== null && P.cover.code !== undefined && P.cover.code !== '' ? 'type ' + P.cover.code : 'vegetation');
+      vegRows(P.cover, id, (mut, label, key) => ed(x => { mut(x.props.cover); }, label, key));
+      rm('cover');
+    }
+    // + ADD A PROPERTY
+    const missing = PG.AREA_PROPS.filter(k => !P[k]);
+    if (missing.length) rows.select(insp, '+ add a property', missing.map(k => [k, PROP_TITLE[k].toLowerCase() + ' - ' + PROP_WHY[k]]), () => '', v => { if (v) addProp(id, v); });
+  }
+
+  // ---- THE PALETTE DRAWER (G2910): a tab's own rows, under its tools ------------------------------------------------------
+  const PAL_NOTE = {
+    terrain: 'every polygon here is an AREA: a flatten moves the ground, a surface is gravel the wheels feel and the eye sees, a material a texture; the inspector adds the rest (wheels, a drawn pavement, marks, no trees, a cover) to any of them',
+    areas: 'ONE polygon, its properties attached: draw an area and add what it does in the inspector - or start from concrete, a parking lot, a dock, a keep-clear. Concrete is the pavement\'s (hex-tiled: it never repeats); the marks are weathered paint in its frame',
+    airfield: 'a runway is a PROFILE: two clicks place it, the inspector sets its length, width, heading, surface and slope; the ground is graded to it, its class reaches the wheels, the pilot\'s pattern and the PAPI are derived. An apron and a round pad are areas (concrete, paved).',
+    roads: 'a road is traced through its points (a smooth curve); its width, class, look, grade and the plots that front on it are in the inspector',
+    zones: 'a zone sows plots along the ROADS inside it; the house generator stands a house on each. Trace a road first.',
+    vegetation: 'a forest polygon plants the wood (its density and species in the inspector); a vegetation area says what the island grows inside it - none, any biome, or a new biome of its own; a no-trees area keeps the trees out; a tree by hand is one record.',
+  };
+  let palOpen = true;
+  const palette = { refresh() {
+    pal.innerHTML = '';
+    const S = SECTIONS.find(q => q.k === section);
+    const d = $('details', { class: 'pr-paldet' }); if (palOpen) d.setAttribute('open', '');
+    d.appendChild($('summary', { text: (S ? S.label.toLowerCase() : section) + ' · palette' }));
+    d.addEventListener('toggle', () => { palOpen = !!d.open; });
+    pal.appendChild(d);
+    if (section === 'file') fileRows(d);
+    else if (section === 'view') viewRows(d);
+    else if (section === 'life') lifeRows(d);
+    else if (section === 'sites') sitesPalette(d);
+    else if (section === 'objects') objectsPalette(d);
+    else if (section === 'assets') assetsPalette(d);
+    else if (PAL_NOTE[section]) rows.note(d, PAL_NOTE[section]);
+    else pal.innerHTML = '';
   } };
+  // THE BUILDINGS (v9): the theme's categories as pills, the entries of the one picked in the select (a preset's name and
+  // its generator's word); 'all' lists the whole catalogue - and the site themes the theme tool stands
+  function sitesPalette(P) {
+    if (!ctx.catalogue) { rows.note(P, 'no catalogue - no generator loaded'); return; }
+    const TH = PG.themeOf(rec), cats = TH.categories || PG.CATEGORIES;
+    const keysOf = c => (c === 'all' ? ctx.catalogue.keys() : ctx.catalogue.byCat(c).map(q => q.key));
+    const nOf = c => keysOf(c).length;
+    if (!PALETTE_CAT || (PALETTE_CAT !== 'all' && !nOf(PALETTE_CAT))) PALETTE_CAT = cats.find(c => nOf(c)) || 'all';
+    const label = k => { const i = k.indexOf('/'); return i < 0 ? k : k.slice(i + 1) + ' · ' + k.slice(0, i); };
+    rows.pills(P, 'category', [['all', 'all', 'the whole catalogue']].concat(cats.map(c => [c, c, nOf(c) + ' in the catalogue'])), () => PALETTE_CAT, v => { PALETTE_CAT = v; const ks = keysOf(v); if (ks.indexOf(PALETTE_KEY) < 0) PALETTE_KEY = ks[0] || null; palette.refresh(); });
+    const keys = keysOf(PALETTE_CAT);
+    if (!PALETTE_KEY || keys.indexOf(PALETTE_KEY) < 0) PALETTE_KEY = keys[0] || null;
+    if (keys.length) rows.select(P, 'building', keys.map(k => [k, label(k)]), () => PALETTE_KEY || '', v => { PALETTE_KEY = v; });
+    else rows.note(P, 'nothing of that category in this catalogue');
+    rows.note(P, ctx.catalogue.keys().length + ' entries in the catalogue under the ' + TH.name + ' theme; pick one, then click the ground with the building tool');
+    const THS = window.VILLAGE_GEN && window.VILLAGE_GEN.THEMES;
+    if (THS) { const tk = Object.keys(THS); if (!SITE_THEME || tk.indexOf(SITE_THEME) < 0) SITE_THEME = tk[0]; rows.select(P, 'site theme', tk.map(k => [k, THS[k].name]), () => SITE_THEME, v => { SITE_THEME = v; }); }
+  }
+  function objectsPalette(P) {
+    for (const kind of ['prop', 'billboard', 'aircraft', 'animal']) {
+      const keys = objectKeys(kind, rec);
+      if (!keys.length) { rows.note(P, 'no ' + kind + 's registered here'); continue; }
+      if (!OBJ_PICK[kind]) OBJ_PICK[kind] = keys[0][0];
+      rows.select(P, kind, keys, () => OBJ_PICK[kind] || '', v => { OBJ_PICK[kind] = v; });
+    }
+    rows.note(P, 'a prop stands on the composed ground where you click, tilted to it; a billboard is a painted sign on its posts; an aeroplane is a build parked on its wheels, nose along its turn. Each is ONE record: drag its disc to move it. ASSETS has the models as pictures.');
+    rows.note(P, 'an ANIMAL record is a HOTSPOT, not one animal: how many of the species live there and over what radius. They sow themselves inside it, seeded per individual, so changing the count never moves the ones already standing.');
+  }
+
+  // ---- THE MODEL PLACER (G2914; the user: "A generic asset visualizer allowing me to drop models from the available bank") --
+  // The bank is the prop registry (PROP_REG: every baked pack registers there - the hangar's, the pier kit, the scenery
+  // packs ASSETS-OCT G2900 prepares - so nothing here names a key, contract rule 13); its groups are the pills, a search
+  // narrows it, each model a thumbnail rendered offscreen once (cached by its bin, which carries the pack's hash). A pick
+  // arms the place tool: the GHOST follows the cursor on the ground (R turns it 15 degrees, Alt + wheel scales it, Shift
+  // stands it level instead of tilted), a click drops ONE `objects[]` prop record { key, x, z, yaw, dy, on, s? }; the
+  // scatter tool drops n of it within a radius, seeded, one record each. A dropped model is selected, dragged, turned
+  // (R, the inspector) and scaled (the inspector) like any prop, and saved with the premises.
+  const ASSET = { key: null, group: 'all', q: '', yaw: 0, s: 1, level: false, n: 8, r: 12, seed: 1, jitter: 0.15, thumbs: new Map(), queue: [], busy: false };
+  const propRegOf = () => (typeof PROP_REG !== 'undefined' ? PROP_REG : ((typeof window !== 'undefined' && window.PROP_REG) || null));
+  function assetKeys() {
+    const PR = propRegOf(); if (!PR || !PR.props) return [];
+    const q = ASSET.q.trim().toLowerCase();
+    return (PR.order || Object.keys(PR.props)).filter(k => { const p = PR.props[k]; if (!p || p.lodOf) return false; if (ASSET.group !== 'all' && p.group !== ASSET.group) return false; return !q || (k + ' ' + (p.label || '') + ' ' + (p.group || '')).toLowerCase().indexOf(q) >= 0; });
+  }
+  // a thumbnail: the host's renderer draws the prop into a small target once its bytes are here (ctx.thumb), one a frame
+  function thumbOf(key, img) {
+    const PR = propRegOf(), p = PR && PR.props[key], ck = key + '|' + ((p && p.bin) || '');
+    const have = ASSET.thumbs.get(ck);
+    if (have) { img.src = have; return; }
+    if (!ctx.thumb) return;
+    ASSET.queue.push({ key, ck, img });
+    if (ASSET.busy) return;
+    ASSET.busy = true;
+    const step = () => {
+      const job = ASSET.queue.shift();
+      if (!job) { ASSET.busy = false; return; }
+      Promise.resolve(ctx.thumb(job.key)).then(url => { if (url) { ASSET.thumbs.set(job.ck, url); job.img.src = url; } }, () => {}).then(() => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(step) : setTimeout(step, 16)));
+    };
+    step();
+  }
+  function assetsPalette(P) {
+    const PR = propRegOf();
+    if (!PR || !PR.props || !(PR.order || []).length) { rows.note(P, 'no model bank on this page (the prop registry is empty)'); return; }
+    const srch = $('input', { type: 'text', placeholder: 'search the bank', value: ASSET.q }); srch.className = 'pr-name';
+    srch.oninput = () => { ASSET.q = srch.value; fillGrid(); };
+    P.appendChild(srch);
+    const groups = (PR.groups || []).filter(g => (PR.order || []).some(k => PR.props[k] && !PR.props[k].lodOf && PR.props[k].group === g[0]));
+    rows.pills(P, 'group', [['all', 'all', 'every model of the bank']].concat(groups.map(g => [g[0], g[1] || g[0]])), () => ASSET.group, v => { ASSET.group = v; fillGrid(); });
+    const grid = $('div', { class: 'pr-assets' }); P.appendChild(grid);
+    const info = $('div', { class: 'note' }); P.appendChild(info);
+    const fillGrid = () => {
+      grid.innerHTML = '';
+      const ks = assetKeys();
+      for (const k of ks.slice(0, 240)) {
+        const p = PR.props[k], b = $('button', { class: 'pr-asset' + (k === ASSET.key ? ' on' : ''), type: 'button', title: k + (p.dim ? ' · ' + p.dim.map(v => (+v).toFixed(1)).join(' x ') + ' m' : '') + (p.nt ? ' · ' + p.nt.toLocaleString() + ' tris' : '') });
+        const img = $('img', { alt: '' }); b.appendChild(img); b.appendChild($('span', { text: p.label || k }));
+        b.onclick = () => { ASSET.key = k; if (tool !== 'place' && tool !== 'scatter') setTool('place'); else armGhost(); fillGrid(); b.blur && b.blur(); };
+        grid.appendChild(b);
+        thumbOf(k, img);
+      }
+      info.textContent = ks.length + ' model' + (ks.length === 1 ? '' : 's') + (ks.length > 240 ? ' (the first 240 shown - search to narrow)' : '') + (ASSET.key ? ' · picked: ' + ASSET.key : ' · pick one, then click the ground');
+    };
+    fillGrid();
+    rows.section(P, 'THE DROP');
+    rows.slider(P, 'turn (°)', -180, 180, 15, () => ASSET.yaw * 180 / Math.PI, v => { ASSET.yaw = v * Math.PI / 180; armGhost(); }, v => v.toFixed(0) + '°');
+    rows.slider(P, 'scale', 0.25, 4, 0.05, () => ASSET.s, v => { ASSET.s = v; armGhost(); }, v => 'x' + (+v).toFixed(2));
+    rows.check(P, 'stand level (not tilted to the ground)', () => ASSET.level, v => { ASSET.level = !!v; armGhost(); });
+    rows.section(P, 'SCATTER');
+    rows.slider(P, 'how many', 2, 40, 1, () => ASSET.n, v => { ASSET.n = Math.round(v); }, v => String(v));
+    rows.slider(P, 'within (m)', 2, 120, 1, () => ASSET.r, v => { ASSET.r = v; }, v => v.toFixed(0) + ' m');
+    rows.slider(P, 'size spread', 0, 0.5, 0.05, () => ASSET.jitter, v => { ASSET.jitter = v; }, v => '±' + (v * 100).toFixed(0) + ' %');
+    rows.slider(P, 'seed', 1, 99, 1, () => ASSET.seed, v => { ASSET.seed = v; }, v => String(v));
+  }
+  // the ghost: the picked model on the ground under the cursor
+  let ghostAt = null;
+  function armGhost(g) {
+    if (g) ghostAt = g;
+    if ((tool !== 'place' && tool !== 'scatter') || !ASSET.key || !ghostAt) { if (R.ghostModel) R.ghostModel(null); return; }
+    if (R.ghostModel) R.ghostModel({ key: ASSET.key, x: ghostAt[0], z: ghostAt[2], yaw: ASSET.yaw + (R.overlay ? R.overlay.frame.yaw : 0), s: ASSET.s, level: ASSET.level, r: tool === 'scatter' ? ASSET.r : 0 });
+    ctx.redraw && ctx.redraw();
+  }
+  // ONE drop: a prop record at a premises point (the place tool's click, a script's)
+  function placeAsset(L, key, yaw, s, level, only) {
+    const k = key || ASSET.key; if (!k) { strip.status('pick a model in the palette first'); return null; }
+    const e = { id: PG.newId(rec, 'objects'), kind: 'prop', key: k, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: +(yaw === undefined ? ASSET.yaw : yaw).toFixed(4), dy: 0, on: (level === undefined ? ASSET.level : level) ? 'flat' : 'ground' };
+    const sc = s === undefined ? ASSET.s : s; if (Math.abs(sc - 1) > 1e-3) e.s = +sc.toFixed(3);
+    if (only) return e;
+    run({ layer: 'objects', id: e.id, before: null, after: e, label: 'model ' + e.id + ' (' + k + ')' });
+    return e.id;
+  }
+  // SCATTER: n of the picked model within the radius, seeded (the same seed, the same scatter), turned and sized at random,
+  // each its own record (select one and Del takes it out alone); the scatter is one undo step
+  function scatterAsset(L, o) {
+    const k = (o && o.key) || ASSET.key; if (!k) { strip.status('pick a model in the palette first'); return []; }
+    const n = (o && o.n) || ASSET.n, r = (o && o.r) || ASSET.r, rnd = PG.mulberry32(PG.hash32((o && o.seed) || ASSET.seed, PG.fnv(k + ':' + L[0].toFixed(1) + ':' + L[1].toFixed(1)))), jit = o && o.jitter !== undefined ? o.jitter : ASSET.jitter;
+    const many = [];
+    for (let i = 0; i < n; i++) {
+      const a = rnd() * Math.PI * 2, d = r * Math.sqrt(rnd());
+      const e = placeAsset([L[0] + Math.cos(a) * d, L[1] + Math.sin(a) * d], k, rnd() * Math.PI * 2, ((o && o.s) || ASSET.s) * (1 + (rnd() * 2 - 1) * jit), undefined, true);
+      rec.layers.objects.push(e);   // (placed before the next id is asked: newId sees it)
+      many.push({ layer: 'objects', id: e.id, before: null, after: clone(e) });
+    }
+    rec.layers.objects.splice(rec.layers.objects.length - many.length, many.length);
+    run({ many, label: n + ' x ' + k + ' scattered' });
+    strip.status(n + ' x ' + k + ' scattered within ' + r.toFixed(0) + ' m');
+    return many.map(c => c.id);
+  }
   function profileGraph(host, e, ed) {
     const pts = () => (Array.isArray(e.profile) && e.profile.length >= 2) ? e.profile : [[0, -(e.slope || 0) * e.len / 2], [1, (e.slope || 0) * e.len / 2]];
     const wrap = $('div', { class: 'r', style: 'display:block' });
@@ -1179,45 +1638,45 @@ function mount(host, ctx) {
     btns.appendChild(del); btns.appendChild(flat); wrap.appendChild(btns);
     draw();
   }
-  function fileRows() {
-    rows.section(insp, 'FILE');
+  function fileRows(P) {
+    rows.section(P, 'FILE');
     const nm = $('input', { type: 'text', placeholder: 'name', value: recName || '' }); nm.className = 'pr-name';
     nm.onchange = () => { recName = nm.value || null; rec.name = rec.name || recName || ''; autosave(); };
-    insp.appendChild(nm);
-    rows.button(insp, 'new', () => { rec = PG.normalise(PG.DEF()); recName = null; undoS.length = 0; redoS.length = 0; select(null); dirty(null); });
-    rows.button(insp, 'save (Ctrl+S)', () => save(recName));
-    rows.button(insp, 'export json', () => {
+    P.appendChild(nm);
+    rows.button(P, 'new', () => { rec = PG.normalise(PG.DEF()); recName = null; undoS.length = 0; redoS.length = 0; select(null); dirty(null); });
+    rows.button(P, 'save (Ctrl+S)', () => save(recName));
+    rows.button(P, 'export json', () => {
       const txt = PG.envelope(recName, rec);
       const a = document.createElement('a'); a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(txt); a.download = (recName || 'premises') + '.json'; a.click();
     });
     const ta = $('textarea', { placeholder: 'paste an envelope or a bare record here, then import', rows: '4' }); ta.className = 'pr-paste';
-    insp.appendChild(ta);
-    rows.button(insp, 'import', () => { try { load(ta.value); ta.value = ''; } catch (e) { strip.status('import refused: ' + e.message); } });
+    P.appendChild(ta);
+    rows.button(P, 'import', () => { try { load(ta.value); ta.value = ''; } catch (e) { strip.status('import refused: ' + e.message); } });
     if (storage) {
       const slots = [];
       for (let i = 0; i < storage.length; i++) { const k = storage.key(i); if (k && k.startsWith('flydiy.premises.slot.')) slots.push(k.slice(21)); }
-      if (slots.length) rows.select(insp, 'load slot', slots.map(s => [s, s]), () => '', v => { try { load(storage.getItem('flydiy.premises.slot.' + v)); } catch (e) { strip.status(e.message); } });
+      if (slots.length) rows.select(P, 'load slot', slots.map(s => [s, s]), () => '', v => { try { load(storage.getItem('flydiy.premises.slot.' + v)); } catch (e) { strip.status(e.message); } });
     }
-    rows.slider(insp, 'premises seed', 1, 99, 1, () => rec.seed, v => { rec.seed = v; dirty('zones'); }, v => String(v));
+    rows.slider(P, 'premises seed', 1, 99, 1, () => rec.seed, v => { rec.seed = v; dirty('zones'); }, v => String(v));
     // THE THEME (v9): one word on the record; the themes are the composer's table
-    rows.pills(insp, 'theme', Object.keys(PG.THEMES).map(k => [k, PG.THEMES[k].name, PG.THEMES[k].blurb || '']), () => rec.theme || PG.THEME_DEF, v => { rec.theme = v; dirty('zones'); });
-    rows.note(insp, PG.themeOf(rec).blurb || '');
+    rows.pills(P, 'theme', Object.keys(PG.THEMES).map(k => [k, PG.THEMES[k].name, PG.THEMES[k].blurb || '']), () => rec.theme || PG.THEME_DEF, v => { rec.theme = v; dirty('zones'); });
+    rows.note(P, PG.themeOf(rec).blurb || '');
     // THE PAVEMENT (v1.16): the premises' recipe - every knob of the bench's table, over the module's
     // defaults, under each strip's or road's own; a bench export pasted fills it whole
     if (PAVM) {
-      const d = $('details'); d.appendChild($('summary', { text: 'pavement' + (rec.pavement && Object.keys(rec.pavement).length ? ' (' + Object.keys(rec.pavement).length + ' set)' : '') })); insp.appendChild(d);
-      const P = rec.pavement || {};
+      const d = $('details'); d.appendChild($('summary', { text: 'pavement' + (rec.pavement && Object.keys(rec.pavement).length ? ' (' + Object.keys(rec.pavement).length + ' set)' : '') })); P.appendChild(d);
+      const PV = rec.pavement || {};
       let sec = null;
       for (const row of PAVM.KNOBS) {
         if (row.length === 1) { sec = $('details'); sec.appendChild($('summary', { text: row[0].replace(/—/g, '').trim() })); d.appendChild(sec); continue; }
-        const [k, lab, mn, mx, st] = row, own = P[k] !== undefined && P[k] !== null;
-        rows.slider(sec || d, lab + (own ? '' : ' (default)'), mn, mx, st, () => own ? P[k] : PAVM.RECIPE[k], v => { rec.pavement = Object.assign({}, rec.pavement, { [k]: v }); dirty('roads'); }, v => (+v).toFixed(2));
+        const [k, lab, mn, mx, st] = row, own = PV[k] !== undefined && PV[k] !== null;
+        rows.slider(sec || d, lab + (own ? '' : ' (default)'), mn, mx, st, () => own ? PV[k] : PAVM.RECIPE[k], v => { rec.pavement = Object.assign({}, rec.pavement, { [k]: v }); dirty('roads'); }, v => (+v).toFixed(2));
       }
       const ta2 = $('textarea', { placeholder: 'paste the pavement bench\'s export here', rows: '3' }); ta2.className = 'pr-paste'; d.appendChild(ta2);
-      rows.button(d, 'take the bench\'s recipe', () => { try { const o = JSON.parse(ta2.value); const r = o.recipe || o; const out = {}; for (const k in r) if (k in PAVM.RECIPE && k !== 'grade') out[k] = r[k]; rec.pavement = out; ta2.value = ''; dirty('roads'); inspector.refresh(); } catch (err) { strip.status('not a recipe: ' + err.message); } });
-      rows.button(d, "back to the module's defaults", () => { rec.pavement = null; dirty('roads'); inspector.refresh(); });
+      rows.button(d, 'take the bench\'s recipe', () => { try { const o = JSON.parse(ta2.value); const r = o.recipe || o; const out = {}; for (const k in r) if (k in PAVM.RECIPE && k !== 'grade') out[k] = r[k]; rec.pavement = out; ta2.value = ''; dirty('roads'); palette.refresh(); } catch (err) { strip.status('not a recipe: ' + err.message); } });
+      rows.button(d, "back to the module's defaults", () => { rec.pavement = null; dirty('roads'); palette.refresh(); });
     }
-    rows.note(insp, 'autosaved to ' + LS_WIP + ' a second after every edit; a load replaces');
+    rows.note(P, 'autosaved to ' + LS_WIP + ' a second after every edit; a load replaces');
   }
   // THE PAVEMENT ROWS (contract v1.16, 2026-09-22): a look (the pavement class + preset), a BAND (the
   // drawn band beside the pavement - never the terraforming, which is "terraformed to" below) and a
@@ -1259,40 +1718,40 @@ function mount(host, ctx) {
       rows.note(d2, 'the declared width is the drawn width whatever the surface; the side is drawn outside it (its width past the edge zone, from its alpha)');
     }
   }
-  function viewRows() {
-    rows.section(insp, 'VIEW');
-    if (ctx.cameras) rows.select(insp, 'camera', [['orbit', 'orbit (right-drag)'], ['map', 'map (top-down)']], () => ctx.cameras.mode(), v => ctx.cameras.set(v));
-    rows.check(insp, 'surface overlay', () => ctx.overlayOn ? ctx.overlayOn() : true, v => { R.overlayOn(v); ctx.overlayOn && ctx.overlayOn(v); ctx.redraw && ctx.redraw(); });
+  function viewRows(P) {
+    rows.section(P, 'VIEW');
+    if (ctx.cameras) rows.select(P, 'camera', [['orbit', 'orbit (right-drag)'], ['map', 'map (top-down)']], () => ctx.cameras.mode(), v => ctx.cameras.set(v));
+    rows.check(P, 'surface overlay', () => ctx.overlayOn ? ctx.overlayOn() : true, v => { R.overlayOn(v); ctx.overlayOn && ctx.overlayOn(v); ctx.redraw && ctx.redraw(); });
     // THE TIME (SKY chantier): the clock's hand in the world editor - one clock for the shed and the world
     if (ctx.day && ctx.day.day && ctx.day.day()) {
       const CK = ctx.day;
-      rows.section(insp, 'TIME');
-      rows.select(insp, 'time of day', CK.PRESETS.map(p => [p, p]), () => CK.nearestPreset(), v => { CK.preset(v); if (ctx.redraw) ctx.redraw(); });
-      rows.slider(insp, 'local hour', 0, 24, 1 / 12, () => CK.localHours(), v => CK.set({ localHours: v }),
+      rows.section(P, 'TIME');
+      rows.select(P, 'time of day', CK.PRESETS.map(p => [p, p]), () => CK.nearestPreset(), v => { CK.preset(v); if (ctx.redraw) ctx.redraw(); });
+      rows.slider(P, 'local hour', 0, 24, 1 / 12, () => CK.localHours(), v => CK.set({ localHours: v }),
                   v => String(Math.floor(v)).padStart(2, '0') + ':' + String(Math.round((v % 1) * 60)).padStart(2, '0'));
-      rows.select(insp, 'rate', CK.RATES.map(r => [String(r), r === 0 ? 'frozen' : r === 1 ? 'real time' : r + 'x']), () => String(CK.day().rate), v => CK.rate(+v));
+      rows.select(P, 'rate', CK.RATES.map(r => [String(r), r === 0 ? 'frozen' : r === 1 ? 'real time' : r + 'x']), () => String(CK.day().rate), v => CK.rate(+v));
       // THE CLOUDS (C4): the day's cover and type
-      rows.slider(insp, 'cloud cover', 0, 1, 0.05, () => CK.day().cloudCover, v => CK.set({ cloudCover: v }), v => (v * 100).toFixed(0) + ' %');
-      if (typeof CLOUD_FIELD !== 'undefined') rows.select(insp, 'cloud type', CLOUD_FIELD.TYPE_ORDER.map(t => [t, CLOUD_FIELD.TYPES[t].label]), () => CK.day().cloudType, v => CK.set({ cloudType: v }));
+      rows.slider(P, 'cloud cover', 0, 1, 0.05, () => CK.day().cloudCover, v => CK.set({ cloudCover: v }), v => (v * 100).toFixed(0) + ' %');
+      if (typeof CLOUD_FIELD !== 'undefined') rows.select(P, 'cloud type', CLOUD_FIELD.TYPE_ORDER.map(t => [t, CLOUD_FIELD.TYPES[t].label]), () => CK.day().cloudType, v => CK.set({ cloudType: v }));
       // THE UPPER DECKS (A6): the same two rows the flight rail carries, per deck
       if (typeof CLOUD_FIELD !== 'undefined') for (let di = 0; di < CLOUD_FIELD.MAX_LAYERS - 1; di++) {
         const up = () => CK.day().cloudUpper[di] || { cover: 0, type: 'ac' };
         const put = patch => { CK.set({ cloudUpper: CLOUD_FIELD.upperWith(CK.day().cloudUpper, di, patch) }); if (ctx.redraw) ctx.redraw(); };
-        rows.slider(insp, 'upper deck ' + (di + 1), 0, 1, 0.05, () => up().cover, v => put({ cover: v }), v => v > 0 ? (v * 100).toFixed(0) + ' %' : 'none');
-        rows.select(insp, 'deck ' + (di + 1) + ' type', CLOUD_FIELD.TYPE_ORDER.map(t => [t, CLOUD_FIELD.TYPES[t].label]), () => up().type, v => put({ type: v }));
-        rows.slider(insp, 'deck ' + (di + 1) + ' base', 500, 9000, 100, () => (up().base != null ? up().base : CLOUD_FIELD.TYPES[CLOUD_FIELD.typeOf(up().type)].alt), v => put({ base: v }), v => v + ' m');
+        rows.slider(P, 'upper deck ' + (di + 1), 0, 1, 0.05, () => up().cover, v => put({ cover: v }), v => v > 0 ? (v * 100).toFixed(0) + ' %' : 'none');
+        rows.select(P, 'deck ' + (di + 1) + ' type', CLOUD_FIELD.TYPE_ORDER.map(t => [t, CLOUD_FIELD.TYPES[t].label]), () => up().type, v => put({ type: v }));
+        rows.slider(P, 'deck ' + (di + 1) + ' base', 500, 9000, 100, () => (up().base != null ? up().base : CLOUD_FIELD.TYPES[CLOUD_FIELD.typeOf(up().type)].alt), v => put({ base: v }), v => v + ' m');
       }
-      rows.note(insp, 'the sun, the sky and the lights follow the clock; drag a LIGHT slider below to take the sun by hand');
+      rows.note(P, 'the sun, the sky and the lights follow the clock; drag a LIGHT slider below to take the sun by hand');
     }
     if (ctx.rig) {
-      rows.section(insp, 'LIGHT');
+      rows.section(P, 'LIGHT');
       // dragging either sun slider takes the rig MANUAL (the day drives it otherwise - SKY chantier)
-      rows.slider(insp, 'sun elev', 2, 90, 0.5, () => ctx.rig.get().elev, v => ctx.rig.set({ manual: true, elev: v }), v => v.toFixed(1) + '°');
-      rows.slider(insp, 'sun azimuth', -180, 180, 1, () => ctx.rig.get().azim, v => ctx.rig.set({ manual: true, azim: v }), v => v.toFixed(0) + '°');
-      rows.slider(insp, 'exposure', 0.3, 2.5, 0.02, () => ctx.rig.get().exposure, v => ctx.rig.set({ exposure: v }));
-      if (ctx.rig.get().manual !== undefined) rows.check(insp, 'the sun by hand', () => !!ctx.rig.get().manual, v => ctx.rig.set({ manual: !!v }));
+      rows.slider(P, 'sun elev', 2, 90, 0.5, () => ctx.rig.get().elev, v => ctx.rig.set({ manual: true, elev: v }), v => v.toFixed(1) + '°');
+      rows.slider(P, 'sun azimuth', -180, 180, 1, () => ctx.rig.get().azim, v => ctx.rig.set({ manual: true, azim: v }), v => v.toFixed(0) + '°');
+      rows.slider(P, 'exposure', 0.3, 2.5, 0.02, () => ctx.rig.get().exposure, v => ctx.rig.set({ exposure: v }));
+      if (ctx.rig.get().manual !== undefined) rows.check(P, 'the sun by hand', () => !!ctx.rig.get().manual, v => ctx.rig.set({ manual: !!v }));
     }
-    rows.note(insp, 'Tab toggles the camera; Esc cancels; Del deletes; Ctrl+Z / Ctrl+Y undo and redo; 1-6 pick a section');
+    rows.note(P, 'Tab toggles the camera; Esc cancels; Del deletes; Ctrl+Z / Ctrl+Y undo and redo; 1-6 pick a section');
   }
 
   // THE LIFE (SCENERY LIFE, contract v1.22): the record's `life` block - the people, the wall clutter, the rubbish,
@@ -1300,12 +1759,12 @@ function mount(host, ctx) {
   // (src/viewer/scenery_life.js); a row writes the block and the life re-stands at once (no recompose); a key
   // left at its default is not written
   let lifeT = 0;
-  function lifeRows() {
+  function lifeRows(P) {
     const SL = window.SCENERY_LIFE, L = R.life;
-    rows.section(insp, 'LIFE');
-    if (!SL || !L) { rows.note(insp, 'this page has no scenery life (scenery_life.js did not load)'); return; }
+    rows.section(P, 'LIFE');
+    if (!SL || !L) { rows.note(P, 'this page has no scenery life (scenery_life.js did not load)'); return; }
     const cur = () => Object.assign({}, SL.DEF, rec.life || {});
-    const note = rows.note(insp, '');
+    const note = rows.note(P, '');
     const show = () => { const S = L.stats, c = S.byCat || {};
       note.textContent = !cur().on ? 'off: the premises as built' : (S.items || 0).toLocaleString() + ' placed (' + SL.CATS.filter(q => c[q[0]]).map(q => c[q[0]] + ' ' + q[1]).join(', ') + ') in ' + (S.placeMs || 0).toFixed(0) +
         ' ms · ' + (S.visible || 0).toLocaleString() + ' drawn now in ' + (S.draws || 0) + ' draws · lists ' + (S.updMs || 0).toFixed(1) + ' ms'; };
@@ -1316,12 +1775,12 @@ function mount(host, ctx) {
       L.set(rec.life); autosave(); ctx.redraw && ctx.redraw();
       clearTimeout(lifeT); lifeT = setTimeout(show, 1200);
     };
-    rows.pills(insp, 'life', [['on', 'on', 'the life stands round what is built'], ['off', 'off', 'none of it: the premises as built']], () => (cur().on ? 'on' : 'off'), v => { setK('on', v === 'on'); show(); });
-    rows.slider(insp, 'draw distance', 0.25, 2, 0.05, () => cur().dist, v => setK('dist', +v), v => 'x' + (+v).toFixed(2));
-    for (const [k, lab, mx, why] of SL.CATS) { const r = rows.slider(insp, lab, 0, mx, 0.05, () => cur()[k], v => setK(k, +v), v => (+v === 0 ? 'none' : 'x' + (+v).toFixed(2))); r.title = why; }
-    rows.slider(insp, 'life seed', 1, 99, 1, () => cur().seed, v => setK('seed', +v), v => String(v));
-    rows.button(insp, 'back to the defaults', () => { rec.life = undefined; L.set(null); autosave(); inspector.refresh(); });
-    rows.note(insp, 'every kind is drawn instanced and cut by distance (rubbish 45 m, clutter 110, people 220, cars 450, a mast 6 km) x the draw distance x the GRAPHICS tier');
+    rows.pills(P, 'life', [['on', 'on', 'the life stands round what is built'], ['off', 'off', 'none of it: the premises as built']], () => (cur().on ? 'on' : 'off'), v => { setK('on', v === 'on'); show(); });
+    rows.slider(P, 'draw distance', 0.25, 2, 0.05, () => cur().dist, v => setK('dist', +v), v => 'x' + (+v).toFixed(2));
+    for (const [k, lab, mx, why] of SL.CATS) { const r = rows.slider(P, lab, 0, mx, 0.05, () => cur()[k], v => setK(k, +v), v => (+v === 0 ? 'none' : 'x' + (+v).toFixed(2))); r.title = why; }
+    rows.slider(P, 'life seed', 1, 99, 1, () => cur().seed, v => setK('seed', +v), v => String(v));
+    rows.button(P, 'back to the defaults', () => { rec.life = undefined; L.set(null); autosave(); palette.refresh(); });
+    rows.note(P, 'every kind is drawn instanced and cut by distance (rubbish 45 m, clutter 110, people 220, cars 450, a mast 6 km) x the draw distance x the GRAPHICS tier');
     show();
   }
 
@@ -1331,11 +1790,14 @@ function mount(host, ctx) {
     const n = name || recName || 'premises';
     recName = n; rec.name = rec.name || n;
     try { storage.setItem('flydiy.premises.slot.' + n, PG.envelope(n, rec)); storage.setItem(LS_WIP, PG.envelope(n, rec)); strip.status('saved as ' + n); } catch (e) { strip.status('save failed: ' + e.message); }
-    if (section === 'file') inspector.refresh();
+    if (section === 'file') palette.refresh();
   }
+  // (G2910) the editor holds every polygon as an AREA: a record still carrying foldable v1 entries (a v1 file the migrator
+  // already saw, a hand edit) has them folded on load - every layer keeps its order, so it composes the same
+  const foldIn = r => { try { if (PG.AREA_LAYERS.some(k => (r.layers[k] || []).some(e => PG.areaFoldable(k, e)))) PG.foldAreas(r); } catch (e) { console.warn('premises fold:', e.message); } return r; };
   function load(txt) {
     const U = PG.unwrap(txt);
-    rec = U.rec; recName = U.name; undoS.length = 0; redoS.length = 0;
+    rec = foldIn(U.rec); recName = U.name; undoS.length = 0; redoS.length = 0;
     select(null); dirty(null);
     strip.status('loaded ' + (recName || '(unnamed)'));
   }
@@ -1350,10 +1812,12 @@ function mount(host, ctx) {
   addEventListener('keydown', ev => { if (active) onKey(ev); });
 
   // the record the host hands in (the game's: the one its world composed at the boot) comes first; else the wip slot
-  if (ctx.record) { try { const U = PG.unwrap(ctx.record); rec = U.rec; recName = U.name; } catch (e) { console.warn('premises record:', e.message); } }
-  else if (!ctx.fresh) loadWip();
-  buildRail(); buildStrip(); ctx.onSection && ctx.onSection(SECTIONS.find(s => s.k === section));
+  if (ctx.record) { try { const U = PG.unwrap(ctx.record); rec = foldIn(U.rec); recName = U.name; } catch (e) { console.warn('premises record:', e.message); } }
+  else if (!ctx.fresh && loadWip()) rec = foldIn(rec);
+  buildRail(); buildStrip(); palette.refresh(); ctx.onSection && ctx.onSection(SECTIONS.find(s => s.k === section));
   R.setRecord(rec); R.rebuild(null); inspector.refresh(); checks(); plaque();
+  // (G2914) Alt + wheel scales the placer's ghost - before the host's wheel zooms (capture, the same element)
+  if (view.addEventListener) view.addEventListener('wheel', ev => { if (!active || !ev.altKey || (tool !== 'place' && tool !== 'scatter')) return; ASSET.s = Math.max(0.25, Math.min(4, ASSET.s * (ev.deltaY < 0 ? 1.06 : 1 / 1.06))); armGhost(); ev.preventDefault(); ev.stopImmediatePropagation(); }, { capture: true, passive: false });
 
   const handle = {
     record: () => rec, load, save, undo, redo, checks, select, setTool, setSection, plaque,
@@ -1395,12 +1859,23 @@ function mount(host, ctx) {
       if (name === 'removeCorner') { return removeCorner(args.id || selected, args.i === undefined ? corner : args.i); }
       if (name === 'subdivide') { return subdivide(args.id || selected); }
       if (name === 'plotGround') { return togglePlotGround(args.zone, [args.x, args.z]); }
+      // G2910-G2914: an area's properties, the placer, the fold - scriptable (GATE SCENERYED)
+      if (name === 'addProp') { return addProp(args.id || selected, args.prop); }
+      if (name === 'removeProp') { return removeProp(args.id || selected, args.prop); }
+      if (name === 'setProp') { const id = args.id || selected; edit(id, 'areas', x => { x.props = Object.assign({}, x.props); x.props[args.prop] = Object.assign({}, x.props[args.prop] || {}, args.patch); }, args.prop + ' of ' + id); return true; }
+      if (name === 'pick') { ASSET.key = args.key; if (args.yaw !== undefined) ASSET.yaw = args.yaw; if (args.s !== undefined) ASSET.s = args.s; if (args.level !== undefined) ASSET.level = !!args.level; return ASSET.key; }
+      if (name === 'place') { return placeAsset([args.x, args.z], args.key, args.yaw, args.s, args.level); }
+      if (name === 'scatter') { return scatterAsset([args.x, args.z], args); }
+      if (name === 'assets') { const g0 = ASSET.group, q0 = ASSET.q; ASSET.group = args.group || 'all'; ASSET.q = args.q || ''; const ks = assetKeys(); ASSET.group = g0; ASSET.q = q0; return ks; }
+      if (name === 'fold') { const n = PG.foldAreas(rec); dirty(null); return n; }
+      if (name === 'paletteEl') { return pal; }
+      if (name === 'inspector') { return insp; }
       if (name === 'tool') { setTool(args.name); return tool; }
       if (name === 'section') { setSection(args.name); return section; }
       throw new Error('premises: unknown cmd ' + name);
     },
     dirty: () => dirty(null),
-    close() { active = false; host.innerHTML = ''; },   // the renderer is the host's to keep or dispose
+    close() { active = false; host.innerHTML = ''; if (els.rail) els.rail.innerHTML = ''; if (R.ghostModel) R.ghostModel(null); },   // the renderer is the host's to keep or dispose (G2914: the placer's ghost goes, the rail plate empties)
     get active() { return active; },
   };
   return handle;
@@ -1416,6 +1891,9 @@ const CSS = `
 .pr-tool.on{border-color:var(--acc,#5db3ff);color:var(--acc,#5db3ff)}
 .pr-help{color:var(--dim,#7d8996);margin-left:8px} .pr-status{color:var(--acc,#5db3ff);margin-left:12px}
 .pr-name,.pr-paste{width:100%;background:#1a1f27;color:var(--fg,#dfe6ee);border:1px solid var(--grid,#242a33);border-radius:4px;font:inherit;padding:4px 6px;margin:4px 0;box-sizing:border-box}
+.pr-pal{flex:1 0 100%;max-height:50vh;overflow-y:auto;width:auto;border:0;padding:0 4px;pointer-events:auto;background:rgba(14,18,24,.92);border-radius:6px} .pr-pal:empty{display:none}
+.pr-selhd{display:flex;align-items:center;gap:8px;padding:6px 0 8px;border-bottom:1px solid var(--grid,#242a33);margin-bottom:4px} .pr-selhd .sk{font-size:9px;letter-spacing:.18em;color:var(--acc,#5db3ff)} .pr-selhd .sn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pr-assets{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:6px;margin:6px 0} .pr-asset{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;background:#1a1f27;color:var(--fg,#dfe6ee);border:1px solid var(--grid,#242a33);border-radius:5px;font:inherit;font-size:10px;cursor:pointer;min-width:0} .pr-asset img{width:64px;height:64px;background:#0e1218} .pr-asset span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .pr-asset.on{border-color:var(--acc,#5db3ff)}
 `;
 if (typeof document !== 'undefined') { const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st); }
 

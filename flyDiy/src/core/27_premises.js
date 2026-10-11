@@ -53,7 +53,7 @@
 const PREMISES_GEN = (function () {
 'use strict';
 
-const PREMISES_V = 1;
+const PREMISES_V = 2;   // v2 (contract v1.36, G2910): the polygon entries folded into `areas` (PREMISES_MIGRATORS[1])
 // `ttype` (v1.20, 2026-09-22): polygons that STAMP a terrain-type code into the
 // island's own ttype grid at composition. It is the one layer that writes into the
 // world's data rather than over it, and it is how a place gets a terrain type the
@@ -61,7 +61,7 @@ const PREMISES_V = 1;
 // NOT `cover`: `coverAt` on the overlay already means what the COVER RING may plant
 // at a point (the pavement's kill and boost, the plot's grass rule), and two unrelated
 // things sharing that word in one file is how a reader is misled.
-const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects', 'ttype'];
+const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects', 'ttype', 'areas'];
 const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7 };
 const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND'];
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
@@ -600,7 +600,7 @@ function rasterTileDecode(C, e) {
 function DEF() {
   return { v: PREMISES_V, id: 'premises', name: '', seed: 1, theme: THEME_DEF,
            frame: { kind: 'free', extent: null, anchors: {} },
-           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [], ttype: [] },
+           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [], ttype: [], areas: [] },
            budget: { tris: 400000, lights: 24, smoke: 6, people: 40 } };
 }
 const PREMISES_MIGRATORS = {};
@@ -623,6 +623,8 @@ function normalise(rec) {
   for (const k of LAYERS) if (!Array.isArray(r.layers[k])) r.layers[k] = [];
   // v1.35: a round pad's polygon is its circle's, whatever the file says (a hand edit of `round` re-draws it)
   for (const m of r.layers.material) if (m && roundOk(m.round)) m.poly = roundPoly(m.round);
+  // v1.36: an area's shape - a round's or a rounded rectangle's polygon is its own; every area has its props
+  for (const a of r.layers.areas) if (a) { if (roundOk(a.round)) a.poly = roundPoly(a.round); else if (rectOk(a.rect)) a.poly = rectPoly(a.rect); if (!a.props || typeof a.props !== 'object') a.props = {}; }
   // v1.35: a spline road's handles run beside its points, one slot each
   for (const rd of r.layers.roads) if (rd && Array.isArray(rd.tan) && Array.isArray(rd.pts)) { while (rd.tan.length < rd.pts.length) rd.tan.push(null); rd.tan.length = rd.pts.length; }
   r.budget =Object.assign({}, d.budget, r.budget || {});
@@ -894,9 +896,12 @@ function stageIssues(rec0, maxes) {
   for (const L of rec.layers.links || []) for (const end of [L.from, L.to]) if (end && stagedItems.has(end.site + '/' + end.item) && !L.stage) out.push('link ' + L.id + ': names the staged item ' + end.site + '/' + end.item + ' and carries no stage');
   return out;
 }
-const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k' };
+const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k', areas: 'a' };
 function newId(rec, layer) {
-  const used = new Set((rec.layers[layer] || []).map(e => e.id));
+  // (v1.36: every id of the record, an area's v1 ids too - a migrated area keeps its surface's 'y1', and a new
+  // surface must not take it again)
+  const used = new Set();
+  for (const k of LAYERS) for (const e of rec.layers[k] || []) if (e) { used.add(e.id); if (k === 'areas') for (const q of areaEntries(e)) used.add(q.entry.id); }
   for (let i = 1; ; i++) { const id = (ID_PREFIX[layer] || layer[0]) + i; if (!used.has(id)) return id; }
 }
 function findById(rec, id) {
@@ -1853,6 +1858,273 @@ function plotGroundOff(zone, plotId) {
 }
 
 // ---------------------------------------------------------------------------
+// THE AREAS (contract v1.36, record v2; G2910 SCENERY-ED-2, futureDesigns/SCENERY-POLYGON-2026-10.md). The user, 11 Oct:
+// "The polygons saying 'gravel' around the main strip do not seem to draw anything, but to remove trees. I would rather
+// have a generic polygon type to which we can attach properties". ONE shape, its effects attached:
+//   areas[] = { id, name?, poly, round?: { c, r, n? }, rect?: { c, hw, hd, yaw, radius }, props: {
+//                 terraform  the terrain modifier's fields (kind flatten / raise / ramp, level, dh, slope, hdg, abs, falloff, order)
+//                 wheels     the surface entry's (surface: the SURFACE code, z, apron, yard) - the class the wheels feel;
+//                            a hard one (paved / gravel / sand) keeps the trees and the plots out, as it always did
+//                 draw       the material entry's: a PBR `set` (tile, fade, z) or a pavement `look` (band, pav, yaw, z, stands)
+//                 marks      weathered paint on a pavement draw: parking bays, a dock's edge and bollards, hatching (areaMarks)
+//                 exclude    the exclude entry's (what: trees / plots / settle); `zone` = a 'clear' zone's own
+//                            fields when the area came from one (it composes as that zone)
+//                 cover      the ttype entry's (code, from, clear, cover, veg: none / a biome / a new one) },
+//               src?: { <layer>: [id, index] } }   the v1 entries it was folded from: their ids and places
+// COMPOSE EXPANDS AN AREA BACK INTO THE v1 ENTRIES (expandAreas), each at the place its source had in its layer (a new
+// area's after every v1 entry, in the areas' order) - so a migrated record composes to the same bits as the v1 record it
+// came from (GATE PREMISES: every fixture and Jolene, sample for sample), and nothing past compose knows areas exist.
+// The v1 -> v2 migrator folds every polygon entry not on a stage, the same `poly` exactly into one area (one entry of a
+// layer an area); a terrain grade (a line), a zone that sows, a staged entry stay what they were.
+const AREA_PROPS = ['terraform', 'wheels', 'draw', 'marks', 'exclude', 'cover'];
+const AREA_LAYERS = ['terrain', 'surface', 'material', 'exclude', 'ttype', 'zones'];
+const AREA_SLOT = { terrain: 'terraform', surface: 'wheels', material: 'draw', exclude: 'exclude', zones: 'exclude', ttype: 'cover' };
+const AREA_SUFFIX = { terrain: '~t', surface: '~w', material: '~d', exclude: '~x', zones: '~x', ttype: '~c' };
+const AREA_TERRAFORM = ['flatten', 'raise', 'ramp'];
+const AREA_EXCLUDE = ['trees', 'plots', 'settle', 'rocks'];   // what an exclusion keeps out: the trees (drawn and collidable), the plots a zone sows (and a forest's planting), the settlements; 'rocks' a word Jolene's data carries
+const MARK_KINDS = ['parking', 'dock', 'hatch'];
+const MARK_DEF = { parking: { bay: 2.7, depth: 5.5, aisle: 6.5, inset: 1, line: 0.12, colour: 'white', rows: 0 },
+                   dock: { inset: 0.6, line: 0.2, colour: 'yellow', bollard: 9, edge: null },
+                   hatch: { pitch: 1.4, bar: 0.45, inset: 0.6, colour: 'yellow' } };
+// a ROUNDED RECTANGLE (the shape of a parking lot, a dock's quay): its polygon, counter-clockwise like roundPoly's
+function rectPoly(Q) {
+  const hw = Math.max(0.5, +Q.hw || 5), hd = Math.max(0.5, +Q.hd || 5), r = clamp(+Q.radius || 0, 0, Math.min(hw, hd) * 0.999);
+  const yaw = +Q.yaw || 0, cs = Math.cos(yaw), sn = Math.sin(yaw), c = Q.c, out = [];
+  const put = (x, z) => out.push([+(c[0] + x * cs - z * sn).toFixed(3), +(c[1] + x * sn + z * cs).toFixed(3)]);
+  const cen = [[hw - r, hd - r], [-(hw - r), hd - r], [-(hw - r), -(hd - r)], [hw - r, -(hd - r)]];
+  for (let k = 0; k < 4; k++) {
+    if (r <= 0.01) { put(k === 0 || k === 3 ? hw : -hw, k < 2 ? hd : -hd); continue; }
+    for (let i = 0; i <= 6; i++) { const a = (k + i / 6) * Math.PI / 2; put(cen[k][0] + Math.cos(a) * r, cen[k][1] + Math.sin(a) * r); }
+  }
+  return out;
+}
+const rectOk = Q => !!(Q && Array.isArray(Q.c) && isFinite(+Q.c[0]) && isFinite(+Q.c[1]) && +Q.hw > 0 && +Q.hd > 0);
+const polyKey = poly => JSON.stringify(poly.map(q => [+q[0], +q[1]]));
+const strip0 = (e, drop) => { const o = {}; for (const k of Object.keys(e)) if (drop.indexOf(k) < 0) o[k] = e[k]; return o; };
+// may a v1 entry fold into an area? (a polygon, on no stage; a terrain modifier a polygon's; a zone only a clear one)
+function areaFoldable(layer, e) {
+  if (!e || typeof e.id !== 'string' || e.stage || !Array.isArray(e.poly) || e.poly.length < 3) return false;
+  if (layer === 'terrain') return AREA_TERRAFORM.indexOf(e.kind) >= 0;
+  if (layer === 'zones') return e.kind === 'clear';
+  return AREA_LAYERS.indexOf(layer) >= 0;
+}
+// v1 -> v2: every foldable entry into an area, same poly = same area (one entry of a layer each). Returns the count.
+function foldAreas(rec) {
+  const L = rec.layers, groups = [], open = new Map();
+  // the place every v1 entry has in its layer AS THE RECORD COMPOSES (its areas expanded): folding into a record that
+  // already has areas pins every area entry's place too (its src), so every layer's order is kept exactly
+  const pos = new Map();
+  if (Array.isArray(L.areas) && L.areas.length) {
+    const add = {};
+    L.areas.forEach((a, ai) => { if (a) for (const q of areaEntries(a)) (add[q.layer] = add[q.layer] || []).push({ a, q, ord: q.ord, ai }); });
+    for (const layer of AREA_LAYERS) {
+      const old = L[layer] || [], ins = (add[layer] || []).sort((p, q) => (p.ord - q.ord) || (p.ai - q.ai));
+      let i = 0, j = 0, p = 0;
+      for (; i < old.length || j < ins.length; p++) {
+        if (j < ins.length && (ins[j].ord <= p || i >= old.length)) { const A = ins[j++]; A.a.src = Object.assign({}, A.a.src, { [layer]: [A.q.entry.id, p] }); }
+        else pos.set(old[i++], p);
+      }
+    }
+  } else for (const layer of AREA_LAYERS) (L[layer] || []).forEach((e, i) => pos.set(e, i));
+  for (const layer of AREA_LAYERS) {
+    const arr = L[layer] || [];
+    arr.forEach(e => {
+      if (!areaFoldable(layer, e)) return;
+      const i = pos.get(e);
+      const key = (layer === 'material' && roundOk(e.round) ? 'round:' : '') + polyKey(e.poly), slot = AREA_SLOT[layer];
+      let g = (open.get(key) || []).find(q => !q.slots[slot]);
+      if (!g) { g = { poly: e.poly, slots: {}, src: {}, round: null }; groups.push(g); if (!open.has(key)) open.set(key, []); open.get(key).push(g); }
+      g.slots[slot] = { layer, e }; g.src[layer] = [e.id, i];
+      if (layer === 'material' && roundOk(e.round)) g.round = e.round;
+    });
+  }
+  if (!groups.length) return 0;
+  const gone = {};
+  const areas = groups.map(g => {
+    const S = g.slots, props = {};
+    if (S.terraform) props.terraform = strip0(S.terraform.e, ['id', 'poly']);
+    if (S.wheels) props.wheels = strip0(S.wheels.e, ['id', 'poly']);
+    if (S.draw) props.draw = strip0(S.draw.e, ['id', 'poly', 'round']);
+    if (S.exclude) props.exclude = S.exclude.layer === 'zones' ? { what: ['trees'], zone: strip0(S.exclude.e, ['id', 'poly', 'kind']) } : strip0(S.exclude.e, ['id', 'poly']);
+    if (S.cover) props.cover = strip0(S.cover.e, ['id', 'poly']);
+    for (const s in S) (gone[S[s].layer] = gone[S[s].layer] || new Set()).add(S[s].e);
+    // the area's id: its surface's, else its draw's, else the first it came from (a place's prefix rides on every id)
+    const first = ['surface', 'material', 'terrain', 'exclude', 'ttype', 'zones'].find(k => g.src[k]);
+    const a = { id: g.src[first][0], poly: g.poly.map(q => [q[0], q[1]]), props, src: g.src };
+    if (g.round) a.round = g.round;
+    return a;
+  });
+  for (const k in gone) L[k] = L[k].filter(e => !gone[k].has(e));
+  L.areas = (L.areas || []).concat(areas);
+  return areas.length;
+}
+PREMISES_MIGRATORS[1] = r => { r.layers = Object.assign({}, r.layers); for (const k of AREA_LAYERS) if (Array.isArray(r.layers[k])) r.layers[k] = r.layers[k].slice(); foldAreas(r); return r; };
+// an area's v1 entries: [{ layer, entry, ord }] (ord: its source's place in the layer; Infinity: a new one, at the end)
+function areaEntries(a) {
+  const P = (a && a.props) || {}, poly = a && a.poly, out = [];
+  if (!Array.isArray(poly) || poly.length < 3) return out;
+  const src = a.src || {};
+  const idOf = layer => (src[layer] ? src[layer][0] : a.id + AREA_SUFFIX[layer]);
+  const ordOf = layer => (src[layer] && isFinite(+src[layer][1]) ? +src[layer][1] : Infinity);
+  const put = (layer, body) => out.push({ layer, entry: Object.assign({ id: idOf(layer) }, body, { poly }), ord: ordOf(layer) });
+  if (P.terraform && AREA_TERRAFORM.indexOf(P.terraform.kind) >= 0) put('terrain', P.terraform);
+  if (P.wheels && isFinite(+P.wheels.surface)) put('surface', P.wheels);
+  if (P.draw && (P.draw.set || P.draw.look)) {
+    const d = Object.assign({}, P.draw);
+    if (roundOk(a.round) && !P.wheels) d.round = a.round;   // (a round draw's wheels are its look's - unless the area says its own)
+    if (P.marks && MARK_KINDS.indexOf(P.marks.kind) >= 0) d.marks = P.marks;
+    put('material', d);
+  }
+  if (P.exclude) {
+    if (P.exclude.zone && typeof P.exclude.zone === 'object') put('zones', Object.assign({ kind: 'clear' }, P.exclude.zone));
+    else { const x = strip0(P.exclude, ['zone']); if (!Array.isArray(x.what)) x.what = ['trees']; put('exclude', x); }
+  }
+  if (P.cover) put('ttype', P.cover);
+  return out;
+}
+// the record with its areas folded back into the v1 layers it composes from (the same object when it has none)
+function expandAreas(rec) {
+  const A = rec && rec.layers && rec.layers.areas;
+  if (!Array.isArray(A) || !A.length) return rec;
+  const add = {};
+  A.forEach((a, ai) => { if (a) for (const q of areaEntries(a)) (add[q.layer] = add[q.layer] || []).push({ e: q.entry, ord: q.ord, ai }); });
+  const layers = Object.assign({}, rec.layers, { areas: [] });
+  for (const L in add) {
+    const ins = add[L].sort((p, q) => (p.ord - q.ord) || (p.ai - q.ai)), old = layers[L] || [], out = [];
+    let i = 0, j = 0;
+    while (i < old.length || j < ins.length) {
+      if (j < ins.length && (ins[j].ord <= out.length || i >= old.length)) out.push(ins[j++].e);
+      else out.push(old[i++]);
+    }
+    layers[L] = out;
+  }
+  return Object.assign({}, rec, { layers });
+}
+// the v1 entry an id names, in the expanded record: the area holding it and its property (the editor's selection)
+function areaOfEntry(rec, id) {
+  for (const a of (rec.layers && rec.layers.areas) || []) {
+    if (a.id === id) return { area: a, prop: null };
+    for (const q of areaEntries(a)) if (q.entry.id === id) return { area: a, prop: AREA_SLOT[q.layer], layer: q.layer };
+  }
+  return null;
+}
+// THE MARKS (G2912): weathered paint on an area's pavement, in the pavement's own frame (the polygon's bbox centre, turned
+// by `yaw`: u = dx cos + dz sin, v = -dx sin + dz cos - polyGeometry's). Rectangles [u0, u1, v0, v1, kind, period, axis,
+// span] as PAVEMENT's marks are (a period > 0: the box repeats along the axis), kind 0 white, 1 yellow; the renderer adds
+// the mesh's u offset. Every mark lies inside the shape by `inset` (the gate holds it); the paint's age is the pavement's
+// (pav.paintAge, the shader's chalk and wear). `water(edgeIndex)` > 0 says an edge's outside is water (the dock's side).
+//   parking  rows of bays across v: a row `depth` deep facing an aisle, back to back with the next, the separators a rule
+//   dock     the quay's edge line along the water's edge (inset from it) and the bollard spots every `bollard` metres
+//   hatch    keep-clear bars every `pitch` across the largest box inside the shape, and the box's outline
+function areaMarks(poly, spec, frame, water) {
+  const S = Object.assign({}, MARK_DEF[spec && spec.kind] || {}, spec || {}), out = { rects: [], segs: [], kind: S.kind, n: 0, issues: [] };
+  if (!Array.isArray(poly) || poly.length < 3 || MARK_DEF[S.kind] === undefined) return out;
+  const yaw = +(frame && frame.yaw) || 0, c = Math.cos(yaw), sn = Math.sin(yaw);
+  const bb = polyBBox(poly), cx = frame && isFinite(frame.cx) ? frame.cx : (bb.x0 + bb.x1) / 2, cz = frame && isFinite(frame.cz) ? frame.cz : (bb.z0 + bb.z1) / 2;
+  const P = poly.map(q => { const dx = q[0] - cx, dz = q[1] - cz; return [dx * c + dz * sn, -dx * sn + dz * c]; });
+  const kind = S.colour === 'white' ? 0 : 1, ins = Math.max(0, +S.inset || 0);
+  // the polygon's inside along a line v = const: [u0, u1] intervals, each shrunk by the inset
+  const spans = v => { const xs = []; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const a = P[i], b = P[j]; if ((a[1] > v) !== (b[1] > v)) xs.push(a[0] + (v - a[1]) / (b[1] - a[1]) * (b[0] - a[0])); } xs.sort((p, q) => p - q); const o = []; for (let k = 0; k + 1 < xs.length; k += 2) if (xs[k + 1] - xs[k] > 2 * ins) o.push([xs[k] + ins, xs[k + 1] - ins]); return o; };
+  // the inside over a band [va, vb]: the intervals every line of the band agrees on, and each kept off the band's corners
+  const band = (va, vb) => {
+    let cur = null;
+    for (let k = 0; k <= 4; k++) { const sp = spans(va + (vb - va) * k / 4 + (k === 0 ? 1e-6 : k === 4 ? -1e-6 : 0)); cur = cur === null ? sp : cur.map(I => { let best = null; for (const J of sp) { const lo = Math.max(I[0], J[0]), hi = Math.min(I[1], J[1]); if (hi > lo && (!best || hi - lo > best[1] - best[0])) best = [lo, hi]; } return best; }).filter(Boolean); }
+    return (cur || []).filter(I => I[1] > I[0]);
+  };
+  let v0 = Infinity, v1 = -Infinity; for (const q of P) { v0 = Math.min(v0, q[1]); v1 = Math.max(v1, q[1]); }
+  // a box's corners all inside by the inset (exact - a rounded corner sits nearer its diagonal than the band's lines say)
+  const okBox = (a, b, p, q) => [[a, p], [b, p], [a, q], [b, q]].every(c => -sdPoly(P, c[0], c[1]) >= ins - 1e-6);
+  const R = (a, b, p, q, k, per, ax, span) => out.rects.push([+a.toFixed(3), +b.toFixed(3), +p.toFixed(3), +q.toFixed(3), k === undefined ? kind : k, per || 0, ax || 0, span || 0]);
+  const MAXR = 40;
+  if (S.kind === 'parking') {
+    const bay = Math.max(1.8, +S.bay || 2.7), depth = Math.max(3, +S.depth || 5.5), aisle = Math.max(0, +S.aisle || 0), lw = Math.max(0.05, +S.line || 0.12);
+    const rows = [];
+    for (let v = v0 + ins; ; ) {
+      if (v + depth > v1 - ins) break;
+      rows.push([v, v + depth, 0]);   // closed at v (its back line), open toward the aisle
+      const vb = v + depth + aisle;
+      if (vb + depth > v1 - ins) break;
+      rows.push([vb, vb + depth, 1]);   // across the aisle, closed at its far side
+      v = vb + depth;
+      if (S.rows > 0 && rows.length >= S.rows) break;
+    }
+    let capped = false;
+    for (const [va, vb, side] of rows) {
+      if (capped) break;
+      for (const I of band(va, vb)) {
+        let n = Math.floor((I[1] - I[0]) / bay);
+        // the end bays off the shape's corners: one fewer until the end separators stand inside by the inset
+        while (n >= 1 && !(okBox((I[0] + I[1]) / 2 - n * bay / 2 - lw / 2, (I[0] + I[1]) / 2 - n * bay / 2 + lw / 2, va, vb) && okBox((I[0] + I[1]) / 2 + n * bay / 2 - lw / 2, (I[0] + I[1]) / 2 + n * bay / 2 + lw / 2, va, vb))) n--;
+        if (n < 1) continue;
+        if (out.rects.length + 2 > MAXR) { out.issues.push('parking: more rows than the pavement paints (' + MAXR + ' marks) - a smaller lot, or two'); capped = true; break; }
+        const u0 = (I[0] + I[1]) / 2 - n * bay / 2;
+        R(u0 - lw / 2, u0 + n * bay + lw / 2, va, vb, kind, bay, 0, lw);   // the bays' separators
+        const vb0 = side ? vb - lw : va; R(u0, u0 + n * bay, vb0, vb0 + lw);   // the row's back line
+        out.n += n;
+      }
+    }
+  } else if (S.kind === 'dock') {
+    // the quay's edge: the one named, else the longest whose outside is water, else the longest
+    let best = -1, bl = -1;
+    const edges = P.map((a, i) => { const b = P[(i + 1) % P.length]; return { i, a, b, l: Math.hypot(b[0] - a[0], b[1] - a[1]) }; });
+    if (S.edge !== null && S.edge !== undefined && edges[+S.edge]) best = +S.edge;
+    else { for (const e of edges) { const w = water ? water(e.i) : 0; const sc = e.l * (w > 0 ? 10 : 1); if (sc > bl) { bl = sc; best = e.i; } } if (water && !(water(best) > 0)) out.issues.push('dock: no edge of this shape meets the water - its longest is the quay'); }
+    const E = edges[best];
+    if (E) {
+      const lw = Math.max(0.05, +S.line || 0.2), du = E.b[0] - E.a[0], dv = E.b[1] - E.a[1], L = E.l || 1, tu = du / L, tv = dv / L;
+      // the inward normal: the side the polygon's centre lies on
+      let nu = -tv, nv = tu; { let mx = 0, mz = 0; for (const q of P) { mx += q[0] / P.length; mz += q[1] / P.length; } if ((mx - E.a[0]) * nu + (mz - E.a[1]) * nv < 0) { nu = -nu; nv = -nv; } }
+      const off = ins + lw / 2, end = Math.min(L / 2, ins + 0.5);
+      if (Math.abs(tv) < 0.02) {   // the quay runs along u (the pavement turned to it): a box and a rule of bollards
+        const vL = E.a[1] + nv * off, ua = Math.min(E.a[0], E.b[0]) + end, ub = Math.max(E.a[0], E.b[0]) - end;
+        if (ub > ua) {
+          R(ua, ub, vL - lw / 2, vL + lw / 2);
+          const sp = Math.max(3, +S.bollard || 9), nb = Math.floor((ub - ua) / sp), bs = 0.5, vB = E.a[1] + nv * (off + lw / 2 + 0.6 + bs / 2), uB = (ua + ub) / 2 - nb * sp / 2;
+          if (nb >= 1) R(uB - bs / 2, uB + nb * sp + bs / 2, vB - bs / 2, vB + bs / 2, kind, sp, 0, bs);
+          out.n = nb + 1;
+        }
+      } else {   // any other heading: the line as a segment (the pavement's segment slots; no bollard row)
+        const a = [E.a[0] + tu * end + nu * off, E.a[1] + tv * end + nv * off], b = [E.b[0] - tu * end + nu * off, E.b[1] - tv * end + nv * off];
+        out.segs.push([+a[0].toFixed(3), +a[1].toFixed(3), +b[0].toFixed(3), +b[1].toFixed(3), lw, kind]); out.n = 1;
+        out.issues.push('dock: turn the pavement to the quay (its lanes along the water) for the bollards');
+      }
+      out.edge = best;
+    }
+  } else if (S.kind === 'hatch') {
+    // the largest box inside: the band of v (in 24 steps) whose common interval times its height is the most
+    let bestA = 0, box = null;
+    const nS = 24, vs = []; for (let k = 0; k <= nS; k++) vs.push(v0 + (v1 - v0) * k / nS);
+    for (let a = 0; a < nS; a++) for (let b = a + 1; b <= nS; b++) {
+      const va = vs[a] + ins, vb = vs[b] - ins; if (vb - va < 1) continue;
+      for (const I of band(va, vb)) { const A2 = (I[1] - I[0]) * (vb - va); if (A2 > bestA) { bestA = A2; box = [I[0], I[1], va, vb]; } }
+    }
+    // (shrunk a quarter metre at a time until its corners stand inside by the inset)
+    for (let k = 0; box && k < 80 && !okBox(box[0], box[1], box[2], box[3]); k++) { box = [box[0] + 0.25, box[1] - 0.25, box[2] + 0.25, box[3] - 0.25]; if (box[1] - box[0] < 1 || box[3] - box[2] < 1) box = null; }
+    if (box) {
+      const pitch = Math.max(0.5, +S.pitch || 1.4), bar = Math.min(pitch * 0.8, Math.max(0.1, +S.bar || 0.45)), lw = 0.12;
+      const n = Math.floor((box[1] - box[0] - 2 * lw) / pitch);
+      if (n >= 1) { const u0 = (box[0] + box[1]) / 2 - n * pitch / 2 + (pitch - bar) / 2; R(u0, u0 + (n - 1) * pitch + bar, box[2] + lw, box[3] - lw, kind, pitch, 0, bar); }
+      R(box[0], box[1], box[2], box[2] + lw); R(box[0], box[1], box[3] - lw, box[3]); R(box[0], box[0] + lw, box[2], box[3]); R(box[1] - lw, box[1], box[2], box[3]);
+      out.n = Math.max(0, n); out.box = box;
+    }
+  }
+  if (!out.rects.length && !out.segs.length) out.issues.push(S.kind + ': the shape is too small for its marks');
+  return out;
+}
+// what an area is, in a few words (the editor's lists; the inspector's header): its draw, else its wheels, else what it does
+function areaLabel(a) {
+  const P = (a && a.props) || {};
+  if (a && a.name) return a.name;
+  if (P.draw && P.draw.look && RUNWAY_LOOKS[P.draw.look]) return (RUNWAY_LOOKS[P.draw.look].name || P.draw.look).toLowerCase() + (P.marks ? ' (' + P.marks.kind + ')' : '');
+  if (P.draw && P.draw.set) return P.draw.set + ' ground';
+  if (P.wheels) return (SURFACE_NAMES[+P.wheels.surface] || 'surface').toLowerCase() + (P.wheels.apron ? ' apron' : ' area');
+  if (P.terraform) return P.terraform.kind === 'raise' ? 'raise / lower' : P.terraform.kind === 'ramp' ? 'slope' : 'flat';
+  if (P.cover) return 'vegetation';
+  if (P.exclude) return 'no ' + ((P.exclude.what || ['trees']).join(', ') || 'trees');
+  return 'area';
+}
+
+// ---------------------------------------------------------------------------
 // compose — the overlay a world composes at its terrainH seam
 // ---------------------------------------------------------------------------
 function compose(rec0, world, opts) {
@@ -1860,7 +2132,8 @@ function compose(rec0, world, opts) {
   // THE STAGES (v1.33): the record as it stands at `o.tracks` (absent: the sandbox, every track at its max) - an
   // unstaged record is untouched, and a staged one composes exactly as its stageView would
   const SV = stageView(normalise(rec0), o.tracks);
-  const rec = SV.staged ? normalise(SV.rec) : normalise(rec0);
+  // (v1.36: the areas composed as the v1 entries they expand into - expandAreas; O.rec is that record)
+  const rec = expandAreas(SV.staged ? normalise(SV.rec) : normalise(rec0));
   const F = frameOf(rec, world);
   const mods = [];
   for (const m of rec.layers.terrain) { const M = makeModifier(m, F.y0); if (M) mods.push(M); }
@@ -1975,7 +2248,23 @@ function compose(rec0, world, opts) {
   // THE PAVED POLYGONS (v1.16): a material polygon with a `look` (a pavement class) instead of a set is an
   // apron, a turnaround, a pad - the pavement module draws it, the map never sees it
   const pavePolys = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.look && RUNWAY_LOOKS[m.look] && RUNWAY_LOOKS[m.look].cls)
-    .map(m => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), look: m.look, band: m.band === undefined ? null : m.band, pav: m.pav || null, yaw: +m.yaw || 0, z: +m.z || 0, stands: m.stands || null }));
+    .map(m => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), look: m.look, band: m.band === undefined ? null : m.band, pav: m.pav || null, yaw: +m.yaw || 0, z: +m.z || 0, stands: m.stands || null,
+                 marks: m.marks && MARK_KINDS.indexOf(m.marks.kind) >= 0 ? m.marks : null }));
+  // (v1.36, G2912) A DOCK'S WATER: for a pavement wearing dock marks, how much of each edge's outside is water - three
+  // points 4 m out from the edge, water standing 20 cm over the ground there (areaMarks puts the quay's line on that edge)
+  for (const pp of pavePolys) if (pp.marks && pp.marks.kind === 'dock' && world.waterH) {
+    const n = pp.poly.length; pp.waterEdges = [];
+    for (let i = 0; i < n; i++) {
+      const a = pp.poly[i], b = pp.poly[(i + 1) % n], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nx = (b[1] - a[1]) / L, nz = -(b[0] - a[0]) / L;
+      let wet = 0;
+      for (const t of [0.25, 0.5, 0.75]) {
+        const mx = a[0] + (b[0] - a[0]) * t, mz = a[1] + (b[1] - a[1]) * t, sg = inPoly(pp.poly, mx + nx * 0.5, mz + nz * 0.5) ? -1 : 1;
+        const w = F.toWorld(mx + nx * 4 * sg, mz + nz * 4 * sg), wl = world.waterH(w[0], w[1]);
+        if (isFinite(wl) && wl > world.terrainH(w[0], w[1]) + 0.2) wet++;
+      }
+      pp.waterEdges.push(wet / 3);
+    }
+  }
   const mats = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.set && !m.look).map((m, i) => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), set: String(m.set), tile: m.tile > 0 ? +m.tile : null, fade: Math.max(0, +m.fade || 0), z: +m.z || 0, i })).sort((a, b) => (a.z - b.z) || (a.i - b.i));
   // the weight of one material at a point: 1 well inside, 0 well outside, a smoothstep across the fade band
   const matWeight = (m, lx, lz) => { const d = -sdPoly(m.poly, lx, lz); if (m.fade <= 0) return d >= 0 ? 1 : 0; const u = (d + m.fade / 2) / m.fade; return u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u); };
@@ -3051,8 +3340,20 @@ function standIssues(what, st) {
   return out;
 }
 function issues(rec0) {
-  const rec = normalise(rec0);
+  const recA = normalise(rec0), rec = expandAreas(recA);
   const out = [];
+  // THE AREAS (v1.36): a shape, its props known, its marks on a pavement; then every check below on the v1 entries
+  // they compose as (an entry's id names its area: '<area>~d' is an area's draw, a migrated one its source's id)
+  for (const a of recA.layers.areas) {
+    if (!a || !a.id) { out.push('area without an id'); continue; }
+    const P = a.props || {};
+    for (const k of Object.keys(P)) if (AREA_PROPS.indexOf(k) < 0) out.push('area ' + a.id + ': no property `' + k + '` (' + AREA_PROPS.join(', ') + ')');
+    if (P.terraform && AREA_TERRAFORM.indexOf(P.terraform.kind) < 0) out.push('area ' + a.id + ': terraform is ' + AREA_TERRAFORM.join(' | '));
+    if (P.marks && MARK_KINDS.indexOf(P.marks.kind) < 0) out.push('area ' + a.id + ': marks are ' + MARK_KINDS.join(' | '));
+    if (P.marks && !(P.draw && P.draw.look && RUNWAY_LOOKS[P.draw.look] && RUNWAY_LOOKS[P.draw.look].cls)) out.push('area ' + a.id + ': marks are paint on a pavement - draw it as a pavement first');
+    if (P.exclude && P.exclude.what && (!Array.isArray(P.exclude.what) || P.exclude.what.some(w => AREA_EXCLUDE.indexOf(w) < 0))) out.push('area ' + a.id + ': exclude is a list of ' + AREA_EXCLUDE.join(', '));
+    if (P.draw && !P.draw.set && !P.draw.look) out.push('area ' + a.id + ': draw has neither a set nor a look');
+  }
   for (const k of ['terrain', 'surface', 'material', 'exclude', 'zones']) for (const e of rec.layers[k]) {
     if (e.kind === 'grade') { if (!e.pts || e.pts.length < 2) out.push(k + ' ' + e.id + ': a grade needs two points'); continue; }
     if (!e.poly || e.poly.length < 3) { out.push(k + ' ' + e.id + ': a polygon needs three points'); continue; }
@@ -3194,14 +3495,14 @@ function curvTol(O, F, lx, lz, c, world) {
 
 // the check lines: [{ ok, label }] — the panel draws them, the gate counts them
 function checks(rec0, world, opts) {
-  const rec = normalise(rec0), o = opts || {};
+  const recA = normalise(rec0), rec = expandAreas(recA), o = opts || {};
   const lines = [];
   const put = (ok, label) => { lines.push({ ok: !!ok, label }); return ok; };
   try {
-    const back = unwrap(envelope(rec.name, rec)).rec;
-    put(JSON.stringify(back) === JSON.stringify(normalise(rec)), 'the record round-trips');
+    const back = unwrap(envelope(recA.name, recA)).rec;
+    put(JSON.stringify(back) === JSON.stringify(normalise(recA)), 'the record round-trips');
   } catch (e) { put(false, 'the record round-trips (' + e.message + ')'); }
-  const iss = issues(rec);
+  const iss = issues(recA);
   put(iss.length === 0, iss.length ? iss[0] : 'every polygon simple, every id unique');
   if (!world || !world.terrainH) return lines;
   const O = o.overlay || compose(rec, world, { pool: o.pool });
@@ -3340,6 +3641,7 @@ const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, 
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
+  AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
   frameOf, zoneWaterY: zoneWaterYOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;

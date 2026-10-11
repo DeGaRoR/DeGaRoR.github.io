@@ -78,11 +78,13 @@
         // sliders of the flyout) - a different screen, the same controls. Nothing is styled here.
         const mk = (tag, id, cls) => { const e = document.createElement(tag); if (id) e.id = id; if (cls) e.className = cls; return e; };
         const v = mk('div', 'premView');
-        for (const id of ['premStrip', 'premPlaque', 'premChk', 'premCam']) v.appendChild(mk('div', id));
+        // (G2910 SCENERY-ED-2: the tabs stand on their own plate at the left of the sheet - they light the tools and the
+        // palette beside them; the right plate is the inspector of the selection alone)
+        for (const id of ['premRail', 'premStrip', 'premPlaque', 'premChk', 'premCam']) v.appendChild(mk('div', id));
         const panel = mk('div', 'premPanel');
         const head = mk('div', 'premHead');
         const t = mk('span', null, 't'); t.textContent = 'scenery editor';   // G2890: the SCENERY editor (premises); the WORLD editor is the right-hand rail (F9)
-        const sec = mk('span', 'premSec', 's');
+        const sec = mk('span', 'premSec', 's'); sec.textContent = 'inspector';
         const back = mk('button', 'premClose', 'pill'); back.type = 'button'; back.textContent = 'back to the flight'; back.title = 'close the editor; the record autosaved and is the world at the next boot';
         back.onclick = () => PREM.close();
         head.appendChild(t); head.appendChild(sec); head.appendChild(back);
@@ -102,10 +104,12 @@
       const ov = world.premises.overlay;
       if (ov && ov.n) PREM.host.cameras.frame(ov.extent); else { const cg = sim.cgPos(); PREM.host.cameras.centreOn(cg[0], cg[2]); }
       PREM.host.cameras.set(PREM.host.cameras.mode());
-      const els = { chk: document.getElementById('premChk'), plaque: document.getElementById('premPlaque'), strip: document.getElementById('premStrip') };
+      const els = { chk: document.getElementById('premChk'), plaque: document.getElementById('premPlaque'), strip: document.getElementById('premStrip'), rail: document.getElementById('premRail') };
       const rec0 = world.premises.rec ? PREMISES_GEN.envelope(world.premises.rec.name || null, world.premises.rec) : null;   // BEFORE the mount: the mount's first rebuild recomposes the world with what the editor holds
       PREM.ed = window.PREMISES_UI.mount(PREM.body, {
-        onSection: S => { const e = $('premSec'); if (e) e.textContent = S.label; },
+        onSection: () => {},   // (G2910: the head is the inspector's; the lit tab shows on the rail plate)
+        onSelect: id => { const e = $('premSec'); if (e) e.textContent = id ? 'inspector · ' + id : 'inspector'; },
+        thumb: key => PREM.thumb(key),   // G2914: the model placer's thumbnails (below)
         THREE, world, R: PREM.R, camera: PREM.host.camera, ground: PREM.host.ground, ray: PREM.host.ray, cameras: PREM.host.cameras, rows: PREM.host.rows, els,
         viewEl: PREM.view, storage: (() => { try { const ls = localStorage;   // G590: the places the town switch cut go back into every save
           // G2300 (STAGES): ...and so do the stages this page's composition cut or changed (stageRestore: the whole record back)
@@ -124,6 +128,27 @@
       });
       PREM.open = true;
       $('bPause').textContent = 'Resume'; $('bPause').classList.add('on');
+    },
+    // THE PLACER'S THUMBNAILS (G2914): a prop drawn once into a small target by the game's own renderer (its bytes fetched
+    // first), read back, made sRGB and handed to the palette as a picture - one per key, the palette asks one a frame
+    thumb(key) {
+      if (typeof propWarm !== 'function' || typeof propMesh !== 'function') return Promise.resolve(null);
+      return propWarm(key).then(() => new Promise(res => setTimeout(res, 120))).then(() => {
+        const N = 96, g = propMesh(THREE, key), scene = new THREE.Scene();
+        scene.add(new THREE.HemisphereLight(0xdfe8f0, 0x40382f, 2.4));
+        const dl = new THREE.DirectionalLight(0xffffff, 2.2); dl.position.set(3, 5, 4); scene.add(dl); scene.add(g);
+        const box = new THREE.Box3().setFromObject(g), sz = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3()), r = Math.max(sz.x, sz.y, sz.z, 0.1) * 0.62;
+        const cam = new THREE.PerspectiveCamera(32, 1, r * 0.05, r * 40); cam.position.set(c.x + r * 2.0, c.y + r * 1.45, c.z + r * 2.4); cam.lookAt(c);
+        const rt = new THREE.WebGLRenderTarget(N, N), prev = renderer.getRenderTarget(), cc = renderer.getClearColor(new THREE.Color()), ca = renderer.getClearAlpha();
+        const px = new Uint8Array(N * N * 4);
+        try { renderer.setRenderTarget(rt); renderer.setClearColor(0x1a1f27, 1); renderer.clear(); renderer.render(scene, cam); renderer.readRenderTargetPixels(rt, 0, 0, N, N, px); }
+        finally { renderer.setRenderTarget(prev); renderer.setClearColor(cc, ca); rt.dispose(); scene.remove(g); }
+        const cv = document.createElement('canvas'); cv.width = N; cv.height = N; const g2 = cv.getContext('2d'), im = g2.createImageData(N, N);
+        const enc = v => Math.round(255 * Math.pow(Math.min(1, v / 255), 1 / 2.2));   // the target is linear: no tone, no sRGB on the way out
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const s = ((N - 1 - y) * N + x) * 4, d = (y * N + x) * 4; im.data[d] = enc(px[s]); im.data[d + 1] = enc(px[s + 1]); im.data[d + 2] = enc(px[s + 2]); im.data[d + 3] = 255; }
+        g2.putImageData(im, 0, 0);
+        return cv.toDataURL('image/jpeg', 0.82);
+      }).catch(() => null);
     },
     close() {
       if (!PREM.open) return;

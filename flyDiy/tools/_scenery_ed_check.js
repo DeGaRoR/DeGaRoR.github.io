@@ -16,6 +16,13 @@
 //      added on the road keeps every handle beside its point; 'corners' in the inspector takes the curve off.
 //   4  THE PLOTS' GROUND: the plot pick's click switches one plot's ground off (the zone's noGround), again on.
 //   5  NAMES: the module names itself the scenery editor where it names its record.
+//   6  THE AREAS (G2910): a tool draws ONE area (the surface tool: gravel wheels AND gravel drawn), it composes as its v1
+//      entries; a gravel area without a draw says it draws nothing; a property added / set / removed and undone; the
+//      inspector's head and sections; a v1 file loads as areas and composes as the file did.
+//   7  THE TABS ARE PALETTES: a tab changes the tools and the palette drawer; the inspector keeps the selection;
+//      nothing selected, the inspector is the scenery's outline.
+//   8  THE MODEL PLACER (G2914): the bank (a stub registry) by group and search, a drop, a turned and scaled level drop,
+//      the scatter (n records, one undo), a drag, the save and the load.
 // Exits non-zero on any red; prints GATE SCENERYED: PASS / FAIL.
 'use strict';
 const fs = require('fs');
@@ -51,6 +58,7 @@ function makeR() {
     const f = PG.findById(rec, id); if (!f) return [];
     const e = f.entry, out = [];
     if (PG.roundOk(e.round)) return [{ key: 'rc', p: [e.round.c[0], 0, e.round.c[1]] }, { key: 'rr', p: [e.round.c[0] + e.round.r, 0, e.round.c[1]], mid: true }];
+    if (isFinite(+e.x) && isFinite(+e.z) && !e.poly) return [{ key: 'v0', p: [+e.x, 0, +e.z] }];   // a point object (a model): one disc
     const arr = e.poly || e.pts; if (!arr) return out;
     arr.forEach((q, i) => { out.push({ key: 'v' + i, p: [q[0], 0, q[1]] }); if (e.poly || i + 1 < arr.length) out.push({ key: 'm' + i, p: [q[0], 0, q[1]], mid: true }); });
     if (e.pts && e.curve === 'spline') PG.roadHandles(e.pts, e.tan).forEach((h, i) => out.push({ key: 'h' + i, p: [e.pts[i][0] + h[0], 0, e.pts[i][1] + h[1]] }));
@@ -64,7 +72,8 @@ function makeR() {
     corner(i) { if (i !== undefined) corner = i; return corner; },
     ghost() {}, preview() {}, previewEnd() {}, pickHandle() { return null; },
     handles: handleKeys,
-    hit(x, z) { const L = O.frame.toLocal(x, z); for (const k of ['material', 'surface', 'zones', 'terrain']) for (const e of rec.layers[k]) if (e.poly && PG.inPoly(e.poly, L[0], L[1])) return { id: e.id, layer: k, entry: e }; return null; },
+    hit(x, z) { const L = O.frame.toLocal(x, z); for (const k of ['areas', 'material', 'surface', 'zones', 'terrain']) for (const e of rec.layers[k]) if (e.poly && PG.inPoly(e.poly, L[0], L[1])) return { id: e.id, layer: k, entry: e }; return null; },
+    ghostModel(sp) { R.ghostAt = sp; },
     heightAt: (x, z) => O.terrainAt ? O.terrainAt(x, z) : synth.terrainH(x, z),
     plots: () => O.records.plots, links: () => [], aerodromes: () => O.aerodromes || [], patternOf: () => null,
   };
@@ -123,11 +132,11 @@ check(notes.some(t => /^§SHAPE/.test(t)) && notes.some(t => /^\[subdivide/.test
 // 2 THE ROUND PAD
 ed.setSection('airfield'); ed.cmd('tool', { name: 'pad' });
 ed.cmd('point', { x: 200, z: 100 }); ed.cmd('point', { x: 201, z: 100 });
-check(!rec().layers.material.some(m => m.round), '2 a pad under 3 m is refused');
+check(!rec().layers.areas.some(m => m.round), '2 a pad under 3 m is refused');
 ed.cmd('tool', { name: 'pad' });
 ed.cmd('point', { x: 200, z: 100 }); ed.cmd('point', { x: 215, z: 100 });
-const pad = rec().layers.material.find(m => m.round);
-check(pad && pad.look === 'concrete' && Math.abs(pad.round.r - 15) < 0.01 && pad.poly.length === 48, '2 the pad tool\'s two clicks stand a round concrete pad');
+const pad = rec().layers.areas.find(m => m.round);   // (G2910: an AREA - its circle, concrete drawn, the wheels paved)
+check(pad && pad.props.draw && pad.props.draw.look === 'concrete' && pad.props.wheels && pad.props.wheels.surface === PG.SURFACE.PAVED && Math.abs(pad.round.r - 15) < 0.01 && pad.poly.length === 48, '2 the pad tool\'s two clicks stand a round concrete pad');
 ed.select(pad.id);
 ed.cmd('drag', { key: 'rr', x: 225, z: 100 });
 const pad2 = find(pad.id).entry;
@@ -171,6 +180,90 @@ if (plots.length) {
   check(ng().length === 1 && ng()[0] === plots[0].id && R.plots().find(p => p.id === plots[0].id).noGround, '4 the plot pick switches one plot\'s ground off');
   ed.cmd('plotGround', { zone: zid, x: c[0], z: c[1] });
   check(ng().length === 0, '4 ...and on again');
+}
+
+// 6 THE AREAS (G2910 SCENERY-ED-2): every polygon a tool draws is ONE area with the tool's properties; a v1 file loads as
+//   areas (the migrator; GATE PREMISES holds "the same world"); a property added / removed / set through the inspector's
+//   command; a gravel area that draws nothing SAYS so; the inspector's head names the selection
+{
+  ed.setSection('terrain'); ed.cmd('tool', { name: 'surface' });
+  for (const q of [[300, 0], [360, 0], [360, 20], [300, 20]]) ed.cmd('point', { x: q[0], z: q[1] });
+  const gid2 = ed.cmd('commit'), A = () => find(gid2).entry;
+  check(find(gid2).layer === 'areas' && A().props.wheels.surface === PG.SURFACE.GRAVEL && A().props.draw && A().props.draw.look === 'gravel', '6 the surface tool stands ONE area: the wheels on gravel AND the gravel drawn', JSON.stringify(A().props));
+  const Oa = PG.compose(rec(), synth), wc = Oa.frame.toWorld(330, 10);
+  check(Oa.surfaceAt(wc[0], wc[1]) === PG.SURFACE.GRAVEL && Oa.excludeAt(wc[0], wc[1], 'trees') && (Oa.pavePolys || []).some(p => p.id === gid2 + '~d'), '6 it composes as its v1 entries: the wheels, the trees kept out, the pavement drawn');
+  ed.cmd('removeProp', { id: gid2, prop: 'draw' });
+  notes.length = 0; ed.select(null); ed.select(gid2);
+  check(!A().props.draw && notes.some(t => /draws NOTHING/.test(t)), '6 a gravel area without a draw says it draws nothing (the user\'s gravel band)');
+  check(ed.cmd('addProp', { id: gid2, prop: 'draw' }) && A().props.draw && A().props.draw.look === 'concrete' && A().props.wheels.surface === PG.SURFACE.GRAVEL, '6 + add a property: the draw (its wheels kept)');
+  ed.cmd('addProp', { id: gid2, prop: 'marks' });
+  check(A().props.marks && A().props.marks.kind === 'parking' && isFinite(A().props.draw.yaw), '6 + marks: parking, the pavement turned to its long side');
+  ed.cmd('setProp', { id: gid2, prop: 'marks', patch: { kind: 'hatch' } });
+  check(A().props.marks.kind === 'hatch', '6 a property set in place');
+  notes.length = 0; ed.select(null); ed.select(gid2);
+  const head = ed.cmd('inspector').children[0], hk = head && head.children[0] && head.children[0].textContent, hn = head && head.children[1] && head.children[1].textContent;
+  check(hk === 'SELECTED' && /^AREA /.test(hn || '') && hn.indexOf(gid2) >= 0, '6 the inspector\'s head names the selection', hk + ' / ' + hn);
+  check(['§WHAT IT DOES', '§TERRAFORM', '§WHEELS', '§DRAW', '§MARKS'].filter(t => notes.some(n => n.indexOf(t) === 0)).length === 4 && notes.some(t => /m²/.test(t)) && notes.some(t => /keeps out: trees, plots/.test(t)), '6 the inspector: its facts, what it does (trees and plots kept out by its wheels), a section per property');
+  check(roundTrip(), '6 the area round-trips');
+  ed.undo(); ed.undo(); ed.undo();
+  check(!A().props.draw && !A().props.marks, '6 undo takes the properties back one by one');
+  ed.undo();
+  check(A().props.draw && A().props.draw.look === 'gravel', '6 ...to the gravel it drew');
+  // a v1 file loads as areas, nothing foldable left; the record composes the same
+  const fx = fs.readFileSync(path.join(TOOLS, 'fixtures', 'premises_v1_official.json'), 'utf8');
+  const raw = JSON.parse(fx), raw1 = raw.premises || raw;
+  ed.load(fx);
+  check(rec().layers.areas.length > 0 && PG.AREA_LAYERS.every(k => !(rec().layers[k] || []).some(e => PG.areaFoldable(k, e))), '6 a v1 file loads as areas (' + rec().layers.areas.length + '), no v1 polygon left');
+  const O1 = PG.compose(raw1, synth), O2 = PG.compose(rec(), synth);
+  let same = true; const ex = O1.extent;
+  for (let i = 0; i < 300 && same; i++) { const lx = ex.x0 + (ex.x1 - ex.x0) * ((i * 0.618) % 1), lz = ex.z0 + (ex.z1 - ex.z0) * ((i * 0.377) % 1), w = O1.frame.toWorld(lx, lz); same = Object.is(O1.terrainAt(w[0], w[1]), O2.terrainAt(w[0], w[1])) && O1.surfaceAt(w[0], w[1]) === O2.surfaceAt(w[0], w[1]); }
+  check(same && O1.records.plots.length === O2.records.plots.length, '6 ...and the editor\'s record composes as the file did');
+  const yArea = rec().layers.areas.find(a => a.props.wheels);
+  if (yArea) { R.select && ed.select(yArea.id); check(ed.selected === yArea.id, '6 a migrated area is selectable by its old id (' + yArea.id + ')'); }
+}
+
+// 7 THE TABS ARE PALETTES: a tab changes the tools and the palette; the inspector keeps the selection
+{
+  const keep = ed.selected;
+  ed.setSection('file');
+  const insp0 = ed.cmd('inspector').children[0];
+  check(ed.selected === keep && insp0 && insp0.children[0].textContent === 'SELECTED', '7 FILE lit: the inspector still shows the selection');
+  notes.length = 0; ed.setSection('view'); ed.setSection('file');
+  check(notes.some(t => t === '§FILE'), '7 the FILE rows are in the palette drawer');
+  ed.select(null);
+  check(ed.cmd('inspector').children[0].children[0].textContent === 'NOTHING SELECTED' && notes.some(t => t === '§THE SCENERY'), '7 nothing selected: the inspector is the scenery\'s outline');
+  ed.setSection('areas');
+  check(ed.selected === null && ed.cmd('paletteEl').children.length === 1, '7 AREAS lit: its palette drawer');
+}
+
+// 8 THE MODEL PLACER (G2914): the bank (a stub registry - the page's PROP_REG), a drop, a turned and scaled drop, the
+//   scatter (n records, one undo), the save and the load
+{
+  win.PROP_REG = { groups: [['yard', 'yard kit'], ['dock', 'dock kit']], texs: {}, order: ['crate_a', 'crate_a_lod1', 'bollard', 'drum'],
+    props: { crate_a: { key: 'crate_a', group: 'yard', label: 'a crate', dim: [1, 0.8, 1], nt: 240 }, crate_a_lod1: { key: 'crate_a_lod1', group: 'yard', lodOf: 'crate_a', lodDist: 30 },
+             bollard: { key: 'bollard', group: 'dock', label: 'a bollard', dim: [0.4, 0.7, 0.4], nt: 300 }, drum: { key: 'drum', group: 'yard', label: 'a drum', dim: [0.6, 0.9, 0.6], nt: 400 } } };
+  ed.setSection('assets');
+  check(JSON.stringify(ed.cmd('assets', {})) === '["crate_a","bollard","drum"]' && JSON.stringify(ed.cmd('assets', { group: 'dock' })) === '["bollard"]' && JSON.stringify(ed.cmd('assets', { q: 'dru' })) === '["drum"]', '8 the bank: every model but its levels, by group, by search');
+  ed.cmd('pick', { key: 'bollard', yaw: 0.5, s: 1 }); ed.cmd('tool', { name: 'place' });
+  const n0 = rec().layers.objects.length;
+  ed.cmd('click', { x: 40, z: 60 });
+  const b1 = rec().layers.objects[rec().layers.objects.length - 1];
+  check(rec().layers.objects.length === n0 + 1 && b1.kind === 'prop' && b1.key === 'bollard' && Math.abs(b1.x - 40) < 0.01 && b1.yaw === 0.5 && b1.on === 'ground' && b1.s === undefined, '8 a click drops ONE prop record (turned, on the ground, scale 1 unwritten)', JSON.stringify(b1));
+  const b2id = ed.cmd('place', { x: 44, z: 60, key: 'drum', yaw: 1, s: 1.5, level: true });
+  const b2 = find(b2id).entry;
+  check(b2.s === 1.5 && b2.on === 'flat' && b2.yaw === 1, '8 a scaled, level drop keeps its scale and its stance');
+  const ids = ed.cmd('scatter', { x: 0, z: 120, key: 'crate_a', n: 6, r: 10, seed: 3 });
+  check(ids.length === 6 && ids.every(i => { const e = find(i); return e && Math.hypot(e.entry.x, e.entry.z - 120) <= 10.01; }) && new Set(ids).size === 6, '8 scatter: six records within the radius, six ids');
+  ed.undo();
+  check(ids.every(i => !find(i)), '8 the scatter is one undo step');
+  ed.redo();
+  check(ids.every(i => !!find(i)), '8 ...and one redo');
+  ed.select(b2id); ed.cmd('drag', { key: 'v0', x: 50, z: 66 });
+  const moved = find(b2id).entry;
+  const props0 = JSON.stringify(rec().layers.objects.filter(o => o.kind === 'prop'));
+  ed.load(PG.envelope('placer', rec()));
+  check(JSON.stringify(rec().layers.objects.filter(o => o.kind === 'prop')) === props0 && JSON.parse(props0).length === 8 && JSON.stringify(find(b2id).entry) === JSON.stringify(moved) && find(b2id).entry.s === 1.5 && Math.abs(moved.x - 50) < 0.01, '8 saved and loaded: the drops, their place, turn and scale', JSON.stringify(find(b2id) && find(b2id).entry));
+  check(roundTrip(), '8 the record round-trips');
 }
 
 // 5 NAMES

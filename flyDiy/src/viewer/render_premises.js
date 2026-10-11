@@ -31,7 +31,9 @@
 const PG = (typeof window !== 'undefined' && window.PREMISES_GEN) || (typeof require === 'function' && require('../src/core/27_premises.js'));
 
 const CHUNK = 64;
-const LAYER_COL = { terrain: 0xffa040, surface: 0x4fa7ff, material: 0xd28cff, exclude: 0xff5a5a, zones: 0x6fd08c, roads: 0xe0d090, runways: 0xffffff, objects: 0x9fe0ff, ttype: 0xb6e05a };   // ttype: the cover polygons (G1385: their vegetation)
+const LAYER_COL = { terrain: 0xffa040, surface: 0x4fa7ff, material: 0xd28cff, exclude: 0xff5a5a, zones: 0x6fd08c, roads: 0xe0d090, runways: 0xffffff, objects: 0x9fe0ff, ttype: 0xb6e05a, areas: 0xd8dde4 };   // ttype: the cover polygons (G1385: their vegetation)
+// an AREA's outline (v1.36, G2910) wears the colour of what it does first: its draw, its wheels, its ground, its cover, its exclusion
+const areaCol = a => { const P = (a && a.props) || {}; return P.draw ? LAYER_COL.material : P.wheels ? LAYER_COL.surface : P.terraform ? LAYER_COL.terrain : P.cover ? LAYER_COL.ttype : P.exclude ? LAYER_COL.exclude : LAYER_COL.areas; };
 const ZONE_COL = { residential: 0x6fd08c, commercial: 0x5db3ff, industrial: 0xe0a060, harbour: 0x4fc7d0, park: 0xa0e070, airfield: 0xffffff, forest: 0x2f8f4f, clear: 0xd0c090 };
 const LIFT = 0.18;
 const TREE_BANDS = [0, 60, 132];
@@ -227,8 +229,8 @@ function make(THREE, scene, world, rec0, opts) {
   // handful of instanced draws, every kind cut by distance. It reads the built houses' own reports (HOUSES[].built)
   const LIFE = (typeof window !== 'undefined' && window.SCENERY_LIFE) ? window.SCENERY_LIFE.make(THREE, {
     root, game: !!o.game, record: () => rec, frame: () => O.frame, heightAt: (x, z) => heightAt(x, z), waterY: () => (world.waterH ? world.waterH(0, 0) : -1e9), waterAt: (x, z) => (world.waterH ? (world.waterHBuild || world.waterH)(x, z) : -1e9),   // (G1406: the build read)
-    houses: () => HOUSES, plots: () => O.records.plots, roads: () => O.roads, runways: () => O.runways, zones: () => rec.layers.zones,
-    aprons: () => (rec.layers.surface || []).filter(e => e.apron && e.poly && e.poly.length > 2).map(e => e.poly),
+    houses: () => HOUSES, plots: () => O.records.plots, roads: () => O.roads, runways: () => O.runways, zones: () => (O.rec || rec).layers.zones,
+    aprons: () => ((O.rec || rec).layers.surface || []).filter(e => e.apron && e.poly && e.poly.length > 2).map(e => e.poly),   // (v1.36: the composed record's - an area's wheels are a surface there)
     objects: () => (rec.layers.objects || []).filter(e => e.kind !== 'aircraft' && isFinite(e.x)).map(e => { const w = O.frame.toWorld(e.x, e.z); return { x: w[0], z: w[1], r: e.kind === 'billboard' ? (+e.w || 3) / 2 + 0.6 : e.kind === 'tree' ? 1.5 : 1.3 }; }),
     aircraft: () => (rec.layers.objects || []).filter(e => e.kind === 'aircraft').map(e => { const w = O.frame.toWorld(e.x, e.z); return { x: w[0], z: w[1], yaw: (e.yaw || 0) + O.frame.yaw }; }),
     sites: () => (rec.layers.sites || []).filter(st => st.at && O.runways.some(r => r.c && Math.hypot(r.c[0] - st.at.x, r.c[1] - st.at.z) < (r.len || 1000) / 2 + 900)).map(st => { let rw = null, rd = Infinity; for (const r of O.runways) if (r.c) { const d = Math.hypot(r.c[0] - st.at.x, r.c[1] - st.at.z) - (r.len || 1000) / 2; if (d < rd) { rd = d; rw = r.id; } } return { x: st.at.x, z: st.at.z, id: st.id, runway: rw }; }),
@@ -1079,6 +1081,14 @@ function make(THREE, scene, world, rec0, opts) {
         sinkD0: o.game ? PAV.opaqueDepth(RS.cls, 1e3, RS.recipe, 'poly') : null });
       // an apron may be a PARKING AREA: its stands' lead-in lines and nose stops, in its own frame
       const marks = pp.stands ? PAV.standMarks(pp.stands, (geo.userData.pav || {}).halfW || 0) : { rects: [], segs: [] };
+      // THE AREA'S MARKS (v1.36, G2912): parking bays, a dock's edge and bollards, hatching - in the pavement's own frame
+      // (the mesh's centre and turn; its u carries the half width), worn by the pavement's paint age like every mark
+      if (pp.marks && PG.areaMarks) {
+        const U = geo.userData.pav || {}, AM = PG.areaMarks(poly, pp.marks, { cx: U.cx, cz: U.cz, yaw: (pp.yaw || 0) + O.frame.yaw }, i => (pp.waterEdges || [])[i] || 0), du = U.halfW || 0;
+        for (const r of AM.rects) marks.rects.push([r[0] + du, r[1] + du, r[2], r[3], r[4], r[5], r[6], r[7]]);
+        for (const q of AM.segs) marks.segs.push([q[0] + du, q[1], q[2] + du, q[3], q[4], q[5]]);
+        stats.marks = (stats.marks || 0) + AM.rects.length + AM.segs.length;
+      }
       const bs = geo.boundingSphere, keep = bs ? stripBoxesNear(bs.center.x - bs.radius, bs.center.z - bs.radius, bs.center.x + bs.radius, bs.center.z + bs.radius, null) : [];
       const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, poly: true, recipe: RS.recipe, band: RS.band, keep, geo });   // G925: a row of the table
       const m = new THREE.Mesh(geo, mat); m.renderOrder = 2 + (pp.z || 0) * 0.01; m.receiveShadow = true; m.name = 'pave:' + pp.id; m.userData.premId = pp.id;
@@ -1111,9 +1121,10 @@ function make(THREE, scene, world, rec0, opts) {
     g.clearRect(0, 0, 1024, 1024);
     const F = O.frame;
     const path = poly => { g.beginPath(); poly.forEach((p, i) => { const w = F.toWorld(p[0], p[1]); i ? g.lineTo(X(w[0]), Z(w[1])) : g.moveTo(X(w[0]), Z(w[1])); }); g.closePath(); };
-    for (const s of rec.layers.surface) if (s.poly && s.poly.length >= 3) { path(s.poly); g.fillStyle = SURF_COL[s.surface] || SURF_COL[6]; g.fill(); }
-    for (const e of rec.layers.exclude) if (e.poly && e.poly.length >= 3) { path(e.poly); g.fillStyle = 'rgba(255,90,90,0.18)'; g.fill(); }
-    for (const z of rec.layers.zones) if (z.kind === 'clear' && z.poly && z.poly.length >= 3) { path(z.poly); g.fillStyle = 'rgba(208,192,144,0.18)'; g.fill(); }
+    const RX = O.rec || rec;   // (v1.36: the areas expanded)
+    for (const s of RX.layers.surface) if (s.poly && s.poly.length >= 3) { path(s.poly); g.fillStyle = SURF_COL[s.surface] || SURF_COL[6]; g.fill(); }
+    for (const e of RX.layers.exclude) if (e.poly && e.poly.length >= 3) { path(e.poly); g.fillStyle = 'rgba(255,90,90,0.18)'; g.fill(); }
+    for (const z of RX.layers.zones) if (z.kind === 'clear' && z.poly && z.poly.length >= 3) { path(z.poly); g.fillStyle = 'rgba(208,192,144,0.18)'; g.fill(); }
     for (const r of O.runways) { path(PG.runwayBox(r, 0)); g.fillStyle = SURF_COL[r.surface] && r.surface !== 0 ? SURF_COL[r.surface] : 'rgba(110,125,60,0.35)'; g.fill(); }
     ovTex.needsUpdate = true;
   }
@@ -1171,8 +1182,8 @@ function make(THREE, scene, world, rec0, opts) {
   function buildOutlines() {
     for (const [, L] of LINES) { G.outlines.remove(L.line); L.line.geometry.dispose(); L.line.material.dispose(); }
     LINES.clear();
-    for (const layer of ['terrain', 'surface', 'material', 'exclude', 'zones', 'roads', 'ttype']) for (const e of rec.layers[layer] || []) {
-      const col = layer === 'zones' ? (ZONE_COL[e.kind] || LAYER_COL.zones) : (LAYER_COL[layer] || 0xffffff);
+    for (const layer of ['terrain', 'surface', 'material', 'exclude', 'zones', 'roads', 'ttype', 'areas']) for (const e of rec.layers[layer] || []) {
+      const col = layer === 'zones' ? (ZONE_COL[e.kind] || LAYER_COL.zones) : layer === 'areas' ? areaCol(e) : (LAYER_COL[layer] || 0xffffff);
       const line = lineFor(layer, e, col, e.id === selectedId);
       if (!line) continue;
       G.outlines.add(line); LINES.set(e.id, { line, layer, entry: e });
@@ -2401,11 +2412,22 @@ function make(THREE, scene, world, rec0, opts) {
     const f = PG.findById(rec, selectedId);
     if (!f) return;
     // A ROUND PAD (v1.35): its centre (moves it) and a disc on its rim (its radius) - no corners, the circle is the truth
-    if (f.layer === 'material' && PG.roundOk(f.entry.round)) {
+    if ((f.layer === 'material' || f.layer === 'areas') && PG.roundOk(f.entry.round)) {
       const F = O.frame, R0 = f.entry.round;
       for (const [lp, key, mid] of [[R0.c, 'rc', false], [[R0.c[0] + R0.r, R0.c[1]], 'rr', true]]) {
         const w = F.toWorld(lp[0], lp[1]); const m = new THREE.Mesh(discGeo, mid ? discMatTan : discMat);
         m.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.05, w[1]); m.renderOrder = 9; m.userData.handle = { id: selectedId, key, round: true };
+        G.handles.add(m); HANDLES.push(m);
+      }
+      return;
+    }
+    // A RECTANGLE (v1.36): its centre moves it, the disc on its corner sizes it (in its own frame); corners freed by the inspector
+    if (f.layer === 'areas' && PG.rectOk && PG.rectOk(f.entry.rect)) {
+      const F = O.frame, Q = f.entry.rect, cs = Math.cos(+Q.yaw || 0), sn = Math.sin(+Q.yaw || 0);
+      const corner = [Q.c[0] + Q.hw * cs - Q.hd * sn, Q.c[1] + Q.hw * sn + Q.hd * cs];
+      for (const [lp, key, mid] of [[Q.c, 'qc', false], [corner, 'qs', true]]) {
+        const w = F.toWorld(lp[0], lp[1]); const m = new THREE.Mesh(discGeo, mid ? discMatTan : discMat);
+        m.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.05, w[1]); m.renderOrder = 9; m.userData.handle = { id: selectedId, key, rect: true };
         G.handles.add(m); HANDLES.push(m);
       }
       return;
@@ -2579,6 +2601,29 @@ function make(THREE, scene, world, rec0, opts) {
     return ghostObj;
   }
 
+  // ---- THE PLACER'S GHOST (G2914): the picked model under the cursor, on the composed ground (tilted to it unless level),
+  // its turn and scale; the scatter's radius as a ring. Built once per key (propMesh: the model's own meshes, not a record)
+  let ghostM = null, ghostKey = null, ghostRing = null;
+  function ghostModel(sp) {
+    if (ghostRing) { G.ghost.remove(ghostRing); ghostRing.geometry.dispose(); ghostRing.material.dispose(); ghostRing = null; }
+    if (!sp || !sp.key) { if (ghostM) { G.ghost.remove(ghostM); ghostM = null; ghostKey = null; } return null; }
+    if (ghostKey !== sp.key) {
+      if (ghostM) G.ghost.remove(ghostM);
+      ghostM = typeof propMesh === 'function' ? propMesh(THREE, sp.key) : null; ghostKey = sp.key;
+      if (ghostM) { ghostM.name = 'ghost:' + sp.key; ghostM.traverse(m => { m.castShadow = false; }); G.ghost.add(ghostM); }
+    }
+    if (ghostM) {
+      ghostM.position.set(sp.x, heightAt(sp.x, sp.z), sp.z); ghostM.rotation.set(0, sp.yaw || 0, 0); ghostM.scale.setScalar(sp.s > 0 ? sp.s : 1);
+      if (!sp.level) tiltToGround(ghostM, (x, z) => heightAt(x, z), sp.x, sp.z, sp.yaw || 0);
+    }
+    if (sp.r > 0) {
+      const pts = []; for (let k = 0; k < 48; k++) { const a = k / 48 * Math.PI * 2; pts.push([sp.x + Math.cos(a) * sp.r, sp.z + Math.sin(a) * sp.r]); }
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(pts, true, LIFT + 0.1), 3));
+      ghostRing = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.85, depthTest: false })); ghostRing.renderOrder = 10;
+      G.ghost.add(ghostRing);
+    }
+    return ghostM;
+  }
   // ---- THE OBSTACLES (G433, the user: "hitbox for static car props ... audit hitboxes for everything
   // ... no more than 1 meter discrepancy with the visual mesh"): everything this renderer stands in
   // the GAME is registered with the world's registry (29_obstacles.js) as a column grid rasterised
@@ -2907,6 +2952,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (ob.kind === 'prop') {
       if (!pp || !PR || !PR.props[ob.key]) return null;
       const g = pp(THREE, ob.key, w[0], w[1], yaw, obY, true);   // a repeated key is instanced (G934)
+      if (+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3) g.scale.setScalar(+ob.s);   // (v1.36, G2914: the placer's scale; the instancer reads the proxy's matrix)
       if (ob.on === 'ground') tiltToGround(g, (x, z) => O.terrainAt(x, z), w[0], w[1], yaw);
       G.houses.add(g);
       hitAdd(g, 'prop', 0.5);
@@ -3702,7 +3748,7 @@ function make(THREE, scene, world, rec0, opts) {
       }
     }
     for (const r of O.runways) if (PG.inPoly(PG.runwayBox(r, 2), L[0], L[1])) return { id: r.id, layer: 'runways', entry: PG.findById(rec, r.id).entry };
-    for (const p of O.pavePolys || []) if (PG.inPoly(p.poly, L[0], L[1])) return { id: p.id, layer: 'material', entry: PG.findById(rec, p.id).entry };
+    for (const p of O.pavePolys || []) if (PG.inPoly(p.poly, L[0], L[1])) { const f = featOf(p.id); if (f) return f; }
     for (const it of O.records.items) if (PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) return { id: it.site, layer: 'sites', entry: f.entry, item: it.item }; }
     // a hand-placed tree within two metres wins over the polygon under it
     let tree = null, td = 2.5;
@@ -3710,6 +3756,12 @@ function make(THREE, scene, world, rec0, opts) {
     if (tree) return { id: tree.id, layer: 'objects', entry: tree };
     const r = near || best;
     return r ? { id: r.entry.id, layer: r.layer, entry: r.entry } : null;
+  }
+  // (v1.36) a composed entry's feature in the record: itself, or the AREA it expanded from (its id, or '<area>~d' and the like)
+  function featOf(id) {
+    const f = PG.findById(rec, id); if (f) return { id, layer: f.layer, entry: f.entry };
+    const a = PG.areaOfEntry ? PG.areaOfEntry(rec, id) : null;
+    return a ? { id: a.area.id, layer: 'areas', entry: a.area } : null;
   }
   function handles(id) {
     const out = [];
@@ -3737,7 +3789,7 @@ function make(THREE, scene, world, rec0, opts) {
 
   const R = {
     root, groups: G, stats,
-    rebuild, rebuildSteps, preview, previewEnd, step, dispose, ghost, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
+    rebuild, rebuildSteps, preview, previewEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),

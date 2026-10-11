@@ -1,6 +1,16 @@
 # SCENERY-POLYGON — one polygon, attachable properties; the inspector apart from the palettes
 ### (2026-10-11, SCENERY-ED-1 G2890 — the brief for SCENERY-ED-2. Nothing here is built yet.)
 
+**BUILT (SCENERY-ED-2 G2910-G2914, 11 Oct, contract v1.36, record v2)** - what differs from the brief below:
+- §3 went straight to step 2 (no view-only phase): `unwrap` migrates, `expandAreas` is compose's first step; the props
+  hold the v1 entries' own fields (lossless: `wheels: { surface, z, apron }`, not a word) and `src` keeps the ids and the
+  places, so the expansion is the v1 record exactly (GATE PREMISES 20 on every fixture, Jolene and her parts).
+- Jolene has NO `m_sh13`: the four `y_sh*` bands are areas with gravel wheels and no draw - the inspector now says "it
+  draws NOTHING ... add a DRAW"; nothing of Jolene's content was changed (the user's call which bands should draw).
+- §2 `draw: { kind: 'grass' }`, `life` on areas, the exclude words bushes / grass, the dock's `deck` - not built.
+- §4 marks: parking / dock / hatch (`areaMarks`, in the pavement's frame; rules the shader already reads); `stands`
+  stays the apron's own (draw.stands). §6: thumbnails, groups, search, ghost (R, Alt + wheel, level), scatter, `s`.
+
 The user's notes (11 Oct): "The polygons saying 'gravel' around the main strip do not seem to draw anything, but to
 remove trees. I would rather have a generic polygon type to which we can attach properties, like terraforming, biome
 replacement, vegetation exclusion, draw surface, etc." · "Drawing concrete surfaces in a nice way, without texture
