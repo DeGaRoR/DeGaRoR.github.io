@@ -2319,10 +2319,26 @@ function editorInit(api) {
       } else if (key === 'i') {
         b.title = 'Look out of the pilot’s eyes. Drag to look around.';
       }
-      b.onclick = () => { if (api.camera) api.camera(key); };
+      b.onclick = () => { if (api.camera) api.camera(key); if (syncRes) syncRes(); };
       wrap2.appendChild(b);
     }
     body.appendChild(wrap2);
+    // G2315 (GARAGE-RESIDENTS): SHOW THE OTHER AEROPLANES - the career's airframes parked in the main hangar beside the
+    // stand (GAME §R GQ7). The view decides by default (on in the room view, off in the close ones: a pill above resets
+    // it); the box is the hand's choice until the next view. Only where there are residents to show (the career).
+    let syncRes = null;
+    const R0 = api.residents ? api.residents() : null;
+    if (R0) {
+      const r = document.createElement('div'); r.className = 'r';
+      r.innerHTML = '<span class="k" title="the aeroplanes parked in this hangar beside the one on the stand - on in the ' +
+        'room view, off in the close views; this box overrides it until the next view">show the other aeroplanes</span>' +
+        '<input type="checkbox">';
+      const cb = r.querySelector('input');
+      syncRes = () => { const R = api.residents(); if (R) cb.checked = !!R.on; };
+      syncRes();
+      cb.onchange = () => { cb.checked = !!api.setResidents(cb.checked); };
+      body.appendChild(r);
+    }
     // G439 (A5): THE FIELD OF VIEW, a slider - the user wants to try the
     // garage narrower. app.js keeps the number (a preference), degrees.
     if (api.garageFov && api.setGarageFov) {

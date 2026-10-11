@@ -1,0 +1,24 @@
+03:35:11 built: tools/flight_core.js (2429.8 KB), index.html (11821.0 KB), dev.html (110.8 KB) — syntax OK, build 149a69c6c849 (327 named inputs), 985 ms
+03:35:12 waiting: CPU_BATTERY_PILOTCOORD.lock: PILOTCOORD 03:31 student re-tune round 1 (A0: until 03:45) 
+03:35:42 waiting: CPU_BATTERY_PILOTCOORD.lock: PILOTCOORD 03:31 student re-tune round 1 (A0: until 03:45) 
+03:36:12 waiting: CPU_BATTERY_PILOTCOORD.lock: PILOTCOORD 03:31 student re-tune round 1 (A0: until 03:45) 
+03:36:43 waiting: CPU_BATTERY_PILOTCOORD.lock: PILOTCOORD 03:31 student re-tune round 1 (A0: until 03:45) 
+03:37:13 waiting: CPU_BATTERY_PILOTCOORD.lock: PILOTCOORD 03:31 student re-tune round 1 (A0: until 03:45) 
+03:37:43 waiting: CPU_BATTERY_PILOTCOORD.lock: PILOTCOORD 03:31 student re-tune round 1 (A0: until 03:45) 
+03:38:13 waiting: CPU_BATTERY_PILOTCOORD.lock: PILOTCOORD 03:31 student re-tune round 1 (A0: until 03:45) 
+03:38:44 waiting: CPU_BATTERY_PILOTCOORD.lock: PILOTCOORD 03:31 student re-tune round 1 (A0: until 03:45) 
+03:39:14 waiting: CPU_BATTERY_PILOTCOORD.lock: PILOTCOORD 03:31 student re-tune round 1 (A0: until 03:45) 
+03:39:44 waiting: CPU_BATTERY_PILOTCOORD.lock: PILOTCOORD 03:31 student re-tune round 1 (A0: until 03:45) 
+03:40:15 waiting: CPU_BATTERY_PILOTCOORD.lock: PILOTCOORD 03:31 student re-tune round 1 (A0: until 03:45) 
+03:40:45 waiting: CPU_BATTERY_PILOTCOORD.lock: PILOTCOORD 03:40 student cells check (until 03:45) 
+03:41:15 waiting: CPU_BATTERY_PILOTCOORD.lock: PILOTCOORD 03:40 student cells check (until 03:45) 
+boxlock: GPU taken by FLEETB
+03:41:46 box: GPU_BENCH.lock: FLEETB 03:41 FLEET-PROPS B dry until 03:55  ; tree a11ba6beb ; build 149a69c6c849
+-> D:\Dev\wt-fleetb\flyDiy\reports\evidence\FLEET-PROPS-B\fleet_pre.js
+03:41:46 RUN  setup (est 300s, cut at 794s)
+03:43:35 END  setup rc 0: FLEET-B SETUP: six bakes stored|
+03:43:35 RUN  dry_still_retro (est 300s, cut at 685s)
+03:45:36 END  dry_still_retro rc 0: chase: GPU 13.041 ms with the fleet, 12.787 without (+0.254 ms); calls 873 -> 873; tris 11222551 -> 11222551; drawn 6 [1-cub:L1 2-jodel:L1 3-c172:L1 4-c172floats:L1 5-twinfloats:L1 6-metal:L1]|apron: GPU 12.954 ms with the fleet, 13.009 without (-0.055 ms); calls 873 -> 873; tris 11436592 -> 11436592; drawn 6 [1-cub:L1 2-jodel:L1 3-c172:L1 4-c172floats:L1 5-twinfloats:L1 6-metal:L1]|
+03:45:38 RUN  rp_retro_6_dry (est 120s, cut at 562s)
+03:47:51 END  rp_retro_6_dry rc 0:   stand     20.6 fps delivered, 100 % doubled (median 29.9; dt med 33.4 p90 33.4 p99 316.9 max 1784) · loop JS 10.5 · solver 0 (p90 0; 0 a step) · world 0 (p90 0) · render 7.6 (p90 8.9, shadow 1.7) · prem 0/fr · 2.02 steps/frame · at 30-cap 100 % · 255|  taxi      29.9 fps delivered, 100 % doubled (median 30; dt med 33.3 p90 33.4 p99 33.5 max 200) · loop JS 13.2 · solver 0.1 (p90 0.2; 0.06 a step) · world 1.3 (p90 2.2) · render 9 (p90 11.3, shadow 0.7) · prem 0/fr · 2 steps/frame · at 30-cap 100 % · |  takeoff     30 fps delivered, 75 % doubled (median 29.9; dt med 33.4 p90 50 p99 50 max 50) · loop JS 61.8 · solver 0.5 (p90 3.1; 0.48 a step) · world 7.6 (p90 13.3) · render 23.2 (p90 290.3, shadow 1.1) · prem 0.03/fr · 2 steps/frame · at 30-cap 100 %|
+boxlock: GPU released by FLEETB

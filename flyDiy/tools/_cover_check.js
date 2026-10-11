@@ -78,9 +78,9 @@ const heightOf = g => { g.computeBoundingBox(); return g.boundingBox.max.y - g.b
 function instanced(W) {
   const out = [], shown = [];
   W.CR.root.traverse(o => { if (!o.isInstancedMesh || !/rock|debris|shrub/.test(o.userData.coverKind)) return;
-    let vis = true; for (let p = o; p; p = p.parent) if (!p.visible) vis = false;
+    let vis = true; for (let p = o.parent; p; p = p.parent) if (!p.visible) vis = false;   // (the block's reach; the mesh's own flag is the truncation's, G2561)
     const h = heightOf(o.geometry), M = o.instanceMatrix.array, C = o.instanceColor ? o.instanceColor.array : null, A = o.geometry.getAttribute('aRand').array;
-    for (let i = 0; i < o.count; i++) { const r = REC(h, M.subarray(i * 16, i * 16 + 16), C ? [C[i * 3], C[i * 3 + 1], C[i * 3 + 2]] : [1, 1, 1], A[i]); out.push(r); if (vis) shown.push(r); } });
+    for (let i = 0, n = o.userData.n === undefined ? o.count : o.userData.n; i < n; i++) { const r = REC(h, M.subarray(i * 16, i * 16 + 16), C ? [C[i * 3], C[i * 3 + 1], C[i * 3 + 2]] : [1, 1, 1], A[i]); out.push(r); if (vis) shown.push(r); } });
   return { all: out.sort(), shown: shown.sort() };
 }
 function batchedRecs(W) {
@@ -160,6 +160,121 @@ ok(ia.all.length > 100 && JSON.stringify(ia.all) === JSON.stringify(ib.all) && r
   const leafB = vs.filter(s => /#define USE_BATCHING/.test(s) && /LEAF_SWAY_PH/.test(s)), leafI = vs.filter(s => /#define USE_INSTANCING\b/.test(s) && /LEAF_SWAY_PH/.test(s));
   ok(leafB.length > 0 && leafI.length > 0 && leafB.concat(leafI).every(s => /#define LEAF_SWAY_PH \(getIndirectIndex\(gl_DrawID\) \* 1\.7\)/.test(s) && /#define LEAF_SWAY_PH \(float\(gl_InstanceID\) \* 1\.7\)/.test(s)),
      '6 a batched leaf sways on its own instance (the draw\'s indirect index), an instanced one on gl_InstanceID as before', leafB.length + ' + ' + leafI.length + ' programs'); }
+
+// 7 THE COUNT TRUNCATION (GRASS-DENSE G2561): a block's tufts are ordered by their fade threshold and only the prefix its nearest
+// point can show is submitted - every instance left out is one the vertex shader collapses (its _fg <= 0 from where the eye is),
+// so the picture is the same to the pixel; and the order is a permutation (the same instances as with trunc off)
+const fadeCheck = (W, set, sizeK, href) => {   // -> { meshes, cut (instances left out), bad (left out but would draw) }
+  const L = W.ctx.TREE_LEAF, [near, reach, taper, agl] = L.fade(undefined, undefined, undefined, undefined, set), band = L.grow(null, null, null)[1], e = W.camera.position;
+  let meshes = 0, cut = 0, bad = 0;
+  W.CR.root.traverse(o => { if (!o.isInstancedMesh || o.userData.coverKind !== 'cover' || !o.userData.bins) return;
+    let vis = true; for (let p = o.parent; p; p = p.parent) if (!p.visible) vis = false; if (!vis) return;
+    meshes++; const M = o.instanceMatrix.array, A = o.geometry.getAttribute('aRand').array;
+    for (let i = o.visible ? o.count : 0; i < o.userData.n; i++) { cut++;
+      let d = Math.hypot(M[i * 16 + 12] - e.x, M[i * 16 + 13] - e.y, M[i * 16 + 14] - e.z);
+      if (sizeK > 0) d /= 1 + (Math.min(1.5, Math.max(0.05, Math.hypot(M[i * 16 + 4], M[i * 16 + 5], M[i * 16 + 6]) / href)) - 1) * sizeK;
+      const t = Math.max(0, Math.min(1, (d - near) / Math.max(1, reach - near))), fk = Math.pow(1 - t, 1 + 2 * taper) * agl;
+      if ((fk * (1 + band) - A[i]) / Math.max(1e-3, band) > 1e-6) bad++; } });
+  return { meshes, cut, bad };
+};
+{ const coverRecs = W => { const out = []; W.CR.root.traverse(o => { if (!o.isInstancedMesh || o.userData.coverKind !== 'cover') return;
+    const M = o.instanceMatrix.array, A = o.geometry.getAttribute('aRand').array, C = o.instanceColor ? o.instanceColor.array : null;
+    for (let i = 0; i < o.userData.n; i++) out.push(REC(heightOf(o.geometry), M.subarray(i * 16, i * 16 + 16), C ? [C[i * 3], C[i * 3 + 1], C[i * 3 + 2]] : [1, 1, 1], A[i])); });
+    return out.sort(); };
+  const T0 = ring(true); T0.CR.set({ trunc: 0 }); for (let i = 0; i < 4; i++) T0.CR.update();
+  for (const W of [Bt]) { W.camera.position.set(0, 3, 0); W.camera.updateMatrixWorld(); for (let i = 0; i < 4; i++) W.CR.update(); }
+  const on = coverRecs(Bt), off = coverRecs(T0), F = fadeCheck(Bt, null, 0, 1);
+  ok(on.length > 50 && JSON.stringify(on) === JSON.stringify(off), '7 the truncated blocks hold the same tufts as the untruncated (a permutation)', on.length + ' tufts');
+  ok(F.meshes > 0 && F.cut > 0 && F.bad === 0, '7 every tuft left out of a draw is one the fade collapses from this eye (the picture to the pixel)', F.cut + ' left out of ' + F.meshes + ' meshes, ' + F.bad + ' that would draw'); }
+
+// 8 THE GRASS FIELD (G2563): the second ring of the same file, layer 'grass' - the reed's cards cut into tufts (none bent, moved
+// apart or added), the length by the ground and cut where the premises say, the ground's colour over the tinted texel, the tiers
+// nested (a nearer eye only adds), and its own truncation exact under the size fade
+function fieldRing() {
+  const B = boot();
+  const { THREE, renderer: R, ctx } = B;
+  B.load(path.join('src', 'viewer', 'trees.js'));
+  const t = new THREE.Texture(); t.image = { width: 4, height: 4 };
+  // a patch of 12 CARDS (two triangles each, separate strips) on a ring of 60 units, 100 units tall
+  const g = new THREE.BufferGeometry(), pos = [], uv = [], idx = [];
+  for (let c = 0; c < 12; c++) { const a = c / 12 * 2 * Math.PI, x = Math.cos(a) * 60, z = Math.sin(a) * 60, b = pos.length / 3, w = 8 + c;
+    pos.push(x - w, 0, z, x + w, 0, z, x + w, 100, z, x - w, 100, z); uv.push(0, 1, 1, 1, 1, 0, 0, 0); idx.push(b, b + 1, b + 2, b, b + 2, b + 3); }
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+  g.setAttribute('aoV', new THREE.Float32BufferAttribute(new Array(pos.length / 3).fill(0.6), 1));
+  const mat = new THREE.MeshStandardMaterial({ map: t, alphaTest: 0.3, side: THREE.DoubleSide });
+  const cols = [{ name: 'grass_reed', kind: 'cover', place: { size: 0.01, lift: 0.29 } }];
+  ctx.TREE_PACK = { collections: cols };
+  const treeList = () => [{ key: 'reed1', col: cols[0], sub: { bb: [-70, 0, -70, 70, 100, 70], h: 100 } }];
+  const treeBuild = () => ({ parts: [{ geo: g, mat }] });
+  const mix = { species: { grass_reed: { proportion: 1, density: 0.48 } }, forest: { cover: 1 } };
+  const BIO = { mixAt: () => 'grassland', mixOf: () => mix };
+  const world = { terrainH: () => 0, waterH: () => -10, island: null };
+  const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(0, 2, 0); camera.lookAt(40, 0, 10); camera.updateMatrixWorld();
+  const scene = new THREE.Scene();
+  B.load(path.join('src', 'viewer', 'cover_ring.js'));
+  const GM = [0.05, 0.06, 0.02];
+  const coverAt = (x, z) => (x > 20 && x < 44 && z > -20 && z < 20) ? { kill: 0, boost: 0, kind: null, cls: 'concrete', cut: 1, surf: 0 } : null;
+  const CR = ctx.COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null, layer: 'grass',
+    biomeAt: () => 'grassland', codeAt: () => 2, okAt: () => true, coverAt, groundMeanAt: () => GM.slice() });
+  CR.set({ on: true, budgetMs: 1e9, blockBudget: 1e9, grow: 0, tufts: 12, reach: 60, near: 10, blotch: 0 });   // (the field ships off: FIELD_ON)
+  for (let i = 0; i < 4; i++) CR.update();
+  return { B, THREE, R, CR, scene, camera, ctx, g, GM };
+}
+{ let Fd;
+  try { Fd = fieldRing(); } catch (e) { ok(false, '8 the field plants', (e && e.message || String(e)).slice(0, 200)); }
+  if (Fd) {
+    const meshes = []; Fd.CR.root.traverse(o => { if (o.isInstancedMesh) meshes.push(o); });
+    const geos = [...new Set(meshes.map(m => m.geometry.index))];
+    // (a) the tufts: 3 variants of 3 cards each, every card one of the patch's own, moved whole
+    const src = Fd.g.attributes.position.array, cardsOf = [];
+    for (let c = 0; c < 12; c++) cardsOf.push(Array.from(src.slice(c * 12, c * 12 + 12)));
+    let tuftsOk = 0, nT = 0; const seen = new Set();
+    for (const m of meshes) { const P = m.geometry.attributes.position.array, I = m.geometry.index.array; if (seen.has(I)) continue; seen.add(I); nT++;
+      // its cards: groups of 4 vertices; each must equal a source card less ONE translation shared by the tuft
+      let tx = null, tz = null, good = I.length === 3 * 6 && P.length === 3 * 12;
+      for (let k = 0; good && k < 3; k++) { const v = Array.from(P.slice(k * 12, k * 12 + 12));
+        const match = cardsOf.find(cd => { const dx = cd[0] - v[0], dz = cd[2] - v[2]; if (tx !== null && (Math.abs(dx - tx) > 1e-4 || Math.abs(dz - tz) > 1e-4)) return false;
+          for (let q = 0; q < 12; q += 3) if (Math.abs(cd[q] - v[q] - dx) > 1e-4 || Math.abs(cd[q + 1] - v[q + 1]) > 1e-4 || Math.abs(cd[q + 2] - v[q + 2] - dz) > 1e-4) return false; return true; });
+        if (!match) good = false; else if (tx === null) { tx = match[0] - v[0]; tz = match[2] - v[2]; } }
+      if (good) tuftsOk++; }
+    ok(nT === 3 && tuftsOk === 3, '8a the reed is cut into 3 tufts of 3 of its own cards, each card unbent, the tuft moved whole to its foot', tuftsOk + ' of ' + nT + ' tufts');
+    // (b) the length: the cut box's at the cut length, the meadow's about the type's median
+    const hOf = (m, i) => Math.hypot(m.instanceMatrix.array[i * 16 + 4], m.instanceMatrix.array[i * 16 + 5], m.instanceMatrix.array[i * 16 + 6]) * 100;
+    const S = Fd.CR.get(), cutH = [], wildH = [], cols = [];
+    for (const m of meshes) for (let i = 0; i < m.userData.n; i++) { const x = m.instanceMatrix.array[i * 16 + 12], z = m.instanceMatrix.array[i * 16 + 14];
+      // (the meadow's median read under the eye, where the cells hold the whole stream: a far cell keeps the TALL tufts first - the size fade)
+      ((x > 21 && x < 43 && z > -19 && z < 19) ? cutH : (Math.hypot(x, z) < 5) ? wildH : []).push(hOf(m, i));
+      cols.push([m.instanceColor.array[i * 3], m.instanceColor.array[i * 3 + 1], m.instanceColor.array[i * 3 + 2]]); }
+    const med = a => a.slice().sort((p, q) => p - q)[a.length >> 1];
+    ok(cutH.length > 20 && cutH.every(h => h > S.cutH * Math.exp(-2.6 * S.cutSigma) && h < S.cutH * Math.exp(2.6 * S.cutSigma)) && Math.abs(med(wildH) / 0.30 - 1) < 0.15,
+       '8b cut where the premises say (' + S.cutH + ' m, uniform), the meadow about its 0.30 m', cutH.length + ' cut, median ' + (cutH.length ? med(cutH).toFixed(3) : '-') + '; ' + wildH.length + ' wild, median ' + (wildH.length ? med(wildH).toFixed(3) : '-'));
+    // (c) the colour: the ground's over the tinted texel (no texel mean in node: 0.4), within the tuft-to-tuft swing
+    ok(cols.length > 0 && cols.every(c => [0, 1, 2].every(k => Math.abs(c[k] / (Fd.GM[k] / 0.4 * S.match) - 1) <= S.vary + 1e-6)), '8c each tuft wears the ground\'s drawn colour (x match over the tinted texel)', cols.length + ' tufts');
+    // (d) the tiers: from 60 m up the cells hold a prefix; down at 2 m they are planted again and only ADD
+    const keyOf = (m, i) => m.instanceMatrix.array[i * 16 + 12].toFixed(4) + ',' + m.instanceMatrix.array[i * 16 + 14].toFixed(4);
+    const posSet = () => { const s = new Set(); Fd.CR.root.traverse(o => { if (o.isInstancedMesh) for (let i = 0; i < o.userData.n; i++) s.add(keyOf(o, i)); }); return s; };
+    // the tufts that DRAW from this eye (the field's fade and size fade, every instance planted - the truncation aside)
+    const fs0 = Fd.CR.fadeSet(), LF = Fd.ctx.TREE_LEAF;
+    const drawnSet = () => { const [near, reach, taper, agl] = LF.fade(undefined, undefined, undefined, undefined, fs0), [sk, href] = LF.fadeSize(null, null, fs0), band = LF.grow(null, null, null)[1], e = Fd.camera.position, s = new Set();
+      Fd.CR.root.traverse(o => { if (!o.isInstancedMesh) return; const M = o.instanceMatrix.array, A = o.geometry.getAttribute('aRand').array;
+        for (let i = 0; i < o.userData.n; i++) { let d = Math.hypot(M[i * 16 + 12] - e.x, M[i * 16 + 13] - e.y, M[i * 16 + 14] - e.z);
+          d /= 1 + (Math.min(1.5, Math.max(0.05, Math.hypot(M[i * 16 + 4], M[i * 16 + 5], M[i * 16 + 6]) / href)) - 1) * sk;
+          const t = Math.max(0, Math.min(1, (d - near) / Math.max(1, reach - near))); if (Math.pow(1 - t, 1 + 2 * taper) * agl * (1 + band) > A[i]) s.add(keyOf(o, i)); } });
+      return s; };
+    const near0 = posSet(), drawn0 = drawnSet();
+    Fd.camera.position.set(0, 60, 0); Fd.camera.updateMatrixWorld(); Fd.CR.replant(); for (let i = 0; i < 4; i++) Fd.CR.update();
+    const high = posSet();
+    Fd.camera.position.set(0, 2, 0); Fd.camera.updateMatrixWorld(); for (let i = 0; i < 8; i++) Fd.CR.update();
+    const low = posSet(), drawnL = drawnSet();
+    ok(high.size > 0 && high.size < low.size && [...high].every(k => low.has(k)) && [...low].every(k => near0.has(k)),
+       '8d tiered planting: the far eye holds a prefix of the stream, the near eye only adds to it', high.size + ' at 60 m -> ' + low.size + ' at 2 m (planted fresh from 2 m: ' + near0.size + ')');
+    ok(drawn0.size > 0 && drawn0.size === drawnL.size && [...drawn0].every(k => drawnL.has(k)), '8d ...and what DRAWS is the same picture as a ring planted fresh from there', drawnL.size + ' drawn both ways');
+    // (e) its truncation, exact under the size fade
+    const L = Fd.ctx.TREE_LEAF, fs = Fd.CR.fadeSet ? Fd.CR.fadeSet() : null;
+    const Fx = fs ? fadeCheck(Fd, fs, L.fadeSize(null, null, fs)[0], L.fadeSize(null, null, fs)[1]) : { meshes: 0, cut: 0, bad: 1 };
+    ok(Fx.meshes > 0 && Fx.bad === 0, '8e the field\'s truncation leaves out only tufts its own fade (and size fade) collapses', Fx.cut + ' left out, ' + Fx.bad + ' that would draw');
+  }
+}
 
 console.log('GATE COVER: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

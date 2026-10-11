@@ -1,0 +1,19 @@
+the welcome: a rig on localhost and ?mode=sandbox skip every screen, FLYDIY_MODE 'sandbox', nothing held
+the career flag: ?career=1 -> FLYDIY_MODE 'career' (a rig, localhost, a real host; no screen); ?career=10 / ?career=0 / ?mode=career -> the sandbox; the menu's New career row still "coming"
+the career flag in app.js: 7 calls into the career outside its page half, every one behind CAREER_DEV (?career=1 alone; flydiy.career.dev, the sandbox keeps flydiy.player)
+map: the map screen and its pack are lazy names only (no static tag, nothing inlined)
+map: the MAP entry: none in the sandbox (no flag, ?map=10, ?scenery=1); one with ?map=1 or in the career mode; nothing of the screen fetched before the press, then the pack and the screen
+map: the rows: 5 provider tabs + All (2 + 3 + 2 + 2 + 2 = 11), Fleet (4), Pilots and Market "coming"
+map: every card (11): both ends by name, both strips' lengths, the payload, the pay, Accept and Track never disabled, no flight on the phone
+map: the fleet against "Parts to the dock": Cub 3 facts, Jodel 3, C172 floats 3 (spare / over, take-off run vs the strip, floats for water)
+map: the build card: 3 criteria x 5 designs (✓ / ✗ from the spec and the ledger, ◌ "needs a flight")
+map: the gear rule equals 25_airfield.js stripAllows on the 8 strips x 4 gears
+map: track one, accept many; a selection lights 2 markers and draws 1 route; every marker selects its row
+map: NOHOVER: no title= / hover in the map screen or its entry; R1: every target >= 48 px; R20: the map (none) and the sheet (pan-y) apart; no device test
+map: the real record (a new career, careerNew + careerMapRecord): 5 provider tabs + All (4 + 4 + 4 + 4 + 4 = 20); every card both ends, both strips, the payload, contractPay's pay, no unresolved key, Accept / Track; every contract a marker
+map: the real fleet: the Cub's certificate against "Tools for Tamgas Hill Strip" (2 facts), a kit "not read yet"; clients.02's criteria against it; the aerobatic box held out
+the loading screen: 11 steps in order, lifted on frame 0
+the sandbox without the flag: no FLYDIY_CAREER, no career plate
+the phone garage: no sim worker, preset laptop, roll-out refused (still in the garage after 10 frames)
+phone.css: 98 selectors, every one under html.phone (or hiding a phone-only element)
+GATE UISMOKE-PHONE: PASS
