@@ -3731,8 +3731,8 @@ function checks(rec0, world, opts) {
 // the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
-const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
-const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', MARINE_GEN: 'marine' };
+const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN', 'NAVAID_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
+const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', NAVAID_GEN: 'navaid', MARINE_GEN: 'marine' };
 function collect(globals) {
   const entries = new Map(), aliases = {}, issuesOut = [];
   for (const g of GENERATORS) {

@@ -99,8 +99,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // first and threw ("Cannot destructure property 'clamp' of 'K'"). So they are asked for once HOUSE_KIT is in: at
   // once when it is (dev.html), else from the load event of the script that brings it (a script's load fires right
   // after it runs; the generators are then queued behind the pack's remaining tags, long before the roll-out)
-  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && /"(sport|marine)\//.test(premisesPlaced)) {
-    const gens = () => window.FLYDIY_LAZY(['_sport_gen', '_marine_gen']);
+  // (ASSETS-OCT G2909) the navaids' generator the same way: asked for when the record names a navaid/ key
+  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && /"(sport|marine|navaid)\//.test(premisesPlaced)) {
+    const gens = () => window.FLYDIY_LAZY(['_sport_gen', '_marine_gen'].concat(/"navaid\//.test(premisesPlaced) ? ['_navaid_gen'] : []));
     if (window.HOUSE_KIT) gens();
     else { const kit = () => { if (!window.HOUSE_KIT) return; document.removeEventListener('load', kit, true); gens(); };
       document.addEventListener('load', kit, true); }
