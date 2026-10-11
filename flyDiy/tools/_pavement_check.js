@@ -266,6 +266,10 @@ console.log('6. COVERAT - what the cover ring may plant');
     verdict(want.join() === got.join(), `STAND_KEYS (the core's validator) = the knobs standMarks reads (the viewer's): ${got.join(' ')}`); }
   const j = require('./fixtures/island_jolene.json'), w0 = CORE.makeWorld(0), rec = PG.unwrap(j).rec, O = PG.compose(rec, w0, {});
   const F = O.frame, at = (lx, lz) => { const p = F.toWorld(lx, lz); return O.coverAt(p[0], p[1]); };
+  // THE GRASS LAW (GRASS-DENSE G2565, 27_premises.js GRASS_SIDES): the rows below are the 'today' law's (the band bare, the fade, the
+  // pave half equal to the full query) - pinned here; the 'sides' law (the default since train 44.3: the band and the mow band CUT
+  // grass, bare only on the pavement and its drawn side) is held after them, and GATE GRASSSIDES holds it whole
+  const LAW0 = PG.grassSides().law; PG.grassSides({ law: 'today' });
   const H = rec.layers.runways.find(r => r.id === 'HOME'), c = H.c, d = [Math.cos(H.hdg), Math.sin(H.hdg)], n = [-d[1], d[0]];
   const side = k => at(c[0] - n[0] * k, c[1] - n[1] * k);
   const c0 = at(c[0], c[1]), cb = side(H.wid / 2 + H.band - 1), cf = side(H.wid / 2 + H.band + 3), cz = side(H.wid / 2 + H.band + 20), far = at(4000, -8000);
@@ -290,6 +294,12 @@ console.log('6. COVERAT - what the cover ring may plant');
     verdict(dif === 0, 'coverAt(x, z, `pave`) gives the same kill and never a plot');
     let t1 = Date.now(); for (let i = 0; i < 100000; i++) O.coverAt(-300 + i % 400, 200 + (i * 7) % 400, 1); const ms1 = Date.now() - t1;
     verdict(ms1 < ms, `and is the cheaper call (${ms1} ms against ${ms}) - the tree fill runs it on every lattice point`); }
+  // ...and under 'sides': the band is cut grass (kill 0, cut 1), the pavement still bare, the pave half (the trees', the rocks') unmoved
+  { PG.grassSides({ law: 'sides' });
+    const s0 = at(c[0], c[1]), sb = side(H.wid / 2 + H.band - 1), pb = (() => { const p = F.toWorld(c[0] - n[0] * (H.wid / 2 + H.band - 1), c[1] - n[1] * (H.wid / 2 + H.band - 1)); return O.coverAt(p[0], p[1], 1); })();
+    verdict(s0 && s0.kill === 1 && sb && sb.kill < 1 && sb.cut === 1 && pb && pb.kill === 1,   // (kill < 1, not 0: a road's own fade may reach the point)
+      `the 'sides' law: 13/31's centre kill ${s0 && s0.kill}, the band (1 m inside its edge) kill ${sb && sb.kill} cut ${sb && sb.cut}, its pave half kill ${pb && pb.kill}`); }
+  PG.grassSides({ law: LAW0 });
   // THE TREES' CLEARANCE: a road refuses a tree well past its own edge (render_world's forestHere /
   // openHere reject where kill > 0; before 2026-09-22 nothing in the tree fill asked about a road)
   // EVERY PLANTER READS THE QUERY (2026-09-22). The law is one line in each; the failure it guards

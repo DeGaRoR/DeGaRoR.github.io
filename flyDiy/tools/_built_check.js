@@ -4,7 +4,8 @@
 // makes of src/ - source commits land between the trains' "(built)" commits, and a "(built)" commit made from the
 // wrong tree (a CRLF worktree, a forgotten merge, the build run before the last source commit) shipped silently.
 //
-// The gate rebuilds into a temp dir (build({ out }): the inputs are this tree's) and compares the five files with
+// The gate rebuilds into a temp dir (build({ out }): the inputs are this tree's) and compares the five files (+ G2685's
+// career_core.<h8>.js, B.OUTPUTS after the build; a superseded career_core.*.js left in the tree is red too) with
 //   (1) the WORKING TREE's copies - a mismatch means the outputs on disk are not this source's build (run the build);
 //   (2) HEAD's COMMITTED copies (git show) - version.json by its build id, the date is not compared.
 // (2) is judged against the history: L is the last commit that touched an output.
@@ -39,7 +40,11 @@ try {
   if (offWork.length) {
     console.log(`  the working tree's outputs are NOT this source's build: ${offWork.join(', ')} (run node tools/build.js)`);
     fail('working tree: ' + offWork.join(', '));
-  } else console.log('  the working tree\'s outputs = the fresh build (5 files)');
+  } else console.log('  the working tree\'s outputs = the fresh build (' + B.OUTPUTS.length + ' files)');
+  // G2685 (CAREER-LAZY): the career core is named by its hash - one career_core.<h8>.js in the tree, this build's (a
+  // superseded one left beside it would be served to nobody and committed by mistake)
+  const strays = B.careerCoreNames(ROOT).filter(f => !B.OUTPUTS.includes(f));
+  if (strays.length) { console.log('  a superseded career core in the working tree: ' + strays.join(', ') + ' (run node tools/build.js: it sweeps them)'); fail('stray ' + strays.join(', ')); }
 
   // (2) HEAD
   const git = (args, buf) => execFileSync('git', args, { cwd: ROOT, maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'], encoding: buf ? null : 'utf8' });

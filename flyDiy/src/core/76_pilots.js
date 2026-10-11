@@ -122,7 +122,7 @@ const PILOTS_TEXT = {
   'pilot.bark.longDay': PLT_('{name}: long day.'),
   // THE REFUSALS (GQ30: by trait only), one line per kind; {name} {to} {len} {hour} {wind}
   'pilot.refuse.weather': PLT_('{name} won\'t fly in this wind ({wind} kt).'),
-  'pilot.refuse.night': PLT_('{name} won\'t fly a leg that ends after dusk ({hour} h).'),
+  'pilot.refuse.night': PLT_('{name} won\'t fly a leg that ends in the dark ({hour} h).'),
   'pilot.refuse.short': PLT_('{name} won\'t land on a {len} m strip.'),
   'pilot.refuse.unpaved': PLT_('{name} only flies from paved runways.'),
   'pilot.refuse.water': PLT_('{name} won\'t land on water.'),
@@ -359,7 +359,8 @@ function pilotsBoatHome(doc, id) {
 }
 
 // ---- REFUSALS (GQ30: by trait only) ----------------------------------------------------------------------------------
-// leg: { to: CONTRACT_FIELDS row (len, surf, alti) | id, from?: row | id, gear: stripGear's word, windKt?, endHour? }
+// leg: { to: CONTRACT_FIELDS row (len, surf, alti) | id, from?: row | id, gear: stripGear's word, windKt?, endHour?,
+//        duskH?, dawnH? (G2665: the day's almanac), night?: true + nightHour? (G2665: the leg is a night job's window) }
 // -> null (flies it) | { kind, trait, key, vars, why }. In the pilot's trait order; 'refuses-nothing' keeps every
 // one; 'fearless' keeps the weather. An unknown wind or hour refuses nothing (the decision needs the fact).
 function pilotsRefusal(id, leg) {
@@ -374,7 +375,16 @@ function pilotsRefusal(id, leg) {
   const name = pilotsName(id);
   const fires = {
     weather: () => typeof leg.windKt === 'number' && leg.windKt > PILOTS_WEATHER.windKt ? { wind: Math.round(leg.windKt) } : null,
-    night: () => typeof leg.endHour === 'number' && leg.endHour >= CONTRACT_DUSK_H ? { hour: leg.endHour.toFixed(1) } : null,
+    // (G2665 NIGHT-OPS) the night is the almanac's when the leg carries it (07b dayDuskDawnH: duskH / dawnH), else the
+    // constants; the hour wraps midnight (a leg ending at 01:00 ends in the night); `night: true` - the leg is a night
+    // job's (its window: the tracked contract asks for a night arrival), refused whatever the hour now
+    night: () => {
+      const dusk = typeof leg.duskH === 'number' ? leg.duskH : CONTRACT_DUSK_H, dawn = typeof leg.dawnH === 'number' ? leg.dawnH : CONTRACT_DAWN_H;
+      if (leg.night === true) return { hour: typeof leg.nightHour === 'number' ? (((leg.nightHour % 24) + 24) % 24).toFixed(1) : dusk.toFixed(1) };
+      if (typeof leg.endHour !== 'number' || !isFinite(leg.endHour)) return null;
+      const h = ((leg.endHour % 24) + 24) % 24;
+      return h >= dusk || h < dawn ? { hour: h.toFixed(1) } : null;
+    },
     short: () => { const s = ends.find(e => e.surf !== 'water' && e.len > 0 && e.len < PILOTS_SHORT_M); return s ? { len: s.len, to: s.name } : null; },
     unpaved: () => { const s = ends.find(e => e.surf !== 'water' && !PILOTS_PAVED.includes(e.surf)); return s ? { to: s.name } : null; },
     water: () => (gear === 'floats' || gear === 'amphibian' || ends.some(e => e.surf === 'water')) ? {} : null,

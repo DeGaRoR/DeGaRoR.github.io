@@ -83,6 +83,11 @@ const GATES = [
   { id: 'BOOMBOX', file: 'audio/_boombox_check.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
+  // SIM-CLOCK G2650-G2659 (GAME-2026-10-06 §R.3): the one clock acted on - the tick never bumps the version (the re-bakes'
+  // trigger), midnight moves the date, a wait lands on the solved hour (the next day's when passed), the next full moon,
+  // dayMoonAt against 06_solar, the career's day forward-only and round-tripping (v1 -> v2), every `when` window
+  // validated and judged, day_clock.js's ONE jump door counted; --selftest breaks each rule in its own source
+  { id: 'CLOCK', file: '_clock_check.js', tier: 'core', wall: 30 },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
   // verbatim copy, the shared zero, the relief raster, the linearised sampler; pure, seconds
   { id: 'CLIMATE', file: 'test_climate.js', tier: 'core' },
@@ -774,6 +779,12 @@ const GATES = [
   // a build of the sources - rebuilt into a temp dir and compared; a stale "(built)" commit is red, a source commit's
   // lag is named (BUILT_STRICT=1: red too - A0's landing runs it so on the (built) commit). ~2 s.
   { id: 'BUILT', file: '_built_check.js', tier: 'core', wall: 5 },
+  // G2685-G2689 (CAREER-LAZY): the career-only core (MANIFEST.career, nine modules) is career_core.<h8>.js, not the
+  // sandbox's page - index.html inlines none of it, flight_core.js keeps it all, the split core runs and equals
+  // flight_core's, sw.js keeps this build's file for an offline career; then headless Chromium's request lists: a default
+  // boot never requests it, ?career=1 / ?map=1 / ?freight=1 fetch and run it before app.js, an offline career boots from
+  // the worker's cache (SKIPPED without Playwright); ~2 s static + ~3-6 min of SwiftShader boots
+  { id: 'LAZY', file: '_lazy_check.js', tier: 'core', wall: 360 },
 ];
 
 const args = process.argv.slice(2);
