@@ -318,7 +318,7 @@ function makeBuilder(C) {
       parts.push(zoneWaterY(x));   // G843
       const z = (rec.layers.zones || []).find(q => q.id === x.zone), rd = O.roads.find(r => r.id === x.road) || O.roads[0];
       parts.push(JSON.stringify(z ? z.rules || null : null), JSON.stringify(rd ? [rd.id, rd.pts, rd.w] : null), groundSig(x.poly, 40));
-    } else if (j.kind === 'item') parts.push(groundSig(x.foot && x.foot.length ? x.foot : [[x.x, x.z]], 40));
+    } else if (j.kind === 'item') parts.push(groundSig(x.foot && x.foot.length ? x.foot : [[x.x, x.z]], 40), x.P && x.P.plotGround === false ? 'noGround' : '');
     else if (j.kind === 'fence') { const pts = []; for (const s of x.fences || []) { if (s.a) pts.push(s.a); if (s.b) pts.push(s.b); } parts.push(groundSig(pts, 10)); }
     return h64(parts.join('\u0001'));
   }
@@ -384,7 +384,8 @@ function makeBuilder(C) {
       if (K) occ.push({ x: c.x, z: c.z, hx: K.W / 2, hz: K.L / 2, ry: c.ry, k: plot.boat === c ? 0.6 : 0.65, soft: plot.boat === c ? 0.9 : 1.0 });
     }
     for (const f of posts) if (Math.abs(f[0] - house.x) < 40 && Math.abs(f[1] - house.z) < 40) occ.push({ x: f[0], z: f[1], r: 0.07, k: 0.45, soft: 0.35 });
-    if (C.lotGround && VG.lotGround) {
+    // (v1.35, G2890: a plot whose ground is off - its zone's `rules.ground` / `rules.noGround`, an item's `P.plotGround` - draws no patch)
+    if (C.lotGround && VG.lotGround && !plot.noGround) {
       try { D.lot = VG.lotGround(vil, plot, house, built, occ); }
       catch (e) { warn('premises lot', plot.id, e && e.message); }
     }
@@ -468,6 +469,7 @@ function makeBuilder(C) {
         const tg = [c, -sn], n = [-sn, -c];                                                                 // along the frontage; away from the road (-z)
         const roadPts = [W2(-L / 2 - mx - 30, zF + 6), W2(L / 2 + mx + 30, zF + 6)];
         plot = { id: 'site:' + it.id, side: 'land', poly, depth: zF - zB, n, tg, w: L + 2 * mx, front: W2(0, zF), cat, road: null, seed: it.seed | 0, synthetic: true };
+        if (it.P.plotGround === false) plot.noGround = true;   // (v1.35: the key only when said - the cook keeps the plot's plan)
         const house = { x: it.x, z: it.z, yaw: it.yaw, P, gen: it.gen, preset: it.P.preset, cat, toWorld: W2, ground: it.ground, built };
         const Vv = Object.assign({}, g.VILLAGE_GEN.VDEF, { seed: rec.seed });
         Tv = { h: (lx, lz) => O.localH(lx, lz), waterY: C.waterY(), size: C.size() };

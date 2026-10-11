@@ -155,7 +155,7 @@ for (const fx of fixtures) {
   const txt = fs.readFileSync(path.join(TOOLS, 'fixtures', fx), 'utf8');
   let U;
   try { U = PG.unwrap(txt); } catch (e) { check(false, '2 ' + fx + ' unwraps', e.message); continue; }
-  const rec = U.rec;
+  const rec = PG.expandAreas(U.rec);   // (v1.36, G2910: the v1 view of the migrated record - row 20 holds that it composes as the record does)
   const synth = worldFor(rec);   // shadows the module's synth for this fixture: the world it was made on
   check(rec.v === PG.PREMISES_V, '2 ' + fx + ' is at PREMISES_V');
   // 1 round trip
@@ -801,6 +801,115 @@ for (const fx of fixtures) {
   check(PG.stageIssues(S, { tk: 2 }).length === 0 && PG.stageIssues(S, { tk: 1 }).length > 0, '17g the sandbox\'s law: a band through the track\'s max must be open');
 }
 
+// 19 THE SCENERY EDITOR'S UNBLOCKERS (G2890 SCENERY-ED-1, contract v1.35): the smooth road, the round pad, the plots'
+//    ground, the trees' exclusion regions (their regrowth on a delete), the shape's edits through the store.
+{
+  const turnAndK = c => {
+    let mx = 0; const ks = [];
+    for (let i = 1; i < c.length - 1; i++) {
+      const a = Math.atan2(c[i][1] - c[i - 1][1], c[i][0] - c[i - 1][0]), b = Math.atan2(c[i + 1][1] - c[i][1], c[i + 1][0] - c[i][0]);
+      let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+      mx = Math.max(mx, Math.abs(d));
+      ks.push(d / ((Math.hypot(c[i][0] - c[i - 1][0], c[i][1] - c[i - 1][1]) + Math.hypot(c[i + 1][0] - c[i][0], c[i + 1][1] - c[i][1])) / 2));
+    }
+    return { maxTurn: mx * 180 / Math.PI, ks };
+  };
+  // 19a a test road on a CLOTHOID (curvature rising linearly over 400 m), a point every 80 m: the spline passes through
+  //     every point, never turns 2.5 degrees at a sample (no kink - polyRoad's fillet leaves it alone), bends one way, and
+  //     its curvature rises monotonically (a step back under 1 % of the peak; the run-out under 10 %)
+  const A2 = 400 * 250; let x = 0, z = 0, th = 0; const clo = [[0, 0]];
+  for (let s = 1; s <= 400; s++) { th += s / A2; x += Math.cos(th); z += Math.sin(th); if (s % 80 === 0) clo.push([x, z]); }
+  const cc = PG.roadCurve(clo), cs = turnAndK(cc);
+  check(clo.every(p => cc.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 1e-6)), '19a the spline road passes through every point');
+  check(cs.maxTurn < 2.5, '19a no kink on the clothoid road (the largest turn at a sample)', cs.maxTurn.toFixed(2) + ' deg');
+  const kMax = Math.max(...cs.ks);
+  let worstBack = 0; for (let i = 1; i < cs.ks.length; i++) worstBack = Math.max(worstBack, cs.ks[i - 1] - cs.ks[i]);
+  check(cs.ks.every(k => k > 0) && worstBack < 0.01 * kMax && cs.ks[cs.ks.length - 1] > 0.9 * kMax, '19a the clothoid road\'s curvature is monotone', 'worst step back ' + (worstBack / kMax * 100).toFixed(2) + ' %, end ' + (cs.ks[cs.ks.length - 1] / kMax * 100).toFixed(1) + ' % of the peak');
+  check(PG.polyRoad(cc, 4).pts.length === cc.length, '19a the fillet leaves the spline\'s line as it is');
+  // ...on five points of a 300 m arc: the curvature within 8 % of the circle's everywhere
+  const arc = []; for (let k = 0; k <= 5; k++) { const a = k / 5 * Math.PI / 2; arc.push([300 * Math.sin(a), 300 - 300 * Math.cos(a)]); }
+  const as = turnAndK(PG.roadCurve(arc));
+  check(as.ks.every(k => Math.abs(k * 300 - 1) < 0.08), '19a a 300 m arc of five points is drawn as the arc', 'radius ' + (1 / Math.max(...as.ks)).toFixed(0) + '..' + (1 / Math.min(...as.ks)).toFixed(0) + ' m');
+  // LONG CURVES (the user: "it cannot do long curves"): three points, 400 m legs, a 60 degree turn - the fillet bends a 4 m
+  // road at under 15 m, the spline over 150 m
+  const bend = [[0, 0], [400, 0], [600, 346.4]];
+  const rSp = 1 / Math.max(...turnAndK(PG.roadCurve(bend)).ks), rFi = 1 / Math.max(...turnAndK(PG.polyRoad(bend, 4).pts).ks);
+  check(rSp > 150 && rFi < 15, '19a a long bend from three clicks (the tightest radius: spline vs the corner fillet)', rSp.toFixed(0) + ' m vs ' + rFi.toFixed(1) + ' m');
+  // a HANDLE: the curve leaves its point along it, and the road still passes through the point
+  const hc = PG.roadCurve([[0, 0], [100, 0], [200, 0]], [null, [20, 20], null]);
+  const i1 = hc.findIndex(q => Math.hypot(q[0] - 100, q[1]) < 1e-6), d1 = i1 >= 0 && hc[i1 + 1] ? [hc[i1 + 1][0] - 100, hc[i1 + 1][1]] : [0, 0];
+  check(i1 > 0 && (d1[0] + d1[1]) / (Math.SQRT2 * Math.hypot(d1[0], d1[1])) > 0.999, '19a a point\'s handle turns the road there (it leaves the point along the handle)');
+  check(JSON.stringify(PG.roadHandles([[0, 0], [100, 0], [200, 0]], [null, [20, 20], null])[1]) === '[20,20]', '19a roadHandles answers a handle set by hand as it is');
+  // a record WITHOUT `curve` composes its roads exactly as before (the points the fillet reads); with it, on the curve
+  const rdRec = PG.normalise({ layers: { roads: [{ id: 'r1', pts: bend, w: 4, cls: 'gravel', graded: true, falloff: 6 }] } });
+  const O0 = PG.compose(rdRec, synth);
+  check(JSON.stringify(O0.roads[0].pts) === JSON.stringify(bend), '19a a road without a curve composes on its points, to the bit');
+  const rdSp = JSON.parse(JSON.stringify(rdRec)); rdSp.layers.roads[0].curve = 'spline';
+  const O1 = PG.compose(rdSp, synth), mid = PG.roadCurve(bend)[Math.floor(PG.roadCurve(bend).length / 2)];
+  const wMid = O1.frame.toWorld(mid[0], mid[1]);
+  check(O1.roads[0].pts.length > 20 && O1.surfaceAt(wMid[0], wMid[1]) === PG.SURFACE.GRAVEL, '19a a spline road composes on its curve (its class answers on the curve)');
+  // 19b A ROUND PAD: normalise writes its polygon from its circle (counter-clockwise, every corner on the circle); the wheels
+  //     feel its look's class inside, the island's outside; the paved polygon draws it; the round trip keeps it
+  const padRec = PG.normalise({ layers: { material: [{ id: 'm1', round: { c: [30, -20], r: 18 }, look: 'concrete', set: 'cracked', fade: 0, z: 0, poly: [[0, 0], [1, 0], [0, 1]] }] } });
+  const pp = padRec.layers.material[0].poly;
+  check(pp.length === 48 && PG.polyCCW(pp) && pp.every(q => Math.abs(Math.hypot(q[0] - 30, q[1] + 20) - 18) < 0.002), '19b a round pad\'s polygon is its circle (48 corners, counter-clockwise)');
+  const Op = PG.compose(padRec, synth), wc = Op.frame.toWorld(30, -20), wo = Op.frame.toWorld(30, 10);
+  check(Op.surfaceAt(wc[0], wc[1]) === PG.SURFACE.PAVED && Op.surfaceAt(wo[0], wo[1]) === -1, '19b the wheels feel a concrete pad inside it, nothing outside');
+  check((Op.pavePolys || []).some(q => q.id === 'm1'), '19b the pavement draws the pad');
+  const padRT = PG.unwrap(PG.envelope('pad', padRec)).rec;
+  check(JSON.stringify(padRT.layers.material[0]) === JSON.stringify(padRec.layers.material[0]), '19b a round pad round-trips through the store');
+  // 19c THE PLOTS' GROUND: a residential zone on a road - `rules.ground: false` takes every plot's ground off, `noGround`
+  //     one plot's; a plot whose ground is off mows no lawn (coverAt answers the island's there)
+  const zRec = PG.normalise({ seed: 3, layers: { roads: [{ id: 'r1', pts: [[-150, 0], [150, 0]], w: 5, cls: 'gravel', graded: true, falloff: 6 }],
+    zones: [{ id: 'z1', kind: 'residential', poly: [[-140, -40], [140, -40], [140, 40], [-140, 40]], density: 1, seed: 5, palette: null, rules: {} }] } });
+  const plotsOf = r => PG.compose(r, synth, { catalogue: CAT }).records.plots;
+  const P0 = plotsOf(zRec);
+  check(P0.length >= 4 && P0.every(p => !p.noGround), '19c a zone sows its plots with their ground on by default', P0.length + ' plots');
+  const zOff = JSON.parse(JSON.stringify(zRec)); zOff.layers.zones[0].rules.ground = false;
+  const P1 = plotsOf(zOff);
+  check(P1.length === P0.length && P1.every(p => p.noGround), '19c rules.ground false: every plot\'s ground off, the same plots');
+  if (P0.length) {
+    const z1 = JSON.parse(JSON.stringify(zRec)); z1.layers.zones[0].rules.noGround = [P0[0].id];
+    const O2 = PG.compose(z1, synth, { catalogue: CAT }), P2 = O2.records.plots;
+    check(P2.filter(p => p.noGround).length === 1 && P2.find(p => p.id === P0[0].id).noGround, '19c rules.noGround: that plot alone');
+    const lawnAt = (O, p) => { const c = PG.polyCentroid(p.poly), w = O.frame.toWorld(c[0], c[1]), q = O.coverAt(w[0], w[1]); return q ? q.kind : null; };
+    const pOn = P2.find(p => !p.noGround && PG.zoneGrass(z1.layers.zones[0]).kind === 'lawn');
+    check(lawnAt(O2, P2.find(p => p.noGround)) !== 'lawn' && (!pOn || lawnAt(O2, pOn) === 'lawn'), '19c a plot with its ground off mows no lawn; its neighbour does');
+    check(PG.plotGroundOff(z1.layers.zones[0], P0[0].id) && !PG.plotGroundOff(zRec.layers.zones[0], P0[0].id), '19c plotGroundOff reads the zone\'s rules');
+  }
+  // 19d THE TREES COME BACK (the user: "when I remove the exclusion polygons or the polygon around the runway, the trees
+  //     don't come back directly"): treeExRegions names every region that keeps trees out; an exclude removed, shrunk or
+  //     moved, a strip moved or deleted changes its key (the streamer regrows the chunks under the old and the new box)
+  const exRec = PG.normalise({ layers: { exclude: [{ id: 'x1', poly: [[0, 0], [60, 0], [60, 40], [0, 40]], what: ['trees'] }],
+    runways: [Object.assign({}, PG.RUNWAY_DEF, { id: 'w1', c: [400, 0], hdg: 0, len: 500, wid: 20 })] } });
+  const keys = r => PG.compose(r, synth).treeExRegions().map(q => q.k);
+  const k0 = keys(exRec), exNone = JSON.parse(JSON.stringify(exRec)); exNone.layers.exclude = [];
+  const exShr = JSON.parse(JSON.stringify(exRec)); exShr.layers.exclude[0].poly[1] = [30, 0]; exShr.layers.exclude[0].poly[2] = [30, 40];
+  const rwMv = JSON.parse(JSON.stringify(exRec)); rwMv.layers.runways[0].c = [420, 0];
+  const rwGone = JSON.parse(JSON.stringify(exRec)); rwGone.layers.runways = [];
+  const diff = (a, b) => a.filter(k => b.indexOf(k) < 0).length + b.filter(k => a.indexOf(k) < 0).length;
+  check(diff(k0, keys(exRec)) === 0, '19d the same record names the same tree exclusions (no regrowth without a change)');
+  check(diff(k0, keys(exNone)) >= 1 && diff(k0, keys(exShr)) >= 2 && diff(k0, keys(rwMv)) >= 2 && diff(k0, keys(rwGone)) >= 2, '19d an exclude removed or shrunk, a strip moved or deleted: its region changes');
+  const reg = PG.compose(exRec, synth).treeExRegions().find(q => q.k.indexOf('[[0,0],[60,0]') >= 0), w00 = PG.compose(exRec, synth).frame.toWorld(0, 0), w64 = PG.compose(exRec, synth).frame.toWorld(60, 40);
+  check(reg && reg.x0 <= Math.min(w00[0], w64[0]) && reg.x1 >= Math.max(w00[0], w64[0]) && reg.z0 <= Math.min(w00[1], w64[1]) && reg.z1 >= Math.max(w00[1], w64[1]), '19d an exclusion\'s region covers it in world metres');
+  // ...and the game's streamer answers a premises edit by those regions (the hook, the diff, the eviction by box)
+  const RW = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_world.js'), 'utf8'), APP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'app.js'), 'utf8');
+  check(/vegChanged: \(\) => \{\s*const exN = exRegrow\(\);/.test(RW) && /O\.treeExRegions \? O\.treeExRegions\(\)/.test(RW) && /dropPart\(c2\.base\); dropPart\(c2\.fill\); chunks\.delete\(k\); n\+\+;/.test(RW), '19d TREE_FILL.vegChanged regrows the chunks under a changed exclusion');
+  check(/onRebuilt:[^\n]*window\.TREE_FILL\.vegChanged\(\)/.test(APP), '19d the editor\'s rebuild calls TREE_FILL.vegChanged');
+  // 19e THE SHAPE THROUGH THE STORE: a corner inserted, a corner removed, a road's handles beside its points - each
+  //     edit saved and loaded back is the same record; a handle list shorter or longer than the points is laid beside them
+  const shp = PG.normalise({ layers: { surface: [{ id: 's1', poly: [[0, 0], [50, 0], [50, 30], [0, 30]], surface: PG.SURFACE.GRAVEL }],
+    roads: [{ id: 'r1', pts: [[0, 0], [100, 0], [200, 50]], w: 4, cls: 'gravel', curve: 'spline', tan: [null, [10, 5]] }] } });
+  check(shp.layers.roads[0].tan.length === 3 && shp.layers.roads[0].tan[2] === null, '19e normalise lays a road\'s handles beside its points');
+  const ins = JSON.parse(JSON.stringify(shp)); ins.layers.surface[0].poly.splice(2, 0, [60, 15]); ins.layers.roads[0].pts.splice(1, 0, [50, -5]); ins.layers.roads[0].tan.splice(1, 0, null);
+  const insRT = PG.unwrap(PG.envelope(null, ins)).rec;
+  check(JSON.stringify(insRT.layers) === JSON.stringify(PG.normalise(ins).layers) && insRT.layers.surface[0].poly.length === 5 && insRT.layers.roads[0].tan[2][0] === 10, '19e a corner inserted round-trips (the handle stays on its point)');
+  const del = JSON.parse(JSON.stringify(insRT)); del.layers.surface[0].poly.splice(2, 1); del.layers.roads[0].pts.splice(1, 1); del.layers.roads[0].tan.splice(1, 1);
+  const delRT = PG.unwrap(PG.envelope(null, del)).rec;
+  check(JSON.stringify(delRT.layers) === JSON.stringify(shp.layers), '19e the corner removed again is the record it was');
+  check(PG.issues(insRT).length === 0 && PG.issues(padRec).length === 0, '19e the edited shapes and the pad raise no issue');
+}
+
 // 13 the contract held: no catalogue key literal in the editor's files
 {
   const files = fs.readdirSync(TOOLS).filter(f => /^_premises.*\.(js|html)$/.test(f) && f !== '_premises_check.js').map(f => path.join(TOOLS, f))
@@ -815,7 +924,7 @@ for (const fx of fixtures) {
 // ---------------------------------------------------------------------------
 if (SELFTEST) {
   const neg = [];
-  const rec = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', fixtures[0]), 'utf8')).rec;
+  const rec = PG.expandAreas(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', fixtures[0]), 'utf8')).rec);
   // a crossed polygon must be refused
   const bad = JSON.parse(JSON.stringify(rec));
   bad.layers.terrain[0].poly = [[0, 0], [10, 10], [10, 0], [0, 10]];
@@ -855,7 +964,7 @@ if (SELFTEST) {
     console.log('  14 the island premises: bench/jolene absent, skipped');
   } else {
     const txt = fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8');
-    const rec = PG.unwrap(txt).rec;
+    const rec = PG.expandAreas(PG.unwrap(txt).rec);   // (v1.36: the v1 view)
     check(PG.issues(rec).length === 0, '14a island_jolene has no issues', PG.issues(rec).slice(0, 4).join(' / '));
     const O = PG.compose(rec, IW, { catalogue: CAT, globals: GENS });
     // every site item names an entry the catalogue has
@@ -1298,6 +1407,140 @@ if (SELFTEST) {
     const rec = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', fx), 'utf8')).rec;
     const n = rec.layers.runways.reduce((k, r) => k + (Array.isArray(r.plots) ? r.plots.length : 0), 0);
     if (n) check(PG.issues(rec).filter(m => /plot/.test(m)).length === 0, '18 ' + path.basename(fx) + ': its ' + n + ' plots are well-formed');
+  }
+}
+
+// 20 THE AREAS (G2910 SCENERY-ED-2, contract v1.36, record v2; futureDesigns/SCENERY-POLYGON-2026-10.md): every polygon
+// entry not on a stage folds into ONE area per polygon (PREMISES_MIGRATORS[1]); compose expands the areas back into the
+// v1 entries at their places. Held here:
+//   20a THE MIGRATION ROUND TRIP: every fixture, Jolene and her parts - the expanded record IS the v1 record, layer for
+//       layer (canonical JSON), nothing foldable is left, the other layers untouched, the envelope round-trips
+//   20b THE SAME WORLD: the migrated record composes to the v1 record's bits - the ground, the wheels, the excludes, the
+//       cover, the vegetation, the plots, the trees' regions, the pavements, the materials, the stamps
+//   20c the places switch (dropPlaces / restorePlaces) cuts and restores areas by their ids' prefix
+//   20d a fold into a record that already has areas keeps every layer's order (the editor's fold of a hand edit)
+//   20e a new area composes after every v1 entry (it wins its priority); explicit wheels beat a round draw's
+//   20f the shapes: a rectangle (square, rounded) and a round written by normalise; ids never collide (newId)
+//   20g issues: an unknown property, marks on no pavement, a bad exclusion
+//   20h THE MARKS: parking bays, a dock's line and bollards, keep-clear hatching - every mark inside its shape by the
+//       inset, the counts, the rules the shader reads; a dock's water edge found by compose
+//   20i Jolene's gravel bands beside 13/31 are areas that keep the trees out and draw nothing (what the user saw)
+{
+  const canon = v => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, q) => { o[q] = x[q]; return o; }, {}) : x));
+  const sources = fixtures.map(f => [f, fs.readFileSync(path.join(TOOLS, 'fixtures', f), 'utf8')])
+    .concat([['island_jolene.json', fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')]])
+    .concat(fs.readdirSync(path.join(TOOLS, 'jolene_parts')).filter(f => /\.json$/.test(f)).map(f => { const o = JSON.parse(fs.readFileSync(path.join(TOOLS, 'jolene_parts', f), 'utf8')); return ['part ' + f, JSON.stringify({ layers: o.layers })]; }));
+  let folded = 0;
+  for (const [name, txt] of sources) {
+    const raw = JSON.parse(txt), r1 = PG.normalise(JSON.parse(JSON.stringify(raw.premises || raw))), r2 = PG.unwrap(txt).rec, X = PG.expandAreas(r2);
+    folded += r2.layers.areas.length;
+    const badL = PG.AREA_LAYERS.filter(k => canon(X.layers[k]) !== canon(r1.layers[k]));
+    check(!badL.length, '20a ' + name + ': its ' + r2.layers.areas.length + ' areas expand to the v1 layers it had', badL.join(', '));
+    check(PG.AREA_LAYERS.every(k => !(r2.layers[k] || []).some(e => PG.areaFoldable(k, e))), '20a ' + name + ': nothing foldable is left');
+    check(PG.LAYERS.filter(k => k !== 'areas' && PG.AREA_LAYERS.indexOf(k) < 0).every(k => canon(r2.layers[k]) === canon(r1.layers[k])), '20a ' + name + ': the other layers are untouched');
+    check(JSON.stringify(PG.unwrap(PG.envelope('t', r2)).rec) === JSON.stringify(r2) && PG.issues(r2).length === PG.issues(r1).length, '20a ' + name + ': the v2 record round-trips, with the issues it had', PG.issues(r2)[0]);
+    // 20b the same world, on the synthetic ground (the anchors' worlds are the fixtures' rows above; this is the record's rule)
+    const W = synth, A = PG.compose(JSON.parse(JSON.stringify(raw.premises || raw)), W, { catalogue: CAT }), B = PG.compose(r2, W, { catalogue: CAT });
+    const ex = A.extent; let diff = 0, first = null;
+    for (let i = 0; i < 1500; i++) {
+      const lx = ex.x0 - 15 + (ex.x1 - ex.x0 + 30) * ((i * 0.6180339) % 1), lz = ex.z0 - 15 + (ex.z1 - ex.z0 + 30) * ((i * 0.3819660 + 0.11) % 1), w = A.frame.toWorld(lx, lz);
+      const qa = A.coverAt ? A.coverAt(w[0], w[1]) : null, qb = B.coverAt ? B.coverAt(w[0], w[1]) : null;
+      const a = [A.terrainAt(w[0], w[1]), A.surfaceAt(w[0], w[1]), A.excludeAt(w[0], w[1], 'trees'), A.excludeAt(w[0], w[1], 'plots'), A.vegAt ? A.vegAt(w[0], w[1]) : 0, JSON.stringify(qa)];
+      const b = [B.terrainAt(w[0], w[1]), B.surfaceAt(w[0], w[1]), B.excludeAt(w[0], w[1], 'trees'), B.excludeAt(w[0], w[1], 'plots'), B.vegAt ? B.vegAt(w[0], w[1]) : 0, JSON.stringify(qb)];
+      if (a.some((v, k) => !Object.is(v, b[k]))) { diff++; if (!first) first = lx.toFixed(1) + ',' + lz.toFixed(1) + ' ' + JSON.stringify(a) + ' vs ' + JSON.stringify(b); }
+    }
+    const ids = (O, k) => (O[k] || []).map(e => e.id).join(',');
+    check(diff === 0, '20b ' + name + ': the migrated record composes to the same ground, wheels, excludes, cover and vegetation (1500 samples)', first);
+    check(canon(A.records.plots.map(p => [p.id, p.poly])) === canon(B.records.plots.map(p => [p.id, p.poly])) && A.records.items.length === B.records.items.length && A.records.trees.length === B.records.trees.length, '20b ' + name + ': the same plots, items and trees');
+    check(canon(A.treeExRegions().map(q => q.k)) === canon(B.treeExRegions().map(q => q.k)) && ids(A, 'pavePolys') === ids(B, 'pavePolys') && ids(A, 'materials') === ids(B, 'materials') && ids(A, 'ttypes') === ids(B, 'ttypes') && A.n === B.n, '20b ' + name + ': the same tree regions, pavements, materials, stamps and modifiers');
+    check(canon(PG.AREA_LAYERS.map(k => A.rec.layers[k])) === canon(PG.AREA_LAYERS.map(k => B.rec.layers[k])), '20b ' + name + ': the composed record (O.rec) is the v1 one');
+  }
+  check(folded > 60, '20a the fixtures fold into areas (' + folded + ')');
+  // 20c the places: Jolene's Metlakatla (mk_) cut and restored, areas included
+  {
+    const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
+    const D = PG.dropPlaces(J, ['mk_']), back = PG.restorePlaces(D.rec, D.cut);
+    check(J.layers.areas.some(a => /^mk_/.test(a.id)) && !D.rec.layers.areas.some(a => /^mk_/.test(a.id)) && (D.cut.areas || []).length > 0, '20c a place switched off takes its areas with it', (D.cut.areas || []).length + ' cut');
+    check(canon(PG.expandAreas(back).layers) === canon(PG.expandAreas(J).layers) || canon(back.layers.areas.map(a => a.id).sort()) === canon(J.layers.areas.map(a => a.id).sort()), '20c ...and restored');
+  }
+  // 20d a fold into a record that has areas keeps every layer's order
+  {
+    const O0 = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'premises_v1_official.json'), 'utf8')).rec;
+    const a0 = O0.layers.areas[0], mix = JSON.parse(JSON.stringify(O0));
+    mix.layers.surface.push({ id: 'y_hand', poly: [[500, 500], [540, 500], [540, 530]], surface: PG.SURFACE.SAND });
+    mix.layers.exclude.unshift({ id: 'x_hand', poly: a0.poly.map(q => q.slice()), what: ['trees', 'plots'] });
+    mix.layers.terrain.push({ id: 't_hand', kind: 'raise', poly: [[500, 500], [540, 500], [540, 530]], dh: 1, falloff: 5 });
+    const before = PG.expandAreas(mix), n = PG.foldAreas(mix), after = PG.expandAreas(mix);
+    check(n === 2 && PG.AREA_LAYERS.every(k => canon(before.layers[k]) === canon(after.layers[k])), '20d a fold into a record with areas keeps every layer\'s order', n + ' folded');
+  }
+  // 20e a new area: after every v1 entry of its layer (it wins its priority); explicit wheels beat a round draw's
+  {
+    const sq = (cx, cz, h) => [[cx - h, cz - h], [cx + h, cz - h], [cx + h, cz + h], [cx - h, cz + h]];
+    const r = PG.normalise({ layers: { surface: [{ id: 'y1', poly: sq(0, 0, 50), surface: PG.SURFACE.GRAVEL }],
+      areas: [{ id: 'a1', poly: sq(0, 0, 20), props: { wheels: { surface: PG.SURFACE.PAVED } } }, { id: 'a2', round: { c: [200, 0], r: 15 }, props: { wheels: { surface: PG.SURFACE.GRAVEL }, draw: { look: 'concrete', z: 0 } } },
+              { id: 'a3', round: { c: [300, 0], r: 15 }, props: { draw: { look: 'concrete', z: 0 } } }] } });
+    const O = PG.compose(r, synth), at = (x, z) => { const w = O.frame.toWorld(x, z); return O.surfaceAt(w[0], w[1]); };
+    check(at(0, 0) === PG.SURFACE.PAVED && at(40, 0) === PG.SURFACE.GRAVEL, '20e a new area composes after the v1 entries (paved over the gravel at the same priority)');
+    check(at(200, 0) === PG.SURFACE.GRAVEL && at(300, 0) === PG.SURFACE.PAVED, '20e a round draw\'s wheels are its look\'s unless the area says its own');
+    check(O.rec.layers.surface.map(e => e.id).join() === 'y1,a1~w,a2~w' && O.rec.layers.material.map(e => e.id).join() === 'a2~d,a3~d' && O.rec.layers.material[1].round && !O.rec.layers.material[0].round, '20e the v1 entries an area expands into: ids <area>~w / ~d, the round kept only where it says the wheels', O.rec.layers.material.map(e => e.id + (e.round ? '(r)' : '')).join());
+  }
+  // 20f the shapes and the ids
+  {
+    const R0 = PG.rectPoly({ c: [10, 20], hw: 30, hd: 10, yaw: 0, radius: 0 }), R1 = PG.rectPoly({ c: [0, 0], hw: 30, hd: 10, yaw: 0.5, radius: 4 });
+    check(R0.length === 4 && PG.polyCCW(R0) && R0.some(q => q[0] === 40 && q[1] === 30) && R1.length === 28 && PG.polyCCW(R1) && PG.polySimple(R1), '20f a rectangle: square (4 corners) or rounded (7 a corner), counter-clockwise, simple');
+    const n = PG.normalise({ layers: { areas: [{ id: 'a1', rect: { c: [0, 0], hw: 5, hd: 3, yaw: 0, radius: 0 }, poly: [[0, 0], [1, 0], [0, 1]] }, { id: 'a2', round: { c: [0, 0], r: 9 } }] } });
+    check(n.layers.areas[0].poly.length === 4 && n.layers.areas[1].poly.length === 48 && n.layers.areas[0].props && typeof n.layers.areas[0].props === 'object', '20f normalise writes a rectangle\'s and a round\'s polygon, and gives every area its props');
+    const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'premises_v1_official.json'), 'utf8')).rec;
+    const used = new Set(); for (const a of J.layers.areas) for (const q of PG.areaEntries(a)) used.add(q.entry.id);
+    check(['surface', 'material', 'terrain', 'exclude', 'ttype', 'areas'].every(k => !used.has(PG.newId(J, k))), '20f a new id never takes an area\'s (the migrated areas keep their entries\' ids)');
+  }
+  // 20g issues
+  {
+    const bad = PG.normalise({ layers: { areas: [{ id: 'a1', poly: [[0, 0], [20, 0], [20, 20]], props: { glow: {} } }, { id: 'a2', poly: [[0, 0], [20, 0], [20, 20]], props: { marks: { kind: 'parking' }, draw: { set: 'cracked' } } },
+      { id: 'a3', poly: [[0, 0], [20, 0], [20, 20]], props: { exclude: { what: ['cows'] } } }, { id: 'a4', poly: [[0, 0], [20, 0], [20, 20]], props: { terraform: { kind: 'dig', falloff: 3 } } }] } });
+    const iss = PG.issues(bad);
+    check(['a1: no property', 'a2: marks are paint on a pavement', 'a3: exclude is a list', 'a4: terraform is'].every(t => iss.some(m => m.indexOf(t) >= 0)), '20g refused: an unknown property, marks off a pavement, a bad exclusion, a bad terraform', iss.join(' | '));
+    const good = PG.normalise({ layers: { areas: [{ id: 'a1', poly: [[0, 0], [40, 0], [40, 20], [0, 20]], props: { wheels: { surface: 5 }, draw: { look: 'concrete', z: 0 }, marks: { kind: 'parking' }, exclude: { what: ['trees', 'plots'] }, terraform: { kind: 'flatten', level: 0, falloff: 8 }, cover: { code: 15 } } }] } });
+    check(PG.issues(good).length === 0, '20g an area with every property raises no issue', PG.issues(good)[0]);
+  }
+  // 20h THE MARKS
+  {
+    const boxes = R => { const out = []; for (const r of R.rects) { if (r[5] > 0) { const ax = r[6], st = ax === 0 ? r[0] : r[2], en = ax === 0 ? r[1] : r[3]; for (let p = st; p + r[7] <= en + 1e-6; p += r[5]) out.push(ax === 0 ? [p, p + r[7], r[2], r[3]] : [r[0], r[1], p, p + r[7]]); } else out.push(r.slice(0, 4)); } return out; };
+    const inside = (poly, R, fr, ins) => { const c = Math.cos(fr.yaw || 0), s = Math.sin(fr.yaw || 0), bb = PG.polyBBox(poly), cx = (bb.x0 + bb.x1) / 2, cz = (bb.z0 + bb.z1) / 2; let worst = Infinity;
+      for (const b of boxes(R)) for (const [u, v] of [[b[0], b[2]], [b[1], b[2]], [b[0], b[3]], [b[1], b[3]]]) { const x = cx + u * c - v * s, z = cz + u * s + v * c; worst = Math.min(worst, -PG.sdPoly(poly, x, z)); }
+      return worst; };
+    const lot = PG.rectPoly({ c: [0, 0], hw: 30, hd: 15, yaw: 0, radius: 0 });
+    const P1 = PG.areaMarks(lot, { kind: 'parking' }, { yaw: 0 });
+    const D = PG.MARK_DEF.parking;
+    check(P1.n === 63 && P1.rects.length === 6 && P1.rects.every(r => r[4] === 0) && P1.rects[0][5] === D.bay && P1.rects[0][6] === 0, '20h parking on a 60 x 30 lot: three rows of 21 bays (two across an aisle, one back to back), two marks a row (the separators a rule, the back line)', P1.n + ' bays, ' + P1.rects.length + ' marks');
+    check(inside(lot, P1, { yaw: 0 }) >= D.inset - 1e-6, '20h every parking mark inside the lot by its inset', inside(lot, P1, { yaw: 0 }).toFixed(3) + ' m');
+    const turned = PG.rectPoly({ c: [100, 50], hw: 25, hd: 12, yaw: 0.7, radius: 3 }), P2 = PG.areaMarks(turned, { kind: 'parking', colour: 'yellow', bay: 2.5 }, { yaw: 0.7 });
+    check(P2.n >= 15 && P2.rects.every(r => r[4] === 1) && inside(turned, P2, { yaw: 0.7 }) >= D.inset - 1e-6, '20h a turned, rounded lot: its bays in its frame, yellow, inside (the end bays off its rounded corners)', P2.n + ' bays, ' + inside(turned, P2, { yaw: 0.7 }).toFixed(2) + ' m');
+    const quay = [[0, 0], [60, 0], [60, 14], [0, 14]], wet = i => (i === 2 ? 1 : 0);   // edge 2 ([60,14] -> [0,14]) meets the water
+    const P3 = PG.areaMarks(quay, { kind: 'dock' }, { yaw: 0 }, wet);
+    const line = P3.rects[0], bol = P3.rects[1];
+    check(P3.edge === 2 && line && line[2] > 13.1 - 7 && line[3] < 14 - 7 && bol && bol[5] === PG.MARK_DEF.dock.bollard && bol[3] < line[2] && P3.issues.length === 0 && inside(quay, P3, { yaw: 0 }) >= PG.MARK_DEF.dock.inset - 1e-6, '20h a dock: the quay\'s line along the water\'s edge (inset), the bollards inside it every 9 m', JSON.stringify(P3.rects));
+    const P3b = PG.areaMarks(quay, { kind: 'dock' }, { yaw: 0 }, () => 0);
+    check(P3b.issues.some(t => /no edge of this shape meets the water/.test(t)) && P3b.edge === 0, '20h a dock with no water says so (its longest edge is the quay)');
+    const P3c = PG.areaMarks(quay, { kind: 'dock' }, { yaw: 0.4 }, wet);
+    check(P3c.segs.length === 1 && P3c.issues.some(t => /turn the pavement/.test(t)), '20h a dock not square to its pavement: the line as a segment, and the advice');
+    const P4 = PG.areaMarks(lot, { kind: 'hatch' }, { yaw: 0 });
+    check(P4.n > 30 && P4.rects.length === 5 && inside(lot, P4, { yaw: 0 }) >= PG.MARK_DEF.hatch.inset - 1e-6, '20h keep-clear: the bars a rule inside the largest box, its outline', P4.n + ' bars');
+    const tiny = PG.areaMarks([[0, 0], [3, 0], [3, 2], [0, 2]], { kind: 'parking' }, { yaw: 0 });
+    check(!tiny.rects.length && tiny.issues.some(t => /too small/.test(t)), '20h a shape too small for its marks says so');
+    const big = PG.areaMarks(PG.rectPoly({ c: [0, 0], hw: 40, hd: 200, yaw: 0, radius: 0 }), { kind: 'parking' }, { yaw: 0 });
+    check(big.rects.length <= 40 && big.issues.some(t => /more rows/.test(t)), '20h a lot past the pavement\'s 40 marks is capped, and says so', big.rects.length + ' marks');
+    // compose finds the dock's water: the ground under the water past the quay's north edge
+    const wW = { id: 'wet', terrainH: (x, z) => (z < 0 ? 2 : -3), waterH: () => 0 };
+    const rd = PG.normalise({ layers: { areas: [{ id: 'a1', poly: [[0, -20], [40, -20], [40, -1], [0, -1]], props: { wheels: { surface: 5 }, draw: { look: 'concrete', z: 0 }, marks: { kind: 'dock' } } }] } });
+    const Od = PG.compose(rd, wW), pp = (Od.pavePolys || []).find(q => q.id === 'a1~d');
+    check(pp && pp.marks && pp.marks.kind === 'dock' && pp.waterEdges && pp.waterEdges[2] === 1 && pp.waterEdges[0] === 0 && pp.waterEdges[1] === 0, '20h compose finds the quay: the one edge whose outside is water', JSON.stringify(pp && pp.waterEdges));
+  }
+  // 20i Jolene's shoulder bands: areas that keep the trees out and draw nothing (the user's "gravel" polygons)
+  {
+    const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
+    const sh = J.layers.areas.filter(a => /^y_sh/.test(a.id));
+    check(sh.length === 4 && sh.every(a => a.props.wheels && a.props.wheels.surface === PG.SURFACE.GRAVEL && !a.props.draw), '20i Jolene\'s four gravel bands are areas with gravel wheels and no draw (the inspector says so)', sh.map(a => a.id).join());
   }
 }
 

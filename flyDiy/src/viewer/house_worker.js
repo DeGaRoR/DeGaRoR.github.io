@@ -39,7 +39,7 @@
 // Jolene, no house generation on the page's thread in the town step, a warm cache builds 0.
 // ============================================================
 'use strict';
-const HW_V = 2;   // G841: the key is the entry's own inputs (premises_build.js inputSig), not the record's hash
+const HW_V = 3;   // G841: the key is the entry's own inputs (premises_build.js inputSig), not the record's hash; 3 (G2890): the lot patch stops at the shore
 // the page's generator files, in the page's order (build.js MANIFEST.world), by the global each publishes; the worker
 // imports those the page has (the lazy two only when the page loaded them)
 // (C2c: ground_tex.js before lot_tex.js - since AS2 (G910) the lot's sets are the ground library's view, LOT_TEX_SETS; without it
