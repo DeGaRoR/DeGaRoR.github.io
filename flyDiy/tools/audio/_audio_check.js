@@ -944,7 +944,14 @@ function checkAfFlown(S, report) {
   { const rec = recordScene('cub_firm_landing', 3), r = replay(S, rec), td = r.ev.filter(x => x.e[0] === r.M.AF_EV.TD);
     const first = w => rec.frames.findIndex(fs => fs[I[w]] > 0);
     const m0 = td.filter(x => x.e[2] === 0), m1 = td.filter(x => x.e[2] === 1);
-    if (m0.length !== 1 || m1.length !== 1) F.push('the Cub\'s firm landing: ' + m0.length + ' / ' + m1.length + ' touchdowns on the mains (want 1 / 1): ' + JSON.stringify(td.map(x => x.e)));
+    // T41b (A0, 11 Oct): on train 41's physics (DMG-DAMP's honest damper) a firm Cub landing may touch twice - the firm
+    // contact, then a small second touch. The sound follows the solver: one touchdown event per CONTACT ONSET of each
+    // main (counted from the recording's own wheel contacts), the FIRST carrying the sink's severity, any later one weaker
+    const onsets = w => { let n = 0; for (let f = 0; f < rec.frames.length; f++) if (rec.frames[f][I[w]] > 0 && !(f > 0 && rec.frames[f - 1][I[w]] > 0)) n++; return n; };
+    const o0 = onsets('main0'), o1 = onsets('main1');
+    const weaker = m => m.slice(1).every(x => x.e[1] < m[0].e[1]);
+    if (!(m0.length >= 1 && m1.length >= 1 && m0.length === o0 && m1.length === o1 && weaker(m0) && weaker(m1)))
+      F.push('the Cub\'s firm landing: ' + m0.length + ' / ' + m1.length + ' touchdowns on the mains against ' + o0 + ' / ' + o1 + ' contacts (want one per contact, the first the firmest): ' + JSON.stringify(td.map(x => x.e)));
     else {
       if (m0[0].f !== first('main0') || m1[0].f !== first('main1')) F.push('the Cub\'s touchdowns at frames ' + m0[0].f + ' / ' + m1[0].f + ', the contacts at ' + first('main0') + ' / ' + first('main1'));
       const vs = rec.frames[first('main0') - 1][I.vs];

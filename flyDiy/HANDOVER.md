@@ -90647,3 +90647,8 @@ user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's
   - freight strapped on the flown aircraft;
   - the club works;
   - night ops.
+- **What to watch for in flight (T41b, AUDIO's firm-landing row)**: on train 41's physics a firm Cub landing may show a
+  SMALL SECOND TOUCH (a light bounce: severity 0.65 on the first contact, 0.10 on the second; DMG-DAMP's honest damper no
+  longer damps the aeroplane's rotation, so a firm arrival can rebound once). The sound follows the solver: one thump
+  per contact. GATE AUDIO's row counts the touchdown events against the recording's contact onsets, the first the
+  firmest. The user judges whether the bounce feels right.
