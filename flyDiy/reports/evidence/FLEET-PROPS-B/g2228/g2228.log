@@ -1,0 +1,9 @@
+boxlock: CPU battery taken by FLEETB
+13:55:13 tree af5f660ea
+13:55:15 build: tools/flight_core.js (2820.5 KB), index.html (12102.2 KB), dev.html (112.5 KB), career_core.22bb176b.js (340.2 KB) — syntax OK, build 93ba71ed7759 (341 named 
+13:55:15 RUN PARKED
+13:58:28 END PARKED rc 1:   ! 11b the cowl's inside shells cross the snapshot FLAGGED (inner) — 0 buckets, 0 triangles|  ! 11b DOCTORED (the inner flag stripped): the shells land in the cut and the row counts them - 0 triangles (red) — 0 / 0|GATE PARKED: FAIL (2)|
+13:58:28 RUN INSTANT_FLEET_BAKED
+14:05:10 END INSTANT_FLEET_BAKED rc 0:   fleet: on true, stood 6, queued 0, captures so far 0, queue |  fleet: ok - captures 0 (during drags 0), input waits 0, not wanted 0, queue left 0|GATE INSTANT: PASS|
+14:05:10 G2228 runs over at 14:05:10
+boxlock: CPU battery released by FLEETB
