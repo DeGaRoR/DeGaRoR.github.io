@@ -1,0 +1,102 @@
+{
+ "date": "2026-10-10T19:47:28.529Z",
+ "mode": "diverge",
+ "shots": [
+  {
+   "f": "after_m1_stand.png",
+   "state": {
+    "t": 3.8,
+    "phase": "TAXI",
+    "hdg": -54,
+    "cg": [
+     -146.54,
+     31.52,
+     701.75
+    ],
+    "outcome": null,
+    "over": false,
+    "cT": 0.19463676401082214,
+    "hemiI": 2.8944298560791455,
+    "sunI": 9.003148779345544,
+    "eye": [
+     -158.8,
+     35,
+     707.6
+    ],
+    "overlay": false
+   }
+  },
+  {
+   "f": "after_m1_flying3.png",
+   "state": {
+    "t": 7.7,
+    "phase": "TAXI",
+    "hdg": -81.6,
+    "cg": [
+     -139.95,
+     31.52,
+     690.07
+    ],
+    "outcome": null,
+    "over": false,
+    "cT": 0.20119053421991717,
+    "hemiI": 2.8473951674906988,
+    "sunI": 9.00341169995947,
+    "eye": [
+     -152.2,
+     35,
+     695.9
+    ],
+    "overlay": false
+   }
+  },
+  {
+   "f": "after_m1_div12.png",
+   "state": {
+    "t": 8.1,
+    "phase": "TAXI",
+    "hdg": null,
+    "cg": [
+     null,
+     null,
+     null
+    ],
+    "outcome": "sim-diverged",
+    "over": true,
+    "cT": 0.20190108280009214,
+    "hemiI": 2.8449726878167962,
+    "sunI": 9.003435539230267,
+    "eye": [
+     null,
+     36.2,
+     null
+    ],
+    "overlay": false
+   }
+  },
+  {
+   "f": "after_m1_again.png",
+   "state": {
+    "t": 6.4,
+    "phase": "TAXI",
+    "hdg": -63.9,
+    "cg": [
+     -141.3,
+     31.52,
+     694.3
+    ],
+    "outcome": null,
+    "over": false,
+    "cT": 0.20080732980471588,
+    "hemiI": 2.8449726383902925,
+    "sunI": 9.003435539716664,
+    "eye": [
+     -154.8,
+     36.2,
+     701.5
+    ],
+    "overlay": false
+   }
+  }
+ ]
+}

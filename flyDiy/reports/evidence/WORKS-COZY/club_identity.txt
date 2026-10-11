@@ -1,0 +1,6 @@
+interior: 2298 entries; base vs this tree 0 differ; with layout cozy named 0, hearth named 0 differ
+exterior: 913 entries; base vs this tree 0 differ; with layout cozy named 0, hearth named 0 differ
+CLUB IDENTITY: PASS
+NEG (base kelvin 4100): interior: 2298 entries; base vs this tree 10 differ; with layout cozy named 10, hearth named 10 differ
+NEG (base kelvin 4100): exterior: 913 entries; base vs this tree 0 differ; with layout cozy named 0, hearth named 0 differ
+NEG (base kelvin 4100): CLUB IDENTITY: FAIL

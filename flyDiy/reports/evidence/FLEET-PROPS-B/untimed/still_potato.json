@@ -1,0 +1,511 @@
+{
+ "date": "2026-10-08T04:42:48.868Z",
+ "preset": "potato",
+ "build": "builds/jodel_2026-09-20_corrected.json",
+ "timed": false,
+ "size": "2216x1023",
+ "rounds": [
+  {
+   "on": true,
+   "n": 26,
+   "gpu": 7.421,
+   "gpuMean": 7.511,
+   "calls": 467,
+   "tris": 1943697,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 0
+  },
+  {
+   "on": false,
+   "n": 26,
+   "gpu": 7.008,
+   "gpuMean": 7.167,
+   "calls": 463,
+   "tris": 1926026,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 0
+  },
+  {
+   "on": false,
+   "n": 26,
+   "gpu": 6.918,
+   "gpuMean": 7.088,
+   "calls": 463,
+   "tris": 1926026,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 1
+  },
+  {
+   "on": true,
+   "n": 26,
+   "gpu": 7.017,
+   "gpuMean": 7.188,
+   "calls": 467,
+   "tris": 1943697,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 1
+  },
+  {
+   "on": true,
+   "n": 26,
+   "gpu": 6.862,
+   "gpuMean": 6.957,
+   "calls": 467,
+   "tris": 1943697,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 2
+  },
+  {
+   "on": false,
+   "n": 26,
+   "gpu": 6.733,
+   "gpuMean": 6.885,
+   "calls": 463,
+   "tris": 1926026,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "apron",
+   "round": 2
+  },
+  {
+   "on": true,
+   "n": 28,
+   "gpu": 6.351,
+   "gpuMean": 6.347,
+   "calls": 640,
+   "tris": 3590146,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 0
+  },
+  {
+   "on": false,
+   "n": 28,
+   "gpu": 6.831,
+   "gpuMean": 6.864,
+   "calls": 640,
+   "tris": 3590146,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 0
+  },
+  {
+   "on": false,
+   "n": 28,
+   "gpu": 7.297,
+   "gpuMean": 9.072,
+   "calls": 640,
+   "tris": 3590146,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 1
+  },
+  {
+   "on": true,
+   "n": 27,
+   "gpu": 6.109,
+   "gpuMean": 6.161,
+   "calls": 640,
+   "tris": 3590146,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 1
+  },
+  {
+   "on": true,
+   "n": 27,
+   "gpu": 6.859,
+   "gpuMean": 7.942,
+   "calls": 640,
+   "tris": 3590146,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 2
+  },
+  {
+   "on": false,
+   "n": 27,
+   "gpu": 6.108,
+   "gpuMean": 7.076,
+   "calls": 640,
+   "tris": 3590146,
+   "infoCalls": 1,
+   "infoTris": 2,
+   "view": "taxi",
+   "round": 2
+  }
+ ],
+ "shots": [
+  {
+   "f": "close_l1_potato.png",
+   "census": [
+    {
+     "slot": "fleet-1-cub",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      2500
+     ],
+     "d": 66.5,
+     "tris": 4355,
+     "inView": false
+    },
+    {
+     "slot": "fleet-2-jodel",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      2500
+     ],
+     "d": 15.7,
+     "tris": 3882,
+     "inView": false
+    },
+    {
+     "slot": "fleet-3-c172",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      2500
+     ],
+     "d": 20.2,
+     "tris": 4772,
+     "inView": false
+    },
+    {
+     "slot": "fleet-4-c172floats",
+     "filled": true,
+     "level": 0,
+     "ladder": [
+      0,
+      2500
+     ],
+     "d": 28.4,
+     "tris": 4662,
+     "inView": true
+    }
+   ]
+  },
+  {
+   "f": "apron_potato_fleet6.png",
+   "on": true,
+   "view": "apron"
+  },
+  {
+   "f": "apron_potato_fleet0.png",
+   "on": false,
+   "view": "apron"
+  },
+  {
+   "f": "taxi_potato_fleet6.png",
+   "on": true,
+   "view": "taxi"
+  },
+  {
+   "f": "taxi_potato_fleet0.png",
+   "on": false,
+   "view": "taxi"
+  }
+ ],
+ "state": {
+  "build": "f9145510da7b",
+  "fleetOn": true,
+  "preset": "potato",
+  "gfxBuild": "potato",
+  "stats": {
+   "queued": 0,
+   "captures": 0,
+   "bakes": 0,
+   "hits": 0,
+   "stored": 0,
+   "decodes": 4,
+   "worldRefused": 0,
+   "flightRefused": 0,
+   "evicted": 0,
+   "bakeInWorld": 0,
+   "notWanted": 0,
+   "inputWaits": 0
+  },
+  "queue": [],
+  "busy": false,
+  "why": {},
+  "stand": {
+   "key": "jolene|fleet-1-cub@stand:af_m_park:5,fleet-2-jodel@apron:22:0,fleet-3-c172@apron:22:75,fleet-4-c172floats@apron:22:210",
+   "n": 4,
+   "miss": [],
+   "stats": {
+    "stands": 1,
+    "placed": 4,
+    "kept": 0,
+    "miss": 0,
+    "held": 2,
+    "waitMs": 337
+   }
+  }
+ },
+ "near": {
+  "slot": "fleet-2-jodel",
+  "d": 24.321911833819083,
+  "x": -137.397,
+  "z": 726.434,
+  "pref": true,
+  "az": 1.077376309766936
+ },
+ "close": [
+  {
+   "slot": "fleet-1-cub",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 66.5,
+   "tris": 4355,
+   "inView": false
+  },
+  {
+   "slot": "fleet-2-jodel",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 15.7,
+   "tris": 3882,
+   "inView": false
+  },
+  {
+   "slot": "fleet-3-c172",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 20.2,
+   "tris": 4772,
+   "inView": false
+  },
+  {
+   "slot": "fleet-4-c172floats",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 28.4,
+   "tris": 4662,
+   "inView": true
+  }
+ ],
+ "apronCam": {
+  "az": 5.438199980572213,
+  "el": 0.22,
+  "dist": 16,
+  "eye": [
+   -138.55293789356335,
+   35.111265064242254,
+   693.3343131938253
+  ],
+  "target": [
+   -148.91684791423322,
+   31.619591094948348,
+   705.0132507300747
+  ],
+  "fov": 46,
+  "exposure": 1.12,
+  "tone": 3,
+  "envDeferred": false,
+  "envDirty": false,
+  "envAway": true,
+  "envPM": true,
+  "envSource": "room"
+ },
+ "census_apron": [
+  {
+   "slot": "fleet-1-cub",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 89.9,
+   "tris": 4355,
+   "inView": true
+  },
+  {
+   "slot": "fleet-2-jodel",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 33.4,
+   "tris": 3882,
+   "inView": true
+  },
+  {
+   "slot": "fleet-3-c172",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 46.1,
+   "tris": 4772,
+   "inView": true
+  },
+  {
+   "slot": "fleet-4-c172floats",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 23.2,
+   "tris": 4662,
+   "inView": true
+  }
+ ],
+ "census_taxi": [
+  {
+   "slot": "fleet-1-cub",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 110.4,
+   "tris": 4355,
+   "inView": false
+  },
+  {
+   "slot": "fleet-2-jodel",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 61.3,
+   "tris": 3882,
+   "inView": false
+  },
+  {
+   "slot": "fleet-3-c172",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 71.2,
+   "tris": 4772,
+   "inView": false
+  },
+  {
+   "slot": "fleet-4-c172floats",
+   "filled": true,
+   "level": 0,
+   "ladder": [
+    0,
+    2500
+   ],
+   "d": 34.5,
+   "tris": 4662,
+   "inView": false
+  }
+ ],
+ "summary": {
+  "apron": {
+   "gpuOn": 7.017,
+   "gpuOff": 6.918,
+   "dGpu": 0.099,
+   "callsOn": 467,
+   "callsOff": 463,
+   "trisOn": 1943697,
+   "trisOff": 1926026,
+   "infoCallsOn": 1,
+   "infoCallsOff": 1,
+   "inView": 4,
+   "drawn": 4,
+   "levels": "1-cub:L0 2-jodel:L0 3-c172:L0 4-c172floats:L0"
+  },
+  "taxi": {
+   "gpuOn": 6.351,
+   "gpuOff": 6.831,
+   "dGpu": -0.48,
+   "callsOn": 640,
+   "callsOff": 640,
+   "trisOn": 3590146,
+   "trisOff": 3590146,
+   "infoCallsOn": 1,
+   "infoCallsOff": 1,
+   "inView": 0,
+   "drawn": 4,
+   "levels": "1-cub:L0 2-jodel:L0 3-c172:L0 4-c172floats:L0"
+  }
+ },
+ "stateEnd": {
+  "build": "f9145510da7b",
+  "fleetOn": true,
+  "preset": "potato",
+  "gfxBuild": "potato",
+  "stats": {
+   "queued": 0,
+   "captures": 0,
+   "bakes": 0,
+   "hits": 0,
+   "stored": 0,
+   "decodes": 4,
+   "worldRefused": 0,
+   "flightRefused": 0,
+   "evicted": 0,
+   "bakeInWorld": 0,
+   "notWanted": 0,
+   "inputWaits": 0
+  },
+  "queue": [],
+  "busy": false,
+  "why": {},
+  "stand": {
+   "key": "jolene|fleet-1-cub@stand:af_m_park:5,fleet-2-jodel@apron:22:0,fleet-3-c172@apron:22:75,fleet-4-c172floats@apron:22:210",
+   "n": 4,
+   "miss": [],
+   "stats": {
+    "stands": 1,
+    "placed": 4,
+    "kept": 0,
+    "miss": 0,
+    "held": 2,
+    "waitMs": 337
+   }
+  }
+ }
+}

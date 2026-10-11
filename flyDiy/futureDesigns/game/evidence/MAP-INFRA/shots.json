@@ -1,0 +1,425 @@
+{
+ "what": "MAP-INFRA stills (G2439): the island's infrastructure drawn over the user's painting",
+ "page": "index.html",
+ "renderer": "SwiftShader (headless Chromium)",
+ "rule": "every still is of the LOADED page: BOOT.state gone and #boot hidden + 2 s, checked before and after each capture; a loading capture is discarded and retaken",
+ "fails": [],
+ "shots": [
+  {
+   "size": "desk",
+   "name": "island",
+   "file": "map_infra_desk_island.jpg",
+   "note": "the whole island at the fit: the settlements tinted and hatched (the village by Annette Dock, Metlakatla), the main roads in ochre, the Skyline Tramway with its stations",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "phone": false,
+   "view": {
+    "s": 0.30398729710656314,
+    "tx": 285.62976358503886,
+    "ty": 5.684341886080802e-14,
+    "fit": 0.30398729710656314
+   },
+   "infra": {
+    "zones": 15,
+    "roads": 25,
+    "main": 25,
+    "tracks": 0,
+    "houses": 0,
+    "sites": 0,
+    "links": 1,
+    "stations": 2,
+    "band": 0
+   },
+   "overlay": {
+    "badges": 7,
+    "names": 0,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 4,
+    "desig": 0,
+    "routes": 0,
+    "planes": 0,
+    "labels": 0,
+    "held": 0
+   },
+   "layer": {
+    "pe": "none",
+    "kids": 87,
+    "autoPe": 0
+   },
+   "labels": [],
+   "pois": [],
+   "img": {
+    "ok": true,
+    "src": "media/map/jolene_art.1b6f317e.jpg"
+   }
+  },
+  {
+   "size": "desk",
+   "name": "village",
+   "file": "map_infra_desk_village.jpg",
+   "note": "Jolene AFB and the village at mid zoom (3x): every road (the airfield road and the village street in gravel, the tracks dashed), the village's houses and its label, the badges and runways over them",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "phone": false,
+   "view": {
+    "s": 0.9119618913196894,
+    "tx": -239.96427311220884,
+    "ty": -1499.5693366266757,
+    "fit": 0.30398729710656314
+   },
+   "infra": {
+    "zones": 15,
+    "roads": 76,
+    "main": 25,
+    "tracks": 3,
+    "houses": 459,
+    "sites": 117,
+    "links": 1,
+    "stations": 2,
+    "band": 1
+   },
+   "overlay": {
+    "badges": 7,
+    "names": 7,
+    "facts": 7,
+    "pois": 3,
+    "hot": 9,
+    "rings": 2,
+    "counts": 9,
+    "runways": 5,
+    "desig": 4,
+    "routes": 0,
+    "planes": 0,
+    "labels": 5,
+    "held": 0
+   },
+   "layer": {
+    "pe": "none",
+    "kids": 193,
+    "autoPe": 0
+   },
+   "labels": [
+    {
+     "t": "the village",
+     "pe": "none"
+    },
+    {
+     "t": "Metlakatla",
+     "pe": "none"
+    },
+    {
+     "t": "the mill",
+     "pe": "none"
+    },
+    {
+     "t": "the cannery",
+     "pe": "none"
+    },
+    {
+     "t": "Skyline Tramway",
+     "pe": "none"
+    }
+   ],
+   "pois": [
+    "the mine",
+    "the lodge",
+    "Tamgas Hill 1 100 m"
+   ],
+   "img": {
+    "ok": true,
+    "src": "media/map/jolene_art.1b6f317e.jpg"
+   }
+  },
+  {
+   "size": "desk",
+   "name": "metlakatla",
+   "file": "map_infra_desk_metlakatla.jpg",
+   "note": "Metlakatla close (8x): the town's grid of streets (cased: a light core over a dark edge), the arterials in ochre, every house a brick block, the cannery, the piers in plank, the breakwaters in stone, the harbour hatched blue; \"Metlakatla\" and \"the cannery\" named once",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "phone": false,
+   "view": {
+    "s": 2.431898376852505,
+    "tx": -939.3883792048928,
+    "ty": -3261.682368854387,
+    "fit": 0.30398729710656314
+   },
+   "infra": {
+    "zones": 15,
+    "roads": 76,
+    "main": 25,
+    "tracks": 3,
+    "houses": 459,
+    "sites": 117,
+    "links": 1,
+    "stations": 2,
+    "band": 2
+   },
+   "overlay": {
+    "badges": 7,
+    "names": 7,
+    "facts": 7,
+    "pois": 3,
+    "hot": 9,
+    "rings": 8,
+    "counts": 9,
+    "runways": 7,
+    "desig": 4,
+    "routes": 0,
+    "planes": 0,
+    "labels": 5,
+    "held": 0
+   },
+   "layer": {
+    "pe": "none",
+    "kids": 193,
+    "autoPe": 0
+   },
+   "labels": [
+    {
+     "t": "the village",
+     "pe": "none"
+    },
+    {
+     "t": "Metlakatla",
+     "pe": "none"
+    },
+    {
+     "t": "the mill",
+     "pe": "none"
+    },
+    {
+     "t": "the cannery",
+     "pe": "none"
+    },
+    {
+     "t": "Skyline Tramway",
+     "pe": "none"
+    }
+   ],
+   "pois": [
+    "the mine",
+    "the lodge",
+    "Tamgas Hill 1 100 m"
+   ],
+   "img": {
+    "ok": true,
+    "src": "media/map/jolene_art.1b6f317e.jpg"
+   }
+  },
+  {
+   "size": "desk",
+   "name": "tramway",
+   "file": "map_infra_desk_tramway.jpg",
+   "note": "the Skyline Tramway (5x): the cable in ink with its ticks, the valley and summit stations, the access road, the altiport and the lodge",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "phone": false,
+   "view": {
+    "s": 1.5199364855328157,
+    "tx": -695.9452187720535,
+    "ty": -1994.8153081627847,
+    "fit": 0.30398729710656314
+   },
+   "infra": {
+    "zones": 15,
+    "roads": 76,
+    "main": 25,
+    "tracks": 3,
+    "houses": 459,
+    "sites": 117,
+    "links": 1,
+    "stations": 2,
+    "band": 2
+   },
+   "overlay": {
+    "badges": 7,
+    "names": 7,
+    "facts": 7,
+    "pois": 3,
+    "hot": 9,
+    "rings": 5,
+    "counts": 9,
+    "runways": 6,
+    "desig": 4,
+    "routes": 0,
+    "planes": 0,
+    "labels": 5,
+    "held": 0
+   },
+   "layer": {
+    "pe": "none",
+    "kids": 193,
+    "autoPe": 0
+   },
+   "labels": [
+    {
+     "t": "the village",
+     "pe": "none"
+    },
+    {
+     "t": "Metlakatla",
+     "pe": "none"
+    },
+    {
+     "t": "the mill",
+     "pe": "none"
+    },
+    {
+     "t": "the cannery",
+     "pe": "none"
+    },
+    {
+     "t": "Skyline Tramway",
+     "pe": "none"
+    }
+   ],
+   "pois": [
+    "the mine",
+    "the lodge",
+    "Tamgas Hill 1 100 m"
+   ],
+   "img": {
+    "ok": true,
+    "src": "media/map/jolene_art.1b6f317e.jpg"
+   }
+  },
+  {
+   "size": "phone",
+   "name": "infra",
+   "file": "map_infra_phone_infra.jpg",
+   "note": "the phone (390 x 844): Metlakatla, its houses and streets, the tramway, the labels at mid zoom, over the folded sheet",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1&profile=phone",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "phone": true,
+   "view": {
+    "s": 0.5399169358560222,
+    "tx": -191.94047069681585,
+    "ty": -584.3698661744348,
+    "fit": 0.17997231195200739
+   },
+   "infra": {
+    "zones": 15,
+    "roads": 76,
+    "main": 25,
+    "tracks": 3,
+    "houses": 459,
+    "sites": 117,
+    "links": 1,
+    "stations": 2,
+    "band": 1
+   },
+   "overlay": {
+    "badges": 7,
+    "names": 7,
+    "facts": 7,
+    "pois": 3,
+    "hot": 9,
+    "rings": 1,
+    "counts": 9,
+    "runways": 4,
+    "desig": 0,
+    "routes": 0,
+    "planes": 0,
+    "labels": 4,
+    "held": 1
+   },
+   "layer": {
+    "pe": "none",
+    "kids": 193,
+    "autoPe": 0
+   },
+   "labels": [
+    {
+     "t": "the village",
+     "pe": "none"
+    },
+    {
+     "t": "Metlakatla",
+     "pe": "none"
+    },
+    {
+     "t": "the mill",
+     "pe": "none"
+    },
+    {
+     "t": "the cannery",
+     "pe": "none"
+    }
+   ],
+   "pois": [
+    "the mine",
+    "the lodge",
+    "Tamgas Hill 1 100 m"
+   ],
+   "img": {
+    "ok": true,
+    "src": "media/map/jolene_art.1b6f317e.jpg"
+   }
+  }
+ ]
+}

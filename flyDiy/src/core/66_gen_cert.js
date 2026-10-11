@@ -1029,3 +1029,43 @@ function genCertAttach(def, opt) {
   def.cert = C;
   return C;
 }
+
+// ---- THE BELLY POD'S MOUNTS (G2410, BELLY-POD) -------------------------------------------------------------------
+// The pod hangs on four fittings: the two frame rings that straddle its shell's centroid, a pair on each ring's
+// lower longerons (60d_gen_pod's `mounts`, where 61_gen_frame bills its mass). A row per fitting: the kilograms it
+// carries with the pod FULL (the shell where the frame billed it, the rated load - the floor limit over the floor -
+// at the hold's centroid, both split by lever between the rings and in half across), and what that mass puts through
+// the fitting in the certificate's cases (FAR 23 as recalled, the certificate's own constants): the positive limit
+// (GEN_CERT.limit, inertia downward), the negative (GEN_CERT.neg x limit), the positive ultimate (GEN_CERT.ult), and
+// the emergency landing's 9 g forward, ultimate (23.561(b)(3): the freight must not leave the pod through its nose).
+// With a certificate (genCertify's { Ft, Fc }), each fitting's node also carries the members meeting there: their
+// certified limit envelope, and the pod's limit share of it. THE CERTIFICATE IS OF THE AEROPLANE AS LOADED: a pod
+// certified full is one whose `loadKg` was its rated load when genCertify ran (GATE POD computes both).
+function genCertPodMounts(def, cert) {
+  const P = def && def.parts, R = P && P.pod;
+  if (!R || !P.F || !P.ST) return null;
+  const [f, a] = R.mounts, ST = P.ST, F = P.F;
+  const lever = (x, m) => {
+    if (f === a) return [m, 0];
+    const w = Math.max(0, Math.min(1, (x - ST[f].x) / Math.max(1e-6, ST[a].x - ST[f].x)));
+    return [m * (1 - w), m * w];
+  };
+  const s = lever(R.xShell, R.shellKg), l = lever(R.xLoad, R.maxKg);
+  const g = 9.81, L = GEN_CERT.limit;
+  const rows = [];
+  for (const [k, ring] of [[0, f], [1, a]]) for (const side of ['BL', 'BR']) {
+    const node = F[ring][side];
+    const kg = 0.5 * (s[k] + l[k]);
+    const row = { ring, side: side === 'BL' ? 'left' : 'right', node, x: ST[ring].x, kg,
+                  up: kg * g * L, down: kg * g * L * GEN_CERT.neg, ult: kg * g * GEN_CERT.ult, fwd9: kg * g * 9 };
+    if (cert && cert.Ft && cert.Fc) {
+      let env = 0, nb = 0;
+      def.beams.forEach((b, bi) => { if (b.a === node || b.b === node) { nb++; env = Math.max(env, cert.Ft[bi] || 0, cert.Fc[bi] || 0); } });
+      row.members = nb; row.envelope = env; row.share = env > 0 ? row.up / env : null;
+    }
+    rows.push(row);
+  }
+  const tot = rows.reduce((t, r) => t + r.kg, 0);
+  return { rows, kg: tot, limit: L, ult: GEN_CERT.ult, neg: GEN_CERT.neg, fwdG: 9,
+           worstUp: Math.max(...rows.map(r => r.up)), worstShare: cert ? Math.max(...rows.map(r => r.share || 0)) : null };
+}

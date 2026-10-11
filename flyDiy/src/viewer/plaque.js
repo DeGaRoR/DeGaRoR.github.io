@@ -212,6 +212,22 @@ const PLAQUE_WHY = {
       + 'at 1 it goes over with the brakes off.',
     fix: 'lower the thrust line, move the mains forward, or hold less than '
       + 'full throttle until the tail is up — the pilots already do.' },
+  // the belly pod (G2410, BELLY-POD)
+  'pod': { what: 'the belly pod as built: length x width x depth, the hold inside it and the load its floor is '
+      + 'rated for (146 kg per square metre of floor). Its shell is empty weight; its freight is payload.' },
+  'pod clearance': { what: 'the pod\u2019s lowest point to the ground in the worst attitude it takes there - level, '
+      + 'three-point at rest on a taildragger, rotated to the tail strike on a tricycle - or to the water line '
+      + 'at rest on floats.',
+    fix: 'a shallower pod, longer gear legs, or the pod moved forward (on a taildragger the tail-down attitude drops '
+      + 'everything aft of the mains). Under 0.08 m a hard landing or a rut finds it; at 0 it strikes.' },
+  'pod drag': { what: 'its drag area (Raymer\u2019s component build-up: the moulded skin, the form factor, 1.5 for a '
+      + 'store on the fuselage), its share of the body\u2019s, and what it costs this aeroplane\u2019s cruise and climb, '
+      + 'measured on its own probe with the pod and without its drag.' },
+  'pod full': { what: 'the centre of gravity with the pod loaded to its rated weight, and the static margin left.',
+    fix: 'a pod aft of the CG walks it aft as it fills: load it lighter or move it forward. Under 0.05 the '
+      + 'aeroplane is twitchy full; negative it is unflyable.' },
+  'pod mounts': { what: 'what each of its four fittings on the lower longerons carries with the pod full, and the '
+      + 'force that puts through it at the certificate\u2019s +3.8 g limit (inertia downward).' },
   'gear': { what: 'the undercarriage as built.',
     fix: 'FOLDED means it collapsed under its own weight - the legs are too '
       + 'soft, or the aeroplane is too heavy for them.' },
@@ -245,6 +261,7 @@ const PLAQUE_SECTIONS = {
   'balance': 'where the centre of gravity sits against the neutral point, loaded as it stands',
   'at reserves': 'the same aeroplane with 15% fuel — lighter, and with its CG moved by the burn-off',
   'on the ground': 'how it sits on its wheels and what that allows',
+  'belly pod': 'the pod under the fuselage: what it holds, how close it comes to the ground, its drag and the CG full',
   'fuel and tank': 'the fuel aboard, the tank it sits in, and whether the bay can take it',
   'the pack': 'the cells aboard, the pack they sit in, and whether the bay can take it',
 };
@@ -267,6 +284,8 @@ const PLAQUE_BOUNDS = {
   'static margin':   { lo: 0.05, badLo: 0, text: '≥ 0.05' },
   'weathervane':     { lo: 0.03, badLo: 0, text: '≥ 0.03' },
   'prop clear':      { lo: 0.12, badLo: 0.05, text: '≥ 0.12 m' },
+  'pod clearance':   { lo: 0.08, badLo: 0.001, text: '≥ 0.08 m' },
+  'pod full':        { lo: 0.05, badLo: 0, text: 'margin ≥ 0.05' },
   'nose-over':       { lo: 15, text: '≥ 15°' },
   'power nose-over': { hi: 0.75, badHi: 1, text: '< 0.75' },
   'crosswind limit': { lo: 4, badLo: 2, text: '≥ 4 m/s' },

@@ -711,6 +711,41 @@ function genShakedown(def, opts) {
     out.thirdLeg = !tw ? 0 : S.gear.type === 'tricycle' ? -0.02 - tw.p[1]
                                                     : def.nodes[P.TPB].p[1] - tw.p[1];
     out.camber = S.gear.camber;
+    // THE BELLY POD (G2410, 60d_gen_pod): what it is, what it holds, what it costs in drag, and where its lowest point
+    // is against the ground or the water in each attitude - reported, never enforced (the engineer's handbook: a pod
+    // that strikes reads red with its clearance; the garage still builds it). Absent with no pod.
+    if (P.pod) {
+      const R = P.pod, pd = genPodCdA(R), axial = g.drag && g.drag.axial;
+      out.pod = { len: R.len, width: 2 * R.hw, depth: R.depth, x0: R.x0, x1: R.x1,
+                  litres: R.litres, floorM2: R.floorM2, maxKg: R.maxKg, loadKg: R.loadKg,
+                  shellKg: R.shellKg, price: R.price, door: R.door, mounts: R.mounts,
+                  cda: pd.cda, cdFrontal: pd.cdFrontal, fineness: pd.f, FF: pd.FF, Q: pd.Q, cdSrc: pd.src,
+                  dragShare: axial > 0 ? pd.cda / axial : null,
+                  clearance: genPodClearance(def, sim.totalM),
+                  space: genPodSpace(S, P.ST, R),
+                  designGross: P.designGross != null ? P.designGross : null,
+                  // the mounts at the certificate's loads (with a certificate attached, its envelope at each fitting)
+                  mountRows: typeof genCertPodMounts === 'function' ? genCertPodMounts(def, def.cert || null) : null };
+      // ITS COST IN THE AIR, MEASURED ON THIS AEROPLANE: the cruise rule genTrim solves VCruise on (drag = 65 % of
+      // the thrust there) solved WITHOUT the 1.55-2.2 Vs clamp, on the sim's own probe, with the pod and with the
+      // pod's drag area taken back off the same probe (the same mass: what the drag alone costs); the climb at VClimb
+      // loses the pod's drag x V over the weight; the range at the sheet's rule (V x the cruise endurance) moves with
+      // the speed. Deterministic (the probe is).
+      const Vs0 = g.Vs || 10, ap0 = def.params.ap || {};
+      const dragAt = (v, k) => genProbeAt(sim, v, genAlphaForLift(sim, v, W, aMax)).drag - k * 0.5 * RHO * v * v * pd.cda;
+      const v65 = k => {
+        // from the speed of the best glide (the bottom of the drag curve: below it the curve turns back up and the
+        // rule has a second, meaningless root) to 4 Vs
+        let lo = Math.max(1.05 * Vs0, out.VbestLD || 0), hi = 4 * Vs0;
+        if (dragAt(lo, k) >= 0.65 * sim.thrustAt(lo, 1)) return lo;
+        for (let i = 0; i < 24; i++) { const m = 0.5 * (lo + hi); if (dragAt(m, k) < 0.65 * sim.thrustAt(m, 1)) lo = m; else hi = m; }
+        return 0.5 * (lo + hi);
+      };
+      const vWith = v65(0), vWithout = v65(1), Vc = ap0.VClimb || 0;
+      out.pod.cruise = { vWith, vWithout, dV: vWith - vWithout, dPct: vWithout > 0 ? (vWith / vWithout - 1) : 0,
+                         dClimb: -0.5 * RHO * Vc * Vc * Vc * pd.cda / Math.max(1, W),
+                         dRangePct: vWithout > 0 ? (vWith / vWithout - 1) : 0 };
+    }
   }
   // High lift, measured rather than assumed. `gen.Vs` is the CLEAN stall the
   // whole aero synthesis is built on; this runs the same free-air CLmax scan
@@ -835,6 +870,8 @@ function genShakedown(def, opts) {
                        occupantsDrawn: S.occupants, seats };
     } catch (e) {}
   }
+  // G2410: the pod loaded to its rated load - the CG it makes, against the corners' range and the neutral point
+  if (out.pod && P && P.pod) out.pod.balance = genPodBalance(out, P.pod);
   return out;
 }
 

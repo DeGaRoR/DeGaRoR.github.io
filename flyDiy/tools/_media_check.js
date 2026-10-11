@@ -160,7 +160,10 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              DATA_BUDGET_KB (base64) is unchanged.
 //
 // WIRE: index.html gzipped (CRs removed), MiB. Raising this needs a reason written here.
-const WIRE_BUDGET_MIB = 4.0;
+// TEMPORARY 4.0 -> 4.05 (10-11 Oct, A0's word): train 43's game content takes index.html to 4.02 MiB gzipped;
+// CAREER-LAZY (train 44.1, Sun 11 Oct 20:45) moves the career-only core out of the page and brings it back under 4.0
+// MiB, and this budget returns to 4.0 IN THAT TRAIN.
+const WIRE_BUDGET_MIB = 4.05;
 // STEP: how much index.html (CRs removed) may grow over the build before it, MiB.
 // "The build before" is git's: if the built page differs from HEAD's, HEAD (and
 // its parents, when HEAD is a merge); if it IS HEAD's, the parents of the commit
@@ -168,6 +171,12 @@ const WIRE_BUDGET_MIB = 4.0;
 // "(built)" commit. The LARGEST of those candidates is the baseline, so merging
 // a master that grew for days is not charged as this step's growth.
 const STEP_BUDGET_MIB = 0.3;
+// A STEP ACCEPTED BY NAME (the user's ruling, not a budget raise): one step from one exact baseline (its byte count,
+// CRs removed) up to a ceiling. It covers that landing and nothing else - any other baseline meets the 0.3 MiB.
+const STEP_ACCEPTED = [
+  { name: 'train 43: the career features, user-accepted 8 Oct ("Have a sanity check, then accept. It is a major feature, expected to take some space.") - +422.8 KB over train 42.1',
+    fromBytes: 12210701, upToBytes: 12660032 },
+];
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;
@@ -183,7 +192,8 @@ function manifestFiles() {
              'ground_tex.js',   // THE GROUND LIBRARY (G910): the site's, the splat's, the pavement's and the lot's sets, once, + the cooked layers (+ AS3's KTX2 planes)
              'ktx2_twins.js',   // AS3 (G916): the KTX2 twins of the plain maps (tools/ktx2_twins.js, media/tex/ktx2/<family>/)
              'cabin_livery.js',   // the tram cabin's liveries (G343)
-             'blueprint_library.js']   // the blueprint library's sheets (G573.2, media/blueprints/)
+             'blueprint_library.js',   // the blueprint library's sheets (G573.2, media/blueprints/)
+             'map_pack.js']   // the island map's projection, its bake and the user's painting (G2250 / G2324, media/map/)
     .map(f => path.join(ROOT, 'src', 'viewer', f));
   const packs = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'src', 'props', 'props_packs.json'), 'utf8'))
@@ -217,6 +227,14 @@ function manifestFiles() {
   const cabin = fs.existsSync(cabinMf)
     ? JSON.parse(fs.readFileSync(cabinMf, 'utf8'))
         .map(f => path.join(ROOT, 'src', 'cabin', f))
+    : [];
+  // the freight loads (FREIGHT-ASSETS, G2405): the baker's table for the
+  // loads and the camp dressing, its own packs + levels (media/geo/loads,
+  // media/geo/loads_lod, media/tex/loads)
+  const loadsMf = path.join(ROOT, 'src', 'loads', 'loads_packs.json');
+  const loads = fs.existsSync(loadsMf)
+    ? JSON.parse(fs.readFileSync(loadsMf, 'utf8'))
+        .map(f => path.join(ROOT, 'src', 'loads', f))
     : [];
   // EVERY payload on disk, not build.js's publish list: the table is the
   // CATALOGUE and MANIFEST.models the published subset (GATE REF's own
@@ -278,7 +296,7 @@ function manifestFiles() {
   // the 2-D island map (G2250 MAP-MENU): tools/map_bake.js owns media/map, named by the generated map pack (G2203: was missing,
   // so the map's two files read as orphans)
   const mapp = path.join(ROOT, 'src', 'viewer', 'map_pack.js'), maps = fs.existsSync(mapp) ? [mapp] : [];
-  return v.concat(packs, pier, totems, panelhw, cabin, models, chars, animals, trees, shots, worlds, townkit, sound, maps);
+  return v.concat(packs, pier, totems, panelhw, cabin, loads, models, chars, animals, trees, shots, worlds, townkit, sound, maps);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|json)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701)
@@ -350,6 +368,8 @@ function checkWire(gzBytes) {
 
 function checkStep(nowBytes, baseBytes, baseAt) {
   const step = MiB(nowBytes - baseBytes);
+  const ok = STEP_ACCEPTED.find(a => a.fromBytes === baseBytes && nowBytes <= a.upToBytes);
+  if (ok && nowBytes - baseBytes > STEP_BUDGET_B) { console.log('  step accepted by name: ' + ok.name); return true; }
   return check(nowBytes - baseBytes <= STEP_BUDGET_B,
     `index.html grew ${step.toFixed(2)} MiB over ${baseAt} against the ` +
     `${STEP_BUDGET_MIB} MiB one build may add — something heavy moved inside the artifact`);
