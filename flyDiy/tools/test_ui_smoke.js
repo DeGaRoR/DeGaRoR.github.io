@@ -127,6 +127,21 @@ if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<
   if (/<script[^>]+src="[^"]*freight_load\.js/.test(html) || !/"freight_load":"src\/viewer\/freight_load\.js/.test(html)) throw new Error('index.html: the loading view is not a lazy file');
   console.log('the loading view in app.js: behind ?career=1 / ?freight=1 (FREIGHT_PAGE), the door and the entry with it; the stop carries the accepted items; freight_load.js lazy');
 }
+// G2400 (FREIGHT-STRAP): THE STRAPPED LOAD ONLY UNDER THE SAME FLAGS - its rig handle and its drawing's timer behind
+// FREIGHT_PAGE; the masses go aboard at the roll-out (after the bench's fingerprint, before the flight's reset), the
+// shed takes them off, the stop hands the next stage over; the drawing a lazy file (never a static tag)
+{
+  const app = pick('function setAircraft', 'app');
+  if (!/  if \(FREIGHT_PAGE\) window\.FLYDIY_STRAP = /.test(app) || !/  if \(FREIGHT_PAGE\) setInterval\(\(\) => \{ try \{ if \(inGarage\) fsRigDue\(\); fsSync\(\); \} catch \(e\) \{\} \}, 700\);/.test(app)) throw new Error('app.js: window.FLYDIY_STRAP / the strap drawing\'s timer are not behind the flags');
+  if (!/if \(!FREIGHT_PAGE \|\| !sim \|\| typeof sim\.setFreight !== 'function'\) return null;/.test(app)) throw new Error('app.js: the strap\'s masses are not behind the flags');
+  const ro = app.slice(app.indexOf('function rollOutStand()'), app.indexOf('fullReset();', app.indexOf('function rollOutStand()')));
+  if (!/BENCH_ROLLOUT[\s\S]*playerFlightStart\(\);[\s\S]*fsFlightStart\(\);/.test(ro)) throw new Error('app.js: the load does not go aboard at the roll-out, after the bench\'s fingerprint and before the reset');
+  if (!/try \{ fsGarage\(\); \} catch \(e\) \{\}/.test(app)) throw new Error('app.js: the shed does not take the load off');
+  if (!/if \(CAREER_DEV\) out\.freight = fsStop\(\);/.test(app)) throw new Error('app.js: the stop does not hand the next stage\'s load over');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  if (/<script[^>]+src="[^"]*freight_strap\.js/.test(html) || !/"freight_strap":"src\/viewer\/freight_strap\.js/.test(html)) throw new Error('index.html: the strap drawing is not a lazy file');
+  console.log('the strapped load in app.js: behind ?career=1 / ?freight=1, aboard at the roll-out after the fingerprint, off in the shed, the stop\'s next stage; freight_strap.js lazy');
+}
 // THE MAP SCREEN'S ROWS (G2253, MAP-MENU; tools/_map_smoke.js): the sandbox shows no MAP entry without ?map=1, nothing of
 // the screen loads before the entry is pressed, the screen's tabs / rows / cards over the contracts fixture, NOHOVER and R1
 // on the new UI; --phone the phone's card and the sheet's gestures
@@ -501,6 +516,9 @@ try {
   // SOUND item mounts the real menu and the loop's AUDIO.update runs (no gesture, no AudioContext here: it returns at once)
   for (const f of ['audio/audio_params.js', 'audio/audio.js'])
     vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8'), sandbox, { filename: f });
+  // THE CLOCK (G2650 SIM-CLOCK): day_clock.js rides the RENDER block too - run from its own source so app.js binds the
+  // real DAY_CLOCK (no storage, no location here: the game's day) and the route rows carry its clock line and wait select
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'day_clock.js'), 'utf8'), sandbox, { filename: 'day_clock.js' });
   vm.runInContext(bootBlock, sandbox, { filename: 'boot.js' });      // the loading screen's brain
   vm.runInContext(worldBootBlock, sandbox, { filename: 'world_boot.js' });   // G999: FLYDIY_WORLD_COMPOSE (app.js runs it)
   vm.runInContext(appBlock, sandbox, { filename: 'app.js' });        // UI (runs setAircraft)
@@ -531,6 +549,9 @@ try {
   // G2345 (FREIGHT-LOAD): ...and no loading view: no FLYDIY_FREIGHT, no LOAD entry, the lazy view never fetched
   if (sandbox.window.FLYDIY_FREIGHT !== undefined || sandbox.window.FREIGHT_LOAD !== undefined || els.frEntry || els.frLoad) throw new Error('the sandbox booted with the loading view (FLYDIY_FREIGHT / #frEntry) without ?career=1 or ?freight=1');
   console.log('the sandbox without the flags: no FLYDIY_FREIGHT, no LOAD entry');
+  // G2400 (FREIGHT-STRAP): ...and no strapped load: no FLYDIY_STRAP, the lazy drawing never fetched
+  if (sandbox.window.FLYDIY_STRAP !== undefined || sandbox.window.FREIGHT_STRAP_VIEW !== undefined) throw new Error('the sandbox booted with the strapped load (FLYDIY_STRAP / FREIGHT_STRAP_VIEW) without ?career=1 or ?freight=1');
+  console.log('the sandbox without the flags: no FLYDIY_STRAP, no strap drawing');
   // G2260 (ECONOMY): ...and no wallet: no FLYDIY_ECON, no wallet line in the garage
   if (sandbox.window.FLYDIY_ECON !== undefined || els.ecWallet || els.ecSum) throw new Error('the sandbox booted with the wallet (FLYDIY_ECON / #ecWallet) without ?career=1');
   console.log('the sandbox without the flag: no FLYDIY_ECON, no wallet line');
@@ -648,6 +669,30 @@ try {
     R.to('CIRCUIT');
     frames(30);
     console.log(`one To: taxiing ${how1}, on a leg ${how2}, stopped ${how3} from ${where.kind} ${where.id} (the From derived), the aeroplane never moved`);
+  }
+  // ---- G2650 SIM-CLOCK: THE ROUTE ROW'S CLOCK + WAIT IT OUT ----
+  // Both route rows (the shed's, the roll-out screen's) carry the clock line ("16:00 · 21 Jun") and a "wait until…"
+  // select of the named hours and the whole hours. A wait is on the ground only (the page's guard: in the garage or on
+  // the stand) - in flight the pick is refused and the clock does not move; allowed, it is ONE jump, forward. The
+  // sandbox keeps its clock (not the career's).
+  {
+    const CK = sandbox.window.DAY_CLOCK, FC = sandbox.window.FLYDIY_CLOCK, P = sandbox.window.FLIGHT_PROBE;
+    if (!CK || typeof CK.wait !== 'function' || typeof CK.jump !== 'function' || !FC) throw new Error('DAY_CLOCK.wait / jump or FLYDIY_CLOCK missing (G2650)');
+    if (CK.isCareer()) throw new Error('the sandbox page runs the career\'s clock (G2650)');
+    const rows = FC.rows();
+    for (const w of ['garage', 'rollout']) {
+      const r = rows.find(x => x.where === w);
+      if (!r || !/^\d\d:\d\d · \d{1,2} [A-Z][a-z]{2}/.test(r.text)) throw new Error(`the ${w} route row has no clock line: ${JSON.stringify(r && r.text)}`);
+      if (!r.sel || r.opts !== 32) throw new Error(`the ${w} route row's wait select: ${r.opts} hours (want the 8 named + 24 whole hours)`);
+    }
+    const day = P.world().day, a0 = day.jdn * 86400 + day.utc, j0 = CK.jumps, can = CK.canWait();
+    const g = rows.find(x => x.where === 'garage');
+    g.sel.onchange({ target: { value: 'dusk' } });
+    const a1 = day.jdn * 86400 + day.utc;
+    if (can) { if (!(CK.jumps === j0 + 1 && a1 > a0 && CK.lastJump.why === 'wait:dusk' && Math.abs(day.sunEl + 6) < 0.1)) throw new Error(`a wait on the ground: jumps ${CK.jumps - j0}, moved ${a1 - a0} s, sun ${day.sunEl}`); }
+    else if (!(CK.jumps === j0 && Math.abs(a1 - a0) < 1 && /ground/.test(g.sel.title))) throw new Error(`a wait in flight was not refused: jumps ${CK.jumps - j0}, moved ${a1 - a0} s, "${g.sel.title}"`);
+    frames(10);
+    console.log(`the clock: both route rows ("${FC.rows()[0].text}", ${g.opts} hours to wait for); a wait ${can ? 'on the ground is one jump to dusk' : 'in flight is refused, the clock unmoved'}`);
   }
   // ---- G2230 PREM-S2: THE GARAGE'S BASE LINE + SELECT, AND THE FLEET POPUP'S PLACE BADGE ----
   // The bases are derived from the hangars held (38b_dest.js flightBasesOf, ruling gp1): the sandbox's one hangar is

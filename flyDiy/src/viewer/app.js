@@ -548,6 +548,41 @@
   }
   // G2630: through jsonFinite (70_player.js) - a document with a non-finite number is not written (the saved one stands)
   function playerSave() { if (!player) return; const j = jsonFinite(player, 'the player document'); if (j != null) prefSet(PLAYER_KEY, j); if (CAREER_DEV) econWalletSync(); }   // + G2260's wallet line
+  // ---- G2650 SIM-CLOCK: THE CLOCK AS GAME STATE -------------------------------------------------------------------
+  // The career's instant is its document's (74_career.js career.day): DAY_CLOCK takes it from there at boot and hands
+  // it back on every save (its 30 s save, the page's hide, a jump), forward only (careerDaySet; the day is written in
+  // place, the document object unchanged under its readers). The sandbox keeps flydiy.day.v3, untouched.
+  // A WAIT is on the ground only: in the garage, or on the roll-out screen's stand (never in flight).
+  if (typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.waitGuard)
+    DAY_CLOCK.waitGuard(() => { try { if (inGarage || rollHold) return true; } catch (e) {} return 'wait on the ground: in the hangar or on the stand'; });
+  // the route rows' clock lines (clockRowBuild, the route's block): the local hour and date, kept to the minute
+  const clockRows = [];
+  const clockProbe = r => (r && typeof dayProbe === 'function' && world && world.day ? dayProbe(world.day, r.abs) : null);
+  const clockHhmm = r => { const p = clockProbe(r); return p ? p.local.split(' ')[1].slice(0, 5) : ''; };
+  const clockDateOf = r => { const p = clockProbe(r); return p ? p.localDate : ''; };
+  const CLOCK_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function clockLine() {
+    const d = world && world.day; if (!d) return '';
+    const s = d.local.split(' '), dt = d.localDate.split('-');
+    const m = typeof dayMoonAt === 'function' && !d.sunUp ? dayMoonAt(d, null, null) : null;
+    return s[1].slice(0, 5) + ' · ' + (+dt[2]) + ' ' + CLOCK_MON[+dt[1] - 1] + (m ? ' · ' + (m.up ? m.phase + ' moon' : 'no moon') : '');
+  }
+  function clockRowsSync(force) {
+    if (!clockRows.length) return;
+    const t = clockLine();
+    for (const r of clockRows) if (force || r.last !== t) { r.v.textContent = t; r.last = t; }
+  }
+  // the rows and the line, for GATE UISMOKE (and a console)
+  window.FLYDIY_CLOCK = { rows: () => clockRows.map(r => ({ where: r.where, text: r.v.textContent, sel: r.sel, opts: r.opts() })), line: () => clockLine() };
+  if (CAREER_DEV && typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.career && typeof careerDaySet === 'function') {
+    DAY_CLOCK.career({
+      get: () => (CAREER_DEV ? careerDay(playerLoad()) : null),
+      put: o => { const r = CAREER_DEV ? careerDaySet(playerLoad(), o) : null; if (r && r.ok && r.dt > 0) { player.career.day = r.doc.career.day;
+        // G2665 (NIGHT-OPS): the sky it saw rides beside the day (an overcast hides the moon from the next offers)
+        try { if (CAREER_DEV && world && world.day && typeof world.day.cloudCover === 'number') player.career.cover = Math.round(world.day.cloudCover * 100) / 100; } catch (e) {}
+        playerSave(); } },
+    });
+  }
   // the saved builds' names, read where garage.js keeps them (one key per named build)
   function playerSlotNames() {
     const out = [];
@@ -1358,6 +1393,13 @@
     }
     // the room (and the residents with it) under the stand: minus the stand's place in the room's frame
     RES.group.position.set(-(RES.dx || 0), hangar ? hangar.group.position.y : 0, -(RES.dz || 0));
+    // G2319.1: the room moved AFTER the garage framed its eye (enterGarage frames first, the residents stand after):
+    // an eye still where the garage put it is framed again (eased); one the hand has moved is the hand's
+    if (hangar && (hangar.group.position.x !== -(RES.dx || 0) || hangar.group.position.z !== -(RES.dz || 0))) {
+      hangar.group.position.x = -(RES.dx || 0); hangar.group.position.z = -(RES.dz || 0);
+      const f = RES.frame;
+      if (f && azT === f.az && elT === f.el && distT === f.dist) { const F = garageFraming(); azT = F.az; elT = F.el; distT = F.dist; RES.frame = { az: F.az, el: F.el, dist: F.dist }; }
+    }
     for (const g of RES.holders.values()) if (!g.userData.filled) window.PARKED.residentFill(g);
     residentsShow();
     RES.ms = performance.now() - t0;
@@ -1567,15 +1609,24 @@
     setLayout: k => {
       if (!CAREER_DEV || typeof hangarLayout !== 'function') return null;
       const shed = shedHome();
-      if (k && !hangarLayout(k, shed.shell)) return null;
-      if ((shed.layout || null) === (k || null)) return shed.layout || null;
+      // G2319.1: a layout names its shell - choosing one in another shell takes the shell with it (the career's main
+      // hangar is today's club again; the works' hearth / hearthLight / cozy stay one call away)
+      const L = k && typeof HANGAR_LAYOUTS !== 'undefined' ? HANGAR_LAYOUTS[k] : null;
+      if (k && !L) return null;
+      if (L && L.shell && L.shell !== shed.shell && typeof SHELLS !== 'undefined' && SHELLS[L.shell]) {
+        shed.shell = L.shell; shed.dims = Object.assign({}, SHELLS[L.shell].dims);
+        if (WF && WF.setShedDims) WF.setShedDims(Object.assign({ shell: shed.shell }, playerShedDims(player, 'HOME', (typeof siteOf === 'function') ? siteOf('HOME') : null)));
+      } else if ((shed.layout || null) === (k || null)) return shed.layout || null;
       if (k) shed.layout = k; else delete shed.layout;
       playerSave();
       disposeHangar();
       if (inGarage) applyEnv(); else getHangar();
+      if (inGarage) garageCamera();          // a new room, the eye re-framed (as setShell does)
       return shed.layout || null;
     },
     residentsSync: () => { residentsSync(RES && RES.bb); return residentsApi(); },   // the rigs' door: stand them now
+    // G2319.1: the garage's own default framing, applied (the rigs' "room" camera: a moved room draws the eye in)
+    frame: () => { garageCamera(); return garageFraming(); },
     residentSwap: (n, o) => residentSwap(n, o),      // G2316: a resident onto the stand (timings back)
     setMobile: on => {
       mobileOn = on !== false;
@@ -5435,6 +5486,8 @@
     curKey = key;
     if (model) {
       craft.remove(model.grp);
+      // G2400 (FREIGHT-STRAP): the strapped load's group is not the model's to give back (fsSync hangs it on the new one)
+      try { if (FST.flight && FST.flight.parent) FST.flight.parent.remove(FST.flight); } catch (e) {}
       // the generated model is rebuilt per spec change and never cached, so it
       // owns its GPU buffers and must give them back
       // (a live character's skinned geometry is SHARED with the editor's
@@ -6694,8 +6747,15 @@
         // (playerGoTo: `here`, the room built again for it at the shed door); tied down, the garage stays where it was
         if (r.ok && r.kind === 'in' && r.hangar && r.hangar !== d.here && typeof playerGoTo === 'function') { const g = playerGoTo(d, r.hangar); if (g.ok) { d = g.doc; out.room = r.hangar; } }
       }
+      // G2665 (NIGHT-OPS): the career's day (and the sky it saw) is the stop's BEFORE the stop meets the contracts, so a
+      // new epoch's offers are drawn under the night the aeroplane landed in (SIM-CLOCK saved it after; same instant)
+      if (CAREER_DEV && d.career && world && world.day && typeof careerDaySet === 'function') { const r = careerDaySet(d, { date: world.day.date, utc: world.day.utc }); if (r.ok) d = careerCoverNote(r.doc); }
       // G2320 (CAREER-WIRE): ...and the career meets the stop (careerOnStop: every accepted contract, the tracked first)
       if (CAREER_DEV && d.career) { const c = careerStopApply(d, how, W, wrecked); d = c.doc; out.career = c; }
+      // G2705 (CAREER-DAMAGE, §R.4): a crash in the career - back at the place the flight departed from, repaired, free
+      // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
+      const cz = (CAREER_DEV && d.career && wrecked) ? careerCrashReset(d, flSlot, fromAero) : null;
+      if (cz && cz.ok) { d = cz.doc; out.reset = cz.where; if (out.career) out.career.lines.unshift(cz.line); }
       // G2290 (PILOTS): the flyer's logbook row and place (they go WITH the aeroplane: where the ledger now has it)
       if (CAREER_DEV && d.career && typeof pilotsOnFlightEnd === 'function') {
         const landed = how === 'stopped' && !!(W && flightCanDepart(W)) && !wrecked;
@@ -6704,8 +6764,13 @@
                                           landed, tw, t: ap.t || 0 });
         if (pr.ok) { d = pr.doc; out.pilot = { who: crFlyer || 'me', row: pr.logged }; }
       }
+      // G2650 (SIM-CLOCK): the career's clock is SAVED at the flight's end (the next session starts where this one stopped)
+      if (CAREER_DEV && d.career && world && world.day && typeof careerDaySet === 'function') { const r = careerDaySet(d, { date: world.day.date, utc: world.day.utc }); if (r.ok) d = r.doc; }
       player = d; playerSave();
       if (CAREER_DEV) careerPlateSync();
+      // G2400 (FREIGHT-STRAP): the delivered items leave, the next stage's arrive placed (the sim and the drawing follow)
+      { const FA = fsAboard(); if (FA) out.load = { items: FA.items, flags: FA.flags }; }   // (before the stop changes what is aboard)
+      if (CAREER_DEV) out.freight = fsStop();
     } catch (e) { console.warn('flyDiy: the flight could not be written to the fleet ledger -', e && e.message); }
     flLastEnd = out;
     return out;
@@ -6778,6 +6843,17 @@
   // delivery's criteria are judged by. The result is saved with the player's document; its events go on the
   // arrival card with the wallet line.
   let crOver = [], crCargoKg = null, crPlateEl = null;
+  // G2665 (NIGHT-OPS): the day's civil dusk / dawn as local hours (07b dayDuskDawnH), {} when the page has no day
+  function careerDuskDawn() {
+    try { if (world && world.day && typeof dayDuskDawnH === 'function') { const d = dayDuskDawnH(world.day); return { duskH: d.duskH, dawnH: d.dawnH }; } } catch (e) {}
+    return {};
+  }
+  // G2665: the day's cloud cover as the career last saw it (73_ contractSky: an overcast hides the moon) - kept on the
+  // document beside its day, so the next offers are drawn under the sky the player saw
+  function careerCoverNote(doc) {
+    try { if (doc && doc.career && world && world.day && typeof world.day.cloudCover === 'number') doc.career.cover = Math.round(world.day.cloudCover * 100) / 100; } catch (e) {}
+    return doc;
+  }
   function careerFlightStart() { crOver = []; careerPlateSync(); }
   function careerFrame(cg) {
     if (!started || inGarage || !cg) return;
@@ -6792,10 +6868,20 @@
     const L = careerTrackedLoad(playerLoad());
     return L ? L.kg : 0;
   };
+  // G2705 (CAREER-DAMAGE): Deform's structural verdict for the stop record - sim.damage().structural (train 41: a
+  // NON-ENUMERABLE getter, so it is read off the very object damage() returns, never off a copy; the worker's verdict
+  // flDmg when it carries one). Absent (before train 41) -> null: not damaged
+  function careerStructural() {
+    try {
+      const D = sim.damage ? sim.damage() : null;
+      const S = (D && D.structural) || (flDmg && flDmg.structural) || null;
+      return S ? { damaged: !!S.damaged, why: S.why || null } : null;
+    } catch (e) { return null; }
+  }
   function careerStopApply(d, how, W, wrecked) {
     const S = def && def.spec;
     const stop = careerStopRecord({
-      how, aero: W && flightCanDepart(W) ? W.aero.id : null, wrecked, slot: flSlot,
+      how, aero: W && flightCanDepart(W) ? W.aero.id : null, wrecked, structural: careerStructural(), slot: flSlot,
       gear: (S && typeof stripGear === 'function') ? stripGear(S) : null,
       occupants: S && S.occupants != null ? S.occupants : 1, cargoKg: careerCargo(),
       // G2345 (FREIGHT-LOAD): THE LOAD IS THE ITEMS - the placement accepted in the loading view, when it rides this
@@ -6803,6 +6889,9 @@
       items: typeof freightStopItems === 'function' ? freightStopItems(d, flSlot) : null,
       row: { from: fromId, to: destId, t: ap ? ap.t : 0 }, overflew: crOver,
       hour: world && world.day && world.day.localSeconds != null ? world.day.localSeconds / 3600 : null,
+      // G2665 (NIGHT-OPS): every time-of-day window is judged on the day's own almanac (in June dusk is 22:29, in
+      // December ~16:40), not the 19.5 h constant - SIM-CLOCK's recommendation (G2653)
+      ...careerDuskDawn(),
     });
     const hook = careerAcceptHook(crit => (window.ACCEPT_REC ? window.ACCEPT_REC.verdict(crit) : null));
     const res = careerOnStop(d, stop, { acceptVerdict: hook });
@@ -6964,7 +7053,7 @@
     playerSave();
     return true;
   }
-  // REPAIR (dm9): the airframe's bill (its fleet row's `damage`, DMG-D5's record), charged on this explicit press
+  // REPAIR (dm9; G2705: FREE): the airframe's damage record (its fleet row's `damage`, DMG-D5's) cleared on this press
   function econRepairNow(slot) {
     const n = slot || slotOnStand();
     if (!n) return null;
@@ -6972,12 +7061,12 @@
     try { const R = window.GARAGE_SPEC && window.GARAGE_SPEC.resolved ? window.GARAGE_SPEC.resolved() : null;
           wants = R && typeof hangarWants === 'function' ? hangarWants(R) : []; } catch (e) {}
     const r = econRepair(playerLoad(), n, { wants });
-    if (r.ok) { player = r.doc; ecNote = 'repaired ' + n + ': ' + ecFmt(r.cost); playerSave(); }
+    if (r.ok) { player = r.doc; ecNote = 'repaired ' + n + ' (free)'; playerSave(); }
     else { ecNote = r.why; econWalletSync(); }
     return r;
   }
   // THE WALLET LINE IN THE GARAGE (career only): the wallet, the last thing paid or refused, Repair when the airframe
-  // on the stand is damaged (the bill, x the labour where it stands)
+  // on the stand is damaged (free: G2705)
   function econWalletSync() {
     try { econWalletDraw(); } catch (e) { console.warn('flyDiy (career): the wallet line -', e && e.message); }
   }
@@ -7002,7 +7091,7 @@
     const D = n && d.fleet[n] && d.fleet[n].damage;
     const b = ecWalletEl.querySelector('#ecRepair');
     b.hidden = !(D && D.damaged && !D.writeOff);
-    if (!b.hidden) b.textContent = 'Repair · ' + ecFmt(econRepairCost(D.bill, 1)) + ' ₵ before labour';
+    if (!b.hidden) b.textContent = 'Repair · free';
   }
   if (CAREER_DEV) window.FLYDIY_ECON = {
     price: econBuildPrice, saveWhy: econSaveWhy, shed: econShedDoor, repair: econRepairNow,
@@ -7026,6 +7115,15 @@
         const km = Math.hypot((A.c ? A.c[0] : A.x) - (B.c ? B.c[0] : B.x), (A.c ? A.c[1] : A.z) - (B.c ? B.c[1] : B.z)) / 1000;
         let v = 150; try { const S = shakeOf(); if (S && S.VCruise > 0) v = S.VCruise * 3.6; } catch (e) {}
         leg.endHour = world.day.localSeconds / 3600 + (km / v) + 0.15;   // + the taxi and the circuit
+      }
+    } catch (e) {}
+    // G2665 (NIGHT-OPS): the night is the day's almanac's; a leg to the tracked contract's night window IS a night leg
+    // (the night-shy pilot says so on this row before the wait, not at the stand after it)
+    try {
+      Object.assign(leg, careerDuskDawn());
+      const T = typeof careerTrackedWhen === 'function' ? careerTrackedWhen(playerLoad()) : null;
+      if (T && T.to === destId && typeof contractWhenNight === 'function' && contractWhenNight(T.when, leg.duskH, leg.dawnH)) {
+        leg.night = true; leg.nightHour = contractWhenMid(T.when, leg.duskH, leg.dawnH);
       }
     } catch (e) {}
     return leg;
@@ -7314,9 +7412,11 @@
       if (!r.ok) return r;
       player = r.doc; playerSave();
       try { if (CAREER_DEV) careerPlateSync(); } catch (e) {}
+      try { fsSync(); } catch (e) {}   // G2400 (FREIGHT-STRAP)
       return { ok: true, say: r.rec.items.length + ' items, ' + r.rec.kg + ' kg in the career\'s record (' + (r.rec.slot || '') + ')' };
     }
     frSandboxRec = freightLoadRecord(card, st, job.ctx);
+    try { fsSync(); } catch (e) {}   // G2400 (FREIGHT-STRAP)
     return { ok: true, say: 'kept for this session (the sandbox): ' + frSandboxRec.items.length + ' items, ' + frSandboxRec.kg + ' kg' };
   }
   // the sandbox's aeroplane picker: a validated design's build file put on the stand (unsaved, PROCURE's file)
@@ -7348,7 +7448,7 @@
       if (name === 'load') { frTest = value; frOpen(); }
       else if (name === 'plane' && value) { if (window.FREIGHT_LOAD) window.FREIGHT_LOAD.close(); frStand(value).then(() => frOpen()); }
     },
-    closed: () => frEntrySync(),
+    closed: () => { frEntrySync(); try { fsSync(); } catch (e) {} },   // G2400: the accepted load strapped on the stand
   });
   function frOpen() {
     if (frBusy || !FREIGHT_PAGE) return Promise.resolve({ ok: false, why: 'busy' });
@@ -7403,6 +7503,232 @@
     // the drawn skin against the card's hold at its middle station (the frame's evidence)
     frameCheck: frFrameCheck,
   };
+  // ---- G2400 (FREIGHT-STRAP): THE ACCEPTED LOAD, STRAPPED - IN THE SIM AND IN THE CABIN (only under FREIGHT_PAGE) -----
+  // THE MASSES: the accepted placement that rides this airframe (78_ freightStrapFor: the career's record, or the
+  // sandbox's) -> freightStrapAdds on the build that flies (the items as point masses on the rings round them, the job's
+  // passengers in their seats against the build's, the baggage allowance off) -> sim.setFreight, AT THE ROLL-OUT, before
+  // the flight's reset (rollOutStand: after the bench's fingerprint, which stays the build's). The garage takes it off
+  // again (its rigs weigh the build). Under the worker the list rides the flight's init (sim_link begin) and a change
+  // (a stop) the 'freight' command at its step: the worker's sim and the page's are the same aeroplane, loaded the same.
+  // THE STOP: a delivered stage's items leave (77_ freightLoadSettle drops the record), the next stage's arrive placed
+  // by the packer's proposal (78_ freightStrapNext) unless the player's own placement for it is there; the sim and the
+  // drawing follow at once. THE DRAWING (lazy freight_strap.js): one group for the load, hung twice - on the STAND beside
+  // the loading view's own frame (frFrame, under `craft`: never under edSitP, whose meshes the join bakes into the
+  // flown model and the parked aeroplanes, and whose materials the build's clip writes), and on the FLOWN MODEL through
+  // the crew's cage -> model map (data.cageM, buildPeople's): the cockpit sees it, the chase view through the windows,
+  // with the cabin. A seat the build fills and the job leaves empty hides its flown figure; a job's passenger in a seat
+  // the build leaves empty is seated (the build's pilot's posed record moved to that seat, another character). With no
+  // accepted load nothing here runs past a null check: no group, no draw, no program, the sim never asked.
+  const FST = { sim: null, applied: '', R: null, A: null, drawKey: '', built: null, stand: null, flight: null, busy: false,
+                zDef: null, zFw: null, hidden: [], pax: [], paxKey: '', standM: null, flags: [], warnEl: null };
+  const fsSlot = () => (inGarage ? slotOnStand() : (flSlot || slotOnStand()));
+  const fsYD = () => { const D = window.CAGE_DATUM; return D && D.fwOk && isFinite(D.yD) ? D.yD : null; };
+  function fsAccepted() {
+    if (!FREIGHT_PAGE || typeof freightStrapFor !== 'function' || curKey !== 'gen' || !def || !def.parts) return null;
+    const card = frCard();
+    if (!card) return null;
+    const A = freightStrapFor(CAREER_DEV && !FREIGHT_DEV ? playerLoad() : frSandboxRec, fsSlot(), card.id);
+    return A ? { A, card } : null;
+  }
+  // the sim's load: the accepted placement's masses on the build that flies, or nothing; written only when it changes
+  function fsApply() {
+    if (!FREIGHT_PAGE || !sim || typeof sim.setFreight !== 'function') return null;
+    if (FST.sim !== sim) { FST.sim = sim; FST.applied = ''; FST.R = null; }
+    const got = fsAccepted();
+    const R = got ? freightStrapAdds(def, got.A, { yD: fsYD(), card: got.card }) : null;
+    const list = R ? R.adds : null, key = list ? JSON.stringify(list) : '';
+    if (key !== FST.applied) { sim.setFreight(list); FST.applied = key; }
+    FST.R = R; FST.A = got ? got.A : null;
+    // THE LIMITS SAID (never refused): over the plaque's MTOW, the CG out of the certified range - on the brief before
+    // take-off (fsWarnSync) and on the logbook row (fsAboard)
+    FST.flags = R && got && typeof freightStrapFlags === 'function' ? freightStrapFlags(got.A, got.card) : [];
+    return R;
+  }
+  // the brief's warn line: in the flight's plate (#flBrief, before the notice), in warn ink, while a flagged load is aboard
+  function fsWarnSync() {
+    if (typeof document === 'undefined' || !document.getElementById) return;
+    const want = !inGarage && FST.applied && FST.flags.length ? 'Load: ' + FST.flags.map(f => f.say).join(' · ') + ' - it flies as loaded' : '';
+    if (!FST.warnEl && want) {
+      const host = $('flBrief');
+      if (!host) return;
+      const el = FST.warnEl = document.createElement('div');
+      el.id = 'fsWarn'; el.className = 'flPlate'; el.setAttribute('role', 'status');
+      el.style.cssText = "padding:6px 12px;margin-top:6px;font:500 12.5px/1.35 'IBM Plex Sans',sans-serif;color:#ffb257;border-color:rgba(255,178,87,.7);max-width:520px";
+      host.insertBefore(el, $('flNotice') || null);
+    }
+    if (!FST.warnEl) return;
+    FST.warnEl.hidden = !want;
+    if (FST.warnEl.textContent !== want) FST.warnEl.textContent = want;
+  }
+  // THE RIGS' LOAD (?freight=1&strapload=<test>[:<design>], the sandbox only): the hold named (the validated design's
+  // card; the stand's build is not replaced), the test load as the packer proposes it, accepted - no view, no click, so
+  // a census (FRAMECOST_QUERY) or a timed A/B runs "no load" (strapload=none:cub) against "loaded" by the URL alone
+  const FS_RIG = (() => { try { const m = /[?&]strapload=([a-z0-9]+)(?::([a-z0-9]+))?(&|$)/i.exec(window.location.search || ''); return FREIGHT_DEV && m ? { test: m[1], design: m[2] || null, done: false } : null; } catch (e) { return null; } })();
+  function fsRigLoad(test, design) {
+    if (!FREIGHT_DEV) return null;
+    if (design && FREIGHT_CARDS[design]) frStandDesign = design;
+    const card = frCard();
+    if (!card) return null;
+    if (test === 'none') { frSandboxRec = null; fsSync(); return { items: 0, card: card.id }; }
+    const T = FR_TESTS.find(t => t[0] === test);
+    if (!T) return null;
+    const items = T[2] ? freightItems(T[2], T[3]) : [freightItem({ id: 'drum.1', kind: 'drum', kg: 165, dims: [0.64, 0.64, 0.93] })];
+    frSandboxRec = freightLoadRecord(card, freightLoadNew(card, items, { pax: T[4] }), { slot: slotOnStand() });
+    fsSync();
+    return { items: frSandboxRec.items.length, kg: frSandboxRec.kg, card: card.id };
+  }
+  const fsRigDue = () => { if (FS_RIG && !FS_RIG.done && curKey === 'gen' && def) { FS_RIG.done = true; FS_RIG.got = fsRigLoad(FS_RIG.test, FS_RIG.design); } };
+  function fsFlightStart() { try { fsRigDue(); fsApply(); fsSync(); } catch (e) { console.warn('flyDiy (freight strap): the load could not be put aboard -', e && e.message); } }
+  function fsGarage() {
+    try {
+      if (FST.sim === sim && FST.applied && sim && sim.setFreight) sim.setFreight(null);
+      FST.applied = ''; FST.R = null;
+      fsSync();
+    } catch (e) {}
+  }
+  // after a stop (playerFlightEnd, the career's record settled): the next stage's load placed by the packer, the sim
+  // and the drawing on what is aboard now
+  function fsStop() {
+    if (!FREIGHT_PAGE || !CAREER_DEV || FREIGHT_DEV) return null;
+    try {
+      const card = frCard();
+      const N = typeof freightStrapNext === 'function' ? freightStrapNext(playerLoad(), flSlot, card) : null;
+      if (N && N.how === 'proposed') { player = N.doc; playerSave(); try { if (CAREER_DEV) careerPlateSync(); } catch (e) {} }
+      fsApply(); fsSync();
+      return N ? { how: N.how, why: N.why, items: N.rec ? N.rec.items.length : 0 } : null;
+    } catch (e) { console.warn('flyDiy (freight strap): the stop\'s load -', e && e.message); return null; }
+  }
+  // what flew aboard, for the logbook row (who sat, the kilos on top of the build's payload)
+  function fsAboard() {
+    const R = FST.R;
+    if (!R || !FST.applied) return null;
+    return { occ: R.seats.filter(s => s.job).length, dm: R.dm, items: R.items.length, flags: FST.flags.map(f => f.k + (f.side ? ':' + f.side : '')) };
+  }
+  // card -> the cage sheet (the loading view's T; zFw the join's wsFront ring, kept per build)
+  function fsT() {
+    if (FST.zDef !== def) { FST.zDef = def; FST.zFw = frZFw(); }
+    return FST.zFw == null ? null : new THREE.Matrix4().set(0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, FST.zFw, 0, 0, 0, 1);
+  }
+  function fsDrop() {
+    for (const k of ['stand', 'flight']) if (FST[k]) { if (FST[k].parent) FST[k].parent.remove(FST[k]); FST[k] = null; }
+    if (FST.built && window.FREIGHT_STRAP_VIEW) window.FREIGHT_STRAP_VIEW.dispose(FST.built.grp);
+    FST.built = null;
+  }
+  // the seats in flight: a figure the job does not seat hidden, a passenger the build does not seat drawn
+  // (work only when the model or the seats change: the 700 ms tick re-asserts the hidden figures and nothing else)
+  function fsPeople() {
+    const R = FST.R, M = model, grp = M && M.grp;
+    const hide = R && grp ? R.seats.filter(s => s.build && !s.job).map(s => s.i) : [];
+    const want = R && grp ? R.seats.filter(s => s.job && !s.build).map(s => s.i) : [];
+    const key = (grp ? grp.uuid : '') + '|' + hide.join(',') + '|' + want.join(',');
+    if (key === FST.paxKey) { for (const o of FST.hidden) if (o.visible) o.visible = false; return; }
+    FST.paxKey = key;
+    for (const o of FST.hidden) o.visible = true;
+    FST.hidden = [];
+    for (const P of FST.pax) { P.P.dead = true; if (P.P.inst && window.CAGE_CHAR) window.CAGE_CHAR.dispose(P.P.inst); if (P.frame && P.frame.parent) P.frame.parent.remove(P.frame); }
+    FST.pax = [];
+    if (!grp) return;
+    for (const i of hide) { const o = grp.getObjectByName('flDum' + (i + 1)); if (o) { o.visible = false; FST.hidden.push(o); } }
+    const recs = M.data && M.data.people, got = fsAccepted(), CC = window.CAGE_CHAR;
+    if (!want.length || !recs || !recs.length || !got || !got.card.seats || !CC) return;
+    // a passenger the build does not seat: the build's pilot's posed record moved to that seat (card -> the cage sheet:
+    // x = card z, z = zFw - card x), another character, at that character's own scale, no hands on the controls
+    const base = recs.find(r => r.idx === 1) || recs[0];
+    const s0 = got.card.seats.find(s => s.i === (base.idx || 1) - 1) || got.card.seats[0];
+    const used = new Set(recs.map(r => r.key));
+    const others = (CC.list ? CC.list() : []).map(c => c && c.key).filter(k => k && !used.has(k));
+    want.forEach((i, n) => {
+      const s = got.card.seats.find(q => q.i === i);
+      if (!s) return;
+      const key2 = others[n % Math.max(1, others.length)] || base.key;
+      const figM = base.figM.slice();
+      let k = 1; try { const a = CC.rig(base.key), b = CC.rig(key2); if (a && b && a.height > 0 && b.height > 0) k = a.height / b.height; } catch (e) {}
+      for (const j of [0, 1, 2, 4, 5, 6, 8, 9, 10]) figM[j] *= k;
+      figM[12] += s.z - s0.z; figM[14] -= s.x - s0.x;
+      const rec = Object.assign({}, base, { key: key2, idx: 100 + i, figM, jobs: [], anim: null });
+      const before = grp.children.length;
+      const ps = buildPeople({ cage: M.data.cage, people: [rec], cageM: M.data.cageM }, grp, []);
+      const frame = grp.children.length > before ? grp.children[grp.children.length - 1] : null;
+      if (ps && ps[0]) FST.pax.push({ P: ps[0], frame, seat: i });
+    });
+  }
+  // THE DRAWING'S SYNC (the 700 ms entry tick, an accept, a roll-out, a stop): build the group when the load changes,
+  // hang it where it is seen
+  function fsSync() {
+    if (!FREIGHT_PAGE) return;
+    const got = fsAccepted();
+    const items = got ? got.A.items : [];
+    const key = items.length ? got.card.id + '|' + JSON.stringify(items.map(p => [p.id, p.at])) : '';
+    if (key !== FST.drawKey) {
+      fsDrop();
+      FST.drawKey = key;
+      if (key && !FST.busy) {
+        FST.busy = true;
+        const want = key;
+        Promise.resolve(window.FREIGHT_STRAP_VIEW || (window.FLYDIY_LAZY ? window.FLYDIY_LAZY('freight_strap') : null))
+          .then(() => (window.FREIGHT_STRAP_VIEW ? window.FREIGHT_STRAP_VIEW.build(THREE, items, got.card) : null))
+          .then(b => { FST.busy = false; if (!b) return; if (FST.drawKey !== want) { window.FREIGHT_STRAP_VIEW.dispose(b.grp); fsSync(); return; } FST.built = b; fsSync(); },
+                e => { FST.busy = false; console.warn('flyDiy (freight strap): the drawing did not load -', e && e.message); });
+      }
+    }
+    const B = FST.built;
+    // THE STAND: under craft at the loading view's frame, while the stand shows the cage and the view is shut
+    const loading = !!(window.FREIGHT_LOAD && window.FREIGHT_LOAD.isOpen && window.FREIGHT_LOAD.isOpen());
+    const Ms = B && inGarage && !loading ? frFrame() : null;
+    if (Ms) {
+      if (!FST.stand) { FST.stand = B.grp.clone(); FST.stand.name = 'freightStrapStand'; FST.stand.matrixAutoUpdate = false; }
+      if (FST.stand.parent !== craft) craft.add(FST.stand);
+      if (!FST.standM || !FST.standM.equals(Ms)) { FST.stand.matrix.copy(Ms); FST.stand.matrixWorldNeedsUpdate = true; FST.standM = Ms; }
+    } else if (FST.stand && FST.stand.parent) FST.stand.parent.remove(FST.stand);
+    // THE FLOWN MODEL: grp -> cageM (the crew's frame) -> T (card -> sheet)
+    const Tm = B && model && model.grp && model.data && model.data.cageM ? fsT() : null;
+    if (Tm) {
+      if (!FST.flight) {
+        const f = FST.flight = new THREE.Group(), t = new THREE.Group();
+        f.name = 'freightStrapFrame'; f.matrixAutoUpdate = false; f.matrix.set(...model.data.cageM); f.matrixWorldNeedsUpdate = true;
+        t.matrixAutoUpdate = false; t.matrix.copy(Tm); t.matrixWorldNeedsUpdate = true;
+        t.add(B.grp); f.add(t);
+      }
+      if (FST.flight.parent !== model.grp) {
+        FST.flight.matrix.set(...model.data.cageM); FST.flight.matrixWorldNeedsUpdate = true;
+        FST.flight.children[0].matrix.copy(Tm); FST.flight.children[0].matrixWorldNeedsUpdate = true;
+        model.grp.add(FST.flight);
+      }
+    }
+    fsPeople();
+    fsWarnSync();
+  }
+  if (FREIGHT_PAGE) setInterval(() => { try { if (inGarage) fsRigDue(); fsSync(); } catch (e) {} }, 700);
+  // the stills' cut-away (a rig's hand): the loading view's own cut and eye (freight_load.js open: one clipping plane
+  // at 0.8 x the hold's widest half-width on the camera's side, the eye from that side over the floor) with the
+  // STRAPPED load drawn - the build's clip touches edSitP's materials only, and the load hangs on craft
+  function fsCutaway(on) {
+    const H = frHost();
+    if (!on) { H.clip(null); H.ui(false); return true; }
+    const card = frCard(), M = frFrame();
+    if (!card || !card.hold || !M) return false;
+    const Hd = card.hold, floorY = Hd.y0 + Math.min(...Hd.floor) / 100;
+    let mh = 0; for (const row of Hd.half) for (const v of row) mh = Math.max(mh, v);
+    const zw = new THREE.Vector3().setFromMatrixColumn(M, 2).normalize(), O = new THREE.Vector3().setFromMatrixPosition(M);
+    H.clip(new THREE.Plane(zw.clone().negate(), 0.8 * mh / 100 + zw.dot(O)));
+    const c = new THREE.Vector3((2 * Hd.x0 + Hd.n * Hd.dx) / 2, floorY + 0.35, 0).applyMatrix4(M);
+    H.look(c, Math.atan2(zw.z, zw.x) - 0.12, 0.32, Math.max(4.2, Hd.n * Hd.dx * 1.8));
+    H.ui(true);
+    return true;
+  }
+  // the rigs' and the gates' hands (the evidence: the masses, the CG, the drawing)
+  if (FREIGHT_PAGE) window.FLYDIY_STRAP = {
+    apply: () => { const R = fsApply(); fsSync(); return R ? { adds: R.adds.length, kg: R.kg, dm: R.dm, seats: R.seats, baggageOff: R.baggageOff } : null; },
+    sync: fsSync,
+    state: () => ({ applied: !!FST.applied, adds: FST.R ? FST.R.adds.length : 0, kg: FST.R ? FST.R.kg : 0, dm: FST.R ? FST.R.dm : 0,
+                    simFreight: sim && sim.freight ? (sim.freight() || []).length : null, totalM: sim ? sim.totalM : null,
+                    drawn: FST.built ? FST.built.info : null, stand: !!(FST.stand && FST.stand.parent), flight: !!(FST.flight && FST.flight.parent === (model && model.grp)),
+                    seats: FST.R ? FST.R.seats : null, hidden: FST.hidden.length, pax: FST.pax.length, yD: fsYD(),
+                    rig: FS_RIG ? { test: FS_RIG.test, design: FS_RIG.design, got: FS_RIG.got || null } : null }),
+    stop: fsStop,
+    rigLoad: fsRigLoad,
+    cutaway: fsCutaway,
+  };
   let flightLogged = false;
   function logFlight() {
     if (flightLogged || curKey !== 'gen') return;
@@ -7438,6 +7764,9 @@
           const S = def && def.spec, L = def && def.parts && def.parts.ledger;
           if (S && S.occupants != null) r.occ = S.occupants;
           if (L) { let pk = 0; for (const k in L) if (L[k] && L[k].payload) pk += L[k].mass || 0; r.payloadKg = Math.round(pk * 10) / 10; }
+          // G2400 (FREIGHT-STRAP): the strapped load flew too - who sat (the job's seats) and its kilos on the build's payload
+          { const FA = fsAboard(); if (FA) { r.occ = FA.occ; r.payloadKg = Math.round(((r.payloadKg || 0) + FA.dm) * 10) / 10;
+                                             r.load = { items: FA.items, kg: Math.round(FA.dm * 10) / 10, flags: FA.flags }; } }
           const fpo = window.BENCH_FP_OUT ? window.BENCH_FP_OUT() : null;
           if (fpo) r.fp = fpo;
         } catch (e) {}
@@ -8736,6 +9065,17 @@
       const eyeY = hangar.dims.EAVE - 1.4, tY = (edSit && edSit.visible && edTarget) ? edTarget.y : ((sim && sim.cgPos) ? sim.cgPos()[1] : 1.2);
       F.el = Math.max(0.03, Math.min(0.22, Math.asin(Math.max(-1, Math.min(1, (eyeY - tY) / F.dist)))));
     }
+    // G2319.1: A ROOM MOVED UNDER THE STAND (the career's club + 1: the stand 4.3 m toward the door) put the default eye
+    // in the doorway - the door end's wall and leaf filled the frame's right edge (the 8 Oct 23:25 stills). The same angle,
+    // the eye drawn in until it stands 2.5 m inside every wall (never nearer than 8 m); a room that never moved is as ever
+    if (hangar && hangar.dims && hangar.group && (hangar.group.position.x || hangar.group.position.z)) {
+      const gp = hangar.group.position, d = hangar.dims, M = 2.5;
+      const tg = (edSit && edSit.visible && edTarget) ? edTarget : null, c = (sim && sim.cgPos) ? sim.cgPos() : [0, 0, 0];
+      const tx = tg ? tg.x : c[0], tz = tg ? tg.z : c[2];
+      const inside = ds => { const r = ds * Math.cos(F.el), ex = tx + r * Math.sin(F.az) - gp.x, ez = tz + r * Math.cos(F.az) - gp.z;
+        return Math.abs(ex) <= d.HD - M && Math.abs(ez) <= d.HW - M; };
+      while (F.dist > 8 && !inside(F.dist)) F.dist -= 0.5;
+    }
     return F;
   }
   function garageCamera() {
@@ -8748,6 +9088,7 @@
     residentsView('room');         // G2315: the garage's own framing is the room view - the other aeroplanes on
     const F = garageFraming();
     az = azT = F.az; el = elT = F.el; dist = distT = F.dist;
+    if (RES) RES.frame = { az: F.az, el: F.el, dist: F.dist };   // G2319.1: the framing a moved room may redo (residentsReframe)
     flReveal = 0;
     camera.fov = garageFov; camera.updateProjectionMatrix();
   }
@@ -8774,6 +9115,7 @@
     // PREM-S2: a flight walked away from (the shed door mid-flight) still flew its time - the clock, nothing moves
     if (!inGarage && started && flSlot && !flEnded) playerFlightEnd('abandoned');
     inGarage = true; started = false; running = true;
+    try { fsGarage(); } catch (e) {}   // G2400 (FREIGHT-STRAP): the shed weighs the build (its rigs); the load drawn on the stand
     // THE MODE FOLLOWS THE GARAGE, not the editor's boot (G86). It hung off
     // openEditor at first, which returns early when the cage editor cannot
     // boot — so a garage without an editor stayed dressed as a cockpit, with
@@ -9065,6 +9407,7 @@
     rigLift = 0; clearLoadViz();
     inGarage = false; rolledOut = true;
     playerFlightStart();               // PREM-S2: the airframe this flight flies, measured as it rolls out
+    fsFlightStart();                   // G2400 (FREIGHT-STRAP): the accepted load aboard (the masses before the reset below)
     certKick();                        // G1831: stamped now if the roll-out's request has landed (or the build was flown before)
     envAway = true;                    // C0c: the room's probe waits for the way back (bakeHangarEnv)
     if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
@@ -10590,6 +10933,11 @@
       sel.value = destId;
       sel.onchange = e => setTo(e.target.value);
       lab.appendChild(sel); host.appendChild(lab);
+      // G2650 (SIM-CLOCK): THE CLOCK, and WAIT IT OUT - the hour the flight will start at, and a select of the next named
+      // hours (the presets' solver on the day's own almanac) and the clock's whole hours; a pick is ONE jump
+      // (DAY_CLOCK.wait), forward, the next day's when the hour has passed. Read-only otherwise: the career's clock is
+      // its document's, the sandbox sets its own in the day panel ("set the clock").
+      clockRowBuild(host, where);
       // G2290 (PILOTS): in the career, who flies it is the roster pick (its own row); the sandbox keeps the persona row
       if (CAREER_DEV) careerCrewRow(host, where);
       else {
@@ -10612,6 +10960,56 @@
         lp.appendChild(ps); host.appendChild(lp);
       }
     };
+    // G2665 (NIGHT-OPS): the tracked contract's window, when it is closed now -> { target, words } (75_ careerWaitWindow)
+    function clockJobWait() {
+      try { return CAREER_DEV && typeof careerWaitWindow === 'function' && world && world.day ? careerWaitWindow(playerLoad(), world.day) : null; } catch (e) { return null; }
+    }
+    if (CAREER_DEV && window.FLYDIY_CLOCK) window.FLYDIY_CLOCK.jobWait = clockJobWait;   // the day panel's career WAIT reads it
+    // G2650 (SIM-CLOCK): the route row's clock line + its wait select (routeBuild calls this per host)
+    function clockRowBuild(host, where) {
+      const CK = typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.day && DAY_CLOCK.day() && DAY_CLOCK.wait ? DAY_CLOCK : null;
+      for (let i = clockRows.length - 1; i >= 0; i--) if (clockRows[i].host === host) clockRows.splice(i, 1);
+      if (!CK) return;
+      const lab = document.createElement('label');
+      const sp = document.createElement('span'); sp.textContent = 'clock'; lab.appendChild(sp);
+      const v = document.createElement('b'); v.className = 'routeBase routeClock';
+      v.title = CK.isCareer() ? 'The career\'s clock: it runs with flown time, and moves on by waiting' : 'The sim clock (set it in the day panel)';
+      lab.appendChild(v);
+      const sel = document.createElement('select'); sel.className = 'routeWait';
+      sel.title = 'Wait it out on the ground: the clock jumps to the next such hour (tomorrow\'s when it has passed)';
+      let nOpt = 0;
+      const fill = () => {
+        sel.innerHTML = ''; nOpt = 0;
+        const head = document.createElement('option'); head.value = ''; head.textContent = 'wait until…'; sel.appendChild(head);
+        const today = CK.day().localDate;
+        const opt = (val, words, key) => {
+          const r = CK.waitPreview(val), o = document.createElement('option'); o.value = key || (typeof val === 'number' ? 'h' + val : val);
+          o.textContent = words + (r ? ' · ' + clockHhmm(r) + (clockDateOf(r) !== today ? ' (next day)' : '') : '');
+          sel.appendChild(o); nOpt++;
+        };
+        // G2665 (NIGHT-OPS): the career's Wait "until the window opens" - the tracked contract's time-of-day window, first
+        const jw = clockJobWait();
+        if (jw) opt(jw.target, 'the job\'s window (' + jw.words + ')', 'job');
+        for (const p of (window.DAY_UI ? window.DAY_UI.PRESETS : CK.PRESETS.map(k => ({ k, label: k })))) opt(p.k, p.label);
+        for (let h = 0; h < 24; h++) opt(h, String(h).padStart(2, '0') + ':00');
+        sel.value = '';
+      };
+      fill();
+      sel.addEventListener('pointerenter', fill); sel.addEventListener('focus', fill);
+      sel.onchange = e => {
+        const k = e.target.value; if (!k) return;
+        const jw = k === 'job' ? clockJobWait() : null;
+        if (k === 'job' && !jw) { sel.value = ''; return; }
+        const r = CK.wait(jw ? jw.target : /^h\d+$/.test(k) ? +k.slice(1) : k);
+        sel.value = '';
+        if (r && !r.ok) { sel.title = r.why; return; }
+        clockRowsSync(true);
+        if (typeof flRefreshDay === 'function') try { flRefreshDay(); } catch (er) {}
+      };
+      lab.appendChild(sel); host.appendChild(lab);
+      clockRows.push({ host, where, v, sel, last: '', opts: () => nOpt });
+      clockRowsSync(true);
+    }
     routeBuild($('edRoute'), 'garage');
     routeBuild($('bootRoute'), 'rollout');
     // PREM-S2: a change to the hangars held (or the garage's door) re-draws the base line
@@ -12086,7 +12484,7 @@
       flGroundLive(sim ? sim.out : null);
       // G1091 (POLISH-2): THE TREES BY THE RUNWAYS - the three ways the user is judging (27_premises.js RWY_TREES):
       // the pick is kept (flydiy.rwytrees) and the page reloads, since the woods are planted with the world
-      const rtNow = world && world.rwyTrees ? world.rwyTrees() : 'today';
+      const rtNow = world && world.rwyTrees ? world.rwyTrees() : 'today';   // (27_premises rwyTreesMode's default)
       flRow(body, 'trees by the runways').classList.add('fsec');
       flPills(body, [{ label: 'today', value: 'today', title: 'as before: the woods held back ~60 m from 13/31' },
                      { label: 'the map', value: 'map', title: 'the tree map everywhere but the paving and its drawn side' },
@@ -13907,6 +14305,7 @@
     // THE DAY ADVANCES WITH PLAY (SKY S1, ruling aj): one clock, shed and world; a game pause pauses it
     // (G586: in the shed on the frame's own time; in flight it ticks after the solver, on the sim's)
     if (typeof DAY_CLOCK !== 'undefined' && inGarage) DAY_CLOCK.tick(fdt);
+    if ((frame & 63) === 0) clockRowsSync(false);   // G2650: the route rows' clock line, to the minute (a string compare)
     if (inpEv && !inGarage && FL.ready && inpEv.fired.length) {
       if (inpEv.fired.indexOf('apToggle') >= 0) setManual(!manual);
       if (inpEv.fired.indexOf('viewNext') >= 0) flCamNext();
