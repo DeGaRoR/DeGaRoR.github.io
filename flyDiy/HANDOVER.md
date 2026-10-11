@@ -84104,3 +84104,106 @@ Strict gate (train_gate --full, t43): 155 within slack, 2 RED on the Cub's warm 
 flight) with 'MISS suspected' (3 links > 5 s) - the shader-cache position; the quiet bench re-run (t43b) 45.1 s /
 56.5 s, 0 RED, PASS. Parked re-cook (build 6e0064d58201). Rollout rows = train 42's (the 30 fps cap rows; one 1068 ms
 task in one rollout run, 835/675 ms elsewhere - watch it).
+
+## G2880 NACELLE-LAG - A WING-MOUNTED ENGINE STANDS ON THIS BUILD'S WING, NOT THE PREVIOUS BUILD'S: THE WING PLACES ITS EARLY READERS AGAIN, ONCE, IN THE SAME BUILD (CAGE_WING_EARLY); THE VALIDATED BUILDS BIT-IDENTICAL; GATE NACLAG (2026-10-11, NACELLE-LAG for A0, cloud - node only, no GPU; branch claude/nacelle-lag-g2880 off origin/master 37bf5336 = train 43; G2881-G2884 unused)
+
+THE BUG (found by COWL-FIT G2860, its section's last paragraph): `engineFaces` (`_cage_cowl.js`) reads `window.CAGE_WING`
+for the over-the-wing pylon (`engMount` 2) and the nacelle pair (3), but the cowl and engine layers run BEFORE
+`_cage_wing.js` in the post chain (MANIFEST.editor), so both stood on the PREVIOUS build's wing - the DA62-alike loaded
+after the Savannah-alike hung its nacelles at the Savannah's high-wing leading edge until the next rebuild, and the flown
+spec carried them (the report's page readout: 55 % / -2 % against 52 % / +3 % once rebuilt). Physics-bearing: the
+engines' stations are in the spec the bench and the flight read.
+
+MEASURED BEFORE (headless, GATE NACLAG's doctored tree = master's behaviour): DA62-alike after the Savannah-alike -
+hubs x +-1.61, y +0.754, z 2.869 (the Savannah's leading edge), CG 60.35 % MAC, SM -6.29 %; rebuilt: x +-2.45, y -0.237,
+z 2.982, CG 58.05 %, SM -2.63 %. And a process's (a session's) very first build of a wing-engine card had NO engines at
+all (CAGE_WING undefined): the DA62-alike at CG 74.3 %, SM -18.5 %.
+
+### 1. THE CURE - THE G138 IDEA WITHOUT THE REORDER
+G138 cured the gear by loading it after the wing. The cowl and engine layers cannot simply follow: the engine's starters
+write P before every layer runs (its post's head, before prevPost), the cowl fits round the engine and must run before it
+(G154), the access / energy / tank layers read both, CAGE_CHAIN's ORDER / FEEDS / REL_FEEDS name the order, a dozen node
+rigs carry their own file lists, and every validated build's scene order would move. So instead they are PLACED AGAIN,
+once, in the same build, the moment the wing publishes - and only when what they stand on reads differently:
+- `_cage_wing.js` `window.CAGE_WING_EARLY`:
+  `place(key, ctx, fn, sigOf)` - a layer ahead of the wing runs its placement `fn(ctx, null)` now (over the wing as it
+  stands) and, when `sigOf()` is not null (it stands on the wing THIS build: engMount 2 or 3), is remembered with what
+  it read (its faces as a string), the scene children before it ran and the status-line words it wrote.
+  `publish(ctx)` - the wing's post is now `wingPost(ctx); early.publish(ctx)`, so it runs after EVERY exit of the wing's
+  build (the no-wing `CAGE_WING = null` return included): each reader of THIS ctx whose `sigOf()` now reads differently
+  runs `fn(ctx, memo)` once more; its new objects go back into the slot the first pass's stood in (right after the last
+  object that stood before it began - the scene order a steady build makes), its words replace the first pass's in place
+  on the status line (anything said later - the propeller check's microtask - still lands on the real line). Readers of
+  another ctx (a preview's plan that ran the cowl but not the wing) are dropped. `readers` / `last`: what the last
+  publish held and placed again (the gate reads them).
+- `_cage_cowl.js`: the post body is `cowlPlace(ctx, again)`; `cowlForEngine` takes the first pass's starter decision
+  (`dec`: the architecture hit, the birth) so the second pass applies the SAME decision to the current face - neither the
+  starter nor CAGE_COWL_FIT_NEXT is asked twice, and a birth's fit is made against the wing the card actually has. No
+  cowl shape rule changed (the user cancelled G2860's automatic fit; this touches placement only).
+- `_cage_eng.js`: the post body after `prevPost` is `engPlace(ctx, prev)`; the starters stay at the post's head, run once.
+  A superseded first pass's propeller-clearance microtask stands down (`unitOut.superseded`).
+- `_cage_chain.js` `CAGE_CHAIN.as(name, fn)`: the second placement runs inside the wing's turn, so it is attributed to its
+  own layer - its P reads recorded as the cowl's / engine's (not the wing's, which would make a cowl drag re-run the wing),
+  the objects it adds counted in that layer's `objs` and kept out of the wing's (`ADOPT`), its words its `statApp`, the
+  wing's `stat0` re-anchored (a release rebuilds the line from them). `RUN`: the layer whose turn it is, recorded or not.
+- Previews are as they were (a wing drag's tick does not run the cowl / engine; REL_FEEDS wing->eng/cowl at the release,
+  which now also reads the right wing). A rebuild on an unchanged wing places nothing twice (sigOf equal): zero cost.
+GENERIC: anything that reads CAGE_WING from a layer ahead of the wing must place through CAGE_WING_EARLY - GATE NACLAG's
+LINT reads MANIFEST.editor and every `_cage_*` file ahead of `_cage_wing.js` that reads `window.CAGE_WING` (today the cowl
+and the engine, and nothing else ahead of the wing reads it; every other wing reader - brace, gear, access, light,
+energy, hinge, the join - runs after it).
+
+### 2. GATE NACLAG (new, core, tools/_naclag_check.js, ~2 min: 8 headless processes, its own pool of 4 - weight 4)
+Headless through `_bake_joined.js` (the page's own chain in the node scene, then the join's export: the flown spec);
+every card sequence in a FRESH process, each card loaded as the garage loads it (PAGE.load, CAGE_COWL_FIT_NEXT).
+1 LINT - the early readers of CAGE_WING all register (readers: `_cage_cowl.js`, `_cage_eng.js`).
+2 PAIRS, TO THE BIT (every engine hub CAGE_ENG.units[].at, every cowl group's place, every value of the joined spec, the
+  CG % MAC, the static margin, the status line): card A then card B == card B in its own process (its first build AND its
+  steady state); B loaded again == B; B's units placed again in its own build, a rebuild places nothing twice.
+  savannah -> da62: hubs +-2.45 / -0.237 / 2.982, CG 58.05 %, SM -2.63 % (= fresh) | jodel -> twinBush: +-2.8 / 0.816 /
+  3.014, 51.89 %, -11.30 % (= fresh) | da62 -> p38: +-1.347 / 0.154 / 2.574, 35.08 %, +6.54 % (= fresh).
+3 VALIDATED - Cub, Jodel, Cessna 172, Cessna floats: a nose mount, no early reader, nothing placed again.
+4 SELFTEST (always run) - CAGE_WING_EARLY.publish stood down: savannah -> da62 DIFFERS (the numbers above under BEFORE),
+  its rebuild does not: CAUGHT; the LINT over a cowl layer whose registration is renamed away: CAUGHT.
+`--page` (optional, ~12 min, not in the battery): the page in node (tools/_page_node.js), the garage's birth flow loads
+the Savannah-alike card then the DA62-alike, then CAGE_UI.build(): measured G2880 - the load: hubs +-2.45 / -0.237 /
+2.982, CG 52.26 %, SM +2.86 %, placed again ["cowl","eng"], status line "cowl: face 0.40x0.23 at z 2.33" (the second
+pass's words in place); the rebuild: the same numbers, nothing placed again. The report's 52 % / +3 %, on the load.
+
+### 3. THE VALIDATED BUILDS ARE BIT-IDENTICAL
+Cub, Jodel, Cessna 172, Cessna floats and the metal Cessna (bugReports/cessnaMetal (1).json), each baked headless
+(`_bake_joined.bakeJoined`) on master 37bf5336 and on this branch: the joined spec's hash, a fingerprint of every scene
+object (name, matrixWorld, geometry positions), the CG, the SM and the status line - all IDENTICAL (cub 133348f72f7a4487,
+jodel f645f6a5c25e7854, cessna d26db91defbb739c, floats 7454a60f274cac58, metal 4018bc6cec547e60). (The beacon rotor's
+angle is left out: it is the clock's, and differs run to run on one tree.) By construction too: a nose or pusher engine
+returns null from sigOf - nothing is registered, `publish` walks an empty list.
+
+### 4. FOUND ON THE WAY - THE HEADLESS JOINED BAKE IS NOT THE PAGE ON A PROCESS'S FIRST CARD (not fixed in the shared harness: A0's call)
+GATE NACLAG first read card-to-card differences that had nothing to do with the engines. Two harness gaps, both in
+`_bake_joined.js` / `_scene_headless.js` (every headless consumer of the joined bake shares them):
+(a) `window.CAGE_UI` is set only AFTER the scene is built (for the join), but the wing resolves its landing-light bay off
+    `CAGE_UI.P` (`CAGE_BAY_FROM_P`, `_cage_wing.js` G96) - so headless, a card's wing wore the PREVIOUS bake's lamp bay
+    (none on the first): the P-38-alike's nacelle 0.19 m off and its CG 4 % MAC apart between its first and second bake.
+(b) the join (`CAGE_JOIN_WING_CUTS`: the lamp bay's edges as loft stations, G189) is loaded after the first build, so a
+    process's first wing has no cut rows and its bay snaps to the coarse ones - the Twin bush hauler's bay x 1.90-3.12 m
+    instead of 1.75-2.09, right over its nacelle at 2.8 m: the leading edge read 0.24 m aft, the nacelle with it.
+The page has neither (its CAGE_UI.P is the P it builds; MANIFEST.editor loads the join before _cage_ui). GATE NACLAG's
+child sets both the page's way locally (CAGE2.cageFromSpec wrapped to hand its P to CAGE_UI; `joinIn` - now exported -
+before the first bake), and then every card repeats to the bit. Left as it is for the others (GATE ARCHETYPES' joined
+bakes, the perf study, WEIGHT...): fixing it in the shared harness moves their numbers, so it wants its own session and
+its own re-anchoring. OWED (A0's call).
+
+### 5. GATES (this branch's commit, proved in a clean worktree of HEAD: `run_gates.js --only=...`)
+Proved on commit 59399466 in a clean worktree of HEAD (build cf6c4a97f54f), `node tools/run_gates.js
+--only=NACLAG,COWL,CLIP,DESIGN,JOIN,BUILD,STARTER,INSTANT,ARCHETYPES,GEN` (full tier by --only; jobs 4, wall 3448 s):
+NACLAG PASS (103 s, its selftest CAUGHT twice), COWL PASS, CLIP PASS, DESIGN PASS (27 archetypes live), JOIN PASS,
+BUILD PASS, STARTER PASS (3 starters, 4 architectures, 3 doors - the cowl starter's `dec` refactor), ARCHETYPES PASS
+(4 shards, 27 archetypes flown, 0 skipped), GEN PASS (4 shards, 841 s). INSTANT (the chain's CAGE_CHAIN.as / RUN /
+ADOPT) hit the runner's 30-minute spawn timeout in that battery - under 4-way load, mid-way through its second build,
+every row it had finished `same` - and was re-run ALONE on the same worktree: GATE INSTANT: PASS (cub + metal, 26 rows
+same, chain ok 16 layers; 62.8 min wall alone on this 4-core cloud box - its row says wall 480: a faster machine's).
+Not run: the whole battery (`--all`): A0's train.
+FILES: tools/_cage_wing.js (CAGE_WING_EARLY, the post's wrapper), tools/_cage_cowl.js (cowlPlace, cowlForEngine's dec),
+tools/_cage_eng.js (engPlace, the superseded microtask), tools/_cage_chain.js (CAGE_CHAIN.as, RUN, ADOPT),
+tools/_naclag_check.js (new), tools/run_gates.js (the NACLAG row), tools/_bake_joined.js (scene / stat returned,
+joinIn exported - nothing else reads either). Generated outputs not committed (SHARED-TREE-PRACTICES 5).
