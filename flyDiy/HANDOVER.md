@@ -84192,3 +84192,71 @@ targeted set + PREMCOOK after the premises re-cook (premises_build.js is in its 
 PREMISES, SCENERYED, BUILD, MEDIA (+13.2 KB). Strict gate (t432, build 184124362148): 157 within slack, 0 RED (one
 1017 ms task in one rollout run, like 43's 1068). Then the premises + parked re-cooks moved the build to 62f0cd5245c9
 (data manifests only).
+
+## G2930-G2934 - TREE-STREAM: NO BARE BAND BETWEEN THE FAR TREES AND THE NEAR ONES (THE STAND CARDS HOLD UNTIL THE FILL UNDER THEM IS BUILT), AN EDIT NEVER EVICTS THE RING, THE RING FOLLOWS THE EYE, THE NEED -> READY CLOCK (2026-10-11, TREE-STREAM for A0, local; branch claude/tree-stream-g2930 off train 43.2 0402e132b)
+
+The user (11 Oct): "far away, everything is OK, then there is a transition with nothing, then the more detailed trees will
+load, eventually, per tile, and sometimes after a really long time" (log flydiy-flightlog-20261011T130354-9jis: Jolene,
+custom preset density 200, the scenery editor open most of the session).
+
+THE CAUSES (read in the code; the island's per-chunk timing is booked for Mon 12 Oct 04:45, see OWED).
+1. THE HAND-OVER HAD NO OVERLAP. Inside the stand cards' inner edge (stand_cards.js S.near, 4 km from the EYE) only the
+   1 km fill chunks draw trees; the cards were cut there by distance alone (impostorMat: dCam < uNearB collapses) and their
+   chunks were not even planted inside near - C x 0.71. An unbuilt fill chunk inside 4 km was bare ground: the band.
+2. EVERY EDIT EVICTED THE WHOLE RING. TREE_FILL.vegChanged (each scenery-editor vegetation edit), setMix, setBiome,
+   speciesSize, set (the density), setIsland and TREE_MIX.apply all called evictAll(): every chunk of the 9 km ring dropped
+   at once, then rebuilt nearest first at FILL.budgetMs (4 ms) a frame. At density 200 a chunk is 40 000 grid points
+   (the walk ~4x the 12-14 ms measured at 100, HANDOVER G454.12; the build 57-131 ms, G1297): over a minute for the 4 km
+   ring, minutes for the 9 km one - "per tile, sometimes after a really long time".
+3. THE RING WAS THE AIRCRAFT'S, THE PICTURE THE CAMERA'S. fillUpdate centred and ordered the ring on the CG; in the
+   editor's free camera (the log: 'cam free' all session) the hillside being looked at waited behind the parked
+   aircraft's whole ring, and the stand cards (also centred on the CG) were cut 4 km from the camera.
+
+THE FIX (render_world.js fill block, stand_cards.js):
+- G2930 RDY, THE FILL'S READINESS: one texel per 1 km chunk over the world's square (R8 DataTexture, unpackAlignment 1),
+  1 where the chunk's base is BUILT and its complement too wherever the eye sees the complement (uThin.y). The stand
+  cards' material reads it per instance (impostorMat's new `rdy`, program key 'imp:one:rdy'): inside the edge a card
+  draws wherever its cell is not ready, at ANY distance; a cell going ready dissolves its cards over FILL.rdyS (1.2 s)
+  on the card's own hash; a cell going unready shows them at once. The cards are planted from the eye out (S.standIn,
+  default on; set({ standIn: false }) is the old cut: the A/B). A card chunk wholly inside the edge is drawn only while
+  a cell under it is below 1 (RDY.minIn): the steady state submits the draws it did before (FRAMECOST). The cards' rows
+  are budgeted in flight too (S.rowMs 4: a 2 km chunk ran whole in one frame before; same rows, same cards).
+- G2930 THE RING FOLLOWS THE EYE: fillUpdate centres the ring and orders the queue on uCam; the chunks whose nearest point
+  is within HIT_ON of the CG are still wanted and never evicted inside HIT_OFF (the solver's trunks, G1330). The cards
+  update from the eye. prewarm / ringReady keep their cg (the roll-out's).
+- G2931 STALE, NOT EVICTED: a built part carries `ep` (the generation it was walked at); an edit raises the generation it
+  needs (staleAll: the ring; staleChunk: one chunk) and the part STAYS DRAWN until its replacement lands (landPart: the
+  old one dropped in the same frame). exRegrow (exclusions) and vegChanged (now per polygon: 27_premises vegPolys,
+  regDiff of their keys - the whole ring only when the overlay names none) restale just the chunks under what changed,
+  `hot`: the queue's head and the urgent budget. evictAll stays for a new SHAPE set only (the payload's arrival, a grown
+  catalogue: setShapes disposes the materials the old chunks draw with); the cards cover that regrowth.
+- G2931 THE ORDER: nearest the eye; past 1.5 km a chunk outside the view's half-plane counts double; a complement +300 m;
+  hot first. G2932 THE BUDGET: FILL.urgentMs (8) while a hot chunk is queued or an unready chunk is within FILL.urgentR
+  (1200 m) of the eye - never at a reveal (the roll-out waits for 1.5 km), never in a steady flight; FILL.budgetMs (4)
+  otherwise. The build writes each tree once a rung (P.one: the rung's parts share one matrix/colour attribute, G1200).
+- G2933 THE CLOCK: TREE_FILL.stream([reset]) - need -> ready of every part (n, meanMs, maxMs, maxFr, nearMaxMs/nearMaxFr
+  for a new part inside uThin.y, late over FILL.lateS 20 s), standIn / standInNear, holes (an unready cell inside the
+  edge whose card chunk is not built either; null off an island), holeFrames, oldestMs, minUnreadyM/minUnreadyLow,
+  swaps, stale, urgent; TREE_FILL.rdyAt / rdyWant (x, z). The recorder gets a 'tree' event per part the eye could see
+  (inside uThin.y), per hot part and per late part ('base|fill cx,cz at D m [swap] [hot] | F fr, walk+build X ms, queue
+  Q[, urgent]'); analyze_log prints a TREE STREAM table (median / p90 / worst by kind, the ones over 20 s).
+- G2934 THE GATES: GATE WORLDRENDER S1-S4 (the headless analytic world): S1 a whole-ring edit (TREE_FILL.set) never
+  drops a fill impostor mesh in any frame (fails on the old evictAll: 0 of 55); S2 every stale part is swapped and the
+  grid reads 1; S3 a camera 6 km from the aircraft gets its own ring (fails on a CG ring: 3000 frames) and the
+  aircraft's chunk stays (fails without the HIT_OFF keep); S4 60 m/s for 4 km: no chunk inside uThin.x unready, no near
+  part over STREAM_MAX_FR (450) frames. GATE PREMISES 19d reads the new exRegrow. The page's half (island, GPU):
+  tools/perf/treestream_probe.js (EDIT: the density 128/preset -> 200, JUMP: 5 km toward the middle; ringReady at
+  1.5/3/4 km, per-part cost, frame p50/p95/p99, holes/holeFrames, stand-ins, urgent seconds; master reads '-' for the
+  stream rows). TRAPS: in node the payload never settles, so WF.prewarm is a no-op ('trees') - settle by frames; the
+  stub scene.add sets no parent (the rows patch it, or a removal never shows).
+
+WHAT TO WATCH FOR (the user): no bare band at any distance - where the near forest is still coming in, the far cards
+stand there instead (blockier, a 32 m stand per card) and dissolve into the real trees over about a second; after a
+scenery-editor vegetation or exclusion edit the trees stay and only the edited 1 km tiles change, within a second or two;
+in the editor's free camera the forest grows around where you look, not around the parked aircraft. A card very near the
+camera (a jump, a fresh free-camera spot) looks like a flat block of trees for a moment: that is the stand-in, not a bug.
+
+OWED (booked by A0, Mon 12 Oct; scratchpad ts_slots.sh, unattended): W1 GPU 04:45-05:25 - build, parked cook, the island
+probes branch / master / branch; W2 GPU TIMED 05:30-06:00 - train_gate --light on the branch, tree_perf density 200
+branch vs master. Then the walk's own cost at density 200 (the profile decides whether the walk needs cutting - terrainH
+x5 a point for the slope, BIO.over's premises vegAt per point - or a worker), READY, A0's strict gate at landing.

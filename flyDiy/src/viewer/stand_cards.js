@@ -16,21 +16,27 @@
 //     ctx: { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat,
 //            tintUniformsOf, ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN }
 //     S.update(cg)         once a frame: the wanted chunks around the CG, one built per call, the far dropped
-//     S.get() / S.set(o)   { on, far, near, spacing, cell, gain }
+//     S.get() / S.set(o)   { on, far, near, spacing, cell, gain, standIn, rowMs }
+//     S.has(x, z)          the chunk under a point is built (render_world's hole census, G2930)
 //     S.stat()             { chunks, instances, lastMs, maxMs, baked }
 //     S.root               the group (a visible toggle is the A/B)
 'use strict';
 const STAND_CARDS = (() => {
   function make(THREE, ctx) {
     const { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-            ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled } = ctx;
+            ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy, rdyMin } = ctx;
     // THE WHOLE ISLAND (2026-09-22, the user: "extend the visibility range even beyond the 18 km ... just
     // filling all the parts of the island visible from the camera"): measured 171 k cards at 18 km,
     // 193 k at 26, 193.6 k at 40 - it SATURATES, because Jolene is 39 km across and there is no more
     // land to plant. 30 km covers the island's diagonal from any point on it, so `far` is the island's
     // own size now and nothing is left bare; the visible SIDE needs no test of its own - a chunk is
     // one InstancedMesh with a sphere and three culls it per frame.
-    const S = { on: true, far: 30000, near: 4000, spacing: 32, cell: 2048, gain: 6, block: 4, treeH: 12, mixKey: 'conifer_young' };
+    // STAND-IN (G2930, TREE-STREAM; the user: "far away, everything is OK, then there is a transition with nothing"): the
+    // cards are planted from the EYE out (not from `near`), and inside `near` a card draws wherever the fill's chunk under
+    // it is not built yet - render_world's readiness grid (ctx.rdy), read per instance in the impostor's vertex stage. A
+    // built chunk dissolves its cards; the fill never leaves a hole while it streams. standIn false: the old cut by
+    // distance alone (the A/B). rowMs: a chunk's rows in flight stop once this much of the frame is spent (they ran whole)
+    const S = { on: true, far: 30000, near: 4000, spacing: 32, cell: 2048, gain: 6, block: 4, treeH: 12, mixKey: 'conifer_young', standIn: true, rowMs: 4 };
     const STAT = { chunks: 0, instances: 0, lastMs: 0, maxMs: 0, baked: false };
     const root = new THREE.Group(); root.name = 'standCards'; scene.add(root);
     const chunks = new Map();
@@ -95,7 +101,7 @@ const STAND_CARDS = (() => {
       if (!P0) P0 = buildProto(); const P = P0; if (!P) { failed = true; return false; }
       const atlas = bakeImpostorAtlas(P.parts, { key: 'stand:' + S.mixKey, series: 'rungs' });
       if (!atlas || !atlas.tex || atlas.refused) { if (++tries > 600) failed = true; return false; }   // refused = a map not decoded yet: again next frame (ten seconds of tries)
-      mat = impostorMat(atlas, S.far, 0, tintUniformsOf(P.parts), S.gain, U_NOTHIN, { value: S.near });
+      mat = impostorMat(atlas, S.far, 0, tintUniformsOf(P.parts), S.gain, U_NOTHIN, { value: S.near }, undefined, (S.standIn && rdy) ? rdy : null);
       quad = new THREE.PlaneGeometry(1, 1); chunkBounds(quad, S.cell / 2);
       proto = { parts: P.parts, atlas };
       STAT.baked = true; STAT.lastMs = performance.now() - t0;
@@ -109,6 +115,7 @@ const STAND_CARDS = (() => {
     // (app.js worldAtRest, FLYDIY_SLICE) the rows stop once the slice's 40 ms are spent and the next call goes on
     // from the row it stopped at. The same rows in the same order: the same cards.
     const sliceSpent = () => { const SL = typeof window !== 'undefined' && window.FLYDIY_SLICE; return !!(SL && performance.now() >= SL.until); };
+    const inSlice = () => !!(typeof window !== 'undefined' && window.FLYDIY_SLICE);
     const chunkJob = k => { const [cx, cz] = k.split(',').map(Number); return { k, cx, cz, iz: 0, xs: [], ms: 0 }; };
     function chunkRows(J) {   // -> true once every row is done
       const t0 = performance.now(), C = S.cell, sp = S.spacing, n = C / sp, cx = J.cx, cz = J.cz, x0 = cx * C, z0 = cz * C, xs = J.xs;
@@ -133,7 +140,7 @@ const STAND_CARDS = (() => {
         // the card's scale: the canopy over the block's tree height, the fill's rule and clamps
         const s = Math.max(FILL.island.min, Math.min(FILL.island.max, (can * FILL.island.gain) / S.treeH));
         xs.push(x, h, z, s);
-      } if (sliceSpent()) break; }
+      } if (sliceSpent() || (!inSlice() && performance.now() - t0 > S.rowMs)) break; }   // (G2930: in flight too - the same rows, the same cards)
       J.ms += performance.now() - t0;
       return J.iz >= n;
     }
@@ -170,7 +177,7 @@ const STAND_CARDS = (() => {
         const want = new Set();
         for (let dz = -R; dz <= R; dz++) for (let dx = -R; dx <= R; dx++) {
           const cx = cx0 + dx, cz = cz0 + dz, ex = (cx + 0.5) * C - cg[0], ez = (cz + 0.5) * C - cg[2], d = Math.hypot(ex, ez);
-          if (d > S.far + C * 0.71 || d < S.near - C * 0.71) continue;
+          if (d > S.far + C * 0.71 || (!(S.standIn && rdy) && d < S.near - C * 0.71)) continue;
           if (B && ((cx + 1) * C < B.x0 || cx * C > B.x1 || (cz + 1) * C < B.z0 || cz * C > B.z1)) continue;
           want.add(cx + ',' + cz);
         }
@@ -182,16 +189,23 @@ const STAND_CARDS = (() => {
       }
       if (!job && queue.length && !sliceSpent()) job = chunkJob(queue.shift());
       if (job && !sliceSpent() && chunkRows(job)) { const mesh = chunkMesh(job); if (mesh) root.add(mesh); chunks.set(job.k, { mesh }); job = null; }
-      let ni = 0; for (const c of chunks.values()) if (c.mesh) ni += c.mesh.count; STAT.instances = ni; STAT.chunks = chunks.size;
+      // a chunk wholly inside the edge draws only while a fill cell under it is not fully ready (rdyMin < 1): the steady
+      // state submits what it did before G2930 (those chunks did not exist), a stand-in costs its draw only while it stands
+      let ni = 0, nh = 0;
+      for (const [k, c] of chunks) { if (!c.mesh) continue; ni += c.mesh.count;
+        if (S.standIn && rdy && rdyMin) { const C = S.cell, [cx, cz] = k.split(',').map(Number), d = Math.hypot((cx + 0.5) * C - cg[0], (cz + 0.5) * C - cg[2]);
+          c.mesh.visible = !(d < S.near - C * 0.71 && rdyMin(cx * C, cz * C, (cx + 1) * C, (cz + 1) * C) >= 1); if (!c.mesh.visible) nh++; } }
+      STAT.instances = ni; STAT.chunks = chunks.size; STAT.parked = nh;
     }
     const api = {
       update, root,
       get: () => Object.assign({}, S),
-      set: o => { const was = { far: S.far, near: S.near, spacing: S.spacing }; Object.assign(S, o || {});
-        if (S.far !== was.far || S.near !== was.near || S.spacing !== was.spacing) { for (const k of [...chunks.keys()]) drop(k); if (mat) { mat.dispose(); } proto = null; mat = null; job = null; }
+      set: o => { const was = { far: S.far, near: S.near, spacing: S.spacing, standIn: S.standIn }; Object.assign(S, o || {});
+        if (S.far !== was.far || S.near !== was.near || S.spacing !== was.spacing || S.standIn !== was.standIn) { for (const k of [...chunks.keys()]) drop(k); if (mat) { mat.dispose(); } proto = null; mat = null; job = null; }
         return api.get(); },
       replant: () => { for (const k of [...chunks.keys()]) drop(k); job = null; },
       stat: () => Object.assign({}, STAT),
+      has: (x, z) => !!chunks.get(Math.floor(x / S.cell) + ',' + Math.floor(z / S.cell)),
       atlas: () => proto && proto.atlas,
     };
     return api;
