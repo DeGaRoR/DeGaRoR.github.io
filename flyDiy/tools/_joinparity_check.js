@@ -205,8 +205,13 @@ const DOORS = {
   legacy: ['_dmg_composite_lib', '_dmg_heal_check', '_dmg_page_worker_check', '_dmg_settle_check', '_dmg_strut_probe',
     '_dmg_upload_check', '_dmg_wreck_check', '_fin_check', '_hinge_check', '_parked_check', '_roommerge_check', '_shedshadow_check',
     '_wetfx_page_check', 'ditch_osc', 'dmg_skingpu_box', 'dmg_wreck_stills', 'pilot_persona', 'prem_s2_page', 'water_look_shots'],
+  // THE INCOMING LIST (T41b, 11 Oct): tools that came with master trains 42.1 / 43 AFTER the legacy list closed, reading a
+  // validated file raw. Not legacy: an OPEN row each with its owner - printed, never counted - until it loads through
+  // tools/_load_build.js; shrink-only (at most 5). Owners: GAME (the belly pod's tools - the pod is paused by the user),
+  // RADIAL-DIVERGE (_radialdiv_check)
+  incoming: ['pod_still', 'pod_trials', '_pod_check', '_pod_fly', '_radialdiv_check'],
 };
-const LEGACY_MAX = 19;
+const LEGACY_MAX = 19, INCOMING_MAX = 5, INCOMING_OWNER = { pod_still: 'GAME', pod_trials: 'GAME', _pod_check: 'GAME', _pod_fly: 'GAME', _radialdiv_check: 'RADIAL-DIVERGE' };
 const declared = new Map();
 for (const [door, list] of Object.entries(DOORS)) for (const f of list) declared.set(f, door);
 const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -228,6 +233,9 @@ for (const f of files) {
 }
 { const stale = DOORS.legacy.filter(n => { const p = path.join(T, n + '.js'); if (!fs.existsSync(p)) return true; const src = fs.readFileSync(p, 'utf8'); return !RX.test(src) || /_load_build/.test(src); });
   ok(DOORS.legacy.length <= LEGACY_MAX && !stale.length, 'the legacy list only shrinks: ' + DOORS.legacy.length + ' of at most ' + LEGACY_MAX + (stale.length ? '; strike off (no longer raw, or gone): ' + stale.join(', ') : ', every one still raw (owner Deform)')); }
+ok(DOORS.incoming.length <= INCOMING_MAX, 'the incoming list only shrinks: ' + DOORS.incoming.length + ' of at most ' + INCOMING_MAX);
+for (const n of DOORS.incoming) { const p2 = path.join(T, n + '.js'); const raw = fs.existsSync(p2) && RX.test(fs.readFileSync(p2, 'utf8')) && !/_load_build/.test(fs.readFileSync(p2, 'utf8'));
+  console.log((raw ? '  OPEN ' : '  ok   ') + n + '.js ' + (raw ? 'reads a validated build raw [owner ' + INCOMING_OWNER[n] + ', opened 2026-10-11: through tools/_load_build.js, then strike it off]' : 'no longer raw: strike it off the incoming list')); }
 ok(!rogue.length, 'no tool flies a validated build raw' + (rogue.length ? ': ' + rogue.join(', ') : ' (' + Object.values(DOORS).flat().length + ' declared doors)'));
 for (const via of ['pilot_trace.js', '_treecrash_lib.js'])
   ok(/_load_build/.test(fs.readFileSync(path.join(T, via), 'utf8')), via + ' loads saved builds through tools/_load_build.js');
