@@ -797,6 +797,22 @@ NOT SHIPPED: "Satellite \ radio telescope from VotV" (delivered in the same fold
 extraction from the commercial game *Voices of the Void* (Unreal's own WorldGridMaterial in it), so its
 Sketchfab CC BY label cannot stand; blocked, and dropped by the user (2026-10-11).
 
+## The driveable cars (`assets/vehicles/driveable/`, baked and served from media/)
+
+The first driveable car (ASSETS-OCT G2908, 2026-10-11): declared in `tools/car_table.py`, baked AS-IS by
+`tools/car_prep.py` (the prop baker's runner) into `src/cars/` + `media/geo/cars/` + `media/tex/cars/`, the
+parts split by node (body with its interior and glass, the wheels, the steering wheel, the lamp groups), the
+whole car levelled 0.45 deg; its data sheet `src/cars/car_conquer.json` carries the credit line.
+
+**Sketchfab, CC-BY-4.0** (https://creativecommons.org/licenses/by/4.0/) - attribution is a condition of the
+licence and must stay visible wherever it is shown:
+
+- `car_conquer_*` - **"Conquer '89 Pickup - Low poly model"** by Daniel Zhabotinsky
+  (https://sketchfab.com/3d-models/conquer-89-pickup-low-poly-model-6c48c94be8974dc7a5932f697c0ba68f)
+
+Candidates delivered beside it, not shipped yet: "Car Scene" by toivo (car #2, later), "Pickup Truck" by
+00amza (a parked / traffic prop candidate), "Dirty car" by 3D Error 404 (dropped) - all CC-BY-4.0.
+
 ## The animals (`assets/animals/`, baked and served from media/)
 
 Six rigged, animated animals for Jolene (2026-09-22): three land animals with

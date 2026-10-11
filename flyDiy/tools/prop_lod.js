@@ -67,6 +67,10 @@ const KITS = {
   // THE SCENERY KIT (ASSETS-OCT, G2904; tools/scenery_table.py): each group its own ladder
   scenery: { dir: 'scenery', manifest: 'scenery_packs.json', out: 'scenery_lods.js', sub: 'geo/scenery_lod',
              from: 'baked scenery packs', tex: 'media/tex/scenery/', only: 'media/geo/scenery/' },
+  // THE DRIVEABLE CARS (ASSETS-OCT G2908; tools/car_table.py): the 'car' ladder (the body; a wheel, the
+  // steering wheel and the lamp groups are under its floor and get no level)
+  cars: { dir: 'cars', manifest: 'cars_packs.json', out: 'cars_lods.js', sub: 'geo/cars_lod',
+          from: 'baked car packs', tex: 'media/tex/cars/', only: 'media/geo/cars/' },
 };
 let KIT = KITS.pier, PIER = path.join(ROOT, 'src', KIT.dir), SUB = KIT.sub,
     OUT = path.join(PIER, KIT.out), MANIFEST = path.join(PIER, KIT.manifest);
