@@ -300,7 +300,65 @@ function polyRoad(pts0, w) {
   };
   return { pts, s, length: s[s.length - 1], at, w };
 }
+// THE ROAD'S SEGMENT GRID (G2917; the user, 11 Oct: "I have traced a road with 250 points, and it's very difficult to
+// edit, constant browser stuck window"). roadDist walked EVERY segment of a road's drawn line, and it is asked by
+// everything near a road - coverAt (the cover ring's tufts, the tree walk: a road is filed in the cover index by its
+// whole box), surfaceAt (each wheel, each substep), roadNear, the plots, the poles. A 250-point spline is ~2 500 drawn
+// segments (its 0.9 degree steps): every sample anywhere in its box walked them all, tens of millions of segment tests
+// in the re-sampling after an edit. Now a road of SEG_MIN points or more files its segments in SEG_CELL cells (built
+// once per road object and line, a WeakMap - nothing is added to the object), and a query walks the rings of cells
+// round its own until no unvisited segment can be nearer: the SAME minimum over the same distPtSeg values, bit for
+// bit (GATE SCENERYED 9 against the walk). Far outside the grid, and for a short road, the walk as before.
+const SEG_MIN = 48, SEG_CELL = 16, SEG_RINGS = 24;
+let SEG_IDX = typeof WeakMap === 'function' ? new WeakMap() : null;
+// (the bench's and the gate's switch: segIdx(false) is the walk everywhere, the before of an A/B; segIdx(true) back)
+function segIdx(on) { if (on === false) SEG_IDX = null; else if (on === true && !SEG_IDX && typeof WeakMap === 'function') SEG_IDX = new WeakMap(); return !!SEG_IDX; }
+const fin2 = q => !!q && isFinite(q[0]) && isFinite(q[1]);
+function roadSegIdx(road) {
+  const P = road && road.pts;
+  if (!SEG_IDX || !Array.isArray(P) || P.length < SEG_MIN) return null;
+  const last = P[P.length - 1], mid = P[P.length >> 1], sig = fin2(last) && fin2(mid) ? last[0] + last[1] * 3 + mid[0] * 7 + mid[1] * 11 : NaN;
+  let I = SEG_IDX.get(road);
+  if (I && I.pts === P && I.n === P.length && Object.is(I.sig, sig)) return I;
+  let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+  for (const q of P) if (fin2(q)) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < z0) z0 = q[1]; if (q[1] > z1) z1 = q[1]; }
+  if (!isFinite(x0)) return null;
+  const C = SEG_CELL, nx = Math.floor((x1 - x0) / C) + 1, nz = Math.floor((z1 - z0) / C) + 1, cells = new Map();
+  for (let i = 1; i < P.length; i++) {
+    const a = P[i - 1], b = P[i]; if (!fin2(a) || !fin2(b)) continue;   // (a segment with a NaN end never wins the walk's min either)
+    const i0 = Math.floor((Math.min(a[0], b[0]) - x0) / C), i1 = Math.floor((Math.max(a[0], b[0]) - x0) / C);
+    const j0 = Math.floor((Math.min(a[1], b[1]) - z0) / C), j1 = Math.floor((Math.max(a[1], b[1]) - z0) / C);
+    for (let ci = i0; ci <= i1; ci++) for (let cj = j0; cj <= j1; cj++) { const k = ci * 65536 + cj; let l = cells.get(k); if (!l) cells.set(k, l = []); l.push(i); }
+  }
+  I = { pts: P, n: P.length, sig, x0, z0, nx, nz, C, cells };
+  SEG_IDX.set(road, I);
+  return I;
+}
 function roadDist(road, x, z) {
+  const I = roadSegIdx(road);
+  if (I) {
+    const ci = Math.floor((x - I.x0) / I.C), cj = Math.floor((z - I.z0) / I.C);
+    if (ci >= -2 && cj >= -2 && ci <= I.nx + 1 && cj <= I.nz + 1) {
+      // (a query farther than SEG_RINGS cells from the line - a point across an island-long road's box - takes the walk:
+      // the rings would visit more cells than the walk tests segments)
+      const P = I.pts, kMax = Math.min(SEG_RINGS, Math.max(I.nx, I.nz) + 3), all = kMax === Math.max(I.nx, I.nz) + 3;
+      let d = Infinity;
+      for (let k = 0; k <= kMax; k++) {
+        // ring k round the query's cell; then nothing unvisited lies nearer than k cells
+        for (let i = ci - k; i <= ci + k; i++) {
+          if (i < 0 || i >= I.nx) continue;
+          const edge = i === ci - k || i === ci + k;
+          for (let j = cj - k; j <= cj + k; j += (edge || k === 0) ? 1 : 2 * k) {
+            if (j < 0 || j >= I.nz) continue;
+            const l = I.cells.get(i * 65536 + j); if (!l) continue;
+            for (let m = 0; m < l.length; m++) { const s = l[m], e = distPtSeg(x, z, P[s - 1], P[s]); if (e < d) d = e; }
+          }
+        }
+        if (d <= k * I.C) return d;
+      }
+      if (all) return d;
+    }
+  }
   let d = Infinity;
   for (let i = 1; i < road.pts.length; i++) { const e = distPtSeg(x, z, road.pts[i - 1], road.pts[i]); if (e < d) d = e; }
   return d;
@@ -545,6 +603,17 @@ function SpatialIndex(cell) {
         let a = cells.get(k);
         if (!a) { a = []; cells.set(k, a); }
         a.push(item);
+      }
+    },
+    // (G2917) one item over many boxes - a long road by its segments: each cell holds it once, in the order it was added
+    addMany(boxes, item) {
+      const seen = new Set();
+      for (const bbox of boxes) {
+        const i0 = Math.floor(bbox.x0 / C), i1 = Math.floor(bbox.x1 / C), j0 = Math.floor(bbox.z0 / C), j1 = Math.floor(bbox.z1 / C);
+        for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+          const k = key(i, j); if (seen.has(k)) continue; seen.add(k);
+          let a = cells.get(k); if (!a) { a = []; cells.set(k, a); } a.push(item);
+        }
       }
     },
     query(x, z) { return cells.get(key(Math.floor(x / C), Math.floor(z / C))) || null; },
@@ -1848,6 +1917,8 @@ function roundPoly(R) {
   return out;   // counter-clockwise (+x toward +z)
 }
 const roundOk = R => !!(R && Array.isArray(R.c) && isFinite(+R.c[0]) && isFinite(+R.c[1]) && +R.r > 0);
+// a road's own clearing (v1.36, G2918): metres past its paved edge, 0 to 200; null when unset (today's road)
+const roadClearOf = r => (!r || r.clear === null || r.clear === undefined || r.clear === '' || !isFinite(+r.clear) ? null : clamp(+r.clear, 0, 200));
 
 // A PLOT'S GROUND (contract v1.35, G2890; the user: "an option to disable plot ground drawing for the houses. The ones
 // on the shore draw grass up till the sea"): a zone's `rules.ground === false` takes the lot patch and the lawn off every
@@ -2148,8 +2219,8 @@ function compose(rec0, world, opts) {
     .map(r => (r.curve === 'spline' || r.smooth ? Object.assign({}, r, { pts: roadLine(r) }) : r));
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
   // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
-  const roadObjs = roads.map(r => ({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
-    look: roadLook(r).key, band: r.band === undefined ? null : r.band, pav: r.pav || null }));   // the pavement's (v1.16)
+  const roadObjs = roads.map(r => Object.assign({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
+    look: roadLook(r).key, band: r.band === undefined ? null : r.band, pav: r.pav || null }, roadClearOf(r) !== null ? { clear: roadClearOf(r) } : {}));   // (G2918: its own clearing) the pavement's (v1.16)
   const nAuth = mods.length;
   // THE RUNWAYS (stage 2, BEFORE the roads - v1.2: a taxi road near a strip must sit on the strip's graded ground, so its nodes are read after the runway grades): a DERIVED grade along the centreline at elev + slope * s
   // (elev = T1 at the centre), a DERIVED surface strip of the record's class,
@@ -2362,6 +2433,36 @@ function compose(rec0, world, opts) {
       ro.sided = ro.taxiway || ((ro.band === null || ro.band === undefined) && !(rec.pavement && +rec.pavement.roadSide === 0));
     }
   }
+  // A ROAD'S CLEARING (contract v1.36, G2918; the user, 11 Oct: "remove the trees and the grass from the road, maybe with a
+  // certain distance as a parameter (can be zero)"): `clear` metres past its paved edge (0: the road itself), the trees out
+  // (an exclusion band: excludeAt answers by the road's own distance, exact) and the grass and the bushes (coverAt's kill,
+  // above). The band is filed in PIECES (its runs through 200 m cells), each its own region keyed by its own line - an edit
+  // regrows the trees under the pieces it moved, never the whole of an island-long road. Unset: today's road.
+  for (const ro of roadObjs) {
+    if (ro.runway || !(ro.clear >= 0) || !ro.pts || ro.pts.length < 2) continue;
+    const half = ro.w / 2 + ro.clear;
+    // (the pieces are the line's runs through a 200 m grid's cells: an edit changes the runs it moved and no other - an
+    // arclength cut would shift every piece past the edit)
+    const cellOf = p => Math.floor(p[0] / 200) * 100003 + Math.floor(p[1] / 200);
+    let piece = [ro.pts[0]], cur = cellOf(ro.pts[0]);
+    const flush = () => {
+      if (piece.length < 2) return;
+      const pr = { pts: piece }, bb = polyBBox(piece), b = { x0: bb.x0 - half, z0: bb.z0 - half, x1: bb.x1 + half, z1: bb.z1 + half };
+      // its outline (the readers of polygons: the forest's planting, the records): the line offset either side, mitred
+      const L = [], Rt = [];
+      for (let i = 0; i < piece.length; i++) {
+        const a = piece[Math.max(0, i - 1)], c = piece[Math.min(piece.length - 1, i + 1)], dx = c[0] - a[0], dz = c[1] - a[1], l = Math.hypot(dx, dz) || 1;
+        L.push([piece[i][0] - dz / l * half, piece[i][1] + dx / l * half]); Rt.push([piece[i][0] + dz / l * half, piece[i][1] - dx / l * half]);
+      }
+      excl.push({ poly: L.concat(Rt.reverse()), bbox: b, what: ['trees'], derived: true, roadClear: ro.id, bandRoad: pr, half });
+    };
+    for (let i = 1; i < ro.pts.length; i++) {
+      piece.push(ro.pts[i]);
+      const c = cellOf(ro.pts[i]);
+      if (c !== cur && i < ro.pts.length - 1) { flush(); piece = [ro.pts[i]]; cur = c; }
+    }
+    flush();
+  }
   // G980: the bands the ground's own code is drawn under (stampTtype): a strip's box and a paved polygon, each out
   // to its band + the fade (sd: + outside the pavement, metres; reach: how far out the stamp goes)
   const BAND_SKIP = [0, 1, 8, 12, 13, 16];   // water, forest, cliff, old forest, city trees: never what a cleared band copies
@@ -2412,7 +2513,20 @@ function compose(rec0, world, opts) {
     .map(c => { const v = vegOf(c); return { id: c.id, poly: c.poly, bbox: polyBBox(c.poly), mix: v.mode === 'none' ? null : v.mode === 'biome' ? v.mix : '@' + c.id }; });
   const vegMixes = {};
   for (const c of rec.layers.ttype) { const v = c.poly && c.poly.length >= 3 && vegOf(c); if (v && v.mode === 'new') vegMixes['@' + c.id] = vegMixOf(v); }
-  let ext = rec.frame.extent;
+  let ext = rec.frame.extent, extAuthored = null;
+  // THE EXTENT COVERS WHAT IS AUTHORED (G2919; the user's Jolene rev 23: an island road of 24.9 km ran up to 8 km past the
+  // extent the record carried - the island's own, written once - and past it no fine patch was drawn: the graded road lay
+  // under the coarse far ground, "the sinking seems worse further away"). An authored extent stands as written while every
+  // feature's own points lie inside it (Jolene's: the island cook, the patch, the bit-equal gates untouched); one that a
+  // feature leaves grows to cover them all, falloffs included (the composed box below).
+  if (ext) {
+    let out = false;
+    const pin = q => { if (!out && q && (q[0] < ext.x0 || q[0] > ext.x1 || q[1] < ext.z0 || q[1] > ext.z1)) out = true; };
+    for (const r of roads) for (const q of r.pts) pin(q);
+    for (const k of ['terrain', 'surface', 'material', 'exclude', 'zones', 'ttype']) for (const e of rec.layers[k]) for (const q of e.poly || e.pts || []) pin(q);
+    for (const r of runways) for (const q of runwayBox(r, 0)) pin(q);
+    if (out) { extAuthored = ext; ext = null; }
+  }
   if (!ext) {
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
     const grow = b => { x0 = Math.min(x0, b.x0); z0 = Math.min(z0, b.z0); x1 = Math.max(x1, b.x1); z1 = Math.max(z1, b.z1); };
@@ -2422,6 +2536,7 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) if (z.poly && z.poly.length >= 3) grow(polyBBox(z.poly));
     for (const r of runways) grow(polyBBox(runwayBox(r, 30)));
     for (const M of mods) grow(M.bbox);
+    if (extAuthored) grow(extAuthored);
     ext = isFinite(x0) ? { x0, z0, x1, z1 } : { x0: 0, z0: 0, x1: 0, z1: 0 };
   }
   const inBB = (b, x, z) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1;
@@ -2679,7 +2794,9 @@ function compose(rec0, world, opts) {
     treeExRegions() {
       const out = [], wb = (b, pad) => { const c = [F.toWorld(b.x0 - pad, b.z0 - pad), F.toWorld(b.x1 + pad, b.z0 - pad), F.toWorld(b.x1 + pad, b.z1 + pad), F.toWorld(b.x0 - pad, b.z1 + pad)];
         return { x0: Math.min(c[0][0], c[1][0], c[2][0], c[3][0]), z0: Math.min(c[0][1], c[1][1], c[2][1], c[3][1]), x1: Math.max(c[0][0], c[1][0], c[2][0], c[3][0]), z1: Math.max(c[0][1], c[1][1], c[2][1], c[3][1]) }; };
-      for (const e of excl) if (e.what.indexOf('trees') >= 0 && !treeOff(e)) out.push(Object.assign({ k: 'x' + JSON.stringify(e.poly) }, wb(e.bbox, 1)));
+      // (G2918: a road clearing's piece is keyed by its outline to the centimetre - a drag's sub-millimetre ripple along the
+      // rest of a spline moves no key, so only the pieces it really moved regrow)
+      for (const e of excl) if (e.what.indexOf('trees') >= 0 && !treeOff(e)) out.push(Object.assign({ k: e.bandRoad ? 'xb' + JSON.stringify(e.poly.map(q => [Math.round(q[0] * 100), Math.round(q[1] * 100)])) : 'x' + JSON.stringify(e.poly) }, wb(e.bbox, 1)));
       for (const r of landRwy) { const cl = runwayClearOf(r), pad = cl ? Math.max(cl.beyond, cl.side + Math.max(0, cl.taper) * cl.beyond) : 160;
         out.push(Object.assign({ k: 'r' + JSON.stringify([r.c, r.len, r.wid, r.hdg, cl, r.treeBox]) }, wb(polyBBox(runwayBox(r, 0)), pad + 2))); }
       return out;
@@ -2897,7 +3014,7 @@ function compose(rec0, world, opts) {
       if (exIdxN !== excl.length) { exIdx.clear(); exIdxN = excl.length; excl.forEach(e => gsAddTo(exIdx, e.bbox, e)); }
       const list = exIdx.get(gsKey(Math.floor(L[0] / GS_C), Math.floor(L[1] / GS_C)));
       if (!list) return false;
-      for (const e of list) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && !(what === 'trees' && treeOff(e)) && inPoly(e.poly, L[0], L[1])) return true;
+      for (const e of list) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && !(what === 'trees' && treeOff(e)) && (e.bandRoad ? roadDist(e.bandRoad, L[0], L[1]) <= e.half : inPoly(e.poly, L[0], L[1]))) return true;
       return false;
     },
     // (G614) the linear scans the indexes replaced - the reference GATE PREMRASTER holds them to
@@ -2909,7 +3026,7 @@ function compose(rec0, world, opts) {
     },
     excludeAtScan(x, z, what) {
       const L = F.toLocal(x, z);
-      for (const e of excl) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && !(what === 'trees' && treeOff(e)) && inPoly(e.poly, L[0], L[1])) return true;
+      for (const e of excl) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && !(what === 'trees' && treeOff(e)) && (e.bandRoad ? roadDist(e.bandRoad, L[0], L[1]) <= e.half : inPoly(e.poly, L[0], L[1]))) return true;
       return false;
     },
     // G1091: THE TREES BY THE RUNWAYS - the variant this composition plants by, the excludes it knows as runway
@@ -2941,9 +3058,17 @@ function compose(rec0, world, opts) {
   }
   for (const rd of roadObjs) {
     if (rd.runway || rd.ribbon === false) continue;
-    const L = RUNWAY_LOOKS[rd.look] || RUNWAY_LOOKS.gravel, cls = L.cls || 'gravel', band = paveBand(rd, cls, true), reach = rd.w / 2 + band + PAVE_FADE + 6;
-    const bb = polyBBox(rd.pts);
-    addCov({ x0: bb.x0 - reach, z0: bb.z0 - reach, x1: bb.x1 + reach, z1: bb.z1 + reach }, { kind: 'road', id: rd.id, cls, band, halfW: rd.w / 2, road: rd, soft: cls !== 'concrete' && cls !== 'asphalt' });
+    const L = RUNWAY_LOOKS[rd.look] || RUNWAY_LOOKS.gravel, cls = L.cls || 'gravel', band = paveBand(rd, cls, true), reach = Math.max(rd.w / 2 + band + PAVE_FADE + 6, rd.clear >= 0 ? rd.w / 2 + rd.clear + 1 : 0);
+    const it = Object.assign({ kind: 'road', id: rd.id, cls, band, halfW: rd.w / 2, road: rd, soft: cls !== 'concrete' && cls !== 'asphalt' }, rd.clear >= 0 ? { clear: rd.clear } : {});
+    // (G2917) A LONG ROAD IS FILED BY ITS SEGMENTS: by its box, an island-long road sat in every cover cell of the island and
+    // every tuft anywhere asked it. Each segment's box, out to the reach + 40 m (past every distance a reader acts on: the
+    // cover's band, fade and verge, the 'sides' law's mow band, a stone's margin) - the same items answer every point that
+    // any of them could touch, in the same order
+    if (SEG_IDX && rd.pts.length >= SEG_MIN) {   // (segIdx(false): the box, the A/B's before)
+      const m = reach + 40, boxes = [];
+      for (let q = 1; q < rd.pts.length; q++) { const a = rd.pts[q - 1], b = rd.pts[q]; boxes.push({ x0: Math.min(a[0], b[0]) - m, z0: Math.min(a[1], b[1]) - m, x1: Math.max(a[0], b[0]) + m, z1: Math.max(a[1], b[1]) + m }); }
+      covItems.push(it); CIDX.addMany(boxes, it);
+    } else { const bb = polyBBox(rd.pts); addCov({ x0: bb.x0 - reach, z0: bb.z0 - reach, x1: bb.x1 + reach, z1: bb.z1 + reach }, it); }
   }
   for (const pp of pavePolys) {
     const cls = RUNWAY_LOOKS[pp.look].cls, band = paveBand(pp, cls, true), reach = band + PAVE_FADE + 6;
@@ -3006,10 +3131,10 @@ function compose(rec0, world, opts) {
     let kill = 0, boost = 0, cls = null, best = -Infinity;
     if (cell) for (const it of cell) {
       const d = dEdgeOf(it, lx, lz);              // + inside the pavement, - outside
-      const out = -d;
-      if (out > it.band + PAVE_FADE + 6) continue;
+      const out = -d, clr = it.clear >= 0 && out <= it.clear;   // (v1.36, G2918: a road's own clearing - nothing grows within it)
+      if (out > it.band + PAVE_FADE + 6 && !clr) continue;
       // the pavement and its band: nothing; the fade: 1 -> 0 over PAVE_FADE; the border bump past the band
-      let k = out <= it.band ? 1 : Math.max(0, 1 - (out - it.band) / PAVE_FADE);
+      let k = clr ? 1 : out <= it.band ? 1 : Math.max(0, 1 - (out - it.band) / PAVE_FADE);
       // a grass pavement is the world's grass with the wear drawn on it: thinned, not bare - except a STRIP's
       // surface, where no grass grows at all (G665, the user: "the runways should be able excluding the grass")
       if (it.cls === 'grass' && !(it.kind === 'strip' && d >= 0)) k *= 0.6;
@@ -3054,9 +3179,11 @@ function compose(rec0, world, opts) {
       const aero = it.kind === 'strip' || it.kind === 'poly' || (it.kind === 'road' && !!(it.road && it.road.taxiway));
       const mow = it.band + (aero ? G.mowBand : G.roadMow), blend = Math.max(1e-6, G.mowBlend);
       const v0 = aero ? mow + G.mowBlend : it.band;   // where the verge's bump starts
-      if (out > Math.max(v0, it.band + PAVE_FADE) + VERGE) continue;
+      const clr = it.clear >= 0 && out <= it.clear;   // (v1.36, G2918: a road's own clearing - bare)
+      if (out > Math.max(v0, it.band + PAVE_FADE) + VERGE && !clr) continue;
       if (d > best) { best = d; cls = it.cls; }
       let k = 0, c = 0;
+      if (clr) { k = 1; if (k > kill) kill = k; continue; }
       if (d >= 0) {   // ON the pavement: bare, but a grass strip's surface is cut grass and a grass road / polygon worn grass (40 %, cut)
         if (it.cls === 'grass') { if (it.kind === 'strip') { if (G.stripGrass > 0) { c = 1; surf = 1; } else k = 1; } else { k = 0.6; c = 1; } }
         else k = 1;
@@ -3639,7 +3766,7 @@ function collect(globals) {
 const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, segIdx, roadClearOf, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,

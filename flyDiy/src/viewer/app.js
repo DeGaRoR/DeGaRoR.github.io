@@ -125,7 +125,10 @@
         // strip's way out (the editor's ground === false: the stand, the taxi points), makes no terrain modifier - the
         // composed ground is the same heights - so the ground's re-sample over the whole extent (2-3 s of a commit,
         // headless) is skipped; the strips repaint as before (the parked aeroplanes and the stand ride on them)
-        onRebuilt: (layer, ground) => { const o = world.premises.overlay; if (layer === 'objects' || ground === false) { if (window.WORLD && window.WORLD.repaintStrips) window.WORLD.repaintStrips(); return; } if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } if (window.TREE_FILL && window.TREE_FILL.vegChanged) window.TREE_FILL.vegChanged(); },   // G1385: the cover polygons' vegetation
+        // G2917 (the user's island-long road): a road's or an area's edit re-samples the ground under the box it MOVED (the
+        // editor's changeBox, premises frame) - an island road's own box was the island; a strip's grade reaches its whole
+        // shoulder, and a load or a reset the extent, as before
+        onRebuilt: (layer, ground, bb) => { const o = world.premises.overlay; if (layer === 'objects' || ground === false) { if (window.WORLD && window.WORLD.repaintStrips) window.WORLD.repaintStrips(); return; } if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = (bb && (layer === 'roads' || layer === 'areas') && isFinite(bb.x0) && isFinite(bb.x1)) ? bb : o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } if (window.TREE_FILL && window.TREE_FILL.vegChanged) window.TREE_FILL.vegChanged(); },   // G1385: the cover polygons' vegetation
       });
       PREM.open = true;
       $('bPause').textContent = 'Resume'; $('bPause').classList.add('on');
@@ -163,7 +166,9 @@
       PREM.panel.style.display = 'none'; PREM.view.style.display = 'none';
       document.body.classList.remove('premOpen');
       camera.up.set(0, 1, 0);
-      if (PREM.R) PREM.R.rebuild(null);   // the outlines and handles go (editing() is false now)
+      // the outlines and handles go (editing() is false now); G2917: only them - the world stands as the last edit built it
+      // (the full rebuild this was: the user's 67 s 'back to flight' on an island road with traffic)
+      if (PREM.R) { if (PREM.R.editEnd) PREM.R.editEnd(); else PREM.R.rebuild(null); }
     } };
   if (typeof window !== 'undefined') window.PREMISES_EDITOR = PREM;
   const SHOT = { on: false };             // G255: screenshot mode (see shotSet)

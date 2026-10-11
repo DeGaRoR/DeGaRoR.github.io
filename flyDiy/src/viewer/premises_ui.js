@@ -201,10 +201,28 @@ function mount(host, ctx) {
     return null;
   }
   const union = (a, b) => (!a ? b : !b ? a : { x0: Math.min(a.x0, b.x0), z0: Math.min(a.z0, b.z0), x1: Math.max(a.x1, b.x1), z1: Math.max(a.z1, b.z1) });
+  // WHAT AN EDIT MOVED (G2917; the user: "a road with 250 points ... constant browser stuck window" - and "this one goes all
+  // around the island"): a long line whose points alone changed rebuilds the SPAN that moved - six points either side of
+  // the changed run (a C2 spline's change has fallen under a millimetre there; a graded road's smoothing reaches 24 m), its
+  // width, falloff and clearing round it - never the line's whole box, which for an island road is the island. Anything
+  // else (a width, a class, a grade limit, a polygon) rebuilds the whole entry's box as before.
+  function changeBox(a, b) {
+    const pa = a && a.pts, pb = b && b.pts;
+    if (!pa || !pb || pa.length < 24 || pb.length < 24 || +b.grade > 0 || +a.grade > 0) return union(bboxOf(a), bboxOf(b));
+    for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) if (k !== 'pts' && k !== 'tan' && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return union(bboxOf(a), bboxOf(b));
+    const ta = a.tan || [], tb = b.tan || [];
+    const same = (i, j) => pa[i][0] === pb[j][0] && pa[i][1] === pb[j][1] && (pa[i][2] === pb[j][2]) && JSON.stringify(ta[i] || null) === JSON.stringify(tb[j] || null);
+    let s = 0; while (s < pa.length && s < pb.length && same(s, s)) s++;
+    let ea = pa.length - 1, eb = pb.length - 1; while (ea >= s && eb >= s && same(ea, eb)) { ea--; eb--; }
+    if (s > ea && s > eb && pa.length === pb.length) return { x0: pa[0][0] - 1, z0: pa[0][1] - 1, x1: pa[0][0] + 1, z1: pa[0][1] + 1 };   // nothing moved: a box of nothing
+    const K = 6, sub = (p, i0, i1) => p.slice(Math.max(0, i0 - K), Math.min(p.length, Math.max(i0, i1) + K + 1));
+    const bb = PG.polyBBox(sub(pa, s, ea).concat(sub(pb, s, eb))), f = (+b.falloff || 6) + (+b.w || 4) + (PG.roadClearOf ? (PG.roadClearOf(b) || 0) : 0) + 20;
+    return { x0: bb.x0 - f, z0: bb.z0 - f, x1: bb.x1 + f, z1: bb.z1 + f };
+  }
   // which layers move the GROUND (and so the chunks): terrain, and roads (graded)
   const groundLayer = layer => layer === 'terrain' || layer === 'roads' || layer === 'runways' || layer === 'material' || layer === 'areas';
   // (G2914: a command may carry MANY entries - the scatter's models - one undo step, one rebuild)
-  const cmdBox = c => (c.many ? c.many.reduce((b, q) => union(b, union(bboxOf(q.before), bboxOf(q.after))), null) : union(bboxOf(c.before), bboxOf(c.after)));
+  const cmdBox = c => (c.many ? c.many.reduce((b, q) => union(b, union(bboxOf(q.before), bboxOf(q.after))), null) : changeBox(c.before, c.after));
   const cmdLayer = c => (c.many ? c.many[0].layer : c.layer);
   function run(cmd, isRedo) {
     if (cmd.many) for (const q of cmd.many) applyEntry(q.layer, q.id, clone(q.after));
@@ -225,14 +243,24 @@ function mount(host, ctx) {
     if (key && coalesce && coalesce.id === id && coalesce.key === key && Date.now() - coalesce.t < 600) {
       const last = undoS[undoS.length - 1];
       last.after = clone(e); coalesce.t = Date.now();
-      dirty(layer, union(bboxOf(before), bboxOf(e)), groundOf(layer, before, e));
+      soonDirty(layer, changeBox(before, e), groundOf(layer, before, e));
       return;
     }
     const cmd = { layer, id, before, after: clone(e), label };
     applyEntry(layer, id, clone(e));
     undoS.push(cmd); redoS.length = 0;
     coalesce = key ? { id, key, t: Date.now() } : null;
-    dirty(layer, union(bboxOf(before), bboxOf(e)), groundOf(layer, before, e));
+    if (key) soonDirty(layer, changeBox(before, e), groundOf(layer, before, e)); else dirty(layer, changeBox(before, e), groundOf(layer, before, e));
+  }
+  // A SLIDER REBUILDS ONCE IT RESTS (G2917; the user's recorder log: one traffic slider's input events were 96 s, 79 s and
+  // 72 s frames - every event of the drag a whole rebuild, the island road's 274 cars made again each time): a slider's
+  // edit writes the record at once and its rebuild 200 ms after the hand stops; anything else that rebuilds takes the
+  // waiting one with it (dirty below), so the record and the world never disagree past the pause
+  let PEND = null;
+  function soonDirty(layer, bbox, ground) {
+    if (PEND) { clearTimeout(PEND.t); PEND = { layer: PEND.layer === layer ? layer : null, bbox: union(PEND.bbox, bbox), ground: PEND.ground === false && ground === false ? false : undefined }; }
+    else PEND = { layer, bbox, ground };
+    PEND.t = setTimeout(() => { const p = PEND; PEND = null; if (p) dirty(p.layer, p.bbox, p.ground); }, 200);
   }
 
   // ---- the renderer, dirty, the checks, the plaque ---------------------------
@@ -242,20 +270,26 @@ function mount(host, ctx) {
   // centre, length, heading, profile, never the way out - so its commit rebuilds as a non-ground layer: no ground patch,
   // no re-sample of the world's ground under the premises (5-9 s of a taxi point's commit, headless)
   const WAY_KEYS = { stand: 1, taxiOut: 1, taxiOut1: 1, site: 1 };
+  // G2917 (the user: "changing the traffic amount freezes it for a while - maybe 3 minutes"): A ROAD'S TRAFFIC IS NOT ITS
+  // GROUND either - its traffic, its guardrail, its power line, its life, its name make no modifier and move no cover: no
+  // patch, no ground re-sample (the cars, the rails, the poles are rebuilt by the renderer's own sync)
+  const ROAD_FREE = { traffic: 1, rail: 1, poles: 1, life: 1, name: 1 };
   const groundOf = (layer, a, b) => {
-    if (layer !== 'runways' || !a || !b) return undefined;
+    if ((layer !== 'runways' && layer !== 'roads') || !a || !b) return undefined;
+    const free = layer === 'runways' ? WAY_KEYS : ROAD_FREE;
     const keys = new Set(Object.keys(a).concat(Object.keys(b)));
-    for (const k of keys) if (!WAY_KEYS[k] && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return undefined;
+    for (const k of keys) if (!free[k] && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return undefined;
     return false;
   };
   function dirty(layer, bbox, ground) {
+    if (PEND) { clearTimeout(PEND.t); const p = PEND; PEND = null; if (layer !== p.layer) layer = null; bbox = union(bbox, p.bbox); if (!(ground === false && p.ground === false)) ground = undefined; }
     R.setRecord(rec);
     if (!layer) R.rebuild(null);
     else if (groundLayer(layer) && ground !== false) R.rebuild(bbox ? { layer, bbox, pad: 2 } : null);
     else R.rebuild({ layer, bbox: bbox || { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false });   // no chunk touched: outlines, plots, houses, trees
     inspector.refresh();
     autosave();
-    ctx.onRebuilt && ctx.onRebuilt(layer || null, ground);   // the game re-samples its ground rings (G1400: told the layer and a ground left as it was)
+    ctx.onRebuilt && ctx.onRebuilt(layer || null, ground, layer ? bbox || null : null);   // the game re-samples its ground rings (G1400: told the layer and a ground left as it was; G2917: and the box it moved, in the premises frame)
     ctx.redraw && ctx.redraw();
     clearTimeout(chkT); chkT = setTimeout(checks, 500);
     plaque();
@@ -507,7 +541,7 @@ function mount(host, ctx) {
     if (isLine()) {
       if (T.pts.length < 2) { strip.status('a road needs two points'); return; }
       // (G2890: a new road is a SMOOTH CURVE through its points - contract v1.35; the inspector's 'curve' takes it back to corners)
-      const e = { id: PG.newId(rec, 'roads'), pts: T.pts.map(p => [p[0], p[1]]), w: 3.6, cls: 'gravel', graded: true, falloff: 6, curve: 'spline' };
+      const e = { id: PG.newId(rec, 'roads'), pts: T.pts.map(p => [p[0], p[1]]), w: 3.6, cls: 'gravel', graded: true, falloff: 6, curve: 'spline', clear: 2 };   // (G2918: no tree or grass within 2 m of its edge)
       run({ layer: 'roads', id: e.id, before: null, after: e, label: 'road ' + e.id });
       cancelTool(); select(e.id); return;
     }
@@ -712,7 +746,7 @@ function mount(host, ctx) {
     if (found) {
       const cmd = { layer: found.layer, id: drag.id, before: drag.before, after: clone(found.entry), label: 'move ' + drag.id };
       undoS.push(cmd); redoS.length = 0;
-      dirty(found.layer, union(bboxOf(drag.before), bboxOf(found.entry)), groundOf(found.layer, drag.before, found.entry));
+      dirty(found.layer, changeBox(drag.before, found.entry), groundOf(found.layer, drag.before, found.entry));
     }
     drag = null;
     return true;
@@ -1005,6 +1039,11 @@ function mount(host, ctx) {
       pavRows(e, id, 'roads', ed, PG.roadLook(e).row);
       rows.check(insp, 'graded (flat across)', () => e.graded !== false, v => ed(x => { x.graded = v; }, 'grading of ' + id));
       rows.slider(insp, 'terraformed to (m)', 1, 30, 1, () => e.falloff || 6, v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
+      // ITS CLEARING (v1.36, G2918; the user: "remove the trees and the grass from the road, maybe with a certain distance as a
+      // parameter (can be zero)"): metres past the paved edge where no tree, bush or grass grows - 0 the road itself; off is
+      // today's road (the pavement's own band and fade). The trees come back live where it shrinks.
+      rows.slider(insp, 'clear trees & grass (m)', -0.5, 60, 0.5, () => (PG.roadClearOf(e) === null ? -0.5 : PG.roadClearOf(e)), v => ed(x => { if (v < 0) delete x.clear; else x.clear = v; }, 'clearing of ' + id, 'clear'),
+        v => (v < 0 ? 'off (today)' : v === 0 ? 'the road itself' : v.toFixed(1) + ' m past the edge'));
       // THE GRADE LIMIT and THE RIBBON (G434): a taxiway is cut and filled to a gradient, and drawn by its own
       // material polygon (no ribbon) - a track follows the ground and wears its ribbon
       rows.slider(insp, 'steepest (%)', 0, 12, 0.5, () => (e.grade || 0) * 100, v => ed(x => { x.grade = v ? v / 100 : undefined; }, 'grade of ' + id, 'grade'), v => v ? v.toFixed(1) + ' %' : 'follows the ground');

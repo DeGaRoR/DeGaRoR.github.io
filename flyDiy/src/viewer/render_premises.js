@@ -642,6 +642,28 @@ function make(THREE, scene, world, rec0, opts) {
   function buildPatch() { const g = buildPatchSteps(); while (!g.next().done); }
   // part (G2063, TOWN-GEO): { A, blocks } - the blocks named made again on the active set A (the town's chunks joining the
   // patch, geoLaterSteps), each in place of the one standing; without, the whole patch (the town's left out while GEO.split)
+  // the part build for an edit's box (premises frame): the active chunks now, the blocks whose chunks touch the box - and
+  // the old patch's blocks there, so a block whose chunks are no longer active (a road dragged away) goes
+  function patchPartFor(dirty) {
+    if (!dirty || !dirty.bbox || !patch || !(o.editing && o.editing()) || GEO.split) return null;
+    const F = O.frame, b = dirty.bbox, pad = (dirty.pad || 0) + 4;
+    const c = [F.toWorld(b.x0 - pad, b.z0 - pad), F.toWorld(b.x1 + pad, b.z0 - pad), F.toWorld(b.x1 + pad, b.z1 + pad), F.toWorld(b.x0 - pad, b.z1 + pad)];
+    const W = { x0: Math.min(c[0][0], c[1][0], c[2][0], c[3][0]), z0: Math.min(c[0][1], c[1][1], c[2][1], c[3][1]), x1: Math.max(c[0][0], c[1][0], c[2][0], c[3][0]), z1: Math.max(c[0][1], c[1][1], c[2][1], c[3][1]) };
+    if (!isFinite(W.x0) || !isFinite(W.x1)) return null;
+    const A = activeChunks(extentWorld(), null), blocks = new Set();
+    for (const k of A.act) {
+      const [ci, cj] = k.split(',').map(Number), x0 = ci * PCH, z0 = cj * PCH;
+      if (x0 > W.x1 || x0 + PCH < W.x0 || z0 > W.z1 || z0 + PCH < W.z0) continue;
+      blocks.add(patchBlockOf(k));
+    }
+    // the old blocks under the box (a key names its kind and its block's cell)
+    for (const lod of patch.children) {
+      const bk = lod.userData.bk, m = bk && /\|(-?\d+),(-?\d+)$/.exec(bk); if (!m) continue;
+      const bs = PL.block * PCH, bx0 = +m[1] * bs, bz0 = +m[2] * bs;
+      if (!(bx0 > W.x1 || bx0 + bs < W.x0 || bz0 > W.z1 || bz0 + bs < W.z0)) blocks.add(bk);
+    }
+    return blocks.size ? { A, blocks, edit: true } : null;
+  }
   function* buildPatchSteps(part) {
     const b = extentWorld();
     const A = part ? part.A : activeChunks(b, GEO.split ? geoLater : null);
@@ -828,6 +850,9 @@ function make(THREE, scene, world, rec0, opts) {
       group.add(lod);
     }
     if (part && patch) {
+      // (G2917) an edit's named block that has no active chunk any more: its old block goes
+      if (part.edit) { const built = new Set(group.children.map(l => l.userData.bk));
+        for (const bk of part.blocks) if (!built.has(bk)) { const old = patch.children.find(l => l.userData.bk === bk); if (old) { patch.remove(old); old.traverse(m => { if (m.geometry) m.geometry.dispose(); }); } } }
       // G2063: each block made again stands in for the one it replaces; the counts over the whole patch again
       for (const lod of group.children.slice()) {
         const old = patch.children.find(c => c.userData.bk === lod.userData.bk);
@@ -1147,7 +1172,12 @@ function make(THREE, scene, world, rec0, opts) {
   // ---- the outlines ------------------------------------------------------------
   const LINES = new Map();
   let selectedId = null;
+  // (G2917) the drag's height memo: nothing composes while the hand drags, so a ground point read once is the same for the
+  // whole drag - a long road's outline re-lined each move reads only what moved (cleared at the release, previewEnd)
+  let HMEMO = null;
+  const hAt = (x, z) => { if (!HMEMO) return heightAt(x, z); const k = Math.round(x * 20) * 1e7 + Math.round(z * 20); let h = HMEMO.get(k); if (h === undefined) { h = heightAt(x, z); HMEMO.set(k, h); } return h; };
   function groundLoop(pts, closed, lift) {
+    const heightAt = hAt;
     const out = [];
     const n = pts.length;
     for (let i = 0; i < (closed ? n : n - 1); i++) {
@@ -1435,7 +1465,18 @@ function make(THREE, scene, world, rec0, opts) {
     const pp = typeof propPlace === 'function' ? propPlace : null, HG = window.HOUSE_GEN;
     const want = new Map();
     if (pp) for (const rd of O.roads) if (trafficOf(rd) > 0 && rd.pts.length >= 2) want.set(rd.id, rd);
-    for (const [id, t] of TRAFFIC) { const rd = want.get(id); if (!rd || trafficKey(rd) !== t.key) { for (const c of t.cars) { hitDrop(c.grp); G.traffic.remove(c.grp); } TRAFFIC.delete(id); } }
+    for (const [id, t] of TRAFFIC) {
+      const rd = want.get(id);
+      // (G2917) the same road and count on a moved line: the cars ride the new line where they are (no 274 cars made again
+      // for a point dragged on an island road); a new count, a width or no traffic: made again
+      if (rd && trafficKey(rd) !== t.key && t.n === Math.max(1, Math.round(trafficOf(rd) * PG.polyRoad(rd.pts, rd.w).length / 1000)) && t.w === rd.w) {
+        const pr = PG.polyRoad(rd.pts, rd.w), F = O.frame, box = [Infinity, Infinity, -Infinity, -Infinity];
+        for (const q of rd.pts) { const w = F.toWorld(q[0], q[1]); box[0] = Math.min(box[0], w[0] - rd.w); box[1] = Math.min(box[1], w[1] - rd.w); box[2] = Math.max(box[2], w[0] + rd.w); box[3] = Math.max(box[3], w[1] + rd.w); }
+        for (const c of t.cars) c.s = Math.min(pr.length, c.s * pr.length / (t.L || pr.length));
+        Object.assign(t, { key: trafficKey(rd), pr, L: pr.length, box }); moveTraffic(t, 0); continue;
+      }
+      if (!rd || trafficKey(rd) !== t.key) { for (const c of t.cars) { hitDrop(c.grp); G.traffic.remove(c.grp); } TRAFFIC.delete(id); }
+    }
     const menu = trafficMenu();
     for (const [id, rd] of want) {
       if (TRAFFIC.has(id) || !menu.length) continue;
@@ -1447,7 +1488,7 @@ function make(THREE, scene, world, rec0, opts) {
         const key = menu[Math.floor(rnd() * menu.length)];
         const K = (HG && HG.YARD_KIT && HG.YARD_KIT[key]) || { L: 4.5, W: 1.8 };
         const dir = i % 2 ? -1 : 1, v0 = (35 + rnd() * 20) / 3.6 * (K.L > 7 ? 0.8 : 1);
-        const grp = pp(THREE, key, 0, 0, 0, 0); grp.name = 'traffic:' + id + ':' + i;
+        const grp = pp(THREE, key, 0, 0, 0, 0); grp.name = 'traffic:' + id + ':' + i; grp.userData.hitShare = key;   // (G2917: one raster per model)
         G.traffic.add(grp);
         const car = { grp, key, K, s: (i + 0.5) * L / n, dir, v: v0, v0, hit: 0 };
         if (TRAFFIC_HITBOX) hitAdd(grp, 'traffic', 0.5, id => { car.hit = id; });
@@ -1457,7 +1498,7 @@ function make(THREE, scene, world, rec0, opts) {
       const F = O.frame, box = [Infinity, Infinity, -Infinity, -Infinity];
       for (const q of rd.pts) { const w = F.toWorld(q[0], q[1]); box[0] = Math.min(box[0], w[0] - rd.w); box[1] = Math.min(box[1], w[1] - rd.w); box[2] = Math.max(box[2], w[0] + rd.w); box[3] = Math.max(box[3], w[1] + rd.w); }
       const reach = 50 + Math.max(0, ...cars.map(c => (typeof propCullDist === 'function' ? propCullDist(c.key) : 0) || Infinity));
-      TRAFFIC.set(id, { key: trafficKey(rd), cars, pr, w: rd.w, L, box, reach });
+      TRAFFIC.set(id, { key: trafficKey(rd), cars, pr, w: rd.w, L, box, reach, n });
       moveTraffic(TRAFFIC.get(id), 0);
     }
     stats.traffic = 0; for (const [, t] of TRAFFIC) stats.traffic += t.cars.length;
@@ -1476,16 +1517,25 @@ function make(THREE, scene, world, rec0, opts) {
     // re-composed by updateMatrixWorld and its LOD updated by the render's projectObject every frame, for a car that
     // draws nothing there (its last level is empty at the reach). Hidden and its matrices held until the eye comes back
     if (pose !== t.shown) { t.shown = pose; for (const c of t.cars) { c.grp.visible = pose; c.grp.matrixWorldAutoUpdate = pose; } }
+    // (G2917) THE ONE AHEAD by order, not by a scan of every car for every car: the cars of a direction sorted along the
+    // road, each one's next in its direction (the island road's 274 cars were 75 000 pairs a frame); the same gap
+    const ahead = new Map();
+    for (const dir of [1, -1]) {
+      const L = t.cars.filter(c => c.dir === dir).sort((p, q) => p.s - q.s), n = L.length;
+      for (let i = 0; i < n; i++) { const d = n > 1 ? L[(i + (dir > 0 ? 1 : n - 1)) % n] : null; if (!d) continue; let g = (d.s - L[i].s) * dir; if (g < 0) g += t.L; ahead.set(L[i], [g, d.v]); }
+    }
     for (const c of t.cars) {
       // the one ahead in my direction: slow to its speed inside two lengths, else my own
       let gap = Infinity, vAhead = c.v0;
-      for (const d of t.cars) if (d !== c && d.dir === c.dir) { let g = (d.s - c.s) * c.dir; if (g < 0) g += t.L; if (g < gap) { gap = g; vAhead = d.v; } }
+      const ah = ahead.get(c); if (ah) { gap = ah[0]; vAhead = ah[1]; }
       const tgt = gap < c.K.L + 6 ? Math.min(c.v0, vAhead * 0.9) : c.v0;
       c.v += (tgt - c.v) * Math.min(1, dt * 1.5);
       c.s += c.dir * c.v * dt;
       if (c.s > t.L) { c.s = 2 * t.L - c.s; c.dir = -1; } else if (c.s < 0) { c.s = -c.s; c.dir = 1; }
       if (!pose) continue;
       const a = t.pr.at(c.s), tx = a.tg[0] * c.dir, tz = a.tg[1] * c.dir;
+      // (G2917) a car past the draw reach is not posed (its last level is empty there): an island road's far cars cost nothing
+      if (eye) { const w0 = F.toWorld(a.p[0], a.p[1]), far = Math.hypot(w0[0] - eye.x, w0[1] - eye.z) > t.reach; if (far !== !!c.far) { c.far = far; c.grp.visible = !far; c.grp.matrixWorldAutoUpdate = !far; } if (far) continue; }
       const rx = -tz, rz = tx;                                    // the right-hand side of the direction of travel (x right, z toward the viewer, y up)
       const w = F.toWorld(a.p[0] + rx * off, a.p[1] + rz * off);
       const ry = Math.atan2(tx, tz) + (F.yaw || 0);
@@ -2508,7 +2558,34 @@ function make(THREE, scene, world, rec0, opts) {
   // dirty(): the rebuild as before, which puts every carried group back first (previewEnd) - the settled world is the
   // same bits as without the preview.
   const PV = { id: null, pos: new Map() };
+  // (G2917; the user: "a road with 250 points ... very difficult to edit"): a long line's handles are MOVED while the hand
+  // drags - only the discs whose place changed are put on the ground again - where buildHandles made 1 000 meshes, 250
+  // stems and as many ground reads every mouse move. A different count of handles (a corner added) builds them anew.
+  function moveHandles(e) {
+    const arr = e && (e.poly || e.pts);
+    if (!arr || arr.length < 24 || PG.roundOk(e.round) || (PG.rectOk && PG.rectOk(e.rect)) || !HANDLES.length || HANDLES[0].userData.handle.id !== e.id) return false;
+    const closed = !!e.poly, spline = !!(e.pts && e.curve === 'spline' && e.pts.length >= 2), n = arr.length;
+    if (HANDLES.length !== n + (closed ? n : n - 1) + (spline ? n : 0)) return false;
+    const F = O.frame, H = spline ? PG.roadHandles(e.pts, e.tan) : null;
+    const put = (m, lx, lz) => { const w = F.toWorld(lx, lz); if (Math.abs(m.position.x - w[0]) > 1e-6 || Math.abs(m.position.z - w[1]) > 1e-6) { m.position.set(w[0], hAt(w[0], w[1]) + LIFT + 0.05, w[1]); return true; } return false; };
+    let si = 0;
+    for (const m of HANDLES) {
+      const hd = m.userData.handle, i = hd.index;
+      if (!(i >= 0 && i < n)) return false;
+      if (hd.tan) {
+        const moved = put(m, arr[i][0] + H[i][0], arr[i][1] + H[i][1]), st = STEMS[si++];
+        const a = F.toWorld(arr[i][0], arr[i][1]);
+        if (st && (moved || Math.abs(st.geometry.attributes.position.array[0] - a[0]) > 1e-6 || Math.abs(st.geometry.attributes.position.array[2] - a[1]) > 1e-6)) {
+          const p = st.geometry.attributes.position.array; p[0] = a[0]; p[1] = hAt(a[0], a[1]) + LIFT + 0.05; p[2] = a[1]; p[3] = m.position.x; p[4] = m.position.y; p[5] = m.position.z;
+          st.geometry.attributes.position.needsUpdate = true; st.geometry.computeBoundingSphere();
+        }
+      } else if (hd.mid) { const b = arr[(i + 1) % n]; put(m, (arr[i][0] + b[0]) / 2, (arr[i][1] + b[1]) / 2); }
+      else { put(m, arr[i][0], arr[i][1]); m.material = i === selCorner ? discMatSel : discMat; }
+    }
+    return true;
+  }
   function previewEnd() {
+    HMEMO = null;
     for (const [g, p] of PV.pos) { g.position.copy(p); g.updateMatrix(); THREE.Object3D.prototype.updateMatrixWorld.call(g, true); }
     if (PV.pos.size && typeof propInstTouch === 'function') propInstTouch();
     PV.pos.clear(); PV.id = null;
@@ -2529,6 +2606,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (!e) return;
     const id = e.id, F = O.frame;
     if (PV.id !== id) { previewEnd(); PV.id = id; }
+    if (!HMEMO) HMEMO = new Map();
     const t0 = performance.now();
     // the outline, and the selection's twin over it
     const wp = worldPts(e);
@@ -2580,7 +2658,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (fh) { const a = F.toWorld(before.at.x, before.at.z), b = F.toWorld(e.at.x, e.at.z); for (const g of [fh.grp].concat(fh.extra || [])) carry(g, b[0] - a[0], 0, b[1] - a[1]); }
     }
     if (moved && typeof propInstTouch === 'function') propInstTouch();
-    buildHandles();
+    if (!moveHandles(e)) buildHandles();
     stats.previewMs = performance.now() - t0;
   }
 
@@ -2684,7 +2762,7 @@ function make(THREE, scene, world, rec0, opts) {
   // a prop's bytes may still be on the wire (props.js propPending) and a parked aeroplane's holder
   // fills when its capture lands: a group not ready is queued and registered by the first tick that
   // finds its full level standing; `then(id)` tells the caller (the traffic keeps the id to move it)
-  const PENDING_HIT = [];
+  const PENDING_HIT = [], HIT_SHARE = new Map();
   function hitReady(grp) {
     let meshes = 0, pending = false;
     const walk = obj => { if (obj.userData && obj.userData.propPending) pending = true;
@@ -2721,7 +2799,13 @@ function make(THREE, scene, world, rec0, opts) {
     if (!hitReady(grp)) { PENDING_HIT.push({ grp, tag, cell: cell || 0.5, then }); return 0; }
     let air = null;
     if (tag === 'aircraft') try { air = aircraftOf(grp); } catch (e) { console.warn('obstacle: the spec hitbox of', grp.userData && grp.userData.parkedKey, e && e.message); }
-    try { const s = air || shapeOf(grp, cell || 0.5); if (!s) return 0; s.tag = tag; const id = R.add(s); (grp.userData.obst = grp.userData.obst || []).push(id); OBST_IDS.add(id); if (then) then(id); return id; }
+    // (G2917; the user's 274 cars on an island road: "changing the traffic amount freezes it for a while - maybe 3 minutes")
+    // a group that names a SHARED shape (a traffic car: the model at the origin, untilted, unscaled) rasterises its model
+    // once - the raster is in the group's own frame and the registry only reads it; each car its own place and turn
+    const sk = grp.userData && grp.userData.hitShare ? tag + '|' + grp.userData.hitShare + '|' + (cell || 0.5) : null;
+    let shared = null;
+    if (sk && HIT_SHARE.has(sk)) { grp.updateMatrixWorld(true); const e = grp.matrixWorld.elements; shared = { x: e[12], z: e[14], yaw: Math.atan2(e[8], e[0]), y0: e[13], shape: HIT_SHARE.get(sk) }; }
+    try { const s = shared || air || shapeOf(grp, cell || 0.5); if (!s) return 0; if (sk && !shared) HIT_SHARE.set(sk, s.shape); s.tag = tag; const id = R.add(s); (grp.userData.obst = grp.userData.obst || []).push(id); OBST_IDS.add(id); if (then) then(id); return id; }
     catch (e) { console.warn('obstacle', tag, e && e.message); return 0; }
   }
   function hitPendingStep() {
@@ -3659,6 +3743,21 @@ function make(THREE, scene, world, rec0, opts) {
   // G680: rebuildSteps is the rebuild as a generator - the game's first rebuild runs under the roll-out screen a
   // slice per task (render_world's buildWorldSceneSteps: yield*); rebuild() runs it to the end (an edit, the bench)
   function rebuild(dirty) { const g = rebuildSteps(dirty); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  // THE EDITOR CLOSED (G2917; the user's log: 'back to flight' a 67 s frame): what the editor added goes - the outlines,
+  // the handles, the ghosts, a drag's carried groups - and NOTHING is rebuilt: the world already stands as the last edit's
+  // rebuild made it (the editor rebuilds on every edit); close() rebuilt the whole of it to take the outlines off
+  function editEnd() {
+    previewEnd();
+    for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); if (c.material) c.material.dispose(); }
+    LINES.clear();
+    for (const h of HANDLES) G.handles.remove(h);
+    for (const l of STEMS) { G.handles.remove(l); l.geometry.dispose(); }
+    HANDLES.length = 0; STEMS.length = 0;
+    ghost(null); ghostModel(null);
+    // the strips' taxi patterns are the editor's in the game (buildRunways draws them only while editing)
+    if (o.game) for (const c of G.runways.children.slice()) if (/^pattern:/.test(c.name || '')) { G.runways.remove(c); c.traverse(m => { if (m.geometry && !m.userData.sharedGeo) m.geometry.dispose(); }); }
+    selectedId = null;
+  }
   function* rebuildSteps(dirty) {
     const t0 = performance.now();
     GEO.epoch++;   // G2063: a town build under way is stale now (geoLaterSteps checks)
@@ -3673,7 +3772,9 @@ function make(THREE, scene, world, rec0, opts) {
     let n = 0;
     const groundDirty = !dirty || !dirty.bbox || dirty.ground !== false;
     if (o.game) {
-      if (groundDirty) { yield* buildPatchSteps(); n = 1; }
+      // (G2917) an editor's edit re-patches the BLOCKS its box touches (G2063's part build), not the whole patch: an
+      // island-long road's corridor was every block of the island, re-sampled at 2 m for one point moved
+      if (groundDirty) { const pb = patchPartFor(dirty); if (pb) yield* buildPatchSteps(pb); else yield* buildPatchSteps(); n = 1; }
       yield 'materials';
       paintMaterials();
       yield 'lots';
@@ -3789,7 +3890,7 @@ function make(THREE, scene, world, rec0, opts) {
 
   const R = {
     root, groups: G, stats,
-    rebuild, rebuildSteps, preview, previewEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
+    rebuild, rebuildSteps, preview, previewEnd, editEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),
