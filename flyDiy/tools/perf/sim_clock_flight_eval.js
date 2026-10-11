@@ -1,4 +1,4 @@
-(() => { const S = window.__SCF || {}, R = FLIGHT_PROBE.renderer(), d = FLIGHT_PROBE.world().day, LE = window.LIGHT_EASE, pb = (window.WORLD && WORLD.probeState && WORLD.probeState()) ? WORLD.probeState().bakes : null;
+(() => { const S = window.__SCF || {}, R = FLIGHT_PROBE.renderer(), d = FLIGHT_PROBE.world().day, LE = window.LIGHT_EASE, pb = (window.WORLD_RIG && WORLD_RIG.probeState && WORLD_RIG.probeState()) ? WORLD_RIG.probeState().bakes : null;
   return { rate: d.rate, asked: S.rate, set: !!S.set, setAtS: S.at != null ? +(S.at / 1000).toFixed(1) : null, programs: R.info.programs ? R.info.programs.length - S.p0 : null, lut: S.lut - (S.lut0 || 0),
     probe: pb != null && S.pb0 != null ? pb - S.pb0 : null, applies: LE && S.le0 ? LE.applies - S.le0[0] : null, writes: LE && S.le0 ? LE.writes - S.le0[1] : null,
     versionBumps: d.version - (S.v1 != null ? S.v1 : d.version), rateBump: S.v1 != null && S.v0 != null ? S.v1 - S.v0 : null,

@@ -89,7 +89,7 @@ const STATE = `(() => { const w = FLIGHT_PROBE.world(), d = w && w.day, R = FLIG
     turbidity: d && d.turbidity, cloudCover: d && d.cloudCover, label: C && C.label ? C.label() : null, jumps: C && 'jumps' in C ? C.jumps : null,
     exposure: +R.toneMappingExposure.toFixed(5), programs: R.info.programs ? R.info.programs.length : -1,
     le: LE ? { sunI: +LE.tSunI.toFixed(5), hemiI: +LE.tHemiI.toFixed(5), ex: +(LE.tEx || 0).toFixed(5), applies: LE.applies, writes: LE.writes } : null,
-    holds: window.FLYDIY_HOLDS ? FLYDIY_HOLDS() : null, probe: (window.WORLD && WORLD.probeState) ? WORLD.probeState() : null, lut: window.__SC ? __SC.lut : null }; })()`;
+    holds: window.FLYDIY_HOLDS ? FLYDIY_HOLDS() : null, probe: (window.WORLD_RIG && WORLD_RIG.probeState) ? WORLD_RIG.probeState() : null, lut: window.__SC ? __SC.lut : null }; })()`;
 
 (async () => {
   let tgt = null;
@@ -156,7 +156,7 @@ const STATE = `(() => { const w = FLIGHT_PROBE.world(), d = w && w.day, R = FLIG
   };
   const tag = (where, what) => [LABEL + ' ' + sha + ' (build ' + build + ')', 'retro' === (/gfx=(\w+)/.exec(Q) || [])[1] ? 'retro' : Q, 'sandbox', where, what].join(' · ');
   // the frames of a window [f0, f1) off the flight recorder
-  const ROWS = (f0, f1) => `const R = FLIGHT_REC.rec, rows = []; for (let f = ${f0}; f < ${f1}; f++) { const o = R.row(f); if (o && o.dt === o.dt) rows.push(o); } `;
+  const ROWS = (f0, f1) => `const REC_ = FLIGHT_REC.rec, rows = []; for (let f = ${f0}; f < ${f1}; f++) { const o = REC_.row(f); if (o && o.dt === o.dt) rows.push(o); } `;
   const STATS = `const q = (a, p) => { const s = a.filter(x => x === x).sort((x, y) => x - y); return s.length ? +s[Math.min(s.length - 1, Math.floor(p * s.length))].toFixed(2) : null; };
     const col = k => rows.map(o => o[k]); const wall = rows.reduce((s, o) => s + o.dt, 0);
     const st = { frames: rows.length, fps: +(1000 * rows.length / Math.max(1, wall)).toFixed(1), dt50: q(col('dt'), .5), dt90: q(col('dt'), .9), dt99: q(col('dt'), .99), dtMax: q(col('dt'), 1),
@@ -170,7 +170,7 @@ const STATE = `(() => { const w = FLIGHT_PROBE.world(), d = w && w.day, R = FLIG
   const jump = async (where, target, rep) => {
     const r = await run(`await new Promise(r => setTimeout(r, 1500));
       const R = FLIGHT_REC.rec, RD = FLIGHT_PROBE.renderer(), S = window.__SC;
-      const p0 = RD.info.programs ? RD.info.programs.length : -1, lut0 = S.lut, lt0 = S.lt.length, pb0 = (window.WORLD && WORLD.probeState && WORLD.probeState()) ? WORLD.probeState().bakes : null;
+      const p0 = RD.info.programs ? RD.info.programs.length : -1, lut0 = S.lut, lt0 = S.lt.length, pb0 = (window.WORLD_RIG && WORLD_RIG.probeState && WORLD_RIG.probeState()) ? WORLD_RIG.probeState().bakes : null;
       const le0 = window.LIGHT_EASE ? LIGHT_EASE.applies : null, f0 = R.frame;
       const t0 = performance.now();
       const out = ${target === 'fullmoon' ? 'DAY_CLOCK.nextFullMoon()' : 'DAY_CLOCK.wait(' + JSON.stringify(target) + ')'};
@@ -184,7 +184,7 @@ const STATE = `(() => { const w = FLIGHT_PROBE.world(), d = w && w.day, R = FLIG
       const tail = rows.slice(-60).map(o => o.dt).sort((a, b) => a - b);
       const sh = rows.reduce((s, o) => s + (o.shader || 0), 0);
       const lts = S.lt.slice(lt0).filter(x => x[0] >= t0 - 50 && x[0] <= t0 + 6000);
-      const pb1 = (window.WORLD && WORLD.probeState && WORLD.probeState()) ? WORLD.probeState().bakes : null;
+      const pb1 = (window.WORLD_RIG && WORLD_RIG.probeState && WORLD_RIG.probeState()) ? WORLD_RIG.probeState().bakes : null;
       ${STATS}
       return { ok: !!(out && out.ok), why: out && out.why, jump: out && out.jump ? { why: out.jump.why, from: out.jump.from, to: out.jump.to, dtS: out.jump.dtS, version: out.jump.version } : null,
         callMs: +callMs.toFixed(2), first, worst: rows.length ? +rows[worstI].dt.toFixed(1) : null, worstAt: worstI, worstRow: rows.length ? { work: +rows[worstI].work.toFixed(1), render: +rows[worstI].render.toFixed(1), shadow: +rows[worstI].shadow.toFixed(1), shader: +rows[worstI].shader.toFixed(1), gpu: rows[worstI].gpu === rows[worstI].gpu ? +rows[worstI].gpu.toFixed(1) : null } : null,
@@ -210,9 +210,16 @@ const STATE = `(() => { const w = FLIGHT_PROBE.world(), d = w && w.day, R = FLIG
   const rollOut = async hold => {
     const b = await run('return ' + ROLL_OUT + ';'); note('roll out: ' + b);
     if (hold) {
-      let held = false;
-      for (let i = 0; i < 100 && !held; i++) { held = (await run('return !!(window.BOOT && BOOT.state !== "gone" && BOOT.state !== "ready" && BOOT.hold());')) === true; if (!held) await sleep(100); }
-      note('hold: ' + held);
+      // the roll-out shot plays in the garage first (~11 s), then the screen: hold it the moment it is up (a roll-out with
+      // nothing to build has no screen at all - then there is no held stand to wait on, said and skipped)
+      let held = false; const t0 = Date.now();
+      while (!held && Date.now() - t0 < 90000) {
+        held = (await run('return !!(window.BOOT && BOOT.state !== "gone" && BOOT.state !== "ready" && BOOT.hold());')) === true;
+        if (!held && (await run('return !!(window.BOOT && BOOT.state === "gone" && !FLYDIY_HOLDS().inGarage && !FLYDIY_HOLDS().rollHold);')) === true) break;
+        if (!held) await sleep(100);
+      }
+      note('hold: ' + held + ' after ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
+      if (!held) throw new Error('no roll-out screen to hold (nothing to build?)');
       await until(`window.BOOT && BOOT.state === 'waiting' && FLYDIY_HOLDS().rollHold`, 300000, 'the held stand');
     } else await until(`window.BOOT && BOOT.state === 'gone' && !FLYDIY_HOLDS().inGarage && !FLYDIY_HOLDS().rollHold`, 300000, 'the lifted roll-out');
   };

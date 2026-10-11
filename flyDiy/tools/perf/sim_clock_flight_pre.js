@@ -15,7 +15,7 @@ try { localStorage.removeItem('flydiy.day.v3'); } catch (e) {}
       var h = FLYDIY_HOLDS(); if (h.inGarage || h.rollHold) return;
       var R = FLIGHT_PROBE.renderer(), d = FLIGHT_PROBE.world().day, LE = window.LIGHT_EASE;
       S.p0 = R.info.programs ? R.info.programs.length : -1; S.lut0 = S.lut;
-      S.pb0 = (window.WORLD && WORLD.probeState && WORLD.probeState()) ? WORLD.probeState().bakes : null;
+      S.pb0 = (window.WORLD_RIG && WORLD_RIG.probeState && WORLD_RIG.probeState()) ? WORLD_RIG.probeState().bakes : null;
       S.le0 = LE ? [LE.applies, LE.writes] : null; S.el0 = d.sunEl; S.h0 = d.localSeconds / 3600; S.v0 = d.version;
       S.at = performance.now(); S.set = true; S.rateOut = DAY_CLOCK.rate(S.rate); S.v1 = d.version;
     } catch (e) { S.err = String(e && e.message || e); }
