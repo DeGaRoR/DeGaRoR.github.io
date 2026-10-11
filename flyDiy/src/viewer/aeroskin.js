@@ -1092,10 +1092,17 @@ function aeroFinishLegacy(sections) {
 //     under its own-coloured wing) is WRITTEN `next`. Read off the map as it
 //     stood before the pick, so a parent cleared here does not change the
 //     verdict on its child.
+// G2750 (the user, 11 Oct: "the canopy sill band should also be affected by the global paint" and then "I don't think
+// a band changed by hand should keep its color. Changing the global paint again should just plain repaint the
+// aircraft"): THE GLOBAL PAINT REPAINTS what it covers - every exterior cage section (the skin, the rail bands, the
+// frame bands: the stock Cub's black waist stripe, inherited by every build made from it, was the dark band round a
+// bubble that no pick reached) and every part that wears the body (the cowl, the struts, the fairings, the
+// fittings), set by hand or not. G468's "a hand colour survives the base" is withdrawn for these by that ruling; the
+// wells still override a section AFTER a pick. A layer part with its own colour (the wing, the tail) is not the base's
+// to repaint and keeps G1320's rule: it follows only if it was following.
 function aeroBaseReach(map, prev, next, neutral, eq, names) {
   const same = (a, b) => a == null ? b == null : (b != null && eq(a, b));
-  const following = k => map[k] == null || same(map[k], prev);
-  const put = k => { if (!following(k)) return;
+  const put = k => {
     if (next == null || (neutral != null && eq(next, neutral))) delete map[k]; else map[k] = next; };
   // the layer verdicts first, on the untouched map
   const layer = [];
@@ -1114,10 +1121,10 @@ function aeroBaseReach(map, prev, next, neutral, eq, names) {
   for (const nm of names || [])
     if (['skin', 'rail', 'pillar'].includes(AERO_ROLE[nm])) put(nm);
   put('body');
-  // the parent-wearing parts follow by having NO override: clear theirs
-  // only when it was the base's own value (a cowl painted by hand keeps it)
+  // the parent-wearing parts follow by having NO override: clear theirs - a hand colour too (G2750: the global paint
+  // plainly repaints what it covers)
   for (const k in AERO_SEC)
-    if ((AERO_SEC[k].wears === 'parent' || AERO_SEC[k].finFollows) && map[k] != null && same(map[k], prev))
+    if ((AERO_SEC[k].wears === 'parent' || AERO_SEC[k].finFollows) && map[k] != null)
       delete map[k];
   for (const [k, toBody] of layer) {
     const v = next != null ? next : neutral;

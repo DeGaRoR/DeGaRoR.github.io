@@ -81987,6 +81987,21 @@ now a slab hanging on the room side of the pane (a face and four flanks built th
 gate's stub THREE has none), in M.beamSec (the purlins' steel and part: the part system dresses both, the room merge folds
 the frames into the purlins' one draw - zero new draws). The exterior keeps its kerb. SEEN: `7_skylight_frames_master_vs_g2750.jpg` (own camera on the shed scene, from the floor: master pale flat bands under the pane, G2750 dark steel members with flanks; the room view below).
 
+**3b - THE GLOBAL PAINT PLAINLY REPAINTS (aeroskin.js aeroBaseReach; 11 Oct, the user through A0: "the canopy sill
+band should also be affected by the global paint", then "I don't think a band changed by hand should keep its color.
+Changing the global paint again should just plain repaint the aircraft").** The base colour's reach wrote a section only
+when it was FOLLOWING (unset, or equal to the base it replaced - G468, "a hand colour survives the base"): the Cub's black
+waist stripe (0x262626), inherited by every build made from it, differs from any base, so it counted as the builder's own
+and no pick ever reached the band round a bubble. Now every exterior cage section (skin, rail bands, frame bands) and
+every part that wears the body (the cowl, the struts, the fairings, the fittings, the floats) TAKES the pick, a hand
+colour too; the wells still override a section after it. A layer part with its own colour (the wing, the tail) is not
+the base's to repaint and keeps G1320's follow-only rule. The base metallic and roughness ride the same reach, so they
+repaint the same way. Decals and the registration are not paint and are untouched. A first cut that kept hand colours
+(a provenance mark per section) was dropped on the user's correction before it was committed. GATE LIVERYREACH: rule 2
+narrowed to the layer parts, rule 3 added (every cage section and body-wearing part takes the new base whatever it
+wore), and the user's own case run on the fixture - the Mosquito's sill band 0x262626 -> the pick, a band painted by
+hand -> the pick, the wing's own colour held.
+
 **PERF.** No new per-frame CPU work; on the GPU one vec4 attribute fetch and a select in the skin's vertex stage; the
 skylight frames are merged into an existing draw; the overlay's order costs nothing. Same-window sanity line (rAF-capped, not a bench), master -> G2750: garage 16.74 / p95 31.3 -> 16.75 / 31.5 ms, taxi 16.73 / 35.4 -> 16.55 / 34.8 ms. A0's train battery is the ratchet.
 

@@ -14,8 +14,13 @@
 //   rule 1  a section that wore the old base wears the new one — an
 //           override equal to it, or no override anywhere up a chain that
 //           ends at the body (a strut wearing the fuselage's paint);
-//   rule 2  a section whose override chain gave it a colour of its own
-//           keeps it.
+//   rule 2  a LAYER section whose override chain gave it a colour of its
+//           own (the wing, the tail) keeps it;
+//   rule 3  (G2750, the user: "changing the global paint again should just
+//           plain repaint the aircraft") every exterior CAGE section (skin,
+//           rail bands, frame bands) and every part that wears the body takes
+//           the new base WHATEVER it wore - a hand colour, the stock Cub's
+//           black waist stripe on a bubble's sill band.
 // NEGATIVE-VERIFIED: the pre-G1320 reach (the layer step dropped) must FAIL
 // rule 1 on the Cub's rudder, or the check proves nothing.
 'use strict';
@@ -69,8 +74,10 @@ function pick(spec, reach, NEW, cons) {
   for (const s of all) {
     before[s] = wears(map, s, cons);
     own[s] = overridden(map, s);
-    follows[s] = own[s] ? (before[s] != null && EQ(before[s], prev))
-                        : chainOf(s).includes('body') || CAGE.includes(s);
+    const row = A.AERO_SEC[s];
+    const plain = CAGE.includes(s) || !!(row && (row.wears === 'parent' || row.finFollows));   // rule 3
+    follows[s] = plain || (own[s] ? (before[s] != null && EQ(before[s], prev))
+                                  : chainOf(s).includes('body'));
   }
   reach(map, prev, NEW, null, EQ, CAGE);
   map.body = NEW;
@@ -99,6 +106,20 @@ for (const [tag, [key0, cons]] of Object.entries(STOCK)) {
   if (!r.bad.length) passes++;
   console.log(tag + ': base ' + hex(r.prev) + ' -> ' + hex(NEW) + ' over ' + r.n +
               ' sections: ' + (r.bad.length ? r.bad.length + ' wrong' : 'every section right'));
+}
+// rule 3 on the user's own case: the Mosquito's sill band (waistband 0x262626, inherited from the Cub) and a band set
+// by hand both take the new paint; the wing's own colour, set by hand, holds
+{
+  const M = require(path.join(__dirname, 'fixtures', 'repro', 'mosquito_3.json'));
+  const spec = JSON.parse(JSON.stringify(M.spec));
+  spec.finish.sections.floorLoop = { tint: 0xaa0000 };       // a band painted by hand
+  spec.finish.sections.wingSkin = { tint: 0x00aa00 };        // the wing, its own colour by hand
+  const map = {}; for (const k in spec.finish.sections) if (spec.finish.sections[k].tint != null) map[k] = spec.finish.sections[k].tint;
+  A.aeroBaseReach(map, map.body, NEW, null, EQ, CAGE); map.body = NEW;
+  ok(EQ(map.waistband, NEW), 'rule 3: the Mosquito sill band (waistband ' + hex(0x262626) + ') takes the global paint, got ' + hex(map.waistband));
+  ok(EQ(map.floorLoop, NEW), 'rule 3: a band set by hand takes the global paint, got ' + hex(map.floorLoop));
+  ok(EQ(map.wingSkin, 0x00aa00), 'rule 2: the wing own colour holds, got ' + hex(map.wingSkin));
+  console.log('mosquito: waistband ' + hex(0x262626) + ' -> ' + hex(map.waistband) + ', hand band -> ' + hex(map.floorLoop) + ', wing ' + hex(map.wingSkin));
 }
 // the negative: the old reach leaves the Cub's rudder behind
 {

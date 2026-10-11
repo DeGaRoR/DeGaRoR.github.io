@@ -4859,6 +4859,11 @@ function buildMatPanel() {
   // user's own, kept. The picker fires per notch, so the base it replaces
   // is always the last notch's — a following section never falls behind.
   // The same rule for the base metallic and the base roughness.
+  // G2750 (the user, 11 Oct: "changing the global paint again should just
+  // plain repaint the aircraft"): WITHDRAWN for what the base covers — every
+  // exterior cage section (skin, rail bands, frame bands) and every part that
+  // wears the body take the pick, a hand colour too; the wing and the tail's
+  // own colours keep the follow-only rule. See aeroBaseReach.
   //
   // `reach(map, prev, next, secs)`: for every exterior cage section and
   // every parent-wearing / soft-pinned layer part, write `next` (or delete,

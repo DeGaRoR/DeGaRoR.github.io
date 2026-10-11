@@ -197,7 +197,18 @@ const rollOut = async () => {
   // A0's proof round (Sun 07:36): the scratches still there at higher wear (just not in columns), the decal on a rudder
   // held hard over, a held-camera pair while the aeroplane moves - live shader throughout
   if (STEPS.includes('proof')) try {
+    // THE GLOBAL PAINT CHANGED (G2750, the user: "the canopy sill band should also be affected by the global paint"):
+    // the FINISH view's own base-colour well, as a hand moves it - then what every band wears
+    if (STEPS.includes('paint')) log.notes.push({ paint: await run(`EDITOR_SET_VIEW('finish'); await new Promise(r => setTimeout(r, 700));
+      const row = Array.from(document.querySelectorAll('#edWrap *')).find(e => e.firstChild && e.firstChild.textContent && e.firstChild.textContent.trim() === 'base colour' && e.querySelector('input[type=color]'));
+      if (!row) { EDITOR_SET_VIEW('shape'); return 'no base colour row'; }
+      const c = row.querySelector('input[type=color]'); c.value = '#2255cc'; c.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 900)); EDITOR_SET_VIEW('shape'); await new Promise(r => setTimeout(r, 500));
+      const S = (CAGE_UI.finishToSpec() || {}).sections || {}; const t = k => S[k] && S[k].tint != null ? '#' + (S[k].tint >>> 0).toString(16).padStart(6, '0') : 'none';
+      return { body: t('body'), waistband: t('waistband'), floorLoop: t('floorLoop'), ceilingLoop: t('ceilingLoop'), pillarCabin: t('pillarCabin') };`) });
     await rollOut(); didFlight = true;
+    if (STEPS.includes('paint')) { await hideUi(); await run(`FLIGHT_PROBE.camMode('orbit'); FLOWN_BAKE.FB.hyForce = 1; return 1;`);
+      await view('p_paint_canopy', 0.2, 0.45, 3.0); await view('p_paint_canopy2', 2.9, 0.4, 3.0); }
     await hideUi();
     await run(`FLIGHT_PROBE.camMode('orbit'); FLOWN_BAKE.FB.hyForce = 1; window.__m0 = JSON.stringify(AEROWX.AERO_WX.macro); return 1;`);
     const key = (code, down) => run(`window.dispatchEvent(new KeyboardEvent('${down ? 'keydown' : 'keyup'}', { code: '${code}', bubbles: true })); return 1;`);
