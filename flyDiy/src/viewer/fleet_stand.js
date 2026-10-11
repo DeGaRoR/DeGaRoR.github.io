@@ -98,6 +98,8 @@
   function wants(k) {
     const c = ST.ctx ? (() => { try { return ST.ctx(); } catch (e) { return null; } })() : null;
     if (!c) return true;
+    // G2703 (HANGAR-STORAGE-2): the garage's drawn residents too (c.inside: the names app.js's residents stand)
+    if (Array.isArray(c.inside) && typeof k === 'string' && k.startsWith('mine:') && c.inside.includes(k.slice(5))) return true;
     return planOf(Object.assign({}, c, { flown: null })).stand.some(p => p.key === k);   // the airframe on the stand is baked too (a prop once another is loaded)
   }
   // STATIC (FRAMECOST_FLEET, 8 Oct: +90 updateMatrix a frame for six still props): every object of the fleet's group has its

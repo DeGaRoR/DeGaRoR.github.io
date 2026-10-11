@@ -646,6 +646,12 @@ const GATES = [
   // drawn (fleet_stand.js run; the residents), a Fly from each kind resolved to its start (lined up / the stand / the
   // door) through the existing roll-out, the storage panel in the garage's look; --selftest 13 breaks. ~5 s
   { id: 'STORAGE', file: '_storage_check.js', tier: 'core' },
+  // STORESPOT (G2701, HANGAR-STORAGE-2): an apron aeroplane's storage Fly starts on its own tie-down spot (HOME's first
+  // six, the drawn cap): its nose along the prop's, the pilot taxis from there to its roll and lifts off on the runway. ~7 min
+  { id: 'STORESPOT', file: '_store_spot_check.js', tier: 'core', wall: 420 },
+  // STOREDRAW (G2703): the fleet bake bound admits the garage's drawn residents (the inside slots, the floor's), never a
+  // long-term one - an airframe saved on the floor and moved inside had its bake refused, its resident never filled. ~1 s
+  { id: 'STOREDRAW', file: '_store_draw_check.js', tier: 'core' },
   // ACCEPT (G2274, GAME-2026-10-06 §6.2): a build's acceptance - the static checks (no simulation: the phone's),
   // the flown leg (a 5-min stabilised cruise on the AP box, TAS calm-air, the flow, the endurance and range) on the
   // Cub, Jodel, C172 and metal Cessna, run to run deterministic, a disturbed leg refused, the wind taken out, the
