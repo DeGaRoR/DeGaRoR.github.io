@@ -42,9 +42,11 @@ with a new `fill` property — `{ deck, edge: 'riprap' | 'wall' | 'none', block,
 `deck` and lays a revetment along every edge whose outside is water (the dock marks' `waterEdges` already measures
 it). With `draw` concrete and `marks: dock`, that is Metlakatla's paved lot with its quay line.
 
-**Contract v1.38** (ROAD-GRAPH holds v1.37 on Monday): `PREMISES_V` 2 → 3; `PREMISES_MIGRATORS[2]` adds an empty
-`layers.waterfront` and does nothing else, so every existing record composes bit-equal (a GATE PREMISES identity
-row). **`marine/*` site items keep composing as they are**, including the user's own trestle sites in their live save.
+**Contract number: the next free one after SCENERY-ED-2's trains** (ROAD-GRAPH v1.37, PLACER-FAST v1.38,
+RUNWAY-ED and BIOME-PAINT in flight); it is being agreed with SCENERY-ED-2. Preferred: **no record bump**, with
+`normalise` reading a missing `layers.waterfront` as `[]`, as optional additions such as v1.35's have gone. The
+fallback is a `PREMISES_V` bump with a migrator that only adds the empty layer. Either way every existing record
+composes bit-equal (a GATE PREMISES identity row). **`marine/*` site items keep composing as they are**, including the user's own trestle sites in their live save.
 
 ## 3. The mesh
 
@@ -126,7 +128,7 @@ are unproven until the GPU slot times them.
 
 ## 6. Order of work (G3032-G3039) — after the user's OK
 
-1. **G3032 compose**: layer, contract v1.38, migrator, `mound` modifier, surface/ttype/exclude from the footprint;
+1. **G3032 compose**: layer, the agreed contract number, `mound` modifier, surface/ttype/exclude from the footprint;
    GATE PREMISES identity rows.
 2. **G3033 render**: BatchedMesh stones (rungs + back-flank cull in a per-camera pass), core/track merged, the
    wet/algae material; in the house worker.
