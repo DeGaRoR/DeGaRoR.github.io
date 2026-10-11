@@ -84324,7 +84324,7 @@ run the rollout rows are equal (loop +0.1..+0.75 ms, render +0..+0.5 ms, loads w
 landed on that comparison. OWED: the light baseline re-taken on master (it's stale); the in-game freeze numbers (the
 user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's first train).
 
-## G2950 - ROAD-GRAPH + ROAD-BED: ROADS JOIN AT WAYPOINTS, A JUNCTION IS ONE NODE, METLAKATLA ONE GRID WITH ITS CONNECTION POINTS, ROADSIDE APRONS, THE ROAD BED (2026-10-12, SCENERY-ED-2 for A0, local; branch claude/road-graph-g2950 off train 44.4 c12f0490c; G2950 graph, G2951 editor, G2952 bed, G2953 aprons, G2954 Metlakatla, G2955 the long road's power line; G2956-G2969 unused)
+## G2950 - ROAD-GRAPH + ROAD-BED: ROADS JOIN AT WAYPOINTS, A JUNCTION IS ONE NODE, METLAKATLA ONE GRID WITH ITS CONNECTION POINTS, ROADSIDE APRONS, THE ROAD BED (2026-10-12, SCENERY-ED-2 for A0, local; branch claude/road-graph-g2950 off train 44.4 c12f0490c; G2950 graph, G2951 editor, G2952 bed, G2953 aprons, G2954 Metlakatla, G2955 the long road's power line, G2956 the user's road shipped; G2957-G2959 unused, G2960-G2969 the runway train)
 
 The user (11 Oct): "let's have roads snapping to each other. One day I'd like a scenic tour of the island's roads,
 probably with a simple car" - "You could constrain joining on WAYPOINTS only, so we have something really clean" - "I'll
@@ -84390,6 +84390,19 @@ futureDesigns/SCENERY-POLYGON-2026-10.md.
   view (~365 lamps drawn every frame); a culled chunk's lamps take no point light. GATE PAVEMENT 8f: a 25 km road's
   poles reach its end (dev: 737 poles, the last 18 m from it), the eye at its middle draws 16 of 74 cable chunks and
   15 of 74 lamp meshes.
+- **THE USER'S ROAD SHIPPED (G2956; the user, 11 Oct: "Please extract my long road to put in official, but this runway
+  does not get into anything but my local save before it is fixed").** `tools/road_ship.py` copied r1 of their rev 24
+  save (D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev24_2026-10-11_2030.json, sha256 e1767c67206e84d6, read only)
+  into tools/fixtures/island_jolene.json as saved - 254 points + handles, w 7.2, paved, graded, falloff 13, spline,
+  traffic 1, clear 2 - appended after the fixture's roads (graded last, as in their save), every other byte of the
+  fixture kept; NOTHING else of the save (not their strips 'strip 8' / 'strip 9', not their other edits). The entry
+  is kept with the save's sha256 in tools/fixtures/scenery_user_r1_rev24.json; GATE SCENERYED 13 holds the shipped r1
+  equal to it bit for bit. `tools/road_cross.js r1` (20:40, a 0.1 s probe): it crosses NO runway box, stand, hangar
+  or taxi route. It crosses, with no junction (r1 is not moved to make one - the user's to join): the Metlakatla
+  streets mk_sa00 (-2653.0, -8643.4), mk_sa02 (-2735.7, -8663.6), mk_sa04 (-2849.0, -8690.2), mk_r_walden
+  (-1706.0, -8350.2) (all four drawn only with the town on), the tramway's access road tw_r_access (-1553.6, -8280.0),
+  and the Metlakatla gas station's apron mk_m_gas (-2377.4, -8572.6) to (-2361.8, -8568.4). Graded last, r1 lays
+  its own grade over theirs at each crossing (as in the user's save).
 - **THE USER'S OWN RECORD (A0's proof, GATE SCENERYED 12).** The user's backup
   D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev23_2026-10-11.json is the gate's fixture
   tools/fixtures/scenery_user_jolene_rev23.json byte for byte (sha256 277abdfa66b254bd). Through the v1.37 loader: r1's
@@ -84418,6 +84431,9 @@ futureDesigns/SCENERY-POLYGON-2026-10.md.
 4. Pick a waypoint, '+ roadside apron here': a round gravel pad beside the road.
 4b. Fly along r1 far from its start: poles and cables the whole way round the island (they stopped ~4.7 km in);
    the cable fades in a couple of kilometres ahead as you go (it is not drawn past 2.4 km).
+4c. **r1 is in the official world now, for every player** (no longer only your save): its cars, its clearing, its poles.
+   It crosses the tramway access road and, with the town on, four Metlakatla streets and the gas station's apron
+   without a junction: add a waypoint on each (click the edge) and drag one onto the other to join them.
 5. Nothing else of the island moves: the shipped roads have no junctions and no bed, their ground is today's.
 
 Gates (dev, Sun 11 Oct 20:30, box clean, no build): SCENERYED 103 PASS, PREMISES 552 PASS (the flight world loaded). The window's run (Mon 06:30-07:10: build, re-cook, targeted gates): WINDOW_LINE

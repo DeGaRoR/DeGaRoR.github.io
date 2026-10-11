@@ -475,6 +475,23 @@ if (plots.length) {
   console.log('     12 the user\'s rev 23 (sha256 277abdfa66b254bd): r1 ' + r1raw.pts.length + ' points + handles bit for bit through load, compose + road graph (' + G12.edges.filter(e => e.road === 'r1').length + ' span), save; town put back (' + withTown.layers.roads.filter(r => /^mk_/.test(r.id)).length + ' streets, ' + new Set([].concat(...withTown.layers.roads.map(r => r.nodes || [])).filter(Boolean)).size + ' junction ids): r1\'s ground over ' + n + ' samples differs by ' + worst + ' m from the town without junctions');
 }
 
+// 13 THE USER'S ROAD SHIPPED (G2956; the user, 11 Oct: "Please extract my long road to put in official"): r1 of their rev 24
+//    save (tools/road_ship.py; the entry kept in tools/fixtures/scenery_user_r1_rev24.json with the save's sha256) is the
+//    shipped fixture's r1 bit for bit - every field as saved, nothing else of the save shipped (no strip of theirs) -
+//    and the shipped record loads, composes and saves it unchanged
+{
+  const K = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_r1_rev24.json'), 'utf8'));
+  const FX = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), FL = (FX.premises || FX).layers;
+  const shipped = FL.roads.find(r => r.id === 'r1');
+  check(shipped && JSON.stringify(shipped) === JSON.stringify(K.road), '13 the shipped r1 is the user\'s save\'s r1 bit for bit (' + (K.road.pts || []).length + ' points, save sha256 ' + String(K.sha256).slice(0, 16) + ')');
+  check(!FL.runways.some(w => /^strip [89]$/.test(String(w.name || ''))) && FL.roads.filter(r => r.id === 'r1').length === 1, '13 ...and nothing else of the save: none of its strips');
+  const PJ = PG.unwrap(JSON.stringify(FX)).rec, r1j = PJ.layers.roads.find(r => r.id === 'r1');
+  const same = r => JSON.stringify([r.pts, r.tan || null]) === JSON.stringify([K.road.pts, K.road.tan || null]);
+  check(r1j && same(r1j) && same(PG.unwrap(PG.envelope('t', PJ)).rec.layers.roads.find(r => r.id === 'r1')) && same(PG.compose(PJ, synth, { raster: false }).rec.layers.roads.find(r => r.id === 'r1')), '13 the shipped record loads, composes and saves r1 unchanged');
+  const savePath = 'D:/Dev/flydiy-notes/scenery-backups/' + K.save;
+  if (fs.existsSync(savePath)) check(require('crypto').createHash('sha256').update(fs.readFileSync(savePath)).digest('hex') === K.sha256, '13 (the save on this machine is the one it was taken from)');
+}
+
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
