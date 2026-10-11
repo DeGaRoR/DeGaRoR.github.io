@@ -48,7 +48,8 @@ ROOT = os.path.dirname(HERE)
 _spec = importlib.util.spec_from_file_location('scenery_table', os.path.join(HERE, 'scenery_table.py'))
 TABLE = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(TABLE)
-ROW = next(r for r in TABLE.PROPS if r['key'] == KEY)
+# a key is a row, or a JOB (one prep making several rows: the ALMA antenna's three parts)
+ROW = TABLE.JOBS[KEY] if KEY in getattr(TABLE, 'JOBS', {}) else next(r for r in TABLE.PROPS if r['key'] == KEY)
 PREP = ROW['prep']
 
 
@@ -90,6 +91,68 @@ def select_only(*obs):
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=SRC)
 meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
+# PARTS (a job's `parts`: [(name, node), ...]): rigid pieces that move apart in the game (the ALMA
+# antenna's fork turns in azimuth, its dish in elevation). Each mesh belongs to the DEEPEST listed
+# node above it; each moving part's PIVOT is its node's origin, its AXIS what the delivered rig turns
+# it about (two frames of its own animation compared). The pose baked is the rig's frame 1.
+PARTS = PREP.get('parts') or []
+PART_OF, PIVOTS = {}, {}
+if PARTS:
+    sc_ = bpy.context.scene
+    names = [nm for _, nm in PARTS]
+
+    def part_of(o):
+        q = o
+        while q is not None:
+            for i, nm in enumerate(names):
+                if q.name == nm or q.name.split('.')[0] == nm:
+                    return i
+            q = q.parent
+        return 0
+    for o in bpy.context.scene.objects:
+        for i, nm in enumerate(names):
+            if o.name == nm and i:
+                # the clip may sit in an NLA track (the azimuth's does): make it the active action
+                ad = o.animation_data
+                if ad and not ad.action and ad.nla_tracks and ad.nla_tracks[0].strips:
+                    ad.action = ad.nla_tracks[0].strips[0].action
+                    ad.nla_tracks[0].mute = True
+                # the turn RELATIVE TO THE PARENT (the dish's world turn carries the fork's azimuth too),
+                # its axis then taken to the world by the parent's frame-1 rotation
+                rel = lambda: (o.parent.matrix_world.inverted() @ o.matrix_world).to_quaternion() if o.parent                     else o.matrix_world.to_quaternion()
+                sc_.frame_set(1); q1 = rel()
+                pr1 = o.parent.matrix_world.to_quaternion() if o.parent else None
+                best = (0.0, Vector((0, 0, 1)))
+                for f_ in range(1, 241, 3):        # the widest swing over the clip names the axis
+                    sc_.frame_set(f_)
+                    d = rel() @ q1.inverted()
+                    if d.angle > best[0] and d.angle < math.pi * 0.99:
+                        best = (d.angle, Vector(d.axis))
+                if pr1 is not None:
+                    best = (best[0], (pr1 @ best[1]).normalized())
+                PIVOTS[PARTS[i][0]] = dict(at=Vector(o.matrix_world.translation), axis=best[1],
+                                           swept_deg=round(math.degrees(best[0]), 2))
+    sc_.frame_set(1)
+    for i, nm in enumerate(names):          # the pose at frame 1, the pivots there
+        o = bpy.context.scene.objects.get(nm)
+        if o is not None and PARTS[i][0] in PIVOTS:
+            PIVOTS[PARTS[i][0]]['at'] = Vector(o.matrix_world.translation)
+    for o in meshes:
+        PART_OF[o.name] = part_of(o)
+    for o in bpy.context.scene.objects:
+        o.animation_data_clear()
+    log('parts', {PARTS[i][0]: sum(1 for v in PART_OF.values() if v == i) for i in range(len(PARTS))},
+        'pivots', {k: dict(at=[round(c, 3) for c in v['at']], axis=[round(c, 3) for c in v['axis']],
+                           swept=v['swept_deg']) for k, v in PIVOTS.items()})
+    # each part's faces, for the nearest-part test of the cut's faces after the bake
+    from mathutils.bvhtree import BVHTree as _BVH
+    _pv = {i: ([], []) for i in range(len(PARTS))}
+    for o in meshes:
+        vs, fs = _pv[PART_OF[o.name]]
+        base = len(vs)
+        vs.extend(o.matrix_world @ v.co for v in o.data.vertices)
+        fs.extend([base + j for j in p_.vertices] for p_ in o.data.polygons)
+    PART_SRC = _pv
 select_only(*meshes)
 bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
@@ -242,6 +305,10 @@ z0 = 0 if ROW['group'] == 'vessel' else (ground_z if ground_z is not None else m
 off = Vector(((min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2, z0))
 for v in bm.verts:
     v.co = (v.co - off) * SCALE
+for k_ in PIVOTS:
+    PIVOTS[k_]['at'] = (PIVOTS[k_]['at'] - off) * SCALE
+if PARTS:
+    PART_TREES = {i: BVHTree.FromPolygons([(v - off) * SCALE for v in vs], fs) for i, (vs, fs) in PART_SRC.items() if fs}
 # the skirt: the cut edge's boundary straight down 0.6 m
 if crop:
     bnd = [e for e in bm.edges if e.is_boundary and min(v.co.z for v in e.verts) < 1.0]
@@ -703,15 +770,87 @@ for im in [img_c, img_n] + ([img_arm] if img_arm is not None else []):
 bpy.data.objects.remove(hi)
 for o in special.values():
     o.hide_render = False
-select_only(lo, *special.values())
-bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', use_selection=True, export_apply=True,
-                          export_normals=True, export_tangents=False, export_materials='EXPORT',
-                          export_image_format='AUTO', export_yup=True, export_texcoords=True)
+GLTF_KW = dict(export_format='GLB', use_selection=True, export_apply=True, export_normals=True,
+               export_tangents=False, export_materials='EXPORT', export_image_format='AUTO',
+               export_yup=True, export_texcoords=True)
+ASSEMBLY = None
+if PARTS:
+    # each face of the cut (and of the glass / lamps) to the part whose source faces are nearest;
+    # one GLB a part, all in the ONE frame of the assembly (the rows bake them with place 'mount')
+    def split_by_part(ob):
+        out = {}
+        for i in range(len(PARTS)):
+            bm_ = bmesh.new(); bm_.from_mesh(ob.data)
+            def near(j, c):
+                d = PART_TREES[j].find_nearest(c)[3]
+                return 1e9 if d is None else d          # (a distance of 0.0 is the nearest, not "none")
+            gone = [f for f in bm_.faces if min((near(j, f.calc_center_median()), j) for j in PART_TREES)[1] != i]
+            bmesh.ops.delete(bm_, geom=gone, context='FACES')
+            if not bm_.faces:
+                bm_.free(); continue
+            me_ = bpy.data.meshes.new('%s_%s' % (ob.name, PARTS[i][0]))
+            bm_.to_mesh(me_); bm_.free()
+            for m_ in ob.data.materials:
+                me_.materials.append(m_)
+            o_ = bpy.data.objects.new(me_.name, me_)
+            bpy.context.scene.collection.objects.link(o_)
+            out[i] = o_
+        return out
+    pieces = [split_by_part(o) for o in [lo] + list(special.values())]
+    files, tris_by = {}, {}
+    for i, (pn, _) in enumerate(PARTS):
+        obs = [d[i] for d in pieces if i in d]
+        tris_by[pn] = sum(tris_of(o) for o in obs)
+        f_ = os.path.join(OUT_DIR, '%s_%s.glb' % (KEY, pn))
+        select_only(*obs)
+        bpy.ops.export_scene.gltf(filepath=f_, **GLTF_KW)
+        files[pn] = os.path.basename(f_)
+    # the assembly the placer reads: pivots and axes in the GAME's frame (glTF: x, z up -> y, -y -> z)
+    g = lambda v: [round(v[0], 4), round(v[2], 4), round(-v[1], 4)]
+    tops = {}
+    for i, o_ in pieces[0].items():
+        zs_ = [v.co.z for v in o_.data.vertices]
+        top = max(o_.data.vertices, key=lambda v: v.co.z).co
+        cx = sum(v.co.x for v in o_.data.vertices) / len(o_.data.vertices)
+        cy = sum(v.co.y for v in o_.data.vertices) / len(o_.data.vertices)
+        tops[PARTS[i][0]] = dict(top=Vector((cx, cy, max(zs_))), lo=min(zs_),
+                                 rimx=max(v.co.x for v in o_.data.vertices))
+    LIGHTS = []
+    for L in PREP.get('lights', []):
+        if L['at'] == 'top':
+            at = tops[L['part']]['top'] + Vector((0, 0, 0.25))
+        elif L['at'] == 'rim':
+            t_ = tops[L['part']]
+            at = Vector((t_['rimx'], t_['top'].y, t_['top'].z))
+        else:                                   # metres in the delivered frame, scaled with the model
+            at = (Vector(L['at']) - off) * SCALE
+        LIGHTS.append(dict(kind=L['kind'], part=L['part'], at=g(at), note=L.get('note', '')))
+    ASSEMBLY = dict(of=KEY, parts=[dict(part=pn, row='%s_%s' % (KEY, pn), file=files[pn], tris=tris_by[pn],
+                                        **({'pivot': g(PIVOTS[pn]['at']), 'axis': g(PIVOTS[pn]['axis']),
+                                            'parent': PARTS[i - 1][0], 'rig_swept_deg': PIVOTS[pn]['swept_deg']}
+                                           if pn in PIVOTS else {}))
+                                   for i, (pn, _) in enumerate(PARTS)],
+                    lights=LIGHTS, motion=PREP.get('motion'))
+    OUT = os.path.join(OUT_DIR, files[PARTS[0][0]])
+    log('assembly', json.dumps(ASSEMBLY))
+else:
+    select_only(lo, *special.values())
+    bpy.ops.export_scene.gltf(filepath=OUT, **GLTF_KW)
 os.makedirs(os.path.dirname(REP), exist_ok=True)
 json.dump(dict(key=KEY, src=SRC, route=ROUTE, src_tris=src_tris, cropped_faces=cropped, hi_tris=hi_tris,
                lo_tris=lo_tris + sum(tris_of(o) for o in special.values()), target=TARGET, tol=TOL,
                scale=SCALE, deviation=devrep, size=SIZE, dims=[round(d, 3) for d in dims], uv=uvrep,
-               special={k: tris_of(o) for k, o in special.items()},
+               special={k: tris_of(o) for k, o in special.items()}, assembly=ASSEMBLY,
                src_bytes=os.path.getsize(SRC), out_bytes=os.path.getsize(OUT),
                seconds=round(time.time() - t0, 1)), open(REP, 'w'), indent=1)
+if ASSEMBLY:
+    # committed beside the packs: the placer's assembly record (src/scenery/scenery_assembly.json)
+    af = os.path.join(ROOT, 'src', 'scenery', 'scenery_assembly.json')
+    os.makedirs(os.path.dirname(af), exist_ok=True)
+    try:
+        allA = json.load(open(af))
+    except Exception:
+        allA = {}
+    allA[KEY] = ASSEMBLY
+    json.dump(allA, open(af, 'w', newline='\n'), indent=1)
 log('wrote', OUT, os.path.getsize(OUT), 'bytes')
