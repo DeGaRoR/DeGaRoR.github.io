@@ -351,11 +351,11 @@ function mount(host, ctx) {
     const f = PG.findById(rec, id); if (!f) return false;
     const e = f.entry, arr = shapeOf(e); if (!arr || arr.length < 2) return false;
     const closed = !!e.poly, nSeg = closed ? arr.length : arr.length - 1;
-    let best = -1, bd = Infinity, bq = null;
+    let best = -1, bd = Infinity, bq = null, bt = 0;
     for (let i = 0; i < nSeg; i++) {
       const a = arr[i], b = arr[(i + 1) % arr.length], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1e-9;
       const t = Math.max(0, Math.min(1, ((L[0] - a[0]) * dx + (L[1] - a[1]) * dz) / l2)), q = [a[0] + dx * t, a[1] + dz * t], d = Math.hypot(L[0] - q[0], L[1] - q[1]);
-      if (d < bd && t > 0.02 && t < 0.98) { bd = d; best = i; bq = q; }
+      if (d < bd && t > 0.02 && t < 0.98) { bd = d; best = i; bq = q; bt = t; }
     }
     if (best < 0) return false;
     // a road: the click is measured from its DRAWN line (a spline bows off its points), and its width counts
@@ -363,6 +363,7 @@ function mount(host, ctx) {
     if (e.pts) { const ln = PG.roadLine(e); dEdge = Infinity; for (let i = 0; i + 1 < ln.length; i++) dEdge = Math.min(dEdge, PG.distPtSeg(L[0], L[1], ln[i], ln[i + 1])); dEdge -= (+e.w || 3.6) / 4; bq = [L[0], L[1]]; }   // (the inner half of the carriageway: a click on its verge still selects)
     if (dEdge > tol) return false;
     const q = [+bq[0].toFixed(2), +bq[1].toFixed(2)];
+    { const A = arr[best], B = arr[(best + 1) % arr.length]; if (A.length > 2) q.push(+((A[2] || 0) + ((B[2] || 0) - (A[2] || 0)) * bt).toFixed(2)); }   // (a grade's point carries its height)
     edit(id, f.layer, x => { (x.poly || x.pts).splice(best + 1, 0, q); tanSplice(x, best + 1, 0, 1); }, 'corner added to ' + id);
     setCorner(best + 1);
     strip.status('corner ' + (best + 2) + ' added on the edge - ' + (e.poly || e.pts).length + ' now; drag it, or Del removes it');
@@ -377,7 +378,7 @@ function mount(host, ctx) {
       const a = x.poly || x.pts, out = [], tn = Array.isArray(x.tan) ? [] : null;
       for (let i = 0; i < a.length; i++) {
         out.push(a[i]); if (tn) tn.push(x.tan[i] || null);
-        if (i + 1 < a.length || x.poly) { const b = a[(i + 1) % a.length]; out.push([+((a[i][0] + b[0]) / 2).toFixed(2), +((a[i][1] + b[1]) / 2).toFixed(2)]); if (tn) tn.push(null); }
+        if (i + 1 < a.length || x.poly) { const b = a[(i + 1) % a.length]; const m = [+((a[i][0] + b[0]) / 2).toFixed(2), +((a[i][1] + b[1]) / 2).toFixed(2)]; if (a[i].length > 2) m.push(+(((a[i][2] || 0) + (b[2] || 0)) / 2).toFixed(2)); out.push(m); if (tn) tn.push(null); }
       }
       if (x.poly) x.poly = out; else x.pts = out;
       if (tn) x.tan = tn;

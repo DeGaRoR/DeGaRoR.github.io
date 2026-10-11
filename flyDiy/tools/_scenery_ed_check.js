@@ -113,6 +113,11 @@ ed.undo();
 check(poly().length === 4, '1 undo takes the subdivision back');
 for (let k = 0; k < 2; k++) ed.cmd('removeCorner', { i: 0 });
 check(poly().length === 3, '1 a polygon keeps three corners (the last removal refused)', poly().length + ' corners');
+// a terrain grade's points carry their height: a corner added on its edge takes the height between
+const gid = ed.cmd('add', { layer: 'terrain', entry: { kind: 'grade', pts: [[0, 100, 2], [100, 100, 6]], width: 6, falloff: 8 } });
+ed.select(gid);
+check(ed.cmd('edge', { x: 25, z: 100.3, tol: 1.5 }) === true && find(gid).entry.pts.length === 3 && Math.abs(find(gid).entry.pts[1][2] - 3) < 0.01, '1 a grade\'s new corner takes the height between its neighbours', JSON.stringify(find(gid).entry.pts[1]));
+ed.select(sid);
 check(notes.some(t => /^§SHAPE/.test(t)) && notes.some(t => /^\[subdivide/.test(t)), '1 the inspector shows the SHAPE section and its buttons');
 
 // 2 THE ROUND PAD
