@@ -2182,6 +2182,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const key = (spinKind ? 'p' + spinKind : '') + (sec ? 's' + sec
           : 'c' + m0.color.getHexString() +
             (m0.transparent ? 'a' + Math.round(m0.opacity * 100) : '') +
+            // G2228: AN INSIDE-ONLY SHELL IS ITS OWN BUCKET - the cowl's back twin wears exactly the colour of its
+            // two-sided lining (the throats, the lofts), and merged into it the `inner` flag was the lining's (none)
+            (kud.aeroInner ? 'I' : '') +
             // ...AND A TANK IS NOT THE AEROPLANE. The vessel materials are
             // the second factory in the capture, and their whites (a painted
             // shell is 0xffffff over the sheet) would otherwise merge into
@@ -2274,6 +2277,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(ud.aeroFieldLK ? { fieldLK: ud.aeroFieldLK } : {}),   // G217
           // G206.1: in the cabin — a liner, a seat, a person (charSkin)
           ...((ud.aeroInside || ud.charSkin) ? { inside: 1 } : {}),
+          // G2228: an INSIDE-ONLY shell (the cowl's inside twin): a baked aeroplane leaves it out (parked.js isInterior)
+          ...(ud.aeroInner ? { inner: 1 } : {}),
           // G210.2: WHICH PERSON, WHICH OF THEIR MATERIALS — app.js rebuilds
           // it from CAGE_CHAR.flatMaterial, maps and all
           ...(ud.charKey ? { char: ud.charKey, charMat: ud.charMat | 0 } : {}),
