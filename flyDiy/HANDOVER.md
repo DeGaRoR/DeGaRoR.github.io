@@ -83833,3 +83833,28 @@ sit below it (stand/bytes.texSubImage2D 54 616, tris.shadow 3 205 542) - `impost
 Build from 67a50f1ba + this commit. Cargo: GAME wave 2 (claude/game-train42 789af6c0: map, contracts, acceptance, the career behind ?career=1), WATER-DAMP (claude/water-damp-merge 4981ebcf; sim_host: ACCEPT's leg tick AND G2105's crash throttle both kept), GROUND-COST tools (5ec00b0b: the measuring strips restored, the G2077-G2078 negative result; lever 1 WITHDRAWN), POTATO-DEEP (2b17ee9c: the recorder's 'sky' event + error columns/stacks, analyze_log SKY lines, the census rig), METLA G2065 (a6c80fbb), GARAGE-LAPTOP G2111 (009811c8: poseModel out of the idle loop; POSEHIDDEN with its negative control PASS in the battery), IMPOSTOR-MATCH G2590-G2591 (39c7f3b5: bark texels take the bark's tint, per-sheet foliage levels; the user: "keep the latest delivered version", no follow-up). OUT: PILOT (ROUTE-DRAW + PROFILE: the Jodel broke up on the altiport arrival in the AFTER flight -> 43 with the fix), TOWN-CHEAP (deferred obstacles never drained with the premises tick off -> 43 with HITDRAIN), the fleet flag (stays off -> 43).
 Battery (19:02-20:14, jobs 6): 193 PASS, SOFTGPU skip, DMGCERTCOST FAIL = a STALE reference: the twin floatplane's stored uncut envelope (its 'phys' fingerprint is a settled LAND drop, so WATER-DAMP's water-only change did not invalidate it) - recomputed uncut with --full on this tree: cut = uncut, PASS; the twin's reference re-written (--write-ref, tools/fixtures/dmg_certcost_ref.json). NAMED: WATER-DAMP moves the twin's certified float member FLK-FLD compression by 6.07 % (tension 0.0007 %). OWED (Deform, after the reset): the certcost 'phys' fingerprint must include a water case.
 Strict gate (18:38): 3 red rows, all the Cub cockpit (garage 48.9 s, flight 52.3 s, render 11.6 ms) from ONE slow run (cub_cockpit_1 garage 57.4 s vs run 2 40.4 s) under a peer's lockless node work (GRASS-DENSE 18:45-18:52); re-run of the roll-out part on a quiet box (20:15, t42b): 68 rows within slack, 0 red, PASS. Cook fresh (cc1dbe72be08).
+
+## G2319.1 - WORKS-COZY FOLLOW-UP (TRAIN 44): THE CAREER'S MAIN HANGAR IS TODAY'S CLUB WITH ITS RESIDENT; THE WORKS' LAYOUTS SELECTABLE; THE DEFAULT EYE KEPT INSIDE A MOVED ROOM (2026-10-10/11, WORKS-COZY for the GAME COORDINATOR; branch claude/works-club-g2319 off origin/claude/game-integration 843fa745)
+
+The user, 10 Oct, on the G2315-G2319 stills: "not sure what the hearth adds" - keep today's hangar for now, the hearth
+later (long term HANGAR-STORAGE: a derelict giant beside a small good hangar, futureDesigns/game/HANGAR-STORAGE-2026-10-10.md).
+- `74_career.js`: CAREER_MAIN = { shell: 'club', layout: null } - careerMainShed() null, a new career's HOME is the player
+  default's club; a dev career made under train 43's untouched works (+ hearth) is handed the club back, once (fixpoint);
+  a works the player chose (hearthLight, cozy) is kept. The works' layouts stay one call away: GARAGE_ENV.setLayout takes
+  the layout's shell with it (and re-frames the eye).
+- `71_player_bases.js`: PREM_SLOTS.mainClub 1 - a CAREER's club main hangar is the bay + 1 (its fully kitted floor
+  holds the stand + one, in tandem: the garage's club + 1, the room moved under the stand); the works keeps + 2; the
+  SANDBOX's ledger is unchanged (main + 2).
+- `app.js` garageFraming: in a room moved under the stand the default eye keeps its angle and comes in until it stands
+  2.5 m inside every wall (min 8 m; the club + 1: ~11.5 m) - the door end's wall had filled the right edge of the default
+  view (8 Oct 23:25). residentsSync0 re-frames once when the room moves after the garage framed it (enterGarage frames
+  first), unless the hand has moved the eye. GARAGE_ENV.frame() for the rigs.
+- tools/_hangar_check.js: its four raw NUL bytes (the T43 commit) back to `\u0000` escapes (grep read it as binary).
+GATES (c33bad98): HANGAR 1478 + --selftest (new break: the career leaves the club for the works) PASS; GAMEPREM 582
++ --selftest (new rows: a career club = bay + 1, the works + 2, the sandbox + 2; the lift fills two and ties the rest
+down; new break caught) PASS; CONTRACTS PASS; A0's CPU window 11 Oct 13:40: DESTTO (3 shards, 434 s), UISMOKE, PARKED,
+VIEW PASS (reports/evidence/WORKS-COZY/t44_1035.log); then singly: PLAYER, ACCEPT, ECON, FREIGHT, PILOTS PASS. OWED (the
+window's end): MAP_SMOKE and SAVE not run; PROCURE exited 0 with no verdict line read. No still taken (the user, 11 Oct:
+no evidence screenshots) - the framing fix is proven by its arithmetic and the gates, not by a picture.
+
+READY for the GAME COORDINATOR: claude/works-club-g2319 c33bad98 (this section rides one docs commit on top)
