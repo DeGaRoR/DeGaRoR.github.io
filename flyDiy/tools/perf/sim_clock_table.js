@@ -9,6 +9,10 @@
 //                                         loop / render / shadow medians over EVERY frame after the reveal, per side the
 //                                         median, A against B within the ratchet's RULES slack; the --eval counters
 //                                         (programs, LUT re-bakes, probe bakes, the light's applies) per run
+//   --void <file,...>                     runs taken while a CPU battery held the box (boxlock): printed VOID, out of the medians;
+//                                         `jumps` in the list voids the jumps' verdict the same way
+//   --pixels <file>                       simclk_pixdiff's PIXELS lines (the default-picture check)
+//   SUMMARY: the last lines, at most five, are the result for the coordinator
 // Rigs have no --help.
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -19,6 +23,8 @@ const rd = f => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (
 const med = a => { const s = a.filter(x => x != null && x === x).sort((x, y) => x - y); return s.length ? s[s.length >> 1] : null; };
 const f1 = x => x == null ? '-' : (typeof x === 'number' ? +x.toFixed(2) : x);
 const out = [];
+const VOID = new Set(String(opt('void', '') || '').split(',').filter(Boolean).map(f => path.basename(f)));
+const SUM = [];
 const P = s => out.push(s);
 
 if (opt('jumps', null)) {
@@ -36,6 +42,7 @@ if (opt('jumps', null)) {
     for (const j of J.jumps) { const k = j.where; (by[k] = by[k] || []).push(j); }
     for (const [k, a] of Object.entries(by)) {
       const hit = a.filter(j => j.hitch);
+      SUM.push((VOID.has('jumps') ? 'VOID (a CPU battery up) ' : '') + 'JUMPS ' + k + ': ' + a.filter(j => j.ok).length + '/' + a.length + ' ok, worst frame ' + Math.max(...a.map(j => j.worst || 0)).toFixed(0) + ' ms, longest task ' + Math.max(0, ...a.flatMap(j => j.longTasks || [])) + ' ms, programs +' + a.reduce((s, j) => s + (j.programs > 0 ? j.programs : 0), 0) + ', LUT ' + a.reduce((s, j) => s + (j.lut || 0), 0) + ', back ' + a.filter(j => j.back).length + '/' + a.length + ', hitches: ' + (hit.length ? hit.map(j => j.target + ' ' + f1(j.worst) + 'ms').join(' ') : 'none'));
       P('  ' + k + ': ' + a.length + ' jumps, worst frame ' + Math.max(...a.map(j => j.worst || 0)).toFixed(1) + ' ms, longest task ' + Math.max(0, ...a.flatMap(j => j.longTasks || [])) + ' ms, programs +' + a.reduce((s, j) => s + (j.programs > 0 ? j.programs : 0), 0)
         + ', LUT re-bakes ' + a.reduce((s, j) => s + (j.lut || 0), 0) + ', probe bakes ' + a.reduce((s, j) => s + (j.probeBakes || 0), 0) + ', back to baseline ' + a.filter(j => j.back).length + '/' + a.length
         + ', HITCHES over the slack: ' + (hit.length ? hit.map(j => j.target + '#' + j.rep + ' ' + f1(j.worst) + ' ms' + (j.longTasks && j.longTasks.length ? ' (tasks ' + j.longTasks.join('/') + ')' : '')).join(', ') : 'none'));
@@ -59,7 +66,9 @@ if (opt('picture', null)) {
 
 if (opt('flight', null)) {
   const files = opt('flight').split(','), names = opt('names', 'A,B').split(',');
-  const runs = files.map((f, i) => ({ f, side: names[i % 2], j: rd(f) })).filter(r => r.j);
+  const all = files.map((f, i) => ({ f, side: names[i % 2], j: rd(f) })).filter(r => r.j);
+  for (const r of all) if (VOID.has(path.basename(r.f))) P('  VOID (a CPU battery held the box): ' + path.basename(r.f));
+  const runs = all.filter(r => !VOID.has(path.basename(r.f)));
   P('FLIGHT ABAB (' + runs.length + ' runs): ' + runs.map(r => r.side + ' ' + path.basename(r.f)).join(', '));
   const allMed = (j, i) => med((j.frames || []).filter(r => r[1] > 0).map(r => r[i]));
   const rows = runs.map(r => { const m = RT.metrics(r.j); let ev = null; try { ev = typeof r.j.eval === 'string' ? JSON.parse(r.j.eval) : r.j.eval; } catch (e) { ev = r.j.eval; }
@@ -78,8 +87,14 @@ if (opt('flight', null)) {
     if (bad) red++;
     P('  ' + (bad ? 'RED  ' : R.info ? 'info ' : 'ok   ') + k.padEnd(11) + names[0] + ' ' + String(f1(a)).padEnd(8) + names[1] + ' ' + String(f1(b)).padEnd(8) + 'd ' + String(f1(d)).padEnd(8) + 'slack ' + f1(slack) + ' ' + (R.unit || ''));
   }
-  P('  FLIGHT VERDICT: ' + (red ? red + ' row(s) past the slack' : 'every row within the slack') + ' (' + names[0] + ' against ' + names[1] + ', medians of ' + A.length + ' / ' + B.length + ' runs)');
+  const verdict = (red ? red + ' row(s) past the slack' : 'every row within the slack') + ' (' + names[0] + ' against ' + names[1] + ', medians of ' + A.length + ' / ' + B.length + ' runs' + (all.length > runs.length ? ', ' + (all.length - runs.length) + ' VOID' : '') + ')';
+  P('  FLIGHT VERDICT: ' + verdict);
+  const evs = k => rows.map(r => r.side + ' ' + (r.ev && r.ev[k] != null ? r.ev[k] : '-')).join(' ');
+  SUM.push('FLIGHT 90 s chase rate 60 vs 0 ABAB: ' + verdict + '; render ' + f1(med(A.map(r => r.m.renderAll))) + '/' + f1(med(B.map(r => r.m.renderAll))) + ' loop ' + f1(med(A.map(r => r.m.loopAll))) + '/' + f1(med(B.map(r => r.m.loopAll))) + ' p99 ' + f1(med(A.map(r => r.m.p99all))) + '/' + f1(med(B.map(r => r.m.p99all))) + ' ms; in flight LUT re-bakes ' + evs('lut') + ', programs ' + evs('programs') + ', probe bakes ' + evs('probe'));
 }
+if (opt('pixels', null)) { let px = ''; try { px = fs.readFileSync(opt('pixels'), 'utf8').trim().split(/\r?\n/).filter(l => /^PIXELS/.test(l)).join('; '); } catch (e) {} if (px) { P(px); SUM.push('DEFAULT PICTURE (pixel check, no clock set, ref vs branch): ' + px.replace(/PIXELS /g, '')); } }
+P('SUMMARY');
+for (const l of SUM.slice(0, 5)) P(l);
 const txt = out.join('\n');
 console.log(txt);
 if (opt('out', null)) fs.writeFileSync(opt('out'), txt + '\n');
