@@ -88,6 +88,8 @@ const GATES = [
   // dayMoonAt against 06_solar, the career's day forward-only and round-tripping (v1 -> v2), every `when` window
   // validated and judged, day_clock.js's ONE jump door counted; --selftest breaks each rule in its own source
   { id: 'CLOCK', file: '_clock_check.js', tier: 'core', wall: 30 },
+  // G2664 (SIM-CLOCK-GPU): a Wait re-shoots the shed's room probe a slice a frame, once, never skipped (the page in node)
+  { id: 'CLOCKBAKE', file: '_clockbake_check.js', tier: 'core', wall: 120 },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
   // verbatim copy, the shared zero, the relief raster, the linearised sampler; pure, seconds
   { id: 'CLIMATE', file: 'test_climate.js', tier: 'core' },
