@@ -2491,10 +2491,30 @@ function make(THREE, scene, world, rec0, opts) {
   }
   const HANDLES = [], STEMS = [];
   let selCorner = null;
+  // (G2950) EVERY JUNCTION ON THE MAP, the selection's or not: a small disc where roads meet (green) and where a place
+  // waits for a road (a connection point, magenta) - what a road being drawn or dragged snaps onto; never picked
+  const JMARKS = [];
+  function buildJMarks() {
+    for (const m of JMARKS) G.handles.remove(m);
+    JMARKS.length = 0;
+    if (!o.editing || !o.editing()) return;
+    const F = O.frame, seen = new Set();
+    for (const r of rec.layers.roads) {
+      if (!r || !Array.isArray(r.nodes) || r.id === selectedId) continue;
+      r.nodes.forEach((jid, i) => {
+        if (!jid || seen.has(jid) || !r.pts[i]) return; seen.add(jid);
+        const J = (rec.layers.junctions || []).find(j => j && j.id === jid), w = F.toWorld(r.pts[i][0], r.pts[i][1]);
+        const m = new THREE.Mesh(discGeo, J && J.conn ? discMatConn : discMatJct);
+        m.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.04, w[1]); m.renderOrder = 9; m.name = 'junction:' + jid;
+        G.handles.add(m); JMARKS.push(m);
+      });
+    }
+  }
   function buildHandles() {
     for (const h of HANDLES) G.handles.remove(h);
     for (const l of STEMS) { G.handles.remove(l); l.geometry.dispose(); }
     HANDLES.length = 0; STEMS.length = 0;
+    buildJMarks();
     if (!selectedId) return;
     const f = PG.findById(rec, selectedId);
     if (!f) return;
@@ -2581,6 +2601,12 @@ function make(THREE, scene, world, rec0, opts) {
       const r = camera.isOrthographicCamera ? (camera.top - camera.bottom) / camera.zoom / (camera.userData.viewH || 600) * px
                                             : d * Math.tan((camera.fov || 40) * Math.PI / 360) * 2 / (camera.userData.viewH || 600) * px;
       h.scale.setScalar(Math.max(0.05, r) * (h.userData.handle.mid || h.userData.handle.tan ? 0.7 : 1));
+    }
+    for (const m of JMARKS) {
+      const d = camera.position.distanceTo(m.position);
+      const r = camera.isOrthographicCamera ? (camera.top - camera.bottom) / camera.zoom / (camera.userData.viewH || 600) * px
+                                            : d * Math.tan((camera.fov || 40) * Math.PI / 360) * 2 / (camera.userData.viewH || 600) * px;
+      m.scale.setScalar(Math.max(0.05, r) * 0.6);
     }
   }
 
@@ -3826,7 +3852,7 @@ function make(THREE, scene, world, rec0, opts) {
       syncAnimals();
       yield 'houses';
       if (o.editing()) { buildOutlines(); buildHandles(); markDirty(dirty); }
-      else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; }
+      else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; for (const m of JMARKS) G.handles.remove(m); JMARKS.length = 0; }
       syncHouses();
       hwPrefetch();   // G831: the town step's own dispatch, now - the worker generates while the page lays out the rest
       // THE GAME HAD NEVER DRAWN A RECORD TREE (2026-09-23, the user: "I can see no

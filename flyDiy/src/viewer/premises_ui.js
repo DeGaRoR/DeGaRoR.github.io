@@ -77,7 +77,7 @@ const TOOL_HELP = {
   scatter: 'pick a model, click the ground: n of it within the radius (the palette sets them), each its own record',
   raise: 'click the corners, close; then set the lift in the inspector',
   ramp: 'click the corners, close: a constant slope, the middle at the height you set, rising toward the heading you set',
-  road: 'click the road\'s points, then ✓ close (or double-click) — it is graded and worn; zones grow plots off it',
+  road: 'click the road\'s points, then ✓ close (or double-click) — it is graded and worn; zones grow plots off it. A point clicked on a waypoint of another road (ringed) joins it there',
   surface: 'click the corners of the paved / gravel / sand patch, close',
   zone: 'click the corners of the zone, close; its kind, density and seed are in the inspector — plots grow along the roads inside it',
   forest: 'click the corners of the wood, close; density and species in the inspector',
@@ -380,7 +380,7 @@ function mount(host, ctx) {
 
   // ---- the tool state machine ----------------------------------------------------
   const T = { state: 'armed', pts: [] };
-  function cancelTool() { T.state = 'armed'; T.pts = []; T.pick = null; T.resume = null; T.line = false; T.plotPick = null; R.ghost(null); if (drawBtns) drawBtns.style.display = 'none'; ctx.redraw && ctx.redraw(); }
+  function cancelTool() { T.state = 'armed'; T.pts = []; T.pick = null; T.resume = null; T.line = false; T.plotPick = null; R.ghost(null); if (R.snapHint) R.snapHint(null); if (drawBtns) drawBtns.style.display = 'none'; ctx.redraw && ctx.redraw(); }
   const isLine = () => !!LINE_TOOLS[tool] || !!T.line;
   // RESUME (G398.2, MSFS's way): the selected polygon or road re-opens as the drawing - its corners are
   // the points, a click (or Ctrl+click) adds one after the last, Backspace drops the last, Enter / the
@@ -855,6 +855,12 @@ function mount(host, ctx) {
   function onMove(ev) {
     // (G2914) the model placer's ghost follows the cursor on the ground
     if (!drag && (tool === 'place' || tool === 'scatter') && ASSET.key) { const g = ctx.ground(ev.clientX, ev.clientY); if (g) armGhost(g); return false; }
+    // (G2950) tracing a road: the waypoint a click would land on, ringed under the cursor
+    if (!drag && R.snapHint && ((LINE_TOOLS[tool] === 'roads' && !T.resume) || (T.resume && T.line))) {
+      const g = ctx.ground(ev.clientX, ev.clientY);
+      if (g) { const L = R.overlay.frame.toLocal(g[0], g[2]), tol = snapTol(g), S = snapTarget(L, tol, { road: T.resume || null }); R.snapHint(S ? [S.p[0], S.p[1], tol] : null); if (ctx.redraw) ctx.redraw(); }
+      return false;
+    }
     if (!drag) return false;
     const g = ctx.ground(ev.clientX, ev.clientY);
     if (!g) return true;
