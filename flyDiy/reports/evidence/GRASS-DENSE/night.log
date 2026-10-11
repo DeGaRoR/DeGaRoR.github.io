@@ -1,0 +1,212 @@
+boxlock: GPU taken by GRASS
+tools/flight_core.js (2460.5 KB), index.html (11940.0 KB), dev.html (110.9 KB) — syntax OK, build 9dfb9f211a72 (325 named inputs), 720 ms
+grass_cost: chrome pid 61220, server pid 37876
+grass_cost http://localhost:8595/flyDiy/dev.html?gfx=gamer&day=noon  (stills / counts, untimed)
+  shed up 60 s · gfx gamer
+  rolled out 65 s · installed timer · ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)
+  held: Run · FLYDIY_HELD true · cover {"on":true,"cell":32,"reach":220,"near":50,"taper":0.5,"aglFull":60,"aglOff":150,"density":2,"shrubs":1,"rocks":1,"budgetMs":4,"maxCells":400,"blockBudget":2,"debrisKinds":4,"castMinH":0.35,"batch":true,"aglPre":260,"preBudgetMs":2,"lead":4,"grow":0.8,"growNear":140}
+  locs: app10 app30 app60 app150 rwyside lot lot20 gstrip gstrip30 muskeg forest shore
+  81 s  stand    30 fps  grass 16 draws 7.9 k inst 4.316 Mtris  · ring 75.1 k held, agl 2.4 village  (idle 330 ms)
+  89 s  cockpit  30 fps  grass 18 draws 10.4 k inst 5.35 Mtris  · ring 76.8 k held, agl 1.5 village  (idle 326 ms)
+  96 s  taxi     30 fps  grass 17 draws 8.4 k inst 4.509 Mtris  · ring 76.8 k held, agl 1.5 village  (idle 320 ms)
+  106 s  app10    30 fps  grass 25 draws 28.6 k inst 10.406 Mtris  · ring 132.7 k held, agl 10 conifer_young  (idle 2320 ms)
+  116 s  app30    30 fps  grass 28 draws 43.5 k inst 14.234 Mtris  · ring 169.6 k held, agl 30 muskeg  (idle 1960 ms)
+  126 s  app60    30 fps  grass 22 draws 38.2 k inst 14.768 Mtris  · ring 164 k held, agl 60 conifer_scrub  (idle 2258 ms)
+  135 s  app150   30 fps  grass 0 draws 0 k inst 0 Mtris  · ring 77.8 k held, agl 150 null  (idle 1490 ms)
+  145 s  rwyside  30 fps  grass 19.5 draws 9.1 k inst 3.506 Mtris  · ring 58.9 k held, agl 1.8 village  (idle 2258 ms)
+  156 s  lot      30 fps  grass 49 draws 84.2 k inst 13.766 Mtris  · ring 290.3 k held, agl 1.7 muskeg  (idle 4091 ms)
+  164 s  lot20    30 fps  grass 42 draws 81.4 k inst 13.05 Mtris  · ring 301.2 k held, agl 20 muskeg  (idle 334 ms)
+  174 s  gstrip   30 fps  grass 22 draws 23.6 k inst 13.164 Mtris  · ring 111.8 k held, agl 1.7 grassland  (idle 2229 ms)
+  183 s  gstrip30 30 fps  grass 28.5 draws 43.2 k inst 16.103 Mtris  · ring 151 k held, agl 30 muskeg  (idle 1693 ms)
+  193 s  muskeg   30 fps  grass 23 draws 16.8 k inst 5.77 Mtris  · ring 72.1 k held, agl 1.7 muskeg  (idle 2198 ms)
+  201 s  forest   30 fps  grass 18.5 draws 11.8 k inst 5 Mtris  · ring 76.4 k held, agl 1.7 muskeg  (idle 334 ms)
+  211 s  shore    30 fps  grass 12 draws 19.5 k inst 5.237 Mtris  · ring 148.9 k held, agl 1.7 grassland  (idle 2162 ms)
+-> D:\Dev\DeGaRoR.github.io\.claude\worktrees\determined-saha-ce181a\flyDiy\reports\evidence\GRASS-DENSE\stills\before_gamer.json
+01:43:51 before gamer done
+grass_cost: chrome pid 18716, server pid 51224
+grass_cost http://localhost:8595/flyDiy/dev.html?gfx=gamer&day=noon  (stills / counts, untimed)
+  shed up 66 s · gfx gamer
+  rolled out 71 s · installed timer · ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)
+  held: Run · FLYDIY_HELD true · cover {"on":true,"cell":32,"reach":220,"near":50,"taper":0.5,"aglFull":60,"aglOff":150,"density":2,"shrubs":1,"rocks":1,"budgetMs":4,"maxCells":400,"blockBudget":2,"debrisKinds":4,"castMinH":0.35,"batch":true,"aglPre":260,"preBudgetMs":2,"lead":4,"grow":0.8,"growNear":140,"trunc":1}
+  locs: app10 app30 app60 app150 rwyside lot lot20 gstrip gstrip30 muskeg forest shore
+  87 s  stand    30 fps  grass 14.5 draws 2.3 k inst 0.072 Mtris  · ring 27.9 k held, agl 2.4 village  (idle 333 ms)
+  95 s  cockpit  30 fps  grass 13.5 draws 2.1 k inst 0.053 Mtris  · ring 28.3 k held, agl 1.5 village  (idle 333 ms)
+  102 s  taxi     30 fps  grass 17 draws 2.8 k inst 0.092 Mtris  · ring 28.3 k held, agl 1.5 village  (idle 333 ms)
+  117 s  app10    30 fps  grass 47.5 draws 185.4 k inst 7.726 Mtris  · ring 62.3 k held, agl 10 conifer_young  (idle 6900 ms)
+  130 s  app30    30 fps  grass 50.5 draws 115.2 k inst 4.52 Mtris  · ring 84.3 k held, agl 30 muskeg  (idle 5108 ms)
+  143 s  app60    30 fps  grass 35.5 draws 28.5 k inst 0.979 Mtris  · ring 78.9 k held, agl 60 conifer_scrub  (idle 5796 ms)
+  152 s  app150   30 fps  grass 0 draws 0 k inst 0 Mtris  · ring 52.8 k held, agl 150 null  (idle 1592 ms)
+  167 s  rwyside  30 fps  grass 23 draws 11.3 k inst 0.39 Mtris  · ring 25.1 k held, agl 1.8 village  (idle 7486 ms)
+  183 s  lot      30 fps  grass 74.5 draws 192.6 k inst 6.847 Mtris  · ring 222.8 k held, agl 1.7 muskeg  (idle 7888 ms)
+  190 s  lot20    30 fps  grass 69 draws 185.3 k inst 6.636 Mtris  · ring 229 k held, agl 20 muskeg  (idle 328 ms)
+  205 s  gstrip   30 fps  grass 48.5 draws 224.1 k inst 9.699 Mtris  · ring 20 k held, agl 1.7 grassland  (idle 7016 ms)
+  218 s  gstrip30 30 fps  grass 53 draws 202.9 k inst 8.311 Mtris  · ring 61.4 k held, agl 30 muskeg  (idle 5642 ms)
+  233 s  muskeg   30 fps  grass 24.5 draws 12.1 k inst 0.379 Mtris  · ring 34.5 k held, agl 1.7 muskeg  (idle 7256 ms)
+  243 s  forest   30 fps  grass 41.9 draws 150.6 k inst 6.452 Mtris  · ring 36 k held, agl 1.7 muskeg  (idle 2426 ms)
+  254 s  shore    30 fps  grass 24 draws 117.6 k inst 4.711 Mtris  · ring 93.5 k held, agl 1.7 grassland  (idle 3240 ms)
+-> D:\Dev\DeGaRoR.github.io\.claude\worktrees\determined-saha-ce181a\flyDiy\reports\evidence\GRASS-DENSE\stills\after_gamer.json
+01:48:09 after gamer done
+grass_cost: chrome pid 34692, server pid 1628
+grass_cost http://localhost:8595/flyDiy/dev.html?gfx=retro&day=noon  (stills / counts, untimed)
+  shed up 49 s · gfx retro
+  rolled out 54 s · installed timer · ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)
+  held: Run · FLYDIY_HELD true · cover {"on":true,"cell":32,"reach":120,"near":50,"taper":0.5,"aglFull":60,"aglOff":150,"density":1,"shrubs":1,"rocks":1,"budgetMs":4,"maxCells":400,"blockBudget":2,"debrisKinds":4,"castMinH":1,"batch":true,"aglPre":260,"preBudgetMs":2,"lead":4,"grow":0.8,"growNear":140}
+  locs: app10 app30 app60 app150 rwyside lot lot20 gstrip gstrip30 muskeg forest shore
+  70 s  stand    30 fps  grass 6 draws 1.1 k inst 0.721 Mtris  · ring 10.5 k held, agl 2.4 village  (idle 325 ms)
+  78 s  cockpit  30 fps  grass 6 draws 1.2 k inst 0.744 Mtris  · ring 11 k held, agl 1.5 village  (idle 333 ms)
+  86 s  taxi     30 fps  grass 6 draws 1.2 k inst 0.744 Mtris  · ring 11 k held, agl 1.5 village  (idle 322 ms)
+  94 s  app10    30 fps  grass 12 draws 8.5 k inst 3.036 Mtris  · ring 25.9 k held, agl 10 conifer_young  (idle 320 ms)
+  102 s  app30    30 fps  grass 12 draws 9.9 k inst 3.262 Mtris  · ring 34.5 k held, agl 30 muskeg  (idle 333 ms)
+  110 s  app60    30 fps  grass 10 draws 8.4 k inst 4.331 Mtris  · ring 22 k held, agl 60 conifer_scrub  (idle 324 ms)
+  117 s  app150   30 fps  grass 0 draws 0 k inst 0 Mtris  · ring 10.5 k held, agl 150 null  (idle 390 ms)
+  125 s  rwyside  30 fps  grass 11 draws 2.3 k inst 0.813 Mtris  · ring 11.5 k held, agl 1.8 village  (idle 334 ms)
+  134 s  lot      30 fps  grass 39 draws 34 k inst 3.6 Mtris  · ring 97.1 k held, agl 1.7 muskeg  (idle 841 ms)
+  142 s  lot20    30 fps  grass 32 draws 34.6 k inst 3.876 Mtris  · ring 104.6 k held, agl 20 muskeg  (idle 326 ms)
+  149 s  gstrip   30 fps  grass 13.5 draws 6.3 k inst 3.467 Mtris  · ring 19.9 k held, agl 1.7 grassland  (idle 328 ms)
+  157 s  gstrip30 30 fps  grass 13.5 draws 10.6 k inst 3.594 Mtris  · ring 26.8 k held, agl 30 muskeg  (idle 333 ms)
+  165 s  muskeg   30 fps  grass 8.5 draws 2.6 k inst 1.087 Mtris  · ring 8.1 k held, agl 1.7 muskeg  (idle 329 ms)
+  173 s  forest   30 fps  grass 11.5 draws 3.8 k inst 1.577 Mtris  · ring 12.5 k held, agl 1.7 muskeg  (idle 333 ms)
+  181 s  shore    30 fps  grass 12 draws 9.1 k inst 2.515 Mtris  · ring 26.7 k held, agl 1.7 grassland  (idle 332 ms)
+-> D:\Dev\DeGaRoR.github.io\.claude\worktrees\determined-saha-ce181a\flyDiy\reports\evidence\GRASS-DENSE\stills\before_retro.json
+01:51:13 before retro done
+grass_cost: chrome pid 9428, server pid 13976
+grass_cost http://localhost:8595/flyDiy/dev.html?gfx=retro&day=noon  (stills / counts, untimed)
+  shed up 57 s · gfx retro
+  rolled out 62 s · installed timer · ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)
+  held: Run · FLYDIY_HELD true · cover {"on":true,"cell":32,"reach":120,"near":50,"taper":0.5,"aglFull":60,"aglOff":150,"density":1,"shrubs":1,"rocks":1,"budgetMs":4,"maxCells":400,"blockBudget":2,"debrisKinds":4,"castMinH":1,"batch":true,"aglPre":260,"preBudgetMs":2,"lead":4,"grow":0.8,"growNear":140,"trunc":1}
+  locs: app10 app30 app60 app150 rwyside lot lot20 gstrip gstrip30 muskeg forest shore
+  77 s  stand    30 fps  grass 0 draws 0 k inst 0 Mtris  · ring 3.9 k held, agl 2.4 village  (idle 325 ms)
+  85 s  cockpit  30 fps  grass 0 draws 0 k inst 0 Mtris  · ring 4.1 k held, agl 1.5 village  (idle 333 ms)
+  93 s  taxi     30 fps  grass 0 draws 0 k inst 0 Mtris  · ring 4.1 k held, agl 1.5 village  (idle 326 ms)
+  102 s  app10    30 fps  grass 25.5 draws 54.1 k inst 2.221 Mtris  · ring 12.4 k held, agl 10 conifer_young  (idle 964 ms)
+  110 s  app30    30 fps  grass 22 draws 18.4 k inst 0.632 Mtris  · ring 18.7 k held, agl 30 muskeg  (idle 329 ms)
+  118 s  app60    30 fps  grass 4 draws 1.6 k inst 0.01 Mtris  · ring 6.6 k held, agl 60 conifer_scrub  (idle 665 ms)
+  126 s  app150   30 fps  grass 0 draws 0 k inst 0 Mtris  · ring 7.7 k held, agl 150 null  (idle 366 ms)
+  135 s  rwyside  30 fps  grass 8 draws 1.7 k inst 0.036 Mtris  · ring 5.9 k held, agl 1.8 village  (idle 2152 ms)
+  145 s  lot      30 fps  grass 42.5 draws 67.2 k inst 2.265 Mtris  · ring 85.8 k held, agl 1.7 muskeg  (idle 1920 ms)
+  153 s  lot20    30 fps  grass 43 draws 57.9 k inst 1.866 Mtris  · ring 91.7 k held, agl 20 muskeg  (idle 319 ms)
+  162 s  gstrip   30 fps  grass 25.5 draws 65.5 k inst 2.84 Mtris  · ring 3.4 k held, agl 1.7 grassland  (idle 1561 ms)
+  170 s  gstrip30 30 fps  grass 23 draws 45.1 k inst 1.784 Mtris  · ring 12.3 k held, agl 30 muskeg  (idle 731 ms)
+  180 s  muskeg   30 fps  grass 7 draws 1.2 k inst 0.018 Mtris  · ring 3.3 k held, agl 1.7 muskeg  (idle 2431 ms)
+  188 s  forest   30 fps  grass 19 draws 47 k inst 2 Mtris  · ring 5.8 k held, agl 1.7 muskeg  (idle 430 ms)
+  196 s  shore    30 fps  grass 19.5 draws 56.6 k inst 2.276 Mtris  · ring 16.5 k held, agl 1.7 grassland  (idle 385 ms)
+-> D:\Dev\DeGaRoR.github.io\.claude\worktrees\determined-saha-ce181a\flyDiy\reports\evidence\GRASS-DENSE\stills\after_retro.json
+01:54:33 after retro done
+boxlock: GPU released by GRASS
+boxlock: GPU taken by GRASS
+grass_cost: chrome pid 18716, server pid 41532
+grass_cost http://localhost:8595/flyDiy/dev.html?gfx=gamer&day=noon  (GPU TIMED)
+  shed up 41 s · gfx gamer
+  rolled out 46 s · installed timer · ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)
+  held: Run · FLYDIY_HELD true · cover {"on":true,"cell":32,"reach":220,"near":50,"taper":0.5,"aglFull":60,"aglOff":150,"density":2,"shrubs":1,"rocks":1,"budgetMs":4,"maxCells":400,"blockBudget":2,"debrisKinds":4,"castMinH":0.35,"batch":true,"aglPre":260,"preBudgetMs":2,"lead":4,"grow":0.8,"growNear":140}
+  locs: app10 app30 app60 app150 rwyside lot lot20 gstrip gstrip30 muskeg forest shore
+  62 s  stand    grass 0.847872 ms  frame   null ms  68 fps  grass 32 draws 15.9 k inst 8.632 Mtris  · ring 75.1 k held, agl 2.4 village  (idle 294 ms)
+  69 s  taxi     grass 1.0065919999999997 ms  frame   null ms  79 fps  grass 32 draws 15.9 k inst 8.632 Mtris  · ring 75.1 k held, agl 1.5 village  (idle 255 ms)
+  78 s  app10    grass 3.8082559999999996 ms  frame   null ms  60 fps  grass 50 draws 57.2 k inst 20.812 Mtris  · ring 132.7 k held, agl 10 conifer_young  (idle 1519 ms)
+  86 s  app30    grass 4.132864 ms  frame   null ms  57 fps  grass 56 draws 86.9 k inst 28.468 Mtris  · ring 169.6 k held, agl 30 muskeg  (idle 725 ms)
+  94 s  app60    grass 2.85376 ms  frame   null ms  68 fps  grass 44 draws 76.4 k inst 29.535 Mtris  · ring 164 k held, agl 60 conifer_scrub  (idle 939 ms)
+  102 s  forest   grass 2.6653759999999997 ms  frame   null ms  77 fps  grass 37 draws 23.6 k inst 10 Mtris  · ring 65.3 k held, agl 1.7 muskeg  (idle 1209 ms)
+-> D:\Dev\DeGaRoR.github.io\.claude\worktrees\determined-saha-ce181a\flyDiy\reports\evidence\GRASS-DENSE\cost\before_gamer.json
+02:22:04 timed before gamer done
+grass_cost: chrome pid 53284, server pid 57912
+grass_cost http://localhost:8595/flyDiy/dev.html?gfx=gamer&day=noon  (GPU TIMED)
+  shed up 48 s · gfx gamer
+  rolled out 53 s · installed timer · ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)
+  held: Run · FLYDIY_HELD true · cover {"on":true,"cell":32,"reach":220,"near":50,"taper":0.5,"aglFull":60,"aglOff":150,"density":2,"shrubs":1,"rocks":1,"budgetMs":4,"maxCells":400,"blockBudget":2,"debrisKinds":4,"castMinH":0.35,"batch":true,"aglPre":260,"preBudgetMs":2,"lead":4,"grow":0.8,"growNear":140,"trunc":1}
+  locs: app10 app30 app60 app150 rwyside lot lot20 gstrip gstrip30 muskeg forest shore
+  68 s  stand    grass 0.023552000000000003 ms  frame   null ms  72 fps  grass 29 draws 4.5 k inst 0.144 Mtris  · ring 27.9 k held, agl 2.4 village  (idle 275 ms)
+  75 s  taxi     grass 0.028512000000000003 ms  frame   null ms  77 fps  grass 32 draws 5.2 k inst 0.169 Mtris  · ring 27.9 k held, agl 1.5 village  (idle 260 ms)
+  88 s  app10    grass 3.5819519999999985 ms  frame   null ms  65 fps  grass 95 draws 370.9 k inst 15.451 Mtris  · ring 62.3 k held, agl 10 conifer_young  (idle 4896 ms)
+  98 s  app30    grass 1.995552 ms  frame   null ms  67 fps  grass 101 draws 230.5 k inst 9.039 Mtris  · ring 84.3 k held, agl 30 muskeg  (idle 3093 ms)
+  108 s  app60    grass 0.4362240000000002 ms  frame   null ms  81 fps  grass 71 draws 57 k inst 1.958 Mtris  · ring 78.9 k held, agl 60 conifer_scrub  (idle 3233 ms)
+  120 s  forest   grass 4.195264000000002 ms  frame   null ms  77 fps  grass 82 draws 312.8 k inst 13.421 Mtris  · ring 29.9 k held, agl 1.7 muskeg  (idle 4862 ms)
+-> D:\Dev\DeGaRoR.github.io\.claude\worktrees\determined-saha-ce181a\flyDiy\reports\evidence\GRASS-DENSE\cost\after_gamer.json
+02:24:07 timed after gamer done
+grass_cost: chrome pid 51532, server pid 7856
+grass_cost http://localhost:8595/flyDiy/dev.html?gfx=retro&day=noon  (GPU TIMED)
+  shed up 41 s · gfx retro
+  rolled out 46 s · installed timer · ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)
+  held: Run · FLYDIY_HELD true · cover {"on":true,"cell":32,"reach":120,"near":50,"taper":0.5,"aglFull":60,"aglOff":150,"density":1,"shrubs":1,"rocks":1,"budgetMs":4,"maxCells":400,"blockBudget":2,"debrisKinds":4,"castMinH":1,"batch":true,"aglPre":260,"preBudgetMs":2,"lead":4,"grow":0.8,"growNear":140}
+  locs: app10 app30 app60 app150 rwyside lot lot20 gstrip gstrip30 muskeg forest shore
+  61 s  stand    grass 0.126976 ms  frame 9.227264404296875 ms  102 fps  grass 12 draws 2.3 k inst 1.441 Mtris  · ring 10.5 k held, agl 2.4 village  (idle 197 ms)
+  68 s  taxi     grass 0.126976 ms  frame 7.619584083557129 ms  102 fps  grass 12 draws 2.3 k inst 1.441 Mtris  · ring 10.6 k held, agl 1.5 village  (idle 207 ms)
+  74 s  app10    grass 1.299456 ms  frame 7.641088008880615 ms  126 fps  grass 24 draws 17.1 k inst 6.072 Mtris  · ring 25.9 k held, agl 10 conifer_young  (idle 247 ms)
+  81 s  app30    grass 0.8570880000000001 ms  frame 7.024640083312988 ms  125 fps  grass 24 draws 19.8 k inst 6.525 Mtris  · ring 34.5 k held, agl 30 muskeg  (idle 157 ms)
+  87 s  app60    grass 0.7874560000000002 ms  frame 7.047167778015137 ms  133 fps  grass 20 draws 16.9 k inst 8.663 Mtris  · ring 22 k held, agl 60 conifer_scrub  (idle 150 ms)
+  94 s  forest   grass 1.0895359999999998 ms  frame 6.878208160400391 ms  129 fps  grass 23 draws 7.7 k inst 3.154 Mtris  · ring 11.4 k held, agl 1.7 muskeg  (idle 158 ms)
+-> D:\Dev\DeGaRoR.github.io\.claude\worktrees\determined-saha-ce181a\flyDiy\reports\evidence\GRASS-DENSE\cost\before_retro.json
+02:25:44 timed before retro done
+grass_cost: chrome pid 49284, server pid 35072
+grass_cost http://localhost:8595/flyDiy/dev.html?gfx=retro&day=noon  (GPU TIMED)
+  shed up 46 s · gfx retro
+  rolled out 51 s · installed timer · ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)
+  held: Run · FLYDIY_HELD true · cover {"on":true,"cell":32,"reach":120,"near":50,"taper":0.5,"aglFull":60,"aglOff":150,"density":1,"shrubs":1,"rocks":1,"budgetMs":4,"maxCells":400,"blockBudget":2,"debrisKinds":4,"castMinH":1,"batch":true,"aglPre":260,"preBudgetMs":2,"lead":4,"grow":0.8,"growNear":140,"trunc":1}
+  locs: app10 app30 app60 app150 rwyside lot lot20 gstrip gstrip30 muskeg forest shore
+  66 s  stand    grass   null ms  frame 9.240575790405273 ms  100 fps  grass 0 draws 0 k inst 0 Mtris  · ring 3.9 k held, agl 2.4 village  (idle 188 ms)
+  73 s  taxi     grass   null ms  frame 7.758848190307617 ms  104 fps  grass 0 draws 0 k inst 0 Mtris  · ring 3.9 k held, agl 1.5 village  (idle 204 ms)
+  80 s  app10    grass 0.990208 ms  frame 7.580671787261963 ms  120 fps  grass 51 draws 108.3 k inst 4.443 Mtris  · ring 12.4 k held, agl 10 conifer_young  (idle 333 ms)
+  86 s  app30    grass 0.31232000000000026 ms  frame 6.462463855743408 ms  122 fps  grass 44 draws 36.8 k inst 1.263 Mtris  · ring 18.7 k held, agl 30 muskeg  (idle 178 ms)
+  92 s  app60    grass 0.003072 ms  frame 6.907904148101807 ms  130 fps  grass 8 draws 3.3 k inst 0.02 Mtris  · ring 6.6 k held, agl 60 conifer_scrub  (idle 151 ms)
+  100 s  forest   grass 1.3054399999999997 ms  frame 7.007232189178467 ms  127 fps  grass 38 draws 96.7 k inst 4.115 Mtris  · ring 5.3 k held, agl 1.7 muskeg  (idle 720 ms)
+-> D:\Dev\DeGaRoR.github.io\.claude\worktrees\determined-saha-ce181a\flyDiy\reports\evidence\GRASS-DENSE\cost\after_retro.json
+02:27:27 timed after retro done
+boxlock: GPU released by GRASS
+boxlock: CPU battery taken by GRASS
+tools/flight_core.js (2460.5 KB), index.html (11940.0 KB), dev.html (110.9 KB) — syntax OK, build 9dfb9f211a72 (325 named inputs), 593 ms
+[run_gates] 7/9 jobs done · running UISMOKE 30 s, PREMISES 25 s
+[run_gates] 8/9 jobs done · running UISMOKE 60 s
+[run_gates] 8/9 jobs done · running UISMOKE 90 s
+=== UISMOKE ===
+G1090 the top bar holds one size over 47 texts (29 phase labels): desktop 440 x 143, desktop small 372 x 76, phone screen x 132, phone small screen x 76; the pilot's area 35 px, two lines clamped + the plan line
+ran app block: raf x1877, handlers wired: _ce100 _ce1001 _ce1002 _ce1003 _ce1007 _ce1008 _ce1012 _ce1013 _ce1016 _ce1022 _ce1027 _ce103 _ce1031 _ce1035 _ce1039 _ce1043 _ce1047 _ce1051 _ce1055 _ce1059 _ce106 _ce1063 _ce1067 _ce1071 _ce1075 _ce1078 _ce1086 _ce1089 _ce109 _ce1098 _ce1106 _ce1107 _ce1110 _ce1119 _ce1124 _ce1128 _ce1134 _ce1138 _ce1143 _ce1144 _ce1146 _ce1147 _ce1148 _ce1151 _ce1155 _ce1159 _ce1163 _ce1167 _ce117 _ce1171 _ce1175 _ce1179 _ce1190 _ce1194 _ce1198 _ce1206 _ce1212 _ce1215 _ce1219 _ce1224 _ce1246 _ce1252 _ce1256 _ce1264 _ce1267 _ce1276 _ce128 _ce1280 _ce1284 _ce1292 _ce1295 _ce1304 _ce1308 _ce1312 _ce132 _ce1320 _ce1323 _ce1327 _ce1336 _ce1340 _ce1344 _ce1352 _ce1355 _ce1359 _ce136 _ce1368 _ce1376 _ce1377 _ce1380 _ce1389 _ce1397 _ce1400 _ce1404 _ce1413 _ce1417 _ce142 _ce1421 _ce1429 _ce1432 _ce1441 _ce1445 _ce147 _ce148 _ce150 _ce151 _ce152 _ce155 _ce159 _ce163 _ce167 _ce171 _ce175 _ce179 _ce185 _ce190 _ce196 _ce203 _ce204 _ce205 _ce206 _ce207 _ce208 _ce213 _ce214 _ce215 _ce216 _ce220 _ce221 _ce222 _ce223 _ce224 _ce225 _ce229 _ce230 _ce231 _ce232 _ce236 _ce237 _ce240 _ce244 _ce248 _ce252 _ce256 _ce260 _ce267 _ce272 _ce277 _ce290 _ce293 _ce298 _ce311 _ce314 _ce319 _ce332 _ce335 _ce340 _ce353 _ce356 _ce361 _ce37 _ce374 _ce377 _ce382 _ce395 _ce401 _ce414 _ce420 _ce433 _ce441 _ce452 _ce458 _ce462 _ce468 _ce472 _ce476 _ce480 _ce484 _ce492 _ce498 _ce50 _ce501 _ce508 _ce509 _ce513 _ce514 _ce515 _ce516 _ce517 _ce518 _ce538 _ce543 _ce544 _ce545 _ce546 _ce547 _ce550 _ce554 _ce558 _ce56 _ce562 _ce566 _ce570 _ce574 _ce578 _ce583 _ce584 _ce585 _ce588 _ce592 _ce599 _ce602 _ce607 _ce608 _ce610 _ce611 _ce612 _ce615 _ce619 _ce623 _ce627 _ce633 _ce640 _ce644 _ce648 _ce652 _ce656 _ce660 _ce664 _ce668 _ce672 _ce676 _ce680 _ce686 _ce69 _ce690 _ce694 _ce697 _ce70 _ce703 _ce706 _ce707 _ce708 _ce71 _ce711 _ce72 _ce721 _ce722 _ce726 _ce729 _ce73 _ce734 _ce74 _ce75 _ce756 _ce76 _ce762 _ce77 _ce770 _ce771 _ce774 _ce781 _ce782 _ce783 _ce784 _ce785 _ce786 _ce79 _ce791 _ce792 _ce793 _ce794 _ce798 _ce799 _ce800 _ce801 _ce802 _ce803 _ce807 _ce808 _ce809 _ce810 _ce814 _ce815 _ce818 _ce82 _ce825 _ce826 _ce827 _ce828 _ce832 _ce833 _ce837 _ce838 _ce842 _ce843 _ce844 _ce845 _ce846 _ce847 _ce85 _ce851 _ce852 _ce853 _ce854 _ce855 _ce856 _ce860 _ce861 _ce865 _ce866 _ce868 _ce875 _ce876 _ce877 _ce878 _ce88 _ce882 _ce883 _ce884 _ce885 _ce889 _ce890 _ce891 _ce892 _ce896 _ce897 _ce898 _ce899 _ce903 _ce904 _ce908 _ce909 _ce91 _ce910 _ce912 _ce919 _ce920 _ce924 _ce925 _ce927 _ce934 _ce935 _ce936 _ce94 _ce940 _ce941 _ce942 _ce943 _ce947 _ce948 _ce950 _ce957 _ce958 _ce959 _ce963 _ce964 _ce965 _ce966 _ce97 _ce970 _ce971 _ce972 _ce976 _ce977 _ce981 _ce982 _ce986 _ce987 _ce989 _ce996 _ce997 bBring bEdit bGo bHangar2 bLog bMood bPause bReset bSkin bSkip bWhy bootFly edClose flLine mm pfdFold selAc selCond selDest selPersona selPilot tabBench tabDesign
+GATE UISMOKE: PASS
+=== WORLDRENDER ===
+LOD @origin: 3D 8/124 chunks on (furthest 1448 m) | impostor 58/62 on (furthest 5971 m)
+
+GATE WORLDRENDER: PASS
+=== COVER ===
+  ok   8d ...and what DRAWS is the same picture as a ring planted fresh from there  (27986 drawn both ways)
+  ok   8e the field's truncation leaves out only tufts its own fade (and size fade) collapses  (8438 left out, 0 that would draw)
+GATE COVER: PASS
+=== GRASSSIDES ===
+  ok   4 the dials: an unknown law and key refused, a negative clamped to 0, a number read
+  ok   4 back to GRASS_SIDES_DEF
+GATE GRASSSIDES: PASS
+=== FADES ===
+  ok   5 the stream raises what it builds (inline and from the house worker)
+  ok   5 the prewarm (under the roll-out screen) does not (either way)
+GATE FADES: PASS
+=== SPLAT ===
+PASS uSNCode 17, uSNCand 8 (C[8]), uSNSlot 34 (the lean program's codes x 2 passes: by code - a quad's neighbours sample a type in the same iteration)
+4. (--gpu not asked: the sampler census on Jolene and the fxc probe need Chrome; node tools/_splat_check.js --gpu)
+GATE SPLAT: PASS
+=== PREMISES ===
+5b the strips' drainage domes (G413) move the bare bake at 1 of 400 outside samples — the bake's, not the layer's
+  372 checks on 6 fixture(s), the flight world loaded
+GATE PREMISES: PASS
+=== PAVEMENT ===
+PASS the live overlay reaches a made part (surface r 1.461 -> 0.674), takes only look keys, and clearing it gives the premises' back
+PASS opaqueDepth: a soft edge and a grass strip as deep as a paved chip (0.8 m), a grass road still never sunk
+GATE PAVEMENT: PASS
+=== BIOME ===
+surface perf: 1.7 us/call, checksum 295245
+biome: 24686 trees | 11 checks, 0 failed
+GATE BIOME: PASS
+
+──────── summary ────────
+UISMOKE   PASS   100.5 s
+WORLDRENDER PASS     4.3 s
+COVER     PASS    12.7 s
+GRASSSIDES PASS     2.2 s
+FADES     PASS     0.7 s
+SPLAT     PASS     3.2 s
+PREMISES  PASS    34.5 s
+PAVEMENT  PASS     7.6 s
+BIOME     PASS     3.0 s
+total            168.7 s
+wall             100.5 s  (jobs 4)
+
+BATTERY: PASS
+02:41:52 gates done
+boxlock: CPU battery released by GRASS
+02:41:52 night done

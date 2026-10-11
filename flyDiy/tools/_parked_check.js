@@ -672,6 +672,24 @@ async function fleetHeadless() {
   PK.pending.length = 0; PK.fleet.lru.length = 0; PK.fleet.placed.length = 0;
 }
 
+// ---- 14 THE STRAPPED LOAD IS THE FLOWN AEROPLANE'S ONLY (G2400 FREIGHT-STRAP) ------------------------------------
+// A parked or fleet aeroplane is a BAKE of the editor's mount (edSitP, the join's snapshot) and never the live flown
+// model: the strapped load's drawing hangs on the flown model (model.grp) and, on the stand, on `craft` at the loading
+// view's frame - never under edSitP, so no snapshot (the flown bake, a parked capture, a fleet cook) can take it; and
+// parked.js knows nothing of it
+function strapRows() {
+  const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+  const pk = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'parked.js'), 'utf8');
+  const i0 = app.indexOf('G2400 (FREIGHT-STRAP): THE ACCEPTED LOAD, STRAPPED'), i1 = app.indexOf('window.FLYDIY_STRAP = {', i0);
+  const blk = i0 >= 0 && i1 > i0 ? app.slice(i0, i1) : '';
+  check(blk.length > 0, '14 the strapped load\'s page block is there');
+  check(/if \(FST\.stand\.parent !== craft\) craft\.add\(FST\.stand\);/.test(blk) && /model\.grp\.add\(FST\.flight\);/.test(blk) && !/edSitP\.add\(|edSit\.add\(/.test(blk),
+    '14 the load hangs on the flown model and on craft at the stand - never under the editor\'s mount (what the snapshots bake)');
+  check(!/freight_?strap|FLYDIY_STRAP|FREIGHT_STRAP|freightStrap/i.test(pk), '14 parked.js knows nothing of the strapped load (a parked / fleet aeroplane carries none)');
+  const fsv = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'freight_strap.js'), 'utf8');
+  check(/m\.castShadow = false;/.test(fsv) && /m\.raycast = \(\) => \{\};/.test(fsv), '14 the load casts nothing into the cascades and is never the editor\'s pick');
+}
+
 // ---- 13 THE FLEET STOOD (G2225, FLEET-STAND: src/viewer/fleet_stand.js), headless --------------------------------------
 // the ledger's rows tied down outside, on the cooked spots (src/viewer/fleet_spots_pack.js) through PARKED.place: the
 // flag off stands nothing; the planner's order by slot name, the flown one's spot left EMPTY (no one else moves), a
@@ -943,6 +961,8 @@ async function pageRows() {
     const world = [fnText('fleetLoad'), fnText('fleetGate'), fnText('fleetDrawn'), fnText('fleetEvict'), branch];
     check(world.every(t => t.length > 40) && world.every(t => !/\b(capture|batchSteps|bakeData|bakeNow|farBaked|enqueue|cutFar|captureAll|fleetBake)\s*\(/.test(t)),
       '12p SOURCE: the roll-out\'s and the flight\'s fleet doors (fleetLoad, the place() branch, fleetGate, fleetDrawn, fleetEvict) call no capture and no bake');
+    check(/if \(U && saved\) copyBlock\(U, saved\);\s*\/\/[^\n]*\n[^\n]*\n\s*if \(n && E && typeof E\.republish === 'function'\)/.test(src) && /republish \/\* G2227 \*\//.test(fs.readFileSync(path.join(ROOT, 'tools', '_cage_ui.js'), 'utf8')),
+      '12p SOURCE (G2227): after a capture batch the editor publishes its own shared uniforms again (CAGE_UI.republish) over the restored copy');
     check(/if \(!garageIdle\(\)\)/.test(fnText('fleetStep')) && /garageIdle\(\)/.test(fnText('fleetBake')), '12p SOURCE: the bake door (fleetStep, fleetBake) starts only in the garage at rest');
   }
 }
@@ -954,6 +974,7 @@ farRungs().catch(e => check(false, '5b the far rungs threw', e && e.stack || Str
   .then(() => cookRungs().catch(e => check(false, '10 the cook threw', e && e.stack || String(e))))
   .then(() => fleetHeadless().catch(e => check(false, '12 the fleet threw', e && e.stack || String(e))))
   .then(() => fleetStood().catch(e => check(false, '13 the fleet stood threw', e && e.stack || String(e))))
+  .then(() => { try { strapRows(); } catch (e) { check(false, '14 the strapped load threw', e && e.stack || String(e)); } })
   .then(() => pageRows().catch(e => check(false, '11 / 12p the page threw', e && e.stack || String(e)))).then(() => {
   if (fail.length) {
     for (const f of fail.slice(0, 30)) console.log('  ! ' + f);

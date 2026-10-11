@@ -140,8 +140,8 @@ var COVER_RING = (() => {
   // clump field's cell / amplitude (neighbours share a length). A mix row of the reed may carry its own h / sigma / dens (the
   // biome's grass card, TYPES > biome) - the row wins. A mix not named is the meadow's.
   const FIELD_SPECIES = ['grass_reed'];
-  const FIELD_ON = false;   // the grass field's default (train 43: off - its near band costs more than today's on dense ground)
-  const SIZE_MAX = 1.5;   // the size fade's ceiling: a tuft taller than the reference reaches at most 1.5 x the reach (trees.js FADE_VS, the same clamp)
+  const FIELD_ON = true;   // the grass field's default (train 43: off; train 44: on - its cost under today's on every view, G2567)
+  // (the size fade's ceiling is the field's `sizeMax`: a tuft taller than the reference reaches at most sizeMax x the reach - trees.js FADE_VS uFadeSizeMax)
   const FIELD_TYPES = {
     grassland:     { h: 0.30, sigma: 0.35, dens: 1.0 },                      // heath (2): the meadow, the reference
     muskeg:        { h: 0.40, sigma: 0.30, dens: 0.8, clumpM: 1.5, clumpAmp: 0.4 },   // muskeg (3) and scrub (7): sedge-like tussocks
@@ -217,7 +217,9 @@ var COVER_RING = (() => {
     const S = FIELD
       ? { on: true, cell: 16, reach: 90, near: 15, taper: 1, aglFull: 27, aglOff: 90, density: 1, shrubs: 0, rocks: 0, budgetMs: 3, maxCells: 1400, blockBudget: 4, debrisKinds: 4, castMinH: 99, batch: false,
           aglPre: 150, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 60,
-          tufts: 90, cards: 3, variants: 3, block: 2, sizeFade: 1, hRef: 0.3, blotch: 0.3, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
+          // (G2567, the box 11 Oct 11:03 TIMED, cost3/: 2 tuft shapes + the size fade capped at 1.0 + 70 tufts / m2 - the forest view
+          // 2.57 -> 2.23 ms, app10 4.21 -> 2.07, app30 3.85 -> 1.03 on gamer, every view under train 43's; draws +6..+9)
+          tufts: 70, cards: 3, variants: 2, block: 2, sizeFade: 1, sizeMax: 1, hRef: 0.3, blotch: 0.3, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
           colour: 1, match: 1, vary: 0.05, cutH: 0.08, cutSigma: 0.1, cutDens: 1.2, stripH: 0.07, stripDens: 1 }
       : { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, batch: true,
           aglPre: 260, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 140, trunc: 1 };   // G670/G671: the grow, the pre-grow and the lead (update)   // density 2 (2026-09-22, the user: "the grass is really too sparse")
@@ -680,7 +682,7 @@ var COVER_RING = (() => {
       const items = new Map(), mats = new Map();
       const F = G.fine;
       // (the tier's bound for ANY tuft of the cell - the tallest the size fade lets reach farthest: a rand over it is out at once)
-      const tierMax = tierOn ? keepD(dTier / Math.max(1, 1 + (SIZE_MAX - 1) * S.sizeFade)) * (1 + band) * 1.05 : 2;
+      const tierMax = tierOn ? keepD(dTier / Math.max(1, 1 + (S.sizeMax - 1) * S.sizeFade)) * (1 + band) * 1.05 : 2;
       for (let i = 0; i < n; i++) {
         const x = x0 + R() * C, z = z0 + R() * C, rand = R(), rA = R(), rV = R(), rY = R(), rH1 = R(), rH2 = R(), rJ = R();
         if (rand >= tierMax) continue;
@@ -704,7 +706,7 @@ var COVER_RING = (() => {
         // reference exactly as FADE_VS reads it (h / its variant's top, over hRef / the variants' mean top). Every test is the
         // candidate's own fixed numbers, so the tuft kept from dTier is kept from any nearer one: the tiers nest
         const p = draw(P, rV);
-        if (tierOn && rand >= keepD(dTier / Math.max(0.05, 1 + (Math.min(SIZE_MAX, Math.max(0.05, (h / p.h0) / (S.hRef / fieldH0))) - 1) * S.sizeFade)) * (1 + band) * 1.05) continue;
+        if (tierOn && rand >= keepD(dTier / Math.max(0.05, 1 + (Math.min(S.sizeMax, Math.max(0.05, (h / p.h0) / (S.hRef / fieldH0))) - 1) * S.sizeFade)) * (1 + band) * 1.05) continue;
         const mat = p.parts[0].mat;
         let col;
         if (S.colour && ctx.groundMeanAt) {
@@ -1076,7 +1078,7 @@ var COVER_RING = (() => {
       const aglK = 1 - smooth(S.aglFull, S.aglOff, agl); STAT.aglK = aglK;   // (the rock map reads the fade's height term)
       const t = now();
       LEAF.fade(S.near, S.reach, S.taper, aglK, FSET);   // (the field: its own set, and its size fade; the first ring: the shared one)
-      if (FIELD && LEAF.fadeSize) LEAF.fadeSize(S.sizeFade, S.hRef / Math.max(1e-6, fieldH0), FSET);
+      if (FIELD && LEAF.fadeSize) LEAF.fadeSize(S.sizeFade, S.hRef / Math.max(1e-6, fieldH0), FSET, S.sizeMax);
       if (LEAF.grow) LEAF.grow(t, null, S.grow);
       { const dt = t - EYE.t;
         if (dt > 0 && dt < 0.5 && isFinite(EYE.x)) { const a = Math.min(1, dt / 0.5); EYE.vx += ((ex - EYE.x) / dt - EYE.vx) * a; EYE.vz += ((ez - EYE.z) / dt - EYE.vz) * a; }
@@ -1091,7 +1093,7 @@ var COVER_RING = (() => {
       // descent the ring is there when the height term opens; over aglPre it is dropped, as before.
       const hidden = aglK <= 0.001; STAT.hidden = hidden;
       if (hidden && agl > S.aglPre) { if (cells.size) for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); queue.length = 0; STAT.live = 0; return; }
-      const C = S.cell, reachP = S.reach * (FIELD && S.sizeFade > 0 ? SIZE_MAX : 1);   // (the field plants as far as its tallest tuft shows)
+      const C = S.cell, reachP = S.reach * (FIELD && S.sizeFade > 0 ? Math.max(1, S.sizeMax) : 1);   // (the field plants as far as its tallest tuft shows)
       const R2 = (reachP + C) * (reachP + C), Rdrop = (reachP + 2 * C) * (reachP + 2 * C);
       const cx0 = Math.floor(ex / C), cz0 = Math.floor(ez / C), nr = Math.ceil((reachP + C) / C);
       // THE LEAD (G671): what the aeroplane is flying toward is planted first - the queue is ordered by the distance
@@ -1138,13 +1140,13 @@ var COVER_RING = (() => {
         STAT.dirty = Math.max(0, dirty.length - S.blockBudget);   // G1119: the blocks still to rebuild after this frame (0: the ring is idle)
         let shown = 0, draws = 0, sub = 0, all = 0;
         const band = bandNow(), href = S.hRef / Math.max(1e-6, fieldH0), sizeK = FIELD ? S.sizeFade : 0;
-        for (const b of blocks.values()) { const d2 = b.box ? dist2(b) : 0, v = !!b.box && d2 < R2r * (sizeK > 0 ? SIZE_MAX * SIZE_MAX : 1); if (b.group.visible !== v) b.group.visible = v;
+        for (const b of blocks.values()) { const d2 = b.box ? dist2(b) : 0, v = !!b.box && d2 < R2r * (sizeK > 0 ? Math.max(1, S.sizeMax) ** 2 : 1); if (b.group.visible !== v) b.group.visible = v;
           if (v) { shown++;
             // THE TRUNCATION (G2561, buildBlock): the prefix the block's nearest point can show - its largest instance's size
             // fade taken, so no instance that would draw is left out; a block that shows none is not drawn at all
             const d = Math.sqrt(d2);
             for (const m of b.meshes) { const N0 = m.userData.n;
-              if (S.trunc && m.userData.bins) { const ratio = sizeK > 0 ? Math.max(0.05, 1 + (Math.min(SIZE_MAX, Math.max(0.05, m.userData.smax / href)) - 1) * sizeK) : 1;
+              if (S.trunc && m.userData.bins) { const ratio = sizeK > 0 ? Math.max(0.05, 1 + (Math.min(S.sizeMax, Math.max(0.05, m.userData.smax / href)) - 1) * sizeK) : 1;
                 const th = keepD(d / ratio) * aglK * (1 + band), NB = m.userData.bins.length - 1, cnt = th >= 1 ? N0 : m.userData.bins[Math.min(NB, Math.ceil(th * NB))];
                 if (m.count !== cnt) m.count = cnt; const vis = cnt > 0; if (m.visible !== vis) m.visible = vis; }
               else if (m.count !== N0) { m.count = N0; m.visible = true; }
@@ -1162,7 +1164,7 @@ var COVER_RING = (() => {
         if (FIELD && (S.cards !== was.cards || S.variants !== was.variants)) protos.clear();   // the tufts are cut again
         if (FIELD && S.block !== was.block) { const nb = Math.max(1, S.block | 0); S.block = was.block; api.replant(); B = S.block = nb; }   // the old blocks emptied under the old grain, then the new one
         // what the planting reads (a replant); the fade's dials (near, reach, taper, AGL, the size fade's strength) are live
-        const PLANT = FIELD ? ['cell', 'cards', 'variants', 'tufts', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc']
+        const PLANT = FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc']
                             : ['cell', 'density', 'shrubs', 'rocks', 'batch', 'castMinH', 'trunc'];
         if (PLANT.some(k => S[k] !== was[k])) api.replant(); return api.get(); },
       species: () => (FIELD ? FIELD_SPECIES.slice() : []),   // what the field plants (the first ring leaves it to it: ctx.owned)

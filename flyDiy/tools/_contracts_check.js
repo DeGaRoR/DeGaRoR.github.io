@@ -46,6 +46,10 @@
 //                  reason; a load picked up then delivered; stages in order,
 //                  subs in any order; surveys by overflight; a build contract
 //                  is never judged here (the hook; missing = pending); medals.
+//                  (G2705) an acceptance / a challenge flown with structural
+//                  damage fails with its reason; a transport job still
+//                  delivers; structural absent = not damaged; a crash in the
+//                  career resets the airframe to its departure, repaired, free.
 //   FOLLOW-UPS     every build contract offers one; each changes EXACTLY one
 //                  criterion, never repeats a change, pays +15 % (GQ26/GQ31).
 //   (g1)           no build criterion or build text names a configuration.
@@ -59,6 +63,12 @@
 //   THE WIRE       (G2320) 75_career_wire.js: the map's record off a career (providers, offers, resolved text,
 //                  contractPay, progress, the fleet's certificates), the stop record, ACCEPT as the hook, the
 //                  arrival card's lines, the overflight radius.
+//   THE NIGHT      (G2665 NIGHT-OPS, §R.3) a share of the carry jobs is night work (after dusk / before dawn / an
+//                  hour's arrival), every one valid and flyable, its window a night one on its own almanac, its moon
+//                  dayMoonAt's at the window's middle, the night + moonless premiums (named), weighted toward moonlit
+//                  nights over a lunar month (overcast = dark); each runway lit / unlit (runwayLightStrips), the VASI /
+//                  PAPI; the authored night work (the stretcher case HELD OUT: no door takes it); the job line; the
+//                  wait until the window opens; the offers' sky held for the epoch; the medevac flown on the almanac.
 //   PURITY         72_/73_/74_/75_ touch no DOM, storage, THREE, clock or random.
 //
 //   node tools/_contracts_check.js             -> "GATE CONTRACTS: PASS|FAIL"
@@ -245,7 +255,9 @@ function run(mut) {
     const r = A[id];
     r.stages.forEach((st, i) => {
       const fly = st.subs.filter(s => s.do !== 'deliver' && s.do !== 'accept');
-      if (fly.length) ok(M.contractDoers(fly).length > 0, id + ' stage ' + i + ' is flyable by a validated design');
+      // (G2665) a night contract no validated design flies is HELD OUT (the stretcher case: GATE CONTRACTS' NIGHT rows)
+      const heldNight = Object.values(PROV).some(P => (P.night || []).some(x => x.id === id)) && !M.contractFlyable(r);
+      if (fly.length && !heldNight) ok(M.contractDoers(fly).length > 0, id + ' stage ' + i + ' is flyable by a validated design');
       for (const s of st.subs.filter(s => s.do === 'deliver')) ok(['wheels', 'floats'].some(g => M.contractGearOk(g, F[s.to])), id + ': its delivery field takes some gear');
     });
   }
@@ -440,7 +452,7 @@ function run(mut) {
   ok(D0.career.voucher && D0.career.voucher.model === 'cub' && D0.career.voucher.kind === 'maker' && D0.career.voucher.used === false, 'GQ23: a Cub voucher, unspent');
   ok(eq(D0.career.tracks, { field: 0, minedock: 0, resort: 0, survey: 0, clients: 0 }), 'every track starts at 0');
   ok(Object.keys(D0.career.providers).length === 5 && Object.values(D0.career.providers).every(p => p.rep === 0 && p.arc === 0), 'five providers at 0 reputation');
-  ok(eq(Object.keys(D0.career.contracts).sort(), ['accepted', 'done', 'live', 'offered', 'tracked']), 'contracts: offered / accepted / tracked / done (+ live progress)');
+  ok(eq(Object.keys(D0.career.contracts).sort(), ['accepted', 'done', 'live', 'offered', 'sky', 'tracked']), 'contracts: offered / accepted / tracked / done (+ live progress, the offers\' sky)');
   ok(['pilots', 'roster', 'market', 'airframes', 'seed', 'started'].every(k => k in D0.career), 'the career block carries pilots, roster, market, airframes, seed, started');
   ok(M.careerKey('main') === 'flydiy.career.main', 'the key is flydiy.career.<id>');
   ok(eq(M.careerNormalise(clone(D0)), D0), 'careerNormalise is a fixpoint');
@@ -480,6 +492,9 @@ function run(mut) {
     refused(M.contractOnStop(d, job.id, stop(s.to, { load: clone(s.load), row: { from: other, to: s.to } })), before, d, 'the load never taken on at the origin');
     const r = M.contractOnStop(d, job.id, stop(s.to, { load: clone(s.load), row: { from: s.from, to: s.to, t: 500 } }));
     ok(r.ok && r.doc !== d && eq(d, before), 'the right field and load advance a clone (the input kept)');
+    // (G2705 CAREER-DAMAGE) a transport job that ARRIVES with structural damage still delivers (the repair is free)
+    const rb = M.contractOnStop(d, job.id, stop(s.to, { load: clone(s.load), row: { from: s.from, to: s.to, t: 500 }, structural: { damaged: true, why: 'a bent spar' } }));
+    ok(rb.ok && eq(rb.doc.career.contracts, r.doc.career.contracts), 'a transport job arriving with structural damage still delivers (G2705)');
     const e = r.doc;
     ok(e.career.contracts.done.length === 1 && e.career.contracts.done[0].id === job.id && e.career.contracts.done[0].pay === job.pay.total, 'the job is done, at its pay');
     ok(e.wallet === d.wallet + job.pay.total, 'paid net into the wallet (G-COST)');
@@ -561,6 +576,18 @@ function run(mut) {
     ok(r.doc.career.contracts.offered.includes('clients.02+1') && r.events.some(x => x.k === 'done' && x.followUp === 'clients.02+1'), 'GQ26: the happy client offers a follow-up');
     const r2 = M.contractOnStop(d, 'clients.02', st, { acceptVerdict: () => ({ ok: true, got: { emptyKg: 295 } }) });
     ok(r2.ok && r2.doc.career.contracts.done.find(x => x.id === 'clients.02').pay === A['clients.02'].pay.base, 'no margin, no bonus');
+    // (G2705 CAREER-DAMAGE) the acceptance flown with STRUCTURAL damage fails with its reason, whatever the verdict;
+    // structural absent / not damaged = judged as before
+    const bent = Object.assign({}, st, { structural: { damaged: true, why: 'the left spar yielded' } });
+    const rb = M.contractOnStop(d, 'clients.02', bent, { acceptVerdict: () => ({ ok: true, got: { emptyKg: 260 } }) });
+    refused(rb, b, d, 'an acceptance flown with structural damage');
+    ok(/structural damage \(the left spar yielded\)/.test(rb.why), 'its reason: flown with structural damage (' + rb.why + ')');
+    ok(M.contractOnStop(d, 'clients.02', Object.assign({}, st, { structural: { damaged: false, why: null } }), { acceptVerdict: () => ({ ok: true, got: {} }) }).ok
+       && M.contractOnStop(d, 'clients.02', M.careerStopRecord({ how: 'stopped', aero: 'HOME', slot: 'tiny', row: { from: 'w3' } }), { acceptVerdict: () => ({ ok: true, got: {} }) }).ok,
+       'structural not damaged, or absent from the page (before train 41) = not damaged: delivered');
+    const SR = M.careerStopRecord({ how: 'stopped', aero: 'HOME', structural: { damaged: true, broken: 2, separated: 0, why: 'w' } });
+    ok(eq(SR.structural, { damaged: true, why: 'w' }) && eq(M.careerStopRecord({ how: 'stopped', aero: 'HOME' }).structural, { damaged: false, why: null }),
+       'the stop record carries { damaged, why } of Deform\'s structural (absent -> not damaged)');
   }
   {
     // a challenge: medals by the logbook's time
@@ -576,6 +603,10 @@ function run(mut) {
        && g.doc.career.contracts.done.find(x => x.id === 'clients.03').pay === Math.round(M.contractStoryBase(A['clients.03'])) * 2, 'gold, paid double');   // G2260: the story factor (ECONOMY's CONTRACT_PAY.story)
     const s = M.contractOnStop(d, 'clients.03', stop('HOME', { row: { from: 'tw_ski', t: 500 } }));
     ok(s.ok && s.doc.career.contracts.done.find(x => x.id === 'clients.03').medal === 'bronze' && s.doc.career.tracks.clients === 1, 'bronze, the club house unlocked');
+    // (G2705 CAREER-DAMAGE) a gold time flown with structural damage wins no medal
+    const cb = M.contractOnStop(d, 'clients.03', stop('HOME', { row: { from: 'tw_ski', t: 280 }, structural: { damaged: true, why: 'the tail bent' } }));
+    refused(cb, b, d, 'a timed challenge flown with structural damage');
+    ok(/structural damage/.test(cb.why), 'its reason: ' + cb.why);
   }
   {
     // one stop, many contracts: the tracked one first, every one that moves
@@ -628,6 +659,171 @@ function run(mut) {
       if (good) {
         ok(d.wallet === 60000 + d.career.contracts.done.reduce((a, x) => a + x.pay, 0) && d.ledger.every(l => ['grant', 'contract'].includes(l.k)), p + ' journey: the wallet is the grant + the pay, nothing else charged');
       }
+    }
+  }
+
+  // ==== THE NIGHT (G2665 NIGHT-OPS, §R.3) =====================================
+  // night jobs (a share, through the existing shapes), every one flyable, the window a night one, the runways lit /
+  // unlit stated (25_'s rule), the moon dayMoonAt's at the window's middle, the night and moonless premiums, the
+  // weighting toward moonlit nights over a lunar month, overcast = no moon light, the authored night work (the
+  // stretcher case held out), the wait until the window opens, the offers' sky held for the epoch, the stop's almanac
+  {
+    const NG = M.CONTRACT_NIGHT;
+    // the fields: lit = runwayLightStrips (a land strip), the record's VASI / PAPI
+    const AW = RUNWAYS.map(rw => ({ kind: (CORE.stripSurface(rw) || {}).key === 'water' ? 'water' : 'strip', len: rw.len, wid: rw.wid, id: rw.id }));
+    const litIds = CORE.runwayLightStrips(AW).map(a => a.id);
+    ok(Object.keys(F).every(k => F[k].lit === litIds.includes(k)) && F.SEA.lit === false && F.mk_sea.lit === false && F.HOME.lit === true,
+       'night: every runway lit or unlit by 25_\'s runwayLightStrips (land strips lit, the two water lanes unlit)');
+    ok(F.HOME.glide === 'vasi' && F.w3.glide === 'papi' && !F.mn_strip.glide, 'night: Jolene AFB\'s VASI and Tamgas Hill\'s PAPI off the record');
+    // the sample's night jobs (the default sky: the game's first day)
+    const NJ = JOBS.filter(j => j.night);
+    ok(NJ.length > 0 && NJ.length / JOBS.length >= 0.03 && NJ.length / JOBS.length <= 0.3, 'night: a share of the jobs is night work (' + NJ.length + ' of ' + JOBS.length + ' on the game\'s first night)');
+    let nf = 0, nw = 0, nm = 0, np = 0, nl = 0;
+    for (const j of NJ) {
+      const subs = M.contractSubsOf(j), u = subs.filter(x => x.when);
+      if (!M.contractDoers(subs).length || M.contractValidate(j).length) nf++;
+      if (u.length !== 1 || !M.contractWhenNight(u[0].when, j.night.duskH, j.night.dawnH) || u[0] !== j.stages[j.stages.length - 1].subs[0]) nw++;
+      // the moon is dayMoonAt's at the window's middle (an hour before noon the next morning's)
+      const sky = M.contractSky(j.night.date, 0), mid = M.contractWhenMid(u[0].when, sky.duskH, sky.dawnH);
+      const date = mid < 12 ? CORE.dayFromAbs(CORE.dayAbs({ date: j.night.date, utc: 43200 }) + 86400).date : j.night.date;
+      const m = CORE.dayMoonAt(sky.day, date, mid);
+      if (Math.abs(j.night.hour - +mid.toFixed(2)) > 1e-9 || j.night.phase !== m.phase || j.night.up !== m.up || Math.abs(j.night.illum - +m.illum.toFixed(3)) > 1e-9
+          || j.night.light !== (m.up ? +m.illum.toFixed(3) : 0) || j.night.dark !== ((m.up ? m.illum : 0) < NG.darkLight)) nm++;
+      const P = M.contractPay(j);
+      if (!(P.night > 0) || (P.dark > 0) !== !!j.night.dark) np++;
+      const L = M.careerNightLine(M.careerNew({ seed: 'line' }), j);
+      if (!L || !L.night || !L.stops.length || !L.stops.every(x => x.lit === F[x.id].lit && L.line.includes(x.name + (x.lit ? ' lit' : ' unlit')))
+          || !L.line.includes(L.moonWords) || !L.moonWords) nl++;
+    }
+    ok(nf === 0, 'night: every night job is valid and flyable by a validated design (' + nf + ' not)');
+    ok(nw === 0, 'night: every night job\'s window (its last arrival) is a night one on its own almanac (' + nw + ' not)');
+    ok(nm === 0, 'night: every night job states the moon dayMoonAt gives at the window\'s middle (' + nm + ' not)');
+    ok(np === 0, 'night: every night job pays the night premium, and the moonless premium exactly when its night is dark (' + np + ' not)');
+    ok(nl === 0, 'night: every night job\'s line states the window, each runway lit / unlit and the moon (' + nl + ' not)');
+    const kinds = new Set(NJ.map(j => Object.keys(j.stages[j.stages.length - 1].subs[0].when)[0]));
+    ok(['after', 'before', 'arrive'].every(k => kinds.has(k)), 'night: after dusk, before dawn and an hour\'s arrival are all drawn (' + [...kinds].join(', ') + ')');
+    ok(NJ.every(j => { const w = j.stages[j.stages.length - 1].subs[0].when; return !w.arrive || (w.arrive[1] === (w.arrive[0] + 1) % 24); }), 'night: an arrival window is one whole hour');
+    ok(!JOBS.some(j => j.night && M.contractSubsOf(j).some(x => x.do === 'survey')), 'night: no survey is night work (a count is flown by day)');
+    // the premium, named: the same job with its night taken off pays less; a moonless night pays more than a moonlit one
+    {
+      const j = NJ[0], P = M.contractPay(j);
+      const day = clone(j); delete day.night; for (const st of day.stages) for (const x of st.subs) delete x.when;
+      const lit = clone(j); lit.night.dark = false; const dark = clone(j); dark.night.dark = true;
+      const P0 = M.contractPay(day), rest = P0.total;
+      ok(P0.total < P.total && P0.night === 0 && P.night > 0 && Math.abs(P.night - rest * M.CONTRACT_PAY.nightPct / 100) <= M.CONTRACT_PAY.round, 'night: the night premium is a named factor (pay.night ' + P.night + ' = ' + M.CONTRACT_PAY.nightPct + ' % of ' + rest + ')');
+      ok(M.contractPay(dark).total > M.contractPay(lit).total && M.contractPay(dark).dark > 0 && M.contractPay(lit).dark === 0, 'night: a moonless night pays more (pay.dark ' + M.contractPay(dark).dark + ')');
+      ok(M.CONTRACT_PAY.nightPct > 0 && M.CONTRACT_PAY.darkPct > 0, 'night: the premiums are CONTRACT_PAY.nightPct / darkPct');
+    }
+    // THE WEIGHTING OVER A LUNAR MONTH: 30 nights from the game's first, clear: the night share on moonlit nights
+    // (light >= 0.5 at the night's middle) beats the share on dark ones (< 0.1); an overcast month is all dark
+    {
+      const share = { lit: [0, 0], dark: [0, 0] }, over = [0, 0];
+      let date = '2026-06-21', overDark = true, phases = new Set();
+      for (let k = 0; k < 30; k++) {
+        const sky = M.contractSky(date, 0), skyO = M.contractSky(date, 0.9);
+        const mid = (sky.duskH + ((sky.dawnH - sky.duskH + 24) % 24) / 2) % 24, m0 = M.contractMoonAt(sky, mid);
+        phases.add(m0.phase);
+        const b = m0.light >= 0.5 ? 'lit' : m0.light < NG.darkLight ? 'dark' : null;
+        for (const sd of SEEDS.slice(0, 8)) for (const p of Object.keys(PROV)) for (const j of M.contractJobs(sd, p, 0, { rep: 2, sky })) {
+          const carry = !M.contractSubsOf(j).some(x => x.do === 'survey');
+          if (b && carry) { share[b][1]++; if (j.night) share[b][0]++; }
+        }
+        for (const sd of SEEDS.slice(0, 3)) for (const p of Object.keys(PROV)) for (const j of M.contractJobs(sd, p, 0, { rep: 2, sky: skyO })) {
+          if (!M.contractSubsOf(j).some(x => x.do === 'survey')) { over[1]++; if (j.night) { over[0]++; if (!j.night.overcast || j.night.light !== 0 || !j.night.dark) overDark = false; } }
+        }
+        date = CORE.dayFromAbs(CORE.dayAbs({ date, utc: 43200 }) + 86400).date;
+      }
+      const sl = share.lit[0] / Math.max(1, share.lit[1]), sdk = share.dark[0] / Math.max(1, share.dark[1]);
+      ok(phases.has('full') && phases.has('new'), 'night: the month runs from new moon to full (' + [...phases].join(', ') + ')');
+      ok(share.lit[1] > 0 && share.dark[1] > 0 && sl > 1.6 * sdk, 'night: weighted toward moonlit nights - ' + (100 * sl).toFixed(1) + ' % of the carry jobs on moonlit nights, ' + (100 * sdk).toFixed(1) + ' % on dark ones');
+      ok(overDark && over[0] > 0, 'night: overcast = no moon light (every night job under a 0.9 cover is dark, light 0)');
+      ok(over[0] / over[1] < sl, 'night: an overcast month draws night work at the dark nights\' share (' + (100 * over[0] / over[1]).toFixed(1) + ' %)');
+      SHOW && console.log('NIGHT over a lunar month: moonlit ' + (100 * sl).toFixed(1) + ' %, dark ' + (100 * sdk).toFixed(1) + ' %, overcast ' + (100 * over[0] / over[1]).toFixed(1) + ' % of the carry jobs');
+    }
+    // the sky null: no night work; the window helpers
+    ok(!M.contractJobs('n', 'clients', 0, { sky: null }).some(j => j.night), 'night: no sky, no night work');
+    ok(eq(M.contractJobs('n', 'clients', 0, { sky: null }).map(j => j.stages.map(st => st.subs.map(x => [x.from, x.to, x.load]))),
+          M.contractJobs('n', 'clients', 0, {}).map(j => j.stages.map(st => st.subs.map(x => [x.from, x.to, x.load])))), 'night: the night\'s own rng - the routes and loads are the same with or without it');
+    ok(M.contractWhenNight({ after: 'dusk' }) && M.contractWhenNight({ before: 'dawn' }) && M.contractWhenNight({ arrive: [0, 1] }) && !M.contractWhenNight({ before: 'dusk' })
+       && !M.contractWhenNight({ arrive: [10, 12] }) && M.contractWhenNight({ arrive: [23, 0] }, 22.5, 3.1) && !M.contractWhenNight({ arrive: [21, 22] }, 22.5, 3.1), 'night: which windows are night ones (on the day\'s own dusk / dawn)');
+    ok(eq(M.contractWhenWait({ after: 'dusk' }, 16, 22.5, 3.1), { target: 'dusk', h0: 22.5 }) && M.contractWhenWait({ after: 'dusk' }, 23, 22.5, 3.1) === null
+       && M.contractWhenWait({ after: 'dusk' }, 1, 22.5, 3.1) === null && eq(M.contractWhenWait({ arrive: [0, 1] }, 16, 22.5, 3.1), { target: 0, h0: 0 })
+       && eq(M.contractWhenWait({ before: 'dawn' }, 4, 22.5, 3.1), { target: 0, h0: 0 }), 'night: the wait until the window opens (dusk; the arrival\'s hour; none while it is open)');
+    // THE AUTHORED NIGHT WORK: the night mail into the lit field (its VASI), a late return from the mine, the medevac;
+    // the stretcher case authored and HELD OUT (no validated design's door takes the 2.0 m stretcher, GATE FREIGHT)
+    const NA = [].concat(...Object.values(PROV).map(P => (P.night || []).map(r => r.id)));
+    ok(eq(NA.slice().sort(), ['clients.n1', 'clients.n2', 'field.n1', 'minedock.n1']), 'night: the authored night work (' + NA.join(', ') + ')');
+    for (const id of NA) {
+      const r = A[id], u = M.contractSubsOf(r).find(x => x.when);
+      ok(!M.contractValidate(r, { ids }).length && u && M.contractWhenNight(u.when), id + ': validates, with a night window (' + (u ? M.contractWhenWords(u.when) : 'none') + ')');
+    }
+    ok(M.contractSubsOf(A['field.n1']).some(x => x.to === 'HOME' && x.when && x.when.arrive) && F.HOME.glide === 'vasi', 'night: the night mail arrives at the lit Jolene AFB (its VASI)');
+    ok(M.contractSubsOf(A['minedock.n1']).some(x => x.from === 'mn_strip' && x.when && x.when.after === 'dusk'), 'night: a late return from the mine, after dusk');
+    ok(eq(M.contractSubsOf(A['clients.n1']).map(x => [x.from, x.to, x.when ? M.contractWhenWords(x.when) : '']), [['HOME', 'w3', ''], ['w3', 'HOME', 'before dawn']]), 'night: the medevac - the doctor up to Tamgas Hill, both down to the ambulance at the field before dawn');
+    const st2 = M.contractSubsOf(A['clients.n2'])[0].load.items[0];
+    ok(st2.kind === CORE.FREIGHT_STRETCHER.kind && eq(st2.dims, CORE.FREIGHT_STRETCHER.dims) && st2.kg === CORE.FREIGHT_STRETCHER.kg, 'night: the stretcher case carries FREIGHT_STRETCHER\'s item');
+    ok(['field.n1', 'minedock.n1', 'clients.n1'].every(id => M.contractFlyable(A[id])) && !M.contractFlyable(A['clients.n2']), 'night: three flyable, the stretcher case is no validated design\'s');
+    {
+      const d = M.careerNew({ seed: 'night-arc' });
+      ok(!['field.n1', 'minedock.n1', 'clients.n1'].some(id => d.career.contracts.offered.includes(id)), 'night: the authored night work waits for its needs');
+      for (const id of ['field.01', 'field.02', 'minedock.01', 'minedock.02', 'clients.01']) d.career.contracts.done.push({ id, at: 0, pay: 0 });
+      const o = M.careerOfferIds(d);
+      ok(['field.n1', 'minedock.n1', 'clients.n1'].every(id => o.includes(id)), 'night: offered beside the arc once its needs are met');
+      d.career.contracts.done.push({ id: 'clients.n1', at: 0, pay: 0 });
+      ok(!M.careerOfferIds(d).includes('clients.n2') && !M.careerAccept(d, 'clients.n2').ok, 'night: the stretcher case is HELD OUT - never offered, never accepted (its needs met)');
+      ok(!M.careerOfferIds(d).includes('clients.n1'), 'night: an authored night contract is offered once');
+      // the medevac flown: the doctor up, then both down - refused at 21:00 (not yet "before dawn"), done at 02:00
+      let e = accept(M.careerNew({ seed: 'medevac' }), 'clients.01');
+      e.career.contracts.accepted = []; e.career.contracts.live = {}; e.career.contracts.tracked = null; e.career.contracts.done.push({ id: 'clients.01', at: 0, pay: 0 });
+      M.careerRefresh(e);
+      e = accept(e, 'clients.n1');
+      const T0 = M.careerTrackedWhen(e);
+      ok(T0 === null, 'night: the medevac\'s first leg has no window (the doctor goes up whenever)');
+      let q = M.contractOnStop(e, 'clients.n1', stop('HOME', { load: { kg: 0, pax: 1 }, row: { from: 'HOME' } }));
+      e = q.ok ? q.doc : e;
+      q = M.contractOnStop(e, 'clients.n1', stop('w3', { load: { kg: 0, pax: 1 }, row: { from: 'HOME' } }));
+      e = q.ok ? q.doc : e;
+      const T1 = M.careerTrackedWhen(e);
+      ok(T1 && T1.words === 'before dawn' && T1.to === 'HOME', 'night: the tracked medevac\'s window now: before dawn, into Jolene AFB');
+      const W = M.careerWaitWindow(e, CORE.DAY.makeDay({ date: '2026-06-22', utc: 4 * 3600 }));       // 20:00 AKDT
+      ok(W && W.target === 0 && W.words === 'before dawn', 'night: the Wait offers "until the window opens" (midnight, for before dawn)');
+      ok(M.careerWaitWindow(e, CORE.DAY.makeDay({ date: '2026-06-22', utc: 9 * 3600 })) === null, 'night: no wait while the window is open (01:00 AKDT)');
+      const late = M.contractOnStop(e, 'clients.n1', stop('HOME', { load: { kg: 0, pax: 2 }, row: { from: 'w3' }, hour: 21, duskH: 22.48, dawnH: 3.12 }));
+      ok(!late.ok && /after dawn/.test(late.why), 'night: the medevac refused at 21:00 on the almanac (' + late.why + ')');
+      const done = M.contractOnStop(e, 'clients.n1', stop('HOME', { load: { kg: 0, pax: 2 }, row: { from: 'w3' }, hour: 2, duskH: 22.48, dawnH: 3.12 }));
+      ok(done.ok && done.events.some(x => x.k === 'done'), 'night: the medevac done at 02:00, paid ' + (done.ok ? done.events.find(x => x.k === 'done').pay : '?'));
+    }
+    // THE OFFERS' SKY: stamped at the refresh, held while the clock moves within the epoch, the epoch's date the career's
+    {
+      const d = M.careerNew({ seed: 'sky' });
+      ok(d.career.contracts.sky && d.career.contracts.sky.date === '2026-06-21' && d.career.contracts.sky.epoch === 0, 'night: the offers\' sky is the career\'s local date (the game\'s first day)');
+      const later = M.careerDaySet(d, { date: '2026-06-25', utc: 30000 }).doc;
+      const R0 = M.careerMapRecord(d, null, {}), R1 = M.careerMapRecord(later, null, {});
+      ok(eq(R0.contracts.map(c => [c.id, c.pay.total, J(c.stages)]), R1.contracts.map(c => [c.id, c.pay.total, J(c.stages)])), 'night: the offers hold while the clock moves on (the sky held for the epoch)');
+      const n2 = clone(later); delete n2.career.contracts.sky;
+      M.careerRefresh(n2);
+      ok(n2.career.contracts.sky.date === '2026-06-25', 'night: a career with no stamp takes its own clock\'s local date (' + n2.career.contracts.sky.date + ')');
+      const ov = clone(d); delete ov.career.contracts.sky; ov.career.cover = 0.95; M.careerRefresh(ov);
+      ok(ov.career.contracts.sky.cover === 0.95 && M.careerOfferSky(ov).overcast, 'night: the day\'s cloud cover rides into the offers\' sky (overcast)');
+      // the job line on the map record: every contract with a night window carries it
+      let any = null;
+      for (let k = 0; k < 40 && !any; k++) { const e = M.careerNew({ seed: 'line' + k }); const R = M.careerMapRecord(e, null, {}); any = R.contracts.find(c => c.night && c.night.night); }
+      ok(any && /lit|unlit/.test(any.night.line) && any.night.moonWords && any.night.line.includes(any.night.when), 'night: the map record carries the night line (' + (any && any.night.line) + ')');
+    }
+    // the job line's words: lit / unlit, the moon at the window's hour
+    {
+      const e = M.careerNew({ seed: 'words' });
+      const L = M.careerNightLine(e, A['field.n1']);
+      ok(L && L.line.startsWith('arrive 00:00-01:00') && /Tamgas Hill Strip lit \(PAPI\)/.test(L.line) && /Jolene AFB lit \(VASI\)/.test(L.line), 'night: the mail\'s line - ' + (L && L.line));
+      const sea = M.contractNormalise({ id: 'x', provider: 'minedock', kind: 'job', title: 'job.minedock.mail.title', brief: 'job.minedock.mail.brief',
+                                       stages: [{ subs: [{ do: 'carry', from: 'SEA', to: 'mk_sea', load: { kg: 20, pax: 0 }, when: { after: 'dusk' } }] }], rep: { provider: 'minedock', gain: 0 } });
+      const LS = M.careerNightLine(e, sea);
+      ok(LS && /Annette Dock unlit/.test(LS.line) && /Metlakatla Seaplane Base unlit/.test(LS.line), 'night: water lanes are unlit (' + (LS && LS.line) + ')');
+      ok(M.contractMoonWords({ phase: 'full', up: true }) === 'full moon, up' && M.contractMoonWords({ phase: 'half', up: false }) === 'half moon, down'
+         && M.contractMoonWords({ phase: 'new', up: true }) === 'no moon' && M.contractMoonWords({ phase: 'full', up: true, overcast: true }) === 'overcast: no moon light', 'night: the moon in words');
+      // the line's moon is the NEXT opening's, at the window's middle
+      const sky = M.contractSky(L.date, 0), mm = M.contractMoonAt(sky, M.contractWhenMid({ arrive: [0, 1] }, sky.duskH, sky.dawnH));
+      ok(L.date === '2026-06-21' && eq(L.moon, mm), 'night: the moon at the window\'s hour of the next opening (' + L.moonWords + ', the night of ' + L.date + ')');
     }
   }
 
@@ -715,6 +911,31 @@ function run(mut) {
     const S = M.careerStopRecord({ how: 'stopped', aero: 'w3', occupants: 2, cargoKg: 34.6, row: { from: 'HOME', to: 'w3', t: 412.4 }, overflew: ['HOME', 'w3'], hour: 11.257 });
     ok(S.aero === 'w3' && S.load.kg === 35 && S.load.pax === 1 && S.row.t === 412 && S.hour === 11.26 && S.overflew.join() === 'HOME,w3' && !S.wrecked, 'the stop record: the field, the load (occupants beyond the pilot + the cargo), the row, the hour');
     ok(M.careerStopRecord({ how: 'over', aero: 'w3' }).aero === null, 'the stop record: an ending that is not a stop delivers nowhere');
+    // (G2705 CAREER-DAMAGE, §R.4) A CRASH IN THE CAREER: back where the flight departed from, repaired, free; the stop
+    // delivers nothing; the clock untouched; the card's line says so
+    {
+      const k0 = clone(e);
+      k0.fleet = { Cub: { hangar: 'HOME', aero: 'HOME', damage: { damaged: true, writeOff: true, bill: [{ section: 'wing', line: 'spar', cost: 9000 }] } } };
+      k0.clock = 1234;
+      const kb = clone(k0);
+      const crash = M.careerStopRecord({ how: 'crashed', aero: null, wrecked: true, slot: 'Cub', occupants: 1, cargoKg: 0, row: { from: 'HOME', to: 'w3', t: 300 } });
+      const kr = M.careerOnStop(k0, crash, {});
+      ok(!kr.ok && kr.doc === k0 && Object.values(kr.untouched).some(w => /wrecked: nothing is delivered/.test(w)), 'a crashed stop delivers nothing');
+      const z = M.careerCrashReset(kr.doc, 'Cub', 'HOME');
+      const W = CORE.playerWhere(z.doc, 'Cub');
+      ok(z.ok && W.kind === 'in' && W.hangar === 'HOME' && W.aero === 'HOME' && !z.doc.fleet.Cub.damage, 'the crash resets the aeroplane to its departure place (in the hangar it left), repaired (a write-off too)');
+      ok(z.doc.wallet === k0.wallet && z.doc.clock === 1234 && !z.doc.ledger.slice(k0.ledger.length).some(l => l.k === 'repair' || l.amt !== 0), 'free (no repair line, the wallet untouched), the clock kept');
+      ok(eq(z.doc.career, k0.career) && eq(k0, kb), 'nothing delivered; the document handed in untouched');
+      ok(z.line && z.line.k === 'crash' && /^crashed - back at .+, repaired$/.test(z.line.text), 'the card\'s line: ' + (z.line && z.line.text));
+      // departed from a field where it was tied down: back there (playerArrive, the existing mover); out of place in
+      // the document -> moved to the departure aerodrome
+      const k1 = clone(k0); k1.fleet.Cub = { hangar: null, aero: 'w3', outSince: 0, damage: { damaged: true, bill: [] } };
+      const z1 = M.careerCrashReset(k1, 'Cub', 'w3');
+      ok(z1.ok && CORE.playerWhere(z1.doc, 'Cub').aero === 'w3' && !CORE.playerWhere(z1.doc, 'Cub').hangar && !z1.doc.fleet.Cub.damage, 'departed from a field: back at that field, repaired');
+      const z2 = M.careerCrashReset(k0, 'Cub', 'w3');
+      ok(z2.ok && CORE.playerWhere(z2.doc, 'Cub').aero === 'w3', 'a departure the ledger does not hold: placed there through playerArrive');
+      ok(!M.careerCrashReset(CORE.playerDefault(), 'Cub', 'HOME').ok && !M.careerCrashReset(k0, 'Nope', 'HOME').ok, 'no reset outside a career or for an airframe not in the fleet');
+    }
     // the stop advances the job; the event lines say so, with the wallet
     const L = M.careerTrackedLoad(e), sub = M.careerContract(e, job).stages[0].subs[0];
     ok(L && L.kg === sub.load.kg && L.pax === sub.load.pax, 'the tracked load: the plate\'s default cargo is the contract\'s');
@@ -836,7 +1057,7 @@ const BREAKS = [
   ['an arc ends with no stage unlock', { s72: sub("unlock: { stage: 'resort:3' },", '') }],
   ['an arc unlocks another provider\'s track', { s72: sub("unlock: { stage: 'survey:1' },", "unlock: { stage: 'field:1' },") }],
   ['the normaliser drops unknown fields', { s73: sub('  const o = (r && typeof r === \'object\') ? ctClone(r) : {};', '  const o = (r && typeof r === \'object\') ? (({ future, ...x }) => ctClone(x))(r) : {};') }],
-  ['the validator lets a deadline through', { s73: sub("if (s.when != null && !(s.when && s.when.before === 'dusk'))", 'if (false)') }],
+  ['the validator lets a deadline through', { s73: sub("if (s.when != null) { const ww = contractWhenWhy(s.when); if (ww) why.push(at + ': ' + ww); }", '') }],
   // the world
   ['CONTRACT_FIELDS drifts from the record', { s72: sub("len: 380,  surf: 'grass', alti: true", "len: 420,  surf: 'grass', alti: true") }],
   ['wheels may land on water', { s73: sub('  return !ctWet(f);\n}', '  return true;\n}') }],
@@ -869,9 +1090,15 @@ const BREAKS = [
   ['a stop at the wrong field advances', { s73: sub('    if (at === sub.to) {\n      if (!(prog.picked', '    if (true) {\n      if (!(prog.picked') }],
   ['the load is not checked', { s73: sub('  const loadOk = L => {\n', '  const loadOk = L => { return true;\n') }],
   ['a wreck delivers', { s74: sub("  if (stop.wrecked) return crNo(doc, 'the aeroplane is wrecked: nothing is delivered');", '') }],
+  ['an acceptance flown bent passes (G2705)', { s73: sub("    const b = bentWhy(); if (b) return { st: 'no', why: 'refused: ' + b };\n", '') }],
+  ['a challenge flown bent wins a medal (G2705)', { s73: sub("    const b = bentWhy(); if (b) return { st: 'no', why: b };\n", '') }],
+  ['a transport job refused for damage (G2705)', { s73: sub("      const w = whenWhy(); if (w) return { st: 'no', why: w };\n      return { st: 'done', why: '' };", "      const w = whenWhy(); if (w) return { st: 'no', why: w };\n      if (S && S.damaged) return { st: 'no', why: 'bent' };\n      return { st: 'done', why: '' };") }],
+  ['the stop record drops structural (G2705)', { s75: sub('    structural: { damaged: !!(o.structural && o.structural.damaged),', '    structural: { damaged: false && !!(o.structural && o.structural.damaged),') }],
+  ['a crash reset leaves the damage (G2705)', { s75: sub('  delete d.fleet[slot].damage;\n  if (typeof playerWearReset', '  if (typeof playerWearReset') }],
+  ['a crash reset ignores the departure (G2705)', { s75: sub('  if (from && W0.aero !== from) {', '  if (false) {') }],
   ['a refused stop leaves a mark', { s74: sub("    const out = crNo(doc, r.why);", "    doc.career.contracts.live[id] = Object.assign({}, doc.career.contracts.live[id], { tried: 1 });\n    const out = crNo(doc, r.why);") }],
   ['stages are not in order', { s74: sub('  const st = rec.stages[L.stage];', '  const st = { subs: [].concat(...rec.stages.map(x => x.subs)) };') }],
-  ['dusk is ignored', { s73: sub("typeof stop.hour === 'number' && stop.hour >= CONTRACT_DUSK_H)", "typeof stop.hour === 'number' && stop.hour >= 99)") }],
+  ['dusk is ignored', { s73: sub("if (w.before === 'dusk') return h >= dusk ? 'after dusk' + at : '';", "if (w.before === 'dusk') return h >= 99 ? 'after dusk' + at : '';") }],
   ['a missing hook passes the build', { s73: sub("if (!H) return { st: 'no', pending: true, why: 'acceptance pending: no verdict yet' };", "if (!H) return { st: 'done', why: '' };") }],
   ['an accepted job changes when the reputation moves', { s74: sub("  if (rec.kind === 'job') D.live[id].rec = rec;", '') }],
   ['an arc needs more reputation than it gives', { s72: sub("needs: { rep: 2, after: ['resort.04'] } }", "needs: { rep: 4, after: ['resort.04'] } }") }],
@@ -905,6 +1132,18 @@ const BREAKS = [
   // the import
   ['the import lets a configuration in', { s73: sub("    if (check) { const w = contractConfigWord(s); if (w) { why.push(k + ' names a configuration (' + w + ')'); return; } }", '') }],
   ['the import writes the table handed in', { s73: sub('  const T = ctClone(text || CONTRACT_TEXT), why = [];', '  const T = text || CONTRACT_TEXT, why = [];') }],
+  // (G2665) the night
+  ['the night premium is not paid', { s73: sub('  nightPct: 15, darkPct: 20,', '  nightPct: 0, darkPct: 20,') }],
+  ['a moonless night pays no premium', { s73: sub('  nightPct: 15, darkPct: 20,', '  nightPct: 15, darkPct: 0,') }],
+  ['the moon does not weigh the night', { s73: sub('moonW: [0.5, 1.0]', 'moonW: [0.85, 0]') }],
+  ['a night window by day', { s73: sub("else if (kind === 'before:dawn') when = { before: 'dawn' };", "else if (kind === 'before:dawn') when = { before: 'dusk' };") }],
+  ['the moon read on the wrong night', { s73: sub('const h = ctMod24(hour), date = h < 12 ? ctDateNext(sky.date) : sky.date;', 'const h = ctMod24(hour), date = sky.date;') }],
+  ['an overcast lets the moon through', { s73: sub('const light = sky.overcast || !m.up ? 0 : m.illum;', 'const light = !m.up ? 0 : m.illum;') }],
+  ['a survey flown by night', { s73: sub('const nt = tpl.survey ? null : ctNightOf(', 'const nt = ctNightOf(') }],
+  ['water lanes are lit', { s73: sub("runwayLightStrips([{ kind: a.kind || (wet ? 'water' : 'strip'),", "runwayLightStrips([{ kind: 'strip',") }],
+  ['the line forgets an unlit strip', { s75: sub("(x.glide ? ' (' + x.glide.toUpperCase() + ')' : '') : ' unlit'));", "(x.glide ? ' (' + x.glide.toUpperCase() + ')' : '') : ''));") }],
+  ['the stretcher case is offered', { s74: sub(' && careerNeedsOk(doc, A[r.id]) && contractFlyable(A[r.id])) out.push(r.id);', ' && careerNeedsOk(doc, A[r.id])) out.push(r.id);') }],
+  ['the offers move with the clock', { s74: sub('  doc.career.contracts.sky = careerSkyStamp(doc);', '') }],
   // purity
   ['the model reaches for storage', { s74: s => s + '\nfunction crLeak() { return localStorage; }\n' }],
 ];

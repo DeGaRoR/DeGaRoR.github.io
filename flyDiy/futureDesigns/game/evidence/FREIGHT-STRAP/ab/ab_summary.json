@@ -1,0 +1,512 @@
+{
+ "rules": [
+  "fps",
+  "p99",
+  "p99all",
+  "over15",
+  "taxiOver15",
+  "uneven",
+  "p999",
+  "over3x",
+  "over1s",
+  "loop",
+  "render",
+  "solver",
+  "over100",
+  "tasks1s",
+  "tasks200",
+  "taskWorst",
+  "slice",
+  "garage",
+  "rollout",
+  "flight",
+  "compile",
+  "settings"
+ ],
+ "rows": [
+  {
+   "b": "cub",
+   "v": "chase",
+   "out": {
+    "fps": {
+     "none": 30,
+     "load": 30,
+     "spread": 0
+    },
+    "uneven": {
+     "none": 0.004898048604916827,
+     "load": 0.002816901408450704,
+     "spread": 0.004209505031062705
+    },
+    "p99": {
+     "none": 33.5,
+     "load": 33.5,
+     "spread": 0
+    },
+    "loop": {
+     "none": 15.649999999999999,
+     "load": 15.75,
+     "spread": 0.09999999999999964
+    },
+    "render": {
+     "none": 11.649999999999999,
+     "load": 11.75,
+     "spread": 0.09999999999999964
+    },
+    "solver": {
+     "none": 0.1,
+     "load": 0.1,
+     "spread": 0
+    },
+    "over100": {
+     "none": 0,
+     "load": 0,
+     "spread": 0
+    },
+    "below30s": {
+     "none": 0.13,
+     "load": 0.1,
+     "spread": 0
+    },
+    "tasks1s": {
+     "none": 1,
+     "load": 1,
+     "spread": 0
+    },
+    "tasks200": {
+     "none": 24.5,
+     "load": 25,
+     "spread": 3
+    },
+    "taskWorst": {
+     "none": 3510.5,
+     "load": 3526.5,
+     "spread": 163
+    },
+    "slice": {
+     "none": 467.5,
+     "load": 460.5,
+     "spread": 13
+    },
+    "garage": {
+     "none": 45.098,
+     "load": 45.933,
+     "spread": 0.015999999999998238
+    },
+    "rollout": {
+     "none": 3.375,
+     "load": 3.4075,
+     "spread": 0.08999999999999986
+    },
+    "flight": {
+     "none": 48.473,
+     "load": 49.340500000000006,
+     "spread": 0.10600000000000165
+    },
+    "compile": {
+     "none": 3957,
+     "load": 4774,
+     "spread": 696
+    },
+    "cap": {
+     "none": 30,
+     "load": 30,
+     "spread": 0
+    },
+    "p99all": {
+     "none": 33.5,
+     "load": 33.5,
+     "spread": 0
+    },
+    "over15": {
+     "none": 0.001,
+     "load": 0.00105,
+     "spread": 0
+    },
+    "taxiOver15": {
+     "none": 0.0007,
+     "load": 0.0007,
+     "spread": 0.0014
+    },
+    "p999": {
+     "none": 50.1,
+     "load": 58.45,
+     "spread": 0
+    },
+    "over3x": {
+     "none": 0,
+     "load": 0,
+     "spread": 0
+    },
+    "over1s": {
+     "none": 0,
+     "load": 0,
+     "spread": 0
+    }
+   }
+  },
+  {
+   "b": "cub",
+   "v": "cockpit",
+   "out": {
+    "fps": {
+     "none": 29.3,
+     "load": 29.25,
+     "spread": 0
+    },
+    "uneven": {
+     "none": 0.005753426354284724,
+     "load": 0.010043041606886658,
+     "spread": 0.0029231617214449833
+    },
+    "p99": {
+     "none": 33.5,
+     "load": 33.5,
+     "spread": 0
+    },
+    "loop": {
+     "none": 15.5,
+     "load": 15.75,
+     "spread": 0.1999999999999993
+    },
+    "render": {
+     "none": 11.3,
+     "load": 11.45,
+     "spread": 0.20000000000000107
+    },
+    "solver": {
+     "none": 0.1,
+     "load": 0.1,
+     "spread": 0
+    },
+    "over100": {
+     "none": 1,
+     "load": 1,
+     "spread": 0
+    },
+    "below30s": {
+     "none": 0.595,
+     "load": 0.685,
+     "spread": 0.050000000000000044
+    },
+    "tasks1s": {
+     "none": 1,
+     "load": 1,
+     "spread": 0
+    },
+    "tasks200": {
+     "none": 26,
+     "load": 25,
+     "spread": 2
+    },
+    "taskWorst": {
+     "none": 3370,
+     "load": 3554.5,
+     "spread": 68
+    },
+    "slice": {
+     "none": 451.5,
+     "load": 470,
+     "spread": 13
+    },
+    "garage": {
+     "none": 44.295500000000004,
+     "load": 44.480999999999995,
+     "spread": 0.030999999999998806
+    },
+    "rollout": {
+     "none": 3.448,
+     "load": 3.452,
+     "spread": 0.02200000000000024
+    },
+    "flight": {
+     "none": 47.7435,
+     "load": 47.933,
+     "spread": 0.05300000000000438
+    },
+    "compile": {
+     "none": 2005.5,
+     "load": 2144,
+     "spread": 173
+    },
+    "cap": {
+     "none": 30,
+     "load": 30,
+     "spread": 0
+    },
+    "p99all": {
+     "none": 33.5,
+     "load": 33.5,
+     "spread": 0
+    },
+    "over15": {
+     "none": 0.0011,
+     "load": 0.0021,
+     "spread": 0
+    },
+    "taxiOver15": {
+     "none": 0.0014,
+     "load": 0.00215,
+     "spread": 0
+    },
+    "p999": {
+     "none": 575.2,
+     "load": 625.1500000000001,
+     "spread": 16.600000000000023
+    },
+    "over3x": {
+     "none": 0.0011,
+     "load": 0.0011,
+     "spread": 0
+    },
+    "over1s": {
+     "none": 0,
+     "load": 0,
+     "spread": 0
+    }
+   }
+  },
+  {
+   "b": "metal",
+   "v": "chase",
+   "out": {
+    "fps": {
+     "none": 29.3,
+     "load": 29.3,
+     "spread": 0
+    },
+    "uneven": {
+     "none": 0.00644803090292958,
+     "load": 0.005023582183083494,
+     "spread": 0.001451140489693208
+    },
+    "p99": {
+     "none": 33.5,
+     "load": 33.5,
+     "spread": 0
+    },
+    "loop": {
+     "none": 15.899999999999999,
+     "load": 16,
+     "spread": 0.5999999999999996
+    },
+    "render": {
+     "none": 12,
+     "load": 12.05,
+     "spread": 0.6000000000000014
+    },
+    "solver": {
+     "none": 0.1,
+     "load": 0.1,
+     "spread": 0
+    },
+    "over100": {
+     "none": 1,
+     "load": 1,
+     "spread": 0
+    },
+    "below30s": {
+     "none": 0.69,
+     "load": 0.68,
+     "spread": 0.12
+    },
+    "tasks1s": {
+     "none": 1,
+     "load": 1,
+     "spread": 0
+    },
+    "tasks200": {
+     "none": 27,
+     "load": 26.5,
+     "spread": 0
+    },
+    "taskWorst": {
+     "none": 3266.5,
+     "load": 3215,
+     "spread": 93
+    },
+    "slice": {
+     "none": 463,
+     "load": 473,
+     "spread": 2
+    },
+    "garage": {
+     "none": 43.903999999999996,
+     "load": 44.058,
+     "spread": 0.02999999999999403
+    },
+    "rollout": {
+     "none": 3.433,
+     "load": 3.436,
+     "spread": 0.0040000000000000036
+    },
+    "flight": {
+     "none": 47.337,
+     "load": 47.494,
+     "spread": 0.025999999999989143
+    },
+    "compile": {
+     "none": 2884.5,
+     "load": 2926.5,
+     "spread": 147
+    },
+    "cap": {
+     "none": 30,
+     "load": 30,
+     "spread": 0
+    },
+    "p99all": {
+     "none": 33.5,
+     "load": 33.5,
+     "spread": 0
+    },
+    "over15": {
+     "none": 0.00315,
+     "load": 0.00215,
+     "spread": 0.0021
+    },
+    "taxiOver15": {
+     "none": 0.0029,
+     "load": 0.0014,
+     "spread": 0
+    },
+    "p999": {
+     "none": 591.8,
+     "load": 600.15,
+     "spread": 50
+    },
+    "over3x": {
+     "none": 0.0011,
+     "load": 0.0011,
+     "spread": 0
+    },
+    "over1s": {
+     "none": 0,
+     "load": 0,
+     "spread": 0
+    }
+   }
+  },
+  {
+   "b": "metal",
+   "v": "cockpit",
+   "out": {
+    "fps": {
+     "none": 29.200000000000003,
+     "load": 29.200000000000003,
+     "spread": 0.1999999999999993
+    },
+    "uneven": {
+     "none": 0.005055718206007223,
+     "load": 0.027444171830165925,
+     "spread": 0.0043394306400086746
+    },
+    "p99": {
+     "none": 33.5,
+     "load": 41.75,
+     "spread": 0
+    },
+    "loop": {
+     "none": 16.05,
+     "load": 16.75,
+     "spread": 0.29999999999999893
+    },
+    "render": {
+     "none": 11.85,
+     "load": 12.399999999999999,
+     "spread": 0.3000000000000007
+    },
+    "solver": {
+     "none": 0.1,
+     "load": 0.1,
+     "spread": 0
+    },
+    "over100": {
+     "none": 1,
+     "load": 1,
+     "spread": 0
+    },
+    "below30s": {
+     "none": 0.69,
+     "load": 0.655,
+     "spread": 0.12
+    },
+    "tasks1s": {
+     "none": 1,
+     "load": 1,
+     "spread": 0
+    },
+    "tasks200": {
+     "none": 27,
+     "load": 27,
+     "spread": 0
+    },
+    "taskWorst": {
+     "none": 3288.5,
+     "load": 3323.5,
+     "spread": 13
+    },
+    "slice": {
+     "none": 476.5,
+     "load": 468,
+     "spread": 15
+    },
+    "garage": {
+     "none": 44.203500000000005,
+     "load": 44.1805,
+     "spread": 0.4269999999999996
+    },
+    "rollout": {
+     "none": 3.4459999999999997,
+     "load": 3.4325,
+     "spread": 0.028000000000000025
+    },
+    "flight": {
+     "none": 47.6495,
+     "load": 47.613,
+     "spread": 0.4549999999999983
+    },
+    "compile": {
+     "none": 1875,
+     "load": 1842.5,
+     "spread": 204
+    },
+    "cap": {
+     "none": 30,
+     "load": 30,
+     "spread": 0
+    },
+    "p99all": {
+     "none": 33.5,
+     "load": 41.75,
+     "spread": 0
+    },
+    "over15": {
+     "none": 0.00265,
+     "load": 0.0021,
+     "spread": 0.0011000000000000003
+    },
+    "taxiOver15": {
+     "none": 0.00215,
+     "load": 0.00215,
+     "spread": 0.0014999999999999998
+    },
+    "p999": {
+     "none": 675.25,
+     "load": 616.9000000000001,
+     "spread": 150.0999999999999
+    },
+    "over3x": {
+     "none": 0.0011,
+     "load": 0.0011,
+     "spread": 0
+    },
+    "over1s": {
+     "none": 0,
+     "load": 0,
+     "spread": 0
+    }
+   }
+  }
+ ]
+}
