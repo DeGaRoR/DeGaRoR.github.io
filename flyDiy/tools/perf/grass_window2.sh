@@ -35,7 +35,7 @@ case "$KIND" in
     V=forest,app10,app30
     ev() { local f=$E/cost3/eval_$1.js; echo "const f = TREE_FILL.grass(); f.set($2); return f.get();" > $f; echo $f; }
     run node tools/perf/grass_cost.js --root $BASE --gpu --noshots --out $E/cost3/base_gamer --preset gamer --views $V --udd C:/grc_base_gamer && log "base gamer"
-    for spec in "c1:{sizeMax:1}" "c2:{sizeMax:1,variants:2}" "c3:{sizeMax:1,variants:2,block:3}" "c4:{sizeMax:1,variants:2,tufts:70}"; do
+    for spec in "c1:{sizeMax:1}" "c2:{sizeMax:1,variants:2}" "c4:{sizeMax:1,variants:2,tufts:70}"; do   # (c3, 3 x 3 blocks, dropped: the 17 min window; v1 showed the coarse blocks cost)
       n=${spec%%:*}; o=${spec#*:}
       run node tools/perf/grass_cost.js --gpu --noshots --q grassfield=1 --eval $(ev $n "$o") --out $E/cost3/${n}_gamer --preset gamer --views $V --udd C:/grc_after_gamer --warm && log "$n gamer"
     done

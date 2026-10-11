@@ -975,7 +975,7 @@ const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge
 // `hard` (the user's call, default 0): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
 // shoulder polygons (y_sh*: 46 m beside 13/31 and 02/20) and the declared strip box's margin, drawn as the island's ground since
 // G660. 1 grows the cut grass there (the eye's WYSIWYG); the surface itself (friction) is not touched. Read by the viewer's okAt.
-const GRASS_SIDES_DEF = { law: 'today', sideClear: PAVE_SIDE, softClear: 0.3, mowBand: 15, mowBlend: 4, roadMow: 2, stripGrass: 1, hard: 0 };
+const GRASS_SIDES_DEF = { law: 'sides', sideClear: PAVE_SIDE, softClear: 0.3, mowBand: 15, mowBlend: 4, roadMow: 2, stripGrass: 1, hard: 0 };
 const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
 function grassSides(o) {
   if (o && typeof o === 'object') for (const k in o) {
@@ -990,7 +990,12 @@ function rwyTreesMode(o) {
   if (v == null && typeof window !== 'undefined' && window.FLYDIY_RWYTREES != null) v = window.FLYDIY_RWYTREES;
   if (v == null && typeof process !== 'undefined' && process.env && process.env.FLYDIY_RWYTREES) v = process.env.FLYDIY_RWYTREES;
   v = String(v == null ? '' : v).toLowerCase();
-  return RWY_TREES.indexOf(v) >= 0 ? v : 'today';
+  // THE USER HAS JUDGED (GRASS-DENSE G2568, 10 Oct): "trees cleared only ON the strip. It's bush flying, trees grow as close as
+  // possible from where we land. Including the base runways ... Further clearings will be done using polygons, not by the runway"
+  // - 'map' is the default: no tree on a pavement or its drawn side (PAVE_SIDE 1.8 m paved / PAVE_SIDE_SOFT 7.9 m soft, wider
+  // than any validated aircraft's half span past the edge), the derived boxes, shoulders and fans lifted; a wider clearing is an
+  // authored 'no trees' polygon (premises editor). GATE RWYTREES holds 'map' (the paths, the climb-out, the circuit flown)
+  return RWY_TREES.indexOf(v) >= 0 ? v : 'map';
 }
 // THE STRIP'S TREE CLEARANCE (G1385 EDITOR-VEG, contract v1.31, the user: "I need to better control tree exclusion
 // zones around runways"): a strip's `clear` { side, beyond, taper, bushes } is the clearing the trees keep from it -
