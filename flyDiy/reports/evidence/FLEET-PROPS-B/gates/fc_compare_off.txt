@@ -1,0 +1,24 @@
+  cub stand (a -> b, what moved)
+  cub taxi (a -> b, what moved)
+  cub boot (a -> b, what moved)
+  cub KTX2 (a -> b): {"packs":0,"fetched":0,"lent":0,"failed":0,"bytes":0,"ktx2Packs":3,"ktx2Layers":92,"ktx2Bytes":22417271,"ktx2Lent":0,"ktx2Shared":20,"ktx2Fallbacks":0,"ktx2Why":null} -> {"packs":0,"fetched":0,"lent":0,"failed":0,"bytes":0,"ktx2Packs":3,"ktx2Layers":92,"ktx2Bytes":22417271,"ktx2Lent":0,"ktx2Shared":20,"ktx2Fallbacks":0,"ktx2Why":null}; loader {"files":485,"bytes":84280202,"failed":0,"fallbacks":0,"target":36492,"off":null,"workers":4,"skipped":0}; worker messages 974
+  cub texture upload MiB by step (a -> b): total 1183.5 -> 1183.5
+  cub crew at the stand (a -> b): 1 character(s) (ch22), 2 materials (2 on the budget set), 4 textures (4 KTX2, 0 images, 0 pending): 5.3 MiB on the GPU (ch22 5.3)  ->  1 character(s) (ch22), 2 materials (2 on the budget set), 4 textures (4 KTX2, 0 images, 0 pending): 5.3 MiB on the GPU (ch22 5.3)
+  cub memory after rollout (MiB, a -> b): heapUsed 1071 -> 1078.7, arrayBuffers 2327.8 -> 2327.9, external 2394.8 -> 2394.9, rss 3578.8 -> 3586.6
+  cub memory after end (MiB, a -> b): heapUsed 818.2 -> 818.3, arrayBuffers 2263.1 -> 2263.1, external 2330.1 -> 2330.1, rss 3914 -> 3944.2
+  cub the aeroplane at stand (a -> b)
+    craft.stand/draws.main                               74         74  
+    craft.stand/draws.other                               0          0  
+    craft.stand/draws.shadow                              0          0  
+    craft.stand/materials                                57         57  
+    craft.stand/meshes                                   91         91  
+    craft.stand/programs                                 13         13  
+    craft.stand/skinnedDraws                             10         10  
+  cub the aeroplane at taxi (a -> b)
+    craft.taxi/draws.main                                74         74  
+    craft.taxi/draws.other                                0          0  
+    craft.taxi/draws.shadow                               0          0  
+    craft.taxi/materials                                 57         57  
+    craft.taxi/meshes                                    91         91  
+    craft.taxi/programs                                  13         13  
+    craft.taxi/skinnedDraws                              10         10  

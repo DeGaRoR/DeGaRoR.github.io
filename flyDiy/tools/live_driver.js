@@ -20,7 +20,7 @@ const fs = require('fs'), path = require('path'), http = require('http');
 const ROOT = process.argv[2], BUILD = process.argv[3] || 'stock', PAGE = process.argv[4] || 'dev.html', CPORT = +(process.argv[5] || 8562);
 // (C4a: env SPORT / DPORT / UDD override the ports and the profile, so two sessions' drivers never meet)
 const SPORT = +(process.env.SPORT || 8561), DPORT = +(process.env.DPORT || 9461), UDD = process.env.UDD || 'C:/a6s';
-const SIZE = [1600, 900];
+const SIZE = process.env.SIZE ? process.env.SIZE.split('x').map(Number) : [1600, 900];   // (G2225: env SIZE=2216x1023, the gate's viewport)
 const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => { try { res(JSON.parse(b)); } catch (e) { rej(e); } }); }).on('error', rej); });
@@ -44,6 +44,7 @@ process.on('exit', kill); process.on('SIGINT', () => process.exit(0)); process.o
   if (BUILD === 'stock') pre.push(require(path.join(ROOT, 'flyDiy/tools/_stock_pin.js')).pinScript());
   else if (BUILD === 'default') pre.push('try{localStorage.removeItem("flydiy.wip")}catch(e){}');
   else pre.push('try{localStorage.setItem("flydiy.wip",' + JSON.stringify(fs.readFileSync(path.resolve(ROOT, 'flyDiy', BUILD), 'utf8')) + ')}catch(e){}');
+  if (process.env.PRE) pre.push(fs.readFileSync(path.resolve(process.env.PRE), 'utf8'));   // (G2225: env PRE=<file>, a script before the page's own)
   if (process.env.GFX) pre.push('try{localStorage.setItem("flydiy.gfx",JSON.stringify(' + process.env.GFX + '))}catch(e){}');
   await cmd('Page.enable'); await cmd('Runtime.enable');
   await cmd('Page.addScriptToEvaluateOnNewDocument', { source: pre.join('\n') });

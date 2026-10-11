@@ -694,7 +694,9 @@ trigger is you asking for it.*
    uniform column F5 replaced; turbo/supercharging (`aspiration` reserves
    'turbo' and the R-1830 lapses like a normally-aspirated engine); the
    battery model that would give an electric aeroplane a real ceiling;
-   interference drag (`gear.track` and camber are unread by the drag model);
+   interference drag (`gear.track` and camber are unread by the drag model;
+   G2410's belly pod pays Raymer's Q = 1.5 for a store on the fuselage, and the
+   strut-mounted tank pods of G477 still pay no drag at all);
    `intCons → fuselage.material`, the slider audit's headline gap.
 8. **Far backlog**: the jet module and SubSonex, thermals and ridge lift (the
    `wind(x,y,z,t)` plug F5 made load-bearing), STOL competition mode, the

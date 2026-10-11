@@ -301,6 +301,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
   let setShedDims = () => {};         // HANGARS S1: re-stand the shed at new dims (airfield block)
   let shellDial = () => null;         // G600: the shed's merge dial (airfield block)
+  let playerSheds = () => 0;          // G2310 PREM-S3: stand the side hangars held at their plots (airfield block)
+  let playerShedsNow = () => [];      // ...and which stand now
   // W17 tree LOD uniforms, shared by every tree material and refreshed once a
   // frame in worldUpdate. uCam drives the impostor view direction (so it wants
   // the CHASE CAMERA, not the CG); uCG drives the shadow-pass cull, because the
@@ -5319,6 +5321,30 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // them is a replant of both layers (W0c.31 - "furnished does not seem
       // to work": the dial moved a number nothing re-read)
       TREE_MIX.apply = () => { plantWoodland(); evictAll(); };
+      // G2890: THE EXCLUSIONS THE RING WAS WALKED WITH (27_premises.js treeExRegions: key -> world box). exRegrow() reads the
+      // overlay's list now, and every chunk a region added or removed touches goes (its walk and build start again from
+      // the queue, nearest first); returns how many went. The first call only takes the list.
+      let exPlanted = null;
+      const exRegrow = () => {
+        const O = world.premises && world.premises.overlay, now = new Map();
+        for (const r of (O && O.treeExRegions ? O.treeExRegions() : [])) now.set(r.k, r);
+        const was = exPlanted; exPlanted = now;
+        if (!was) return 0;
+        const ch = [];
+        for (const [k, r] of now) if (!was.has(k)) ch.push(r);
+        for (const [k, r] of was) if (!now.has(k)) ch.push(r);
+        if (!ch.length) return 0;
+        let n = 0;
+        for (const [k, c2] of chunks) {
+          const x0 = c2.cx * CH, z0 = c2.cz * CH, x1 = x0 + CH, z1 = z0 + CH;
+          if (!ch.some(r => r.x1 >= x0 && r.x0 <= x1 && r.z1 >= z0 && r.z0 <= z1)) continue;
+          if (cur && cur.c2 === c2) cur = null;
+          dropPart(c2.base); dropPart(c2.fill); chunks.delete(k); n++;
+        }
+        STAT.exRegrown = (STAT.exRegrown || 0) + n;
+        return n;
+      };
+      try { exRegrow(); } catch (e) { exPlanted = null; }   // the list the ring is first walked with
       const evictAll = () => {
         cur = null;                        // whatever was being walked is gone with the rest
         for (const [k, c2] of chunks) { dropPart(c2.base); dropPart(c2.fill); chunks.delete(k); }
@@ -5444,7 +5470,15 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); reachRefresh(); return r; },
           reach: () => reachRefresh(),   // G908: re-read what the map can reach (after a premises re-stamp); true when it grew
           // G1385: after a premises edit (app.js onRebuilt) - the cover polygons' vegetation re-read; replants only when it changed
-          vegChanged: () => { if (!BIO) return false; vegSync(); if (vegSigNow === vegPlanted) return false; vegPlanted = vegSigNow; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return true; },
+          // G2890 (SCENERY-ED-1): ...and the tree EXCLUSIONS - a polygon removed, shrunk, moved or added, a strip moved or
+          // deleted - regrow (or clear) the chunks under it at once: the regions both compositions name are diffed and
+          // only the chunks a changed one touches are evicted (the streamer walks them again with the new excludes)
+          vegChanged: () => {
+            const exN = exRegrow();
+            if (!BIO) return exN > 0;
+            vegSync(); if (vegSigNow === vegPlanted) return exN > 0;
+            vegPlanted = vegSigNow; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return true; },
+          exRegions: () => Array.from(exPlanted.values()),
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
           // proportion / dead / density / patch / size, or the forest's count / under / rocks /
           // blotch - the fill re-pools and replants, the ring replants; the export carries it
@@ -5907,28 +5941,35 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       return out;
     }
     let shedNode = null;
+    // the old building comes down whole: nothing in the exterior is a
+    // shared prop geometry, and material.dispose() leaves the memoised
+    // sheet textures alone (a dispose never takes maps with it)
+    // (G2310: shared by HOME's shed and the side hangars' - the same teardown)
+    function dropShed(node) {
+      scene.remove(node);
+      const mats = new Set();
+      node.traverse(o => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) (Array.isArray(o.material) ? o.material : [o.material])
+          .forEach(m => mats.add(m));
+      });
+      mats.forEach(m => m.dispose());
+    }
     function standShed(dims) {
       if (!(typeof genHangarBuild === 'function' &&
             typeof genHangarSupported === 'function' &&
             genHangarSupported(THREE))) return;
-      const H = SITE.hangar;
-      if (shedNode) {
-        // the old building comes down whole: nothing in the exterior is a
-        // shared prop geometry, and material.dispose() leaves the memoised
-        // sheet textures alone (a dispose never takes maps with it)
-        scene.remove(shedNode);
-        const mats = new Set();
-        shedNode.traverse(o => {
-          if (o.geometry) o.geometry.dispose();
-          if (o.material) (Array.isArray(o.material) ? o.material : [o.material])
-            .forEach(m => mats.add(m));
-        });
-        mats.forEach(m => m.dispose());
-        shedNode = null;
-      }
+      if (shedNode) { dropShed(shedNode); shedNode = null; }
+      shedNode = shedNodeAt(SITE.hangar, dims);
+    }
+    // G2310 (PREM-S3): ONE SHED AT ONE PLACE - HOME's at the site's hangar (above), a side hangar at its plot (below):
+    // the same exterior build, merge, coarse rung, LOD and ground; `dress` (a held hangar's shell skin + its parts,
+    // dressExterior) is laid on the exterior's own materials BEFORE the merge, and is nothing at all when absent
+    function shedNodeAt(H, dims, dress) {
       const shed = genHangarBuild(THREE,
         dims || { HW: H.HW, HD: H.HD, EAVE: H.EAVE },
         { exterior: true, shell: dims && dims.shell });
+      if (dress) dressExterior(shed.mats, dims && dims.shell, dress);
       shed.group.traverse(o => {
         if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
       });
@@ -6037,9 +6078,70 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       node.position.set(H.x, H.y !== undefined ? H.y : 0, H.z);
       node.rotation.y = H.ry;
       scene.add(node);
-      shedNode = node;
+      return node;
     }
     standShed(shedDims);
+    // G2310 (PREM-S3, GAME §4.4): THE SIDE HANGARS YOU HOLD, each at its plot (the premises record's `plots`, contract
+    // v1.33), at THAT hangar's shell and dims, dressed: `list` = [{ id, x, z, ry, y, dims { HW, HD, EAVE, shell }, dress }]
+    // from app.js (71_player_bases.js playerWorldSheds joined with the site's plot). A plot not held is not in the list
+    // and stands NOTHING (GQ8); HOME's shed is standShed's, never in it; at most two (GQ4). A shed is rebuilt only when
+    // its key (place, dims, shell, dress) changes; one no longer listed comes down. Residents are never drawn here: the
+    // exterior's doors are shut (premResidentsDrawn: an open door AND the camera within 60 m - FLEET-PROPS' to draw).
+    const sideSheds = new Map();   // id -> { key, node }
+    function setPlayerSheds(list) {
+      if (!(typeof genHangarBuild === 'function' && typeof genHangarSupported === 'function' && genHangarSupported(THREE))) return 0;
+      const want = new Map();
+      for (const q of (list || []).slice(0, 2)) if (q && q.id && q.id !== 'HOME' && isFinite(+q.x) && isFinite(+q.z)) want.set(q.id, q);
+      for (const [id, e] of sideSheds) if (!want.has(id)) { dropShed(e.node); sideSheds.delete(id); }
+      for (const [id, q] of want) {
+        const key = JSON.stringify([q.x, q.z, q.ry, q.y, q.dims, q.dress || null]);
+        const had = sideSheds.get(id);
+        if (had && had.key === key) continue;
+        if (had) dropShed(had.node);
+        const node = shedNodeAt({ x: +q.x, z: +q.z, ry: +q.ry || 0, y: q.y }, q.dims, q.dress || null);
+        node.name = 'shed:' + id; node.userData.premPlot = id;
+        sideSheds.set(id, { key, node });
+      }
+      return sideSheds.size;
+    }
+    playerSheds = setPlayerSheds;
+    playerShedsNow = () => Array.from(sideSheds.keys());
+    // the exterior's own materials wearing a held hangar's dress (GAME-PREMISES §5.2: "the timber shed at Tamgas Hill is
+    // visibly the timber shed you stand in there"): the shell's skin (SHELLS[shell].skin, as the room's) under the
+    // player's parts (hangar.js PARTS' keys and state: { set, tile, rough, nrm }), on the outside surfaces that part names
+    // - the walls' outer skin (the timber shed's cladding), the roof's outer sheet, the doors, the stem. A set the payload
+    // lacks, or 'baked', leaves that surface as built. Textures from the same library the room wears (HANGAR_WALL_SETS,
+    // SITE_TEX_SETS); a page without Image (node) dresses nothing.
+    function dressExterior(M, shell, dress) {
+      if (typeof Image === 'undefined' || !M) return 0;
+      const skin = (typeof SHELLS !== 'undefined' && SHELLS[shell] && SHELLS[shell].skin) || {};
+      const want = Object.assign({}, skin, dress && dress.parts ? dress.parts : {});
+      const LIB = Object.assign({}, (typeof HANGAR_WALL_SETS !== 'undefined' && HANGAR_WALL_SETS) || {}, (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS) || {});
+      const timber = shell === 'field';
+      const TARGET = { wallSides: [timber ? M.wall : M.wallOut], wallBack: [timber ? M.wall : M.wallOut], roof: [M.roofOut], stem: [M.stem], doorMain: [M.door], doorMan: [M.manDoor] };
+      const tex = (img, srgb, tile) => {
+        if (Array.isArray(img) || !img) return null;
+        const t = new THREE.Texture(img); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / tile, 1 / tile);
+        if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+        if (img.complete && img.naturalWidth) t.needsUpdate = true; else if (img.addEventListener) img.addEventListener('load', () => { t.needsUpdate = true; }, { once: true });
+        return t;
+      };
+      let n = 0;
+      for (const k in want) {
+        const st = want[k], L = st && st.set && st.set !== 'baked' ? LIB[st.set] : null;
+        if (!L || !TARGET[k]) continue;
+        const tile = Math.max(0.25, Math.min(12, +st.tile > 0 ? +st.tile : (L.tile || 2)));
+        for (const m of TARGET[k]) {
+          if (!m) continue;
+          const map = tex(L.diff, true, tile); if (!map) continue;
+          m.map = map; m.normalMap = tex(L.nor, false, tile); m.roughnessMap = tex(L.rough, false, tile);
+          m.roughness = Math.min(2, +st.rough >= 0 ? +st.rough : 1);
+          if (m.normalScale) { const k2 = +st.nrm >= 0 ? +st.nrm : 1; m.normalScale.set(k2, k2); }
+          m.needsUpdate = true; n++;
+        }
+      }
+      return n;
+    }
     let shedDimsNow = shedDims;
     setShedDims = dims => { shedDimsNow = dims; standShed(dims); };
     shellDial = o => { Object.assign(SHELL, o || {}); standShed(shedDimsNow); let n = 0; if (shedNode) shedNode.traverse(m => { if (m.isMesh) n++; }); return Object.assign({ meshes: n }, SHELL); };
@@ -6578,7 +6680,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         scene.add(keep(m));
       }
       standRunwayLights(a, keep);                       // G443: the edge and threshold lenses, stood with the strip
-      // windsock off the strip edge
+      // windsock off the strip edge (G2300 STAGES: none where the strip's stage says `sock: false` - East Point before
+      // the survey's first stage; the sandbox's strips never say it)
+      if (a.sock === false) return;
       const px2 = a.x - Math.sin(a.hdg) * (a.wid / 2 + 9);
       const pz2 = a.z + Math.cos(a.hdg) * (a.wid / 2 + 9);
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 6), poleMat);
@@ -6915,6 +7019,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   }
   // lightTake(ex): applyDay has just written the lights - those values are the targets; the lights go back to the eased ones
   function lightTake(ex) {
+    // G2630: an eased light that went non-finite (any upstream NaN) snaps to the new targets instead of easing from NaN
+    if (!(typeof window !== 'undefined' && window.FLYDIY_NANGUARD_OFF) && (!Number.isFinite(LE.sunI) || !Number.isFinite(LE.hemiI) || !Number.isFinite(LE.hemiC.r + LE.hemiC.g + LE.hemiC.b)
+        || !Number.isFinite(LE.gndC.r + LE.gndC.g + LE.gndC.b) || !Number.isFinite(LE.sunC.r + LE.sunC.g + LE.sunC.b))) LE.init = false;
     LE.tSunI = sun.intensity; LE.tHemiI = hemi.intensity; LE.tSunC.copy(sun.color); LE.tHemiC.copy(hemi.color); LE.tGndC.copy(hemi.groundColor); LE.tEx = ex;
     // not easing yet (or off): the target at once. (Someone else's write - a rig row, the shed - is caught by lightEase, which
     // runs earlier in the same frame and takes the lights as they stand; the written and the eased value differ by design.)
@@ -6999,7 +7106,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const nowL = (typeof performance !== 'undefined') ? performance.now() : 0;
     let cloudDue = false;
     if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.sunT) {
-      if (nowL >= LE.cTat) { LE.cTat = nowL + 250; LE.cTraw = CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z); }
+      // G2630 (RADIAL-DIVERGE): a non-finite eye (a diverged sim's) read NaN here, and the ease below can never leave NaN:
+      // the hemisphere took it at the next apply and every lit thing went black for the page's life. A non-finite sample
+      // is not taken, and an eased value that is not finite starts again from the sample (or clear air)
+      const ng = typeof window !== 'undefined' && window.FLYDIY_NANGUARD_OFF;   // (GATE SIMDIVERGE's selftest: the old page)
+      if (nowL >= LE.cTat) { LE.cTat = nowL + 250; const r = CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z); if (ng || Number.isFinite(r)) LE.cTraw = r; }
+      if (!ng && !Number.isFinite(LE.cTraw)) LE.cTraw = 1;
+      if (!ng && !Number.isFinite(LE.cT)) LE.cT = LE.cTraw;
       const dtc = LE.lastC ? Math.min(0.25, Math.max(0, (nowL - LE.lastC) / 1000)) : 1; LE.lastC = nowL;
       LE.cT = (LE.on && LE.tauCloud > 0) ? LE.cT + (LE.cTraw - LE.cT) * (1 - Math.exp(-dtc / LE.tauCloud)) : LE.cTraw;
       cloudDue = Math.abs(LE.cT - LE.cTapplied) > 0.01 && nowL >= LE.applyAt;
@@ -7270,6 +7383,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)) });
       return premisesR; },
            setShedDims: d => setShedDims(d),
+           setPlayerSheds: list => playerSheds(list), playerSheds: () => playerShedsNow(),   // G2310 PREM-S3
            shell: o => shellDial(o),   // G600: { merge, castMin } -> the shed re-stood, its mesh count
            treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,
            treeAtlases,   // the impostor sheets by subject, readable (tools/imp_audit.js)

@@ -393,6 +393,52 @@ const BENCH_TESTS = [
     },
     stop(api) { api.hydroEnd(); },
   },
+  {
+    // THE BELLY POD (G2410, BELLY-POD; FREIGHT-2026-10-07.md §4: "it needs a bench first"). A row for a build that
+    // carries one (spec.pod.on), off the shakedown's own `pod` sheet (64_gen_build, 60d_gen_pod, 66_gen_cert): the
+    // pod's lowest point against the ground or the water in each attitude, its drag area and what it costs the
+    // cruise and the climb (measured on this aeroplane's probe), the CG with it full against the margin, and the
+    // pod's mounts at the certificate's limit load. ADVISORY (the engineer's handbook: shown, not forbidden): a pod
+    // that strikes reads its clearance and awards nothing, and it never withholds the airworthiness certificate.
+    id: 'pod',
+    name: 'Belly pod',
+    blurb: 'The pod against the ground or the water, its drag, the CG with it full, its mounts at limit load.',
+    kind: 'instant',
+    advisory: true,
+    // no roundel on the fuselage: it measures an option the build carries, it is not a rating the aeroplane wears
+    // (stickers.js STICKER_ORDER stays the six; GATE BENCH holds every other row to its sticker)
+    sticker: false,
+    when: api => typeof api.hasPod === 'function' && api.hasPod(),
+    needs: ['shake'],
+    run(api) {
+      const s = api.shake(), p = s && s.pod;
+      if (!p || !p.clearance) return { verdict: 'not measurable', ok: false };
+      const C = p.clearance, w = C.worst, b = p.balance || {}, c = p.cruise || {}, M = p.mountRows;
+      const why = [], fix = [];
+      if (!(w.clear > 0)) { why.push('it strikes ' + w.name + ' (' + benchNum(w.clear, 2) + ' m)');
+                            fix.push('a shallower pod, longer gear legs, or the pod further forward'); }
+      for (const l of C.legs || []) if (!l.ok) { why.push(l.name); fix.push('the pod clear of the ' + (l.id === 'nose' ? 'nose leg' : 'tailwheel') + ': shorter, or moved'); }
+      if (b.staticMargin != null && b.staticMargin < 0.05) {
+        why.push('full, its static margin is ' + benchNum(b.staticMargin, 2));
+        fix.push('load it lighter, or move the pod forward');
+      }
+      const ok = !why.length;
+      return {
+        verdict: ok ? (C.warn ? 'POD FITS — CLOSE TO THE GROUND' : 'POD FITS') : 'POD REFUSED — ' + why[0],
+        ok,
+        note: C.rows.map(r => r.name + ' ' + benchNum(r.clear, 2) + ' m').join(' · ') +
+              ' · ' + benchNum(p.cda, 3) + ' m² drag, ' + benchNum((c.dV || 0) * 3.6, 1) + ' km/h cruise, ' +
+              benchNum(c.dClimb, 2) + ' m/s climb · full (' + benchNum(p.maxKg, 0) + ' kg) CG ' +
+              (b.cgPct != null ? benchNum(b.cgPct * 100, 0) + '% MAC' : benchNum(b.cgX, 2) + ' m') +
+              ', margin ' + benchNum(b.staticMargin, 2) +
+              (M ? ' · mounts ' + benchNum(M.worstUp / 1000, 2) + ' kN a fitting at +' + benchNum(M.limit, 1) + ' g' : ''),
+        why: why.join('; '),
+        fix: fix.join('; '),
+        clear: w.clear,
+        fills: 'plaque',
+      };
+    },
+  },
 ];
 
 const benchNum = (v, d) => (v == null || !isFinite(v)) ? '—' : v.toFixed(d);
@@ -1504,8 +1550,19 @@ function benchInit(api) {
         (adv ? '<div class="bAdv">' + adv + '</div>' : '') +
         '</div>');
     }
+    // G2410 (BELLY-POD): fit or remove the pod from the bench (a spec option, off by default; its row above
+    // appears with it). The fitting UI with its sizes is the freight sessions' (FREIGHT-LOAD); this is the door.
+    if (typeof api.podToggle === 'function' && typeof api.hasPod === 'function') {
+      const on = !!api.hasPod();
+      bits.push('<div class="bT dim"><div class="bT1"><span class="bN">' + (on ? 'Belly pod fitted' : 'No belly pod') +
+        '</span><button id="bPodFit">' + (on ? 'take it off' : 'fit one') + '</button><b>' +
+        (on ? 'its row above measures it' : 'a cargo pod under the fuselage: freight outside the cabin, at a cost') +
+        '</b></div></div>');
+    }
     rows.innerHTML = bits.join('');
     paintSeals();
+    const podB = $('bPodFit');
+    if (podB) { podB.disabled = busyNow(); podB.onclick = () => { api.podToggle(!api.hasPod()); }; }
     const all = $('bRunAll');
     if (all) { all.disabled = busyNow(); all.onclick = runAll; }
     changed();

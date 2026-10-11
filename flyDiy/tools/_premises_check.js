@@ -755,6 +755,161 @@ for (const fx of fixtures) {
   check(O.aerodromes.length === 1 && O.aerodromes[0].look === 'asphalt' && O.aerodromes[0].surface === PG.SURFACE.GRASS, '16 the aerodrome record carries the look; the class stays the record\'s own');
 }
 
+// 17 THE STAGES (v1.33, G2300 STAGES): an entry, a site's item or a zone may carry `stage: { track, show, vary }` and
+// stands only while the career's track lies in its band. On a record of its own (no catalogue key: rule 13) on synth:
+// (a) a record with no stage composes untouched; (b) the sandbox (no tracks: every track at its max) stands what has no
+// upper bound, the `stage` taken off - the record a stageless author would have written, key for key; (c) below its band
+// an entry is cut, inside it it stands; a vary changes a runway's length while it holds; a `sock: false` reaches the
+// aerodrome; (d) a ZONE below its band still sows (a later zone keeps its plots) and builds nothing; (e) a kit expands
+// into its props (and its tree exclude) only while it stands; (f) the envelope round-trips the stages; stageRestore puts a
+// staged edit back into the whole record; (g) issues() refuses a bad band, a vary outside its band, a kit with no stage
+{
+  const base = { v: 1, id: 'stg', seed: 4, frame: { kind: 'free', extent: null, anchors: { '*': { x: 0, z: 0, yaw: 0 } } },
+    layers: { terrain: [], surface: [], material: [], exclude: [], ttype: [], links: [], sites: [],
+      roads: [{ id: 'r1', pts: [[-200, 0], [200, 0]], w: 6, cls: 'gravel' }],
+      zones: [{ id: 'z_a', kind: 'residential', poly: [[-150, -50], [0, -50], [0, 60], [-150, 60]], density: 1 }, { id: 'z_b', kind: 'residential', poly: [[-150, -50], [150, -50], [150, 60], [-150, 60]], density: 1 }],
+      runways: [{ id: 'w1', c: [0, -200], hdg: 0, len: 600, wid: 20, surface: 0 }],
+      objects: [{ id: 'p1', kind: 'prop', key: 'drum', x: 10, z: -40, yaw: 0 }] } };
+  const plain = PG.normalise(JSON.parse(JSON.stringify(base)));
+  const Op = PG.compose(plain, synth);
+  check(Op.stage === null && !PG.stageView(plain, null).staged, '17a a record with no stage composes untouched');
+  const st = JSON.parse(JSON.stringify(base));
+  st.layers.objects[0].stage = { track: 'tk', show: [2, null] };
+  st.layers.objects.push({ id: 'k1', kind: 'kit', kit: 'plot', x: -60, z: -60, yaw: 0.3, w: 20, d: 14, stage: { track: 'tk', show: [1, 1] } });
+  st.layers.runways[0].stage = { track: 'tk', show: [0, null], vary: [{ show: [0, 1], len: 400, sock: false }] };
+  st.layers.zones[0].stage = { track: 'tk', show: [2, null] };
+  const S = PG.normalise(st);
+  const Vs = PG.stageView(S, null);
+  check(JSON.stringify(PG.normalise(Vs.rec)) === JSON.stringify(plain), '17b the sandbox stands what has no upper bound, the stage taken off: the stageless record, key for key');
+  const Os = PG.compose(S, synth);
+  check(JSON.stringify(Os.rec) === JSON.stringify(Op.rec) && Os.terrainAt(0, -200) === Op.terrainAt(0, -200) && Os.records.plots.length === Op.records.plots.length, '17b the sandbox composes as the stageless record (the record, the ground, the plots)');
+  const O1 = PG.compose(S, synth, { tracks: { tk: 1 } }), O0 = PG.compose(S, synth, { tracks: { tk: 0 } });
+  const has = (O, id) => O.rec.layers.objects.some(o => o.id === id);
+  check(!has(O1, 'p1') && has(PG.compose(S, synth, { tracks: { tk: 2 } }), 'p1'), '17c below its band an entry is cut; inside it, it stands');
+  check(O1.aerodromes[0].len === 400 && O1.aerodromes[0].sock === false && Op.aerodromes[0].len === 600 && Op.aerodromes[0].sock === undefined, '17c a vary changes the strip while it holds (len 400, no windsock); the sandbox\'s strip is the record\'s');
+  const zb = O => JSON.stringify(O.records.plots.filter(p => p.zone === 'z_b').map(p => p.poly));
+  check(O1.records.plots.every(p => p.zone !== 'z_a') && zb(O1) === zb(Op) && O1.excludeAt(...O1.frame.toWorld(...PG.polyCentroid(Op.records.plots.find(p => p.zone === 'z_a').poly)), 'trees'), '17d a zone below its band sows (the next zone keeps its plots), builds nothing, and its ground keeps the trees off');
+  const kitN = O => O.rec.layers.objects.filter(o => /^k1:/.test(o.id)).length;
+  check(kitN(O1) >= 8 && kitN(O0) === 0 && kitN(Op) === 0 && O1.rec.layers.exclude.some(e => e.id === 'k1:clear'), '17e a kit expands into its fence and props (and its clearance) only while it stands', kitN(O1) + ' objects at 1');
+  check(JSON.stringify(PG.unwrap(PG.envelope(null, S)).rec) === JSON.stringify(S), '17f the envelope round-trips the stages');
+  const V1 = PG.stageView(S, { tk: 1 });
+  check(JSON.stringify(PG.normalise(PG.stageRestore(JSON.parse(JSON.stringify(V1.rec)), V1))) === JSON.stringify(S), '17f stageRestore puts a staged edit back into the whole record');
+  const badBand = JSON.parse(JSON.stringify(st)); badBand.layers.objects[0].stage.show = [3, 1];
+  const badVary = JSON.parse(JSON.stringify(st)); badVary.layers.runways[0].stage.vary[0].show = [5, 6]; badVary.layers.runways[0].stage.show = [0, 3];
+  const badKit = JSON.parse(JSON.stringify(st)); delete badKit.layers.objects[1].stage;
+  check(PG.issues(S).length === 0 && PG.issues(badBand).length > 0 && PG.issues(badVary).length > 0 && PG.issues(badKit).length > 0, '17g issues() takes the stages and refuses a bad band, a vary outside its band, a kit with no stage');
+  check(PG.stageIssues(S, { tk: 2 }).length === 0 && PG.stageIssues(S, { tk: 1 }).length > 0, '17g the sandbox\'s law: a band through the track\'s max must be open');
+}
+
+// 19 THE SCENERY EDITOR'S UNBLOCKERS (G2890 SCENERY-ED-1, contract v1.35): the smooth road, the round pad, the plots'
+//    ground, the trees' exclusion regions (their regrowth on a delete), the shape's edits through the store.
+{
+  const turnAndK = c => {
+    let mx = 0; const ks = [];
+    for (let i = 1; i < c.length - 1; i++) {
+      const a = Math.atan2(c[i][1] - c[i - 1][1], c[i][0] - c[i - 1][0]), b = Math.atan2(c[i + 1][1] - c[i][1], c[i + 1][0] - c[i][0]);
+      let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+      mx = Math.max(mx, Math.abs(d));
+      ks.push(d / ((Math.hypot(c[i][0] - c[i - 1][0], c[i][1] - c[i - 1][1]) + Math.hypot(c[i + 1][0] - c[i][0], c[i + 1][1] - c[i][1])) / 2));
+    }
+    return { maxTurn: mx * 180 / Math.PI, ks };
+  };
+  // 19a a test road on a CLOTHOID (curvature rising linearly over 400 m), a point every 80 m: the spline passes through
+  //     every point, never turns 2.5 degrees at a sample (no kink - polyRoad's fillet leaves it alone), bends one way, and
+  //     its curvature rises monotonically (a step back under 1 % of the peak; the run-out under 10 %)
+  const A2 = 400 * 250; let x = 0, z = 0, th = 0; const clo = [[0, 0]];
+  for (let s = 1; s <= 400; s++) { th += s / A2; x += Math.cos(th); z += Math.sin(th); if (s % 80 === 0) clo.push([x, z]); }
+  const cc = PG.roadCurve(clo), cs = turnAndK(cc);
+  check(clo.every(p => cc.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 1e-6)), '19a the spline road passes through every point');
+  check(cs.maxTurn < 2.5, '19a no kink on the clothoid road (the largest turn at a sample)', cs.maxTurn.toFixed(2) + ' deg');
+  const kMax = Math.max(...cs.ks);
+  let worstBack = 0; for (let i = 1; i < cs.ks.length; i++) worstBack = Math.max(worstBack, cs.ks[i - 1] - cs.ks[i]);
+  check(cs.ks.every(k => k > 0) && worstBack < 0.01 * kMax && cs.ks[cs.ks.length - 1] > 0.9 * kMax, '19a the clothoid road\'s curvature is monotone', 'worst step back ' + (worstBack / kMax * 100).toFixed(2) + ' %, end ' + (cs.ks[cs.ks.length - 1] / kMax * 100).toFixed(1) + ' % of the peak');
+  check(PG.polyRoad(cc, 4).pts.length === cc.length, '19a the fillet leaves the spline\'s line as it is');
+  // ...on five points of a 300 m arc: the curvature within 8 % of the circle's everywhere
+  const arc = []; for (let k = 0; k <= 5; k++) { const a = k / 5 * Math.PI / 2; arc.push([300 * Math.sin(a), 300 - 300 * Math.cos(a)]); }
+  const as = turnAndK(PG.roadCurve(arc));
+  check(as.ks.every(k => Math.abs(k * 300 - 1) < 0.08), '19a a 300 m arc of five points is drawn as the arc', 'radius ' + (1 / Math.max(...as.ks)).toFixed(0) + '..' + (1 / Math.min(...as.ks)).toFixed(0) + ' m');
+  // LONG CURVES (the user: "it cannot do long curves"): three points, 400 m legs, a 60 degree turn - the fillet bends a 4 m
+  // road at under 15 m, the spline over 150 m
+  const bend = [[0, 0], [400, 0], [600, 346.4]];
+  const rSp = 1 / Math.max(...turnAndK(PG.roadCurve(bend)).ks), rFi = 1 / Math.max(...turnAndK(PG.polyRoad(bend, 4).pts).ks);
+  check(rSp > 150 && rFi < 15, '19a a long bend from three clicks (the tightest radius: spline vs the corner fillet)', rSp.toFixed(0) + ' m vs ' + rFi.toFixed(1) + ' m');
+  // a HANDLE: the curve leaves its point along it, and the road still passes through the point
+  const hc = PG.roadCurve([[0, 0], [100, 0], [200, 0]], [null, [20, 20], null]);
+  const i1 = hc.findIndex(q => Math.hypot(q[0] - 100, q[1]) < 1e-6), d1 = i1 >= 0 && hc[i1 + 1] ? [hc[i1 + 1][0] - 100, hc[i1 + 1][1]] : [0, 0];
+  check(i1 > 0 && (d1[0] + d1[1]) / (Math.SQRT2 * Math.hypot(d1[0], d1[1])) > 0.999, '19a a point\'s handle turns the road there (it leaves the point along the handle)');
+  check(JSON.stringify(PG.roadHandles([[0, 0], [100, 0], [200, 0]], [null, [20, 20], null])[1]) === '[20,20]', '19a roadHandles answers a handle set by hand as it is');
+  // a record WITHOUT `curve` composes its roads exactly as before (the points the fillet reads); with it, on the curve
+  const rdRec = PG.normalise({ layers: { roads: [{ id: 'r1', pts: bend, w: 4, cls: 'gravel', graded: true, falloff: 6 }] } });
+  const O0 = PG.compose(rdRec, synth);
+  check(JSON.stringify(O0.roads[0].pts) === JSON.stringify(bend), '19a a road without a curve composes on its points, to the bit');
+  const rdSp = JSON.parse(JSON.stringify(rdRec)); rdSp.layers.roads[0].curve = 'spline';
+  const O1 = PG.compose(rdSp, synth), mid = PG.roadCurve(bend)[Math.floor(PG.roadCurve(bend).length / 2)];
+  const wMid = O1.frame.toWorld(mid[0], mid[1]);
+  check(O1.roads[0].pts.length > 20 && O1.surfaceAt(wMid[0], wMid[1]) === PG.SURFACE.GRAVEL, '19a a spline road composes on its curve (its class answers on the curve)');
+  // 19b A ROUND PAD: normalise writes its polygon from its circle (counter-clockwise, every corner on the circle); the wheels
+  //     feel its look's class inside, the island's outside; the paved polygon draws it; the round trip keeps it
+  const padRec = PG.normalise({ layers: { material: [{ id: 'm1', round: { c: [30, -20], r: 18 }, look: 'concrete', set: 'cracked', fade: 0, z: 0, poly: [[0, 0], [1, 0], [0, 1]] }] } });
+  const pp = padRec.layers.material[0].poly;
+  check(pp.length === 48 && PG.polyCCW(pp) && pp.every(q => Math.abs(Math.hypot(q[0] - 30, q[1] + 20) - 18) < 0.002), '19b a round pad\'s polygon is its circle (48 corners, counter-clockwise)');
+  const Op = PG.compose(padRec, synth), wc = Op.frame.toWorld(30, -20), wo = Op.frame.toWorld(30, 10);
+  check(Op.surfaceAt(wc[0], wc[1]) === PG.SURFACE.PAVED && Op.surfaceAt(wo[0], wo[1]) === -1, '19b the wheels feel a concrete pad inside it, nothing outside');
+  check((Op.pavePolys || []).some(q => q.id === 'm1'), '19b the pavement draws the pad');
+  const padRT = PG.unwrap(PG.envelope('pad', padRec)).rec;
+  check(JSON.stringify(padRT.layers.material[0]) === JSON.stringify(padRec.layers.material[0]), '19b a round pad round-trips through the store');
+  // 19c THE PLOTS' GROUND: a residential zone on a road - `rules.ground: false` takes every plot's ground off, `noGround`
+  //     one plot's; a plot whose ground is off mows no lawn (coverAt answers the island's there)
+  const zRec = PG.normalise({ seed: 3, layers: { roads: [{ id: 'r1', pts: [[-150, 0], [150, 0]], w: 5, cls: 'gravel', graded: true, falloff: 6 }],
+    zones: [{ id: 'z1', kind: 'residential', poly: [[-140, -40], [140, -40], [140, 40], [-140, 40]], density: 1, seed: 5, palette: null, rules: {} }] } });
+  const plotsOf = r => PG.compose(r, synth, { catalogue: CAT }).records.plots;
+  const P0 = plotsOf(zRec);
+  check(P0.length >= 4 && P0.every(p => !p.noGround), '19c a zone sows its plots with their ground on by default', P0.length + ' plots');
+  const zOff = JSON.parse(JSON.stringify(zRec)); zOff.layers.zones[0].rules.ground = false;
+  const P1 = plotsOf(zOff);
+  check(P1.length === P0.length && P1.every(p => p.noGround), '19c rules.ground false: every plot\'s ground off, the same plots');
+  if (P0.length) {
+    const z1 = JSON.parse(JSON.stringify(zRec)); z1.layers.zones[0].rules.noGround = [P0[0].id];
+    const O2 = PG.compose(z1, synth, { catalogue: CAT }), P2 = O2.records.plots;
+    check(P2.filter(p => p.noGround).length === 1 && P2.find(p => p.id === P0[0].id).noGround, '19c rules.noGround: that plot alone');
+    const lawnAt = (O, p) => { const c = PG.polyCentroid(p.poly), w = O.frame.toWorld(c[0], c[1]), q = O.coverAt(w[0], w[1]); return q ? q.kind : null; };
+    const pOn = P2.find(p => !p.noGround && PG.zoneGrass(z1.layers.zones[0]).kind === 'lawn');
+    check(lawnAt(O2, P2.find(p => p.noGround)) !== 'lawn' && (!pOn || lawnAt(O2, pOn) === 'lawn'), '19c a plot with its ground off mows no lawn; its neighbour does');
+    check(PG.plotGroundOff(z1.layers.zones[0], P0[0].id) && !PG.plotGroundOff(zRec.layers.zones[0], P0[0].id), '19c plotGroundOff reads the zone\'s rules');
+  }
+  // 19d THE TREES COME BACK (the user: "when I remove the exclusion polygons or the polygon around the runway, the trees
+  //     don't come back directly"): treeExRegions names every region that keeps trees out; an exclude removed, shrunk or
+  //     moved, a strip moved or deleted changes its key (the streamer regrows the chunks under the old and the new box)
+  const exRec = PG.normalise({ layers: { exclude: [{ id: 'x1', poly: [[0, 0], [60, 0], [60, 40], [0, 40]], what: ['trees'] }],
+    runways: [Object.assign({}, PG.RUNWAY_DEF, { id: 'w1', c: [400, 0], hdg: 0, len: 500, wid: 20 })] } });
+  const keys = r => PG.compose(r, synth).treeExRegions().map(q => q.k);
+  const k0 = keys(exRec), exNone = JSON.parse(JSON.stringify(exRec)); exNone.layers.exclude = [];
+  const exShr = JSON.parse(JSON.stringify(exRec)); exShr.layers.exclude[0].poly[1] = [30, 0]; exShr.layers.exclude[0].poly[2] = [30, 40];
+  const rwMv = JSON.parse(JSON.stringify(exRec)); rwMv.layers.runways[0].c = [420, 0];
+  const rwGone = JSON.parse(JSON.stringify(exRec)); rwGone.layers.runways = [];
+  const diff = (a, b) => a.filter(k => b.indexOf(k) < 0).length + b.filter(k => a.indexOf(k) < 0).length;
+  check(diff(k0, keys(exRec)) === 0, '19d the same record names the same tree exclusions (no regrowth without a change)');
+  check(diff(k0, keys(exNone)) >= 1 && diff(k0, keys(exShr)) >= 2 && diff(k0, keys(rwMv)) >= 2 && diff(k0, keys(rwGone)) >= 2, '19d an exclude removed or shrunk, a strip moved or deleted: its region changes');
+  const reg = PG.compose(exRec, synth).treeExRegions().find(q => q.k.indexOf('[[0,0],[60,0]') >= 0), w00 = PG.compose(exRec, synth).frame.toWorld(0, 0), w64 = PG.compose(exRec, synth).frame.toWorld(60, 40);
+  check(reg && reg.x0 <= Math.min(w00[0], w64[0]) && reg.x1 >= Math.max(w00[0], w64[0]) && reg.z0 <= Math.min(w00[1], w64[1]) && reg.z1 >= Math.max(w00[1], w64[1]), '19d an exclusion\'s region covers it in world metres');
+  // ...and the game's streamer answers a premises edit by those regions (the hook, the diff, the eviction by box)
+  const RW = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_world.js'), 'utf8'), APP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'app.js'), 'utf8');
+  check(/vegChanged: \(\) => \{\s*const exN = exRegrow\(\);/.test(RW) && /O\.treeExRegions \? O\.treeExRegions\(\)/.test(RW) && /dropPart\(c2\.base\); dropPart\(c2\.fill\); chunks\.delete\(k\); n\+\+;/.test(RW), '19d TREE_FILL.vegChanged regrows the chunks under a changed exclusion');
+  check(/onRebuilt:[^\n]*window\.TREE_FILL\.vegChanged\(\)/.test(APP), '19d the editor\'s rebuild calls TREE_FILL.vegChanged');
+  // 19e THE SHAPE THROUGH THE STORE: a corner inserted, a corner removed, a road's handles beside its points - each
+  //     edit saved and loaded back is the same record; a handle list shorter or longer than the points is laid beside them
+  const shp = PG.normalise({ layers: { surface: [{ id: 's1', poly: [[0, 0], [50, 0], [50, 30], [0, 30]], surface: PG.SURFACE.GRAVEL }],
+    roads: [{ id: 'r1', pts: [[0, 0], [100, 0], [200, 50]], w: 4, cls: 'gravel', curve: 'spline', tan: [null, [10, 5]] }] } });
+  check(shp.layers.roads[0].tan.length === 3 && shp.layers.roads[0].tan[2] === null, '19e normalise lays a road\'s handles beside its points');
+  const ins = JSON.parse(JSON.stringify(shp)); ins.layers.surface[0].poly.splice(2, 0, [60, 15]); ins.layers.roads[0].pts.splice(1, 0, [50, -5]); ins.layers.roads[0].tan.splice(1, 0, null);
+  const insRT = PG.unwrap(PG.envelope(null, ins)).rec;
+  check(JSON.stringify(insRT.layers) === JSON.stringify(PG.normalise(ins).layers) && insRT.layers.surface[0].poly.length === 5 && insRT.layers.roads[0].tan[2][0] === 10, '19e a corner inserted round-trips (the handle stays on its point)');
+  const del = JSON.parse(JSON.stringify(insRT)); del.layers.surface[0].poly.splice(2, 1); del.layers.roads[0].pts.splice(1, 1); del.layers.roads[0].tan.splice(1, 1);
+  const delRT = PG.unwrap(PG.envelope(null, del)).rec;
+  check(JSON.stringify(delRT.layers) === JSON.stringify(shp.layers), '19e the corner removed again is the record it was');
+  check(PG.issues(insRT).length === 0 && PG.issues(padRec).length === 0, '19e the edited shapes and the pad raise no issue');
+}
+
 // 13 the contract held: no catalogue key literal in the editor's files
 {
   const files = fs.readdirSync(TOOLS).filter(f => /^_premises.*\.(js|html)$/.test(f) && f !== '_premises_check.js').map(f => path.join(TOOLS, f))
@@ -787,6 +942,11 @@ if (SELFTEST) {
   // a flatten with a zero falloff is an issue (a step)
   const st = JSON.parse(JSON.stringify(rec)); st.layers.terrain[0].falloff = 0;
   neg.push([PG.issues(st).length > 0, 'a zero falloff is refused']);
+  // (v1.33) a stage whose band ends past the max, a vary of a field no stage may change: refused
+  const sg = JSON.parse(JSON.stringify(rec)); (sg.layers.objects = sg.layers.objects || []).push({ id: 'sg_t', kind: 'kit', kit: 'plot', x: 0, z: 0, stage: { track: 'tk', show: [1, 5] } });
+  neg.push([PG.stageIssues(sg, { tk: 2 }).length > 0, 'a stage band closed past the max is refused']);
+  const sv = JSON.parse(JSON.stringify(rec)); (sv.layers.runways = sv.layers.runways || []).push({ id: 'w_t', c: [0, 0], hdg: 0, len: 400, wid: 20, stage: { track: 'tk', vary: [{ show: [0, 0], hdg: 2 }] } });
+  neg.push([PG.issues(sv).some(i => /hdg is not a runway field/.test(i)), 'a stage varying a runway field no stage may change is refused']);
   for (const [ok, what] of neg) check(ok, 'selftest: ' + what);
 }
 
@@ -1197,6 +1357,57 @@ if (SELFTEST) {
   // the derived strip box keeps the plots off but hands the trees to the strip's own clearance
   const wx = O.frame.toWorld(0, 600 + 300 + 20);
   check(!O.excludeAt(wx[0], wx[1], 'trees') && O.excludeAt(wx[0], wx[1], 'plots'), "17 a strip with its own clearance: the box + 30 m keeps the plots, its clearance the trees");
+}
+
+// 18 THE PLOTS (G2310 PREM-S3, contract v1.34): a runway's `plots` [{ id, x, z, hdg, stand?, taxiOut?, taxiOut1? }] -
+// the record's `hangar` read as plot <runway id> verbatim; a field without plots composes to the very site it did (no
+// `plots` key); with them the hangar is byte-identical and every plot rides into the site in the world frame (a stand's
+// heading derived toward its first taxi point, as the field's); the round trip keeps them; issues() refuses a malformed
+// one (each row below is its own negative control: the bad record MUST be refused). The shipped Jolene has none.
+{
+  const F = { toWorld: (x, z) => [x + 1000, z - 500], toLocal: (x, z) => [x - 1000, z + 500], yaw: 0 };   // a moved frame: the plots follow it
+  const base = { id: 'HOME', c: [0, 0], hdg: 0, len: 800, wid: 30, hangar: { x: 100, z: 60, hdg: -1.5708 }, stand: { x: 100, z: 40, hdg: null }, taxiOut: [[90, 30], [0, 0]] };
+  const P0 = PG.runwayPlots(base);
+  check(P0.length === 1 && P0[0].id === 'HOME' && P0[0].main && P0[0].x === 100 && P0[0].z === 60 && P0[0].hdg === -1.5708, '18 the hangar is plot <runway id>, verbatim', JSON.stringify(P0));
+  const s0 = PG.runwaySite(base, F);
+  check(!('plots' in s0), '18 a field without plots composes to the site it did (no plots key)', Object.keys(s0).join(','));
+  const withP = Object.assign({}, base, { plots: [{ id: 'HOME.2', x: 200, z: 60, hdg: 3.1416, stand: { x: 170, z: 60, hdg: null }, taxiOut: [[150, 30], [0, 0]] }, { id: 'HOME.3', x: -50, z: 80, hdg: 0 }] });
+  const s1 = PG.runwaySite(withP, F);
+  check(JSON.stringify(s1.hangar) === JSON.stringify(s0.hangar) && JSON.stringify(s1.stand) === JSON.stringify(s0.stand) && JSON.stringify(s1.taxiOut) === JSON.stringify(s0.taxiOut),
+    '18 with plots the field\'s hangar, stand and way out are byte-identical');
+  const q0 = s1.plots[0], q1 = s1.plots[1], q2 = s1.plots[2];
+  check(s1.plots.length === 3 && q0.main && q0.x === s1.hangar.x && q0.z === s1.hangar.z && q0.hdg === s1.hangar.hdg && q0.ry === s1.hangar.ry, '18 the site\'s plots: HOME first, the hangar itself');
+  check(q1.id === 'HOME.2' && q1.x === 1200 && q1.z === -440 && Math.abs(q1.ry - (Math.PI - 3.1416)) < 1e-4 && q1.stand.x === 1170 && Math.abs(q1.stand.hdg - Math.atan2(-30, -20)) < 1e-4 && q1.taxiOut[0][0] === 1150,
+    '18 a plot rides into the world frame with its stand (heading toward its first taxi point) and way out', JSON.stringify(q1));
+  check(q2.id === 'HOME.3' && !q2.stand && !q2.taxiOut, '18 a plot with no way of its own carries none (the field\'s serves)');
+  // a lane: its site is its plots alone
+  const lane = { id: 'SEA', c: [0, 0], hdg: 0, len: 1500, wid: 200, surface: PG.SURFACE.WATER, plots: [{ id: 'SEA', x: 0, z: 300, hdg: -1.5708, stand: { x: 0, z: 250, hdg: null } }] };
+  const sl = PG.runwaySite(lane, F);
+  check(sl && sl.plots && sl.plots.length === 1 && !sl.hangar && !sl.stand && Math.abs(sl.plots[0].stand.hdg - (-1.5708)) < 1e-4, '18 a lane\'s site is its slipway plots alone (the slip\'s stand faces where its door does)', JSON.stringify(sl));
+  // the round trip
+  const recP = PG.normalise({ layers: { runways: [withP] } });
+  const back = PG.unwrap(PG.envelope('t', recP)).rec;
+  check(JSON.stringify(back.layers.runways[0].plots) === JSON.stringify(withP.plots), '18 the envelope round trip keeps the plots byte for byte');
+  check(PG.issues(recP).filter(m => /plot/.test(m)).length === 0, '18 well-formed plots raise no issue', PG.issues(recP).filter(m => /plot/.test(m))[0]);
+  // the refusals (each its own negative control)
+  const bad = (what, mut) => { const r = JSON.parse(JSON.stringify(withP)); mut(r); const iss = PG.issues(PG.normalise({ layers: { runways: [r] } })).filter(m => /plot/.test(m)); check(iss.length > 0, '18 refused: ' + what, iss[0] || 'no issue'); };
+  bad('a plot without a place', r => { delete r.plots[0].x; });
+  bad('a plot without an id', r => { delete r.plots[1].id; });
+  bad('a plot named twice', r => { r.plots[1].id = 'HOME.2'; });
+  bad('a plot named as the hangar it duplicates', r => { r.plots[1].id = 'HOME'; });
+  bad('a way out with no stand', r => { delete r.plots[0].stand; });
+  bad('a way out that is not a list of points', r => { r.plots[0].taxiOut = [[1, 'x']]; });
+  bad('plots that are not a list', r => { r.plots = { id: 'x' }; });
+  {
+    const two = PG.normalise({ layers: { runways: [withP, Object.assign({}, base, { id: 'w3', c: [3000, 0], hangar: null, stand: null, taxiOut: null, plots: [{ id: 'HOME.2', x: 3000, z: 60 }] })] } });
+    check(PG.issues(two).some(m => /HOME\.2 is named twice/.test(m)), '18 refused: a plot id held by two runways (a plot id is a hangar id)');
+  }
+  // the shipped record: every plot well-formed
+  for (const fx of fixtures) {
+    const rec = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', fx), 'utf8')).rec;
+    const n = rec.layers.runways.reduce((k, r) => k + (Array.isArray(r.plots) ? r.plots.length : 0), 0);
+    if (n) check(PG.issues(rec).filter(m => /plot/.test(m)).length === 0, '18 ' + path.basename(fx) + ': its ' + n + ' plots are well-formed');
+  }
 }
 
 // ---------------------------------------------------------------------------

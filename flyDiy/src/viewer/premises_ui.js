@@ -30,7 +30,7 @@ const PG = window.PREMISES_GEN;
 
 const SECTIONS = [
   { k: 'terrain',    label: 'TERRAIN',    icon: '⛰', tools: ['select', 'flatten', 'raise', 'ramp', 'surface', 'material', 'probe'] },
-  { k: 'airfield',   label: 'AIRFIELD',   icon: '✈',  tools: ['select', 'runway', 'apron', 'stand', 'probe'] },
+  { k: 'airfield',   label: 'AIRFIELD',   icon: '✈',  tools: ['select', 'runway', 'apron', 'pad', 'stand', 'probe'] },
   { k: 'roads',      label: 'ROADS',      icon: '⌇',  tools: ['select', 'road', 'probe'] },
   { k: 'zones',      label: 'ZONES',      icon: '▦',  tools: ['select', 'zone', 'probe'] },
   { k: 'vegetation', label: 'TREES',      icon: '♣',  tools: ['select', 'forest', 'biome', 'clear', 'tree', 'probe'] },
@@ -54,9 +54,10 @@ const ICONS = {
   life: 'M7 5a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2Z|M4.5 16l1.3-6.2L7 7.2l1.4 2.4L9.5 16|M4 10.5l3-3.3 3 3.3|M13 16V9.5|M11.5 9.5h3l.4-2.5h-3.8Z',
 };
 const iconSvg = k => { const d = ICONS[k]; if (!d) return null; const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 18 18'); svg.setAttribute('aria-hidden', 'true'); for (const q of d.split('|')) { const pth = document.createElementNS('http://www.w3.org/2000/svg', 'path'); pth.setAttribute('d', q); svg.appendChild(pth); } return svg; };
-const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', biome: 'vegetation', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', aircraft: 'an aeroplane', animal: 'animals', probe: 'probe' };
+const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', biome: 'vegetation', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', pad: 'round pad', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', aircraft: 'an aeroplane', animal: 'animals', probe: 'probe' };
 const TOOL_HELP = {
-  select: 'click a feature to select it; drag its discs; Ctrl+click adds a corner after the last, Ctrl+click a disc removes it; Del deletes',
+  // G2890 (the user: "I don't know how to edit an existing polygon"): the shape's whole grammar, said where the tool is
+  select: 'click a feature to select it. Its shape: drag an orange disc to move a corner, a faint one to add a corner there, click its edge to add one; click a corner (white) and Del removes it - Del with no corner picked deletes the feature. A smooth road: drag a cyan disc to bend it',
   flatten: 'click the corners of the flat, then ✓ close (or double-click)',
   raise: 'click the corners, close; then set the lift in the inspector',
   ramp: 'click the corners, close: a constant slope, the middle at the height you set, rising toward the heading you set',
@@ -70,6 +71,7 @@ const TOOL_HELP = {
   probe: 'click the ground to read its height, slope and surface',
   runway: 'click one end of the strip, then the other — it is graded to its profile, its class reaches the wheels, the pattern is derived',
   apron: 'click the corners of the paved apron or taxiway, close',
+  pad: 'click the centre of the pad, then a point on its rim: a round paved apron, its edge a smooth circle - drag its two discs to move or resize it',
   material: 'click the corners, close: a PBR set projected on the ground inside, its contour fading over the metres you set; a higher priority paints over a lower',
   stand: 'click the ground beside a strip: the aeroplane stands there, its way out a straight taxi to the centreline; drag the discs, add taxi points in the inspector',
   building: 'pick a building in the inspector, click the ground to stand it there (its own site); drag its disc to move it',
@@ -86,7 +88,7 @@ function materialSets() {
   const S = Object.assign({}, (typeof LOT_TEX_SETS !== 'undefined' && LOT_TEX_SETS) || {}, (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS) || {});
   return Object.keys(S).filter(k => S[k] && S[k].diff).map(k => [k, (S[k].name || k) + ' · ' + S[k].tile + ' m']);
 }
-const TWO_POINT_TOOLS = { runway: 'runways' };
+const TWO_POINT_TOOLS = { runway: 'runways', pad: 'material' };   // (G2890: the round pad - its centre, then its rim)
 const LINE_TOOLS = { road: 'roads' };
 const POINT_TOOLS = { tree: 'objects', building: 'sites', theme: 'sites', prop: 'objects', billboard: 'objects', aircraft: 'objects', animal: 'objects' };
 const OBJ_PICK = { prop: null, billboard: null, aircraft: null, animal: null };   // what the prop, billboard, aircraft and animal tools stand
@@ -175,7 +177,7 @@ function mount(host, ctx) {
   function bboxOf(entry) {
     if (!entry) return null;
     if (entry.poly) { const b = PG.polyBBox(entry.poly); const f = (+entry.falloff || 0) + 4; return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
-    if (entry.pts) { const b = PG.polyBBox(entry.pts); const f = (+entry.falloff || 6) + (+entry.w || +entry.width || 4); return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
+    if (entry.pts) { const b = PG.polyBBox(entry.curve === 'spline' ? PG.roadLine(entry) : entry.pts);   /* (G2890: a spline bows off its points) */ const f = (+entry.falloff || 6) + (+entry.w || +entry.width || 4); return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
     if (entry.kind === 'tree') return { x0: entry.x - 4, z0: entry.z - 4, x1: entry.x + 4, z1: entry.z + 4 };
     if (entry.c && entry.len) { const b = PG.polyBBox(PG.runwayBox(Object.assign({}, PG.RUNWAY_DEF, entry), 40)); return b; }
     if (entry.at && entry.items) { const SF = PG.siteFrame(entry); let b = null; for (const it of entry.items) { const q = SF.toLocal(it.x || 0, it.z || 0); const bb = { x0: q[0] - 40, z0: q[1] - 40, x1: q[0] + 40, z1: q[1] + 40 }; b = b ? { x0: Math.min(b.x0, bb.x0), z0: Math.min(b.z0, bb.z0), x1: Math.max(b.x1, bb.x1), z1: Math.max(b.z1, bb.z1) } : bb; } return b || { x0: entry.at.x - 10, z0: entry.at.z - 10, x1: entry.at.x + 10, z1: entry.at.z + 10 }; }
@@ -292,7 +294,7 @@ function mount(host, ctx) {
 
   // ---- the tool state machine ----------------------------------------------------
   const T = { state: 'armed', pts: [] };
-  function cancelTool() { T.state = 'armed'; T.pts = []; T.pick = null; T.resume = null; T.line = false; R.ghost(null); if (drawBtns) drawBtns.style.display = 'none'; ctx.redraw && ctx.redraw(); }
+  function cancelTool() { T.state = 'armed'; T.pts = []; T.pick = null; T.resume = null; T.line = false; T.plotPick = null; R.ghost(null); if (drawBtns) drawBtns.style.display = 'none'; ctx.redraw && ctx.redraw(); }
   const isLine = () => !!LINE_TOOLS[tool] || !!T.line;
   // RESUME (G398.2, MSFS's way): the selected polygon or road re-opens as the drawing - its corners are
   // the points, a click (or Ctrl+click) adds one after the last, Backspace drops the last, Enter / the
@@ -316,15 +318,87 @@ function mount(host, ctx) {
     if (h && !h.mid && h.key && /^v[0-9]+$/.test(h.key)) {
       const min = e.poly ? 3 : 2;
       if (arr.length <= min) { strip.status('a ' + (e.poly ? 'polygon keeps three corners' : 'road keeps two points')); return true; }
-      edit(id, f.layer, x => { (x.poly || x.pts).splice(h.index, 1); }, 'corner of ' + id + ' removed'); strip.status('corner removed - ' + (e.poly || e.pts).length + ' left');
+      edit(id, f.layer, x => { (x.poly || x.pts).splice(h.index, 1); tanSplice(x, h.index, 1, 0); }, 'corner of ' + id + ' removed'); strip.status('corner removed - ' + (e.poly || e.pts).length + ' left');
       return true;
     }
     const q = [+L[0].toFixed(2), +L[1].toFixed(2)];
-    edit(id, f.layer, x => { const a = x.poly || x.pts; if (x.pts && a.length >= 2 && Math.hypot(a[0][0] - q[0], a[0][1] - q[1]) < Math.hypot(a[a.length - 1][0] - q[0], a[a.length - 1][1] - q[1])) a.unshift(q); else a.push(q); }, 'corner added to ' + id); strip.status('corner added - ' + (e.poly || e.pts).length + ' now; Ctrl+click adds another');
+    edit(id, f.layer, x => { const a = x.poly || x.pts; if (x.pts && a.length >= 2 && Math.hypot(a[0][0] - q[0], a[0][1] - q[1]) < Math.hypot(a[a.length - 1][0] - q[0], a[a.length - 1][1] - q[1])) { a.unshift(q); tanSplice(x, 0, 0, 1); } else { a.push(q); tanSplice(x, a.length - 1, 0, 1); } }, 'corner added to ' + id); strip.status('corner added - ' + (e.poly || e.pts).length + ' now; Ctrl+click adds another');
+    return true;
+  }
+  // ---- THE SHAPE'S HAND (G2890 SCENERY-ED-1) --------------------------------------------------------------------------
+  // a spline road's handles (`tan`, contract v1.35) run beside its points: every insert or removal moves them with it
+  function tanSplice(x, i, del, ins) { if (!x || !Array.isArray(x.tan)) return; const add = []; for (let k = 0; k < ins; k++) add.push(null); x.tan.splice(i, del, ...add); }
+  // the CORNER picked: an orange disc clicked (or dragged) turns white; Del removes that corner, not the feature
+  let corner = null;
+  const setCorner = i => { corner = (i === null || i === undefined || !isFinite(+i)) ? null : +i; if (R.corner) R.corner(corner); };
+  const shapeOf = e => (e && !PG.roundOk(e.round) ? (e.poly || e.pts || null) : null);
+  function removeCorner(id, i) {
+    const f = PG.findById(rec, id); if (!f) return false;
+    const arr = shapeOf(f.entry); if (!arr || !(i >= 0 && i < arr.length)) return false;
+    if (arr.length <= (f.entry.poly ? 3 : 2)) { strip.status('a ' + (f.entry.poly ? 'polygon keeps three corners' : 'road keeps two points')); return true; }
+    edit(id, f.layer, x => { (x.poly || x.pts).splice(i, 1); tanSplice(x, i, 1, 0); }, 'corner ' + (i + 1) + ' of ' + id + ' removed');
+    setCorner(null); strip.status('corner removed - ' + (f.entry.poly || f.entry.pts).length + ' left');
+    return true;
+  }
+  // a corner on the selected shape's edge where the click was: within a few screen pixels of the outline (a road: of its
+  // drawn line, inside its width); the corner goes on the authored segment the click is nearest
+  function edgeTol(g) {
+    const cam = ctx.camera && ctx.camera(); if (!cam || !cam.position) return 1.5;
+    const span = cam.isOrthographicCamera ? (cam.top - cam.bottom) / (cam.zoom || 1) : Math.hypot(cam.position.x - g[0], cam.position.y - g[1], cam.position.z - g[2]) * 1.2;
+    return Math.max(0.5, Math.min(30, span * 0.012));
+  }
+  function edgeInsert(id, L, tol) {
+    const f = PG.findById(rec, id); if (!f) return false;
+    const e = f.entry, arr = shapeOf(e); if (!arr || arr.length < 2) return false;
+    const closed = !!e.poly, nSeg = closed ? arr.length : arr.length - 1;
+    let best = -1, bd = Infinity, bq = null, bt = 0;
+    for (let i = 0; i < nSeg; i++) {
+      const a = arr[i], b = arr[(i + 1) % arr.length], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1e-9;
+      const t = Math.max(0, Math.min(1, ((L[0] - a[0]) * dx + (L[1] - a[1]) * dz) / l2)), q = [a[0] + dx * t, a[1] + dz * t], d = Math.hypot(L[0] - q[0], L[1] - q[1]);
+      if (d < bd && t > 0.02 && t < 0.98) { bd = d; best = i; bq = q; bt = t; }
+    }
+    if (best < 0) return false;
+    // a road: the click is measured from its DRAWN line (a spline bows off its points), and its width counts
+    let dEdge = bd;
+    if (e.pts) { const ln = PG.roadLine(e); dEdge = Infinity; for (let i = 0; i + 1 < ln.length; i++) dEdge = Math.min(dEdge, PG.distPtSeg(L[0], L[1], ln[i], ln[i + 1])); dEdge -= (+e.w || 3.6) / 4; bq = [L[0], L[1]]; }   // (the inner half of the carriageway: a click on its verge still selects)
+    if (dEdge > tol) return false;
+    const q = [+bq[0].toFixed(2), +bq[1].toFixed(2)];
+    { const A = arr[best], B = arr[(best + 1) % arr.length]; if (A.length > 2) q.push(+((A[2] || 0) + ((B[2] || 0) - (A[2] || 0)) * bt).toFixed(2)); }   // (a grade's point carries its height)
+    edit(id, f.layer, x => { (x.poly || x.pts).splice(best + 1, 0, q); tanSplice(x, best + 1, 0, 1); }, 'corner added to ' + id);
+    setCorner(best + 1);
+    strip.status('corner ' + (best + 2) + ' added on the edge - ' + (e.poly || e.pts).length + ' now; drag it, or Del removes it');
+    return true;
+  }
+  // every edge split at its middle (a polygon's closing edge too): the shape keeps its outline and doubles its corners
+  function subdivide(id) {
+    const f = PG.findById(rec, id); if (!f) return false;
+    const e = f.entry, arr = shapeOf(e); if (!arr) return false;
+    if (arr.length > 256) { strip.status('refused: ' + arr.length + ' corners is enough'); return true; }
+    edit(id, f.layer, x => {
+      const a = x.poly || x.pts, out = [], tn = Array.isArray(x.tan) ? [] : null;
+      for (let i = 0; i < a.length; i++) {
+        out.push(a[i]); if (tn) tn.push(x.tan[i] || null);
+        if (i + 1 < a.length || x.poly) { const b = a[(i + 1) % a.length]; const m = [+((a[i][0] + b[0]) / 2).toFixed(2), +((a[i][1] + b[1]) / 2).toFixed(2)]; if (a[i].length > 2) m.push(+(((a[i][2] || 0) + (b[2] || 0)) / 2).toFixed(2)); out.push(m); if (tn) tn.push(null); }
+      }
+      if (x.poly) x.poly = out; else x.pts = out;
+      if (tn) x.tan = tn;
+    }, 'subdivide ' + id);
+    setCorner(null);
+    strip.status(id + ' subdivided: ' + (f.entry.poly || f.entry.pts).length + ' corners');
+    return true;
+  }
+  // a plot's ground switched (the zone's `rules.noGround`, contract v1.35): the pick mode's click
+  function togglePlotGround(zid, L) {
+    const p = (R.plots ? R.plots() : []).find(q => q.zone === zid && q.poly && PG.inPoly(q.poly, L[0], L[1]));
+    if (!p) { strip.status('no plot of ' + zid + ' there - click inside one of its plots (Esc ends)'); return true; }
+    edit(zid, 'zones', x => { const r2 = Object.assign({}, x.rules); const l = Array.isArray(r2.noGround) ? r2.noGround.slice() : []; const k = l.indexOf(p.id); if (k >= 0) l.splice(k, 1); else l.push(p.id); if (l.length) r2.noGround = l; else delete r2.noGround; x.rules = r2; }, 'plot ground of ' + p.id);
+    const off = ((PG.findById(rec, zid).entry.rules || {}).noGround || []).indexOf(p.id) >= 0;
+    strip.status('plot ' + p.id + ': ground ' + (off ? 'off' : 'on') + ' - click another, Esc ends');
     return true;
   }
   function ghostFeature() {
     if (!T.pts.length) return null;
+    if (tool === 'pad' && T.pts.length >= 2) return { poly: PG.roundPoly({ c: T.pts[0], r: Math.max(1, Math.hypot(T.pts[1][0] - T.pts[0][0], T.pts[1][1] - T.pts[0][1])) }) };
     if (TWO_POINT_TOOLS[tool]) return T.pts.length >= 2 ? { pts: [T.pts[0], T.pts[1]], width: 24 } : { kind: 'tree', x: T.pts[0][0], z: T.pts[0][1] };
     return isLine() ? { pts: T.pts.map(p => [p[0], p[1]]), width: 3.6 } : { poly: T.pts };
   }
@@ -365,9 +439,19 @@ function mount(host, ctx) {
       if (f.entry.poly && (T.pts.length < 3 || !PG.polySimple(T.pts))) { strip.status(T.pts.length < 3 ? 'a polygon needs three corners' : 'refused: the polygon crosses itself'); return; }
       if (f.entry.pts && T.pts.length < 2) { strip.status('a road needs two points'); return; }
       const pts = T.pts.map(q => [q[0], q[1]]);
-      edit(id, f.layer, x => { if (x.poly) x.poly = pts; else x.pts = pts; }, 'corners of ' + id);
+      edit(id, f.layer, x => { if (x.poly) x.poly = pts; else { x.pts = pts; if (Array.isArray(x.tan)) delete x.tan; } }, 'corners of ' + id);
       cancelTool(); select(id); strip.status(id + ' validated with ' + pts.length + (f.entry.poly ? ' corners' : ' points'));
       return;
+    }
+    if (tool === 'pad') {
+      // A ROUND PAD (v1.35, G2890): a paved polygon whose circle is the truth - concrete until the inspector says otherwise
+      if (T.pts.length < 2) { strip.status('click a point on the rim'); return; }
+      const c = [+T.pts[0][0].toFixed(2), +T.pts[0][1].toFixed(2)], r = +Math.hypot(T.pts[1][0] - c[0], T.pts[1][1] - c[1]).toFixed(2);
+      if (r < 3) { strip.status('refused: a pad is at least 3 m across its radius (' + r.toFixed(1) + ')'); return; }
+      const round = { c, r };
+      const e = { id: PG.newId(rec, 'material'), poly: PG.roundPoly(round), round, look: 'concrete', set: 'cracked', tile: null, fade: 0, z: 0 };
+      run({ layer: 'material', id: e.id, before: null, after: e, label: 'round pad ' + e.id });
+      cancelTool(); select(e.id); return;
     }
     if (TWO_POINT_TOOLS[tool]) {
       if (T.pts.length < 2) { strip.status('click the other end'); return; }
@@ -381,7 +465,8 @@ function mount(host, ctx) {
     T.pts = T.pts.filter((p, i, A) => i === 0 || Math.hypot(p[0] - A[i - 1][0], p[1] - A[i - 1][1]) >= 0.5);
     if (isLine()) {
       if (T.pts.length < 2) { strip.status('a road needs two points'); return; }
-      const e = { id: PG.newId(rec, 'roads'), pts: T.pts.map(p => [p[0], p[1]]), w: 3.6, cls: 'gravel', graded: true, falloff: 6 };
+      // (G2890: a new road is a SMOOTH CURVE through its points - contract v1.35; the inspector's 'curve' takes it back to corners)
+      const e = { id: PG.newId(rec, 'roads'), pts: T.pts.map(p => [p[0], p[1]]), w: 3.6, cls: 'gravel', graded: true, falloff: 6, curve: 'spline' };
       run({ layer: 'roads', id: e.id, before: null, after: e, label: 'road ' + e.id });
       cancelTool(); select(e.id); return;
     }
@@ -408,7 +493,7 @@ function mount(host, ctx) {
 
   // ---- selection, handles, dragging -------------------------------------------------
   let selected = null, drag = null;
-  function select(id) { selected = id; R.select(id); inspector.refresh(); ctx.redraw && ctx.redraw(); }
+  function select(id) { if (id !== selected) { corner = null; if (T.plotPick && T.plotPick !== id) T.plotPick = null; } selected = id; R.select(id); inspector.refresh(); ctx.redraw && ctx.redraw(); }
   function onDown(ev) {
     if (ev.button !== 0) return false;
     if (tool === 'select' && selected) {
@@ -443,12 +528,17 @@ function mount(host, ctx) {
           return true;
         }
         if (found.layer === 'sites') { drag = { id: selected, layer: 'sites', site: h.key, before, F }; if (h.key.indexOf('i:') === 0) ITEM_FOCUS = h.key.slice(2); return true; }
+        // G2890: a round pad's centre / rim, a spline road's handle (keys 'rc' / 'rr', 'h<i>')
+        if (PG.roundOk(e.round) && (h.key === 'rc' || h.key === 'rr')) { drag = { id: selected, layer: found.layer, round: h.key, before, F }; return true; }
+        if (e.pts && /^h[0-9]+$/.test(h.key)) { drag = { id: selected, layer: found.layer, tan: +h.key.slice(1), before, F }; return true; }
         const arr = e.poly || e.pts;
         if (h.mid) {
           const a = arr[h.index], b = arr[(h.index + 1) % arr.length];
           arr.splice(h.index + 1, 0, a.length > 2 ? [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, ((a[2] || 0) + (b[2] || 0)) / 2] : [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]);
+          tanSplice(e, h.index + 1, 0, 1);
           drag = { id: selected, layer: found.layer, index: h.index + 1, before, F };
         } else drag = { id: selected, layer: found.layer, index: h.index, before, F };
+        setCorner(drag.index);   // (G2890: the corner in the hand is the one picked)
         return true;
       }
     }
@@ -508,6 +598,18 @@ function mount(host, ctx) {
         if (len >= 150) { e.c = [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]; e.hdg = +Math.atan2(b[1] - a[1], b[0] - a[0]).toFixed(4); e.len = +len.toFixed(1); }
       }
     }
+    else if (drag.round) {
+      // a round pad: the centre carries it, the rim disc is its radius; the polygon is the circle's again
+      const e = found.entry;
+      if (drag.round === 'rc') e.round.c = [+L[0].toFixed(2), +L[1].toFixed(2)];
+      else e.round.r = +Math.max(3, Math.hypot(L[0] - e.round.c[0], L[1] - e.round.c[1])).toFixed(2);
+      e.poly = PG.roundPoly(e.round);
+    }
+    else if (drag.tan !== undefined) {
+      // a spline road's handle: where the disc is, relative to its point, is that point's outgoing handle
+      const e = found.entry, P = e.pts[drag.tan];
+      if (P) { if (!Array.isArray(e.tan)) e.tan = e.pts.map(() => null); e.tan[drag.tan] = [+(L[0] - P[0]).toFixed(2), +(L[1] - P[1]).toFixed(2)]; }
+    }
     else { const arr = found.entry.poly || found.entry.pts; arr[drag.index][0] = +L[0].toFixed(2); arr[drag.index][1] = +L[1].toFixed(2); }
     // G1400 (EDITOR-LAG): the hand is followed by the renderer's preview - the outline, the handles, the built object
     // carried, a strip's taxi pattern - and nothing composes; the record's rebuild (the ground, the pavement, the
@@ -520,6 +622,8 @@ function mount(host, ctx) {
   function onUp() {
     if (!drag) return false;
     const found = PG.findById(rec, drag.id);
+    // (G2890: a disc clicked and not moved - the corner picked - is no command and no rebuild)
+    if (found && JSON.stringify(drag.before) === JSON.stringify(found.entry)) { if (R.previewEnd) R.previewEnd(); drag = null; inspector.refresh(); ctx.redraw && ctx.redraw(); return true; }
     if (found) {
       const cmd = { layer: found.layer, id: drag.id, before: drag.before, after: clone(found.entry), label: 'move ' + drag.id };
       undoS.push(cmd); redoS.length = 0;
@@ -537,7 +641,12 @@ function mount(host, ctx) {
   function clickAt(g) {
     const F = R.overlay.frame, L = F.toLocal(g[0], g[2]);
     if (T.state === 'drawing' && T.resume) { addPoint(+L[0].toFixed(2), +L[1].toFixed(2)); return; }
-    if (tool === 'select') { const h = R.hit(g[0], g[2]); select(h ? h.id : null); return; }
+    if (T.plotPick) { if (PG.findById(rec, T.plotPick)) togglePlotGround(T.plotPick, L); else T.plotPick = null; return; }
+    if (tool === 'select') {
+      // (G2890) a click on the selected shape's edge adds a corner there; elsewhere it selects what is under it
+      if (selected && edgeInsert(selected, L, edgeTol(g))) return;
+      const h = R.hit(g[0], g[2]); select(h ? h.id : null); return;
+    }
     if (tool === 'probe') {
       const h = R.heightAt(g[0], g[2]);
       const sx = (R.heightAt(g[0] + 1, g[2]) - R.heightAt(g[0] - 1, g[2])) / 2, sz = (R.heightAt(g[0], g[2] + 1) - R.heightAt(g[0], g[2] - 1)) / 2;
@@ -640,10 +749,10 @@ function mount(host, ctx) {
   function onDblClick() { if (T.state === 'drawing') commitDrawing(); }
   function onKey(ev) {
     if (ev.target && /input|select|textarea/i.test(ev.target.tagName)) return;
-    if (ev.key === 'Escape') { if (T.state === 'drawing') cancelTool(); else if (tool !== 'select') setTool('select'); else select(null); ev.preventDefault(); }
+    if (ev.key === 'Escape') { if (T.plotPick) { T.plotPick = null; strip.status('plot pick ended'); inspector.refresh(); } else if (T.state === 'drawing') cancelTool(); else if (corner !== null) { setCorner(null); inspector.refresh(); } else if (tool !== 'select') setTool('select'); else select(null); ev.preventDefault(); }
     else if (ev.key === 'Enter') { if (T.state === 'drawing') commitDrawing(); }
     else if (ev.key === 'Backspace' && T.state === 'drawing') { T.pts.pop(); if (!T.pts.length) cancelTool(); else { R.ghost(ghostFeature(), ghostOk()); ctx.redraw && ctx.redraw(); } ev.preventDefault(); }
-    else if (ev.key === 'Delete' && selected) deleteSelected();
+    else if (ev.key === 'Delete' && selected) { if (corner !== null && !ev.shiftKey && removeCorner(selected, corner)) return; deleteSelected(); }   // (G2890: the corner picked first)
     else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') { ev.shiftKey ? redo() : undo(); ev.preventDefault(); }
     else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'y') { redo(); ev.preventDefault(); }
     else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's') { save(recName); ev.preventDefault(); }
@@ -708,7 +817,7 @@ function mount(host, ctx) {
     if (section === 'life') return lifeRows();
     const f = selected && PG.findById(rec, selected);
     if (!f) {
-      rows.section(insp, 'THE PREMISES');
+      rows.section(insp, 'THE SCENERY');   // (G2890: the scenery editor's record)
       rows.note(insp, rec.name || '(unnamed)');
       rows.note(insp, PG.LAYERS.filter(k => rec.layers[k].length).map(k => k + ' ' + rec.layers[k].length).join(' · ') || 'nothing yet — pick a tool above and click the ground');
       const feats = [];
@@ -804,6 +913,15 @@ function mount(host, ctx) {
       // material polygon (no ribbon) - a track follows the ground and wears its ribbon
       rows.slider(insp, 'steepest (%)', 0, 12, 0.5, () => (e.grade || 0) * 100, v => ed(x => { x.grade = v ? v / 100 : undefined; }, 'grade of ' + id, 'grade'), v => v ? v.toFixed(1) + ' %' : 'follows the ground');
       rows.check(insp, 'drawn (the pavement)', () => e.ribbon !== false, v => ed(x => { x.ribbon = v ? undefined : false; }, 'ribbon of ' + id));
+      // THE CURVE (v1.35, G2890; the user: "smooth roads ... long curves"): through the points on a smooth curve (the C2
+      // spline - its width, its grade, its pavement follow it), or straight between them with the corners rounded a little
+      rows.pills(insp, 'curve', [['spline', 'smooth', 'a smooth curve through every point: long bends from a few clicks; drag a cyan disc to bend it there'], ['', 'corners', 'straight between the points, each corner rounded a little (the road\'s own radius)']],
+        () => (e.curve === 'spline' ? 'spline' : ''), v => ed(x => { if (v) x.curve = 'spline'; else { delete x.curve; delete x.tan; } }, 'curve of ' + id));
+      if (e.curve === 'spline') {
+        const own = Array.isArray(e.tan) ? e.tan.filter(Boolean).length : 0;
+        rows.note(insp, 'the road passes through every orange disc; each point\'s cyan disc is its handle - drag it to turn the road there and to reach the bend further or nearer' + (own ? ' (' + own + ' set by hand)' : ''));
+        if (own) rows.button(insp, 'handles back to the curve\'s own', () => ed(x => { delete x.tan; }, 'handles of ' + id));
+      }
       // THE GUARDRAIL (2026-09-22): 'auto' lets the module decide from the ground (the drop past the
       // shoulder, the bend's outside, clear of the plots and the junctions); 'always' rails the whole
       // road both sides, 'never' none of it. GRAPHICS > guardrails hides them all whatever this says.
@@ -845,6 +963,16 @@ function mount(host, ctx) {
             rows.slider(insp, 'lawn density (x)', 0.2, 2, 0.1, () => G.density || 1, v => setG({ kind: 'lawn', density: v }, 'lawn', 'lawnD'), v => v.toFixed(1));
           }
           if (own) rows.button(insp, "back to the kind's grass", () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.grass; x.rules = r2; }, 'grass of ' + id)); }
+        // THE PLOTS' GROUND (v1.35, G2890; the user: "an option to disable plot ground drawing for the houses"): the lot
+        // patch (lawn, paths, the dry ground under the house) and the plot's lawn - for every plot, or plot by plot. By
+        // default no lot ground is drawn under the water line, whatever this says.
+        { const RU0 = e.rules || {}, offN = Array.isArray(RU0.noGround) ? RU0.noGround.length : 0;
+          rows.pills(insp, 'plot ground', [['on', 'drawn', 'each plot\'s ground: the lawn, the paths, the dry ground under the house (never under the water line)'], ['off', 'none', 'no plot draws its ground or its lawn: the island\'s own ground runs to the houses']],
+            () => (RU0.ground === false ? 'off' : 'on'), v => ed(x => { const r2 = Object.assign({}, x.rules); if (v === 'off') r2.ground = false; else delete r2.ground; x.rules = r2; }, 'plot ground of ' + id));
+          if (RU0.ground !== false) {
+            rows.button(insp, T.plotPick === id ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s ground', () => { T.plotPick = T.plotPick === id ? null : id; strip.status(T.plotPick ? 'click a plot of ' + id + ' to switch its ground off or on - Esc ends' : 'plot pick ended'); inspector.refresh(); });
+            if (offN) { rows.note(insp, offN + ' plot' + (offN === 1 ? '' : 's') + ' with the ground off'); rows.button(insp, 'every plot\'s ground back', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.noGround; x.rules = r2; }, 'plot ground of ' + id)); }
+          } }
         const RU = Object.assign({}, PG.ZONE_RULES, e.rules || {});
         rows.slider(insp, 'plot min (m)', 12, 40, 1, () => RU.plotMin, v => ed(x => { x.rules = Object.assign({}, x.rules, { plotMin: v }); }, 'plots of ' + id, 'plotMin'), v => v.toFixed(0) + ' m');
         rows.slider(insp, 'plot max (m)', 16, 60, 1, () => RU.plotMax, v => ed(x => { x.rules = Object.assign({}, x.rules, { plotMax: v }); }, 'plots of ' + id, 'plotMax'), v => v.toFixed(0) + ' m');
@@ -960,6 +1088,8 @@ function mount(host, ctx) {
         if (!open) continue;
         if (ctx.catalogue) rows.select(insp, 'building', ctx.catalogue.keys().map(k => [k, labelOf(k)]), () => it.key, v => ed(x => { x.items.find(q => q.id === it.id).key = v; }, 'building of ' + it.id));
         rows.slider(insp, 'turn (°)', -180, 180, 1, () => (it.yaw || 0) * 180 / Math.PI, v => ed(x => { x.items.find(q => q.id === it.id).yaw = v * Math.PI / 180; }, 'turn of ' + it.id, 'yaw:' + it.id), v => v.toFixed(0) + '°');
+        // (v1.35, G2890) the lot's ground under it: drawn (never under the water line), or the island's own
+        rows.check(insp, 'its lot\'s ground drawn', () => !(it.P && it.P.plotGround === false), v => ed(x => { const q = x.items.find(o => o.id === it.id); q.P = Object.assign({}, q.P); if (v) delete q.P.plotGround; else q.P.plotGround = false; }, 'lot ground of ' + it.id));
         rows.button(insp, 'remove ' + labelOf(it.key).split(' · ')[0], () => { ITEM_FOCUS = null; ed(x => { x.items = x.items.filter(q => q.id !== it.id); }, 'remove ' + it.id); });
       }
     } else if (layer === 'objects' && e.kind === 'animal') {
@@ -989,9 +1119,23 @@ function mount(host, ctx) {
       rows.slider(insp, 'size', 0.4, 1.8, 0.02, () => e.size || 1, v => ed(x => { x.size = v; }, 'size of ' + id, 'size'));
       rows.slider(insp, 'turn (°)', 0, 360, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
     }
-    if (e.poly || e.pts) {
-      rows.note(insp, (e.poly ? e.poly.length + ' corners' : e.pts.length + ' points') + ' — drag a disc to move it, a faint one to add a corner between two; Ctrl+click the ground adds one after the last, Ctrl+click a disc removes it');
-      rows.button(insp, 'resume drawing', () => resumeDrawing(id));
+    // THE SHAPE (G2890; the user: "I don't know how to edit an existing polygon ... add more sides, subdivide the shape, move
+    // the points individually"): what the hand does, the corner picked, and the buttons that do it without the mouse's art
+    if (PG.roundOk(e.round)) {
+      rows.section(insp, 'SHAPE · ROUND');
+      rows.slider(insp, 'radius (m)', 3, 200, 0.5, () => +e.round.r, v => ed(x => { x.round = Object.assign({}, x.round, { r: v }); x.poly = PG.roundPoly(x.round); }, 'radius of ' + id, 'padR'), v => v.toFixed(1) + ' m');
+      rows.note(insp, 'the orange disc moves the pad, the cyan one on its rim sets its radius');
+      rows.button(insp, 'free corners (a 12-sided polygon to shape by hand)', () => ed(x => { x.poly = PG.roundPoly({ c: x.round.c, r: x.round.r, n: 12 }); delete x.round; }, 'free corners of ' + id));
+    } else if (e.poly || e.pts) {
+      const arr = e.poly || e.pts, word = e.poly ? 'corner' : 'point';
+      rows.section(insp, 'SHAPE · ' + arr.length + ' ' + word.toUpperCase() + 'S');
+      rows.note(insp, 'drag an orange disc to move a ' + word + ' · drag a faint disc, or click the edge, to add one there · click a ' + word + ' (it turns white), then Del or the button below to remove it');
+      if (corner !== null && arr[corner]) {
+        rows.note(insp, word + ' ' + (corner + 1) + ' of ' + arr.length + ' picked: x ' + (+arr[corner][0]).toFixed(1) + ' · z ' + (+arr[corner][1]).toFixed(1));
+        rows.button(insp, 'remove ' + word + ' ' + (corner + 1), () => removeCorner(id, corner));
+      }
+      rows.button(insp, 'subdivide: a ' + word + ' mid-way on every edge', () => subdivide(id));
+      rows.button(insp, 'continue drawing from the last ' + word, () => resumeDrawing(id));
     }
     rows.button(insp, 'delete ' + id, deleteSelected);
   } };
@@ -1244,6 +1388,13 @@ function mount(host, ctx) {
       if (name === 'commit') { commitDrawing(); return selected; }
       if (name === 'resume') { return resumeDrawing(args.id || selected); }
       if (name === 'ctrl') { const hs = R.handles(selected); const h = args.key ? hs.find(q => q.key === args.key) : null; return ctrlEdit(selected, [args.x, args.z], h ? { key: h.key, index: +(h.key.slice(1)) || 0, mid: h.mid } : null); }
+      // G2890: the shape's hand, scriptable (GATE PREMISES' editor rows): a click on the selection's edge, a corner picked /
+      // removed, the subdivision, the plot pick's click
+      if (name === 'edge') { return edgeInsert(args.id || selected, [args.x, args.z], args.tol || 1.5); }
+      if (name === 'corner') { setCorner(args.i); return corner; }
+      if (name === 'removeCorner') { return removeCorner(args.id || selected, args.i === undefined ? corner : args.i); }
+      if (name === 'subdivide') { return subdivide(args.id || selected); }
+      if (name === 'plotGround') { return togglePlotGround(args.zone, [args.x, args.z]); }
       if (name === 'tool') { setTool(args.name); return tool; }
       if (name === 'section') { setSection(args.name); return section; }
       throw new Error('premises: unknown cmd ' + name);

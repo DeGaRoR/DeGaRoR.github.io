@@ -392,6 +392,11 @@ overlay = { n, terrainH(x, z, h) /* h in, h out */, surfaceAt(x, z) /* -1 | SURF
     diverge from it.
 13. **THE CONTRACT HELD** (mechanical) — no catalogue key appears as a string literal in any
     `_premises_*` file (the MEDIA orphan-check idiom): the editor accepts a new asset without an edit.
+17. **THE STAGES** (v1.33) — a stageless record composes untouched; the sandbox (no tracks) stands the stageless record
+    key for key; an entry below its band is cut, inside it stands; a vary holds while its band does; a zone below its
+    band sows and builds nothing; a kit expands only while it stands; the envelope and stageRestore round-trip;
+    `issues()` refuses a bad band, a vary outside its band, a kit with no stage; the sandbox's law with the maxes. On
+    the island's own record: GATE STAGES (`tools/_stages_check.js`).
 
 ---
 
@@ -897,3 +902,76 @@ after the freeze, against this document.
   (60 m, 150 m, no taper) stands as before, in 'today' only; present, it stands in every `rwytrees`
   variant, wins over `treeBox: false`, and the strip's derived box + 30 m then keeps only the plots and
   the settlements off (the trees are the clearance's).
+- **v1.33 (2026-10-07, G2300 STAGES; GAME-2026-10-06.md §11; v1.32 is ISLAND-TOUR's `runway.turn` on its own
+  branches).** THE BUILDINGS THAT MISSIONS PUT UP. Any entry of any layer, and any ITEM of a site, may carry
+  **`stage: { track, show: [lo, hi | null], vary?: [ { show: [lo, hi], ...what changes } ] }`** and stands only while
+  the career's world progress `tracks[track]` (74_career.js; a contract's `unlock: { stage: '<track>:<n>' }`) lies in
+  `[lo, hi]` (`hi` null or absent: no upper bound; `show` absent: always). `vary` (the first band holding the value)
+  changes the entry while it stands: a **runway's** `len`, `c`, `wid`, `surface`, `look`, `profile`, and `sock: false` /
+  `ties: false` (no windsock: render_world; no tie-down spots: 25_airfield fleetSpots) - the strip's ground and surface
+  are physics, so a stage applies at COMPOSITION only (the load and a roll-out; never in flight: 76_stages.js
+  stageHost); an item's or an object's **`P`** (merged). A **construction kit** is an object
+  `{ kind: 'kit', kit: <STAGE_KITS name>, x, z, yaw, w, d, fence?, frame? }` and must carry a stage: where it stands it
+  expands into its props (the pier pack's old fence round the plot with a gate gap, pallets, cement, crates, drums,
+  trestles, a ladder - existing props only), a PARTIAL FRAME (an existing generator's preset: the shed generator's lean-to
+  with a third of its boards missing, sized to the plot) and its own tree exclude (`<id>:clear`); ids `<kit id>:<n>` /
+  `:frame`. A **zone** below its band still SOWS (its land stays reserved: a later zone sows the same plots at every
+  stage) and builds nothing - compose drops its plots after the sowing and keeps their ground clear of trees.
+  **THE SANDBOX IS EVERY TRACK AT ITS MAX**: `compose(rec, world, { tracks })` with no `tracks` stands what has no
+  upper bound, the `stage` fields taken off (27_premises.js `stageView(rec, null)`) - today's record, key for key, so the
+  island cook's hash holds with no re-cook. **The law that makes it so** (`stageIssues(rec, maxes)`, GATE STAGES with
+  CONTRACT_TRACKS' maxes): a band that reaches a track's max is OPEN (`null`), a vary ends below the max, a link never
+  names a staged item without a stage of its own - so nothing the sandbox lacks stands at the max, and the max is the
+  sandbox. `issues()` checks every stage's shape (a word track, integer bands, a vary inside its band, a runway varying
+  only its own fields and still a strip within the pilot's / the altiport's limits, a kit naming a kit and carrying a
+  stage). `stageRestore(edited, view)` puts an edit made on a staged record back into the whole one (the cut entries,
+  the stage fields, the varied fields the edit left, the kits) - the page's editor save goes through it, after the town
+  switch's restorePlaces' own.
+  - **The page:** world_boot.js composes the staged record at load (the sandbox's view; under `?career=1` the dev
+    career document's tracks, `?stages=t:n,...` over them for a still) and hands THAT text to makeWorld, the physics
+    worker and the house worker; app.js's `'stages'` trip step recomposes at a roll-out when a stage advanced (the world
+    editor's path: the renderer's setRecord + rebuild, world.premises.set reaching both workers) and leaves the reveal
+    (stageReveal: the camera target, the caption) for the roll-out's first frame.
+  - **The authoring:** Jolene's stages live in `tools/jolene_stages.json`, applied by `jolene_author.py apply_stages()`
+    after the parts (a band set on a named entry or item, the kits and the clearances appended with `sg_` ids); the
+    fixture stays output.
+  - **GATE PREMISES 17a-17g** hold the mechanism on a record of its own (synth); GATE STAGES holds Jolene's.
+- **v1.34 (2026-10-07, PREM-S3 G2310; numbered v1.33 on its branch - the GAME COORDINATOR's integration put it after STAGES' v1.33).** A **runway
+  may carry `plots`**: `[{ id, x, z, hdg, stand?, taxiOut?, taxiOut1?, slip? }]` in the premises frame - where a
+  player's hangar MAY stand on this field. A plot id is the HANGAR id its holder gets (71_player_bases.js BASE_OFFERS
+  names them), so it is unique in the record (issues() refuses a second, across runways too). **The record's `hangar`
+  is the field's first plot, its id the runway's own**: `runwayPlots(r)` reads it as plot `<runway id>` verbatim
+  (`main: true`) - nothing at a field that had a hangar moves, and the site's `hangar` is still the record's `hangar`
+  alone (a field with plots and no hangar gains none). A plot's `stand` / `taxiOut` / `taxiOut1` are its OWN way out
+  (the roll-out from that hangar's door: the stand's heading derived toward its first taxi point, as the field's;
+  `taxiOut` needs its `stand`); absent, the field's stand and pattern serve. `runwaySite` carries every plot into the
+  site in the world frame as `site.plots` (`{ id, x, z, hdg, ry = pi - hdg, y, stand?, taxiOut?, main? }`, y and
+  the stand's `elev` the composed ground) - ONLY when the record authors `plots`, so a field without them composes to
+  the very site it did. **A plot on a WATER field is a slipway**: its shed on the shore, its `stand` on the water off
+  the slip (no way out: the lane is the field); a lane's site is then its plots alone (`{ plots }`; null as before
+  without them). **A plot is a place, not a building**: the world stands a shed on it only while the player holds it
+  (GAME §R GQ8; render_world.js setPlayerSheds), and a plot adds no modifier - the ground is the same to the
+  millimetre (GATE GAMEPREM's identity rows). Jolene's plots: tools/prem_plots_author.py (HOME.2, w3, mn_strip - no
+  way of its own: the street's authored pattern is MILL-TAXI's -, SEA, mk_sea; none for tw_ski: the summit has no free
+  flat ground). Held by GATE PREMISES 18, SITE (THE PLOTS), TAXICLEAR 11, GAMEPREM (THE WORLD). The editor's handle per
+  plot (the runway inspector's hangar handle, once per plot) is owed.
+- **v1.35 (2026-10-11, SCENERY-ED-1 G2890; the user's notes on the scenery editor).** Four additions, all optional, all
+  kept by the round trip; a record that uses none of them composes to the bit as before.
+  (a) **A road may carry `curve: 'spline'`** (and then `tan: [null | [dx, dz], ...]`, one slot per point): it is drawn
+  THROUGH its points on the C2 interpolating cubic (chord-length knots, parabolic run-out ends) instead of straight
+  between them with the corners filleted (`roadCurve`; `roadLine(r)` is the one place the line is chosen - spline,
+  `smooth` (v1.19) or the points). `tan[i]` is point i's outgoing Bezier handle in metres (the incoming one mirrored):
+  the spline is clamped to it there. Applied once in compose, so the ribbon, the grade, the surface strip, coverAt,
+  the plots and the traffic read one line; the record keeps the clicked points. `normalise` lays `tan` beside `pts`
+  (padded with null, cut to length). The editor writes `curve: 'spline'` on every NEW road.
+  (b) **A paved (`material` + `look`) polygon may carry `round: { c: [x, z], r, n? }`** - a ROUND PAD: its `poly` is
+  the circle's n-gon (48 by default), rewritten by `normalise` from `round` whatever the file says; and its wheels feel
+  its look's class (`RUNWAY_LOOKS[look].surface`), as a surface polygon after every authored one of its priority.
+  (c) **The plots' ground**: a zone's `rules.ground === false` takes the lot patch and the lawn off every plot it sows;
+  `rules.noGround: [plot ids]` off those plots alone (compose stamps `plot.noGround`); a site item's
+  `P.plotGround === false` off its own lot. And BY DEFAULT no lot patch is drawn under the water line (feathered over
+  the 15 cm above it), and a water-side plot mows no lawn within 30 cm of its zone's water.
+  (d) **`treeExRegions()`** on the composed object: every region that keeps trees out (each exclude naming trees and
+  not lifted by the trees' variant, each land strip's generic or own clearing) as `{ k, x0, z0, x1, z1 }` in world
+  metres - the renderer's tree streamer diffs two compositions' lists and regrows only the chunks under a changed one.
+  Held by GATE PREMISES 19 and GATE SCENERYED (the editor's hand); GATE VILLAGE 10d (the lot at the shore).

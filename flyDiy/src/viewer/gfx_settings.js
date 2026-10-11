@@ -626,7 +626,7 @@
     H.row(body, 'world');
     H.pills(body, W.FLYDIY_WORLDS.map(w => ({ label: w.name, value: w.id, title: w.id === 'none' ? 'the procedural 24 km world the game was built on: Home Strip, Skarvik' : 'the island from the data: its own field, dock and village' })),
       o => o.value === cur, o => { if (o.value === cur) return; try { W.localStorage.setItem('flydiy.world', o.value); } catch (e) {} W.location.reload(); });
-    H.note(body, 'The map reloads the page. Each map keeps its own saved premises (the world editor’s record).');
+    H.note(body, 'The map reloads the page. Each map keeps its own saved premises (the scenery editor’s record).');
     return true;
   };
   const mount = (body, H) => {

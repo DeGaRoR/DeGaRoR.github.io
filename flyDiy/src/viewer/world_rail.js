@@ -1200,7 +1200,7 @@
     const host = document.getElementById('ui') || document.body;
     const st = $('style'); st.textContent = CSS; document.head.appendChild(st);
     rail = $('div', 'flPlate'); rail.id = 'wrRail';
-    const hd = $('div', 'wr-rhead', 'world'); rail.appendChild(hd);
+    const hd = $('div', 'wr-rhead', 'world'); hd.title = 'the world editor: the ground\u2019s art (the scenery editor - roads, strips, polygons - is the left rail\u2019s DEV)'; rail.appendChild(hd);   // G2890: its name
     for (const S of SECS) {
       const b = $('button', 'flRailBtn wrBtn'); b.type = 'button'; b.dataset.k = S.k; b.title = S.title;
       b.innerHTML = '<svg viewBox="0 0 18 18">' + ICON[S.k].split('|').map(d => '<path d="' + d + '"/>').join('') + '</svg>';

@@ -109,6 +109,11 @@ const GATES = [
   // G193: the user's ultralight off the stand through the declared pattern —
   // the stop, the straight roll, in calm air and in wind (~3 min)
   { id: 'TAKEOFF', file: '_takeoff_check.js', tier: 'core', wall: 300 },
+  // G2630 (RADIAL-DIVERGE): the user's Mosquito, both builds (a radial on a carbon taildragger whose oleo dampers the
+  // 200-substep cap could not carry: it turned in circles / went NaN on the first frame) + a synthetic stiff-damper
+  // build: the network inside the integrator's margin, at rest without ringing or turning, flown from the stand
+  // through the take-off and 60 s, then 20 s hands off against the Cub flown the same way
+  { id: 'RADIALDIV', file: '_radialdiv_check.js', tier: 'core', wall: 700 },
   // G630: the pilot's control activity - aileron / rudder reversals per minute per phase,
   // stock + C172 + the user's aluminium C172 off HOME's stand (pilot_matrix --set activity; ~4 min)
   { id: 'PILOTACT', file: '_pilotact_check.js', tier: 'core', weight: 3, wall: 300 },
@@ -166,8 +171,10 @@ const GATES = [
   // readiness aggregator, the watchdogs, in the harness's synchronous shape
   { id: 'BOOT', file: 'test_boot.js', tier: 'core' },
   // G2251 (MAP-MENU): THE 2-D ISLAND MAP (tools/map_bake.js) - the committed picture and projection re-bake byte for byte,
-  // every runway's pixels inside its footprint in the projection (and every footprint drawn), the 2 MB / 4096 px budget; ~12 s
-  { id: 'MAPBAKE', file: '_mapbake_check.js', argv: ['--selftest'], tier: 'core', wall: 20 },
+  // every runway's pixels inside its footprint in the projection (and every footprint drawn), the 2 MB / 4096 px budget;
+  // G2435 (MAP-INFRA): + the infrastructure (roads, zones, houses, site footprints, the tramway) against the record, which
+  // composes the town (premises_cook's headless compose, ~20 s); ~35 s
+  { id: 'MAPBAKE', file: '_mapbake_check.js', argv: ['--selftest'], tier: 'core', wall: 40 },
   // G1995-G1997 (HW-COVERAGE, the user's GTX 1660 Ti laptop: a 128 s garage load, 3-4 fps for 15 min, NO REVEAL): on a virtual
   // clock - the boot watchdog never lifts a chain that still lands steps (keys alone are not progress; 5x hard the last
   // resort); the runtime step-down (gfx_settings.js GFX.hw: one rung under 15 fps in the shed / on the ground, once a state,
@@ -182,6 +189,9 @@ const GATES = [
   { id: 'WORLDRENDER', file: 'test_world_render.js', tier: 'core' },
   // the hangar prop library: baked payload vs the declared table
   { id: 'PROPS', file: '_prop_check.js', tier: 'core' },
+  // THE FREIGHT LOADS (FREIGHT-ASSETS, G2405): tools/load_table.py = the baked loads + camp dressing, the in-cabin
+  // ≤ ~2k level of every load, the catalogue's dims = the baked props' (props, pier, loads), credits. ~1 s.
+  { id: 'LOADS', file: '_load_check.js', tier: 'core' },
   // THE TOTEM POLES (2026-09-13): the declared table = the shipped pack (a
   // cut of a staged photoscan, base + three levels) = the park generator's
   // mirror, and the park plan is a park over twenty seeds. ~1 s.
@@ -435,6 +445,9 @@ const GATES = [
   // Worker shim: node worker_threads, the same Blob source and messages), the Cub and the metal Cessna, the roll-out,
   // 40 s of the departure taxi at 2x: every step's p / v / CG / phase and every frame's page reads bit-identical, no
   // solver step on the page's thread. Four page runs ONE AT A TIME (~3.7-4.1 GB, ~4-5 min each on a 4-core cloud box)
+  // G2630 (RADIAL-DIVERGE): a FORCED divergence on the page in node (the game's worker): the eye, the light ease and
+  // the eye wind stay finite and lit, the card's Fly flies again, every saved record reads finite, the next load lit
+  { id: 'SIMDIVERGE', file: '_simdiverge_check.js', tier: 'full', timeout: 2 * 3600_000, weight: 2, wall: 900 },
   { id: 'SIMWORKER-PAGE', file: '_simworker_page_check.js', tier: 'full', timeout: 3 * 3600_000, weight: 2, wall: 1100 },
   // G821 (C1c): EVERY EDGE through the worker - one scripted session per build and mode (dev.html?simw=0 against
   // ?simw=1, lockstep): the pause, the hand on and off (taxiing and in the air), the world editor's edit (the worker's
@@ -527,6 +540,9 @@ const GATES = [
   // the baked raster agrees with the live composition (WORLD-V2 6.3), and no
   // catalogue key is a literal in the editor (the contract held).
   { id: 'PREMISES', file: '_premises_check.js', tier: 'core' },
+  // G2890 (SCENERY-ED-1): the scenery editor's HAND, headless - premises_ui.js under a DOM stub on the real core: a polygon's
+  // corner added on its edge / picked / removed / subdivided / undone, the round pad, the smooth road's handles, the plot pick (~1 s)
+  { id: 'SCENERYED', file: '_scenery_ed_check.js', tier: 'core' },
   // G614: the premises' composed ground as an A h + B lattice (opt-in) against the analytic path, the ceiling over
   // it, and the surface / exclude cell indexes against the scans they replaced; ~40 s
   { id: 'PREMRASTER', file: '_premraster_check.js', tier: 'core' },
@@ -624,11 +640,46 @@ const GATES = [
   // Cub, Jodel, C172 and metal Cessna, run to run deterministic, a disturbed leg refused, the wind taken out, the
   // logbook's stop at a strip, the page's wrapper and the worker's door, acceptVerdict per kind; --selftest 24 rules
   { id: 'ACCEPT', file: '_accept_check.js', tier: 'core', wall: 300 },
+  // THE BELLY POD (G2416, BELLY-POD, FREIGHT-2026-10-07.md §4): off = every validated build's def and shakedown to the
+  // base's bytes (tools/_pod_base.json); the part (its cargo space, door, ledger rows, shell); its ground / water
+  // clearance per attitude re-derived off its own shell; its drag (Raymer's build-up) in the axial row and its cost
+  // in cruise and climb; the bench's row (a strike refused with its number); the mounts under a real certificate;
+  // the CG full; the acceptance leg off / on / full (reports/evidence/POD/flights.json); --selftest 21 doctored rules
+  { id: 'POD', file: '_pod_check.js', tier: 'core', wall: 60 },
   // THE CONTRACTS (G2240 CONTRACT-MODEL, GAME-2026-10-06.md §6/§7/§13.2): the record, the providers, the seeded job
   // generator, a stage's acceptance from a STOPPED, the follow-up build contract, the career document; every job and
-  // arc stage flyable by a validated design, none doing every class (az); 45 doctored rules. ~1 s (20 s cold: the
-  // five designs' shakedown, cached in the OS temp dir by content)
+  // arc stage flyable by a validated design, none doing every class (az); (G2430 CONTRACT-ROUTES) THE ROUTES: >= 60 % of
+  // the jobs with 2+ destinations, <= 30 % from Jolene AFB, every chain one design's, a new site joining by data, a
+  // 3-stop chain flown through the stop records; 64 doctored rules. ~2 s (20 s cold: the five designs' shakedown,
+  // cached in the OS temp dir by content)
   { id: 'CONTRACTS', file: '_contracts_check.js', tier: 'core' },
+  // THE STAGES (G2300 STAGES, contract v1.33, GAME-2026-10-06.md §11): the sandbox's composed record = the island cook's
+  // hash (today's island, byte for byte, both variants); every stage value of every track composes (valid, the village
+  // unmoved, the altiport and East Point by their stage); MILL-TAXI's census at every stage with the kits' solids; never
+  // in flight (the queue + the page's source); every arc unlock mapped; the kits existing props; the editor's save
+  // restores the whole record. ~70 s. `--selftest`: 18 doctored rules, each red (~15 s)
+  { id: 'STAGES', file: '_stages_check.js', tier: 'core', wall: 70 },
+  // G2260 (ECONOMY): one price book, the career wallet's rules, the calibration bands, az through physical gates (~26 s)
+  { id: 'ECON', file: '_econ_check.js', tier: 'core' },
+  // PROCUREMENT (G2280 PROCURE, GAME-2026-10-06.md §5, §R GQ2): the makers' catalogues over the validated builds only,
+  // every option a real spec row that changes the spec and certifies as its base does (its effect re-measured), the
+  // factory certificate withdrawn by a modification (dm11's bill), the used market deterministic and flyable from where
+  // each listing stands, buying stations it there, the sandbox unchanged. ~2 s (~4.5 min cold: 33 shakedowns, cached
+  // in the OS temp dir by content)
+  { id: 'PROCURE', file: '_procure_check.js', tier: 'core', wall: 400 },
+  // FREIGHT (G2340 FREIGHT-MODEL, futureDesigns/game/FREIGHT-2026-10-07.md): every validated build's hold, doors,
+  // seats and plaque re-measured off its mesh = FREIGHT_CARDS (one build twice: deterministic); items with dims,
+  // bulk split into bags; the door rule (a door too small refused; the 2.0 m stretcher as the geometry says); the
+  // packer deterministic, order-free, inside, clear, supported, its CG = the moments; the generated jobs' proposals
+  // all placed within the CG range / floors / placard / MTOW; limits reported never refused; jobs carry items, the
+  // map's mark (no door fits), the stop record's items; 23 doctored rules. ~20 s warm (~90 s cold: five meshes)
+  { id: 'FREIGHT', file: '_freight_check.js', tier: 'core', wall: 300 },
+  // THE PILOTS YOU HIRE (G2290 PILOTS, GAME-2026-10-06.md §9, §R GQ13/GQ14/GQ30): the roster IS the narrative pack's
+  // Block 3 (parsed off the pack's table: bodies, knobs, traits, ceilings, the sign-on order); every body a shipped
+  // chars_table key (no download); every profile clamps through PILOT-PERSONA's path; refusals fire exactly; growth
+  // deterministic and capped; a pilot follows their aeroplane; hire / fire / the boat; the sandbox's doors inert;
+  // 36 doctored rules. ~2 s
+  { id: 'PILOTS', file: '_pilots_check.js', tier: 'core' },
   // THE HANGAR (HANGARS S2/S3): shells, kits, capabilities and the placement
   // contract. The kit tables partition the declared prop tables exactly once,
   // every capability verb is grantable, every kit places into every shell OR

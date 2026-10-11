@@ -1,0 +1,67 @@
+2026-10-08 21:05:01 waiting for a clean show
+boxlock: CPU battery taken by COZY
+2026-10-08 21:05:01 running, 1479s left
+tools/flight_core.js (2456.8 KB), index.html (11870.6 KB), dev.html (110.6 KB) — syntax OK, build ea6f8e89b02e (325 named inputs), 816 ms
+[run_gates] 0/7 jobs done · running PARKED 30 s, DESTTO/0 29 s, DESTTO/1 29 s
+[run_gates] 0/7 jobs done · running PARKED 60 s, DESTTO/0 59 s, DESTTO/1 59 s
+[run_gates] 0/7 jobs done · running PARKED 90 s, DESTTO/0 89 s, DESTTO/1 89 s
+[run_gates] 0/7 jobs done · running PARKED 120 s, DESTTO/0 119 s, DESTTO/1 119 s
+[run_gates] 0/7 jobs done · running PARKED 150 s, DESTTO/0 149 s, DESTTO/1 149 s
+[run_gates] 0/7 jobs done · running PARKED 180 s, DESTTO/0 180 s, DESTTO/1 179 s
+[run_gates] 1/7 jobs done · running DESTTO/0 210 s, DESTTO/1 209 s, DESTTO/2 20 s
+[run_gates] 2/7 jobs done · running DESTTO/1 239 s, DESTTO/2 50 s, UISMOKE 20 s
+[run_gates] 2/7 jobs done · running DESTTO/1 269 s, DESTTO/2 80 s, UISMOKE 50 s
+[run_gates] 2/7 jobs done · running DESTTO/1 299 s, DESTTO/2 110 s, UISMOKE 80 s
+[run_gates] 5/7 jobs done · running DESTTO/1 329 s, DESTTO/2 140 s
+[run_gates] 6/7 jobs done · running DESTTO/2 170 s
+[run_gates] 6/7 jobs done · running DESTTO/2 200 s
+[run_gates] 6/7 jobs done · running DESTTO/2 230 s
+[run_gates] 6/7 jobs done · running DESTTO/2 260 s
+[run_gates] 6/7 jobs done · running DESTTO/2 290 s
+[run_gates] 6/7 jobs done · running DESTTO/2 320 s
+[run_gates] 6/7 jobs done · running DESTTO/2 350 s
+[run_gates] 6/7 jobs done · running DESTTO/2 380 s
+[run_gates] 6/7 jobs done · running DESTTO/2 410 s
+=== DESTTO ===
+--- shard 0/3 (219.1 s) ---
+  air:metal: ok (69 s) [shard 0/3]
+DESTTO: 0 failure(s), 219 s [shard 0/3]
+GATE DESTTO: PASS
+--- shard 1/3 (358.2 s) ---
+  ltd:jodel: ok (175 s) [shard 1/3]
+DESTTO: 0 failure(s), 358 s [shard 1/3]
+GATE DESTTO: PASS
+--- shard 2/3 (431.1 s) ---
+  ltd:twinFloats: ok (186 s) [shard 2/3]
+DESTTO: 0 failure(s), 431 s [shard 2/3]
+GATE DESTTO: PASS
+=== UISMOKE ===
+G1090 the top bar holds one size over 47 texts (29 phase labels): desktop 440 x 143, desktop small 372 x 76, phone screen x 132, phone small screen x 76; the pilot's area 35 px, two lines clamped + the plan line
+ran app block: raf x1877, handlers wired: _ce1003 _ce1007 _ce1013 _ce1017 _ce1022 _ce1023 _ce1025 _ce1026 _ce1027 _ce1030 _ce1034 _ce1038 _ce1042 _ce1046 _ce105 _ce1050 _ce1054 _ce1058 _ce1069 _ce1073 _ce1077 _ce1085 _ce1091 _ce1094 _ce1098 _ce1103 _ce1125 _ce1131 _ce1135 _ce1143 _ce1146 _ce1155 _ce1159 _ce116 _ce1163 _ce1171 _ce1174 _ce1183 _ce1187 _ce1191 _ce1199 _ce120 _ce1202 _ce1206 _ce1215 _ce1219 _ce1223 _ce1231 _ce1234 _ce1238 _ce124 _ce1247 _ce1255 _ce1256 _ce1259 _ce1268 _ce1276 _ce1279 _ce1283 _ce1292 _ce1296 _ce130 _ce1300 _ce1308 _ce1311 _ce1320 _ce1324 _ce135 _ce136 _ce138 _ce139 _ce140 _ce143 _ce147 _ce151 _ce155 _ce159 _ce163 _ce167 _ce173 _ce178 _ce184 _ce191 _ce192 _ce193 _ce194 _ce195 _ce196 _ce201 _ce202 _ce203 _ce204 _ce208 _ce209 _ce210 _ce211 _ce212 _ce213 _ce217 _ce218 _ce219 _ce220 _ce224 _ce225 _ce228 _ce232 _ce236 _ce240 _ce244 _ce248 _ce255 _ce260 _ce265 _ce278 _ce283 _ce296 _ce301 _ce31 _ce314 _ce319 _ce332 _ce337 _ce350 _ce355 _ce371 _ce387 _ce405 _ce416 _ce422 _ce426 _ce432 _ce436 _ce440 _ce444 _ce448 _ce456 _ce462 _ce465 _ce47 _ce472 _ce473 _ce478 _ce481 _ce486 _ce487 _ce489 _ce490 _ce491 _ce494 _ce498 _ce502 _ce506 _ce512 _ce519 _ce523 _ce527 _ce531 _ce535 _ce539 _ce543 _ce547 _ce551 _ce555 _ce559 _ce565 _ce569 _ce573 _ce576 _ce58 _ce582 _ce585 _ce586 _ce587 _ce59 _ce590 _ce60 _ce600 _ce601 _ce605 _ce608 _ce61 _ce613 _ce62 _ce63 _ce635 _ce64 _ce641 _ce649 _ce65 _ce650 _ce653 _ce660 _ce661 _ce662 _ce663 _ce664 _ce665 _ce67 _ce670 _ce671 _ce672 _ce673 _ce677 _ce678 _ce679 _ce680 _ce681 _ce682 _ce686 _ce687 _ce688 _ce689 _ce693 _ce694 _ce697 _ce70 _ce704 _ce705 _ce706 _ce707 _ce711 _ce712 _ce716 _ce717 _ce721 _ce722 _ce723 _ce724 _ce725 _ce726 _ce73 _ce730 _ce731 _ce732 _ce733 _ce734 _ce735 _ce739 _ce740 _ce744 _ce745 _ce747 _ce754 _ce755 _ce756 _ce757 _ce76 _ce761 _ce762 _ce763 _ce764 _ce768 _ce769 _ce770 _ce771 _ce775 _ce776 _ce777 _ce778 _ce782 _ce783 _ce787 _ce788 _ce789 _ce79 _ce791 _ce798 _ce799 _ce803 _ce804 _ce806 _ce813 _ce814 _ce815 _ce819 _ce82 _ce820 _ce821 _ce822 _ce826 _ce827 _ce829 _ce836 _ce837 _ce838 _ce842 _ce843 _ce844 _ce845 _ce849 _ce85 _ce850 _ce851 _ce855 _ce856 _ce860 _ce861 _ce865 _ce866 _ce868 _ce875 _ce876 _ce88 _ce880 _ce881 _ce882 _ce886 _ce887 _ce891 _ce892 _ce895 _ce901 _ce906 _ce91 _ce910 _ce914 _ce918 _ce922 _ce926 _ce930 _ce934 _ce938 _ce94 _ce942 _ce946 _ce950 _ce954 _ce957 _ce965 _ce968 _ce97 _ce977 _ce985 _ce986 _ce989 _ce998 bBring bEdit bGo bHangar2 bLog bMood bPause bReset bSkin bSkip bWhy bootFly edClose flLine mm pfdFold selAc selCond selDest selPilot tabBench tabDesign
+GATE UISMOKE: PASS
+=== GFX ===
+  ok   FLYDIY_MODE is written by welcome.js alone (src/viewer/welcome.js)
+  ok   no device test outside welcome.js beyond the six of 6 Oct (rigs, records, the pill's CSS)
+GATE GFX: PASS
+=== VIEW ===
+
+12 controls neutralised, 7 exempt, over 18 the editor shows
+GATE VIEW: PASS
+=== PARKED ===
+  11 NEGATIVE CONTROL (the leak re-opened): mine:parkC172 323566 tris under the Cub, 314032 under the metal Cessna; geometry 4ecdeaf6ec0c3767 / b053e3b2b3a13653, atlas c623e8b6b078cb58 / dadae18b4e2d92c4
+  163 checks
+GATE PARKED: PASS
+
+──────── summary ────────
+DESTTO    PASS   431.1 s  [3 shards]
+UISMOKE   PASS    99.0 s
+GFX       PASS     0.5 s
+VIEW      PASS     0.3 s
+PARKED    PASS   190.2 s
+total            721.1 s
+wall             621.3 s  (jobs 3)
+
+BATTERY: PASS
+2026-10-08 21:15:24 run_gates exit 0
+boxlock: CPU battery released by COZY
+2026-10-08 21:15:24 dropped
