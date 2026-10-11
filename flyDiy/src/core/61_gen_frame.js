@@ -842,7 +842,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                    EIl: E * Math.PI * tS * qr.b * qr.b * (3 * qr.a + qr.b) / 4, cl: qr.b,
                    GJ: G * 4 * Ar * Ar * tS / Math.max(1e-6, pr), rT: Math.sqrt(qr.a * qr.b),
                    part: cl.filter(q => ring0.indexOf(q) < 0), root: ring0.slice(), ref: ring0.slice(0, 3),
-                   ax: [ring0[0], lastR[0]], lat: [ring0[0], ring0[1]], station: dmgStation(rings, fu.postX), eta: 0.7 };
+                   ax: [ring0[0], lastR[0]], lat: [ring0[0], ring0[1]], station: dmgStation(rings, fu.postX), eta: 0.7,
+                   // a thin unstiffened skin breaks by LOCAL BUCKLING: the classical cylinder's 0.605 E t / R with the
+                   // ~0.5 knockdown every shell test reads (NASA SP-8007) - ~0.3 E t / R, R the section's mean radius
+                   // (the metal Cessna's 0.8 mm on 0.67 m: ~26 MPa, not the alloy's 450 - a tailcone's breaking
+                   // moment in the tens of kN.m, not 580)
+                   sigB: 0.3 * E * tS / Math.max(0.05, Math.sqrt(qr.a * qr.b)) };
     }
     if (cl.length >= 6) clusters.push({ cls: 'shell', tag: 'SHELL', nodes: cl, rings, gj: GJs,
                                         omega: { k: Kt, kRef: 29182, mRef: 61.6, wRef: 300 }, dmg: shellDmg,

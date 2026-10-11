@@ -823,7 +823,10 @@ function makeSim(def, world) {
       const Mb = fu * sh * S.EI / (S.E * S.r);
       lim = { Mu: Mb, Mv: Mb, T: fu / SQ3 * S.GJ / (G * S.r), yb: ty / (fu * sh), yt: ty / fu };
     } else if (S.kind === 'oval' && fu) {
-      lim = { Mu: fu * sh * S.EIv / (S.E * S.cv), Mv: fu * sh * S.EIl / (S.E * S.cl), T: fu / SQ3 * S.GJ / (G * S.rT), yb: ty / (fu * sh), yt: ty / fu };
+      // G2640: a thin SKIN fails by local buckling long before its material's ultimate (S.sigB, 61_gen_frame's SHELL:
+      // ~0.3 E t / R); absent (the twin boom's tube) the material's, as ever
+      const fb = S.sigB > 0 ? Math.min(fu, S.sigB) : fu, sb = S.sigB > 0 && S.sigB < fu ? 1 : sh;
+      lim = { Mu: fb * sb * S.EIv / (S.E * S.cv), Mv: fb * sb * S.EIl / (S.E * S.cl), T: fb / SQ3 * S.GJ / (G * S.rT), yb: Math.min(1, ty / (fb * sb)), yt: Math.min(1, ty / fb) };
     }
     const inR = S.root ? nodeSet(S.root) : null;
     if (S.kind === 'bolts') {
@@ -979,8 +982,11 @@ function makeSim(def, world) {
   // rigid body that detaches; a STATION's (a bay's) splits the tube into two rigid clusters. A cluster still holding
   // nodes on both sides (a twin boom's fin stands on the station's ring and the ring before) lets go of the fewer
   // G2640: the omega of a piece of a split tube cluster - its length along the tube's axis (the first ring to the last,
-  // at rest) and its mass against the whole's: om0 sqrt((L / Lp)^3 (M / Mp)), capped (the projection's own cap, rigid
-  // at omega dt 1, holds the rest). A cluster without rings (a fin, a float) keeps its omega
+  // at rest) and its mass against the whole's: om0 sqrt((L / Lp)^3 (M / Mp)), CAPPED AT 3 x om0. Uncapped, a third of
+  // the metal Cessna's shell read 9x: omega dt ~1 at its substep, and the hold - a projection, (omega dt)^2 of the way
+  // a substep - snapped the piece to its rest shape in one substep and broke 32 of the members hanging on it in the
+  // clean part-off (GATE DMGCLUSTERS). 3x holds the piece to under its 10 mm and snaps nothing. A cluster without
+  // rings (a fin, a float) keeps its omega
   function clOmegaPiece(C, om0, piece) {
     const R0 = C.rings0;
     if (!(om0 > 0) || !R0 || R0.length < 2 || !C.idx0) return om0;
@@ -994,7 +1000,7 @@ function makeSim(def, world) {
       return { L: hi - lo, M }; };
     const W = ext(C.idx0), Pp = ext(piece);
     if (!(Pp.L > 0.05) || !(Pp.M > 0) || !(W.L > Pp.L)) return om0;
-    return om0 * Math.sqrt(Math.min(1e3, Math.pow(W.L / Pp.L, 3) * (W.M / Pp.M)));
+    return om0 * Math.sqrt(Math.min(9, Math.pow(W.L / Pp.L, 3) * (W.M / Pp.M)));
   }
   function clApply() {
     for (const k of clQ) {
@@ -1042,7 +1048,8 @@ function makeSim(def, world) {
   function clReset() {
     clusters.length = nCl0;
     CUTS.length = nCut0;
-    for (const C of clusters) if (C.idx0) { C.idx = C.idx0; C.q = C.q0; C.rings = C.rings0; C.rk = C.rk0; C.cuts = C.cuts.filter(k => k < nCut0); C.twPk = 0; C.twR = 0; C.ms = false; }
+    for (const C of clusters) if (C.idx0) { C.idx = C.idx0; C.q = C.q0; C.rings = C.rings0; C.rk = C.rk0; C.cuts = C.cuts.filter(k => k < nCut0); C.twPk = 0; C.twR = 0; C.ms = false;
+      if (C.omega0 != null) C.omega = C.omega0; }   // G2640 (Deform's review): a split stub's omega back to the whole tube's
     for (const ct of CUTS) { ct.done = false; ct.rb = ct.rt = ct.Mb = ct.Tq = ct.pk = ct.pkB = ct.pkT = 0; }
     beamCl.set(beamCl0);
     for (const C of clusters) if (C.cuts && C.cuts.length) clMask(C);
@@ -3000,7 +3007,7 @@ function makeSim(def, world) {
                                    Mu: c.Mu, Mv: c.Mv, T: c.T, yb: c.yb, yt: c.yt, rb: c.rb, rt: c.rt, Mb: c.Mb, Tq: c.Tq, pk: c.pk, pkB: c.pkB, pkT: c.pkT, done: c.done,
                                    grp: c.grp >= 0 ? DGR[c.grp].key : null, P: Array.from(c.P), X: Array.from(c.X), bay: c.bay })),
                                  twist: clusters.map((C, ci) => C.twL0 ? { cl: ci, tag: C.tag, lim: C.twL0.slice(), r: C.twR, pk: C.twPk } : null).filter(x => x),
-                                 clusters: clusters.map(C => ({ tag: C.tag, cls: C.cls, off: !!C.off, nodes: Array.from(C.idx) })) }),
+                                 clusters: clusters.map(C => ({ tag: C.tag, cls: C.cls, off: !!C.off, nodes: Array.from(C.idx), omega: C.omega })) }),   // (G2640: omega read out)
            // G1801: the velocity guard - { vMax, node, peak, fault: null | { why: 'speed' | 'nan', node, v, t } }
            guard: () => VG, fault: () => VG.fault,
            // G1820: the strips as the aero pass flies them (dead, and each one's weights: the build's or a split's)

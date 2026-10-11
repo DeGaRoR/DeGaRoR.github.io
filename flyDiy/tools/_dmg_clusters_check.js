@@ -180,8 +180,18 @@ if (MAIN && argv[0] === '--build') {
     const brokenAtEv = r.D.broken.slice(0, r.breaksAtEv), stray = brokenAtEv.filter(bi => !own.has(bi));
     pulls.push({ lab, tag, kind, expect, ev: ev && { tag: ev.tag, cut: ev.cut, why: ev.why, t: r.tEv, M: ev.Mb, T: ev.T, grp: ev.grp }, lam: r.lamEv,
       lim: { Mu: cE.Mu, Mv: cE.Mv, T: cE.T }, broken: brokenAtEv.length, stray: stray.length, groups: r.D.groups.map(G => G.key), cl: r.D.cl.map(c => c.tag + '/' + c.cut + '/' + c.why),
-      rigid: r.rigid, finite: r.finite, clusters: r.X.clusters.map(c => c.tag + ':' + c.nodes.length + (c.off ? ' off' : '')), partedOk: !!(cE && cE.done),
+      rigid: r.rigid, finite: r.finite, clusters: r.X.clusters.map(c => c.tag + ':' + c.nodes.length + (c.off ? ' off' : '')), partedOk: !!(cE && cE.done), resetOk: null,
       hist: argv.includes('--trace') ? r.hist : undefined });
+    // G2640 (Deform's review): FLY AGAIN AFTER A SPLIT - the split rescales a station piece's omega (clOmegaPiece);
+    // a reset must hand every intact cluster its as-built omega back (a fresh sim of the same def is the reference)
+    let resetOk = null;   // (after the record above: a reset clears the live damage state the record reads)
+    if (kind === 'station') {
+      const om = s => s.clusterCuts().clusters.map(c => c.tag + ':' + (c.omega || 0).toFixed(6));
+      const fresh = L.core().makeSim(r.def, null); fresh.reset(0);
+      r.sim.reset(0);
+      resetOk = om(r.sim).join(' ') === om(fresh).join(' ');
+    }
+    pulls[pulls.length - 1].resetOk = resetOk;
   };
   const nd = i => def.nodes[i].p;
   // the fin: a side load, n g on the fin's own nodes, ramped
@@ -282,6 +292,10 @@ if (MAIN) (async () => {
       const msg = p.lab + ': ' + (p.ev ? p.ev.tag + ' ' + p.ev.cut + ' by ' + p.ev.why + ' at ' + f2(p.ev.t) + ' s (' + kNm(p.ev.M) + ' kN.m bending, ' + kNm(p.ev.T) + ' torque; limits ' + kNm(p.lim.Mu) + ' / ' + kNm(p.lim.Mv) + ' / ' + kNm(p.lim.T) + ')'
         + ', ' + p.broken + ' members broken (' + (p.ev.grp || 'its bay') + ', ' + p.stray + ' others), the part rigid to ' + (p.rigid ? (1000 * p.rigid.dmax).toFixed(1) + ' mm and ' + f2(p.rigid.moved) + ' m off' : '-') + '; clusters now ' + p.clusters.join(', ') : 'NOTHING PARTED');
       if (valid) yes(ok, msg); else rep((ok ? '(clean) ' : '(NOT clean) ') + msg);
+      if (p.resetOk !== null && p.resetOk !== undefined) {
+        const m2 = p.tag + ' split at its station, then reset (Fly again): every cluster back to its as-built omega (G2640)';
+        if (valid) yes(p.resetOk, m2); else rep((p.resetOk ? '(ok) ' : '(NOT ok) ') + m2);
+      }
     }
     if (r.water) {
       console.log('5. the water');

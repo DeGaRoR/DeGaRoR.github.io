@@ -84254,3 +84254,21 @@ drawn fin + rudder + keel exactly on all six builds (the floatplanes + their cou
 chord fraction = the drawn one exactly, the arms within 1-7 cm (the Cessna pair's 0.17-0.21 m is its uncounted dorsal),
 aspect ratios within ~10 %; a horn balance is AREA ONLY - the model has no hinge moments (position-commanded controls).
 The blue truss in the overlay is the fin's STRUCTURE (two spars), the strips span the drawn chord.
+
+### G2640 on train 43 (11 Oct, plan B: 43.1 before T41b) - the split, Deform's review, the shell's buckling
+Rebased on master 37bf53368 (train 43; G2630 inside). The 08:35 battery on that tip: every row of last night's list
+green but DMGCLUSTERS (the Cessna's shell, as handed over). Three things fixed it, in 30_solver's damage layer
+(reviewed by Deform; 41's split takes the same hunk):
+- clOmegaPiece: a station piece of a split tube cluster gets the omega of its own length and mass,
+  om0 sqrt((L/Lp)^3 (M/Mp)), CAPPED AT 3 x om0 (uncapped a third of the Cessna's shell read 9x).
+- clReset hands every cluster its as-built omega back (C.omega0) - Deform's catch: the split wrote the forward
+  stub's omega onto the original cluster and Fly again would have flown the whole boom at it. GATE DMGCLUSTERS has
+  the row now (split at the station, reset, every cluster's omega == a fresh sim's), and clusterCuts() reads omega.
+- THE SHELL BREAKS BY BUCKLING: the 'oval' record takes sigB (61_gen_frame SHELL: ~0.3 E t / R, the classical
+  0.605 with NASA SP-8007's ~0.5 knockdown); the limit is min(material, sigB). The metal Cessna's tailcone was
+  credited with 580 kN.m at mid-span (the alloy's full ultimate on a 0.8 mm skin) and the part-off test ramped loads
+  to hundreds of kN - its stab tore off its fittings (32 strays). Now 22 kN.m at mid-span / 31.5 at the root: clean
+  (10 members, 0 strays, rigid 0.2 mm); normal operations peak under it (the flown pull 0.50 of the limit, the drops
+  0.23-0.28). NAMED: with damage on, the Cessna's and the Jodel's aft fuselage break at a realistic tailcone moment.
+Gates on the tip: DMGCLUSTERS, DMGCERT, DMGCERTCOST, DMGMEMBERS PASS (09:19-09:28). NOT YET RUN after the buckling
+limit: DMGINTEGRITY, DMGGEAR, TREECRASH (the window closed at 09:35 with them running) - owed before landing.
