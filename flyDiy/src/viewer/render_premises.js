@@ -4015,6 +4015,31 @@ function make(THREE, scene, world, rec0, opts) {
     const r = near || best;
     return r ? { id: r.entry.id, layer: r.layer, entry: r.entry } : null;
   }
+  // EVERYTHING UNDER THE CURSOR (G3006; the user: "issue with overlapping assets, since I can select only one ... cycle
+  // through possible selectable assets by clicking a few times on them, and select the polygons last"): every pickable
+  // at the point, BY KIND - a placed model / tree / animal (nearest first), a site's item, a road (nearest line first),
+  // a strip, then the polygons last (an area or a paved polygon, the smallest first) - each feature once. The editor's
+  // click cycles through it; hit() stays the one answer the scripts and the rest read
+  function hitAll(x, z) {
+    const F = O.frame, L = F.toLocal(x, z), out = [], seen = new Set();
+    const put = (rank, d, h) => { if (h && !seen.has(h.id + '|' + (h.item || ''))) { seen.add(h.id + '|' + (h.item || '')); out.push([rank, d, h]); } };
+    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft' || ob.kind === 'animal') {
+      const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < 2.5 * Math.max(1, +ob.s || 1)) put(0, d, { id: ob.id, layer: 'objects', entry: ob }); }
+    for (const it of O.records.items) if (it.foot && PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) put(1, 0, { id: it.site, layer: 'sites', entry: f.entry, item: it.item }); }
+    for (const [id, e] of LINES) {
+      if (id.endsWith(':sel')) continue;
+      const en = e.entry;
+      if (en.pts && !en.poly) {
+        const ln = en.curve === 'spline' ? PG.roadLine(en) : en.pts; let dm = Infinity;
+        for (let i = 0; i + 1 < ln.length; i++) dm = Math.min(dm, PG.distPtSeg(L[0], L[1], ln[i], ln[i + 1]) - (en.w || en.width || 4) / 2);
+        if (dm < 1.5) put(2, dm, { id: en.id, layer: e.layer, entry: en });
+      } else if (en.poly && PG.inPoly(en.poly, L[0], L[1])) put(4, Math.abs(PG.polyArea(en.poly)), { id: en.id, layer: e.layer, entry: en });
+    }
+    for (const r of O.runways) if (PG.inPoly(PG.runwayBox(r, 2), L[0], L[1])) { const f = PG.findById(rec, r.id); if (f) put(3, 0, { id: r.id, layer: 'runways', entry: f.entry }); }
+    for (const p of O.pavePolys || []) if (PG.inPoly(p.poly, L[0], L[1])) { const f = featOf(p.id); if (f) put(4, Math.abs(PG.polyArea(p.poly)), f); }
+    out.sort((a, b) => (a[0] - b[0]) || (a[1] - b[1]));
+    return out.map(q => Object.assign({ kind: ['object', 'site item', 'road', 'strip', 'polygon'][q[0]] }, q[2]));
+  }
   // (v1.36) a composed entry's feature in the record: itself, or the AREA it expanded from (its id, or '<area>~d' and the like)
   function featOf(id) {
     const f = PG.findById(rec, id); if (f) return { id, layer: f.layer, entry: f.entry };
@@ -4049,7 +4074,7 @@ function make(THREE, scene, world, rec0, opts) {
   const R = {
     root, groups: G, stats,
     rebuild, rebuildSteps, preview, previewEnd, editEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
-    objectEdit,
+    objectEdit, hitAll,
     snapHint, relineEntry,
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,

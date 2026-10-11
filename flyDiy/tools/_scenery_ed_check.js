@@ -78,6 +78,12 @@ function makeR() {
     ghost() {}, preview() {}, previewEnd() {}, pickHandle() { return null; },
     handles: handleKeys,
     hit(x, z) { const L = O.frame.toLocal(x, z); for (const k of ['areas', 'material', 'surface', 'zones', 'terrain']) for (const e of rec.layers[k]) if (e.poly && PG.inPoly(e.poly, L[0], L[1])) return { id: e.id, layer: k, entry: e }; return null; },
+    // (G3006) everything under a point in the renderer's order: the models, the roads, the polygons last (the smallest first)
+    hitAll(x, z) { const L = O.frame.toLocal(x, z), out = [];
+      for (const ob of rec.layers.objects) if (isFinite(+ob.x) && Math.hypot(ob.x - L[0], ob.z - L[1]) < 2.5) out.push([0, Math.hypot(ob.x - L[0], ob.z - L[1]), { id: ob.id, layer: 'objects', entry: ob, kind: 'object' }]);
+      for (const r of rec.layers.roads) if (r.pts && r.pts.length > 1) { let d = Infinity; for (let i = 0; i + 1 < r.pts.length; i++) d = Math.min(d, PG.distPtSeg(L[0], L[1], r.pts[i], r.pts[i + 1]) - (+r.w || 3.6) / 2); if (d < 1.5) out.push([2, d, { id: r.id, layer: 'roads', entry: r, kind: 'road' }]); }
+      for (const k of ['areas', 'material', 'surface', 'zones', 'terrain']) for (const e of rec.layers[k]) if (e.poly && PG.inPoly(e.poly, L[0], L[1])) out.push([4, Math.abs(PG.polyArea(e.poly)), { id: e.id, layer: k, entry: e, kind: 'polygon' }]);
+      return out.sort((a, b) => (a[0] - b[0]) || (a[1] - b[1])).map(q => q[2]); },
     ghostModel(sp) { R.ghostAt = sp; },
     heightAt: (x, z) => O.terrainAt ? O.terrainAt(x, z) : synth.terrainH(x, z),
     plots: () => O.records.plots, links: () => [], aerodromes: () => O.aerodromes || [], patternOf: () => null,
@@ -609,6 +615,23 @@ if (plots.length) {
   check(find(sid) && R.rebuilds === b0 + 1 && R.lastDirty.ground !== false && R.fastCalls === f0, '17 undone: back, one rebuild');
   const UIs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_ui.js'), 'utf8');
   check(/'turn ' \+ selected, 'yaw'\);\s+\/\* \(G3005/.test(UIs), '17 R turns a site in one rebuild after the presses stop (coalesced, as a model\'s)');
+}
+
+// 18 THE PICK CYCLE (G3006; the user: "issue with overlapping assets, since I can select only one ... cycle through possible
+//    selectable assets by clicking a few times on them, and select the polygons last"): a model on a road inside an area -
+//    three clicks at one spot pick the three, the polygon last; a fourth comes round again; a click elsewhere starts over;
+//    a click again on the selected road never adds it a corner (north of the island's extent: nothing else there)
+{
+  ed.cmd('tool', { name: 'select' }); ed.select(null);
+  const rid = ed.cmd('add', { layer: 'roads', entry: { pts: [[1840, 4000], [2160, 4000]], w: 6, cls: 'gravel', graded: true, falloff: 6 } });
+  const aid = ed.cmd('add', { layer: 'areas', entry: { poly: [[1960, 3960], [2040, 3960], [2040, 4040], [1960, 4040]], props: {} } });
+  const pid = ed.cmd('place', { x: 2000, z: 4000.6, key: 'stub|lamp', yaw: 0 });
+  const nPts = find(rid).entry.pts.length, picks = [];
+  for (let k = 0; k < 4; k++) picks.push(ed.cmd('click', { x: 2000, z: 4000 }));
+  check(picks[0] === pid && picks[1] === rid && picks[2] === aid, '18 three clicks at one spot: the model, the road, the area - the polygon last', picks.join(' > '));
+  check(picks[3] === pid, '18 a fourth click comes round to the first again');
+  check(find(rid).entry.pts.length === nPts, '18 a click again on the selected road adds it no corner');
+  check(ed.cmd('click', { x: 1980, z: 4030 }) === aid, '18 a click elsewhere starts over (only the area there)');
 }
 
 // 5 NAMES

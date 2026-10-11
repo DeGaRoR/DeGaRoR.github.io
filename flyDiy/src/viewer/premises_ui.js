@@ -1034,8 +1034,23 @@ function mount(host, ctx) {
     if (T.plotPick) { if (PG.findById(rec, T.plotPick)) togglePlotGround(T.plotPick, L); else T.plotPick = null; return; }
     if (tool === 'select') {
       // (G2890) a click on the selected shape's edge adds a corner there; elsewhere it selects what is under it
-      if (selected && edgeInsert(selected, L, edgeTol(g))) return;
-      const h = R.hit(g[0], g[2]); select(h ? h.id : null); return;
+      // THE PICK CYCLE (G3006; the user: "issue with overlapping assets, since I can select only one ... cycle through
+      // possible selectable assets by clicking a few times on them, and select the polygons last"): a click where the last
+      // one was (within a few screen pixels) picks the NEXT of everything under it (R.hitAll: the models, a site's items,
+      // the roads, the strips, the polygons last); a click elsewhere starts again at the first. A click again is never a
+      // corner added on the selected shape's edge (that is a click elsewhere on its edge)
+      const tol = edgeTol(g), again = !!CYC && Math.hypot(CYC.at[0] - g[0], CYC.at[2] - g[2]) <= Math.max(0.5, tol);
+      if (!again && selected && edgeInsert(selected, L, tol)) return;
+      const list = R.hitAll ? R.hitAll(g[0], g[2]) : [R.hit(g[0], g[2])].filter(Boolean);
+      const sig = list.map(q => q.id + '|' + (q.item || '')).join(',');
+      if (again && CYC.sig === sig && list.length) CYC.i = (CYC.i + 1) % list.length; else CYC = { at: g, sig, i: 0 };
+      CYC.n = list.length;
+      const h = list[CYC.i] || null;
+      CYC.id = h ? h.id : null;
+      if (h && h.item) ITEM_FOCUS = h.item;
+      select(h ? h.id : null);
+      if (list.length > 1) strip.status((CYC.i + 1) + ' of ' + list.length + ': ' + (h.kind || h.layer) + ' ' + h.id + (h.item ? ' (' + h.item + ')' : '') + ' - click again for the next');
+      return;
     }
     if (tool === 'probe') {
       const h = R.heightAt(g[0], g[2]);
@@ -1210,9 +1225,10 @@ function mount(host, ctx) {
   // polygon leaves very little options". The plate's head says what is selected; nothing selected, it is the scenery's
   // outline (every feature by kind, a click selects and frames it). The tabs' own rows are the palette's (palette below).
   const KIND_WORD = { areas: 'area', terrain: 'terrain', surface: 'surface', material: 'material', exclude: 'exclude', roads: 'road', runways: 'runway', zones: 'zone', sites: 'site', links: 'link', objects: 'object', ttype: 'cover' };
+  let CYC = null;   // (G3006) the pick cycle: { at (the world point clicked), sig (what lay under it), i, n, id }
   function selHead(kind, id, label) {
     const d = $('div', { class: 'pr-selhd' });
-    d.appendChild($('span', { class: 'sk', text: id ? 'SELECTED' : 'NOTHING SELECTED' }));
+    d.appendChild($('span', { class: 'sk', text: id ? (CYC && CYC.id === id && CYC.n > 1 ? 'SELECTED ' + (CYC.i + 1) + ' OF ' + CYC.n : 'SELECTED') : 'NOTHING SELECTED' }));
     if (id) d.appendChild($('span', { class: 'sn', text: String(kind).toUpperCase() + ' ' + id + (label ? ' · ' + label : ''), title: id }));
     if (id) { const x = $('button', { class: 'pill', type: 'button', text: '✕', title: 'nothing selected (Esc)' }); x.onclick = () => { select(null); x.blur && x.blur(); }; d.appendChild(x); }
     insp.appendChild(d);
