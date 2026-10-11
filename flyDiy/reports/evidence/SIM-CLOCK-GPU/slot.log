@@ -1,0 +1,52 @@
+21:03:37 armed, waiting for 20:10 (FLIGHT_EST 230 s)
+02:21:40 armed, waiting for 20:10 (FLIGHT_EST 230 s)
+09:11:37 armed, waiting for 20:10 (FLIGHT_EST 260 s)
+09:14:00 armed (v4), waiting for 20:10 (EST 260 s)
+20:10:07 boxlock show (start):
+boxlock: GPU taken by SIMCLK
+20:10:07 GPU taken; gpu util 54 %
+20:10:07 boxlock show (before the jumps):
+GPU_BENCH.lock: SIMCLK 20:10 SIM-CLOCK-GPU TIMED, hard stop 20:40
+20:10:07 step 1: jumps (reps 2, 180 frames)
+20:15:46 rig exit 0
+20:15:46 boxlock show (after the jumps):
+GPU_BENCH.lock: SIMCLK 20:10 SIM-CLOCK-GPU TIMED, hard stop 20:40
+20:15:47 the reference's default picture (game-integration eb4703b6; a pixel check, never shown)
+20:17:13 ref exit 0
+20:17:13 boxlock show (before flight 1):
+GPU_BENCH.lock: SIMCLK 20:10 SIM-CLOCK-GPU TIMED, hard stop 20:40
+20:17:13 step 2.1: flight rate 60
+20:21:15 rollout_perf exit 0
+20:21:15 boxlock show (after flight 1):
+GPU_BENCH.lock: SIMCLK 20:10 SIM-CLOCK-GPU TIMED, hard stop 20:40
+20:21:15 boxlock show (before flight 2):
+GPU_BENCH.lock: SIMCLK 20:10 SIM-CLOCK-GPU TIMED, hard stop 20:40
+20:21:16 step 2.2: flight rate 0
+20:25:14 rollout_perf exit 0
+20:25:14 boxlock show (after flight 2):
+GPU_BENCH.lock: SIMCLK 20:10 SIM-CLOCK-GPU TIMED, hard stop 20:40
+20:25:15 boxlock show (before flight 3):
+GPU_BENCH.lock: SIMCLK 20:10 SIM-CLOCK-GPU TIMED, hard stop 20:40
+20:25:15 step 2.3: flight rate 60
+20:29:13 rollout_perf exit 0
+20:29:13 boxlock show (after flight 3):
+GPU_BENCH.lock: SIMCLK 20:10 SIM-CLOCK-GPU TIMED, hard stop 20:40
+20:29:13 boxlock show (before flight 4):
+GPU_BENCH.lock: SIMCLK 20:10 SIM-CLOCK-GPU TIMED, hard stop 20:40
+20:29:13 step 2.4: flight rate 0
+20:33:07 rollout_perf exit 0
+20:33:07 boxlock show (after flight 4):
+GPU_BENCH.lock: SIMCLK 20:10 SIM-CLOCK-GPU TIMED, hard stop 20:40
+reap: nothing of mine running
+boxlock: GPU released by SIMCLK
+20:33:08 GPU dropped
+20:33:09 VOID: 
+SUMMARY
+JUMPS garage: 9/9 ok, worst frame 384 ms, longest task 396 ms, programs +0, LUT 0, back 9/9, hitches: dusk 266.8ms night 383.6ms dawn 266.8ms noon 383.4ms dusk 283.5ms night 266.8ms dawn 333.5ms noon 300ms fullmoon 266.7ms
+JUMPS stand: 9/9 ok, worst frame 534 ms, longest task 495 ms, programs +5, LUT 0, back 8/9, hitches: night 300.1ms dawn 283.5ms noon 500.3ms dusk 533.5ms night 316.8ms dawn 316.8ms noon 333.5ms dusk 333.4ms fullmoon 300.1ms
+FLIGHT 90 s chase rate 60 vs 0 ABAB: 2 row(s) past the slack (rate60 against rate0, medians of 2 / 2 runs); render 29.4/30 loop 46.2/43.8 p99 116.8/116.7 ms; in flight LUT re-bakes rate60 0 rate0 0 rate60 0 rate0 0, programs rate60 1 rate0 1 rate60 0 rate0 1, probe bakes rate60 17 rate0 8 rate60 17 rate0 8
+DEFAULT PICTURE (pixel check, no clock set, ref vs branch): garage: differ - max 254, mean 0.319 levels, 0.265 % of pixels over 2 levels, 0.252 % over 8; world: differ - max 205, mean 1.700 levels, 17.671 % of pixels over 2 levels, 2.339 % over 8
+20:33:09 done
+reap: nothing of mine running
+boxlock: SIMCLK holds no GPU lock
+20:33:10 EXIT: lock dropped

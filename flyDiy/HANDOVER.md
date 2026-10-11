@@ -84371,3 +84371,81 @@ flight's sun motion therefore stays on LIGHT-SMOOTH's eased path; only a JUMP re
 - Not run: the full tier; no still (the route row's clock is a text line + a select in the existing row; UISMOKE drives it).
 
 READY for the GAME COORDINATOR
+
+## G2660-G2664 - SIM-CLOCK-GPU: THE CLOCK'S JUMPS, ITS SUN IN FLIGHT AND THE DEFAULT BOOT ON THE GPU - NO LUT RE-BAKE, NO COMPILE IN FLIGHT, THE FLIGHT AT RATE 60 = RATE 0; A WAIT IN THE GARAGE = ONE ~270-380 MS TASK (THE SHED'S ROOM PROBE, SHOT TWICE ON A MOOD CHANGE) - ACCEPTED FOR 44.1 BY THE USER, FIX = G2662-G2664 (2026-10-10/11, SIM-CLOCK-GPU for the GAME COORDINATOR, local GPU; branch claude/sim-clock-gpu-g2660 off origin/claude/game-t44-1 cde88339, worktree D:/Dev/wt-simclk)
+
+**The page measured** = game-t44-1's sources REBUILT here (`node tools/build.js`, build e406492f): the committed index.html
+on cde88339 (cc1dbe72) carried NO SIM-CLOCK code (no DAY_CLOCK.wait, no `flydiy:dayjump`) - a rig on it would have
+measured nothing. The reference for the default picture: claude/game-integration eb4703b6 (T43 had not landed), its own
+worktree D:/Dev/wt-simclk43, rebuilt (647483f1). Both parked cooks stale alike (3 keys captured live on both sides).
+
+**The rig** (tools only, no src change): `tools/perf/sim_clock_gpu.js` - one headed Chrome, its own profile, ?gfx=retro at
+1920 x 1080, the user's Cub, NO CLOCK SET (flydiy.day.v3 removed); THE LAPTOP RUNG (CDP CPU x3 + HW-COVERAGE's GPU proxy x6,
+GARAGE-LAPTOP's) on every timed window. Each jump goes through `DAY_CLOCK.wait(target)` / `nextFullMoon()` (THE jump
+function; the guard: in the hangar, or on the held roll-out screen - `BOOT.hold()` on the FIRST roll-out, after its ~11 s
+shot; a repeat roll-out with nothing to build has no screen to hold), then the next 180 frames off FLIGHT_REC (dt, work,
+render, shadow, the shader slot, GPU), the long tasks from the call to +6 s, renderer.info.programs, the atmosphere's LUT
+re-bakes (ATMO.lut()'s table REPLACED - bakeT / bakeMS allocate new ones - counted per frame, no src hook) and
+WORLD_RIG.probeState().bakes; "back" = the last 60 frames' median within 10 % + 2 ms of the baseline's; a HITCH = a frame
+over 100 ms (over100's slack 1), a task over 150 ms (taskWorst's 150) or the worst frame over the baseline's p99 + 17 ms.
+The flight: `tools/rollout_perf.js` as the strict gate drives it (Cub, chase, --secs 90, HOME / CIRCUIT) on the same rung
+(--cpu-throttle 3 from the navigation, --gpux 6 --gpux-at 0, 1920 x 1080, ?gfx=retro) with `--pre
+tools/perf/sim_clock_flight_pre.js` (no clock set; at THE LIFT `DAY_CLOCK.rate(?scrate=N)` - the same one call on both
+sides, one version bump each) and `--eval tools/perf/sim_clock_flight_eval.js` (programs / LUT / probe / light applies since
+the lift). `tools/perf/sim_clock_table.js` reads it all (rollout_ratchet's metrics + RULES slack, per-pair rows, VOID runs,
+a SUMMARY). The dry run (Sun 11 Oct 09:00-09:10, untimed) caught three rig bugs (cf488127). THE TIMED WINDOW: Sun 11 Oct
+20:10-20:33, boxlock `show` logged at the start and around every step - no CPU battery at any check, nothing VOID; the lock
+dropped 20:33. Evidence: reports/evidence/SIM-CLOCK-GPU/ (jumps.json, flight_*.json, ref.json, branch_picture.json,
+table.txt, logs; NO images - the user, 11 Oct: no evidence screenshots).
+
+**G2660 THE JUMPS** (the laptop rung; 2 reps x dusk / night / dawn / noon + one full moon, in the garage and on the held stand):
+- 18 / 18 jumps through the jump function OK; **0 atmosphere LUT re-bakes** (a jump moves the instant, never turbidity /
+  ozone / albedo - the LUT's key); the re-bake would cost 282 ms of CPU on the rung (bakeT 24 + bakeMS 259), so rule (b)
+  holds where it matters. The jump call itself: 0.8-2.8 ms.
+- **THE GARAGE** (baseline 29.4 fps, dt p50 33.3 / p99 50.1): every jump = ONE long task of **267-384 ms** on the frame after
+  it (tasks 269 / 396 / 278 / 375 / 284 / 278 / 324 / 303 / 268 ms), then back to the baseline 9 / 9; 0 programs, 0 shader
+  ms. The frame's own loop work stays ~45 ms: the cost is THE SHED'S ROOM PROBE - `hangar.applyDay` says "rebake" (the sun
+  moved > 1.5 deg) and shedDayTick runs `bakeHangarEnv()` (a 6-face CubeCamera of the whole room + its PMREM; LOAD-COMPILE
+  measured ~250 ms of it on the box at the boot), and when the jump crosses a mood band `setMood(i, {fromClock})` runs
+  ANOTHER full `bakeHangarEnv()` in the same frame. Pre-existing (the day panel's presets did the same before SIM-CLOCK); a
+  Wait makes it happen on every press. Over the strict slack.
+- **THE HELD STAND**: its baseline is 4.9 fps on the rung (render 221 ms, GPU 205 ms: the world drawn under the roll-out
+  screen at x6, the stale cook capturing parked aeroplanes a step a task), so a stand frame is ~233 ms anyway and the rows
+  only show what rises above it: **the first noon compiled 5 programs (248 ms in the shader slot, a 500 ms frame 23 frames
+  on)** - the world was built at DUSK (the garage jumps ended there), so its sun-shadow variants had never been keyed - and
+  the first dusk after it a 533 ms frame. The later noons compiled nothing. The world probe: 1 bake a jump (the faded
+  path). Back 8 / 9 (the last dusk's tail 267 vs 233).
+
+**G2661 THE FLIGHT** (90 s chase, rate 60 vs 0, ABAB, the rung):
+- **0 LUT re-bakes in flight** on every run; programs 1 / 1 / 0 / 1 (the premises' stream, both sides); the light's applies
+  760-791 (rate 60) vs 1 (rate 0), its writes 25-26 vs 0 (G1352.1's perceptible steps); the world probe 17 bakes at rate 60
+  vs 8 at rate 0 (every 1.5 deg of sun = every ~6 s at 60x - LIGHT-SMOOTH's FADED path; at the career's rate 1 every ~6
+  min). The sun went 42.7 -> 29.5 deg in the 90 s.
+- PER PAIR (A = rate 60 / B = rate 0): pair 1 over100 72 / 34, over15 0.77 / 0.63; **pair 2 over100 17 / 16, over15 0.41 /
+  0.41**, p99 100 / 100, render 29.1 / 30.0, loop 44.7 / 43.8. The first pair was noisy on BOTH sides (2x the second's slow
+  frames: the first runs after the reference's cold boot), and the medians-of-two (the higher run) printed "RED over100,
+  over15" from that pair alone. **Read the flight as rate 60 = rate 0** within the slack (render, loop, p99 and fps are ok
+  on the medians too). A third pair would settle it if anyone doubts it.
+
+**THE DEFAULT PICTURE** (no clock set; a pixel CHECK, never shown): the clock state is IDENTICAL - 2026-06-22 00:00 UT
+(16:00 AKDT) +-2 s, sun 42.7 deg, version 1, rate 1, turbidity 2.8, cover 0.25, the eased light's targets equal to 4
+decimals (sun 9.00443, hemi 1.82132, exposure 0.92 in the garage). Pixels NOT identical: the garage 0.27 % of pixels over 2
+levels (max 254: small regions), the world 17.7 % over 2 levels (mean 1.7). The reference eb4703b6 is a different tree
+beyond the clock (GRASS-DENSE's dials and the rest of game-integration's train-43 cargo vs game-t44-1), and the shots are
+1-2 s apart on a running clock with drifting clouds: **not attributable to the clock**. Next time the reference is a fresh
+master build after 44.1 (the coordinator's ask), so the pair differs by the clock alone.
+
+**THE USER'S CALL (11 Oct ~20:40, via GAME)**: 44.1 lands with the Wait hitch NAMED and accepted for now (~300 ms, one task
+per explicit Wait, the shed's room-probe re-bake). FOLLOW-UP G2662-G2664 (the next train; a branch off master once 44.1 is
+live, else game-t44-1 bf7088ab):
+1. G2662 the garage jump path: ONE room-probe bake per jump (setMood's clock path and shedDayTick's rebake coalesce), shot A
+   FACE A FRAME (the CubeCamera's own update with the other faces' renders skipped; the subjects hidden / the ground scaled
+   around each slice), then the PMREM on its own frame; the room keeps the old probe on screen until the new one is whole
+   (~7 frames, inside the light's own 1.2 s ease). Never skipped, never stale; every other caller keeps the one-shot bake.
+2. G2663 the stand's first-noon programs: key the sun-shadow variants with the world's compile whatever hour it is built
+   at (G1340's lampsPrep is the model: the other state's programs linked in the background).
+3. G2664 node rows (the slices counted, the room's env equal to a one-shot bake's; the jump's work split), then a TIMED
+   re-measure: garage + stand jumps on the rung (~7 min) + the fresh-master reference picture (~2 min) = **a 12-minute GPU
+   TIMED window**, no dry run needed (the rig is proven).
+
+READY for the GAME COORDINATOR (the measurement; the fix follows as G2662-G2664)

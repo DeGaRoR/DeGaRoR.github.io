@@ -1,0 +1,16 @@
+21:03:37 armed, waiting for 09:00
+09:00:00 boxlock show:
+CPU_BATTERY_G2640.lock: G2640 08:56 dmg re-run after Deform's review
+boxlock: GPU taken by SIMCLK
+09:00:00 GPU taken; step 1: the rig on the branch (picture, garage, stand; reps 1)
+09:06:48 rig exit 0
+09:06:48 step 2: the flight hooks smoke (rollout_perf, 8 s, scrate=60, the rung)
+09:09:29 rollout_perf exit 0
+09:09:29 step 3 skipped (31 s left)
+09:09:30 done
+reap: nothing of mine running
+boxlock: GPU released by SIMCLK
+09:09:30 final drop
+reap: nothing of mine running
+boxlock: SIMCLK holds no GPU lock
+09:09:31 EXIT: lock dropped

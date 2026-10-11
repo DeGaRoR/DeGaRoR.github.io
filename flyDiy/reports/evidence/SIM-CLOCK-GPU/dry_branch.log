@@ -1,0 +1,16 @@
+nav http://localhost:8693/flyDiy/index.html?gfx=retro (branch c5b9685fc build e406492fdfbc)
+09:01:01 garage up in 59.2 s
+09:01:01 boot state {"date":"2026-06-22","utc":4,"localH":16.0011,"sunEl":42.705,"version":1,"rate":1,"turbidity":2.8,"cloudCover":0.25,"label":"16:00 AKDT · sun 43° · day","jumps":0,"exposure":0.92,"programs":371,"le":{"sunI":9.00443,"hemiI":1.82132,"ex":0.92,"applies":1,"writes":1},"holds":{"holdRender":false,"rollHold":false,"craftAway":0,"inGarage":true,"running":true},"probe":null,"lut":1}
+09:01:05 still branch_default_garage {"date":"2026-06-22","utc":8,"localH":16.0021,"sunEl":42.697,"version":1,"rate":1,"turbidity":2.8,"cloudCover":0.25,"label":"16:00 AKDT · sun 43° · day","jumps":0,"exposure":0.92,"programs":371,"le":{"sunI":9.00443,"hemiI":1.82132,"ex":0.92,"applies":1,"writes":1},"holds":{"holdRender":false,"rollHold":false,"craftAway":0,"inGarage":true,"running":true},"probe":null,"lut":1}
+09:01:05 roll out: bGo
+09:01:23 still branch_default_world {"date":"2026-06-22","utc":25,"localH":16.0071,"sunEl":42.657,"version":1,"rate":1,"turbidity":2.8,"cloudCover":0.25,"label":"16:00 AKDT · sun 43° · day","jumps":0,"exposure":1.12,"programs":368,"le":{"sunI":9.00295,"hemiI":1.82164,"ex":0.92,"applies":3,"writes":1},"holds":{"holdRender":false,"rollHold":false,"craftAway":0,"inGarage":false,"running":true},"probe":null,"lut":1}
+09:01:35 baseline garage {"frames":164,"fps":27,"dt50":33.4,"dt90":50,"dt99":50.1,"dtMax":50.2,"over50":4,"over100":0,"work50":35,"render50":28.6,"shadow50":3.6,"gpu50":22.84,"calls":784}
+09:01:35 jump garage dusk #1 {}
+09:01:35 jump garage night #1 {}
+09:01:35 jump garage dawn #1 {}
+09:01:35 jump garage noon #1 {}
+09:01:35 jump garage fullmoon #1 {}
+09:01:35 roll out: edRoll
+09:01:46 hold: false
+09:06:46 PART stand FAILED: timed out: the held stand
+09:06:46 done in 405 s, 0 page errors, LUT re-bake {"T":17.1,"MS":175.9}

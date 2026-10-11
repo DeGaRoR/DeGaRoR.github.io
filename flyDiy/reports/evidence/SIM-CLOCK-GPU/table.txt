@@ -1,0 +1,65 @@
+JUMPS branch a0a129854 build e406492fdfbc rung cpu x3 gpu x6 gfx=retro 1920x1080
+  baseline garage: 29.4 fps, dt p50 33.3 / p99 50.1 / max 83.4 ms, over50 4, render p50 25.1, calls 784
+  baseline stand: 4.9 fps, dt p50 233.4 / p99 283.4 / max 283.4 ms, over50 27, render p50 221.1, calls 780
+  the held stand drew 16 frames in 2 s
+  where  target   rep ok  call ms  worst (frame#)  first frames            long tasks      prog lut probe back hitch  sun
+  garage dusk     1   y   2.8      266.8 (1)      [33.3,266.8,50,50,33.4  [269,76,94,63]  0    0   0     true true   -6.01 deg 22.48 h
+  garage night    1   y   1.3      383.6 (1)      [50,383.6,66.6,50.1,50  [396,50,62,66,7 0    0   0     true true   -11.49 deg 0.81 h
+  garage dawn     1   y   1.2      266.8 (1)      [33.4,266.8,66.6,33.4,  [278,61,60,50]  0    0   0     true true   -5.99 deg 3.13 h
+  garage noon     1   y   1        383.4 (1)      [33.4,383.4,50.1,33.3,  [375,78,81,63,5 0    0   0     true true   58.4 deg 12.81 h
+  garage dusk     2   y   1.2      283.5 (1)      [50,283.5,49.9,33.5,50  [284,56,66,71]  0    0   0     true true   -6.01 deg 22.48 h
+  garage night    2   y   0.9      266.8 (1)      [33.4,266.8,49.9,33.4,  [278,59,58,54]  0    0   0     true true   -11.5 deg 0.81 h
+  garage dawn     2   y   1.4      333.5 (1)      [33.3,333.5,33.4,33.3,  [324,64,57]     0    0   0     true true   -5.99 deg 3.14 h
+  garage noon     2   y   1.1      300 (1)        [50.1,300,50.1,49.9,33  [303,78,72,51]  0    0   0     true true   58.38 deg 12.81 h
+  garage fullmoon 1   y   2.6      266.7 (1)      [33.4,266.7,50,33.3,33  [268,56,54,59,5 0    0   0     true true   -6.01 deg 22.46 h
+  stand  night    1   y   1        300.1 (5)      [250,216.8,250.1,283.4  [216,244,283,24 0    0   1     true true   -11.77 deg 0.83 h
+  stand  dawn     1   y   1.2      283.5 (4)      [150,266.8,233.5,200,2  [259,230,208,27 0    0   1     true true   -6 deg 3.21 h
+  stand  noon     1   y   0.8      500.3 (23)     [266.8,316.8,233.5,233  [315,200,113,11 5    0   1     true true   58.09 deg 12.84 h
+  stand  dusk     1   y   0.8      533.5 (1)      [183.4,533.5,33.4,100,  [330,60,79,92,1 0    0   1     true true   -6 deg 22.44 h
+  stand  night    2   y   0.6      316.8 (20)     [250.2,249.9,233.4,250  [245,232,246,27 0    0   1     true true   -11.84 deg 0.84 h
+  stand  dawn     2   y   2.4      316.8 (3)      [250.1,266.8,250.1,316  [257,250,315,28 0    0   1     true true   -6 deg 3.23 h
+  stand  noon     2   y   0.7      333.5 (1)      [266.7,333.5,233.5,250  [315,220,214,25 0    0   1     true true   58.03 deg 12.84 h
+  stand  dusk     2   y   1        333.4 (53)     [200.1,266.9,183.3,216  [261,148,191,23 0    0   1     false true   -6 deg 22.43 h
+  stand  fullmoon 1   y   2.1      300.1 (14)     [216.7,266.8,250.1,216  [261,250,212,25 0    0   1     true true   -6 deg 21.73 h
+  garage: 9 jumps, worst frame 383.6 ms, longest task 396 ms, programs +0, LUT re-bakes 0, probe bakes 0, back to baseline 9/9, HITCHES over the slack: dusk#1 266.8 ms (tasks 269/76/94/63), night#1 383.6 ms (tasks 396/50/62/66/71/55/51), dawn#1 266.8 ms (tasks 278/61/60/50), noon#1 383.4 ms (tasks 375/78/81/63/52), dusk#2 283.5 ms (tasks 284/56/66/71), night#2 266.8 ms (tasks 278/59/58/54), dawn#2 333.5 ms (tasks 324/64/57), noon#2 300 ms (tasks 303/78/72/51), fullmoon#1 266.7 ms (tasks 268/56/54/59/52)
+  stand: 9 jumps, worst frame 533.5 ms, longest task 495 ms, programs +5, LUT re-bakes 0, probe bakes 9, back to baseline 8/9, HITCHES over the slack: night#1 300.1 ms (tasks 216/244/283/242/298/227/259/266/268/248/216/251/231/250/198/232/185/262/192/241/236/231/246/284), dawn#1 283.5 ms (tasks 259/230/208/278/216/234/244/269/203/212/214/217/237/251/244/234/265/203/227/234/230/251/244/220/235/265), noon#1 500.3 ms (tasks 315/200/113/110/68/82/252/216/237/203/178/182/185/196/284/214/253/222/233/201/231/495/67/201/209/224/229), dusk#1 533.5 ms (tasks 330/60/79/92/177/196/228/248/215/238/229/248/232/266/203/210/220/245/288/211/219/245/200/238/192/253), night#2 316.8 ms (tasks 245/232/246/272/244/267/233/229/216/254/230/229/248/268/237/257/285/284/243/319/249/202/230/236/250), dawn#2 316.8 ms (tasks 257/250/315/282/237/196/248/251/250/251/198/282/284/235/243/221/265/245/248/203/212/267/202/231/266), noon#2 333.5 ms (tasks 315/220/214/251/253/266/220/250/221/298/204/274/200/252/234/282/248/300/230/219/217/260/253), dusk#2 333.4 ms (tasks 261/148/191/235/230/239/235/265/197/232/174/278/176/278/202/262/267/298/206/230/249/285/209/269/229), fullmoon#1 300.1 ms (tasks 261/250/212/250/182/230/270/248/231/284/249/251/233/295/57/82/200/199/232/215/229/251/265/264/182/257)
+  the LUT re-bake itself (bakeT + bakeMS, CPU): {"T":23.8,"MS":258.7} ms
+DEFAULT PICTURE (no clock set): ref43 eb4703b6d build 647483f1ad03  vs  branch c5b9685fc build e406492fdfbc
+  garage: date 2026-06-22, utc 6 / 8, localH 16 / 16, sunEl 42.7 / 42.7, version 1, rate 1, turbidity 2.8, cloudCover 0.25, exposure 0.92, jumps - / 0
+    light targets sun 9.00443 / 9.00443, hemi 1.82132 / 1.82132, exposure 0.92 / 0.92
+  world: date 2026-06-22, utc 24 / 25, localH 16.01 / 16.01, sunEl 42.66 / 42.66, version 1, rate 1, turbidity 2.8, cloudCover 0.25, exposure 1.12, jumps - / 0
+    light targets sun 9.00302 / 9.00295, hemi 1.82167 / 1.82164, exposure 0.92 / 0.92
+  at the boot: date 2026-06-22 / 2026-06-22, utc 2 / 4, sunEl 42.71 / 42.7, rate 1 / 1
+FLIGHT ABAB (4 runs): rate60 flight_1_r60.json, rate0 flight_2_r0.json, rate60 flight_3_r60.json, rate0 flight_4_r0.json
+  rate60: fps 14.8, p99 taxi 116.8, p99 all 116.8, over15 0.77, over100 72, worst task 11244, loop 46.6 / all 46.2, render 29.5 / all 29.4, shadow all 2.8, frames 1533  | counters {"rate":60,"asked":60,"set":true,"setAtS":142.9,"programs":1,"lut":0,"probe":17,"applies":760,"writes":26,"versionBumps":0,"rateBump":1,"sunEl0":42.67,"sunEl1":29.46,"h0":16.006,"h1":17.582,"err":null}
+  rate0: fps 16.1, p99 taxi 100.2, p99 all 116.7, over15 0.63, over100 34, worst task 10736, loop 44.1 / all 43.6, render 29.2 / all 29.4, shadow all 2.8, frames 1698  | counters {"rate":0,"asked":0,"set":true,"setAtS":139.5,"programs":1,"lut":0,"probe":8,"applies":1,"writes":0,"versionBumps":0,"rateBump":1,"sunEl0":42.67,"sunEl1":42.67,"h0":16.005,"h1":16.005,"err":null}
+  rate60: fps 18.7, p99 taxi 100, p99 all 100, over15 0.41, over100 17, worst task 11927, loop 45.6 / all 44.7, render 29.2 / all 29.1, shadow all 2.8, frames 1972  | counters {"rate":60,"asked":60,"set":true,"setAtS":139,"programs":0,"lut":0,"probe":17,"applies":791,"writes":25,"versionBumps":0,"rateBump":1,"sunEl0":42.67,"sunEl1":29.5,"h0":16.005,"h1":17.577,"err":null}
+  rate0: fps 18.9, p99 taxi 83.5, p99 all 100, over15 0.41, over100 16, worst task 11131, loop 45.1 / all 43.8, render 30.2 / all 30, shadow all 2.9, frames 1988  | counters {"rate":0,"asked":0,"set":true,"setAtS":134.1,"programs":1,"lut":0,"probe":8,"applies":1,"writes":0,"versionBumps":0,"rateBump":1,"sunEl0":42.67,"sunEl1":42.67,"h0":16.005,"h1":16.005,"err":null}
+  ok   fps        rate60 18.7    rate0 18.9    d -0.2    slack 1 fps
+  ok   p99        rate60 116.8   rate0 100.2   d 16.6    slack 17 ms
+  ok   p99all     rate60 116.8   rate0 116.7   d 0.1     slack 17 ms
+  RED  over15     rate60 0.77    rate0 0.63    d 0.14    slack 0.13 
+  ok   taxiOver15 rate60 0.76    rate0 0.67    d 0.09    slack 0.13 
+  info uneven     rate60 0.6     rate0 0.6     d 0       slack 0.05 
+  info p999       rate60 200.2   rate0 200.2   d 0       slack 50.05 ms
+  info over3x     rate60 0.05    rate0 0.02    d 0.03    slack 0.01 
+  info over1s     rate60 0       rate0 0       d 0       slack 0 
+  ok   loop       rate60 46.6    rate0 45.1    d 1.5     slack 4.51 ms
+  ok   render     rate60 29.5    rate0 30.2    d -0.7    slack 3.02 ms
+  ok   solver     rate60 0.4     rate0 0.4     d 0       slack 0.6 ms
+  RED  over100    rate60 72      rate0 34      d 38      slack 1 
+  ok   tasks1s    rate60 9       rate0 9       d 0       slack 1 
+  ok   tasks200   rate60 73      rate0 78      d -5      slack 19.5 
+  ok   taskWorst  rate60 11927   rate0 11131   d 796     slack 1669.65 ms
+  ok   loopAll    rate60 46.2    rate0 43.8    d 2.4     slack 4.38 ms
+  ok   renderAll  rate60 29.4    rate0 30      d -0.6    slack 3 ms
+  ok   shadowAll  rate60 2.8     rate0 2.9     d -0.1    slack 0.6 ms
+  pair 1: over100 72/34, over15 0.77/0.63, p99all 116.8/116.7, renderAll 29.4/29.4, loopAll 46.2/43.6
+  pair 2: over100 17/16, over15 0.41/0.41, p99all 100/100, renderAll 29.1/30, loopAll 44.7/43.8
+  FLIGHT VERDICT: 2 row(s) past the slack (rate60 against rate0, medians of 2 / 2 runs)
+PIXELS garage: differ - max 254, mean 0.319 levels, 0.265 % of pixels over 2 levels, 0.252 % over 8; PIXELS world: differ - max 205, mean 1.700 levels, 17.671 % of pixels over 2 levels, 2.339 % over 8
+SUMMARY
+JUMPS garage: 9/9 ok, worst frame 384 ms, longest task 396 ms, programs +0, LUT 0, back 9/9, hitches: dusk 266.8ms night 383.6ms dawn 266.8ms noon 383.4ms dusk 283.5ms night 266.8ms dawn 333.5ms noon 300ms fullmoon 266.7ms
+JUMPS stand: 9/9 ok, worst frame 534 ms, longest task 495 ms, programs +5, LUT 0, back 8/9, hitches: night 300.1ms dawn 283.5ms noon 500.3ms dusk 533.5ms night 316.8ms dawn 316.8ms noon 333.5ms dusk 333.4ms fullmoon 300.1ms
+FLIGHT 90 s chase rate 60 vs 0 ABAB: 2 row(s) past the slack (rate60 against rate0, medians of 2 / 2 runs); render 29.4/30 loop 46.2/43.8 p99 116.8/116.7 ms; in flight LUT re-bakes rate60 0 rate0 0 rate60 0 rate0 0, programs rate60 1 rate0 1 rate60 0 rate0 1, probe bakes rate60 17 rate0 8 rate60 17 rate0 8
+DEFAULT PICTURE (pixel check, no clock set, ref vs branch): garage: differ - max 254, mean 0.319 levels, 0.265 % of pixels over 2 levels, 0.252 % over 8; world: differ - max 205, mean 1.700 levels, 17.671 % of pixels over 2 levels, 2.339 % over 8

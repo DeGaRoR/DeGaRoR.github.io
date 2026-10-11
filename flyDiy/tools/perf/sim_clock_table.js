@@ -87,6 +87,8 @@ if (opt('flight', null)) {
     if (bad) red++;
     P('  ' + (bad ? 'RED  ' : R.info ? 'info ' : 'ok   ') + k.padEnd(11) + names[0] + ' ' + String(f1(a)).padEnd(8) + names[1] + ' ' + String(f1(b)).padEnd(8) + 'd ' + String(f1(d)).padEnd(8) + 'slack ' + f1(slack) + ' ' + (R.unit || ''));
   }
+  // PER PAIR (A_k against B_k): a median of two runs is the higher one, so one noisy pair can carry the verdict alone
+  for (let k = 0; k < Math.min(A.length, B.length); k++) P('  pair ' + (k + 1) + ': ' + ['over100', 'over15', 'p99all', 'renderAll', 'loopAll'].map(n => n + ' ' + f1(A[k].m[n]) + '/' + f1(B[k].m[n])).join(', '));
   const verdict = (red ? red + ' row(s) past the slack' : 'every row within the slack') + ' (' + names[0] + ' against ' + names[1] + ', medians of ' + A.length + ' / ' + B.length + ' runs' + (all.length > runs.length ? ', ' + (all.length - runs.length) + ' VOID' : '') + ')';
   P('  FLIGHT VERDICT: ' + verdict);
   const evs = k => rows.map(r => r.side + ' ' + (r.ev && r.ev[k] != null ? r.ev[k] : '-')).join(' ');
