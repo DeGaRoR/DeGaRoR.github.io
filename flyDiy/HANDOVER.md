@@ -85135,3 +85135,25 @@ byte-identical cook); A0's PREMCOOK, SCENERYED, BUILD, UISMOKE PASS; parked re-c
 run the rollout rows are equal (loop +0.1..+0.75 ms, render +0..+0.5 ms, loads within 1 s): no regression vs master,
 landed on that comparison. OWED: the light baseline re-taken on master (it's stale); the in-game freeze numbers (the
 user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's first train).
+
+## A0 2026-10-11 23:15 - TRAINS 44.1 + 44.3 LANDED TOGETHER (game slice + dense short grass)
+
+- **44.1 (GAME, bf7088abe):** freight straps (FREIGHT-STRAP G2400), club works (WORKS-COZY G2319), fleet republish (G2227), night ops (G2665), CAREER-LAZY (career_core.<hash>.js is a lazy chunk next to index.html; the built commit carries it), SIM-CLOCK (the Wait action), GATE LIGHT hotfix (67c3f9db3).
+  - Targeted gates 14/14 PASS: BUILD MEDIA UISMOKE BOOT PARKED INSTANT LIGHT HANGAR PLAYER LOAD SAVE WEIGHT MASS DAY.
+  - INSTANT took 1186 s against its declared 480 s. FLEET-PROPS B investigates (Mon 13:25, per-row walls be51b15c).
+- **44.3 (GRASS-DENSE, 8f940dd75 + 95e2c4539 GATE PAVEMENT 6 rows + 378551640):** the dense short grass field, grass on the strips' sides ('sides' law).
+  - rwyTrees DEFAULT stays 'today' (the user's option (a)). 'map' (trees to the pavement edge) made LINEUP red: HOME Cub left arm, stand-to-roll 317 s vs 190 s. It returns with an authored HOME-taxiway clearing area.
+  - Gates PASS: COVER UISMOKE MEDIA BUILD PAVEMENT LINEUP; TAXICLEAR after `fleet_spots.js --cook`.
+- **Strict light gate, quiet box (34eed2ad5, build 4b0778667992):**
+  - The 3 Oct light baseline is STALE (pre 30 fps cap); compared with 44.4's light run instead.
+  - Delivered fps 30 everywhere; render time equal.
+  - **ACCEPTED BY NAME (the user, 23:12, option a): +1.2-1.6 ms main-thread loop** (cub chase 15.4 -> 16.6, metal chase 15.5 -> 17.1, metal cockpit 17.1). Source to be split Mon (GRASS's timed grass_cost a/b/c + 44.1 alone).
+  - **ACCEPTED BY NAME (the user, 20:36): the Wait hitch**, ~300 ms, one task per explicit Wait. Fixed in G2662 (SIMCLK Mon 10:10).
+  - The 22:15-22:40 strict run is VOID: the user was editing on the box.
+- **What to watch for:**
+  - the dense grass at the strips and on their sides;
+  - trees by the runways as before;
+  - the career's Wait;
+  - freight strapped on the flown aircraft;
+  - the club works;
+  - night ops.
