@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 2e6ce9ad2a026714
+// body-sha256: 8e2cb30826ba4422
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -8158,7 +8158,11 @@ function normalise(rec) {
   r.frame.anchors = r.frame.anchors || {};
   r.layers = Object.assign({}, d.layers, r.layers || {});
   for (const k of LAYERS) if (!Array.isArray(r.layers[k])) r.layers[k] = [];
-  r.budget = Object.assign({}, d.budget, r.budget || {});
+  // v1.35: a round pad's polygon is its circle's, whatever the file says (a hand edit of `round` re-draws it)
+  for (const m of r.layers.material) if (m && roundOk(m.round)) m.poly = roundPoly(m.round);
+  // v1.35: a spline road's handles run beside its points, one slot each
+  for (const rd of r.layers.roads) if (rd && Array.isArray(rd.tan) && Array.isArray(rd.pts)) { while (rd.tan.length < rd.pts.length) rd.tan.push(null); rd.tan.length = rd.pts.length; }
+  r.budget =Object.assign({}, d.budget, r.budget || {});
   if (typeof r.seed !== 'number') r.seed = 1;
   if (!THEMES[r.theme]) r.theme = THEME_DEF;
   return r;
@@ -9284,6 +9288,108 @@ function smoothPath(pts, radius) {
 }
 
 // ---------------------------------------------------------------------------
+// SPLINE ROADS (contract v1.35, G2890 SCENERY-ED-1)
+// ---------------------------------------------------------------------------
+// The user (2026-10-11): "I cannot find how to get smooth roads ... bezier points adjustment, or simply smooth
+// interpolation between the points. Right now, it cannot do long curves." The fillet (roadFillet) holds every corner
+// within 0.35 x w of the clicked point - a 4 m road rounds at most 1.4 m off its corner, so a long bend needed a click
+// every few metres. `curve: 'spline'` draws the road THROUGH its points instead: the C2 interpolating cubic (chord-length
+// knots), so the curvature is continuous along the whole road - a bend tightens and opens without a jump at any point,
+// the way a surveyed road does (a Catmull-Rom is only C1: its curvature steps at every point). Its free ends run out
+// parabolically (the end segment's curvature is its neighbour's). A point may carry its own HANDLE, `tan[i]` = [dx, dz]
+// in metres - the outgoing Bezier control point's offset, the incoming one mirrored: there the spline is CLAMPED to that
+// direction and splits into two runs, each still C2 inside. The line is walked under 2.5 degrees a step, so polyRoad's
+// fillet (3 degrees and up) leaves it alone and every reader - the ribbon, the grade, the surface strip, coverAt, the
+// plots, the traffic - sees one smooth line. Applied ONCE in compose, like `smooth`; the record keeps the points the editor
+// drew. A record without `curve` composes as before, to the bit.
+function roadSplineD(P, tan) {
+  // dP/ds at each point (s = chord length), coming in (Din) and going out (Dout) - equal except at a handle
+  const n = P.length, h = [], Din = new Array(n), Dout = new Array(n);
+  for (let i = 0; i < n - 1; i++) h.push(Math.max(1e-6, Math.hypot(P[i + 1][0] - P[i][0], P[i + 1][1] - P[i][1])));
+  const fixed = i => !!(tan && tan[i]);
+  let a = 0;
+  while (a < n - 1) {
+    let b = a + 1; while (b < n - 1 && !fixed(b)) b++;
+    // the run a..b: clamped where a handle is, parabolic run-out at a free end; a tridiagonal solve (Thomas) for x and z
+    const m = b - a + 1, lo = new Array(m).fill(0), di = new Array(m).fill(0), up = new Array(m).fill(0), rx = new Array(m).fill(0), rz = new Array(m).fill(0);
+    for (let k = 0; k < m; k++) {
+      const i = a + k;
+      if (k === 0 || k === m - 1) {
+        const hs = k === 0 ? h[i] : h[i - 1];
+        if (fixed(i)) { di[k] = 1; rx[k] = 3 * tan[i][0] / hs; rz[k] = 3 * tan[i][1] / hs; continue; }
+        const i0 = k === 0 ? i : i - 1, cx = (P[i0 + 1][0] - P[i0][0]) / hs, cz = (P[i0 + 1][1] - P[i0][1]) / hs;
+        if (m === 2 && !fixed(k === 0 ? b : a)) { di[k] = 1; rx[k] = cx; rz[k] = cz; continue; }   // two free ends: the chord
+        di[k] = 1; if (k === 0) up[k] = 1; else lo[k] = 1; rx[k] = 2 * cx; rz[k] = 2 * cz;            // D_end + D_next = 2 chord
+        continue;
+      }
+      const h0 = h[i - 1], h1 = h[i];
+      lo[k] = h1; di[k] = 2 * (h0 + h1); up[k] = h0;
+      rx[k] = 3 * (h1 * (P[i][0] - P[i - 1][0]) / h0 + h0 * (P[i + 1][0] - P[i][0]) / h1);
+      rz[k] = 3 * (h1 * (P[i][1] - P[i - 1][1]) / h0 + h0 * (P[i + 1][1] - P[i][1]) / h1);
+    }
+    for (let k = 1; k < m; k++) { const w = lo[k] / di[k - 1]; di[k] -= w * up[k - 1]; rx[k] -= w * rx[k - 1]; rz[k] -= w * rz[k - 1]; }
+    const dx = new Array(m), dz = new Array(m);
+    dx[m - 1] = rx[m - 1] / di[m - 1]; dz[m - 1] = rz[m - 1] / di[m - 1];
+    for (let k = m - 2; k >= 0; k--) { dx[k] = (rx[k] - up[k] * dx[k + 1]) / di[k]; dz[k] = (rz[k] - up[k] * dz[k + 1]) / di[k]; }
+    for (let k = 0; k < m; k++) { const i = a + k; if (k < m - 1) Dout[i] = [dx[k], dz[k]]; if (k > 0) Din[i] = [dx[k], dz[k]]; }
+    a = b;
+  }
+  Din[0] = Dout[0]; Dout[n - 1] = Din[n - 1];
+  return { h, Din, Dout };
+}
+function roadCurve(pts0, tan0) {
+  const P = [], tan = [];
+  (pts0 || []).forEach((q, i) => { const l = P[P.length - 1]; if (!l || Math.hypot(q[0] - l[0], q[1] - l[1]) > 1e-6) { P.push([+q[0], +q[1]]); tan.push(tan0 && tan0[i] && isFinite(+tan0[i][0]) && isFinite(+tan0[i][1]) && Math.hypot(+tan0[i][0], +tan0[i][1]) > 1e-6 ? [+tan0[i][0], +tan0[i][1]] : null); } });
+  const n = P.length;
+  if (n < 2 || (n < 3 && !tan[0] && !tan[1])) return P;
+  const S = roadSplineD(P, tan), out = [[P[0][0], P[0][1]]], STEP = 0.9 * Math.PI / 180;
+  const ang = (u, v) => { const lu = Math.hypot(u[0], u[1]), lv = Math.hypot(v[0], v[1]); return lu < 1e-9 || lv < 1e-9 ? 0 : Math.acos(clamp((u[0] * v[0] + u[1] * v[1]) / (lu * lv), -1, 1)); };
+  for (let i = 0; i < n - 1; i++) {
+    const h = S.h[i], A = P[i], D = P[i + 1];
+    const B = [A[0] + S.Dout[i][0] * h / 3, A[1] + S.Dout[i][1] * h / 3], C = [D[0] - S.Din[i + 1][0] * h / 3, D[1] - S.Din[i + 1][1] * h / 3];
+    // how far the control polygon turns bounds how far the curve does: that many steps (1 on a straight)
+    const e0 = [B[0] - A[0], B[1] - A[1]], e1 = [C[0] - B[0], C[1] - B[1]], e2 = [D[0] - C[0], D[1] - C[1]];
+    const turn = ang(e0, e1) + ang(e1, e2) + (Math.hypot(e1[0], e1[1]) < 1e-9 ? ang(e0, e2) : 0);
+    const k = Math.max(1, Math.min(200, Math.ceil(turn / STEP)));
+    for (let s = 1; s <= k; s++) {
+      const u = s / k, v = 1 - u, b0 = v * v * v, b1 = 3 * v * v * u, b2 = 3 * v * u * u, b3 = u * u * u;
+      out.push([b0 * A[0] + b1 * B[0] + b2 * C[0] + b3 * D[0], b0 * A[1] + b1 * B[1] + b2 * C[1] + b3 * D[1]]);
+    }
+  }
+  return out;
+}
+// each point's outgoing handle as the spline draws it ([dx, dz] metres): its own `tan[i]`, else the spline's (the next
+// segment's third; the last point's from its incoming one) - what the editor's handle discs show and start from
+function roadHandles(pts, tan) {
+  const n = pts.length;
+  if (n < 2) return pts.map(() => [0, 0]);
+  const T = pts.map((q, i) => (tan && tan[i] && Math.hypot(+tan[i][0], +tan[i][1]) > 1e-6 ? [+tan[i][0], +tan[i][1]] : null));
+  const S = roadSplineD(pts.map(q => [+q[0], +q[1]]), T);
+  return pts.map((q, i) => (T[i] ? T[i] : i < n - 1 ? [S.Dout[i][0] * S.h[i] / 3, S.Dout[i][1] * S.h[i] / 3] : [S.Din[i][0] * S.h[i - 1] / 3, S.Din[i][1] * S.h[i - 1] / 3]));
+}
+// the line a road is drawn on: its spline, its fillet radius (v1.19) or its points
+const roadLine = r => (r.curve === 'spline' ? roadCurve(r.pts, r.tan) : r.smooth ? smoothPath(r.pts, r.smooth) : r.pts);
+
+// A ROUND PAD (contract v1.35, G2890; the user: "we need a round type of apron as well"): a paved (material, `look`)
+// polygon whose `round` { c: [x, z], r, n? } is the truth - its `poly` is the circle's n-gon (48 by default), written by
+// normalise so every reader (the pavement, coverAt, the surface below, the gates) reads an ordinary polygon
+function roundPoly(R) {
+  const n = Math.max(12, Math.min(128, Math.round(+R.n || 48))), r = Math.max(1, +R.r || 10), c = R.c;
+  const out = [];
+  for (let k = 0; k < n; k++) { const a = 2 * Math.PI * k / n; out.push([+(c[0] + Math.cos(a) * r).toFixed(3), +(c[1] + Math.sin(a) * r).toFixed(3)]); }
+  return out;   // counter-clockwise (+x toward +z)
+}
+const roundOk = R => !!(R && Array.isArray(R.c) && isFinite(+R.c[0]) && isFinite(+R.c[1]) && +R.r > 0);
+
+// A PLOT'S GROUND (contract v1.35, G2890; the user: "an option to disable plot ground drawing for the houses. The ones
+// on the shore draw grass up till the sea"): a zone's `rules.ground === false` takes the lot patch and the lawn off every
+// plot it sows, `rules.noGround` [plot ids] off those plots alone; a site item's `P.plotGround === false` off its own lot
+function plotGroundOff(zone, plotId) {
+  const R = (zone && zone.rules) || {};
+  return R.ground === false || (Array.isArray(R.noGround) && R.noGround.indexOf(plotId) >= 0);
+}
+
+// ---------------------------------------------------------------------------
 // compose — the overlay a world composes at its terrainH seam
 // ---------------------------------------------------------------------------
 function compose(rec0, world, opts) {
@@ -9301,8 +9407,9 @@ function compose(rec0, world, opts) {
   // T1, 3-tap smoothed along the profile (WORLD-GEN-PROC stage 3's roadbed
   // rule: flat across, the profile smoothed along); a surface strip of its class
   // `smooth` (v1.19) is applied HERE, once, so every reader sees the same line
+  // (v1.35: `curve: 'spline'` the same way - roadLine)
   const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2)
-    .map(r => (r.smooth ? Object.assign({}, r, { pts: smoothPath(r.pts, r.smooth) }) : r));
+    .map(r => (r.curve === 'spline' || r.smooth ? Object.assign({}, r, { pts: roadLine(r) }) : r));
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
   // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
   const roadObjs = roads.map(r => ({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
@@ -9395,7 +9502,11 @@ function compose(rec0, world, opts) {
   const index = SpatialIndex(256);
   mods.forEach((M, i) => { M.ord = i; index.add(M.bbox, M); });   // ord: the order every point applies them in (G611)
   // the surface polygons in PRIORITY order (z, then the record's order): the last wins at a point
-  const surf = rec.layers.surface.filter(s => s.poly && s.poly.length >= 3).map((s, i) => ({ poly: s.poly, bbox: polyBBox(s.poly), surface: +s.surface, z: +s.z || 0, i })).sort((a, b) => (a.z - b.z) || (a.i - b.i));
+  // (v1.35: a ROUND PAD's wheels feel its look's class - after every authored polygon of its priority)
+  const surf = rec.layers.surface.filter(s => s.poly && s.poly.length >= 3).map((s, i) => ({ poly: s.poly, bbox: polyBBox(s.poly), surface: +s.surface, z: +s.z || 0, i }))
+    .concat(rec.layers.material.filter(m => roundOk(m.round) && m.poly && m.poly.length >= 3 && m.look && RUNWAY_LOOKS[m.look] && RUNWAY_LOOKS[m.look].surface !== null && RUNWAY_LOOKS[m.look].surface !== undefined)
+      .map((m, k) => ({ poly: m.poly, bbox: polyBBox(m.poly), surface: +RUNWAY_LOOKS[m.look].surface, z: +m.z || 0, i: 1e6 + k, pad: m.id })))
+    .sort((a, b) => (a.z - b.z) || (a.i - b.i));
   // THE MATERIALS (v8, contract v1.9): a PBR set projected on the ground inside a polygon, its contour
   // fading over `fade` metres (half in, half out) into what lies under it, composited in priority order
   // THE PAVED POLYGONS (v1.16): a material polygon with a `look` (a pavement class) instead of a set is an
@@ -9806,6 +9917,21 @@ function compose(rec0, world, opts) {
     // vegMixes the polygons' own biomes by '@id'; vegSig a string that changes when any of it does (the renderer's replant)
     // (and the strips' own clearances - G1385's third item: the fill and the ring replant on either)
     vegPolys, vegMixes, vegSig: JSON.stringify([vegPolys, vegMixes, runways.map(r => runwayClearOf(r))]),
+    // G2890 (SCENERY-ED-1; the user: "when I remove the exclusion polygons or the polygon around the runway, the trees
+    // don't come back directly"): every region that keeps trees out - each exclude that names trees (an authored one, a
+    // strip's box, a hard surface, a clear zone, a plot or a site foot), and each land strip's generic clearing (20_world's
+    // aerodrome box, len/2 + 150 by wid/2 + 60, or its own `clear`) - as { k, x0, z0, x1, z1 } in WORLD metres, k a key
+    // that changes with it. The renderer's tree streamer diffs two compositions' lists and regrows the chunks under what
+    // was added or removed (render_world.js TREE_FILL.vegChanged), never the whole ring. Read at call time (the plots'
+    // and the sites' excludes are pushed after this object is made).
+    treeExRegions() {
+      const out = [], wb = (b, pad) => { const c = [F.toWorld(b.x0 - pad, b.z0 - pad), F.toWorld(b.x1 + pad, b.z0 - pad), F.toWorld(b.x1 + pad, b.z1 + pad), F.toWorld(b.x0 - pad, b.z1 + pad)];
+        return { x0: Math.min(c[0][0], c[1][0], c[2][0], c[3][0]), z0: Math.min(c[0][1], c[1][1], c[2][1], c[3][1]), x1: Math.max(c[0][0], c[1][0], c[2][0], c[3][0]), z1: Math.max(c[0][1], c[1][1], c[2][1], c[3][1]) }; };
+      for (const e of excl) if (e.what.indexOf('trees') >= 0 && !treeOff(e)) out.push(Object.assign({ k: 'x' + JSON.stringify(e.poly) }, wb(e.bbox, 1)));
+      for (const r of landRwy) { const cl = runwayClearOf(r), pad = cl ? Math.max(cl.beyond, cl.side + Math.max(0, cl.taper) * cl.beyond) : 160;
+        out.push(Object.assign({ k: 'r' + JSON.stringify([r.c, r.len, r.wid, r.hdg, cl, r.treeBox]) }, wb(polyBBox(runwayBox(r, 0)), pad + 2))); }
+      return out;
+    },
     vegAt(x, z) {
       if (!vegPolys.length) return undefined;
       const dx = x - F.anchor.x, dz = z - F.anchor.z, lx = dx * F.c - dz * F.s, lz = dx * F.s + dz * F.c;
@@ -10147,9 +10273,19 @@ function compose(rec0, world, opts) {
   }
   // the plots: a point inside one takes its zone's grass rule; a plot's lawn is mown to the road's band (no fade thins it,
   // only the pavement and the band kill)
+  const lawnWater = new Map();   // (v1.35: a zone's water, read once, for its water plots' lawn)
   function withPlot(lx, lz, kill, boost, cls, cut, surf) {
     let kind = null, grass = null;
-    for (const p of O.records.plots) if (p.poly && inPoly(p.poly, lx, lz)) { const g = zoneGrass(zoneOf(p.zone)); kind = g.kind; grass = g; break; }
+    // (v1.35: a plot whose ground is off is the island's here - no lawn, the biome's own; and a water plot mows no lawn
+    // within 30 cm of its zone's water - the shore is the biome's, the user: "they draw grass up till the sea")
+    for (const p of O.records.plots) if (p.poly && !p.noGround && inPoly(p.poly, lx, lz)) {
+      const g = zoneGrass(zoneOf(p.zone));
+      if (g.kind === 'lawn' && p.side === 'water') {
+        let wy = lawnWater.get(p.zone); if (wy === undefined) lawnWater.set(p.zone, wy = zoneWaterYOf(world, F, zoneOf(p.zone), -Infinity));
+        if (isFinite(wy) && O.localH(lx, lz) < wy + 0.3) break;
+      }
+      kind = g.kind; grass = g; break;
+    }
     if (kind === 'lawn' && kill < 1) kill = 0;
     if (!kill && !boost && !kind && !cut) return null;
     const o = { kill, boost: Math.min(1, boost * (1 - kill)), kind, cls, grass };
@@ -10300,7 +10436,7 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; O.records.plots.push(p); n++; }
+        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // (v1.33) a zone below its stage's band sowed to hold its land; its plots go now, their ground kept clear of trees
@@ -10736,7 +10872,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,

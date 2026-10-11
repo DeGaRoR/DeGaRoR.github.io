@@ -640,6 +640,9 @@ const GATES = [
   // the baked raster agrees with the live composition (WORLD-V2 6.3), and no
   // catalogue key is a literal in the editor (the contract held).
   { id: 'PREMISES', file: '_premises_check.js', tier: 'core' },
+  // G2890 (SCENERY-ED-1): the scenery editor's HAND, headless - premises_ui.js under a DOM stub on the real core: a polygon's
+  // corner added on its edge / picked / removed / subdivided / undone, the round pad, the smooth road's handles, the plot pick (~1 s)
+  { id: 'SCENERYED', file: '_scenery_ed_check.js', tier: 'core' },
   // G614: the premises' composed ground as an A h + B lattice (opt-in) against the analytic path, the ceiling over
   // it, and the surface / exclude cell indexes against the scans they replaced; ~40 s
   { id: 'PREMRASTER', file: '_premraster_check.js', tier: 'core' },

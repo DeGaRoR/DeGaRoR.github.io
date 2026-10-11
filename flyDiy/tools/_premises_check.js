@@ -802,6 +802,115 @@ for (const fx of fixtures) {
   check(PG.stageIssues(S, { tk: 2 }).length === 0 && PG.stageIssues(S, { tk: 1 }).length > 0, '17g the sandbox\'s law: a band through the track\'s max must be open');
 }
 
+// 19 THE SCENERY EDITOR'S UNBLOCKERS (G2890 SCENERY-ED-1, contract v1.35): the smooth road, the round pad, the plots'
+//    ground, the trees' exclusion regions (their regrowth on a delete), the shape's edits through the store.
+{
+  const turnAndK = c => {
+    let mx = 0; const ks = [];
+    for (let i = 1; i < c.length - 1; i++) {
+      const a = Math.atan2(c[i][1] - c[i - 1][1], c[i][0] - c[i - 1][0]), b = Math.atan2(c[i + 1][1] - c[i][1], c[i + 1][0] - c[i][0]);
+      let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+      mx = Math.max(mx, Math.abs(d));
+      ks.push(d / ((Math.hypot(c[i][0] - c[i - 1][0], c[i][1] - c[i - 1][1]) + Math.hypot(c[i + 1][0] - c[i][0], c[i + 1][1] - c[i][1])) / 2));
+    }
+    return { maxTurn: mx * 180 / Math.PI, ks };
+  };
+  // 19a a test road on a CLOTHOID (curvature rising linearly over 400 m), a point every 80 m: the spline passes through
+  //     every point, never turns 2.5 degrees at a sample (no kink - polyRoad's fillet leaves it alone), bends one way, and
+  //     its curvature rises monotonically (a step back under 1 % of the peak; the run-out under 10 %)
+  const A2 = 400 * 250; let x = 0, z = 0, th = 0; const clo = [[0, 0]];
+  for (let s = 1; s <= 400; s++) { th += s / A2; x += Math.cos(th); z += Math.sin(th); if (s % 80 === 0) clo.push([x, z]); }
+  const cc = PG.roadCurve(clo), cs = turnAndK(cc);
+  check(clo.every(p => cc.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 1e-6)), '19a the spline road passes through every point');
+  check(cs.maxTurn < 2.5, '19a no kink on the clothoid road (the largest turn at a sample)', cs.maxTurn.toFixed(2) + ' deg');
+  const kMax = Math.max(...cs.ks);
+  let worstBack = 0; for (let i = 1; i < cs.ks.length; i++) worstBack = Math.max(worstBack, cs.ks[i - 1] - cs.ks[i]);
+  check(cs.ks.every(k => k > 0) && worstBack < 0.01 * kMax && cs.ks[cs.ks.length - 1] > 0.9 * kMax, '19a the clothoid road\'s curvature is monotone', 'worst step back ' + (worstBack / kMax * 100).toFixed(2) + ' %, end ' + (cs.ks[cs.ks.length - 1] / kMax * 100).toFixed(1) + ' % of the peak');
+  check(PG.polyRoad(cc, 4).pts.length === cc.length, '19a the fillet leaves the spline\'s line as it is');
+  // ...on five points of a 300 m arc: the curvature within 8 % of the circle's everywhere
+  const arc = []; for (let k = 0; k <= 5; k++) { const a = k / 5 * Math.PI / 2; arc.push([300 * Math.sin(a), 300 - 300 * Math.cos(a)]); }
+  const as = turnAndK(PG.roadCurve(arc));
+  check(as.ks.every(k => Math.abs(k * 300 - 1) < 0.08), '19a a 300 m arc of five points is drawn as the arc', 'radius ' + (1 / Math.max(...as.ks)).toFixed(0) + '..' + (1 / Math.min(...as.ks)).toFixed(0) + ' m');
+  // LONG CURVES (the user: "it cannot do long curves"): three points, 400 m legs, a 60 degree turn - the fillet bends a 4 m
+  // road at under 15 m, the spline over 150 m
+  const bend = [[0, 0], [400, 0], [600, 346.4]];
+  const rSp = 1 / Math.max(...turnAndK(PG.roadCurve(bend)).ks), rFi = 1 / Math.max(...turnAndK(PG.polyRoad(bend, 4).pts).ks);
+  check(rSp > 150 && rFi < 15, '19a a long bend from three clicks (the tightest radius: spline vs the corner fillet)', rSp.toFixed(0) + ' m vs ' + rFi.toFixed(1) + ' m');
+  // a HANDLE: the curve leaves its point along it, and the road still passes through the point
+  const hc = PG.roadCurve([[0, 0], [100, 0], [200, 0]], [null, [20, 20], null]);
+  const i1 = hc.findIndex(q => Math.hypot(q[0] - 100, q[1]) < 1e-6), d1 = i1 >= 0 && hc[i1 + 1] ? [hc[i1 + 1][0] - 100, hc[i1 + 1][1]] : [0, 0];
+  check(i1 > 0 && (d1[0] + d1[1]) / (Math.SQRT2 * Math.hypot(d1[0], d1[1])) > 0.999, '19a a point\'s handle turns the road there (it leaves the point along the handle)');
+  check(JSON.stringify(PG.roadHandles([[0, 0], [100, 0], [200, 0]], [null, [20, 20], null])[1]) === '[20,20]', '19a roadHandles answers a handle set by hand as it is');
+  // a record WITHOUT `curve` composes its roads exactly as before (the points the fillet reads); with it, on the curve
+  const rdRec = PG.normalise({ layers: { roads: [{ id: 'r1', pts: bend, w: 4, cls: 'gravel', graded: true, falloff: 6 }] } });
+  const O0 = PG.compose(rdRec, synth);
+  check(JSON.stringify(O0.roads[0].pts) === JSON.stringify(bend), '19a a road without a curve composes on its points, to the bit');
+  const rdSp = JSON.parse(JSON.stringify(rdRec)); rdSp.layers.roads[0].curve = 'spline';
+  const O1 = PG.compose(rdSp, synth), mid = PG.roadCurve(bend)[Math.floor(PG.roadCurve(bend).length / 2)];
+  const wMid = O1.frame.toWorld(mid[0], mid[1]);
+  check(O1.roads[0].pts.length > 20 && O1.surfaceAt(wMid[0], wMid[1]) === PG.SURFACE.GRAVEL, '19a a spline road composes on its curve (its class answers on the curve)');
+  // 19b A ROUND PAD: normalise writes its polygon from its circle (counter-clockwise, every corner on the circle); the wheels
+  //     feel its look's class inside, the island's outside; the paved polygon draws it; the round trip keeps it
+  const padRec = PG.normalise({ layers: { material: [{ id: 'm1', round: { c: [30, -20], r: 18 }, look: 'concrete', set: 'cracked', fade: 0, z: 0, poly: [[0, 0], [1, 0], [0, 1]] }] } });
+  const pp = padRec.layers.material[0].poly;
+  check(pp.length === 48 && PG.polyCCW(pp) && pp.every(q => Math.abs(Math.hypot(q[0] - 30, q[1] + 20) - 18) < 0.002), '19b a round pad\'s polygon is its circle (48 corners, counter-clockwise)');
+  const Op = PG.compose(padRec, synth), wc = Op.frame.toWorld(30, -20), wo = Op.frame.toWorld(30, 10);
+  check(Op.surfaceAt(wc[0], wc[1]) === PG.SURFACE.PAVED && Op.surfaceAt(wo[0], wo[1]) === -1, '19b the wheels feel a concrete pad inside it, nothing outside');
+  check((Op.pavePolys || []).some(q => q.id === 'm1'), '19b the pavement draws the pad');
+  const padRT = PG.unwrap(PG.envelope('pad', padRec)).rec;
+  check(JSON.stringify(padRT.layers.material[0]) === JSON.stringify(padRec.layers.material[0]), '19b a round pad round-trips through the store');
+  // 19c THE PLOTS' GROUND: a residential zone on a road - `rules.ground: false` takes every plot's ground off, `noGround`
+  //     one plot's; a plot whose ground is off mows no lawn (coverAt answers the island's there)
+  const zRec = PG.normalise({ seed: 3, layers: { roads: [{ id: 'r1', pts: [[-150, 0], [150, 0]], w: 5, cls: 'gravel', graded: true, falloff: 6 }],
+    zones: [{ id: 'z1', kind: 'residential', poly: [[-140, -40], [140, -40], [140, 40], [-140, 40]], density: 1, seed: 5, palette: null, rules: {} }] } });
+  const plotsOf = r => PG.compose(r, synth, { catalogue: CAT }).records.plots;
+  const P0 = plotsOf(zRec);
+  check(P0.length >= 4 && P0.every(p => !p.noGround), '19c a zone sows its plots with their ground on by default', P0.length + ' plots');
+  const zOff = JSON.parse(JSON.stringify(zRec)); zOff.layers.zones[0].rules.ground = false;
+  const P1 = plotsOf(zOff);
+  check(P1.length === P0.length && P1.every(p => p.noGround), '19c rules.ground false: every plot\'s ground off, the same plots');
+  if (P0.length) {
+    const z1 = JSON.parse(JSON.stringify(zRec)); z1.layers.zones[0].rules.noGround = [P0[0].id];
+    const O2 = PG.compose(z1, synth, { catalogue: CAT }), P2 = O2.records.plots;
+    check(P2.filter(p => p.noGround).length === 1 && P2.find(p => p.id === P0[0].id).noGround, '19c rules.noGround: that plot alone');
+    const lawnAt = (O, p) => { const c = PG.polyCentroid(p.poly), w = O.frame.toWorld(c[0], c[1]), q = O.coverAt(w[0], w[1]); return q ? q.kind : null; };
+    const pOn = P2.find(p => !p.noGround && PG.zoneGrass(z1.layers.zones[0]).kind === 'lawn');
+    check(lawnAt(O2, P2.find(p => p.noGround)) !== 'lawn' && (!pOn || lawnAt(O2, pOn) === 'lawn'), '19c a plot with its ground off mows no lawn; its neighbour does');
+    check(PG.plotGroundOff(z1.layers.zones[0], P0[0].id) && !PG.plotGroundOff(zRec.layers.zones[0], P0[0].id), '19c plotGroundOff reads the zone\'s rules');
+  }
+  // 19d THE TREES COME BACK (the user: "when I remove the exclusion polygons or the polygon around the runway, the trees
+  //     don't come back directly"): treeExRegions names every region that keeps trees out; an exclude removed, shrunk or
+  //     moved, a strip moved or deleted changes its key (the streamer regrows the chunks under the old and the new box)
+  const exRec = PG.normalise({ layers: { exclude: [{ id: 'x1', poly: [[0, 0], [60, 0], [60, 40], [0, 40]], what: ['trees'] }],
+    runways: [Object.assign({}, PG.RUNWAY_DEF, { id: 'w1', c: [400, 0], hdg: 0, len: 500, wid: 20 })] } });
+  const keys = r => PG.compose(r, synth).treeExRegions().map(q => q.k);
+  const k0 = keys(exRec), exNone = JSON.parse(JSON.stringify(exRec)); exNone.layers.exclude = [];
+  const exShr = JSON.parse(JSON.stringify(exRec)); exShr.layers.exclude[0].poly[1] = [30, 0]; exShr.layers.exclude[0].poly[2] = [30, 40];
+  const rwMv = JSON.parse(JSON.stringify(exRec)); rwMv.layers.runways[0].c = [420, 0];
+  const rwGone = JSON.parse(JSON.stringify(exRec)); rwGone.layers.runways = [];
+  const diff = (a, b) => a.filter(k => b.indexOf(k) < 0).length + b.filter(k => a.indexOf(k) < 0).length;
+  check(diff(k0, keys(exRec)) === 0, '19d the same record names the same tree exclusions (no regrowth without a change)');
+  check(diff(k0, keys(exNone)) >= 1 && diff(k0, keys(exShr)) >= 2 && diff(k0, keys(rwMv)) >= 2 && diff(k0, keys(rwGone)) >= 2, '19d an exclude removed or shrunk, a strip moved or deleted: its region changes');
+  const reg = PG.compose(exRec, synth).treeExRegions().find(q => q.k.indexOf('[[0,0],[60,0]') >= 0), w00 = PG.compose(exRec, synth).frame.toWorld(0, 0), w64 = PG.compose(exRec, synth).frame.toWorld(60, 40);
+  check(reg && reg.x0 <= Math.min(w00[0], w64[0]) && reg.x1 >= Math.max(w00[0], w64[0]) && reg.z0 <= Math.min(w00[1], w64[1]) && reg.z1 >= Math.max(w00[1], w64[1]), '19d an exclusion\'s region covers it in world metres');
+  // ...and the game's streamer answers a premises edit by those regions (the hook, the diff, the eviction by box)
+  const RW = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_world.js'), 'utf8'), APP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'app.js'), 'utf8');
+  check(/vegChanged: \(\) => \{\s*const exN = exRegrow\(\);/.test(RW) && /O\.treeExRegions \? O\.treeExRegions\(\)/.test(RW) && /dropPart\(c2\.base\); dropPart\(c2\.fill\); chunks\.delete\(k\); n\+\+;/.test(RW), '19d TREE_FILL.vegChanged regrows the chunks under a changed exclusion');
+  check(/onRebuilt:[^\n]*window\.TREE_FILL\.vegChanged\(\)/.test(APP), '19d the editor\'s rebuild calls TREE_FILL.vegChanged');
+  // 19e THE SHAPE THROUGH THE STORE: a corner inserted, a corner removed, a road's handles beside its points - each
+  //     edit saved and loaded back is the same record; a handle list shorter or longer than the points is laid beside them
+  const shp = PG.normalise({ layers: { surface: [{ id: 's1', poly: [[0, 0], [50, 0], [50, 30], [0, 30]], surface: PG.SURFACE.GRAVEL }],
+    roads: [{ id: 'r1', pts: [[0, 0], [100, 0], [200, 50]], w: 4, cls: 'gravel', curve: 'spline', tan: [null, [10, 5]] }] } });
+  check(shp.layers.roads[0].tan.length === 3 && shp.layers.roads[0].tan[2] === null, '19e normalise lays a road\'s handles beside its points');
+  const ins = JSON.parse(JSON.stringify(shp)); ins.layers.surface[0].poly.splice(2, 0, [60, 15]); ins.layers.roads[0].pts.splice(1, 0, [50, -5]); ins.layers.roads[0].tan.splice(1, 0, null);
+  const insRT = PG.unwrap(PG.envelope(null, ins)).rec;
+  check(JSON.stringify(insRT.layers) === JSON.stringify(PG.normalise(ins).layers) && insRT.layers.surface[0].poly.length === 5 && insRT.layers.roads[0].tan[2][0] === 10, '19e a corner inserted round-trips (the handle stays on its point)');
+  const del = JSON.parse(JSON.stringify(insRT)); del.layers.surface[0].poly.splice(2, 1); del.layers.roads[0].pts.splice(1, 1); del.layers.roads[0].tan.splice(1, 1);
+  const delRT = PG.unwrap(PG.envelope(null, del)).rec;
+  check(JSON.stringify(delRT.layers) === JSON.stringify(shp.layers), '19e the corner removed again is the record it was');
+  check(PG.issues(insRT).length === 0 && PG.issues(padRec).length === 0, '19e the edited shapes and the pad raise no issue');
+}
+
 // 13 the contract held: no catalogue key literal in the editor's files
 {
   const files = fs.readdirSync(TOOLS).filter(f => /^_premises.*\.(js|html)$/.test(f) && f !== '_premises_check.js').map(f => path.join(TOOLS, f))
