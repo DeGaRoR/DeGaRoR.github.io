@@ -137,7 +137,7 @@ const S = OC.rasterCell, Fr = OC.frame;
 console.log('4. a stale cook is detected');
 {
   // a flatten under a cooked cell: its level +1 cm
-  const r1 = JSON.parse(JSON.stringify(rec0));
+  const r1 = JSON.parse(JSON.stringify(PG.expandAreas(PG.normalise(JSON.parse(JSON.stringify(rec0))))));   // (v1.36: the v1 view - a flatten is an area's terraform in the record)
   const cellOfLocal = (x, z) => [Math.floor(x / S), Math.floor(z / S)];
   const cooked = new Set(mine.map(c => c.c.join(',')));
   const M = r1.layers.terrain.find(m => m.kind === 'flatten' && m.poly && cooked.has(cellOfLocal(m.poly[0][0], m.poly[0][1]).join(',')));

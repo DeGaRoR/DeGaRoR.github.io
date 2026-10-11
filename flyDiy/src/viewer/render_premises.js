@@ -31,7 +31,9 @@
 const PG = (typeof window !== 'undefined' && window.PREMISES_GEN) || (typeof require === 'function' && require('../src/core/27_premises.js'));
 
 const CHUNK = 64;
-const LAYER_COL = { terrain: 0xffa040, surface: 0x4fa7ff, material: 0xd28cff, exclude: 0xff5a5a, zones: 0x6fd08c, roads: 0xe0d090, runways: 0xffffff, objects: 0x9fe0ff, ttype: 0xb6e05a };   // ttype: the cover polygons (G1385: their vegetation)
+const LAYER_COL = { terrain: 0xffa040, surface: 0x4fa7ff, material: 0xd28cff, exclude: 0xff5a5a, zones: 0x6fd08c, roads: 0xe0d090, runways: 0xffffff, objects: 0x9fe0ff, ttype: 0xb6e05a, areas: 0xd8dde4 };   // ttype: the cover polygons (G1385: their vegetation)
+// an AREA's outline (v1.36, G2910) wears the colour of what it does first: its draw, its wheels, its ground, its cover, its exclusion
+const areaCol = a => { const P = (a && a.props) || {}; return P.draw ? LAYER_COL.material : P.wheels ? LAYER_COL.surface : P.terraform ? LAYER_COL.terrain : P.cover ? LAYER_COL.ttype : P.exclude ? LAYER_COL.exclude : LAYER_COL.areas; };
 const ZONE_COL = { residential: 0x6fd08c, commercial: 0x5db3ff, industrial: 0xe0a060, harbour: 0x4fc7d0, park: 0xa0e070, airfield: 0xffffff, forest: 0x2f8f4f, clear: 0xd0c090 };
 const LIFT = 0.18;
 const TREE_BANDS = [0, 60, 132];
@@ -227,8 +229,8 @@ function make(THREE, scene, world, rec0, opts) {
   // handful of instanced draws, every kind cut by distance. It reads the built houses' own reports (HOUSES[].built)
   const LIFE = (typeof window !== 'undefined' && window.SCENERY_LIFE) ? window.SCENERY_LIFE.make(THREE, {
     root, game: !!o.game, record: () => rec, frame: () => O.frame, heightAt: (x, z) => heightAt(x, z), waterY: () => (world.waterH ? world.waterH(0, 0) : -1e9), waterAt: (x, z) => (world.waterH ? (world.waterHBuild || world.waterH)(x, z) : -1e9),   // (G1406: the build read)
-    houses: () => HOUSES, plots: () => O.records.plots, roads: () => O.roads, runways: () => O.runways, zones: () => rec.layers.zones,
-    aprons: () => (rec.layers.surface || []).filter(e => e.apron && e.poly && e.poly.length > 2).map(e => e.poly),
+    houses: () => HOUSES, plots: () => O.records.plots, roads: () => O.roads, runways: () => O.runways, zones: () => (O.rec || rec).layers.zones,
+    aprons: () => ((O.rec || rec).layers.surface || []).filter(e => e.apron && e.poly && e.poly.length > 2).map(e => e.poly),   // (v1.36: the composed record's - an area's wheels are a surface there)
     objects: () => (rec.layers.objects || []).filter(e => e.kind !== 'aircraft' && isFinite(e.x)).map(e => { const w = O.frame.toWorld(e.x, e.z); return { x: w[0], z: w[1], r: e.kind === 'billboard' ? (+e.w || 3) / 2 + 0.6 : e.kind === 'tree' ? 1.5 : 1.3 }; }),
     aircraft: () => (rec.layers.objects || []).filter(e => e.kind === 'aircraft').map(e => { const w = O.frame.toWorld(e.x, e.z); return { x: w[0], z: w[1], yaw: (e.yaw || 0) + O.frame.yaw }; }),
     sites: () => (rec.layers.sites || []).filter(st => st.at && O.runways.some(r => r.c && Math.hypot(r.c[0] - st.at.x, r.c[1] - st.at.z) < (r.len || 1000) / 2 + 900)).map(st => { let rw = null, rd = Infinity; for (const r of O.runways) if (r.c) { const d = Math.hypot(r.c[0] - st.at.x, r.c[1] - st.at.z) - (r.len || 1000) / 2; if (d < rd) { rd = d; rw = r.id; } } return { x: st.at.x, z: st.at.z, id: st.id, runway: rw }; }),
@@ -640,6 +642,28 @@ function make(THREE, scene, world, rec0, opts) {
   function buildPatch() { const g = buildPatchSteps(); while (!g.next().done); }
   // part (G2063, TOWN-GEO): { A, blocks } - the blocks named made again on the active set A (the town's chunks joining the
   // patch, geoLaterSteps), each in place of the one standing; without, the whole patch (the town's left out while GEO.split)
+  // the part build for an edit's box (premises frame): the active chunks now, the blocks whose chunks touch the box - and
+  // the old patch's blocks there, so a block whose chunks are no longer active (a road dragged away) goes
+  function patchPartFor(dirty) {
+    if (!dirty || !dirty.bbox || !patch || !(o.editing && o.editing()) || GEO.split) return null;
+    const F = O.frame, b = dirty.bbox, pad = (dirty.pad || 0) + 4;
+    const c = [F.toWorld(b.x0 - pad, b.z0 - pad), F.toWorld(b.x1 + pad, b.z0 - pad), F.toWorld(b.x1 + pad, b.z1 + pad), F.toWorld(b.x0 - pad, b.z1 + pad)];
+    const W = { x0: Math.min(c[0][0], c[1][0], c[2][0], c[3][0]), z0: Math.min(c[0][1], c[1][1], c[2][1], c[3][1]), x1: Math.max(c[0][0], c[1][0], c[2][0], c[3][0]), z1: Math.max(c[0][1], c[1][1], c[2][1], c[3][1]) };
+    if (!isFinite(W.x0) || !isFinite(W.x1)) return null;
+    const A = activeChunks(extentWorld(), null), blocks = new Set();
+    for (const k of A.act) {
+      const [ci, cj] = k.split(',').map(Number), x0 = ci * PCH, z0 = cj * PCH;
+      if (x0 > W.x1 || x0 + PCH < W.x0 || z0 > W.z1 || z0 + PCH < W.z0) continue;
+      blocks.add(patchBlockOf(k));
+    }
+    // the old blocks under the box (a key names its kind and its block's cell)
+    for (const lod of patch.children) {
+      const bk = lod.userData.bk, m = bk && /\|(-?\d+),(-?\d+)$/.exec(bk); if (!m) continue;
+      const bs = PL.block * PCH, bx0 = +m[1] * bs, bz0 = +m[2] * bs;
+      if (!(bx0 > W.x1 || bx0 + bs < W.x0 || bz0 > W.z1 || bz0 + bs < W.z0)) blocks.add(bk);
+    }
+    return blocks.size ? { A, blocks, edit: true } : null;
+  }
   function* buildPatchSteps(part) {
     const b = extentWorld();
     const A = part ? part.A : activeChunks(b, GEO.split ? geoLater : null);
@@ -826,6 +850,9 @@ function make(THREE, scene, world, rec0, opts) {
       group.add(lod);
     }
     if (part && patch) {
+      // (G2917) an edit's named block that has no active chunk any more: its old block goes
+      if (part.edit) { const built = new Set(group.children.map(l => l.userData.bk));
+        for (const bk of part.blocks) if (!built.has(bk)) { const old = patch.children.find(l => l.userData.bk === bk); if (old) { patch.remove(old); old.traverse(m => { if (m.geometry) m.geometry.dispose(); }); } } }
       // G2063: each block made again stands in for the one it replaces; the counts over the whole patch again
       for (const lod of group.children.slice()) {
         const old = patch.children.find(c => c.userData.bk === lod.userData.bk);
@@ -1079,6 +1106,14 @@ function make(THREE, scene, world, rec0, opts) {
         sinkD0: o.game ? PAV.opaqueDepth(RS.cls, 1e3, RS.recipe, 'poly') : null });
       // an apron may be a PARKING AREA: its stands' lead-in lines and nose stops, in its own frame
       const marks = pp.stands ? PAV.standMarks(pp.stands, (geo.userData.pav || {}).halfW || 0) : { rects: [], segs: [] };
+      // THE AREA'S MARKS (v1.36, G2912): parking bays, a dock's edge and bollards, hatching - in the pavement's own frame
+      // (the mesh's centre and turn; its u carries the half width), worn by the pavement's paint age like every mark
+      if (pp.marks && PG.areaMarks) {
+        const U = geo.userData.pav || {}, AM = PG.areaMarks(poly, pp.marks, { cx: U.cx, cz: U.cz, yaw: (pp.yaw || 0) + O.frame.yaw }, i => (pp.waterEdges || [])[i] || 0), du = U.halfW || 0;
+        for (const r of AM.rects) marks.rects.push([r[0] + du, r[1] + du, r[2], r[3], r[4], r[5], r[6], r[7]]);
+        for (const q of AM.segs) marks.segs.push([q[0] + du, q[1], q[2] + du, q[3], q[4], q[5]]);
+        stats.marks = (stats.marks || 0) + AM.rects.length + AM.segs.length;
+      }
       const bs = geo.boundingSphere, keep = bs ? stripBoxesNear(bs.center.x - bs.radius, bs.center.z - bs.radius, bs.center.x + bs.radius, bs.center.z + bs.radius, null) : [];
       const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, poly: true, recipe: RS.recipe, band: RS.band, keep, geo });   // G925: a row of the table
       const m = new THREE.Mesh(geo, mat); m.renderOrder = 2 + (pp.z || 0) * 0.01; m.receiveShadow = true; m.name = 'pave:' + pp.id; m.userData.premId = pp.id;
@@ -1111,9 +1146,10 @@ function make(THREE, scene, world, rec0, opts) {
     g.clearRect(0, 0, 1024, 1024);
     const F = O.frame;
     const path = poly => { g.beginPath(); poly.forEach((p, i) => { const w = F.toWorld(p[0], p[1]); i ? g.lineTo(X(w[0]), Z(w[1])) : g.moveTo(X(w[0]), Z(w[1])); }); g.closePath(); };
-    for (const s of rec.layers.surface) if (s.poly && s.poly.length >= 3) { path(s.poly); g.fillStyle = SURF_COL[s.surface] || SURF_COL[6]; g.fill(); }
-    for (const e of rec.layers.exclude) if (e.poly && e.poly.length >= 3) { path(e.poly); g.fillStyle = 'rgba(255,90,90,0.18)'; g.fill(); }
-    for (const z of rec.layers.zones) if (z.kind === 'clear' && z.poly && z.poly.length >= 3) { path(z.poly); g.fillStyle = 'rgba(208,192,144,0.18)'; g.fill(); }
+    const RX = O.rec || rec;   // (v1.36: the areas expanded)
+    for (const s of RX.layers.surface) if (s.poly && s.poly.length >= 3) { path(s.poly); g.fillStyle = SURF_COL[s.surface] || SURF_COL[6]; g.fill(); }
+    for (const e of RX.layers.exclude) if (e.poly && e.poly.length >= 3) { path(e.poly); g.fillStyle = 'rgba(255,90,90,0.18)'; g.fill(); }
+    for (const z of RX.layers.zones) if (z.kind === 'clear' && z.poly && z.poly.length >= 3) { path(z.poly); g.fillStyle = 'rgba(208,192,144,0.18)'; g.fill(); }
     for (const r of O.runways) { path(PG.runwayBox(r, 0)); g.fillStyle = SURF_COL[r.surface] && r.surface !== 0 ? SURF_COL[r.surface] : 'rgba(110,125,60,0.35)'; g.fill(); }
     ovTex.needsUpdate = true;
   }
@@ -1136,7 +1172,12 @@ function make(THREE, scene, world, rec0, opts) {
   // ---- the outlines ------------------------------------------------------------
   const LINES = new Map();
   let selectedId = null;
+  // (G2917) the drag's height memo: nothing composes while the hand drags, so a ground point read once is the same for the
+  // whole drag - a long road's outline re-lined each move reads only what moved (cleared at the release, previewEnd)
+  let HMEMO = null;
+  const hAt = (x, z) => { if (!HMEMO) return heightAt(x, z); const k = Math.round(x * 20) * 1e7 + Math.round(z * 20); let h = HMEMO.get(k); if (h === undefined) { h = heightAt(x, z); HMEMO.set(k, h); } return h; };
   function groundLoop(pts, closed, lift) {
+    const heightAt = hAt;
     const out = [];
     const n = pts.length;
     for (let i = 0; i < (closed ? n : n - 1); i++) {
@@ -1171,8 +1212,8 @@ function make(THREE, scene, world, rec0, opts) {
   function buildOutlines() {
     for (const [, L] of LINES) { G.outlines.remove(L.line); L.line.geometry.dispose(); L.line.material.dispose(); }
     LINES.clear();
-    for (const layer of ['terrain', 'surface', 'material', 'exclude', 'zones', 'roads', 'ttype']) for (const e of rec.layers[layer] || []) {
-      const col = layer === 'zones' ? (ZONE_COL[e.kind] || LAYER_COL.zones) : (LAYER_COL[layer] || 0xffffff);
+    for (const layer of ['terrain', 'surface', 'material', 'exclude', 'zones', 'roads', 'ttype', 'areas']) for (const e of rec.layers[layer] || []) {
+      const col = layer === 'zones' ? (ZONE_COL[e.kind] || LAYER_COL.zones) : layer === 'areas' ? areaCol(e) : (LAYER_COL[layer] || 0xffffff);
       const line = lineFor(layer, e, col, e.id === selectedId);
       if (!line) continue;
       G.outlines.add(line); LINES.set(e.id, { line, layer, entry: e });
@@ -1424,7 +1465,18 @@ function make(THREE, scene, world, rec0, opts) {
     const pp = typeof propPlace === 'function' ? propPlace : null, HG = window.HOUSE_GEN;
     const want = new Map();
     if (pp) for (const rd of O.roads) if (trafficOf(rd) > 0 && rd.pts.length >= 2) want.set(rd.id, rd);
-    for (const [id, t] of TRAFFIC) { const rd = want.get(id); if (!rd || trafficKey(rd) !== t.key) { for (const c of t.cars) { hitDrop(c.grp); G.traffic.remove(c.grp); } TRAFFIC.delete(id); } }
+    for (const [id, t] of TRAFFIC) {
+      const rd = want.get(id);
+      // (G2917) the same road and count on a moved line: the cars ride the new line where they are (no 274 cars made again
+      // for a point dragged on an island road); a new count, a width or no traffic: made again
+      if (rd && trafficKey(rd) !== t.key && t.n === Math.max(1, Math.round(trafficOf(rd) * PG.polyRoad(rd.pts, rd.w).length / 1000)) && t.w === rd.w) {
+        const pr = PG.polyRoad(rd.pts, rd.w), F = O.frame, box = [Infinity, Infinity, -Infinity, -Infinity];
+        for (const q of rd.pts) { const w = F.toWorld(q[0], q[1]); box[0] = Math.min(box[0], w[0] - rd.w); box[1] = Math.min(box[1], w[1] - rd.w); box[2] = Math.max(box[2], w[0] + rd.w); box[3] = Math.max(box[3], w[1] + rd.w); }
+        for (const c of t.cars) c.s = Math.min(pr.length, c.s * pr.length / (t.L || pr.length));
+        Object.assign(t, { key: trafficKey(rd), pr, L: pr.length, box }); moveTraffic(t, 0); continue;
+      }
+      if (!rd || trafficKey(rd) !== t.key) { for (const c of t.cars) { hitDrop(c.grp); G.traffic.remove(c.grp); } TRAFFIC.delete(id); }
+    }
     const menu = trafficMenu();
     for (const [id, rd] of want) {
       if (TRAFFIC.has(id) || !menu.length) continue;
@@ -1436,7 +1488,7 @@ function make(THREE, scene, world, rec0, opts) {
         const key = menu[Math.floor(rnd() * menu.length)];
         const K = (HG && HG.YARD_KIT && HG.YARD_KIT[key]) || { L: 4.5, W: 1.8 };
         const dir = i % 2 ? -1 : 1, v0 = (35 + rnd() * 20) / 3.6 * (K.L > 7 ? 0.8 : 1);
-        const grp = pp(THREE, key, 0, 0, 0, 0); grp.name = 'traffic:' + id + ':' + i;
+        const grp = pp(THREE, key, 0, 0, 0, 0); grp.name = 'traffic:' + id + ':' + i; grp.userData.hitShare = key;   // (G2917: one raster per model)
         G.traffic.add(grp);
         const car = { grp, key, K, s: (i + 0.5) * L / n, dir, v: v0, v0, hit: 0 };
         if (TRAFFIC_HITBOX) hitAdd(grp, 'traffic', 0.5, id => { car.hit = id; });
@@ -1446,7 +1498,7 @@ function make(THREE, scene, world, rec0, opts) {
       const F = O.frame, box = [Infinity, Infinity, -Infinity, -Infinity];
       for (const q of rd.pts) { const w = F.toWorld(q[0], q[1]); box[0] = Math.min(box[0], w[0] - rd.w); box[1] = Math.min(box[1], w[1] - rd.w); box[2] = Math.max(box[2], w[0] + rd.w); box[3] = Math.max(box[3], w[1] + rd.w); }
       const reach = 50 + Math.max(0, ...cars.map(c => (typeof propCullDist === 'function' ? propCullDist(c.key) : 0) || Infinity));
-      TRAFFIC.set(id, { key: trafficKey(rd), cars, pr, w: rd.w, L, box, reach });
+      TRAFFIC.set(id, { key: trafficKey(rd), cars, pr, w: rd.w, L, box, reach, n });
       moveTraffic(TRAFFIC.get(id), 0);
     }
     stats.traffic = 0; for (const [, t] of TRAFFIC) stats.traffic += t.cars.length;
@@ -1458,6 +1510,15 @@ function make(THREE, scene, world, rec0, opts) {
   // frame, the forest fill's walk). Past `reach` (its cars' own cull distance) of the road's box nothing of it can be
   // drawn: its cars advance along the road (the same law, so they are where they would be), the pose waits until the
   // eye comes within reach. eye null (the build's first placing, a host with no eye): posed, as before
+  // (G2917, A0: "one recorder-visible counter") the cars POSED this frame (near the eye) of the cars running: stats.trafficPosed,
+  // and the flight log's 'traffic' event when it changes (at most every 10 s) - the user's next log says what the cars cost
+  let TRC = { t: -1e9, last: '' };
+  function trafficCount() {
+    let posed = 0, all = 0; for (const [, t] of TRAFFIC) { all += t.cars.length; if (t.shown) for (const c of t.cars) if (!c.far) posed++; }
+    stats.trafficPosed = posed;
+    const W = typeof window !== 'undefined' ? window : null, now = typeof performance !== 'undefined' ? performance.now() : 0, k = posed + '/' + all;
+    if (W && W.FLIGHT_REC && W.FLIGHT_REC.event && k !== TRC.last && now - TRC.t > 10000) { TRC.t = now; TRC.last = k; W.FLIGHT_REC.event('traffic', null, posed + ' cars posed of ' + all + ' on ' + TRAFFIC.size + ' road' + (TRAFFIC.size === 1 ? '' : 's')); }
+  }
   function moveTraffic(t, dt, eye) {
     const F = O.frame, off = Math.max(0.9, Math.min(1.6, t.w / 4)), b = t.box;
     const pose = !eye || !b || Math.hypot(Math.max(b[0] - eye.x, 0, eye.x - b[2]), Math.max(b[1] - eye.z, 0, eye.z - b[3])) <= t.reach;
@@ -1465,16 +1526,25 @@ function make(THREE, scene, world, rec0, opts) {
     // re-composed by updateMatrixWorld and its LOD updated by the render's projectObject every frame, for a car that
     // draws nothing there (its last level is empty at the reach). Hidden and its matrices held until the eye comes back
     if (pose !== t.shown) { t.shown = pose; for (const c of t.cars) { c.grp.visible = pose; c.grp.matrixWorldAutoUpdate = pose; } }
+    // (G2917) THE ONE AHEAD by order, not by a scan of every car for every car: the cars of a direction sorted along the
+    // road, each one's next in its direction (the island road's 274 cars were 75 000 pairs a frame); the same gap
+    const ahead = new Map();
+    for (const dir of [1, -1]) {
+      const L = t.cars.filter(c => c.dir === dir).sort((p, q) => p.s - q.s), n = L.length;
+      for (let i = 0; i < n; i++) { const d = n > 1 ? L[(i + (dir > 0 ? 1 : n - 1)) % n] : null; if (!d) continue; let g = (d.s - L[i].s) * dir; if (g < 0) g += t.L; ahead.set(L[i], [g, d.v]); }
+    }
     for (const c of t.cars) {
       // the one ahead in my direction: slow to its speed inside two lengths, else my own
       let gap = Infinity, vAhead = c.v0;
-      for (const d of t.cars) if (d !== c && d.dir === c.dir) { let g = (d.s - c.s) * c.dir; if (g < 0) g += t.L; if (g < gap) { gap = g; vAhead = d.v; } }
+      const ah = ahead.get(c); if (ah) { gap = ah[0]; vAhead = ah[1]; }
       const tgt = gap < c.K.L + 6 ? Math.min(c.v0, vAhead * 0.9) : c.v0;
       c.v += (tgt - c.v) * Math.min(1, dt * 1.5);
       c.s += c.dir * c.v * dt;
       if (c.s > t.L) { c.s = 2 * t.L - c.s; c.dir = -1; } else if (c.s < 0) { c.s = -c.s; c.dir = 1; }
       if (!pose) continue;
       const a = t.pr.at(c.s), tx = a.tg[0] * c.dir, tz = a.tg[1] * c.dir;
+      // (G2917) a car past the draw reach is not posed (its last level is empty there): an island road's far cars cost nothing
+      if (eye) { const w0 = F.toWorld(a.p[0], a.p[1]), far = Math.hypot(w0[0] - eye.x, w0[1] - eye.z) > t.reach; if (far !== !!c.far) { c.far = far; c.grp.visible = !far; c.grp.matrixWorldAutoUpdate = !far; } if (far) continue; }
       const rx = -tz, rz = tx;                                    // the right-hand side of the direction of travel (x right, z toward the viewer, y up)
       const w = F.toWorld(a.p[0] + rx * off, a.p[1] + rz * off);
       const ry = Math.atan2(tx, tz) + (F.yaw || 0);
@@ -2381,7 +2451,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (on2 !== D.on2) { D.on2 = on2; for (const m of D.list2) if (!m.userData.merged) m.visible = on2; }
     }
   }
-  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) { t.run.tick(dt).apply(); if (CABIN_FAR > 0 && t.cabs) cabinCut(t.cabs); } if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
+  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) { t.run.tick(dt).apply(); if (CABIN_FAR > 0 && t.cabs) cabinCut(t.cabs); } if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); trafficCount(); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
@@ -2401,11 +2471,22 @@ function make(THREE, scene, world, rec0, opts) {
     const f = PG.findById(rec, selectedId);
     if (!f) return;
     // A ROUND PAD (v1.35): its centre (moves it) and a disc on its rim (its radius) - no corners, the circle is the truth
-    if (f.layer === 'material' && PG.roundOk(f.entry.round)) {
+    if ((f.layer === 'material' || f.layer === 'areas') && PG.roundOk(f.entry.round)) {
       const F = O.frame, R0 = f.entry.round;
       for (const [lp, key, mid] of [[R0.c, 'rc', false], [[R0.c[0] + R0.r, R0.c[1]], 'rr', true]]) {
         const w = F.toWorld(lp[0], lp[1]); const m = new THREE.Mesh(discGeo, mid ? discMatTan : discMat);
         m.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.05, w[1]); m.renderOrder = 9; m.userData.handle = { id: selectedId, key, round: true };
+        G.handles.add(m); HANDLES.push(m);
+      }
+      return;
+    }
+    // A RECTANGLE (v1.36): its centre moves it, the disc on its corner sizes it (in its own frame); corners freed by the inspector
+    if (f.layer === 'areas' && PG.rectOk && PG.rectOk(f.entry.rect)) {
+      const F = O.frame, Q = f.entry.rect, cs = Math.cos(+Q.yaw || 0), sn = Math.sin(+Q.yaw || 0);
+      const corner = [Q.c[0] + Q.hw * cs - Q.hd * sn, Q.c[1] + Q.hw * sn + Q.hd * cs];
+      for (const [lp, key, mid] of [[Q.c, 'qc', false], [corner, 'qs', true]]) {
+        const w = F.toWorld(lp[0], lp[1]); const m = new THREE.Mesh(discGeo, mid ? discMatTan : discMat);
+        m.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.05, w[1]); m.renderOrder = 9; m.userData.handle = { id: selectedId, key, rect: true };
         G.handles.add(m); HANDLES.push(m);
       }
       return;
@@ -2486,7 +2567,34 @@ function make(THREE, scene, world, rec0, opts) {
   // dirty(): the rebuild as before, which puts every carried group back first (previewEnd) - the settled world is the
   // same bits as without the preview.
   const PV = { id: null, pos: new Map() };
+  // (G2917; the user: "a road with 250 points ... very difficult to edit"): a long line's handles are MOVED while the hand
+  // drags - only the discs whose place changed are put on the ground again - where buildHandles made 1 000 meshes, 250
+  // stems and as many ground reads every mouse move. A different count of handles (a corner added) builds them anew.
+  function moveHandles(e) {
+    const arr = e && (e.poly || e.pts);
+    if (!arr || arr.length < 24 || PG.roundOk(e.round) || (PG.rectOk && PG.rectOk(e.rect)) || !HANDLES.length || HANDLES[0].userData.handle.id !== e.id) return false;
+    const closed = !!e.poly, spline = !!(e.pts && e.curve === 'spline' && e.pts.length >= 2), n = arr.length;
+    if (HANDLES.length !== n + (closed ? n : n - 1) + (spline ? n : 0)) return false;
+    const F = O.frame, H = spline ? PG.roadHandles(e.pts, e.tan) : null;
+    const put = (m, lx, lz) => { const w = F.toWorld(lx, lz); if (Math.abs(m.position.x - w[0]) > 1e-6 || Math.abs(m.position.z - w[1]) > 1e-6) { m.position.set(w[0], hAt(w[0], w[1]) + LIFT + 0.05, w[1]); return true; } return false; };
+    let si = 0;
+    for (const m of HANDLES) {
+      const hd = m.userData.handle, i = hd.index;
+      if (!(i >= 0 && i < n)) return false;
+      if (hd.tan) {
+        const moved = put(m, arr[i][0] + H[i][0], arr[i][1] + H[i][1]), st = STEMS[si++];
+        const a = F.toWorld(arr[i][0], arr[i][1]);
+        if (st && (moved || Math.abs(st.geometry.attributes.position.array[0] - a[0]) > 1e-6 || Math.abs(st.geometry.attributes.position.array[2] - a[1]) > 1e-6)) {
+          const p = st.geometry.attributes.position.array; p[0] = a[0]; p[1] = hAt(a[0], a[1]) + LIFT + 0.05; p[2] = a[1]; p[3] = m.position.x; p[4] = m.position.y; p[5] = m.position.z;
+          st.geometry.attributes.position.needsUpdate = true; st.geometry.computeBoundingSphere();
+        }
+      } else if (hd.mid) { const b = arr[(i + 1) % n]; put(m, (arr[i][0] + b[0]) / 2, (arr[i][1] + b[1]) / 2); }
+      else { put(m, arr[i][0], arr[i][1]); m.material = i === selCorner ? discMatSel : discMat; }
+    }
+    return true;
+  }
   function previewEnd() {
+    HMEMO = null;
     for (const [g, p] of PV.pos) { g.position.copy(p); g.updateMatrix(); THREE.Object3D.prototype.updateMatrixWorld.call(g, true); }
     if (PV.pos.size && typeof propInstTouch === 'function') propInstTouch();
     PV.pos.clear(); PV.id = null;
@@ -2507,6 +2615,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (!e) return;
     const id = e.id, F = O.frame;
     if (PV.id !== id) { previewEnd(); PV.id = id; }
+    if (!HMEMO) HMEMO = new Map();
     const t0 = performance.now();
     // the outline, and the selection's twin over it
     const wp = worldPts(e);
@@ -2558,7 +2667,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (fh) { const a = F.toWorld(before.at.x, before.at.z), b = F.toWorld(e.at.x, e.at.z); for (const g of [fh.grp].concat(fh.extra || [])) carry(g, b[0] - a[0], 0, b[1] - a[1]); }
     }
     if (moved && typeof propInstTouch === 'function') propInstTouch();
-    buildHandles();
+    if (!moveHandles(e)) buildHandles();
     stats.previewMs = performance.now() - t0;
   }
 
@@ -2579,6 +2688,29 @@ function make(THREE, scene, world, rec0, opts) {
     return ghostObj;
   }
 
+  // ---- THE PLACER'S GHOST (G2914): the picked model under the cursor, on the composed ground (tilted to it unless level),
+  // its turn and scale; the scatter's radius as a ring. Built once per key (propMesh: the model's own meshes, not a record)
+  let ghostM = null, ghostKey = null, ghostRing = null;
+  function ghostModel(sp) {
+    if (ghostRing) { G.ghost.remove(ghostRing); ghostRing.geometry.dispose(); ghostRing.material.dispose(); ghostRing = null; }
+    if (!sp || !sp.key) { if (ghostM) { G.ghost.remove(ghostM); ghostM = null; ghostKey = null; } return null; }
+    if (ghostKey !== sp.key) {
+      if (ghostM) G.ghost.remove(ghostM);
+      ghostM = typeof propMesh === 'function' ? propMesh(THREE, sp.key) : null; ghostKey = sp.key;
+      if (ghostM) { ghostM.name = 'ghost:' + sp.key; ghostM.traverse(m => { m.castShadow = false; }); G.ghost.add(ghostM); }
+    }
+    if (ghostM) {
+      ghostM.position.set(sp.x, heightAt(sp.x, sp.z), sp.z); ghostM.rotation.set(0, sp.yaw || 0, 0); ghostM.scale.setScalar(sp.s > 0 ? sp.s : 1);
+      if (!sp.level) tiltToGround(ghostM, (x, z) => heightAt(x, z), sp.x, sp.z, sp.yaw || 0);
+    }
+    if (sp.r > 0) {
+      const pts = []; for (let k = 0; k < 48; k++) { const a = k / 48 * Math.PI * 2; pts.push([sp.x + Math.cos(a) * sp.r, sp.z + Math.sin(a) * sp.r]); }
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(pts, true, LIFT + 0.1), 3));
+      ghostRing = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.85, depthTest: false })); ghostRing.renderOrder = 10;
+      G.ghost.add(ghostRing);
+    }
+    return ghostM;
+  }
   // ---- THE OBSTACLES (G433, the user: "hitbox for static car props ... audit hitboxes for everything
   // ... no more than 1 meter discrepancy with the visual mesh"): everything this renderer stands in
   // the GAME is registered with the world's registry (29_obstacles.js) as a column grid rasterised
@@ -2639,7 +2771,7 @@ function make(THREE, scene, world, rec0, opts) {
   // a prop's bytes may still be on the wire (props.js propPending) and a parked aeroplane's holder
   // fills when its capture lands: a group not ready is queued and registered by the first tick that
   // finds its full level standing; `then(id)` tells the caller (the traffic keeps the id to move it)
-  const PENDING_HIT = [];
+  const PENDING_HIT = [], HIT_SHARE = new Map();
   function hitReady(grp) {
     let meshes = 0, pending = false;
     const walk = obj => { if (obj.userData && obj.userData.propPending) pending = true;
@@ -2676,7 +2808,13 @@ function make(THREE, scene, world, rec0, opts) {
     if (!hitReady(grp)) { PENDING_HIT.push({ grp, tag, cell: cell || 0.5, then }); return 0; }
     let air = null;
     if (tag === 'aircraft') try { air = aircraftOf(grp); } catch (e) { console.warn('obstacle: the spec hitbox of', grp.userData && grp.userData.parkedKey, e && e.message); }
-    try { const s = air || shapeOf(grp, cell || 0.5); if (!s) return 0; s.tag = tag; const id = R.add(s); (grp.userData.obst = grp.userData.obst || []).push(id); OBST_IDS.add(id); if (then) then(id); return id; }
+    // (G2917; the user's 274 cars on an island road: "changing the traffic amount freezes it for a while - maybe 3 minutes")
+    // a group that names a SHARED shape (a traffic car: the model at the origin, untilted, unscaled) rasterises its model
+    // once - the raster is in the group's own frame and the registry only reads it; each car its own place and turn
+    const sk = grp.userData && grp.userData.hitShare ? tag + '|' + grp.userData.hitShare + '|' + (cell || 0.5) : null;
+    let shared = null;
+    if (sk && HIT_SHARE.has(sk)) { grp.updateMatrixWorld(true); const e = grp.matrixWorld.elements; shared = { x: e[12], z: e[14], yaw: Math.atan2(e[8], e[0]), y0: e[13], shape: HIT_SHARE.get(sk) }; }
+    try { const s = shared || air || shapeOf(grp, cell || 0.5); if (!s) return 0; if (sk && !shared) HIT_SHARE.set(sk, s.shape); s.tag = tag; const id = R.add(s); (grp.userData.obst = grp.userData.obst || []).push(id); OBST_IDS.add(id); if (then) then(id); return id; }
     catch (e) { console.warn('obstacle', tag, e && e.message); return 0; }
   }
   function hitPendingStep() {
@@ -2907,6 +3045,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (ob.kind === 'prop') {
       if (!pp || !PR || !PR.props[ob.key]) return null;
       const g = pp(THREE, ob.key, w[0], w[1], yaw, obY, true);   // a repeated key is instanced (G934)
+      if (+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3) g.scale.setScalar(+ob.s);   // (v1.36, G2914: the placer's scale; the instancer reads the proxy's matrix)
       if (ob.on === 'ground') tiltToGround(g, (x, z) => O.terrainAt(x, z), w[0], w[1], yaw);
       G.houses.add(g);
       hitAdd(g, 'prop', 0.5);
@@ -3613,6 +3752,21 @@ function make(THREE, scene, world, rec0, opts) {
   // G680: rebuildSteps is the rebuild as a generator - the game's first rebuild runs under the roll-out screen a
   // slice per task (render_world's buildWorldSceneSteps: yield*); rebuild() runs it to the end (an edit, the bench)
   function rebuild(dirty) { const g = rebuildSteps(dirty); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  // THE EDITOR CLOSED (G2917; the user's log: 'back to flight' a 67 s frame): what the editor added goes - the outlines,
+  // the handles, the ghosts, a drag's carried groups - and NOTHING is rebuilt: the world already stands as the last edit's
+  // rebuild made it (the editor rebuilds on every edit); close() rebuilt the whole of it to take the outlines off
+  function editEnd() {
+    previewEnd();
+    for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); if (c.material) c.material.dispose(); }
+    LINES.clear();
+    for (const h of HANDLES) G.handles.remove(h);
+    for (const l of STEMS) { G.handles.remove(l); l.geometry.dispose(); }
+    HANDLES.length = 0; STEMS.length = 0;
+    ghost(null); ghostModel(null);
+    // the strips' taxi patterns are the editor's in the game (buildRunways draws them only while editing)
+    if (o.game) for (const c of G.runways.children.slice()) if (/^pattern:/.test(c.name || '')) { G.runways.remove(c); c.traverse(m => { if (m.geometry && !m.userData.sharedGeo) m.geometry.dispose(); }); }
+    selectedId = null;
+  }
   function* rebuildSteps(dirty) {
     const t0 = performance.now();
     GEO.epoch++;   // G2063: a town build under way is stale now (geoLaterSteps checks)
@@ -3627,7 +3781,9 @@ function make(THREE, scene, world, rec0, opts) {
     let n = 0;
     const groundDirty = !dirty || !dirty.bbox || dirty.ground !== false;
     if (o.game) {
-      if (groundDirty) { yield* buildPatchSteps(); n = 1; }
+      // (G2917) an editor's edit re-patches the BLOCKS its box touches (G2063's part build), not the whole patch: an
+      // island-long road's corridor was every block of the island, re-sampled at 2 m for one point moved
+      if (groundDirty) { const pb = patchPartFor(dirty); if (pb) yield* buildPatchSteps(pb); else yield* buildPatchSteps(); n = 1; }
       yield 'materials';
       paintMaterials();
       yield 'lots';
@@ -3702,7 +3858,7 @@ function make(THREE, scene, world, rec0, opts) {
       }
     }
     for (const r of O.runways) if (PG.inPoly(PG.runwayBox(r, 2), L[0], L[1])) return { id: r.id, layer: 'runways', entry: PG.findById(rec, r.id).entry };
-    for (const p of O.pavePolys || []) if (PG.inPoly(p.poly, L[0], L[1])) return { id: p.id, layer: 'material', entry: PG.findById(rec, p.id).entry };
+    for (const p of O.pavePolys || []) if (PG.inPoly(p.poly, L[0], L[1])) { const f = featOf(p.id); if (f) return f; }
     for (const it of O.records.items) if (PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) return { id: it.site, layer: 'sites', entry: f.entry, item: it.item }; }
     // a hand-placed tree within two metres wins over the polygon under it
     let tree = null, td = 2.5;
@@ -3710,6 +3866,12 @@ function make(THREE, scene, world, rec0, opts) {
     if (tree) return { id: tree.id, layer: 'objects', entry: tree };
     const r = near || best;
     return r ? { id: r.entry.id, layer: r.layer, entry: r.entry } : null;
+  }
+  // (v1.36) a composed entry's feature in the record: itself, or the AREA it expanded from (its id, or '<area>~d' and the like)
+  function featOf(id) {
+    const f = PG.findById(rec, id); if (f) return { id, layer: f.layer, entry: f.entry };
+    const a = PG.areaOfEntry ? PG.areaOfEntry(rec, id) : null;
+    return a ? { id: a.area.id, layer: 'areas', entry: a.area } : null;
   }
   function handles(id) {
     const out = [];
@@ -3737,7 +3899,7 @@ function make(THREE, scene, world, rec0, opts) {
 
   const R = {
     root, groups: G, stats,
-    rebuild, rebuildSteps, preview, previewEnd, step, dispose, ghost, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
+    rebuild, rebuildSteps, preview, previewEnd, editEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),
