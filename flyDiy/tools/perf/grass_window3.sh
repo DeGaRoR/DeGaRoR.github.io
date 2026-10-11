@@ -25,5 +25,5 @@ log "tree $(git -C $W log --oneline -1)"
 # set, then FRAMECOST again on whatever ALLOW list the tree holds by then
 node tools/build.js >> $LOG 2>&1
 run node tools/_framecost_check.js --json $E/framecost_44_3.json; log "framecost census rc $?"
-run node tools/run_gates.js --no-build --only=COVER,FADES,GRASSSIDES,BIOME,PREMISES,PAVEMENT,SPLAT,WORLDRENDER,UISMOKE,RWYTREES,TAKEOFF,TAXICLEAR,TREEHIT,OBSTACLE,LINEUP,PILOT; log "run_gates rc $?"
+run node tools/run_gates.js --no-build --only=COVER,FADES,GRASSSIDES,BIOME,PREMISES,PAVEMENT,SPLAT,WORLDRENDER,UISMOKE,RWYTREES,TAKEOFF,TAXICLEAR,TREEHIT,OBSTACLE,LINEUP,PILOT,SCENERYED,VILLAGE; log "run_gates rc $?"
 run node tools/_framecost_check.js; log "framecost (with the ALLOW list) rc $?"
