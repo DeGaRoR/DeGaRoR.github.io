@@ -1004,6 +1004,7 @@
       range(Gf, 'taper', 0, 2, 0.05, () => fl.get().taper, fs('taper'), null, D.taper);
       range(Gf, 'size fade', 0, 1, 0.05, () => fl.get().sizeFade, fs('sizeFade'), null, D.sizeFade);
       range(Gf, 'size fade: reference', 0.05, 1, 0.01, () => fl.get().hRef, fs('hRef'), v => v.toFixed(2) + ' m', D.hRef);
+      range(Gf, 'size fade: tall reach x', 1, 2, 0.05, () => fl.get().sizeMax, fs('sizeMax'), v => 'x' + v.toFixed(2), D.sizeMax);
       range(Gf, 'AGL full', 5, 200, 1, () => fl.get().aglFull, fs('aglFull'), v => v + ' m', D.aglFull);
       range(Gf, 'AGL off', 10, 400, 5, () => fl.get().aglOff, fs('aglOff'), v => v + ' m', D.aglOff);
       range(Gf, 'height x', 0.2, 3, 0.05, () => fl.get().hK, fs('hK'), null, D.hK);
