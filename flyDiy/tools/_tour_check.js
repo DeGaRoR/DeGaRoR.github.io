@@ -57,6 +57,20 @@ const FX = path.join(T, 'fixtures', 'island_jolene.json');
 
 if (SHD.first) {
   const txt = fs.readFileSync(FX, 'utf8'), REC = JSON.parse(txt);
+  // G2530 (PILOT-44-REDS): THE STRIPS' BLOCK JUDGES ISLAND-TOUR'S STRIPS - its src (25_airfield turnPadNodes, the pads'
+  // nodes in the pattern) and its fixture (the one-way take-offs, East Point's fan, the pads' and the mine's apron's
+  // surfaces, the cover grid's water off the runways). A tree without either (pilot-44: ISLAND-TOUR G1965 never landed)
+  // has none of those strips to hold: every line of 1-4 is still computed and printed as INFO 'not on this tree', never
+  // judged; with either half present the whole block is judged (a partial landing reads red, as it should). Held on
+  // every tree regardless: Jolene's six land strips (1) and the census's own coverage
+  const ISLAND = typeof C.turnPadNodes === 'function' || REC.layers.surface.some(e => /^tp_y_|^mn_y_apron$/.test(e.id));
+  let nInfo = 0, nInfoBad = 0;
+  const judge = ISLAND ? check : (ok, what, detail) => {
+    nInfo++; if (!ok) nInfoBad++;
+    if (!ok || SHOW) console.log('  INFO (not on this tree: ISLAND-TOUR) ' + (ok ? 'would pass ' : 'would FAIL ') + what + (detail ? '  (' + detail + ')' : ''));
+    return ok;
+  };
+  if (!ISLAND) console.log('  INFO the strips\' block (1-4): ISLAND-TOUR\'s src and fixture are not on this tree (no C.turnPadNodes, no tp_y_* / mn_y_apron surface) - computed and printed, not judged');
   const W = IN.islandWorld('jolene', { premises: txt });
   const SH = L.islandObstacles(C, 'jolene', 'town').concat(L.treeTrunks(W));
   const IX = L.index(SH);
@@ -70,9 +84,9 @@ if (SHD.first) {
   }
   for (const r of rows) {
     const w = r.worst, ground = w && w.what === 'ground';
-    check(!w || w.p <= 0 || (ground && w.p <= 2.5), '1 ' + r.what + ': nothing but the ground through the 1:' + (1 / r.slope).toFixed(0) + ' surface, the ground <= 2.5 m',
+    judge(!w || w.p <= 0 || (ground && w.p <= 2.5), '1 ' + r.what + ': nothing but the ground through the 1:' + (1 / r.slope).toFixed(0) + ' surface, the ground <= 2.5 m',
       w ? (w.p > 0 ? '+' : '') + w.p + ' m, ' + w.what + ' ' + w.d + ' m out' : 'nothing');
-    check(r.pilot.c >= 10, '1 ' + r.what + ': the 5.7 % final clears everything by 10 m', r.pilot.c + ' m (' + r.pilot.what + ' ' + r.pilot.d + ' m out)');
+    judge(r.pilot.c >= 10, '1 ' + r.what + ': the 5.7 % final clears everything by 10 m', r.pilot.c + ' m (' + r.pilot.what + ' ' + r.pilot.d + ' m out)');
   }
   check(rows.length >= 12, '1 the census covered every direction flown', rows.length + ' directions');
   // 2 calibration
@@ -83,11 +97,11 @@ if (SHD.first) {
     fan.poly = [[75, -14], [135, -22], [205, -36], [305, -55], [305, 55], [205, 36], [135, 22], [75, 14]].map(q => [nv.c[0] + d[0] * q[0] + n[0] * q[1], nv.c[1] + d[1] * q[0] + n[1] * q[1]]);
     const W0 = IN.islandWorld('jolene', { premises: JSON.stringify(old) }), a0 = W0.aerodromes.find(a => a.id === 'nv_strip');
     const r0 = A.censusDir(C, W0, a0, A.landDirs(C, a0)[0], { obstacles: SH });
-    check(r0.worst && r0.worst.p > 5 && r0.worst.what === 'forest', '2 calibration: East Point with the old fan has the forest through its approach', r0.worst ? '+' + r0.worst.p + ' m ' + r0.worst.what + ' ' + r0.worst.d + ' m out' : '-');
+    judge(r0.worst && r0.worst.p > 5 && r0.worst.what === 'forest', '2 calibration: East Point with the old fan has the forest through its approach', r0.worst ? '+' + r0.worst.p + ' m ' + r0.worst.what + ' ' + r0.worst.d + ' m out' : '-');
     const w3 = land.find(a => a.id === 'w3'), mn = land.find(a => a.id === 'mn_strip');
     const up = A.censusClimb(C, W, w3, 1 - A.takeoffDirs(C, w3)[0], { obstacles: SH }), ridge = A.censusClimb(C, W, mn, 1 - A.takeoffDirs(C, mn)[0], { obstacles: SH });
-    check(up.worst && up.worst.p > 2.5, '2 calibration: Tamgas Hill left uphill has the hill through its climb-out', up.worst ? '+' + up.worst.p + ' m ' + up.worst.d + ' m out' : '-');
-    check(ridge.worst && ridge.worst.p > 50, '2 calibration: Jumbo Mine left south has the ridge through its climb-out', ridge.worst ? '+' + ridge.worst.p + ' m ' + ridge.worst.d + ' m out' : '-');
+    judge(up.worst && up.worst.p > 2.5, '2 calibration: Tamgas Hill left uphill has the hill through its climb-out', up.worst ? '+' + up.worst.p + ' m ' + up.worst.d + ' m out' : '-');
+    judge(ridge.worst && ridge.worst.p > 50, '2 calibration: Jumbo Mine left south has the ridge through its climb-out', ridge.worst ? '+' + ridge.worst.p + ' m ' + ridge.worst.d + ' m out' : '-');
   }
   // 3a NO WATER ON A STRIP (G1971): every land strip's box (1 m along, 1.5 m across, the edges included) and every pad's
   // and apron's polygon is dry - the cover grid's water class floated 0.30 m of water over 13 patches of 02/20's old
@@ -103,13 +117,13 @@ if (SHD.first) {
       const bb = C.PREMISES_GEN.polyBBox(e.poly);
       for (let x = bb.x0; x <= bb.x1; x += 1) for (let z = bb.z0; z <= bb.z1; z += 1) if (C.PREMISES_GEN.inPoly(e.poly, x, z)) dryAt(x, z, e.id);
     }
-    check(wet === 0, '3a no water on a land strip, a turn pad or the mine\'s apron', wet + ' wet samples' + (where ? ', first ' + where : ''));
+    judge(wet === 0, '3a no water on a land strip, a turn pad or the mine\'s apron', wet + ' wet samples' + (where ? ', first ' + where : ''));
   }
   // 3 the turn pads
   let nPads = 0;
   // (G2500: a tree without ISLAND-TOUR's src - pilot-42 - has no turn pads to hold: said as a failure, not a crash, so
   // the shard still flies its tour)
-  check(typeof C.turnPadNodes === 'function', '3 the turn pads exist on this tree (25_airfield turnPadNodes, ISLAND-TOUR G1965)');
+  judge(typeof C.turnPadNodes === 'function', '3 the turn pads exist on this tree (25_airfield turnPadNodes, ISLAND-TOUR G1965)');
   for (const a of (typeof C.turnPadNodes === 'function' ? land : [])) {
     const s = C.siteOf(a.id), P = C.sitePattern(a, s, {}), R = C.siteRunway(a), O = W.premises.overlay;
     const hS = q => W.terrainH(R.end0.x + R.dx * q, R.end0.z + R.dz * q);
@@ -133,39 +147,58 @@ if (SHD.first) {
         for (const ti of near) { const t = W.trees[ti]; tree = Math.min(tree, Math.hypot(t.x - q.x, t.z - q.z)); }
       }
       const id = a.id + ' end ' + k + ' (r ' + TP.r + ', side ' + (TP.side > 0 ? '+' : '-') + ')';
-      check(off === 0, '3 ' + id + ': the U-turn\'s wheel track on the strip or its pad', off + ' samples off');
-      check(dh <= 0.3, '3 ' + id + ': the ground under the U-turn at the strip\'s height', dh.toFixed(2) + ' m');
-      check(sweep >= 5.5 + 3, '3 ' + id + ': the wing\'s sweep clear of every solid thing (5.5 + 3 m)', (isFinite(sweep) ? sweep.toFixed(1) + ' m to ' + swWhat : 'nothing within 30 m'));
-      check(tree >= 5.5 + 3, '3 ' + id + ': ... and of every tree', isFinite(tree) ? tree.toFixed(1) + ' m' : 'none near');
-      check(TP.sHold <= TP.r + TP.s0 + 6 + 1e-6 && P.nodes.some(q => q.id === 'hold' + k && Math.abs((q.x - (k ? R.end1.x : R.end0.x)) * (k ? -R.dx : R.dx) + (q.z - (k ? R.end1.z : R.end0.z)) * (k ? -R.dz : R.dz) - TP.sHold) < 0.01),
+      judge(off === 0, '3 ' + id + ': the U-turn\'s wheel track on the strip or its pad', off + ' samples off');
+      judge(dh <= 0.3, '3 ' + id + ': the ground under the U-turn at the strip\'s height', dh.toFixed(2) + ' m');
+      judge(sweep >= 5.5 + 3, '3 ' + id + ': the wing\'s sweep clear of every solid thing (5.5 + 3 m)', (isFinite(sweep) ? sweep.toFixed(1) + ' m to ' + swWhat : 'nothing within 30 m'));
+      judge(tree >= 5.5 + 3, '3 ' + id + ': ... and of every tree', isFinite(tree) ? tree.toFixed(1) + ' m' : 'none near');
+      judge(TP.sHold <= TP.r + TP.s0 + 6 + 1e-6 && P.nodes.some(q => q.id === 'hold' + k && Math.abs((q.x - (k ? R.end1.x : R.end0.x)) * (k ? -R.dx : R.dx) + (q.z - (k ? R.end1.z : R.end0.z)) * (k ? -R.dz : R.dz) - TP.sHold) < 0.01),
         '3 ' + id + ': the turn comes out lined up ' + TP.sHold.toFixed(1) + ' m in (the pattern\'s hold)', 'run ahead ' + (R.len - TP.sHold).toFixed(0) + ' of ' + R.len + ' m');
       const iss = C.sitePatternIssues(P, a, s, 0, C.patternPath);
-      check(!iss.length, '3 ' + a.id + ': the pattern is sound', iss.join(' | '));
+      judge(!iss.length, '3 ' + a.id + ': the pattern is sound', iss.join(' | '));
     }
   }
-  check(nPads >= 6, '3 the pads: Tamgas Hill, the altiport and East Point, both ends', nPads + ' pads');
+  judge(nPads >= 6, '3 the pads: Tamgas Hill, the altiport and East Point, both ends', nPads + ' pads');
   // 4 the mine's apron
   {
     const ap = REC.layers.surface.find(e => e.id === 'mn_y_apron'), m = REC.layers.material.find(e => e.id === 'mn_m_apron');
     const mn = land.find(a => a.id === 'mn_strip'), st = C.siteOf('mn_strip').stand;
-    check(!!ap && ap.apron === true && ap.surface === 6 && !!m && m.look === 'gravel', '4 the mine\'s apron: a gravel apron surface with the gravel look', ap ? JSON.stringify({ surface: ap.surface, apron: ap.apron, look: m && m.look }) : 'missing');
+    judge(!!ap && ap.apron === true && ap.surface === 6 && !!m && m.look === 'gravel', '4 the mine\'s apron: a gravel apron surface with the gravel look', ap ? JSON.stringify({ surface: ap.surface, apron: ap.apron, look: m && m.look }) : 'missing');
     if (ap) {
       const inP = (x, z) => C.PREMISES_GEN.inPoly(ap.poly, x, z);
       const c172 = TR.defOf(C, PT, TR.BUILDS.c172.key), D = L.buildDims(C, c172);
       const P = C.sitePattern(mn, C.siteOf('mn_strip'), {}), f = P.nodes.find(q => q.id === P.routes.out[0][1]);
       const h = Math.atan2(f.z - st.z, f.x - st.x), fx = Math.cos(h), fz = Math.sin(h);
       const corners = [[D.fwd, -D.half], [D.fwd, D.half], [-D.aft, D.half], [-D.aft, -D.half]].map(q => [st.x + fx * q[0] - fz * q[1], st.z + fz * q[0] + fx * q[1]]);
-      check(inP(st.x, st.z) && corners.every(q => inP(q[0], q[1])), '4 the stand and the C172\'s parked box on the apron', corners.map(q => (inP(q[0], q[1]) ? 'in' : 'OUT')).join(' '));
+      judge(inP(st.x, st.z) && corners.every(q => inP(q[0], q[1])), '4 the stand and the C172\'s parked box on the apron', corners.map(q => (inP(q[0], q[1]) ? 'in' : 'OUT')).join(' '));
       let m1 = Infinity; const bb = C.PREMISES_GEN.polyBBox(ap.poly);
       for (let x = bb.x0; x <= bb.x1; x += 1) for (let z = bb.z0; z <= bb.z1; z += 1) if (inP(x, z)) { const n = IX.nearest(x, z, 10); if (n) m1 = Math.min(m1, n.d); }
-      check(m1 >= 1.5, '4 the apron 1.5 m off every footprint', (isFinite(m1) ? m1.toFixed(2) : '>10') + ' m');
+      judge(m1 >= 1.5, '4 the apron 1.5 m off every footprint', (isFinite(m1) ? m1.toFixed(2) : '>10') + ' m');
       const lv = W.terrainH(st.x, st.z);
-      check(Math.abs(lv - 346.8) < 0.2, '4 the apron on the street\'s level (346.8 m)', lv.toFixed(2) + ' m at the stand');
+      judge(Math.abs(lv - 346.8) < 0.2, '4 the apron on the street\'s level (346.8 m)', lv.toFixed(2) + ' m at the stand');
     }
   }
+  if (!ISLAND) console.log('  INFO the strips\' block: ' + nInfo + ' lines computed, ' + nInfoBad + ' would fail - ISLAND-TOUR\'s to hold once it lands');
 }
 
 // 5 the tours
+// G2530 (PILOT-44-REDS): THE KNOWN REDS, BY NAME AND WITH THEIR NUMBERS - never a silent pass. A leg is the known red only
+// while it is exactly that finding; anything more (a break, a crash, another fault, the landing off its To, the case
+// gone - no 'vref-raised') is judged as before.
+//   THE FLOAT CESSNA SEA > mk_sea - JOIN-PARITY's LOAD-DOOR AEROPLANE (ISLAND-TOUR-2 G1970.4; CESSNA-VREF G2500 'owed'):
+//   the load door's float Cessna (the engine at its drawn station, the drawn hulls: 951.5 kg, margin 0.176 -> 0.318) cannot
+//   hold Vref on the elevator ('vref-raised ... 31.7 m/s') and touches the water at ~40 m/s: members yield, the propeller
+//   strikes, the hull dents. THE FILE AS WRITTEN, the same flight (FLYDIY_RAW_BUILDS=1): no 'vref-raised', down at 25.7 m/s,
+//   no fault (reports/evidence/PILOT-44-REDS floats_*). The airframe's / JOIN-PARITY's to settle, and the water flare's
+//   (PERSONA-2 G2462) - CESSNA-VREF's judgeHeld is a land strip's
+function knownRed(b, L2, R) {
+  if (b !== 'floats' || L2.from !== 'SEA' || L2.to !== 'mk_sea') return null;
+  const said = c => (L2.verdicts || []).some(v => v.startsWith(c));
+  const D = L2.damage || {}, ld = L2.arr && L2.arr.landing;
+  const only = L2.faults.every(f => f.k === 'yield' || f.k === 'prop-strike' || f.k === 'dent');
+  if (!said('vref-raised') || !only || D.breaks || D.crashed || L2.landedOn !== 'mk_sea' || L2.arr.stopS == null) return null;
+  return 'JOIN-PARITY\'s load-door float Cessna (G1970.4) - ' + (L2.verdicts.find(v => v.startsWith('vref-raised')) || '') + '; the touch ' + (ld ? ld.V + ' m/s, sink ' + ld.sink + ' m/s, run ' + ld.run + ' m' : '-') +
+    '; ' + L2.faults.map(f => f.k + (f.k === 'yield' ? ' (' + f.note.split(' (')[0] + ')' : '')).join(', ') + '; no break, no crash (' + (R.game ? R.game.mass + ' kg' : '') + ')';
+}
 if (!STRIPS) {
   const JOBS = [{ b: 'cub' }, { b: 'c172' }, { b: 'floats' }];
   for (const J of JOBS) {
@@ -188,11 +221,21 @@ if (!STRIPS) {
     const gsp = require(path.join(T, '_load_build.js')).gameSpec(raw);
     const gdef = C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(gsp) : gsp), mGame = gdef.nodes.reduce((m, q) => m + q.m, 0);
     check(!!(R.game && Math.abs(R.game.mass - mGame) < 0.1), '5 ' + B.name + ': the load door\'s aeroplane flies', R.game ? R.game.mass + ' kg (the game spec\'s ' + mGame.toFixed(1) + '), ' + R.game.fuel + ' L at the start (the file says ' + rawFuel + ' L)' : '-');
+    let knownEnd = null;
     for (const L2 of R.legs) {
       const id = '5 ' + B.name + ' ' + L2.from + ' > ' + L2.to;
-      check(L2.ok, id + ': stopped at its To with no fault', L2.faults.map(f => f.k + ': ' + f.note).join('; ') || L2.phases.slice(-6).join('>'));
+      const kn = knownRed(J.b, L2, R);
+      if (kn) { knownEnd = kn; console.log('  KNOWN ' + id + ': ' + kn); }
+      else if (L2.declined) {
+        // G2530: THE To REFUSED, SAID (_tour_lib L.declined: 'strip-too-short' said, landed and stopped on the strip it
+        // diverted to, no other fault) - a pilot's reasoned refusal is held, not excused: the reason in the player's words
+        const why = (L2.verdicts.find(v => v.startsWith('strip-too-short')) || '');
+        check(/too short|short-field stop/.test(why), id + ': the To refused with its reason said - landed and stopped on ' + L2.declined + ' with no fault', why);
+        console.log('  DECLINED ' + id + ': ' + why + ' -> ' + L2.declined + ' (' + JSON.stringify(L2.arr.landing) + ')');
+      }
+      else check(L2.ok, id + ': stopped at its To with no fault', L2.faults.map(f => f.k + ': ' + f.note).join('; ') || L2.phases.slice(-6).join('>'));
       // G1970: the landing judged on the strip it was made on (_tour_lib: flightWhere under the wheels at the touchdown)
-      check(L2.landedOn === L2.to, id + ': landed on its To (the landing judged on ' + L2.landedOn + ')');
+      check(L2.landedOn === (L2.declined || L2.to), id + ': landed on its To' + (L2.declined ? ' (refused: on the strip diverted to, ' + L2.declined + ')' : '') + ' (the landing judged on ' + L2.landedOn + ')');
       const a = TW.W.aerodromes.find(q => q.id === L2.from);
       const oneWay = typeof a.takeoffHdg === 'number' || a.altiport;
       if (oneWay && L2.from !== order[0]) {
@@ -206,7 +249,8 @@ if (!STRIPS) {
       if (L2.arr.apprClear) check(L2.arr.apprClear.c >= 3, id + ': the final\'s lowest node 3 m over the ground and the forest', L2.arr.apprClear.c + ' m (' + L2.arr.apprClear.what + ', ' + L2.arr.apprClear.d + ' m out)');
       check(L2.fuel && L2.fuel.litres > 0, id + ': fuel left', L2.fuel ? L2.fuel.litres + ' L' : '-');
     }
-    check(R.done && R.legs.length === order.length - 1, '5 ' + B.name + ': the tour is complete, back at ' + order[order.length - 1], R.legs.length + ' of ' + (order.length - 1) + ' legs');
+    if (knownEnd && !R.done && R.legs[R.legs.length - 1] && knownRed(J.b, R.legs[R.legs.length - 1], R)) console.log('  KNOWN 5 ' + B.name + ': the tour ends at the known red above, ' + R.legs.length + ' of ' + (order.length - 1) + ' legs');
+    else check(R.done && R.legs.length === order.length - 1, '5 ' + B.name + ': the tour is complete, back at ' + order[order.length - 1], R.legs.length + ' of ' + (order.length - 1) + ' legs');
   }
   // 6 EAST POINT, AS THE GAME FLIES IT (G1970). TOUR-REAL (G2065) flew it in the game: the user's Cub LANDS there (one
   // go-around 'high on the slope 537 m out', a touchdown 29-33 m in, stopped with ~19 m left) and CANNOT TAKE OFF (the

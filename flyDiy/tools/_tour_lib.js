@@ -163,7 +163,7 @@ function flyLeg(C, W, sim, def, a, b, opt) {
     // G2450: a take-off the pilot DECLINED (43: the go / no-go at the hold) ends the leg where it stands - not a stop at the To
     if (ph === 'STOPPED' && ap.report && ap.report.outcome === 'declined') { fault('declined', (ap.report.verdicts.find(v => v.code === 'takeoff-declined') || {}).note || 'the take-off was declined'); break; }
     if (ph === 'STOPPED' && ap.route && ap.route.to === b && L.t > 20) { stopAt = [cg[0], cg[2]]; break; }
-    if (ph === 'STOPPED' && ap.route && ap.route.to !== b && L.t > 60 && onG) { fault('diverted', 'stopped at ' + (ap.route.to && ap.route.to.id) + ', not ' + b.id); break; }
+    if (ph === 'STOPPED' && ap.route && ap.route.to !== b && L.t > 60 && onG) { fault('diverted', 'stopped at ' + (ap.route.to && ap.route.to.id) + ', not ' + b.id); L.divertedTo = ap.route.to && ap.route.to.id; break; }
     if (ph === 'ABORT') { fault('abort', 'the take-off was rejected'); break; }
     // 'gave-up' is the pilot's verdict on its own patience (the budget), not an end: it keeps flying and lands - a warning
   }
@@ -200,6 +200,12 @@ function flyLeg(C, W, sim, def, a, b, opt) {
   L.damage = D ? { yields: D.yields, breaks: D.breaks, dented: !!D.dented, crashed: !!D.crashed, gPeak: r1(D.gPeak || 0) } : null;
   L.groundLoop = gLoop; L.offStrip = offStrip; L.nan = nan;
   L.ok = !!stopAt && !L.faults.length;
+  // G2530 (PILOT-44-REDS): A STRIP REFUSED, SAID. The pilot judged the To too short for the landing this aeroplane can make
+  // ('strip-too-short', CESSNA-VREF's judgeHeld - the metal Cessna at Skyline Altiport on the game's day) and diverted: the
+  // leg is not ok (it did not stop at its To) but DECLINED - the reason said, landed and stopped on the strip it diverted
+  // to, no other fault. The tour goes on from there (flyTour) and the gate judges the refusal (GATE TOUR 5)
+  L.declined = !L.ok && !!L.divertedTo && L.landedOn === L.divertedTo && L.faults.every(f => f.k === 'diverted') &&
+    ap.report.verdicts.some(v => v.code === 'strip-too-short') && !!(LD && LD.onStrip) ? L.divertedTo : null;
   L.track = o.track || null;
   return L;
 }
@@ -225,8 +231,9 @@ function flyTour(C, W, def, order, opt) {
   }
   const legs = [], track = [];
   const tick = () => { const cg = sim.cgPos(); track.push([r1(cg[0]), r1(cg[2]), r1(cg[1])]); };
+  let from = A(order[0]);
   for (let i = 1; i < order.length; i++) {
-    const a = A(order[i - 1]), b = A(order[i]);
+    const a = from, b = A(order[i]);
     const t0 = track.length;
     // the track: a point every 2 s (the map); flyLeg steps the sim, so the sampler rides on a stepped proxy
     const step0 = sim.step;
@@ -237,9 +244,10 @@ function flyTour(C, W, def, order, opt) {
     L.trackI = [t0, track.length];
     legs.push(L);
     if (o.log) o.log(L);
-    if (!L.ok) break;
+    if (!L.ok && !L.declined) break;
+    from = L.declined ? A(L.declined) : b;   // (a refused To: the next leg leaves from where it diverted to)
   }
-  const done = legs.length === order.length - 1 && legs.every(L => L.ok);
+  const done = legs.length === order.length - 1 && legs.every(L => L.ok || L.declined);
   return { order, legs, track, done, fuel: sim.fuel ? r1(sim.fuel.litres) : null, game: H ? H.game : null };
 }
 

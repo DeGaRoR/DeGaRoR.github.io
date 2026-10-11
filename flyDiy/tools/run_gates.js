@@ -131,7 +131,7 @@ const GATES = [
   // G2520 ALTIPORT-ARRIVAL: a field above the aeroplane, as the game flies it (the game's flight, damage on) - the Jodel
   // and the Cub HOME > Skyline Altiport (stopped, no fault; the final begun at the circuit height; every flare armed over
   // the strip and at most FLARE_ARM_MAX above it) and the flare guard's own row (a doctored arrival 250 m low is caught)
-  { id: 'ALTIPORT', file: '_altiport_check.js', tier: 'core', shards: 3, timeout: 3600_000, wall: 900 },
+  { id: 'ALTIPORT', file: '_altiport_check.js', tier: 'core', shards: 4, timeout: 3600_000, wall: 900 },   // G2530: + 4 the metal Cessna (a fourth job, a fourth shard)
   // G2500 CESSNA-VREF: the metal Cessna as the game loads it into Tamgas Hill's 520 m in the game's flight, damage on -
   // stopped on the strip, or the strip refused with its reason said and the diversion landed; the C172 file build the control
   { id: 'CESSNAVREF', file: '_cessnavref_check.js', tier: 'full', shards: 2, timeout: 2400_000, wall: 700 },

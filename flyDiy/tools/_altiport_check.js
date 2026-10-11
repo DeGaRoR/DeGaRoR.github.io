@@ -8,7 +8,7 @@
 // (0.93 m/s). Node reproduces both (the game's flight: tools/_tour_lib.js gameHost - the worker's host, the page's
 // placement and pilot, DAY_CLOCK's day ticked; ISLAND-TOUR-2 G1970) to the verdict and the metre.
 //
-//   node tools/_altiport_check.js            -> "GATE ALTIPORT: PASS|FAIL" (3 heavy jobs: --shard=i/3)
+//   node tools/_altiport_check.js            -> "GATE ALTIPORT: PASS|FAIL" (4 heavy jobs: --shard=i/4)
 //   node tools/_altiport_check.js --show     -> every line, passed ones too
 //   PILOT_CORE=<flight_core.js> flies another core (the before / after)
 //
@@ -25,6 +25,8 @@
 //   altRef, its circuit and its climb hold all believe it): the arrival comes in under the strip. Caught: the arming law
 //   is met under the strip (the guard says 'flare-guard' - the calibration: the doctored arrival is a real one), no flare
 //   ever armed under the strip or over FLARE_ARM_MAX above it, and the airframe whole (no crash, no break) for 900 s
+// 4 THE METAL CESSNA (G2530): the user's metal Cessna as the load door makes it, HOME > tw_ski - stopped on the altiport
+//   with no fault, or the altiport refused with its reason said and landed and stopped where it diverted (below)
 'use strict';
 const fs = require('fs'), path = require('path');
 const T = __dirname;
@@ -141,6 +143,44 @@ if (SHD.take()) {
   check(!under.length && !high.length, id + ': no flare armed under the strip or over ' + ARM_MAX + ' m above it', R.flares.map(f => f.over + ' m over the strip ' + f.d + ' m out at ' + f.t + ' s').join('; ') || 'no flare');
   const D = R.damage;
   check(!!D && !D.over && !D.breaks, id + ': the airframe whole (no crash, no member broken)', D ? JSON.stringify({ yields: D.yields, breaks: D.breaks, over: !!D.over, reason: D.reason || null }) : '-');
+}
+// 4 THE METAL CESSNA (G2530, PILOT-44-REDS) - the user's metal Cessna as the load door makes it (bugReports/cessnaMetal
+//   (1).json: 887 kg, the engine at its drawn station - CESSNA-VREF G2500), HOME > tw_ski, the game's flight, damage ON.
+//   The finding (GATE TOUR shard 1, 8 Oct, this tree): its elevator cannot hold Vref ('vref-raised'), the altiport is
+//   landed one way - uphill - with the game's 8 kt westerly 4.9 m/s BEHIND, the touch 127 m in at 36.7 m/s over the
+//   ground, off the top end at 8 m/s: broken up. THE BAR (CESSNAVREF's): the case is the finding's ('vref-raised' said);
+//   stopped ON the altiport with no fault (a / c / d as 1 and 2), or THE STRIP REFUSED WITH ITS REASON SAID
+//   ('strip-too-short') and the aeroplane landed and stopped on the strip it diverted to - no flare ever armed at the
+//   altiport, nothing yielded, broken or dented either way
+const METAL = path.join(ROOT, 'bugReports', 'cessnaMetal (1).json');
+if (SHD.take()) {
+  const t0 = Date.now();
+  const R = flyWatched(METAL, {});
+  const L = R.L, id = '4 the metal Cessna HOME > tw_ski', ld = L.arr.landing || {};
+  const said = c => R.says.some(v => v.startsWith(c));
+  console.log('  the metal Cessna: ' + TR.fmtLeg(L).trim() + ' (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
+  console.log('    verdicts ' + R.says.join(' | '));
+  if (SHOW) console.log('    flares ' + JSON.stringify(R.flares) + '\n    final ' + JSON.stringify(R.finalAt));
+  const GW = R.game && R.game.day && R.game.day.wind;
+  check(!!(GW && GW.kts === 8 && GW.dirDeg === 250 && R.game.shake && R.game.damage === true), id + ': the game\'s flight (the 8 kt / 250 deg day, the page\'s pilot, the damage on)', JSON.stringify(R.game && { wind: GW, mass: R.game.mass, fuel: R.game.fuel }));
+  check(said('vref-raised'), id + ': the finding\'s case - the load door\'s build, the elevator ran out on the approach (vref-raised)');
+  const D = R.damage || {};
+  check(!D.yields && !D.breaks && !D.dented && !D.over && !L.faults.some(f => /^(prop-strike|crash|yield|break|dent|ground-loop|off-strip|obstacle|trunk)$/.test(f.k)), id + ': undamaged - no yield, no break, no dent, no prop strike, no ground loop, no off-strip',
+    JSON.stringify({ yields: D.yields, breaks: D.breaks, dented: !!D.dented, over: !!D.over }) + '; ' + (L.faults.map(f => f.k + ': ' + f.note).join('; ') || 'no fault'));
+  if (said('strip-too-short')) {
+    const atTw = R.flares.filter(f => f.d < 2000);
+    check(L.landedOn && L.landedOn !== 'tw_ski' && ld.onStrip === true && L.faults.every(f => f.k === 'diverted'), id + ': the altiport REFUSED, said - landed and stopped on the strip diverted to',
+      (R.says.find(v => v.startsWith('strip-too-short')) || '') + ' | landed on ' + L.landedOn + ', ' + JSON.stringify(ld) + ', faults ' + (L.faults.map(f => f.k).join(',') || 'none'));
+    check(!atTw.length, id + ': no flare armed at the altiport it refused', atTw.map(f => f.over + ' m over its lowest ground ' + f.d + ' m out').join('; ') || 'none');
+  } else {
+    check(L.arr.stopS != null && !L.faults.length && L.landedOn === 'tw_ski', id + 'a: stopped on Skyline Altiport with no fault', 'td ' + JSON.stringify(ld) + ', faults ' + (L.faults.map(f => f.k + ': ' + f.note).join('; ') || 'none'));
+    const hNeed = R.elev + ((R.finalAt && R.finalAt.hC) || 0) - 60;
+    check(!!R.finalAt && R.finalAt.h >= hNeed && R.finalAt.h > R.SG.hi, id + 'b: the final begun at the field\'s circuit height (>= ' + Math.round(hNeed) + ' m, over the strip\'s ' + Math.round(R.SG.hi) + ' m)',
+      R.finalAt ? 'FINAL at ' + R.finalAt.h + ' m MSL, ' + R.finalAt.d + ' m out' : 'no final');
+    const outF = R.flares.filter(f => !(f.over >= 0 && f.low - R.SG.hi <= ARM_MAX));
+    check(R.flares.length > 0 && !outF.length, id + 'c: every flare armed over the strip, at most ' + ARM_MAX + ' m above it', R.flares.map(f => f.over + ' m over the strip\'s lowest ground ' + f.d + ' m out at ' + f.t + ' s').join('; ') || 'no flare');
+    if (L.arr.apprClear) check(L.arr.apprClear.c >= 3, id + 'd: the final\'s lowest node 3 m over the ground and the forest', L.arr.apprClear.c + ' m (' + L.arr.apprClear.what + ', ' + L.arr.apprClear.d + ' m out)');
+  }
 }
 // (the verdict line is run_gates.js's contract, `^GATE <ID>: PASS$` - a shard's tag in it never matched: G2520)
 if (SHD.tag) console.log('  (' + SHD.tag.trim() + ')');

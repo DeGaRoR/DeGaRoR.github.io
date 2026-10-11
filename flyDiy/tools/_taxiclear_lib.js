@@ -337,6 +337,24 @@ function census(C, W, I, builds, opt) {
   }
   return rows;
 }
+// THE WING'S PLAN CLEARANCE at one step (flyOut's and flyTurn's one measure): the span line (the CG +- the half-span along
+// the right axis, every tenth) to the nearest footprint. G2125 (PILOT-PROFILE): A FOOTPRINT FLOWN OVER WITH 15 m UNDER THE
+// LOWEST NODE IS CLEARED, NOT GRAZED - the departure's own obstacle margin (43 depNeed). On the ground and through the
+// lift-off nothing changes (every node is under any top + 15 m); airborne, the plan clearance of a footprint counts only
+// while the aeroplane is that low over it, and the closest such overflight within 1.5 m of plan is reported (over)
+// -> { d, at, over, overAt }
+function wingSpan(sim, cg, rx, rz, half, I, phase, t) {
+  let lowY = Infinity; for (let i = 0; i < sim.n; i++) lowY = Math.min(lowY, sim.p[i * 3 + 1]);
+  const r = { d: Infinity, at: null, over: Infinity, overAt: null };
+  for (let f = -1; f <= 1.0001; f += 0.1) {
+    const x = cg[0] + rx * half * f, z = cg[2] + rz * half * f, n = I.nearest(x, z, 20);
+    if (!n) continue;
+    const over = lowY - ((n.s.y0 || 0) + (n.s.top || 0));
+    if (over > 15) { if (n.d < 1.5 && over < r.over) { r.over = over; r.overAt = fmtWhat(n.s) + ' in ' + phase + ', t ' + t.toFixed(0) + ' s'; } continue; }
+    if (n.d < r.d) { r.d = n.d; r.at = fmtWhat(n.s) + ' at (' + cg[0].toFixed(1) + ', ' + cg[2].toFixed(1) + ') in ' + phase + ', t ' + t.toFixed(0) + ' s'; }
+  }
+  return r;
+}
 // THE FLOWN PROOF: THE PILOT from a stand to 30 m above the ground (the taxi, the line-up, the roll, the lift-off) with
 // the obstacles in the world (intoWorld) - the wing's plan clearance to the nearest footprint every `every` steps (the
 // span line, CG +- the half-span along the right axis), the nodes inside a registered obstacle (the solver's test),
@@ -355,19 +373,11 @@ function flyOut(C, W, I, def, a, s, opt) {
     if (k % every) continue;
     const cg = sim.cgPos(), zR = sim.axes()[2], rl = Math.hypot(zR[0], zR[2]) || 1;
     if (k % 30 === 0) track.push([+cg[0].toFixed(2), +cg[2].toFixed(2), ap.phase]);
-    // G2125 (PILOT-PROFILE): A FOOTPRINT FLOWN OVER WITH 15 m UNDER THE LOWEST NODE IS CLEARED, NOT GRAZED - the departure's
-    // own obstacle margin (43 depNeed). On the ground and through the lift-off nothing changes (every node is under any
-    // top + 15 m); airborne, the plan clearance of a footprint counts only while the aeroplane is that low over it, and
-    // the closest such overflight is reported (overMin). The climb on speed (never under 1.3 Vs) crosses Jumbo Mine's
-    // houses ~20 m over their tops where train 38's, at 0.98 Vs, was past 30 m over the ground
-    let lowY = Infinity; for (let i = 0; i < sim.n; i++) lowY = Math.min(lowY, sim.p[i * 3 + 1]);
-    for (let f = -1; f <= 1.0001; f += 0.1) {
-      const x = cg[0] + zR[0] / rl * half * f, z = cg[2] + zR[2] / rl * half * f, n = I.nearest(x, z, 20);
-      if (!n) continue;
-      const over = lowY - ((n.s.y0 || 0) + (n.s.top || 0));
-      if (over > 15) { if (n.d < 1.5 && over < overMin) { overMin = over; overAt = fmtWhat(n.s) + ' in ' + ap.phase; } continue; }
-      if (n.d < minW) { minW = n.d; at = fmtWhat(n.s) + ' at (' + cg[0].toFixed(1) + ', ' + cg[2].toFixed(1) + ') in ' + ap.phase + ', t ' + t.toFixed(0) + ' s'; }
-    }
+    // (G2125 (PILOT-PROFILE): the overflown footprint - wingSpan. The climb on speed (never under 1.3 Vs) crosses Jumbo
+    // Mine's houses ~20 m over their tops where train 38's, at 0.98 Vs, was past 30 m over the ground)
+    const w = wingSpan(sim, cg, zR[0] / rl, zR[2] / rl, half, I, ap.phase, t);
+    if (w.d < minW) { minW = w.d; at = w.at; }
+    if (w.over < overMin) { overMin = w.over; overAt = w.overAt; }
     const q = nodesInside(C, W, sim); if (q.k) { contacts += q.k; cWhat = q.what + ' in ' + ap.phase; }
     air = cg[1] - W.terrainH(cg[0], cg[2]) > 30;
   }
@@ -393,7 +403,7 @@ function flyTurn(C, W, I, def, a, b, pose, opt) {
   const sim = placeAt(C, W, def, pose);
   const PW = o.blindPilot ? Object.create(W, { obstacles: { value: C.OBSTACLES.make() } }) : W;
   const ap = C.makePilot(sim, def, PW, { style: 'normal' }); ap.departFrom(a, b);
-  let t = 0, minW = Infinity, at = null, air = false, contacts = 0, cWhat = null, crashed = false;
+  let t = 0, minW = Infinity, at = null, air = false, contacts = 0, cWhat = null, crashed = false, overMin = Infinity, overAt = null;
   const phases = [], track = [], tMax = o.tMax || 240;
   for (let k = 0; k < 60 * tMax && !air; k++) {
     ap.update(1 / 60); sim.step(1 / 60); t += 1 / 60;
@@ -403,15 +413,16 @@ function flyTurn(C, W, I, def, a, b, pose, opt) {
     if (k % 6) continue;
     const cg = sim.cgPos(), zR = sim.axes()[2], rl = Math.hypot(zR[0], zR[2]) || 1;
     if (k % 30 === 0) track.push([+cg[0].toFixed(2), +cg[2].toFixed(2), ap.phase]);
-    for (let f = -1; f <= 1.0001; f += 0.1) {
-      const x = cg[0] + zR[0] / rl * half * f, z = cg[2] + zR[2] / rl * half * f, n = I.nearest(x, z, 20);
-      if (n && n.d < minW) { minW = n.d; at = fmtWhat(n.s) + ' at (' + cg[0].toFixed(1) + ', ' + cg[2].toFixed(1) + ') in ' + ap.phase + ', t ' + t.toFixed(0) + ' s'; }
-    }
+    // (G2530: the overflown footprint by flyOut's rule - 11c had kept the plan clearance at every height, and PILOT-PROFILE's
+    // climb on speed takes the Cub off Jumbo Mine's street over house6 / house7's cement bags 19.0-27.8 m above their tops)
+    const w = wingSpan(sim, cg, zR[0] / rl, zR[2] / rl, half, I, ap.phase, t);
+    if (w.d < minW) { minW = w.d; at = w.at; }
+    if (w.over < overMin) { overMin = w.over; overAt = w.overAt; }
     const q = nodesInside(C, W, sim); if (q.k) { contacts += q.k; cWhat = q.what + ' in ' + ap.phase; }
     air = cg[1] - W.terrainH(cg[0], cg[2]) > 30;
   }
   const D = sim.damage ? sim.damage() : null;
-  return { air, t, phases, minWing: minW, at, contacts, cWhat, trunkHits: sim.trunkHits ? sim.trunkHits() : 0, crashed: crashed || !!(D && D.crashed),
+  return { air, t, phases, minWing: minW, at, overMin, overAt, contacts, cWhat, trunkHits: sim.trunkHits ? sim.trunkHits() : 0, crashed: crashed || !!(D && D.crashed),
            track, span: 2 * half, verdicts: ap.report.verdicts.map(v => v.code + (v.note ? ': ' + v.note : '')) };
 }
 // THE PLAN at a pose (DEPART's one step: planDeparture) and its clearances, measured on the census's own footprints (`I`,
