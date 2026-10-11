@@ -55,6 +55,8 @@ const check = (ok, what, detail) => {
 };
 const FX = path.join(T, 'fixtures', 'island_jolene.json');
 
+// (G2530: ISLAND-TOUR's capability - its src or its fixture - read once: the strips' block and the known reds below ask it)
+const ISLAND = typeof C.turnPadNodes === 'function' || JSON.parse(fs.readFileSync(FX, 'utf8')).layers.surface.some(e => /^tp_y_|^mn_y_apron$/.test(e.id));
 if (SHD.first) {
   const txt = fs.readFileSync(FX, 'utf8'), REC = JSON.parse(txt);
   // G2530 (PILOT-44-REDS): THE STRIPS' BLOCK JUDGES ISLAND-TOUR'S STRIPS - its src (25_airfield turnPadNodes, the pads'
@@ -63,7 +65,6 @@ if (SHD.first) {
   // has none of those strips to hold: every line of 1-4 is still computed and printed as INFO 'not on this tree', never
   // judged; with either half present the whole block is judged (a partial landing reads red, as it should). Held on
   // every tree regardless: Jolene's six land strips (1) and the census's own coverage
-  const ISLAND = typeof C.turnPadNodes === 'function' || REC.layers.surface.some(e => /^tp_y_|^mn_y_apron$/.test(e.id));
   let nInfo = 0, nInfoBad = 0;
   const judge = ISLAND ? check : (ok, what, detail) => {
     nInfo++; if (!ok) nInfoBad++;
@@ -190,7 +191,17 @@ if (SHD.first) {
 //   strikes, the hull dents. THE FILE AS WRITTEN, the same flight (FLYDIY_RAW_BUILDS=1): no 'vref-raised', down at 25.7 m/s,
 //   no fault (reports/evidence/PILOT-44-REDS floats_*). The airframe's / JOIN-PARITY's to settle, and the water flare's
 //   (PERSONA-2 G2462) - CESSNA-VREF's judgeHeld is a land strip's
+//   THE C172 ON 02/20 - THE WATER ON THE RUNWAY (ISLAND-TOUR G1971, not on this tree; the strips' block 3a prints its 1826
+//   wet samples, the first on w2): the cover grid's water class floats 0.30 m of water over patches of 02/20's old concrete
+//   and the metal Cessna's propeller, on the roll-out at ~31 m/s, strikes it ('water'). The same on fa4e2409 and here
+//   (reports/evidence/PILOT-44-REDS w2strike_*). Known only while ISLAND-TOUR is absent, the strike is the water's, it is
+//   the leg's only fault, and the aeroplane landed and stopped on w2
 function knownRed(b, L2, R) {
+  if (b === 'c172' && L2.to === 'w2') {
+    const pa = L2.damage && L2.damage.propAt, ld = L2.arr && L2.arr.landing;
+    if (ISLAND || !pa || pa.what !== 'water' || !L2.faults.every(f => f.k === 'prop-strike') || L2.landedOn !== 'w2' || L2.arr.stopS == null) return null;
+    return 'the water on 02/20\'s concrete (ISLAND-TOUR G1971, not on this tree) - the propeller struck water at t ' + pa.t + ' s on the roll-out; the touch ' + (ld ? ld.V + ' m/s, sink ' + ld.sink + ' m/s, run ' + ld.run + ' m' : '-') + '; no other fault';
+  }
   if (b !== 'floats' || L2.from !== 'SEA' || L2.to !== 'mk_sea') return null;
   const said = c => (L2.verdicts || []).some(v => v.startsWith(c));
   const D = L2.damage || {}, ld = L2.arr && L2.arr.landing;

@@ -173,7 +173,7 @@ function flyLeg(C, W, sim, def, a, b, opt) {
   const dy = D && D0 ? D.yields - D0.yields : 0, db = D && D0 ? D.breaks - D0.breaks : 0;
   if (dy > 0) fault('yield', dy + ' member(s) yielded' + (D.firstYield ? ' (first: ' + JSON.stringify(D.firstYield) + ')' : ''));
   if (db > 0) fault('break', db + ' member(s) broke');
-  if (D && D.propStrike && !(D0 && D0.propStrike)) fault('prop-strike', 'the propeller struck');
+  if (D && D.propStrike && !(D0 && D0.propStrike)) fault('prop-strike', 'the propeller struck' + (D.propAt ? ' (' + D.propAt.what + ', t ' + r1(D.propAt.t) + ')' : ''));
   if (D && D.dented && !(D0 && D0.dented)) fault('dent', 'the airframe dented');
   const dTrunk = (sim.trunkHits ? sim.trunkHits() : 0) - trunk0;
   if (dTrunk > 0) fault('trunk', dTrunk + ' trunk contact(s)');
@@ -197,7 +197,7 @@ function flyLeg(C, W, sim, def, a, b, opt) {
   };
   L.landedOn = landB ? landB.id : null;   // the strip the landing was judged on (G1970: != L.to after a diversion)
   L.fuel = sim.fuel ? { litres: r1(sim.fuel.litres), burnt: r1(fuel0 - sim.fuel.litres) } : null;
-  L.damage = D ? { yields: D.yields, breaks: D.breaks, dented: !!D.dented, crashed: !!D.crashed, gPeak: r1(D.gPeak || 0) } : null;
+  L.damage = D ? { yields: D.yields, breaks: D.breaks, dented: !!D.dented, crashed: !!D.crashed, gPeak: r1(D.gPeak || 0), propAt: D.propAt && !(D0 && D0.propStrike) ? { what: D.propAt.what, t: r1(D.propAt.t) } : null } : null;
   L.groundLoop = gLoop; L.offStrip = offStrip; L.nan = nan;
   L.ok = !!stopAt && !L.faults.length;
   // G2530 (PILOT-44-REDS): A STRIP REFUSED, SAID. The pilot judged the To too short for the landing this aeroplane can make
