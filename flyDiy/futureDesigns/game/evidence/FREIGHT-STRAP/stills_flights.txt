@@ -1,0 +1,23 @@
+  ok   cub: the validated build on the stand
+  ok   cub: 120 kg of crated parts accepted ({"items":1,"kg":60,"card":"cub"})
+  ok   cub: the strapped load drawn on the stand ({"items":1,"models":1,"boxes":0,"draws":3,"tris":546,"keys":["crate_wood_a"],"stacks":1,"straps":2})
+  ok   cub: the cut-away
+  still strap_cub_stand
+  programs: 402 -> 418
+  ok   c172: the validated build on the stand
+  ok   c172: 60 kg of mail + a passenger accepted ({"items":3,"kg":60,"card":"c172"})
+  ok   c172: the strapped load drawn on the stand ({"items":3,"models":0,"boxes":3,"draws":3,"tris":432,"keys":[],"stacks":3,"straps":6})
+  ok   c172: the cut-away
+  still strap_c172_stand
+  programs: 419 -> 422
+  ok   cub no load: the sim never asked
+  ok   cub none: flown on the physics worker
+  cub none: {"rows":476,"cruise":40,"worker":true,"M":460.4580873317781,"cgx":-0.2996923162195516,"de":-0.0322683852642574,"pitch":0.045894801878975745,"thr":0.8560350385594043,"V":25.08838449289601,"end":"ENROUTE"}
+  FAIL cub loaded: the masses aboard at the roll-out (0 nodes, +0.0 kg)
+  still strap_cub_chase
+  still strap_cub_cockpit
+  ok   cub parts120: flown on the physics worker
+  cub parts120: {"rows":480,"cruise":27,"worker":true,"M":510.45802933953894,"cgx":-0.2571460796021068,"de":-0.031282242637047014,"pitch":0.10753384227450684,"thr":0.9616300689002154,"V":23.384285254321824,"end":"ENROUTE"}
+  THE DIFFERENCE {"what":"cub, 120 kg of crated parts, HOME -> Tamgas Hill Strip","dM":49.999942007760865,"dCG_mm":42.54623661744483,"dElevator":0.0009861426272103832,"dPitch_deg":3.5316568679003244,"dThrottle":0.10559503034081108}
+  ok   cub: the load moved the mass (+50.0 kg) and the CG (43 mm)
+  ok   c172 no load: the sim never asked
