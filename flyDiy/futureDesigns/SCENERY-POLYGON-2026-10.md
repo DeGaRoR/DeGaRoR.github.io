@@ -181,27 +181,30 @@ record's extent - fixed in ED-2, G2919: the fine patch now covers the whole road
   invalidated by a ground-dirty box over the piece; the table rows (G925) and the merges re-done per piece.
 - Proof needs the GPU: stills of the island road near and far, a timed check of a drag on it (edit to quiet < 100 ms).
 
-## 9. NEXT: ROAD-GRAPH (with ROAD-BED, the train after 44.4)
+## 9. NEXT: ROAD-GRAPH (with ROAD-BED, the train after 44.4) - joins at WAYPOINTS only
 
 The user (11 Oct): "let's have roads snapping to each other. One day I'd like a scenic tour of the island's roads,
-probably with a simple car, and it would be good that we have the premises of a graph then." (They will trace a trail
-round the island in 3-5 km sections.)
-- **Snapping** (the editor): a new road's first / last point within ~5 m (screen-sized, like the edge click) of another
-  road's END joins it - the two share the node; within ~5 m of another road's MIDDLE it makes a T: the other road gets a
-  junction node there (its line split in the graph, not in the record's points - a `nodes` entry on it). The grade is
-  continuous across a join: the composer's level-approach rule (7 m held from each end) becomes "held to the joined
-  road's height at the node", and a spline's end handle follows the other road's tangent at an end-to-end join.
-- **The graph** (the record and compose): `roads[].joins: [{ end: 0 | 1, to: <road id>, at: 0 | 1 | s }]` kept on save;
-  compose derives `O.roadGraph = { nodes: [{ id, x, z, y, roads }], edges: [{ id, road, a, b, s0, s1, len, cls, surface,
-  grade }] }` with STABLE node ids (a hash of the road ids and ends / the junction's s rounded), and an API:
-  `graph()`, `path(fromNode, toNode)` (Dijkstra on length, class-weighted), `edgeAt(x, z)` (the segment grid).
-- **Migration**: today's roads whose ends lie within 1 m of another road's end or line get their `joins` written by the
-  migrator (Jolene: the taxiways' ends onto the strips stay the junction extension's; roads onto roads become joins).
-- **Gates**: the graph connected on Jolene and on the user's file (one component per authored network, named), a snap
-  round-trips through save / load, a T-join's grade continuous to 2 cm, `path` between two far nodes follows the roads.
-- **Metlakatla in the graph** (the user: "queue reviewing Metlakatla for a graph. This should also integrate with the
-  road I just traced"): the town's streets (its `mk_` roads, cut from the boot by the town switch, kept in the record)
-  join the same graph - its junctions real nodes. FIRST a review list (what is disconnected, overlapping, mis-joined,
-  dead-ended, with coordinates), THEN the fixes; the town's entry roads JOINED to the user's island road r1 and the rest
-  of Jolene's network, so a car drives from the airfield into Metlakatla. Gates as above plus: the graph connected with
-  Metlakatla in (the town switch on), and `path` from the airfield's stand to Metlakatla's centre.
+probably with a simple car, and it would be good that we have the premises of a graph then" - refined: "What I really
+need is a proper way to connect arteries and junctions ... You could constrain joining on WAYPOINTS only, so we have
+something really clean, with waypoint snapping." And: "I'll trace the network between Metlakatla and the airfield, leave
+that to me." So:
+- **Joins happen ONLY at waypoints** (a road's points). A new or dragged point within ~5 m (screen-sized) of another
+  road's waypoint SNAPS onto it - the waypoint highlighted while the hand is near - and the two roads then SHARE that
+  node: one junction id. No snapping into the middle of a span: a T is made by adding a waypoint there first (the
+  edge click), then snapping onto it. Unsnapping: drag the point away with Alt (or the inspector's "detach").
+- **The record**: a shared node is `nodes: [{ id, x, z }]` at the premises level (or `roads[].pts[i]` carrying the node
+  id) - one position for every road through it, so moving the junction moves every road's point there. The grade is
+  continuous across it (the composer's 7 m level approach held to the node's own height, the same for every road through
+  it); a spline's handle at a shared node follows the through road.
+- **The graph** (compose): `O.roadGraph = { nodes: [{ id, x, z, y, roads, conn? }], edges: [{ id, road, a, b, len, cls,
+  surface, grade }] }`, edges = the spans between a road's junction nodes and its ends; stable ids; the API `graph()`,
+  `path(a, b)` (Dijkstra on length, class-weighted), `edgeAt(x, z)` (the segment grid) - what a car or a route drives.
+- **Metlakatla as a connected grid**: its streets (`mk_` roads, off by default, kept in the record) reviewed (a list
+  first: disconnected, overlapping, mis-joined, dead ends, with coordinates), then made ONE connected grid of
+  shared-waypoint junctions; its edge waypoints marked as named CONNECTION POINTS (`conn: 'Metlakatla north'`), drawn in
+  the editor, for the user to snap their own roads onto. NOT auto-joined to the island road r1 or the airfield (the
+  user traces that network).
+- **Gates**: Metlakatla's grid one component with its connection points listed; a snap round-trips through save / load
+  (the node shared, the positions equal); a junction's grade continuous to 2 cm for every road through it; a moved
+  junction moves every road there; `path` across Metlakatla follows its streets; the user's file's graph lists its
+  components.
