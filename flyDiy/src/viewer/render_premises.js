@@ -2461,6 +2461,34 @@ function make(THREE, scene, world, rec0, opts) {
   const discMatSel = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, depthTest: false });
   const discMatTan = new THREE.MeshBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.95, depthTest: false });
   const stemMat = new THREE.LineBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.8, depthTest: false });
+  // G2950 (ROAD-GRAPH): a road's waypoint that is a JUNCTION - green (its roads meet there, a drag carries them all, Alt
+  // detaches); a CONNECTION POINT (the junctions layer's `conn`) - magenta; the snap target under the hand - a white ring
+  const discMatJct = new THREE.MeshBasicMaterial({ color: 0x5ee07a, transparent: true, opacity: 0.95, depthTest: false });
+  const discMatConn = new THREE.MeshBasicMaterial({ color: 0xe07ad8, transparent: true, opacity: 0.95, depthTest: false });
+  const discFor = (e, i) => {
+    if (i === selCorner) return discMatSel;
+    const id = e && e.pts && Array.isArray(e.nodes) ? e.nodes[i] : null;
+    if (!id) return discMat;
+    const J = (rec.layers.junctions || []).find(j => j && j.id === id);
+    return J && J.conn ? discMatConn : discMatJct;
+  };
+  let snapRing = null;
+  function snapHint(lp) {
+    if (snapRing) { G.ghost.remove(snapRing); snapRing.geometry.dispose(); snapRing.material.dispose(); snapRing = null; }
+    if (!lp) return;
+    const w = O.frame.toWorld(lp[0], lp[1]), r = Math.max(1.5, +lp[2] || 3);
+    const g = new THREE.RingGeometry(r * 0.8, r, 32); g.rotateX(-Math.PI / 2);
+    snapRing = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthTest: false }));
+    snapRing.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.08, w[1]); snapRing.renderOrder = 10; snapRing.name = 'snapHint';
+    G.ghost.add(snapRing);
+  }
+  // another entry's outline re-lined while the hand drags a junction (its roads' waypoints move together; nothing composes)
+  function relineEntry(e) {
+    if (!e) return;
+    if (!HMEMO) HMEMO = new Map();
+    const wp = worldPts(e);
+    reline(e.id, wp, !!e.poly, LIFT); reline(e.id + ':sel', wp, !!e.poly, LIFT);
+  }
   const HANDLES = [], STEMS = [];
   let selCorner = null;
   function buildHandles() {
@@ -2534,7 +2562,7 @@ function make(THREE, scene, world, rec0, opts) {
     }
     for (let i = 0; i < pts.length; i++) {
       const p = pts[i];
-      const m = new THREE.Mesh(discGeo, i === selCorner ? discMatSel : discMat);
+      const m = new THREE.Mesh(discGeo, discFor(f.entry, i));
       m.position.set(p[0], heightAt(p[0], p[1]) + LIFT + 0.05, p[1]);
       m.renderOrder = 9; m.userData.handle = { id: selectedId, key: 'v' + i, index: i };
       G.handles.add(m); HANDLES.push(m);
@@ -2589,7 +2617,7 @@ function make(THREE, scene, world, rec0, opts) {
           st.geometry.attributes.position.needsUpdate = true; st.geometry.computeBoundingSphere();
         }
       } else if (hd.mid) { const b = arr[(i + 1) % n]; put(m, (arr[i][0] + b[0]) / 2, (arr[i][1] + b[1]) / 2); }
-      else { put(m, arr[i][0], arr[i][1]); m.material = i === selCorner ? discMatSel : discMat; }
+      else { put(m, arr[i][0], arr[i][1]); m.material = discFor(e, i); }
     }
     return true;
   }
@@ -3900,6 +3928,7 @@ function make(THREE, scene, world, rec0, opts) {
   const R = {
     root, groups: G, stats,
     rebuild, rebuildSteps, preview, previewEnd, editEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
+    snapHint, relineEntry,
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),

@@ -1002,3 +1002,34 @@ after the freeze, against this document.
   migration round trip on every fixture, Jolene and her parts; the same world sample for sample; the places; the
   order; the shapes; the marks inside their shapes), GATE SCENERYED 6-8 (the editor), GATE PAVEMENT 6 (the concrete's
   hex tiling never repeats under 300 m).
+- **v1.37 (2026-10-12, ROAD-GRAPH + ROAD-BED G2950-G2954; record v2 unchanged; futureDesigns/SCENERY-POLYGON-2026-10.md
+  §8-§9).** Roads JOIN ONLY AT WAYPOINTS, and a road can stand on a bed. A road may carry **`nodes: [id | null, ...]`**
+  beside `pts` (one slot a point, as `tan`; `normalise` pads a short list with null): a waypoint carrying an id IS that
+  junction - every road whose waypoint carries the same id meets there. A new layer **`junctions`**:
+  `[{ id, name?, conn? }]` names a junction and marks a CONNECTION POINT (`conn: true` - a place's edge waypoint other
+  roads are meant to join; a junction of one road is kept while the layer names it). Ids are free strings, `j<n>` by
+  the editor (`newJunctionId`), a place's prefix for a place's (`mk_j<n>`: `dropPlaces` cuts them with the place). **No
+  step of the composer, a migrator or the graph writes `pts`**: a junction is where its roads' waypoints are; the editor
+  keeps them on one spot (a snap copies the target's point exactly, a junction's drag moves every road's waypoint of
+  the id, Alt+drag or 'take out' leaves it, one undo step each). **The junction's level** (compose): the first road
+  graded through a junction (the record's order) sets its height; every later road through it is held to that height
+  7 m either side of the waypoint and eased back over 7 more - a road without ids grades as before, to the bit.
+  **`bed: true | { fill, grade, bank, shoulder, on }`** (`bedOf`, defaults `BED_DEF` { fill 0.15, grade 0.12, bank 10,
+  shoulder 0.5 }; `on: false` keeps the settings, off): the road's grade line is never under the ground across its
+  paved width (the centre and both edges read, + `fill`), its dips filled to `grade` both ways (an embankment, never a
+  cut), the grade's flat width `w + 2 shoulder`, its banks `bank` metres back to the terrain. Absent (every shipped
+  road): today's road, to the bit; the editor's new roads carry `bed: true`. **Areas**: a property **`roadside: {
+  node, use: ['turn', 'stop'] }`** - a ROADSIDE APRON, the junction a vehicle turns or stops from (the editor makes it a
+  round gravel area off the waypoint, the waypoint given an id if it had none). **The graph**: `O.roadGraph()` (made on
+  its first ask) - nodes: every junction, every road end without one (`<road>:0` / `<road>:1`), each `{ id, x, z, lx, lz,
+  y, roads, name?, conn?, aprons: [{ area, use, poly, centre, r }] }`; edges: each road's spans between its nodes on
+  its drawn line (`<road>#k`, world `pts`, `len`, `w`, `cls`, `surface`, `look`, `grade` the steepest along).
+  **`graphMake(nodes, edges)`** is the one router (the taxi pattern's `graphOfPattern(P)`, a ground vehicle's route,
+  GROUND-VEHICLE G2940): `node`, `edge`, `adj`, `path(a, b, weight?)` (Dijkstra; a weight of Infinity closes an edge),
+  `components()`, `nodeAt(x, z, r)`, `edgeAt(x, z, maxD)`. `issues`: a junction id not a string; a junction's
+  waypoints apart (> 5 cm); a roadside apron naming no road's junction. Tools: `tools/road_review.js` (a place's
+  network read as a graph - joins to make, Ts, crossings, gaps, dead ends - and `--join`: waypoints inserted at the
+  crossings and the Ts, one id a shared spot), `tools/road_patch.py` (its patch into the fixture, every other byte
+  kept). Held by GATE SCENERYED 11 (the user's own island road r1 bit for bit through a snap, a junction's drag, Alt,
+  a connection point, an apron, the bed on and off) and GATE PREMISES 21 (the router, the junction's level, the bed,
+  Metlakatla one grid).

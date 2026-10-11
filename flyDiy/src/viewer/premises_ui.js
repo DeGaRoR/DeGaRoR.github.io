@@ -230,7 +230,7 @@ function mount(host, ctx) {
   function changeBox(a, b) {
     const pa = a && a.pts, pb = b && b.pts;
     if (!pa || !pb || pa.length < 24 || pb.length < 24 || +b.grade > 0 || +a.grade > 0) return union(bboxOf(a), bboxOf(b));
-    for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) if (k !== 'pts' && k !== 'tan' && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return union(bboxOf(a), bboxOf(b));
+    for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) if (k !== 'pts' && k !== 'tan' && k !== 'nodes' && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return union(bboxOf(a), bboxOf(b));   // (G2950: a junction id moves no ground)
     const ta = a.tan || [], tb = b.tan || [];
     const same = (i, j) => pa[i][0] === pb[j][0] && pa[i][1] === pb[j][1] && (pa[i][2] === pb[j][2]) && JSON.stringify(ta[i] || null) === JSON.stringify(tb[j] || null);
     let s = 0; while (s < pa.length && s < pb.length && same(s, s)) s++;
@@ -243,17 +243,19 @@ function mount(host, ctx) {
   // which layers move the GROUND (and so the chunks): terrain, and roads (graded)
   const groundLayer = layer => layer === 'terrain' || layer === 'roads' || layer === 'runways' || layer === 'material' || layer === 'areas';
   // (G2914: a command may carry MANY entries - the scatter's models - one undo step, one rebuild)
-  const cmdBox = c => (c.many ? c.many.reduce((b, q) => union(b, union(bboxOf(q.before), bboxOf(q.after))), null) : changeBox(c.before, c.after));
+  // (G2950: a junction's command - its roads' waypoints - rebuilds each road's SPAN that moved, as one drag does)
+  const cmdBox = c => (c.many ? c.many.reduce((b, q) => union(b, q.before && q.after ? changeBox(q.before, q.after) : union(bboxOf(q.before), bboxOf(q.after))), null) : changeBox(c.before, c.after));
   const cmdLayer = c => (c.many ? c.many[0].layer : c.layer);
+  const cmdGround = c => (c.many ? (c.many.every(q => q.layer === 'junctions' || groundOf(q.layer, q.before, q.after) === false) ? false : undefined) : groundOf(c.layer, c.before, c.after));
   function run(cmd, isRedo) {
     if (cmd.many) for (const q of cmd.many) applyEntry(q.layer, q.id, clone(q.after));
     else applyEntry(cmd.layer, cmd.id, clone(cmd.after));
     undoS.push(cmd); if (!isRedo) redoS.length = 0;
     if (undoS.length > 200) undoS.shift();
-    dirty(cmdLayer(cmd), cmdBox(cmd), cmd.many ? undefined : groundOf(cmd.layer, cmd.before, cmd.after));
+    dirty(cmdLayer(cmd), cmdBox(cmd), cmdGround(cmd));
     strip.status('' + cmd.label);
   }
-  function undo() { const c = undoS.pop(); if (!c) return; if (c.many) for (const q of c.many.slice().reverse()) applyEntry(q.layer, q.id, clone(q.before)); else applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(cmdLayer(c), cmdBox(c), c.many ? undefined : groundOf(c.layer, c.before, c.after)); strip.status('undo: ' + c.label); }
+  function undo() { const c = undoS.pop(); if (!c) return; if (c.many) for (const q of c.many.slice().reverse()) applyEntry(q.layer, q.id, clone(q.before)); else applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(cmdLayer(c), cmdBox(c), cmdGround(c)); strip.status('undo: ' + c.label); }
   function redo() { const c = redoS.pop(); if (!c) return; run(c, true); }
   let coalesce = null;
   function edit(id, layer, mutate, label, key) {
@@ -294,7 +296,7 @@ function mount(host, ctx) {
   // G2917 (the user: "changing the traffic amount freezes it for a while - maybe 3 minutes"): A ROAD'S TRAFFIC IS NOT ITS
   // GROUND either - its traffic, its guardrail, its power line, its life, its name make no modifier and move no cover: no
   // patch, no ground re-sample (the cars, the rails, the poles are rebuilt by the renderer's own sync)
-  const ROAD_FREE = { traffic: 1, rail: 1, poles: 1, life: 1, name: 1 };
+  const ROAD_FREE = { traffic: 1, rail: 1, poles: 1, life: 1, name: 1, nodes: 1 };   // (G2950: nor its junction ids - the graph's alone)
   const groundOf = (layer, a, b) => {
     if ((layer !== 'runways' && layer !== 'roads') || !a || !b) return undefined;
     const free = layer === 'runways' ? WAY_KEYS : ROAD_FREE;
@@ -387,7 +389,7 @@ function mount(host, ctx) {
     const f = PG.findById(rec, id); if (!f) return false;
     const arr = f.entry.poly || f.entry.pts; if (!arr) return false;
     cancelTool(); setTool('select'); select(id);
-    T.state = 'drawing'; T.resume = id; T.line = !!f.entry.pts; T.pts = arr.map(q => [q[0], q[1]]);
+    T.state = 'drawing'; T.resume = id; T.line = !!f.entry.pts; T.pts = arr.map((q, i) => { const p = [q[0], q[1]]; const j = junctionAt(f.entry, i); if (j) p.node = j; return p; });   // (G2950: a waypoint keeps its junction)
     if (drawBtns) drawBtns.style.display = '';
     R.ghost(ghostFeature(), ghostOk());
     strip.status('resuming ' + id + ': click to add corners after the last, Enter validates, Esc leaves it');
@@ -411,7 +413,144 @@ function mount(host, ctx) {
   }
   // ---- THE SHAPE'S HAND (G2890 SCENERY-ED-1) --------------------------------------------------------------------------
   // a spline road's handles (`tan`, contract v1.35) run beside its points: every insert or removal moves them with it
-  function tanSplice(x, i, del, ins) { if (!x || !Array.isArray(x.tan)) return; const add = []; for (let k = 0; k < ins; k++) add.push(null); x.tan.splice(i, del, ...add); }
+  // (G2950: and its junction ids, `nodes` - a corner inserted is no junction, one removed takes its id out of the road)
+  function tanSplice(x, i, del, ins) {
+    if (!x) return;
+    const add = []; for (let k = 0; k < ins; k++) add.push(null);
+    if (Array.isArray(x.tan)) x.tan.splice(i, del, ...add);
+    if (Array.isArray(x.nodes)) { x.nodes.splice(i, del, ...add); if (!x.nodes.some(Boolean)) delete x.nodes; }
+  }
+  // ---- THE ROAD GRAPH IN THE HAND (G2950 ROAD-GRAPH, contract v1.37) -------------------------------------------------
+  // The user: roads join ONLY at their waypoints. A road's waypoint dragged (or a new road's point clicked) within a few
+  // screen pixels of another road's waypoint lands EXACTLY on it, and the two share one junction id (`nodes`, beside `pts`)
+  // - the other road's points are never moved. A junction's waypoint dragged carries every road's waypoint of that id
+  // (one undo step); Alt+drag takes this road's waypoint out of the junction.
+  const junctionAt = (e, i) => (e && Array.isArray(e.nodes) ? e.nodes[i] || null : null);
+  function junctionPts(jid) {
+    const out = []; if (!jid) return out;
+    for (const r of rec.layers.roads) if (r && Array.isArray(r.nodes)) r.nodes.forEach((n, i) => { if (n === jid && r.pts[i]) out.push({ id: r.id, index: i }); });
+    return out;
+  }
+  const junctionRec = jid => (rec.layers.junctions || []).find(j => j && j.id === jid) || null;
+  const snapTol = g => Math.max(1, Math.min(25, (g ? edgeTol(g) : 1.5) * 1.5));
+  // the waypoint a point snaps to: the nearest within tol, never the hand's own (skip.id/index and its neighbours on its
+  // road), never its junction's (skip.jid), never a road being resumed (skip.road)
+  function snapTarget(L, tol, skip) {
+    let best = null, bd = tol;
+    for (const r of rec.layers.roads) {
+      if (!r || !Array.isArray(r.pts) || (skip && skip.road === r.id)) continue;
+      for (let i = 0; i < r.pts.length; i++) {
+        if (skip && r.id === skip.id && Math.abs(i - skip.index) <= 1) continue;
+        if (skip && skip.jid && junctionAt(r, i) === skip.jid) continue;
+        const d = Math.hypot(r.pts[i][0] - L[0], r.pts[i][1] - L[1]);
+        if (d < bd) { bd = d; best = { id: r.id, index: i, p: [r.pts[i][0], r.pts[i][1]], jid: junctionAt(r, i), d }; }
+      }
+    }
+    return best;
+  }
+  // ONE UNDO STEP OVER SEVERAL ENTRIES mutated in place (a junction's roads, a snap's target, an apron and its road):
+  // touch(layer, id) remembers an entry's before and hands back the live one; `pre` the befores of entries a drag already moved
+  function touchMany(fn, label, pre) {
+    const T0 = new Map();
+    for (const q of pre || []) if (!T0.has(q.layer + ':' + q.id)) T0.set(q.layer + ':' + q.id, { layer: q.layer, id: q.id, before: q.before });
+    if (!rec.layers.junctions) rec.layers.junctions = [];
+    const live = (layer, id) => (rec.layers[layer] || []).find(x => x && x.id === id) || null;
+    const touch = (layer, id) => { const k = layer + ':' + id; if (!T0.has(k)) { const e = live(layer, id); T0.set(k, { layer, id, before: e ? clone(e) : null }); } return live(layer, id); };
+    fn(touch);
+    const many = [];
+    for (const q of T0.values()) { const e = live(q.layer, q.id), after = e ? clone(e) : null; if (JSON.stringify(after) !== JSON.stringify(q.before)) many.push({ layer: q.layer, id: q.id, before: q.before, after }); }
+    if (!many.length) return null;
+    const cmd = many.length === 1 ? { layer: many[0].layer, id: many[0].id, before: many[0].before, after: many[0].after, label } : { many, label };
+    run(cmd);
+    return cmd;
+  }
+  const tidyNodes = x => { if (x && Array.isArray(x.nodes) && !x.nodes.some(Boolean)) delete x.nodes; };
+  // a junction left with one waypoint is no junction (unless the junctions layer names it: a connection point waiting)
+  function dropSolitary(touch, jid) {
+    const P = junctionPts(jid);
+    if (P.length !== 1 || junctionRec(jid)) return;
+    const r = touch('roads', P[0].id); r.nodes[P[0].index] = null; tidyNodes(r);
+  }
+  // every waypoint carrying `from` now carries `to`; the junctions layer's name and connection point follow
+  function mergeJunction(touch, from, to) {
+    for (const r of rec.layers.roads) if (r && Array.isArray(r.nodes) && r.nodes.indexOf(from) >= 0) { const t = touch('roads', r.id); t.nodes = t.nodes.map(x => (x === from ? to : x)); }
+    const jf = junctionRec(from); if (!jf) return;
+    const jt = junctionRec(to), JL = rec.layers.junctions;
+    touch('junctions', from);
+    if (!jt) { touch('junctions', to); JL.push(Object.assign(clone(jf), { id: to })); }
+    JL.splice(JL.indexOf(jf), 1);
+  }
+  // A's waypoint joins S's (both on one spot already): one junction id for the two - S's, A's, or a new one
+  function joinAt(touch, A, S) {
+    const a = touch('roads', A.id), b = touch('roads', S.id); if (!a || !b) return null;
+    const ja = junctionAt(a, A.index), jb = junctionAt(b, S.index);
+    const jid = jb || ja || PG.newJunctionId(rec);
+    const put = (x, k) => { if (!Array.isArray(x.nodes)) x.nodes = x.pts.map(() => null); x.nodes[k] = jid; };
+    put(a, A.index); put(b, S.index);
+    if (ja && jb && ja !== jb) mergeJunction(touch, ja, jb);
+    return jid;
+  }
+  // the release of a road waypoint's drag that snapped, carried a junction or left one: one command over every road it touched
+  function joinUp(found) {
+    const i = drag.index, pre = [{ layer: found.layer, id: drag.id, before: drag.before }];
+    for (const c of drag.co || []) if (!pre.some(q => q.id === c.id)) pre.push({ layer: 'roads', id: c.id, before: c.before });
+    let label = 'move ' + drag.id;
+    touchMany(touch => {
+      const t0 = touch(found.layer, drag.id);
+      if (drag.detach) { const jid = junctionAt(t0, i); if (jid) { t0.nodes[i] = null; tidyNodes(t0); dropSolitary(touch, jid); label = drag.id + ' out of junction ' + jid; } }
+      if (drag.snap) { const jid = joinAt(touch, { id: drag.id, index: i }, drag.snap); label = drag.id + ' joins ' + drag.snap.id + ' at ' + jid; }
+      else if (drag.co) label = 'junction ' + drag.jid + ' moved (' + (drag.co.length + 1) + ' waypoints)';
+    }, label, pre);
+    strip.status(label);
+  }
+  // the inspector's and the scripts' hands on a junction: out of it, its name, a connection point
+  // a waypoint named a CONNECTION POINT (Metlakatla's edges, where the user's own road will join): a junction of one, kept
+  function makeConnection(id, i) {
+    const f = PG.findById(rec, id); if (!f || !f.entry.pts[i]) return null;
+    let jid = junctionAt(f.entry, i);
+    touchMany(touch => {
+      const t = touch('roads', id);
+      if (!jid) { jid = PG.newJunctionId(rec); if (!Array.isArray(t.nodes)) t.nodes = t.pts.map(() => null); t.nodes[i] = jid; }
+      let J = junctionRec(jid);
+      if (!J) { touch('junctions', jid); rec.layers.junctions.push({ id: jid, conn: true }); } else { J = touch('junctions', jid); J.conn = true; }
+    }, 'connection point ' + id + ' (' + (i + 1) + ')');
+    return jid;
+  }
+  function detachWaypoint(id, i) {
+    const f = PG.findById(rec, id); const jid = f && junctionAt(f.entry, i); if (!jid) return false;
+    touchMany(touch => { const t = touch('roads', id); t.nodes[i] = null; tidyNodes(t); dropSolitary(touch, jid); }, id + ' out of junction ' + jid);
+    return true;
+  }
+  function junctionMeta(jid, patch) {
+    if (!jid) return false;
+    touchMany(touch => {
+      let J = junctionRec(jid);
+      if (!J) { touch('junctions', jid); J = { id: jid }; rec.layers.junctions.push(J); } else J = touch('junctions', jid);
+      for (const k of Object.keys(patch)) { if (patch[k] === null || patch[k] === '' || patch[k] === false) delete J[k]; else J[k] = patch[k]; }
+      if (Object.keys(J).length === 1) rec.layers.junctions.splice(rec.layers.junctions.indexOf(J), 1);   // (nothing said of it: no entry)
+    }, 'junction ' + jid);
+    return true;
+  }
+  // A ROADSIDE APRON (G2953; the user: "areas where vehicles can do U-turns or stop - mostly roadside gravel aprons"): a
+  // round gravel area beside the waypoint - at a road's end, past it; along it, off its side - whose `roadside` names the
+  // waypoint's junction (made one if it was none): the road graph's node a vehicle turns or stops from (GROUND-VEHICLE G2940)
+  function addApron(id, i, r0) {
+    const f = PG.findById(rec, id); if (!f || f.layer !== 'roads' || !f.entry.pts[i]) return null;
+    const e = f.entry, P = e.pts, n = P.length, r = r0 || 12, hw = (+e.w || 3.6) / 2;
+    const a = P[Math.max(0, i - 1)], b = P[Math.min(n - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1, ux = dx / l, uz = dz / l;
+    const c = i === 0 ? [P[0][0] - ux * r * 0.5, P[0][1] - uz * r * 0.5] : i === n - 1 ? [P[i][0] + ux * r * 0.5, P[i][1] + uz * r * 0.5] : [P[i][0] - uz * (hw + r * 0.6), P[i][1] + ux * (hw + r * 0.6)];
+    const round = { c: [+c[0].toFixed(2), +c[1].toFixed(2)], r: +r.toFixed(2) };
+    let aid = null;
+    touchMany(touch => {
+      const t = touch('roads', id);
+      let jid = junctionAt(t, i);
+      if (!jid) { jid = PG.newJunctionId(rec); if (!Array.isArray(t.nodes)) t.nodes = t.pts.map(() => null); t.nodes[i] = jid; }
+      aid = PG.newId(rec, 'areas');
+      touch('areas', aid);
+      rec.layers.areas.push({ id: aid, poly: PG.roundPoly(round), round, props: { wheels: { surface: PG.SURFACE.GRAVEL }, draw: { look: 'gravel', z: 0 }, roadside: { node: jid, use: ['turn', 'stop'] } } });
+    }, 'roadside apron at ' + id + ' waypoint ' + (i + 1));
+    return aid;
+  }
   // the CORNER picked: an orange disc clicked (or dragged) turns white; Del removes that corner, not the feature
   let corner = null;
   const setCorner = i => { corner = (i === null || i === undefined || !isFinite(+i)) ? null : +i; if (R.corner) R.corner(corner); };
@@ -459,13 +598,14 @@ function mount(host, ctx) {
     const e = f.entry, arr = shapeOf(e); if (!arr) return false;
     if (arr.length > 256) { strip.status('refused: ' + arr.length + ' corners is enough'); return true; }
     edit(id, f.layer, x => {
-      const a = x.poly || x.pts, out = [], tn = Array.isArray(x.tan) ? [] : null;
+      const a = x.poly || x.pts, out = [], tn = Array.isArray(x.tan) ? [] : null, nn = Array.isArray(x.nodes) ? [] : null;
       for (let i = 0; i < a.length; i++) {
-        out.push(a[i]); if (tn) tn.push(x.tan[i] || null);
-        if (i + 1 < a.length || x.poly) { const b = a[(i + 1) % a.length]; const m = [+((a[i][0] + b[0]) / 2).toFixed(2), +((a[i][1] + b[1]) / 2).toFixed(2)]; if (a[i].length > 2) m.push(+(((a[i][2] || 0) + (b[2] || 0)) / 2).toFixed(2)); out.push(m); if (tn) tn.push(null); }
+        out.push(a[i]); if (tn) tn.push(x.tan[i] || null); if (nn) nn.push(x.nodes[i] || null);
+        if (i + 1 < a.length || x.poly) { const b = a[(i + 1) % a.length]; const m = [+((a[i][0] + b[0]) / 2).toFixed(2), +((a[i][1] + b[1]) / 2).toFixed(2)]; if (a[i].length > 2) m.push(+(((a[i][2] || 0) + (b[2] || 0)) / 2).toFixed(2)); out.push(m); if (tn) tn.push(null); if (nn) nn.push(null); }
       }
       if (x.poly) x.poly = out; else x.pts = out;
       if (tn) x.tan = tn;
+      if (nn) x.nodes = nn;
     }, 'subdivide ' + id);
     setCorner(null);
     strip.status(id + ' subdivided: ' + (f.entry.poly || f.entry.pts).length + ' corners');
@@ -491,10 +631,17 @@ function mount(host, ctx) {
     if (T.pts.length < 3) return 'warn';
     return PG.polySimple(T.pts) ? true : false;
   }
-  function addPoint(lx, lz) {
+  function addPoint(lx, lz, tol) {
+    // (G2950) a road's point clicked on another road's waypoint lands on it: the two join there when the road is validated
+    let snap = null;
+    if ((LINE_TOOLS[tool] === 'roads' && !T.resume) || (T.resume && T.line && (PG.findById(rec, T.resume) || {}).layer === 'roads')) {
+      snap = snapTarget([lx, lz], tol || snapTol(null), { road: T.resume || null });
+      if (snap) { lx = snap.p[0]; lz = snap.p[1]; }
+    }
     const L = T.pts[T.pts.length - 1];
     if (L && Math.hypot(L[0] - lx, L[1] - lz) < 0.5) return;
-    T.pts.push([lx, lz]);
+    const p = [lx, lz]; if (snap) p.snap = { id: snap.id, index: snap.index };
+    T.pts.push(p);
     T.state = 'drawing';
     if (TWO_POINT_TOOLS[tool] && T.pts.length === 2) { commitDrawing(); return; }
     if (drawBtns) drawBtns.style.display = '';
@@ -523,6 +670,18 @@ function mount(host, ctx) {
       if (f.entry.poly && (T.pts.length < 3 || !PG.polySimple(T.pts))) { strip.status(T.pts.length < 3 ? 'a polygon needs three corners' : 'refused: the polygon crosses itself'); return; }
       if (f.entry.pts && T.pts.length < 2) { strip.status('a road needs two points'); return; }
       const pts = T.pts.map(q => [q[0], q[1]]);
+      if (f.entry.pts) {
+        // (G2950) a road: its waypoints keep their junctions, the ones clicked on another road's waypoint join it - one step
+        const src = T.pts.slice(), oldJ = (f.entry.nodes || []).filter(Boolean);
+        touchMany(touch => {
+          const x = touch(f.layer, id); x.pts = pts; if (Array.isArray(x.tan)) delete x.tan;
+          const nn = src.map(q => q.node || null); if (nn.some(Boolean)) x.nodes = nn; else delete x.nodes;
+          src.forEach((q, i) => { const S = q.snap; if (!S) return; const t = PG.findById(rec, S.id); if (t && t.entry.pts[S.index] && t.entry.pts[S.index][0] === q[0] && t.entry.pts[S.index][1] === q[1]) joinAt(touch, { id, index: i }, S); });
+          for (const j of new Set(oldJ)) dropSolitary(touch, j);   // (a junction whose waypoint was dropped here may be left alone)
+        }, 'corners of ' + id);
+        cancelTool(); select(id); strip.status(id + ' validated with ' + pts.length + ' points');
+        return;
+      }
       edit(id, f.layer, x => { if (x.poly) { x.poly = pts; delete x.round; delete x.rect; } else { x.pts = pts; if (Array.isArray(x.tan)) delete x.tan; } }, 'corners of ' + id);
       cancelTool(); select(id); strip.status(id + ' validated with ' + pts.length + (f.entry.poly ? ' corners' : ' points'));
       return;
@@ -562,8 +721,15 @@ function mount(host, ctx) {
     if (isLine()) {
       if (T.pts.length < 2) { strip.status('a road needs two points'); return; }
       // (G2890: a new road is a SMOOTH CURVE through its points - contract v1.35; the inspector's 'curve' takes it back to corners)
-      const e = { id: PG.newId(rec, 'roads'), pts: T.pts.map(p => [p[0], p[1]]), w: 3.6, cls: 'gravel', graded: true, falloff: 6, curve: 'spline', clear: 2 };   // (G2918: no tree or grass within 2 m of its edge)
-      run({ layer: 'roads', id: e.id, before: null, after: e, label: 'road ' + e.id });
+      // (G2952: a new road stands on its BED - its surface never under the ground; the inspector's one click takes it off)
+      const e = { id: PG.newId(rec, 'roads'), pts: T.pts.map(p => [p[0], p[1]]), w: 3.6, cls: 'gravel', graded: true, falloff: 6, curve: 'spline', clear: 2, bed: true };   // (G2918: no tree or grass within 2 m of its edge)
+      const src = T.pts.slice();
+      if (!src.some(q => q.snap)) run({ layer: 'roads', id: e.id, before: null, after: e, label: 'road ' + e.id });
+      else touchMany(touch => {
+        // (G2950) its points clicked on other roads' waypoints: the junctions, made with the road - one undo step
+        touch('roads', e.id); rec.layers.roads.push(e);
+        src.forEach((q, i) => { const S = q.snap; if (!S) return; const t = PG.findById(rec, S.id); if (t && t.entry.pts[S.index] && t.entry.pts[S.index][0] === q[0] && t.entry.pts[S.index][1] === q[1]) joinAt(touch, { id: e.id, index: i }, S); });
+      }, 'road ' + e.id);
       cancelTool(); select(e.id); return;
     }
     if (T.pts.length > 2 && Math.hypot(T.pts[0][0] - T.pts[T.pts.length - 1][0], T.pts[0][1] - T.pts[T.pts.length - 1][1]) < 0.5) T.pts.pop();
@@ -634,12 +800,12 @@ function mount(host, ctx) {
         if (ctrlEdit(selected, L, h)) { swallowClick = true; return true; }
         return false;
       }
-      return startDrag(h);
+      return startDrag(h, !!ev.altKey);
     }
     return false;
   }
   // a drag begins on a handle of the selected feature (the mouse's, or a script's by key)
-  function startDrag(h) {
+  function startDrag(h, alt) {
     {
       if (h) {
         const F = R.overlay.frame, found = PG.findById(rec, selected);
@@ -669,6 +835,17 @@ function mount(host, ctx) {
           tanSplice(e, h.index + 1, 0, 1);
           drag = { id: selected, layer: found.layer, index: h.index + 1, before, F };
         } else drag = { id: selected, layer: found.layer, index: h.index, before, F };
+        // (G2950) a road's waypoint: it may snap to another's; a junction's carries its roads' waypoints - Alt leaves it
+        if (found.layer === 'roads' && e.pts) {
+          drag.road = true;
+          const jid = junctionAt(e, drag.index); drag.jid = jid;
+          if (jid && alt) drag.detach = true;
+          else if (jid) {
+            const befores = new Map([[selected, before]]);
+            drag.co = junctionPts(jid).filter(q => !(q.id === selected && q.index === drag.index)).map(q => { if (!befores.has(q.id)) befores.set(q.id, clone(PG.findById(rec, q.id).entry)); return { id: q.id, index: q.index, before: befores.get(q.id) }; });
+            if (!drag.co.length) drag.co = null;
+          }
+        }
         setCorner(drag.index);   // (G2890: the corner in the hand is the one picked)
         return true;
       }
@@ -750,7 +927,21 @@ function mount(host, ctx) {
       const e = found.entry, P = e.pts[drag.tan];
       if (P) { if (!Array.isArray(e.tan)) e.tan = e.pts.map(() => null); e.tan[drag.tan] = [+(L[0] - P[0]).toFixed(2), +(L[1] - P[1]).toFixed(2)]; }
     }
-    else { const arr = found.entry.poly || found.entry.pts; arr[drag.index][0] = +L[0].toFixed(2); arr[drag.index][1] = +L[1].toFixed(2); }
+    else {
+      const arr = found.entry.poly || found.entry.pts;
+      let q = [+L[0].toFixed(2), +L[1].toFixed(2)];
+      if (drag.road) {
+        // (G2950) near another road's waypoint: exactly on it (its point as written - the other road never moves)
+        const tol = snapTol(g), S = snapTarget(L, tol, { id: drag.id, index: drag.index, jid: drag.jid });
+        drag.snap = S; if (S) q = [S.p[0], S.p[1]];
+        if (R.snapHint) R.snapHint(S ? [S.p[0], S.p[1], tol] : null);
+      }
+      arr[drag.index][0] = q[0]; arr[drag.index][1] = q[1];
+      for (const c of drag.co || []) {
+        const ce = c.id === drag.id ? found.entry : (PG.findById(rec, c.id) || {}).entry;
+        if (ce && ce.pts[c.index]) { ce.pts[c.index][0] = q[0]; ce.pts[c.index][1] = q[1]; if (ce !== found.entry && R.relineEntry) R.relineEntry(ce); }
+      }
+    }
     // G1400 (EDITOR-LAG): the hand is followed by the renderer's preview - the outline, the handles, the built object
     // carried, a strip's taxi pattern - and nothing composes; the record's rebuild (the ground, the pavement, the
     // houses) is the release's (onUp's dirty), as it always was for the ground. A renderer without one rebuilds as before.
@@ -761,9 +952,11 @@ function mount(host, ctx) {
   }
   function onUp() {
     if (!drag) return false;
+    if (R.snapHint) R.snapHint(null);
     const found = PG.findById(rec, drag.id);
     // (G2890: a disc clicked and not moved - the corner picked - is no command and no rebuild)
     if (found && JSON.stringify(drag.before) === JSON.stringify(found.entry)) { if (R.previewEnd) R.previewEnd(); drag = null; inspector.refresh(); ctx.redraw && ctx.redraw(); return true; }
+    if (found && (drag.co || drag.snap || drag.detach)) { joinUp(found); drag = null; return true; }   // (G2950)
     if (found) {
       const cmd = { layer: found.layer, id: drag.id, before: drag.before, after: clone(found.entry), label: 'move ' + drag.id };
       undoS.push(cmd); redoS.length = 0;
@@ -780,7 +973,7 @@ function mount(host, ctx) {
   // a click at a WORLD ground point: the tools' one entry, from the mouse or from a script
   function clickAt(g) {
     const F = R.overlay.frame, L = F.toLocal(g[0], g[2]);
-    if (T.state === 'drawing' && T.resume) { addPoint(+L[0].toFixed(2), +L[1].toFixed(2)); return; }
+    if (T.state === 'drawing' && T.resume) { addPoint(+L[0].toFixed(2), +L[1].toFixed(2), snapTol(g)); return; }
     if (T.plotPick) { if (PG.findById(rec, T.plotPick)) togglePlotGround(T.plotPick, L); else T.plotPick = null; return; }
     if (tool === 'select') {
       // (G2890) a click on the selected shape's edge adds a corner there; elsewhere it selects what is under it
@@ -886,7 +1079,7 @@ function mount(host, ctx) {
       select(e.id);
       return;
     }
-    addPoint(+L[0].toFixed(2), +L[1].toFixed(2));
+    addPoint(+L[0].toFixed(2), +L[1].toFixed(2), snapTol(g));
   }
   function onDblClick() { if (T.state === 'drawing') commitDrawing(); }
   function onKey(ev) {
@@ -1065,6 +1258,39 @@ function mount(host, ctx) {
       // today's road (the pavement's own band and fade). The trees come back live where it shrinks.
       rows.slider(insp, 'clear trees & grass (m)', -0.5, 60, 0.5, () => (PG.roadClearOf(e) === null ? -0.5 : PG.roadClearOf(e)), v => ed(x => { if (v < 0) delete x.clear; else x.clear = v; }, 'clearing of ' + id, 'clear'),
         v => (v < 0 ? 'off (today)' : v === 0 ? 'the road itself' : v.toFixed(1) + ' m past the edge'));
+      // THE ROAD BED (v1.37, G2952; the user: "the road is sunk in many places. Maybe build a little bank or something, ensuring
+      // the paved surface is always visible"): one click - the road stands on its bed, the dips filled to a gentle grade, banks
+      // back to the ground; off is the road as it was (every shipped road until the user turns it on)
+      rows.pills(insp, 'road bed', [['on', 'on', 'the paved surface always over the ground: its dips filled to a gentle grade, banks back to the terrain'], ['', 'off', 'the road as it was: on the ground, sunk where the ground rises over it']],
+        () => (PG.bedOf(e) ? 'on' : ''), v => ed(x => {
+          if (v) { const b = Object.assign({}, typeof x.bed === 'object' ? x.bed : {}); delete b.on; x.bed = Object.keys(b).length ? b : true; }
+          else if (x.bed && typeof x.bed === 'object') x.bed = Object.assign({}, x.bed, { on: false });
+          else delete x.bed;
+        }, 'bed of ' + id));
+      if (PG.bedOf(e)) {
+        const bedSet = (k, v) => ed(x => { const b = Object.assign({}, typeof x.bed === 'object' ? x.bed : {}); b[k] = v; x.bed = b; }, 'bed of ' + id, 'bed:' + k);
+        rows.slider(insp, 'bed: banks (m)', 1, 40, 0.5, () => PG.bedOf(e).bank, v => bedSet('bank', v), v => v.toFixed(1) + ' m back to the ground');
+        rows.slider(insp, 'bed: steepest (%)', 2, 25, 0.5, () => PG.bedOf(e).grade * 100, v => bedSet('grade', +(v / 100).toFixed(4)), v => v.toFixed(1) + ' %');
+        rows.slider(insp, 'bed: over the ground (m)', 0, 1, 0.05, () => PG.bedOf(e).fill, v => bedSet('fill', v), v => v.toFixed(2) + ' m');
+      }
+      // THE WAYPOINT PICKED (G2950 ROAD-GRAPH): its junction - the roads meeting there, its name, a connection point - and a
+      // roadside apron for the cars to turn or stop
+      if (corner !== null && e.pts[corner]) {
+        const k = corner, jid = junctionAt(e, k), J = jid ? junctionRec(jid) : null, others = jid ? junctionPts(jid).filter(q => !(q.id === id && q.index === k)) : [];
+        rows.section(insp, 'WAYPOINT ' + (k + 1) + (jid ? ' · JUNCTION ' + jid : ''));
+        if (!jid) {
+          rows.note(insp, 'no junction: drag it onto another road\'s waypoint to join the two there (roads join only at waypoints)');
+          rows.button(insp, 'make it a connection point', () => makeConnection(id, k));
+        } else {
+          rows.note(insp, (others.length ? 'meets ' + others.map(q => q.id + ' (' + (q.index + 1) + ')').join(', ') : 'no other road yet') + ' - a drag carries them all; Alt+drag takes ' + id + ' out', 'ok');
+          if (others.length) rows.button(insp, 'take ' + id + ' out of ' + jid, () => detachWaypoint(id, k));
+          const nm = $('input', { type: 'text', value: (J && J.name) || '', placeholder: 'its name (optional)' }); nm.className = 'pr-name'; nm.onchange = () => junctionMeta(jid, { name: nm.value || null }); insp.appendChild(nm);
+          rows.check(insp, 'a connection point (other roads join here)', () => !!(junctionRec(jid) && junctionRec(jid).conn), v => junctionMeta(jid, { conn: v || null }));
+        }
+        const ap = jid ? rec.layers.areas.filter(a => a && a.props && a.props.roadside && a.props.roadside.node === jid) : [];
+        if (ap.length) rows.note(insp, 'roadside apron' + (ap.length > 1 ? 's ' : ' ') + ap.map(a => a.id).join(', '), 'ok');
+        rows.button(insp, '+ roadside apron here (turn, stop)', () => { const aid = addApron(id, k); if (aid) strip.status('apron ' + aid + ' beside waypoint ' + (k + 1) + ' of ' + id); });
+      } else if (Array.isArray(e.nodes) && e.nodes.some(Boolean)) rows.note(insp, e.nodes.filter(Boolean).length + ' junction waypoint' + (e.nodes.filter(Boolean).length === 1 ? '' : 's') + ' (green discs) - pick one for its junction and an apron');
       // THE GRADE LIMIT and THE RIBBON (G434): a taxiway is cut and filled to a gradient, and drawn by its own
       // material polygon (no ribbon) - a track follows the ground and wears its ribbon
       rows.slider(insp, 'steepest (%)', 0, 12, 0.5, () => (e.grade || 0) * 100, v => ed(x => { x.grade = v ? v / 100 : undefined; }, 'grade of ' + id, 'grade'), v => v ? v.toFixed(1) + ' %' : 'follows the ground');
@@ -1316,7 +1542,7 @@ function mount(host, ctx) {
   }
 
   // ---- AN AREA (G2910): the facts, what it does, what it overlaps, then a section per property ----------------------------
-  const PROP_TITLE = { terraform: 'TERRAFORM', wheels: 'WHEELS', draw: 'DRAW', marks: 'MARKS', exclude: 'EXCLUDE', cover: 'COVER' };
+  const PROP_TITLE = { terraform: 'TERRAFORM', wheels: 'WHEELS', draw: 'DRAW', marks: 'MARKS', exclude: 'EXCLUDE', cover: 'COVER', roadside: 'ROADSIDE' };
   const PROP_WHY = { terraform: 'moves the ground: flat, raised or lowered, a slope', wheels: 'the class the wheels feel (a hard one keeps the trees and plots out)', draw: 'a surface drawn on the ground: a pavement (concrete, asphalt, gravel, dirt, sand, grass) or a texture',
                      marks: 'weathered paint on the pavement: parking bays, a dock\'s edge, keep-clear hatching', exclude: 'keeps the trees and / or the plots out', cover: 'what grows here and the terrain type it stamps' };
   const HARD = [PG.SURFACE.PAVED, PG.SURFACE.GRAVEL, PG.SURFACE.SAND];
@@ -1386,6 +1612,7 @@ function mount(host, ctx) {
     if (P.draw) does.push('draws ' + (lookCls(P.draw) ? (PG.RUNWAY_LOOKS[P.draw.look].name || P.draw.look) + ' (the pavement: no repetition)' : 'the texture ' + P.draw.set));
     if (P.marks) does.push('paints ' + P.marks.kind + ' marks');
     if (keeps.size) does.push('keeps out: ' + Array.from(keeps).join(', '));
+    if (P.roadside) does.push('a roadside apron: cars ' + ((P.roadside.use || ['turn', 'stop']).join(' and ')) + ' here (junction ' + P.roadside.node + ')');
     if (P.cover) does.push(P.cover.code !== null && P.cover.code !== undefined && P.cover.code !== '' ? 'stamps terrain type ' + P.cover.code : 'grows ' + (P.cover.veg ? (P.cover.veg.mode === 'biome' ? 'the biome ' + P.cover.veg.mix : P.cover.veg.mode === 'none' ? 'nothing of a biome' : 'its own biome') : 'its type\'s biome'));
     rows.section(insp, 'WHAT IT DOES');
     if (!does.length) rows.note(insp, 'nothing yet: a sketch - add a property below', 'warn');
@@ -1495,13 +1722,22 @@ function mount(host, ctx) {
       if (x0.zone) rows.note(insp, 'it came from a "no trees" zone: changing what it keeps out makes it an exclusion of its own');
       rm('exclude');
     }
+    if (P.roadside) {
+      // (G2953) a ROADSIDE APRON: the road graph's node a vehicle turns or stops from
+      sec('roadside', 'at junction ' + P.roadside.node);
+      const use = Array.isArray(P.roadside.use) ? P.roadside.use : ['turn', 'stop'];
+      rows.pills(insp, 'for', [['turn stop', 'turn & stop', 'a car turns round here or stops'], ['turn', 'turn', 'a U-turn only'], ['stop', 'stop', 'a stop only']], () => use.join(' '), v => edP('roadside', q => { q.use = v.split(' '); }, 'roadside use'));
+      const rp = junctionPts(P.roadside.node);
+      rows.note(insp, rp.length ? 'beside ' + rp.map(q => q.id + ' (' + (q.index + 1) + ')').join(', ') : 'its junction ' + P.roadside.node + ' is on no road any more', rp.length ? 'ok' : 'warn');
+      rm('roadside');
+    }
     if (P.cover) {
       sec('cover', P.cover.code !== null && P.cover.code !== undefined && P.cover.code !== '' ? 'type ' + P.cover.code : 'vegetation');
       vegRows(P.cover, id, (mut, label, key) => ed(x => { mut(x.props.cover); }, label, key));
       rm('cover');
     }
     // + ADD A PROPERTY
-    const missing = PG.AREA_PROPS.filter(k => !P[k]);
+    const missing = PG.AREA_PROPS.filter(k => !P[k] && k !== 'roadside');   // (a roadside apron is made from its road's waypoint)
     if (missing.length) rows.select(insp, '+ add a property', missing.map(k => [k, PROP_TITLE[k].toLowerCase() + ' - ' + PROP_WHY[k]]), () => '', v => { if (v) addProp(id, v); });
   }
 
@@ -1903,7 +2139,7 @@ function mount(host, ctx) {
         if (!h) throw new Error('premises: no handle ' + args.key + ' on ' + selected + ' (' + hs.map(q => q.key).join(', ') + ')');
         setTool('select'); select(selected);
         const hh = { id: selected, key: h.key, index: +(h.key.slice(1)) || 0, mid: h.key[0] === 'm' };
-        if (!startDrag(hh)) throw new Error('premises: the drag did not start');
+        if (!startDrag(hh, !!args.alt)) throw new Error('premises: the drag did not start');
         const w = R.overlay.frame.toWorld(args.x, args.z);
         moveDrag([w[0], R.heightAt(w[0], w[1]), w[1]]);
         onUp();
@@ -1920,7 +2156,13 @@ function mount(host, ctx) {
       // G2890: the shape's hand, scriptable (GATE PREMISES' editor rows): a click on the selection's edge, a corner picked /
       // removed, the subdivision, the plot pick's click
       if (name === 'edge') { return edgeInsert(args.id || selected, [args.x, args.z], args.tol || 1.5); }
-      if (name === 'corner') { setCorner(args.i); return corner; }
+      if (name === 'corner') { setCorner(args.i); inspector.refresh(); return corner; }
+      // (G2950 ROAD-GRAPH) a junction's hands: a waypoint out of it, its name / connection point, a roadside apron
+      if (name === 'detach') return detachWaypoint(args.id || selected, args.i === undefined ? corner : args.i);
+      if (name === 'junction') return junctionMeta(args.jid, args.patch || {});
+      if (name === 'connection') return makeConnection(args.id || selected, args.i === undefined ? corner : args.i);
+      if (name === 'apron') return addApron(args.id || selected, args.i === undefined ? corner : args.i, args.r);
+      if (name === 'snapTarget') return snapTarget([args.x, args.z], args.tol || snapTol(null), args.skip || null);
       if (name === 'removeCorner') { return removeCorner(args.id || selected, args.i === undefined ? corner : args.i); }
       if (name === 'subdivide') { return subdivide(args.id || selected); }
       if (name === 'plotGround') { return togglePlotGround(args.zone, [args.x, args.z]); }

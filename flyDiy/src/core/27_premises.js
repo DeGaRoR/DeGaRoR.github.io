@@ -2024,7 +2024,7 @@ function plotGroundOff(zone, plotId) {
 // came from (GATE PREMISES: every fixture and Jolene, sample for sample), and nothing past compose knows areas exist.
 // The v1 -> v2 migrator folds every polygon entry not on a stage, the same `poly` exactly into one area (one entry of a
 // layer an area); a terrain grade (a line), a zone that sows, a staged entry stay what they were.
-const AREA_PROPS = ['terraform', 'wheels', 'draw', 'marks', 'exclude', 'cover'];
+const AREA_PROPS = ['terraform', 'wheels', 'draw', 'marks', 'exclude', 'cover', 'roadside'];   // (v1.37: roadside - an apron's junction, G2953)
 const AREA_LAYERS = ['terrain', 'surface', 'material', 'exclude', 'ttype', 'zones'];
 const AREA_SLOT = { terrain: 'terraform', surface: 'wheels', material: 'draw', exclude: 'exclude', zones: 'exclude', ttype: 'cover' };
 const AREA_SUFFIX = { terrain: '~t', surface: '~w', material: '~d', exclude: '~x', zones: '~x', ttype: '~c' };
@@ -2294,7 +2294,7 @@ function compose(rec0, world, opts) {
   // `smooth` (v1.19) is applied HERE, once, so every reader sees the same line
   // (v1.35: `curve: 'spline'` the same way - roadLine)
   const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2)
-    .map(r => (r.curve === 'spline' || r.smooth ? Object.assign({}, r, { pts: roadLine(r) }) : r));
+    .map(r => (r.curve === 'spline' || r.smooth ? Object.assign({}, r, { pts: roadLine(r), wp: r.pts }) : r));   // (G2950: `wp` its waypoints, where its junctions are)
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
   // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
   const roadObjs = roads.map(r => Object.assign({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
@@ -2350,6 +2350,7 @@ function compose(rec0, world, opts) {
   }
   // THE ROADS (stage 3): a road's nodes sit on the ground AFTER the runways graded it
   const T1r = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
+  const JH = new Map();   // (G2950) a junction's height: the first road graded through it sets it
   for (const r of roads) {
     if (r.graded === false) continue;
     // THE ROAD FOLLOWS THE GROUND (v6): its grade is read every 6 m along the traced line, not only at
@@ -2395,9 +2396,29 @@ function compose(rec0, world, opts) {
       for (let i = hs.length - 2; i >= 0; i--) hs[i] = Math.max(hs[i], hs[i + 1] - g * ds(i + 1));
       hs[0] = h0; hs[hs.length - 1] = h1;
     }
+    // THE JUNCTIONS' LEVEL (v1.37, G2950): every road through a junction meets it at ONE height - the first road graded
+    // there sets it (its surface at the waypoint), every later one is held to it 7 m either side and eased back over 7
+    // more (a road without junction ids: today's, to the bit)
+    let jAt = null;
+    if (Array.isArray(r.nodes) && r.nodes.some(Boolean)) {
+      const W = r.wp || r.pts, s = [0];
+      for (let k = 1; k < dense.length; k++) s.push(s[k - 1] + Math.hypot(dense[k][0] - dense[k - 1][0], dense[k][1] - dense[k - 1][1]));
+      jAt = [];
+      let k0 = 0;
+      for (let i = 0; i < W.length && i < r.nodes.length; i++) {
+        let best = k0, bd = Infinity; for (let k = k0; k < dense.length; k++) { const d = Math.hypot(dense[k][0] - W[i][0], dense[k][1] - W[i][1]); if (d < bd) { bd = d; best = k; } if (bd < 0.01 || (s[k] - s[k0] > 400 && bd < 30)) break; }
+        k0 = best;
+        const jid = r.nodes[i]; if (!jid) continue;
+        jAt.push([jid, best]);
+        if (!JH.has(jid)) continue;
+        const H = JH.get(jid);
+        for (let k = 0; k < dense.length; k++) { const d = Math.abs(s[k] - s[best]); if (d >= 14) continue; const u = d <= 7 ? 0 : (d - 7) / 7, w = u * u * (3 - 2 * u); hs[k] = H + (hs[k] - H) * w; }
+      }
+    }
     // a level approach at both ends: a road that starts on another road (a spur off the shore road) must
     // not lift the first road's edge on its first metres - the height is held for 7 m from each end
     { let acc = 0; for (let i = 1; i < dense.length; i++) { acc += Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]); if (acc < 7) hs[i] = hs[0]; else break; } acc = 0; for (let i = dense.length - 2; i >= 0; i--) { acc += Math.hypot(dense[i][0] - dense[i + 1][0], dense[i][1] - dense[i + 1][1]); if (acc < 7) hs[i] = hs[dense.length - 1]; else break; } }
+    if (jAt) for (const [jid, k] of jAt) if (!JH.has(jid)) JH.set(jid, hs[k]);
     const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: (+r.w || 3.6) + (BED ? 2 * BED.shoulder : 0), falloff: BED ? BED.bank : (+r.falloff || 6), abs: true }, F.y0);
     if (M) mods.push(M);
   }
@@ -3630,6 +3651,7 @@ function issues(rec0) {
     if (P.marks && !(P.draw && P.draw.look && RUNWAY_LOOKS[P.draw.look] && RUNWAY_LOOKS[P.draw.look].cls)) out.push('area ' + a.id + ': marks are paint on a pavement - draw it as a pavement first');
     if (P.exclude && P.exclude.what && (!Array.isArray(P.exclude.what) || P.exclude.what.some(w => AREA_EXCLUDE.indexOf(w) < 0))) out.push('area ' + a.id + ': exclude is a list of ' + AREA_EXCLUDE.join(', '));
     if (P.draw && !P.draw.set && !P.draw.look) out.push('area ' + a.id + ': draw has neither a set nor a look');
+    if (P.roadside && (!P.roadside.node || !junctionIds(recA).has(P.roadside.node))) out.push('area ' + a.id + ': a roadside apron names a junction of a road (`roadside.node`)');
   }
   for (const k of ['terrain', 'surface', 'material', 'exclude', 'zones']) for (const e of rec.layers[k]) {
     if (e.kind === 'grade') { if (!e.pts || e.pts.length < 2) out.push(k + ' ' + e.id + ': a grade needs two points'); continue; }
