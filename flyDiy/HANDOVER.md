@@ -84279,3 +84279,7 @@ by default, so default play is unchanged. With ?damage=1, a tail-first crash in 
 tailcone now breaks / folds at the mid-span station at a realistic moment instead of almost never (580 kN.m before);
 the stab and fin should come away with the aft piece, the piece itself rigid (not rubbery).
 Gates on the formula: see the 09:47-10:07 window below.
+Gates on the formula (sigB = gamma(R/t) x 0.605 E t / R at the station's ring), 11 Oct: TREECRASH PASS (09:47-10:07,
+50/50); 10:08-10:17, each its own process: DMGGEAR, DMGCLUSTERS, DMGINTEGRITY, DMGCERT, DMGCERTCOST, DMGMEMBERS PASS.
+With the 08:35 battery on this tip (GEN, PILOT, TAKEOFF, SEAPLANE, FLOATS, BENCH, SPECFIX, JOIN, FIN, FIT, DESIGN,
+FLEX, LOAD, SIMWORKER, ACCEPT, GEOPARITY, DESIGNCHECK, DMGCERT, DMGCERTCOST, DMGMEMBERS) - READY for 43.1.
