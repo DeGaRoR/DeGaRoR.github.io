@@ -3044,7 +3044,7 @@ function compose(rec0, world, opts) {
     },
     roadNear(x, z) { const L = F.toLocal(x, z); let d = Infinity; for (const r of roadObjs) d = Math.min(d, roadDist(r, L[0], L[1])); return d; },
     inExtent(x, z) { const L = F.toLocal(x, z); return inBB(ext, L[0], L[1]); },
-    records: { plots: [], trees: [], items: [], links: [], issues: [], excludes: excl.map(e => e.poly) },
+    records: { plots: [], trees: [], items: [], links: [], issues: [], excludes: excl.filter(e => !e.roadClear).map(e => e.poly) },   // (G2918: a road's clearing is the trees' and the grass's, not a plot's)
   };
   // ---- coverAt's index (v1.17): every pavement's reach and every plot, in 64 m cells ------------
   const CIDX = SpatialIndex(64);
@@ -3292,7 +3292,9 @@ function compose(rec0, world, opts) {
       }
       return -Infinity;
     };
-    const ctx = { T: O.localH, waterY, waterAt, seed: rec.seed, excludes: excl.filter(e => e.what.indexOf('trees') >= 0).map(e => e.poly), plots: O.records.plots, keepOut: excl.filter(e => e.what.indexOf('plots') >= 0).map(e => e.poly) };
+    // (G2918: a road's clearing keeps the TREES and the grass out, never the plots a zone sows along it - the forest's planting
+    // takes it below, the sower does not)
+    const ctx = { T: O.localH, waterY, waterAt, seed: rec.seed, excludes: excl.filter(e => e.what.indexOf('trees') >= 0 && !e.roadClear).map(e => e.poly), plots: O.records.plots, keepOut: excl.filter(e => e.what.indexOf('plots') >= 0).map(e => e.poly) };
     // THE SITES (stage 5a): placed first; every item's foot + margin keeps the plots and the wood out
     const cat = catS;
     for (const st of rec.layers.sites) {
@@ -3400,7 +3402,7 @@ function compose(rec0, world, opts) {
     // (the renderer passes `o.pool()`, some callers pass `pool: () => []`); planForest
     // only ever indexed it and never noticed, the garden pass filters it and did
     const pool = (typeof o.pool === 'function' ? o.pool() : o.pool) || [];
-    const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes, plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
+    const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes.concat(excl.filter(e => e.roadClear).map(e => e.poly)), plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
     for (const z of rec.layers.zones) if (z.kind === 'forest' && z.poly && z.poly.length >= 3 && polySimple(z.poly))
       for (const t of planForest(z, Object.assign({}, tctx, { waterY: zoneWaterY(z) }))) O.records.trees.push(t);
     // THE GARDEN TREES ARE GONE (2026-09-23, the user: "I don't want them to be fixed
