@@ -442,6 +442,31 @@ if (plots.length) {
   check(r1Same(), '11 through every step of the graph and the bed, r1\'s traced points are the file\'s bit for bit');
 }
 
+// 12 THE USER'S OWN SAVED RECORD THROUGH THE v1.37 LOADER (A0, 12 Oct; tools/fixtures/scenery_user_jolene_rev23.json is the
+//   user's backup D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev23_2026-10-11.json byte for byte, sha256 277abdfa...):
+//   r1's points and handles bit for bit after the editor's load, after the composition and its road graph, after a save
+//   round trip; and with Metlakatla's streets put back (the town switch on: restorePlaces, as the game does) its 129
+//   junctions' level leaves r1's ground profile as it was without them, sample for sample
+{
+  const txt = fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev23.json'), 'utf8');
+  check(require('crypto').createHash('sha256').update(txt).digest('hex').slice(0, 16) === '277abdfa66b254bd', '12 the fixture is the user\'s backup of rev 23 byte for byte');
+  const raw = JSON.parse(txt), r1raw = (raw.premises || raw).layers.roads.find(r => r.id === 'r1'), P0 = JSON.stringify([r1raw.pts, r1raw.tan || null]);
+  const r1of = R0 => { const r = R0.layers.roads.find(q => q.id === 'r1'); return JSON.stringify([r.pts, r.tan || null]); };
+  ed.load(txt);
+  check(r1of(rec()) === P0, '12 r1\'s ' + r1raw.pts.length + ' points and handles bit for bit after the load');
+  const O12 = PG.compose(rec(), synth, { raster: false }), G12 = O12.roadGraph();
+  check(r1of(rec()) === P0 && r1of(O12.rec) === P0 && G12.edges.some(e => e.road === 'r1'), '12 ...after the composition and its road graph (r1 ' + G12.edges.filter(e => e.road === 'r1').length + ' span(s) in it)');
+  check(r1of(PG.unwrap(PG.envelope('t', rec())).rec) === P0, '12 ...and after a save round trip');
+  const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, cut = PG.dropPlaces(J, ['mk_']).cut;
+  const withTown = PG.restorePlaces(PG.unwrap(txt).rec, cut);
+  const noIds = JSON.parse(JSON.stringify(withTown)); for (const r of noIds.layers.roads) if (/^mk_/.test(r.id)) delete r.nodes; noIds.layers.junctions = (noIds.layers.junctions || []).filter(j => !/^mk_/.test(j.id));
+  check(withTown.layers.roads.filter(r => /^mk_/.test(r.id) && r.nodes).length > 50 && r1of(withTown) === P0, '12 the town put back: its junctioned streets beside r1 untouched');
+  const Ot = PG.compose(withTown, synth, { raster: false }), On = PG.compose(noIds, synth, { raster: false }), line = PG.roadLine(r1raw);
+  let worst = 0, n = 0; for (let i = 0; i < line.length; i += 2) { const w = Ot.frame.toWorld(line[i][0], line[i][1]); worst = Math.max(worst, Math.abs(Ot.terrainAt(w[0], w[1]) - On.terrainAt(w[0], w[1]))); n++; }
+  check(worst === 0, '12 Metlakatla\'s junction level leaves r1\'s ground profile as it was (' + n + ' samples along its 24.9 km, worst ' + worst.toFixed(4) + ' m)');
+  console.log('     12 the user\'s rev 23 (sha256 277abdfa66b254bd): r1 ' + r1raw.pts.length + ' points + handles bit for bit through load, compose + road graph (' + G12.edges.filter(e => e.road === 'r1').length + ' span), save; town put back (' + withTown.layers.roads.filter(r => /^mk_/.test(r.id)).length + ' streets, ' + new Set([].concat(...withTown.layers.roads.map(r => r.nodes || [])).filter(Boolean)).size + ' junction ids): r1\'s ground over ' + n + ' samples differs by ' + worst + ' m from the town without junctions');
+}
+
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
