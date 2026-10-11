@@ -104,7 +104,11 @@ const VOX = 0.012, VOXZ = 0.02;   // m, the engine's point cells (across, along)
 const GROW_RADIAL = 1.6;         // a round engine bigger than its fuselage: the NACA ring stands proud (the Stearman)               // fixed iteration counts: generation stays deterministic (GATE GEN's rule)
 
 // the engine's parts by role, from the mesh's material tags (_eng_mesh.js ENGM_MAT)
-const HEADS = new Set(['emHead', 'emRocker', 'emPlug', 'emCeramic', 'emLead', 'emFin', 'emBarrel']);
+// (G2860.1: + emFlange - the cylinders' base flanges stand out with the
+// cylinders, 11.6 cm past the RV-alike's sides; as CORE they drove the whole
+// barrel to its limit before a cheek was tried. The crank's prop flange shares
+// the tag but sits on the axis, inside any cowl)
+const HEADS = new Set(['emHead', 'emRocker', 'emPlug', 'emCeramic', 'emLead', 'emFin', 'emBarrel', 'emFlange']);
 const PIPES = new Set(['emExhaust']);
 // the firewall plate, the mount and its pucks: hardware ON the firewall,
 // inside the fuselage's own skin, never the cowl's to cover
@@ -192,8 +196,10 @@ function engineIn(P, unit, L) {
   const tl = (+P.engTilt || 0) * Math.PI / 180, ct = Math.cos(tl), st = Math.sin(tl);
   const dx = +P.cw_apOffX || 0;
   const role = new Uint8Array(M.V.length);         // 0 unused, 1 core, 2 head, 3 pipe
+  // a synthetic face's engine draws its own plate in emFlange: core there
+  const isHead = mt => HEADS.has(mt) && !(unit.face.synthetic && mt === 'emFlange');
   for (const f of M.F) {
-    const r = MOUNT.has(f.m) ? 0 : PIPES.has(f.m) ? 3 : HEADS.has(f.m) ? 2 : 1;
+    const r = MOUNT.has(f.m) ? 0 : PIPES.has(f.m) ? 3 : isHead(f.m) ? 2 : 1;
     for (const i of f.v) if (r && (!role[i] || r === 3)) role[i] = r;
   }
   // ONE POINT PER CELL, the outermost: a dressed engine is 20-40k vertices
@@ -390,7 +396,7 @@ function solveCover(CW, rows, pts, T, opts) {
   const r = rows;
   let best = Infinity, stale = 0;
   for (let pass = 0; pass < PASSES; pass++) {
-    let needW = r.taperW, needH = r.taperH, gW = 1, gT = 1, gB = 1, nOut = 0;
+    let needW = r.taperW, needHT = r.taperH, needHB = r.taperH, gW = 1, gT = 1, gB = 1, nOut = 0;
     const lim = { w: 0, t: 0, b: 0 };
     withCowl(CW, r, () => {
       for (const [x, y0, z] of pts) {
@@ -403,8 +409,8 @@ function solveCover(CW, rows, pts, T, opts) {
         if (u < 0.15) { if (o.wide) gW = Math.max(gW, kk); else if (o.up) gT = Math.max(gT, kk); else gB = Math.max(gB, kk); continue; }
         if (o.wide) needW = Math.max(needW, ((o.s.a * kk / r.aftW) - (1 - u)) / u);
         else {
-          const hLin = r.aftH * (1 - u + u * r.taperH);
-          needH = Math.max(needH, ((hLin * kk / r.aftH) - (1 - u)) / u);
+          const hLin = r.aftH * (1 - u + u * r.taperH), need = ((hLin * kk / r.aftH) - (1 - u)) / u;
+          if (o.up) needHT = Math.max(needHT, need); else needHB = Math.max(needHB, need);
         }
       }
     });
@@ -413,6 +419,21 @@ function solveCover(CW, rows, pts, T, opts) {
     // what is left is not the section's to fix (a ring too small, a part
     // standing off the engine) and is reported, not chased
     if (nOut < best) { best = nOut; stale = 0; } else if (++stale > 6) return { ok: false, passes: pass, out: nOut };
+    // ONE SIDE ONLY (G2860.1, opts.oneSided): the barrel's height taper is
+    // shared by both halves, so a need below alone (an inverted engine's
+    // cylinders) would raise the top line as much as the bottom - a box. Such
+    // a need is left for the cheek over that side; the taper takes height only
+    // when both sides ask for it
+    // (only past 1.0: a barrel still tapering forward covers a sump without
+    // a box; it is the taper PAST the firewall's height that makes one)
+    const both = needHT > r.taperH && needHB > r.taperH;
+    const hMax = Math.max(needHT, needHB);
+    const one = opts.oneSided && !both && hMax > 1;
+    const needH = one ? Math.max(r.taperH, 1) : hMax;
+    // ...and that side's LINE goes out instead ("extend the cowl towards the
+    // down direction"): the factor that side's barrel-end height needs, read
+    // as a firewall line scale, the other line untouched
+    if (one) { if (needHT > needHB) gT = Math.max(gT, needHT / needH); else gB = Math.max(gB, needHB / needH); }
     const tW = clamp(ceilTo(needW, 0.01), TAPER_LO, TAPER_HI), tH = clamp(ceilTo(needH, 0.01), TAPER_LO, TAPER_HI);
     let moved = tW !== r.taperW || tH !== r.taperH;
     r.taperW = r3(tW); r.taperH = r3(tH);
@@ -423,9 +444,9 @@ function solveCover(CW, rows, pts, T, opts) {
       if (lim.t) gT = Math.max(gT, 1.03);
       if (lim.b) gB = Math.max(gB, 1.03);
     }
-    if (opts.grow && (gW > 1 || gT > 1 || gB > 1)) {
-      const w = r3(ceilTo(Math.min(r.aftW * gW, opts.aftW0 * opts.cap), 0.001));
-      const dk = r3(ceilTo(Math.min(r.deckH * gT, opts.deckH0 * opts.cap, 1.9), 0.001));
+    if ((opts.grow || one) && (gW > 1 || gT > 1 || gB > 1)) {
+      const w = opts.grow ? r3(ceilTo(Math.min(r.aftW * gW, opts.aftW0 * opts.cap), 0.001)) : r.aftW;
+      const dk = r3(ceilTo(Math.min(r.deckH * gT, (opts.deckH0 || r.deckH) * (opts.cap || GROW_HI), 1.9), 0.001));
       // the bottom line may go all the way down the row ("extend the cowl
       // towards the down direction" is the user's own step)
       const kl = r3(ceilTo(Math.min(r.keelH * gB, 1.9), 0.001));
@@ -436,7 +457,8 @@ function solveCover(CW, rows, pts, T, opts) {
   return { ok: false, passes: PASSES };
 }
 function cheeksOverHeads(CW, rows, heads, T) {
-  // the heads still outside after the barrel covered the rest of the engine
+  // the heads (and any one-sided overhang) still outside after the barrel
+  // covered the rest of the engine
   const out = [];
   withCowl(CW, rows, () => {
     for (const [x, y0, z] of heads) {
@@ -518,10 +540,16 @@ function cowlFit(P, opts) {
     cowlLen: r3(len.cowlLen), lidLen: r3(len.lidLen), lidRise: bowl.lidRise, faceRise: bowl.faceRise,
     lidMode: 1, lidGap: RING_GAP, noseOff: r3(len.noseOff), apOffY: r3(-(+P.engY || 0)),
     taperW: TAPER_LO, taperH: TAPER_LO, lobeN: 0, lobeAmp: 0,
+    // STRAIGHT LINES (G2860.1): the lines bending into the bowl ("the
+    // curvature of the cowl (e.g. bottom going up)") are fascia, which the
+    // user's procedure does LAST. Fitted with the card's bottom sweep on, the
+    // barrel inflated to cover what the receding bottom uncovered - the RV's
+    // egg (top 50 cm on a 38 cm fuselage), the Tiger Moth's 25 cm overdrop
+    deckSweep: 0, keelSweep: 0, waistSweep: 0,
   };
   // the card's (or the style's) shape rows ride along for the geometry tests
   for (const k of ['sqFrontTop', 'sqFrontBot', 'lidSqTop', 'lidSqBot', 'lidShoulder', 'lidRound',
-                   'deckSweep', 'keelSweep', 'waistSweep', 'spinR', 'seamOn', 'seamType', 'seamPos',
+                   'spinR', 'seamOn', 'seamType', 'seamPos',
                    'seamWidth', 'seamDepth', 'fwLipOn', 'fwLipR', 'fwLipRise', 'fwLipIn',
                    'lobeT', 'lobeAz', 'lobeSig', 'lobeTSig']) {
     const v = style && style['cw_' + k] !== undefined ? style['cw_' + k] : P['cw_' + k];
@@ -535,7 +563,7 @@ function cowlFit(P, opts) {
   // heads ARE its outline, so they go in with it
   const cap = m.face.synthetic ? 4 : round ? GROW_RADIAL : GROW_HI;
   const grow = { grow: true, cap, aftW0: rows.aftW, deckH0: rows.deckH, keelH0: rows.keelH };
-  solveCover(CW, rows, round ? core.concat(heads) : core, bowl.T, { grow: false });
+  solveCover(CW, rows, round ? core.concat(heads) : core, bowl.T, { grow: false, oneSided: !round && !m.face.synthetic, deckH0: rows.deckH, cap: GROW_HI });
   // 6. cheeks over the heads that still stand out
   let ch = { lobeN: 0 };
   if (!round && heads.length) {
@@ -553,7 +581,8 @@ function cowlFit(P, opts) {
   const vals = { fitNose: 0 };
   if (style) for (const k in style) if (k !== 'fitNose') vals[k] = style[k];
   for (const k of ['aftW', 'aftH', 'deckH', 'keelH', 'waist', 'sqAftTop', 'sqAftBot', 'cowlLen', 'lidLen',
-                   'taperW', 'taperH', 'lidRise', 'faceRise', 'lidMode', 'lidGap', 'noseOff', 'apOffY', 'lobeN'])
+                   'taperW', 'taperH', 'lidRise', 'faceRise', 'lidMode', 'lidGap', 'noseOff', 'apOffY', 'lobeN',
+                   'deckSweep', 'keelSweep', 'waistSweep'])
     vals['cw_' + k] = rows[k];
   if (rows.lobeN) for (const k of ['lobeAmp', 'lobeT', 'lobeAz', 'lobeSig', 'lobeTSig']) vals['cw_' + k] = rows[k];
   // THE PHYSICS' COWL (60_gen_spec 4c): the nose section of the flown loft,

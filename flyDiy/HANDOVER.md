@@ -81975,3 +81975,41 @@ Strict gate (18:38): 3 red rows, all the Cub cockpit (garage 48.9 s, flight 52.3
 **Stills:** `tools/cowl_fit_shots.js` (garage_shot's CDP rig): per card, before (the card baked with COWL_FIT set aside - the old birth, styled door and all) and after, side + three-quarter front; frames only after BOOT 'gone' + 2 s, an overlay frame is discarded; refuses a page without COWL_FIT (a stale tree).
 
 **Follow-ups (not done, named):** (1) the JOIN does not map the drawn cowl into spec.cowl - an edited cowl's drag/mass stays the birth's; mapping it would move the validated builds' numbers, the user's call. (2) Synthetic faces (nacelle, pylon) are sized from the engine because the headless constructor draws no wing; the drawn mount plate is the wing's - a few cm apart is possible. (3) The radial cards' firewall steps want wider cabins (card work). (4) EDITOR-UX-A G2760: the "fit cowl" button row (door above) and the per-engine presets.
+
+### G2860.1 - LINES FIRST, FASCIA LAST: THE FIT RUNS WITH STRAIGHT LINES; THE CYLINDERS' FLANGES GO UNDER THE CHEEKS; A ONE-SIDED OVERHANG EXTENDS ITS OWN LINE (2026-10-11, COWL-FIT, on A0's GO after the user's gallery look; supersedes the G2860 flight table above)
+
+A0 read the stills: the RV-alike came out an EGG (wider and taller than its fuselage) and the Tiger Moth-alike a BOX. Both were my fit, against the user's own order:
+- **(a) The lines are fitted straight.** The cards carry the page's `keelSweep 0.55` (the bottom bending up into the bowl) - "the curvature of the cowl (e.g. bottom going up)", which the user's procedure does LAST, as fascia. Fitted with it on, the barrel inflated to cover what the receding bottom uncovered: the RV's top at 50.2 cm on a 38.1 cm fuselage (shared taperH 1.12), the Tiger Moth's bottom at -69.7 cm where its inverted cylinders reach -44. The fit now writes `deckSweep / keelSweep / waistSweep = 0`; bending them is the builder's.
+- **(b) `emFlange` counts with the cylinders** (heads -> cheeks), not with the core: the cylinders' base flanges stand 11.6 cm past the RV's sides and, as core, drove the whole barrel to taperW 1.15 before a cheek was tried. (A nacelle's engine draws its own plate in the same tag: core there.)
+- **(c) A one-sided overhang extends its own line, not the shared taper**, once the taper would take the barrel past the firewall's height (the box case): the barrel's height taper is shared by the two halves, so a need below alone raised the top as much as the bottom. A barrel still tapering forward covers a sump without a box and keeps the taper.
+
+**Cowl max vs the fuselage section 10 cm aft of the cap, after (half-width / height ratio; before G2860.1 in brackets):** rv 1.64 / 1.00 (1.63 / 1.16), tigermoth 0.99 / 1.37 (0.99 / 1.65; bottom -49.1 cm, was -69.7), pittsAlike 1.54 / 1.00 (1.54 / 1.08), sesqui 1.24 / 1.00 (1.28), pietenpol 1.18 / 1.00 (1.20), ttail / vtail / skymaster 1.00 / 1.00 (1.00-1.02), da62 / twinBush 1.03 / 1.11 (1.03 / 1.18), ul1 0.99 / 1.21 (1.03 / 1.21), motorglider 1.30 / 0.99, p38 1.19 / 1.01, floatplane 1.01 / 1.04, stearman 1.03 / 1.46 and beaver 1.00 / 1.59 (radials bigger than their fuselage - unchanged), caravan, savannah, radial, etrainer 1.00 / 1.00-1.13 (unchanged).
+
+**THE RV-ALIKE'S WIDTH IS THE HONEST RESULT (not changed, the user's design choice):** its fuselage is 66 cm wide at the firewall; its IO-360 is 98 cm across the heads (rocker covers 16.0 cm past each side, heads 10.5). Cheeks of +16 cm (the row's own limit) over the heads and a barrel at its 1.15 limit are what covering that engine takes; a cowl that continues the fuselage lines needs a wider cabin (the user's own method: the cabin at ~80 % of the engine's width). The Pitts-alike is the same engine on the same 70 cm fuselage.
+
+**Flight numbers, G2860.1 (pre-join birth spec + drawn tail, genShakedown; before G2860 -> now):**
+
+| card | empty kg | VCruise m/s | climb m/s | L/D | SM %MAC | flown cowl halfW/top/bot m | cylinders out |
+|---|---|---|---|---|---|---|---|
+| pietenpol | 329.4 | 37.7 | 3.29 | 7.52 | 17.5->17.6 | -> .413/.213/.231 | none |
+| tigermoth | 557.1->558.1 | 39.9 | 3.65->3.78 | 6.45->7.10 | 16.1 | -> .390/.442/.422 | sides -> none |
+| stearman | 875.1->877.5 | 45.1->45.2 | 4.53->4.51 | 6.88->6.82 | 1.3->1.2 | -> .514/.554/.525 | sides -> none |
+| pittsAlike | 554.5->555.8 | 44.8->47.5 | 5.30->5.54 | 5.43->5.57 | 8.7->8.1 | -> .557/.284/.292 | sides -> none |
+| sesqui | 561.8->562.1 | 31.9->32.8 | 2.13->2.18 | 8.14->8.20 | 8.3->7.7 | -> .441/.214/.230 | sides -> none |
+| caravan | 861.6->861.5 | 62.0 | 13.97 | 10.57 | 13.5 | -> .375/.261/.257 | none |
+| rv | 474.3->475.1 | 53.3 | 8.16 | 9.04->9.03 | 18.8 | .420 -> .563/.281/.293 | none |
+| savannah | 322.3->321.8 | 42.1 | 4.33->4.34 | 7.18 | 11.9 | -> .345/.212/.231 | none |
+| ul1 | 262.4->262.5 | 36.4 | 4.31->4.30 | 5.86->5.85 | 17.6 | -> .239/.457/.376 | none |
+| floatplane | 416.8->417.2 | 39.0 | 7.60->7.59 | 6.38 | 10.0 | -> .239/.433/.469 | none |
+| motorglider | 214.4->214.2 | 35.3 | 7.43 | 9.65 | 25.3 | -> .367/.209/.238 | none |
+| radial | 433.4->434.4 | 46.0 | 7.77->7.78 | 9.18->9.17 | 16.0 | -> .353/.399/.421 | sides -> none |
+| etrainer | 230.8->230.5 | 40.1 | 6.92->6.93 | 8.27 | 21.8 | -> .334/.209/.238 | none |
+| ttail | 481.0->482.4 | 47.8->47.9 | 8.04->8.28 | 7.39->8.86 | 23.7 | -> .520/.281/.293 | sides -> none |
+| vtail | 469.3->470.6 | 46.5->46.6 | 8.15->8.37 | 7.85->9.45 | 22.5->22.6 | -> .516/.281/.293 | sides -> none |
+| da62 | 766.6->767.4 | 56.2 | 11.05->11.31 | 7.70->8.95 | 7.9 | -> .512/.256/.310 | sides -> none |
+| twinBush | 912.3->913.6 | 42.9 | 8.89->8.98 | 8.78->9.68 | 2.6 | -> .512/.256/.310 | sides -> none |
+| skymaster | 535.7->537.2 | 50.7 | 7.03->7.29 | 6.82->8.08 | 12.3->12.4 | -> .521/.280/.293 | sides -> none |
+| p38 | 478.6->478.9 | 50.2 | 8.86->8.85 | 6.81 | 2.4->2.5 | -> .445/.194/.226 | none |
+| beaver | 880.1->884.3 | 52.8->52.9 | 10.68->10.66 | 7.79->7.75 | 36.7->36.6 | -> .606/.616/.556 | sides -> none |
+
+UNCHANGED: cub, jodel, c172, chinook (stock), pusherPod, mw5, archaeopteryx (no cowl). GATE COWLFIT + --selftest PASS on this; no new stills (A0).
