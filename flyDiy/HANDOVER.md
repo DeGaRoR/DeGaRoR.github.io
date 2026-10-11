@@ -84192,3 +84192,104 @@ targeted set + PREMCOOK after the premises re-cook (premises_build.js is in its 
 PREMISES, SCENERYED, BUILD, MEDIA (+13.2 KB). Strict gate (t432, build 184124362148): 157 within slack, 0 RED (one
 1017 ms task in one rollout run, like 43's 1068). Then the premises + parked re-cooks moved the build to 62f0cd5245c9
 (data manifests only).
+
+## G2910 - SCENERY-ED-2: ONE POLYGON WITH ITS PROPERTIES ATTACHED, THE INSPECTOR APART FROM THE TABS, WEATHERED MARKS ON CONCRETE THAT NEVER REPEATS, THE MODEL PLACER (2026-10-11, SCENERY-ED-2 for A0, local; branch claude/scenery-ed2-g2910 off train 43.2 0402e132b; G2910-G2919 all used: G2915 the fly camera, G2916 the river ribbons, G2917 long roads, G2918 the road clearing, G2919 the extent)
+
+The user's notes (11 Oct) on the scenery editor that SCENERY-ED-1 designed (futureDesigns/SCENERY-POLYGON-2026-10.md,
+now marked BUILT with what differs). Contract **v1.36**, the record's **v 2**.
+
+- **ONE POLYGON: THE AREA (G2910).** `layers.areas[] = { id, name?, poly, round?, rect?, props: { terraform, wheels,
+  draw, marks, exclude, cover }, src? }` - each property is the v1 entry it stands for (less id and poly), so nothing
+  is lost. `unwrap` MIGRATES (PREMISES_MIGRATORS[1]): every polygon entry not on a stage - terrain flatten / raise /
+  ramp, surface, material, exclude, ttype, clear zones - folds into one area per polygon (Jolene: 76 areas, the six
+  fixtures 22); a grade (a line), a sowing zone, a staged entry stay what they were. **compose EXPANDS the areas back**
+  (expandAreas: the source ids and their places in each layer from `src`, a new area's after every v1 entry), so a
+  migrated record composes to the very bits (GATE PREMISES 20, every fixture + Jolene + her parts, sample for sample:
+  the ground, the wheels, the excludes, the cover, the vegetation, the plots, the tree regions, the pavements; the
+  cooked premises unchanged - see PREMCOOK). `O.rec` is the expanded record, so the renderer, the life, the cook read
+  v1 as before. A v1 record still composes as it is; the editor folds any foldable entry it loads (foldAreas keeps
+  every layer's order). Every polygon TOOL now draws an area with its properties: the surface tool's gravel now also
+  DRAWS gravel (the user's "gravel that draws nothing"), apron = paved + concrete, the round pad an area, new tools in
+  the AREAS tab: an area (a sketch), a rectangle (rounded corners), concrete, parking, a dock, keep-clear.
+- **JOLENE'S GRAVEL BANDS** (y_sh13_0/1, y_sh02_0/1): there is no material beside them (the design assumed m_sh13) -
+  they are areas with gravel wheels and NO draw; the inspector says "it draws NOTHING ... add a DRAW". Not changed (the
+  user picks which bands should draw: one click, + add a property > draw).
+- **THE INSPECTOR (G2911).** The tabs stand on their own plate at the left of the sheet (premRail); a tab lights its
+  tools and its PALETTE DRAWER under them (the building catalogue, the objects' pickers, the model bank, FILE, VIEW,
+  LIFE); the right plate is the inspector of the selection whatever tab is lit - its head "SELECTED · AREA a12 · gravel
+  area ✕", nothing selected = the scenery's outline (every feature by kind, a click selects and frames it). An area
+  shows its size, perimeter, corners and box, what the wheels feel at its middle, WHAT IT DOES (one line per effect;
+  what it keeps out, including what its hard wheels keep out), the features it OVERLAPS (chips that select them), its
+  issues, then a section per property (TERRAFORM, WHEELS, DRAW, MARKS, EXCLUDE, COVER, each with its ✕) and "+ add a
+  property" (the defaults follow the draw: a pavement proposes its wheels; marks bring a concrete draw turned to the
+  long side). The SHAPE section has the round's radius and the rectangle's length, width, turn and corner radius.
+- **MARKS ON CONCRETE (G2912/G2913).** `marks: parking | dock | hatch` on a pavement draw - `areaMarks` lays them in the
+  pavement's own frame as the rectangles and rules the shader already reads (no shader change): parking = rows of bays
+  across an aisle, back to back (bay, depth, aisle, rows, white / yellow); dock = the quay's line on the edge whose
+  outside is water (compose measures it: waterEdges) and the bollard spots every 9 m; keep-clear = bars in the largest
+  box inside the shape. Every mark inside its shape by the inset (exact at rounded corners); they wear the pavement's
+  paint age (a slider in MARKS). The concrete is the pavement's (hex-tiled): GATE PAVEMENT 6 holds that its base never
+  repeats under 300 m (a CPU twin of pvTile, tied to the GLSL; a plain tiling, the negative control, repeats at 4.5 m).
+- **THE MODEL PLACER (G2914).** ASSETS tab: the prop registry's models (every pack that registers - the hangar's, the
+  pier kit, ASSETS-OCT's packs when they land; no key named anywhere) as THUMBNAILS (the game's renderer draws each
+  once into a 96 px target, one a frame, cached by its bin), group pills and a search; pick one and the GHOST follows
+  the cursor on the ground (R turns 15 degrees, Shift+R back, Alt + wheel scales, 'stand level'); a click drops ONE
+  `objects[]` prop record; SCATTER drops n within a radius, seeded, sizes spread, one undo. A dropped model is selected,
+  dragged, turned (R) and scaled like any prop - `s` on the prop record (new, optional; the renderer scales the placed
+  group, the instancer and the hitbox raster read its matrix).
+
+- **THE FLY CAMERA (G2915; the user via A0, 15:10: "the same controls as the world editor: WASD (or ZQSD, depending on
+  the layout), R and F for up and down, and camera speed").** The scenery editor's third camera is the world editor's
+  own free camera (DEV_CAM): keys by position (e.code - ZQSD on AZERTY), R / F, Shift x5, right-drag looks, the wheel
+  (or VIEW's 'camera speed') its speed; Tab cycles orbit / map / fly; framing a feature hands the eye back to the orbit;
+  a key typed in a field, Ctrl+S / Ctrl+Z stay the editor's (also in the flight's free camera now).
+- **THE MIRROR RECTANGLES OVER THE LAKES (G2916; the user via A0: "very strange MIRROR RECTANGLES hovering about a
+  meter above the water").** The GAME's, not the editor's: render_world's river ribbons (stage-1 water, the water's
+  own material) kept the hydrology's river level where a reach runs along or into a lake - segments hanging over the
+  lake's drawn surface. A segment with an end inside a drawn lake (or within 3 m of its edge) is now the lake's and
+  not drawn, as the sea takes a river mouth (G750). GATE LOOKS holds the rule.
+
+- **LONG ROADS (G2917; the user, 11 Oct: "a road with 250 points ... constant browser stuck window" - an island road,
+  "there will be more long roads"; their recorder log: 96 s, 79 s, 72 s frames on a slider's input, 71 s on a drag's
+  release, 67 s on 'back to flight').** The causes and what changed:
+  roadDist walked every segment of a road's drawn line (a 250-point spline: ~2 500) and EVERYTHING near a road asks it
+  (coverAt - the cover ring and the trees - surfaceAt per wheel, the plots, the poles, the life); a road was filed in the
+  cover index by its whole box (an island road: every cover cell of the island). Now an exact per-road segment grid
+  (the same minimum, bit for bit - GATE SCENERYED 9 against the walk) and long roads filed by their segments.
+  Every slider input event ran a WHOLE rebuild: a slider now writes the record at once and rebuilds once it rests
+  (200 ms). The island road's TRAFFIC (11 / km = 274 cars) was made again on every rebuild that touched the road, each
+  car rasterising its own hitbox: a road's traffic / rails / poles / life / name are no ground edit now, cars ride a
+  moved line where they are, one hitbox raster per car model, the car ahead found by order (it was every pair, every
+  frame), cars past the draw reach not posed. A drag's release rebuilt the island road's whole box (the patch - every
+  2 m chunk of its corridor - and the ground rings): an edit now rebuilds the SPAN that moved (six points either side)
+  through the patch's block rebuild (G2063's part build) and re-samples the ground there only. The drag's preview
+  moves a long line's handles in place and memoises the ground under its outline. 'Back to flight' rebuilt the whole
+  world to take the outlines off: it takes the editor's lines, handles and ghosts off and rebuilds nothing.
+  NOT DONE (next train): the road ribbons are still all rebuilt on every edit (their table rows and merges need a
+  per-piece cache with eyes on the GPU) - the island road's own ribbon is part of every edit's cost.
+- **THE EXTENT (G2919).** The user's record carried Jolene's frame.extent (x -5 180..10 506.9, z -16 114.8..1 400,
+  written once); their 24.9 km road runs 12.7 km past it (from point 116 of 244) - graded in the physics, but the game's
+  fine 2 m patch is built only inside the extent: past it the road lay under the coarse far ground ("the sinking seems
+  worse further away from the starting point"). An authored extent now grows over any feature outside it (falloffs
+  included); a record whose features all lie inside (Jolene's shipped one) keeps it exactly.
+- **A ROAD'S CLEARING (G2918; the user: "remove the trees and the grass from the road, maybe with a certain distance as
+  a parameter (can be zero)").** `clear` (metres past the paved edge; 0 = the road itself; unset = today's road; new
+  roads 2): no tree (excludeAt, exact by the road's distance) and no grass or bush (coverAt's kill) inside. Filed as
+  pieces (the line's runs through 200 m cells, keyed to the centimetre) so an edit regrows the trees under the pieces
+  it moved. The road inspector's 'clear trees & grass (m)'.
+- **THE ROAD BED (asked; NEXT TRAIN).** The user's sunk road near the start is the coarse far ground over a 4 m cut;
+  a bed with fill shoulders and the far ground's sink under the pavement need GPU eyes (stills, a timed check).
+
+Not built (named in the design): `draw: grass`, area `life`, a dock's deck over water, exclude bushes / grass.
+
+Gates (A0's CPU window RESULTS_LINE)
+
+What to watch for (no stills - the user's rule): the scenery editor's tabs are on their own plate at the LEFT, the
+right plate says what is selected and keeps it when a tab changes; FILE / VIEW / LIFE / the catalogues are in the
+drawer under the tools. Click a gravel band beside 13/31: it is an AREA that says it draws nothing - "+ add a property
+> draw" makes it gravel you can see. AREAS > parking (two corners) = concrete with weathered bays; AREAS > a dock on
+a shore = the yellow quay line along the water. Look for repetition on a big concrete area from 300 m (there should be
+none) and for marks off the concrete. ASSETS: the thumbnails fill in one a frame (a hitch while they render?), the
+ghost under the cursor, R and Alt + wheel. Existing saves load as areas (the WIP's next save writes v 2): Jolene and
+Metlakatla must look and fly exactly as before. The lakes: no grey rectangles along the shores; a river now ends at
+the lake's edge (watch for a dry last few metres of channel). The scenery editor: Tab to FLY, ZQSD / WASD, R / F.
