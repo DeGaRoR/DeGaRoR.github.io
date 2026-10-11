@@ -7568,7 +7568,8 @@
       v = genShakedown(def, { corners: false });
       if (key) {
         shakeMem.set(key, v);
-        try { const st = shakeStore(); if (st) { st.entries[key] = v; const ks = Object.keys(st.entries); while (ks.length > 8) delete st.entries[ks.shift()]; prefSet(SHAKE_KEY, JSON.stringify(st)); } } catch (e) {}
+        // (G2640: the stored copy carries the design check's rows + verdict only - its derivatives and modes doubled the memo)
+        try { const st = shakeStore(); if (st) { st.entries[key] = v && v.design ? Object.assign({}, v, { design: { verdict: v.design.verdict, rows: v.design.rows } }) : v; const ks = Object.keys(st.entries); while (ks.length > 8) delete st.entries[ks.shift()]; prefSet(SHAKE_KEY, JSON.stringify(st)); } } catch (e) {}
       }
     }
     return v;
