@@ -84437,3 +84437,40 @@ futureDesigns/SCENERY-POLYGON-2026-10.md.
 5. Nothing else of the island moves: the shipped roads have no junctions and no bed, their ground is today's.
 
 Gates (dev, Sun 11 Oct 20:30, box clean, no build): SCENERYED 103 PASS, PREMISES 552 PASS (the flight world loaded). The window's run (Mon 06:30-07:10: build, re-cook, targeted gates): WINDOW_LINE
+
+## G3000 - PLACER-FAST: AN OBJECT'S EDIT IS THAT OBJECT'S, A ROAD IS DRAWN AGAIN ONLY WHEN IT CHANGED (2026-10-12, SCENERY-ED-2 for A0, local; branch claude/placer-fast-g3000 off claude/road-graph-g2950; G3001 the object's own edit, G3002 the roads kept; G3003-G3009 unused)
+
+The user (11 Oct ~21:10, on Pages 60779e3b3675): "adding assets in the editor is a bit of a pain, really, really long to
+move, update, rotate." THE CAUSE (read from the code): the drag itself was light (the preview carries the built group),
+but its release, every R press, every inspector slider's pause and every number ran the WHOLE rebuild for a placed
+object - the record composed again, then EVERY road's pavement sampled again on the ground (the island road r1's 25 km
+at a 3 m step), its power line (730 poles), its rails, the runways, the lots, the houses' sync, the trees, the freeze -
+for an object nothing earlier in the composition reads.
+- **THE OBJECT'S OWN EDIT (G3001).** premises_ui: a command whose every entry is a placed prop, billboard, tree or
+  animal (its drop, its drag's release, a turn, a scale, a number, its undo / redo, a slider's pause) calls
+  `R.objectEdit([{ layer, before, after }])`: render_premises remakes that object's composed record as the composer does
+  (records.objects / trees / animals, y on the composed ground), takes its group down and builds it at once
+  (syncHouses: only the changed seed), the trees or the herds re-stood when it is one of theirs, the world's record kept
+  in step - no composition, no road, no ground. An aeroplane is not (the strips' way out clears it); a command with
+  anything else rebuilds as before; `?placerfast=0` turns it off. Autosave was already coalesced (1 s).
+- **THE ROADS KEPT (G3002).** Every other edit still rebuilds, but in the editor a road whose `PG.roadBuildKeys` key is
+  unchanged and whose box no ground edit touched keeps its pavement part (merged again), its power line and its rail.
+  The key: the road (composed and recorded), the record's pavement and theme, the strips, and the other roads, plots
+  and paved polygons NEAR it (what its poles and rails keep clear of). A road's own change (its traffic, its look), a
+  pavement laid by it, a ground edit over it, a road taken away or added - each draws the roads concerned again (GATE
+  SCENERYED 14d, a row each). A kept road's pavement table ROW stays its own: merging made it the merged geometry's, so
+  it is taken out of that list before the merged mesh is given back. A whole rebuild, the pavement's A/B, the game out
+  of the editor start over; `?pavcache=0` builds every road as before.
+- **A PROP'S SCALE (found on the way).** The placer's `s` never reached the composed record the prop is built from: a
+  scaled prop stood at x1 after the first rebuild. Now on `records.objects[].s` (only when not 1: every shipped object
+  byte for byte) and in the object's seed (contract v1.38).
+- **GATE SCENERYED 14** (125 checks): a drop, a release, a turn + scale, an undo: the object alone, no rebuild; a
+  renderer that cannot, an aeroplane, a road's edit: rebuilt; the scale on the record; the roads' keys row by row; the
+  times headless (an object's release 0.1 ms through the editor vs 15 ms with a rebuild's composition; the keys 6 ms
+  for 77 roads).
+- **THE PAGE'S NUMBERS (before / after, the user's file with r1):** RELEASE_LINE
+
+**What to watch for (the user):** drag a placed model, let go: it stands at once where you left it, no pause; R turns
+it at once; the scale slider holds (it was lost before). Change a road's traffic: the island does not stall while the
+other roads are drawn again. If anything looks stale (a road not following an edit), say which edit: `?pavcache=0` and
+`?placerfast=0` are the A/B.

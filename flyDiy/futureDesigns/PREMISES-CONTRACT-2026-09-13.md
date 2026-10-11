@@ -1041,3 +1041,10 @@ after the freeze, against this document.
   review lists them). Held by GATE SCENERYED 11 (the user's own island road r1 bit for bit through a snap, a
   junction's drag, Alt, a connection point, an apron, the bed on and off) and GATE PREMISES 21 (the router, the
   junction's level, the bed, Metlakatla's grid, its plots).
+- **v1.38 (2026-10-12, PLACER-FAST G3000-G3002).** A placed prop's `s` (v1.36, the model placer's scale) is on its
+  composed record (`records.objects[].s`, only when it is not 1 - `objScale`): the renderer builds the prop from that
+  record, and the scale had been dropped there (a placed prop stood at x1 after the first rebuild). `roadBuildKeys(O)`
+  -> Map(road id -> key) and `roadBoxTouch(rd, box, pad)`: a road's drawn things (its pavement row, power line,
+  guardrail) are a function of the road (composed and recorded), the record's pavement settings and theme, the strips,
+  and the other roads, plots and paved polygons near it - the renderer's editor keeps a road whose key is unchanged and
+  whose box no ground edit touched. Nothing else of the record or the composition changes.
