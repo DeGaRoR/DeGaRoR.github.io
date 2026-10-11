@@ -109,8 +109,13 @@ function bakeHydrology(sample, cfg) {
   // neighbour scan (kills axis bias without nondeterminism); flats drain
   // toward the earliest-flooded equal neighbour (guaranteed outlet path).
   const h32 = k => { let h = (Math.imul(k, 2654435761)) | 0; h = Math.imul(h ^ (h >>> 13), 0x5bd1e995); return (h ^ (h >>> 15)) >>> 0; };
+  // RIVERS OFF (G2990, cfg.rivers === false): the flow and the accumulation below feed the reaches alone (and the grids
+  // the analytic world's settlements score on) - skipped, every cell its own outlet with an area of one cell; the
+  // flood above, the lakes, the carve, the water and the distance to water are what they would be with rivers traced
+  // under an A0 nothing reaches
+  const RIV = cfg.rivers !== false;
   const flow = new Int32Array(M).fill(-1); // -1 = domain outlet
-  for (let k = 0; k < M; k++) {
+  if (RIV) for (let k = 0; k < M; k++) {
     const cix = k % N, ciz = (k / N) | 0;
     if (cix === 0 || ciz === 0 || cix === N - 1 || ciz === N - 1) continue;
     let best = -1, bestSlope = 0;
@@ -133,12 +138,12 @@ function bakeHydrology(sample, cfg) {
 
   // ---- accumulation: upstream-first order = (filled desc, popOrder desc)
   // (in flats downstream cells were flooded earlier, so later pop = upstream)
-  const idxs = new Int32Array(M);
-  for (let k = 0; k < M; k++) idxs[k] = k;
+  const idxs = new Int32Array(RIV ? M : 0);
+  for (let k = 0; k < idxs.length; k++) idxs[k] = k;
   idxs.sort((a, b) => (filled[b] - filled[a]) || (popOrder[b] - popOrder[a]));
   const acc = new Float64Array(M).fill(1);
   let maxAcc = 0;
-  for (let i = 0; i < M; i++) {
+  for (let i = 0; i < idxs.length; i++) {
     const k = idxs[i], f = flow[k];
     if (f >= 0 && !sea[k]) acc[f] += acc[k];
     if (!sea[k] && acc[k] > maxAcc) maxAcc = acc[k];
