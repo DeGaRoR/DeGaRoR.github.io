@@ -199,3 +199,9 @@ round the island in 3-5 km sections.)
   migrator (Jolene: the taxiways' ends onto the strips stay the junction extension's; roads onto roads become joins).
 - **Gates**: the graph connected on Jolene and on the user's file (one component per authored network, named), a snap
   round-trips through save / load, a T-join's grade continuous to 2 cm, `path` between two far nodes follows the roads.
+- **Metlakatla in the graph** (the user: "queue reviewing Metlakatla for a graph. This should also integrate with the
+  road I just traced"): the town's streets (its `mk_` roads, cut from the boot by the town switch, kept in the record)
+  join the same graph - its junctions real nodes. FIRST a review list (what is disconnected, overlapping, mis-joined,
+  dead-ended, with coordinates), THEN the fixes; the town's entry roads JOINED to the user's island road r1 and the rest
+  of Jolene's network, so a car drives from the airfield into Metlakatla. Gates as above plus: the graph connected with
+  Metlakatla in (the town switch on), and `path` from the airfield's stand to Metlakatla's centre.
