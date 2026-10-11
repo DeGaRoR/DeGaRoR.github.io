@@ -265,9 +265,36 @@ if crop.get('keep') or crop.get('pad') is not None:
         keep_boxes = [(min(xs), max(xs), min(ys), max(ys))]
     aprons = crop.get('apron') or [(x0 - crop.get('pad', 0), x1 + crop.get('pad', 0),
                                     y0 - crop.get('pad', 0), y1 + crop.get('pad', 0)) for x0, x1, y0, y1 in keep_boxes]
+    # VEGETATION (`veg`): a scan's shrubs and trees are melted blobs at any distance, and our own grass
+    # and trees do them better. A face standing clear of the ground (not terrain) whose PHOTO is green
+    # (its texel at the face's uv centre: g over r by 12 % and over b by 8 %, and not dark) goes. The
+    # building's blue cladding, its rust and its grey roofs are never green; moss on a wall is
+    # (rarely) lost with it.
+    veg = set()
+    if crop.get('veg'):
+        import numpy as np
+        imgs = {}
+        for mi, m in enumerate(hi.data.materials):
+            im = next((n.image for n in m.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image
+                       and n.image.colorspace_settings.name != 'Non-Color'), None)
+            if im is not None:
+                imgs[mi] = (np.array(im.pixels[:], dtype=np.float32).reshape(im.size[1], im.size[0], 4), im.size)
+        uvl0 = bm.loops.layers.uv.active
+        for f in bm.faces:
+            if f.index in terrain or f.material_index not in imgs or uvl0 is None:
+                continue
+            px_, (w_, h_) = imgs[f.material_index]
+            u = sum(l[uvl0].uv.x for l in f.loops) / len(f.loops)
+            v = sum(l[uvl0].uv.y for l in f.loops) / len(f.loops)
+            r_, g_, b_ = px_[int(v * h_) % h_, int(u * w_) % w_, :3]
+            if g_ > 1.12 * r_ and g_ > 1.08 * b_ and g_ > 0.06:
+                veg.add(f.index)
     gone = []
     for f in bm.faces:
         c = f.calc_center_median()
+        if f.index in veg:
+            gone.append(f)
+            continue
         if all(v.co.z < ground_of(v.co) + 0.02 for v in f.verts) and f.normal.z < 0.5:
             gone.append(f)          # the slab's underside and its sides: under our ground
         elif f.index in terrain:
@@ -294,11 +321,19 @@ if crop.get('keep') or crop.get('pad') is not None:
                 for h in e.link_faces:
                     if h.index not in seen:
                         seen.add(h.index); st.append(h)
-        if sum(g.calc_area() for g in mem) < 0.5 and ROUTE == 'scan' and SCALE * max(
-                (max(v.co[k] for g in mem for v in g.verts) - min(v.co[k] for g in mem for v in g.verts)) for k in range(3)) < 1.0:
+        # (with `veg` the shrubs' cut leaves specks: under 1.5 m2 and 2 m across they go too)
+        if sum(g.calc_area() for g in mem) < (1.5 if crop.get('veg') else 0.5) and ROUTE == 'scan' and SCALE * max(
+                (max(v.co[k] for g in mem for v in g.verts) - min(v.co[k] for g in mem for v in g.verts)) for k in range(3)) < (2.0 if crop.get('veg') else 1.0):
             small += mem
     bmesh.ops.delete(bm, geom=list(set(small)), context='FACES')
-    log('crop: %d faces dropped (%d terrain faces found), %d in loose chips' % (cropped, len(terrain), len(set(small))))
+    log('crop: %d faces dropped (%d terrain faces found, %d vegetation), %d in loose chips'
+        % (cropped, len(terrain), len(veg), len(set(small))))
+    if os.environ.get('SCENERY_CROP_ONLY'):      # a crop check: the cropped source, exported raw, and out
+        bm.to_mesh(hi.data); hi.data.update()
+        select_only(hi)
+        bpy.ops.export_scene.gltf(filepath=os.environ['SCENERY_CROP_ONLY'], export_format='GLB', use_selection=True)
+        log('crop only ->', os.environ['SCENERY_CROP_ONLY'])
+        raise SystemExit(0)
 xs = [v.co.x for v in bm.verts]; ys = [v.co.y for v in bm.verts]; zs = [v.co.z for v in bm.verts]
 # z 0: a scan's own ground (the median of its kept terrain) when it has one - the model
 # then stands on our ground the way it stood on its own; else the lowest point

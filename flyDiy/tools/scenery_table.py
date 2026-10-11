@@ -61,13 +61,14 @@ PROPS = [
     P('heating_plant', 'landmark', 'abandoned heating plant',
       'abandoned_heating_plant_-_scan.glb',
       'Photoscan, 1.2 M tris on ONE 1024 map. The blue-clad boiler house, its chimney stack and the '
-      'coal conveyor; the 74 x 46 m scanned site cut back to them + a 3 m apron (scanned shrubs and '
-      'far terrain dropped - our ground, grass and trees do them better), the cut edge skirted down.',
+      'coal conveyor; the 74 x 46 m scanned site cut back to them (the far terrain dropped, and every green '
+      'face - the scanned shrubs, trees and the grass apron: our ground, grass and trees do them better), '
+      'the cut edge skirted 0.6 m down into our ground.',
       C('Abandoned Heating Plant - Scan', 'illusoXR', 'illusoXR',
         'abandoned-heating-plant-scan-67ce905f1f9643ff8c5b31424467e9ec'),
       dict(route='scan', target=60000, size=2048, tol=0.05, scale=1.0,
-           crop=dict(keep=[(-34, -2, -15, 16), (-4, 8, -13, -3), (-4, 35, -3, 3), (14, 25, -10, -4)],
-                     apron=[(-35, -1, -16, 17), (-5, 9, -14, -2)])),
+           crop=dict(keep=[(-33, -22, -14, 15), (-24, -3, -14, 2.5), (-4, 8, -13, -3), (-4, 35, -3, 3), (14, 25, -10, -4)],
+                     apron=[(-35, -1, -16, 17), (-5, 9, -14, -2)], veg=True)),
       height=None),
     P('bunker', 'landmark', 'WW2 cliff-top bunker', 'devils_slide_bunker_-_pacifica_ca.glb',
       'Photoscan of the Devil\'s Slide fire-control bunker on its rock mound (the mound kept: it is '
