@@ -600,8 +600,7 @@
   }
 
   // ---- what shows at which level ---------------------------------------------------
-  // G2228: + `inner`, an inside-only shell (the cowl's inside twin): never in a baked rung, the far cut or the cook
-  const isInterior = m => !!(m && (m.inside || m.inner || m.char || m.panel || m.lamp || m.lampCup));
+  const isInterior = m => !!(m && (m.inside || m.char || m.panel || m.lamp || m.lampCup));
   const PART_L1 = p => !(p.kind === 'gauge' || p.kind === 'ctlMove' || p.kind === 'ctlLink' || p.kind === 'wire');
   const isClear = m => !!(m && (m.fin === 'glass' || (m.opacity != null && m.opacity < 1)));
 

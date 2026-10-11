@@ -84988,29 +84988,3 @@ window's end): MAP_SMOKE and SAVE not run; PROCURE exited 0 with no verdict line
 no evidence screenshots) - the framing fix is proven by its arithmetic and the gates, not by a picture.
 
 READY for the GAME COORDINATOR: claude/works-club-g2319 c33bad98 (this section rides one docs commit on top)
-
-## G2228 - FLEET-PROPS B: THE COWL'S INSIDE TWIN NEVER REACHES A BAKE (the user: "there is clipping of the cowl. The cowl has an interior mesh, dark. You can get rid of it for baked planes") (2026-10-11, FLEET-PROPS B for A0 / the GAME COORDINATOR; branch claude/fleet-cowlbake-g2228 off origin/claude/game-t44-1 8040b719)
-
-- WHAT: every cowl skin mesh has a TWIN 1.5 mm inside it in a near-black BackSide material (G243.1/.3: the inside seen
-  through a gap). In a bake (materials rebuilt two-sided) it fought the skin: patchy dark on the baked nose.
-- THE FIX, three steps: the cowl flags the BACK twin's material (`aeroInner`; the two-sided lining - the throats, the
-  fold's return, the inner lofts - is seen through the inlets and stays); the join carries it (`inner: 1`) AND gives it
-  its OWN BUCKET ('I' in the colour key: the twin wears exactly its lining's colour, and merged into the lining's bucket
-  the flag was lost - the 13:55 slot's 11b counted 0); parked.js `isInterior` counts `inner`, so every baked rung, the far
-  cut, the parked cook (cookPack -> bakeData: it inherits it at the 44.1 re-cook) and the fleet leave it out. The flown
-  aeroplane's own bake (flown_bake.js) is untouched.
-- GATE PARKED 11b (the page in node, a real capture of arch:c172 under the metal Cessna): the inside twins cross the
-  snapshot FLAGGED (counted, > 0 triangles); none in the far cut, the L1 / bake selection skips every one; the
-  SILHOUETTE: the exterior's projected area on three planes (2 cm cells) with / without them within 0.1 %; DOCTORED: the
-  flag stripped puts them back in the cut and the row counts them. + a headless row (4: `inner` is interior).
-- RUNS (11 Oct 13:55-14:05, take cpu FLEETB, on af5f660e = before the bucket fix): PARKED FAIL on 11b - 0 inside-only
-  buckets (that is how the merged bucket was found; the silhouette rows read x 10 847 / 10 847, y 58 300 / 58 300,
-  z 23 234 / 23 234 cells); INSTANT --fleet-baked PASS. THE BUCKET FIX (79a36b43) IS NOT RE-RUN on the box (no CPU before
-  15:00): PARKED (with 11b) + JOINPARITY are the coordinator's 15:35 pass. (No JOINPARITY gate exists on game-t44-1 /
-  game-integration / master: the JOIN-PARITY branch was reverted from train 38 - the pass must name what it runs.)
-- COLLISIONS: _cage_join.js merges clean with DESIGN-TRUST (origin/claude/design-trust-g2640 4db68051: its hunks at
-  559-1661, mine at the bucket key ~2183 and the material record ~2280); the trial merge's only conflicts are HANDOVER.md
-  and 90_node_exports.js, from the two bases (not this branch's files).
-- The bucket key only moves for an inside-only material: a build's other buckets keep their keys.
-
-READY for the GAME COORDINATOR: claude/fleet-cowlbake-g2228 79a36b43 (11b proven only by the 15:35 pass; this section rides one docs-only commit on top)
