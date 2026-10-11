@@ -5405,6 +5405,9 @@ syncSliders();
 window.CAGE_UI = { P, build, repaint, draw, applyPreset, syncSliders, republish /* G2227 */, reg: () => decReg(),   // G318: the tape reads it
   preview: PREVIEW,                      // G1442: the drag previews (n, the last plan)
   release: RELEASE_INFO,                 // G1451: the releases (n run partially, whole, the last one's plan)
+  // G2920 (GARAGE-SHEET): a hand on a slider, or its settle build still owed - the performance sheet's thread is asked
+  // for the aeroplane the drag ends on, not for each tick (app.js sheetAsk, sheet_link.js held)
+  dragging: () => !!(DRAG_ON || DRAG_T || DRAG_LATE),
   // THE TWO HALVES OF A LOAD (G63). `applySpec` puts a build into the editor;
   // `toSpec` takes the editor's whole parameter set out as the spec's `cage`
   // fragment — layer keys included, view keys excluded. Every shelf load,

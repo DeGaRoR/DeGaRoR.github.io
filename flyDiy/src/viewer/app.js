@@ -8999,12 +8999,14 @@
     if (v === undefined && key) { const st = shakeStore(); if (st && st.entries[key]) { v = st.entries[key]; shakeMem.set(key, v); } }
     if (v === undefined) {
       v = genShakedown(def, { corners: false });
-      if (key) {
-        shakeMem.set(key, v);
-        try { const st = shakeStore(); if (st) { st.entries[key] = v; const ks = Object.keys(st.entries); while (ks.length > 8) delete st.entries[ks.shift()]; prefSet(SHAKE_KEY, JSON.stringify(st)); } } catch (e) {}
-      }
+      if (key) { shakeKeep(key, v); try { if (SHEET) SHEET.cancel('stand', key); } catch (e) {} }   // G2920: known now - its thread stops
     }
     return v;
+  }
+  // a sheet into the memo and the core's store (the page's own run, or the thread's answer - the same value)
+  function shakeKeep(key, v) {
+    shakeMem.set(key, v);
+    try { const st = shakeStore(); if (st) { st.entries[key] = v; const ks = Object.keys(st.entries); while (ks.length > 8) delete st.entries[ks.shift()]; prefSet(SHAKE_KEY, JSON.stringify(st)); } } catch (e) {}
   }
   const shakeOf = () => {
     if (curKey !== 'gen') return null;
@@ -9039,8 +9041,61 @@
     const st = shakeStore();
     return !!(st && st.entries[key]);
   }
+  // G2920 (GARAGE-SHEET): ...AND THE SHEET ITSELF IS COMPUTED ON ITS OWN THREAD (sheet_link.js; bench_worker.js's
+  // 'sheet' job: the same buildGen + genShakedown on the same spec, from the core bundle this page inlines, asked by its
+  // sha). The stand's request waits for the hand to leave the slider and 250 ms of quiet (a drag asks once), one is
+  // computed at a time, and a newer aeroplane stops the older one's thread. The answer is believed only for the def it
+  // was asked for (the key) and only when the thread's def has this def's signature (BENCH_WORKER.sheetSig: a stale
+  // core is caught, the link killed); then it is kept exactly as the page's own run would be (shakeKeep) and the
+  // readouts that stepped down re-read it. No thread (file://, the node page - the gates' path), a thread that fails,
+  // or `?sheetw=0`: the post-idle run on the page below, as before.
+  const SHEET = (() => {
+    try {
+      if (/[?&]sheetw=0(&|$)/.test(location.search || '')) return null;
+      if (typeof makeSheetLink !== 'function' || !window.BENCH_WORKER || typeof window.BENCH_WORKER.start !== 'function') return null;
+      return makeSheetLink({
+        start: (onMsg, onErr) => window.BENCH_WORKER.start(onMsg, onErr, { versioned: true }),
+        held: () => { const U = window.CAGE_UI; return !!(U && typeof U.dragging === 'function' && U.dragging()); },
+        settleMs: 250, now: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
+      });
+    } catch (e) { return null; }
+  })();
+  if (typeof window !== 'undefined') window.SHEET_LINK = SHEET;
+  const shakeKeyOf = d => { try { return d && d.spec ? shakeHash(JSON.stringify(d.spec)) : null; } catch (e) { return null; } };
+  // the stand's sheet asked of the thread: true when the link took it
+  function sheetAsk() {
+    if (!SHEET || SHEET.dead || curKey !== 'gen' || !def || !genSpec) return false;
+    const d = def, key = shakeKeyOf(d);
+    if (!key) return false;
+    return SHEET.request('stand', { key, spec: genSpec, opts: { corners: false },
+      on: (sh, r) => sheetLand(d, key, sh, r),
+      fail: () => { if (def === d && !shakeKnown()) shakeSoonPage(); } });
+  }
+  function sheetLand(d, key, sh, r) {
+    const BW = window.BENCH_WORKER, sig = BW && BW.sheetSig ? BW.sheetSig(d) : null, ws = r && r.sig;
+    if (!sig || !ws || sig.nn !== ws.nn || sig.nb !== ws.nb || sig.m !== ws.m || sig.x !== ws.x || sig.y !== ws.y) {
+      console.warn('performance sheet: the thread built another aeroplane (a stale core?) - computing on the page');
+      SHEET.kill('the thread built another def than the page');  // (every waiting job fails over to the page)
+      if (def === d && !shakeKnown()) shakeSoonPage();            // ...and this one too
+      return;
+    }
+    shakeKeep(key, sh);
+    if (def === d && shakeFor !== d) { shakeFor = d; shakeVal = sh; }
+    sheetReread(d);
+  }
+  // the readouts that stepped down for this def take the sheet now
+  function sheetReread(d) {
+    if (!inGarage || curKey !== 'gen' || def !== d) return;
+    try { flRender(); } catch (e) {}
+    try { drawPlaque(); } catch (e) {}
+    try { if (indStale) buildIndicators(); } catch (e) {}
+  }
   let shakeSoonT = null, shakeSoonI = null;
   function shakeSoon() {
+    if (sheetAsk()) return;
+    shakeSoonPage();
+  }
+  function shakeSoonPage() {
     if (shakeSoonT) clearTimeout(shakeSoonT);
     if (shakeSoonI && typeof cancelIdleCallback === 'function') cancelIdleCallback(shakeSoonI);
     shakeSoonI = null;
@@ -9052,6 +9107,7 @@
         try { shakeOf(); } catch (e) {}
         try { flRender(); } catch (e) {}
         try { drawPlaque(); } catch (e) {}
+        try { if (indStale) buildIndicators(); } catch (e) {}
       };
       if (typeof requestIdleCallback === 'function') shakeSoonI = requestIdleCallback(go, { timeout: 2000 });
       else go();
@@ -9214,16 +9270,30 @@
   // Every editor rebuild takes it away again (BENCH_DIRTY), which is the load
   // test's own "a changed spec loses its certificate" ruling generalised.
   let plaqueLive = false;
+  // G2920: the plaque has numbers up (a sheet drawn since it last went down)
+  let pqShown = false;
   function drawPlaque() {
     const box = $('plaque');
     if (!box) return;                              // core-only build
     const on = plaqueLive && curKey === 'gen' && inGarage;
     box.classList.toggle('on', on);
-    if (!on) return;
+    if (!on) { pqShown = false; box.classList.remove('stale'); return; }
     let s = null;
-    if (shakeDeferred()) { box.classList.remove('on'); return; }   // G1302: the numbers come post-idle
+    if (shakeDeferred()) {                         // G1302: the numbers come post-idle (G2920: off the page's thread)
+      // G2920: the numbers up stay, dimmed and the verdict saying so, until this aeroplane's sheet lands - no blank
+      // plaque, and no number shown as this aeroplane's that is not
+      if (pqShown && SHEET && !SHEET.dead) {
+        box.classList.add('stale');
+        const v = $('pqVerdict');
+        if (v) { v.className = ''; v.textContent = 'UPDATING — these numbers are the last build’s'; }
+        return;
+      }
+      box.classList.remove('on'); pqShown = false; return;
+    }
+    box.classList.remove('stale');
     try { s = shakeOf(); } catch (e) {}
-    if (!s) { box.classList.remove('on'); return; }
+    if (!s) { box.classList.remove('on'); pqShown = false; return; }
+    pqShown = true;
     const n1 = (v, d) => (v == null || !isFinite(v)) ? '—' : v.toFixed(d);
     $('pqName').textContent = (def.params && def.params.name) || '';
     // THE VERDICT is the generator's own flyableCircuit, and when it says
@@ -9548,6 +9618,17 @@
   // they are right even while `sim` is the previous roll-out. Cleared when
   // `def` is rebuilt; until the next answer the posts fall back to `sim`.
   let LAST_BAL = null;
+  // G2920 (GARAGE-SHEET): THE POSTS NEVER RUN THE SHEET ON THE PAGE. A new aeroplane on the stand (GARAGE_SPEC.update ->
+  // apply clears LAST_BAL -> enterGarage -> buildIndicators) read its posts off shakeOf() until the balance job
+  // answered: genShakedown inside the change's own task (the metal Cessna ~1 s; the Deform coordinator's --prof, 11 Oct).
+  // With the sheet's thread up, a def whose sheet is not known yet keeps the posts that stand (the last aeroplane's,
+  // their labels dimmed: 'updating', never a number presented as this aeroplane's) and asks the thread; the balance
+  // job's answer or the sheet's rebuilds them. Without the thread (the node page, file://): the page's run, as before.
+  let indStale = false;
+  function indicatorsStale() {
+    indStale = true;
+    for (const l of gLabels) { if (l.material) { l.material.opacity = 0.4; l.material.needsUpdate = true; } }
+  }
   function refreshIndicators(b) {
     if (!b || !isFinite(b.cgX) || !isFinite(b.npX) || !isFinite(b.gearX)) return;
     LAST_BAL = b;
@@ -9610,6 +9691,15 @@
     if (d) gGrp.position.set(d[0], d[1], d[2]);
   }
   function buildIndicators() {
+    // G2920: nothing to draw this aeroplane's posts from yet - the standing ones stay, dimmed, until an answer lands
+    // (sheetAsk last: it is the thread's request, false where there is none - the node page - and the page's run below)
+    if (SHEET && !SHEET.dead && inGarage && curKey === 'gen' && def && def.parts &&
+        !(LAST_BAL && def.parts.GAL != null && def.parts.GAR != null) && !shakeKnown() && sheetAsk()) {
+      indicatorsStale();
+      if (gInd || gLabels.length) placeIndicators();
+      return;
+    }
+    indStale = false;
     if (gInd) { gGrp.remove(gInd); gInd.geometry.dispose(); gInd = null; }
     // G1027: THE LABELS' OLD MATERIALS GO ONE BUILD LATE. Disposed at once, the last label sprite released the sprite
     // program and the new labels linked it again on the next frame - a synchronous link on every refresh (a slider's

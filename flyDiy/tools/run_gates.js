@@ -584,6 +584,12 @@ const GATES = [
   // the fetch path and the Blob's glue; the transport, the pose age and the dilation printed; G1365: the page's freeze
   // HOLDS the flight (60 s on a fake clock, 1.5 s on the real thread) and it goes on from there; ~60 s
   { id: 'SIMWORKER', file: '_simworker_check.js', tier: 'core', wall: 70 },
+  // G2920 (GARAGE-SHEET): the performance sheet (genShakedown) on bench_worker.js's thread - the Blob's source in a real
+  // thread answers the main thread's sheet TO THE BIT for the validated five + the metal Cessna + two synthetic builds
+  // (and the design strip's ledger sheet); sheet_link.js on a fake clock (a 10-tick drag runs ONE sheet, a newer
+  // aeroplane terminates the computing thread, dead links fall back to the page); app.js never runs the sheet in a
+  // rebuild while the thread is up. --browser --udd <dir>: the same parity in Chrome (the box). ~1-2 min
+  { id: 'SHEETWORKER', file: '_sheetworker_check.js', tier: 'core', wall: 150 },
   // G1530 (POSE-BACK; the user at ~2 fps: "as soon as it took off ... it went a little backward over a frame"): the drawn
   // pose through a take-off at a simulated 2 / 5 / 10 / 30 fps (steady, late, ragged pages, a CPU-starved worker) - the
   // worker's view against sim_host's own clock on a fake wall clock, and the inline PACE + POSE_LERP lifted from app.js,
