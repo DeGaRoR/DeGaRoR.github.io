@@ -2966,6 +2966,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // down to the sea. The sea's own surface takes the mouth; the carved bed shows on the beach. 22 of 846
           // cross-sections on Jolene, every one at a mouth.
           if (coastOf && (coastOf(spts[i][0], spts[i][1]) < 20 || coastOf(spts[i + 1][0], spts[i + 1][1]) < 20)) continue;
+          // ...AND WHERE IT RUNS INTO A LAKE, THE LAKE'S (G2916, the user 11 Oct: "very strange MIRROR RECTANGLES hovering
+          // about a meter above the water"): a reach that runs along or into a lake keeps the hydrology's river level, which
+          // stands over the lake's drawn surface - its segments hung over the lake in the water's own material, a row of
+          // floating mirrors along the shore. A segment with an end inside a DRAWN lake (or within 3 m of its edge, the
+          // lake's own fade) is not drawn: the lake's surface takes the water there, as the sea takes a mouth.
+          if (lakeR && (lakeRsd(spts[i][0], spts[i][1]) > -3 || lakeRsd(spts[i + 1][0], spts[i + 1][1]) > -3)) continue;
           const a = base + i * 2;
           idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
         }

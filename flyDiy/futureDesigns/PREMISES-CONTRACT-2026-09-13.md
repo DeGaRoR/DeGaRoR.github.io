@@ -975,3 +975,30 @@ after the freeze, against this document.
   not lifted by the trees' variant, each land strip's generic or own clearing) as `{ k, x0, z0, x1, z1 }` in world
   metres - the renderer's tree streamer diffs two compositions' lists and regrows only the chunks under a changed one.
   Held by GATE PREMISES 19 and GATE SCENERYED (the editor's hand); GATE VILLAGE 10d (the lot at the shore).
+- **v1.36 (2026-10-11, SCENERY-ED-2 G2910-G2914; record v2; futureDesigns/SCENERY-POLYGON-2026-10.md).** ONE polygon,
+  its effects attached. The record's `v` is **2**; a new layer **`areas`**:
+  `{ id, name?, poly, round?: { c, r, n? }, rect?: { c: [x, z], hw, hd, yaw, radius }, props: { terraform?, wheels?,
+  draw?, marks?, exclude?, cover? }, src?: { <layer>: [id, index] } }`. Each property is the v1 entry it stands for,
+  less its id and poly: `terraform` a terrain modifier (flatten / raise / ramp - a grade stays a terrain line),
+  `wheels` a surface entry (`surface`, `z`, `apron`, ...), `draw` a material entry (a `set`, or a pavement `look` with
+  `band`, `pav`, `yaw`, `stands`), `exclude` an exclude entry (`what`: trees / plots / settle / rocks; `zone` = a clear
+  zone's own fields when it came from one), `cover` a ttype entry (`code`, `from`, `clear`, `cover`, `veg`).
+  `marks: { kind: 'parking' | 'dock' | 'hatch', colour: 'white' | 'yellow', inset, ... }` (parking: `bay`, `depth`,
+  `aisle`, `rows`; dock: `bollard`, `line`, `edge`; hatch: `pitch`, `bar`) is weathered paint on a pavement draw, laid
+  in the pavement's frame (`draw.yaw`) by `areaMarks` and worn by its `pav.paintAge`; a dock's line goes on the edge
+  whose outside is water (compose measures it: `pavePolys[].waterEdges`). `normalise` writes a round's or a rectangle's
+  `poly` and gives every area its `props`.
+  **Composition**: `expandAreas(rec)` turns each area back into its v1 entries - ids from `src` (a migrated area's
+  sources), else `<area id>~t | ~w | ~d | ~x | ~c`; each at its source's place in its layer (`src` index), a new one
+  after every v1 entry in the areas' order; a round's `round` rides on its draw only when the area names no wheels -
+  and compose, `issues` and `checks` read that record (`O.rec` is it). Nothing past compose knows areas exist.
+  **Migration** (`PREMISES_MIGRATORS[1]`, run by `unwrap`): every polygon entry of terrain (flatten / raise / ramp),
+  surface, material, exclude, ttype and zones (`clear` only) that carries no `stage` folds into an area, the same
+  `poly` exactly into one area (one entry of a layer each); the area takes its surface's id, else its draw's, else its
+  first source's (a place's prefix rides on it: `dropPlaces` cuts it). `foldAreas(rec)` does the same to a record
+  that already has areas (the editor's load of a hand edit), pinning every area entry's place first so every layer
+  keeps its order. A v1 record still composes as it is (compose does not migrate). The prop object (`objects[]` kind
+  `prop`) may carry **`s`** (a scale, 0.25 to 4; absent = 1) - the model placer's. Held by GATE PREMISES 20 (the
+  migration round trip on every fixture, Jolene and her parts; the same world sample for sample; the places; the
+  order; the shapes; the marks inside their shapes), GATE SCENERYED 6-8 (the editor), GATE PAVEMENT 6 (the concrete's
+  hex tiling never repeats under 300 m).

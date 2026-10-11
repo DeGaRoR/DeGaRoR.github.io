@@ -164,7 +164,7 @@ ok(ia.all.length > 100 && JSON.stringify(ia.all) === JSON.stringify(ib.all) && r
 // 7 THE COUNT TRUNCATION (GRASS-DENSE G2561): a block's tufts are ordered by their fade threshold and only the prefix its nearest
 // point can show is submitted - every instance left out is one the vertex shader collapses (its _fg <= 0 from where the eye is),
 // so the picture is the same to the pixel; and the order is a permutation (the same instances as with trunc off)
-const fadeCheck = (W, set, sizeK, href) => {   // -> { meshes, cut (instances left out), bad (left out but would draw) }
+const fadeCheck = (W, set, sizeK, href, smax) => {   // (smax: the size fade's ceiling, the set's own - G2567 made it a dial)   // -> { meshes, cut (instances left out), bad (left out but would draw) }
   const L = W.ctx.TREE_LEAF, [near, reach, taper, agl] = L.fade(undefined, undefined, undefined, undefined, set), band = L.grow(null, null, null)[1], e = W.camera.position;
   let meshes = 0, cut = 0, bad = 0;
   W.CR.root.traverse(o => { if (!o.isInstancedMesh || o.userData.coverKind !== 'cover' || !o.userData.bins) return;
@@ -172,7 +172,7 @@ const fadeCheck = (W, set, sizeK, href) => {   // -> { meshes, cut (instances le
     meshes++; const M = o.instanceMatrix.array, A = o.geometry.getAttribute('aRand').array;
     for (let i = o.visible ? o.count : 0; i < o.userData.n; i++) { cut++;
       let d = Math.hypot(M[i * 16 + 12] - e.x, M[i * 16 + 13] - e.y, M[i * 16 + 14] - e.z);
-      if (sizeK > 0) d /= 1 + (Math.min(1.5, Math.max(0.05, Math.hypot(M[i * 16 + 4], M[i * 16 + 5], M[i * 16 + 6]) / href)) - 1) * sizeK;
+      if (sizeK > 0) d /= 1 + (Math.min(smax || 1.5, Math.max(0.05, Math.hypot(M[i * 16 + 4], M[i * 16 + 5], M[i * 16 + 6]) / href)) - 1) * sizeK;
       const t = Math.max(0, Math.min(1, (d - near) / Math.max(1, reach - near))), fk = Math.pow(1 - t, 1 + 2 * taper) * agl;
       if ((fk * (1 + band) - A[i]) / Math.max(1e-3, band) > 1e-6) bad++; } });
   return { meshes, cut, bad };
@@ -237,7 +237,8 @@ function fieldRing() {
           for (let q = 0; q < 12; q += 3) if (Math.abs(cd[q] - v[q] - dx) > 1e-4 || Math.abs(cd[q + 1] - v[q + 1]) > 1e-4 || Math.abs(cd[q + 2] - v[q + 2] - dz) > 1e-4) return false; return true; });
         if (!match) good = false; else if (tx === null) { tx = match[0] - v[0]; tz = match[2] - v[2]; } }
       if (good) tuftsOk++; }
-    ok(nT === 3 && tuftsOk === 3, '8a the reed is cut into 3 tufts of 3 of its own cards, each card unbent, the tuft moved whole to its foot', tuftsOk + ' of ' + nT + ' tufts');
+    const nV = Fd.CR.get().variants;   // (the tuft shapes a draw: a dial, 2 since G2567)
+    ok(nT === nV && tuftsOk === nV, '8a the reed is cut into ' + nV + ' tufts of 3 of its own cards, each card unbent, the tuft moved whole to its foot', tuftsOk + ' of ' + nT + ' tufts');
     // (b) the length: the cut box's at the cut length, the meadow's about the type's median
     const hOf = (m, i) => Math.hypot(m.instanceMatrix.array[i * 16 + 4], m.instanceMatrix.array[i * 16 + 5], m.instanceMatrix.array[i * 16 + 6]) * 100;
     const S = Fd.CR.get(), cutH = [], wildH = [], cols = [];
@@ -255,10 +256,10 @@ function fieldRing() {
     const posSet = () => { const s = new Set(); Fd.CR.root.traverse(o => { if (o.isInstancedMesh) for (let i = 0; i < o.userData.n; i++) s.add(keyOf(o, i)); }); return s; };
     // the tufts that DRAW from this eye (the field's fade and size fade, every instance planted - the truncation aside)
     const fs0 = Fd.CR.fadeSet(), LF = Fd.ctx.TREE_LEAF;
-    const drawnSet = () => { const [near, reach, taper, agl] = LF.fade(undefined, undefined, undefined, undefined, fs0), [sk, href] = LF.fadeSize(null, null, fs0), band = LF.grow(null, null, null)[1], e = Fd.camera.position, s = new Set();
+    const drawnSet = () => { const [near, reach, taper, agl] = LF.fade(undefined, undefined, undefined, undefined, fs0), [sk, href, smax] = LF.fadeSize(null, null, fs0), band = LF.grow(null, null, null)[1], e = Fd.camera.position, s = new Set();
       Fd.CR.root.traverse(o => { if (!o.isInstancedMesh) return; const M = o.instanceMatrix.array, A = o.geometry.getAttribute('aRand').array;
         for (let i = 0; i < o.userData.n; i++) { let d = Math.hypot(M[i * 16 + 12] - e.x, M[i * 16 + 13] - e.y, M[i * 16 + 14] - e.z);
-          d /= 1 + (Math.min(1.5, Math.max(0.05, Math.hypot(M[i * 16 + 4], M[i * 16 + 5], M[i * 16 + 6]) / href)) - 1) * sk;
+          d /= 1 + (Math.min(smax, Math.max(0.05, Math.hypot(M[i * 16 + 4], M[i * 16 + 5], M[i * 16 + 6]) / href)) - 1) * sk;
           const t = Math.max(0, Math.min(1, (d - near) / Math.max(1, reach - near))); if (Math.pow(1 - t, 1 + 2 * taper) * agl * (1 + band) > A[i]) s.add(keyOf(o, i)); } });
       return s; };
     const near0 = posSet(), drawn0 = drawnSet();
@@ -271,7 +272,7 @@ function fieldRing() {
     ok(drawn0.size > 0 && drawn0.size === drawnL.size && [...drawn0].every(k => drawnL.has(k)), '8d ...and what DRAWS is the same picture as a ring planted fresh from there', drawnL.size + ' drawn both ways');
     // (e) its truncation, exact under the size fade
     const L = Fd.ctx.TREE_LEAF, fs = Fd.CR.fadeSet ? Fd.CR.fadeSet() : null;
-    const Fx = fs ? fadeCheck(Fd, fs, L.fadeSize(null, null, fs)[0], L.fadeSize(null, null, fs)[1]) : { meshes: 0, cut: 0, bad: 1 };
+    const Fx = fs ? fadeCheck(Fd, fs, L.fadeSize(null, null, fs)[0], L.fadeSize(null, null, fs)[1], L.fadeSize(null, null, fs)[2]) : { meshes: 0, cut: 0, bad: 1 };
     ok(Fx.meshes > 0 && Fx.bad === 0, '8e the field\'s truncation leaves out only tufts its own fade (and size fade) collapses', Fx.cut + ' left out, ' + Fx.bad + ' that would draw');
   }
 }
