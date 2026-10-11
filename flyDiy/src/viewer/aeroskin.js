@@ -2414,16 +2414,16 @@ const AERO_MAIN_VS = `
 // program takes vCraftPos again after skinning (AERO_CABIN_HOOK's G272 rule for the crew's legs); vCraftNrm needs nothing
 // (skinnormal_vertex has already turned objectNormal by begin_vertex). Only a skinned program's text changes - a plain
 // one's source stays byte for byte (no program cache miss for it).
-// G2750: THE REST PLACE, once per flown geometry, BEFORE the first pose (app.js calls it beside the baked cavity, once
-// the group is whole): the position array as built, w 2 marking it present. The same reach as the cavity (a mesh on an
-// aeroskin material, not a skinned one), so the C4b fold carries it exactly where it carries aCav (the hybrid's views
-// merge every live attribute, zero where a member has none - w 0, which falls back like an unbound one). The editor and
-// the benches never call it: there nothing writes the vertices and `transformed` IS the rest place.
+// G2750: THE REST PLACE, once per flown model, ONLY FOR FLIGHT (app.js restBake: when the craft is first shown in the
+// world under the roll-out's screen, else on the first flight frame - never per garage change): the position array as
+// it stands, w 2 marking it present, on every mesh drawn with an aeroskin material - the C4b folds' too (a skinned fold's
+// array is bind space, its members' own, still at rest: the shader takes it through the same bone). The editor and the
+// benches never call it: there nothing writes the vertices and the posed place IS the rest place.
 function aeroRestBake(THREE, obj) {
   let done = 0;
   if (!obj || !obj.traverse) return 0;
   obj.traverse(o => {
-    if (!o.isMesh || o.isSkinnedMesh || !o.geometry) return;
+    if (!o.isMesh || !o.geometry) return;
     const a = o.geometry.attributes, pa = a && a.position;
     if (!pa || !pa.array || pa.isInterleavedBufferAttribute || pa.itemSize !== 3 || a.aRest) return;
     const ms = Array.isArray(o.material) ? o.material : [o.material];

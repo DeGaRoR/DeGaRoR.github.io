@@ -1137,8 +1137,14 @@ if (process.argv.includes('--selftest')) {
         'rest: the craft place is read off the posed vertex again — a decal box and the weathering re-project across a moving surface every frame');
   check(/boneMatX \* aeroRs \* skinWeight\.x[\s\S]{0,400}vCraftPos = \(uCraftInv \* modelMatrix \* vec4\(aeroRestP, 1\.0\)\)\.xyz;   \/\/ G1493: after skinning/.test(SKIN),
         'rest: a skinned fold (C4b, the hybrid\'s views) takes its craft place off the posed vertex, not the rest one through its bone');
-  check(/AEROWX\.aeroWxBakeCavity\(THREE, grp\);[\s\S]{0,400}window\.AEROSKIN\.aeroRestBake\(THREE, grp\)/.test(APP),
-        'rest: the flown model never bakes its rest place (or bakes it away from the cavity, after a pose)');
+  // ...ONCE PER MODEL AND ONLY FOR FLIGHT (43.1's strict gate: baked in buildModel it ran on every garage change)
+  check(!/AEROWX\.aeroWxBakeCavity\(THREE, grp\);[\s\S]{0,400}aeroRestBake\(THREE, grp\)/.test(APP),
+        'rest: the rest place is baked in buildModel again - every garage change pays a copy of every skin vertex');
+  check(/function restBake\(\) \{\s*if \(!model \|\| model\.restBaked \|\| !model\.grp\) return;\s*model\.restBaked = true;\s*if \(window\.AEROSKIN && window\.AEROSKIN\.aeroRestBake\) window\.AEROSKIN\.aeroRestBake\(THREE, model\.grp\);/.test(APP),
+        'rest: the bake is not once per model (model.restBaked)');
+  check(/function poseModel\(catchUp\) \{[\s\S]{0,300}if \(!inGarage && !model\.restBaked\) restBake\(\);/.test(APP) &&
+        /model\.grp\.visible = true; restBake\(\); if \(!craftGrpVis\[1\]/.test(APP),
+        'rest: the flown model never bakes its rest place before its first flight pose (poseModel head, craftInWorld under the screen)');
   {
     // run, not pattern-matched: the bake copies the built place with w 2, only on an aeroskin mesh, once
     const attr = (array, itemSize) => ({ array, itemSize, count: array.length / itemSize });

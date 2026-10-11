@@ -3195,9 +3195,7 @@
     // THE BAKED CAVITY (G345.5): the weathering reads the mesh's own grooves
     // per vertex, in each material's own unit — once the group is whole
     if (typeof AEROWX !== 'undefined' && AEROWX.aeroWxBakeCavity) AEROWX.aeroWxBakeCavity(THREE, grp);
-    // ...and THE REST PLACE (G2750): what the decals' boxes, the weathering's reads and the holes project from, so the
-    // paint rides a surface the rigs turn and a skin the flex bends (aeroskin's AERO_MAIN_VS) - once, before the first pose
-    if (window.AEROSKIN && window.AEROSKIN.aeroRestBake) window.AEROSKIN.aeroRestBake(THREE, grp);
+    // (THE REST PLACE, G2750, is NOT baked here: every garage change rebuilds this model - see restBake below)
     // GARAGE: every group is rigged, because every vertex already carries its
     // node weights — there is no band to select and no threshold to tune.
     if (data.generated) {
@@ -3674,10 +3672,23 @@
   const mBasis = new THREE.Matrix4(), vX = new THREE.Vector3(),
         vY = new THREE.Vector3(), vZ = new THREE.Vector3(),
         vSpin = new THREE.Vector3();          // G59.1 prop shaft axis
+  // THE REST PLACE (G2750): what the decals' boxes, the weathering's reads and the holes project from, so the paint rides
+  // a surface the rigs turn and a skin the flex bends (aeroskin's AERO_MAIN_VS). ONCE PER MODEL AND ONLY FOR FLIGHT (43.1's
+  // strict gate: baked in buildModel it ran on every garage change - a copy of every skin vertex, merged again into the
+  // hybrid's views - and the garage never poses a surface): when the craft is first shown in the world under the
+  // roll-out's screen (craftInWorld, so its upload rides the world compile), else on the first flight frame. The place
+  // as it stands then, before that frame's pose: the stand's, which is all the paint needs - fixed from there on. The
+  // folds are baked with it (their arrays are the members' own, still at rest).
+  function restBake() {
+    if (!model || model.restBaked || !model.grp) return;
+    model.restBaked = true;
+    if (window.AEROSKIN && window.AEROSKIN.aeroRestBake) window.AEROSKIN.aeroRestBake(THREE, model.grp);
+  }
   function poseModel(catchUp) {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
     if (!model || (skinMode === 2 && !model.gen)) return;
+    if (!inGarage && !model.restBaked) restBake();      // G2750: the first flight frame, before its pose writes
     // G179: THE POSE IS PINNED TO THE STRUCTURE. `cg` here is sim.bodyOrigin()
     // — the firewall ring, the datum the axes are already taken from — not
     // the mass centre. The mesh is authored about the DESIGN CG, so `oR`
@@ -9390,7 +9401,7 @@
   function craftInWorld(fn) {
     if (!inGarage || !WF) return fn();
     if (!craftAway++) { craftHome = craft.parent; if (craft.parent !== scene) scene.add(craft);
-      craftGrpVis = model && model.grp ? [model.grp, model.grp.visible] : null; if (craftGrpVis) { model.grp.visible = true; if (!craftGrpVis[1] && !window.FLYDIY_POSE_NOCATCHUP) poseModel(true); } }   // (G2111: posed, shown)
+      craftGrpVis = model && model.grp ? [model.grp, model.grp.visible] : null; if (craftGrpVis) { model.grp.visible = true; restBake(); if (!craftGrpVis[1] && !window.FLYDIY_POSE_NOCATCHUP) poseModel(true); } }   // (G2111: posed, shown; G2750: the rest place, under the screen)
     let once = false;
     const back = () => { if (once) return; once = true;
       if (--craftAway !== 0) return;

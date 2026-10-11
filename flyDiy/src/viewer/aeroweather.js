@@ -816,7 +816,9 @@ float aeroWxSpots(vec2 uv, float cell, float dens, float rad, float seed, float 
 // dens, a winning cell draws ONE tapered stroke - mostly along, +-15 degrees, 0.24..0.6 of the cell long, its middle
 // jittered so it never leaves the cell. Antialiased on the footprint and faded where it is thinner than a pixel, so a
 // far flank never sparkles.
-float aeroWxScratch(vec2 uv, float cell, float dens, float hw, float seed) {
+// (43.1's strict gate: aa, the footprint, is the caller's - taken in uniform control flow - so the call can sit in a
+// branch that skips the hash maths wherever the layer is zero: every interior fragment, a fresh paint, the cockpit)
+float aeroWxScratch(vec2 uv, float cell, float dens, float hw, float seed, float aa) {
   vec2 c = floor(uv / cell);
   if (aeroHash(c + seed) >= dens) return 0.0;
   vec2 ctr = (c + 0.5 + 0.2 * (vec2(aeroHash(c + seed + 17.3), aeroHash(c + seed + 41.7)) - 0.5)) * cell;
@@ -826,7 +828,6 @@ float aeroWxScratch(vec2 uv, float cell, float dens, float hw, float seed) {
   float a = dot(d, t), b = dot(d, vec2(-t.y, t.x));
   float ac = clamp(a, -hl, hl);
   float w = hw * (1.0 - 0.7 * abs(ac) / hl);
-  float aa = max(length(fwidth(uv)), 1e-5);
   return (1.0 - smoothstep(w, w + aa, length(vec2(a - ac, b)))) * min(1.0, w / aa);
 }
 void aeroWxLay(inout vec3 col, inout float cov, inout float flo, float c, vec4 C) {
@@ -1242,8 +1243,10 @@ const AERO_WX_SURF_FS = `
       // aft streaks' 2.6 m one that ran every scratch the length of the
       // part, and a threshold that admits a few per square metre at most
       float wxScP = wx_scratch * uWxSub2.z * wxSide * wxOut * wxPure;
-      // (G2750: by count - aeroWxScratch - never a threshold on a tiled read)
-      ch = max(ch, aeroWxScratch(vec2(wxAlong, wxAcross), uWxV.z, 0.6 * wxScP, uWxV.w, 7.0) * step(0.01, wxScP));
+      // (G2750: by count - aeroWxScratch - never a threshold on a tiled read; the footprint here, the strokes only
+      // where the layer is)
+      float wxScAA = max(length(fwidth(vec2(wxAlong, wxAcross))), 1e-5);
+      if (wxScP >= 0.01) ch = max(ch, aeroWxScratch(vec2(wxAlong, wxAcross), uWxV.z, 0.6 * wxScP, uWxV.w, 7.0, wxScAA));
       // steel goes to primer then rust; rust also BLEEDS down from the chips
       // THE SUBSTRATE WITH ITS OWN ROUGHNESS (G345.2): bare alloy under a
       // chip is a metal at the finish row's roughness — it OUTSHINES the
