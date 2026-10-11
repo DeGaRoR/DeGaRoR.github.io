@@ -1151,9 +1151,10 @@ function make(THREE, scene, world, rec0, opts) {
     else { const e = pts[n - 1]; out.push(e[0], heightAt(e[0], e[1]) + lift, e[1]); }
     return new Float32Array(out);
   }
-  function worldPts(entry) {
+  // (G2890: a spline road's outline is its curve - the line compose draws it on; `raw` the points the author clicked, the handles')
+  function worldPts(entry, raw) {
     const F = O.frame;
-    const src = entry.poly || (entry.pts ? entry.pts.map(p => [p[0], p[1]]) : (entry.kind === 'tree' || entry.kind === 'prop' || entry.kind === 'billboard' || entry.kind === 'aircraft' || entry.kind === 'animal' ? [[entry.x, entry.z]] : (entry.c && entry.len ? (E => [E.end0, E.end1])(PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, entry))) : [])));
+    const src = entry.poly || (entry.pts ? (!raw && entry.curve === 'spline' ? PG.roadLine(entry) : entry.pts).map(p => [p[0], p[1]]) : (entry.kind === 'tree' || entry.kind === 'prop' || entry.kind === 'billboard' || entry.kind === 'aircraft' || entry.kind === 'animal' ? [[entry.x, entry.z]] : (entry.c && entry.len ? (E => [E.end0, E.end1])(PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, entry))) : [])));
     return src.map(p => F.toWorld(p[0], p[1]));
   }
   function lineFor(layer, entry, colour, sel) {
@@ -2386,13 +2387,29 @@ function make(THREE, scene, world, rec0, opts) {
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
   const discMat = new THREE.MeshBasicMaterial({ color: 0xffb03a, transparent: true, opacity: 0.9, depthTest: false });
   const discMatMid = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthTest: false });
-  const HANDLES = [];
+  // G2890 (SCENERY-ED-1): the CORNER picked (clicked) - white, Del removes it; a spline road's HANDLES - cyan, on a stem
+  const discMatSel = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, depthTest: false });
+  const discMatTan = new THREE.MeshBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.95, depthTest: false });
+  const stemMat = new THREE.LineBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.8, depthTest: false });
+  const HANDLES = [], STEMS = [];
+  let selCorner = null;
   function buildHandles() {
     for (const h of HANDLES) G.handles.remove(h);
-    HANDLES.length = 0;
+    for (const l of STEMS) { G.handles.remove(l); l.geometry.dispose(); }
+    HANDLES.length = 0; STEMS.length = 0;
     if (!selectedId) return;
     const f = PG.findById(rec, selectedId);
     if (!f) return;
+    // A ROUND PAD (v1.35): its centre (moves it) and a disc on its rim (its radius) - no corners, the circle is the truth
+    if (f.layer === 'material' && PG.roundOk(f.entry.round)) {
+      const F = O.frame, R0 = f.entry.round;
+      for (const [lp, key, mid] of [[R0.c, 'rc', false], [[R0.c[0] + R0.r, R0.c[1]], 'rr', true]]) {
+        const w = F.toWorld(lp[0], lp[1]); const m = new THREE.Mesh(discGeo, mid ? discMatTan : discMat);
+        m.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.05, w[1]); m.renderOrder = 9; m.userData.handle = { id: selectedId, key, round: true };
+        G.handles.add(m); HANDLES.push(m);
+      }
+      return;
+    }
     if (f.layer === 'sites') {
       const F = O.frame, SF = PG.siteFrame(f.entry);
       const put = (lp, key, mid) => { const w = F.toWorld(lp[0], lp[1]); const m = new THREE.Mesh(discGeo, mid ? discMatMid : discMat); m.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.05, w[1]); m.renderOrder = 9; m.userData.handle = { id: selectedId, key, mid: !!mid }; G.handles.add(m); HANDLES.push(m); };
@@ -2419,11 +2436,24 @@ function make(THREE, scene, world, rec0, opts) {
       }
       return;
     }
-    const pts = worldPts(f.entry);
+    const pts = worldPts(f.entry, true);
     const closed = !!f.entry.poly;
+    // A SPLINE ROAD'S HANDLES (v1.35): one cyan disc per point at its outgoing handle (its own, or the spline's), on a stem
+    if (f.entry.pts && f.entry.curve === 'spline' && f.entry.pts.length >= 2) {
+      const F = O.frame, H = PG.roadHandles(f.entry.pts, f.entry.tan);
+      f.entry.pts.forEach((q, i) => {
+        const a = F.toWorld(q[0], q[1]), b = F.toWorld(q[0] + H[i][0], q[1] + H[i][1]);
+        const ya = heightAt(a[0], a[1]) + LIFT + 0.05, yb = heightAt(b[0], b[1]) + LIFT + 0.05;
+        const m = new THREE.Mesh(discGeo, discMatTan); m.position.set(b[0], yb, b[1]); m.renderOrder = 9;
+        m.userData.handle = { id: selectedId, key: 'h' + i, index: i, tan: true, own: !!(f.entry.tan && f.entry.tan[i]) };
+        G.handles.add(m); HANDLES.push(m);
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([a[0], ya, a[1], b[0], yb, b[1]]), 3));
+        const l = new THREE.Line(g, stemMat); l.renderOrder = 9; G.handles.add(l); STEMS.push(l);
+      });
+    }
     for (let i = 0; i < pts.length; i++) {
       const p = pts[i];
-      const m = new THREE.Mesh(discGeo, discMat);
+      const m = new THREE.Mesh(discGeo, i === selCorner ? discMatSel : discMat);
       m.position.set(p[0], heightAt(p[0], p[1]) + LIFT + 0.05, p[1]);
       m.renderOrder = 9; m.userData.handle = { id: selectedId, key: 'v' + i, index: i };
       G.handles.add(m); HANDLES.push(m);
@@ -2441,7 +2471,7 @@ function make(THREE, scene, world, rec0, opts) {
       const d = camera.position.distanceTo(h.position);
       const r = camera.isOrthographicCamera ? (camera.top - camera.bottom) / camera.zoom / (camera.userData.viewH || 600) * px
                                             : d * Math.tan((camera.fov || 40) * Math.PI / 360) * 2 / (camera.userData.viewH || 600) * px;
-      h.scale.setScalar(Math.max(0.05, r) * (h.userData.handle.mid ? 0.7 : 1));
+      h.scale.setScalar(Math.max(0.05, r) * (h.userData.handle.mid || h.userData.handle.tan ? 0.7 : 1));
     }
   }
 
@@ -3667,7 +3697,8 @@ function make(THREE, scene, world, rec0, opts) {
         if (PG.inPoly(en.poly, L[0], L[1])) { const a = Math.abs(PG.polyArea(en.poly)); if (a < bestA) { bestA = a; best = e; } }
         else { const d = PG.sdPoly(en.poly, L[0], L[1]); if (d < nearD) { nearD = d; near = e; } }
       } else if (en.pts) {
-        for (let i = 0; i + 1 < en.pts.length; i++) { const d = PG.distPtSeg(L[0], L[1], en.pts[i], en.pts[i + 1]) - (en.w || en.width || 4) / 2; if (d < nearD) { nearD = d; near = e; } }
+        const ln = en.curve === 'spline' ? PG.roadLine(en) : en.pts;   // (G2890: a spline road is picked on its curve)
+        for (let i = 0; i + 1 < ln.length; i++) { const d = PG.distPtSeg(L[0], L[1], ln[i], ln[i + 1]) - (en.w || en.width || 4) / 2; if (d < nearD) { nearD = d; near = e; } }
       }
     }
     for (const r of O.runways) if (PG.inPoly(PG.runwayBox(r, 2), L[0], L[1])) return { id: r.id, layer: 'runways', entry: PG.findById(rec, r.id).entry };
@@ -3739,7 +3770,9 @@ function make(THREE, scene, world, rec0, opts) {
     get game() { return !!o.game; },
     get record() { return rec; },
     get overlay() { return O; },
-    select: id => { selectedId = id || null; buildOutlines(); buildHandles(); },
+    select: id => { if ((id || null) !== selectedId) selCorner = null; selectedId = id || null; buildOutlines(); buildHandles(); },
+    // G2890: the corner of the selection the editor picked (null: none) - drawn white; the handles rebuilt
+    corner: i => { if (i !== undefined) { selCorner = (i === null || !isFinite(+i)) ? null : +i; buildHandles(); } return selCorner; },
     get selected() { return selectedId; },
     overlayOn: on => { uOvOn.value = on ? 1 : 0; },
     groundMat, plots: () => O.records.plots, houses: HOUSES, aerodromes: () => O.aerodromes, items: () => O.records.items, links: () => O.records.links,

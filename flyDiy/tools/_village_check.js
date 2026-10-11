@@ -198,6 +198,10 @@ function battery(name, vil) {
       const a = L.alpha[i]; if (!(a >= 0 && a <= 1)) bad++;
     }
     check(off === 0, name + ': the ground patch on plot ' + plot.id + ' is not on the terrain', off + ' vertices');
+    // 10d THE LOT STOPS AT THE SHORE (G2890, the user: "the ones on the shore draw grass up till the sea"): no vertex of
+    //   the patch drawn under the water line (its weight 0 there), and none at full weight within 15 cm of it
+    { let wet = 0; for (let i = 0; i < L.verts; i++) { const y = L.pos[i * 3 + 1] - 0.02; if ((y < T.waterY - 1e-9 && L.alpha[i] > 0) || (y < T.waterY + 0.149 && L.alpha[i] > 0.999)) wet++; }
+      check(wet === 0, name + ': the ground patch on plot ' + plot.id + ' reaches under the water line', wet + ' vertices'); }
     check(bad === 0, name + ': the ground patch on plot ' + plot.id + ' has a weight out of range');
     // 10c THE DARKENING, CUT BY ROW (2026-09-24): lotGround keeps, per row of its grid, only the
     //   occluders whose soft edge can reach it. Fed what the game feeds it (the house's ground
@@ -253,10 +257,14 @@ function battery(name, vil) {
     const at = (x, z) => {
       let bi = 0, bd = 1e9;
       for (let i = 0; i < L.verts; i++) { const d = Math.hypot(L.pos[i * 3] - x, L.pos[i * 3 + 2] - z); if (d < bd) { bd = d; bi = i; } }
-      return { dry: L.splat[bi * 4 + 1], dirt: L.splat[bi * 4 + 2], peb: L.splat[bi * 4 + 3], lush: L.tone[bi * 2 + 1], alpha: L.alpha[bi], d: bd };
+      return { dry: L.splat[bi * 4 + 1], dirt: L.splat[bi * 4 + 2], peb: L.splat[bi * 4 + 3], lush: L.tone[bi * 2 + 1], alpha: L.alpha[bi], d: bd, y: L.pos[bi * 3 + 1] - 0.02 };
     };
     const c = at(h.x, h.z);
-    check(c.dry > 0.9 && c.alpha > 0.99, name + ': plot ' + plot.id + ' is not dry under its house', c.dry.toFixed(2));
+    // (G2890: a waterfront house whose foot is within 15 cm of the water - or under it - stands where the lot is feathered
+    //  out to the shore: dry still, its weight the shore law's, never the full lawn's)
+    const shoreK = Math.max(0, Math.min(1, (c.y - T.waterY) / 0.15));   // (at the sampled vertex's own ground)
+    if (shoreK < 1) check(c.dry > 0.9 && c.alpha <= shoreK + 1e-9, name + ': plot ' + plot.id + ' is not dry under its house (at the shore)', c.dry.toFixed(2) + ' / weight ' + c.alpha.toFixed(2) + ' vs ' + shoreK.toFixed(2));
+    else check(c.dry > 0.9 && c.alpha > 0.99, name + ': plot ' + plot.id + ' is not dry under its house', c.dry.toFixed(2));
     const sg = (plot.path || [])[1];
     if (sg) { const m = at((sg[0][0] + sg[1][0]) / 2, (sg[0][1] + sg[1][1]) / 2); check(m.dirt > 0.85, name + ': plot ' + plot.id + ' has no dirt on its path', m.dirt.toFixed(2)); }
     const fr = (plot.fences || []).find(f => f.kind === 'side');
