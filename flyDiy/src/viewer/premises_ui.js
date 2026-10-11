@@ -227,7 +227,19 @@ function mount(host, ctx) {
   // the changed run (a C2 spline's change has fallen under a millimetre there; a graded road's smoothing reaches 24 m), its
   // width, falloff and clearing round it - never the line's whole box, which for an island road is the island. Anything
   // else (a width, a class, a grade limit, a polygon) rebuilds the whole entry's box as before.
+  // (G3005) A SITE'S EDIT moved its CHANGED items: their before and after places, 40 m round (the shelf and the keep-out) -
+  // never the whole site's box (a harbour of ten buildings for one shed turned); the site's anchor moved: all of it
+  function siteChangeBox(a, b) {
+    if (!a || !b || !a.at || !b.at || !Array.isArray(a.items) || !Array.isArray(b.items)) return null;
+    if (JSON.stringify(a.at) !== JSON.stringify(b.at)) return null;
+    const SA = PG.siteFrame(a), SB = PG.siteFrame(b), ia = new Map(a.items.map(it => [it.id, it])), ib = new Map(b.items.map(it => [it.id, it]));
+    let box = null; const add = (S, it) => { const q = S.toLocal(it.x || 0, it.z || 0); box = union(box, { x0: q[0] - 40, z0: q[1] - 40, x1: q[0] + 40, z1: q[1] + 40 }); };
+    for (const id of new Set([...ia.keys(), ...ib.keys()])) { const p = ia.get(id), q = ib.get(id); if (JSON.stringify(p) === JSON.stringify(q)) continue; if (p) add(SA, p); if (q) add(SB, q); }
+    for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) if (k !== 'items' && k !== 'name' && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return null;
+    return box || { x0: SA.toLocal(0, 0)[0] - 1, z0: SA.toLocal(0, 0)[1] - 1, x1: SA.toLocal(0, 0)[0] + 1, z1: SA.toLocal(0, 0)[1] + 1 };
+  }
   function changeBox(a, b) {
+    { const sb = siteChangeBox(a, b); if (sb) return sb; }
     const pa = a && a.pts, pb = b && b.pts;
     if (!pa || !pb || pa.length < 24 || pb.length < 24 || +b.grade > 0 || +a.grade > 0) return union(bboxOf(a), bboxOf(b));
     for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) if (k !== 'pts' && k !== 'tan' && k !== 'nodes' && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return union(bboxOf(a), bboxOf(b));   // (G2950: a junction id moves no ground)
@@ -241,7 +253,9 @@ function mount(host, ctx) {
     return { x0: bb.x0 - f, z0: bb.z0 - f, x1: bb.x1 + f, z1: bb.z1 + f };
   }
   // which layers move the GROUND (and so the chunks): terrain, and roads (graded)
-  const groundLayer = layer => layer === 'terrain' || layer === 'roads' || layer === 'runways' || layer === 'material' || layer === 'areas';
+  // (G3005: and the sites - every item stands on a SHELF the composer cuts into the ground (siteShelves); a site's edit
+  //  rebuilt with the ground left as it was, so a moved item's shelf was never drawn - the patch of its box is made again now)
+  const groundLayer = layer => layer === 'terrain' || layer === 'roads' || layer === 'runways' || layer === 'material' || layer === 'areas' || layer === 'sites';
   // (G2914: a command may carry MANY entries - the scatter's models - one undo step, one rebuild)
   // (G2950: a junction's command - its roads' waypoints - rebuilds each road's SPAN that moved, as one drag does)
   const cmdBox = c => (c.many ? c.many.reduce((b, q) => union(b, q.before && q.after ? changeBox(q.before, q.after) : union(bboxOf(q.before), bboxOf(q.after))), null) : changeBox(c.before, c.after));
@@ -322,6 +336,7 @@ function mount(host, ctx) {
   // patch, no ground re-sample (the cars, the rails, the poles are rebuilt by the renderer's own sync)
   const ROAD_FREE = { traffic: 1, rail: 1, poles: 1, life: 1, name: 1, nodes: 1 };   // (G2950: nor its junction ids - the graph's alone)
   const groundOf = (layer, a, b) => {
+    if (layer === 'sites') { if (!a || !b) return undefined; for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) if (k !== 'name' && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return undefined; return false; }   // (G3005: a site's name moves no ground)
     if ((layer !== 'runways' && layer !== 'roads') || !a || !b) return undefined;
     const free = layer === 'runways' ? WAY_KEYS : ROAD_FREE;
     const keys = new Set(Object.keys(a).concat(Object.keys(b)));
@@ -1137,7 +1152,7 @@ function mount(host, ctx) {
     else if (ev.key >= '1' && ev.key <= String(Math.min(9, SECTIONS.length))) setSection(SECTIONS[+ev.key - 1].k);
     // R turns 15 degrees: the placer's ghost, a selected site or model / object
     else if (ev.key === 'r' && (tool === 'place' || tool === 'scatter')) { ASSET.yaw = (ASSET.yaw + (ev.shiftKey ? -1 : 1) * Math.PI / 12) % (Math.PI * 2); armGhost(); palette.refresh(); }
-    else if (ev.key === 'r' && selected) { const f = PG.findById(rec, selected); if (f && f.entry.at) edit(selected, 'sites', x => { x.at.yaw = ((x.at.yaw || 0) + Math.PI / 12); }, 'turn ' + selected); else if (f && f.layer === 'objects' && isFinite(+f.entry.x)) edit(selected, 'objects', x => { x.yaw = +(((+x.yaw || 0) + (ev.shiftKey ? -1 : 1) * Math.PI / 12)).toFixed(4); }, 'turn ' + selected, 'yaw'); }
+    else if (ev.key === 'r' && selected) { const f = PG.findById(rec, selected); if (f && f.entry.at) edit(selected, 'sites', x => { x.at.yaw = ((x.at.yaw || 0) + Math.PI / 12); }, 'turn ' + selected, 'yaw');   /* (G3005: a run of R presses, one rebuild when they stop) */ else if (f && f.layer === 'objects' && isFinite(+f.entry.x)) edit(selected, 'objects', x => { x.yaw = +(((+x.yaw || 0) + (ev.shiftKey ? -1 : 1) * Math.PI / 12)).toFixed(4); }, 'turn ' + selected, 'yaw'); }
     else if (ev.key === 'f' && tool === 'select' && ctx.cameras && ctx.cameras.frame) { const f = selected && PG.findById(rec, selected); if (f) ctx.cameras.frame(bboxOf(f.entry)); }
   }
   function deleteSelected() {

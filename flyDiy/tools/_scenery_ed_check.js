@@ -61,6 +61,7 @@ function makeR() {
     const e = f.entry, out = [];
     if (PG.roundOk(e.round)) return [{ key: 'rc', p: [e.round.c[0], 0, e.round.c[1]] }, { key: 'rr', p: [e.round.c[0] + e.round.r, 0, e.round.c[1]], mid: true }];
     if (isFinite(+e.x) && isFinite(+e.z) && !e.poly) return [{ key: 'v0', p: [+e.x, 0, +e.z] }];   // a point object (a model): one disc
+    if (e.at && Array.isArray(e.items)) { const SF = PG.siteFrame(e); return [{ key: 'at', p: [e.at.x, 0, e.at.z] }].concat(e.items.map(it => { const q = SF.toLocal(it.x || 0, it.z || 0); return { key: 'i:' + it.id, p: [q[0], 0, q[1]] }; })); }   // (G3005) a site: its anchor, its items
     const arr = e.poly || e.pts; if (!arr) return out;
     arr.forEach((q, i) => { out.push({ key: 'v' + i, p: [q[0], 0, q[1]] }); if (e.poly || i + 1 < arr.length) out.push({ key: 'm' + i, p: [q[0], 0, q[1]], mid: true }); });
     if (e.pts && e.curve === 'spline') PG.roadHandles(e.pts, e.tan).forEach((h, i) => out.push({ key: 'h' + i, p: [e.pts[i][0] + h[0], 0, e.pts[i][1] + h[1]] }));
@@ -572,6 +573,42 @@ if (plots.length) {
     const tKeys = Tm(() => PG.roadBuildKeys(OT));
     check(tFast < 50 && tKeys < 500, '14e an object released: ' + tFast.toFixed(1) + ' ms through the editor (' + tFull.toFixed(0) + ' ms with the whole rebuild\'s composition); the roads\' keys on the island (' + OT.roads.length + ' roads, the town and r1) ' + tKeys.toFixed(0) + ' ms');
     console.log('     14 PLACER-FAST: an object released ' + tFast.toFixed(1) + ' ms (editor) vs ' + tFull.toFixed(0) + ' ms (editor + the composition a rebuild runs); road keys ' + tKeys.toFixed(0) + ' ms for ' + OT.roads.length + ' roads'); }
+}
+
+// 17 A SITE'S ITEMS (G3005; the user: "anything related to placing assets from SITE is painfully slow. Rotate, place, edit,
+//    delete, all of it"): each action ONE rebuild, the ground with it (every item stands on a shelf the composer cuts -
+//    it was left undrawn: the site was rebuilt with the ground as it was) in a box of what changed - an item moved, its
+//    before and after places; never the whole site for one shed; the site's name no ground; never the objects' path
+{
+  const box = d => (d && d.bbox ? Math.max(d.bbox.x1 - d.bbox.x0, d.bbox.z1 - d.bbox.z0) : Infinity);
+  const n0 = () => [R.rebuilds || 0, R.fastCalls || 0];
+  let [b0, f0] = n0();
+  const sid = ed.cmd('add', { layer: 'sites', entry: { name: 'test harbour', at: { x: 400, z: 400, yaw: 0 }, items: [{ id: 'shed', key: 'stub|shed', x: 0, z: 0 }, { id: 'pier', key: 'stub|pier', x: 160, z: 0 }, { id: 'pens', key: 'stub|pens', x: 320, z: 0 }] } });
+  const whole = box(R.lastDirty);
+  check(sid && R.rebuilds === b0 + 1 && R.fastCalls === f0 && R.lastDirty && R.lastDirty.ground !== false && whole > 380, '17 a site placed: one rebuild, the ground with it (its shelves), its whole box', JSON.stringify(R.lastDirty && R.lastDirty.bbox));
+  ed.cmd('tool', { name: 'select' }); ed.select(sid);
+  [b0, f0] = n0();
+  const pier = () => find(sid).entry.items.find(it => it.id === 'pier');
+  const pw = PG.siteFrame(find(sid).entry).toLocal(pier().x, pier().z);
+  ed.cmd('drag', { key: 'i:pier', x: pw[0] + 12, z: pw[1] + 5 });
+  check(R.rebuilds === b0 + 1 && R.fastCalls === f0 && R.lastDirty.ground !== false && box(R.lastDirty) < 140, '17 an item moved: one rebuild, the ground under its before and after places only (' + box(R.lastDirty).toFixed(0) + ' m across, the site ' + whole.toFixed(0) + ')');
+  [b0, f0] = n0();
+  ed.cmd('set', { id: sid, patch: { items: find(sid).entry.items.map(it => (it.id === 'shed' ? Object.assign({}, it, { P: { L: 9 } }) : it)) } });
+  check(R.rebuilds === b0 + 1 && R.lastDirty.ground !== false && box(R.lastDirty) < 100, '17 an item edited: one rebuild, its own box (' + box(R.lastDirty).toFixed(0) + ' m)');
+  [b0, f0] = n0();
+  ed.cmd('set', { id: sid, patch: { at: Object.assign({}, find(sid).entry.at, { yaw: 0.26 }) } });
+  check(R.rebuilds === b0 + 1 && R.lastDirty.ground !== false && box(R.lastDirty) > 300, '17 the site turned: one rebuild, all of it (every item moves)');
+  [b0, f0] = n0();
+  ed.cmd('set', { id: sid, patch: { name: 'the harbour' } });
+  check(R.rebuilds === b0 + 1 && R.lastDirty.ground === false, '17 its name: no ground');
+  [b0, f0] = n0();
+  ed.cmd('delete', { id: sid });
+  check(!find(sid) && R.rebuilds === b0 + 1 && R.lastDirty.ground !== false, '17 the site deleted: one rebuild, its ground with it');
+  [b0, f0] = n0();
+  ed.undo();
+  check(find(sid) && R.rebuilds === b0 + 1 && R.lastDirty.ground !== false && R.fastCalls === f0, '17 undone: back, one rebuild');
+  const UIs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_ui.js'), 'utf8');
+  check(/'turn ' \+ selected, 'yaw'\);\s+\/\* \(G3005/.test(UIs), '17 R turns a site in one rebuild after the presses stop (coalesced, as a model\'s)');
 }
 
 // 5 NAMES
