@@ -163,6 +163,9 @@ const AERO_WX_SUB = {
   ply:         { col: [0.35, 0.22, 0.12], metal: 0.0,  rough: 0.70, rust: 0, chip: 0.6, hands: 0 },
   alclad:      { col: [0.70, 0.71, 0.72], metal: 0.90, rough: 0.40, rust: 0, chip: 1.0, hands: 0 },
   composite:   { col: [0.60, 0.60, 0.58], metal: 0.0,  rough: 0.60, rust: 0, chip: 0.5, hands: 0 },
+  // T41b (G2047, DMG-COMPOSITE's gelcoat finish): a chip in the gelcoat exposes the E-glass laminate under it - pale,
+  // a little green-grey, the resin's matt (GATE WEATHER: every finish has a substrate row)
+  gelcoat:     { col: [0.55, 0.56, 0.50], metal: 0.0,  rough: 0.65, rust: 0, chip: 0.5, hands: 0 },
   bareAlu:     { col: [0.70, 0.71, 0.72], metal: 0.90, rough: 0.45, rust: 0, chip: 0.0, hands: 0 },
   steelTube:   { col: [0.30, 0.12, 0.09], metal: 0.0,  rough: 0.80, rust: 1, chip: 1.0, hands: 0 },
   spruce:      { col: [0.40, 0.27, 0.14], metal: 0.0,  rough: 0.75, rust: 0, chip: 0.5, hands: 0 },
