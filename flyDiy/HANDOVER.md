@@ -82987,6 +82987,17 @@ FLIGHT (the chair is baked into the flown mesh; on the stand it hides).
 - A player's own (unmeasured) build has no card: nothing is strapped on it (FREIGHT-LOAD's open point stands).
 - The load is drawn with no lighting of its own: it takes the cabin's light (receiveShadow on; it casts nothing).
 
+**11 OCT 04:22 - THE OUTLIER'S VERDICT AND THE C172'S FLIGHT** (TIMED, the RTX 3080, a warm-up first; numbers only):
+- the metal Cessna, cockpit, none vs mail60p:c172 ABAB: **p99 33.5 ms in all four runs, render 11.8 / 12.0 ms empty vs 11.7 / 11.8
+  loaded, loop 16.0 / 16.1 vs 15.8 / 16.0, a steady 30, nothing over 100 ms** - the 9 Oct first loaded run's p99 50 ms did NOT
+  repeat: named THE SHADER-CACHE POSITION (that run was the first loaded page on a fresh profile with no warm-up of the load's
+  programs). `evidence/FREIGHT-STRAP/ab/rr_summary.json`.
+- the C172's cargo flight (the circuit, on the worker), no load vs 60 kg of mail + a passenger: **+20.0 kg, the CG +31.7 mm aft
+  (node +27.9), elevator -0.021, throttle +0.020, pitch equal** - the masses aboard at the roll-out read right this time (16
+  nodes, +20.0 kg: the rig now waits for the roll-out to leave the shed). `evidence/FREIGHT-STRAP/flights_c172/`.
+- still owed (GPU, no perf at stake): a through-the-window still, a passenger the build does not seat pictured, the stills rig's
+  canvas size.
+
 READY for the GAME COORDINATOR: claude/freight-strap-g2400 d42feb70 (the code, gates, A/B and stills; this section rides one docs-only commit on top) - train 44
 
 ## G2430-G2434 - CONTRACT-ROUTES: JOBS GO SOMEWHERE - CHAINS OF TWO DESTINATIONS OR MORE (BACKHAUL, ONWARD, MILK RUN; SURVEYS OVER TWO SITES OR ENDING ELSEWHERE), FROM ANY FIELD (25 % FROM JOLENE AFB, WAS 44 %), EACH CHAIN ONE VALIDATED DESIGN'S END TO END; THE ROUTES FROM POOLS + SHAPES (A NEW SITE JOINS BY DATA ALONE); PAY PER LEG + A 10 % CHAIN BONUS; FOUR ARCS RE-ROUTED; ECON'S BANDS RE-DERIVED (THE PACE IN LEGS UNMOVED); GATE CONTRACTS' ROUTES ROWS (2026-10-07, CONTRACT-ROUTES for the GAME COORDINATOR, cloud - node only, no GPU; branch claude/contract-routes-g2430 off origin/claude/game-integration 78b8433 (b747ae2 + the §R.3 docs commit); G2434 unused)
