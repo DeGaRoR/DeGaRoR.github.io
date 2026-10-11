@@ -84304,3 +84304,22 @@ none) and for marks off the concrete. ASSETS: the thumbnails fill in one a frame
 ghost under the cursor, R and Alt + wheel. Existing saves load as areas (the WIP's next save writes v 2): Jolene and
 Metlakatla must look and fly exactly as before. The lakes: no grey rectangles along the shores; a river now ends at
 the lake's edge (watch for a dry last few metres of channel). The scenery editor: Tab to FLY, ZQSD / WASD, R / F.
+
+## TRAIN 44.4 LANDED (A0, 11 Oct ~19:00) - the scenery editor, part 2 + long roads (FAST-TRACK, the user's evening)
+
+Cargo: SCENERY-ED-2 G2910-G2919 (claude/scenery-ed2-g2910 04d67b967, fast-forward on 43.2): the record v2 (every polygon
+an AREA with properties: exclude / terraform / biome / draw incl. concrete never repeating < 300 m, parking / dock /
+keep-clear marks), the inspector plate apart from the tab palettes, the model placer (the asset bank, ghost, R /
+Alt+wheel, scatter), the fly camera (Tab: orbit / map / fly; WASD/ZQSD, R/F, wheel speed), river ribbons not drawn over
+lakes (661 segments were), LONG ROADS (roadDist per-road segment grid 22x/13x with identical answers; long roads filed
+by segments in the cover index; the drag rebuilds near the point; a slider applies once it rests; traffic / rails /
+poles / life / name are not ground edits; one hitbox raster per car model; 'back to flight' takes the editor off
+without a rebuild), the per-road clearing (new roads 2 m), an authored extent grows over a feature outside it (the
+user's r1: 12.7 km of 24.9 km was outside), autosave history (the last 5 slots), the user's roads bit-identical
+through the v2 migration (GATE SCENERYED 10). Gates: the session's set (PREMISES 531, SCENERYED 70, PAVEMENT, LOOKS,
+COVER, GRASSSIDES, BIOME, PREMRASTER, VILLAGE, UISMOKE, HOUSEWORKER, MEDIA 4.04 / 4.05 MiB gz - TIGHT, PREMCOOK
+byte-identical cook); A0's PREMCOOK, SCENERYED, BUILD, UISMOKE PASS; parked re-cook. Strict gate run LIGHT (fast-track):
+14 RED against the light baseline of 3 Oct (pre-30-fps-cap: fps 33-56 -> 30 is the cap) - against TODAY's 43.2 full
+run the rollout rows are equal (loop +0.1..+0.75 ms, render +0..+0.5 ms, loads within 1 s): no regression vs master,
+landed on that comparison. OWED: the light baseline re-taken on master (it's stale); the in-game freeze numbers (the
+user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's first train).
