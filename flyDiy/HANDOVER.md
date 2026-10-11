@@ -84875,3 +84875,91 @@ task in one rollout run, 835/675 ms elsewhere - watch it).
   reports/evidence/FLEET-PROPS-B/g2227/.
 
 READY for the GAME COORDINATOR: claude/fleet-republish-g2227 be6715a1 (this section rides one docs-only commit on top)
+
+## G2890 - SCENERY-ED-1: THE SCENERY EDITOR'S UNBLOCKERS - THE TREES COME BACK WHEN A "NO TREES" GOES, NO PLOT GROUND AT THE SHORE (AND OFF ON ASK), SMOOTH ROADS THROUGH THEIR POINTS, A POLYGON YOU CAN RESHAPE, THE ROUND PAD, THE NAMES; THE UNIFIED POLYGON DESIGNED (2026-10-11, SCENERY-ED-1 for A0, local; branch claude/scenery-ed-g2890 off train 43 37bf53368; G2891-G2899 unused)
+
+The user (11 Oct, stuck in the editor): ten notes on the premises editor - now called the **scenery editor** (the
+WORLD rail, F9, is the **world editor**). This session took the unblockers (notes 2, 3, 4, 6, 9) and designed the rest
+(1, 5, 7, 8, 10) for SCENERY-ED-2: futureDesigns/SCENERY-POLYGON-2026-10.md. Contract **v1.35**.
+
+- **THE TREES COME BACK (note 2).** The island's tree streamer (render_world.js, 1024 m chunks) caches each chunk's walk;
+  TREE_FILL.vegChanged re-planted only when the cover polygons' signature (vegSig) moved, so a deleted or shrunk "no
+  trees" polygon, a gravel band (a surface polygon keeps trees out), a moved strip left their chunks bare until they
+  streamed out. Now the composed object answers `treeExRegions()` (every region that keeps trees out, keyed, in world
+  metres - excludes naming trees and not lifted by the variant, each land strip's clearing) and `exRegrow()` diffs the
+  list against the one the ring was walked with: only the chunks a changed region touches are evicted, and the streamer
+  walks them again nearest first (no full replant). STAT.exRegrown counts them. The collidable woodland (world.trees) is
+  the drawn fill's trunks since G1330 - nothing else to refresh.
+- **THE PLOTS' GROUND (note 4).** A zone's `rules.ground: false` (the zone inspector's "plot ground" pills) takes the lot
+  patch AND the lawn off every plot; `rules.noGround` plot by plot ("pick plots": a click switches one, Esc ends); a site
+  item's `P.plotGround: false` ("its lot's ground drawn"). By default the lot patch (_village_gen.js lotGround) weighs 0
+  under the zone's water line and feathers over the 15 cm above it (the vertices stay: the same grid) (the seafront's pebble band stays - GATE
+  VILLAGE 10 still reads it, 10d holds the shore), and a water-side plot mows no lawn within 30 cm of its zone's water
+  (coverAt's withPlot). house_worker HW_V 2 -> 3 (the patch's output moved).
+- **SMOOTH ROADS (note 3).** Roads were straight between the clicks with each corner filleted - and the fillet is held
+  within 0.35 x w of the corner, so a 4 m road could not bend wider than ~9 m: no long curve without a click every few
+  metres. `curve: 'spline'` draws a road THROUGH its points on the C2 interpolating cubic (chord-length knots, parabolic
+  run-out ends; a Catmull-Rom was tried first and dropped - only C1, its curvature steps at every point), walked under
+  2.5 deg a step so polyRoad's fillet leaves it alone. `tan[i]` is a point's handle (the cyan disc on a stem; the spline is
+  clamped to it there). Applied once in compose (`roadLine`), so the ribbon, the grade, the pavement, the surface strip,
+  coverAt, the plots and the traffic follow the curve; graded roads stay flat across (no superelevation). **Every NEW
+  road is a spline**; existing roads have no `curve` and compose to the bit (Jolene, Metlakatla, Skarvik untouched); the
+  inspector's "curve: smooth / corners" switches one.
+- **A POLYGON YOU CAN RESHAPE (note 6).** The handles were there (orange corner discs, faint midpoint discs, Ctrl+click)
+  but nothing said so and the inspector had one line. Now: a click on the selected shape's EDGE adds a corner there (the
+  tolerance is screen-sized; a road's within its drawn line); clicking an orange disc PICKS it (white) and Del removes
+  that corner (Shift+Del, or no corner picked, deletes the feature; Esc un-picks); the inspector's SHAPE section counts
+  the corners, names the picked one with its coordinates, and has "remove corner N", "subdivide" (a corner mid-way on
+  every edge, the closing one too) and "continue drawing from the last corner". The select tool's help says the whole
+  grammar. A spline road's handles move with its points on every insert / removal.
+- **THE ROUND PAD (note 6).** AIRFIELD > "round pad": the centre, then a point on the rim; a paved polygon (material +
+  `look`, concrete by default) carrying `round: { c, r }` - its `poly` is the circle's 48-gon, rewritten by normalise;
+  its two discs move it and set the radius; the SHAPE section has the radius slider and "free corners" (a 12-gon to shape
+  by hand). Its wheels feel its look's class (the only paved polygon that does - ED-2's areas make that general).
+- **THE NAMES (note 9).** The editor's header "scenery editor"; the flight rail's DEV item "editors" (the scenery editor,
+  the world editor (F9)); the inspector's record "THE SCENERY"; the GRAPHICS map note and the world rail's head title.
+- **THE DESIGN (notes 1, 5, 7, 8, 10)**: SCENERY-POLYGON-2026-10.md - one AREA record with attachable properties
+  (terraform, exclude, cover, wheels, draw: set / pave / grass, marks: parking / dock / stands, life); the migration as a
+  view first (areaOf / entriesOf, no record change), then a v1 -> v2 migrator whose areas compose EXPANDED into today's
+  internal lists in the same order (a migrated fixture composes bit-equal; PREMCOOK stays valid); concrete through the
+  pavement's anti-tiling with weathered parking / dock marks (a dock over water wants a deck); the inspector as its own
+  plate showing the selection whatever the tab, the tabs as palettes; the asset placer on ASSETS-OCT G2900's bank
+  (PROP_REG rows from tools/scenery_table.py, src/scenery/scenery_*.js, lodOf / lodDist), thumbnails, scatter brush.
+
+Gates: GATE PREMISES 19 (the spline on a clothoid test road - through every point, no turn over 2.5 deg, curvature
+monotone (worst step back 0.83 % of the peak); a 300 m arc of five points drawn within 8 %; three clicks with 400 m legs
+bend at a 300 m radius where the fillet bent at 9 m; a handle; a road without `curve` composes to the bit; the round pad's
+circle, wheels, pavement, round trip; the plots' ground on / off / one plot / no lawn; treeExRegions' keys for a removed,
+shrunk, moved exclusion and a moved / deleted strip + the streamer's hook; corners inserted and removed through the store).
+**GATE SCENERYED (new, core, ~1 s)**: premises_ui.js mounted headless under a DOM stub on the real core, driven through its
+command surface - a polygon drawn, a corner added by an edge click (picked), removed, subdivided, undone, three-corner
+floor; the round pad (refused under 3 m, the rim drag, the centre drag, the wheels); a road traced = spline, a handle
+dragged, a point added on the curve keeps the handles on their points; the plot pick on / off; the names. GATE VILLAGE
+10d (the lot at the shore). RESULTS (11 Oct, A0's CPU window, the lock held): PREMISES, SCENERYED, PAVEMENT,
+GRASSSIDES, COVER, BIOME, PREMRASTER, HOUSEWORKER PASS on the first run; UISMOKE (the dev rail's row renamed: its WANT
+list follows), VILLAGE (row 10 "dry under its house": the waterfront houses' feet are within 15 cm of the water, so the
+patch's weight there is the shore law's - row 10 now holds that law for them, the full weight for the rest) and PREMCOOK
+(the synthetic plot carried `noGround: false` into every site item's cooked plan - now the key only when true) fixed and
+re-run: UISMOKE, VILLAGE, SCENERYED PASS; **PREMCOOK's one red is "the page's placement code is the one cooked"** - the
+code hash covers premises_build.js, so this branch needs the RE-COOK the landing does (`node tools/premises_cook.js`);
+its placements hash and every place cell equal the committed cook (the output did not move).
+
+What to watch for (no stills - the user's rule): the DEV rail's item is "editors" (the scenery editor; the world editor,
+F9) and the editor's header says "scenery editor". Delete a "no trees" polygon, Jolene's gravel band beside 13/31 or a
+strip: the trees under it stream back in within a second or two (that 1 km chunk only - watch for a hitch on the edit's
+frame, STAT.exRegrown counts the chunks). The shore gardens (Metlakatla, Jolene's water plots) stop at the water: no lawn
+tufts or lot patch at the sea's edge, the seafront pebbles still there - look for a garden that now ends too hard. Every
+existing road is untouched (no `curve`); a NEW road is smooth with cyan handles. AIRFIELD > round pad. The house worker's
+cache key moved (HW_V 3): the first boot after the train re-generates the houses once (the build stamp moves the key
+every train anyway).
+
+## TRAIN 43.2 LANDED (A0, 11 Oct ~13:55) - the scenery editor unblockers
+
+Cargo: SCENERY-ED-1 G2890 (claude/scenery-ed-g2890 4f800a808, fast-forward on train 43): trees regrow live when an
+exclusion / gravel band / strip is removed, shrunk or moved; plot ground off per zone / plot / site item and no lawn at
+the waterline by default; smooth roads (C2 spline + handles, new roads only); polygon vertex editing (edge click =
+corner, corner + Del, subdivide); AIRFIELD > round pad; 'scenery editor' / 'world editor'. Gates: the session's
+targeted set + PREMCOOK after the premises re-cook (premises_build.js is in its hash; cooked output unchanged) and
+PREMISES, SCENERYED, BUILD, MEDIA (+13.2 KB). Strict gate (t432, build 184124362148): 157 within slack, 0 RED (one
+1017 ms task in one rollout run, like 43's 1068). Then the premises + parked re-cooks moved the build to 62f0cd5245c9
+(data manifests only).
