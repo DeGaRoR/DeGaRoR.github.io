@@ -1720,7 +1720,12 @@ function mount(host, ctx) {
   }
   function viewRows(P) {
     rows.section(P, 'VIEW');
-    if (ctx.cameras) rows.select(P, 'camera', [['orbit', 'orbit (right-drag)'], ['map', 'map (top-down)']], () => ctx.cameras.mode(), v => ctx.cameras.set(v));
+    if (ctx.cameras) rows.select(P, 'camera', [['orbit', 'orbit (right-drag)'], ['map', 'map (top-down)']].concat(ctx.cameras.flyOk && ctx.cameras.flyOk() ? [['fly', 'fly (WASD / ZQSD, R / F, right-drag looks)']] : []), () => ctx.cameras.mode(), v => { ctx.cameras.set(v); palette.refresh(); });
+    // (G2915, the user: "the same controls as the world editor ... and camera speed": the world editor's free camera, its speed)
+    if (ctx.cameras && ctx.cameras.flyOk && ctx.cameras.flyOk()) {
+      rows.slider(P, 'camera speed', 1, 400, 1, () => ctx.cameras.speed(), v => ctx.cameras.speed(v), v => (+v).toFixed(0) + ' m/s');
+      rows.note(P, 'FLY: the keys by their place (WASD, or ZQSD on a French keyboard), R / F up and down, Shift x5, right-drag to look, the wheel for the speed; Tab cycles orbit, map, fly. A click still edits.');
+    }
     rows.check(P, 'surface overlay', () => ctx.overlayOn ? ctx.overlayOn() : true, v => { R.overlayOn(v); ctx.overlayOn && ctx.overlayOn(v); ctx.redraw && ctx.redraw(); });
     // THE TIME (SKY chantier): the clock's hand in the world editor - one clock for the shed and the world
     if (ctx.day && ctx.day.day && ctx.day.day()) {
@@ -1751,7 +1756,7 @@ function mount(host, ctx) {
       rows.slider(P, 'exposure', 0.3, 2.5, 0.02, () => ctx.rig.get().exposure, v => ctx.rig.set({ exposure: v }));
       if (ctx.rig.get().manual !== undefined) rows.check(P, 'the sun by hand', () => !!ctx.rig.get().manual, v => ctx.rig.set({ manual: !!v }));
     }
-    rows.note(P, 'Tab toggles the camera; Esc cancels; Del deletes; Ctrl+Z / Ctrl+Y undo and redo; 1-6 pick a section');
+    rows.note(P, 'Tab cycles the camera (orbit, map, fly); Esc cancels; Del deletes; Ctrl+Z / Ctrl+Y undo and redo; 1-6 pick a section');
   }
 
   // THE LIFE (SCENERY LIFE, contract v1.22): the record's `life` block - the people, the wall clutter, the rubbish,

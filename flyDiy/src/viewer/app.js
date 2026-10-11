@@ -98,7 +98,8 @@
       document.body.classList.add('premOpen');   // the flight's chrome steps aside (flight.css)
       const dirtyDraw = () => {};
       PREM.host = PREM.host || window.PREMISES_HOST.make({ THREE, world, size: 900, view: PREM.view, canvas: renderer.domElement, R: () => PREM.R, persp: camera, map: 'persp', storageKey: 'flydiy.premises.gameview', onDraw: dirtyDraw,
-        onMode: m => { const l = document.getElementById('premCam'); if (l) l.textContent = m === 'map' ? 'MAP · wheel zooms · middle-drag pans' : 'ORBIT · right-drag turns · middle-drag pans · wheel zooms'; } });
+        fly: window.DEV_CAM || null,   // G2915: the world editor's free camera (WASD / ZQSD, R / F, Shift x5, its speed)
+        onMode: m => { const l = document.getElementById('premCam'); if (l) l.textContent = m === 'map' ? 'MAP · wheel zooms · middle-drag pans · Tab: fly' : m === 'fly' ? 'FLY ' + Math.round((window.DEV_CAM && window.DEV_CAM.speed) || 0) + ' m/s · WASD / ZQSD · R F up down · Shift x5 · right-drag looks · wheel = speed · Tab: orbit' : 'ORBIT · right-drag turns · middle-drag pans · wheel zooms · Tab: map'; } });
       PREM.host.attach();
       // the camera starts over the premises (its extent), or over the aeroplane
       const ov = world.premises.overlay;
@@ -12590,7 +12591,8 @@
   const devCam = { pos: new THREE.Vector3(), yaw: 0, pitch: 0, keys: new Set(),
                    speed: 25, last: 0, fwd: new THREE.Vector3(), rgt: new THREE.Vector3(),
                    look: new THREE.Vector3() };
-  const devCamOn = () => FL.ready && !inGarage && cam.mode === 'free';
+  // (G2915: the scenery editor's FLY camera is this camera too - the editor's host drives it while its mode is 'fly')
+  const devCamOn = () => FL.ready && !inGarage && (cam.mode === 'free' || !!(PREM.open && PREM.host && PREM.host.cameras.mode() === 'fly'));
   devCam.enter = () => {                 // seed the pose from wherever the eye is
     devCam.pos.copy(camera.position);
     camera.getWorldDirection(devCam.fwd);
@@ -12621,6 +12623,7 @@
                                'KeyR', 'KeyF', 'ShiftLeft', 'ShiftRight']);
   window.addEventListener('keydown', e => {
     if (!devCamOn() || !DEVCAM_KEYS.has(e.code)) return;
+    if ((e.target && /^(input|textarea|select)$/i.test(e.target.tagName || '')) || e.ctrlKey || e.metaKey) return;   // (G2915: a key typed in a field is the field's; Ctrl+S, Ctrl+Z stay the editor's)
     devCam.keys.add(e.code); e.preventDefault(); e.stopImmediatePropagation();
   }, true);
   window.addEventListener('keyup', e => {
