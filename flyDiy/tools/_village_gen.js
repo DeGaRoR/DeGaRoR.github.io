@@ -1361,6 +1361,7 @@ function lotGround(vil, plot, house, built, occ) {
     return Math.min(0.85, 1 - keep);
   };
   const pos = [], uv = [], splat = [], tone = [], alpha = [], idx = [];
+  const wyShore = isFinite(T.waterY) ? T.waterY : -Infinity;   // (G2890: the shore's line; inland none)
   const id = new Int32Array((nx + 1) * (nz + 1)).fill(-1);
   for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
     const x = x0 + i * cell, z = z0 + j * cell;
@@ -1368,6 +1369,9 @@ function lotGround(vil, plot, house, built, occ) {
     const d = edgeDist(x, z);
     if (!inside && d > M) continue;
     const y = T.h(x, z);
+    // THE LOT STOPS AT THE SHORE (G2890, the user: "the ones on the shore draw grass up till the sea"): no patch under
+    // the water line, feathered over the 15 cm above it (the pebbles of the seafront band stay; GATE VILLAGE 10 reads them)
+    if (y < wyShore) continue;
     id[j * (nx + 1) + i] = pos.length / 3;
     pos.push(x, y + 0.02, z);
     uv.push(x, z);
@@ -1380,7 +1384,7 @@ function lotGround(vil, plot, house, built, occ) {
       // the wander: the noise moves the edge, not the alpha, so the fade stays smooth
       const w = (fbm(x * 0.22 + 5.7, z * 0.22 + 2.9, vil.V.seed + 37, 2) - 0.5) * 2.2;
       const t = clamp((d + w) / M, 0, 1);
-      alpha.push(inside ? 1 : 1 - t * t * (3 - 2 * t));
+      alpha.push((inside ? 1 : 1 - t * t * (3 - 2 * t)) * clamp((y - wyShore) / 0.15, 0, 1));
     }
   }
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {

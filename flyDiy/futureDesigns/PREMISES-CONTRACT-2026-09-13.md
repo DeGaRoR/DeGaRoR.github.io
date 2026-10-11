@@ -955,3 +955,23 @@ after the freeze, against this document.
   way of its own: the street's authored pattern is MILL-TAXI's -, SEA, mk_sea; none for tw_ski: the summit has no free
   flat ground). Held by GATE PREMISES 18, SITE (THE PLOTS), TAXICLEAR 11, GAMEPREM (THE WORLD). The editor's handle per
   plot (the runway inspector's hangar handle, once per plot) is owed.
+- **v1.35 (2026-10-11, SCENERY-ED-1 G2890; the user's notes on the scenery editor).** Four additions, all optional, all
+  kept by the round trip; a record that uses none of them composes to the bit as before.
+  (a) **A road may carry `curve: 'spline'`** (and then `tan: [null | [dx, dz], ...]`, one slot per point): it is drawn
+  THROUGH its points on the C2 interpolating cubic (chord-length knots, parabolic run-out ends) instead of straight
+  between them with the corners filleted (`roadCurve`; `roadLine(r)` is the one place the line is chosen - spline,
+  `smooth` (v1.19) or the points). `tan[i]` is point i's outgoing Bezier handle in metres (the incoming one mirrored):
+  the spline is clamped to it there. Applied once in compose, so the ribbon, the grade, the surface strip, coverAt,
+  the plots and the traffic read one line; the record keeps the clicked points. `normalise` lays `tan` beside `pts`
+  (padded with null, cut to length). The editor writes `curve: 'spline'` on every NEW road.
+  (b) **A paved (`material` + `look`) polygon may carry `round: { c: [x, z], r, n? }`** - a ROUND PAD: its `poly` is
+  the circle's n-gon (48 by default), rewritten by `normalise` from `round` whatever the file says; and its wheels feel
+  its look's class (`RUNWAY_LOOKS[look].surface`), as a surface polygon after every authored one of its priority.
+  (c) **The plots' ground**: a zone's `rules.ground === false` takes the lot patch and the lawn off every plot it sows;
+  `rules.noGround: [plot ids]` off those plots alone (compose stamps `plot.noGround`); a site item's
+  `P.plotGround === false` off its own lot. And BY DEFAULT no lot patch is drawn under the water line (feathered over
+  the 15 cm above it), and a water-side plot mows no lawn within 30 cm of its zone's water.
+  (d) **`treeExRegions()`** on the composed object: every region that keeps trees out (each exclude naming trees and
+  not lifted by the trees' variant, each land strip's generic or own clearing) as `{ k, x0, z0, x1, z1 }` in world
+  metres - the renderer's tree streamer diffs two compositions' lists and regrows only the chunks under a changed one.
+  Held by GATE PREMISES 19 and GATE SCENERYED (the editor's hand); GATE VILLAGE 10d (the lot at the shore).

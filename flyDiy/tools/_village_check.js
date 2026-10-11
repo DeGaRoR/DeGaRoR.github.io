@@ -198,6 +198,10 @@ function battery(name, vil) {
       const a = L.alpha[i]; if (!(a >= 0 && a <= 1)) bad++;
     }
     check(off === 0, name + ': the ground patch on plot ' + plot.id + ' is not on the terrain', off + ' vertices');
+    // 10d THE LOT STOPS AT THE SHORE (G2890, the user: "the ones on the shore draw grass up till the sea"): no vertex of
+    //   the patch under the water line, and none at full weight within 15 cm of it
+    { let wet = 0; for (let i = 0; i < L.verts; i++) { const y = L.pos[i * 3 + 1] - 0.02; if (y < T.waterY - 1e-9 || (y < T.waterY + 0.149 && L.alpha[i] > 0.999)) wet++; }
+      check(wet === 0, name + ': the ground patch on plot ' + plot.id + ' reaches under the water line', wet + ' vertices'); }
     check(bad === 0, name + ': the ground patch on plot ' + plot.id + ' has a weight out of range');
     // 10c THE DARKENING, CUT BY ROW (2026-09-24): lotGround keeps, per row of its grid, only the
     //   occluders whose soft edge can reach it. Fed what the game feeds it (the house's ground
