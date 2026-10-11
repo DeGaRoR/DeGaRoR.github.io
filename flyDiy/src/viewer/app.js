@@ -81,7 +81,7 @@
         for (const id of ['premStrip', 'premPlaque', 'premChk', 'premCam']) v.appendChild(mk('div', id));
         const panel = mk('div', 'premPanel');
         const head = mk('div', 'premHead');
-        const t = mk('span', null, 't'); t.textContent = 'world editor';
+        const t = mk('span', null, 't'); t.textContent = 'scenery editor';   // G2890: the SCENERY editor (premises); the WORLD editor is the right-hand rail (F9)
         const sec = mk('span', 'premSec', 's');
         const back = mk('button', 'premClose', 'pill'); back.type = 'button'; back.textContent = 'back to the flight'; back.title = 'close the editor; the record autosaved and is the world at the next boot';
         back.onclick = () => PREM.close();
@@ -1368,6 +1368,13 @@
     }
     // the room (and the residents with it) under the stand: minus the stand's place in the room's frame
     RES.group.position.set(-(RES.dx || 0), hangar ? hangar.group.position.y : 0, -(RES.dz || 0));
+    // G2319.1: the room moved AFTER the garage framed its eye (enterGarage frames first, the residents stand after):
+    // an eye still where the garage put it is framed again (eased); one the hand has moved is the hand's
+    if (hangar && (hangar.group.position.x !== -(RES.dx || 0) || hangar.group.position.z !== -(RES.dz || 0))) {
+      hangar.group.position.x = -(RES.dx || 0); hangar.group.position.z = -(RES.dz || 0);
+      const f = RES.frame;
+      if (f && azT === f.az && elT === f.el && distT === f.dist) { const F = garageFraming(); azT = F.az; elT = F.el; distT = F.dist; RES.frame = { az: F.az, el: F.el, dist: F.dist }; }
+    }
     for (const g of RES.holders.values()) if (!g.userData.filled) window.PARKED.residentFill(g);
     residentsShow();
     RES.ms = performance.now() - t0;
@@ -1577,15 +1584,24 @@
     setLayout: k => {
       if (!CAREER_DEV || typeof hangarLayout !== 'function') return null;
       const shed = shedHome();
-      if (k && !hangarLayout(k, shed.shell)) return null;
-      if ((shed.layout || null) === (k || null)) return shed.layout || null;
+      // G2319.1: a layout names its shell - choosing one in another shell takes the shell with it (the career's main
+      // hangar is today's club again; the works' hearth / hearthLight / cozy stay one call away)
+      const L = k && typeof HANGAR_LAYOUTS !== 'undefined' ? HANGAR_LAYOUTS[k] : null;
+      if (k && !L) return null;
+      if (L && L.shell && L.shell !== shed.shell && typeof SHELLS !== 'undefined' && SHELLS[L.shell]) {
+        shed.shell = L.shell; shed.dims = Object.assign({}, SHELLS[L.shell].dims);
+        if (WF && WF.setShedDims) WF.setShedDims(Object.assign({ shell: shed.shell }, playerShedDims(player, 'HOME', (typeof siteOf === 'function') ? siteOf('HOME') : null)));
+      } else if ((shed.layout || null) === (k || null)) return shed.layout || null;
       if (k) shed.layout = k; else delete shed.layout;
       playerSave();
       disposeHangar();
       if (inGarage) applyEnv(); else getHangar();
+      if (inGarage) garageCamera();          // a new room, the eye re-framed (as setShell does)
       return shed.layout || null;
     },
     residentsSync: () => { residentsSync(RES && RES.bb); return residentsApi(); },   // the rigs' door: stand them now
+    // G2319.1: the garage's own default framing, applied (the rigs' "room" camera: a moved room draws the eye in)
+    frame: () => { garageCamera(); return garageFraming(); },
     residentSwap: (n, o) => residentSwap(n, o),      // G2316: a resident onto the stand (timings back)
     setMobile: on => {
       mobileOn = on !== false;
@@ -5434,6 +5450,8 @@
     curKey = key;
     if (model) {
       craft.remove(model.grp);
+      // G2400 (FREIGHT-STRAP): the strapped load's group is not the model's to give back (fsSync hangs it on the new one)
+      try { if (FST.flight && FST.flight.parent) FST.flight.parent.remove(FST.flight); } catch (e) {}
       // the generated model is rebuilt per spec change and never cached, so it
       // owns its GPU buffers and must give them back
       // (a live character's skinned geometry is SHARED with the editor's
@@ -6714,6 +6732,9 @@
       if (CAREER_DEV && d.career && world && world.day && typeof careerDaySet === 'function') { const r = careerDaySet(d, { date: world.day.date, utc: world.day.utc }); if (r.ok) d = r.doc; }
       player = d; playerSave();
       if (CAREER_DEV) careerPlateSync();
+      // G2400 (FREIGHT-STRAP): the delivered items leave, the next stage's arrive placed (the sim and the drawing follow)
+      { const FA = fsAboard(); if (FA) out.load = { items: FA.items, flags: FA.flags }; }   // (before the stop changes what is aboard)
+      if (CAREER_DEV) out.freight = fsStop();
     } catch (e) { console.warn('flyDiy: the flight could not be written to the fleet ledger -', e && e.message); }
     flLastEnd = out;
     return out;
@@ -7454,9 +7475,11 @@
       if (!r.ok) return r;
       player = r.doc; playerSave();
       try { if (CAREER_DEV) careerPlateSync(); } catch (e) {}
+      try { fsSync(); } catch (e) {}   // G2400 (FREIGHT-STRAP)
       return { ok: true, say: r.rec.items.length + ' items, ' + r.rec.kg + ' kg in the career\'s record (' + (r.rec.slot || '') + ')' };
     }
     frSandboxRec = freightLoadRecord(card, st, job.ctx);
+    try { fsSync(); } catch (e) {}   // G2400 (FREIGHT-STRAP)
     return { ok: true, say: 'kept for this session (the sandbox): ' + frSandboxRec.items.length + ' items, ' + frSandboxRec.kg + ' kg' };
   }
   // the sandbox's aeroplane picker: a validated design's build file put on the stand (unsaved, PROCURE's file)
@@ -7488,7 +7511,7 @@
       if (name === 'load') { frTest = value; frOpen(); }
       else if (name === 'plane' && value) { if (window.FREIGHT_LOAD) window.FREIGHT_LOAD.close(); frStand(value).then(() => frOpen()); }
     },
-    closed: () => frEntrySync(),
+    closed: () => { frEntrySync(); try { fsSync(); } catch (e) {} },   // G2400: the accepted load strapped on the stand
   });
   function frOpen() {
     if (frBusy || !FREIGHT_PAGE) return Promise.resolve({ ok: false, why: 'busy' });
@@ -7543,6 +7566,232 @@
     // the drawn skin against the card's hold at its middle station (the frame's evidence)
     frameCheck: frFrameCheck,
   };
+  // ---- G2400 (FREIGHT-STRAP): THE ACCEPTED LOAD, STRAPPED - IN THE SIM AND IN THE CABIN (only under FREIGHT_PAGE) -----
+  // THE MASSES: the accepted placement that rides this airframe (78_ freightStrapFor: the career's record, or the
+  // sandbox's) -> freightStrapAdds on the build that flies (the items as point masses on the rings round them, the job's
+  // passengers in their seats against the build's, the baggage allowance off) -> sim.setFreight, AT THE ROLL-OUT, before
+  // the flight's reset (rollOutStand: after the bench's fingerprint, which stays the build's). The garage takes it off
+  // again (its rigs weigh the build). Under the worker the list rides the flight's init (sim_link begin) and a change
+  // (a stop) the 'freight' command at its step: the worker's sim and the page's are the same aeroplane, loaded the same.
+  // THE STOP: a delivered stage's items leave (77_ freightLoadSettle drops the record), the next stage's arrive placed
+  // by the packer's proposal (78_ freightStrapNext) unless the player's own placement for it is there; the sim and the
+  // drawing follow at once. THE DRAWING (lazy freight_strap.js): one group for the load, hung twice - on the STAND beside
+  // the loading view's own frame (frFrame, under `craft`: never under edSitP, whose meshes the join bakes into the
+  // flown model and the parked aeroplanes, and whose materials the build's clip writes), and on the FLOWN MODEL through
+  // the crew's cage -> model map (data.cageM, buildPeople's): the cockpit sees it, the chase view through the windows,
+  // with the cabin. A seat the build fills and the job leaves empty hides its flown figure; a job's passenger in a seat
+  // the build leaves empty is seated (the build's pilot's posed record moved to that seat, another character). With no
+  // accepted load nothing here runs past a null check: no group, no draw, no program, the sim never asked.
+  const FST = { sim: null, applied: '', R: null, A: null, drawKey: '', built: null, stand: null, flight: null, busy: false,
+                zDef: null, zFw: null, hidden: [], pax: [], paxKey: '', standM: null, flags: [], warnEl: null };
+  const fsSlot = () => (inGarage ? slotOnStand() : (flSlot || slotOnStand()));
+  const fsYD = () => { const D = window.CAGE_DATUM; return D && D.fwOk && isFinite(D.yD) ? D.yD : null; };
+  function fsAccepted() {
+    if (!FREIGHT_PAGE || typeof freightStrapFor !== 'function' || curKey !== 'gen' || !def || !def.parts) return null;
+    const card = frCard();
+    if (!card) return null;
+    const A = freightStrapFor(CAREER_DEV && !FREIGHT_DEV ? playerLoad() : frSandboxRec, fsSlot(), card.id);
+    return A ? { A, card } : null;
+  }
+  // the sim's load: the accepted placement's masses on the build that flies, or nothing; written only when it changes
+  function fsApply() {
+    if (!FREIGHT_PAGE || !sim || typeof sim.setFreight !== 'function') return null;
+    if (FST.sim !== sim) { FST.sim = sim; FST.applied = ''; FST.R = null; }
+    const got = fsAccepted();
+    const R = got ? freightStrapAdds(def, got.A, { yD: fsYD(), card: got.card }) : null;
+    const list = R ? R.adds : null, key = list ? JSON.stringify(list) : '';
+    if (key !== FST.applied) { sim.setFreight(list); FST.applied = key; }
+    FST.R = R; FST.A = got ? got.A : null;
+    // THE LIMITS SAID (never refused): over the plaque's MTOW, the CG out of the certified range - on the brief before
+    // take-off (fsWarnSync) and on the logbook row (fsAboard)
+    FST.flags = R && got && typeof freightStrapFlags === 'function' ? freightStrapFlags(got.A, got.card) : [];
+    return R;
+  }
+  // the brief's warn line: in the flight's plate (#flBrief, before the notice), in warn ink, while a flagged load is aboard
+  function fsWarnSync() {
+    if (typeof document === 'undefined' || !document.getElementById) return;
+    const want = !inGarage && FST.applied && FST.flags.length ? 'Load: ' + FST.flags.map(f => f.say).join(' · ') + ' - it flies as loaded' : '';
+    if (!FST.warnEl && want) {
+      const host = $('flBrief');
+      if (!host) return;
+      const el = FST.warnEl = document.createElement('div');
+      el.id = 'fsWarn'; el.className = 'flPlate'; el.setAttribute('role', 'status');
+      el.style.cssText = "padding:6px 12px;margin-top:6px;font:500 12.5px/1.35 'IBM Plex Sans',sans-serif;color:#ffb257;border-color:rgba(255,178,87,.7);max-width:520px";
+      host.insertBefore(el, $('flNotice') || null);
+    }
+    if (!FST.warnEl) return;
+    FST.warnEl.hidden = !want;
+    if (FST.warnEl.textContent !== want) FST.warnEl.textContent = want;
+  }
+  // THE RIGS' LOAD (?freight=1&strapload=<test>[:<design>], the sandbox only): the hold named (the validated design's
+  // card; the stand's build is not replaced), the test load as the packer proposes it, accepted - no view, no click, so
+  // a census (FRAMECOST_QUERY) or a timed A/B runs "no load" (strapload=none:cub) against "loaded" by the URL alone
+  const FS_RIG = (() => { try { const m = /[?&]strapload=([a-z0-9]+)(?::([a-z0-9]+))?(&|$)/i.exec(window.location.search || ''); return FREIGHT_DEV && m ? { test: m[1], design: m[2] || null, done: false } : null; } catch (e) { return null; } })();
+  function fsRigLoad(test, design) {
+    if (!FREIGHT_DEV) return null;
+    if (design && FREIGHT_CARDS[design]) frStandDesign = design;
+    const card = frCard();
+    if (!card) return null;
+    if (test === 'none') { frSandboxRec = null; fsSync(); return { items: 0, card: card.id }; }
+    const T = FR_TESTS.find(t => t[0] === test);
+    if (!T) return null;
+    const items = T[2] ? freightItems(T[2], T[3]) : [freightItem({ id: 'drum.1', kind: 'drum', kg: 165, dims: [0.64, 0.64, 0.93] })];
+    frSandboxRec = freightLoadRecord(card, freightLoadNew(card, items, { pax: T[4] }), { slot: slotOnStand() });
+    fsSync();
+    return { items: frSandboxRec.items.length, kg: frSandboxRec.kg, card: card.id };
+  }
+  const fsRigDue = () => { if (FS_RIG && !FS_RIG.done && curKey === 'gen' && def) { FS_RIG.done = true; FS_RIG.got = fsRigLoad(FS_RIG.test, FS_RIG.design); } };
+  function fsFlightStart() { try { fsRigDue(); fsApply(); fsSync(); } catch (e) { console.warn('flyDiy (freight strap): the load could not be put aboard -', e && e.message); } }
+  function fsGarage() {
+    try {
+      if (FST.sim === sim && FST.applied && sim && sim.setFreight) sim.setFreight(null);
+      FST.applied = ''; FST.R = null;
+      fsSync();
+    } catch (e) {}
+  }
+  // after a stop (playerFlightEnd, the career's record settled): the next stage's load placed by the packer, the sim
+  // and the drawing on what is aboard now
+  function fsStop() {
+    if (!FREIGHT_PAGE || !CAREER_DEV || FREIGHT_DEV) return null;
+    try {
+      const card = frCard();
+      const N = typeof freightStrapNext === 'function' ? freightStrapNext(playerLoad(), flSlot, card) : null;
+      if (N && N.how === 'proposed') { player = N.doc; playerSave(); try { if (CAREER_DEV) careerPlateSync(); } catch (e) {} }
+      fsApply(); fsSync();
+      return N ? { how: N.how, why: N.why, items: N.rec ? N.rec.items.length : 0 } : null;
+    } catch (e) { console.warn('flyDiy (freight strap): the stop\'s load -', e && e.message); return null; }
+  }
+  // what flew aboard, for the logbook row (who sat, the kilos on top of the build's payload)
+  function fsAboard() {
+    const R = FST.R;
+    if (!R || !FST.applied) return null;
+    return { occ: R.seats.filter(s => s.job).length, dm: R.dm, items: R.items.length, flags: FST.flags.map(f => f.k + (f.side ? ':' + f.side : '')) };
+  }
+  // card -> the cage sheet (the loading view's T; zFw the join's wsFront ring, kept per build)
+  function fsT() {
+    if (FST.zDef !== def) { FST.zDef = def; FST.zFw = frZFw(); }
+    return FST.zFw == null ? null : new THREE.Matrix4().set(0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, FST.zFw, 0, 0, 0, 1);
+  }
+  function fsDrop() {
+    for (const k of ['stand', 'flight']) if (FST[k]) { if (FST[k].parent) FST[k].parent.remove(FST[k]); FST[k] = null; }
+    if (FST.built && window.FREIGHT_STRAP_VIEW) window.FREIGHT_STRAP_VIEW.dispose(FST.built.grp);
+    FST.built = null;
+  }
+  // the seats in flight: a figure the job does not seat hidden, a passenger the build does not seat drawn
+  // (work only when the model or the seats change: the 700 ms tick re-asserts the hidden figures and nothing else)
+  function fsPeople() {
+    const R = FST.R, M = model, grp = M && M.grp;
+    const hide = R && grp ? R.seats.filter(s => s.build && !s.job).map(s => s.i) : [];
+    const want = R && grp ? R.seats.filter(s => s.job && !s.build).map(s => s.i) : [];
+    const key = (grp ? grp.uuid : '') + '|' + hide.join(',') + '|' + want.join(',');
+    if (key === FST.paxKey) { for (const o of FST.hidden) if (o.visible) o.visible = false; return; }
+    FST.paxKey = key;
+    for (const o of FST.hidden) o.visible = true;
+    FST.hidden = [];
+    for (const P of FST.pax) { P.P.dead = true; if (P.P.inst && window.CAGE_CHAR) window.CAGE_CHAR.dispose(P.P.inst); if (P.frame && P.frame.parent) P.frame.parent.remove(P.frame); }
+    FST.pax = [];
+    if (!grp) return;
+    for (const i of hide) { const o = grp.getObjectByName('flDum' + (i + 1)); if (o) { o.visible = false; FST.hidden.push(o); } }
+    const recs = M.data && M.data.people, got = fsAccepted(), CC = window.CAGE_CHAR;
+    if (!want.length || !recs || !recs.length || !got || !got.card.seats || !CC) return;
+    // a passenger the build does not seat: the build's pilot's posed record moved to that seat (card -> the cage sheet:
+    // x = card z, z = zFw - card x), another character, at that character's own scale, no hands on the controls
+    const base = recs.find(r => r.idx === 1) || recs[0];
+    const s0 = got.card.seats.find(s => s.i === (base.idx || 1) - 1) || got.card.seats[0];
+    const used = new Set(recs.map(r => r.key));
+    const others = (CC.list ? CC.list() : []).map(c => c && c.key).filter(k => k && !used.has(k));
+    want.forEach((i, n) => {
+      const s = got.card.seats.find(q => q.i === i);
+      if (!s) return;
+      const key2 = others[n % Math.max(1, others.length)] || base.key;
+      const figM = base.figM.slice();
+      let k = 1; try { const a = CC.rig(base.key), b = CC.rig(key2); if (a && b && a.height > 0 && b.height > 0) k = a.height / b.height; } catch (e) {}
+      for (const j of [0, 1, 2, 4, 5, 6, 8, 9, 10]) figM[j] *= k;
+      figM[12] += s.z - s0.z; figM[14] -= s.x - s0.x;
+      const rec = Object.assign({}, base, { key: key2, idx: 100 + i, figM, jobs: [], anim: null });
+      const before = grp.children.length;
+      const ps = buildPeople({ cage: M.data.cage, people: [rec], cageM: M.data.cageM }, grp, []);
+      const frame = grp.children.length > before ? grp.children[grp.children.length - 1] : null;
+      if (ps && ps[0]) FST.pax.push({ P: ps[0], frame, seat: i });
+    });
+  }
+  // THE DRAWING'S SYNC (the 700 ms entry tick, an accept, a roll-out, a stop): build the group when the load changes,
+  // hang it where it is seen
+  function fsSync() {
+    if (!FREIGHT_PAGE) return;
+    const got = fsAccepted();
+    const items = got ? got.A.items : [];
+    const key = items.length ? got.card.id + '|' + JSON.stringify(items.map(p => [p.id, p.at])) : '';
+    if (key !== FST.drawKey) {
+      fsDrop();
+      FST.drawKey = key;
+      if (key && !FST.busy) {
+        FST.busy = true;
+        const want = key;
+        Promise.resolve(window.FREIGHT_STRAP_VIEW || (window.FLYDIY_LAZY ? window.FLYDIY_LAZY('freight_strap') : null))
+          .then(() => (window.FREIGHT_STRAP_VIEW ? window.FREIGHT_STRAP_VIEW.build(THREE, items, got.card) : null))
+          .then(b => { FST.busy = false; if (!b) return; if (FST.drawKey !== want) { window.FREIGHT_STRAP_VIEW.dispose(b.grp); fsSync(); return; } FST.built = b; fsSync(); },
+                e => { FST.busy = false; console.warn('flyDiy (freight strap): the drawing did not load -', e && e.message); });
+      }
+    }
+    const B = FST.built;
+    // THE STAND: under craft at the loading view's frame, while the stand shows the cage and the view is shut
+    const loading = !!(window.FREIGHT_LOAD && window.FREIGHT_LOAD.isOpen && window.FREIGHT_LOAD.isOpen());
+    const Ms = B && inGarage && !loading ? frFrame() : null;
+    if (Ms) {
+      if (!FST.stand) { FST.stand = B.grp.clone(); FST.stand.name = 'freightStrapStand'; FST.stand.matrixAutoUpdate = false; }
+      if (FST.stand.parent !== craft) craft.add(FST.stand);
+      if (!FST.standM || !FST.standM.equals(Ms)) { FST.stand.matrix.copy(Ms); FST.stand.matrixWorldNeedsUpdate = true; FST.standM = Ms; }
+    } else if (FST.stand && FST.stand.parent) FST.stand.parent.remove(FST.stand);
+    // THE FLOWN MODEL: grp -> cageM (the crew's frame) -> T (card -> sheet)
+    const Tm = B && model && model.grp && model.data && model.data.cageM ? fsT() : null;
+    if (Tm) {
+      if (!FST.flight) {
+        const f = FST.flight = new THREE.Group(), t = new THREE.Group();
+        f.name = 'freightStrapFrame'; f.matrixAutoUpdate = false; f.matrix.set(...model.data.cageM); f.matrixWorldNeedsUpdate = true;
+        t.matrixAutoUpdate = false; t.matrix.copy(Tm); t.matrixWorldNeedsUpdate = true;
+        t.add(B.grp); f.add(t);
+      }
+      if (FST.flight.parent !== model.grp) {
+        FST.flight.matrix.set(...model.data.cageM); FST.flight.matrixWorldNeedsUpdate = true;
+        FST.flight.children[0].matrix.copy(Tm); FST.flight.children[0].matrixWorldNeedsUpdate = true;
+        model.grp.add(FST.flight);
+      }
+    }
+    fsPeople();
+    fsWarnSync();
+  }
+  if (FREIGHT_PAGE) setInterval(() => { try { if (inGarage) fsRigDue(); fsSync(); } catch (e) {} }, 700);
+  // the stills' cut-away (a rig's hand): the loading view's own cut and eye (freight_load.js open: one clipping plane
+  // at 0.8 x the hold's widest half-width on the camera's side, the eye from that side over the floor) with the
+  // STRAPPED load drawn - the build's clip touches edSitP's materials only, and the load hangs on craft
+  function fsCutaway(on) {
+    const H = frHost();
+    if (!on) { H.clip(null); H.ui(false); return true; }
+    const card = frCard(), M = frFrame();
+    if (!card || !card.hold || !M) return false;
+    const Hd = card.hold, floorY = Hd.y0 + Math.min(...Hd.floor) / 100;
+    let mh = 0; for (const row of Hd.half) for (const v of row) mh = Math.max(mh, v);
+    const zw = new THREE.Vector3().setFromMatrixColumn(M, 2).normalize(), O = new THREE.Vector3().setFromMatrixPosition(M);
+    H.clip(new THREE.Plane(zw.clone().negate(), 0.8 * mh / 100 + zw.dot(O)));
+    const c = new THREE.Vector3((2 * Hd.x0 + Hd.n * Hd.dx) / 2, floorY + 0.35, 0).applyMatrix4(M);
+    H.look(c, Math.atan2(zw.z, zw.x) - 0.12, 0.32, Math.max(4.2, Hd.n * Hd.dx * 1.8));
+    H.ui(true);
+    return true;
+  }
+  // the rigs' and the gates' hands (the evidence: the masses, the CG, the drawing)
+  if (FREIGHT_PAGE) window.FLYDIY_STRAP = {
+    apply: () => { const R = fsApply(); fsSync(); return R ? { adds: R.adds.length, kg: R.kg, dm: R.dm, seats: R.seats, baggageOff: R.baggageOff } : null; },
+    sync: fsSync,
+    state: () => ({ applied: !!FST.applied, adds: FST.R ? FST.R.adds.length : 0, kg: FST.R ? FST.R.kg : 0, dm: FST.R ? FST.R.dm : 0,
+                    simFreight: sim && sim.freight ? (sim.freight() || []).length : null, totalM: sim ? sim.totalM : null,
+                    drawn: FST.built ? FST.built.info : null, stand: !!(FST.stand && FST.stand.parent), flight: !!(FST.flight && FST.flight.parent === (model && model.grp)),
+                    seats: FST.R ? FST.R.seats : null, hidden: FST.hidden.length, pax: FST.pax.length, yD: fsYD(),
+                    rig: FS_RIG ? { test: FS_RIG.test, design: FS_RIG.design, got: FS_RIG.got || null } : null }),
+    stop: fsStop,
+    rigLoad: fsRigLoad,
+    cutaway: fsCutaway,
+  };
   let flightLogged = false;
   function logFlight() {
     if (flightLogged || curKey !== 'gen') return;
@@ -7578,6 +7827,9 @@
           const S = def && def.spec, L = def && def.parts && def.parts.ledger;
           if (S && S.occupants != null) r.occ = S.occupants;
           if (L) { let pk = 0; for (const k in L) if (L[k] && L[k].payload) pk += L[k].mass || 0; r.payloadKg = Math.round(pk * 10) / 10; }
+          // G2400 (FREIGHT-STRAP): the strapped load flew too - who sat (the job's seats) and its kilos on the build's payload
+          { const FA = fsAboard(); if (FA) { r.occ = FA.occ; r.payloadKg = Math.round(((r.payloadKg || 0) + FA.dm) * 10) / 10;
+                                             r.load = { items: FA.items, kg: Math.round(FA.dm * 10) / 10, flags: FA.flags }; } }
           const fpo = window.BENCH_FP_OUT ? window.BENCH_FP_OUT() : null;
           if (fpo) r.fp = fpo;
         } catch (e) {}
@@ -8876,6 +9128,17 @@
       const eyeY = hangar.dims.EAVE - 1.4, tY = (edSit && edSit.visible && edTarget) ? edTarget.y : ((sim && sim.cgPos) ? sim.cgPos()[1] : 1.2);
       F.el = Math.max(0.03, Math.min(0.22, Math.asin(Math.max(-1, Math.min(1, (eyeY - tY) / F.dist)))));
     }
+    // G2319.1: A ROOM MOVED UNDER THE STAND (the career's club + 1: the stand 4.3 m toward the door) put the default eye
+    // in the doorway - the door end's wall and leaf filled the frame's right edge (the 8 Oct 23:25 stills). The same angle,
+    // the eye drawn in until it stands 2.5 m inside every wall (never nearer than 8 m); a room that never moved is as ever
+    if (hangar && hangar.dims && hangar.group && (hangar.group.position.x || hangar.group.position.z)) {
+      const gp = hangar.group.position, d = hangar.dims, M = 2.5;
+      const tg = (edSit && edSit.visible && edTarget) ? edTarget : null, c = (sim && sim.cgPos) ? sim.cgPos() : [0, 0, 0];
+      const tx = tg ? tg.x : c[0], tz = tg ? tg.z : c[2];
+      const inside = ds => { const r = ds * Math.cos(F.el), ex = tx + r * Math.sin(F.az) - gp.x, ez = tz + r * Math.cos(F.az) - gp.z;
+        return Math.abs(ex) <= d.HD - M && Math.abs(ez) <= d.HW - M; };
+      while (F.dist > 8 && !inside(F.dist)) F.dist -= 0.5;
+    }
     return F;
   }
   function garageCamera() {
@@ -8888,6 +9151,7 @@
     residentsView('room');         // G2315: the garage's own framing is the room view - the other aeroplanes on
     const F = garageFraming();
     az = azT = F.az; el = elT = F.el; dist = distT = F.dist;
+    if (RES) RES.frame = { az: F.az, el: F.el, dist: F.dist };   // G2319.1: the framing a moved room may redo (residentsReframe)
     flReveal = 0;
     camera.fov = garageFov; camera.updateProjectionMatrix();
   }
@@ -8914,6 +9178,7 @@
     // PREM-S2: a flight walked away from (the shed door mid-flight) still flew its time - the clock, nothing moves
     if (!inGarage && started && flSlot && !flEnded) playerFlightEnd('abandoned');
     inGarage = true; started = false; running = true;
+    try { fsGarage(); } catch (e) {}   // G2400 (FREIGHT-STRAP): the shed weighs the build (its rigs); the load drawn on the stand
     // THE MODE FOLLOWS THE GARAGE, not the editor's boot (G86). It hung off
     // openEditor at first, which returns early when the cage editor cannot
     // boot — so a garage without an editor stayed dressed as a cockpit, with
@@ -9204,6 +9469,7 @@
     rigLift = 0; clearLoadViz();
     inGarage = false; rolledOut = true;
     playerFlightStart();               // PREM-S2: the airframe this flight flies, measured as it rolls out
+    fsFlightStart();                   // G2400 (FREIGHT-STRAP): the accepted load aboard (the masses before the reset below)
     certKick();                        // G1831: stamped now if the roll-out's request has landed (or the build was flown before)
     envAway = true;                    // C0c: the room's probe waits for the way back (bakeHangarEnv)
     if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
@@ -11443,7 +11709,7 @@
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
       icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1', secs: [] },
     { k: 'audio', label: 'sound', head: 'The sound', title: 'The sound: the volumes, the headset, the music in flight', icon: 'M2.8 7h2.8l4-3.4v10.8l-4-3.4H2.8Z|M12.4 6.4a3.6 3.6 0 0 1 0 5.2|M14.4 4.4a6.4 6.4 0 0 1 0 9.2', secs: ['sound'] },   // G1600 (audio.js AUDIO.mount)
-    { k: 'dev', label: 'dev', dev: true, head: 'The developer’s tools', title: 'The developer’s tools: the world editor, the test mode without physics, the flight log, the overlays',
+    { k: 'dev', label: 'dev', dev: true, head: 'The developer’s tools', title: 'The developer’s tools: the scenery editor, the world editor, the test mode without physics, the flight log, the overlays',
       icon: 'M6.4 5 2.8 9l3.6 4|M11.6 5l3.6 4-3.6 4|M10.2 3.6 7.8 14.4', secs: ['scenery', 'world', 'log', 'overlays'] },
   ];
   // THE SECTIONS - the old rail's items (their k / label / title kept as they were) and the four G760 added.
@@ -11478,7 +11744,9 @@
     { k: 'scenery', label: 'test mode', title: 'The world without the physics', head: 'test mode · no physics', sub: 'the flight held, the free camera' },
     // G387: WORLD - the premises editor; G760: moved here from the WORLD rail's SCENERY (the user: "the world
     // editor does not belong there"), with the WORLD rail's own switch (F9)
-    { k: 'world', label: 'world', title: 'The world editor', head: 'world editor', sub: 'the scenery editor, the WORLD rail (F9)' },
+    // G2890 (the user's names, 2026-10-11): the SCENERY editor = this premises editor (roads, strips, polygons, zones, sites);
+    // the WORLD editor = the right-hand rail of the ground's art (textures, terrain types, vegetation - F9)
+    { k: 'world', label: 'editors', title: 'The scenery editor and the world editor', head: 'scenery & world editors', sub: 'the scenery editor; the world editor (F9)' },
     // G620: THE FLIGHT LOG - the recording's state, save log, the previous session
     { k: 'log', label: 'flight log', title: 'The flight recorder', head: 'flight log', sub: 'save this session, or the one before' },
     { k: 'sound', label: 'sound', title: 'The volumes, the headset, the music', sub: 'the volumes, the headset, the music in flight' },   // G1600
@@ -11535,7 +11803,7 @@
       if (b.dataset.dev === 'toggle') {
         b.classList.toggle('on', flDevOn);
         b.textContent = flDevOn ? 'hide dev' : 'dev ›';
-        b.title = flDevOn ? 'Hide the developer’s tools from the rail' : 'Show the developer’s tools on the rail: the world editor, the test mode without physics, the flight log';
+        b.title = flDevOn ? 'Hide the developer’s tools from the rail' : 'Show the developer’s tools on the rail: the scenery editor, the world editor, the test mode without physics, the flight log';
       }
     }
     if (flyOpen === 'dev' && !(flDevOn || scen)) flyOpenSet(null);
@@ -12216,15 +12484,16 @@
       const WR = window.WORLD_RAIL, wrEl = document.getElementById('wrRail');
       const wrOn = !!(wrEl && wrEl.style.display !== 'none');
       const LZ = window.FLYDIY_LAZY && window.FLYDIY_LAZY_SRC ? window.FLYDIY_LAZY_SRC : {};   // G909: the rail and the editor load on demand
-      flRow(body, 'the WORLD rail');
-      if (WR || LZ.world_rail) flPills(body, [{ label: wrOn ? 'hide it (F9)' : 'show it (F9)', value: 1, title: 'the right-hand rail of the world\u2019s art: coverage, terrain types, materials, filtering, vegetation, cliffs, export' }],
+      flRow(body, 'the world editor (F9)');
+      if (WR || LZ.world_rail) flPills(body, [{ label: wrOn ? 'hide it (F9)' : 'show it (F9)', value: 1, title: 'the world editor: the right-hand rail of the world\u2019s art: coverage, terrain types, materials, filtering, vegetation, cliffs, export' }],
                       () => wrOn, () => { if (window.WORLD_RAIL) window.WORLD_RAIL.show(!wrOn); else window.FLYDIY_LAZY('world_rail').then(() => { if (window.WORLD_RAIL) window.WORLD_RAIL.show(true); }); });
-      else flNote(body, 'This build has no WORLD rail (the world pack did not load).');
-      if (!((window.PREMISES_UI && window.PREMISES_HOST) || (LZ.premises_ui && LZ.premises_host)) || !window.RENDER_PREMISES || !world.premises) { flNote(body, 'This build has no world editor (the world pack did not load).'); return; }
+      else flNote(body, 'This build has no world editor (the world pack did not load).');
+      flRow(body, 'the scenery editor');
+      if (!((window.PREMISES_UI && window.PREMISES_HOST) || (LZ.premises_ui && LZ.premises_host)) || !window.RENDER_PREMISES || !world.premises) { flNote(body, 'This build has no scenery editor (the world pack did not load).'); return; }
       const rec = world.premises.rec;
       flNote(body, rec ? 'A premises is composed into this world: ' + (rec.name || rec.id || 'unnamed') + '.' : 'No premises in this world yet.');
       flNote(body, 'The editor opens over the flight scene with the sim paused: the map and orbit cameras of the bench, the same sections and tools. Every edit recomposes the world live; the record autosaves and is the world at the next boot.');
-      const b = document.createElement('button'); b.className = 'pill'; b.textContent = PREM.open ? 'close the editor' : 'open the world editor';
+      const b = document.createElement('button'); b.className = 'pill'; b.textContent = PREM.open ? 'close the scenery editor' : 'open the scenery editor';
       b.onclick = () => { if (PREM.open) PREM.close(); else PREM.openEditor(); flyOpenSet(null); };
       body.appendChild(b);
       if (rec) { const c = document.createElement('button'); c.className = 'pill'; c.textContent = 'clear the saved premises (the map\'s own at the next boot)'; c.onclick = () => { try { localStorage.removeItem(WIP_KEY); } catch (e) {} flNote(body, 'cleared - reload for the map\'s own premises'); }; body.appendChild(c); }

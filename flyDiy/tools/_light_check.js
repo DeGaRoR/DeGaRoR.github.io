@@ -203,7 +203,8 @@ check(/bakeHangarEnv\(\)/.test(setLightBody(app)),
 // by writing it - from the mood's factor, or 0 under the env mute.
 {
   const sm = shed.slice(shed.indexOf('setMood = '), shed.indexOf('setMood = ') + 9000);
-  check(/environmentIntensity\s*=\s*muted\.env\s*\?\s*0\s*:\s*m\.env\s*\/\s*0\.55/.test(sm),
+  // (G2318 WORKS-COZY) a layout may hold a floor under the mood's env (LAYIT.envFloor): Math.max(m.env, floor) / 0.55
+  check(/environmentIntensity\s*=\s*muted\.env\s*\?\s*0\s*:\s*(?:m\.env|Math\.max\(\s*m\.env\s*,[^;]*?\))\s*\/\s*0\.55/.test(sm),
         'hangar.js setMood no longer writes the scene\'s environmentIntensity (mood factor, 0 under the mute)');
 }
 // 4f. NO CALL THAT CANNOT REACH A SCENE-LIT MATERIAL. aeroSetEnv, propSetEnv

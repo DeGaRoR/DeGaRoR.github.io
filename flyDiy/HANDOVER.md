@@ -82870,6 +82870,136 @@ declared". PILOTS' copy renamed `PLT_` (41 uses, same function, same text) and G
 
 READY for the GAME COORDINATOR: claude/freight-load-g2345 53aa937 (the code, the gates and the stills; the gate texts and this section ride one docs-only commit on top)
 
+## G2400-G2404 - FREIGHT-STRAP: THE ACCEPTED LOAD STRAPPED - POINT MASSES IN THE SIM (WORKER AND INLINE, BIT-EQUAL; NOTHING ACCEPTED = THE SIM UNTOUCHED), A JOB'S PASSENGERS IN THEIR SEATS, THE BAGGAGE ALLOWANCE OFF; THE LOAD DRAWN WITH RATCHET STRAPS ON THE STAND AND IN FLIGHT (3 DRAWS A LOAD); THE STOP DELIVERS AND THE NEXT STAGE ARRIVES PLACED; AN OVER-LIMIT LOAD SAID, NEVER REFUSED (2026-10-08 -> 11, FREIGHT-STRAP for the GAME COORDINATOR, local - the box's RTX 3080; branch claude/freight-strap-g2400 off origin/claude/game-integration 1f553a9d, worktree D:/Dev/wt-fstrap; G2404 unused)
+
+The brief: futureDesigns/game/FREIGHT-2026-10-07.md §2 (the user: "the load will be strapped visually and physically once
+accepted"); RULED: no load failure (no shifting, no breaking free), no loading time or crew; G2340 FREIGHT-MODEL, G2345
+FREIGHT-LOAD (freightAccepted, career.load), G2405 FREIGHT-ASSETS (the load models). No generated file committed. No PLAYER_V
+step. Design calls APPROVED by the coordinator and A0 (8 Oct): the passengers are seat masses (the spec untouched); the stand's
+load hangs on `craft`, never under edSitP.
+
+**G2400 THE MASSES** - `src/core/30_solver.js` + `src/core/78_freight_strap.js` (new, pure, MANIFEST.core after 77_):
+- **the solver's door** `sim.setFreight([[node, kg], ...] | null)` / `sim.freight()`: a per-node load ON TOP of the def's own
+  masses. Reset, the fuel burn (a load on a tank's node stays) and the snapshot keep it. A node whose load changes is rewritten
+  from its base (a load put on and taken off leaves the def's number to the bit); only a LOADED node is floored at 0.5 kg (the
+  lattice has lighter nodes - the first 03:00 run's reds were exactly that). totalM is re-summed in node order. Nothing set =
+  not one line reads differently (GATE FREIGHT's byte-identity row: never asked / asked with nothing / loaded then unloaded
+  fly the same 4 s to the bit).
+- `freightStrapAdds(def, acc, { yD, card })` -> the list. **An item** = a point mass at its box's centre, shared over the eight
+  nodes of the two fuselage rings round it (by lever in x, bottom / top pair in y, left / right in z) - the shares' centroid IS
+  the point, so the CG and the inertia follow from where the nodes are, as the crew's and the fuel's do. **The job's passengers
+  are the occupants**: the job's seats (the pilot, seats 1..pax - 77_'s rule) against the build's (S.occupied, else the first
+  S.occupants); a seat the job fills and the build does not takes GEN_RULES.occupantKg, a seat the build fills and the job does
+  not gives it back - both through a copy of 61_'s own seat billing (straddle + billAt). **The baggage allowance comes off**
+  while items ride (the frame's cargo-section billing negated; the card's base has none).
+- **The frame**: the card's y is the cage sheet's; gen y = card y - the join's keel datum (window.CAGE_DATUM.yD, read in the
+  page). Without a join (node rigs) the box keeps its height over the hold's floor on the gen frame's floor (a few cm of CG
+  height, nothing in x).
+- **THE WORKER**: the list rides the flight's init (sim_link begin: `m.freight`, absent with none - the init message as it was),
+  a change is a step-stamped `{cmd:'freight'}` (sim_host apply; the page's own sim takes it through the link's setFreight
+  override), and the view's sums (sim_view `freight(list)`: cgPos on the same masses).
+
+**G2401 THE DRAWING** - `src/viewer/freight_strap.js` (new, LAZY: fetched the first time a load is drawn):
+- the items as their FREIGHT-ASSETS models at the IN-CABIN level (the load ladder's cut from 2 m; a hangar prop as itself),
+  fitted to their boxes exactly as the loading view fits them, MERGED per material; the items with no model (mail sacks, kit
+  bags...: the gap list) a box per kind's colour; a RATCHET STRAP over each stack lengthwise and one across, foot to foot on the
+  floor (`freightStrapMesh`, plain arrays, gated), a buckle and four floor anchors. Materials: the props' own + two MATLIB
+  records (webbing, steel) - no material of its own. **Measured: the Cub's crate 3 draws (546 tris), the C172's mail 3 draws
+  (432 tris)**. castShadow off, never the editor's pick.
+- **hung twice**: on the stand under `craft` at the loading view's own frame (frFrame) - NEVER under edSitP, whose meshes the
+  join bakes into the flown model and the parked aeroplanes (GATE PARKED 13); hidden while the loading view is open. In flight
+  under `model.grp` through the crew's cage -> model map (data.cageM), so it rides the cabin's pose and visibility.
+- **the seats in flight**: a figure the build seats where the job seats nobody is HIDDEN; a job's passenger in a seat the build
+  leaves empty is drawn from the build's pilot's posed record moved to that seat (another character, its own scale, no hands
+  on the controls - best effort, not yet pictured).
+- `78_ FREIGHT_LOOK` is now the one look table (freight_load.js reads it; a later leg's `leg2.` ids find their goods).
+
+**G2402 THE PAGE** (app.js, one block after FLYDIY_FREIGHT; everything behind FREIGHT_PAGE = ?career=1 / ?freight=1):
+- **aboard at the roll-out** (`fsFlightStart` in rollOutStand: AFTER the bench's fingerprint, BEFORE the flight's reset), **off
+  in the shed** (`fsGarage` in enterGarage: the shed's rigs weigh the build); the model's rebuild never gives the load's buffers
+  back (detached first).
+- **THE STOP** (`fsStop` in playerFlightEnd, after careerOnStop + freightLoadSettle): the delivered stage's items leave (masses
+  and drawing), the next stage's arrive **placed by the packer's proposal** (`78_ freightStrapNext`, accepted into career.load)
+  unless the player's own placement for that very sub and airframe is there; the sim and the drawing follow at once.
+- **AN OVER-LIMIT LOAD IS SAID, NEVER REFUSED** (the coordinator's check, reconciled with the user's ruling "shown red but
+  allowed"): `78_ freightStrapFlags` (over the plaque's MTOW / the CG out of the certified range, freightReport's tolerances) ->
+  a warn line on the flight's brief before take-off (`#fsWarn`: "Load: over MTOW by 34 kg · CG aft of the certified range
+  (40.1 % MAC, certified 28.0-36.2) - it flies as loaded"), the logbook row (`r.load = { items, kg, flags }`, `r.occ` = who sat,
+  `r.payloadKg` + the load) and the stop's result (`out.load`). The masses go aboard all the same.
+- rig hands: `window.FLYDIY_STRAP { apply, sync, state, stop, rigLoad, cutaway }`; **`?freight=1&strapload=<test>:<design>`**
+  names the hold and accepts the packer's proposal with no view (`none:cub` = the same page, nothing aboard) - the A/B's switch.
+
+**FOR THE USER - STATED PLAINLY**: (1) a job that seats nobody beside the metal Cessna's pilot (crates, no passenger) HIDES THE
+BUILD'S OWN CO-PILOT for that flight and takes their 80 kg off - the C172 build seats one, and the loading view treats that
+seat as empty. With mail + a passenger, the build's co-pilot IS the passenger. (2) **A flight with no accepted load is exactly
+today's** - the build's occupants drawn and flown, the sim never asked. (3) A seat the player takes out still draws its chair in
+FLIGHT (the chair is baked into the flown mesh; on the stand it hides).
+
+**GATES** (the box; the battery's texts in futureDesigns/game/evidence/FREIGHT-STRAP/):
+- **GATE FREIGHT: PASS, 2352 checks; --selftest 59 of 59 doctored rules caught** (18 new for the strap: an item without its
+  lateral, the items weightless, the nearer ring, a passenger weightless, the build's passenger kept, the seat rule not the
+  frame's, the allowance kept, a strap through the load, an anchor off the floor, the next stage unplaced, the player's placement
+  proposed over, another airframe's load, two silent over-limit flights, the clock; and in the built core: a reset that drops the
+  load, a removal that leaves a trace, a burn that drops it). The strap rows: the shares' kilos and centroid; 78_'s seat rule =
+  the frame's own build with that seat filled / emptied, node for node; the allowance = the frame's ledger (cargo section: 10 kg,
+  21.5335 kg.m); the sim aboard / after a reset / delivered to the def's own masses to the bit; the CG by the adds' moments and the
+  pitch inertia by the parallel-axis sum (at the post-reset positions: a reset seats the wheels by the weight aboard); the burn
+  keeps a load on a tank's node; byte-identity; the straps (two a stack, outside the load they tie, the feet on the floor); the
+  3-stop chain on the C172 (delivered at B, the second leg proposed and weighing, the player's own kept, nothing after C); the
+  flags (C172 over the MTOW, the Jodel's tools aft, mail within limits none).
+
+  | load (node, the validated builds) | aboard | CG x | pitch inertia |
+  |---|---|---|---|
+  | Cub, 120 kg of crated parts (one crate goes aboard: the Cub's answer, seats in) | +50 kg (60 - 10 allowance) | +43.8 mm | +35.9 kg.m2 |
+  | C172, 60 kg of mail + a passenger (the build's co-pilot) | +20 kg (60 - 40) | +27.9 mm | +63.9 kg.m2 |
+  | C172, 120 kg of crates, nobody beside the pilot (one crate aboard) | -60 kg (60 - 80 co-pilot - 40) | +82.3 mm | +19.4 kg.m2 |
+  (The +85 mm I sent the coordinator on 9 Oct came from the pre-fix run, where every light node was floored: wrong, superseded.)
+- **SIMWORKER: PASS** + 2c THE LOAD: the metal Cessna loaded in the host's init, 600 steps bit-equal to the page; delivered at
+  step 300 by the step-stamped command, bit-equal; the view's cgPos / totalM the solver's both ways. **UISMOKE: PASS** (the
+  block behind its flags, aboard after the fingerprint and before the reset, off in the shed, the stop; freight_strap.js lazy; the
+  sandbox without the flags: no FLYDIY_STRAP, no drawing). **PARKED: PASS** (pure; 13: the load hangs on the flown model and
+  craft only, parked.js knows nothing of it). **SAVE: PASS** (the block writes nothing the shelf saves). **BUILD: PASS.**
+- **THE STRICT PER-FRAME A/B** (9 Oct 12:18-12:42, TIMED, the box's RTX 3080, quiet): train_gate.js's own rollout rig
+  (rollout_perf.js, the validated Cub and the metal Cessna, HOME / CIRCUIT, 20 s recorded) with `--q freight=1&strapload=...`,
+  none / loaded ABAB x2, chase and cockpit; the load confirmed aboard (Cub 462 -> 512 kg, metal 887 -> 907). **A steady 30
+  everywhere; render / loop within the run-to-run spread** (Cub chase +0.10 / +0.10 ms, Cub cockpit +0.15 / +0.25, metal chase
+  +0.05 / +0.10). **NAMED: the metal cockpit's FIRST loaded run** p99 50 ms, render +1.1 ms; its twin equal to no load (p99 33.5,
+  render 11.7) - a first compile is the likely reading, not proven; the rerun pair did not fit the 11 Oct window.
+  `evidence/FREIGHT-STRAP/ab/ab_summary.json` (the raw reports stay on the box).
+- **THE CARGO FLIGHT** (11 Oct 03:15, on the physics worker): the Cub HOME -> Tamgas Hill Strip, no load vs 120 kg of crated
+  parts: **+50.0 kg, the CG +42.5 mm aft (node: +43.8), pitch +3.5 deg in the cruise, throttle +0.11, elevator equal** - the
+  pilot holds the heavier, aft-loaded aeroplane at a higher attitude and more power. The C172's pair was cut by the 03:31 hard
+  stop. (The rig's "masses aboard at the roll-out" row read too early - before the roll-out began; the flight's own 510 kg says
+  they were.)
+- **THE STILLS** (a loaded page only, the overlay gone + 2 s): `strap_cub_stand.jpg` (the crate strapped behind the pilot, cut
+  away), `strap_c172_stand.jpg` (three mail sacks strapped in the back, the build's co-pilot = the passenger in the right seat),
+  `strap_cub_chase.jpg`, `strap_cub_cockpit.jpg` (the Cub climbing out with its load - neither angle shows the cabin's inside).
+  The stand stills fill a 640 px strip of the frame (the CDP shim's viewport; the page's canvas did not follow it).
+
+**OPEN / FOR THE COORDINATOR**
+- **Owed GPU (~20 min)**: the C172's cargo flight pair, a still of the load THROUGH THE WINDOW (a close orbit on the cabin's
+  side) and from the cockpit LOOKING BACK, a passenger the build does not seat (the Cub's rear seat) pictured, the metal-cockpit
+  A/B pair rerun; the stills rig's canvas size (tools/freight_strap_shot.js) and its roll-out wait.
+- **Merge points**: tools/build.js (78_ after 77_ in MANIFEST.core; freight_strap.js in MANIFEST.lazy), 90_node_exports
+  (appended), 30_solver.js (four marked edits + the API), sim_host / sim_link / sim_view (marked), app.js (one block after
+  FLYDIY_FREIGHT + one line each in rollOutStand, enterGarage, setAircraft, playerFlightEnd, logFlight, frAccept, frHost.closed),
+  freight_load.js (the look table), gates _freight_check / _simworker_check / test_ui_smoke / _parked_check / _save_check.
+- A player's own (unmeasured) build has no card: nothing is strapped on it (FREIGHT-LOAD's open point stands).
+- The load is drawn with no lighting of its own: it takes the cabin's light (receiveShadow on; it casts nothing).
+
+**11 OCT 04:22 - THE OUTLIER'S VERDICT AND THE C172'S FLIGHT** (TIMED, the RTX 3080, a warm-up first; numbers only):
+- the metal Cessna, cockpit, none vs mail60p:c172 ABAB: **p99 33.5 ms in all four runs, render 11.8 / 12.0 ms empty vs 11.7 / 11.8
+  loaded, loop 16.0 / 16.1 vs 15.8 / 16.0, a steady 30, nothing over 100 ms** - the 9 Oct first loaded run's p99 50 ms did NOT
+  repeat: named THE SHADER-CACHE POSITION (that run was the first loaded page on a fresh profile with no warm-up of the load's
+  programs). `evidence/FREIGHT-STRAP/ab/rr_summary.json`.
+- the C172's cargo flight (the circuit, on the worker), no load vs 60 kg of mail + a passenger: **+20.0 kg, the CG +31.7 mm aft
+  (node +27.9), elevator -0.021, throttle +0.020, pitch equal** - the masses aboard at the roll-out read right this time (16
+  nodes, +20.0 kg: the rig now waits for the roll-out to leave the shed). `evidence/FREIGHT-STRAP/flights_c172/`.
+- still owed (GPU, no perf at stake): a through-the-window still, a passenger the build does not seat pictured, the stills rig's
+  canvas size.
+
+READY for the GAME COORDINATOR: claude/freight-strap-g2400 d42feb70 (the code, gates, A/B and stills; this section rides one docs-only commit on top) - train 44
+
 ## G2430-G2434 - CONTRACT-ROUTES: JOBS GO SOMEWHERE - CHAINS OF TWO DESTINATIONS OR MORE (BACKHAUL, ONWARD, MILK RUN; SURVEYS OVER TWO SITES OR ENDING ELSEWHERE), FROM ANY FIELD (25 % FROM JOLENE AFB, WAS 44 %), EACH CHAIN ONE VALIDATED DESIGN'S END TO END; THE ROUTES FROM POOLS + SHAPES (A NEW SITE JOINS BY DATA ALONE); PAY PER LEG + A 10 % CHAIN BONUS; FOUR ARCS RE-ROUTED; ECON'S BANDS RE-DERIVED (THE PACE IN LEGS UNMOVED); GATE CONTRACTS' ROUTES ROWS (2026-10-07, CONTRACT-ROUTES for the GAME COORDINATOR, cloud - node only, no GPU; branch claude/contract-routes-g2430 off origin/claude/game-integration 78b8433 (b747ae2 + the §R.3 docs commit); G2434 unused)
 
 The brief: the user, 7 Oct - *"most missions should probably involve 2 destinations, or more. Take this from there to
@@ -84730,3 +84860,131 @@ Strict gate (train_gate --full, t43): 155 within slack, 2 RED on the Cub's warm 
 flight) with 'MISS suspected' (3 links > 5 s) - the shader-cache position; the quiet bench re-run (t43b) 45.1 s /
 56.5 s, 0 RED, PASS. Parked re-cook (build 6e0064d58201). Rollout rows = train 42's (the 30 fps cap rows; one 1068 ms
 task in one rollout run, 835/675 ms elsewhere - watch it).
+
+## G2227 - FLEET-PROPS B: AFTER A CAPTURE BATCH THE EDITOR PUBLISHES ITS OWN SHARED UNIFORMS AGAIN (the first drag after a fleet bake no longer ends ~13 cm off on the footwell / weather) (2026-10-10/11, FLEET-PROPS B for the GAME COORDINATOR; branch claude/fleet-republish-g2227 off origin/claude/game-integration 843fa745)
+
+- THE CAUSE: a capture batch (parked.js batchSteps) restores the shared block (aeroskin's, the weather's spread in) as it
+  was when the batch began - a copy that may predate the editor's last publish (a fleet bake early after the boot): the
+  first drag's preview then ended on the footwell (uFootA) and the weather's sources (uWxA) of that old copy (INSTANT
+  --fleet: wgSpan 396 objects apart; --fleet-baked, no capture: clean).
+- THE FIX: CAGE_UI.republish() (tools/_cage_ui.js) puts back what the editor's layers hold NOW - the crew's footwell and
+  plate holes (CAGE_CREW), the weather's sources and macros (applyWeather) - and batchSteps calls it after the restore
+  whenever it captured. PARKED 12p: a source row holds it.
+- GATES (11 Oct 04:45-05:02, take cpu FLEETB, tree be6715a1): INSTANT --fleet --builds cub PASS (3 captures, 0
+  during drags, input waits 4; wgSpan the same as its long way), INSTANT --fleet-baked PASS, PARKED PASS (full). Logs:
+  reports/evidence/FLEET-PROPS-B/g2227/.
+
+READY for the GAME COORDINATOR: claude/fleet-republish-g2227 be6715a1 (this section rides one docs-only commit on top)
+
+## G2890 - SCENERY-ED-1: THE SCENERY EDITOR'S UNBLOCKERS - THE TREES COME BACK WHEN A "NO TREES" GOES, NO PLOT GROUND AT THE SHORE (AND OFF ON ASK), SMOOTH ROADS THROUGH THEIR POINTS, A POLYGON YOU CAN RESHAPE, THE ROUND PAD, THE NAMES; THE UNIFIED POLYGON DESIGNED (2026-10-11, SCENERY-ED-1 for A0, local; branch claude/scenery-ed-g2890 off train 43 37bf53368; G2891-G2899 unused)
+
+The user (11 Oct, stuck in the editor): ten notes on the premises editor - now called the **scenery editor** (the
+WORLD rail, F9, is the **world editor**). This session took the unblockers (notes 2, 3, 4, 6, 9) and designed the rest
+(1, 5, 7, 8, 10) for SCENERY-ED-2: futureDesigns/SCENERY-POLYGON-2026-10.md. Contract **v1.35**.
+
+- **THE TREES COME BACK (note 2).** The island's tree streamer (render_world.js, 1024 m chunks) caches each chunk's walk;
+  TREE_FILL.vegChanged re-planted only when the cover polygons' signature (vegSig) moved, so a deleted or shrunk "no
+  trees" polygon, a gravel band (a surface polygon keeps trees out), a moved strip left their chunks bare until they
+  streamed out. Now the composed object answers `treeExRegions()` (every region that keeps trees out, keyed, in world
+  metres - excludes naming trees and not lifted by the variant, each land strip's clearing) and `exRegrow()` diffs the
+  list against the one the ring was walked with: only the chunks a changed region touches are evicted, and the streamer
+  walks them again nearest first (no full replant). STAT.exRegrown counts them. The collidable woodland (world.trees) is
+  the drawn fill's trunks since G1330 - nothing else to refresh.
+- **THE PLOTS' GROUND (note 4).** A zone's `rules.ground: false` (the zone inspector's "plot ground" pills) takes the lot
+  patch AND the lawn off every plot; `rules.noGround` plot by plot ("pick plots": a click switches one, Esc ends); a site
+  item's `P.plotGround: false` ("its lot's ground drawn"). By default the lot patch (_village_gen.js lotGround) weighs 0
+  under the zone's water line and feathers over the 15 cm above it (the vertices stay: the same grid) (the seafront's pebble band stays - GATE
+  VILLAGE 10 still reads it, 10d holds the shore), and a water-side plot mows no lawn within 30 cm of its zone's water
+  (coverAt's withPlot). house_worker HW_V 2 -> 3 (the patch's output moved).
+- **SMOOTH ROADS (note 3).** Roads were straight between the clicks with each corner filleted - and the fillet is held
+  within 0.35 x w of the corner, so a 4 m road could not bend wider than ~9 m: no long curve without a click every few
+  metres. `curve: 'spline'` draws a road THROUGH its points on the C2 interpolating cubic (chord-length knots, parabolic
+  run-out ends; a Catmull-Rom was tried first and dropped - only C1, its curvature steps at every point), walked under
+  2.5 deg a step so polyRoad's fillet leaves it alone. `tan[i]` is a point's handle (the cyan disc on a stem; the spline is
+  clamped to it there). Applied once in compose (`roadLine`), so the ribbon, the grade, the pavement, the surface strip,
+  coverAt, the plots and the traffic follow the curve; graded roads stay flat across (no superelevation). **Every NEW
+  road is a spline**; existing roads have no `curve` and compose to the bit (Jolene, Metlakatla, Skarvik untouched); the
+  inspector's "curve: smooth / corners" switches one.
+- **A POLYGON YOU CAN RESHAPE (note 6).** The handles were there (orange corner discs, faint midpoint discs, Ctrl+click)
+  but nothing said so and the inspector had one line. Now: a click on the selected shape's EDGE adds a corner there (the
+  tolerance is screen-sized; a road's within its drawn line); clicking an orange disc PICKS it (white) and Del removes
+  that corner (Shift+Del, or no corner picked, deletes the feature; Esc un-picks); the inspector's SHAPE section counts
+  the corners, names the picked one with its coordinates, and has "remove corner N", "subdivide" (a corner mid-way on
+  every edge, the closing one too) and "continue drawing from the last corner". The select tool's help says the whole
+  grammar. A spline road's handles move with its points on every insert / removal.
+- **THE ROUND PAD (note 6).** AIRFIELD > "round pad": the centre, then a point on the rim; a paved polygon (material +
+  `look`, concrete by default) carrying `round: { c, r }` - its `poly` is the circle's 48-gon, rewritten by normalise;
+  its two discs move it and set the radius; the SHAPE section has the radius slider and "free corners" (a 12-gon to shape
+  by hand). Its wheels feel its look's class (the only paved polygon that does - ED-2's areas make that general).
+- **THE NAMES (note 9).** The editor's header "scenery editor"; the flight rail's DEV item "editors" (the scenery editor,
+  the world editor (F9)); the inspector's record "THE SCENERY"; the GRAPHICS map note and the world rail's head title.
+- **THE DESIGN (notes 1, 5, 7, 8, 10)**: SCENERY-POLYGON-2026-10.md - one AREA record with attachable properties
+  (terraform, exclude, cover, wheels, draw: set / pave / grass, marks: parking / dock / stands, life); the migration as a
+  view first (areaOf / entriesOf, no record change), then a v1 -> v2 migrator whose areas compose EXPANDED into today's
+  internal lists in the same order (a migrated fixture composes bit-equal; PREMCOOK stays valid); concrete through the
+  pavement's anti-tiling with weathered parking / dock marks (a dock over water wants a deck); the inspector as its own
+  plate showing the selection whatever the tab, the tabs as palettes; the asset placer on ASSETS-OCT G2900's bank
+  (PROP_REG rows from tools/scenery_table.py, src/scenery/scenery_*.js, lodOf / lodDist), thumbnails, scatter brush.
+
+Gates: GATE PREMISES 19 (the spline on a clothoid test road - through every point, no turn over 2.5 deg, curvature
+monotone (worst step back 0.83 % of the peak); a 300 m arc of five points drawn within 8 %; three clicks with 400 m legs
+bend at a 300 m radius where the fillet bent at 9 m; a handle; a road without `curve` composes to the bit; the round pad's
+circle, wheels, pavement, round trip; the plots' ground on / off / one plot / no lawn; treeExRegions' keys for a removed,
+shrunk, moved exclusion and a moved / deleted strip + the streamer's hook; corners inserted and removed through the store).
+**GATE SCENERYED (new, core, ~1 s)**: premises_ui.js mounted headless under a DOM stub on the real core, driven through its
+command surface - a polygon drawn, a corner added by an edge click (picked), removed, subdivided, undone, three-corner
+floor; the round pad (refused under 3 m, the rim drag, the centre drag, the wheels); a road traced = spline, a handle
+dragged, a point added on the curve keeps the handles on their points; the plot pick on / off; the names. GATE VILLAGE
+10d (the lot at the shore). RESULTS (11 Oct, A0's CPU window, the lock held): PREMISES, SCENERYED, PAVEMENT,
+GRASSSIDES, COVER, BIOME, PREMRASTER, HOUSEWORKER PASS on the first run; UISMOKE (the dev rail's row renamed: its WANT
+list follows), VILLAGE (row 10 "dry under its house": the waterfront houses' feet are within 15 cm of the water, so the
+patch's weight there is the shore law's - row 10 now holds that law for them, the full weight for the rest) and PREMCOOK
+(the synthetic plot carried `noGround: false` into every site item's cooked plan - now the key only when true) fixed and
+re-run: UISMOKE, VILLAGE, SCENERYED PASS; **PREMCOOK's one red is "the page's placement code is the one cooked"** - the
+code hash covers premises_build.js, so this branch needs the RE-COOK the landing does (`node tools/premises_cook.js`);
+its placements hash and every place cell equal the committed cook (the output did not move).
+
+What to watch for (no stills - the user's rule): the DEV rail's item is "editors" (the scenery editor; the world editor,
+F9) and the editor's header says "scenery editor". Delete a "no trees" polygon, Jolene's gravel band beside 13/31 or a
+strip: the trees under it stream back in within a second or two (that 1 km chunk only - watch for a hitch on the edit's
+frame, STAT.exRegrown counts the chunks). The shore gardens (Metlakatla, Jolene's water plots) stop at the water: no lawn
+tufts or lot patch at the sea's edge, the seafront pebbles still there - look for a garden that now ends too hard. Every
+existing road is untouched (no `curve`); a NEW road is smooth with cyan handles. AIRFIELD > round pad. The house worker's
+cache key moved (HW_V 3): the first boot after the train re-generates the houses once (the build stamp moves the key
+every train anyway).
+
+## TRAIN 43.2 LANDED (A0, 11 Oct ~13:55) - the scenery editor unblockers
+
+Cargo: SCENERY-ED-1 G2890 (claude/scenery-ed-g2890 4f800a808, fast-forward on train 43): trees regrow live when an
+exclusion / gravel band / strip is removed, shrunk or moved; plot ground off per zone / plot / site item and no lawn at
+the waterline by default; smooth roads (C2 spline + handles, new roads only); polygon vertex editing (edge click =
+corner, corner + Del, subdivide); AIRFIELD > round pad; 'scenery editor' / 'world editor'. Gates: the session's
+targeted set + PREMCOOK after the premises re-cook (premises_build.js is in its hash; cooked output unchanged) and
+PREMISES, SCENERYED, BUILD, MEDIA (+13.2 KB). Strict gate (t432, build 184124362148): 157 within slack, 0 RED (one
+1017 ms task in one rollout run, like 43's 1068). Then the premises + parked re-cooks moved the build to 62f0cd5245c9
+(data manifests only).
+
+## G2319.1 - WORKS-COZY FOLLOW-UP (TRAIN 44): THE CAREER'S MAIN HANGAR IS TODAY'S CLUB WITH ITS RESIDENT; THE WORKS' LAYOUTS SELECTABLE; THE DEFAULT EYE KEPT INSIDE A MOVED ROOM (2026-10-10/11, WORKS-COZY for the GAME COORDINATOR; branch claude/works-club-g2319 off origin/claude/game-integration 843fa745)
+
+The user, 10 Oct, on the G2315-G2319 stills: "not sure what the hearth adds" - keep today's hangar for now, the hearth
+later (long term HANGAR-STORAGE: a derelict giant beside a small good hangar, futureDesigns/game/HANGAR-STORAGE-2026-10-10.md).
+- `74_career.js`: CAREER_MAIN = { shell: 'club', layout: null } - careerMainShed() null, a new career's HOME is the player
+  default's club; a dev career made under train 43's untouched works (+ hearth) is handed the club back, once (fixpoint);
+  a works the player chose (hearthLight, cozy) is kept. The works' layouts stay one call away: GARAGE_ENV.setLayout takes
+  the layout's shell with it (and re-frames the eye).
+- `71_player_bases.js`: PREM_SLOTS.mainClub 1 - a CAREER's club main hangar is the bay + 1 (its fully kitted floor
+  holds the stand + one, in tandem: the garage's club + 1, the room moved under the stand); the works keeps + 2; the
+  SANDBOX's ledger is unchanged (main + 2).
+- `app.js` garageFraming: in a room moved under the stand the default eye keeps its angle and comes in until it stands
+  2.5 m inside every wall (min 8 m; the club + 1: ~11.5 m) - the door end's wall had filled the right edge of the default
+  view (8 Oct 23:25). residentsSync0 re-frames once when the room moves after the garage framed it (enterGarage frames
+  first), unless the hand has moved the eye. GARAGE_ENV.frame() for the rigs.
+- tools/_hangar_check.js: its four raw NUL bytes (the T43 commit) back to `\u0000` escapes (grep read it as binary).
+GATES (c33bad98): HANGAR 1478 + --selftest (new break: the career leaves the club for the works) PASS; GAMEPREM 582
++ --selftest (new rows: a career club = bay + 1, the works + 2, the sandbox + 2; the lift fills two and ties the rest
+down; new break caught) PASS; CONTRACTS PASS; A0's CPU window 11 Oct 13:40: DESTTO (3 shards, 434 s), UISMOKE, PARKED,
+VIEW PASS (reports/evidence/WORKS-COZY/t44_1035.log); then singly: PLAYER, ACCEPT, ECON, FREIGHT, PILOTS PASS. OWED (the
+window's end): MAP_SMOKE and SAVE not run; PROCURE exited 0 with no verdict line read. No still taken (the user, 11 Oct:
+no evidence screenshots) - the framing fix is proven by its arithmetic and the gates, not by a picture.
+
+READY for the GAME COORDINATOR: claude/works-club-g2319 c33bad98 (this section rides one docs commit on top)

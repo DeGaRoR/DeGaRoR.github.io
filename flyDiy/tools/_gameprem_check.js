@@ -485,9 +485,21 @@ function run(mut) {
     // GQ7: the slots, on top of the geometry
     const big = clone(D); big.sheds.HOME = { shell: 'works', kits: ['park'], base: 'HOME', tenure: 'own' };
     ok(R.hangarRoomFor(big.sheds.HOME, cub, [], opts) > 3, 'GQ7: a bare works main hangar\'s floor takes more than three Cubs (' + R.hangarRoomFor(big.sheds.HOME, cub, [], opts) + ')');
-    // G2690 (HANGAR-STORAGE): the slots are the SHELL's - a works holds its floor + 4 inside (the club: + 2)
+    // G2690 (HANGAR-STORAGE): the slots are the SHELL's - a works holds its floor + 4 inside (the sandbox's club: + 2)
     ok(eq(R.playerSlots(big, 'HOME'), { bay: 1, parked: 4, total: 5, inside: 4, outside: 6 }), 'GQ7 / G2690: a works main hangar has the build bay + 4 inside');
     ok(eq(R.playerSlots(D, 'HOME'), { bay: 1, parked: 2, total: 3, inside: 2, outside: 6 }), 'GQ7 / G2690: the club main hangar has the build bay + 2 parked');
+    // G2319.1 (WORKS-COZY follow-up) on G2690's model: a CAREER's main hangar that is today's club takes the bay + 1 inside
+    // (its fully kitted floor holds the stand + one, in tandem: the garage's club + 1); a career's works keeps its shell's
+    // 4; the sandbox's club its 2
+    const cc = clone(D); cc.mode = 'career';
+    const cw = clone(cc); cw.sheds.HOME = big.sheds.HOME;
+    ok(eq(R.playerSlots(cc, 'HOME'), { bay: 1, parked: 1, total: 2, inside: 1, outside: 6 }) && eq(R.playerSlots(cw, 'HOME'), { bay: 1, parked: 4, total: 5, inside: 4, outside: 6 })
+       && eq(R.playerSlots(D, 'HOME'), { bay: 1, parked: 2, total: 3, inside: 2, outside: 6 }),
+       "GQ7 / G2319.1: a career's club main hangar has the bay + 1 inside (a career's works + 4; the sandbox's club + 2, unchanged)");
+    const four = ['A', 'B', 'C', 'E'];
+    const L4 = R.playerFleetReconcile(cc, four, Object.assign({ foots: Object.fromEntries(four.map(n => [n, cub])) }, opts));
+    ok(R.playerResidents(L4.doc, 'HOME').length === 2 && four.filter(n => R.playerWhere(L4.doc, n).kind === 'out').length === 2,
+       "GQ7 / G2319.1: the lift fills a career club's two places (the bay + 1) and ties the rest down at HOME");
     const six = Array.from({ length: 6 }, (_, i) => 'S' + i);
     const L6 = R.playerFleetReconcile(big, six, Object.assign({ foots: Object.fromEntries(six.map(n => [n, cub])) }, opts));
     ok(R.playerResidents(L6.doc, 'HOME').length === 5 && six.filter(n => R.playerWhere(L6.doc, n).kind === 'out').length === 1,
@@ -755,6 +767,7 @@ const BREAKS = [
                                                        "    { at = id; break; }") }],
   ['GQ7: the slots are ignored (geometry only)', { src71: sub('if (names.length > sl.total)', 'if (false)') }],
   ['GQ7 / G2690: a club holds one inside', { src71: sub("club: { inside: 2, outside: 6 }", 'club: { inside: 1, outside: 6 }') }],
+  ['GQ7 / G2319.1: a career club main hangar holds the shell 2', { src71: sub("(id === PREM_MAIN && doc.mode === 'career' && (s.shell || 'club') === 'club') ? PREM_SLOTS.mainClub : sh.inside", 'sh.inside') }],
   ['GQ7: the wear never freezes inside', { src71: s => sub('  delete e.outSince;\n  if (!kind) {', '  if (!kind) {')(sub("if (!e.hangar && typeof e.outSince === 'number' && isFinite(e.outSince))", "if (typeof e.outSince === 'number' && isFinite(e.outSince))")(s)) }],
   ['GQ7: the wear never reaches the macros', { src71: sub('age: c(c(m.age) + PREM_WEAR.age * k)', 'age: c(m.age)') }],
   ['GQ7: Repair / Paint leaves the wear', { src71: sub('  delete r.wearOut;\n', '') }],
