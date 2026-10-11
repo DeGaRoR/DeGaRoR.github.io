@@ -843,11 +843,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                    GJ: G * 4 * Ar * Ar * tS / Math.max(1e-6, pr), rT: Math.sqrt(qr.a * qr.b),
                    part: cl.filter(q => ring0.indexOf(q) < 0), root: ring0.slice(), ref: ring0.slice(0, 3),
                    ax: [ring0[0], lastR[0]], lat: [ring0[0], ring0[1]], station: dmgStation(rings, fu.postX), eta: 0.7,
-                   // a thin unstiffened skin breaks by LOCAL BUCKLING: the classical cylinder's 0.605 E t / R with the
-                   // ~0.5 knockdown every shell test reads (NASA SP-8007) - ~0.3 E t / R, R the section's mean radius
-                   // (the metal Cessna's 0.8 mm on 0.67 m: ~26 MPa, not the alloy's 450 - a tailcone's breaking
-                   // moment in the tens of kN.m, not 580)
-                   sigB: 0.3 * E * tS / Math.max(0.05, Math.sqrt(qr.a * qr.b)) };
+                   // a thin unstiffened skin breaks by LOCAL BUCKLING: the classical cylinder's 0.605 E t / R times
+                   // NASA SP-8007's BENDING knockdown gamma = 1 - 0.731 (1 - e^-phi), phi = sqrt(R / t) / 16 (Deform's
+                   // review: the knockdown is R/t's, not a constant - the metal Cessna's R/t ~400 reads 0.48, a
+                   // plywood box's ~50 0.74), R the section's mean radius. The Cessna's tailcone: tens of kN.m, not
+                   // the alloy's full ultimate's 580. A LOWER BOUND, named: a real tailcone is stringer- and
+                   // frame-stiffened and carries load past skin buckling
+                   sigB: (() => { const Rm = Math.max(0.05, Math.sqrt(qr.a * qr.b)), ph = Math.sqrt(Rm / tS) / 16;
+                                  return (1 - 0.731 * (1 - Math.exp(-ph))) * 0.605 * E * tS / Rm; })() };
     }
     if (cl.length >= 6) clusters.push({ cls: 'shell', tag: 'SHELL', nodes: cl, rings, gj: GJs,
                                         omega: { k: Kt, kRef: 29182, mRef: 61.6, wRef: 300 }, dmg: shellDmg,
