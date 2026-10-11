@@ -21,5 +21,9 @@ run() { local left=$(( endS - $(date +%s) - 15 )); [ $left -lt 45 ] && { log "no
   wait $pid; local rc=$?; kill $g 2>/dev/null; return $rc; }
 cd $W
 log "tree $(git -C $W log --oneline -1)"
-run node tools/run_gates.js --only=COVER,FADES,GRASSSIDES,BIOME,PREMISES,PAVEMENT,SPLAT,WORLDRENDER,UISMOKE,RWYTREES,TAKEOFF,TAXICLEAR,TREEHIT,OBSTACLE,LINEUP,PILOT,FRAMECOST; log "run_gates rc $?"
+# FRAMECOST first (its census: the rises the user accepted 11 Oct get their ALLOW entries written while the rest runs), then the
+# set, then FRAMECOST again on whatever ALLOW list the tree holds by then
+node tools/build.js >> $LOG 2>&1
 run node tools/_framecost_check.js --json $E/framecost_44_3.json; log "framecost census rc $?"
+run node tools/run_gates.js --no-build --only=COVER,FADES,GRASSSIDES,BIOME,PREMISES,PAVEMENT,SPLAT,WORLDRENDER,UISMOKE,RWYTREES,TAKEOFF,TAXICLEAR,TREEHIT,OBSTACLE,LINEUP,PILOT; log "run_gates rc $?"
+run node tools/_framecost_check.js; log "framecost (with the ALLOW list) rc $?"
