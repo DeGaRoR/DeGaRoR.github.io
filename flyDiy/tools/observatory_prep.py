@@ -57,8 +57,9 @@ QUICK = '--quick' in argv            # a dry run: tiny maps, 1 sample
 # THE VARIANTS (the user, 11 Oct, on the first stills: "almost all is OK, but the telescope itself ...
 # should be metal with a lens ... the side dish ... probably shouldn't [be concrete] ... you may also
 # suggest a variation with a more dramatic dome, but keep this one as an option"):
-#   a  the painted white dome (the reviewed one)            -> observatory
-#   b  a COPPER-GREEN PATINA dome, the same building          -> observatory_patina
+#   a  the painted white dome - THE USER'S PICK (11 Oct: "A is better, make the dish white") -> observatory
+#   b  a COPPER-GREEN PATINA dome, the same building - kept here, NOT in the kit (no row: it would
+#      ship a second 2048 atlas for a look the user passed over)            -> observatory_patina
 VARIANT = arg('--variant', 'a')
 KEY = 'observatory' if VARIANT == 'a' else 'observatory_patina'
 SIZE = arg('--size', 256 if QUICK else 2048)
@@ -104,8 +105,10 @@ ROLES = {
     # its objective: dark glass, nearly a mirror (opaque in the atlas: a lens seen from outside
     # is a dark reflection, not a see-through pane)
     'lens':   ('steelgrey_diff', (0.025, 0.035, 0.05), 1.0, 0.05, 0.0, 0.0, 1.0),
-    # the side dish, its feed arms and struts: galvanised steel (it read as concrete in white paint)
-    'dish':   ('galv_diff', (1.0, 1.0, 1.0), 0.8, 'galv_rough', 0.8, 0.1),
+    # the side dish, its feed arms and struts: WHITE-PAINTED steel (the user, 11 Oct: "make the dish
+    # white"; the first white was the dome's rough paint and read as concrete, the galvanised one as
+    # charcoal): the steel sheet nearly clean, a little gloss, a little metal under the paint
+    'dish':   ('steelgrey_diff', (0.95, 0.95, 0.93), 1.0, 'steelgrey_rough', 0.25, 0.1, 0.75),
 }
 if VARIANT == 'b':
     # THE DRAMATIC DOME: copper gone to verdigris. The library's weathered steel sheet under a
