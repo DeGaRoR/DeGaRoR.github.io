@@ -141,7 +141,7 @@ are unproven until the GPU slot times them.
 
 ## 6. Order of work (G3032-G3039) — after the user's OK
 
-1. **G3032 compose**: layer (contract v1.42, no record bump), `mound` modifier, surface/ttype/exclude from the footprint;
+1. **G3032 compose**: layer (contract v1.42, no record bump), the abs grade line (ROAD-BED's way), surface/ttype/exclude from the footprint;
    GATE PREMISES identity rows.
 2. **G3033 render**: BatchedMesh stones (rungs + back-flank cull in a per-camera pass), core/track merged, the
    wet/algae material; in the house worker.
