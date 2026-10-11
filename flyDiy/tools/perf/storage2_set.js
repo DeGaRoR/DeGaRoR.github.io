@@ -4,8 +4,9 @@
 // and the dev career's document (flydiy.career.dev, ?career=1) made by THAT TREE's own core (its careerNew /
 // careerNormalise: a base tree writes its PLAYER_V 2 document, this tree its v3) with the fleet placed:
 //   fleetb   today's FLEET-PROPS B state: all six tied down OUTSIDE at HOME (no kind / slot: the base tree's rows)
-//   store    the storage state of the A/B: two INSIDE the main hangar (the Cub, the Jodel: the residents beside the stand)
-//            and four OUTSIDE on HOME's apron slots 0-3 (the C172, the C172 floats, the twin floats, the metal Cessna)
+//   store    the storage state of the A/B: the main hangar's INSIDE slots filled (the Cub; the Jodel too where there are
+//            two - the sandbox's club; a career's club main hangar has ONE since G2319.1, the Jodel is then LONG-TERM) and
+//            four OUTSIDE on HOME's apron slots 0-3 (the C172, the C172 floats, the twin floats, the metal Cessna)
 //   node tools/perf/storage2_set.js <tree flyDiy dir> <fleetb|store> <out.js> [--sandbox]
 // --sandbox: the same fleet in the SANDBOX's document (flydiy.player, today's club: 2 inside) - the window's fallback when
 // a career roll-out cannot be timed
@@ -25,9 +26,10 @@ SET.FLEET.forEach(([name, file, patch], i) => {
   if (patch) j = patch(j);
   j.name = name;
   out['flydiy.build.' + name] = JSON.stringify(j);
+  const N = C.playerStoreSlots ? C.playerStoreSlots(doc, 'HOME').inside : 2;
   doc.fleet[name] = LAYOUT === 'fleetb' || i >= 2
     ? Object.assign({ hangar: null, aero: 'HOME', outSince: 0, wearOut: 0 }, LAYOUT === 'store' ? { kind: 'outside', slot: i - 2 } : {})
-    : { hangar: 'HOME', aero: 'HOME', kind: 'inside', slot: i };
+    : i < N ? { hangar: 'HOME', aero: 'HOME', kind: 'inside', slot: i } : { hangar: 'HOME', aero: 'HOME', kind: 'long' };
 });
 doc = SANDBOX ? C.playerNormalise(doc) : C.careerNormalise(doc);
 const F = doc.fleet, rows = Object.keys(F).sort().map(n => n + ' ' + (F[n].hangar ? 'in ' + F[n].hangar : 'out ' + F[n].aero) + (F[n].kind ? ' ' + F[n].kind + (F[n].slot != null ? ' ' + F[n].slot : '') : ''));

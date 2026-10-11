@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // storage2_rig.js - HANGAR-STORAGE-2 (G2700-G2704): THE STORAGE ON THE BOX - the drawn layer follows every move, a Fly
 // from each kind, the stills. One headed Chrome on its own profile, the page (index.html?career=1: the career, where the
-// garage's residents live) with tools/perf/storage2_set.js's `store` fleet (the Cub and the Jodel INSIDE, four OUTSIDE).
+// garage's residents live) with tools/perf/storage2_set.js's `store` fleet (the main hangar's inside slots filled - ONE in a career's club since G2319.1 - four OUTSIDE).
 //   1. THE FLEET BAKED: the six slots queued for the garage's idle bake (parked.js FLEET), waited for - every later step
 //      must bake NOTHING (PARKED.fleet.stats: captures / bakes unchanged, the queue empty).
 //   2. THE MOVES (FLYDIY_STORE.move: the panel's own door), on the LAPTOP RUNG (--cpu-throttle 3 --gpux 6): inside <->
@@ -199,33 +199,36 @@ const RESIN = `(() => { const g = FLIGHT_PROBE.hangarScene().getObjectByName('ga
     await run('if (window.STORAGE_UI) STORAGE_UI.close(); return 1;');
     await rung(true); await sleep(3000);
     res.refs.sliderResidents = await slider(5);
-    console.log('  slider (2 residents): ' + JSON.stringify(res.refs.sliderResidents));
-    await move('M1 inside->long', 'fleet-2-jodel', { kind: 'long' });
-    await move('M2 long->inside', 'fleet-2-jodel', { kind: 'inside', slot: 1 });
-    await move('M3 inside->outside', 'fleet-1-cub', { kind: 'outside' });
+    console.log('  slider (with the residents): ' + JSON.stringify(res.refs.sliderResidents));
+    // (a career's club main hangar has ONE inside slot since G2319.1 - the moves are written for N = 1; the Jodel starts
+    // long-term)
+    await move('M1 inside->long', 'fleet-1-cub', { kind: 'long' });
+    await move('M2 long->inside', 'fleet-2-jodel', { kind: 'inside', slot: 0 });
+    await move('M3 inside->outside', 'fleet-2-jodel', { kind: 'outside' });
     await move('M4 outside->inside', 'fleet-3-c172', { kind: 'inside', slot: 0 });
     await move('M5 outside->long', 'fleet-5-twinfloats', { kind: 'long' });
     await move('M6 long->outside', 'fleet-5-twinfloats', { kind: 'outside' });
-    // the references on the rung: no residents (both inside -> long), the slider again, then back
+    // a full inside refused, with its reason (nothing moved)
+    const full = await run(`return FLYDIY_STORE.move('fleet-1-cub', { kind: 'inside', slot: 0 });`);
+    check(full && !full.ok && !!full.why, 'a taken inside slot is refused with its reason', full && full.why);
+    // the references on the rung: no residents (the inside one -> long), the slider again, then back
     await move('M7 inside->long', 'fleet-3-c172', { kind: 'long' });
-    await move('M8 inside->long', 'fleet-2-jodel', { kind: 'long' });
     res.refs.sliderNone = await slider(5);
     console.log('  slider (no residents): ' + JSON.stringify(res.refs.sliderNone));
-    await move('M9 long->inside', 'fleet-3-c172', { kind: 'inside', slot: 0 });
-    await move('M10 long->inside', 'fleet-2-jodel', { kind: 'inside', slot: 1 });
-    // the floor: "Work on" an apron aeroplane (a slot load), then an inside one (the swap: the floor's goes to its slot)
-    await move('M11 outside->floor', 'fleet-6-metal', { kind: 'floor' });
-    await move('M12 inside->floor', 'fleet-2-jodel', { kind: 'floor' });
+    await move('M8 long->inside', 'fleet-1-cub', { kind: 'inside', slot: 0 });
+    // the floor: "Work on" an apron aeroplane (a slot load), then the inside one (the swap: the floor's goes to its slot)
+    await move('M9 outside->floor', 'fleet-6-metal', { kind: 'floor' });
+    await move('M10 inside->floor', 'fleet-1-cub', { kind: 'floor' });
     // today's slot load, the same door (the reference for the floor moves)
     res.refs.slotLoad = [];
-    for (const n of ['fleet-6-metal', 'fleet-2-jodel']) {
+    for (const n of ['fleet-6-metal', 'fleet-1-cub']) {
       const t0 = await run('return performance.now();');
       const r = await run(`const t = performance.now(); GARAGE_SPEC.open(${JSON.stringify(n)}); const load = performance.now() - t; await new Promise(q => requestAnimationFrame(() => requestAnimationFrame(q))); return { to: ${JSON.stringify(n)}, load: +load.toFixed(1), total: +(performance.now() - t).toFixed(1) };`);
       r.busy = await busyAfter(t0); res.refs.slotLoad.push(r); console.log('  slot load (today) ' + JSON.stringify(r));
     }
     await rung(false); await sleep(2000);
     res.afterMoves = await rules('after the moves');
-    const nonFloor = res.moves.filter(m => !/floor/.test(m.tag));
+    const nonFloor = res.moves.filter(m => !/floor/.test(m.tag));   // (the refused one is not a move: checked above)
     check(nonFloor.every(m => m.ok), 'every inside / outside / long move went through', nonFloor.filter(m => !m.ok).map(m => m.tag + ': ' + m.why));
     res.moveWorst = Math.max(0, ...nonFloor.map(m => m.busy.worst));
     check(nonFloor.every(m => m.busy.worst < 150), 'no inside / outside / long move holds a task of 150 ms on the laptop rung (the strict gate\'s task slack)', nonFloor.map(m => m.tag + ' ' + m.busy.worst));
