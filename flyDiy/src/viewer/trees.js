@@ -422,12 +422,12 @@
   // size against a reference (its scale, instanceMatrix[1]'s length, over uFadeHRef) - a lawn tuft a third a meadow's height fades
   // at a third of the distance, a verge's at 1.5x: per-ground-type distances fall out of the heights. uFadeSize 0 = the distance
   // alone (every material but the grass field's, whose set carries its own). Vertex work only.
-  const U_FADE_SIZE = { value: 0 }, U_FADE_HREF = { value: 1 };
+  const U_FADE_SIZE = { value: 0 }, U_FADE_HREF = { value: 1 }, U_FADE_SMAX = { value: 1.5 };
   // A FADE SET (GRASS-DENSE G2563): the uniforms a faded material reads. The ring's materials share the global one; the grass
   // field (cover_ring.js, its own ring of small cells) hands its material a set of its own - its own near / reach / taper /
   // height term and size fade - through fadeHook(mat, set). The grow's clock and band stay shared.
-  const FADE_GLOBAL = { near: U_FADE_NEAR, reach: U_FADE_REACH, taper: U_FADE_TAPER, agl: U_FADE_AGL, size: U_FADE_SIZE, href: U_FADE_HREF };
-  const fadeSet = () => ({ near: { value: 1e9 }, reach: { value: 2e9 }, taper: { value: 0.5 }, agl: { value: 1 }, size: { value: 0 }, href: { value: 1 } });
+  const FADE_GLOBAL = { near: U_FADE_NEAR, reach: U_FADE_REACH, taper: U_FADE_TAPER, agl: U_FADE_AGL, size: U_FADE_SIZE, href: U_FADE_HREF, smax: U_FADE_SMAX };
+  const fadeSet = () => ({ near: { value: 1e9 }, reach: { value: 2e9 }, taper: { value: 0.5 }, agl: { value: 1 }, size: { value: 0 }, href: { value: 1 }, smax: { value: 1.5 } });
   const FADE_VS = [
     '#ifdef USE_INSTANCING',
     '  vec3 _fp = (modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xyz;',
@@ -438,7 +438,7 @@
     '#endif',
     'float _fd = distance(_fp, cameraPosition);',
     '#ifdef USE_INSTANCING',
-    'if (uFadeSize > 0.0) _fd /= mix(1.0, clamp(length(instanceMatrix[1].xyz) / uFadeHRef, 0.05, 1.5), uFadeSize);',   // (a tall one reaches 1.5 x at most: the ring plants that far)
+    'if (uFadeSize > 0.0) _fd /= mix(1.0, clamp(length(instanceMatrix[1].xyz) / uFadeHRef, 0.05, uFadeSizeMax), uFadeSize);',   // (a tall one reaches uFadeSizeMax x at most: the ring plants that far)
     '#endif',
     'float _ft = clamp((_fd - uFadeNear) / max(1.0, uFadeReach - uFadeNear), 0.0, 1.0);',
     'float _fk = pow(1.0 - _ft, 1.0 + 2.0 * uFadeTaper) * uFadeAgl;',
@@ -518,7 +518,7 @@
   const fadeInject = (sh, set) => {
     const F = set || FADE_GLOBAL;
     sh.uniforms.uFadeNear = F.near; sh.uniforms.uFadeReach = F.reach; sh.uniforms.uFadeTaper = F.taper; sh.uniforms.uFadeAgl = F.agl;
-    sh.uniforms.uFadeSize = F.size; sh.uniforms.uFadeHRef = F.href;
+    sh.uniforms.uFadeSize = F.size; sh.uniforms.uFadeHRef = F.href; sh.uniforms.uFadeSizeMax = F.smax;
     sh.uniforms.uFadeBand = U_FADE_BAND; sh.uniforms.uFadeNow = U_FADE_NOW; sh.uniforms.uFadeGrow = U_FADE_GROW;
     sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
     sh.uniforms.uWind = U_WIND;
@@ -530,7 +530,7 @@
     // carries, and its NORMAL is not touched (see UP_VS)
     vs = swayOnce(vs, 'aRand * 6.2831');
     vs = declOnce(vs, 'uniform vec4 uWind;');
-    vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp, uFadeBand, uFadeNow, uFadeGrow, uFadeSize, uFadeHRef;');
+    vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp, uFadeBand, uFadeNow, uFadeGrow, uFadeSize, uFadeHRef, uFadeSizeMax;');
     vs = declOnce(vs, '#ifdef USE_INSTANCING\nattribute float aBorn;\n#endif');
     // in a batch `aRand` names the value taken from the colour's alpha (BATCH_RAND_VS), declared in main before its first read
     vs = declOnce(vs, '#ifdef USE_BATCHING\n#define aRand _bRand\n#endif');
@@ -655,7 +655,7 @@
       if (taper !== undefined) F.taper.value = taper; if (agl !== undefined) F.agl.value = agl; return [F.near.value, F.reach.value, F.taper.value, F.agl.value]; },
     // G2563 / G2564: a fade set of a material's own (fadeHook's second argument), and the size fade on a set (0 = off: distance alone)
     fadeSet, fadeOwn: (mat, set) => { if (mat && mat.userData.fade && (mat.userData.fadeSet || null) !== (set || null)) { mat.userData.fadeSet = set || null; mat.needsUpdate = true; } },
-    fadeSize: (k, href, set) => { const F = set || FADE_GLOBAL; if (k != null) F.size.value = k; if (href != null) F.href.value = href; return [F.size.value, F.href.value]; },
+    fadeSize: (k, href, set, smax) => { const F = set || FADE_GLOBAL; if (k != null) F.size.value = k; if (href != null) F.href.value = href; if (smax != null) F.smax.value = smax; return [F.size.value, F.href.value, F.smax.value]; },
     // G670: the grow's clock (s; the ring's aBorn are on it), its band and its time; null leaves a term as it is
     grow: (now, band, secs) => { if (now != null) U_FADE_NOW.value = now; if (band != null) U_FADE_BAND.value = band; if (secs != null) U_FADE_GROW.value = secs;
       return [U_FADE_NOW.value, U_FADE_BAND.value, U_FADE_GROW.value]; },
