@@ -89562,3 +89562,23 @@ Strict gate (train_gate --full, t43): 155 within slack, 2 RED on the Cub's warm 
 flight) with 'MISS suspected' (3 links > 5 s) - the shader-cache position; the quiet bench re-run (t43b) 45.1 s /
 56.5 s, 0 RED, PASS. Parked re-cook (build 6e0064d58201). Rollout rows = train 42's (the 30 fps cap rows; one 1068 ms
 task in one rollout run, 835/675 ms elsewhere - watch it).
+
+### T41b ADDENDUM (11 Oct, night) - the merge with master train 43 and the last reds
+- **The merge with master train 43** (37bf53368, with 42.1 RADIAL-DIVERGE), 78c68923d. The exports are a union (no retired
+  name back). The core-math census put master's 17 new builtin sin / cos sites (60d_gen_pod, 76_freight, 76_stages,
+  27_premises' stage kits) on CORE_MATH: 362 sites, 0 stray. 42.1's finite guards and 41's crash flow are both intact.
+- **CORE_MATH for the tools that require a core file alone** (SPLAT, PREMISES, PARKED, TOWNKIT, KITHOST, METKIT, LIFE):
+  tools/_core_math_global.js evaluates 00_registry.js in its own context and sets its CORE_MATH on the global. Ten tools
+  load it first; the core files are untouched.
+- **A diverged sim's end card takes the corner with damage OFF too** (the user: "no more cards in the middle of the screen,
+  ever"), 037802fe9.
+- **GATE JOINPARITY's INCOMING list**: five tools that came with master 42.1 / 43 reading a validated build raw - pod_still,
+  pod_trials, _pod_check, _pod_fly (owner GAME; the pod is paused by the user) and _radialdiv_check (owner RADIAL-DIVERGE).
+  An OPEN row each, shrink-only (at most 5), struck off once they load through tools/_load_build.js.
+- **GATE POD's 'pod off = today's bytes' base re-blessed on 41**: with the pod off, the merged core builds the five
+  validated aeroplanes byte-identical to 41 before the pod code arrived (sha1 of each whole def), so the pod is inert when
+  off.
+- **The targeted pass (06:35-07:17)**, every one PASS: DMGDRIVE, DMGGEAR, POSEHIDDEN, ACCEPT, UISMOKE, DMGPLOUGH, SIMWORKER,
+  DMGMEMBERS (Jodel bench OPEN G2399), DMGCERTCOST, DMGFLOATTO, HYDRODYN, WATERDAMP (held rate OPEN WATER-LOOK), FLOATS,
+  DMGCRASHUI, OBSTACLE, ENERGYBASE, WINGSPLIT, BUILD, JOINPARITY (19 legacy + 5 incoming OPEN), DESTTO (ltd:metal OPEN; 3
+  shards), FREIGHT, STAGES, POD, PILOTS, PROCURE, PREMISES, SPLAT, PARKED, TOWNKIT, KITHOST, METKIT, LIFE.
