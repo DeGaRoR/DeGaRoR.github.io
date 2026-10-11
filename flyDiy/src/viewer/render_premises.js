@@ -1510,6 +1510,15 @@ function make(THREE, scene, world, rec0, opts) {
   // frame, the forest fill's walk). Past `reach` (its cars' own cull distance) of the road's box nothing of it can be
   // drawn: its cars advance along the road (the same law, so they are where they would be), the pose waits until the
   // eye comes within reach. eye null (the build's first placing, a host with no eye): posed, as before
+  // (G2917, A0: "one recorder-visible counter") the cars POSED this frame (near the eye) of the cars running: stats.trafficPosed,
+  // and the flight log's 'traffic' event when it changes (at most every 10 s) - the user's next log says what the cars cost
+  let TRC = { t: -1e9, last: '' };
+  function trafficCount() {
+    let posed = 0, all = 0; for (const [, t] of TRAFFIC) { all += t.cars.length; if (t.shown) for (const c of t.cars) if (!c.far) posed++; }
+    stats.trafficPosed = posed;
+    const W = typeof window !== 'undefined' ? window : null, now = typeof performance !== 'undefined' ? performance.now() : 0, k = posed + '/' + all;
+    if (W && W.FLIGHT_REC && W.FLIGHT_REC.event && k !== TRC.last && now - TRC.t > 10000) { TRC.t = now; TRC.last = k; W.FLIGHT_REC.event('traffic', null, posed + ' cars posed of ' + all + ' on ' + TRAFFIC.size + ' road' + (TRAFFIC.size === 1 ? '' : 's')); }
+  }
   function moveTraffic(t, dt, eye) {
     const F = O.frame, off = Math.max(0.9, Math.min(1.6, t.w / 4)), b = t.box;
     const pose = !eye || !b || Math.hypot(Math.max(b[0] - eye.x, 0, eye.x - b[2]), Math.max(b[1] - eye.z, 0, eye.z - b[3])) <= t.reach;
@@ -2442,7 +2451,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (on2 !== D.on2) { D.on2 = on2; for (const m of D.list2) if (!m.userData.merged) m.visible = on2; }
     }
   }
-  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) { t.run.tick(dt).apply(); if (CABIN_FAR > 0 && t.cabs) cabinCut(t.cabs); } if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
+  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) { t.run.tick(dt).apply(); if (CABIN_FAR > 0 && t.cabs) cabinCut(t.cabs); } if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); trafficCount(); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);

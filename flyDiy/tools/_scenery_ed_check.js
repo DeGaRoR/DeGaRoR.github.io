@@ -32,6 +32,8 @@ const TOOLS = __dirname, ROOT = path.join(TOOLS, '..');
 const PG = require(path.join(ROOT, 'src', 'core', '27_premises.js'));
 
 const fail = [];
+// the long roads' budgets (row 9, headless): the composition of two island roads, one drag's edit, 25 000 samples
+const LONG_BUDGET = { compose: 3000, drag: 3000, samples: 1500 };
 let checks = 0;
 function check(ok, what, detail) { checks++; if (!ok) fail.push(what + (detail ? ' — ' + detail : '')); return ok; }
 
@@ -67,7 +69,7 @@ function makeR() {
   const R = {
     stats: {}, get overlay() { return O; },
     setRecord(r) { rec = PG.normalise(r); },
-    rebuild() { O = PG.compose(rec, synth); return R.stats; },
+    rebuild(d) { R.lastDirty = d === undefined ? null : d; O = PG.compose(rec, synth); return R.stats; },
     select(id) { if (id !== sel) corner = null; sel = id; },
     corner(i) { if (i !== undefined) corner = i; return corner; },
     ghost() {}, preview() {}, previewEnd() {}, pickHandle() { return null; },
@@ -264,6 +266,81 @@ if (plots.length) {
   ed.load(PG.envelope('placer', rec()));
   check(JSON.stringify(rec().layers.objects.filter(o => o.kind === 'prop')) === props0 && JSON.parse(props0).length === 8 && JSON.stringify(find(b2id).entry) === JSON.stringify(moved) && find(b2id).entry.s === 1.5 && Math.abs(moved.x - 50) < 0.01, '8 saved and loaded: the drops, their place, turn and scale', JSON.stringify(find(b2id) && find(b2id).entry));
   check(roundTrip(), '8 the record round-trips');
+}
+
+// 9 LONG ROADS (G2917; the user: "a road with 250 points ... constant browser stuck window", "this one goes all around the
+//   island, and there's a chance there will be more long roads"): two island-length spline roads of 250 points each. The
+//   segment grid answers roadDist exactly as the walk (5 000 points); coverAt, surfaceAt and the trees' exclusion answer
+//   the same with the grid and the walk; one point dragged rebuilds its SPAN (a box a few hundred metres across, not the
+//   island's), and the times: the composition, 20 000 cover samples, the drag's edit to quiet (the editor's command, the
+//   stub renderer composing as the game's does).
+//   9b ITS CLEARING (G2918): a road's `clear` keeps the trees (excludeAt) and the grass (coverAt's kill) out to its edge +
+//   clear, not past it; the band's regions are pieces of ~200 m keyed by their own line - a drag changes a few of them.
+{
+  const loop = (cx, cz, R, k, ph) => { const out = []; for (let i = 0; i < 250; i++) { const a = i / 250 * Math.PI * 2; const r = R * (1 + 0.18 * Math.sin(a * k + ph) + 0.05 * Math.sin(a * 23 + ph)); out.push([+(cx + Math.cos(a) * r).toFixed(2), +(cz + Math.sin(a) * r).toFixed(2)]); } return out; };
+  const big = PG.normalise({ seed: 4, layers: { roads: [{ id: 'r_isl', pts: loop(0, 0, 7000, 5, 0.3), w: 5, cls: 'paved', graded: true, falloff: 6, curve: 'spline', clear: 3 },
+                                                        { id: 'r_isl2', pts: loop(1500, -800, 5200, 7, 1.1), w: 4, cls: 'gravel', graded: true, falloff: 6, curve: 'spline' }] } });
+  const lineN = big.layers.roads.map(r => PG.roadLine(r).length);
+  const Tm = f => { const t = process.hrtime.bigint(); const r = f(); return [Number(process.hrtime.bigint() - t) / 1e6, r]; };
+  const [tC, OB] = Tm(() => PG.compose(big, synth, { raster: false }));
+  const rnd9 = PG.mulberry32(17), bb = PG.polyBBox(big.layers.roads[0].pts), qs = [];
+  for (let i = 0; i < 20000; i++) { const lx = bb.x0 + rnd9() * (bb.x1 - bb.x0), lz = bb.z0 + rnd9() * (bb.z1 - bb.z0); qs.push(OB.frame.toWorld(lx, lz)); }
+  // near the roads too (a sample on the line, off it by up to 30 m) - where the answers are not all "nothing"
+  for (const r of OB.roads) for (let i = 0; i < 2500; i++) { const p = r.pts[Math.floor(rnd9() * r.pts.length)], w = OB.frame.toWorld(p[0] + (rnd9() - 0.5) * 60, p[1] + (rnd9() - 0.5) * 60); qs.push(w); }
+  const ask = O => qs.map(w => JSON.stringify([O.coverAt(w[0], w[1]), O.surfaceAt(w[0], w[1]), O.excludeAt(w[0], w[1], 'trees')]));
+  const [tG, aG] = Tm(() => ask(OB));
+  // the walk: roadDist as it was (and the box filing), the same record
+  PG.segIdx(false); const OW = PG.compose(big, synth, { raster: false }); const [tW, aW] = Tm(() => ask(OW)); PG.segIdx(true);
+  let exact = true, why = '';
+  for (const r of OB.roads) for (let i = 0; i < 2500 && exact; i++) { const x = bb.x0 - 500 + rnd9() * (bb.x1 - bb.x0 + 1000), z = bb.z0 - 500 + rnd9() * (bb.z1 - bb.z0 + 1000);
+    let d = Infinity; for (let s = 1; s < r.pts.length; s++) { const e = PG.distPtSeg(x, z, r.pts[s - 1], r.pts[s]); if (e < d) d = e; }
+    const g = PG.roadDist(r, x, z); if (!Object.is(g, d)) { exact = false; why = x.toFixed(1) + ',' + z.toFixed(1) + ' ' + g + ' vs ' + d; } }
+  check(exact, '9 the segment grid answers roadDist bit for bit as the walk (5 000 points over two island roads)', why);
+  check(aG.every((v, i) => v === aW[i]), '9 coverAt, surfaceAt and the trees\' exclusion answer the same with the grid and the walk (' + qs.length + ' points)', (aG.findIndex((v, i) => v !== aW[i])));
+  // the editor: the big record loaded, a point of the island road dragged 4 m
+  ed.load(PG.envelope('long', big));
+  ed.select('r_isl');
+  const p40 = rec().layers.roads[0].pts[40];
+  const [tD] = Tm(() => ed.cmd('drag', { key: 'v40', x: p40[0] + 4, z: p40[1] }));
+  const last = R.lastDirty;
+  const span = last && last.bbox ? (last.bbox.x1 - last.bbox.x0) * (last.bbox.z1 - last.bbox.z0) : Infinity, isl = (bb.x1 - bb.x0) * (bb.z1 - bb.z0);
+  check(span < isl * 0.01, '9 a point dragged rebuilds its span, not the island (' + (Math.sqrt(span) | 0) + ' m across of a ' + ((bb.x1 - bb.x0) / 1000).toFixed(1) + ' km road box)');
+  console.log('     9 two island roads (' + lineN.join(' + ') + ' drawn points): compose ' + tC.toFixed(0) + ' ms; ' + qs.length + ' cover / surface / tree samples ' + tG.toFixed(0) + ' ms (the walk ' + tW.toFixed(0) + ' ms); the drag\'s edit ' + tD.toFixed(0) + ' ms');
+  check(tW > tG * 4, '9 the grid is the walk\'s cost several times over cheaper (' + (tW / Math.max(1, tG)).toFixed(1) + 'x)');
+  check(tC < LONG_BUDGET.compose && tD < LONG_BUDGET.drag && tG < LONG_BUDGET.samples, '9 the times hold their budgets: compose < ' + LONG_BUDGET.compose + ' ms, the drag < ' + LONG_BUDGET.drag + ' ms, the samples < ' + LONG_BUDGET.samples + ' ms', tC.toFixed(0) + ' / ' + tD.toFixed(0) + ' / ' + tG.toFixed(0));
+  // 9b the clearing: r_isl clears 3 m past its 2.5 m half width; r_isl2 has none
+  const O9 = PG.compose(rec(), synth, { raster: false }), r1 = O9.roads.find(r => r.id === 'r_isl'), r2 = O9.roads.find(r => r.id === 'r_isl2');
+  const at = (r, i, off) => { const a = r.pts[i], b = r.pts[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1; return O9.frame.toWorld(a[0] - dz / l * off, a[1] + dx / l * off); };
+  const tr = (r, off) => { let n = 0; for (let i = 50; i < 1050; i += 10) { const w = at(r, i, off); if (O9.excludeAt(w[0], w[1], 'trees')) n++; } return n; };
+  const gr = (r, off) => { let n = 0; for (let i = 50; i < 1050; i += 10) { const w = at(r, i, off), q = O9.coverAt(w[0], w[1]); if (q && q.kill >= 1) n++; } return n; };
+  check(tr(r1, 5.0) === 100 && tr(r1, 6.2) < 10 && tr(r2, 3.5) < 5, '9b a road\'s clearing keeps the trees out to its edge + clear (5.0 m from the line: 100 of 100), not past it; a road without one keeps none', tr(r1, 5.0) + ' / ' + tr(r1, 6.2) + ' / ' + tr(r2, 3.5));
+  check(gr(r1, 5.0) === 100, '9b ...and the grass: nothing grows within it', String(gr(r1, 5.0)));
+  const regs = O => O.treeExRegions().filter(q => q.k[0] === 'x').map(q => q.k);
+  const k0 = regs(O9);
+  ed.cmd('drag', { key: 'v120', x: rec().layers.roads[0].pts[120][0] + 5, z: rec().layers.roads[0].pts[120][1] });
+  const k1 = regs(PG.compose(rec(), synth, { raster: false })), dk = k0.filter(k => k1.indexOf(k) < 0).length + k1.filter(k => k0.indexOf(k) < 0).length;
+  check(k0.length > 100 && dk > 0 && dk <= Math.max(12, k0.length / 5), '9b the clearing is filed in pieces: a point dragged changes ' + dk + ' of its ' + k0.length + ' regions (the trees regrow there alone)');
+}
+
+// 10 THE USER'S OWN SCENERY (Jolene rev 23, 11 Oct; tools/fixtures/scenery_user_jolene_rev23.json): its 24.9 km island road
+//   r1 (244 points, traffic 11) half outside the extent the record carries - the composed extent covers all of it now
+//   (the fine patch is drawn over it); its traffic changed is no ground edit; a point of r1 dragged rebuilds its span
+{
+  const txt = fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev23.json'), 'utf8');
+  const Tm = f => { const t = process.hrtime.bigint(); const r = f(); return [Number(process.hrtime.bigint() - t) / 1e6, r]; };
+  const [tL] = Tm(() => ed.load(txt));
+  const O10 = PG.compose(rec(), synth, { raster: false }), r1 = rec().layers.roads.find(r => r.id === 'r1'), E = O10.extent;
+  check(r1 && r1.pts.every(q => q[0] >= E.x0 && q[0] <= E.x1 && q[1] >= E.z0 && q[1] <= E.z1), '10 the composed extent covers the island road (it ran 12.7 km past the authored one)', JSON.stringify(E));
+  const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, OJ = PG.compose(J, synth, { raster: false });
+  check(JSON.stringify(OJ.extent) === JSON.stringify(J.frame.extent), '10 ...and the shipped Jolene record keeps its own extent exactly (every feature inside it)');
+  ed.select('r1');
+  const [tT] = Tm(() => ed.cmd('set', { id: 'r1', patch: { traffic: 12 } }));
+  check(R.lastDirty && R.lastDirty.ground === false, '10 the traffic changed is no ground edit (no patch, no ground re-sample)', JSON.stringify(R.lastDirty));
+  const q = rec().layers.roads.find(r => r.id === 'r1').pts[150];
+  const [tD] = Tm(() => ed.cmd('drag', { key: 'v150', x: q[0] + 3, z: q[1] }));
+  const b = R.lastDirty && R.lastDirty.bbox, sp = b ? Math.max(b.x1 - b.x0, b.z1 - b.z0) : Infinity;
+  check(sp < 3000, '10 a point of r1 dragged rebuilds its span (' + (sp | 0) + ' m across), not the 25 km road');
+  console.log('     10 the user scenery: load ' + tL.toFixed(0) + ' ms, traffic changed ' + tT.toFixed(0) + ' ms, a point dragged ' + tD.toFixed(0) + ' ms (headless: the record and its composition)');
 }
 
 // 5 NAMES

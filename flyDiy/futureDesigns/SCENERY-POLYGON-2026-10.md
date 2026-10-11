@@ -161,3 +161,22 @@ the contract), and a SCATTER brush (n within a radius, seeded, one record per ob
 5. The ASSETS tab (§6) on whatever the bank holds that day.
 Gates: PREMISES (the migrator rows), SCENERYED (the hand, extended to areas and the palette), PAVEMENT (the marks),
 PREMCOOK, UISMOKE; island_shot at Jolene's 13/31 band to see the gravel finally drawn.
+
+## 8. NEXT: the road bed and the road ribbons by piece (asked 11 Oct, after ED-2's scope)
+
+The user (11 Oct, a screenshot of their island road): "the road is sunk in many places. Maybe build a little bank or
+something, ensuring the paved surface is always visible?" What it is: a graded road (flat across, smoothed along, 6 m
+nodes, falloff) is CUT into the hills; physics and the fine 2 m patch agree, but past the fine patch's reach the coarse
+far ground (17-70 m cells) interpolates OVER a 4-7 m cut and hides the pavement. (Part of the user's sinking was the
+record's extent - fixed in ED-2, G2919: the fine patch now covers the whole road.) The brief:
+- **A road bed** (a road's `bed: { bank, grade }`): the ground under the paved width set to the road's own profile,
+  filtered along (a max grade: the longitudinal envelope compose already has as `grade`), shoulders blending back over
+  `bank` metres - an EMBANKMENT where the road fills (it rides over any coarse mesh), a cut slope where it digs. The
+  composer's grade modifier already is this shape; the bed adds the bank width and the fill bias (a road that may sit
+  up to N cm over the ground rather than in it).
+- **The far ground's sink under the pavement** (render_world's rings): the patch sinks under a pavement's opaque interior
+  (G660, PAVEMENT.SINK); the rings do not - past the patch a road needs the same sink (or the ribbon a distance lift).
+- **The ribbons by piece**: a road's ribbon is rebuilt whole on every edit (and every other road's with it) - pieces
+  between control points, global u kept (a cached piece shifts its u attribute when the line upstream grew or shrank),
+  invalidated by a ground-dirty box over the piece; the table rows (G925) and the merges re-done per piece.
+- Proof needs the GPU: stills of the island road near and far, a timed check of a drag on it (edit to quiet < 100 ms).
