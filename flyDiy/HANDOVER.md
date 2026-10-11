@@ -85225,3 +85225,22 @@ OWED (booked by A0, Mon 12 Oct; scratchpad ts_slots.sh, unattended): W1 GPU 04:4
 probes branch / master / branch; W2 GPU TIMED 05:30-06:00 - train_gate --light on the branch, tree_perf density 200
 branch vs master. Then the walk's own cost at density 200 (the profile decides whether the walk needs cutting - terrainH
 x5 a point for the slope, BIO.over's premises vegAt per point - or a worker), READY, A0's strict gate at landing.
+
+### G2935 - BIOME-POLY: A POLYGON THAT NAMES A MIX PLANTS IT, NEAR AND FAR (12 Oct ~01:00, A0's split of the user's priority; the ground colour is SCENERY-ED-2's BIOME-PAINT G3040)
+The user: "the biome polygon does nothing I can see ... I'd want it to affect the ground color according to the picked
+biome, plus the actual trees." Cause (SCENERY-ED-2's read, confirmed): the walk's gate was the island's cover raster
+(forestHere / openHere), so a mix over a field, scree or a town's gaps stood nothing; past the gate the canopy ramp
+(~0 on open ground) thinned it away (the record's vegMixOf mixes are never floored); stand_cards had the same gate and
+ramp and nobody called its replant. Now (render_world polyMix / polyGround, stand_cards chunkRows): where the premises'
+vegAt names a known mix the gate opens on any ground but pavement, gravel, water and the aerodromes' blocked ground
+(treeAeroBlocked; the excludes still refuse), the mix is FLOORED (its own density, as tall as the map's canopy, its
+canopyFloor or POLY_CAN 12 m where the map has none; the heath/bog 3 m cap does not apply), in the fill AND the far cards.
+vegChanged restales the fill chunks and the card chunks (stand_cards restale(boxes): the old cards drawn until the new
+mesh lands) under the polygons that changed; setBiome / setMix restale every card chunk. The polygon is read once a point
+(mixHere = the polygon's word, else BIO.mixAt(code)). BIOME-PAINT's hook: vegChanged calls groundTtypeRefresh() when it
+exists (SCENERY-ED-2 declares it with the build's top-level lets, assigns it beside the uGPackB build) - only on a vegSig
+change (any vegetation polygon edit). The page row: treestream_probe.js BIOME (a 400 m open square near the aircraft given
+'conifer' through vegAt / vegPolys / vegSig + vegChanged; the walk's trees before / after / after removal, the ring fresh,
+the card chunks restaled).
+WHAT TO WATCH FOR: a biome polygon over a field now stands that biome's trees inside it, near and far, within a second or
+two of the edit; 'none' still clears; nothing ever stands on a road, an apron, gravel or water inside the polygon.

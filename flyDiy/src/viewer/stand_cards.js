@@ -24,7 +24,7 @@
 const STAND_CARDS = (() => {
   function make(THREE, ctx) {
     const { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-            ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy, rdyMin } = ctx;
+            ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy, rdyMin, polyMix, polyGround, POLY_CAN } = ctx;
     // THE WHOLE ISLAND (2026-09-22, the user: "extend the visibility range even beyond the 18 km ... just
     // filling all the parts of the island visible from the camera"): measured 171 k cards at 18 km,
     // 193 k at 26, 193.6 k at 40 - it SATURATES, because Jolene is 39 km across and there is no more
@@ -124,12 +124,15 @@ const STAND_CARDS = (() => {
         const gx = cx * n + ix, gz = cz * n + iz;
         const x = x0 + (ix + 0.5) * sp + (hsh(gx + 7, gz) - 0.5) * sp * 0.8, z = z0 + (iz + 0.5) * sp + (hsh(gx, gz + 7) - 0.5) * sp * 0.8;
         if (!ISLC || !ISLC.ttype) continue;
-        if (!forestHere(x, z) && !openHere(x, z)) continue;
-        const tt = ttypeAt(x, z); if (tt < 2) continue;
-        const mix = BIO.mixHere ? BIO.mixHere(codeAt(x, z, hsh(gx + 21, gz + 23)), x, z) : BIO.mixAt(codeAt(x, z, hsh(gx + 21, gz + 23))); if (!mix) continue;
+        // G2935 (BIOME-POLY): a premises polygon's own mix opens the gate and stands floored, as the fill's walk does
+        const pm = polyMix ? polyMix(x, z, BIO) : undefined;
+        if (!forestHere(x, z) && !openHere(x, z) && !(pm && polyGround && polyGround(x, z))) continue;
+        const tt = ttypeAt(x, z); if (tt < 2 && !pm) continue;
+        const mix = pm !== undefined ? pm : BIO.mixAt(codeAt(x, z, hsh(gx + 21, gz + 23))); if (!mix) continue;
         const MF = BIO.mixOf(mix).forest || {};
         let can = ISLC.canopyAt(x, z), floored = false;
-        if (tt === 3 || tt === 2) can = Math.min(can, 3.0);
+        if ((tt === 3 || tt === 2) && !pm) can = Math.min(can, 3.0);
+        if (pm) { floored = true; can = Math.max(can, MF.canopyFloor || 0, POLY_CAN || 12); }
         if (MF.canopyFloor > can) { can = MF.canopyFloor; floored = true; }
         if (MF.clump > 0 && vnoise(x, z, MF.clumpM || 30, 41) < MF.clump) continue;
         const kind = Math.min(1, BIO.density(mix) * spc * spc * FILL.island.biomeGain); if (kind <= 0) continue;
@@ -183,12 +186,13 @@ const STAND_CARDS = (() => {
         }
         for (const k of chunks.keys()) if (!want.has(k)) drop(k);
         if (job && !want.has(job.k)) job = null;
-        queue = [...want].filter(k => !chunks.has(k) && !(job && job.k === k)).sort((a, b) => {
+        queue = [...want].filter(k => (!chunks.has(k) || chunks.get(k).stale) && !(job && job.k === k)).sort((a, b) => {
           const A = a.split(',').map(Number), B = b.split(',').map(Number);
           return Math.hypot((A[0] + 0.5) * C - cg[0], (A[1] + 0.5) * C - cg[2]) - Math.hypot((B[0] + 0.5) * C - cg[0], (B[1] + 0.5) * C - cg[2]); });
       }
       if (!job && queue.length && !sliceSpent()) job = chunkJob(queue.shift());
-      if (job && !sliceSpent() && chunkRows(job)) { const mesh = chunkMesh(job); if (mesh) root.add(mesh); chunks.set(job.k, { mesh }); job = null; }
+      if (job && !sliceSpent() && chunkRows(job)) { const mesh = chunkMesh(job); const old = chunks.get(job.k); if (old && old.mesh) { root.remove(old.mesh); old.mesh.dispose(); }   // a restaled chunk: the swap
+        if (mesh) root.add(mesh); chunks.set(job.k, { mesh }); job = null; }
       // a chunk wholly inside the edge draws only while a fill cell under it is not fully ready (rdyMin < 1): the steady
       // state submits what it did before G2930 (those chunks did not exist), a stand-in costs its draw only while it stands
       let ni = 0, nh = 0;
@@ -204,6 +208,14 @@ const STAND_CARDS = (() => {
         if (S.far !== was.far || S.near !== was.near || S.spacing !== was.spacing || S.standIn !== was.standIn) { for (const k of [...chunks.keys()]) drop(k); if (mat) { mat.dispose(); } proto = null; mat = null; job = null; }
         return api.get(); },
       replant: () => { for (const k of [...chunks.keys()]) drop(k); job = null; },
+      // G2935: the chunks under these world boxes (every chunk with null) are walked again; each keeps its cards drawn
+      // until its new mesh lands (a biome edit never blanks the far forest); returns how many
+      restale: boxes => { let n = 0; const C = S.cell;
+        for (const [k, c] of chunks) { const [cx, cz] = k.split(',').map(Number);
+          if (boxes && !boxes.some(b => b.x1 >= cx * C && b.x0 <= (cx + 1) * C && b.z1 >= cz * C && b.z0 <= (cz + 1) * C)) continue;
+          c.stale = true; n++; if (job && job.k === k) job = null; }
+        if (n) tick = 0;   // the want list at the next update
+        STAT.restaled = (STAT.restaled || 0) + n; return n; },
       stat: () => Object.assign({}, STAT),
       has: (x, z) => !!chunks.get(Math.floor(x / S.cell) + ',' + Math.floor(z / S.cell)),
       atlas: () => proto && proto.atlas,

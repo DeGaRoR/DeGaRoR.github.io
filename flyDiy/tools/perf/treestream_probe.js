@@ -119,8 +119,42 @@ const SAMPLE = `(() => { const s = FLIGHT_PROBE.sim(), cg = s.cgPos(), W = WORLD
     const x = cg[0] + (mx - cg[0]) * k, z = cg[2] + (mz - cg[2]) * k, gy = w.terrainH(x, z);
     await FLIGHT_PROBE.place({ by: [x - cg[0], gy + 300 - cg[1], z - cg[2]], zeroV: true }); return [x | 0, z | 0].join(','); })()`;
   res.push(await phase('JUMP (' + JUMP + ' m toward the middle, 300 m AGL)', JUMPJS));
+  // BIOME (G2935, the user 12 Oct: "the biome polygon does nothing I can see"): a 400 m square of OPEN ground near the
+  // aircraft (the fewest fill trees, mostly GRASS) is given a forest mix through the overlay's own interface - vegAt,
+  // vegPolys (the premises frame's box), vegSig - and TREE_FILL.vegChanged() is called as the editor's rebuild calls it;
+  // the walk's trees in the square (TREE_FILL.plants: the streamer's own walk) before and after, the far cards
+  // restaled, the parts' swap; then the polygon goes and the square is counted again
+  const BIOME = `(async () => { const w = FLIGHT_PROBE.world(), O = w.premises && w.premises.overlay, F = O && O.frame, TF = window.TREE_FILL, B = TF.biomes && TF.biomes();
+    if (!O || !F || !B) return JSON.stringify({ skipped: 'no overlay / frame / biomes' });
+    const cg = FLIGHT_PROBE.sim().cgPos(), H = 200;
+    let best = null;
+    for (let gz = -2400; gz <= 2400; gz += 400) for (let gx = -2400; gx <= 2400; gx += 400) { const x = cg[0] + gx, z = cg[2] + gz;
+      if (Math.hypot(gx, gz) < 600) continue;
+      let g = 0, n = 0; for (let k = -H; k <= H; k += 50) for (let l = -H; l <= H; l += 50) { n++; if (w.treeGround(x + k, z + l) === w.SURFACE.GRASS && w.terrainH(x + k, z + l) > 2) g++; }
+      if (g / n < 0.7) continue;
+      const t = TF.plants(x - H, z - H, x + H, z + H).length / 3;
+      if (!best || t < best.t) best = { x, z, t, grass: +(g / n).toFixed(2) }; }
+    if (!best) return JSON.stringify({ skipped: 'no open square within 2.4 km' });
+    const mix = B.mixes.conifer ? 'conifer' : Object.keys(B.mixes).find(k => B.mixes[k].forest && B.mixes[k].forest.count > 0);
+    const x0 = best.x - H, x1 = best.x + H, z0 = best.z - H, z1 = best.z + H;
+    const loc = (x, z) => { const dx = x - F.anchor.x, dz = z - F.anchor.z; return [dx * F.c - dz * F.s, dx * F.s + dz * F.c]; };
+    const cs = [loc(x0, z0), loc(x1, z0), loc(x1, z1), loc(x0, z1)];
+    const bbox = { x0: Math.min(...cs.map(c => c[0])), z0: Math.min(...cs.map(c => c[1])), x1: Math.max(...cs.map(c => c[0])), z1: Math.max(...cs.map(c => c[1])) };
+    const vegAt0 = O.vegAt, polys0 = O.vegPolys, sig0 = O.vegSig;
+    const SC = TF.stands && TF.stands(), r0 = SC && SC.stat ? (SC.stat().restaled || 0) : null;
+    O.vegAt = function (x, z) { return (x >= x0 && x <= x1 && z >= z0 && z <= z1) ? mix : vegAt0.call(this, x, z); };
+    O.vegPolys = (polys0 || []).concat([{ id: '__probe', poly: cs, bbox, mix }]); O.vegSig = sig0 + '|probe';
+    const t0 = performance.now(); TF.vegChanged(); const veg = performance.now() - t0;
+    const after = TF.plants(x0, z0, x1, z1).length / 3;
+    let fresh = null; for (let i = 0; i < 300; i++) { await new Promise(r => setTimeout(r, 100)); const q = TF.stream ? TF.stream() : null; if (!q || (!q.stale && !q.queued)) { fresh = +((performance.now() - t0) / 1000).toFixed(1); break; } }
+    const r1 = SC && SC.stat ? (SC.stat().restaled || 0) : null;
+    O.vegAt = vegAt0; O.vegPolys = polys0; O.vegSig = sig0; TF.vegChanged();
+    const back = TF.plants(x0, z0, x1, z1).length / 3;
+    return JSON.stringify({ at: [best.x | 0, best.z | 0], grass: best.grass, mix, before: best.t, after, back, vegChangedMs: +veg.toFixed(1), freshS: fresh, cardsRestaled: r1 === null ? null : r1 - r0 }); })()`;
+  let biome = null;
+  try { biome = JSON.parse(await ev(BIOME)); } catch (e) { biome = { error: String(e && e.message || e) }; }
   ws.close(); kill();
-  const out = { date: new Date().toISOString(), tag: TAG, url: URL, build, gpu, ng: NG, ng0, hasStream, phases: res };
+  const out = { date: new Date().toISOString(), tag: TAG, url: URL, build, gpu, ng: NG, ng0, hasStream, phases: res, biome };
   fs.writeFileSync(OUT, JSON.stringify(out, null, 1));
   console.log(`treestream_probe ${TAG}  build ${build}  ${gpu}  density ${ng0} -> ${NG}  stream API ${hasStream ? 'yes' : 'no (master)'}`);
   for (const p of res) {
@@ -128,5 +162,6 @@ const SAMPLE = `(() => { const s = FLIGHT_PROBE.sim(), cg = s.cgPos(), W = WORLD
     if (p.per) console.log(`     per part at this density: walk ${p.per.walkMs} + build ${p.per.buildMs} ms (${p.per.parts} parts); streamer's worst frame ${p.streamFrameMaxMs && p.streamFrameMaxMs.toFixed(1)} ms`);
     if (p.stream) console.log(`     holes: ${p.stream.holeFrames} frames (max ${p.stream.holesMax} cells); cards standing in near: max ${p.stream.standInNearMax}; near part worst ${(p.stream.nearMaxMs / 1000).toFixed(1)} s; swaps ${p.stream.swaps}; urgent ${p.stream.urgentS} s`);
   }
+  if (biome) console.log('  BIOME polygon (' + (biome.mix || '-') + ' over open ground at ' + (biome.at || '-') + '): ' + (biome.skipped || biome.error || ('trees in the 400 m square ' + biome.before + ' -> ' + biome.after + ' -> ' + biome.back + ' (removed); vegChanged ' + biome.vegChangedMs + ' ms; the ring fresh at ' + biome.freshS + ' s; far card chunks restaled ' + biome.cardsRestaled)));
   console.log('  -> ' + OUT);
 })().catch(e => { console.error('treestream_probe: ' + (e && e.stack || e)); kill(); process.exit(1); });

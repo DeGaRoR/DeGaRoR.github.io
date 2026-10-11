@@ -1407,6 +1407,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const h = world.terrainH(x, z);
     return !(h < 1.5 || world.waterH(x, z) > h);
   };
+  // G2935 (BIOME-POLY, the user 12 Oct: "the biome polygon does nothing I can see ... I'd want it to affect the ground
+  // color according to the picked biome, plus the actual trees"): A POLYGON THAT NAMES A MIX PLANTS IT. The premises'
+  // vegAt (27_premises vegPolys: undefined where no polygon speaks, null 'none', else a mix name) opened nothing: the walk
+  // asked the island's cover raster first (forestHere / openHere: FOREST_FLOOR or GRASS), so a biome drawn over a field,
+  // scree or a town's gaps stood no tree. polyMix(x, z): the polygon's word (a known mix, null, or undefined); polyGround:
+  // where a polygon's mix may stand - the aerodromes' blocked ground and the trees' own excludes no, pavement / gravel /
+  // water no, every other ground yes. The ground colour is BIOME-PAINT's (G3040, SCENERY-ED-2).
+  const polyMix = (x, z, BIO) => { if (!BIO || !BIO.over) return undefined; const o = BIO.over(x, z); return o === undefined ? undefined : (o && BIO.mixes[o]) ? o : null; };
+  const polyGround = (x, z) => {
+    if (!islRule || world.treeAeroBlocked(x, z)) return false;
+    const s = world.treeGround(x, z);
+    if (s === world.SURFACE.PAVED || s === world.SURFACE.GRAVEL || s === world.SURFACE.WATER) return false;
+    const h = world.terrainH(x, z);
+    return !(h < 1.5 || world.waterH(x, z) > h);
+  };
   const forestHere = (x, z, sc) => {
     if (islRule) { if (world.treeAeroBlocked(x, z)) return false; }
     else {
@@ -5126,6 +5141,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // 9 km ring crosses from HOME) it takes the analytic composer instead (the raster to 1 cm), never a 1-1.6 ms bake
       // a tree's record in a walk: x, y, z, sp, the hash, the canopy, the mix's snag share (G1975)
       const FILL_REC = 7;
+      const POLY_CAN = 12;   // G2935: a polygon's mix over ground the canopy map calls bare stands this tall (m), the stand cards' tree
       function walk(cx, cz, recs, g0, g1, part) {
         if (!world.buildReads) return walkRows(cx, cz, recs, g0, g1, part);
         world.buildReads(1);
@@ -5140,7 +5156,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (hsh(ix, iz + 31) < 0.1) continue;
           const x = cx * CH + (gx + 0.5) * spc + (hsh(ix + 7, iz) - 0.5) * spc * 1.6;
           const z = cz * CH + (gz + 0.5) * spc + (hsh(ix, iz + 7) - 0.5) * spc * 1.6;
-          if (!forestHere(x, z) && !(BIO && openHere(x, z))) continue;  // the forest's rule (the bake's too), or the biome's open ground
+          const pm = ISLC ? polyMix(x, z, BIO) : undefined;   // G2935: a polygon's own mix (undefined: no polygon speaks)
+          if (!forestHere(x, z) && !(BIO && openHere(x, z)) && !(pm && polyGround(x, z))) continue;  // the forest's rule (the bake's too), the biome's open ground, or a polygon's mix
           if (premTreeEx(x, z)) continue;   // the world editor's "no trees" (G527)
           if (fillPoolAt && ISLC && ISLC.ttype) { const t7 = ttypeAt(x, z); if ((t7 === 3 || t7 === 7) && fillPoolAt(x, z) > 0.5) continue; }   // not in a puddle
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
@@ -5162,13 +5179,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
               // kind, its species the pool (codeAt / biomeAt below - the cover ring's too)
               const tt = ttypeAt(x, z);
               if (BIO) {
-                mixHere = BIO.mixHere(codeAt(x, z, hsh(ix + 21, iz + 23)), x, z);
+                mixHere = pm !== undefined ? pm : BIO.mixAt(codeAt(x, z, hsh(ix + 21, iz + 23)));   // (BIO.mixHere, with the polygon read once)
                 kind = mixHere ? Math.min(1, BIO.density(mixHere) * spc * spc * FILL.island.biomeGain) : 0;
               } else kind = tt === 8 ? 1.0 : tt === 7 ? 0.5 : tt === 3 ? 0.12 : tt === 2 ? 0.04 : 0.0;
-              if (tt === 3 || tt === 2) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted
+              if ((tt === 3 || tt === 2) && !pm) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted (a polygon's mix stands as itself)
               // THE MIX'S OWN FLOOR (2026-09-22, the user's reference picture of the airport: the whole muskeg is
               // dense small conifers the canopy map does not see - it reads 0.1-0.2 m there, under the ramp's 0.5):
               // a mix may say how tall its ground is at least (forest.canopyFloor, m) - the ramp and the size read it
+              // G2935: a polygon's mix is FLOORED - it stands at the mix's own density whatever the map's canopy says there,
+              // as tall as the canopy where the map has one, the mix's floor or POLY_CAN where it has none
+              if (mixHere && pm) { const MF = BIO.mixOf(mixHere).forest; floored = true; can = Math.max(can, (MF && MF.canopyFloor) || 0, POLY_CAN); }
               if (mixHere) { const MF = BIO.mixOf(mixHere).forest; if (MF && MF.canopyFloor > can) { can = MF.canopyFloor; floored = true; }
                 // THE CLUMPS (2026-09-22, the user's aerial of the muskeg: "dense packs of trees on sort of little
                 // islands"): a mix may say forest.clump (the share of its ground left bare, 0..1) and clumpM (the
@@ -5520,7 +5540,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
             standCards = STAND_CARDS.make(THREE, { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn });   // rdy: G2930, the cards stand in for an unbuilt fill
+                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN });   // rdy: G2930, the cards stand in for an unbuilt fill
           // THE ROCK MAP (rock_map.js): the rocks' far tier, on the island's ground programs (gU.uRockMap)
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
@@ -5573,7 +5593,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             return { tt, code, name: BIO.names[code] || String(code), mix: BIO.mixHere(code, x, z), canopy, slopeDeg,
                      ndvi: (ISLC.ndvi && k >= 0) ? ISLC.ndvi[k] / 127 - 1 : null };
           },
-          setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); staleAll(); reachRefresh(); return r; },
+          setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); reachRefresh(); return r; },
           reach: () => reachRefresh(),   // G908: re-read what the map can reach (after a premises re-stamp); true when it grew
           // G1385: after a premises edit (app.js onRebuilt) - the cover polygons' vegetation re-read; replants only when it changed
           // G2890 (SCENERY-ED-1): ...and the tree EXCLUSIONS - a polygon removed, shrunk, moved or added, a strip moved or
@@ -5587,7 +5607,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // G2931: the polygons that changed, their chunks first; the whole ring (stale) only when the overlay cannot say
             { let now = null; try { now = vegRegions(); } catch (e) { now = null; }
               const was = vegRegPlanted; vegRegPlanted = now;
-              if (now && was) STAT.vegRegrown = (STAT.vegRegrown || 0) + staleRegions(regDiff(was, now)); else staleAll(); }
+              if (now && was) { const ch = regDiff(was, now); STAT.vegRegrown = (STAT.vegRegrown || 0) + staleRegions(ch); if (standCards && standCards.restale) standCards.restale(ch); }
+              else { staleAll(); if (standCards && standCards.restale) standCards.restale(null); } }
+            // G3040 (BIOME-PAINT, SCENERY-ED-2): the ground's packed terrain type re-derived after the stamp moved - theirs,
+            // declared with the build's top-level lets; nothing here when it is not (yet) there
+            if (typeof groundTtypeRefresh === 'function') groundTtypeRefresh();
             if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return true; },
           exRegions: () => Array.from(exPlanted.values()),
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
@@ -5595,7 +5619,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // blotch - the fill re-pools and replants, the ring replants; the export carries it
           setMix: (name, path, value) => { if (!BIO) return null; const M = BIO.mixOf(name); if (!M) return null;
             let o = M; for (let i = 0; i < path.length - 1; i++) { if (o[path[i]] === undefined || o[path[i]] === null) o[path[i]] = {}; o = o[path[i]]; }
-            o[path[path.length - 1]] = value; biomePools.clear(); staleAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return value; },
+            o[path[path.length - 1]] = value; biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return value; },
           // the world rail's tree cards: one species' size multiplier over the canopy's (1 = the map's), all biomes; replants
           speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; staleAll(); } return SP_SIZE[name] || 1; },
           speciesSizes: () => Object.assign({}, SP_SIZE),
