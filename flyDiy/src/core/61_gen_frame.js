@@ -849,7 +849,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                    // plywood box's ~50 0.74), R the section's mean radius. The Cessna's tailcone: tens of kN.m, not
                    // the alloy's full ultimate's 580. A LOWER BOUND, named: a real tailcone is stringer- and
                    // frame-stiffened and carries load past skin buckling
-                   sigB: (() => { const Rm = Math.max(0.05, Math.sqrt(qr.a * qr.b)), ph = Math.sqrt(Rm / tS) / 16;
+                   // (taken at the MID-SPAN STATION's own ring - Deform's: the record carries one section, and the
+                   // narrower tailcone there has the smaller R/t, the higher knockdown and stress; the root ring's
+                   // R would under-rate the station the part-off tests)
+                   sigB: (() => { const st = dmgStation(rings, fu.postX), k0 = Math.max(0, Math.min(rings.length - 2, st >= 0 ? st : 0));
+                                  const xs = [...rings[k0], ...rings[k0 + 1]].reduce((a, q) => a + P[q][0], 0) / 8, qs = secAt(xs);
+                                  const Rm = Math.max(0.05, Math.sqrt(qs.a * qs.b)), ph = Math.sqrt(Rm / tS) / 16;
                                   return (1 - 0.731 * (1 - Math.exp(-ph))) * 0.605 * E * tS / Rm; })() };
     }
     if (cl.length >= 6) clusters.push({ cls: 'shell', tag: 'SHELL', nodes: cl, rings, gj: GJs,
