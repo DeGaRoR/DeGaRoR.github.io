@@ -85,7 +85,12 @@ PROPS = [
       'Modelled, delivered untextured; scaled 0.25 by its stairs (14 x 10 x 9.4 m) and textured from '
       'the house library (tools/observatory_prep.py) - FOR THE USER\'S REVIEW.',
       C('Tutor TV Observatory', 'Tommen', 'Tommen', 'tutor-tv-observatory-28a2c1ff61304e6eb36b6840b43e2fc1'),
-      dict(route='observatory', target=20000, size=2048, scale=0.25), height=9.42),
+      dict(route='observatory', target=20000, size=2048, scale=0.25, variant='a'), height=9.42),
+    P('observatory_patina', 'landmark', 'ridge observatory, copper dome', 'tutor_tv_observatory.glb',
+      'Variant B of the observatory (the user, 11 Oct: "a more dramatic dome, but keep this one as an option"): '
+      'the same building, the dome gone to verdigris - copper-green with dark runs. FOR THE USER REVIEW.',
+      C('Tutor TV Observatory', 'Tommen', 'Tommen', 'tutor-tv-observatory-28a2c1ff61304e6eb36b6840b43e2fc1'),
+      dict(route='observatory', target=20000, size=2048, scale=0.25, variant='b'), height=9.42),
     # ---- vessels -------------------------------------------------------------
     P('ferry_merituuli', 'vessel', 'island car ferry', 'hailuoto_car_ferry_la_merituuli.glb',
       'Modelled, 1303 meshes and 22 materials: flattened to one atlas, the glass and the lamps their own.',

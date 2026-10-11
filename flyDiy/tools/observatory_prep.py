@@ -53,7 +53,14 @@ def arg(name, dflt):
     return type(dflt)(argv[argv.index(name) + 1]) if name in argv else dflt
 
 
-QUICK = '--quick' in argv            # a dry run: tiny maps, 1 sample, no stills
+QUICK = '--quick' in argv            # a dry run: tiny maps, 1 sample
+# THE VARIANTS (the user, 11 Oct, on the first stills: "almost all is OK, but the telescope itself ...
+# should be metal with a lens ... the side dish ... probably shouldn't [be concrete] ... you may also
+# suggest a variation with a more dramatic dome, but keep this one as an option"):
+#   a  the painted white dome (the reviewed one)            -> observatory
+#   b  a COPPER-GREEN PATINA dome, the same building          -> observatory_patina
+VARIANT = arg('--variant', 'a')
+KEY = 'observatory' if VARIANT == 'a' else 'observatory_patina'
 SIZE = arg('--size', 256 if QUICK else 2048)
 TARGET = arg('--target', 20000)
 SCALE = 0.25
@@ -62,9 +69,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 MAIN = 'D:/Dev/DeGaRoR.github.io/flyDiy'
 SRC = os.path.join(MAIN, 'assets', 'sceneryOctober', 'tutor_tv_observatory.glb')
-OUT_DIR = os.path.join(MAIN, 'assets', 'sceneryOctober_prep', 'observatory')
-OUT = os.path.join(OUT_DIR, 'observatory.glb')
-REP = os.path.join(ROOT, 'bench', 'scenery', 'observatory.json')
+OUT_DIR = os.path.join(MAIN, 'assets', 'sceneryOctober_prep', KEY)
+OUT = os.path.join(OUT_DIR, KEY + '.glb')
+REP = os.path.join(ROOT, 'bench', 'scenery', KEY + '.json')
 SHOTS = os.path.join(ROOT, 'screenshots', 'asset-prep')
 LIB = os.path.join(ROOT, 'media', 'tex', 'house')
 t0 = time.time()
@@ -92,7 +99,19 @@ ROLES = {
     'scope':  ('steelgrey_diff', (0.42, 0.47, 0.46), 1.0, 'steelgrey_rough', 0.0, 0.1, 0.4),
     'trim':   ('steelgrey_diff', (0.24, 0.36, 0.27), 1.0, 'steelgrey_rough', 0.0, 0.1, 0.3),
     'vent':   ('galv_diff', (0.9, 0.9, 0.9), 1.0, 'galv_rough', 0.85, 0.1),
+    # the telescope's tube (the cylinder through the slit): bare steel, lightly painted - metal
+    'tube':   ('steelgrey_diff', (0.62, 0.64, 0.66), 1.0, 'steelgrey_rough', 0.7, 0.1, 0.5),
+    # its objective: dark glass, nearly a mirror (opaque in the atlas: a lens seen from outside
+    # is a dark reflection, not a see-through pane)
+    'lens':   ('steelgrey_diff', (0.025, 0.035, 0.05), 1.0, 0.05, 0.0, 0.0, 1.0),
+    # the side dish, its feed arms and struts: galvanised steel (it read as concrete in white paint)
+    'dish':   ('galv_diff', (1.0, 1.0, 1.0), 0.8, 'galv_rough', 0.8, 0.1),
 }
+if VARIANT == 'b':
+    # THE DRAMATIC DOME: copper gone to verdigris. The library's weathered steel sheet under a
+    # verdigris tint, NOT cleaned: its rust blotches and runs become the dark streaks of an old
+    # copper dome's patina, the white paint between them the green. A little metal left in it.
+    ROLES['dome'] = ('steelgrey_diff', (0.36, 0.60, 0.50), 3.0, 'steelgrey_rough', 0.15, 0.2, 0.0)
 ORDER = list(ROLES)
 
 # ---- import, join, weld, place --------------------------------------------
@@ -155,6 +174,43 @@ dc = (dome['lo'] + dome['hi']) / 2
 dc.z = dome['lo'].z
 dr = (dome['hi'].x - dome['lo'].x) / 2
 band = (body['hi'].z - 0.9, dome['lo'].z + 0.25)    # the block band round the dome's foot
+# THE TELESCOPE: the part that runs from inside the dome out through the slit (its innermost
+# point well inside the sphere, its farthest well past it); its far end, axis and radius, and the
+# parts at that end (the objective's cell) with it
+tube = max((p for p in parts if p is not body and p is not dome
+            and min((v.co - dc).length for v in p['verts']) < 0.5 * dr
+            and max((v.co - dc).length for v in p['verts']) > 1.15 * dr), key=lambda p: p['area'], default=None)
+tube_parts, lens_faces = set(), set()
+if tube is not None:
+    rr = {v: (v.co - dc).length for v in tube['verts']}
+    r0, r1 = min(rr.values()), max(rr.values())
+    far = [v.co for v, x in rr.items() if x > r1 - 0.3]
+    near = [v.co for v, x in rr.items() if x < r0 + 0.3]
+    fe = sum(far, Vector()) / len(far)
+    ne = sum(near, Vector()) / len(near)
+    ax = (fe - ne).normalized()
+    perp = lambda q: ((q - fe) - ax * (q - fe).dot(ax)).length
+    R_t = max(perp(q) for q in far)
+    tube_parts.add(id(tube))
+    for p in parts:
+        if p is body or p is dome or p is tube:
+            continue
+        c_ = (p['lo'] + p['hi']) / 2
+        if (c_ - fe).length < R_t + 0.5:
+            tube_parts.add(id(p))
+    for p in parts:
+        if id(p) not in tube_parts:
+            continue
+        for g in p['faces']:
+            q = g.calc_center_median()
+            if g.normal.dot(ax) > 0.7 and perp(q) < 0.8 * R_t and (q - fe).dot(ax) > -0.8:
+                lens_faces.add(g.index)
+    log('telescope: tube %d faces + %d end parts, axis (%.2f %.2f %.2f), radius %.2f m, %.2f m past the dome; lens %d faces'
+        % (len(tube['faces']), len(tube_parts) - 1, ax.x, ax.y, ax.z, R_t, r1 - dr, len(lens_faces)))
+# THE SIDE DISH: the biggest part standing well outside the dome's sphere on the annex; the
+# white-paint / trim parts inside its box (the feed arms, the struts) go with it
+dishp = max((p for p in parts if p is not body and (p['hi'] - p['lo']).z > 2
+             and min((v.co - dc).length for v in p['verts']) > 1.2 * dr), key=lambda p: p['area'], default=None)
 role = {}
 census = {}
 for p in parts:
@@ -184,10 +240,18 @@ for p in parts:
         r = 'vent'
     else:
         r = 'trim'
+    if id(p) in tube_parts:
+        r = 'tube'
+    elif dishp is not None and (p is dishp or (r in ('dome', 'trim') and all(
+            dishp['lo'][k] - 0.3 <= c[k] <= dishp['hi'][k] + 0.3 for k in range(3)))):
+        r = 'dish'
     census[r] = census.get(r, 0) + 1
+    if os.environ.get('OBS_DEBUG') and (p['area'] > 2 or r in ('dome', 'scope')):
+        log('part %-6s faces %5d area %6.1f c (%.1f %.1f %.1f) size (%.1f %.1f %.1f) rad %.2f..%.2f (dr %.2f)'
+            % (r, len(p['faces']), p['area'], c.x, c.y, c.z, size.x, size.y, size.z, min(rad), max(rad), dr))
     for g in p['faces']:
-        role[g.index] = r
-log('parts', len(parts), 'roles by part', census)
+        role[g.index] = 'lens' if g.index in lens_faces else r
+log('parts', len(parts), 'roles by part', census, 'variant', VARIANT)
 bm.free()
 
 # ---- the source materials: library maps, box-projected in metres ----------
@@ -318,7 +382,7 @@ sc.cycles.samples = 1 if QUICK else 16
 bk = sc.render.bake
 bk.margin = 8 if QUICK else 16
 bk.margin_type = 'EXTEND'
-mat = bpy.data.materials.new('scenery_observatory')
+mat = bpy.data.materials.new('scenery_' + KEY)
 mat.use_nodes = True
 nt = mat.node_tree
 bsdf = nt.nodes['Principled BSDF']
@@ -346,15 +410,15 @@ def bake_into(im, kind, s2a=True, **kw):
 
 
 H = SIZE // 2
-img_c = new_img('observatory_diff', SIZE, False)
+img_c = new_img(KEY + '_diff', SIZE, False)
 bk.use_pass_direct = False; bk.use_pass_indirect = False; bk.use_pass_color = True
 t_c = bake_into(img_c, 'DIFFUSE', pass_filter={'COLOR'})
 log('albedo baked')
-img_n = new_img('observatory_nor', H, True)
+img_n = new_img(KEY + '_nor', H, True)
 bk.normal_space = 'TANGENT'
 t_n = bake_into(img_n, 'NORMAL')
 log('normal baked')
-img_r = new_img('observatory_rough', H, True)
+img_r = new_img(KEY + '_rough', H, True)
 bake_into(img_r, 'ROUGHNESS')
 log('roughness baked')
 # metal: each source material's metalness through its emission, baked as EMIT
@@ -362,7 +426,7 @@ for m in hi.data.materials:
     b_ = m.node_tree.nodes['Principled BSDF']
     b_.inputs['Emission'].default_value = (m['metal'],) * 3 + (1,)
     b_.inputs['Emission Strength'].default_value = 1.0
-img_m = new_img('observatory_metal', H, True)
+img_m = new_img(KEY + '_metal', H, True)
 bake_into(img_m, 'EMIT')
 for m in hi.data.materials:
     m.node_tree.nodes['Principled BSDF'].inputs['Emission Strength'].default_value = 0.0
@@ -373,7 +437,7 @@ if sc.world is None:
     sc.world = bpy.data.worlds.new('W')
 sc.world.light_settings.distance = 1.5
 sc.cycles.samples = 1 if QUICK else 64
-img_a = new_img('observatory_ao', H, True)
+img_a = new_img(KEY + '_ao', H, True)
 bake_into(img_a, 'AO', s2a=False)
 hi.hide_render = False
 log('ao baked')
@@ -384,7 +448,7 @@ px = lambda im: np.array(im.pixels[:], dtype=np.float32).reshape(-1, 4)
 a_, r_, m_ = px(img_a), px(img_r), px(img_m)
 arm = np.ones((H * H, 4), dtype=np.float32)
 arm[:, 0] = a_[:, 0]; arm[:, 1] = r_[:, 0]; arm[:, 2] = m_[:, 0]
-img_arm = new_img('observatory_arm', H, True)
+img_arm = new_img(KEY + '_arm', H, True)
 img_arm.pixels[:] = arm.ravel()
 log('arm: ao mean %.3f, rough mean %.3f, metal mean %.3f' % (arm[:, 0].mean(), arm[:, 1].mean(), arm[:, 2].mean()))
 
@@ -420,7 +484,7 @@ bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', use_selection=True,
                           export_normals=True, export_tangents=False, export_materials='EXPORT',
                           export_image_format='AUTO', export_yup=True, export_texcoords=True)
 os.makedirs(os.path.dirname(REP), exist_ok=True)
-json.dump(dict(key='observatory', src=SRC, scale=SCALE, src_tris=src_tris, lo_tris=lo_tris, target=TARGET,
+json.dump(dict(key=KEY, variant=VARIANT, src=SRC, scale=SCALE, src_tris=src_tris, lo_tris=lo_tris, target=TARGET,
                dims=[round(d, 3) for d in lo.dimensions], deviation=devrep, size=SIZE,
                roles={r: dict(src=ROLES[r][0], tint=ROLES[r][1], tile=ROLES[r][2], metal=ROLES[r][4],
                               clean=(ROLES[r][6] if len(ROLES[r]) > 6 else 0),
