@@ -2182,6 +2182,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const key = (spinKind ? 'p' + spinKind : '') + (sec ? 's' + sec
           : 'c' + m0.color.getHexString() +
             (m0.transparent ? 'a' + Math.round(m0.opacity * 100) : '') +
+            // G2228: AN INSIDE-ONLY SHELL IS ITS OWN BUCKET - the cowl's back twin wears exactly the colour of its
+            // two-sided lining (the throats, the lofts), and merged into it the `inner` flag was the lining's (none)
+            (kud.aeroInner ? 'I' : '') +
             // ...AND A TANK IS NOT THE AEROPLANE. The vessel materials are
             // the second factory in the capture, and their whites (a painted
             // shell is 0xffffff over the sheet) would otherwise merge into
