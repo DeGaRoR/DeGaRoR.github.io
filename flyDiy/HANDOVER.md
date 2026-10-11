@@ -84282,7 +84282,18 @@ now marked BUILT with what differs). Contract **v1.36**, the record's **v 2**.
 
 Not built (named in the design): `draw: grass`, area `life`, a dock's deck over water, exclude bushes / grass.
 
-Gates (A0's CPU window RESULTS_LINE)
+Gates (A0's fast-track CPU window, 11 Oct 17:50-18:10, the lock held): PREMISES (531 checks; row 20: the migration
+round trip on the 6 fixtures, Jolene and her 3 parts, the same world sample for sample, the places, the order, the
+shapes, the marks inside their shapes), SCENERYED (70; rows 6-10: the areas, the tabs as palettes, the placer, two
+island roads - 25 000 samples 41 ms on the grid, 5 103 ms on the walk, the same answers; a drag's edit 20 ms headless;
+the user's rev 23: the extent, traffic not ground, the traced roads bit for bit through the load, a save and a history
+slot), PAVEMENT (row 6: the concrete's hex tiling never repeats under 300 m; a plain tiling repeats at its 4.5 m tile),
+LOOKS (the river rule), COVER, GRASSSIDES, BIOME, PREMRASTER, VILLAGE, UISMOKE, HOUSEWORKER, MEDIA (index.html 4.04 MiB
+gz of the 4.05 budget, +41.6 KB), PREMCOOK after the re-cook (build -> premises_cook --island jolene -> build): THE
+COOK'S FILES CAME OUT BYTE-IDENTICAL - the v2 record composes Jolene to the same placements. The river probe (Jolene):
+661 of 3 576 drawn river segments stood over a lake by more than 0.3 m (worst 31.95 m) - the user's mirror rectangles.
+First pass reds, fixed: a new road's default clearing kept the plots out (SCENERYED 4: a zone sowed 0 plots - the
+clearing is the trees' and the grass's, never a plot's); PREMCOOK 4 and PREMISES 20h read / expected the old shape.
 
 What to watch for (no stills - the user's rule): the scenery editor's tabs are on their own plate at the LEFT, the
 right plate says what is selected and keeps it when a tab changes; FILE / VIEW / LIFE / the catalogues are in the
