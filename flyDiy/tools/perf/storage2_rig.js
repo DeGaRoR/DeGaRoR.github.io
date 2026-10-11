@@ -104,7 +104,7 @@ const RESIN = `(() => { const g = FLIGHT_PROBE.hangarScene().getObjectByName('ga
   await sleep(1500);
   res.simw = await run('return window.FLYDIY_SIMW && FLYDIY_SIMW.state ? FLYDIY_SIMW.state() : null;');
   const view = () => run('return FLYDIY_STORE.view();');
-  const fleetStats = () => run('const F = PARKED.fleet; return { captures: F.stats.captures, bakes: F.stats.bakes, decodes: F.stats.decodes, queue: F.queue.length, busy: !!F.busy, cap: PARKED.fleetCap ? PARKED.fleetCap() : null };');
+  const fleetStats = () => run('const F = PARKED.fleet; return { captures: F.stats.captures, bakes: F.stats.bakes, decodes: F.stats.decodes, queued: F.stats.queued, notWanted: F.stats.notWanted, queue: F.queue.length, busy: !!F.busy, cap: PARKED.fleetCap ? PARKED.fleetCap() : null };');
   const resNow = () => run('const R = GARAGE_ENV.residentsSync ? GARAGE_ENV.residentsSync() : null; return R ? { plan: R.plan.map(p => ({ name: p.name, filled: p.filled })), unplaced: R.unplaced, err: R.err, how: R.how, ms: R.ms, packs: R.packs } : null;');
   // the apron as the next roll-out stands it (FLEET_STAND's own plan: HOME, the stand's airframe left out, the drawn cap)
   const apronNow = () => run(`const W = FLIGHT_PROBE.world(), isl = W && W.island && W.island.id; const d = FLYDIY_PLAYER.doc ? FLYDIY_PLAYER.doc() : null;
@@ -139,7 +139,8 @@ const RESIN = `(() => { const g = FLIGHT_PROBE.hangarScene().getObjectByName('ga
     const t0 = Date.now(); let R = null, FS = null;
     while (Date.now() - t0 < 300000) {
       R = await resNow(); FS = await fleetStats();
-      if (R && R.plan && R.plan.length && R.plan.every(p => p.filled) && !FS.queue && !FS.busy && FS.bakes + FS.decodes >= 6) break;
+      // (every key the bound accepted baked - a long-term one is never wanted: notWanted)
+      if (R && R.plan && R.plan.length && R.plan.every(p => p.filled) && !FS.queue && !FS.busy && FS.queued > 0 && FS.bakes + FS.decodes >= FS.queued) break;
       await sleep(3000);
     }
     res.baked = { secs: (Date.now() - t0) / 1000, residents: R, fleet: FS };
