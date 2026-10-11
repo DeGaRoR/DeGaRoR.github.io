@@ -84181,3 +84181,14 @@ tufts or lot patch at the sea's edge, the seafront pebbles still there - look fo
 existing road is untouched (no `curve`); a NEW road is smooth with cyan handles. AIRFIELD > round pad. The house worker's
 cache key moved (HW_V 3): the first boot after the train re-generates the houses once (the build stamp moves the key
 every train anyway).
+
+## TRAIN 43.2 LANDED (A0, 11 Oct ~13:55) - the scenery editor unblockers
+
+Cargo: SCENERY-ED-1 G2890 (claude/scenery-ed-g2890 4f800a808, fast-forward on train 43): trees regrow live when an
+exclusion / gravel band / strip is removed, shrunk or moved; plot ground off per zone / plot / site item and no lawn at
+the waterline by default; smooth roads (C2 spline + handles, new roads only); polygon vertex editing (edge click =
+corner, corner + Del, subdivide); AIRFIELD > round pad; 'scenery editor' / 'world editor'. Gates: the session's
+targeted set + PREMCOOK after the premises re-cook (premises_build.js is in its hash; cooked output unchanged) and
+PREMISES, SCENERYED, BUILD, MEDIA (+13.2 KB). Strict gate (t432, build 184124362148): 157 within slack, 0 RED (one
+1017 ms task in one rollout run, like 43's 1068). Then the premises + parked re-cooks moved the build to 62f0cd5245c9
+(data manifests only).
