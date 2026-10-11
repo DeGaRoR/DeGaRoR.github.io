@@ -180,3 +180,22 @@ record's extent - fixed in ED-2, G2919: the fine patch now covers the whole road
   between control points, global u kept (a cached piece shifts its u attribute when the line upstream grew or shrank),
   invalidated by a ground-dirty box over the piece; the table rows (G925) and the merges re-done per piece.
 - Proof needs the GPU: stills of the island road near and far, a timed check of a drag on it (edit to quiet < 100 ms).
+
+## 9. NEXT: ROAD-GRAPH (with ROAD-BED, the train after 44.4)
+
+The user (11 Oct): "let's have roads snapping to each other. One day I'd like a scenic tour of the island's roads,
+probably with a simple car, and it would be good that we have the premises of a graph then." (They will trace a trail
+round the island in 3-5 km sections.)
+- **Snapping** (the editor): a new road's first / last point within ~5 m (screen-sized, like the edge click) of another
+  road's END joins it - the two share the node; within ~5 m of another road's MIDDLE it makes a T: the other road gets a
+  junction node there (its line split in the graph, not in the record's points - a `nodes` entry on it). The grade is
+  continuous across a join: the composer's level-approach rule (7 m held from each end) becomes "held to the joined
+  road's height at the node", and a spline's end handle follows the other road's tangent at an end-to-end join.
+- **The graph** (the record and compose): `roads[].joins: [{ end: 0 | 1, to: <road id>, at: 0 | 1 | s }]` kept on save;
+  compose derives `O.roadGraph = { nodes: [{ id, x, z, y, roads }], edges: [{ id, road, a, b, s0, s1, len, cls, surface,
+  grade }] }` with STABLE node ids (a hash of the road ids and ends / the junction's s rounded), and an API:
+  `graph()`, `path(fromNode, toNode)` (Dijkstra on length, class-weighted), `edgeAt(x, z)` (the segment grid).
+- **Migration**: today's roads whose ends lie within 1 m of another road's end or line get their `joins` written by the
+  migrator (Jolene: the taxiways' ends onto the strips stay the junction extension's; roads onto roads become joins).
+- **Gates**: the graph connected on Jolene and on the user's file (one component per authored network, named), a snap
+  round-trips through save / load, a T-join's grade continuous to 2 cm, `path` between two far nodes follows the roads.
