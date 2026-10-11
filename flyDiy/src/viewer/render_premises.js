@@ -302,7 +302,7 @@ function make(THREE, scene, world, rec0, opts) {
       for (const e of pub) if (!e.wp || e.move) { e.grp.updateWorldMatrix(true, false); _lp.set(e.p[0], e.p[1], e.p[2]); e.grp.localToWorld(_lp); e.wp = [_lp.x, _lp.y, _lp.z]; }
       const r2 = LAMPS.reach * LAMPS.reach;
       LAMPS.near = pub.map(e => { const dx = e.wp[0] - eye.x, dy = e.wp[1] - eye.y, dz = e.wp[2] - eye.z; return [dx * dx + dy * dy + dz * dz, e]; })
-        .filter(q => q[0] < r2).sort((a, b) => a[0] - b[0]).slice(0, LAMPS.N).map(q => q[1]);
+        .filter(q => q[0] < r2 && !(q[1].chunk && !q[1].grp.visible)).sort((a, b) => a[0] - b[0]).slice(0, LAMPS.N).map(q => q[1]);
     }
     const near = LAMPS.near;
     for (let i = 0; i < LAMPS.pool.length; i++) {
@@ -988,8 +988,9 @@ function make(THREE, scene, world, rec0, opts) {
     const VG = window.VILLAGE_GEN, HG = window.HOUSE_GEN, HK = window.HOUSE_KIT, PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
     if (!VG || !HG || !HK || !pp || !PR) return null;
     const F = O.frame, LF = lampFinish();
-    const bags = { metal: HK.Bag('metal'), glass: HK.Bag('glass') };
-    const lit = [];
+    // (G2955) the lamps in BAGS BY CHUNK - the cable's own ten spans: one merged mesh along an island road was a bounding
+    // sphere always in view (every one of its ~365 lamps drawn every frame); a chunk's lamps are culled with its cable
+    const CH = new Map(), chunkOf = ci => { let c = CH.get(ci); if (!c) CH.set(ci, c = { metal: HK.Bag('metal'), glass: HK.Bag('glass'), lit: [] }); return c; };
     // the verge the guardrail did NOT take, when it took exactly one (the photograph's arrangement)
     const rs = railG && railG.userData.guardrail ? railG.userData.guardrail.sides : null;
     const side = (rd.polesSide ? +rd.polesSide : 0) || (rs && rs.length === 1 ? -rs[0] : 0);
@@ -997,14 +998,20 @@ function make(THREE, scene, world, rec0, opts) {
       side, seed: PG.fnv(String(rd.id)) % 997, toWorld: (x, z) => F.toWorld(x, z), heightAt,
       keep: poleKeep(rd),
       place: q => { if (!PR.props[q.key]) return null; const o = pp(THREE, q.key, q.x, q.z, q.ry, q.y); if (q.scale) o.scale.setScalar(q.scale); tiltToGround(o, (x, z) => O.terrainAt(x, z), q.x, q.z, q.ry); return o; },
-      lamp: q => { const L = VG.streetLamp(bags, q); if (L) lit.push(L); } });
+      lamp: q => { const c = chunkOf(q.ci | 0), L = VG.streetLamp(c, q); if (L) c.lit.push(L); } });
     if (!g) return null;
-    PWR.own(bags.metal.mesh(g, LF.MAT.metal));                                  // the lamps' geometry is the line's to free
-    const gm = PWR.own(bags.glass.mesh(g, HG.MAT.glass)); if (gm) gm.castShadow = false;
+    const lit = [];
+    for (const [, c] of CH) {
+      const mm = PWR.own(PWR.chunk ? PWR.chunk(c.metal.mesh(g, LF.MAT.metal)) : c.metal.mesh(g, LF.MAT.metal));   // the lamps' geometry is the line's to free
+      const gm = PWR.own(PWR.chunk ? PWR.chunk(c.glass.mesh(g, HG.MAT.glass)) : c.glass.mesh(g, HG.MAT.glass)); if (gm) gm.castShadow = false;
+      for (const L of c.lit) { L.grp = mm || gm || g; lit.push(L); }
+    }
     // the lens follows the night like every other glass (the finish's uLitK), and each head joins the
     // lamp pool - the nearest eight of the world's lamps get one of the eight point lights
     if (LF.GLASS_U && LF.GLASS_U.uLitK && !LAMPS.glass.has(LF.GLASS_U.uLitK)) { LAMPS.glass.set(LF.GLASS_U.uLitK, LF.GLASS_U.uLitK.value); LF.GLASS_U.uLitK.value = LF.GLASS_U.uLitK.value * LAMPS.on; }
-    for (const L of lit) if (isFinite(L.x) && isFinite(L.y) && isFinite(L.z)) LAMPS.pub.push({ grp: g, p: [L.x, L.y, L.z], col: L.col || [1, 0.92, 0.74], k: L.k == null ? 1 : L.k, range: L.range || 30, kind: L.kind });
+    // (each lamp's light rides its chunk's mesh: a chunk not drawn - past the reach - lends its lamps no light; `grp` the
+    //  chunk, whose transform is the line's)
+    for (const L of lit) if (isFinite(L.x) && isFinite(L.y) && isFinite(L.z)) LAMPS.pub.push({ grp: L.grp, p: [L.x, L.y, L.z], col: L.col || [1, 0.92, 0.74], k: L.k == null ? 1 : L.k, range: L.range || 30, kind: L.kind, chunk: L.grp !== g });
     g.userData.premId = rd.id;
     g.userData.lamps = lit.length;
     G.roads.add(g);
@@ -2451,7 +2458,8 @@ function make(THREE, scene, world, rec0, opts) {
       if (on2 !== D.on2) { D.on2 = on2; for (const m of D.list2) if (!m.userData.merged) m.visible = on2; }
     }
   }
-  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) { t.run.tick(dt).apply(); if (CABIN_FAR > 0 && t.cabs) cabinCut(t.cabs); } if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); trafficCount(); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
+  // (G2955) every 20 frames the power lines' cable chunks past their reach from the eye are not drawn
+  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); if (PWR && PWR.cull && freezeTick % 20 === 0 && o.eye) { const e = o.eye(); if (e) stats.cables = PWR.cull(e); } detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) { t.run.tick(dt).apply(); if (CABIN_FAR > 0 && t.cabs) cabinCut(t.cabs); } if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); trafficCount(); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);

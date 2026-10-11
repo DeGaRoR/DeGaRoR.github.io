@@ -84324,7 +84324,7 @@ run the rollout rows are equal (loop +0.1..+0.75 ms, render +0..+0.5 ms, loads w
 landed on that comparison. OWED: the light baseline re-taken on master (it's stale); the in-game freeze numbers (the
 user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's first train).
 
-## G2950 - ROAD-GRAPH + ROAD-BED: ROADS JOIN AT WAYPOINTS, A JUNCTION IS ONE NODE, METLAKATLA ONE GRID WITH ITS CONNECTION POINTS, ROADSIDE APRONS, THE ROAD BED (2026-10-12, SCENERY-ED-2 for A0, local; branch claude/road-graph-g2950 off train 44.4 c12f0490c; G2950 graph, G2951 editor, G2952 bed, G2953 aprons, G2954 Metlakatla; G2955-G2969 unused)
+## G2950 - ROAD-GRAPH + ROAD-BED: ROADS JOIN AT WAYPOINTS, A JUNCTION IS ONE NODE, METLAKATLA ONE GRID WITH ITS CONNECTION POINTS, ROADSIDE APRONS, THE ROAD BED (2026-10-12, SCENERY-ED-2 for A0, local; branch claude/road-graph-g2950 off train 44.4 c12f0490c; G2950 graph, G2951 editor, G2952 bed, G2953 aprons, G2954 Metlakatla, G2955 the long road's power line; G2956-G2969 unused)
 
 The user (11 Oct): "let's have roads snapping to each other. One day I'd like a scenic tour of the island's roads,
 probably with a simple car" - "You could constrain joining on WAYPOINTS only, so we have something really clean" - "I'll
@@ -84379,6 +84379,17 @@ futureDesigns/SCENERY-POLYGON-2026-10.md.
   if the user wants them in. Not joined to r1 or the airfield - the user traces that. (Metlakatla is the GRAPHICS 'town' row's 'all': with the town
   off its streets and connection points are not in the editor.)
 
+- **THE POWER LINE ALONG A LONG ROAD (G2955; the user: "I don't think the poles and cables draw anymore on my long
+  road").** src/viewer/powerline.js capped a road at 140 poles (4.7 km at the 34 m pitch): r1's line stopped 4.7 km
+  from its start. The budget is now PER KM (`perKm` 40; a 34 m pitch raises ~29), no total: r1 gets ~730 poles the
+  whole way (instanced props, as before). What bounds the cost is the draw: `POWERLINE.cull(eye)` (every 20 frames
+  from render_premises' tick) leaves undrawn every cable chunk (10 spans, ~350 m) whose sphere is farther than
+  `reach` 2 400 m from the eye - r1's ~73 chunks (~260 k triangles) become the dozen or so near the camera. The street
+  lamps (every second pole) are bagged BY THE SAME CHUNKS (render_premises buildLine: one metal + one glass mesh a
+  chunk, `POWERLINE.chunk` marks them) and culled with them - one merged mesh along r1 was a bounding sphere always in
+  view (~365 lamps drawn every frame); a culled chunk's lamps take no point light. GATE PAVEMENT 8f: a 25 km road's
+  poles reach its end (dev: 737 poles, the last 18 m from it), the eye at its middle draws 16 of 74 cable chunks and
+  15 of 74 lamp meshes.
 - **THE USER'S OWN RECORD (A0's proof, GATE SCENERYED 12).** The user's backup
   D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev23_2026-10-11.json is the gate's fixture
   tools/fixtures/scenery_user_jolene_rev23.json byte for byte (sha256 277abdfa66b254bd). Through the v1.37 loader: r1's
@@ -84405,6 +84416,8 @@ futureDesigns/SCENERY-POLYGON-2026-10.md.
    road's end) is 31 m from r1** - add a waypoint on r1 there (click its edge) and drag it, or a short road's end, onto
    the disc to connect the town to your road.
 4. Pick a waypoint, '+ roadside apron here': a round gravel pad beside the road.
+4b. Fly along r1 far from its start: poles and cables the whole way round the island (they stopped ~4.7 km in);
+   the cable fades in a couple of kilometres ahead as you go (it is not drawn past 2.4 km).
 5. Nothing else of the island moves: the shipped roads have no junctions and no bed, their ground is today's.
 
 Gates (dev, Sun 11 Oct 20:30, box clean, no build): SCENERYED 103 PASS, PREMISES 552 PASS (the flight world loaded). The window's run (Mon 06:30-07:10: build, re-cook, targeted gates): WINDOW_LINE
