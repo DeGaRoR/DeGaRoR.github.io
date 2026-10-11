@@ -460,6 +460,11 @@ const FD_DEF = {
 };
 // the boats: procedural low-poly hulls (the repo's CC-BY Sketchfab boats are
 // 30-370 k triangles each; a harbour of 80 needs ~200).
+// THE WATERLINE CONVENTION is SCENERY-ED-2's for placed objects (BIOME-PAINT, v1.41): on: 'water', `dy` the
+// waterline offset (negative: the draft under the surface), a catalogue's `waterline`. A slip boat's prototype is
+// built about its own waterline (y 0 = the surface, the keel at -DRAFT), so its record says on 'water', dy 0, and
+// the type's `waterline` is -DRAFT.
+const DRAFT = 0.55;
 const BOAT_TYPES = [
   // name, length range, beam / length, cabin [x0, x1 as a share from the stern, height], mast
   { name: 'troller', L: [9, 13], b: 0.31, cab: [0.45, 0.7, 2.0], mast: 1, freeb: 1.1 },
@@ -472,7 +477,7 @@ const HULLS = [[0.92, 0.92, 0.9], [0.16, 0.27, 0.45], [0.62, 0.16, 0.13], [0.2, 
 function boatProto(type, hull, lod) {
   const T = BOAT_TYPES[type], m = Mesh('boat' + type + '_' + hull + '_' + lod);
   const hc = HULLS[hull], deck = [0.78, 0.77, 0.72], white = [0.93, 0.93, 0.91];
-  const fb = T.freeb, draft = 0.55;
+  const fb = T.freeb, draft = DRAFT;
   if (lod === 0) {
     const NS = 7, st = [];
     for (let i = 0; i <= NS; i++) {
@@ -603,7 +608,7 @@ function floatDock(pts, P0, env) {
     const cx = f.x + f.nx * sl.side * along, cz = f.z + f.nz * sl.side * along;
     // the boat's x (stern -> bow) points at the main float
     const X = [-f.nx * sl.side, 0, -f.nz * sl.side], Z = cross(X, Y);
-    boats.push({ proto: t * NH + hull, mat: mat4([cx, wy, cz], X, Y, Z, [L / 2, 1, B / 2]), L, B, x: cx, z: cz, X, side: sl.side, s: sMid, type: BOAT_TYPES[t].name });
+    boats.push({ on: 'water', dy: 0, waterline: -DRAFT, proto: t * NH + hull, mat: mat4([cx, wy, cz], X, Y, Z, [L / 2, 1, B / 2]), L, B, x: cx, z: cz, X, side: sl.side, s: sMid, type: BOAT_TYPES[t].name });
   }
   const inst = { n: boats.length, mat: new Float32Array(boats.length * 16), col: new Float32Array(boats.length * 3).fill(1), proto: new Uint8Array(boats.length) };
   boats.forEach((b, i) => { inst.mat.set(b.mat, i * 16); inst.proto[i] = b.proto; });
