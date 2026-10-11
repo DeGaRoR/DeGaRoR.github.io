@@ -2274,6 +2274,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(ud.aeroFieldLK ? { fieldLK: ud.aeroFieldLK } : {}),   // G217
           // G206.1: in the cabin — a liner, a seat, a person (charSkin)
           ...((ud.aeroInside || ud.charSkin) ? { inside: 1 } : {}),
+          // G2228: an INSIDE-ONLY shell (the cowl's inside twin): a baked aeroplane leaves it out (parked.js isInterior)
+          ...(ud.aeroInner ? { inner: 1 } : {}),
           // G210.2: WHICH PERSON, WHICH OF THEIR MATERIALS — app.js rebuilds
           // it from CAGE_CHAR.flatMaterial, maps and all
           ...(ud.charKey ? { char: ud.charKey, charMat: ud.charMat | 0 } : {}),
