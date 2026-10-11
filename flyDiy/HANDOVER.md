@@ -82870,6 +82870,125 @@ declared". PILOTS' copy renamed `PLT_` (41 uses, same function, same text) and G
 
 READY for the GAME COORDINATOR: claude/freight-load-g2345 53aa937 (the code, the gates and the stills; the gate texts and this section ride one docs-only commit on top)
 
+## G2400-G2404 - FREIGHT-STRAP: THE ACCEPTED LOAD STRAPPED - POINT MASSES IN THE SIM (WORKER AND INLINE, BIT-EQUAL; NOTHING ACCEPTED = THE SIM UNTOUCHED), A JOB'S PASSENGERS IN THEIR SEATS, THE BAGGAGE ALLOWANCE OFF; THE LOAD DRAWN WITH RATCHET STRAPS ON THE STAND AND IN FLIGHT (3 DRAWS A LOAD); THE STOP DELIVERS AND THE NEXT STAGE ARRIVES PLACED; AN OVER-LIMIT LOAD SAID, NEVER REFUSED (2026-10-08 -> 11, FREIGHT-STRAP for the GAME COORDINATOR, local - the box's RTX 3080; branch claude/freight-strap-g2400 off origin/claude/game-integration 1f553a9d, worktree D:/Dev/wt-fstrap; G2404 unused)
+
+The brief: futureDesigns/game/FREIGHT-2026-10-07.md §2 (the user: "the load will be strapped visually and physically once
+accepted"); RULED: no load failure (no shifting, no breaking free), no loading time or crew; G2340 FREIGHT-MODEL, G2345
+FREIGHT-LOAD (freightAccepted, career.load), G2405 FREIGHT-ASSETS (the load models). No generated file committed. No PLAYER_V
+step. Design calls APPROVED by the coordinator and A0 (8 Oct): the passengers are seat masses (the spec untouched); the stand's
+load hangs on `craft`, never under edSitP.
+
+**G2400 THE MASSES** - `src/core/30_solver.js` + `src/core/78_freight_strap.js` (new, pure, MANIFEST.core after 77_):
+- **the solver's door** `sim.setFreight([[node, kg], ...] | null)` / `sim.freight()`: a per-node load ON TOP of the def's own
+  masses. Reset, the fuel burn (a load on a tank's node stays) and the snapshot keep it. A node whose load changes is rewritten
+  from its base (a load put on and taken off leaves the def's number to the bit); only a LOADED node is floored at 0.5 kg (the
+  lattice has lighter nodes - the first 03:00 run's reds were exactly that). totalM is re-summed in node order. Nothing set =
+  not one line reads differently (GATE FREIGHT's byte-identity row: never asked / asked with nothing / loaded then unloaded
+  fly the same 4 s to the bit).
+- `freightStrapAdds(def, acc, { yD, card })` -> the list. **An item** = a point mass at its box's centre, shared over the eight
+  nodes of the two fuselage rings round it (by lever in x, bottom / top pair in y, left / right in z) - the shares' centroid IS
+  the point, so the CG and the inertia follow from where the nodes are, as the crew's and the fuel's do. **The job's passengers
+  are the occupants**: the job's seats (the pilot, seats 1..pax - 77_'s rule) against the build's (S.occupied, else the first
+  S.occupants); a seat the job fills and the build does not takes GEN_RULES.occupantKg, a seat the build fills and the job does
+  not gives it back - both through a copy of 61_'s own seat billing (straddle + billAt). **The baggage allowance comes off**
+  while items ride (the frame's cargo-section billing negated; the card's base has none).
+- **The frame**: the card's y is the cage sheet's; gen y = card y - the join's keel datum (window.CAGE_DATUM.yD, read in the
+  page). Without a join (node rigs) the box keeps its height over the hold's floor on the gen frame's floor (a few cm of CG
+  height, nothing in x).
+- **THE WORKER**: the list rides the flight's init (sim_link begin: `m.freight`, absent with none - the init message as it was),
+  a change is a step-stamped `{cmd:'freight'}` (sim_host apply; the page's own sim takes it through the link's setFreight
+  override), and the view's sums (sim_view `freight(list)`: cgPos on the same masses).
+
+**G2401 THE DRAWING** - `src/viewer/freight_strap.js` (new, LAZY: fetched the first time a load is drawn):
+- the items as their FREIGHT-ASSETS models at the IN-CABIN level (the load ladder's cut from 2 m; a hangar prop as itself),
+  fitted to their boxes exactly as the loading view fits them, MERGED per material; the items with no model (mail sacks, kit
+  bags...: the gap list) a box per kind's colour; a RATCHET STRAP over each stack lengthwise and one across, foot to foot on the
+  floor (`freightStrapMesh`, plain arrays, gated), a buckle and four floor anchors. Materials: the props' own + two MATLIB
+  records (webbing, steel) - no material of its own. **Measured: the Cub's crate 3 draws (546 tris), the C172's mail 3 draws
+  (432 tris)**. castShadow off, never the editor's pick.
+- **hung twice**: on the stand under `craft` at the loading view's own frame (frFrame) - NEVER under edSitP, whose meshes the
+  join bakes into the flown model and the parked aeroplanes (GATE PARKED 13); hidden while the loading view is open. In flight
+  under `model.grp` through the crew's cage -> model map (data.cageM), so it rides the cabin's pose and visibility.
+- **the seats in flight**: a figure the build seats where the job seats nobody is HIDDEN; a job's passenger in a seat the build
+  leaves empty is drawn from the build's pilot's posed record moved to that seat (another character, its own scale, no hands
+  on the controls - best effort, not yet pictured).
+- `78_ FREIGHT_LOOK` is now the one look table (freight_load.js reads it; a later leg's `leg2.` ids find their goods).
+
+**G2402 THE PAGE** (app.js, one block after FLYDIY_FREIGHT; everything behind FREIGHT_PAGE = ?career=1 / ?freight=1):
+- **aboard at the roll-out** (`fsFlightStart` in rollOutStand: AFTER the bench's fingerprint, BEFORE the flight's reset), **off
+  in the shed** (`fsGarage` in enterGarage: the shed's rigs weigh the build); the model's rebuild never gives the load's buffers
+  back (detached first).
+- **THE STOP** (`fsStop` in playerFlightEnd, after careerOnStop + freightLoadSettle): the delivered stage's items leave (masses
+  and drawing), the next stage's arrive **placed by the packer's proposal** (`78_ freightStrapNext`, accepted into career.load)
+  unless the player's own placement for that very sub and airframe is there; the sim and the drawing follow at once.
+- **AN OVER-LIMIT LOAD IS SAID, NEVER REFUSED** (the coordinator's check, reconciled with the user's ruling "shown red but
+  allowed"): `78_ freightStrapFlags` (over the plaque's MTOW / the CG out of the certified range, freightReport's tolerances) ->
+  a warn line on the flight's brief before take-off (`#fsWarn`: "Load: over MTOW by 34 kg · CG aft of the certified range
+  (40.1 % MAC, certified 28.0-36.2) - it flies as loaded"), the logbook row (`r.load = { items, kg, flags }`, `r.occ` = who sat,
+  `r.payloadKg` + the load) and the stop's result (`out.load`). The masses go aboard all the same.
+- rig hands: `window.FLYDIY_STRAP { apply, sync, state, stop, rigLoad, cutaway }`; **`?freight=1&strapload=<test>:<design>`**
+  names the hold and accepts the packer's proposal with no view (`none:cub` = the same page, nothing aboard) - the A/B's switch.
+
+**FOR THE USER - STATED PLAINLY**: (1) a job that seats nobody beside the metal Cessna's pilot (crates, no passenger) HIDES THE
+BUILD'S OWN CO-PILOT for that flight and takes their 80 kg off - the C172 build seats one, and the loading view treats that
+seat as empty. With mail + a passenger, the build's co-pilot IS the passenger. (2) **A flight with no accepted load is exactly
+today's** - the build's occupants drawn and flown, the sim never asked. (3) A seat the player takes out still draws its chair in
+FLIGHT (the chair is baked into the flown mesh; on the stand it hides).
+
+**GATES** (the box; the battery's texts in futureDesigns/game/evidence/FREIGHT-STRAP/):
+- **GATE FREIGHT: PASS, 2352 checks; --selftest 59 of 59 doctored rules caught** (18 new for the strap: an item without its
+  lateral, the items weightless, the nearer ring, a passenger weightless, the build's passenger kept, the seat rule not the
+  frame's, the allowance kept, a strap through the load, an anchor off the floor, the next stage unplaced, the player's placement
+  proposed over, another airframe's load, two silent over-limit flights, the clock; and in the built core: a reset that drops the
+  load, a removal that leaves a trace, a burn that drops it). The strap rows: the shares' kilos and centroid; 78_'s seat rule =
+  the frame's own build with that seat filled / emptied, node for node; the allowance = the frame's ledger (cargo section: 10 kg,
+  21.5335 kg.m); the sim aboard / after a reset / delivered to the def's own masses to the bit; the CG by the adds' moments and the
+  pitch inertia by the parallel-axis sum (at the post-reset positions: a reset seats the wheels by the weight aboard); the burn
+  keeps a load on a tank's node; byte-identity; the straps (two a stack, outside the load they tie, the feet on the floor); the
+  3-stop chain on the C172 (delivered at B, the second leg proposed and weighing, the player's own kept, nothing after C); the
+  flags (C172 over the MTOW, the Jodel's tools aft, mail within limits none).
+
+  | load (node, the validated builds) | aboard | CG x | pitch inertia |
+  |---|---|---|---|
+  | Cub, 120 kg of crated parts (one crate goes aboard: the Cub's answer, seats in) | +50 kg (60 - 10 allowance) | +43.8 mm | +35.9 kg.m2 |
+  | C172, 60 kg of mail + a passenger (the build's co-pilot) | +20 kg (60 - 40) | +27.9 mm | +63.9 kg.m2 |
+  | C172, 120 kg of crates, nobody beside the pilot (one crate aboard) | -60 kg (60 - 80 co-pilot - 40) | +82.3 mm | +19.4 kg.m2 |
+  (The +85 mm I sent the coordinator on 9 Oct came from the pre-fix run, where every light node was floored: wrong, superseded.)
+- **SIMWORKER: PASS** + 2c THE LOAD: the metal Cessna loaded in the host's init, 600 steps bit-equal to the page; delivered at
+  step 300 by the step-stamped command, bit-equal; the view's cgPos / totalM the solver's both ways. **UISMOKE: PASS** (the
+  block behind its flags, aboard after the fingerprint and before the reset, off in the shed, the stop; freight_strap.js lazy; the
+  sandbox without the flags: no FLYDIY_STRAP, no drawing). **PARKED: PASS** (pure; 13: the load hangs on the flown model and
+  craft only, parked.js knows nothing of it). **SAVE: PASS** (the block writes nothing the shelf saves). **BUILD: PASS.**
+- **THE STRICT PER-FRAME A/B** (9 Oct 12:18-12:42, TIMED, the box's RTX 3080, quiet): train_gate.js's own rollout rig
+  (rollout_perf.js, the validated Cub and the metal Cessna, HOME / CIRCUIT, 20 s recorded) with `--q freight=1&strapload=...`,
+  none / loaded ABAB x2, chase and cockpit; the load confirmed aboard (Cub 462 -> 512 kg, metal 887 -> 907). **A steady 30
+  everywhere; render / loop within the run-to-run spread** (Cub chase +0.10 / +0.10 ms, Cub cockpit +0.15 / +0.25, metal chase
+  +0.05 / +0.10). **NAMED: the metal cockpit's FIRST loaded run** p99 50 ms, render +1.1 ms; its twin equal to no load (p99 33.5,
+  render 11.7) - a first compile is the likely reading, not proven; the rerun pair did not fit the 11 Oct window.
+  `evidence/FREIGHT-STRAP/ab/ab_summary.json` (the raw reports stay on the box).
+- **THE CARGO FLIGHT** (11 Oct 03:15, on the physics worker): the Cub HOME -> Tamgas Hill Strip, no load vs 120 kg of crated
+  parts: **+50.0 kg, the CG +42.5 mm aft (node: +43.8), pitch +3.5 deg in the cruise, throttle +0.11, elevator equal** - the
+  pilot holds the heavier, aft-loaded aeroplane at a higher attitude and more power. The C172's pair was cut by the 03:31 hard
+  stop. (The rig's "masses aboard at the roll-out" row read too early - before the roll-out began; the flight's own 510 kg says
+  they were.)
+- **THE STILLS** (a loaded page only, the overlay gone + 2 s): `strap_cub_stand.jpg` (the crate strapped behind the pilot, cut
+  away), `strap_c172_stand.jpg` (three mail sacks strapped in the back, the build's co-pilot = the passenger in the right seat),
+  `strap_cub_chase.jpg`, `strap_cub_cockpit.jpg` (the Cub climbing out with its load - neither angle shows the cabin's inside).
+  The stand stills fill a 640 px strip of the frame (the CDP shim's viewport; the page's canvas did not follow it).
+
+**OPEN / FOR THE COORDINATOR**
+- **Owed GPU (~20 min)**: the C172's cargo flight pair, a still of the load THROUGH THE WINDOW (a close orbit on the cabin's
+  side) and from the cockpit LOOKING BACK, a passenger the build does not seat (the Cub's rear seat) pictured, the metal-cockpit
+  A/B pair rerun; the stills rig's canvas size (tools/freight_strap_shot.js) and its roll-out wait.
+- **Merge points**: tools/build.js (78_ after 77_ in MANIFEST.core; freight_strap.js in MANIFEST.lazy), 90_node_exports
+  (appended), 30_solver.js (four marked edits + the API), sim_host / sim_link / sim_view (marked), app.js (one block after
+  FLYDIY_FREIGHT + one line each in rollOutStand, enterGarage, setAircraft, playerFlightEnd, logFlight, frAccept, frHost.closed),
+  freight_load.js (the look table), gates _freight_check / _simworker_check / test_ui_smoke / _parked_check / _save_check.
+- A player's own (unmeasured) build has no card: nothing is strapped on it (FREIGHT-LOAD's open point stands).
+- The load is drawn with no lighting of its own: it takes the cabin's light (receiveShadow on; it casts nothing).
+
+READY for the GAME COORDINATOR: claude/freight-strap-g2400 d42feb70 (the code, gates, A/B and stills; this section rides one docs-only commit on top) - train 44
+
 ## G2430-G2434 - CONTRACT-ROUTES: JOBS GO SOMEWHERE - CHAINS OF TWO DESTINATIONS OR MORE (BACKHAUL, ONWARD, MILK RUN; SURVEYS OVER TWO SITES OR ENDING ELSEWHERE), FROM ANY FIELD (25 % FROM JOLENE AFB, WAS 44 %), EACH CHAIN ONE VALIDATED DESIGN'S END TO END; THE ROUTES FROM POOLS + SHAPES (A NEW SITE JOINS BY DATA ALONE); PAY PER LEG + A 10 % CHAIN BONUS; FOUR ARCS RE-ROUTED; ECON'S BANDS RE-DERIVED (THE PACE IN LEGS UNMOVED); GATE CONTRACTS' ROUTES ROWS (2026-10-07, CONTRACT-ROUTES for the GAME COORDINATOR, cloud - node only, no GPU; branch claude/contract-routes-g2430 off origin/claude/game-integration 78b8433 (b747ae2 + the §R.3 docs commit); G2434 unused)
 
 The brief: the user, 7 Oct - *"most missions should probably involve 2 destinations, or more. Take this from there to
