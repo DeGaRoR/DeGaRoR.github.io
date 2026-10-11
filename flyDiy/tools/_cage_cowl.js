@@ -298,11 +298,6 @@ function innerOf(skin, cA, back) {
     color: c, metalness: 0.0, roughness: 0.95,
     side: back ? THREE.BackSide : THREE.DoubleSide,
     transparent: op < 1, opacity: op, depthWrite: op >= 1 });
-  // G2228: THE BACK TWIN (back: the skin's inside, 1.5 mm in, BackSide) IS INSIDE-ONLY - the join carries the flag
-  // (`inner`) and a BAKED aeroplane (parked.js: the parked / fleet props, the cook) leaves it out: in a bake, rebuilt
-  // two-sided, it fought the skin (the user: "there is clipping of the cowl ... You can get rid of it for baked planes").
-  // The two-sided `inner` (the fold's return, the throats, the inner lofts) is seen through the inlets: it stays
-  if (back) m.userData.aeroInner = 1;
   INNER_POOL.set(key, m);
   return m;
 }
