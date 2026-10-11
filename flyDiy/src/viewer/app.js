@@ -78,11 +78,13 @@
         // sliders of the flyout) - a different screen, the same controls. Nothing is styled here.
         const mk = (tag, id, cls) => { const e = document.createElement(tag); if (id) e.id = id; if (cls) e.className = cls; return e; };
         const v = mk('div', 'premView');
-        for (const id of ['premStrip', 'premPlaque', 'premChk', 'premCam']) v.appendChild(mk('div', id));
+        // (G2910 SCENERY-ED-2: the tabs stand on their own plate at the left of the sheet - they light the tools and the
+        // palette beside them; the right plate is the inspector of the selection alone)
+        for (const id of ['premRail', 'premStrip', 'premPlaque', 'premChk', 'premCam']) v.appendChild(mk('div', id));
         const panel = mk('div', 'premPanel');
         const head = mk('div', 'premHead');
-        const t = mk('span', null, 't'); t.textContent = 'world editor';
-        const sec = mk('span', 'premSec', 's');
+        const t = mk('span', null, 't'); t.textContent = 'scenery editor';   // G2890: the SCENERY editor (premises); the WORLD editor is the right-hand rail (F9)
+        const sec = mk('span', 'premSec', 's'); sec.textContent = 'inspector';
         const back = mk('button', 'premClose', 'pill'); back.type = 'button'; back.textContent = 'back to the flight'; back.title = 'close the editor; the record autosaved and is the world at the next boot';
         back.onclick = () => PREM.close();
         head.appendChild(t); head.appendChild(sec); head.appendChild(back);
@@ -96,16 +98,19 @@
       document.body.classList.add('premOpen');   // the flight's chrome steps aside (flight.css)
       const dirtyDraw = () => {};
       PREM.host = PREM.host || window.PREMISES_HOST.make({ THREE, world, size: 900, view: PREM.view, canvas: renderer.domElement, R: () => PREM.R, persp: camera, map: 'persp', storageKey: 'flydiy.premises.gameview', onDraw: dirtyDraw,
-        onMode: m => { const l = document.getElementById('premCam'); if (l) l.textContent = m === 'map' ? 'MAP · wheel zooms · middle-drag pans' : 'ORBIT · right-drag turns · middle-drag pans · wheel zooms'; } });
+        fly: window.DEV_CAM || null,   // G2915: the world editor's free camera (WASD / ZQSD, R / F, Shift x5, its speed)
+        onMode: m => { const l = document.getElementById('premCam'); if (l) l.textContent = m === 'map' ? 'MAP · wheel zooms · middle-drag pans · Tab: fly' : m === 'fly' ? 'FLY ' + Math.round((window.DEV_CAM && window.DEV_CAM.speed) || 0) + ' m/s · WASD / ZQSD · R F up down · Shift x5 · right-drag looks · wheel = speed · Tab: orbit' : 'ORBIT · right-drag turns · middle-drag pans · wheel zooms · Tab: map'; } });
       PREM.host.attach();
       // the camera starts over the premises (its extent), or over the aeroplane
       const ov = world.premises.overlay;
       if (ov && ov.n) PREM.host.cameras.frame(ov.extent); else { const cg = sim.cgPos(); PREM.host.cameras.centreOn(cg[0], cg[2]); }
       PREM.host.cameras.set(PREM.host.cameras.mode());
-      const els = { chk: document.getElementById('premChk'), plaque: document.getElementById('premPlaque'), strip: document.getElementById('premStrip') };
+      const els = { chk: document.getElementById('premChk'), plaque: document.getElementById('premPlaque'), strip: document.getElementById('premStrip'), rail: document.getElementById('premRail') };
       const rec0 = world.premises.rec ? PREMISES_GEN.envelope(world.premises.rec.name || null, world.premises.rec) : null;   // BEFORE the mount: the mount's first rebuild recomposes the world with what the editor holds
       PREM.ed = window.PREMISES_UI.mount(PREM.body, {
-        onSection: S => { const e = $('premSec'); if (e) e.textContent = S.label; },
+        onSection: () => {},   // (G2910: the head is the inspector's; the lit tab shows on the rail plate)
+        onSelect: id => { const e = $('premSec'); if (e) e.textContent = id ? 'inspector · ' + id : 'inspector'; },
+        thumb: key => PREM.thumb(key),   // G2914: the model placer's thumbnails (below)
         THREE, world, R: PREM.R, camera: PREM.host.camera, ground: PREM.host.ground, ray: PREM.host.ray, cameras: PREM.host.cameras, rows: PREM.host.rows, els,
         viewEl: PREM.view, storage: (() => { try { const ls = localStorage;   // G590: the places the town switch cut go back into every save
           // G2300 (STAGES): ...and so do the stages this page's composition cut or changed (stageRestore: the whole record back)
@@ -120,10 +125,34 @@
         // strip's way out (the editor's ground === false: the stand, the taxi points), makes no terrain modifier - the
         // composed ground is the same heights - so the ground's re-sample over the whole extent (2-3 s of a commit,
         // headless) is skipped; the strips repaint as before (the parked aeroplanes and the stand ride on them)
-        onRebuilt: (layer, ground) => { const o = world.premises.overlay; if (layer === 'objects' || ground === false) { if (window.WORLD && window.WORLD.repaintStrips) window.WORLD.repaintStrips(); return; } if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } if (window.TREE_FILL && window.TREE_FILL.vegChanged) window.TREE_FILL.vegChanged(); },   // G1385: the cover polygons' vegetation
+        // G2917 (the user's island-long road): a road's or an area's edit re-samples the ground under the box it MOVED (the
+        // editor's changeBox, premises frame) - an island road's own box was the island; a strip's grade reaches its whole
+        // shoulder, and a load or a reset the extent, as before
+        onRebuilt: (layer, ground, bb) => { const o = world.premises.overlay; if (layer === 'objects' || ground === false) { if (window.WORLD && window.WORLD.repaintStrips) window.WORLD.repaintStrips(); return; } if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = (bb && (layer === 'roads' || layer === 'areas') && isFinite(bb.x0) && isFinite(bb.x1)) ? bb : o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } if (window.TREE_FILL && window.TREE_FILL.vegChanged) window.TREE_FILL.vegChanged(); },   // G1385: the cover polygons' vegetation
       });
       PREM.open = true;
       $('bPause').textContent = 'Resume'; $('bPause').classList.add('on');
+    },
+    // THE PLACER'S THUMBNAILS (G2914): a prop drawn once into a small target by the game's own renderer (its bytes fetched
+    // first), read back, made sRGB and handed to the palette as a picture - one per key, the palette asks one a frame
+    thumb(key) {
+      if (typeof propWarm !== 'function' || typeof propMesh !== 'function') return Promise.resolve(null);
+      return propWarm(key).then(() => new Promise(res => setTimeout(res, 120))).then(() => {
+        const N = 96, g = propMesh(THREE, key), scene = new THREE.Scene();
+        scene.add(new THREE.HemisphereLight(0xdfe8f0, 0x40382f, 2.4));
+        const dl = new THREE.DirectionalLight(0xffffff, 2.2); dl.position.set(3, 5, 4); scene.add(dl); scene.add(g);
+        const box = new THREE.Box3().setFromObject(g), sz = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3()), r = Math.max(sz.x, sz.y, sz.z, 0.1) * 0.62;
+        const cam = new THREE.PerspectiveCamera(32, 1, r * 0.05, r * 40); cam.position.set(c.x + r * 2.0, c.y + r * 1.45, c.z + r * 2.4); cam.lookAt(c);
+        const rt = new THREE.WebGLRenderTarget(N, N), prev = renderer.getRenderTarget(), cc = renderer.getClearColor(new THREE.Color()), ca = renderer.getClearAlpha();
+        const px = new Uint8Array(N * N * 4);
+        try { renderer.setRenderTarget(rt); renderer.setClearColor(0x1a1f27, 1); renderer.clear(); renderer.render(scene, cam); renderer.readRenderTargetPixels(rt, 0, 0, N, N, px); }
+        finally { renderer.setRenderTarget(prev); renderer.setClearColor(cc, ca); rt.dispose(); scene.remove(g); }
+        const cv = document.createElement('canvas'); cv.width = N; cv.height = N; const g2 = cv.getContext('2d'), im = g2.createImageData(N, N);
+        const enc = v => Math.round(255 * Math.pow(Math.min(1, v / 255), 1 / 2.2));   // the target is linear: no tone, no sRGB on the way out
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const s = ((N - 1 - y) * N + x) * 4, d = (y * N + x) * 4; im.data[d] = enc(px[s]); im.data[d + 1] = enc(px[s + 1]); im.data[d + 2] = enc(px[s + 2]); im.data[d + 3] = 255; }
+        g2.putImageData(im, 0, 0);
+        return cv.toDataURL('image/jpeg', 0.82);
+      }).catch(() => null);
     },
     close() {
       if (!PREM.open) return;
@@ -137,7 +166,9 @@
       PREM.panel.style.display = 'none'; PREM.view.style.display = 'none';
       document.body.classList.remove('premOpen');
       camera.up.set(0, 1, 0);
-      if (PREM.R) PREM.R.rebuild(null);   // the outlines and handles go (editing() is false now)
+      // the outlines and handles go (editing() is false now); G2917: only them - the world stands as the last edit built it
+      // (the full rebuild this was: the user's 67 s 'back to flight' on an island road with traffic)
+      if (PREM.R) { if (PREM.R.editEnd) PREM.R.editEnd(); else PREM.R.rebuild(null); }
     } };
   if (typeof window !== 'undefined') window.PREMISES_EDITOR = PREM;
   const SHOT = { on: false };             // G255: screenshot mode (see shotSet)
@@ -11215,7 +11246,7 @@
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
       icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1', secs: [] },
     { k: 'audio', label: 'sound', head: 'The sound', title: 'The sound: the volumes, the headset, the music in flight', icon: 'M2.8 7h2.8l4-3.4v10.8l-4-3.4H2.8Z|M12.4 6.4a3.6 3.6 0 0 1 0 5.2|M14.4 4.4a6.4 6.4 0 0 1 0 9.2', secs: ['sound'] },   // G1600 (audio.js AUDIO.mount)
-    { k: 'dev', label: 'dev', dev: true, head: 'The developer’s tools', title: 'The developer’s tools: the world editor, the test mode without physics, the flight log, the overlays',
+    { k: 'dev', label: 'dev', dev: true, head: 'The developer’s tools', title: 'The developer’s tools: the scenery editor, the world editor, the test mode without physics, the flight log, the overlays',
       icon: 'M6.4 5 2.8 9l3.6 4|M11.6 5l3.6 4-3.6 4|M10.2 3.6 7.8 14.4', secs: ['scenery', 'world', 'log', 'overlays'] },
   ];
   // THE SECTIONS - the old rail's items (their k / label / title kept as they were) and the four G760 added.
@@ -11250,7 +11281,9 @@
     { k: 'scenery', label: 'test mode', title: 'The world without the physics', head: 'test mode · no physics', sub: 'the flight held, the free camera' },
     // G387: WORLD - the premises editor; G760: moved here from the WORLD rail's SCENERY (the user: "the world
     // editor does not belong there"), with the WORLD rail's own switch (F9)
-    { k: 'world', label: 'world', title: 'The world editor', head: 'world editor', sub: 'the scenery editor, the WORLD rail (F9)' },
+    // G2890 (the user's names, 2026-10-11): the SCENERY editor = this premises editor (roads, strips, polygons, zones, sites);
+    // the WORLD editor = the right-hand rail of the ground's art (textures, terrain types, vegetation - F9)
+    { k: 'world', label: 'editors', title: 'The scenery editor and the world editor', head: 'scenery & world editors', sub: 'the scenery editor; the world editor (F9)' },
     // G620: THE FLIGHT LOG - the recording's state, save log, the previous session
     { k: 'log', label: 'flight log', title: 'The flight recorder', head: 'flight log', sub: 'save this session, or the one before' },
     { k: 'sound', label: 'sound', title: 'The volumes, the headset, the music', sub: 'the volumes, the headset, the music in flight' },   // G1600
@@ -11307,7 +11340,7 @@
       if (b.dataset.dev === 'toggle') {
         b.classList.toggle('on', flDevOn);
         b.textContent = flDevOn ? 'hide dev' : 'dev ›';
-        b.title = flDevOn ? 'Hide the developer’s tools from the rail' : 'Show the developer’s tools on the rail: the world editor, the test mode without physics, the flight log';
+        b.title = flDevOn ? 'Hide the developer’s tools from the rail' : 'Show the developer’s tools on the rail: the scenery editor, the world editor, the test mode without physics, the flight log';
       }
     }
     if (flyOpen === 'dev' && !(flDevOn || scen)) flyOpenSet(null);
@@ -11988,15 +12021,16 @@
       const WR = window.WORLD_RAIL, wrEl = document.getElementById('wrRail');
       const wrOn = !!(wrEl && wrEl.style.display !== 'none');
       const LZ = window.FLYDIY_LAZY && window.FLYDIY_LAZY_SRC ? window.FLYDIY_LAZY_SRC : {};   // G909: the rail and the editor load on demand
-      flRow(body, 'the WORLD rail');
-      if (WR || LZ.world_rail) flPills(body, [{ label: wrOn ? 'hide it (F9)' : 'show it (F9)', value: 1, title: 'the right-hand rail of the world\u2019s art: coverage, terrain types, materials, filtering, vegetation, cliffs, export' }],
+      flRow(body, 'the world editor (F9)');
+      if (WR || LZ.world_rail) flPills(body, [{ label: wrOn ? 'hide it (F9)' : 'show it (F9)', value: 1, title: 'the world editor: the right-hand rail of the world\u2019s art: coverage, terrain types, materials, filtering, vegetation, cliffs, export' }],
                       () => wrOn, () => { if (window.WORLD_RAIL) window.WORLD_RAIL.show(!wrOn); else window.FLYDIY_LAZY('world_rail').then(() => { if (window.WORLD_RAIL) window.WORLD_RAIL.show(true); }); });
-      else flNote(body, 'This build has no WORLD rail (the world pack did not load).');
-      if (!((window.PREMISES_UI && window.PREMISES_HOST) || (LZ.premises_ui && LZ.premises_host)) || !window.RENDER_PREMISES || !world.premises) { flNote(body, 'This build has no world editor (the world pack did not load).'); return; }
+      else flNote(body, 'This build has no world editor (the world pack did not load).');
+      flRow(body, 'the scenery editor');
+      if (!((window.PREMISES_UI && window.PREMISES_HOST) || (LZ.premises_ui && LZ.premises_host)) || !window.RENDER_PREMISES || !world.premises) { flNote(body, 'This build has no scenery editor (the world pack did not load).'); return; }
       const rec = world.premises.rec;
       flNote(body, rec ? 'A premises is composed into this world: ' + (rec.name || rec.id || 'unnamed') + '.' : 'No premises in this world yet.');
       flNote(body, 'The editor opens over the flight scene with the sim paused: the map and orbit cameras of the bench, the same sections and tools. Every edit recomposes the world live; the record autosaves and is the world at the next boot.');
-      const b = document.createElement('button'); b.className = 'pill'; b.textContent = PREM.open ? 'close the editor' : 'open the world editor';
+      const b = document.createElement('button'); b.className = 'pill'; b.textContent = PREM.open ? 'close the scenery editor' : 'open the scenery editor';
       b.onclick = () => { if (PREM.open) PREM.close(); else PREM.openEditor(); flyOpenSet(null); };
       body.appendChild(b);
       if (rec) { const c = document.createElement('button'); c.className = 'pill'; c.textContent = 'clear the saved premises (the map\'s own at the next boot)'; c.onclick = () => { try { localStorage.removeItem(WIP_KEY); } catch (e) {} flNote(body, 'cleared - reload for the map\'s own premises'); }; body.appendChild(c); }
@@ -12591,7 +12625,8 @@
   const devCam = { pos: new THREE.Vector3(), yaw: 0, pitch: 0, keys: new Set(),
                    speed: 25, last: 0, fwd: new THREE.Vector3(), rgt: new THREE.Vector3(),
                    look: new THREE.Vector3() };
-  const devCamOn = () => FL.ready && !inGarage && cam.mode === 'free';
+  // (G2915: the scenery editor's FLY camera is this camera too - the editor's host drives it while its mode is 'fly')
+  const devCamOn = () => FL.ready && !inGarage && (cam.mode === 'free' || !!(PREM.open && PREM.host && PREM.host.cameras.mode() === 'fly'));
   devCam.enter = () => {                 // seed the pose from wherever the eye is
     devCam.pos.copy(camera.position);
     camera.getWorldDirection(devCam.fwd);
@@ -12622,6 +12657,7 @@
                                'KeyR', 'KeyF', 'ShiftLeft', 'ShiftRight']);
   window.addEventListener('keydown', e => {
     if (!devCamOn() || !DEVCAM_KEYS.has(e.code)) return;
+    if ((e.target && /^(input|textarea|select)$/i.test(e.target.tagName || '')) || e.ctrlKey || e.metaKey) return;   // (G2915: a key typed in a field is the field's; Ctrl+S, Ctrl+Z stay the editor's)
     devCam.keys.add(e.code); e.preventDefault(); e.stopImmediatePropagation();
   }, true);
   window.addEventListener('keyup', e => {

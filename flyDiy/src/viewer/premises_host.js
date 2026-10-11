@@ -31,23 +31,40 @@ PREMISES_HOST.make = function (o) {
   let camMode = 'orbit', yaw = -0.6, pitch = 0.62, ZOOM = 0.8, mapHalf = size * 0.55;
   let drag = null, panD = null;
   const KEY = o.storageKey || 'flydiy.prem.view';
-  try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && v.world === world.id) { yaw = v.yaw; pitch = v.pitch; ZOOM = v.zoom; camMode = v.mode || 'orbit'; mapHalf = v.mapHalf || mapHalf; if (v.c) centre.set(v.c[0], v.c[1], v.c[2]); } } catch (e) {}
+  try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && v.world === world.id) { yaw = v.yaw; pitch = v.pitch; ZOOM = v.zoom; camMode = v.mode === 'map' ? 'map' : 'orbit';   /* (a saved 'fly' reopens as the orbit: the fly's pose is the session's) */ mapHalf = v.mapHalf || mapHalf; if (v.c) centre.set(v.c[0], v.c[1], v.c[2]); } } catch (e) {}
   const saveView = () => { try { localStorage.setItem(KEY, JSON.stringify({ world: world.id, yaw, pitch, zoom: ZOOM, mode: camMode, mapHalf, c: [centre.x, centre.y, centre.z] })); } catch (e) {} };
   const camera = () => (camMode === 'map' && mapKind === 'ortho' ? ortho : persp);
+  // THE FLY CAMERA (G2915, the user 11 Oct: "the same controls as the world editor: WASD to move (or ZQSD, depending on
+  // the layout), R and F for up and down, and camera speed"): the world editor's own free camera (o.fly = the game's
+  // DEV_CAM - its keys read by POSITION, e.code, so ZQSD on AZERTY; R / F; Shift x5; its speed) drives the perspective
+  // camera; seeded from where the eye is when it is taken. Right-drag looks, the wheel sets its speed.
+  const flyOk = () => !!(o.fly && o.fly.update && o.fly.enter);
   const cameras = {
     mode: () => camMode,
-    set: m => { camMode = m === 'map' ? 'map' : 'orbit'; if (o.onMode) o.onMode(camMode); saveView(); draw(); },
-    toggle: () => cameras.set(camMode === 'map' ? 'orbit' : 'map'),
+    set: m => {
+      const was = camMode;
+      camMode = m === 'map' ? 'map' : (m === 'fly' && flyOk()) ? 'fly' : 'orbit';
+      if (camMode === 'fly' && was !== 'fly') { o.fly.enter(); if (was === 'map') o.fly.pitch = -0.7; }   // (from the plumb map view: tipped up to a look ahead)
+      if (o.onMode) o.onMode(camMode); saveView(); draw();
+    },
+    toggle: () => cameras.set(camMode === 'orbit' ? 'map' : camMode === 'map' && flyOk() ? 'fly' : 'orbit'),
+    flyOk,
+    speed: v => { if (!flyOk()) return null; if (isFinite(v)) o.fly.speed = Math.max(1, Math.min(400, +v)); return o.fly.speed; },
     // a scripted aim: the orbit's yaw and pitch (radians), for the captures a script takes
     look: (y, p) => { if (isFinite(y)) yaw = y; if (isFinite(p)) pitch = p; saveView(); draw(); },
     view: () => ({ yaw, pitch, zoom: ZOOM, mode: camMode, centre: [centre.x, centre.y, centre.z], mapHalf }),
-    frame: bb => { const R = o.R(); if (!bb || !R) return; const F = R.overlay.frame; const a = F.toWorld((bb.x0 + bb.x1) / 2, (bb.z0 + bb.z1) / 2); centre.set(a[0], world.terrainH(a[0], a[1]), a[1]); const span = Math.max(bb.x1 - bb.x0, bb.z1 - bb.z0, 20); ZOOM = size * 0.55 / (span * 1.3); mapHalf = span * 0.8; saveView(); draw(); },
+    frame: bb => { const R = o.R(); if (!bb || !R) return; if (camMode === 'fly') { camMode = 'orbit'; if (o.onMode) o.onMode(camMode); }   /* (G2915: framing a feature hands the eye back to the orbit round it) */ const F = R.overlay.frame; const a = F.toWorld((bb.x0 + bb.x1) / 2, (bb.z0 + bb.z1) / 2); centre.set(a[0], world.terrainH(a[0], a[1]), a[1]); const span = Math.max(bb.x1 - bb.x0, bb.z1 - bb.z0, 20); ZOOM = size * 0.55 / (span * 1.3); mapHalf = span * 0.8; saveView(); draw(); },
     centreOn: (x, z) => { centre.set(x, world.terrainH(x, z), z); saveView(); draw(); },
   };
   // the camera placed for a view of the given rect (the page reads the rect; the game's is the window)
   function place(r) {
     const cam = camera();
     cam.userData.viewH = r.height;
+    if (camMode === 'fly' && flyOk()) {
+      persp.aspect = r.width / Math.max(1, r.height); persp.updateProjectionMatrix();
+      o.fly.update();   // (the DEVCAM's own step: its keys, its speed, the camera placed and turned)
+      return;
+    }
     if (camMode === 'map') {
       if (mapKind === 'ortho') {
         const asp = r.width / Math.max(1, r.height);
@@ -107,6 +124,7 @@ PREMISES_HOST.make = function (o) {
   }
   // the mouse on the view: right-drag turns, middle-drag pans, wheel zooms; the editor reads the left button
   const onDown = e => {
+    if (e.button === 2 && camMode === 'fly') { drag = [e.clientX, e.clientY, 0, 0, true]; e.preventDefault(); return; }
     if (e.button === 2) { drag = [e.clientX, e.clientY, yaw, pitch]; e.preventDefault(); }
     if (e.button === 1) { panD = [e.clientX, e.clientY, centre.clone()]; e.preventDefault(); }
   };
@@ -120,6 +138,10 @@ PREMISES_HOST.make = function (o) {
       centre.set(c.x, camMode === 'map' ? centre.y : c.y, c.z);
       draw(); return;
     }
+    if (drag && drag[4] && camMode === 'fly' && flyOk()) {   // the fly camera looks (the DEVCAM's gimbal rate)
+      o.fly.yaw += (e.clientX - drag[0]) * 0.0025; o.fly.pitch = Math.max(-1.5, Math.min(1.5, o.fly.pitch - (e.clientY - drag[1]) * 0.0025));
+      drag[0] = e.clientX; drag[1] = e.clientY; draw(); return;
+    }
     if (!drag || camMode === 'map') return;
     yaw = drag[2] + (e.clientX - drag[0]) * 0.008;
     pitch = Math.max(0.05, Math.min(1.5, drag[3] + (e.clientY - drag[1]) * 0.006));
@@ -127,6 +149,7 @@ PREMISES_HOST.make = function (o) {
   };
   const onWheel = e => {
     e.preventDefault();
+    if (camMode === 'fly' && flyOk()) { o.fly.speed = Math.max(1, Math.min(400, o.fly.speed * Math.pow(1.15, -Math.sign(e.deltaY)))); if (o.onMode) o.onMode(camMode); return; }
     if (camMode === 'map') mapHalf = Math.max(10, Math.min(size * 1.5, mapHalf * (e.deltaY < 0 ? 1 / 1.12 : 1.12)));
     else ZOOM = Math.max(0.2, Math.min(80, ZOOM * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
     saveView(); draw();
