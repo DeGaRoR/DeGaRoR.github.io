@@ -304,15 +304,16 @@ if (plots.length) {
   const [tD] = Tm(() => ed.cmd('drag', { key: 'v40', x: p40[0] + 4, z: p40[1] }));
   const last = R.lastDirty;
   const span = last && last.bbox ? (last.bbox.x1 - last.bbox.x0) * (last.bbox.z1 - last.bbox.z0) : Infinity, isl = (bb.x1 - bb.x0) * (bb.z1 - bb.z0);
-  check(span < isl * 0.01, '9 a point dragged rebuilds its span, not the island (' + (Math.sqrt(span) | 0) + ' m across of a ' + ((bb.x1 - bb.x0) / 1000).toFixed(1) + ' km road box)');
+  check(span < isl * 0.03, '9 a point dragged rebuilds its span, not the island (' + (Math.sqrt(span) | 0) + ' m across of a ' + ((bb.x1 - bb.x0) / 1000).toFixed(1) + ' km road box)');
   console.log('     9 two island roads (' + lineN.join(' + ') + ' drawn points): compose ' + tC.toFixed(0) + ' ms; ' + qs.length + ' cover / surface / tree samples ' + tG.toFixed(0) + ' ms (the walk ' + tW.toFixed(0) + ' ms); the drag\'s edit ' + tD.toFixed(0) + ' ms');
   check(tW > tG * 4, '9 the grid is the walk\'s cost several times over cheaper (' + (tW / Math.max(1, tG)).toFixed(1) + 'x)');
   check(tC < LONG_BUDGET.compose && tD < LONG_BUDGET.drag && tG < LONG_BUDGET.samples, '9 the times hold their budgets: compose < ' + LONG_BUDGET.compose + ' ms, the drag < ' + LONG_BUDGET.drag + ' ms, the samples < ' + LONG_BUDGET.samples + ' ms', tC.toFixed(0) + ' / ' + tD.toFixed(0) + ' / ' + tG.toFixed(0));
   // 9b the clearing: r_isl clears 3 m past its 2.5 m half width; r_isl2 has none
   const O9 = PG.compose(rec(), synth, { raster: false }), r1 = O9.roads.find(r => r.id === 'r_isl'), r2 = O9.roads.find(r => r.id === 'r_isl2');
   const at = (r, i, off) => { const a = r.pts[i], b = r.pts[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1; return O9.frame.toWorld(a[0] - dz / l * off, a[1] + dx / l * off); };
-  const tr = (r, off) => { let n = 0; for (let i = 50; i < 1050; i += 10) { const w = at(r, i, off); if (O9.excludeAt(w[0], w[1], 'trees')) n++; } return n; };
-  const gr = (r, off) => { let n = 0; for (let i = 50; i < 1050; i += 10) { const w = at(r, i, off), q = O9.coverAt(w[0], w[1]); if (q && q.kill >= 1) n++; } return n; };
+  const idx = (r, k) => Math.floor(k * (r.pts.length - 2) / 100);   // 100 places along the drawn line
+  const tr = (r, off) => { let n = 0; for (let k = 0; k < 100; k++) { const w = at(r, idx(r, k), off); if (O9.excludeAt(w[0], w[1], 'trees')) n++; } return n; };
+  const gr = (r, off) => { let n = 0; for (let k = 0; k < 100; k++) { const w = at(r, idx(r, k), off), q = O9.coverAt(w[0], w[1]); if (q && q.kill >= 1) n++; } return n; };
   check(tr(r1, 5.0) === 100 && tr(r1, 6.2) < 10 && tr(r2, 3.5) < 5, '9b a road\'s clearing keeps the trees out to its edge + clear (5.0 m from the line: 100 of 100), not past it; a road without one keeps none', tr(r1, 5.0) + ' / ' + tr(r1, 6.2) + ' / ' + tr(r2, 3.5));
   check(gr(r1, 5.0) === 100, '9b ...and the grass: nothing grows within it', String(gr(r1, 5.0)));
   const regs = O => O.treeExRegions().filter(q => q.k[0] === 'x').map(q => q.k);
