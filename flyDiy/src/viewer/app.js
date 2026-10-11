@@ -81,7 +81,7 @@
         for (const id of ['premStrip', 'premPlaque', 'premChk', 'premCam']) v.appendChild(mk('div', id));
         const panel = mk('div', 'premPanel');
         const head = mk('div', 'premHead');
-        const t = mk('span', null, 't'); t.textContent = 'world editor';
+        const t = mk('span', null, 't'); t.textContent = 'scenery editor';   // G2890: the SCENERY editor (premises); the WORLD editor is the right-hand rail (F9)
         const sec = mk('span', 'premSec', 's');
         const back = mk('button', 'premClose', 'pill'); back.type = 'button'; back.textContent = 'back to the flight'; back.title = 'close the editor; the record autosaved and is the world at the next boot';
         back.onclick = () => PREM.close();
@@ -1368,6 +1368,13 @@
     }
     // the room (and the residents with it) under the stand: minus the stand's place in the room's frame
     RES.group.position.set(-(RES.dx || 0), hangar ? hangar.group.position.y : 0, -(RES.dz || 0));
+    // G2319.1: the room moved AFTER the garage framed its eye (enterGarage frames first, the residents stand after):
+    // an eye still where the garage put it is framed again (eased); one the hand has moved is the hand's
+    if (hangar && (hangar.group.position.x !== -(RES.dx || 0) || hangar.group.position.z !== -(RES.dz || 0))) {
+      hangar.group.position.x = -(RES.dx || 0); hangar.group.position.z = -(RES.dz || 0);
+      const f = RES.frame;
+      if (f && azT === f.az && elT === f.el && distT === f.dist) { const F = garageFraming(); azT = F.az; elT = F.el; distT = F.dist; RES.frame = { az: F.az, el: F.el, dist: F.dist }; }
+    }
     for (const g of RES.holders.values()) if (!g.userData.filled) window.PARKED.residentFill(g);
     residentsShow();
     RES.ms = performance.now() - t0;
@@ -1577,15 +1584,24 @@
     setLayout: k => {
       if (!CAREER_DEV || typeof hangarLayout !== 'function') return null;
       const shed = shedHome();
-      if (k && !hangarLayout(k, shed.shell)) return null;
-      if ((shed.layout || null) === (k || null)) return shed.layout || null;
+      // G2319.1: a layout names its shell - choosing one in another shell takes the shell with it (the career's main
+      // hangar is today's club again; the works' hearth / hearthLight / cozy stay one call away)
+      const L = k && typeof HANGAR_LAYOUTS !== 'undefined' ? HANGAR_LAYOUTS[k] : null;
+      if (k && !L) return null;
+      if (L && L.shell && L.shell !== shed.shell && typeof SHELLS !== 'undefined' && SHELLS[L.shell]) {
+        shed.shell = L.shell; shed.dims = Object.assign({}, SHELLS[L.shell].dims);
+        if (WF && WF.setShedDims) WF.setShedDims(Object.assign({ shell: shed.shell }, playerShedDims(player, 'HOME', (typeof siteOf === 'function') ? siteOf('HOME') : null)));
+      } else if ((shed.layout || null) === (k || null)) return shed.layout || null;
       if (k) shed.layout = k; else delete shed.layout;
       playerSave();
       disposeHangar();
       if (inGarage) applyEnv(); else getHangar();
+      if (inGarage) garageCamera();          // a new room, the eye re-framed (as setShell does)
       return shed.layout || null;
     },
     residentsSync: () => { residentsSync(RES && RES.bb); return residentsApi(); },   // the rigs' door: stand them now
+    // G2319.1: the garage's own default framing, applied (the rigs' "room" camera: a moved room draws the eye in)
+    frame: () => { garageCamera(); return garageFraming(); },
     residentSwap: (n, o) => residentSwap(n, o),      // G2316: a resident onto the stand (timings back)
     setMobile: on => {
       mobileOn = on !== false;
@@ -9097,6 +9113,17 @@
       const eyeY = hangar.dims.EAVE - 1.4, tY = (edSit && edSit.visible && edTarget) ? edTarget.y : ((sim && sim.cgPos) ? sim.cgPos()[1] : 1.2);
       F.el = Math.max(0.03, Math.min(0.22, Math.asin(Math.max(-1, Math.min(1, (eyeY - tY) / F.dist)))));
     }
+    // G2319.1: A ROOM MOVED UNDER THE STAND (the career's club + 1: the stand 4.3 m toward the door) put the default eye
+    // in the doorway - the door end's wall and leaf filled the frame's right edge (the 8 Oct 23:25 stills). The same angle,
+    // the eye drawn in until it stands 2.5 m inside every wall (never nearer than 8 m); a room that never moved is as ever
+    if (hangar && hangar.dims && hangar.group && (hangar.group.position.x || hangar.group.position.z)) {
+      const gp = hangar.group.position, d = hangar.dims, M = 2.5;
+      const tg = (edSit && edSit.visible && edTarget) ? edTarget : null, c = (sim && sim.cgPos) ? sim.cgPos() : [0, 0, 0];
+      const tx = tg ? tg.x : c[0], tz = tg ? tg.z : c[2];
+      const inside = ds => { const r = ds * Math.cos(F.el), ex = tx + r * Math.sin(F.az) - gp.x, ez = tz + r * Math.cos(F.az) - gp.z;
+        return Math.abs(ex) <= d.HD - M && Math.abs(ez) <= d.HW - M; };
+      while (F.dist > 8 && !inside(F.dist)) F.dist -= 0.5;
+    }
     return F;
   }
   function garageCamera() {
@@ -9109,6 +9136,7 @@
     residentsView('room');         // G2315: the garage's own framing is the room view - the other aeroplanes on
     const F = garageFraming();
     az = azT = F.az; el = elT = F.el; dist = distT = F.dist;
+    if (RES) RES.frame = { az: F.az, el: F.el, dist: F.dist };   // G2319.1: the framing a moved room may redo (residentsReframe)
     flReveal = 0;
     camera.fov = garageFov; camera.updateProjectionMatrix();
   }
@@ -11656,7 +11684,7 @@
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
       icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1', secs: [] },
     { k: 'audio', label: 'sound', head: 'The sound', title: 'The sound: the volumes, the headset, the music in flight', icon: 'M2.8 7h2.8l4-3.4v10.8l-4-3.4H2.8Z|M12.4 6.4a3.6 3.6 0 0 1 0 5.2|M14.4 4.4a6.4 6.4 0 0 1 0 9.2', secs: ['sound'] },   // G1600 (audio.js AUDIO.mount)
-    { k: 'dev', label: 'dev', dev: true, head: 'The developer’s tools', title: 'The developer’s tools: the world editor, the test mode without physics, the flight log, the overlays',
+    { k: 'dev', label: 'dev', dev: true, head: 'The developer’s tools', title: 'The developer’s tools: the scenery editor, the world editor, the test mode without physics, the flight log, the overlays',
       icon: 'M6.4 5 2.8 9l3.6 4|M11.6 5l3.6 4-3.6 4|M10.2 3.6 7.8 14.4', secs: ['scenery', 'world', 'log', 'overlays'] },
   ];
   // THE SECTIONS - the old rail's items (their k / label / title kept as they were) and the four G760 added.
@@ -11691,7 +11719,9 @@
     { k: 'scenery', label: 'test mode', title: 'The world without the physics', head: 'test mode · no physics', sub: 'the flight held, the free camera' },
     // G387: WORLD - the premises editor; G760: moved here from the WORLD rail's SCENERY (the user: "the world
     // editor does not belong there"), with the WORLD rail's own switch (F9)
-    { k: 'world', label: 'world', title: 'The world editor', head: 'world editor', sub: 'the scenery editor, the WORLD rail (F9)' },
+    // G2890 (the user's names, 2026-10-11): the SCENERY editor = this premises editor (roads, strips, polygons, zones, sites);
+    // the WORLD editor = the right-hand rail of the ground's art (textures, terrain types, vegetation - F9)
+    { k: 'world', label: 'editors', title: 'The scenery editor and the world editor', head: 'scenery & world editors', sub: 'the scenery editor; the world editor (F9)' },
     // G620: THE FLIGHT LOG - the recording's state, save log, the previous session
     { k: 'log', label: 'flight log', title: 'The flight recorder', head: 'flight log', sub: 'save this session, or the one before' },
     { k: 'sound', label: 'sound', title: 'The volumes, the headset, the music', sub: 'the volumes, the headset, the music in flight' },   // G1600
@@ -11748,7 +11778,7 @@
       if (b.dataset.dev === 'toggle') {
         b.classList.toggle('on', flDevOn);
         b.textContent = flDevOn ? 'hide dev' : 'dev ›';
-        b.title = flDevOn ? 'Hide the developer’s tools from the rail' : 'Show the developer’s tools on the rail: the world editor, the test mode without physics, the flight log';
+        b.title = flDevOn ? 'Hide the developer’s tools from the rail' : 'Show the developer’s tools on the rail: the scenery editor, the world editor, the test mode without physics, the flight log';
       }
     }
     if (flyOpen === 'dev' && !(flDevOn || scen)) flyOpenSet(null);
@@ -12429,15 +12459,16 @@
       const WR = window.WORLD_RAIL, wrEl = document.getElementById('wrRail');
       const wrOn = !!(wrEl && wrEl.style.display !== 'none');
       const LZ = window.FLYDIY_LAZY && window.FLYDIY_LAZY_SRC ? window.FLYDIY_LAZY_SRC : {};   // G909: the rail and the editor load on demand
-      flRow(body, 'the WORLD rail');
-      if (WR || LZ.world_rail) flPills(body, [{ label: wrOn ? 'hide it (F9)' : 'show it (F9)', value: 1, title: 'the right-hand rail of the world\u2019s art: coverage, terrain types, materials, filtering, vegetation, cliffs, export' }],
+      flRow(body, 'the world editor (F9)');
+      if (WR || LZ.world_rail) flPills(body, [{ label: wrOn ? 'hide it (F9)' : 'show it (F9)', value: 1, title: 'the world editor: the right-hand rail of the world\u2019s art: coverage, terrain types, materials, filtering, vegetation, cliffs, export' }],
                       () => wrOn, () => { if (window.WORLD_RAIL) window.WORLD_RAIL.show(!wrOn); else window.FLYDIY_LAZY('world_rail').then(() => { if (window.WORLD_RAIL) window.WORLD_RAIL.show(true); }); });
-      else flNote(body, 'This build has no WORLD rail (the world pack did not load).');
-      if (!((window.PREMISES_UI && window.PREMISES_HOST) || (LZ.premises_ui && LZ.premises_host)) || !window.RENDER_PREMISES || !world.premises) { flNote(body, 'This build has no world editor (the world pack did not load).'); return; }
+      else flNote(body, 'This build has no world editor (the world pack did not load).');
+      flRow(body, 'the scenery editor');
+      if (!((window.PREMISES_UI && window.PREMISES_HOST) || (LZ.premises_ui && LZ.premises_host)) || !window.RENDER_PREMISES || !world.premises) { flNote(body, 'This build has no scenery editor (the world pack did not load).'); return; }
       const rec = world.premises.rec;
       flNote(body, rec ? 'A premises is composed into this world: ' + (rec.name || rec.id || 'unnamed') + '.' : 'No premises in this world yet.');
       flNote(body, 'The editor opens over the flight scene with the sim paused: the map and orbit cameras of the bench, the same sections and tools. Every edit recomposes the world live; the record autosaves and is the world at the next boot.');
-      const b = document.createElement('button'); b.className = 'pill'; b.textContent = PREM.open ? 'close the editor' : 'open the world editor';
+      const b = document.createElement('button'); b.className = 'pill'; b.textContent = PREM.open ? 'close the scenery editor' : 'open the scenery editor';
       b.onclick = () => { if (PREM.open) PREM.close(); else PREM.openEditor(); flyOpenSet(null); };
       body.appendChild(b);
       if (rec) { const c = document.createElement('button'); c.className = 'pill'; c.textContent = 'clear the saved premises (the map\'s own at the next boot)'; c.onclick = () => { try { localStorage.removeItem(WIP_KEY); } catch (e) {} flNote(body, 'cleared - reload for the map\'s own premises'); }; body.appendChild(c); }

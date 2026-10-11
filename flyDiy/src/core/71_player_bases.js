@@ -151,7 +151,9 @@ const PREM_RATES = {
 // a slot is free AND the floor packs it.
 const PREM_MAIN = 'HOME';
 const PREM_SIDE_MAX = 2;
-const PREM_SLOTS = { bay: 1, main: 2, side: 1, sideClub: 2 };
+// mainClub (G2319.1): a CAREER's main hangar that is today's club takes the bay + 1 - its fully kitted floor holds the
+// stand and one more in tandem (the garage's club + 1), never two beside it; the sandbox's ledger keeps `main`
+const PREM_SLOTS = { bay: 1, main: 2, mainClub: 1, side: 1, sideClub: 2 };
 // HANGAR-STORAGE (G2690, futureDesigns/game/HANGAR-STORAGE-2026-10-10.md, the user's OK of 10 Oct): A BUILDING HAS
 // SLOTS - `inside` (shown, numbered, beside the floor: the garage's residents) and `outside` (its apron: the fleet's
 // tie-down spots) - taken from its SHELL (data, not code) unless the shed itself says otherwise (`sheds[id].slots =
@@ -159,7 +161,8 @@ const PREM_SLOTS = { bay: 1, main: 2, side: 1, sideClub: 2 };
 // above is the S2 table these supersede (kept for an older reader): every held building has ONE floor (the stand)
 // plus its inside slots. Outside, per AERODROME: the sum of its held buildings' aprons, capped by the aerodrome's
 // COOKED fleet spots (`spots`, the counts of src/viewer/fleet_spots_pack.js - GATE STORAGE holds them to the pack) and
-// by `outsideMax` (the drawn cap, FLEET-PROPS' 6). LONG-TERM is unlimited and never drawn.
+// by `outsideMax` (the drawn cap, FLEET-PROPS' 6). LONG-TERM is unlimited and never drawn. A CAREER's club MAIN hangar
+// has PREM_SLOTS.mainClub (1) inside, not the shell's 2 (G2319.1, the user: keep today's club; the sandbox keeps 2).
 const PREM_STORE = {
   shells: { club: { inside: 2, outside: 6 }, works: { inside: 4, outside: 6 }, field: { inside: 0, outside: 2 } },
   outsideMax: 6,
@@ -423,7 +426,9 @@ function playerStoreSlots(doc, id) {
   const sh = PREM_STORE.shells[s.shell] || PREM_STORE.shells.club;
   const o = (s.slots && typeof s.slots === 'object') ? s.slots : {};
   const n = (v, d) => (Number.isInteger(v) && v >= 0) ? v : d;
-  return { inside: n(o.inside, sh.inside), outside: Math.min(PREM_STORE.outsideMax, n(o.outside, sh.outside)) };
+  // G2319.1: a career's club MAIN hangar - the stand and one more in tandem (mainClub), the sandbox's club its shell's 2
+  const ins = (id === PREM_MAIN && doc.mode === 'career' && (s.shell || 'club') === 'club') ? PREM_SLOTS.mainClub : sh.inside;
+  return { inside: n(o.inside, ins), outside: Math.min(PREM_STORE.outsideMax, n(o.outside, sh.outside)) };
 }
 // the apron of an aerodrome: its held buildings' outside slots, summed, capped by its cooked fleet spots and the drawn
 // cap (0 where nothing is held, or the cook found no spot: the mine's street, the altiport)
