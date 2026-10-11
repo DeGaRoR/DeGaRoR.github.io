@@ -84264,11 +84264,18 @@ green but DMGCLUSTERS (the Cessna's shell, as handed over). Three things fixed i
 - clReset hands every cluster its as-built omega back (C.omega0) - Deform's catch: the split wrote the forward
   stub's omega onto the original cluster and Fly again would have flown the whole boom at it. GATE DMGCLUSTERS has
   the row now (split at the station, reset, every cluster's omega == a fresh sim's), and clusterCuts() reads omega.
-- THE SHELL BREAKS BY BUCKLING: the 'oval' record takes sigB (61_gen_frame SHELL: ~0.3 E t / R, the classical
-  0.605 with NASA SP-8007's ~0.5 knockdown); the limit is min(material, sigB). The metal Cessna's tailcone was
+- THE SHELL BREAKS BY BUCKLING: the 'oval' record takes sigB = gamma(R/t) x 0.605 E t / R (NASA SP-8007's bending
+  knockdown gamma = 1 - 0.731 (1 - e^-phi), phi = sqrt(R/t) / 16 - Deform's review: R/t's, not a constant), at the
+  mid-span STATION's own ring (the narrower tailcone; the record carries one section); the limit is min(material,
+  sigB). Values: the metal Cessna 55.8 MPa, the Jodel's plywood 34.4, the mosquito's carbon 138 (the alloy's own
+  ultimate ~450). A LOWER BOUND, named: a real tailcone is stringer- and frame-stiffened and carries load past skin
+  buckling; it stays above the tail's ultimate (DMGCERT green). The metal Cessna's tailcone was
   credited with 580 kN.m at mid-span (the alloy's full ultimate on a 0.8 mm skin) and the part-off test ramped loads
   to hundreds of kN - its stab tore off its fittings (32 strays). Now 22 kN.m at mid-span / 31.5 at the root: clean
   (10 members, 0 strays, rigid 0.2 mm); normal operations peak under it (the flown pull 0.50 of the limit, the drops
   0.23-0.28). NAMED: with damage on, the Cessna's and the Jodel's aft fuselage break at a realistic tailcone moment.
-Gates on the tip: DMGCLUSTERS, DMGCERT, DMGCERTCOST, DMGMEMBERS PASS (09:19-09:28). NOT YET RUN after the buckling
-limit: DMGINTEGRITY, DMGGEAR, TREECRASH (the window closed at 09:35 with them running) - owed before landing.
+WHAT TO WATCH FOR (the user's rule since 11 Oct ~01:40, instead of evidence stills; A0's ruling (a)): damage is OFF
+by default, so default play is unchanged. With ?damage=1, a tail-first crash in the metal Cessna or the Jodel: the
+tailcone now breaks / folds at the mid-span station at a realistic moment instead of almost never (580 kN.m before);
+the stab and fin should come away with the aft piece, the piece itself rigid (not rubbery).
+Gates on the formula: see the 09:47-10:07 window below.
