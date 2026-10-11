@@ -586,6 +586,11 @@ if (plots.length) {
   check(require('crypto').createHash('sha256').update(stxt).digest('hex') === M.sha256, '15 the save beside the manifest is the user\'s, byte for byte (' + M.sha256.slice(0, 16) + ')');
   const A = PG.dropPlaces(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, ['mk_']).rec, B = PG.unwrap(stxt).rec;
   const EX = new Set(M.except), RM = new Set(M.remove);
+  // (G3014) a road the user stopped at a strip: the save's road cut by the same function the ship used
+  for (const [rid, wid] of Object.entries(M.trim || {})) { const r = B.layers.roads.find(q => q.id === rid), w = B.layers.runways.find(q => q.id === wid);
+    const cut = r && w && PG.roadCutAtPoly(r, PG.runwayBox(Object.assign({}, PG.RUNWAY_DEF, w), 0));
+    check(!!cut && cut.pts.length < r.pts.length, '15 ' + rid + ' stops at the edge of ' + wid + ' (' + (r ? r.pts.length : '?') + ' -> ' + (cut ? cut.pts.length : '?') + ' points)');
+    if (cut) B.layers.roads[B.layers.roads.indexOf(r)] = cut; }
   const un = e => { const c = JSON.parse(JSON.stringify(e)); delete c.stage; delete c.src; if (Array.isArray(c.items)) for (const it of c.items) if (it) delete it.stage; return JSON.stringify(c); };
   const staged = e => !!(e && (e.stage || (Array.isArray(e.items) && e.items.some(it => it && it.stage)) || /^sg_/.test(String(e.id || ''))));
   const bad = [], pending = [];

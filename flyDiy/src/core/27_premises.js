@@ -2002,6 +2002,29 @@ function roadPatchChunks(rec, F, PCH, bounds, opts) {
   }
   return act;
 }
+// A ROAD STOPPED AT A STRIP (G3014 SCENERY-SHIP; the user, of their road across their new strip: "You can stop it at the
+// strip indeed"): the road's waypoints up to where its line first meets the polygon (a strip's box) and that point, on
+// the side it comes from - the longer of the two outside parts when it crosses (the access, not the overrun). Its own
+// points and handles are kept to the cut (`tan`, `nodes` cut with them); the cut point is new (cm). null when it never
+// meets the polygon or lies inside it.
+function roadCutAtPoly(r, poly) {
+  const P = r && r.pts; if (!Array.isArray(P) || P.length < 2 || !Array.isArray(poly) || poly.length < 3) return null;
+  const hit = (a, b) => { let best = null; for (let k = 0; k < poly.length; k++) { const c = poly[k], d = poly[(k + 1) % poly.length];
+    const rx = b[0] - a[0], rz = b[1] - a[1], sx = d[0] - c[0], sz = d[1] - c[1], den = rx * sz - rz * sx; if (Math.abs(den) < 1e-12) continue;
+    const qx = c[0] - a[0], qz = c[1] - a[1], t = (qx * sz - qz * sx) / den, u = (qx * rz - qz * rx) / den; if (t >= 0 && t <= 1 && u >= 0 && u <= 1 && (!best || t < best.t)) best = { t, p: [a[0] + rx * t, a[1] + rz * t] }; } return best; };
+  const len = Q => { let s = 0; for (let i = 1; i < Q.length; i++) s += Math.hypot(Q[i][0] - Q[i - 1][0], Q[i][1] - Q[i - 1][1]); return s; };
+  const cm = p => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100];
+  let A = null, B = null;
+  if (!inPoly(poly, P[0][0], P[0][1])) for (let i = 0; i + 1 < P.length; i++) { const h = hit(P[i], P[i + 1]); if (h) { A = { n: i + 1, p: cm(h.p) }; break; } }
+  const L = P.length - 1;
+  if (!inPoly(poly, P[L][0], P[L][1])) for (let i = L; i > 0; i--) { const h = hit(P[i], P[i - 1]); if (h) { B = { n: i, p: cm(h.p) }; break; } }
+  if (!A && !B) return null;
+  const keep = (x, pts) => { const o = Object.assign({}, r, { pts });
+    for (const k of ['tan', 'nodes']) if (Array.isArray(r[k])) o[k] = x === 'A' ? r[k].slice(0, A.n).concat([null]) : [null].concat(r[k].slice(B.n)); return o; };
+  const pa = A ? P.slice(0, A.n).concat([A.p]) : null, pb = B ? [B.p].concat(P.slice(B.n)) : null;
+  if (pa && (!pb || len(pa) >= len(pb))) return keep('A', pa);
+  return keep('B', pb);
+}
 // a ground edit's box (premises frame) over a road: its points' box grown by its half width and `pad` (its banks)
 function roadBoxTouch(rd, box, pad) {
   if (!rd || !rd.pts || rd.pts.length < 1 || !box) return false;
@@ -4070,7 +4093,7 @@ function collect(globals) {
 }
 
 const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
-  fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R,
+  fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,

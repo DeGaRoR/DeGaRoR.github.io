@@ -1,7 +1,8 @@
 // SCENERY SHIP (G3010-G3019): the user's saved scenery into the shipped fixture, as saved - minus what they hold back.
 //   node tools/scenery_ship.js SAVE.json --except w1,w4 [--fixture tools/fixtures/island_jolene.json] --out PATCH.json
 //   node tools/scenery_ship.js SAVE.json --except w1,w4 --verify     (the fixture already patched: shipped == save?)
-//   --remove id,id: the save's removals the user confirmed (none go otherwise); --record pavement: its record settings
+//   --remove id,id: the save's removals the user confirmed (none go otherwise); --record pavement: its record settings;
+//   --trim r25:w5: a road stopped at a strip's edge
 // A save is record v2 (every polygon an AREA) and has no Metlakatla (the town switch cuts it at load); the fixture is
 // record v1 and carries the town. The patch keeps the fixture v1 - its raw readers (contracts, the game premises, the
 // town kit, the fleet's spots) read it as before:
@@ -27,6 +28,10 @@ const EXCEPT = new Set(String(arg('--except', '')).split(',').filter(Boolean)), 
 const REMOVE = new Set(String(arg('--remove', '')).split(',').filter(Boolean));
 // --record pavement,theme,life: the record's own settings the user confirmed
 const RECK = new Set(String(arg('--record', '')).split(',').filter(Boolean));
+// --trim road:strip,...: a road the user stops at a strip's edge (PG.roadCutAtPoly on the strip's box) - the rest of it as saved
+const TRIM = new Map(String(arg('--trim', '')).split(',').filter(Boolean).map(q => q.split(':')));
+const trimmed = (e) => { const w = TRIM.get(e.id); if (!w) return e; const S = (RS.runways || []).find(q => q.id === w); if (!S) throw new Error('--trim: no strip ' + w + ' in the save');
+  const cut = PG.roadCutAtPoly(e, PG.runwayBox(Object.assign({}, PG.RUNWAY_DEF, S), 0)); if (!cut) throw new Error('--trim: ' + e.id + ' never meets ' + w); return cut; };
 const rawSave = JSON.parse(fs.readFileSync(SAVE, 'utf8')), RS = (rawSave.premises || rawSave).layers;
 const B = PG.unwrap(fs.readFileSync(SAVE, 'utf8')).rec;
 const rawFix = JSON.parse(fs.readFileSync(FIX, 'utf8')), RF = (rawFix.premises || rawFix).layers;
@@ -58,7 +63,7 @@ const del = (layer, id, note) => { ops.push({ layer, op: 'del', id }); why.push(
 for (const L of ['roads', 'runways', 'sites', 'zones', 'objects', 'links', 'junctions']) {
   const sv = (RS[L] || []).filter(e => e && !EXCEPT.has(e.id) && !(L === 'zones' && e.kind === 'clear'));
   const fx = new Map((RF[L] || []).filter(e => e && !cutId(e.id) && !(L === 'zones' && e.kind === 'clear')).map(e => [e.id, e]));
-  for (const e of sv) { const f = fx.get(e.id); if (!f) set(L, e, 'new'); else if (normEntry(L, unstage(f)) !== normEntry(L, unstage(e))) set(L, restage(e, f), 'changed' + (staged(f) ? ', its stages kept' : '')); }
+  for (const e0 of sv) { const e = L === 'roads' ? trimmed(e0) : e0, f = fx.get(e.id); if (!f) set(L, e, 'new' + (e !== e0 ? ', stopped at ' + TRIM.get(e.id) + ' (' + e0.pts.length + ' -> ' + e.pts.length + ' points)' : '')); else if (normEntry(L, unstage(f)) !== normEntry(L, unstage(e))) set(L, restage(e, f), 'changed' + (staged(f) ? ', its stages kept' : '')); }
   const ids = new Set(sv.map(e => e.id));
   for (const [id, f] of fx) if (!ids.has(id) && !EXCEPT.has(id)) { if (staged(f)) why.push('stage ' + L + ' ' + id + ' (not in the sandbox view: kept)'); else if (REMOVE.has(id)) del(L, id, 'removed by the user, confirmed'); else why.push('REMOVED IN THE SAVE, kept until confirmed: ' + L + ' ' + id); }
 }
