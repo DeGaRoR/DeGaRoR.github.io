@@ -20,6 +20,18 @@ run() { local left=$(( endS - $(date +%s) - 15 )); [ $left -lt 45 ] && { log "no
   ( sleep $left; kill -0 $pid 2>/dev/null && { echo "$(date +%H:%M:%S) HARD STOP $END" >> $LOG; taskkill //PID $pid //T //F >/dev/null 2>&1; } ) & local g=$!
   wait $pid; local rc=$?; kill $g 2>/dev/null; return $rc; }
 cd $W
+# master first (A0: 44.4 touches the vegetation exclusion beside these rules): merged; a conflict in the HANDOVER alone is the two
+# appended sections (both kept); any other conflict aborts the merge and the gates run on the branch as it was (logged)
+git -C $W fetch -q origin master >> $LOG 2>&1
+if ! git -C $W merge --no-edit origin/master >> $LOG 2>&1; then
+  U=$(git -C $W diff --name-only --diff-filter=U)
+  if [ "$U" = "flyDiy/HANDOVER.md" ]; then
+    python -c "
+p='$W/HANDOVER.md'; b=open(p,'rb').read().decode('utf8'); nl='\r\n' if '\r\n' in b else '\n'
+out=[('' if l=='=======' else l) for l in b.split(nl) if not (l.startswith('<<<<<<< ') or l.startswith('>>>>>>> '))]
+open(p,'wb').write(nl.join(out).encode('utf8'))" && git -C $W add HANDOVER.md && git -C $W commit -q --no-edit && log "merged master (HANDOVER union)"
+  else git -C $W merge --abort; log "MERGE CONFLICT outside the HANDOVER ($U) - aborted, gates on the branch as it was"; fi
+else log "merged master"; fi
 log "tree $(git -C $W log --oneline -1)"
 # FRAMECOST first (its census: the rises the user accepted 11 Oct get their ALLOW entries written while the rest runs), then the
 # set, then FRAMECOST again on whatever ALLOW list the tree holds by then
