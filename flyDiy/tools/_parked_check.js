@@ -897,7 +897,12 @@ async function pageRows() {
       const lists = k => [vis.groups[k]].concat(vis.parts.map(p => p.groups[k])).filter(Boolean);
       const triIn = ks => ks.reduce((n, k) => n + lists(k).reduce((m, g) => m + g.idx.length / 3, 0), 0);
       const innerTris = triIn(ik);
-      check(ik.length >= 1 && innerTris > 0, "11b the cowl's inside shells cross the snapshot FLAGGED (inner)", ik.length + ' buckets, ' + innerTris + ' triangles');
+      // the editor's own count, for the reading when the row is red: the twins standing in the scene now (the player's build,
+      // restored) and what their materials say (an understudy carries cageUniOf, the original the flag)
+      let twins = 0, twFlag = 0, twUni = 0;
+      try { const root = (PW.CAGE_JOIN && PW.CAGE_JOIN.mount && PW.CAGE_JOIN.mount()) || PW.CAGE_UI_SCENE;
+        if (root) root.traverse(o => { if (o.isMesh && o.userData && o.userData.innerTwin) { twins++; const u = (o.material && o.material.userData) || {}; if (u.aeroInner) twFlag++; if (u.cageUniOf) twUni++; } }); } catch (e) {}
+      check(ik.length >= 1 && innerTris > 0, "11b the cowl's inside shells cross the snapshot FLAGGED (inner)", ik.length + ' buckets, ' + innerTris + ' triangles; the editor now: ' + twins + ' twin meshes (' + twFlag + ' with the material flag, ' + twUni + ' understudied)');
       const inCut = r => { const e = K.exteriorMesh(r); return triIn(e.buckets.map(b => b.key).filter(k => ik.includes(k))); };
       const cut = inCut(rec), skipped = ik.every(k => K.isInterior(vis.mats[k]));
       check(cut === 0 && skipped, '11b no inside-only shell in any baked rung: the far cut holds 0 of their triangles, the L1 / bake selection skips every one', cut + ' triangles in the cut, selection skips ' + skipped);
