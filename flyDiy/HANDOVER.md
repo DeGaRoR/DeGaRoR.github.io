@@ -84963,3 +84963,28 @@ targeted set + PREMCOOK after the premises re-cook (premises_build.js is in its 
 PREMISES, SCENERYED, BUILD, MEDIA (+13.2 KB). Strict gate (t432, build 184124362148): 157 within slack, 0 RED (one
 1017 ms task in one rollout run, like 43's 1068). Then the premises + parked re-cooks moved the build to 62f0cd5245c9
 (data manifests only).
+
+## G2319.1 - WORKS-COZY FOLLOW-UP (TRAIN 44): THE CAREER'S MAIN HANGAR IS TODAY'S CLUB WITH ITS RESIDENT; THE WORKS' LAYOUTS SELECTABLE; THE DEFAULT EYE KEPT INSIDE A MOVED ROOM (2026-10-10/11, WORKS-COZY for the GAME COORDINATOR; branch claude/works-club-g2319 off origin/claude/game-integration 843fa745)
+
+The user, 10 Oct, on the G2315-G2319 stills: "not sure what the hearth adds" - keep today's hangar for now, the hearth
+later (long term HANGAR-STORAGE: a derelict giant beside a small good hangar, futureDesigns/game/HANGAR-STORAGE-2026-10-10.md).
+- `74_career.js`: CAREER_MAIN = { shell: 'club', layout: null } - careerMainShed() null, a new career's HOME is the player
+  default's club; a dev career made under train 43's untouched works (+ hearth) is handed the club back, once (fixpoint);
+  a works the player chose (hearthLight, cozy) is kept. The works' layouts stay one call away: GARAGE_ENV.setLayout takes
+  the layout's shell with it (and re-frames the eye).
+- `71_player_bases.js`: PREM_SLOTS.mainClub 1 - a CAREER's club main hangar is the bay + 1 (its fully kitted floor
+  holds the stand + one, in tandem: the garage's club + 1, the room moved under the stand); the works keeps + 2; the
+  SANDBOX's ledger is unchanged (main + 2).
+- `app.js` garageFraming: in a room moved under the stand the default eye keeps its angle and comes in until it stands
+  2.5 m inside every wall (min 8 m; the club + 1: ~11.5 m) - the door end's wall had filled the right edge of the default
+  view (8 Oct 23:25). residentsSync0 re-frames once when the room moves after the garage framed it (enterGarage frames
+  first), unless the hand has moved the eye. GARAGE_ENV.frame() for the rigs.
+- tools/_hangar_check.js: its four raw NUL bytes (the T43 commit) back to `\u0000` escapes (grep read it as binary).
+GATES (c33bad98): HANGAR 1478 + --selftest (new break: the career leaves the club for the works) PASS; GAMEPREM 582
++ --selftest (new rows: a career club = bay + 1, the works + 2, the sandbox + 2; the lift fills two and ties the rest
+down; new break caught) PASS; CONTRACTS PASS; A0's CPU window 11 Oct 13:40: DESTTO (3 shards, 434 s), UISMOKE, PARKED,
+VIEW PASS (reports/evidence/WORKS-COZY/t44_1035.log); then singly: PLAYER, ACCEPT, ECON, FREIGHT, PILOTS PASS. OWED (the
+window's end): MAP_SMOKE and SAVE not run; PROCURE exited 0 with no verdict line read. No still taken (the user, 11 Oct:
+no evidence screenshots) - the framing fix is proven by its arithmetic and the gates, not by a picture.
+
+READY for the GAME COORDINATOR: claude/works-club-g2319 c33bad98 (this section rides one docs commit on top)
