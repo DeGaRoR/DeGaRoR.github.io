@@ -105,6 +105,13 @@ gives the **round head** and the round outside of every bend for free; `butt` sq
   list**, not rasterised triangles. This avoids the 0.15 m flat-bag trap and is cheaper. The same list is the
   CHARACTERS walkers' surfaces.
 - Boats are obstacle boxes, so a taxiing seaplane hits them.
+- **Boats in the slips are part of the float feature** (batched instances), not `objects[]`. They follow
+  BIOME-PAINT's waterline convention for placed objects: draft below the surface (`waterline`, here the hull
+  prototype's own draft) and a gentle bob in flight. The bob goes in the boat material's vertex shader, with a phase
+  from the instance's position, so no matrix is re-uploaded.
+- A hand-placed boat (`objects[]` with `on: 'water'`) stays SCENERY-ED-2's, built by `PG.objectRecord`.
+- One difference on purpose: slip boats DO take an obstacle hit, because a seaplane taxiing through a marina must
+  not pass through the boats.
 - The footprint (toe polygon) excludes plots and trees and stamps the rock surface and ttype: the four layers
   Metlakatla authors by hand today come from one entry.
 
