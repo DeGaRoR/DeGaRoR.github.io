@@ -2966,6 +2966,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // down to the sea. The sea's own surface takes the mouth; the carved bed shows on the beach. 22 of 846
           // cross-sections on Jolene, every one at a mouth.
           if (coastOf && (coastOf(spts[i][0], spts[i][1]) < 20 || coastOf(spts[i + 1][0], spts[i + 1][1]) < 20)) continue;
+          // ...AND WHERE IT RUNS INTO A LAKE, THE LAKE'S (G2916, the user 11 Oct: "very strange MIRROR RECTANGLES hovering
+          // about a meter above the water"): a reach that runs along or into a lake keeps the hydrology's river level, which
+          // stands over the lake's drawn surface - its segments hung over the lake in the water's own material, a row of
+          // floating mirrors along the shore. A segment with an end inside a DRAWN lake (or within 3 m of its edge, the
+          // lake's own fade) is not drawn: the lake's surface takes the water there, as the sea takes a mouth.
+          if (lakeR && (lakeRsd(spts[i][0], spts[i][1]) > -3 || lakeRsd(spts[i + 1][0], spts[i + 1][1]) > -3)) continue;
           const a = base + i * 2;
           idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
         }
@@ -5321,6 +5327,30 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // them is a replant of both layers (W0c.31 - "furnished does not seem
       // to work": the dial moved a number nothing re-read)
       TREE_MIX.apply = () => { plantWoodland(); evictAll(); };
+      // G2890: THE EXCLUSIONS THE RING WAS WALKED WITH (27_premises.js treeExRegions: key -> world box). exRegrow() reads the
+      // overlay's list now, and every chunk a region added or removed touches goes (its walk and build start again from
+      // the queue, nearest first); returns how many went. The first call only takes the list.
+      let exPlanted = null;
+      const exRegrow = () => {
+        const O = world.premises && world.premises.overlay, now = new Map();
+        for (const r of (O && O.treeExRegions ? O.treeExRegions() : [])) now.set(r.k, r);
+        const was = exPlanted; exPlanted = now;
+        if (!was) return 0;
+        const ch = [];
+        for (const [k, r] of now) if (!was.has(k)) ch.push(r);
+        for (const [k, r] of was) if (!now.has(k)) ch.push(r);
+        if (!ch.length) return 0;
+        let n = 0;
+        for (const [k, c2] of chunks) {
+          const x0 = c2.cx * CH, z0 = c2.cz * CH, x1 = x0 + CH, z1 = z0 + CH;
+          if (!ch.some(r => r.x1 >= x0 && r.x0 <= x1 && r.z1 >= z0 && r.z0 <= z1)) continue;
+          if (cur && cur.c2 === c2) cur = null;
+          dropPart(c2.base); dropPart(c2.fill); chunks.delete(k); n++;
+        }
+        STAT.exRegrown = (STAT.exRegrown || 0) + n;
+        return n;
+      };
+      try { exRegrow(); } catch (e) { exPlanted = null; }   // the list the ring is first walked with
       const evictAll = () => {
         cur = null;                        // whatever was being walked is gone with the rest
         for (const [k, c2] of chunks) { dropPart(c2.base); dropPart(c2.fill); chunks.delete(k); }
@@ -5446,7 +5476,15 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); reachRefresh(); return r; },
           reach: () => reachRefresh(),   // G908: re-read what the map can reach (after a premises re-stamp); true when it grew
           // G1385: after a premises edit (app.js onRebuilt) - the cover polygons' vegetation re-read; replants only when it changed
-          vegChanged: () => { if (!BIO) return false; vegSync(); if (vegSigNow === vegPlanted) return false; vegPlanted = vegSigNow; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return true; },
+          // G2890 (SCENERY-ED-1): ...and the tree EXCLUSIONS - a polygon removed, shrunk, moved or added, a strip moved or
+          // deleted - regrow (or clear) the chunks under it at once: the regions both compositions name are diffed and
+          // only the chunks a changed one touches are evicted (the streamer walks them again with the new excludes)
+          vegChanged: () => {
+            const exN = exRegrow();
+            if (!BIO) return exN > 0;
+            vegSync(); if (vegSigNow === vegPlanted) return exN > 0;
+            vegPlanted = vegSigNow; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return true; },
+          exRegions: () => Array.from(exPlanted.values()),
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
           // proportion / dead / density / patch / size, or the forest's count / under / rocks /
           // blotch - the fill re-pools and replants, the ring replants; the export carries it
