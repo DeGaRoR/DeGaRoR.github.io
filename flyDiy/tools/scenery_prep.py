@@ -386,7 +386,10 @@ if ROUTE == 'scan':
     r2 = collapse('keep')
     passes.append(dict(dev_rep(r2), tris=tris_of(lo), protected=len(hit)))
     log('pass 2', passes[-1])
-    if passes[1]['max'] > passes[0]['max'] or passes[1]['tris'] > TARGET * 1.03:
+    # pass 2 is kept for a LOWER worst case, or the same worst case and a lower p99 (the heating plant's
+    # dry run: both 25 cm worst, pass 2's p99 5.4 cm against 4.6 - pass 1 is the better cut)
+    p1, p2 = passes
+    if p2['tris'] > TARGET * 1.03 or (p2['max'], p2['p99']) >= (p1['max'], p1['p99']):
         lo.data = welded
         lo.vertex_groups.clear()
         collapse()
