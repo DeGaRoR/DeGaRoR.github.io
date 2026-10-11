@@ -31,7 +31,7 @@ const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome'].find(p => fs.existsSync(p));
 if (!CHROME) { console.error('cowl_fit_shots: no Chrome'); process.exit(2); }
 const udd = path.join(require('os').tmpdir(), 'cdp_cowlfit_' + PORT + '_' + Date.now());
-const ch = spawn(CHROME, ['--headless=new', '--remote-debugging-port=' + PORT, '--window-size=1600,1000', '--hide-scrollbars',
+const ch = spawn(CHROME, ['--headless=new', '--remote-debugging-port=' + PORT, '--window-size=1920,1080', '--hide-scrollbars',
   '--no-first-run', '--user-data-dir=' + udd, '--disable-gpu-sandbox', 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => res(JSON.parse(b))); }).on('error', rej); });
@@ -57,7 +57,7 @@ const written = [];
     written.push(path.resolve(f)); console.log('cowl_fit_shots: wrote ' + f);
   };
   await cmd('Page.enable'); await cmd('Runtime.enable');
-  await cmd('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   await cmd('Page.navigate', { url: URL });
   let up = false;
   for (let i = 0; i < 90 && !up; i++) { await sleep(1000); up = await ev("!!(window.CAGE_UI && window.CAGE_DESIGN && window.GARAGE_SPEC && window.FLIGHT_PROBE)").catch(() => false); }
@@ -68,7 +68,7 @@ const written = [];
   for (let i = 0; i < 30; i++) { if (await ev("!!window.COWL_FIT")) break; await sleep(1000); }
   if (!(await ev("!!window.COWL_FIT"))) throw new Error('this page has no COWL_FIT: a stale tree or the editor never loaded');
   await sleep(2000);
-  const VIEWS = { side: [Math.PI / 2, 0.06, 9], q34: [0.62, 0.16, 6.5] };
+  const VIEWS = { side: [Math.PI / 2, 0.05, 12], q34: [0.7, 0.15, 8.5] };
   for (const key of CARDS) {
     for (const state of ['before', 'after']) {
       const got = await ev("(()=>{const D=window.CAGE_DESIGN,a=D.ARCHETYPES.find(x=>x.key==='" + key + "');if(!a)return null;" +
@@ -81,6 +81,8 @@ const written = [];
       await sleep(WAIT);
       await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click());return 1})()");
       await ev("(()=>{const e=document.getElementById('edWrap');if(e)e.style.visibility='hidden';for(const b of document.querySelectorAll('button')){if(/^‹(Properties|Parts)$/.test(b.textContent.trim()))b.click();}return 1})()");
+      // THE AEROPLANE ALONE (garage_shot --clean): every element off the canvas's own ancestor line hidden
+      await ev("(()=>{const c=document.querySelector('canvas');const keep=new Set();let e=c;while(e){keep.add(e);e=e.parentElement;}document.querySelectorAll('body *').forEach(el=>{if(!keep.has(el)&&!el.contains(c))el.style.visibility='hidden';});if(window.FLIGHT_PROBE&&FLIGHT_PROBE.balanceShow)try{FLIGHT_PROBE.balanceShow(false)}catch(e){}window.dispatchEvent(new Event('resize'));return 1})()");
       for (let i = 0; i < 30; i++) { if (await clear()) break; await sleep(1000); }
       await sleep(2000);                                   // the rule: overlay gone + 2 s
       const stat = await ev("JSON.stringify(window.CAGE_COWL?{len:+window.CAGE_COWL.len.toFixed(3),mode:window.CAGE_COWL.mode}:null)");
@@ -90,7 +92,7 @@ const written = [];
         await ev("FLIGHT_PROBE.camSet(" + p.join(',') + "), 1"); await sleep(1800);
         await shot(key + '_' + state + '_' + v);
       }
-      await ev("(()=>{const e=document.getElementById('edWrap');if(e)e.style.visibility='';return 1})()");
+      await ev("(()=>{document.querySelectorAll('body *').forEach(el=>{if(el.style.visibility==='hidden')el.style.visibility='';});return 1})()");
     }
   }
   fs.writeFileSync(OUT + '_index.txt', written.join('\n') + '\n');
