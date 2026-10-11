@@ -205,10 +205,12 @@ const rollOut = async () => {
       const c = row.querySelector('input[type=color]'); c.value = '#2255cc'; c.dispatchEvent(new Event('input', { bubbles: true }));
       await new Promise(r => setTimeout(r, 900)); EDITOR_SET_VIEW('shape'); await new Promise(r => setTimeout(r, 500));
       const S = (CAGE_UI.finishToSpec() || {}).sections || {}; const t = k => S[k] && S[k].tint != null ? '#' + (S[k].tint >>> 0).toString(16).padStart(6, '0') : 'none';
-      return { body: t('body'), waistband: t('waistband'), floorLoop: t('floorLoop'), ceilingLoop: t('ceilingLoop'), pillarCabin: t('pillarCabin') };`) });
+      return { body: t('body'), waistband: t('waistband'), floorLoop: t('floorLoop'), ceilingLoop: t('ceilingLoop'), pillarCabin: t('pillarCabin'), wingSkin: t('wingSkin'), finSkin: t('finSkin'), finRud: t('finRud'), stabSkin: t('stabSkin'), spinner: t('spinner') };`) });
     await rollOut(); didFlight = true;
     if (STEPS.includes('paint')) { await hideUi(); await run(`FLIGHT_PROBE.camMode('orbit'); FLOWN_BAKE.FB.hyForce = 1; return 1;`);
-      await view('p_paint_canopy', 0.2, 0.45, 3.0); await view('p_paint_canopy2', 2.9, 0.4, 3.0); }
+      await view('p_paint_canopy', 0.2, 0.45, 3.0); await view('p_paint_canopy2', 2.9, 0.4, 3.0);
+      // the whole aircraft (the user: 'include wings and tail too'): from above, and from behind over the tail
+      await view('p_paint_top', 0.8, 0.9, 9.0); await view('p_paint_tail', 3.14, 0.35, 7.0); }
     await hideUi();
     await run(`FLIGHT_PROBE.camMode('orbit'); FLOWN_BAKE.FB.hyForce = 1; window.__m0 = JSON.stringify(AEROWX.AERO_WX.macro); return 1;`);
     const key = (code, down) => run(`window.dispatchEvent(new KeyboardEvent('${down ? 'keydown' : 'keyup'}', { code: '${code}', bubbles: true })); return 1;`);

@@ -14,13 +14,16 @@
 //   rule 1  a section that wore the old base wears the new one — an
 //           override equal to it, or no override anywhere up a chain that
 //           ends at the body (a strut wearing the fuselage's paint);
-//   rule 2  a LAYER section whose override chain gave it a colour of its
-//           own (the wing, the tail) keeps it;
+//   rule 2  a layer section OUTSIDE the airframe's livery family (the
+//           propeller, the spinner, the engine: its chain never reaches the
+//           body) whose override gave it a colour of its own keeps it;
 //   rule 3  (G2750, the user: "changing the global paint again should just
 //           plain repaint the aircraft") every exterior CAGE section (skin,
-//           rail bands, frame bands) and every part that wears the body takes
-//           the new base WHATEVER it wore - a hand colour, the stock Cub's
-//           black waist stripe on a bubble's sill band.
+//           rail bands, frame bands), every part that wears the body and (the
+//           user: "include wings and tail too") every layer section whose
+//           chain reaches the body - the wings, the tail, the booms, the
+//           floats - takes the new base WHATEVER it wore: a hand colour, the
+//           stock Cub's black waist stripe on a bubble's sill band.
 // NEGATIVE-VERIFIED: the pre-G1320 reach (the layer step dropped) must FAIL
 // rule 1 on the Cub's rudder, or the check proves nothing.
 'use strict';
@@ -75,7 +78,7 @@ function pick(spec, reach, NEW, cons) {
     before[s] = wears(map, s, cons);
     own[s] = overridden(map, s);
     const row = A.AERO_SEC[s];
-    const plain = CAGE.includes(s) || !!(row && (row.wears === 'parent' || row.finFollows));   // rule 3
+    const plain = CAGE.includes(s) || !!(row && (row.wears === 'parent' || row.finFollows)) || chainOf(s).slice(1).includes('body');   // rule 3
     follows[s] = plain || (own[s] ? (before[s] != null && EQ(before[s], prev))
                                   : chainOf(s).includes('body'));
   }
@@ -118,8 +121,11 @@ for (const [tag, [key0, cons]] of Object.entries(STOCK)) {
   A.aeroBaseReach(map, map.body, NEW, null, EQ, CAGE); map.body = NEW;
   ok(EQ(map.waistband, NEW), 'rule 3: the Mosquito sill band (waistband ' + hex(0x262626) + ') takes the global paint, got ' + hex(map.waistband));
   ok(EQ(map.floorLoop, NEW), 'rule 3: a band set by hand takes the global paint, got ' + hex(map.floorLoop));
-  ok(EQ(map.wingSkin, 0x00aa00), 'rule 2: the wing own colour holds, got ' + hex(map.wingSkin));
-  console.log('mosquito: waistband ' + hex(0x262626) + ' -> ' + hex(map.waistband) + ', hand band -> ' + hex(map.floorLoop) + ', wing ' + hex(map.wingSkin));
+  const wing = A.aeroSecResolve('wingSkin', { tint: map }, { cons: 'carbon' }).tint, rud = A.aeroSecResolve('finRud', { tint: map }, { cons: 'carbon' }).tint;
+  ok(wing != null && EQ(wing, NEW), 'rule 3: the wing set by hand wears the global paint, got ' + hex(wing));
+  ok(rud != null && EQ(rud, NEW), 'rule 3: the rudder wears the global paint, got ' + hex(rud));
+  ok(EQ(map.spinner, 0x383838), 'rule 2: the spinner (not the airframe paint) keeps its own colour, got ' + hex(map.spinner));
+  console.log('mosquito: waistband ' + hex(0x262626) + ' -> ' + hex(map.waistband) + ', hand band -> ' + hex(map.floorLoop) + ', hand wing -> ' + hex(wing) + ', rudder -> ' + hex(rud) + ', spinner ' + hex(map.spinner));
 }
 // the negative: the old reach leaves the Cub's rudder behind
 {

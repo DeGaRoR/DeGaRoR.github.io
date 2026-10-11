@@ -1098,17 +1098,35 @@ function aeroFinishLegacy(sections) {
 // frame bands: the stock Cub's black waist stripe, inherited by every build made from it, was the dark band round a
 // bubble that no pick reached) and every part that wears the body (the cowl, the struts, the fairings, the
 // fittings), set by hand or not. G468's "a hand colour survives the base" is withdrawn for these by that ruling; the
-// wells still override a section AFTER a pick. A layer part with its own colour (the wing, the tail) is not the base's
-// to repaint and keeps G1320's rule: it follows only if it was following.
+// wells still override a section AFTER a pick. ...AND THE WINGS AND THE TAIL (the user: "include wings and tail too" -
+// one global paint is the whole aircraft): every layer part of the airframe's livery family (its chain reaches the
+// body: the wings and their surfaces, the fin, the stab, the booms, the floats, the gear) drops its own colour and
+// follows the body; a row that walks its own name only (tintOwn, the float's deck) takes the pick itself. What is not
+// the airframe's paint (the propeller, the spinner, the engine, the seats, the crew) keeps G1320's rule: it follows
+// only if it was following. Decals and the registration are not paint and are not touched.
 function aeroBaseReach(map, prev, next, neutral, eq, names) {
   const same = (a, b) => a == null ? b == null : (b != null && eq(a, b));
   const put = k => {
     if (next == null || (neutral != null && eq(next, neutral))) delete map[k]; else map[k] = next; };
-  // the layer verdicts first, on the untouched map
+  const reachesBody = k => {
+    for (let s = AERO_SEC[k] && AERO_SEC[k].parent, n = 0; s != null && n < 9; n++) {
+      if (s === 'body') return true;
+      if (!AERO_SEC[s]) return false;
+      s = AERO_SEC[s].parent;
+    }
+    return false;
+  };
+  // the airframe's livery family: repainted whatever it wore (G2750)
+  for (const k in AERO_SEC) {
+    const row = AERO_SEC[k];
+    if (row.wears === 'parent' || row.finFollows || !reachesBody(k)) continue;
+    if (row.tintOwn) put(k); else delete map[k];
+  }
+  // the layer verdicts for the rest, on the map as it stands
   const layer = [];
   for (const k in AERO_SEC) {
     const row = AERO_SEC[k];
-    if (row.wears === 'parent' || row.finFollows || row.tintOwn) continue;
+    if (row.wears === 'parent' || row.finFollows || row.tintOwn || reachesBody(k)) continue;
     if (map[k] == null || !same(map[k], prev)) continue;
     let s = row.parent, toBody = false;
     for (let n = 0; s != null && n < 9; n++) {

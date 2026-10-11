@@ -81994,13 +81994,18 @@ when it was FOLLOWING (unset, or equal to the base it replaced - G468, "a hand c
 waist stripe (0x262626), inherited by every build made from it, differs from any base, so it counted as the builder's own
 and no pick ever reached the band round a bubble. Now every exterior cage section (skin, rail bands, frame bands) and
 every part that wears the body (the cowl, the struts, the fairings, the fittings, the floats) TAKES the pick, a hand
-colour too; the wells still override a section after it. A layer part with its own colour (the wing, the tail) is not
-the base's to repaint and keeps G1320's follow-only rule. The base metallic and roughness ride the same reach, so they
+colour too; the wells still override a section after it. ...AND THE WINGS AND THE TAIL (the user, the same night:
+"include wings and tail too" - one global paint is the whole aircraft): every layer section of the airframe's livery
+family (its chain reaches the body: the wings and their surfaces, the fin, the rudder, the stab, the elevators, the
+booms, the floats, the gear) drops its own colour and follows the body; the float's deck (tintOwn) takes the pick
+itself. G1320's follow-only rule stays only for what is not the airframe's paint (the propeller, the spinner, the
+engine, the seats, the crew). The base row's tip says "one colour for the whole aircraft". The base metallic and roughness ride the same reach, so they
 repaint the same way. Decals and the registration are not paint and are untouched. A first cut that kept hand colours
 (a provenance mark per section) was dropped on the user's correction before it was committed. GATE LIVERYREACH: rule 2
-narrowed to the layer parts, rule 3 added (every cage section and body-wearing part takes the new base whatever it
-wore), and the user's own case run on the fixture - the Mosquito's sill band 0x262626 -> the pick, a band painted by
-hand -> the pick, the wing's own colour held.
+narrowed to the parts outside the airframe's paint, rule 3 added (every cage section, body-wearing part and
+airframe layer section takes the new base whatever it wore), and the user's own case run on the fixture - the
+Mosquito's sill band 0x262626, a band painted by hand, a wing painted by hand and the rudder -> the pick; the spinner's
+own 0x383838 held.
 
 **PERF.** No new per-frame CPU work; on the GPU one vec4 attribute fetch and a select in the skin's vertex stage; the
 skylight frames are merged into an existing draw; the overlay's order costs nothing. Same-window sanity line (rAF-capped, not a bench), master -> G2750: garage 16.74 / p95 31.3 -> 16.75 / 31.5 ms, taxi 16.73 / 35.4 -> 16.55 / 34.8 ms. A0's train battery is the ratchet.
