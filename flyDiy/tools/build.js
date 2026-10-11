@@ -325,7 +325,10 @@ const MANIFEST = {
          ['src/viewer', 'map_pack.js'], ['src/viewer', 'map_menu.js'],
          // G2345 (FREIGHT-LOAD): THE LOADING VIEW - fetched when the LOAD entry is pressed (the entry exists only under
          // ?career=1 with a tracked cargo job, or ?freight=1); app.js's FREIGHT page half is its host
-         ['src/viewer', 'freight_load.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+         ['src/viewer', 'freight_load.js'],
+         // G2970 (CHARACTERS): THE CROWD - the passengers who walk to the door and board; fetched with the first
+         // passengers at a stand (its cast and clips from src/chars/crowd_pack.json, media/), never before
+         ['src/viewer', 'crowd.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // THE SOUND'S MODULES (G1600, SOUND-2026-10-04 §2.1): src/viewer/audio/'s AudioWorklet modules. The audio thread loads
   // a module BY URL (ctx.audioWorklet.addModule), so they are never inlined and never a <script> tag: each is served as
   // its own file and the build publishes the content-versioned URLs as window.FLYDIY_AUDIO_SRC (stem -> url, in both
