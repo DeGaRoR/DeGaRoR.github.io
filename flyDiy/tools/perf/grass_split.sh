@@ -33,3 +33,6 @@ run node tools/perf/grass_cost.js --gpu --noshots --q grassfield=0 --out $E/spli
 run node tools/perf/grass_cost.js --noshots --q grassfield=1 --out $E/split/a_sides_cap --preset gamer --views $V --udd C:/grc_after_gamer --warm && log "a cap done"
 run node tools/perf/grass_cost.js --noshots --q grassfield=1 --eval $E/split/eval_b.js --out $E/split/b_today_cap --preset gamer --views $V --udd C:/grc_after_gamer --warm && log "b cap done"
 run node tools/perf/grass_cost.js --noshots --q grassfield=0 --out $E/split/c_off_cap --preset gamer --views $V --udd C:/grc_after_gamer --warm && log "c cap done"
+# d) the trees: the branch's rwyTrees 'map' default against 'today' (the page parses ?rwytrees), everything else as a) - the woods nearer
+# HOME's stand are the other candidate for a loop rise (the fill, the scene, the shadow)
+run node tools/perf/grass_cost.js --noshots --q "grassfield=0&rwytrees=today" --out $E/split/d_off_today_cap --preset gamer --views $V --udd C:/grc_after_gamer --warm && log "d cap done"
