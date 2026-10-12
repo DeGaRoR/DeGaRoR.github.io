@@ -221,9 +221,22 @@ if (argv[0] === '--build') {
         S.detachedSkin = Math.max(S.detachedSkin, dv);
       }
     }
-    // the sets at the end, past the window (the host's last send)
-    for (let j = 0; j < 7; j++) { simW.step(1 / 60); simI.step(1 / 60); const PI = SH.simDmgHop(simI, hopI, core, 0); if (PI) SV.simViewDmgApply(stI, PI); const m2 = H.meta(); if (m2.dmgB) SV.simViewDmgApply(stW, v8.deserialize(v8.serialize(m2.dmgB))); }
-    S.setsEnd = stI.set.every((x, i) => x === stW.set[i]);
+    // the sets at the end, past the window (the host's last send). G2640 (for Deform's review): compared once the host
+    // has CAUGHT UP - its last send carries the inline hop's own signature, at least 7 steps on (past its 0.1 s window)
+    // - and at most 1 s on. A wreck still yielding at a fixed 7th step was compared mid-flow (the inline copy holds
+    // this step's sets, the host's its last send's, up to 0.1 s old: the floats' shell parted at its root and its loose
+    // tail still working read a mismatch with the two sims bitwise equal). A wreck that never quiets inside the second
+    // is judged at the host's last send (the sets equal there, as the loop's own row does). At rest: the same 7th step.
+    let hostSS = null, sameAtSend = true;
+    for (let j = 0; j < 60; j++) {
+      simW.step(1 / 60); simI.step(1 / 60);
+      const PI = SH.simDmgHop(simI, hopI, core, 0); if (PI) SV.simViewDmgApply(stI, PI);
+      const m2 = H.meta();
+      if (m2.dmgB) { SV.simViewDmgApply(stW, v8.deserialize(v8.serialize(m2.dmgB))); if (m2.dmgB.sS) hostSS = m2.dmgB.sS;
+                     if (m2.dmgB.st) sameAtSend = stI.set.every((x, i) => x === stW.set[i]); }
+      if (j >= 6 && (hostSS === null || hostSS === hopI.sS)) break;
+    }
+    S.setsEnd = (hostSS === null || hostSS === hopI.sS) ? stI.set.every((x, i) => x === stW.set[i]) : sameAtSend;
     for (const r of recs) { S.removedG += r.RG.removed; S.tornG += r.RG.torn; S.removedC += r.RC.removed; S.tornC += r.RC.torn; }
     const Dm = simI.damage();
     S.nb = Dm.broken.length; S.crashed = Dm.crashed; S.reason = Dm.reason; S.groups = Dm.groups.map(g => g.key);
