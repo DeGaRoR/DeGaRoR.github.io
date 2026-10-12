@@ -221,22 +221,29 @@ if (argv[0] === '--build') {
         S.detachedSkin = Math.max(S.detachedSkin, dv);
       }
     }
-    // the sets at the end, past the window (the host's last send). G2640 (for Deform's review): compared once the host
-    // has CAUGHT UP - its last send carries the inline hop's own signature, at least 7 steps on (past its 0.1 s window)
-    // - and at most 1 s on. A wreck still yielding at a fixed 7th step was compared mid-flow (the inline copy holds
-    // this step's sets, the host's its last send's, up to 0.1 s old: the floats' shell parted at its root and its loose
-    // tail still working read a mismatch with the two sims bitwise equal). A wreck that never quiets inside the second
-    // is judged at the host's last send (the sets equal there, as the loop's own row does). At rest: the same 7th step.
-    let hostSS = null, sameAtSend = true;
+    // the sets at the end, past the window (the host's last send). G2640 (reviewed by Deform): judged once the host has
+    // CAUGHT UP - its last applied signature (stW.sS) equals the inline's (stI.sS), 7 steps at least (past the host's
+    // 0.1 s set window). The host flushes on the trailing edge (sim_host simDmgHop: a changed signature is sent once
+    // its window has passed, changing or not), so once the INLINE has been quiet for the window + 2 steps the host MUST
+    // have caught up - if not, that is a FAIL (the host never flushed its last set), never a judgement at its last send.
+    // Only a wreck that never goes quiet inside a second is judged at the host's last send (the sets equal there, as
+    // the loop's own row does). A wreck still yielding at a fixed 7th step was compared mid-flow (the floats' shell
+    // parted at its root, its loose tail working: the host's held window read as a mismatch, the sims bitwise equal).
+    // At rest it ends at the same 7th step - the old verdict.
+    const QUIET = Math.ceil(0.1 * 60) + 2;       // sim_host SIM_DMG_SET_S at 60 Hz, + 2 steps
+    let quiet = 0, lastIS = stI.sS, sameAtSend = true, endV = null;
+    S.flushLost = false;
     for (let j = 0; j < 60; j++) {
       simW.step(1 / 60); simI.step(1 / 60);
       const PI = SH.simDmgHop(simI, hopI, core, 0); if (PI) SV.simViewDmgApply(stI, PI);
       const m2 = H.meta();
-      if (m2.dmgB) { SV.simViewDmgApply(stW, v8.deserialize(v8.serialize(m2.dmgB))); if (m2.dmgB.sS) hostSS = m2.dmgB.sS;
-                     if (m2.dmgB.st) sameAtSend = stI.set.every((x, i) => x === stW.set[i]); }
-      if (j >= 6 && (hostSS === null || hostSS === hopI.sS)) break;
+      if (m2.dmgB) { SV.simViewDmgApply(stW, v8.deserialize(v8.serialize(m2.dmgB))); if (m2.dmgB.st) sameAtSend = stI.set.every((x, i) => x === stW.set[i]); }
+      if (stI.sS === lastIS) quiet++; else { quiet = 0; lastIS = stI.sS; }
+      const caught = stW.sS === stI.sS;
+      if (j >= 6 && caught) { endV = stI.set.every((x, i) => x === stW.set[i]); break; }
+      if (quiet >= QUIET && !caught) { endV = false; S.flushLost = true; break; }
     }
-    S.setsEnd = (hostSS === null || hostSS === hopI.sS) ? stI.set.every((x, i) => x === stW.set[i]) : sameAtSend;
+    S.setsEnd = endV === null ? sameAtSend : endV;
     for (const r of recs) { S.removedG += r.RG.removed; S.tornG += r.RG.torn; S.removedC += r.RC.removed; S.tornC += r.RC.torn; }
     const Dm = simI.damage();
     S.nb = Dm.broken.length; S.crashed = Dm.crashed; S.reason = Dm.reason; S.groups = Dm.groups.map(g => g.key);
@@ -306,7 +313,7 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
       const S = c.S;
       console.log('  ' + c.label + ': ' + (S.crashed ? 'CRASHED (' + S.reason + ')' : 'no crash') + ', ' + S.nb + ' broken, ' + S.breakFrames + ' frames with a new break, the skin checked on ' + S.frames + ' frames; pieces up to ' + S.pieces);
       yes(S.mismatch === 0, 'the hop: inline and through the worker the same broken list and pieces at every one of ' + S.steps + ' steps' + (S.firstMis ? ' - FIRST MISMATCH ' + JSON.stringify(S.firstMis) : ''));
-      yes(S.setsEnd && S.setMis === 0, 'the hop: the sets the same whenever the host sends them, and at the end past its window');
+      yes(S.setsEnd && S.setMis === 0, 'the hop: the sets the same whenever the host sends them, and at the end past its window' + (S.flushLost ? ' - THE HOST NEVER FLUSHED ITS LAST SET (the inline quiet past its window, the host behind)' : ''));
       yes(S.piecesMis === 0, 'the hop\'s pieces are DMG-D1b\'s (the gate\'s own union-find of the live members and clusters) on every frame');
       yes(S.hop.sends > 0 && S.hop.bytes > 0, 'the hop\'s cost in the crash: ' + S.hop.sends + ' payloads over ' + S.steps + ' snapshots, ' + S.hop.bytes + ' bytes (' + S.hop.perSend + ' a payload), ' + S.hop.ms + ' ms building them');
       if (S.frames) {
