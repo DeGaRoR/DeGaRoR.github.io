@@ -86274,3 +86274,130 @@ user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's
   - freight strapped on the flown aircraft;
   - the club works;
   - night ops.
+
+## G3070 - ROUTE-LAZY: THE DRAWN ROUTE'S DRAWING OUT OF THE PAGE - route_draw.js AS route_draw.<h8>.js BESIDE index.html, FETCHED ON FIRST DEMAND (THE MAP'S DRAW MODE, FLY > drawn route) OR RUN AT BOOT AHEAD OF app.js WHEN AN ARMED ROUTE IS STORED; route_lazy.js KEEPS window.ROUTE_DRAW'S DOORS IN THE PAGE; sw.js CACHE-FIRST + SWEPT; GATES ROUTE C / UISMOKE / LAZY / MEDIA / BUILT EXTENDED (2026-10-12, ROUTE-LAZY for the PILOT COORDINATOR, cloud - node + headless Chromium / SwiftShader; branch claude/route-lazy-g3070 off origin/claude/pilot-44 7ad7e1ee - origin/master 31803829 does not contain 7ad7e1ee; G3071-G3079 unused)
+
+The user's ruling (via A0, 12 Oct): train 44's page step (~+30 KB, index.html 4.03 MiB gz) is accepted by name and
+OWED: "route_draw.js (the FLY > drawn route UI) as a lazy chunk loaded only when the user opens it, like career_core,
+giving the bytes back". **No generated file committed** (index.html, dev.html, sw.js, version.json, tools/flight_core.js,
+career_core.*.js and the new route_draw.<h8>.js are the train's (built) commit's - **that commit must add
+route_draw.<h8>.js beside career_core.<h8>.js**: BUILT's OUTPUTS names it, BUILT_STRICT goes red without it).
+
+**THE BYTES** (each tree built with its own tools/build.js; CRs removed, gz = zlib level 6, as GATE MEDIA measures):
+
+| | bytes | KB | gzipped |
+|---|---|---|---|
+| index.html, base 7ad7e1ee (train 44 = pilot-44) | 12 611 442 | 12 315.9 | 4 215 690 B = 4 116.9 KB (4.02 MiB) |
+| **index.html, this branch** | **12 587 142** | **12 292.1** | **4 208 132 B = 4 109.5 KB (4.01 MiB)** |
+| **given back** | **-24 300 B (-23.7 KB)** | | **-7 558 B (-7.4 KB)** |
+| route_draw.df5cd4af.js (beside the page; on demand / armed boot only) | 32 112 | 31.4 | 10 598 B = 10.3 KB |
+
+route_draw.js leaves the page whole (31.0 KB raw, 10.1 KB gz); what stays in its place is the door, route_lazy.js (4.7 KB,
+~1.9 KB gz: the same doors app.js calls, the fetch-and-run, the stored-draft answers), the boot's armed-route loader
+(1.1 KB) and one promote line - net -23.7 KB raw / -7.4 KB gz.
+
+**38c_route.js AND 44_vprofile.js (item 3) - MEASURED, KEPT INLINE.** 38c_route.js 15 410 B (5.8 KB gz alone),
+44_vprofile.js 17 694 B (6.6 KB gz alone): together 32.2 KB raw / ~12.4 KB gz of the page. Both are core - the page's
+pilot and the worker's (sim_host imports tools/flight_core.js whole) fly them: 43_pilot.js calls routeNormalise (+
+routeNew), routePerf, routeVPerf, routeLegs (+ routeAltMSL, routeGroundAt) and VPROFILE.plan / .at (the one altitude
+planner). **44_vprofile.js: nothing can move** (VPROFILE is the pilot's planner; routeProfile calls the same plan). **38c:
+a drawing-only half CAN move without touching the pilot** - routeSafeAlt, routeSetRef, routeAddPt, routeSpeedOf,
+routeCaptureR, routeVLegs, routeProfile (+ ROUTE_AGL_DEFAULT, ROUTE_SAFE_R): **8 275 B raw / ~3.2 KB gz**, called in the
+page only by route_draw.js (90_node_exports names them for node). NOT done here: it means splitting a core file the
+pilot sessions are in (a 38d_route_draw.js in MANIFEST.core for flight_core / the workers / the gates, cut from the page's
+core and prepended to route_draw.<h8>.js - the career split's mechanism), and MAP-MENU is named as routeProfile's next
+page caller ("the game map can draw one with routeProfile / routeLegs", G2122), which would then have to load the chunk.
+A follow-up if A0 wants the 3.2 KB gz.
+
+**G3070 THE SPLIT** (`tools/build.js`): `MANIFEST.routeDraw = 'route_draw.js'`; MANIFEST.viewer.scripts carries
+`route_lazy.js` in route_draw.js's old place (before app.js). `writeRouteDraw()` writes route_draw.<h8>.js beside the page
+(h8 = sha256 of its bytes; header + src/viewer/route_draw.js verbatim + sourceURL; the build's syntax check, served),
+sweeps any other route_draw.*.js, and OUTPUTS gains it after career_core (GATE BUILT compares seven files; a superseded
+route_draw in the tree is a stray, red). Post-build assertions: index.html carries none of the drawing (its registration
+line, drawProfile's declaration) and its loader names this build's file. **route_draw.js** is wrapped in one IIFE: it
+declares no global, registers `window.ROUTE_DRAW_UI` and binds itself to the page's door (`ROUTE_DRAW.bindUI`) when the
+door is already there. **app.js: two lines** - the attach gains `rail: () => flyOpenSet(flyOpen)` (an action asked before
+the file ran rebuilds the rail once it has, as a pill's pick does) and FLY > drawn route calls `RD.want()` (the section
+unfolded is the first demand). Every other app.js call is unchanged (`typeof ROUTE_DRAW`, the same doors).
+
+**G3070 THE LOAD** (`src/viewer/route_lazy.js`, NEW, inline): `window.ROUTE_DRAW` with the drawing's doors. Until the file
+has run: on() / flying() false, profile() / mapView() null, drawOnMap / tick / setFrame nothing (the drawing draws only
+while open or armed, and an armed route has the file from the boot), route() / armed() / state() read the stored draft
+exactly as the drawing's attach does. **First demand**: setOn(true) (the map's draw mode - FLY > drawn route > "draw on
+the map"), fly(), leave() or want() fetch FLYDIY_ROUTE_SRC once, run it as a script, bind it (attach with app.js's doors),
+then do the asked action and rebuild the rail; a failure is said in the console and the next demand tries again; the page
+tells sw.js to keep the file ({ flydiy: 'route-draw' }). dev.html: FLYDIY_ROUTE_SRC = src/viewer/route_draw.js?v=<h8>.
+
+**HOW THE ARMED ROUTE REACHES THE PILOT** (no visible delay): index.html's `ROUTE_LOADER` (right after CAREER_LOADER, in
+the head, before any script is promoted) reads `localStorage['flydiy.routeDraw']` - `FLYDIY_ROUTE_WANT()`: { fly: true }
+with a route and a point. Only then it fetches route_draw.<h8>.js **in parallel with the island's fetches** (no welcome to
+wait for; 10.3 KB gz against the island's megabytes) and FLYDIY_BOOT waits both; **the promote runs the text right after
+the core** (after the career core when there is one) - before route_lazy.js, which binds it at its evaluation, and before
+app.js, whose first flight's mkPilot calls ROUTE_DRAW.onPilot -> the drawing's own onPilot, as before. The minimap draws
+the armed route before the start, FLY > drawn route says "armed", the rail's terrain warning reads profile() - all the
+drawing's own code. dev.html: the file's tag `data-routedraw` ahead of route_lazy.js, promoted only under the same rule.
+**Belt and braces**: if the file cannot be had (offline with no copy in the worker's cache), the door still hands the
+stored armed record to every new pilot (routeNormalise -> p.flyRoute - the drawing's own rule, core code only): the route
+is flown; only its drawing waits for the next demand. A stored route NOT armed fetches nothing at boot.
+
+**G3070 SW** (sw.js's source in build.js): `ROUTE_KEEP = ['route_draw.<h8>.js']`, `ROUTE_RE`; cache-first for exactly that
+name, cached on the way through and on the page's word (a page that ran it: the drawing opened, or an armed route's
+boot - so an armed route's next boot has it offline); never fetched on install (no URL says a route is armed; the page
+asks); activate sweeps any other route_draw.*. storage.js's header names the exception.
+
+**THE GATES** - `node tools/build.js` then `node --max-old-space-size=2048 tools/run_gates.js --no-build
+--only=ROUTE,UISMOKE,UISMOKE-PHONE,BUILD,MEDIA,SIMWORKER,PLAN,SAVE,BUILT,LAZY --jobs=4`:
+
+| gate | verdict | time |
+|---|---|---|
+| ROUTE (3 shards: A the model, **C the drawing through the built chunk**, B the flights + the personas) | **PASS** | 535 / 567 / 528 s |
+| UISMOKE | **PASS** | 191 s |
+| UISMOKE-PHONE | **PASS** | 34 s |
+| BUILD | **PASS** | 2 s |
+| MEDIA | **FAIL - the wire row only, red on the base too** (below) | 1 s |
+| SIMWORKER | **PASS** | 94 s |
+| PLAN | **PASS** | 368 s |
+| SAVE | **PASS** | 0.5 s |
+| BUILT | **PASS** | 2 s |
+| LAZY (+ the route rows, request lists in headless Chromium) | **PASS** | 143 s |
+
+- **GATE ROUTE C** (`tools/_route_check.js drawing()`, now async; battery awaited): the door (route_lazy.js) and the BUILT
+  route_draw.<h8>.js in a vm with the core's globals, a fetch serving the file beside the page (counted) and a document
+  whose <script> runs its text - the page's own path. Booted: nothing fetched, nothing drawn, nothing armed; the draw mode
+  asked: fetched once, run, the mode on, the rail rebuilt; asked again: not fetched again; the drawing declares no global;
+  then every old row (points at their safe default, inserted into a leg, every edit remembered, FLY arms the pilot, a new
+  flight's pilot handed it); **an armed reload**: the boot's rule read from index.html wants the file, the file run ahead
+  of the door, the route and its arming back, the first pilot handed it, the door fetched nothing; **the file refused**:
+  the stored armed route still reaches the pilot, said, not loaded; a route not armed: the boot wants nothing; leave
+  disarms; the profile clean. **GATE ROUTE B unchanged** (core only - 38c / 43_pilot / 44_vprofile untouched): the Cub,
+  the Jodel, the metal Cessna and the three personas fly the drawn route as before.
+- **UISMOKE**: route_lazy.js runs from its source in the sandbox (FLYDIY_ROUTE_SRC read from index.html's loader; a fetch
+  that records the file and never answers, any other fetch absent as before): the boot without an armed route - the door
+  up, the file never asked for; the FLY census (every fold open) reaches 'draw on the map' and **asks for the file once**.
+- **LAZY** (G2685's gate, extended; `tools/_lazy_check.js`): R1 one route_draw.<h8>.js, its own sha, = route_draw.js
+  verbatim, runs alone with no global; R2 index.html inlines none of it, inlines route_lazy.js, keeps 38c_route.js and
+  44_vprofile.js, its loader names the file; dev.html's data-routedraw tag and promote rule; R3 sw.js in a vm (ROUTE_KEEP,
+  install fetches nothing, the page's word caches it, cache-first, another build's not answered, swept on activate); R4
+  the request lists: **the default boot never requests route_draw** (app.js saw no drawing) and **ROUTE_DRAW.ready()
+  fetches it once and runs it**; **an armed route stored: requested at boot ahead of the promoted payloads, run BEFORE
+  app.js (its setter sees ROUTE_DRAW_UI bound), the drawing has it armed and the first flight's pilot holds it (drawn
+  'armed')**, no page error; sw.js holds it after the visit; **OFFLINE, the armed boot again with its network blocked: run
+  from sw.js's cache before app.js**.
+- **MEDIA**: the route drawing measured beside the page, never counted in it, its own tripwire ROUTE_BUDGET_KB 64:
+  `index.html 12587142 B (12292.1 KB, 4109.5 KB gzipped) · ... · the route drawing route_draw.df5cd4af.js 31.4 KB (10.3
+  KB gzipped; budget 64 KB)`. **The wire row is RED: index.html 4.01 MiB gzipped against WIRE_BUDGET_MIB 4.0** - it was
+  red on the base too (7ad7e1ee: 4.02 MiB, the step the user accepted by name); this cut brings it 7.4 KB gz closer and
+  **13 828 B (13.5 KB) gz still over**. The bound is not loosened. What would close it, measured: the 38c drawing half
+  above (-3.2 KB gz) is not enough alone; the next UI-only candidates by gzipped size in the page are the editor
+  (editor.js 66.5 KB gz, a shed UI), bench.js (27.9 KB gz) and the career's page halves in app.js (G2685's note: ~41 KB) -
+  each its own cut, the coordinator's call. Every other MEDIA row passes.
+- **BUILT**: seven outputs (route_draw.<h8>.js the seventh); a superseded route_draw.* in the tree is a stray.
+
+**THE RIGS**: `tools/route_draw_shot.js` and `tools/perf/route_draw_stills.js` await the drawing (`ROUTE_DRAW.ready()` /
+`want()` + `loaded()`) before driving it. route_draw_shot.js run in the cloud on this build (SwiftShader, the served
+page, real pointer input through the lazy door): the drawing fetched on demand and driven - gestures {"added":3,"moved":true,"afterRight":2,"afterLong":1} (the rig's wanted values), draw / draw_hill / armed stills taken at 426 / 479 / 510 s; the flight leg (up to --fly=900 s) still running at this commit - its result in the READY commit.
+
+**FILES**: src/viewer/route_lazy.js (new), src/viewer/route_draw.js (the IIFE, the registration), src/viewer/app.js (two
+lines), src/viewer/storage.js (comment), tools/build.js, tools/_route_check.js, tools/test_ui_smoke.js, tools/_lazy_check.js,
+tools/_media_check.js, tools/_built_check.js, tools/run_gates.js (LAZY's note), tools/route_draw_shot.js,
+tools/perf/route_draw_stills.js.
