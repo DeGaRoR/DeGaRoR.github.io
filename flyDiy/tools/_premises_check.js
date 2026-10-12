@@ -1619,7 +1619,10 @@ if (SELFTEST) {
     const r2 = base(); r2.layers.roads.push(road({ on: false, bank: 20 }));
     check(JSON.stringify(PG.compose(r2, bumpy).terrainAt(10, 3)) === JSON.stringify(PG.compose(r0, bumpy).terrainAt(10, 3)) && PG.bedOf(r2.layers.roads[0]) === null, '21c a bed `on: false` is no bed');
     const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
-    check(J.layers.roads.every(r => !r.bed), '21c no shipped road carries a bed (the user turns it on)');
+    // (G3014: the user's rev 27 roads r37 / r38 came with a bed - the editor's default for a new road since G2952; a bed stands only
+    //  on a road the user's own save gives one)
+    const bedU = new Set(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev27.json'), 'utf8')).rec.layers.roads.filter(r => r.bed).map(r => r.id));
+    check(J.layers.roads.every(r => !r.bed || bedU.has(r.id)), '21c a shipped road carries a bed only where the user gave it one (' + [...bedU].join(', ') + ')', J.layers.roads.filter(r => r.bed && !bedU.has(r.id)).map(r => r.id).join(' '));
   }
   // 21d METLAKATLA ONE GRID (G2954): its streets one component of shared-waypoint junctions; its connection points named;
   //     a path from one connection point to another runs on its streets; it is not joined to the island's other roads

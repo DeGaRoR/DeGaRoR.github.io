@@ -134,7 +134,8 @@ function check(o) {
       a.id + ' (' + a.name + ', ' + a.len + ' x ' + a.wid + ' m ' + a.surface.word + ', hdg ' + (a.hdg * 180 / Math.PI).toFixed(1) + ' deg): ' +
       rc.per[a.id] + ' px for ' + expect.toFixed(1) + ' px of true area');
   }
-  ok(proj.aerodromes.length === 8, 'the 8 runways are in the projection (' + proj.aerodromes.map(a => a.id).join(', ') + ')');
+  // (G3014: the user's rev 26 / 27 strips w5, w6, w7 shipped - eleven)
+  ok(proj.aerodromes.length === 11, 'the 11 runways are in the projection (' + proj.aerodromes.map(a => a.id).join(', ') + ')');
 
   console.log('THE BUDGET');
   ok(png.length <= 2 * 1024 * 1024, 'the picture ' + (png.length / 1024).toFixed(0) + ' KB <= 2048 KB');
