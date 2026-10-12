@@ -1,7 +1,7 @@
 {
- "what": "a road of the user's saved scenery, shipped (tools/road_ship.py)",
- "save": "Jolene_AFB_rev24_2026-10-11_2030.json",
- "sha256": "e1767c67206e84d601937f4661f6f12ab912e2e6d1ca8e779375e46e1aa62eb5",
+ "what": "a road of the user's saved scenery, shipped (tools/road_ship.py; replaced in place by rev 26's)",
+ "save": "Jolene_AFB_rev26_2026-10-12_0305.json",
+ "sha256": "e75298b709ac09db9224b7991278fcf526cb2e7415b5d86f61ab7bc55405ac44",
  "road": {
   "id": "r1",
   "pts": [
@@ -1010,16 +1010,16 @@
     -23822.94
    ],
    [
-    -7774.12,
-    -23838.27
+    -7773.3,
+    -23828.8
    ],
    [
-    -7734.88,
-    -23836.49
+    -7733.69,
+    -23823.39
    ],
    [
-    -7520.14,
-    -23780.93
+    -7567.36,
+    -23773.88
    ]
   ],
   "w": 7.2,
