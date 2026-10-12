@@ -69,9 +69,9 @@
    G3060 (CARDS-CORNER; the user, 12 Oct: "the certifications, the end of the flight, the crash, all of them should
    appear in the bottom left, not hide the plane"): the arrival card's corner (flight.css #arrCard), over it while it
    shows - it closes itself or on a click */
-body.mode-fly #bAward { left:96px; bottom:96px; width:max(224px, min(340px, calc(25vw - 112px)));
+body.mode-fly #bAward { left:96px; bottom:96px; width:max(260px, min(340px, calc(25vw - 112px)));
   max-height:max(200px, calc(50vh - 112px)); }
-body.mode-fly #bRun { left:96px; bottom:96px; width:max(224px, min(400px, calc(25vw - 112px)));
+body.mode-fly #bRun { left:96px; bottom:96px; width:max(260px, min(400px, calc(25vw - 112px)));
   max-height:max(200px, calc(50vh - 112px)); }   /* (a flown test has no run card today; if one shows, the same place) */
 /* DMG-D4b (train 41; the user: "no more cards in the middle of the screen, ever. That's for enjoying the crash"): a flight
    that was not certified (a crash, a damaged aeroplane) - its card the crash card's size, clear of the wreck; width capped

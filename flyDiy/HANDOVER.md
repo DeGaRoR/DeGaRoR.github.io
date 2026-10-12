@@ -92667,7 +92667,7 @@ APPEARS without the player asking. Panels the player OPENS stay where they are.
 **What it is now:**
 - **Flight** (`#arrCard`, `body.mode-fly #bAward`, `body.mode-fly #bRun`): `left:96px; bottom:96px`, BESIDE the look rail
   (#flRail: 22 px + a 62 px plate, ten buttons, ~500 px, centred on the height; 41b's corner at 16 px sat ON its lower
-  buttons). Width `max(224px, min(380px, 25vw - 112px))` (award 340, wreck 300 / 22vw - 80), so the right edge stays in
+  buttons). Width `max(260px, min(380px, 25vw - 112px))` (award 340, wreck 300 / 22vw - 80), so the right edge stays in
   the left quarter at 1920. Max-height `max(200px, 50% - 112px)`, so the top stays below the middle; a long card scrolls.
   The arrival card is one column (the plaque's two columns do not fit a corner), with tighter rows, verbs that wrap,
   and a 15 px title. Its title folds it to one line for EVERY ending (41b had this for the wreck only: app.js, one
@@ -92717,3 +92717,28 @@ Not cards, so not moved:
 - **Negative proof:** `--view=` on 41b's own unpatched src/viewer goes red on exactly the rules above, 41b's
   bottom-right wreck award included. `--selftest` catches every old rule, a centring host, and cssText / JS-string
   forms.
+
+**Proof (12 Oct, ~04:48-04:52, GPU lock CARDS):**
+- GATE CARDS: 56 / 56 PASS (Chrome 154, headless, --disable-gpu).
+- At 1920x1080 in flight, every box sits at x 96..436 (the arrival card 96,556 368x428). The rail is at 22..84.
+- Workshop at 1920: x 342..742, top >= 724, inside the view 320..1280.
+- Phone: portrait top >= 452 (the view ends at 338); landscape left 452 (the view ends at 444).
+- D5 (the old rule injected) is caught.
+- `--selftest` PASS (10 / 10); `--view=` on 41b's sources goes red.
+- UISMOKE PASS (`FLYDIY_STALE_OK=1`: 41b's committed flight_core.js is older than its src/core; this branch leaves
+  src/core alone).
+
+**What to watch for:**
+- **The arrival card is smaller.** It has one column and 15 px title. At 1280x720 it is 260 x 248 px and scrolls for
+  a long ending (ten rows + notes). Its title folds it to one line on EVERY ending now, so a player who clicks the
+  title sees the rows vanish (a click unfolds it again).
+- **Two cards, one corner.** In flight, a certificate shows OVER the arrival card in the same corner until it closes
+  (2.8 s for a pass, 9 s for a fail, or on a click). They do not stack side by side.
+- **The workshop's corner.** The run card, then its award, sit at the view's lower-left (`--ws-left` + 22 px). The
+  music's now-playing line (#musicNow, same corner, z 41) is hidden under them while they show. The aeroplane in the
+  garage is wide, so a wingtip can pass behind the card. It still covers far less than the old centred card did.
+- **Narrow window flying (<= 760 px).** The rail scrolls; the sheet starts beside it (left 76 px).
+- **CERT-SLIM G2840** is reworking award()'s content (a 5-number FICHE, an attention list) on its own branch. If the card
+  grows taller than half the view it scrolls. GATE CARDS fails if its rules add a top / % left / centring translate.
+- **For the next result card:** put it bottom-left, or give it an allow-list entry with its reason in
+  tools/_cards_check.js. The scan reads CSS files, CSS in js strings, and cssText statements.
