@@ -84390,6 +84390,7 @@ futureDesigns/SCENERY-POLYGON-2026-10.md.
   view (~365 lamps drawn every frame); a culled chunk's lamps take no point light. GATE PAVEMENT 8f: a 25 km road's
   poles reach its end (dev: 737 poles, the last 18 m from it), the eye at its middle draws 16 of 74 cable chunks and
   15 of 74 lamp meshes.
+- **r1 MOVED TO SCENERY-SHIP (12 Oct 07:30, A0 with the user, option A):** ROAD-GRAPH ships WITHOUT r1 - its 06:30 battery bisected r1 as the cause of PREMISES 21d, PREMCOOK 4 and FRAMECOST's fine-patch share (blocks 54 -> 118, tris 3.6 -> 6.2 M over r1's 30 km band); the fixture and SCENERYED 10/13 are back to before G2956 (byte for byte), tools/road_ship.py + road_cross.js + the kept rev 26 file stay. r1 ships with SCENERY-SHIP (G3010), whose lone-road patch (G3013) answers the patch. The section below is the record of what was done.
 - **THE USER'S ROAD SHIPPED (G2956; the user, 11 Oct: "Please extract my long road to put in official, but this runway
   does not get into anything but my local save before it is fixed").** `tools/road_ship.py` copied r1 of their rev 24
   save - since 12 Oct 03:05 its rev 26 (D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev26_2026-10-12_0305.json, sha256

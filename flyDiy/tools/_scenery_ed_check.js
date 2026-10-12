@@ -352,12 +352,7 @@ if (plots.length) {
   const O10 = PG.compose(rec(), synth, { raster: false }), r1 = rec().layers.roads.find(r => r.id === 'r1'), E = O10.extent;
   check(r1 && r1.pts.every(q => q[0] >= E.x0 && q[0] <= E.x1 && q[1] >= E.z0 && q[1] <= E.z1), '10 the composed extent covers the island road (it ran 12.7 km past the authored one)', JSON.stringify(E));
   const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, OJ = PG.compose(J, synth, { raster: false });
-  // (G2956: the shipped record carries the user's island road r1 now, which runs 7.7 km past the extent it authors - the
-  //  extent grows to cover it, and only for it: without r1 it is the authored one exactly)
-  const J0 = JSON.parse(JSON.stringify(J)); J0.layers.roads = J0.layers.roads.filter(r => r.id !== 'r1');
-  const r1J = J.layers.roads.find(r => r.id === 'r1'), EJ = OJ.extent;
-  check(JSON.stringify(PG.compose(J0, synth, { raster: false }).extent) === JSON.stringify(J.frame.extent), '10 ...and the shipped Jolene record without r1 keeps its own extent exactly (every other feature inside it)');
-  check(r1J && EJ.x0 <= J.frame.extent.x0 && EJ.z0 <= J.frame.extent.z0 && EJ.x1 >= J.frame.extent.x1 && EJ.z1 >= J.frame.extent.z1 && r1J.pts.every(q => q[0] >= EJ.x0 && q[0] <= EJ.x1 && q[1] >= EJ.z0 && q[1] <= EJ.z1), '10 ...with r1 shipped, its composed extent grows over r1 (' + JSON.stringify(EJ) + ')');
+  check(JSON.stringify(OJ.extent) === JSON.stringify(J.frame.extent), '10 ...and the shipped Jolene record keeps its own extent exactly (every feature inside it)');
   ed.select('r1');
   const [tT] = Tm(() => ed.cmd('set', { id: 'r1', patch: { traffic: 12 } }));
   check(R.lastDirty && R.lastDirty.ground === false, '10 the traffic changed is no ground edit (no patch, no ground re-sample)', JSON.stringify(R.lastDirty));
@@ -478,23 +473,6 @@ if (plots.length) {
   let worst = 0, n = 0; for (let i = 0; i < line.length; i += 2) { const w = Ot.frame.toWorld(line[i][0], line[i][1]); worst = Math.max(worst, Math.abs(Ot.terrainAt(w[0], w[1]) - On.terrainAt(w[0], w[1]))); n++; }
   check(worst === 0, '12 Metlakatla\'s junction level leaves r1\'s ground profile as it was (' + n + ' samples along its 24.9 km, worst ' + worst.toFixed(4) + ' m)');
   console.log('     12 the user\'s rev 23 (sha256 277abdfa66b254bd): r1 ' + r1raw.pts.length + ' points + handles bit for bit through load, compose + road graph (' + G12.edges.filter(e => e.road === 'r1').length + ' span), save; town put back (' + withTown.layers.roads.filter(r => /^mk_/.test(r.id)).length + ' streets, ' + new Set([].concat(...withTown.layers.roads.map(r => r.nodes || [])).filter(Boolean)).size + ' junction ids): r1\'s ground over ' + n + ' samples differs by ' + worst + ' m from the town without junctions');
-}
-
-// 13 THE USER'S ROAD SHIPPED (G2956; the user, 11 Oct: "Please extract my long road to put in official"): r1 of their rev 26
-//    save (tools/road_ship.py; the entry kept in tools/fixtures/scenery_user_r1_rev26.json with the save's sha256) is the
-//    shipped fixture's r1 bit for bit - every field as saved, nothing else of the save shipped (no strip of theirs) -
-//    and the shipped record loads, composes and saves it unchanged
-{
-  const K = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_r1_rev26.json'), 'utf8'));
-  const FX = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), FL = (FX.premises || FX).layers;
-  const shipped = FL.roads.find(r => r.id === 'r1');
-  check(shipped && JSON.stringify(shipped) === JSON.stringify(K.road), '13 the shipped r1 is the user\'s save\'s r1 bit for bit (' + (K.road.pts || []).length + ' points, save sha256 ' + String(K.sha256).slice(0, 16) + ')');
-  check(!FL.runways.some(w => /^strip [89]$/.test(String(w.name || ''))) && FL.roads.filter(r => r.id === 'r1').length === 1, '13 ...and nothing else of the save: none of its strips');
-  const PJ = PG.unwrap(JSON.stringify(FX)).rec, r1j = PJ.layers.roads.find(r => r.id === 'r1');
-  const same = r => JSON.stringify([r.pts, r.tan || null]) === JSON.stringify([K.road.pts, K.road.tan || null]);
-  check(r1j && same(r1j) && same(PG.unwrap(PG.envelope('t', PJ)).rec.layers.roads.find(r => r.id === 'r1')) && same(PG.compose(PJ, synth, { raster: false }).rec.layers.roads.find(r => r.id === 'r1')), '13 the shipped record loads, composes and saves r1 unchanged');
-  const savePath = 'D:/Dev/flydiy-notes/scenery-backups/' + K.save;
-  if (fs.existsSync(savePath)) check(require('crypto').createHash('sha256').update(fs.readFileSync(savePath)).digest('hex') === K.sha256, '13 (the save on this machine is the one it was taken from)');
 }
 
 // 5 NAMES
