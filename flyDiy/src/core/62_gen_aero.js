@@ -124,7 +124,26 @@ function genStrips(S, fr) {
       ? (z => { const u = (Math.abs(z) - E0.z) / Reff;
                 return Math.max(0, 1 - u * u); })
     : () => 0;
-  const tailWash = mount === 'wing' ? 0 : 1;
+  let tailWash = mount === 'wing' ? 0 : 1;
+  // G2790 ENGINE-CONFIGS: a LAYOUT blows from every disc it has — a nose
+  // engine washes the centre and inboard wing as above, each wing nacelle
+  // that pulls washes the wing about its own station (the strongest wake a
+  // strip sits in), the pusher of a push-pull blows on nothing ahead of it;
+  // the tail flies in the centreline wake whenever there is one (a nose or
+  // a pusher), between the nacelles' wakes not at all.
+  const LAYS = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
+  let wingWashL = wingWash, cWashL = null;
+  if (LAYS) {
+    const nose = S.engAt.some(e => e.mount === 'nose');
+    const nacZ = S.engAt.filter(e => e.mount === 'wing' && e.side < 0 && !e.pushes).map(e => e.z);
+    wingWashL = z => {
+      let w = nose ? washAt(z) : 0;
+      for (const zn of nacZ) { const u = (Math.abs(z) - zn) / Reff; w = Math.max(w, 1 - u * u); }
+      return Math.max(0, w);
+    };
+    cWashL = nose ? 1 : 0;
+    tailWash = S.engAt.some(e => e.mount === 'nose' || e.mount === 'pusher') ? 1 : 0;
+  }
   // c/4 between the spars: weight the front spar by how far the quarter chord
   // sits from the rear one
   const cf = (P.sparRear - 0.25) / (P.sparRear - P.sparFront), cr = 1 - cf;
@@ -192,7 +211,7 @@ function genStrips(S, fr) {
           fIn: fw.F[b], fOut: fw.F[b + 1], rIn: fw.R[b], rOut: fw.R[b + 1],
           w: [[fw.F[b], cf * (1 - t)], [fw.F[b + 1], cf * t],
               [fw.R[b], cr * (1 - t)], [fw.R[b + 1], cr * t]],
-          wash: k === 0 ? wingWash(zc) : wingWash(zc) * fyk,
+          wash: k === 0 ? wingWashL(zc) : wingWashL(zc) * fyk,
           ail: zc > aStart ? kAil : 0, flap: fFrac * kFlap,
           // G185: the plane this strip belongs to, its plane's spar spacing
           // (the Cm0 couple arm) and the quarter-chord weight — the solver
@@ -206,7 +225,8 @@ function genStrips(S, fr) {
   // off the WING's own spar roots, not the fuselage frames — otherwise the
   // centre section's lift stays behind when the wing is moved.
   const cL = PL.wf.L, cR2 = PL.wf.R;
-  const cWash = mount === 'nose' ? 1 : (mount === 'wingTop' && !pushes) ? 0.6 : 0;
+  const cWash = cWashL != null ? cWashL
+    : mount === 'nose' ? 1 : (mount === 'wingTop' && !pushes) ? 0.6 : 0;
   // G274: the strip is what the centre construction leaves of the bay's
   // skin — a half cut lifts on 62 % of the chord, 'removed' on none (the
   // strip is dropped: two half-wings on a bare carry-through)

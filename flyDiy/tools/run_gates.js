@@ -752,6 +752,12 @@ const GATES = [
   // engine stays on its bearer, the bearer stops ringing, the wing root
   // stays put against the firewall. Negative control on the twin fixture.
   { id: 'MOUNT', file: '_mount_check.js', tier: 'core', wall: 130 },
+  // G2790-G2799 ENGINE-CONFIGS (the user, 10 Oct: the Skymaster's nose + pusher, the 3 and 4 engines): the layouts
+  // (60_gen_spec GEN_ENG_LAYOUTS) - the saved builds and single mounts bit-identical to master, the clamp, each layout's
+  // lattice and balance, a Skymaster-alike / three / four flown level and each engine cut on a straight downwind
+  // (centreline: no yaw; the twin fixture the control), the three certify (bench to the ultimate HELD), the join and
+  // the design tiles. Flights and certificates in parallel children (~3-4 min at --jobs=4).
+  { id: 'ENGCONFIG', file: '_engconfig_check.js', tier: 'core', wall: 240 },
   // SND-ENGINE (G1613): the engine part of GATE AUDIO - the worklet run in node under a shim: the
   // firing frequency within 3 % across idle..rated on the five validated engines (48 and 44.1 kHz), no
   // NaN/clip/DC/subnormal, process() allocation-free, seeded, the life driven by the solver, the sound

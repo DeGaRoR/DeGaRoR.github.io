@@ -780,7 +780,7 @@ const CAGE_PARTS = [
     // bucket, which is a home but not an ANSWER.
     sections: ['engBlock', 'engJug', 'engCover', 'engMount'],
     groups: [
-      ['fitted', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engRotate', 'engPylonH',
+      ['fitted', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engNacAt2', 'engRotate', 'engPylonH',
                   'engBlockZ', 'engBlockY', 'engTilt', 'engPower', 'engPreset', 'engY']],   // G477: the thrust line's tilt
       // THE STAND FIRST (2026-09-03, the user: "the stand is very important for
       // engine placement"): the mount's stand-off is the engine's fore / aft seat

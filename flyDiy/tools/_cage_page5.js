@@ -946,7 +946,7 @@ window.CAGE_PAGE = {
       // (2026-09-04: wherever the pod ENDS at the bulkhead — a rod boom or twin
       // booms of either construction — and no pusher sits on it)
       ['aeroAftOn', 'aero aft',        0, 1, 1,
-       { when: P => (+P.boomStyle === 1 || +P.boomTwin) && Math.round(P.engMount || 0) !== 1 }],
+       { when: P => (+P.boomStyle === 1 || +P.boomTwin) && ![1, 4].includes(Math.round(P.engMount || 0)) }],
       ['aeroAftLen', 'aero aft length', 0.3, 2.0, 0.01,
        { when: P => (+P.boomStyle === 1 || +P.boomTwin) && +P.aeroAftOn, dim: 'len' }],
       ['aeroAftDroop', 'aero aft droop', -0.3, 0.3, 0.005,

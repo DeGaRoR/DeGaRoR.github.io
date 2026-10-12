@@ -7604,9 +7604,14 @@ function cageSpec(P) {
   // tip) — and any mount off the nose finishes the nose aero. The page's own
   // nose-finish / rear-aperture rows still say yes on their own.
   const engMountK = Math.round(P.engMount || 0);
+  // G2790 ENGINE-CONFIGS: 4 is the push-pull (a nose engine AND the aft
+  // bulkhead's — the Skymaster's pod ends there on either boom kind), 5 the
+  // nose + wing nacelles (the nose keeps its engine), 6 two wing pairs
+  const aftEng = engMountK === 1 || engMountK === 4;
+  const noseEngK = engMountK === 0 || engMountK === 4 || engMountK === 5;
   // the aero aft (cut 2): the pod's own rings past the bulkhead; never with
   // a pusher on the bulkhead (its cowl is the aft), only where the pod ends
-  const aeroAft = (+P.aeroAftOn && (P.boomStyle || +P.boomTwin) && engMountK !== 1)
+  const aeroAft = (+P.aeroAftOn && (P.boomStyle || +P.boomTwin) && !aftEng)
     ? { len: Math.max(0.3, +P.aeroAftLen || 0.9), droop: +P.aeroAftDroop || 0,
         tip: Math.max(0, Math.min(1, +P.aeroAftTip == null ? 0.5 : +P.aeroAftTip)),
         // G339: the shape (0 cone, 1 blade, 2 flat, 3 fin) and the edge the
@@ -7616,10 +7621,11 @@ function cageSpec(P) {
     : null;
   S.config = {
     noseMode: P.aeroNose ? 'aero' : 'cowl',
-    rearAperture: (P.rearAperture || (engMountK === 1 && P.boomStyle)) ? 1 : 0,
+    rearAperture: (P.rearAperture || (engMountK === 1 && P.boomStyle)
+                   || (engMountK === 4 && (P.boomStyle || +P.boomTwin))) ? 1 : 0,
     aeroAft,
     noseCrown: P.noseCrown,
-    noseFinish: (P.noseFinish || engMountK >= 1) ? 'aero' : 'engine',
+    noseFinish: (P.noseFinish || !noseEngK) ? 'aero' : 'engine',
     cowl: { loops: Math.max(0, Math.round(P.cowlLoops)),
             ease: P.cowlEase, bulge: P.cowlBulge,
             // T2.3: the bottom's own ease, the deck's by default

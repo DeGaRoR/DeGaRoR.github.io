@@ -56,7 +56,10 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // THE MOUNT (2026-09-04): 0 nose, 1 pusher on the aft
                    // bulkhead, 2 over the wing (one engine, high wing, a pylon
                    // engPylonH tall), 3 a wing pair at engNacAt of the semispan
-                   engMount: 0, engNacAt: 0.35, engPylonH: 0.30,
+                   // G2790 ENGINE-CONFIGS: 4 nose + pusher (push-pull, the
+                   // Skymaster), 5 nose + a wing pair (the Trimotor), 6 two
+                   // wing pairs (inner at engNacAt, outer at engNacAt2)
+                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30,
                    // THE BLOCK (2026-09-04, the user: "when mounted on the
                    // wing, we should be able to move the whole block holding
                    // the engine, not just the engine"): fore/aft and up/down
@@ -528,16 +531,22 @@ const ENG_ITEMS = [
    { when: P => +P.engOn, optLabels: PRESET_LABELS, optOrder: PRESET_ORDER,
      optHide: P => PRESET_NAMES.map(n => n !== CUSTOM_ENGINE &&
                                          presetArch(n) !== archOf(P)) }],
-  ['engMount',  'mount', 0, 3, 1,
+  ['engMount',  'mount', 0, 6, 1,
    ['nose', 'pusher (aft bulkhead)', 'over the wing (high wing)',
-    'wing nacelles (twin)'], { when: P => +P.engOn }],
+    'wing nacelles (twin)', 'nose + pusher (push-pull)',
+    'nose + wing nacelles (three)', 'two pairs of wing nacelles (four)'],
+   { when: P => +P.engOn }],
   ['engAim',    'faces', 0, 2, 1, ['as the mount', 'puller', 'pusher'],
-   { when: P => +P.engOn && Math.round(P.engMount) >= 2 }],
+   { when: P => +P.engOn && [2, 3, 5, 6].includes(Math.round(P.engMount)) }],
   ['engNacAt',  'nacelle station (semispan)', 0.15, 0.70, 0.01,
-   { when: P => +P.engOn && Math.round(P.engMount) === 3 }],
+   { when: P => +P.engOn && [3, 5, 6].includes(Math.round(P.engMount)) }],
+  // G2790: the four's outer pair (kept 0.10 of the semispan outboard of
+  // the inner one by engineFaces)
+  ['engNacAt2', 'outer nacelle station (semispan)', 0.30, 0.90, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) === 6 }],
   ['engRotate',  'rotation (pair)', 0, 2, 1,
    ['same hand', 'counter-rotating, tops inward', 'counter-rotating, tops outward'],
-   { when: P => +P.engOn && Math.round(P.engMount) === 3 }],
+   { when: P => +P.engOn && [3, 5, 6].includes(Math.round(P.engMount)) }],
   // ...on the pusher too (G461, the Chinook: its engine sits over the wing's
   // trailing edge, ahead of the pod's aft face — _cage_cowl engineFaces)
   ['engBlockZ', 'block fore / aft', -1.0, 1.0, 0.01,
@@ -870,7 +879,8 @@ PAGE.post = ctx => {
     if (stat) stat.textContent += '  ·  engine: ' +
       (mountK === 1 ? (P.boomStyle ? 'no aft bulkhead face' : 'a pusher needs a rod boom (the pod ends at the aft bulkhead)')
      : mountK === 2 ? ([0, 3].includes(Math.round(P.wgPos || 0)) ? 'no wing to sit on' : 'the over-the-wing mount needs a HIGH wing')
-     : mountK === 3 ? 'no wing to hang the nacelles on'
+     : mountK === 3 || mountK >= 5 ? 'no wing to hang the nacelles on'
+     : mountK === 4 ? 'a push-pull needs the pod to end at the aft bulkhead (rod or twin booms)'
      : 'no engine face on this body');
     return;
   }
@@ -1006,7 +1016,17 @@ PAGE.post = ctx => {
     // engine block and prop seem to be attached to the body, while the
     // support is attached to the wing nacelle structure")
     ug.name = 'edEng' + sfx;
-    const engMesh = meshFrom(M);
+    // G2790: a layout mixes the nose (the cage's own firewall) with faces
+    // off the body (a nacelle, the bulkhead of a push-pull drawn plain):
+    // a unit whose face is synthetic when the first unit's is not draws
+    // its own mount plate, sized to its face
+    let MU = M;
+    if (!!f.synthetic !== !!face.synthetic) {
+      try { MU = EM.engMeshBuild(Object.assign({}, spec, { fwOn: f.synthetic ? 1 : 0,
+        fwW: Math.max(0.2, Math.min(2.2, 2 * f.halfW)), fwH: Math.max(0.2, Math.min(2.2, 2 * f.halfH)) })); }
+      catch (e) { MU = M; }
+    }
+    const engMesh = meshFrom(MU);
     ug.add(engMesh);
     const ng = new THREE.Group();
     ng.add(new THREE.Mesh(spinGeo, propMat('spinner')));

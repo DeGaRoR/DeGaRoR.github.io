@@ -85157,3 +85157,102 @@ user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's
   - freight strapped on the flown aircraft;
   - the club works;
   - night ops.
+
+## G2790 ENGINE-CONFIGS - THE SKYMASTER'S NOSE + PUSHER, THE THREE AND THE FOUR: ENGINE LAYOUTS ON THE GENERATOR, THE SOLVER, THE EDITOR; GATE ENGCONFIG (2026-10-12, ENGINE-CONFIGS for A0, cloud, node only; branch claude/engine-configs-g2790 off origin/master f353a0f8; G2790 used, G2791-G2799 unused)
+
+**READY for A0.** Source: the user's slider review, 10 Oct: "We need the configuration nose engine + pusher engine
+(Cessna skymaster). We could activate the 3 and 4 engines configuration I believe."
+
+**Where it stood.** `engines[]` has been an array since day one and the solver has shared thrust PER ENGINE over each
+engine's own mount nodes since G194 (`refs.engineOf`, `sim.setEngine`, `out.thrustPer`) - a cut engine on a wing pair
+is already a real yaw couple. What held the aeroplane to one mount (or the classic wing pair) was clampSpec (G121's
+truncation), the frame's mount block (`if (!noseEng)`), the wash rule (keyed off `engAt[0]`) and the editor (the
+Three / Four tiles greyed "ROADMAP P7").
+
+**The layouts (60_gen_spec `GEN_ENG_LAYOUTS`, `genEngLayoutOf`, `genEngLayoutEngines`).** A layout is the LIST OF
+MOUNTS, in order, and only these exact lists fly as several engines:
+- `pushPull` = [nose, pusher] - the Skymaster. The rear prop's hand is forced to the nose's MIRROR (the same engine
+  turned round on its mount): seen from behind they counter-rotate, so the reaction torque, the gyroscopic couple and
+  the P-factor cancel in pairs once ENGINE-TORQUE (G2080, not on master yet) lands - it reads `engines[i].sense`, +1
+  clockwise from behind, the same convention.
+- `tri` = [nose, wing, wing] - the Trimotor / Ju 52 (nacelles at 0.35 semispan).
+- `quad` = [wing x4] - two pairs, inner (0.30) then outer (0.62); the clamp keeps the outer pair outboard.
+- ONE ENGINE TYPE PER AEROPLANE (every entry takes entry 0's type and custom row): the solver flies one propeller law
+  per def. Each wing pair is mirrored off its port entry (station, pylon, tilt, aim), as the classic pair always was.
+- EVERY OTHER LIST CLAMPS EXACTLY AS BEFORE (one mount, or the classic pair - which is NOT a layout and keeps its old
+  code path byte for byte). A save cannot change meaning: no save could hold a layout list before (the clamp cut them).
+- `S.engLayout` ('single' / 'pair' / 'pushPull' / 'tri' / 'quad') and `engAt[i].pair` are published on the resolved
+  spec; `engAt[i].side` alternates over the wing entries (-1 port, +1 starboard).
+- THE WING FOLLOWS THE ENGINES (the 2026-09-04 rule, per entry for a layout): entry 0 off the nose has MOVED from the
+  nose (lever from engX0); every further engine is ADDED to an aeroplane that balanced on its wing (lever from the
+  quarter chord). Measured static margins on the stock airframe: push-pull 0.205, three 0.205, four 0.155 (single 0.19);
+  the Skymaster-alike (IO-360s, twin booms, tricycle) 0.234.
+
+**The frame (61_gen_frame).** A layout's nose engine is the firewall pair, byte for byte; every other entry is built in
+block 2b with ITS OWN engine index on its mount nodes (Skymaster engineOf [0,0,1,1], three [0,0,1,2], four [0,1,2,3]).
+Each off-nose engine of a layout wears its own cowl (nacelle) and exhaust mass on its own mount nodes (the classic pair
+still splits one cowl over two nacelles - unchanged, named below).
+
+**The wash (62_gen_aero).** A layout blows from every disc: a nose engine washes the centre and inboard wing as fitted
+to the Cub, each pulling nacelle washes the wing about its own station (the strongest wake a strip sits in), the
+push-pull's pusher blows on nothing ahead of it; the tail flies in the centreline wake whenever there is a nose or a
+pusher, between nacelle wakes not at all. The solver's wash magnitude is still the MEAN disc (T / nE) - see below.
+
+**Fuel / feeding.** Every engine draws from the one manifold (the solver drains every tank in proportion and the burn
+sums each engine's own throttle - unchanged); the tanks starving stops every engine at once. No per-engine tank
+selection or crossfeed valve exists (named below).
+
+**The plaque.** For a push-pull only, `genShakedown` adds `propBoomClear` (each boom's inner face - its station less
+its drawn radius - less the rear disc's radius: 0.210 m on the Skymaster-alike) and `propStabClear` (the stab 3.95 m
+aft of the disc); a three / four adds `engLayout`. No other plaque gains a field.
+
+**The editor.** `engMount` 4 = nose + pusher (push-pull), 5 = nose + wing nacelles (three), 6 = two pairs (four);
+`engNacAt2` the four's outer station (0.62). `engineFaces` composes the single mounts' faces in the spec's order
+(the join reads unit i as engines[i]); the cowl layer's clone on a face of ANOTHER KIND than the first unit's is the
+same cowl SCALED to that face (the nacelle a nose cowl makes, the Skymaster's aft cowl on the bulkhead); a unit on a
+synthetic face draws its own mount plate when the first unit's is the real firewall. `_cage_gen`: a push-pull opens
+the aft bulkhead on a rod OR twin booms and keeps the engine nose; the three keeps the engine nose; the four the aero
+nose. The join writes one entry per unit with its own drawn station. DESIGN TILES (the Engines row; EDITOR-UX-A
+G2760 owns their styling): **Push-pull (nose + pusher)** - engMount 4, twin booms set out at the rear disc's radius +
+0.30 m, the nose cowl on, no aero aft; **Three (nose + wings)** live - the nose cowl kept, nacelle tails; **Four
+(wings)** live - inner 0.30 / outer 0.62, nacelle tails, the aero nose; **Single** brings any layout back to the nose.
+designBake's intent spec carries the layout (GATE ARCHETYPES flies what the tiles chose).
+
+**Measured (GATE ENGCONFIG, straight wings-level downwind, the pilot flying, one engine cut, 10 s):**
+
+| build | cut | sideslip max | yaw rate max | heading | alt |
+|---|---|---|---|---|---|
+| twin fixture (CONTROL, 582s on the wing) | port | 6.57 deg | 7.8 deg/s | 6.6 deg | -5.4 m |
+| Skymaster-alike | none / nose / pusher | 0.01 / 0.01 / 0.01 deg | 0.13 deg/s | 0.2 deg | 0.0 / -8.4 / -8.2 m |
+| three | none / nose / wing | 0.01 / 0.01 / 3.19 deg | 0.11 / 0.11 / 4.66 | 0.0 / 0.0 / 3.1 | -0.1 / -6.0 / -5.8 m |
+| four | none / inner / outer | 0.05 / 2.74 / 5.10 deg | 0.20 / 3.10 / 5.82 | 0.3 / 2.6 / 4.5 | -0.1 / -4.6 / -5.1 m |
+
+Certificates (66_gen_cert) + the garage bench to 5.7 g on the certified airframe, damage on: Skymaster-alike 521
+members HELD 0 broken; three 413 HELD; four 432 HELD. (The twin-boom ELECTRIC fixture breaks at 4.6 g as a single on
+master too - it is not a certifying airframe, which is why the Skymaster-alike is the stock airframe, not that one.)
+
+**Gates.** NEW: **GATE ENGCONFIG** (`tools/_engconfig_check.js`, core, ~3 min at --jobs=4): 1 IDENTITY - 15 builds
+(the Cub, Jodel, 172, Chinook corrected builds, the twin-582, twin, twin-boom, pusher and metal-Cessna fixtures, the
+four single mounts, two clamped lists) digested against master f353a0f8 (nodes, beams, params, refs, strips, 2 s of
+the sim) - all equal; 2 CLAMP; 3 LATTICE; 4 SHAKEDOWN; 5 FLIGHT (the table); 6 CERTIFY; 7 EDITOR (join + tiles).
+PASS. Existing gates run here: see the run below.
+
+**What to watch for.**
+- ENGINE-TORQUE (G2080) is NOT on master: today an engine out on the push-pull has ZERO yaw because there is no
+  propeller torque / P-factor at all. Once G2080 lands, the remaining engine's own torque/P-factor yaws it a little
+  (like any single) and the both-running case cancels (opposite hands) - re-run GATE ENGCONFIG on that merge; its
+  `beta < 0.5 deg` bounds have room for a single prop's swing but that is a prediction, not a measurement.
+- The propwash is still the MEAN disc (T / nE): an engine out halves the wash everywhere rather than killing it behind
+  the dead disc only. The yaw of a wing engine out is the thrust couple; the lost wash on that wing is not modelled.
+- The classic wing pair still bills ONE cowl + exhaust split over two nacelles (bit-identity); a layout bills one per
+  engine. Fixing the pair moves the twin fixtures' numbers - a later, gated change.
+- Fuel: one manifold, no per-engine tank or crossfeed valve; starvation stops every engine at once.
+- No Vmc number on the plaque yet; the gate measures engine-out yaw, it does not compute Vmc.
+- The cowl's scaled clone and the mount plates were not LOOKED AT (node only, no pixels): the user should open
+  Push-pull / Three / Four in the garage. Likely rough edges: the aft cowl's fit on a twin-boom pod's bulkhead; the
+  Push-pull tile's `boomX` uses the cage's `cw_propD` (a preset engine without that row falls back to 1.8 m);
+  `propFitCheck` tests the pod and rod, not the twin booms - the plaque's `propBoomClear` is the physics' number.
+- The Engine mount row lights no tile while a layout is on (the Engines row owns it); picking a mount tile on a
+  layout turns it back into that single mount.
+- No Skymaster ARCHETYPE card (the birth overlay) - the tile builds it on any airframe; a card is a follow-up and
+  would add a flight to GATE ARCHETYPES.
