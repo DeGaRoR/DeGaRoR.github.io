@@ -84323,3 +84323,104 @@ byte-identical cook); A0's PREMCOOK, SCENERYED, BUILD, UISMOKE PASS; parked re-c
 run the rollout rows are equal (loop +0.1..+0.75 ms, render +0..+0.5 ms, loads within 1 s): no regression vs master,
 landed on that comparison. OWED: the light baseline re-taken on master (it's stale); the in-game freeze numbers (the
 user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's first train).
+
+## G2900-G2909 - ASSETS-OCT: THE OCTOBER SCENERY GAME-READY, THE FIRST DRIVEABLE CAR, THE ANNETTE ISLAND VOR/DME AND METLAKATLA'S HYDRO PLANTS (2026-10-11/12, a LOCAL session for A0; branch claude/assets-oct-g2900)
+
+The user (11 Oct): "Most of them need a round of game-readification. There are many raw scans, and we need the full chain:
+decimation, reprojection, like we have done with the woodworking machines ... the buildings are important, large assets, but
+the bulldozer and starfighter are only scenery elements and should be kept reasonable" + "One of the observatory models has no
+texture: pick within our material library". Then, through A0: the ALMA antenna and the people (11 Oct), four driveable cars
+(11 Oct evening), the Annette Island VOR/DME "the real model, at the real spot" (21:00), and Metlakatla's two hydro plants
+(23:55). Licence + spec tables: futureDesigns/SCENERY-OCT-2026-10-11.md.
+
+**LICENCES.** All shipped sources are Sketchfab CC BY 4.0, credited in CREDITS.md (three new sections) and in
+src/scenery/scenery_credits.json / src/cars/car_conquer.json. **BLOCKED and DROPPED: "Satellite \ radio telescope from VotV"** -
+an extraction from the commercial game Voices of the Void (Unreal's own WorldGridMaterial / VertexColorViewMode_RedOnly in the
+file): its CC BY label cannot stand. GATE SCENERY fails if the kit ever names it.
+
+**THE SCENERY KIT** (G2901-G2907; tools/scenery_table.py -> scenery_prep.py / observatory_prep.py (Blender 3.6, CPU) ->
+scenery_kit.py (prop_prep's runner) -> src/scenery/ + media/geo|tex/scenery -> prop_lod.js --kit scenery; GATE SCENERY):
+
+| row | what | delivered | shipped L0 (levels) | notes |
+|---|---|---|---|---|
+| heating_plant | abandoned boiler house, chimney, conveyor (scan) | 1.2 M tris, ONE 1024 map | 60 k (15 k / 3 k) | the 74 x 46 m site cropped to the structures; every GREEN raised face dropped (482 k: shrubs, trees, the grass apron - our ground and trees do them better); the cut edge skirted 0.6 m down |
+| bunker | Devil's Slide WW2 bunker on its mound (scan) | 91 k | 24 k | the mound kept (it is the cliff top) |
+| sky_rest | ruined resort tower (author-cut scan) | 5.2 k, 4096 map | as-is, map 2048 | |
+| observatory | domed observatory, delivered UNTEXTURED | 100 k, no map | 20 k | x0.25 by its stairs (14.3 x 9.4 x 10.4 m); textured from the HOUSE LIBRARY (render, concretes, painted steel, galv) and baked; the user's pick: variant A, telescope = steel + dark glass lens, the side dish white-painted steel (variant B, verdigris, stays in the tool: --variant b) |
+| alma_base / _fork / _dish | ALMA 12 m antenna, 3 rigid parts | 199 k, 35 mats | 24 k for the three | x2.5 to the real 12 m dish; src/scenery/scenery_assembly.json: pivots + axes read off the delivered rig (azimuth vertical, elevation horizontal), 2 red OBSTRUCTION + 2 SERVICE light anchors, the motion = a sim-clock TRACK (15 deg per sim-hour) - the placer drives it |
+| ferry_merituuli | Hailuoto road ferry (modelled) | 87 k, 1303 meshes, 22 mats | 30 k | one 2048 atlas (9 500 islands at 1 px margin: 34 %), glass + lamp split |
+| fishing_boat | steel trawler (game asset) | 27 k | as-is | a reprojection lost its maps' detail |
+| starfighter | stripped F-104G (scan) | 996 k, 4 UDIM | 18.4 k | x1.09 to the type (16.7 m); the collapse FLOORS at 18 404 (hundreds of loose parts in the open bays) - target 18.5 k, not the spec's 16 k |
+| loader_wreck | abandoned wheel loader (scan) | 50 k | 10 k | x0.6 (the scan was ~1.7x on all three axes for its type) |
+| crowd_1..6 | 6 textured photoscanned people (static) | 1.5 k each | as-is, maps 512 | the white / grey twins dropped; NOT char_prep (no rig) |
+
+Night run 12 Oct 03:05-03:13 (A0's go after the user's editing): 17 rows, 21 levels, 4.75 MB geometry + 1.3 MB levels + 12.1 MB
+maps, all LAZY media (the packs are NOT in build.js: SCENERY-ED's placer loads them). GATE SCENERY PASS, --selftest 10/10.
+**KTX2 twins NOT made** (basisu v1.16.4 absent on the box; `npm install` is a download, the user's call): ktx2_twins.js has the
+`scenery` family, one run once basisu is in.
+
+**THE FIRST DRIVEABLE CAR** (G2908; A0: the Conquer '89 pickup is #1, car_scene #2 later, pickup_truck a parked / traffic
+candidate, dirty_car dropped). tools/car_table.py -> car_prep.py -> src/cars/ + media/geo|tex/cars; GATE CARS (core, --selftest
+10/10). AS-IS, split by node: body (17 k, with its interior, glass and lamp covers), wheel L / R (each placed 2x), steering wheel
+(place 'centre', a new prop_prep mode that publishes the part's `at`), head / brake / reverse / blink lamp props; levelled 0.45 deg
+(the export rolled it: 11 mm -> 0.9 mm across the tyres). DATA SHEET src/cars/car_conquer.json - MEASURED: wheelbase 3.014 m,
+track 1.412 m, wheel r 0.350 m, the steering axis (21 deg column tilt), body box, a 2-box collision proxy + wheel cylinders, lamp
+anchors (4 blinkers); ESTIMATED and named so: mass 1 850 kg, CG, inertia, the driver's eye, hood / chase cameras.
+
+**THE ANNETTE ISLAND VOR/DME** (G2909): NAVAID_GEN (tools/_navaid_gen.js, LAZY - build.js MANIFEST.lazy, asked for by world_boot /
+the house worker / the editor when a record names navaid/ or utility/; registered in 27_premises GENERATORS + GEN_NS and the
+headless loaders). key navaid/DVOR-DME: the FAA's extended 150 ft (45.7 m) counterpoise at 16 ft on 60 steel columns with its
+panel seams, 50 sideband "derby" domes on a 44 ft circle (FAA DVOR), the carrier radome, the DME mast with its RED OBSTRUCTION
+LIGHT (glow palette 2 + a `beacon` in stats.lit.lights: the existing night lamp pool), the shelter west of the disc, the ladder;
+4 392 tris (lod 1: 2 224); TOWER_GEN's finish - no new material site. The nav waypoint: NAV_FIXES in 38_nav.js (ANN, VOR/DME,
+117.1 MHz, the FAA-published point; page + worker parity) - PILOT's recipe and review; NAV, PLAN, SIMWORKER PASS.
+
+**METLAKATLA'S HYDRO PLANTS** (G2909): key utility/hydro powerhouse in the same lazy generator: the LONG NARROW SHED on its
+concrete base at the water (25 x 10 m default), a TWO-TONE roof (galvanised / rust halves along its length, as the aerial shows),
+the water-side windows, the roll-up + man door with a lamp, riprap with boulders, and a SMALL fenced yard (the user: "IRL the
+substation is tiny"): a procedural lattice takeoff mast (~200 tris) + the pack's transformer (450, cut by tools/hydro_prep.py
+from "Substation" by One80 Solar, CC BY 4.0, inline int16, no texture). 1 384 tris. GATE NAVAID (core) PASS.
+
+**WHAT THE USER'S PDF SAYS** (idc011708.pdf: the Metlakatla Indian Community's business brochure with the BIA Division of Energy
+and Mineral Development; 8 pages, read through Inkscape's poppler import - its fonts are custom-encoded subsets):
+- **Metlakatla Power & Light (MPL)**, community-owned, **9.5 MW** in all: **two hydro plants, 3.9 MW PURPLE LAKE and 1.1 MW
+  CHESTER LAKE**, a **3.3 MW diesel generator** and a **1.2 MW battery energy storage system** (for the sawmill's surges).
+  The photo the user sent is Figure 2, **the Purple Lake plant** (the user's "4 MW"). Chester Lake could grow to 3.0 MW.
+- Figure 6 puts **Chester Lake Hydroelectric on the EAST shore of Port Chester**, opposite the town, at the lake's outlet.
+- **Port Chester**, a deep-water port (18 fathoms at the loadout); the **old KPC / Louisiana-Pacific sawmill** site (1979-99);
+  **Skaters Lake industrial park** (a level 10-acre site) and its quarry; **Walden Point Road**, 14.5 mi to the north end, for a
+  planned ferry dock (15 min to Ketchikan); a ferry twice daily, five days a week; two small boat harbours, a barge dock, a
+  floatplane dock; the **former Air Force base with a 7,500 ft paved runway and a 5,700 ft gravel crosswind**; ~1,400 people;
+  ~109 in of precipitation a year; the reserve is 130 sq mi and the waters to 3,000 ft out.
+
+**THE SITES** (the island_jolene record; placed after ROAD-GRAPH / RIVERS-OFF, cooked Mon 11:00-11:40), game x / z by tools/geo.py
+(use `py` - the PATH's `python` is Inkscape's, without rasterio):
+| site | point | x | z |
+|---|---|---:|---:|
+| ANN DVOR/DME | the disc, ~7 m W / 4 m S of the FAA point (A0 on Esri z18) | -1010.1 | -1663.3 |
+| Purple Lake powerhouse | the shed at the end of Hydroplant Rd (55.092773, -131.544800) | -174.7 | -5780.2 |
+| Chester Lake powerhouse | candidate A, a grey-blue roof ~10 x 12 m (55.117115, -131.545932) - the default | -1141.9 | -8313.1 |
+| (Chester Lake, candidate B) | a long pale shed ~22 x 10 m (55.116907, -131.546302) - the user knows which | -1156.5 | -8283.4 |
+Movable editor sites, each with a tree-clear area round it (r ~30 m: cleared only where needed). PROPOSED, not built: the gravel
+shore road to Purple Lake (Hydroplant Rd -> Hatchery Rd) for the user's road tool; a penstock / tailrace if wanted.
+
+**TRAPS** (each cost a pass):
+1. Blender 3.6 headless `uv.pack_islands(margin_method='FRACTION')` collapses every island to a point (19 890 of 20 000
+   faces); the default margin method does not. Thousands of tiny islands (rails, posts) are margin-bound: 1 px at 2048.
+2. A Blender render path given relative lands nowhere the shell can find (the first observatory re-shoot "wrote" and nothing
+   changed): absolute paths.
+3. A Nishita sky PLUS a sun lamp is two suns: the first stills were washed (the dark ground read cream).
+4. The glTF importer leaves a second animation clip in an NLA track (ALMA's azimuth): make it the active action before
+   sampling; and a child's turn must be taken RELATIVE to its parent (the dish's world turn carries the fork's azimuth).
+5. `[3] or 1e9` treats a distance of 0.0 as none (the ALMA face split put dish faces in the fork).
+6. A decimate COLLAPSE can floor above its ratio on scans made of many loose parts (F-104: 18.4 k for 16 k) - iterate, then
+   accept the floor and say so.
+7. Editing src/core makes tools/flight_core.js stale: every tool that requires it throws (assertFresh) until `node tools/build.js`
+   (local only; the built files are the train's to commit).
+8. Inkscape 1.3 dropped --pdf-page (use --pages); `--pdf-poppler` reads custom-encoded PDF fonts that a raw stream read cannot.
+9. A bash script is read as it runs: never edit a waiting window script in place - stop, edit, re-arm (each re-arm killed the
+   old waiter by its exact PID).
+
+**GATES**: SCENERY, CARS, NAVAID (new, core); ASSETS green but for MASTER's own MATS red (render_premises.js 26-27 sites vs ALLOW
+23 - not this branch's; A0 routes it); NAV, PLAN, SIMWORKER PASS. OWED: the sites + the premises cook + PREMCOOK / PREMISES / HOUSE /
+BUILD / UISMOKE (Mon 11:00-11:40); KTX2 twins for the scenery and the car (basisu, the user's OK).
