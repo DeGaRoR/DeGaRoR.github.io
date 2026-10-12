@@ -183,12 +183,28 @@ PREMISES_HOST.rows = function () {
     // VALUE: the readout IS the field, as the garage's reference panel has it (refplane.js slider) - focus shows the bare
     // number, Enter or leaving commits it ONCE through the slider's own setter (one undo step, its coalescing key), clamped to
     // the slider's range and snapped to its step, in the slider's own units (the rotations are degrees); Escape gives up
-    slider: (p, label, lo, hi, st, get, set, fmt) => {
+    // (G3019, the user 12 Oct: 'a lot of limits on sliders that really should not be there') a TYPED value is no longer held to
+    // the slider's range - the slider pins at its end, the value goes through - only to its physical bounds, read off the row:
+    // an angle (a degree row) wraps into the slider's turn, a share (a [0, 1] row) stays in [0, 1], a row that starts at >= 0
+    // (a length, a width, a count) stays >= 0; `lim` { min, max, wrap } says otherwise for a row the rule gets wrong. A whole
+    // step (a count) rounds; the step snap holds only inside the slider's own range
+    slider: (p, label, lo, hi, st, get, set, fmt, lim) => {
       const d = document.createElement('div'); d.className = 'r';
       d.innerHTML = '<span class="k" title="' + esc(label) + '">' + esc(label) + '</span><input type="range" class="frng" min="' + lo + '" max="' + hi + '" step="' + st + '"><input type="text" class="v" inputmode="decimal" title="type a value - Enter sets it">';
       const inp = d.querySelector('input'), val = d.querySelector('.v');
       const show = v => { val.value = fmt ? fmt(v) : (+v).toFixed(2); };
-      const snap = n => { n = Math.max(+lo, Math.min(+hi, n)); if (+st > 0) n = +lo + Math.round((n - +lo) / +st) * +st; return +n.toFixed(6); };
+      const deg = /°|°/.test(String(label) + (fmt ? (() => { try { return String(fmt(+lo)); } catch (e) { return ''; } })() : '')) && +hi - +lo >= 359;
+      const phys = n => {
+        const L = lim || {};
+        if (L.wrap || (L.wrap === undefined && deg)) { const a = L.wrap ? +L.wrap[0] : +lo, w = L.wrap ? +L.wrap[1] - +L.wrap[0] : 360; n = a + ((((n - a) % w) + w) % w); }
+        else if (L.min !== undefined || L.max !== undefined) { if (L.min !== undefined) n = Math.max(+L.min, n); if (L.max !== undefined) n = Math.min(+L.max, n); }
+        else if (+lo === 0 && +hi === 1) n = Math.max(0, Math.min(1, n));
+        else if (+lo >= 0) n = Math.max(0, n);
+        return n;
+      };
+      const snap = n => { n = phys(n); if (+st >= 1 && Number.isInteger(+st)) n = Math.round(n);
+        else if (+st > 0 && n >= +lo && n <= +hi) n = +lo + Math.round((n - +lo) / +st) * +st;
+        return +n.toFixed(6); };
       let v0 = +get(); if (!isFinite(v0)) v0 = lo;
       inp.value = v0; show(v0);
       inp.oninput = () => { set(+inp.value); show(+inp.value); };
