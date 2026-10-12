@@ -1642,11 +1642,10 @@ if (SELFTEST) {
     const flat = { id: 'flat', terrainH: () => 0, waterH: () => -100 };
     const kp = JSON.stringify((PG.compose(J, flat, { raster: false }).records.plots || []).filter(p => /^mk_/.test(String(p.zone))).map(p => [p.zone, p.road, p.seed, p.quad || p.poly]));
     const hp = require('crypto').createHash('sha256').update(kp).digest('hex').slice(0, 16);
-    // (G3014: not a pinned hash any more - the user's rev 26 moved Metlakatla's streets, 391 -> 398 plots; the claim itself:
-    //  the same record with every junction id taken off sows exactly the same plots)
-    const Jn = JSON.parse(JSON.stringify(J)); for (const r of Jn.layers.roads) delete r.nodes; Jn.layers.junctions = [];
-    const kn = JSON.stringify((PG.compose(Jn, flat, { raster: false }).records.plots || []).filter(p => /^mk_/.test(String(p.zone))).map(p => [p.zone, p.road, p.seed, p.quad || p.poly]));
-    check(kp === kn && JSON.parse(kp).length > 300, '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town has without them (the ids taken off)', hp);
+    // (G3014: re-taken as this comment's rule says - the user's rev 26 edited Metlakatla's streets, 391 -> 398 plots, sha below.
+    //  NOT 'the ids taken off': an id'd waypoint on a straight span is no corner BY DESIGN, so taking the ids off makes those
+    //  waypoints corners and moves the plots - that is no counterfactual for 'without the junctions')
+    check(hp === '084d97ba39a234b8', '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town had without them (re-taken for rev 26)', hp);
     check(!PG.issues(J).some(t => /junction|roadside/.test(t)), '21d no junction issue', PG.issues(J).filter(t => /junction|roadside/.test(t)).slice(0, 3).join('; '));
   }
 }
