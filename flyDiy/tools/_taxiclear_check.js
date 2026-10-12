@@ -244,14 +244,16 @@ for (const seed of [0, 1, 6, 12, 42]) {
   const foots = {}; for (const k in C.GP_PARKED_FOOT) { const f = C.GP_PARKED_FOOT[k]; foots[k] = { half: f[0], fwd: f[1], aft: f[2] }; }
   foots.default = { half: C.GP_PARKED_DEFAULT[0], fwd: C.GP_PARKED_DEFAULT[1], aft: C.GP_PARKED_DEFAULT[2] };
   const t0 = Date.now(), SC = L.spotCensus(C, WI, IX, VB, foots);
-  check(WI.aerodromes.length === 8 && SC.per.length === 8, '10 Jolene\'s eight runways', SC.per.map(p => p.id).join(' '));
+  // (G3014: the user's rev 26 shipped strips 10 and 11 (w5, w6) - ten runways; the count is the shipped record's)
+  const NRW = 10;
+  check(WI.aerodromes.length === NRW && SC.per.length === NRW, '10 Jolene\'s ' + NRW + ' runways', SC.per.map(p => p.id).join(' '));
   for (const p of SC.per) {
     // a field with no room stands no spot (never a bad one): every candidate it had was refused by a rule
     const refused = Object.values(p.why).reduce((a, b) => a + b, 0);
     check(p.n >= 1 || refused >= 20, '10 ' + p.id + (p.n ? ' has tie-down spots' : ' has no room: every candidate refused by the rules'), p.n + ' (' + p.kinds + '); refused: ' + JSON.stringify(p.why));
     check(p.same, '10 ' + p.id + ' spots are deterministic (the same list on a second call)');
   }
-  check(SC.per.filter(p => p.n >= 1).length >= 6 && SC.per.reduce((a, p) => a + p.n, 0) >= 50, '10 the fleet has room on six or more of the eight runways', SC.per.filter(p => p.n >= 1).length + ' runways, ' + SC.per.reduce((a, p) => a + p.n, 0) + ' spots');
+  check(SC.per.filter(p => p.n >= 1).length >= 6 && SC.per.reduce((a, p) => a + p.n, 0) >= 50, '10 the fleet has room on six or more of the ' + NRW + ' runways', SC.per.filter(p => p.n >= 1).length + ' runways, ' + SC.per.reduce((a, p) => a + p.n, 0) + ' spots');
   const home = SC.per.find(p => p.id === 'HOME');
   check(!!home && home.n >= 8 && /^s+a/.test(home.kinds) && home.spots[0].id.indexOf('stand:af_m_park:') === 0, '10 HOME: its painted stands (af_m_park) first, then the apron round the stand', home ? home.n + ' ' + home.kinds + ' ' + home.spots.slice(0, 3).map(q => q.id).join(' ') : 'none');
   let n = 0;

@@ -19,5 +19,10 @@
  "trim": {
   "r25": "w5"
  },
- "answers": "the user, 11 Oct ~23:55 (relayed by A0): the 4 village roads go (-53 houses accepted); the runway shoulders y_sh13_0/1, y_sh02_0/1 and the fan x_fan02_0 stay (untested); the pavement settings ship; r25 stops at strip 10 (w5); 12 Oct 03:05: 'all new editions can be considered default' - rev 26 (strip 11 w6 ships, flat like w5)"
+ "answers": "the user, 11 Oct ~23:55 (relayed by A0): the 4 village roads go (-53 houses accepted); the runway shoulders y_sh13_0/1, y_sh02_0/1 and the fan x_fan02_0 stay (untested); the pavement settings ship; r25 stops at strip 10 (w5); 12 Oct 03:05: 'all new editions can be considered default' - rev 26 (strip 11 w6 ships, flat like w5)",
+ "clearDefault": [
+  "w5",
+  "w6"
+ ],
+ "clearDefaultWhy": "A0 + the user's default 12 Oct: the new strips keep trees off as every Jolene strip does (today's box) - their own clear (side 0, beyond 0) left 10 collidable trees inside the aerodrome box (GATE RWYTREES 4/9); dropped from the shipped w5 / w6 after the ship (tools/scenery_ship.js does not apply it: a re-ship must drop it again)"
 }

@@ -988,7 +988,12 @@ if (SELFTEST) {
       const far = r.toWorld(L / 2 - 2, 0);
       if (!(O.terrainAt(far[0], far[1]) <= 0.05)) dry.push(r.key + ' @' + far.map(v => v.toFixed(0)));
     }
-    check(dry.length === 0, '14e a pier, a float and a wharf reaches the water', dry.slice(0, 5).join(', '));
+    // (G3014, A0 + the user's default 12 Oct: two of the user's rev 26 placements stand dry AS DRAWN - kept, and flagged for the
+    //  user to move in the editor; any other dry pier, float or wharf is still red)
+    const DRY_OK = ['marine/net pens @69,-10640', 'marine/wharf deck, small @-1452,-8371'];
+    const dryNew = dry.filter(d => DRY_OK.indexOf(d) < 0), dryUser = dry.filter(d => DRY_OK.indexOf(d) >= 0);
+    if (dryUser.length) console.log('     14e FLAGGED for the user (their rev 26, drawn on dry ground; kept as drawn): ' + dryUser.join(' | '));
+    check(dryNew.length === 0, '14e a pier, a float and a wharf reaches the water', dryNew.slice(0, 5).join(', '));
     check(rec.layers.terrain.every(t => !/^mk_/.test(t.id) || t.abs === true),
           "14f the town's terrain is absolute — a level read off the DEM is not relative to an anchor");
     // the road network is dry, end to end
@@ -1432,7 +1437,11 @@ if (SELFTEST) {
     .concat(fs.readdirSync(path.join(TOOLS, 'jolene_parts')).filter(f => /\.json$/.test(f)).map(f => { const o = JSON.parse(fs.readFileSync(path.join(TOOLS, 'jolene_parts', f), 'utf8')); return ['part ' + f, JSON.stringify({ layers: o.layers })]; }));
   let folded = 0;
   for (const [name, txt] of sources) {
-    const raw = JSON.parse(txt), r1 = PG.normalise(JSON.parse(JSON.stringify(raw.premises || raw))), r2 = PG.unwrap(txt).rec, X = PG.expandAreas(r2);
+    // (G3014: a record may carry NATIVE areas too - the user's rev 26 shipped into Jolene drew a14..a23 as areas; they never were
+    //  v1 entries, so the round trip is the FOLDED areas' alone: the native ones are left out of the expansion compared)
+    const raw = JSON.parse(txt), r1 = PG.normalise(JSON.parse(JSON.stringify(raw.premises || raw))), r2 = PG.unwrap(txt).rec;
+    const native = new Set((((raw.premises || raw).layers || {}).areas || []).map(a => a && a.id));
+    const X = PG.expandAreas(Object.assign({}, r2, { layers: Object.assign({}, r2.layers, { areas: r2.layers.areas.filter(a => !native.has(a.id)) }) }));
     folded += r2.layers.areas.length;
     const badL = PG.AREA_LAYERS.filter(k => canon(X.layers[k]) !== canon(r1.layers[k]));
     check(!badL.length, '20a ' + name + ': its ' + r2.layers.areas.length + ' areas expand to the v1 layers it had', badL.join(', '));
@@ -1633,7 +1642,11 @@ if (SELFTEST) {
     const flat = { id: 'flat', terrainH: () => 0, waterH: () => -100 };
     const kp = JSON.stringify((PG.compose(J, flat, { raster: false }).records.plots || []).filter(p => /^mk_/.test(String(p.zone))).map(p => [p.zone, p.road, p.seed, p.quad || p.poly]));
     const hp = require('crypto').createHash('sha256').update(kp).digest('hex').slice(0, 16);
-    check(hp === '010ca477a8e4145c', '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town had without them', hp);
+    // (G3014: not a pinned hash any more - the user's rev 26 moved Metlakatla's streets, 391 -> 398 plots; the claim itself:
+    //  the same record with every junction id taken off sows exactly the same plots)
+    const Jn = JSON.parse(JSON.stringify(J)); for (const r of Jn.layers.roads) delete r.nodes; Jn.layers.junctions = [];
+    const kn = JSON.stringify((PG.compose(Jn, flat, { raster: false }).records.plots || []).filter(p => /^mk_/.test(String(p.zone))).map(p => [p.zone, p.road, p.seed, p.quad || p.poly]));
+    check(kp === kn && JSON.parse(kp).length > 300, '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town has without them (the ids taken off)', hp);
     check(!PG.issues(J).some(t => /junction|roadside/.test(t)), '21d no junction issue', PG.issues(J).filter(t => /junction|roadside/.test(t)).slice(0, 3).join('; '));
   }
 }

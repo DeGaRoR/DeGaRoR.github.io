@@ -620,10 +620,14 @@ if (plots.length) {
     if (cut) B.layers.roads[B.layers.roads.indexOf(r)] = cut; }
   const un = e => { const c = JSON.parse(JSON.stringify(e)); delete c.stage; delete c.src; if (Array.isArray(c.items)) for (const it of c.items) if (it) delete it.stage; return JSON.stringify(c); };
   const staged = e => !!(e && (e.stage || (Array.isArray(e.items) && e.items.some(it => it && it.stage)) || /^sg_/.test(String(e.id || ''))));
+  // (G3014: the strips the manifest names in clearDefault ship WITHOUT their own `clear` - today's box, as every strip; the rest of
+  //  the entry is the save's)
+  const CD = new Set(M.clearDefault || []), unC = e => { const c = JSON.parse(un(e)); if (CD.has(c.id)) delete c.clear; return JSON.stringify(c); };
+  check([...CD].every(id => { const w = (A.layers.runways || []).find(q => q.id === id); return w && !('clear' in w); }), '15 the strips the manifest names ship with the clearance of today, not their own (' + [...CD].join(', ') + ')');
   const bad = [], pending = [];
   for (const L of PG.LAYERS) {
     const a = new Map((A.layers[L] || []).map(e => [e.id, e])), b = new Map((B.layers[L] || []).map(e => [e.id, e]));
-    for (const [id, e] of b) { if (EX.has(id)) { if (a.has(id)) bad.push(L + ' ' + id + ' held back, but shipped'); continue; } if (!a.has(id)) bad.push(L + ' ' + id + ' not shipped'); else if (un(a.get(id)) !== un(e)) bad.push(L + ' ' + id + ' differs'); }
+    for (const [id, e] of b) { if (EX.has(id)) { if (a.has(id)) bad.push(L + ' ' + id + ' held back, but shipped'); continue; } if (!a.has(id)) bad.push(L + ' ' + id + ' not shipped'); else if (unC(a.get(id)) !== unC(e)) bad.push(L + ' ' + id + ' differs'); }
     for (const [id, e] of a) if (!b.has(id)) { if (RM.has(id)) bad.push(L + ' ' + id + ' removal confirmed, still shipped'); else if (!staged(e)) pending.push(id); }
   }
   check(!bad.length, '15 the shipped record is the save entry by entry (held back: ' + M.except.join(', ') + ')', bad.slice(0, 6).join('; '));

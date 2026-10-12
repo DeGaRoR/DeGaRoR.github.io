@@ -195,7 +195,8 @@ function verdict(res, ok) {
   if (L) {
     const t = sumCalls(L.calls, /:town$/);
     console.log('  local: the town step\'s generation on the page\'s thread ' + JSON.stringify(t));
-    ok(Object.keys(L.entries).length > 100 && !L.fail, 'local: the premises built (' + Object.keys(L.entries).length + ' entries)');
+    // (G3014: the user's rev 26 took the 4 village roads and their 53 houses out - 93 entries; the floor follows the shipped record)
+    ok(Object.keys(L.entries).length > 85 && !L.fail, 'local: the premises built (' + Object.keys(L.entries).length + ' entries)');
   }
   for (const m of ['cold', 'warm', 'partial']) {
     const C = res[m];
