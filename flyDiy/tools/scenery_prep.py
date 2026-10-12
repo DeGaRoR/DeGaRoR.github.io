@@ -382,7 +382,23 @@ def collapse(group=None):
         dec.vertex_group_factor = 10.0
         dec.invert_vertex_group = True
     select_only(lo)
+    n0 = tris_of(lo)
     bpy.ops.object.modifier_apply(modifier='dec')
+    # the collapse can stop short of its ratio (the F-104's open panels: 18.4 k for a 16 k target) - the
+    # ratio is scaled by what it missed and the cut redone from the welded mesh, up to three times
+    for _ in range(3):
+        got = tris_of(lo)
+        if got <= TARGET * 1.03:
+            break
+        r_ = min(1.0, (TARGET / max(1, n0)) * (TARGET / got) * 0.98)
+        lo.data = welded.copy()
+        d2 = lo.modifiers.new('dec', 'DECIMATE'); d2.decimate_type = 'COLLAPSE'; d2.use_collapse_triangulate = True
+        d2.ratio = r_
+        if group:
+            d2.vertex_group = group; d2.vertex_group_factor = 10.0; d2.invert_vertex_group = True
+        select_only(lo)
+        bpy.ops.object.modifier_apply(modifier='dec')
+        n0 = n0 * got / TARGET          # the effective count the next ratio is taken against
     bm_ = bmesh.new(); bm_.from_mesh(lo.data)
     tree = BVHTree.FromBMesh(bm_)
     bm_.free()

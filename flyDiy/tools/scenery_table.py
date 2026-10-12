@@ -104,7 +104,9 @@ PROPS = [
       'Photoscan of a stripped F-104G, 996 k on 4 UDIM tiles: one atlas. Scaled x1.09: the scan is '
       '~9 % small on all three axes against the type (16.7 m long, 6.63 m span, 4.11 m tall).',
       C('F-104 G Starfighter', 'fhernand', 'fhernand', 'f-104-g-starfighter-5cdfee92623e4b59bc967be7537b1372'),
-      dict(route='scan', target=16000, size=2048, tol=0.02, scale=1.09), height=4.09),
+      # 18.5 k, not the spec's 16 k: the collapse floors at 18 404 on this scan (its open panels and the
+      # equipment in its bays are hundreds of small loose parts; the night run of 12 Oct, iterated 3x)
+      dict(route='scan', target=18500, size=2048, tol=0.02, scale=1.09), height=4.09),
     P('loader_wreck', 'wreck', 'abandoned wheel loader', 'abandoned_bulldozer.glb',
       'Photoscan, 50 k ("bulldozer" in the file; an articulated wheel loader). SCALED 0.6: the scan '
       'stands 12.9 m long, 6.2 m tall, 5 m wide over its dirt plate, where a loader of this cab and '

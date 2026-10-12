@@ -1,0 +1,7 @@
+[
+ "scenery_landmark.js",
+ "scenery_vessel.js",
+ "scenery_wreck.js",
+ "scenery_crowd.js",
+ "scenery_lods.js"
+]
