@@ -120,11 +120,14 @@ const PAVEMENT = (() => {
   const LOOK_NAMES = { pv: 'paved (concrete, asphalt)', sf: 'soft (gravel, dirt, sand)', gr: 'grass' };
   // G1395: a soft / grass side's spread at -1 is the edge zone's edgeSoft (2.6 m: the old torn edge, reaching ~3 x it out);
   // the paved one's the edge zone's sideW
-  const LOOK_K = ['Bright', 'Hue', 'Tint', 'Wear', 'SideBright', 'SideHue', 'SideTint', 'SideW', 'SideA'];
+  // (G3018, the user 12 Oct: 'the saturation control is missing from the pavement edition') a tenth knob, SAT: the surface's
+  // saturation, a factor on every surface set's own grade saturation (grade[1]) - 1 = the sets as graded (today, byte for
+  // byte), 0 grey; the side keeps its own look
+  const LOOK_K = ['Bright', 'Hue', 'Tint', 'Wear', 'SideBright', 'SideHue', 'SideTint', 'SideW', 'SideA', 'Sat'];
   const LOOK_KEYS = [];
   for (const g in LOOK_GROUPS) for (const k of LOOK_K) {
     LOOK_KEYS.push(g + k);
-    RECIPE[g + k] = { Bright: 1, Hue: 0.12, Tint: 0, Wear: 1, SideBright: 1, SideHue: 0.12, SideTint: 0, SideW: -1, SideA: g === 'pv' ? -1 : 0 }[k];
+    RECIPE[g + k] = { Bright: 1, Hue: 0.12, Tint: 0, Wear: 1, SideBright: 1, SideHue: 0.12, SideTint: 0, SideW: -1, SideA: g === 'pv' ? -1 : 0, Sat: 1 }[k];
   }
   // what WEAR scales, per surface type: the paved class's ageing, the soft ground's traffic
   const LOOK_WEAR = { pv: ['crackK', 'damageK', 'patchK', 'mossK', 'stainK', 'rubberK'], sf: ['wheelBand', 'coarseK', 'rutDepth', 'treadK'], gr: ['wheelBand', 'coarseK', 'rutDepth', 'treadK'] };
@@ -164,6 +167,7 @@ const PAVEMENT = (() => {
     ['edgeChip', 'edge chipping (m)', 0, 2, 0.05], ['band', 'gravel band (m, -1 = class)', -1, 40, 0.5], ['bandNoise', 'band raggedness', 0, 1, 0.02], ['grassReach', 'grass creeps in over (m)', 0.5, 30, 0.5], ['fadeW', 'fade to terrain over (m)', 0.5, 30, 0.5],
     ...Object.keys(LOOK_GROUPS).flatMap(g => [['— runway look: ' + LOOK_NAMES[g] + ' —'],
       [g + 'Bright', 'surface brightness', 0.3, 2, 0.02], [g + 'Hue', 'surface tint hue (0 red, .17 yellow, .33 green, .67 blue)', 0, 1, 0.01], [g + 'Tint', 'surface tint amount', 0, 1, 0.02],
+      [g + 'Sat', 'surface saturation (1 = the sets as graded, 0 = grey)', 0, 2, 0.02],
       [g + 'Wear', "wear (x the class's cracks, patches, ruts...)", 0, 2, 0.05],
       [g + 'SideBright', 'side brightness', 0.3, 2, 0.02], [g + 'SideHue', 'side tint hue', 0, 1, 0.01], [g + 'SideTint', 'side tint amount', 0, 1, 0.02],
       [g + 'SideW', g === 'pv' ? "side width (m past the edge zone, -1 = the edge zone's)" : "side spread (m: the torn edge reaches ~3 x it; -1 = edgeSoft)", -1, 12, 0.1], [g + 'SideA', "side starts at alpha (blend into the ground; -1 = the edge zone's)", -1, 1, 0.05]]),
@@ -1284,8 +1288,8 @@ float pvTread(float u, float x, float w, float seed) {
   function applyAll(THREE) { for (const m of MATS) applyOne(THREE, m); }
   // a set's mean colour graded as the shader grades it (gain, tint, saturation): linear rgb, what the
   // eye sees of that set on average - the far tier's uMean and the cover ring's `col` (v1.17)
-  function gradedMean(key, r, lib) {
-    const g = (r.grade && r.grade[key]) || [1, 1], t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1];
+  function gradedMean(key, r, lib, satK) {
+    const g0 = (r.grade && r.grade[key]) || [1, 1], g = satK === undefined || satK === 1 ? g0 : [g0[0], g0[1] * satK].concat(g0.slice(2)), t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1];
     const mean = (lib && lib.mean[key]) || ((typeof PAVEMENT_TEX_SETS !== 'undefined' && PAVEMENT_TEX_SETS[key] && PAVEMENT_TEX_SETS[key].mean) || [0.2, 0.2, 0.2]);
     const c = [mean[0] * g[0] * t[0], mean[1] * g[0] * t[1], mean[2] * g[0] * t[2]], l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
     return [l + (c[0] - l) * g[1], l + (c[1] - l) * g[1], l + (c[2] - l) * g[1]];
@@ -1309,7 +1313,7 @@ float pvTread(float u, float x, float w, float seed) {
     const r = recipe || R, g = groupOf(cls), q = k => (LIVE && LIVE[g + k] !== undefined ? +LIVE[g + k] : (r[g + k] !== undefined ? +r[g + k] : RECIPE[g + k]));
     const mul = (b, h, k) => tintRGB(h, k).map(c => Math.max(0, c * b));
     const sw = q('SideW'), sa = q('SideA');
-    return { g, surf: mul(q('Bright'), q('Hue'), q('Tint')), side: mul(q('SideBright'), q('SideHue'), q('SideTint')), wear: Math.max(0, q('Wear')),
+    return { g, surf: mul(q('Bright'), q('Hue'), q('Tint')), side: mul(q('SideBright'), q('SideHue'), q('SideTint')), wear: Math.max(0, q('Wear')), sat: isFinite(q('Sat')) ? Math.max(0, q('Sat')) : 1,
       sideW: sw >= 0 ? sw : (g === 'pv' ? (r.sideW || 1.2) : (r.edgeSoft || 2.6)), sideA: sa >= 0 ? sa : (r.sideA === undefined ? 0.35 : r.sideA) };
   }
   const KNOB_MAX = {};
@@ -1372,10 +1376,11 @@ float pvTread(float u, float x, float w, float seed) {
     U.uLayer2.value.set(lay('tracks'), lay('moss'), lay('macro'), 0);
     U.uTile.value.set(met('base'), met('damage'), met('shoulder'), met('grass'));
     U.uTile2.value.set(met('tracks'), met('moss'), met('macro'), 0);
-    SLOTS.forEach((s, i) => { const g = (r.grade && r.grade[keyOf(s)]) || [1, 1]; U.uGrade.value[i].set(g[0], g[1], 0, 0); const t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1]; U.uTint.value[i].set(t[0], t[1], t[2], 0); });
+    const SURF = { base: 1, damage: 1, tracks: 1, moss: 1, macro: 1 };   // (G3018: the surface's sets - the side and the grass keep their own)
+    SLOTS.forEach((s, i) => { const g = (r.grade && r.grade[keyOf(s)]) || [1, 1]; U.uGrade.value[i].set(g[0], SURF[s] && lk.sat !== 1 ? g[1] * lk.sat : g[1], 0, 0); const t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1]; U.uTint.value[i].set(t[0], t[1], t[2], 0); });
     U.uClass.value.set(CLASSES.indexOf(d.cls), cls.lanes, cls.rut, d.poly ? 2 : (d.road ? 1 : 0));
     // the base's mean colour, graded exactly as the shader grades the base (gain, tint, saturation)
-    { const c = gradedMean(cls.base, r, lib); U.uMean.value.set(c[0], c[1], c[2], 0.85); }
+    { const c = gradedMean(cls.base, r, lib, lk.sat); U.uMean.value.set(c[0], c[1], c[2], 0.85); }
     U.uHex.value.set(r.hexDepth, r.hexOn, r.hexCells, cls.hexRot * Math.PI / 180 * r.hexRotK);
     U.uMacro.value.set(r.macroLuma, r.macroHue, r.macroRough, 0);
     U.uLane.value.set(cls.lanes, r.laneW, r.jointW, r.jointDepth);
