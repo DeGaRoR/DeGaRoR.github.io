@@ -604,8 +604,9 @@
         if (foots[info.saved]) d.fleet[info.saved].foot = parkFoot(foots[info.saved]);
         if (info.repainted) d = playerWearReset(d, info.saved).doc;
         if (CAREER_DEV && isNew) d = econMaterialiseNow(d, info.saved);   // G2260 (ECONOMY): a new airframe is paid for
-        // G2690 (HANGAR-STORAGE): the build just saved IS the one on the stand - onto `here`'s floor (a swap)
-        if (typeof playerFloorSync === 'function') d = playerFloorSync(d, info.saved).doc;
+        // G2690 (HANGAR-STORAGE): a NEW airframe just saved is the one on the stand - onto `here`'s floor (a swap). A
+        // re-save leaves it where it stands (FLEET-PROPS' bake bound reads its place: an apron airframe saved is baked)
+        if (isNew && typeof playerFloorSync === 'function') d = playerFloorSync(d, info.saved).doc;
       }
       // G2280 (PROCURE, GQ2): a maker's or a used airframe saved under another fingerprint is MODIFIED - the factory
       // certificate withdrawn, the change billed at build price (dm11); a repaint changes nothing (career only)
@@ -6822,7 +6823,12 @@
         return { ok: W.kind === 'floor', why: W.kind === 'floor' ? '' : 'the load did not reach the stand', where: W, swapped: pre.swapped };
       }
       const r = playerMove(playerLoad(), name, to, { foots: storeFoots(name) });
-      if (r.ok && r.doc !== playerLoad()) { player = r.doc; playerSave(); storeChanged(); }
+      if (r.ok && r.doc !== playerLoad()) {
+        player = r.doc; playerSave(); storeChanged();
+        // onto the apron: the fleet's bake queue looks at it (FLEET-PROPS' bound decides; an airframe already baked is a
+        // signature hit - a move never re-bakes)
+        try { if (window.PARKED && window.PARKED.fleetQueue) for (const n of [name, r.swapped && r.swapped.name]) if (n && playerStoreWhere(player, n).kind === 'outside') window.PARKED.fleetQueue(n); } catch (e) {}
+      }
       return out(r);
     } catch (e) { return { ok: false, why: String((e && e.message) || e), where: null, swapped: null }; }
   }

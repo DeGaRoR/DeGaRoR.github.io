@@ -1,0 +1,23 @@
+[run_gates] 0/2 jobs done · running UISMOKE 30 s, UISMOKE-PHONE 30 s
+[run_gates] 1/2 jobs done · running UISMOKE 60 s
+[run_gates] 1/2 jobs done · running UISMOKE 90 s
+[run_gates] 1/2 jobs done · running UISMOKE 120 s
+[run_gates] 1/2 jobs done · running UISMOKE 150 s
+[run_gates] 1/2 jobs done · running UISMOKE 180 s
+[run_gates] 1/2 jobs done · running UISMOKE 210 s
+=== UISMOKE ===
+G1090 the top bar holds one size over 47 texts (29 phase labels): desktop 440 x 143, desktop small 372 x 76, phone screen x 132, phone small screen x 76; the pilot's area 35 px, two lines clamped + the plan line
+ran app block: raf x1897, handlers wired: _ce1027 _ce1033 _ce1047 _ce107 _ce1083 _ce1089 _ce1103 _ce1139 _ce1149 _ce1163 _ce1199 _ce1205 _ce1219 _ce1255 _ce1265 _ce1276 _ce1282 _ce1286 _ce1292 _ce1296 _ce1300 _ce1304 _ce1308 _ce1316 _ce1322 _ce1325 _ce1332 _ce1333 _ce1337 _ce1338 _ce1339 _ce1340 _ce1341 _ce1342 _ce1362 _ce1367 _ce1368 _ce1369 _ce1370 _ce1371 _ce1374 _ce1378 _ce1382 _ce1386 _ce1390 _ce1394 _ce1398 _ce1402 _ce1407 _ce1408 _ce1409 _ce1412 _ce1416 _ce1423 _ce1426 _ce143 _ce1431 _ce1432 _ce1434 _ce1435 _ce1436 _ce1439 _ce144 _ce1443 _ce1447 _ce145 _ce1451 _ce1457 _ce146 _ce1464 _ce1468 _ce147 _ce1472 _ce1476 _ce148 _ce1480 _ce1484 _ce1488 _ce149 _ce1492 _ce1496 _ce150 _ce1500 _ce1504 _ce151 _ce1510 _ce1514 _ce1518 _ce1521 _ce1527 _ce153 _ce1530 _ce1531 _ce1532 _ce1535 _ce1545 _ce1546 _ce1550 _ce1553 _ce1558 _ce156 _ce1580 _ce1586 _ce159 _ce1594 _ce1595 _ce1598 _ce1605 _ce1606 _ce1607 _ce1608 _ce1609 _ce1610 _ce1615 _ce1616 _ce1617 _ce1618 _ce162 _ce1622 _ce1623 _ce1624 _ce1625 _ce1626 _ce1627 _ce1631 _ce1632 _ce1633 _ce1634 _ce1638 _ce1639 _ce1642 _ce1649 _ce165 _ce1650 _ce1651 _ce1652 _ce1656 _ce1657 _ce1661 _ce1662 _ce1666 _ce1667 _ce1668 _ce1669 _ce1670 _ce1671 _ce1675 _ce1676 _ce1677 _ce1678 _ce1679 _ce168 _ce1680 _ce1684 _ce1685 _ce1689 _ce1690 _ce1692 _ce1699 _ce1700 _ce1701 _ce1702 _ce1706 _ce1707 _ce1708 _ce1709 _ce171 _ce1713 _ce1714 _ce1715 _ce1716 _ce1720 _ce1721 _ce1722 _ce1723 _ce1727 _ce1728 _ce1732 _ce1733 _ce1734 _ce1736 _ce174 _ce1743 _ce1744 _ce1748 _ce1749 _ce1751 _ce1758 _ce1759 _ce1760 _ce1764 _ce1765 _ce1766 _ce1767 _ce177 _ce1771 _ce1772 _ce1774 _ce1781 _ce1782 _ce1783 _ce1787 _ce1788 _ce1789 _ce1790 _ce1794 _ce1795 _ce1796 _ce180 _ce1800 _ce1801 _ce1805 _ce1806 _ce1810 _ce1811 _ce1813 _ce1820 _ce1821 _ce1825 _ce1826 _ce1827 _ce183 _ce1831 _ce1832 _ce1836 _ce1837 _ce1840 _ce1846 _ce1851 _ce1855 _ce1859 _ce1863 _ce1867 _ce1871 _ce1875 _ce1879 _ce1883 _ce1887 _ce1891 _ce1895 _ce1899 _ce1902 _ce191 _ce1910 _ce1913 _ce1922 _ce1930 _ce1931 _ce1934 _ce1943 _ce1948 _ce1952 _ce1958 _ce1962 _ce1967 _ce1968 _ce1970 _ce1971 _ce1972 _ce1975 _ce1979 _ce1983 _ce1987 _ce1991 _ce1995 _ce1999 _ce2003 _ce2014 _ce2018 _ce202 _ce2022 _ce2030 _ce2036 _ce2039 _ce2043 _ce2048 _ce206 _ce2070 _ce2076 _ce2080 _ce2088 _ce2091 _ce210 _ce2100 _ce2104 _ce2108 _ce2116 _ce2119 _ce2128 _ce2132 _ce2136 _ce2144 _ce2147 _ce2151 _ce216 _ce2160 _ce2164 _ce2168 _ce2176 _ce2179 _ce2183 _ce2192 _ce2200 _ce2201 _ce2204 _ce221 _ce2213 _ce222 _ce2221 _ce2224 _ce2228 _ce2237 _ce224 _ce2241 _ce2245 _ce225 _ce2253 _ce2256 _ce226 _ce2265 _ce2269 _ce229 _ce233 _ce237 _ce241 _ce245 _ce249 _ce253 _ce259 _ce264 _ce270 _ce277 _ce278 _ce279 _ce280 _ce281 _ce282 _ce287 _ce288 _ce289 _ce290 _ce294 _ce295 _ce296 _ce297 _ce298 _ce299 _ce303 _ce304 _ce305 _ce306 _ce310 _ce311 _ce314 _ce318 _ce322 _ce326 _ce330 _ce334 _ce341 _ce346 _ce351 _ce365 _ce37 _ce401 _ce404 _ce409 _ce423 _ce459 _ce462 _ce467 _ce481 _ce51 _ce517 _ce520 _ce525 _ce539 _ce575 _ce578 _ce583 _ce597 _ce633 _ce636 _ce641 _ce655 _ce691 _ce697 _ce711 _ce747 _ce753 _ce767 _ce803 _ce809 _ce823 _ce859 _ce865 _ce87 _ce879 _ce915 _ce921 _ce93 _ce935 _ce971 _ce977 _ce991 bBring bEdit bGo bHangar2 bLog bMood bPause bReset bSkin bSkip bWhy bootFly edClose flLine mm pfdFold selAc selCond selDest selPersona selPilot tabBench tabDesign
+GATE UISMOKE: PASS
+=== UISMOKE-PHONE ===
+phone.css: 98 selectors, every one under html.phone (or hiding a phone-only element)
+STORAGE (phone): the view (inside 1/2, outside 1/6, long-term 1), a refusal with its reason, tap-then-column and a drop moved the aeroplanes (✓ Jodel inside 2); Fly off
+GATE UISMOKE-PHONE: PASS
+
+──────── summary ────────
+UISMOKE   PASS   210.2 s
+UISMOKE-PHONE PASS    44.0 s
+total            254.2 s
+wall             210.2 s  (jobs 2)
+
+BATTERY: PASS

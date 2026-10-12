@@ -519,7 +519,8 @@ function storageChecks() {
     const trip = (W.FLYDIY_TRIPS || []).filter(t => t && t.kind === 'rollout').pop();
     if (trip && trip.anim && !/away|none|cannot/.test(trip.anim)) throw new Error('an inside Fly played the door shot: ' + trip.anim);
   } finally { S.fly = keepFly; W.GARAGE_SPEC = keepG; handlers['selAc']({ target: { value: 'gen' } }); PL.set(d0); }
-  console.log('STORAGE: the view (inside 1/2, outside 1/6, long-term 1), a refusal with its reason, tap-then-column and a drop moved the aeroplanes (' + msg + '); Fly asked, then rolled out lined up (' + (W.FLYDIY_TRIPS || []).filter(t => t && t.kind === 'rollout').map(t => t.anim).pop() || 'no roll-out screen in this harness') + ')');
+  const anim = (W.FLYDIY_TRIPS || []).filter(t => t && t.kind === 'rollout').map(t => t.anim).pop() || 'no roll-out screen in this harness';
+  console.log('STORAGE: the view (inside 1/2, outside 1/6, long-term 1), a refusal with its reason, tap-then-column and a drop moved the aeroplanes (' + msg + '); Fly asked, then rolled out lined up (' + anim + ')');
 }
 // ---- G2104: THE PHONE PROFILE'S OWN CHECKS (UISMOKE-PHONE) -------------------------------------------------------------
 // The boot above ran the garage alone; here: nothing of the world or the flight was made, the roll-out is refused, the
