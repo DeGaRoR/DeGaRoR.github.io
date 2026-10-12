@@ -84,7 +84,9 @@ PROPS = [
       dict(route='asis', size=2048, scale=1.0), height=None, place='floor'),
     P('observatory', 'landmark', 'ridge observatory', 'tutor_tv_observatory.glb',
       'Modelled, delivered untextured; scaled 0.25 by its stairs (14 x 10 x 9.4 m) and textured from '
-      'the house library (tools/observatory_prep.py) - FOR THE USER\'S REVIEW.',
+      'the house library (tools/observatory_prep.py): the painted white dome, picked by the user of two (12 Oct) - the '
+      'telescope tube steel with a dark glass objective, the side dish white-painted steel; the verdigris variant stays in '
+      'the tool (--variant b).',
       C('Tutor TV Observatory', 'Tommen', 'Tommen', 'tutor-tv-observatory-28a2c1ff61304e6eb36b6840b43e2fc1'),
       dict(route='observatory', target=20000, size=2048, scale=0.25, variant='a'), height=9.42),
     # ---- vessels -------------------------------------------------------------
