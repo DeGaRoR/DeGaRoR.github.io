@@ -474,6 +474,9 @@ for (const m of trees.slice(0, 5))
   const fillImps = () => scene.children.filter(o => o.isInstancedMesh && o.userData && o.userData.fill && o.geometry && o.geometry.tag === 'plane').length;
   const frame = (cg, eye) => { cam.position.set(eye[0], eye[1], eye[2]); WF.worldUpdate(cg); };
   chk(!!TF && typeof TF.stream === 'function' && typeof TF.rdyWant === 'function', 'TREE_FILL has no stream() / rdyWant() (G2933)');
+  // S0 THE CATALOGUE'S RE-READ RUNS (G2935): reachRefresh read the ground block's SPL out of its scope since G906 - a
+  // ReferenceError out of every vegetation polygon edit (vegChanged), the editor's rebuild with it
+  if (TF && TF.reach) { let threw = null; try { TF.reach(); } catch (e) { threw = e.message; } chk(!threw, 'S0 TREE_FILL.reach() threw: ' + threw); }
   if (TF && TF.stream) {
     const home = [0, 120, 0];
     // settle the ring at home by frames (prewarm waits for a tree payload node never has)

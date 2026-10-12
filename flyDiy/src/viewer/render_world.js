@@ -5557,7 +5557,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the catalogue grows, its bins come in, the settle builds its rungs and waits its maps, and the woodland,
       // the fill and the cover ring replant with it. Nothing new, nothing done.
       const reachRefresh = () => {
-        const splatGrew = !!(SPL && SPL.api.reach && SPL.api.reach());   // the splat's sets too (a stamped code's)
+        // G2935: through groundApi - SPL is the ground block's own (a ReferenceError here since G906: every vegetation polygon
+        // edit threw out of vegChanged, the editor's onRebuilt with it, before the ring's replants were all done)
+        const SPA = groundApi && groundApi.splat ? groundApi.splat() : null;
+        const splatGrew = !!(SPA && SPA.reach && SPA.reach());   // the splat's sets too (a stamped code's)
         if (typeof treeReach !== 'function' || typeof treeReachOf !== 'function') return splatGrew;
         const grew = treeReach(treeReachOf(world, BIO));
         if (!grew.length) return splatGrew;
@@ -5686,12 +5689,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const d2Of = (c2, cg) => { const ax = (c2.cx + 0.5) * CH - cg[0], az = (c2.cz + 0.5) * CH - cg[2]; return ax * ax + az * az; };
       // the chunk's nearest ground point from p, horizontal (the shader's 3-D distance is never shorter)
       const nearOf = (c2, p) => { const nx = Math.max(Math.abs((c2.cx + 0.5) * CH - p[0]) - CH / 2, 0), nz = Math.max(Math.abs((c2.cz + 0.5) * CH - p[2]) - CH / 2, 0); return Math.hypot(nx, nz); };
-      // THE ORDER (G2931): nearest the EYE first; past 1.5 km a chunk out of the view's half-plane counts as twice as far
-      // (one you may turn to is near anyway); a complement 300 m behind its base; an edited (hot) chunk ahead of all
-      const prio = (c2, part, eye) => {
+      // THE ORDER (G2931): an edited (hot) chunk first; then every chunk INSIDE the stand cards' edge (the ones a card stands
+      // in for), nearest the EYE first, one past 1.5 km and out of the view's half-plane as if 1.5x as far; a complement
+      // 300 m behind its base; then the bases beyond the edge (the cards draw there anyway), nearest first. (The first cut
+      // weighed the view everywhere: after a 5 km jump the front's far bases went before the near ring behind the eye, and
+      // the 4 km ring was whole at 28 s against master's 14 - tools/perf/treestream_probe.js JUMP, 12 Oct)
+      const prio = (c2, part, eye, edge) => {
         const ax = (c2.cx + 0.5) * CH - eye[0], az = (c2.cz + 0.5) * CH - eye[2], d2 = ax * ax + az * az;
         let d = Math.sqrt(d2);
-        if (d > 1500 && (ax * eyeFwd[0] + az * eyeFwd[2]) / d < 0.2) d *= 2;
+        if (nearOf(c2, eye) > edge) return 1e7 + d;
+        if (d > 1500 && (ax * eyeFwd[0] + az * eyeFwd[2]) / d < 0.2) d *= 1.5;
         if (part === FILLP) d += 300;
         return c2.hot ? d - 1e9 : d;
       };
@@ -5731,10 +5738,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (stale(c2, c2.fill) && !c2.qf && dd < FILL_ACT * FILL_ACT) { c2.qf = true; needAt(c2, FILLP); queue.push({ k, part: FILLP }); }
         }
         // what no longer wants a walk leaves the queue; the rest by prio (the base of a chunk before its complement)
+        const edge = standCards && standCards.get ? standCards.get().near : 4000;
         for (let i = queue.length - 1; i >= 0; i--) {
           const c2 = chunks.get(queue[i].k);
           if (!c2 || !stale(c2, queue[i].part === BASE ? c2.base : c2.fill)) queue.splice(i, 1);
-          else queue[i].p = prio(c2, queue[i].part, eye);
+          else queue[i].p = prio(c2, queue[i].part, eye, edge);
         }
         queue.sort((a, b) => a.p - b.p);
       };
