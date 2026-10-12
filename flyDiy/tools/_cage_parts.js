@@ -703,8 +703,10 @@ const CAGE_PARTS = [
     rename: { size: 'outline points' },
     sections: ['finSkin', 'finRud', 'finVentral'],
     groups: [
-      ['fitted', ['finOn', 'finProject', 'finFillet', 'finDorsal',
-                  'finKeel']],
+      // 'root', not a second 'fitted' heading under the trunk's own: what is
+      // left here once the trunk has taken its rows is the root fillet
+      ['root', ['finOn', 'finProject', 'finFillet', 'finDorsal',
+                'finKeel']],
       ['ventral', ['finVentralOn', 'finVentralH', 'finVentralC', 'finVentralZ', 'finVentralTip']],
       ['construction', ['finCons']],
       ['cut', ['finCut', 'finCutGap']],
