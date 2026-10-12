@@ -92715,4 +92715,6 @@ RESULTS (12 Oct overnight, A0's windows, the locks held; rebased on f353a0f89 at
   the page's thread 0 times through the ten changes and the re-read; no page exceptions.
 - garage_lag ABBA, same tree, ?sheetw=0 vs the thread (cub + metal, reps 2): CONFOUNDED by the store above (first runs
   only: off cub 2022 / metal 2649 ms busy summed = the master numbers quoted; the thread's rows read 0 ms main sheet but
-  may be store hits). The clean ABBA (--clearshake) is A0's GPU TIMED window Tue 13 Oct 04:45-05:10: TABLE BELOW.
+  may be store hits). Noisy besides (A0, 12 Oct): two peers' sub-second `node -e` reads ran inside it ~04:30-04:45 -
+  no timing from 04:30-04:56 counts. The clean ABBA (--clearshake) is A0's GPU TIMED window Tue 13 Oct 04:45-05:10:
+  TABLE BELOW.
