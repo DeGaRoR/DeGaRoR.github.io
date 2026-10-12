@@ -69,12 +69,15 @@
    G3060 (CARDS-CORNER; the user, 12 Oct: "the certifications, the end of the flight, the crash, all of them should
    appear in the bottom left, not hide the plane"): the arrival card's corner (flight.css #arrCard), over it while it
    shows - it closes itself or on a click */
-body.mode-fly #bAward { left:16px; bottom:96px; max-height:max(200px, calc(50vh - 112px)); }
+body.mode-fly #bAward { left:96px; bottom:96px; width:max(224px, min(340px, calc(25vw - 112px)));
+  max-height:max(200px, calc(50vh - 112px)); }
+body.mode-fly #bRun { left:96px; bottom:96px; width:max(224px, min(400px, calc(25vw - 112px)));
+  max-height:max(200px, calc(50vh - 112px)); }   /* (a flown test has no run card today; if one shows, the same place) */
 /* DMG-D4b (train 41; the user: "no more cards in the middle of the screen, ever. That's for enjoying the crash"): a flight
    that was not certified (a crash, a damaged aeroplane) - its card the crash card's size, clear of the wreck; width capped
    so it stays outside the central half of the view down to 1024 px (G3060: the lower LEFT now, as every result card) */
 body.mode-fly #bAward.wreck { animation:none;
-  width:max(220px, min(300px, 22vw)); padding:14px 14px 12px; }
+  width:max(220px, min(300px, calc(22vw - 80px))); padding:14px 14px 12px; }
 #bAward.master canvas { width:140px; height:140px; }
 #bAward.master .bAs { border-width:3px; font-size:15px; }
 #bAward .bAw { margin-top:8px; color:var(--ed-warn); opacity:.85; text-align:left; }

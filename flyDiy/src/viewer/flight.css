@@ -737,9 +737,10 @@ body.rollShot #flActs { display:none !important; }
    appear in the bottom left, not hide the plane"): EVERY ending's card is in the lower-left corner, compact - its
    right edge inside the left quarter of the view (240 px floor) and its top below the middle, so the aeroplane at
    the centre stays in sight; a long card scrolls, never crops its verbs. Its title folds it to the one line.
-   GATE CARDS holds it (no result card centred; this box in the lower-left quadrant). ---- */
-#arrCard { position:absolute; left:16px; top:auto; bottom:96px;
-  width:max(240px, min(380px, calc(25vw - 32px))); max-width:calc(100% - 32px);
+   It stands BESIDE the look rail (#flRail: 22 px + a 62 px plate, centred on the height, ~500 px tall), never on it.
+   GATE CARDS holds it (no result card centred; this box in the lower-left quadrant, clear of the rail). ---- */
+#arrCard { position:absolute; left:96px; top:auto; bottom:96px;
+  width:max(224px, min(380px, calc(25vw - 112px))); max-width:calc(100% - 112px);
   max-height:max(200px, calc(50% - 112px)); overflow-y:auto;
   padding:14px 16px 12px; background:var(--ed-panel);
   border:1px solid var(--ed-border); border-radius:11px;
@@ -753,7 +754,7 @@ body.rollShot #flActs { display:none !important; }
 /* G1868 (DMG-D4b; the user: "I want to SEE the crash"): A CRASH'S CARD is small and in the lower-left corner, not over the
    wreck; its title folds it to the one line (the reason stays on the top bar).
    (G3060: the corner and the fold are every card's now; the wreck's stays the smaller one) */
-#arrCard.wreck { width:max(220px, min(300px, 22vw)); padding:12px 14px 10px;
+#arrCard.wreck { width:max(220px, min(300px, calc(22vw - 80px))); padding:12px 14px 10px;
   box-shadow:0 10px 30px rgba(0,0,0,.45); }
 #arrCard.wreck #arrHead { padding-bottom:8px; }
 #arrCard.wreck #arrTitle { font-size:13px; }
@@ -863,8 +864,9 @@ body.rollShot #flActs { display:none !important; }
   #mmp.big #mm { width:min(82vmin, calc(100vw - 40px));
     height:min(82vmin, calc(100vw - 40px)); }
   #rtp { width:min(82vmin, calc(100vw - 40px)); max-height:calc(100vh - min(82vmin, calc(100vw - 40px)) - 110px); }
-  /* G3060: a narrow window's card is a bottom sheet over the verbs, its top below the middle (the aeroplane stays seen) */
-  #arrCard, #arrCard.wreck { left:12px; right:12px; width:auto; max-width:none; bottom:78px;
+  /* G3060: a narrow window's card is a bottom sheet over the verbs, its top below the middle (the aeroplane stays seen),
+     beside the rail (12 px + a 56 px plate) */
+  #arrCard, #arrCard.wreck { left:76px; right:12px; width:auto; max-width:none; bottom:78px;
     max-height:max(160px, calc(50% - 90px)); padding:12px 14px 10px; }
 }
 
