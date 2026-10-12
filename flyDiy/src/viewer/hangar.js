@@ -2189,17 +2189,50 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
     // quads in the slope's own plane rather than as boxes, because a box on a
     // sloping plane needs a rotation to be got wrong.
     const KX = 0.16, KT = 0.022, up = v => [v[0], v[1] + 0.015, v[2]];
-    const band = (x0, x1, t0, t1) => {
-      const q = [up(P(x0, t0)), up(P(x1, t0)), up(P(x1, t1)), up(P(x0, t1))];
-      put(s > 0 ? quad(q[0], q[1], q[2], q[3], M.steelDark, 2)
-                : quad(q[1], q[0], q[3], q[2], M.steelDark, 2));
+    // THE FRAME FROM INSIDE (G2750, the user: "the hangar skylight chassis look plain white, flat, ugly, untextured
+    // and unrealistic"). It was these same flat quads 1.5 cm ABOVE the deck, seen from the floor THROUGH the pane -
+    // a milky emissive card (opacity 0.3, emissive x2.6) - so every member read as a white-blue sheet with no depth.
+    // Inside, the frame is now a trimmer in the roof's own secondary steel (M.beamSec: the purlins' material and
+    // part, so the part system dresses both and the room merge folds it into the purlins' one draw): each member a
+    // slab hanging on the ROOM side of the pane, its face and four flanks built in the slope's own plane through P (a
+    // box on a sloping plane needs a rotation to be got wrong - and the gate's stub THREE has none to get right), so it
+    // reads as dark steel against the light with lit flanks. The deck side is never seen and is not drawn.
+    // The exterior keeps its kerb above the deck (no bars, it is glass from outside).
+    const sub = (u, v) => [u[0] - v[0], u[1] - v[1], u[2] - v[2]];
+    const crs = (u, v) => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    const dot = (u, v) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+    const unit = u => { const l = Math.hypot(u[0], u[1], u[2]) || 1; return [u[0] / l, u[1] / l, u[2] / l]; };
+    const eX = [1, 0, 0], eV = unit(sub(P(0, LT1), P(0, LT0)));
+    let eN = unit(crs(eX, eV));
+    if (eN[1] > 0) eN = [-eN[0], -eN[1], -eN[2]];                       // toward the floor
+    const neg = u => [-u[0], -u[1], -u[2]];
+    // one face, wound so its normal is `out` (quad's normals follow the winding; the steel is single-sided)
+    const face = (a, b, c, d, out, uv) => {
+      const fw = dot(crs(sub(b, a), sub(c, a)), out) >= 0;
+      put(fw ? quad(a, b, c, d, M.beamSec, uv) : quad(b, a, d, c, M.beamSec, uv));
     };
-    band(-LHW, LHW, LT0, LT0 + KT);               // head
-    band(-LHW, LHW, LT1 - KT, LT1);               // sill
-    band(-LHW, -LHW + KX, LT0, LT1);              // jambs
-    band(LHW - KX, LHW, LT0, LT1);
-    for (let j = 1; j < 3 && !EXT; j++)           // glazing bars across
-      band(-LHW + 2 * LHW * j / 3 - 0.05, -LHW + 2 * LHW * j / 3 + 0.05, LT0, LT1);
+    const band = (x0, x1, t0, t1, D) => {
+      if (EXT) {
+        const q = [up(P(x0, t0)), up(P(x1, t0)), up(P(x1, t1)), up(P(x0, t1))];
+        put(s > 0 ? quad(q[0], q[1], q[2], q[3], M.steelDark, 2)
+                  : quad(q[1], q[0], q[3], q[2], M.steelDark, 2));
+        return;
+      }
+      const dn = v => [v[0] + eN[0] * D, v[1] + eN[1] * D, v[2] + eN[2] * D];
+      const B = [P(x0, t0), P(x1, t0), P(x1, t1), P(x0, t1)], R = B.map(dn);
+      const w = x1 - x0, l = Math.hypot(...sub(B[3], B[0]));
+      face(R[0], R[1], R[2], R[3], eN, [w, l]);                           // the face the floor sees
+      face(B[0], B[1], R[1], R[0], neg(eV), [w, D]);                      // the flanks
+      face(B[3], B[2], R[2], R[3], eV, [w, D]);
+      face(B[0], B[3], R[3], R[0], neg(eX), [l, D]);
+      face(B[1], B[2], R[2], R[1], eX, [l, D]);
+    };
+    band(-LHW, LHW, LT0, LT0 + KT, 0.12);         // head
+    band(-LHW, LHW, LT1 - KT, LT1, 0.12);         // sill
+    band(-LHW, -LHW + KX, LT0, LT1, 0.12);        // jambs
+    band(LHW - KX, LHW, LT0, LT1, 0.12);
+    for (let j = 1; j < 3 && !EXT; j++)           // glazing bars across, shallower than the trimmer
+      band(-LHW + 2 * LHW * j / 3 - 0.05, -LHW + 2 * LHW * j / 3 + 0.05, LT0 + KT, LT1 - KT, 0.07);
   }
 }
 

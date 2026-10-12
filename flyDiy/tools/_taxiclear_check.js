@@ -47,9 +47,9 @@
 //  10 THE FLEET'S TIE-DOWN SPOTS (G2223): every Jolene runway's spots (25_airfield.js fleetSpots) for every archetype
 //     footprint that fits: in the field, flat, dry / afloat, 3 m off solids, every validated build's routes half + 3 m off,
 //     no overlap; deterministic; HOME's painted stands first; a calibration (a box on the stand, on the mill: faults)
-//  11 THE PLOTS (G2310 PREM-S3): every plot of Jolene's record (premises contract v1.34) off solids, the strip, the routes
+//  12 THE PLOTS (G2310 PREM-S3): every plot of Jolene's record (premises contract v1.34) off solids, the strip, the routes
 //     and the tie-down spots; every plot's own way out censused as a stand's; calibrated (the mine's shed's would-be way)
-// ~3-5 min (the island world, the cook read twice, four taxis).
+// ~3-5 min (the island world, the cook read twice, four taxis); 11 (G2490) ~20 min more of one core - in 4 shards ~7 min wall.
 'use strict';
 const fs = require('fs'), path = require('path');
 const T = __dirname;
@@ -68,9 +68,13 @@ const check = (ok, what, detail) => {
 const FX = path.join(T, 'fixtures', 'island_jolene.json');
 const METAL = path.join(T, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json');
 const BUILDS = [{ key: 'stock', name: 'stock build' }, { key: METAL, name: 'aluminium C172' }];
+// G2490 (ALTIPORT-TAXI): THE GATE IN SHARDS (run_gates `shards: 3`). Sections 1-10 are ONE heavy job (tools/_shard.js take:
+// shard 0); 11's plans and flights are jobs of their own, dealt round-robin. Unsharded, everything runs here, as before
+const SHD = require(path.join(T, '_shard.js'));
+const BASE = SHD.take();
 
 // 1 the footprint table against the archetypes' own nodes
-{
+if (BASE) {
   let worst = null, n = 0;
   for (const a of D.ARCHETYPES) {
     if (D.archInactive(a)) continue;
@@ -93,7 +97,7 @@ const planes = REC.layers.objects.filter(o => o.kind === 'aircraft');
 const stands = WI.aerodromes.filter(a => { const s = C.siteOf(a.id); return s && s.stand && s.taxiOut; });
 
 // 2 the parked records on the sites
-{
+if (BASE) {
   check(planes.length >= 5 && stands.length >= 4, '2 Jolene has its parked aeroplanes and its stands', planes.length + ' parked, ' + stands.length + ' stands');
   for (const o of planes) check(/^arch:/.test(o.key) && !!C.GP_PARKED_FOOT[o.key.slice(5)], '2 parked ' + o.id + ' (' + o.key + ') has a footprint of its own');
   for (const a of stands) {
@@ -105,6 +109,7 @@ const stands = WI.aerodromes.filter(a => { const s = C.siteOf(a.id); return s &&
 }
 
 // the samples of a route closer than `need` to a footprint: the worst, or null
+if (BASE) {   // sections 3-5 (G2490: shard 0)
 const worstOf = (P, parked, ids, need) => {
   if (!ids || !parked || !parked.length) return null;
   const path_ = C.patternPath(P, ids, 1.0);
@@ -166,6 +171,7 @@ for (const B of BUILDS) {
   check(minD >= 0.5, '5 ' + B.name + ' wingtip kept 0.5 m off every parked footprint', 'nearest ' + minD.toFixed(2) + ' m, ' + at);
   console.log('  ' + B.name.padEnd(15) + ' span ' + (2 * half).toFixed(1) + ' m: flown, nearest wing to a parked footprint ' + minD.toFixed(2) + ' m (' + at + ')');
 }
+}   // (BASE: sections 3-5)
 
 // 6-9 MILL-TAXI (G1925-G1929): every stand and route against every solid thing
 const L = require(path.join(T, '_taxiclear_lib.js'));
@@ -175,6 +181,7 @@ const SH = L.islandObstacles(C, 'jolene', 'town').concat(L.treeTrunks(WI)).conca
 const IX = L.index(SH);
 const tags = {}; for (const q of SH) tags[q.tag] = (tags[q.tag] || 0) + 1;
 check(tags.item > 50 && tags.house > 100 && tags.prop > 1000 && tags.tree > 1000 && tags.aircraft >= 5, '6 the obstacle set is the shipped one', Object.entries(tags).map(e => e.join(' ')).join(', '));
+if (BASE) {   // sections 6-10 (G2490: shard 0)
 const showRows = (rows, label) => {
   let n = 0;
   for (const r of rows) {
@@ -223,7 +230,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
     check(F.air, '9 ' + B.name + ' taxied from the mill and took off', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
     check(F.contacts === 0 && F.trunkHits === 0 && !F.crashed, '9 ' + B.name + ' touched nothing', F.contacts + ' node contacts' + (F.cWhat ? ' (' + F.cWhat + ')' : '') + ', ' + F.trunkHits + ' trunk hits, crashed ' + F.crashed);
     check(F.minWing >= 1.5, '9 ' + B.name + ' wing kept 1.5 m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
-    console.log('  ' + B.name.padEnd(15) + ' span ' + F.span.toFixed(1) + ' m from the mill: ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off the nearest footprint (' + F.at + '), ' + F.contacts + ' contacts, ' + F.trunkHits + ' trunk hits');
+    console.log('  ' + B.name.padEnd(15) + ' span ' + F.span.toFixed(1) + ' m from the mill: ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off the nearest footprint (' + F.at + ')' + (Number.isFinite(F.overMin) ? '; flew over a footprint ' + F.overMin.toFixed(1) + ' m above its top (' + F.overAt + ')' : '') + ', ' + F.contacts + ' contacts, ' + F.trunkHits + ' trunk hits');
   }
 }
 
@@ -237,14 +244,16 @@ for (const seed of [0, 1, 6, 12, 42]) {
   const foots = {}; for (const k in C.GP_PARKED_FOOT) { const f = C.GP_PARKED_FOOT[k]; foots[k] = { half: f[0], fwd: f[1], aft: f[2] }; }
   foots.default = { half: C.GP_PARKED_DEFAULT[0], fwd: C.GP_PARKED_DEFAULT[1], aft: C.GP_PARKED_DEFAULT[2] };
   const t0 = Date.now(), SC = L.spotCensus(C, WI, IX, VB, foots);
-  check(WI.aerodromes.length === 8 && SC.per.length === 8, '10 Jolene\'s eight runways', SC.per.map(p => p.id).join(' '));
+  // (G3014: the user's rev 26 shipped strips 10 and 11 (w5, w6) - ten runways; the count is the shipped record's)
+  const NRW = 11;   // (rev 27: w7, the North East strip)
+  check(WI.aerodromes.length === NRW && SC.per.length === NRW, '10 Jolene\'s ' + NRW + ' runways', SC.per.map(p => p.id).join(' '));
   for (const p of SC.per) {
     // a field with no room stands no spot (never a bad one): every candidate it had was refused by a rule
     const refused = Object.values(p.why).reduce((a, b) => a + b, 0);
     check(p.n >= 1 || refused >= 20, '10 ' + p.id + (p.n ? ' has tie-down spots' : ' has no room: every candidate refused by the rules'), p.n + ' (' + p.kinds + '); refused: ' + JSON.stringify(p.why));
     check(p.same, '10 ' + p.id + ' spots are deterministic (the same list on a second call)');
   }
-  check(SC.per.filter(p => p.n >= 1).length >= 6 && SC.per.reduce((a, p) => a + p.n, 0) >= 50, '10 the fleet has room on six or more of the eight runways', SC.per.filter(p => p.n >= 1).length + ' runways, ' + SC.per.reduce((a, p) => a + p.n, 0) + ' spots');
+  check(SC.per.filter(p => p.n >= 1).length >= 6 && SC.per.reduce((a, p) => a + p.n, 0) >= 50, '10 the fleet has room on six or more of the ' + NRW + ' runways', SC.per.filter(p => p.n >= 1).length + ' runways, ' + SC.per.reduce((a, p) => a + p.n, 0) + ' spots');
   const home = SC.per.find(p => p.id === 'HOME');
   check(!!home && home.n >= 8 && /^s+a/.test(home.kinds) && home.spots[0].id.indexOf('stand:af_m_park:') === 0, '10 HOME: its painted stands (af_m_park) first, then the apron round the stand', home ? home.n + ' ' + home.kinds + ' ' + home.spots.slice(0, 3).map(q => q.id).join(' ') : 'none');
   let n = 0;
@@ -268,14 +277,103 @@ for (const seed of [0, 1, 6, 12, 42]) {
   check(bm && wm < 3, '10 calibration: a box on the mill reads inside 3 m of a solid thing', bm ? wm.toFixed(2) + ' m' : 'no mill');
   console.log('  10 the fleet\'s spots: ' + SC.per.map(p => p.id + ' ' + p.n + ' (' + p.kinds + ')').join(', ') + '; ' + n + ' rows in ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
 }
+}   // (BASE: sections 6-10)
 
-// 11 THE PLOTS (G2310 PREM-S3, premises contract v1.34): every plot Jolene's record places, the footprint of the largest
+// 11 THE TURN-AROUND FROM WHERE A LANDING STOPPED (G2490, ALTIPORT-TAXI). The game, 8 Oct (train 40, the user's Cub, the
+// 8 kt day, damage on): landed uphill at the Skyline altiport, the slope roll-on stopped it on the level part 33 m from the
+// top end - 6 m short of the U-turn the pattern draws there - and the route back down, joined from that pose (a 2.7 m
+// fillet for wheels that steer 11.3 m), ran the Cub 8 m wide into the tram station's corner: 'a fus member broke', 22 s
+// into the leg. 6 holds the pattern's routes from their own first node, on the drawn centreline; nothing held the join
+// from where a landing stops, nor the swing of a bend the wheels cannot steer. 43_pilot.js turnAtPose (G2490) sweeps a
+// turn-around against the solid things the world holds and turns on the spot where the wings clear. Held here:
+//   a PLANNED: every Jolene land strip x the validated land builds (the user's Cub, the Jodel, the metal Cessna) x poses
+//     on the centreline facing either end 15-150 m from it, the island's solid things in the world: the plan DEPART makes
+//     (tools/_taxiclear_lib.js planAt) keeps, on the census's own footprints - its CG track the half-span + MARGIN off
+//     every footprint (the drawn line); a route it keeps, its bends tighter than the wheels widened by the shortfall (the
+//     driven line); a turn on the spot, its disc (the airframe's reach + the CG's walk) MARGIN off
+//   b CALIBRATION: the altiport's pose with the pilot blind to the obstacles (the planner as it was) plans the route the
+//     game flew - its drawn line passes 6's rule, its driven line comes inside the tram station's margin
+//   c FLOWN: the altiport's apron after the slope roll-on (the game's stop, 8 Oct: (335.7, -7843.8), the nose up the
+//     strip) and Jumbo Mine's street 45 m from its south end: the three builds by THE PILOT (the chained leg the page
+//     gives - departFrom, no site) - off the altiport to 30 m up, at Jumbo Mine to the take-off run - no node inside an
+//     obstacle, no trunk, no crash, the wing 1.5 m off every footprint (9's bound, and 9's rule since G2530: a footprint
+//     flown over with 15 m under the lowest node is cleared - _taxiclear_lib wingSpan); and the calibration flown: the Cub at
+//     the altiport with the pilot blind goes into the station
+//   (run_gates `shards: 4`: sections 1-10 one job in shard 0, each plan census, the calibration and each flight a job)
+{
+  const t0 = Date.now();
+  const LB = [{ key: path.join(T, '..', 'builds', 'cub_2026-09-20_corrected.json'), name: "the user's Cub" },
+              { key: path.join(T, '..', 'builds', 'jodel_2026-09-20_corrected.json'), name: 'the Jodel' },
+              { key: METAL, name: 'the metal Cessna' }]
+    .map(B => { const sp = PT.specOf(B.key).spec; return Object.assign({}, B, { def: C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(sp) : sp) }); });
+  // the solid things near every land strip into the world (9, in shard 0, put the mill's: the rest, and every strip's
+  // trunks again - intoWorld's trunks are one set)
+  const mn = WI.aerodromes.find(q => q.id === 'mn_strip');
+  const land = WI.aerodromes.filter(q => !q.water && q.kind !== 'water');
+  const keep = SH.filter(s => land.some(q => Math.hypot(s.x - q.x, s.z - q.z) - (s.r || 0) < 700 + q.len / 2) && (!BASE || s.tag === 'tree' || Math.hypot(s.x - mn.x, s.z - mn.z) - (s.r || 0) > 600));
+  const put = L.intoWorld(C, WI, keep, 0, 0, Infinity);
+  check(WI.obstacles.count > 300, '11 every land strip\'s solid things are in the world', WI.obstacles.count + ' obstacles, ' + put.trunks + ' trunks');
+  const fmt = q => (isFinite(q.d) ? q.d.toFixed(2) + ' m (' + q.what + ')' : 'nothing near');
+  // a: the census of the plans (a job per build)
+  for (const B of LB) {
+    if (!SHD.take()) continue;
+    let n = 0, worst = null;
+    for (const a of land) {
+      const b = land.find(q => q.id !== a.id), ux = Math.cos(a.hdg), uz = Math.sin(a.hdg);
+      for (const sg of [1, -1]) for (const dEnd of [15, 25, 33, 45, 60, 90, 150]) {
+        if (dEnd > a.len - 20) continue;
+        const s = sg * (a.len / 2 - dEnd), pose = { x: a.x + ux * s, z: a.z + uz * s, hdg: Math.atan2(sg * uz, sg * ux) };
+        const r = L.planAt(C, WI, IX, B.def, a, b, pose);
+        const where = a.id + ' ' + (sg > 0 ? 'end1' : 'end0') + ' -' + dEnd + ' m ' + B.name;
+        n++;
+        const m = Math.min(r.drawn.d - L.MARGIN, r.driven.d, r.disc ? r.disc.d - L.MARGIN : Infinity);
+        if (!worst || m < worst.m) worst = { m, where };
+        const det = r.phase + ' ' + (r.turn ? 'turn' + (r.roll ? ' after ' + r.roll.toFixed(0) + ' m' : ' here') + ': ' : '') + r.ids + ' | drawn ' + fmt(r.drawn) + ', driven ' + fmt(r.driven) + (r.disc ? ', the turn\'s disc ' + fmt(r.disc) : '');
+        // (the driven line's widening is the wheels' whole shortfall - an upper bound on the swing: held off the footprint)
+        check(r.drawn.d >= L.MARGIN - 1e-9 && r.driven.d >= 0 && (!r.disc || r.disc.d >= L.MARGIN - 1e-9), '11a ' + where + ' the turn-around: drawn and turned ' + L.MARGIN + ' m off, driven off every footprint', det);
+      }
+    }
+    check(n >= 70, '11a ' + B.name + ': every land strip x pose planned', n + ' plans; the tightest ' + (worst ? worst.m.toFixed(2) + ' m over its need at ' + worst.where : '-'));
+    console.log('  11a ' + B.name.padEnd(16) + ' ' + n + ' turn-around plans, the tightest ' + (worst ? worst.m.toFixed(2) + ' m over its need (' + worst.where + ')' : '-'));
+  }
+  // b: the calibration - the altiport's game pose, the planner blind
+  const tw = WI.aerodromes.find(q => q.id === 'tw_ski'), nv = WI.aerodromes.find(q => q.id === 'nv_strip');
+  const POSE = { x: 335.69, z: -7843.75, hdg: -1.05 };
+  if (SHD.take()) {
+    const r0 = L.planAt(C, WI, IX, LB[0].def, tw, nv, POSE, { blindPilot: true }), r1 = L.planAt(C, WI, IX, LB[0].def, tw, nv, POSE);
+    check(!r0.turn && r0.drawn.d >= L.MARGIN && r0.driven.d < 0 && /station$/.test(r0.driven.what || ''), '11b calibration: the altiport pose, the pilot blind: the route the game flew - drawn ' + L.MARGIN + ' m clear, driven into the tram station',
+      r0.ids + ' | drawn ' + fmt(r0.drawn) + ', driven ' + fmt(r0.driven));
+    check(r1.turn && !r1.roll, '11b the altiport pose, the pilot seeing: the turn on the spot there', r1.ids + ' | disc ' + (r1.disc ? fmt(r1.disc) : '-'));
+  }
+  // c: flown (a job a flight)
+  const flights = [{ a: tw, b: nv, pose: POSE, what: 'the altiport apron after the slope roll-on' }];
+  { const ux = Math.cos(mn.hdg), uz = Math.sin(mn.hdg), s = -(mn.len / 2 - 45); flights.push({ a: mn, b: WI.aerodromes.find(q => q.id === 'w2'), pose: { x: mn.x + ux * s, z: mn.z + uz * s, hdg: Math.atan2(-uz, -ux) }, what: 'Jumbo Mine\'s street 45 m from its south end' }); }
+  for (const Fl of flights) for (const B of LB) {
+    if (!SHD.take()) continue;
+    const F = L.flyTurn(C, WI, IX, B.def, Fl.a, Fl.b, Fl.pose, { tMax: 150 });
+    const tag = '11c ' + B.name + ' from ' + Fl.what;
+    // the altiport's 380 m is left by every one; Jumbo Mine's 250 m is held to its taxi (the roll begun) - the take-off
+    // there is the roll's own call (G531: a short field's reserve), printed
+    if (Fl.a === tw) check(F.air, tag + ': airborne', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
+    else check(F.phases.includes('ROLL'), tag + ': taxied to the take-off run', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>') + (F.air ? ', airborne' : ', ' + (F.verdicts.find(v => /reject|abort|declin/i.test(v)) || 'not airborne')));
+    check(F.contacts === 0 && F.trunkHits === 0 && !F.crashed, tag + ': touched nothing', F.contacts + ' node contacts' + (F.cWhat ? ' (' + F.cWhat + ')' : '') + ', ' + F.trunkHits + ' trunk hits, crashed ' + F.crashed);
+    check(F.minWing >= 1.5, tag + ': the wing 1.5 m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
+    console.log('  11c ' + B.name.padEnd(16) + ' from ' + Fl.what + ': ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off (' + F.at + ')' + (Number.isFinite(F.overMin) ? '; flew over a footprint ' + F.overMin.toFixed(1) + ' m above its top (' + F.overAt + ')' : '') + ', ' + F.contacts + ' contacts | ' + F.verdicts.filter(v => /pivot|taxi-clearance/.test(v)).join('; '));
+  }
+  if (SHD.take()) {
+    const F = L.flyTurn(C, WI, IX, LB[0].def, tw, nv, POSE, { blindPilot: true, tMax: 30 });
+    check(F.contacts > 0 && /station/.test(F.at || '') && F.minWing < 0.5, '11c calibration: the Cub from the altiport apron, the pilot blind: into the tram station', F.contacts + ' node contacts (' + F.cWhat + '), the wing ' + F.minWing.toFixed(2) + ' m (' + F.at + '), crashed ' + F.crashed);
+  }
+  console.log('  11 the turn-around' + SHD.tag + ' in ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s');
+}
+
+// 12 THE PLOTS (G2310 PREM-S3, sections in shard 0 with 1-10 - G2490 put 11 in shards), premises contract v1.34): every plot Jolene's record places, the footprint of the largest
 // shell it is offered with: 3 m off every solid thing, off the strip's box by 15 m, every validated build's routes on the
 // field's own pattern its half-span + 3 m off, and off the fleet's tie-down spots (FLEET_SPOT.gap); every plot with a way of
 // its own (playerPlotSite: its stand and taxiOut) censused as a stand is (6): the stand, its parked box, every route
 // half + 3 m off every solid thing, the pattern sound. CALIBRATION: the mine's shed given a way of its own (a stand off its
 // door, down the street) reads MILL-TAXI's faults - which is why its plot has none; a plot moved onto the hut is seen.
-{
+if (BASE) {
   const pave = L.paveOf(WI), inp = L.spotInputs(WI, IX, pave);
   const foot = id => { for (const a in C.BASE_OFFERS) { const P = C.BASE_OFFERS[a].plots[id]; if (!P) continue; let HW = 0, HD = 0;
     for (const sh of P.shells) { const d = (P.dims && P.dims[sh]) || C.SHELLS[sh].dims; HW = Math.max(HW, d.HW); HD = Math.max(HD, d.HD); } return { HW, HD }; } return null; };
@@ -304,23 +402,23 @@ for (const seed of [0, 1, 6, 12, 42]) {
     for (const p of s.plots) {
       if (p.main) continue;
       n++;
-      for (const [what, okr, d] of plotRows(p, a, s)) check(okr, '11 plot ' + p.id + ' ' + what, d);
+      for (const [what, okr, d] of plotRows(p, a, s)) check(okr, '12 plot ' + p.id + ' ' + what, d);
       const PS = C.playerPlotSite(s, p.id, null);
       if (!PS.own || a.water || !PS.site.taxiOut) continue;
       nWay++;
       for (const B of VB) {
         const P = C.sitePattern(a, PS.site, { half: B.dims.half }), iss = C.sitePatternIssues(P, a, PS.site, 6, C.patternPath);
-        check(!iss.length, '11 plot ' + p.id + ' ' + B.name + ' its way out is a sound pattern', iss[0] || '');
+        check(!iss.length, '12 plot ' + p.id + ' ' + B.name + ' its way out is a sound pattern', iss[0] || '');
         const need = B.dims.half + L.MARGIN, r = L.censusSite(C, IX, a, P, need);
-        check(r.stand && r.stand.d >= need - 1e-9, '11 plot ' + p.id + ' ' + B.name + ' its stand keeps ' + need.toFixed(2) + ' m', r.stand ? r.stand.d.toFixed(2) + ' m' : 'none');
+        check(r.stand && r.stand.d >= need - 1e-9, '12 plot ' + p.id + ' ' + B.name + ' its stand keeps ' + need.toFixed(2) + ' m', r.stand ? r.stand.d.toFixed(2) + ' m' : 'none');
         const st = P.nodes.find(q => q.kind === 'stand'), fst = P.routes.out[0] && P.nodes.find(q => q.id === P.routes.out[0][1]);
         const pc = L.parkedClear(IX, { x: st.x, z: st.z, hdg: Math.atan2(fst.z - st.z, fst.x - st.x) }, B.dims, L.MARGIN + 25);
-        check(pc.d >= L.MARGIN - 1e-9, '11 plot ' + p.id + ' ' + B.name + ' parked box keeps ' + L.MARGIN + ' m', pc.d.toFixed(2) + ' m to ' + L.fmtWhat(pc.s));
-        for (const q of r.routes) check(q.worst.d >= need - 1e-9, '11 plot ' + p.id + ' ' + B.name + ' route ' + q.name + ' keeps ' + need.toFixed(2) + ' m', q.worst.d.toFixed(2) + ' m to ' + L.fmtWhat(q.worst.what));
+        check(pc.d >= L.MARGIN - 1e-9, '12 plot ' + p.id + ' ' + B.name + ' parked box keeps ' + L.MARGIN + ' m', pc.d.toFixed(2) + ' m to ' + L.fmtWhat(pc.s));
+        for (const q of r.routes) check(q.worst.d >= need - 1e-9, '12 plot ' + p.id + ' ' + B.name + ' route ' + q.name + ' keeps ' + need.toFixed(2) + ' m', q.worst.d.toFixed(2) + ' m to ' + L.fmtWhat(q.worst.what));
       }
     }
   }
-  check(n >= 5 && nWay >= 2, '11 Jolene\'s plots were censused', n + ' plots, ' + nWay + ' with a way of their own');
+  check(n >= 5 && nWay >= 2, '12 Jolene\'s plots were censused', n + ' plots, ' + nWay + ' with a way of their own');
   // calibration: the mine's shed with a way of its own reads MILL-TAXI's faults; a plot on the hut is seen
   {
     const a = WI.aerodromes.find(q => q.id === 'mn_strip'), s = C.siteOf('mn_strip'), p = s.plots.find(q => q.id === 'mn_strip');
@@ -328,13 +426,13 @@ for (const seed of [0, 1, 6, 12, 42]) {
     const PS = C.playerPlotSite(fake, 'mn_strip', null), B = VB.find(b => b.dims.half >= 5.49);
     const P = C.sitePattern(a, PS.site, { half: B.dims.half }), r = L.censusSite(C, IX, a, P, B.dims.half + L.MARGIN);
     const worst = r.routes.reduce((m, q) => Math.min(m, q.worst.d), Infinity);
-    check(worst < 4, '11 calibration: a way of its own for the mine\'s shed comes inside 4 m of a building (MILL-TAXI\'s fault)', worst.toFixed(2) + ' m');
+    check(worst < 4, '12 calibration: a way of its own for the mine\'s shed comes inside 4 m of a building (MILL-TAXI\'s fault)', worst.toFixed(2) + ' m');
     const aw = WI.aerodromes.find(q => q.id === 'w3'), sw = C.siteOf('w3'), hut = SH.find(q => /s_strip\/hut$/.test(q.id));
     const onHut = Object.assign({}, sw.plots.find(q => q.id === 'w3'), { x: hut.x, z: hut.z });
     const rows = plotRows(onHut, aw, sw);
-    check(!rows[0][1], '11 calibration: a plot moved onto Tamgas Hill\'s hut reads inside 3 m of a solid thing', rows[0][2]);
+    check(!rows[0][1], '12 calibration: a plot moved onto Tamgas Hill\'s hut reads inside 3 m of a solid thing', rows[0][2]);
   }
-  console.log('  11 the plots: ' + n + ' censused, ' + nWay + ' with a way of their own');
+  console.log('  12 the plots: ' + n + ' censused, ' + nWay + ' with a way of their own');
 }
 
 console.log('GATE TAXICLEAR: ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));

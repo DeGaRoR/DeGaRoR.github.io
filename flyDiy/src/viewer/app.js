@@ -59,9 +59,9 @@
     openEditor() {
       if (PREM.open) return;
       // G909: the editor's scripts (and every generator its palette lists) load on demand the first time
-      if ((!window.PREMISES_HOST || !window.PREMISES_UI || !window.MARINE_GEN) && window.FLYDIY_LAZY && !PREM.loading) {
+      if ((!window.PREMISES_HOST || !window.PREMISES_UI || !window.MARINE_GEN || !window.NAVAID_GEN) && window.FLYDIY_LAZY && !PREM.loading) {
         PREM.loading = true;
-        window.FLYDIY_LAZY(['_sport_gen', '_marine_gen', 'premises_host', 'premises_ui'])
+        window.FLYDIY_LAZY(['_sport_gen', '_marine_gen', '_navaid_gen'].concat(Object.keys(window.FLYDIY_LAZY_SRC || {}).filter(n => /^scenery_/.test(n)), ['premises_host', 'premises_ui']))
           .then(() => { if (window.PREMISES_HOST && window.PREMISES_UI) { PREM.loading = false; PREM.openEditor(); } },
                 e => console.warn('premises editor: load failed', e))   // REVIEW 2026-10-04 (B23): a failed load is not a held door
           .finally(() => { PREM.loading = false; });
@@ -128,7 +128,7 @@
         // G2917 (the user's island-long road): a road's or an area's edit re-samples the ground under the box it MOVED (the
         // editor's changeBox, premises frame) - an island road's own box was the island; a strip's grade reaches its whole
         // shoulder, and a load or a reset the extent, as before
-        onRebuilt: (layer, ground, bb) => { const o = world.premises.overlay; if (layer === 'objects' || ground === false) { if (window.WORLD && window.WORLD.repaintStrips) window.WORLD.repaintStrips(); return; } if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = (bb && (layer === 'roads' || layer === 'areas') && isFinite(bb.x0) && isFinite(bb.x1)) ? bb : o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } if (window.TREE_FILL && window.TREE_FILL.vegChanged) window.TREE_FILL.vegChanged(); },   // G1385: the cover polygons' vegetation
+        onRebuilt: (layer, ground, bb) => { const o = world.premises.overlay; if (layer === 'objects') return;   /* (G3008: a placed object changes no strip - every strip was taken down and stood again on each object's edit) */ if (ground === false) { if (window.WORLD && window.WORLD.repaintStrips) window.WORLD.repaintStrips(null); return; } if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = (bb && layer && isFinite(bb.x0) && isFinite(bb.x1)) ? bb : o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; const wb = { x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }; window.WORLD.refreshGround(wb); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(wb); } if (window.TREE_FILL && window.TREE_FILL.vegChanged) window.TREE_FILL.vegChanged(); },   // G1385: the cover polygons' vegetation
       });
       PREM.open = true;
       $('bPause').textContent = 'Resume'; $('bPause').classList.add('on');
@@ -3284,6 +3284,7 @@
     // THE BAKED CAVITY (G345.5): the weathering reads the mesh's own grooves
     // per vertex, in each material's own unit — once the group is whole
     if (typeof AEROWX !== 'undefined' && AEROWX.aeroWxBakeCavity) AEROWX.aeroWxBakeCavity(THREE, grp);
+    // (THE REST PLACE, G2750, is NOT baked here: every garage change rebuilds this model - see restBake below)
     // GARAGE: every group is rigged, because every vertex already carries its
     // node weights — there is no band to select and no threshold to tune.
     if (data.generated) {
@@ -3760,10 +3761,23 @@
   const mBasis = new THREE.Matrix4(), vX = new THREE.Vector3(),
         vY = new THREE.Vector3(), vZ = new THREE.Vector3(),
         vSpin = new THREE.Vector3();          // G59.1 prop shaft axis
+  // THE REST PLACE (G2750): what the decals' boxes, the weathering's reads and the holes project from, so the paint rides
+  // a surface the rigs turn and a skin the flex bends (aeroskin's AERO_MAIN_VS). ONCE PER MODEL AND ONLY FOR FLIGHT (43.1's
+  // strict gate: baked in buildModel it ran on every garage change - a copy of every skin vertex, merged again into the
+  // hybrid's views - and the garage never poses a surface): when the craft is first shown in the world under the
+  // roll-out's screen (craftInWorld, so its upload rides the world compile), else on the first flight frame. The place
+  // as it stands then, before that frame's pose: the stand's, which is all the paint needs - fixed from there on. The
+  // folds are baked with it (their arrays are the members' own, still at rest).
+  function restBake() {
+    if (!model || model.restBaked || !model.grp) return;
+    model.restBaked = true;
+    if (window.AEROSKIN && window.AEROSKIN.aeroRestBake) window.AEROSKIN.aeroRestBake(THREE, model.grp);
+  }
   function poseModel(catchUp) {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
     if (!model || (skinMode === 2 && !model.gen)) return;
+    if (!inGarage && !model.restBaked) restBake();      // G2750: the first flight frame, before its pose writes
     // G179: THE POSE IS PINNED TO THE STRUCTURE. `cg` here is sim.bodyOrigin()
     // — the firewall ring, the datum the axes are already taken from — not
     // the mass centre. The mesh is authored about the DESIGN CG, so `oR`
@@ -4652,7 +4666,11 @@
     // guarded: the UI smoke's THREE stub builds lines/pts without materials
     if (lines.material) lines.material.depthTest = !overlay;
     if (pts.material) pts.material.depthTest = !overlay;
-    lines.renderOrder = 998; pts.renderOrder = 999;
+    // G2750 (the user: "the overlay does not draw on top of the runway"): an OPAQUE material sorts in the opaque list
+    // whatever its renderOrder, and the pavement, the clouds' composite and the glass are TRANSPARENT and drawn after
+    // the whole of it - with the depth test off the lines write no depth, so the runway painted straight over them.
+    // Both materials are transparent from birth (no program change here), and the x-ray rides above the glass's band
+    lines.renderOrder = overlay ? AERO_CLEAR + 998 : 998; pts.renderOrder = overlay ? AERO_CLEAR + 999 : 999;
     if (proxy) proxy.mesh.visible = !showSkin;   // the visible skin casts the shadow instead
     // ...unless the CAGE BUILD is what is standing there (G65), in which case
     // none of the model's meshes are on screen at all. applyStand has the last
@@ -5033,14 +5051,16 @@
   // G202.1: ONE navigator for the flight screen (the aerodromes as its
   // database), handed to every pilot so the AP box's NAV mode has a plan
   let flNav = null;
-  const mkPilot = () => {
+  const mkPilot = (key, o) => {
     // P0.4 (PILOT-ROADMAP): the machine sheet's shakedown is the bench's
     // memoised one (shakeOf), handed as a getter — a TDZ before the bench
     // block runs reads as "no shakedown yet", never as a throw
     // G2290 (PILOTS) over G2085 (PILOT-PERSONA): personaProfile() answers the career first (the hired pilot; 'me' the expert)
     const p = makePilot(sim, def, world, { style: PILOT_STYLES[pilotChoice] ? pilotChoice : 'normal', profile: personaProfile(),
                                            shakedown: () => { try { return shakeOf(); } catch (e) { return null; } } });
-    if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes }); p.setNav(flNav); }
+    if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes.concat(typeof NAV_FIXES !== 'undefined' ? NAV_FIXES : []) }); p.setNav(flNav); }
+    // G2120 ROUTE-DRAW: a route armed on the map is every new flight's (not the next leg's: it was flown)
+    if (!(o && o.leg) && typeof ROUTE_DRAW !== 'undefined') ROUTE_DRAW.onPilot(p);
     return p;
   };
   if ($('selPilot')) $('selPilot').onchange = e => {
@@ -5468,14 +5488,14 @@
     bPos = new Float32Array(nb * 6); bCol = new Float32Array(nb * 6);
     bGeo.setAttribute('position', new THREE.BufferAttribute(bPos, 3));
     bGeo.setAttribute('color', new THREE.BufferAttribute(bCol, 3));
-    lines = new THREE.LineSegments(bGeo, new THREE.LineBasicMaterial({ vertexColors: true }));
+    lines = new THREE.LineSegments(bGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true }));   // G2750: see applySkinVis
     lines.frustumCulled = false;
     craft.add(lines);
     pGeo = new THREE.BufferGeometry();
     pPos = new Float32Array(sim.n * 3);
     pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
     pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xc8d8ea,
-      size: 0.06 }));
+      size: 0.06, transparent: true }));
     pts.frustumCulled = false;
     craft.add(pts);
     buildShadowProxy();
@@ -6053,6 +6073,15 @@
     if (!IT || !IT.to || railPhase === null || (manual && !(ap && ap.box && ap.box.on))) { if (el.textContent) el.textContent = ''; return; }
     const cg = sim.cgPos(), parts = [];
     let head = 'to ' + IT.to.toLowerCase();
+    // G2120 ROUTE-DRAW: on a drawn route the line names the route, the active point of how many, the altitude drawn
+    // there (and over the ground), then the profile's live target and the vertical speed against the limit; a profile
+    // under the terrain margin says so
+    const RT = IT.route, Lr = (IT.phase === 'ROUTE' && RT && IT.legs) ? IT.legs[IT.legI] : null;
+    if (Lr && Lr.drawn) {
+      head = (RT.name || 'route') + ' · ' + Lr.name + '/' + IT.legs.length;
+      const d = Math.hypot(Lr.B[0] - cg[0], Lr.B[1] - cg[2]);
+      head += ' ' + (d >= 1000 ? (d / 1000).toFixed(1) + ' km' : Math.round(d) + ' m') + ' · at ' + Lr.hPlan + ' m (' + (Lr.hPlan - Lr.gB) + ' agl)';
+    }
     if (IT.x != null) {
       const d = Math.hypot(IT.x - cg[0], IT.z - cg[2]);
       head += ' ' + (d >= 1000 ? (d / 1000).toFixed(1) + ' km' : Math.round(d) + ' m');
@@ -6060,12 +6089,14 @@
     parts.push(head);
     if (IT.h != null) {
       const over = IT.x != null ? IT.hGround : IT.hField;
-      parts.push('target ' + Math.round(IT.h) + ' m' + (over != null ? ' (' + Math.round(over) + (IT.x != null ? ' agl' : ' over the field') + ')' : ''));
+      if (Lr && Lr.drawn) parts.push('asking ' + Math.round(IT.h) + ' m now');
+      else parts.push('target ' + Math.round(IT.h) + ' m' + (over != null ? ' (' + Math.round(over) + (IT.x != null ? ' agl' : ' over the field') + ')' : ''));
       const vs = IT.vs, sg = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1);
       if (Math.abs(vs) < 0.3 && Math.abs(IT.h - cg[1]) < 12) parts.push('level');
       else if (vs >= 0) parts.push('climbing ' + sg(vs) + ' m/s' + (IT.vsUp != null ? ' (limit ' + sg(IT.vsUp) + ')' : ''));
       else parts.push('descending ' + sg(vs) + ' m/s' + (IT.vsDn != null ? ' (limit ' + sg(IT.vsDn) + ')' : ''));
     }
+    if (Lr && typeof ROUTE_DRAW !== 'undefined') { const P = ROUTE_DRAW.flying() ? ROUTE_DRAW.profile() : null; if (P && P.unsafe) parts.push('⚠ terrain: the drawn profile clears the ground by ' + Math.round(P.minClr) + ' m'); }
     el.textContent = parts.join(' · ');
   }
   function setRail(active) {
@@ -9273,6 +9304,9 @@
     // the cage build comes back up if the editor has ever booted (G65), and
     // the roll-out button re-reads the certificate
     showCage = !!window.CAGE_UI && curKey === 'gen';
+    // G2750 (the user: "Overlay persists in the garage. I don't think it should."): the frame/overlay is a FLIGHT view;
+    // the shed starts covered (the roll-out shot and the bench's live test show the model with showCage off)
+    skinMode = 0;
     applySkinVis();     // hides the mesh under the cage build
     syncGoLabel();
     // THE PLAQUE goes up whenever the aeroplane comes home — including
@@ -9621,7 +9655,11 @@
   function tripExport() {
     if (!window.CAGE_UI || !window.CAGE_JOIN || !window.GARAGE_SPEC) return null;
     parkedFlush();
-    try { const spec = window.CAGE_JOIN.export(); return { spec, key: specKey(spec), flown: null }; }
+    // G2750 (the user: "I changed the registration, and the far baked model does not reflect that"): the export carries the
+    // finish but not meta, and the registration lives in meta.reg (finishToSpec strips it from the decals) - a new reg
+    // left every key equal, the snapshot, the bake and the spec were skipped, and the far fold kept the old letters
+    try { const spec = window.CAGE_JOIN.export(), m = (window.GARAGE_SPEC.get() || {}).meta, reg = (m && m.reg) || '';
+      return { spec, key: specKey(spec) + '|reg' + reg, flown: null }; }
     catch (e) { console.error('build export:', e); return null; }
   }
   // the key: the design as CANONICAL JSON (keys sorted, numbers to 10 significant digits) - the same aeroplane put back
@@ -9880,7 +9918,7 @@
   function craftInWorld(fn) {
     if (!inGarage || !WF) return fn();
     if (!craftAway++) { craftHome = craft.parent; if (craft.parent !== scene) scene.add(craft);
-      craftGrpVis = model && model.grp ? [model.grp, model.grp.visible] : null; if (craftGrpVis) { model.grp.visible = true; if (!craftGrpVis[1] && !window.FLYDIY_POSE_NOCATCHUP) poseModel(true); } }   // (G2111: posed, shown)
+      craftGrpVis = model && model.grp ? [model.grp, model.grp.visible] : null; if (craftGrpVis) { model.grp.visible = true; restBake(); if (!craftGrpVis[1] && !window.FLYDIY_POSE_NOCATCHUP) poseModel(true); } }   // (G2111: posed, shown; G2750: the rest place, under the screen)
     let once = false;
     const back = () => { if (once) return; once = true;
       if (--craftAway !== 0) return;
@@ -10007,7 +10045,11 @@
     // to PREM_WEAR.step, so it re-bakes per step of wear and never per flown second); its key carries the step
     { id: 'bake', part: 'craft', label: 'baking your aeroplane', w: 8, key: () => { const k = buildKey(), q = wearStep(); return (k && q) ? k + '|wear' + q : k; }, deps: ['snapshot'],
       when: () => !!(window.FLOWN_BAKE && typeof window.FLOWN_BAKE.step === 'function'),
-      fn: () => window.FLOWN_BAKE.step({ payload: window.CAGE_VISUAL, spec: wornSpec(tripSync ? (tripSync.flown || tripSync.spec) : genSpec),
+      // G2750: the spec the SNAPSHOT would have flown, always - a trip whose snapshot was skipped (the same build, the
+      // wear moved a step) handed the bake the bare export, which has no meta: the atlas painted the fallback letters
+      // (F-PGAR) and its key could not tell one registration from another - the user's "I changed the registration,
+      // and the far baked model does not reflect that"
+      fn: () => window.FLOWN_BAKE.step({ payload: window.CAGE_VISUAL, spec: wornSpec(tripSync ? (tripSync.flown || (window.GARAGE_SPEC.preview ? window.GARAGE_SPEC.preview(tripSync.spec) : tripSync.spec)) : genSpec),
         phase: (l, f) => BOOT.phase('bake', l || 'baking your aeroplane', f),
         rebuild: () => { if (curKey === 'gen' && model && model.data === window.CAGE_VISUAL) setAircraft('gen'); } })
         .catch(e => console.warn('flown bake:', e && e.message || e)) },
@@ -10406,8 +10448,10 @@
     if (!Number.isFinite(az)) az = -2.5;  if (!Number.isFinite(azT)) azT = az;
     if (!Number.isFinite(el)) el = 0.22;  if (!Number.isFinite(elT)) elT = el;
     if (!Number.isFinite(dist)) dist = 14; if (!Number.isFinite(distT)) distT = dist;
-    // G200: who flies is remembered; the hand starts from the reset ctl
-    manual = !!INP && prefGet('flydiy.flManual', '0') === '1';
+    // G200: the hand starts from the reset ctl. G3120: every flight starts on the
+    // autopilot (the user, 12 Oct); the hand is one toggle away, never remembered.
+    // Only a rig boots in the hand (rollout_perf's afloat / latency legs)
+    manual = !!INP && prefGet('flydiy.flManualRig', '0') === '1';
     if (INP) INP.seed(sim.ctl);
     // G208: THE ADVISED TRIM. The bench's certificate can carry the trim the
     // test pilot held on the cruise leg, and the builder can accept it as the
@@ -11148,7 +11192,7 @@
       const R = legHere(), cur = R.from || aeroById(fromId), to = R.to || cur;
       if (cur && cur.id) fromId = cur.id;
       telBase += ap.t;                 // new AP restarts its clock at 0
-      ap = mkPilot(curKey);
+      ap = mkPilot(curKey, { leg: true });
       ap.departFrom(cur, to);
       destPend = false;
       if (SIMW) SIMW.leg(cur.id, to === cur ? 'CIRCUIT' : to.id);   // G820 (C1c): the worker's pilot made anew at the same step boundary
@@ -11377,6 +11421,12 @@
         g.beginPath(); g.arc(PX(e.x, e.z), PY(e.x, e.z), 2.8 * mk, 0, 6.283); g.fillStyle = '#ffd35a'; g.fill();
       }
       const legs = IT.legs;
+      // G2120: the hold at a drawn route's end - its circle, amber
+      const HD = IT.phase === 'LOITER' && IT.route && IT.route.hold;
+      if (HD) {
+        const sc = Math.hypot(PX(HD.x + 1, HD.z) - PX(HD.x, HD.z), PY(HD.x + 1, HD.z) - PY(HD.x, HD.z));
+        g.strokeStyle = '#ffd35a'; g.lineWidth = 2.2 * mk; g.beginPath(); g.arc(PX(HD.x, HD.z), PY(HD.x, HD.z), HD.R * sc, 0, 6.283); g.stroke();
+      }
       if (legs && legs.length) {
         const li = Math.min(IT.legI | 0, legs.length - 1), LA = legs[li];
         const P = IT.path && IT.path.pts;
@@ -11400,8 +11450,9 @@
         const order = [li]; for (let k = li + 1; k < legs.length; k++) order.push(k);
         const wpLabel = (L, act) => {
           const final = L.name === 'FINAL';
-          const h = act && IT.h != null && !final ? Math.round(IT.h) : L.hPlan;
-          const agl = act && IT.hGround != null && !final ? Math.round(IT.hGround) : (L.hPlan != null && L.gB != null ? L.hPlan - L.gB : null);
+          // G2120: a drawn point is labelled with the altitude drawn there (the live target is the profile's, on its way to it)
+          const h = act && IT.h != null && !final && !L.drawn ? Math.round(IT.h) : L.hPlan;
+          const agl = act && IT.hGround != null && !final && !L.drawn ? Math.round(IT.hGround) : (L.hPlan != null && L.gB != null ? L.hPlan - L.gB : null);
           if (h == null) return final ? 'AIM' : L.name;
           if (final) return 'AIM · ground ' + h + ' m';
           return L.name + ' ' + h + ' m' + (agl != null && (mapBig || mapNoseUp || act) ? ' (' + agl + ' agl)' : '');
@@ -11426,14 +11477,16 @@
     const cg2 = sim.cgPos(), xA = sim.axes()[0];       // nose = -x aft axis
     const hdg = Math.atan2(-xA[2], -xA[0]);
     // shared frame: screen = T(W2/2) . R(rot) . S(k) . T(-c) applied to world xz
-    const rot = mapNoseUp ? -Math.PI / 2 - hdg : 0;
+    const RV = typeof ROUTE_DRAW !== 'undefined' ? ROUTE_DRAW.mapView() : null;   // G2120: the drawing's own view (north up)
+    const rot = RV ? 0 : mapNoseUp ? -Math.PI / 2 - hdg : 0;
     // THE UNDERLAY'S OWN BOX (G498.2): the bake covers world.bounds, which for an island is its
     // own square - Jolene's is neither centred on the origin nor 24 km wide. North-up frames THE
     // BOX, not a fixed 24 km around the origin, so the picture and every marker on it share one
     // frame. The analytic world's bounds ARE +-12000, so nothing there moves by a pixel.
     const MB = (WF && WF.minimapBox) || { x0: -12000, z0: -12000, size: 24000 };
-    const k = mapNoseUp ? W2 / NOSE_RANGE : W2 / MB.size;
-    const cx = mapNoseUp ? cg2[0] : MB.x0 + MB.size / 2, cz = mapNoseUp ? cg2[2] : MB.z0 + MB.size / 2;
+    const k = RV ? W2 / RV.range : mapNoseUp ? W2 / NOSE_RANGE : W2 / MB.size;
+    const cx = RV ? RV.cx : mapNoseUp ? cg2[0] : MB.x0 + MB.size / 2, cz = RV ? RV.cz : mapNoseUp ? cg2[2] : MB.z0 + MB.size / 2;
+    if (typeof ROUTE_DRAW !== 'undefined') ROUTE_DRAW.setFrame({ W2, k, cx, cz, rot });
     const co = Math.cos(rot), si = Math.sin(rot);
     const PX = (x, z) => W2 / 2 + k * ((x - cx) * co - (z - cz) * si);
     const PY = (x, z) => W2 / 2 + k * ((x - cx) * si + (z - cz) * co);
@@ -11444,7 +11497,7 @@
     // into an offscreen canvas and blit; nose-up stays live, its frame
     // moves with the aircraft.
     let blitted = false;
-    if (!mapNoseUp) {
+    if (!mapNoseUp && !RV) {
       try {
         if (!mapBaseCv || mapBaseCv.width !== W2 || mapBaseFor !== base) {
           const oc = document.createElement('canvas');
@@ -11565,6 +11618,8 @@
     // ringed). On the ground, the taxi route to the hold. Labels through the ledger, the active first;
     // the others once the map is big or nose-up (at 24 km a circuit is 40 px).
     drawPlanOnMap(g, PX, PY, mk, W2, labPut);
+    // G2120 ROUTE-DRAW: the route being drawn (or armed, not yet flown) over the plan, its points through the same ledger
+    if (typeof ROUTE_DRAW !== 'undefined') { ROUTE_DRAW.drawOnMap(g, PX, PY, mk, W2, labPut); ROUTE_DRAW.tick(); }
     // THE ANIMAL HOTSPOTS (G498): where the wildlife lives is a thing a pilot plans a flight
     // around - the sanctuary you land at, the pod you fly over - so the map says so. ONE mark a
     // HOTSPOT, never one an animal: the record is the hotspot, and its individuals wander inside
@@ -11640,7 +11695,21 @@
     g.fillStyle = 'rgba(251,244,234,.85)';
     g.fillText(mapNoseUp ? 'NOSE↑' : 'N↑', W2 - 74 * mk, 29 * mk);
   }
+  // G2120 ROUTE-DRAW: THE DRAWING (route_draw.js) - its doors into this page: the flight, the map, the prefs, the worker
+  let rdMapWas = null;
+  if (typeof ROUTE_DRAW !== 'undefined') ROUTE_DRAW.attach({
+    ap: () => ap, sim: () => sim, world: () => world, started: () => started, prefGet, prefSet,
+    simw: () => { try { return SIMW; } catch (e) { return null; } },
+    box: () => (WF && WF.minimapBox) || { x0: -12000, z0: -12000, size: 24000 },
+    redraw: () => { if (!$('mmp').hidden) drawMap(); },
+    // the drawing wants the map shown and large; closing it puts the map back as it was
+    mapOpen: on => {
+      if (on) { rdMapWas = { show: !!panels.map, big: mapBig }; if (!panels.map) flPanel('map', true); if (!mapBig) flMapBig(true); $('mmp').classList.add('draw'); }
+      else { $('mmp').classList.remove('draw'); if (rdMapWas) { if (mapBig !== rdMapWas.big) flMapBig(rdMapWas.big); if (!rdMapWas.show) flPanel('map', false); } rdMapWas = null; drawMap(); }
+    },
+  });
   $('mm').onclick = e => {
+    if (typeof ROUTE_DRAW !== 'undefined' && ROUTE_DRAW.on()) return;   // G2120: a click on the drawing is a point
     const cv = $('mm');
     const s = cv.clientWidth ? cv.width / cv.clientWidth : 1;
     const bx = (e.offsetX ?? 0) * s, by = (e.offsetY ?? 0) * s;
@@ -11737,7 +11806,7 @@
   // over a horizon, `graphics` the sliders it always had, `dev` a pair of brackets.
   const FL_RAIL = [
     { k: 'fly', label: 'fly', head: 'The flight', title: 'The flight: the route, the start, the patterns, the engines, who flies',
-      icon: 'M9 2.4v13.2|M2.4 9.6 9 7.4l6.6 2.2|M6.2 15.4 9 14.4l2.8 1', secs: ['route', 'start', 'patterns', 'engines', 'controls'] },
+      icon: 'M9 2.4v13.2|M2.4 9.6 9 7.4l6.6 2.2|M6.2 15.4 9 14.4l2.8 1', secs: ['route', 'drawn', 'start', 'patterns', 'engines', 'controls'] },
     { k: 'view', label: 'view', head: 'Looking', title: 'Looking: the camera, the instruments, the map, the trace, the screen',
       icon: 'M1.6 9S4.4 4.2 9 4.2 16.4 9 16.4 9 13.6 13.8 9 13.8 1.6 9 1.6 9Z|M9 11.1a2.1 2.1 0 1 0 0-4.2 2.1 2.1 0 0 0 0 4.2Z', secs: ['camera', 'instruments', 'map', 'trace', 'screen'] },
     { k: 'sky', label: 'sky & world', head: 'The sky and the world', title: 'The day and the night, the weather and the clouds, the ground',
@@ -11753,6 +11822,8 @@
   // `head` is the fold's own name where the item's one word no longer says it; `sub` the line under it.
   const FL_SECS = [
     { k: 'route', label: 'route', title: 'Where it goes', head: 'route & circuit', sub: 'the destination, or the circuit - on the ground or in the air' },
+    // G2120 ROUTE-DRAW: a route drawn on the map - control points, their altitudes - for the autopilot to fly
+    { k: 'drawn', label: 'drawn route', title: 'A route drawn on the map', head: 'drawn route', sub: 'control points and altitudes on the map, flown by the autopilot' },
     // 2026-09-04: WHERE THE FLIGHT STARTS - the stand and a taxi out (G151), or lined up on the strip
     { k: 'start', label: 'start', title: 'Where the flight starts', sub: 'from the stand, or lined up' },
     // G193: THE PATTERNS - the taxi graph, the glide slopes and the two touchdown targets
@@ -12380,6 +12451,23 @@
         : ph === 'STOPPED' ? 'Picking a new destination now taxis out from here and flies there - same flight, no reset.'
         : ['FLARE', 'ROLLOUT', 'GLIDE'].includes(ph) ? 'Landing: a new destination is flown from where the aeroplane stops.'
         : 'A new destination re-plans the flight from here, like an autopilot\'s.');
+    },
+    // G2120 ROUTE-DRAW: THE DRAWN ROUTE - the drawing's door (route_draw.js: the map in its draw mode, the panel under
+    // it), what is drawn and whether the autopilot has it
+    drawn(body) {
+      const RD = typeof ROUTE_DRAW !== 'undefined' ? ROUTE_DRAW : null;
+      if (!RD) { flNote(body, 'This build has no route drawing.'); return; }
+      const R = RD.route(), n = R ? R.pts.length : 0;
+      const fr = flRow(body, 'route');
+      const v = document.createElement('span');
+      v.className = 'v'; v.style.flex = '1'; v.style.textAlign = 'left'; v.style.font = "400 11px/1.2 'IBM Plex Sans'";
+      v.textContent = !n ? 'none drawn' : R.name + ' · ' + n + ' point' + (n > 1 ? 's' : '') + ' · then ' + R.end + (RD.flying() ? ' · FLYING' : RD.armed() ? ' · armed' : '');
+      fr.appendChild(v);
+      const list = [{ label: RD.on() ? 'close the drawing' : 'draw on the map', value: 'draw' }];
+      if (n) list.push(RD.armed() ? { label: RD.flying() ? 'leave the route' : 'disarm', value: 'leave' } : { label: 'fly it', value: 'fly' });
+      flPills(body, list, o => o.value === 'draw' && RD.on(), o => { if (o.value === 'draw') RD.setOn(!RD.on()); else if (o.value === 'fly') RD.fly(); else RD.leave(); });
+      flNote(body, 'Click the map to add a point, drag to move, right-click or long-press to delete; each point has its altitude (MSL or over the ground) and a speed. ' +
+                   'Drawn before the start, the autopilot flies it after the climb-out; in the air, from where it is.');
     },
     // 2026-09-20: THE DAY PANEL (day_ui.js) - the same panel the shed's `night` flyout mounts:
     // the conditions (#selCond stays the keeper, pressed through its own change), the clock's

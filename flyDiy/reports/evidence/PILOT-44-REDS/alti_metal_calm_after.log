@@ -1,0 +1,4 @@
+  ok   HOME > tw_ski          548 s | dep: turned 102.7 deg, roll 109.7 m in, lift-off 157.4 m | final 4641.5 m / 827.7 m, clear 13.3 m (ground) | td sink -2.02 m/s, 30.9 m/s, run 245 m, off 0.8 m | fuel 23.2 L
+verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 30.8 m/s until clear | climb-hold: 189 m under the height the final to Skyline Altiport starts from - circling here, climbing, before the approach | vref-raised: the elevator cannot hold 31.0 m/s at this power — flying the approach faster | slope: stopped on a 2.7 % grade — rolling 20 m on to the level part
+appr {"technique":"short","Vref":26.6,"Vbase":26.6,"gust":0,"aimIn":23,"flap":0,"len":380,"surface":0,"runNeed":249,"gs":0.046,"reqGs":0,"Vheld":38.8,"held":{"Vtd":34.3,"tail":0,"need":302,"needShort":253,"room":254,"grade":0.077}}
+faults []

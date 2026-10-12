@@ -210,7 +210,13 @@ function analyze(log, opt) {
     { id: 'task1s', what: 'no task over 1 s (the whole log, the loading screens included)', ok: longTasks.length === 0,
       got: longTasks.length + ' over 1 s' + (longTasks.length ? ' (' + longTasks.filter(x => x.afterReveal).length + ' after the reveal; worst ' + Math.max(...longTasks.map(x => x.ms)).toFixed(0) + ' ms)' : '') },
   ];
-  return { hwsteps: events.filter(e => e.kind === 'hwstep'), skies: events.filter(e => e.kind === 'sky'), header: H, t0, revealT, revealInferred, reveals, frames: rows.length, boots, scopeName, scopeFrames: scope.length, dist, phases, worst, stretches: stretches.slice(0, 10), slowS,
+  // G2933 (TREE-STREAM): the forest fill's need -> ready latency, one 'tree' event a part the eye could see the fill of
+  // (render_world.js landPart: 'base|fill cx,cz at D m [swap] [hot] | F fr, walk+build X ms, queue Q[, urgent]')
+  const treeEv = events.filter(e => e.kind === 'tree' && e.ms != null).map(e => {
+    const d = String(e.detail || ''), m = /^(base|fill) (-?\d+),(-?\d+) at (\d+) m/.exec(d);
+    return { t: e.t, ms: e.ms, part: m ? m[1] : '?', at: m ? +m[4] : null, swap: / swap/.test(d), hot: / hot/.test(d), urgent: /urgent/.test(d), detail: d };
+  });
+  return { trees: treeEv, hwsteps: events.filter(e => e.kind === 'hwstep'), skies: events.filter(e => e.kind === 'sky'), header: H, t0, revealT, revealInferred, reveals, frames: rows.length, boots, scopeName, scopeFrames: scope.length, dist, phases, worst, stretches: stretches.slice(0, 10), slowS,
     over100: over100.slice(0, 30).map(r => ({ i: r.i, t: r.t, dt: r.dt, phase: r.ph })), over100N: over100.length, longTasks, evCount, catches, catcher: H.catcher || null, targets };
 }
 
@@ -274,6 +280,18 @@ function report(A) {
     for (const c of A.catches) L.push('  ' + ts(c.t) + '  ' + c.why + ': mean ' + c.prev + ' -> ' + c.mean + ' -> ' + c.next + ', sky ' + c.sky + ', white ' + c.white +
       ' | exposure base ' + c.exposureBase + ' eyeK ' + c.eyeK + ' far ' + c.far + ' near ' + c.near + ' camY ' + c.camY + ' cloud shadow ' + c.cloudShadow + ' in-cloud ' + c.inCloudRho +
       ' hidden quadrants ' + c.visHidden + ' | post ' + (c.post ? Object.keys(c.post).filter(k => c.post[k] !== 'off').map(k => k + ' ' + c.post[k]).join(' ') : '-') + (c.jpeg ? ' [jpeg]' : ''));
+    L.push('');
+  }
+  if (A.trees && A.trees.length) {
+    // the fill's parts as they landed: new ones (a chunk the ring reached) and swaps (an edit's), the near ones apart
+    const T = A.trees, q = (a, k) => { const s2 = a.map(x => x.ms).sort((x, y) => x - y); return s2.length ? s2[Math.min(s2.length - 1, Math.floor(k * s2.length))] : null; };
+    const row = (name, a) => a.length ? '  ' + name.padEnd(30) + String(a.length).padStart(6) + (f0(q(a, 0.5)) + ' ms').padStart(11) + (f0(q(a, 0.9)) + ' ms').padStart(11) + (f0(Math.max(...a.map(x => x.ms))) + ' ms').padStart(11) : null;
+    L.push('TREE STREAM (G2933: the forest fill, need -> ready; a stand card stands in meanwhile)');
+    L.push('  parts                          count     median        p90      worst');
+    for (const x of [row('new, inside 1.5 km', T.filter(e => !e.swap && e.at != null && e.at < 1500)), row('new, 1.5 km to the dense edge', T.filter(e => !e.swap && e.at != null && e.at >= 1500)),
+                     row('swaps (an edit)', T.filter(e => e.swap && !e.hot)), row('hot swaps (an exclusion)', T.filter(e => e.hot)), row('on the urgent budget', T.filter(e => e.urgent))]) if (x) L.push(x);
+    const late = T.filter(e => e.ms > 20000).sort((a, b) => b.ms - a.ms);
+    L.push('  over 20 s: ' + late.length + (late.length ? ' - ' + late.slice(0, 6).map(e => (e.ms / 1000).toFixed(1) + ' s at ' + ts(e.t) + ' (' + e.detail.slice(0, 60) + ')').join('; ') : ''));
     L.push('');
   }
   L.push('THE ROLLOUT TARGETS');

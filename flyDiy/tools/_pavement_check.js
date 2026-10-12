@@ -439,6 +439,41 @@ console.log('8. THE POWER LINE - the poles, the side, the cable');
   PW.setOn(false); const off2 = !g.visible; PW.setOn(true);
   verdict(off2 && g.visible, 'GRAPHICS > power lines hides every line, and shows them again');
   PW.dispose(g);
+  // f) THE LONG ROAD (G2955; the user: "I don't think the poles and cables draw anymore on my long road" - 140 poles a
+  //    road ended the island road's line 4.7 km from its start): a 25 km road takes its poles the WHOLE way, and the eye
+  //    draws only the cable's chunks within reach
+  { const LL = 25000, long = straight(250, LL);
+    const pq = PW.plan({ path: long, w: 7.2, seed: 9 });
+    const last = pq.poles.length ? pq.poles[pq.poles.length - 1].t : 0;
+    verdict(pq.poles.length > LL / (PW.DEF.pitch + PW.DEF.jitter) && last > LL - PW.DEF.pitch - PW.DEF.jitter - 10,
+      `a ${LL / 1000} km road: ${pq.poles.length} poles, the last ${f(LL - last, 0)} m from its end (the budget ${PW.DEF.perKm} a km, no total)`);
+    const LB = new Map();   // the lamps as the renderer bags them: by the chunk build() hands each one
+    const gl = PW.build(THREE, { path: long, w: 7.2, seed: 9, heightAt: () => 10, poles: pq.poles, side: pq.side,
+      place: q => { const o = new THREE.Object3D(); o.position.set(q.x, q.y, q.z); return o; },
+      lamp: q => { const a = LB.get(q.ci); if (a) a.push(q); else LB.set(q.ci, [q]); } });
+    const ch = gl.children.filter(c => c.isMesh && c.userData.pwc), UL = gl.userData.powerline;
+    // each chunk's lamps one mesh (a small box a lamp - the head's place is what matters), marked for cull() as the
+    // renderer's buildLine marks its metal and glass bags
+    const lampMeshes = [];
+    for (const [, qs] of LB) { const pos = []; for (const q of qs) pos.push(q.x - 0.3, q.y + 6, q.z, q.x + 0.3, q.y + 6, q.z, q.x, q.y + 6.3, q.z); const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); const m = PW.chunk(new THREE.Mesh(geo)); gl.add(m); lampMeshes.push(m); }
+    const nLamps = Array.from(LB.values()).reduce((a, q) => a + q.length, 0);
+    verdict(LB.size === ch.length && Array.from(LB.values()).every(q => q.length <= Math.ceil(PW.DEF.chunk / PW.DEF.lampEvery) + 1) && Math.abs(nLamps - pq.poles.length / PW.DEF.lampEvery) <= 1,
+      `its ${nLamps} lamps come in the cable's ${LB.size} chunks (at most ${Math.ceil(PW.DEF.chunk / PW.DEF.lampEvery) + 1} a chunk)`);
+    verdict(ch.length > 60 && UL.spans === pq.poles.length - 1, `its cable: ${UL.spans} spans in ${ch.length} chunks, ${(UL.tris / 1000).toFixed(0)} k triangles in all`);
+    const nNear = PW.cull({ x: LL / 2, y: 12, z: 0 }), drawn = ch.filter(c => c.visible).length, span = LL / ch.length;
+    verdict(nNear >= 2 && drawn <= Math.ceil(2 * PW.DEF.reach / span) + 2 && ch.every(c => c.visible === (Math.abs(c.userData.pwc[0] - LL / 2) - c.userData.pwc[3] <= PW.DEF.reach)),
+      `the eye at its middle draws ${drawn} of ${ch.length} chunks (those within ${PW.DEF.reach} m)`);
+    const lampsDrawn = lampMeshes.filter(m => m.visible), lampsLit = lampsDrawn.reduce((a, m) => a + m.geometry.attributes.position.count / 3, 0);
+    verdict(lampsDrawn.length <= Math.ceil(2 * PW.DEF.reach / span) + 2 && lampsDrawn.length >= 2 && lampsLit < nLamps / 4,
+      `...and of its lamps ${lampsLit} in ${lampsDrawn.length} meshes (the rest culled with their chunks; one merged mesh drew all ${nLamps})`);
+    PW.cull({ x: 0, y: 12, z: 0 });
+    verdict(ch[0].visible && !ch[ch.length - 1].visible && lampMeshes[0].visible && !lampMeshes[lampMeshes.length - 1].visible, 'the eye at its start: the first chunk drawn (cable and lamps), the last not');
+    const RPs = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
+    verdict(/chunkOf\(q\.ci \| 0\)/.test(RPs) && /PWR\.chunk\(c\.metal\.mesh/.test(RPs) && /q\[1\]\.chunk && !q\[1\]\.grp\.visible/.test(RPs) && /!e\.chunk \|\| e\.grp\.parent\.parent/.test(RPs),
+      'the game bags a line\'s lamps by its chunks, marks them for the cull, and a culled chunk\'s lamps lend no light');
+    PW.cull({ x: LL / 2, y: 12, z: 0 }, 1e9);
+    verdict(ch.every(c => c.visible), 'a reach past the road draws it all');
+    PW.dispose(gl); }
 }
 
 // ---- 9. THE LANES AND THEIR PAINT (2026-09-23) -------------------------------------
@@ -651,7 +686,8 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
   // (c) THE LOOK: 9 knobs x 3 surface types, every one a KNOB row with its default inside its range; a class's look
   // through lookOf; the defaults draw the plain surface (multipliers 1, the edge zone's side)
   const K = {}; for (const row of P.KNOBS) if (row.length > 1) K[row[0]] = row;
-  const okK = P.LOOK_KEYS.length === 27 && P.LOOK_KEYS.every(k => K[k] && P.RECIPE[k] >= K[k][2] && P.RECIPE[k] <= K[k][3]);
+  const okK = P.LOOK_KEYS.length === 27 + 2 &&   // + G2570's two grass-strip keys (grMatch, grMowA)
+    P.LOOK_KEYS.every(k => K[k] && P.RECIPE[k] >= K[k][2] && P.RECIPE[k] <= K[k][3]);
   verdict(okK, `the runway look: ${P.LOOK_KEYS.length} knobs (${Object.keys(P.LOOK_GROUPS).join(', ')} x 9), each a KNOBS row, its default in range`);
   const L0 = P.lookOf('asphalt'), Lg = P.lookOf('grass');
   verdict(L0.surf.every(c => Math.abs(c - 1) < 1e-9) && L0.side.every(c => Math.abs(c - 1) < 1e-9) && L0.sideW === P.RECIPE.sideW && L0.sideA === P.RECIPE.sideA && Lg.sideA === 0 && Lg.sideW === P.RECIPE.edgeSoft && P.groupOf('dirt') === 'sf'
@@ -673,8 +709,20 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
   P.look(THREE, null);
   verdict(live.grBright === 0.6 && !('bogus' in live) && Math.abs(afterLive - P.tintRGB(0.2, 0.4)[0] * 0.6) < 1e-6 && Math.abs(U.uWet.value.y - exp[0]) < 1e-6 && Object.keys(P.look()).length === 0,
     `the live overlay reaches a made part (surface r ${f(exp[0], 3)} -> ${f(afterLive, 3)}), takes only look keys, and clearing it gives the premises' back`);
-  verdict(P.groundColor('grass', rec).every((c, i) => c > 0) && P.opaqueDepth('grass', 9, null, 'strip') === P.RECIPE.edgeChip + 0.2 && P.opaqueDepth('grass', 3, null, 'road') === Infinity && P.opaqueDepth('dirt', 9, null, 'road') === P.RECIPE.edgeChip + 0.2,
-    `opaqueDepth: a soft edge and a grass strip as deep as a paved chip (${P.RECIPE.edgeChip + 0.2} m), a grass road still never sunk`);
+  // (the grass strip's own LAWN - grMatch 0, as before G2570 - is sunk like a soft edge; a MATCHED one shows the ground and is not)
+  const lawn = Object.assign({}, rec, { grMatch: 0 });
+  verdict(P.groundColor('grass', lawn).every((c, i) => c > 0) && P.opaqueDepth('grass', 9, lawn, 'strip') === P.RECIPE.edgeChip + 0.2 && P.opaqueDepth('grass', 3, null, 'road') === Infinity && P.opaqueDepth('dirt', 9, null, 'road') === P.RECIPE.edgeChip + 0.2,
+    `opaqueDepth: a soft edge and a grass strip's own lawn as deep as a paved chip (${P.RECIPE.edgeChip + 0.2} m), a grass road still never sunk`);
+  // G2570 THE GRASS STRIP WEARS THE GROUND (the user, 12 Oct: "the color of the grassy runway ... similar to the surrounding colors"):
+  // matched (the default), its ground is not sunk, a tuft on it takes the ground's own colour (groundColor null -> the cover ring's
+  // meanAt), the part carries match and the mown tint in its row, and the shader lets the ground through but for the tracks and a
+  // wash of at most grMowA - the strip's drawn colour within grMowA of the ground's own; no new program (the same uniform rows)
+  { const mr = P.resolve({ cls: 'grass' }, { pavement: {} }).recipe, mm = P.make(THREE, { lib, cls: 'grass', recipe: mr, band: 1.5 }), MU = mm.uniforms;
+    const law = P.GLSL.map.indexOf('if (grassy && !road && uMacro.w > 0.0) {') >= 0 && P.GLSL.map.indexOf('gPavA = mix(gPavA, max(worn * gPavA, uStain.w * wPav), uMacro.w);') >= 0;
+    verdict(P.RECIPE.grMatch === 1 && P.groundColor('grass', mr) === null && P.opaqueDepth('grass', 9, mr, 'strip') === Infinity && MU.uMacro.value.w === 1
+      && Math.abs(MU.uStain.value.w - P.RECIPE.grMowA) < 1e-9 && P.RECIPE.grMowA <= 0.2 && law && P.LOOK_KEYS.indexOf('grMatch') >= 0 && P.LOOK_KEYS.indexOf('grMowA') >= 0,
+      `a grass strip shows the ground under it (grMatch ${P.RECIPE.grMatch}): not sunk, its tufts the ground's colour, its wash ${P.RECIPE.grMowA} - two look keys, the law in GLSL.map`);
+    P.dispose(mm); }
   P.dispose(m);
 }
 

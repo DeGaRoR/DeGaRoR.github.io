@@ -298,11 +298,11 @@ function make(THREE, scene, world, rec0, opts) {
     if (!want || !LAMPS.armed) { for (const l of LAMPS.pool) l.intensity = 0; LAMPS.litNow = stats.litNow = 0; return; }
     if ((LAMPS.frame++ % 30) === 0 || !LAMPS.near) {
       // the published lamps of the groups still standing, in the world, the nearest first
-      const pub = LAMPS.pub = LAMPS.pub.filter(e => e.grp.parent);
+      const pub = LAMPS.pub = LAMPS.pub.filter(e => e.grp.parent && (!e.chunk || e.grp.parent.parent));   // (G2955: a line's lamp chunk stays parented to its line - the line itself must still stand)
       for (const e of pub) if (!e.wp || e.move) { e.grp.updateWorldMatrix(true, false); _lp.set(e.p[0], e.p[1], e.p[2]); e.grp.localToWorld(_lp); e.wp = [_lp.x, _lp.y, _lp.z]; }
       const r2 = LAMPS.reach * LAMPS.reach;
       LAMPS.near = pub.map(e => { const dx = e.wp[0] - eye.x, dy = e.wp[1] - eye.y, dz = e.wp[2] - eye.z; return [dx * dx + dy * dy + dz * dz, e]; })
-        .filter(q => q[0] < r2).sort((a, b) => a[0] - b[0]).slice(0, LAMPS.N).map(q => q[1]);
+        .filter(q => q[0] < r2 && !(q[1].chunk && !q[1].grp.visible)).sort((a, b) => a[0] - b[0]).slice(0, LAMPS.N).map(q => q[1]);
     }
     const near = LAMPS.near;
     for (let i = 0; i < LAMPS.pool.length; i++) {
@@ -517,6 +517,7 @@ function make(THREE, scene, world, rec0, opts) {
   const patchKindAt = (x0, z0) => (o.patchPick && o.patchPick(x0, z0, x0 + PCH, z0 + PCH)) ? 1 : 0;   // a chunk's ground: 1 the far terrain's (G527)
   const patchBlockOf = k => { const [ci, cj] = k.split(',').map(Number); return patchKindAt(ci * PCH, cj * PCH) + '|' + Math.floor(ci / PL.block) + ',' + Math.floor(cj / PL.block); };
   // skip (G2063): an entry it names is left out - the town's, while its geometry waits (GEO below)
+  const LONE_OFF = typeof location !== 'undefined' && /[?&]lonepatch=0(&|$)/.test(location.search || '');
   function activeChunks(b, skip) {
     const F = O.frame, rec = O.rec, L = rec.layers, act = new Set(), key = (i, j) => i + ',' + j, sk = e => !!(skip && e && skip(e));
     const i0 = Math.floor(b.x0 / PCH), i1 = Math.floor(b.x1 / PCH), j0 = Math.floor(b.z0 / PCH), j1 = Math.floor(b.z1 / PCH);
@@ -539,7 +540,10 @@ function make(THREE, scene, world, rec0, opts) {
     for (const t of L.terrain) { if (sk(t)) continue; if (t.poly) markPoly(t.poly, (+t.falloff || 6) + 4); else if (t.pts) markLine(t.pts, (+t.width || 4) / 2 + (+t.falloff || 6) + 4); }
     for (const s of L.surface) if (!sk(s)) markPoly(s.poly, 4);
     for (const m of L.material) if (!sk(m)) markPoly(m.poly, (+m.fade || 0) + 4);
-    for (const r of L.roads) if (!sk(r) && r.pts && r.pts.length >= 2) markLine(r.pts, (+r.w || 3.6) / 2 + (+r.falloff || 6) + 6);
+    // (G3013) the roads' chunks: PG.roadPatchChunks - a LONE stretch (nothing of the record within LONE_R) marks the chunks
+    // its band covers, not the ones it grazes; where a road meets anything, the margin as before. ?lonepatch=0 the old rule
+    if (PG.roadPatchChunks) { for (const k of PG.roadPatchChunks(rec, F, PCH, { i0, i1, j0, j1 }, { skip: sk, runways: O.runways, lone: !LONE_OFF && window.FLYDIY_LONEPATCH !== false })) act.add(k); }
+    else for (const r of L.roads) if (!sk(r) && r.pts && r.pts.length >= 2) markLine(r.pts, (+r.w || 3.6) / 2 + (+r.falloff || 6) + 6);
     for (const r of O.runways || []) { if (sk(r) || (PG.runwayIsWater && PG.runwayIsWater(r))) continue; markPoly(PG.runwayBox(r, PG.runwayShoulder(r) + 30), 4); }
     for (const z of L.zones) if (!sk(z)) markPoly(z.poly, 40);
     for (const st of L.sites) { if (sk(st)) continue; const a = st.at || { x: 0, z: 0 }; let r = 80; for (const it of st.items || []) r = Math.max(r, Math.hypot(it.x || 0, it.z || 0) + 40); if (st.yard) r = Math.max(r, Math.hypot(st.yard.x1 || 0, st.yard.z1 || 0) + 40, Math.hypot(st.yard.x0 || 0, st.yard.z0 || 0) + 40); markBox({ x0: a.x - r, z0: a.z - r, x1: a.x + r, z1: a.z + r }, 0); }
@@ -988,8 +992,9 @@ function make(THREE, scene, world, rec0, opts) {
     const VG = window.VILLAGE_GEN, HG = window.HOUSE_GEN, HK = window.HOUSE_KIT, PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
     if (!VG || !HG || !HK || !pp || !PR) return null;
     const F = O.frame, LF = lampFinish();
-    const bags = { metal: HK.Bag('metal'), glass: HK.Bag('glass') };
-    const lit = [];
+    // (G2955) the lamps in BAGS BY CHUNK - the cable's own ten spans: one merged mesh along an island road was a bounding
+    // sphere always in view (every one of its ~365 lamps drawn every frame); a chunk's lamps are culled with its cable
+    const CH = new Map(), chunkOf = ci => { let c = CH.get(ci); if (!c) CH.set(ci, c = { metal: HK.Bag('metal'), glass: HK.Bag('glass'), lit: [] }); return c; };
     // the verge the guardrail did NOT take, when it took exactly one (the photograph's arrangement)
     const rs = railG && railG.userData.guardrail ? railG.userData.guardrail.sides : null;
     const side = (rd.polesSide ? +rd.polesSide : 0) || (rs && rs.length === 1 ? -rs[0] : 0);
@@ -997,14 +1002,20 @@ function make(THREE, scene, world, rec0, opts) {
       side, seed: PG.fnv(String(rd.id)) % 997, toWorld: (x, z) => F.toWorld(x, z), heightAt,
       keep: poleKeep(rd),
       place: q => { if (!PR.props[q.key]) return null; const o = pp(THREE, q.key, q.x, q.z, q.ry, q.y); if (q.scale) o.scale.setScalar(q.scale); tiltToGround(o, (x, z) => O.terrainAt(x, z), q.x, q.z, q.ry); return o; },
-      lamp: q => { const L = VG.streetLamp(bags, q); if (L) lit.push(L); } });
+      lamp: q => { const c = chunkOf(q.ci | 0), L = VG.streetLamp(c, q); if (L) c.lit.push(L); } });
     if (!g) return null;
-    PWR.own(bags.metal.mesh(g, LF.MAT.metal));                                  // the lamps' geometry is the line's to free
-    const gm = PWR.own(bags.glass.mesh(g, HG.MAT.glass)); if (gm) gm.castShadow = false;
+    const lit = [];
+    for (const [, c] of CH) {
+      const mm = PWR.own(PWR.chunk ? PWR.chunk(c.metal.mesh(g, LF.MAT.metal)) : c.metal.mesh(g, LF.MAT.metal));   // the lamps' geometry is the line's to free
+      const gm = PWR.own(PWR.chunk ? PWR.chunk(c.glass.mesh(g, HG.MAT.glass)) : c.glass.mesh(g, HG.MAT.glass)); if (gm) gm.castShadow = false;
+      for (const L of c.lit) { L.grp = mm || gm || g; lit.push(L); }
+    }
     // the lens follows the night like every other glass (the finish's uLitK), and each head joins the
     // lamp pool - the nearest eight of the world's lamps get one of the eight point lights
     if (LF.GLASS_U && LF.GLASS_U.uLitK && !LAMPS.glass.has(LF.GLASS_U.uLitK)) { LAMPS.glass.set(LF.GLASS_U.uLitK, LF.GLASS_U.uLitK.value); LF.GLASS_U.uLitK.value = LF.GLASS_U.uLitK.value * LAMPS.on; }
-    for (const L of lit) if (isFinite(L.x) && isFinite(L.y) && isFinite(L.z)) LAMPS.pub.push({ grp: g, p: [L.x, L.y, L.z], col: L.col || [1, 0.92, 0.74], k: L.k == null ? 1 : L.k, range: L.range || 30, kind: L.kind });
+    // (each lamp's light rides its chunk's mesh: a chunk not drawn - past the reach - lends its lamps no light; `grp` the
+    //  chunk, whose transform is the line's)
+    for (const L of lit) if (isFinite(L.x) && isFinite(L.y) && isFinite(L.z)) LAMPS.pub.push({ grp: L.grp, p: [L.x, L.y, L.z], col: L.col || [1, 0.92, 0.74], k: L.k == null ? 1 : L.k, range: L.range || 30, kind: L.kind, chunk: L.grp !== g });
     g.userData.premId = rd.id;
     g.userData.lamps = lit.length;
     G.roads.add(g);
@@ -1015,17 +1026,47 @@ function make(THREE, scene, world, rec0, opts) {
   function buildRoads() { const g = buildRoadsSteps(); while (!g.next().done); }
   // part (G2063): the town's roads and aprons alone, beside what stands (geoLaterSteps); without, every one but the town's
   // while GEO.split
+  // THE ROADS KEPT (G3002 PLACER-FAST; the user: "adding assets in the editor is a bit of a pain, really, really long to
+  // move, update, rotate"): every rebuild built EVERY road again - its pavement sampled every 3 m on the ground (the
+  // island road's 25 km), its power line, its guardrail - for an edit that touched none of them. In the editor a road
+  // whose BUILD KEY (PG.roadBuildKeys: the road, the record's pavement, what its poles and rails keep clear of near it)
+  // is the same and whose box no ground edit touched keeps its pavement part (re-merged), its line and its rail. Its
+  // table ROW stays its own: merging made the row the merged geometry's, so a kept road's row is taken out of the merged
+  // geometry before that is given back, and handed to the part again. RC.flush (a full rebuild, the pavement's A/B, the
+  // game out of the editor) starts over; ?pavcache=0 (window.FLYDIY_PAVCACHE = false) builds every road as before.
+  const RC = { map: new Map(), flush: true, box: null, on: !(typeof location !== 'undefined' && /[?&]pavcache=0(&|$)/.test(location.search || '')) };
   function* buildRoadsSteps(part) {
     const want = e => (part ? isTown(e) : !geoLater(e));
+    const useRC = !part && !!PAV && RC.on && window.FLYDIY_PAVCACHE !== false && !!(o.editing && o.editing()) && !GEO.split && !!PG.roadBuildKeys;
+    if (!useRC || RC.flush) { RC.map.clear(); RC.flush = false; }
+    const keys = useRC ? PG.roadBuildKeys(O) : null, keep = new Map();
+    if (useRC) for (const rd of O.roads) {
+      const c = RC.map.get(rd.id);
+      if (c && c.key === keys.get(rd.id) && !(RC.box && PG.roadBoxTouch(rd, RC.box, (+rd.falloff || 6) + 24)) && rd.ribbon !== false && want(rd)) keep.set(rd.id, c);
+    }
+    RC.box = null;
+    const keptObj = new Set(), keptRows = new Set();
+    for (const [, c] of keep) { if (c.mesh) keptObj.add(c.mesh); if (c.line) keptObj.add(c.line); if (c.rail) keptObj.add(c.rail); if (c.row) keptRows.add(c.row); }
     if (!part) for (const c of G.roads.children.slice()) {
+      if (keptObj.has(c)) continue;   // (G3002: a kept road's line, rail, or its part when it was not merged)
       if (RAIL && c.userData.guardrail) { RAIL.dispose(c); continue; }
       if (PWR && c.userData.powerline) { PWR.dispose(c); continue; }      // the cable's own geometry; the poles are shared prop meshes
+      if (keptRows.size && c.geometry && c.geometry.userData && Array.isArray(c.geometry.userData.pavRows)) c.geometry.userData.pavRows = c.geometry.userData.pavRows.filter(P => !keptRows.has(P));   // (G3002: the kept rows stay)
       G.roads.remove(c); if (c.geometry) c.geometry.dispose(); disposePav(c);
     }
+    for (const id of Array.from(RC.map.keys())) if (!keep.has(id)) RC.map.delete(id);
+    stats.roadsKept = keep.size; stats.roadsBuilt = 0;
     if (PAV) {
       const lib = pavLib();
       for (const rd of O.roads) {
         if (rd.ribbon === false || !want(rd)) continue;   // a taxiway under its own material polygon (G434) - or a paved polygon now
+        const K = keep.get(rd.id);
+        if (K) {
+          // (G3002) the part drawn as it was: back under the roads (merged again below), its row its own again
+          if (K.mesh && !K.mesh.parent) { if (K.row) K.mesh.geometry.userData.pavRow = K.row; G.roads.add(K.mesh); }
+          continue;
+        }
+        stats.roadsBuilt++;
         const L = PG.RUNWAY_LOOKS[rd.look]; if (!L || !L.cls) continue;
         const RS = PAV.resolve(rd, O.rec, L);
         const pr = PG.polyRoad(rd.pts, rd.w);
@@ -1037,7 +1078,8 @@ function make(THREE, scene, world, rec0, opts) {
         const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, road: true, recipe: RS.recipe, band: RS.band, keep: rKeep, fadeA: rd.fadeA, fadeB: rd.fadeB, side: !!(rd.sided || rd.taxiway), geo });   // G981: the junctions; G980: a taxiway's sides; G925: a row of the table
         const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; m.receiveShadow = true; m.name = 'road:' + rd.id;   // culled by its own sphere (G663) m.userData.premId = rd.id;
         G.roads.add(m);
-        buildLine(rd, pr, buildRail(rd, pr));
+        const railG = buildRail(rd, pr), lineG = buildLine(rd, pr, railG);
+        if (useRC) RC.map.set(rd.id, { key: keys.get(rd.id), mesh: m, row: geo.userData.pavRow || null, line: lineG || null, rail: railG || null });
         yield 'roads';
       }
       yield* buildPolysSteps(part);
@@ -1093,7 +1135,7 @@ function make(THREE, scene, world, rec0, opts) {
       stats[k + 'Merged'] = (part ? stats[k + 'Merged'] || 0 : 0) + out.length; stats[k + 'Parts'] = (part ? stats[k + 'Parts'] || 0 : 0) + list.length;   // (G2063: the town's added to the rest)
     }
   }
-  if (PAV && PAV.onRebuild) PAV.onRebuild(() => { if (root.parent) buildRoads(); });   // G928: the A/B stands them again the other way
+  if (PAV && PAV.onRebuild) PAV.onRebuild(() => { RC.flush = true; if (root.parent) buildRoads(); });   // G928: the A/B stands them again the other way (G3002: every road anew)
   function* buildPolysSteps(part) {
     if (!PAV) return;
     const lib = pavLib();
@@ -1235,8 +1277,11 @@ function make(THREE, scene, world, rec0, opts) {
         G.outlines.add(cl); LINES.set(rSel.id + ':clear', { line: cl, layer: 'runways', entry: rSel });
       }
     }
-    // the site items' feet (cyan) and the links (a line from hook to hook)
-    for (const it of O.records.items) {
+    // (G3005 fix) G.plots cleared FIRST: the feet were added and then cleared with the plots, so they never drew (since G386)
+    for (const c of G.plots.children.slice()) { G.plots.remove(c); c.geometry.dispose(); c.material.dispose(); }
+    // the site items' feet (cyan) and the links (a line from hook to hook) - the feet only while editing (the game never had
+    // them: they were cleared at once until this fix; editEnd takes them off)
+    if (o.editing && o.editing()) for (const it of O.records.items) {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(it.foot.map(q => O.frame.toWorld(q[0], q[1])), true, LIFT * 0.8), 3));
       const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x4fc7d0, transparent: true, opacity: it.site === selectedId ? 0.95 : 0.5, depthTest: false }));
@@ -1244,7 +1289,6 @@ function make(THREE, scene, world, rec0, opts) {
       G.plots.add(line);
     }
     // the plots: thin, dim, not hittable
-    for (const c of G.plots.children.slice()) { G.plots.remove(c); c.geometry.dispose(); c.material.dispose(); }
     for (const L of O.records.links) if (L.geom && L.geom.from) {
       const a = O.frame.toWorld(L.geom.from[0], L.geom.from[2]), b = O.frame.toWorld(L.geom.to[0], L.geom.to[2]);
       const geo = new THREE.BufferGeometry();
@@ -2451,22 +2495,71 @@ function make(THREE, scene, world, rec0, opts) {
       if (on2 !== D.on2) { D.on2 = on2; for (const m of D.list2) if (!m.userData.merged) m.visible = on2; }
     }
   }
-  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) { t.run.tick(dt).apply(); if (CABIN_FAR > 0 && t.cabs) cabinCut(t.cabs); } if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); trafficCount(); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
+  // (G2955) every 20 frames the power lines' cable chunks past their reach from the eye are not drawn
+  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); if (PWR && PWR.cull && freezeTick % 20 === 0 && o.eye) { const e = o.eye(); if (e) stats.cables = PWR.cull(e); } detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) { t.run.tick(dt).apply(); if (CABIN_FAR > 0 && t.cabs) cabinCut(t.cabs); } if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); trafficCount(); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
   const discMat = new THREE.MeshBasicMaterial({ color: 0xffb03a, transparent: true, opacity: 0.9, depthTest: false });
   const discMatMid = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthTest: false });
   // G2890 (SCENERY-ED-1): the CORNER picked (clicked) - white, Del removes it; a spline road's HANDLES - cyan, on a stem
-  const discMatSel = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, depthTest: false });
-  const discMatTan = new THREE.MeshBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.95, depthTest: false });
-  const stemMat = new THREE.LineBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.8, depthTest: false });
+  const discMatSel = MATLIB.make(THREE, 'basic', { color: 0xffffff, transparent: true, opacity: 1, depthTest: false });
+  const discMatTan = MATLIB.make(THREE, 'basic', { color: 0x5fd4e8, transparent: true, opacity: 0.95, depthTest: false });
+  const stemMat = MATLIB.make(THREE, 'line', { color: 0x5fd4e8, transparent: true, opacity: 0.8, depthTest: false });
+  // G2950 (ROAD-GRAPH): a road's waypoint that is a JUNCTION - green (its roads meet there, a drag carries them all, Alt
+  // detaches); a CONNECTION POINT (the junctions layer's `conn`) - magenta; the snap target under the hand - a white ring
+  const discMatJct = MATLIB.make(THREE, 'basic', { color: 0x5ee07a, transparent: true, opacity: 0.95, depthTest: false });
+  const discMatConn = MATLIB.make(THREE, 'basic', { color: 0xe07ad8, transparent: true, opacity: 0.95, depthTest: false });
+  const discFor = (e, i) => {
+    if (i === selCorner) return discMatSel;
+    const id = e && e.pts && Array.isArray(e.nodes) ? e.nodes[i] : null;
+    if (!id) return discMat;
+    const J = (rec.layers.junctions || []).find(j => j && j.id === id);
+    return J && J.conn ? discMatConn : discMatJct;
+  };
+  let snapRing = null;
+  function snapHint(lp) {
+    if (snapRing) { G.ghost.remove(snapRing); snapRing.geometry.dispose(); snapRing.material.dispose(); snapRing = null; }
+    if (!lp) return;
+    const w = O.frame.toWorld(lp[0], lp[1]), r = Math.max(1.5, +lp[2] || 3);
+    const g = new THREE.RingGeometry(r * 0.8, r, 32); g.rotateX(-Math.PI / 2);
+    snapRing = new THREE.Mesh(g, MATLIB.make(THREE, 'basic', { color: 0xffffff, transparent: true, opacity: 0.9, depthTest: false }));
+    snapRing.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.08, w[1]); snapRing.renderOrder = 10; snapRing.name = 'snapHint';
+    G.ghost.add(snapRing);
+  }
+  // another entry's outline re-lined while the hand drags a junction (its roads' waypoints move together; nothing composes)
+  function relineEntry(e) {
+    if (!e) return;
+    if (!HMEMO) HMEMO = new Map();
+    const wp = worldPts(e);
+    reline(e.id, wp, !!e.poly, LIFT); reline(e.id + ':sel', wp, !!e.poly, LIFT);
+  }
   const HANDLES = [], STEMS = [];
   let selCorner = null;
+  // (G2950) EVERY JUNCTION ON THE MAP, the selection's or not: a small disc where roads meet (green) and where a place
+  // waits for a road (a connection point, magenta) - what a road being drawn or dragged snaps onto; never picked
+  const JMARKS = [];
+  function buildJMarks() {
+    for (const m of JMARKS) G.handles.remove(m);
+    JMARKS.length = 0;
+    if (!o.editing || !o.editing()) return;
+    const F = O.frame, seen = new Set();
+    for (const r of rec.layers.roads) {
+      if (!r || !Array.isArray(r.nodes) || r.id === selectedId) continue;
+      r.nodes.forEach((jid, i) => {
+        if (!jid || seen.has(jid) || !r.pts[i]) return; seen.add(jid);
+        const J = (rec.layers.junctions || []).find(j => j && j.id === jid), w = F.toWorld(r.pts[i][0], r.pts[i][1]);
+        const m = new THREE.Mesh(discGeo, J && J.conn ? discMatConn : discMatJct);
+        m.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.04, w[1]); m.renderOrder = 9; m.name = 'junction:' + jid;
+        G.handles.add(m); JMARKS.push(m);
+      });
+    }
+  }
   function buildHandles() {
     for (const h of HANDLES) G.handles.remove(h);
     for (const l of STEMS) { G.handles.remove(l); l.geometry.dispose(); }
     HANDLES.length = 0; STEMS.length = 0;
+    buildJMarks();
     if (!selectedId) return;
     const f = PG.findById(rec, selectedId);
     if (!f) return;
@@ -2534,7 +2627,7 @@ function make(THREE, scene, world, rec0, opts) {
     }
     for (let i = 0; i < pts.length; i++) {
       const p = pts[i];
-      const m = new THREE.Mesh(discGeo, i === selCorner ? discMatSel : discMat);
+      const m = new THREE.Mesh(discGeo, discFor(f.entry, i));
       m.position.set(p[0], heightAt(p[0], p[1]) + LIFT + 0.05, p[1]);
       m.renderOrder = 9; m.userData.handle = { id: selectedId, key: 'v' + i, index: i };
       G.handles.add(m); HANDLES.push(m);
@@ -2553,6 +2646,12 @@ function make(THREE, scene, world, rec0, opts) {
       const r = camera.isOrthographicCamera ? (camera.top - camera.bottom) / camera.zoom / (camera.userData.viewH || 600) * px
                                             : d * Math.tan((camera.fov || 40) * Math.PI / 360) * 2 / (camera.userData.viewH || 600) * px;
       h.scale.setScalar(Math.max(0.05, r) * (h.userData.handle.mid || h.userData.handle.tan ? 0.7 : 1));
+    }
+    for (const m of JMARKS) {
+      const d = camera.position.distanceTo(m.position);
+      const r = camera.isOrthographicCamera ? (camera.top - camera.bottom) / camera.zoom / (camera.userData.viewH || 600) * px
+                                            : d * Math.tan((camera.fov || 40) * Math.PI / 360) * 2 / (camera.userData.viewH || 600) * px;
+      m.scale.setScalar(Math.max(0.05, r) * 0.6);
     }
   }
 
@@ -2589,7 +2688,7 @@ function make(THREE, scene, world, rec0, opts) {
           st.geometry.attributes.position.needsUpdate = true; st.geometry.computeBoundingSphere();
         }
       } else if (hd.mid) { const b = arr[(i + 1) % n]; put(m, (arr[i][0] + b[0]) / 2, (arr[i][1] + b[1]) / 2); }
-      else { put(m, arr[i][0], arr[i][1]); m.material = i === selCorner ? discMatSel : discMat; }
+      else { put(m, arr[i][0], arr[i][1]); m.material = discFor(e, i); }
     }
     return true;
   }
@@ -2706,7 +2805,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (sp.r > 0) {
       const pts = []; for (let k = 0; k < 48; k++) { const a = k / 48 * Math.PI * 2; pts.push([sp.x + Math.cos(a) * sp.r, sp.z + Math.sin(a) * sp.r]); }
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(pts, true, LIFT + 0.1), 3));
-      ghostRing = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.85, depthTest: false })); ghostRing.renderOrder = 10;
+      ghostRing = new THREE.Line(geo, MATLIB.make(THREE, 'line', { color: 0x5fd4e8, transparent: true, opacity: 0.85, depthTest: false })); ghostRing.renderOrder = 10;
       G.ghost.add(ghostRing);
     }
     return ghostM;
@@ -3082,7 +3181,7 @@ function make(THREE, scene, world, rec0, opts) {
     }
     return null;
   }
-  const objectSeed = ob => PG.hash32(PG.fnv(String(ob.id)), PG.fnv(JSON.stringify([ob.kind, ob.key, ob.x, ob.z, ob.yaw, ob.y, ob.w, ob.on])));
+  const objectSeed = ob => PG.hash32(PG.fnv(String(ob.id)), PG.fnv(JSON.stringify([ob.kind, ob.key, ob.x, ob.z, ob.yaw, ob.y, ob.w, ob.on].concat(ob.s ? [ob.s] : []))));   // (G3001: a scale is the object's too)
   // a site's item (G830: its generation - the build and the synthetic plot's dressing plan - is premises_build.js
   // genItem, inline or the house worker's R; the placement is here)
   function buildItem(it, R) {
@@ -3145,6 +3244,59 @@ function make(THREE, scene, world, rec0, opts) {
     for (const [id, h] of HOUSES) { if (h.isObject || !h.plot) continue; const w = qPos(h.plot); if (!w) continue; const L = O.frame.toLocal(w[0], w[1]); if (L[0] >= x0 && L[0] <= x1 && L[1] >= z0 && L[1] <= z1) DIRTY.add(id); }
     stats.dirtyIds = DIRTY.size;
   }
+  // THE OBJECT'S OWN EDIT (G3001 PLACER-FAST; the user: "adding assets in the editor is a bit of a pain, really, really
+  // long to move, update, rotate"). A placed prop, billboard, tree or animal is composed LAST and alone - its record is
+  // its entry stood on the composed ground (27_premises: records.objects / records.trees / records.animals, y = localH
+  // + dy); nothing earlier in the composition reads it (an aeroplane does: the strips' way out clears it - not here). So
+  // its move, turn, scale or key is that object's record made again and that object's group built again (syncHouses:
+  // only a changed seed is taken down; built at once), the trees or the herds re-stood when it is one of theirs - no
+  // composition, no road, no ground. objectEdit([{ layer, before, after }]) -> false when it cannot (the caller
+  // rebuilds as before); ?placerfast=0 (window.FLYDIY_PLACERFAST = false) never takes it.
+  const FAST_KINDS = { prop: 1, billboard: 1, tree: 1, animal: 1 };
+  const FAST_OFF = typeof location !== 'undefined' && /[?&]placerfast=0(&|$)/.test(location.search || '');
+  function objectEdit(list) {
+    if (FAST_OFF || window.FLYDIY_PLACERFAST === false || !(o.editing && o.editing()) || GEO.split || !O || !O.rec || !O.records || !Array.isArray(list) || !list.length) return false;
+    for (const q of list) { const e = q && (q.after || q.before); if (!e || q.layer !== 'objects' || !FAST_KINDS[e.kind] || (q.before && q.after && q.before.kind !== q.after.kind)) return false; }
+    const t0 = performance.now();
+    previewEnd();
+    // the record the composition stands on (O.rec), the renderer's (rec, set by setRecord) and, in the game, the world's
+    const W = o.game && world.premises ? world.premises.rec : null;
+    const recs = [O.rec.layers.objects].concat(W && W.layers && W.layers.objects && W.layers.objects !== O.rec.layers.objects ? [W.layers.objects] : []);
+    const kinds = new Set(), ids = new Set();
+    for (const q of list) {
+      const e = q.after || q.before; ids.add('ob:' + e.id); kinds.add(e.kind); if (q.before) kinds.add(q.before.kind);
+      for (const L of recs) { const i = L.findIndex(x => x && x.id === e.id); if (q.after) { const c = JSON.parse(JSON.stringify(q.after)); if (i >= 0) L[i] = c; else L.push(c); } else if (i >= 0) L.splice(i, 1); }
+    }
+    const L = O.rec.layers.objects;
+    // the composed records, as the composer makes them (27_premises.js, its last steps) - in the record's order
+    if (kinds.has('prop') || kinds.has('billboard')) {
+      const ac = (O.records.objects || []).filter(r => r.kind === 'aircraft'), out = [];
+      for (const ob of L) if (ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') {
+        if (!ob.key) continue;
+        if (ob.kind === 'aircraft') { const a = ac.find(r => r.id === ob.id); if (a) out.push(a); continue; }
+        out.push(Object.assign({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' }, PG.objScale ? PG.objScale(ob) : {}));
+      }
+      O.records.objects = out;
+    }
+    if (kinds.has('tree')) {
+      const keepT = (O.records.trees || []).filter(t => !t.placed);
+      for (const ob of L) if (ob.kind === 'tree') keepT.push({ x: ob.x, z: ob.z, key: ob.key, size: ob.size || 1, yaw: ob.yaw || 0, sink: 0, h: 12, id: ob.id, placed: true, y: O.localH(ob.x, ob.z) });
+      O.records.trees = keepT;
+    }
+    if (kinds.has('animal')) {
+      O.records.animals = [];
+      for (const ob of L) if (ob.kind === 'animal' && ob.key) O.records.animals.push({ id: ob.id, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), dy: +ob.dy || 0, n: Math.max(1, Math.min(24, (+ob.n) | 0 || 1)), r: Math.max(0, +ob.r || 0) });
+    }
+    // only what changed: the objects' groups (a changed seed is taken down and built here, now), the trees, the herds
+    syncHouses();
+    for (let i = queue.length - 1; i >= 0; i--) if (ids.has(queue[i].id)) { const p = queue.splice(i, 1)[0]; buildOne(p); }
+    stats.queued = queue.length;
+    if (kinds.has('tree')) buildTrees();
+    if (kinds.has('animal')) syncAnimals();
+    buildHandles();
+    stats.ms = performance.now() - t0; stats.rebuilt = 0; stats.fast = (stats.fast || 0) + 1; stats.lastFast = { n: list.length, ms: stats.ms };
+    return true;
+  }
   function syncHouses() {
     const want = new Map();
     for (const p of O.records.plots) if (p.kind !== 'park' && p.kind !== 'airfield') want.set(p.id, p);
@@ -3155,7 +3307,8 @@ function make(THREE, scene, world, rec0, opts) {
     for (const st of rec.layers.sites || []) if (st.fences && st.fences.length) want.set('sf:' + st.id, { id: 'sf:' + st.id, seed: PG.fnv(JSON.stringify(st.fences)), isFence: true, rec: st });
     const VGe = window.VILLAGE_GEN;
     // (G842: an entry in a cell a ground edit marked dirty is taken down too - its seed is its own, the ground under it is not)
-    for (const [id, h] of HOUSES) { const p = want.get(id); if (!p || p.seed !== h.seed || DIRTY.has(id)) {
+    // (G3007: a plot whose fence was switched - its seed the same - is taken down and built again too)
+    for (const [id, h] of HOUSES) { const p = want.get(id); if (!p || p.seed !== h.seed || DIRTY.has(id) || (!!p.noFence !== !!(h.plot && h.plot.noFence))) {
       for (const g of [h.grp].concat(h.extra || [])) if (g) { hitDrop(g); if (g.parent) g.parent.remove(g); g.traverse(c => { if (c.geometry && !c.userData.sharedGeo) c.geometry.dispose(); }); }
       if (VGe && VGe.edgeKey && h.plot && h.plot.fences) for (const sg of h.plot.fences) { FENCED.delete(VGe.edgeKey(sg.a, sg.b)); HWQ.needState = true; }
       HOUSES.delete(id);
@@ -3433,7 +3586,7 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function hwComposeNow() {
     HWQ.composeDue = 0;
-    const lazy = ['SPORT_GEN', 'MARINE_GEN'].filter(g => !!window[g]);
+    const lazy = ['SPORT_GEN', 'MARINE_GEN', 'NAVAID_GEN'].filter(g => !!window[g]);
     HWQ.epoch = HWK.compose(rec, composedPool || [], lazy, TALLY ? TALLY.list : null);   // G841: the cook's tallies ride with the composition
     HWQ.needState = true;
   }
@@ -3759,6 +3912,7 @@ function make(THREE, scene, world, rec0, opts) {
     previewEnd();
     for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); if (c.material) c.material.dispose(); }
     LINES.clear();
+    for (const c of G.plots.children.slice()) if (/^item:/.test(c.name || '')) { G.plots.remove(c); c.geometry.dispose(); c.material.dispose(); }   // (G3005 fix: the feet are the editor's)
     for (const h of HANDLES) G.handles.remove(h);
     for (const l of STEMS) { G.handles.remove(l); l.geometry.dispose(); }
     HANDLES.length = 0; STEMS.length = 0;
@@ -3780,6 +3934,8 @@ function make(THREE, scene, world, rec0, opts) {
     refreshBounds();
     let n = 0;
     const groundDirty = !dirty || !dirty.bbox || dirty.ground !== false;
+    // (G3002) the roads kept: a whole rebuild starts them over; a ground edit's box builds again the roads it touches
+    if (!dirty || !dirty.bbox) RC.flush = true; else if (groundDirty) { const pd = (dirty.pad || 0) + 2, b = dirty.bbox; RC.box = { x0: b.x0 - pd, z0: b.z0 - pd, x1: b.x1 + pd, z1: b.z1 + pd }; }
     if (o.game) {
       // (G2917) an editor's edit re-patches the BLOCKS its box touches (G2063's part build), not the whole patch: an
       // island-long road's corridor was every block of the island, re-sampled at 2 m for one point moved
@@ -3798,7 +3954,7 @@ function make(THREE, scene, world, rec0, opts) {
       syncAnimals();
       yield 'houses';
       if (o.editing()) { buildOutlines(); buildHandles(); markDirty(dirty); }
-      else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; }
+      else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; for (const m of JMARKS) G.handles.remove(m); JMARKS.length = 0; }
       syncHouses();
       hwPrefetch();   // G831: the town step's own dispatch, now - the worker generates while the page lays out the rest
       // THE GAME HAD NEVER DRAWN A RECORD TREE (2026-09-23, the user: "I can see no
@@ -3867,6 +4023,31 @@ function make(THREE, scene, world, rec0, opts) {
     const r = near || best;
     return r ? { id: r.entry.id, layer: r.layer, entry: r.entry } : null;
   }
+  // EVERYTHING UNDER THE CURSOR (G3006; the user: "issue with overlapping assets, since I can select only one ... cycle
+  // through possible selectable assets by clicking a few times on them, and select the polygons last"): every pickable
+  // at the point, BY KIND - a placed model / tree / animal (nearest first), a site's item, a road (nearest line first),
+  // a strip, then the polygons last (an area or a paved polygon, the smallest first) - each feature once. The editor's
+  // click cycles through it; hit() stays the one answer the scripts and the rest read
+  function hitAll(x, z) {
+    const F = O.frame, L = F.toLocal(x, z), out = [], seen = new Set();
+    const put = (rank, d, h) => { if (h && !seen.has(h.id + '|' + (h.item || ''))) { seen.add(h.id + '|' + (h.item || '')); out.push([rank, d, h]); } };
+    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft' || ob.kind === 'animal') {
+      const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < 2.5 * Math.max(1, +ob.s || 1)) put(0, d, { id: ob.id, layer: 'objects', entry: ob }); }
+    for (const it of O.records.items) if (it.foot && PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) put(1, 0, { id: it.site, layer: 'sites', entry: f.entry, item: it.item }); }
+    for (const [id, e] of LINES) {
+      if (id.endsWith(':sel')) continue;
+      const en = e.entry;
+      if (en.pts && !en.poly) {
+        const ln = en.curve === 'spline' ? PG.roadLine(en) : en.pts; let dm = Infinity;
+        for (let i = 0; i + 1 < ln.length; i++) dm = Math.min(dm, PG.distPtSeg(L[0], L[1], ln[i], ln[i + 1]) - (en.w || en.width || 4) / 2);
+        if (dm < 1.5) put(2, dm, { id: en.id, layer: e.layer, entry: en });
+      } else if (en.poly && PG.inPoly(en.poly, L[0], L[1])) put(4, Math.abs(PG.polyArea(en.poly)), { id: en.id, layer: e.layer, entry: en });
+    }
+    for (const r of O.runways) if (PG.inPoly(PG.runwayBox(r, 2), L[0], L[1])) { const f = PG.findById(rec, r.id); if (f) put(3, 0, { id: r.id, layer: 'runways', entry: f.entry }); }
+    for (const p of O.pavePolys || []) if (PG.inPoly(p.poly, L[0], L[1])) { const f = featOf(p.id); if (f) put(4, Math.abs(PG.polyArea(p.poly)), f); }
+    out.sort((a, b) => (a[0] - b[0]) || (a[1] - b[1]));
+    return out.map(q => Object.assign({ kind: ['object', 'site item', 'road', 'strip', 'polygon'][q[0]] }, q[2]));
+  }
   // (v1.36) a composed entry's feature in the record: itself, or the AREA it expanded from (its id, or '<area>~d' and the like)
   function featOf(id) {
     const f = PG.findById(rec, id); if (f) return { id, layer: f.layer, entry: f.entry };
@@ -3884,6 +4065,7 @@ function make(THREE, scene, world, rec0, opts) {
     return best;
   }
   function dispose() {
+    RC.map.clear();   // (G3002: the kept roads go with the rest)
     if (LIFE) LIFE.dispose();
     if (ANIM) { ANIM.dispose(); ANIM = null; }
     { const R = OBS(); if (R) for (const id of OBST_IDS) R.remove(id); OBST_IDS.clear(); }
@@ -3900,6 +4082,8 @@ function make(THREE, scene, world, rec0, opts) {
   const R = {
     root, groups: G, stats,
     rebuild, rebuildSteps, preview, previewEnd, editEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
+    objectEdit, hitAll,
+    snapHint, relineEntry,
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),

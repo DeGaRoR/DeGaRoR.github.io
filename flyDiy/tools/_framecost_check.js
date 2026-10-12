@@ -324,6 +324,11 @@ const ALLOW = [
   { key: 'stand/gl.uniform4fv', build: 'cessna', upTo: 757, why: 'train 20: gamer draws \'mid\' trees (the user\'s choice) - the stand\'s extra tree draws\' uniforms (729 -> 749, cooked)', g: 'G1114.2' },
   { key: 'stand/bytes.uniforms', build: 'cub', upTo: 206300, why: 'train 20: gamer draws \'mid\' trees (the user\'s choice) - the stand\'s extra tree draws\' uniforms (201 254 -> 204 242 B, cooked)', g: 'G1114.2' },
   { key: 'stand/bytes.uniforms', build: 'cessna', upTo: 209850, why: 'train 20: gamer draws \'mid\' trees (the user\'s choice) - the stand\'s extra tree draws\' uniforms (204 778 -> 207 766 B, cooked)', g: 'G1114.2' },
+  // A0 2026-10-12 (train 47 landing): rows red since 44.1 + 44.3 landed together (f353a0f89), not ROAD-GRAPH's.
+  { key: 'stand/three.updateMatrix', build: 'cub', upTo: 3500, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
+  { key: 'taxi/three.updateMatrix', build: 'cub', upTo: 3875, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
+  { key: 'stand/three.updateMatrix', build: 'cessna', upTo: 4850, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
+  { key: 'stand/world.grHeight', build: '*', upTo: 21, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
@@ -455,6 +460,48 @@ async function census(build) {
       metlakatla = { premises: { houses: R.stats.houses, objects: R.stats.objects, queued: R.stats.queued, houseTris: R.stats.houseTris, obstacles: R.stats.obstacles }, kitTown: R.kitTownStats ? R.kitTownStats() : null };
     }
   }
+  // FRAMECOST_EYES=<eyes.json> (G3015 SCENERY-SHIP; the user: "you'll also need to check that my manual edits have
+  // acceptable impact on performance"; never in the verdict or the baseline - the census's own `eyes` field): their
+  // edits SEEN WHERE THEY ARE - each eye { name, x, z, hdg, why } in WORLD metres (tools/perf/eyes_<rev>.json, made from
+  // the shipped record by tools/scenery_eyes.js, the SAME file on master and on the ship, so every count reads as a
+  // delta): what is queued within 700 m built first (the renderer's drainNear), then CHASE - the aeroplane stood there,
+  // the chase camera settled - and AIR - a free camera 300 m over the ground there, looking down - each the frames'
+  // median as the views' rows, with the premises' own counts beside (R.stats: houses, objects, the fine patch's chunks, tris, roads kept ...).
+  // --compare a.json b.json prints them eye by eye.
+  const eyes = {};
+  if (process.env.FRAMECOST_EYES && build === (process.env.FRAMECOST_EYES_BUILD || 'cub')) {   // one build's eyes (the Cub's): the scenery is the question, not the aeroplane
+    let list = [];
+    try { const J = JSON.parse(fs.readFileSync(path.resolve(process.env.FRAMECOST_EYES), 'utf8')); list = J.eyes || J; } catch (e) { process.stderr.write('EYES: ' + e.message + '\n'); }
+    const measureFree = async () => { rows = null; await P.frames(WARM); rows = []; await P.frames(FRAMES); const r = median(rows); rows = null; for (const k of Object.keys(r)) if (/^house\.ms/.test(k)) delete r[k]; return r; };
+    const premOf = () => { const R = W.WORLD && W.WORLD.premises, s = (R && R.stats) || {}, o = {}; for (const [k, v] of Object.entries(s)) if (typeof v === 'number' && k !== 'ms') o[k] = v; return o; };   // every count the renderer keeps (chunks = the fine patch's)
+    for (const e of list) {
+      const t = Date.now(), E = eyes[e.name] = { pose: [e.x, e.z, e.hdg || 0, e.why || ''] };
+      try {
+        // the aeroplane on the nearest DRY ground (a harbour's eye is on the water), within 600 m, then facing the eye
+        // (the stand's law, (cos hdg, sin hdg) - 27_premises' taxi-out); the air camera ~150 m back of the eye on
+        // that line, 300 m over the ground or the water there, pitched down 1.1 rad (63 deg): the eye mid-frame
+        const wo = FP.world(), wet = (x, z) => (wo.waterH ? wo.waterH(x, z) : -1e9) > wo.terrainH(x, z) - 0.3;
+        let sx = e.x, sz = e.z, hdg = e.hdg || 0;
+        if (wet(sx, sz)) { let got = null; for (let r = 25; r <= 600 && !got; r += 25) for (let k = 0; k < 24 && !got; k++) { const a = k / 24 * 2 * Math.PI, x = e.x + r * Math.cos(a), z = e.z + r * Math.sin(a); if (!wet(x, z)) got = [x, z]; }
+          if (got) { sx = got[0]; sz = got[1]; hdg = Math.atan2(e.z - sz, e.x - sx); E.stood = [+sx.toFixed(1), +sz.toFixed(1), +Math.hypot(e.x - sx, e.z - sz).toFixed(0) + ' m from the eye (dry ground)']; } }
+        placeAt(W, FP, { x: sx, z: sz, hdg });
+        const R = W.WORLD && W.WORLD.premises; const left = R && R.drainNear ? R.drainNear(e.x, e.z, 700) : null;
+        await P.frames(60);
+        if (FP.camMode) FP.camMode('chase');
+        viewTag = 'eye:' + e.name;
+        E.chase = await measure(); E.chasePrem = premOf(); E.chaseDetail = drawnDetail(C);
+        if (FP.devFree) {
+          const gy = Math.max(wo.terrainH(e.x, e.z), wo.waterH ? wo.waterH(e.x, e.z) : -1e9), back = 300 / Math.tan(1.1);
+          const dx = Math.cos(hdg), dz = Math.sin(hdg);
+          FP.devFree(e.x - dx * back, gy + 300, e.z - dz * back, Math.atan2(dx, -dz), -1.1);   // devCam: fwd = (sin yaw, -cos yaw)
+          E.air = await measureFree(); E.airPrem = premOf(); E.airDetail = drawnDetail(C);
+          if (FP.camMode) FP.camMode('chase');
+        }
+        E.left = left; E.wall = Date.now() - t;
+        process.stderr.write('EYE ' + e.name + ' main ' + (E.chase['draws.main'] || 0) + ' / air ' + (E.air ? E.air['draws.main'] || 0 : '-') + ' (' + (E.wall / 1000).toFixed(0) + ' s wall)\n');
+      } catch (err) { E.failed = String(err && err.message || err); process.stderr.write('EYE ' + e.name + ' threw ' + E.failed + '\n'); }
+    }
+  }
   // THE ISLAND TEXTURES ARE THE GPU'S (G906): after the roll-out not one keeps its image.data; the class weights were
   // never built (the default stack starts past the class layer); a lost context's re-derive (the canvas's
   // webglcontextrestored handler, called here directly - three's own restore is not run on the recording GL) gives
@@ -527,7 +574,7 @@ async function census(build) {
     return { on: !!(W.PARKED && W.PARKED.fleetOn()), stood: S ? S.holders.length : 0, filled: S ? S.holders.filter(h => h.children.length).length : 0, held: S && S.plan ? S.plan.held.length : null,
       miss: S && S.plan ? S.plan.miss.length : null, decodes: F ? F.stats.decodes : 0, captures: F ? F.stats.captures : 0, queued: F ? F.stats.queued : 0, store: W.__fcFleetStore ? { gets: W.__fcFleetStore.gets, made: W.__fcFleetStore.made } : null,
       levels: S ? S.holders.map(h => { const l = h.children[0]; return h.userData.fleetSlot + ':' + (l ? l.levels.findIndex(v => v.object.visible) : 'empty'); }) : [] }; })() : undefined;
-  return { build, health, release, ktx2, crew, frames: FRAMES, warm: WARM, views, craft, detail, settled, boot: bootMark.rows, selftest, fleet, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
+  return { build, health, release, ktx2, crew, frames: FRAMES, warm: WARM, views, eyes, craft, detail, settled, boot: bootMark.rows, selftest, fleet, mem: { rollout: memRoll, end: mem() }, programsTotal: W.FLYDIY_RENDERER.info.programs.length,
     wall: { garage: tGarage, rollout: tRoll, total: Date.now() - t0 }, errors: P.errors.slice(0, 20), errorsN: P.errors.length };
 }
 // the page's hooks for a census (B9: shared with GATE ROUNDTRIP): the three counters, the boot's step marks, the
@@ -996,6 +1043,12 @@ async function main() {
     for (const build of Object.keys(b.builds || {})) {
       const A = a.builds[build], B = b.builds[build]; if (!A) continue;
       for (const v of Object.keys(B.views)) printTable(compare(A.views[v], B.views[v], v + '/', build, true).filter(r => r.state !== 'ok'), build + ' ' + v + ' (a -> b, what moved)');
+      // (G3015) the eyes, eye by eye and view by view, with the premises' own counts (a -> b)
+      for (const [name, eb] of Object.entries(B.eyes || {})) { const ea = (A.eyes || {})[name]; if (!ea) continue;
+        for (const k of ['chase', 'air']) if (ea[k] && eb[k]) printTable(compare(ea[k], eb[k], 'eye:' + name + '/' + k + '/', build, true).filter(r => r.state !== 'ok'), build + ' eye ' + name + ' ' + k + ' (a -> b)');
+        for (const k of ['chasePrem', 'airPrem']) { const pa = ea[k] || {}, pb = eb[k] || {}, mv = [...new Set([...Object.keys(pa), ...Object.keys(pb)])].filter(q => pa[q] !== pb[q]).map(q => q + ' ' + pa[q] + ' -> ' + pb[q]);
+          console.log('  ' + build + ' eye ' + name + ' ' + k.replace('Prem', '') + ' premises: ' + (mv.length ? mv.join(', ') : 'no count moved')); }
+        if (ea.failed || eb.failed) console.log('  ' + build + ' eye ' + name + ' FAILED: a ' + (ea.failed || 'ok') + ' / b ' + (eb.failed || 'ok')); }
       printTable(compare(flatBoot(A.boot), flatBoot(B.boot), 'boot/', build, true).filter(r => r.state !== 'ok' && (BOOT_KEYS.test(r.key) || /\/io\./.test(r.key) || /\/bytes\.(compressedT|t)exSubImage3D$|\/gl\.(compressedT|t)exSubImage3D$|\/gl\.texImage2D$|\/gl\.texStorage3D$/.test(r.key))), build + ' boot (a -> b, what moved)');
       if (A.ktx2 || B.ktx2) console.log('  ' + build + ' KTX2 (a -> b): ' + JSON.stringify(A.ktx2 && A.ktx2.ground) + ' -> ' + JSON.stringify(B.ktx2 && B.ktx2.ground) + '; loader ' + JSON.stringify(B.ktx2 && B.ktx2.loader) + '; worker messages ' + (B.ktx2 && B.ktx2.workerMsgs));
       // the texture upload bytes by boot step (reported: the ratchet's boot keys carry no texture bytes)

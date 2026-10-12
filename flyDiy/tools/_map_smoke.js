@@ -166,8 +166,9 @@ module.exports = function mapSmoke(html, phone) {
     need(A.includes('At ' + escH(p.name)) && /data-act="atx"/.test(A), 'the "At ' + p.name + ' ✕" row');
   }
   need(!MM.atHTML(M, st) && /No contract involves/.test(MM.listHTML({ ...M, contracts: [] }, { at: 'nv_strip' })), 'the filter row without a place, or the empty place');
-  need(M.places.map(p => p.name).join() === 'Jolene AFB,Tamgas Hill Strip,Annette Dock,Metlakatla Seaplane Base,Jumbo Mine Street,East Point Clearing,Skyline Altiport' &&
-       M.places.map(p => p.kind).join() === 'airfield,strip,seaplane,seaplane,mine,clearing,altiport', 'the places and their kinds: ' + M.places.map(p => p.name + ' (' + p.kind + ')').join(', '));
+  need(M.places.map(p => p.name).join() === 'Jolene AFB,Tamgas Hill Strip,Annette Dock,Metlakatla Seaplane Base,Jumbo Mine Street,East Point Clearing,Skyline Altiport,strip 10,strip 11,strip 12' &&
+       M.places.map(p => p.kind).join() === 'airfield,strip,seaplane,seaplane,mine,clearing,altiport,strip,strip,strip',   // + the user's strips 10-12 (w5-w7, SCENERY-SHIP rev27)
+       'the places and their kinds: ' + M.places.map(p => p.name + ' (' + p.kind + ')').join(', '));
   say('the place filter: ' + M.places.length + ' places (' + M.places.map(p => p.name + ' ' + MM.rowsOf(M, { at: p.id }).length).join(', ') + '), each listing exactly the contracts involving it, under "At <place> ✕"');
   // Track: accept and track are one gesture, a second tap untracks
   const M2 = MM.mapAdapt(JSON.parse(JSON.stringify(raw)), pack, null);
@@ -206,7 +207,8 @@ module.exports = function mapSmoke(html, phone) {
   say('the map: a badge per place at the fit (' + o1.bs + ' px), names + ' + o2.n.hot + ' hotspots from the second step (' + o2.bs + ' px), rings + counts + places + runway facts closer (' + o3.bs + ' px), close up every runway at true scale (Jolene AFB 13/31 and 02/20 with their designators; the lane buoyed, the gravel edge-marked); the open contract ringed in its type colour');
   // (G2435) THE INFRASTRUCTURE by zoom band, over the projection's infra
   const IF = pack.infra, inf = k => MM.infraOf(pack, { s: fit * k, fit });
-  need(IF && IF.roads.length === 76 && IF.zones.length >= 10 && IF.links.length === 1, 'the projection carries no infra (roads, zones, the tram)');
+  need(IF && IF.roads.length === 110 &&   // A0 12 Oct: the re-baked map carries the road graph (train 47) + the user's rev27 roads (was 76)
+    IF.zones.length >= 10 && IF.links.length === 1, 'the projection carries no infra (roads, zones, the tram)');
   const mainN = IF.roads.filter(r => r.main).length, nH = IF.houses.split(' ').length;
   const i1 = inf(1), i2 = inf(2), i3 = inf(3), i8 = inf(8);
   need(i1.n.zones === IF.zones.length && i1.n.roads === mainN && i1.n.main === mainN && i1.n.links === 1 && i1.n.stations === 2 && !i1.n.houses && !i1.n.sites && i1.n.band === 0,

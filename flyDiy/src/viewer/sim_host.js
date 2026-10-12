@@ -113,7 +113,7 @@ function simHostProbe(world, pts, t, H, opts) {
 }
 // the core names the worker's Blob picks out of the imported bundle
 const SIM_HOST_CORE = ['ISLAND_GEN', 'makeWorld', 'buildGen', 'makeSim', 'makePilot', 'PILOT_STYLES',
-                       'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup',
+                       'navMake', 'NAV_FIXES', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup',
                        'stripSurface', 'stripGear'];
 const SIM_HOST_DT = 1 / 60;
 const SIM_HOST_CATCH = 4;          // steps owed per turn at most (G586's frame owed 4)
@@ -141,7 +141,7 @@ const simHostSet = (o, k, v) => { const p = k.split('.'); for (let i = 0; i < p.
 // arrays, not copies
 function simHostTrimBoot(boot) {
   if (!boot) return null;
-  const out = { id: boot.id, grid: {}, far: null, hydro: boot.hydro || 'blend' };
+  const out = { id: boot.id, grid: {}, far: null, hydro: boot.hydro || 'map' };
   if (boot.reclass != null) out.reclass = boot.reclass;
   for (const k of SIM_HOST_KEYS) { const v = simHostGet(boot, k); if (v != null) simHostSet(out, k, v); }
   return out;
@@ -170,7 +170,7 @@ function simHostFetchBoot(base, name, opts) {
   return F(base + 'src/core/world_packs.json').then(r => (r.ok ? r.json() : { islands: [] })).then(PACK => {
     const isl = (PACK.islands || []).find(w => w.id === name);
     if (!isl) return null;
-    const boot = { id: name, grid: {}, far: null, hydro: opts.hydro || 'blend' };
+    const boot = { id: name, grid: {}, far: null, hydro: opts.hydro || 'map' };
     return Promise.all(SIM_HOST_KEYS.map(k => {
       const r = isl.files[k];
       if (!r) return null;
@@ -380,7 +380,7 @@ function makeSimHost(CORE, init, keptWorld) {
       const p = CORE.makePilot(sim, def, world, { style: ST_[kind] ? kind : 'normal', profile: PK.profile || undefined, shakedown: () => sd });
       if (PK.nav !== false && typeof CORE.navMake === 'function') {
         // one nav for the page's life (app.js flNav, made once, kept across flights): one per world here (G815)
-        if (!world.__simNav) world.__simNav = CORE.navMake({ waypoints: world.aerodromes });
+        if (!world.__simNav) world.__simNav = CORE.navMake({ waypoints: world.aerodromes.concat(CORE.NAV_FIXES || []) });   // the page's own list (parity)
         H.nav = world.__simNav;
         p.setNav(H.nav);
       }
@@ -447,6 +447,8 @@ function makeSimHost(CORE, init, keptWorld) {
     place();
     // G820 (C1c): the bench's test card (app.js startTestFlight: ap.setCard after the placement, before the start)
     if (init.pilot && init.pilot.card && H.ap.setCard) H.ap.setCard(init.pilot.card);
+    // G2120 ROUTE-DRAW: the route the page's pilot had armed when the flight was asked (sim_link.js begin)
+    if (init.pilot && init.pilot.route && H.ap.flyRoute) H.ap.flyRoute(init.pilot.route);
     H.started = false; H.epoch++; H.apGen = (H.apGen || 0) + 1;
     H.end = { air: false, wasAir: false, still: 0, over: false };
   }
@@ -584,6 +586,8 @@ function makeSimHost(CORE, init, keptWorld) {
         if (to && init.place) init.place = Object.assign({}, init.place, { to: c.to });
         break;
       }
+      // G2120 ROUTE-DRAW: a drawn route (app.js routeFly): the pilot's flyRoute, as the page's (null leaves it)
+      case 'route': if (ap.flyRoute) ap.flyRoute(c.route || null); break;
       case 'over':   // the page's flightOver (the card up): the hand's ending stands down; endFlight's outcome (G130) written as the page writes it
         H.end.over = !!c.on;
         if (c.on && c.outcome) { if (!ap.report) ap.report = { verdicts: [], outcome: c.outcome, landing: null }; else if (!ap.report.outcome) ap.report.outcome = c.outcome; }
