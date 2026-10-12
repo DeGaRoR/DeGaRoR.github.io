@@ -1,0 +1,9 @@
+  doctored: FAIL HOME > tw_ski          523 s | dep: turned 103.2 deg, roll 108.9 m in, lift-off 193.6 m | final 2053.2 m / 509.2 m, clear 5.1 m (ground) | td - | fuel 42.9 L | FAULTS off-strip (the landing roll left tw_ski's box); ground-loop (the nose 35.9 deg off the landing roll on tw_ski at 12.7 m/s); crash (the damage ended the flight: an impact of 9 g); yield (68 member(s) yielded (first: {"beam":120,"cls":"fus","t":515.4308333561441})); break (16 member(s) broke); dent (the airframe dented) | phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>ROLLOUT (788 s)
+    verdicts 
+    flares [{"low":666.5,"over":-13.1,"d":209.3,"t":508.3}]
+    final {"h":566.4,"d":2053.2,"hC":130}
+  FAIL 3 the doctored arrival (tw_ski's record 250 m low), the Jodel: the arrival came in under the strip and the arming law was met there - the guard caught it (calibration)  (FINAL at 566.4 m MSL (the strip 680..709 m); no flare-guard said)
+  FAIL 3 the doctored arrival (tw_ski's record 250 m low), the Jodel: no flare armed under the strip or over 25 m above it  (-13.1 m over the strip 209.3 m out at 508.3 s)
+  FAIL 3 the doctored arrival (tw_ski's record 250 m low), the Jodel: the airframe whole (no crash, no member broken)  ({"yields":68,"breaks":16,"over":true,"reason":"an impact of 9 g"})
+GATE ALTIPORT [shard 2/3]: FAIL (3)
+SHARD 2/3: 1 of 3 heavy jobs

@@ -217,7 +217,7 @@ function mount(host, ctx) {
     if (entry.poly) { const b = PG.polyBBox(entry.poly), AP = entry.props || {}; const f = (+entry.falloff || +(AP.terraform && AP.terraform.falloff) || 0) + (AP.draw ? 12 : 0) + 4; return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
     if (entry.pts) { const b = PG.polyBBox(entry.curve === 'spline' ? PG.roadLine(entry) : entry.pts);   /* (G2890: a spline bows off its points) */ const f = (+entry.falloff || 6) + (+entry.w || +entry.width || 4); return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
     if (entry.kind === 'tree') return { x0: entry.x - 4, z0: entry.z - 4, x1: entry.x + 4, z1: entry.z + 4 };
-    if (entry.c && entry.len) { const b = PG.polyBBox(PG.runwayBox(Object.assign({}, PG.RUNWAY_DEF, entry), 40)); return b; }
+    if (entry.c && entry.len) { const r = Object.assign({}, PG.RUNWAY_DEF, entry); return PG.polyBBox(PG.runwayBox(r, PG.runwayShoulder(r) + 30)); }   // (G2960: its grade's shoulder and its tree clearance - the box the game re-samples)
     if (entry.at && entry.items) { const SF = PG.siteFrame(entry); let b = null; for (const it of entry.items) { const q = SF.toLocal(it.x || 0, it.z || 0); const bb = { x0: q[0] - 40, z0: q[1] - 40, x1: q[0] + 40, z1: q[1] + 40 }; b = b ? { x0: Math.min(b.x0, bb.x0), z0: Math.min(b.z0, bb.z0), x1: Math.max(b.x1, bb.x1), z1: Math.max(b.z1, bb.z1) } : bb; } return b || { x0: entry.at.x - 10, z0: entry.at.z - 10, x1: entry.at.x + 10, z1: entry.at.z + 10 }; }
     return null;
   }
@@ -227,7 +227,19 @@ function mount(host, ctx) {
   // the changed run (a C2 spline's change has fallen under a millimetre there; a graded road's smoothing reaches 24 m), its
   // width, falloff and clearing round it - never the line's whole box, which for an island road is the island. Anything
   // else (a width, a class, a grade limit, a polygon) rebuilds the whole entry's box as before.
+  // (G3005) A SITE'S EDIT moved its CHANGED items: their before and after places, 40 m round (the shelf and the keep-out) -
+  // never the whole site's box (a harbour of ten buildings for one shed turned); the site's anchor moved: all of it
+  function siteChangeBox(a, b) {
+    if (!a || !b || !a.at || !b.at || !Array.isArray(a.items) || !Array.isArray(b.items)) return null;
+    if (JSON.stringify(a.at) !== JSON.stringify(b.at)) return null;
+    const SA = PG.siteFrame(a), SB = PG.siteFrame(b), ia = new Map(a.items.map(it => [it.id, it])), ib = new Map(b.items.map(it => [it.id, it]));
+    let box = null; const add = (S, it) => { const q = S.toLocal(it.x || 0, it.z || 0); box = union(box, { x0: q[0] - 40, z0: q[1] - 40, x1: q[0] + 40, z1: q[1] + 40 }); };
+    for (const id of new Set([...ia.keys(), ...ib.keys()])) { const p = ia.get(id), q = ib.get(id); if (JSON.stringify(p) === JSON.stringify(q)) continue; if (p) add(SA, p); if (q) add(SB, q); }
+    for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) if (k !== 'items' && k !== 'name' && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return null;
+    return box || { x0: SA.toLocal(0, 0)[0] - 1, z0: SA.toLocal(0, 0)[1] - 1, x1: SA.toLocal(0, 0)[0] + 1, z1: SA.toLocal(0, 0)[1] + 1 };
+  }
   function changeBox(a, b) {
+    { const sb = siteChangeBox(a, b); if (sb) return sb; }
     const pa = a && a.pts, pb = b && b.pts;
     if (!pa || !pb || pa.length < 24 || pb.length < 24 || +b.grade > 0 || +a.grade > 0) return union(bboxOf(a), bboxOf(b));
     for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) if (k !== 'pts' && k !== 'tan' && k !== 'nodes' && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return union(bboxOf(a), bboxOf(b));   // (G2950: a junction id moves no ground)
@@ -241,7 +253,9 @@ function mount(host, ctx) {
     return { x0: bb.x0 - f, z0: bb.z0 - f, x1: bb.x1 + f, z1: bb.z1 + f };
   }
   // which layers move the GROUND (and so the chunks): terrain, and roads (graded)
-  const groundLayer = layer => layer === 'terrain' || layer === 'roads' || layer === 'runways' || layer === 'material' || layer === 'areas';
+  // (G3005: and the sites - every item stands on a SHELF the composer cuts into the ground (siteShelves); a site's edit
+  //  rebuilt with the ground left as it was, so a moved item's shelf was never drawn - the patch of its box is made again now)
+  const groundLayer = layer => layer === 'terrain' || layer === 'roads' || layer === 'runways' || layer === 'material' || layer === 'areas' || layer === 'sites';
   // (G2914: a command may carry MANY entries - the scatter's models - one undo step, one rebuild)
   // (G2950: a junction's command - its roads' waypoints - rebuilds each road's SPAN that moved, as one drag does)
   const cmdBox = c => (c.many ? c.many.reduce((b, q) => union(b, q.before && q.after ? changeBox(q.before, q.after) : union(bboxOf(q.before), bboxOf(q.after))), null) : changeBox(c.before, c.after));
@@ -252,10 +266,10 @@ function mount(host, ctx) {
     else applyEntry(cmd.layer, cmd.id, clone(cmd.after));
     undoS.push(cmd); if (!isRedo) redoS.length = 0;
     if (undoS.length > 200) undoS.shift();
-    dirty(cmdLayer(cmd), cmdBox(cmd), cmdGround(cmd));
+    dirty(cmdLayer(cmd), cmdBox(cmd), cmdGround(cmd), objsOf(cmd));
     strip.status('' + cmd.label);
   }
-  function undo() { const c = undoS.pop(); if (!c) return; if (c.many) for (const q of c.many.slice().reverse()) applyEntry(q.layer, q.id, clone(q.before)); else applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(cmdLayer(c), cmdBox(c), cmdGround(c)); strip.status('undo: ' + c.label); }
+  function undo() { const c = undoS.pop(); if (!c) return; if (c.many) for (const q of c.many.slice().reverse()) applyEntry(q.layer, q.id, clone(q.before)); else applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(cmdLayer(c), cmdBox(c), cmdGround(c), objsOf(c, true)); strip.status('undo: ' + c.label); }
   function redo() { const c = redoS.pop(); if (!c) return; run(c, true); }
   let coalesce = null;
   function edit(id, layer, mutate, label, key) {
@@ -266,25 +280,49 @@ function mount(host, ctx) {
     if (key && coalesce && coalesce.id === id && coalesce.key === key && Date.now() - coalesce.t < 600) {
       const last = undoS[undoS.length - 1];
       last.after = clone(e); coalesce.t = Date.now();
-      soonDirty(layer, changeBox(before, e), groundOf(layer, before, e));
+      soonDirty(layer, changeBox(before, e), groundOf(layer, before, e), objsOf({ layer, before, after: e }));
       return;
     }
     const cmd = { layer, id, before, after: clone(e), label };
     applyEntry(layer, id, clone(e));
     undoS.push(cmd); redoS.length = 0;
     coalesce = key ? { id, key, t: Date.now() } : null;
-    if (key) soonDirty(layer, changeBox(before, e), groundOf(layer, before, e)); else dirty(layer, changeBox(before, e), groundOf(layer, before, e));
+    if (key) soonDirty(layer, changeBox(before, e), groundOf(layer, before, e), objsOf(cmd)); else dirty(layer, changeBox(before, e), groundOf(layer, before, e), objsOf(cmd));
   }
   // A SLIDER REBUILDS ONCE IT RESTS (G2917; the user's recorder log: one traffic slider's input events were 96 s, 79 s and
   // 72 s frames - every event of the drag a whole rebuild, the island road's 274 cars made again each time): a slider's
   // edit writes the record at once and its rebuild 200 ms after the hand stops; anything else that rebuilds takes the
   // waiting one with it (dirty below), so the record and the world never disagree past the pause
   let PEND = null;
-  function soonDirty(layer, bbox, ground) {
-    if (PEND) { clearTimeout(PEND.t); PEND = { layer: PEND.layer === layer ? layer : null, bbox: union(PEND.bbox, bbox), ground: PEND.ground === false && ground === false ? false : undefined }; }
-    else PEND = { layer, bbox, ground };
-    PEND.t = setTimeout(() => { const p = PEND; PEND = null; if (p) dirty(p.layer, p.bbox, p.ground); }, 200);
+  function soonDirty(layer, bbox, ground, objs) {
+    if (PEND) { clearTimeout(PEND.t); PEND = { layer: PEND.layer === layer ? layer : null, bbox: union(PEND.bbox, bbox), ground: PEND.ground === false && ground === false ? false : undefined, objs: objsJoin(PEND.objs, objs) }; }
+    else PEND = { layer, bbox, ground, objs: objs || null };
+    PEND.t = setTimeout(() => { const p = PEND; PEND = null; if (p) dirty(p.layer, p.bbox, p.ground, p.objs); }, 200);
   }
+  // THE OBJECT'S OWN EDIT (G3001 PLACER-FAST; the user: "adding assets in the editor is a bit of a pain, really, really long
+  // to move, update, rotate"): a command whose every entry is a placed prop, billboard, tree or animal hands the renderer
+  // just those (R.objectEdit) - that object's record and group made again, nothing composed, no road, no ground - and
+  // anything else (or a renderer that cannot) rebuilds as before. The drag still only carries the built group (preview);
+  // the release, an R press, an inspector slider or a number field: one such edit, the slider's 200 ms after it rests.
+  const OBJ_FAST = { prop: 1, billboard: 1, tree: 1, animal: 1 };
+  function objsOf(c, undoing) {
+    if (!c) return null;
+    const out = [];
+    for (const q of (c.many || [c])) {
+      const b = undoing ? q.after : q.before, a = undoing ? q.before : q.after, e = a || b;
+      if (q.layer !== 'objects' || !e || !OBJ_FAST[e.kind] || (a && b && a.kind !== b.kind)) return null;
+      out.push({ layer: 'objects', before: b ? clone(b) : null, after: a ? clone(a) : null });
+    }
+    return out.length ? out : null;
+  }
+  // two pending lists of one pause: an object's first before and its last after
+  function objsJoin(A, B) {
+    if (!A || !B) return null;
+    const m = new Map(); for (const q of A) m.set((q.after || q.before).id, { layer: q.layer, before: q.before, after: q.after });
+    for (const q of B) { const id = (q.after || q.before).id, p = m.get(id); if (p) p.after = q.after; else m.set(id, { layer: q.layer, before: q.before, after: q.after }); }
+    return Array.from(m.values());
+  }
+  const FAST = { n: 0, full: 0 };
 
   // ---- the renderer, dirty, the checks, the plaque ---------------------------
   let chkT = 0;
@@ -298,15 +336,28 @@ function mount(host, ctx) {
   // patch, no ground re-sample (the cars, the rails, the poles are rebuilt by the renderer's own sync)
   const ROAD_FREE = { traffic: 1, rail: 1, poles: 1, life: 1, name: 1, nodes: 1 };   // (G2950: nor its junction ids - the graph's alone)
   const groundOf = (layer, a, b) => {
+    if (layer === 'sites') { if (!a || !b) return undefined; for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) if (k !== 'name' && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return undefined; return false; }   // (G3005: a site's name moves no ground)
     if ((layer !== 'runways' && layer !== 'roads') || !a || !b) return undefined;
     const free = layer === 'runways' ? WAY_KEYS : ROAD_FREE;
     const keys = new Set(Object.keys(a).concat(Object.keys(b)));
     for (const k of keys) if (!free[k] && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return undefined;
     return false;
   };
-  function dirty(layer, bbox, ground) {
-    if (PEND) { clearTimeout(PEND.t); const p = PEND; PEND = null; if (layer !== p.layer) layer = null; bbox = union(bbox, p.bbox); if (!(ground === false && p.ground === false)) ground = undefined; }
+  function dirty(layer, bbox, ground, objs) {
+    if (PEND) { clearTimeout(PEND.t); const p = PEND; PEND = null; if (layer !== p.layer) layer = null; bbox = union(bbox, p.bbox); if (!(ground === false && p.ground === false)) ground = undefined; objs = objsJoin(p.objs, objs); }
     R.setRecord(rec);
+    // (G3001) only placed objects changed: the renderer makes them alone
+    if (objs && R.objectEdit && R.objectEdit(objs)) {
+      FAST.n++;
+      inspector.refresh();
+      autosave();
+      ctx.onRebuilt && ctx.onRebuilt('objects', false, bbox || null);
+      ctx.redraw && ctx.redraw();
+      clearTimeout(chkT); chkT = setTimeout(checks, 500);
+      plaque();
+      return;
+    }
+    FAST.full++;
     if (!layer) R.rebuild(null);
     else if (groundLayer(layer) && ground !== false) R.rebuild(bbox ? { layer, bbox, pad: 2 } : null);
     else R.rebuild({ layer, bbox: bbox || { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false });   // no chunk touched: outlines, plots, houses, trees
@@ -618,6 +669,16 @@ function mount(host, ctx) {
     edit(zid, 'zones', x => { const r2 = Object.assign({}, x.rules); const l = Array.isArray(r2.noGround) ? r2.noGround.slice() : []; const k = l.indexOf(p.id); if (k >= 0) l.splice(k, 1); else l.push(p.id); if (l.length) r2.noGround = l; else delete r2.noGround; x.rules = r2; }, 'plot ground of ' + p.id);
     const off = ((PG.findById(rec, zid).entry.rules || {}).noGround || []).indexOf(p.id) >= 0;
     strip.status('plot ' + p.id + ': ground ' + (off ? 'off' : 'on') + ' - click another, Esc ends');
+    return true;
+  }
+  // (G3007) a plot's FENCE switched: its id in the zone's noFence (the composer flags the plot, the village generator keeps
+  // no fence for it, the renderer builds that plot again)
+  function togglePlotFence(zid, L) {
+    const p = (R.plots ? R.plots() : []).find(q => q.zone === zid && q.poly && PG.inPoly(q.poly, L[0], L[1]));
+    if (!p) { strip.status('no plot of ' + zid + ' there - click inside one of its plots (Esc ends)'); return true; }
+    edit(zid, 'zones', x => { const r2 = Object.assign({}, x.rules); const l = Array.isArray(r2.noFence) ? r2.noFence.slice() : []; const k = l.indexOf(p.id); if (k >= 0) l.splice(k, 1); else l.push(p.id); if (l.length) r2.noFence = l; else delete r2.noFence; x.rules = r2; }, 'fence of plot ' + p.id);
+    const off = ((PG.findById(rec, zid).entry.rules || {}).noFence || []).indexOf(p.id) >= 0;
+    strip.status('plot ' + p.id + ': fence ' + (off ? 'off' : 'as built') + ' - click another, Esc ends');
     return true;
   }
   function ghostFeature() {
@@ -966,7 +1027,7 @@ function mount(host, ctx) {
     if (found) {
       const cmd = { layer: found.layer, id: drag.id, before: drag.before, after: clone(found.entry), label: 'move ' + drag.id };
       undoS.push(cmd); redoS.length = 0;
-      dirty(found.layer, changeBox(drag.before, found.entry), groundOf(found.layer, drag.before, found.entry));
+      dirty(found.layer, changeBox(drag.before, found.entry), groundOf(found.layer, drag.before, found.entry), objsOf(cmd));
     }
     drag = null;
     return true;
@@ -980,11 +1041,26 @@ function mount(host, ctx) {
   function clickAt(g) {
     const F = R.overlay.frame, L = F.toLocal(g[0], g[2]);
     if (T.state === 'drawing' && T.resume) { addPoint(+L[0].toFixed(2), +L[1].toFixed(2), snapTol(g)); return; }
-    if (T.plotPick) { if (PG.findById(rec, T.plotPick)) togglePlotGround(T.plotPick, L); else T.plotPick = null; return; }
+    if (T.plotPick) { if (PG.findById(rec, T.plotPick)) (T.pickWhat === 'fence' ? togglePlotFence : togglePlotGround)(T.plotPick, L); else T.plotPick = null; return; }
     if (tool === 'select') {
       // (G2890) a click on the selected shape's edge adds a corner there; elsewhere it selects what is under it
-      if (selected && edgeInsert(selected, L, edgeTol(g))) return;
-      const h = R.hit(g[0], g[2]); select(h ? h.id : null); return;
+      // THE PICK CYCLE (G3006; the user: "issue with overlapping assets, since I can select only one ... cycle through
+      // possible selectable assets by clicking a few times on them, and select the polygons last"): a click where the last
+      // one was (within a few screen pixels) picks the NEXT of everything under it (R.hitAll: the models, a site's items,
+      // the roads, the strips, the polygons last); a click elsewhere starts again at the first. A click again is never a
+      // corner added on the selected shape's edge (that is a click elsewhere on its edge)
+      const tol = edgeTol(g), again = !!CYC && Math.hypot(CYC.at[0] - g[0], CYC.at[2] - g[2]) <= Math.max(0.5, tol);
+      if (!again && selected && edgeInsert(selected, L, tol)) return;
+      const list = R.hitAll ? R.hitAll(g[0], g[2]) : [R.hit(g[0], g[2])].filter(Boolean);
+      const sig = list.map(q => q.id + '|' + (q.item || '')).join(',');
+      if (again && CYC.sig === sig && list.length) CYC.i = (CYC.i + 1) % list.length; else CYC = { at: g, sig, i: 0 };
+      CYC.n = list.length;
+      const h = list[CYC.i] || null;
+      CYC.id = h ? h.id : null;
+      if (h && h.item) ITEM_FOCUS = h.item;
+      select(h ? h.id : null);
+      if (list.length > 1) strip.status((CYC.i + 1) + ' of ' + list.length + ': ' + (h.kind || h.layer) + ' ' + h.id + (h.item ? ' (' + h.item + ')' : '') + ' - click again for the next');
+      return;
     }
     if (tool === 'probe') {
       const h = R.heightAt(g[0], g[2]);
@@ -1101,7 +1177,7 @@ function mount(host, ctx) {
     else if (ev.key >= '1' && ev.key <= String(Math.min(9, SECTIONS.length))) setSection(SECTIONS[+ev.key - 1].k);
     // R turns 15 degrees: the placer's ghost, a selected site or model / object
     else if (ev.key === 'r' && (tool === 'place' || tool === 'scatter')) { ASSET.yaw = (ASSET.yaw + (ev.shiftKey ? -1 : 1) * Math.PI / 12) % (Math.PI * 2); armGhost(); palette.refresh(); }
-    else if (ev.key === 'r' && selected) { const f = PG.findById(rec, selected); if (f && f.entry.at) edit(selected, 'sites', x => { x.at.yaw = ((x.at.yaw || 0) + Math.PI / 12); }, 'turn ' + selected); else if (f && f.layer === 'objects' && isFinite(+f.entry.x)) edit(selected, 'objects', x => { x.yaw = +(((+x.yaw || 0) + (ev.shiftKey ? -1 : 1) * Math.PI / 12)).toFixed(4); }, 'turn ' + selected, 'yaw'); }
+    else if (ev.key === 'r' && selected) { const f = PG.findById(rec, selected); if (f && f.entry.at) edit(selected, 'sites', x => { x.at.yaw = ((x.at.yaw || 0) + Math.PI / 12); }, 'turn ' + selected, 'yaw');   /* (G3005: a run of R presses, one rebuild when they stop) */ else if (f && f.layer === 'objects' && isFinite(+f.entry.x)) edit(selected, 'objects', x => { x.yaw = +(((+x.yaw || 0) + (ev.shiftKey ? -1 : 1) * Math.PI / 12)).toFixed(4); }, 'turn ' + selected, 'yaw'); }
     else if (ev.key === 'f' && tool === 'select' && ctx.cameras && ctx.cameras.frame) { const f = selected && PG.findById(rec, selected); if (f) ctx.cameras.frame(bboxOf(f.entry)); }
   }
   function deleteSelected() {
@@ -1159,9 +1235,10 @@ function mount(host, ctx) {
   // polygon leaves very little options". The plate's head says what is selected; nothing selected, it is the scenery's
   // outline (every feature by kind, a click selects and frames it). The tabs' own rows are the palette's (palette below).
   const KIND_WORD = { areas: 'area', terrain: 'terrain', surface: 'surface', material: 'material', exclude: 'exclude', roads: 'road', runways: 'runway', zones: 'zone', sites: 'site', links: 'link', objects: 'object', ttype: 'cover' };
+  let CYC = null;   // (G3006) the pick cycle: { at (the world point clicked), sig (what lay under it), i, n, id }
   function selHead(kind, id, label) {
     const d = $('div', { class: 'pr-selhd' });
-    d.appendChild($('span', { class: 'sk', text: id ? 'SELECTED' : 'NOTHING SELECTED' }));
+    d.appendChild($('span', { class: 'sk', text: id ? (CYC && CYC.id === id && CYC.n > 1 ? 'SELECTED ' + (CYC.i + 1) + ' OF ' + CYC.n : 'SELECTED') : 'NOTHING SELECTED' }));
     if (id) d.appendChild($('span', { class: 'sn', text: String(kind).toUpperCase() + ' ' + id + (label ? ' · ' + label : ''), title: id }));
     if (id) { const x = $('button', { class: 'pill', type: 'button', text: '✕', title: 'nothing selected (Esc)' }); x.onclick = () => { select(null); x.blur && x.blur(); }; d.appendChild(x); }
     insp.appendChild(d);
@@ -1358,8 +1435,17 @@ function mount(host, ctx) {
           rows.pills(insp, 'plot ground', [['on', 'drawn', 'each plot\'s ground: the lawn, the paths, the dry ground under the house (never under the water line)'], ['off', 'none', 'no plot draws its ground or its lawn: the island\'s own ground runs to the houses']],
             () => (RU0.ground === false ? 'off' : 'on'), v => ed(x => { const r2 = Object.assign({}, x.rules); if (v === 'off') r2.ground = false; else delete r2.ground; x.rules = r2; }, 'plot ground of ' + id));
           if (RU0.ground !== false) {
-            rows.button(insp, T.plotPick === id ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s ground', () => { T.plotPick = T.plotPick === id ? null : id; strip.status(T.plotPick ? 'click a plot of ' + id + ' to switch its ground off or on - Esc ends' : 'plot pick ended'); inspector.refresh(); });
+            rows.button(insp, T.plotPick === id && T.pickWhat !== 'fence' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s ground', () => { T.plotPick = T.plotPick === id && T.pickWhat !== 'fence' ? null : id; T.pickWhat = 'ground'; strip.status(T.plotPick ? 'click a plot of ' + id + ' to switch its ground off or on - Esc ends' : 'plot pick ended'); inspector.refresh(); });
             if (offN) { rows.note(insp, offN + ' plot' + (offN === 1 ? '' : 's') + ' with the ground off'); rows.button(insp, 'every plot\'s ground back', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.noGround; x.rules = r2; }, 'plot ground of ' + id)); }
+          } }
+        // THE PLOTS' FENCES (G3007; the user: "we need an option to turn off the fencing around the plots too"): every plot's
+        // fence as built, or none - for the whole zone, or plot by plot (the plot, its house and its lot otherwise as they are)
+        { const RU1 = e.rules || {}, offF = Array.isArray(RU1.noFence) ? RU1.noFence.length : 0;
+          rows.pills(insp, 'plot fences', [['auto', 'as built', 'each plot\'s fence as the village plans it'], ['off', 'none', 'no plot of this zone is fenced']],
+            () => (RU1.fences === false ? 'off' : 'auto'), v => ed(x => { const r2 = Object.assign({}, x.rules); if (v === 'off') r2.fences = false; else delete r2.fences; x.rules = r2; }, 'plot fences of ' + id));
+          if (RU1.fences !== false) {
+            rows.button(insp, T.plotPick === id && T.pickWhat === 'fence' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s fence', () => { const on = !(T.plotPick === id && T.pickWhat === 'fence'); T.plotPick = on ? id : null; T.pickWhat = on ? 'fence' : null; strip.status(on ? 'click a plot of ' + id + ' to take its fence off or put it back - Esc ends' : 'plot pick ended'); inspector.refresh(); });
+            if (offF) { rows.note(insp, offF + ' plot' + (offF === 1 ? '' : 's') + ' without a fence'); rows.button(insp, 'every plot\'s fence back', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.noFence; x.rules = r2; }, 'plot fences of ' + id)); }
           } }
         const RU = Object.assign({}, PG.ZONE_RULES, e.rules || {});
         rows.slider(insp, 'plot min (m)', 12, 40, 1, () => RU.plotMin, v => ed(x => { x.rules = Object.assign({}, x.rules, { plotMin: v }); }, 'plots of ' + id, 'plotMin'), v => v.toFixed(0) + ' m');
@@ -1972,7 +2058,9 @@ function mount(host, ctx) {
       for (const row of PAVM.KNOBS) {
         if (row.length === 1) { sec = $('details'); sec.appendChild($('summary', { text: row[0].replace(/—/g, '').trim() })); d.appendChild(sec); continue; }
         const [k, lab, mn, mx, st] = row, own = PV[k] !== undefined && PV[k] !== null;
-        rows.slider(sec || d, lab + (own ? '' : ' (default)'), mn, mx, st, () => own ? PV[k] : PAVM.RECIPE[k], v => { rec.pavement = Object.assign({}, rec.pavement, { [k]: v }); dirty('roads'); }, v => (+v).toFixed(2));
+        // (G3004; the user: "that was painfully slow to change") a record-wide pavement slider rebuilds ONCE, 200 ms after the
+        // hand rests (soonDirty) - every tick of it was a whole rebuild: every road's pavement, the ground patch's sink under it
+        rows.slider(sec || d, lab + (own ? '' : ' (default)'), mn, mx, st, () => own ? PV[k] : PAVM.RECIPE[k], v => { rec.pavement = Object.assign({}, rec.pavement, { [k]: v }); soonDirty('roads', null, undefined); }, v => (+v).toFixed(2));
       }
       const ta2 = $('textarea', { placeholder: 'paste the pavement bench\'s export here', rows: '3' }); ta2.className = 'pr-paste'; d.appendChild(ta2);
       rows.button(d, 'take the bench\'s recipe', () => { try { const o = JSON.parse(ta2.value); const r = o.recipe || o; const out = {}; for (const k in r) if (k in PAVM.RECIPE && k !== 'grade') out[k] = r[k]; rec.pavement = out; ta2.value = ''; dirty('roads'); palette.refresh(); } catch (err) { strip.status('not a recipe: ' + err.message); } });
@@ -2014,7 +2102,7 @@ function mount(host, ctx) {
       for (const row of PAVM.KNOBS) {
         if (row.length < 2 || PAVM.LOOK_KEYS.indexOf(row[0]) < 0 || row[0].slice(0, 2) !== g) continue;
         const [k, lab, mn, mx, st] = row, mine = P[k] !== undefined && P[k] !== null;
-        rows.slider(d2, lab + (mine ? '' : ' (default)'), mn, mx, st, () => mine ? P[k] : PAVM.RECIPE[k], v => { rec.pavement = Object.assign({}, rec.pavement, { [k]: v }); dirty('roads'); }, v => (+v).toFixed(2));
+        rows.slider(d2, lab + (mine ? '' : ' (default)'), mn, mx, st, () => mine ? P[k] : PAVM.RECIPE[k], v => { rec.pavement = Object.assign({}, rec.pavement, { [k]: v }); soonDirty('roads', null, undefined); }, v => (+v).toFixed(2));
       }
       if (own) rows.button(d2, "back to the module's look", () => { const o = Object.assign({}, rec.pavement); for (const k of PAVM.LOOK_KEYS) if (k.slice(0, 2) === g) delete o[k]; rec.pavement = Object.keys(o).length ? o : null; dirty('roads'); inspector.refresh(); });
       rows.note(d2, 'the declared width is the drawn width whatever the surface; the side is drawn outside it (its width past the edge zone, from its alpha)');
@@ -2168,10 +2256,12 @@ function mount(host, ctx) {
       if (name === 'junction') return junctionMeta(args.jid, args.patch || {});
       if (name === 'connection') return makeConnection(args.id || selected, args.i === undefined ? corner : args.i);
       if (name === 'apron') return addApron(args.id || selected, args.i === undefined ? corner : args.i, args.r);
+      if (name === 'fastStats') return Object.assign({}, FAST);   // (G3001: the object edits made alone, the rebuilds)
       if (name === 'snapTarget') return snapTarget([args.x, args.z], args.tol || snapTol(null), args.skip || null);
       if (name === 'removeCorner') { return removeCorner(args.id || selected, args.i === undefined ? corner : args.i); }
       if (name === 'subdivide') { return subdivide(args.id || selected); }
       if (name === 'plotGround') { return togglePlotGround(args.zone, [args.x, args.z]); }
+      if (name === 'plotFence') { return togglePlotFence(args.zone, [args.x, args.z]); }   // (G3007)
       // G2910-G2914: an area's properties, the placer, the fold - scriptable (GATE SCENERYED)
       if (name === 'addProp') { return addProp(args.id || selected, args.prop); }
       if (name === 'removeProp') { return removeProp(args.id || selected, args.prop); }

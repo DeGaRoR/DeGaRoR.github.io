@@ -61,6 +61,7 @@ function makeR() {
     const e = f.entry, out = [];
     if (PG.roundOk(e.round)) return [{ key: 'rc', p: [e.round.c[0], 0, e.round.c[1]] }, { key: 'rr', p: [e.round.c[0] + e.round.r, 0, e.round.c[1]], mid: true }];
     if (isFinite(+e.x) && isFinite(+e.z) && !e.poly) return [{ key: 'v0', p: [+e.x, 0, +e.z] }];   // a point object (a model): one disc
+    if (e.at && Array.isArray(e.items)) { const SF = PG.siteFrame(e); return [{ key: 'at', p: [e.at.x, 0, e.at.z] }].concat(e.items.map(it => { const q = SF.toLocal(it.x || 0, it.z || 0); return { key: 'i:' + it.id, p: [q[0], 0, q[1]] }; })); }   // (G3005) a site: its anchor, its items
     const arr = e.poly || e.pts; if (!arr) return out;
     arr.forEach((q, i) => { out.push({ key: 'v' + i, p: [q[0], 0, q[1]] }); if (e.poly || i + 1 < arr.length) out.push({ key: 'm' + i, p: [q[0], 0, q[1]], mid: true }); });
     if (e.pts && e.curve === 'spline') PG.roadHandles(e.pts, e.tan).forEach((h, i) => out.push({ key: 'h' + i, p: [e.pts[i][0] + h[0], 0, e.pts[i][1] + h[1]] }));
@@ -69,12 +70,20 @@ function makeR() {
   const R = {
     stats: {}, get overlay() { return O; },
     setRecord(r) { rec = PG.normalise(r); },
-    rebuild(d) { R.lastDirty = d === undefined ? null : d; O = PG.compose(rec, synth); return R.stats; },
+    rebuild(d) { R.lastDirty = d === undefined ? null : d; R.rebuilds = (R.rebuilds || 0) + 1; O = PG.compose(rec, synth); return R.stats; },
+    // (G3001) the renderer's object edit: counted, and refusable (R.fastOn = false - a renderer that cannot)
+    objectEdit(list) { if (R.fastOn === false) return false; R.fastCalls = (R.fastCalls || 0) + 1; R.lastObjs = list; return true; },
     select(id) { if (id !== sel) corner = null; sel = id; },
     corner(i) { if (i !== undefined) corner = i; return corner; },
     ghost() {}, preview() {}, previewEnd() {}, pickHandle() { return null; },
     handles: handleKeys,
     hit(x, z) { const L = O.frame.toLocal(x, z); for (const k of ['areas', 'material', 'surface', 'zones', 'terrain']) for (const e of rec.layers[k]) if (e.poly && PG.inPoly(e.poly, L[0], L[1])) return { id: e.id, layer: k, entry: e }; return null; },
+    // (G3006) everything under a point in the renderer's order: the models, the roads, the polygons last (the smallest first)
+    hitAll(x, z) { const L = O.frame.toLocal(x, z), out = [];
+      for (const ob of rec.layers.objects) if (isFinite(+ob.x) && Math.hypot(ob.x - L[0], ob.z - L[1]) < 2.5) out.push([0, Math.hypot(ob.x - L[0], ob.z - L[1]), { id: ob.id, layer: 'objects', entry: ob, kind: 'object' }]);
+      for (const r of rec.layers.roads) if (r.pts && r.pts.length > 1) { let d = Infinity; for (let i = 0; i + 1 < r.pts.length; i++) d = Math.min(d, PG.distPtSeg(L[0], L[1], r.pts[i], r.pts[i + 1]) - (+r.w || 3.6) / 2); if (d < 1.5) out.push([2, d, { id: r.id, layer: 'roads', entry: r, kind: 'road' }]); }
+      for (const k of ['areas', 'material', 'surface', 'zones', 'terrain']) for (const e of rec.layers[k]) if (e.poly && PG.inPoly(e.poly, L[0], L[1])) out.push([4, Math.abs(PG.polyArea(e.poly)), { id: e.id, layer: k, entry: e, kind: 'polygon' }]);
+      return out.sort((a, b) => (a[0] - b[0]) || (a[1] - b[1])).map(q => q[2]); },
     ghostModel(sp) { R.ghostAt = sp; },
     heightAt: (x, z) => O.terrainAt ? O.terrainAt(x, z) : synth.terrainH(x, z),
     plots: () => O.records.plots, links: () => [], aerodromes: () => O.aerodromes || [], patternOf: () => null,
@@ -473,6 +482,170 @@ if (plots.length) {
   let worst = 0, n = 0; for (let i = 0; i < line.length; i += 2) { const w = Ot.frame.toWorld(line[i][0], line[i][1]); worst = Math.max(worst, Math.abs(Ot.terrainAt(w[0], w[1]) - On.terrainAt(w[0], w[1]))); n++; }
   check(worst === 0, '12 Metlakatla\'s junction level leaves r1\'s ground profile as it was (' + n + ' samples along its 24.9 km, worst ' + worst.toFixed(4) + ' m)');
   console.log('     12 the user\'s rev 23 (sha256 277abdfa66b254bd): r1 ' + r1raw.pts.length + ' points + handles bit for bit through load, compose + road graph (' + G12.edges.filter(e => e.road === 'r1').length + ' span), save; town put back (' + withTown.layers.roads.filter(r => /^mk_/.test(r.id)).length + ' streets, ' + new Set([].concat(...withTown.layers.roads.map(r => r.nodes || [])).filter(Boolean)).size + ' junction ids): r1\'s ground over ' + n + ' samples differs by ' + worst + ' m from the town without junctions');
+}
+
+// 14 PLACER-FAST (G3000-G3009; the user: "adding assets in the editor is a bit of a pain, really, really long to move,
+//    update, rotate"). A placed object's commit - its drop, its drag's release, its turn, a number, its undo - hands the
+//    renderer that object alone (R.objectEdit: no composition, no rebuild); anything else, or a renderer that cannot,
+//    rebuilds as before. The roads' build keys (PG.roadBuildKeys): a road is drawn again only when ITS key changes or a
+//    ground edit's box touches it - one row a way a road must be drawn again (its own change, what it keeps clear of near
+//    it, a ground edit, a road taken away / added). The scale of a placed prop reaches its composed record.
+{
+  const txt = fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev23.json'), 'utf8');
+  ed.load(txt); ed.cmd('tool', { name: 'select' });
+  const r0 = () => [R.rebuilds || 0, R.fastCalls || 0];
+  // 14a the drop, the release, a turn, a number, the undo: the object alone, no rebuild
+  let [b0, f0] = r0();
+  const pid = ed.cmd('place', { x: 120, z: -40, key: 'stub|box', yaw: 0.3, s: 1.5 });
+  check(pid && R.rebuilds === b0 && R.fastCalls === f0 + 1 && R.lastObjs.length === 1 && R.lastObjs[0].before === null && R.lastObjs[0].after.id === pid, '14a a model dropped: the renderer makes it alone, no rebuild', JSON.stringify(r0()));
+  ed.select(pid);
+  [b0, f0] = r0();
+  ed.cmd('drag', { key: 'v0', x: 131.5, z: -38 });
+  check(R.rebuilds === b0 && R.fastCalls === f0 + 1 && R.lastObjs[0].before.x === 120 && R.lastObjs[0].after.x === 131.5, '14a its drag released: that object alone, its before and after', JSON.stringify(R.lastObjs && R.lastObjs[0] && [R.lastObjs[0].before.x, R.lastObjs[0].after.x]));
+  [b0, f0] = r0();
+  ed.cmd('set', { id: pid, patch: { yaw: 1.2, s: 2 } });
+  check(R.rebuilds === b0 && R.fastCalls === f0 + 1 && R.lastObjs[0].after.yaw === 1.2 && R.lastObjs[0].after.s === 2, '14a a turn and a scale set: the object alone');
+  [b0, f0] = r0();
+  ed.undo();
+  check(R.rebuilds === b0 && R.fastCalls === f0 + 1 && R.lastObjs[0].after.yaw === 0.3 && R.lastObjs[0].before.yaw === 1.2, '14a undone: the object alone, back as it was');
+  // 14b what is NOT an object's alone: a renderer that cannot, a command with an area in it, an aeroplane (the strips clear it)
+  R.fastOn = false; [b0, f0] = r0();
+  ed.cmd('set', { id: pid, patch: { yaw: 0.9 } });
+  check(R.rebuilds === b0 + 1 && R.fastCalls === f0, '14b a renderer that cannot: the rebuild as before');
+  R.fastOn = true;
+  [b0, f0] = r0();
+  const aid = ed.cmd('place', { x: 300, z: 300, key: 'stub|box' }); ed.cmd('set', { id: aid, patch: { kind: 'aircraft', key: 'arch:cub' } });
+  check(R.rebuilds === b0 + 1 && R.fastCalls === f0 + 1, '14b an aeroplane is not an object alone (the strips\' way out clears it): rebuilt', JSON.stringify(r0()) + ' from ' + JSON.stringify([b0, f0]));
+  [b0, f0] = r0();
+  ed.cmd('set', { id: 'r1', patch: { traffic: 3 } });
+  check(R.rebuilds === b0 + 1 && R.fastCalls === f0, '14b a road\'s edit rebuilds as before (its traffic)');
+  // 14c the scale reaches the composed record (it was dropped there: the built prop stood at x1 after the first rebuild)
+  { const O14 = PG.compose(rec(), synth, { raster: false }), ob = (O14.records.objects || []).find(q => q.id === pid);
+    check(ob && ob.s === 1.5 && !(O14.records.objects || []).some(q => q.id !== pid && 's' in q), '14c a placed prop\'s scale is on its composed record (and only a scaled one carries it)', JSON.stringify(ob)); }
+  // 14d THE ROADS' BUILD KEYS: one row a way a road is drawn again
+  const Ok = () => PG.compose(rec(), synth, { raster: false });
+  const K0 = PG.roadBuildKeys(Ok()), ids = Array.from(K0.keys());
+  const diff = (A, B) => ids.filter(id => A.get(id) !== B.get(id));
+  check(K0.size >= 15 && JSON.stringify(Array.from(PG.roadBuildKeys(Ok()))) === JSON.stringify(Array.from(K0)), '14d every road has a key, the same for the same record (' + K0.size + ' roads)');
+  ed.cmd('set', { id: 'r1', patch: { traffic: 4 } });
+  { const K1 = PG.roadBuildKeys(Ok()), d1 = diff(K0, K1);
+    check(d1.length === 1 && d1[0] === 'r1', '14d its own change (r1\'s traffic): r1 alone drawn again', d1.join()); }
+  const K1 = PG.roadBuildKeys(Ok());
+  { const near = rec().layers.roads.find(r => r.id === 'r_airport'), q = near.pts[1];
+    ed.cmd('tool', { name: 'concrete' }); for (const d of [[-6, -6], [6, -6], [6, 6], [-6, 6]]) ed.cmd('point', { x: q[0] + d[0], z: q[1] + d[1] }); const cid = ed.cmd('commit'); ed.cmd('tool', { name: 'select' });
+    const K2 = PG.roadBuildKeys(Ok()), d2 = diff(K1, K2);
+    check(cid && d2.indexOf('r_airport') >= 0 && d2.length < ids.length / 2, '14d a pavement laid by it (what its poles and rails keep clear of): r_airport and its neighbours drawn again, not the island (' + d2.length + ' of ' + ids.length + ')', d2.join());
+    ed.cmd('setProp', { id: cid, prop: 'marks', patch: { kind: 'hatch' } });
+    const K3 = PG.roadBuildKeys(Ok()), d3 = diff(K2, K3);
+    check(d3.length === 0, '14d its marks changed (paint, not its shape): no road drawn again - the pavement polygon is drawn again on its own', d3.join()); }
+  { // (G2960) a strip moved: the roads near it drawn again, not the island's (a strip was in every road's key)
+    const Ka = PG.roadBuildKeys(Ok()), w = rec().layers.runways.find(r => r.id === 'w3');
+    ed.cmd('set', { id: 'w3', patch: { c: [w.c[0] + 10, w.c[1]] } });
+    const Kb = PG.roadBuildKeys(Ok()), dw = Array.from(Ka.keys()).filter(id => Ka.get(id) !== Kb.get(id));
+    check(dw.length < Ka.size / 3, '14d a strip moved (w3): ' + dw.length + ' of ' + Ka.size + ' roads drawn again - those near it, not the island', dw.join());
+    ed.undo(); }
+  { const rd = Ok().roads.find(r => r.id === 'r_airport'), far = Ok().roads.find(r => r.id === 'mn_main'), q = rd.pts[Math.floor(rd.pts.length / 2)];
+    const box = { x0: q[0] - 5, z0: q[1] - 5, x1: q[0] + 5, z1: q[1] + 5 };
+    check(PG.roadBoxTouch(rd, box, 30) && !PG.roadBoxTouch(far, box, 30), '14d a ground edit\'s box: the road under it drawn again, a road far from it not'); }
+  { const before = PG.roadBuildKeys(Ok());
+    const rid = ed.cmd('delete', { id: 'v_west' }) && 'v_west', K4 = PG.roadBuildKeys(Ok());
+    check(!K4.has('v_west') && K4.size === before.size - 1, '14d a road taken away: its key gone (its part, line and rail given back)');
+    ed.undo();
+    const K5 = PG.roadBuildKeys(Ok());
+    check(K5.has('v_west') && K5.get('v_west') === before.get('v_west'), '14d ...and put back: its key the same as before (drawn again, as it was)'); }
+  // 14d' (G3008) THE GAME'S SIDE of an edit (render_world / app.js; the page only - source scans): a placed object's edit
+  //      touches no strip; any other edit re-samples its own box and stands the strips again only when one changed or the
+  //      box reaches one (every edit stood every strip of the island: their fine ground, pavement, lights, socks, rocks)
+  { const AP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8'), RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8');
+    check(/if \(layer === 'objects'\) return;/.test(AP) && /repaintStrips\(null\)/.test(AP) && /refreshGround\(wb\); if \(window\.WORLD\.repaintStrips\) window\.WORLD\.repaintStrips\(wb\)/.test(AP), '14d\' the game: an object\'s edit no strip, another edit its box and its strips');
+    check(/repaintStrips = \(box\) => \{/.test(RW) && /repaintStrips: \(box\) => repaintStrips\(box\)/.test(RW) && /if \(!need\) return false;/.test(RW), '14d\' render_world stands the strips again only when one changed or the box reaches one'); }
+  // 14e THE TIMES, headless: an object's release through the editor (the renderer's part is the page's) against what the
+  //     whole rebuild composed each time; the keys' own cost on the user's scenery with the town put back (the cache's price)
+  { const Tm = f => { const t = process.hrtime.bigint(); f(); return Number(process.hrtime.bigint() - t) / 1e6; };
+    ed.select(pid);
+    const tFast = Tm(() => ed.cmd('drag', { key: 'v0', x: 140, z: -35 }));
+    R.fastOn = false; const tFull = Tm(() => ed.cmd('drag', { key: 'v0', x: 145, z: -35 })); R.fastOn = true;
+    const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, OT = PG.compose(J, synth, { raster: false });
+    const tKeys = Tm(() => PG.roadBuildKeys(OT));
+    check(tFast < 50 && tKeys < 500, '14e an object released: ' + tFast.toFixed(1) + ' ms through the editor (' + tFull.toFixed(0) + ' ms with the whole rebuild\'s composition); the roads\' keys on the island (' + OT.roads.length + ' roads, the town and r1) ' + tKeys.toFixed(0) + ' ms');
+    console.log('     14 PLACER-FAST: an object released ' + tFast.toFixed(1) + ' ms (editor) vs ' + tFull.toFixed(0) + ' ms (editor + the composition a rebuild runs); road keys ' + tKeys.toFixed(0) + ' ms for ' + OT.roads.length + ' roads'); }
+}
+
+// 17 A SITE'S ITEMS (G3005; the user: "anything related to placing assets from SITE is painfully slow. Rotate, place, edit,
+//    delete, all of it"): each action ONE rebuild, the ground with it (every item stands on a shelf the composer cuts -
+//    it was left undrawn: the site was rebuilt with the ground as it was) in a box of what changed - an item moved, its
+//    before and after places; never the whole site for one shed; the site's name no ground; never the objects' path
+{
+  const box = d => (d && d.bbox ? Math.max(d.bbox.x1 - d.bbox.x0, d.bbox.z1 - d.bbox.z0) : Infinity);
+  const n0 = () => [R.rebuilds || 0, R.fastCalls || 0];
+  let [b0, f0] = n0();
+  const sid = ed.cmd('add', { layer: 'sites', entry: { name: 'test harbour', at: { x: 400, z: 400, yaw: 0 }, items: [{ id: 'shed', key: 'stub|shed', x: 0, z: 0 }, { id: 'pier', key: 'stub|pier', x: 160, z: 0 }, { id: 'pens', key: 'stub|pens', x: 320, z: 0 }] } });
+  const whole = box(R.lastDirty);
+  check(sid && R.rebuilds === b0 + 1 && R.fastCalls === f0 && R.lastDirty && R.lastDirty.ground !== false && whole > 380, '17 a site placed: one rebuild, the ground with it (its shelves), its whole box', JSON.stringify(R.lastDirty && R.lastDirty.bbox));
+  ed.cmd('tool', { name: 'select' }); ed.select(sid);
+  [b0, f0] = n0();
+  const pier = () => find(sid).entry.items.find(it => it.id === 'pier');
+  const pw = PG.siteFrame(find(sid).entry).toLocal(pier().x, pier().z);
+  ed.cmd('drag', { key: 'i:pier', x: pw[0] + 12, z: pw[1] + 5 });
+  check(R.rebuilds === b0 + 1 && R.fastCalls === f0 && R.lastDirty.ground !== false && box(R.lastDirty) < 140, '17 an item moved: one rebuild, the ground under its before and after places only (' + box(R.lastDirty).toFixed(0) + ' m across, the site ' + whole.toFixed(0) + ')');
+  [b0, f0] = n0();
+  ed.cmd('set', { id: sid, patch: { items: find(sid).entry.items.map(it => (it.id === 'shed' ? Object.assign({}, it, { P: { L: 9 } }) : it)) } });
+  check(R.rebuilds === b0 + 1 && R.lastDirty.ground !== false && box(R.lastDirty) < 100, '17 an item edited: one rebuild, its own box (' + box(R.lastDirty).toFixed(0) + ' m)');
+  [b0, f0] = n0();
+  ed.cmd('set', { id: sid, patch: { at: Object.assign({}, find(sid).entry.at, { yaw: 0.26 }) } });
+  check(R.rebuilds === b0 + 1 && R.lastDirty.ground !== false && box(R.lastDirty) > 300, '17 the site turned: one rebuild, all of it (every item moves)');
+  [b0, f0] = n0();
+  ed.cmd('set', { id: sid, patch: { name: 'the harbour' } });
+  check(R.rebuilds === b0 + 1 && R.lastDirty.ground === false, '17 its name: no ground');
+  [b0, f0] = n0();
+  ed.cmd('delete', { id: sid });
+  check(!find(sid) && R.rebuilds === b0 + 1 && R.lastDirty.ground !== false, '17 the site deleted: one rebuild, its ground with it');
+  [b0, f0] = n0();
+  ed.undo();
+  check(find(sid) && R.rebuilds === b0 + 1 && R.lastDirty.ground !== false && R.fastCalls === f0, '17 undone: back, one rebuild');
+  const UIs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_ui.js'), 'utf8');
+  check(/'turn ' \+ selected, 'yaw'\);\s+\/\* \(G3005/.test(UIs), '17 R turns a site in one rebuild after the presses stop (coalesced, as a model\'s)');
+}
+
+// 18 THE PICK CYCLE (G3006; the user: "issue with overlapping assets, since I can select only one ... cycle through possible
+//    selectable assets by clicking a few times on them, and select the polygons last"): a model on a road inside an area -
+//    three clicks at one spot pick the three, the polygon last; a fourth comes round again; a click elsewhere starts over;
+//    a click again on the selected road never adds it a corner (north of the island's extent: nothing else there)
+{
+  ed.cmd('tool', { name: 'select' }); ed.select(null);
+  const rid = ed.cmd('add', { layer: 'roads', entry: { pts: [[1840, 4000], [2160, 4000]], w: 6, cls: 'gravel', graded: true, falloff: 6 } });
+  const aid = ed.cmd('add', { layer: 'areas', entry: { poly: [[1960, 3960], [2040, 3960], [2040, 4040], [1960, 4040]], props: {} } });
+  const pid = ed.cmd('place', { x: 2000, z: 4000.6, key: 'stub|lamp', yaw: 0 });
+  const nPts = find(rid).entry.pts.length, picks = [];
+  for (let k = 0; k < 4; k++) picks.push(ed.cmd('click', { x: 2000, z: 4000 }));
+  check(picks[0] === pid && picks[1] === rid && picks[2] === aid, '18 three clicks at one spot: the model, the road, the area - the polygon last', picks.join(' > '));
+  check(picks[3] === pid, '18 a fourth click comes round to the first again');
+  check(find(rid).entry.pts.length === nPts, '18 a click again on the selected road adds it no corner');
+  check(ed.cmd('click', { x: 1980, z: 4030 }) === aid, '18 a click elsewhere starts over (only the area there)');
+}
+
+// 19 THE PLOTS' FENCES (G3007; the user: "we need an option to turn off the fencing around the plots too"): a zone's
+//    rules.fences false flags every plot it sows noFence, rules.noFence [ids] those alone; none set - every plot record as
+//    before, bit for bit (the shipped island's 470 plots); the village generator (GATE VILLAGE) finishes a noFence plot with
+//    no fence; the renderer builds a plot again when its fence switches (its seed the same); the inspector's switch and pick
+{
+  const flat = { id: 'flat', terrainH: () => 0, waterH: () => -100 };
+  const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
+  const key = O => JSON.stringify(O.records.plots);
+  const O0 = PG.compose(J, flat, { raster: false }), z = J.layers.zones.find(q => O0.records.plots.some(p => p.zone === q.id && p.kind !== 'park'));
+  check(z && !O0.records.plots.some(p => 'noFence' in p), '19 no zone saying so: no plot carries noFence (' + O0.records.plots.length + ' plots)');
+  const mine = O0.records.plots.filter(p => p.zone === z.id), one = mine[0];
+  const J1 = JSON.parse(JSON.stringify(J)); J1.layers.zones.find(q => q.id === z.id).rules = Object.assign({}, z.rules, { noFence: [one.id] });
+  const O1 = PG.compose(J1, flat, { raster: false });
+  check(O1.records.plots.filter(p => p.noFence).map(p => p.id).join() === one.id, '19 a plot switched off: it alone carries noFence (' + one.id + ')');
+  check(JSON.stringify(O1.records.plots.map(p => { const c = Object.assign({}, p); delete c.noFence; return c; })) === key(O0), '19 ...and every plot otherwise the same, its boundary and seed too');
+  const J2 = JSON.parse(JSON.stringify(J)); J2.layers.zones.find(q => q.id === z.id).rules = Object.assign({}, z.rules, { fences: false });
+  const O2 = PG.compose(J2, flat, { raster: false });
+  check(O2.records.plots.filter(p => p.zone === z.id).every(p => p.noFence) && O2.records.plots.filter(p => p.zone !== z.id).every(p => !p.noFence), '19 the zone\'s fences off: its ' + mine.length + ' plots, and no other');
+  const VGs = fs.readFileSync(path.join(TOOLS, '_village_gen.js'), 'utf8'), RPs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check(/plot\.noFence \? new Set\(\) : vil\.fenced/.test(VGs) && /if \(plot\.noFence\) plot\.fences = \[\];/.test(VGs), '19 the village generator keeps no fence for a noFence plot, and claims none of its sides');
+  check(/!!p\.noFence !== !!\(h\.plot && h\.plot\.noFence\)/.test(RPs), '19 the renderer builds a plot again when its fence switches (its seed the same)');
+  check(/'plot fences'/.test(UI_SRC) && /pick plots: a click switches one plot\\'s fence/.test(UI_SRC) && /name === 'plotFence'/.test(UI_SRC), '19 the zone\'s inspector: the fences switch and the plot pick');
 }
 
 // 5 NAMES

@@ -309,7 +309,7 @@ function polyRoad(pts0, w) {
 // once per road object and line, a WeakMap - nothing is added to the object), and a query walks the rings of cells
 // round its own until no unvisited segment can be nearer: the SAME minimum over the same distPtSeg values, bit for
 // bit (GATE SCENERYED 9 against the walk). Far outside the grid, and for a short road, the walk as before.
-const SEG_MIN = 48, SEG_CELL = 16, SEG_RINGS = 24;
+const SEG_MIN = 48, SEG_CELL = 16, SEG_RINGS = 24, SEG_COARSE = 16;
 let SEG_IDX = typeof WeakMap === 'function' ? new WeakMap() : null;
 // (the bench's and the gate's switch: segIdx(false) is the walk everywhere, the before of an A/B; segIdx(true) back)
 function segIdx(on) { if (on === false) SEG_IDX = null; else if (on === true && !SEG_IDX && typeof WeakMap === 'function') SEG_IDX = new WeakMap(); return !!SEG_IDX; }
@@ -330,17 +330,44 @@ function roadSegIdx(road) {
     const j0 = Math.floor((Math.min(a[1], b[1]) - z0) / C), j1 = Math.floor((Math.max(a[1], b[1]) - z0) / C);
     for (let ci = i0; ci <= i1; ci++) for (let cj = j0; cj <= j1; cj++) { const k = ci * 65536 + cj; let l = cells.get(k); if (!l) cells.set(k, l = []); l.push(i); }
   }
-  I = { pts: P, n: P.length, sig, x0, z0, nx, nz, C, cells };
+  // (G3081 EDITOR-PERF) THE COARSE LEVEL: the same segments filed in cells SEG_COARSE times larger - a query far from the
+  // line (past the fine rings) walks the coarse rings instead of every segment
+  const CC = C * SEG_COARSE, ncx = Math.floor((x1 - x0) / CC) + 1, ncz = Math.floor((z1 - z0) / CC) + 1, coarse = new Map();
+  for (let i = 1; i < P.length; i++) {
+    const a = P[i - 1], b = P[i]; if (!fin2(a) || !fin2(b)) continue;
+    const i0 = Math.floor((Math.min(a[0], b[0]) - x0) / CC), i1 = Math.floor((Math.max(a[0], b[0]) - x0) / CC);
+    const j0 = Math.floor((Math.min(a[1], b[1]) - z0) / CC), j1 = Math.floor((Math.max(a[1], b[1]) - z0) / CC);
+    for (let ci = i0; ci <= i1; ci++) for (let cj = j0; cj <= j1; cj++) { const k = ci * 65536 + cj; let l = coarse.get(k); if (!l) coarse.set(k, l = []); l.push(i); }
+  }
+  I = { pts: P, n: P.length, sig, x0, z0, nx, nz, C, cells, CC, ncx, ncz, coarse };
   SEG_IDX.set(road, I);
   return I;
+}
+// the rings of a grid's cells round the query's own (ci, cj), from ring k0, until no unvisited cell can hold a segment
+// nearer than the best found (a cell of ring k+1 lies k cells clear of the query's): the same minimum as the walk
+function segRings(I, cells, C, nx, nz, x, z, ci, cj, k0, kMax, d) {
+  const P = I.pts;
+  for (let k = k0; k <= kMax; k++) {
+    for (let i = ci - k; i <= ci + k; i++) {
+      if (i < 0 || i >= nx) continue;
+      const edge = i === ci - k || i === ci + k;
+      for (let j = cj - k; j <= cj + k; j += (edge || k === 0) ? 1 : 2 * k) {
+        if (j < 0 || j >= nz) continue;
+        const l = cells.get(i * 65536 + j); if (!l) continue;
+        for (let m = 0; m < l.length; m++) { const s = l[m], e = distPtSeg(x, z, P[s - 1], P[s]); if (e < d) d = e; }
+      }
+    }
+    if (d <= k * C) return [d, true];
+  }
+  return [d, false];
 }
 function roadDist(road, x, z) {
   const I = roadSegIdx(road);
   if (I) {
     const ci = Math.floor((x - I.x0) / I.C), cj = Math.floor((z - I.z0) / I.C);
     if (ci >= -2 && cj >= -2 && ci <= I.nx + 1 && cj <= I.nz + 1) {
-      // (a query farther than SEG_RINGS cells from the line - a point across an island-long road's box - takes the walk:
-      // the rings would visit more cells than the walk tests segments)
+      // (a query farther than SEG_RINGS cells from the line - a point across an island-long road's box - goes on to the
+      // coarse rings, G3081: the fine ones would visit more cells than the walk tests segments)
       const P = I.pts, kMax = Math.min(SEG_RINGS, Math.max(I.nx, I.nz) + 3), all = kMax === Math.max(I.nx, I.nz) + 3;
       let d = Infinity;
       for (let k = 0; k <= kMax; k++) {
@@ -357,22 +384,89 @@ function roadDist(road, x, z) {
         if (d <= k * I.C) return d;
       }
       if (all) return d;
-    }
+      // (G3081 EDITOR-PERF; the user's island road r1: its box is the island, so every query of the town, the forests, the
+      // cover ring more than SEG_RINGS cells from it walked its ~2 500 segments - 3 of the 4 s of a composition with the
+      // town on) the coarse rings, from the best the fine ones found: the same minimum
+      const R = coarseDist(I, x, z, d); if (R !== null) return R;
+    } else { const R = coarseDist(I, x, z, Infinity); if (R !== null) return R; }
   }
   let d = Infinity;
   for (let i = 1; i < road.pts.length; i++) { const e = distPtSeg(x, z, road.pts[i - 1], road.pts[i]); if (e < d) d = e; }
   return d;
 }
+// (G3081 EDITOR-PERF) roadDist when it is within `lim`, else Infinity - the callers that only ask "nearer than lim?" (a plot's
+// corner by another road, a tree by a road): the segments of the cells within lim of the query, nothing farther. A segment
+// nearer than lim has its nearest point within lim, in a cell the square visits (it is filed in every cell its box meets):
+// so the minimum found, when it is within lim, is roadDist's to the bit, and when it is not, roadDist is over lim too
+function roadDistNear(road, x, z, lim) {
+  const I = roadSegIdx(road);
+  if (!I || !(isFinite(x) && isFinite(z)) || !(lim >= 0 && isFinite(lim))) return roadDist(road, x, z);
+  const C = I.C, K = Math.ceil(lim / C) + 1, ci = Math.floor((x - I.x0) / C), cj = Math.floor((z - I.z0) / C), P = I.pts;
+  let d = Infinity;
+  for (let i = Math.max(0, ci - K), i1 = Math.min(I.nx - 1, ci + K); i <= i1; i++)
+    for (let j = Math.max(0, cj - K), j1 = Math.min(I.nz - 1, cj + K); j <= j1; j++) {
+      const l = I.cells.get(i * 65536 + j); if (!l) continue;
+      for (let m = 0; m < l.length; m++) { const s = l[m], e = distPtSeg(x, z, P[s - 1], P[s]); if (e < d) d = e; }
+    }
+  return d <= lim ? d : Infinity;
+}
+// (G3081 EDITOR-PERF) roadInPoly(road, poly).length > 0 - a polyRoad has a 2 m sample inside the polygon - on the samples of
+// the segments whose cells meet the polygon's box only (a sample inside the polygon is in its box, on a segment filed
+// there): the island road's fillet was sampled whole for every candidate plot of the town
+function roadCrossesPoly(road, poly) {
+  const P = road.pts, S = road.s, n = P && P.length;
+  const I = Array.isArray(S) && S.length === n && n >= 2 && S[n - 1] === road.length && isFinite(road.length) ? roadSegIdx(road) : null;
+  if (!I) return roadInPoly(road, poly).length > 0;
+  let bx0 = Infinity, bz0 = Infinity, bx1 = -Infinity, bz1 = -Infinity;
+  for (const c of poly) { if (!(c[0] >= bx0)) bx0 = c[0]; if (!(c[0] <= bx1)) bx1 = c[0]; if (!(c[1] >= bz0)) bz0 = c[1]; if (!(c[1] <= bz1)) bz1 = c[1]; }
+  if (!(isFinite(bx0) && isFinite(bx1) && isFinite(bz0) && isFinite(bz1))) return roadInPoly(road, poly).length > 0;
+  const C = I.C, len = road.length, seen = new Set();
+  for (let i = Math.max(0, Math.floor((bx0 - 1e-3 - I.x0) / C)), i1 = Math.min(I.nx - 1, Math.floor((bx1 + 1e-3 - I.x0) / C)); i <= i1; i++)
+    for (let j = Math.max(0, Math.floor((bz0 - 1e-3 - I.z0) / C)), j1 = Math.min(I.nz - 1, Math.floor((bz1 + 1e-3 - I.z0) / C)); j <= j1; j++) {
+      const l = I.cells.get(i * 65536 + j); if (!l) continue;
+      for (let m = 0; m < l.length; m++) {
+        const g = l[m]; if (seen.has(g)) continue; seen.add(g);
+        // at()'s segment g holds the samples tt with S[g-1] < tt <= S[g] (and 0 for the first): the even metres, and the end
+        const lo = S[g - 1];
+        for (let t = g === 1 ? 0 : 2 * Math.floor(lo / 2) + 2; t <= S[g] && t < len; t += 2) { if (g > 1 && !(t > lo)) continue; const q = road.at(t).p; if (inPoly(poly, q[0], q[1])) return true; }
+        if (lo < len && len <= S[g]) { const q = road.at(len).p; if (inPoly(poly, q[0], q[1])) return true; }
+      }
+    }
+  return false;
+}
+// (G3081) roadDist's far half: the coarse rings over the whole grid (a query outside it starts at the ring that reaches it)
+function coarseDist(I, x, z, d) {
+  if (!I.coarse || !(isFinite(x) && isFinite(z))) return null;
+  const ci = Math.floor((x - I.x0) / I.CC), cj = Math.floor((z - I.z0) / I.CC);
+  const k0 = Math.max(0, -ci, ci - I.ncx + 1, -cj, cj - I.ncz + 1), kMax = Math.max(Math.abs(ci), Math.abs(ci - I.ncx + 1), Math.abs(cj), Math.abs(cj - I.ncz + 1));
+  // (rings under k0 hold no cell of the grid; the bound after them still holds - nothing was nearer there)
+  return segRings(I, I.coarse, I.CC, I.ncx, I.ncz, x, z, ci, cj, k0, kMax, d)[0];
+}
 // the arclength intervals of a road inside a polygon (sampled every 2 m)
+// (G3081 EDITOR-PERF) the same samples, the same answers - but a sample on a segment whose box misses the polygon's is
+// outside without asking (a point outside a polygon's box is outside it), and the samples left on that segment are
+// skipped: the island road's 12 000 samples were each walked for every plot of the town and every zone
 function roadInPoly(road, poly) {
   const out = [];
   let t0 = null;
+  const P = road.pts, S = road.s, n = P && P.length, fast = !!(SEG_IDX && Array.isArray(P) && Array.isArray(S) && S.length === n && n >= 2 && S[n - 1] === road.length && isFinite(road.length));
+  let bx0 = Infinity, bz0 = Infinity, bx1 = -Infinity, bz1 = -Infinity;
+  if (fast) for (const c of poly) { if (!(c[0] >= bx0)) bx0 = c[0]; if (!(c[0] <= bx1)) bx1 = c[0]; if (!(c[1] >= bz0)) bz0 = c[1]; if (!(c[1] <= bz1)) bz1 = c[1]; }   // (a NaN corner: a NaN box, never missed)
+  const EPS = 1e-6;
+  let i = 1;
   for (let t = 0; ; t += 2) {
     const tt = Math.min(t, road.length);
-    const p = road.at(tt).p, inside = inPoly(poly, p[0], p[1]);
+    let inside, skip = false;
+    if (fast) {
+      while (i < n - 1 && S[i] < tt) i++;   // at()'s segment: the first i >= 1 whose arclength reaches tt
+      const a = P[i - 1], b = P[i];
+      if (Math.max(a[0], b[0]) < bx0 - EPS || Math.min(a[0], b[0]) > bx1 + EPS || Math.max(a[1], b[1]) < bz0 - EPS || Math.min(a[1], b[1]) > bz1 + EPS) { inside = false; skip = true; }
+    }
+    if (!skip) { const p = road.at(tt).p; inside = inPoly(poly, p[0], p[1]); }
     if (inside && t0 === null) t0 = tt;
     if (!inside && t0 !== null) { out.push([t0, tt]); t0 = null; }
     if (tt >= road.length) break;
+    if (skip) t = Math.max(t, 2 * Math.floor(S[i] / 2));   // every sample up to S[i] lies on this segment, outside too
   }
   if (t0 !== null) out.push([t0, road.length]);
   return out;
@@ -1052,8 +1146,8 @@ function sowPlots(zone, roads, ctx) {
       const rd = B.rd;
       if (rd.id === own) continue;
       if (qx1 < B.x0 || qx0 > B.x1 || qz1 < B.z0 || qz0 > B.z1) continue;
-      if (q.some(c => roadDist(rd, c[0], c[1]) < B.half)) return true;
-      if (roadInPoly(B.pr, q).length) return true;   // it runs THROUGH the plot
+      if (q.some(c => roadDistNear(rd, c[0], c[1], B.half + 1) < B.half)) return true;   // (G3081: the cells within reach only)
+      if (roadCrossesPoly(B.pr, q)) return true;   // it runs THROUGH the plot
     }
     return false;
   };
@@ -1173,7 +1267,7 @@ function planForest(zone, ctx) {
   // distance made the min NaN (no road near), a tree at NaN is never clear of
   const RB = ctx.roads.map(r => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of r.pts || []) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < z0) z0 = q[1]; if (q[1] > z1) z1 = q[1]; } return { r, hw: (r.w || 3.6) / 2, b: [x0, z0, x1, z1] }; });
   const farBox = (b, x, z, r) => Math.max(b[0] - x, x - b[2], b[1] - z, z - b[3]) > r + 1e-3;   // (NaN: never far)
-  const roadWithin = (x, z, r) => { let near = false; for (const R of RB) { if (farBox(R.b, x, z, R.hw + r)) continue; const d = roadDist(R.r, x, z) - R.hw; if (d !== d) return false; if (d < r) near = true; } return near; };
+  const roadWithin = (x, z, r) => { let near = false; for (const R of RB) { if (farBox(R.b, x, z, R.hw + r)) continue; const d = roadDistNear(R.r, x, z, R.hw + r + 1) - R.hw; if (d !== d) return false; if (d < r) near = true; } return near; };
   const PB = ctx.plots.map(p => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of p.poly) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < z0) z0 = q[1]; if (q[1] > z1) z1 = q[1]; } return { p, b: [x0, z0, x1, z1] }; });
   const plotWithin = (x, z, r) => PB.some(P => !farBox(P.b, x, z, r) && sdPoly(P.p.poly, x, z) < r);
   const trees = [];
@@ -1913,6 +2007,44 @@ function roadHandles(pts, tan) {
   const S = roadSplineD(pts.map(q => [+q[0], +q[1]]), T);
   return pts.map((q, i) => (T[i] ? T[i] : i < n - 1 ? [S.Dout[i][0] * S.h[i] / 3, S.Dout[i][1] * S.h[i] / 3] : [S.Din[i][0] * S.h[i - 1] / 3, S.Din[i][1] * S.h[i - 1] / 3]));
 }
+// a placed prop's scale (v1.36 `s`, the model placer's) on its composed record - only when it is not 1 (G3001)
+const objScale = ob => (+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3 ? { s: +ob.s } : {});
+// THE ROADS' BUILD KEYS (G3002 PLACER-FAST; the user: "adding assets in the editor is a bit of a pain, really, really
+// long to move, update, rotate" - every edit's rebuild made EVERY road's pavement, its poles and its rails again, the
+// island road's 25 km among them). A road's drawn things (its pavement row, its power line, its guardrail) are a
+// function of: the road as composed (`rd`, every field) and as recorded, the record's pavement settings and theme, and
+// what its poles and rails keep clear of NEAR it - the other roads (each one's digest), the plots, the strips, the
+// paved polygons. roadBuildKeys(O) -> Map(id -> key): a road whose key is the same, and whose box no ground edit
+// touched (roadBoxTouch), is drawn as it was; anything else is built again.
+function roadBuildKeys(O) {
+  const out = new Map(), roads = (O && O.roads) || [], recRoads = new Map(((O && O.rec && O.rec.layers && O.rec.layers.roads) || []).map(r => [r.id, r]));
+  const dig = new Map(), bbs = new Map();
+  for (const q of roads) if (q && q.pts && q.pts.length > 1) { dig.set(q, fnv(JSON.stringify([q.id, q.pts, q.w]))); bbs.set(q, polyBBox(q.pts)); }
+  const plots = ((O && O.records && O.records.plots) || []).filter(p => p && p.poly && p.poly.length >= 3).map(p => [polyBBox(p.poly), fnv(JSON.stringify(p.poly))]);
+  // (G2960: a strip enters the key of the roads NEAR it only - its box grown by its shoulder - a strip's edit kept every
+  //  road of the island drawn again)
+  const strips = ((O && O.runways) || []).filter(r => r && r.c && r.len > 0).map(r => [polyBBox(runwayBox(Object.assign({}, RUNWAY_DEF, r), runwayShoulder(Object.assign({}, RUNWAY_DEF, r)) + 30)), fnv(JSON.stringify([r.id, r.c, r.len, r.wid, r.hdg, r.profile || null, r.slope || 0]))]);
+  const paved = ((O && O.pavePolys) || []).map(pp => [pp.bbox || polyBBox(pp.poly), fnv(JSON.stringify([pp.id, pp.poly, pp.look]))]);
+  const glob = JSON.stringify([(O && O.pavement) || null, (O && O.rec && O.rec.theme) || null]);
+  for (const rd of roads) {
+    if (!rd || !rd.pts || rd.pts.length < 2) continue;
+    const bb = bbs.get(rd), m = (+rd.w || 3.6) / 2 + 14;
+    const near = b => !(b.x1 < bb.x0 - m || b.x0 > bb.x1 + m || b.z1 < bb.z0 - m || b.z0 > bb.z1 + m);
+    const ctx = [];
+    for (const q of roads) if (q !== rd && dig.has(q) && near(bbs.get(q))) ctx.push(dig.get(q));
+    for (const [b, h] of plots) if (near(b)) ctx.push(h);
+    for (const [b, h] of paved) if (near(b)) ctx.push(h);
+    for (const [b, h] of strips) if (near(b)) ctx.push(h);
+    out.set(rd.id, fnv(JSON.stringify([rd, recRoads.get(rd.id) || null])).toString(36) + ':' + fnv(glob + '|' + ctx.join(',')).toString(36));
+  }
+  return out;
+}
+// a ground edit's box (premises frame) over a road: its points' box grown by its half width and `pad` (its banks)
+function roadBoxTouch(rd, box, pad) {
+  if (!rd || !rd.pts || rd.pts.length < 1 || !box) return false;
+  const bb = polyBBox(rd.pts), m = (+rd.w || 3.6) / 2 + (pad > 0 ? pad : 0);
+  return !(box.x1 < bb.x0 - m || box.x0 > bb.x1 + m || box.z1 < bb.z0 - m || box.z0 > bb.z1 + m);
+}
 // A ROAD'S BED (contract v1.37, G2952): `bed: true | { fill, grade, bank, shoulder }` - null when the road has none (today's)
 const BED_DEF = { fill: 0.15, grade: 0.12, bank: 10, shoulder: 0.5 };
 function bedOf(r) {
@@ -2023,6 +2155,13 @@ const roadClearOf = r => (!r || r.clear === null || r.clear === undefined || r.c
 // A PLOT'S GROUND (contract v1.35, G2890; the user: "an option to disable plot ground drawing for the houses. The ones
 // on the shore draw grass up till the sea"): a zone's `rules.ground === false` takes the lot patch and the lawn off every
 // plot it sows, `rules.noGround` [plot ids] off those plots alone; a site item's `P.plotGround === false` off its own lot
+// A PLOT'S FENCE (G3007; the user: "we need an option to turn off the fencing around the plots too"): a zone's
+// `rules.fences === false` takes the fence off every plot it sows, `rules.noFence` [plot ids] off those plots alone (the
+// plot's boundary, its house and the rest of its lot as they were); absent - today's fences, every plot record the same
+function plotFenceOff(zone, plotId) {
+  const R = (zone && zone.rules) || {};
+  return R.fences === false || (Array.isArray(R.noFence) && R.noFence.indexOf(plotId) >= 0);
+}
 function plotGroundOff(zone, plotId) {
   const R = (zone && zone.rules) || {};
   return R.ground === false || (Array.isArray(R.noGround) && R.noGround.indexOf(plotId) >= 0);
@@ -3521,7 +3660,7 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; O.records.plots.push(p); n++; }
+        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // (v1.33) a zone below its stage's band sowed to hold its land; its plots go now, their ground kept clear of trees
@@ -3630,7 +3769,7 @@ function compose(rec0, world, opts) {
     O.records.objects = [];
     for (const ob of rec.layers.objects) if (ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') {
       if (!ob.key) { O.records.issues.push(ob.kind + ' ' + ob.id + ': no key'); continue; }
-      O.records.objects.push({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' });
+      O.records.objects.push(Object.assign({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' }, objScale(ob)));   // (G3001: the placer's scale reaches the built prop - it was dropped here)
     }
     // THE ANIMALS (contract v1.17, 2026-09-22): a HOTSPOT, not an individual -
     // `n` animals of the species `key` living within `r` metres of (x, z). One
@@ -3974,10 +4113,10 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
-  fnv, hash32, mulberry32, seedOf, fbm,
+const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+  fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,

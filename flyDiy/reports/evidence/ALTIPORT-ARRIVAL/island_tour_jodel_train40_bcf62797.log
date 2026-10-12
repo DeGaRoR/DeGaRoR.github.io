@@ -1,0 +1,6 @@
+island_tour: jodel_2026-09-20_corrected.json (span 8.30 m), damage ON, 324 obstacles + 0 trunks in the world; HOME > tw_ski - the game's flight
+  ok   HOME > tw_ski          586 s | dep: turned 103.2 deg, roll 108.9 m in, lift-off 193.6 m | final 3550.3 m / 482.5 m, clear 11.7 m (ground) | td sink -0.97 m/s, 20.2 m/s, run 124 m, off 3.7 m | fuel 42.8 L
+    phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts slope: stopped on a 9.2 % grade — rolling 150 m on to the level part
+TOUR DONE - 1 legs, fuel left 42.8 L, 853 s wall
+  the game: {"day":{"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":0,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}},"shake":true,"stand":{"x":-154,"z":712},"mass":463,"fuel":45,"damage":true}
