@@ -77,6 +77,9 @@ const SERVO_GAINS = {
   // Cessna rotated 4.1 deg off its heading on P-D alone (0.5 -> 3.5, 1.0 -> 2.8, 2.0 -> 1.7 deg); 1.0 brought the
   // trike crosswind's pursuit from 14.2 to 10.1 deg and the C172's climb-out from the mill clear of house3 again
   steerI: 1.0, steerIMax: 0.25,
+  // G3072: the heading error (rad) beyond which the trim is held, not wound - a turn, not a standing yaw (the metal
+  // Cessna's standing error on P-D alone was 4.1 deg = 0.07 rad)
+  steerIBand: 0.10,
   drTailDown: 0.45, drTailUp: 0.95, drWater: 0.9,
   // G1937 (PILOT-ONE, for DMG-DAMP): the water-step entry - kP x waterStepK on the water with the hull on the step
   // (tail up); 1 today (no change), DAMP's only pilot gain (0.6 once the solver's rigid-rotation damper is gone)
@@ -487,7 +490,13 @@ function makeServos(sim, def, opts) {
     // landing's roll-out (the throttle closed) there is no standing yaw, and the integral only lagged the heading loop:
     // the user's Cub on 02/20 with 2.4 m/s behind it swung +10 -> -22 -> +49 deg (a ground loop, GATE TOUR's land tour,
     // either order) - the same roll-out with the integral off: straight, 0.1 m off. Closed throttle: it bleeds off (1 s)
-    if ((c.thr || 0) > 0.3) S.gI = clamp(S.gI + g('steerI') * e * S.dt, -g('steerIMax'), g('steerIMax'));
+    // G3072 (TORQUE-STEER): ...AND ONLY WHILE THE LINE IS HELD. The trim is the standing yaw's, not a turn's: every
+    // take-off at Jolene's HOME starts its roll 85 deg off the runway (the rolling turn onto it), and the integral sat
+    // on its stop through that turn, then swung the Jodel +-25 deg on its tail-down roll until it rejected ('will not
+    // reach Vr: 0.18 m/s^2'). Held (not wound) beyond steerIBand of heading error, and once a taildragger's tail is up
+    // (the roll's trim is set on the three-point roll; a tricycle has no tail-up and keeps G2080's law)
+    const hold = Math.abs(e) > g('steerIBand') || (rotateTD && !onWater && tailUp);
+    if ((c.thr || 0) > 0.3) { if (!hold) S.gI = clamp(S.gI + g('steerI') * e * S.dt, -g('steerIMax'), g('steerIMax')); }
     else S.gI -= S.gI * Math.min(1, S.dt / 1.0);
     S.drTrim = clamp(-S.gI, -g('drTrimMax'), g('drTrimMax'));
     c.dr = clamp(-kP * e - kD * S.eR - S.gI, -drMax, drMax);
