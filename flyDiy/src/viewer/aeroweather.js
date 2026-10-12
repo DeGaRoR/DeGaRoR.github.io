@@ -128,8 +128,8 @@ const AERO_WX_KNOB = {
   // G345.3: the crevices and the scratches
   creviceGain: 1.6,  // uWxV.x  dirt in the rivet flanks, seams, grooves and the cowl's joints
   seamW:     0.035,  // uWxV.y  m, how far the cowl's joint dirt spreads
-  scratchLen: 0.45,  // uWxV.z  m, a scratch's length period
-  scratchAcross: 0.03, // uWxV.w m, a scratch's width period
+  scratchLen: 0.45,  // uWxV.z  m, the scratches' lattice cell (one stroke at most per cell, 0.24..0.6 of it long)
+  scratchW:  0.0007, // uWxV.w  m, a stroke's half-width at its middle (G2750: it was a 'width period' of a tiled read)
   // G345.5: the BAKED cavity's gains (uWxB), over kappaMax like the
   // derivative's — the concave term (dirt in the grooves) and the convex
   // one's share of it (chips on the crowns)
@@ -145,7 +145,7 @@ const AERO_WX_KNOB_RANGE = {
   dustFlat: [0, 1, 0.01], ccRough: [0, 1, 0.01], kappaMax: [5, 200, 1], bugTile: [0.1, 1, 0.01],
   fineTile: [0.1, 1.5, 0.01], coarseTile: [0.5, 6, 0.05], streakAcross: [0.05, 1, 0.01], streakAlong: [0.5, 8, 0.05],
   propR: [0.3, 2.0, 0.01], spinR: [0.05, 0.4, 0.005], leGain: [0, 3, 0.05], flingGain: [0, 3, 0.05],
-  creviceGain: [0, 4, 0.05], seamW: [0.01, 0.12, 0.005], scratchLen: [0.1, 2, 0.01], scratchAcross: [0.01, 0.2, 0.005],
+  creviceGain: [0, 4, 0.05], seamW: [0.01, 0.12, 0.005], scratchLen: [0.1, 2, 0.01], scratchW: [0.0002, 0.004, 0.0001],
   bakeGain: [0, 10, 0.1], bakeConvex: [0, 3, 0.05], chipLip: [0, 0.003, 0.00005], mudRelief: [0, 0.02, 0.0001],
 };
 // THE SPINNER'S SPIRAL (the user: "the little typical spiral and choose its
@@ -516,7 +516,7 @@ function aeroWxSharedU(THREE) {
     uWxG:   { value: new THREE.Vector4(K.fineTile, K.coarseTile, K.streakAcross, K.streakAlong) },
     uWxDbg: { value: 0 },
     uWxT:   { value: new THREE.Vector4(K.propR, K.spinR, K.leGain, K.flingGain) },
-    uWxV:   { value: new THREE.Vector4(K.creviceGain, K.seamW, K.scratchLen, K.scratchAcross) },
+    uWxV:   { value: new THREE.Vector4(K.creviceGain, K.seamW, K.scratchLen, K.scratchW) },
     uWxB:   { value: new THREE.Vector4(K.bakeGain, K.bakeConvex, K.chipLip, K.mudRelief) },
     uSpiral: { value: new THREE.Vector4(0, 1, 0.10, 0.30) },   // on, hand, pitch m, width at the base
     uSpiralC: { value: new THREE.Vector4(1, 1, 1, 1) },       // linear rgb, strength
@@ -552,7 +552,7 @@ function aeroWxRefresh() {
   U.uWxR.value.set(K.dustFlat, K.ccRough, K.kappaMax, K.bugTile);
   U.uWxG.value.set(K.fineTile, K.coarseTile, K.streakAcross, K.streakAlong);
   U.uWxT.value.set(K.propR, K.spinR, K.leGain, K.flingGain);
-  U.uWxV.value.set(K.creviceGain, K.seamW, K.scratchLen, K.scratchAcross);
+  U.uWxV.value.set(K.creviceGain, K.seamW, K.scratchLen, K.scratchW);
   U.uWxB.value.set(K.bakeGain, K.bakeConvex, K.chipLip, K.mudRelief);
   const m = AERO_WX.macro;
   U.uWear.value.set(aeroWxClamp01(m.age), aeroWxClamp01(m.flight),
@@ -761,7 +761,7 @@ uniform vec4 uWxR;      // x dust flatten  y cc rough add  z kappa max (1/m)  w 
 uniform vec4 uWxG;      // x fine tile m  y coarse tile m  z streak across m  w streak along m
 uniform float uWxDbg;
 uniform vec4 uWxT;      // x blade tip radius m  y spinner base radius m  z LE gain  w fling gain
-uniform vec4 uWxV;      // x crevice gain  y cowl joint width m  z scratch length m  w scratch width m
+uniform vec4 uWxV;      // x crevice gain  y cowl joint width m  z scratch cell m  w scratch half-width m
 uniform vec4 uWxB;      // x baked cavity gain  y its convex share  z chip depth m  w mud lump height m
 varying float vCav;     // G345.5: the mesh's own curvature per vertex, 1/m, concave positive (aeroWxCavity); 0 where not baked
 uniform vec4 uSpiral;   // x on  y hand  z pitch m/turn  w width at the base
@@ -807,6 +807,28 @@ float aeroWxSpots(vec2 uv, float cell, float dens, float rad, float seed, float 
   float d = length(uv - ctr);
   float aa = max(length(fwidth(uv)), 1e-4) * 0.8;
   return step(r0, dens) * (1.0 - smoothstep(rr - aa - soft, rr + aa, d));
+}
+// A SCRATCH BY COUNT (G2750, the user: "the weathering produces clear tiled pattern on carbon" - repeating dashes over
+// the fuselage and the fin). Scratches were the grunge sheet read stretched (a 256-px tile spanning 3 cm across and
+// 45 cm along) and thresholded at 0.968: only the sheet's few highest texels passed, and the SAME few every tile - a
+// lattice of identical dashes, every 3 cm across and every 45 cm along, pale on a dark carbon. Now aeroWxSpots' rule:
+// a lattice of cells in the part's own frame, every cell rolls its hash (of its INDEX, which never repeats) against
+// dens, a winning cell draws ONE tapered stroke - mostly along, +-15 degrees, 0.24..0.6 of the cell long, its middle
+// jittered so it never leaves the cell. Antialiased on the footprint and faded where it is thinner than a pixel, so a
+// far flank never sparkles.
+// (43.1's strict gate: aa, the footprint, is the caller's - taken in uniform control flow - so the call can sit in a
+// branch that skips the hash maths wherever the layer is zero: every interior fragment, a fresh paint, the cockpit)
+float aeroWxScratch(vec2 uv, float cell, float dens, float hw, float seed, float aa) {
+  vec2 c = floor(uv / cell);
+  if (aeroHash(c + seed) >= dens) return 0.0;
+  vec2 ctr = (c + 0.5 + 0.2 * (vec2(aeroHash(c + seed + 17.3), aeroHash(c + seed + 41.7)) - 0.5)) * cell;
+  float an = (aeroHash(c + seed + 5.9) - 0.5) * 0.52;
+  float hl = cell * (0.12 + 0.18 * aeroHash(c + seed + 9.1));
+  vec2 t = vec2(cos(an), sin(an)), d = uv - ctr;
+  float a = dot(d, t), b = dot(d, vec2(-t.y, t.x));
+  float ac = clamp(a, -hl, hl);
+  float w = hw * (1.0 - 0.7 * abs(ac) / hl);
+  return (1.0 - smoothstep(w, w + aa, length(vec2(a - ac, b)))) * min(1.0, w / aa);
 }
 void aeroWxLay(inout vec3 col, inout float cov, inout float flo, float c, vec4 C) {
   float cc = clamp(c, 0.0, 1.0);
@@ -1221,8 +1243,10 @@ const AERO_WX_SURF_FS = `
       // aft streaks' 2.6 m one that ran every scratch the length of the
       // part, and a threshold that admits a few per square metre at most
       float wxScP = wx_scratch * uWxSub2.z * wxSide * wxOut * wxPure;
-      float gSc = texture2D(tGrunge, vec2(wxAcross / uWxV.w, wxAlong / uWxV.z) + vec2(0.23, 0.59)).b;
-      ch = max(ch, smoothstep(0.968 - 0.03 * wxScP, 0.978 - 0.03 * wxScP, gSc) * step(0.01, wxScP));
+      // (G2750: by count - aeroWxScratch - never a threshold on a tiled read; the footprint here, the strokes only
+      // where the layer is)
+      float wxScAA = max(length(fwidth(vec2(wxAlong, wxAcross))), 1e-5);
+      if (wxScP >= 0.01) ch = max(ch, aeroWxScratch(vec2(wxAlong, wxAcross), uWxV.z, 0.6 * wxScP, uWxV.w, 7.0, wxScAA));
       // steel goes to primer then rust; rust also BLEEDS down from the chips
       // THE SUBSTRATE WITH ITS OWN ROUGHNESS (G345.2): bare alloy under a
       // chip is a metal at the finish row's roughness — it OUTSHINES the
