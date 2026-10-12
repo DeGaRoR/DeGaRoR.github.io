@@ -7,7 +7,7 @@
 // THE RECORD (§7.3, exactly):
 //   { id, provider, kind: 'contract'|'job'|'challenge'|'build'|'survey',
 //     title, brief,                                    text KEYS (72_'s CONTRACT_TEXT)
-//     stages: [ { subs: [ { do, from?, to?, at?, load?: {kg, pax, bulk?}, when?: {before}, crit?: [...],
+//     stages: [ { subs: [ { do, from?, to?, at?, load?: {kg, pax, bulk?}, when?: (G2650 windows), crit?: [...],
 //                           medals? } ] } ],           stages IN ORDER, a stage's subs in ANY order
 //     pay: { base, perKm?, km?, total?, bonus?: [ {crit, by, pct} ] },
 //     rep: { provider, gain },
@@ -28,7 +28,8 @@
 //   GQ26    one build contract = one delivery; a happy client offers a FOLLOW-UP with ONE criterion
 //           changed (contractFollowUp), paid +15 % (GQ31), never repeating a change.
 //   (g1)    a build contract states performance, never a configuration (CONTRACT_CONFIG_WORDS).
-//   GQ17    no wall-clock deadlines: a `when` is a condition of the flight ("before dusk").
+//   GQ17    no wall-clock deadlines: a `when` is a condition of the flight ("before dusk"); amended (§R.3, G2650):
+//           a time-of-day window on the sim clock ("after dusk", "arrive 06:00-08:00"), met by flying or waiting.
 //
 // Pure: no DOM, no THREE, no storage. Reads 72_'s tables, and (when present) 25_'s stripAllows /
 // 70_-71_'s player helpers at call time.
@@ -113,6 +114,9 @@ const CONTRACT_FIT = {
 //   payload factor = kg / kgUnit + pax x paxF (+ bulkF for a bulk load)
 //   surface bonus per distinct field the job touches: short (a strip <= shortM), water, snow, altiport
 //   conditions: a `when` adds condPct of the rest
+//   (G2665 NIGHT-OPS) the NIGHT: a night window adds nightPct of the rest (§R.3 "a night premium"), and a job drawn for
+//   a MOONLESS night (its stamped `night.dark`: the moon down, new, or under an overcast) adds darkPct more - the
+//   named factors `night` and `dark` of contractPay
 //   (G2430 CONTRACT-ROUTES) PER LEG: each stage pays its own km x (1 + its own load's factor), and a job with more
 //   than one destination (contractDests) adds chainPct % of the legs' pay per destination beyond the first. A
 //   one-leg job pays exactly what it did. The positioning flight to the first stop is the player's, never paid.
@@ -125,6 +129,7 @@ const CONTRACT_PAY = {
   perKm: 160, kgUnit: 150, paxF: 0.5, bulkF: 0.5,
   surf: { short: 1100, water: 800, snow: 950, altiport: 1350 }, shortM: 400,
   condPct: 15, round: 10,
+  nightPct: 15, darkPct: 20,
   chainPct: 10,
   followPct: 15,
   baseF: 2.7, story: 2.6,
@@ -141,6 +146,170 @@ const contractStoryBase = rec => ((rec.pay && rec.pay.base) || 0) * (rec.kind ==
 //   repLoad       the load drawn grows with the provider's reputation: lo + (hi-lo) x (repLoad[0] + repLoad[1] x rep/5)
 const CONTRACT_GEN = { refreshEvery: 3, perProvider: 3, tries: 8, condP: 0.25, repLoad: [0.4, 0.6], repMax: 5 };
 const CONTRACT_DUSK_H = 19.5;          // "before dusk": the world's local hour at the stop (stopRecord.hour)
+const CONTRACT_DAWN_H = 5;             // (G2650) "before dawn" / the end of "after dusk": the same local hour
+// ---- THE TIME-OF-DAY WINDOWS (G2650 SIM-CLOCK; GQ17 amended, §R.3: no wall-clock deadline, but a window on the
+// sim clock, met by flying or by WAITING it out on the ground). A sub's `when` is one of:
+//   { before: 'dusk' }      arrive while it is still day: the hour < dusk                     (as since G2240)
+//   { after: 'dusk' }       arrive in the night: the hour >= dusk or < dawn (the night wraps midnight)
+//   { before: 'dawn' }      arrive in the small hours: midnight <= the hour < dawn
+//   { arrive: [h0, h1] }    arrive between two LOCAL hours, h0 <= hour < h1 (h0 > h1 wraps midnight: [22, 2])
+// judged on stop.hour (the world's local hour at the stop) against dusk / dawn: the stop's own `duskH` / `dawnH`
+// when it carries them (the almanac's, 07b_clock.js dayDuskDawnH - NIGHT-OPS' call to pass them), else the
+// constants above. An unknown hour refuses nothing (the decision needs the fact).
+const CONTRACT_WHEN_KINDS = ['before:dusk', 'after:dusk', 'before:dawn', 'arrive'];
+const ctHours = v => typeof v === 'number' && isFinite(v) && v >= 0 && v <= 24;
+// '' when the window is one of the vocabulary's, else why not
+function contractWhenWhy(w) {
+  if (!w || typeof w !== 'object' || Array.isArray(w)) return '`when` must be an object';
+  const k = Object.keys(w);
+  if (k.length !== 1) return '`when` takes one time of day, got ' + (k.join(', ') || 'none');
+  if (w.before === 'dusk' || w.after === 'dusk' || w.before === 'dawn') return '';
+  if ('arrive' in w) {
+    const a = w.arrive;
+    if (!Array.isArray(a) || a.length !== 2 || !a.every(ctHours) || a[0] === a[1]) return '`when.arrive` must be two different local hours [h0, h1] in 0-24';
+    return '';
+  }
+  return '`when` must be {before: \'dusk\'}, {after: \'dusk\'}, {before: \'dawn\'} or {arrive: [h0, h1]} (a time of day, never a deadline: GQ17)';
+}
+const ctPad2 = n => String(n).padStart(2, '0');
+const ctHhmm = h => { const m = Math.round(h * 60) % 1440; return ctPad2(Math.floor(m / 60)) + ':' + ctPad2(m % 60); };
+// the window in words, for the paragraph and the route line: "before dusk", "arrive 06:00-08:00"
+function contractWhenWords(w) {
+  if (!w || contractWhenWhy(w)) return '';
+  if (w.before === 'dusk') return 'before dusk';
+  if (w.after === 'dusk') return 'after dusk';
+  if (w.before === 'dawn') return 'before dawn';
+  return 'arrive ' + ctHhmm(w.arrive[0]) + '-' + ctHhmm(w.arrive[1]);
+}
+// '' when the stop's hour is inside the window (or unknown), else why not ("after dusk (21.0 h)")
+function contractWhenOk(w, stop) {
+  const h = stop && stop.hour;
+  if (!w || typeof h !== 'number' || !isFinite(h)) return '';
+  const dusk = typeof stop.duskH === 'number' && isFinite(stop.duskH) ? stop.duskH : CONTRACT_DUSK_H;
+  const dawn = typeof stop.dawnH === 'number' && isFinite(stop.dawnH) ? stop.dawnH : CONTRACT_DAWN_H;
+  const at = ' (' + h.toFixed(1) + ' h)';
+  if (w.before === 'dusk') return h >= dusk ? 'after dusk' + at : '';
+  if (w.after === 'dusk') return (h >= dusk || h < dawn) ? '' : 'before dusk' + at;
+  if (w.before === 'dawn') return h < dawn ? '' : 'after dawn' + at;
+  if (Array.isArray(w.arrive)) {
+    const a = w.arrive[0], b = w.arrive[1];
+    const inside = a < b ? (h >= a && h < b) : (h >= a || h < b);
+    return inside ? '' : 'outside ' + ctHhmm(a) + '-' + ctHhmm(b) + at;
+  }
+  return '';
+}
+
+// ---- THE NIGHT (G2665 NIGHT-OPS, §R.3: night jobs; the route line says lit / unlit; the moon) -----------------------
+// The user: "do we have some night missions? Night VFR is terrorizing" - and (via A0) full-moon nights make night VFR
+// possible though dangerous; a moonless or overcast night stays truly dark. RULED (§R.3): night jobs (a night medevac,
+// the night mail into the lit field, late returns), an unlit strip at night is the player's call (never a ✗), a night
+// premium, the job states the moon; night jobs weighted toward moonlit nights, a premium for moonless ones.
+//   p          the chance a generated CARRY job is a night one, before the moon's weight (a survey counts by day)
+//   moonW      the moon's weight on it: p x (moonW[0] + moonW[1] x light) - light the moon's at the night's middle
+//              (its illuminated fraction while it is up, 0 down or under an overcast): a full moon up ~3x a dark night
+//   overcast   the day's cloud cover (07_day.js cloudCover) at or above which no moon light reaches the ground
+//   darkLight  a night window whose light is under this is MOONLESS (the dark premium, CONTRACT_PAY.darkPct)
+//   kinds      the night window's kind (weights): after dusk, before dawn, or an hour's arrival inside the night
+//   sky0       the local date a generator call without a sky draws under: the game's first day (74_ CAREER_DAY0)
+// THE SKY OF AN OFFER (contractSky): a local date + the day's cloud cover -> that night's dusk / dawn (07b's almanac,
+// dayDuskDawnH) and the moon at any hour of it (07b dayMoonAt; an hour before noon is the next morning's). A job is
+// drawn under its offer's sky (74_ careerOfferSky: the career's clock when its offers were made) and STAMPS the night it
+// was drawn for (`rec.night`): the window's hours, the moon at the window's middle, overcast, dark - the pay reads it.
+// The window itself is a time of day (GQ17): flown on any night it is met; the job line states the moon of the NEXT
+// opening from the career's clock (75_ careerNightLine).
+const CONTRACT_NIGHT = { p: 0.2, moonW: [0.5, 1.0], overcast: 0.75, darkLight: 0.1,
+                         kinds: { 'after:dusk': 3, 'before:dawn': 1, arrive: 2 }, sky0: '2026-06-21' };
+// the window's local hours [h0, h1) on a night of this dusk / dawn (h0 > h1 wraps midnight)
+function contractWhenSpan(w, duskH, dawnH) {
+  if (!w || contractWhenWhy(w)) return null;
+  const dusk = typeof duskH === 'number' ? duskH : CONTRACT_DUSK_H, dawn = typeof dawnH === 'number' ? dawnH : CONTRACT_DAWN_H;
+  if (w.before === 'dusk') return [0, dusk];
+  if (w.after === 'dusk') return [dusk, dawn];
+  if (w.before === 'dawn') return [0, dawn];
+  return [w.arrive[0], w.arrive[1]];
+}
+const ctMod24 = h => ((h % 24) + 24) % 24;
+// the window's middle hour (the hour its moon is told at)
+function contractWhenMid(w, duskH, dawnH) {
+  const S = contractWhenSpan(w, duskH, dawnH);
+  return S ? ctMod24(S[0] + ctMod24(S[1] - S[0]) / 2) : null;
+}
+// is the window a NIGHT one: after dusk / before dawn always; an arrival whose middle is in the night
+function contractWhenNight(w, duskH, dawnH) {
+  if (!w || contractWhenWhy(w)) return false;
+  if (w.after === 'dusk' || w.before === 'dawn') return true;
+  if (w.before === 'dusk') return false;
+  const dusk = typeof duskH === 'number' ? duskH : CONTRACT_DUSK_H, dawn = typeof dawnH === 'number' ? dawnH : CONTRACT_DAWN_H;
+  const m = contractWhenMid(w, dusk, dawn);
+  return m >= dusk || m < dawn;
+}
+// WAIT IT OUT (§R.3, the career's Wait "until the window opens"): at the local hour `hour`, null when the window is
+// open now, else { target, h0 } - what DAY_CLOCK.wait takes: 'dusk' (the presets' own civil dusk, the almanac's) for
+// after dusk, else the opening's local hours
+function contractWhenWait(w, hour, duskH, dawnH) {
+  const S = contractWhenSpan(w, duskH, dawnH);
+  if (!S || typeof hour !== 'number' || !isFinite(hour)) return null;
+  if (!contractWhenOk(w, { hour, duskH, dawnH })) return null;
+  return { target: w.after === 'dusk' ? 'dusk' : S[0], h0: S[0] };
+}
+// THE SKY OF A NIGHT: the local date's dusk / dawn and its moon, memoised per date + cover (pure arithmetic on a
+// scratch DAY on Jolene's geo: 07_day.js makeDay, 07b_clock.js dayDuskDawnH / dayMoonAt)
+const ctSkyMemo = new Map();
+function contractSky(date, cover) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || typeof DAY === 'undefined' || typeof dayMoonAt !== 'function') return null;
+  const cv = Math.max(0, Math.min(1, +cover || 0)), key = date + '|' + cv;
+  if (ctSkyMemo.has(key)) return ctSkyMemo.get(key);
+  // the scratch day at the local date's noon (the offset of the default geo: AKDT in summer, AKST in winter)
+  const day = DAY.makeDay({ date, utc: 72000 });
+  const dd = dayDuskDawnH(day);
+  const sky = { date, cover: cv, overcast: cv >= CONTRACT_NIGHT.overcast, duskH: +dd.duskH.toFixed(2), dawnH: +dd.dawnH.toFixed(2), day };
+  if (ctSkyMemo.size > 512) ctSkyMemo.clear();
+  ctSkyMemo.set(key, sky);
+  return sky;
+}
+// the next local date
+const ctDateNext = date => dayFromAbs(dayAbs({ date, utc: 43200 }) + 86400).date;
+// THE MOON AT AN HOUR OF THE NIGHT that starts on the sky's date (an hour before noon is the next morning's):
+// { date, hour, phase, illum, up, light, dark } - light the moon's on the ground (0 when down or overcast)
+function contractMoonAt(sky, hour) {
+  if (!sky) return null;
+  const h = ctMod24(hour), date = h < 12 ? ctDateNext(sky.date) : sky.date;
+  const m = dayMoonAt(sky.day, date, h);
+  const light = sky.overcast || !m.up ? 0 : m.illum;
+  return { date, hour: +h.toFixed(2), phase: m.phase, illum: +m.illum.toFixed(3), up: m.up, overcast: sky.overcast,
+           light: +light.toFixed(3), dark: light < CONTRACT_NIGHT.darkLight };
+}
+// the moon in words (the job line): "full moon, up", "half moon, down", "no moon", "overcast: no moon light"
+function contractMoonWords(m) {
+  if (!m) return '';
+  if (m.overcast) return 'overcast: no moon light';
+  if (m.phase === 'new') return 'no moon';
+  return m.phase + ' moon, ' + (m.up ? 'up' : 'down');
+}
+// THE NIGHT A JOB IS DRAWN FOR (its own rng: the rest of the draw is the same with or without it) -> null (a day job)
+// or { when, night: { date, h0, h1, duskH, dawnH, hour, phase, illum, up, overcast, light, dark } }
+function ctNightOf(key, sky) {
+  if (!sky) return null;
+  const N = CONTRACT_NIGHT, rng = contractRng(key + '|night');
+  const mid = ctMod24(sky.duskH + ctMod24(sky.dawnH - sky.duskH) / 2);
+  const m0 = contractMoonAt(sky, mid);
+  if (rng() >= N.p * (N.moonW[0] + N.moonW[1] * m0.light)) return null;
+  const kind = ctPick(rng, Object.keys(N.kinds), k => N.kinds[k]);
+  let when;
+  if (kind === 'after:dusk') when = { after: 'dusk' };
+  else if (kind === 'before:dawn') when = { before: 'dawn' };
+  else {
+    // an hour's arrival wholly inside this night: a whole hour from the first after dusk to the last before dawn
+    const hs = [];
+    for (let h = Math.ceil(sky.duskH); ; h++) { const a = ctMod24(h); if (ctMod24(a + 1 - sky.duskH) > ctMod24(sky.dawnH - sky.duskH)) break; hs.push(a); if (hs.length > 24) break; }
+    if (!hs.length) when = { after: 'dusk' };
+    else { const a = ctPick(rng, hs); when = { arrive: [a, ctMod24(a + 1)] }; }
+  }
+  const S = contractWhenSpan(when, sky.duskH, sky.dawnH), hour = contractWhenMid(when, sky.duskH, sky.dawnH);
+  const m = contractMoonAt(sky, hour);
+  return { when, night: { date: sky.date, h0: +S[0].toFixed(2), h1: +S[1].toFixed(2), duskH: sky.duskH, dawnH: sky.dawnH,
+                          hour: m.hour, phase: m.phase, illum: m.illum, up: m.up, overcast: m.overcast, light: m.light, dark: m.dark } };
+}
 const CONTRACT_FOLLOW_MAX = 3;         // a chain of follow-ups stops after this many (or when no change is left)
 
 // ---- small pure helpers ------------------------------------------------------------------------------------
@@ -182,6 +351,12 @@ function contractFieldsOf(aerodromes) {
     const row = { id: a.id, name: a.name || a.id, x: Math.round(x), z: Math.round(z), len: Math.round(a.len || 0),
                   surf: S ? S.key : (+a.surface === 4 ? 'water' : 'grass') };
     if (a.altiport) row.alti = true;
+    // (G2665 NIGHT-OPS) lit at night: 25_'s rule (runwayLightStrips - a land strip; a water lane none); the record's
+    // glideslope lights: a VASI, else a PAPI at either end
+    const wet = row.surf === 'water';
+    row.lit = typeof runwayLightStrips === 'function' ? runwayLightStrips([{ kind: a.kind || (wet ? 'water' : 'strip'), len: a.len, wid: a.wid || 1 }]).length > 0 : !wet;
+    const pp = Array.isArray(a.papi) ? a.papi : [];
+    if (row.lit && pp.includes('vasi')) row.glide = 'vasi'; else if (row.lit && pp.includes(true)) row.glide = 'papi';
     out[a.id] = row;
   }
   return out;
@@ -349,7 +524,7 @@ function contractValidate(rec, opts) {
         for (const c of s.crit) { const w = contractCritWhy(c); if (w) why.push(at + ': ' + w); }
       }
       if ((s.do === 'deliver' || s.do === 'accept') && r.kind !== 'build') why.push(at + ': ' + s.do + ' on a ' + r.kind);
-      if (s.when != null && !(s.when && s.when.before === 'dusk')) why.push(at + ': `when` must be {before: \'dusk\'} (no deadlines, GQ17)');
+      if (s.when != null) { const ww = contractWhenWhy(s.when); if (ww) why.push(at + ': ' + ww); }
       if (s.medals != null) {
         if (r.kind !== 'challenge' || s.do !== 'fly') why.push(at + ': medals on a non-challenge');
         else if (!s.medals.length || s.medals.some(m => !['gold', 'silver', 'bronze'].includes(m.medal) || !(m.le > 0)))
@@ -409,12 +584,16 @@ function contractCertifiable(rec) {
   return !contractCrit(rec).some(c => c.k === 'ultimateG' && typeof c.v === 'number' && c.v > ult + 1e-9);
 }
 
-// ---- THE AUTHORED CONTRACTS (the arcs and the standalone builds, normalised, by id) -------------------------
+// (G2665 NIGHT-OPS) A NIGHT CONTRACT NO VALIDATED DESIGN CAN FLY is held out the same way (74_ careerOfferIds: the
+// stretcher case, until a door takes the 2.0 m stretcher) - the ✗ stays the hard no-no of the player's own fleet only
+const contractFlyable = (rec, fields) => contractDoers(contractSubsOf(rec).filter(s => s.do !== 'deliver' && s.do !== 'accept'), fields).length > 0;
+
+// ---- THE AUTHORED CONTRACTS (the arcs, the standalone builds and the night work, normalised, by id) ---------------
 function contractAuthored() {
   const out = {};
   for (const p of Object.keys(CONTRACT_PROVIDERS)) {
     const P = CONTRACT_PROVIDERS[p];
-    for (const r of P.arc.concat(P.builds || [])) out[r.id] = contractNormalise(r);
+    for (const r of P.arc.concat(P.builds || [], P.night || [])) out[r.id] = contractNormalise(r);
   }
   return out;
 }
@@ -497,11 +676,12 @@ function contractClasses(rec, fields) {
 }
 
 // ---- THE PAY (G-COST: the job's, never the aeroplane's) ----------------------------------------------------
-// -> { base, perKm, km, factor, surface, cond, total }. Reads the record and the fields. Nothing else.
+// -> { base, perKm, km, factor, surface, chain, cond, night, dark, total }. Reads the record and the fields. Nothing else.
 function contractPay(rec, fields) {
   const F = fields || CONTRACT_FIELDS, P = CONTRACT_PAY;
   const prov = CONTRACT_PROVIDERS[rec.provider];
-  let km = 0, factor = 0, legs = 0, cond = false;
+  let km = 0, factor = 0, legs = 0, cond = false, night = false;
+  const NT = rec.night && typeof rec.night === 'object' ? rec.night : null;
   const touched = {};
   // (G2430) each stage is a leg: its km x (1 + its own load's factor)
   for (const st of rec.stages || []) {
@@ -511,7 +691,7 @@ function contractPay(rec, fields) {
       if (s.do === 'survey') skm += 2 * contractKm(s.from, s.at, F);
       for (const k of ['from', 'to']) if (s[k]) touched[s[k]] = 1;
       if (s.load) { kg = Math.max(kg, s.load.kg || 0); pax = Math.max(pax, s.load.pax || 0); bulk = bulk || !!s.load.bulk; }
-      if (s.when) cond = true;
+      if (s.when) { cond = true; if (contractWhenNight(s.when, NT ? NT.duskH : null, NT ? NT.dawnH : null)) night = true; }
     }
     const f = kg / P.kgUnit + pax * P.paxF + (bulk ? P.bulkF : 0);
     km += skm; factor = Math.max(factor, f); legs += skm * (1 + f);
@@ -531,11 +711,13 @@ function contractPay(rec, fields) {
   const chain = rec.kind === 'job' ? legPay * P.chainPct / 100 * Math.max(0, contractDests(rec) - 1) : 0;
   const rest = base + legPay + chain + (rec.kind === 'job' ? surface : 0);
   const condAdd = cond ? rest * P.condPct / 100 : 0;
-  let total = Math.round((rest + condAdd) / P.round) * P.round;
+  const nightAdd = night ? rest * P.nightPct / 100 : 0;
+  const darkAdd = night && NT && NT.dark ? rest * P.darkPct / 100 : 0;
+  let total = Math.round((rest + condAdd + nightAdd + darkAdd) / P.round) * P.round;
   // G2260 (ECONOMY, GQ6): the Trust's loan job pays what it was offered at (76_ econLoanJob), not a job's rate
   if (rec.loan && rec.pay && typeof rec.pay.total === 'number' && isFinite(rec.pay.total)) total = rec.pay.total;
   return { base, perKm, km: +km.toFixed(2), factor: +factor.toFixed(3), surface: rec.kind === 'job' ? surface : 0,
-           chain: Math.round(chain), cond: Math.round(condAdd), total };
+           chain: Math.round(chain), cond: Math.round(condAdd), night: Math.round(nightAdd), dark: Math.round(darkAdd), total };
 }
 
 // ---- THE ROUTES (G2430 CONTRACT-ROUTES, §R.3: two destinations or more, not everything from Jolene AFB) ----------
@@ -684,6 +866,8 @@ function ctMilkPart(L1) {
 // has a flyable route in), the ROUTE (uniform among ctRoutes), then the loads, leg by leg; shrunk until one
 // validated design flies the whole chain, else redrawn. The record says its shape (`shape`); a second leg of other
 // goods names them (`sub.goods`).
+// (G2665 NIGHT-OPS) opts.sky: the offer's sky (contractSky: its date's dusk / dawn / moon / overcast) the night work is
+// drawn under; undefined: the game's first day (CONTRACT_NIGHT.sky0); null: no night work at all
 function contractEpoch(done) { return Math.floor(Math.max(0, done || 0) / CONTRACT_GEN.refreshEvery); }
 function ctPick(rng, list, w) {
   if (!w) return list[Math.floor(rng() * list.length) % list.length];
@@ -744,14 +928,18 @@ function contractJob(seed, providerId, epoch, i, opts) {
         subs = build();
       }
     }
-    if (cond) subs[subs.length - 1][0].when = { before: 'dusk' };
+    // (G2665 NIGHT-OPS) a share of the carry jobs is NIGHT work: the last leg's arrival in a night window, drawn under
+    // the offer's sky (its own rng: the rest of this draw is the same either way); else the day's condition as before
+    const nt = tpl.survey ? null : ctNightOf(seed + '|' + id + '|' + t, opts.sky !== undefined ? opts.sky : contractSky(CONTRACT_NIGHT.sky0, 0));
+    if (nt) subs[subs.length - 1][0].when = nt.when;
+    else if (cond) subs[subs.length - 1][0].when = { before: 'dusk' };
     if (!contractDoers([].concat(...subs), F).length) continue;
-    const rec = contractNormalise({
+    const rec = contractNormalise(Object.assign({
       id, provider: providerId, kind: 'job', title: tpl.title, brief: tpl.brief, goods: G.word, tpl: tpl.id, shape,
       stages: subs.map(s => ({ subs: s })),
       pay: { base: 0 }, rep: { provider: providerId, gain: 0.1 }, repeat: { every: CONTRACT_GEN.refreshEvery },
       seed: String(seed), epoch, i,
-    });
+    }, nt ? { night: nt.night } : {}));
     rec.pay = contractPay(rec, F);
     return rec;
   }
@@ -865,6 +1053,7 @@ function contractCritDiff(a, b) {
 //     row: { from, to, t, ... }           the logbook row (logFlight): `from` the leg's departure, `t` seconds
 //     overflew?: [aerodrome id]           the sites the flight passed over (a survey's evidence)
 //     hour?: number                       the world's local hour at the stop (a `when` is judged on it)
+//     duskH?, dawnH?: number              (G2650) the day's dusk / dawn as local hours (else the constants)
 //     accept?: { ... }                    ACCEPT's recording, passed through to the hook untouched }
 // THE HOOK (supplied by ACCEPT, G2270): hooks.acceptVerdict(contract, sub, stopRecord, career) ->
 //   { ok: true, got?: {k: value} } | { ok: false, why } | { ok: null, why } (pending). A missing hook = pending.
@@ -886,8 +1075,15 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
   const loadWhy = L => { const miss = itemsMissing(L); return miss && miss.length ? 'not aboard: ' + miss.join(', ') + ' (' + aboard.items.length + ' items loaded)'
     : 'aboard ' + (aboard.kg || 0) + ' kg / ' + (aboard.pax || 0) + ' pax' + (aboard.bulk ? ' / ' + aboard.bulk : '')
     + ', the job is ' + (L.kg || 0) + ' kg / ' + (L.pax || 0) + ' pax' + (L.bulk ? ' / ' + L.bulk : ''); };
-  const whenWhy = () => (sub.when && sub.when.before === 'dusk' && typeof stop.hour === 'number' && stop.hour >= CONTRACT_DUSK_H)
-    ? 'after dusk (' + stop.hour.toFixed(1) + ' h)' : '';
+  const whenWhy = () => (sub.when ? contractWhenOk(sub.when, stop) : '');
+  // (G2705 CAREER-DAMAGE) AN ACCEPTANCE FLOWN BENT FAILS: a build contract's acceptance ('accept' / 'deliver' with
+  // crit) and a timed challenge ('fly' with medals) judge the airframe as it stopped - stop.structural, the stop
+  // record's { damaged, why } (Deform's sim.damage().structural; absent = not damaged). A transport job that
+  // arrives damaged still delivers (the repair is free).
+  const S = stop.structural;
+  const bentWhy = () => (S && S.damaged && (rec.kind === 'build' || rec.kind === 'challenge')
+    && (((sub.do === 'accept' || sub.do === 'deliver') && Array.isArray(sub.crit) && sub.crit.length) || (sub.do === 'fly' && sub.medals)))
+    ? 'flown with structural damage' + (S.why ? ' (' + S.why + ')' : '') : '';
   if (sub.do === 'carry') {
     if (at === sub.to) {
       if (!(prog.picked || row.from === sub.from)) return { st: 'no', why: 'the load was not taken on at ' + nm(sub.from) };
@@ -911,6 +1107,7 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
     if (at !== sub.to) return { st: 'no', why: 'stopped at ' + nm(at) + ', not ' + nm(sub.to) };
     if (sub.from && row.from !== sub.from) return { st: 'no', why: 'the leg left ' + nm(row.from) + ', not ' + nm(sub.from) };
     const w = whenWhy(); if (w) return { st: 'no', why: w };
+    const b = bentWhy(); if (b) return { st: 'no', why: b };
     if (sub.medals) {
       const t = +row.t;
       if (!isFinite(t)) return { st: 'no', why: 'no time in the logbook row' };
@@ -926,6 +1123,7 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
   }
   if (sub.do === 'deliver' || sub.do === 'accept') {
     if (sub.do === 'deliver' && at !== sub.to) return { st: 'no', why: 'delivered at ' + nm(sub.to) + ', stopped at ' + nm(at) };
+    const b = bentWhy(); if (b) return { st: 'no', why: 'refused: ' + b };
     const H = hooks && typeof hooks.acceptVerdict === 'function' ? hooks.acceptVerdict : null;
     if (!H) return { st: 'no', pending: true, why: 'acceptance pending: no verdict yet' };
     let v;

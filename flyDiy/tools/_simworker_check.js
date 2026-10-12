@@ -56,6 +56,11 @@
 //                stampTtype writes ttype and cover in place: the host must
 //                never be handed a boot a world was made on) - and carries
 //                no albedo / tint / ori1 / ndvi / far tree; its size printed.
+//   2c THE LOAD  (G2400 FREIGHT-STRAP) the metal Cessna LOADED as the page loads it at a roll-out (78_
+//                freightStrapAdds: 60 kg of mail + a passenger, the packer's proposal): the list in the host's
+//                init (sim_link begin), N steps to the page's bits, the view's cgPos / totalM the solver's with the
+//                load aboard; then the same with the load DELIVERED at step 300 (the 'freight' command at its step,
+//                the page's sim.setFreight(null) at the same step): every step equal, the view's sums unloaded.
 //   5 THE BUILD  tools/build.js's MANIFEST carries sim_host.js and
 //                sim_view.js, index.html publishes SIM_HOST and SIM_VIEW.
 //
@@ -112,6 +117,7 @@ const IN = require(path.join(__dirname, 'island_node.js'));
 function pageFlight(world, spec, opt) {
   opt = opt || {};
   const def = buildGen(spec), sim = makeSim(def, world);
+  if (opt.freight) sim.setFreight(opt.freight);            // G2400: the roll-out's load, before the flight's reset
   let flNav = null;
   const mkPilot = () => {                                  // app.js mkPilot ('auto': the pilot, normal style)
     const p = makePilot(sim, def, world, { style: 'normal', shakedown: () => null });
@@ -157,6 +163,7 @@ function pageFlight(world, spec, opt) {
     setEngine(i, patch) { sim.setEngine(i, patch); },
     impulse(i, ix, iy, iz) { sim.impulse(i, ix, iy, iz); },
     setDay(o) { world.setDay(o); },
+    freight(list) { sim.setFreight(list); },                // G2400: a stop's delivery (app.js fsStop -> sim.setFreight)
     reset() { sim.reset(0); ap = mkPilot(); applyRoute(); started = false; },
   };
   function script(dt) {                                     // app.js script(), its non-UI lines
@@ -225,6 +232,7 @@ const viewActs = v => ({
   setEngine: (i, p) => v.setEngine(i, p),
   impulse: (i, a, b, c) => v.impulse(i, a, b, c),
   setDay: o => v.send({ cmd: 'setDay', day: o }),
+  freight: list => { v.send({ cmd: 'freight', adds: list }); v.freight(list); },   // G2400: sim_link's setFreight
   reset: () => v.reset(),
 });
 function runPage(F, events, n, hashes) {
@@ -435,6 +443,44 @@ const tick = () => new Promise(r => setImmediate(r));
          'the view interpolates at T less its delay (' + (D.delayS * 60).toFixed(2) + ' steps) in its ring of ' + K + ': alpha ' + half.alpha.toFixed(3) + ' halfway between the two newest, ' +
          two.alpha.toFixed(3) + ' between the 4th and 3rd newest 2.25 steps back, clamped to the ring\'s oldest and the newest snapshot');
     }
+  }
+
+  // ---- 2c THE LOAD (G2400 FREIGHT-STRAP) -------------------------------------------------------------------------
+  {
+    const [name, spec] = BUILDS[1], card = FREIGHT_CARDS.c172;
+    const pageDef = buildGen(spec);
+    const st = freightLoadNew(card, freightItems({ kg: 60 }, 'goods.mail'), { pax: 1 });
+    const R = freightStrapAdds(pageDef, freightAccepted(freightLoadRecord(card, st, { slot: 'S' })), { card });
+    console.log('2c THE LOAD (' + name + ', 60 kg of mail + a passenger: ' + R.adds.length + ' nodes, +' + R.dm.toFixed(1) + ' kg)');
+    for (const [tag, ev] of [['aboard', d => EVENTS(d)], ['delivered at step 300', d => EVENTS(d).concat([[300, S => S.freight(null)]])]]) {
+      const rp = host.next('ready'), sp = host.next('snap');
+      host.post({ cmd: 'init', world: 'keep', spec, place: PLACE, pilot: PILOT, withV: true, freight: R.adds });
+      const ready = await rp, snap0 = await sp;
+      const view = SV.makeSimView(pageDef, { ready, post: (m, tr) => host.post(m, tr) });
+      view.freight(R.adds);
+      view.take(snap0);
+      for (const [k, f] of ev(pageDef)) { view.at(k); f(viewActs(view)); view.flush(); }
+      view.at(null);
+      const hs = [snapHash(ready, new Float64Array(snap0.buf))];
+      let lastMsg = null;
+      const got = new Promise(res => {
+        host.onMsg = m => { if (m.kind !== 'snap') return; hs.push(snapHash(ready, new Float64Array(m.buf))); if (lastMsg) view.take(lastMsg); lastMsg = m; if (hs.length === N + 1) res(); };
+      });
+      host.post({ cmd: 'steps', n: N, every: true });
+      const F = pageFlight(world, spec, { freight: R.adds });
+      const ph = [];
+      runPage(F, ev(F.def), N, ph);
+      await got;
+      host.onMsg = null;
+      let first = -1; for (let k = 0; k <= N; k++) if (hs[k] !== ph[k]) { first = k; break; }
+      ok(first < 0, name + ' loaded, ' + tag + ': every step\'s FNV(p, v) equal, 0..' + N + (first < 0 ? ' (final ' + ph[N].toString(16) + ')' : ' - FIRST DIVERGES AT STEP ' + first));
+      view.take(lastMsg);
+      view.frame(Infinity);
+      const sim = F.sim, gone = tag !== 'aboard';
+      ok(same(view.cgPos(), sim.cgPos()) && view.totalM === sim.totalM && (gone ? sim.freight() === null : sim.freight().length === R.adds.length),
+         name + ' loaded, ' + tag + ': the view\'s cgPos and totalM are the solver\'s (' + view.totalM.toFixed(2) + ' kg' + (gone ? ', nothing aboard' : ', the load aboard') + ')');
+    }
+    // the stock build flies on as before after a loaded flight on the kept world (the next section's init carries none)
   }
 
   // ---- 3 REAL TIME -------------------------------------------------------------

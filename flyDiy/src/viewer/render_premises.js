@@ -2499,13 +2499,13 @@ function make(THREE, scene, world, rec0, opts) {
   const discMat = new THREE.MeshBasicMaterial({ color: 0xffb03a, transparent: true, opacity: 0.9, depthTest: false });
   const discMatMid = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthTest: false });
   // G2890 (SCENERY-ED-1): the CORNER picked (clicked) - white, Del removes it; a spline road's HANDLES - cyan, on a stem
-  const discMatSel = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, depthTest: false });
-  const discMatTan = new THREE.MeshBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.95, depthTest: false });
-  const stemMat = new THREE.LineBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.8, depthTest: false });
+  const discMatSel = MATLIB.make(THREE, 'basic', { color: 0xffffff, transparent: true, opacity: 1, depthTest: false });
+  const discMatTan = MATLIB.make(THREE, 'basic', { color: 0x5fd4e8, transparent: true, opacity: 0.95, depthTest: false });
+  const stemMat = MATLIB.make(THREE, 'line', { color: 0x5fd4e8, transparent: true, opacity: 0.8, depthTest: false });
   // G2950 (ROAD-GRAPH): a road's waypoint that is a JUNCTION - green (its roads meet there, a drag carries them all, Alt
   // detaches); a CONNECTION POINT (the junctions layer's `conn`) - magenta; the snap target under the hand - a white ring
-  const discMatJct = new THREE.MeshBasicMaterial({ color: 0x5ee07a, transparent: true, opacity: 0.95, depthTest: false });
-  const discMatConn = new THREE.MeshBasicMaterial({ color: 0xe07ad8, transparent: true, opacity: 0.95, depthTest: false });
+  const discMatJct = MATLIB.make(THREE, 'basic', { color: 0x5ee07a, transparent: true, opacity: 0.95, depthTest: false });
+  const discMatConn = MATLIB.make(THREE, 'basic', { color: 0xe07ad8, transparent: true, opacity: 0.95, depthTest: false });
   const discFor = (e, i) => {
     if (i === selCorner) return discMatSel;
     const id = e && e.pts && Array.isArray(e.nodes) ? e.nodes[i] : null;
@@ -2519,7 +2519,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (!lp) return;
     const w = O.frame.toWorld(lp[0], lp[1]), r = Math.max(1.5, +lp[2] || 3);
     const g = new THREE.RingGeometry(r * 0.8, r, 32); g.rotateX(-Math.PI / 2);
-    snapRing = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthTest: false }));
+    snapRing = new THREE.Mesh(g, MATLIB.make(THREE, 'basic', { color: 0xffffff, transparent: true, opacity: 0.9, depthTest: false }));
     snapRing.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.08, w[1]); snapRing.renderOrder = 10; snapRing.name = 'snapHint';
     G.ghost.add(snapRing);
   }
@@ -2801,7 +2801,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (sp.r > 0) {
       const pts = []; for (let k = 0; k < 48; k++) { const a = k / 48 * Math.PI * 2; pts.push([sp.x + Math.cos(a) * sp.r, sp.z + Math.sin(a) * sp.r]); }
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(pts, true, LIFT + 0.1), 3));
-      ghostRing = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.85, depthTest: false })); ghostRing.renderOrder = 10;
+      ghostRing = new THREE.Line(geo, MATLIB.make(THREE, 'line', { color: 0x5fd4e8, transparent: true, opacity: 0.85, depthTest: false })); ghostRing.renderOrder = 10;
       G.ghost.add(ghostRing);
     }
     return ghostM;
