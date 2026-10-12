@@ -7,8 +7,6 @@ user: "IRL the substation is tiny". Blender (3.6), headless, CPU:
 The pack is a 31 x 121 m transmission substation in centimetres, ONE material over 24 merged chunks: nothing is
 named, so the two parts kept are taken by REGION (the pack's own frame, cm), every loose part whose centre lies
 in the box:
-  mast         one small lattice takeoff mast with its arms and insulators (the photo's "small lattice
-               structure"), the feeder row's first
   transformer  the small transformer by the bus (a ~2.3 m tank with its radiators and bushings)
 Each is joined, scaled to metres, stood on its base (centre of its footprint at the origin, its foot at y 0),
 collapsed to its budget (~500-800 tris for the two: A0, 12 Oct), and given a ROLE per face from the pack's
@@ -29,8 +27,9 @@ SRC = 'D:/Dev/DeGaRoR.github.io/flyDiy/assets/sceneryOctober/hydro/substation.gl
 GEN = os.path.join(HERE, '_navaid_gen.js')
 REP = os.path.join(ROOT, 'bench', 'scenery', 'hydro_switchyard.json')
 # the regions, in the pack's frame AFTER the import (Blender: x, y, z up; centimetres), and each part's budget
+# (the pack's mast - box ((120, 360, -5), (230, 470, 560)) - came out 738 tris of separate bars: the generator builds
+# its own, ~200; A0, 12 Oct)
 PARTS = {
-    'mast':        dict(box=((120, 360, -5), (230, 470, 560)), tris=300),
     'transformer': dict(box=((-280, 250, -5), (10, 450, 330)), tris=450),
 }
 CM = 0.01

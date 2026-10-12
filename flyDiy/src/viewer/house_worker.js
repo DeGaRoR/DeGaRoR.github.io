@@ -272,7 +272,7 @@ const HOUSE_WORKER = (() => {
       S.w = w; S.on = true; S.why = 'starting'; S.t0 = (W.performance || Date).now();
       w.onmessage = e => { try { msg(e.data); } catch (err) { console.warn('house worker message:', err); } };
       w.onerror = err => fail('the worker failed: ' + (err && err.message || err));
-      const lazy = HW_LAZY.filter(([g]) => /sport\//.test(o.premises) && g === 'SPORT_GEN' || /marine\//.test(o.premises) && g === 'MARINE_GEN' || /navaid\//.test(o.premises) && g === 'NAVAID_GEN').map(([g]) => g);
+      const lazy = HW_LAZY.filter(([g]) => /sport\//.test(o.premises) && g === 'SPORT_GEN' || /marine\//.test(o.premises) && g === 'MARINE_GEN' || /(navaid|utility)\//.test(o.premises) && g === 'NAVAID_GEN').map(([g]) => g);
       w.postMessage({ cmd: 'init', base, urls, island: o.island, premises: o.premises, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT, lazy, build: ver || 'dev',
                       flags: { FLYDIY_GROUND_RASTER: W.FLYDIY_GROUND_RASTER } });
       S.urls = urls;

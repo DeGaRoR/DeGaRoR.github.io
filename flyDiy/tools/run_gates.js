@@ -202,6 +202,10 @@ const GATES = [
   // THE DRIVEABLE CARS (ASSETS-OCT, G2908): tools/car_table.py = the baked parts, the data sheet's wheels /
   // wheelbase / level / steering axis / collision boxes measured and consistent, the estimates named, CC BY
   { id: 'CARS', file: '_car_check.js', tier: 'core' },
+  // THE NAVAIDS AND THE SMALL UTILITIES (ASSETS-OCT, G2909): NAVAID_GEN (lazy) - the ANN DVOR/DME and the hydro
+  // powerhouses build headless within budget, the FAA dimensions, the red beacon, the two-tone roof, the yard; the sites
+  // at their real points with their tree-clear areas; the generator stays out of index.html
+  { id: 'NAVAID', file: '_navaid_check.js', tier: 'core' },
   // THE ANIMALS (2026-09-22): the declared table = the shipped skins, their
   // clip libraries and the cut levels; and the behaviours run headless
   // against the real vendor three (a herd, a pod and a flock, 900 steps).
