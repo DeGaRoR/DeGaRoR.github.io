@@ -696,8 +696,11 @@ const COWL_PROPS = {
 // aeroplane and is a number nobody types, so GATE COWL measures it on a mesh
 // it builds itself rather than trusting the comment above it.
 window.CAGE_COWL_NOSE_FACE = noseFace;
-window.CAGE_COWL_FOR_ENGINE = function (arch, env, face) {
-  const base = COWL_BY_ARCH[arch];
+// `baseOver` (G2760): the cowl PRESET door hands its own shape in; a shape
+// with no COWL_PROPS entry takes the engine's SIZE only (taper and length),
+// exactly the 'size only' reading an empty style row always had.
+window.CAGE_COWL_FOR_ENGINE = function (arch, env, face, baseOver) {
+  const base = baseOver || COWL_BY_ARCH[arch];
   if (!base || !env || !face || !(env.radius > 0)) return null;
   const styled = Object.keys(base).length > 0;
   const vals = Object.assign({}, base);
@@ -719,8 +722,8 @@ window.CAGE_COWL_FOR_ENGINE = function (arch, env, face) {
   const front = Math.min(aftW * vals.cw_taperW, aftH * vals.cw_taperH);
   // the lid and inlet proportions are the RADIAL preset's — a boxer keeps
   // its own lid and aperture rows (size only, see COWL_BY_ARCH)
-  if (styled) {
-    const PR = COWL_PROPS[arch] || COWL_PROPS.radial;
+  const PR = COWL_PROPS[arch];
+  if (styled && PR) {
     vals.cw_lidLen = +Math.max(0.02, Math.min(1, vals.cw_cowlLen * PR.lid)).toFixed(3);
     vals.cw_lidR = +Math.max(0.005, Math.min(0.55, front * PR.lidR)).toFixed(3);
     vals.cw_apW = +Math.max(0.02, Math.min(0.7, front * PR.ap)).toFixed(3);
@@ -774,7 +777,7 @@ function cowlArchStarter(P) {
   return { arch, R };
 }
 const prevLoad = PAGE.load;
-PAGE.load = () => { if (prevLoad) prevLoad(); lastArch = null; };
+PAGE.load = () => { if (prevLoad) prevLoad(); lastArch = null; presetNext = null; };
 window.CAGE_COWL_STARTER = cowlArchStarter;
 // A BIRTH IS THE ONE LOAD THAT WANTS THE FIT (2026-09-04): a card bakes a
 // fresh cage with the page's default cowl rows around whatever engine it
@@ -793,6 +796,13 @@ let fitNext = false;
 window.CAGE_COWL_FIT_NEXT = () => { fitNext = true; };
 function cowlForEngine(P, face, stat) {
   let hit = cowlArchStarter(P);
+  // an asked-for PRESET wins this build (the arch starter above has still
+  // recorded the architecture, so it does not fire on the next one instead)
+  if (presetNext) {
+    const key = presetNext;
+    presetNext = null; fitNext = false;
+    return cowlPreset(P, face, stat, key);
+  }
   const birth = fitNext;
   if (!hit && fitNext) {
     const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
@@ -811,6 +821,175 @@ function cowlForEngine(P, face, stat) {
   if (UI && UI.syncSliders) UI.syncSliders();
   if (got.note && stat) stat.textContent += '  ·  ' + got.note;
   return { birth, styled: true };
+}
+
+// THE COWL PRESETS (G2760, the user's slider review: "we need presets for the
+// cowl shape, one for each engine configuration" — confirmed through A0 as
+// one per ENGINE TYPE). A preset is the cowl's SHAPE for that kind of engine
+// and its SIZE taken from the engine that is fitted, by the same door the
+// radial and the turbine have used since G154/TURBOPROP:
+//
+//   shape    the section, the bowl, the cheeks, the inlet KINDS — written as
+//            they are (radial and turbine: COWL_BY_ARCH, the approved ones)
+//   scaled   the drawn sizes (inlets, cheek height, scoop, lip), stated at
+//            the reference cowl's front opening `ref.front`, and multiplied
+//            by this cowl's front over it — the inlet of a Cessna on a Cub
+//            would be a hole the width of the nose
+//   lenScaled  the same along the cowl, against `ref.len`
+//
+// THE BOXER IS THE VALIDATED CESSNA'S OWN COWL (builds/cessna172_2026-09-20_
+// corrected.json, front 0.307 = min(aftW x taperW, aftH x taperH), length
+// 0.90). The in-line, the V and the electric are drawn for their engines:
+// a long flat-sided box round an inverted in-line, a chin radiator under a V,
+// a slim closed nose with two cooling slots round a motor.
+//
+// ONE CLICK, NEVER A BUILD RULE: the arch-change starter keeps its ruling
+// (the boxer, the in-line and the electric are never restyled behind the
+// builder's back — "forget that, I'll do it myself"). This door opens only
+// when the builder presses a preset tile (design_flow `after`), and every
+// row it writes is the builder's afterwards. Keyed by engine type; a MOUNT
+// variant is a key with '@mount' after it ('flat@pusher') and needs no other
+// change here (cowlPreset reads the part before the '@' as the type).
+const COWL_PRESETS = {
+  flat: {
+    shape: { fitNose: 2,
+      cw_lidRise: 0.22, cw_lidShoulder: 0.13, cw_lidRound: 0.06, cw_faceRise: -0.026,
+      cw_deckSweep: 0.95, cw_keelSweep: 0.3, cw_waistSweep: 0.95,
+      cw_lidMode: 1, cw_lidGap: 0.013,
+      cw_deckH: 1.09, cw_keelH: 1.13, cw_waist: 0.54,
+      cw_sqAftTop: 0.42, cw_sqAftBot: 0.57, cw_sqFrontTop: 0.71, cw_sqFrontBot: 0.69,
+      cw_lidSqTop: 0.74, cw_lidSqBot: 0.28,
+      cw_lobeN: 2, cw_lobeT: 0.56, cw_lobeAz: 0, cw_lobeSig: 34, cw_lobeTSig: 0.31,
+      cw_cutSpan: 0,
+      cw_apMode: 1, cw_apSq: 0.48, cw_apOffX: 0, cw_apOffY: 0, cw_pairSq: 0.625,
+      cw_lipMode: 0, cw_lipRound: 0.55, cw_lipProtrude: 0.5, cw_ductFlare: 0,
+      cw_scoopOn: 1, cw_scoopZ: 0, cw_scoopSq: 0.5, cw_scoopDrop: 0.7,
+      cw_scoopRake: 0.18, cw_scoopAp: 0.68 },
+    ref: { front: 0.307, len: 0.9 },
+    scaled: { cw_lobeAmp: 0.024, cw_apW: 0.35, cw_apH: 0.12,
+      cw_pairX: 0.2, cw_pairW: 0.08, cw_pairH: 0.048, cw_pairY: 0.012,
+      cw_lipThick: 0.009, cw_lipDepth: 0.055, cw_lipInset: 0.028, cw_ductLen: 0.12,
+      cw_scoopW: 0.065, cw_scoopH: 0.055, cw_scoopLipH: 0.011,
+      cw_scoopLipDepth: 0.032, cw_scoopDuct: 0.125, cw_lidR: 0.17 },
+    lenScaled: { cw_lidLen: 0.095, cw_scoopLen: 0.22 },
+  },
+  inline: {
+    shape: { fitNose: 2,
+      cw_lidRise: 0, cw_lidShoulder: 0.5, cw_lidRound: 0.5, cw_faceRise: 0,
+      cw_deckSweep: 0.2, cw_keelSweep: 0.4, cw_waistSweep: 0.3,
+      cw_lidMode: 1, cw_lidGap: 0.012,
+      cw_deckH: 1, cw_keelH: 1.1, cw_waist: 0.2,
+      cw_sqAftTop: 0.62, cw_sqAftBot: 0.66, cw_sqFrontTop: 0.6, cw_sqFrontBot: 0.6,
+      cw_lidSqTop: 0.55, cw_lidSqBot: 0.55,
+      cw_lobeN: 0, cw_cutSpan: 0,
+      cw_apMode: 2, cw_apSq: 0.6, cw_apOffX: 0, cw_apOffY: 0, cw_pairSq: 0.8,
+      cw_lipMode: 0, cw_lipRound: 0.6, cw_lipProtrude: 0.46, cw_ductFlare: 0,
+      cw_scoopOn: 1, cw_scoopZ: 0, cw_scoopSq: 0.5, cw_scoopDrop: 0.6,
+      cw_scoopRake: 0.1, cw_scoopAp: 0.7 },
+    ref: { front: 0.307, len: 0.9 },
+    scaled: { cw_lobeAmp: 0, cw_apW: 0.1, cw_apH: 0.08,
+      cw_pairX: 0.2, cw_pairW: 0.06, cw_pairH: 0.05, cw_pairY: 0.02,
+      cw_lipThick: 0.008, cw_lipDepth: 0.06, cw_lipInset: 0.03, cw_ductLen: 0.15,
+      cw_scoopW: 0.05, cw_scoopH: 0.045, cw_scoopLipH: 0.01,
+      cw_scoopLipDepth: 0.03, cw_scoopDuct: 0.12, cw_lidR: 0.17 },
+    lenScaled: { cw_lidLen: 0.12, cw_scoopLen: 0.25 },
+  },
+  vee: {
+    shape: { fitNose: 2,
+      cw_lidRise: 0.02, cw_lidShoulder: 0.6, cw_lidRound: 0.45, cw_faceRise: 0,
+      cw_deckSweep: 0.3, cw_keelSweep: 0.5, cw_waistSweep: 0.4,
+      cw_lidMode: 1, cw_lidGap: 0.012,
+      cw_deckH: 1.05, cw_keelH: 1.15, cw_waist: 0.25,
+      cw_sqAftTop: 0.55, cw_sqAftBot: 0.5, cw_sqFrontTop: 0.55, cw_sqFrontBot: 0.5,
+      cw_lidSqTop: 0.5, cw_lidSqBot: 0.5,
+      cw_lobeN: 2, cw_lobeT: 0.45, cw_lobeAz: 35, cw_lobeSig: 30, cw_lobeTSig: 0.35,
+      cw_cutSpan: 0,
+      cw_apMode: 0, cw_apSq: 0.5, cw_apOffX: 0, cw_apOffY: 0, cw_pairSq: 0.8,
+      cw_lipMode: 0, cw_lipRound: 0.6, cw_lipProtrude: 0.46, cw_ductFlare: 0,
+      cw_scoopOn: 1, cw_scoopZ: 0.3, cw_scoopSq: 0.7, cw_scoopDrop: 0.8,
+      cw_scoopRake: 0.1, cw_scoopAp: 0.85 },
+    ref: { front: 0.307, len: 0.9 },
+    scaled: { cw_lobeAmp: 0.02, cw_apW: 0.1, cw_apH: 0.08,
+      cw_pairX: 0.2, cw_pairW: 0.06, cw_pairH: 0.05, cw_pairY: 0.02,
+      cw_lipThick: 0.008, cw_lipDepth: 0.06, cw_lipInset: 0.03, cw_ductLen: 0.15,
+      cw_scoopW: 0.1, cw_scoopH: 0.07, cw_scoopLipH: 0.012,
+      cw_scoopLipDepth: 0.035, cw_scoopDuct: 0.15, cw_lidR: 0.17 },
+    lenScaled: { cw_lidLen: 0.12, cw_scoopLen: 0.45 },
+  },
+  electric: {
+    shape: { fitNose: 2,
+      cw_lidRise: 0, cw_lidShoulder: 0.3, cw_lidRound: 0.7, cw_faceRise: 0,
+      cw_deckSweep: 0.5, cw_keelSweep: 0.5, cw_waistSweep: 0.5,
+      cw_lidMode: 1, cw_lidGap: 0.008,
+      cw_deckH: 1, cw_keelH: 1, cw_waist: 0,
+      cw_sqAftTop: 0.5, cw_sqAftBot: 0.5, cw_sqFrontTop: 0.5, cw_sqFrontBot: 0.5,
+      cw_lidSqTop: 0.5, cw_lidSqBot: 0.5,
+      cw_lobeN: 0, cw_cutSpan: 0,
+      cw_apMode: 2, cw_apSq: 0.5, cw_apOffX: 0, cw_apOffY: 0, cw_pairSq: 0.9,
+      cw_lipMode: 0, cw_lipRound: 0.6, cw_lipProtrude: 0.4, cw_ductFlare: 0,
+      cw_scoopOn: 0 },
+    ref: { front: 0.307, len: 0.9 },
+    scaled: { cw_lobeAmp: 0, cw_apW: 0.05, cw_apH: 0.05,
+      cw_pairX: 0.18, cw_pairW: 0.03, cw_pairH: 0.02, cw_pairY: 0,
+      cw_lipThick: 0.007, cw_lipDepth: 0.05, cw_lipInset: 0.02, cw_ductLen: 0.08,
+      cw_lidR: 0.17 },
+    lenScaled: { cw_lidLen: 0.15 },
+  },
+  // the approved two: COWL_BY_ARCH's shape and COWL_PROPS' proportions
+  radial: { arch: true },
+  turbine: { arch: true },
+};
+window.CAGE_COWL_PRESET_KEYS = Object.keys(COWL_PRESETS);
+let presetNext = null;
+window.CAGE_COWL_PRESET_NEXT = key => { presetNext = String(key); };
+// every row's own range, so a scaled size can never leave its slider
+const ROW_RANGE = {};
+for (const g of ROWS) for (const r of (g.rows || []))
+  if (typeof r.lo === 'number' && typeof r.hi === 'number')
+    ROW_RANGE['cw_' + r.k] = [r.lo, r.hi];
+const inRange = (k, v) => {
+  const r = ROW_RANGE[k];
+  return r ? Math.max(r[0], Math.min(r[1], v)) : v;
+};
+function cowlPreset(P, face, stat, key) {
+  const arch = key.split('@')[0];
+  const pr = COWL_PRESETS[arch];
+  if (!pr) return { birth: false, styled: false };
+  const base = pr.arch ? COWL_BY_ARCH[arch] : pr.shape;
+  let vals = Object.assign({}, base);
+  // the fitted engine's size, when there is an engine to measure
+  let env = null;
+  try {
+    const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
+    if (specOf && EG2 && EG2.engResolve && +P.engOn) {
+      const R = EG2.engResolve(specOf(P));
+      env = R && R.env;
+    }
+  } catch (e) { env = null; }
+  if (env && face) {
+    const got = window.CAGE_COWL_FOR_ENGINE(arch, env, face, base);
+    if (got) {
+      vals = got.vals;
+      if (got.note && stat) stat.textContent += '  ·  ' + got.note;
+    }
+  }
+  if (!pr.arch && face) {
+    const tW = vals.cw_taperW != null ? vals.cw_taperW : +P.cw_taperW;
+    const tH = vals.cw_taperH != null ? vals.cw_taperH : +P.cw_taperH;
+    const len = vals.cw_cowlLen != null ? vals.cw_cowlLen : +P.cw_cowlLen;
+    const front = Math.min(face.halfW * tW, face.halfH * tH);
+    const k = front > 0 ? front / pr.ref.front : 1;
+    const kl = len > 0 ? len / pr.ref.len : 1;
+    for (const n in (pr.scaled || {}))
+      vals[n] = +inRange(n, pr.scaled[n] * k).toFixed(4);
+    for (const n in (pr.lenScaled || {}))
+      vals[n] = +inRange(n, pr.lenScaled[n] * kl).toFixed(4);
+  }
+  for (const n in vals) if (P[n] !== undefined) P[n] = vals[n];
+  const UI = window.CAGE_UI;
+  if (UI && UI.syncSliders) UI.syncSliders();
+  // `styled` keeps the birth's section seed away: the preset's section stands
+  return { birth: false, styled: true };
 }
 
 // THE SECTION THE FUSELAGE IMPLIES, as the five firewall rows. `fitted`

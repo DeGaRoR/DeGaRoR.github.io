@@ -765,6 +765,108 @@ function designPresetIndex(name) {
   return i >= 0 ? i : null;
 }
 
+// THE PART TILES' DRAWINGS (G2760). Same family as the tiles above — one
+// outline, a few strokes, the renderer's stroke style — each a picture of
+// the choice and not of a whole aeroplane.
+//
+// THE CUT, on the fin in side view or the stab in plan view (the stab IS
+// the fin laid flat, so it is the same drawing mirrored about its root):
+// uncut is one sheet, hinge only is the sheet split on a straight line,
+// horn balance gives the moving part a horn that reaches forward over the
+// hinge at its tip.
+function iconCut(surf, mode) {
+  // the fin's pieces in side view, root on y = 26, tip at y = 6
+  const whole = [[22, 26], [34, 6], [48, 6], [52, 26]];
+  const front = mode === 2
+    ? [[22, 26], [34, 6], [39, 6], [39, 12], [42.5, 12], [44.5, 26]]
+    : [[22, 26], [34, 6], [42, 6], [44, 26]];
+  const back = mode === 2
+    ? [[41, 6], [48, 6], [52, 26], [46.5, 26], [44.5, 13.5], [41, 13.5]]
+    : [[44, 6], [48, 6], [52, 26], [46, 26]];
+  const pieces = mode === 0 ? [whole] : [front, back];
+  if (surf !== 'stab') {
+    return { vb: '0 0 64 40', paths: [{ d: 'M4 32 L60 32 L60 26 L4 24 Z', w: 1 }]
+      .concat(pieces.map(p => ({ d: poly(p) }))) };
+  }
+  // plan view: the body along y = 20, one panel each side, the root on it
+  const up = p => p.map(([x, y]) => [x, 4 + (y - 6) * 0.72]);
+  const dn = p => p.map(([x, y]) => [x, 36 - (y - 6) * 0.72]);
+  const paths = [{ d: 'M4 18.4 L60 18.4 L60 21.6 L4 21.6 Z', w: 1 }];
+  for (const p of pieces) paths.push({ d: poly(up(p)) }, { d: poly(dn(p)) });
+  return { vb: '0 0 64 40', paths };
+}
+// THE FIN'S EXTRAS: plain, the keel extension (the fin carried on under the
+// tail cone) and the dorsal fillet (the leading edge run forward, low, along
+// the deck)
+function iconFinExtra(kind) {
+  const paths = [{ d: 'M4 30 L60 30 L60 24 L4 22 Z', w: 1 },
+                 { d: poly([[24, 24], [36, 6], [48, 6], [52, 24]]) }];
+  if (kind === 'keel') paths.push({ d: poly([[44, 30], [58, 30], [57, 37], [50, 37]]) });
+  if (kind === 'dorsal') paths.push({ d: 'M8 23 Q18 22 28 18 L24 24 Z' });
+  return { vb: '0 0 64 40', paths };
+}
+// WHERE THE STAB SITS, in side view: on the boom's keel, on its deck, on the
+// fin's tip, or across two booms (the tail seen from behind)
+function iconSeat(mode) {
+  if (mode === 3) return { vb: '0 0 64 40', paths: [
+    { d: 'M12 26 a5 5 0 1 0 0.1 0', w: 1 }, { d: 'M52 26 a5 5 0 1 0 0.1 0', w: 1 },
+    { d: poly([[10, 22], [12, 6], [15, 6], [15, 22]]) },
+    { d: poly([[49, 22], [49, 6], [52, 6], [54, 22]]) },
+    { d: 'M10 25 L54 25 L54 28 L10 28 Z' }] };
+  const y = mode === 0 ? 29 : mode === 1 ? 20 : 4;
+  return { vb: '0 0 64 40', paths: [
+    { d: 'M4 30 L60 30 L60 22 L4 20 Z', w: 1 },
+    { d: poly([[30, 22], [40, 6], [50, 6], [54, 22]]), w: 1 },
+    { d: 'M34 ' + y + ' L62 ' + y + ' L62 ' + (y + 3) + ' L34 ' + (y + 3) + ' Z' }] };
+}
+// THE EXHAUST under a block: nothing, a stub off every port, the ports
+// gathered into one pipe, the two-stroke's fat tuned chamber
+function iconExhaust(mode) {
+  const paths = [{ d: 'M12 8 L44 8 L44 20 L12 20 Z', w: 1 }];
+  if (mode === 1) for (const x of [17, 25, 33, 41]) paths.push({ d: 'M' + x + ' 20 L' + x + ' 30', w: 2.4 });
+  if (mode === 2) paths.push({ d: 'M17 20 Q19 30 30 31 M25 20 Q26 28 30 31 M33 20 Q32 28 30 31 M41 20 Q40 30 30 31', w: 1.6 },
+                             { d: 'M30 31 L58 33', w: 2.4 });
+  if (mode === 3) paths.push({ d: 'M24 20 Q24 28 30 29', w: 2 },
+                             { d: 'M30 26 Q42 23 52 28 Q42 35 30 32 Z' },
+                             { d: 'M52 30 L62 30', w: 1.6 });
+  return { vb: '0 0 64 40', paths };
+}
+// THE LEG, bare or under its streamline shroud
+function iconLegFair(mode) {
+  const paths = [{ d: 'M32 30 a7 7 0 1 0 0.1 0', w: 1 }];
+  if (mode) paths.push({ d: 'M28 4 Q26 14 29 24 L35 24 Q38 14 36 4 Z' });
+  else paths.push({ d: 'M32 4 L32 24', w: 2.4 });
+  return { vb: '0 0 64 40', paths };
+}
+// THE STEERING, the wheel seen from above: fixed (straight, no link), linked
+// (turned, a rod to the pedal), castor (turned, trailing behind its pivot)
+function iconSteer(mode) {
+  const box = (cx, cy, a) => {
+    const c = Math.cos(a), s = Math.sin(a);
+    return poly([[-3, -8], [3, -8], [3, 8], [-3, 8]]
+      .map(([x, y]) => [cx + x * c - y * s, cy + x * s + y * c]));
+  };
+  if (mode === 0) return { vb: '0 0 64 40', paths: [
+    { d: box(32, 20, 0) }, { d: 'M20 20 L44 20', w: 1 }] };
+  if (mode === 1) return { vb: '0 0 64 40', paths: [
+    { d: box(24, 20, 0.45) }, { d: 'M27 20 L52 20', w: 1 },
+    { d: 'M52 14 L56 14 L56 26 L52 26 Z', w: 1 }] };
+  return { vb: '0 0 64 40', paths: [
+    { d: 'M32 6 a2.4 2.4 0 1 0 0.1 0', w: 1 }, { d: 'M32 8.4 L35 16', w: 1.6 },
+    { d: box(37, 24, 0.4) }] };
+}
+// THE CARCASS in section, as the tyre meets the ground: a standard tyre, the
+// tundra's fat round balloon, a slim one — each round its rim
+function iconCarcass(mode) {
+  const ell = (rx, ry) => 'M' + P2(32 - rx, 20) + ' a' + rx + ' ' + ry +
+    ' 0 1 0 ' + (2 * rx) + ' 0 a' + rx + ' ' + ry + ' 0 1 0 ' + (-2 * rx) + ' 0 Z';
+  const rx = mode === 1 ? 17 : mode === 2 ? 5 : 9;
+  const ry = mode === 1 ? 17 : 15;
+  return { vb: '0 0 64 40', paths: [{ d: ell(rx, ry) },
+    { d: 'M' + P2(32 - Math.min(rx - 2, 6), 14) + ' L' + P2(32 + Math.min(rx - 2, 6), 14) +
+         ' L' + P2(32 + Math.min(rx - 2, 6), 26) + ' L' + P2(32 - Math.min(rx - 2, 6), 26) + ' Z', w: 1 }] };
+}
+
 // ---------------------------------------------------------------------------
 // THE ROWS (§5, with the 2026-08-31 verification's corrections applied).
 //
@@ -779,6 +881,25 @@ function designPresetIndex(name) {
 //   options  [{ value, label, icon, note?, writes?, inactive?, def? }]
 //            `def: true` marks the option that IS the current sole live
 //            state and therefore writes nothing (the mount's 'nose').
+//            G2760: `hide(P)` leaves an option off the grid in a state where
+//            it means nothing (it still lights when it is what P holds);
+//            `after()` runs once the writes are in, before the build — a
+//            door into a layer that sizes on the next build (the cowl presets)
+//   twin     (G2760) the panel rows this tile IS. The editor draws the tile
+//            in the first of those rows' slots, shows/hides it by that row's
+//            own rules, and never draws the rows — one control per choice
+//            (the user: "hunt for redundancy between icons and lists ... we
+//            should remove the drop-down equivalent options"). GATE DESIGN
+//            holds every twin key real and written by the tile.
+//   slot     (G2760) a part's detail, drawn only in its twin's slot — never
+//            in the Custom-build grid nor at the head of a column
+//   grid     false: a head-of-column tile the Custom-build grid leaves out
+//   when(P)  the head tile shows only while this holds (twins follow their
+//            row's own rules instead)
+//
+// ONE CLICK APPLIES (G2760, the user: "all buttons should work the same,
+// click and apply, at once"). The starter's second click is gone from the
+// renderer; what stays of the starter contract is the one-step UNDO.
 //
 // NOT ROWS, by ruling:
 //   name             the save-slot name IS meta.name (G65, garage.js — a
@@ -870,7 +991,7 @@ const DESIGN_ROWS = [
   // is a migration, renaming the LABEL is a string — §5.3's own ruling). The
   // label is the shape, not the mechanism.
   { key: 'mirror', label: 'Body & deck', kind: 'discriminator',
-    group: 'cabin', status: 'live',
+    group: 'cabin', status: 'live', twin: ['mirror'],
     help: 'what the fuselage top does behind the cockpit',
     read: P => Math.round(P.mirror),
     options: [
@@ -900,7 +1021,7 @@ const DESIGN_ROWS = [
 
   // ---- structure ----------------------------------------------------------
   { key: 'intCons', label: 'Construction', kind: 'discriminator',
-    group: 'structure', status: 'live',
+    group: 'structure', status: 'live', twin: ['intCons'],
     help: 'what the aeroplane is made of; each surface can override later',
     read: P => Math.round(P.intCons),
     options: [
@@ -919,7 +1040,7 @@ const DESIGN_ROWS = [
     ] },
 
   { key: 'boomStyle', label: 'Fuselage style', kind: 'discriminator',
-    group: 'structure', status: 'live',
+    group: 'structure', status: 'live', twin: ['boomStyle'],
     help: 'the taper section stays its own switch on the slider',
     read: P => Math.round(P.boomStyle),
     options: [
@@ -936,7 +1057,7 @@ const DESIGN_ROWS = [
   // boom"): single, or two booms of the chosen construction off the wing,
   // a fin each, the stab between them
   { key: 'booms', label: 'Booms', kind: 'discriminator',
-    group: 'structure', status: 'live',
+    group: 'structure', status: 'live', twin: ['boomTwin'],
     help: 'two booms leave the wing; the pod ends at the bulkhead',
     read: P => +P.boomTwin ? 'twin' : 'single',
     options: [
@@ -954,7 +1075,7 @@ const DESIGN_ROWS = [
   // because with the skin culled the drawn truss is the interior pass's
   // (nothing else draws a member). JOINED: fuselage.covering.
   { key: 'covering', label: 'Covering', kind: 'discriminator',
-    group: 'structure', status: 'live',
+    group: 'structure', status: 'live', twin: ['skinOn'],
     help: 'an open frame flies lighter and draggier — the truss is the airframe',
     read: P => (P.skinOn == null || +P.skinOn) ? 'skin' : 'open',
     options: [
@@ -985,7 +1106,7 @@ const DESIGN_ROWS = [
 
   // ---- wing ---------------------------------------------------------------
   { key: 'wgPos', label: 'Wing position', kind: 'discriminator',
-    group: 'wing', status: 'live',
+    group: 'wing', status: 'live', twin: ['wgPos'],
     read: P => Math.round(P.wgPos),
     options: [
       { value: 0, label: 'High', icon: iconFront('high'),
@@ -1001,7 +1122,7 @@ const DESIGN_ROWS = [
     ] },
 
   { key: 'wgBrace', label: 'Bracing', kind: 'discriminator',
-    group: 'wing', status: 'live',
+    group: 'wing', status: 'live', twin: ['wgBrace'],
     help: 'cantilever buys a real spar box; struts buy their drag',
     read: P => Math.round(P.wgBrace),
     options: [
@@ -1019,7 +1140,7 @@ const DESIGN_ROWS = [
   // arm + seed contract (G132): the seed is a one-shot the panel offers,
   // never a second home for the rows.
   { key: 'planes', label: 'Wings', kind: 'discriminator',
-    group: 'wing', status: 'live', arm: true,
+    group: 'wing', status: 'live', twin: ['w2On'], arm: true,
     help: 'a second plane is a real aeroplane: its truss braces both wings',
     read: P => !+P.w2On ? 'mono'
              : (+P.w2Span < 0.8 * +P.wgSpan ? 'sesqui' : 'biplane'),
@@ -1072,7 +1193,7 @@ const DESIGN_ROWS = [
   // G132: one key, faithful read, nothing destroyed — that is a
   // discriminator's contract, whatever a tip's flavour text says
   { key: 'wgTip', label: 'Wing tips', kind: 'discriminator',
-    group: 'wing', status: 'live',
+    group: 'wing', status: 'live', twin: ['wgTip'],
     read: P => Math.round(P.wgTip),
     options: () => ['square', 'clipped', 'rounded', 'elliptic', 'hoerner',
                     'winglet'].map((k, i) => ({
@@ -1080,7 +1201,7 @@ const DESIGN_ROWS = [
       icon: iconTip(k), writes: { cage: { wgTip: i } } })) },
 
   { key: 'wgFlapType', label: 'Flaps', kind: 'discriminator',
-    group: 'wing', status: 'live',
+    group: 'wing', status: 'live', twin: ['wgFlapType'],
     read: P => Math.round(P.wgFlapType),
     options: () => ['none', 'plain', 'slotted', 'fowler'].map((k, i) => ({
       value: i, label: ((gFlaps() || {})[k] || { name: k }).name,
@@ -1088,7 +1209,7 @@ const DESIGN_ROWS = [
 
   // ---- propulsion ---------------------------------------------------------
   { key: 'engFamily', label: 'Powertrain family', kind: 'discriminator',
-    group: 'propulsion', status: 'live',
+    group: 'propulsion', status: 'live', twin: ['engPower', 'eng_arch'],
     help: 'selects into ENG_ARCH; the model list below follows it',
     read: P => [null, 'electric', 'turbine'][Math.round(P.engPower)]
              || (['flat', 'inline', 'radial', 'vee'][Math.round(P.eng_arch)] || 'flat'),
@@ -1111,7 +1232,7 @@ const DESIGN_ROWS = [
   // engine a high wing — each tile writes what it needs. The pair is the
   // ENGINES row's (count and placement are one fact).
   { key: 'engMount', label: 'Engine mount', kind: 'discriminator',
-    group: 'propulsion', status: 'live',
+    group: 'propulsion', status: 'live', twin: ['engMount'],
     read: P => Math.round(P.engMount) === 1 ? 'pusher'
              : Math.round(P.engMount) === 2 ? 'wingTop' : 'nose',
     options: [
@@ -1181,7 +1302,7 @@ const DESIGN_ROWS = [
     ] },
 
   { key: 'engCount', label: 'Engines', kind: 'discriminator',
-    group: 'propulsion', status: 'live',
+    group: 'propulsion', status: 'live', twin: ['engMount'],
     help: 'count and placement are one choice — a twin puts them on the wing',
     read: P => Math.round(P.engMount) === 3 ? 2 : 1,
     options: [
@@ -1213,7 +1334,7 @@ const DESIGN_ROWS = [
   // 2026-09-04 (the user: "a wing-mounted engine can be configured as pusher
   // or puller ... the same for the dual wing mounted engines")
   { key: 'engAim', label: 'Wing engines face', kind: 'discriminator',
-    group: 'propulsion', status: 'live',
+    group: 'propulsion', status: 'live', twin: ['engAim'],
     help: 'over the wing pushes and a pair pulls unless told otherwise',
     read: P => Math.round(P.engAim) === 1 ? 'puller'
              : Math.round(P.engAim) === 2 ? 'pusher' : 'mount',
@@ -1317,10 +1438,10 @@ const DESIGN_ROWS = [
         note: 'two canted panels, no fin — ruddervators',
         writes: { cage: { stCant: 35, stMount: 1, stX: 0, stY: 0, stZ: 0,
                           finOn: 0 } } },
-      { value: 'twin', label: 'Twin boom',
-        icon: iconSide({ canopy: 'none', gear: 'none', tail: 'twin' }),
-        inactive: 'needs a twin tail CARRIER, not a new tail — the one ' +
-          'empennage that is a boom question (ROADMAP-adjacent, unclaimed)' },
+      // 'Twin boom' was a greyed tile here ("needs a twin tail CARRIER") and
+      // the user read it as a stab option that did nothing: "either deleted
+      // or made to work". It works where it belongs — the Booms tile (G271
+      // seats the stab between the booms) — so it is deleted here (G2760).
     ] },
 
   // THE TAIL'S OUTLINE, AS A STARTER (TAIL CHANTIER 2 P3, TAIL-ARCHETYPES
@@ -1439,13 +1560,17 @@ const DESIGN_ROWS = [
   // never wrote it. Three options, three leg families, and the shock row
   // stays for the one family that really has a shock to choose.
   { key: 'suspension', label: 'Suspension', kind: 'starter',
-    group: 'undercarriage', status: 'live',
+    group: 'undercarriage', status: 'live', twin: ['s1Leg'],
     // G132: the join measures the drawn leg back into the spec, so the
     // mains' own rows can no longer fly a bungee wearing an oleo — the pair
     // is what _join_check proves
     pair: [{ cage: 's1Leg', spec: 'gear.suspension', via: 'join' },
            { cage: 's1_shockKind', spec: 'gear.suspension', via: 'join' }],
-    read: (P, S) => S && S.gear && S.gear.suspension || null,
+    // G2760: read off the LEG the tile writes (the join measures the same leg
+    // back into the spec), because the tile now stands in the leg row's own
+    // slot and must light whatever the row holds — a spec read lit nothing
+    // until the next join
+    read: P => ['spring', 'bungee', 'oleo'][Math.round(P.s1Leg)] || null,
     options: [
       { value: 'spring', label: 'Spring steel blade', icon: ICON.suspSpring,
         note: 'the leg IS the spring — a tapered blade off a belly saddle',
@@ -1475,6 +1600,144 @@ const DESIGN_ROWS = [
       { value: 2, label: 'Full trousers', icon: ICON.fairFull,
         writes: { cage: { s1Fair: 2, s2Fair: 2 } } },
     ] },
+
+  // ---- the part tiles (G2760) ---------------------------------------------
+  // THE BIG BUTTONS THAT TAKE A ROW'S SLOT (the user's slider review, 10 Oct:
+  // "big buttons for fin / rudder (horn balance, etc)", "the keel extension
+  // and the leading edges could be big buttons with drawings", "buttons for
+  // the type of cut" on the stabs, "exhaust should have big buttons", "a
+  // couple more big buttons, for the leg fairing, the steering and the wheel
+  // carcass. We should remove the drop-down equivalent options").
+  //
+  // Each is ONE ROW'S CHOICES AS TILES: `twin` names the row, every option
+  // writes that row's own value and nothing else, and the read is the row's
+  // value — so the tile IS the row, drawn bigger. `slot: true` keeps them out
+  // of the Custom-build grid (they are a part's detail, not a birth choice);
+  // the editor draws each one where its row was, and the row is not drawn.
+  { key: 'finCutT', label: 'Fin / rudder', kind: 'discriminator',
+    group: 'tail', status: 'live', slot: true, twin: ['finCut'],
+    read: P => Math.round(P.finCut || 0),
+    options: [
+      { value: 0, label: 'Uncut', icon: iconCut('fin', 0),
+        note: 'one sheet, no moving rudder drawn', writes: { cage: { finCut: 0 } } },
+      { value: 1, label: 'Hinge only', icon: iconCut('fin', 1),
+        note: 'the rudder hangs on a straight hinge line', writes: { cage: { finCut: 1 } } },
+      { value: 2, label: 'Horn balance', icon: iconCut('fin', 2),
+        note: 'the rudder\'s top reaches forward of the hinge', writes: { cage: { finCut: 2 } } },
+    ] },
+  { key: 'finKeelT', label: 'Keel extension', kind: 'discriminator',
+    group: 'tail', status: 'live', slot: true, twin: ['finKeel'],
+    read: P => Math.round(P.finKeel || 0),
+    options: [
+      { value: 0, label: 'None', icon: iconFinExtra(null),
+        writes: { cage: { finKeel: 0 } } },
+      { value: 1, label: 'Keel extension', icon: iconFinExtra('keel'),
+        note: 'the fin runs on under the tail cone', writes: { cage: { finKeel: 1 } } },
+    ] },
+  { key: 'finDorsalT', label: 'Leading edge', kind: 'discriminator',
+    group: 'tail', status: 'live', slot: true, twin: ['finDorsal'],
+    read: P => Math.round(P.finDorsal || 0),
+    options: [
+      { value: 0, label: 'Plain', icon: iconFinExtra(null),
+        writes: { cage: { finDorsal: 0 } } },
+      { value: 1, label: 'Dorsal fillet', icon: iconFinExtra('dorsal'),
+        note: 'a long low fillet runs the leading edge forward along the deck',
+        writes: { cage: { finDorsal: 1 } } },
+    ] },
+  { key: 'stCutT', label: 'Stab / elevator', kind: 'discriminator',
+    group: 'tail', status: 'live', slot: true, twin: ['stCut'],
+    read: P => Math.round(P.stCut || 0),
+    options: [
+      { value: 0, label: 'Uncut', icon: iconCut('stab', 0), writes: { cage: { stCut: 0 } } },
+      { value: 1, label: 'Hinge only', icon: iconCut('stab', 1), writes: { cage: { stCut: 1 } } },
+      { value: 2, label: 'Horn balance', icon: iconCut('stab', 2), writes: { cage: { stCut: 2 } } },
+    ] },
+  // THE SEAT. 'Between the booms' is the Booms tile's own seat (it writes 3
+  // with the twin booms) and only a twin-boom build shows it — on one boom
+  // it put the stab through the boom's middle (G2760, A0's ruling on the
+  // user's "make it work or delete it"). A saved 3 still loads and lights.
+  { key: 'stMountT', label: 'Stab sits', kind: 'discriminator',
+    group: 'tail', status: 'live', slot: true, twin: ['stMount'],
+    read: P => Math.round(P.stMount || 0),
+    options: [
+      { value: 0, label: 'On the keel', icon: iconSeat(0), writes: { cage: { stMount: 0 } } },
+      { value: 1, label: 'On the deck', icon: iconSeat(1), writes: { cage: { stMount: 1 } } },
+      { value: 2, label: 'On the fin tip', icon: iconSeat(2), writes: { cage: { stMount: 2 } } },
+      { value: 3, label: 'Between the booms', icon: iconSeat(3),
+        hide: P => !+P.boomTwin, writes: { cage: { stMount: 3 } } },
+    ] },
+  { key: 'exhaustT', label: 'Exhaust', kind: 'discriminator',
+    group: 'propulsion', status: 'live', slot: true, twin: ['eng_exStyle'],
+    read: P => Math.round(P.eng_exStyle || 0),
+    options: [
+      { value: 0, label: 'None', icon: iconExhaust(0), writes: { cage: { eng_exStyle: 0 } } },
+      { value: 1, label: 'Stacks', icon: iconExhaust(1),
+        note: 'a short pipe off every port', writes: { cage: { eng_exStyle: 1 } } },
+      { value: 2, label: 'Collector', icon: iconExhaust(2),
+        note: 'the ports gathered into one pipe a bank', writes: { cage: { eng_exStyle: 2 } } },
+      { value: 3, label: 'Expansion', icon: iconExhaust(3),
+        note: 'the two-stroke\'s tuned chamber', writes: { cage: { eng_exStyle: 3 } } },
+    ] },
+  ...[1, 2].map(i => ({ key: (i === 1 ? 'mains' : 'third') + 'FairT',
+    label: 'Fairing', kind: 'discriminator',
+    group: 'undercarriage', status: 'live', slot: true, twin: ['s' + i + 'Fair'],
+    read: P => Math.round(P['s' + i + 'Fair'] || 0),
+    options: [
+      { value: 0, label: 'None', icon: ICON.fairNone, writes: { cage: { ['s' + i + 'Fair']: 0 } } },
+      { value: 1, label: 'Spat', icon: ICON.fairSpat, writes: { cage: { ['s' + i + 'Fair']: 1 } } },
+      { value: 2, label: 'Trousers', icon: ICON.fairFull, writes: { cage: { ['s' + i + 'Fair']: 2 } } },
+    ] })),
+  ...[1, 2].map(i => ({ key: (i === 1 ? 'mains' : 'third') + 'LegFairT',
+    label: 'Leg fairing', kind: 'discriminator',
+    group: 'undercarriage', status: 'live', slot: true, twin: ['s' + i + 'LegFair'],
+    read: P => Math.round(P['s' + i + 'LegFair'] || 0),
+    options: [
+      { value: 0, label: 'Bare', icon: iconLegFair(0), writes: { cage: { ['s' + i + 'LegFair']: 0 } } },
+      { value: 1, label: 'Streamlined', icon: iconLegFair(1),
+        writes: { cage: { ['s' + i + 'LegFair']: 1 } } },
+    ] })),
+  ...[1, 2].map(i => ({ key: (i === 1 ? 'mains' : 'third') + 'SteerT',
+    label: 'Steering', kind: 'discriminator',
+    group: 'undercarriage', status: 'live', slot: true, twin: ['s' + i + 'Steer'],
+    read: P => Math.round(P['s' + i + 'Steer'] || 0),
+    options: [
+      { value: 0, label: 'Fixed', icon: iconSteer(0), writes: { cage: { ['s' + i + 'Steer']: 0 } } },
+      { value: 1, label: 'Linked', icon: iconSteer(1),
+        note: 'turned by the rudder pedals', writes: { cage: { ['s' + i + 'Steer']: 1 } } },
+      { value: 2, label: 'Castor', icon: iconSteer(2),
+        note: 'free to swivel, trailing its pivot', writes: { cage: { ['s' + i + 'Steer']: 2 } } },
+    ] })),
+  { key: 'carcassT', label: 'Tyre carcass', kind: 'discriminator',
+    group: 'undercarriage', status: 'live', slot: true, twin: ['whProfile'],
+    read: P => Math.round(P.whProfile || 0),
+    options: [
+      { value: 0, label: 'Standard', icon: iconCarcass(0), writes: { cage: { whProfile: 0 } } },
+      { value: 1, label: 'Tundra balloon', icon: iconCarcass(1),
+        note: 'a fat low-pressure tyre for rough strips', writes: { cage: { whProfile: 1 } } },
+      { value: 2, label: 'Slim', icon: iconCarcass(2), writes: { cage: { whProfile: 2 } } },
+    ] },
+
+  // THE COWL PRESETS (G2760, the user: "we need presets for the cowl shape,
+  // one for each engine configuration" — one per ENGINE TYPE, the user's
+  // answer through A0). A starter: the shape is the preset's, the size is
+  // the FITTED engine's, measured on the next build by the cowl layer's own
+  // door (_cage_cowl.js COWL_PRESETS / CAGE_COWL_PRESET_NEXT — `after`), and
+  // every row is the builder's afterwards. `once`: no shape can be read back
+  // into which preset made it. `writes` is the fit mode the presets share;
+  // the rest lands through the door, and the undo takes the whole panel.
+  // Head-of-column tiles of the Cowl part (`grid: false` keeps them out of
+  // the Custom-build grid: a birth gets its cowl from its engine already).
+  { key: 'cowlPreset', label: 'Cowl preset', kind: 'starter',
+    group: 'propulsion', status: 'live', once: true, grid: false,
+    when: P => +P.cowlOn,
+    help: 'the shape for that kind of engine, sized to the one fitted',
+    read: P => null,
+    options: [['flat', 'Boxer', 'engFlat'], ['inline', 'In-line', 'engInline'],
+              ['vee', 'V engine', 'engVee'], ['radial', 'Radial', 'engRadial'],
+              ['electric', 'Electric', 'engElectric'], ['turbine', 'Turboprop', 'engTurbine']]
+      .map(([v, label, ic]) => ({ value: v, label, icon: ICON[ic],
+        writes: { cage: { fitNose: 2 } },
+        after: () => { if (W.CAGE_COWL_PRESET_NEXT) W.CAGE_COWL_PRESET_NEXT(v); } })) },
 
   // ---- livery -------------------------------------------------------------
   // WRITE `paint`, NOT `finish` (§5.9): paint is the generated three-colour

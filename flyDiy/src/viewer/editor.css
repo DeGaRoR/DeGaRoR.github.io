@@ -1676,8 +1676,6 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 .dfTile > span { font:500 10px/1.25 'IBM Plex Sans'; text-align:center; }
 .dfTile:hover { border-color:rgba(255,255,255,.3); }
 .dfTile.on { border-color:var(--ed-acc); color:var(--ed-ink); }
-/* an armed starter is a question, and wears the warn colour until answered */
-.dfTile.arm { border-color:var(--ed-warn); color:var(--ed-warn); }
 /* an option that exists in the design and not in the code: greyed, its
    reason in the title — never simply absent (absence hides the backlog) */
 .dfTile:disabled { opacity:.35; cursor:not-allowed; }
@@ -1696,6 +1694,33 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 /* G132: the seed pill — a label row's explicit "apply the starting
    values" action, under its grid, never inside a tile */
 .dfSeed { display:block; margin:6px 0 2px; align-self:flex-start; }
+
+/* G2760: A TILE IN ITS ROW'S SLOT — the big buttons that replaced a
+   drop-down sit where the drop-down was, indented like a row; the changed
+   dot rides the tile's own heading */
+#edRows > .edTilesHead { margin-left:var(--ed-indent); }
+#edRows > .dfSlot { position:relative; }
+#edRows > .dfSlot .dfRowH { margin-top:4px; }
+#edRows > .dfSlot.chg .dfRowH > span::before { content:'●'; position:absolute;
+  left:-11px; font-size:7px; color:var(--ed-acc); }
+
+/* G2760: THE AXIS MARKS (the user: "a clear icon for fore-aft, up-down,
+   in-out, and for length, width and height, as visual anchors"). editor.js
+   sets data-ax on a row once; the mark sits before the label in the faint
+   ink: an arrow for a place, a dimension line for a size — along, up, and
+   across (oblique, as the third axis is drawn on paper). */
+#edRows .r[data-ax]:not([data-ax='']) > span.k { padding-left:17px;
+  box-sizing:border-box; }
+#edRows .r[data-ax]:not([data-ax=''])::after { content:''; position:absolute;
+  left:0; top:50%; width:13px; height:13px; transform:translateY(-50%);
+  background:var(--ed-faint); -webkit-mask:var(--ax) center / contain no-repeat;
+  mask:var(--ax) center / contain no-repeat; pointer-events:none; }
+#edRows .r[data-ax='fore'] { --ax:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M2 8h12M5 5L2 8l3 3M11 5l3 3-3 3'/></svg>"); }
+#edRows .r[data-ax='up'] { --ax:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M8 2v12M5 5l3-3 3 3M5 11l3 3 3-3'/></svg>"); }
+#edRows .r[data-ax='out'] { --ax:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M3 13L13 3M3 9v4h4M9 3h4v4'/></svg>"); }
+#edRows .r[data-ax='len'] { --ax:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M2 8h12M2 4v8M14 4v8'/></svg>"); }
+#edRows .r[data-ax='high'] { --ax:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M8 2v12M4 2h8M4 14h8'/></svg>"); }
+#edRows .r[data-ax='wide'] { --ax:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M3 13L13 3M1 11l4 4M11 1l4 4'/></svg>"); }
 
 /* ---- the birth overlay ------------------------------------------------- */
 #dfBirth { position:fixed; inset:0; z-index:60;

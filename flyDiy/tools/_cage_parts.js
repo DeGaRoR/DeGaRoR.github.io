@@ -107,6 +107,18 @@
 //             parameter and no section, so every coverage rule GATE PARTS
 //             holds is about the rows that ARE parameters and stays exactly as
 //             it was.
+//   order     (G2760) the column's head, in the order given: trunk slots by
+//             name ('fitted', 'type', 'position', 'size') and the part's own
+//             groups as 'g:<name>'. Whatever it does not name follows in the
+//             usual order. Absent = the trunk, then the groups.
+//   rename    (G2760) a trunk heading's own words for this part — the fin's
+//             trunk 'size' holds two outline POINTS, not the fin's size.
+//   hidden    (G2760) a part the editor keeps out of the tree and out of
+//             the root's column (dev tools); its rows stay claimed.
+//   layerHome (G2760) the part a click on an unnamed mesh of its layer
+//             lands on, assembly or not (editor.js layerDefault).
+//   a group's third field: EXPERT (shown with expert rows on) or HIDDEN
+//             (never drawn; the value is carried and saved as ever).
 // ---------------------------------------------------------------------------
 'use strict';
 (function () {
@@ -116,6 +128,12 @@
 // switch. The groups named here are the frozen constants — they exist and are
 // inspectable, but they are not what building an aeroplane is about.
 const EXPERT = 'expert';
+// HIDDEN rows (G2760, the user's slider review): claimed, carried, saved and
+// loaded like any other — a build that holds one keeps its value — but never
+// drawn, not even with expert rows on. For a choice the user has RULED
+// ("get rid of volume and root loops (always guard pair)"): the row stays a
+// parameter so nothing that reads it changes, and stops being a question.
+const HIDDEN = 'hidden';
 
 // THE DECLARED FITTINGS, read from GEN_ACCESS itself. `_cage_access.js`
 // generates two nudge rows per key; this claims exactly those, from the same
@@ -551,9 +569,14 @@ const CAGE_PARTS = [
   // asked whether these render read-only until P2 finishes; they do not, and
   // never needed to: the layer is in the bundle with its complete param table.
   // =========================================================================
-  { key: 'wings', name: 'Wings', parent: null, layer: 'wing' },
-
-  { key: 'wingPanel', name: 'Wing panels', parent: 'wings', layer: 'wing',
+  // THE WING IS THE ASSEMBLY (G2760, the user's slider review: "clicking on
+  // wings should lead to wings, not wing panels. No need for wing panels").
+  // The panel part's rows, trunk and sections are the assembly's own now —
+  // the Fuselage shape: an assembly that carries rows AND heads its parts
+  // (struts, control surfaces, the second plane). `layerHome` makes it the
+  // answer to a click on an unnamed wing mesh (editor.js layerDefault),
+  // which used to skip assemblies and would land on the struts.
+  { key: 'wings', name: 'Wings', parent: null, layer: 'wing', layerHome: true,
     when: P => +P.wingOn,
     place: { type: ['wgTip', 'wgCentre', 'wgCons'], count: 'wgPanels',
              fore: 'wgDx', up: ['wgDy', 'wgParaH'], len: 'wgChord', wide: 'wgSpan',
@@ -664,20 +687,30 @@ const CAGE_PARTS = [
   { key: 'tail', name: 'Tail', parent: null, layer: 'fin',
     sections: ['rodSaddle'] },          // G307: the saddles on a tube boom
 
+  // G2760 (the user's slider review, the tail): big buttons for the cut, the
+  // keel extension and the leading edge (their tiles take the rows' slots —
+  // _cage_design.js `twin`); "get rid of volume and root loops (always guard
+  // pair)" — both rows are HIDDEN (the defaults already are solid and the
+  // guard pair, and a saved build keeps whatever it carries); "the last size
+  // section goes up, straight after type", and the trunk's own size (the two
+  // outline points) is renamed and follows it: `order` and `rename` below.
   { key: 'fin', name: 'Fin & rudder', parent: 'tail', layer: 'fin',
     when: P => +P.finOn, gate: 'finOn',
     place: { on: 'finOn',
-             type: ['finCut', 'finSolid', 'finCons', 'finDorsal', 'finKeel', 'finProject', 'finRootGuard'],
+             type: ['finCut', 'finCons', 'finDorsal', 'finKeel', 'finProject'],
              len: 'finRootFwd', high: 'finTipY', at: 'on the boom deck' },
+    order: ['fitted', 'type', 'g:size', 'size'],
+    rename: { size: 'outline points' },
     sections: ['finSkin', 'finRud', 'finVentral'],
     groups: [
-      ['fitted', ['finOn', 'finProject', 'finFillet', 'finRootGuard', 'finDorsal',
+      ['fitted', ['finOn', 'finProject', 'finFillet', 'finDorsal',
                   'finKeel']],
       ['ventral', ['finVentralOn', 'finVentralH', 'finVentralC', 'finVentralZ', 'finVentralTip']],
       ['construction', ['finCons']],
       ['cut', ['finCut', 'finCutGap']],
       // `tailRimN` (the rim's facet count, shared with the stab) -> `poly`
-      ['thickness', ['finSolid', 'finThick', 'finThickTE']],
+      ['thickness', ['finThick', 'finThickTE']],
+      ['always solid, guard pair', ['finSolid', 'finRootGuard'], HIDDEN],
       // THE OUTLINE, ONE CORNER PER GROUP (2026-09-03, the user: "the elevator
       // and fin geometry is really difficult to set"). The three free corners
       // each get their two axes side by side, the points that ride WITH a corner
@@ -706,16 +739,22 @@ const CAGE_PARTS = [
 
   { key: 'stab', name: 'Stabiliser & elevator', parent: 'tail', layer: 'stab',
     when: P => +P.stOn, gate: 'stOn',
-    place: { on: 'stOn', type: ['stCut', 'stSolid', 'stCons', 'stRootGuard'],
+    // G2760: the fin's remarks laid flat — volume and root loops hidden, the
+    // cut and the seat as big buttons, the macro size straight after type and
+    // the trunk's size (the two outline points) renamed below it
+    place: { on: 'stOn', type: ['stCut', 'stCons'],
              fore: 'stZ', out: 'stX', up: 'stY', len: 'stRootFwd',
              wide: 'stTipY', at: 'on the boom keel' },
+    order: ['fitted', 'type', 'g:size', 'size', 'position'],
+    rename: { size: 'outline points' },
     sections: ['stabSkin', 'stabElev'],
     groups: [
-      ['fitted', ['stOn', 'stRootGuard']],
+      ['fitted', ['stOn']],
       ['construction', ['stCons']],
       ['position', ['stInc', 'stMount', 'stX', 'stY', 'stZ', 'stCant']],
       ['cut', ['stCut', 'stCutGap']],
-      ['thickness', ['stSolid', 'stThick', 'stThickTE']],
+      ['thickness', ['stThick', 'stThickTE']],
+      ['always solid, guard pair', ['stSolid', 'stRootGuard'], HIDDEN],
       // the fin's outline laid flat — same corners, same order, "in / out"
       // where the fin says "up / down" (the stab IS the fin model laid flat)
       // the macro tier (P3), the fin's words laid flat
@@ -837,18 +876,24 @@ const CAGE_PARTS = [
     // of the three stations; cheeks; inlets and their lip; the chin scoop;
     // the panel joint, the split line, the camlocs, the oil door; and the
     // nacelle tail cone for a cowl standing off the body.
+    // THE USER'S FITTING ORDER (G2760, the slider review: "type -> size ->
+    // section at the firewall -> nose bowl -> cheeks and cutout -> inlets.
+    // The order should probably reflect that. Firewall lip should be expert
+    // row"). The trunk gives type and size; the groups follow the method —
+    // the waistline, the top and bottom lines and the diamond at the
+    // firewall first, then the bowl, the barrel's taper, the cheeks, the
+    // inlets. The cowl PRESETS (one per engine type) head the column as
+    // tiles (_cage_design.js `cowlPreset`).
     groups: [
       // `cowlLoops/Ease/Bulge` -> `nose`: they loft the CAGE's nose cap, not this layer
       ['fitted', ['cowlOn', 'fitNose', 'cowlGap']],
-      ['firewall lip', ['cw_fwLipOn', 'cw_fwLipR', 'cw_fwLipRise',
-                        'cw_fwLipIn']],
-      ['barrel', ['cw_cowlLen', 'cw_aftW', 'cw_aftH', 'cw_taperW',
-                  'cw_taperH', 'cw_lidRise']],
+      ['section at the firewall', ['cw_waist', 'cw_deckH', 'cw_keelH',
+                                   'cw_sqAftTop', 'cw_sqAftBot']],
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
                      'cw_faceRise', 'cw_deckSweep', 'cw_keelSweep',
                      'cw_waistSweep', 'cw_lidMode', 'cw_lidR', 'cw_lidGap']],
-      ['section at the firewall', ['cw_deckH', 'cw_keelH', 'cw_waist',
-                                   'cw_sqAftTop', 'cw_sqAftBot']],
+      ['barrel', ['cw_cowlLen', 'cw_aftW', 'cw_aftH', 'cw_taperW',
+                  'cw_taperH', 'cw_lidRise']],
       ['section at the barrel end', ['cw_sqFrontTop', 'cw_sqFrontBot']],
       ['section at the nose ring', ['cw_lidSqTop', 'cw_lidSqBot']],
       ['cheeks & cut-out', ['cw_lobeN', 'cw_lobeAmp', 'cw_lobeT',
@@ -871,6 +916,8 @@ const CAGE_PARTS = [
       ['oil door', ['cw_oilOn', 'cw_oilZ', 'cw_oilW', 'cw_oilL', 'cw_oilSq']],
       // the bench's nacelle termination, back (2026-09-04)
       ['nacelle', ['cw_aftMode', 'cw_tailLen', 'cw_tailDrop']],
+      ['firewall lip', ['cw_fwLipOn', 'cw_fwLipR', 'cw_fwLipRise',
+                        'cw_fwLipIn'], EXPERT],
     ] },
 
   // the propeller's GEOMETRY is the engine layer's (_cage_eng.js names the
@@ -1142,7 +1189,11 @@ const CAGE_PARTS = [
   // tool, not a design parameter (G28's ruling); balance is here because the
   // CG and the prop circle are whole-aeroplane facts the gear reads.
   // =========================================================================
-  { key: 'build', name: 'Build', parent: null },
+  // HIDDEN (G2760, the user's slider review: "The 'build' section should be
+  // completely hidden at this stage, that was dev activity"). The editor
+  // keeps the assembly and its parts out of the tree and out of the root's
+  // column; the rows stay claimed (GATE PARTS) and keep loading and saving.
+  { key: 'build', name: 'Build', parent: null, hidden: true },
 
   { key: 'balance', name: 'Balance & stance', parent: 'build', layer: 'gear',
     groups: [
@@ -1251,7 +1302,7 @@ for (const p of CAGE_PARTS)
     if (g[2] === EXPERT) expertGroup[p.key + '/' + g[0]] = 1;
 
 const API = { CAGE_PARTS, cagePartParams, cagePartsUnder,
-              partByKey, sectionOwner, paramOwner, expertGroup, EXPERT,
+              partByKey, sectionOwner, paramOwner, expertGroup, EXPERT, HIDDEN,
               CAGE_ZONED, CAGE_ZONE_PICK, zoneOwner };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;

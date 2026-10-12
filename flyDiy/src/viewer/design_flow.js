@@ -15,12 +15,22 @@
 // one declaration, and GATE DESIGN holds the declaration honest).
 //
 // THE STARTER CONTRACT (§2), implemented here because it is a rendering
-// concern: before a starter overwrites hand-tuned work it SAYS HOW MUCH
-// ("will overwrite N tuned values — click again"), and the apply is undoable
-// as ONE step. There is no undo system anywhere in this project, so the undo
-// is local and single-slot: the previous value of every key the starter
-// touched, held until the next apply. That is the whole mechanism; a session
-// history is somebody else's chantier.
+// concern: the apply is undoable as ONE step. There is no undo system
+// anywhere in this project, so the undo is local and single-slot: the
+// previous value of every key the starter touched, held until the next
+// apply. That is the whole mechanism; a session history is somebody else's
+// chantier.
+// ONE CLICK APPLIES (G2760, the user's slider review: "all buttons should
+// work the same, click and apply, at once"). The starter used to ARM on the
+// first click ("will overwrite N tuned values — click the tile again") and
+// apply on the second; the user read the first click as a button that did
+// nothing. The warning is gone, the undo pill is what makes a click safe.
+//
+// TILES IN THE ROWS' SLOTS (G2760): a row declaring `twin` is drawn by the
+// editor WHERE ITS ROW WAS (slotBlock), and the row is not drawn — one
+// control per choice. `sync()` relights them when P moves under them (a
+// load, an undo, a preset), cheaply: a signature per tile, rebuilt only
+// when it changed.
 //
 // A STARTER APPLY NEVER GOES THROUGH applySpec/anchorSize — those mean "this
 // is a new design" and would re-anchor the baseline and wipe the changed
@@ -34,15 +44,6 @@ const D = () => window.CAGE_DESIGN;
 const CU = () => window.CAGE_UI;
 const GS = () => window.GARAGE_SPEC;
 const C2 = () => window.CAGE2;
-
-// the defaults a starter's overwrite count is measured against — the page's
-// own base, the same base the per-part reset uses
-function pageBase() {
-  try {
-    return Object.assign({}, C2().cageDefaults(),
-                         (window.CAGE_PAGE && window.CAGE_PAGE.defaults) || {});
-  } catch (e) { return {}; }
-}
 
 const curSpec = () => {
   try { return GS() ? GS().get() : null; } catch (e) { return null; }
@@ -65,16 +66,15 @@ function svgFor(icon) {
 }
 
 // ---------------------------------------------------------------------------
-// state: the armed starter and the one-slot undo
+// state: the one-slot undo
 // ---------------------------------------------------------------------------
-let armed = null;          // { rowKey, value, count }
-let lastUndo = null;       // { label, cage: {k: prev}, spec: patch-of-prev }
-// REVIEW 2026-10-04 (B17): the one-slot undo (and an armed starter) belong to the build they were taken on; a LOAD
+let lastUndo = null;       // { label, cage: {k: prev}, spec: patch-of-prev, rowKey }
+// REVIEW 2026-10-04 (B17): the one-slot undo belongs to the build it was taken on; a LOAD
 // (CAGE_UI.applySpec fires 'flydiy:specApplied' - a fleet load, a birth, the boot seed) replaces that build, and the
 // panel still offered "undo <tile>" that wrote the previous aeroplane's rows into the new one
 if (typeof window !== 'undefined') window.addEventListener('flydiy:specApplied', () => {
-  if (!lastUndo && !armed) return;
-  lastUndo = null; armed = null;
+  if (!lastUndo) return;
+  lastUndo = null;
   try { refresh(); } catch (e) {}
 });
 let hostEl = null;         // where the tiles currently live
@@ -93,6 +93,11 @@ if (typeof window !== 'undefined') {
 // every part whose selection should show it. The livery rows are FINISH's
 // and are listed nowhere. 'design' (the Design & construction part) shows
 // every non-livery row, 'craft' (the root) the identity rows.
+// G2760: 'wingPanel' merged into 'wings'; the engine model's list left the
+// engine column (the engine row's own preset is that choice, and the list
+// "does not work and is redundant" — the user); the two-station fairing
+// starter left the gear columns (each station has its own fairing tiles in
+// its row's slot now); the cowl presets head the cowl.
 const DESIGN_PART = {
   reg: ['craft'], role: ['craft'], class: ['craft'],
   seatLayout: ['cabin', 'fit', 'seats', 'crew'],
@@ -105,25 +110,46 @@ const DESIGN_PART = {
   booms: ['boom', 'tailcone', 'taper', 'fuselage', 'tail'],
   covering: ['structure', 'fuselage'],
   section: ['fuselage', 'cabin', 'nose'],
-  wgPos: ['wings', 'wingPanel', 'cabane'], wgBrace: ['wings', 'struts'],
+  wgPos: ['wings', 'cabane'], wgBrace: ['wings', 'struts'],
   planes: ['wings', 'wingPanel2', 'wingPanel', 'interplane', 'wires', 'cabane'],
-  wgTip: ['wings', 'wingPanel'], wgFlapType: ['wingCtl', 'wings'],
-  engFamily: ['power', 'engine'], engModel: ['engine', 'power'],
+  wgTip: ['wings'], wgFlapType: ['wingCtl', 'wings'],
+  engFamily: ['power', 'engine'],
   engMount: ['engine', 'power', 'cowl'], engCount: ['power', 'engine'],
   prop: ['prop', 'power'],
   empennage: ['tail', 'fin', 'stab'],
   finArch: ['tail', 'fin', 'stab'],
   gearLayout: ['gear', 'mains', 'third'], retract: ['gear'],
   suspension: ['mains', 'gear', 'third'],
-  s1Fair: ['wheels', 'mains', 'gear'],
+  cowlPreset: ['cowl'],
 };
-function rowsForPart(sel) {
-  const d = D();
+// `skip`: the rows the editor has already drawn in their twins' slots in
+// this column — a tile is drawn once
+function rowsForPart(sel, skip) {
+  const d = D(), P = CU() && CU().P;
   return d.DESIGN_ROWS.filter(r => {
-    if (sel === 'design') return r.group !== 'livery';
+    if (r.slot || (skip && skip.has(r.key))) return false;
+    if (r.when && P) { try { if (!r.when(P)) return false; } catch (e) {} }
+    if (sel === 'design') return r.group !== 'livery' && r.grid !== false;
     const pk = DESIGN_PART[r.key];
     return !!pk && pk.indexOf(sel) >= 0;
   });
+}
+
+// which tiles ARE a panel row (`twin`), by the row's key — built once, the
+// table never changes at runtime
+let twinMap = null;
+function twinsOf(k) {
+  if (!D()) return null;
+  if (!twinMap) {
+    twinMap = new Map();
+    for (const r of D().DESIGN_ROWS)
+      if (r.status === 'live')
+        for (const t of (r.twin || [])) {
+          if (!twinMap.has(t)) twinMap.set(t, []);
+          twinMap.get(t).push(r);
+        }
+  }
+  return twinMap.get(k) || null;
 }
 
 // previous values at a spec patch's own paths, for the undo — absent reads
@@ -140,17 +166,20 @@ function prevOfPatch(patch, node) {
   return out;
 }
 
-function doApply(label, writes) {
+// `after` (G2760): a door into a layer that writes the rest on the next
+// build (the cowl presets size to the fitted engine) — so the undo cannot
+// know the keys in advance and takes the WHOLE panel instead
+function doApply(label, writes, rowKey, after) {
   const cu = CU();
-  const prevCage = {};
+  const prevCage = after ? Object.assign({}, cu.P) : {};
   for (const k in writes.cage) prevCage[k] = cu.P[k];
   const prevSpec = Object.keys(writes.spec || {}).length
     ? prevOfPatch(writes.spec, curSpec()) : null;
   Object.assign(cu.P, writes.cage);
+  if (after) { try { after(); } catch (e) { console.error('tile after:', e); } }
   cu.syncSliders(); cu.build();
   if (prevSpec) { try { GS().update(writes.spec); } catch (e) {} }
-  lastUndo = { label, cage: prevCage, spec: prevSpec };
-  armed = null;
+  lastUndo = { label, cage: prevCage, spec: prevSpec, rowKey: rowKey || null };
 }
 
 function undo() {
@@ -160,7 +189,6 @@ function undo() {
   cu.syncSliders(); cu.build();
   if (lastUndo.spec) { try { GS().update(lastUndo.spec); } catch (e) {} }
   lastUndo = null;
-  armed = null;
   refresh();
 }
 
@@ -173,36 +201,18 @@ function pick(row, opt) {
   const { cage, spec } = D().designApply(CU().P, { [row.key]: opt.value },
                                          { seeds: false });
   const writes = { cage, spec };
-  // the warn/undo contract follows the WRITE, not only the kind: a
-  // discriminator whose options overwrite hand-tunable values (the
-  // canopy's hood pair) declares `arm` and gets the same two-click gate
-  if (row.kind === 'starter' || row.arm) {
-    const n = D().designOverwriteCount(CU().P, cage, pageBase());
-    if (n > 0 && !(armed && armed.rowKey === row.key &&
-                   armed.value === opt.value)) {
-      armed = { rowKey: row.key, value: opt.value, count: n };
-      refresh();
-      return;
-    }
-  }
-  doApply(row.label + ': ' + opt.label, writes);
+  // G2760: ONE CLICK (see the head note) — the starter's arm, and the
+  // `arm` discriminators' (the canopy's hood pair), are gone; the undo stays
+  doApply(row.label + ': ' + opt.label, writes, row.key, opt.after);
   refresh();
 }
 
 // G132: the seed pill — the explicit "apply the starting values" action a
-// label row offers once its label is chosen. Same armed/undo flow as a
-// starter, keyed apart so arming a seed never collides with arming a tile.
+// label row offers once its label is chosen. One click and the undo, as a
+// tile (G2760).
 function pickSeed(row, opt) {
   const writes = D().designSeed(CU().P, row.key, opt.value);
-  const n = D().designOverwriteCount(CU().P, writes.cage, pageBase());
-  const armKey = row.key + '#seed';
-  if (n > 0 && !(armed && armed.rowKey === armKey &&
-                 armed.value === opt.value)) {
-    armed = { rowKey: armKey, value: opt.value, count: n };
-    refresh();
-    return;
-  }
-  doApply(row.label + ' starting values: ' + opt.label, writes);
+  doApply(row.label + ' starting values: ' + opt.label, writes, row.key);
   refresh();
 }
 
@@ -242,13 +252,17 @@ function stripHtml() {
 function tileGrid(row, cur) {
   const g = document.createElement('div');
   g.className = 'dfGrid';
+  const P = CU() && CU().P;
   for (const opt of D().rowOptions(row)) {
+    // an option that means nothing in this state stays off the grid, unless
+    // it is what the aeroplane holds (a saved value is never hidden)
+    if (opt.hide && opt.value !== cur && P) {
+      try { if (opt.hide(P)) continue; } catch (e) {}
+    }
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'dfTile';
     if (opt.value === cur) b.classList.add('on');
-    if (armed && armed.rowKey === row.key && armed.value === opt.value)
-      b.classList.add('arm');
     if (opt.inactive) { b.disabled = true; b.title = opt.inactive; }
     else if (opt.note) b.title = opt.note;
     b.innerHTML = svgFor(opt.icon) + '<span>' + opt.label + '</span>';
@@ -359,11 +373,8 @@ function rowBlock(row) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'dfPill dfSeed';
-      const armKey = row.key + '#seed';
-      b.textContent = (armed && armed.rowKey === armKey)
-        ? 'click again to apply'
-        : 'apply the ' + curOpt.label.toLowerCase() +
-          ' starting values (once)';
+      b.textContent = 'apply the ' + curOpt.label.toLowerCase() +
+        ' starting values';
       b.addEventListener('click', () => pickSeed(row, curOpt));
       wrap.appendChild(b);
     }
@@ -371,16 +382,8 @@ function rowBlock(row) {
   return wrap;
 }
 
-// the armed / undo line, shared by the grid and the inline tiles
+// the undo line, shared by the grid and the inline tiles
 function noteEl() {
-  if (armed) {
-    const n = document.createElement('div');
-    n.className = 'dfNote';
-    n.textContent = 'this starter will overwrite ' + armed.count +
-      ' tuned value' + (armed.count > 1 ? 's' : '') +
-      ' — click the tile again to apply';
-    return n;
-  }
   if (lastUndo) {
     const n = document.createElement('div');
     n.className = 'dfNote';
@@ -397,6 +400,62 @@ function fillInline(wrap, rows) {
   const n = noteEl();
   if (n) wrap.appendChild(n);
   for (const r of rows) wrap.appendChild(rowBlock(r));
+  wrap._dfSig = sigOf(rows);
+}
+
+// WHAT A TILE BLOCK SHOWS, as a string: the lit value of every row whose
+// read is P's alone (a read that wants the spec waits for a pick — a spec
+// fetch per drag tick is not a price worth a relight), each hidden option,
+// and the undo line. Equal signatures, nothing to redraw.
+function sigOf(rows) {
+  const P = CU() && CU().P;
+  if (!P) return '';
+  let s = (lastUndo ? lastUndo.label : '') + '#';
+  for (const r of rows) {
+    if (typeof r.read === 'function' && r.read.length < 2 && !r.once) {
+      try { s += r.key + '=' + r.read(P) + ';'; } catch (e) { s += r.key + '!;'; }
+    }
+    if (r.when) { try { s += r.when(P) ? '+' : '-'; } catch (e) {} }
+    for (const o of (D().rowOptions(r) || []))
+      if (o.hide) { try { s += o.hide(P) ? 'h' : 'v'; } catch (e) {} }
+  }
+  return s;
+}
+
+// A TILE IN ITS ROW'S SLOT (G2760). One stable element per tile per render
+// of the column (editor.js keeps it as the row's stand-in for visibility and
+// the changed dot); its content is redrawn in place. The undo line rides in
+// the block it belongs to.
+let slots = [];
+function slotSig(row) {
+  return sigOf([row]) + (lastUndo && lastUndo.rowKey === row.key ? 'u' : '');
+}
+function slotFill(el, row) {
+  el.innerHTML = '';
+  if (lastUndo && lastUndo.rowKey === row.key) {
+    const n = noteEl();
+    if (n) el.appendChild(n);
+  }
+  el.appendChild(rowBlock(row));
+  el._dfSig = slotSig(row);
+}
+function slotBlock(row) {
+  const el = document.createElement('div');
+  el.className = 'dfWrap dfInline dfSlot';
+  el.dataset.tile = row.key;
+  slotFill(el, row);
+  slots.push({ el, row });
+  return el;
+}
+function slotReset() { slots = []; }
+// called by the editor at the end of every visibility pass
+function sync() {
+  for (const s of slots)
+    if (s.el.isConnected && slotSig(s.row) !== s.el._dfSig) slotFill(s.el, s.row);
+  if (inlineHost && inlineHost.el.isConnected) {
+    const rows = rowsForPart(inlineHost.sel, inlineHost.skip);
+    if (sigOf(rows) !== inlineHost.el._dfSig) fillInline(inlineHost.el, rows);
+  }
 }
 
 function buildInto(host, opts) {
@@ -414,24 +473,13 @@ function buildInto(host, opts) {
   }
   const strip = stripHtml();
   if (strip) top.insertAdjacentHTML('beforeend', '<div class="dfStrip">' + strip + '</div>');
-  if (armed) {
-    const n = document.createElement('div');
-    n.className = 'dfNote';
-    n.textContent = 'this starter will overwrite ' + armed.count +
-      ' tuned value' + (armed.count > 1 ? 's' : '') +
-      ' — click the tile again to apply';
-    top.appendChild(n);
-  } else if (lastUndo) {
-    const n = document.createElement('div');
-    n.className = 'dfNote';
-    n.innerHTML = '<span></span><button type="button" class="dfPill">undo</button>';
-    n.firstChild.textContent = 'applied ' + lastUndo.label + ' ';
-    n.lastChild.addEventListener('click', undo);
-    top.appendChild(n);
-  }
+  const note = noteEl();
+  if (note) top.appendChild(note);
   host.appendChild(top);
   for (const group of D().DESIGN_GROUPS) {
-    const rows = D().DESIGN_ROWS.filter(r => r.group === group);
+    // G2760: a part's slot tiles and the head-only tiles are not birth choices
+    const rows = D().DESIGN_ROWS.filter(r => r.group === group &&
+                                             !r.slot && r.grid !== false);
     if (!rows.length) continue;
     const gh = document.createElement('div');
     gh.className = 'dfGroupH';
@@ -445,19 +493,21 @@ function buildInto(host, opts) {
 function refresh() {
   if (hostEl && hostEl.isConnected) buildInto(hostEl, hostEl._dfOpts);
   if (inlineHost && inlineHost.el.isConnected)
-    fillInline(inlineHost.el, rowsForPart(inlineHost.sel));
+    fillInline(inlineHost.el, rowsForPart(inlineHost.sel, inlineHost.skip));
+  for (const s of slots) if (s.el.isConnected) slotFill(s.el, s.row);
   if (birthEl && birthEl.isConnected) renderBirth();
 }
 
 // HOST 1b — the STRUCTURE view, by part (2026-09-04): the macro rows this
 // part owns, at the head of its column. Returns whether anything was drawn.
-function renderTilesFor(rowsEl, sel) {
+// `skip` (G2760): the rows already drawn in their twins' slots
+function renderTilesFor(rowsEl, sel, skip) {
   if (!D() || !CU()) return false;
-  const rows = rowsForPart(sel);
+  const rows = rowsForPart(sel, skip);
   if (!rows.length) { inlineHost = null; return false; }
   const wrap = document.createElement('div');
   wrap.className = 'dfWrap dfInline';
-  inlineHost = { el: wrap, sel };
+  inlineHost = { el: wrap, sel, skip };
   fillInline(wrap, rows);
   rowsEl.appendChild(wrap);
   return true;
@@ -515,7 +565,7 @@ function surpriseSel() {
   // G292: the birth rows first — a surprise without a class is born at
   // the stock size whatever else it rolls
   for (const r of (d.BIRTH_ROWS || []).concat(d.DESIGN_ROWS)) {
-    if (r.kind === 'field' || r.key === 'engModel') continue;
+    if (r.kind === 'field' || r.key === 'engModel' || r.slot || r.grid === false) continue;
     const live = d.rowOptions(r).filter(o => !o.inactive);
     if (live.length) sel[r.key] = rnd(live).value;
   }
@@ -644,6 +694,7 @@ if (typeof window !== 'undefined') {
 }
 
 window.DESIGN_FLOW = { renderTiles, renderTilesFor, openBirth, closeBirth,
-                       bakeBirth, surpriseSel };
+                       bakeBirth, surpriseSel,
+                       twinsOf, slotBlock, slotReset, sync };
 
 })();
