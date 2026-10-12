@@ -1008,6 +1008,8 @@
       // G2571 (the user: "a gradient from dark at the bottom ... That will greatly help anchor the grass"): black at the root to white
       range(Gf, 'root darkening', 0, 1, 0.01, () => fl.get().root, fs('root'), v => Math.round(v * 100) + ' %', D.root);
       range(Gf, 'root darkening: height', 0.05, 1, 0.01, () => fl.get().rootH, fs('rootH'), v => Math.round(v * 100) + ' % of the tuft', D.rootH);
+      // G2572 (the user: "the lakes seem to clear the grass within a few metres"): the ground's height over a lake's water a tuft needs
+      range(Gf, 'by a lake: ground over the water', 0, 0.5, 0.01, () => fl.get().lakeMargin, v => { fl.set({ lakeMargin: v }); replantGrass(); }, v => v.toFixed(2) + ' m', D.lakeMargin);
       range(Gf, 'AGL full', 5, 200, 1, () => fl.get().aglFull, fs('aglFull'), v => v + ' m', D.aglFull);
       range(Gf, 'AGL off', 10, 400, 5, () => fl.get().aglOff, fs('aglOff'), v => v + ' m', D.aglOff);
       range(Gf, 'height x', 0.2, 3, 0.05, () => fl.get().hK, fs('hK'), null, D.hK);

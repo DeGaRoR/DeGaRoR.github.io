@@ -5511,8 +5511,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           };
           // G753: nor where WATER IS DRAWN - the drawn lakes' field (the ground is discarded a metre inside it) with its quad over
           // the ground; the physics' waterH alone let the flecks stand on a pond the runway's grade had filled, over the quad
-          const drawnWet = (x, z, h) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z); return wy !== null && Number.isFinite(wy) && wy > h - 0.3; };
-          const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3 || drawnWet(x, z, h)) return false;
+          // THE GRASS TO THE LAKE'S EDGE (GRASS-DENSE G2572; the user, 12 Oct: "the lakes seem to clear the grass within a few metres,
+          // that's undesirable"): a point was refused while the water stood within 0.3 m UNDER its ground - on a lake's gentle bank
+          // (the carve's slope, a few %) that is metres of bare shore. A LAKE now refuses only `lakeMargin` m (the grass field's dial,
+          // 0.03 by default: the ground just above the drawn water); the SEA keeps its 0.3 m (the tide line, the beach - unchanged)
+          const lakeM = () => (grassField && grassField.lakeMargin ? grassField.lakeMargin() : 0.3);
+          const drawnWet = (x, z, h) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z); return wy !== null && Number.isFinite(wy) && wy > h - (wy > 0.05 ? lakeM() : 0.3); };
+          const okAt = (x, z) => { const h = world.terrainH(x, z), wl = world.waterH(x, z); if (h < 0.3 || wl > h - (wl > 0.05 ? lakeM() : 0.3) || drawnWet(x, z, h)) return false;
             const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
           // THE COVER'S QUERY (v1.17): the world's coverAt with `col` added - the linear colour the PAVEMENT
           // draws there (the class's base set mean, graded as the shader grades it: what the eye sees), so a

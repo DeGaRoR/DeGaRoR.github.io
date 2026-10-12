@@ -190,7 +190,7 @@ const fadeCheck = (W, set, sizeK, href, smax) => {   // (smax: the size fade's c
 // 8 THE GRASS FIELD (G2563): the second ring of the same file, layer 'grass' - the reed's cards cut into tufts (none bent, moved
 // apart or added), the length by the ground and cut where the premises say, the ground's colour over the tinted texel, the tiers
 // nested (a nearer eye only adds), and its own truncation exact under the size fade
-function fieldRing() {
+function fieldRing(opts) {   // (opts: { codeAt, mixAt } - a world of the caller's; GATE COVER 8g)
   const B = boot();
   const { THREE, renderer: R, ctx } = B;
   B.load(path.join('src', 'viewer', 'trees.js'));
@@ -207,7 +207,7 @@ function fieldRing() {
   const treeList = () => [{ key: 'reed1', col: cols[0], sub: { bb: [-70, 0, -70, 70, 100, 70], h: 100 } }];
   const treeBuild = () => ({ parts: [{ geo: g, mat }] });
   const mix = { species: { grass_reed: { proportion: 1, density: 0.48 } }, forest: { cover: 1 } };
-  const BIO = { mixAt: () => 'grassland', mixOf: () => mix };
+  const BIO = { mixAt: (opts && opts.mixAt) || (() => 'grassland'), mixOf: () => mix };
   const world = { terrainH: () => 0, waterH: () => -10, island: null };
   const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(0, 2, 0); camera.lookAt(40, 0, 10); camera.updateMatrixWorld();
   const scene = new THREE.Scene();
@@ -215,7 +215,7 @@ function fieldRing() {
   const GM = [0.05, 0.06, 0.02];
   const coverAt = (x, z) => (x > 20 && x < 44 && z > -20 && z < 20) ? { kill: 0, boost: 0, kind: null, cls: 'concrete', cut: 1, surf: 0 } : null;
   const CR = ctx.COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null, layer: 'grass',
-    biomeAt: () => 'grassland', codeAt: () => 2, okAt: () => true, coverAt, groundMeanAt: () => GM.slice() });
+    biomeAt: () => 'grassland', codeAt: (opts && opts.codeAt) || (() => 2), okAt: () => true, coverAt, groundMeanAt: () => GM.slice() });
   CR.set({ on: true, budgetMs: 1e9, blockBudget: 1e9, grow: 0, tufts: 12, reach: 60, near: 10, blotch: 0 });   // (the field ships off: FIELD_ON)
   for (let i = 0; i < 4; i++) CR.update();
   return { B, THREE, R, CR, scene, camera, ctx, g, GM };
@@ -290,6 +290,16 @@ function fieldRing() {
          'x ' + [x0, x1, x2].join(' -> ') + ', ' + othersOk + ' of ' + others + ' others identity'); }
   }
 }
+
+// 8g THE LAKE'S EDGE (G2572; the user: "the lakes seem to clear the grass within a few metres"): dry land the island's 10 m grid calls
+// LAKE (1) - its bank - takes the nearest land code round it and grows the field's grass; the sea (0) keeps nothing
+{ let L = null, S0 = null;
+  try { L = fieldRing({ codeAt: x => (x > 30 && x < 34 ? 1 : 2), mixAt: cd => (cd >= 2 ? 'grassland' : null) });
+        S0 = fieldRing({ codeAt: x => (x > 30 && x < 34 ? 0 : 2), mixAt: cd => (cd >= 2 ? 'grassland' : null) }); } catch (e) { ok(false, '8g the field plants by a lake', (e && e.message || String(e)).slice(0, 200)); }
+  if (L && S0) {
+    const inBand = W => { let n = 0; W.CR.root.traverse(o => { if (!o.isInstancedMesh) return; const M = o.instanceMatrix.array; for (let i = 0; i < o.userData.n; i++) { const x = M[i * 16 + 12]; if (x > 30.5 && x < 33.5) n++; } }); return n; };
+    const nl = inBand(L), ns = inBand(S0);
+    ok(nl > 0 && ns === 0, '8g a lake-coded bank grows grass (the nearest land code), a sea-coded band none', nl + ' tufts on the lake band, ' + ns + ' on the sea band'); } }
 
 console.log('GATE COVER: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);
