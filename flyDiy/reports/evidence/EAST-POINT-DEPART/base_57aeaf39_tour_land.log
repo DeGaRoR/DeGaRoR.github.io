@@ -1,0 +1,9 @@
+island_tour: the user's Cub (span 10.70 m), damage ON, 324 obstacles + 0 trunks in the world; HOME > w3 > tw_ski > mn_strip > w2 > HOME - the game's flight
+  ok   HOME > w3              660 s | dep: turned 269.3 deg (U-turn), roll 255.4 m in, lift-off 104.6 m | final 1478.4 m / 123 m, clear 16.8 m (ground) | td sink 0.62 m/s, 14 m/s, run 63 m, off 0.1 m | fuel 25.3 L
+    phases TAXI>STOP>HOLD>LINEUP>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts pivot: lined up the wrong way on a strip narrower than the turn — turning on the spot
+  FAIL w3 > tw_ski            108 s | dep: turned 211.2 deg (U-turn), roll 33 m in, lift-off 93.8 m | final -, clear - | td - | fuel 25 L | FAULTS abort (the take-off was rejected) | phases TAXI>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>LIFTOFF>PUTDOWN>ABORT
+    phases TAXI>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>LIFTOFF>PUTDOWN>ABORT
+    verdicts wont-climb: airborne 3 s and still at 9.6 m with 334 m of strip left — cannot climb out, putting it back down
+TOUR NOT DONE - 2 legs, fuel left 25 L, 562 s wall
+  the game: {"day":{"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":0,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}},"shake":true,"stand":{"x":-154,"z":712},"mass":460.5,"fuel":27,"damage":true}

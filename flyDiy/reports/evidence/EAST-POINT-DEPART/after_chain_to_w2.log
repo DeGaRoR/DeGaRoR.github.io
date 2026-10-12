@@ -1,0 +1,6 @@
+  ok   HOME > w3              660 s | dep: turned 269.3 deg (U-turn), roll 255.4 m in, lift-off 104.6 m | final 1478.4 m / 123 m, clear 16.8 m (ground) | td sink 0.62 m/s, 14 m/s, run 63 m, off 0.1 m | fuel 25.3 L
+  ok   w3 > tw_ski            730 s | dep: turned 211.3 deg (U-turn), roll 33 m in, lift-off 93.8 m | final 2104.3 m / 724.5 m, clear 16.5 m (ground) | td sink -0.6 m/s, 13.3 m/s, run 60 m, off 0.7 m | fuel 22.5 L
+  ok   tw_ski > mn_strip      587 s | dep: turned 205.9 deg (U-turn), roll 28.1 m in, lift-off 61.5 m | final 1522.6 m / 350.5 m, clear 24.1 m (ground) | td sink 1.53 m/s, 13.9 m/s, run 51 m, off 0.2 m | fuel 20.8 L
+  ok   mn_strip > nv_strip    478 s | dep: turned 200.9 deg (U-turn), roll 54.1 m in, lift-off 111.3 m | final 1627.8 m / 116.2 m, clear 9.6 m (ground) | td sink 0.38 m/s, 15.4 m/s, run 103 m, off -0.1 m | fuel 19.3 L
+  ok   nv_strip > w2         1031 s | dep: turned 171.9 deg (U-turn), roll 6.9 m in, lift-off 53.2 m | final 1101.9 m / 109.9 m, clear 43.3 m (ground) | td sink 1.17 m/s, 13.5 m/s, run 113 m, off -0.1 m | fuel 15.9 L
+saved /tmp/claude-0/-home-user-DeGaRoR-github-io/f9e28e52-feb2-509a-8407-baf055f1c36f/scratchpad/ep/snap_chain_w2.bin (1686 s wall)

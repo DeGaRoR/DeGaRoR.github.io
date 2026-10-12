@@ -483,7 +483,12 @@ function makeServos(sim, def, opts) {
     const t = now();
     if (t - S.gIT > 0.1) S.gI = 0;
     S.gIT = t;
-    S.gI = clamp(S.gI + g('steerI') * e * S.dt, -g('steerIMax'), g('steerIMax'));
+    // G2450 (EAST-POINT-DEPART): ...UNDER POWER ONLY. The swirl and the P-factor it trims scale with the power; on a
+    // landing's roll-out (the throttle closed) there is no standing yaw, and the integral only lagged the heading loop:
+    // the user's Cub on 02/20 with 2.4 m/s behind it swung +10 -> -22 -> +49 deg (a ground loop, GATE TOUR's land tour,
+    // either order) - the same roll-out with the integral off: straight, 0.1 m off. Closed throttle: it bleeds off (1 s)
+    if ((c.thr || 0) > 0.3) S.gI = clamp(S.gI + g('steerI') * e * S.dt, -g('steerIMax'), g('steerIMax'));
+    else S.gI -= S.gI * Math.min(1, S.dt / 1.0);
     S.drTrim = clamp(-S.gI, -g('drTrimMax'), g('drTrimMax'));
     c.dr = clamp(-kP * e - kD * S.eR - S.gI, -drMax, drMax);
     if (FT.xwBank && F) {

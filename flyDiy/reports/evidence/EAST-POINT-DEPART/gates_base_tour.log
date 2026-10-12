@@ -1,0 +1,45 @@
+=== TOUR ===
+--- shard 0/4 (840.9 s) ---
+the user's Cub: HOME > w3 > tw_ski > mn_strip > w2 > HOME - NOT DONE, 2 legs, fuel left 25 L (803 s)
+  FAIL 5 the user's Cub w3 > tw_ski: stopped at its To with no fault  (abort: the take-off was rejected)
+  FAIL 5 the user's Cub w3 > tw_ski: landed on its To (the landing judged on null)
+  FAIL 5 the user's Cub: the tour is complete, back at HOME  (2 of 5 legs)
+GATE TOUR [shard 0/4]: FAIL (3)
+[stderr]
+SHARD 0/4: 1 of 4 heavy jobs
+(exit code 1)
+--- shard 1/4 (839.2 s) ---
+the aluminium C172: HOME > w3 > tw_ski > w2 > HOME - NOT DONE, 1 legs, fuel left 24.3 L (828 s)
+  FAIL 5 the aluminium C172 HOME > w3: stopped at its To with no fault  (off-strip: the landing roll left w3's box)
+  FAIL 5 the aluminium C172: the tour is complete, back at HOME  (1 of 4 legs)
+GATE TOUR [shard 1/4]: FAIL (2)
+[stderr]
+SHARD 1/4: 1 of 4 heavy jobs
+(exit code 1)
+--- shard 2/4 (610.0 s) ---
+the float Cessna: SEA > mk_sea > SEA - NOT DONE, 1 legs, fuel left 23.7 L (598 s)
+  FAIL 5 the float Cessna SEA > mk_sea: stopped at its To with no fault  (ground-loop: the nose 30.6 deg off the landing roll on mk_sea at 12.8 m/s; yield: 331 member(s) yielded (first: {"beam":120,"cls":"fus","t":25.116944444373658}); dent: the airframe dented)
+  FAIL 5 the float Cessna: the tour is complete, back at SEA  (1 of 2 legs)
+GATE TOUR [shard 2/4]: FAIL (2)
+[stderr]
+SHARD 2/4: 1 of 4 heavy jobs
+(exit code 1)
+--- shard 3/4 (1019.1 s) ---
+the user's Cub: HOME > nv_strip > mn_strip (1007 s)
+  INFO 6 East Point > Jumbo Mine (PILOT-ONE-2, owed): TAKES OFF - fold East Point into ORDERS.land
+GATE TOUR [shard 3/4]: PASS
+[stderr]
+SHARD 3/4: 1 of 4 heavy jobs
+(exit code 0)
+=== ENGTORQUE ===
+PASS TWIN: the counter-rotating swing under a fifth of the same-hand swing - same -26.90 counter -0.00 deg
+17/17 checks
+GATE ENGTORQUE: PASS
+
+──────── summary ────────
+TOUR      FAIL  1019.1 s  [4 shards]
+ENGTORQUE PASS   131.3 s
+total           1150.4 s
+wall            1019.1 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.
