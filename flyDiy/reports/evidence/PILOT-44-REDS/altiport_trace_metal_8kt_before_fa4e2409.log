@@ -1,0 +1,366 @@
+altiport_trace: build_v10_cessnaMetal_2026-09-26.json HOME > tw_ski (elev 695.5222735261833, strip ground 679.6..708.8 m), the game's flight; core tools/flight_core.js
+     0.0 s  >TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8240 m
+     2.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8236 m
+     4.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8230 m
+     6.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8224 m
+     8.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8217 m
+    10.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8211 m
+    12.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8204 m
+    14.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8197 m
+    16.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8190 m
+    18.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8185 m
+    20.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8182 m
+    22.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8181 m
+    24.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8181 m
+    26.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8180 m
+    28.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8179 m
+    30.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8178 m
+    32.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8178 m
+    34.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8178 m
+    36.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8177 m
+    38.0 s   TAXI      h   31 MSL   -677 over the strip  ground   30  thr   8177 m
+    40.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8177 m
+    42.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8177 m
+    44.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8177 m
+    46.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8179 m
+    48.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8180 m
+    50.0 s   TAXI      h   31 MSL   -678 over the strip  ground   29  thr   8182 m
+    52.0 s   TAXI      h   30 MSL   -678 over the strip  ground   29  thr   8184 m
+    54.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8186 m
+    56.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8187 m
+    58.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8189 m
+    60.0 s   TAXI      h   31 MSL   -678 over the strip  ground   29  thr   8191 m
+    62.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8193 m
+    64.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8194 m
+    66.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8196 m
+    68.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8197 m
+    70.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8198 m
+    72.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8199 m
+    74.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8200 m
+    76.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8203 m
+    78.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8208 m
+    80.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8219 m
+    82.0 s   TAXI      h   30 MSL   -679 over the strip  ground   28  thr   8230 m
+    84.0 s   TAXI      h   29 MSL   -679 over the strip  ground   28  thr   8242 m
+    86.0 s   TAXI      h   29 MSL   -679 over the strip  ground   28  thr   8252 m
+    88.0 s   TAXI      h   29 MSL   -679 over the strip  ground   28  thr   8263 m
+    90.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8273 m
+    92.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8284 m
+    94.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8294 m
+    96.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8305 m
+    98.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8316 m
+   100.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8326 m
+   102.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8337 m
+   104.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8348 m
+   106.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8358 m
+   108.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8369 m
+   110.0 s   TAXI      h   29 MSL   -680 over the strip  ground   27  thr   8380 m
+   112.0 s   TAXI      h   28 MSL   -680 over the strip  ground   27  thr   8390 m
+   114.0 s   TAXI      h   28 MSL   -680 over the strip  ground   27  thr   8401 m
+   116.0 s   TAXI      h   28 MSL   -680 over the strip  ground   27  thr   8412 m
+   118.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8423 m
+   120.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8433 m
+   122.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8444 m
+   124.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8454 m
+   126.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8463 m
+   128.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8470 m
+   130.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8476 m
+   132.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8481 m
+   134.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8486 m
+   136.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8489 m
+   138.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8491 m
+   140.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8488 m
+   142.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8482 m
+   144.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8475 m
+   146.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8469 m
+   148.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8465 m
+   150.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8461 m
+   152.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8457 m
+   154.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8453 m
+   156.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8450 m
+   158.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8446 m
+   160.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8442 m
+   162.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8438 m
+   164.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8434 m
+   164.4 s  >STOP      h   28 MSL   -681 over the strip  ground   27  thr   8433 m
+   165.4 s  >HOLD      h   28 MSL   -681 over the strip  ground   27  thr   8432 m
+   166.0 s   HOLD      h   28 MSL   -681 over the strip  ground   27  thr   8432 m
+   167.5 s  >ROLL      h   28 MSL   -681 over the strip  ground   27  thr   8432 m
+   168.0 s   ROLL      h   28 MSL   -681 over the strip  ground   27  thr   8432 m
+   170.0 s   ROLL      h   28 MSL   -681 over the strip  ground   27  thr   8425 m
+   172.0 s   ROLL      h   28 MSL   -681 over the strip  ground   27  thr   8410 m
+   174.0 s   ROLL      h   28 MSL   -680 over the strip  ground   27  thr   8388 m
+   176.0 s   ROLL      h   29 MSL   -680 over the strip  ground   28  thr   8357 m
+   178.0 s   ROLL      h   29 MSL   -680 over the strip  ground   28  thr   8321 m
+   178.3 s  >LIFTOFF   h   29 MSL   -680 over the strip  ground   28  thr   8316 m
+   180.0 s   LIFTOFF   h   32 MSL   -677 over the strip  ground   28  thr   8282 m
+   182.0 s   LIFTOFF   h   38 MSL   -671 over the strip  ground   28  thr   8239 m
+   184.0 s   LIFTOFF   h   47 MSL   -662 over the strip  ground   29  thr   8194 m
+   184.4 s  >CLIMB     h   49 MSL   -660 over the strip  ground   29  thr   8184 m
+   184.4 s  SAY vx-climb: ground ahead above the aeroplane — climbing at Vx 30.8 m/s until clear
+   186.0 s   CLIMB     h   60 MSL   -649 over the strip  ground   29  thr   8146 m
+   188.0 s   CLIMB     h   75 MSL   -634 over the strip  ground   29  thr   8098 m
+   190.0 s   CLIMB     h   90 MSL   -619 over the strip  ground   30  thr   8051 m
+   192.0 s   CLIMB     h  105 MSL   -603 over the strip  ground   30  thr   8003 m
+   194.0 s   CLIMB     h  122 MSL   -587 over the strip  ground   30  thr   7958 m
+   196.0 s   CLIMB     h  138 MSL   -571 over the strip  ground   31  thr   7914 m
+   198.0 s   CLIMB     h  153 MSL   -556 over the strip  ground   31  thr   7872 m
+   200.0 s   CLIMB     h  168 MSL   -541 over the strip  ground   31  thr   7831 m
+   201.6 s  >INBOUND   h  179 MSL   -530 over the strip  ground   31  thr   7800 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   202.0 s   INBOUND   h  183 MSL   -526 over the strip  ground   31  thr   7791 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   204.0 s   INBOUND   h  192 MSL   -517 over the strip  ground   32  thr   7752 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   206.0 s   INBOUND   h  190 MSL   -519 over the strip  ground   32  thr   7709 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   208.0 s   INBOUND   h  185 MSL   -524 over the strip  ground   32  thr   7663 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   210.0 s   INBOUND   h  182 MSL   -526 over the strip  ground   33  thr   7612 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   212.0 s   INBOUND   h  182 MSL   -527 over the strip  ground   33  thr   7559 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   214.0 s   INBOUND   h  185 MSL   -524 over the strip  ground   34  thr   7501 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   216.0 s   INBOUND   h  193 MSL   -515 over the strip  ground   34  thr   7435 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   218.0 s   INBOUND   h  206 MSL   -503 over the strip  ground   34  thr   7363 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   220.0 s   INBOUND   h  220 MSL   -488 over the strip  ground   34  thr   7283 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   222.0 s   INBOUND   h  235 MSL   -474 over the strip  ground   35  thr   7200 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   224.0 s   INBOUND   h  250 MSL   -459 over the strip  ground   35  thr   7115 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   226.0 s   INBOUND   h  266 MSL   -443 over the strip  ground   37  thr   7033 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   228.0 s   INBOUND   h  282 MSL   -426 over the strip  ground   36  thr   6956 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   230.0 s   INBOUND   h  297 MSL   -411 over the strip  ground   38  thr   6882 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   232.0 s   INBOUND   h  311 MSL   -398 over the strip  ground   37  thr   6811 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   234.0 s   INBOUND   h  323 MSL   -386 over the strip  ground   37  thr   6743 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   236.0 s   INBOUND   h  334 MSL   -375 over the strip  ground   40  thr   6676 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   238.0 s   INBOUND   h  344 MSL   -365 over the strip  ground   39  thr   6610 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   240.0 s   INBOUND   h  353 MSL   -355 over the strip  ground   39  thr   6545 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   242.0 s   INBOUND   h  363 MSL   -346 over the strip  ground   40  thr   6481 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   244.0 s   INBOUND   h  371 MSL   -337 over the strip  ground   40  thr   6418 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   246.0 s   INBOUND   h  380 MSL   -329 over the strip  ground   40  thr   6356 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   248.0 s   INBOUND   h  389 MSL   -320 over the strip  ground   47  thr   6294 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   250.0 s   INBOUND   h  397 MSL   -312 over the strip  ground   43  thr   6233 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   252.0 s   INBOUND   h  405 MSL   -304 over the strip  ground   43  thr   6173 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   254.0 s   INBOUND   h  413 MSL   -296 over the strip  ground   41  thr   6113 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   256.0 s   INBOUND   h  421 MSL   -288 over the strip  ground   44  thr   6053 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   258.0 s   INBOUND   h  429 MSL   -280 over the strip  ground   43  thr   5994 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   260.0 s   INBOUND   h  437 MSL   -272 over the strip  ground   45  thr   5936 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   262.0 s   INBOUND   h  445 MSL   -264 over the strip  ground   40  thr   5878 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   264.0 s   INBOUND   h  452 MSL   -256 over the strip  ground   36  thr   5821 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   266.0 s   INBOUND   h  460 MSL   -249 over the strip  ground   35  thr   5765 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   268.0 s   INBOUND   h  468 MSL   -241 over the strip  ground   34  thr   5709 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   270.0 s   INBOUND   h  476 MSL   -233 over the strip  ground   32  thr   5653 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   272.0 s   INBOUND   h  483 MSL   -226 over the strip  ground   29  thr   5598 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   274.0 s   INBOUND   h  491 MSL   -218 over the strip  ground   25  thr   5544 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   276.0 s   INBOUND   h  499 MSL   -210 over the strip  ground   24  thr   5490 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   278.0 s   INBOUND   h  507 MSL   -202 over the strip  ground   22  thr   5437 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   280.0 s   INBOUND   h  515 MSL   -194 over the strip  ground   22  thr   5384 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   282.0 s   INBOUND   h  523 MSL   -186 over the strip  ground   22  thr   5331 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   284.0 s   INBOUND   h  531 MSL   -177 over the strip  ground   20  thr   5278 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   286.0 s   INBOUND   h  540 MSL   -169 over the strip  ground   18  thr   5226 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   288.0 s   INBOUND   h  548 MSL   -160 over the strip  ground   18  thr   5174 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   290.0 s   INBOUND   h  557 MSL   -152 over the strip  ground   20  thr   5123 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   292.0 s   INBOUND   h  566 MSL   -143 over the strip  ground   24  thr   5071 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   294.0 s   INBOUND   h  575 MSL   -134 over the strip  ground   25  thr   5021 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   296.0 s   INBOUND   h  583 MSL   -126 over the strip  ground   22  thr   4971 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   298.0 s   INBOUND   h  592 MSL   -117 over the strip  ground   24  thr   4921 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   300.0 s   INBOUND   h  600 MSL   -108 over the strip  ground   25  thr   4872 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   302.0 s   INBOUND   h  609 MSL   -100 over the strip  ground   28  thr   4824 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   304.0 s   INBOUND   h  617 MSL    -91 over the strip  ground   28  thr   4775 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   306.0 s   INBOUND   h  626 MSL    -83 over the strip  ground   27  thr   4728 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   308.0 s   INBOUND   h  635 MSL    -74 over the strip  ground   27  thr   4681 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}
+   309.7 s  SAY climb-hold: 209 m under the height the final to Skyline Altiport starts from - circling here, climbing, before the approach
+   310.0 s   INBOUND   h  643 MSL    -66 over the strip  ground   28  thr   4633 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   312.0 s   INBOUND   h  652 MSL    -57 over the strip  ground   30  thr   4584 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   314.0 s   INBOUND   h  661 MSL    -48 over the strip  ground   30  thr   4530 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   316.0 s   INBOUND   h  670 MSL    -39 over the strip  ground   31  thr   4467 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   318.0 s   INBOUND   h  679 MSL    -30 over the strip  ground   33  thr   4395 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   320.0 s   INBOUND   h  688 MSL    -21 over the strip  ground   35  thr   4318 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   322.0 s   INBOUND   h  696 MSL    -13 over the strip  ground   34  thr   4238 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   324.0 s   INBOUND   h  702 MSL     -7 over the strip  ground   39  thr   4157 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   326.0 s   INBOUND   h  708 MSL     -1 over the strip  ground   33  thr   4078 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   328.0 s   INBOUND   h  713 MSL      4 over the strip  ground   33  thr   4004 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   330.0 s   INBOUND   h  719 MSL     10 over the strip  ground   29  thr   3938 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   332.0 s   INBOUND   h  725 MSL     16 over the strip  ground   31  thr   3883 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   334.0 s   INBOUND   h  732 MSL     23 over the strip  ground   32  thr   3843 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   336.0 s   INBOUND   h  739 MSL     30 over the strip  ground   27  thr   3817 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   338.0 s   INBOUND   h  747 MSL     38 over the strip  ground   23  thr   3806 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   340.0 s   INBOUND   h  754 MSL     45 over the strip  ground   22  thr   3812 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   342.0 s   INBOUND   h  762 MSL     53 over the strip  ground   21  thr   3831 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   344.0 s   INBOUND   h  770 MSL     61 over the strip  ground   24  thr   3863 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   346.0 s   INBOUND   h  778 MSL     69 over the strip  ground   26  thr   3906 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   348.0 s   INBOUND   h  787 MSL     78 over the strip  ground   25  thr   3956 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   350.0 s   INBOUND   h  797 MSL     89 over the strip  ground   22  thr   4011 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   352.0 s   INBOUND   h  808 MSL     99 over the strip  ground   25  thr   4066 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   354.0 s   INBOUND   h  818 MSL    109 over the strip  ground   28  thr   4122 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   356.0 s   INBOUND   h  827 MSL    118 over the strip  ground   28  thr   4177 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   358.0 s   INBOUND   h  834 MSL    125 over the strip  ground   28  thr   4231 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   360.0 s   INBOUND   h  840 MSL    131 over the strip  ground   31  thr   4283 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   362.0 s   INBOUND   h  843 MSL    135 over the strip  ground   32  thr   4333 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   364.0 s   INBOUND   h  846 MSL    137 over the strip  ground   34  thr   4381 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   366.0 s   INBOUND   h  847 MSL    138 over the strip  ground   33  thr   4428 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   368.0 s   INBOUND   h  849 MSL    140 over the strip  ground   31  thr   4476 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   370.0 s   INBOUND   h  850 MSL    141 over the strip  ground   30  thr   4525 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   372.0 s   INBOUND   h  851 MSL    142 over the strip  ground   27  thr   4575 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   374.0 s   INBOUND   h  851 MSL    142 over the strip  ground   25  thr   4625 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   376.0 s   INBOUND   h  851 MSL    142 over the strip  ground   23  thr   4675 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   378.0 s   INBOUND   h  851 MSL    142 over the strip  ground   21  thr   4723 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   380.0 s   INBOUND   h  850 MSL    141 over the strip  ground   21  thr   4768 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   382.0 s   INBOUND   h  848 MSL    140 over the strip  ground   21  thr   4809 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   383.0 s  SAY vref-raised: the elevator cannot hold 31.0 m/s at this power — flying the approach faster
+   384.0 s   INBOUND   h  847 MSL    138 over the strip  ground   21  thr   4844 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   386.0 s   INBOUND   h  847 MSL    138 over the strip  ground   21  thr   4873 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   388.0 s   INBOUND   h  848 MSL    139 over the strip  ground   23  thr   4895 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   390.0 s   INBOUND   h  850 MSL    141 over the strip  ground   25  thr   4908 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   392.0 s   INBOUND   h  852 MSL    143 over the strip  ground   27  thr   4914 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   394.0 s   INBOUND   h  853 MSL    144 over the strip  ground   23  thr   4910 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   396.0 s   INBOUND   h  853 MSL    144 over the strip  ground   28  thr   4895 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   398.0 s   INBOUND   h  853 MSL    144 over the strip  ground   29  thr   4869 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   400.0 s   INBOUND   h  853 MSL    144 over the strip  ground   28  thr   4829 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   402.0 s   INBOUND   h  853 MSL    144 over the strip  ground   27  thr   4776 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   404.0 s   INBOUND   h  853 MSL    145 over the strip  ground   29  thr   4710 m  leg INBOUND hPlan 851 vp {"cruise":851,"toc":3751,"tod":3751,"minClear":127,"climbLimited":{"s":0,"h":179,"need":182,"reach":179},"gClimb":0.179,"endShort":0}  HOLD to 851
+   405.9 s  >FINAL     h  856 MSL    147 over the strip  ground   29  thr   4639 m  leg FINAL hPlan 682
+   406.0 s   FINAL     h  856 MSL    147 over the strip  ground   29  thr   4633 m  leg FINAL hPlan 682
+   408.0 s   FINAL     h  859 MSL    150 over the strip  ground   31  thr   4550 m  leg FINAL hPlan 682
+   410.0 s   FINAL     h  863 MSL    154 over the strip  ground   35  thr   4465 m  leg FINAL hPlan 682
+   412.0 s   FINAL     h  867 MSL    158 over the strip  ground   33  thr   4380 m  leg FINAL hPlan 682
+   414.0 s   FINAL     h  870 MSL    161 over the strip  ground   36  thr   4297 m  leg FINAL hPlan 682
+   416.0 s   FINAL     h  870 MSL    161 over the strip  ground   34  thr   4214 m  leg FINAL hPlan 682
+   418.0 s   FINAL     h  868 MSL    159 over the strip  ground   38  thr   4132 m  leg FINAL hPlan 682
+   420.0 s   FINAL     h  865 MSL    156 over the strip  ground   34  thr   4049 m  leg FINAL hPlan 682
+   422.0 s   FINAL     h  862 MSL    153 over the strip  ground   36  thr   3967 m  leg FINAL hPlan 682
+   424.0 s   FINAL     h  859 MSL    150 over the strip  ground   30  thr   3885 m  leg FINAL hPlan 682
+   426.0 s   FINAL     h  856 MSL    147 over the strip  ground   41  thr   3803 m  leg FINAL hPlan 682
+   428.0 s   FINAL     h  853 MSL    144 over the strip  ground   43  thr   3721 m  leg FINAL hPlan 682
+   430.0 s   FINAL     h  851 MSL    142 over the strip  ground   38  thr   3640 m  leg FINAL hPlan 682
+   432.0 s   FINAL     h  848 MSL    139 over the strip  ground   40  thr   3559 m  leg FINAL hPlan 682
+   434.0 s   FINAL     h  845 MSL    136 over the strip  ground   45  thr   3479 m  leg FINAL hPlan 682
+   436.0 s   FINAL     h  841 MSL    132 over the strip  ground   45  thr   3400 m  leg FINAL hPlan 682
+   438.0 s   FINAL     h  837 MSL    128 over the strip  ground   44  thr   3319 m  leg FINAL hPlan 682
+   440.0 s   FINAL     h  833 MSL    124 over the strip  ground   46  thr   3238 m  leg FINAL hPlan 682
+   442.0 s   FINAL     h  829 MSL    120 over the strip  ground   50  thr   3157 m  leg FINAL hPlan 682
+   444.0 s   FINAL     h  825 MSL    116 over the strip  ground   53  thr   3075 m  leg FINAL hPlan 682
+   446.0 s   FINAL     h  821 MSL    112 over the strip  ground   54  thr   2994 m  leg FINAL hPlan 682
+   448.0 s   FINAL     h  817 MSL    108 over the strip  ground   61  thr   2912 m  leg FINAL hPlan 682
+   450.0 s   FINAL     h  814 MSL    105 over the strip  ground   65  thr   2831 m  leg FINAL hPlan 682
+   452.0 s   FINAL     h  810 MSL    101 over the strip  ground   62  thr   2749 m  leg FINAL hPlan 682
+   454.0 s   FINAL     h  807 MSL     98 over the strip  ground   65  thr   2668 m  leg FINAL hPlan 682
+   456.0 s   FINAL     h  803 MSL     94 over the strip  ground   63  thr   2587 m  leg FINAL hPlan 682
+   458.0 s   FINAL     h  800 MSL     91 over the strip  ground   64  thr   2506 m  leg FINAL hPlan 682
+   460.0 s   FINAL     h  796 MSL     88 over the strip  ground   47  thr   2425 m  leg FINAL hPlan 682
+   462.0 s   FINAL     h  793 MSL     84 over the strip  ground   51  thr   2345 m  leg FINAL hPlan 682
+   464.0 s   FINAL     h  789 MSL     80 over the strip  ground   63  thr   2265 m  leg FINAL hPlan 682
+   466.0 s   FINAL     h  785 MSL     76 over the strip  ground   72  thr   2184 m  leg FINAL hPlan 682
+   468.0 s   FINAL     h  781 MSL     72 over the strip  ground   75  thr   2103 m  leg FINAL hPlan 682
+   470.0 s   FINAL     h  777 MSL     68 over the strip  ground   69  thr   2022 m  leg FINAL hPlan 682
+   472.0 s   FINAL     h  773 MSL     64 over the strip  ground   64  thr   1941 m  leg FINAL hPlan 682
+   474.0 s   FINAL     h  769 MSL     60 over the strip  ground   56  thr   1859 m  leg FINAL hPlan 682
+   476.0 s   FINAL     h  765 MSL     56 over the strip  ground   52  thr   1778 m  leg FINAL hPlan 682
+   478.0 s   FINAL     h  762 MSL     53 over the strip  ground   51  thr   1697 m  leg FINAL hPlan 682
+   480.0 s   FINAL     h  758 MSL     49 over the strip  ground   39  thr   1615 m  leg FINAL hPlan 682
+   482.0 s   FINAL     h  754 MSL     46 over the strip  ground   40  thr   1534 m  leg FINAL hPlan 682
+   484.0 s   FINAL     h  751 MSL     42 over the strip  ground   63  thr   1453 m  leg FINAL hPlan 682
+   486.0 s   FINAL     h  747 MSL     38 over the strip  ground   77  thr   1372 m  leg FINAL hPlan 682
+   488.0 s   FINAL     h  744 MSL     35 over the strip  ground  103  thr   1291 m  leg FINAL hPlan 682
+   490.0 s   FINAL     h  740 MSL     31 over the strip  ground  116  thr   1210 m  leg FINAL hPlan 682
+   492.0 s   FINAL     h  736 MSL     28 over the strip  ground  138  thr   1129 m  leg FINAL hPlan 682
+   494.0 s   FINAL     h  733 MSL     24 over the strip  ground  162  thr   1047 m  leg FINAL hPlan 682
+   496.0 s   FINAL     h  729 MSL     20 over the strip  ground  209  thr    966 m  leg FINAL hPlan 682
+   498.0 s   FINAL     h  725 MSL     16 over the strip  ground  259  thr    884 m  leg FINAL hPlan 682
+   500.0 s   FINAL     h  721 MSL     12 over the strip  ground  332  thr    801 m  leg FINAL hPlan 682
+   502.0 s   FINAL     h  717 MSL      8 over the strip  ground  396  thr    718 m  leg FINAL hPlan 682
+   504.0 s   FINAL     h  713 MSL      4 over the strip  ground  465  thr    634 m  leg FINAL hPlan 682
+   506.0 s   FINAL     h  709 MSL     -0 over the strip  ground  494  thr    550 m  leg FINAL hPlan 682
+   508.0 s   FINAL     h  705 MSL     -4 over the strip  ground  479  thr    465 m  leg FINAL hPlan 682
+   510.0 s   FINAL     h  701 MSL     -8 over the strip  ground  494  thr    382 m  leg FINAL hPlan 682
+   512.0 s   FINAL     h  698 MSL    -11 over the strip  ground  523  thr    298 m  leg FINAL hPlan 682
+   513.1 s  SAY slip: high on energy on the short final (+20.8 m at idle) — slipping it down
+   514.0 s   FINAL     h  694 MSL    -15 over the strip  ground  585  thr    214 m  leg FINAL hPlan 682
+   516.0 s   FINAL     h  692 MSL    -17 over the strip  ground  648  thr    132 m  leg FINAL hPlan 682
+   518.0 s   FINAL     h  692 MSL    -17 over the strip  ground  669  thr     55 m  leg FINAL hPlan 682
+   519.7 s  >FLARE     h  691 MSL    -18 over the strip  ground  680  thr     -7 m  leg FINAL hPlan 682
+   519.77 s  FLARE    nose   -5.2 deg  Vg  37.5  off   -4.1 m  wind across 3.6  dr -0.11 de 0.11 thr 0.04 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   520.0 s   FLARE     h  690 MSL    -19 over the strip  ground  682  thr    -20 m  leg FINAL hPlan 682
+   520.02 s  FLARE    nose   -4.4 deg  Vg  37.5  off   -4.8 m  wind across 3.5  dr -0.21 de 0.31 thr 0.04 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   520.27 s  FLARE    nose   -3.6 deg  Vg  37.5  off   -5.4 m  wind across 3.5  dr -0.22 de 0.35 thr 0.04 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   520.52 s  FLARE    nose   -3.0 deg  Vg  37.5  off   -6.0 m  wind across 3.4  dr -0.22 de 0.35 thr 0.04 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   520.77 s  FLARE    nose   -2.5 deg  Vg  37.5  off   -6.5 m  wind across 3.4  dr -0.23 de 0.35 thr 0.04 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   521.02 s  FLARE    nose   -2.0 deg  Vg  37.4  off   -6.9 m  wind across 3.4  dr -0.23 de 0.35 thr 0.04 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   521.1 s  >ROLLOUT   h  687 MSL    -22 over the strip  ground  686  thr    -63 m  leg FINAL hPlan 682
+   521.27 s  ROLLOUT  nose    0.9 deg  Vg  36.7  off   -7.2 m  wind across 3.3  dr -0.09 de 0.35 thr 0.00 brake 0.02 brakeD 0.00 wheels 3 lat ?
+   521.52 s  ROLLOUT  nose   10.7 deg  Vg  36.6  off   -6.8 m  wind across 3.3  dr 0.14 de 0.15 thr 0.00 brake 0.04 brakeD 0.00 wheels 0 lat ?
+   521.77 s  ROLLOUT  nose   14.7 deg  Vg  36.1  off   -6.3 m  wind across 3.3  dr 0.27 de -0.14 thr 0.00 brake 0.04 brakeD 0.00 wheels 0 lat ?
+   522.0 s   ROLLOUT   h  691 MSL    -18 over the strip  ground  689  thr    -94 m  leg FINAL hPlan 682
+   522.02 s  ROLLOUT  nose   13.5 deg  Vg  35.6  off   -5.7 m  wind across 3.3  dr 0.08 de 0.14 thr 0.00 brake 0.04 brakeD 0.00 wheels 0 lat ?
+   522.27 s  ROLLOUT  nose    9.6 deg  Vg  35.3  off   -5.0 m  wind across 3.3  dr -0.13 de 0.25 thr 0.00 brake 0.04 brakeD 0.00 wheels 0 lat ?
+   522.52 s  ROLLOUT  nose    5.1 deg  Vg  35.0  off   -4.3 m  wind across 3.3  dr -0.25 de 0.21 thr 0.00 brake 0.04 brakeD 0.00 wheels 3 lat ?
+   522.77 s  ROLLOUT  nose    6.2 deg  Vg  34.5  off   -3.7 m  wind across 3.3  dr -0.02 de 0.21 thr 0.00 brake 0.10 brakeD 0.00 wheels 3 lat ?
+   523.02 s  ROLLOUT  nose    9.0 deg  Vg  34.2  off   -2.9 m  wind across 3.3  dr 0.03 de 0.02 thr 0.00 brake 0.16 brakeD 0.00 wheels 3 lat ?
+   523.27 s  ROLLOUT  nose    8.6 deg  Vg  33.7  off   -1.8 m  wind across 3.4  dr 0.04 de 0.18 thr 0.00 brake 0.22 brakeD 0.00 wheels 3 lat ?
+   523.52 s  ROLLOUT  nose    5.9 deg  Vg  33.3  off   -0.6 m  wind across 3.4  dr 0.04 de 0.07 thr 0.00 brake 0.28 brakeD 0.00 wheels 3 lat ?
+   523.77 s  ROLLOUT  nose    3.6 deg  Vg  32.9  off    0.1 m  wind across 3.5  dr 0.04 de 0.20 thr 0.00 brake 0.32 brakeD 0.00 wheels 2 lat ?
+   524.0 s   ROLLOUT   h  697 MSL    -12 over the strip  ground  696  thr   -162 m  leg FINAL hPlan 682
+   524.02 s  ROLLOUT  nose    1.5 deg  Vg  32.5  off    0.6 m  wind across 3.5  dr 0.03 de 0.14 thr 0.00 brake 0.35 brakeD 0.00 wheels 2 lat ?
+   524.27 s  ROLLOUT  nose   -0.5 deg  Vg  32.1  off    0.6 m  wind across 3.5  dr 0.01 de 0.17 thr 0.00 brake 0.35 brakeD 0.00 wheels 2 lat ?
+   524.52 s  ROLLOUT  nose   -1.1 deg  Vg  31.6  off    0.5 m  wind across 3.5  dr -0.00 de 0.17 thr 0.00 brake 0.35 brakeD 0.00 wheels 2 lat ?
+   524.77 s  ROLLOUT  nose   -1.0 deg  Vg  31.3  off    0.3 m  wind across 3.5  dr -0.00 de 0.05 thr 0.00 brake 0.36 brakeD 0.00 wheels 3 lat ?
+   525.02 s  ROLLOUT  nose   -0.9 deg  Vg  30.9  off    0.2 m  wind across 3.5  dr -0.01 de 0.05 thr 0.00 brake 0.42 brakeD 0.00 wheels 3 lat ?
+   525.27 s  ROLLOUT  nose   -0.6 deg  Vg  30.4  off    0.1 m  wind across 3.5  dr -0.01 de 0.13 thr 0.00 brake 0.48 brakeD 0.00 wheels 3 lat ?
+   525.52 s  ROLLOUT  nose   -0.2 deg  Vg  30.0  off    0.0 m  wind across 3.6  dr -0.00 de 0.12 thr 0.00 brake 0.54 brakeD 0.00 wheels 3 lat ?
+   525.77 s  ROLLOUT  nose   -0.3 deg  Vg  29.5  off   -0.0 m  wind across 3.6  dr -0.00 de 0.11 thr 0.00 brake 0.60 brakeD 0.00 wheels 3 lat ?
+   526.0 s   ROLLOUT   h  703 MSL     -6 over the strip  ground  702  thr   -156 m  leg FINAL hPlan 682
+   526.02 s  ROLLOUT  nose   -0.3 deg  Vg  29.0  off   -0.0 m  wind across 3.6  dr -0.00 de 0.10 thr 0.00 brake 0.66 brakeD 0.00 wheels 3 lat ?
+   526.27 s  ROLLOUT  nose   -0.0 deg  Vg  28.5  off   -0.0 m  wind across 3.6  dr -0.00 de 0.11 thr 0.00 brake 0.72 brakeD 0.00 wheels 3 lat ?
+   526.52 s  ROLLOUT  nose    0.2 deg  Vg  27.9  off   -0.1 m  wind across 3.6  dr 0.00 de 0.11 thr 0.00 brake 0.78 brakeD 0.00 wheels 3 lat ?
+   526.77 s  ROLLOUT  nose   -0.1 deg  Vg  27.4  off   -0.0 m  wind across 3.6  dr -0.00 de 0.11 thr 0.00 brake 0.84 brakeD 0.00 wheels 3 lat ?
+   527.02 s  ROLLOUT  nose   -0.4 deg  Vg  26.8  off   -0.0 m  wind across 3.5  dr -0.01 de 0.12 thr 0.00 brake 0.90 brakeD 0.00 wheels 3 lat ?
+   527.27 s  ROLLOUT  nose   -0.1 deg  Vg  26.2  off   -0.1 m  wind across 3.5  dr -0.00 de 0.12 thr 0.00 brake 0.96 brakeD 0.00 wheels 3 lat ?
+   527.52 s  ROLLOUT  nose    0.3 deg  Vg  25.6  off   -0.1 m  wind across 3.5  dr 0.00 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   527.77 s  ROLLOUT  nose   -0.0 deg  Vg  25.0  off   -0.1 m  wind across 3.5  dr 0.00 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   528.0 s   ROLLOUT   h  707 MSL     -1 over the strip  ground  706  thr   -103 m  leg FINAL hPlan 682
+   528.02 s  ROLLOUT  nose   -0.5 deg  Vg  24.4  off   -0.1 m  wind across 3.5  dr -0.01 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   528.27 s  ROLLOUT  nose   -0.2 deg  Vg  23.9  off   -0.1 m  wind across 3.5  dr -0.01 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   528.52 s  ROLLOUT  nose    0.3 deg  Vg  23.3  off   -0.1 m  wind across 3.5  dr 0.00 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   528.77 s  ROLLOUT  nose    0.1 deg  Vg  22.7  off   -0.1 m  wind across 3.5  dr 0.00 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   529.02 s  ROLLOUT  nose   -0.4 deg  Vg  22.1  off   -0.1 m  wind across 3.5  dr -0.01 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   529.27 s  ROLLOUT  nose   -0.0 deg  Vg  21.6  off   -0.1 m  wind across 3.5  dr -0.01 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   529.52 s  ROLLOUT  nose    0.4 deg  Vg  21.0  off   -0.1 m  wind across 3.5  dr 0.00 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   529.77 s  ROLLOUT  nose   -0.1 deg  Vg  20.4  off   -0.1 m  wind across 3.5  dr 0.00 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   530.0 s   ROLLOUT   h  709 MSL      1 over the strip  ground  708  thr    -58 m  leg FINAL hPlan 682
+   530.02 s  ROLLOUT  nose   -0.4 deg  Vg  19.9  off   -0.1 m  wind across 3.5  dr -0.01 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   530.27 s  ROLLOUT  nose    0.3 deg  Vg  19.3  off   -0.1 m  wind across 3.5  dr -0.00 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   530.52 s  ROLLOUT  nose    0.3 deg  Vg  18.7  off   -0.1 m  wind across 3.6  dr 0.00 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   530.77 s  ROLLOUT  nose   -0.1 deg  Vg  18.2  off   -0.0 m  wind across 3.6  dr -0.00 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   531.02 s  ROLLOUT  nose   -0.3 deg  Vg  17.6  off   -0.0 m  wind across 3.6  dr -0.01 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   531.27 s  ROLLOUT  nose    0.3 deg  Vg  17.0  off   -0.0 m  wind across 3.6  dr 0.00 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   531.52 s  ROLLOUT  nose    0.3 deg  Vg  16.5  off   -0.0 m  wind across 3.5  dr 0.01 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   531.77 s  ROLLOUT  nose   -0.3 deg  Vg  15.9  off   -0.0 m  wind across 3.5  dr -0.00 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   532.0 s   ROLLOUT   h  710 MSL      1 over the strip  ground  709  thr    -23 m  leg FINAL hPlan 682
+   532.02 s  ROLLOUT  nose   -0.2 deg  Vg  15.3  off   -0.0 m  wind across 3.5  dr -0.01 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   532.27 s  ROLLOUT  nose    0.4 deg  Vg  14.7  off   -0.0 m  wind across 3.5  dr 0.00 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   532.52 s  ROLLOUT  nose    0.1 deg  Vg  14.1  off   -0.0 m  wind across 3.5  dr 0.01 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   532.77 s  ROLLOUT  nose   -0.4 deg  Vg  13.6  off   -0.0 m  wind across 3.5  dr -0.01 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   533.02 s  ROLLOUT  nose    0.1 deg  Vg  13.0  off   -0.0 m  wind across 3.5  dr -0.00 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   533.27 s  ROLLOUT  nose    0.4 deg  Vg  12.4  off   -0.0 m  wind across 3.5  dr 0.01 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   533.52 s  ROLLOUT  nose   -0.1 deg  Vg  11.8  off   -0.0 m  wind across 3.5  dr 0.00 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   533.77 s  ROLLOUT  nose   -0.2 deg  Vg  11.2  off   -0.0 m  wind across 3.5  dr -0.01 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   534.0 s   ROLLOUT   h  710 MSL      1 over the strip  ground  709  thr      3 m  leg FINAL hPlan 682
+   534.02 s  ROLLOUT  nose    0.2 deg  Vg  10.7  off   -0.0 m  wind across 3.5  dr 0.00 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   534.27 s  ROLLOUT  nose    0.2 deg  Vg  10.1  off   -0.0 m  wind across 3.5  dr 0.01 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   534.52 s  ROLLOUT  nose   -0.2 deg  Vg   9.5  off   -0.0 m  wind across 3.5  dr -0.01 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   534.77 s  ROLLOUT  nose   -0.0 deg  Vg   8.9  off   -0.0 m  wind across 3.6  dr -0.01 de 0.15 thr 0.00 brake 1.00 brakeD 0.00 wheels 3 lat ?
+   535.02 s  ROLLOUT  nose    0.2 deg  Vg   8.4  off   -0.0 m  wind across 3.6  dr 0.01 de 0.15 thr 0.00 brake 0.55 brakeD 0.00 wheels 3 lat ?
+   535.27 s  ROLLOUT  nose   -0.1 deg  Vg   8.3  off   -0.0 m  wind across 3.6  dr -0.00 de 0.15 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   535.52 s  ROLLOUT  nose   -0.2 deg  Vg   8.3  off   -0.0 m  wind across 3.7  dr -0.02 de 0.15 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   535.77 s  ROLLOUT  nose   -0.0 deg  Vg   8.2  off   -0.0 m  wind across 3.7  dr -0.00 de 0.15 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   536.0 s   ROLLOUT   h  707 MSL     -2 over the strip  ground  706  thr     21 m  leg FINAL hPlan 682
+   536.02 s  ROLLOUT  nose    0.5 deg  Vg   8.3  off   -0.0 m  wind across 3.7  dr 0.03 de 0.15 thr 0.00 brake 0.00 brakeD 0.00 wheels 3 lat ?
+   536.27 s  ROLLOUT  nose    1.6 deg  Vg   8.3  off   -0.1 m  wind across 3.6  dr 0.07 de 0.15 thr 0.00 brake 0.00 brakeD 0.00 wheels 1 lat ?
+   536.52 s  ROLLOUT  nose    3.3 deg  Vg   8.3  off   -0.1 m  wind across 3.6  dr 0.13 de 0.15 thr 0.00 brake 0.00 brakeD 0.00 wheels 1 lat ?
+   536.77 s  ROLLOUT  nose    6.2 deg  Vg   8.3  off   -0.1 m  wind across 3.6  dr 0.24 de 0.15 thr 0.00 brake 0.00 brakeD 0.00 wheels 1 lat ?
+   537.02 s  ROLLOUT  nose   11.5 deg  Vg   8.2  off   -0.1 m  wind across 3.6  dr 0.46 de 0.15 thr 0.00 brake 0.00 brakeD 0.00 wheels 1 lat ?
+   537.27 s  ROLLOUT  nose   32.8 deg  Vg   7.8  off    0.0 m  wind across 3.7  dr 0.49 de 0.15 thr 0.00 brake 0.00 brakeD 0.00 wheels 1 lat ?
+   537.52 s  ROLLOUT  nose   89.4 deg  Vg   6.9  off    0.3 m  wind across 3.7  dr 0.50 de 0.15 thr 0.00 brake 0.00 brakeD 0.00 wheels 1 lat ?
+   537.77 s  ROLLOUT  nose  -28.0 deg  Vg   4.9  off    0.5 m  wind across 3.6  dr 0.48 de 0.15 thr 0.00 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   538.0 s   ROLLOUT   h  694 MSL    -15 over the strip  ground  692  thr     35 m  leg FINAL hPlan 682
+   538.02 s  ROLLOUT  nose  -17.6 deg  Vg   4.1  off    0.6 m  wind across 3.5  dr 0.48 de 0.15 thr 0.00 brake 0.01 brakeD 0.00 wheels 0 lat ?
+   538.27 s  ROLLOUT  nose  -24.5 deg  Vg   4.5  off    0.7 m  wind across 3.4  dr 0.48 de 0.15 thr 0.00 brake 0.07 brakeD 0.00 wheels 0 lat ?
+   538.52 s  ROLLOUT  nose   -9.8 deg  Vg   3.2  off    0.6 m  wind across 3.2  dr 0.47 de 0.15 thr 0.00 brake 0.13 brakeD 0.00 wheels 0 lat ?
+   538.77 s  ROLLOUT  nose   -3.2 deg  Vg   3.2  off    0.5 m  wind across 3.3  dr 0.47 de 0.15 thr 0.00 brake 0.17 brakeD 0.00 wheels 0 lat ?
+   539.02 s  ROLLOUT  nose   10.3 deg  Vg   3.2  off    0.3 m  wind across 3.3  dr 0.33 de 0.15 thr 0.00 brake 0.25 brakeD 0.00 wheels 0 lat ?
+   539.27 s  ROLLOUT  nose   19.8 deg  Vg   1.1  off    0.3 m  wind across 3.3  dr 0.02 de 0.15 thr 0.00 brake 0.00 brakeD 0.00 wheels 0 lat ?
+   539.52 s  ROLLOUT  nose    5.9 deg  Vg   1.1  off    0.4 m  wind across 3.3  dr -0.28 de 0.15 thr 0.00 brake 0.29 brakeD 0.00 wheels 0 lat ?
+   539.77 s  ROLLOUT  nose   -1.3 deg  Vg   0.9  off    0.5 m  wind across 3.2  dr -0.47 de 0.15 thr 0.00 brake 0.00 brakeD 0.00 wheels 0 lat ?
+END ROLLOUT t 540 s  landing null  damage {"yields":3344,"breaks":26,"over":true,"reason":"a fus member broke"}

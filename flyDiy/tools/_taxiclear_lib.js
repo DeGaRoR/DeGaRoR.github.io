@@ -338,6 +338,24 @@ function census(C, W, I, builds, opt) {
   }
   return rows;
 }
+// THE WING'S PLAN CLEARANCE at one step (flyOut's and flyTurn's one measure): the span line (the CG +- the half-span along
+// the right axis, every tenth) to the nearest footprint. G2125 (PILOT-PROFILE): A FOOTPRINT FLOWN OVER WITH 15 m UNDER THE
+// LOWEST NODE IS CLEARED, NOT GRAZED - the departure's own obstacle margin (43 depNeed). On the ground and through the
+// lift-off nothing changes (every node is under any top + 15 m); airborne, the plan clearance of a footprint counts only
+// while the aeroplane is that low over it, and the closest such overflight within 1.5 m of plan is reported (over)
+// -> { d, at, over, overAt }
+function wingSpan(sim, cg, rx, rz, half, I, phase, t) {
+  let lowY = Infinity; for (let i = 0; i < sim.n; i++) lowY = Math.min(lowY, sim.p[i * 3 + 1]);
+  const r = { d: Infinity, at: null, over: Infinity, overAt: null };
+  for (let f = -1; f <= 1.0001; f += 0.1) {
+    const x = cg[0] + rx * half * f, z = cg[2] + rz * half * f, n = I.nearest(x, z, 20);
+    if (!n) continue;
+    const over = lowY - ((n.s.y0 || 0) + (n.s.top || 0));
+    if (over > 15) { if (n.d < 1.5 && over < r.over) { r.over = over; r.overAt = fmtWhat(n.s) + ' in ' + phase + ', t ' + t.toFixed(0) + ' s'; } continue; }
+    if (n.d < r.d) { r.d = n.d; r.at = fmtWhat(n.s) + ' at (' + cg[0].toFixed(1) + ', ' + cg[2].toFixed(1) + ') in ' + phase + ', t ' + t.toFixed(0) + ' s'; }
+  }
+  return r;
+}
 // THE FLOWN PROOF: THE PILOT from a stand to 30 m above the ground (the taxi, the line-up, the roll, the lift-off) with
 // the obstacles in the world (intoWorld) - the wing's plan clearance to the nearest footprint every `every` steps (the
 // span line, CG +- the half-span along the right axis), the nodes inside a registered obstacle (the solver's test),
@@ -348,7 +366,7 @@ function flyOut(C, W, I, def, a, s, opt) {
   let contacts = 0, cWhat = null;
   for (let i = 0; i < 600; i++) { sim.step(1 / 60); if (i % 60 === 0) { const q = nodesInside(C, W, sim); contacts += q.k; if (q.k) cWhat = q.what + ' parked'; } }
   const ap = C.makePilot(sim, def, W, { style: 'normal' }); ap.setRoute(a, a); ap.departFrom(a, a, s);
-  let t = 0, minW = Infinity, at = null, air = false, phases = [], track = [];
+  let t = 0, minW = Infinity, at = null, air = false, phases = [], track = [], overMin = Infinity, overAt = null;
   const tMax = o.tMax || 360;
   for (let k = 0; k < 60 * tMax && !air; k++) {
     ap.update(1 / 60); sim.step(1 / 60); t += 1 / 60;
@@ -356,17 +374,94 @@ function flyOut(C, W, I, def, a, s, opt) {
     if (k % every) continue;
     const cg = sim.cgPos(), zR = sim.axes()[2], rl = Math.hypot(zR[0], zR[2]) || 1;
     if (k % 30 === 0) track.push([+cg[0].toFixed(2), +cg[2].toFixed(2), ap.phase]);
-    for (let f = -1; f <= 1.0001; f += 0.1) {
-      const x = cg[0] + zR[0] / rl * half * f, z = cg[2] + zR[2] / rl * half * f, n = I.nearest(x, z, 20);
-      if (n && n.d < minW) { minW = n.d; at = fmtWhat(n.s) + ' at (' + cg[0].toFixed(1) + ', ' + cg[2].toFixed(1) + ') in ' + ap.phase + ', t ' + t.toFixed(0) + ' s'; }
-    }
+    // (G2125 (PILOT-PROFILE): the overflown footprint - wingSpan. The climb on speed (never under 1.3 Vs) crosses Jumbo
+    // Mine's houses ~20 m over their tops where train 38's, at 0.98 Vs, was past 30 m over the ground)
+    const w = wingSpan(sim, cg, zR[0] / rl, zR[2] / rl, half, I, ap.phase, t);
+    if (w.d < minW) { minW = w.d; at = w.at; }
+    if (w.over < overMin) { overMin = w.over; overAt = w.overAt; }
     const q = nodesInside(C, W, sim); if (q.k) { contacts += q.k; cWhat = q.what + ' in ' + ap.phase; }
     air = cg[1] - W.terrainH(cg[0], cg[2]) > 30;
   }
   const D = sim.damage ? sim.damage() : null;
-  return { air, t, phases, minWing: minW, at, contacts, cWhat, trunkHits: sim.trunkHits ? sim.trunkHits() : 0, crashed: !!(D && D.crashed), track, span: 2 * half };
+  return { air, t, phases, minWing: minW, at, overMin, overAt, contacts, cWhat, trunkHits: sim.trunkHits ? sim.trunkHits() : 0, crashed: !!(D && D.crashed), track, span: 2 * half };
 }
 const fmtWhat = s => (s ? s.tag + ' ' + s.id : 'nothing');
+
+// ---- THE TURN-AROUND FROM WHERE A LANDING STOPPED (G2490, ALTIPORT-TAXI) ------------------------------------------------
+// the aeroplane standing on the strip at `pose` { x, z, hdg (the nose, atan2(z, x)) }, the wheels seated on the ground
+// under them (the page's placement: no settling steps), THE PILOT given the chained leg the page gives it (app.js nextLeg:
+// a fresh pilot, departFrom(a, b), no site) - flown to 30 m up with the obstacles in the world, measured as flyOut does.
+// opt.blindPilot: the pilot's world has an EMPTY obstacle registry (the solver's keeps them all) - the planner as it was
+// before G2490 saw nothing there either: the calibration
+function placeAt(C, W, def, pose) {
+  const sim = C.makeSim(def, W); sim.reset(0); if (sim.stance) sim.stance();
+  C.placeAtAerodrome(sim, { hdg: pose.hdg, spawn: [pose.x, pose.z], elev: W.terrainH(pose.x, pose.z) });
+  if (C.seatOnGround) C.seatOnGround(sim, (x, z) => W.terrainH(x, z), def.refs);
+  return sim;
+}
+function flyTurn(C, W, I, def, a, b, pose, opt) {
+  const o = opt || {}, half = def.params.gen.span / 2;
+  const sim = placeAt(C, W, def, pose);
+  const PW = o.blindPilot ? Object.create(W, { obstacles: { value: C.OBSTACLES.make() } }) : W;
+  const ap = C.makePilot(sim, def, PW, { style: 'normal' }); ap.departFrom(a, b);
+  let t = 0, minW = Infinity, at = null, air = false, contacts = 0, cWhat = null, crashed = false, overMin = Infinity, overAt = null;
+  const phases = [], track = [], tMax = o.tMax || 240;
+  for (let k = 0; k < 60 * tMax && !air; k++) {
+    ap.update(1 / 60); sim.step(1 / 60); t += 1 / 60;
+    if (phases[phases.length - 1] !== ap.phase) phases.push(ap.phase);
+    const D = sim.damage ? sim.damage() : null;
+    if (D && (D.over || D.crashed)) { crashed = true; break; }
+    if (k % 6) continue;
+    const cg = sim.cgPos(), zR = sim.axes()[2], rl = Math.hypot(zR[0], zR[2]) || 1;
+    if (k % 30 === 0) track.push([+cg[0].toFixed(2), +cg[2].toFixed(2), ap.phase]);
+    // (G2530: the overflown footprint by flyOut's rule - 11c had kept the plan clearance at every height, and PILOT-PROFILE's
+    // climb on speed takes the Cub off Jumbo Mine's street over house6 / house7's cement bags 19.0-27.8 m above their tops)
+    const w = wingSpan(sim, cg, zR[0] / rl, zR[2] / rl, half, I, ap.phase, t);
+    if (w.d < minW) { minW = w.d; at = w.at; }
+    if (w.over < overMin) { overMin = w.over; overAt = w.overAt; }
+    const q = nodesInside(C, W, sim); if (q.k) { contacts += q.k; cWhat = q.what + ' in ' + ap.phase; }
+    air = cg[1] - W.terrainH(cg[0], cg[2]) > 30;
+  }
+  const D = sim.damage ? sim.damage() : null;
+  return { air, t, phases, minWing: minW, at, overMin, overAt, contacts, cWhat, trunkHits: sim.trunkHits ? sim.trunkHits() : 0, crashed: crashed || !!(D && D.crashed),
+           track, span: 2 * half, verdicts: ap.report.verdicts.map(v => v.code + (v.note ? ': ' + v.note : '')) };
+}
+// THE PLAN at a pose (DEPART's one step: planDeparture) and its clearances, measured on the census's own footprints (`I`,
+// not the pilot's registry): every path the plan hands the follower (the roll on to the turn's spot first, if any) - its
+// CG track's least distance to a footprint (the drawn line: the census's rule, half-span + MARGIN); a kept route's bends
+// tighter than the wheels steer widened by the shortfall (groundRmin - the bend's radius, a radius before and two after:
+// the driven line); the turn on the spot's disc (the airframe's reach about the CG + its walk, 2.6 m / a tricycle's 4.5 m)
+// -> { phase, ids, turn, drawn: { d, what }, driven: { d, what, need }, disc: { d, what, need } | null, verdicts }
+function planAt(C, W, I, def, a, b, pose, opt) {
+  const o = opt || {}, half = def.params.gen.span / 2;
+  const sim = placeAt(C, W, def, pose);
+  const PW = o.blindPilot ? Object.create(W, { obstacles: { value: C.OBSTACLES.make() } }) : W;
+  const ap = C.makePilot(sim, def, PW, { style: 'normal' }); ap.departFrom(a, b); ap.update(1 / 60);
+  const Rg = C.groundRmin(def, 0.85), TP = ap.pivAt || null, turn = !!(TP && TP.turn);
+  const paths = turn ? [TP.first, TP.then].filter(Boolean) : (ap.path ? [ap.path] : []);
+  const res = { phase: ap.phase, ids: paths.map(p => p.ids.join('>')).join(' | '), turn, roll: turn && TP.first ? TP.first.len : 0, drawn: { d: Infinity, what: null }, driven: { d: Infinity, what: null }, disc: null,
+                verdicts: ap.report.verdicts.map(v => v.code) };
+  for (const P of paths) {
+    const pts = P.pts, tight = [];
+    for (let k = 0; k < pts.length; k++) if (Math.abs(pts[k].kap) > 1 / Rg) tight.push(k);
+    for (let k = 0; k < pts.length; k++) {
+      const q = pts[k], n = I.nearest(q.x, q.z, half + 30), d = n ? n.d : Infinity;
+      let sw = 0;
+      if (!turn) for (const j of tight) if (q.s >= pts[j].s - Rg && q.s <= pts[j].s + 2 * Rg) sw = Math.max(sw, Rg - 1 / Math.abs(pts[j].kap));
+      if (d - half < res.drawn.d) res.drawn = { d: d - half, what: n ? fmtWhat(n.s) : null, x: q.x, z: q.z };
+      if (d - half - sw < res.driven.d) res.driven = { d: d - half - sw, what: n ? fmtWhat(n.s) : null, x: q.x, z: q.z };
+    }
+  }
+  if (turn) {
+    const cg = sim.cgPos();
+    const L = TP.first ? TP.first.pts[TP.first.pts.length - 1] : { x: cg[0], z: cg[2] };   // (the turn is about the CG, not the frame's origin)
+    let reach = 0; for (let i = 0; i < sim.n; i++) reach = Math.max(reach, Math.hypot(sim.p[i * 3] - cg[0], sim.p[i * 3 + 2] - cg[2]));
+    const need = reach + ((def.params.twSteer || 0.5) < 0 ? 4.5 : 2.6);
+    const n = I.nearest(L.x, L.z, need + 30), d = n ? n.d : Infinity;
+    res.disc = { d: d - need, what: n ? fmtWhat(n.s) : null, need, x: L.x, z: L.z };
+  }
+  return res;
+}
 
 // ---- THE FLEET'S TIE-DOWN SPOTS (G2223, FLEET-PROPS A) held to the census's own rules, independently of the planner -----
 // the record's stand polygons in the world frame (what 25_airfield.js fleetSpots reads as opts.pave)
@@ -439,4 +534,4 @@ function spotPack(C, SC, island, variant) {
   } catch (e) { places = null; }
   return { v: 1, island, variant, rules: JSON.stringify(C.FLEET_SPOT), places, aero };
 }
-module.exports = { spotPack, paveOf, spotInputs, spotCensus, BUILDS, buildDims, parkedClear, census, flyOut, intoWorld, nodesInside, MARGIN, propBoxes, islandObstacles, obstaclesOfThings, treeTrunks, registryObstacles, index, routesOf, censusSite, gridShape, boxShape, discShape, fmtWhat };
+module.exports = { spotPack, paveOf, spotInputs, spotCensus, BUILDS, buildDims, parkedClear, census, flyOut, intoWorld, nodesInside, MARGIN, propBoxes, islandObstacles, obstaclesOfThings, treeTrunks, registryObstacles, index, routesOf, censusSite, gridShape, boxShape, discShape, fmtWhat, flyTurn, planAt, placeAt };

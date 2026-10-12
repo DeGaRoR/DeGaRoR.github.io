@@ -185,6 +185,13 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
       P.hgFinish = hf;
     }
   };
+  const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane', 'skyWindows']);
+  const glazedM2Of = (m, FS) => { let a = 0; if (!m || !m.F || !m.V) return 0;
+    for (const f of m.F) { if (!GLASSM.has(f.m) || f.v.length < 3) continue; const p0 = m.V[f.v[0]];
+      for (let i = 1; i + 1 < f.v.length; i++) { const p1 = m.V[f.v[i]], p2 = m.V[f.v[i + 1]];
+        const ax = p1[0] - p0[0], ay = p1[1] - p0[1], az = p1[2] - p0[2], bx = p2[0] - p0[0], by = p2[1] - p0[1], bz = p2[2] - p0[2];
+        a += 0.5 * Math.hypot(ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx); } }
+    return a * FS * FS; };
   let r = null, J = null;
   const buildAndJoin = () => {
     r = SH.sceneBuild(spec, { garage: STORE.get(), resolved: STORE.resolved, inGame: true, prebuild: PREBUILD });
@@ -195,7 +202,9 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
     for (const ch of r.scene.children.slice()) inner.add(ch);
     outer.add(inner); r.scene.add(outer); r.scene.updateMatrixWorld(true);
     // the editor's own measurement of its built sheet (_cage_ui.js build: CAGE2.cageGlazedM2, G1985)
-    W.CAGE_UI = { P: r.P, glazedM2: W.CAGE2.cageGlazedM2(r.built.mesh, r.FS) };
+    // (a tree without JOIN-PARITY's src - G2500, CESSNA-VREF on train 40: the same sum _cage_ui.js's build makes over its
+    // GLASSM set, written here because that tree only measures it inside the editor's UI)
+    W.CAGE_UI = { P: r.P, glazedM2: W.CAGE2.cageGlazedM2 ? W.CAGE2.cageGlazedM2(r.built.mesh, r.FS) : glazedM2Of(r.built.mesh, r.FS) };
     // 3. app.js BUILD_SYNC: the join's export, merged by GARAGE_SPEC.update
     W.CAGE_UI_LAZY = true;
     if (!W.CAGE_JOIN) vm.runInContext(fs.readFileSync(path.join(T, '_cage_join.js'), 'utf8'), W, { filename: '_cage_join.js' });
