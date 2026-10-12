@@ -89,7 +89,7 @@ function digestEntry(W, h, detail) {
 }
 
 // ---- one child: one page, one boot ------------------------------------------------------------------------------------
-const GEN_OTHER = ['BIG_GEN', 'SHED_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'SPORT_GEN', 'MARINE_GEN'];
+const GEN_OTHER = ['BIG_GEN', 'SHED_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'SPORT_GEN', 'MARINE_GEN', 'NAVAID_GEN'];   // NAVAID_GEN: ASSETS-OCT G2909 (lazy; the ANN VOR)
 async function child(mode, idbDir, outFile) {
   const { openPage } = require('./_page_node.js');
   const q = [mode === 'local' ? 'housew=0' : '', process.env.HOUSEWORKER_QUERY || ''].filter(Boolean).join('&');
