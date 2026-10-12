@@ -163,6 +163,10 @@ const GATES = [
   // its altitude, the vertical speed inside TECS's limits, no terrain conflict, PILOTACT's reversal limit, the plan
   // published; then the end as drawn (home / hold / the nearest strip). Three flights over three shards; --selftest
   { id: 'ROUTE', file: '_route_check.js', tier: 'core', shards: 3, wall: 340 },
+  // G2940 GROUND-VEHICLE: the driveable car's physics spike, node only (src/vehicle/, not in the bundle) - the
+  // Conquer's sheet as a generic vehicle, flat / brake / reverse / airborne / turn / 10 % hill, a 300 m traced road
+  // followed, U-turns at a gravel apron off a re-route, one of the world's roads out and back, the path traps; ~15 s
+  { id: 'VEHICLE', file: '_vehicle_check.js', tier: 'core', wall: 15 },
   // G770: the player's default is the Cub (the artifact's own garage bridge, against the design rows),
   // GEN_DEFAULT is still the old stock every gate flies, and the browser rigs carry the old stock's pin
   { id: 'DEFAULT', file: '_default_check.js', tier: 'core' },

@@ -86410,3 +86410,93 @@ Gates (dev, Sun 11 Oct 20:30, box clean, no build): SCENERYED 103 PASS, PREMISES
   - FRAMECOST: its 5 reds were 44.1 + 44.3's (the same rows on master), admitted by name as part of the user's accepted +1.5 ms -> PASS.
 - **Light strict gate vs master's 44.1+44.3 run:** loop equal or better (cub chase 16.6 -> 16.3, metal 17.1 -> 16.5), render equal, loads equal.
   - New: cub chase compile 4491 ms (slack 2000 over 1985) - a fresh build = cold shader cache (memory load-ab-cache-position); the Tue 00:00 baseline re-take re-reads it.
+## G2940 GROUND-VEHICLE - THE DRIVEABLE VEHICLE'S PHYSICS SPIKE: A RIGID CHASSIS WITH PROVIDERS (STRUTS ON THE TERRAIN'S PLANE, DRIVEN WHEELS FORWARD AND REVERSE, TYRES IN THE FRICTION ELLIPSE, ACKERMANN), THE ROAD FOLLOWED FROM THE REAR AXLE, U-TURNS AT A GRAVEL APRON, setDest = THE FLIGHT'S To; NODE ONLY, THE AEROPLANE UNTOUCHED (2026-10-11, GROUND-VEHICLE for A0, a CLOUD session - node only, nothing rendered; branch claude/ground-vehicle-g2940 off train 43.2 = 0402e132; G2941-G2949 unused)
+
+THE USER'S MVP (11 Oct) this prepares: "a long drive on the road I have traced and back, the ability to set a new
+destination (like the autopilot's in-flight re-routing - use the same thing), chase view, single vehicle, acceptable
+physics, NO manual take-over, the ability to U-turn properly for manoeuvres ... applied to BOATS at some point. Roadside
+aprons (gravel pull-outs) where vehicles can U-turn or stop". THE DOCUMENT: futureDesigns/GROUND-VEHICLE-2026-10.md (the
+shell, the boat seam §2, the route = the flight's To §3, the path traps §4, the aprons + the road graph's data shape for
+SCENERY-ED-2 §5, the acceptance numbers §6, the world's findings §7, the integration §8).
+
+INPUTS NOT FOUND: reports/CAR-FEASIBILITY-STUDY-2026-10-02.md is in NO branch of the repo (master, assets-oct-g2900, the
+369 refs), and src/cars/car_conquer.json was never committed (ASSETS-OCT G2908 committed tools/car_prep.py, which writes
+it from the local asset). Built from the brief and the code: the sheet is AUTHORED in car_prep.py's exact schema from the
+brief's numbers (wheelbase 3.01, track 1.41, wheel r 0.35, 1 850 kg) + car_prep.py's own estimate formulae (56 % front,
+CG 0.72 m, a uniform box's inertia), a placeholder body box; its `authored` field says so. `python tools/car_prep.py` on
+the asset overwrites it field for field; the shell reads only the schema's fields; GATE VEHICLE DEF pins the four numbers.
+
+WHAT LANDED (all new files but one row in run_gates.js; src/core NOT touched):
+- src/vehicle/vehicle.js - THE SHELL. vehicleDef(sheet, tune): the sheet (geometry + mass, measured) + VEH_TUNES[key]
+  (drive / brakes / steering / springs / tyre / air, authored) -> a GENERIC vehicle: N wheels with role flags (steer,
+  drive share, brake share, hand), struts, rMin, the footprint. makeVehicle(def, world): one rigid chassis at 240 Hz (4
+  substeps a frame, 0.43 ms a 60 Hz frame on the world's terrain) and PROVIDERS - 'wheels' (each strut cast down -up onto
+  the terrain's PLANE: terrainH + its normal; spring + damper + bump stop sized so the static car stands at the sheet's
+  wheel centres; the load pushed along the normal: a slope is felt through it), the drive (forward min(F0, P/v), REVERSE a
+  geared ramp to vRev, the engine's drag; through the DRIVEN wheels ON THE GROUND only, each capped at tc mu Fn), the TYRES
+  as sequential impulses (rolling + brake as a capped friction - a braked car HOLDS; the side force as a soft constraint of
+  compliance |v| / (C_alpha Fn) - the linear tyre at speed, no-slip parked; all in the friction ellipse; ABS-capped),
+  'proxy' (the sheet's two collision boxes as penalty contacts), the air (CdA). Ackermann on the steered wheels round the
+  bicycle's centre. VEH_SURF: a TYRE's [mu, crr] per SURFACE (GROUND_SURF is a light aircraft's on the lawn).
+- src/vehicle/vehicle_drive.js - THE DRIVER. vehPath (the road sampler: every vertex filleted, the tangent clamped to
+  half its legs, the fillet cut to the ROAD'S WIDTH), vehLocate (interpolated, monotonic), vehSteer (the taxi follower's
+  law retuned for front steering: the REAR AXLE tracked, kap(ahead) - ey/L^2 - 2 zeta sin(e_psi)/L, L = 2 m + 0.4 s x u,
+  delta = atan(wb kap), the same law reversing), vehProfile + vehSpeedTarget (the curve at 2.2 m/s2 lateral, the road's
+  PROFILE at 2.0 m/s2 vertical, the stop; the binding deceleration fed forward), vehPedals (grade / rolling / air fed
+  forward: the hill start rolls back 0 mm), vehUturnPlan (nose-in two-move, back-in, three-point; the body's footprint
+  swept against road + apron shrunk by a margin, the shortest feasible), vehRoadGraph (roads + places: aprons, stops;
+  Dijkstra), makeDriver(car, graph).setDest(to) - THE FLIGHT'S To: one To, the From derived, re-planned FROM HERE, the
+  cheaper of straight on and a U-turn at an apron ahead; answers 'replan' / 'uturn' / 'queued' (a manoeuvre runs) /
+  'same' / 'none'; phases IDLE / DRIVE / MANOEUVRE / ARRIVED (+ rejoin when 5 m off, STUCK after 20 s on the throttle);
+  the road sampled in 1 500 m WINDOWS re-sampled from the vertex behind the vehicle (the GP_MAXPTS fix).
+- src/cars/car_conquer.json (above). tools/_vehicle_check.js = GATE VEHICLE (new, core tier, ~13 s), its row in
+  tools/run_gates.js after DESTTO.
+- NOT in tools/build.js MANIFEST.core: tools/flight_core.js, the page and every built file are master's (the gate run's
+  rebuild reproduced them byte for byte: build 62f0cd5245c9, `git status` clean of built files). The integration lands the
+  two files as 45_vehicle.js / 45b_vehicle_drive.js (the document's §8: 63 KB of source against GATE MEDIA's budget).
+
+GATE VEHICLE (14 rows, PASS, deterministic): DEF (wb 3.01, track 1.41, r 0.35, 1 850 kg, 56.0 % front; R 5.00 m at the
+rear axle; parked 2 s 0.000 mm) | ACCEL 0-100 km/h 11.9 s, 150 km/h at 40 s | COAST 0.55 m/s2 from 25 m/s | BRAKE from 99
+km/h 47.7 m (0.81 g), straight | REVERSE 7.4 m/s (the gear's 8) | AIRBORNE dropped at full throttle 0 N / 0 mm/s gained;
+the driven axle over a ledge 0 N | TURN 12.99 m kerb to kerb both ways, inner 35.0 / outer 27.8 deg | HILL 10 %: parked
+0.1 mm in 10 s, released it rolls, hill start 0 mm back (5 m/s in 2.5 s), down from 15 m/s stopped in 16.7 m and held
+1.2 mm in 10 s | ROAD a 300 m traced road (2.5 m vertices, R 60 + R 40): 0.27 m max, 0.14 m rms, stopped 0.05 m off |
+UTURN re-routed mid-road: 3 m road + 9 m apron -> nose-in (2 moves), 6 m road + 5 m apron on the left -> back-in, the body
+never outside road + apron, home facing 180.0 deg 0.04 m off; parked short of / past an apron, a To behind -> U-turn,
+home | LONG the world's road 0 (graded, gravel): 5.0 km out / a To behind -> U-turn at MID / home / out -> U-turn at
+HOME / to END, 5 windows, 0.27 m max, 0.04 m rms, 0.04 m at END, the body never on the ground | FORD the world's road 0
+across its stream: crossed at 6.5 m/s, no contact | TRAPS patternPath 62.9 m off a gentle traced curve, the world's road
+3 as one path at 3.02 m | BITS not in MANIFEST.core, flight_core fresh.
+
+THE TRAPS (the document's §4, measured by TRAPS): (1) patternPath's 2-deg DOTS - a traced C2-spline road bends ~1 deg a
+vertex round a gentle curve, so patternPath sees no corner and draws the CHORD (62.9 m off an R 150 m curve, zero
+curvature); (2) GP_MAXPTS - a long road as one path is resampled coarse (road 3: 9.65 km at 3.02 m; 40 km at 10 m). Fixed
+in the vehicle's own sampler + windows; 39_ground_path.js is the aeroplane's and is bit-identical. Two more found driving
+the world: a window re-planned from the vehicle's pose with a join stepped the heading 36 deg mid-corner (spun off road
+0) -> windows re-sample from the vertex behind; the default 60 m fillet put the wheels 4.6 / 9 m inside the world's 45 /
+90 deg single-vertex corners, off the graded bed -> the fillet is cut to the road's width.
+
+THE APRON SIZES for this pickup (the planner, 0.25 m margin; for SCENERY-ED-2's ROAD-GRAPH, the document's §5 with the
+data shape): road 3 m -> 8.5 m deep (nose-in) | 4 m -> 7.5 m | 5 m -> 5.0 m | 6 m -> 4.5 m | 7 m -> 4.0 m (back-in); any
+length >= 14 m; on straight stretches; graded flat, classed GRAVEL. The graph's `pts` must be the COMPOSED centreline (a
+`curve` road's spline samples, not its clicked points).
+
+FINDINGS FOR THE WORLD (§7): every road of the analytic world FORDS its streams - 2-8 places a road where the terrain is
+0.5-2.7 m off the road's own grade (the hydrology's carve beats the grading); road 0 at s 2 696 m: 2.7 m deep, 0.4 m of
+water, ~50 % banks crossed diagonally, 15 m past a 45 deg corner - at 12.6 m/s the body struck, met at the corner's speed
+the pickup slid down the bank and stalled; from rest before it it crosses at 6.5 m/s. Fix in the world: the grade wins at
+a crossing (culvert) or a bridge. No tree / obstacle collision in the shell yet (the integration's: TREE_HITS against the
+proxy boxes).
+
+AIRCRAFT GATES on this branch (src/core unchanged; `node tools/run_gates.js --only=... --jobs=4`, the cloud's 4 cores):
+ALL PASS (11 Oct, 3 061 s wall, jobs 4; the build step reproduced every built file byte for byte): GE 77 s | GEN 590 s
+[4 shards] | PILOT 323 s [3 shards] | TAKEOFF 394 s | SIMWORKER 81 s (35 checks) | DMGMEMBERS 48 s | DMGCERT 324 s | DMGGEAR
+1 105 s | DMGCERTCOST 88 s | DMGCLUSTERS 634 s | DMGINST 227 s | DMGFPS 204 s | DMGINTEGRITY 54 s | DMGSKIN 106 s; and
+VEHICLE through the runner (--only=VEHICLE, 11.8 s) PASS. Not run: --all (the brief's rule) and the rest of the core tier
+(nothing they read changed: src/core, the built files and the page are master's).
+
+FOR A0: nothing to land in the page yet - this is the spike the MVP's integration builds on (the document's §8: the
+bundle, the drive mode with the car's props + the chase camera on estimates.cameras.chase, the To picker over the graph's
+places, SCENERY-ED-2's roads + aprons, the worker, then the boat). Questions for the user: the apron sizes (above) against
+the look of a pull-out; whether the MVP's road is the traced (scenery editor) road or the world's settlement roads first;
+the 4x2 pickup in a ford - stall honestly (today) or the world's crossings fixed first.
