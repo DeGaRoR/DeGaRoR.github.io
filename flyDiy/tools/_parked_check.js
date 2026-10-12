@@ -54,6 +54,8 @@
 //      resident not drawn, a full field counted; the holders at the spots on the
 //      ground; kept / re-stood; one decode a key; potato's L3 alone (GQ9); the flag
 //      off stands nothing; source scans (no capture / bake; the parking step; the build)
+//  11b THE INSIDE-ONLY SHELLS (G2228), the page in node: the cowl's inside twins flagged in the snapshot, none in the
+//      far cut or the L1 / bake selection, the silhouette unchanged (projected area, 3 planes, 0.1 %), a doctored loss red
 //  12p THE FLEET in the page: a save queues, the garage's idle path captures and
 //      bakes (a synthetic bake: no GPU here) and stores under the signature; with
 //      the world up (flying, the roll-out screen) nothing is captured or baked,
@@ -86,6 +88,7 @@ vm.createContext(W);
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'parked.js'), 'utf8'), W, { filename: 'parked.js' });
 const PK = W.PARKED;
 check(PK.L0 === false, '9 L0 is off by default (G571): L1 stands from 0 m');
+check(PK.isInterior({ inner: 1 }) && !PK.isInterior({ fin: 'alclad' }), "4 G2228: an INSIDE-ONLY shell (inner: the cowl's inside twin) is interior - never in L1, the far cut, the bake or the cook");
 check(!!PK && typeof PK.build === 'function', 'the module loads headless');
 if (PK) PK.quiet = true;
 
@@ -879,6 +882,62 @@ async function pageRows() {
     check(a.g === b.g && a.tris === b.tris, '11 ' + key + ': the same geometry under the Cub and under the metal Cessna (the bytes)', a.tris + ' / ' + b.tris + ' tris, ' + a.g + ' / ' + b.g);
     check(a.a === b.a, '11 ' + key + ': the same atlas under both (the copy\'s digest, the block, the faces)', a.a + ' / ' + b.a + (a.a !== b.a ? ': ' + diffParts(a, b) : ''));
     console.log('  11 ' + key + ': ' + a.tris + ' tris under the Cub, ' + b.tris + ' under the metal Cessna; geometry ' + a.g + ' / ' + b.g + ', atlas ' + a.a + ' / ' + b.a + ' (' + ((Date.now() - tA) / 1000).toFixed(0) + ' s)');
+  }
+  // 11b (G2228) THE INSIDE-ONLY SHELLS NEVER REACH A BAKE, the outside unchanged. On a real capture (arch:c172, under the
+  // metal Cessna): the cowl's inside twins cross the snapshot FLAGGED (inner: counted, > 0 triangles); the far cut
+  // (exteriorMesh: L2 / L3 and the bake's charts) holds none of them and the L1 / bake selection (isInterior) skips every
+  // one - 0 triangles; the SILHOUETTE: the exterior's projected area on three planes (2 cm cells), with and without those
+  // shells, within 0.1 % (they stand 1.5 mm inside the skin); DOCTORED: the same record with the flag stripped puts them
+  // back in the cut - the row sees the triangles (a lost flag goes red)
+  {
+    G.set(JSON.parse(JSON.stringify(MET))); delete K.records['arch:c172'];
+    const rec = K.capture('arch:c172');
+    if (check(!!rec, '11b arch:c172 captured')) {
+      const vis = rec.vis, ik = Object.keys(vis.mats).filter(k => vis.mats[k] && vis.mats[k].inner);
+      const lists = k => [vis.groups[k]].concat(vis.parts.map(p => p.groups[k])).filter(Boolean);
+      const triIn = ks => ks.reduce((n, k) => n + lists(k).reduce((m, g) => m + g.idx.length / 3, 0), 0);
+      const innerTris = triIn(ik);
+      // the editor's own count, for the reading when the row is red: the twins standing in the scene now (the player's build,
+      // restored) and what their materials say (an understudy carries cageUniOf, the original the flag)
+      let twins = 0, twFlag = 0, twUni = 0;
+      try { const root = (PW.CAGE_JOIN && PW.CAGE_JOIN.mount && PW.CAGE_JOIN.mount()) || PW.CAGE_UI_SCENE;
+        if (root) root.traverse(o => { if (o.isMesh && o.userData && o.userData.innerTwin) { twins++; const u = (o.material && o.material.userData) || {}; if (u.aeroInner) twFlag++; if (u.cageUniOf) twUni++; } }); } catch (e) {}
+      check(ik.length >= 1 && innerTris > 0, "11b the cowl's inside shells cross the snapshot FLAGGED (inner)", ik.length + ' buckets, ' + innerTris + ' triangles; the editor now: ' + twins + ' twin meshes (' + twFlag + ' with the material flag, ' + twUni + ' understudied)');
+      const inCut = r => { const e = K.exteriorMesh(r); return triIn(e.buckets.map(b => b.key).filter(k => ik.includes(k))); };
+      const cut = inCut(rec), skipped = ik.every(k => K.isInterior(vis.mats[k]));
+      check(cut === 0 && skipped, '11b no inside-only shell in any baked rung: the far cut holds 0 of their triangles, the L1 / bake selection skips every one', cut + ' triangles in the cut, selection skips ' + skipped);
+      // the silhouette: the exterior's buckets (as the cut takes them) rasterised on three planes, with / without the shells
+      const area = (keys, ax) => {
+        const cell = 0.02, S = new Set(), u = (ax + 1) % 3, v = (ax + 2) % 3;
+        for (const k of keys) for (const p of [null].concat(vis.parts)) {
+          const g = p ? p.groups[k] : vis.groups[k]; if (!g) continue;
+          const at = p && !p.stretch ? p.pivot : [0, 0, 0], P = g.pos, I = g.idx;
+          for (let t = 0; t < I.length; t += 3) {
+            const q = [0, 1, 2].map(j => [P[I[t + j] * 3 + u] + at[u], P[I[t + j] * 3 + v] + at[v]]);
+            const x0 = Math.floor(Math.min(q[0][0], q[1][0], q[2][0]) / cell), x1 = Math.floor(Math.max(q[0][0], q[1][0], q[2][0]) / cell);
+            const y0 = Math.floor(Math.min(q[0][1], q[1][1], q[2][1]) / cell), y1 = Math.floor(Math.max(q[0][1], q[1][1], q[2][1]) / cell);
+            const d = (q[1][0] - q[0][0]) * (q[2][1] - q[0][1]) - (q[2][0] - q[0][0]) * (q[1][1] - q[0][1]);
+            if (Math.abs(d) < 1e-12) continue;
+            for (let i = x0; i <= x1; i++) for (let j = y0; j <= y1; j++) {
+              const px = (i + 0.5) * cell, py = (j + 0.5) * cell;
+              const a = ((q[1][0] - px) * (q[2][1] - py) - (q[2][0] - px) * (q[1][1] - py)) / d, b = ((q[2][0] - px) * (q[0][1] - py) - (q[0][0] - px) * (q[2][1] - py)) / d;
+              if (a >= 0 && b >= 0 && a + b <= 1) S.add(i * 100003 + j);
+            }
+          }
+        }
+        return S.size;
+      };
+      const ext = K.exteriorMesh(rec).buckets.map(b => b.key), rows = [];
+      let worst = 0;
+      for (const ax of [0, 1, 2]) { const a0 = area(ext, ax), a1 = area(ext.concat(ik), ax); const r = a0 ? Math.abs(a1 - a0) / a0 : 1; worst = Math.max(worst, r); rows.push(['x', 'y', 'z'][ax] + ' ' + a0 + ' / ' + a1); }
+      check(worst <= 0.001, '11b the outside unchanged: the projected area on three planes with / without the inside shells within 0.1 %', rows.join(', ') + ' cells; worst ' + (worst * 100).toFixed(3) + ' %');
+      // DOCTORED: the flag lost on the way - the shells back in the cut, and the row sees them
+      const mats2 = {}; for (const k in vis.mats) { mats2[k] = Object.assign({}, vis.mats[k]); delete mats2[k].inner; }
+      const doc = inCut(Object.assign({}, rec, { vis: Object.assign({}, vis, { mats: mats2 }) }));
+      check(doc === innerTris && doc > 0, '11b DOCTORED (the inner flag stripped): the shells land in the cut and the row counts them - ' + doc + ' triangles (red)', doc + ' / ' + innerTris);
+      console.log('  11b arch:c172: ' + ik.length + ' inside-only buckets, ' + innerTris + ' triangles; in the cut ' + cut + '; silhouette ' + rows.join(', ') + '; doctored ' + doc);
+      delete K.records['arch:c172'];
+    }
   }
   // the negative control: the leak re-opened, the row must see it
   {
