@@ -304,7 +304,10 @@ function run(SRC) {
     const pg = page(SRC, browser(), 1, consOfSpec(SPEC_P)); pg.seed(SPEC_P);
     const st = state(pg, SPEC_P);
     check(/^n4 /.test(st.dec), 'the patterns reach the marking block (three layers + the registration)', st.dec.slice(0, 40));
-    const L = pg.A.aeroKitLayers(pg.A.aeroDecalMerge({ finish: JSON.parse(st.fin) }));
+    // the merge aeroDecalMerge does (node-only export; the page's AEROSKIN has the table, not the function)
+    const dec = (JSON.parse(st.fin) || {}).decals || {}, D = Object.assign({}, pg.A.AERO_DEC_DEF);
+    for (const k in dec) if (dec[k] != null) D[k] = dec[k];
+    const L = pg.A.aeroKitLayers(D);
     check(L.length === 3 && L[0].name === 'sunburst' && L[0].clr === 2 && L[0].r === 0.05 && L[0].s === 0.9
           && L[0].asp === +(1.4 / 1.2).toFixed(3) && L[1].name === 'fade' && L[1].p === 90 && L[1].r === 0.8
           && L[2].name === 'gradient' && L[2].clr === 2 && L[2].r === 0.35 && L[2].s === 0.95,

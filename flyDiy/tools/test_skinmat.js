@@ -1508,7 +1508,10 @@ if (process.argv.includes('--selftest')) {
 // this arc an assertion searched for a name that the explanatory comment
 // directly above it also used, and passed on the prose rather than the code.
 {
-  const strip = s => s.replace(/\/\*[\s\S]*?\*\//g, '')
+  // (G2870: a `/*` glued to a word is not a comment — `f.accept = 'image/*'`
+  // opened one that ran 40 kB to G2227's `/* G2227 */` and swallowed two of
+  // the three wired reframe rows: this section's red on master since G2227)
+  const strip = s => s.replace(/(^|[^\w'"\/])\/\*[\s\S]*?\*\//g, '$1')
                       .split('\n').map(l => l.replace(/(^|[^:])\/\/.*$/, '$1'))
                       .join('\n');
   const UI4 = strip(fs.readFileSync(
