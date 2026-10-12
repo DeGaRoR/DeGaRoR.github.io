@@ -92733,3 +92733,32 @@ widened (shares stay 0..1, distances and the physical ranges unchanged - the wid
   cliffs: size min 0.2-2 -> 0.05-4
   cliffs: size max 0.5-5 -> 0.1-10
 WHAT TO WATCH FOR: '+ add from the catalogue' shows the species' card at once (its tint rows once its bin has loaded - reopen the tab); a slider whose saved value is past its old end now shows it (and its track reaches it); the colour sliders go to 4 (lightness), 3 (saturation), +-0.5 (hue).
+
+### G2938 - EVERY WORLD-EDITOR SLIDER TAKES A TYPED NUMBER; THE LOWER BOUNDS RELAXED (2026-10-12, A0 for the user, same branch)
+The user: "the density for fireweed does not go low enough. For all these, I need relaxed bounds and manual number
+input." world_rail.js range() (every slider of the F9 rail: 162 rows) - the readout IS the field, G3017's pattern
+(premises_host.js slider; not shared: two builders, two stylesheets): focus shows the bare number, Enter or leaving
+commits it once through the slider's own setter, Escape gives up, keys stay out of the game. A typed value may pass the
+slider's ends - the slider widens to it (G2937's fit) - and only the physical bound holds it: a 0..1 slider (a share) in
+0..1, a slider from 0 at >= 0, one whose floor is above 0 (a cell, a spacing, a reach: divisors) at a tenth of that floor,
+an angle (-180..180, 0..359) wrapped; no snap to the step. The prompt() click is gone. Lower bounds and steps:
+  grass/flower density: step 0.05 -> 0.01 (fireweed 0.12 -> 0.02 reachable on the slider; typed any)
+  bush / grass size from 0.05 -> 0
+  stone size from 0.1 -> 0
+  debris size from 0.001 -> 0
+  patch share: step 0.05 -> 0.01
+  vegetation: size gain from 0.1 -> 0
+  vegetation: size min from 0.05 -> 0
+  vegetation: size max from 0.5 -> 0
+  vegetation: biome gain from 0.1 -> 0
+  grass field height x from 0.05 -> 0
+  cut grass length from 0.01 -> 0
+  grass runway length from 0.01 -> 0
+  a grass card's field: length from 0.01 -> 0
+  cliffs: fit from 0.1 -> 0
+  cliffs: size min from 0.05 -> 0
+  cliffs: size max from 0.1 -> 0
+  grass field tufts/m2: step 1 -> 0.5
+  cover ring density: step 0.05 -> 0.01
+(kept above 0: a species' size multiplier - TREE_FILL.speciesSize treats 0 as 'reset to 1'; clump size, cells, spacings - divisors.)
+WHAT TO WATCH FOR: click any value on the F9 rail and type (0.02 for fireweed's density, Enter); the slider follows past its old end; Escape restores.

@@ -430,8 +430,18 @@
   const liveNote = (p, fn) => { const n = note(p, ''); const f = () => { try { n.textContent = fn(); } catch (e) { n.textContent = '-'; } }; f(); live.push(f); return n; };
   const range = (p, label, lo, hi, step, get, set, f, def) => {
     const inp = $('input', 'frng'); inp.type = 'range'; inp.min = lo; inp.max = hi; inp.step = step;
-    const out = $('output', 'wr-o'); out.title = 'click to type a value';
-    const show = v => { out.textContent = f ? f(v) : fmt(v); };
+    // G2938 (the user, 12 Oct: "the density for fireweed does not go low enough. For all these, I need relaxed bounds and
+    // manual number input"): THE READOUT IS THE FIELD, as the scenery inspector's (G3017, premises_host.js slider) - focus
+    // shows the bare number, Enter or leaving commits it ONCE through the slider's own setter, Escape gives up. A typed
+    // value may pass the slider's ends (the slider widens to it, fit below); only the physical bound holds it: a share
+    // (a 0..1 slider) in 0..1, a slider from 0 at >= 0, one whose floor is above 0 (a cell, a spacing: a divisor) at a
+    // tenth of that floor, an angle (-180..180, 0..359) wrapped; nothing snaps to the step (0.02 of fireweed is 0.02)
+    const out = $('input', 'wr-o'); out.type = 'text'; out.setAttribute('inputmode', 'decimal'); out.title = 'type a value - Enter sets it, Escape gives up';
+    const show = v => { out.value = f ? f(v) : fmt(v); };
+    const ANG = (+lo === -180 && +hi === 180) || (+lo === 0 && (+hi === 359 || +hi === 360));
+    const bound = n => { if (ANG) return ((n - +lo) % 360 + 360) % 360 + +lo;
+      const fl = +lo > 0 ? +lo / 10 : +lo === 0 ? 0 : -Infinity, ce = (+lo >= 0 && +hi <= 1) ? 1 : Infinity;
+      return +Math.max(fl, Math.min(ce, n)).toFixed(6); };
     // G2936 (the user: "the lightness is at 3, the sliders go to 2"): A SLIDER NEVER CAPS BELOW A VALUE IN USE - a typed
     // value, a saved look's, a payload's: the bounds widen to hold it (an <input type=range> clamps its value to max, so the
     // first touch wrote the cap back); and a setter that throws (G2935's SPL) no longer skips the show and the save
@@ -439,10 +449,16 @@
     const put = v => { fit(v); try { set(v); } finally { show(v); changed(); } };
     inp.oninput = () => { const v = +inp.value; try { set(v); } finally { show(v); saveLook(); } };
     inp.onchange = () => refresh();
-    out.onclick = () => { const s = prompt(label, inp.value); if (s !== null && s !== '' && isFinite(+s)) { inp.value = +s; put(+s); } };
+    let typing = false;
+    out.onfocus = () => { typing = true; let g; try { g = +get(); } catch (e) { g = NaN; } out.value = isFinite(g) ? String(+g.toFixed(6)) : ''; if (out.select) out.select(); };
+    out.onchange = () => { if (!typing) return; typing = false; const n = parseFloat(String(out.value).replace(',', '.'));
+      if (isFinite(n)) { const q = bound(n); fit(q); inp.value = q; put(q); } else b(); };
+    out.onblur = () => { if (typing) out.onchange(); b(); };
+    out.onkeydown = ev => { if (ev.key === 'Enter') { out.onchange(); if (out.blur) out.blur(); } else if (ev.key === 'Escape') { typing = false; b(); if (out.blur) out.blur(); }
+      if (ev.stopPropagation) ev.stopPropagation(); };   // (the rail's and the game's keys stay out of a typed number)
     const r = row(p, label, inp, out);
     if (def !== undefined) { r.firstChild.classList.add('wr-def'); r.firstChild.title = label + ' - double-click: back to ' + (f ? f(def) : def); r.firstChild.ondblclick = () => { inp.value = def; put(def); }; }
-    const b = () => { let v; try { v = +get(); } catch (e) { v = NaN; } if (isFinite(v)) { inp.disabled = false; fit(v); inp.value = v; show(v); } else { inp.disabled = true; out.textContent = '-'; } };
+    const b = () => { let v; try { v = +get(); } catch (e) { v = NaN; } if (isFinite(v)) { inp.disabled = false; fit(v); inp.value = v; if (!typing) show(v); } else { inp.disabled = true; if (!typing) out.value = '-'; } };
     b(); binds.push(b); return r;
   };
   const select = (p, label, opts, get, set) => {
@@ -756,10 +772,10 @@
   const SPK = {
     tree: [['proportion', 0, 20, 0.05, 1], ['dead', 0, 1, 0.01, 0]],
     dead: [['proportion', 0, 20, 0.05, 1]],
-    shrub: [['proportion', 0, 20, 0.05, 1], ['size', 0.05, 8, 0.05, 1]],
-    cover: [['proportion', 0, 20, 0.05, 1], ['density', 0, 20, 0.05, 0, ' /m²'], ['size', 0.05, 8, 0.05, 1], ['patch', 0, 60, 0.5, 0, ' m'], ['patchShare', 0, 1, 0.05, 0.25]],
-    rock: [['proportion', 0, 20, 0.05, 1], ['size', 0.1, 80, 0.1, 1], ['bury', 0, 0.8, 0.02, 0], ['tilt', 0, 1, 0.05, 0], ['tint', 0, 1, 0.05, 0], ['cluster', 0, 1, 1, 0], ['shore', 0, 1, 1, 0]],
-    debris: [['proportion', 0, 20, 0.05, 1], ['size', 0.001, 6, 0.001, 1], ['tilt', 0, 1, 0.05, 0], ['bury', 0, 0.8, 0.02, 0], ['cluster', 0, 1, 1, 0], ['hollow', 0, 1, 0.05, 0], ['tint', 0, 1, 0.05, 0], ['dim', 0, 3, 0.02, 1]],
+    shrub: [['proportion', 0, 20, 0.05, 1], ['size', 0, 8, 0.05, 1]],
+    cover: [['proportion', 0, 20, 0.05, 1], ['density', 0, 20, 0.01, 0, ' /m²'], ['size', 0, 8, 0.05, 1], ['patch', 0, 60, 0.5, 0, ' m'], ['patchShare', 0, 1, 0.01, 0.25]],
+    rock: [['proportion', 0, 20, 0.05, 1], ['size', 0, 80, 0.1, 1], ['bury', 0, 0.8, 0.02, 0], ['tilt', 0, 1, 0.05, 0], ['tint', 0, 1, 0.05, 0], ['cluster', 0, 1, 1, 0], ['shore', 0, 1, 1, 0]],
+    debris: [['proportion', 0, 20, 0.05, 1], ['size', 0, 6, 0.001, 1], ['tilt', 0, 1, 0.05, 0], ['bury', 0, 0.8, 0.02, 0], ['cluster', 0, 1, 1, 0], ['hollow', 0, 1, 0.05, 0], ['tint', 0, 1, 0.05, 0], ['dim', 0, 3, 0.02, 1]],
   };
   const SPK_NOTE = { patchShare: 'patch share', proportion: 'share' };
   function speciesCard(grid, mix, sp) {
@@ -791,7 +807,7 @@
       // GRASS-DENSE G2566: the grass field's length here (GRASS-STUDY §4.4): the tuft's median top, its spread, the density by this
       // biome (1 = the meadow's) - the row's own, else the field's table for the mix
       const CRm = W.COVER_RING, FT = CRm && CRm.FIELD_TYPES && CRm.FIELD_SPECIES && CRm.FIELD_SPECIES.includes(sp) ? (CRm.FIELD_TYPES[mix] || CRm.FIELD_TYPES.grassland) : null;
-      if (FT) for (const [k, label, lo, hi, st, f] of [['h', 'field: length', 0.01, 2, 0.01, v => v.toFixed(2) + ' m'], ['sigma', 'field: spread', 0, 0.6, 0.01, null], ['dens', 'field: density x', 0, 6, 0.05, null]])
+      if (FT) for (const [k, label, lo, hi, st, f] of [['h', 'field: length', 0, 2, 0.01, v => v.toFixed(2) + ' m'], ['sigma', 'field: spread', 0, 0.6, 0.01, null], ['dens', 'field: density x', 0, 6, 0.05, null]])
         range(body, label, lo, hi, st, () => (rowOf()[k] === undefined ? FT[k] : rowOf()[k]), v => t.setMix(mix, ['species', sp, k], v), f, FT[k]);
       // G1385: a bush's and a grass's own colour (the flowers are their pictures: no tint); the kind's master is in VEGETATION
       const L = W.TREE_LEAF, c = L && L.collections && L.collections().find(q => q.name === sp);
@@ -987,10 +1003,10 @@
       const isl = k => v => t.setIsland({ [k]: v }), D = DEF.island || {};
       range(I, 'cover from', 0, 30, 0.5, () => t.island().from, isl('from'), v => v + ' m', D.from);
       range(I, 'full cover', 1, 60, 1, () => t.island().full, isl('full'), v => v + ' m', D.full);
-      range(I, 'size gain', 0.1, 5, 0.05, () => t.island().gain, isl('gain'), null, D.gain);
-      range(I, 'size min', 0.05, 2, 0.05, () => t.island().min, isl('min'), null, D.min);
-      range(I, 'size max', 0.5, 8, 0.1, () => t.island().max, isl('max'), null, D.max);
-      range(I, 'biome gain', 0.1, 20, 0.1, () => t.island().biomeGain, isl('biomeGain'), null, D.biomeGain);
+      range(I, 'size gain', 0, 5, 0.05, () => t.island().gain, isl('gain'), null, D.gain);
+      range(I, 'size min', 0, 2, 0.05, () => t.island().min, isl('min'), null, D.min);
+      range(I, 'size max', 0, 8, 0.1, () => t.island().max, isl('max'), null, D.max);
+      range(I, 'biome gain', 0, 20, 0.1, () => t.island().biomeGain, isl('biomeGain'), null, D.biomeGain);
       range(I, 'biome wobble', 0, 30, 1, () => t.island().biomeWobble, isl('biomeWobble'), v => v + ' m', D.biomeWobble);
       note(I, 'the terrain type says the kind of stand, the canopy map how much of it stands and how tall (canopy x size gain over the model’s height), NDVI its vigour; biome gain scales every biome’s tree count; wobble reads the type a little off the point, so a biome’s edge is not the map’s cell edge');
     }
@@ -1003,7 +1019,7 @@
       range(R, 'reach', 60, 400, 10, () => r.get().reach, cs('reach'), v => v + ' m', D.reach);
       range(R, 'full to', 10, 200, 5, () => r.get().near, cs('near'), v => v + ' m', D.near);
       range(R, 'taper', 0, 1, 0.05, () => r.get().taper, cs('taper'), null, D.taper);
-      range(R, 'density', 0, 6, 0.05, () => r.get().density, cs('density'), null, D.density);
+      range(R, 'density', 0, 6, 0.01, () => r.get().density, cs('density'), null, D.density);
       range(R, 'shrubs', 0, 6, 0.05, () => r.get().shrubs, cs('shrubs'), null, D.shrubs);
       range(R, 'stones', 0, 6, 0.05, () => r.get().rocks, cs('rocks'), null, D.rocks);
       range(R, 'AGL full', 10, 200, 5, () => r.get().aglFull, cs('aglFull'), v => v + ' m', D.aglFull);
@@ -1017,7 +1033,7 @@
     if (fl) {
       const Gf = sec(body, 'the grass field', true, 'the grass: dense, short, the ground’s colour'), fs = k => v => fl.set({ [k]: v }), D = DEF.grass || {};
       toggle(Gf, 'the field (off: today’s patches)', () => fl.get().on, v => { const t = TF(); if (t && t.field) t.field(!!v); });
-      range(Gf, 'tufts / m² (meadow)', 0, 1000, 1, () => fl.get().tufts, fs('tufts'), v => v + ' (' + (v * 3).toFixed(0) + ' cards)', D.tufts);
+      range(Gf, 'tufts / m² (meadow)', 0, 1000, 0.5, () => fl.get().tufts, fs('tufts'), v => v + ' (' + (v * 3).toFixed(0) + ' cards)', D.tufts);
       range(Gf, 'full to', 2, 60, 1, () => fl.get().near, fs('near'), v => v + ' m', D.near);
       range(Gf, 'gone at', 20, 250, 5, () => fl.get().reach, fs('reach'), v => v + ' m', D.reach);
       range(Gf, 'taper', 0, 2, 0.05, () => fl.get().taper, fs('taper'), null, D.taper);
@@ -1026,7 +1042,7 @@
       range(Gf, 'size fade: tall reach x', 1, 2, 0.05, () => fl.get().sizeMax, fs('sizeMax'), v => 'x' + v.toFixed(2), D.sizeMax);
       range(Gf, 'AGL full', 5, 200, 1, () => fl.get().aglFull, fs('aglFull'), v => v + ' m', D.aglFull);
       range(Gf, 'AGL off', 10, 400, 5, () => fl.get().aglOff, fs('aglOff'), v => v + ' m', D.aglOff);
-      range(Gf, 'height x', 0.05, 6, 0.05, () => fl.get().hK, fs('hK'), null, D.hK);
+      range(Gf, 'height x', 0, 6, 0.05, () => fl.get().hK, fs('hK'), null, D.hK);
       range(Gf, 'height spread x', 0, 6, 0.05, () => fl.get().sigmaK, fs('sigmaK'), null, D.sigmaK);
       range(Gf, 'clumps: cell', 1, 12, 0.5, () => fl.get().clumpM, fs('clumpM'), v => v + ' m', D.clumpM);
       range(Gf, 'clumps: amount', 0, 0.8, 0.02, () => fl.get().clumpAmp, fs('clumpAmp'), null, D.clumpAmp);
@@ -1037,10 +1053,10 @@
       toggle(Gf, 'colour: the ground as drawn', () => fl.get().colour, v => fl.set({ colour: v ? 1 : 0 }));
       range(Gf, 'colour: level to the ground', 0, 4, 0.01, () => fl.get().match, fs('match'), v => 'x' + v.toFixed(2), D.match);
       range(Gf, 'colour: tuft to tuft', 0, 1, 0.01, () => fl.get().vary, fs('vary'), v => '±' + Math.round(v * 100) + ' %', D.vary);
-      range(Gf, 'cut grass: length', 0.01, 1, 0.01, () => fl.get().cutH, fs('cutH'), v => v.toFixed(2) + ' m', D.cutH);
+      range(Gf, 'cut grass: length', 0, 1, 0.01, () => fl.get().cutH, fs('cutH'), v => v.toFixed(2) + ' m', D.cutH);
       range(Gf, 'cut grass: spread', 0, 0.5, 0.01, () => fl.get().cutSigma, fs('cutSigma'), null, D.cutSigma);
       range(Gf, 'cut grass: density x', 0, 6, 0.05, () => fl.get().cutDens, fs('cutDens'), null, D.cutDens);
-      range(Gf, 'grass runway: length', 0.01, 1, 0.01, () => fl.get().stripH, fs('stripH'), v => v.toFixed(2) + ' m', D.stripH);
+      range(Gf, 'grass runway: length', 0, 1, 0.01, () => fl.get().stripH, fs('stripH'), v => v.toFixed(2) + ' m', D.stripH);
       range(Gf, 'grass runway: density x', 0, 6, 0.05, () => fl.get().stripDens, fs('stripDens'), null, D.stripDens);
       liveNote(Gf, () => { const st = fl.stat(); return st ? 'under the eye: ' + (st.mixAt || 'no biome') + ' · ' + st.live + ' cells, ' + st.instances + ' tufts held, ' + (st.submitted || 0) + ' drawn · ' + st.lastMs.toFixed(1) + ' ms last cell' : ''; });
       const P = GSD();
@@ -1106,9 +1122,9 @@
       range(S, 'spacing', 20, 400, 5, () => c.get().spacing, cs('spacing'), v => v + ' m', D.spacing);
       range(S, 'by the sea', 0, 1, 0.05, () => c.get().coast, cs('coast'), null, D.coast);
       range(S, 'bury', 0, 1, 0.02, () => c.get().bury, cs('bury'), null, D.bury);
-      range(S, 'fit', 0.1, 6, 0.05, () => c.get().fit, cs('fit'), null, D.fit);
-      range(S, 'size min', 0.05, 4, 0.05, () => c.get().minK, cs('minK'), null, D.minK);
-      range(S, 'size max', 0.1, 10, 0.05, () => c.get().maxK, cs('maxK'), null, D.maxK);
+      range(S, 'fit', 0, 6, 0.05, () => c.get().fit, cs('fit'), null, D.fit);
+      range(S, 'size min', 0, 4, 0.05, () => c.get().minK, cs('minK'), null, D.minK);
+      range(S, 'size max', 0, 10, 0.05, () => c.get().maxK, cs('maxK'), null, D.maxK);
       range(S, 'tilt', 0, 1, 0.05, () => c.get().tilt, cs('tilt'), null, D.tilt);
       range(S, 'reach', 500, 10000, 100, () => c.get().reach, cs('reach'), v => v + ' m', D.reach);
       liveNote(S, () => { const s = c.stat(); return s.sites + ' sites, ' + s.placed + ' placed, ' + (s.tris / 1000).toFixed(0) + 'k tris, ' + s.ms.toFixed(0) + ' ms'; });
@@ -1319,7 +1335,9 @@ body.premOpen #ui #wrRail, body.premOpen #ui #wrFly { display:none !important; }
 #ui #wrFly .wr-r > label.wr-def:hover { color:var(--ed-ink); }
 #ui #wrFly .wr-r > .fpills { grid-column:2 / 4; }
 #ui #wrFly .wr-r > .wr-sel { grid-column:2 / 4; }
-#ui #wrFly .wr-o { min-width:52px; text-align:right; color:var(--ed-ink); font-size:10.5px; cursor:text; }
+#ui #wrFly .wr-o { min-width:52px; width:72px; text-align:right; color:var(--ed-ink); font:inherit; font-size:10.5px; cursor:text; background:transparent; border:1px solid transparent; border-radius:3px; padding:0 2px; }
+#ui #wrFly .wr-o:hover { border-color:var(--ed-line, rgba(127,127,127,.35)); }
+#ui #wrFly .wr-o:focus { outline:none; border-color:var(--ed-acc, #6aa0ff); background:var(--ed-bg2, rgba(127,127,127,.12)); }
 #ui #wrFly .wr-sel { width:100%; background:rgba(0,0,0,.25); color:var(--ed-ink); border:1px solid var(--ed-btn-bd); border-radius:5px; font:inherit; padding:3px 4px; }
 #ui #wrFly .wr-sel option { background:#201d1a; }
 #ui #wrFly .wr-col { width:40px; height:20px; border:1px solid var(--ed-btn-bd); background:none; padding:0; border-radius:4px; }
