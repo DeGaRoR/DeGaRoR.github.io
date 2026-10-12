@@ -15682,12 +15682,15 @@
       // THE MIRROR'S PLANE IS THE DRAWN SURFACE (G460.11.4), not the physics' waterH: a procedural lake can sit
       // 0.6 m over the DEM lake the renderer draws, and a plane mirror 0.6 m off stretches the reflection (the
       // error grows toward the eye) - the user: "reflections seem stretched, everything is twice as long"
+      // WATER-STEADY (G2830, the user: "the switch is really visually annoying ... It changes the values of the scene
+      // fundamentally"): the water UNDER the eye (else under the CG) is handed over, null over land, and the mirror keeps
+      // its plane there (water.js mirrorPlane) - crossing a shore used to call mirrorOff() and swap every water pixel
+      // between the capture and the probe in one frame
       const cgM = sim.cgPos();
       let wl = WF.waterDrawY ? WF.waterDrawY(camera.position.x, camera.position.z) : null;
       if (wl == null && WF.waterDrawY) wl = WF.waterDrawY(cgM[0], cgM[2]);
-      if (wl == null) { wl = world.waterH ? world.waterH(camera.position.x, camera.position.z) : NaN; if (!Number.isFinite(wl) && world.waterH) wl = world.waterH(cgM[0], cgM[2]); }
-      if (Number.isFinite(wl)) WATER.mirrorRender(THREE, renderer, scene, camera, wl, { dt: fdt, clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, sky: WF.skyDome, hide: [WF.skyDome], hideMaterials: waterFx && waterFx.drops ? [waterFx.drops.spray && waterFx.drops.spray.material, waterFx.drops.sheets && waterFx.drops.sheets.material] : [] });
-      else if (WATER.mirror.on) WATER.mirrorOff();
+      if (wl == null && !WF.waterDrawY && world.waterH) { wl = world.waterH(camera.position.x, camera.position.z); if (!Number.isFinite(wl)) wl = world.waterH(cgM[0], cgM[2]); }
+      WATER.mirrorRender(THREE, renderer, scene, camera, Number.isFinite(wl) ? wl : null, { dt: fdt, clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, sky: WF.skyDome, hide: [WF.skyDome], hideMaterials: waterFx && waterFx.drops ? [waterFx.drops.spray && waterFx.drops.spray.material, waterFx.drops.sheets && waterFx.drops.sheets.material] : [] });
     }
     if (FR) FR.lap(FR.S.mirror);
     let framePresented = true;
