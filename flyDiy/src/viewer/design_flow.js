@@ -407,6 +407,14 @@ function fillInline(wrap, rows) {
 // read is P's alone (a read that wants the spec waits for a pick — a spec
 // fetch per drag tick is not a price worth a relight), each hidden option,
 // and the undo line. Equal signatures, nothing to redraw.
+// the options that can hide, per row, found ONCE: this runs on every drag
+// tick, and a lazy row's options() draws its icons afresh on every call
+const hideCache = new WeakMap();
+const hidersOf = r => {
+  if (!hideCache.has(r))
+    hideCache.set(r, (D().rowOptions(r) || []).filter(o => o.hide));
+  return hideCache.get(r);
+};
 function sigOf(rows) {
   const P = CU() && CU().P;
   if (!P) return '';
@@ -416,8 +424,7 @@ function sigOf(rows) {
       try { s += r.key + '=' + r.read(P) + ';'; } catch (e) { s += r.key + '!;'; }
     }
     if (r.when) { try { s += r.when(P) ? '+' : '-'; } catch (e) {} }
-    for (const o of (D().rowOptions(r) || []))
-      if (o.hide) { try { s += o.hide(P) ? 'h' : 'v'; } catch (e) {} }
+    for (const o of hidersOf(r)) { try { s += o.hide(P) ? 'h' : 'v'; } catch (e) {} }
   }
   return s;
 }
