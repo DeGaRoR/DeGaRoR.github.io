@@ -4,7 +4,9 @@
 // sync trouble with them, so: (1) it caches ONLY media/ (content-hashed
 // names: a file never changes under its URL, so cache-first cannot go
 // stale; scripts and pages are never cached - a new build is a new page on
-// the next load, as it always was); (2) the interface shows the build this
+// the next load, as it always was. G2685 CAREER-LAZY: one exception by the
+// same rule, career_core.<h8>.js - named by its content hash, kept for an
+// offline career, never fetched by the sandbox); (2) the interface shows the build this
 // page runs, the build the server has, and how much media is cached; (3) a
 // REFRESH CACHES button clears the cache, updates the worker and reloads.
 // Registered from index.html only (build.js writes sw.js and version.json

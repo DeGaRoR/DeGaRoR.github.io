@@ -48,7 +48,11 @@ const POWERLINE = (() => {
     offset: 0.55,       // past the pavement's edge to the pole
     minLen: 70,         // a road shorter than this carries no line
     minW: 3.2,          // nor one narrower than this (a track, a footpath)
-    maxPoles: 140,      // the budget a road may raise (140 x 34 m = 4.7 km)
+    // (G2955, the user: "I don't think the poles and cables draw anymore on my long road" - a total of 140 a road ended
+    //  the island road's line 4.7 km from its start): the budget is PER KILOMETRE, the whole road gets its line; what
+    //  bounds the cost is the draw - the poles instanced, the cable's chunks past `reach` from the eye not drawn (cull)
+    perKm: 40,          // the most poles a kilometre may raise (a 34 m pitch raises ~29)
+    reach: 2400,        // metres from the eye past which a cable chunk is not drawn (a 35 mm wire is far under a pixel)
     maxSpan: 110,       // a gap wider than this breaks the cable (the run stopped, it did not stride)
     lampEvery: 2,       // every second pole carries the street lamp
     // the pole (the yard kit's presets: 6.13 m tall, the crossarm 1.2 m across). The kit's is a
@@ -97,7 +101,8 @@ const POWERLINE = (() => {
     const rnd = rndOf((o.seed | 0) * 7919 + 13);
     const poles = [];
     let t = 10 + rnd() * 10, i = 0;
-    while (t < L - 8 && poles.length < d.maxPoles) {
+    const cap = Math.ceil(L / 1000 * d.perKm) + 2;
+    while (t < L - 8 && poles.length < cap) {
       const A = P.at(t), q = at(A, side);
       if (!keep || keep(q[0], q[1]) !== false) {
         poles.push({ t, x: q[0], z: q[1],
@@ -191,12 +196,14 @@ const POWERLINE = (() => {
     const grp = new THREE.Group();
     grp.name = o.name || 'powerline';
     let stood = 0;
-    for (const q of W) {
+    for (let i = 0; i < W.length; i++) {
+      const q = W[i];
       const g = o.place ? o.place(q) : null;
       if (g) { grp.add(g); stood++; }
       // the lamp's arm is the bench's, measured off the KIT's own top (5.9 of 6.13): a stood-taller
-      // pole carries it that much higher, so the head still sits just under the cap
-      if (q.lamp && o.lamp) o.lamp(Object.assign({}, q, { y: q.y + (q.H - d.H) }));
+      // pole carries it that much higher, so the head still sits just under the cap; `ci` its chunk (G2955: the
+      // caller bags the lamps by it, the cable's own chunks, so cull() draws the near ones only)
+      if (q.lamp && o.lamp) o.lamp(Object.assign({}, q, { y: q.y + (q.H - d.H), ci: Math.floor(i / d.chunk) }));
     }
     // the cable, chunked so the frustum can throw a line away a few hundred metres at a time
     let pos = [], nor = [], idx = [], tris = 0, spans = 0, made = 0;
@@ -210,6 +217,7 @@ const POWERLINE = (() => {
       geo.userData.pwn = 1;                              // MINE to free (a pole's mesh is a shared prop's)
       const m = new THREE.Mesh(geo, material(THREE));
       m.name = grp.name + ':cable' + (made++);
+      { const S = geo.boundingSphere; m.userData.pwc = [S.center.x, S.center.y, S.center.z, S.radius]; }   // (G2955: what cull() measures)
       m.castShadow = false; m.receiveShadow = false;     // a 35 mm wire's shadow is under a pixel at any honest range
       grp.add(m);
       tris += idx.length / 3;
@@ -244,6 +252,27 @@ const POWERLINE = (() => {
   }
   const own = o => { if (o && o.geometry) o.geometry.userData.pwn = 1; return o; };
   function setOn(v) { ON = !!v; for (const m of GROUPS) m.visible = ON; return ON; }
+  // (G2955) THE DRAW REACH: every line's cable chunks farther than `reach` from the eye (their bounding sphere's edge) are
+  // not drawn - an island-long road's 70-odd chunks become the few near the eye. The renderer calls it every few frames
+  // with the camera's position ({ x, y, z }); returns the chunks drawn
+  // (G2955) a mesh of the line's made by its caller (a chunk's lamps): its bounding sphere is what cull() measures
+  function chunk(m) {
+    if (!m || !m.geometry) return m;
+    if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+    const S = m.geometry.boundingSphere; m.userData.pwc = [S.center.x, S.center.y, S.center.z, S.radius];
+    return m;
+  }
+  function cull(eye, reach) {
+    const R = reach > 0 ? reach : D.reach; let shown = 0;
+    if (!eye) return -1;
+    for (const g of GROUPS) for (const c of g.children) {
+      const u = c.userData && c.userData.pwc; if (!u) continue;
+      const v = Math.hypot(u[0] - eye.x, u[1] - eye.y, u[2] - eye.z) - u[3] <= R;
+      if (c.visible !== v) c.visible = v;
+      if (v) shown++;
+    }
+    return shown;
+  }
   const isOn = () => ON;
   function stats() { let poles = 0, spans = 0, tris = 0; for (const m of GROUPS) { const u = m.userData.powerline; if (u) { poles += u.poles; spans += u.spans; tris += u.tris; } } return { lines: GROUPS.size, poles, spans, tris }; }
   function list() { const out = []; for (const m of GROUPS) out.push(Object.assign({ name: m.name }, m.userData.powerline || {})); return out; }
@@ -251,7 +280,7 @@ const POWERLINE = (() => {
   function set(o) { for (const k in o) if (k in D) D[k] = o[k]; }
   function reset() { D = Object.assign({}, DEF); }
 
-  const api = { DEF, get D() { return D; }, plan, hooks, build, material, attach, forget, dispose, own, setOn, isOn, stats, list, set, reset };
+  const api = { DEF, get D() { return D; }, plan, hooks, build, material, attach, forget, dispose, own, setOn, isOn, stats, list, set, reset, cull, chunk };
   return api;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = POWERLINE;

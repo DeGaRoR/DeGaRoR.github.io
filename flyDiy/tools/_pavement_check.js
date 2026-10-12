@@ -266,6 +266,10 @@ console.log('6. COVERAT - what the cover ring may plant');
     verdict(want.join() === got.join(), `STAND_KEYS (the core's validator) = the knobs standMarks reads (the viewer's): ${got.join(' ')}`); }
   const j = require('./fixtures/island_jolene.json'), w0 = CORE.makeWorld(0), rec = PG.unwrap(j).rec, O = PG.compose(rec, w0, {});
   const F = O.frame, at = (lx, lz) => { const p = F.toWorld(lx, lz); return O.coverAt(p[0], p[1]); };
+  // THE GRASS LAW (GRASS-DENSE G2565, 27_premises.js GRASS_SIDES): the rows below are the 'today' law's (the band bare, the fade, the
+  // pave half equal to the full query) - pinned here; the 'sides' law (the default since train 44.3: the band and the mow band CUT
+  // grass, bare only on the pavement and its drawn side) is held after them, and GATE GRASSSIDES holds it whole
+  const LAW0 = PG.grassSides().law; PG.grassSides({ law: 'today' });
   const H = rec.layers.runways.find(r => r.id === 'HOME'), c = H.c, d = [Math.cos(H.hdg), Math.sin(H.hdg)], n = [-d[1], d[0]];
   const side = k => at(c[0] - n[0] * k, c[1] - n[1] * k);
   const c0 = at(c[0], c[1]), cb = side(H.wid / 2 + H.band - 1), cf = side(H.wid / 2 + H.band + 3), cz = side(H.wid / 2 + H.band + 20), far = at(4000, -8000);
@@ -290,6 +294,12 @@ console.log('6. COVERAT - what the cover ring may plant');
     verdict(dif === 0, 'coverAt(x, z, `pave`) gives the same kill and never a plot');
     let t1 = Date.now(); for (let i = 0; i < 100000; i++) O.coverAt(-300 + i % 400, 200 + (i * 7) % 400, 1); const ms1 = Date.now() - t1;
     verdict(ms1 < ms, `and is the cheaper call (${ms1} ms against ${ms}) - the tree fill runs it on every lattice point`); }
+  // ...and under 'sides': the band is cut grass (kill 0, cut 1), the pavement still bare, the pave half (the trees', the rocks') unmoved
+  { PG.grassSides({ law: 'sides' });
+    const s0 = at(c[0], c[1]), sb = side(H.wid / 2 + H.band - 1), pb = (() => { const p = F.toWorld(c[0] - n[0] * (H.wid / 2 + H.band - 1), c[1] - n[1] * (H.wid / 2 + H.band - 1)); return O.coverAt(p[0], p[1], 1); })();
+    verdict(s0 && s0.kill === 1 && sb && sb.kill < 1 && sb.cut === 1 && pb && pb.kill === 1,   // (kill < 1, not 0: a road's own fade may reach the point)
+      `the 'sides' law: 13/31's centre kill ${s0 && s0.kill}, the band (1 m inside its edge) kill ${sb && sb.kill} cut ${sb && sb.cut}, its pave half kill ${pb && pb.kill}`); }
+  PG.grassSides({ law: LAW0 });
   // THE TREES' CLEARANCE: a road refuses a tree well past its own edge (render_world's forestHere /
   // openHere reject where kill > 0; before 2026-09-22 nothing in the tree fill asked about a road)
   // EVERY PLANTER READS THE QUERY (2026-09-22). The law is one line in each; the failure it guards
@@ -429,6 +439,41 @@ console.log('8. THE POWER LINE - the poles, the side, the cable');
   PW.setOn(false); const off2 = !g.visible; PW.setOn(true);
   verdict(off2 && g.visible, 'GRAPHICS > power lines hides every line, and shows them again');
   PW.dispose(g);
+  // f) THE LONG ROAD (G2955; the user: "I don't think the poles and cables draw anymore on my long road" - 140 poles a
+  //    road ended the island road's line 4.7 km from its start): a 25 km road takes its poles the WHOLE way, and the eye
+  //    draws only the cable's chunks within reach
+  { const LL = 25000, long = straight(250, LL);
+    const pq = PW.plan({ path: long, w: 7.2, seed: 9 });
+    const last = pq.poles.length ? pq.poles[pq.poles.length - 1].t : 0;
+    verdict(pq.poles.length > LL / (PW.DEF.pitch + PW.DEF.jitter) && last > LL - PW.DEF.pitch - PW.DEF.jitter - 10,
+      `a ${LL / 1000} km road: ${pq.poles.length} poles, the last ${f(LL - last, 0)} m from its end (the budget ${PW.DEF.perKm} a km, no total)`);
+    const LB = new Map();   // the lamps as the renderer bags them: by the chunk build() hands each one
+    const gl = PW.build(THREE, { path: long, w: 7.2, seed: 9, heightAt: () => 10, poles: pq.poles, side: pq.side,
+      place: q => { const o = new THREE.Object3D(); o.position.set(q.x, q.y, q.z); return o; },
+      lamp: q => { const a = LB.get(q.ci); if (a) a.push(q); else LB.set(q.ci, [q]); } });
+    const ch = gl.children.filter(c => c.isMesh && c.userData.pwc), UL = gl.userData.powerline;
+    // each chunk's lamps one mesh (a small box a lamp - the head's place is what matters), marked for cull() as the
+    // renderer's buildLine marks its metal and glass bags
+    const lampMeshes = [];
+    for (const [, qs] of LB) { const pos = []; for (const q of qs) pos.push(q.x - 0.3, q.y + 6, q.z, q.x + 0.3, q.y + 6, q.z, q.x, q.y + 6.3, q.z); const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); const m = PW.chunk(new THREE.Mesh(geo)); gl.add(m); lampMeshes.push(m); }
+    const nLamps = Array.from(LB.values()).reduce((a, q) => a + q.length, 0);
+    verdict(LB.size === ch.length && Array.from(LB.values()).every(q => q.length <= Math.ceil(PW.DEF.chunk / PW.DEF.lampEvery) + 1) && Math.abs(nLamps - pq.poles.length / PW.DEF.lampEvery) <= 1,
+      `its ${nLamps} lamps come in the cable's ${LB.size} chunks (at most ${Math.ceil(PW.DEF.chunk / PW.DEF.lampEvery) + 1} a chunk)`);
+    verdict(ch.length > 60 && UL.spans === pq.poles.length - 1, `its cable: ${UL.spans} spans in ${ch.length} chunks, ${(UL.tris / 1000).toFixed(0)} k triangles in all`);
+    const nNear = PW.cull({ x: LL / 2, y: 12, z: 0 }), drawn = ch.filter(c => c.visible).length, span = LL / ch.length;
+    verdict(nNear >= 2 && drawn <= Math.ceil(2 * PW.DEF.reach / span) + 2 && ch.every(c => c.visible === (Math.abs(c.userData.pwc[0] - LL / 2) - c.userData.pwc[3] <= PW.DEF.reach)),
+      `the eye at its middle draws ${drawn} of ${ch.length} chunks (those within ${PW.DEF.reach} m)`);
+    const lampsDrawn = lampMeshes.filter(m => m.visible), lampsLit = lampsDrawn.reduce((a, m) => a + m.geometry.attributes.position.count / 3, 0);
+    verdict(lampsDrawn.length <= Math.ceil(2 * PW.DEF.reach / span) + 2 && lampsDrawn.length >= 2 && lampsLit < nLamps / 4,
+      `...and of its lamps ${lampsLit} in ${lampsDrawn.length} meshes (the rest culled with their chunks; one merged mesh drew all ${nLamps})`);
+    PW.cull({ x: 0, y: 12, z: 0 });
+    verdict(ch[0].visible && !ch[ch.length - 1].visible && lampMeshes[0].visible && !lampMeshes[lampMeshes.length - 1].visible, 'the eye at its start: the first chunk drawn (cable and lamps), the last not');
+    const RPs = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
+    verdict(/chunkOf\(q\.ci \| 0\)/.test(RPs) && /PWR\.chunk\(c\.metal\.mesh/.test(RPs) && /q\[1\]\.chunk && !q\[1\]\.grp\.visible/.test(RPs) && /!e\.chunk \|\| e\.grp\.parent\.parent/.test(RPs),
+      'the game bags a line\'s lamps by its chunks, marks them for the cull, and a culled chunk\'s lamps lend no light');
+    PW.cull({ x: LL / 2, y: 12, z: 0 }, 1e9);
+    verdict(ch.every(c => c.visible), 'a reach past the road draws it all');
+    PW.dispose(gl); }
 }
 
 // ---- 9. THE LANES AND THEIR PAINT (2026-09-23) -------------------------------------
