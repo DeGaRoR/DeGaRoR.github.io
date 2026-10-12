@@ -3277,6 +3277,7 @@
     // THE BAKED CAVITY (G345.5): the weathering reads the mesh's own grooves
     // per vertex, in each material's own unit — once the group is whole
     if (typeof AEROWX !== 'undefined' && AEROWX.aeroWxBakeCavity) AEROWX.aeroWxBakeCavity(THREE, grp);
+    // (THE REST PLACE, G2750, is NOT baked here: every garage change rebuilds this model - see restBake below)
     // GARAGE: every group is rigged, because every vertex already carries its
     // node weights — there is no band to select and no threshold to tune.
     if (data.generated) {
@@ -3753,10 +3754,23 @@
   const mBasis = new THREE.Matrix4(), vX = new THREE.Vector3(),
         vY = new THREE.Vector3(), vZ = new THREE.Vector3(),
         vSpin = new THREE.Vector3();          // G59.1 prop shaft axis
+  // THE REST PLACE (G2750): what the decals' boxes, the weathering's reads and the holes project from, so the paint rides
+  // a surface the rigs turn and a skin the flex bends (aeroskin's AERO_MAIN_VS). ONCE PER MODEL AND ONLY FOR FLIGHT (43.1's
+  // strict gate: baked in buildModel it ran on every garage change - a copy of every skin vertex, merged again into the
+  // hybrid's views - and the garage never poses a surface): when the craft is first shown in the world under the
+  // roll-out's screen (craftInWorld, so its upload rides the world compile), else on the first flight frame. The place
+  // as it stands then, before that frame's pose: the stand's, which is all the paint needs - fixed from there on. The
+  // folds are baked with it (their arrays are the members' own, still at rest).
+  function restBake() {
+    if (!model || model.restBaked || !model.grp) return;
+    model.restBaked = true;
+    if (window.AEROSKIN && window.AEROSKIN.aeroRestBake) window.AEROSKIN.aeroRestBake(THREE, model.grp);
+  }
   function poseModel(catchUp) {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
     if (!model || (skinMode === 2 && !model.gen)) return;
+    if (!inGarage && !model.restBaked) restBake();      // G2750: the first flight frame, before its pose writes
     // G179: THE POSE IS PINNED TO THE STRUCTURE. `cg` here is sim.bodyOrigin()
     // — the firewall ring, the datum the axes are already taken from — not
     // the mass centre. The mesh is authored about the DESIGN CG, so `oR`
@@ -4645,7 +4659,11 @@
     // guarded: the UI smoke's THREE stub builds lines/pts without materials
     if (lines.material) lines.material.depthTest = !overlay;
     if (pts.material) pts.material.depthTest = !overlay;
-    lines.renderOrder = 998; pts.renderOrder = 999;
+    // G2750 (the user: "the overlay does not draw on top of the runway"): an OPAQUE material sorts in the opaque list
+    // whatever its renderOrder, and the pavement, the clouds' composite and the glass are TRANSPARENT and drawn after
+    // the whole of it - with the depth test off the lines write no depth, so the runway painted straight over them.
+    // Both materials are transparent from birth (no program change here), and the x-ray rides above the glass's band
+    lines.renderOrder = overlay ? AERO_CLEAR + 998 : 998; pts.renderOrder = overlay ? AERO_CLEAR + 999 : 999;
     if (proxy) proxy.mesh.visible = !showSkin;   // the visible skin casts the shadow instead
     // ...unless the CAGE BUILD is what is standing there (G65), in which case
     // none of the model's meshes are on screen at all. applyStand has the last
@@ -5456,14 +5474,14 @@
     bPos = new Float32Array(nb * 6); bCol = new Float32Array(nb * 6);
     bGeo.setAttribute('position', new THREE.BufferAttribute(bPos, 3));
     bGeo.setAttribute('color', new THREE.BufferAttribute(bCol, 3));
-    lines = new THREE.LineSegments(bGeo, new THREE.LineBasicMaterial({ vertexColors: true }));
+    lines = new THREE.LineSegments(bGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true }));   // G2750: see applySkinVis
     lines.frustumCulled = false;
     craft.add(lines);
     pGeo = new THREE.BufferGeometry();
     pPos = new Float32Array(sim.n * 3);
     pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
     pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xc8d8ea,
-      size: 0.06 }));
+      size: 0.06, transparent: true }));
     pts.frustumCulled = false;
     craft.add(pts);
     buildShadowProxy();
@@ -9168,6 +9186,9 @@
     // the cage build comes back up if the editor has ever booted (G65), and
     // the roll-out button re-reads the certificate
     showCage = !!window.CAGE_UI && curKey === 'gen';
+    // G2750 (the user: "Overlay persists in the garage. I don't think it should."): the frame/overlay is a FLIGHT view;
+    // the shed starts covered (the roll-out shot and the bench's live test show the model with showCage off)
+    skinMode = 0;
     applySkinVis();     // hides the mesh under the cage build
     syncGoLabel();
     // THE PLAQUE goes up whenever the aeroplane comes home — including
@@ -9514,7 +9535,11 @@
   function tripExport() {
     if (!window.CAGE_UI || !window.CAGE_JOIN || !window.GARAGE_SPEC) return null;
     parkedFlush();
-    try { const spec = window.CAGE_JOIN.export(); return { spec, key: specKey(spec), flown: null }; }
+    // G2750 (the user: "I changed the registration, and the far baked model does not reflect that"): the export carries the
+    // finish but not meta, and the registration lives in meta.reg (finishToSpec strips it from the decals) - a new reg
+    // left every key equal, the snapshot, the bake and the spec were skipped, and the far fold kept the old letters
+    try { const spec = window.CAGE_JOIN.export(), m = (window.GARAGE_SPEC.get() || {}).meta, reg = (m && m.reg) || '';
+      return { spec, key: specKey(spec) + '|reg' + reg, flown: null }; }
     catch (e) { console.error('build export:', e); return null; }
   }
   // the key: the design as CANONICAL JSON (keys sorted, numbers to 10 significant digits) - the same aeroplane put back
@@ -9763,7 +9788,7 @@
   function craftInWorld(fn) {
     if (!inGarage || !WF) return fn();
     if (!craftAway++) { craftHome = craft.parent; if (craft.parent !== scene) scene.add(craft);
-      craftGrpVis = model && model.grp ? [model.grp, model.grp.visible] : null; if (craftGrpVis) { model.grp.visible = true; if (!craftGrpVis[1] && !window.FLYDIY_POSE_NOCATCHUP) poseModel(true); } }   // (G2111: posed, shown)
+      craftGrpVis = model && model.grp ? [model.grp, model.grp.visible] : null; if (craftGrpVis) { model.grp.visible = true; restBake(); if (!craftGrpVis[1] && !window.FLYDIY_POSE_NOCATCHUP) poseModel(true); } }   // (G2111: posed, shown; G2750: the rest place, under the screen)
     let once = false;
     const back = () => { if (once) return; once = true;
       if (--craftAway !== 0) return;
@@ -9890,7 +9915,11 @@
     // to PREM_WEAR.step, so it re-bakes per step of wear and never per flown second); its key carries the step
     { id: 'bake', part: 'craft', label: 'baking your aeroplane', w: 8, key: () => { const k = buildKey(), q = wearStep(); return (k && q) ? k + '|wear' + q : k; }, deps: ['snapshot'],
       when: () => !!(window.FLOWN_BAKE && typeof window.FLOWN_BAKE.step === 'function'),
-      fn: () => window.FLOWN_BAKE.step({ payload: window.CAGE_VISUAL, spec: wornSpec(tripSync ? (tripSync.flown || tripSync.spec) : genSpec),
+      // G2750: the spec the SNAPSHOT would have flown, always - a trip whose snapshot was skipped (the same build, the
+      // wear moved a step) handed the bake the bare export, which has no meta: the atlas painted the fallback letters
+      // (F-PGAR) and its key could not tell one registration from another - the user's "I changed the registration,
+      // and the far baked model does not reflect that"
+      fn: () => window.FLOWN_BAKE.step({ payload: window.CAGE_VISUAL, spec: wornSpec(tripSync ? (tripSync.flown || (window.GARAGE_SPEC.preview ? window.GARAGE_SPEC.preview(tripSync.spec) : tripSync.spec)) : genSpec),
         phase: (l, f) => BOOT.phase('bake', l || 'baking your aeroplane', f),
         rebuild: () => { if (curKey === 'gen' && model && model.data === window.CAGE_VISUAL) setAircraft('gen'); } })
         .catch(e => console.warn('flown bake:', e && e.message || e)) },
