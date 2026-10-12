@@ -1546,6 +1546,100 @@ if (SELFTEST) {
 }
 
 // ---------------------------------------------------------------------------
+// 21 THE ROAD GRAPH and THE ROAD BED (contract v1.37, G2950-G2954)
+{
+  // 21a THE ROUTER: graphMake's path is the shortest (Floyd on a random graph of 24 nodes), an edge weighed Infinity is
+  //     closed, the components, nodeAt / edgeAt
+  {
+    let s = 7; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+    const N = 24, ns = [], es = []; for (let i = 0; i < N; i++) ns.push({ id: 'n' + i, x: rnd() * 1000, z: rnd() * 1000 });
+    for (let i = 0; i < 60; i++) { const a = Math.floor(rnd() * N), b = Math.floor(rnd() * N); if (a === b) continue; es.push({ id: 'e' + i, a: 'n' + a, b: 'n' + b, len: Math.hypot(ns[a].x - ns[b].x, ns[a].z - ns[b].z), pts: [[ns[a].x, ns[a].z], [ns[b].x, ns[b].z]] }); }
+    ns.push({ id: 'lone', x: 5000, z: 5000 });
+    const G = PG.graphMake(ns, es), D = {}; for (const a of ns) { D[a.id] = {}; for (const b of ns) D[a.id][b.id] = a === b ? 0 : Infinity; }
+    for (const e of G.edges) { D[e.a][e.b] = Math.min(D[e.a][e.b], e.len); D[e.b][e.a] = D[e.a][e.b]; }
+    for (const k of ns) for (const i of ns) for (const j of ns) if (D[i.id][k.id] + D[k.id][j.id] < D[i.id][j.id]) D[i.id][j.id] = D[i.id][k.id] + D[k.id][j.id];
+    let bad = 0, tried = 0; for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const p = G.path('n' + i, 'n' + j); tried++; if (!isFinite(D['n' + i]['n' + j]) ? p !== null : !(p && Math.abs(p.len - D['n' + i]['n' + j]) < 1e-6 && p.nodes[0] === 'n' + i && p.nodes[p.nodes.length - 1] === 'n' + j)) bad++; }
+    check(bad === 0, '21a the router\'s path is the shortest between every pair (' + tried + ' pairs against Floyd)', bad + ' wrong');
+    const p0 = G.path('n0', 'n5'), e0 = p0 && p0.edges[0], p1 = e0 ? G.path('n0', 'n5', e => (e.id === e0 ? Infinity : e.len)) : null;
+    check(p0 && (!p1 || p1.edges.indexOf(e0) < 0), '21a an edge weighed Infinity is closed');
+    check(G.path('n0', 'lone') === null && G.components().some(c => c.length === 1 && c[0] === 'lone'), '21a a node on nothing is its own component, no path to it');
+    const ne = G.nodeAt(ns[3].x + 1, ns[3].z, 5), ee = G.edgeAt((es[0].pts[0][0] + es[0].pts[1][0]) / 2, (es[0].pts[0][1] + es[0].pts[1][1]) / 2, 1);
+    check(ne && ne.id === 'n3' && ee && ee.d < 1e-6, '21a nodeAt and edgeAt find the node and the edge under a point');
+    const PT = PG.graphOfPattern({ nodes: [{ id: 'hold', x: 0, z: 0 }, { id: 'tw', x: 30, z: 0 }, { id: 'stand', x: 30, z: 40 }], arcs: [['hold', 'tw'], ['tw', 'stand']] });
+    const pp = PT.path('stand', 'hold');
+    check(pp && pp.nodes.join('>') === 'stand>tw>hold' && Math.abs(pp.len - 70) < 1e-9, '21a a taxi pattern routes through the same router', pp && pp.nodes.join('>'));
+  }
+  // 21b THE JUNCTION'S LEVEL: a road through another at a shared waypoint does not bump it - the first road's centre over
+  //     the crossing is as it was but for the level patch across the second's width, and the second meets it at its
+  //     height (2 cm); without the shared id
+  //     (the control) the second road's own grade there differs
+  {
+    const base = () => { const r = PG.normalise(PG.DEF()); r.frame.extent = { x0: -400, z0: -400, x1: 400, z1: 400 }; return r; };
+    const A = { id: 'ra', pts: [[-200, 10], [0, 10], [200, 10]], w: 5, cls: 'paved', graded: true, falloff: 8 };
+    const B = { id: 'rb', pts: [[0, -190], [0, 10], [0, 210]], w: 4, cls: 'gravel', graded: true, falloff: 8, grade: 0.03 };
+    const mk = (ids, withB) => { const r = base(); r.layers.roads.push(Object.assign({}, A, ids ? { nodes: [null, 'jx', null] } : {})); if (withB) r.layers.roads.push(Object.assign({}, B, ids ? { nodes: [null, 'jx', null] } : {})); return PG.compose(r, synth); };
+    const O0 = mk(true, false), O1 = mk(true, true), Oc = mk(false, true), F = O0.frame;
+    const hA = (O, s) => { const w = F.toWorld(s, 10); return O.terrainAt(w[0], w[1]); }, hB = (O, s) => { const w = F.toWorld(0, s); return O.terrainAt(w[0], w[1]); };
+    let dJ = 0, dC = 0; for (let s = -5; s <= 5; s += 0.5) { dJ = Math.max(dJ, Math.abs(hA(O1, s) - hA(O0, s))); dC = Math.max(dC, Math.abs(hA(Oc, s) - hA(O0, s))); }
+    // (the crossing road is graded level across its own width: on the through road's 8 % slope that is a level patch of
+    //  its width and falloff - under 35 cm here - where the same road without the junction cut it by metres)
+    check(dJ <= 0.35, '21b a road through a junction no longer cuts the through road: its centre within ' + (dJ * 100).toFixed(1) + ' cm of itself over 5 m either side (' + (dC * 100).toFixed(1) + ' cm without the shared id)');
+    check(Math.abs(hB(O1, 10) - hA(O0, 0)) <= 0.02, '21b ...and meets it at its height', (hB(O1, 10) - hA(O0, 0)).toFixed(3));
+    check(dC > 0.05, '21b (the control: without the junction the second road bumps the first)', (dC * 100).toFixed(1) + ' cm');
+    const R2 = base(); R2.layers.roads.push(Object.assign({}, A)); const before = JSON.stringify(PG.compose(R2, synth).roads.map(r => r.pts));
+    check(PG.compose(R2, synth).roads.length === 1 && before === JSON.stringify(PG.compose(R2, synth).roads.map(r => r.pts)), '21b a road without junction ids composes as before');
+    const R3 = base(); R3.layers.roads.push(Object.assign({}, A, { nodes: [null, 'jx', null] }), Object.assign({}, B, { pts: [[0, -190], [3, 10], [0, 210]], nodes: [null, 'jx', null] }));
+    check(PG.issues(R3).some(t => /jx/.test(t)), '21b a junction whose waypoints are apart is an issue', PG.issues(R3).filter(t => /jx/.test(t)).join('; '));
+  }
+  // 21c THE ROAD BED: over a bumpy ground a road without a bed is under it here and there across its width; with one,
+  //     its surface is over the ground (the ground without the road) at its centre and both edges, its grade within the
+  //     bed's; a shipped record carries no bed
+  {
+    const bumpy = { id: 'bumpy', terrainH: (x, z) => 2 * Math.sin(x / 23) + 1.3 * Math.sin(z / 4.1 + x / 17) + 0.8 * Math.cos(x / 5.3), waterH: () => -40 };
+    const base = () => { const r = PG.normalise(PG.DEF()); r.frame.extent = { x0: -400, z0: -400, x1: 400, z1: 400 }; return r; };
+    const road = bed => Object.assign({ id: 'rd', pts: [[-250, 0], [-60, 30], [80, -20], [250, 10]], w: 4, cls: 'gravel', graded: true, falloff: 6, curve: 'spline' }, bed ? { bed } : {});
+    const Og = PG.compose(base(), bumpy);
+    const under = O => { const R = O.roads[0], L = R.pts; let k = 0, m = 0, gmax = 0, hp = null; for (let i = 1; i + 1 < L.length; i++) { const a = L[i - 1], b = L[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1; if (Math.abs(L[i][0]) > 200) continue;
+      for (const sd of [-2, 0, 2]) { const w = O.frame.toWorld(L[i][0] - dz / l * sd, L[i][1] + dx / l * sd); m++; if (O.terrainAt(w[0], w[1]) < Og.terrainAt(w[0], w[1]) - 0.02) k++; }
+      const wc = O.frame.toWorld(L[i][0], L[i][1]), h = O.terrainAt(wc[0], wc[1]); if (hp) { const ds = Math.hypot(wc[0] - hp[0], wc[1] - hp[1]); if (ds > 3) { gmax = Math.max(gmax, Math.abs(h - hp[2]) / ds); hp = [wc[0], wc[1], h]; } } else hp = [wc[0], wc[1], h]; }
+      return { k, m, gmax }; };
+    const r0 = base(); r0.layers.roads.push(road(null)); const U0 = under(PG.compose(r0, bumpy));
+    const r1 = base(); r1.layers.roads.push(road(true)); const U1 = under(PG.compose(r1, bumpy));
+    check(U0.k > U0.m * 0.05, '21c (the control: a road without a bed is under the ground in ' + U0.k + ' of ' + U0.m + ' samples across its width)');
+    check(U1.k <= Math.ceil(U1.m * 0.005), '21c with its bed, over the ground across its width (' + U1.k + ' of ' + U1.m + ' under)');
+    check(U1.gmax <= PG.BED_DEF.grade + 0.03, '21c ...its grade within the bed\'s (' + (U1.gmax * 100).toFixed(1) + ' %)');
+    const r2 = base(); r2.layers.roads.push(road({ on: false, bank: 20 }));
+    check(JSON.stringify(PG.compose(r2, bumpy).terrainAt(10, 3)) === JSON.stringify(PG.compose(r0, bumpy).terrainAt(10, 3)) && PG.bedOf(r2.layers.roads[0]) === null, '21c a bed `on: false` is no bed');
+    const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
+    check(J.layers.roads.every(r => !r.bed), '21c no shipped road carries a bed (the user turns it on)');
+  }
+  // 21d METLAKATLA ONE GRID (G2954): its streets one component of shared-waypoint junctions; its connection points named;
+  //     a path from one connection point to another runs on its streets; it is not joined to the island's other roads
+  {
+    const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
+    const G = PG.compose(J, synth, { raster: false }).roadGraph(), mk = id => /^mk_/.test(id);
+    const comps = G.components().filter(c => c.some(id => G.node(id).roads.some(mk)));
+    const conn = G.nodes.filter(n => n.conn && n.roads.some(mk));
+    // (the town's grid: its streets and its three ways out; six streets the data draws apart - 17 to 130 m off the grid, the
+    //  user's to join - are their own components, listed by tools/road_review.js)
+    const grid = comps[0] || [], roadsOf = c => new Set([].concat(...c.map(id => G.node(id).roads)));
+    check(roadsOf(grid).size >= 56, '21d Metlakatla\'s town grid is one graph (' + roadsOf(grid).size + ' streets, ' + G.nodes.filter(n => n.roads.length > 1 && n.roads.some(mk)).length + ' junctions; ' + (comps.length - 1) + ' streets drawn apart)');
+    check(conn.length === 3 && conn.every(n => n.name && grid.indexOf(n.id) >= 0), '21d its three ways out are named connection points on the grid (' + conn.map(n => n.name).join(', ') + ')');
+    const pc = conn.length >= 2 ? G.path(conn[0].id, conn[conn.length - 1].id) : null;
+    check(pc && pc.edges.every(e => mk(G.edge(e).road)), '21d a path between two of them runs on its streets', pc && (pc.edges.length + ' spans, ' + pc.len.toFixed(0) + ' m'));
+    check(comps.every(c => c.every(id => G.node(id).roads.every(mk))), '21d ...and it is joined to no road outside it (the user traces those)');
+    // the town's 391 plots (on flat ground) as they were before the junctions (the fixture of train 44.4, 11 Oct): a waypoint
+    // inserted on a straight span is no corner - the same plots, seed for seed (a later edit of Metlakatla's zones or
+    // streets moves this hash: re-take it from tools/road_review.js's record then)
+    const flat = { id: 'flat', terrainH: () => 0, waterH: () => -100 };
+    const kp = JSON.stringify((PG.compose(J, flat, { raster: false }).records.plots || []).filter(p => /^mk_/.test(String(p.zone))).map(p => [p.zone, p.road, p.seed, p.quad || p.poly]));
+    const hp = require('crypto').createHash('sha256').update(kp).digest('hex').slice(0, 16);
+    check(hp === '010ca477a8e4145c', '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town had without them', hp);
+    check(!PG.issues(J).some(t => /junction|roadside/.test(t)), '21d no junction issue', PG.issues(J).filter(t => /junction|roadside/.test(t)).slice(0, 3).join('; '));
+  }
+}
+
+// ---------------------------------------------------------------------------
 if (fail.length) {
   for (const f of fail.slice(0, 30)) console.log('  ! ' + f);
   console.log('GATE PREMISES: FAIL (' + fail.length + ')');

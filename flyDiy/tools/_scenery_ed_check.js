@@ -97,7 +97,7 @@ if (!UI || !UI.mount) { console.log('GATE SCENERYED: FAIL (no module)'); process
 
 const notes = [];
 const noop = () => {};
-const rows = { slider: noop, select: noop, check: noop, note: (h, t) => notes.push(String(t)), section: (h, t) => notes.push('§' + t), button: (h, t) => notes.push('[' + t + ']'), pills: noop };
+const rows = { slider: noop, select: noop, check: noop, note: (h, t) => notes.push(String(t)), section: (h, t) => notes.push('§' + t), button: (h, t) => notes.push('[' + t + ']'), pills: (h, t) => notes.push('(' + t + ')') };
 const R = makeR();
 const view = new El('div');
 const ed = UI.mount(new El('div'), { THREE: null, world: synth, R, rows, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: view, storage: null, fresh: true, camera: () => null, redraw: noop });
@@ -239,6 +239,14 @@ if (plots.length) {
   check(ed.selected === null && ed.cmd('paletteEl').children.length === 1, '7 AREAS lit: its palette drawer');
 }
 
+// 7b THE LIFE SECTION IS REACHED (A0, 12 Oct: GATE LIFE's scan read the pre-palette signature): its tab opens the palette
+//    drawer on the LIFE rows (headless: no scenery_life.js, so the drawer says so - under the LIFE heading)
+{
+  notes.length = 0; ed.setSection('life');
+  check(notes.indexOf('§LIFE') >= 0, '7b the LIFE tab opens the LIFE section in the palette drawer', notes.slice(0, 4).join(' | '));
+  ed.setSection('roads');
+}
+
 // 8 THE MODEL PLACER (G2914): the bank (a stub registry - the page's PROP_REG), a drop, a turned and scaled drop, the
 //   scatter (n records, one undo), the save and the load
 {
@@ -354,6 +362,118 @@ if (plots.length) {
   const b = R.lastDirty && R.lastDirty.bbox, sp = b ? Math.max(b.x1 - b.x0, b.z1 - b.z0) : Infinity;
   check(sp < 3000, '10 a point of r1 dragged rebuilds its span (' + (sp | 0) + ' m across), not the 25 km road');
   console.log('     10 the user scenery: load ' + tL.toFixed(0) + ' ms, traffic changed ' + tT.toFixed(0) + ' ms, a point dragged ' + tD.toFixed(0) + ' ms (headless: the record and its composition)');
+}
+
+// 11 THE ROAD GRAPH and THE ROAD BED (G2950-G2953, contract v1.37; the user: roads join ONLY at waypoints, a junction is one
+//   shared node, the traced points are never rewritten; "the road is sunk in many places ... ensuring the paved surface is
+//   always visible"). On the user's own scenery: a new road's first point clicked by r1's waypoint lands ON it and the two
+//   share a junction (r1's points untouched, one undo takes both back); the graph has the junction, r1 split there and a
+//   path across; the junction dragged carries r1's waypoint with it (one undo); Alt+drag takes the road out (the lone id
+//   goes); a road's end dragged onto a CONNECTION POINT joins it (its name kept, the graph's node named); a roadside apron
+//   is made at a waypoint (an area, `roadside` its junction, the graph's node carries it); the bed on r1: its points the
+//   same, its surface over the ground across its width where off it is under it; off again, r1 is the file's to the bit.
+{
+  const txt = fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev23.json'), 'utf8');
+  ed.load(txt);
+  const r1File = JSON.stringify(PG.normalise(JSON.parse(txt).premises).layers.roads.find(r => r.id === 'r1'));
+  const r1 = () => rec().layers.roads.find(r => r.id === 'r1'), P0 = JSON.stringify(r1().pts), T0 = JSON.stringify(r1().tan || null);
+  const r1Same = () => JSON.stringify(r1().pts) === P0 && JSON.stringify(r1().tan || null) === T0;
+  const K = 40, base = r1().pts[K].slice(0, 2), nb = r1().pts[K + 1], dl = Math.hypot(nb[0] - base[0], nb[1] - base[1]), n = [-(nb[1] - base[1]) / dl, (nb[0] - base[0]) / dl];
+  const at = d => [+(base[0] + n[0] * d).toFixed(2), +(base[1] + n[1] * d).toFixed(2)];
+  // 11a a new road's point by r1's waypoint: ON it, one junction, r1 untouched
+  ed.setSection('roads'); ed.cmd('tool', { name: 'road' });
+  ed.cmd('point', { x: base[0] + 0.8, z: base[1] - 0.6 }); ed.cmd('point', { x: at(60)[0], z: at(60)[1] }); ed.cmd('point', { x: at(120)[0], z: at(120)[1] });
+  const rN = ed.cmd('commit'), road = () => find(rN).entry, jid = road().nodes && road().nodes[0];
+  check(road().pts[0][0] === base[0] && road().pts[0][1] === base[1], '11a the new road\'s first point clicked by r1\'s waypoint lands exactly on it', JSON.stringify(road().pts[0]) + ' vs ' + JSON.stringify(base));
+  check(!!jid && r1().nodes && r1().nodes[K] === jid && r1().nodes.filter(Boolean).length === 1, '11a the two share one junction id (r1\'s waypoint ' + (K + 1) + ')', String(jid));
+  check(r1Same(), '11a r1\'s points and handles are bit for bit the file\'s');
+  check(road().bed === true, '11a a new road stands on its bed');
+  check(roundTrip(), '11a the record with its junction round-trips');
+  ed.undo();
+  check(!find(rN) && JSON.stringify(r1()) === r1File, '11a one undo takes the road AND r1\'s junction id back (r1 is the file\'s entry)');
+  ed.redo();
+  check(!!find(rN) && r1().nodes && r1().nodes[K] === jid, '11a ...and redo puts both back');
+  // 11b the graph: the junction, r1 split there, a path across
+  { const G = PG.compose(rec(), synth, { raster: false }).roadGraph(), J = G.node(jid);
+    check(J && J.roads.indexOf('r1') >= 0 && J.roads.indexOf(rN) >= 0, '11b the graph has the junction, r1 and ' + rN + ' through it', J && JSON.stringify(J.roads));
+    check(G.edges.filter(e => e.road === 'r1').length === 2, '11b r1 is two spans in the graph (split at the junction)', String(G.edges.filter(e => e.road === 'r1').length));
+    const p = G.path(rN + ':1', 'r1:0');
+    check(p && p.nodes.indexOf(jid) > 0 && p.len > 0, '11b a path from ' + rN + '\'s end to r1\'s start runs through it', p && (p.nodes.join('>') + ' ' + p.len.toFixed(0) + ' m')); }
+  // 11c the junction dragged: r1's waypoint goes with it - one undo
+  ed.cmd('tool', { name: 'select' }); ed.select(rN);
+  const u0 = JSON.stringify(rec().layers.roads);
+  ed.cmd('drag', { key: 'v0', x: at(5)[0], z: at(5)[1] });
+  const p1 = JSON.parse(P0);
+  check(road().pts[0][0] === at(5)[0] && r1().pts[K][0] === at(5)[0] && r1().pts[K][1] === at(5)[1], '11c the junction dragged carries r1\'s waypoint', JSON.stringify(r1().pts[K]));
+  check(r1().pts.every((q, i) => i === K || JSON.stringify(q) === JSON.stringify(p1[i])), '11c ...and no other point of r1');
+  ed.undo();
+  check(JSON.stringify(rec().layers.roads) === u0 && r1Same(), '11c one undo takes the junction back (both roads)');
+  // 11d Alt+drag: the road out of the junction; the lone id goes from r1
+  ed.cmd('drag', { key: 'v0', x: at(8)[0], z: at(8)[1], alt: true });
+  check(road().pts[0][0] === at(8)[0] && r1Same() && !road().nodes && JSON.stringify(r1()) === r1File, '11d Alt+drag takes ' + rN + ' out: r1 stays, and is the file\'s entry again (its lone junction id gone)');
+  ed.undo();
+  check(r1().nodes && r1().nodes[K] === jid && road().nodes && road().nodes[0] === jid && r1Same(), '11d undo joins them again');
+  // 11e a connection point: a waypoint named, a road's end dragged onto it joins it, the graph's node named
+  ed.cmd('tool', { name: 'road' }); ed.cmd('point', { x: at(200)[0], z: at(200)[1] }); ed.cmd('point', { x: at(260)[0], z: at(260)[1] });
+  const rQ = ed.cmd('commit'); ed.cmd('tool', { name: 'select' });
+  const jc = ed.cmd('connection', { id: rQ, i: 1 }); ed.cmd('junction', { jid: jc, patch: { name: 'the test gate' } });
+  ed.cmd('tool', { name: 'road' }); ed.cmd('point', { x: at(300)[0], z: at(300)[1] }); ed.cmd('point', { x: at(330)[0], z: at(330)[1] });
+  const rM = ed.cmd('commit'); ed.cmd('tool', { name: 'select' }); ed.select(rM);
+  const qEnd = find(rQ).entry.pts[1], qBefore = JSON.stringify(find(rQ).entry.pts);
+  ed.cmd('drag', { key: 'v1', x: qEnd[0] + 1, z: qEnd[1] - 0.7 });
+  check(find(rM).entry.pts[1][0] === qEnd[0] && find(rM).entry.pts[1][1] === qEnd[1] && JSON.stringify(find(rQ).entry.pts) === qBefore, '11e a road\'s end dragged by a waypoint snaps onto it (the other road\'s points untouched)');
+  check(find(rM).entry.nodes && find(rM).entry.nodes[1] === jc, '11e ...and joins the connection point ' + jc, JSON.stringify(find(rM).entry.nodes));
+  { const G = PG.compose(rec(), synth, { raster: false }).roadGraph(), J = G.node(jc);
+    check(J && J.name === 'the test gate' && J.conn && J.roads.length === 2, '11e the graph\'s node is the named connection point, two roads through it', J && JSON.stringify({ name: J.name, conn: J.conn, roads: J.roads })); }
+  // 11f a roadside apron at rN's end: an area whose `roadside` is the waypoint's (new) junction; the graph's node carries it
+  const aid = ed.cmd('apron', { id: rN, i: 2 }), A = aid && find(aid), jA = road().nodes && road().nodes[2];
+  check(A && A.layer === 'areas' && A.entry.props.roadside && A.entry.props.roadside.node === jA && jA, '11f a roadside apron at a waypoint: an area, its roadside the waypoint\'s junction', aid + ' ' + jA);
+  check(!PG.issues(rec()).some(s => /roadside|junction/.test(s)), '11f no issue', PG.issues(rec()).filter(s => /roadside|junction/.test(s)).join('; '));
+  { const G = PG.compose(rec(), synth, { raster: false }).roadGraph(), N = G.node(jA);
+    check(N && N.aprons.length === 1 && N.aprons[0].area === aid && N.aprons[0].r > 5 && N.aprons[0].use.indexOf('turn') >= 0, '11f the graph\'s node has the apron (room to turn ' + (N && N.aprons[0] ? N.aprons[0].r : '?') + ' m)'); }
+  ed.undo();
+  check(!find(aid) && !(road().nodes && road().nodes[2]), '11f one undo takes the apron and its junction id back');
+  // 11g THE BED on r1: one click; its points the same; its surface over the ground across its width where off it is under it
+  notes.length = 0; ed.select('r1');
+  check(notes.indexOf('(road bed)') >= 0, '11g the road inspector shows the bed toggle');
+  const hw = (+r1().w || 3.6) / 2, line = PG.roadLine(r1());
+  const recNo = JSON.parse(JSON.stringify(rec())); recNo.layers.roads = recNo.layers.roads.filter(r => r.id !== 'r1');
+  const Og = PG.compose(recNo, synth, { raster: false });
+  const under = O => { let k = 0, m = 0; for (let i = 1; i + 1 < line.length; i += 4) { const a = line[i - 1], b = line[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1; for (const s of [-hw, 0, hw]) { const lx = line[i][0] - dz / l * s, lz = line[i][1] + dx / l * s, w = O.frame.toWorld(lx, lz); m++; if (O.terrainAt(w[0], w[1]) < Og.terrainAt(w[0], w[1]) - 0.02) k++; } } return [k, m]; };
+  const [kOff, m] = under(PG.compose(rec(), synth, { raster: false }));
+  ed.cmd('set', { id: 'r1', patch: { bed: true } });
+  check(r1Same(), '11g the bed on: r1\'s points and handles bit for bit');
+  const [kOn] = under(PG.compose(rec(), synth, { raster: false }));
+  check(kOn <= Math.ceil(m * 0.005), '11g the bed on: r1\'s surface over the ground across its width (' + kOn + ' of ' + m + ' samples under it; ' + kOff + ' without the bed)');
+  ed.undo();
+  check(r1Same() && !('bed' in r1()), '11g one undo: the bed off, r1 its own again');
+  ed.select(rN); ed.undo(); ed.undo(); ed.undo(); ed.undo();
+  check(r1Same(), '11 through every step of the graph and the bed, r1\'s traced points are the file\'s bit for bit');
+}
+
+// 12 THE USER'S OWN SAVED RECORD THROUGH THE v1.37 LOADER (A0, 12 Oct; tools/fixtures/scenery_user_jolene_rev23.json is the
+//   user's backup D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev23_2026-10-11.json byte for byte, sha256 277abdfa...):
+//   r1's points and handles bit for bit after the editor's load, after the composition and its road graph, after a save
+//   round trip; and with Metlakatla's streets put back (the town switch on: restorePlaces, as the game does) its 129
+//   junctions' level leaves r1's ground profile as it was without them, sample for sample
+{
+  const txt = fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev23.json'), 'utf8');
+  check(require('crypto').createHash('sha256').update(txt).digest('hex').slice(0, 16) === '277abdfa66b254bd', '12 the fixture is the user\'s backup of rev 23 byte for byte');
+  const raw = JSON.parse(txt), r1raw = (raw.premises || raw).layers.roads.find(r => r.id === 'r1'), P0 = JSON.stringify([r1raw.pts, r1raw.tan || null]);
+  const r1of = R0 => { const r = R0.layers.roads.find(q => q.id === 'r1'); return JSON.stringify([r.pts, r.tan || null]); };
+  ed.load(txt);
+  check(r1of(rec()) === P0, '12 r1\'s ' + r1raw.pts.length + ' points and handles bit for bit after the load');
+  const O12 = PG.compose(rec(), synth, { raster: false }), G12 = O12.roadGraph();
+  check(r1of(rec()) === P0 && r1of(O12.rec) === P0 && G12.edges.some(e => e.road === 'r1'), '12 ...after the composition and its road graph (r1 ' + G12.edges.filter(e => e.road === 'r1').length + ' span(s) in it)');
+  check(r1of(PG.unwrap(PG.envelope('t', rec())).rec) === P0, '12 ...and after a save round trip');
+  const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, cut = PG.dropPlaces(J, ['mk_']).cut;
+  const withTown = PG.restorePlaces(PG.unwrap(txt).rec, cut);
+  const noIds = JSON.parse(JSON.stringify(withTown)); for (const r of noIds.layers.roads) if (/^mk_/.test(r.id)) delete r.nodes; noIds.layers.junctions = (noIds.layers.junctions || []).filter(j => !/^mk_/.test(j.id));
+  check(withTown.layers.roads.filter(r => /^mk_/.test(r.id) && r.nodes).length > 50 && r1of(withTown) === P0, '12 the town put back: its junctioned streets beside r1 untouched');
+  const Ot = PG.compose(withTown, synth, { raster: false }), On = PG.compose(noIds, synth, { raster: false }), line = PG.roadLine(r1raw);
+  let worst = 0, n = 0; for (let i = 0; i < line.length; i += 2) { const w = Ot.frame.toWorld(line[i][0], line[i][1]); worst = Math.max(worst, Math.abs(Ot.terrainAt(w[0], w[1]) - On.terrainAt(w[0], w[1]))); n++; }
+  check(worst === 0, '12 Metlakatla\'s junction level leaves r1\'s ground profile as it was (' + n + ' samples along its 24.9 km, worst ' + worst.toFixed(4) + ' m)');
+  console.log('     12 the user\'s rev 23 (sha256 277abdfa66b254bd): r1 ' + r1raw.pts.length + ' points + handles bit for bit through load, compose + road graph (' + G12.edges.filter(e => e.road === 'r1').length + ' span), save; town put back (' + withTown.layers.roads.filter(r => /^mk_/.test(r.id)).length + ' streets, ' + new Set([].concat(...withTown.layers.roads.map(r => r.nodes || [])).filter(Boolean)).size + ' junction ids): r1\'s ground over ' + n + ' samples differs by ' + worst + ' m from the town without junctions');
 }
 
 // 5 NAMES
