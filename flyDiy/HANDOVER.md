@@ -94140,3 +94140,95 @@ time). With every dimmer at 0 the count is the pre-G2782 count, boot included; n
 No room to compile (the bench, SwiftShader, before the hangar): shown at once, as before G2782. GATE LIGHT 5f re-cut.
 **Watch for:** the first notch of a dimmer: the light appears a moment after the lens (never a stall); two dimmer sets
 changed within one link's time may key one set late (a single later re-key, not a freeze).
+
+## G2730-G2734 - MAP-EDGE: THE PAINTING'S EDGE SAMPLED AND FADED INTO THE PAGE'S BLUE (2026-10-12, MAP-EDGE for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader; branch claude/map-edge-g2730 off origin/claude/game-t44-2 66ce4f55 (d6215cf0 + FLEET-PROPS B))
+
+The brief: the user, 12 Oct 04:20 - *"I'm a little bothered by the borders of the map not being exactly the blue of the
+background. Could we do something elegant where we sample the colors at the edge of the map and softly blend them with the
+background or something like that?"* The painting's sea along its sides wanders (G 59-106, B 111-156 against the page's
+#004279 = 0/66/121), so on the flat art.edge its rectangle showed. Everything stays in src/viewer/map_menu.js (lazy) and
+tools/_map_smoke.js, plus one measuring tool; the painting's bytes untouched; no generated file committed.
+
+**G2730 THE RING (pure, `edgeRing`)** - a downscaled copy of the painting (one texel = EDGE.texel = 8 picture px: 271 x 354),
+its edge read as a ring: the outer 0.3-1.5 % (the sea there is the edge's own colour; deeper it drifts), 48 segments a
+side, each the band's mean. The colours carry the img's look: the painting's CSS filter is now `ART_FILTER` built from
+EDGE.look (saturate 1.08, contrast 1.02 - unchanged) and `lookOf` applies the same filter functions' matrices (sRGB, each
+clamped), so both sides of the border are the same colour ON SCREEN.
+
+**G2731 THE EXTENSION (pure, `edgeBake`)** - one 374 x 457 canvas spanning the painting plus a margin, in the picture's px:
+- OUTSIDE the painting: the edge clamped outward - a side's colour runs straight out (the segments joined linearly along
+  the side, each corner the mean of its two sides' end segments, so the corners meet), a corner's radially - fading into
+  the page's colour over EDGE.fade = 14 % of the longer side (397 px) by a smoothstep, a half-level dither through the
+  ramp (none at either end). From the fade's end outward: art.edge EXACTLY, and past the canvas the page itself, the same.
+- OVER the painting's outer EDGE.rim = 1.5 % (43 px): the same edge colours, opaque at the border, clear 43 px in (a
+  smoothstep; the sides near a corner weighted by nearness), so the painting's own last waves dissolve into the band
+  instead of meeting it at a line. Inside that, nothing: the painting untouched.
+- The canvas is a child of `.mmStage` after the img (z: over the painting's rim, under MAP-INFRA's svg, the overlay's
+  badges / runways and every control - all outside the stage), `pointer-events:none`, `aria-hidden`. It moves with the
+  painting by construction: the stage's one transform (place() sets it; place() never touches the edge - nothing per
+  frame). The view's bounds are MAP-SIMPLE's (the map never zooms out past the fit), so the sea shows where the fit
+  letterboxes: left / right on a wide view, top / bottom on a tall one; desk and phone (the sheet layout) the same code.
+
+**G2732 ONCE, OFF THE MAIN THREAD (`edgeOnce`, `edgeWorkerSrc`)** - after the painting's load, keyed on its file (a
+second open reuses the canvas): a worker built from these same functions' own source (one file, no worker script to
+fetch) fetches the painting (the cache the img just filled), decodes + downscales it (createImageBitmap from the blob),
+reads the copy (OffscreenCanvas, CPU-backed), rings, bakes, puts the texels on a canvas of its own and transfers that
+picture back (an ImageBitmap); the page shows it with a `bitmaprenderer` (a pointer swap). Two traps found on the way
+(SwiftShader traces): `worker.terminate()` made the page wait ~600 ms for the worker's canvas teardown (DidTerminateWorker-
+Thread) - the worker is left idle instead; and a GPU-backed worker canvas made transferFromImageBitmap wait 30-170 ms on
+the GPU process - the worker's canvases are CPU-backed. A page without Worker / OffscreenCanvas / fetch (file://) does the
+same on the main thread after the img's decode (~70-100 ms, one task after the open); one that cannot read the painting's
+pixels keeps today's plain colour (console.info). `MAP_MENU.edge()` reports it (via, ms, size).
+
+**G2733 THE NUMBERS** - `tools/map_edge_shot.js` (new): the map screen in headless Chromium (SwiftShader; the harness =
+the shipped map_pack.js + map_menu.js + editor.css; `--real` boots index.html?map=1), the painting at the fit with the UI
+over the map hidden, the screen's own pixels read back (PNG, decoded) - once as shipped, once as before (the edge canvas
+hidden). RGB distance in 0-255 levels, the pixel 2 px outside the painting's border against the pixel 2 px inside, every
+2 px along every border the view shows (3 runs, identical to 0.01):
+
+| view (scale)                       | borders (samples)   | seam BEFORE mean / max | seam NOW mean / max | edge alone* | fade's outer border |
+|------------------------------------|---------------------|------------------------|---------------------|-------------|---------------------|
+| desk 1600 x 900 (0.304)            | left, right (852)   | 11.25 / 41.9           | **0.18 / 1.4**      | 2.16 / 11.4 | max 0 over 47 286 px; across 0 |
+| desk 900 x 1600 (0.245)            | top, bottom (520)   | 18.3 / 72.9            | **0.46 / 2.2**      | 3.24 / 17.7 | max 0 over 58 760 px; across 0 |
+| phone 390 x 844 (0.18, the sheet)  | top (380)           | 19.3 / 69.3            | **4.6 / 12.8**      | 5.3 / 19.2  | off-screen (6 px letterbox) |
+
+\* the extension 2 px out against the OLD render's painting 2 px in: how well the sampled edge alone, without the rim's
+blend, meets the painting. The phone's NOW is higher because at 0.18 the 43 px rim is 7.7 screen px, so "2 px in" is a
+quarter into the dissolve (the painting's waves still show through) - a gradient, not a seam. "Fade's outer border": every
+pixel from 2 px inside the fade's end outward to the view's edge differs from the page's #004279 by 0, and the pixels 2 px
+either side of that border by 0.
+
+**Cost** (the same runs; SwiftShader on a 4-core Xeon VM): the open itself 36-71 ms either way (baseline without the edge
+45-74 ms); the edge ready 113-176 ms after the open, 101-162 ms of it in the worker; **the main thread pays 0.2-1.5 ms**
+(the spawn and the bitmap swap); the longest main-thread task from the open to the edge ready 29-59 ms - the open's own
+layout, as in the baseline (37-84). Nothing per frame. The canvas: 374 x 457 RGBA (~0.7 MB) + one idle worker.
+
+**G2734 THE GATE** - UISMOKE / UISMOKE-PHONE's map smoke, new row MAP-EDGE: one `.mmEdge` canvas, inside the stage after
+the img, no pointer; the bake once per painting after its load, in a worker (the page's fallback after decode), never in
+place(), not by layout; the fade's end and the page's background the same art.edge; the img's filter = ART_FILTER and
+lookOf = the CSS matrices; the worker's source run in a bare vm context bakes byte for byte what the page's functions bake,
+and paints + transfers its picture, never terminated; on a synthetic painting (a wandering sea, +-8 waves, a land blob):
+the ring = the band's mean exactly (2.9 levels from the sea under the waves; the land unseen), the canvas <= 512 px a side,
+the fade 10-15 % of the map, **the outer colour = the page's exactly (max 0 over 5 416 texels)**, the seam <= 1 level
+between the texels either side of the border, no texel-to-texel step over 2 levels on any outward line, the painting's
+inside past the rim at alpha 0; deterministic.
+
+Files: src/viewer/map_menu.js (EDGE / ART_FILTER / hexRGB / lookOf / edgeRing / edgeBake / edgeWorkerSrc in the core and
+its exports; the canvas in build(), its CSS, the img's filter from ART_FILTER; edgeOnce in the DOM half, called once the
+painting has loaded; MAP_MENU.edge(); the header), tools/_map_smoke.js (the MAP-EDGE row, its header), new
+tools/map_edge_shot.js.
+
+Open / notes:
+- Readings chosen where the brief left room (say if any should change): the fade is 14 % of the longer side (397 picture px:
+  ~120 screen px at the desk's fit); the rim over the painting (1.5 %) is my addition to the brief's "behind it" - without
+  it the painting's high-frequency waves still meet a smooth band (the "edge alone" column: 2-3 levels mean, 11-18 max);
+  with it the border is gone (0.2-0.5 mean). A rim of 0 restores exactly "behind it" (EDGE.rim).
+- The extension is on screen only where the fit letterboxes (MAP-SIMPLE's bounds: no zoom out past the fit); were the
+  bounds ever loosened, the canvas already runs 413 px past every side and the page colour beyond.
+- GATES (12 Oct 10:45-10:50 UTC, `node tools/build.js` then `node tools/run_gates.js --only=UISMOKE,UISMOKE-PHONE,MAPBAKE,
+  MEDIA,BUILD,LAZY`): UISMOKE PASS, UISMOKE-PHONE PASS, MAPBAKE PASS, MEDIA PASS (media/map/jolene_art.1b6f317e.jpg
+  untouched: no file under media/ changed), BUILD PASS, LAZY PASS. `node tools/map_edge_shot.js`: ok (3 runs, the table
+  above). Not run: the full tier. No generated file committed (index.html, dev.html, tools/flight_core.js, sw.js,
+  version.json: rebuild on the train).
+
+READY for the GAME COORDINATOR

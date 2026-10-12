@@ -40,6 +40,10 @@
 //     filters" when a filter would); ✓ / ✗ unchanged; NIGHT-OPS' night jobs tagged and the window filter theirs; the
 //     map's rings and badges following the filtered list; no auto-zoom from the new controls; the per-viewer memory
 //     (grouping, order, folds, the panel) behind try / catch and never the filters.
+//   THE PAINTING'S EDGE (G2730, MAP-EDGE; the user, 12 Oct): one canvas in the stage (the painting's transform; baked once
+//     per painting in a worker from the same functions - byte for byte - never in place()); the ring is the band's mean
+//     with the img's look; the fade's outer colour = the page's art.edge exactly; the seam continuous, the fade without
+//     steps, the painting untouched inside the rim; no pointer.
 //   NOHOVER (MOBILE-GARAGE R17/R18): no title=, no mouseenter / mouseover / pointerover, no :hover in map_menu.js or the
 //     entry. R1: every interactive class >= 48 px. R20: the map touch-action none, the list / sheet pan-y, the handle
 //     none. --phone: the bottom sheet's rules.
@@ -504,6 +508,87 @@ module.exports = function mapSmoke(html, phone) {
     need(prefSave && prefLoad && /try \{ W\.localStorage\.setItem/.test(prefSave[0]) && !/\bflt\b/.test(prefSave[0]) && /group: st\.group, sort: st\.sort, fold: st\.fold, fltOpen/.test(prefSave[0]) && /try \{ o = JSON\.parse\(W\.localStorage\.getItem/.test(prefLoad[0]) && !/\bflt\b/.test(prefLoad[0]),
       'the per-viewer memory: the grouping / order / folds / panel, behind try-catch, and never the filters');
     say('MAP-GROUP (G2710): ' + combos + ' group x sort x filter views (each filter at each value, every pair, with and without the place filter; the fixture and the real record) deterministic and order-proof; the sections in the legend\'s / CONTRACT_PROVIDERS\' order, shown + hidden = the unfiltered count, each filter\'s "n hidden" its own; the order monotone, ties by id; the tracked row first and never gone (' + pinnedN + ' times outside the filters, marked); ✓ / ✗ unchanged; ' + nights + ' night jobs tagged; the map\'s rings and badges follow the list (' + oW.n.dim + ' places dimmed by "water")');
+  }
+
+  // ---- G2730 (MAP-EDGE): THE PAINTING'S EDGE SAMPLED AND FADED INTO THE PAGE (the user, 12 Oct: "the borders of the map
+  // not being exactly the blue of the background ... sample the colors at the edge of the map and softly blend them") -
+  // ONE canvas in the stage (the painting's transform, nothing per frame), baked once from a downscaled copy; its outer
+  // colour the page's EXACTLY; the seam continuous; the painting's inside untouched past the rim ----
+  {
+    for (const n of ['EDGE', 'ART_FILTER', 'hexRGB', 'lookOf', 'edgeRing', 'edgeBake']) need(MM[n] !== undefined, 'the pure export ' + n + ' is gone');
+    const E0 = MM.EDGE, art = pack.art, page = MM.hexRGB(art.edge);
+    need(page.join() === [0, 0x42, 0x79].join() && art.edge.toLowerCase() === '#004279', 'the page colour is not the painting\'s edge (' + art.edge + ')');
+    // THE DOM: one canvas, a child of the stage after the painting; the stage's transform is the painting's; the bake
+    // once per painting (keyed on its file), after load + decode, off the open's frame; place() never touches it
+    need((menuSrc.match(/class="mmEdge"/g) || []).length === 1 && /<div class="mmStage"><img [^>]*><canvas class="mmEdge" aria-hidden="true"><\/canvas><\/div>/.test(menuSrc), 'the edge canvas: not exactly one, inside the stage after the painting');
+    need(/\.mmStage \.mmEdge\{position:absolute;display:none;pointer-events:none\}/.test(menuSrc) && /\.mmStage\{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform\}/.test(menuSrc) && /\$\.mmStage\.style\.transform = 'translate\('/.test(menuSrc), 'the edge canvas takes a pointer, or the stage does not carry the painting\'s transform');
+    const place = /function place\(\) \{[\s\S]*?\n  \}/.exec(menuSrc)[0], once = /function edgeOnce\(art\) \{[\s\S]*?\n  \}/.exec(menuSrc);
+    need(!/edge/i.test(place), 'place() (every pan / zoom) touches the edge: per-frame work');
+    need(once && /if \(edgeKey === art\.img\) return;/.test(once[0]) && (menuSrc.match(/edgeOnce\(art\)/g) || []).length === 2 && /\.then\(ok => \{ if \(ok\) edgeOnce\(art\); return ok; \}\)/.test(menuSrc), 'the bake is not once per painting, after its load');
+    need(/inWorker\(\)\.catch\(\(\) => here\(\)\)/.test(once[0]) && /img\.decode \? img\.decode\(\)/.test(once[0]) && /W\.setTimeout\(/.test(once[0]) && !/phone/.test(once[0]), 'the bake: not in a worker (the page\'s fallback after the img\'s decode, off the open\'s frame), or by layout (desk and phone share one look)');
+    need(/page: hexRGB\(art\.edge\)/.test(once[0]) && /\$\.mmMap\.style\.background = art\.edge;/.test(menuSrc) && (once[0].match(/edgeBake\(edgeRing\(g\.getImageData\(0, 0, job\.sw, job\.sh\)\), job\.w, job\.h, job\.page\)/g) || []).length === 1, 'the fade\'s end and the page background are not the same art.edge');
+    need(/left: -E\.m \+ 'px', top: -E\.m \+ 'px', width: \(pack\.w \+ 2 \* E\.m\) \+ 'px', height: \(pack\.h \+ 2 \* E\.m\) \+ 'px'/.test(once[0]) && /sw: Math\.max\(8, Math\.round\(pack\.w \/ EDGE\.texel\)\)/.test(once[0]), 'the canvas does not span the painting and its margin in the painting\'s px');
+    need(/\.mmStage img\{display:block;pointer-events:none;filter:\$\{ART_FILTER\}\}/.test(menuSrc) && MM.ART_FILTER === 'saturate(' + E0.look.sat + ') contrast(' + E0.look.con + ')', 'the painting\'s CSS filter is not the look the edge colours carry');
+    need([[0, 66, 121], [12, 200, 40], [255, 0, 128]].every(c => MM.lookOf(c, { sat: 1, con: 1 }).every((v, k) => Math.abs(v - c[k]) < 1e-9)) && MM.lookOf([127.5, 127.5, 127.5], E0.look).every(v => Math.abs(v - 127.5) < 1e-9), 'lookOf is not the CSS saturate / contrast');
+    // a SYNTHETIC painting at the DOM half's size (a texel's downscale): a sea whose colour wanders along every side, the
+    // waves (+-8 per pixel), a land blob in the middle
+    const sw = Math.round(pack.w / E0.texel), sh = Math.round(pack.h / E0.texel), px = new Uint8ClampedArray(sw * sh * 4);
+    let sd = 7; const rn = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647 - 0.5; };
+    const seaAt = (x, y) => [0, 70 + 16 * Math.sin(x / 23) + 10 * Math.cos(y / 31), 126 + 12 * Math.sin(x / 19 + y / 41)];
+    for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
+      const i = (y * sw + x) * 4, land = Math.hypot(x - sw / 2, y - sh / 2) < sw * 0.3, c = land ? [90, 120, 60] : seaAt(x, y), wv = land ? 0 : rn() * 16;
+      px[i] = c[0] + wv; px[i + 1] = c[1] + wv; px[i + 2] = c[2] + wv; px[i + 3] = 255;
+    }
+    const R = MM.edgeRing({ data: px, width: sw, height: sh }), B = MM.edgeBake(R, pack.w, pack.h, page), B2 = MM.edgeBake(MM.edgeRing({ data: px, width: sw, height: sh }), pack.w, pack.h, page);
+    need(['top', 'bottom', 'left', 'right'].every(k => R[k].length === E0.seg) && Buffer.compare(Buffer.from(B.data.buffer), Buffer.from(B2.data.buffer)) === 0, 'the ring is not EDGE.seg a side, or the bake is not deterministic');
+    // THE WORKER bakes with these same functions: its source, run in a bare context (no page, no module), gives the
+    // same texels byte for byte, and its message handler asks for the painting through fetch / ImageBitmap / OffscreenCanvas
+    const WS = MM.edgeWorkerSrc(), box = { Math, Object, Uint8ClampedArray, Float64Array, JSON };
+    vm.createContext(box); vm.runInContext(WS + '\n;globalThis.__E = edgeBake(edgeRing(__img), __w, __h, __page);', Object.assign(box, { __img: { data: px, width: sw, height: sh }, __w: pack.w, __h: pack.h, __page: page }));
+    need(box.__E && Buffer.compare(Buffer.from(box.__E.data.buffer), Buffer.from(B.data.buffer)) === 0 && box.__E.m === B.m, 'the worker\'s bake is not the page\'s byte for byte');
+    need(/await fetch\(url\)/.test(WS) && /createImageBitmap\(b, \{ resizeWidth: sw, resizeHeight: sh/.test(WS) && /new OffscreenCanvas\(sw, sh\)/.test(WS) && /o\.getContext\("2d", \{ willReadFrequently: true \}\)\.putImageData\(new ImageData\(E\.data, E\.cw, E\.ch\), 0, 0\)/.test(WS) && /postMessage\(\{ E, bmp, ms: [^}]*\}, \[bmp\]\)/.test(WS) && /transferFromImageBitmap\(r\.bmp\)/.test(once[0]) && !/terminate\(\)/.test(once[0]), 'the worker does not decode the painting off the page, paint the texels on a CPU-backed canvas and transfer the picture back (a bitmaprenderer shows it; never terminated)');
+    // the ring follows the painting's edge (the sea's wander, the look applied), never the land, the waves averaged out
+    const L = Math.max(sw, sh), d0 = Math.floor(E0.band[0] * L), d1 = Math.max(d0 + 1, Math.round(E0.band[1] * L));
+    let ringErr = 0, waveErr = 0;
+    for (let k = 0; k < E0.seg; k++) {
+      const x0 = Math.floor(k * sw / E0.seg), x1 = Math.max(x0 + 1, Math.floor((k + 1) * sw / E0.seg)), s = [0, 0, 0]; let n = 0;
+      for (let y = d0; y < d1; y++) for (let x = x0; x < x1; x++) { const i = (y * sw + x) * 4; s[0] += px[i]; s[1] += px[i + 1]; s[2] += px[i + 2]; n++; }
+      const want = MM.lookOf(s.map(v => v / n), E0.look); ringErr = Math.max(ringErr, ...want.map((v, c) => Math.abs(v - R.top[k][c])));
+      const calm = MM.lookOf(seaAt((x0 + x1) / 2, (d0 + d1) / 2), E0.look); waveErr = Math.max(waveErr, ...calm.map((v, c) => Math.abs(v - R.top[k][c])));
+    }
+    need(ringErr < 1e-6 && waveErr < 6 && R.top.every(c => c[0] < 1), 'the ring is not the band\'s mean on the painting\'s top edge (' + ringErr + '), does not follow the sea under the waves (' + waveErr.toFixed(2) + ') or saw the land');
+    // the canvas: small, spanning the painting plus the fade; the fade 10-15 % of the map
+    const { cw, ch, m, F, RIM, data } = B, Lp = Math.max(pack.w, pack.h);
+    need(cw <= 512 && ch <= 512 && F >= 0.1 * Lp && F <= 0.15 * Lp && m > F && RIM > 0 && RIM < 0.03 * Lp, 'the canvas ' + cw + 'x' + ch + ' or the fade ' + Math.round(F) + ' px / rim ' + Math.round(RIM) + ' px of a ' + Lp + ' px map');
+    const tx = (i, j) => { const p = (j * cw + i) * 4; return [data[p], data[p + 1], data[p + 2], data[p + 3]]; };
+    const X = i => (i + 0.5) * (pack.w + 2 * m) / cw - m, Y = j => (j + 0.5) * (pack.h + 2 * m) / ch - m;
+    // THE OUTER COLOUR = THE PAGE'S EXACTLY: the canvas's border texels and every texel past the fade
+    let outerMax = 0, past = 0;
+    for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) {
+      const x = X(i), y = Y(j), dx = x - Math.max(0, Math.min(pack.w, x)), dy = y - Math.max(0, Math.min(pack.h, y));
+      if (!(i === 0 || j === 0 || i === cw - 1 || j === ch - 1 || Math.hypot(dx, dy) >= F)) continue;
+      const c = tx(i, j); past++; outerMax = Math.max(outerMax, Math.abs(c[0] - page[0]), Math.abs(c[1] - page[1]), Math.abs(c[2] - page[2]), 255 - c[3]);
+    }
+    need(outerMax === 0 && past > 2 * (cw + ch), 'the fade\'s outer colour is not the page\'s exactly (max ' + outerMax + ' over ' + past + ' texels)');
+    // THE SEAM: along every side, the texel just outside and the texel just inside (the rim, opaque at the border) the
+    // same colour; the fade soft (no texel-to-texel step over 3 levels on any outward line); inside the rim, nothing
+    let seam = 0, seamN = 0, step = 0, inner = 0;
+    const iIn = [], jIn = [];
+    for (let i = 0; i < cw; i++) if (X(i) >= 0 && X(i) <= pack.w) iIn.push(i);
+    for (let j = 0; j < ch; j++) if (Y(j) >= 0 && Y(j) <= pack.h) jIn.push(j);
+    const i0 = iIn[0], i1 = iIn[iIn.length - 1], j0 = jIn[0], j1 = jIn[jIn.length - 1];
+    const pair = (a, b) => { seam = Math.max(seam, ...[0, 1, 2].map(c => Math.abs(a[c] - b[c]))); seamN++; need(b[3] >= 0.85 * 255, 'the rim is not opaque at the painting\'s border (' + b[3] + ')'); };
+    for (const i of iIn.slice(4, -4)) { pair(tx(i, j0 - 1), tx(i, j0)); pair(tx(i, j1 + 1), tx(i, j1)); }
+    for (const j of jIn.slice(4, -4)) { pair(tx(i0 - 1, j), tx(i0, j)); pair(tx(i1 + 1, j), tx(i1, j)); }
+    const line = (i, j, di, dj) => { let a = tx(i, j); for (let k = 1; i + di * k >= 0 && i + di * k < cw && j + dj * k >= 0 && j + dj * k < ch; k++) { const b = tx(i + di * k, j + dj * k); step = Math.max(step, ...[0, 1, 2].map(c => Math.abs(a[c] - b[c]))); a = b; } };
+    for (const i of iIn) { line(i, j0 - 1, 0, -1); line(i, j1 + 1, 0, 1); }
+    for (const j of jIn) { line(i0 - 1, j, -1, 0); line(i1 + 1, j, 1, 0); }
+    line(i0 - 1, j0 - 1, -1, -1); line(i1 + 1, j1 + 1, 1, 1);
+    for (const j of jIn) for (const i of iIn) { const x = X(i), y = Y(j); if (Math.min(x, y, pack.w - x, pack.h - y) >= RIM) inner = Math.max(inner, tx(i, j)[3]); }
+    need(seam <= 2 && seamN > 2 * (iIn.length + jIn.length) - 40, 'the seam: ' + seam + ' levels between the texels either side of the painting\'s border');
+    need(step <= 3, 'the fade steps ' + step + ' levels between neighbouring texels (banding)');
+    need(inner === 0, 'the canvas covers the painting inside its rim (alpha ' + inner + ')');
+    say('MAP-EDGE (G2730): the painting\'s edge sampled as a ring (' + E0.seg + ' segments a side, the outer ' + (E0.band[0] * 100).toFixed(1) + '-' + (E0.band[1] * 100).toFixed(1) + ' %, the img\'s look ' + MM.ART_FILTER + ' applied; the band\'s mean exactly, ' + waveErr.toFixed(1) + ' levels from the sea under the waves, the land unseen), ONE ' + cw + 'x' + ch + ' canvas in the stage (the painting\'s transform; baked once per painting in a worker - the same functions, byte for byte - or after the img\'s decode, never in place()), faded over ' + Math.round(F) + ' px (' + Math.round(E0.fade * 100) + ' %) with a ' + Math.round(RIM) + ' px rim over the painting; the outer colour = the page\'s ' + art.edge + ' exactly (max 0 over ' + past + ' texels); the seam <= ' + seam + ' levels, the fade\'s steps <= ' + step + ', the painting untouched inside the rim; no pointer');
   }
 
   // ---- G2440 (MAP-MERGE): THE THREE OTHER LISTS, the contracts' way - a row (an icon, the title, ONE number), ONE
