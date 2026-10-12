@@ -92649,3 +92649,70 @@ Gates: green except SKINMAT, WEATHER (pre-existing on master; fixes ride train 5
 Strict gate, QUIET re-run 01:09-01:28 (the 00:15 run was spoiled by the user's session): 41b vs master 09683cb08 on the same box minutes apart: cub chase loop 18.9 vs 18.3 ms, render 13.1 vs 12.9, cockpit 19.0 vs 19.0, garage->world 11.3 vs 11.2 s: AT PAR.
 MASTER ITSELF moved vs train 50 (0b42f6826, 20:53): cub chase loop 16.5 -> 18.3 ms, render 11.8 -> 12.9, cockpit loop 16.4 -> 19.0: SCENERY-SHIP (rev27, landed 23:11 without its strict gate by the user's OK) costs ~+2 ms loop at HOME. Still 30 fps at the cap. Owed: find the cost (roads r1 / pavement / zones) - EDITOR-PERF / SCENERY-ED-2.
 What to watch for: nothing visible with damage off. ?damage=1 shows the crash layer (breaks, scars, debris).
+
+## G2920-G2921 - GARAGE-SHEET: THE PERFORMANCE SHEET (genShakedown) OFF THE GARAGE'S MAIN THREAD - THE POSTS WERE THE READER G1302 MISSED; ONE THREAD, ONE SHEET A SETTLED AEROPLANE, THE NEWEST WINS; THE SAME SHEET TO THE BIT; THE RIGS' SHEET STORE (2026-10-11/12, GARAGE-SHEET for A0, local; branch claude/garage-sheet-g2920, rebased on f353a0f89; G2922-G2924 unused)
+
+The finding (the Deform coordinator, 11 Oct, garage_lag --prof, master 43 vs train 41b): genShakedown ran on the page's
+thread on every garage change that put a new aeroplane on the stand - the metal Cessna ~1.0-1.2 s, the Cub ~0.6 s of the
+busy time a change - so train 41's accepted +3.3 % physics step came out as +4-10 % garage busy. The user's go (11 Oct,
+"a and b"): take it off the thread, removing far more than train 41 added.
+
+- **WHERE IT RAN.** G1302 had made the plaque and the flight plate wait for the sheet (shakeDeferred -> shakeSoon, post-
+  idle). It missed the room's CG / neutral-point posts: GARAGE_SPEC.update (the energy layer's re-placed tanks, a
+  design-flow pick, a load) -> api.apply clears LAST_BAL -> setAircraft + enterGarage -> buildIndicators: no balance
+  answer yet -> `shakeOf()`, synchronously, inside the change's own task. Then shakeSoon ran it again for the plaque if
+  the posts had not. The design flow's pre-plaque strip (stripNumbers) ran its own (ledger: true) on every render.
+- **THE THREAD.** bench_worker.js gets a `sheet` job (benchSheetRun: buildGen(job.spec) + genShakedown(def, job.opts),
+  the def's signature benchSheetSig = node / beam counts, mass and its first moments); its Blob source asks the two
+  files with `?v=` FLYDIY_BUILD / FLYDIY_CORE_SHA when started `versioned` (sim_host.js's rule: never a cached stale
+  core); CORE carries genShakedown. The bench's own tests ask exactly as before (unversioned).
+- **THE LINK** (src/viewer/sheet_link.js, makeSheetLink; window.SHEET_LINK is app.js's one): a request waits 250 ms of
+  quiet and for the hand to leave the slider (CAGE_UI.dragging(): the pointer down, or its settle build owed; at most
+  holdMaxMs 8 s) - a drag asks ONCE, for the aeroplane it ends on; one sheet computes at a time; a newer aeroplane in
+  the same lane TERMINATES the computing thread at once (a sheet is one synchronous run - there is no other stop) and
+  the next one starts a fresh thread, which loads its core during the settle; a superseded answer is dropped by its
+  seq; the same aeroplane asked again is not asked twice; lanes ('stand', 'strip') queue, never abort each other. The
+  thread is made INSIDE the first request, synchronously: no Worker (file://, the node page - its shim refuses a Blob no
+  gate asked for), a thread that dies, or two errors in a row -> the link is dead, `request` says false and every
+  waiting job's `fail` runs: the page computes as it always did. So the node page (every gate) takes the old
+  synchronous path, byte for byte. `?sheetw=0`: no link, the old path (the A/B's base).
+- **THE PAGE** (app.js): sheetAsk (the def's key, the spec it was built from - genSpec - and the page's options
+  { corners: false }); sheetLand believes an answer only for its key and when the thread's def signature equals the
+  page def's (else the link is killed - a stale core - and the page computes), keeps it exactly as the page's own run
+  (shakeKeep: the memo and the core's store), and re-reads: flRender, drawPlaque, the posts. While it computes, the
+  posts keep the last answer's lines with their labels dimmed (indicatorsStale) and the plaque keeps its numbers at
+  45 % under "UPDATING - these numbers are the last build's" (#plaque.on.stale): nothing blank, and no number shown as
+  this aeroplane's that is not. A page run (the bench check's click, the roll-out's plate, the pilot) cancels the
+  thread's job for that key. design_flow.js's strip asks the 'strip' lane, draws '…' and fills in place.
+- **NOT MOVED, on purpose:** the bench check (a click: shakeOf on the page, as before - it cancels the thread's job);
+  the energy panel's readouts keep their own worker (_cage_energy.js readoutWorker: two core copies in two threads -
+  merging them is a follow-up); genDensityAlt (CERT-SLIM G2840's).
+- **GATE SHEETWORKER (new, core, ~20 s)** tools/_sheetworker_check.js: 1 THE THREAD - benchWorkerSource run in a real
+  worker_threads thread (importScripts reading the files, the structured clone the browser uses): the validated five
+  (Cub, Jodel, C172, C172 floats, twin on floats) + the metal Cessna + two synthetic builds (the Cub with a longer
+  narrower wing and +21 % power; the C172 with a longer cabin, a bigger tail and a wider track): the sheet equals the
+  main thread's TO THE BIT (Object.is on every number, typed arrays by element, shared objects where they were; 102
+  keys), the signature equal; the strip's ledger sheet; a throw answers {error} with its seq; 2 THE LINK on a fake clock
+  (a 10-tick held drag posts ONE sheet, after the hand lifts, for drag9; a newer aeroplane kills the computing thread,
+  the late answer dropped; repeat requests do not starve the settle; lanes; every dead path); 3 THE PAGE (source).
+  --selftest: a last-bit flip, an eager link, a link that never aborts, the sheet back in buildIndicators: 6 caught.
+  `--browser --udd D --port P`: the same parity in Chrome (a bare page: flight_core.js on the main thread vs the Blob
+  worker through sheet_link.js) and THE GARAGE ROW (the built index.html on the Cub: a hand held on a slider while the
+  stand changes ten times through GARAGE_SPEC.update, then lifted).
+- **THE RIGS' SHEET STORE (found here; affects the strict gate).** shakeStore keeps sheets in localStorage `flydiy.shake`
+  (per core sha, 8 newest) - it lives in a rig's reused profile, and garage_lag sets the same values every run, so a
+  repeat run reads the first run's sheets: the metal's tank row 953 -> 279 ms busy, main-thread sheet 1549 -> 0 ms, on the
+  same code. `garage_lag --clearshake` drops the store in the load's pre-script; train_gate's garage leg passes it (its
+  garage baseline must be re-taken with it). Earlier garage A/Bs in one profile carry this order effect.
+
+RESULTS (12 Oct overnight, A0's windows, the locks held; rebased on f353a0f89 at 03:30):
+- CPU: SHEETWORKER PASS 47/47 (after the error row's fix: the core normalises ANY spec - { wings: 'nope' }, null, 'x'
+  all build and fly - so the throw is planted in the thread), --selftest 6/6; run_gates --only=BENCH, DESIGN,
+  SIMWORKER, UISMOKE, LOAD, INSTANT, JOIN, SAVE: BATTERY PASS.
+- Chrome 154 (GPU window): every build's worker sheet == the main thread's to the bit (main / thread ms: cub 645/601,
+  jodel 893/896, c172 755/759, floats 891/969, twinf 946/960, metal 713/767, synthA 434/442, synthB 787/765); the garage
+  row: nothing posted while the hand is down, ONE sheet posted and landed after (474 ms on the thread), genShakedown on
+  the page's thread 0 times through the ten changes and the re-read; no page exceptions.
+- garage_lag ABBA, same tree, ?sheetw=0 vs the thread (cub + metal, reps 2): CONFOUNDED by the store above (first runs
+  only: off cub 2022 / metal 2649 ms busy summed = the master numbers quoted; the thread's rows read 0 ms main sheet but
+  may be store hits). The clean ABBA (--clearshake) is A0's GPU TIMED window Tue 13 Oct 04:45-05:10: TABLE BELOW.
