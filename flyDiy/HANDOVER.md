@@ -85235,7 +85235,13 @@ master too - it is not a certifying airframe, which is why the Skymaster-alike i
 (the Cub, Jodel, 172, Chinook corrected builds, the twin-582, twin, twin-boom, pusher and metal-Cessna fixtures, the
 four single mounts, two clamped lists) digested against master f353a0f8 (nodes, beams, params, refs, strips, 2 s of
 the sim) - all equal; 2 CLAMP; 3 LATTICE; 4 SHAKEDOWN; 5 FLIGHT (the table); 6 CERTIFY; 7 EDITOR (join + tiles).
-PASS. Existing gates run here: see the run below.
+PASS. Existing gates, `run_gates.js --no-build --only=...` on this branch (build 5c0b86a1d2c1), every one PASS:
+ENGCONFIG 278 s, GEN 632 s [4 shards], PILOT 341 s [3 shards], MOUNT, JOIN, GENPAIRS, SPECFIX, DESIGN, PARTS, ENGINE,
+ENGID, COWL, ENGMESH, CAGEFIT, BUILD, SAVE, STARTER, HONEST, WEIGHT, MASS, DRAG, BENCH, LOAD, AUDIO, ROLLANIM, DEFAULT,
+TAKEOFF (BATTERY: PASS, 25 + 2 gates); BUILT PASS on a fresh build with the source lag named (this branch commits
+sources only; A0's train commits the built outputs). NOT run: the full tier (ARCHETYPES, PILOTMATRIX, SEAPLANE,
+HOTHIGH), UISMOKE and the page gates (node only, no pixels) - ARCHETYPES flies designBake's intent, which this change
+touches only for engMount 4-6 (no archetype card uses them).
 
 **What to watch for.**
 - ENGINE-TORQUE (G2080) is NOT on master: today an engine out on the push-pull has ZERO yaw because there is no
