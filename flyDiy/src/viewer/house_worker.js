@@ -50,7 +50,7 @@ const HW_FILES = [['HOUSE_TEX_SETS', 'src/viewer/house_tex.js'], ['GROUND_TEX', 
   ['VILLAGE_GEN', 'tools/_village_gen.js'], ['PREMISES_BUILD', 'src/viewer/premises_build.js'],
   // (C3c, G861) a kit plot's lot (Metlakatla on the kit): the job kind 'kit' - imported whatever the page has loaded
   ['KIT_LOT', 'src/viewer/kit_lot.js']];
-const HW_LAZY = [['SPORT_GEN', 'tools/_sport_gen.js'], ['MARINE_GEN', 'tools/_marine_gen.js']];
+const HW_LAZY = [['SPORT_GEN', 'tools/_sport_gen.js'], ['MARINE_GEN', 'tools/_marine_gen.js'], ['NAVAID_GEN', 'tools/_navaid_gen.js']];
 const HW_DB = 'flydiy-houses';
 
 // ---- THE WORKER'S BODY (thread-agnostic: `port` = { post(m, transfer), on(fn) }) ------------------------------------
@@ -272,7 +272,7 @@ const HOUSE_WORKER = (() => {
       S.w = w; S.on = true; S.why = 'starting'; S.t0 = (W.performance || Date).now();
       w.onmessage = e => { try { msg(e.data); } catch (err) { console.warn('house worker message:', err); } };
       w.onerror = err => fail('the worker failed: ' + (err && err.message || err));
-      const lazy = HW_LAZY.filter(([g]) => /sport\//.test(o.premises) && g === 'SPORT_GEN' || /marine\//.test(o.premises) && g === 'MARINE_GEN').map(([g]) => g);
+      const lazy = HW_LAZY.filter(([g]) => /sport\//.test(o.premises) && g === 'SPORT_GEN' || /marine\//.test(o.premises) && g === 'MARINE_GEN' || /(navaid|utility)\//.test(o.premises) && g === 'NAVAID_GEN').map(([g]) => g);
       w.postMessage({ cmd: 'init', base, urls, island: o.island, premises: o.premises, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT, lazy, build: ver || 'dev',
                       flags: { FLYDIY_GROUND_RASTER: W.FLYDIY_GROUND_RASTER } });
       S.urls = urls;

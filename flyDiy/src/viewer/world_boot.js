@@ -99,11 +99,18 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // first and threw ("Cannot destructure property 'clamp' of 'K'"). So they are asked for once HOUSE_KIT is in: at
   // once when it is (dev.html), else from the load event of the script that brings it (a script's load fires right
   // after it runs; the generators are then queued behind the pack's remaining tags, long before the roll-out)
-  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && /"(sport|marine)\//.test(premisesPlaced)) {
-    const gens = () => window.FLYDIY_LAZY(['_sport_gen', '_marine_gen']);
+  // (ASSETS-OCT G2909) the navaids' generator the same way: asked for when the record names a navaid/ key
+  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && /"(sport|marine|navaid|utility)\//.test(premisesPlaced)) {
+    const gens = () => window.FLYDIY_LAZY(['_sport_gen', '_marine_gen'].concat(/"(navaid|utility)\//.test(premisesPlaced) ? ['_navaid_gen'] : []));
     if (window.HOUSE_KIT) gens();
     else { const kit = () => { if (!window.HOUSE_KIT) return; document.removeEventListener('load', kit, true); gens(); };
       document.addEventListener('load', kit, true); }
+  } } catch (e) {}
+  // THE SCENERY KIT'S PACKS (ASSETS-OCT G2904): lazy (build.js MANIFEST.lazy, every scenery_* entry, the levels last) -
+  // asked for when the record holds prop objects (the user's placed models); the premises step waits for pending ones
+  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && window.FLYDIY_LAZY_SRC && /"kind":\s*"prop"/.test(premisesPlaced)) {
+    const sc = Object.keys(window.FLYDIY_LAZY_SRC).filter(n => /^scenery_/.test(n));
+    if (sc.length) window.FLYDIY_LAZY(sc);
   } } catch (e) {}
   // THE ISLAND (W2): the loader fetched the data world's files when ?world= named one
   // G999: the island loader's promote decoded it in a task of its own (window.ISLAND_MADE, build.js) - taken when it is

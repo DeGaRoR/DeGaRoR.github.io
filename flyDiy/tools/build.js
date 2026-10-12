@@ -335,7 +335,14 @@ const MANIFEST = {
   // (C3b, G855) townkit.js, the town kit's host: only the look review asks for it (render_premises ?kitab=...)
   // (C3c, G861) ...and Metlakatla on the kit (the town on), with kit_lot.js - a kit plot's lot (the house worker imports it
   // itself, by its URL)
-  lazy: [['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
+  lazy: [['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'],
+         // ASSETS-OCT G2909: the radio navaids (the Annette Island DVOR/DME) - asked for when the record names a navaid/ key
+         ['tools', '_navaid_gen.js'],
+         // ASSETS-OCT G2904: the scenery kit's packs (src/scenery/, slim manifests - their bins and maps are lazy media
+         // too) - asked for by world_boot when the record holds prop objects and by the editor's model placer, in the
+         // manifest's order (the levels pack last: its rows name the props they stand in for)
+         ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'scenery', 'scenery_packs.json'), 'utf8')).map(f => ['src/scenery', f]); } catch (e) { return []; } })(),
+         ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
          ['src/viewer', 'world_rail.js'], ['vendor/ktx2', 'ktx2_loader.js'],
          ['src/viewer', 'townkit.js'], ['src/viewer', 'kit_lot.js'],
          ['src/viewer', 'diag.js'],
