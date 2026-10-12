@@ -5515,10 +5515,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // that's undesirable"): a point was refused while the water stood within 0.3 m UNDER its ground - on a lake's gentle bank
           // (the carve's slope, a few %) that is metres of bare shore. A LAKE now refuses only `lakeMargin` m (the grass field's dial,
           // 0.03 by default: the ground just above the drawn water); the SEA keeps its 0.3 m (the tide line, the beach - unchanged)
+          // (the grass field's alone: the first ring - its flowers, bushes, rocks, debris and the far rock map - keeps the 0.3 m
+          // everywhere, A0 11 Oct: what else stands on a lake's bank is another call)
           const lakeM = () => (grassField && grassField.lakeMargin ? grassField.lakeMargin() : 0.3);
-          const drawnWet = (x, z, h) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z); return wy !== null && Number.isFinite(wy) && wy > h - (wy > 0.05 ? lakeM() : 0.3); };
-          const okAt = (x, z) => { const h = world.terrainH(x, z), wl = world.waterH(x, z); if (h < 0.3 || wl > h - (wl > 0.05 ? lakeM() : 0.3) || drawnWet(x, z, h)) return false;
+          const wetBy = (x, z, h, lake) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z); return wy !== null && Number.isFinite(wy) && wy > h - (lake && wy > 0.05 ? lakeM() : 0.3); };
+          const landBy = (x, z, lake) => { const h = world.terrainH(x, z), wl = world.waterH(x, z); if (h < 0.3 || wl > h - (lake && wl > 0.05 ? lakeM() : 0.3) || wetBy(x, z, h, lake)) return false;
             const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
+          const okAt = (x, z) => landBy(x, z, false), okLake = (x, z) => landBy(x, z, true);
           // THE COVER'S QUERY (v1.17): the world's coverAt with `col` added - the linear colour the PAVEMENT
           // draws there (the class's base set mean, graded as the shader grades it: what the eye sees), so a
           // tuft on a band or a grass road takes its own ground's colour; null where no pavement is drawn
@@ -5537,7 +5540,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // the field's land test: the cover's, and - under the 'sides' law with `hard` (27_premises GRASS_SIDES, the user's call) - a
           // point the physics calls gravel / paved where nothing hard is drawn (kill under 1: a shoulder polygon, a strip box's margin)
           const PGN = (typeof PREMISES_GEN !== 'undefined') ? PREMISES_GEN : null;
-          const okField = (x, z) => { if (okAt(x, z)) return true;
+          const okField = (x, z) => { if (okLake(x, z)) return true;   // (G2572: to a lake's edge)
             const L = PGN && PGN.grassSides ? PGN.grassSides() : null; if (!L || L.law !== 'sides' || !L.hard) return false;
             const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3) return false;
             const s = world.surface(x, z); if (s !== world.SURFACE.GRAVEL && s !== world.SURFACE.PAVED && s !== world.SURFACE.SAND) return false;

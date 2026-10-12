@@ -434,8 +434,9 @@ var COVER_RING = (() => {
         let cd = ctx.codeAt ? ctx.codeAt(x, z, r) : -1;
         // THE LAKE'S 10 m CELLS (G2572): the island's type grid marks a cell LAKE (1) though its edge is dry bank - no mix, no grass
         // to a cell's width from the water. Dry land (the land test passes) under a lake code takes the nearest land code round it
-        // (6 then 12 m, eight ways); the sea (0) keeps its own
-        if (cd === 1 && ctx.codeAt && ctx.okAt(x, z)) {
+        // (6 then 12 m, eight ways); the sea (0) keeps its own. The grass field's alone (the first ring's flowers, bushes and
+        // stones on a lake's bank are another call - A0)
+        if (FIELD && cd === 1 && ctx.codeAt && ctx.okAt(x, z)) {
           find: for (const rr of [6, 12]) for (let a = 0; a < 8; a++) { const c2 = ctx.codeAt(x + Math.cos(a * 0.7854) * rr, z + Math.sin(a * 0.7854) * rr, r); if (c2 >= 2) { cd = c2; break find; } }
         }
         code[k] = cd; mix[k] = BIO.mixHere ? BIO.mixHere(cd, x, z) : (cd < 0 ? null : BIO.mixAt(cd)); bush[k] = bushOff && bushOff(x, z) ? 1 : 0; ok[k] = (ctx.okAt(x, z) && !(ctx.poolAt && (cd === 3 || cd === 7) && ctx.poolAt(x, z) > 0.5)) ? 1 : 0;   // no tuft in a puddle (the shader's pools, in JS)
