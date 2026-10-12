@@ -28,3 +28,8 @@ echo "PREMISES_GEN.grassSides({ law: 'today' }); TREE_FILL.cover().replant(); TR
 run node tools/perf/grass_cost.js --gpu --noshots --q grassfield=1 --out $E/split/a_sides --preset gamer --views $V --udd C:/grc_after_gamer --warm && log "a done"
 run node tools/perf/grass_cost.js --gpu --noshots --q grassfield=1 --eval $E/split/eval_b.js --out $E/split/b_today --preset gamer --views $V --udd C:/grc_after_gamer --warm && log "b done"
 run node tools/perf/grass_cost.js --gpu --noshots --q grassfield=0 --out $E/split/c_off --preset gamer --views $V --udd C:/grc_after_gamer --warm && log "c done"
+# THE LOOP AT THE CAP (A0: "report the loop"): the same three without --gpu - the preset's own 30 cap, no per-draw queries, the CPU
+# slots' medians (grass_cost frame().slots: script / solver / world / prem / cover / fill / scene / ... / render) as the gate sees them
+run node tools/perf/grass_cost.js --noshots --q grassfield=1 --out $E/split/a_sides_cap --preset gamer --views $V --udd C:/grc_after_gamer --warm && log "a cap done"
+run node tools/perf/grass_cost.js --noshots --q grassfield=1 --eval $E/split/eval_b.js --out $E/split/b_today_cap --preset gamer --views $V --udd C:/grc_after_gamer --warm && log "b cap done"
+run node tools/perf/grass_cost.js --noshots --q grassfield=0 --out $E/split/c_off_cap --preset gamer --views $V --udd C:/grc_after_gamer --warm && log "c cap done"
