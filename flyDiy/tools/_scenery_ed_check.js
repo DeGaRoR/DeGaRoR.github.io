@@ -608,7 +608,7 @@ if (plots.length) {
 //    (normalised) - but for a `stage`, which a save (the sandbox's view, every track at its max) never carries and the
 //    shipped record keeps, and the entries only a stage stands (`sg_`) or a removal not yet confirmed keeps.
 {
-  const M = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_rev27.json'), 'utf8'));
+  const M = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_rev28.json'), 'utf8'));
   const stxt = fs.readFileSync(path.join(TOOLS, 'fixtures', M.save), 'utf8');
   check(require('crypto').createHash('sha256').update(stxt).digest('hex') === M.sha256, '15 the save beside the manifest is the user\'s, byte for byte (' + M.sha256.slice(0, 16) + ')');
   const A = PG.dropPlaces(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, ['mk_']).rec, B = PG.unwrap(stxt).rec;
@@ -624,7 +624,10 @@ if (plots.length) {
   //  the entry is the save's)
   // (G3014: and the plots the manifest moves - plotMoves {runway: {plot: [x, z]}}: the save's plot taken to where it ships)
   const PMv = M.plotMoves || {};
+  // (G3020: and the fields the manifest patches after the ship - fieldPatches {entry id: {field: value}}, SCENERY-ED-1's HOME rework on rev 28)
+  const FPa = M.fieldPatches || {};
   const CD = new Set(M.clearDefault || []), unC = e => { const c = JSON.parse(un(e)); if (CD.has(c.id)) delete c.clear;
+    if (FPa[c.id]) Object.assign(c, JSON.parse(JSON.stringify(FPa[c.id])));
     if (PMv[c.id] && Array.isArray(c.plots)) for (const p of c.plots) if (p && PMv[c.id][p.id]) { p.x = PMv[c.id][p.id][0]; p.z = PMv[c.id][p.id][1]; }
     return JSON.stringify(c); };
   check([...CD].every(id => { const w = (A.layers.runways || []).find(q => q.id === id); return w && !('clear' in w); }), '15 the strips the manifest names ship with the clearance of today, not their own (' + [...CD].join(', ') + ')');
@@ -634,11 +637,11 @@ if (plots.length) {
     for (const [id, e] of b) { if (EX.has(id)) { if (a.has(id)) bad.push(L + ' ' + id + ' held back, but shipped'); continue; } if (!a.has(id)) bad.push(L + ' ' + id + ' not shipped'); else if (unC(a.get(id)) !== unC(e)) bad.push(L + ' ' + id + ' differs'); }
     for (const [id, e] of a) if (!b.has(id)) { if (RM.has(id)) bad.push(L + ' ' + id + ' removal confirmed, still shipped'); else if (!staged(e)) pending.push(id); }
   }
-  check(!bad.length, '15 the shipped record is the save entry by entry (held back: ' + M.except.join(', ') + ')', bad.slice(0, 6).join('; '));
+  check(!bad.length, '15 the shipped record is the save entry by entry (held back: ' + (M.except.join(', ') || 'none') + ')', bad.slice(0, 6).join('; '));
   const FX = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), FL = (FX.premises || FX).layers;
   let nSt = 0, nIt = 0; for (const L of Object.keys(FL)) for (const e of FL[L] || []) { if (e && e.stage) nSt++; if (e && Array.isArray(e.items)) for (const it of e.items) if (it && it.stage) nIt++; }
   check(nSt >= 17 && nIt >= 5, '15 every stage the shipped record had is still on it (' + nSt + ' entries, ' + nIt + ' site items) - a save never carries them');
-  console.log('     15 the user\'s rev 25 shipped: ' + B.layers.roads.length + ' roads in the save; the removals the save makes and the user has not confirmed (kept): ' + (pending.join(', ') || 'none'));
+  console.log('     15 the user\'s ' + M.save + ' shipped: ' + B.layers.roads.length + ' roads in the save; the removals the save makes and the user has not confirmed (kept): ' + (pending.join(', ') || 'none'));
 }
 
 // 16 THE LONE ROAD'S PATCH (G3013; the user's 66 km of graded road made the fine 2 m patch 7x what it was for every

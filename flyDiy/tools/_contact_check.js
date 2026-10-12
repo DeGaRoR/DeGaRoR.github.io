@@ -183,11 +183,12 @@ if (process.argv.includes('--drawn')) {
     if (O.pavedNear(w[0], w[1], 0.5, 'w2')) onOther++;
   }
   ok(onOther > 20 && onOther < cand * 0.2, "02/20's band holds points on or by another pavement (the crossing, the turnarounds, the taxiways), and they are few", onOther + ' of ' + cand);
-  // the shoulders: the surface layer's GRAVEL polygons (y_sh13_*) are the band's own ground, not a pavement
-  const sh = at(H, H.len * 0.5, H.wid / 2 + 3);
-  ok(O.surfaceAt(sh[0], sh[1]) === 6 && !O.pavedNear(sh[0], sh[1], 0.3, 'HOME'), "13/31's gravel shoulder (surface 6) is not a pavement to its stones");
+  // the shoulders: the surface layer's GRAVEL polygons (y_sh13_*) were the band's own ground, not a pavement - (G3020 rev 28) A0
+  // dropped them with the user's rev 28 (never in a save; they cut HOME's trees at 40 m): none is shipped
+  ok(!(O.rec.layers.surface || []).some(s => /^y_sh/.test(s.id)), "13/31's gravel shoulders are gone (rev 28): no y_sh surface shipped");
   // the surface layer's PAVED apron (y_pad) is
-  ok(!!O.pavedNear(-175, 690, 0, null), 'the pad (a PAVED surface polygon and its look polygon) answers');
+  // (G3020 rev 28: the user reshaped y_pad - -58, 685 is its deepest point, where -175, 690 was on the old one)
+  ok(!!O.pavedNear(-58, 685, 0, null), 'the pad (a PAVED surface polygon and its look polygon) answers');
   // the dressers ask it
   const rw = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8');
   const iS = rw.indexOf('const standRocks = '), iE = rw.indexOf('rows.push(', iS);
