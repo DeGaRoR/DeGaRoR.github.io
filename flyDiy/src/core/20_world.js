@@ -296,6 +296,9 @@ function makeWorld(seed, opts) {
     }
     return s;
   }
+  // the island's water (28_island hydro): 'map' (the default since G2990) the map's lakes, no rivers; 'blend' (G413)
+  // the map's lakes and the bake's rivers between them; 'proc' (G405) the analytic bake's lakes and rivers
+  const HM = ISL ? ISL.hydro : 'proc';
   const HYD = bakeHydrology(
     (x, z) => blendM(x, z, h0(x, z)) + domes(x, z),
     // 24 km domain at 46.9 m cells; A0m2 = physical drainage threshold
@@ -303,7 +306,7 @@ function makeWorld(seed, opts) {
     // bake, so the same physical rivers emerge at any grid resolution)
     // the island: the DEM already holds its river beds (no carve to add) and
     // its lakes are the cover's water class (waterAt), not flooded sinks
-    { x0: BOUNDS.x0, z0: BOUNDS.z0, x1: BOUNDS.x1, z1: BOUNDS.z1, N: (ISL && ISL.hydro === 'blend') ? 1024 : 512,
+    { x0: BOUNDS.x0, z0: BOUNDS.z0, x1: BOUNDS.x1, z1: BOUNDS.z1, N: HM === 'blend' || HM === 'map' ? 1024 : 512,
       // ...and no rivers either, for now (the user, 2026-09-14: "I hold my
       // judgment on procedural hydrology - maps first, procedural on top")
       // (G405: ?hydro=proc boots the analytic bake's water on the island, to compare with the map's)
@@ -314,10 +317,17 @@ function makeWorld(seed, opts) {
       // the real creeks, not every gully), 0.22 kW and 28 m at most (the
       // mainland's 0.35 / 45), at 1024 cells over the island (its 5 m DEM has
       // the beds; 76 m cells put a ribbon on the bank)
-      lakeMin: (ISL && ISL.hydro !== 'proc') ? 1e9 : 1.5,
-      A0m2: !ISL || ISL.hydro === 'proc' ? 274650 : ISL.hydro === 'blend' ? 1.2e6 : 1e12,
-      kW: (ISL && ISL.hydro === 'blend') ? 0.22 : 0.35, kD: ISL ? 0.12 : 0.4, maxW: (ISL && ISL.hydro === 'blend') ? 28 : 45, dLake: 2,
-      lakeOf: (ISL && ISL.hydro === 'blend') ? ISL.lakeAt : null, lakeSurf: !(ISL && ISL.hydro !== 'proc'),
+      // RIVERS OFF (G2990, the user 11 Oct: "drop the procedural rivers. They're bad now that we reach higher levels
+      // of fidelity"): 'map' hands the bake the map's lakes as the blend does (its lake carve, the trees kept out of
+      // them, the distance to water the biomes and the riparian woodland read) and traces no river (A0m2 1e12, and
+      // rivers: false skips the flow and the accumulation that only feed the reaches). 1024 cells still: at 512 the
+      // handed-in lakes lost three cells in four (12 266 -> 3 081, 206 lakes -> 157) and their carved shores moved by
+      // up to 17 m; at 1024 the lakes are the blend's (the same 12 266 cells; only a reach's carve by a shore goes).
+      // ?hydro=blend keeps the rivers, to compare
+      lakeMin: HM !== 'proc' ? 1e9 : 1.5,
+      A0m2: HM === 'proc' ? 274650 : HM === 'blend' ? 1.2e6 : 1e12,
+      kW: HM === 'blend' ? 0.22 : 0.35, kD: ISL ? 0.12 : 0.4, maxW: HM === 'blend' ? 28 : 45, dLake: 2,
+      lakeOf: ISL && HM !== 'proc' ? ISL.lakeAt : null, lakeSurf: HM === 'proc', rivers: HM !== 'map',
       dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes,
       // G1562 (REVIEW D8): the analytic world's sea is the below-0 ground that reaches the domain's edge; a basin under
       // 0 inland is a lake. The island's sea is its data's (28_island's coast field), as it was.

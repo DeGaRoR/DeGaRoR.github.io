@@ -125,7 +125,7 @@ function houseWorkerBody(G, port) {
     for (const [g, f] of HW_LAZY) if (m.lazy && m.lazy.indexOf(g) >= 0 && m.urls[f]) G.importScripts(m.urls[f]);
     // the island's trimmed boot, and its cooked raster cells when the page reads them (the loader's rule: a cook that
     // does not arrive is a lazy raster) - G1430: the cells of the page's variant alone (m.variant, 'town' / 'default')
-    const boot = await SH.simHostFetchBoot(m.base, m.island, { raster: !!m.raster, variant: m.variant });
+    const boot = await SH.simHostFetchBoot(m.base, m.island, { hydro: m.hydro, raster: !!m.raster, variant: m.variant });
     if (!boot) throw new Error('no island "' + m.island + '"');
     if (m.raster && !boot.premCook) boot.premCook = await fetchCook(m.base, m.island, m.variant);
     const island = G.ISLAND_GEN.makeIsland(boot);
@@ -256,7 +256,7 @@ const HOUSE_WORKER = (() => {
     try { if (localStorage.getItem('flydiy.housew') === '0') return false; } catch (e) {}
     return true;
   }
-  // o: { premises (the text the page composed), island (its id) }
+  // o: { premises (the text the page composed), island (its id), hydro (the page's water: G2990, its ?hydro= switch) }
   function start(o) {
     if (S.w || S.failed) return S.w ? api : null;
     try {
@@ -273,7 +273,7 @@ const HOUSE_WORKER = (() => {
       w.onmessage = e => { try { msg(e.data); } catch (err) { console.warn('house worker message:', err); } };
       w.onerror = err => fail('the worker failed: ' + (err && err.message || err));
       const lazy = HW_LAZY.filter(([g]) => /sport\//.test(o.premises) && g === 'SPORT_GEN' || /marine\//.test(o.premises) && g === 'MARINE_GEN').map(([g]) => g);
-      w.postMessage({ cmd: 'init', base, urls, island: o.island, premises: o.premises, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT, lazy, build: ver || 'dev',
+      w.postMessage({ cmd: 'init', base, urls, island: o.island, hydro: o.hydro || null, premises: o.premises, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT, lazy, build: ver || 'dev',
                       flags: { FLYDIY_GROUND_RASTER: W.FLYDIY_GROUND_RASTER } });
       S.urls = urls;
       return api;

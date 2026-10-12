@@ -1001,7 +1001,7 @@ function buildViewer(core) {
   // the manifest key is a dotted path; this is the only assembly either
   // consumer needs (island_node.js carries the same line)
   var set = function (o, k, v) { var p = k.split('.'); for (var j = 0; j < p.length - 1; j++) o = (o[p[j]] = o[p[j]] || {}); o[p[p.length - 1]] = v; };
-  var boot = { id: name, grid: {}, far: {}, hydro: new URLSearchParams(location.search).get('hydro') || 'blend' };
+  var boot = { id: name, grid: {}, far: {}, hydro: new URLSearchParams(location.search).get('hydro') || 'map' };
   // THE MANIFEST IS FETCHED, NOT INLINED. It was inlined at build time at first,
   // to spend no round trip before the payloads - but index.html is held to
   // 8.7 MiB by GATE MEDIA and had 589 bytes of headroom the day this landed, so

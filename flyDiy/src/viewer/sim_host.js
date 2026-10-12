@@ -141,7 +141,7 @@ const simHostSet = (o, k, v) => { const p = k.split('.'); for (let i = 0; i < p.
 // arrays, not copies
 function simHostTrimBoot(boot) {
   if (!boot) return null;
-  const out = { id: boot.id, grid: {}, far: null, hydro: boot.hydro || 'blend' };
+  const out = { id: boot.id, grid: {}, far: null, hydro: boot.hydro || 'map' };
   if (boot.reclass != null) out.reclass = boot.reclass;
   for (const k of SIM_HOST_KEYS) { const v = simHostGet(boot, k); if (v != null) simHostSet(out, k, v); }
   return out;
@@ -170,7 +170,7 @@ function simHostFetchBoot(base, name, opts) {
   return F(base + 'src/core/world_packs.json').then(r => (r.ok ? r.json() : { islands: [] })).then(PACK => {
     const isl = (PACK.islands || []).find(w => w.id === name);
     if (!isl) return null;
-    const boot = { id: name, grid: {}, far: null, hydro: opts.hydro || 'blend' };
+    const boot = { id: name, grid: {}, far: null, hydro: opts.hydro || 'map' };
     return Promise.all(SIM_HOST_KEYS.map(k => {
       const r = isl.files[k];
       if (!r) return null;
