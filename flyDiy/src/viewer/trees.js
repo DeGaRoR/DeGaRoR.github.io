@@ -363,7 +363,7 @@
   // onto the conifers' 0.42) with MASTER's hue - hue added, saturation and lightness multiplied. Identity by
   // default: nothing moves until the world rail moves it (TREE_LEAF.kindTint; the world look's `kindTint`).
   const COVER_BASE = { sat: 1.58, light: 1.12 };
-  const KIND_MASTER = { cover: { hue: 0, sat: 1, light: 1 }, shrub: { hue: 0, sat: 1, light: 1 }, flower: { hue: 0, sat: 1, light: 1 } };
+  const KIND_MASTER = { cover: { hue: 0, sat: 1, light: 1.3 }, shrub: { hue: 0, sat: 1, light: 1 }, flower: { hue: 0.015, sat: 0.74, light: 0.56 } };   // G2939: the user's look, 12 Oct
   // THE FLOWERS' COLOUR (GRASS-DENSE G2566, the user 9-10 Oct: colour options for the flowers, "they stand out"): a flower is its
   // picture (no tint of its own, the ring's 'cut' material), so its kind master is a hook of its own - TINT_GLSL after the map with
   // these uniforms (no flattening: uFlat 1), identity by default. TREE_LEAF.kindTint('flower', { sat: 0.7 }) moves every flower
