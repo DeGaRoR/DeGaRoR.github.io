@@ -815,6 +815,21 @@ if (plots.length) {
   check((RPs.match(/d < pickR\(ob\)/g) || []).length === 2 && /PG\.objectPickR\(ob, g \? g\.userData\.pickR : undefined\)/.test(RPs) && /objectEdit, hitAll, grabAt,/.test(RPs), '24 the renderer\'s hit() and hitAll() pick by pickR; grabAt is published');
   ed.cmd('delete', { id: ac });
 }
+// 25 EVERY SITE CATEGORY HAS ITS PILL (G2891; the user, 12 Oct: "there are many categories of sites that the filters do
+//    not cover"): the SITES palette's category pills are the theme's AND every category the catalogue's entries carry -
+//    the airfield's 'airport xs / s / m' (19 entries of the real catalogue) were reachable only under 'all'
+{
+  const E = new Map([['house/cottage', { key: 'house/cottage', cat: 'residential' }], ['tower/field cab', { key: 'tower/field cab', cat: 'airport xs' }],
+    ['hangar/club hangar', { key: 'hangar/club hangar', cat: 'airport s' }], ['totem/park', { key: 'totem/park', kind: 'park' }]]);
+  const catStub = { entries: E, keys: () => Array.from(E.keys()), byCat: c => Array.from(E.values()).filter(e => (e.cat || (e.kind === 'park' ? 'landmark' : null)) === c), byTag: () => [] };
+  let pills = null;
+  const rows25 = Object.assign({}, rows, { pills: (h, t, opts) => { if (t === 'category') pills = opts.map(o => o[0]); } });
+  const ed25 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows25, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop, catalogue: catStub });
+  ed25.setSection('sites');
+  check(pills && pills.indexOf('airport s') >= 0 && pills.indexOf('airport xs') >= 0 && pills.indexOf('residential') >= 0 && pills[0] === 'all', '25 the SITES palette has a pill for every category the catalogue carries', JSON.stringify(pills));
+  check(pills && pills.indexOf('airport s') > pills.indexOf('sports'), '25 the theme\'s categories first, the catalogue\'s others after');
+  ed25.close();
+}
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');

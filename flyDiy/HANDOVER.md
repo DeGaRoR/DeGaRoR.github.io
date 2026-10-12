@@ -87160,3 +87160,11 @@ things, a parked aeroplane on the stand not grabbed through, the round trip) + 2
 picks the aeroplane, the renderer reads it) - 168 checks PASS (node, ~1 s); node --check on the four files.
 What to watch for: in the scenery editor at HOME, press on the WWII hangar and drag - it moves (the strip's inspector
 opens); press on a parked aeroplane's wing - the aeroplane is selected.
+- **(G2891, the same branch) THE SITES PALETTE'S CATEGORIES** (the user: "many categories of sites that the filters do not
+  cover"): the pills were the theme's seven (PG.CATEGORIES); the catalogue also carries 'airport xs / s / m' (19
+  entries: the pilot hut, the field sheds, the club hangars, the cab and regional towers, the terminal, technical
+  services, the seaplane float) - reachable only under 'all'. sitesPalette now adds every category the catalogue's
+  entries carry after the theme's (totem/park is covered: byCat files a park under landmark). GATE SCENERYED 25.
+  Also found, not changed: the asset placer offers assembly PARTS as models (car_conquer wheels / steering, the panel's
+  buttons / keys / knobs / switches, the Jodel airframe parts, the ALMA's three parts, the pier kit's pieces) - a pack
+  flag (`part: true`) for ASSETS-OCT, then the placer hides them (S, train 53); the feature list has no JUNCTIONS group.

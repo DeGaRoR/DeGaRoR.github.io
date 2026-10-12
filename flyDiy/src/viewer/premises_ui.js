@@ -1881,7 +1881,11 @@ function mount(host, ctx) {
   // its generator's word); 'all' lists the whole catalogue - and the site themes the theme tool stands
   function sitesPalette(P) {
     if (!ctx.catalogue) { rows.note(P, 'no catalogue - no generator loaded'); return; }
-    const TH = PG.themeOf(rec), cats = TH.categories || PG.CATEGORIES;
+    // G2891 (the user, 12 Oct: "there are many categories of sites that the filters do not cover"): the theme's categories,
+    // then every category the catalogue's entries carry that the theme does not name (the airfield's 'airport xs / s / m':
+    // the pilot hut, the field sheds, the club hangars, the towers, the terminal - 19 entries only 'all' reached)
+    const TH = PG.themeOf(rec), cats = (TH.categories || PG.CATEGORIES).slice();
+    { const extra = new Set(); const E = ctx.catalogue.entries; if (E && E.forEach) E.forEach(en => { if (en && en.cat && cats.indexOf(en.cat) < 0) extra.add(en.cat); }); for (const c of Array.from(extra).sort()) cats.push(c); }
     const keysOf = c => (c === 'all' ? ctx.catalogue.keys() : ctx.catalogue.byCat(c).map(q => q.key));
     const nOf = c => keysOf(c).length;
     if (!PALETTE_CAT || (PALETTE_CAT !== 'all' && !nOf(PALETTE_CAT))) PALETTE_CAT = cats.find(c => nOf(c)) || 'all';
