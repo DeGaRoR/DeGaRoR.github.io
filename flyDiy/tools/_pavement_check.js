@@ -439,6 +439,41 @@ console.log('8. THE POWER LINE - the poles, the side, the cable');
   PW.setOn(false); const off2 = !g.visible; PW.setOn(true);
   verdict(off2 && g.visible, 'GRAPHICS > power lines hides every line, and shows them again');
   PW.dispose(g);
+  // f) THE LONG ROAD (G2955; the user: "I don't think the poles and cables draw anymore on my long road" - 140 poles a
+  //    road ended the island road's line 4.7 km from its start): a 25 km road takes its poles the WHOLE way, and the eye
+  //    draws only the cable's chunks within reach
+  { const LL = 25000, long = straight(250, LL);
+    const pq = PW.plan({ path: long, w: 7.2, seed: 9 });
+    const last = pq.poles.length ? pq.poles[pq.poles.length - 1].t : 0;
+    verdict(pq.poles.length > LL / (PW.DEF.pitch + PW.DEF.jitter) && last > LL - PW.DEF.pitch - PW.DEF.jitter - 10,
+      `a ${LL / 1000} km road: ${pq.poles.length} poles, the last ${f(LL - last, 0)} m from its end (the budget ${PW.DEF.perKm} a km, no total)`);
+    const LB = new Map();   // the lamps as the renderer bags them: by the chunk build() hands each one
+    const gl = PW.build(THREE, { path: long, w: 7.2, seed: 9, heightAt: () => 10, poles: pq.poles, side: pq.side,
+      place: q => { const o = new THREE.Object3D(); o.position.set(q.x, q.y, q.z); return o; },
+      lamp: q => { const a = LB.get(q.ci); if (a) a.push(q); else LB.set(q.ci, [q]); } });
+    const ch = gl.children.filter(c => c.isMesh && c.userData.pwc), UL = gl.userData.powerline;
+    // each chunk's lamps one mesh (a small box a lamp - the head's place is what matters), marked for cull() as the
+    // renderer's buildLine marks its metal and glass bags
+    const lampMeshes = [];
+    for (const [, qs] of LB) { const pos = []; for (const q of qs) pos.push(q.x - 0.3, q.y + 6, q.z, q.x + 0.3, q.y + 6, q.z, q.x, q.y + 6.3, q.z); const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); const m = PW.chunk(new THREE.Mesh(geo)); gl.add(m); lampMeshes.push(m); }
+    const nLamps = Array.from(LB.values()).reduce((a, q) => a + q.length, 0);
+    verdict(LB.size === ch.length && Array.from(LB.values()).every(q => q.length <= Math.ceil(PW.DEF.chunk / PW.DEF.lampEvery) + 1) && Math.abs(nLamps - pq.poles.length / PW.DEF.lampEvery) <= 1,
+      `its ${nLamps} lamps come in the cable's ${LB.size} chunks (at most ${Math.ceil(PW.DEF.chunk / PW.DEF.lampEvery) + 1} a chunk)`);
+    verdict(ch.length > 60 && UL.spans === pq.poles.length - 1, `its cable: ${UL.spans} spans in ${ch.length} chunks, ${(UL.tris / 1000).toFixed(0)} k triangles in all`);
+    const nNear = PW.cull({ x: LL / 2, y: 12, z: 0 }), drawn = ch.filter(c => c.visible).length, span = LL / ch.length;
+    verdict(nNear >= 2 && drawn <= Math.ceil(2 * PW.DEF.reach / span) + 2 && ch.every(c => c.visible === (Math.abs(c.userData.pwc[0] - LL / 2) - c.userData.pwc[3] <= PW.DEF.reach)),
+      `the eye at its middle draws ${drawn} of ${ch.length} chunks (those within ${PW.DEF.reach} m)`);
+    const lampsDrawn = lampMeshes.filter(m => m.visible), lampsLit = lampsDrawn.reduce((a, m) => a + m.geometry.attributes.position.count / 3, 0);
+    verdict(lampsDrawn.length <= Math.ceil(2 * PW.DEF.reach / span) + 2 && lampsDrawn.length >= 2 && lampsLit < nLamps / 4,
+      `...and of its lamps ${lampsLit} in ${lampsDrawn.length} meshes (the rest culled with their chunks; one merged mesh drew all ${nLamps})`);
+    PW.cull({ x: 0, y: 12, z: 0 });
+    verdict(ch[0].visible && !ch[ch.length - 1].visible && lampMeshes[0].visible && !lampMeshes[lampMeshes.length - 1].visible, 'the eye at its start: the first chunk drawn (cable and lamps), the last not');
+    const RPs = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
+    verdict(/chunkOf\(q\.ci \| 0\)/.test(RPs) && /PWR\.chunk\(c\.metal\.mesh/.test(RPs) && /q\[1\]\.chunk && !q\[1\]\.grp\.visible/.test(RPs) && /!e\.chunk \|\| e\.grp\.parent\.parent/.test(RPs),
+      'the game bags a line\'s lamps by its chunks, marks them for the cull, and a culled chunk\'s lamps lend no light');
+    PW.cull({ x: LL / 2, y: 12, z: 0 }, 1e9);
+    verdict(ch.every(c => c.visible), 'a reach past the road draws it all');
+    PW.dispose(gl); }
 }
 
 // ---- 9. THE LANES AND THEIR PAINT (2026-09-23) -------------------------------------

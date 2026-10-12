@@ -218,7 +218,14 @@ const stand = cfg => { L.set(cfg || null); L.standNow(); return L.items(); };
   verdict(RP.includes('built: h.built || null'), 'each house keeps its generator\'s report (HOUSES[].built)');
   verdict((RP.match(/trafficOf\(rd\)/g) || []).length >= 3, 'the traffic asks it for a road the record left without');
   verdict(/if \(LIFE\) \{ LIFE\.set\(rec\.life\); LIFE\.dirty\(\);/.test(RP), 'a rebuild hands it the record\'s life block');
-  verdict(/k: 'life',\s+label: 'LIFE'/.test(UI) && UI.includes('function lifeRows()') && UI.includes("if (section === 'life') return lifeRows();"), 'the world editor has the LIFE section');
+  // (G2910 SCENERY-ED-2 made the tabs ACTION PALETTES: a section's rows moved from the inspector's body into the palette
+  //  drawer under its tab - lifeRows(P) writes into the drawer palette.refresh() hands it. The section is reached when
+  //  its tab is on the rail (SECTIONS), the drawer dispatches 'life' to lifeRows, and lifeRows writes its rows - the
+  //  on/off, the draw distance, a slider a kind; GATE SCENERYED 7 opens the tab headless and finds the section)
+  const palR = (UI.match(/const palette = \{ refresh\(\) \{[\s\S]*?\n  \} \};/) || [''])[0], lifeF = (UI.match(/function lifeRows\(P\) \{[\s\S]*?\n  \}\n/) || [''])[0];
+  verdict(/k: 'life',\s+label: 'LIFE'/.test(UI) && /else if \(section === 'life'\) lifeRows\(d\);/.test(palR)
+    && /rows\.section\(P, 'LIFE'\)/.test(lifeF) && /rows\.pills\(P, 'life'/.test(lifeF) && /rows\.slider\(P, 'draw distance'/.test(lifeF) && /for \(const \[k, lab, mx, why\] of SL\.CATS\)/.test(lifeF),
+    'the world editor has the LIFE section: its tab, the palette drawer\'s dispatch to lifeRows, and its rows (on / off, draw distance, a slider a kind)');
   const iL = B.indexOf("['src/viewer', 'scenery_life.js']"), iR = B.indexOf("['src/viewer', 'render_premises.js']");
   verdict(iL > 0 && iR > iL, 'the world pack loads it before the renderer');
   verdict(RW.includes('premisesR.stats.life)'), 'the world ticks the premises while the life is on');

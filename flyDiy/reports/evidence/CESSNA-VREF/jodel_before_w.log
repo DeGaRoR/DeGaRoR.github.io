@@ -1,0 +1,17 @@
+jodelD112 (file tail) HOME calm · normal
+  ROLL@0 LIFTOFF@15.3 CLIMB@27.8 CROSSWIND@53 DOWNWIND@81.6 BASE@170.9 FINAL@196.8 FLARE@336.4 ROLLOUT@342 STOPPED@360.3
+  take-off: run 155 m, lift-off 20.8 m/s (1 lift-off, rotation 1.8 deg/s) · crosswind turn at 78 m
+  circuit tracking: cross-track rms 11.3 m on the straights · bounces 0
+  CROSSWIND overshoot    3 m  settle 14.2 s  roll reversals 0.7/min
+  DOWNWIND  overshoot    4 m  settle 11.2 s  roll reversals 0.2/min
+  BASE      overshoot   49 m  settle 11.8 s  roll reversals 0.8/min
+  final: captured at 210.9 s · above-slope rms 0.5 m · V-VAppr rms 0.12 (mean -0.02) · thr 0.23..0.47
+  flare: from 6.16 m at -1.22 m/s, 5.6 s
+  departure: normal · Vx 22.7 m/s · run needed 205 m of 1100
+  circuit: left-hand at 130 m, join straight
+  approach: normal · Vref 24.5 m/s (+0.1 for a 0.2 m/s gust) · aim 155 m in · flap 0 · run needed 183 m of 1100
+  landing: sink 1.1 m/s · 21.1 m/s = 1.12 Vs · -3 m past the aim · 0.1 m off · run 186 m · three-point
+  control reversals /min (da dr de): takeoff 0 0 12 · climb 0 0 0 · legs 10 4 10 · downwind 0 0 0 · base 12 4 6 · final 2.6 0.9 0.9 · landing 0 4 8
+  rollout: max heading 0.5 deg, 0 reversals, rudder 0.04 · 0 m off at the stop
+  completed at 360.3 s (247 s wall)
+{"key":"builds/jodel_2026-09-20_corrected.json","name":"jodelD112","from":"HOME","to":"HOME","style":"normal","profile":"expert","seed":null,"floats":false,"tail":"file","slope":0,"surface":null,"weather":null,"day":"2026-06-21 10:00:00 AKDT","outcome":"completed","phase":"STOPPED","t":360.3,"phases":["ROLL@0","LIFTOFF@15.3","CLIMB@27.8","CROSSWIND@53","DOWNWIND@81.6","BASE@170.9","FINAL@196.8","FLARE@336.4","ROLLOUT@342","STOPPED@360.3"],"goArounds":0,"verdicts":[],"takeoff":{"run":155,"Vlo":20.8,"lifts":1,"qMax":1.8},"climb":{"hTurn":78,"vsMean":2.46},"legs":[{"name":"CROSSWIND","overshoot":3,"settleT":14.2,"rollRev":0.7},{"name":"DOWNWIND","overshoot":4,"settleT":11.2,"rollRev":0.2},{"name":"BASE","overshoot":49,"settleT":11.8,"rollRev":0.8}],"final":{"captureT":210.9,"aboveRms":0.5,"vRms":0.12,"vErrMean":-0.02,"thrMin":0.23,"thrMax":0.47},"flare":{"entryAgl":6.16,"entryVs":-1.22,"t0":336.35,"dur":5.6},"track":{"xtRms":11.3,"n":5394},"bounces":0,"pitchMax":13,"landing":{"sink":1.1,"V":21.1,"VoverVs":1.12,"pastAim":-3,"off":0.1,"run":186,"three":true,"drift":-0.02},"activity":{"takeoff":{"s":28,"da":0,"dr":0,"de":12},"climb":{"s":25,"da":0,"dr":0,"de":0},"legs":{"s":29,"da":10,"dr":4,"de":10},"downwind":{"s":89,"da":0,"dr":0,"de":0},"base":{"s":26,"da":12,"dr":4,"de":6},"final":{"s":140,"da":2.6,"dr":0.9,"de":0.9},"landing":{"s":24,"da":0,"dr":4,"de":8}},"rollout":{"maxE":0.5,"zeroX":0,"maxDr":0.04,"xtEnd":0},"Vs":18.9,"VsLanding":18.9,"VAppr":24.5,"appr":{"technique":"normal","Vref":24.5,"Vbase":24.5,"gust":0.2,"aimIn":155,"flap":0,"len":1100,"surface":0,"runNeed":183,"gs":0.055,"reqGs":0.035},"dep":{"technique":"normal","Vx":22.7,"runNeed":205,"len":1100,"surface":0},"circuit":{"hand":"left","hC":130,"join":"straight","declared":null},"mass":462,"sheet":{"Vs":18.81,"Vs0":18.81,"Vref":24.45,"Vrot":18.7,"Vx":22.71,"Vy":26.1,"Vbg":27.68,"Vms":21.03,"Vcruise":35.3,"climbMax":2.56,"sinkMin":2.71,"LDbest":8.97,"TORun":205,"LDGrun":182.74,"mass":462.96},"tecs":true,"path":true,"wall":247}

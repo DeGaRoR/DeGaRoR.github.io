@@ -1,0 +1,12 @@
+  the user's Cub: FAIL HOME > tw_ski          603 s | dep: turned 104.5 deg, roll 108.9 m in, lift-off 113.5 m | final 3293.2 m / 569.3 m, clear 13.9 m (ground) | td sink -0.42 m/s, 17.6 m/s, run 96 m, off 1 m | fuel 27 L | FAULTS off-strip (the landing roll left tw_ski's box); ground-loop (the nose 30.2 deg off the landing roll on tw_ski at 9.8 m/s) | phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>ROLLOUT>STOPPED (364 s)
+    verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 21.9 m/s until clear | slope: stopped on a 5.7 % grade — rolling 190 m on to the level part
+    flares [{"low":684.7,"over":5.2,"d":18.3,"t":526.2}]
+    final {"h":604.9,"d":3293.2,"hC":110}
+  ok   2 the user's Cub HOME > tw_ski: the game's flight (the 8 kt / 250 deg day, the page's pilot, the damage on)  ({"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1},"shake":true,"damage":true,"fuel":29,"mass":461})
+  FAIL 2 the user's Cub HOME > tw_skia: stopped at Skyline Altiport with no fault (what the page saw)  (off-strip: the landing roll left tw_ski's box; ground-loop: the nose 30.2 deg off the landing roll on tw_ski at 9.8 m/s)
+  ok   2 the user's Cub HOME > tw_skia: landed on Skyline Altiport  (on tw_ski)
+  FAIL 2 the user's Cub HOME > tw_skib: the final begun at the field's circuit height (>= 746 m, over the strip's 709 m)  (FINAL at 604.9 m MSL, 3293.2 m out (-103.9 m over the strip's highest ground; the circuit 110 m))
+  ok   2 the user's Cub HOME > tw_skic: every flare armed over the strip, at most 25 m above it  (5.2 m over the strip's lowest ground 18.3 m out at 526.2 s)
+  ok   2 the user's Cub HOME > tw_skid: the final's lowest node 3 m over the ground and the forest  (13.9 m (ground, 40.8 m out))
+GATE ALTIPORT [shard 1/3]: FAIL (2)
+SHARD 1/3: 1 of 3 heavy jobs
