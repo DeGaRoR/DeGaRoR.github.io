@@ -87138,3 +87138,25 @@ Merged origin/claude/scenery-ship-g3010 (b43779662) on master 0b42f6826 (train 5
 - A0 re-pins: UISMOKE map places + 3 strips, projection roads 76 -> 110 (the road graph + rev27), and flyDiy/BACKLOG.md (the official backlog, source flydiy-notes/backlog.json).
 Gates green except VEHICLE (2 placeholder rows, agreed). The strict gate was NOT run (the RWYTREES row took 15 min; the user chose to land without it). The Tue 00:45 baseline re-take on this master verifies it.
 What to watch for: strip 12 and its roads, contracts at strips 10-12, trees on the user's clearings, typed numbers in the inspector, one strip per runway click.
+
+## G2891 - SCENERY-ED-1 (train 52): A STRIP'S CLUB HANGAR AND STAND TAKE A CLICK; A PARKED AEROPLANE IS PICKED BY ITS SIZE (2026-10-12, SCENERY-ED-1 for A0, local; branch claude/scenery-ed-t52-g2891 off master 09683cb08 = SHIP; c1 + c3 of the HOME inventory; c2 = G2892, train 53; G2893-G2899 unused)
+
+The user (12 Oct, reworking HOME's base zone): "there is a lot I can't displace". A0's inventory (this session, files
+only): around HOME every record polygon is clickable (the strip wins the first click, the pick cycle the next); what
+would not move is DERIVED - the strip's club hangar and stand (fields of the runway record, moved only by its discs once
+the strip is selected), the second hangar plot HOME.2 (no handle: c2), the taxi routes and the fleet's tie-down spots
+(TAXI, Wed), SCENERY LIFE (rules, not records: 'life here' per entry; a bake = backlog c4) - and five ship-only entries
+(the 13/31 and 02/20 gravel shoulders, 02/20's fan), handed to the user as ordinary areas in
+D:/Dev/flydiy-notes/inbox/jolene_rev27c_home_editable.json (rev27 + those five, ED-2's own migrator; README beside it).
+- **c1**: a press on a strip's club hangar (its footprint: HANGAR_DIMS round the door's heading, either way about) or its
+  stand (within 5 m) selects the strip and starts that handle's drag - PG.runwayGrab (core), R.grabAt (render_premises),
+  premises_ui grabStrip in onDown after the handle test, cmd 'grab'. A placed object under the press (a parked aeroplane
+  on the stand) is picked as before. hitAll lists the strip (with `grab`) among the site items, so the pick cycle names it.
+- **c3**: a parked aeroplane is picked by its size - PG.objectPickR: its drawn group's bounding radius x 0.85 (measured
+  once, kept on the group: pickR in render_premises), else 6 m x its scale; props, trees, signs, animals keep 2.5 m x
+  their scale. hit() and hitAll() read the one rule.
+Gates: GATE SCENERYED 23 (the hangar grabbed and moved, the stand grabbed and moved, nothing grabbed off the strip's
+things, a parked aeroplane on the stand not grabbed through, the round trip) + 24 (the rule, a click 4.5 m out on a wing
+picks the aeroplane, the renderer reads it) - 168 checks PASS (node, ~1 s); node --check on the four files.
+What to watch for: in the scenery editor at HOME, press on the WWII hangar and drag - it moves (the strip's inspector
+opens); press on a parked aeroplane's wing - the aeroplane is selected.
