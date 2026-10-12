@@ -85336,3 +85336,131 @@ Gates on the formula (sigB = gamma(R/t) x 0.605 E t / R at the station's ring), 
 50/50); 10:08-10:17, each its own process: DMGGEAR, DMGCLUSTERS, DMGINTEGRITY, DMGCERT, DMGCERTCOST, DMGMEMBERS PASS.
 With the 08:35 battery on this tip (GEN, PILOT, TAKEOFF, SEAPLANE, FLOATS, BENCH, SPECFIX, JOIN, FIN, FIT, DESIGN,
 FLEX, LOAD, SIMWORKER, ACCEPT, GEOPARITY, DESIGNCHECK, DMGCERT, DMGCERTCOST, DMGMEMBERS) - READY for 43.1.
+
+## G2750 - FINISH-FIX: THE PAINT RIDES THE SKIN (DECALS AND WEATHERING FROM THE REST PLACE), SCRATCHES BY COUNT, THE REGISTRATION RE-BAKES THE FAR MODEL, THE OVERLAY OVER EVERYTHING AND NOT IN THE SHED, THE BAND ROUND A BUBBLE NAMED AND ONE CLICK AWAY, THE ROOF LIGHTS' FRAMES IN STEEL (2026-10-10, FINISH-FIX for A0, local GPU; branch claude/finish-fix-g2750 off origin/master 26e04598b = train 42; G2751-G2759 unused)
+
+**The user** (10 Oct, from screenshots of their Mosquito - `tools/fixtures/repro/mosquito_2.json` / `_3.json`: carbon
+construction under an olive tint, weather age 0.7, a bubble canopy, registration B-MOSQ): "the weathering produces clear
+tiled pattern on carbon"; "the weathering 'dots' keep moving constantly, the texture gets stretched and back"; "when using
+the bubble cockpit mode, there's a dark part around the cockpit, which is not the joint, and that can't be accessed using
+the finish editor"; "the decal is projected live, so when the control surfaces move, the decal gets reprojected, and the
+moving part gets a shifting paintjob"; "I changed the registration, and the far baked model does not reflect that"; "the
+overlay does not draw on top of the runway" + "Overlay persists in the garage. I don't think it should."; "the hangar
+skylight chassis look plain white, flat, ugly, untextured and unrealistic".
+
+**1+2 / 4 - THE PAINT RIDES THE SKIN (aeroskin.js AERO_MAIN_VS, aeroRestBake; app.js beside the cavity bake).** In flight
+the rigs WRITE the vertices: the hinges turn a control surface in its buffer, the flex bends every skin vertex, the
+struts, the legs, the floats. Every projection that reads a craft PLACE took it off the posed vertex (`vCraftPos` from
+`transformed`): the decals' side/plan boxes, the weathering's triplanar and cylindrical reads, its sources, the holes,
+the detail sheet - so a box decal re-projected across a deflecting rudder every frame, and the grunge slid and stretched
+with the flex. (Field-mode markings and the field read on the fuselage skin were always fixed: aStruct is per vertex.)
+THE FIX: `aRest` (vec4: the place as built, w 2 = present) baked ONCE per flown geometry before the first pose
+(`AEROSKIN.aeroRestBake(THREE, grp)` right after `aeroWxBakeCavity`, the same reach - an aeroskin mesh, not a skinned
+one); AERO_MAIN_VS reads `aeroRestP = aRest.w > 1.5 ? aRest.xyz : transformed` and the craft place comes from it. A part
+that moves as a WHOLE (a wheel, an engine, a pivot group) still carries its motion in modelMatrix, so it turns with its
+paint as before. The C4b skinned folds take the rest place through the same bone (aeroSkinnedCraft); the hybrid's views
+merge aRest with the other live attributes (zero = w 0 = falls back, exactly like an unbound attribute's w 1). No rest
+(the editor, the benches, the parked bakes): the posed place, as before. Debris and a crumpled skin now keep their paint
+on the piece. NOT a new varying; one vec4 attribute on the flown skin (16 B a vertex, uploaded once).
+
+**1 - SCRATCHES BY COUNT (aeroweather.js aeroWxScratch).** The scratch layer read the 256-px grunge sheet stretched to a
+tile of 3 cm across x 45 cm along and thresholded it at 0.968: only the sheet's few highest texels passed - the SAME few
+every tile, a lattice of identical dashes, pale substrate (composite chip 0.5) on dark carbon. Now G345.4's rule: a
+lattice of `scratchLen` cells in the part's own frame, each cell rolls the hash of its INDEX (which never repeats) against
+the density, a winner draws one tapered stroke (mostly along, +-15 deg, 0.24-0.6 of a cell, jittered inside its cell),
+antialiased on the footprint and faded below a pixel. Knob `scratchAcross` (a width PERIOD) became `scratchW` (a stroke's
+half-width, 0.7 mm). SEEN: the master flank and cowl in flight carry columns of identical dark dashes (pale on the cowl), gone on G2750 (`1_weathering_dashes_master_vs_g2750.jpg`, the same frame both ways). At the macros this build carries (age 0.7) scratches are now rare by construction - the density is the layer's, the lattice no longer prints.
+
+**3 - THE BAND ROUND A BUBBLE.** Named by repainting each candidate section magenta through the editor's own finish door
+(finishToSpec / finishFromSpec), from two eyes: it is the WAISTBAND - the waist rail's strip, which cageCanopy re-sizes
+into a constant band under the canopy's seam all round the cockpit. The Mosquito carries `waistband: 0x262626` - the stock
+Cub's black waist stripe, inherited by every build made from it; on a bubble that stripe is a dark surround. Not the cabin
+darkening (uCabin 0 changes the interior, not the band), not the shoulder (off: the same band), not the joint (the thin
+ring at the glass). Its row existed - under the FUSELAGE, by the raw key 'waistband'. THE FIX: (a) the row says what it
+is: 'canopy sill band' on a bubble (its tip: 'finish and colour for canopy sill band (waistband)'), 'waist band' otherwise, 'roof rail band' / 'floor rail band' for its
+two siblings (the panel signature carries the bubble so the label follows the mode); (b) NEVER AN UNREACHABLE COLOUR: in
+the FINISH view a click on a cage face opens its part (no step-out on a second click) and that section's own row scrolls
+in and flashes (editor.js EDITOR_PICK, `.secFlash`). Retagging the strip as its own section was weighed and declined:
+ten downstream passes key on 'waistband' faces (the seal, the dash arc, the interior, the shoulder, the knife corpus).
+SEEN: `3_bubble_band_named_magenta_by_section_master.jpg` (each candidate magenta in turn: only waistband paints the band), `3_finish_click_lands_on_canopy_sill_band_g2750.jpg` (a click on the band: Fuselage opens, "canopy sill band" - its dark well the 0x262626 - outlined and scrolled in; master: no row). The dark colour itself is the build's, left as the user saved it.
+
+**5 - THE REGISTRATION RE-BAKES THE FAR MODEL (app.js tripExport).** The trips' key (snapshot, bake, spec) is the build's
+export, and the export carries the finish but not `meta` - and the registration lives in `meta.reg` (finishToSpec strips
+it from the decals: "the registration is not the finish's"). New letters left every key equal: the snapshot, the bake and
+the spec were skipped, the far fold kept the old atlas while the near live view showed the new letters. The key now ends
+`|reg<letters>`: a registration commit (on `change`, never per keystroke) re-runs the snapshot, whose flown preview
+carries meta.reg into the bake's own key. The parked bake (whole spec) and the fleet signature already carried meta.
+ALSO (found on the stills, then in the code): the BAKE STEP painted from the bare export whenever the snapshot was skipped (a trip whose wear moved a step: `bake` keys on build|wear, `snapshot` on build) - no meta, so aeroApplySpecDecals fell back to F-PGAR, under a key that cannot tell registrations apart. The bake now takes `tripSync.flown || GARAGE_SPEC.preview(tripSync.spec)`, the very spec the snapshot flies, so its key is the same whichever step ran. On THIS build a reg change already moved the export (the auto-fitted `regW` follows the letters), so the stills show G-FIXD on both trees (`5_registration_bake_live_master_vs_g2750.jpg`); the reg-only key now holds where regW does not move (a locked width), and the wear path is closed by construction (gate), not by a still.
+
+**6 - THE OVERLAY (app.js applySkinVis, enterGarage).** The frame lines were OPAQUE materials: three sorts them in the
+opaque list whatever their renderOrder (998), and the pavement, the clouds' composite and the glass are transparent and
+drawn after the whole opaque list - with the depth test off the lines wrote no depth, so the runway painted over them
+(the apron is opaque ground: there it showed). Both materials are transparent from birth (no program change on a toggle)
+and the x-ray rides AERO_CLEAR + 998/999, above the craft's see-through band. `enterGarage` resets the mode to Covered.
+SEEN: `6_overlay_over_runway_master_vs_g2750.jpg` (low eyes, the strip behind: master drops every line over the pavement - the gear struts, the wires to the tailwheel, the tail cone under the stab; G2750 draws them all). The run log: back in the shed master still says "Overlay x1", G2750 "Skin x1".
+
+**7 - THE ROOF LIGHTS' FRAMES (hangar.js).** The kerb and bars were flat quads 1.5 cm ABOVE the deck, seen from the floor
+THROUGH the pane - a milky emissive card (opacity 0.3, emissive x2.6): white-blue sheets, no depth. Inside, each member is
+now a slab hanging on the room side of the pane (a face and four flanks built through the slope's own P - no rotation, the
+gate's stub THREE has none), in M.beamSec (the purlins' steel and part: the part system dresses both, the room merge folds
+the frames into the purlins' one draw - zero new draws). The exterior keeps its kerb. SEEN: `7_skylight_frames_master_vs_g2750.jpg` (own camera on the shed scene, from the floor: master pale flat bands under the pane, G2750 dark steel members with flanks; the room view below).
+
+**3b - THE GLOBAL PAINT PLAINLY REPAINTS (aeroskin.js aeroBaseReach; 11 Oct, the user through A0: "the canopy sill
+band should also be affected by the global paint", then "I don't think a band changed by hand should keep its color.
+Changing the global paint again should just plain repaint the aircraft").** The base colour's reach wrote a section only
+when it was FOLLOWING (unset, or equal to the base it replaced - G468, "a hand colour survives the base"): the Cub's black
+waist stripe (0x262626), inherited by every build made from it, differs from any base, so it counted as the builder's own
+and no pick ever reached the band round a bubble. Now every exterior cage section (skin, rail bands, frame bands) and
+every part that wears the body (the cowl, the struts, the fairings, the fittings, the floats) TAKES the pick, a hand
+colour too; the wells still override a section after it. ...AND THE WINGS AND THE TAIL (the user, the same night:
+"include wings and tail too" - one global paint is the whole aircraft): every layer section of the airframe's livery
+family (its chain reaches the body: the wings and their surfaces, the fin, the rudder, the stab, the elevators, the
+booms, the floats, the gear) drops its own colour and follows the body; the float's deck (tintOwn) takes the pick
+itself. G1320's follow-only rule stays only for what is not the airframe's paint (the propeller, the spinner, the
+engine, the seats, the crew). The base row's tip says "one colour for the whole aircraft". The base metallic and roughness ride the same reach, so they
+repaint the same way. Decals and the registration are not paint and are untouched. A first cut that kept hand colours
+(a provenance mark per section) was dropped on the user's correction before it was committed. GATE LIVERYREACH: rule 2
+narrowed to the parts outside the airframe's paint, rule 3 added (every cage section, body-wearing part and
+airframe layer section takes the new base whatever it wore), and the user's own case run on the fixture - the
+Mosquito's sill band 0x262626, a band painted by hand, a wing painted by hand and the rudder -> the pick; the spinner's
+own 0x383838 held.
+
+**PERF.** No new per-frame CPU work; on the GPU one vec4 attribute fetch and a select in the skin's vertex stage; the
+skylight frames are merged into an existing draw; the overlay's order costs nothing. Same-window sanity line (rAF-capped, not a bench), master -> G2750: garage 16.74 / p95 31.3 -> 16.75 / 31.5 ms, taxi 16.73 / 35.4 -> 16.55 / 34.8 ms. A0's train battery is the ratchet.
+
+**43.1 STRICT GATE 8 (11 Oct): two costs of this entry, named from code and removed (b82e24b6d).** (a) THE REST BAKE
+ran in buildModel - which EVERY garage change runs (api.apply -> setAircraft('gen')): a 16 B copy of every skin
+vertex, merged again into the hybrid's views, per slider move (A0 measured garage busy +18 / +29 ms a change, Cub /
+metal). Now restBake(): once per model (model.restBaked), only for flight - when craftInWorld first shows the craft in
+the world under the roll-out's screen (its upload rides the world compile), else the first !inGarage poseModel; the
+folds baked with it (aeroRestBake takes skinned folds: their arrays are the members' own, still at rest). (b) THE
+SCRATCH'S hash maths ran on every weathered fragment, the cockpit interior included where the layer is zero; now behind
+`if (wxScP >= 0.01)`, the footprint (fwidth) taken before the branch. LESSON: anything in buildModel runs per garage
+change - data only flight needs is baked lazily. COMPILE 2.7 -> 5.0 s: no new program variant (an attribute is not in
+three's program key); the aeroskin source changed for every program, so a first run misses the GPU program cache -
+A0's ABBA decides.
+
+**GATES.** WEATHER (scratches by count, no threshold on the tiled sheet, the hash of the cell's index); SKINMAT (the rest
+place read and baked beside the cavity - aeroRestBake RUN in node: w 2, aeroskin meshes only, never twice; the trip key
+carries the registration; the bake paints from the snapshot's spec; the overlay transparent, in the see-through band, reset in the shed; the waistband label; the
+FINISH click lands on its row); FLOWNBAKE (G1493's skinned craft place now the rest one through the bone); HANGAR
+(the frames build on the stub). Green lockless: WEATHER, SKINMAT, FLOWNBAKE, SKIN, FADES, HANGAR, UISMOKE, PARTS, ATMO,
+CLOUD, GFX, LIGHT, LIVERY, LIVERYREACH, MATLIB, ROOMMERGE, STAND, UILAYER, BENCH, PANEL. Targeted battery (A0, the 10 Oct pace rule - no --all before landing): WEATHER, SKINMAT, FLOWNBAKE, SKIN, FADES, HANGAR, UISMOKE, PARTS, LIVERY, LIVERYREACH, MATLIB, ROOMMERGE, STAND, UILAYER, BENCH, PANEL, ROUNDTRIP, PARKED, DMGSKIN, BUILD, BUILT, KNIFE, SHADOWSKY, ATMO, CLOUD, GFX, LIGHT in A0's CPU window Sun 02:25-03:00 (--jobs=6, no lock on A0's booking): BATTERY PASS, all 27 green, 02:25-02:32, wall 442 s
+(total 1425 s; ROUNDTRIP 415 s, CLOUD 322 s, PARKED 234 s, ROOMMERGE 130 s, UISMOKE 128 s). BUILT notes the outputs lag the
+sources until the train's (built) commit, as designed. The 07:36 proof stills were CANCELLED by the user ("no
+screenshots needed for these changes"): the global-paint ruling, the rudder decal and the flight weathering pair rest
+on the gates (LIVERYREACH rule 3, SKINMAT's rest rows, the run log's rest measure).
+
+**Evidence:** `reports/evidence/FINISH-FIX/` (before = origin/master 26e04598b in a clean worktree, after = this branch,
+same rig, same build): the seven sheets above + `run_master_log.json` / `run_g2750_log.json` (the rest measure: master 0 of 53 flown aeroskin geometries carry a rest place; G2750 181 of 181, 77 moved by the rigs up to 8.5 cm while their rest held; the trips per roll-out; the overlay's label after the shed; the FINISH click's row). Rig: `tools/perf/finish_window.sh` (the GPU lock + an EXIT trap) driving
+`tools/perf/finish_stills.js` on `tools/live_driver.js`; own-camera stills render the shed's scene at 1600x900 (the
+garage's own camera is pinned by the bench view).
+
+**Traps paid for:** FLIGHT_PROBE.camSet does not move the GARAGE's camera while the bench view frames it - render the
+hangar scene on your own camera (and resize the renderer: the canvas is the gap between the panels, 640x900). The
+mount's +z is FORWARD. GARAGE_SPEC.update({finish}) does not repaint the editor's live materials - go through
+CAGE_UI.finishToSpec / finishFromSpec + build(). A flight changes the export (the first trip after a load re-runs
+the snapshot for reasons of its own): a registration test must fly once unchanged first. A GLSL comment inside a JS
+template literal must not hold a backtick (node --check catches it; GATE WEATHER checks its own blocks).
+
+**Owed (released by the user, 11 Oct: no screenshots for these):** a STILL of a decal on a deflecting rudder/elevator, live shader, two frames apart (the orbit eyes this rig used never reached the tail - the fix is proven by the measure and the gates, not yet by a picture of the user's own case); the weathering in FLIGHT seen moving on master vs still on G2750 (a held-camera pair in a turn). Both need ~10 GPU minutes.
