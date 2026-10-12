@@ -85335,3 +85335,23 @@ other roads are drawn again. If anything looks stale (a road not following an ed
   - FRAMECOST: its 5 reds were 44.1 + 44.3's (the same rows on master), admitted by name as part of the user's accepted +1.5 ms -> PASS.
 - **Light strict gate vs master's 44.1+44.3 run:** loop equal or better (cub chase 16.6 -> 16.3, metal 17.1 -> 16.5), render equal, loads equal.
   - New: cub chase compile 4491 ms (slack 2000 over 1985) - a fresh build = cold shader cache (memory load-ab-cache-position); the Tue 00:00 baseline re-take re-reads it.
+
+## A0 2026-10-12 - TRAIN 48 LANDED: EDITING FAST (PLACER-FAST G3000-G3009 + EDITOR-PERF G3081)
+
+- **Cargo:** claude/placer-fast-g3000 8913d7586, on master t47.
+  - A placed object's edit is local (objectEdit), and roads not touched keep their geometry (road cache).
+  - No island-wide ground re-sample on non-road edits (onRebuilt uses the edit's box).
+  - Strips are repainted only when touched.
+  - Site edits are local ground edits (the shelves' redraw bug is fixed).
+  - Click-cycling (SELECTED n OF m), plot fences (zone switch + per-plot pick), the pavement sliders debounced, the placed prop's scale carried.
+  - STAGES 1 green again (G3009: the gate loads the fixture as the loader does).
+  - EDITOR-PERF's exact roadDist cut: compose 3.95 -> 0.99 s with the town on, 1.71 -> 0.68 s shipped, the user's rev26 110 -> 72 ms.
+- **Page numbers (the user's rev23 + town on, SCENERY-ED-2's 11:45 slot):** a prop turn 799 -> 9-18 ms; a release 30 ms; a drop 3 ms; a site item drag 2.5 -> 1.3 s; a road traffic edit 2.5 -> 2.1 s.
+- **Gates (12:05 window) PASS:** TAXICLEAR, UISMOKE, GRASSSIDES, HOUSEWORKER, MEDIA, ASSETS, VILLAGE, PREMISES, SCENERYED, PREMCOOK, PAVEMENT, LIFE, STAGES.
+- **What to watch for:**
+  - moving, turning, scaling or deleting a placed model is instant;
+  - a site item drag takes ~1 s; road settings ~2 s (EDITOR-PERF's next step);
+  - cyan item footprints in the editor;
+  - the pick cycle;
+  - 'plot fences' on zones.
+- **A0 landing (12:45-13:20):** gates PASS (TAXICLEAR, UISMOKE, BUILD, PREMISES, SCENERYED, PREMCOOK, STAGES); MEDIA PASS after the parked re-cook (an orphan from an earlier cook in the landing tree); FRAMECOST PASS; light gate equal to train 47 (loop 16.3-17.0 ms, render 11.7-12.1, loads equal).
