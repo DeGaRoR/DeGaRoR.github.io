@@ -344,6 +344,10 @@ const GATES = [
   // from below" — which has been reported three times, each time by a
   // different KIND of source that no switch could reach.
   { id: 'LIGHT', file: '_light_check.js', tier: 'core' },
+  // EDITOR-BUGS (G2780-G2789, the user's slider review of 10 Oct): the glass centre wears the cabin's glazing, the
+  // tundra is a torus, every tail cone has its zone (the mirrored pod's too), the Mosquito's whole-cabin shoulder,
+  // and the comment strip the source-scan gates share is a lexer. Seconds.
+  { id: 'EDBUGS', file: '_edbugs_check.js', tier: 'core' },
   // THE FITTINGS (G81-G85): GEN_ACCESS resolved against the built skin, and
   // the geometry that lands there. Every fitting on its own skin, one per
   // flank, snapped to real structure, standing OUT, no two in one place, and

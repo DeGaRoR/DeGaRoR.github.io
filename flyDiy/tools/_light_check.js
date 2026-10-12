@@ -455,6 +455,28 @@ check(!/new THREE\.Scene\(\)[\s\S]{0,200}studio/.test(app) && !/\bstudio\./.test
         'the reflector material is not pooled — one material per lamp per ' +
         'dim step is a new program every time a slider moves');
 
+  // 5f. A DIMMER NOTCH NEVER CHANGES THE LIGHT COUNT (G2782, the user: "inside
+  // dimmer -> flood. Moving that froze my interface for a few seconds"). three
+  // keys every lit program on the scene's number of point / spot lights; the
+  // flood's PointLight was made only when its row read > 0, so the first notch
+  // re-linked every lit material in the shed in one frame. A fitted lamp's
+  // light is armed at intensity 0 (the flight's cockpit.js rule), and a drag
+  // tick hides the lamps, never the lights.
+  {
+    const { stripComments } = require('./_src_strip.js');
+    const code = stripComments(lit);
+    const made = code.match(/if \(([^\n]*)\) \{\s*const l = new THREE\.(Point|Spot)Light\(/g) || [];
+    check(made.length >= 3,
+          'the shed\'s real lights (landing spot, flood, pedal) are not found where they are made', String(made.length));
+    const byLevel = made.filter(m => /level\(P/.test(m));
+    check(!byLevel.length,
+          'a real light is made only when its dimmer reads > 0 — the count follows the dimmer and every lit program re-keys on the first notch',
+          byLevel.join(' | '));
+    check(!/if \(ctx\.defer\) \{\s*if \(group\) group\.visible = false/.test(code) &&
+          /if \(ctx\.defer\) \{ if \(group\) for \(const c of group\.children\) if \(!c\.isLight\) c\.visible = false;/.test(code),
+          'a drag tick hides the whole light group — its lights leave the count and every lit program re-keys at the drag\'s first tick');
+  }
+
   // 5e. THE PLACEMENT ROWS ARE REAL ROWS, not literals with a comment.
   for (const k of ['li_beaconSink', 'li_navSpan', 'li_navChord', 'li_navRise',
                    'li_podLen', 'li_podGirth', 'li_reflect'])

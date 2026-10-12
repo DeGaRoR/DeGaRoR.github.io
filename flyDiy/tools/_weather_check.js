@@ -248,10 +248,17 @@ const fail = audit(ctx);
 // ---- THE GAME'S END OF IT (G345 phase 7): the editor, the join, the flight --
 // Source assertions, comment-stripped: each of these is a door the macros or
 // the sources go through, and each failure is silent at runtime.
-function strip(t) { return t.replace(/\/\*[\s\S]*?\*\//g, ' ').split('\n').map(l => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n'); }
+// G2786: a LEXER, not the old slash-star one-liner — that one opened a comment
+// at _cage_ui.js's `accept = 'image/*'`, closed it at G2227's `republish /* */`
+// on the file's last line, and the macro rows below went red with the code intact.
+const { stripComments: strip, stripLost } = require(path.join(ROOT, 'tools', '_src_strip.js'));
 {
   const chk = (ok, l, x) => { if (!ok) fail.push(l + (x ? ' — ' + x : '')); };
-  const UI = strip(rd(path.join(ROOT, 'tools', '_cage_ui.js')));
+  const UIRAW = rd(path.join(ROOT, 'tools', '_cage_ui.js'));
+  const UI = strip(UIRAW);
+  // the view is whole: code from the file's head and its tail survives the strip
+  { const lost = stripLost(UIRAW, UI, ['const WEAR_KEYS = ', 'for (const k of WEAR_KEYS) {', 'window.CAGE_UI = {']);
+    chk(!lost.length, 'the strip ate code out of _cage_ui.js (a comment opened inside a string?)', lost.join(', ')); }
   const JN = strip(rd(path.join(ROOT, 'tools', '_cage_join.js')));
   const AP = strip(rd(path.join(ROOT, 'src', 'viewer', 'app.js')));
   const EG = strip(rd(path.join(ROOT, 'tools', '_cage_eng.js')));

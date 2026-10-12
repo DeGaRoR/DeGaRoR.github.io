@@ -1497,11 +1497,42 @@ PAGE.post = ctx => {
   // GLASS CENTRE (G32, user): the game emits a 'glass' carry-through into
   // its CANOPY group — the binding filter pulls the wing-bound faces out
   // and they take the glazing treatment (view panel's glass alpha)
+  // G2781 (the user, 10 Oct: "glass center section does not work anymore
+  // (wrong material)"): it wore `glassMat()`, a hand-rolled Standard with no
+  // `aeroskin` flag — so the understudy pass flattened it to matte blue in the
+  // shed, and with no `aeroFinish` the snapshot rebuilt it as COVERING in
+  // flight: the lamp lens's own two failures (see lensMatW above), never
+  // carried over to the centre. It is the CABIN'S glazing now: the pane the
+  // builder set up (material, dials, tint) through the fuselage's own
+  // resolver, the lens's pooled glass when the page has no cage sections.
   if (gs.canopy) {
     const parts = pickParts(gs.canopy, wingVert(gs.canopy), toCage, null);
     if (parts.x) {
+      // the glazing is FRONT-SIDE (the far limb of a curved pane must not show
+      // through the near one), so the closed carry-through must wind OUTWARD:
+      // its signed volume says, and an inside-out loft is turned round here
+      // rather than trusting which root the generator called L
+      const gi = parts.x.geo.index, gp = parts.x.geo.attributes.position;
+      if (gi && gp) {
+        let vol = 0;
+        for (let t = 0; t < gi.count; t += 3) {
+          const a = gi.getX(t), b = gi.getX(t + 1), c = gi.getX(t + 2);
+          const ax = gp.getX(a), ay = gp.getY(a), az = gp.getZ(a);
+          const bx = gp.getX(b), by = gp.getY(b), bz = gp.getZ(b);
+          const cx = gp.getX(c), cy = gp.getY(c), cz = gp.getZ(c);
+          vol += ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx);
+        }
+        if (vol < 0) {
+          for (let t = 0; t < gi.count; t += 3) { const b = gi.getX(t + 1); gi.setX(t + 1, gi.getX(t + 2)); gi.setX(t + 2, b); }
+          gi.needsUpdate = true;
+          parts.x.geo.computeVertexNormals();
+        }
+      }
+      const paneMat = () => (window.CAGE_MAT_OF && window.CAGE_MAT_OF('windshield')) || lensMatW() || glassMat();
       const o = WIRE ? new THREE.LineSegments(parts.x.wire, wireMat('glassC'))
-                     : new THREE.Mesh(parts.x.geo, glassMat());
+                     : new THREE.Mesh(parts.x.geo, paneMat());
+      o.name = 'edGlassCentre';
+      o.renderOrder = 1003;          // over the aerodrome's decals, as the lens (AERO_CLEAR)
       group.add(o);
     }
   }

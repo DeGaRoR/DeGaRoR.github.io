@@ -85157,3 +85157,60 @@ user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's
   - freight strapped on the flown aircraft;
   - the club works;
   - night ops.
+
+## G2780-G2789 - EDITOR-BUGS: THE GARAGE EDITOR'S BROKEN ROWS FROM THE USER'S SLIDER REVIEW (10 OCT) - THE GLASS CENTRE IS GLASS AGAIN, A DIMMER NOTCH NO LONGER FREEZES THE SHED, THE MOSQUITO'S WHOLE-CABIN SHOULDER, THE TUNDRA A DONUT, THE POD'S TAIL CONE SELECTABLE; SKINMAT / WEATHER RED ON A STALE STRIP, NOT ON CODE (2026-10-12, EDITOR-BUGS for A0, local; branch claude/editor-bugs-g2780 off origin/master f353a0f89; G2787-G2789 unused)
+
+The user's review verbatim + A0's triage: D:/Dev/flydiy-notes/SLIDER-REVIEW-2026-10-10.md. Generic fixes (every
+aeroplane); physics and spec untouched (no bug was found there). New GATE EDBUGS (`tools/_edbugs_check.js`, core,
+~1 s, 40 rows), each row red on the tree before its fix.
+
+- **G2786 - SKINMAT "1 of 3 wired" + WEATHER "the four macro rows are not built" / "matHead, data-weather": the GATES
+  were stale, the code intact.** The slash-star one-liner every source-scan gate copies (`s.replace(/\/\*[\s\S]*?\*\//g,
+  '')`) is not a lexer: it opened a comment at `_cage_ui.js`'s photo picker `f.accept = 'image/*'` (~line 4622). Harmless
+  while no star-slash followed - until G2227 wrote `republish /* G2227 */` on the file's last line; the fake comment closed
+  there and 774 lines (the reframes, the weather rows, ...) left both gates' view. The silent half: every NEGATIVE
+  assertion over that span passed on nothing. `tools/_src_strip.js` (stripComments: code / quotes / templates with ${} /
+  regex literals; keeps newlines; its own self-test `node tools/_src_strip.js`) now feeds WEATHER and SKINMAT's G113.4
+  block, each with a landmark guard ("the strip ate code out of _cage_ui.js"); SKINMAT's selftest probes the trap.
+  STILL ON THE OLD ONE-LINER (not changed, none reads _cage_ui.js today): test_ui_smoke (CSS), _blueprint_check,
+  _groundlib_check, _map_smoke, _ref_check, _site_check, test_skinmat's own CODE (aeroskin.js) - move them to the
+  lexer when you touch them.
+- **G2782 - "inside dimmer -> flood. Moving that froze my interface for a few seconds".** `_cage_light.js` made the
+  flood's PointLight (and the pedal's, and the landing SpotLight) only when its row read > 0: the first notch changed
+  three's point-light COUNT and every lit program in the shed re-keyed in one frame (G1340's premises lamp pool, the same
+  freeze). A fitted lamp's light is now ARMED at intensity 0 (cockpit.js setupLights' rule in flight); the count moves
+  with fitment (the lights row, a lamp's site) only. And a drag tick (ctx.defer) hides the lamps, never the lights (a
+  hidden group took them out of the count at every drag's first tick). GATE LIGHT 5f.
+- **G2781 - "glass center section does not work anymore (wrong material)".** The wing's glass carry-through
+  (`wgCentre` 'glass', the canopy stream's wing-bound faces) wore `glassMat()`: no `aeroskin` flag, so the understudy
+  pass flattened it to matte blue in the shed, and no `aeroFinish`, so the flight rebuilt it as covering - the two
+  failures the lamp lens had (lensMatW). It now wears the cabin's glazing: `CAGE_MAT_OF('windshield')` (material,
+  dials, tint), lensMatW() off the page, glassMat() last; an outward-winding guard (signed volume) since the glazing is
+  FrontSide; `edGlassCentre`, renderOrder 1003. ('top half glass' uses the same block.)
+- **G2783 - "sill shoulder whole cabin does not work with the mosquito".** The Mosquito is a mirrored pod (no pax ring);
+  `shoulderLimits`' 'cabin' run fell to `2 * mirrorZ - cabB`, the ARCEAU'S aft edge: the aft cabin's sill transition
+  (0.449..1.898 on tools/fixtures/repro/mosquito.json) lay wholly aft of the limit and 'whole cabin' built exactly what
+  'pilot bay' built. The limit is now the forward limit's image (the dash gap aft of the aft half's reflected windscreen
+  ring, cageBodyZones' reflection constant, mirrorAftSpec's own windscreen): Mosquito aft sill 0.738..1.898 both flanks,
+  the mirror of the front 1.998..3.159. SG.CONFIGS +2 ('pod, cabin run', 'pod + bubble, cabin run') so GATE SHOULDER
+  proves them closed.
+- **G2784 - "the tundra balloon are wrong; their flank goes too high ... more like a donut".** TYRE[1] was the standard
+  flank stretched (full width to 0.72 R, 0.81 of it still at 0.945 R, then a flat band: the buoy). It is a TORUS now
+  (`tyreTorus`, an ellipse bead to bead, widest at mid-height, 0.53 of the width at 0.945 R), hw 0.58 -> 0.50 R
+  (height/width 0.56 -> 0.65), a rim at 0.60 hw so the donut stands proud of its hub (`beadW`, `faceW`; the hub barrel,
+  caps and valve follow `hwHub`). Standard and slim rows byte-identical. Drawing only: the flight reads s1R; the
+  weathering's wheel record reads hw off the table (0.58 -> 0.50 R for tundra).
+- **G2785 - "The tail cone cannot be selected".** On a mirrored pod (the Mosquito) `cageBodyZones` ended on 'boom' to
+  -Infinity, so a click on the cone answered Boom and Tail cone had nothing to highlight. The pod boom's tail post is now
+  a zone boundary (the emission's own tPost on boomLen + tailLen from the reflected noseRing) and the cone is 'tail'.
+  Regular and rod builds already ended on 'tail'. Moving Tail cone under Boom in the tree is EDITOR-UX-B's.
+
+**What to watch for:**
+- the shed's first build after landing links its lit programs ONCE with the armed lights (+1 point for a fitted flood,
+  +1 pedal, +1 spot for a landing bay - the flight's own signature); a GARAGE GPU row may move by that (per-fragment
+  cost of up to 3 zero-intensity lights). Measure, don't assume.
+- the 'lights' row and a lamp's site still re-key (a build-level click): expected, once per change;
+- the glass centre now follows the glazing row (acrylic / polycarbonate / glass) and its dials - a builder who tinted
+  the windscreen sees the centre tinted too;
+- tundra wheels look narrower (rounder) than before; weathering grime on a tundra wheel covers 0.50 R, not 0.58;
+- the Mosquito with 'whole cabin': two sill pieces per flank (one per cabin), the arceau bare between them.
