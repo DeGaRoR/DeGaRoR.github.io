@@ -298,11 +298,11 @@ function make(THREE, scene, world, rec0, opts) {
     if (!want || !LAMPS.armed) { for (const l of LAMPS.pool) l.intensity = 0; LAMPS.litNow = stats.litNow = 0; return; }
     if ((LAMPS.frame++ % 30) === 0 || !LAMPS.near) {
       // the published lamps of the groups still standing, in the world, the nearest first
-      const pub = LAMPS.pub = LAMPS.pub.filter(e => e.grp.parent);
+      const pub = LAMPS.pub = LAMPS.pub.filter(e => e.grp.parent && (!e.chunk || e.grp.parent.parent));   // (G2955: a line's lamp chunk stays parented to its line - the line itself must still stand)
       for (const e of pub) if (!e.wp || e.move) { e.grp.updateWorldMatrix(true, false); _lp.set(e.p[0], e.p[1], e.p[2]); e.grp.localToWorld(_lp); e.wp = [_lp.x, _lp.y, _lp.z]; }
       const r2 = LAMPS.reach * LAMPS.reach;
       LAMPS.near = pub.map(e => { const dx = e.wp[0] - eye.x, dy = e.wp[1] - eye.y, dz = e.wp[2] - eye.z; return [dx * dx + dy * dy + dz * dz, e]; })
-        .filter(q => q[0] < r2).sort((a, b) => a[0] - b[0]).slice(0, LAMPS.N).map(q => q[1]);
+        .filter(q => q[0] < r2 && !(q[1].chunk && !q[1].grp.visible)).sort((a, b) => a[0] - b[0]).slice(0, LAMPS.N).map(q => q[1]);
     }
     const near = LAMPS.near;
     for (let i = 0; i < LAMPS.pool.length; i++) {
@@ -988,8 +988,9 @@ function make(THREE, scene, world, rec0, opts) {
     const VG = window.VILLAGE_GEN, HG = window.HOUSE_GEN, HK = window.HOUSE_KIT, PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
     if (!VG || !HG || !HK || !pp || !PR) return null;
     const F = O.frame, LF = lampFinish();
-    const bags = { metal: HK.Bag('metal'), glass: HK.Bag('glass') };
-    const lit = [];
+    // (G2955) the lamps in BAGS BY CHUNK - the cable's own ten spans: one merged mesh along an island road was a bounding
+    // sphere always in view (every one of its ~365 lamps drawn every frame); a chunk's lamps are culled with its cable
+    const CH = new Map(), chunkOf = ci => { let c = CH.get(ci); if (!c) CH.set(ci, c = { metal: HK.Bag('metal'), glass: HK.Bag('glass'), lit: [] }); return c; };
     // the verge the guardrail did NOT take, when it took exactly one (the photograph's arrangement)
     const rs = railG && railG.userData.guardrail ? railG.userData.guardrail.sides : null;
     const side = (rd.polesSide ? +rd.polesSide : 0) || (rs && rs.length === 1 ? -rs[0] : 0);
@@ -997,14 +998,20 @@ function make(THREE, scene, world, rec0, opts) {
       side, seed: PG.fnv(String(rd.id)) % 997, toWorld: (x, z) => F.toWorld(x, z), heightAt,
       keep: poleKeep(rd),
       place: q => { if (!PR.props[q.key]) return null; const o = pp(THREE, q.key, q.x, q.z, q.ry, q.y); if (q.scale) o.scale.setScalar(q.scale); tiltToGround(o, (x, z) => O.terrainAt(x, z), q.x, q.z, q.ry); return o; },
-      lamp: q => { const L = VG.streetLamp(bags, q); if (L) lit.push(L); } });
+      lamp: q => { const c = chunkOf(q.ci | 0), L = VG.streetLamp(c, q); if (L) c.lit.push(L); } });
     if (!g) return null;
-    PWR.own(bags.metal.mesh(g, LF.MAT.metal));                                  // the lamps' geometry is the line's to free
-    const gm = PWR.own(bags.glass.mesh(g, HG.MAT.glass)); if (gm) gm.castShadow = false;
+    const lit = [];
+    for (const [, c] of CH) {
+      const mm = PWR.own(PWR.chunk ? PWR.chunk(c.metal.mesh(g, LF.MAT.metal)) : c.metal.mesh(g, LF.MAT.metal));   // the lamps' geometry is the line's to free
+      const gm = PWR.own(PWR.chunk ? PWR.chunk(c.glass.mesh(g, HG.MAT.glass)) : c.glass.mesh(g, HG.MAT.glass)); if (gm) gm.castShadow = false;
+      for (const L of c.lit) { L.grp = mm || gm || g; lit.push(L); }
+    }
     // the lens follows the night like every other glass (the finish's uLitK), and each head joins the
     // lamp pool - the nearest eight of the world's lamps get one of the eight point lights
     if (LF.GLASS_U && LF.GLASS_U.uLitK && !LAMPS.glass.has(LF.GLASS_U.uLitK)) { LAMPS.glass.set(LF.GLASS_U.uLitK, LF.GLASS_U.uLitK.value); LF.GLASS_U.uLitK.value = LF.GLASS_U.uLitK.value * LAMPS.on; }
-    for (const L of lit) if (isFinite(L.x) && isFinite(L.y) && isFinite(L.z)) LAMPS.pub.push({ grp: g, p: [L.x, L.y, L.z], col: L.col || [1, 0.92, 0.74], k: L.k == null ? 1 : L.k, range: L.range || 30, kind: L.kind });
+    // (each lamp's light rides its chunk's mesh: a chunk not drawn - past the reach - lends its lamps no light; `grp` the
+    //  chunk, whose transform is the line's)
+    for (const L of lit) if (isFinite(L.x) && isFinite(L.y) && isFinite(L.z)) LAMPS.pub.push({ grp: L.grp, p: [L.x, L.y, L.z], col: L.col || [1, 0.92, 0.74], k: L.k == null ? 1 : L.k, range: L.range || 30, kind: L.kind, chunk: L.grp !== g });
     g.userData.premId = rd.id;
     g.userData.lamps = lit.length;
     G.roads.add(g);
@@ -2451,22 +2458,71 @@ function make(THREE, scene, world, rec0, opts) {
       if (on2 !== D.on2) { D.on2 = on2; for (const m of D.list2) if (!m.userData.merged) m.visible = on2; }
     }
   }
-  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) { t.run.tick(dt).apply(); if (CABIN_FAR > 0 && t.cabs) cabinCut(t.cabs); } if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); trafficCount(); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
+  // (G2955) every 20 frames the power lines' cable chunks past their reach from the eye are not drawn
+  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); if (PWR && PWR.cull && freezeTick % 20 === 0 && o.eye) { const e = o.eye(); if (e) stats.cables = PWR.cull(e); } detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) { t.run.tick(dt).apply(); if (CABIN_FAR > 0 && t.cabs) cabinCut(t.cabs); } if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); trafficCount(); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
   const discMat = new THREE.MeshBasicMaterial({ color: 0xffb03a, transparent: true, opacity: 0.9, depthTest: false });
   const discMatMid = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthTest: false });
   // G2890 (SCENERY-ED-1): the CORNER picked (clicked) - white, Del removes it; a spline road's HANDLES - cyan, on a stem
-  const discMatSel = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, depthTest: false });
-  const discMatTan = new THREE.MeshBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.95, depthTest: false });
-  const stemMat = new THREE.LineBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.8, depthTest: false });
+  const discMatSel = MATLIB.make(THREE, 'basic', { color: 0xffffff, transparent: true, opacity: 1, depthTest: false });
+  const discMatTan = MATLIB.make(THREE, 'basic', { color: 0x5fd4e8, transparent: true, opacity: 0.95, depthTest: false });
+  const stemMat = MATLIB.make(THREE, 'line', { color: 0x5fd4e8, transparent: true, opacity: 0.8, depthTest: false });
+  // G2950 (ROAD-GRAPH): a road's waypoint that is a JUNCTION - green (its roads meet there, a drag carries them all, Alt
+  // detaches); a CONNECTION POINT (the junctions layer's `conn`) - magenta; the snap target under the hand - a white ring
+  const discMatJct = MATLIB.make(THREE, 'basic', { color: 0x5ee07a, transparent: true, opacity: 0.95, depthTest: false });
+  const discMatConn = MATLIB.make(THREE, 'basic', { color: 0xe07ad8, transparent: true, opacity: 0.95, depthTest: false });
+  const discFor = (e, i) => {
+    if (i === selCorner) return discMatSel;
+    const id = e && e.pts && Array.isArray(e.nodes) ? e.nodes[i] : null;
+    if (!id) return discMat;
+    const J = (rec.layers.junctions || []).find(j => j && j.id === id);
+    return J && J.conn ? discMatConn : discMatJct;
+  };
+  let snapRing = null;
+  function snapHint(lp) {
+    if (snapRing) { G.ghost.remove(snapRing); snapRing.geometry.dispose(); snapRing.material.dispose(); snapRing = null; }
+    if (!lp) return;
+    const w = O.frame.toWorld(lp[0], lp[1]), r = Math.max(1.5, +lp[2] || 3);
+    const g = new THREE.RingGeometry(r * 0.8, r, 32); g.rotateX(-Math.PI / 2);
+    snapRing = new THREE.Mesh(g, MATLIB.make(THREE, 'basic', { color: 0xffffff, transparent: true, opacity: 0.9, depthTest: false }));
+    snapRing.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.08, w[1]); snapRing.renderOrder = 10; snapRing.name = 'snapHint';
+    G.ghost.add(snapRing);
+  }
+  // another entry's outline re-lined while the hand drags a junction (its roads' waypoints move together; nothing composes)
+  function relineEntry(e) {
+    if (!e) return;
+    if (!HMEMO) HMEMO = new Map();
+    const wp = worldPts(e);
+    reline(e.id, wp, !!e.poly, LIFT); reline(e.id + ':sel', wp, !!e.poly, LIFT);
+  }
   const HANDLES = [], STEMS = [];
   let selCorner = null;
+  // (G2950) EVERY JUNCTION ON THE MAP, the selection's or not: a small disc where roads meet (green) and where a place
+  // waits for a road (a connection point, magenta) - what a road being drawn or dragged snaps onto; never picked
+  const JMARKS = [];
+  function buildJMarks() {
+    for (const m of JMARKS) G.handles.remove(m);
+    JMARKS.length = 0;
+    if (!o.editing || !o.editing()) return;
+    const F = O.frame, seen = new Set();
+    for (const r of rec.layers.roads) {
+      if (!r || !Array.isArray(r.nodes) || r.id === selectedId) continue;
+      r.nodes.forEach((jid, i) => {
+        if (!jid || seen.has(jid) || !r.pts[i]) return; seen.add(jid);
+        const J = (rec.layers.junctions || []).find(j => j && j.id === jid), w = F.toWorld(r.pts[i][0], r.pts[i][1]);
+        const m = new THREE.Mesh(discGeo, J && J.conn ? discMatConn : discMatJct);
+        m.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.04, w[1]); m.renderOrder = 9; m.name = 'junction:' + jid;
+        G.handles.add(m); JMARKS.push(m);
+      });
+    }
+  }
   function buildHandles() {
     for (const h of HANDLES) G.handles.remove(h);
     for (const l of STEMS) { G.handles.remove(l); l.geometry.dispose(); }
     HANDLES.length = 0; STEMS.length = 0;
+    buildJMarks();
     if (!selectedId) return;
     const f = PG.findById(rec, selectedId);
     if (!f) return;
@@ -2534,7 +2590,7 @@ function make(THREE, scene, world, rec0, opts) {
     }
     for (let i = 0; i < pts.length; i++) {
       const p = pts[i];
-      const m = new THREE.Mesh(discGeo, i === selCorner ? discMatSel : discMat);
+      const m = new THREE.Mesh(discGeo, discFor(f.entry, i));
       m.position.set(p[0], heightAt(p[0], p[1]) + LIFT + 0.05, p[1]);
       m.renderOrder = 9; m.userData.handle = { id: selectedId, key: 'v' + i, index: i };
       G.handles.add(m); HANDLES.push(m);
@@ -2553,6 +2609,12 @@ function make(THREE, scene, world, rec0, opts) {
       const r = camera.isOrthographicCamera ? (camera.top - camera.bottom) / camera.zoom / (camera.userData.viewH || 600) * px
                                             : d * Math.tan((camera.fov || 40) * Math.PI / 360) * 2 / (camera.userData.viewH || 600) * px;
       h.scale.setScalar(Math.max(0.05, r) * (h.userData.handle.mid || h.userData.handle.tan ? 0.7 : 1));
+    }
+    for (const m of JMARKS) {
+      const d = camera.position.distanceTo(m.position);
+      const r = camera.isOrthographicCamera ? (camera.top - camera.bottom) / camera.zoom / (camera.userData.viewH || 600) * px
+                                            : d * Math.tan((camera.fov || 40) * Math.PI / 360) * 2 / (camera.userData.viewH || 600) * px;
+      m.scale.setScalar(Math.max(0.05, r) * 0.6);
     }
   }
 
@@ -2589,7 +2651,7 @@ function make(THREE, scene, world, rec0, opts) {
           st.geometry.attributes.position.needsUpdate = true; st.geometry.computeBoundingSphere();
         }
       } else if (hd.mid) { const b = arr[(i + 1) % n]; put(m, (arr[i][0] + b[0]) / 2, (arr[i][1] + b[1]) / 2); }
-      else { put(m, arr[i][0], arr[i][1]); m.material = i === selCorner ? discMatSel : discMat; }
+      else { put(m, arr[i][0], arr[i][1]); m.material = discFor(e, i); }
     }
     return true;
   }
@@ -2706,7 +2768,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (sp.r > 0) {
       const pts = []; for (let k = 0; k < 48; k++) { const a = k / 48 * Math.PI * 2; pts.push([sp.x + Math.cos(a) * sp.r, sp.z + Math.sin(a) * sp.r]); }
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(pts, true, LIFT + 0.1), 3));
-      ghostRing = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.85, depthTest: false })); ghostRing.renderOrder = 10;
+      ghostRing = new THREE.Line(geo, MATLIB.make(THREE, 'line', { color: 0x5fd4e8, transparent: true, opacity: 0.85, depthTest: false })); ghostRing.renderOrder = 10;
       G.ghost.add(ghostRing);
     }
     return ghostM;
@@ -3798,7 +3860,7 @@ function make(THREE, scene, world, rec0, opts) {
       syncAnimals();
       yield 'houses';
       if (o.editing()) { buildOutlines(); buildHandles(); markDirty(dirty); }
-      else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; }
+      else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; for (const m of JMARKS) G.handles.remove(m); JMARKS.length = 0; }
       syncHouses();
       hwPrefetch();   // G831: the town step's own dispatch, now - the worker generates while the page lays out the rest
       // THE GAME HAD NEVER DRAWN A RECORD TREE (2026-09-23, the user: "I can see no
@@ -3900,6 +3962,7 @@ function make(THREE, scene, world, rec0, opts) {
   const R = {
     root, groups: G, stats,
     rebuild, rebuildSteps, preview, previewEnd, editEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
+    snapHint, relineEntry,
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),
