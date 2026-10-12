@@ -64,7 +64,7 @@ function stubTHREE() {
            DoubleSide: 2, FrontSide: 0, RepeatWrapping: 1000, SRGBColorSpace: 'srgb', LinearSRGBColorSpace: 'srgb-linear' };
 }
 // the page's world pack (build.js) - the generators the premises build with
-const GEN_FILES = ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_sport_gen.js', '_marine_gen.js', '_shed_gen.js', '_hangar_gen.js', '_tower_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js', '../src/viewer/premises_build.js'];
+const GEN_FILES = ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_sport_gen.js', '_marine_gen.js', '_shed_gen.js', '_hangar_gen.js', '_tower_gen.js', '_navaid_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js', '../src/viewer/premises_build.js'];
 let HL = null;
 function headless() {
   if (HL) return HL;

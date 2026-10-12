@@ -140,7 +140,10 @@ console.log('4. a stale cook is detected');
   const r1 = JSON.parse(JSON.stringify(PG.expandAreas(PG.normalise(JSON.parse(JSON.stringify(rec0))))));   // (v1.36: the v1 view - a flatten is an area's terraform in the record)
   const cellOfLocal = (x, z) => [Math.floor(x / S), Math.floor(z / S)];
   const cooked = new Set(mine.map(c => c.c.join(',')));
-  const M = r1.layers.terrain.find(m => m.kind === 'flatten' && m.poly && cooked.has(cellOfLocal(m.poly[0][0], m.poly[0][1]).join(',')));
+  // (G3014: HOME's pad first - with the user's areas folded in, the FIRST flatten under a cooked cell is no longer it, and the one
+  //  found then stales no cell for +1 cm; the row means a flatten whose cell the cook holds)
+  const underCook = m => m.kind === 'flatten' && m.poly && cooked.has(cellOfLocal(m.poly[0][0], m.poly[0][1]).join(','));
+  const M = r1.layers.terrain.find(m => m.id === 't_pad' && underCook(m)) || r1.layers.terrain.find(underCook);
   if (ok(!!M, 'a flatten under a cooked cell (' + (M ? M.id : '-') + ')')) {
     M.level = (+M.level || 0) + 0.01;
     const W1 = cookWorld(rec0), O1 = W1.premises.set(r1, { catalogue: CAT, globals: GENS, build, pool: [], raster: true });

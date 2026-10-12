@@ -754,6 +754,69 @@ re-origin to the footprint's centre on the ground, mesh decimation to the
 budgets above (quadric edge collapse; no vertex moved to a new position), and
 the base-colour maps re-encoded at 1024 px JPEG.
 
+## The October scenery (`assets/sceneryOctober/`, baked and served from media/)
+
+Landmarks, ships, wrecks and a crowd for new locations (ASSETS-OCT, G2900-G2909, 2026-10-11).
+Declared in `tools/scenery_table.py`; the licence and spec tables are
+`futureDesigns/SCENERY-OCT-2026-10-11.md`. The raw scans are CUT and REPROJECTED by
+`tools/scenery_prep.py` (Blender: a quadric cut to the row's budget, one clean atlas, the scan's
+colour and relief baked onto it - the woodworking machines' route, G1240); the observatory, delivered
+without a single map, is textured from the game's own house material library by
+`tools/observatory_prep.py`; the modelled game assets (the fishing boat, the crowd, the Sky Rest's
+author-cut scan) are AS-IS. `tools/scenery_kit.py` bakes them into `src/scenery/` + `media/geo/scenery/` +
+`media/tex/scenery/`; `tools/prop_lod.js --kit scenery` cuts the far levels. Every model is modified
+(scaled, cut, re-textured); the delivered files stay under `assets/sceneryOctober/` unmodified.
+
+**Sketchfab, CC-BY-4.0** (https://creativecommons.org/licenses/by/4.0/) - attribution is a condition
+of the licence and must stay visible wherever these are shown (`src/scenery/scenery_credits.json`
+carries the same lines for the game's credits screen):
+
+- `heating_plant` - **"Abandoned Heating Plant - Scan"** by illusoXR
+  (https://sketchfab.com/3d-models/abandoned-heating-plant-scan-67ce905f1f9643ff8c5b31424467e9ec)
+- `bunker` - **"Devil's Slide Bunker - Pacifica, CA"** by Azad Balabanian
+  (https://sketchfab.com/3d-models/devils-slide-bunker-pacifica-ca-52982f5a24834be48dab4057d2df1c3d)
+- `sky_rest` - **"Abandoned New Muroto Sky Rest resort, Japan"** by Raiz
+  (https://sketchfab.com/3d-models/abandoned-new-muroto-sky-rest-resort-japan-14cbb0fa1a4d4be2af20c910e10beb0d)
+- `observatory` - **"Tutor TV Observatory"** by Tommen
+  (https://sketchfab.com/3d-models/tutor-tv-observatory-28a2c1ff61304e6eb36b6840b43e2fc1);
+  textured with the game's own house material library (its CC0 sets, credited above)
+- `alma_base`, `alma_fork`, `alma_dish` - **"Antena Alma / Modelo norteamericano."** by fundacionastromania
+  (https://sketchfab.com/3d-models/antena-alma-modelo-norteamericano-84a46f3691c84cec97e3031033b482af)
+- `ferry_merituuli` - **"Hailuoto car ferry L/A Merituuli"** by Snowsoup
+  (https://sketchfab.com/3d-models/hailuoto-car-ferry-la-merituuli-6e3a4f3513bd4529854552b7afb0a7ac)
+- `fishing_boat` - **"Boat Fishing"** by mortalityrexotable
+  (https://sketchfab.com/3d-models/boat-fishing-1874f9a9e58a408d988f8a09771886a5)
+- `starfighter` - **"F-104 G Starfighter"** by fhernand
+  (https://sketchfab.com/3d-models/f-104-g-starfighter-5cdfee92623e4b59bc967be7537b1372)
+- `loader_wreck` - **"Abandoned bulldozer"** by lebeden
+  (https://sketchfab.com/3d-models/abandoned-bulldozer-3ee4f4ffb57e4a66a968dd3491e48711)
+- `crowd_1` ... `crowd_6` - **"WIP - Lowpoly People - 2"** by Loïc Norgeot
+  (https://sketchfab.com/3d-models/wip-lowpoly-people-2-4cf6f452719c4363bab5faddbc221391)
+
+- the small hydro plants' switchyard (`utility/hydro powerhouse`, `tools/_navaid_gen.js`: one lattice takeoff mast and
+  one small transformer cut out of the pack by `tools/hydro_prep.py`, decimated, worn in our own materials) -
+  **"Substation"** by One80 Solar (https://sketchfab.com/3d-models/substation-8f4e54879b664104bece03d8e7236c15)
+
+NOT SHIPPED: "Satellite \ radio telescope from VotV" (delivered in the same folder) - its file is an
+extraction from the commercial game *Voices of the Void* (Unreal's own WorldGridMaterial in it), so its
+Sketchfab CC BY label cannot stand; blocked, and dropped by the user (2026-10-11).
+
+## The driveable cars (`assets/vehicles/driveable/`, baked and served from media/)
+
+The first driveable car (ASSETS-OCT G2908, 2026-10-11): declared in `tools/car_table.py`, baked AS-IS by
+`tools/car_prep.py` (the prop baker's runner) into `src/cars/` + `media/geo/cars/` + `media/tex/cars/`, the
+parts split by node (body with its interior and glass, the wheels, the steering wheel, the lamp groups), the
+whole car levelled 0.45 deg; its data sheet `src/cars/car_conquer.json` carries the credit line.
+
+**Sketchfab, CC-BY-4.0** (https://creativecommons.org/licenses/by/4.0/) - attribution is a condition of the
+licence and must stay visible wherever it is shown:
+
+- `car_conquer_*` - **"Conquer '89 Pickup - Low poly model"** by Daniel Zhabotinsky
+  (https://sketchfab.com/3d-models/conquer-89-pickup-low-poly-model-6c48c94be8974dc7a5932f697c0ba68f)
+
+Candidates delivered beside it, not shipped yet: "Car Scene" by toivo (car #2, later), "Pickup Truck" by
+00amza (a parked / traffic prop candidate), "Dirty car" by 3D Error 404 (dropped) - all CC-BY-4.0.
+
 ## The animals (`assets/animals/`, baked and served from media/)
 
 Six rigged, animated animals for Jolene (2026-09-22): three land animals with

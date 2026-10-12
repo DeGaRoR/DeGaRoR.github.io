@@ -86432,6 +86432,50 @@ it at once; the scale slider holds (it was lost before). Change a road's traffic
 other roads are drawn again. If anything looks stale (a road not following an edit), say which edit: `?pavcache=0` and
 `?placerfast=0` are the A/B.
 
+## G3010 - SCENERY-SHIP: THE USER'S SCENERY BECOMES THE ISLAND'S (2026-10-12, SCENERY-ED-2 for A0, local; branch claude/scenery-ship-g3010 off claude/placer-fast-g3000; G3010-G3012 the ship, G3013 the lone road's patch, G3014 the user's answers; G3015-G3019 unused)
+
+The user (11 Oct 22:45): "I have done a lot of new roads and scenery that should become default. Not the altiport of the
+last message until fixed though." Their save rev 25 (D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev25_2026-10-11_
+2245.json, sha256 3cb8d1e3bb6d64f7, read only; kept byte for byte as tools/fixtures/scenery_user_jolene_rev25.json).
+- **WHAT SHIPS** (tools/scenery_ship.js computes the patch, tools/scenery_ship.py writes it keeping every other byte;
+  the manifest tools/fixtures/scenery_ship_rev25.json says what and why): 25 roads r2-r26 (~32 km), strip 10 'w5'
+  (310 x 17 m gravel) and its five areas a9-a13, ten sites s1-s10 (fish shack, canneries, net pens, trestle piers, a
+  warehouse, a boat shed), the village and harbour zones as they reshaped them, the home apron y_pad reshaped. Held
+  back: the altiport (strips 8 and 9, w1 / w4) - nothing else of the save lies within 1.5 km of it.
+- **THE USER'S ANSWERS** (11 Oct ~23:55, relayed by A0): the 4 village roads r_village, v_shore_e, v_west, v_north GO
+  ("yes, I know, it's OK": the island's 84 house plots outside Metlakatla -> 31 along their new roads r8 / r9 / r10 -
+  the harbour 10 -> 1); the runway shoulders y_sh13_0/1, y_sh02_0/1 and the fan x_fan02_0 STAY ("I saw no difference
+  ... untested"); their pavement settings ship (sfWear 1.35, grSideW 3.6, grSideA 0.4); r25 STOPS at strip 10's edge
+  (PG.roadCutAtPoly: its points to where its line meets the strip's box, and that point; the longer side, the access).
+  **Why no difference when they removed them:** the four shoulder bands draw nothing - they are gravel under the
+  wheels only (a verge an aeroplane rolls onto); the fan's trees likely were not there to clear (the island's own fill)
+  or the strip's own 30 m clearance holds them - a count of the trees with and without it is owed to them.
+- **A SAVE IS THE SANDBOX'S VIEW** (found here): the editor saves the record as it stands with every career track at its
+  max - no `stage` on any entry or site item, and no entry that stands only below the max (`sg_`). Shipping it raw
+  would have erased 17 stages, 5 items' stages and 7 construction-phase entries. The ship compares with `stage` (and
+  the migration's `src`) taken away, puts the stages back on what it ships, never removes a staged entry, and takes a
+  removal or a record setting only when named (--remove, --record). The fixture stays record v1 (its raw readers read
+  it as before): a new area goes into its `areas` layer, a changed migrated area back into its v1 sources.
+- **THE LONE ROAD'S PATCH (G3013).** ~66 km of graded road put the fine 2 m patch along all of it for every player
+  (64 m chunks, the town off: 283 today, 1 102 with r1, 1 974 with rev 25). A stretch with nothing of the record
+  within 120 m (PG.roadLoneSegs) now marks only the chunks its band covers (PG.roadPatchChunks - the renderer's
+  activeChunks calls it): 1 974 -> 1 219 (0.82 M fewer 2 m samples; 419 of 733 segments lone); where a road meets
+  anything the patch is as before. ?lonepatch=0 is the old rule. The next step (a 4 m patch on lone stretches) waits for
+  a browser look - the user: "I'll keep adding a lot more roads, so if we need to optimize, you can start slowly".
+- **strip 10 (w5)** has no profile: graded flat at its centre's ground (8.5 / 18.8 m at its ends) it fills up to 9.2 m
+  and cuts 3.0 m - their call, to be redrawn with RUNWAY-ED's absolute profile.
+- **GATE SCENERYED 15** (the shipped record migrated, the town cut, IS the save entry by entry - but for the stages, the
+  removals not confirmed, r25 stopped by the same function; every stage still there), **16** (the lone patch: the
+  count, nothing dropped where a road meets anything, a lone band kept).
+
+**What to watch for (the user):** your 25 roads, strip 10 and the harbour buildings are on the island for everyone;
+the village is the 31 houses along your new roads (the old village streets are gone, as you said); road r25 ends at
+strip 10's edge. Far from everything, your roads' ground is drawn a little coarser at their banks (where they meet
+anything it is as before) - if a bank looks blocky somewhere, say where. The world loads more ground than before
+(66 km of road): the roll-out may take a little longer.
+
+Gates: WINDOW_LINE_SHIP
+
 ## A0 2026-10-12 - TRAIN 47 LANDED: THE ROAD NETWORK (ROAD-GRAPH G2950-G2957, without r1)
 
 - **Cargo:** claude/road-graph-g2950 3bc377d6c (r1 taken out by 06615683e; island cook acbdbf52d; fleet pack after the cook 3bc377d6c).
@@ -86472,6 +86516,108 @@ other roads are drawn again. If anything looks stale (a road not following an ed
   - the pick cycle;
   - 'plot fences' on zones.
 - **A0 landing (12:45-13:20):** gates PASS (TAXICLEAR, UISMOKE, BUILD, PREMISES, SCENERYED, PREMCOOK, STAGES); MEDIA PASS after the parked re-cook (an orphan from an earlier cook in the landing tree); FRAMECOST PASS; light gate equal to train 47 (loop 16.3-17.0 ms, render 11.7-12.1, loads equal).
+
+## G2900-G2909 - ASSETS-OCT: THE OCTOBER SCENERY GAME-READY, THE FIRST DRIVEABLE CAR, THE ANNETTE ISLAND VOR/DME AND METLAKATLA'S HYDRO PLANTS (2026-10-11/12, a LOCAL session for A0; branch claude/assets-oct-g2900)
+
+The user (11 Oct): "Most of them need a round of game-readification. There are many raw scans, and we need the full chain:
+decimation, reprojection, like we have done with the woodworking machines ... the buildings are important, large assets, but
+the bulldozer and starfighter are only scenery elements and should be kept reasonable" + "One of the observatory models has no
+texture: pick within our material library". Then, through A0: the ALMA antenna and the people (11 Oct), four driveable cars
+(11 Oct evening), the Annette Island VOR/DME "the real model, at the real spot" (21:00), and Metlakatla's two hydro plants
+(23:55). Licence + spec tables: futureDesigns/SCENERY-OCT-2026-10-11.md.
+
+**LICENCES.** All shipped sources are Sketchfab CC BY 4.0, credited in CREDITS.md (three new sections) and in
+src/scenery/scenery_credits.json / src/cars/car_conquer.json. **BLOCKED and DROPPED: "Satellite \ radio telescope from VotV"** -
+an extraction from the commercial game Voices of the Void (Unreal's own WorldGridMaterial / VertexColorViewMode_RedOnly in the
+file): its CC BY label cannot stand. GATE SCENERY fails if the kit ever names it.
+
+**THE SCENERY KIT** (G2901-G2907; tools/scenery_table.py -> scenery_prep.py / observatory_prep.py (Blender 3.6, CPU) ->
+scenery_kit.py (prop_prep's runner) -> src/scenery/ + media/geo|tex/scenery -> prop_lod.js --kit scenery; GATE SCENERY):
+
+| row | what | delivered | shipped L0 (levels) | notes |
+|---|---|---|---|---|
+| heating_plant | abandoned boiler house, chimney, conveyor (scan) | 1.2 M tris, ONE 1024 map | 60 k (15 k / 3 k) | the 74 x 46 m site cropped to the structures; every GREEN raised face dropped (482 k: shrubs, trees, the grass apron - our ground and trees do them better); the cut edge skirted 0.6 m down |
+| bunker | Devil's Slide WW2 bunker on its mound (scan) | 91 k | 24 k | the mound kept (it is the cliff top) |
+| sky_rest | ruined resort tower (author-cut scan) | 5.2 k, 4096 map | as-is, map 2048 | |
+| observatory | domed observatory, delivered UNTEXTURED | 100 k, no map | 20 k | x0.25 by its stairs (14.3 x 9.4 x 10.4 m); textured from the HOUSE LIBRARY (render, concretes, painted steel, galv) and baked; the user's pick: variant A, telescope = steel + dark glass lens, the side dish white-painted steel (variant B, verdigris, stays in the tool: --variant b) |
+| alma_base / _fork / _dish | ALMA 12 m antenna, 3 rigid parts | 199 k, 35 mats | 24 k for the three | x2.5 to the real 12 m dish; src/scenery/scenery_assembly.json: pivots + axes read off the delivered rig (azimuth vertical, elevation horizontal), 2 red OBSTRUCTION + 2 SERVICE light anchors, the motion = a sim-clock TRACK (15 deg per sim-hour) - the placer drives it |
+| ferry_merituuli | Hailuoto road ferry (modelled) | 87 k, 1303 meshes, 22 mats | 30 k | one 2048 atlas (9 500 islands at 1 px margin: 34 %), glass + lamp split |
+| fishing_boat | steel trawler (game asset) | 27 k | as-is | a reprojection lost its maps' detail |
+| starfighter | stripped F-104G (scan) | 996 k, 4 UDIM | 18.4 k | x1.09 to the type (16.7 m); the collapse FLOORS at 18 404 (hundreds of loose parts in the open bays) - target 18.5 k, not the spec's 16 k |
+| loader_wreck | abandoned wheel loader (scan) | 50 k | 10 k | x0.6 (the scan was ~1.7x on all three axes for its type) |
+| crowd_1..6 | 6 textured photoscanned people (static) | 1.5 k each | as-is, maps 512 | the white / grey twins dropped; NOT char_prep (no rig) |
+
+Night run 12 Oct 03:05-03:13 (A0's go after the user's editing): 17 rows, 21 levels, 4.75 MB geometry + 1.3 MB levels + 12.1 MB
+maps, all LAZY media (the packs are NOT in build.js: SCENERY-ED's placer loads them). GATE SCENERY PASS, --selftest 10/10.
+**KTX2 twins NOT made** (basisu v1.16.4 absent on the box; `npm install` is a download, the user's call): ktx2_twins.js has the
+`scenery` family, one run once basisu is in.
+
+**THE FIRST DRIVEABLE CAR** (G2908; A0: the Conquer '89 pickup is #1, car_scene #2 later, pickup_truck a parked / traffic
+candidate, dirty_car dropped). tools/car_table.py -> car_prep.py -> src/cars/ + media/geo|tex/cars; GATE CARS (core, --selftest
+10/10). AS-IS, split by node: body (17 k, with its interior, glass and lamp covers), wheel L / R (each placed 2x), steering wheel
+(place 'centre', a new prop_prep mode that publishes the part's `at`), head / brake / reverse / blink lamp props; levelled 0.45 deg
+(the export rolled it: 11 mm -> 0.9 mm across the tyres). DATA SHEET src/cars/car_conquer.json - MEASURED: wheelbase 3.014 m,
+track 1.412 m, wheel r 0.350 m, the steering axis (21 deg column tilt), body box, a 2-box collision proxy + wheel cylinders, lamp
+anchors (4 blinkers); ESTIMATED and named so: mass 1 850 kg, CG, inertia, the driver's eye, hood / chase cameras.
+
+**THE ANNETTE ISLAND VOR/DME** (G2909): NAVAID_GEN (tools/_navaid_gen.js, LAZY - build.js MANIFEST.lazy, asked for by world_boot /
+the house worker / the editor when a record names navaid/ or utility/; registered in 27_premises GENERATORS + GEN_NS and the
+headless loaders). key navaid/DVOR-DME: the FAA's extended 150 ft (45.7 m) counterpoise at 16 ft on 60 steel columns with its
+panel seams, 50 sideband "derby" domes on a 44 ft circle (FAA DVOR), the carrier radome, the DME mast with its RED OBSTRUCTION
+LIGHT (glow palette 2 + a `beacon` in stats.lit.lights: the existing night lamp pool), the shelter west of the disc, the ladder;
+4 392 tris (lod 1: 2 224); TOWER_GEN's finish - no new material site. The nav waypoint: NAV_FIXES in 38_nav.js (ANN, VOR/DME,
+117.1 MHz, the FAA-published point; page + worker parity) - PILOT's recipe and review; NAV, PLAN, SIMWORKER PASS.
+
+**METLAKATLA'S HYDRO PLANTS** (G2909): key utility/hydro powerhouse in the same lazy generator: the LONG NARROW SHED on its
+concrete base at the water (25 x 10 m default), a TWO-TONE roof (galvanised / rust halves along its length, as the aerial shows),
+the water-side windows, the roll-up + man door with a lamp, riprap with boulders, and a SMALL fenced yard (the user: "IRL the
+substation is tiny"): a procedural lattice takeoff mast (~200 tris) + the pack's transformer (450, cut by tools/hydro_prep.py
+from "Substation" by One80 Solar, CC BY 4.0, inline int16, no texture). 1 384 tris. GATE NAVAID (core) PASS.
+
+**WHAT THE USER'S PDF SAYS** (idc011708.pdf: the Metlakatla Indian Community's business brochure with the BIA Division of Energy
+and Mineral Development; 8 pages, read through Inkscape's poppler import - its fonts are custom-encoded subsets):
+- **Metlakatla Power & Light (MPL)**, community-owned, **9.5 MW** in all: **two hydro plants, 3.9 MW PURPLE LAKE and 1.1 MW
+  CHESTER LAKE**, a **3.3 MW diesel generator** and a **1.2 MW battery energy storage system** (for the sawmill's surges).
+  The photo the user sent is Figure 2, **the Purple Lake plant** (the user's "4 MW"). Chester Lake could grow to 3.0 MW.
+- Figure 6 puts **Chester Lake Hydroelectric on the EAST shore of Port Chester**, opposite the town, at the lake's outlet.
+- **Port Chester**, a deep-water port (18 fathoms at the loadout); the **old KPC / Louisiana-Pacific sawmill** site (1979-99);
+  **Skaters Lake industrial park** (a level 10-acre site) and its quarry; **Walden Point Road**, 14.5 mi to the north end, for a
+  planned ferry dock (15 min to Ketchikan); a ferry twice daily, five days a week; two small boat harbours, a barge dock, a
+  floatplane dock; the **former Air Force base with a 7,500 ft paved runway and a 5,700 ft gravel crosswind**; ~1,400 people;
+  ~109 in of precipitation a year; the reserve is 130 sq mi and the waters to 3,000 ft out.
+
+**THE SITES** (the island_jolene record; placed after ROAD-GRAPH / RIVERS-OFF, cooked Mon 11:00-11:40), game x / z by tools/geo.py
+(use `py` - the PATH's `python` is Inkscape's, without rasterio):
+| site | point | x | z |
+|---|---|---:|---:|
+| ANN DVOR/DME | the disc, ~7 m W / 4 m S of the FAA point (A0 on Esri z18) | -1010.1 | -1663.3 |
+| Purple Lake powerhouse | the shed at the end of Hydroplant Rd (55.092773, -131.544800) | -174.7 | -5780.2 |
+| Chester Lake powerhouse | candidate A, a grey-blue roof ~10 x 12 m (55.117115, -131.545932) - the default | -1141.9 | -8313.1 |
+| (Chester Lake, candidate B) | a long pale shed ~22 x 10 m (55.116907, -131.546302) - the user knows which | -1156.5 | -8283.4 |
+Movable editor sites, each with a tree-clear area round it (r ~30 m: cleared only where needed). PROPOSED, not built: the gravel
+shore road to Purple Lake (Hydroplant Rd -> Hatchery Rd) for the user's road tool; a penstock / tailrace if wanted.
+
+**TRAPS** (each cost a pass):
+1. Blender 3.6 headless `uv.pack_islands(margin_method='FRACTION')` collapses every island to a point (19 890 of 20 000
+   faces); the default margin method does not. Thousands of tiny islands (rails, posts) are margin-bound: 1 px at 2048.
+2. A Blender render path given relative lands nowhere the shell can find (the first observatory re-shoot "wrote" and nothing
+   changed): absolute paths.
+3. A Nishita sky PLUS a sun lamp is two suns: the first stills were washed (the dark ground read cream).
+4. The glTF importer leaves a second animation clip in an NLA track (ALMA's azimuth): make it the active action before
+   sampling; and a child's turn must be taken RELATIVE to its parent (the dish's world turn carries the fork's azimuth).
+5. `[3] or 1e9` treats a distance of 0.0 as none (the ALMA face split put dish faces in the fork).
+6. A decimate COLLAPSE can floor above its ratio on scans made of many loose parts (F-104: 18.4 k for 16 k) - iterate, then
+   accept the floor and say so.
+7. Editing src/core makes tools/flight_core.js stale: every tool that requires it throws (assertFresh) until `node tools/build.js`
+   (local only; the built files are the train's to commit).
+8. Inkscape 1.3 dropped --pdf-page (use --pages); `--pdf-poppler` reads custom-encoded PDF fonts that a raw stream read cannot.
+9. A bash script is read as it runs: never edit a waiting window script in place - stop, edit, re-arm (each re-arm killed the
+   old waiter by its exact PID).
+
+**GATES**: SCENERY, CARS, NAVAID (new, core); ASSETS green but for MASTER's own MATS red (render_premises.js 26-27 sites vs ALLOW
+23 - not this branch's; A0 routes it); NAV, PLAN, SIMWORKER PASS. OWED: the sites + the premises cook + PREMCOOK / PREMISES / HOUSE /
+BUILD / UISMOKE (Mon 11:00-11:40); KTX2 twins for the scenery and the car (basisu, the user's OK).
+
 ## G2940 GROUND-VEHICLE - THE DRIVEABLE VEHICLE'S PHYSICS SPIKE: A RIGID CHASSIS WITH PROVIDERS (STRUTS ON THE TERRAIN'S PLANE, DRIVEN WHEELS FORWARD AND REVERSE, TYRES IN THE FRICTION ELLIPSE, ACKERMANN), THE ROAD FOLLOWED FROM THE REAR AXLE, U-TURNS AT A GRAVEL APRON, setDest = THE FLIGHT'S To; NODE ONLY, THE AEROPLANE UNTOUCHED (2026-10-11, GROUND-VEHICLE for A0, a CLOUD session - node only, nothing rendered; branch claude/ground-vehicle-g2940 off train 43.2 = 0402e132; G2941-G2949 unused)
 
 THE USER'S MVP (11 Oct) this prepares: "a long drive on the road I have traced and back, the ability to set a new
@@ -86973,3 +87119,13 @@ Merged on master f09cf417f:
 Gates: all green except SKINMAT, WEATHER and BENCH (red on master f09cf417f, pre-existing, owned by EDITOR-BUGS / PILOT) and CLOUD (3 world-editor/lamp rows) and ROUNDTRIP (setup sections incl. audio), the same rows as the 43.1 run.
 Strict gate (light, vs the stale 3 Oct base): at par with T44's master run (loop 16.4-16.6 ms, render 11.8, garage->world 11.2 s). New: metal cockpit taskWorst 1188 ms, cub cockpit tasks200 27. TREE-STREAM ran node gates during the run (disclosed), so they are UNPROVEN; the Tue 00:45 baseline re-take checks them on master. If they hold, TREE-STREAM owns the hitch.
 What to watch for: no bare band between near and far trees. The far cards dissolve into near trees over about 1 s. The forest grows around the free camera. A biome polygon grows its trees. A grass strip takes the ground's colour. Global paint covers the wings and tail. Every flight starts on the autopilot.
+## SCENERY-SHIP x T44 (12 Oct 14:00, SCENERY-ED-2): THE CAR SHEET - FOR GROUND-VEHICLE'S NEXT ROUND
+- `src/cars/car_conquer.json` came from both sides (add/add). Kept: ASSETS-OCT's MEASURED sheet (from the baked model the
+  game draws: wheelbase 3.0143 m, track 1.4123 m, r 0.3501 m, rear axle at x -1.301 (the placeholder -1.505), CG x 0.387,
+  ground 0.0285, the lamps) over GROUND-VEHICLE G2940's 'NOT MEASURED. Written from the brief' placeholder (A0's ruling:
+  the drawn model wins). GATE CARS: PASS.
+- GATE VEHICLE: 2 rows RED, both expectations pinned to the placeholder, not the physics: DEF tests wb === 3.01, track ===
+  1.41, r === 0.35 exactly (the measured sheet parks 2 s with 0.028 mm drift, 56.0 % front, four wheels down); AIRBORNE's
+  ledge is placed for the placeholder's rear axle (-1.505): with the real one the fronts read 0 frames on (the rear's
+  20 / 6 frames and the zero drive are as they should be). NEXT ROUND (GROUND-VEHICLE): read wb / track / r / the axle x
+  from the sheet in DEF and place AIRBORNE's ledge off the sheet's rear axle.

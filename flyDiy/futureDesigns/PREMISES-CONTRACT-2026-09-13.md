@@ -1048,3 +1048,14 @@ after the freeze, against this document.
   guardrail) are a function of the road (composed and recorded), the record's pavement settings and theme, the strips,
   and the other roads, plots and paved polygons near it - the renderer's editor keeps a road whose key is unchanged and
   whose box no ground edit touched. Nothing else of the record or the composition changes.
+- **v1.39 (2026-10-12, SCENERY-SHIP G3010-G3014).** Nothing of the record changes form. Three functions: `roadLoneSegs(rec,
+  runways?)` -> Map(road id -> per segment 1 / 0): a segment is LONE when nothing of the record (another road, a polygon,
+  a strip's box + shoulder + 30, a site's 80 m, an object's 30 m) lies within `LONE_R` (120 m); `roadPatchChunks(rec, F,
+  PCH, bounds, opts)` -> the 64 m chunks the roads mark for the fine ground patch - a lone segment the chunks whose
+  centre lies within its band (half width + falloff + 6), every other the band + half a chunk's diagonal as before (the
+  renderer's activeChunks reads it; `opts.lone: false` the old rule); `roadCutAtPoly(road, poly)` -> the road stopped
+  where its line first meets the polygon (a strip's box), its own points and handles (`tan`, `nodes`) kept to the cut,
+  the longer outside side. Shipping a save (tools/scenery_ship.js): A SAVE IS THE SANDBOX'S STAGE VIEW (no `stage` on any
+  entry or site item, no entry standing only below a track's max) - the ship compares with `stage` and `src` taken away,
+  restages what it ships, never removes a staged entry, takes removals and record settings only when named; the
+  fixture stays record v1. Numbers reserved after this one: v1.40 RUNWAY-ED, v1.41 BIOME-PAINT, v1.42 WATERFRONT.

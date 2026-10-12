@@ -87,7 +87,7 @@ const SIM_LINK = (() => {
   // the page has, after three (they build with it at load), so its world composes the premises as the page's did
   const GEN_FILES = { HOUSE_GEN: ['tools/_house_kit.js', 'tools/_house_gen.js'], BIG_GEN: ['tools/_big_gen.js'], SHED_GEN: ['tools/_shed_gen.js'],
                       HANGAR_GEN: ['tools/_hangar_gen.js'], TOWER_GEN: ['tools/_tower_gen.js'], TRAM_GEN: ['tools/_tram_gen.js'],
-                      TOTEM_GEN: ['tools/_totem_gen.js'], SPORT_GEN: ['tools/_sport_gen.js'], MARINE_GEN: ['tools/_marine_gen.js'] };
+                      TOTEM_GEN: ['tools/_totem_gen.js'], SPORT_GEN: ['tools/_sport_gen.js'], MARINE_GEN: ['tools/_marine_gen.js'], NAVAID_GEN: ['tools/_navaid_gen.js'] };
   function catalogueScripts(W) {
     const out = [];
     for (const g of Object.keys(GEN_FILES)) if (W[g]) for (const f of GEN_FILES[g]) if (out.indexOf(f) < 0) out.push(f);

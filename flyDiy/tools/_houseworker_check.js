@@ -89,7 +89,7 @@ function digestEntry(W, h, detail) {
 }
 
 // ---- one child: one page, one boot ------------------------------------------------------------------------------------
-const GEN_OTHER = ['BIG_GEN', 'SHED_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'SPORT_GEN', 'MARINE_GEN'];
+const GEN_OTHER = ['BIG_GEN', 'SHED_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'SPORT_GEN', 'MARINE_GEN', 'NAVAID_GEN'];   // NAVAID_GEN: ASSETS-OCT G2909 (lazy; the ANN VOR)
 async function child(mode, idbDir, outFile) {
   const { openPage } = require('./_page_node.js');
   const q = [mode === 'local' ? 'housew=0' : '', process.env.HOUSEWORKER_QUERY || ''].filter(Boolean).join('&');
@@ -195,7 +195,8 @@ function verdict(res, ok) {
   if (L) {
     const t = sumCalls(L.calls, /:town$/);
     console.log('  local: the town step\'s generation on the page\'s thread ' + JSON.stringify(t));
-    ok(Object.keys(L.entries).length > 100 && !L.fail, 'local: the premises built (' + Object.keys(L.entries).length + ' entries)');
+    // (G3014: the user's rev 26 took the 4 village roads and their 53 houses out - 93 entries; the floor follows the shipped record)
+    ok(Object.keys(L.entries).length > 85 && !L.fail, 'local: the premises built (' + Object.keys(L.entries).length + ' entries)');
   }
   for (const m of ['cold', 'warm', 'partial']) {
     const C = res[m];
