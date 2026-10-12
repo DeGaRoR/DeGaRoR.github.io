@@ -140,6 +140,9 @@ var COVER_RING = (() => {
   // clump field's cell / amplitude (neighbours share a length). A mix row of the reed may carry its own h / sigma / dens (the
   // biome's grass card, TYPES > biome) - the row wins. A mix not named is the meadow's.
   const FIELD_SPECIES = ['grass_reed'];
+  // THE ROOT GRADIENT (G2571, trees.js ROOT_FS): one uniform for the reed's material, whichever ring plants it - the field's
+  // `root` / `rootH` write it each frame (x strength, y the height share, z the tufts' top in the model's units); 0 = today's
+  const ROOT_U = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(0, 0.4, 100, 0) : { x: 0, y: 0.4, z: 100, w: 0, set() {} } };
   const FIELD_ON = true;   // the grass field's default (train 43: off; train 44: on - its cost under today's on every view, G2567)
   // (the size fade's ceiling is the field's `sizeMax`: a tuft taller than the reference reaches at most sizeMax x the reach - trees.js FADE_VS uFadeSizeMax)
   const FIELD_TYPES = {
@@ -219,6 +222,7 @@ var COVER_RING = (() => {
           aglPre: 150, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 60,
           // (G2567, the box 11 Oct 11:03 TIMED, cost3/: 2 tuft shapes + the size fade capped at 1.0 + 70 tufts / m2 - the forest view
           // 2.57 -> 2.23 ms, app10 4.21 -> 2.07, app30 3.85 -> 1.03 on gamer, every view under train 43's; draws +6..+9)
+          root: 0, rootH: 0.4,   // G2571: the root gradient's strength (0 = none) and the share of the tuft's height it fades out by
           tufts: 70, cards: 3, variants: 2, block: 2, sizeFade: 1, sizeMax: 1, hRef: 0.3, blotch: 0.3, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
           colour: 1, match: 1, vary: 0.05, cutH: 0.08, cutSigma: 0.1, cutDens: 1.2, stripH: 0.07, stripDens: 1 }
       : { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, batch: true,
@@ -349,6 +353,7 @@ var COVER_RING = (() => {
               // (G1385: trees.js retint now applies it - COVER_BASE, the same numbers - and the grass's own master on top,
               // so a master or a species tint moved later keeps it; asked again here for a material hooked before)
               if (c.kind === 'cover' && mat.userData.uLight && LEAF.retint) LEAF.retint(mat);
+              if (c.kind === 'cover' && FIELD_SPECIES.includes(c.name)) mat.userData.uRoot = ROOT_U;   // G2571: the reed's root gradient (trees.js fadeInject)
               if (c.kind === 'cover' && mat.userData.uFlat) { mat.userData.uFlat.value = place.contrast === undefined ? 1 : place.contrast; measureMean(mat);
                 if (mat.map && !(mat.map.image && mat.map.image.width)) { const t0 = mat.map; const poll = () => { if (t0.image && t0.image.width) measureMean(mat); else setTimeout(poll, 500); }; setTimeout(poll, 500); } }
             }
@@ -1079,6 +1084,7 @@ var COVER_RING = (() => {
       const t = now();
       LEAF.fade(S.near, S.reach, S.taper, aglK, FSET);   // (the field: its own set, and its size fade; the first ring: the shared one)
       if (FIELD && LEAF.fadeSize) LEAF.fadeSize(S.sizeFade, S.hRef / Math.max(1e-6, fieldH0), FSET, S.sizeMax);
+      if (FIELD) ROOT_U.value.set(Math.max(0, Math.min(1, +S.root || 0)), Math.max(0.01, +S.rootH || 0.4), fieldH0, 0);   // G2571 (live: a uniform)
       if (LEAF.grow) LEAF.grow(t, null, S.grow);
       { const dt = t - EYE.t;
         if (dt > 0 && dt < 0.5 && isFinite(EYE.x)) { const a = Math.min(1, dt / 0.5); EYE.vx += ((ex - EYE.x) / dt - EYE.vx) * a; EYE.vz += ((ez - EYE.z) / dt - EYE.vz) * a; }

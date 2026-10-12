@@ -274,6 +274,20 @@ function fieldRing() {
     const L = Fd.ctx.TREE_LEAF, fs = Fd.CR.fadeSet ? Fd.CR.fadeSet() : null;
     const Fx = fs ? fadeCheck(Fd, fs, L.fadeSize(null, null, fs)[0], L.fadeSize(null, null, fs)[1], L.fadeSize(null, null, fs)[2]) : { meshes: 0, cut: 0, bad: 1 };
     ok(Fx.meshes > 0 && Fx.bad === 0, '8e the field\'s truncation leaves out only tufts its own fade (and size fade) collapses', Fx.cut + ' left out, ' + Fx.bad + ' that would draw');
+    // (f) THE ROOT GRADIENT (G2571): the reed's compiled program reads the ring's own uRoot - identity by default, live A -> B -> A
+    // (0 -> 0.5 -> 0) - and every other faded material of the first ring (rocks, debris, shrubs) carries an identity uRoot of its own,
+    // so a cache-hit program never keeps another material's state (the cached-program uniforms trap); the law after the map's tint
+    { const reed = meshes[0] && meshes[0].material, rnd = () => { Fd.CR.update(); Fd.R.render(Fd.scene, Fd.camera); }, uR = () => { const p = Fd.R.properties.get(reed); return p && p.uniforms && p.uniforms.uRoot; };
+      rnd(); const a0 = uR(), x0 = a0 ? a0.value.x : NaN;
+      Fd.CR.set({ root: 0.5 }); rnd(); const x1 = uR() ? uR().value.x : NaN;
+      Fd.CR.set({ root: 0 }); rnd(); const x2 = uR() ? uR().value.x : NaN;
+      let others = 0, othersOk = 0; Bt.R.render(Bt.scene, Bt.camera);
+      Bt.CR.root.traverse(o => { if (!(o.isInstancedMesh || o.isBatchedMesh) || !o.material || !o.material.userData.fade || o.userData.coverKind === 'cover') return;
+        const p = Bt.R.properties.get(o.material); others++; if (p && p.uniforms && p.uniforms.uRoot && p.uniforms.uRoot.value.x === 0 && p.uniforms.uRoot !== a0) othersOk++; });
+      const fsOk = Fd.B.links.some(l => l.fs && l.fs.indexOf('if (uRoot.x > 0.0) diffuseColor.rgb *= mix(1.0 - uRoot.x, 1.0,') >= 0);
+      ok(a0 && x0 === 0 && x1 === 0.5 && x2 === 0 && others > 0 && othersOk === others && fsOk,
+         '8f the root gradient: the reed reads the field\'s uRoot (0 -> 0.5 -> 0 live), every other faded material its own identity, the law in the program',
+         'x ' + [x0, x1, x2].join(' -> ') + ', ' + othersOk + ' of ' + others + ' others identity'); }
   }
 }
 
