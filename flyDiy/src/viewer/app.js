@@ -1074,6 +1074,8 @@
   function bakeHangarEnvSliced() {
     if (envDeferred || envAway) { envDirty = true; return; }
     ENV_BAKES.requests++;
+    // (window.FLYDIY_CLOCKSLICE = false: the old path - a one-shot per request - for the A/B and GATE CLOCKBAKE's control)
+    if (typeof window !== 'undefined' && window.FLYDIY_CLOCKSLICE === false) { bakeHangarEnv(); return; }
     const sky = hangar && hangar.skyTexture ? hangar.skyTexture() : null;
     // the sky source is one equirect PMREM, no cube to slice: the one-shot
     if (!hangar || !THREE.WebGLCubeRenderTarget || !THREE.PMREMGenerator || !renderer.setRenderTarget || (envSource === 'sky' && sky && sky.image && sky.image.width)) { bakeHangarEnv(); return; }
