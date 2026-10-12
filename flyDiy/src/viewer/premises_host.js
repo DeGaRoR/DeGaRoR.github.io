@@ -201,6 +201,23 @@ PREMISES_HOST.rows = function () {
         if (ev.stopPropagation) ev.stopPropagation(); };
       p.appendChild(d); return d;
     },
+    // (G3018) A TYPED NUMBER with no slider - a position, a value the handles set: the same field as the slider's readout (focus
+    // shows the bare number, Enter or leaving commits it once, Escape gives up), unclamped, wider
+    number: (p, label, get, set, fmt) => {
+      const d = document.createElement('div'); d.className = 'r';
+      d.innerHTML = '<span class="k" title="' + esc(label) + '">' + esc(label) + '</span><input type="text" class="v vn" inputmode="decimal" title="type a value - Enter sets it">';
+      const val = d.querySelector('.v');
+      const show = v => { val.value = !isFinite(+v) ? '' : fmt ? fmt(+v) : (+v).toFixed(2); };
+      show(get());
+      let typing = false;
+      val.onfocus = () => { typing = true; const g = +get(); val.value = String(isFinite(g) ? +g.toFixed(4) : ''); if (val.select) val.select(); };
+      val.onchange = () => { if (!typing) return; typing = false; const n = parseFloat(String(val.value).replace(',', '.'));
+        if (isFinite(n)) { set(n); show(n); } else show(get()); };
+      val.onblur = () => { if (typing) val.onchange(); show(get()); };
+      val.onkeydown = ev => { if (ev.key === 'Enter') { val.onchange(); if (val.blur) val.blur(); } else if (ev.key === 'Escape') { typing = false; show(get()); if (val.blur) val.blur(); }
+        if (ev.stopPropagation) ev.stopPropagation(); };
+      p.appendChild(d); return d;
+    },
     select: (p, label, opts, get, set) => {
       const d = document.createElement('div'); d.className = 'r';
       const sel = document.createElement('select'); sel.className = 'fsel';

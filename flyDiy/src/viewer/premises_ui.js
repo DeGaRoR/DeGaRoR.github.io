@@ -1460,6 +1460,8 @@ function mount(host, ctx) {
       rows.button(insp, 're-sow (new seed)', () => ed(x => { x.seed = 1 + Math.floor(Math.random() * 98); }, 're-sow ' + id));
     } else if (layer === 'runways') {
       const nm = $('input', { type: 'text', value: e.name || '' }); nm.className = 'pr-name'; nm.onchange = () => ed(x => { x.name = nm.value; }, 'name of ' + id); insp.appendChild(nm);
+      numRow(insp, 'centre x (m)', () => e.c[0], v => ed(x => { x.c = [+v.toFixed(2), x.c[1]]; }, 'centre of ' + id, 'cx'), metres);
+      numRow(insp, 'centre z (m)', () => e.c[1], v => ed(x => { x.c = [x.c[0], +v.toFixed(2)]; }, 'centre of ' + id, 'cz'), metres);
       rows.slider(insp, 'length (m)', 150, 3000, 5, () => e.len, v => ed(x => { x.len = v; }, 'length of ' + id, 'len'), v => v.toFixed(0) + ' m');
       rows.slider(insp, 'width (m)', 8, 45, 1, () => e.wid, v => ed(x => { x.wid = v; }, 'width of ' + id, 'wid'), v => v.toFixed(0) + ' m');
       rows.slider(insp, 'heading (°)', -180, 180, 1, () => e.hdg * 180 / Math.PI, v => ed(x => { x.hdg = v * Math.PI / 180; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
@@ -1538,6 +1540,8 @@ function mount(host, ctx) {
       else rows.note(insp, 'the pattern is the DERIVED one (two holds 110 m in); touch a hold and it becomes yours');
     } else if (layer === 'sites') {
       const nm = $('input', { type: 'text', value: e.name || '' }); nm.className = 'pr-name'; nm.onchange = () => ed(x => { x.name = nm.value; }, 'name of ' + id); insp.appendChild(nm);
+      numRow(insp, 'x (m)', () => e.at.x, v => ed(x => { x.at = Object.assign({}, x.at, { x: +v.toFixed(2) }); }, 'place of ' + id, 'atx'), metres);
+      numRow(insp, 'z (m)', () => e.at.z, v => ed(x => { x.at = Object.assign({}, x.at, { z: +v.toFixed(2) }); }, 'place of ' + id, 'atz'), metres);
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.at.yaw || 0) * 180 / Math.PI, v => ed(x => { x.at.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
       const items = e.items || [];
       rows.note(insp, items.length + ' item' + (items.length === 1 ? '' : 's') + ' - the faint discs move each in the site\'s frame; the bright one moves the site whole');
@@ -1563,6 +1567,8 @@ function mount(host, ctx) {
         insp.appendChild(d);
         if (!open) continue;
         if (ctx.catalogue) rows.select(insp, 'building', ctx.catalogue.keys().map(k => [k, labelOf(k)]), () => it.key, v => ed(x => { x.items.find(q => q.id === it.id).key = v; }, 'building of ' + it.id));
+        numRow(insp, 'x in the site (m)', () => it.x || 0, v => ed(x => { x.items.find(q => q.id === it.id).x = +v.toFixed(2); }, 'place of ' + it.id, 'ix:' + it.id), metres);
+        numRow(insp, 'z in the site (m)', () => it.z || 0, v => ed(x => { x.items.find(q => q.id === it.id).z = +v.toFixed(2); }, 'place of ' + it.id, 'iz:' + it.id), metres);
         rows.slider(insp, 'turn (°)', -180, 180, 1, () => (it.yaw || 0) * 180 / Math.PI, v => ed(x => { x.items.find(q => q.id === it.id).yaw = v * Math.PI / 180; }, 'turn of ' + it.id, 'yaw:' + it.id), v => v.toFixed(0) + '°');
         // (v1.35, G2890) the lot's ground under it: drawn (never under the water line), or the island's own
         rows.check(insp, 'its lot\'s ground drawn', () => !(it.P && it.P.plotGround === false), v => ed(x => { const q = x.items.find(o => o.id === it.id); q.P = Object.assign({}, q.P); if (v) delete q.P.plotGround; else q.P.plotGround = false; }, 'lot ground of ' + it.id));
@@ -1583,6 +1589,10 @@ function mount(host, ctx) {
     } else if (layer === 'objects' && (e.kind === 'prop' || e.kind === 'billboard' || e.kind === 'aircraft')) {
       const keys = objectKeys(e.kind, rec);
       if (keys.length) rows.select(insp, e.kind, keys, () => e.key, v => ed(x => { x.key = v; }, e.kind + ' of ' + id));
+      numRow(insp, 'x (m)', () => e.x, v => ed(x => { x.x = +v.toFixed(2); }, 'place of ' + id, 'x'), metres);
+      numRow(insp, 'z (m)', () => e.z, v => ed(x => { x.z = +v.toFixed(2); }, 'place of ' + id, 'z'), metres);
+      numRow(insp, 'x (m)', () => e.x, v => ed(x => { x.x = +v.toFixed(2); }, 'place of ' + id, 'x'), metres);
+      numRow(insp, 'z (m)', () => e.z, v => ed(x => { x.z = +v.toFixed(2); }, 'place of ' + id, 'z'), metres);
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
       if (e.kind === 'prop') {
         rows.slider(insp, 'lift (m)', -1, 3, 0.05, () => e.dy || 0, v => ed(x => { x.dy = v; }, 'lift of ' + id, 'dy'), v => v.toFixed(2));
@@ -1598,6 +1608,8 @@ function mount(host, ctx) {
       const pool = ctx.pool ? ctx.pool() : [];
       if (pool.length) rows.select(insp, 'species', pool.map(p => [p.key, p.key.replace(/\.glb\|/, ' · ').slice(0, 30)]), () => e.key, v => ed(x => { x.key = v; }, 'species of ' + id));
       rows.slider(insp, 'size', 0.4, 1.8, 0.02, () => e.size || 1, v => ed(x => { x.size = v; }, 'size of ' + id, 'size'));
+      numRow(insp, 'x (m)', () => e.x, v => ed(x => { x.x = +v.toFixed(2); }, 'place of ' + id, 'x'), metres);
+      numRow(insp, 'z (m)', () => e.z, v => ed(x => { x.z = +v.toFixed(2); }, 'place of ' + id, 'z'), metres);
       rows.slider(insp, 'turn (°)', 0, 360, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
     }
     shapeRows(e, id);
@@ -1616,6 +1628,8 @@ function mount(host, ctx) {
     } else if (PG.rectOk(e.rect)) {
       const Q = e.rect, setQ = (patch, label, key) => ed(x => { x.rect = Object.assign({}, x.rect, patch); x.poly = PG.rectPoly(x.rect); }, label + ' of ' + id, key);
       rows.section(insp, 'SHAPE · RECTANGLE');
+      numRow(insp, 'centre x (m)', () => Q.c[0], v => setQ({ c: [+v.toFixed(2), Q.c[1]] }, 'centre', 'qcx'), metres);
+      numRow(insp, 'centre z (m)', () => Q.c[1], v => setQ({ c: [Q.c[0], +v.toFixed(2)] }, 'centre', 'qcz'), metres);
       rows.slider(insp, 'length (m)', 3, 400, 0.5, () => 2 * Q.hw, v => setQ({ hw: v / 2 }, 'length', 'qw'), v => v.toFixed(1) + ' m');
       rows.slider(insp, 'width (m)', 3, 400, 0.5, () => 2 * Q.hd, v => setQ({ hd: v / 2 }, 'width', 'qd'), v => v.toFixed(1) + ' m');
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (+Q.yaw || 0) * 180 / Math.PI, v => setQ({ yaw: +(v * Math.PI / 180).toFixed(4) }, 'turn', 'qy'), v => v.toFixed(0) + '°');
@@ -2111,6 +2125,9 @@ function mount(host, ctx) {
       rows.note(d2, 'the declared width is the drawn width whatever the surface; the side is drawn outside it (its width past the edge zone, from its alpha)');
     }
   }
+  // (G3018, the user: 'I need to be able to manually input a figure') a typed number with no slider - the host's, when it has one
+  const numRow = (p, label, get, set, fmt) => (rows.number ? rows.number(p, label, get, set, fmt) : null);
+  const metres = v => (+v).toFixed(1) + ' m';
   function viewRows(P) {
     rows.section(P, 'VIEW');
     if (ctx.cameras) rows.select(P, 'camera', [['orbit', 'orbit (right-drag)'], ['map', 'map (top-down)']].concat(ctx.cameras.flyOk && ctx.cameras.flyOk() ? [['fly', 'fly (WASD / ZQSD, R / F, right-drag looks)']] : []), () => ctx.cameras.mode(), v => { ctx.cameras.set(v); palette.refresh(); });

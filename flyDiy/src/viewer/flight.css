@@ -997,6 +997,7 @@ body.premOpen #flFly { display:none; }
   background:none; border:0; border-bottom:1px solid transparent; border-radius:0; padding:0 0 1px; margin:0; cursor:text; outline:none; }
 #ui .pr-insp .r > input.v:hover { border-bottom-color:var(--ed-border); }
 #ui .pr-insp .r > input.v:focus { border-bottom-color:var(--ed-acc); }
+#ui .pr-insp .r > input.v.vn { flex:1; width:auto; min-width:0; }   /* (G3018) a typed number with no slider takes the row */
 #ui .pr-insp .r.item { padding:5px 8px; margin:3px 0; border-radius:6px; background:var(--ed-btn-bg); }
 #ui .pr-insp .r.item.on { background:var(--ed-acc-soft); color:var(--ed-ink); }
 #ui .pr-insp .r.item > span.k { width:auto; flex:1; }
