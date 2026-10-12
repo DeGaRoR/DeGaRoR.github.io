@@ -2794,7 +2794,10 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //      (30_solver propMoments) - the certificate's flown cases run at full power and their engine mount and tail now
 //      carry them, so an unchanged spec's certificate moves; the plaque's own numbers (probes, the analytic roll, the
 //      stance with the engine stopped) do not
-const PHYSICS_V = 5;
+//   6  2026-10-08, G2470 JODEL-PITCH: the Munk body couple's arm along the body (30_solver; it was measured in the world
+//      x-y plane, x1/cos(heading) and off near world +-z) - the certificate's flown cases that turn off x move (the Jodel's
+//      steps a frame more); the probes along the def's x do not
+const PHYSICS_V = 6;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape

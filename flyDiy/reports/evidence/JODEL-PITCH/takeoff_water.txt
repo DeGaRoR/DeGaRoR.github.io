@@ -1,0 +1,27 @@
+G2470 - THE WATER TAKE-OFFS (GATE TAKEOFF's TECHNIQUE rows; tools/pilot_one_trace.js on the SEA lane, heading 90 = world +z; node)
+"base" = origin/claude/pilot-integration 9546d2e built; "fix" = this branch (30_solver's arm along the body) with / without the water's lead law (43_pilot, dbb3856).
+K = GEN_RULES.bodyMunkK overridden in def.params.bodyMunk (a diagnostic, not a change); AP = def.params.ap overrides (diagnostic).
+
+WHY THE WATER MOVED: along world z the old arm hyp2(bx-ax, by-ay) is the rings' VERTICAL offset, ~ L sin(pitch) - dy: pitched up on the step it is
+~0.3 m against a true 2.2-2.9 m, so the couple was ~10x its size and grew with the pitch (and was off under ~0.3 m). The floats' take-offs leaned on it:
+  wip (Wipline C172)   base K 0.75: Vlof 27.72 qMax  7.0 | base K 0: 28.42 / 18.0 | fix K 0: 28.42 / 18.0 | fix K 0.75: 28.42 / 20.1 | fix K 1.5: 28.40 / 22.5
+  twinf (twin, floats) base K 0.75: 28.3 (1.54 Vs)      | base K 0: 30.54 (1.66)  | fix K 0: 30.54        | fix K 0.75: 30.09 (1.64)  | fix K 1.5: 29.70 (1.61)
+  -> with the true couple both fly as without one; the base's numbers were the fictitious couple's.
+
+THE WIPLINE - a pilot fault, fixed at its source: the water's full stick (deWater 0.70, armed at 1.12 Vr = 27.8 m/s) was a FLOOR held whatever the nose
+did until the floats let go; the base unstuck at 27.7 (0.1 under the arm) and never met it. The fix reaches 1.12 Vr wet: the elevator 0.29 -> 0.69 in
+0.4 s, the floats let go with it there, 14 -> 20.1 deg/s (bound 12). The lead law (the pull eases as the attitude, led 0.5 s by its rate, comes within
+0.05 rad of the lift-off attitude):
+  wip     Vlof 28.44 (1.16 Vs)  qMax 10.2 deg/s  run 347 m  -> PASS (base 27.7 / 7.0 / 321 m)
+  ultraf  Vlof 22.59 (1.41 Vs)  qMax  9.0        run 100 m  -> PASS (base 21.1 / -9.0 / 87 m)
+  twinf   Vlof 30.09 (1.64 Vs)  qMax  7.5        run 229 m  -> FAIL the 1.6 Vs bound (base 28.3 / 1.54)
+  c172f   ABORT rejected-takeoff (stuck on the hump, said) -> PASS, as base
+  (alternatives measured, not kept: vWaterStick 1.25 -> wip 28.91 / -5.6, twinf 1.64, ultraf 1.36; deWater 0.5 -> wip 12.1 (over), twinf 1.74)
+
+THE TWIN - no pilot input found that unsticks it under 1.6 Vs with the true couple (every row lifts once, cleanly):
+  the stick top  deWater 0.6 / 0.7 / 0.9 -> 1.70 / 1.64 / 1.64 Vs (the tail saturates at 0.7: elevTau 0.5, the stab past its 0.24 rad stall)
+  the pull       vWaterStick 1.0 / 1.12 / 1.25 -> 1.63 / 1.64 / 1.64
+  the throttle   capped 0.9 / 0.75 / 0.6 under the lift-off attitude on the step -> 1.70 / 1.62 (2 lifts) / 1.70 (3 lifts)
+  open loop, full power + 0.7 of stick from 8 s, rotated to headings 0 / 45 / 90 deg on the sea (scratch whdg.js): the same run to 0.08 deg of pitch
+  (the water is heading-honest), off the water at ~30 m/s.
+  -> the twin on its undersized floats with two 582s 0.55 m over the CG unsticks at ~1.63 Vs. NAMED for A0 (below).

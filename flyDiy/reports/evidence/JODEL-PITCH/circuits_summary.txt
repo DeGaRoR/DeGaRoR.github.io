@@ -1,0 +1,6 @@
+cub_2  base completed t  333.8 climb vs 2.37 final above 0.7 vRms 0.14 sink 0.65 swing? | air |q|max  9.0 deg/s, >5 for  1.9 s | DOWNWIND de -0.080..-0.058 | de rev/min climb:6 legs:10 downwind:0 base:6 final:1.9
+cub_2  fix  completed t  333.9 climb vs 2.37 final above 0.7 vRms 0.13 sink 0.65 swing? | air |q|max  9.0 deg/s, >5 for  1.8 s | DOWNWIND de -0.079..-0.060 | de rev/min climb:6 legs:10 downwind:0 base:6 final:1.9
+jodel  base completed t  357.7 climb vs 2.11 final above 0.6 vRms 0.1 sink 1.04 swing? | air |q|max 18.0 deg/s, >5 for  2.7 s | DOWNWIND de -0.046..+0.009 | de rev/min climb:10 legs:8 downwind:0 base:4 final:2.1
+jodel  fix  completed t  357.2 climb vs 2.11 final above 0.5 vRms 0.06 sink 1.04 swing? | air |q|max  7.0 deg/s, >5 for  1.0 s | DOWNWIND de +0.002..+0.017 | de rev/min climb:10 legs:4 downwind:0 base:2 final:1.1
+cessn  base completed t  269.9 climb vs 5.21 final above 1 vRms 0.06 sink 1.02 swing? | air |q|max 14.0 deg/s, >5 for  3.1 s | DOWNWIND de -0.011..+0.032 | de rev/min climb:4 legs:10 downwind:0 base:6.7 final:7.7
+cessn  fix  completed t  270.0 climb vs 5.21 final above 0.9 vRms 0.06 sink 1.02 swing? | air |q|max 11.0 deg/s, >5 for  3.1 s | DOWNWIND de -0.011..+0.007 | de rev/min climb:4 legs:6 downwind:0 base:5 final:3.9
