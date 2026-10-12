@@ -85272,3 +85272,24 @@ futureDesigns/SCENERY-POLYGON-2026-10.md.
 5. Nothing else of the island moves: the shipped roads have no junctions and no bed, their ground is today's.
 
 Gates (dev, Sun 11 Oct 20:30, box clean, no build): SCENERYED 103 PASS, PREMISES 552 PASS (the flight world loaded). The window's run (Mon 06:30-07:10: build, re-cook, targeted gates): WINDOW_LINE
+
+## A0 2026-10-12 - TRAIN 47 LANDED: THE ROAD NETWORK (ROAD-GRAPH G2950-G2957, without r1)
+
+- **Cargo:** claude/road-graph-g2950 3bc377d6c (r1 taken out by 06615683e; island cook acbdbf52d; fleet pack after the cook 3bc377d6c).
+  - Waypoint snapping with a white snap ring.
+  - Shared junctions: green discs; Alt+drag detaches one road.
+  - Connection points: magenta.
+  - Metlakatla as one connected grid (129 junctions, named connection points).
+  - One router (taxi + cars).
+  - Road bed opt-in per road.
+  - Power lines along the whole length (poles per km, cable + lamps culled by chunk); GATE ASSETS MATS back to 23 (overlay handles via MATLIB).
+- **The user's r1 is NOT in this train:** it ships with SCENERY-SHIP (the lone-road patch lever). With r1 here: FRAMECOST +64 patch blocks, PREMISES 21d / PREMCOOK 4 red; the fallback was agreed with the user on 11 Oct.
+- **Gates (SCENERY-ED-2's windows 06:30 + 07:35), PASS:** PREMISES, PREMCOOK, SCENERYED, PAVEMENT, ASSETS, MEDIA, UISMOKE, TAXICLEAR, LIFE, LOOKS, PILOT, LINEUP, COVER, GRASSSIDES, HOUSEWORKER, VILLAGE, PREMRASTER, TOWNKIT, RWYTREES, GAMEPREM, CONTRACTS, BIOME.
+- **STAGES 1 red:** master's since t444. Areas v2's expansion builds keys in a path-dependent order, so sha(O.rec) differs. The fix (one canonical key order in expandAreas) rides PLACER-FAST.
+- **A0's landing:** build, parked re-cook, FRAMECOST after the cook, the light strict gate (compared with the latest master runs; the 3 Oct light baseline is stale until Tue 00:00).
+- **Landing (08:00-08:35):**
+  - merge conflict in the generated fleet_spots_pack.js -> regenerated on the merged tree (premises cook + fleet cook + parked cook, build 10203add0107);
+  - gates PASS: BUILD, MEDIA, UISMOKE, ASSETS, PREMCOOK, PREMISES, TAXICLEAR, SCENERYED;
+  - FRAMECOST: its 5 reds were 44.1 + 44.3's (the same rows on master), admitted by name as part of the user's accepted +1.5 ms -> PASS.
+- **Light strict gate vs master's 44.1+44.3 run:** loop equal or better (cub chase 16.6 -> 16.3, metal 17.1 -> 16.5), render equal, loads equal.
+  - New: cub chase compile 4491 ms (slack 2000 over 1985) - a fresh build = cold shader cache (memory load-ab-cache-position); the Tue 00:00 baseline re-take re-reads it.
