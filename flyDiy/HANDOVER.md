@@ -85157,3 +85157,118 @@ user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's
   - freight strapped on the flown aircraft;
   - the club works;
   - night ops.
+## G2950 - ROAD-GRAPH + ROAD-BED: ROADS JOIN AT WAYPOINTS, A JUNCTION IS ONE NODE, METLAKATLA ONE GRID WITH ITS CONNECTION POINTS, ROADSIDE APRONS, THE ROAD BED (2026-10-12, SCENERY-ED-2 for A0, local; branch claude/road-graph-g2950 off train 44.4 c12f0490c; G2950 graph, G2951 editor, G2952 bed, G2953 aprons, G2954 Metlakatla, G2955 the long road's power line, G2956 the user's road shipped; G2957-G2959 unused, G2960-G2969 the runway train)
+
+The user (11 Oct): "let's have roads snapping to each other. One day I'd like a scenic tour of the island's roads,
+probably with a simple car" - "You could constrain joining on WAYPOINTS only, so we have something really clean" - "I'll
+trace the network between Metlakatla and the airfield, leave that to me" - "a lot of gravel areas next to the road for a
+U-turn or a stop" - "the road is sunk in many places. Maybe build a little bank or something, ensuring the paved surface
+is always visible". Contract v1.37 (futureDesigns/PREMISES-CONTRACT-2026-09-13.md), design §8-§9 of
+futureDesigns/SCENERY-POLYGON-2026-10.md.
+
+- **THE RECORD (G2950).** `roads[].nodes: [id | null, ...]` beside `pts` (one slot a point, like `tan`): a waypoint with an
+  id IS that junction; every road whose waypoint has the same id meets there. `layers.junctions: [{ id, name?, conn? }]`
+  names a junction, `conn: true` makes it a CONNECTION POINT. **Nothing writes `pts`** but the user's hand: the composer,
+  the migrators and the graph only read them (GATE SCENERYED 11 holds r1 of the user's own file bit for bit through every
+  step). A record without `nodes` composes exactly as before.
+- **THE GRAPH.** `O.roadGraph()` - nodes (junctions, road ends `<road>:0|1`, named / connection points, roadside aprons),
+  edges (each road's spans between its nodes on the DRAWN line: len, w, cls, surface, look, steepest grade). One router
+  `PG.graphMake` (Dijkstra, components, nodeAt, edgeAt) - the taxi pattern goes through it too (`graphOfPattern`), and
+  GROUND-VEHICLE G2940 drives on it.
+- **THE JUNCTION'S LEVEL.** The roads through a junction meet at one height: a road ENDING there takes the junction's
+  height, a road passing through takes it from an earlier crossing road but never from a spur's end; held 7 m each side,
+  eased over 7 more (GATE PREMISES 21b: the through road's centre within 2 cm of itself without the crossing). A
+  waypoint with an id lying on its straight span is no corner for the composition (`straightOf`): the grade samples,
+  the plots, the pavement are the road's without it.
+- **THE EDITOR (G2951).** Drag a road's waypoint near another road's waypoint (a few screen pixels): it lands EXACTLY on it
+  (a white ring shows the target) and the two share one junction - the OTHER road never moves. Clicking a new road's
+  point on a waypoint does the same (the junction made when the road is validated). A junction's waypoint (GREEN disc)
+  dragged carries every road's waypoint there - one undo. **Alt+drag** takes this road out of the junction (or the
+  inspector's 'take <road> out of <j>'). Pick a waypoint (click its disc): the inspector's WAYPOINT section - the roads
+  meeting, its name, 'a connection point', '+ roadside apron here'. Every junction of the map shows as a small disc
+  (green; MAGENTA a connection point) even when its road is not selected - what to snap onto. Only waypoints join: a T
+  is a waypoint added on the through road first (click its edge), then the snap.
+- **ROADSIDE APRONS (G2953).** '+ roadside apron here (turn, stop)' on a picked waypoint: a 12 m round gravel area
+  beside it (past a road's end, off its side elsewhere) with `props.roadside: { node, use: ['turn', 'stop'] }`; the
+  waypoint gets a junction id if it had none; the graph's node lists it (`aprons: [{ area, use, poly, centre, r }]`).
+  The area's inspector: ROADSIDE, 'for: turn & stop / turn / stop', remove.
+- **THE ROAD BED (G2952).** The road inspector's **'road bed' on / off** (one click): the road's grade line never under
+  the ground across its paved width (centre and both edges + 15 cm), its dips filled to 12 % both ways (an embankment,
+  never a cut), a flat shoulder of 0.5 m each side, banks 10 m back to the terrain; sliders when on (banks, steepest,
+  over the ground). **New roads have it on; every shipped road and r1 have it OFF** until the user clicks it (r1's points
+  do not move either way).
+- **METLAKATLA (G2954).** `tools/road_review.js` read its 62 `mk_` streets: no junction at all; 20 ends on another
+  street's waypoint, 13 Ts, 109 crossings between waypoints, 8 ends 1.5-3.6 m short of a street, 6 streets apart.
+  `tools/road_review.js --join` (+ `tools/road_patch.py`, every other byte of the fixture kept): 231 waypoints inserted
+  on the streets' straight spans (the crossings, the Ts), 129 junctions `mk_j<n>`: the town's 56-street grid is ONE
+  graph. Its three ways out are named connection points (magenta): **mk_c_east** 'Metlakatla east (the Walden road)'
+  (r1 passes 31 m from it), **mk_c_north** 'Metlakatla north (the old airport road)' (mk_ax05's end),
+  **mk_c_south** 'Metlakatla south (the shore road, the seaplane base)'. The town's 391 plots are the same seed for
+  seed (no end moved: the plots are sown along the streets); the ground changes only at the junctions' level (max
+  1.6 m on the island where two crossing streets' grades disagreed - today one steps there). Left to the user (the
+  review lists them, with coordinates): 3 ends 0.45-1 m off a waypoint and 8 ends 1.5-3.6 m short of a street (drawn
+  so in the data; a drag onto the waypoint joins each), and 6 streets drawn apart from the grid (mk_r_airport +
+  mk_r_skaters 32 m from mk_ax05, mk_r_raven 36 m, mk_r_wolf 17 m, mk_sa05 22 m, mk_sc41 130 m) - a short road each
+  if the user wants them in. Not joined to r1 or the airfield - the user traces that. (Metlakatla is the GRAPHICS 'town' row's 'all': with the town
+  off its streets and connection points are not in the editor.)
+
+- **THE POWER LINE ALONG A LONG ROAD (G2955; the user: "I don't think the poles and cables draw anymore on my long
+  road").** src/viewer/powerline.js capped a road at 140 poles (4.7 km at the 34 m pitch): r1's line stopped 4.7 km
+  from its start. The budget is now PER KM (`perKm` 40; a 34 m pitch raises ~29), no total: r1 gets ~730 poles the
+  whole way (instanced props, as before). What bounds the cost is the draw: `POWERLINE.cull(eye)` (every 20 frames
+  from render_premises' tick) leaves undrawn every cable chunk (10 spans, ~350 m) whose sphere is farther than
+  `reach` 2 400 m from the eye - r1's ~73 chunks (~260 k triangles) become the dozen or so near the camera. The street
+  lamps (every second pole) are bagged BY THE SAME CHUNKS (render_premises buildLine: one metal + one glass mesh a
+  chunk, `POWERLINE.chunk` marks them) and culled with them - one merged mesh along r1 was a bounding sphere always in
+  view (~365 lamps drawn every frame); a culled chunk's lamps take no point light. GATE PAVEMENT 8f: a 25 km road's
+  poles reach its end (dev: 737 poles, the last 18 m from it), the eye at its middle draws 16 of 74 cable chunks and
+  15 of 74 lamp meshes.
+- **r1 MOVED TO SCENERY-SHIP (12 Oct 07:30, A0 with the user, option A):** ROAD-GRAPH ships WITHOUT r1 - its 06:30 battery bisected r1 as the cause of PREMISES 21d, PREMCOOK 4 and FRAMECOST's fine-patch share (blocks 54 -> 118, tris 3.6 -> 6.2 M over r1's 30 km band); the fixture and SCENERYED 10/13 are back to before G2956 (byte for byte), tools/road_ship.py + road_cross.js + the kept rev 26 file stay. r1 ships with SCENERY-SHIP (G3010), whose lone-road patch (G3013) answers the patch. The section below is the record of what was done.
+- **THE USER'S ROAD SHIPPED (G2956; the user, 11 Oct: "Please extract my long road to put in official, but this runway
+  does not get into anything but my local save before it is fixed").** `tools/road_ship.py` copied r1 of their rev 24
+  save - since 12 Oct 03:05 its rev 26 (D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev26_2026-10-12_0305.json, sha256
+  e75298b709ac09db, read only: "all new editions can be considered default"; r1's last three points moved, the rest as rev 24's)
+  into tools/fixtures/island_jolene.json as saved - 254 points + handles, w 7.2, paved, graded, falloff 13, spline,
+  traffic 1, clear 2 - appended after the fixture's roads (graded last, as in their save), every other byte of the
+  fixture kept; NOTHING else of the save (not their strips 'strip 8' / 'strip 9', not their other edits). The entry
+  is kept with the save's sha256 in tools/fixtures/scenery_user_r1_rev26.json; GATE SCENERYED 13 holds the shipped r1
+  equal to it bit for bit. `tools/road_cross.js r1` (20:40, a 0.1 s probe): it crosses NO runway box, stand, hangar
+  or taxi route. It crosses, with no junction (r1 is not moved to make one - the user's to join): the Metlakatla
+  streets mk_sa00 (-2653.0, -8643.4), mk_sa02 (-2735.7, -8663.6), mk_sa04 (-2849.0, -8690.2), mk_r_walden
+  (-1706.0, -8350.2) (all four drawn only with the town on), the tramway's access road tw_r_access (-1553.6, -8280.0),
+  and the Metlakatla gas station's apron mk_m_gas (-2377.4, -8572.6) to (-2361.8, -8568.4). Graded last, r1 lays
+  its own grade over theirs at each crossing (as in the user's save).
+- **THE USER'S OWN RECORD (A0's proof, GATE SCENERYED 12).** The user's backup
+  D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev23_2026-10-11.json is the gate's fixture
+  tools/fixtures/scenery_user_jolene_rev23.json byte for byte (sha256 277abdfa66b254bd). Through the v1.37 loader: r1's
+  244 points + handles bit for bit after the editor's load, after the composition and O.roadGraph() (r1 one span), after
+  a save round trip; with Metlakatla put back (the town switch: restorePlaces, 62 streets, 132 junction ids) r1's
+  ground along its 24.9 km (1 979 samples) is the same to 0 m as with the town's streets carrying no junctions.
+
+**What to watch for (the user):**
+0. **Metlakatla left to you (tools/road_review.js lists them, with coordinates).** Six streets drawn APART from the town's
+   grid: mk_r_airport + mk_r_skaters (32 m from mk_ax05's north end), mk_r_raven (36 m from mk_r_skaters), mk_r_wolf
+   (17 m from mk_r_raven), mk_sa05 (22 m from mk_sc48), mk_sc41 (130 m from mk_sa01) - a short road each if you want
+   them in. Eleven LOOSE ENDS, drawn just off a street: 0.45-1 m off a waypoint - mk_r_skaters end at (-2836.0,
+   -8030.4) by mk_r_airport, mk_sc40 start at (-3509.0, -9056.7) by mk_r_shore, mk_sa08 end at (-3259.0, -8449.0) by
+   mk_sc50; 1.5-3.6 m short of a street - mk_sa04 (-2996.0, -8546.0) / mk_sc40, mk_sc37 (-2898.0, -8566.0) / mk_sa03,
+   mk_sc44 (-3567.1, -8968.1) / mk_r_shore, mk_sc45 (-3591.1, -8922.1) / mk_r_shore, mk_sc47 (-3615.1, -8887.1) /
+   mk_r_shore, mk_sc63 (-3972.0, -8501.0) / mk_ax01, mk_sc64 (-3795.0, -8289.0) / mk_ax02, mk_r_walden start
+   (-2954.0, -8696.0) / mk_sa06. Each joins with one drag of the end onto the street's waypoint (add one on the
+   street first with a click on its edge). Not moved by the tool: the town's plots are sown along its streets.
+1. Select r1, click **'road bed: on'** - the sunk stretches stand on a low bank, the paved surface visible all along;
+   r1's waypoints do not move; 'off' puts it back exactly. Try the 'banks' slider if the bank looks too wide or steep.
+2. Drag a road's end near another road's waypoint: the white ring, then it sits exactly on it - the disc turns green.
+   Drag the green disc: both roads follow. Alt+drag: only the one you hold leaves.
+3. With the town on (GRAPHICS town 'all'): Metlakatla's three magenta discs. **The east one (mk_c_east, the Walden
+   road's end) is 31 m from r1** - add a waypoint on r1 there (click its edge) and drag it, or a short road's end, onto
+   the disc to connect the town to your road.
+4. Pick a waypoint, '+ roadside apron here': a round gravel pad beside the road.
+4b. Fly along r1 far from its start: poles and cables the whole way round the island (they stopped ~4.7 km in);
+   the cable fades in a couple of kilometres ahead as you go (it is not drawn past 2.4 km).
+4c. **r1 is in the official world now, for every player** (no longer only your save): its cars, its clearing, its poles.
+   It crosses the tramway access road and, with the town on, four Metlakatla streets and the gas station's apron
+   without a junction: add a waypoint on each (click the edge) and drag one onto the other to join them.
+5. Nothing else of the island moves: the shipped roads have no junctions and no bed, their ground is today's.
+
+Gates (dev, Sun 11 Oct 20:30, box clean, no build): SCENERYED 103 PASS, PREMISES 552 PASS (the flight world loaded). The window's run (Mon 06:30-07:10: build, re-cook, targeted gates): WINDOW_LINE
