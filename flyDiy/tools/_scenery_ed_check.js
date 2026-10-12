@@ -622,7 +622,11 @@ if (plots.length) {
   const staged = e => !!(e && (e.stage || (Array.isArray(e.items) && e.items.some(it => it && it.stage)) || /^sg_/.test(String(e.id || ''))));
   // (G3014: the strips the manifest names in clearDefault ship WITHOUT their own `clear` - today's box, as every strip; the rest of
   //  the entry is the save's)
-  const CD = new Set(M.clearDefault || []), unC = e => { const c = JSON.parse(un(e)); if (CD.has(c.id)) delete c.clear; return JSON.stringify(c); };
+  // (G3014: and the plots the manifest moves - plotMoves {runway: {plot: [x, z]}}: the save's plot taken to where it ships)
+  const PMv = M.plotMoves || {};
+  const CD = new Set(M.clearDefault || []), unC = e => { const c = JSON.parse(un(e)); if (CD.has(c.id)) delete c.clear;
+    if (PMv[c.id] && Array.isArray(c.plots)) for (const p of c.plots) if (p && PMv[c.id][p.id]) { p.x = PMv[c.id][p.id][0]; p.z = PMv[c.id][p.id][1]; }
+    return JSON.stringify(c); };
   check([...CD].every(id => { const w = (A.layers.runways || []).find(q => q.id === id); return w && !('clear' in w); }), '15 the strips the manifest names ship with the clearance of today, not their own (' + [...CD].join(', ') + ')');
   const bad = [], pending = [];
   for (const L of PG.LAYERS) {
@@ -754,6 +758,23 @@ if (plots.length) {
   check(/plot\.noFence \? new Set\(\) : vil\.fenced/.test(VGs) && /if \(plot\.noFence\) plot\.fences = \[\];/.test(VGs), '19 the village generator keeps no fence for a noFence plot, and claims none of its sides');
   check(/!!p\.noFence !== !!\(h\.plot && h\.plot\.noFence\)/.test(RPs), '19 the renderer builds a plot again when its fence switches (its seed the same)');
   check(/'plot fences'/.test(UI_SRC) && /pick plots: a click switches one plot\\'s fence/.test(UI_SRC) && /name === 'plotFence'/.test(UI_SRC), '19 the zone\'s inspector: the fences switch and the plot pick');
+}
+
+// 21 ONE STRIP A DRAW (G3016; the user, 12 Oct: two strips added on top of each other - rev 24's w1 + w4, the altiport): the
+//    runway tool hands back to SELECT once a strip is placed, so two more clicks add nothing; no two shipped strips stand
+//    within 50 m of each other (Jolene's crossing 02/20 x 13/31 is 939 m centre to centre)
+{
+  ed.select(null); ed.cmd('tool', { name: 'runway' });
+  const n0 = ed.record().layers.runways.length;
+  ed.cmd('point', { x: 6000, z: 6500 }); ed.cmd('point', { x: 6300, z: 6500 });
+  const n1 = ed.record().layers.runways.length;
+  try { ed.cmd('point', { x: 6000, z: 6700 }); ed.cmd('point', { x: 6300, z: 6700 }); } catch (e) {}
+  const n2 = ed.record().layers.runways.length;
+  check(n1 === n0 + 1 && n2 === n1, '21 a strip drawn hands the tool back: two more clicks add no second strip (' + n0 + ' -> ' + n1 + ' -> ' + n2 + ')');
+  const FXr = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec.layers.runways, near = [];
+  for (let i = 0; i < FXr.length; i++) for (let j = i + 1; j < FXr.length; j++) if (Math.hypot(FXr[i].c[0] - FXr[j].c[0], FXr[i].c[1] - FXr[j].c[1]) < 50) near.push(FXr[i].id + '/' + FXr[j].id);
+  check(!near.length, '21 no two shipped strips stand within 50 m of each other', near.join(' '));
+  ed.cmd('tool', { name: 'select' });
 }
 
 // 5 NAMES

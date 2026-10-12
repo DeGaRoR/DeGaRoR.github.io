@@ -776,7 +776,9 @@ function mount(host, ctx) {
       if (len < 150) { strip.status('refused: a strip is at least 150 m (' + len.toFixed(0) + ')'); return; }
       const e = Object.assign({ id: PG.newId(rec, 'runways') }, JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { name: 'strip ' + (rec.layers.runways.length + 1), c: [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)], hdg: +Math.atan2(b[1] - a[1], b[0] - a[0]).toFixed(4), len: +len.toFixed(1), wid: 24 });
       run({ layer: 'runways', id: e.id, before: null, after: e, label: 'runway ' + e.id });
-      cancelTool(); select(e.id); return;
+      // (G3016, the user 12 Oct: two strips stacked - rev 24's w1 + w4: the tool stayed armed after a strip, so the next two
+      //  clicks drew another) a strip placed hands the tool back to SELECT; another strip is the runway tool picked again
+      cancelTool(); setTool('select'); select(e.id); strip.status('strip ' + e.id + ' placed - the tool is back to select (the runway tool again for another)'); return;
     }
     T.pts = T.pts.filter((p, i, A) => i === 0 || Math.hypot(p[0] - A[i - 1][0], p[1] - A[i - 1][1]) >= 0.5);
     if (isLine()) {
@@ -2001,6 +2003,7 @@ function mount(host, ctx) {
     const X = t => PADL + t * (W - PADL - PADR), Y = dy => { const r = range(); return PADT + (1 - (dy - r.lo) / (r.hi - r.lo)) * (H - PADT - PADB); };
     const tOf = px => Math.max(0, Math.min(1, (px - PADL) / (W - PADL - PADR))), dyOf = py => { const r = range(); return r.lo + (1 - (py - PADT) / (H - PADT - PADB)) * (r.hi - r.lo); };
     const draw = () => {
+      if (!cv || typeof cv.getContext !== 'function') return;   // (G3016: a page without a canvas - the headless editor of GATE SCENERYED - draws no graph)
       const g = cv.getContext('2d'), P = pts(), r = range();
       g.clearRect(0, 0, W, H);
       g.strokeStyle = '#242a33'; g.lineWidth = 1;
