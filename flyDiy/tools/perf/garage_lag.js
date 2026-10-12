@@ -66,6 +66,8 @@ const CHANGES = [
   { name: 'dashBack',  id: 'p_dashBack', extra: true },                 // the dash: the interior and the shoulder
   { name: 'shoulderT', id: 'p_shoulderT', extra: true },                // the shoulder alone
   { name: 'seatH',     id: 'p_seatH', extra: true },                    // a crew row (kept sheet: the crew + its floor)
+  // EDITOR-BUGS (G2782): the cabin flood's dimmer - its first notch off 0 is the one that re-keyed every lit program
+  { name: 'flood',     id: 'p_li_flood', extra: true },
 ].filter(c => ONLY ? ONLY.has(c.name) : !c.extra);
 const PICK = {
   // the first colour input of the finish panel that is a section tint (the livery's own colours)

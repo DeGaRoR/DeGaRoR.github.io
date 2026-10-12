@@ -17,7 +17,7 @@
 //     turning 6 deg a second.
 // Usage: node tools/perf/garage_fps.js --out <json> [--q 'gfx=retro'] [--build builds/jodel_2026-09-20_corrected.json]
 //          [--size 1920x1080] [--cpu-throttle N] [--gpux K] [--secs 12] [--orbit] [--identity] [--shots <dir>] [--no-ab]
-//          [--room] [--roomidentity] [--lampstill] [--calibrate] [--warm] [--sport 8581] [--dport 9481] [--udd C:/gfps]
+//          [--page dev.html] [--room] [--lights] [--roomidentity] [--lampstill] [--calibrate] [--warm] [--sport 8581] [--dport 9481] [--udd C:/gfps]
 // A GPU MEASUREMENT: take tools/perf/boxlock.sh take gpu <WHO> first, drop it after. Rigs have no --help.
 'use strict';
 const { spawn, execSync } = require('child_process');
@@ -90,7 +90,7 @@ const IDENTITY = `
   await cmd('Page.addScriptToEvaluateOnNewDocument', { source: pre.join('\n') });
   await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: 1, mobile: false });
   await cmd('Page.bringToFront');
-  const url = 'http://localhost:' + SPORT + '/flyDiy/index.html' + (Q ? '?' + Q : '');
+  const url = 'http://localhost:' + SPORT + '/flyDiy/' + opt('page', 'index.html') + (Q ? '?' + Q : '');   // --page dev.html: the source layers, no build
   const T0 = Date.now();
   await cmd('Page.navigate', { url });
   console.log('nav ' + url);
@@ -119,19 +119,26 @@ const IDENTITY = `
   const RM = v => 'if (window.__GF_ROOM && __GF_ROOM.roomMerge) __GF_ROOM.roomMerge(' + v + ');';
   // --posehidden (G2111): 'off' = the hidden flown model posed every frame in the garage (window.FLYDIY_POSE_HIDDEN, the
   // train-40 behaviour - the before the rung is fitted on), 'skip' = the game; the caches on in both
-  const MODES0 = flag('posehidden')
+  // --lights (G2782, EDITOR-BUGS): the light layer's REAL lights (cageLayer:light's flood / pedal / landing, armed at
+  // intensity 0 by fitment since G2782) in three's count ('armed', the game) or taken out of it ('none', what a build with
+  // every dimmer at 0 drew before) - the shed's frame cost of the armed lights; the caches on both ways; each switch
+  // re-keys the lit programs, so the 3 s settle links them (a cache hit after the first round)
+  const LIT = v => `(() => { const s = window.CAGE_UI_SCENE; let n = 0; if (s) s.traverse(o => { if (o.name === 'cageLayer:light') for (const c of o.children) if (c.isLight) { c.visible = ${v}; n++; } }); window.__GF_LIT = n; })();`;
+  const MODES0 = flag('lights')
+    ? { none: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true; ' + LIT(false), armed: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true; ' + LIT(true) }
+    : flag('posehidden')
     ? { off: 'window.FLYDIY_POSE_HIDDEN = true; SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true;', skip: 'window.FLYDIY_POSE_HIDDEN = false; SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true;' }
     : flag('room')
     ? { off: 'SHED_SHADOW.S.on = false; SHED_SHADOW.G.on = false; ' + RM(false), t38: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true; ' + RM(false), merge: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true; ' + RM(true) }
     : { off: 'SHED_SHADOW.S.on = false; SHED_SHADOW.G.on = false;', shadow: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = false;', both: 'SHED_SHADOW.S.on = true; SHED_SHADOW.G.on = true;' };
-  const ORDER = flag('posehidden') ? ['off', 'skip', 'skip', 'off', 'off', 'skip'] : flag('room') ? ['off', 't38', 'merge', 'merge', 't38', 'off'] : ['off', 'both', 'shadow', 'shadow', 'both', 'off'];
+  const ORDER = flag('lights') ? ['none', 'armed', 'armed', 'none', 'none', 'armed'] : flag('posehidden') ? ['off', 'skip', 'skip', 'off', 'off', 'skip'] : flag('room') ? ['off', 't38', 'merge', 'merge', 't38', 'off'] : ['off', 'both', 'shadow', 'shadow', 'both', 'off'];
   const WIN0 = secs => `const R = FLIGHT_REC.rec; const f0 = R.frame; await new Promise(r => setTimeout(r, ${secs * 1000})); const f1 = R.frame;
     const rows = []; for (let f = f0; f < f1; f++) { const o = R.row(f); if (o && o.dt === o.dt) rows.push(o); }
     const q = (k, p) => { const a = rows.map(o => o[k]).filter(x => x === x).sort((x, y) => x - y); return a.length ? +a[Math.min(a.length - 1, Math.floor(p * a.length))].toFixed(2) : null; };
     const wall = rows.reduce((s, o) => s + o.dt, 0);
     return { frames: rows.length, fps: +(1000 * rows.length / Math.max(1, wall)).toFixed(1), dt50: q('dt', .5), dt90: q('dt', .9), dt99: q('dt', .99), slow: rows.filter(o => o.dt > 50).length,
       work50: q('work', .5), render50: q('render', .5), shadow50: q('shadow', .5), gpu50: q('gpu', .5), gpu90: q('gpu', .9), calls: q('calls', .5), mtris: +(q('tris', .5) / 1e6).toFixed(2),
-      cache: SHED_SHADOW.stat(), glass: SHED_SHADOW.glassStat() };`;
+      cache: SHED_SHADOW.stat(), glass: SHED_SHADOW.glassStat(), lit: window.__GF_LIT };`;
   const MODES = MODES0, WIN = WIN0;
   // --lampstill: the shed with and without the lamps' own shadows (retro's question for the user: BUDGETS shedLamps false),
   // the camera still, 4 s for the programs to re-link and the light to settle, a still each way
