@@ -73,19 +73,179 @@ function benchDesignHtml(d) {
       '</div>').join('') + '</div>';
 }
 
+// G2840 CERT-SLIM: THE BENCH CHECK'S REPORT (the user, 10 Oct: "It should probably extract from its report a small
+// fiche with the 5 main parameters measured (cruise speed, vs, anything about consumption, etc.), then a section with
+// anything requiring attention (red and yellow)"). Pure, plain data (it rides the save envelope and GATE BENCH reads
+// it): `s` the shakedown, `da` the hot-and-high sheet (genDensityAlt), `P` the plaque's table ({ judge, WHY }: the
+// plaque's own bounds and fixes, so the list and the plaque never disagree about a number). No threshold is new: the
+// red and yellow come from the plaque's bounds, the design check's levels (G2640, 64b_gen_design.js) and the
+// generator's own circuit bar.
+//   fiche      five cells { k, label, value, unit, sub, level }: cruise, stall, fuel (or energy), climb, take-off
+//   attention  [{ level: 'red'|'yellow', id, label, value, why, fix }], red first
+//   hot        the hot-and-high strip { ok, densAlt, TORun, climbRate, power, ceiling, cap } (null: not measurable)
+const BENCH_HOT_CLIMB = 0.3, BENCH_HOT_RUN = 1100;   // the generator's flyableCircuit bar, asked over the hot strip
+function benchReport(s, da, P) {
+  if (!s) return null;
+  const judge = (P && typeof P.judge === 'function') ? P.judge : () => '';
+  const WHY = (P && P.WHY) || {};
+  const lv = j => (j === 'bad' ? 'red' : j === 'warn' ? 'yellow' : '');
+  const out = { fiche: [], attention: [], hot: null };
+  const att = (level, id, label, value, why, fix) => { if (level) out.attention.push({ level, id, label, value: value == null ? '' : String(value), why: why || '', fix: fix || '' }); };
+  const plaqueFix = k => (WHY[k] && WHY[k].fix) || '';
+  // ---- the hot-and-high strip (G72's density altitude, merged into the check) ----
+  const hot = da && da.cases ? da.cases.filter(c => c.id === 'hot')[0] : null;
+  if (hot) out.hot = { ok: (hot.climbRate || 0) >= BENCH_HOT_CLIMB && (hot.TORun || 0) <= BENCH_HOT_RUN,
+                       densAlt: hot.densAlt, TORun: hot.TORun, climbRate: hot.climbRate, power: hot.power,
+                       ceiling: da.serviceCeiling, cap: da.ceilingCap };
+  // ---- THE FICHE ----
+  const electric = s.engineFamily === 'electric' || s.energyKind === 'battery';
+  const cruiseH = s.enduranceCruiseH;
+  const hm = h => { if (h == null || !isFinite(h)) return '—'; const m = Math.round(h * 60);
+                   return m >= 60 ? Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') : m + ' min'; };
+  const endLv = cruiseH != null && cruiseH < 0.5 ? 'red' : '';
+  out.fiche.push({ k: 'cruise', label: 'cruise', value: benchNum(s.VCruise * 3.6, 0), unit: 'km/h',
+                   sub: s.LDbest ? 'best L/D ' + benchNum(s.LDbest, 1) : '', level: '' });
+  out.fiche.push({ k: 'stall', label: 'stall', value: benchNum(s.Vs * 3.6, 0), unit: 'km/h',
+                   sub: s.VsFlap ? benchNum(s.VsFlap * 3.6, 0) + ' with flaps' : '', level: '' });
+  if (electric && s.drawKW != null)
+    out.fiche.push({ k: 'fuel', label: 'energy', value: benchNum(s.drawKW * 0.67, 0), unit: 'kW cruise',
+                     sub: 'endurance ' + hm(cruiseH), level: endLv });
+  else if (s.burnKgH != null)
+    // the cruise burn at the sheet's own rule (the endurance's: cruise at two thirds of the full-throttle burn)
+    out.fiche.push({ k: 'fuel', label: 'fuel', value: benchNum(s.burnKgH * 0.67 / (s.energyKgL || 0.72), 0), unit: 'L/h cruise',
+                     sub: 'endurance ' + hm(cruiseH) + (s.rangeKm != null ? ' · ' + benchNum(s.rangeKm, 0) + ' km' : ''), level: endLv });
+  else out.fiche.push({ k: 'fuel', label: 'fuel', value: '—', unit: '', sub: 'no powerplant sheet', level: '' });
+  out.fiche.push({ k: 'climb', label: 'climb', value: benchNum(s.climbRate, 1), unit: 'm/s',
+                   sub: hot ? benchNum(hot.climbRate, 1) + ' hot & high' : '', level: lv(judge('climb', s.climbRate || 0)) });
+  out.fiche.push({ k: 'takeoff', label: 'take-off', value: benchNum(s.TORun, 0), unit: 'm',
+                   sub: hot ? benchNum(hot.TORun, 0) + ' m hot & high' : '', level: lv(judge('take-off run', s.TORun || 0)) });
+  // ---- NEEDS ATTENTION ----
+  if (s.gearFolded) att('red', 'gear', 'The gear folds under the weight', 'folded', 'the main leg rotates instead of compressing (' + benchNum(s.susShift, 2) + ' of its length)', 'a stiffer leg or a lighter aeroplane');
+  const cl = judge('climb', s.climbRate || 0);
+  att(lv(cl), 'climb', 'Climb', benchNum(s.climbRate, 2) + ' m/s',
+      (s.climbRate || 0) < BENCH_HOT_CLIMB ? 'under ' + BENCH_HOT_CLIMB + ' m/s it cannot fly a circuit' : 'a weak climb: under 0.5 m/s', plaqueFix('climb'));
+  const to = judge('take-off run', s.TORun || 0);
+  att(lv(to), 'takeoff', 'Take-off run', benchNum(s.TORun, 0) + ' m',
+      (s.TORun || 0) > BENCH_HOT_RUN ? 'longer than ' + BENCH_HOT_RUN + ' m: no strip on the island takes it' : 'long: over 500 m', plaqueFix('take-off run'));
+  if (cruiseH != null && cruiseH < 0.5) att('red', 'endurance', 'Endurance', hm(cruiseH) + ' cruise', 'under half an hour in the tanks', plaqueFix('endurance') || 'a bigger tank or pack, or a smaller engine');
+  else if (s.rangeKm != null && s.rangeKm < 30) att('red', 'range', 'Range', benchNum(s.rangeKm, 0) + ' km', 'under 30 km of still air', plaqueFix('still-air range'));
+  // the design check (G2640): its FAIL rows are red, its WARN rows yellow - the rows' own words and fixes
+  const D = s.design && s.design.rows ? s.design.rows : null;
+  if (D) for (const r of D) if (r.level !== 'pass')
+    att(r.level === 'fail' ? 'red' : 'yellow', r.id, r.label, r.value == null ? '' : r.value + (r.unit ? ' ' + r.unit : ''), r.why, r.fix);
+  // the plaque's judged rows the design check does not already carry
+  const pr = [['best L/D', s.LDbest, benchNum(s.LDbest, 1)], ['prop clear', s.propClear, benchNum(s.propClear, 2) + ' m'],
+              ['nose-over', s.noseOver, benchNum(s.noseOver, 0) + '°']];
+  if (s.powerOver > 0.5) pr.push(['power nose-over', s.powerOver, benchNum(s.powerOver, 2) + ' ×']);
+  if (!D) pr.push(['static margin', s.staticMargin, benchNum(s.staticMargin, 2)], ['weathervane', s.cnBeta, benchNum(s.cnBeta, 3)]);
+  for (const [k, v, txt] of pr) {
+    const j = judge(k, v || 0);
+    if (j) att(lv(j), k.replace(/\W+/g, '-'), k.charAt(0).toUpperCase() + k.slice(1), txt,
+               (WHY[k] && WHY[k].what) ? String(WHY[k].what).split(/[.;]/)[0] : '', plaqueFix(k));
+  }
+  if (s.pod && s.pod.clearance && s.pod.clearance.worst && !(s.pod.clearance.worst.clear > 0))
+    att('red', 'pod', 'The belly pod strikes', benchNum(s.pod.clearance.worst.clear, 2) + ' m', 'it touches ' + s.pod.clearance.worst.name, 'a shallower pod, longer gear legs, or the pod further forward');
+  // the hot strip is a rating, never airworthiness (G107): yellow, with the old row's own fix
+  if (out.hot && !out.hot.ok)
+    att('yellow', 'hot', 'Sea level only', benchNum(hot.TORun, 0) + ' m · ' + benchNum(hot.climbRate, 2) + ' m/s',
+        'out of a 1000 m strip at ISA+20 (' + benchNum(hot.densAlt, 0) + ' m density altitude) it does not make the circuit bar',
+        'thin air takes power and lift together: weight off first, then installed power; a turbocharged or electric powerplant holds its output with height');
+  else if (out.hot && da.serviceCeiling != null && judge('service ceiling', da.serviceCeiling))
+    att('yellow', 'ceiling', 'Service ceiling', benchNum(da.serviceCeiling, 0) + ' m', 'it stops climbing low', plaqueFix('service ceiling'));
+  out.attention.sort((a, b) => (a.level === b.level ? 0 : a.level === 'red' ? -1 : 1));
+  return out;
+}
+// the fiche and the list, drawn (pure: GATE BENCH renders it). `fl` the test flight's settled result, for the
+// landing run the bench cannot measure on the stand. Compact: it has to fit the bottom-left card (CARDS-CORNER G3060).
+// the wing loading's bonus line (G2840): measuring, held with its two tip figures, or what it found
+function benchBonusHtml(ld) {
+  if (!ld) return '';
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const cls = ld.running ? 'run' : ld.stale ? 'stale' : ld.ok ? 'cert' : 'bad';
+  const txt = ld.running ? 'measuring off the stand…'
+    : ld.stale ? 'withdrawn — ' + (ld.why || 'the build changed')
+    : (ld.verdict || '') + (ld.tipUlt != null ? ' · tip ' + benchNum(ld.tipLimit, 1) + ' % at limit, ' + benchNum(ld.tipUlt, 1) + ' % at '
+        + benchNum(ld.nUlt != null ? ld.nUlt : 5.7, 1) + ' g' : '');
+  return '<div class="bBonus ' + cls + '"><span>bonus</span><b>wing loading</b><em>' + esc(txt) + '</em></div>';
+}
+function benchReportHtml(rep, fl, ld) {
+  if (!rep || !rep.fiche) return '';
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const land = fl && !fl.stale && !fl.running && fl.landRun != null && isFinite(fl.landRun) ? benchNum(fl.landRun, 0) + ' m landing' : '';
+  const cells = rep.fiche.map(c => '<div class="bFc ' + (c.level || '') + '" data-k="' + c.k + '"><span>' + esc(c.label) + '</span>' +
+    '<b>' + esc(c.value) + '</b><i>' + esc(c.unit) + '</i>' +
+    '<em>' + esc(c.k === 'takeoff' && land ? (c.sub ? c.sub + ' · ' : '') + land : c.sub) + '</em></div>').join('');
+  const A = rep.attention || [];
+  const list = A.length
+    ? '<div class="bAtt"><span>needs attention · ' + A.filter(a => a.level === 'red').length + ' red · ' +
+      A.filter(a => a.level === 'yellow').length + ' yellow</span>' +
+      A.map(a => '<div class="bAttR ' + a.level + '"><i></i><b>' + esc(a.label) + '</b><em>' + esc(a.value) + '</em>' +
+        (a.why || a.fix ? '<div>' + esc(a.why) + (a.fix ? (a.why ? '<br>' : '') + '→ ' + esc(a.fix) : '') + '</div>' : '') + '</div>').join('') + '</div>'
+    : '<div class="bAtt none"><span>needs attention · nothing</span></div>';
+  return '<div class="bFiche">' + cells + '</div>' + benchBonusHtml(ld) + list;
+}
+
+// G2840: THE WING LOADING'S VERDICT, one rule for the live card (poll) and the bench check's bonus run (loadQuiet):
+// the rig's final state in, the row's result out
+function benchLoadJudge(st) {
+  // G1800: the rig's NaN / velocity-guard ending is 'SIM DIVERGED' (the numbers' fault, not a member); 'BROKE UP'
+  // stays the structure's, for the damage layer's test to destruction (DMG-D2a)
+  const diverged = st.verdict === 'SIM DIVERGED', broke = diverged || st.verdict === 'BROKE UP';
+  const bent = st.ultPct != null && isFinite(st.ultPct) && st.ultPct > LOAD_TIP_CAP;
+  const overYield = st.ultYield != null && isFinite(st.ultYield) && st.ultYield >= 100;
+  const ok = !broke && !bent;
+  const why = diverged ? 'the simulation diverged before the ultimate load (a numerical fault, not a member)'
+            : broke ? 'a member let go before the ultimate load'
+            : bent ? 'the tip bent ' + benchNum(st.ultPct, 1) + ' % of the semispan at ultimate — past the '
+                     + LOAD_TIP_CAP + ' % a wing can bend and still be called held' : '';
+  return {
+    verdict: broke ? st.verdict : bent ? 'NOT HELD — bent ' + benchNum(st.ultPct, 1) + ' %' : 'HELD',
+    ok,
+    // G2840: the two numbers the bench check's fiche prints for its bonus (% of the semispan)
+    tipLimit: st.limitPct != null && isFinite(st.limitPct) ? st.limitPct : null,
+    tipUlt: st.ultPct != null && isFinite(st.ultPct) ? st.ultPct : null,
+    nUlt: st.ult != null && isFinite(st.ult) ? st.ult : null,
+    note: 'limit ' + benchNum(st.limitPct, 2) + ' % of semispan · ultimate '
+      + benchNum(st.ultPct, 2) + ' %'
+      + (st.ultYield == null ? ''
+         : ' · worst member ' + benchNum(st.ultYield, 0) + ' % of the yield proxy'
+           + (st.worstCls ? ' (' + st.worstCls + ')' : '')),
+    why,
+    // the proxy, reported and named for what it is
+    warn: overYield ? 'worst member at ' + benchNum(st.ultYield, 0) + ' % of the yield proxy'
+            + (st.worstCls ? ' (' + st.worstCls + ')' : '')
+            + ' — reported, not failed: one area per member class, the lift strut sized as a wing member' : '',
+    fix: ok ? '' : 'the levers below are measured on this wing: fixation (lift struts), '
+       + 'construction (an aluminium or carbon wing), span.',
+    // the advisor runs after a fail OR a warning
+    advise: !ok || overYield,
+    // G1832 (DMG-D2a): and with the damage layer on, the free test to destruction: LIMIT / ULTIMATE / BROKE-AT
+    destroy: !diverged,
+  };
+}
+
 const BENCH_TESTS = [
   {
     id: 'shake',
     name: 'Bench check',
-    blurb: 'Trim, balance and field length, off the built airframe.',
+    blurb: 'Speeds, fuel, climb and field length, the design check and a hot mountain strip, off the built airframe.',
     kind: 'instant',
     needs: ['shake'],
     // genShakedown: a cruise trim probe for the neutral point, a second sim
     // settled on a flat plane for the stance, and the mass ledger. It has
     // measured all of this since G4; what it has never had is a reason to run.
+    // G2840 CERT-SLIM: THE ONE GARAGE TEST (the user: "There should be a single test, that passes quickly in the
+    // garage ... merge the high and hot with the bench too"). It runs the density-altitude sheet the 'dalt' row ran
+    // (genDensityAlt: the same take-off and climb over a 1000 m strip at ISA+20, and the ceiling) and reports the
+    // FICHE and the red/yellow list (benchReport). The hot strip stays a rating: it never withholds the certificate,
+    // and when it passes it awards its old roundel as a bonus (BENCH_BONUS).
     run(api) {
       const s = api.shake();
       if (!s) return { verdict: 'not measurable', ok: false };
+      let da = null;
+      try { da = typeof api.densAlt === 'function' ? api.densAlt() : null; } catch (e) { da = null; }
+      const P = (typeof window !== 'undefined' && window.PLAQUE) || null;
+      const rep = benchReport(s, da, P);
       const why = [];
       if ((s.climbRate || 0) < 0.3) why.push('it climbs ' + benchNum(s.climbRate, 2) + ' m/s');
       if ((s.TORun || 0) > 1100) why.push('it needs ' + benchNum(s.TORun, 0) + ' m to take off');
@@ -106,6 +266,9 @@ const BENCH_TESTS = [
         verdict: !flies ? 'WILL NOT FLY A CIRCUIT' : !sound ? 'FLIES, BUT THE DESIGN FAILS' : 'FLIES A CIRCUIT',
         ok: flies && sound,
         design: dsg,
+        fiche: rep ? rep.fiche : null,           // G2840: the five numbers
+        attention: rep ? rep.attention : null,   // G2840: the red and the yellow
+        hot: rep ? rep.hot : null,               // G2840: the hot-and-high strip (the bonus roundel reads `ok`)
         // the plaque is this test's real output; the line here is its headline
         note: benchNum(s.Vs * 3.6, 0) + ' km/h stall · ' +
               benchNum(s.climbRate, 2) + ' m/s climb · ' +
@@ -125,8 +288,15 @@ const BENCH_TESTS = [
   {
     id: 'load',
     name: 'Wing loading',
-    blurb: 'Sandbags to +3.8 g limit and +5.7 g ultimate, FAR 23 normal.',
+    blurb: 'A bonus rating: sandbags to +3.8 g limit and +5.7 g ultimate, FAR 23 normal.',
     kind: 'live',
+    // G2840 CERT-SLIM (the user: "the wing loading stays as a bonus"; A0: "a bonus sticker/number on the fiche,
+    // computed, no 7.5 s real-time watch and no extra card"): a rating, not airworthiness. The bench check runs it
+    // off the stand (api.loadQuiet: the same rig, unpaced, on the bench thread) and settles it QUIETLY - no card,
+    // nothing turned over - with its roundel, the advisor and the test to destruction's link (G1832) kept. No row of
+    // its own (bonusOf); the live card below (start/poll/stop) stays for the gates and the smoke.
+    advisory: true,
+    bonusOf: 'shake',
     needs: ['loadTest', 'loadTestState', 'endLoadTest'],
     steps: ['on its back', 'settling', 'to +3.8 g limit', 'to +5.7 g ultimate', 'holding'],
     // The rig is src/core/65_gen_loadtest.js — the same object GATE LOAD ticks
@@ -174,91 +344,12 @@ const BENCH_TESTS = [
         live: { g: st.n, tipPct: st.tipPct, phase: st.phase, nTarget: st.nTarget,
                 limit: st.limit, ult: st.ult, thread, rate: st.rate },
       };
-      // G1800: the rig's NaN / velocity-guard ending is 'SIM DIVERGED' (the numbers' fault, not a member); 'BROKE UP'
-      // stays the structure's, for the damage layer's test to destruction (DMG-D2a)
-      const diverged = st.verdict === 'SIM DIVERGED', broke = diverged || st.verdict === 'BROKE UP';
-      const bent = st.ultPct != null && isFinite(st.ultPct) && st.ultPct > LOAD_TIP_CAP;
-      const overYield = st.ultYield != null && isFinite(st.ultYield) && st.ultYield >= 100;
-      const ok = !broke && !bent;
-      const why = diverged ? 'the simulation diverged before the ultimate load (a numerical fault, not a member)'
-                : broke ? 'a member let go before the ultimate load'
-                : bent ? 'the tip bent ' + benchNum(st.ultPct, 1) + ' % of the semispan at ultimate — past the '
-                         + LOAD_TIP_CAP + ' % a wing can bend and still be called held' : '';
-      return {
-        done: true,
-        verdict: broke ? st.verdict : bent ? 'NOT HELD — bent ' + benchNum(st.ultPct, 1) + ' %' : 'HELD',
-        ok,
-        note: 'limit ' + benchNum(st.limitPct, 2) + ' % of semispan · ultimate '
-          + benchNum(st.ultPct, 2) + ' %'
-          + (st.ultYield == null ? ''
-             : ' · worst member ' + benchNum(st.ultYield, 0) + ' % of the yield proxy'
-               + (st.worstCls ? ' (' + st.worstCls + ')' : '')),
-        why,
-        // the proxy, reported and named for what it is
-        warn: overYield ? 'worst member at ' + benchNum(st.ultYield, 0) + ' % of the yield proxy'
-                + (st.worstCls ? ' (' + st.worstCls + ')' : '')
-                + ' — reported, not failed: one area per member class, the lift strut sized as a wing member' : '',
-        fix: ok ? '' : 'the levers below are measured on this wing: fixation (lift struts), '
-           + 'construction (an aluminium or carbon wing), span.',
-        // the advisor runs after a fail OR a warning
-        advise: !ok || overYield,
-        // G1832 (DMG-D2a): and with the damage layer on, the free test to destruction: LIMIT / ULTIMATE / BROKE-AT
-        destroy: !diverged,
-      };
+      return Object.assign({ done: true }, benchLoadJudge(st));
     },
     stop(api) { api.endLoadTest(); },
   },
-  {
-    // THE AIR IS NOT ALWAYS THE DATUM (G72). Every other number on this bench —
-    // stall, climb, take-off run — is quoted at ISA sea level, and until this
-    // row existed that qualifier was invisible: a builder read "320 m take-off"
-    // and had no way to learn what their aeroplane does out of a mountain strip
-    // in August, which is precisely the question a bush build exists to answer.
-    //
-    // It runs the SAME two measurements the bench check runs (genClimbAt,
-    // genTORunAt), in different air. No new physics and no new threshold: the
-    // verdict is the generator's own flyableCircuit bar — 0.3 m/s of climb and
-    // 1100 m of run — asked in the air over a hot mountain strip instead of at the datum.
-    id: 'dalt',
-    name: 'Density altitude',
-    blurb: 'The same take-off and climb, out of a hot mountain strip — and where it stops climbing.',
-    kind: 'instant',
-    // ADVISORY (G107, the quality review's finding): "works hot and high" is
-    // a capability, not airworthiness — a sound sea-level trainer was reading
-    // NOT PASSED on the whole bench because it is not a bush plane. An
-    // advisory row still runs, still fills the plaque's thin-air sheet, and
-    // still shows its own verdict; it just cannot withhold the certificate.
-    // It DOES award its own sticker when it passes: a bush rating is a
-    // rating.
-    advisory: true,
-    needs: ['densAlt'],
-    run(api) {
-      const d = api.densAlt();
-      if (!d) return { verdict: 'not measurable', ok: false };
-      const hot = d.cases.filter(c => c.id === 'hot')[0];
-      if (!hot) return { verdict: 'not measurable', ok: false };
-      const climbs = (hot.climbRate || 0) >= 0.3 && (hot.TORun || 0) <= 1100;
-      const why = [];
-      if ((hot.climbRate || 0) < 0.3) why.push('climbs ' + benchNum(hot.climbRate, 2) + ' m/s');
-      if ((hot.TORun || 0) > 1100) why.push('needs ' + benchNum(hot.TORun, 0) + ' m');
-      return {
-        verdict: climbs ? 'WORKS HOT AND HIGH'
-                        : 'SEA LEVEL ONLY — ' + why.join(', '),
-        ok: climbs,
-        note: benchNum(hot.densAlt, 0) + ' m density altitude: '
-            + benchNum(hot.TORun, 0) + ' m take-off, '
-            + benchNum(hot.climbRate, 2) + ' m/s climb on '
-            + benchNum((hot.power || 1) * 100, 0) + '% power · service ceiling '
-            + (d.serviceCeiling == null
-                 ? 'above ' + benchNum(d.ceilingCap, 0) + ' m, which is as far as this model will claim'
-                 : benchNum(d.serviceCeiling, 0) + ' m'),
-        fix: climbs ? '' : 'thin air takes power and lift together: weight off first, '
-           + 'then installed power; a turbocharged or electric powerplant holds its '
-           + 'output with height.',
-        fills: 'plaque',
-      };
-    },
-  },
+  // (G2840 CERT-SLIM: the DENSITY ALTITUDE row (G72) is part of the bench check now - its sheet, its verdict as the
+  // 'hot' strip and its roundel as a bonus; the row's stored results still restore and award, see BENCH_BONUS)
   {
     // A REAL FLIGHT (A9, the user: "the test flight is too long and not
     // cinematic enough — do the three first tests, award the global one
@@ -316,6 +407,8 @@ const BENCH_TESTS = [
         // G208: THE TRIM ADVISOR's measured reading — the elevator the pilot
         // held on the settled downwind (43_pilot.js report.trimDe)
         trim: (!f.manual && rep.trimDe != null && isFinite(rep.trimDe)) ? rep.trimDe : null,
+        // G2840: the landing run the bench check's fiche cannot measure on the stand (its take-off cell carries it)
+        landRun: L && L.run != null && isFinite(L.run) ? L.run : null,
       };
     },
   },
@@ -330,12 +423,16 @@ const BENCH_TESTS = [
     // the rung that failed and why. The bar is the plaque's own (4 m/s,
     // plaque.js PLAQUE_BOUNDS); the fix line is the plaque's own WHY. The
     // ladder itself is 42_crosswind.js's, untouched.
+    // G2840 CERT-SLIM (the user: "the cross wind is far too long and boring"): CUT from the bench. The row is
+    // absent unless a contract the player holds asks for a crosswind number (72_accept.js xwindKt reads this row's
+    // settled result - resort.b2, clients.04), and then it is that contract's measurement, never in the run-all queue.
     id: 'xwind',
     name: 'Crosswind',
-    blurb: 'Departures in a rising crosswind, until the roll leaves the strip’s lines.',
+    blurb: 'For a contract that asks for it: departures in a rising crosswind, until the roll leaves the strip’s lines.',
     kind: 'live',
     offscreen: true,
     advisory: true,
+    when: api => typeof api.xwindAsked === 'function' && !!api.xwindAsked(),
     needs: ['xwindStart', 'xwindPoll', 'xwindEnd'],
     steps: ['2 m/s', '4 m/s', '6 m/s', '8 m/s', 'bisecting'],
     start(api) { api.xwindStart(); },
@@ -387,9 +484,12 @@ const BENCH_TESTS = [
     // this row exists to answer.
     id: 'hydro',
     name: 'Hydroplane',
-    blurb: 'Full power from rest on the sea: the hump, the step, the lift-off — and why.',
+    blurb: 'A bonus rating for a float build: full power from rest on the sea — the hump, the step, the lift-off — and why.',
     kind: 'live',
     offscreen: true,
+    // G2840 CERT-SLIM: a rating like the wing loading (one garage test, then the test flight - which a float build
+    // flies off the water): it awards its roundel and feeds a contract's hydro criterion, it never gates
+    advisory: true,
     when: api => typeof api.hasFloats === 'function' && api.hasFloats(),
     steps: ['afloat', 'the plough', 'the hump', 'on the step', 'lift-off'],
     needs: ['hydroStart', 'hydroPoll', 'hydroEnd'],
@@ -476,6 +576,12 @@ const BENCH_TESTS = [
   },
 ];
 
+// G2840 CERT-SLIM: A ROUNDEL ANOTHER ROW AWARDS. The density altitude's (G72) rides the bench check's hot strip: worn
+// when the settled bench check says it works hot and high. stickers.js keeps its six cells; GATE BENCH holds every
+// cell to a row or to this table.
+const BENCH_BONUS = {
+  dalt: { from: 'shake', ok: r => !!(r && r.ok !== undefined && r.hot && r.hot.ok) },
+};
 const benchNum = (v, d) => (v == null || !isFinite(v)) ? '—' : v.toFixed(d);
 // the plaque's own thresholds and fixes (plaque.js), so a card and a row
 // can never disagree about a number
@@ -791,7 +897,14 @@ function benchInit(api) {
   const gating = () => BENCH_TESTS.filter(t => usable(t) && !t.advisory);
   const passed = () => gating().every(t => awarded(t.id));
   const certs = () => BENCH_TESTS.filter(t => awarded(t.id))
-    .map(t => ({ id: t.id, when: results[t.id].when || null }));
+    .map(t => ({ id: t.id, when: results[t.id].when || null }))
+    .concat(bonusCerts());
+  // G2840: THE BONUS ROUNDELS a row awards beside its own (BENCH_BONUS): the hot-and-high strip the bench check runs
+  // wears the density altitude's roundel - and a stored 'dalt' result from before the merge still counts
+  const bonusCerts = () => Object.keys(BENCH_BONUS).filter(id => {
+    const B = BENCH_BONUS[id], r = results[B.from];
+    return (settled(B.from) && B.ok(r)) || awarded(id);
+  }).map(id => ({ id, when: (settled(BENCH_BONUS[id].from) && BENCH_BONUS[id].ok(results[BENCH_BONUS[id].from]) ? results[BENCH_BONUS[id].from].when : results[id].when) || null }));
   const plaqueOn = () => BENCH_TESTS.some(t => settled(t.id) && results[t.id].fills === 'plaque');
 
   function withdraw(reason) {
@@ -949,6 +1062,7 @@ function benchInit(api) {
     note(t, r);
     if (r.advise) startAdvice(t, r);
     if (r.destroy) startDestroy(t, r);
+    startBonus(t, r, fp);
     persist();
     stickersChanged();
     render();
@@ -956,6 +1070,40 @@ function benchInit(api) {
     // certificate is held — the airworthiness card follows the test's own
     if (!wasPassed && passed()) award(t, r, () => awardMaster(after));
     else award(t, r, after);
+  }
+  // G2840 CERT-SLIM: THE BONUS RUN. A settled bench check asks for the rows that ride it (bonusOf: the wing loading),
+  // computed off the stand (api.loadQuiet) and settled QUIETLY: stamped with the bench check's fingerprint, noted,
+  // persisted, its roundel worn, its advisor and test to destruction started - and no card. A result that comes back
+  // for an aeroplane that is no longer on the stand (the fingerprint moved) is dropped, not certified.
+  function startBonus(t, r, fp) {
+    if (!r || !r.fiche || !fp) return;            // only a bench check that measured (a CANNOT MEASURE asks for nothing)
+    for (const B of BENCH_TESTS.filter(x => x.bonusOf === t.id)) {
+      if (B.id !== 'load' || typeof api.loadQuiet !== 'function' || benchOff(B.id)) continue;
+      const mine = { running: 'measuring the wing loading', ok: false };
+      results[B.id] = mine;
+      try {
+        api.loadQuiet(st => {
+          if (results[B.id] !== mine) return;                 // withdrawn, restored or run again since
+          const now = fpNow();
+          if (now && now !== fp) { delete results[B.id]; render(); return; }
+          settleQuiet(B, st ? benchLoadJudge(st) : { verdict: 'no wing to load', ok: false }, fp);
+        });
+      } catch (e) { delete results[B.id]; }
+    }
+  }
+  function settleQuiet(t, r, fp) {
+    r.when = today(); r.fp = fp; r.fps = BENCH_FP_SCHEME;
+    results[t.id] = r;
+    note(t, r);
+    if (r.advise) startAdvice(t, r);
+    if (r.destroy) startDestroy(t, r);
+    persist(); stickersChanged(); render();
+    // the bench check's card, if it is still up, takes the bonus line
+    const U = ui();
+    if (U && !U.aw.hidden && awardCur && awardCur.r === results.shake) {
+      const old = U.aw.querySelector('.bBonus'), html = benchBonusHtml(r);
+      if (old && html) old.outerHTML = html;
+    }
   }
   // THE AIRWORTHINESS CERTIFICATE (A9, the user: "we need like a master
   // sticker"): one bigger roundel, the registration and the day, worn on
@@ -980,7 +1128,7 @@ function benchInit(api) {
       '<div class="bAn">' + esc(reg || 'this aeroplane') + '</div>' +
       '<canvas width="360" height="360"></canvas>' +
       '<div class="bAs">airworthy</div>' +
-      '<div class="bAv">the bench check, the wing loading and the test flight are held</div>' +
+      '<div class="bAv">the bench check and the test flight are held</div>' +
       '<div class="bAd">' + esc(when) + ' · the master roundel is on the fuselage · click to close</div>';
     U.aw.hidden = false;
     U.aw.dataset.test = 'master';
@@ -1181,8 +1329,10 @@ function benchInit(api) {
     // sequentially, because a live test owns the sim while it runs, and
     // each award card closes before the next test starts. A FLOWN row goes
     // last and ends the queue: the aeroplane is out of the shed after it.
-    const queue = BENCH_TESTS.filter(t => usable(t) && t.kind !== 'flown')
-      .concat(BENCH_TESTS.filter(t => usable(t) && t.kind === 'flown'));
+    // G2840 CERT-SLIM: the gating rows only - the one garage test, then the test flight (the ratings - wing loading,
+    // hydroplane, a contract's crosswind - keep their own buttons)
+    const queue = BENCH_TESTS.filter(t => usable(t) && !t.advisory && t.kind !== 'flown')
+      .concat(BENCH_TESTS.filter(t => usable(t) && !t.advisory && t.kind === 'flown'));
     const next = () => {
       const t = queue.shift();
       if (!t) return;
@@ -1242,7 +1392,7 @@ function benchInit(api) {
     U.ph.innerHTML = (t.steps || []).map(s => '<span>' + s + '</span>').join('');
     U.bar.className = instant ? 'ind' : '';
     U.bar.style.width = instant ? '' : '0%';
-    U.liveEl.innerHTML = instant ? 'in the tunnel: the trim probe, the stance, the mass ledger'
+    U.liveEl.innerHTML = instant ? 'in the tunnel: the trim probe, the stance, the mass ledger, the design check, a hot mountain strip'
                                  : 'starting';
     U.trace.hidden = t.id !== 'flight' && t.id !== 'load';
     U.notes.innerHTML = '';
@@ -1448,11 +1598,11 @@ function benchInit(api) {
       (r.ok ? '<canvas width="300" height="300"></canvas>' : '') +
       '<div class="bAs">' + (r.ok ? 'certified' : 'failed') + '</div>' +
       '<div class="bAv"><b>' + esc(r.verdict) + '</b>' +
-      (r.note ? '<br>' + esc(r.note) : '') + '</div>' +
+      (r.note && !r.fiche ? '<br>' + esc(r.note) : '') + '</div>' +
       (!r.ok && (r.why || r.fix) ? '<div class="bAf">' +
         (r.why ? esc(r.why) + '<br>' : '') + (r.fix ? '→ ' + esc(r.fix) : '') + '</div>' : '') +
       (r.warn ? '<div class="bAw">' + esc(r.warn) + '</div>' : '') +
-      adviceHtml(r) + destroyHtml(r) + benchDesignHtml(r.design) +
+      adviceHtml(r) + destroyHtml(r) + (r.fiche ? benchReportHtml(r, results.flight, results.load) : benchDesignHtml(r.design)) +
       '<div class="bAd">' + esc(r.when || today()) + (r.ok ? ' · the sticker is on the fuselage' : '') +
       ' · click to close</div>';
     U.aw.hidden = false;
@@ -1467,7 +1617,7 @@ function benchInit(api) {
     U.aw.onclick = done;
     // a card with the advisor on it waits for the measurements (awardAdvice
     // re-arms the close once they are in); a plain pass closes itself
-    awardT = ((r.advice && !r.advice.done) || (r.destroy && !r.destroy.done)) ? null : setTimeout(done, r.ok ? 2800 : 9000);
+    awardT = ((r.advice && !r.advice.done) || (r.destroy && !r.destroy.done)) ? null : setTimeout(done, r.ok ? (r.fiche ? 5000 : 2800) : 9000);   // G2840: a fiche is read, not glanced at
     awardCur = { r, done };
   }
   let awardCur = null;
@@ -1507,7 +1657,7 @@ function benchInit(api) {
         g.clearRect(0, 0, s, s);
         window.STICKERS.roundel(g, s / 2, s / 2, s / 2 - 2,
           { title: M.title, emblem: M.emblem, small: s < 120,
-            date: results[id] && results[id].when });
+            date: (certs().filter(c => c.id === id)[0] || results[id] || {}).when });
       } catch (e) {}
     });
   }
@@ -1525,12 +1675,14 @@ function benchInit(api) {
       '<button id="bRunAll">run the tests</button>' +
       '<div class="bSeals">' +
       BENCH_TESTS.filter(usable).map(t => sealCanvas(t.id, awarded(t.id), 34)).join('') +
-      '<em>' + (nCert ? nCert + ' of ' + BENCH_TESTS.filter(usable).length + ' certificates'
+      Object.keys(BENCH_BONUS).map(id => sealCanvas(id, certs().some(c => c.id === id), 34)).join('') +
+      '<em>' + (nCert ? nCert + ' of ' + (BENCH_TESTS.filter(usable).length + Object.keys(BENCH_BONUS).length) + ' certificates'
                         + (passed() ? ' · airworthy' : nGate && !passed() ? '' : '')
                       : withdrawnNote ? 'certificates withdrawn — ' + withdrawnNote
                       : 'no certificate yet') + '</em>' +
       '</div></div>');
     for (const t of BENCH_TESTS) {
+      if (t.bonusOf) continue;                        // G2840: its line is on the fiche of the row it rides
       const r = results[t.id] || null;
       const can = usable(t);
       if (!can && t.when) continue;                   // S1 (G451.1): a build-conditional row is absent, not dim
@@ -1577,11 +1729,15 @@ function benchInit(api) {
           '" placeholder="' + (cfg.ph || '') + '" inputmode="decimal"> ' +
           cfg.unit + '</label>').join('') + '</div>' : '') +
         (r && r.rungs && r.rungs.length && !r.stale ? '<div class="bRungs">' + r.rungs.map(x => '<div>' + x + '</div>').join('') + '</div>'
-          : r && r.note && !r.stale ? '<div class="bW">' + r.note + '</div>' : '') +
+          : r && r.note && !r.stale && !r.fiche ? '<div class="bW">' + r.note + '</div>' : '') +
         (r && !r.ok && !r.stale && !r.running && (r.why || r.fix)
           ? '<div class="bWhy">' + (r.why ? r.why + ' — ' : '') + (r.fix || '') + '</div>' : '') +
         (r && r.warn && !r.stale && !r.running ? '<div class="bWarn">' + r.warn + '</div>' : '') +
-        (r && !r.stale && !r.running ? adviceHtml(r) + destroyHtml(r) + benchDesignHtml(r.design) : '') +
+        (r && !r.stale && !r.running ? adviceHtml(r) + destroyHtml(r) + (r.fiche
+          // G2840: the fiche and the list; the design check's every row folded under them (DESIGN-DIGEST reads the same data)
+          ? benchReportHtml(r, results.flight, results.load) + adviceHtml(results.load || {}) + destroyHtml(results.load) + (r.design && r.design.rows && r.design.rows.length
+              ? '<details class="bDcAll"><summary>all ' + r.design.rows.length + ' design checks</summary>' + benchDesignHtml(r.design) + '</details>' : '')
+          : benchDesignHtml(r.design)) : '') +
         (adv ? '<div class="bAdv">' + adv + '</div>' : '') +
         '</div>');
     }
@@ -1622,6 +1778,6 @@ function benchInit(api) {
 }
 
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { BENCH_TESTS, BENCH_COSMETIC, BENCH_LOOK, BENCH_STATE_ROWS, BENCH_FP_SCHEME,
+  module.exports = { BENCH_TESTS, BENCH_BONUS, benchReport, benchReportHtml, benchBonusHtml, benchLoadJudge, BENCH_COSMETIC, BENCH_LOOK, BENCH_STATE_ROWS, BENCH_FP_SCHEME,
                      benchStripCosmetic, benchCanon, benchSame, benchHash, LOAD_TIP_CAP, benchLeverLine, benchDestroyLine,
                      benchFingerprint, benchFlightStep, benchTrimWords, benchNum, benchDesignHtml };

@@ -32,9 +32,9 @@
 // One larger roundel — AIRWORTHY round the top, FLYDIY · CERTIFIED round
 // the bottom, a pair of wings, the registration and the day the last
 // gating certificate landed — worn when the whole certificate is held
-// (BENCH_STATE().passed: the bench check, the wing loading and the test
-// flight; the density altitude and the crosswind are ratings and never
-// gate it). Its own page (7), its own place and size (`mst*` in the decal
+// (BENCH_STATE().passed: the bench check and the test flight since G2840
+// CERT-SLIM; the wing loading, the density altitude - the bench check's hot
+// strip now - the crosswind and the hydroplane are ratings and never gate it). Its own page (7), its own place and size (`mst*` in the decal
 // block, the rear fuselage under the registration by default, 250 mm — the
 // nose behind the cowl was tried and lay under the D.112's cowl), peeled off with the
 // first withdrawal like the small ones. The strip grew a fifth cell for the
@@ -438,7 +438,7 @@ function stickerStripPlacements(THREE, D) {
 // last gating certificate and the size; drawn on page 7 when it changed.
 let masterSig = null;
 function stickerMasterDate(st) {
-  const gate = { shake: 1, load: 1, flight: 1 };
+  const gate = { shake: 1, flight: 1 };   // G2840 CERT-SLIM: the bench check and the test flight (the wing loading is a bonus)
   let d = '';
   for (const c of (st && st.certs) || []) if (c && gate[c.id] && c.when && c.when > d) d = c.when;
   return d;

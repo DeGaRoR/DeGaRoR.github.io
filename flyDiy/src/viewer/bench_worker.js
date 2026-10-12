@@ -358,6 +358,14 @@ function benchWorkerBody(CORE, BW) {
         const st = run.rig.state;
         post({ kind: 'destroy', seq: job.seq, ok: run.ok, verdict: st.verdict, brokeAt: st.brokeAt, brokeKey: st.brokeKey, brokeSeam: st.brokeSeam,
                yieldAt: st.yieldAt, breakAt: st.breakAt, breakFirst: st.breakFirst, limit: run.rig.limit, ult: BW.GEN_LOAD_ULT_OF(CORE) });
+      } else if (job.kind === 'loadq') {
+        // G2840 CERT-SLIM: THE WING LOADING AS THE BENCH CHECK'S BONUS - the same rig, unpaced (nobody watches it:
+        // the fiche waits for the verdict), the stand untouched; the verdict rule stays the bench's (bench.js)
+        const run = BW.benchLoadRun(CORE, job);
+        let k = 0;
+        while (run.ok && !run.done && k < 60 * 120) { run.pump(60); k += 60; }
+        const s = run.snapshot();
+        post({ kind: 'loadq', seq: job.seq, ok: run.ok, state: s.state });
       } else if (job.kind === 'cert') {
         // G1831: one computation, no pacing - the answer and done (G1891: a case a turn)
         cur = { kind: 'cert', seq: job.seq, it: BW.benchCertSteps(CORE, job) };

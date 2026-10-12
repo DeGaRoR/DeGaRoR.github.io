@@ -9085,6 +9085,7 @@
   // The result is the plaque's crosswind sheet (it rode the flight's report
   // before, as phase seven of a test nobody could watch).
   let xw = null, xwFor = null, xwVal = null;
+  let xwAskMemo = null;   // G2840: { t, v } - does a held contract ask for a crosswind number (the bench's xwindAsked)
   const xwIfRun = () => (xwFor === def ? xwVal : null);
   function xwStart() {
     xwEnd();
@@ -10031,6 +10032,43 @@
   // ult } (or { error }). The certificate the roll-out already computed goes along (certCache); else the thread makes it.
   // No worker (file://): not run (a destruction is seconds of stepping - never on the page's thread).
   let destroyJob = null;
+  // G2840 CERT-SLIM: THE WING LOADING, COMPUTED (A0, the user's "the wing loading stays as a bonus"): the bench check's
+  // bonus rig - the same makeLoadTest the live card stepped, run to its verdict off the stand (the bench thread,
+  // unpaced; on the page in budgeted slices when there is no thread), so nothing turns over and no truss shows.
+  // `cb(state)` once, with the rig's final state (null: no spar stations to load). A new ask retires the old one.
+  let loadQuietJob = null;
+  function startLoadQuiet(cb) {
+    if (loadQuietJob) { if (loadQuietJob.w) loadQuietJob.w.kill(); if (loadQuietJob.T) clearTimeout(loadQuietJob.T); }
+    loadQuietJob = null;
+    const spec = genSpec, W = window.BENCH_WORKER;
+    if (!spec) { if (cb) cb(null); return null; }
+    const cfg = { material: (spec.fuselage && spec.fuselage.material) || undefined,
+                  wingMaterial: (typeof genSurfKey === 'function') ? genSurfKey(spec, 'wing', 0) : undefined };
+    const job = loadQuietJob = { seq: ++loadSeq, w: null, T: null };
+    const land = st => { if (loadQuietJob !== job) return; if (job.w) job.w.kill(); job.w = null; loadQuietJob = null; if (cb) cb(st); };
+    const onPage = () => {
+      if (loadQuietJob !== job) return;
+      if (job.w) { job.w.kill(); job.w = null; }
+      let R = null;
+      try { R = W && W.loadRun ? W.loadRun({ buildGen, makeSim, makeLoadTest, genSurfKey }, { spec: JSON.parse(JSON.stringify(spec)), cfg }) : null; } catch (e) { R = null; }
+      if (!R || !R.ok) { land(null); return; }
+      const slice = () => {
+        if (loadQuietJob !== job) return;
+        const t0 = perfNow();
+        do { R.pump(1); } while (!R.done && perfNow() - t0 < LOAD_STEP_BUDGET_MS);
+        if (R.done) land(R.snapshot().state); else job.T = setTimeout(slice, 0);
+      };
+      slice();
+    };
+    const w = (W && typeof W.start === 'function') ? W.start(m => {
+      if (loadQuietJob !== job || !m || m.seq !== job.seq) return;
+      if (m.error) { onPage(); return; }
+      land(m.ok ? m.state : null);
+    }, () => onPage()) : null;
+    if (!w || !w.post({ kind: 'loadq', spec: JSON.parse(JSON.stringify(spec)), cfg, seq: job.seq })) { if (w) w.kill(); onPage(); return job; }
+    job.w = w;
+    return job;
+  }
   function startLoadDestroy(cb) {
     if (destroyJob && destroyJob.w) destroyJob.w.kill();
     destroyJob = null;
@@ -14958,15 +14996,12 @@
     // screen: the aeroplane standing in the room is normally the cage build,
     // and watching the wing bend IS the wing test. Restoring is applyStand's
     // job, so there is one answer to "what is on the stand" and not two.
+    // G2840 CERT-SLIM (the user: "the physics cage is shown during the test, I don't want that"): the covered
+    // aeroplane bends on its own skin - the truss is no longer forced over it; the skin mode the builder chose
+    // (applySkinVis) decides, as everywhere else
     showPhysical: on => {
       showCage = !on && !!window.CAGE_UI && inGarage;
       applySkinVis();
-      // the LIVE test is watching the wing bend: the truss shows OVER the
-      // skin for its duration, whatever the skin mode says
-      if (on) {
-        if (lines) lines.visible = true;
-        if (pts) pts.visible = true;
-      }
     },
     // THE CERTIFICATE PERSISTS (G107.3): the two sheets only a test run can
     // produce, handed to the bench for its stored snapshot — and seeded back
@@ -14988,6 +15023,21 @@
     xwindStart: () => xwStart(),
     xwindPoll: () => xwPoll(),
     xwindEnd: () => xwEnd(),
+    // G2840 CERT-SLIM: the crosswind row exists only for a contract the player holds that asks for a crosswind
+    // number (an xwindKt criterion, 72_accept.js) - memoised a second, the bench asks on every render
+    xwindAsked: () => {
+      const t = perfNow();
+      if (xwAskMemo && t - xwAskMemo.t < 1000) return xwAskMemo.v;
+      let v = false;
+      try {
+        const d = player;                    // the loaded document only: asking must never lift or create one
+        const C = d && d.career && d.career.contracts;
+        if (C && Array.isArray(C.accepted) && typeof careerContract === 'function')
+          v = C.accepted.some(id => { const c = careerContract(d, id); return !!c && /"k":"xwindKt"/.test(JSON.stringify(c.stages || [])); });
+      } catch (e) { v = false; }
+      xwAskMemo = { t, v };
+      return v;
+    },
     // THE HYDROPLANE TEST (S1, G451.1): the seaplane's take-off run on the
     // sea lane, offscreen, on the test pilot; a row the bench shows for a
     // float build only
@@ -15006,6 +15056,7 @@
     loadTestState: () => loadTestState(),
     endLoadTest: () => endLoadTest(),
     loadAdvise: cb => startLoadAdvise(cb),           // A9: the measured levers, after the verdict
+    loadQuiet: cb => startLoadQuiet(cb),             // G2840: the wing loading as the bench check's bonus, off the stand
     // G1832 (DMG-D2a): the free test to destruction after the wing loading, while the damage layer is on
     loadDestroy: cb => startLoadDestroy(cb),
     damageOn: () => !!(def && typeof genDamageOn === 'function' && genDamageOn(def)),

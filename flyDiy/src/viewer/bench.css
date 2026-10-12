@@ -243,3 +243,37 @@ body.benchBusy #edInfo { opacity:.72; }
 .bDcR > div { grid-column:2 / 4; color:var(--ed-dim); padding:1px 0 3px; }
 .bDcR.warn i, .bDcR.warn em { color:var(--ed-warn); }
 .bDcR.fail i, .bDcR.fail em, .bDcR.fail b { color:var(--ed-bad); }
+
+/* G2840 CERT-SLIM: the bench check's FICHE (five numbers) and the NEEDS
+   ATTENTION list (red, then yellow). Compact: the award card is a bottom-left
+   box no taller than half the view (CARDS-CORNER G3060), so no position or
+   transform here - the card scrolls. Upright Plex Sans, --ed-* tokens. */
+.bFiche { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:4px; margin-top:8px; text-align:left; }
+.bFc { padding:5px 6px 4px; border:1px solid var(--ed-hair); border-radius:5px; min-width:0; }
+.bFc span { display:block; font:600 8.5px/1.2 'IBM Plex Sans'; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ed-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bFc b { font:500 15px/1.2 'IBM Plex Mono', monospace; color:var(--ed-ink); }
+.bFc i { font:400 9.5px/1.2 'IBM Plex Sans'; font-style:normal; color:var(--ed-dim); margin-left:3px; }
+.bFc em { display:block; font:400 9px/1.3 'IBM Plex Sans'; font-style:normal; color:var(--ed-faint); margin-top:2px; }
+.bFc.red { border-color:var(--ed-bad); } .bFc.red b { color:var(--ed-bad); }
+.bFc.yellow { border-color:var(--ed-warn); } .bFc.yellow b { color:var(--ed-warn); }
+.bAtt { margin-top:6px; text-align:left; font:400 10.5px/1.4 'IBM Plex Sans'; color:var(--ed-dim); }
+.bAtt > span { display:block; font:600 9px/1.3 'IBM Plex Sans'; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--ed-faint); margin-bottom:3px; }
+.bAttR { display:grid; grid-template-columns:8px 1fr auto; gap:0 6px; align-items:baseline; padding:1px 0; }
+.bAttR i { width:7px; height:7px; border-radius:50%; align-self:center; }
+.bAttR.red i { background:var(--ed-bad); } .bAttR.yellow i { background:var(--ed-warn); }
+.bAttR b { font-weight:500; color:var(--ed-ink); }
+.bAttR em { font-style:normal; color:var(--ed-val); white-space:nowrap; }
+.bAttR.red em { color:var(--ed-bad); } .bAttR.yellow em { color:var(--ed-warn); }
+.bAttR > div { grid-column:2 / 4; color:var(--ed-dim); padding:0 0 3px; }
+.bDcAll { margin-top:5px; font:400 10px/1.4 'IBM Plex Sans'; color:var(--ed-faint); }
+.bDcAll summary { cursor:pointer; letter-spacing:.06em; }
+/* the wing loading's bonus line under the fiche (G2840: computed, no card) */
+.bBonus { display:grid; grid-template-columns:auto auto 1fr; gap:0 7px; align-items:baseline; margin-top:5px;
+  padding:4px 7px; border:1px dashed var(--ed-hair); border-radius:5px; text-align:left; font:400 10.5px/1.4 'IBM Plex Sans'; }
+.bBonus span { font:600 8.5px/1 'IBM Plex Sans'; letter-spacing:.16em; text-transform:uppercase; color:var(--ed-faint); }
+.bBonus b { font-weight:500; color:var(--ed-ink); }
+.bBonus em { font-style:normal; color:var(--ed-val); }
+.bBonus.cert em { color:var(--ed-acc); } .bBonus.bad em { color:var(--ed-bad); }
+.bBonus.run em, .bBonus.stale em { color:var(--ed-faint); }

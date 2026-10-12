@@ -92847,3 +92847,67 @@ most 4 s, then the usual 7) - this branch takes 41b's loop; only the row's messa
 after a quiet settle = "THE HOST NEVER FLUSHED ITS LAST SET").
 NAMED CRASH CHANGE (damage ON, the user will see it): in the floats' severe nose-in (150 km/h, 10 m/s, 60 deg) the
 SHELL now parts at the ROOT at 0.15 s - the tail comes off; on master the FIN goes at 0.53 s.
+
+## G2840 CERT-SLIM - ONE GARAGE TEST, THEN THE TEST FLIGHT: THE BENCH CHECK OPENS ON A FICHE AND A RED/YELLOW LIST (2026-10-12, CERT-SLIM for A0, LOCAL; branch claude/cert-slim-g2840 off claude/design-trust-g2640 cfa7cfe9b = 43.1; G2840-G2849)
+The user, 10 Oct: "we also need to make the tests shorter. The highest value is the bench check. Yet it will certify
+easily planes that do not fly, but OK. It should probably extract from its report a small fiche with the 5 main
+parameters measured (cruise speed, vs, anything about consumption, etc.), then a section with anything requiring
+attention (red and yellow). There should be a single test, that passes quickly in the garage. And the other test is
+actually the test flight. So maybe merge the high and hot with the bench too, the cross wind is far too long and
+boring, and the wing loading stays as a bonus. Note that the physics cage is shown during the test, I don't want that."
+A0's ruling on the wing loading: "a bonus STICKER/number on the fiche, computed, no 7.5 s real-time watch and no extra card".
+
+WHAT CHANGED (bench.js unless named)
+- THE CERTIFICATE = the bench check + the test flight (the only non-advisory rows; "run the tests" runs those two,
+  in that order). stickers.js stickerMasterDate's gate {shake, flight}; the master card's line says so.
+- THE BENCH CHECK runs the density-altitude sheet too (api.densAlt, the old 'dalt' row's genDensityAlt, memoised as
+  before so the plaque's thin-air section still fills). The 'dalt' row is GONE; its roundel is a BONUS (BENCH_BONUS:
+  worn while results.shake.hot.ok; a stored pre-G2840 results.dalt still counts). Hot-and-high failing = a YELLOW
+  line, never a withheld certificate (G107's ruling kept).
+- benchReport(s, da, PLAQUE) - pure, plain data (structured-clone safe for GARAGE-SHEET's worker, rides the save
+  envelope): fiche[5] = cruise km/h (+ best L/D), stall km/h (+ flaps), fuel L/h at cruise (the sheet's 0.67 rule)
+  + endurance + range (electric: kW + endurance), climb m/s (+ hot), take-off m (+ hot, + the test flight's landing
+  run once flown: flight.judge keeps landRun); attention[] red then yellow, each { level, id, label, value, why, fix }.
+  NO NEW THRESHOLD: colours come from plaqueJudge (PLAQUE_BOUNDS), the design check's levels (G2640 64b rows: fail =
+  red, warn = yellow - DESIGN-TRUST's "certifies planes that do not fly" is shown, not re-judged), the generator's
+  circuit bar (0.3 m/s, 1100 m), the plaque's endurance/range reds, a folded gear, a striking pod. The design check's
+  every row is folded under the list ("all N design checks"). benchReportHtml is compact for CARDS-CORNER G3060's
+  bottom-left card (no position/transform; that box is G3060's). The pass card holds 5 s when it has a fiche.
+- THE WING LOADING = the bench check's computed bonus (bonusOf: 'shake', no row, no card): settle(shake) ->
+  startBonus -> api.loadQuiet (app.js startLoadQuiet: bench_worker.js 'loadq' job = benchLoadRun unpaced, the stand
+  untouched; on the page in LOAD_STEP_BUDGET_MS slices without a thread) -> settleQuiet on the bench check's
+  fingerprint (dropped if the fingerprint moved meanwhile) -> its roundel, the bonus line on the fiche, the advisor
+  and the TEST TO DESTRUCTION (G1832, the damage certificate's link) under the bench check's row. One verdict rule:
+  benchLoadJudge (the live card's poll returns it too; start/poll/stop kept for the smoke and the gates).
+- HYDROPLANE: advisory (a bonus rating with its own button; contracts' hydro criterion still reads it).
+- CROSSWIND CUT: the row is absent unless a contract the player holds has an xwindKt criterion (resort.b2,
+  clients.04 - 72_accept.js reads results.xwind; cutting it outright made them unwinnable): app.js api.xwindAsked
+  reads the LOADED player doc only (never lifts one), memo 1 s. Never in run-all. 42_crosswind.js untouched.
+- THE CAGE: app.js showPhysical no longer forces lines/pts visible over the skin (the user's "physics cage shown
+  during the test"); with the wing loading off the stand nothing calls it in the normal flow any more.
+- 64_gen_build.js genDensityAlt: the two ceilings share a memo and find the crossing by Illinois regula falsi
+  (GEN_DA_ROOT_TOL 1 m) instead of 2 x 24 halvings to 0.7 mm. Same ceilings to 0.1 m on the Cub/Jodel/Cessna.
+- tools/bench_shot.js: default steps without dalt/xwind. tools/perf/g2840_bench_time.js: the node timing harness
+  (--core= a built flight_core.js; the base core = git archive cfa7cfe9b built into the scratchpad).
+
+TIMING (node, 12 Oct 04:48-04:52 - an UNBOOKED CPU take on my part inside SHEET's slot, and two peers ran 1 s / 5 s
+beside it: RE-TAKE in the booked Tue 13 Oct 11:50-12:10 slot), min of 3, base cfa7cfe9b vs branch:
+  bench check (shake + densAlt):  Cub 412 -> 417 ms, Jodel 874 -> 882, Cessna 776 -> 785 (the shakedown is the cost;
+                                   densAlt 9-11 -> 5-6 ms; noise +-1 %)
+  wing loading rig, node wall:    0.9 / 2.6 / 2.7 s (7.5 s of sim the page used to WATCH in real time + its card)
+  crosswind ladder, node wall:    16.8 / 34.5 / 27.6 s (gone from the bench)
+  "run the tests" before = bench check + 7.5 s watched wing loading + its card + dalt + its card + the crosswind
+  (17-35 s) + its card, then the flight; after = the bench check (+ the wing loading off-thread, no wait) + its card,
+  then the flight.
+
+GATES: GATE BENCH --selftest 141/141 PASS (12 Oct 04:56, A0's 1-process slot; 130/136 at 04:47 before the computed wing loading); its new
+section THE ONE TEST (row set, the report pure + drawn, the cage, a stubbed run-all: the calls are shake, densAlt,
+loadQuiet, flight; no wing-loading card; the bonus dropped when the fingerprint moves). OWED in the Tue slot (after the
+43.1 rebase): BENCH, DESIGNCHECK, DMGCERT, DMGINSTRUMENTS, ACCEPT, CONTRACTS, POD (+ the timing re-take).
+
+WHAT TO WATCH FOR (no stills, the user's rule): in the garage, "run the tests" -> one short card (the fiche: five
+numbers, then the red/yellow list), then the roll-out for the test flight. The wing loading's line on the fiche reads
+"measuring off the stand..." for a second or three, then HELD with its tip figures - the aeroplane never turns over
+and no truss is drawn. No crosswind row unless a crosswind contract is accepted. Airworthy = bench check + flight.
+Coordination: DESIGN-DIGEST G2850 reads results.shake.fiche / .attention (plain data); CARDS-CORNER G3060 owns the
+card's position; GARAGE-SHEET G2920 compatible (the shakedown off-thread, densAlt stays on the page).

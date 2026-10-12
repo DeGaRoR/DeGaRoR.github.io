@@ -1071,6 +1071,7 @@ const GEN_DA_CASES = [
 ];
 const GEN_DA_SERVICE = 0.5;      // m/s, the service-ceiling bar
 const GEN_DA_CAP = 12000;        // m, the edge of what this model will claim
+const GEN_DA_ROOT_TOL = 1;       // m, the ceilings' root stop (G2840: the plaque prints them to the metre)
 
 function genDensityAlt(def) {
   const A = def.params.ap || {};
@@ -1111,21 +1112,36 @@ function genDensityAlt(def) {
   // its battery and by the tips of its own propeller going transonic, and this
   // model has neither. A null ceiling means "above 12 000 m and do not believe
   // us", not "infinite".
+  // G2840 CERT-SLIM (the bench check must be quicker, and it runs this sheet now): the two ceilings share their
+  // end points (memo), and the root is found by ILLINOIS REGULA FALSI on the climb rate - which lapses near-linearly
+  // with height - instead of 24 halvings to 0.7 mm of a 12 km bracket: 52 climb probes -> ~14, the same crossing to
+  // under a metre (the plaque prints it to the metre). The bracket is kept at every step, so it is as safe as the
+  // bisection was; GEN_DA_ROOT_TOL is the stop.
+  const rocMemo = new Map();
   const rocAt = h => {
+    if (rocMemo.has(h)) return rocMemo.get(h);
     sim.setAtmos(ATMOS_ISA, h);
     sim.ctl.flap = 0;
     const air = sim.probeAir();
-    return genClimbAt(sim, def, W, aMax) * A.VClimb / air.easK;
+    const v = genClimbAt(sim, def, W, aMax) * A.VClimb / air.easK;
+    rocMemo.set(h, v);
+    return v;
   };
   const ceiling = target => {
     if (!(rocAt(0) > target)) return 0;            // it does not climb down here
     let lo = 0, hi = GEN_DA_CAP;
     if (rocAt(hi) > target) return null;           // beyond the model's honesty
-    for (let k = 0; k < 24; k++) {
-      const m = 0.5 * (lo + hi);
-      if (rocAt(m) > target) lo = m; else hi = m;
+    let flo = rocAt(lo) - target, fhi = rocAt(hi) - target, side = 0, c = 0.5 * (lo + hi), cPrev = Infinity;
+    for (let k = 0; k < 40; k++) {
+      c = fhi !== flo ? (lo * fhi - hi * flo) / (fhi - flo) : 0.5 * (lo + hi);
+      if (!(c > lo && c < hi)) c = 0.5 * (lo + hi);
+      const fc = rocAt(c) - target;
+      if (fc > 0) { lo = c; flo = fc; if (side === 1) fhi *= 0.5; side = 1; }
+      else        { hi = c; fhi = fc; if (side === -1) flo *= 0.5; side = -1; }
+      if (hi - lo < GEN_DA_ROOT_TOL || Math.abs(c - cPrev) < 0.25 * GEN_DA_ROOT_TOL) break;
+      cPrev = c;
     }
-    return 0.5 * (lo + hi);
+    return c;
   };
   const out = {
     cases,

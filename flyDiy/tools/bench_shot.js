@@ -2,7 +2,8 @@
 // bench_shot.js - THE ENGINEERING BENCH, DRIVEN AND PHOTOGRAPHED (A9, 2026-09-21)
 //
 //   node tools/bench_shot.js --url http://localhost:8346/flyDiy/dev.html --stock "jodel" \
-//        --out screenshots/bench-2026-09-21 [--steps load,shake,dalt,xwind,flight,keep,master] [--log]
+//        --out screenshots/bench-2026-09-21 [--steps load,shake,flight,keep,master] [--log]
+//        (G2840: 'dalt' is part of the bench check; 'xwind' needs a held contract that asks for it)
 //
 // garage_shot.js's rig (headless Chrome on this machine's GPU, the page's
 // own buttons pressed through CDP), pointed at the bench: the named stock
@@ -26,7 +27,7 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const URL = opt('url', 'http://localhost:8346/flyDiy/dev.html');
 const STOCK = opt('stock', 'jodel');
 const OUT = opt('out', 'screenshots/bench-shot');
-const STEPS = opt('steps', 'load,shake,dalt,xwind,flight,keep,master').split(',');
+const STEPS = opt('steps', 'load,shake,flight,keep,master').split(',');
 const WAIT = +opt('wait', 15000);
 const FLIGHT_MAX = +opt('flightmax', 1500000);
 const RATE = +opt('rate', 2);
@@ -123,7 +124,7 @@ const say = s => console.log('bench_shot: ' + s);
     await ev("(()=>{const a=document.getElementById('bAward');if(a&&!a.hidden)a.click();return 1})()");
     await sleep(1500);
   }
-  for (const tid of ['shake', 'dalt']) {
+  for (const tid of ['shake']) {           // G2840: the density altitude rides the bench check
     if (!STEPS.includes(tid)) continue;
     if (!await press(tid)) throw new Error('no ' + tid + ' button');
     const done = await until("(()=>{const s=window.BENCH_STATE().results." + tid + ";return !!(s&&!s.running)})()", 120000, 300);

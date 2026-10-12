@@ -228,10 +228,10 @@ console.log('THE STRIP');
   ok(ST.stickerMasterDate({ certs: [{ id: 'shake', when: '2026-09-20' }, { id: 'dalt', when: '2026-09-22' }, { id: 'flight', when: '2026-09-21' }] }) === '2026-09-21',
      'the master is dated by the last GATING certificate (a rating does not date it)');
   ok(calls.includes('arc') && calls.includes('fillText') && calls.includes('rotate'), 'a roundel is a disc with lettering round it');
-  ok(ST.STICKER_ORDER.length === 6 && ST.STICKER_ORDER.every(id => BE.BENCH_TESTS.some(t => t.id === id))
+  ok(ST.STICKER_ORDER.length === 6 && ST.STICKER_ORDER.every(id => BE.BENCH_TESTS.some(t => t.id === id) || !!(BE.BENCH_BONUS && BE.BENCH_BONUS[id]))
      && BE.BENCH_TESTS.every(t => t.sticker === false || ST.STICKER_ORDER.includes(t.id))
      && BE.BENCH_TESTS.filter(t => t.sticker === false).map(t => t.id).join() === 'pod',
-     'one sticker per declared test, and every test has one (six: the crosswind\'s A9, the hydroplane\'s S1 G451.1; the belly pod\'s G2410 row, an option measured, wears none)');
+     'one sticker per declared test or bonus, and every test has one (six: the crosswind\'s A9, the hydroplane\'s S1 G451.1, the density altitude the bench check\'s bonus since G2840; the belly pod\'s G2410 row, an option measured, wears none)');
   ok(Math.abs(ST.stickerStripW() - 0.87) < 1e-9 && ST.STICKER_PLACE.d === 0.12, 'six 120 mm roundels in a 0.87 m strip');
   // G208.2: a place plus fine tuning, like a tank's bay plus offset
   const R0 = ST.stickerResolve({}), Rf = ST.stickerResolve({ stkPlace: 3, stkL: 0.5, stkC: -0.2, stkSize: 0.08, stkRot: 0.1 });
@@ -382,7 +382,7 @@ console.log('THE FIRST FLIGHT');
 function benchSession(store, join, opts) {
   const made = [], awards = { n: 0 };
   const el = tag => {
-    const ds = new Proxy({}, { set: (o, k, v) => { o[k] = v; if (k === 'test' && v === 'flight') awards.n++; return true; } });
+    const ds = new Proxy({}, { set: (o, k, v) => { o[k] = v; if (k === 'test') (awards.tests = awards.tests || []).push(v); if (k === 'test' && v === 'flight') awards.n++; return true; } });
     const e = { tag, children: [], style: {}, dataset: ds, hidden: false, innerHTML: '', textContent: '', className: '',
       classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
       appendChild(c) { this.children.push(c); return c; }, insertBefore(c) { this.children.push(c); return c; },
@@ -408,12 +408,12 @@ function benchSession(store, join, opts) {
     requestAnimationFrame() {}, Event: function () {} };
   ctx.exports = ctx.module.exports;
   vm.runInNewContext(rd('src/viewer/bench.js'), ctx);
-  const api = { plaque() {}, sheets: () => null, restoreSheets() {}, testFlight: () => true };
+  const api = Object.assign({ plaque() {}, sheets: () => null, restoreSheets() {}, testFlight: () => true }, (opts && opts.api) || {});
   ctx.benchInit(api);
   if (opts && opts.preG700) window.BENCH_ROLLOUT = null;          // the negative: no roll-out fingerprint
   // the award card is shown by stamping its dataset.test with the row's id - counted as it happens
   const shown = () => { const n = awards.n; awards.n = 0; return n; };
-  return { window, shown, flush: () => { while (timers.length) timers.shift()(); } };
+  return { window, byId, shown, cards: () => (awards.tests || []).slice(), defer: f => timers.push(f), flush: () => { let n = 0; while (timers.length && n++ < 500) timers.shift()(); } };
 }
 {
   const arrival = { report: { verdicts: [], outcome: 'completed', landing: { run: 180, sink: 0.5, pastAim: 8 } }, arrived: true, t: 240, manual: false, td: null, armed: null };
@@ -446,6 +446,107 @@ function benchSession(store, join, opts) {
   ok(fpAt >= 0 && (ceAt < 0 || fpAt < ceAt), 'app.js rollOut fingerprints the aeroplane before it closes the editor');
 }
 
+// ---- THE ONE GARAGE TEST (G2840 CERT-SLIM) ------------------------------
+// The user, 10 Oct: "There should be a single test, that passes quickly in the garage. And the other test is actually
+// the test flight. So maybe merge the high and hot with the bench too, the cross wind is far too long and boring, and
+// the wing loading stays as a bonus. Note that the physics cage is shown during the test, I don't want that." And the
+// report: "a small fiche with the 5 main parameters measured ... then a section with anything requiring attention".
+console.log('THE ONE TEST');
+// a synthetic shakedown + density-altitude sheet: every field the report reads, a sound aeroplane
+const SH = (o) => Object.assign({ VCruise: 40, Vs: 18, VsFlap: 16.5, LDbest: 9.2, climbRate: 3.1, TORun: 240, burnKgH: 18, energyKgL: 0.72,
+  enduranceCruiseH: 3.4, rangeKm: 480, staticMargin: 0.18, cnBeta: 0.09, propClear: 0.25, noseOver: 24, powerOver: 0.2,
+  flyableCircuit: true, stabTrim: 0.01, engineFamily: 'flat',
+  design: { verdict: 'pass', rows: [{ id: 'pitch.sm', group: 'pitch', label: 'Static margin', level: 'pass', value: 0.18, unit: '', limit: '', why: '', fix: '' }] } }, o || {});
+const DA = (hot) => ({ cases: [{ id: 'isa', densAlt: 0, TORun: 240, climbRate: 3.1, power: 1 },
+                               Object.assign({ id: 'hot', densAlt: 1650, TORun: 420, climbRate: 1.6, power: 0.8 }, hot || {})],
+                       serviceCeiling: 4200, absCeiling: 4800, ceilingCap: 12000 });
+const PLQ = { judge: PL.plaqueJudge, WHY: PL.PLAQUE_WHY };
+{
+  const T = id => BE.BENCH_TESTS.filter(t => t.id === id)[0];
+  const gating = BE.BENCH_TESTS.filter(t => !t.advisory).map(t => t.id);
+  ok(gating.join() === 'shake,flight', 'two tests gate the certificate: the bench check and the test flight (' + gating.join() + ')');
+  ok(!T('dalt') && BE.BENCH_BONUS && BE.BENCH_BONUS.dalt && BE.BENCH_BONUS.dalt.from === 'shake', 'the density altitude is no longer a row: the bench check runs it and wears its roundel as a bonus');
+  ok(T('load') && T('load').advisory === true && T('hydro') && T('hydro').advisory === true, 'the wing loading and the hydroplane are bonus ratings (advisory)');
+  ok(T('xwind') && typeof T('xwind').when === 'function' && !T('xwind').when({}) && !T('xwind').when({ xwindAsked: () => false }) && T('xwind').when({ xwindAsked: () => true }),
+     'the crosswind row is cut: absent unless a held contract asks for a crosswind number');
+  ok(/xwindAsked: \(\) =>/.test(APP) && /"k":"xwindKt"/.test(APP) && /const d = player;/.test(APP), 'app.js answers xwindAsked from the loaded career (an xwindKt criterion), never lifting a document');
+  // the cage
+  const sp = APP.slice(APP.indexOf('showPhysical: on => {'), APP.indexOf('showPhysical: on => {') + 400);
+  ok(sp.length > 50 && !/lines\.visible = true/.test(sp) && !/pts\.visible = true/.test(sp) && /applySkinVis\(\)/.test(sp),
+     'a live test never forces the physics cage over the skin (showPhysical leaves it to the skin mode)');
+  // the report, pure
+  const R = BE.benchReport(SH(), DA(), PLQ);
+  ok(R && R.fiche.map(c => c.k).join() === 'cruise,stall,fuel,climb,takeoff', 'the fiche has the five numbers: cruise, stall, fuel, climb, take-off');
+  const c = k => R.fiche.filter(x => x.k === k)[0];
+  ok(c('cruise').value === '144' && c('stall').value === '65' && c('fuel').value === '17' && /L\/h/.test(c('fuel').unit)
+     && /3 h 24/.test(c('fuel').sub) && c('climb').value === '3.1' && c('takeoff').value === '240' && /420 m hot & high/.test(c('takeoff').sub),
+     'the cells read the sheet: 144 km/h, 65 km/h, 17 L/h (3 h 24 cruise), 3.1 m/s, 240 m (420 m hot & high)');
+  ok(R.attention.length === 0 && R.hot && R.hot.ok === true, 'a sound aeroplane needs no attention, and works hot and high');
+  ok(JSON.stringify(JSON.parse(JSON.stringify(R))) === JSON.stringify(R), 'the report is plain data (the save envelope and the sheet worker carry it)');
+  const bad = BE.benchReport(SH({ climbRate: 0.2, TORun: 1300, LDbest: 4.5, flyableCircuit: false,
+    design: { verdict: 'fail', rows: [{ id: 'yaw.cnb', label: 'Weathercock stability', level: 'fail', value: -0.01, unit: '/rad', why: 'the fin is too small', fix: 'a bigger fin' },
+                                      { id: 'roll.spiral', label: 'Spiral mode', level: 'warn', value: 9, unit: 's', why: 'divergent', fix: 'dihedral' }] } }),
+    DA({ TORun: 1900, climbRate: 0.05 }), PLQ);
+  const lv = id => (bad.attention.filter(a => a.id === id)[0] || {}).level;
+  ok(lv('climb') === 'red' && lv('takeoff') === 'red' && lv('yaw.cnb') === 'red' && lv('roll.spiral') === 'yellow' && lv('best-L-D') === 'yellow' && lv('hot') === 'yellow',
+     'red: the climb, the run, a design FAIL; yellow: a design WARN, the plaque\'s warn band, sea level only');
+  ok(bad.attention.findIndex(a => a.level === 'yellow') > bad.attention.map(a => a.level).lastIndexOf('red') && bad.attention.every(a => a.why !== undefined && a.fix !== undefined),
+     'the list is red first, then yellow, each with its why and its fix');
+  ok(c('climb').level === '' && bad.fiche.filter(x => x.k === 'climb')[0].level === 'red' && !bad.hot.ok, 'a fiche cell is red when the plaque would paint it red');
+  const el = BE.benchReport(SH({ engineFamily: 'electric', energyKind: 'battery', drawKW: 30, burnKgH: null, enduranceCruiseH: 0.4, rangeKm: 80 }), null, PLQ);
+  ok(el.fiche[2].label === 'energy' && /kW/.test(el.fiche[2].unit) && el.fiche[2].level === 'red' && (el.attention.filter(a => a.id === 'endurance')[0] || {}).level === 'red' && el.hot === null,
+     'an electric build reads kW and its endurance (red under half an hour); no hot sheet, no hot cell');
+  const H = BE.benchReportHtml(Object.assign({}, R, { fiche: R.fiche, attention: bad.attention }), { landRun: 210 });
+  ok((H.match(/class="bFc/g) || []).length === 5 && /210 m landing/.test(H) && /needs attention · 3 red · 3 yellow/.test(H) && !/position|transform/.test(H),
+     'drawn: five cells, the landing run from the test flight, the counts, and no positioning (the bottom-left card is CARDS-CORNER\'s)');
+  const fl = T('flight').judge({ report: { verdicts: [], outcome: 'completed', landing: { run: 205, sink: 0.4, pastAim: 9 } }, arrived: true, t: 200 });
+  ok(fl.landRun === 205, 'the test flight keeps its landing run for the fiche');
+  // the run: one garage test, then the flight - the ratings keep their own buttons
+  // the wing loading, computed (A0: "a bonus sticker/number on the fiche, computed, no 7.5 s real-time watch and
+  // no extra card"): one verdict rule for the live card and the quiet run
+  const LD = { done: true, verdict: 'HELD', limitPct: 2.1, ultPct: 4.4, ultYield: 60, worstCls: 'spar', ult: 5.7 };
+  const jq = BE.benchLoadJudge(LD), jl = T('load').poll({ loadTestState: () => LD });
+  ok(jq.ok && jq.verdict === 'HELD' && jq.tipUlt === 4.4 && jl.done && jl.verdict === jq.verdict && jl.note === jq.note,
+     'the wing loading\'s verdict is one rule (benchLoadJudge) for the live card and the bench check\'s bonus');
+  ok(T('load').bonusOf === 'shake' && /bonus<\/span><b>wing loading<\/b><em>HELD · tip 2\.1 % at limit, 4\.4 % at 5\.7 g/.test(BE.benchBonusHtml(jq)),
+     'it rides the bench check: no row of its own, a bonus line on the fiche with its two tip figures');
+  ok(/kind === 'loadq'/.test(rd('src/viewer/bench_worker.js')) && /loadQuiet: cb => startLoadQuiet\(cb\)/.test(APP)
+     && !/buildLoadViz|setRail|showPhysical/.test(APP.slice(APP.indexOf('function startLoadQuiet('), APP.indexOf('function startLoadDestroy('))),
+     'the bonus rig runs off the stand (the bench thread\'s loadq job, the page in slices): nothing turned over, no rail, no cage');
+  const calls = [];
+  const store = { pq: null }, join = { up: true, spec: JSON.parse(rd('tools/_bench_fixture_build.json')).spec };
+  let S = null, held = null;
+  const mkApi = quiet => ({
+    shake: () => { calls.push('shake'); return SH(); }, densAlt: () => { calls.push('densAlt'); return DA(); },
+    loadTest: () => calls.push('loadTest'), loadTestState: () => null, endLoadTest() {}, loadQuiet: quiet,
+    xwindStart: () => calls.push('xwind'), xwindPoll: () => null, xwindEnd() {}, xwindAsked: () => false,
+    testFlight: () => { calls.push('flight'); return true; } });
+  S = benchSession(store, join, { api: mkApi(cb => { calls.push('loadQuiet'); S.defer(() => cb(LD)); }) });
+  S.window.PLAQUE = PLQ;
+  S.byId.bRunAll.onclick(); S.flush();
+  const st = S.window.BENCH_STATE();
+  ok(calls.join() === 'shake,densAlt,loadQuiet,flight', 'run the tests = the bench check (the hot strip, the wing loading computed) then the test flight (' + calls.join() + ')');
+  const rs = st.results.shake;
+  ok(rs && rs.ok && rs.fiche && rs.fiche.length === 5 && Array.isArray(rs.attention) && rs.hot && rs.hot.ok, 'the settled bench check carries the fiche, the list and the hot strip');
+  const rl = st.results.load;
+  ok(rl && rl.ok && !rl.running && rl.fp === rs.fp && S.cards().indexOf('load') < 0 && S.cards().indexOf('shake') >= 0,
+     'the wing loading settles quietly on the bench check\'s fingerprint: no card of its own (cards: ' + S.cards().join() + ')');
+  ok(['shake', 'dalt', 'load'].every(id => st.certs.some(x => x.id === id)) && !st.passed, 'it awards the bench check, the density altitude and the wing loading bonuses; airworthy waits for the flight');
+  // a bonus that lands for an aeroplane no longer on the stand is dropped, not certified
+  const store2 = { pq: null }, join2 = { up: true, spec: JSON.parse(rd('tools/_bench_fixture_build.json')).spec };
+  const S2 = benchSession(store2, join2, { api: mkApi(cb => { held = cb; }) });
+  S2.window.PLAQUE = PLQ;
+  S2.byId.bRunAll.onclick(); S2.flush();
+  join2.spec = JSON.parse(JSON.stringify(join2.spec)); join2.spec.__moved = 1;
+  if (held) held(LD); S2.flush();
+  ok(held && !S2.window.BENCH_STATE().results.load, 'NEGATIVE: a wing loading measured on the build before an edit is dropped (the fingerprint moved)');
+  S.window.BENCH_FLIGHT_LOGGED({ report: { verdicts: [], outcome: 'completed', landing: { run: 190, sink: 0.4, pastAim: 5 } }, arrived: true, t: 220, manual: false, armed: null }); S.flush();
+  ok(S.window.BENCH_STATE().passed && /^[0-9a-f]{8}$/.test(S.window.BENCH_STATE().results.shake.fp || ''),
+     'the bench check and the flight make it airworthy - no wing loading needed; the certificate keeps its fingerprint');
+  ok(ST.stickerMasterDate({ certs: [{ id: 'shake', when: '2026-10-01' }, { id: 'load', when: '2026-10-09' }, { id: 'flight', when: '2026-10-02' }] }) === '2026-10-02',
+     'the master is dated by the bench check and the flight (a later wing loading is a bonus, it does not date it)');
+}
+
 // ---- NEGATIVE VERIFICATION ------------------------------------------------
 if (SELF) {
   console.log('SELFTEST');
@@ -456,6 +557,11 @@ if (SELF) {
   ok(BE.benchFlightStep('NOT-A-PHASE') === 3, 'an unknown phase falls to the cruise step (and the check above would name it)');
   const p = PL.plaqueBandPos({ lo: 1 }, Infinity);
   ok(p === null, 'an infinite value has no marker');
+  // G2840: the list is not silent on what the check above calls red, and the run-all check would see a wing loading
+  const weak = BE.benchReport(SH({ climbRate: 0.2 }), DA(), PLQ);
+  ok(weak.attention.some(a => a.id === 'climb' && a.level === 'red'), 'NEGATIVE: a 0.2 m/s climb is a red line, not a quiet one');
+  const quiet = BE.benchReport(SH({ climbRate: 0.2 }), DA(), null);
+  ok(!quiet.attention.some(a => a.id === 'climb'), 'NEGATIVE: without the plaque\'s bounds the climb has no colour (the bounds are the plaque\'s, not new)');
 }
 
 console.log(`\n${checks - fails}/${checks} checks`);
