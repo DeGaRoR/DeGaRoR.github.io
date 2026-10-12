@@ -85158,9 +85158,41 @@ user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's
   - the club works;
   - night ops.
 
+## AVIONICS-GPS G2800 STATUS - WHAT THE INTERIOR / ELECTRICS / LIGHTS / INSTRUMENTS / RADIOS / GPS OPTIONS DO (2026-10-10, AVIONICS-GPS step 1, cloud, node only, NO src/ or tools/ edit; branch claude/avionics-gps-g2800 off origin/master 26e04598b = train 42; block G2800-G2809)
+
+The doc: `futureDesigns/AVIONICS-STATUS-2026-10.md`. It has one table, a row per garage option with drawn / wired / mass-power / works-in-flight columns, then the plan G2801-G2809.
+
+**Headlines:**
+- Instruments: 13 of 17 dials read the sim. Two bugs:
+  - the turn coordinator never banks: its `gaugeAt` at `_cage_panel.js:1633` has no `gauge`, so the join bakes no stops;
+  - the DG cannot fail on an aiE build.
+- Instruments billed, never drawn: `hobbs` and `fuelSight`.
+- Electrics: the battery, alternator, starter and pump are billed and run the bus, but nothing they bill is drawn. The engine mesh's `battOn` / `genOn` / `starter` knobs are independent of them, and the venturi and pitot fittings follow the tier NAME.
+- Lights: fully drawn and switched. No mass or price anywhere. The amps are added at bind (`cockpit.js:44`), outside the fit, including amps for lamps not drawn.
+- Radios: COM and XPDR are static painted faces drawing amps. NAV and GPS are billed and draw amps with no cockpit item, and are off the avionics master. Every GPS row is selectable ("declared, not drawn yet").
+- Navigator: `38_nav` is handed to every autopilot whatever the fit, and nothing in the cockpit shows it.
+- Interior: `seatType` is drawn but never billed (`outfit.seats` has no writer; every build bills a sling). Furnishing is billed off `systems.fit` and never drawn. The board is billed from unwritten `cabin.panel` defaults. Liners, floor and console are drawn but not billed.
+
+**The flood-dimmer freeze (for EDITOR-BUGS G2780; found by reading, not measured):** the garage light layer adds its PointLights / SpotLight only while the level is > 0 (`_cage_light.js:1602-1624`) and hides its whole group, lights included, on every deferred drag tick (:1378). The scene's light count changes, so every lit material recompiles synchronously. Fix direction: constant lights, intensity only, as `cockpit.js:142-179` already does in flight.
+
+**Plan:**
+- (a) Electrics = 3D: G2801 lights on the ledger and the bus; G2802 elec rows draw what they bill, the avionics master gating nav/gps; G2803 the dash's dead items; G2804 interior drawn = billed (a named change for the shakedown anchors).
+- (b) GPS: G2805 `drawMap` becomes `drawMapInto`; G2806 the portable / panel GPS in 3D; G2807 the GPS live (a CanvasTexture face, nav readouts shipped from the worker); G2808 the career unlock hook (sandbox all open; no TECH-ERA / MACHINE-SHOP doc on master yet, so only the hook); G2809 the reserve, with A0 stills.
+- Three open questions for the user are at the doc's foot.
+
+**Gates:** none run; the step changed docs only.
+
 ## G2800 AVIONICS-GPS - PHASE 1: THE STATUS OF EVERY INTERIOR / ELECTRICS / AVIONICS / LIGHTS OPTION, AND THE PROPOSED ORDER (2026-10-12, AVIONICS-GPS for A0, cloud - node only, read-only survey, nothing in src/ or tools/ touched; branch claude/avionics-gps-g2800 off origin/master f353a0f8; G2800-G2809 reserved, G2800 used)
 
-**PHASE 1 READY for the user's look. Phases 2 and 3 have NOT started.** Phase 3, the GPS with the minimap, waits on the
+**PHASE 1 READY for the user's look. Phases 2 and 3 have NOT started.**
+
+**Second pass, merged.** The entry above (10 Oct, before the rulings, base train 42) wrote the same document. This pass
+re-surveyed on train 44.1 + 44.3 and merged that branch (no force-push; its commit 1e56d9b9 is in this branch's history).
+The document is now one: the tables use the brief's columns (spec / 3D / sim / mass / broken). Every 10 Oct finding
+re-checked and kept: the turn coordinator never banks; the fuel sight is billed and never drawn; the five tier-name
+fittings; the crown beacon unwired; the tapes; the beacon's fixed flown rate; the worker not shipping the nav; the
+freeze trace, kept whole as doc §7. The 10 Oct plan G2801-G2809 is mapped onto steps A-D and phase 3 in doc §6; G2806
+(a GPS in 3D) and G2808 (a career unlock) are dropped by the 11 Oct ruling. Phase 3, the GPS with the minimap, waits on the
 user's OK of this status, as briefed.
 
 The source is the user's slider review of 10 Oct ("finish the interior work, ensure the electrics work and correspond to
@@ -85193,7 +85225,10 @@ they stand.
     hand into GATE ELEC. They are drawn and never lit on a no-battery build, and a lamp that was never drawn still draws
     its amps.
   - The engine bay's battery, alternator and starter are drawn from their own install rows, not from `systems.elec`.
-  - The venturi follows the tier NAME, not `elec.vac`.
+  - The venturi follows the tier NAME, not `elec.vac`; so do the static drain, the static port, the OAT probe and the
+    crown beacon. That beacon (V-tail, rod boom) is not a lamp: unswitched, and drawn with the lights off.
+  - The turn coordinator is drawn, powered and billed, and never banks (no stops baked). The fuel sight is billed and
+    never drawn.
   - NAV and GPS are billed and draw current without a box on the panel and without the avionics master. The GPS is
     left as-is (ruling).
   - The avionics master's cap lights only with the lights layer, and it does nothing when clicked in the shed. The
@@ -85210,8 +85245,9 @@ they stand.
 - **A**: one light catalogue in core, `GEN_LIGHTS`. Lamps become systems rows: the drawn census goes to
   `systems.lights`, a lamp is dropped with "no battery" on a build without one, and each lamp has a load, a mass and a
   price. GATE ELEC grows to cover it.
-- **B**: what is switched is drawn. The engine bay follows `systems.elec`; the venturi follows the resolved `vac`; the
-  three cockpit fixes. A new GATE FITMATCH over `tools/_scene_headless.js`. Its first risk: that harness excludes the
+- **B**: what is switched is drawn, and what is drawn works. The engine bay follows `systems.elec`; the venturi and the
+  other tier-name fittings follow the resolved items; the crown beacon becomes a lamp or goes; the turn coordinator
+  banks and the fuel sight is drawn; the cockpit fixes. A new GATE FITMATCH over `tools/_scene_headless.js`. Its first risk: that harness excludes the
   crew and panel layers by default.
 - **C**: the cabin furnishing from what is drawn. `seatType` maps to the seat kind; a chair is billed per seat at its
   station; the dash maps to `cab.panel`; trim is billed by drawn area. Raymer is kept as GATE WEIGHT's cross-check, and
@@ -85223,11 +85259,10 @@ they stand.
 
 **GATES**: none run. Nothing executable changed, and the survey ran `tools/flight_core.js` as committed, read-only.
 
-**OPEN FOR THE USER (via A0)**:
-1. OK the order A → B → C → (D)?
-2. The seat-kind mapping: tube → sling 3 kg, shell → moulded 7 kg, airliner → upholstered 11 kg?
-3. Trim from the drawn areas, with Raymer only as the check (recommended), or keep the Raymer lump keyed to the
-   interior style instead of the instrument tier (smaller change)?
-4. Step C moves every aeroplane's empty mass by a few kg (the 172 by more): OK to re-freeze ENERGYBASE / GEN / WEIGHT
-   on it?
-5. Phase 3 go?
+**OPEN FOR THE USER (via A0)**: doc §8, six questions:
+1. the order;
+2. the seat-kind mapping;
+3. trim from the drawn areas, or a Raymer lump keyed to the interior style;
+4. re-freezing the empty masses;
+5. draw the fuel sight or stop billing it;
+6. phase 3 go.
