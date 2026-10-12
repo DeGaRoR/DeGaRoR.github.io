@@ -4703,11 +4703,15 @@ function buildDecPanel() {
            'flip the pattern fore-and-aft. A sweep that rises AFT becomes one ' +
            'that rises FORE, and it is the same pattern either way',
            null, det);
-      flag('fit to surface', q + 'Fit',
+      const fitRow = flag('fit to surface', q + 'Fit',
            'size the layer to the surface it goes on — the whole fuselage, ' +
            'the wings root to tip, the tail — and keep it fitted when the ' +
            'aeroplane changes. Off, the four sliders below place it by hand',
            () => { decFitStale = true; decFitGrey(q); }, det);
+      // the pattern switch turns FIT on for a fade or a sunburst: the tick
+      // has to say so, or the panel shows a hand placement that is not one
+      refresh.push(() => { const c = fitRow.querySelector('input');
+                           if (c) c.checked = !!DEC[q + 'Fit']; });
       num('station', q + 'L', -1.0, 6.0, 0.05,
           'metres AFT of the firewall', 'len', det);
       num('height on side', q + 'C', -1.2, 1.2, 0.02,
