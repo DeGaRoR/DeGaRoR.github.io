@@ -92911,3 +92911,7 @@ numbers, then the red/yellow list), then the roll-out for the test flight. The w
 and no truss is drawn. No crosswind row unless a crosswind contract is accepted. Airworthy = bench check + flight.
 Coordination: DESIGN-DIGEST G2850 reads results.shake.fiche / .attention (plain data); CARDS-CORNER G3060 owns the
 card's position; GARAGE-SHEET G2920 compatible (the shakedown off-thread, densAlt stays on the page).
+A0 RULINGS (12 Oct ~05:05): (a) the hydroplane as an advisory bonus with its own button - OK (the user's "a single
+test ... the other test is the test flight"). (b) 72_accept left alone - right; A0 asks GAME to switch resort.b2 /
+clients.04's crosswind criterion to DESIGN-TRUST's deterministic 'ctl.rudder' row; once GAME has, the conditional
+xwind row (and api.xwindAsked) goes too - a follow-up, not this branch.
