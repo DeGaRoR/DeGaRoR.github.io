@@ -361,12 +361,20 @@ if (plots.length) {
   const O10 = PG.compose(rec(), synth, { raster: false }), r1 = rec().layers.roads.find(r => r.id === 'r1'), E = O10.extent;
   check(r1 && r1.pts.every(q => q[0] >= E.x0 && q[0] <= E.x1 && q[1] >= E.z0 && q[1] <= E.z1), '10 the composed extent covers the island road (it ran 12.7 km past the authored one)', JSON.stringify(E));
   const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, OJ = PG.compose(J, synth, { raster: false });
-  // (G2956: the shipped record carries the user's island road r1 now, which runs 7.7 km past the extent it authors - the
-  //  extent grows to cover it, and only for it: without r1 it is the authored one exactly)
-  const J0 = JSON.parse(JSON.stringify(J)); J0.layers.roads = J0.layers.roads.filter(r => r.id !== 'r1');
-  const r1J = J.layers.roads.find(r => r.id === 'r1'), EJ = OJ.extent;
-  check(JSON.stringify(PG.compose(J0, synth, { raster: false }).extent) === JSON.stringify(J.frame.extent), '10 ...and the shipped Jolene record without r1 keeps its own extent exactly (every other feature inside it)');
-  check(r1J && EJ.x0 <= J.frame.extent.x0 && EJ.z0 <= J.frame.extent.z0 && EJ.x1 >= J.frame.extent.x1 && EJ.z1 >= J.frame.extent.z1 && r1J.pts.every(q => q[0] >= EJ.x0 && q[0] <= EJ.x1 && q[1] >= EJ.z0 && q[1] <= EJ.z1), '10 ...with r1 shipped, its composed extent grows over r1 (' + JSON.stringify(EJ) + ')');
+  // (G2956 / G3014: the shipped record carries the user's features that lie PAST the extent it authors - the island road r1
+  //  (7.7 km past), and since rev 26 strip 11 w6 and its roads - the extent grows to cover them, and only for them: without
+  //  every entry that has a point outside the authored extent it is the authored one exactly)
+  const AE = J.frame.extent, outside = q => q[0] < AE.x0 || q[0] > AE.x1 || q[1] < AE.z0 || q[1] > AE.z1;
+  const ptsOf = (L, e) => L === 'runways' ? PG.runwayBox(Object.assign({}, PG.RUNWAY_DEF, e), 0) : (e.pts || e.poly || (e.at ? [[+e.at.x, +e.at.z]] : (isFinite(+e.x) && isFinite(+e.z) ? [[+e.x, +e.z]] : [])));
+  const far = []; for (const L of Object.keys(J.layers)) for (const e of J.layers[L] || []) if (e && e.id && ptsOf(L, e).some(outside)) far.push([L, e]);
+  const J0 = JSON.parse(JSON.stringify(J)); for (const [L, e] of far) J0.layers[L] = J0.layers[L].filter(q => !q || q.id !== e.id);
+  const EJ = OJ.extent, inEJ = q => q[0] >= EJ.x0 && q[0] <= EJ.x1 && q[1] >= EJ.z0 && q[1] <= EJ.z1;
+  check(far.some(([L, e]) => e.id === 'r1') && JSON.stringify(PG.compose(J0, synth, { raster: false }).extent) === JSON.stringify(AE), '10 ...and the shipped Jolene record without the ' + far.length + ' features past its extent (' + far.map(([L, e]) => e.id).slice(0, 12).join(' ') + ') keeps its own extent exactly');
+  // (the composer grows the extent over what it LAYS - roads, strips, zones, areas; a site or a placed object past it stands on the
+  //  world's ground as it did in the user's editor, so it is listed, not held: rev 26's s26 / s28 at r1's far end, object a5)
+  const LAID = ['roads', 'runways', 'zones', 'areas', 'terrain', 'surface', 'material', 'exclude', 'ttype'];
+  check(EJ.x0 <= AE.x0 && EJ.z0 <= AE.z0 && EJ.x1 >= AE.x1 && EJ.z1 >= AE.z1 && far.filter(([L]) => LAID.includes(L)).every(([L, e]) => L === 'runways' ? inEJ(e.c) : ptsOf(L, e).every(inEJ)), '10 ...with them, its composed extent grows over what they lay (' + JSON.stringify(EJ) + ')');
+  { const past = far.filter(([L, e]) => !LAID.includes(L) && !ptsOf(L, e).every(inEJ)).map(([L, e]) => L + ':' + e.id); if (past.length) console.log('     10 placed past the composed extent (they stand on the world ground, as in the editor): ' + past.join(' ')); }
   ed.select('r1');
   const [tT] = Tm(() => ed.cmd('set', { id: 'r1', patch: { traffic: 12 } }));
   check(R.lastDirty && R.lastDirty.ground === false, '10 the traffic changed is no ground edit (no patch, no ground re-sample)', JSON.stringify(R.lastDirty));
