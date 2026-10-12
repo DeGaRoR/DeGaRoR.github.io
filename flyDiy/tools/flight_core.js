@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5b208cbd0428d2cc
+// body-sha256: 50af9ad113743a72
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1469,6 +1469,190 @@ var DAY = (function () {
   return { makeDay, DEFAULT, GEO_DEFAULT, dewFromRh, rhFromDew, usDst };
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = DAY;
+// ============================================================
+// THE SIM CLOCK'S PURE HALF (G2650 SIM-CLOCK, 2026-10-08).
+//
+// The user (7 Oct): "some contracts could require that you get there at a
+// certain time of the day, and you could wait it out. We'll need a real sim
+// clock that we can act on, and this will gradually replace our day
+// settings." futureDesigns/GAME-2026-10-06.md §R.3 (GQ17 amended).
+//
+// THERE IS STILL ONE CLOCK: the DAY (07_day.js) - its date and its UT second,
+// advanced only by the viewer's tick, `version` bumped only by set(). This
+// file holds NO state and makes no second clock: it is arithmetic ON a day.
+//   dayPresetUtc(day, name)      the presets' solver (dawn .. night), on the
+//                                day's own almanac and its own UT date - moved
+//                                here from viewer/day_clock.js verbatim, so the
+//                                sandbox's presets and the career's waits are
+//                                one solver
+//   dayWaitUntil(day, target)    "wait until dawn / noon / dusk / 06:30": the
+//                                FIRST such instant after now - today's when it
+//                                is still ahead, else the next day's. A wait
+//                                only ever goes forward. -> { date, utc, ... }
+//   dayNextFullMoon(day)         the next full moon (06_solar's moon phase at
+//                                its maximum), landed at the dusk nearest it
+//   dayMoonAt(day, date, hour)   the moon at a LOCAL date and hour: { phase:
+//                                'full'|'gibbous'|'half'|'crescent'|'new',
+//                                illum 0-1, up } (NIGHT-OPS' job lines)
+//   dayDuskDawnH(day)            the day's civil dusk / dawn as LOCAL hours
+//   dayAbs / dayFromAbs          an instant as one number (jdn x 86400 + utc)
+//                                and back: what "forward" is measured on
+// A JUMP (a wait, a set) is ONE DAY.set({ date, utc }) by the viewer
+// (DAY_CLOCK.jump, the only door). Nothing here touches a day; a scratch day
+// (DAY.makeDay on the same geo) answers "what is the almanac on that date".
+// No Date, no THREE, no DOM, no random.
+// ============================================================
+const DAY_WAIT_TARGETS = ['dawn', 'morning', 'noon', 'afternoon', 'golden', 'sunset', 'dusk', 'night'];
+const DAY_WAIT_MIN_S = 30;                 // a wait lands at least this far ahead (else: the next one)
+const DAY_MOON_WORDS = [[0.95, 'full'], [0.65, 'gibbous'], [0.35, 'half'], [0.05, 'crescent'], [-1, 'new']];
+
+const dkPad = n => String(n).padStart(2, '0');
+function dayJdnOf(date) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date));
+  if (!m) throw new Error('clock: date must be YYYY-MM-DD, got ' + date);
+  return SOLAR.jdn(+m[1], +m[2], +m[3]);
+}
+function dayDateOf(jdn) { const c = SOLAR.civil(jdn); return c.y + '-' + dkPad(c.m) + '-' + dkPad(c.d); }
+// an instant as one number: the UT seconds since the epoch of the julian day numbers
+function dayAbs(o) {
+  if (!o) return NaN;
+  const j = typeof o.jdn === 'number' ? o.jdn : dayJdnOf(o.date);
+  return j * 86400 + (+o.utc || 0);
+}
+function dayFromAbs(abs) {
+  const j = Math.floor(abs / 86400);
+  return { date: dayDateOf(j), utc: abs - j * 86400 };
+}
+// a scratch day at an instant, on the day's own geo: the almanac of another date, never the live day
+function dayProbe(day, abs) {
+  const o = dayFromAbs(abs);
+  return DAY.makeDay({ date: o.date, utc: o.utc }, day.geo);
+}
+
+// THE PRESETS' SOLVER (moved from viewer/day_clock.js, G2650): the UT second on the day's own UT date for a named
+// hour; every fallback is a real hour on that date (the poles: no sunrise, no dusk - the solar noon +- a fraction)
+function dayPresetUtc(day, name) {
+  const noon = day.noonUtc, rise = day.sunriseUtc, set = day.sunsetUtc;
+  const at = (el, rising, fb) => { const u = day.utcFor(el, rising); return u != null ? u : fb; };
+  switch (name) {
+    case 'noon': return noon;
+    case 'night': return noon - 43200 >= 0 ? noon - 43200 : noon + 43200;
+    case 'morning': return at(25, true, rise != null ? (rise + noon) / 2 : noon - 10800);
+    case 'afternoon': return at(33.4, false, set != null ? (set + noon) / 2 : noon + 7200);   // the alps row's hour, the anchor the lights were judged in
+    case 'golden': return at(8, false, set != null ? (set + noon) / 2 : noon + 10800);
+    case 'sunset': return at(-0.833, false, set != null ? set : noon + 21600);
+    case 'dawn': return at(-6, true, rise != null ? rise - 1800 : noon - 43200);
+    case 'dusk': return at(-6, false, set != null ? set + 1800 : noon + 43200);
+  }
+  return noon;
+}
+// the named hour's instants around `abs` (the UT dates before and after), ascending
+function dayPresetAbsAround(day, name, abs, before, after) {
+  const J = Math.floor(abs / 86400), out = [];
+  for (let j = J - before; j <= J + after; j++) {
+    const p = DAY.makeDay({ date: dayDateOf(j), utc: 43200 }, day.geo);
+    out.push(j * 86400 + dayPresetUtc(p, name));
+  }
+  return out.sort((a, b) => a - b);
+}
+// "HH:MM" | number (local hours) | { localHours } -> local hours, or null
+function dayTargetHours(t) {
+  if (typeof t === 'number' && isFinite(t)) return ((t % 24) + 24) % 24;
+  if (t && typeof t === 'object' && typeof t.localHours === 'number' && isFinite(t.localHours)) return ((t.localHours % 24) + 24) % 24;
+  const m = typeof t === 'string' ? /^(\d{1,2}):(\d{2})$/.exec(t) : null;
+  if (m && +m[1] < 24 && +m[2] < 60) return +m[1] + (+m[2]) / 60;
+  return null;
+}
+
+// WAIT IT OUT (G2650): the first instant after now when the target happens - a named hour (the presets' own
+// solver, on that date's almanac) or a local clock time - today's when it is still ahead (by DAY_WAIT_MIN_S),
+// else the next day's. Always forward, never more than ~a day and a half. -> { date, utc, abs, waitS, target }
+// or null for a target it does not know.
+function dayWaitUntil(day, target) {
+  const A = dayAbs(day);
+  let abs = null;
+  if (DAY_WAIT_TARGETS.includes(target)) {
+    abs = dayPresetAbsAround(day, target, A, 1, 2).find(x => x >= A + DAY_WAIT_MIN_S);
+  } else {
+    const h = dayTargetHours(target);
+    if (h == null) return null;
+    const want = h * 3600;
+    let dt = ((want - day.localSeconds) % 86400 + 86400) % 86400;
+    if (dt < DAY_WAIT_MIN_S) dt += 86400;
+    abs = A + dt;
+    // a daylight-saving change between now and then moves the local clock by an hour: land on the clock time
+    const p = dayProbe(day, abs);
+    let off = want - p.localSeconds;
+    if (off > 43200) off -= 86400; else if (off < -43200) off += 86400;
+    if (off !== 0 && Math.abs(off) <= 3600 && abs + off >= A + DAY_WAIT_MIN_S) abs += off;
+  }
+  if (abs == null || !isFinite(abs)) return null;
+  const o = dayFromAbs(abs);
+  return { date: o.date, utc: o.utc, abs, waitS: abs - A, target };
+}
+
+// the moon's illuminated fraction at an instant (06_solar, the day's place)
+function dayMoonIllumAbs(day, abs) {
+  const j = Math.floor(abs / 86400);
+  return SOLAR.moon({ jdn: j, utc: abs - j * 86400, lat: day.geo.lat, lon: day.geo.lon }).phase;
+}
+// THE NEXT FULL MOON (G2650, the sandbox's "next full moon"; the career only waits): the moon's phase at its next
+// maximum after now (3 h steps over a lunation and a half, then a golden-section search to a minute), landed at the
+// civil dusk nearest it that is still ahead - a full moon rises about sunset, so dusk is when it is there to be seen.
+// -> { date, utc, abs, full: { date, utc, abs, illum }, illum (at the landing) } or null (none found: never, by
+// construction; a guard).
+function dayNextFullMoon(day) {
+  const A = dayAbs(day), H = 3 * 3600, f = t => dayMoonIllumAbs(day, t);
+  let prev = f(A), cur = f(A + H), at = null;
+  for (let k = 2; k < 8 * 45 && at == null; k++) {
+    const nxt = f(A + k * H);
+    if (cur >= prev && cur >= nxt && cur > 0.9) at = A + (k - 1) * H;
+    prev = cur; cur = nxt;
+  }
+  if (at == null) return null;
+  let lo = at - H, hi = at + H;
+  const g = (Math.sqrt(5) - 1) / 2;
+  for (let i = 0; i < 40 && hi - lo > 60; i++) {
+    const m1 = hi - g * (hi - lo), m2 = lo + g * (hi - lo);
+    if (f(m1) >= f(m2)) hi = m2; else lo = m1;
+  }
+  const full = Math.round((lo + hi) / 2);
+  const dusks = dayPresetAbsAround(day, 'dusk', full, 2, 2).filter(x => x >= A + DAY_WAIT_MIN_S);
+  if (!dusks.length) return null;
+  const land = dusks.reduce((b, x) => (Math.abs(x - full) < Math.abs(b - full) ? x : b), dusks[0]);
+  const o = dayFromAbs(land), F = dayFromAbs(full);
+  return { date: o.date, utc: o.utc, abs: land, full: { date: F.date, utc: F.utc, abs: full, illum: f(full) }, illum: f(land) };
+}
+
+// the local-time offset (hours) of the day's geo at an instant (07_day's own tz rule)
+function dayOffsetAt(day, abs) {
+  const tz = day.geo && day.geo.tz;
+  if (!tz) return 0;
+  const j = Math.floor(abs / 86400);
+  return tz.std + (tz.dst === 'us' && DAY.usDst(j, abs - j * 86400, tz.std) ? 1 : 0);
+}
+// a LOCAL date + hour -> the instant (the offset taken where it lands: a DST morning is its own hour)
+function dayLocalAbs(day, date, hour) {
+  const j = date ? dayJdnOf(date) : dayJdnOf(day.localDate);
+  const h = hour != null ? +hour : day.localSeconds / 3600;
+  let abs = j * 86400 + h * 3600 - day.offsetH * 3600;
+  abs = j * 86400 + h * 3600 - dayOffsetAt(day, abs) * 3600;
+  return abs;
+}
+const dayMoonWord = illum => DAY_MOON_WORDS.find(w => illum >= w[0])[1];
+// THE MOON AT A LOCAL DATE AND HOUR (G2650, for NIGHT-OPS' job lines: "full moon, up" / "no moon"): 06_solar's
+// moon at that instant, on the day's geo. date null: the day's local date; hour null: the day's local hour.
+function dayMoonAt(day, date, hour) {
+  const abs = dayLocalAbs(day, date, hour), j = Math.floor(abs / 86400);
+  const m = SOLAR.moon({ jdn: j, utc: abs - j * 86400, lat: day.geo.lat, lon: day.geo.lon });
+  return { phase: dayMoonWord(m.phase), illum: m.phase, up: m.el >= 0, waxing: m.waxing, el: m.el, abs };
+}
+// the day's civil dawn and dusk as LOCAL hours (the sun 6 deg under, the presets' own) - what a contract's
+// "after dusk" / "before dawn" would be judged on by the almanac (73_contracts.js takes them on a stop record)
+function dayDuskDawnH(day) {
+  const loc = u => ((((u + day.offsetH * 3600) % 86400) + 86400) % 86400) / 3600;
+  return { dawnH: loc(dayPresetUtc(day, 'dawn')), duskH: loc(dayPresetUtc(day, 'dusk')) };
+}
 // ============================================================
 // THE CLOUD FIELD (CLOUDS C1, 2026-09-15) — the weather map, the height
 // profiles, the layer, the column. Pure: no THREE, no Date, node-runnable.
@@ -7598,7 +7782,7 @@ const PREMISES_V = 2;   // v2 (contract v1.36, G2910): the polygon entries folde
 // NOT `cover`: `coverAt` on the overlay already means what the COVER RING may plant
 // at a point (the pavement's kill and boost, the plot's grass rule), and two unrelated
 // things sharing that word in one file is how a reader is misled.
-const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects', 'ttype', 'areas'];
+const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects', 'ttype', 'areas', 'junctions'];   // v1.37: junctions (G2950)
 const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7 };
 const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND'];
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
@@ -7846,7 +8030,7 @@ function polyRoad(pts0, w) {
 // once per road object and line, a WeakMap - nothing is added to the object), and a query walks the rings of cells
 // round its own until no unvisited segment can be nearer: the SAME minimum over the same distPtSeg values, bit for
 // bit (GATE SCENERYED 9 against the walk). Far outside the grid, and for a short road, the walk as before.
-const SEG_MIN = 48, SEG_CELL = 16, SEG_RINGS = 24;
+const SEG_MIN = 48, SEG_CELL = 16, SEG_RINGS = 24, SEG_COARSE = 16;
 let SEG_IDX = typeof WeakMap === 'function' ? new WeakMap() : null;
 // (the bench's and the gate's switch: segIdx(false) is the walk everywhere, the before of an A/B; segIdx(true) back)
 function segIdx(on) { if (on === false) SEG_IDX = null; else if (on === true && !SEG_IDX && typeof WeakMap === 'function') SEG_IDX = new WeakMap(); return !!SEG_IDX; }
@@ -7867,17 +8051,44 @@ function roadSegIdx(road) {
     const j0 = Math.floor((Math.min(a[1], b[1]) - z0) / C), j1 = Math.floor((Math.max(a[1], b[1]) - z0) / C);
     for (let ci = i0; ci <= i1; ci++) for (let cj = j0; cj <= j1; cj++) { const k = ci * 65536 + cj; let l = cells.get(k); if (!l) cells.set(k, l = []); l.push(i); }
   }
-  I = { pts: P, n: P.length, sig, x0, z0, nx, nz, C, cells };
+  // (G3081 EDITOR-PERF) THE COARSE LEVEL: the same segments filed in cells SEG_COARSE times larger - a query far from the
+  // line (past the fine rings) walks the coarse rings instead of every segment
+  const CC = C * SEG_COARSE, ncx = Math.floor((x1 - x0) / CC) + 1, ncz = Math.floor((z1 - z0) / CC) + 1, coarse = new Map();
+  for (let i = 1; i < P.length; i++) {
+    const a = P[i - 1], b = P[i]; if (!fin2(a) || !fin2(b)) continue;
+    const i0 = Math.floor((Math.min(a[0], b[0]) - x0) / CC), i1 = Math.floor((Math.max(a[0], b[0]) - x0) / CC);
+    const j0 = Math.floor((Math.min(a[1], b[1]) - z0) / CC), j1 = Math.floor((Math.max(a[1], b[1]) - z0) / CC);
+    for (let ci = i0; ci <= i1; ci++) for (let cj = j0; cj <= j1; cj++) { const k = ci * 65536 + cj; let l = coarse.get(k); if (!l) coarse.set(k, l = []); l.push(i); }
+  }
+  I = { pts: P, n: P.length, sig, x0, z0, nx, nz, C, cells, CC, ncx, ncz, coarse };
   SEG_IDX.set(road, I);
   return I;
+}
+// the rings of a grid's cells round the query's own (ci, cj), from ring k0, until no unvisited cell can hold a segment
+// nearer than the best found (a cell of ring k+1 lies k cells clear of the query's): the same minimum as the walk
+function segRings(I, cells, C, nx, nz, x, z, ci, cj, k0, kMax, d) {
+  const P = I.pts;
+  for (let k = k0; k <= kMax; k++) {
+    for (let i = ci - k; i <= ci + k; i++) {
+      if (i < 0 || i >= nx) continue;
+      const edge = i === ci - k || i === ci + k;
+      for (let j = cj - k; j <= cj + k; j += (edge || k === 0) ? 1 : 2 * k) {
+        if (j < 0 || j >= nz) continue;
+        const l = cells.get(i * 65536 + j); if (!l) continue;
+        for (let m = 0; m < l.length; m++) { const s = l[m], e = distPtSeg(x, z, P[s - 1], P[s]); if (e < d) d = e; }
+      }
+    }
+    if (d <= k * C) return [d, true];
+  }
+  return [d, false];
 }
 function roadDist(road, x, z) {
   const I = roadSegIdx(road);
   if (I) {
     const ci = Math.floor((x - I.x0) / I.C), cj = Math.floor((z - I.z0) / I.C);
     if (ci >= -2 && cj >= -2 && ci <= I.nx + 1 && cj <= I.nz + 1) {
-      // (a query farther than SEG_RINGS cells from the line - a point across an island-long road's box - takes the walk:
-      // the rings would visit more cells than the walk tests segments)
+      // (a query farther than SEG_RINGS cells from the line - a point across an island-long road's box - goes on to the
+      // coarse rings, G3081: the fine ones would visit more cells than the walk tests segments)
       const P = I.pts, kMax = Math.min(SEG_RINGS, Math.max(I.nx, I.nz) + 3), all = kMax === Math.max(I.nx, I.nz) + 3;
       let d = Infinity;
       for (let k = 0; k <= kMax; k++) {
@@ -7894,22 +8105,89 @@ function roadDist(road, x, z) {
         if (d <= k * I.C) return d;
       }
       if (all) return d;
-    }
+      // (G3081 EDITOR-PERF; the user's island road r1: its box is the island, so every query of the town, the forests, the
+      // cover ring more than SEG_RINGS cells from it walked its ~2 500 segments - 3 of the 4 s of a composition with the
+      // town on) the coarse rings, from the best the fine ones found: the same minimum
+      const R = coarseDist(I, x, z, d); if (R !== null) return R;
+    } else { const R = coarseDist(I, x, z, Infinity); if (R !== null) return R; }
   }
   let d = Infinity;
   for (let i = 1; i < road.pts.length; i++) { const e = distPtSeg(x, z, road.pts[i - 1], road.pts[i]); if (e < d) d = e; }
   return d;
 }
+// (G3081 EDITOR-PERF) roadDist when it is within `lim`, else Infinity - the callers that only ask "nearer than lim?" (a plot's
+// corner by another road, a tree by a road): the segments of the cells within lim of the query, nothing farther. A segment
+// nearer than lim has its nearest point within lim, in a cell the square visits (it is filed in every cell its box meets):
+// so the minimum found, when it is within lim, is roadDist's to the bit, and when it is not, roadDist is over lim too
+function roadDistNear(road, x, z, lim) {
+  const I = roadSegIdx(road);
+  if (!I || !(isFinite(x) && isFinite(z)) || !(lim >= 0 && isFinite(lim))) return roadDist(road, x, z);
+  const C = I.C, K = Math.ceil(lim / C) + 1, ci = Math.floor((x - I.x0) / C), cj = Math.floor((z - I.z0) / C), P = I.pts;
+  let d = Infinity;
+  for (let i = Math.max(0, ci - K), i1 = Math.min(I.nx - 1, ci + K); i <= i1; i++)
+    for (let j = Math.max(0, cj - K), j1 = Math.min(I.nz - 1, cj + K); j <= j1; j++) {
+      const l = I.cells.get(i * 65536 + j); if (!l) continue;
+      for (let m = 0; m < l.length; m++) { const s = l[m], e = distPtSeg(x, z, P[s - 1], P[s]); if (e < d) d = e; }
+    }
+  return d <= lim ? d : Infinity;
+}
+// (G3081 EDITOR-PERF) roadInPoly(road, poly).length > 0 - a polyRoad has a 2 m sample inside the polygon - on the samples of
+// the segments whose cells meet the polygon's box only (a sample inside the polygon is in its box, on a segment filed
+// there): the island road's fillet was sampled whole for every candidate plot of the town
+function roadCrossesPoly(road, poly) {
+  const P = road.pts, S = road.s, n = P && P.length;
+  const I = Array.isArray(S) && S.length === n && n >= 2 && S[n - 1] === road.length && isFinite(road.length) ? roadSegIdx(road) : null;
+  if (!I) return roadInPoly(road, poly).length > 0;
+  let bx0 = Infinity, bz0 = Infinity, bx1 = -Infinity, bz1 = -Infinity;
+  for (const c of poly) { if (!(c[0] >= bx0)) bx0 = c[0]; if (!(c[0] <= bx1)) bx1 = c[0]; if (!(c[1] >= bz0)) bz0 = c[1]; if (!(c[1] <= bz1)) bz1 = c[1]; }
+  if (!(isFinite(bx0) && isFinite(bx1) && isFinite(bz0) && isFinite(bz1))) return roadInPoly(road, poly).length > 0;
+  const C = I.C, len = road.length, seen = new Set();
+  for (let i = Math.max(0, Math.floor((bx0 - 1e-3 - I.x0) / C)), i1 = Math.min(I.nx - 1, Math.floor((bx1 + 1e-3 - I.x0) / C)); i <= i1; i++)
+    for (let j = Math.max(0, Math.floor((bz0 - 1e-3 - I.z0) / C)), j1 = Math.min(I.nz - 1, Math.floor((bz1 + 1e-3 - I.z0) / C)); j <= j1; j++) {
+      const l = I.cells.get(i * 65536 + j); if (!l) continue;
+      for (let m = 0; m < l.length; m++) {
+        const g = l[m]; if (seen.has(g)) continue; seen.add(g);
+        // at()'s segment g holds the samples tt with S[g-1] < tt <= S[g] (and 0 for the first): the even metres, and the end
+        const lo = S[g - 1];
+        for (let t = g === 1 ? 0 : 2 * Math.floor(lo / 2) + 2; t <= S[g] && t < len; t += 2) { if (g > 1 && !(t > lo)) continue; const q = road.at(t).p; if (inPoly(poly, q[0], q[1])) return true; }
+        if (lo < len && len <= S[g]) { const q = road.at(len).p; if (inPoly(poly, q[0], q[1])) return true; }
+      }
+    }
+  return false;
+}
+// (G3081) roadDist's far half: the coarse rings over the whole grid (a query outside it starts at the ring that reaches it)
+function coarseDist(I, x, z, d) {
+  if (!I.coarse || !(isFinite(x) && isFinite(z))) return null;
+  const ci = Math.floor((x - I.x0) / I.CC), cj = Math.floor((z - I.z0) / I.CC);
+  const k0 = Math.max(0, -ci, ci - I.ncx + 1, -cj, cj - I.ncz + 1), kMax = Math.max(Math.abs(ci), Math.abs(ci - I.ncx + 1), Math.abs(cj), Math.abs(cj - I.ncz + 1));
+  // (rings under k0 hold no cell of the grid; the bound after them still holds - nothing was nearer there)
+  return segRings(I, I.coarse, I.CC, I.ncx, I.ncz, x, z, ci, cj, k0, kMax, d)[0];
+}
 // the arclength intervals of a road inside a polygon (sampled every 2 m)
+// (G3081 EDITOR-PERF) the same samples, the same answers - but a sample on a segment whose box misses the polygon's is
+// outside without asking (a point outside a polygon's box is outside it), and the samples left on that segment are
+// skipped: the island road's 12 000 samples were each walked for every plot of the town and every zone
 function roadInPoly(road, poly) {
   const out = [];
   let t0 = null;
+  const P = road.pts, S = road.s, n = P && P.length, fast = !!(SEG_IDX && Array.isArray(P) && Array.isArray(S) && S.length === n && n >= 2 && S[n - 1] === road.length && isFinite(road.length));
+  let bx0 = Infinity, bz0 = Infinity, bx1 = -Infinity, bz1 = -Infinity;
+  if (fast) for (const c of poly) { if (!(c[0] >= bx0)) bx0 = c[0]; if (!(c[0] <= bx1)) bx1 = c[0]; if (!(c[1] >= bz0)) bz0 = c[1]; if (!(c[1] <= bz1)) bz1 = c[1]; }   // (a NaN corner: a NaN box, never missed)
+  const EPS = 1e-6;
+  let i = 1;
   for (let t = 0; ; t += 2) {
     const tt = Math.min(t, road.length);
-    const p = road.at(tt).p, inside = inPoly(poly, p[0], p[1]);
+    let inside, skip = false;
+    if (fast) {
+      while (i < n - 1 && S[i] < tt) i++;   // at()'s segment: the first i >= 1 whose arclength reaches tt
+      const a = P[i - 1], b = P[i];
+      if (Math.max(a[0], b[0]) < bx0 - EPS || Math.min(a[0], b[0]) > bx1 + EPS || Math.max(a[1], b[1]) < bz0 - EPS || Math.min(a[1], b[1]) > bz1 + EPS) { inside = false; skip = true; }
+    }
+    if (!skip) { const p = road.at(tt).p; inside = inPoly(poly, p[0], p[1]); }
     if (inside && t0 === null) t0 = tt;
     if (!inside && t0 !== null) { out.push([t0, tt]); t0 = null; }
     if (tt >= road.length) break;
+    if (skip) t = Math.max(t, 2 * Math.floor(S[i] / 2));   // every sample up to S[i] lies on this segment, outside too
   }
   if (t0 !== null) out.push([t0, road.length]);
   return out;
@@ -8206,7 +8484,7 @@ function rasterTileDecode(C, e) {
 function DEF() {
   return { v: PREMISES_V, id: 'premises', name: '', seed: 1, theme: THEME_DEF,
            frame: { kind: 'free', extent: null, anchors: {} },
-           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [], ttype: [], areas: [] },
+           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [], ttype: [], areas: [], junctions: [] },
            budget: { tris: 400000, lights: 24, smoke: 6, people: 40 } };
 }
 const PREMISES_MIGRATORS = {};
@@ -8233,6 +8511,8 @@ function normalise(rec) {
   for (const a of r.layers.areas) if (a) { if (roundOk(a.round)) a.poly = roundPoly(a.round); else if (rectOk(a.rect)) a.poly = rectPoly(a.rect); if (!a.props || typeof a.props !== 'object') a.props = {}; }
   // v1.35: a spline road's handles run beside its points, one slot each
   for (const rd of r.layers.roads) if (rd && Array.isArray(rd.tan) && Array.isArray(rd.pts)) { while (rd.tan.length < rd.pts.length) rd.tan.push(null); rd.tan.length = rd.pts.length; }
+  // v1.37: a road's junction ids run beside its points too, one slot each (a hand edit's short list padded with null)
+  for (const rd of r.layers.roads) if (rd && Array.isArray(rd.nodes) && Array.isArray(rd.pts)) { while (rd.nodes.length < rd.pts.length) rd.nodes.push(null); rd.nodes.length = rd.pts.length; }
   r.budget =Object.assign({}, d.budget, r.budget || {});
   if (typeof r.seed !== 'number') r.seed = 1;
   if (!THEMES[r.theme]) r.theme = THEME_DEF;
@@ -8502,7 +8782,7 @@ function stageIssues(rec0, maxes) {
   for (const L of rec.layers.links || []) for (const end of [L.from, L.to]) if (end && stagedItems.has(end.site + '/' + end.item) && !L.stage) out.push('link ' + L.id + ': names the staged item ' + end.site + '/' + end.item + ' and carries no stage');
   return out;
 }
-const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k', areas: 'a' };
+const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k', areas: 'a', junctions: 'j' };
 function newId(rec, layer) {
   // (v1.36: every id of the record, an area's v1 ids too - a migrated area keeps its surface's 'y1', and a new
   // surface must not take it again)
@@ -8587,8 +8867,8 @@ function sowPlots(zone, roads, ctx) {
       const rd = B.rd;
       if (rd.id === own) continue;
       if (qx1 < B.x0 || qx0 > B.x1 || qz1 < B.z0 || qz0 > B.z1) continue;
-      if (q.some(c => roadDist(rd, c[0], c[1]) < B.half)) return true;
-      if (roadInPoly(B.pr, q).length) return true;   // it runs THROUGH the plot
+      if (q.some(c => roadDistNear(rd, c[0], c[1], B.half + 1) < B.half)) return true;   // (G3081: the cells within reach only)
+      if (roadCrossesPoly(B.pr, q)) return true;   // it runs THROUGH the plot
     }
     return false;
   };
@@ -8708,7 +8988,7 @@ function planForest(zone, ctx) {
   // distance made the min NaN (no road near), a tree at NaN is never clear of
   const RB = ctx.roads.map(r => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of r.pts || []) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < z0) z0 = q[1]; if (q[1] > z1) z1 = q[1]; } return { r, hw: (r.w || 3.6) / 2, b: [x0, z0, x1, z1] }; });
   const farBox = (b, x, z, r) => Math.max(b[0] - x, x - b[2], b[1] - z, z - b[3]) > r + 1e-3;   // (NaN: never far)
-  const roadWithin = (x, z, r) => { let near = false; for (const R of RB) { if (farBox(R.b, x, z, R.hw + r)) continue; const d = roadDist(R.r, x, z) - R.hw; if (d !== d) return false; if (d < r) near = true; } return near; };
+  const roadWithin = (x, z, r) => { let near = false; for (const R of RB) { if (farBox(R.b, x, z, R.hw + r)) continue; const d = roadDistNear(R.r, x, z, R.hw + r + 1) - R.hw; if (d !== d) return false; if (d < r) near = true; } return near; };
   const PB = ctx.plots.map(p => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of p.poly) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < z0) z0 = q[1]; if (q[1] > z1) z1 = q[1]; } return { p, b: [x0, z0, x1, z1] }; });
   const plotWithin = (x, z, r) => PB.some(P => !farBox(P.b, x, z, r) && sdPoly(P.p.poly, x, z) < r);
   const trees = [];
@@ -8817,7 +9097,7 @@ const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge
 // `hard` (the user's call, default 0): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
 // shoulder polygons (y_sh*: 46 m beside 13/31 and 02/20) and the declared strip box's margin, drawn as the island's ground since
 // G660. 1 grows the cut grass there (the eye's WYSIWYG); the surface itself (friction) is not touched. Read by the viewer's okAt.
-const GRASS_SIDES_DEF = { law: 'today', sideClear: PAVE_SIDE, softClear: 0.3, mowBand: 15, mowBlend: 4, roadMow: 2, stripGrass: 1, hard: 0 };
+const GRASS_SIDES_DEF = { law: 'sides', sideClear: PAVE_SIDE, softClear: 0.3, mowBand: 15, mowBlend: 4, roadMow: 2, stripGrass: 1, hard: 0 };
 const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
 function grassSides(o) {
   if (o && typeof o === 'object') for (const k in o) {
@@ -8832,6 +9112,13 @@ function rwyTreesMode(o) {
   if (v == null && typeof window !== 'undefined' && window.FLYDIY_RWYTREES != null) v = window.FLYDIY_RWYTREES;
   if (v == null && typeof process !== 'undefined' && process.env && process.env.FLYDIY_RWYTREES) v = process.env.FLYDIY_RWYTREES;
   v = String(v == null ? '' : v).toLowerCase();
+  // THE USER HAS JUDGED (GRASS-DENSE G2568, 10 Oct): "trees cleared only ON the strip. It's bush flying, trees grow as close as
+  // possible from where we land. Including the base runways ... Further clearings will be done using polygons, not by the runway"
+  // - 'map' is the default: no tree on a pavement or its drawn side (PAVE_SIDE 1.8 m paved / PAVE_SIDE_SOFT 7.9 m soft, wider
+  // than any validated aircraft's half span past the edge), the derived boxes, shoulders and fans lifted; a wider clearing is an
+  // authored 'no trees' polygon (premises editor). GATE RWYTREES holds 'map' (the paths, the climb-out, the circuit flown)
+  // (44.3, 11 Oct: back to 'today' as the default - 'map' moved HOME's calm-air taxi off its V's right arm, GATE LINEUP red with it
+  // and green with FLYDIY_RWYTREES=today; 'map' returns with an authored clearing by HOME's taxiways. The ruling stands, the default waits)
   return RWY_TREES.indexOf(v) >= 0 ? v : 'today';
 }
 // THE STRIP'S TREE CLEARANCE (G1385 EDITOR-VEG, contract v1.31, the user: "I need to better control tree exclusion
@@ -9441,6 +9728,135 @@ function roadHandles(pts, tan) {
   const S = roadSplineD(pts.map(q => [+q[0], +q[1]]), T);
   return pts.map((q, i) => (T[i] ? T[i] : i < n - 1 ? [S.Dout[i][0] * S.h[i] / 3, S.Dout[i][1] * S.h[i] / 3] : [S.Din[i][0] * S.h[i - 1] / 3, S.Din[i][1] * S.h[i - 1] / 3]));
 }
+// a placed prop's scale (v1.36 `s`, the model placer's) on its composed record - only when it is not 1 (G3001)
+const objScale = ob => (+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3 ? { s: +ob.s } : {});
+// THE ROADS' BUILD KEYS (G3002 PLACER-FAST; the user: "adding assets in the editor is a bit of a pain, really, really
+// long to move, update, rotate" - every edit's rebuild made EVERY road's pavement, its poles and its rails again, the
+// island road's 25 km among them). A road's drawn things (its pavement row, its power line, its guardrail) are a
+// function of: the road as composed (`rd`, every field) and as recorded, the record's pavement settings and theme, and
+// what its poles and rails keep clear of NEAR it - the other roads (each one's digest), the plots, the strips, the
+// paved polygons. roadBuildKeys(O) -> Map(id -> key): a road whose key is the same, and whose box no ground edit
+// touched (roadBoxTouch), is drawn as it was; anything else is built again.
+function roadBuildKeys(O) {
+  const out = new Map(), roads = (O && O.roads) || [], recRoads = new Map(((O && O.rec && O.rec.layers && O.rec.layers.roads) || []).map(r => [r.id, r]));
+  const dig = new Map(), bbs = new Map();
+  for (const q of roads) if (q && q.pts && q.pts.length > 1) { dig.set(q, fnv(JSON.stringify([q.id, q.pts, q.w]))); bbs.set(q, polyBBox(q.pts)); }
+  const plots = ((O && O.records && O.records.plots) || []).filter(p => p && p.poly && p.poly.length >= 3).map(p => [polyBBox(p.poly), fnv(JSON.stringify(p.poly))]);
+  // (G2960: a strip enters the key of the roads NEAR it only - its box grown by its shoulder - a strip's edit kept every
+  //  road of the island drawn again)
+  const strips = ((O && O.runways) || []).filter(r => r && r.c && r.len > 0).map(r => [polyBBox(runwayBox(Object.assign({}, RUNWAY_DEF, r), runwayShoulder(Object.assign({}, RUNWAY_DEF, r)) + 30)), fnv(JSON.stringify([r.id, r.c, r.len, r.wid, r.hdg, r.profile || null, r.slope || 0]))]);
+  const paved = ((O && O.pavePolys) || []).map(pp => [pp.bbox || polyBBox(pp.poly), fnv(JSON.stringify([pp.id, pp.poly, pp.look]))]);
+  const glob = JSON.stringify([(O && O.pavement) || null, (O && O.rec && O.rec.theme) || null]);
+  for (const rd of roads) {
+    if (!rd || !rd.pts || rd.pts.length < 2) continue;
+    const bb = bbs.get(rd), m = (+rd.w || 3.6) / 2 + 14;
+    const near = b => !(b.x1 < bb.x0 - m || b.x0 > bb.x1 + m || b.z1 < bb.z0 - m || b.z0 > bb.z1 + m);
+    const ctx = [];
+    for (const q of roads) if (q !== rd && dig.has(q) && near(bbs.get(q))) ctx.push(dig.get(q));
+    for (const [b, h] of plots) if (near(b)) ctx.push(h);
+    for (const [b, h] of paved) if (near(b)) ctx.push(h);
+    for (const [b, h] of strips) if (near(b)) ctx.push(h);
+    out.set(rd.id, fnv(JSON.stringify([rd, recRoads.get(rd.id) || null])).toString(36) + ':' + fnv(glob + '|' + ctx.join(',')).toString(36));
+  }
+  return out;
+}
+// a ground edit's box (premises frame) over a road: its points' box grown by its half width and `pad` (its banks)
+function roadBoxTouch(rd, box, pad) {
+  if (!rd || !rd.pts || rd.pts.length < 1 || !box) return false;
+  const bb = polyBBox(rd.pts), m = (+rd.w || 3.6) / 2 + (pad > 0 ? pad : 0);
+  return !(box.x1 < bb.x0 - m || box.x0 > bb.x1 + m || box.z1 < bb.z0 - m || box.z0 > bb.z1 + m);
+}
+// A ROAD'S BED (contract v1.37, G2952): `bed: true | { fill, grade, bank, shoulder }` - null when the road has none (today's)
+const BED_DEF = { fill: 0.15, grade: 0.12, bank: 10, shoulder: 0.5 };
+function bedOf(r) {
+  const b = r && r.bed;
+  if (!b) return null;
+  const o = Object.assign({}, BED_DEF, b === true ? {} : b);
+  if (o.on === false) return null;
+  return { fill: clamp(+o.fill || 0, 0, 2), grade: clamp(+o.grade || BED_DEF.grade, 0.01, 0.5), bank: clamp(+o.bank || +r.falloff || BED_DEF.bank, 1, 60), shoulder: clamp(isFinite(+o.shoulder) ? +o.shoulder : BED_DEF.shoulder, 0, 5) };
+}
+
+// ---------------------------------------------------------------------------
+// THE GRAPH (contract v1.37, G2950 ROAD-GRAPH): nodes + edges and the one router - the roads' graph (O.roadGraph), the
+// taxi pattern's ({ nodes, arcs }: graphOfPattern), a ground vehicle's route (GROUND-VEHICLE G2940) all go through it.
+//   nodes [{ id, x, z, ... }]   edges [{ id, a, b, len, pts?: [[x, z]...] (a -> b), ... }]   (undirected)
+//   -> { nodes, edges, node(id), edge(id), adj(id), path(a, b, weight?) -> { nodes, edges, len } | null (Dijkstra, a
+//        binary heap; weight(e) defaults to e.len, Infinity or NaN closes an edge), components() -> [[ids]],
+//        nodeAt(x, z, r) -> the nearest node within r, edgeAt(x, z, maxD) -> { edge, d } (by its pts, the segment grid) }
+function graphMake(nodes0, edges0) {
+  const nodes = new Map(), adj = new Map(), byE = new Map(), edges = [];
+  for (const n of nodes0 || []) if (n && n.id != null && !nodes.has(n.id)) { nodes.set(n.id, n); adj.set(n.id, []); }
+  for (const e of edges0 || []) { if (!e || !nodes.has(e.a) || !nodes.has(e.b) || byE.has(e.id)) continue; edges.push(e); byE.set(e.id, e); adj.get(e.a).push(e); if (e.b !== e.a) adj.get(e.b).push(e); }
+  const other = (e, id) => (e.a === id ? e.b : e.a);
+  function path(a, b, weight) {
+    if (!nodes.has(a) || !nodes.has(b)) return null;
+    const W = weight || (e => e.len), dist = new Map([[a, 0]]), prev = new Map(), done = new Set(), H = [];
+    const up = i => { while (i > 0) { const p = (i - 1) >> 1; if (H[p][0] <= H[i][0]) break; const t = H[p]; H[p] = H[i]; H[i] = t; i = p; } };
+    const down = i => { for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < H.length && H[l][0] < H[m][0]) m = l; if (r < H.length && H[r][0] < H[m][0]) m = r; if (m === i) return; const t = H[m]; H[m] = H[i]; H[i] = t; i = m; } };
+    const push = q => { H.push(q); up(H.length - 1); };
+    const pop = () => { const t = H[0], l = H.pop(); if (H.length) { H[0] = l; down(0); } return t; };
+    push([0, a]);
+    while (H.length) {
+      const [d, u] = pop(); if (done.has(u)) continue; done.add(u); if (u === b) break;
+      for (const e of adj.get(u)) { const w = +W(e); if (!(w >= 0) || !isFinite(w)) continue; const v = other(e, u), nd = d + w; if (nd < (dist.has(v) ? dist.get(v) : Infinity)) { dist.set(v, nd); prev.set(v, [u, e]); push([nd, v]); } }
+    }
+    if (!done.has(b)) return null;
+    const ns = [b], es = []; for (let c = b; c !== a;) { const [u, e] = prev.get(c); es.push(e.id); ns.push(u); c = u; }
+    return { nodes: ns.reverse(), edges: es.reverse(), len: dist.get(b) };
+  }
+  function components() {
+    const seen = new Set(), out = [];
+    for (const id of nodes.keys()) { if (seen.has(id)) continue; const c = [], st = [id]; seen.add(id); while (st.length) { const u = st.pop(); c.push(u); for (const e of adj.get(u)) { const v = other(e, u); if (!seen.has(v)) { seen.add(v); st.push(v); } } } out.push(c); }
+    return out.sort((p, q) => q.length - p.length);
+  }
+  function nodeAt(x, z, r) { let best = null, bd = r > 0 ? r : Infinity; for (const n of nodes.values()) { const d = Math.hypot(n.x - x, n.z - z); if (d <= bd) { bd = d; best = n; } } return best; }
+  function edgeAt(x, z, maxD) {
+    let best = null, bd = maxD > 0 ? maxD : Infinity;
+    for (const e of edges) { if (!e.pts || e.pts.length < 2) continue; const b = e.bb || (e.bb = polyBBox(e.pts)); if (x < b.x0 - bd || x > b.x1 + bd || z < b.z0 - bd || z > b.z1 + bd) continue; const d = roadDist(e, x, z); if (d < bd) { bd = d; best = e; } }
+    return best ? { edge: best, d: bd } : null;
+  }
+  return { nodes: Array.from(nodes.values()), edges, node: id => nodes.get(id) || null, edge: id => byE.get(id) || null, adj: id => adj.get(id) || [], path, components, nodeAt, edgeAt };
+}
+// the taxi pattern's graph (25_airfield.js sitePattern: nodes { id, x, z, kind }, arcs [idA, idB]) through the same router
+function graphOfPattern(P) {
+  const ns = ((P && P.nodes) || []).map(n => ({ id: n.id, x: +n.x, z: +n.z, kind: n.kind }));
+  const at = new Map(ns.map(n => [n.id, n]));
+  const es = ((P && P.arcs) || []).filter(a => at.has(a[0]) && at.has(a[1])).map((a, i) => { const p = at.get(a[0]), q = at.get(a[1]); return { id: 'arc' + i, a: a[0], b: a[1], len: Math.hypot(q.x - p.x, q.z - p.z), pts: [[p.x, p.z], [q.x, q.z]] }; });
+  return graphMake(ns, es);
+}
+// A ROAD'S JUNCTIONS (contract v1.37, G2950): `roads[].nodes` [id | null, ...] beside `pts` (one slot a point, as `tan`): a
+// waypoint carrying an id IS that junction - every road whose waypoint carries the same id meets there (one node of the
+// graph). The waypoints stay the user's: no step of the composer, the migrator or the graph ever writes `pts`; a junction
+// is drawn where its roads' waypoints are (the editor keeps them on one spot: a snap, a junction's drag). `junctions` [{ id,
+// name?, conn? }] names a junction and marks a CONNECTION POINT (a place's edge waypoint other roads are meant to join).
+function junctionIds(rec) {
+  const s = new Set();
+  for (const r of (rec.layers && rec.layers.roads) || []) for (const id of (r && Array.isArray(r.nodes) ? r.nodes : [])) if (id) s.add(id);
+  for (const j of (rec.layers && rec.layers.junctions) || []) if (j && j.id) s.add(j.id);
+  return s;
+}
+function newJunctionId(rec, prefix) {
+  const used = junctionIds(rec);
+  for (const k of LAYERS) for (const e of rec.layers[k] || []) if (e && e.id) used.add(e.id);
+  const p = prefix || 'j';
+  for (let i = 1; ; i++) if (!used.has(p + i)) return p + i;
+}
+// (G2950) A JUNCTION ON A STRAIGHT SPAN IS NO CORNER: a waypoint carrying a junction id that lies on the straight line
+// between its neighbours (within 1 cm - a crossing's waypoint inserted on both streets, cm-rounded) is read by the
+// composition as no point at all - the road's grade samples, its plots, its pavement are the road's before the junction
+// was made; `wp` keeps the waypoints (where the junctions are). A spline road keeps every point (each one shapes it).
+function straightOf(r) {
+  if (!Array.isArray(r.nodes) || r.curve === 'spline' || r.pts.length < 3) return r;
+  const P = r.pts, out = [P[0]];
+  for (let i = 1; i + 1 < P.length; i++) {
+    const a = out[out.length - 1], p = P[i], b = P[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz);
+    const t = L > 1e-9 ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / (L * L) : -1;
+    if (r.nodes[i] && t > 0 && t < 1 && Math.abs((p[0] - a[0]) * dz - (p[1] - a[1]) * dx) / L < 0.01 && !(p.length > 2 || a.length > 2 || b.length > 2)) continue;
+    out.push(p);
+  }
+  out.push(P[P.length - 1]);
+  return out.length === P.length ? r : Object.assign({}, r, { pts: out, wp: P });
+}
 // the line a road is drawn on: its spline, its fillet radius (v1.19) or its points
 const roadLine = r => (r.curve === 'spline' ? roadCurve(r.pts, r.tan) : r.smooth ? smoothPath(r.pts, r.smooth) : r.pts);
 
@@ -9460,6 +9876,13 @@ const roadClearOf = r => (!r || r.clear === null || r.clear === undefined || r.c
 // A PLOT'S GROUND (contract v1.35, G2890; the user: "an option to disable plot ground drawing for the houses. The ones
 // on the shore draw grass up till the sea"): a zone's `rules.ground === false` takes the lot patch and the lawn off every
 // plot it sows, `rules.noGround` [plot ids] off those plots alone; a site item's `P.plotGround === false` off its own lot
+// A PLOT'S FENCE (G3007; the user: "we need an option to turn off the fencing around the plots too"): a zone's
+// `rules.fences === false` takes the fence off every plot it sows, `rules.noFence` [plot ids] off those plots alone (the
+// plot's boundary, its house and the rest of its lot as they were); absent - today's fences, every plot record the same
+function plotFenceOff(zone, plotId) {
+  const R = (zone && zone.rules) || {};
+  return R.fences === false || (Array.isArray(R.noFence) && R.noFence.indexOf(plotId) >= 0);
+}
 function plotGroundOff(zone, plotId) {
   const R = (zone && zone.rules) || {};
   return R.ground === false || (Array.isArray(R.noGround) && R.noGround.indexOf(plotId) >= 0);
@@ -9484,7 +9907,7 @@ function plotGroundOff(zone, plotId) {
 // came from (GATE PREMISES: every fixture and Jolene, sample for sample), and nothing past compose knows areas exist.
 // The v1 -> v2 migrator folds every polygon entry not on a stage, the same `poly` exactly into one area (one entry of a
 // layer an area); a terrain grade (a line), a zone that sows, a staged entry stay what they were.
-const AREA_PROPS = ['terraform', 'wheels', 'draw', 'marks', 'exclude', 'cover'];
+const AREA_PROPS = ['terraform', 'wheels', 'draw', 'marks', 'exclude', 'cover', 'roadside'];   // (v1.37: roadside - an apron's junction, G2953)
 const AREA_LAYERS = ['terrain', 'surface', 'material', 'exclude', 'ttype', 'zones'];
 const AREA_SLOT = { terrain: 'terraform', surface: 'wheels', material: 'draw', exclude: 'exclude', zones: 'exclude', ttype: 'cover' };
 const AREA_SUFFIX = { terrain: '~t', surface: '~w', material: '~d', exclude: '~x', zones: '~x', ttype: '~c' };
@@ -9741,7 +10164,8 @@ function compose(rec0, world, opts) {
   // unstaged record is untouched, and a staged one composes exactly as its stageView would
   const SV = stageView(normalise(rec0), o.tracks);
   // (v1.36: the areas composed as the v1 entries they expand into - expandAreas; O.rec is that record)
-  const rec = expandAreas(SV.staged ? normalise(SV.rec) : normalise(rec0));
+  const recA = SV.staged ? normalise(SV.rec) : normalise(rec0), areasRaw = recA.layers.areas.slice();   // (G2953: the roadside aprons read the areas themselves)
+  const rec = expandAreas(recA);
   const F = frameOf(rec, world);
   const mods = [];
   for (const m of rec.layers.terrain) { const M = makeModifier(m, F.y0); if (M) mods.push(M); }
@@ -9752,8 +10176,8 @@ function compose(rec0, world, opts) {
   // rule: flat across, the profile smoothed along); a surface strip of its class
   // `smooth` (v1.19) is applied HERE, once, so every reader sees the same line
   // (v1.35: `curve: 'spline'` the same way - roadLine)
-  const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2)
-    .map(r => (r.curve === 'spline' || r.smooth ? Object.assign({}, r, { pts: roadLine(r) }) : r));
+  const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2).map(straightOf)
+    .map(r => (r.curve === 'spline' || r.smooth ? Object.assign({}, r, { pts: roadLine(r), wp: r.wp || r.pts }) : r));   // (G2950: `wp` its waypoints, where its junctions are)
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
   // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
   const roadObjs = roads.map(r => Object.assign({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
@@ -9809,6 +10233,7 @@ function compose(rec0, world, opts) {
   }
   // THE ROADS (stage 3): a road's nodes sit on the ground AFTER the runways graded it
   const T1r = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
+  const JH = new Map();   // (G2950) a junction's height: the first road graded through it sets it
   for (const r of roads) {
     if (r.graded === false) continue;
     // THE ROAD FOLLOWS THE GROUND (v6): its grade is read every 6 m along the traced line, not only at
@@ -9818,7 +10243,29 @@ function compose(rec0, world, opts) {
     for (let i = 0; i + 1 < r.pts.length; i++) { const a = r.pts[i], b = r.pts[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(L / 6)); for (let k = 0; k < n; k++) { const u = k / n; dense.push([a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]); } }
     dense.push(r.pts[r.pts.length - 1]);
     let hs = dense.map(p => T1r(p[0], p[1]));
+    // THE ROAD BED (contract v1.37, G2952; the user, 11 Oct: "the road is sunk in many places. Maybe build a little bank or
+    // something, ensuring the paved surface is always visible"): a road with `bed` stands on its own bed - its surface is
+    // never under the ground ACROSS its paved width (the edges read too, plus `fill`), the dips are FILLED to its grade
+    // (an embankment, never a cut: a road over the ground stands over any coarse mesh of it), and its banks run `bank`
+    // metres back to the terrain. Without `bed` (every shipped road): today's road, to the bit.
+    const BED = bedOf(r);
+    let floor = null;
+    if (BED) {
+      const hw = (+r.w || 3.6) / 2;
+      floor = dense.map((p, i) => {
+        const a = dense[Math.max(0, i - 1)], b = dense[Math.min(dense.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l;
+        return Math.max(hs[i], T1r(p[0] + nx * hw, p[1] + nz * hw), T1r(p[0] - nx * hw, p[1] - nz * hw)) + BED.fill;
+      });
+      hs = floor.slice();
+    }
     for (let pass = 0; pass < 4; pass++) hs = hs.map((h, i) => (i === 0 || i === hs.length - 1) ? h : (hs[i - 1] + 2 * h + hs[i + 1]) / 4);
+    if (BED) {
+      // back over the ground where the smoothing took a crest under it, then the dips filled to the bed's grade both ways
+      const g = BED.grade, ds = i => Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]);
+      for (let i = 0; i < hs.length; i++) if (hs[i] < floor[i]) hs[i] = floor[i];
+      for (let i = 1; i < hs.length; i++) hs[i] = Math.max(hs[i], hs[i - 1] - g * ds(i));
+      for (let i = hs.length - 2; i >= 0; i--) hs[i] = Math.max(hs[i], hs[i + 1] - g * ds(i + 1));
+    }
     // THE GRADE LIMIT (G434, contract v1.14): `grade` is the steepest the road may run - the humps
     // are CUT to it and the dips FILLED (a lower then an upper envelope of that slope, both ways),
     // the ends held where they meet the ground; a taxiway across a 4 m mound had climbed 8 % and
@@ -9832,10 +10279,42 @@ function compose(rec0, world, opts) {
       for (let i = hs.length - 2; i >= 0; i--) hs[i] = Math.max(hs[i], hs[i + 1] - g * ds(i + 1));
       hs[0] = h0; hs[hs.length - 1] = h1;
     }
+    // THE JUNCTIONS' LEVEL (v1.37, G2950): the roads through a junction meet it at ONE height. A road that ENDS there (a
+    // spur) takes the height the junction has; a road that passes THROUGH it takes it from a road crossing it before (a
+    // crossing: the first graded sets it) but never from a spur's end - the through road is graded as it is, and sets the
+    // height for the roads after it. Held 7 m either side of the waypoint, eased back over 7 more. A road without junction
+    // ids: today's, to the bit.
+    let jAt = null;
+    if (Array.isArray(r.nodes) && r.nodes.some(Boolean)) {
+      const W = r.wp || r.pts, s = [0];
+      for (let k = 1; k < dense.length; k++) s.push(s[k - 1] + Math.hypot(dense[k][0] - dense[k - 1][0], dense[k][1] - dense[k - 1][1]));
+      jAt = [];
+      let k0 = 0;
+      for (let i = 0; i < W.length && i < r.nodes.length; i++) {
+        let best = k0, bd = Infinity; for (let k = k0; k < dense.length; k++) { const d = Math.hypot(dense[k][0] - W[i][0], dense[k][1] - W[i][1]); if (d < bd) { bd = d; best = k; } if (bd < 0.01 || (s[k] - s[k0] > 400 && bd < 30)) break; }
+        k0 = best;
+        const jid = r.nodes[i]; if (!jid) continue;
+        // the waypoint's own place along the line (its projection on the samples' segments either side: a junction on a
+        // straight span is no sample of its own - straightOf - and the height is read there, not at the nearest sample)
+        let sj = s[best], pd = bd;
+        for (const k of [best - 1, best]) { if (k < 0 || k + 1 >= dense.length) continue; const a = dense[k], b = dense[k + 1], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz; if (l2 < 1e-12) continue; const t = Math.max(0, Math.min(1, ((W[i][0] - a[0]) * dx + (W[i][1] - a[1]) * dz) / l2)), d = Math.hypot(a[0] + dx * t - W[i][0], a[1] + dz * t - W[i][1]); if (d < pd) { pd = d; sj = s[k] + t * (s[k + 1] - s[k]); } }
+        const isEnd = i === 0 || i === W.length - 1;
+        jAt.push([jid, sj, isEnd]);
+        if (!JH.has(jid) || (!isEnd && JH.get(jid).end)) continue;
+        const H = JH.get(jid).h;
+        for (let k = 0; k < dense.length; k++) { const d = Math.abs(s[k] - sj); if (d >= 14) continue; const u = d <= 7 ? 0 : (d - 7) / 7, w = u * u * (3 - 2 * u); hs[k] = H + (hs[k] - H) * w; }
+      }
+      jAt.s = s;
+    }
     // a level approach at both ends: a road that starts on another road (a spur off the shore road) must
     // not lift the first road's edge on its first metres - the height is held for 7 m from each end
     { let acc = 0; for (let i = 1; i < dense.length; i++) { acc += Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]); if (acc < 7) hs[i] = hs[0]; else break; } acc = 0; for (let i = dense.length - 2; i >= 0; i--) { acc += Math.hypot(dense[i][0] - dense[i + 1][0], dense[i][1] - dense[i + 1][1]); if (acc < 7) hs[i] = hs[dense.length - 1]; else break; } }
-    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: +r.w || 3.6, falloff: +r.falloff || 6, abs: true }, F.y0);
+    if (jAt) {
+      // the road's height AT each junction's place (between its samples) - what the roads after it meet
+      const s = jAt.s, hAtS = sj => { let k = 0; while (k + 2 < s.length && s[k + 1] < sj) k++; const L = s[k + 1] - s[k]; return L > 1e-9 ? hs[k] + (hs[k + 1] - hs[k]) * Math.max(0, Math.min(1, (sj - s[k]) / L)) : hs[k]; };
+      for (const [jid, sj, isEnd] of jAt) if (!JH.has(jid) || (!isEnd && JH.get(jid).end)) JH.set(jid, { h: hAtS(sj), end: isEnd });
+    }
+    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: (+r.w || 3.6) + (BED ? 2 * BED.shoulder : 0), falloff: BED ? BED.bank : (+r.falloff || 6), abs: true }, F.y0);
     if (M) mods.push(M);
   }
   // THE GROUND UNDER THE SITES (stage 5 -> T2): every item's shelf, from its entry, cut before anything is placed
@@ -10583,6 +11062,54 @@ function compose(rec0, world, opts) {
     inExtent(x, z) { const L = F.toLocal(x, z); return inBB(ext, L[0], L[1]); },
     records: { plots: [], trees: [], items: [], links: [], issues: [], excludes: excl.filter(e => !e.roadClear).map(e => e.poly) },   // (G2918: a road's clearing is the trees' and the grass's, not a plot's)
   };
+  // ---- THE ROAD GRAPH (contract v1.37, G2950 ROAD-GRAPH; the user: "a scenic tour of the island's roads, probably with a
+  // simple car ... it would be good that we have the premises of a graph then") - made on its first ask, kept with the
+  // composition. NODES: every junction (the waypoints sharing an id, one node), every road's two ends (`<road>:0`, `<road>:1`
+  // unless a junction is there), every roadside apron's node; EDGES: each road's spans between its nodes, on its DRAWN line
+  // (the spline, the junction extension) in world metres - len, w, cls, surface, look, grade (the steepest along, from the
+  // composed ground). A node carries `roads` (the roads through it), `name` / `conn` (the junctions layer: a CONNECTION
+  // POINT), `aprons` (a roadside apron: { area, use, poly, centre, r - the room to turn }). The API is graphMake's.
+  let RG = null;
+  O.roadGraph = () => {
+    if (RG) return RG;
+    const names = new Map(); for (const j of rec.layers.junctions || []) if (j && j.id) names.set(j.id, j);
+    const nodes = new Map(), edges = [];
+    const nodeFor = (id, lx, lz) => { let n = nodes.get(id); if (!n) { const w = F.toWorld(lx, lz); n = { id, x: w[0], z: w[1], lx, lz, roads: [], aprons: [] }; const J = names.get(id); if (J) { if (J.name) n.name = J.name; if (J.conn) n.conn = J.name || true; } nodes.set(id, n); } return n; };
+    const byId = new Map(roadObjs.filter(ro => !ro.runway).map(ro => [ro.id, ro]));
+    for (const r of rec.layers.roads) {
+      const ro = byId.get(r.id); if (!ro || !r.pts || r.pts.length < 2 || !ro.pts || ro.pts.length < 2) continue;
+      const P = r.pts, D = ro.pts, last = P.length - 1;
+      // each waypoint on the drawn line: the nearest drawn point, searched forward (a spline passes through its points)
+      const at = []; let k0 = 0;
+      for (let i = 0; i <= last; i++) {
+        let best = k0, bd = Infinity, run = 0, lim = (i < last ? Math.hypot(P[i + 1][0] - P[i][0], P[i + 1][1] - P[i][1]) : 0) * 3 + 60;
+        for (let k = k0; k < D.length; k++) { if (k > k0) run += Math.hypot(D[k][0] - D[k - 1][0], D[k][1] - D[k - 1][1]); const d = Math.hypot(D[k][0] - P[i][0], D[k][1] - P[i][1]); if (d < bd) { bd = d; best = k; } if (run > lim && bd < 50) break; }
+        at.push(best); k0 = best;
+      }
+      const ids = P.map((q, i) => (Array.isArray(r.nodes) && r.nodes[i]) || (i === 0 ? r.id + ':0' : i === last ? r.id + ':1' : null));
+      const split = []; ids.forEach((id, i) => { if (id) split.push(i); });
+      for (let s = 0; s + 1 < split.length; s++) {
+        const i0 = split[s], i1 = split[s + 1], d0 = s === 0 ? 0 : at[i0], d1 = s + 2 === split.length ? D.length - 1 : at[i1];
+        const A = nodeFor(ids[i0], P[i0][0], P[i0][1]), B = nodeFor(ids[i1], P[i1][0], P[i1][1]);
+        const pts = D.slice(Math.min(d0, d1), Math.max(d0, d1) + 1).map(q => F.toWorld(q[0], q[1]));
+        let len = 0; for (let q = 1; q < pts.length; q++) len += Math.hypot(pts[q][0] - pts[q - 1][0], pts[q][1] - pts[q - 1][1]);
+        edges.push({ id: r.id + '#' + s, road: r.id, a: A.id, b: B.id, pts, len, w: ro.w, cls: r.cls || null, surface: ro.surface, look: ro.look });
+        if (A.roads.indexOf(r.id) < 0) A.roads.push(r.id); if (B.roads.indexOf(r.id) < 0) B.roads.push(r.id);
+      }
+    }
+    // the roadside aprons: an area whose `roadside` names a junction - the node a vehicle turns or stops from
+    for (const a of areasRaw) {
+      const RS = a && a.props && a.props.roadside; if (!RS || !RS.node || !nodes.has(RS.node) || !a.poly || a.poly.length < 3) continue;
+      const poly = a.poly.map(q => F.toWorld(q[0], q[1])), c = polyCentroid(poly);
+      let r0 = Infinity; for (let i = 0; i < poly.length; i++) r0 = Math.min(r0, distPtSeg(c[0], c[1], poly[i], poly[(i + 1) % poly.length]));
+      nodes.get(RS.node).aprons.push({ area: a.id, use: Array.isArray(RS.use) ? RS.use.slice() : ['turn', 'stop'], poly, centre: c, r: +r0.toFixed(2) });
+    }
+    // each node's height and each edge's steepest grade, off the composed ground
+    for (const n of nodes.values()) n.y = O.terrainAt(n.x, n.z);
+    for (const e of edges) { let g = 0, hPrev = null, sPrev = 0, s = 0; for (let q = 0; q < e.pts.length; q++) { if (q) s += Math.hypot(e.pts[q][0] - e.pts[q - 1][0], e.pts[q][1] - e.pts[q - 1][1]); if (hPrev === null || s - sPrev >= 6 || q === e.pts.length - 1) { const h = O.terrainAt(e.pts[q][0], e.pts[q][1]); if (hPrev !== null && s > sPrev) g = Math.max(g, Math.abs(h - hPrev) / (s - sPrev)); hPrev = h; sPrev = s; } } e.grade = +g.toFixed(4); }
+    RG = graphMake(Array.from(nodes.values()), edges);
+    return RG;
+  };
   // ---- coverAt's index (v1.17): every pavement's reach and every plot, in 64 m cells ------------
   const CIDX = SpatialIndex(64);
   const covItems = [];
@@ -10854,7 +11381,7 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; O.records.plots.push(p); n++; }
+        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // (v1.33) a zone below its stage's band sowed to hold its land; its plots go now, their ground kept clear of trees
@@ -10963,7 +11490,7 @@ function compose(rec0, world, opts) {
     O.records.objects = [];
     for (const ob of rec.layers.objects) if (ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') {
       if (!ob.key) { O.records.issues.push(ob.kind + ' ' + ob.id + ': no key'); continue; }
-      O.records.objects.push({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' });
+      O.records.objects.push(Object.assign({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' }, objScale(ob)));   // (G3001: the placer's scale reaches the built prop - it was dropped here)
     }
     // THE ANIMALS (contract v1.17, 2026-09-22): a HOTSPOT, not an individual -
     // `n` animals of the species `key` living within `r` metres of (x, z). One
@@ -11019,6 +11546,7 @@ function issues(rec0) {
     if (P.marks && !(P.draw && P.draw.look && RUNWAY_LOOKS[P.draw.look] && RUNWAY_LOOKS[P.draw.look].cls)) out.push('area ' + a.id + ': marks are paint on a pavement - draw it as a pavement first');
     if (P.exclude && P.exclude.what && (!Array.isArray(P.exclude.what) || P.exclude.what.some(w => AREA_EXCLUDE.indexOf(w) < 0))) out.push('area ' + a.id + ': exclude is a list of ' + AREA_EXCLUDE.join(', '));
     if (P.draw && !P.draw.set && !P.draw.look) out.push('area ' + a.id + ': draw has neither a set nor a look');
+    if (P.roadside && (!P.roadside.node || !junctionIds(recA).has(P.roadside.node))) out.push('area ' + a.id + ': a roadside apron names a junction of a road (`roadside.node`)');
   }
   for (const k of ['terrain', 'surface', 'material', 'exclude', 'zones']) for (const e of rec.layers[k]) {
     if (e.kind === 'grade') { if (!e.pts || e.pts.length < 2) out.push(k + ' ' + e.id + ': a grade needs two points'); continue; }
@@ -11043,6 +11571,10 @@ function issues(rec0) {
     if (e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push(what + ': unknown look ' + e.look);
   }
   for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
+  // v1.37 (G2950): a junction's waypoints lie on one spot (the editor keeps them there; a hand edit may not), its id a string
+  { const J = new Map();
+    for (const r of rec.layers.roads) if (Array.isArray(r.nodes)) r.nodes.forEach((id, i) => { if (id === null || id === undefined) return; if (typeof id !== 'string' || !id) { out.push('road ' + r.id + ': its waypoint ' + (i + 1) + ' names a junction that is not a word'); return; } const q = r.pts && r.pts[i]; if (!q) return; let l = J.get(id); if (!l) J.set(id, l = []); l.push([r.id, q]); });
+    for (const [id, l] of J) { let d = 0; for (const [, q] of l) d = Math.max(d, Math.hypot(q[0] - l[0][1][0], q[1] - l[0][1][1])); if (d > 0.05) out.push('junction ' + id + ': its waypoints are ' + d.toFixed(2) + ' m apart (' + l.map(x => x[0]).join(', ') + ')'); } }
   const plotIds = new Set();   // G2310: plot ids are hangar ids - unique in the record
   for (const r of rec.layers.runways) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
@@ -11302,10 +11834,10 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
-  fnv, hash32, mulberry32, seedOf, fbm,
+const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+  fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, segIdx, roadClearOf, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
@@ -14151,6 +14683,14 @@ function makeSim(def, world) {
     FUEL_IDX.push(i); FUEL0.push(def.nodes[i].mFuel);
     DRY0.push(Math.max(0.5, def.nodes[i].m - def.nodes[i].mFuel));
   }
+  // G2400 (FREIGHT-STRAP): THE LOAD ABOARD - the kilos the game straps in after the build (the accepted items as point
+  // masses, a job's passengers in their seats, the frame's baggage allowance off while items ride: 78_freight_strap.js
+  // freightStrapAdds), per node, ON TOP of the def's own masses. Null = nothing aboard, and then not one line below
+  // reads it differently: reset, the burn and the snapshot run the arithmetic they always ran (GATE FREIGHT's
+  // byte-identity row). Set through setFreight only (the sanctioned door's sibling, beside setNodeMass).
+  let FRX = null, FRL = null;
+  const FUEL_K = new Int32Array(n).fill(-1);
+  for (let k = 0; k < FUEL_IDX.length; k++) FUEL_K[FUEL_IDX[k]] = k;
   const fuelKg0 = FUEL0.reduce((a, b) => a + b, 0);
   const kgL = ENERGY.kgL > 0 ? ENERGY.kgL : 0.72;
   const fuel = { kind: ENERGY.kind || 'fuel', kg0: fuelKg0, kg: fuelKg0,
@@ -14262,7 +14802,7 @@ function makeSim(def, world) {
     fuel.kg = fuel.kg0 * f2; fuel.litres = fuel.litres0 * f2;
     for (const vs of fuel.vessels) vs.litres = vs.litres0 * f2;
     for (let k = 0; k < FUEL_IDX.length; k++)
-      setNodeMass(FUEL_IDX[k], DRY0[k] + FUEL0[k] * f2);
+      setNodeMass(FUEL_IDX[k], FRX ? DRY0[k] + FUEL0[k] * f2 + FRX[FUEL_IDX[k]] : DRY0[k] + FUEL0[k] * f2);   // (G2400: a load on a tank's node stays aboard)
     if (f2 <= 0) { for (const e of eng) e.running = false; starve(); }   // tanks dry
   }
   function starve() {
@@ -14530,9 +15070,9 @@ function makeSim(def, world) {
       const nd = def.nodes[i];
       p[i*3] = nd.p[0]; p[i*3+1] = nd.p[1]; p[i*3+2] = nd.p[2];
       v[i*3] = v[i*3+1] = v[i*3+2] = 0;
-      m[i] = nd.m; r[i] = nd.r;
-      totalM += nd.m;
-      rigGround(i, nd.m);          // hoisted; reset only ever runs post-build
+      m[i] = FRX && FRX[i] !== 0 ? Math.max(0.5, nd.m + FRX[i]) : nd.m; r[i] = nd.r;   // G2400: a reset keeps the load aboard (setFreight)
+      totalM += m[i];
+      rigGround(i, m[i]);          // hoisted; reset only ever runs post-build
     }
     // G661 (A2-RUNWAYS, a small local edit in A1-PHYS's solver): THE WHEEL STANDS ON THE GROUND, NOT IN
     // IT. The ground spring holds a wheel's share of the weight by penetrating: 2.0 cm under each main of
@@ -15089,6 +15629,37 @@ function makeSim(def, world) {
     m[i] = kg;
     rigGround(i, kg);
   }
+  // G2400 (FREIGHT-STRAP): THE LOAD'S DOOR. `list` = [[node, kg], ...] (78_ freightStrapAdds: the items, the passengers,
+  // the baggage allowance off), applied ON TOP of the def's masses - a tank's node on its fuel as it stands now - and
+  // kept by reset, the burn and the snapshot until the next call; null / [] = nothing aboard. Every node whose load
+  // changes is rewritten from its base (never m += dm: a load put on and taken off leaves the def's own number to the
+  // bit), the ground rig follows its mass (setNodeMass's rule) and totalM is summed afresh in node order (reset's sum).
+  // Nothing then and nothing now writes nothing at all. Deterministic: the page's sim and the worker's apply the same
+  // list in the same order (sim_link / sim_host 'freight') and stay bit-equal (GATE SIMWORKER's load row).
+  function setFreight(list) {
+    const want = Array.isArray(list) && list.length ? list : null;
+    if (!want && !FRX) return 0;
+    const old = FRX;
+    let nx = null;
+    if (want) {
+      nx = new Float64Array(n);
+      for (const a of want) { const i = a[0] | 0, kg = +a[1]; if (i >= 0 && i < n && isFinite(kg)) nx[i] += kg; }
+    }
+    FRX = nx;
+    FRL = want ? want.map(a => [a[0] | 0, +a[1]]) : null;
+    for (let i = 0; i < n; i++) {
+      const a = old ? old[i] : 0, b = nx ? nx[i] : 0;
+      if (a === b) continue;
+      const k = FUEL_K[i];
+      // (a tank's node: what the burn last wrote, or the def's own number while the tanks are as built - reset's)
+      const base = (k >= 0 && fuel.frac !== 1) ? DRY0[k] + FUEL0[k] * fuel.frac : def.nodes[i].m;
+      m[i] = b !== 0 ? Math.max(0.5, base + b) : base;
+      rigGround(i, m[i]);
+    }
+    totalM = 0;
+    for (let i = 0; i < n; i++) totalM += m[i];
+    return FRL ? FRL.length : 0;
+  }
 
   function trqOf() {
     let cgx=0, cgy=0;
@@ -15579,12 +16150,15 @@ function makeSim(def, world) {
       H: HY ? { tick: HY.tick, wet: HY.wet, fh: HY.fh.slice(), fl: HY.floats.map(fx => [fx.h, fx.wet, fx.wrDown]) } : null,
       S: [subN, clusterFresh, simT, gF, cIx, cIy, cIz, armed, scrape, noseGnd, aicHash, aicFresh, atmOver, hProbe, gRef,
           vPrev && vPrev.slice(), hdgPrev, totalM, coneOn, coneLive, coneS2, hbLive, hbH, hbX0, hbX1, hbZ0, hbZ1, wetArm,
-          _tkN, _prN, _tkHits, postLive, clMs, clArm, clDirty, _w0x, _w0y, _w0z] };
+          _tkN, _prN, _tkHits, postLive, clMs, clArm, clDirty, _w0x, _w0y, _w0z],
+      // G2400: the load aboard rides the snapshot (its masses are in `m` above; the list says what they are on top of)
+      X: FRX ? FRX.slice() : null, L: FRL ? FRL.map(a => a.slice()) : null };
   }
   function unsnap(Sn) {
     if (!Sn || Sn.nodes !== def.nodes || Sn.beams !== def.beams || Sn.n !== n || Sn.nb !== nb || !whole()) return false;
     [p, v, f, m, r, rC, KGn, CGn, KTn, CTn, gcx, gcy, gcz, Gam, GamPrev, vi, AIC, sA, sB, sZA, sZB, cpt, Ez, Dz, Wg, pG, pS, pDz, pEDz, bHalf, _tk, _pr]
       .forEach((a, k) => a.set(Sn.A[k]));
+    FRX = Sn.X ? Float64Array.from(Sn.X) : null; FRL = Sn.L ? Sn.L.map(a => a.slice()) : null;   // G2400
     const O = Sn.O, B = O[7];
     [xAft, yUp, zRt, t1, t2, sD, sC].forEach((a, k) => snapPut(a, O[k]));
     // (a field written only where it differs: a whole aeroplane's members hold their reset's values but the strain, and
@@ -15614,6 +16188,8 @@ function makeSim(def, world) {
            // waterH(x, z, simT) - the renderer draws the same wave at the same t
            get t() { return simT; },
            setNodeMass,
+           // G2400 (FREIGHT-STRAP): the load aboard - setFreight([[node, kg], ...] | null), freight() the list or null
+           setFreight, freight: () => (FRL ? FRL.map(a => a.slice()) : null),
            // the panel arc: the tanks, the engines and their one writer
            fuel, eng, setEngine, thrEffOf, hydro: HY, get wetBody() { return WB; },
            // G2090 (WATER-LOOK): the wet body's contacts for the page's spray / wake / bubbles (32_hydro.js wetFx; reading
@@ -39013,7 +39589,9 @@ const PREM_RATES = {
 // a slot is free AND the floor packs it.
 const PREM_MAIN = 'HOME';
 const PREM_SIDE_MAX = 2;
-const PREM_SLOTS = { bay: 1, main: 2, side: 1, sideClub: 2 };
+// mainClub (G2319.1): a CAREER's main hangar that is today's club takes the bay + 1 - its fully kitted floor holds the
+// stand and one more in tandem (the garage's club + 1), never two beside it; the sandbox's ledger keeps `main`
+const PREM_SLOTS = { bay: 1, main: 2, mainClub: 1, side: 1, sideClub: 2 };
 // THE OUTSIDE WEAR (GQ7): visible chalking and streaks after ~10 flown hours
 // stationed outside. `age` carries the chalk and the fade (aeroweather.js
 // AERO_WX_LAYERS: chalk 0.70 x age -> 0.42 at full wear), `rain` the drips.
@@ -39257,7 +39835,10 @@ function playerSideIds(doc) {
 function playerSlots(doc, id) {
   const s = doc && doc.sheds && doc.sheds[id];
   if (!s) return { bay: 0, parked: 0, total: 0 };
-  if (id === PREM_MAIN) return { bay: PREM_SLOTS.bay, parked: PREM_SLOTS.main, total: PREM_SLOTS.bay + PREM_SLOTS.main };
+  if (id === PREM_MAIN) {
+    const parked = (doc.mode === 'career' && (s.shell || 'club') === 'club') ? PREM_SLOTS.mainClub : PREM_SLOTS.main;
+    return { bay: PREM_SLOTS.bay, parked, total: PREM_SLOTS.bay + parked };
+  }
   const n = s.shell === 'club' ? PREM_SLOTS.sideClub : PREM_SLOTS.side;
   return { bay: 0, parked: n, total: n };
 }
@@ -40360,15 +40941,18 @@ function acceptPlaqueLeg(legs, fp) {
 //   x, z     the strip's centre (the record's `c`, metres) — distances are centre to centre
 //   len      the strip's length (m); surf the vocabulary word (25_airfield.js stripSurface)
 //   alti     an altiport (the record's `altiport`): sloped, high, a surface bonus
+//   lit      (G2665 NIGHT-OPS) the strip carries edge lights at night: 25_airfield.js runwayLightStrips' rule - every land
+//            strip is lit, a water lane is not (contractFieldsOf derives it off the record, so a new site says it too)
+//   glide    the record's glideslope lights (`papi`): 'vasi' (Jolene AFB's two-bar VASI) | 'papi'; absent: none
 const CONTRACT_FIELDS = {
-  HOME:     { id: 'HOME',     name: 'Jolene AFB 13/31',         x: -301,  z: 221,    len: 2325, surf: 'concrete' },
-  w2:       { id: 'w2',       name: 'Jolene AFB 02/20',         x: 584,   z: -94,    len: 1835, surf: 'concrete' },
-  w3:       { id: 'w3',       name: 'Tamgas Hill Strip',        x: -800,  z: -2400,  len: 520,  surf: 'gravel' },
-  SEA:      { id: 'SEA',      name: 'Annette Dock',             x: 361,   z: -3661,  len: 1500, surf: 'water' },
-  mk_sea:   { id: 'mk_sea',   name: 'Metlakatla Seaplane Base', x: -3980, z: -9420,  len: 1500, surf: 'water' },
-  mn_strip: { id: 'mn_strip', name: 'Jumbo Mine Street',        x: 7250,  z: -15429, len: 250,  surf: 'gravel' },
-  nv_strip: { id: 'nv_strip', name: 'East Point Clearing',      x: 10030, z: -11660, len: 150,  surf: 'gravel' },
-  tw_ski:   { id: 'tw_ski',   name: 'Skyline Altiport',         x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true },
+  HOME:     { id: 'HOME',     name: 'Jolene AFB 13/31',         x: -301,  z: 221,    len: 2325, surf: 'concrete', lit: true, glide: 'vasi' },
+  w2:       { id: 'w2',       name: 'Jolene AFB 02/20',         x: 584,   z: -94,    len: 1835, surf: 'concrete', lit: true },
+  w3:       { id: 'w3',       name: 'Tamgas Hill Strip',        x: -800,  z: -2400,  len: 520,  surf: 'gravel', lit: true, glide: 'papi' },
+  SEA:      { id: 'SEA',      name: 'Annette Dock',             x: 361,   z: -3661,  len: 1500, surf: 'water', lit: false },
+  mk_sea:   { id: 'mk_sea',   name: 'Metlakatla Seaplane Base', x: -3980, z: -9420,  len: 1500, surf: 'water', lit: false },
+  mn_strip: { id: 'mn_strip', name: 'Jumbo Mine Street',        x: 7250,  z: -15429, len: 250,  surf: 'gravel', lit: true },
+  nv_strip: { id: 'nv_strip', name: 'East Point Clearing',      x: 10030, z: -11660, len: 150,  surf: 'gravel', lit: true },
+  tw_ski:   { id: 'tw_ski',   name: 'Skyline Altiport',         x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true, lit: true },
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
@@ -40437,6 +41021,11 @@ const CONTRACT_TRACKS = {
 // THE JOBS BY DATA ALONE - its row in CONTRACT_FIELDS (the island record's runway, held by GATE CONTRACTS), then
 // its id in the `fields` of each provider that works there (the lake cabins: the clients' and the survey's).
 // The Field Trust's second runway (w2) and East Point (no validated design lands there) are in no provider's list.
+// THE NIGHT WORK (G2665 NIGHT-OPS, §R.3 "do we have some night missions? Night VFR is terrorizing"): a provider's
+// `night` list holds its AUTHORED night contracts (a time-of-day window on the sim clock: after dusk, before dawn,
+// arrive hh-hh), offered beside the arc once their `needs` are met, each once. The generated jobs carry night windows
+// too (73_ CONTRACT_NIGHT: a share of the carry jobs, weighted toward moonlit nights). A night contract no validated
+// design can fly is HELD OUT (74_ careerOfferIds), as the aerobatic box is: the stretcher case waits for a door.
 const C_ = (o) => o;   // (a marker: an authored record)
 const CONTRACT_PROVIDERS = {
   field: {
@@ -40477,6 +41066,12 @@ const CONTRACT_PROVIDERS = {
            needs: { rep: 1, after: ['field.04'] } }),
     ],
     builds: [],
+    // (G2665) THE NIGHT MAIL into the lit field (its VASI): the boat's sacks from Tamgas Hill, arriving past midnight
+    night: [
+      C_({ id: 'field.n1', provider: 'field', kind: 'contract', title: 'ct.field.n1.title', brief: 'ct.field.n1.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'w3', to: 'HOME', goods: 'goods.mail', load: { kg: 30, pax: 0 }, when: { arrive: [0, 1] } }] }],
+           pay: { base: 1900 }, rep: { provider: 'field', gain: 0.25 }, needs: { after: ['field.02'] } }),
+    ],
   },
 
   minedock: {
@@ -40547,6 +41142,12 @@ const CONTRACT_PROVIDERS = {
              { k: 'landAt', op: '==', v: 'mn_strip', at: { pax: 0, kg: 200 } }] }] }],
            pay: { base: 56000 }, rep: { provider: 'minedock', gain: 1 }, needs: { rep: 2 },
            followUp: { add: [{ k: 'costMax', op: '<=', v: 120000 }, { k: 'rangeKm', op: '>=', v: 150 }] } }),
+    ],
+    // (G2665) A LATE RETURN from the mine: the shift's engineer down to the field after dusk
+    night: [
+      C_({ id: 'minedock.n1', provider: 'minedock', kind: 'contract', title: 'ct.minedock.n1.title', brief: 'ct.minedock.n1.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'mn_strip', to: 'HOME', load: { kg: 0, pax: 1 }, when: { after: 'dusk' } }] }],
+           pay: { base: 2400 }, rep: { provider: 'minedock', gain: 0.25 }, needs: { after: ['minedock.02'] } }),
     ],
   },
 
@@ -40710,6 +41311,20 @@ const CONTRACT_PROVIDERS = {
            rep: { provider: 'clients', gain: 1 }, needs: { rep: 0.5 },
            followUp: { prefer: ['tankL', 'enduranceMin'], add: [{ k: 'hydro', op: '==', v: true }] } }),
     ],
+    // (G2665) THE NIGHT MEDEVAC (FREIGHT §4b; the lake cabins are not built yet, so from Tamgas Hill Strip): the doctor up,
+    // then the patient and the doctor down to the ambulance at Jolene AFB before dawn. The patient SITS: no validated
+    // design's door takes the 2.0 m stretcher (GATE FREIGHT), so the stretcher case (n2, FREIGHT_STRETCHER's item) is
+    // authored and HELD OUT until a door takes it - never a job the player cannot fly
+    night: [
+      C_({ id: 'clients.n1', provider: 'clients', kind: 'contract', title: 'ct.clients.n1.title', brief: 'ct.clients.n1.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 0, pax: 1 } }] },
+                    { subs: [{ do: 'carry', from: 'w3', to: 'HOME', load: { kg: 0, pax: 2 }, when: { before: 'dawn' } }] }],
+           pay: { base: 2800 }, rep: { provider: 'clients', gain: 0.5 }, needs: { after: ['clients.01'] } }),
+      C_({ id: 'clients.n2', provider: 'clients', kind: 'contract', title: 'ct.clients.n2.title', brief: 'ct.clients.n2.brief',
+           stages: [{ subs: [{ do: 'carry', from: 'w3', to: 'HOME', when: { before: 'dawn' },
+                               load: { kg: 95, pax: 1, items: [{ id: 'stretcher', kind: 'stretcher', kg: 95, dims: [2.0, 0.6, 0.5] }] } }] }],
+           pay: { base: 3400 }, rep: { provider: 'clients', gain: 0.5 }, needs: { after: ['clients.n1'] } }),
+    ],
   },
 };
 
@@ -40851,6 +41466,15 @@ const CONTRACT_TEXT = {
   'ct.clients.05.done': CT_('A museum hangar for your best design.'),
   'ct.clients.b1.title': CT_('A ridiculous tank'), 'ct.clients.b1.brief': CT_('An hour in the air on a ridiculous tank: twenty litres, no more.'),
   'ct.clients.b1.follow': CT_('An hour was fun. One more thing.'),
+  // (G2665 NIGHT-OPS) the night work
+  'ct.field.n1.title': CT_('The night mail'), 'ct.field.n1.brief': CT_('The boat\'s mail sacks wait at Tamgas Hill. Into the field between midnight and one: the runway lights and the VASI are on.'),
+  'ct.field.n1.done': CT_('The mail made the morning sort.'),
+  'ct.minedock.n1.title': CT_('The late shift'), 'ct.minedock.n1.brief': CT_('The shift engineer is stuck at the mine street. Bring them down to the field after dusk.'),
+  'ct.minedock.n1.done': CT_('Home for supper, late.'),
+  'ct.clients.n1.title': CT_('Night medevac'), 'ct.clients.n1.brief': CT_('A climber fell on Tamgas Hill. Take the doctor up, then bring them both down to the ambulance at the field before dawn. The patient can sit.'),
+  'ct.clients.n1.done': CT_('The ambulance was waiting on the apron.'),
+  'ct.clients.n2.title': CT_('A stretcher case'), 'ct.clients.n2.brief': CT_('This one cannot sit: a stretcher and the doctor, from Tamgas Hill to the ambulance at the field, before dawn.'),
+  'ct.clients.n2.done': CT_('The stretcher went straight into the ambulance.'),
   // the criteria (labels; {v} the value, {at} the load or the strip)
   'crit.seats': CT_('{v} seats occupied'), 'crit.emptyKg': CT_('empty mass at most {v} kg'),
   'crit.powertrain': CT_('{v} power'), 'crit.tankL': CT_('a tank of at most {v} L'),
@@ -40868,6 +41492,8 @@ const CONTRACT_TEXT = {
   'ev.picked': CT_('{t}: loaded at {at}'), 'ev.sub': CT_('{t}: done at stage {n}'), 'ev.stage': CT_('{t}: stage {n} done'),
   'ev.done': CT_('{t}: complete, paid {n}'), 'ev.unlock': CT_('built: {n}'), 'ev.follow': CT_('the client asks again: {t}'),
   'ev.pending': CT_('{t}: acceptance pending - {n}'), 'ev.none': CT_('{t}: {n}'), 'ev.wallet': CT_('wallet {n}'),
+  // (G2705 CAREER-DAMAGE) a crash in the career: back where the flight departed from ({n} the place), repaired, free
+  'ev.crash': CT_('crashed - back at {n}, repaired'),
 };
 // ===========================================================================
 // THE CONTRACTS (G2240 CONTRACT-MODEL) — the record, its kinds and criteria,
@@ -40878,7 +41504,7 @@ const CONTRACT_TEXT = {
 // THE RECORD (§7.3, exactly):
 //   { id, provider, kind: 'contract'|'job'|'challenge'|'build'|'survey',
 //     title, brief,                                    text KEYS (72_'s CONTRACT_TEXT)
-//     stages: [ { subs: [ { do, from?, to?, at?, load?: {kg, pax, bulk?}, when?: {before}, crit?: [...],
+//     stages: [ { subs: [ { do, from?, to?, at?, load?: {kg, pax, bulk?}, when?: (G2650 windows), crit?: [...],
 //                           medals? } ] } ],           stages IN ORDER, a stage's subs in ANY order
 //     pay: { base, perKm?, km?, total?, bonus?: [ {crit, by, pct} ] },
 //     rep: { provider, gain },
@@ -40899,7 +41525,8 @@ const CONTRACT_TEXT = {
 //   GQ26    one build contract = one delivery; a happy client offers a FOLLOW-UP with ONE criterion
 //           changed (contractFollowUp), paid +15 % (GQ31), never repeating a change.
 //   (g1)    a build contract states performance, never a configuration (CONTRACT_CONFIG_WORDS).
-//   GQ17    no wall-clock deadlines: a `when` is a condition of the flight ("before dusk").
+//   GQ17    no wall-clock deadlines: a `when` is a condition of the flight ("before dusk"); amended (§R.3, G2650):
+//           a time-of-day window on the sim clock ("after dusk", "arrive 06:00-08:00"), met by flying or waiting.
 //
 // Pure: no DOM, no THREE, no storage. Reads 72_'s tables, and (when present) 25_'s stripAllows /
 // 70_-71_'s player helpers at call time.
@@ -40984,6 +41611,9 @@ const CONTRACT_FIT = {
 //   payload factor = kg / kgUnit + pax x paxF (+ bulkF for a bulk load)
 //   surface bonus per distinct field the job touches: short (a strip <= shortM), water, snow, altiport
 //   conditions: a `when` adds condPct of the rest
+//   (G2665 NIGHT-OPS) the NIGHT: a night window adds nightPct of the rest (§R.3 "a night premium"), and a job drawn for
+//   a MOONLESS night (its stamped `night.dark`: the moon down, new, or under an overcast) adds darkPct more - the
+//   named factors `night` and `dark` of contractPay
 //   (G2430 CONTRACT-ROUTES) PER LEG: each stage pays its own km x (1 + its own load's factor), and a job with more
 //   than one destination (contractDests) adds chainPct % of the legs' pay per destination beyond the first. A
 //   one-leg job pays exactly what it did. The positioning flight to the first stop is the player's, never paid.
@@ -40996,6 +41626,7 @@ const CONTRACT_PAY = {
   perKm: 160, kgUnit: 150, paxF: 0.5, bulkF: 0.5,
   surf: { short: 1100, water: 800, snow: 950, altiport: 1350 }, shortM: 400,
   condPct: 15, round: 10,
+  nightPct: 15, darkPct: 20,
   chainPct: 10,
   followPct: 15,
   baseF: 2.7, story: 2.6,
@@ -41012,6 +41643,170 @@ const contractStoryBase = rec => ((rec.pay && rec.pay.base) || 0) * (rec.kind ==
 //   repLoad       the load drawn grows with the provider's reputation: lo + (hi-lo) x (repLoad[0] + repLoad[1] x rep/5)
 const CONTRACT_GEN = { refreshEvery: 3, perProvider: 3, tries: 8, condP: 0.25, repLoad: [0.4, 0.6], repMax: 5 };
 const CONTRACT_DUSK_H = 19.5;          // "before dusk": the world's local hour at the stop (stopRecord.hour)
+const CONTRACT_DAWN_H = 5;             // (G2650) "before dawn" / the end of "after dusk": the same local hour
+// ---- THE TIME-OF-DAY WINDOWS (G2650 SIM-CLOCK; GQ17 amended, §R.3: no wall-clock deadline, but a window on the
+// sim clock, met by flying or by WAITING it out on the ground). A sub's `when` is one of:
+//   { before: 'dusk' }      arrive while it is still day: the hour < dusk                     (as since G2240)
+//   { after: 'dusk' }       arrive in the night: the hour >= dusk or < dawn (the night wraps midnight)
+//   { before: 'dawn' }      arrive in the small hours: midnight <= the hour < dawn
+//   { arrive: [h0, h1] }    arrive between two LOCAL hours, h0 <= hour < h1 (h0 > h1 wraps midnight: [22, 2])
+// judged on stop.hour (the world's local hour at the stop) against dusk / dawn: the stop's own `duskH` / `dawnH`
+// when it carries them (the almanac's, 07b_clock.js dayDuskDawnH - NIGHT-OPS' call to pass them), else the
+// constants above. An unknown hour refuses nothing (the decision needs the fact).
+const CONTRACT_WHEN_KINDS = ['before:dusk', 'after:dusk', 'before:dawn', 'arrive'];
+const ctHours = v => typeof v === 'number' && isFinite(v) && v >= 0 && v <= 24;
+// '' when the window is one of the vocabulary's, else why not
+function contractWhenWhy(w) {
+  if (!w || typeof w !== 'object' || Array.isArray(w)) return '`when` must be an object';
+  const k = Object.keys(w);
+  if (k.length !== 1) return '`when` takes one time of day, got ' + (k.join(', ') || 'none');
+  if (w.before === 'dusk' || w.after === 'dusk' || w.before === 'dawn') return '';
+  if ('arrive' in w) {
+    const a = w.arrive;
+    if (!Array.isArray(a) || a.length !== 2 || !a.every(ctHours) || a[0] === a[1]) return '`when.arrive` must be two different local hours [h0, h1] in 0-24';
+    return '';
+  }
+  return '`when` must be {before: \'dusk\'}, {after: \'dusk\'}, {before: \'dawn\'} or {arrive: [h0, h1]} (a time of day, never a deadline: GQ17)';
+}
+const ctPad2 = n => String(n).padStart(2, '0');
+const ctHhmm = h => { const m = Math.round(h * 60) % 1440; return ctPad2(Math.floor(m / 60)) + ':' + ctPad2(m % 60); };
+// the window in words, for the paragraph and the route line: "before dusk", "arrive 06:00-08:00"
+function contractWhenWords(w) {
+  if (!w || contractWhenWhy(w)) return '';
+  if (w.before === 'dusk') return 'before dusk';
+  if (w.after === 'dusk') return 'after dusk';
+  if (w.before === 'dawn') return 'before dawn';
+  return 'arrive ' + ctHhmm(w.arrive[0]) + '-' + ctHhmm(w.arrive[1]);
+}
+// '' when the stop's hour is inside the window (or unknown), else why not ("after dusk (21.0 h)")
+function contractWhenOk(w, stop) {
+  const h = stop && stop.hour;
+  if (!w || typeof h !== 'number' || !isFinite(h)) return '';
+  const dusk = typeof stop.duskH === 'number' && isFinite(stop.duskH) ? stop.duskH : CONTRACT_DUSK_H;
+  const dawn = typeof stop.dawnH === 'number' && isFinite(stop.dawnH) ? stop.dawnH : CONTRACT_DAWN_H;
+  const at = ' (' + h.toFixed(1) + ' h)';
+  if (w.before === 'dusk') return h >= dusk ? 'after dusk' + at : '';
+  if (w.after === 'dusk') return (h >= dusk || h < dawn) ? '' : 'before dusk' + at;
+  if (w.before === 'dawn') return h < dawn ? '' : 'after dawn' + at;
+  if (Array.isArray(w.arrive)) {
+    const a = w.arrive[0], b = w.arrive[1];
+    const inside = a < b ? (h >= a && h < b) : (h >= a || h < b);
+    return inside ? '' : 'outside ' + ctHhmm(a) + '-' + ctHhmm(b) + at;
+  }
+  return '';
+}
+
+// ---- THE NIGHT (G2665 NIGHT-OPS, §R.3: night jobs; the route line says lit / unlit; the moon) -----------------------
+// The user: "do we have some night missions? Night VFR is terrorizing" - and (via A0) full-moon nights make night VFR
+// possible though dangerous; a moonless or overcast night stays truly dark. RULED (§R.3): night jobs (a night medevac,
+// the night mail into the lit field, late returns), an unlit strip at night is the player's call (never a ✗), a night
+// premium, the job states the moon; night jobs weighted toward moonlit nights, a premium for moonless ones.
+//   p          the chance a generated CARRY job is a night one, before the moon's weight (a survey counts by day)
+//   moonW      the moon's weight on it: p x (moonW[0] + moonW[1] x light) - light the moon's at the night's middle
+//              (its illuminated fraction while it is up, 0 down or under an overcast): a full moon up ~3x a dark night
+//   overcast   the day's cloud cover (07_day.js cloudCover) at or above which no moon light reaches the ground
+//   darkLight  a night window whose light is under this is MOONLESS (the dark premium, CONTRACT_PAY.darkPct)
+//   kinds      the night window's kind (weights): after dusk, before dawn, or an hour's arrival inside the night
+//   sky0       the local date a generator call without a sky draws under: the game's first day (74_ CAREER_DAY0)
+// THE SKY OF AN OFFER (contractSky): a local date + the day's cloud cover -> that night's dusk / dawn (07b's almanac,
+// dayDuskDawnH) and the moon at any hour of it (07b dayMoonAt; an hour before noon is the next morning's). A job is
+// drawn under its offer's sky (74_ careerOfferSky: the career's clock when its offers were made) and STAMPS the night it
+// was drawn for (`rec.night`): the window's hours, the moon at the window's middle, overcast, dark - the pay reads it.
+// The window itself is a time of day (GQ17): flown on any night it is met; the job line states the moon of the NEXT
+// opening from the career's clock (75_ careerNightLine).
+const CONTRACT_NIGHT = { p: 0.2, moonW: [0.5, 1.0], overcast: 0.75, darkLight: 0.1,
+                         kinds: { 'after:dusk': 3, 'before:dawn': 1, arrive: 2 }, sky0: '2026-06-21' };
+// the window's local hours [h0, h1) on a night of this dusk / dawn (h0 > h1 wraps midnight)
+function contractWhenSpan(w, duskH, dawnH) {
+  if (!w || contractWhenWhy(w)) return null;
+  const dusk = typeof duskH === 'number' ? duskH : CONTRACT_DUSK_H, dawn = typeof dawnH === 'number' ? dawnH : CONTRACT_DAWN_H;
+  if (w.before === 'dusk') return [0, dusk];
+  if (w.after === 'dusk') return [dusk, dawn];
+  if (w.before === 'dawn') return [0, dawn];
+  return [w.arrive[0], w.arrive[1]];
+}
+const ctMod24 = h => ((h % 24) + 24) % 24;
+// the window's middle hour (the hour its moon is told at)
+function contractWhenMid(w, duskH, dawnH) {
+  const S = contractWhenSpan(w, duskH, dawnH);
+  return S ? ctMod24(S[0] + ctMod24(S[1] - S[0]) / 2) : null;
+}
+// is the window a NIGHT one: after dusk / before dawn always; an arrival whose middle is in the night
+function contractWhenNight(w, duskH, dawnH) {
+  if (!w || contractWhenWhy(w)) return false;
+  if (w.after === 'dusk' || w.before === 'dawn') return true;
+  if (w.before === 'dusk') return false;
+  const dusk = typeof duskH === 'number' ? duskH : CONTRACT_DUSK_H, dawn = typeof dawnH === 'number' ? dawnH : CONTRACT_DAWN_H;
+  const m = contractWhenMid(w, dusk, dawn);
+  return m >= dusk || m < dawn;
+}
+// WAIT IT OUT (§R.3, the career's Wait "until the window opens"): at the local hour `hour`, null when the window is
+// open now, else { target, h0 } - what DAY_CLOCK.wait takes: 'dusk' (the presets' own civil dusk, the almanac's) for
+// after dusk, else the opening's local hours
+function contractWhenWait(w, hour, duskH, dawnH) {
+  const S = contractWhenSpan(w, duskH, dawnH);
+  if (!S || typeof hour !== 'number' || !isFinite(hour)) return null;
+  if (!contractWhenOk(w, { hour, duskH, dawnH })) return null;
+  return { target: w.after === 'dusk' ? 'dusk' : S[0], h0: S[0] };
+}
+// THE SKY OF A NIGHT: the local date's dusk / dawn and its moon, memoised per date + cover (pure arithmetic on a
+// scratch DAY on Jolene's geo: 07_day.js makeDay, 07b_clock.js dayDuskDawnH / dayMoonAt)
+const ctSkyMemo = new Map();
+function contractSky(date, cover) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || typeof DAY === 'undefined' || typeof dayMoonAt !== 'function') return null;
+  const cv = Math.max(0, Math.min(1, +cover || 0)), key = date + '|' + cv;
+  if (ctSkyMemo.has(key)) return ctSkyMemo.get(key);
+  // the scratch day at the local date's noon (the offset of the default geo: AKDT in summer, AKST in winter)
+  const day = DAY.makeDay({ date, utc: 72000 });
+  const dd = dayDuskDawnH(day);
+  const sky = { date, cover: cv, overcast: cv >= CONTRACT_NIGHT.overcast, duskH: +dd.duskH.toFixed(2), dawnH: +dd.dawnH.toFixed(2), day };
+  if (ctSkyMemo.size > 512) ctSkyMemo.clear();
+  ctSkyMemo.set(key, sky);
+  return sky;
+}
+// the next local date
+const ctDateNext = date => dayFromAbs(dayAbs({ date, utc: 43200 }) + 86400).date;
+// THE MOON AT AN HOUR OF THE NIGHT that starts on the sky's date (an hour before noon is the next morning's):
+// { date, hour, phase, illum, up, light, dark } - light the moon's on the ground (0 when down or overcast)
+function contractMoonAt(sky, hour) {
+  if (!sky) return null;
+  const h = ctMod24(hour), date = h < 12 ? ctDateNext(sky.date) : sky.date;
+  const m = dayMoonAt(sky.day, date, h);
+  const light = sky.overcast || !m.up ? 0 : m.illum;
+  return { date, hour: +h.toFixed(2), phase: m.phase, illum: +m.illum.toFixed(3), up: m.up, overcast: sky.overcast,
+           light: +light.toFixed(3), dark: light < CONTRACT_NIGHT.darkLight };
+}
+// the moon in words (the job line): "full moon, up", "half moon, down", "no moon", "overcast: no moon light"
+function contractMoonWords(m) {
+  if (!m) return '';
+  if (m.overcast) return 'overcast: no moon light';
+  if (m.phase === 'new') return 'no moon';
+  return m.phase + ' moon, ' + (m.up ? 'up' : 'down');
+}
+// THE NIGHT A JOB IS DRAWN FOR (its own rng: the rest of the draw is the same with or without it) -> null (a day job)
+// or { when, night: { date, h0, h1, duskH, dawnH, hour, phase, illum, up, overcast, light, dark } }
+function ctNightOf(key, sky) {
+  if (!sky) return null;
+  const N = CONTRACT_NIGHT, rng = contractRng(key + '|night');
+  const mid = ctMod24(sky.duskH + ctMod24(sky.dawnH - sky.duskH) / 2);
+  const m0 = contractMoonAt(sky, mid);
+  if (rng() >= N.p * (N.moonW[0] + N.moonW[1] * m0.light)) return null;
+  const kind = ctPick(rng, Object.keys(N.kinds), k => N.kinds[k]);
+  let when;
+  if (kind === 'after:dusk') when = { after: 'dusk' };
+  else if (kind === 'before:dawn') when = { before: 'dawn' };
+  else {
+    // an hour's arrival wholly inside this night: a whole hour from the first after dusk to the last before dawn
+    const hs = [];
+    for (let h = Math.ceil(sky.duskH); ; h++) { const a = ctMod24(h); if (ctMod24(a + 1 - sky.duskH) > ctMod24(sky.dawnH - sky.duskH)) break; hs.push(a); if (hs.length > 24) break; }
+    if (!hs.length) when = { after: 'dusk' };
+    else { const a = ctPick(rng, hs); when = { arrive: [a, ctMod24(a + 1)] }; }
+  }
+  const S = contractWhenSpan(when, sky.duskH, sky.dawnH), hour = contractWhenMid(when, sky.duskH, sky.dawnH);
+  const m = contractMoonAt(sky, hour);
+  return { when, night: { date: sky.date, h0: +S[0].toFixed(2), h1: +S[1].toFixed(2), duskH: sky.duskH, dawnH: sky.dawnH,
+                          hour: m.hour, phase: m.phase, illum: m.illum, up: m.up, overcast: m.overcast, light: m.light, dark: m.dark } };
+}
 const CONTRACT_FOLLOW_MAX = 3;         // a chain of follow-ups stops after this many (or when no change is left)
 
 // ---- small pure helpers ------------------------------------------------------------------------------------
@@ -41053,6 +41848,12 @@ function contractFieldsOf(aerodromes) {
     const row = { id: a.id, name: a.name || a.id, x: Math.round(x), z: Math.round(z), len: Math.round(a.len || 0),
                   surf: S ? S.key : (+a.surface === 4 ? 'water' : 'grass') };
     if (a.altiport) row.alti = true;
+    // (G2665 NIGHT-OPS) lit at night: 25_'s rule (runwayLightStrips - a land strip; a water lane none); the record's
+    // glideslope lights: a VASI, else a PAPI at either end
+    const wet = row.surf === 'water';
+    row.lit = typeof runwayLightStrips === 'function' ? runwayLightStrips([{ kind: a.kind || (wet ? 'water' : 'strip'), len: a.len, wid: a.wid || 1 }]).length > 0 : !wet;
+    const pp = Array.isArray(a.papi) ? a.papi : [];
+    if (row.lit && pp.includes('vasi')) row.glide = 'vasi'; else if (row.lit && pp.includes(true)) row.glide = 'papi';
     out[a.id] = row;
   }
   return out;
@@ -41220,7 +42021,7 @@ function contractValidate(rec, opts) {
         for (const c of s.crit) { const w = contractCritWhy(c); if (w) why.push(at + ': ' + w); }
       }
       if ((s.do === 'deliver' || s.do === 'accept') && r.kind !== 'build') why.push(at + ': ' + s.do + ' on a ' + r.kind);
-      if (s.when != null && !(s.when && s.when.before === 'dusk')) why.push(at + ': `when` must be {before: \'dusk\'} (no deadlines, GQ17)');
+      if (s.when != null) { const ww = contractWhenWhy(s.when); if (ww) why.push(at + ': ' + ww); }
       if (s.medals != null) {
         if (r.kind !== 'challenge' || s.do !== 'fly') why.push(at + ': medals on a non-challenge');
         else if (!s.medals.length || s.medals.some(m => !['gold', 'silver', 'bronze'].includes(m.medal) || !(m.le > 0)))
@@ -41280,12 +42081,16 @@ function contractCertifiable(rec) {
   return !contractCrit(rec).some(c => c.k === 'ultimateG' && typeof c.v === 'number' && c.v > ult + 1e-9);
 }
 
-// ---- THE AUTHORED CONTRACTS (the arcs and the standalone builds, normalised, by id) -------------------------
+// (G2665 NIGHT-OPS) A NIGHT CONTRACT NO VALIDATED DESIGN CAN FLY is held out the same way (74_ careerOfferIds: the
+// stretcher case, until a door takes the 2.0 m stretcher) - the ✗ stays the hard no-no of the player's own fleet only
+const contractFlyable = (rec, fields) => contractDoers(contractSubsOf(rec).filter(s => s.do !== 'deliver' && s.do !== 'accept'), fields).length > 0;
+
+// ---- THE AUTHORED CONTRACTS (the arcs, the standalone builds and the night work, normalised, by id) ---------------
 function contractAuthored() {
   const out = {};
   for (const p of Object.keys(CONTRACT_PROVIDERS)) {
     const P = CONTRACT_PROVIDERS[p];
-    for (const r of P.arc.concat(P.builds || [])) out[r.id] = contractNormalise(r);
+    for (const r of P.arc.concat(P.builds || [], P.night || [])) out[r.id] = contractNormalise(r);
   }
   return out;
 }
@@ -41368,11 +42173,12 @@ function contractClasses(rec, fields) {
 }
 
 // ---- THE PAY (G-COST: the job's, never the aeroplane's) ----------------------------------------------------
-// -> { base, perKm, km, factor, surface, cond, total }. Reads the record and the fields. Nothing else.
+// -> { base, perKm, km, factor, surface, chain, cond, night, dark, total }. Reads the record and the fields. Nothing else.
 function contractPay(rec, fields) {
   const F = fields || CONTRACT_FIELDS, P = CONTRACT_PAY;
   const prov = CONTRACT_PROVIDERS[rec.provider];
-  let km = 0, factor = 0, legs = 0, cond = false;
+  let km = 0, factor = 0, legs = 0, cond = false, night = false;
+  const NT = rec.night && typeof rec.night === 'object' ? rec.night : null;
   const touched = {};
   // (G2430) each stage is a leg: its km x (1 + its own load's factor)
   for (const st of rec.stages || []) {
@@ -41382,7 +42188,7 @@ function contractPay(rec, fields) {
       if (s.do === 'survey') skm += 2 * contractKm(s.from, s.at, F);
       for (const k of ['from', 'to']) if (s[k]) touched[s[k]] = 1;
       if (s.load) { kg = Math.max(kg, s.load.kg || 0); pax = Math.max(pax, s.load.pax || 0); bulk = bulk || !!s.load.bulk; }
-      if (s.when) cond = true;
+      if (s.when) { cond = true; if (contractWhenNight(s.when, NT ? NT.duskH : null, NT ? NT.dawnH : null)) night = true; }
     }
     const f = kg / P.kgUnit + pax * P.paxF + (bulk ? P.bulkF : 0);
     km += skm; factor = Math.max(factor, f); legs += skm * (1 + f);
@@ -41402,11 +42208,13 @@ function contractPay(rec, fields) {
   const chain = rec.kind === 'job' ? legPay * P.chainPct / 100 * Math.max(0, contractDests(rec) - 1) : 0;
   const rest = base + legPay + chain + (rec.kind === 'job' ? surface : 0);
   const condAdd = cond ? rest * P.condPct / 100 : 0;
-  let total = Math.round((rest + condAdd) / P.round) * P.round;
+  const nightAdd = night ? rest * P.nightPct / 100 : 0;
+  const darkAdd = night && NT && NT.dark ? rest * P.darkPct / 100 : 0;
+  let total = Math.round((rest + condAdd + nightAdd + darkAdd) / P.round) * P.round;
   // G2260 (ECONOMY, GQ6): the Trust's loan job pays what it was offered at (76_ econLoanJob), not a job's rate
   if (rec.loan && rec.pay && typeof rec.pay.total === 'number' && isFinite(rec.pay.total)) total = rec.pay.total;
   return { base, perKm, km: +km.toFixed(2), factor: +factor.toFixed(3), surface: rec.kind === 'job' ? surface : 0,
-           chain: Math.round(chain), cond: Math.round(condAdd), total };
+           chain: Math.round(chain), cond: Math.round(condAdd), night: Math.round(nightAdd), dark: Math.round(darkAdd), total };
 }
 
 // ---- THE ROUTES (G2430 CONTRACT-ROUTES, §R.3: two destinations or more, not everything from Jolene AFB) ----------
@@ -41555,6 +42363,8 @@ function ctMilkPart(L1) {
 // has a flyable route in), the ROUTE (uniform among ctRoutes), then the loads, leg by leg; shrunk until one
 // validated design flies the whole chain, else redrawn. The record says its shape (`shape`); a second leg of other
 // goods names them (`sub.goods`).
+// (G2665 NIGHT-OPS) opts.sky: the offer's sky (contractSky: its date's dusk / dawn / moon / overcast) the night work is
+// drawn under; undefined: the game's first day (CONTRACT_NIGHT.sky0); null: no night work at all
 function contractEpoch(done) { return Math.floor(Math.max(0, done || 0) / CONTRACT_GEN.refreshEvery); }
 function ctPick(rng, list, w) {
   if (!w) return list[Math.floor(rng() * list.length) % list.length];
@@ -41615,14 +42425,18 @@ function contractJob(seed, providerId, epoch, i, opts) {
         subs = build();
       }
     }
-    if (cond) subs[subs.length - 1][0].when = { before: 'dusk' };
+    // (G2665 NIGHT-OPS) a share of the carry jobs is NIGHT work: the last leg's arrival in a night window, drawn under
+    // the offer's sky (its own rng: the rest of this draw is the same either way); else the day's condition as before
+    const nt = tpl.survey ? null : ctNightOf(seed + '|' + id + '|' + t, opts.sky !== undefined ? opts.sky : contractSky(CONTRACT_NIGHT.sky0, 0));
+    if (nt) subs[subs.length - 1][0].when = nt.when;
+    else if (cond) subs[subs.length - 1][0].when = { before: 'dusk' };
     if (!contractDoers([].concat(...subs), F).length) continue;
-    const rec = contractNormalise({
+    const rec = contractNormalise(Object.assign({
       id, provider: providerId, kind: 'job', title: tpl.title, brief: tpl.brief, goods: G.word, tpl: tpl.id, shape,
       stages: subs.map(s => ({ subs: s })),
       pay: { base: 0 }, rep: { provider: providerId, gain: 0.1 }, repeat: { every: CONTRACT_GEN.refreshEvery },
       seed: String(seed), epoch, i,
-    });
+    }, nt ? { night: nt.night } : {}));
     rec.pay = contractPay(rec, F);
     return rec;
   }
@@ -41736,6 +42550,7 @@ function contractCritDiff(a, b) {
 //     row: { from, to, t, ... }           the logbook row (logFlight): `from` the leg's departure, `t` seconds
 //     overflew?: [aerodrome id]           the sites the flight passed over (a survey's evidence)
 //     hour?: number                       the world's local hour at the stop (a `when` is judged on it)
+//     duskH?, dawnH?: number              (G2650) the day's dusk / dawn as local hours (else the constants)
 //     accept?: { ... }                    ACCEPT's recording, passed through to the hook untouched }
 // THE HOOK (supplied by ACCEPT, G2270): hooks.acceptVerdict(contract, sub, stopRecord, career) ->
 //   { ok: true, got?: {k: value} } | { ok: false, why } | { ok: null, why } (pending). A missing hook = pending.
@@ -41757,8 +42572,15 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
   const loadWhy = L => { const miss = itemsMissing(L); return miss && miss.length ? 'not aboard: ' + miss.join(', ') + ' (' + aboard.items.length + ' items loaded)'
     : 'aboard ' + (aboard.kg || 0) + ' kg / ' + (aboard.pax || 0) + ' pax' + (aboard.bulk ? ' / ' + aboard.bulk : '')
     + ', the job is ' + (L.kg || 0) + ' kg / ' + (L.pax || 0) + ' pax' + (L.bulk ? ' / ' + L.bulk : ''); };
-  const whenWhy = () => (sub.when && sub.when.before === 'dusk' && typeof stop.hour === 'number' && stop.hour >= CONTRACT_DUSK_H)
-    ? 'after dusk (' + stop.hour.toFixed(1) + ' h)' : '';
+  const whenWhy = () => (sub.when ? contractWhenOk(sub.when, stop) : '');
+  // (G2705 CAREER-DAMAGE) AN ACCEPTANCE FLOWN BENT FAILS: a build contract's acceptance ('accept' / 'deliver' with
+  // crit) and a timed challenge ('fly' with medals) judge the airframe as it stopped - stop.structural, the stop
+  // record's { damaged, why } (Deform's sim.damage().structural; absent = not damaged). A transport job that
+  // arrives damaged still delivers (the repair is free).
+  const S = stop.structural;
+  const bentWhy = () => (S && S.damaged && (rec.kind === 'build' || rec.kind === 'challenge')
+    && (((sub.do === 'accept' || sub.do === 'deliver') && Array.isArray(sub.crit) && sub.crit.length) || (sub.do === 'fly' && sub.medals)))
+    ? 'flown with structural damage' + (S.why ? ' (' + S.why + ')' : '') : '';
   if (sub.do === 'carry') {
     if (at === sub.to) {
       if (!(prog.picked || row.from === sub.from)) return { st: 'no', why: 'the load was not taken on at ' + nm(sub.from) };
@@ -41782,6 +42604,7 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
     if (at !== sub.to) return { st: 'no', why: 'stopped at ' + nm(at) + ', not ' + nm(sub.to) };
     if (sub.from && row.from !== sub.from) return { st: 'no', why: 'the leg left ' + nm(row.from) + ', not ' + nm(sub.from) };
     const w = whenWhy(); if (w) return { st: 'no', why: w };
+    const b = bentWhy(); if (b) return { st: 'no', why: b };
     if (sub.medals) {
       const t = +row.t;
       if (!isFinite(t)) return { st: 'no', why: 'no time in the logbook row' };
@@ -41797,6 +42620,7 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
   }
   if (sub.do === 'deliver' || sub.do === 'accept') {
     if (sub.do === 'deliver' && at !== sub.to) return { st: 'no', why: 'delivered at ' + nm(sub.to) + ', stopped at ' + nm(at) };
+    const b = bentWhy(); if (b) return { st: 'no', why: 'refused: ' + b };
     const H = hooks && typeof hooks.acceptVerdict === 'function' ? hooks.acceptVerdict : null;
     if (!H) return { st: 'no', pending: true, why: 'acceptance pending: no verdict yet' };
     let v;
@@ -41881,10 +42705,13 @@ function contractImportPack(pack, text) {
 //   { what: 'flydiy-player', v, wallet, mode: 'career', here, clock, sheds, fleet, ledger,
 //     career: {
 //       id, seed, started, name, cv: CAREER_V,
+//       day: { date: 'YYYY-MM-DD', utc: s },                            G2650 the sim clock's instant (forward only)
 //       voucher: { kind: 'maker', model: 'cub', used: false },          GQ23
 //       providers: { <id>: { rep: 0..5, arc: <arc contracts done> } },  GQ28
 //       contracts: { offered: [id], accepted: [id], tracked: id|null, done: [ {id, at, pay, medal?} ],
-//                    live: { <id>: { stage, subs: [bool], picked: [bool], got: {} } } },
+//                    live: { <id>: { stage, subs: [bool], picked: [bool], got: {} } },
+//                    sky: { epoch, date, cover } },                    G2665 the offers' sky (the night work's)
+//       cover: 0..1,                                                    G2665 the day's cloud cover, as the page saw it
 //       tracks: { field, minedock, resort, survey, clients },            §11.2 (mine + dock = one track)
 //       pilots: {}, roster: [], market: { used: [], seen: 0 }, airframes: {} } }   (PILOTS / PROCURE fill these)
 // A contract is NEVER stored whole: an authored one is looked up by id, a job regenerated from its id and the
@@ -41893,7 +42720,14 @@ function contractImportPack(pack, text) {
 // Pure: every operation works on a clone and returns { ok, doc, why, ... }; a refusal hands back the very
 // document it was given, untouched. No DOM, no storage (app.js owns the localStorage glue, a later session).
 // ===========================================================================
-const CAREER_V = 1;
+// v2 (G2650 SIM-CLOCK): the career carries its DAY - `career.day: { date, utc }`, the sim clock's instant (07_day.js
+// DAY's date + UT second) - saved at a flight's end, a wait, a stop: the next session starts where the last one stopped.
+// A v1 career had none; its day is the one its flown clock implies (CAREER_DAY0 + doc.clock seconds: the clock ran
+// with flown time from the game's first day), lifted once by the normaliser. The career's day only moves FORWARD
+// (careerDaySet refuses an earlier instant); the sandbox keeps its pref (day_clock.js) and every control.
+const CAREER_V = 2;
+// the career's first day: the game's day (viewer/day_clock.js GAME_DAY, 2026-06-21 16:00 AKDT) as UT
+const CAREER_DAY0 = Object.freeze({ date: '2026-06-22', utc: 0 });
 const CAREER_KEY = 'flydiy.career.';
 const CAREER_GRANT = 60000;                                   // GQ23: the grant ...
 const CAREER_VOUCHER = { kind: 'maker', model: 'cub' };      // ... and a free maker's Cub
@@ -41910,6 +42744,7 @@ function careerBlockDefault(o) {
   return {
     id: o.id || 'main', seed: String(o.seed != null ? o.seed : 'jolene'), started: o.started || null,
     name: o.name || '', cv: CAREER_V,
+    day: careerDayOk(o.day) ? careerDayNorm(o.day) : { date: CAREER_DAY0.date, utc: CAREER_DAY0.utc },
     voucher: Object.assign({}, CAREER_VOUCHER, { used: false }),
     providers,
     contracts: { offered: [], accepted: [], tracked: null, done: [], live: {} },
@@ -41922,10 +42757,17 @@ function careerBlockDefault(o) {
 // probably, even though I find the medium one less intimidating and warmer. Main garage should be cozy"): the WORKS
 // shell at its own 40 x 40 m, every kit, stood in the `cozy` layout (26_hangar_fit HANGAR_LAYOUTS) - the bench corner,
 // the woodshop bay, the office, the lounge round the build bay. The sandbox keeps today's club (GQ29).
-// G2318: the HEARTH (the cozy works with the life brought to the stand) is the default; 'cozy' (the rooms along the
-// walls) is kept beside it for the user's pick (GARAGE_ENV.setLayout in a career)
-const CAREER_MAIN = { shell: 'works', layout: 'hearth' };
+// G2318: the HEARTH (the cozy works with the life brought to the stand) was the default; 'cozy' (the rooms along the
+// walls) kept beside it for the user's pick (GARAGE_ENV.setLayout in a career).
+// G2319.1 (train 44; the user, 10 Oct, on the stills: "not sure what the hearth adds" - KEEP TODAY'S HANGAR for now, the
+// hearth later; long term a derelict giant beside a small good hangar, HANGAR-STORAGE): the career's main hangar is
+// TODAY'S CLUB again (the player default's: no layout, careerMainShed null), with its resident (the garage's club + 1:
+// the room moved under the stand). The works' layouts stay selectable (GARAGE_ENV.setLayout takes the shell with it).
+const CAREER_MAIN = { shell: 'club', layout: null };
+// the train-43 default, recognised so a dev career made under it comes back to the club (careerNormalise, once)
+const CAREER_MAIN_T43 = { shell: 'works', layout: 'hearth' };
 function careerMainShed() {
+  if (!CAREER_MAIN.layout) return null;                        // today's club: the player default's main hangar stands
   const L = (typeof HANGAR_LAYOUTS !== 'undefined') ? HANGAR_LAYOUTS[CAREER_MAIN.layout] : null;
   const S = (typeof SHELLS !== 'undefined') ? SHELLS[CAREER_MAIN.shell] : null;
   if (!L || !S) return null;                                   // a core without the hangar tables: the default stands
@@ -41938,6 +42780,14 @@ function careerMainUntouched(h) {
   if (!h || typeof h !== 'object' || h.shell !== 'club' || h.layout || h.dims || h.parts) return false;
   const def = (typeof HANGAR_KITS_DEFAULT !== 'undefined') ? HANGAR_KITS_DEFAULT : null;
   return !!def && Array.isArray(h.kits) && h.kits.join() === def.join();
+}
+// ...and the train-43 default nobody touched (the works at its own dims, every kit, the hearth, no dress): a dev career
+// made under it (?career=1, train 43 only) is handed today's club back, once (G2319.1)
+function careerMainT43Untouched(h) {
+  if (!h || typeof h !== 'object' || h.shell !== CAREER_MAIN_T43.shell || h.layout !== CAREER_MAIN_T43.layout || h.parts) return false;
+  const S = (typeof SHELLS !== 'undefined') ? SHELLS[h.shell] : null, def = (typeof HANGAR_KITS_DEFAULT !== 'undefined') ? HANGAR_KITS_DEFAULT : null;
+  return !!S && !!def && !!h.dims && h.dims.HW === S.dims.HW && h.dims.HD === S.dims.HD && h.dims.EAVE === S.dims.EAVE &&
+    Array.isArray(h.kits) && h.kits.join() === def.join();
 }
 
 // A NEW CAREER (GQ23): a fresh player document in career mode — the main hangar at HOME, an empty fleet —
@@ -41964,10 +42814,20 @@ function careerNormalise(r) {
   // G2315: a career made before the cozy works holds the player default's untouched club - it becomes the career's
   // main hangar (the base, the tenure and anything else on the record kept); a touched one is the player's, kept
   if (careerMainUntouched(d.sheds.HOME)) { const m = careerMainShed(); if (m) d.sheds.HOME = Object.assign({}, d.sheds.HOME, m, { base: d.sheds.HOME.base, tenure: d.sheds.HOME.tenure }); }
+  // G2319.1: the train-43 works back to today's club when that is the main hangar again (the base, the tenure kept)
+  else if (!CAREER_MAIN.layout && careerMainT43Untouched(d.sheds.HOME)) {
+    const h = d.sheds.HOME, c = playerDefault().sheds.HOME;
+    d.sheds.HOME = Object.assign({}, h, { shell: c.shell, kits: c.kits.slice() }, { base: h.base, tenure: h.tenure });
+    delete d.sheds.HOME.dims; delete d.sheds.HOME.layout;
+  }
   const def = careerBlockDefault();
   const c = (d.career && typeof d.career === 'object') ? d.career : (d.career = def);
   for (const k of ['id', 'seed', 'name']) if (typeof c[k] !== 'string') c[k] = def[k];
-  if (typeof c.cv !== 'number') c.cv = CAREER_V;
+  if (typeof c.cv !== 'number') c.cv = 1;
+  // v1 -> v2 (G2650): the day the flown clock implies, when the career has none of its own
+  if (!careerDayOk(c.day)) c.day = careerDayNorm(dayFromAbs(dayAbs(CAREER_DAY0) + Math.max(0, +d.clock || 0)));
+  else c.day = careerDayNorm(c.day);
+  if (c.cv < CAREER_V) c.cv = CAREER_V;
   if (!c.voucher || typeof c.voucher !== 'object') c.voucher = def.voucher;
   if (!c.providers || typeof c.providers !== 'object') c.providers = {};
   for (const p of Object.keys(def.providers)) {
@@ -41992,6 +42852,48 @@ function careerNormalise(r) {
   return d;
 }
 
+// ---- THE CAREER'S DAY (G2650 SIM-CLOCK) ---------------------------------------------------------------------------
+const careerDayOk = o => !!(o && typeof o === 'object' && /^\d{4}-\d{2}-\d{2}$/.test(o.date) && typeof o.utc === 'number' && isFinite(o.utc));
+// one instant, one spelling: the utc in [0, 86400) on its own UT date (whole seconds: the document is a save)
+const careerDayNorm = o => { const r = dayFromAbs(Math.round(dayAbs(o))); return { date: r.date, utc: r.utc }; };
+function careerDay(doc) {
+  const c = doc && doc.career;
+  return careerDayOk(c && c.day) ? careerDayNorm(c.day) : careerDayNorm(dayFromAbs(dayAbs(CAREER_DAY0) + Math.max(0, +(doc && doc.clock) || 0)));
+}
+// the career's day moves to `o` ({date, utc}) - FORWARD ONLY: an earlier instant is refused (the career never goes
+// back; a wait, a flight's end, a stop all move it on). The same instant is a no-op that still answers ok.
+function careerDaySet(doc, o) {
+  if (!doc || !doc.career) return crNo(doc, 'not a career');
+  if (!careerDayOk(o)) return crNo(doc, 'not a day: ' + JSON.stringify(o));
+  const now = careerDay(doc), to = careerDayNorm(o), dt = dayAbs(to) - dayAbs(now);
+  if (dt < 0) return crNo(doc, 'the career\'s clock only moves forward (' + now.date + ' ' + Math.round(now.utc) + ' s UT, asked ' + to.date + ' ' + Math.round(to.utc) + ' s)');
+  const d = crClone(doc);
+  d.career.day = to;
+  return { ok: true, doc: d, why: '', dt };
+}
+
+// ---- THE OFFERS' SKY (G2665 NIGHT-OPS) -----------------------------------------------------------------------------
+// The night work is drawn under the sky of the day the offers were made (73_ contractSky): the career's LOCAL date
+// when this epoch's offers came, and the day's cloud cover as the page last saw it (`career.cover`, 0..1: overcast = no
+// moon light). Stamped as `contracts.sky = { epoch, date, cover }` by careerRefresh (a refresh that keeps the epoch keeps
+// the stamp), so an offer holds while the clock moves on; a career with no stamp (or a new epoch not yet refreshed)
+// reads it live off its clock. careerOfferSky(doc) -> 73_'s sky (or null: no night work).
+function careerLocalDate(doc) {
+  const d = careerDay(doc);
+  try { return DAY.makeDay({ date: d.date, utc: d.utc }).localDate; } catch (e) { return d.date; }
+}
+function careerSkyStamp(doc) {
+  const c = doc.career, e = contractEpoch(careerDoneIds(doc).length), S = c.contracts && c.contracts.sky;
+  if (S && S.epoch === e && /^\d{4}-\d{2}-\d{2}$/.test(S.date) && typeof S.cover === 'number') return S;
+  const cover = Math.max(0, Math.min(1, +c.cover || 0));
+  return { epoch: e, date: careerLocalDate(doc), cover: Math.round(cover * 100) / 100 };
+}
+function careerOfferSky(doc) {
+  if (!doc || !doc.career || typeof contractSky !== 'function') return null;
+  const S = careerSkyStamp(doc);
+  return contractSky(S.date, S.cover);
+}
+
 // ---- WHICH CONTRACT AN ID IS --------------------------------------------------------------------------------
 const careerDoneIds = doc => doc.career.contracts.done.map(x => x.id);
 function careerContract(doc, id) {
@@ -42005,7 +42907,7 @@ function careerContract(doc, id) {
   if (L && L.rec && typeof L.rec === 'object') return L.rec;
   if (/^job:/.test(id)) {
     const m = /^job:(\w+):/.exec(id);
-    return contractJobById(c ? c.seed : '', id, { rep: c && m && c.providers[m[1]] ? c.providers[m[1]].rep : 0 });
+    return contractJobById(c ? c.seed : '', id, { rep: c && m && c.providers[m[1]] ? c.providers[m[1]].rep : 0, sky: careerOfferSky(doc) });
   }
   if (/\+\d+$/.test(id)) return contractFollowById(id, A);
   // G2260 (ECONOMY, GQ6): the Field Trust's loan job, offered below the wallet's floor (76_ econLoanJob)
@@ -42028,14 +42930,17 @@ function careerOfferIds(doc) {
   const c = doc.career, C = c.contracts;
   const done = careerDoneIds(doc), taken = new Set(done.concat(C.accepted));
   const out = [];
-  const A = contractAuthored();
+  const A = contractAuthored(), sky = careerOfferSky(doc);
   for (const p of Object.keys(CONTRACT_PROVIDERS)) {
     const P = CONTRACT_PROVIDERS[p];
     const next = P.arc.find(r => !done.includes(r.id));
     // (G2320) a contract the certificate cannot answer is HELD OUT (73_ contractCertifiable: the aerobatic box)
     if (next && !taken.has(next.id) && careerNeedsOk(doc, A[next.id]) && contractCertifiable(A[next.id])) out.push(next.id);
     for (const b of P.builds || []) if (!taken.has(b.id) && careerNeedsOk(doc, A[b.id]) && contractCertifiable(A[b.id])) out.push(b.id);
-    for (const j of contractJobs(c.seed, p, done.length, { rep: c.providers[p].rep })) if (!taken.has(j.id)) out.push(j.id);
+    // (G2665 NIGHT-OPS) the provider's authored night work, each once its needs are met - held out while no validated
+    // design can fly it (73_ contractFlyable: the stretcher case)
+    for (const r of P.night || []) if (!taken.has(r.id) && careerNeedsOk(doc, A[r.id]) && contractFlyable(A[r.id])) out.push(r.id);
+    for (const j of contractJobs(c.seed, p, done.length, { rep: c.providers[p].rep, sky })) if (!taken.has(j.id)) out.push(j.id);
   }
   // G2260 (ECONOMY, GQ6): no bankruptcy - below the floor the Field Trust offers its loan job (76_ econLoanOffer)
   const loan = typeof econLoanOffer === 'function' ? econLoanOffer(doc) : null;
@@ -42049,6 +42954,7 @@ function careerOfferIds(doc) {
   return out;
 }
 function careerRefresh(doc) {
+  doc.career.contracts.sky = careerSkyStamp(doc);          // (G2665) the offers' sky, held for the epoch
   doc.career.contracts.offered = careerOfferIds(doc);
   return doc;
 }
@@ -42250,7 +43156,7 @@ function cwSub(u, F) {
   if (s.crit) s.crit = s.crit.map(c => Object.assign({}, c, { words: contractCritWords(c, F) }));
   return s;
 }
-function careerMapContract(doc, id, F) {
+function careerMapContract(doc, id, F, opts) {
   const rec = careerContract(doc, id);
   if (!rec) return null;
   const vars = contractVars(rec, F);
@@ -42263,7 +43169,99 @@ function careerMapContract(doc, id, F) {
   };
   if (rec.unlock) out.unlock = cwClone(rec.unlock);
   if (rec.kind === 'build') out.followLine = contractFollowLine(rec);
+  // (G2665 NIGHT-OPS) the window, the runways lit / unlit, the moon: the job line's facts (careerNightLine)
+  const nl = careerNightLine(doc, rec, Object.assign({ fields: F }, opts || {}));
+  if (nl) out.night = nl;
   return out;
+}
+
+// ---- THE NIGHT ON THE JOB LINE (G2665 NIGHT-OPS; §R.3: "the route line says lit / unlit", the job states the moon) -----
+// A contract whose route has a time-of-day window -> the line's facts, or null (no window):
+//   { when: 'after dusk', night: bool, open: bool (the window is open at the career's hour), opens: 'HH:MM',
+//     date: the night's local date (the NEXT opening from the career's clock, or tonight's while it is open),
+//     stops: [{ id, name, lit, glide }] (every runway of the route: 25_airfield's rule - land strips lit, water lanes
+//     not; an unlit strip at night is the player's call, never a ✗), moon: 73_ contractMoonAt at the window's middle
+//     | null (a day window), moonWords, pay: { night, dark } (the premiums the job's pay holds), line: the words }
+// opts: { day: a DAY (the page's world.day; else the career's own instant on the default geo), cover: the day's cloud
+// cover now (else the career's last seen), fields }
+const cwBase = n => String(n || '').replace(/\s+\d{2}[LRC]?\/\d{2}[LRC]?$/, '');
+const cwHhmm = h => { const m = Math.round((((h % 24) + 24) % 24) * 60) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+// the career's local date and hour (the page's day when handed, else a scratch day at the career's instant)
+function careerLocalNow(doc, day) {
+  let d = day;
+  if (!d || !d.localDate) { const o = careerDay(doc); try { d = DAY.makeDay({ date: o.date, utc: o.utc }); } catch (e) { return null; } }
+  return { date: d.localDate, hour: d.localSeconds / 3600 };
+}
+const cwDateAdd = (date, n) => dayFromAbs(dayAbs({ date, utc: 43200 }) + n * 86400).date;
+// the night (its evening's local date) the window next stands open in, from the local date + hour: the current one while
+// it is open, else the next to open. A night N's hours >= 12 are N's evening, < 12 the next morning's.
+function careerWindowNight(w, now, cover) {
+  let best = null;
+  for (const k of [-1, 0, 1, 2]) {
+    const N = cwDateAdd(now.date, k), sky = contractSky(N, cover);
+    if (!sky) return null;
+    const S = contractWhenSpan(w, sky.duskH, sky.dawnH);
+    const at = h => k * 24 + (h >= 12 ? h : h + 24);            // hours from the start of today, local
+    let t0 = at(S[0]), len = ((S[1] - S[0]) % 24 + 24) % 24;
+    if (w.before === 'dusk') { t0 = k * 24; len = S[1]; }        // the day's window: midnight to dusk of that date
+    const t1 = t0 + len, T = now.hour;
+    if (T >= t0 && T < t1) return { N, sky, open: true, h0: S[0] };
+    if (t0 > T && !best) best = { N, sky, open: false, h0: S[0] };
+  }
+  return best;
+}
+function careerNightLine(doc, rec, opts) {
+  opts = opts || {};
+  const F = opts.fields || CONTRACT_FIELDS;
+  const subs = contractSubsOf(rec), u = subs.find(x => x.when && !contractWhenWhy(x.when));
+  if (!u || typeof contractSky !== 'function') return null;
+  const w = u.when, now = careerLocalNow(doc, opts.day);
+  const cover = typeof opts.cover === 'number' ? opts.cover : +((doc && doc.career && doc.career.cover) || 0);
+  const nt = now ? careerWindowNight(w, now, cover) : null;
+  const sky = nt ? nt.sky : contractSky(CONTRACT_NIGHT.sky0, cover);
+  const night = contractWhenNight(w, sky ? sky.duskH : null, sky ? sky.dawnH : null);
+  const stops = [];
+  for (const st of contractStops(rec)) {
+    if (st.what === 'over' || stops.some(x => x.id === st.at)) continue;
+    const f = F[st.at]; if (!f) continue;
+    stops.push({ id: st.at, name: cwBase(f.name), lit: f.lit != null ? !!f.lit : f.surf !== 'water', glide: f.glide || null });
+  }
+  const moon = night && sky ? contractMoonAt(sky, contractWhenMid(w, sky.duskH, sky.dawnH)) : null;
+  const P = contractPay(rec, F);
+  const out = { when: contractWhenWords(w), night, open: !!(nt && nt.open), opens: nt ? cwHhmm(nt.h0) : '', date: nt ? nt.N : null,
+                stops, moon, moonWords: contractMoonWords(moon), pay: { night: P.night || 0, dark: P.dark || 0 } };
+  const parts = [out.when + (nt ? (nt.open ? ' · open now' : (w.arrive ? '' : ' · opens ' + out.opens)) : '')];
+  if (night) {
+    for (const x of stops) parts.push(x.name + (x.lit ? ' lit' + (x.glide ? ' (' + x.glide.toUpperCase() + ')' : '') : ' unlit'));
+    if (out.moonWords) parts.push(out.moonWords);
+    if (P.night) parts.push('night pay +' + CONTRACT_PAY.nightPct + ' %' + (P.dark ? ', moonless +' + CONTRACT_PAY.darkPct + ' %' : ''));
+  }
+  out.line = parts.join(' · ');
+  return out;
+}
+// THE TRACKED CONTRACT'S WINDOW NOW (G2665): the first open sub of its current stage that carries a `when` -> { id, sub,
+// when, words, to } or null - the route row's "until the window opens" wait and the night-shy pilot's leg read it
+function careerTrackedWhen(doc) {
+  const C = doc && doc.career && doc.career.contracts;
+  if (!C || !C.tracked) return null;
+  const rec = careerContract(doc, C.tracked), L = C.live[C.tracked] || { stage: 0, subs: [] };
+  const st = rec && rec.stages[L.stage];
+  if (!st) return null;
+  const j = st.subs.findIndex((s, i) => !L.subs[i] && s.when && !contractWhenWhy(s.when));
+  if (j < 0) return null;
+  const s = st.subs[j];
+  return { id: rec.id, sub: j, when: cwClone(s.when), words: contractWhenWords(s.when), to: s.to || null, from: s.from || null };
+}
+// the Wait "until the window opens" for the tracked contract at the page's day -> null (nothing tracked with a window,
+// or the window is open now) | { target (DAY_CLOCK.wait's: 'dusk' or local hours), words: 'after dusk', h0, id }
+function careerWaitWindow(doc, day) {
+  const T = careerTrackedWhen(doc);
+  if (!T) return null;
+  const now = careerLocalNow(doc, day);
+  if (!now) return null;
+  const sky = contractSky(now.date, 0), dd = day && typeof dayDuskDawnH === 'function' ? dayDuskDawnH(day) : sky;
+  const r = contractWhenWait(T.when, now.hour, dd.duskH, dd.dawnH);
+  return r ? { target: r.target, h0: r.h0, words: T.words, id: T.id } : null;
 }
 // (G2340 FREIGHT) THE MARK (§R.2: ✓ / ✗ only for the hard no-no's - surface vs gear, and NO DOOR FITS: an item that
 // passes no door of any of the player's planes; a build contract carries none). The fleet's designs: the career's
@@ -42288,7 +43286,8 @@ function careerMapRecord(doc, world, opts) {
              rep: (c.providers[id] || {}).rep || 0, track: (c.tracks || {})[P.track] || 0 };
   });
   const offered = careerOfferIds(doc).filter(id => !C.accepted.includes(id));
-  const contracts = C.accepted.concat(offered).map(id => careerMapContract(doc, id, F)).filter(Boolean);
+  const nightOpts = { day: opts.day || (world && world.day) || null, cover: typeof opts.cover === 'number' ? opts.cover : (world && world.day && typeof world.day.cloudCover === 'number' ? world.day.cloudCover : undefined) };
+  const contracts = C.accepted.concat(offered).map(id => careerMapContract(doc, id, F, nightOpts)).filter(Boolean);
   const stage = {}, live = {};
   for (const id of C.accepted) {
     const L = C.live[id] || { stage: 0, subs: [], picked: [] };
@@ -42344,7 +43343,10 @@ function careerOverflewAdd(world, x, z, set) {
 }
 // THE STOP RECORD (74_career.js contractOnStop's): o = { how, aero (flightWhere's id when flightCanDepart, else null),
 // wrecked, slot, gear, occupants (everyone aboard, the pilot counted), cargoKg, items, row: {from, to, t}, overflew,
-// hour } -> { how, aero, wrecked, slot, gear, load: {kg, pax, items?}, row, overflew, hour }. Only a STOP delivers:
+// hour, duskH?, dawnH?, structural } -> { how, aero, wrecked, structural: {damaged, why}, slot, gear, load: {kg, pax, items?},
+// row, overflew, hour, duskH?, dawnH? }. (G2705) `structural` is Deform's sim.damage().structural as the page read it
+// ({ damaged, broken, separated, why }; absent before train 41 = not damaged): an acceptance or a challenge flown bent fails
+// (73_ contractSubOnStop). Only a STOP delivers:
 // an ending that is not 'stopped' carries no aerodrome. (G2340 FREIGHT) THE LOAD IS THE LOADED ITEMS: with items
 // aboard (FREIGHT-LOAD's accepted packing), `load.items` is them and `load.kg` their sum; with none, the typed
 // cargo kg stands (the fallback).
@@ -42354,15 +43356,40 @@ function careerStopRecord(o) {
   const items = Array.isArray(o.items) && o.items.length && typeof freightItem === 'function' ? freightSplit(o.items) : null;
   const load = items ? { kg: freightKg(items), pax: Math.max(0, occ - 1), items }
                      : { kg: Math.max(0, Math.round(+o.cargoKg || 0)), pax: Math.max(0, occ - 1) };
-  return {
+  const out = {
     how: o.how || 'stopped',
     aero: (o.how === 'stopped' || o.how == null) && o.aero ? o.aero : null,
     wrecked: !!o.wrecked, slot: o.slot || null, gear: o.gear || null,
+    structural: { damaged: !!(o.structural && o.structural.damaged), why: (o.structural && o.structural.why) || null },
     load,
     row: { from: (o.row && o.row.from) || null, to: (o.row && o.row.to) || null, t: Math.max(0, Math.round(+(o.row && o.row.t) || 0)) },
     overflew: Array.isArray(o.overflew) ? o.overflew.slice() : [],
     hour: (typeof o.hour === 'number' && isFinite(o.hour)) ? Math.round(o.hour * 100) / 100 : null,
   };
+  // (G2650 SIM-CLOCK) the day's own dusk / dawn (07b_clock.js dayDuskDawnH), only when the page hands them in: a
+  // time-of-day window is judged on them (73_ contractWhenOk), else on the constants as before
+  for (const k of ['duskH', 'dawnH']) if (typeof o[k] === 'number' && isFinite(o[k])) out[k] = Math.round(o[k] * 100) / 100;
+  return out;
+}
+// (G2705 CAREER-DAMAGE, §R.4: "free repair everywhere, but after a crash you reset to your STARTING PLACE") A CRASH
+// IN THE CAREER: the aeroplane is back where the flight departed from, repaired. Nothing moves in the document while
+// it flies (71_ playerArrive), so the row normally stands there already; a departure aerodrome `from` it does not
+// stand at puts it there through playerArrive (the hangar it left when it fits, else tied down). The damage record
+// (D5's, a write-off too) is cleared and the wear reset - free, no ledger line; GQ5's recovery line at 0 says what
+// happened. The clock is not touched (playerClock already took the flown time). The stop itself delivers nothing
+// (contractOnStop: wrecked). (doc, slot, from) -> { ok, doc, why, where: playerWhere, line: { k: 'crash', ok: false, text } }
+function careerCrashReset(doc, slot, from) {
+  if (!doc || !doc.career) return { ok: false, doc, why: 'not a career' };
+  if (!slot || !doc.fleet || !doc.fleet[slot]) return { ok: false, doc, why: (slot || 'no airframe') + ' is not in the fleet' };
+  let d = doc;
+  const W0 = playerWhere(d, slot);
+  if (from && W0.aero !== from) { const r = playerArrive(d, slot, from, {}); if (r.ok) d = r.doc; }
+  d = playerRecover(d, slot, {}).doc;                          // a clone: the free recovery line (GQ5, at 0)
+  delete d.fleet[slot].damage;
+  if (typeof playerWearReset === 'function') d = playerWearReset(d, slot).doc;
+  const W = playerWhere(d, slot);
+  const place = W.aero ? (CONTRACT_FIELDS[W.aero] ? CONTRACT_FIELDS[W.aero].name : W.aero) : 'its hangar';
+  return { ok: true, doc: d, why: '', where: W, line: { k: 'crash', ok: false, text: contractText('ev.crash', { n: place }) } };
 }
 // the load the tracked contract asks for now (the plate's default cargo): the first open sub's load
 function careerTrackedLoad(doc) {
@@ -42597,7 +43624,8 @@ function stageHost(o) {
 // contracts pay net, hangars bought never rented, a pilot's one-time sign-on
 // fee, GQ5 bring-it-home free, GQ6 no bankruptcy + the Trust's loan job below
 // -20 000, GQ23 the 60 000 grant + a Cub voucher), §12, §15 row 8;
-// DEFORM-AND-BREAK §10 + dm9-dm12 (the repair bill, charged on Repair).
+// DEFORM-AND-BREAK §10 + dm9-dm12 (the repair bill); §R.4 of 10 Oct (G2705
+// CAREER-DAMAGE: REPAIR IS FREE everywhere - the bill is read, never charged).
 // ===========================================================================
 // CREDITS ARE NOT DOLLARS. Every price here is a RATIO to the one number the
 // game already prices honestly: the ledger's airframe (genFrame's bill of
@@ -42608,16 +43636,16 @@ function stageHost(o) {
 //
 // WHAT COSTS MONEY (G-COST): airframes (materialised from the drawing board,
 // or a maker's catalogue), hangars (bought), kits and upgrades, a pilot's
-// sign-on fee, repairs. NOTHING ELSE: no fuel, no maintenance reserve, no
-// wage, no rent, no landing fee, no recovery (GQ5). A career's ledger holds
-// grant / contract / loan lines (income) and purchase / repair lines
-// (spending); `econLedgerClass` names each line's class, and a line of any
+// sign-on fee. NOTHING ELSE: no repair (§R.4, G2705: free), no fuel, no
+// maintenance reserve, no wage, no rent, no landing fee, no recovery (GQ5).
+// A career's ledger holds grant / contract / loan lines (income) and purchase
+// lines (spending; the book keeps its `repair` kind, which nothing writes
+// since G2705); `econLedgerClass` names each line's class, and a line of any
 // other class is a running cost (GATE ECON refuses one).
 //
 // THE WALLET'S RULE (GQ6): a PURCHASE needs the cash (refused, the same
-// document handed back, with why). Only a NON-CHOICE may take the wallet
-// below 0: the repair of the career's LAST flyable airframe (without it the
-// career cannot work - the crash was not a choice). Below ECON_BOOK.loanBelow
+// document handed back, with why). A repair is free (G2705), so nothing takes
+// the wallet below 0 by itself any more. Below ECON_BOOK.loanBelow
 // (-20 000) the Field Trust offers its LOAN JOB: a CONTRACT-MODEL record,
 // kind 'job', provider 'field', that any airframe can fly, paying the wallet
 // back to ECON_BOOK.loanTo.
@@ -42641,8 +43669,6 @@ const ECON_V = 1;
 //   makerMargin  a maker's catalogue price = the scratch price (the ledger in a fully fitted works: x labourFit)
 //                x this margin - PROCURE's catalogue; what you pay a maker for not building it yourself
 //   signOn       a pilot's ONE-TIME sign-on fee by tier (G-COST: no wage), x the reference - PILOTS' roster
-//   repairLabour the repair bill's labour factor: DMG-D5's bill (per section + the event lines, §10) x this
-//                x the hangar's labour factor (playerLabourFactor: where the aeroplane is repaired)
 //   round        every price rounds to this
 //   loanBelow    GQ6: the Trust's loan job is offered while the wallet is BELOW this
 //   loanTo       ...and pays the wallet back up to this (rounded up to `loanRound`)
@@ -42653,7 +43679,6 @@ const ECON_BOOK = {
           office: 0.1, comfort: 0.06, curio: 0, wip: 0 },
   makerMargin: 1.35,
   signOn: { rookie: 0.08, pilot: 0.16, ace: 0.32 },
-  repairLabour: 1.0,
   round: 100,
   loanBelow: -20000,
   loanTo: 0,
@@ -42703,12 +43728,12 @@ function econSignOn(tier) {
   const r = ECON_BOOK.signOn[tier];
   return econRound((typeof r === 'number' ? r : ECON_BOOK.signOn.pilot) * econRefPrice());
 }
-// THE REPAIR (dm9): DMG-D5's bill [{ section | event, line, cost }] x the repair labour x the hangar's labour
-// factor (the hangar the aeroplane stands in; away from yours: labourAway)
+// THE REPAIR (dm9; G2705 CAREER-DAMAGE, the user's ruling of 10 Oct, §R.4): REPAIR IS FREE everywhere. DMG-D5's
+// bill [{ section | event, line, cost }] stays on the damage record (what broke, in its lines) and costs nothing,
+// wherever the aeroplane stands; the punishment for a crash is the reset to where the flight departed from
+// (75_ careerCrashReset), never a bill. (bill, labour) -> 0, the signature kept for its callers.
 function econRepairCost(bill, labour) {
-  const sum = (Array.isArray(bill) ? bill : []).reduce((a, l) => a + (l && isFinite(+l.cost) ? +l.cost : 0), 0);
-  const L = typeof labour === 'number' && labour > 0 ? labour : 1;
-  return econRound(sum * ECON_BOOK.repairLabour * L);
+  return 0;
 }
 
 // ---- THE LEDGER'S CLASSES (G-COST: no running cost anywhere) ---------------------------------------------------
@@ -42755,28 +43780,19 @@ const econAcquire = (doc, aero, plot, shell) => playerAcquire(doc, aero, plot, s
 const econUpgrade = (doc, hangarId, change, opts) => playerUpgrade(doc, hangarId, change, opts);
 // the airframes in the fleet that could fly now (a damaged one is grounded until repaired: dm10)
 const econFlyable = doc => Object.keys((doc && doc.fleet) || {}).filter(n => !(doc.fleet[n] && doc.fleet[n].damage && doc.fleet[n].damage.damaged));
-// THE REPAIR (dm9, dm10): charged only on an explicit Repair, the bill x the labour where it stands. A purchase-
-// like choice (needs the cash) EXCEPT for the career's last flyable airframe (no other aeroplane could earn the
-// money: GQ6's non-choice) - that one may take the wallet below 0, and the Trust's loan job follows. A write-off
-// has no Repair (dm10). The fleet row's `damage` (D5's record) is cleared; the wear resets (G2230).
+// THE REPAIR (dm9, dm10; G2705: FREE): an explicit Repair, in both modes, wherever it stands - nothing in the
+// wallet, no ledger line (the sandbox records no "would cost" either: there is no cost). A write-off has no
+// Repair (dm10). The fleet row's `damage` (D5's record) is cleared; the wear resets (G2230). (opts: unused, kept)
 function econRepair(doc, slot, opts) {
-  opts = opts || {};
   const e = doc && doc.fleet && doc.fleet[slot];
   if (!e) return ecNo(doc, slot + ' is not in the fleet');
   const D = e.damage;
   if (!D || !D.damaged) return ecNo(doc, slot + ' is not damaged');
   if (D.writeOff) return ecNo(doc, slot + ' is a write-off: scrap it or sell it as salvage');
-  const W = playerWhere(doc, slot);
-  const shed = W.kind === 'in' ? doc.sheds[W.hangar] : null;
-  const labour = typeof playerLabourFactor === 'function' ? playerLabourFactor(shed, opts.wants || []) : 1;
-  const cost = econRepairCost(D.bill, labour);
-  const last = econFlyable(doc).length === 0;
-  if (!last && !econAfford(doc, cost)) return ecNo(doc, 'the wallet holds ' + Math.round(doc.wallet) + ', the repair costs ' + cost);
   let d = ecClone(doc);
-  playerLedger(d, 'repair', cost, slot);
   delete d.fleet[slot].damage;
   if (typeof playerWearReset === 'function') d = playerWearReset(d, slot).doc;
-  return { ok: true, doc: d, cost, labour, last, why: '' };
+  return { ok: true, doc: d, cost: econRepairCost(D.bill), why: '' };
 }
 
 // ---- THE TRUST'S LOAN JOB (GQ6) ----------------------------------------------------------------------------------
@@ -42828,8 +43844,8 @@ const ECON_BANDS = {
 };
 // THE REFERENCE CAREER the bands are measured on (econReference). Stated, so the numbers mean something:
 //   start   careerNew (GQ23: the 60 000 grant, the voucher Cub - the fleet's first airframe, free)
-//   float   the grant is the career's FLOAT - its first airframe of its own, a build contract's airframe, a
-//           repair - and the milestones are bought from what contracts pay: a purchase is made the moment the
+//   float   the grant is the career's FLOAT - its first airframe of its own, a build contract's airframe (a
+//           repair was one; free since G2705) - and the milestones are bought from what contracts pay: a purchase is made the moment the
 //           wallet would keep the float after it. (A player may spend the grant on a hangar on day one - the
 //           wallet allows it; the bands measure the pace of the work, not the grant.)
 //   fly     each completed contract is ONE contract: the next arc contract the fleet can physically fly (the
@@ -42886,11 +43902,15 @@ function econRefPick(doc, fleet) {
   }
   return best;
 }
-// fly one contract to its completion (synthesised stops; ACCEPT's hook approving) -> the document
+// fly one contract to its completion (synthesised stops; ACCEPT's hook approving) -> the document. (G2665 NIGHT-OPS) A
+// leg with a time-of-day window is flown at its window's middle - the reference WAITS IT OUT, as a player does - on the
+// night the job was drawn for (its stamped dusk / dawn) or the constants
 function econRefFly(doc, id, hour) {
   let d = careerAccept(doc, id).doc;
   const rec = careerContract(d, id), hooks = { acceptVerdict: () => ({ ok: true, got: {} }) };
-  for (const st of rec.stages) for (const sub of st.subs) for (const s of ecStopsFor(sub, hour)) {
+  const NT = rec.night || null, alm = NT ? { duskH: NT.duskH, dawnH: NT.dawnH } : {};
+  const at = sub => (sub.when && typeof contractWhenMid === 'function' ? contractWhenMid(sub.when, alm.duskH, alm.dawnH) : hour);
+  for (const st of rec.stages) for (const sub of st.subs) for (const s of ecStopsFor(sub, at(sub)).map(x => Object.assign(x, sub.when ? alm : {}))) {
     const q = contractOnStop(d, id, s, hooks);
     if (q.ok) d = q.doc;
   }
@@ -44362,7 +45382,7 @@ const PILOTS_TEXT = {
   'pilot.bark.longDay': PLT_('{name}: long day.'),
   // THE REFUSALS (GQ30: by trait only), one line per kind; {name} {to} {len} {hour} {wind}
   'pilot.refuse.weather': PLT_('{name} won\'t fly in this wind ({wind} kt).'),
-  'pilot.refuse.night': PLT_('{name} won\'t fly a leg that ends after dusk ({hour} h).'),
+  'pilot.refuse.night': PLT_('{name} won\'t fly a leg that ends in the dark ({hour} h).'),
   'pilot.refuse.short': PLT_('{name} won\'t land on a {len} m strip.'),
   'pilot.refuse.unpaved': PLT_('{name} only flies from paved runways.'),
   'pilot.refuse.water': PLT_('{name} won\'t land on water.'),
@@ -44599,7 +45619,8 @@ function pilotsBoatHome(doc, id) {
 }
 
 // ---- REFUSALS (GQ30: by trait only) ----------------------------------------------------------------------------------
-// leg: { to: CONTRACT_FIELDS row (len, surf, alti) | id, from?: row | id, gear: stripGear's word, windKt?, endHour? }
+// leg: { to: CONTRACT_FIELDS row (len, surf, alti) | id, from?: row | id, gear: stripGear's word, windKt?, endHour?,
+//        duskH?, dawnH? (G2665: the day's almanac), night?: true + nightHour? (G2665: the leg is a night job's window) }
 // -> null (flies it) | { kind, trait, key, vars, why }. In the pilot's trait order; 'refuses-nothing' keeps every
 // one; 'fearless' keeps the weather. An unknown wind or hour refuses nothing (the decision needs the fact).
 function pilotsRefusal(id, leg) {
@@ -44614,7 +45635,16 @@ function pilotsRefusal(id, leg) {
   const name = pilotsName(id);
   const fires = {
     weather: () => typeof leg.windKt === 'number' && leg.windKt > PILOTS_WEATHER.windKt ? { wind: Math.round(leg.windKt) } : null,
-    night: () => typeof leg.endHour === 'number' && leg.endHour >= CONTRACT_DUSK_H ? { hour: leg.endHour.toFixed(1) } : null,
+    // (G2665 NIGHT-OPS) the night is the almanac's when the leg carries it (07b dayDuskDawnH: duskH / dawnH), else the
+    // constants; the hour wraps midnight (a leg ending at 01:00 ends in the night); `night: true` - the leg is a night
+    // job's (its window: the tracked contract asks for a night arrival), refused whatever the hour now
+    night: () => {
+      const dusk = typeof leg.duskH === 'number' ? leg.duskH : CONTRACT_DUSK_H, dawn = typeof leg.dawnH === 'number' ? leg.dawnH : CONTRACT_DAWN_H;
+      if (leg.night === true) return { hour: typeof leg.nightHour === 'number' ? (((leg.nightHour % 24) + 24) % 24).toFixed(1) : dusk.toFixed(1) };
+      if (typeof leg.endHour !== 'number' || !isFinite(leg.endHour)) return null;
+      const h = ((leg.endHour % 24) + 24) % 24;
+      return h >= dusk || h < dawn ? { hour: h.toFixed(1) } : null;
+    },
     short: () => { const s = ends.find(e => e.surf !== 'water' && e.len > 0 && e.len < PILOTS_SHORT_M); return s ? { len: s.len, to: s.name } : null; },
     unpaved: () => { const s = ends.find(e => e.surf !== 'water' && !PILOTS_PAVED.includes(e.surf)); return s ? { to: s.name } : null; },
     water: () => (gear === 'floats' || gear === 'amphibian' || ends.some(e => e.surf === 'water')) ? {} : null,
@@ -44991,8 +46021,387 @@ function freightLoadSettle(doc) {
   delete d.career.load;
   return d;
 }
+// ===========================================================================
+// FREIGHT-STRAP (G2400-G2404) — THE ACCEPTED LOAD, STRAPPED: POINT MASSES IN THE SIM, PROPS WITH STRAPS IN THE CABIN.
+// futureDesigns/game/FREIGHT-2026-10-07.md §2 (the user, 7 Oct: "an automatic [placement] will be proposed, and the
+// load will be strapped visually and physically once accepted"); RULED: no load failure (no shifting, no breaking
+// free), no loading time or crew.
+//
+// FREIGHT-LOAD (77_) accepts a placement into `career.load` (or the sandbox's bare record); `freightAccepted` hands it
+// over: every item's box and centre `c` in THE CARD'S FRAME - x m aft of the windscreen-base ring (the gen frame's x
+// datum, def.nodes' x), z the lateral (the cage's x: def.nodes' z), y THE CAGE SHEET'S metres, whose datum is NOT
+// def.nodes': the join's keel datum yD lies between them (_cage_join.js G389: cage y = gen y + yD, published as
+// window.CAGE_DATUM). This file turns it into:
+//
+//   THE MASSES   freightStrapAdds(def, acc, { yD }) -> [[node, kg], ...] for the solver's door (30_ sim.setFreight):
+//                - each item a POINT MASS at its box's centre, shared over the eight nodes of the two fuselage rings
+//                  round it - by lever along x, between each ring's bottom and top pair in y, between its left and
+//                  right node in z - so the eight shares' moment is the point's own (exact inside the box the rings
+//                  span, clamped at its faces) and the inertia follows from where the nodes are, as the crew's and
+//                  the fuel's do;
+//                - A JOB'S PASSENGERS ARE THE OCCUPANTS: the seats the loading view seated (the pilot, seats 1..pax)
+//                  against the seats the build fills (S.occupied, else the first S.occupants) - a seat the job fills
+//                  and the build does not takes GEN_RULES.occupantKg at its station, a seat the build fills and the
+//                  job does not gives it back, both billed by the frame's OWN rule for a seated occupant (61_'s
+//                  straddle + billAt, copied below statement for statement: a passenger added here weighs exactly
+//                  what the build would have billed for them);
+//                - THE BAGGAGE ALLOWANCE OFF while items ride (FREIGHT-MODEL's note: the packer's base has none - the
+//                  allowance IS the freight): the frame's own cargo-section billing of S.baggage, negated.
+//                Nothing accepted -> null, and the solver is never asked: the sim is byte-identical (GATE FREIGHT).
+//   THE DRAWING  freightStrapStacks / freightStrapBands / freightStrapMesh: the stacks (an item on the floor and
+//                whatever stands on it), a ratchet strap over each stack lengthwise and one across, anchored to the
+//                floor at both ends, a buckle on the cross strap's side, an anchor plate at each foot - plain arrays in
+//                the card's frame (positions, normals, indices) that the page wraps (src/viewer/freight_strap.js) and
+//                a node gate can check (outside every box, the feet on the floor, inside the hold's length).
+//   THE STOP     freightStrapNext(doc, slot, card): after a stop the delivered stage's record is gone
+//                (77_ freightLoadSettle); the next stage's items arrive PLACED BY THE PACKER'S PROPOSAL (accepted into
+//                career.load) unless the player's own placement for that very sub and airframe is already there.
+//
+// Pure: no DOM, storage, clock or random. Reads 61_'s def.parts (ST, F), 76_ (FREIGHT_CARDS, freightRestY,
+// freightKg), 77_ (freightAccepted, freightLoadJob, freightLoadNew, freightLoadAccept).
+// ===========================================================================
+const FREIGHT_STRAP_V = 1;
+
+// ---- THE LOOK: which model an item wears (FREIGHT-ASSETS' props), else a box in its kind's colour ------------------
+// freight_load.js's own table (G2346), held here so the loading view and the strapped load draw the same thing
+const FREIGHT_LOOK = {
+  goods: { 'goods.parts': 'crate_wood_a', 'goods.tools': 'toolchest_metal', 'goods.samples': 'load_crate_samples',
+           'goods.water': 'box_cardboard', 'goods.supplies': 'load_bag_cement' },
+  kind: { crate: 'crate_wood_a', box: 'box_cardboard', drum: 'drum_steel' },
+  col: { crate: 0xa77a48, box: 0xc9a46b, bag: 0x9d8f6a, drum: 0x5d6f7d, long: 0x77787a, bulk: 0xb9ab8a, stretcher: 0xd8d8d0 },
+};
+// an item's goods word off its id: 'parts.2' -> goods.parts; a later leg's 'leg2.mail.1' -> goods.mail (G2430)
+function freightLookGoods(it) {
+  return 'goods.' + String((it && it.id) || '').replace(/^leg\d+\./, '').replace(/\.\d+$/, '');
+}
+function freightLookKey(it) {
+  return FREIGHT_LOOK.goods[freightLookGoods(it)] || FREIGHT_LOOK.kind[it && it.kind] || null;
+}
+
+// ---- THE STRAP'S SIZES (metres): a 35 mm ratchet strap 3 mm thick standing 6 mm off the load, its feet 6 cm out ----
+const FREIGHT_STRAP = { w: 0.035, t: 0.003, gap: 0.006, foot: 0.06, rise: 0.012,
+                        buckle: [0.06, 0.11, 0.035], anchor: [0.07, 0.012, 0.05] };
+
+const fsClamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+// ---- THE FRAME: the card's y -> the gen frame's --------------------------------------------------------------------
+// With the join's keel datum: y - yD, exactly (the same map the join builds the spec's stations with). Without one (a
+// node rig that never joined): the box keeps its height over the hold's floor, set on the gen frame's own floor - the
+// two rings' bottom longerons at that station (the floorboards' stand-off off: a few cm of CG height, nothing in x).
+function fsGenFloorY(def, x) {
+  const P = def.parts, ST = P.ST, F = P.F, N = def.nodes;
+  const yb = r => 0.5 * (N[F[r].BL].p[1] + N[F[r].BR].p[1]);
+  if (x <= ST[0].x) return yb(0);
+  for (let i = 0; i + 1 < ST.length; i++)
+    if (x <= ST[i + 1].x) { const w = (x - ST[i].x) / Math.max(1e-9, ST[i + 1].x - ST[i].x); return yb(i) + (yb(i + 1) - yb(i)) * w; }
+  return yb(ST.length - 1);
+}
+function freightStrapGenY(def, card, x, y, yD) {
+  if (typeof yD === 'number' && isFinite(yD)) return y - yD;
+  const H = card && card.hold;
+  if (!H) return y;
+  const i = Math.max(0, Math.min(H.n, Math.round((x - H.x0) / H.dx)));
+  return fsGenFloorY(def, x) + (y - (H.y0 + H.floor[i] / 100));
+}
+
+// ---- A POINT MASS ON THE RINGS (the items) -------------------------------------------------------------------------
+// -> [[node, kg] x 8]: the two rings round x by lever, each ring's bottom / top pair by height, each pair's left / right
+// node by the lateral - every weight from the nodes' own positions, so sum(share x node) = kg x the point inside them
+function freightStrapShares(def, x, y, z, kg) {
+  const P = def.parts, ST = P.ST, F = P.F, N = def.nodes, out = [];
+  const last = ST.length - 1;
+  let r0 = 0, r1 = 0, wa = 0;
+  if (x <= ST[0].x) { r0 = r1 = 0; }
+  else if (x >= ST[last].x) { r0 = r1 = last; }
+  else {
+    for (let i = 0; i < last; i++) if (ST[i].x <= x) r0 = i;
+    r1 = r0 + 1;
+    wa = (x - ST[r0].x) / Math.max(1e-9, ST[r1].x - ST[r0].x);
+  }
+  const ring = (r, w) => {
+    if (!(w > 0)) return;
+    const R = F[r];
+    const yB = 0.5 * (N[R.BL].p[1] + N[R.BR].p[1]), yT = 0.5 * (N[R.TL].p[1] + N[R.TR].p[1]);
+    const wy = fsClamp01((y - yB) / Math.max(1e-9, yT - yB));
+    const pair = (L, Rn, wl) => {
+      if (!(wl > 0)) return;
+      const zl = N[L].p[2], zr = N[Rn].p[2];
+      const wz = fsClamp01((z - zl) / ((zr - zl) || 1e-9));
+      out.push([L, kg * w * wl * (1 - wz)], [Rn, kg * w * wl * wz]);
+    };
+    pair(R.BL, R.BR, 1 - wy);
+    pair(R.TL, R.TR, wy);
+  };
+  if (r0 === r1) ring(r0, 1);
+  else { ring(r0, 1 - wa); ring(r1, wa); }
+  return out;
+}
+
+// ---- THE FRAME'S OWN SEAT RULE (61_gen_frame.js section 'cabin', copied; GATE FREIGHT holds it to the build's) -----
+function fsStraddle(ST, F, x) {
+  let f = 0;
+  for (let i = 0; i < ST.length; i++) if (ST[i].x < x - 0.05) f = i;
+  let a = Math.min(F.length - 1, f + 1);
+  for (let i = 0; i < ST.length; i++) if (ST[i].x > x + 0.05) { a = i; break; }
+  return [f, Math.max(a, Math.min(f + 1, F.length - 1))];
+}
+function fsBillAt(def, x, m, out) {
+  const ST = def.parts.ST, F = def.parts.F;
+  const [f, a] = fsStraddle(ST, F, x);
+  if (f === a || !F[a]) { out.push([F[f].BL, 0.5 * m], [F[f].BR, 0.5 * m]); return; }
+  const x0 = ST[f].x, x1 = ST[a].x;
+  const wa = Math.max(0, Math.min(1, (x - x0) / Math.max(1e-6, x1 - x0)));
+  out.push([F[f].BL, 0.5 * m * (1 - wa)], [F[f].BR, 0.5 * m * (1 - wa)], [F[a].BL, 0.5 * m * wa], [F[a].BR, 0.5 * m * wa]);
+}
+const FS_SEAT_ROWS = { single: [1], tandem2: [1, 2], side2: [1, 1], side4: [1, 1, 2, 2], tandem4: [1, 1, 2, 2], drone: [] };
+// one occupant of seat i (m = +occupantKg aboard, -occupantKg gone), as the frame bills them
+function fsSeatBill(def, i, m, out) {
+  const S = def.spec, F = def.parts.F;
+  const seatsX = Array.isArray(S.cab && S.cab.seatsX) ? S.cab.seatsX : null;
+  const sx = (seatsX && typeof seatsX[i] === 'number') ? seatsX[i] : null;
+  if (sx != null) { fsBillAt(def, sx, m, out); return; }
+  const seatRows = FS_SEAT_ROWS[S.seating] || [1, 1];
+  const abreast = /^side|^tandem4/.test(S.seating || '') ? 2 : 1;
+  const ri = seatRows[i] != null ? Math.min(seatRows[i], F.length - 1) : Math.min(1 + Math.floor(i / abreast), F.length - 1);
+  const rg = F[ri] || F[1];
+  out.push([rg.BL, m / 2], [rg.BR, m / 2]);
+}
+// the seats: who the build seats (61_'s rule: S.occupied, else the first S.occupants) and who the job seats (the pilot,
+// then seats 1..pax - 77_'s rule: "a passenger sits in seat i" for i <= pax) -> [{ i, build, job }]
+function freightStrapSeats(spec, pax) {
+  const S = spec || {};
+  const occ = Array.isArray(S.occupied) ? S.occupied : null;
+  const aboard = S.occupants != null ? S.occupants : (S.crew != null ? S.crew : 1);
+  const nSeats = occ ? occ.length : aboard;
+  const n = Math.max(nSeats, (pax | 0) + 1);
+  const out = [];
+  for (let i = 0; i < n; i++)
+    out.push({ i, build: i < nSeats && (occ ? !!occ[i] : i < aboard), job: i === 0 || i <= (pax | 0) });
+  return out;
+}
+
+// ---- THE FRAME'S BAGGAGE BILLING (61_ section 'cargo', copied for S.baggage alone) -----------------------------------
+function fsBaggageBill(def, kg, out) {
+  const S = def.spec, P = def.parts, ST = P.ST, F = P.F, fu = S.fuse || {};
+  if (!(kg !== 0)) return;
+  if (fu.cargoLen > 1e-6) {
+    for (const rg of [F[2], F[3]]) out.push([rg.BL, 0.25 * kg], [rg.BR, 0.25 * kg]);
+    return;
+  }
+  const seatsX = Array.isArray(S.cab && S.cab.seatsX) ? S.cab.seatsX : null;
+  const boxRear = fu.boxRear;
+  const lastSeat = seatsX && seatsX.length ? Math.max(...seatsX.filter(v => typeof v === 'number')) : null;
+  const boxX = ST.reduce((m, s) => (s.x <= boxRear + 1e-6 ? Math.max(m, s.x) : m), 0);
+  if (lastSeat != null && isFinite(lastSeat) && lastSeat < boxX) fsBillAt(def, 0.5 * (lastSeat + boxX), kg, out);
+  else {
+    const bi = ST.findIndex(s => Math.abs(s.x - boxX) < 1e-6);
+    const bag = F[bi >= 0 ? bi : Math.min(3, F.length - 1)];
+    out.push([bag.BL, 0.5 * kg], [bag.BR, 0.5 * kg]);
+  }
+}
+
+// the frame's rules as lists, for the gate (one occupant in seat i; the baggage allowance's kilos)
+function freightStrapSeatBill(def, i, m) { const out = []; fsSeatBill(def, i, m, out); return out; }
+function freightStrapBaggage(def, kg) { const out = []; fsBaggageBill(def, kg, out); return out; }
+
+// ---- THE MASSES ---------------------------------------------------------------------------------------------------
+// def: the build that flies (buildGen's); acc: freightAccepted's (or null); o: { yD (the join's keel datum), card }
+// -> null (nothing aboard: the solver is not asked) or
+//    { v, adds: [[node, kg]] by node, items: [{ id, kg, g: [x, y, z] gen }], seats: [{ i, build, job, kg }], baggageOff,
+//      kg (the items'), dm (the adds' sum), mom: [x, y, z] (the adds' first moment about the gen origin) }
+function freightStrapAdds(def, acc, o) {
+  o = o || {};
+  if (!def || !def.parts || !def.parts.F || !acc || !Array.isArray(acc.items)) return null;
+  const card = o.card || (acc.design && typeof FREIGHT_CARDS !== 'undefined' ? FREIGHT_CARDS[acc.design] : null) || null;
+  const raw = [], items = [];
+  for (const p of acc.items) {
+    if (!p || !(p.kg > 0)) continue;
+    const c = p.c || (p.at ? [0.5 * (p.at.x0 + p.at.x1), 0.5 * (p.at.y0 + p.at.y1), 0.5 * (p.at.z0 + p.at.z1)] : null);
+    if (!c) continue;
+    const g = [c[0], freightStrapGenY(def, card, c[0], c[1], o.yD), c[2]];
+    for (const s of freightStrapShares(def, g[0], g[1], g[2], p.kg)) raw.push(s);
+    items.push({ id: p.id, kind: p.kind, kg: p.kg, g });
+  }
+  // the passengers: the job's seats against the build's
+  const occKg = (typeof GEN_RULES !== 'undefined' && GEN_RULES.occupantKg) || 80;
+  const seats = freightStrapSeats(def.spec, acc.pax | 0).map(s => {
+    const d = (s.job ? 1 : 0) - (s.build ? 1 : 0);
+    if (d) fsSeatBill(def, s.i, d * occKg, raw);
+    return { i: s.i, build: s.build, job: s.job, kg: d * occKg };
+  });
+  // the baggage allowance comes off while items ride
+  const bag = items.length && def.spec.baggage > 0 ? def.spec.baggage : 0;
+  if (bag) fsBaggageBill(def, -bag, raw);
+  if (!raw.length) return null;
+  const by = new Map();
+  for (const [i, kg] of raw) by.set(i, (by.get(i) || 0) + kg);
+  const adds = [...by.entries()].filter(e => e[1] !== 0).sort((a, b) => a[0] - b[0]);
+  let dm = 0;
+  const mom = [0, 0, 0];
+  for (const [i, kg] of adds) { dm += kg; const q = def.nodes[i].p; mom[0] += kg * q[0]; mom[1] += kg * q[1]; mom[2] += kg * q[2]; }
+  return { v: FREIGHT_STRAP_V, adds, items, seats, baggageOff: bag, kg: items.reduce((a, it) => a + it.kg, 0), dm, mom };
+}
+
+// ---- THE LIMITS SAID, NEVER REFUSED ----------------------------------------------------------------------------------
+// The user (FREIGHT §2): out of range is "shown red but allowed (the aeroplane flies what you loaded, and you find
+// out)". So a load over the plaque's MTOW or with its CG outside the certified range is never flown SILENTLY: these
+// flags go on the flight's brief before take-off and on the logbook row - and the masses go aboard all the same.
+// acc: freightAccepted's (its record's mass and CG are freightReport's, the plaque's frame); card: its hold's card
+// -> [{ k: 'mtow', kg, say } | { k: 'cg', side: 'aft' | 'fwd', pct, say }]
+function freightStrapFlags(acc, card) {
+  const K = card && card.mass;
+  if (!acc || !K || !(K.mtow > 0)) return [];
+  const out = [];
+  if (acc.mass > K.mtow + 1e-6) { const kg = Math.ceil(acc.mass - K.mtow); out.push({ k: 'mtow', kg, say: 'over MTOW by ' + kg + ' kg' }); }
+  const x = acc.cg && acc.cg.x, pct = v => (v - K.mac[0]) / K.mac[1] * 100;
+  if (typeof x === 'number' && isFinite(x) && Array.isArray(K.cg)) {
+    const side = x > K.cg[1] + 1e-6 ? 'aft' : x < K.cg[0] - 1e-6 ? 'fwd' : null;   // (freightReport's tolerances)
+    if (side) out.push({ k: 'cg', side, pct: Math.round(pct(x) * 10) / 10,
+                         say: 'CG ' + (side === 'aft' ? 'aft' : 'forward') + ' of the certified range (' + pct(x).toFixed(1) + ' % MAC, certified ' + pct(K.cg[0]).toFixed(1) + '-' + pct(K.cg[1]).toFixed(1) + ')' });
+  }
+  return out;
+}
+
+// ---- THE ACCEPTED LOAD FOR THIS AEROPLANE -------------------------------------------------------------------------
+// the record that rides THIS airframe (77_ freightAccepted + the slot, as freightStopItems; + the design the hold was
+// measured on, when the stand's is known) -> freightAccepted's object, or null
+function freightStrapFor(docOrRec, slot, design) {
+  const A = typeof freightAccepted === 'function' ? freightAccepted(docOrRec) : null;
+  if (!A || !A.items.length && !(A.pax > 0)) return null;
+  if (slot != null && A.slot != null && A.slot !== String(slot)) return null;
+  if (design && A.design && A.design !== design) return null;
+  return A;
+}
+
+// ---- THE STACKS AND THE STRAPS (the card's frame) -----------------------------------------------------------------
+// the stacks: every item on the floor (on: null, or on what is not aboard) with whatever stands on it, transitively ->
+// [{ base, ids, box: { x0..z1 } (the union), floorY (the base's underside) }], in the items' order
+function freightStrapStacks(items) {
+  const L = (items || []).filter(p => p && p.at);
+  const ids = new Set(L.map(p => p.id));
+  const out = [];
+  for (const b of L) {
+    if (b.on && ids.has(b.on)) continue;
+    const S = { base: b.id, ids: [b.id], box: Object.assign({}, b.at), floorY: b.at.y0 };
+    for (let k = 0; k < S.ids.length; k++)
+      for (const q of L) if (q.on === S.ids[k] && S.ids.indexOf(q.id) < 0) {
+        S.ids.push(q.id);
+        const a = q.at, B = S.box;
+        B.x0 = Math.min(B.x0, a.x0); B.x1 = Math.max(B.x1, a.x1); B.y0 = Math.min(B.y0, a.y0);
+        B.y1 = Math.max(B.y1, a.y1); B.z0 = Math.min(B.z0, a.z0); B.z1 = Math.max(B.z1, a.z1);
+      }
+    out.push(S);
+  }
+  return out;
+}
+// one stack's two straps: polylines in a plane (lengthwise at the box's middle z, across at its middle x), each from a
+// foot on the floor up to the near top edge, over the top, down to the far foot -> [{ along, at, pts: [[u, y]] }]
+// (u = x for 'x', z for 'z'), the buckle (a box: centre, half sizes, the strap's own axes) and the four anchor plates
+function freightStrapBands(stack, card) {
+  const C = FREIGHT_STRAP, b = stack.box, g = C.gap;
+  const floorAt = (x0, x1) => {
+    const y = card && card.hold && typeof freightRestY === 'function' ? freightRestY(card, x0, x1) : null;
+    return y == null ? stack.floorY : y;
+  };
+  const xm = 0.5 * (b.x0 + b.x1), zm = 0.5 * (b.z0 + b.z1);
+  // the lengthwise feet stay on the hold's measured floor (a stack at the hold's end ties down nearer its face)
+  const H = card && card.hold, hx0 = H ? H.x0 : -Infinity, hx1 = H ? H.x0 + H.n * H.dx : Infinity;
+  const ax0 = Math.min(b.x0 - g, Math.max(hx0, b.x0 - C.foot)), ax1 = Math.max(b.x1 + g, Math.min(hx1, b.x1 + C.foot));
+  const fx0 = floorAt(ax0 - 0.01, ax0 + 0.01), fx1 = floorAt(ax1 - 0.01, ax1 + 0.01);
+  const fz = floorAt(xm - 0.01, xm + 0.01);
+  const topX = b.y1 + g, topZ = b.y1 + g + C.t + 0.001;     // the cross strap rides over the lengthwise one
+  const X = { along: 'x', at: zm, pts: [[ax0, fx0 + C.rise], [b.x0 - g, topX], [b.x1 + g, topX], [ax1, fx1 + C.rise]] };
+  const Z = { along: 'z', at: xm, pts: [[b.z0 - C.foot, fz + C.rise], [b.z0 - g, topZ], [b.z1 + g, topZ], [b.z1 + C.foot, fz + C.rise]] };
+  // the buckle: on the cross strap's +z side, halfway down, standing off it by its own depth
+  const p2 = Z.pts[2], p3 = Z.pts[3];
+  const bk = { c: [xm, 0.5 * (p2[1] + p3[1]), 0.5 * (p2[0] + p3[0]) + C.t + C.buckle[2] / 2], h: [C.buckle[0] / 2, C.buckle[1] / 2, C.buckle[2] / 2] };
+  // an anchor plate on the floor OUTWARD of its foot (its inner edge at the foot: never under the load), the long side
+  // along the strap
+  const ha = C.anchor[0] / 2, hb = C.anchor[2] / 2, hy = C.anchor[1] / 2;
+  const anchors = [{ c: [ax0 - ha, fx0 + hy, zm], h: [ha, hy, hb] }, { c: [ax1 + ha, fx1 + hy, zm], h: [ha, hy, hb] },
+                   { c: [xm, fz + hy, Z.pts[0][0] - ha], h: [hb, hy, ha] }, { c: [xm, fz + hy, Z.pts[3][0] + ha], h: [hb, hy, ha] }];
+  return { bands: [X, Z], buckle: bk, anchors };
+}
+
+// ---- THE GEOMETRY (plain arrays, the card's frame) ----------------------------------------------------------------
+// a box from its centre, three unit axes and half sizes: 24 vertices (flat faces), 36 indices
+function fsBoxInto(G, c, ax, ay, az, hx, hy, hz) {
+  const base = G.pos.length / 3;
+  const F = [[ax, ay, az, hx, hy, hz], [ay, az, ax, hy, hz, hx], [az, ax, ay, hz, hx, hy]];
+  for (const [n, u, v, hn, hu, hv] of F) for (const s of [1, -1]) {
+    const k = G.pos.length / 3;
+    const cn = [c[0] + n[0] * hn * s, c[1] + n[1] * hn * s, c[2] + n[2] * hn * s];
+    // the quad's winding faces out: (u x v) = n for s = +1, swap u's sign for s = -1
+    const us = s;
+    for (const [a, bq] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      G.pos.push(cn[0] + u[0] * hu * a * us + v[0] * hv * bq, cn[1] + u[1] * hu * a * us + v[1] * hv * bq, cn[2] + u[2] * hu * a * us + v[2] * hv * bq);
+      G.nrm.push(n[0] * s, n[1] * s, n[2] * s);
+    }
+    G.idx.push(k, k + 1, k + 2, k, k + 2, k + 3);
+  }
+  return G.pos.length / 3 - base;
+}
+const fsNorm = v => { const L = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / L, v[1] / L, v[2] / L]; };
+const fsCross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+// a strap's straight run from P to Q (3-D), its width across `side` (a unit vector), standing out along +n
+function fsBandInto(G, P, Q, side) {
+  const C = FREIGHT_STRAP;
+  const d = [Q[0] - P[0], Q[1] - P[1], Q[2] - P[2]], L = Math.hypot(d[0], d[1], d[2]);
+  if (!(L > 1e-6)) return 0;
+  const ax = fsNorm(d), nz = fsNorm(fsCross(side, ax));
+  const c = [0.5 * (P[0] + Q[0]) + nz[0] * C.t / 2, 0.5 * (P[1] + Q[1]) + nz[1] * C.t / 2, 0.5 * (P[2] + Q[2]) + nz[2] * C.t / 2];
+  return fsBoxInto(G, c, ax, nz, side, L / 2, C.t / 2, C.w / 2);
+}
+// the load's drawing: { boxes: { [kind]: G } (the items with no model, by kind's colour), straps: G, metal: G,
+// count: { stacks, bands, buckles, anchors } }; G = { pos, nrm, idx } (number arrays, card frame). `withModel(it)`
+// says which items wear a model (drawn by the page, not here).
+function freightStrapMesh(items, card, withModel) {
+  const mk = () => ({ pos: [], nrm: [], idx: [] });
+  const out = { boxes: {}, straps: mk(), metal: mk(), count: { stacks: 0, bands: 0, buckles: 0, anchors: 0, boxes: 0 } };
+  const L = (items || []).filter(p => p && p.at);
+  const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
+  for (const p of L) {
+    if (withModel && withModel(p)) continue;
+    const a = p.at, G = out.boxes[p.kind] || (out.boxes[p.kind] = mk());
+    fsBoxInto(G, [0.5 * (a.x0 + a.x1), 0.5 * (a.y0 + a.y1), 0.5 * (a.z0 + a.z1)], X, Y, Z, 0.5 * (a.x1 - a.x0), 0.5 * (a.y1 - a.y0), 0.5 * (a.z1 - a.z0));
+    out.count.boxes++;
+  }
+  for (const S of freightStrapStacks(L)) {
+    const B = freightStrapBands(S, card);
+    out.count.stacks++;
+    for (const band of B.bands) {
+      const to3 = q => band.along === 'x' ? [q[0], q[1], band.at] : [band.at, q[1], q[0]];
+      // (the run, its normal and the side right-handed, so the strap's thickness stands OUT of the load: +z for the
+      // lengthwise strap, -x for the cross one)
+      const side = band.along === 'x' ? Z : [-1, 0, 0];
+      for (let k = 0; k + 1 < band.pts.length; k++) fsBandInto(out.straps, to3(band.pts[k]), to3(band.pts[k + 1]), side);
+      out.count.bands++;
+    }
+    fsBoxInto(out.metal, B.buckle.c, X, Y, Z, B.buckle.h[0], B.buckle.h[1], B.buckle.h[2]);
+    out.count.buckles++;
+    for (const A of B.anchors) { fsBoxInto(out.metal, A.c, X, Y, Z, A.h[0], A.h[1], A.h[2]); out.count.anchors++; }
+  }
+  return out;
+}
+
+// ---- THE STOP: THE NEXT STAGE'S ITEMS ARRIVE PLACED ---------------------------------------------------------------
+// after careerOnStop + freightLoadSettle: when the tracked contract's current load has items and no placement rides
+// for it, the packer's proposal is accepted for it (the player re-fits it in the loading view if they want) -> { doc,
+// rec, how: 'kept' | 'proposed' | 'none', why }
+function freightStrapNext(doc, slot, card) {
+  if (!doc || !doc.career || typeof freightLoadJob !== 'function') return { doc, rec: null, how: 'none', why: 'not a career' };
+  const J = freightLoadJob(doc, slot);
+  if (J.rec) return { doc, rec: J.rec, how: 'kept', why: '' };
+  if (!J.items.length) return { doc, rec: null, how: 'none', why: J.why };
+  if (!card) return { doc, rec: null, how: 'none', why: 'this aeroplane\'s hold is not measured' };
+  if (slot == null) return { doc, rec: null, how: 'none', why: 'the aeroplane has no saved airframe' };
+  const st = freightLoadNew(card, J.items, { pax: J.pax });
+  const r = freightLoadAccept(doc, card, st, J.ctx);
+  if (!r.ok) return { doc, rec: null, how: 'none', why: r.why };
+  return { doc: r.doc, rec: r.rec, how: 'proposed', why: '' };
+}
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, genCertifySteps, genCertDropSim, genCertSettled, genCertCombine, GEN_CERT_HOOK, servoStepHold, PILOT_PROFILES, pilotProfile, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptBenchXwind, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, genCertifySteps, genCertDropSim, genCertSettled, genCertCombine, GEN_CERT_HOOK, servoStepHold, PILOT_PROFILES, pilotProfile, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptBenchXwind, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, jsonFinite, jsonReadFinite, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh

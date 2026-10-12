@@ -1,0 +1,3614 @@
+{
+ "date": "2026-10-11",
+ "frames": 12,
+ "warm": 6,
+ "builds": {
+  "cub": {
+   "build": "cub",
+   "health": {
+    "metlakatla": null,
+    "premises": true,
+    "townCut": 218,
+    "raster": true,
+    "world": "jolene",
+    "depth": "reversed",
+    "gfx": {
+     "preset": "gamer",
+     "shadows": "full"
+    },
+    "thrown": [],
+    "feedbacks": 0,
+    "feedback": [],
+    "premisesStats": {
+     "houses": 95,
+     "objects": 42,
+     "queued": 78,
+     "houseTris": 2862540,
+     "lights": 50,
+     "obstacles": 45
+    },
+    "kitTown": {
+     "want": false,
+     "status": "off",
+     "err": null,
+     "island": null,
+     "table": 0,
+     "kitPlots": 0,
+     "instances": 0,
+     "lots": 0,
+     "outKit": 0,
+     "outBuilt": 0,
+     "outHidden": 0,
+     "hits": 0,
+     "hitTris": 0,
+     "rebuilt": 0,
+     "tableMs": 0,
+     "packMs": 0,
+     "hostMs": 0,
+     "pack": null,
+     "host": null
+    }
+   },
+   "release": {
+    "n": 4,
+    "big": 4,
+    "heldAfterRollout": 0,
+    "classWeights": false,
+    "rederived": 4,
+    "heldAfterRestore": 4,
+    "heldAfterReupload": 0
+   },
+   "ktx2": {
+    "ground": {
+     "packs": 0,
+     "fetched": 0,
+     "lent": 0,
+     "failed": 0,
+     "bytes": 0,
+     "ktx2Packs": 3,
+     "ktx2Layers": 92,
+     "ktx2Bytes": 22417271,
+     "ktx2Lent": 0,
+     "ktx2Shared": 20,
+     "ktx2Fallbacks": 0,
+     "ktx2Why": null
+    },
+    "loader": {
+     "files": 485,
+     "bytes": 84280202,
+     "failed": 0,
+     "fallbacks": 0,
+     "target": 36492,
+     "off": null,
+     "workers": 4,
+     "skipped": 0
+    },
+    "workerMsgs": 974
+   },
+   "crew": {
+    "people": [
+     "ch22"
+    ],
+    "materials": 2,
+    "budget": 2,
+    "textures": 4,
+    "ktx2": 4,
+    "images": 0,
+    "pending": 0,
+    "gpuBytes": 5592512,
+    "byChar": {
+     "ch22": 5592512
+    }
+   },
+   "frames": 12,
+   "warm": 6,
+   "views": {
+    "stand": {
+     "gl.bindTexture": 933.5,
+     "gl.bindFramebuffer": 24,
+     "gl.bindBuffer": 2,
+     "gl.useProgram": 254.5,
+     "gl.uniformMatrix4fv": 1567.5,
+     "gl.uniform3f": 169,
+     "gl.uniform1f": 633,
+     "gl.uniformMatrix3fv": 369,
+     "gl.bindVertexArray": 1232.5,
+     "gl.uniform1i": 10,
+     "gl.texSubImage2D": 80.5,
+     "gl.uniform4fv": 2756,
+     "gl.uniform4f": 222,
+     "gl.generateMipmap": 1,
+     "gl.uniform2f": 166,
+     "gl.uniform1iv": 5,
+     "gl.blitFramebuffer": 1,
+     "gl.uniform1fv": 20,
+     "gl.bufferSubData": 2,
+     "gl.calls": 11244,
+     "bytes.texSubImage2D": 54016,
+     "bytes.bufferSubData": 640,
+     "bytes.uniforms": 416500,
+     "draws.other": 15,
+     "draws.shadow": 258.5,
+     "draws.main": 1039,
+     "draws.total": 1312.5,
+     "tris.other": 30,
+     "tris.shadow": 2133658.5,
+     "tris.main": 12950437,
+     "three.updateMatrixWorld": 8353.5,
+     "three.updateMatrix": 3438,
+     "cb.onBeforeRender": 1,
+     "cb.onAfterRender": 1,
+     "three.frustumTests": 1771.5,
+     "world.terrainH": 30,
+     "world.grHeight": 15,
+     "three.renders": 16,
+     "programs": 101.5
+    },
+    "taxi": {
+     "gl.bindTexture": 892.5,
+     "gl.bindFramebuffer": 26,
+     "gl.bindBuffer": 2,
+     "gl.useProgram": 200,
+     "gl.uniformMatrix4fv": 1509.5,
+     "gl.uniform3f": 141,
+     "gl.uniform1f": 546,
+     "gl.uniformMatrix3fv": 314,
+     "gl.bindVertexArray": 1041,
+     "gl.uniform1i": 6,
+     "gl.texSubImage2D": 142.5,
+     "gl.uniform4fv": 2403,
+     "gl.uniform4f": 200,
+     "gl.generateMipmap": 1,
+     "gl.uniform2f": 141,
+     "gl.uniform1iv": 5,
+     "gl.blitFramebuffer": 1,
+     "gl.uniform1fv": 20,
+     "gl.bufferSubData": 2,
+     "gl.calls": 10358.5,
+     "bytes.texSubImage2D": 290094,
+     "bytes.bufferSubData": 640,
+     "bytes.uniforms": 373284,
+     "draws.other": 16,
+     "draws.shadow": 135,
+     "draws.main": 964,
+     "draws.total": 1115,
+     "tris.other": 32,
+     "tris.shadow": 1409819.5,
+     "tris.main": 9934309,
+     "three.updateMatrixWorld": 8741.5,
+     "three.updateMatrix": 3815,
+     "cb.onBeforeRender": 1,
+     "cb.onAfterRender": 1,
+     "three.frustumTests": 1649.5,
+     "world.terrainH": 30,
+     "world.grHeight": 15,
+     "three.renders": 17,
+     "programs": 87.5,
+     "pose": [
+      263.5,
+      727.6,
+      0.716,
+      "route 0.1 m off"
+     ]
+    }
+   },
+   "craft": {
+    "stand": {
+     "meshes": 91,
+     "draws": {
+      "main": 74,
+      "shadow": 0,
+      "other": 0
+     },
+     "skinnedDraws": 10,
+     "materials": 57,
+     "programs": 13,
+     "byMaterial": [
+      [
+       "MeshStandardMaterial",
+       45
+      ],
+      [
+       "MeshPhysicalMaterial",
+       5
+      ],
+      [
+       "ShaderMaterial",
+       2
+      ],
+      [
+       "char:ch22:Ch22_body",
+       1
+      ],
+      [
+       "char:ch22:Ch22_hair",
+       1
+      ],
+      [
+       "flown:baked",
+       1
+      ],
+      [
+       "flown:baked:in",
+       1
+      ],
+      [
+       "MeshBasicMaterial",
+       1
+      ]
+     ]
+    },
+    "taxi": {
+     "meshes": 91,
+     "draws": {
+      "main": 74,
+      "shadow": 0,
+      "other": 0
+     },
+     "skinnedDraws": 10,
+     "materials": 57,
+     "programs": 13,
+     "byMaterial": [
+      [
+       "MeshStandardMaterial",
+       45
+      ],
+      [
+       "MeshPhysicalMaterial",
+       5
+      ],
+      [
+       "ShaderMaterial",
+       2
+      ],
+      [
+       "char:ch22:Ch22_body",
+       1
+      ],
+      [
+       "char:ch22:Ch22_hair",
+       1
+      ],
+      [
+       "flown:baked",
+       1
+      ],
+      [
+       "flown:baked:in",
+       1
+      ],
+      [
+       "MeshBasicMaterial",
+       1
+      ]
+     ]
+    },
+    "near": {
+     "meshes": 217,
+     "draws": {
+      "main": 193,
+      "shadow": 66,
+      "other": 0
+     },
+     "skinnedDraws": 54,
+     "materials": 134,
+     "programs": 17,
+     "byMaterial": [
+      [
+       "MeshStandardMaterial",
+       70
+      ],
+      [
+       "aeroskin:live:eye",
+       49
+      ],
+      [
+       "MeshPhysicalMaterial",
+       10
+      ],
+      [
+       "ShaderMaterial",
+       2
+      ],
+      [
+       "char:ch22:Ch22_body",
+       1
+      ],
+      [
+       "char:ch22:Ch22_hair",
+       1
+      ],
+      [
+       "MeshBasicMaterial",
+       1
+      ]
+     ]
+    },
+    "band": {
+     "meshes": 217,
+     "draws": {
+      "main": 200,
+      "shadow": 0,
+      "other": 0
+     },
+     "skinnedDraws": 58,
+     "materials": 136,
+     "programs": 20,
+     "byMaterial": [
+      [
+       "aeroskin:live:eye:band",
+       49
+      ],
+      [
+       "MeshStandardMaterial",
+       45
+      ],
+      [
+       "aeroskin:band",
+       30
+      ],
+      [
+       "MeshPhysicalMaterial",
+       5
+      ],
+      [
+       "ShaderMaterial",
+       2
+      ],
+      [
+       "char:ch22:Ch22_body",
+       1
+      ],
+      [
+       "char:ch22:Ch22_hair",
+       1
+      ],
+      [
+       "flown:baked:band",
+       1
+      ],
+      [
+       "flown:baked:in:band",
+       1
+      ],
+      [
+       "MeshBasicMaterial",
+       1
+      ]
+     ]
+    },
+    "warm": {
+     "n": 259,
+     "drawn": 259,
+     "sameModel": true,
+     "live": 126
+    },
+    "cross": {
+     "near": [
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 1099
+      },
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 1435
+      },
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 1165
+      }
+     ],
+     "band": [
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 1106
+      },
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 1490
+      },
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 1106
+      }
+     ],
+     "back": [
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 980
+      },
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 1250
+      },
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 980
+      }
+     ],
+     "taxi": {
+      "bufferData": 0,
+      "texImage": 0,
+      "links": 0
+     }
+    },
+    "bake": {
+     "hit": false,
+     "t": {
+      "read": 0,
+      "thread": "page",
+      "unwrap": 0,
+      "uvs": 0,
+      "compile": 0,
+      "render": 4,
+      "renderMain": 0,
+      "dilate": 0,
+      "mips": 20
+     },
+     "S": 2048,
+     "bytes": 134217720,
+     "groups": 107,
+     "verts": 541434,
+     "tris": 180478,
+     "split": 0,
+     "charts": 12439,
+     "axis": 309,
+     "fill": 0.468,
+     "cm": 0.74,
+     "cov": 1,
+     "cc": true,
+     "sets": {
+      "ext": {
+       "hit": false,
+       "t": {
+        "read": 0,
+        "thread": "page",
+        "unwrap": 0,
+        "uvs": 0,
+        "compile": 0,
+        "render": 4,
+        "renderMain": 0,
+        "dilate": 0,
+        "mips": 20
+       },
+       "S": 2048,
+       "bytes": 67108860,
+       "groups": 107,
+       "verts": 541434,
+       "tris": 180478,
+       "split": 0,
+       "charts": 12439,
+       "axis": 309,
+       "fill": 0.468,
+       "cm": 0.74,
+       "cov": 1,
+       "cc": true
+      },
+      "in": {
+       "hit": false,
+       "t": {
+        "read": 0,
+        "thread": "page",
+        "unwrap": 0,
+        "uvs": 0,
+        "compile": 0,
+        "render": 4,
+        "renderMain": 0,
+        "dilate": 0,
+        "mips": 20
+       },
+       "S": 2048,
+       "bytes": 67108860,
+       "groups": 63,
+       "verts": 273744,
+       "tris": 91248,
+       "split": 0,
+       "charts": 4547,
+       "axis": 455,
+       "fill": 0.748,
+       "cm": 0.5,
+       "cov": 1,
+       "cc": true
+      }
+     },
+     "total": 51
+    }
+   },
+   "detail": {
+    "stand": {
+     "main": {
+      "Mesh": 259,
+      "char": 6,
+      "treeRungs": 36,
+      "coverRing": 27,
+      "standCards": 100,
+      "flownBaked": 3,
+      "flownBakedIn": 4,
+      "premises": 92,
+      "poles": 39,
+      "cabin": 18,
+      "prop": 78,
+      "roads": 4,
+      "rail": 5,
+      "tram": 6,
+      "carriage": 8,
+      "animal": 11,
+      "fence": 6,
+      "lots": 21,
+      "houses": 42,
+      "life": 12,
+      "propInst": 25,
+      "parked": 139,
+      "pattern": 8,
+      "lakes": 1,
+      "pavement": 5,
+      "pave": 3,
+      "road": 6,
+      "yard": 2,
+      "contact": 1,
+      "cloudComposite": 1,
+      "propDisc": 1
+     },
+     "shadow": {},
+     "mats": {
+      "uuid": 362,
+      "sig": 225,
+      "byFam": {
+       "Mesh": [
+        73,
+        51
+       ],
+       "char": [
+        2,
+        2
+       ],
+       "treeRungs": [
+        17,
+        15
+       ],
+       "coverRing": [
+        5,
+        5
+       ],
+       "standCards": [
+        1,
+        1
+       ],
+       "flownBaked": [
+        1,
+        1
+       ],
+       "flownBakedIn": [
+        1,
+        1
+       ],
+       "premises": [
+        42,
+        16
+       ],
+       "poles": [
+        3,
+        3
+       ],
+       "cabin": [
+        10,
+        10
+       ],
+       "prop": [
+        18,
+        18
+       ],
+       "roads": [
+        1,
+        1
+       ],
+       "rail": [
+        1,
+        1
+       ],
+       "tram": [
+        1,
+        1
+       ],
+       "carriage": [
+        4,
+        4
+       ],
+       "animal": [
+        1,
+        1
+       ],
+       "fence": [
+        2,
+        2
+       ],
+       "lots": [
+        3,
+        3
+       ],
+       "houses": [
+        23,
+        23
+       ],
+       "life": [
+        6,
+        6
+       ],
+       "propInst": [
+        9,
+        9
+       ],
+       "parked": [
+        139,
+        68
+       ],
+       "pattern": [
+        8,
+        1
+       ],
+       "lakes": [
+        1,
+        1
+       ],
+       "pavement": [
+        1,
+        1
+       ],
+       "pave": [
+        1,
+        1
+       ],
+       "road": [
+        1,
+        1
+       ],
+       "yard": [
+        1,
+        1
+       ],
+       "contact": [
+        1,
+        1
+       ],
+       "cloudComposite": [
+        1,
+        1
+       ],
+       "propDisc": [
+        1,
+        1
+       ]
+      },
+      "leaf": [
+       18,
+       16,
+       16
+      ]
+     },
+     "names": null,
+     "tris": null
+    },
+    "taxi": {
+     "main": {
+      "Mesh": 257,
+      "char": 6,
+      "treeRungs": 21,
+      "coverRing": 32,
+      "standCards": 100,
+      "flownBaked": 3,
+      "flownBakedIn": 4,
+      "premises": 83,
+      "poles": 29,
+      "cabin": 18,
+      "prop": 84,
+      "roads": 3,
+      "rail": 5,
+      "tram": 6,
+      "carriage": 8,
+      "animal": 15,
+      "lots": 20,
+      "fence": 4,
+      "houses": 19,
+      "propInst": 4,
+      "parked": 125,
+      "life": 1,
+      "pattern": 8,
+      "lakes": 1,
+      "pavement": 5,
+      "pave": 3,
+      "road": 6,
+      "yard": 2,
+      "contact": 1,
+      "cloudComposite": 1,
+      "propDisc": 1
+     },
+     "shadow": {},
+     "mats": {
+      "uuid": 302,
+      "sig": 182,
+      "byFam": {
+       "Mesh": [
+        65,
+        43
+       ],
+       "char": [
+        2,
+        2
+       ],
+       "treeRungs": [
+        11,
+        10
+       ],
+       "coverRing": [
+        5,
+        5
+       ],
+       "standCards": [
+        1,
+        1
+       ],
+       "flownBaked": [
+        1,
+        1
+       ],
+       "flownBakedIn": [
+        1,
+        1
+       ],
+       "premises": [
+        38,
+        12
+       ],
+       "poles": [
+        3,
+        3
+       ],
+       "cabin": [
+        10,
+        10
+       ],
+       "prop": [
+        17,
+        17
+       ],
+       "roads": [
+        1,
+        1
+       ],
+       "rail": [
+        1,
+        1
+       ],
+       "tram": [
+        1,
+        1
+       ],
+       "carriage": [
+        4,
+        4
+       ],
+       "animal": [
+        1,
+        1
+       ],
+       "lots": [
+        3,
+        3
+       ],
+       "fence": [
+        2,
+        2
+       ],
+       "houses": [
+        3,
+        3
+       ],
+       "propInst": [
+        2,
+        2
+       ],
+       "parked": [
+        125,
+        63
+       ],
+       "life": [
+        1,
+        1
+       ],
+       "pattern": [
+        8,
+        1
+       ],
+       "lakes": [
+        1,
+        1
+       ],
+       "pavement": [
+        1,
+        1
+       ],
+       "pave": [
+        1,
+        1
+       ],
+       "road": [
+        1,
+        1
+       ],
+       "yard": [
+        1,
+        1
+       ],
+       "contact": [
+        1,
+        1
+       ],
+       "cloudComposite": [
+        1,
+        1
+       ],
+       "propDisc": [
+        1,
+        1
+       ]
+      },
+      "leaf": [
+       12,
+       11,
+       11
+      ]
+     },
+     "names": null,
+     "tris": null
+    },
+    "scene": {
+     "uuid": 1789,
+     "sig": 471,
+     "byFam": {
+      "contact": [
+       1,
+       1
+      ],
+      "Mesh": [
+       89,
+       62
+      ],
+      "cloudComposite": [
+       1,
+       1
+      ],
+      "lakes": [
+       1,
+       1
+      ],
+      "treeRungs": [
+       11,
+       10
+      ],
+      "Points": [
+       2,
+       2
+      ],
+      "shell": [
+       9,
+       8
+      ],
+      "propInst": [
+       10,
+       10
+      ],
+      "premises": [
+       1167,
+       208
+      ],
+      "parked": [
+       350,
+       82
+      ],
+      "prop": [
+       36,
+       36
+      ],
+      "houses": [
+       28,
+       28
+      ],
+      "yard": [
+       1,
+       1
+      ],
+      "fence": [
+       2,
+       2
+      ],
+      "lots": [
+       3,
+       3
+      ],
+      "poles": [
+       3,
+       3
+      ],
+      "rail": [
+       1,
+       1
+      ],
+      "road": [
+       1,
+       1
+      ],
+      "pave": [
+       1,
+       1
+      ],
+      "roads": [
+       1,
+       1
+      ],
+      "tram": [
+       1,
+       1
+      ],
+      "carriage": [
+       4,
+       4
+      ],
+      "cabin": [
+       10,
+       10
+      ],
+      "animal": [
+       14,
+       13
+      ],
+      "life": [
+       7,
+       7
+      ],
+      "pavement": [
+       1,
+       1
+      ],
+      "rocks": [
+       7,
+       7
+      ],
+      "coverRing": [
+       5,
+       5
+      ],
+      "cover": [
+       20,
+       19
+      ],
+      "standCards": [
+       1,
+       1
+      ],
+      "LineSegments": [
+       1,
+       1
+      ],
+      "flownBakedIn": [
+       1,
+       1
+      ],
+      "flownBaked": [
+       1,
+       1
+      ],
+      "propDisc": [
+       1,
+       1
+      ],
+      "char": [
+       2,
+       2
+      ],
+      "pattern": [
+       42,
+       9
+      ]
+     },
+     "leaf": [
+      16,
+      14,
+      14
+     ]
+    },
+    "patch": {
+     "tris0": 2575872,
+     "trisAll": 3577600,
+     "blocks": 54,
+     "sunk": 87294,
+     "sinkDeep": 0
+    }
+   },
+   "settled": {},
+   "boot": {
+    "garage:scripts": {
+     "gl.bindTexture": 4,
+     "gl.texImage2D": 7,
+     "gl.texImage3D": 2,
+     "gl.calls": 39,
+     "bytes.texImage2D": 28,
+     "bytes.texImage3D": 8,
+     "draws.total": 0,
+     "world.terrainH": 3106,
+     "world.grHeight": 41714,
+     "wallMs": 4166,
+     "io.fetches": 156,
+     "io.fetchBytes": 57141539,
+     "io.imgLoads": 6,
+     "io.imgBytes": 2400921
+    },
+    "garage:treeBins": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "wallMs": 51,
+     "io.fetches": 33,
+     "io.fetchBytes": 6978640
+    },
+    "garage:aircraft": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "world.terrainH": 3105,
+     "world.grHeight": 588,
+     "wallMs": 1740,
+     "io.c2d.getImageData": 3,
+     "io.c2d.readBytes": 12582912,
+     "io.c2d.putImageData": 3
+    },
+    "garage:garage": {
+     "gl.bindTexture": 18,
+     "gl.texImage2D": 4,
+     "gl.bindFramebuffer": 32,
+     "gl.drawBuffers": 5,
+     "gl.bindBuffer": 458,
+     "gl.bufferData": 229,
+     "gl.useProgram": 6,
+     "gl.uniformMatrix4fv": 235,
+     "gl.uniform3f": 4,
+     "gl.uniform1f": 7,
+     "gl.uniformMatrix3fv": 36,
+     "gl.bindVertexArray": 116,
+     "gl.uniform1i": 2,
+     "gl.calls": 2080,
+     "bytes.bufferData": 1109044,
+     "bytes.uniforms": 16420,
+     "draws.other": 175,
+     "draws.total": 175,
+     "tris.other": 107592,
+     "links": 2,
+     "three.updateMatrixWorld": 2952,
+     "three.updateMatrix": 3030,
+     "three.frustumTests": 124,
+     "three.renders": 13,
+     "wallMs": 1140,
+     "io.fetches": 316,
+     "io.fetchBytes": 34916270,
+     "io.imgLoads": 14,
+     "io.imgBytes": 1370144,
+     "io.c2d.getImageData": 4,
+     "io.c2d.readBytes": 2621440,
+     "io.c2d.putImageData": 17
+    },
+    "garage:editor": {
+     "gl.bindTexture": 6,
+     "gl.bindFramebuffer": 10,
+     "gl.bindBuffer": 513,
+     "gl.bufferData": 281,
+     "gl.useProgram": 2,
+     "gl.uniformMatrix4fv": 416,
+     "gl.uniform3f": 1,
+     "gl.uniform1f": 4,
+     "gl.uniformMatrix3fv": 157,
+     "gl.bindVertexArray": 142,
+     "gl.calls": 2483,
+     "bytes.bufferData": 23117604,
+     "bytes.uniforms": 32304,
+     "draws.other": 240,
+     "draws.total": 240,
+     "tris.other": 1279426,
+     "three.updateMatrixWorld": 2470,
+     "three.updateMatrix": 2494,
+     "three.frustumTests": 225,
+     "three.renders": 8,
+     "wallMs": 197
+    },
+    "garage:seed": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "three.updateMatrixWorld": 17652,
+     "three.updateMatrix": 22578,
+     "wallMs": 2123,
+     "io.fetches": 3,
+     "io.fetchBytes": 1402063,
+     "io.imgLoads": 17,
+     "io.imgBytes": 1598221,
+     "io.c2d.drawImage": 29,
+     "io.c2d.putImageData": 9
+    },
+    "garage:world": {
+     "gl.bindTexture": 8015,
+     "gl.texImage2D": 11,
+     "gl.bindFramebuffer": 2079,
+     "gl.drawBuffers": 11,
+     "gl.bindBuffer": 3508,
+     "gl.bufferData": 1697,
+     "gl.useProgram": 7010,
+     "gl.uniformMatrix4fv": 20857,
+     "gl.uniform3f": 10143,
+     "gl.uniform1f": 170,
+     "gl.uniformMatrix3fv": 10314,
+     "gl.bindVertexArray": 7408,
+     "gl.uniform1i": 37,
+     "gl.texStorage2D": 28,
+     "gl.texSubImage2D": 118,
+     "gl.uniform4fv": 64,
+     "gl.uniform4f": 9,
+     "gl.readPixels": 104,
+     "gl.texStorage3D": 16,
+     "gl.generateMipmap": 27,
+     "gl.uniform3fv": 2,
+     "gl.calls": 123324,
+     "bytes.bufferData": 385208900,
+     "bytes.texSubImage2D": 247588500,
+     "bytes.uniforms": 1833440,
+     "draws.other": 10678,
+     "draws.total": 10678,
+     "tris.other": 32800956,
+     "links": 14,
+     "house.ms0": 966,
+     "three.updateMatrixWorld": 75284,
+     "three.updateMatrix": 299805,
+     "three.frustumTests": 10417,
+     "world.terrainH": 449390,
+     "world.grHeight": 3782614,
+     "three.renders": 6740,
+     "house.build0": 6,
+     "house.tris0": 233558,
+     "wallMs": 18895,
+     "io.fetches": 150,
+     "io.fetchBytes": 30995451,
+     "io.imgLoads": 83,
+     "io.imgBytes": 20388598,
+     "io.c2d.drawImage": 10,
+     "io.c2d.getImageData": 9,
+     "io.c2d.readBytes": 37748736,
+     "io.c2d.putImageData": 3,
+     "io.worker.messages": 48
+    },
+    "garage:town": {
+     "gl.bindTexture": 3,
+     "gl.texImage2D": 1,
+     "gl.bindFramebuffer": 10,
+     "gl.drawBuffers": 1,
+     "gl.bindBuffer": 96,
+     "gl.texStorage2D": 1,
+     "gl.renderbufferStorageMultisample": 2,
+     "gl.calls": 802,
+     "draws.total": 0,
+     "links": 43,
+     "house.ms0": 2910,
+     "house.ms1": 612,
+     "three.updateMatrixWorld": 6453,
+     "three.updateMatrix": 7962,
+     "world.grHeight": 341,
+     "house.build0": 86,
+     "house.build1": 96,
+     "house.tris0": 1092742,
+     "house.tris1": 102536,
+     "wallMs": 9655,
+     "io.fetches": 351,
+     "io.fetchBytes": 53595581,
+     "io.imgLoads": 83,
+     "io.imgBytes": 12909005,
+     "io.c2d.getImageData": 1,
+     "io.c2d.readBytes": 524288,
+     "io.c2d.putImageData": 1,
+     "io.worker.messages": 40
+    },
+    "garage:parking": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "three.updateMatrixWorld": 3913,
+     "three.updateMatrix": 8024,
+     "wallMs": 8149,
+     "io.fetches": 1,
+     "io.fetchBytes": 910,
+     "io.worker.messages": 754
+    },
+    "garage:trees": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "wallMs": 0
+    },
+    "garage:ring": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "three.updateMatrix": 806,
+     "world.terrainH": 723947,
+     "world.grHeight": 471094,
+     "wallMs": 2412
+    },
+    "garage:settle": {
+     "gl.bindTexture": 2054,
+     "gl.texImage2D": 3,
+     "gl.bindFramebuffer": 3204,
+     "gl.drawBuffers": 3,
+     "gl.bindBuffer": 839,
+     "gl.bufferData": 326,
+     "gl.useProgram": 3071,
+     "gl.uniformMatrix4fv": 15437,
+     "gl.uniform3f": 268,
+     "gl.uniform1f": 1494,
+     "gl.uniformMatrix3fv": 266,
+     "gl.bindVertexArray": 13238,
+     "gl.uniform1i": 12,
+     "gl.texStorage2D": 21,
+     "gl.texSubImage2D": 247,
+     "gl.uniform4fv": 1813,
+     "gl.uniform4f": 2,
+     "gl.readPixels": 2,
+     "gl.generateMipmap": 58,
+     "gl.calls": 81941,
+     "bytes.bufferData": 36365192,
+     "bytes.texSubImage2D": 66406400,
+     "bytes.uniforms": 1122848,
+     "draws.other": 13238,
+     "draws.total": 13238,
+     "tris.other": 76227166,
+     "links": 24,
+     "three.updateMatrixWorld": 56568,
+     "three.updateMatrix": 72234,
+     "three.frustumTests": 1055,
+     "world.terrainH": 8857269,
+     "world.grHeight": 10786668,
+     "three.renders": 2203,
+     "wallMs": 43156,
+     "io.fetches": 66,
+     "io.fetchBytes": 9079942,
+     "io.imgLoads": 23,
+     "io.imgBytes": 8534202,
+     "io.c2d.drawImage": 176,
+     "io.c2d.getImageData": 176,
+     "io.c2d.readBytes": 144755456,
+     "io.worker.messages": 104
+    },
+    "garage:parked": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "three.updateMatrixWorld": 82490,
+     "three.updateMatrix": 196092,
+     "wallMs": 8530,
+     "io.imgLoads": 1,
+     "io.imgBytes": 22326,
+     "io.c2d.drawImage": 60,
+     "io.c2d.getImageData": 12,
+     "io.c2d.readBytes": 50331648,
+     "io.c2d.putImageData": 14,
+     "io.worker.messages": 4
+    },
+    "garage:snapshot": {
+     "gl.bindTexture": 2126,
+     "gl.texImage2D": 6,
+     "gl.bindFramebuffer": 58,
+     "gl.drawBuffers": 6,
+     "gl.bindBuffer": 5332,
+     "gl.bufferData": 1894,
+     "gl.useProgram": 758,
+     "gl.uniformMatrix4fv": 80,
+     "gl.uniform3f": 1369,
+     "gl.uniform1f": 4477,
+     "gl.uniformMatrix3fv": 21,
+     "gl.bindVertexArray": 1883,
+     "gl.uniform1i": 120,
+     "gl.texStorage2D": 29,
+     "gl.texSubImage2D": 29,
+     "gl.uniform4fv": 25536,
+     "gl.uniform4f": 3049,
+     "gl.readPixels": 18,
+     "gl.generateMipmap": 28,
+     "gl.uniform3fv": 16,
+     "gl.uniform2f": 1702,
+     "gl.calls": 64550,
+     "bytes.bufferData": 94502808,
+     "bytes.texSubImage2D": 67895300,
+     "bytes.uniforms": 2583924,
+     "draws.other": 1893,
+     "draws.total": 1893,
+     "tris.other": 1565034,
+     "links": 108,
+     "three.updateMatrixWorld": 25233,
+     "three.updateMatrix": 134364,
+     "three.frustumTests": 21,
+     "three.renders": 39,
+     "wallMs": 4399,
+     "io.worker.messages": 4
+    },
+    "garage:bake": {
+     "gl.bindTexture": 853,
+     "gl.texImage2D": 8,
+     "gl.bindFramebuffer": 49,
+     "gl.drawBuffers": 3,
+     "gl.bindBuffer": 3344,
+     "gl.bufferData": 1226,
+     "gl.useProgram": 277,
+     "gl.uniformMatrix4fv": 596,
+     "gl.uniform3f": 785,
+     "gl.uniform1f": 2537,
+     "gl.uniformMatrix3fv": 6,
+     "gl.bindVertexArray": 1020,
+     "gl.uniform1i": 54,
+     "gl.texStorage2D": 10,
+     "gl.texSubImage2D": 10,
+     "gl.uniform4fv": 14280,
+     "gl.uniform4f": 1743,
+     "gl.readPixels": 12,
+     "gl.generateMipmap": 10,
+     "gl.uniform3fv": 6,
+     "gl.uniform2f": 1114,
+     "gl.calls": 37065,
+     "bytes.bufferData": 145735848,
+     "bytes.texSubImage2D": 82837504,
+     "bytes.uniforms": 1482216,
+     "draws.other": 1020,
+     "draws.total": 1020,
+     "tris.other": 815178,
+     "links": 84,
+     "three.updateMatrixWorld": 1388,
+     "three.updateMatrix": 1376,
+     "three.renders": 12,
+     "wallMs": 16247,
+     "io.worker.messages": 20
+    },
+    "garage:spec": {
+     "gl.bindTexture": 6,
+     "gl.bindFramebuffer": 30,
+     "gl.useProgram": 2,
+     "gl.uniformMatrix4fv": 415,
+     "gl.uniform3f": 1,
+     "gl.uniform1f": 4,
+     "gl.uniformMatrix3fv": 157,
+     "gl.bindVertexArray": 142,
+     "gl.calls": 2606,
+     "bytes.uniforms": 32240,
+     "draws.other": 240,
+     "draws.total": 240,
+     "tris.other": 1279426,
+     "links": 142,
+     "three.updateMatrixWorld": 8735,
+     "three.updateMatrix": 13235,
+     "three.frustumTests": 225,
+     "world.terrainH": 3105,
+     "world.grHeight": 2862,
+     "three.renders": 8,
+     "wallMs": 2443
+    },
+    "garage:restore": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "three.updateMatrixWorld": 778,
+     "three.updateMatrix": 1555,
+     "wallMs": 7
+    },
+    "garage:images": {
+     "gl.bindTexture": 2,
+     "gl.bindFramebuffer": 7,
+     "gl.useProgram": 2,
+     "gl.bindVertexArray": 2,
+     "gl.uniform4fv": 2,
+     "gl.calls": 42,
+     "bytes.uniforms": 128,
+     "draws.other": 2,
+     "draws.total": 2,
+     "tris.other": 4,
+     "three.updateMatrixWorld": 282,
+     "three.updateMatrix": 966,
+     "world.terrainH": 7,
+     "world.grHeight": 53,
+     "three.renders": 2,
+     "wallMs": 191
+    },
+    "garage:upload": {
+     "gl.bindTexture": 662,
+     "gl.texStorage2D": 212,
+     "gl.texSubImage2D": 197,
+     "gl.texStorage3D": 19,
+     "gl.generateMipmap": 174,
+     "gl.compressedTexSubImage3D": 171,
+     "gl.compressedTexSubImage2D": 258,
+     "gl.texSubImage3D": 2,
+     "gl.calls": 3139,
+     "bytes.texSubImage2D": 305566140,
+     "bytes.compressedTexSubImage3D": 165511888,
+     "bytes.compressedTexSubImage2D": 8760672,
+     "bytes.texSubImage3D": 69206016,
+     "draws.total": 0,
+     "wallMs": 170
+    },
+    "garage:worldCompile": {
+     "gl.bindTexture": 3,
+     "gl.bindFramebuffer": 15,
+     "gl.useProgram": 3,
+     "gl.uniformMatrix4fv": 66,
+     "gl.bindVertexArray": 48,
+     "gl.texSubImage2D": 1,
+     "gl.uniform4fv": 2,
+     "gl.calls": 301,
+     "bytes.texSubImage2D": 6144,
+     "bytes.uniforms": 4352,
+     "draws.other": 48,
+     "draws.total": 48,
+     "tris.other": 284172,
+     "links": 6,
+     "three.updateMatrixWorld": 478,
+     "three.updateMatrix": 1163,
+     "world.terrainH": 8,
+     "world.grHeight": 52,
+     "three.renders": 3,
+     "wallMs": 167
+    },
+    "garage:compile": {
+     "gl.bindTexture": 1292,
+     "gl.texImage2D": 13,
+     "gl.bindFramebuffer": 204,
+     "gl.drawBuffers": 18,
+     "gl.bindBuffer": 1984,
+     "gl.bufferData": 387,
+     "gl.useProgram": 370,
+     "gl.uniformMatrix4fv": 10929,
+     "gl.uniform3f": 1821,
+     "gl.uniform1f": 2270,
+     "gl.uniformMatrix3fv": 3677,
+     "gl.bindVertexArray": 5212,
+     "gl.uniform1i": 340,
+     "gl.texStorage2D": 72,
+     "gl.texSubImage2D": 100,
+     "gl.uniform4fv": 1620,
+     "gl.uniform4f": 121,
+     "gl.texStorage3D": 10,
+     "gl.generateMipmap": 35,
+     "gl.uniform3fv": 35,
+     "gl.renderbufferStorageMultisample": 6,
+     "gl.uniform2f": 298,
+     "gl.compressedTexSubImage3D": 83,
+     "gl.compressedTexSubImage2D": 320,
+     "gl.texSubImage3D": 1,
+     "gl.uniform1iv": 70,
+     "gl.blitFramebuffer": 6,
+     "gl.calls": 44676,
+     "bytes.bufferData": 1520192,
+     "bytes.texSubImage2D": 200818688,
+     "bytes.compressedTexSubImage3D": 1835456,
+     "bytes.compressedTexSubImage2D": 14773760,
+     "bytes.texSubImage3D": 786432,
+     "bytes.uniforms": 1136420,
+     "draws.other": 1246,
+     "draws.shadow": 5418,
+     "draws.total": 6664,
+     "tris.other": 4594810,
+     "tris.shadow": 24466398,
+     "links": 5,
+     "three.updateMatrixWorld": 15993,
+     "three.updateMatrix": 15734,
+     "three.frustumTests": 10898,
+     "three.renders": 69,
+     "wallMs": 228
+    },
+    "garage:firstFrame": {
+     "gl.bindTexture": 442,
+     "gl.texImage2D": 7,
+     "gl.bindFramebuffer": 61,
+     "gl.drawBuffers": 7,
+     "gl.bindBuffer": 9857,
+     "gl.bufferData": 2517,
+     "gl.useProgram": 187,
+     "gl.uniformMatrix4fv": 5723,
+     "gl.uniform3f": 909,
+     "gl.uniform1f": 925,
+     "gl.uniformMatrix3fv": 868,
+     "gl.bindVertexArray": 4171,
+     "gl.uniform1i": 151,
+     "gl.texStorage2D": 1,
+     "gl.texSubImage2D": 1,
+     "gl.uniform4fv": 1915,
+     "gl.uniform4f": 223,
+     "gl.generateMipmap": 5,
+     "gl.uniform3fv": 10,
+     "gl.renderbufferStorageMultisample": 2,
+     "gl.uniform2f": 198,
+     "gl.uniform1iv": 20,
+     "gl.blitFramebuffer": 3,
+     "gl.calls": 49556,
+     "bytes.bufferData": 14955814,
+     "bytes.texSubImage2D": 6400,
+     "bytes.uniforms": 662772,
+     "draws.other": 883,
+     "draws.shadow": 3855,
+     "draws.total": 4738,
+     "tris.other": 939773,
+     "tris.shadow": 4691525,
+     "three.updateMatrixWorld": 2368,
+     "three.updateMatrix": 2348,
+     "cb.onBeforeRender": 2,
+     "three.frustumTests": 5336,
+     "world.terrainH": 3,
+     "world.grHeight": 8,
+     "three.renders": 15,
+     "wallMs": 187
+    },
+    "garage:frames": {
+     "gl.bindTexture": 4897,
+     "gl.texImage2D": 9,
+     "gl.bindFramebuffer": 189,
+     "gl.drawBuffers": 9,
+     "gl.bindBuffer": 14776,
+     "gl.bufferData": 5314,
+     "gl.useProgram": 1173,
+     "gl.uniformMatrix4fv": 6814,
+     "gl.uniform3f": 4408,
+     "gl.uniform1f": 4992,
+     "gl.uniformMatrix3fv": 1533,
+     "gl.bindVertexArray": 5942,
+     "gl.uniform1i": 711,
+     "gl.texStorage2D": 171,
+     "gl.texSubImage2D": 492,
+     "gl.uniform4fv": 13922,
+     "gl.uniform4f": 1428,
+     "gl.generateMipmap": 12,
+     "gl.uniform3fv": 75,
+     "gl.uniform2f": 910,
+     "gl.uniform1iv": 101,
+     "gl.blitFramebuffer": 6,
+     "gl.uniform1fv": 104,
+     "gl.calls": 111281,
+     "bytes.bufferData": 360505340,
+     "bytes.texSubImage2D": 707772,
+     "bytes.uniforms": 2054588,
+     "draws.other": 3863,
+     "draws.shadow": 2284,
+     "draws.total": 6147,
+     "tris.other": 76178524,
+     "tris.shadow": 16234811,
+     "links": 1,
+     "three.updateMatrixWorld": 47944,
+     "three.updateMatrix": 13736,
+     "cb.onBeforeRender": 6,
+     "cb.onAfterRender": 6,
+     "three.frustumTests": 10819,
+     "world.terrainH": 51,
+     "world.grHeight": 5279,
+     "three.renders": 98,
+     "wallMs": 1320
+    },
+    "garage:craft": {
+     "gl.bindTexture": 306,
+     "gl.bindFramebuffer": 49,
+     "gl.bindBuffer": 1972,
+     "gl.bufferData": 371,
+     "gl.useProgram": 79,
+     "gl.uniformMatrix4fv": 310,
+     "gl.uniform3f": 482,
+     "gl.uniform1f": 1091,
+     "gl.uniformMatrix3fv": 40,
+     "gl.bindVertexArray": 259,
+     "gl.uniform1i": 165,
+     "gl.texSubImage2D": 7,
+     "gl.uniform4fv": 3282,
+     "gl.uniform4f": 647,
+     "gl.uniform3fv": 14,
+     "gl.uniform2f": 332,
+     "gl.uniform1iv": 14,
+     "gl.blitFramebuffer": 7,
+     "gl.calls": 13276,
+     "bytes.bufferData": 13118688,
+     "bytes.texSubImage2D": 11520,
+     "bytes.uniforms": 366912,
+     "draws.other": 259,
+     "draws.total": 259,
+     "tris.other": 259,
+     "links": 2,
+     "three.updateMatrixWorld": 56682,
+     "three.updateMatrix": 19103,
+     "three.renders": 7,
+     "wallMs": 243
+    },
+    "garage:recheck": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "three.updateMatrixWorld": 777,
+     "three.updateMatrix": 777,
+     "wallMs": 19
+    },
+    "garage:landing": {
+     "gl.bindTexture": 1289,
+     "gl.texImage2D": 1,
+     "gl.bindFramebuffer": 126,
+     "gl.drawBuffers": 1,
+     "gl.bindBuffer": 5271,
+     "gl.bufferData": 2,
+     "gl.useProgram": 562,
+     "gl.uniformMatrix4fv": 16635,
+     "gl.uniform3f": 670,
+     "gl.uniform1f": 1068,
+     "gl.uniformMatrix3fv": 4532,
+     "gl.bindVertexArray": 12514,
+     "gl.uniform1i": 180,
+     "gl.texStorage2D": 2,
+     "gl.texSubImage2D": 5,
+     "gl.uniform4fv": 5620,
+     "gl.uniform4f": 493,
+     "gl.generateMipmap": 12,
+     "gl.uniform2f": 373,
+     "gl.blitFramebuffer": 9,
+     "gl.bufferSubData": 6,
+     "gl.calls": 76213,
+     "bytes.bufferData": 768,
+     "bytes.texSubImage2D": 281344,
+     "bytes.bufferSubData": 1920,
+     "bytes.uniforms": 1983280,
+     "draws.other": 2650,
+     "draws.shadow": 11565,
+     "draws.total": 14215,
+     "tris.other": 2819321,
+     "tris.shadow": 14074575,
+     "three.updateMatrixWorld": 8397,
+     "three.updateMatrix": 8961,
+     "cb.onBeforeRender": 6,
+     "three.frustumTests": 16008,
+     "world.grHeight": 15,
+     "three.renders": 46,
+     "wallMs": 777
+    },
+    "rollout:click": {
+     "gl.bindTexture": 256113,
+     "gl.texImage2D": 6,
+     "gl.bindFramebuffer": 27257,
+     "gl.drawBuffers": 6,
+     "gl.bindBuffer": 8600,
+     "gl.bufferData": 10,
+     "gl.useProgram": 99056,
+     "gl.uniformMatrix4fv": 674274,
+     "gl.uniform3f": 138084,
+     "gl.uniform1f": 100918,
+     "gl.uniformMatrix3fv": 155237,
+     "gl.bindVertexArray": 361188,
+     "gl.uniform1i": 9516,
+     "gl.texStorage2D": 6,
+     "gl.texSubImage2D": 3285,
+     "gl.uniform4fv": 538498,
+     "gl.uniform4f": 29021,
+     "gl.generateMipmap": 1971,
+     "gl.uniform3fv": 43,
+     "gl.uniform2f": 20001,
+     "gl.uniform1iv": 86,
+     "gl.blitFramebuffer": 2019,
+     "gl.bufferSubData": 5045,
+     "gl.calls": 3206873,
+     "bytes.bufferData": 28856,
+     "bytes.texSubImage2D": 8073216,
+     "bytes.bufferSubData": 1003500432,
+     "bytes.uniforms": 132071760,
+     "draws.other": 230648,
+     "draws.shadow": 156863,
+     "draws.total": 387511,
+     "tris.other": 680251728,
+     "tris.shadow": 865687847,
+     "links": 1,
+     "three.updateMatrixWorld": 1815228,
+     "three.updateMatrix": 2386361,
+     "three.frustumTests": 219393,
+     "world.terrainH": 3439,
+     "world.grHeight": 4416,
+     "three.renders": 9855,
+     "wallMs": 28289,
+     "io.c2d.drawImage": 1
+    }
+   },
+   "selftest": {
+    "a_onBeforeRender_x100": {
+     "red": 2,
+     "rows": [
+      "cb.onBeforeRender 1 -> 101"
+     ]
+    },
+    "b_uniformPerFrame_x1795": {
+     "red": 5,
+     "rows": [
+      "gl.uniform1f 633 -> 649",
+      "gl.uniform3f 169 -> 312",
+      "gl.uniform4fv 2756 -> 2836"
+     ]
+    },
+    "c_matrixAutoUpdate_x9484": {
+     "red": 2,
+     "rows": [
+      "three.updateMatrix 3438 -> 6930"
+     ]
+    }
+   },
+   "mem": {
+    "rollout": {
+     "heapUsed": 806.8,
+     "arrayBuffers": 2094.7,
+     "external": 2161.7,
+     "rss": 3371.3
+    },
+    "end": {
+     "heapUsed": 811.1,
+     "arrayBuffers": 2105,
+     "external": 2172,
+     "rss": 3372.2
+    }
+   },
+   "programsTotal": 395,
+   "wall": {
+    "garage": 126654,
+    "rollout": 28289,
+    "total": 206014
+   },
+   "errors": [
+    "impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: cedar_tree.glb|Cedar_LOD0 rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: cedar_tree.glb|Cedar_LOD0 stand sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: cedar_tree.glb|Cedar_LOD0 snag sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: fir_tree_georgeous.glb|Fir01_LOD0 rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: fir_tree_georgeous.glb|Fir01_LOD0 stand sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: fir_tree_georgeous.glb|Fir01_LOD0 snag sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: larch_tree.glb|Larch_LOD0 rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: larch_tree.glb|Larch_LOD0 stand sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: larch_tree.glb|Larch_LOD0 snag sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree stand sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree snag sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree_2 rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree_2 stand sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree_2 snag sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: spruce_tree.glb|Spruce_LOD0 rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)"
+   ],
+   "errorsN": 53
+  },
+  "cessna": {
+   "build": "cessna",
+   "health": {
+    "metlakatla": null,
+    "premises": true,
+    "townCut": 218,
+    "raster": true,
+    "world": "jolene",
+    "depth": "reversed",
+    "gfx": {
+     "preset": "gamer",
+     "shadows": "full"
+    },
+    "thrown": [],
+    "feedbacks": 0,
+    "feedback": [],
+    "premisesStats": {
+     "houses": 95,
+     "objects": 42,
+     "queued": 78,
+     "houseTris": 2862540,
+     "lights": 50,
+     "obstacles": 45
+    },
+    "kitTown": {
+     "want": false,
+     "status": "off",
+     "err": null,
+     "island": null,
+     "table": 0,
+     "kitPlots": 0,
+     "instances": 0,
+     "lots": 0,
+     "outKit": 0,
+     "outBuilt": 0,
+     "outHidden": 0,
+     "hits": 0,
+     "hitTris": 0,
+     "rebuilt": 0,
+     "tableMs": 0,
+     "packMs": 0,
+     "hostMs": 0,
+     "pack": null,
+     "host": null
+    }
+   },
+   "release": {
+    "n": 4,
+    "big": 4,
+    "heldAfterRollout": 0,
+    "classWeights": false,
+    "rederived": 4,
+    "heldAfterRestore": 4,
+    "heldAfterReupload": 0
+   },
+   "ktx2": {
+    "ground": {
+     "packs": 0,
+     "fetched": 0,
+     "lent": 0,
+     "failed": 0,
+     "bytes": 0,
+     "ktx2Packs": 3,
+     "ktx2Layers": 92,
+     "ktx2Bytes": 22417271,
+     "ktx2Lent": 0,
+     "ktx2Shared": 20,
+     "ktx2Fallbacks": 0,
+     "ktx2Why": null
+    },
+    "loader": {
+     "files": 488,
+     "bytes": 87129901,
+     "failed": 0,
+     "fallbacks": 0,
+     "target": 36492,
+     "off": null,
+     "workers": 4,
+     "skipped": 0
+    },
+    "workerMsgs": 980
+   },
+   "crew": {
+    "people": [
+     "ch22",
+     "ch42"
+    ],
+    "materials": 4,
+    "budget": 4,
+    "textures": 7,
+    "ktx2": 7,
+    "images": 0,
+    "pending": 0,
+    "gpuBytes": 9786896,
+    "byChar": {
+     "ch42": 4194384,
+     "ch22": 5592512
+    }
+   },
+   "frames": 12,
+   "warm": 6,
+   "views": {
+    "stand": {
+     "gl.bindTexture": 937.5,
+     "gl.bindFramebuffer": 24,
+     "gl.bindBuffer": 2,
+     "gl.useProgram": 256.5,
+     "gl.uniformMatrix4fv": 1595.5,
+     "gl.uniform3f": 171,
+     "gl.uniform1f": 643,
+     "gl.uniformMatrix3fv": 374,
+     "gl.bindVertexArray": 1243.5,
+     "gl.uniform1i": 10,
+     "gl.texSubImage2D": 81.5,
+     "gl.uniform4fv": 2768,
+     "gl.uniform4f": 228,
+     "gl.generateMipmap": 1,
+     "gl.uniform2f": 172,
+     "gl.uniform1iv": 5,
+     "gl.blitFramebuffer": 1,
+     "gl.uniform1fv": 20,
+     "gl.bufferSubData": 2,
+     "gl.calls": 11350,
+     "bytes.texSubImage2D": 60416,
+     "bytes.bufferSubData": 640,
+     "bytes.uniforms": 420024,
+     "draws.other": 15,
+     "draws.shadow": 258.5,
+     "draws.main": 1050,
+     "draws.total": 1323.5,
+     "tris.other": 30,
+     "tris.shadow": 2138124.5,
+     "tris.main": 13073002,
+     "three.updateMatrixWorld": 8904.5,
+     "three.updateMatrix": 4789,
+     "cb.onBeforeRender": 1,
+     "cb.onAfterRender": 1,
+     "three.frustumTests": 1771.5,
+     "world.terrainH": 30,
+     "world.grHeight": 16,
+     "three.renders": 16,
+     "programs": 100.5
+    },
+    "taxi": {
+     "gl.bindTexture": 894.5,
+     "gl.bindFramebuffer": 24,
+     "gl.bindBuffer": 2,
+     "gl.useProgram": 201,
+     "gl.uniformMatrix4fv": 1535.5,
+     "gl.uniform3f": 143,
+     "gl.uniform1f": 546,
+     "gl.uniformMatrix3fv": 318,
+     "gl.bindVertexArray": 1050,
+     "gl.uniform1i": 6,
+     "gl.texSubImage2D": 143.5,
+     "gl.uniform4fv": 2415,
+     "gl.uniform4f": 206,
+     "gl.generateMipmap": 1,
+     "gl.uniform2f": 147,
+     "gl.uniform1iv": 5,
+     "gl.blitFramebuffer": 1,
+     "gl.uniform1fv": 20,
+     "gl.bufferSubData": 2,
+     "gl.calls": 10435.5,
+     "bytes.texSubImage2D": 296494,
+     "bytes.bufferSubData": 640,
+     "bytes.uniforms": 376604,
+     "draws.other": 15,
+     "draws.shadow": 135,
+     "draws.main": 974,
+     "draws.total": 1124,
+     "tris.other": 30,
+     "tris.shadow": 1409819.5,
+     "tris.main": 9970777,
+     "three.updateMatrixWorld": 9289.5,
+     "three.updateMatrix": 5163,
+     "cb.onBeforeRender": 1,
+     "cb.onAfterRender": 1,
+     "three.frustumTests": 1648.5,
+     "world.terrainH": 30,
+     "world.grHeight": 18.5,
+     "three.renders": 16,
+     "programs": 85.5,
+     "pose": [
+      263.5,
+      727.6,
+      0.716,
+      "route 0.1 m off"
+     ]
+    }
+   },
+   "craft": {
+    "stand": {
+     "meshes": 102,
+     "draws": {
+      "main": 85,
+      "shadow": 0,
+      "other": 0
+     },
+     "skinnedDraws": 16,
+     "materials": 62,
+     "programs": 12,
+     "byMaterial": [
+      [
+       "MeshStandardMaterial",
+       50
+      ],
+      [
+       "MeshPhysicalMaterial",
+       4
+      ],
+      [
+       "char:ch42:Ch42_Hair",
+       1
+      ],
+      [
+       "char:ch42:Ch42_Body",
+       1
+      ],
+      [
+       "char:ch22:Ch22_body",
+       1
+      ],
+      [
+       "char:ch22:Ch22_hair",
+       1
+      ],
+      [
+       "flown:baked",
+       1
+      ],
+      [
+       "flown:baked:in",
+       1
+      ],
+      [
+       "MeshBasicMaterial",
+       1
+      ],
+      [
+       "ShaderMaterial",
+       1
+      ]
+     ]
+    },
+    "taxi": {
+     "meshes": 102,
+     "draws": {
+      "main": 85,
+      "shadow": 0,
+      "other": 0
+     },
+     "skinnedDraws": 16,
+     "materials": 62,
+     "programs": 12,
+     "byMaterial": [
+      [
+       "MeshStandardMaterial",
+       50
+      ],
+      [
+       "MeshPhysicalMaterial",
+       4
+      ],
+      [
+       "char:ch42:Ch42_Hair",
+       1
+      ],
+      [
+       "char:ch42:Ch42_Body",
+       1
+      ],
+      [
+       "char:ch22:Ch22_body",
+       1
+      ],
+      [
+       "char:ch22:Ch22_hair",
+       1
+      ],
+      [
+       "flown:baked",
+       1
+      ],
+      [
+       "flown:baked:in",
+       1
+      ],
+      [
+       "MeshBasicMaterial",
+       1
+      ],
+      [
+       "ShaderMaterial",
+       1
+      ]
+     ]
+    },
+    "near": {
+     "meshes": 238,
+     "draws": {
+      "main": 214,
+      "shadow": 76,
+      "other": 0
+     },
+     "skinnedDraws": 63,
+     "materials": 143,
+     "programs": 17,
+     "byMaterial": [
+      [
+       "MeshStandardMaterial",
+       76
+      ],
+      [
+       "aeroskin:live:eye",
+       51
+      ],
+      [
+       "MeshPhysicalMaterial",
+       10
+      ],
+      [
+       "char:ch42:Ch42_Hair",
+       1
+      ],
+      [
+       "char:ch42:Ch42_Body",
+       1
+      ],
+      [
+       "char:ch22:Ch22_body",
+       1
+      ],
+      [
+       "char:ch22:Ch22_hair",
+       1
+      ],
+      [
+       "MeshBasicMaterial",
+       1
+      ],
+      [
+       "ShaderMaterial",
+       1
+      ]
+     ]
+    },
+    "band": {
+     "meshes": 238,
+     "draws": {
+      "main": 221,
+      "shadow": 0,
+      "other": 0
+     },
+     "skinnedDraws": 67,
+     "materials": 145,
+     "programs": 19,
+     "byMaterial": [
+      [
+       "aeroskin:live:eye:band",
+       51
+      ],
+      [
+       "MeshStandardMaterial",
+       50
+      ],
+      [
+       "aeroskin:band",
+       32
+      ],
+      [
+       "MeshPhysicalMaterial",
+       4
+      ],
+      [
+       "char:ch42:Ch42_Hair",
+       1
+      ],
+      [
+       "char:ch42:Ch42_Body",
+       1
+      ],
+      [
+       "char:ch22:Ch22_body",
+       1
+      ],
+      [
+       "char:ch22:Ch22_hair",
+       1
+      ],
+      [
+       "flown:baked:band",
+       1
+      ],
+      [
+       "flown:baked:in:band",
+       1
+      ],
+      [
+       "MeshBasicMaterial",
+       1
+      ],
+      [
+       "ShaderMaterial",
+       1
+      ]
+     ]
+    },
+    "warm": {
+     "n": 279,
+     "drawn": 279,
+     "sameModel": true,
+     "live": 136
+    },
+    "cross": {
+     "near": [
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 1118
+      },
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 1464
+      },
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 1194
+      }
+     ],
+     "band": [
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 1125
+      },
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 1519
+      },
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 1125
+      }
+     ],
+     "back": [
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 989
+      },
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 1259
+      },
+      {
+       "bufferData": 0,
+       "texImage": 0,
+       "links": 0,
+       "subBytes": 640,
+       "draws": 989
+      }
+     ],
+     "taxi": {
+      "bufferData": 0,
+      "texImage": 0,
+      "links": 0
+     }
+    },
+    "bake": {
+     "hit": false,
+     "t": {
+      "read": 0,
+      "thread": "page",
+      "unwrap": 0,
+      "uvs": 0,
+      "compile": 0,
+      "render": 4,
+      "renderMain": 0,
+      "dilate": 0,
+      "mips": 20
+     },
+     "S": 2048,
+     "bytes": 134217720,
+     "groups": 111,
+     "verts": 594150,
+     "tris": 198050,
+     "split": 0,
+     "charts": 12813,
+     "axis": 277,
+     "fill": 0.479,
+     "cm": 0.82,
+     "cov": 1,
+     "cc": true,
+     "sets": {
+      "ext": {
+       "hit": false,
+       "t": {
+        "read": 0,
+        "thread": "page",
+        "unwrap": 0,
+        "uvs": 0,
+        "compile": 0,
+        "render": 4,
+        "renderMain": 0,
+        "dilate": 0,
+        "mips": 20
+       },
+       "S": 2048,
+       "bytes": 67108860,
+       "groups": 111,
+       "verts": 594150,
+       "tris": 198050,
+       "split": 0,
+       "charts": 12813,
+       "axis": 277,
+       "fill": 0.479,
+       "cm": 0.82,
+       "cov": 1,
+       "cc": true
+      },
+      "in": {
+       "hit": false,
+       "t": {
+        "read": 0,
+        "thread": "page",
+        "unwrap": 0,
+        "uvs": 0,
+        "compile": 0,
+        "render": 4,
+        "renderMain": 0,
+        "dilate": 0,
+        "mips": 20
+       },
+       "S": 2048,
+       "bytes": 67108860,
+       "groups": 71,
+       "verts": 400338,
+       "tris": 133446,
+       "split": 0,
+       "charts": 6885,
+       "axis": 403,
+       "fill": 0.73,
+       "cm": 0.7,
+       "cov": 1,
+       "cc": true
+      }
+     },
+     "total": 51
+    }
+   },
+   "detail": {
+    "stand": {
+     "main": {
+      "Mesh": 264,
+      "char": 12,
+      "treeRungs": 36,
+      "coverRing": 27,
+      "standCards": 100,
+      "flownBaked": 3,
+      "flownBakedIn": 4,
+      "premises": 92,
+      "poles": 39,
+      "cabin": 18,
+      "prop": 78,
+      "roads": 4,
+      "rail": 5,
+      "tram": 6,
+      "carriage": 8,
+      "animal": 11,
+      "fence": 6,
+      "lots": 21,
+      "houses": 42,
+      "life": 12,
+      "propInst": 25,
+      "parked": 139,
+      "pattern": 8,
+      "lakes": 1,
+      "pavement": 5,
+      "pave": 3,
+      "road": 6,
+      "yard": 2,
+      "contact": 1,
+      "cloudComposite": 1,
+      "propDisc": 1
+     },
+     "shadow": {},
+     "mats": {
+      "uuid": 367,
+      "sig": 225,
+      "byFam": {
+       "Mesh": [
+        76,
+        49
+       ],
+       "char": [
+        4,
+        4
+       ],
+       "treeRungs": [
+        17,
+        15
+       ],
+       "coverRing": [
+        5,
+        5
+       ],
+       "standCards": [
+        1,
+        1
+       ],
+       "flownBaked": [
+        1,
+        1
+       ],
+       "flownBakedIn": [
+        1,
+        1
+       ],
+       "premises": [
+        42,
+        16
+       ],
+       "poles": [
+        3,
+        3
+       ],
+       "cabin": [
+        10,
+        10
+       ],
+       "prop": [
+        18,
+        18
+       ],
+       "roads": [
+        1,
+        1
+       ],
+       "rail": [
+        1,
+        1
+       ],
+       "tram": [
+        1,
+        1
+       ],
+       "carriage": [
+        4,
+        4
+       ],
+       "animal": [
+        1,
+        1
+       ],
+       "fence": [
+        2,
+        2
+       ],
+       "lots": [
+        3,
+        3
+       ],
+       "houses": [
+        23,
+        23
+       ],
+       "life": [
+        6,
+        6
+       ],
+       "propInst": [
+        9,
+        9
+       ],
+       "parked": [
+        139,
+        68
+       ],
+       "pattern": [
+        8,
+        1
+       ],
+       "lakes": [
+        1,
+        1
+       ],
+       "pavement": [
+        1,
+        1
+       ],
+       "pave": [
+        1,
+        1
+       ],
+       "road": [
+        1,
+        1
+       ],
+       "yard": [
+        1,
+        1
+       ],
+       "contact": [
+        1,
+        1
+       ],
+       "cloudComposite": [
+        1,
+        1
+       ],
+       "propDisc": [
+        1,
+        1
+       ]
+      },
+      "leaf": [
+       18,
+       16,
+       16
+      ]
+     },
+     "names": null,
+     "tris": null
+    },
+    "taxi": {
+     "main": {
+      "Mesh": 262,
+      "char": 12,
+      "treeRungs": 21,
+      "coverRing": 32,
+      "standCards": 100,
+      "flownBaked": 3,
+      "flownBakedIn": 4,
+      "premises": 83,
+      "poles": 29,
+      "cabin": 18,
+      "prop": 83,
+      "roads": 3,
+      "rail": 5,
+      "tram": 6,
+      "carriage": 8,
+      "animal": 15,
+      "lots": 20,
+      "fence": 4,
+      "houses": 19,
+      "propInst": 4,
+      "parked": 125,
+      "life": 1,
+      "pattern": 8,
+      "lakes": 1,
+      "pavement": 5,
+      "pave": 3,
+      "road": 6,
+      "yard": 2,
+      "contact": 1,
+      "cloudComposite": 1,
+      "propDisc": 1
+     },
+     "shadow": {},
+     "mats": {
+      "uuid": 307,
+      "sig": 182,
+      "byFam": {
+       "Mesh": [
+        68,
+        41
+       ],
+       "char": [
+        4,
+        4
+       ],
+       "treeRungs": [
+        11,
+        10
+       ],
+       "coverRing": [
+        5,
+        5
+       ],
+       "standCards": [
+        1,
+        1
+       ],
+       "flownBaked": [
+        1,
+        1
+       ],
+       "flownBakedIn": [
+        1,
+        1
+       ],
+       "premises": [
+        38,
+        12
+       ],
+       "poles": [
+        3,
+        3
+       ],
+       "cabin": [
+        10,
+        10
+       ],
+       "prop": [
+        17,
+        17
+       ],
+       "roads": [
+        1,
+        1
+       ],
+       "rail": [
+        1,
+        1
+       ],
+       "tram": [
+        1,
+        1
+       ],
+       "carriage": [
+        4,
+        4
+       ],
+       "animal": [
+        1,
+        1
+       ],
+       "lots": [
+        3,
+        3
+       ],
+       "fence": [
+        2,
+        2
+       ],
+       "houses": [
+        3,
+        3
+       ],
+       "propInst": [
+        2,
+        2
+       ],
+       "parked": [
+        125,
+        63
+       ],
+       "life": [
+        1,
+        1
+       ],
+       "pattern": [
+        8,
+        1
+       ],
+       "lakes": [
+        1,
+        1
+       ],
+       "pavement": [
+        1,
+        1
+       ],
+       "pave": [
+        1,
+        1
+       ],
+       "road": [
+        1,
+        1
+       ],
+       "yard": [
+        1,
+        1
+       ],
+       "contact": [
+        1,
+        1
+       ],
+       "cloudComposite": [
+        1,
+        1
+       ],
+       "propDisc": [
+        1,
+        1
+       ]
+      },
+      "leaf": [
+       12,
+       11,
+       11
+      ]
+     },
+     "names": null,
+     "tris": null
+    },
+    "scene": {
+     "uuid": 1793,
+     "sig": 470,
+     "byFam": {
+      "contact": [
+       1,
+       1
+      ],
+      "Mesh": [
+       91,
+       59
+      ],
+      "cloudComposite": [
+       1,
+       1
+      ],
+      "lakes": [
+       1,
+       1
+      ],
+      "treeRungs": [
+       11,
+       10
+      ],
+      "Points": [
+       2,
+       2
+      ],
+      "shell": [
+       9,
+       8
+      ],
+      "propInst": [
+       10,
+       10
+      ],
+      "premises": [
+       1167,
+       208
+      ],
+      "parked": [
+       350,
+       82
+      ],
+      "prop": [
+       36,
+       36
+      ],
+      "houses": [
+       28,
+       28
+      ],
+      "yard": [
+       1,
+       1
+      ],
+      "fence": [
+       2,
+       2
+      ],
+      "lots": [
+       3,
+       3
+      ],
+      "poles": [
+       3,
+       3
+      ],
+      "rail": [
+       1,
+       1
+      ],
+      "road": [
+       1,
+       1
+      ],
+      "pave": [
+       1,
+       1
+      ],
+      "roads": [
+       1,
+       1
+      ],
+      "tram": [
+       1,
+       1
+      ],
+      "carriage": [
+       4,
+       4
+      ],
+      "cabin": [
+       10,
+       10
+      ],
+      "animal": [
+       14,
+       13
+      ],
+      "life": [
+       7,
+       7
+      ],
+      "pavement": [
+       1,
+       1
+      ],
+      "rocks": [
+       7,
+       7
+      ],
+      "coverRing": [
+       5,
+       5
+      ],
+      "cover": [
+       20,
+       19
+      ],
+      "standCards": [
+       1,
+       1
+      ],
+      "LineSegments": [
+       1,
+       1
+      ],
+      "flownBakedIn": [
+       1,
+       1
+      ],
+      "flownBaked": [
+       1,
+       1
+      ],
+      "propDisc": [
+       1,
+       1
+      ],
+      "char": [
+       4,
+       4
+      ],
+      "pattern": [
+       42,
+       9
+      ]
+     },
+     "leaf": [
+      16,
+      14,
+      14
+     ]
+    },
+    "patch": {
+     "tris0": 2575872,
+     "trisAll": 3577600,
+     "blocks": 54,
+     "sunk": 87294,
+     "sinkDeep": 0
+    }
+   },
+   "settled": {},
+   "boot": {
+    "garage:scripts": {
+     "gl.bindTexture": 4,
+     "gl.texImage2D": 7,
+     "gl.texImage3D": 2,
+     "gl.calls": 39,
+     "bytes.texImage2D": 28,
+     "bytes.texImage3D": 8,
+     "draws.total": 0,
+     "world.terrainH": 3106,
+     "world.grHeight": 41714,
+     "wallMs": 4085,
+     "io.fetches": 156,
+     "io.fetchBytes": 57141539,
+     "io.imgLoads": 6,
+     "io.imgBytes": 2400921
+    },
+    "garage:treeBins": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "wallMs": 46,
+     "io.fetches": 33,
+     "io.fetchBytes": 6978640
+    },
+    "garage:aircraft": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "world.terrainH": 3115,
+     "world.grHeight": 598,
+     "wallMs": 2186,
+     "io.c2d.getImageData": 3,
+     "io.c2d.readBytes": 12582912,
+     "io.c2d.putImageData": 3
+    },
+    "garage:garage": {
+     "gl.bindTexture": 18,
+     "gl.texImage2D": 4,
+     "gl.bindFramebuffer": 32,
+     "gl.drawBuffers": 5,
+     "gl.bindBuffer": 458,
+     "gl.bufferData": 229,
+     "gl.useProgram": 6,
+     "gl.uniformMatrix4fv": 235,
+     "gl.uniform3f": 4,
+     "gl.uniform1f": 7,
+     "gl.uniformMatrix3fv": 36,
+     "gl.bindVertexArray": 116,
+     "gl.uniform1i": 2,
+     "gl.calls": 2080,
+     "bytes.bufferData": 1109044,
+     "bytes.uniforms": 16420,
+     "draws.other": 175,
+     "draws.total": 175,
+     "tris.other": 107592,
+     "links": 2,
+     "three.updateMatrixWorld": 2952,
+     "three.updateMatrix": 3030,
+     "three.frustumTests": 124,
+     "three.renders": 13,
+     "wallMs": 1148,
+     "io.fetches": 316,
+     "io.fetchBytes": 34916270,
+     "io.imgLoads": 14,
+     "io.imgBytes": 1370144,
+     "io.c2d.getImageData": 4,
+     "io.c2d.readBytes": 2621440,
+     "io.c2d.putImageData": 17
+    },
+    "garage:editor": {
+     "gl.bindTexture": 6,
+     "gl.bindFramebuffer": 10,
+     "gl.bindBuffer": 513,
+     "gl.bufferData": 281,
+     "gl.useProgram": 2,
+     "gl.uniformMatrix4fv": 416,
+     "gl.uniform3f": 1,
+     "gl.uniform1f": 4,
+     "gl.uniformMatrix3fv": 157,
+     "gl.bindVertexArray": 142,
+     "gl.calls": 2483,
+     "bytes.bufferData": 23117604,
+     "bytes.uniforms": 32304,
+     "draws.other": 240,
+     "draws.total": 240,
+     "tris.other": 1279426,
+     "three.updateMatrixWorld": 2470,
+     "three.updateMatrix": 2494,
+     "three.frustumTests": 225,
+     "three.renders": 8,
+     "wallMs": 229
+    },
+    "garage:seed": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "three.updateMatrixWorld": 25365,
+     "three.updateMatrix": 33736,
+     "wallMs": 2708,
+     "io.fetches": 4,
+     "io.fetchBytes": 2588931,
+     "io.imgLoads": 17,
+     "io.imgBytes": 1598221,
+     "io.c2d.drawImage": 41,
+     "io.c2d.putImageData": 9
+    },
+    "garage:world": {
+     "gl.bindTexture": 8009,
+     "gl.texImage2D": 11,
+     "gl.bindFramebuffer": 2069,
+     "gl.drawBuffers": 11,
+     "gl.bindBuffer": 3508,
+     "gl.bufferData": 1697,
+     "gl.useProgram": 7008,
+     "gl.uniformMatrix4fv": 20442,
+     "gl.uniform3f": 10142,
+     "gl.uniform1f": 166,
+     "gl.uniformMatrix3fv": 10157,
+     "gl.bindVertexArray": 7266,
+     "gl.uniform1i": 37,
+     "gl.texStorage2D": 28,
+     "gl.texSubImage2D": 118,
+     "gl.uniform4fv": 64,
+     "gl.uniform4f": 9,
+     "gl.readPixels": 104,
+     "gl.texStorage3D": 16,
+     "gl.generateMipmap": 27,
+     "gl.uniform3fv": 2,
+     "gl.calls": 122320,
+     "bytes.bufferData": 385208900,
+     "bytes.texSubImage2D": 247588500,
+     "bytes.uniforms": 1801200,
+     "draws.other": 10438,
+     "draws.total": 10438,
+     "tris.other": 31521530,
+     "links": 14,
+     "house.ms0": 945,
+     "three.updateMatrixWorld": 92034,
+     "three.updateMatrix": 407635,
+     "three.frustumTests": 10192,
+     "world.terrainH": 446285,
+     "world.grHeight": 3781775,
+     "three.renders": 6732,
+     "house.build0": 6,
+     "house.tris0": 233558,
+     "wallMs": 21423,
+     "io.fetches": 153,
+     "io.fetchBytes": 33845150,
+     "io.imgLoads": 83,
+     "io.imgBytes": 20388598,
+     "io.c2d.drawImage": 10,
+     "io.c2d.getImageData": 9,
+     "io.c2d.readBytes": 37748736,
+     "io.c2d.putImageData": 3,
+     "io.worker.messages": 48
+    },
+    "garage:town": {
+     "gl.bindTexture": 3,
+     "gl.texImage2D": 1,
+     "gl.bindFramebuffer": 10,
+     "gl.drawBuffers": 1,
+     "gl.bindBuffer": 96,
+     "gl.texStorage2D": 1,
+     "gl.renderbufferStorageMultisample": 2,
+     "gl.calls": 802,
+     "draws.total": 0,
+     "links": 43,
+     "house.ms0": 2866,
+     "house.ms1": 566,
+     "three.updateMatrixWorld": 7163,
+     "three.updateMatrix": 8672,
+     "world.grHeight": 341,
+     "house.build0": 86,
+     "house.build1": 96,
+     "house.tris0": 1092742,
+     "house.tris1": 102536,
+     "wallMs": 9853,
+     "io.fetches": 351,
+     "io.fetchBytes": 53595581,
+     "io.imgLoads": 83,
+     "io.imgBytes": 12909005,
+     "io.c2d.getImageData": 1,
+     "io.c2d.readBytes": 524288,
+     "io.c2d.putImageData": 1,
+     "io.worker.messages": 40
+    },
+    "garage:parking": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "three.updateMatrixWorld": 9545,
+     "three.updateMatrix": 19490,
+     "wallMs": 11516,
+     "io.fetches": 1,
+     "io.fetchBytes": 910,
+     "io.worker.messages": 760
+    },
+    "garage:trees": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "wallMs": 0
+    },
+    "garage:ring": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "three.updateMatrix": 806,
+     "world.terrainH": 723947,
+     "world.grHeight": 471094,
+     "wallMs": 2569
+    },
+    "garage:settle": {
+     "gl.bindTexture": 2054,
+     "gl.texImage2D": 3,
+     "gl.bindFramebuffer": 3204,
+     "gl.drawBuffers": 3,
+     "gl.bindBuffer": 839,
+     "gl.bufferData": 326,
+     "gl.useProgram": 3071,
+     "gl.uniformMatrix4fv": 15437,
+     "gl.uniform3f": 268,
+     "gl.uniform1f": 1494,
+     "gl.uniformMatrix3fv": 266,
+     "gl.bindVertexArray": 13238,
+     "gl.uniform1i": 12,
+     "gl.texStorage2D": 21,
+     "gl.texSubImage2D": 247,
+     "gl.uniform4fv": 1813,
+     "gl.uniform4f": 2,
+     "gl.readPixels": 2,
+     "gl.generateMipmap": 58,
+     "gl.calls": 81941,
+     "bytes.bufferData": 36365192,
+     "bytes.texSubImage2D": 66406400,
+     "bytes.uniforms": 1122848,
+     "draws.other": 13238,
+     "draws.total": 13238,
+     "tris.other": 76227166,
+     "links": 24,
+     "three.updateMatrixWorld": 57278,
+     "three.updateMatrix": 72944,
+     "three.frustumTests": 1055,
+     "world.terrainH": 8857269,
+     "world.grHeight": 10786668,
+     "three.renders": 2203,
+     "wallMs": 47563,
+     "io.fetches": 66,
+     "io.fetchBytes": 9079942,
+     "io.imgLoads": 23,
+     "io.imgBytes": 8534202,
+     "io.c2d.drawImage": 176,
+     "io.c2d.getImageData": 176,
+     "io.c2d.readBytes": 144755456,
+     "io.worker.messages": 104
+    },
+    "garage:parked": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "three.updateMatrixWorld": 96484,
+     "three.updateMatrix": 255688,
+     "wallMs": 7854,
+     "io.imgLoads": 1,
+     "io.imgBytes": 22326,
+     "io.c2d.drawImage": 66,
+     "io.c2d.getImageData": 11,
+     "io.c2d.readBytes": 46137344,
+     "io.c2d.putImageData": 13,
+     "io.worker.messages": 4
+    },
+    "garage:snapshot": {
+     "gl.bindTexture": 2126,
+     "gl.texImage2D": 6,
+     "gl.bindFramebuffer": 58,
+     "gl.drawBuffers": 6,
+     "gl.bindBuffer": 5332,
+     "gl.bufferData": 1894,
+     "gl.useProgram": 758,
+     "gl.uniformMatrix4fv": 80,
+     "gl.uniform3f": 1369,
+     "gl.uniform1f": 4477,
+     "gl.uniformMatrix3fv": 21,
+     "gl.bindVertexArray": 1883,
+     "gl.uniform1i": 120,
+     "gl.texStorage2D": 29,
+     "gl.texSubImage2D": 29,
+     "gl.uniform4fv": 25536,
+     "gl.uniform4f": 3049,
+     "gl.readPixels": 18,
+     "gl.generateMipmap": 28,
+     "gl.uniform3fv": 16,
+     "gl.uniform2f": 1702,
+     "gl.calls": 64550,
+     "bytes.bufferData": 94502808,
+     "bytes.texSubImage2D": 67895300,
+     "bytes.uniforms": 2583924,
+     "draws.other": 1893,
+     "draws.total": 1893,
+     "tris.other": 1565034,
+     "links": 108,
+     "three.updateMatrixWorld": 38252,
+     "three.updateMatrix": 193139,
+     "three.frustumTests": 21,
+     "three.renders": 39,
+     "wallMs": 4714,
+     "io.worker.messages": 4
+    },
+    "garage:bake": {
+     "gl.bindTexture": 937,
+     "gl.texImage2D": 8,
+     "gl.bindFramebuffer": 49,
+     "gl.drawBuffers": 3,
+     "gl.bindBuffer": 3584,
+     "gl.bufferData": 1314,
+     "gl.useProgram": 360,
+     "gl.uniformMatrix4fv": 704,
+     "gl.uniform3f": 820,
+     "gl.uniform1f": 2781,
+     "gl.uniformMatrix3fv": 6,
+     "gl.bindVertexArray": 1092,
+     "gl.uniform1i": 54,
+     "gl.texStorage2D": 11,
+     "gl.texSubImage2D": 11,
+     "gl.uniform4fv": 15288,
+     "gl.uniform4f": 1818,
+     "gl.readPixels": 12,
+     "gl.generateMipmap": 11,
+     "gl.uniform3fv": 6,
+     "gl.uniform2f": 1172,
+     "gl.calls": 39721,
+     "bytes.bufferData": 156316704,
+     "bytes.texSubImage2D": 83886080,
+     "bytes.uniforms": 1590108,
+     "draws.other": 1092,
+     "draws.total": 1092,
+     "tris.other": 994488,
+     "links": 84,
+     "three.updateMatrixWorld": 1484,
+     "three.updateMatrix": 1472,
+     "three.renders": 12,
+     "wallMs": 15625,
+     "io.worker.messages": 20
+    },
+    "garage:spec": {
+     "gl.bindTexture": 6,
+     "gl.bindFramebuffer": 30,
+     "gl.useProgram": 2,
+     "gl.uniformMatrix4fv": 415,
+     "gl.uniform3f": 1,
+     "gl.uniform1f": 4,
+     "gl.uniformMatrix3fv": 157,
+     "gl.bindVertexArray": 142,
+     "gl.calls": 2565,
+     "bytes.uniforms": 32240,
+     "draws.other": 240,
+     "draws.total": 240,
+     "tris.other": 1279426,
+     "links": 138,
+     "three.updateMatrixWorld": 12302,
+     "three.updateMatrix": 20368,
+     "three.frustumTests": 225,
+     "world.terrainH": 3115,
+     "world.grHeight": 2872,
+     "three.renders": 8,
+     "wallMs": 2861
+    },
+    "garage:restore": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "three.updateMatrixWorld": 2269,
+     "three.updateMatrix": 3403,
+     "wallMs": 28
+    },
+    "garage:images": {
+     "gl.bindTexture": 2,
+     "gl.bindFramebuffer": 7,
+     "gl.useProgram": 2,
+     "gl.bindVertexArray": 2,
+     "gl.uniform4fv": 2,
+     "gl.calls": 42,
+     "bytes.uniforms": 128,
+     "draws.other": 2,
+     "draws.total": 2,
+     "tris.other": 4,
+     "three.updateMatrixWorld": 551,
+     "three.updateMatrix": 1832,
+     "world.terrainH": 7,
+     "world.grHeight": 53,
+     "three.renders": 2,
+     "wallMs": 170
+    },
+    "garage:upload": {
+     "gl.bindTexture": 662,
+     "gl.texStorage2D": 212,
+     "gl.texSubImage2D": 197,
+     "gl.texStorage3D": 19,
+     "gl.generateMipmap": 174,
+     "gl.compressedTexSubImage3D": 171,
+     "gl.compressedTexSubImage2D": 258,
+     "gl.texSubImage3D": 2,
+     "gl.calls": 3139,
+     "bytes.texSubImage2D": 305566140,
+     "bytes.compressedTexSubImage3D": 165511888,
+     "bytes.compressedTexSubImage2D": 8760672,
+     "bytes.texSubImage3D": 69206016,
+     "draws.total": 0,
+     "wallMs": 164
+    },
+    "garage:worldCompile": {
+     "gl.bindTexture": 3,
+     "gl.bindFramebuffer": 15,
+     "gl.useProgram": 3,
+     "gl.uniformMatrix4fv": 66,
+     "gl.bindVertexArray": 48,
+     "gl.texSubImage2D": 1,
+     "gl.uniform4fv": 2,
+     "gl.calls": 301,
+     "bytes.texSubImage2D": 6144,
+     "bytes.uniforms": 4352,
+     "draws.other": 48,
+     "draws.total": 48,
+     "tris.other": 284172,
+     "links": 6,
+     "three.updateMatrixWorld": 747,
+     "three.updateMatrix": 2029,
+     "world.terrainH": 8,
+     "world.grHeight": 52,
+     "three.renders": 3,
+     "wallMs": 165
+    },
+    "garage:compile": {
+     "gl.bindTexture": 1298,
+     "gl.texImage2D": 13,
+     "gl.bindFramebuffer": 204,
+     "gl.drawBuffers": 18,
+     "gl.bindBuffer": 1984,
+     "gl.bufferData": 387,
+     "gl.useProgram": 370,
+     "gl.uniformMatrix4fv": 10928,
+     "gl.uniform3f": 1821,
+     "gl.uniform1f": 2270,
+     "gl.uniformMatrix3fv": 3677,
+     "gl.bindVertexArray": 5212,
+     "gl.uniform1i": 340,
+     "gl.texStorage2D": 76,
+     "gl.texSubImage2D": 101,
+     "gl.uniform4fv": 1620,
+     "gl.uniform4f": 121,
+     "gl.texStorage3D": 10,
+     "gl.generateMipmap": 36,
+     "gl.uniform3fv": 35,
+     "gl.renderbufferStorageMultisample": 6,
+     "gl.uniform2f": 298,
+     "gl.compressedTexSubImage3D": 83,
+     "gl.compressedTexSubImage2D": 353,
+     "gl.texSubImage3D": 1,
+     "gl.uniform1iv": 70,
+     "gl.blitFramebuffer": 6,
+     "gl.calls": 44744,
+     "bytes.bufferData": 1520192,
+     "bytes.texSubImage2D": 200884224,
+     "bytes.compressedTexSubImage3D": 1835456,
+     "bytes.compressedTexSubImage2D": 18968144,
+     "bytes.texSubImage3D": 786432,
+     "bytes.uniforms": 1136356,
+     "draws.other": 1246,
+     "draws.shadow": 5418,
+     "draws.total": 6664,
+     "tris.other": 4594810,
+     "tris.shadow": 24466398,
+     "links": 5,
+     "three.updateMatrixWorld": 19269,
+     "three.updateMatrix": 18947,
+     "three.frustumTests": 10898,
+     "three.renders": 69,
+     "wallMs": 254
+    },
+    "garage:firstFrame": {
+     "gl.bindTexture": 498,
+     "gl.texImage2D": 7,
+     "gl.bindFramebuffer": 61,
+     "gl.drawBuffers": 7,
+     "gl.bindBuffer": 13901,
+     "gl.bufferData": 3577,
+     "gl.useProgram": 217,
+     "gl.uniformMatrix4fv": 7622,
+     "gl.uniform3f": 909,
+     "gl.uniform1f": 945,
+     "gl.uniformMatrix3fv": 1036,
+     "gl.bindVertexArray": 5419,
+     "gl.uniform1i": 151,
+     "gl.texStorage2D": 2,
+     "gl.texSubImage2D": 2,
+     "gl.uniform4fv": 1995,
+     "gl.uniform4f": 234,
+     "gl.generateMipmap": 5,
+     "gl.uniform3fv": 10,
+     "gl.renderbufferStorageMultisample": 2,
+     "gl.uniform2f": 204,
+     "gl.uniform1iv": 20,
+     "gl.blitFramebuffer": 3,
+     "gl.calls": 65620,
+     "bytes.bufferData": 19636892,
+     "bytes.texSubImage2D": 12800,
+     "bytes.uniforms": 801092,
+     "draws.other": 1100,
+     "draws.shadow": 4739,
+     "draws.total": 5839,
+     "tris.other": 1103593,
+     "tris.shadow": 4915025,
+     "three.updateMatrixWorld": 2852,
+     "three.updateMatrix": 2823,
+     "cb.onBeforeRender": 2,
+     "three.frustumTests": 6907,
+     "world.terrainH": 3,
+     "world.grHeight": 8,
+     "three.renders": 15,
+     "wallMs": 224
+    },
+    "garage:frames": {
+     "gl.bindTexture": 4931,
+     "gl.texImage2D": 9,
+     "gl.bindFramebuffer": 189,
+     "gl.drawBuffers": 9,
+     "gl.bindBuffer": 14877,
+     "gl.bufferData": 5339,
+     "gl.useProgram": 1179,
+     "gl.uniformMatrix4fv": 7019,
+     "gl.uniform3f": 4287,
+     "gl.uniform1f": 5008,
+     "gl.uniformMatrix3fv": 1531,
+     "gl.bindVertexArray": 6071,
+     "gl.uniform1i": 700,
+     "gl.texStorage2D": 172,
+     "gl.texSubImage2D": 498,
+     "gl.uniform4fv": 14024,
+     "gl.uniform4f": 1442,
+     "gl.generateMipmap": 12,
+     "gl.uniform3fv": 74,
+     "gl.uniform2f": 942,
+     "gl.uniform1iv": 100,
+     "gl.blitFramebuffer": 6,
+     "gl.uniform1fv": 104,
+     "gl.calls": 112157,
+     "bytes.bufferData": 368378636,
+     "bytes.texSubImage2D": 746172,
+     "bytes.uniforms": 2078056,
+     "draws.other": 3932,
+     "draws.shadow": 2344,
+     "draws.total": 6276,
+     "tris.other": 76870075,
+     "tris.shadow": 16985219,
+     "links": 1,
+     "three.updateMatrixWorld": 48879,
+     "three.updateMatrix": 15214,
+     "cb.onBeforeRender": 6,
+     "cb.onAfterRender": 6,
+     "three.frustumTests": 10819,
+     "world.terrainH": 51,
+     "world.grHeight": 5278,
+     "three.renders": 98,
+     "wallMs": 1261
+    },
+    "garage:craft": {
+     "gl.bindTexture": 351,
+     "gl.bindFramebuffer": 49,
+     "gl.bindBuffer": 2140,
+     "gl.bufferData": 421,
+     "gl.useProgram": 104,
+     "gl.uniformMatrix4fv": 324,
+     "gl.uniform3f": 498,
+     "gl.uniform1f": 1170,
+     "gl.uniformMatrix3fv": 41,
+     "gl.bindVertexArray": 279,
+     "gl.uniform1i": 175,
+     "gl.texSubImage2D": 7,
+     "gl.uniform4fv": 3461,
+     "gl.uniform4f": 670,
+     "gl.uniform3fv": 15,
+     "gl.uniform2f": 334,
+     "gl.uniform1iv": 15,
+     "gl.blitFramebuffer": 7,
+     "gl.calls": 14223,
+     "bytes.bufferData": 19407480,
+     "bytes.texSubImage2D": 11520,
+     "bytes.uniforms": 386268,
+     "draws.other": 279,
+     "draws.total": 279,
+     "tris.other": 279,
+     "links": 2,
+     "three.updateMatrixWorld": 58824,
+     "three.updateMatrix": 24147,
+     "three.renders": 7,
+     "wallMs": 218
+    },
+    "garage:recheck": {
+     "gl.calls": 0,
+     "draws.total": 0,
+     "three.updateMatrixWorld": 1134,
+     "three.updateMatrix": 1134,
+     "wallMs": 17
+    },
+    "garage:landing": {
+     "gl.bindTexture": 1457,
+     "gl.texImage2D": 1,
+     "gl.bindFramebuffer": 126,
+     "gl.drawBuffers": 1,
+     "gl.bindBuffer": 7342,
+     "gl.bufferData": 2,
+     "gl.useProgram": 652,
+     "gl.uniformMatrix4fv": 22363,
+     "gl.uniform3f": 673,
+     "gl.uniform1f": 1134,
+     "gl.uniformMatrix3fv": 6560,
+     "gl.bindVertexArray": 16258,
+     "gl.uniform1i": 180,
+     "gl.texStorage2D": 2,
+     "gl.texSubImage2D": 8,
+     "gl.uniform4fv": 5860,
+     "gl.uniform4f": 535,
+     "gl.generateMipmap": 12,
+     "gl.uniform2f": 397,
+     "gl.blitFramebuffer": 9,
+     "gl.bufferSubData": 6,
+     "gl.calls": 97514,
+     "bytes.bufferData": 768,
+     "bytes.texSubImage2D": 300544,
+     "bytes.bufferSubData": 1920,
+     "bytes.uniforms": 2455340,
+     "draws.other": 3301,
+     "draws.shadow": 14217,
+     "draws.total": 17518,
+     "tris.other": 3310781,
+     "tris.shadow": 14745075,
+     "three.updateMatrixWorld": 10719,
+     "three.updateMatrix": 11892,
+     "cb.onBeforeRender": 6,
+     "three.frustumTests": 20721,
+     "world.grHeight": 15,
+     "three.renders": 46,
+     "wallMs": 1073
+    },
+    "rollout:click": {
+     "gl.bindTexture": 270877,
+     "gl.texImage2D": 6,
+     "gl.bindFramebuffer": 27667,
+     "gl.drawBuffers": 6,
+     "gl.bindBuffer": 8829,
+     "gl.bufferData": 10,
+     "gl.useProgram": 104260,
+     "gl.uniformMatrix4fv": 734739,
+     "gl.uniform3f": 142365,
+     "gl.uniform1f": 108942,
+     "gl.uniformMatrix3fv": 163771,
+     "gl.bindVertexArray": 391333,
+     "gl.uniform1i": 9663,
+     "gl.texStorage2D": 6,
+     "gl.texSubImage2D": 4002,
+     "gl.uniform4fv": 561225,
+     "gl.uniform4f": 33438,
+     "gl.generateMipmap": 2001,
+     "gl.uniform3fv": 44,
+     "gl.uniform2f": 24305,
+     "gl.uniform1iv": 88,
+     "gl.blitFramebuffer": 2049,
+     "gl.bufferSubData": 5065,
+     "gl.calls": 3423751,
+     "bytes.bufferData": 28856,
+     "bytes.texSubImage2D": 12464896,
+     "bytes.bufferSubData": 762580144,
+     "bytes.uniforms": 140687988,
+     "draws.other": 248765,
+     "draws.shadow": 170585,
+     "draws.total": 419350,
+     "tris.other": 813759671,
+     "tris.shadow": 1032204995,
+     "links": 1,
+     "three.updateMatrixWorld": 2450734,
+     "three.updateMatrix": 3564143,
+     "three.frustumTests": 222423,
+     "world.terrainH": 3452,
+     "world.grHeight": 4447,
+     "three.renders": 10005,
+     "wallMs": 38816,
+     "io.c2d.drawImage": 1
+    }
+   },
+   "selftest": null,
+   "mem": {
+    "rollout": {
+     "heapUsed": 836.8,
+     "arrayBuffers": 2132.8,
+     "external": 2199.9,
+     "rss": 3481.2
+    },
+    "end": {
+     "heapUsed": 840.6,
+     "arrayBuffers": 2143.1,
+     "external": 2210.1,
+     "rss": 3482.1
+    }
+   },
+   "programsTotal": 391,
+   "wall": {
+    "garage": 138000,
+    "rollout": 38816,
+    "total": 190647
+   },
+   "errors": [
+    "impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: cedar_tree.glb|Cedar_LOD0 rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: cedar_tree.glb|Cedar_LOD0 stand sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: cedar_tree.glb|Cedar_LOD0 snag sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: fir_tree_georgeous.glb|Fir01_LOD0 rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: fir_tree_georgeous.glb|Fir01_LOD0 stand sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: fir_tree_georgeous.glb|Fir01_LOD0 snag sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: larch_tree.glb|Larch_LOD0 rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: larch_tree.glb|Larch_LOD0 stand sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: larch_tree.glb|Larch_LOD0 snag sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree stand sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree snag sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree_2 rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree_2 stand sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree_2 snag sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+    "impostor bake: spruce_tree.glb|Spruce_LOD0 rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)"
+   ],
+   "errorsN": 53
+  }
+ }
+}

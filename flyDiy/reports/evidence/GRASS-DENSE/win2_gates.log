@@ -1,0 +1,88 @@
+boxlock: CPU battery taken by GRASS
+11:00:38 base: 37bf53368 train 43 (built): flight_core.js, index.html, dev.html, sw.js, version.json built from 171603ec0
+tools/flight_core.js (2460.5 KB), index.html (11943.5 KB), dev.html (110.9 KB) — syntax OK, build 58ea72e71d4f (325 named inputs), 836 ms
+GATE COVER
+  ok   1 every rock, debris and shrub instance of the instanced path is in a batch, with its geometry, matrix, colour and threshold  (27264 instances; 27264 batched)
+  ok   1 the batches are the rocks, the debris and the shrubs; the tufts stay instanced by block
+  ok   2 the eye moves: the same instances kept, the same within reach (a block past the fade's reach draws nothing, batched or not)  (29678 of 30246)
+  ok   3 the batched kinds draw once per batch and pass at most  (rock 81 -> 5, debris 33 -> 3, shrub 96 -> 8 (main + shadow, 9 batches))
+  ok   3 the tufts draw as before  (cover 9)
+  ok   4 no rock or debris under castMinH (0.35 m: the user world look, 2026-10-03; 0.5 since G585) casts, in either path  (159 casters)
+  ok   5 the eye leaves and comes back: the same instances, the same shown, no instance left over  (30672 / 27832 away / 27264 back, 27264 live)
+  ok   5 a batch is visible exactly when one of its instances is (and none after the dial goes back to per-block)  (9 batches)
+  ok   6 the batched fade takes its threshold from the colour's alpha, after the attribute it stands in for  (3 programs)
+  ok   6 the instanced fade programs still read aRand (the batch path is compiled out there)  (5 programs)
+  ok   6 a batched leaf sways on its own instance (the draw's indirect index), an instanced one on gl_InstanceID as before  (2 + 2 programs)
+  ok   7 the truncated blocks hold the same tufts as the untruncated (a permutation)  (7872 tufts)
+  ok   7 every tuft left out of a draw is one the fade collapses from this eye (the picture to the pixel)  (3478 left out of 16 meshes, 0 that would draw)
+  ok   8a the reed is cut into 3 tufts of 3 of its own cards, each card unbent, the tuft moved whole to its foot  (3 of 3 tufts)
+  ok   8b cut where the premises say (0.08 m, uniform), the meadow about its 0.30 m  (755 cut, median 0.083; 945 wild, median 0.325)
+  ok   8c each tuft wears the ground's drawn colour (x match over the tinted texel)  (114891 tufts)
+  ok   8d tiered planting: the far eye holds a prefix of the stream, the near eye only adds to it  (29085 at 60 m -> 83185 at 2 m (planted fresh from 2 m: 114891))
+  ok   8d ...and what DRAWS is the same picture as a ring planted fresh from there  (27986 drawn both ways)
+  ok   8e the field's truncation leaves out only tufts its own fade (and size fade) collapses  (8438 left out, 0 that would draw)
+GATE COVER: PASS
+11:00:53 COVER ok
+GATE FADES
+  ok   1 2-blade: analysed
+  ok   1 2-blade: the reach, the root, the plane  (0.952 0.117 0)
+  ok   1 2-blade: the blade count off the silhouette  (2)
+  ok   1 2-blade: the swept coverage at 30 % = N chord / circumference  (0.1367 vs 0.1338)
+  ok   1 2-blade: the swept coverage at 70 % = N chord / circumference  (0.0547 vs 0.0573)
+  ok   1 2-blade: the painted tip is the tip ring's colour  (255,225,0)
+  ok   1 2-blade: the blade's colour inboard  (149,118,80)
+  ok   1 2-blade: the ghost varies round the circle at 30 %  (46..183)
+  ok   1 2-blade: the ghost varies round the circle at 50 %  (28..127)
+  ok   1 2-blade: the ghost varies round the circle at 70 %  (19..87)
+  ok   1 2-blade: the ghost keeps the mean (only the concentric streak moves it)  (0.081)
+  ok   1 3-blade: analysed
+  ok   1 3-blade: the reach, the root, the plane  (0.952 0.117 0)
+  ok   1 3-blade: the blade count off the silhouette  (3)
+  ok   1 3-blade: the swept coverage at 30 % = N chord / circumference  (0.2070 vs 0.2006)
+  ok   1 3-blade: the swept coverage at 70 % = N chord / circumference  (0.0840 vs 0.0860)
+  ok   1 3-blade: the painted tip is the tip ring's colour  (255,225,0)
+  ok   1 3-blade: the blade's colour inboard  (149,118,80)
+  ok   1 3-blade: the ghost varies round the circle at 30 %  (69..208)
+  ok   1 3-blade: the ghost varies round the circle at 50 %  (43..144)
+  ok   1 3-blade: the ghost varies round the circle at 70 %  (29..99)
+  ok   1 3-blade: the ghost keeps the mean (only the concentric streak moves it)  (0.083)
+  ok   2 the blades are the meshes that reach out; the spinner is not one  (2)
+  ok   2 the disc is a child of the spinning part (it rides its pose)
+  ok   2 stopped: no disc, the blades  (false 0 true true)
+  ok   2 under rpmLo (a slow windmill): the blades alone  (false 0 true true)
+  ok   2 half-way: the disc half-grown, the blades still drawn  (true 0.5 true true)
+  ok   2 at 2 400 rpm: the disc whole, the blades hidden, the spinner turning  (true 1 false true)
+  ok   2 the texture counter-turns the part's own angle (the ghosts do not strobe with it)  (0.250000)
+  ok   2 ...and drifts `drift` turns a second the engine's way  (0.1100)
+  ok   2 wound down: the blades come back  (false 0 true true)
+  ok   2 app.js makes a disc for every prop part (the cage build)  (151127 / 149735)
+  ok   2 ...and updates it in the spin loop at the shaft's rpm
+  ok   2 ...and links its program at the build, not on the first frame that shows it
+  ok   2 ...and sorts in the craft's see-through band (renderOrder AERO_CLEAR = 2e6), after every pavement (renderOrder <= 3)
+  ok   2 build.js ships prop_disc.js
+  ok   3 FADE_VS found in trees.js
+  ok   3 no instance switches on its threshold any more
+  ok   3 the band, then the birth, then the shrink of `transformed`  (845 968 1056)
+  ok   3 the shrink BEFORE <project_vertex>, the throw-away after it
+  ok   3 aBorn is declared for instanced programs only (a batch has none)
+  ok   3 the band: whole at _fk 1, gone at 0, monotone between
+  ok   4 planted in the open: every block instance carries aBorn = its birth  (16 meshes)
+  ok   4 the batched rocks are the same instances with and without the grow  (7872 / 7872)
+  ok   4 a near cell's batched rocks start small (grown on the CPU)  (2460 of 7872)
+  ok   4 ...and end exactly where the ring with no grow puts them  (max |d| 0)
+  ok   4 between aglOff and aglPre the ring plants while hidden  (agl 205, live 192)
+  ok   4 ...born hidden: nothing grows when the fade lets it show  (16)
+  ok   4 over aglPre the ring is dropped, as before  (0)
+  ok   4 the lead: what the eye flies toward is planted first  (lead 132 m: mean dx 85 m (no lead 8 m))
+  ok   5 the RISE block found in render_premises.js (RISE .. STREAM)
+  ok   5 a streamed item is hooked, every mesh of it
+  ok   5 the draw is scaled in y about the foot, x and z untouched  (y 11.7344 k 0.5781)
+  ok   5 ...and the matrix is back, bit for bit, after the draw (nothing else sees the rise)
+  ok   5 the rise over: the hooks are gone
+  ok   5 the bench (o.game false) hooks nothing
+  ok   5 the stream raises what it builds (inline and from the house worker)
+  ok   5 the prewarm (under the roll-out screen) does not (either way)
+GATE FADES: PASS
+11:00:54 FADES ok
+boxlock: CPU battery released by GRASS
+11:00:55 lock dropped
