@@ -109,7 +109,9 @@ const urls = [];
 globalThis.importScripts = u => { urls.push(u); const rel = u.replace(workerData.base, '').split('?')[0];
   vm.runInThisContext(fs.readFileSync(path.join(workerData.root, ...rel.split('/')), 'utf8'), { filename: rel }); };
 globalThis.postMessage = (m, tr) => parentPort.postMessage(m, tr || []);
-parentPort.on('message', d => { if (d && d.__urls) { parentPort.postMessage({ __urls: urls }); return; } if (self.onmessage) self.onmessage({ data: d }); });
+parentPort.on('message', d => { if (d && d.__urls) { parentPort.postMessage({ __urls: urls }); return; }
+  if (d && d.__plant) { vm.runInThisContext("CORE.genShakedown = function () { throw new Error('planted'); };"); parentPort.postMessage({ __planted: 1 }); return; }
+  if (self.onmessage) self.onmessage({ data: d }); });
 vm.runInThisContext(workerData.src, { filename: 'bench_worker_blob.js' });
 `;
 function startThread(src, base) {
@@ -158,12 +160,14 @@ async function sectionThread() {
     const d = r && !r.error ? diff(r.sheet, sh) : String(r && r.error);
     ok(!d, 'the strip\'s ledger sheet (jodel) equal to the bit' + (d ? ' - ' + d : ''));
   }
-  // a spec the core cannot build: an error message back, never a hang
-  {
-    const r = await th.ask({ kind: 'sheet', seq: ++seq, key: 'bad', spec: { wings: 'nope' }, opts: {} });
-    ok(r && r.kind === 'sheet' && r.seq === seq && typeof r.error === 'string', 'a spec that throws answers {error} with its seq (the page then computes it, meeting the same error)');
-  }
   const urls = (await th.ask({ __urls: 1 })).__urls;
+  // a sheet that throws: an error message back with its seq, never a hang (the core normalises any spec - even
+  // { wings: 'nope' } builds - so the throw is planted in the thread's own genShakedown, the last job on this thread)
+  {
+    await th.ask({ __plant: 1 });
+    const r = await th.ask({ kind: 'sheet', seq: ++seq, key: 'bad', spec: specOf('cub'), opts: {} });
+    ok(r && r.kind === 'sheet' && r.seq === seq && /planted/.test(r.error || ''), 'a sheet that throws answers {error} with its seq (the page then computes it, meeting the same error)');
+  }
   ok(urls.length === 2 && /bench_worker\.js\?v=B1$/.test(urls[0]) && /flight_core\.js\?v=c0re$/.test(urls[1]), 'the thread imported the two files it names: ' + urls.map(u => u.replace(base, '')).join(', '));
   await th.kill();
   console.log('  (main thread ' + mainMs + ' ms, the thread\'s own runs ' + threadMs.toFixed(0) + ' ms, section ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s)');
