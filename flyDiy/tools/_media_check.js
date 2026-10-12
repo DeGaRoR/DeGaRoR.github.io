@@ -178,6 +178,8 @@ const STEP_BUDGET_MIB = 0.3;
 const STEP_ACCEPTED = [
   { name: 'train 43: the career features, user-accepted 8 Oct ("Have a sanity check, then accept. It is a major feature, expected to take some space.") - +422.8 KB over train 42.1',
     fromBytes: 12210701, upToBytes: 12660032 },
+  { name: 'train 41: the damage layer, user-accepted 12 Oct by name ("(a) now") - +467 KB raw (+160 KB gz) over master f09cf417f; owed back by G3020 / G3021',
+    fromBytes: 12644598, upToBytes: 13140000 },
 ];
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
