@@ -645,7 +645,7 @@ if (plots.length) {
   const VGs = fs.readFileSync(path.join(TOOLS, '_village_gen.js'), 'utf8'), RPs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
   check(/plot\.noFence \? new Set\(\) : vil\.fenced/.test(VGs) && /if \(plot\.noFence\) plot\.fences = \[\];/.test(VGs), '19 the village generator keeps no fence for a noFence plot, and claims none of its sides');
   check(/!!p\.noFence !== !!\(h\.plot && h\.plot\.noFence\)/.test(RPs), '19 the renderer builds a plot again when its fence switches (its seed the same)');
-  check(/'plot fences'/.test(UI_SRC) && /pick plots: a click switches one plot\'s fence/.test(UI_SRC) && /name === 'plotFence'/.test(UI_SRC), '19 the zone\'s inspector: the fences switch and the plot pick');
+  check(/'plot fences'/.test(UI_SRC) && /pick plots: a click switches one plot\\'s fence/.test(UI_SRC) && /name === 'plotFence'/.test(UI_SRC), '19 the zone\'s inspector: the fences switch and the plot pick');
 }
 
 // 5 NAMES
