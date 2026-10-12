@@ -686,7 +686,8 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
   // (c) THE LOOK: 9 knobs x 3 surface types, every one a KNOB row with its default inside its range; a class's look
   // through lookOf; the defaults draw the plain surface (multipliers 1, the edge zone's side)
   const K = {}; for (const row of P.KNOBS) if (row.length > 1) K[row[0]] = row;
-  const okK = P.LOOK_KEYS.length === 27 && P.LOOK_KEYS.every(k => K[k] && P.RECIPE[k] >= K[k][2] && P.RECIPE[k] <= K[k][3]);
+  const okK = P.LOOK_KEYS.length === 27 + 2 &&   // + G2570's two grass-strip keys (grMatch, grMowA)
+    P.LOOK_KEYS.every(k => K[k] && P.RECIPE[k] >= K[k][2] && P.RECIPE[k] <= K[k][3]);
   verdict(okK, `the runway look: ${P.LOOK_KEYS.length} knobs (${Object.keys(P.LOOK_GROUPS).join(', ')} x 9), each a KNOBS row, its default in range`);
   const L0 = P.lookOf('asphalt'), Lg = P.lookOf('grass');
   verdict(L0.surf.every(c => Math.abs(c - 1) < 1e-9) && L0.side.every(c => Math.abs(c - 1) < 1e-9) && L0.sideW === P.RECIPE.sideW && L0.sideA === P.RECIPE.sideA && Lg.sideA === 0 && Lg.sideW === P.RECIPE.edgeSoft && P.groupOf('dirt') === 'sf'

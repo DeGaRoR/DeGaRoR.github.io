@@ -86960,3 +86960,16 @@ FILES: tools/_cage_wing.js (CAGE_WING_EARLY, the post's wrapper), tools/_cage_co
 tools/_cage_eng.js (engPlace, the superseded microtask), tools/_cage_chain.js (CAGE_CHAIN.as, RUN, ADOPT),
 tools/_naclag_check.js (new), tools/run_gates.js (the NACLAG row), tools/_bake_joined.js (scene / stat returned,
 joinIn exported - nothing else reads either). Generated outputs not committed (SHARED-TREE-PRACTICES 5).
+
+## TRAIN 50 LANDED (A0, 12 Oct 2026 ~20:55): trees streamed, grass strip colour, finish fixes, wing-engine lag, autopilot by default
+
+Merged on master f09cf417f:
+- TREE-STREAM G2930-G2935 (317639b7c): no bare band, cards stand in, edits restale instead of evicting, biome polygons near and far, the SPL fix (the biome tab saves its edits again).
+- GRASS G2570 (grass-strip-colour): a grass strip wears the ground (grMatch, grMowA).
+- FINISH-FIX G2750 (df404c276): one global paint repaints the whole aircraft, patterns kept; weathering and decal fixes.
+- NACELLE-LAG G2880 (a3ad1085c), AP-DEFAULT G3120 (db0ba1b44): every flight starts on the autopilot.
+- A0: GATE PAVEMENT 13 counts 27 + 2 look keys (G2570's grMatch, grMowA).
+
+Gates: all green except SKINMAT, WEATHER and BENCH (red on master f09cf417f, pre-existing, owned by EDITOR-BUGS / PILOT) and CLOUD (3 world-editor/lamp rows) and ROUNDTRIP (setup sections incl. audio), the same rows as the 43.1 run.
+Strict gate (light, vs the stale 3 Oct base): at par with T44's master run (loop 16.4-16.6 ms, render 11.8, garage->world 11.2 s). New: metal cockpit taskWorst 1188 ms, cub cockpit tasks200 27. TREE-STREAM ran node gates during the run (disclosed), so they are UNPROVEN; the Tue 00:45 baseline re-take checks them on master. If they hold, TREE-STREAM owns the hitch.
+What to watch for: no bare band between near and far trees. The far cards dissolve into near trees over about 1 s. The forest grows around the free camera. A biome polygon grows its trees. A grass strip takes the ground's colour. Global paint covers the wings and tail. Every flight starts on the autopilot.
