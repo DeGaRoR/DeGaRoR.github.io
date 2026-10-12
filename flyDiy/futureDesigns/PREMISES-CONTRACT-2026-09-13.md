@@ -1002,3 +1002,49 @@ after the freeze, against this document.
   migration round trip on every fixture, Jolene and her parts; the same world sample for sample; the places; the
   order; the shapes; the marks inside their shapes), GATE SCENERYED 6-8 (the editor), GATE PAVEMENT 6 (the concrete's
   hex tiling never repeats under 300 m).
+- **v1.37 (2026-10-12, ROAD-GRAPH + ROAD-BED G2950-G2954; record v2 unchanged; futureDesigns/SCENERY-POLYGON-2026-10.md
+  §8-§9).** Roads JOIN ONLY AT WAYPOINTS, and a road can stand on a bed. A road may carry **`nodes: [id | null, ...]`**
+  beside `pts` (one slot a point, as `tan`; `normalise` pads a short list with null): a waypoint carrying an id IS that
+  junction - every road whose waypoint carries the same id meets there. A new layer **`junctions`**:
+  `[{ id, name?, conn? }]` names a junction and marks a CONNECTION POINT (`conn: true` - a place's edge waypoint other
+  roads are meant to join; a junction of one road is kept while the layer names it). Ids are free strings, `j<n>` by
+  the editor (`newJunctionId`), a place's prefix for a place's (`mk_j<n>`: `dropPlaces` cuts them with the place). **No
+  step of the composer, a migrator or the graph writes `pts`**: a junction is where its roads' waypoints are; the editor
+  keeps them on one spot (a snap copies the target's point exactly, a junction's drag moves every road's waypoint of
+  the id, Alt+drag or 'take out' leaves it, one undo step each). **The junction's level** (compose, the record's order):
+  a road that ENDS at a junction takes the junction's height; a road passing THROUGH takes it from a road crossing it
+  earlier, never from a spur's end (the through road grades as it is and sets the height for the roads after it); held
+  7 m either side of the waypoint, eased back over 7 more. **A junction on a straight span is no corner**
+  (`straightOf`): a waypoint with an id lying on the line between its neighbours (1 cm) is not read by the composition
+  - the grade samples, the plots, the pavement are the road's without it (a crossing's waypoints change nothing but
+  the level). A road without ids composes as before, to the bit.
+  **`bed: true | { fill, grade, bank, shoulder, on }`** (`bedOf`, defaults `BED_DEF` { fill 0.15, grade 0.12, bank 10,
+  shoulder 0.5 }; `on: false` keeps the settings, off): the road's grade line is never under the ground across its
+  paved width (the centre and both edges read, + `fill`), its dips filled to `grade` both ways (an embankment, never a
+  cut), the grade's flat width `w + 2 shoulder`, its banks `bank` metres back to the terrain. Absent (every shipped
+  road): today's road, to the bit; the editor's new roads carry `bed: true`. **Areas**: a property **`roadside: {
+  node, use: ['turn', 'stop'] }`** - a ROADSIDE APRON, the junction a vehicle turns or stops from (the editor makes it a
+  round gravel area off the waypoint, the waypoint given an id if it had none). **The graph**: `O.roadGraph()` (made on
+  its first ask) - nodes: every junction, every road end without one (`<road>:0` / `<road>:1`), each `{ id, x, z, lx, lz,
+  y, roads, name?, conn?, aprons: [{ area, use, poly, centre, r }] }`; edges: each road's spans between its nodes on
+  its drawn line (`<road>#k`, world `pts`, `len`, `w`, `cls`, `surface`, `look`, `grade` the steepest along).
+  **`graphMake(nodes, edges)`** is the one router (the taxi pattern's `graphOfPattern(P)`, a ground vehicle's route,
+  GROUND-VEHICLE G2940): `node`, `edge`, `adj`, `path(a, b, weight?)` (Dijkstra; a weight of Infinity closes an edge),
+  `components()`, `nodeAt(x, z, r)`, `edgeAt(x, z, maxD)`. `issues`: a junction id not a string; a junction's
+  waypoints apart (> 5 cm); a roadside apron naming no road's junction. Tools: `tools/road_review.js` (a place's
+  network read as a graph - joins to make, Ts, crossings, gaps, dead ends - and `--join`: waypoints inserted at the
+  crossings and the Ts, one id a shared spot; an end is moved only with `--move`, a place's plots being sown along its
+  streets), `tools/road_patch.py` (its patch into the fixture, every other byte kept). **Metlakatla** (the fixture):
+  its 56-street grid one graph of 129 junctions (`mk_j<n>`), its three ways out named connection points (`mk_c_east`
+  the Walden road, `mk_c_north` the axis to the old airport road, `mk_c_south` the shore road), the same 391 plots;
+  six streets the data draws 17-130 m apart and eight ends 1.5-3.6 m short of a street are left to the user (the
+  review lists them). Held by GATE SCENERYED 11 (the user's own island road r1 bit for bit through a snap, a
+  junction's drag, Alt, a connection point, an apron, the bed on and off) and GATE PREMISES 21 (the router, the
+  junction's level, the bed, Metlakatla's grid, its plots).
+- **v1.38 (2026-10-12, PLACER-FAST G3000-G3002).** A placed prop's `s` (v1.36, the model placer's scale) is on its
+  composed record (`records.objects[].s`, only when it is not 1 - `objScale`): the renderer builds the prop from that
+  record, and the scale had been dropped there (a placed prop stood at x1 after the first rebuild). `roadBuildKeys(O)`
+  -> Map(road id -> key) and `roadBoxTouch(rd, box, pad)`: a road's drawn things (its pavement row, power line,
+  guardrail) are a function of the road (composed and recorded), the record's pavement settings and theme, the strips,
+  and the other roads, plots and paved polygons near it - the renderer's editor keeps a road whose key is unchanged and
+  whose box no ground edit touched. Nothing else of the record or the composition changes.

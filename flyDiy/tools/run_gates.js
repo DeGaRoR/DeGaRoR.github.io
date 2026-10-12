@@ -124,7 +124,22 @@ const GATES = [
   { id: 'PILOTACT', file: '_pilotact_check.js', tier: 'core', weight: 3, wall: 300 },
   // G710: the way out of every Jolene stand bent round the parked aeroplanes (planned, for the stock
   // build's and the aluminium C172's span, and flown off HOME's stand past the Cub); ~40 s
-  { id: 'TAXICLEAR', file: '_taxiclear_check.js', tier: 'core', wall: 330 },   // MILL-TAXI G1925-G1929: + every stand and route against every solid thing (the cook's grids, props, cars, trunks), the procedural seeds, the mill flown
+  { id: 'TAXICLEAR', file: '_taxiclear_check.js', tier: 'core', shards: 4, wall: 400 },   // MILL-TAXI G1925-G1929: + every stand and route against every solid thing (the cook's grids, props, cars, trunks), the procedural seeds, the mill flown; G2490 ALTIPORT-TAXI: + 11 the turn-around from where a landing stopped (sections 1-10 one job in shard 0)
+  // G1965-G1974 ISLAND-TOUR: the strips (the approach census against the forest the fill plants, the turn pads, the
+  // mine's apron; ~1 min, shard 0) and THE TOUR - the user's Cub, the aluminium C172 and the float Cessna round every
+  // location they may use, damage ON, landing, turning round on the pad, taking off, back at HOME (one tour a shard,
+  // ~10-20 min each)
+  // G1970 ISLAND-TOUR-2: the game's flight (the worker's host, the game's day, the load door's aeroplane), East Point a fourth job
+  // (G2520: the row and its tools taken from claude/island-tour-2-g1975x 4bf4bd37 - tools only; the turn pads and the
+  // load door's src are not on this base, so the strips' block and the load-door check carry their known reds)
+  { id: 'TOUR', file: '_tour_check.js', tier: 'full', shards: 4, timeout: 3600_000, wall: 1500 },
+  // G2520 ALTIPORT-ARRIVAL: a field above the aeroplane, as the game flies it (the game's flight, damage on) - the Jodel
+  // and the Cub HOME > Skyline Altiport (stopped, no fault; the final begun at the circuit height; every flare armed over
+  // the strip and at most FLARE_ARM_MAX above it) and the flare guard's own row (a doctored arrival 250 m low is caught)
+  { id: 'ALTIPORT', file: '_altiport_check.js', tier: 'core', shards: 4, timeout: 3600_000, wall: 900 },   // G2530: + 4 the metal Cessna (a fourth job, a fourth shard)
+  // G2500 CESSNA-VREF: the metal Cessna as the game loads it into Tamgas Hill's 520 m in the game's flight, damage on -
+  // stopped on the strip, or the strip refused with its reason said and the diversion landed; the C172 file build the control
+  { id: 'CESSNAVREF', file: '_cessnavref_check.js', tier: 'full', shards: 2, timeout: 2400_000, wall: 700 },
   // G710: the plan published (ap.intent) - the legs' planned heights over the ground, the live target
   // and the TECS limits the law used, the path; a stock HOME circuit and a Jolene circuit (~7 min)
   { id: 'PLAN', file: '_plan_check.js', tier: 'core', wall: 420 },
@@ -132,12 +147,26 @@ const GATES = [
   // onto the hold, at every land aerodrome of both worlds; the take-off roll completes (the Cub default and
   // the user's aluminium C172 at Jolene HOME); the skip's roll begins where the taxi's did (~4.5 min)
   { id: 'LINEUP', file: '_lineup_check.js', tier: 'core', wall: 270 },
+  // G2125 PILOT-PROFILE: the climb on speed (>= 1.3 Vs, the attitude under the type's cap) on the Jodel, the user's Cub
+  // and metal Cessna; the planned vertical profile over Jolene's ridge to Jumbo Mine (reversals near zero, the clearance
+  // kept); East Point's approach over the 'map' trees (no contact, 10 m over the tops on final) (~8 min, 3 cases in parallel)
+  { id: 'PROFILE', file: '_profile_check.js', tier: 'core', weight: 3, wall: 600 },
   // G1945 DEST-TO: ONE "TO" - the From derived (the field under the aeroplane), never a reset. On Jolene, the validated
   // builds, the damage ON: land at HOME, pick another field, the next leg taxis from the landing stop, takes off and
   // lands there (Cub, Jodel, metal Cessna; the floats and the twin on floats lane to lane); a To changed mid-way down
   // the enroute leg re-plans from here inside the turn law and arrives (Cub, metal Cessna); the base, the picker's
   // surface rule and the pref's migration (no flight). Seven real flights, dealt over three shards
   { id: 'DESTTO', file: '_destto_check.js', tier: 'core', shards: 3, wall: 1500 },
+  // G2120 ROUTE-DRAW: THE DRAWN ROUTE IS THE ONE FLOWN - the record and its profile (the hill red, the steep point
+  // flagged, the climb-out no conflict; no flight), then the user's Cub, the Jodel and the metal Cessna lined up at
+  // Jolene HOME fly one 5-point route with its altitude changes: every point inside its capture radius and +-15 m of
+  // its altitude, the vertical speed inside TECS's limits, no terrain conflict, PILOTACT's reversal limit, the plan
+  // published; then the end as drawn (home / hold / the nearest strip). Three flights over three shards; --selftest
+  { id: 'ROUTE', file: '_route_check.js', tier: 'core', shards: 3, wall: 340 },
+  // G2940 GROUND-VEHICLE: the driveable car's physics spike, node only (src/vehicle/, not in the bundle) - the
+  // Conquer's sheet as a generic vehicle, flat / brake / reverse / airborne / turn / 10 % hill, a 300 m traced road
+  // followed, U-turns at a gravel apron off a re-route, one of the world's roads out and back, the path traps; ~15 s
+  { id: 'VEHICLE', file: '_vehicle_check.js', tier: 'core', wall: 15 },
   // G770: the player's default is the Cub (the artifact's own garage bridge, against the design rows),
   // GEN_DEFAULT is still the old stock every gate flies, and the browser rigs carry the old stock's pin
   { id: 'DEFAULT', file: '_default_check.js', tier: 'core' },
@@ -409,6 +438,11 @@ const GATES = [
   { id: 'KNIFE', file: '_knife_check.js', tier: 'core' },     // T2.2: the drawn windows — corpus identity, watertight, shapes, rows, refusal, glazing
   { id: 'FIN', file: '_fin_check.js', tier: 'core' },         // fin + stab vs the sketch
   { id: 'COWL', file: '_cowl_check.js', tier: 'core' },       // the cowl, and the engine inside it
+  // G2880 (NACELLE-LAG): a wing-mounted engine stands on THIS build's wing - card A then card B equals card B fresh
+  // (the engines, the cowls, the flown spec, CG and SM, to the bit) on three wing-engine pairs, the validated builds
+  // register no early reader, the doctored tree (CAGE_WING_EARLY.publish stood down) must reproduce the lag; ~2 min
+  // (8 headless processes, its own pool of 4: weight 4)
+  { id: 'NACLAG', file: '_naclag_check.js', tier: 'core', weight: 4, wall: 120 },
   { id: 'ENGMESH', file: '_eng_mesh_check.js', tier: 'core' },// the engine's own health + ledger
   { id: 'JOIN', file: '_join_check.js', tier: 'core' },       // editor -> spec -> a buildable aeroplane
   // THE RESOLVED SPEC IS A FIXED POINT AND THE CORNERS ARE THE STAND (SPEC-FIXPOINT G1550, the 2026-10-04

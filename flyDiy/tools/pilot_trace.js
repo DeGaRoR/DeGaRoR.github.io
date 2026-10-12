@@ -95,7 +95,7 @@ const ACT_GROUPS = {
   taxi: ['DEPART', 'TAXI', 'LINEUP', 'STOP', 'HOLD'],
   takeoff: ['ROLL', 'LIFTOFF', 'ABORT'],
   climb: ['CLIMB'],
-  legs: ['CROSSWIND', 'ENROUTE', 'INBOUND', 'TURNBACK', 'GOAROUND', 'GLIDE', 'PUTDOWN'],
+  legs: ['CROSSWIND', 'ENROUTE', 'INBOUND', 'TURNBACK', 'GOAROUND', 'GLIDE', 'PUTDOWN', 'ROUTE', 'LOITER'],   // G2120: the drawn route's
   downwind: ['DOWNWIND'], base: ['BASE'], final: ['FINAL'],
   landing: ['FLARE', 'ROLLOUT', 'STOPPED'],
 };

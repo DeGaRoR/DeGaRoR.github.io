@@ -1127,6 +1127,66 @@ if (process.argv.includes('--selftest')) {
         && /aeroDecalsFor\(THREE, DEC/.test(UI),
         'markings: the editor builds its own decal list again — there must be ' +
         'ONE keeper of what a placement means, or the two drift apart');
+
+  // G2750 FINISH-FIX — THE PAINT RIDES THE SKIN. The user: "the decal is projected live, so when the control surfaces
+  // move, the decal gets reprojected" and "the weathering 'dots' keep moving constantly". The rigs write the flown
+  // vertices (hinges, flex), so every box projection read off the posed place slid; the projections read the REST
+  // place, baked once per flown geometry before the first pose.
+  check(/attribute vec4 aRest;/.test(SKIN) &&
+        /vec3 aeroRestP = aRest\.w > 1\.5 \? aRest\.xyz : transformed;\s*vCraftPos = \(uCraftInv \* modelMatrix \* vec4\(aeroRestP, 1\.0\)\)\.xyz;/.test(SKIN),
+        'rest: the craft place is read off the posed vertex again — a decal box and the weathering re-project across a moving surface every frame');
+  check(/boneMatX \* aeroRs \* skinWeight\.x[\s\S]{0,400}vCraftPos = \(uCraftInv \* modelMatrix \* vec4\(aeroRestP, 1\.0\)\)\.xyz;   \/\/ G1493: after skinning/.test(SKIN),
+        'rest: a skinned fold (C4b, the hybrid\'s views) takes its craft place off the posed vertex, not the rest one through its bone');
+  // ...ONCE PER MODEL AND ONLY FOR FLIGHT (43.1's strict gate: baked in buildModel it ran on every garage change)
+  check(!/AEROWX\.aeroWxBakeCavity\(THREE, grp\);[\s\S]{0,400}aeroRestBake\(THREE, grp\)/.test(APP),
+        'rest: the rest place is baked in buildModel again - every garage change pays a copy of every skin vertex');
+  check(/function restBake\(\) \{\s*if \(!model \|\| model\.restBaked \|\| !model\.grp\) return;\s*model\.restBaked = true;\s*if \(window\.AEROSKIN && window\.AEROSKIN\.aeroRestBake\) window\.AEROSKIN\.aeroRestBake\(THREE, model\.grp\);/.test(APP),
+        'rest: the bake is not once per model (model.restBaked)');
+  check(/function poseModel\(catchUp\) \{[\s\S]{0,300}if \(!inGarage && !model\.restBaked\) restBake\(\);/.test(APP) &&
+        /model\.grp\.visible = true; restBake\(\); if \(!craftGrpVis\[1\]/.test(APP),
+        'rest: the flown model never bakes its rest place before its first flight pose (poseModel head, craftInWorld under the screen)');
+  {
+    // run, not pattern-matched: the bake copies the built place with w 2, only on an aeroskin mesh, once
+    const attr = (array, itemSize) => ({ array, itemSize, count: array.length / itemSize });
+    const T = { BufferAttribute: function (a, n) { return attr(a, n); } };
+    const geo = (p) => ({ attributes: { position: attr(new Float32Array(p), 3) }, setAttribute(k, v) { this.attributes[k] = v; } });
+    const skin = { isMesh: true, geometry: geo([1, 2, 3, -4, 5, -6]), material: { userData: { aeroskin: 1 } } };
+    const other = { isMesh: true, geometry: geo([7, 8, 9]), material: { userData: {} } };
+    const root = { traverse(f) { [skin, other].forEach(f); } };
+    const n1 = A.aeroRestBake(T, root), r = skin.geometry.attributes.aRest;
+    check(n1 === 1 && r && r.itemSize === 4 && Array.from(r.array).join() === '1,2,3,2,-4,5,-6,2' && !other.geometry.attributes.aRest,
+          'rest: aeroRestBake does not copy the built place (w 2) onto exactly the aeroskin meshes', JSON.stringify(r && Array.from(r.array)));
+    skin.geometry.attributes.position.array[0] = 99;                       // a pose
+    check(A.aeroRestBake(T, root) === 0 && r.array[0] === 1, 'rest: a second bake re-reads a posed place');
+  }
+  // THE REGISTRATION RE-BAKES THE FAR MODEL (G2750, the user: "I changed the registration, and the far baked model does
+  // not reflect that"): the build's export carries the finish but not meta, so the trips' key must carry meta.reg
+  check(/key: specKey\(spec\) \+ '\|reg' \+ reg/.test(APP) && /const spec = window\.CAGE_JOIN\.export\(\), m = \(window\.GARAGE_SPEC\.get\(\) \|\| \{\}\)\.meta, reg = \(m && m\.reg\) \|\| ''/.test(APP),
+        'markings: the trips\' key (snapshot, bake, spec) does not carry the registration — new letters fly on the old atlas');
+  // ...and the bake paints from the spec the SNAPSHOT flies (the garage's merge, meta and all), never the bare export: a
+  // trip whose snapshot was skipped (the wear moved a step) painted the fallback F-PGAR into the far fold
+  check(/spec: wornSpec\(tripSync \? \(tripSync\.flown \|\| \(window\.GARAGE_SPEC\.preview \? window\.GARAGE_SPEC\.preview\(tripSync\.spec\) : tripSync\.spec\)\) : genSpec\)/.test(APP) &&
+        /const flown = x\.flown = window\.GARAGE_SPEC\.preview \? window\.GARAGE_SPEC\.preview\(x\.spec\) : x\.spec;/.test(APP),
+        'markings: the bake can paint from the bare export (no meta: the far model wears F-PGAR, not the registration)');
+  // THE OVERLAY DRAWS OVER EVERYTHING AND STAYS IN FLIGHT (G2750): transparent from birth (an opaque line sorts before
+  // every transparent pavement whatever its renderOrder), in the see-through band when x-rayed, reset in the shed
+  check(/new THREE\.LineBasicMaterial\(\{ vertexColors: true, transparent: true \}\)/.test(APP) && /size: 0\.06, transparent: true \}\)/.test(APP),
+        'overlay: the frame lines are opaque again — the runway (transparent, drawn after) paints over the x-ray');
+  check(/lines\.renderOrder = overlay \? AERO_CLEAR \+ 998 : 998; pts\.renderOrder = overlay \? AERO_CLEAR \+ 999 : 999;/.test(APP),
+        'overlay: the x-rayed frame is not above the craft\'s see-through band (the glass, the clouds\' composite)');
+  check(/function enterGarage\(\) \{[\s\S]*?skinMode = 0;\s*applySkinVis\(\);/.test(APP),
+        'overlay: the frame/overlay mode survives into the garage');
+  // NEVER AN UNREACHABLE COLOUR (G2750, the user: "a dark part around the cockpit, which is not the joint, and that
+  // can't be accessed using the finish editor" - the waistband rail's strip, widened by a bubble canopy into the band
+  // under its seam, its row under the fuselage by a raw name): the row says what it is, and a click in the FINISH view
+  // lands on the struck section's own row
+  check(/waistband: \+P\.canopy === 3 \? 'canopy sill band' : 'waist band'/.test(UI),
+        'finish: the waistband row is not named for what a bubble canopy makes of it (the band round the cockpit)');
+  {
+    const ED = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.js'), 'utf8');
+    check(/const finSec = view === 'finish' && hit && hit\.section \? hit\.section : null;[\s\S]{0,200}select\(finSec \? key :[\s\S]{0,300}e\.dataset\.sec === finSec[\s\S]{0,200}scrollIntoView/.test(ED),
+          'finish: a click on a surface in the FINISH view does not land on its own section\'s row');
+  }
 }
 
 // ---------------------------------------------------------------------------
