@@ -126,6 +126,16 @@ const PAVEMENT = (() => {
     LOOK_KEYS.push(g + k);
     RECIPE[g + k] = { Bright: 1, Hue: 0.12, Tint: 0, Wear: 1, SideBright: 1, SideHue: 0.12, SideTint: 0, SideW: -1, SideA: g === 'pv' ? -1 : 0 }[k];
   }
+  // THE GRASS STRIP WEARS THE GROUND (GRASS-DENSE G2570; the user, 12 Oct, on the Cub at Skyline Altiport from above: "We really
+  // need to adjust the color of the grassy runway, to something similar to the surrounding colors"). The strip drew its own lawn
+  // (fieldgrass, a flat saturated lime with a soft blurred border: paint laid on the terrain). With `grMatch` (1, the default) a
+  // grass STRIP's lawn gives way to the island's ground under it - its colour, its speckle, its edge at the ground's own scale -
+  // and the mesh keeps only its worn wheel tracks and a faint mown tint (`grMowA`: a lighter, yellower, never more saturated wash);
+  // the short cut grass standing on it is the grass field's (27_premises GRASS_SIDES 'sides', surf). 0 = the strip's own lawn as
+  // before (G1391), with the runway look's grBright / grHue / grTint. Two of the surface type's look keys: live over every grass
+  // strip (the world look's RUNWAY section) and saved with the premises (PAVEMENT section). No new program: two free row slots.
+  LOOK_KEYS.push('grMatch', 'grMowA');
+  RECIPE.grMatch = 1; RECIPE.grMowA = 0.12;
   // what WEAR scales, per surface type: the paved class's ageing, the soft ground's traffic
   const LOOK_WEAR = { pv: ['crackK', 'damageK', 'patchK', 'mossK', 'stainK', 'rubberK'], sf: ['wheelBand', 'coarseK', 'rutDepth', 'treadK'], gr: ['wheelBand', 'coarseK', 'rutDepth', 'treadK'] };
   const groupOf = cls => (cls === 'concrete' || cls === 'asphalt') ? 'pv' : (cls === 'grass' ? 'gr' : 'sf');
@@ -163,6 +173,7 @@ const PAVEMENT = (() => {
     ['sideFade', 'strip sides fade to the ground (0/1)', 0, 1, 1], ['sideW', 'side fade width (m)', 0.5, 10, 0.5], ['sideA', 'side fade from alpha', 0, 1, 0.05], ['roadSide', "roads' sides fade like the strips' (1) / draw their band (0)", 0, 1, 1],
     ['edgeChip', 'edge chipping (m)', 0, 2, 0.05], ['band', 'gravel band (m, -1 = class)', -1, 40, 0.5], ['bandNoise', 'band raggedness', 0, 1, 0.02], ['grassReach', 'grass creeps in over (m)', 0.5, 30, 0.5], ['fadeW', 'fade to terrain over (m)', 0.5, 30, 0.5],
     ...Object.keys(LOOK_GROUPS).flatMap(g => [['— runway look: ' + LOOK_NAMES[g] + ' —'],
+      ...(g === 'gr' ? [['grMatch', 'a grass strip shows the ground under it (1) / its own lawn (0)', 0, 1, 0.05], ['grMowA', 'the mown tint over it (lighter, yellower)', 0, 0.5, 0.01]] : []),
       [g + 'Bright', 'surface brightness', 0.3, 2, 0.02], [g + 'Hue', 'surface tint hue (0 red, .17 yellow, .33 green, .67 blue)', 0, 1, 0.01], [g + 'Tint', 'surface tint amount', 0, 1, 0.02],
       [g + 'Wear', "wear (x the class's cracks, patches, ruts...)", 0, 2, 0.05],
       [g + 'SideBright', 'side brightness', 0.3, 2, 0.02], [g + 'SideHue', 'side tint hue', 0, 1, 0.01], [g + 'SideTint', 'side tint amount', 0, 1, 0.02],
@@ -255,6 +266,9 @@ const PAVEMENT = (() => {
   function opaqueDepth(cls, halfW, recipe, kind) {
     const r = recipe || R;
     if (cls === 'grass' && kind !== 'strip') return Infinity;
+    // G2570: a MATCHED grass strip shows the ground under it, so the ground is not sunk under it (as a grass road: its pre-sink alone).
+    // The patch is built with the world: a live grMatch change re-sinks at the next build (a reload), the look itself is live
+    if (cls === 'grass' && lookOf('grass', r).match > 0) return Infinity;
     return Math.max(r.edgeChip || 0, cls === 'concrete' || cls === 'asphalt' ? 0 : 0.1) + 0.2;
   }
   // (G1542: `dPre`, when given, is the depth the pre-sink reads - a road's dead end holds its deep sink a cell back, not its 7 cm)
@@ -1176,6 +1190,15 @@ float pvTread(float u, float x, float w, float seed) {
     // (G1391: it kept 45 % of its lawn, over a ground of grass, so only the worn band a third of its width read - the
     // "very thin" grass runway); its colour against the island's grass is the runway look's (grBright / grTint)
     if (grassy && road) { float worn = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0); gPavA *= worn; }
+    // G2570: A GRASS STRIP WEARS THE GROUND (pavement.js grMatch): its lawn gives way to the island's ground under it, the mesh keeping
+    // its worn tracks (their own grass-with-soil colour) and a faint mown wash over its width - the strip's luminance, warmed
+    // (lighter, yellower, less saturated) at uStain.w alpha. uMacro.w 0: the strip's own lawn, as before
+    if (grassy && !road && uMacro.w > 0.0) {
+      float worn = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0);
+      vec3 mown = vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))) * vec3(1.12, 1.06, 0.78) * 1.15;
+      col = mix(col, mown, (1.0 - worn) * uMacro.w);
+      gPavA = mix(gPavA, max(worn * gPavA, uStain.w * wPav), uMacro.w);
+    }
     diffuseColor.rgb = col; diffuseColor.a = gPavA;
     gPavDbg = uPavDbg < 1.5 ? gPavN * 0.5 + 0.5 : uPavDbg < 2.5 ? vec3(gPavR) : uPavDbg < 3.5 ? vec3(wetK, 0.0, 0.0) : uPavDbg < 4.5 ? mk
       : uPavDbg < 5.5 ? vec3(wp, wb, wg) : uPavDbg < 6.5 ? vec3(clamp(dE / 10.0, 0.0, 1.0), clamp(-dE / shW, 0.0, 1.0), gPavA) : uPavDbg < 7.5 ? vec3(fract(laneTone * 4.0), joint, spall)
@@ -1297,6 +1320,7 @@ float pvTread(float u, float x, float w, float seed) {
     const row = CLASS_DEF[cls]; if (!row) return null;
     const r = recipe ? Object.assign(JSON.parse(JSON.stringify(RECIPE)), recipe, { grade: Object.assign({}, RECIPE.grade, recipe.grade || {}) }) : R;
     const c = gradedMean(row.shoulder, r, SHARED), lk = lookOf(cls, r);
+    if (lk.match > 0.5) return null;   // G2570: a matched grass strip draws the ground itself - a tuft there takes the ground's (the cover ring's meanAt)
     return [c[0] * lk.side[0], c[1] * lk.side[1], c[2] * lk.side[2]];   // G1392: the side's look
   }
   // ---- THE RUNWAY LOOK (G1392) -------------------------------------------------------------------------------
@@ -1310,6 +1334,7 @@ float pvTread(float u, float x, float w, float seed) {
     const mul = (b, h, k) => tintRGB(h, k).map(c => Math.max(0, c * b));
     const sw = q('SideW'), sa = q('SideA');
     return { g, surf: mul(q('Bright'), q('Hue'), q('Tint')), side: mul(q('SideBright'), q('SideHue'), q('SideTint')), wear: Math.max(0, q('Wear')),
+      match: g === 'gr' ? Math.max(0, Math.min(1, q('Match'))) : 0, mowA: g === 'gr' ? Math.max(0, Math.min(1, q('MowA'))) : 0,   // G2570
       sideW: sw >= 0 ? sw : (g === 'pv' ? (r.sideW || 1.2) : (r.edgeSoft || 2.6)), sideA: sa >= 0 ? sa : (r.sideA === undefined ? 0.35 : r.sideA) };
   }
   const KNOB_MAX = {};
@@ -1360,7 +1385,8 @@ float pvTread(float u, float x, float w, float seed) {
       const f1 = shW, f0 = Math.max(0, Math.min(Math.min(bandW + 0.3, shW - Math.max(r.fadeW, 0.6)), shW - 0.3));
       a = 1 - ss01(f0, f1, -dE);
     }
-    return { a, surf: wPav, worn: cls === 'grass' && !!o.road };
+    // (a grass road's alpha is its tracks', and so is a MATCHED grass strip's (G2570): the twin keeps the width law, the flag says so)
+    return { a, surf: wPav, worn: cls === 'grass' && (!!o.road || lk.match > 0) };
   }
   function applyOne(THREE, m) {
     const U = m.uniforms, d = m.userData.pav, lib = m.userData.pavLib, cls = CLASS_DEF[d.cls];
@@ -1377,13 +1403,13 @@ float pvTread(float u, float x, float w, float seed) {
     // the base's mean colour, graded exactly as the shader grades the base (gain, tint, saturation)
     { const c = gradedMean(cls.base, r, lib); U.uMean.value.set(c[0], c[1], c[2], 0.85); }
     U.uHex.value.set(r.hexDepth, r.hexOn, r.hexCells, cls.hexRot * Math.PI / 180 * r.hexRotK);
-    U.uMacro.value.set(r.macroLuma, r.macroHue, r.macroRough, 0);
+    U.uMacro.value.set(r.macroLuma, r.macroHue, r.macroRough, d.road ? 0 : lk.match);   // .w (G2570): a grass STRIP shows the ground (its match)
     U.uLane.value.set(cls.lanes, r.laneW, r.jointW, r.jointDepth);
     U.uLane2.value.set(r.laneTone, r.slabL, r.jointChip, r.jointDirt);
     U.uCrack.value.set(r.crackK, r.crackW, r.crackCell, r.damageK);
     U.uPatch.value.set(r.patchK, r.patchTone, r.patchRough, r.patchLen);
     U.uMoss.value.set(r.mossK, r.mossEdge, r.mossJoint, r.mossScale);
-    U.uStain.value.set(r.stainK, r.stainScale, r.stainRough, 0);
+    U.uStain.value.set(r.stainK, r.stainScale, r.stainRough, lk.mowA);   // .w (G2570): the mown tint over a matched grass strip
     U.uWet.value.set(r.wet, lk.surf[0], lk.surf[1], lk.surf[2]);          // .yzw (the puddles' until 2026-09-23): the runway look's surface multiplier (G1392)
     U.uMark.value.set(r.paintAge, r.paintRough, r.chalk, r.paintOnGrass);
     U.uRubber.value.set(r.rubberStart, r.rubberPeak, r.rubberEnd, r.rubberSpread);
