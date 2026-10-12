@@ -85244,3 +85244,18 @@ change (any vegetation polygon edit). The page row: treestream_probe.js BIOME (a
 the card chunks restaled).
 WHAT TO WATCH FOR: a biome polygon over a field now stands that biome's trees inside it, near and far, within a second or
 two of the edit; 'none' still clears; nothing ever stands on a road, an apron, gravel or water inside the polygon.
+
+### G2934 - THE ISLAND'S NUMBERS (Mon 12 Oct, W1 05:10 / W2 05:55, RTX 3080, built pages, parked re-cooked; density 128 -> 200)
+treestream_probe (branch e0acfb0c7 twice, master f353a0f89 once):
+- EDIT (the density to 200, the whole ring): branch - the 4 km ring never unbuilt (0 s; the old parts stood, 331 swaps,
+  all fresh at 65-66 s), no hole, no card standing in; master - the ring evicted: 1.5 / 3 / 4 km whole at 8 / 27 / 38 s,
+  35 s with the 4 km ring incomplete (the bare band). Per part at 200: walk ~41 ms + build 13-16 ms (both).
+- JUMP (5 km toward the middle): branch - 0 hole frames (the cards stood in: up to 38 near cells), but the 4 km ring
+  whole at 28 s vs master's 14 (the view weighting sent the front's far bases first) -> FIXED in 08e4d29e7 (inside the
+  cards' edge first); per part walk ~68 + build 29-37 ms at a fresh spot. Frames p99 27 vs 23 ms during the regrowth.
+- BIOME: threw on BOTH (ReferenceError: SPL is not defined in reachRefresh, from vegChanged) - FIXED in 08e4d29e7, the
+  polygon row is owed a re-run.
+tree_perf (settled, densest stand, full tier, density 200): branch 14.6 / p90 17.2 ms vs master 13.9 / 17.9 (one run each).
+train_gate --light: RED 15 against the LIGHT baseline of train 27 (4 Oct, before the hard 30: every fps row reads 30
+against 33-56, the loop rows likewise) - not a verdict; the two load rows (garage -> world 9.1 -> 11.2 s) need a master
+A/B before anyone reads them as this branch's.
