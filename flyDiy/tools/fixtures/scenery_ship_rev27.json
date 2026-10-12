@@ -20,12 +20,8 @@
   "r25": "w5"
  },
  "answers": "the user, 11 Oct ~23:55 (relayed by A0): the 4 village roads go (-53 houses accepted); the runway shoulders y_sh13_0/1, y_sh02_0/1 and the fan x_fan02_0 stay (untested); the pavement settings ship; r25 stops at strip 10 (w5); 12 Oct 03:05: 'all new editions can be considered default' - rev 26 (strip 11 w6 ships, flat like w5); 12 Oct 15:47 rev 27: w7 'strip 12' (1020 m dirt, the North East strip) + its roads r37 / r38, r31 joined to r37 (j1), the pavement's look - shipped (A0: w7 joins CONTRACT_FIELDS like w5 / w6, no own clear)",
- "clearDefault": [
-  "w5",
-  "w6",
-  "w7"
- ],
- "clearDefaultWhy": "A0 + the user's default 12 Oct: the new strips keep trees off as every Jolene strip does (today's box) - their own clear (side 0, beyond 0) left 10 collidable trees inside the aerodrome box (GATE RWYTREES 4/9); dropped from the shipped w5 / w6 after the ship (tools/scenery_ship.js does not apply it: a re-ship must drop it again); w7 (rev 27, the user's 'North East strip') the same - its own clear was side 4, beyond 0, taper -0.5",
+ "clearDefault": [],
+ "clearDefaultWhy": "none dropped (A0 12 Oct ~16:10): w5 / w6 / w7's own clears are the user's AUTHORED tight clearances (the editor starts one at 60 / 150 m; theirs read side 0 / beyond 0, side 0 / taper 0.21, side 4 / taper -0.5) - dropping them handed the strips today's generic 60 m / 150 m box, the very tree cut the user complained of; an authored clear stands in every trees variant",
  "plotMoves": {
   "SEA": {
    "SEA": [
