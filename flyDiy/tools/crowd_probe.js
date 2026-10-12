@@ -71,7 +71,8 @@ async function chrome(headed) {
     // the frame clock, from the roll-out on
     await P.ev(() => { window.__ft = []; let t0 = performance.now(); const f = t => { window.__ft.push(t - t0); t0 = t; requestAnimationFrame(f); }; requestAnimationFrame(f); });
   };
-  const state = P => P.ev(() => ({ c: window.FLYDIY_CROWD ? window.FLYDIY_CROWD() : null, h: window.FLYDIY_HOLDS ? window.FLYDIY_HOLDS() : null }));
+  const state = P => P.ev(() => ({ c: window.FLYDIY_CROWD ? window.FLYDIY_CROWD() : null, h: window.FLYDIY_HOLDS ? window.FLYDIY_HOLDS() : null,
+    d: window.CROWD && window.CROWD.last ? window.CROWD.last.debug() : null }));
 
   // ---- 1-3 THE WALK, THE QUEUE, THE BOARDING ----------------------------------------------------------------------
   {
@@ -84,7 +85,7 @@ async function chrome(headed) {
       const s = await state(P).catch(() => null);
       if (!s || !s.c) continue;
       const t = (Date.now() - t0) / 1000;
-      out.rows.push(Object.assign({ t }, s.c, { rollHold: s.h && s.h.rollHold }));
+      out.rows.push(Object.assign({ t }, s.c, { rollHold: s.h && s.h.rollHold, dbg: s.d }));
       if (s.h && !s.h.rollHold && lifted == null) lifted = t;
       maxSeats = Math.max(maxSeats, s.c.seats.length);
       if (s.c.stats) { shown = Math.max(shown, s.c.stats.shown); boarding = Math.max(boarding, s.c.stats.boarding); }

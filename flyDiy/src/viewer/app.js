@@ -7716,6 +7716,7 @@
     if (!CRW.on || !model || !model.grp || !crowdSeats().length) return;
     const gen = ++CRW.gen;
     CRW.pending = true;
+    CRW.waitN = 0;
     crowdPrep().then(() => {
       if (gen !== CRW.gen || inGarage || !window.CROWD) return null;
       const seats = crowdSeats();
@@ -7748,10 +7749,20 @@
   // (a live passenger's character may land after the walk began), the walk, and the start once the last one is seated
   function crowdTick(dt) {
     if (!CRW.M || !window.CROWD) return;
-    if (CRW.queued && !rollHold) { const q = CRW.queued; CRW.queued = null; q(); }
+    if (CRW.queued && !rollHold && crowdPlaced()) { const q = CRW.queued; CRW.queued = null; q(); }
     for (const [, e] of CRW.seats) if (e.w < 1) window.CROWD.fadeObjects(THREE, e.meshes(), e.w);
     CRW.M.tick(dt);
     if (CRW.after && !CRW.pending && !CRW.M.busy()) crowdDone(true);
+  }
+  // THE AEROPLANE DRAWN ON ITS STAND (the probe, 12 Oct: the first unheld frame ticks the crowd BEFORE the loop poses the
+  // model - its group still where it was built, and the walk was measured 700 m off, round the world's origin): the
+  // route waits for the group within 8 m of the solver's CG (a few frames), or ~3 s at most
+  function crowdPlaced() {
+    const M = model;
+    if (!M || !M.grp || !sim) return false;
+    CRW.waitN = (CRW.waitN | 0) + 1;
+    const c = cgFinite(sim.cgPos()), p = M.grp.getWorldPosition(new THREE.Vector3());
+    return Math.hypot(p.x - c[0], p.z - c[2]) < 8 || CRW.waitN > 90;
   }
   // 'run': the flight's start waiting on the crowd goes now (Go, a failure) or is dropped (the garage, a new roll-out)
   function crowdDone(run) { CRW.pending = false; const f = CRW.after; CRW.after = null; if (run && f) f(); }

@@ -537,6 +537,11 @@ function make(THREE, ctx) {
     M.runs.length = 0;
   };
   M.busy = () => M.runs.length > 0;
+  // the rigs' look inside (tools/crowd_probe.js): per walker its state, distance, drawn or not, and the path's ends
+  M.debug = () => M.runs.map(one => ({ ready: one.ready, L: one.R.P.L, from: one.R.P.pts[0], to: one.R.P.pts[one.R.P.pts.length - 1],
+    people: one.H.map((h, i) => ({ key: one.R.people[i].key, st: one.R.people[i].state, has: !!h, d: h ? h.d : null, vis: h ? h.g.visible : null,
+      x: one.R.people[i].x, z: one.R.people[i].z })) }));
+  CR.last = M;
   return M;
 }
 CR.make = make;
