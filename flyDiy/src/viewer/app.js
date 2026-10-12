@@ -1005,9 +1005,13 @@
       if (part === 'face') {
         // G2662: ONE FACE - the CubeCamera's own update (its targets, its faces' order, the mip rule on the last), the other
         // five renders skipped; the subjects hidden and the ground scaled around this face exactly as around all six
-        const rr = renderer.render, want = cam.children[o.face];
+        // AND NO SHADOW PASS of its own (G2662.1, GATE CLOCKBAKE: ~850 shadow draws a face - the lamps' point-light cubes are
+        // never cached): a shadow map does not depend on the camera, and the frame's own render drew them with the lights
+        // where they are now (the job starts the frame AFTER its request, so a jump's re-aimed key is already in them)
+        const rr = renderer.render, want = cam.children[o.face], SM = renderer.shadowMap, au = SM && SM.autoUpdate, nu = SM && SM.needsUpdate;
         renderer.render = function (sc, c) { if (c === want) return rr.apply(this, arguments); };
-        try { cam.update(renderer, hangarScene); } finally { renderer.render = rr; }
+        if (SM) { SM.autoUpdate = false; SM.needsUpdate = false; }
+        try { cam.update(renderer, hangarScene); } finally { renderer.render = rr; if (SM) { SM.autoUpdate = au; SM.needsUpdate = nu; } }
       } else cam.update(renderer, hangarScene);
       for (const [m, c0] of gWas) m.color.copy(c0);
       hangar.shafts.visible = shWas;
@@ -1080,12 +1084,15 @@
     // the sky source is one equirect PMREM, no cube to slice: the one-shot
     if (!hangar || !THREE.WebGLCubeRenderTarget || !THREE.PMREMGenerator || !renderer.setRenderTarget || (envSource === 'sky' && sky && sky.image && sky.image.width)) { bakeHangarEnv(); return; }
     if (envSlice) { if (envSlice.step > 0) envSlice.again = true; return; }   // nothing shot yet: this job already sees it
-    envSlice = { step: 0, again: false };
+    envSlice = { step: 0, again: false, born: true };
   }
   function envSliceStep() {
     const J = envSlice;
     if (!J) return;
     if (envDeferred || envAway || !hangar) { envSlice = null; envDirty = true; return; }
+    // (G2662.1) the request's own frame shoots nothing: its render draws the shadow maps with the lights as the jump left
+    // them, and the faces (no shadow pass of their own) start on the next frame
+    if (J.born) { J.born = false; return; }
     if (J.step === 0 && hangar.renderSky) hangar.renderSky(renderer);
     bakeHangarEnv(J.step < 6 ? { part: 'face', face: J.step } : { part: J.step === 6 ? 'room' : 'outdoors' });
     if (envSlice !== J) return;   // (a one-shot inside it took over)

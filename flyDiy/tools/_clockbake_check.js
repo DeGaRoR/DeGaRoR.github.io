@@ -50,6 +50,7 @@ const ok = (c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + 
   await P.frames(40);
   rows = []; await P.frames(20); const R0 = rows; rows = null;
   const d0 = R0.map(r => r.draws).sort((a, b) => a - b), restMed = d0[d0.length >> 1];
+  const s0 = R0.map(r => r.by.shadow).sort((a, b) => a - b), restShadow = s0[s0.length >> 1];
   ok(restMed > 0, 'the garage at rest draws', restMed + ' draws a frame');
   const run = async (what, fn) => {
     await P.frames(12);
@@ -60,8 +61,10 @@ const ok = (c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + 
     const swaps = []; let last = env0; Rr.forEach((r, i) => { if (r.env !== last) { swaps.push(i); last = r.env; } });
     const wi = Rr.reduce((b, r, i) => r.draws > Rr[b].draws ? i : b, 0);
     const d = { what, out, jobs: E1.jobs - E0.jobs, slices: E1.slices - E0.slices, oneShot: E1.oneShot - E0.oneShot, requests: E1.requests - E0.requests,
-      swaps, worst: Rr[wi].draws, worstBy: Rr[wi].by, otherMax: Math.max(...Rr.map(r => r.by.other)), draws: Rr.map(r => r.draws), others: Rr.map(r => r.by.other), doneAt: Rr.findIndex(r => r.step === -1) };
-    console.log('  ' + what + ': ' + JSON.stringify({ out: d.out, jobs: d.jobs, slices: d.slices, oneShot: d.oneShot, requests: d.requests, swaps: d.swaps, worst: d.worst, worstBy: d.worstBy, other: d.others.join(' ') }));
+      steps: Rr.map(r => r.step), swaps, worst: Rr[wi].draws, worstBy: Rr[wi].by, otherMax: Math.max(...Rr.map(r => r.by.other)), draws: Rr.map(r => r.draws), others: Rr.map(r => r.by.other), shadows: Rr.map(r => r.by.shadow),
+      // done = the frame after the job's LAST running frame (-1: it never ran)
+      doneAt: (k => k < 0 ? -1 : k + 1)(Rr.map(r => r.step >= 0).lastIndexOf(true)) };
+    console.log('  ' + what + ': ' + JSON.stringify({ out: d.out, jobs: d.jobs, slices: d.slices, oneShot: d.oneShot, requests: d.requests, swaps: d.swaps, worst: d.worst, worstBy: d.worstBy, other: d.others.join(' '), shadow: d.shadows.join(' ') }));
     return d;
   };
   const wait = t => () => { const r = W.DAY_CLOCK.wait(t); return r && r.ok ? r.jump.why : 'refused: ' + (r && r.why); };
@@ -80,10 +83,13 @@ const ok = (c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + 
     ok(c.jobs === 1 && c.oneShot === 0, c.what + ': ONE sliced job, no one-shot bake from the clock', 'jobs ' + c.jobs + ', one-shots ' + c.oneShot + ', requests ' + c.requests);
     ok(c.slices === 8, c.what + ': eight slices (six faces, the room, the outdoors)', c.slices);
     ok(c.swaps.length === 1 && c.swaps[0] >= 6, c.what + ': the room\'s environment replaced ONCE, after its six faces (the old probe on screen until then)', 'swapped at frame ' + c.swaps.join(','));
-    ok(c.doneAt >= 0 && c.doneAt <= 10, c.what + ': the job done within ten frames', c.doneAt);
+    ok(c.doneAt >= 7 && c.doneAt <= 11, c.what + ': the job ran over its eight frames and was done within eleven', 'done at frame ' + c.doneAt);
+    // G2662.1: a face renders with NO shadow pass of its own (the frame's maps): a face frame's shadow draws = the rest frame's
+    const faceSh = c.steps.map((st, k) => st >= 1 && st <= 6 ? c.shadows[k] : null).filter(x => x != null);
+    ok(faceSh.length === 6 && Math.max(...faceSh) <= restShadow * 1.1 + 10, c.what + ': the six face frames add no shadow pass (their shadow draws = those of the garage at rest)', 'faces ' + faceSh.join('/') + ', rest ' + restShadow);
     ok(o.otherMax - c.otherMax >= 6 * face, c.what + ': a whole bake left the jump frame (the old path\'s worst other-pass frame exceeds the fix\'s by >= 6 faces)', 'old ' + o.otherMax + ' vs fixed ' + c.otherMax + ', one face ' + face);
   }
   if (P.errors && P.errors.length) console.log('  (page errors: ' + P.errors.slice(0, 3).join(' | ') + ')');
-  console.log(fails ? 'CLOCKBAKE FAIL (' + fails + ')' : 'CLOCKBAKE PASS');
+  console.log(fails ? 'GATE CLOCKBAKE: FAIL (' + fails + ')' : 'GATE CLOCKBAKE: PASS');
   process.exit(fails ? 1 : 0);
-})().catch(e => { console.log('CLOCKBAKE FAIL (threw) ' + (e && e.stack)); process.exit(1); });
+})().catch(e => { console.log('GATE CLOCKBAKE: FAIL (threw) ' + (e && e.stack)); process.exit(1); });
