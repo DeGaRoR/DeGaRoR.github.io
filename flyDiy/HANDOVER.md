@@ -84733,6 +84733,22 @@ reference stalled: "airframe at never"). The bands UNTOUCHED; the reference care
   map_menu.js (nightHTML + the adapter's `night`), gates (_contracts_check, _pilots_check, _map_smoke).
 
 READY for the GAME COORDINATOR
+G2567-G2568 (TRAIN 44.3 grass, 11 Oct): THE COST CUT AND THE DEFAULTS ON. The box, TIMED, one window, base = master 37bf53368
+(train 43) measured beside the variants (reports/evidence/GRASS-DENSE/cost3/; the 10 Oct base runs were void - the gd-before
+worktree had been removed and the server fell back to the main checkout). Grass GPU ms (a TIME_ELAPSED round every grass draw) /
+grass draws, train 43 -> the field with 2 tuft shapes, the size fade capped at 1.0 (sizeMax: a tall tuft no longer reaches past
+the reach - the forest view's cost) and 70 / 42 tufts a m2 gamer / retro (~8x today's cards at the meadow):
+  gamer  forest floor 2.57 -> 2.23 ms (37 -> 46), HOME final 10 m 4.21 -> 2.07 (50 -> 56), 30 m 3.85 -> 1.03 (56 -> 62)
+  retro  forest floor 1.14 -> 0.75 (22 -> 20), 10 m 0.97 -> 0.56 (24 -> 28), 30 m 0.70 -> 0.13 (24 -> 24)
+  (on the way: 3 x 3 blocks bring the draws back but coarsen the truncation - forest 5.65 ms; the size fade's 1.5x reach of the
+  tall muskeg / verge tufts was most of the near cost)
+DEFAULTS ON: FIELD_ON true (cover_ring.js; ?grassfield=0 / the editor switch = today's patches), GRASS_SIDES law 'sides'
+(27_premises.js; GATE GRASSSIDES 1 holds it), rwyTreesMode 'map' (the user's ruling 2; GATE RWYTREES already holds 'map': the
+ground paths, the 5 % climb-out and approach, the circuit flown - TAKEOFF / TAXICLEAR / TREEHIT / OBSTACLE / LINEUP / PILOT run on
+it in the 44.3 gate window). WHAT TO WATCH: the near-taxi p99 (two cover rings plant at once; the field's budget is 3 ms a
+frame, its cells near a pavement ask the premises every metre), the grass draws on FRAMECOST (the user accepted the rise, 11 Oct),
+the trees now 1.8 m past HOME / w2's paved edge (a wide aeroplane's wingtip at the edge; GATE RWYTREES 6 and 8), the tufts' colour
+against the ground (`match` 1: not yet fitted in game - VEGETATION > the grass field > 'colour: level to the ground').
 
 ## G2630 - RADIAL-DIVERGE: THE DAMPERS THE 200-SUBSTEP CAP COULD NOT CARRY ARE CUT AT THE CAP (THE MOSQUITO NO LONGER TURNS ON THE SPOT, NO LONGER GOES NaN ON ITS FIRST FRAME); A DIVERGED FLIGHT NEVER BLACKS THE WORLD AGAIN, AND NO SAVED RECORD CAN HOLD A NON-FINITE NUMBER (2026-10-10, RADIAL-DIVERGE for A0, local; branch claude/radial-diverge-g2630 off train 42 26e04598b; G2631-G2639 unused)
 
@@ -85078,3 +85094,156 @@ futureDesigns/game/evidence/HANGAR-STORAGE/ (storage2_rig.json, timed/*.json). T
 
 READY for the GAME COORDINATOR: claude/hangar-storage-2-g2700 (this section's commit) - the src fixes G2701-G2703 with their gates;
 the timed proof above (one pair); the owed rows listed.
+
+## G2910 - SCENERY-ED-2: ONE POLYGON WITH ITS PROPERTIES ATTACHED, THE INSPECTOR APART FROM THE TABS, WEATHERED MARKS ON CONCRETE THAT NEVER REPEATS, THE MODEL PLACER (2026-10-11, SCENERY-ED-2 for A0, local; branch claude/scenery-ed2-g2910 off train 43.2 0402e132b; G2910-G2919 all used: G2915 the fly camera, G2916 the river ribbons, G2917 long roads, G2918 the road clearing, G2919 the extent)
+
+The user's notes (11 Oct) on the scenery editor that SCENERY-ED-1 designed (futureDesigns/SCENERY-POLYGON-2026-10.md,
+now marked BUILT with what differs). Contract **v1.36**, the record's **v 2**.
+
+- **ONE POLYGON: THE AREA (G2910).** `layers.areas[] = { id, name?, poly, round?, rect?, props: { terraform, wheels,
+  draw, marks, exclude, cover }, src? }` - each property is the v1 entry it stands for (less id and poly), so nothing
+  is lost. `unwrap` MIGRATES (PREMISES_MIGRATORS[1]): every polygon entry not on a stage - terrain flatten / raise /
+  ramp, surface, material, exclude, ttype, clear zones - folds into one area per polygon (Jolene: 76 areas, the six
+  fixtures 22); a grade (a line), a sowing zone, a staged entry stay what they were. **compose EXPANDS the areas back**
+  (expandAreas: the source ids and their places in each layer from `src`, a new area's after every v1 entry), so a
+  migrated record composes to the very bits (GATE PREMISES 20, every fixture + Jolene + her parts, sample for sample:
+  the ground, the wheels, the excludes, the cover, the vegetation, the plots, the tree regions, the pavements; the
+  cooked premises unchanged - see PREMCOOK). `O.rec` is the expanded record, so the renderer, the life, the cook read
+  v1 as before. A v1 record still composes as it is; the editor folds any foldable entry it loads (foldAreas keeps
+  every layer's order). Every polygon TOOL now draws an area with its properties: the surface tool's gravel now also
+  DRAWS gravel (the user's "gravel that draws nothing"), apron = paved + concrete, the round pad an area, new tools in
+  the AREAS tab: an area (a sketch), a rectangle (rounded corners), concrete, parking, a dock, keep-clear.
+- **JOLENE'S GRAVEL BANDS** (y_sh13_0/1, y_sh02_0/1): there is no material beside them (the design assumed m_sh13) -
+  they are areas with gravel wheels and NO draw; the inspector says "it draws NOTHING ... add a DRAW". Not changed (the
+  user picks which bands should draw: one click, + add a property > draw).
+- **THE INSPECTOR (G2911).** The tabs stand on their own plate at the left of the sheet (premRail); a tab lights its
+  tools and its PALETTE DRAWER under them (the building catalogue, the objects' pickers, the model bank, FILE, VIEW,
+  LIFE); the right plate is the inspector of the selection whatever tab is lit - its head "SELECTED · AREA a12 · gravel
+  area ✕", nothing selected = the scenery's outline (every feature by kind, a click selects and frames it). An area
+  shows its size, perimeter, corners and box, what the wheels feel at its middle, WHAT IT DOES (one line per effect;
+  what it keeps out, including what its hard wheels keep out), the features it OVERLAPS (chips that select them), its
+  issues, then a section per property (TERRAFORM, WHEELS, DRAW, MARKS, EXCLUDE, COVER, each with its ✕) and "+ add a
+  property" (the defaults follow the draw: a pavement proposes its wheels; marks bring a concrete draw turned to the
+  long side). The SHAPE section has the round's radius and the rectangle's length, width, turn and corner radius.
+- **MARKS ON CONCRETE (G2912/G2913).** `marks: parking | dock | hatch` on a pavement draw - `areaMarks` lays them in the
+  pavement's own frame as the rectangles and rules the shader already reads (no shader change): parking = rows of bays
+  across an aisle, back to back (bay, depth, aisle, rows, white / yellow); dock = the quay's line on the edge whose
+  outside is water (compose measures it: waterEdges) and the bollard spots every 9 m; keep-clear = bars in the largest
+  box inside the shape. Every mark inside its shape by the inset (exact at rounded corners); they wear the pavement's
+  paint age (a slider in MARKS). The concrete is the pavement's (hex-tiled): GATE PAVEMENT 6 holds that its base never
+  repeats under 300 m (a CPU twin of pvTile, tied to the GLSL; a plain tiling, the negative control, repeats at 4.5 m).
+- **THE MODEL PLACER (G2914).** ASSETS tab: the prop registry's models (every pack that registers - the hangar's, the
+  pier kit, ASSETS-OCT's packs when they land; no key named anywhere) as THUMBNAILS (the game's renderer draws each
+  once into a 96 px target, one a frame, cached by its bin), group pills and a search; pick one and the GHOST follows
+  the cursor on the ground (R turns 15 degrees, Shift+R back, Alt + wheel scales, 'stand level'); a click drops ONE
+  `objects[]` prop record; SCATTER drops n within a radius, seeded, sizes spread, one undo. A dropped model is selected,
+  dragged, turned (R) and scaled like any prop - `s` on the prop record (new, optional; the renderer scales the placed
+  group, the instancer and the hitbox raster read its matrix).
+
+- **THE FLY CAMERA (G2915; the user via A0, 15:10: "the same controls as the world editor: WASD (or ZQSD, depending on
+  the layout), R and F for up and down, and camera speed").** The scenery editor's third camera is the world editor's
+  own free camera (DEV_CAM): keys by position (e.code - ZQSD on AZERTY), R / F, Shift x5, right-drag looks, the wheel
+  (or VIEW's 'camera speed') its speed; Tab cycles orbit / map / fly; framing a feature hands the eye back to the orbit;
+  a key typed in a field, Ctrl+S / Ctrl+Z stay the editor's (also in the flight's free camera now).
+- **THE MIRROR RECTANGLES OVER THE LAKES (G2916; the user via A0: "very strange MIRROR RECTANGLES hovering about a
+  meter above the water").** The GAME's, not the editor's: render_world's river ribbons (stage-1 water, the water's
+  own material) kept the hydrology's river level where a reach runs along or into a lake - segments hanging over the
+  lake's drawn surface. A segment with an end inside a drawn lake (or within 3 m of its edge) is now the lake's and
+  not drawn, as the sea takes a river mouth (G750). GATE LOOKS holds the rule.
+
+- **LONG ROADS (G2917; the user, 11 Oct: "a road with 250 points ... constant browser stuck window" - an island road,
+  "there will be more long roads"; their recorder log: 96 s, 79 s, 72 s frames on a slider's input, 71 s on a drag's
+  release, 67 s on 'back to flight').** The causes and what changed:
+  roadDist walked every segment of a road's drawn line (a 250-point spline: ~2 500) and EVERYTHING near a road asks it
+  (coverAt - the cover ring and the trees - surfaceAt per wheel, the plots, the poles, the life); a road was filed in the
+  cover index by its whole box (an island road: every cover cell of the island). Now an exact per-road segment grid
+  (the same minimum, bit for bit - GATE SCENERYED 9 against the walk) and long roads filed by their segments.
+  Every slider input event ran a WHOLE rebuild: a slider now writes the record at once and rebuilds once it rests
+  (200 ms). The island road's TRAFFIC (11 / km = 274 cars) was made again on every rebuild that touched the road, each
+  car rasterising its own hitbox: a road's traffic / rails / poles / life / name are no ground edit now, cars ride a
+  moved line where they are, one hitbox raster per car model, the car ahead found by order (it was every pair, every
+  frame), cars past the draw reach not posed. A drag's release rebuilt the island road's whole box (the patch - every
+  2 m chunk of its corridor - and the ground rings): an edit now rebuilds the SPAN that moved (six points either side)
+  through the patch's block rebuild (G2063's part build) and re-samples the ground there only. The drag's preview
+  moves a long line's handles in place and memoises the ground under its outline. 'Back to flight' rebuilt the whole
+  world to take the outlines off: it takes the editor's lines, handles and ghosts off and rebuilds nothing.
+  NOT DONE (next train): the road ribbons are still all rebuilt on every edit (their table rows and merges need a
+  per-piece cache with eyes on the GPU) - the island road's own ribbon is part of every edit's cost.
+- **THE EXTENT (G2919).** The user's record carried Jolene's frame.extent (x -5 180..10 506.9, z -16 114.8..1 400,
+  written once); their 24.9 km road runs 12.7 km past it (from point 116 of 244) - graded in the physics, but the game's
+  fine 2 m patch is built only inside the extent: past it the road lay under the coarse far ground ("the sinking seems
+  worse further away from the starting point"). An authored extent now grows over any feature outside it (falloffs
+  included); a record whose features all lie inside (Jolene's shipped one) keeps it exactly.
+- **A ROAD'S CLEARING (G2918; the user: "remove the trees and the grass from the road, maybe with a certain distance as
+  a parameter (can be zero)").** `clear` (metres past the paved edge; 0 = the road itself; unset = today's road; new
+  roads 2): no tree (excludeAt, exact by the road's distance) and no grass or bush (coverAt's kill) inside. Filed as
+  pieces (the line's runs through 200 m cells, keyed to the centimetre) so an edit regrows the trees under the pieces
+  it moved. The road inspector's 'clear trees & grass (m)'.
+- **THE ROAD BED (asked; NEXT TRAIN).** The user's sunk road near the start is the coarse far ground over a 4 m cut;
+  a bed with fill shoulders and the far ground's sink under the pavement need GPU eyes (stills, a timed check).
+
+Not built (named in the design): `draw: grass`, area `life`, a dock's deck over water, exclude bushes / grass.
+
+Gates (A0's fast-track CPU window, 11 Oct 17:50-18:10, the lock held): PREMISES (531 checks; row 20: the migration
+round trip on the 6 fixtures, Jolene and her 3 parts, the same world sample for sample, the places, the order, the
+shapes, the marks inside their shapes), SCENERYED (70; rows 6-10: the areas, the tabs as palettes, the placer, two
+island roads - 25 000 samples 41 ms on the grid, 5 103 ms on the walk, the same answers; a drag's edit 20 ms headless;
+the user's rev 23: the extent, traffic not ground, the traced roads bit for bit through the load, a save and a history
+slot), PAVEMENT (row 6: the concrete's hex tiling never repeats under 300 m; a plain tiling repeats at its 4.5 m tile),
+LOOKS (the river rule), COVER, GRASSSIDES, BIOME, PREMRASTER, VILLAGE, UISMOKE, HOUSEWORKER, MEDIA (index.html 4.04 MiB
+gz of the 4.05 budget, +41.6 KB), PREMCOOK after the re-cook (build -> premises_cook --island jolene -> build): THE
+COOK'S FILES CAME OUT BYTE-IDENTICAL - the v2 record composes Jolene to the same placements. The river probe (Jolene):
+661 of 3 576 drawn river segments stood over a lake by more than 0.3 m (worst 31.95 m) - the user's mirror rectangles.
+First pass reds, fixed: a new road's default clearing kept the plots out (SCENERYED 4: a zone sowed 0 plots - the
+clearing is the trees' and the grass's, never a plot's); PREMCOOK 4 and PREMISES 20h read / expected the old shape.
+
+What to watch for (no stills - the user's rule): the scenery editor's tabs are on their own plate at the LEFT, the
+right plate says what is selected and keeps it when a tab changes; FILE / VIEW / LIFE / the catalogues are in the
+drawer under the tools. Click a gravel band beside 13/31: it is an AREA that says it draws nothing - "+ add a property
+> draw" makes it gravel you can see. AREAS > parking (two corners) = concrete with weathered bays; AREAS > a dock on
+a shore = the yellow quay line along the water. Look for repetition on a big concrete area from 300 m (there should be
+none) and for marks off the concrete. ASSETS: the thumbnails fill in one a frame (a hitch while they render?), the
+ghost under the cursor, R and Alt + wheel. Existing saves load as areas (the WIP's next save writes v 2): Jolene and
+Metlakatla must look and fly exactly as before. The lakes: no grey rectangles along the shores; a river now ends at
+the lake's edge (watch for a dry last few metres of channel). The scenery editor: Tab to FLY, ZQSD / WASD, R / F.
+
+## TRAIN 44.4 LANDED (A0, 11 Oct ~19:00) - the scenery editor, part 2 + long roads (FAST-TRACK, the user's evening)
+
+Cargo: SCENERY-ED-2 G2910-G2919 (claude/scenery-ed2-g2910 04d67b967, fast-forward on 43.2): the record v2 (every polygon
+an AREA with properties: exclude / terraform / biome / draw incl. concrete never repeating < 300 m, parking / dock /
+keep-clear marks), the inspector plate apart from the tab palettes, the model placer (the asset bank, ghost, R /
+Alt+wheel, scatter), the fly camera (Tab: orbit / map / fly; WASD/ZQSD, R/F, wheel speed), river ribbons not drawn over
+lakes (661 segments were), LONG ROADS (roadDist per-road segment grid 22x/13x with identical answers; long roads filed
+by segments in the cover index; the drag rebuilds near the point; a slider applies once it rests; traffic / rails /
+poles / life / name are not ground edits; one hitbox raster per car model; 'back to flight' takes the editor off
+without a rebuild), the per-road clearing (new roads 2 m), an authored extent grows over a feature outside it (the
+user's r1: 12.7 km of 24.9 km was outside), autosave history (the last 5 slots), the user's roads bit-identical
+through the v2 migration (GATE SCENERYED 10). Gates: the session's set (PREMISES 531, SCENERYED 70, PAVEMENT, LOOKS,
+COVER, GRASSSIDES, BIOME, PREMRASTER, VILLAGE, UISMOKE, HOUSEWORKER, MEDIA 4.04 / 4.05 MiB gz - TIGHT, PREMCOOK
+byte-identical cook); A0's PREMCOOK, SCENERYED, BUILD, UISMOKE PASS; parked re-cook. Strict gate run LIGHT (fast-track):
+14 RED against the light baseline of 3 Oct (pre-30-fps-cap: fps 33-56 -> 30 is the cap) - against TODAY's 43.2 full
+run the rollout rows are equal (loop +0.1..+0.75 ms, render +0..+0.5 ms, loads within 1 s): no regression vs master,
+landed on that comparison. OWED: the light baseline re-taken on master (it's stale); the in-game freeze numbers (the
+user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's first train).
+
+## A0 2026-10-11 23:15 - TRAINS 44.1 + 44.3 LANDED TOGETHER (game slice + dense short grass)
+
+- **44.1 (GAME, bf7088abe):** freight straps (FREIGHT-STRAP G2400), club works (WORKS-COZY G2319), fleet republish (G2227), night ops (G2665), CAREER-LAZY (career_core.<hash>.js is a lazy chunk next to index.html; the built commit carries it), SIM-CLOCK (the Wait action), GATE LIGHT hotfix (67c3f9db3).
+  - Targeted gates 14/14 PASS: BUILD MEDIA UISMOKE BOOT PARKED INSTANT LIGHT HANGAR PLAYER LOAD SAVE WEIGHT MASS DAY.
+  - INSTANT took 1186 s against its declared 480 s. FLEET-PROPS B investigates (Mon 13:25, per-row walls be51b15c).
+- **44.3 (GRASS-DENSE, 8f940dd75 + 95e2c4539 GATE PAVEMENT 6 rows + 378551640):** the dense short grass field, grass on the strips' sides ('sides' law).
+  - rwyTrees DEFAULT stays 'today' (the user's option (a)). 'map' (trees to the pavement edge) made LINEUP red: HOME Cub left arm, stand-to-roll 317 s vs 190 s. It returns with an authored HOME-taxiway clearing area.
+  - Gates PASS: COVER UISMOKE MEDIA BUILD PAVEMENT LINEUP; TAXICLEAR after `fleet_spots.js --cook`.
+- **Strict light gate, quiet box (34eed2ad5, build 4b0778667992):**
+  - The 3 Oct light baseline is STALE (pre 30 fps cap); compared with 44.4's light run instead.
+  - Delivered fps 30 everywhere; render time equal.
+  - **ACCEPTED BY NAME (the user, 23:12, option a): +1.2-1.6 ms main-thread loop** (cub chase 15.4 -> 16.6, metal chase 15.5 -> 17.1, metal cockpit 17.1). Source to be split Mon (GRASS's timed grass_cost a/b/c + 44.1 alone).
+  - **ACCEPTED BY NAME (the user, 20:36): the Wait hitch**, ~300 ms, one task per explicit Wait. Fixed in G2662 (SIMCLK Mon 10:10).
+  - The 22:15-22:40 strict run is VOID: the user was editing on the box.
+- **What to watch for:**
+  - the dense grass at the strips and on their sides;
+  - trees by the runways as before;
+  - the career's Wait;
+  - freight strapped on the flown aircraft;
+  - the club works;
+  - night ops.

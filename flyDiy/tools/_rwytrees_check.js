@@ -4,7 +4,8 @@
 //
 // The user (2026-09-29): "just follow the map first ... You can do both, only the map, and the map + the gravel and
 // approach fans, and I'll judge". Three variants, one switch (27_premises.js RWY_TREES: ?rwytrees=today|map|mapx,
-// localStorage flydiy.rwytrees, FLYDIY_RWYTREES in node); 'today' the default until the user has judged.
+// localStorage flydiy.rwytrees, FLYDIY_RWYTREES in node); 'today' the default until the user judged - 'map' since G2568
+// (10 Oct: "trees cleared only ON the strip ... Including the base runways").
 //
 // CORE (every tier, ~1 min: Jolene composed three times):
 //   1 the runway clearances are named: 9 approach fans, 6 strip boxes, 4 gravel shoulders (y_sh13_*, y_sh02_*) -

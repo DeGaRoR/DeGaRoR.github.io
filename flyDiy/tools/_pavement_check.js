@@ -21,6 +21,8 @@
 //      declared in the material, at most 8 samplers.
 //   5. THE RECIPE — every class row names sets the library bakes, tiles > 0,
 //      a paved class turns its tiles little; export -> set -> export identical.
+//   6. THE CONCRETE NEVER REPEATS (G2913): a CPU twin of pvTile's hex coordinates, held to the GLSL, finds no
+//      repeat of the concrete's base under 300 m (a plain tiling, the negative control, repeats at its tile).
 //
 // node tools/_pavement_check.js [--verbose]
 'use strict';
@@ -264,6 +266,10 @@ console.log('6. COVERAT - what the cover ring may plant');
     verdict(want.join() === got.join(), `STAND_KEYS (the core's validator) = the knobs standMarks reads (the viewer's): ${got.join(' ')}`); }
   const j = require('./fixtures/island_jolene.json'), w0 = CORE.makeWorld(0), rec = PG.unwrap(j).rec, O = PG.compose(rec, w0, {});
   const F = O.frame, at = (lx, lz) => { const p = F.toWorld(lx, lz); return O.coverAt(p[0], p[1]); };
+  // THE GRASS LAW (GRASS-DENSE G2565, 27_premises.js GRASS_SIDES): the rows below are the 'today' law's (the band bare, the fade, the
+  // pave half equal to the full query) - pinned here; the 'sides' law (the default since train 44.3: the band and the mow band CUT
+  // grass, bare only on the pavement and its drawn side) is held after them, and GATE GRASSSIDES holds it whole
+  const LAW0 = PG.grassSides().law; PG.grassSides({ law: 'today' });
   const H = rec.layers.runways.find(r => r.id === 'HOME'), c = H.c, d = [Math.cos(H.hdg), Math.sin(H.hdg)], n = [-d[1], d[0]];
   const side = k => at(c[0] - n[0] * k, c[1] - n[1] * k);
   const c0 = at(c[0], c[1]), cb = side(H.wid / 2 + H.band - 1), cf = side(H.wid / 2 + H.band + 3), cz = side(H.wid / 2 + H.band + 20), far = at(4000, -8000);
@@ -288,6 +294,12 @@ console.log('6. COVERAT - what the cover ring may plant');
     verdict(dif === 0, 'coverAt(x, z, `pave`) gives the same kill and never a plot');
     let t1 = Date.now(); for (let i = 0; i < 100000; i++) O.coverAt(-300 + i % 400, 200 + (i * 7) % 400, 1); const ms1 = Date.now() - t1;
     verdict(ms1 < ms, `and is the cheaper call (${ms1} ms against ${ms}) - the tree fill runs it on every lattice point`); }
+  // ...and under 'sides': the band is cut grass (kill 0, cut 1), the pavement still bare, the pave half (the trees', the rocks') unmoved
+  { PG.grassSides({ law: 'sides' });
+    const s0 = at(c[0], c[1]), sb = side(H.wid / 2 + H.band - 1), pb = (() => { const p = F.toWorld(c[0] - n[0] * (H.wid / 2 + H.band - 1), c[1] - n[1] * (H.wid / 2 + H.band - 1)); return O.coverAt(p[0], p[1], 1); })();
+    verdict(s0 && s0.kill === 1 && sb && sb.kill < 1 && sb.cut === 1 && pb && pb.kill === 1,   // (kill < 1, not 0: a road's own fade may reach the point)
+      `the 'sides' law: 13/31's centre kill ${s0 && s0.kill}, the band (1 m inside its edge) kill ${sb && sb.kill} cut ${sb && sb.cut}, its pave half kill ${pb && pb.kill}`); }
+  PG.grassSides({ law: LAW0 });
   // THE TREES' CLEARANCE: a road refuses a tree well past its own edge (render_world's forestHere /
   // openHere reject where kill > 0; before 2026-09-22 nothing in the tree fill asked about a road)
   // EVERY PLANTER READS THE QUERY (2026-09-22). The law is one line in each; the failure it guards
@@ -664,6 +676,54 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
   verdict(P.groundColor('grass', rec).every((c, i) => c > 0) && P.opaqueDepth('grass', 9, null, 'strip') === P.RECIPE.edgeChip + 0.2 && P.opaqueDepth('grass', 3, null, 'road') === Infinity && P.opaqueDepth('dirt', 9, null, 'road') === P.RECIPE.edgeChip + 0.2,
     `opaqueDepth: a soft edge and a grass strip as deep as a paved chip (${P.RECIPE.edgeChip + 0.2} m), a grass road still never sunk`);
   P.dispose(m);
+}
+
+// 6. THE CONCRETE NEVER REPEATS (G2913 SCENERY-ED-2; the user: "Drawing concrete surfaces in a nice way, without texture
+// repetition"). An area drawn as concrete is this pavement (a paved polygon), not a tiled set. Its base set reaches the
+// ground through pvTile's hex lattice: every lattice vertex fetches the texture turned and offset by its own hash, three
+// vertices blended. A CPU twin of pvTile's coordinates (held to the GLSL below, so the twin cannot drift quietly) samples a
+// 200 m apron at 600 points and shifts it by every lattice period - along u, along v, diagonally - up to 300 m: a shift
+// that lands every sample on the same three (texture coordinate, weight) pairs is a REPEAT. A plain tiling (hexOn 0, the
+// negative control) repeats at its tile; the hex tiling must not repeat under 300 m. The material's own uniforms give the
+// tile, the cells, the turn - what the shader reads.
+{
+  const GL = P.GLSL.common + P.GLSL.map;
+  const anchors = ['vec2 sk = mat2(1.0, 0.0, -0.57735027, 1.15470054) * (st * uHex.z);', 'float s = step(0.0, -t.z), s2 = 2.0 * s - 1.0;', 'vec3 w = vec3(-t.z * s2, s - t.y * s2, s - t.x * s2);',
+    'vec2 v1 = base + vec2(s, s), v2 = base + vec2(s, 1.0 - s), v3 = base + vec2(1.0 - s, s);', 'float a1 = (r1.x - 0.5) * 2.0 * gRot', 'Smp s1 = pvFetch(layer, R1 * st + r1 * 7.3,',
+    'vec2 pvHash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }', 'vec3 hw = pow(w, vec3(3.0))', 'vec2 uvS = P + vec2(seed * 37.0, seed * 91.0);',
+    'return pvTile(pvLayerOf(slot), uv / tile, slot);', "gRot = (slot == 0 || slot == 1 || slot == 5) ? uHex.w"];
+  const lost = anchors.filter(a => GL.indexOf(a) < 0);
+  verdict(!lost.length, 'the twin is the shader\'s: pvTile\'s lattice, weights, hash, turn and offset are in the GLSL as the twin reads them' + (lost.length ? ' - LOST: ' + lost.join(' | ') : ''));
+  const lib = P.library(THREE, P.keysFor(['concrete']));
+  const mat = P.make(THREE, { lib, cls: 'concrete', recipe: P.resolve({ cls: 'concrete' }, {}).recipe, band: 4, poly: true }), U = mat.uniforms;
+  const tile = U.uTile.value.x, hexOn = U.uHex.value.y, cells = U.uHex.value.z, rot = U.uHex.value.w;
+  const fr = x => x - Math.floor(x);
+  const h2 = (x, y) => [fr(Math.sin(x * 127.1 + y * 311.7) * 43758.5453), fr(Math.sin(x * 269.5 + y * 183.3) * 43758.5453)];
+  // pvTile's fetches at st: [[uv mod 1 (x, y), weight] x 3], or the plain fetch (hex off)
+  const fetches = (st, hex) => {
+    if (!hex) return [[fr(st[0]), fr(st[1]), 1]];
+    const sk = [(st[0] - 0.57735027 * st[1]) * cells, 1.15470054 * st[1] * cells], b = [Math.floor(sk[0]), Math.floor(sk[1])], t = [sk[0] - b[0], sk[1] - b[1]], tz = 1 - t[0] - t[1];
+    const s = tz <= 0 ? 1 : 0, s2 = 2 * s - 1, w = [-tz * s2, s - t[1] * s2, s - t[0] * s2], V = [[b[0] + s, b[1] + s], [b[0] + s, b[1] + 1 - s], [b[0] + 1 - s, b[1] + s]];
+    const w3 = w.map(q => q * q * q), ws = w3[0] + w3[1] + w3[2] || 1e-5;
+    return V.map((v, k) => { const r = h2(v[0], v[1]), a = (r[0] - 0.5) * 2 * rot, c = Math.cos(a), sn = Math.sin(a); return [fr(c * st[0] - sn * st[1] + r[0] * 7.3), fr(sn * st[0] + c * st[1] + r[1] * 7.3), w3[k] / ws]; })
+      .filter(q => q[2] > 1e-4).sort((p, q) => q[2] - p[2]);
+  };
+  const near = (a, b) => { const d = Math.abs(a - b); return Math.min(d, 1 - d) < 2e-3; };
+  const same = (A, B) => A.length === B.length && A.every((q, i) => near(q[0], B[i][0]) && near(q[1], B[i][1]) && Math.abs(q[2] - B[i][2]) < 2e-3);
+  const rnd = (() => { let s = 7; return () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; }; })();
+  const pts = []; for (let i = 0; i < 600; i++) pts.push([rnd() * 200, rnd() * 200]);
+  const seed = 5 / 37, off = [seed * 37, seed * 91];
+  const repeatAt = (d, hex) => { let k = 0; for (const p of pts) { const A = fetches([(p[0] + off[0]) / tile, (p[1] + off[1]) / tile], hex), B = fetches([(p[0] + d[0] + off[0]) / tile, (p[1] + d[1] + off[1]) / tile], hex); if (same(A, B)) k++; } return k / pts.length; };
+  // the lattice periods: in st the hex lattice repeats every 1 / cells along the skewed axes; a texture tile every 1
+  const per = tile / cells, shifts = [];
+  for (let k = 1; k * per <= 300; k++) { shifts.push([k * per, 0], [0, k * per / 1.15470054 * 1], [k * per, k * per], [0, k * tile]); }
+  let worst = 0, worstAt = null;
+  for (const d of shifts) { const r = repeatAt(d, true); if (r > worst) { worst = r; worstAt = d; } }
+  const plain = repeatAt([tile, 0], false), plainV = repeatAt([0, tile * 3], false);
+  verdict(hexOn > 0.5 && rot > 0 && tile > 0, `the concrete's base is hex-tiled (hexOn ${hexOn}, ${f(cells, 1)} cells a ${f(tile, 2)} m tile, turned up to ${f(rot * 180 / Math.PI, 1)} deg a cell)`);
+  verdict(plain > 0.99 && plainV > 0.99, `the negative control: a plain tiling repeats at its tile (${f(plain * 100, 1)} % of the samples the same ${f(tile, 2)} m on, ${f(plainV * 100, 1)} % at ${f(tile * 3, 2)} m)`);
+  verdict(worst < 0.02, `no repeat under 300 m: over ${shifts.length} lattice shifts (u, v, diagonal, every ${f(per, 2)} m) at most ${f(worst * 100, 2)} % of 600 samples land on the same fetches` + (worstAt ? ' (at ' + worstAt.map(v => f(v, 1)).join(', ') + ' m)' : ''));
+  P.dispose(mat);
 }
 
 console.log('GATE PAVEMENT: ' + (fails ? 'FAIL' : 'PASS'));
