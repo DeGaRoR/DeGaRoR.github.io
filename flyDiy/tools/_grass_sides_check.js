@@ -35,7 +35,7 @@ const D = PG.GRASS_SIDES_DEF;
 // 1
 { law('today'); const H = A('HOME'), S = A('tw_ski');
   const on = q(across(H, -5)), band = q(across(H, 30)), past = q(across(H, 60, 300)), strip = q(across(S, -4));
-  ok(PG.grassSides().law === 'today' && D.law === 'today', "1 the default law is 'today'");
+  ok(D.law === 'sides', "1 the default law is 'sides' (train 44, the user: grass on the sides and the grass runway); 'today' stays a dial");
   ok(on.kill === 1 && band.kill === 1 && !('cut' in on) && !('cut' in band) && strip.kill === 1 && !('surf' in strip),
      "1 under 'today': HOME bare on its surface and across its 40 m band, the grass strip's surface bare (G665), no cut / surf in the answer", 'HOME +30 m kill ' + band.kill + ', tw_ski surface kill ' + strip.kill); }
 // 2

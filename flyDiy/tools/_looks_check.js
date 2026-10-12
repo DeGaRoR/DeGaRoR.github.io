@@ -122,6 +122,9 @@ const RP = read('render_premises.js'), RW = read('render_world.js'), WA = read('
     ok(up, '3 every triangle faces up');
   }
   ok(RW.includes('if (coastOf && (coastOf(spts[i][0], spts[i][1]) < 20 || coastOf(spts[i + 1][0], spts[i + 1][1]) < 20)) continue;'), '3 a river segment within 20 m of the coast is not drawn');
+  // G2916 (the user: "mirror rectangles hovering about a meter above the water"): a reach running into a lake keeps its own
+  // level over the lake's surface - a segment with an end in a drawn lake (or within 3 m of it) is the lake's, not drawn
+  ok(RW.includes('if (lakeR && (lakeRsd(spts[i][0], spts[i][1]) > -3 || lakeRsd(spts[i + 1][0], spts[i + 1][1]) > -3)) continue;'), '3 a river segment running into a drawn lake is not drawn (no ribbon hangs over a lake)');
 }
 
 // ---- 4. the texture libraries ------------------------------------------------------------------------------------

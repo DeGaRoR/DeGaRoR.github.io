@@ -1,6 +1,16 @@
 # SCENERY-POLYGON — one polygon, attachable properties; the inspector apart from the palettes
 ### (2026-10-11, SCENERY-ED-1 G2890 — the brief for SCENERY-ED-2. Nothing here is built yet.)
 
+**BUILT (SCENERY-ED-2 G2910-G2914, 11 Oct, contract v1.36, record v2)** - what differs from the brief below:
+- §3 went straight to step 2 (no view-only phase): `unwrap` migrates, `expandAreas` is compose's first step; the props
+  hold the v1 entries' own fields (lossless: `wheels: { surface, z, apron }`, not a word) and `src` keeps the ids and the
+  places, so the expansion is the v1 record exactly (GATE PREMISES 20 on every fixture, Jolene and her parts).
+- Jolene has NO `m_sh13`: the four `y_sh*` bands are areas with gravel wheels and no draw - the inspector now says "it
+  draws NOTHING ... add a DRAW"; nothing of Jolene's content was changed (the user's call which bands should draw).
+- §2 `draw: { kind: 'grass' }`, `life` on areas, the exclude words bushes / grass, the dock's `deck` - not built.
+- §4 marks: parking / dock / hatch (`areaMarks`, in the pavement's frame; rules the shader already reads); `stands`
+  stays the apron's own (draw.stands). §6: thumbnails, groups, search, ghost (R, Alt + wheel, level), scatter, `s`.
+
 The user's notes (11 Oct): "The polygons saying 'gravel' around the main strip do not seem to draw anything, but to
 remove trees. I would rather have a generic polygon type to which we can attach properties, like terraforming, biome
 replacement, vegetation exclusion, draw surface, etc." · "Drawing concrete surfaces in a nice way, without texture
@@ -151,3 +161,60 @@ the contract), and a SCATTER brush (n within a radius, seeded, one record per ob
 5. The ASSETS tab (§6) on whatever the bank holds that day.
 Gates: PREMISES (the migrator rows), SCENERYED (the hand, extended to areas and the palette), PAVEMENT (the marks),
 PREMCOOK, UISMOKE; island_shot at Jolene's 13/31 band to see the gravel finally drawn.
+
+## 8. NEXT: the road bed and the road ribbons by piece (asked 11 Oct, after ED-2's scope)
+
+The user (11 Oct, a screenshot of their island road): "the road is sunk in many places. Maybe build a little bank or
+something, ensuring the paved surface is always visible?" What it is: a graded road (flat across, smoothed along, 6 m
+nodes, falloff) is CUT into the hills; physics and the fine 2 m patch agree, but past the fine patch's reach the coarse
+far ground (17-70 m cells) interpolates OVER a 4-7 m cut and hides the pavement. (Part of the user's sinking was the
+record's extent - fixed in ED-2, G2919: the fine patch now covers the whole road.) The brief:
+- **A road bed** (a road's `bed: { bank, grade }`): the ground under the paved width set to the road's own profile,
+  filtered along (a max grade: the longitudinal envelope compose already has as `grade`), shoulders blending back over
+  `bank` metres - an EMBANKMENT where the road fills (it rides over any coarse mesh), a cut slope where it digs. The
+  composer's grade modifier already is this shape; the bed adds the bank width and the fill bias (a road that may sit
+  up to N cm over the ground rather than in it).
+- **The far ground's sink under the pavement** (render_world's rings): the patch sinks under a pavement's opaque interior
+  (G660, PAVEMENT.SINK); the rings do not - past the patch a road needs the same sink (or the ribbon a distance lift).
+- **The ribbons by piece**: a road's ribbon is rebuilt whole on every edit (and every other road's with it) - pieces
+  between control points, global u kept (a cached piece shifts its u attribute when the line upstream grew or shrank),
+  invalidated by a ground-dirty box over the piece; the table rows (G925) and the merges re-done per piece.
+- Proof needs the GPU: stills of the island road near and far, a timed check of a drag on it (edit to quiet < 100 ms).
+
+## 9. NEXT: ROAD-GRAPH (with ROAD-BED, the train after 44.4) - joins at WAYPOINTS only
+
+The user (11 Oct): "let's have roads snapping to each other. One day I'd like a scenic tour of the island's roads,
+probably with a simple car, and it would be good that we have the premises of a graph then" - refined: "What I really
+need is a proper way to connect arteries and junctions ... You could constrain joining on WAYPOINTS only, so we have
+something really clean, with waypoint snapping." And: "I'll trace the network between Metlakatla and the airfield, leave
+that to me." So:
+- **Joins happen ONLY at waypoints** (a road's points). A new or dragged point within ~5 m (screen-sized) of another
+  road's waypoint SNAPS onto it - the waypoint highlighted while the hand is near - and the two roads then SHARE that
+  node: one junction id. No snapping into the middle of a span: a T is made by adding a waypoint there first (the
+  edge click), then snapping onto it. Unsnapping: drag the point away with Alt (or the inspector's "detach").
+- **The record**: a shared node is `nodes: [{ id, x, z }]` at the premises level (or `roads[].pts[i]` carrying the node
+  id) - one position for every road through it, so moving the junction moves every road's point there. The grade is
+  continuous across it (the composer's 7 m level approach held to the node's own height, the same for every road through
+  it); a spline's handle at a shared node follows the through road.
+- **The graph** (compose): `O.roadGraph = { nodes: [{ id, x, z, y, roads, conn? }], edges: [{ id, road, a, b, len, cls,
+  surface, grade }] }`, edges = the spans between a road's junction nodes and its ends; stable ids; the API `graph()`,
+  `path(a, b)` (Dijkstra on length, class-weighted), `edgeAt(x, z)` (the segment grid) - what a car or a route drives.
+- **Metlakatla as a connected grid**: its streets (`mk_` roads, off by default, kept in the record) reviewed (a list
+  first: disconnected, overlapping, mis-joined, dead ends, with coordinates), then made ONE connected grid of
+  shared-waypoint junctions; its edge waypoints marked as named CONNECTION POINTS (`conn: 'Metlakatla north'`), drawn in
+  the editor, for the user to snap their own roads onto. NOT auto-joined to the island road r1 or the airfield (the
+  user traces that network).
+- **Gates**: Metlakatla's grid one component with its connection points listed; a snap round-trips through save / load
+  (the node shared, the positions equal); a junction's grade continuous to 2 cm for every road through it; a moved
+  junction moves every road there; `path` across Metlakatla follows its streets; the user's file's graph lists its
+  components.
+- **ROADSIDE APRONS** (the user: "a lot of gravel areas next to the road for a U-turn or a stop; we should have that and
+  our vehicles should know they can use them (similar to runway aprons)"): an AREA (§2) carrying
+  `road: { id: <road id>, node: <shared waypoint id>, use: ['turn', 'stop'] }` beside its usual props (default
+  `wheels: gravel`, `draw: { look: 'gravel' }`, round or a polygon, like the airfield's round pad). It is attached to a
+  road WAYPOINT (it shares that node - moving the waypoint carries it). Editor: the road inspector's 'add roadside apron'
+  at the picked waypoint (round, 12 m, to the waypoint's outside; then shaped like any area).
+  In the graph: `O.roadGraph.nodes[i].aprons = [{ area: <area id>, use: ['turn', 'stop'], poly: [[x, z] world...],
+  centre: [x, z], r: <metres, the largest circle inside> }]` - the node a vehicle reaches the apron from, the shape it
+  may drive on, the room it has to turn (r). GROUND-VEHICLE G2940 reads only `roadGraph` (nodes, edges, aprons) and
+  `edgeAt` / `path`; the data shape is frozen here so it can be written against before ROAD-GRAPH lands (through A0).
