@@ -85464,3 +85464,55 @@ the snapshot for reasons of its own): a registration test must fly once unchange
 template literal must not hold a backtick (node --check catches it; GATE WEATHER checks its own blocks).
 
 **Owed (released by the user, 11 Oct: no screenshots for these):** a STILL of a decal on a deflecting rudder/elevator, live shader, two frames apart (the orbit eyes this rig used never reached the tail - the fix is proven by the measure and the gates, not yet by a picture of the user's own case); the weathering in FLIGHT seen moving on master vs still on G2750 (a held-camera pair in a turn). Both need ~10 GPU minutes.
+
+
+## G3050 - GEOM-FIXES: THE WING ROW IS THE WING DRAWN AND FLOWN (CONFIGURATIONS §9, EVERY WING ROW, BOTH PLANES) (2026-10-12, GEOM-FIXES for A0, local; branch claude/geom-fixes-g3050 off the 43.1 preview = design-trust cfa7cfe9b + finish-fix 94add5046; G3050-G3059, sub-numbers unused)
+
+The user (11 Oct): "do the wing fixes after 43.1"; RULING 3 + WYSIWYG (8 Oct). §9 named three rows that do not reach
+what they say. G1283 (3 Oct) made them SAY so (a note, an ERRS row); this makes the row, the drawing and the flown wing
+one number. Second wing as a general lifting surface (ruling bq) NOT touched; the biplane keeps its truss.
+**THE TWO DEFECT KINDS (re-measured on the code, generic):**
+1. **Row != drawn = flown** (the wing layer resolves the same spec the join flies, so the drawing was honest and the
+   ROW lied): §9.1 tip chord (taper 0.45-1: 0.55 on a 2.10 root flies 0.945), §9.3 span (4-20 x chord: 6.5 on 2.10
+   flies 8.40) - and four siblings found the same way: tip/crank offset (+-tan 30 deg of the semispan: tip aft 2.5 on a
+   6.5 m span flies 1.70), crank under 15 % (no crank), centre width under 0.20 (0.20), flap span past the aileron
+   (1 - ail - 0.04). FIX: `PAGE.coerce` (the pair rule's mechanism) writes every live wing row back to
+   `resolveSpec(wingGSpec(P))` - the layer's OWN spec builder, lifted to a module function - on both planes (w2 keys
+   through w2Key / w2View). Only a row off its clamp by > 1e-9 moves, onto the value it already flew: no physics
+   change for anything. Memoised on the wing spec's JSON (one resolve per change of the wing rows).
+2. **Drawn != flown** (the join MEASURES the station / height off the drawing, clampWing cuts it): §9.2 fore / aft
+   (xLE -0.20..3.00: the Jodel at 1.8 was drawn 1.16 m ahead of its flown wing, the Cub 1.32, the Cessna 1.36) - and a
+   sibling: the up / down rows vs clampWing's yRoot -1..3 (a parasol at 1.20 m + up 1.0 on the Cessna was drawn 3.72 m
+   over the keel and flew at 3.00; a biplane's parasol upper plane drew 3.39). FIX: the wing layer draws inside the
+   window the flight keeps - `wingDxWindow` off the build's own cage spec (the firewall + ring stations now in ONE home,
+   `CAGE2.cageNamedZ` / `cageFirewallZ`, the join refactored onto them), the yRoot window off the resolver itself
+   (`wingYRootEnv`: no copy of its numbers), plane 2 re-framed once with its place.dy moved by the overshoot - publishes
+   `CAGE_WING.anchor.dx/dy/dxWin/dyWin`; the join measures the DRAWN nudge; the layer writes the rows back (+ syncSliders).
+   This runs in the GAME's path too (no coerce there): what flies was already the clamp; now the drawing is.
+**NOTES.** A held row says it until moved again: "held at 0.945 (asked 0.55) — the tip is held to 0.45–1 × the root
+chord" (HELD; tip, span, tip/crank aft, crank at, centre width, flap span, fore / aft). G1283's "flies X" notes kept
+(the bench pages without the coerce). No row range changed (EDITOR-UX-A G2760 owns the row layout).
+**SAVED BUILDS - EXACTLY WHAT CHANGES** (GATE WINGROWS KEPT; flown wing + controls compared as JSON before / after):
+- Cub (corrected): row `wgChordTip` 1.75 -> 1.70 on open (the tip already flew 1.70: taper 1). Flight bit-identical.
+- twin on floats (v7 fixture): `wgChordTip` 1.6 -> 1.5 (taper capped at 1; flew 1.5). Flight bit-identical.
+- Jodel, Cessna (metal), Cessna floats, mosquito: no row moves. Flight bit-identical. Drawing unchanged (the station
+  and heights were inside their windows).
+- Any build: a row the resolver overruled moves onto what it flew, when opened in the editor (and is saved so). A build
+  whose fore / aft or up / down sat PAST the flown window now DRAWS where it flies (the wing moves on screen, the
+  struts and fittings with it); its flight is unchanged. None of the validated builds is such a build.
+- Trade-off the user may want to know: the coupled rows are now lossy - a tip held at 0.945 by a 2.10 root stays 0.945
+  when the root goes back to 1.0 (it was 0.55 in the row before). That IS what the drawing showed.
+**GATE WINGROWS** (new, core, ~8 s, `tools/_wingrows_check.js`): S9 (11 cases, both planes, row + note), SWEEP (400
+seeded random wings vs the JOIN's mapping - the two homes of P -> spec cross-checked; 318 had a row overruled; a second
+coerce moves nothing), KEPT (above), STATION (fore / aft and up / down at their ends through the page chain headless:
+measured xLE / yRoot = flown on every plane, GEOPARITY's wing rows in tolerance, rows = drawn), SELF (the coerce
+removed -> S9 + SWEEP red; the drawn window removed -> the Jodel at 1.8 red). 29/29 PASS on this branch.
+**COST.** The coerce: one resolveSpec only when a wing row changed (wing spec JSON memo); the station window reuses the
+build's cage spec in the layer (cageResolve 0.02 ms; a cageSpec in the coerce measured 0.73 ms a build, so it is NOT
+there). Garage latency not yet measured on the box (needs a slot).
+**FOUND, NOT CHASED:** GEOPARITY on the Cessna at fore / aft -1.5 (inside the window) reads worst 0.157 at the 2.30 m
+station only (the drawn chord 0.18 wider: the lift strut enters GEOPARITY's slice when the wing is far aft) - a
+measurement artefact of the slice, not the wing; every other station identical to the default's.
+**PROCESS:** I ran ~5 s of node inside G2840's CPU timing lock (04:48-) by mistake and a 1 s core build in a GATE CARDS
+lock; both sessions told. tools/flight_core.js etc. were rebuilt locally for the tests and are NOT committed (43.1's
+src/core is ahead of master's build).
