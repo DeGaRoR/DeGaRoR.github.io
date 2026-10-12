@@ -1300,7 +1300,9 @@ function rwyTreesMode(o) {
   // - 'map' is the default: no tree on a pavement or its drawn side (PAVE_SIDE 1.8 m paved / PAVE_SIDE_SOFT 7.9 m soft, wider
   // than any validated aircraft's half span past the edge), the derived boxes, shoulders and fans lifted; a wider clearing is an
   // authored 'no trees' polygon (premises editor). GATE RWYTREES holds 'map' (the paths, the climb-out, the circuit flown)
-  return RWY_TREES.indexOf(v) >= 0 ? v : 'map';
+  // (44.3, 11 Oct: back to 'today' as the default - 'map' moved HOME's calm-air taxi off its V's right arm, GATE LINEUP red with it
+  // and green with FLYDIY_RWYTREES=today; 'map' returns with an authored clearing by HOME's taxiways. The ruling stands, the default waits)
+  return RWY_TREES.indexOf(v) >= 0 ? v : 'today';
 }
 // THE STRIP'S TREE CLEARANCE (G1385 EDITOR-VEG, contract v1.31, the user: "I need to better control tree exclusion
 // zones around runways"): a strip's `clear` { side, beyond, taper, bushes } is the clearing the trees keep from it -

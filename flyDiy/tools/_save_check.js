@@ -615,6 +615,19 @@ if (process.argv.includes('--selftest')) {
 }
 
 // ---------------------------------------------------------------------------
+// G2400 (FREIGHT-STRAP): THE LOAD IS NEVER THE BUILD. The strapped load lives in the career's record (career.load) and
+// in the flying sim's state (sim.setFreight); the job's passengers fly as masses at their seats, the build's occupancy
+// untouched. So the page block writes nothing the shelf saves: no genSpec, no GARAGE_SPEC door, no seat or baggage row
+// of the spec - a save after a loaded flight is the build as it was.
+{
+  const app = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8');
+  const i0 = app.indexOf('G2400 (FREIGHT-STRAP): THE ACCEPTED LOAD, STRAPPED'), i1 = app.indexOf('let flightLogged = false;', i0);
+  const blk = i0 >= 0 && i1 > i0 ? app.slice(i0, i1) : '';
+  ok(blk.length > 0 && !/genSpec\s*=[^=]|GARAGE_SPEC|\.occupied\s*=[^=]|cabin\.pax\s*=[^=]|spec\.\w+\s*=[^=]|\.baggage\s*=[^=]|syncBuild\(|prefSet\('flydiy\.build/.test(blk),
+     'FREIGHT-STRAP: the strapped load writes nothing into the build the shelf saves (no genSpec, no GARAGE_SPEC, no seat / baggage row)');
+}
+
+// ---------------------------------------------------------------------------
 console.log(`  ${Object.keys(EDITS).length} targeted rows, ${MOVABLE.length} ` +
             `panel rows moved and put back, the whole envelope as a fixed ` +
             `point, ${DOORS.length} persist doors`);

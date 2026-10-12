@@ -264,7 +264,7 @@ function runCozy(union) {
     ok(cl1.layout === null && JSON.stringify([cl1.placed, cl1.recipes, cl1.unplaced]) === JSON.stringify([cl0.placed, cl0.recipes, cl0.unplaced]),
        T + "named in the club IS the club (the sandbox's room, position for position)");
     // the residents round the stand: a Cub-sized stand, a Cub and a metal Cessna parked
-    const H = Object.assign({}, CORE.careerMainShed(), { layout: key });
+    const H = { shell: 'works', dims: Object.assign({}, W), kits: CORE.HANGAR_KITS_DEFAULT.slice(), layout: key, base: 'HOME', tenure: 'own' };
     const stand = { x0: -2.3, x1: 7.4, z0: -5.9, z1: 5.9 };
     const RP = CORE.hangarPark(H, [{ name: 'Cub', foot: { half: 5.4, fwd: 1.8, aft: 6.9, h: 2.1 } },
                                    { name: 'Cessna', foot: { half: 5.6, fwd: 1.6, aft: 7.2, h: 2.7 } }], { reg: CORE.PROP_REG, keep: [stand] });
@@ -286,26 +286,36 @@ function runCozy(union) {
     const jodel = { half: 4.4, fwd: 1.8, aft: 5.9 }, cub = { half: 5.4, fwd: 1.8, aft: 6.9, h: 2.1 };
     const C0 = CORE.hangarPark(club, [{ name: 'Cub', foot: cub }], { reg: CORE.PROP_REG, keep: [{ x0: -2.3, x1: 6.4, z0: -4.9, z1: 4.9 }] });
     ok(C0.placed.length === 0, 'rule 8: the full club takes no resident beside a centred stand (' + C0.placed.length + ')');
-    const C1 = CORE.hangarPark(club, [{ name: ' stand', foot: jodel }, { name: 'Cub', foot: cub }], { reg: CORE.PROP_REG });
-    const st = C1.placed.find(p => p.name === ' stand'), cb = C1.placed.find(p => p.name === 'Cub');
+    const C1 = CORE.hangarPark(club, [{ name: '\u0000stand', foot: jodel }, { name: 'Cub', foot: cub }], { reg: CORE.PROP_REG });
+    const st = C1.placed.find(p => p.name === '\u0000stand'), cb = C1.placed.find(p => p.name === 'Cub');
     ok(!!st && !!cb, 'rule 8: the club holds the stand + 1 resident packed together (' + JSON.stringify(C1.unplaced) + ')');
     if (st && cb) ok(st.x < cb.x, 'rule 8: ... the stand toward the door, the resident behind it (stand ' + st.x + ', resident ' + cb.x + ')');
     // ...and with TWO residents the size-ordered pack leaves the STAND out (the 8 Oct slot's empty club + 1): the garage
     // must drop to one resident (app.js: every resident, then one at a time, the stand always in)
     const ces = { half: 6.0, fwd: 1.6, aft: 6.6 };
-    const C2 = CORE.hangarPark(club, [{ name: ' stand', foot: jodel }, { name: 'Cessna', foot: ces }, { name: 'Cub', foot: cub }], { reg: CORE.PROP_REG });
-    ok(!C2.placed.some(p => p.name === ' stand'), 'rule 8: two residents in the full club leave no floor for the stand (why the garage drops to one)');
+    const C2 = CORE.hangarPark(club, [{ name: '\u0000stand', foot: jodel }, { name: 'Cessna', foot: ces }, { name: 'Cub', foot: cub }], { reg: CORE.PROP_REG });
+    ok(!C2.placed.some(p => p.name === '\u0000stand'), 'rule 8: two residents in the full club leave no floor for the stand (why the garage drops to one)');
   }
   // the career's main hangar, and the sandbox's
   const d = CORE.careerNew({ id: 'g2315', seed: 'g2315' }), H = d.sheds.HOME;
-  ok(H.shell === 'works' && H.layout === CORE.CAREER_MAIN.layout && !!LY[H.layout] && H.dims && H.dims.HW === W.HW && H.dims.HD === W.HD,
-     "rule 8: the career's main hangar is the works in its layout (" + JSON.stringify(H) + ')');
+  // G2319.1 (train 44; the user, 10 Oct: "keep today's hangar for now, the hearth later"): the career's main hangar is
+  // TODAY'S CLUB - the player default's, no layout (its resident: the garage's club + 1, above) - the works' layouts
+  // selectable; a dev career made under train 43's works default comes back to the club, once
   const P0 = CORE.playerDefault().sheds.HOME;
+  ok(!CORE.CAREER_MAIN.layout && CORE.CAREER_MAIN.shell === 'club' && JSON.stringify(H) === JSON.stringify(P0),
+     "rule 8: the career's main hangar is today's club, the player default's (" + JSON.stringify(H) + ')');
   ok(P0.shell === 'club' && !P0.layout && !P0.dims, "rule 8: the sandbox's default is still the club");
   const old = CORE.playerDefault(); old.mode = 'career';
   const up = CORE.careerNormalise(JSON.parse(JSON.stringify(old)));
-  ok(up.sheds.HOME.layout === CORE.CAREER_MAIN.layout && up.sheds.HOME.shell === 'works', "rule 8: an untouched career club becomes the career's works");
-  ok(JSON.stringify(CORE.careerNormalise(JSON.parse(JSON.stringify(up)))) === JSON.stringify(up), 'rule 8: ... once (a fixpoint)');
+  ok(JSON.stringify(up.sheds.HOME) === JSON.stringify(P0), "rule 8: an untouched career club stays today's club");
+  const t43 = CORE.playerDefault(); t43.mode = 'career';
+  t43.sheds.HOME = { shell: 'works', dims: Object.assign({}, CORE.SHELLS.works.dims), kits: CORE.HANGAR_KITS_DEFAULT.slice(), layout: 'hearth', base: 'HOME', tenure: 'own' };
+  const back = CORE.careerNormalise(JSON.parse(JSON.stringify(t43)));
+  ok(back.sheds.HOME.shell === 'club' && !back.sheds.HOME.layout && !back.sheds.HOME.dims && back.sheds.HOME.base === 'HOME',
+     "rule 8: train 43's untouched works comes back to today's club (" + JSON.stringify(back.sheds.HOME) + ')');
+  ok(JSON.stringify(CORE.careerNormalise(JSON.parse(JSON.stringify(back)))) === JSON.stringify(back), 'rule 8: ... once (a fixpoint)');
+  const lit = JSON.parse(JSON.stringify(t43)); lit.sheds.HOME.layout = 'hearthLight';
+  ok(CORE.careerNormalise(lit).sheds.HOME.layout === 'hearthLight', "rule 8: a works the player chose (hearthLight) is the player's, kept");
   const touched = CORE.playerDefault(); touched.mode = 'career'; touched.sheds.HOME.dims = { HW: 14, HD: 11, EAVE: 6.5 };
   ok(CORE.careerNormalise(touched).sheds.HOME.shell === 'club', "rule 8: a touched career club is the player's, kept");
 }
@@ -692,8 +702,8 @@ const BREAKS = [
    { pre: () => { CORE.HANGAR_LAYOUTS.cozy.shell = null; }, post: () => { CORE.HANGAR_LAYOUTS.cozy.shell = 'works'; } }],
   ['the cozy works drops a row',
    { pre: () => { CORE.HANGAR_LAYOUTS.cozy.rows.office.sites.push({ prop: 'desk_metal', at: 'shop', along: 1.6, out: 0.9, dry: 0 }); } }],
-  ['the career forgets its cozy works',
-   { pre: () => { CORE.CAREER_MAIN.layout = 'nope'; }, post: () => { CORE.CAREER_MAIN.layout = 'hearth'; } }],
+  ['the career leaves today\'s club for the works',
+   { pre: () => { CORE.CAREER_MAIN.shell = 'works'; CORE.CAREER_MAIN.layout = 'hearth'; }, post: () => { CORE.CAREER_MAIN.shell = 'club'; CORE.CAREER_MAIN.layout = null; } }],
   ['the hearth parks its lounge on the stand',
    { pre: () => { const r = CORE.HANGAR_LAYOUTS.hearth.rows.comfort.sites.find(q => q.prop === 'chair_lounge'); r.fx = 2 / 20; r.fz = 3 / 20; } }],
   ['the club hangs the cozy lamps',

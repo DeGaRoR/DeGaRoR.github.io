@@ -11,10 +11,13 @@
 //   { what: 'flydiy-player', v, wallet, mode: 'career', here, clock, sheds, fleet, ledger,
 //     career: {
 //       id, seed, started, name, cv: CAREER_V,
+//       day: { date: 'YYYY-MM-DD', utc: s },                            G2650 the sim clock's instant (forward only)
 //       voucher: { kind: 'maker', model: 'cub', used: false },          GQ23
 //       providers: { <id>: { rep: 0..5, arc: <arc contracts done> } },  GQ28
 //       contracts: { offered: [id], accepted: [id], tracked: id|null, done: [ {id, at, pay, medal?} ],
-//                    live: { <id>: { stage, subs: [bool], picked: [bool], got: {} } } },
+//                    live: { <id>: { stage, subs: [bool], picked: [bool], got: {} } },
+//                    sky: { epoch, date, cover } },                    G2665 the offers' sky (the night work's)
+//       cover: 0..1,                                                    G2665 the day's cloud cover, as the page saw it
 //       tracks: { field, minedock, resort, survey, clients },            §11.2 (mine + dock = one track)
 //       pilots: {}, roster: [], market: { used: [], seen: 0 }, airframes: {} } }   (PILOTS / PROCURE fill these)
 // A contract is NEVER stored whole: an authored one is looked up by id, a job regenerated from its id and the
@@ -23,7 +26,14 @@
 // Pure: every operation works on a clone and returns { ok, doc, why, ... }; a refusal hands back the very
 // document it was given, untouched. No DOM, no storage (app.js owns the localStorage glue, a later session).
 // ===========================================================================
-const CAREER_V = 1;
+// v2 (G2650 SIM-CLOCK): the career carries its DAY - `career.day: { date, utc }`, the sim clock's instant (07_day.js
+// DAY's date + UT second) - saved at a flight's end, a wait, a stop: the next session starts where the last one stopped.
+// A v1 career had none; its day is the one its flown clock implies (CAREER_DAY0 + doc.clock seconds: the clock ran
+// with flown time from the game's first day), lifted once by the normaliser. The career's day only moves FORWARD
+// (careerDaySet refuses an earlier instant); the sandbox keeps its pref (day_clock.js) and every control.
+const CAREER_V = 2;
+// the career's first day: the game's day (viewer/day_clock.js GAME_DAY, 2026-06-21 16:00 AKDT) as UT
+const CAREER_DAY0 = Object.freeze({ date: '2026-06-22', utc: 0 });
 const CAREER_KEY = 'flydiy.career.';
 const CAREER_GRANT = 60000;                                   // GQ23: the grant ...
 const CAREER_VOUCHER = { kind: 'maker', model: 'cub' };      // ... and a free maker's Cub
@@ -40,6 +50,7 @@ function careerBlockDefault(o) {
   return {
     id: o.id || 'main', seed: String(o.seed != null ? o.seed : 'jolene'), started: o.started || null,
     name: o.name || '', cv: CAREER_V,
+    day: careerDayOk(o.day) ? careerDayNorm(o.day) : { date: CAREER_DAY0.date, utc: CAREER_DAY0.utc },
     voucher: Object.assign({}, CAREER_VOUCHER, { used: false }),
     providers,
     contracts: { offered: [], accepted: [], tracked: null, done: [], live: {} },
@@ -52,10 +63,17 @@ function careerBlockDefault(o) {
 // probably, even though I find the medium one less intimidating and warmer. Main garage should be cozy"): the WORKS
 // shell at its own 40 x 40 m, every kit, stood in the `cozy` layout (26_hangar_fit HANGAR_LAYOUTS) - the bench corner,
 // the woodshop bay, the office, the lounge round the build bay. The sandbox keeps today's club (GQ29).
-// G2318: the HEARTH (the cozy works with the life brought to the stand) is the default; 'cozy' (the rooms along the
-// walls) is kept beside it for the user's pick (GARAGE_ENV.setLayout in a career)
-const CAREER_MAIN = { shell: 'works', layout: 'hearth' };
+// G2318: the HEARTH (the cozy works with the life brought to the stand) was the default; 'cozy' (the rooms along the
+// walls) kept beside it for the user's pick (GARAGE_ENV.setLayout in a career).
+// G2319.1 (train 44; the user, 10 Oct, on the stills: "not sure what the hearth adds" - KEEP TODAY'S HANGAR for now, the
+// hearth later; long term a derelict giant beside a small good hangar, HANGAR-STORAGE): the career's main hangar is
+// TODAY'S CLUB again (the player default's: no layout, careerMainShed null), with its resident (the garage's club + 1:
+// the room moved under the stand). The works' layouts stay selectable (GARAGE_ENV.setLayout takes the shell with it).
+const CAREER_MAIN = { shell: 'club', layout: null };
+// the train-43 default, recognised so a dev career made under it comes back to the club (careerNormalise, once)
+const CAREER_MAIN_T43 = { shell: 'works', layout: 'hearth' };
 function careerMainShed() {
+  if (!CAREER_MAIN.layout) return null;                        // today's club: the player default's main hangar stands
   const L = (typeof HANGAR_LAYOUTS !== 'undefined') ? HANGAR_LAYOUTS[CAREER_MAIN.layout] : null;
   const S = (typeof SHELLS !== 'undefined') ? SHELLS[CAREER_MAIN.shell] : null;
   if (!L || !S) return null;                                   // a core without the hangar tables: the default stands
@@ -68,6 +86,14 @@ function careerMainUntouched(h) {
   if (!h || typeof h !== 'object' || h.shell !== 'club' || h.layout || h.dims || h.parts) return false;
   const def = (typeof HANGAR_KITS_DEFAULT !== 'undefined') ? HANGAR_KITS_DEFAULT : null;
   return !!def && Array.isArray(h.kits) && h.kits.join() === def.join();
+}
+// ...and the train-43 default nobody touched (the works at its own dims, every kit, the hearth, no dress): a dev career
+// made under it (?career=1, train 43 only) is handed today's club back, once (G2319.1)
+function careerMainT43Untouched(h) {
+  if (!h || typeof h !== 'object' || h.shell !== CAREER_MAIN_T43.shell || h.layout !== CAREER_MAIN_T43.layout || h.parts) return false;
+  const S = (typeof SHELLS !== 'undefined') ? SHELLS[h.shell] : null, def = (typeof HANGAR_KITS_DEFAULT !== 'undefined') ? HANGAR_KITS_DEFAULT : null;
+  return !!S && !!def && !!h.dims && h.dims.HW === S.dims.HW && h.dims.HD === S.dims.HD && h.dims.EAVE === S.dims.EAVE &&
+    Array.isArray(h.kits) && h.kits.join() === def.join();
 }
 
 // A NEW CAREER (GQ23): a fresh player document in career mode — the main hangar at HOME, an empty fleet —
@@ -94,10 +120,20 @@ function careerNormalise(r) {
   // G2315: a career made before the cozy works holds the player default's untouched club - it becomes the career's
   // main hangar (the base, the tenure and anything else on the record kept); a touched one is the player's, kept
   if (careerMainUntouched(d.sheds.HOME)) { const m = careerMainShed(); if (m) d.sheds.HOME = Object.assign({}, d.sheds.HOME, m, { base: d.sheds.HOME.base, tenure: d.sheds.HOME.tenure }); }
+  // G2319.1: the train-43 works back to today's club when that is the main hangar again (the base, the tenure kept)
+  else if (!CAREER_MAIN.layout && careerMainT43Untouched(d.sheds.HOME)) {
+    const h = d.sheds.HOME, c = playerDefault().sheds.HOME;
+    d.sheds.HOME = Object.assign({}, h, { shell: c.shell, kits: c.kits.slice() }, { base: h.base, tenure: h.tenure });
+    delete d.sheds.HOME.dims; delete d.sheds.HOME.layout;
+  }
   const def = careerBlockDefault();
   const c = (d.career && typeof d.career === 'object') ? d.career : (d.career = def);
   for (const k of ['id', 'seed', 'name']) if (typeof c[k] !== 'string') c[k] = def[k];
-  if (typeof c.cv !== 'number') c.cv = CAREER_V;
+  if (typeof c.cv !== 'number') c.cv = 1;
+  // v1 -> v2 (G2650): the day the flown clock implies, when the career has none of its own
+  if (!careerDayOk(c.day)) c.day = careerDayNorm(dayFromAbs(dayAbs(CAREER_DAY0) + Math.max(0, +d.clock || 0)));
+  else c.day = careerDayNorm(c.day);
+  if (c.cv < CAREER_V) c.cv = CAREER_V;
   if (!c.voucher || typeof c.voucher !== 'object') c.voucher = def.voucher;
   if (!c.providers || typeof c.providers !== 'object') c.providers = {};
   for (const p of Object.keys(def.providers)) {
@@ -122,6 +158,48 @@ function careerNormalise(r) {
   return d;
 }
 
+// ---- THE CAREER'S DAY (G2650 SIM-CLOCK) ---------------------------------------------------------------------------
+const careerDayOk = o => !!(o && typeof o === 'object' && /^\d{4}-\d{2}-\d{2}$/.test(o.date) && typeof o.utc === 'number' && isFinite(o.utc));
+// one instant, one spelling: the utc in [0, 86400) on its own UT date (whole seconds: the document is a save)
+const careerDayNorm = o => { const r = dayFromAbs(Math.round(dayAbs(o))); return { date: r.date, utc: r.utc }; };
+function careerDay(doc) {
+  const c = doc && doc.career;
+  return careerDayOk(c && c.day) ? careerDayNorm(c.day) : careerDayNorm(dayFromAbs(dayAbs(CAREER_DAY0) + Math.max(0, +(doc && doc.clock) || 0)));
+}
+// the career's day moves to `o` ({date, utc}) - FORWARD ONLY: an earlier instant is refused (the career never goes
+// back; a wait, a flight's end, a stop all move it on). The same instant is a no-op that still answers ok.
+function careerDaySet(doc, o) {
+  if (!doc || !doc.career) return crNo(doc, 'not a career');
+  if (!careerDayOk(o)) return crNo(doc, 'not a day: ' + JSON.stringify(o));
+  const now = careerDay(doc), to = careerDayNorm(o), dt = dayAbs(to) - dayAbs(now);
+  if (dt < 0) return crNo(doc, 'the career\'s clock only moves forward (' + now.date + ' ' + Math.round(now.utc) + ' s UT, asked ' + to.date + ' ' + Math.round(to.utc) + ' s)');
+  const d = crClone(doc);
+  d.career.day = to;
+  return { ok: true, doc: d, why: '', dt };
+}
+
+// ---- THE OFFERS' SKY (G2665 NIGHT-OPS) -----------------------------------------------------------------------------
+// The night work is drawn under the sky of the day the offers were made (73_ contractSky): the career's LOCAL date
+// when this epoch's offers came, and the day's cloud cover as the page last saw it (`career.cover`, 0..1: overcast = no
+// moon light). Stamped as `contracts.sky = { epoch, date, cover }` by careerRefresh (a refresh that keeps the epoch keeps
+// the stamp), so an offer holds while the clock moves on; a career with no stamp (or a new epoch not yet refreshed)
+// reads it live off its clock. careerOfferSky(doc) -> 73_'s sky (or null: no night work).
+function careerLocalDate(doc) {
+  const d = careerDay(doc);
+  try { return DAY.makeDay({ date: d.date, utc: d.utc }).localDate; } catch (e) { return d.date; }
+}
+function careerSkyStamp(doc) {
+  const c = doc.career, e = contractEpoch(careerDoneIds(doc).length), S = c.contracts && c.contracts.sky;
+  if (S && S.epoch === e && /^\d{4}-\d{2}-\d{2}$/.test(S.date) && typeof S.cover === 'number') return S;
+  const cover = Math.max(0, Math.min(1, +c.cover || 0));
+  return { epoch: e, date: careerLocalDate(doc), cover: Math.round(cover * 100) / 100 };
+}
+function careerOfferSky(doc) {
+  if (!doc || !doc.career || typeof contractSky !== 'function') return null;
+  const S = careerSkyStamp(doc);
+  return contractSky(S.date, S.cover);
+}
+
 // ---- WHICH CONTRACT AN ID IS --------------------------------------------------------------------------------
 const careerDoneIds = doc => doc.career.contracts.done.map(x => x.id);
 function careerContract(doc, id) {
@@ -135,7 +213,7 @@ function careerContract(doc, id) {
   if (L && L.rec && typeof L.rec === 'object') return L.rec;
   if (/^job:/.test(id)) {
     const m = /^job:(\w+):/.exec(id);
-    return contractJobById(c ? c.seed : '', id, { rep: c && m && c.providers[m[1]] ? c.providers[m[1]].rep : 0 });
+    return contractJobById(c ? c.seed : '', id, { rep: c && m && c.providers[m[1]] ? c.providers[m[1]].rep : 0, sky: careerOfferSky(doc) });
   }
   if (/\+\d+$/.test(id)) return contractFollowById(id, A);
   // G2260 (ECONOMY, GQ6): the Field Trust's loan job, offered below the wallet's floor (76_ econLoanJob)
@@ -158,14 +236,17 @@ function careerOfferIds(doc) {
   const c = doc.career, C = c.contracts;
   const done = careerDoneIds(doc), taken = new Set(done.concat(C.accepted));
   const out = [];
-  const A = contractAuthored();
+  const A = contractAuthored(), sky = careerOfferSky(doc);
   for (const p of Object.keys(CONTRACT_PROVIDERS)) {
     const P = CONTRACT_PROVIDERS[p];
     const next = P.arc.find(r => !done.includes(r.id));
     // (G2320) a contract the certificate cannot answer is HELD OUT (73_ contractCertifiable: the aerobatic box)
     if (next && !taken.has(next.id) && careerNeedsOk(doc, A[next.id]) && contractCertifiable(A[next.id])) out.push(next.id);
     for (const b of P.builds || []) if (!taken.has(b.id) && careerNeedsOk(doc, A[b.id]) && contractCertifiable(A[b.id])) out.push(b.id);
-    for (const j of contractJobs(c.seed, p, done.length, { rep: c.providers[p].rep })) if (!taken.has(j.id)) out.push(j.id);
+    // (G2665 NIGHT-OPS) the provider's authored night work, each once its needs are met - held out while no validated
+    // design can fly it (73_ contractFlyable: the stretcher case)
+    for (const r of P.night || []) if (!taken.has(r.id) && careerNeedsOk(doc, A[r.id]) && contractFlyable(A[r.id])) out.push(r.id);
+    for (const j of contractJobs(c.seed, p, done.length, { rep: c.providers[p].rep, sky })) if (!taken.has(j.id)) out.push(j.id);
   }
   // G2260 (ECONOMY, GQ6): no bankruptcy - below the floor the Field Trust offers its loan job (76_ econLoanOffer)
   const loan = typeof econLoanOffer === 'function' ? econLoanOffer(doc) : null;
@@ -179,6 +260,7 @@ function careerOfferIds(doc) {
   return out;
 }
 function careerRefresh(doc) {
+  doc.career.contracts.sky = careerSkyStamp(doc);          // (G2665) the offers' sky, held for the epoch
   doc.career.contracts.offered = careerOfferIds(doc);
   return doc;
 }
