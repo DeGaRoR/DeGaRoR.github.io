@@ -81,8 +81,8 @@ def _mixamo(name):
 # way to elizabeth (Ch26: brown skin, a striped casual top) and james (Ch06:
 # dark brown skin, streetwear). Three women, three men; light, light-medium,
 # medium-tan, brown and dark brown skin; a blouse and denim, a stripe, a navy
-# smart-casual, streetwear, a suit and tie, dark smart clothes. Ages and body
-# types are not legible from the maps: the inventory measures each body.
+# smart-casual, streetwear, a suit and tie, dark smart clothes. The user's
+# word on these six: final.
 CAST = [
     dict(key='ch22', reuse=True),                       # megan (Ch22): the crew's
     dict(key='elizabeth', label='Elizabeth', glb='assets/chars/glb/elizabeth.glb',
