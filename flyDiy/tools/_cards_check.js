@@ -314,7 +314,7 @@ window.MEASURE = (o) => {
   const cs = getComputedStyle(document.body);
   const box = el => { if (el.hidden) return null; const r = el.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height }; };
   return JSON.stringify({ W: innerWidth, H: innerHeight, wsL: parseFloat(cs.getPropertyValue('--ws-left')) || 0, wsR: parseFloat(cs.getPropertyValue('--ws-right')) || 0,
-    phVw: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ph-vw')) || 0,
+    phVw: (() => { const p = document.createElement('div'); p.style.cssText = 'position:fixed;left:0;top:0;height:1px;width:var(--ph-vw)'; document.body.appendChild(p); const w = p.getBoundingClientRect().width; p.remove(); return w; })(),   // (a calc() custom property does not resolve through getPropertyValue: measured on a probe)
     arr: box(arr), aw: box(aw), run: box(run), rail: box(document.getElementById('flRail')) });
 };
 </script></body></html>`;
@@ -396,7 +396,7 @@ async function runDom() {
       for (const [name, o, key] of [['the award (a fail with its advisor)', { phone: true, body: 'mode-ws', aw: 'fail' }, 'aw'],
         ['the certificate', { phone: true, body: 'mode-ws', aw: 'master' }, 'aw'], ['the run card', { phone: true, body: 'mode-ws', showRun: true }, 'run']]) {
         const m = await measure(o), b = m[key];
-        const ok = !!b && b.w > 50 && b.b <= H + 0.5 && b.l >= -0.5 && b.r <= W + 0.5 && (land ? b.l >= m.phVw - 0.5 : b.t >= H * 0.4 - 0.5);
+        const ok = !!b && b.w > 50 && b.b <= H + 0.5 && b.l >= -0.5 && b.r <= W + 0.5 && (land ? m.phVw > W / 3 && b.l >= m.phVw - 0.5 : b.t >= H * 0.4 - 0.5);
         check(ok, `D4 phone ${W}x${H}: ${name} on the sheet, never over the view (${land ? 'left >= ' + f1(m.phVw) : 'top >= ' + f1(H * 0.4)})`, say(b));
       }
     }
