@@ -2124,6 +2124,10 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   border-top:1px solid var(--ed-hair);
   font:400 9.5px/1.6 'IBM Plex Sans'; letter-spacing:.02em;
   color:var(--ed-faint); }
+/* G2750: the FINISH view's click lands on the struck section's row - it scrolls in and flashes once (editor.js
+   EDITOR_PICK), so a colour on screen is never an unreachable one */
+#edWrap .secFlash { animation: edSecFlash 1.5s ease-out; }
+@keyframes edSecFlash { 0%, 35% { box-shadow: inset 0 0 0 2px var(--ed-acc); } 100% { box-shadow: inset 0 0 0 2px transparent; } }
 
 /* =========================================================================
    THE FLIGHT INTERFACE (the flight-rebaseline handoff, Claude Design).
@@ -3845,7 +3849,7 @@ html.phone :is(#dfBirth, #gFleet) { max-width:100vw; }
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='28b84efbd28c';window.FLYDIY_BUILD_DATE='2026-10-12T11:21:33.897Z';</script>
+<script>window.FLYDIY_BUILD='f56eb5320a9a';window.FLYDIY_BUILD_DATE='2026-10-12T18:15:08.286Z';</script>
 <script>
 // boot_cards.js - THE LOADING SCREEN'S CARDS (G640, 2026-09-26)
 //
@@ -53202,7 +53206,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='ed39e4708e15';window.FLYDIY_BUILD='28b84efbd28c';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=adf78414"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='ed39e4708e15';window.FLYDIY_BUILD='f56eb5320a9a';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=adf78414"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -73369,6 +73373,8 @@ window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
   };
   // ---- the recording view of P -------------------------------------------------------------------------------
   let CUR = null;                        // the layer whose own body is running
+  let RUN = null;                        // ...recorded or not (G2880: whose turn another layer is placed again in)
+  const ADOPT = new WeakSet();           // G2880: objects a layer added inside another layer's turn
   const snapV = v => (v !== null && typeof v === 'object') ? (() => { try { return 'json:' + JSON.stringify(v); } catch (e) { return NaN; } })() : v;
   const same = (a, b) => a === b || (a !== a && b !== b);
   const views = new WeakMap();
@@ -73399,7 +73405,8 @@ window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
     if (plan && !plan.run[i]) { Ly.ran = false; Ly.ms = 0; if (i > 0) runLayer(i - 1, ctx); return; }
     Ly.ran = true; Ly.seq = ++SEQ; Ly.stale = !!(ctx && ctx.defer && DEFERS.has(Ly.name)); Ly.mesh = ctx ? ctx.mesh : null;
     const rec = C.on && ctx && ctx.__rec;
-    const prev = CUR;
+    const prev = CUR, prevRun = RUN;
+    RUN = Ly;
     if (rec) { CUR = Ly; Ly.reads = new Map(); Ly.all = false; Ly.allSnap = null; } else CUR = null;
     const outer = childAcc; childAcc = 0;
     const t0 = now();
@@ -73407,13 +73414,13 @@ window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
     try { return Ly.f.call(PAGE, ctx); }
     finally {
       const k0 = Ly.kids0; Ly.kids0 = null;
-      Ly.objs = k0 ? ctx.scene.children.filter(o => !k0.has(o)) : [];
+      Ly.objs = k0 ? ctx.scene.children.filter(o => !k0.has(o) && !ADOPT.has(o)) : [];
       const st = statTxt(ctx);
       Ly.statApp = (st != null && Ly.stat0 != null && st.length >= Ly.stat0.length && st.slice(0, Ly.stat0.length) === Ly.stat0) ? st.slice(Ly.stat0.length) : '';
       const dt = now() - t0;
       Ly.ms = dt - childAcc; childAcc = outer + dt;
       if (rec && Ly.all) Ly.allSnap = snapV(rec.P);
-      CUR = prev;
+      CUR = prev; RUN = prevRun;
     }
   }
   Object.defineProperty(PAGE, 'post', {
@@ -73446,6 +73453,27 @@ window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
   };
   // the layer whose own body is running (a section stamped now is that layer's), or null
   C.cur = () => CUR;
+  // G2880 (NACELLE-LAG): as(name, fn) - layer `name`'s placement run AGAIN inside the running layer's turn (the wing
+  // places a unit that stood on the previous build's wing once more, _cage_wing.js CAGE_WING_EARLY): its P reads are
+  // recorded as that layer's, the scene objects it adds are counted as its own and not the running layer's, its words
+  // (the status line's) are its own. fn returns { added, words, delta, line } (delta: how much the line before the
+  // running layer's own words grew, line: the line after - so the running layer's words stay its own)
+  C.as = (name, fn) => {
+    const Ly = L.find(l => l.name === name), host = RUN, prev = CUR;
+    if (!Ly || Ly === host) return fn();
+    CUR = prev ? (Ly.reads ? Ly : null) : null;
+    let r;
+    try { r = fn(); }
+    finally { CUR = prev; }
+    if (r && r.added) {
+      for (const o of r.added) ADOPT.add(o);
+      Ly.objs = (Ly.objs || []).filter(o => o.parent).concat(r.added);
+    }
+    if (r && typeof r.words === 'string') Ly.statApp = r.words;
+    if (r && r.delta && host && host.stat0 != null && typeof r.line === 'string')
+      host.stat0 = r.line.slice(0, Math.max(0, host.stat0.length + r.delta));
+    return r;
+  };
   // the run counter (each layer's `seq` is the counter at its last run)
   C.seqNow = () => SEQ;
   // only(names): a plan that runs the named layers (and the always-run ones) and skips the rest
@@ -91228,26 +91256,34 @@ window.CAGE_COWL_STARTER = cowlArchStarter;
 // keep the bench default exactly as the user ruled.
 let fitNext = false;
 window.CAGE_COWL_FIT_NEXT = () => { fitNext = true; };
-function cowlForEngine(P, face, stat) {
-  let hit = cowlArchStarter(P);
-  const birth = fitNext;
-  if (!hit && fitNext) {
-    const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
-    try {
-      const spec = specOf && +P.engOn ? specOf(P) : null;
-      const R = spec && EG2 && EG2.engResolve ? EG2.engResolve(spec) : null;
-      if (R && COWL_BY_ARCH[spec.arch]) hit = { arch: spec.arch, R };
-    } catch (e) { hit = null; }
+// G2880: `dec` is a first pass's decision, for a placement run again over the
+// wing just published (CAGE_WING_EARLY, _cage_wing.js): the starter and the
+// birth are not asked twice, the same decision is applied to the new face
+function cowlForEngine(P, face, stat, dec) {
+  let hit, birth;
+  if (dec) { hit = dec.hit; birth = dec.birth; }
+  else {
+    hit = cowlArchStarter(P);
+    birth = fitNext;
+    if (!hit && fitNext) {
+      const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
+      try {
+        const spec = specOf && +P.engOn ? specOf(P) : null;
+        const R = spec && EG2 && EG2.engResolve ? EG2.engResolve(spec) : null;
+        if (R && COWL_BY_ARCH[spec.arch]) hit = { arch: spec.arch, R };
+      } catch (e) { hit = null; }
+    }
+    fitNext = false;
   }
-  fitNext = false;
-  if (!hit) return { birth, styled: false };
+  dec = { hit, birth };
+  if (!hit) return { birth, styled: false, dec };
   const got = window.CAGE_COWL_FOR_ENGINE(hit.arch, hit.R.env, face);
-  if (!got) return { birth, styled: false };
+  if (!got) return { birth, styled: false, dec };
   for (const k in got.vals) if (P[k] !== undefined) P[k] = got.vals[k];
   const UI = window.CAGE_UI;
   if (UI && UI.syncSliders) UI.syncSliders();
   if (got.note && stat) stat.textContent += '  ·  ' + got.note;
-  return { birth, styled: true };
+  return { birth, styled: true, dec };
 }
 
 // THE SECTION THE FUSELAGE IMPLIES, as the five firewall rows. `fitted`
@@ -91263,17 +91299,37 @@ function sectionFromFace(face) {
   return out;
 }
 
+// G2880 (NACELLE-LAG): the faces this layer stands on the WING (the pylon, the
+// nacelle pair) are read off CAGE_WING, which the wing layer - later in the
+// chain - publishes; the placement is handed to the wing's early readers
+// (CAGE_WING_EARLY, _cage_wing.js) and placed again, once, over the wing this
+// build publishes when that wing reads differently. A nose or a pusher face
+// never touches the wing and is placed once, as it always was.
+const onWing = P => { const m = Math.round(+(P && P.engMount) || 0); return m === 2 || m === 3; };
+const facesSig = ctx => {
+  const P = ctx.P;
+  if (!+P.cowlOn || !onWing(P)) return null;
+  const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  return JSON.stringify(engineFaces(ctx.mesh, FS, P));
+};
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
+  const EW = window.CAGE_WING_EARLY;
+  if (EW) EW.place('cowl', ctx, cowlPlace, () => facesSig(ctx));
+  else cowlPlace(ctx, null);
+};
+// the layer's own build; `again` is the first pass's starter decision when the
+// wing places it again (returned here for that)
+function cowlPlace(ctx, again) {
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
-  if (!P.cowlOn) return;
+  if (!P.cowlOn) return null;
 
   LIVE_P = P;
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
   const units = engineFaces(mesh, FS, P);
-  if (!units.length) { if (stat) stat.textContent += '  ·  cowl: no engine face on this body'; return; }
+  if (!units.length) { if (stat) stat.textContent += '  ·  cowl: no engine face on this body'; return null; }
   const station = units[0].face;
   const AF = GG ? GG.cageAirframe(mesh, FS) : null;
   // SIZE from the cap, SHAPE from the first dense slice behind it (a
@@ -91289,7 +91345,7 @@ PAGE.post = ctx => {
   // staleness the manifest's own comments warn about twice. It runs here, with
   // the firewall just measured and the panel's values not yet copied, so the
   // cowl this frame draws is the cowl the new engine asked for.
-  const forEng = cowlForEngine(P, face, stat) || { birth: false, styled: false };
+  const forEng = cowlForEngine(P, face, stat, again) || { birth: false, styled: false };
   // A BIRTH SEEDS THE SECTION ONCE (G213): sealed is the default now, so a
   // newborn would otherwise wear the bench's own section against a nose
   // that is not that shape. Written into the PANEL's rows (they are the
@@ -91488,7 +91544,8 @@ PAGE.post = ctx => {
       `${(CW.zEnd() * 1000).toFixed(0)} mm long` +
       (face.seat ? ` · seat +${(face.seat * 1000).toFixed(1)} mm` : '');
   }
-};
+  return forEng.dec || null;
+}
 // THE AERO AFT, CUT 1 (2026-09-04, TWIN-BOOM spec §1.2; the user: "an 'aero
 // aft' to the cabin, encompassing the bulkhead — not so different from a cowl
 // fitted at the back really, maybe we can start there? — and finishing
@@ -92380,7 +92437,7 @@ if (typeof window !== 'undefined') window.CAGE_ENG_APPLY_PRESET = applyEngPreset
 
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
-  const { scene, mesh, P, stat } = ctx;
+  const { P } = ctx;
   // the preset starter fires exactly when the ROW changes — never on a load.
   // AND IT FIRES BEFORE THE REST OF THE CHAIN (2026-09-05): the cowl's post
   // runs inside prevPost and reads the engine's spec off P, so a preset that
@@ -92409,8 +92466,27 @@ PAGE.post = ctx => {
     }
   }
   if (prevPost) prevPost(ctx);
+  // G2880 (NACELLE-LAG): a unit on the wing (the pylon, the nacelle pair)
+  // stands on CAGE_WING, which the wing layer - later in the chain -
+  // publishes: the placement is handed to the wing's early readers and placed
+  // again, once, over the wing this build publishes (_cage_wing.js
+  // CAGE_WING_EARLY). A nose or pusher engine is placed once, as it was.
+  const EW = window.CAGE_WING_EARLY;
+  if (EW) EW.place('eng', ctx, engPlace, () => {
+    const NF = window.CAGE_NOSE, m = Math.round(+P.engMount || 0);
+    if (!+P.engOn || (m !== 2 && m !== 3) || !NF || !NF.engineFaces) return null;
+    const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+    return JSON.stringify(NF.engineFaces(ctx.mesh, FS, P));
+  });
+  else engPlace(ctx, null);
+};
+// the layer's own build; `prev` is the first pass's units when the wing places
+// it again (G2880) - superseded, their propeller check stands down
+function engPlace(ctx, prev) {
+  const { scene, mesh, P, stat } = ctx;
+  if (prev) prev.superseded = true;
   dispose(group); group = null;
-  if (!P.engOn) return;
+  if (!P.engOn) return null;
 
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
   // THE FACES (2026-09-04): one per engine, from the cowl layer's own
@@ -92425,7 +92501,7 @@ PAGE.post = ctx => {
      : mountK === 2 ? ([0, 3].includes(Math.round(P.wgPos || 0)) ? 'no wing to sit on' : 'the over-the-wing mount needs a HIGH wing')
      : mountK === 3 ? 'no wing to hang the nacelles on'
      : 'no engine face on this body');
-    return;
+    return null;
   }
   const face = units[0].face;
 
@@ -92445,7 +92521,7 @@ PAGE.post = ctx => {
   try { M = EM.engMeshBuild(spec); }
   catch (e) {
     if (stat) stat.textContent += '  ·  engine: ' + e.message;
-    return;
+    return null;
   }
   const R = M.resolved;
   const Pm = Object.assign({}, EM.ENGM_DEFAULT, R.P);
@@ -92701,7 +92777,7 @@ PAGE.post = ctx => {
     }
     return unitOut.map(u => u.propFit);
   };
-  if (typeof queueMicrotask === 'function') queueMicrotask(() => { try { propFitCheck(); } catch (e) {} });
+  if (typeof queueMicrotask === 'function') queueMicrotask(() => { if (unitOut.superseded) return; try { propFitCheck(); } catch (e) {} });
 
   window.CAGE_ENG = { name: PRESET_NAMES[Math.round(P.engPreset)],
                       resolved: R, zFw, exhaustAt,
@@ -92721,7 +92797,8 @@ PAGE.post = ctx => {
       (R.cyl ? ' ' + R.cyl : '') + ' · ' + head + ' · ' +
       R.mass.toFixed(0) + ' kg';
   }
-};
+  return unitOut;
+}
 })();
 </script>
 <script type="text/x-flydiy">
@@ -94180,9 +94257,107 @@ const dispose = o => {
   if (o.parent) o.parent.remove(o);
 };
 
+// ---- G2880 (NACELLE-LAG): THE WING'S EARLY READERS -------------------------
+// The post chain runs in load order (build.js MANIFEST.editor), and a layer
+// that runs BEFORE this one and stands something on CAGE_WING reads the
+// PREVIOUS build's wing: the cowl's and the engine's engineFaces (the
+// over-the-wing pylon, the nacelle pair) put a DA62-alike's engines where the
+// Savannah-alike loaded before it had its leading edge, and the flown CG with
+// them, until the next rebuild. The gear's cure (G138) was to load after the
+// wing; the cowl and the engine cannot (the engine's starters write P before
+// every layer, the cowl fits round the engine, the access and tank layers read
+// both), so they are PLACED AGAIN instead, once, in the same build:
+//   place(key, ctx, fn, sigOf) - a reader's placement: fn(ctx, memo) runs now,
+//     over the wing as it stands. When sigOf() is not null (the reader stands
+//     on the wing this build - its own test) it is remembered with what it read
+//     (sigOf(): its faces, as a string) and its scene slot and words.
+//   publish(ctx) - this layer, the moment its build is done (every exit): each
+//     reader of THIS build whose sigOf() now reads differently runs fn again,
+//     once, over the wing just published (memo: what its first pass returned -
+//     the cowl's starter decision), its scene objects put back where the first
+//     pass's stood, its words in place of the first pass's on the status line;
+//     under the flat chain (CAGE_CHAIN.as) its P reads and objects stay its own.
+// A reader that never touches the wing (a nose or pusher engine) registers
+// nothing and is never run twice: the validated builds are untouched. A build
+// in which the wing does not run (a preview's plan) leaves its readers to the
+// next publish, which drops them (another ctx). GATE NACLAG holds it.
+const EARLY = new Map();
+const LAST = [], READ = [];                  // the keys the last publish placed again / held for its build
+const early = window.CAGE_WING_EARLY = {
+  place(key, ctx, fn, sigOf) {
+    const sc = ctx && ctx.scene, st = ctx && ctx.stat;
+    const pre = sc ? new Set(sc.children) : null;
+    const at = st && typeof st.textContent === 'string' ? st.textContent.length : -1;
+    const memo = fn(ctx, null);
+    let sig0 = null;
+    try { sig0 = sigOf(); } catch (e) { sig0 = null; }
+    EARLY.delete(key);
+    if (sig0 != null) EARLY.set(key, { key, ctx, fn, sigOf, sig0, memo, pre,
+      at, words: at >= 0 ? st.textContent.slice(at) : null });
+    return memo;
+  },
+  publish(ctx) {
+    const list = [...EARLY.values()];
+    EARLY.clear();
+    LAST.length = 0; READ.length = 0;
+    const NEW = new Set();
+    for (const e of list) {
+      if (e.ctx !== ctx) continue;
+      READ.push(e.key);
+      const CH = window.CAGE_CHAIN;
+      const go = () => {
+        let s;
+        try { s = e.sigOf(); } catch (er) { s = 'threw: ' + (er && er.message); }
+        if (s === e.sig0) return null;
+        e.again = (e.again || 0) + 1;
+        const sc = ctx.scene, real = ctx.stat;
+        const k0 = sc ? new Set(sc.children) : null;
+        // the words: what the pass says now stands in place of what the first
+        // pass said; anything said after the build (the propeller's check, a
+        // microtask) lands on the real line, as it always did
+        let seg = '', live = false;
+        const st = (real && e.words != null) ? {
+          get textContent() { return live ? real.textContent : seg; },
+          set textContent(v) { if (live) real.textContent = v; else seg = v; },
+        } : real;
+        e.fn(Object.assign({}, ctx, { stat: st }), e.memo);
+        let delta = 0, line = null;
+        if (st !== real) {
+          const t = real.textContent, i = t.indexOf(e.words, e.at);
+          if (i >= 0) { real.textContent = t.slice(0, i) + seg + t.slice(i + e.words.length); delta = seg.length - e.words.length; }
+          else real.textContent = t + seg;
+          line = real.textContent;
+          live = true;
+        }
+        // the slot: right after the last object that stood before the first
+        // pass began (or that an earlier reader just put back)
+        const added = sc ? sc.children.filter(o => !k0.has(o)) : [];
+        if (added.length) {
+          const rest = sc.children.filter(o => k0.has(o));
+          let j = -1;
+          for (let i = 0; i < rest.length; i++) if (e.pre.has(rest[i]) || NEW.has(rest[i])) j = i;
+          sc.children.splice(0, sc.children.length, ...rest.slice(0, j + 1), ...added, ...rest.slice(j + 1));
+          for (const o of added) NEW.add(o);
+        }
+        return { added, words: st !== real ? seg : null, delta, line };
+      };
+      if (CH && CH.as) CH.as(e.key, go); else go();
+      if (e.again) LAST.push(e.key);
+    }
+  },
+  // what the last publish held and placed again (GATE NACLAG reads them)
+  get readers() { return READ.slice(); },
+  get last() { return LAST.slice(); },
+};
+
 const prevPost = PAGE.post;
 let boomGroup = null;                        // the twin booms (2026-09-04)
+// G2880: the build below, then its early readers (above) - after every exit
 PAGE.post = ctx => {
+  wingPost(ctx);
+  early.publish(ctx);
+};
+const wingPost = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, spec, mesh, P, stat } = ctx;
   dispose(group); group = null;
@@ -115299,7 +115474,8 @@ function buildMatPanel() {
   // `auto (follows …)` under it — but never a tint: a colour drag must not
   // rebuild DOM under an open native picker (syncMatPanel covers the wells).
   const live = Object.keys(SEC_LIVE).sort();
-  const sig = names.join(',') + '|' + consOf() + '|' +
+  // (G2750: + the canopy mode - the waistband row's LABEL is the bubble's 'canopy sill band')
+  const sig = names.join(',') + '|' + consOf() + '|' + (+P.canopy === 3 ? 'bub|' : '') +
     live.map(n => { const r = secResolveAuto(n);
                     return n + ':' + r.fin + ':' + (r.src || ''); }).join(',');
   if (sig === matPanelSig) { syncMatPanel(); return; }
@@ -115374,6 +115550,11 @@ function buildMatPanel() {
   // user's own, kept. The picker fires per notch, so the base it replaces
   // is always the last notch's — a following section never falls behind.
   // The same rule for the base metallic and the base roughness.
+  // G2750 (the user, 11 Oct: "changing the global paint again should just
+  // plain repaint the aircraft"): WITHDRAWN for what the base covers — every
+  // exterior cage section (skin, rail bands, frame bands), every part that
+  // wears the body, and (the user: "include wings and tail too") the wings
+  // and the tail take the pick, a hand colour too. See aeroBaseReach.
   //
   // `reach(map, prev, next, secs)`: for every exterior cage section and
   // every parent-wearing / soft-pinned layer part, write `next` (or delete,
@@ -115385,10 +115566,11 @@ function buildMatPanel() {
   const baseReach = (map, prev, next, neutral, eq) =>
     A.aeroBaseReach(map, prev, next, neutral, eq, names);
   {
-    const d = mkRow2('base colour', 'one colour for the whole fuselage — ' +
-      'the skin, the rings and pillars, the nose deck, the cowl, the ' +
-      'struts, the fairings and the fittings, in one pick; the wells ' +
-      'below still override a section afterwards');
+    const d = mkRow2('base colour', 'one colour for the whole aircraft — ' +
+      'the skin, the rings, the bands and pillars, the nose deck, the cowl, ' +
+      'the wings, the tail, the struts, the fairings and the fittings, in one ' +
+      'pick (a colour set by hand is repainted too; the markings are not ' +
+      'paint and stay); the wells below still override a section afterwards');
     d.dataset.matHead = '1';
     const c = document.createElement('input');
     c.type = 'color'; c.style.flex = 'none';
@@ -115537,7 +115719,13 @@ function buildMatPanel() {
     pillarFront: 'nose frame band', pillarWindow: 'windscreen frame band',
     pillarCabin: 'cabin frame band', pillarPassenger: 'passenger frame band',
     pillarTaper: 'boom frame band', pillarTail: 'tail frame band',
-    drawnPane: 'drawn windows (the panes)', reveal: 'window reveals' };
+    drawnPane: 'drawn windows (the panes)', reveal: 'window reveals',
+    // G2750 (the user: "a dark part around the cockpit ... that can't be accessed using the finish editor"): the three
+    // rails' strips by what they are on screen - and the waist one by what a BUBBLE makes of it, the band the canopy
+    // re-sizes under its seam (cageCanopy) all round the cockpit; the stock Cub's black waist stripe rides into
+    // every build made from it, and on a bubble it is that dark surround
+    waistband: +P.canopy === 3 ? 'canopy sill band' : 'waist band',
+    ceilingLoop: 'roof rail band', floorLoop: 'floor rail band' };
   const DASH_HEAD = [
     ['woods',    ['walnut', 'walnutFig', 'maple', 'spruce', 'ply']],
     ['alloys',   ['panelMetal', 'bareAlu', 'sillAlu', 'alclad', 'castAlu', 'chrome', 'bronze', 'copper']],
@@ -126858,6 +127046,16 @@ const PAVEMENT = (() => {
     LOOK_KEYS.push(g + k);
     RECIPE[g + k] = { Bright: 1, Hue: 0.12, Tint: 0, Wear: 1, SideBright: 1, SideHue: 0.12, SideTint: 0, SideW: -1, SideA: g === 'pv' ? -1 : 0 }[k];
   }
+  // THE GRASS STRIP WEARS THE GROUND (GRASS-DENSE G2570; the user, 12 Oct, on the Cub at Skyline Altiport from above: "We really
+  // need to adjust the color of the grassy runway, to something similar to the surrounding colors"). The strip drew its own lawn
+  // (fieldgrass, a flat saturated lime with a soft blurred border: paint laid on the terrain). With `grMatch` (1, the default) a
+  // grass STRIP's lawn gives way to the island's ground under it - its colour, its speckle, its edge at the ground's own scale -
+  // and the mesh keeps only its worn wheel tracks and a faint mown tint (`grMowA`: a lighter, yellower, never more saturated wash);
+  // the short cut grass standing on it is the grass field's (27_premises GRASS_SIDES 'sides', surf). 0 = the strip's own lawn as
+  // before (G1391), with the runway look's grBright / grHue / grTint. Two of the surface type's look keys: live over every grass
+  // strip (the world look's RUNWAY section) and saved with the premises (PAVEMENT section). No new program: two free row slots.
+  LOOK_KEYS.push('grMatch', 'grMowA');
+  RECIPE.grMatch = 1; RECIPE.grMowA = 0.12;
   // what WEAR scales, per surface type: the paved class's ageing, the soft ground's traffic
   const LOOK_WEAR = { pv: ['crackK', 'damageK', 'patchK', 'mossK', 'stainK', 'rubberK'], sf: ['wheelBand', 'coarseK', 'rutDepth', 'treadK'], gr: ['wheelBand', 'coarseK', 'rutDepth', 'treadK'] };
   const groupOf = cls => (cls === 'concrete' || cls === 'asphalt') ? 'pv' : (cls === 'grass' ? 'gr' : 'sf');
@@ -126895,6 +127093,7 @@ const PAVEMENT = (() => {
     ['sideFade', 'strip sides fade to the ground (0/1)', 0, 1, 1], ['sideW', 'side fade width (m)', 0.5, 10, 0.5], ['sideA', 'side fade from alpha', 0, 1, 0.05], ['roadSide', "roads' sides fade like the strips' (1) / draw their band (0)", 0, 1, 1],
     ['edgeChip', 'edge chipping (m)', 0, 2, 0.05], ['band', 'gravel band (m, -1 = class)', -1, 40, 0.5], ['bandNoise', 'band raggedness', 0, 1, 0.02], ['grassReach', 'grass creeps in over (m)', 0.5, 30, 0.5], ['fadeW', 'fade to terrain over (m)', 0.5, 30, 0.5],
     ...Object.keys(LOOK_GROUPS).flatMap(g => [['— runway look: ' + LOOK_NAMES[g] + ' —'],
+      ...(g === 'gr' ? [['grMatch', 'a grass strip shows the ground under it (1) / its own lawn (0)', 0, 1, 0.05], ['grMowA', 'the mown tint over it (lighter, yellower)', 0, 0.5, 0.01]] : []),
       [g + 'Bright', 'surface brightness', 0.3, 2, 0.02], [g + 'Hue', 'surface tint hue (0 red, .17 yellow, .33 green, .67 blue)', 0, 1, 0.01], [g + 'Tint', 'surface tint amount', 0, 1, 0.02],
       [g + 'Wear', "wear (x the class's cracks, patches, ruts...)", 0, 2, 0.05],
       [g + 'SideBright', 'side brightness', 0.3, 2, 0.02], [g + 'SideHue', 'side tint hue', 0, 1, 0.01], [g + 'SideTint', 'side tint amount', 0, 1, 0.02],
@@ -126987,6 +127186,9 @@ const PAVEMENT = (() => {
   function opaqueDepth(cls, halfW, recipe, kind) {
     const r = recipe || R;
     if (cls === 'grass' && kind !== 'strip') return Infinity;
+    // G2570: a MATCHED grass strip shows the ground under it, so the ground is not sunk under it (as a grass road: its pre-sink alone).
+    // The patch is built with the world: a live grMatch change re-sinks at the next build (a reload), the look itself is live
+    if (cls === 'grass' && lookOf('grass', r).match > 0) return Infinity;
     return Math.max(r.edgeChip || 0, cls === 'concrete' || cls === 'asphalt' ? 0 : 0.1) + 0.2;
   }
   // (G1542: `dPre`, when given, is the depth the pre-sink reads - a road's dead end holds its deep sink a cell back, not its 7 cm)
@@ -127908,6 +128110,15 @@ float pvTread(float u, float x, float w, float seed) {
     // (G1391: it kept 45 % of its lawn, over a ground of grass, so only the worn band a third of its width read - the
     // "very thin" grass runway); its colour against the island's grass is the runway look's (grBright / grTint)
     if (grassy && road) { float worn = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0); gPavA *= worn; }
+    // G2570: A GRASS STRIP WEARS THE GROUND (pavement.js grMatch): its lawn gives way to the island's ground under it, the mesh keeping
+    // its worn tracks (their own grass-with-soil colour) and a faint mown wash over its width - the strip's luminance, warmed
+    // (lighter, yellower, less saturated) at uStain.w alpha. uMacro.w 0: the strip's own lawn, as before
+    if (grassy && !road && uMacro.w > 0.0) {
+      float worn = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0);
+      vec3 mown = vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))) * vec3(1.12, 1.06, 0.78) * 1.15;
+      col = mix(col, mown, (1.0 - worn) * uMacro.w);
+      gPavA = mix(gPavA, max(worn * gPavA, uStain.w * wPav), uMacro.w);
+    }
     diffuseColor.rgb = col; diffuseColor.a = gPavA;
     gPavDbg = uPavDbg < 1.5 ? gPavN * 0.5 + 0.5 : uPavDbg < 2.5 ? vec3(gPavR) : uPavDbg < 3.5 ? vec3(wetK, 0.0, 0.0) : uPavDbg < 4.5 ? mk
       : uPavDbg < 5.5 ? vec3(wp, wb, wg) : uPavDbg < 6.5 ? vec3(clamp(dE / 10.0, 0.0, 1.0), clamp(-dE / shW, 0.0, 1.0), gPavA) : uPavDbg < 7.5 ? vec3(fract(laneTone * 4.0), joint, spall)
@@ -128029,6 +128240,7 @@ float pvTread(float u, float x, float w, float seed) {
     const row = CLASS_DEF[cls]; if (!row) return null;
     const r = recipe ? Object.assign(JSON.parse(JSON.stringify(RECIPE)), recipe, { grade: Object.assign({}, RECIPE.grade, recipe.grade || {}) }) : R;
     const c = gradedMean(row.shoulder, r, SHARED), lk = lookOf(cls, r);
+    if (lk.match > 0.5) return null;   // G2570: a matched grass strip draws the ground itself - a tuft there takes the ground's (the cover ring's meanAt)
     return [c[0] * lk.side[0], c[1] * lk.side[1], c[2] * lk.side[2]];   // G1392: the side's look
   }
   // ---- THE RUNWAY LOOK (G1392) -------------------------------------------------------------------------------
@@ -128042,6 +128254,7 @@ float pvTread(float u, float x, float w, float seed) {
     const mul = (b, h, k) => tintRGB(h, k).map(c => Math.max(0, c * b));
     const sw = q('SideW'), sa = q('SideA');
     return { g, surf: mul(q('Bright'), q('Hue'), q('Tint')), side: mul(q('SideBright'), q('SideHue'), q('SideTint')), wear: Math.max(0, q('Wear')),
+      match: g === 'gr' ? Math.max(0, Math.min(1, q('Match'))) : 0, mowA: g === 'gr' ? Math.max(0, Math.min(1, q('MowA'))) : 0,   // G2570
       sideW: sw >= 0 ? sw : (g === 'pv' ? (r.sideW || 1.2) : (r.edgeSoft || 2.6)), sideA: sa >= 0 ? sa : (r.sideA === undefined ? 0.35 : r.sideA) };
   }
   const KNOB_MAX = {};
@@ -128092,7 +128305,8 @@ float pvTread(float u, float x, float w, float seed) {
       const f1 = shW, f0 = Math.max(0, Math.min(Math.min(bandW + 0.3, shW - Math.max(r.fadeW, 0.6)), shW - 0.3));
       a = 1 - ss01(f0, f1, -dE);
     }
-    return { a, surf: wPav, worn: cls === 'grass' && !!o.road };
+    // (a grass road's alpha is its tracks', and so is a MATCHED grass strip's (G2570): the twin keeps the width law, the flag says so)
+    return { a, surf: wPav, worn: cls === 'grass' && (!!o.road || lk.match > 0) };
   }
   function applyOne(THREE, m) {
     const U = m.uniforms, d = m.userData.pav, lib = m.userData.pavLib, cls = CLASS_DEF[d.cls];
@@ -128109,13 +128323,13 @@ float pvTread(float u, float x, float w, float seed) {
     // the base's mean colour, graded exactly as the shader grades the base (gain, tint, saturation)
     { const c = gradedMean(cls.base, r, lib); U.uMean.value.set(c[0], c[1], c[2], 0.85); }
     U.uHex.value.set(r.hexDepth, r.hexOn, r.hexCells, cls.hexRot * Math.PI / 180 * r.hexRotK);
-    U.uMacro.value.set(r.macroLuma, r.macroHue, r.macroRough, 0);
+    U.uMacro.value.set(r.macroLuma, r.macroHue, r.macroRough, d.road ? 0 : lk.match);   // .w (G2570): a grass STRIP shows the ground (its match)
     U.uLane.value.set(cls.lanes, r.laneW, r.jointW, r.jointDepth);
     U.uLane2.value.set(r.laneTone, r.slabL, r.jointChip, r.jointDirt);
     U.uCrack.value.set(r.crackK, r.crackW, r.crackCell, r.damageK);
     U.uPatch.value.set(r.patchK, r.patchTone, r.patchRough, r.patchLen);
     U.uMoss.value.set(r.mossK, r.mossEdge, r.mossJoint, r.mossScale);
-    U.uStain.value.set(r.stainK, r.stainScale, r.stainRough, 0);
+    U.uStain.value.set(r.stainK, r.stainScale, r.stainRough, lk.mowA);   // .w (G2570): the mown tint over a matched grass strip
     U.uWet.value.set(r.wet, lk.surf[0], lk.surf[1], lk.surf[2]);          // .yzw (the puddles' until 2026-09-23): the runway look's surface multiplier (G1392)
     U.uMark.value.set(r.paintAge, r.paintRough, r.chalk, r.paintOnGrass);
     U.uRubber.value.set(r.rubberStart, r.rubberPeak, r.rubberEnd, r.rubberSpread);
@@ -132458,21 +132672,27 @@ if (typeof window !== 'undefined') window.COVER_RING = COVER_RING;
 //     ctx: { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat,
 //            tintUniformsOf, ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN }
 //     S.update(cg)         once a frame: the wanted chunks around the CG, one built per call, the far dropped
-//     S.get() / S.set(o)   { on, far, near, spacing, cell, gain }
+//     S.get() / S.set(o)   { on, far, near, spacing, cell, gain, standIn, rowMs }
+//     S.has(x, z)          the chunk under a point is built (render_world's hole census, G2930)
 //     S.stat()             { chunks, instances, lastMs, maxMs, baked }
 //     S.root               the group (a visible toggle is the A/B)
 'use strict';
 const STAND_CARDS = (() => {
   function make(THREE, ctx) {
     const { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-            ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled } = ctx;
+            ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy, rdyMin, polyMix, polyGround, POLY_CAN } = ctx;
     // THE WHOLE ISLAND (2026-09-22, the user: "extend the visibility range even beyond the 18 km ... just
     // filling all the parts of the island visible from the camera"): measured 171 k cards at 18 km,
     // 193 k at 26, 193.6 k at 40 - it SATURATES, because Jolene is 39 km across and there is no more
     // land to plant. 30 km covers the island's diagonal from any point on it, so `far` is the island's
     // own size now and nothing is left bare; the visible SIDE needs no test of its own - a chunk is
     // one InstancedMesh with a sphere and three culls it per frame.
-    const S = { on: true, far: 30000, near: 4000, spacing: 32, cell: 2048, gain: 6, block: 4, treeH: 12, mixKey: 'conifer_young' };
+    // STAND-IN (G2930, TREE-STREAM; the user: "far away, everything is OK, then there is a transition with nothing"): the
+    // cards are planted from the EYE out (not from `near`), and inside `near` a card draws wherever the fill's chunk under
+    // it is not built yet - render_world's readiness grid (ctx.rdy), read per instance in the impostor's vertex stage. A
+    // built chunk dissolves its cards; the fill never leaves a hole while it streams. standIn false: the old cut by
+    // distance alone (the A/B). rowMs: a chunk's rows in flight stop once this much of the frame is spent (they ran whole)
+    const S = { on: true, far: 30000, near: 4000, spacing: 32, cell: 2048, gain: 6, block: 4, treeH: 12, mixKey: 'conifer_young', standIn: true, rowMs: 4 };
     const STAT = { chunks: 0, instances: 0, lastMs: 0, maxMs: 0, baked: false };
     const root = new THREE.Group(); root.name = 'standCards'; scene.add(root);
     const chunks = new Map();
@@ -132537,7 +132757,7 @@ const STAND_CARDS = (() => {
       if (!P0) P0 = buildProto(); const P = P0; if (!P) { failed = true; return false; }
       const atlas = bakeImpostorAtlas(P.parts, { key: 'stand:' + S.mixKey, series: 'rungs' });
       if (!atlas || !atlas.tex || atlas.refused) { if (++tries > 600) failed = true; return false; }   // refused = a map not decoded yet: again next frame (ten seconds of tries)
-      mat = impostorMat(atlas, S.far, 0, tintUniformsOf(P.parts), S.gain, U_NOTHIN, { value: S.near });
+      mat = impostorMat(atlas, S.far, 0, tintUniformsOf(P.parts), S.gain, U_NOTHIN, { value: S.near }, undefined, (S.standIn && rdy) ? rdy : null);
       quad = new THREE.PlaneGeometry(1, 1); chunkBounds(quad, S.cell / 2);
       proto = { parts: P.parts, atlas };
       STAT.baked = true; STAT.lastMs = performance.now() - t0;
@@ -132551,6 +132771,7 @@ const STAND_CARDS = (() => {
     // (app.js worldAtRest, FLYDIY_SLICE) the rows stop once the slice's 40 ms are spent and the next call goes on
     // from the row it stopped at. The same rows in the same order: the same cards.
     const sliceSpent = () => { const SL = typeof window !== 'undefined' && window.FLYDIY_SLICE; return !!(SL && performance.now() >= SL.until); };
+    const inSlice = () => !!(typeof window !== 'undefined' && window.FLYDIY_SLICE);
     const chunkJob = k => { const [cx, cz] = k.split(',').map(Number); return { k, cx, cz, iz: 0, xs: [], ms: 0 }; };
     function chunkRows(J) {   // -> true once every row is done
       const t0 = performance.now(), C = S.cell, sp = S.spacing, n = C / sp, cx = J.cx, cz = J.cz, x0 = cx * C, z0 = cz * C, xs = J.xs;
@@ -132559,12 +132780,15 @@ const STAND_CARDS = (() => {
         const gx = cx * n + ix, gz = cz * n + iz;
         const x = x0 + (ix + 0.5) * sp + (hsh(gx + 7, gz) - 0.5) * sp * 0.8, z = z0 + (iz + 0.5) * sp + (hsh(gx, gz + 7) - 0.5) * sp * 0.8;
         if (!ISLC || !ISLC.ttype) continue;
-        if (!forestHere(x, z) && !openHere(x, z)) continue;
-        const tt = ttypeAt(x, z); if (tt < 2) continue;
-        const mix = BIO.mixHere ? BIO.mixHere(codeAt(x, z, hsh(gx + 21, gz + 23)), x, z) : BIO.mixAt(codeAt(x, z, hsh(gx + 21, gz + 23))); if (!mix) continue;
+        // G2935 (BIOME-POLY): a premises polygon's own mix opens the gate and stands floored, as the fill's walk does
+        const pm = polyMix ? polyMix(x, z, BIO) : undefined;
+        if (!forestHere(x, z) && !openHere(x, z) && !(pm && polyGround && polyGround(x, z))) continue;
+        const tt = ttypeAt(x, z); if (tt < 2 && !pm) continue;
+        const mix = pm !== undefined ? pm : BIO.mixAt(codeAt(x, z, hsh(gx + 21, gz + 23))); if (!mix) continue;
         const MF = BIO.mixOf(mix).forest || {};
         let can = ISLC.canopyAt(x, z), floored = false;
-        if (tt === 3 || tt === 2) can = Math.min(can, 3.0);
+        if ((tt === 3 || tt === 2) && !pm) can = Math.min(can, 3.0);
+        if (pm) { floored = true; can = Math.max(can, MF.canopyFloor || 0, POLY_CAN || 12); }
         if (MF.canopyFloor > can) { can = MF.canopyFloor; floored = true; }
         if (MF.clump > 0 && vnoise(x, z, MF.clumpM || 30, 41) < MF.clump) continue;
         const kind = Math.min(1, BIO.density(mix) * spc * spc * FILL.island.biomeGain); if (kind <= 0) continue;
@@ -132575,7 +132799,7 @@ const STAND_CARDS = (() => {
         // the card's scale: the canopy over the block's tree height, the fill's rule and clamps
         const s = Math.max(FILL.island.min, Math.min(FILL.island.max, (can * FILL.island.gain) / S.treeH));
         xs.push(x, h, z, s);
-      } if (sliceSpent()) break; }
+      } if (sliceSpent() || (!inSlice() && performance.now() - t0 > S.rowMs)) break; }   // (G2930: in flight too - the same rows, the same cards)
       J.ms += performance.now() - t0;
       return J.iz >= n;
     }
@@ -132612,28 +132836,44 @@ const STAND_CARDS = (() => {
         const want = new Set();
         for (let dz = -R; dz <= R; dz++) for (let dx = -R; dx <= R; dx++) {
           const cx = cx0 + dx, cz = cz0 + dz, ex = (cx + 0.5) * C - cg[0], ez = (cz + 0.5) * C - cg[2], d = Math.hypot(ex, ez);
-          if (d > S.far + C * 0.71 || d < S.near - C * 0.71) continue;
+          if (d > S.far + C * 0.71 || (!(S.standIn && rdy) && d < S.near - C * 0.71)) continue;
           if (B && ((cx + 1) * C < B.x0 || cx * C > B.x1 || (cz + 1) * C < B.z0 || cz * C > B.z1)) continue;
           want.add(cx + ',' + cz);
         }
         for (const k of chunks.keys()) if (!want.has(k)) drop(k);
         if (job && !want.has(job.k)) job = null;
-        queue = [...want].filter(k => !chunks.has(k) && !(job && job.k === k)).sort((a, b) => {
+        queue = [...want].filter(k => (!chunks.has(k) || chunks.get(k).stale) && !(job && job.k === k)).sort((a, b) => {
           const A = a.split(',').map(Number), B = b.split(',').map(Number);
           return Math.hypot((A[0] + 0.5) * C - cg[0], (A[1] + 0.5) * C - cg[2]) - Math.hypot((B[0] + 0.5) * C - cg[0], (B[1] + 0.5) * C - cg[2]); });
       }
       if (!job && queue.length && !sliceSpent()) job = chunkJob(queue.shift());
-      if (job && !sliceSpent() && chunkRows(job)) { const mesh = chunkMesh(job); if (mesh) root.add(mesh); chunks.set(job.k, { mesh }); job = null; }
-      let ni = 0; for (const c of chunks.values()) if (c.mesh) ni += c.mesh.count; STAT.instances = ni; STAT.chunks = chunks.size;
+      if (job && !sliceSpent() && chunkRows(job)) { const mesh = chunkMesh(job); const old = chunks.get(job.k); if (old && old.mesh) { root.remove(old.mesh); old.mesh.dispose(); }   // a restaled chunk: the swap
+        if (mesh) root.add(mesh); chunks.set(job.k, { mesh }); job = null; }
+      // a chunk wholly inside the edge draws only while a fill cell under it is not fully ready (rdyMin < 1): the steady
+      // state submits what it did before G2930 (those chunks did not exist), a stand-in costs its draw only while it stands
+      let ni = 0, nh = 0;
+      for (const [k, c] of chunks) { if (!c.mesh) continue; ni += c.mesh.count;
+        if (S.standIn && rdy && rdyMin) { const C = S.cell, [cx, cz] = k.split(',').map(Number), d = Math.hypot((cx + 0.5) * C - cg[0], (cz + 0.5) * C - cg[2]);
+          c.mesh.visible = !(d < S.near - C * 0.71 && rdyMin(cx * C, cz * C, (cx + 1) * C, (cz + 1) * C) >= 1); if (!c.mesh.visible) nh++; } }
+      STAT.instances = ni; STAT.chunks = chunks.size; STAT.parked = nh;
     }
     const api = {
       update, root,
       get: () => Object.assign({}, S),
-      set: o => { const was = { far: S.far, near: S.near, spacing: S.spacing }; Object.assign(S, o || {});
-        if (S.far !== was.far || S.near !== was.near || S.spacing !== was.spacing) { for (const k of [...chunks.keys()]) drop(k); if (mat) { mat.dispose(); } proto = null; mat = null; job = null; }
+      set: o => { const was = { far: S.far, near: S.near, spacing: S.spacing, standIn: S.standIn }; Object.assign(S, o || {});
+        if (S.far !== was.far || S.near !== was.near || S.spacing !== was.spacing || S.standIn !== was.standIn) { for (const k of [...chunks.keys()]) drop(k); if (mat) { mat.dispose(); } proto = null; mat = null; job = null; }
         return api.get(); },
       replant: () => { for (const k of [...chunks.keys()]) drop(k); job = null; },
+      // G2935: the chunks under these world boxes (every chunk with null) are walked again; each keeps its cards drawn
+      // until its new mesh lands (a biome edit never blanks the far forest); returns how many
+      restale: boxes => { let n = 0; const C = S.cell;
+        for (const [k, c] of chunks) { const [cx, cz] = k.split(',').map(Number);
+          if (boxes && !boxes.some(b => b.x1 >= cx * C && b.x0 <= (cx + 1) * C && b.z1 >= cz * C && b.z0 <= (cz + 1) * C)) continue;
+          c.stale = true; n++; if (job && job.k === k) job = null; }
+        if (n) tick = 0;   // the want list at the next update
+        STAT.restaled = (STAT.restaled || 0) + n; return n; },
       stat: () => Object.assign({}, STAT),
+      has: (x, z) => !!chunks.get(Math.floor(x / S.cell) + ',' + Math.floor(z / S.cell)),
       atlas: () => proto && proto.atlas,
     };
     return api;
@@ -134414,6 +134654,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (paved(x, z)) return false;
     }
     if ((islRule ? world.treeGround(x, z) : world.surface(x, z)) !== world.SURFACE.GRASS) return false;
+    const h = world.terrainH(x, z);
+    return !(h < 1.5 || world.waterH(x, z) > h);
+  };
+  // G2935 (BIOME-POLY, the user 12 Oct: "the biome polygon does nothing I can see ... I'd want it to affect the ground
+  // color according to the picked biome, plus the actual trees"): A POLYGON THAT NAMES A MIX PLANTS IT. The premises'
+  // vegAt (27_premises vegPolys: undefined where no polygon speaks, null 'none', else a mix name) opened nothing: the walk
+  // asked the island's cover raster first (forestHere / openHere: FOREST_FLOOR or GRASS), so a biome drawn over a field,
+  // scree or a town's gaps stood no tree. polyMix(x, z): the polygon's word (a known mix, null, or undefined); polyGround:
+  // where a polygon's mix may stand - the aerodromes' blocked ground and the trees' own excludes no, pavement / gravel /
+  // water no, every other ground yes. The ground colour is BIOME-PAINT's (G3040, SCENERY-ED-2).
+  const polyMix = (x, z, BIO) => { if (!BIO || !BIO.over) return undefined; const o = BIO.over(x, z); return o === undefined ? undefined : (o && BIO.mixes[o]) ? o : null; };
+  const polyGround = (x, z) => {
+    if (!islRule || world.treeAeroBlocked(x, z)) return false;
+    const s = world.treeGround(x, z);
+    if (s === world.SURFACE.PAVED || s === world.SURFACE.GRAVEL || s === world.SURFACE.WATER) return false;
     const h = world.terrainH(x, z);
     return !(h < 1.5 || world.waterH(x, z) > h);
   };
@@ -136799,7 +137054,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const bk = parts.find(q => q.mat.userData && q.mat.userData.uLeaf && !(q.mat.userData.uLeaf.value > 0.5) && q.mat.userData.uLight);
       return (u && u.uHue) ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight, bark: !leaf, uLightB: (bk ? bk.mat.userData.uLight : u.uLight) } : null;
     };
-    function impostorMat(atlas, far, si, tintU, gain, thinU, nearU, inst) {   // nearU: the stand cards' own inner edge (the ring's edge), else the tree's; inst: the merged chunk mesh's (IMP_INST)
+    function impostorMat(atlas, far, si, tintU, gain, thinU, nearU, inst, rdy) {   // nearU: the stand cards' own inner edge (the ring's edge), else the tree's; inst: the merged chunk mesh's (IMP_INST); rdy: the fill's readiness grid (G2930, the stand cards')
       // AN IMPOSTOR IS AN ORDINARY SURFACE WITH A BAKED NORMAL. Standard at
       // roughness 1, `normal` replaced from the second sheet: that single
       // substitution buys the whole rig - sun, hemisphere, environment, and the
@@ -136816,7 +137071,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       (m.userData = m.userData || {}).atlas = atlas;
       if (!inst && atlas && atlas.layer >= 0) IMPA.set(atlas.layer, atlas.cy, atlas.diam, gain || 6, IMP_CUT[si || 0], tintU, atlas.key ? atlas.key + '|' + atlas.series : null);   // the layer's own numbers, for the merged meshes
       if (inst ? !IMPA.col : !atlas.tex) { if (!inst && atlas.refused) m.visible = false; return m; }   // headless: no GL, no atlas, no shader; a refused bake draws nothing
-      m.customProgramCacheKey = () => 'imp:' + (inst ? 'inst' : 'one');   // two texts, two programs (three keys the cache on the hook's source)
+      m.customProgramCacheKey = () => 'imp:' + (inst ? 'inst' : 'one') + (rdy ? ':rdy' : '');   // three texts, three programs (three keys the cache on the hook's source)
       const LEAF = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.uniforms) ? TREE_LEAF : null;
       m.onBeforeCompile = sh => {
         sh.uniforms.uCam = uCam;
@@ -136826,6 +137081,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uFadeB = { value: FAR_FADE };
         sh.uniforms.uFadeW = uFadeW;
         sh.uniforms.uThin = thinU || U_NOTHIN;
+        if (rdy) { sh.uniforms.uRdy = rdy.tex; sh.uniforms.uRdyG = rdy.g; }
         if (!inst) {
           sh.uniforms.uCy = { value: atlas.cy };
           sh.uniforms.uDiam = { value: atlas.diam };
@@ -136897,6 +137153,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           .replace('#include <common>', '#include <common>\n' +
             'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW;\nuniform vec2 uThin;\nuniform vec4 uWind;\n' +
             'varying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
+            (rdy ? 'uniform highp sampler2D uRdy;\nuniform vec4 uRdyG;\n' : '') +
             (inst ? 'attribute float aLayer;\nuniform highp sampler2D uImpTbl;\nflat varying vec2 vImpP;\nflat varying vec4 vImpT;\nflat varying vec2 vImpB;\nfloat uCy, uDiam;\n' : 'uniform float uCy, uDiam, uLayer;\n'))
           // The quad is built around the instance's own axes, NOT the screen's.
           // Instances carry a random yaw for the 3D tier; impostors ignore it
@@ -136945,7 +137202,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // inside the near band the 3D tier draws these trees for real;
             // the window before it is shared with the last rung (dithered)
             'vImpD = dCam;',
-            'if (dCam < uNearB - uFadeW * 0.5 || fade <= 0.0 || vImpL < 0.0) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
+            // G2930 (TREE-STREAM, the user: "far away everything is OK, then a transition with nothing"): A STAND CARD
+            // STANDS IN for the fill inside the ring's edge until the fill's chunk under it is BUILT. The cell's readiness
+            // (0 nothing built .. 1 built, rising over FILL.rdyS) against the card's own hash: a built chunk dissolves its
+            // cards, an unbuilt one keeps them at any distance; vImpD past the edge so the fragment's window keeps it whole
+            rdy ? ['bool impNear = dCam < uNearB - uFadeW * 0.5;',
+                   'if (impNear) { ivec2 rc = ivec2(floor((iPos.xz + modelMatrix[3].xz) * uRdyG.z)) - ivec2(uRdyG.xy); ivec2 rs = textureSize(uRdy, 0);',
+                   '  float rd = (rc.x >= 0 && rc.y >= 0 && rc.x < rs.x && rc.y < rs.y) ? texelFetch(uRdy, rc, 0).r : 0.0;',
+                   '  if (hT >= rd) { impNear = false; vImpD = max(dCam, uNearB + uFadeW); } }',
+                   'if (impNear || fade <= 0.0 || vImpL < 0.0) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);'].join('\n')
+                 : 'if (dCam < uNearB - uFadeW * 0.5 || fade <= 0.0 || vImpL < 0.0) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
           ].join('\n'));
         sh.uniforms.uWind = (typeof window !== 'undefined' && window.TREE_WIND) ? window.TREE_WIND : { value: new THREE.Vector4(0, 0, 0, 0) };
         sh.fragmentShader = ('#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' + sh.fragmentShader)
@@ -137979,6 +138245,54 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // geometry's bounding sphere, and a borrowed atlas would sit 1.2 m high
       const impQuadF = impQuad(CH), hdF = CH * Math.SQRT1_2;
       const chunks = new Map(), queue = [];
+      // ================= G2930-G2934 (TREE-STREAM): NO HOLE, EVER =========
+      // The user (2026-10-11): "far away, everything is OK, then there is a transition with nothing, then the more
+      // detailed trees will load, eventually, per tile, and sometimes after a really long time". Inside the stand cards'
+      // inner edge (stand_cards.js S.near, 4 km from the EYE) only this fill draws trees, and a chunk that was not BUILT
+      // yet was bare ground: the cards were cut by distance alone. Three ways a chunk is unbuilt there: the ring has not
+      // reached it (density 200 is ~40 000 grid points a chunk, the walk and the build ~100-180 ms of a 4 ms/frame budget),
+      // an edit evicted it (every scenery-editor vegetation edit evicted the WHOLE 9 km ring: minutes to grow back), or
+      // the eye is not where the ring was centred (the editor's free camera; the ring followed the aircraft).
+      // RDY: the fill's readiness, one texel per 1 km chunk over the world's square - 1 where the chunk's base is built
+      // AND its complement too wherever the eye can see the complement (uThin.y), 0 elsewhere. The stand cards read it
+      // (impostorMat's `rdy`): an unready cell keeps its cards at ANY distance, a ready one dissolves them over
+      // FILL.rdyS on the card's own hash (the fill is drawn at once: a second of both, never a frame of neither).
+      // A cell going unready shows its cards at once (no ramp down).
+      const RDY = (() => {
+        const B = world.bounds; if (!B) return null;
+        const ox = Math.floor(B.x0 / CH) - 1, oz = Math.floor(B.z0 / CH) - 1;
+        const nx = Math.floor(B.x1 / CH) + 2 - ox, nz = Math.floor(B.z1 / CH) + 2 - oz;
+        const want = new Float32Array(nx * nz), cur = new Float32Array(nx * nz), data = new Uint8Array(nx * nz);
+        let tex = null;
+        if (THREE.DataTexture && THREE.RedFormat !== undefined && THREE.UnsignedByteType !== undefined) {
+          tex = new THREE.DataTexture(data, nx, nz, THREE.RedFormat, THREE.UnsignedByteType);
+          tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false; tex.unpackAlignment = 1;   // rows of nx bytes
+          tex.needsUpdate = true;
+        }
+        const g = THREE.Vector4 ? new THREE.Vector4(ox, oz, 1 / CH, 0) : { x: ox, y: oz, z: 1 / CH, w: 0 };
+        const at = (cx, cz) => { const i = cx - ox, j = cz - oz; return (i < 0 || j < 0 || i >= nx || j >= nz) ? -1 : j * nx + i; };
+        // the least readiness over the cells a world box touches (the stand cards' chunk: 2 x 2 of them); 0 off the grid
+        const minIn = (x0, z0, x1, z1) => { let m = 1;
+          for (let cz = Math.floor(z0 / CH), cz1 = Math.ceil(z1 / CH) - 1; cz <= cz1; cz++) for (let cx = Math.floor(x0 / CH), cx1 = Math.ceil(x1 / CH) - 1; cx <= cx1; cx++) {
+            const i = at(cx, cz); m = Math.min(m, i < 0 ? 0 : cur[i]); }
+          return m; };
+        return { ox, oz, nx, nz, want, cur, data, tex, U: tex ? { tex: { value: tex }, g: { value: g } } : null, t: 0, moving: false, at, minIn };
+      })();
+      FILL.rdyS = FILL.rdyS || 1.2;        // the cards' dissolve over a chunk that just went ready, s
+      FILL.urgentMs = FILL.urgentMs || 8;  // the step's budget while an edited chunk waits or a card stands in near the eye
+      FILL.urgentR = FILL.urgentR || 1200; // ...within this of the eye (the roll-out waits for 1.5 km: never at the reveal)
+      // STALE, NOT EVICTED (G2931): an edit (a vegetation polygon, a mix dial, the density, a species' size) used to evict
+      // every chunk - the trees went at once and grew back over minutes. Now a built part carries the generation it was
+      // walked at (`ep`), an edit raises the generation it needs (ALL_GEN for the ring, c2.need for one chunk), and a
+      // stale part STAYS DRAWN until its replacement is built: the swap is one frame. `hot` (an exclusion drawn over the
+      // chunk) puts it at the head of the queue and on the urgent budget.
+      let GEN = 1, ALL_GEN = 1;
+      const needOf = c2 => Math.max(ALL_GEN, c2.need || 0);
+      const stale = (c2, b) => !b || b.ep < needOf(c2);
+      // G2933: what the ring measures of itself - need -> ready latency (ms and frames) of every part, the worst
+      // and the count of parts that waited past FILL.lateS, the cards standing in now (near the eye, in total)
+      FILL.lateS = FILL.lateS || 20;
+      const LAT = { n: 0, sumMs: 0, maxMs: 0, maxFr: 0, late: 0, nearMaxMs: 0, standIn: 0, standInNear: 0, holes: 0, swaps: 0, frame: 0 };
 
       // ================= W0c.2: the fill draws the STAND rung ============
       // This layer plants a tree every 9 m, and inside the near band that is
@@ -138080,6 +138394,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // 9 km ring crosses from HOME) it takes the analytic composer instead (the raster to 1 cm), never a 1-1.6 ms bake
       // a tree's record in a walk: x, y, z, sp, the hash, the canopy, the mix's snag share (G1975)
       const FILL_REC = 7;
+      const POLY_CAN = 12;   // G2935: a polygon's mix over ground the canopy map calls bare stands this tall (m), the stand cards' tree
       function walk(cx, cz, recs, g0, g1, part) {
         if (!world.buildReads) return walkRows(cx, cz, recs, g0, g1, part);
         world.buildReads(1);
@@ -138094,7 +138409,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (hsh(ix, iz + 31) < 0.1) continue;
           const x = cx * CH + (gx + 0.5) * spc + (hsh(ix + 7, iz) - 0.5) * spc * 1.6;
           const z = cz * CH + (gz + 0.5) * spc + (hsh(ix, iz + 7) - 0.5) * spc * 1.6;
-          if (!forestHere(x, z) && !(BIO && openHere(x, z))) continue;  // the forest's rule (the bake's too), or the biome's open ground
+          const pm = ISLC ? polyMix(x, z, BIO) : undefined;   // G2935: a polygon's own mix (undefined: no polygon speaks)
+          if (!forestHere(x, z) && !(BIO && openHere(x, z)) && !(pm && polyGround(x, z))) continue;  // the forest's rule (the bake's too), the biome's open ground, or a polygon's mix
           if (premTreeEx(x, z)) continue;   // the world editor's "no trees" (G527)
           if (fillPoolAt && ISLC && ISLC.ttype) { const t7 = ttypeAt(x, z); if ((t7 === 3 || t7 === 7) && fillPoolAt(x, z) > 0.5) continue; }   // not in a puddle
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
@@ -138116,13 +138432,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
               // kind, its species the pool (codeAt / biomeAt below - the cover ring's too)
               const tt = ttypeAt(x, z);
               if (BIO) {
-                mixHere = BIO.mixHere(codeAt(x, z, hsh(ix + 21, iz + 23)), x, z);
+                mixHere = pm !== undefined ? pm : BIO.mixAt(codeAt(x, z, hsh(ix + 21, iz + 23)));   // (BIO.mixHere, with the polygon read once)
                 kind = mixHere ? Math.min(1, BIO.density(mixHere) * spc * spc * FILL.island.biomeGain) : 0;
               } else kind = tt === 8 ? 1.0 : tt === 7 ? 0.5 : tt === 3 ? 0.12 : tt === 2 ? 0.04 : 0.0;
-              if (tt === 3 || tt === 2) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted
+              if ((tt === 3 || tt === 2) && !pm) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted (a polygon's mix stands as itself)
               // THE MIX'S OWN FLOOR (2026-09-22, the user's reference picture of the airport: the whole muskeg is
               // dense small conifers the canopy map does not see - it reads 0.1-0.2 m there, under the ramp's 0.5):
               // a mix may say how tall its ground is at least (forest.canopyFloor, m) - the ramp and the size read it
+              // G2935: a polygon's mix is FLOORED - it stands at the mix's own density whatever the map's canopy says there,
+              // as tall as the canopy where the map has one, the mix's floor or POLY_CAN where it has none
+              if (mixHere && pm) { const MF = BIO.mixOf(mixHere).forest; floored = true; can = Math.max(can, (MF && MF.canopyFloor) || 0, POLY_CAN); }
               if (mixHere) { const MF = BIO.mixOf(mixHere).forest; if (MF && MF.canopyFloor > can) { can = MF.canopyFloor; floored = true; }
                 // THE CLUMPS (2026-09-22, the user's aerial of the muskeg: "dense packs of trees on sort of little
                 // islands"): a mix may say forest.clump (the share of its ground left bare, 0..1) and clumpM (the
@@ -138223,7 +138542,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
               m.count = 0; m.visible = false; return m; }); }),
             at: 0 } : null);
           const lay = SH.series.map(S => layerOf(S.imp));   // each series' sheet in the arrays
-          for (const P of perSer) if (P) P.ms = [].concat(...P.byRung);
+          // G2932: a rung's parts share ONE matrix and ONE colour attribute (rungShared), so the build writes each tree once a
+          // RUNG (P.one, its first part), not once a part - the same bytes, a half to a third of the writes
+          for (const P of perSer) if (P) { P.ms = [].concat(...P.byRung); P.one = P.byRung.map(L => L[0]).filter(Boolean); }
           const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
                         buf: bufs,
                         rungs: SH.series.map((S, si) => perSer[si] ? perSer[si].byRung : Array.from({ length: nrOf(S) }, () => [])), x: ox, z: oz,
@@ -138258,7 +138579,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // the matrix is written here too, although the partition will
             // overwrite it: the capacity slot then holds a real tree, which is
             // what GATE WORLDRENDER's cull-sphere check reads
-            for (const mm of P.ms) { mm.setMatrixAt(j, m4); mm.setColorAt(j, c3); }
+            for (const mm of P.one) { mm.setMatrixAt(j, m4); mm.setColorAt(j, c3); }
             MI.setMatrixAt(J, m4); MI.setColorAt(J, c3); MIL[J++] = lay[si];
             const bb = BB[si]; if (pv.x < bb[0]) bb[0] = pv.x; if (pv.y < bb[1]) bb[1] = pv.y; if (pv.z < bb[2]) bb[2] = pv.z;
             if (pv.x > bb[3]) bb[3] = pv.x; if (pv.y > bb[4]) bb[4] = pv.y; if (pv.z > bb[5]) bb[5] = pv.z; bb[6] = Math.max(bb[6], sv.x, sv.y);
@@ -138339,31 +138660,70 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the mix dials (furnished, spread) are dealt at plant time: applying
       // them is a replant of both layers (W0c.31 - "furnished does not seem
       // to work": the dial moved a number nothing re-read)
-      TREE_MIX.apply = () => { plantWoodland(); evictAll(); };
+      TREE_MIX.apply = () => { plantWoodland(); staleAll(); };
       // G2890: THE EXCLUSIONS THE RING WAS WALKED WITH (27_premises.js treeExRegions: key -> world box). exRegrow() reads the
-      // overlay's list now, and every chunk a region added or removed touches goes (its walk and build start again from
-      // the queue, nearest first); returns how many went. The first call only takes the list.
+      // overlay's list now, and every chunk a region added or removed touches is walked again (the queue's head); returns
+      // how many. The first call only takes the list.
       let exPlanted = null;
+      // the regions two lists differ by (a key in one and not the other: added, removed or changed)
+      const regDiff = (was, now) => { const ch = []; for (const [k, r] of now) if (!was.has(k)) ch.push(r); for (const [k, r] of was) if (!now.has(k)) ch.push(r); return ch; };
+      // G2931: every chunk a changed region touches goes STALE, NOT DROPPED - its trees stay until the new walk is built
+      // (the swap is one frame) and it goes first, on the urgent budget
+      const staleRegions = ch => {
+        if (!ch.length) return 0;
+        let n = 0;
+        GEN++;
+        for (const [, c2] of chunks) {
+          const x0 = c2.cx * CH, z0 = c2.cz * CH, x1 = x0 + CH, z1 = z0 + CH;
+          if (!ch.some(r => r.x1 >= x0 && r.x0 <= x1 && r.z1 >= z0 && r.z0 <= z1)) continue;
+          if (cur && cur.c2 === c2) cur = null;
+          staleChunk(c2, true); n++;
+        }
+        return n;
+      };
       const exRegrow = () => {
         const O = world.premises && world.premises.overlay, now = new Map();
         for (const r of (O && O.treeExRegions ? O.treeExRegions() : [])) now.set(r.k, r);
         const was = exPlanted; exPlanted = now;
         if (!was) return 0;
-        const ch = [];
-        for (const [k, r] of now) if (!was.has(k)) ch.push(r);
-        for (const [k, r] of was) if (!now.has(k)) ch.push(r);
-        if (!ch.length) return 0;
-        let n = 0;
-        for (const [k, c2] of chunks) {
-          const x0 = c2.cx * CH, z0 = c2.cz * CH, x1 = x0 + CH, z1 = z0 + CH;
-          if (!ch.some(r => r.x1 >= x0 && r.x0 <= x1 && r.z1 >= z0 && r.z0 <= z1)) continue;
-          if (cur && cur.c2 === c2) cur = null;
-          dropPart(c2.base); dropPart(c2.fill); chunks.delete(k); n++;
-        }
+        const n = staleRegions(regDiff(was, now));
         STAT.exRegrown = (STAT.exRegrown || 0) + n;
         return n;
       };
+      // G2931: THE VEGETATION POLYGONS THE RING WAS WALKED WITH (27_premises.js vegPolys, contract v1.31): key -> world box,
+      // the key carrying the polygon, its word and its own biome. A vegetation edit restales the chunks under the polygons
+      // that changed - it was the WHOLE 9 km ring, evicted, on every edit of any polygon (minutes to grow back at density
+      // 200). null where the overlay names no polygons (an older record): the whole ring then, stale, not evicted.
+      let vegRegPlanted = null;
+      const vegRegions = () => {
+        const O = world.premises && world.premises.overlay, F = O && O.frame;
+        if (!O || !Array.isArray(O.vegPolys) || !F || !F.toWorld) return null;
+        const m = new Map();
+        for (const v of O.vegPolys) {
+          const b = v.bbox; if (!b) return null;
+          const c = [F.toWorld(b.x0 - 2, b.z0 - 2), F.toWorld(b.x1 + 2, b.z0 - 2), F.toWorld(b.x1 + 2, b.z1 + 2), F.toWorld(b.x0 - 2, b.z1 + 2)];
+          const own = v.mix && v.mix[0] === '@' && O.vegMixes ? O.vegMixes[v.mix] : null;
+          m.set(JSON.stringify([v.id, v.poly, v.mix, own]), { x0: Math.min(c[0][0], c[1][0], c[2][0], c[3][0]), z0: Math.min(c[0][1], c[1][1], c[2][1], c[3][1]),
+                                                             x1: Math.max(c[0][0], c[1][0], c[2][0], c[3][0]), z1: Math.max(c[0][1], c[1][1], c[2][1], c[3][1]) });
+        }
+        return m;
+      };
+      try { vegRegPlanted = vegRegions(); } catch (e) { vegRegPlanted = null; }
+      // a chunk's parts want a new walk (`hot`: at the queue's head, on the urgent budget); the queue re-reads it
+      function staleChunk(c2, hot) {
+        c2.need = GEN; if (hot) c2.hot = true;
+        c2.qb = c2.qf = false;
+        if (c2.base) needAt(c2, BASE); if (c2.fill) needAt(c2, FILLP);   // (needAt: below, called at run time only)
+      }
+      // every chunk of the ring wants a new walk (an edit that touches the whole ring: a mix, a biome, the density, a
+      // species' size); what stands stays drawn until its replacement is built
+      const staleAll = () => {
+        GEN++; ALL_GEN = GEN; cur = null; queue.length = 0;
+        for (const [, c2] of chunks) { c2.qb = c2.qf = false; if (c2.base) needAt(c2, BASE); if (c2.fill) needAt(c2, FILLP); }
+      };
       try { exRegrow(); } catch (e) { exPlanted = null; }   // the list the ring is first walked with
+      // the hard eviction: kept for a new SHAPE set only (the payload's arrival, a grown catalogue) - setShapes disposes
+      // the materials the old chunks draw with, so they cannot stay. The stand cards cover the ring while it regrows (RDY)
       const evictAll = () => {
         cur = null;                        // whatever was being walked is gone with the rest
         for (const [k, c2] of chunks) { dropPart(c2.base); dropPart(c2.fill); chunks.delete(k); }
@@ -138433,7 +138793,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
             standCards = STAND_CARDS.make(THREE, { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled });
+                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN });   // rdy: G2930, the cards stand in for an unbuilt fill
           // THE ROCK MAP (rock_map.js): the rocks' far tier, on the island's ground programs (gU.uRockMap)
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
@@ -138450,7 +138810,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the catalogue grows, its bins come in, the settle builds its rungs and waits its maps, and the woodland,
       // the fill and the cover ring replant with it. Nothing new, nothing done.
       const reachRefresh = () => {
-        const splatGrew = !!(SPL && SPL.api.reach && SPL.api.reach());   // the splat's sets too (a stamped code's)
+        // G2935: through groundApi - SPL is the ground block's own (a ReferenceError here since G906: every vegetation polygon
+        // edit threw out of vegChanged, the editor's onRebuilt with it, before the ring's replants were all done)
+        const SPA = groundApi && groundApi.splat ? groundApi.splat() : null;
+        const splatGrew = !!(SPA && SPA.reach && SPA.reach());   // the splat's sets too (a stamped code's)
         if (typeof treeReach !== 'function' || typeof treeReachOf !== 'function') return splatGrew;
         const grew = treeReach(treeReachOf(world, BIO));
         if (!grew.length) return splatGrew;
@@ -138462,7 +138825,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
           island: () => Object.assign({}, FILL.island),
-          setIsland: o => { Object.assign(FILL.island, o || {}); evictAll(); return Object.assign({}, FILL.island); },
+          setIsland: o => { Object.assign(FILL.island, o || {}); staleAll(); return Object.assign({}, FILL.island); },
           onIsland: () => !!ISLC,
           // THE BIOMES' HANDLE (G454.12): the code -> mix map, the mixes, the export F8 offers
           biomes: () => BIO,
@@ -138486,7 +138849,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             return { tt, code, name: BIO.names[code] || String(code), mix: BIO.mixHere(code, x, z), canopy, slopeDeg,
                      ndvi: (ISLC.ndvi && k >= 0) ? ISLC.ndvi[k] / 127 - 1 : null };
           },
-          setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); reachRefresh(); return r; },
+          setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); reachRefresh(); return r; },
           reach: () => reachRefresh(),   // G908: re-read what the map can reach (after a premises re-stamp); true when it grew
           // G1385: after a premises edit (app.js onRebuilt) - the cover polygons' vegetation re-read; replants only when it changed
           // G2890 (SCENERY-ED-1): ...and the tree EXCLUSIONS - a polygon removed, shrunk, moved or added, a strip moved or
@@ -138495,19 +138858,41 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           vegChanged: () => {
             const exN = exRegrow();
             if (!BIO) return exN > 0;
-            vegSync(); if (vegSigNow === vegPlanted) return exN > 0;
-            vegPlanted = vegSigNow; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return true; },
+            vegSync(); if (vegSigNow === vegPlanted) { if (!vegRegPlanted) { try { vegRegPlanted = vegRegions(); } catch (e) { vegRegPlanted = null; } } return exN > 0; }   // (the baseline, when the boot had no overlay yet)
+            vegPlanted = vegSigNow; biomePools.clear();
+            // G2931: the polygons that changed, their chunks first; the whole ring (stale) only when the overlay cannot say
+            { let now = null; try { now = vegRegions(); } catch (e) { now = null; }
+              const was = vegRegPlanted; vegRegPlanted = now;
+              if (now && was) { const ch = regDiff(was, now); STAT.vegRegrown = (STAT.vegRegrown || 0) + staleRegions(ch); if (standCards && standCards.restale) standCards.restale(ch); }
+              else { staleAll(); if (standCards && standCards.restale) standCards.restale(null); } }
+            // G3040 (BIOME-PAINT, SCENERY-ED-2): the ground's packed terrain type re-derived after the stamp moved - theirs,
+            // declared with the build's top-level lets; nothing here when it is not (yet) there
+            if (typeof groundTtypeRefresh === 'function') groundTtypeRefresh();
+            if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return true; },
           exRegions: () => Array.from(exPlanted.values()),
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
           // proportion / dead / density / patch / size, or the forest's count / under / rocks /
           // blotch - the fill re-pools and replants, the ring replants; the export carries it
           setMix: (name, path, value) => { if (!BIO) return null; const M = BIO.mixOf(name); if (!M) return null;
             let o = M; for (let i = 0; i < path.length - 1; i++) { if (o[path[i]] === undefined || o[path[i]] === null) o[path[i]] = {}; o = o[path[i]]; }
-            o[path[path.length - 1]] = value; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return value; },
+            o[path[path.length - 1]] = value; biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return value; },
           // the world rail's tree cards: one species' size multiplier over the canopy's (1 = the map's), all biomes; replants
-          speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; evictAll(); } return SP_SIZE[name] || 1; },
+          speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; staleAll(); } return SP_SIZE[name] || 1; },
           speciesSizes: () => Object.assign({}, SP_SIZE),
           stat: () => Object.assign({}, STAT, { queued: queue.length, live: chunks.size, busy: !!cur || queue.length > 0 }),
+          // G2933 (TREE-STREAM): the ring's own clock and census - need -> ready (n, meanMs, maxMs, maxFr, nearMaxMs: a new
+          // part the eye could see the fill of, late: past FILL.lateS), the cards standing in (standIn, standInNear inside
+          // the cards' edge), holes (an unready cell inside the edge whose cards are not built either; null off an island),
+          // holeFrames, oldestMs (the longest a near part is waiting NOW), swaps (stale parts replaced), urgent, stale parts.
+          // reset: true zeroes the clock (a rig's window)
+          stream: reset => { let st = 0; for (const [, c2] of chunks) { if (c2.base && stale(c2, c2.base)) st++; if (c2.fill && stale(c2, c2.fill) && (!lastEye || wantFill(c2, lastEye))) st++; }
+            const o = Object.assign({}, LAT, { meanMs: LAT.n ? LAT.sumMs / LAT.n : 0, urgent: urgentNow, stale: st, queued: queue.length, gen: GEN });
+            if (reset) Object.assign(LAT, { n: 0, sumMs: 0, maxMs: 0, maxFr: 0, late: 0, nearMaxMs: 0, nearMaxFr: 0, swaps: 0, holeFrames: 0, minUnreadyLow: 1e9 });
+            return o; },
+          // the readiness the stand cards read at a point (0..1; -1 outside the grid) - and the target it is moving to
+          rdyAt: (x, z) => { if (!RDY) return -1; const i = RDY.at(Math.floor(x / CH), Math.floor(z / CH)); return i < 0 ? -1 : RDY.cur[i]; },
+          rdyWant: (x, z) => { if (!RDY) return -1; const i = RDY.at(Math.floor(x / CH), Math.floor(z / CH)); return i < 0 ? -1 : RDY.want[i]; },
+          rdyU: () => RDY && RDY.U,   // the grid's uniforms (the stand cards' material)
           // G1091 (GATE RWYTREES): the trees the fill plants in a rectangle - both parts of every chunk it touches, the
           // walk the streamer runs, nothing built or kept - as a flat [x, z, forest, ...] (forest 1: the map's TREE
           // ground, forestHere; 0: the biome's open ground, openHere)
@@ -138524,7 +138909,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             for (let i = 0; i < out.length; i += 3) if (out[i] >= x0 && out[i] <= x1 && out[i + 1] >= z0 && out[i + 1] <= z1) r.push(out[i], out[i + 1], out[i + 2]);
             return r;
           },
-          set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; evictAll(); return NG; },
+          set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; staleAll(); return NG; },
           // the thinning ramp (metres): full density to d0, the base's quarter from d1
           thin: (d0, d1) => { if (d0 !== undefined) uThin.value.set(+d0, Math.max(+d0 + 1, +d1)); return [uThin.value.x, uThin.value.y]; },
           budget: ms => { if (ms !== undefined) FILL.budgetMs = Math.max(0.5, +ms); return FILL.budgetMs; },
@@ -138533,33 +138918,86 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       let tick = 0;
       // the streamer's worst FRAME - a slice, or the build's - is the hitch
       // a player would see; STAT.frameMax keeps it
-      fillUpdate = cg => { const t = performance.now(); fillStep(cg, FILL.budgetMs); STAT.frameMax = Math.max(STAT.frameMax || 0, performance.now() - t); };
+      // G2930: THE RING FOLLOWS THE EYE. Its centre and its order were the aircraft's (cg) while what is SEEN is the
+      // camera's: in the scenery editor's free camera a hillside 3 km from the parked aeroplane waited behind the whole of
+      // the aircraft's ring. The eye (uCam, set before this call in worldUpdate) centres the ring and orders the queue; the
+      // trunks the solver collides with stay the aircraft's (hitPass, cg). The roll-out's prewarm and ringReady keep cg.
+      let eyeFwd = [0, 0, -1], urgentNow = false, rdyDirty = true, rdyLast = 0, lastEye = null;
+      const FRrec = () => (typeof window !== 'undefined' && window.FLIGHT_REC) || null;
+      fillUpdate = cg => {
+        const t = performance.now();
+        const e = uCam.value, eye = (isFinite(e.x) && isFinite(e.z) && (e.x || e.y || e.z)) ? [e.x, e.y, e.z] : cg;
+        const mw = camera.matrixWorld && camera.matrixWorld.elements;
+        if (mw) { const fx = -mw[8], fz = -mw[10], l = Math.hypot(fx, fz); if (l > 1e-3) eyeFwd = [fx / l, 0, fz / l]; }
+        // G2932: THE URGENT BUDGET - while an edited chunk waits, or a card stands in for the fill within FILL.urgentR of
+        // the eye (a teleport, an edit, a free camera flown somewhere new), the step may spend FILL.urgentMs; the reveal
+        // waits for 1.5 km of ring, so a roll-out never starts urgent and a steady flight stays on FILL.budgetMs
+        lastEye = eye;
+        fillStep(eye, urgentNow ? Math.max(FILL.budgetMs, FILL.urgentMs) : FILL.budgetMs, cg);
+        rdyFrame(eye);
+        LAT.frame++;
+        STAT.frameMax = Math.max(STAT.frameMax || 0, performance.now() - t);
+      };
       const keyOf = (cx, cz) => cx * 4096 + cz;
       const d2Of = (c2, cg) => { const ax = (c2.cx + 0.5) * CH - cg[0], az = (c2.cz + 0.5) * CH - cg[2]; return ax * ax + az * az; };
-      // what the ring should hold around cg: every chunk inside R_ACT wants
-      // its base, every chunk inside FILL_ACT wants its complement too
-      const refreshQueue = cg => {
+      // the chunk's nearest ground point from p, horizontal (the shader's 3-D distance is never shorter)
+      const nearOf = (c2, p) => { const nx = Math.max(Math.abs((c2.cx + 0.5) * CH - p[0]) - CH / 2, 0), nz = Math.max(Math.abs((c2.cz + 0.5) * CH - p[2]) - CH / 2, 0); return Math.hypot(nx, nz); };
+      // THE ORDER (G2931): an edited (hot) chunk first; then every chunk INSIDE the stand cards' edge (the ones a card stands
+      // in for), nearest the EYE first, one past 1.5 km and out of the view's half-plane as if 1.5x as far; a complement
+      // 300 m behind its base; then the bases beyond the edge (the cards draw there anyway), nearest first. (The first cut
+      // weighed the view everywhere: after a 5 km jump the front's far bases went before the near ring behind the eye, and
+      // the 4 km ring was whole at 28 s against master's 14 - tools/perf/treestream_probe.js JUMP, 12 Oct)
+      const prio = (c2, part, eye, edge) => {
+        const ax = (c2.cx + 0.5) * CH - eye[0], az = (c2.cz + 0.5) * CH - eye[2], d2 = ax * ax + az * az;
+        let d = Math.sqrt(d2);
+        if (nearOf(c2, eye) > edge) return 1e7 + d;
+        if (d > 1500 && (ax * eyeFwd[0] + az * eyeFwd[2]) / d < 0.2) d *= 1.5;
+        if (part === FILLP) d += 300;
+        return c2.hot ? d - 1e9 : d;
+      };
+      // a part becomes NEEDED (the latency's start): the first time it is queued, or the edit that made it stale
+      const needAt = (c2, part) => { if (part === BASE) { if (!c2.tqb) { c2.tqb = performance.now(); c2.fqb = LAT.frame; } } else if (!c2.tqf) { c2.tqf = performance.now(); c2.fqf = LAT.frame; } };
+      // what the ring should hold around the eye: every chunk inside R_ACT wants
+      // its base, every chunk inside FILL_ACT wants its complement too (G2931: a part missing OR stale)
+      // ...AND THE AIRCRAFT'S TRUNKS (G2930): with the eye away from the aircraft (a free camera), every chunk whose nearest
+      // point is within HIT_ON of the CG is wanted whole too, and never evicted inside HIT_OFF - the solver's trees stay
+      const wantFill = (c2, eye) => d2Of(c2, eye) < FILL_ACT * FILL_ACT;
+      const nearCg = (c2, cg, r) => cg && cg !== lastEye && nearOf(c2, cg) < r;
+      const refreshQueue = (eye, cg) => {
         const R = Math.ceil(R_ACT / CH);
-        const ccx = Math.floor(cg[0] / CH), ccz = Math.floor(cg[2] / CH);
-        for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) {
-          const cx = ccx + dx, cz = ccz + dz;
-          const mx2 = (cx + 0.5) * CH - cg[0], mz2 = (cz + 0.5) * CH - cg[2];
-          const dd = mx2 * mx2 + mz2 * mz2;
-          if (dd > R_ACT * R_ACT) continue;
+        const ccx = Math.floor(eye[0] / CH), ccz = Math.floor(eye[2] / CH);
+        const cells = [];
+        for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) cells.push(ccx + dx, ccz + dz);
+        if (cg && Math.hypot(cg[0] - eye[0], cg[2] - eye[2]) > CH) {
+          const Rh = Math.ceil(HIT_ON / CH) + 1, gx = Math.floor(cg[0] / CH), gz = Math.floor(cg[2] / CH);
+          for (let dz = -Rh; dz <= Rh; dz++) for (let dx = -Rh; dx <= Rh; dx++) cells.push(gx + dx, gz + dz);
+        }
+        for (let ci = 0; ci < cells.length; ci += 2) {
+          const cx = cells[ci], cz = cells[ci + 1];
+          const mx2 = (cx + 0.5) * CH - eye[0], mz2 = (cz + 0.5) * CH - eye[2];
+          let dd = mx2 * mx2 + mz2 * mz2;
+          if (dd > R_ACT * R_ACT) {
+            if (!cg) continue;
+            const nx = Math.max(Math.abs((cx + 0.5) * CH - cg[0]) - CH / 2, 0), nz = Math.max(Math.abs((cz + 0.5) * CH - cg[2]) - CH / 2, 0);
+            if (nx * nx + nz * nz >= HIT_ON * HIT_ON) continue;
+            dd = 0;                          // the aircraft's: whole (its complement too)
+          }
           { const wx = (cx + 0.5) * CH, wz = (cz + 0.5) * CH;
             if (wx < world.bounds.x0 || wx > world.bounds.x1 || wz < world.bounds.z0 || wz > world.bounds.z1) continue; }
           const k = keyOf(cx, cz);
           let c2 = chunks.get(k);
-          if (!c2) { c2 = { cx, cz, base: null, fill: null, qb: false, qf: false }; chunks.set(k, c2); }
-          if (!c2.base && !c2.qb) { c2.qb = true; queue.push({ k, part: BASE }); }
-          if (!c2.fill && !c2.qf && dd < FILL_ACT * FILL_ACT) { c2.qf = true; queue.push({ k, part: FILLP }); }
+          if (!c2) { c2 = { cx, cz, base: null, fill: null, qb: false, qf: false, tqb: 0, tqf: 0, fqb: 0, fqf: 0 }; chunks.set(k, c2); rdyDirty = true; }
+          if (stale(c2, c2.base) && !c2.qb) { c2.qb = true; needAt(c2, BASE); queue.push({ k, part: BASE }); }
+          if (stale(c2, c2.fill) && !c2.qf && dd < FILL_ACT * FILL_ACT) { c2.qf = true; needAt(c2, FILLP); queue.push({ k, part: FILLP }); }
         }
-        // nearest first, the base of a chunk before its complement
+        // what no longer wants a walk leaves the queue; the rest by prio (the base of a chunk before its complement)
+        const edge = standCards && standCards.get ? standCards.get().near : 4000;
         for (let i = queue.length - 1; i >= 0; i--) {
           const c2 = chunks.get(queue[i].k);
-          if (!c2 || (queue[i].part === BASE ? c2.base : c2.fill)) queue.splice(i, 1);
+          if (!c2 || !stale(c2, queue[i].part === BASE ? c2.base : c2.fill)) queue.splice(i, 1);
+          else queue[i].p = prio(c2, queue[i].part, eye, edge);
         }
-        queue.sort((a, b) => (d2Of(chunks.get(a.k), cg) + a.part * 1e5) - (d2Of(chunks.get(b.k), cg) + b.part * 1e5));
+        queue.sort((a, b) => a.p - b.p);
       };
       // G1330 (TREE-HITBOX): THE FILL'S TRUNKS, near the aeroplane only. A built part within HIT_ON of the CG (its
       // chunk's nearest point) registers its trunks (world.treeHits 'fill:cx,cz:part'), and past HIT_OFF drops them:
@@ -138578,33 +139016,59 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       };
       // what the ring no longer holds: past R_DROP the chunk goes whole, past
       // FILL_DROP its complement goes and its base stays - never a regeneration
-      const evictPass = cg => {
+      const evictPass = (eye, cg) => {
         for (const [k, c2] of chunks) {
           hitPass(c2, BASE, c2.base, cg); hitPass(c2, FILLP, c2.fill, cg);
-          const dd = d2Of(c2, cg);
-          if (dd >= R_DROP * R_DROP) {
+          const dd = d2Of(c2, eye);
+          if (dd >= R_DROP * R_DROP && !nearCg(c2, cg, HIT_OFF)) {
             if (cur && cur.c2 === c2) cur = null;
-            dropPart(c2.base); dropPart(c2.fill); chunks.delete(k);
-          } else if (c2.fill && dd >= FILL_DROP * FILL_DROP) {
+            dropPart(c2.base); dropPart(c2.fill); chunks.delete(k); rdyDirty = true;
+          } else if (c2.fill && dd >= FILL_DROP * FILL_DROP && !nearCg(c2, cg, HIT_OFF)) {
             if (cur && cur.c2 === c2 && cur.part === FILLP) cur = null;
-            dropPart(c2.fill); c2.fill = null; c2.qf = false;
-          }
+            dropPart(c2.fill); c2.fill = null; c2.qf = false; c2.tqf = 0; rdyDirty = true;
+          } else if (!c2.fill && c2.tqf && dd >= FILL_ACT * FILL_ACT) c2.tqf = 0;   // a complement no longer wanted is not waiting
         }
+      };
+      // A BUILT PART LANDS (G2931): it replaces the part it was walked to replace in the same frame - the old one stood
+      // until now - its trunks register, and the ring's clock reads how long it was needed (G2933: the recorder's 'tree')
+      const landPart = (c2, part, b, cg, eye) => {
+        const old = part === BASE ? c2.base : c2.fill;
+        if (old) { dropPart(old); LAT.swaps++; }
+        if (part === BASE) { c2.base = b; c2.qb = false; } else { c2.fill = b; c2.qf = false; }
+        const hot = !!c2.hot;
+        if (!c2.qb && !c2.qf) c2.hot = false;   // nothing of it queued any more (a complement past FILL_ACT is not wanted)
+        hitPass(c2, part, b, cg);
+        rdyDirty = true;
+        const tq = part === BASE ? c2.tqb : c2.tqf, fq = part === BASE ? c2.fqb : c2.fqf;
+        if (part === BASE) c2.tqb = 0; else c2.tqf = 0;
+        if (!tq) return;
+        const ms = performance.now() - tq, fr = LAT.frame - fq, d = nearOf(c2, eye);
+        LAT.n++; LAT.sumMs += ms; LAT.maxMs = Math.max(LAT.maxMs, ms); LAT.maxFr = Math.max(LAT.maxFr, fr);
+        if (!old && d < uThin.value.y) { LAT.nearMaxMs = Math.max(LAT.nearMaxMs, ms); LAT.nearMaxFr = Math.max(LAT.nearMaxFr || 0, fr); }
+        if (ms > FILL.lateS * 1000) LAT.late++;
+        // the recorder: every part the eye could see the fill of (inside the complement's reach), every edited one,
+        // every late one - not the far bases' routine
+        const FR = FRrec();
+        if (FR && FR.event && (d < uThin.value.y || hot || ms > FILL.lateS * 1000))
+          FR.event('tree', ms, (part === BASE ? 'base ' : 'fill ') + c2.cx + ',' + c2.cz + ' at ' + Math.round(d) + ' m' + (old ? ' swap' : '') + (hot ? ' hot' : '') +
+                   ' | ' + fr + ' fr, walk+build ' + STAT.lastMs.toFixed(1) + ' ms, queue ' + queue.length + (urgentNow ? ', urgent' : ''));
       };
       // one frame's (or one prewarm tick's) worth of streaming: walk rows of
       // the part under generation until the budget is spent; a finished walk
       // builds at once and, budget permitting, the next queued part starts
-      const fillStep = (cg, budgetMs) => {
+      const fillStep = (eye, budgetMs, cg) => {
+        cg = cg || eye;
         const t0 = performance.now();
         const maint = !(tick++ % 12) || (!cur && queue.length);
-        if (maint) refreshQueue(cg);
+        if (maint) refreshQueue(eye, cg);
         let built = 0;
         for (;;) {
           if (!cur) {
             if (!queue.length) break;
             const q = queue.shift(), c2 = chunks.get(q.k);
-            if (!c2 || (q.part === BASE ? c2.base : c2.fill)) continue;
-            cur = { c2, part: q.part, recs: SHAPE.list.map(() => []), gz: 0, walkMs: 0 };
+            if (!c2 || !stale(c2, q.part === BASE ? c2.base : c2.fill)) continue;
+            // ep: the generation this walk answers (an edit after it starts restales the chunk and drops the walk)
+            cur = { c2, part: q.part, recs: SHAPE.list.map(() => []), gz: 0, walkMs: 0, ep: GEN };
           }
           const t = performance.now();
           // G1194 (METLA-RETURN): up to 8 rows, the budget read after EACH - a row over ground the premises cook does not
@@ -138626,8 +139090,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             fillDeadline = t0 + budgetMs;
             let r; try { r = cur.gen.next(); } finally { fillDeadline = Infinity; }
             if (!r.done) break;            // the rest of the build next frame
-            const b = r.value;
-            if (live()) { if (part === BASE) { c2.base = b; c2.qb = false; } else { c2.fill = b; c2.qf = false; } hitPass(c2, part, b, cg); }   // G1330: its trunks, at once when it is near
+            const b = r.value; b.ep = cur.ep;
+            if (live()) landPart(c2, part, b, cg, eye);   // G1330: its trunks, at once when it is near
             else dropPart(b);              // evicted during its last slices: built, and gone at once
             built++;
             cur = null;
@@ -138635,7 +139099,50 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           }
           if (performance.now() - t0 >= budgetMs) break;
         }
-        if (maint) evictPass(cg);
+        if (maint) evictPass(eye, cg);
+      };
+      // THE READINESS PASS (G2930), once a frame: the cells' targets when anything landed or left (and every 12th frame,
+      // the eye having moved), the cards' dissolve stepped toward them, the texture re-sent when a byte moved. Its census:
+      // the cards standing in now (standIn, standInNear inside the cards' edge), the cells inside the edge with neither
+      // layer (holes: an unready chunk whose stand cards are not built either), the oldest wait among the near ones
+      const rdyFrame = eye => {
+        if (!RDY) return;
+        const now = performance.now(), dt = rdyLast ? Math.min(0.25, (now - rdyLast) / 1000) : 0; rdyLast = now;
+        if (rdyDirty || !(tick % 12)) {
+          RDY.want.fill(0);
+          const thin = uThin.value.y, SC = standCards && standCards.get ? standCards : null, edge = SC ? SC.get().near : 4000;
+          let si = 0, sn = 0, holes = 0, oldest = 0, urg = false, minU = 1e9;
+          for (const [, c2] of chunks) {
+            const i = RDY.at(c2.cx, c2.cz); if (i < 0) continue;
+            const nd = nearOf(c2, eye);
+            if (c2.base && (c2.fill || nd > thin)) RDY.want[i] = 1;
+            else {
+              si++; if (nd < minU) minU = nd;
+              if (nd < edge) {
+                sn++;
+                const w = Math.max(c2.base ? 0 : now - (c2.tqb || now), c2.fill || nd > thin ? 0 : now - (c2.tqf || now)); oldest = Math.max(oldest, w);
+                if (SC && SC.has && !SC.has((c2.cx + 0.5) * CH, (c2.cz + 0.5) * CH)) holes++;
+              }
+              if (nd < FILL.urgentR) urg = true;
+            }
+            if (c2.hot && (c2.qb || c2.qf)) urg = true;
+          }
+          LAT.standIn = si; LAT.standInNear = sn; LAT.minUnreadyM = minU; LAT.minUnreadyLow = Math.min(LAT.minUnreadyLow === undefined ? 1e9 : LAT.minUnreadyLow, minU); LAT.holes = SC ? holes : null; LAT.oldestMs = oldest; urgentNow = urg;
+          RDY.moving = true; rdyDirty = false;
+        }
+        if (LAT.holes) LAT.holeFrames = (LAT.holeFrames || 0) + 1;
+        if (!RDY.moving) return;
+        let mv = false, ch = false;
+        const W = RDY.want, C = RDY.cur, D = RDY.data, up = dt / Math.max(0.05, FILL.rdyS);
+        for (let i = 0; i < W.length; i++) {
+          const w = W[i]; let c = C[i];
+          if (c === w) continue;
+          c = w < c ? w : Math.min(w, c + up); C[i] = c;
+          const v = Math.round(c * 255); if (D[i] !== v) { D[i] = v; ch = true; }
+          if (c !== w) mv = true;
+        }
+        RDY.moving = mv;
+        if (ch && RDY.tex) RDY.tex.needsUpdate = true;
       };
       // THE ROLL-OUT SCREEN'S STEP (S3): a big budget, nobody watching. Returns
       // where the ring stands; done when every chunk inside R_ACT has its base
@@ -138668,7 +139175,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const budget = (o && o.budgetMs) || 60;
         if (TREE_STATE.v === 'pending') return Object.assign({ phase: 'trees', done: false, trees: 'pending' }, ringStat());
         tick = 0;                          // a maintenance pass every tick under the screen
-        fillStep(cg, budget);
+        fillStep(cg, budget, cg);
+        rdyFrame(cg);                      // G2930: the cards hide where the ring stands at the reveal
         const done = ringReady(cg, o && o.reach);
         return Object.assign({ phase: done ? 'done' : 'ring', done, trees: TREE_STATE.v }, ringStat());
       };
@@ -139966,7 +140474,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (coverRing) coverRing.update();
     if (grassField) grassField.update();
     if (FRw) FRw.pop();
-    if (standCards) standCards.update(cg);
+    if (standCards) standCards.update((isFinite(uCam.value.x) && (uCam.value.x || uCam.value.y || uCam.value.z)) ? [uCam.value.x, uCam.value.y, uCam.value.z] : cg);   // G2930: the eye (the fill's ring is the eye's too)
     if (rockMap) rockMap.update();   // the rocks' far tier follows the eye (rock_map.js)
     const gy = world.terrainH(cg[0], cg[2]);
     const agl = Math.max(0, cg[1] - gy);
@@ -141485,8 +141993,8 @@ const AERO_WX_KNOB = {
   // G345.3: the crevices and the scratches
   creviceGain: 1.6,  // uWxV.x  dirt in the rivet flanks, seams, grooves and the cowl's joints
   seamW:     0.035,  // uWxV.y  m, how far the cowl's joint dirt spreads
-  scratchLen: 0.45,  // uWxV.z  m, a scratch's length period
-  scratchAcross: 0.03, // uWxV.w m, a scratch's width period
+  scratchLen: 0.45,  // uWxV.z  m, the scratches' lattice cell (one stroke at most per cell, 0.24..0.6 of it long)
+  scratchW:  0.0007, // uWxV.w  m, a stroke's half-width at its middle (G2750: it was a 'width period' of a tiled read)
   // G345.5: the BAKED cavity's gains (uWxB), over kappaMax like the
   // derivative's — the concave term (dirt in the grooves) and the convex
   // one's share of it (chips on the crowns)
@@ -141502,7 +142010,7 @@ const AERO_WX_KNOB_RANGE = {
   dustFlat: [0, 1, 0.01], ccRough: [0, 1, 0.01], kappaMax: [5, 200, 1], bugTile: [0.1, 1, 0.01],
   fineTile: [0.1, 1.5, 0.01], coarseTile: [0.5, 6, 0.05], streakAcross: [0.05, 1, 0.01], streakAlong: [0.5, 8, 0.05],
   propR: [0.3, 2.0, 0.01], spinR: [0.05, 0.4, 0.005], leGain: [0, 3, 0.05], flingGain: [0, 3, 0.05],
-  creviceGain: [0, 4, 0.05], seamW: [0.01, 0.12, 0.005], scratchLen: [0.1, 2, 0.01], scratchAcross: [0.01, 0.2, 0.005],
+  creviceGain: [0, 4, 0.05], seamW: [0.01, 0.12, 0.005], scratchLen: [0.1, 2, 0.01], scratchW: [0.0002, 0.004, 0.0001],
   bakeGain: [0, 10, 0.1], bakeConvex: [0, 3, 0.05], chipLip: [0, 0.003, 0.00005], mudRelief: [0, 0.02, 0.0001],
 };
 // THE SPINNER'S SPIRAL (the user: "the little typical spiral and choose its
@@ -141873,7 +142381,7 @@ function aeroWxSharedU(THREE) {
     uWxG:   { value: new THREE.Vector4(K.fineTile, K.coarseTile, K.streakAcross, K.streakAlong) },
     uWxDbg: { value: 0 },
     uWxT:   { value: new THREE.Vector4(K.propR, K.spinR, K.leGain, K.flingGain) },
-    uWxV:   { value: new THREE.Vector4(K.creviceGain, K.seamW, K.scratchLen, K.scratchAcross) },
+    uWxV:   { value: new THREE.Vector4(K.creviceGain, K.seamW, K.scratchLen, K.scratchW) },
     uWxB:   { value: new THREE.Vector4(K.bakeGain, K.bakeConvex, K.chipLip, K.mudRelief) },
     uSpiral: { value: new THREE.Vector4(0, 1, 0.10, 0.30) },   // on, hand, pitch m, width at the base
     uSpiralC: { value: new THREE.Vector4(1, 1, 1, 1) },       // linear rgb, strength
@@ -141909,7 +142417,7 @@ function aeroWxRefresh() {
   U.uWxR.value.set(K.dustFlat, K.ccRough, K.kappaMax, K.bugTile);
   U.uWxG.value.set(K.fineTile, K.coarseTile, K.streakAcross, K.streakAlong);
   U.uWxT.value.set(K.propR, K.spinR, K.leGain, K.flingGain);
-  U.uWxV.value.set(K.creviceGain, K.seamW, K.scratchLen, K.scratchAcross);
+  U.uWxV.value.set(K.creviceGain, K.seamW, K.scratchLen, K.scratchW);
   U.uWxB.value.set(K.bakeGain, K.bakeConvex, K.chipLip, K.mudRelief);
   const m = AERO_WX.macro;
   U.uWear.value.set(aeroWxClamp01(m.age), aeroWxClamp01(m.flight),
@@ -142118,7 +142626,7 @@ uniform vec4 uWxR;      // x dust flatten  y cc rough add  z kappa max (1/m)  w 
 uniform vec4 uWxG;      // x fine tile m  y coarse tile m  z streak across m  w streak along m
 uniform float uWxDbg;
 uniform vec4 uWxT;      // x blade tip radius m  y spinner base radius m  z LE gain  w fling gain
-uniform vec4 uWxV;      // x crevice gain  y cowl joint width m  z scratch length m  w scratch width m
+uniform vec4 uWxV;      // x crevice gain  y cowl joint width m  z scratch cell m  w scratch half-width m
 uniform vec4 uWxB;      // x baked cavity gain  y its convex share  z chip depth m  w mud lump height m
 varying float vCav;     // G345.5: the mesh's own curvature per vertex, 1/m, concave positive (aeroWxCavity); 0 where not baked
 uniform vec4 uSpiral;   // x on  y hand  z pitch m/turn  w width at the base
@@ -142164,6 +142672,28 @@ float aeroWxSpots(vec2 uv, float cell, float dens, float rad, float seed, float 
   float d = length(uv - ctr);
   float aa = max(length(fwidth(uv)), 1e-4) * 0.8;
   return step(r0, dens) * (1.0 - smoothstep(rr - aa - soft, rr + aa, d));
+}
+// A SCRATCH BY COUNT (G2750, the user: "the weathering produces clear tiled pattern on carbon" - repeating dashes over
+// the fuselage and the fin). Scratches were the grunge sheet read stretched (a 256-px tile spanning 3 cm across and
+// 45 cm along) and thresholded at 0.968: only the sheet's few highest texels passed, and the SAME few every tile - a
+// lattice of identical dashes, every 3 cm across and every 45 cm along, pale on a dark carbon. Now aeroWxSpots' rule:
+// a lattice of cells in the part's own frame, every cell rolls its hash (of its INDEX, which never repeats) against
+// dens, a winning cell draws ONE tapered stroke - mostly along, +-15 degrees, 0.24..0.6 of the cell long, its middle
+// jittered so it never leaves the cell. Antialiased on the footprint and faded where it is thinner than a pixel, so a
+// far flank never sparkles.
+// (43.1's strict gate: aa, the footprint, is the caller's - taken in uniform control flow - so the call can sit in a
+// branch that skips the hash maths wherever the layer is zero: every interior fragment, a fresh paint, the cockpit)
+float aeroWxScratch(vec2 uv, float cell, float dens, float hw, float seed, float aa) {
+  vec2 c = floor(uv / cell);
+  if (aeroHash(c + seed) >= dens) return 0.0;
+  vec2 ctr = (c + 0.5 + 0.2 * (vec2(aeroHash(c + seed + 17.3), aeroHash(c + seed + 41.7)) - 0.5)) * cell;
+  float an = (aeroHash(c + seed + 5.9) - 0.5) * 0.52;
+  float hl = cell * (0.12 + 0.18 * aeroHash(c + seed + 9.1));
+  vec2 t = vec2(cos(an), sin(an)), d = uv - ctr;
+  float a = dot(d, t), b = dot(d, vec2(-t.y, t.x));
+  float ac = clamp(a, -hl, hl);
+  float w = hw * (1.0 - 0.7 * abs(ac) / hl);
+  return (1.0 - smoothstep(w, w + aa, length(vec2(a - ac, b)))) * min(1.0, w / aa);
 }
 void aeroWxLay(inout vec3 col, inout float cov, inout float flo, float c, vec4 C) {
   float cc = clamp(c, 0.0, 1.0);
@@ -142578,8 +143108,10 @@ const AERO_WX_SURF_FS = `
       // aft streaks' 2.6 m one that ran every scratch the length of the
       // part, and a threshold that admits a few per square metre at most
       float wxScP = wx_scratch * uWxSub2.z * wxSide * wxOut * wxPure;
-      float gSc = texture2D(tGrunge, vec2(wxAcross / uWxV.w, wxAlong / uWxV.z) + vec2(0.23, 0.59)).b;
-      ch = max(ch, smoothstep(0.968 - 0.03 * wxScP, 0.978 - 0.03 * wxScP, gSc) * step(0.01, wxScP));
+      // (G2750: by count - aeroWxScratch - never a threshold on a tiled read; the footprint here, the strokes only
+      // where the layer is)
+      float wxScAA = max(length(fwidth(vec2(wxAlong, wxAcross))), 1e-5);
+      if (wxScP >= 0.01) ch = max(ch, aeroWxScratch(vec2(wxAlong, wxAcross), uWxV.z, 0.6 * wxScP, uWxV.w, 7.0, wxScAA));
       // steel goes to primer then rust; rust also BLEEDS down from the chips
       // THE SUBSTRATE WITH ITS OWN ROUGHNESS (G345.2): bare alloy under a
       // chip is a metal at the finish row's roughness — it OUTSHINES the
@@ -143839,16 +144371,41 @@ function aeroFinishLegacy(sections) {
 //     under its own-coloured wing) is WRITTEN `next`. Read off the map as it
 //     stood before the pick, so a parent cleared here does not change the
 //     verdict on its child.
+// G2750 (the user, 11 Oct: "the canopy sill band should also be affected by the global paint" and then "I don't think
+// a band changed by hand should keep its color. Changing the global paint again should just plain repaint the
+// aircraft"): THE GLOBAL PAINT REPAINTS what it covers - every exterior cage section (the skin, the rail bands, the
+// frame bands: the stock Cub's black waist stripe, inherited by every build made from it, was the dark band round a
+// bubble that no pick reached) and every part that wears the body (the cowl, the struts, the fairings, the
+// fittings), set by hand or not. G468's "a hand colour survives the base" is withdrawn for these by that ruling; the
+// wells still override a section AFTER a pick. ...AND THE WINGS AND THE TAIL (the user: "include wings and tail too" -
+// one global paint is the whole aircraft): every layer part of the airframe's livery family (its chain reaches the
+// body: the wings and their surfaces, the fin, the stab, the booms, the floats, the gear) drops its own colour and
+// follows the body; a row that walks its own name only (tintOwn, the float's deck) takes the pick itself. What is not
+// the airframe's paint (the propeller, the spinner, the engine, the seats, the crew) keeps G1320's rule: it follows
+// only if it was following. Decals and the registration are not paint and are not touched.
 function aeroBaseReach(map, prev, next, neutral, eq, names) {
   const same = (a, b) => a == null ? b == null : (b != null && eq(a, b));
-  const following = k => map[k] == null || same(map[k], prev);
-  const put = k => { if (!following(k)) return;
+  const put = k => {
     if (next == null || (neutral != null && eq(next, neutral))) delete map[k]; else map[k] = next; };
-  // the layer verdicts first, on the untouched map
+  const reachesBody = k => {
+    for (let s = AERO_SEC[k] && AERO_SEC[k].parent, n = 0; s != null && n < 9; n++) {
+      if (s === 'body') return true;
+      if (!AERO_SEC[s]) return false;
+      s = AERO_SEC[s].parent;
+    }
+    return false;
+  };
+  // the airframe's livery family: repainted whatever it wore (G2750)
+  for (const k in AERO_SEC) {
+    const row = AERO_SEC[k];
+    if (row.wears === 'parent' || row.finFollows || !reachesBody(k)) continue;
+    if (row.tintOwn) put(k); else delete map[k];
+  }
+  // the layer verdicts for the rest, on the map as it stands
   const layer = [];
   for (const k in AERO_SEC) {
     const row = AERO_SEC[k];
-    if (row.wears === 'parent' || row.finFollows || row.tintOwn) continue;
+    if (row.wears === 'parent' || row.finFollows || row.tintOwn || reachesBody(k)) continue;
     if (map[k] == null || !same(map[k], prev)) continue;
     let s = row.parent, toBody = false;
     for (let n = 0; s != null && n < 9; n++) {
@@ -143861,10 +144418,10 @@ function aeroBaseReach(map, prev, next, neutral, eq, names) {
   for (const nm of names || [])
     if (['skin', 'rail', 'pillar'].includes(AERO_ROLE[nm])) put(nm);
   put('body');
-  // the parent-wearing parts follow by having NO override: clear theirs
-  // only when it was the base's own value (a cowl painted by hand keeps it)
+  // the parent-wearing parts follow by having NO override: clear theirs - a hand colour too (G2750: the global paint
+  // plainly repaints what it covers)
   for (const k in AERO_SEC)
-    if ((AERO_SEC[k].wears === 'parent' || AERO_SEC[k].finFollows) && map[k] != null && same(map[k], prev))
+    if ((AERO_SEC[k].wears === 'parent' || AERO_SEC[k].finFollows) && map[k] != null)
       delete map[k];
   for (const [k, toBody] of layer) {
     const v = next != null ? next : neutral;
@@ -145091,6 +145648,7 @@ function aeroSetDecals(THREE, list) {
 const AERO_PARS_VS = `
 attribute vec4 aStruct;
 attribute float aCav;       // G345.5: the baked cavity (aeroweather), 0 where absent
+attribute vec4 aRest;       // G2750: the vertex's REST place (w 2 = present; an unbound attribute reads w 1 - see aeroRestBake)
 uniform mat4 uCraftInv;
 varying vec4 vSurf;
 varying float vCav;
@@ -145107,7 +145665,15 @@ const AERO_MAIN_VS = `
   vCav    = aCav;
   vObjPos = transformed;
   vObjNrm = objectNormal;
-  vCraftPos = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;
+  // THE PAINT RIDES THE SKIN (G2750, the user: "the decal is projected live, so when the control surfaces move ... the
+  // moving part gets a shifting paintjob" and "the weathering 'dots' keep moving constantly, the texture gets stretched
+  // and back"). In flight the rigs WRITE the vertices - the hinges turn a surface in its buffer, the flex bends every
+  // skin vertex - so a craft place read off the posed position re-projected every box decal, every triplanar grunge read,
+  // the holes and the detail sheet each frame across a moving surface. The place is the REST one (aeroRestBake, once
+  // per flown geometry, before the first pose); a part that moves as a WHOLE (a wheel, an engine, a pivot group) still
+  // carries its motion in modelMatrix, so it turns with its own paint as before. No rest (the editor, a bench): the posed one, as before.
+  vec3 aeroRestP = aRest.w > 1.5 ? aRest.xyz : transformed;
+  vCraftPos = (uCraftInv * modelMatrix * vec4(aeroRestP, 1.0)).xyz;
   // ...AND WHICH WAY THE SURFACE FACES, IN THE SAME FRAME (2026-09-11). A
   // marking that must land on ONE SIDE of a thin surface cannot be decided
   // from the position: both faces of a centreline fin are the same 30 mm from
@@ -145127,10 +145693,36 @@ const AERO_MAIN_VS = `
 // program takes vCraftPos again after skinning (AERO_CABIN_HOOK's G272 rule for the crew's legs); vCraftNrm needs nothing
 // (skinnormal_vertex has already turned objectNormal by begin_vertex). Only a skinned program's text changes - a plain
 // one's source stays byte for byte (no program cache miss for it).
+// G2750: THE REST PLACE, once per flown model, ONLY FOR FLIGHT (app.js restBake: when the craft is first shown in the
+// world under the roll-out's screen, else on the first flight frame - never per garage change): the position array as
+// it stands, w 2 marking it present, on every mesh drawn with an aeroskin material - the C4b folds' too (a skinned fold's
+// array is bind space, its members' own, still at rest: the shader takes it through the same bone). The editor and the
+// benches never call it: there nothing writes the vertices and the posed place IS the rest place.
+function aeroRestBake(THREE, obj) {
+  let done = 0;
+  if (!obj || !obj.traverse) return 0;
+  obj.traverse(o => {
+    if (!o.isMesh || !o.geometry) return;
+    const a = o.geometry.attributes, pa = a && a.position;
+    if (!pa || !pa.array || pa.isInterleavedBufferAttribute || pa.itemSize !== 3 || a.aRest) return;
+    const ms = Array.isArray(o.material) ? o.material : [o.material];
+    if (!ms.some(m => m && (m.userData || {}).aeroskin)) return;
+    const p = pa.array, n = pa.count, r = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) { r[i * 4] = p[i * 3]; r[i * 4 + 1] = p[i * 3 + 1]; r[i * 4 + 2] = p[i * 3 + 2]; r[i * 4 + 3] = 2; }
+    o.geometry.setAttribute('aRest', new THREE.BufferAttribute(r, 4));
+    done++;
+  });
+  return done;
+}
 function aeroSkinnedCraft(shader, vs) {
   if (!shader || !shader.skinning) return vs;
+  // G2750: the REST place through the same bone (the fold's bone is the part's whole motion; the rigs' writes are what
+  // the rest place leaves out)
   return vs.replace('#include <project_vertex>',
-    'vCraftPos = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;   // G1493: after skinning\n#include <project_vertex>');
+    'if (aRest.w > 1.5) { vec4 aeroRs = bindMatrix * vec4(aRest.xyz, 1.0);\n' +
+    '  aeroRestP = (bindMatrixInverse * (boneMatX * aeroRs * skinWeight.x + boneMatY * aeroRs * skinWeight.y\n' +
+    '    + boneMatZ * aeroRs * skinWeight.z + boneMatW * aeroRs * skinWeight.w)).xyz; } else aeroRestP = transformed;\n' +
+    'vCraftPos = (uCraftInv * modelMatrix * vec4(aeroRestP, 1.0)).xyz;   // G1493: after skinning\n#include <project_vertex>');
 }
 
 // ---------------------------------------------------------------------------
@@ -147378,6 +147970,7 @@ if (typeof window !== 'undefined')
                       aeroGlassTint, aeroGlassCompanion, GLASS_DEF,
                       aeroGlassSpec,
                       aeroIsInside, aeroCabinHook, aeroSetCabin, aeroSetFootwell, aeroSetHoles,
+                      aeroRestBake,   // G2750
                       AERO_CABIN_DEF, aeroDecOk,
                       aeroSetEnv, aeroSetGlassBlend, aeroGlassLinear, aeroDispose, aeroLinear, AERO_TEX,
                       aeroSetDecals, aeroSetCraft,
@@ -147419,7 +148012,7 @@ if (typeof module !== 'undefined')
                      AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy,
                      AERO_FINISH_DEF, AERO_LAB_FIELDS, AERO_LAB_GRAM,
                      AERO_GAIN_DEF, GLASS_DEF, aeroIsInside, AERO_CABIN_DEF,
-                     aeroDecOk };
+                     aeroDecOk, aeroRestBake };
 </script>
 <script type="text/x-flydiy">
 // ============================================================
@@ -149613,17 +150206,50 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
     // quads in the slope's own plane rather than as boxes, because a box on a
     // sloping plane needs a rotation to be got wrong.
     const KX = 0.16, KT = 0.022, up = v => [v[0], v[1] + 0.015, v[2]];
-    const band = (x0, x1, t0, t1) => {
-      const q = [up(P(x0, t0)), up(P(x1, t0)), up(P(x1, t1)), up(P(x0, t1))];
-      put(s > 0 ? quad(q[0], q[1], q[2], q[3], M.steelDark, 2)
-                : quad(q[1], q[0], q[3], q[2], M.steelDark, 2));
+    // THE FRAME FROM INSIDE (G2750, the user: "the hangar skylight chassis look plain white, flat, ugly, untextured
+    // and unrealistic"). It was these same flat quads 1.5 cm ABOVE the deck, seen from the floor THROUGH the pane -
+    // a milky emissive card (opacity 0.3, emissive x2.6) - so every member read as a white-blue sheet with no depth.
+    // Inside, the frame is now a trimmer in the roof's own secondary steel (M.beamSec: the purlins' material and
+    // part, so the part system dresses both and the room merge folds it into the purlins' one draw): each member a
+    // slab hanging on the ROOM side of the pane, its face and four flanks built in the slope's own plane through P (a
+    // box on a sloping plane needs a rotation to be got wrong - and the gate's stub THREE has none to get right), so it
+    // reads as dark steel against the light with lit flanks. The deck side is never seen and is not drawn.
+    // The exterior keeps its kerb above the deck (no bars, it is glass from outside).
+    const sub = (u, v) => [u[0] - v[0], u[1] - v[1], u[2] - v[2]];
+    const crs = (u, v) => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    const dot = (u, v) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+    const unit = u => { const l = Math.hypot(u[0], u[1], u[2]) || 1; return [u[0] / l, u[1] / l, u[2] / l]; };
+    const eX = [1, 0, 0], eV = unit(sub(P(0, LT1), P(0, LT0)));
+    let eN = unit(crs(eX, eV));
+    if (eN[1] > 0) eN = [-eN[0], -eN[1], -eN[2]];                       // toward the floor
+    const neg = u => [-u[0], -u[1], -u[2]];
+    // one face, wound so its normal is `out` (quad's normals follow the winding; the steel is single-sided)
+    const face = (a, b, c, d, out, uv) => {
+      const fw = dot(crs(sub(b, a), sub(c, a)), out) >= 0;
+      put(fw ? quad(a, b, c, d, M.beamSec, uv) : quad(b, a, d, c, M.beamSec, uv));
     };
-    band(-LHW, LHW, LT0, LT0 + KT);               // head
-    band(-LHW, LHW, LT1 - KT, LT1);               // sill
-    band(-LHW, -LHW + KX, LT0, LT1);              // jambs
-    band(LHW - KX, LHW, LT0, LT1);
-    for (let j = 1; j < 3 && !EXT; j++)           // glazing bars across
-      band(-LHW + 2 * LHW * j / 3 - 0.05, -LHW + 2 * LHW * j / 3 + 0.05, LT0, LT1);
+    const band = (x0, x1, t0, t1, D) => {
+      if (EXT) {
+        const q = [up(P(x0, t0)), up(P(x1, t0)), up(P(x1, t1)), up(P(x0, t1))];
+        put(s > 0 ? quad(q[0], q[1], q[2], q[3], M.steelDark, 2)
+                  : quad(q[1], q[0], q[3], q[2], M.steelDark, 2));
+        return;
+      }
+      const dn = v => [v[0] + eN[0] * D, v[1] + eN[1] * D, v[2] + eN[2] * D];
+      const B = [P(x0, t0), P(x1, t0), P(x1, t1), P(x0, t1)], R = B.map(dn);
+      const w = x1 - x0, l = Math.hypot(...sub(B[3], B[0]));
+      face(R[0], R[1], R[2], R[3], eN, [w, l]);                           // the face the floor sees
+      face(B[0], B[1], R[1], R[0], neg(eV), [w, D]);                      // the flanks
+      face(B[3], B[2], R[2], R[3], eV, [w, D]);
+      face(B[0], B[3], R[3], R[0], neg(eX), [l, D]);
+      face(B[1], B[2], R[2], R[1], eX, [l, D]);
+    };
+    band(-LHW, LHW, LT0, LT0 + KT, 0.12);         // head
+    band(-LHW, LHW, LT1 - KT, LT1, 0.12);         // sill
+    band(-LHW, -LHW + KX, LT0, LT1, 0.12);        // jambs
+    band(LHW - KX, LHW, LT0, LT1, 0.12);
+    for (let j = 1; j < 3 && !EXT; j++)           // glazing bars across, shallower than the trimmer
+      band(-LHW + 2 * LHW * j / 3 - 0.05, -LHW + 2 * LHW * j / 3 + 0.05, LT0 + KT, LT1 - KT, 0.07);
   }
 }
 
@@ -169067,8 +169693,22 @@ function editorInit(api) {
         // instead of stepping out, which is what `lastPick` is reset for.
         const inst2 = instanceOfHit(hit);
         if (inst2) lastPick = null;
-        select(key === lastPick ? stepOut(sel) : key);
-        lastPick = key;
+        // THE FINISH VIEW LANDS ON THE SURFACE'S OWN ROW (G2750, the user: "a dark part around the cockpit, which is
+        // not the joint, and that can't be accessed using the finish editor" - it was the waistband rail's strip,
+        // which a bubble canopy widens into the band under its seam: its row was there, under the fuselage, by a
+        // name nobody would connect to it). A click on a cage face says its section: the part opens (never a step
+        // out - a second click on the same band must not leave it) and that section's row scrolls in and flashes,
+        // so whatever colour is on screen is one click from the well that sets it
+        const finSec = view === 'finish' && hit && hit.section ? hit.section : null;
+        select(finSec ? key : key === lastPick ? stepOut(sel) : key);
+        lastPick = finSec ? null : key;
+        if (finSec) setTimeout(() => {
+          const row = Array.from(wrap.querySelectorAll('[data-sec]')).find(e => e.dataset.sec === finSec && e.offsetParent);
+          if (!row) return;
+          if (row.scrollIntoView) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          row.classList.remove('secFlash'); void row.offsetWidth; row.classList.add('secFlash');
+          setTimeout(() => row.classList.remove('secFlash'), 1600);
+        }, 0);
       } else if (hit && hit.miss) {
         select('craft');
         lastPick = null;
@@ -182537,6 +183177,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // THE BAKED CAVITY (G345.5): the weathering reads the mesh's own grooves
     // per vertex, in each material's own unit — once the group is whole
     if (typeof AEROWX !== 'undefined' && AEROWX.aeroWxBakeCavity) AEROWX.aeroWxBakeCavity(THREE, grp);
+    // (THE REST PLACE, G2750, is NOT baked here: every garage change rebuilds this model - see restBake below)
     // GARAGE: every group is rigged, because every vertex already carries its
     // node weights — there is no band to select and no threshold to tune.
     if (data.generated) {
@@ -183013,10 +183654,23 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   const mBasis = new THREE.Matrix4(), vX = new THREE.Vector3(),
         vY = new THREE.Vector3(), vZ = new THREE.Vector3(),
         vSpin = new THREE.Vector3();          // G59.1 prop shaft axis
+  // THE REST PLACE (G2750): what the decals' boxes, the weathering's reads and the holes project from, so the paint rides
+  // a surface the rigs turn and a skin the flex bends (aeroskin's AERO_MAIN_VS). ONCE PER MODEL AND ONLY FOR FLIGHT (43.1's
+  // strict gate: baked in buildModel it ran on every garage change - a copy of every skin vertex, merged again into the
+  // hybrid's views - and the garage never poses a surface): when the craft is first shown in the world under the
+  // roll-out's screen (craftInWorld, so its upload rides the world compile), else on the first flight frame. The place
+  // as it stands then, before that frame's pose: the stand's, which is all the paint needs - fixed from there on. The
+  // folds are baked with it (their arrays are the members' own, still at rest).
+  function restBake() {
+    if (!model || model.restBaked || !model.grp) return;
+    model.restBaked = true;
+    if (window.AEROSKIN && window.AEROSKIN.aeroRestBake) window.AEROSKIN.aeroRestBake(THREE, model.grp);
+  }
   function poseModel(catchUp) {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
     if (!model || (skinMode === 2 && !model.gen)) return;
+    if (!inGarage && !model.restBaked) restBake();      // G2750: the first flight frame, before its pose writes
     // G179: THE POSE IS PINNED TO THE STRUCTURE. `cg` here is sim.bodyOrigin()
     // — the firewall ring, the datum the axes are already taken from — not
     // the mass centre. The mesh is authored about the DESIGN CG, so `oR`
@@ -183905,7 +184559,11 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // guarded: the UI smoke's THREE stub builds lines/pts without materials
     if (lines.material) lines.material.depthTest = !overlay;
     if (pts.material) pts.material.depthTest = !overlay;
-    lines.renderOrder = 998; pts.renderOrder = 999;
+    // G2750 (the user: "the overlay does not draw on top of the runway"): an OPAQUE material sorts in the opaque list
+    // whatever its renderOrder, and the pavement, the clouds' composite and the glass are TRANSPARENT and drawn after
+    // the whole of it - with the depth test off the lines write no depth, so the runway painted straight over them.
+    // Both materials are transparent from birth (no program change here), and the x-ray rides above the glass's band
+    lines.renderOrder = overlay ? AERO_CLEAR + 998 : 998; pts.renderOrder = overlay ? AERO_CLEAR + 999 : 999;
     if (proxy) proxy.mesh.visible = !showSkin;   // the visible skin casts the shadow instead
     // ...unless the CAGE BUILD is what is standing there (G65), in which case
     // none of the model's meshes are on screen at all. applyStand has the last
@@ -184716,14 +185374,14 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     bPos = new Float32Array(nb * 6); bCol = new Float32Array(nb * 6);
     bGeo.setAttribute('position', new THREE.BufferAttribute(bPos, 3));
     bGeo.setAttribute('color', new THREE.BufferAttribute(bCol, 3));
-    lines = new THREE.LineSegments(bGeo, new THREE.LineBasicMaterial({ vertexColors: true }));
+    lines = new THREE.LineSegments(bGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true }));   // G2750: see applySkinVis
     lines.frustumCulled = false;
     craft.add(lines);
     pGeo = new THREE.BufferGeometry();
     pPos = new Float32Array(sim.n * 3);
     pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
     pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xc8d8ea,
-      size: 0.06 }));
+      size: 0.06, transparent: true }));
     pts.frustumCulled = false;
     craft.add(pts);
     buildShadowProxy();
@@ -188428,6 +189086,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // the cage build comes back up if the editor has ever booted (G65), and
     // the roll-out button re-reads the certificate
     showCage = !!window.CAGE_UI && curKey === 'gen';
+    // G2750 (the user: "Overlay persists in the garage. I don't think it should."): the frame/overlay is a FLIGHT view;
+    // the shed starts covered (the roll-out shot and the bench's live test show the model with showCage off)
+    skinMode = 0;
     applySkinVis();     // hides the mesh under the cage build
     syncGoLabel();
     // THE PLAQUE goes up whenever the aeroplane comes home — including
@@ -188774,7 +189435,11 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   function tripExport() {
     if (!window.CAGE_UI || !window.CAGE_JOIN || !window.GARAGE_SPEC) return null;
     parkedFlush();
-    try { const spec = window.CAGE_JOIN.export(); return { spec, key: specKey(spec), flown: null }; }
+    // G2750 (the user: "I changed the registration, and the far baked model does not reflect that"): the export carries the
+    // finish but not meta, and the registration lives in meta.reg (finishToSpec strips it from the decals) - a new reg
+    // left every key equal, the snapshot, the bake and the spec were skipped, and the far fold kept the old letters
+    try { const spec = window.CAGE_JOIN.export(), m = (window.GARAGE_SPEC.get() || {}).meta, reg = (m && m.reg) || '';
+      return { spec, key: specKey(spec) + '|reg' + reg, flown: null }; }
     catch (e) { console.error('build export:', e); return null; }
   }
   // the key: the design as CANONICAL JSON (keys sorted, numbers to 10 significant digits) - the same aeroplane put back
@@ -189023,7 +189688,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   function craftInWorld(fn) {
     if (!inGarage || !WF) return fn();
     if (!craftAway++) { craftHome = craft.parent; if (craft.parent !== scene) scene.add(craft);
-      craftGrpVis = model && model.grp ? [model.grp, model.grp.visible] : null; if (craftGrpVis) { model.grp.visible = true; if (!craftGrpVis[1] && !window.FLYDIY_POSE_NOCATCHUP) poseModel(true); } }   // (G2111: posed, shown)
+      craftGrpVis = model && model.grp ? [model.grp, model.grp.visible] : null; if (craftGrpVis) { model.grp.visible = true; restBake(); if (!craftGrpVis[1] && !window.FLYDIY_POSE_NOCATCHUP) poseModel(true); } }   // (G2111: posed, shown; G2750: the rest place, under the screen)
     let once = false;
     const back = () => { if (once) return; once = true;
       if (--craftAway !== 0) return;
@@ -189150,7 +189815,11 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // to PREM_WEAR.step, so it re-bakes per step of wear and never per flown second); its key carries the step
     { id: 'bake', part: 'craft', label: 'baking your aeroplane', w: 8, key: () => { const k = buildKey(), q = wearStep(); return (k && q) ? k + '|wear' + q : k; }, deps: ['snapshot'],
       when: () => !!(window.FLOWN_BAKE && typeof window.FLOWN_BAKE.step === 'function'),
-      fn: () => window.FLOWN_BAKE.step({ payload: window.CAGE_VISUAL, spec: wornSpec(tripSync ? (tripSync.flown || tripSync.spec) : genSpec),
+      // G2750: the spec the SNAPSHOT would have flown, always - a trip whose snapshot was skipped (the same build, the
+      // wear moved a step) handed the bake the bare export, which has no meta: the atlas painted the fallback letters
+      // (F-PGAR) and its key could not tell one registration from another - the user's "I changed the registration,
+      // and the far baked model does not reflect that"
+      fn: () => window.FLOWN_BAKE.step({ payload: window.CAGE_VISUAL, spec: wornSpec(tripSync ? (tripSync.flown || (window.GARAGE_SPEC.preview ? window.GARAGE_SPEC.preview(tripSync.spec) : tripSync.spec)) : genSpec),
         phase: (l, f) => BOOT.phase('bake', l || 'baking your aeroplane', f),
         rebuild: () => { if (curKey === 'gen' && model && model.data === window.CAGE_VISUAL) setAircraft('gen'); } })
         .catch(e => console.warn('flown bake:', e && e.message || e)) },
@@ -189548,8 +190217,10 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     if (!Number.isFinite(az)) az = -2.5;  if (!Number.isFinite(azT)) azT = az;
     if (!Number.isFinite(el)) el = 0.22;  if (!Number.isFinite(elT)) elT = el;
     if (!Number.isFinite(dist)) dist = 14; if (!Number.isFinite(distT)) distT = dist;
-    // G200: who flies is remembered; the hand starts from the reset ctl
-    manual = !!INP && prefGet('flydiy.flManual', '0') === '1';
+    // G200: the hand starts from the reset ctl. G3120: every flight starts on the
+    // autopilot (the user, 12 Oct); the hand is one toggle away, never remembered.
+    // Only a rig boots in the hand (rollout_perf's afloat / latency legs)
+    manual = !!INP && prefGet('flydiy.flManualRig', '0') === '1';
     if (INP) INP.seed(sim.ctl);
     // G208: THE ADVISED TRIM. The bench's certificate can carry the trim the
     // test pilot held on the cruise leg, and the builder can accept it as the
