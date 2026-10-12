@@ -85157,3 +85157,33 @@ user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's
   - freight strapped on the flown aircraft;
   - the club works;
   - night ops.
+
+## WATERFRONT G3030-G3039 — PAUSED (12 Oct 2026, credit mode until Saturday)
+
+Branch `claude/waterfront-g3030` (worktree keen-shamir-b4b4f1), pushed. Design: `futureDesigns/WATERFRONT-2026-10-12.md`.
+The user said GO for G3032-G3039 (00:50): moles to an 8 m crest; waterline foam off behind a pill; the wet band is
+visual only; boats = CC-BY near / procedural far.
+
+- **Proven (ran 12 Oct ~01:00):** the prototype breakwater + float dock, GATE WATERFRONT rows 1-5, 30/30 green.
+- **Written but NEVER RUN (A0's hold, then the pause):**
+  - `src/core/27w_waterfront.js` (in MANIFEST.core): the law, the ground as a stack of abs grade lines, the
+    footprint, pierSites.
+  - The generator's revetment and log boom.
+  - `src/viewer/waterfront.js`.
+  - `tools/waterfront_patch.py`.
+  - GATE WATERFRONT rows 6-10.
+- **Resume, in order:**
+  1. In a booked window: `node --check` on every new file; `run_gates.js --only=WATERFRONT,PREMISES --no-build`
+     (the core part must change nothing).
+  2. Rebase onto master after SCENERY-ED-2's trains, including SCENERY-SHIP's rev26 fixture.
+  3. Wire it in (G3032 compose / G3036 editor / G3033 render), using the hunks listed in the note §2.
+  4. `waterfront_patch.py --dry` on the shipped fixture, then the patch, the re-cook and GATE PREMISES 21d in a CPU
+     window.
+  5. One TIMED GPU light pass at Metlakatla (G3039).
+- **Agreed with SCENERY-ED-2:**
+  - contract **v1.42**, no record bump;
+  - ids `f<n>`;
+  - the mound as grade lines;
+  - `waterfront` added to `groundLayer` and to `scenery_ship.js`'s layer list;
+  - BIOME-PAINT's waterline fields on the slip boats.
+- **Open:** chip [LOCAL] BOATS-LOD (the CC-BY boats' LODs, a dedicated asset-prep session) is the user's to start.
