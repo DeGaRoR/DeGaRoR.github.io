@@ -113,7 +113,7 @@ function simHostProbe(world, pts, t, H, opts) {
 }
 // the core names the worker's Blob picks out of the imported bundle
 const SIM_HOST_CORE = ['ISLAND_GEN', 'makeWorld', 'buildGen', 'makeSim', 'makePilot', 'PILOT_STYLES',
-                       'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup',
+                       'navMake', 'NAV_FIXES', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup',
                        'stripSurface', 'stripGear'];
 const SIM_HOST_DT = 1 / 60;
 const SIM_HOST_CATCH = 4;          // steps owed per turn at most (G586's frame owed 4)
@@ -380,7 +380,7 @@ function makeSimHost(CORE, init, keptWorld) {
       const p = CORE.makePilot(sim, def, world, { style: ST_[kind] ? kind : 'normal', profile: PK.profile || undefined, shakedown: () => sd });
       if (PK.nav !== false && typeof CORE.navMake === 'function') {
         // one nav for the page's life (app.js flNav, made once, kept across flights): one per world here (G815)
-        if (!world.__simNav) world.__simNav = CORE.navMake({ waypoints: world.aerodromes });
+        if (!world.__simNav) world.__simNav = CORE.navMake({ waypoints: world.aerodromes.concat(CORE.NAV_FIXES || []) });   // the page's own list (parity)
         H.nav = world.__simNav;
         p.setNav(H.nav);
       }

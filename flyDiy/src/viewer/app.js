@@ -4975,7 +4975,7 @@
     // G2290 (PILOTS) over G2085 (PILOT-PERSONA): personaProfile() answers the career first (the hired pilot; 'me' the expert)
     const p = makePilot(sim, def, world, { style: PILOT_STYLES[pilotChoice] ? pilotChoice : 'normal', profile: personaProfile(),
                                            shakedown: () => { try { return shakeOf(); } catch (e) { return null; } } });
-    if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes }); p.setNav(flNav); }
+    if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes.concat(typeof NAV_FIXES !== 'undefined' ? NAV_FIXES : []) }); p.setNav(flNav); }
     return p;
   };
   if ($('selPilot')) $('selPilot').onchange = e => {
