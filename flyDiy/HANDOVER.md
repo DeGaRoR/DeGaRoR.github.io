@@ -86609,3 +86609,23 @@ west creeks): no water, no trench, the ground smooth to the DEM. The lakes and t
 (the same 206); a lake mouth where a river used to enter is plain shore now. Fewer cedars along the old creeks.
 No stream sound away from the lakes and the sea. Boot: the world composes ~0.1-0.3 s sooner (x3 threads).
 `?hydro=blend` brings the rivers back for a comparison.
+
+## A0 2026-10-12 - TRAIN 44 LANDED: THE AUTOPILOT + NO PROCEDURAL RIVERS + THE CAR SPIKE
+
+- **Cargo:**
+  - pilot-44 7ad7e1ee: PROFILE, ROUTE-DRAW, ALTIPORT-ARRIVAL, CESSNA-VREF, ALTIPORT-TAXI, PILOT-44-REDS;
+  - RIVERS-OFF 8a36380af: island hydro 'map', the lakes identical, no river reaches; the island + map re-cooked;
+  - GROUND-VEHICLE 914774a16: node-only spike, src/vehicle + GATE VEHICLE, not in the page.
+  - Stacked on master 48 (5df684f01); the gate table and HANDOVER unioned; the premises, fleet and parked cooks re-run on the merged tree.
+- **PAGE: 4.03 MiB gz** (route_draw + 44_vprofile + 38c_route).
+  - GATE MEDIA WIRE_BUDGET_MIB 4.0 -> 4.05, ACCEPTED BY NAME by the user 12 Oct ~12:00.
+  - Owed back by ROUTE-LAZY G3070.
+- **Gates PASS:** PILOT battery 9/9 on 7ad7e1ee (PILOT's run); RIVERS-OFF's 26; on the merged tree TAXICLEAR LINEUP VEHICLE UISMOKE MAPBAKE MEDIA BUILD PREMISES SCENERYED PREMCOOK WATER HYDRO (and ALTIPORT PROFILE ROUTE on the 09:35 stacked tree).
+- **Light strict gate vs train 48:** loop / render equal (cub chase 16.0, metal 16.6, metal cockpit 16.8; render 11.2-12.1); loads equal.
+  - The chase 'flight' rows read ~+4 s (cub 49.8 s, metal 46.5 s). Expected: the take-off now runs level in ground effect before it climbs (PILOT's 'what to watch for'). Re-read at Tue 00:00's baseline.
+- **What to watch for:**
+  - take-offs run level in ground effect, then climb (they look lower at the runway end);
+  - the altiport climb-hold (the metal Cessna may refuse with a tailwind and divert HOME);
+  - the Tamgas Hill held-speed short field;
+  - FLY > drawn route + the map's draw mode;
+  - no procedural rivers, the lakes unchanged, the island's hydro boot ~0.15 s faster.
