@@ -55,7 +55,7 @@ const MEANS = `(() => { const lin = v => { const c = v / 255; return c <= 0.0404
     return n ? { r: r / n, g: g / n, b: b / n, y: (0.2126 * r + 0.7152 * g + 0.0722 * b) / n, cover: n / (A.length / 4) } : null; };
   return JSON.stringify({ imps: mean(window.__CM.imps), cards: mean(window.__CM.cards) }); })()`;
 const MODE = m => `(() => { const SC = TREE_FILL.stands(); const fillMat = [];
-  WORLD.scene.traverse(o => { if (o.isInstancedMesh && o.userData && o.userData.fill && o.geometry && o.geometry.type === 'PlaneGeometry') fillMat.push(o.material); });
+  WORLD.scene.traverse(o => { if (o.isInstancedMesh && o.userData && o.userData.fill && o.geometry && o.geometry.attributes && o.geometry.attributes.aLayer) fillMat.push(o.material); });   // the fill's merged impostor meshes (impMerged: a BufferGeometry with a per-instance layer - not a PlaneGeometry: the census of 13 Oct 01:40 found none that way)
   const fillOn = ${m === 'imps'}, cardsOn = ${m === 'cards'};
   for (const mt of new Set(fillMat)) mt.visible = fillOn;
   SC.root.visible = cardsOn; if (cardsOn) SC.set({ standIn: false, near: 0 });
