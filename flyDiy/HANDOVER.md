@@ -87162,3 +87162,212 @@ departure replayed from it, --chain for a tour's own chained state, --winddir / 
 7. ISLAND-TOUR-2 and its merges (ISLAND-TOUR's turn pads, JOIN-PARITY, TOUR-REAL) ride this branch: land it after them,
    or take them with it. GATE JOINPARITY's capture (2026-10-06) predates train 38's load chain - re-capture (node
    tools/join_parity_page.js) is A0's.
+
+## G2540 - TORQUE-BUNDLE-45: ENGINE-TORQUE + JODEL-PITCH + PERSONA-2 + HAND-CONTROLS + EAST-POINT-DEPART ON PILOT-44, THE STUDENT AT 0.35 s (2026-10-12 10:12-12:40 UTC, cloud, node; branch claude/pilot-45 off origin/claude/pilot-44 7ad7e1ee, for the PILOT COORDINATOR)
+
+**VERDICT: NOT GREEN - six gates red (TAKEOFF, TAXICLEAR, PROFILE, ALTIPORT, TOUR, DMGCERTCOST), every one named below with its cause and an owner; the coordinator decides
+(fix, hold a cargo out, or accept by name). The persona sweep and the Deform floats rule are clean.**
+
+IN PLAIN WORDS: train 45's pilot cargo is assembled on train 44's pilot tree. The propeller now pushes and twists the
+aeroplane, and the pilot holds it straight (ENGINE-TORQUE). The Jodel no longer porpoises on a north-south leg
+(JODEL-PITCH). Every person flies the stabilised approach and goes round when it is not stable; the seaplane flares on
+power (PERSONA-2). Every control the sim models is on the hand (HAND-CONTROLS). East Point is left from its very end, and
+an aeroplane that cannot stop on it does not go there (EAST-POINT-DEPART). The student pilot keeps train 41b's 0.35 s
+reaction. Nobody crashes: 68 persona flights, all completed.
+
+**BASE**: origin/master did NOT carry train 44 at 10:12 UTC (master = game train 47, 31803829; neither 7ad7e1ee nor
+dc8c2ce8 in it), so the base is origin/claude/pilot-44 7ad7e1ee. Master is NOT merged in - merge it when T44 lands
+(the coordinator's re-gate).
+
+### WHAT CAME FROM WHERE (each one's OWN net change, never a re-merge of the old ROUTE-DRAW ce02d766)
+| commit | cargo | net change taken | conflicts |
+|---|---|---|---|
+| 3fcb58c8 (amended) | G2510 PILOT-STUDENT-T41 dc8c2ce8 | `git show dc8c2ce8` (43_pilot: student reaction 0.45 -> 0.35) | HANDOVER only (the patch's context dragged in a DMG-D4b addendum: dropped, not ours) |
+| a0aeeeee | ENGINE-TORQUE G2080 cb7f0eef | `git diff 751e1122 53238eab` (pilot-integration's merge of it onto train 38) | none |
+| (next) | JODEL-PITCH G2470 10c1bf6e | `git diff 9546d2ee 10c1bf6e` | none. NOTE: PHYSICS_V 5 -> **6** (not 5): JODEL-PITCH bumps it again |
+| (next) | HAND-CONTROLS G2480 8554df05 | `git diff 9546d2ee 8554df05` | none |
+| be4aa0a5 | PERSONA-2 G2460 21aeecd5 | `git diff 5cc6856e 21aeecd5` (over its PILOT-PERSONA probe - PILOT-PERSONA itself is train 40's) | 43_pilot x4, node exports (below) |
+| 3255b1db | EAST-POINT-DEPART G2450 f13358bb | `git diff 57aeaf39 f13358bb` (over its own merges of PILOT-PROFILE WIP + ISLAND-TOUR-2) | 43_pilot x5, .gitignore (below) |
+| e5d18604 | G2540 | GATE FLOATS' landing flown wings level; GATE TAXICLEAR 11c: East Point refused -> 02/20 (below) | - |
+| (last) | G2540 | this entry | - |
+HANDOVER sections: each cargo's own entry appended verbatim (G2080, G2470, G2480, G2460, G2450, G2510).
+
+### EVERY OVERLAP, RESOLVED (and why)
+1. **The student's reaction** (G2510 0.35 s vs PERSONA-2's line written at 0.45 s): 0.35 s kept, PERSONA-2's new
+   `decisionK: 0.5` added to it. PERSONA-2 was measured at 0.45 s - re-measured here with pilot_persona (below): the
+   student completes every flight on all four aeroplanes x 4 seeds.
+2. **The go-around** (PILOT-PROFILE's held-tail resets vs PERSONA-2's budget): both - the resets, then
+   `ap.budget = max(budget, t + 400)`.
+3. **The short final's speed** (CESSNA-VREF G2500's raised reference `tVAdapt` vs PERSONA-2's PILOT_STAB): G2500's
+   line kept, PILOT_STAB's block after it. ONE CHANGE OF MINE: PILOT_STAB's speed band (vLo / vHi and their words) is
+   judged against `iasF + tVAdapt`, the reference G2500 raised on purpose - against the bare `iasF`, a metal Cessna
+   whose elevator cannot hold Vref (G2500's whole finding) would be called 'fast' and sent round by the stabilised
+   approach exactly where G2500 decided to land it. tVAdapt is 0 for every other aeroplane: no change there.
+4. **The flare** (ALTIPORT-ARRIVAL G2520's arming guard vs PERSONA-2's flThr0 / flWI / tolerated): G2520's guard
+   (`flareArm`), then inside `if (flareArm)` PERSONA-2's three additions.
+5. **The climb hold before a final** (G2450's own block vs G2520's port of it): **ONE implementation - G2520's
+   `flyClimbHold`.** G2520 already ported G2450's 'a final is not begun from below it' and generalised it: the orbit
+   through the fix, on the side whose ground is lower, the same hold the flare guard uses when it finds the wheels
+   under the strip, and a re-plan from there. G2450's own block (a climbing turn where the aeroplane happens to be)
+   was the earlier, narrower form of the same rule - dropped, and `planFromHere` keeps G2520's comment. ALTIPORT and
+   CESSNAVREF (G2520 / G2500's gates) and GATE TOUR 6 (G2450's) all fly through this one hold.
+6. **'Declined'** (G2450's departure decline vs G2530's L.declined): **ONE implementation per event, both kept,
+   because they are two different moments:**
+   - BEFORE GOING (G2450, 43 `shortOfRun`): the To's strip is shorter than the sheet's landing run (LDGrun) - the
+     pilot says 'strip-too-short ... not going there' and stays (outcome 'declined'; setDest refuses it the same way).
+     _tour_lib: fault 'declined', the leg ends where it stands.
+   - ON THE FINAL (G2500 `judgeHeld`, G2530's L.declined): the speed the elevator holds, the wind and the slope make
+     the stop longer than the room - 'strip-too-short ... not landing there', a go-around and a diversion. _tour_lib
+     L.declined: the tour goes on from the strip diverted to (GATE TOUR 5's C172 at Skyline Altiport).
+   They share the verdict code 'strip-too-short' on purpose (the player hears one reason); neither is a copy of the
+   other (the sheet's still-air run vs the flown, held speed on that strip's grade and wind).
+7. **The terrain escape on the climb-out** (PILOT-PROFILE's CROSSWIND leg vs G2450's late window): merged - the
+   escape opens on the enroute leg OR the circuit's crosswind (G2125), before 150 s OR when the next 1.5 km is
+   steeper than the aeroplane climbs OR an escape opened late is still open (G2450). Both comments kept.
+8. **departFrom's resets**: both sides' (G2520's flareGuard / flareGuardN, G2450's pivSpot / pivSpotT / toWaitT).
+9. **Node exports**: + PILOT_STAB. **.gitignore**: + `flyDiy/tools/.ep_*` (G2450); `.joincache/` was already there.
+10. **TOUR's ORDERS.land** now includes nv_strip (G2450): HOME,w3,tw_ski,mn_strip,nv_strip,w2,HOME (the Cub's tour).
+
+### THE TWO GATE RIGS (G2540, e5d18604) - NO BOUND MOVED
+**GATE TAXICLEAR 11c**
+The battery's first run (helper B, 3255b1db) read TAXICLEAR red on 11c: 'the Jodel / the metal Cessna from the
+altiport apron after the slope roll-on: airborne - NOT airborne at 150 s, STOPPED'. Not a turn-around fault: 11c's
+flight goes from the altiport apron TO EAST POINT, and with G2450 the Jodel (LDGrun 183 m) and the metal Cessna
+(249 m) refuse East Point's 150 m before they move - as G2450 means them to. The bound is not touched: the refusal
+is now HELD (a new check: 'East Point refused before going, the reason said' - the 'not going there' reason, no ROLL)
+and the turn-around off the same apron is flown to the island order's next strip, 02/20 (w2), with every original
+11c check (airborne, touched nothing, the wing 1.5 m off every footprint). The Cub still flies to East Point.
+Re-run (this box, 4 shards): the altiport rows green - 'the Jodel declines East Point (strip-too-short: East Point
+Clearing has 150 m of strip for a 183 m landing run (and a 205 m take-off) - not going there) - flown to 02/20'.
+
+**GATE FLOATS' landing** (the ultralight fixture on floats, a scripted approach: elevator trimmed by bisection, quarter
+throttle). The bundle read 'FAIL no frame adds more than 1.336 W (bound 0.35)' (the touch at 1.40 m/s); the base
+7ad7e1ee reads 0.072 W at 0.54 m/s. Bisected on the bundle with PAR.propFx (00_registry): all four effects off 0.069 W
+PASS; only the REACTION TORQUE off 0.07 W PASS; gyro / P-factor / swirl off each still FAIL (1.82 / ~1.4 / 1.3 W). The
+approach was flown HANDS-OFF ON THE ROLL - the torque banks it and it lands on one float. The rig now holds the wings
+level with the aileron as a pilot does (the servos' rollP / rollD shape: da = -1.5 phi - 0.4 p, capped 0.3) on the
+trim and the approach: **touch 0.53 m/s, largest one-frame rise 0.068 W, peak 0.994 W, |da| <= 0.035 - the base's
+numbers; GATE FLOATS PASS**, every bound as it was. (The sign was measured: the other sign rolls it in, 5.3 m/s.)
+If the coordinator reads this rig change as a loosening, revert e5d18604's _floats_check.js hunk and FLOATS is
+ENGINE-TORQUE's named red (owner: G2080).
+
+### EVERY GATE'S VERDICT ON THE FINAL TREE
+(node, `node tools/build.js` then `node --max-old-space-size=2048 tools/run_gates.js --no-build --jobs=4 --only=...`;
+the battery split over this box and three cloud helpers on the same commit 3255b1db + this commit's TAXICLEAR change,
+the base pilot-44 7ad7e1ee measured beside it where a row was red)
+| gate | verdict | where / notes |
+|---|---|---|
+| PILOT | PASS (3 shards) | helper B |
+| PILOTMATRIX | **PASS** - 'no cell worse than pilot_baseline.json; 3 known bad, 2 warn' | this box |
+| TAKEOFF | **FAIL** - twinf lifts off at 1.64 Vs (bound 1.6); base 7ad7e1ee **1.53 Vs** PASS | helper B / base here |
+| LINEUP | PASS | B |
+| TAXICLEAR | **FAIL (2 rows)** - the mill: '9 aluminium C172 wing kept 1.5 m off every footprint (-0.01 m, house3, LIFTOFF t 83 s)'; '11c the metal Cessna from Jumbo Mine's street ... (-0.01 m, house4, CLIMB t 97 s)'. The altiport 11c rows green after the G2540 rig (above) | this box, 4 shards (shards 1 / 3 PASS) |
+| PILOTACT | PASS - taxi rudder c172 18.9, metal Cessna 19.2 of 20 (THIN, G2080's named margin) | B |
+| PLAN | PASS | C |
+| NAV | PASS | C |
+| ROUTE | PASS (3) | B |
+| PROFILE | **FAIL (2)** - '2 jodel: a planned profile on the enroute leg - none' / '... the terrain ... null m' | this box |
+| ALTIPORT | **FAIL (2)**, shard 2 of 4 - '3 the doctored arrival (tw_ski's record 250 m low), the Jodel: ... the guard caught it (calibration) (FINAL at 550.7 m MSL (the strip 680..709 m); no flare-guard said)' and '... no flare armed under the strip or over 25 m above it (-642.9 m over the strip 5340.6 m out at 786.7 s)'; shards 0, 1, 3 PASS | helper A |
+| CESSNAVREF | PASS (2) - the approach trim 0.270 over its 0.18 budget, printed, not judged | B |
+| TOUR | **FAIL** - shard 0: '5 the user's Cub nv_strip > w2: stopped at its To with no fault (ground-loop: the nose 30.2 deg off the landing roll on w2 at 11.6 m/s)', '5 the user's Cub: the tour is complete (5 of 6 legs)'; shards 1, 3 PASS; **shard 2 NO RESULT** (ETIMEDOUT at the 3600 s cap); the C172 at Skyline Altiport DECLINED as G2530 means it ('strip-too-short ... 288 m, 247 m are left ... -> HOME') | helper A |
+| RWYTREES | PASS (core + full, 43 rows) | this box |
+| SOAR | PASS | C |
+| HOTHIGH | PASS (+ HH-GEN) | C |
+| INPUT | PASS | C |
+| PLAYER | PASS | C |
+| UISMOKE / UISMOKE-PHONE | PASS / PASS | C |
+| SIMWORKER | PASS | C |
+| SEAPLANE | PASS | B |
+| ENGTORQUE | PASS | C |
+| HEADING | PASS | C |
+| GEN | PASS (4) | C |
+| JOIN | PASS | C |
+| RPM | PASS | C |
+| FLOATS | **PASS after the G2540 rig** (0.068 W; before: FAIL 1.336 W; base 0.072 W) | this box |
+| WIPLINE | PASS | C |
+| STRIPSURF | PASS | C |
+| DESTTO | PASS (3) | this box |
+| DMGCERTCOST | **FAIL (1)** - 'Jodel: 1793 frames stepped (budget 1792; the uncut certificate 2765)' - PHYSICS_V 6's reference, A0 writes it | C |
+| DMGFLOATTO / DMGHULL / DMGPLOUGH | PASS / FAIL (2) / FAIL (2) - HULL / PLOUGH red identically on the base (the hull law is in neither tree) | Deform's tools, base vs bundle (below) |
+Helpers B / C / A ran 3255b1db (before the two rigs); the rigs touch only _floats_check.js and _taxiclear_check.js
+(no core file): every other verdict stands for e5d18604 / this commit. The base battery helper (all gates on 7ad7e1ee)
+had not reported at 12:40.
+
+### THE PERSONA SWEEP (tools/pilot_persona.js --seeds 1935,1,2,3 --jobs 4; 3255b1db; 49 min)
+`PILOT PERSONA: SAFE, 14 out of band` - 68 flights (Cub, Jodel, C172, C172 floats x the expert once + club / student /
+bush / ham-fist x 4 seeds), calm: **all 68 completed, no crash, no divergence**, the worst sink 1.64 m/s (C172 floats
+ham-fist s1), never more than one go-around. FINDINGS: none.
+| aeroplane | profile | sink m/s | GA (1935/1/2/3) | out of band (~) |
+|---|---|---|---|---|
+| Cub | expert / club / student / bush / hamfist | 0.65 / 0.41-0.56 / 0.52-0.59 / 0.68-0.69 / 0.45-0.71 | 0 | - |
+| Jodel | expert / club / student / bush / hamfist | 1.03 / 0.97-1.08 / 0.99-1.07 / 0.92-0.99 / 0.68-1.24 | student 1/1/0/1, hamfist 0/1/0/1 | club lifts 2, bush lifts 2 (all seeds), student lifts 3 (s1935) |
+| C172 | all five | 1.11-1.46 | 0 | - |
+| C172 floats | expert / club / student / bush / hamfist | 0.88 / 0.81-0.84 / 0.81-1.02 / 0.83-0.85 / 0.40-1.64 | student 1/0/0/0, hamfist 0/1/1/0 | club aboveRms 4.9 (s1935); student xtRms 41-51 (band 20, all seeds) |
+The two tolerated unstable finals (PILOT_STAB '+T', a late decider landing one the expert would fly again) are the
+Jodel ham-fist's, s1 'sinking 2.4 m/s at 13 m (2.6 s)', s2 'sinking 2.4 m/s at 47 m (2.2 s)'. The box saw the student
+swing 64.4 deg and the ham-fist 52.3 deg with torque before PERSONA-2 - none here.
+NOT SWEPT: the Wipline as a fifth aeroplane - pilot_persona's 'C172 floats' IS the Wipline 2350 fixture (its header);
+the twin on floats is not a pilot_persona aeroplane (GATE TAKEOFF / SEAPLANE / FLOATTO fly it).
+
+### THE DEFORM FLOATS RULE (DMGFLOATTO, DMGHULL, DMGPLOUGH)
+These gates are NOT in this tree's runner (nor master's): they live on the Deform branches. Their tools taken from
+origin/claude/dmg-recal2 35eb4495 (untracked, not committed), run on the base 7ad7e1ee and the bundle 3255b1db:
+- **DMGFLOATTO: FAIL (2) on the base -> PASS on the bundle** - the twin's nose-over (lowest pitch -83.2 deg, the
+  take-offs at 2.5 / 4 / 4.5 / 5 m/s NOSE-OVER) gone: -11.9 deg, every take-off completes (ENGINE-TORQUE's swirl
+  and JODEL-PITCH's honest couple); the Cessna floats' worst swing / lane 11.9 deg / 5.9 m -> 4.2 / 2.4.
+- **DMGHULL: FAIL (2) -> FAIL (2), DMGPLOUGH: FAIL (2) -> FAIL (2)**, the same two rows on both trees: 'child
+  law:twin' / 'law:cessna' throw `out.terms.side` undefined (_dmghull_check.js:192) - the DMG-HULL G1847 / DMG-PLOUGH
+  hull law is in NEITHER tree (never landed). Every flown row: no worse; the twin's 4.5 m/s sweep NOSE-OVER (pitch
+  -88 / keel -67.2 deg) on the base is ok on the bundle (-7.2 / -4.4 deg). No regression.
+
+### THE MOVED NUMBERS (every one named)
+- 43_pilot PILOT_PROFILES.student: reaction 0.45 -> 0.35 s (G2510), + decisionK 0.5 (PERSONA-2).
+- 60_gen_spec PHYSICS_V 4 -> 6 (ENGINE-TORQUE 5, JODEL-PITCH 6): every stored certificate re-makes on load;
+  **DMGCERTCOST's stored reference recomputes on it - its budget row reads the Jodel 1793 frames against 1792 (the
+  uncut 2765). NOT written here: A0's `--write-ref` at the train.**
+- 39b_servos (ENGINE-TORQUE): betaI 0.6, drTrimMax 0.20, steerI / steerIMax, taxiRudTau 0.25 s; (G2450) the ground
+  steer's integral under power only (thr > 0.3), bled off in 1 s at idle.
+- 30_solver: the prop's reaction torque, gyroscopic couple, P-factor, swirl (ENGINE-TORQUE); the Munk couple's arm
+  along the body (JODEL-PITCH: GATE ROUTE's Jodel 0.61 -> 0.049 m/s with torque, per its entry).
+- 62_gen_aero params.prop.I (ENGINE-TORQUE).
+- 43_pilot PILOT_STAB (PERSONA-2: FSF ALAR 7.1 scaled - gate, dwell, -5 / +10 kt, sink, slope, centreline) and the
+  hand / flare / water changes listed in G2460's entry; East Point's go / no-go (0.85 x sheet TORun, tailwind only).
+- _tour_lib ORDERS.land + nv_strip.
+- GATE FLOATS' landing: the aileron's wings-level hold (da = -1.5 phi - 0.4 p, |da| <= 0.3; used 0.035).
+
+### KNOWN REDS (by name, with an owner)
+Bisected on this box (tools/pilot_trace runTrace, the Jodel HOME -> Jumbo Mine, the trip GATE PROFILE 2 flies):
+base 7ad7e1ee takes off (LIFTOFF 15 s, ENROUTE 75 s); a0aeeeee (ENGINE-TORQUE alone on the base) REJECTS ('will not
+reach Vr: 0.16 m/s^2 needs 502 m more, 715 m left'); JODEL-PITCH / PERSONA-2 / EAST-POINT-DEPART on top: the same.
+PAR.propFx all four off: still rejects (0.22 m/s^2) - not the physics. a0aeeeee with 7ad7e1ee's 39b_servos.js: takes
+off; with 7ad7e1ee's 43_pilot.js: rejects. On the final tree, one knob at a time: **steerI 0 -> takes off (LIFTOFF
+17.1 s, ENROUTE 78.7 s)**; betaI 0, taxiRudTau 0: still reject. **THE CAUSE: G2080's ground rudder trim (steerI 1.0,
+steerIMax 0.25), on pilot-44's take-off (PILOT-PROFILE G2125's climb on speed was not in ENGINE-TORQUE's base).**
+
+1. **PROFILE 2 jodel** (no enroute plan: the Jodel rejects its take-off at HOME) - cause steerI (above). OWNER:
+   ENGINE-TORQUE G2080 x PILOT-PROFILE G2125. PROPOSED (not done, no time to re-gate PILOTACT / TAXICLEAR which G2080 tuned
+   on steerI): the ground trim on the tail-wheel's roll only below the tail-up speed, or steerIMax scaled by the rudder's
+   authority; re-gate PROFILE, PILOTACT, TAXICLEAR, TAKEOFF, TOUR, ALTIPORT.
+2. **ALTIPORT shard 2, the doctored Jodel arrival** (calibration: the guard not reached - the Jodel went round twice,
+   diverted to w3 and ran off it). NOT bisected - first suspect the same Jodel / steerI interaction (its take-off and
+   roll-outs). OWNER: ALTIPORT-ARRIVAL G2520 with G2080.
+3. **TOUR 5, the Cub's East Point > 02/20 leg ground-loops on the landing roll (30.2 deg at 11.6 m/s)** - a leg new to
+   ORDERS.land (G2450). G2450's own branch had fixed a 02/20 roll-out loop by bleeding the steer integral at idle
+   (in this tree); this one is on the landing roll with the bundle's PERSONA-2 / G2520 pilot. NOT bisected. OWNER:
+   EAST-POINT-DEPART G2450 with G2080 (steerI again the first suspect). **TOUR shard 2: no result** (the 3600 s cap) -
+   re-run on the box.
+4. **TAKEOFF twinf 1.64 Vs (bound 1.6; base 1.53)** - JODEL-PITCH's own named red (its entry: the base's margin was the
+   fictitious couple; no stick, pull or throttle reaches it honestly). OWNER: FLOATS-XWIND (G2080's chantier) / A0 on
+   the bound. The bound stays.
+5. **TAXICLEAR 9 / 11c the mill (-0.01 m to house3 / house4, bound 1.5)** - JODEL-PITCH's own named red (the metal
+   Cessna's rotation swings 2.9 deg right as the nosewheel unloads; ENGINE-TORQUE's note 3.13 -> 1.85 THIN). OWNER:
+   ENGINE-TORQUE G2080 (the trike's rotation steer). The bound stays.
+6. **DMGCERTCOST** - PHYSICS_V 6 re-makes the certificates; the Jodel steps 1793 frames against the 1792 budget.
+   NOT written here: A0's `--write-ref` / budget at the train.
+NOT RED, NOT ALL RUN: the strict perf gate / FRAMECOST / the parked cook (the build id moved - A0's re-cook).
+
+### NOT DONE / OWED
+- Master is not merged (T44 had not landed at 10:12 UTC): the coordinator merges origin/master when it carries 7ad7e1ee.
+- The game on the box (GPU): East Point's departure in the page, the hand controls on the phone and desktop, the
+  torque's feel - the coordinator's fly-through.
+- DMGHULL / DMGPLOUGH can only be judged once the Deform hull law lands (Deform's).
