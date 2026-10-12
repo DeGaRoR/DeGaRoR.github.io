@@ -117,7 +117,7 @@ console.log('GATE RWYTREES - the trees by the runways (' + (FULL ? 'core + full'
 {
   const cl = O0.rwyClearances(), by = k => cl.filter(c => c.kind === k).map(c => c.id).sort();
   // (G3014: the user's rev 26 shipped strips 10 and 11 (w5, w6): two more strip boxes, 6 -> 8)
-  check(by('fan').length === 9 && by('box').length === 8 && by('shoulder').join() === 'y_sh02_0,y_sh02_1,y_sh13_0,y_sh13_1',
+  check(by('fan').length === 9 && by('box').length === 9 && by('shoulder').join() === 'y_sh02_0,y_sh02_1,y_sh13_0,y_sh13_1',
     '1 Jolene\'s runway clearances are named', 'fans ' + by('fan').join(' ') + ' | boxes ' + by('box').length + ' | shoulders ' + by('shoulder').join(' '));
   for (const v of VARIANTS) {
     const O = worlds[v].premises.overlay, off = O.rwyClearances().filter(c => c.off), kinds = [...new Set(off.map(c => c.kind))].sort().join('+') || 'none';

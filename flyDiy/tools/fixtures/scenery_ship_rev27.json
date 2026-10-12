@@ -1,0 +1,38 @@
+{
+ "what": "the user's rev 27 scenery shipped into island_jolene.json (rev 26 by tools/scenery_ship.js + .py, rev 27's delta folded byte-keeping - w7, r37, r38, r31, the pavement); GATE SCENERYED 15 holds it",
+ "save": "scenery_user_jolene_rev27.json",
+ "source": "D:/Dev/flydiy-notes/inbox/jolene_rev27_2026-10-12_1547.json (\"Jolene AFB (12).json\", 15:47)",
+ "sha256": "6b758997c40fc13af0c315827b16d55d7a60118a2b23438b0a25448be000e306",
+ "except": [
+  "w1",
+  "w4"
+ ],
+ "remove": [
+  "r_village",
+  "v_shore_e",
+  "v_west",
+  "v_north"
+ ],
+ "record": [
+  "pavement"
+ ],
+ "trim": {
+  "r25": "w5"
+ },
+ "answers": "the user, 11 Oct ~23:55 (relayed by A0): the 4 village roads go (-53 houses accepted); the runway shoulders y_sh13_0/1, y_sh02_0/1 and the fan x_fan02_0 stay (untested); the pavement settings ship; r25 stops at strip 10 (w5); 12 Oct 03:05: 'all new editions can be considered default' - rev 26 (strip 11 w6 ships, flat like w5); 12 Oct 15:47 rev 27: w7 'strip 12' (1020 m dirt, the North East strip) + its roads r37 / r38, r31 joined to r37 (j1), the pavement's look - shipped (A0: w7 joins CONTRACT_FIELDS like w5 / w6, no own clear)",
+ "clearDefault": [
+  "w5",
+  "w6",
+  "w7"
+ ],
+ "clearDefaultWhy": "A0 + the user's default 12 Oct: the new strips keep trees off as every Jolene strip does (today's box) - their own clear (side 0, beyond 0) left 10 collidable trees inside the aerodrome box (GATE RWYTREES 4/9); dropped from the shipped w5 / w6 after the ship (tools/scenery_ship.js does not apply it: a re-ship must drop it again); w7 (rev 27, the user's 'North East strip') the same - its own clear was side 4, beyond 0, taper -0.5",
+ "plotMoves": {
+  "SEA": {
+   "SEA": [
+    747.0,
+    -2851.0
+   ]
+  }
+ },
+ "plotMovesWhy": "the user 12 Oct (via A0): keep the cannery s2; the career base plot SEA moved 13.5 m west (760.5 -> 747.0), the smallest move that keeps its largest shell 3 m off the cannery (GATE TAXICLEAR 12); applied after the ship - a re-ship must apply it again"
+}
