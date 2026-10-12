@@ -931,6 +931,17 @@ function genWingInto(def, out) {
         fixRows.push(fixSec(z, hOf(zs2[i+1])));
       }
     }
+    // G2820: THE DROOPED TIP - the bow's rows bend DOWN, by `droop` tip
+    // chords at the very tip, on a square law from where the bow starts
+    // (the straight wing and every surface end inboard of it, untouched)
+    if (TIP.droop > 0 && W.tipR > 1e-6) {
+      const cT = PP.chordAt(W.tipZ);
+      for (const row of fixRows) {
+        if (!(row.z0 > W.tipZ + 1e-6)) continue;
+        const u = Math.min(1, (row.z0 - W.tipZ) / W.tipR), dy = TIP.droop * cT * u * u;
+        for (const pt of row) pt.p = [pt.p[0], pt.p[1] - dy, pt.p[2]];
+      }
+    }
     if (TIP.fin > 0) {
       // G468: A BLENDED WINGLET (playtest item 41). The old winglet was the
       // last bow row copied straight up by 0.42 c - a band. This is the
@@ -996,7 +1007,10 @@ function genWingInto(def, out) {
       // radian on an aileron and 0.70 on a flap — 57 degrees of stick, which
       // no hinge and no horn could survive and which the cove is now sized
       // against.
-      ['ail',  'ail' + sd + GSFX,  'da', -1, genTravel('aileron'), null, 0],
+      // G2820: DROOPING AILERONS answer the flap lever too, trailing edge
+      // down as the flap goes, `droop` of a plain flap's travel
+      ['ail',  'ail' + sd + GSFX,  'da', -1, genTravel('aileron'),
+       W.stol && W.stol.droop > 0 ? 'flap' : null, W.stol && W.stol.droop > 0 ? -side : 0],
       ['flap', 'flap' + sd + GSFX, 'flap', -side,
        genTravel('flap', CTL.flap && CTL.flap.type), null, 0],
     ]) {
@@ -1061,10 +1075,146 @@ function genWingInto(def, out) {
       CTRL_MESH.push({ group: gname, mesh: M, pivot: B(hp(zm)),
         axis: genV3.norm(genV3.sub(B(pB), B(pA))),
         drive, sgn: sgnA, k: kA, drive2, sgn2, slide,
+        ...(drive2 === 'flap' ? { k2: W.stol.droop * genTravel('flap', 'plain') } : {}),
         line: [B(pA), B(pB)], aft: dirB(chM), up: dirB(nrM),
         r: (HG.ok ? HG.r : 0) * fm.chord,
         chord: (1 - hf) * fm.chord, side,
         infl: frameAt(zm).wF });
+    }
+    // ---- G2820: THE STOL DEVICES, drawn where the strips fly them -------
+    // Into the plane's own skin (they are painted with it, flex with it and
+    // need no new group anywhere downstream); every point a blend of the
+    // spar nodes its station hangs on, exactly as the loft's. Nothing here
+    // runs on a wing without them: the emission is the bytes it was.
+    const ST = W.stol || null;
+    if (ST || TIP.plate) {
+      const E = genAfEval(W.naca);
+      const zIn = PP.zRoot + 0.04, zOut = zStraight - 0.03;
+      // rows over [z0, z1] at the loft's own stations plus the two ends
+      const rowsZ = (z0, z1) => [z0].concat(zs2.filter(z => z > z0 + 0.02 && z < z1 - 0.02), [z1]);
+      // the local frame at z: LE->TE unit, the section's up, the chord
+      const fr3 = z => {
+        const f = frameAt(z), ch = genV3.norm(genV3.sub(f.pR, f.pF));
+        let up = genV3.norm(genV3.cross(ch, [0, 0, 1])); if (up[1] < 0) up = genV3.mul(up, -1);
+        return { f, ch, up, at: (xc, yc) => genV3.add(genV3.add(f.pF, genV3.mul(ch, (xc - sparF) * f.chord)), genV3.mul(up, yc * f.chord)),
+                 infl: xc => { const k = kOf(xc), o = [];
+                   for (const [i2, w2] of f.wF) if (w2 > 1e-6) o.push([i2, (1 - k) * w2]);
+                   for (const [i2, w2] of f.wR) if (w2 > 1e-6) o.push([i2, k * w2]);
+                   return o; } };
+      };
+      // a closed crescent section over the nose: the aerofoil's own contour
+      // from upper x=a round the leading edge to lower x=b (OUTER), then the
+      // same contour pulled in toward (0.10, camber) by `k` (INNER), then
+      // rotated by `rot` about the upper end and moved by (dx, dy)
+      const crescent = (a, b, k, rot, dx, dy, droop) => {
+        const n = 10, out = [];
+        for (let i = 0; i <= n; i++) out.push(E.up(a * (1 - 0.5 * (1 - Math.cos(Math.PI * i / n)))));
+        for (let i = 1; i <= n; i++) out.push(E.lo(b * 0.5 * (1 - Math.cos(Math.PI * i / n))));
+        // a droop fades to nothing at both ends (upper x=a, lower x=b), so
+        // the glove blends into the skin it is bonded to
+        if (droop) out.forEach((q, i) => { const e = i <= n ? a : b, u = Math.max(0, 1 - q[0] / e); q[1] -= droop * u * u; });
+        const c0 = [0.10, E.up(0.10)[1] * 0.5 + E.lo(0.10)[1] * 0.5];
+        const inn = out.slice().reverse().map(q => [c0[0] + k * (q[0] - c0[0]), c0[1] + k * (q[1] - c0[1])]);
+        const piv = out[0], cr = Math.cos(rot), sr = Math.sin(rot);
+        return out.concat(inn).map(([x, y]) => {
+          const ux = x - piv[0], uy = y - piv[1];
+          return [piv[0] + cr * ux - sr * uy + dx, piv[1] + sr * ux + cr * uy + dy];
+        });
+      };
+      const loftPts = (zz, pts) => {
+        const rows = zz.map(z => { const F = fr3(z);
+          const row = pts.map(([xc, yc]) => ({ p: F.at(xc, yc), infl: F.infl(xc), u: Math.max(0, Math.min(1, xc)) }));
+          row.z0 = z; return row; });
+        const ids = emitLoft(rows, skin, r => spanV(zz[r]), flip, true);
+        capLoft([ids[0], ids[ids.length - 1]], skin, flip);
+      };
+      // THE SLAT. A fixed slot stands off the nose, rotated nose-down with a
+      // visible gap (the Storch / the 701); an automatic slat lies NESTED on
+      // the nose at cruise, its seam the only tell (it runs out in flight -
+      // the drawing shows it home; see HANDOVER G2820)
+      if (ST && ST.slat) {
+        const z0 = Math.max(zIn, (1 - ST.slatSpan) * semiK), z1 = zOut;
+        if (z1 > z0 + 0.1) loftPts(rowsZ(z0, z1), ST.slat === 'slot'
+          ? crescent(0.15, 0.03, 0.80, 0.42, -0.072, 0.004, 0)
+          : crescent(0.12, 0.02, 0.82, 0, -0.010, 0.004, 0));
+      }
+      // THE CUFF: a drooped glove over the outboard nose, its outer contour
+      // the aerofoil's own pulled down toward the leading edge
+      if (ST && ST.cuff) {
+        const z0 = Math.max(zIn, (1 - ST.cuffSpan) * semiK), z1 = zOut;
+        if (z1 > z0 + 0.1) loftPts(rowsZ(z0, z1), crescent(0.22, 0.10, 0.94, 0, -0.012, 0, 0.035));
+      }
+      // VORTEX GENERATORS: one row of small vanes on the upper skin, toed
+      // alternately +-16 deg, every 0.11 m from the root to the tip's start
+      if (ST && ST.vg) {
+        const xV = ST.slat === 'slot' ? 0.16 : 0.12, LV = 0.030, HV = 0.016, TOE = 16 * Math.PI / 180;
+        let i = 0;
+        for (let z = zIn + 0.05; z < zOut - 0.02; z += 0.11, i++) {
+          const F = fr3(z), c = F.f.chord, xa = xV, xb = xV + LV / c;
+          const A = F.at(...E.up(xa)), Cb = F.at(...E.up(xb)), inf = F.infl(xV);
+          const tz = (i % 2 ? 1 : -1) * Math.tan(TOE) * LV * 0.5;
+          const a0 = [A[0], A[1], A[2] - tz], c0 = [Cb[0], Cb[1], Cb[2] + tz];
+          const cT = genV3.add(c0, genV3.mul(F.up, HV));
+          for (const off of [-0.0008, 0.0008]) {
+            const v = q => skin.v(B([q[0], q[1], q[2] + off]), 0.5, genUVPanel(spanV(z)), inf);
+            const ia = v(a0), ic = v(c0), it = v(cT);
+            if ((off > 0) !== flip) skin.tri(ia, ic, it); else skin.tri(ia, it, ic);
+          }
+        }
+      }
+      // FENCES: a chordwise plate over the upper skin at each fence station,
+      // h tall at the nose easing to a third of it at 75 % chord, wrapped
+      // a little round the leading edge
+      if (ST && ST.fences) {
+        const CTk = CTL;
+        for (const zf of genStolFences(ST, semiK, PP.zRoot, aStart, CTk.aileron.span)) {
+          if (zf < zIn || zf > zOut) continue;
+          const F = fr3(zf), H = (GEN_STOL.fence.h || 0.12), n = 12, inf = F.infl(0.3);
+          const xs = []; for (let i = 0; i <= n; i++) xs.push(0.75 * (1 - Math.cos(Math.PI * i / n)) / 2);
+          for (const off of [-0.0015, 0.0015]) {
+            const lo = [], hi = [];
+            const lw = E.lo(0.03), lwP = F.at(lw[0], lw[1]);
+            for (const x of xs) {
+              const u = E.up(Math.max(0.0005, x)), base = F.at(u[0], u[1]);
+              const h = H * F.f.chord * (1 - 0.66 * x / 0.75);
+              lo.push(skin.v(B([base[0], base[1], base[2] + off]), x, genUVPanel(spanV(zf)), inf));
+              const top = genV3.add(base, genV3.mul(F.up, h));
+              hi.push(skin.v(B([top[0], top[1], top[2] + off]), x, genUVPanel(spanV(zf)), inf));
+            }
+            // the wrap: from the lower skin forward of the nose up to the plate's front
+            const w0 = skin.v(B([lwP[0] - 0.02 * F.ch[0] * F.f.chord, lwP[1], lwP[2] + off]), 0, genUVPanel(spanV(zf)), inf);
+            const fw = (off > 0) !== flip;
+            if (fw) skin.tri(w0, lo[0], hi[0]); else skin.tri(w0, hi[0], lo[0]);
+            for (let i = 0; i < n; i++)
+              if (fw) skin.quad(lo[i], lo[i + 1], hi[i + 1], hi[i]); else skin.quad(lo[i], hi[i], hi[i + 1], lo[i + 1]);
+          }
+        }
+      }
+      // THE ENDPLATE: a flat plate at the tip, `plate` tip chords tall
+      // (55 % above / 45 % below the chord line) and long (from 5 % ahead of
+      // the nose), its front corners rounded; both faces and a rim
+      if (TIP.plate) {
+        const F = fr3(zStraight), [hP, lP] = TIP.plate, x0 = -0.05, x1 = x0 + lP;
+        const yTop = 0.55 * hP, yBot = -0.45 * hP, R = 0.18;
+        const ring = [];
+        const arc = (cx, cy, a0, a1) => { for (let i = 0; i <= 5; i++) { const a = a0 + (a1 - a0) * i / 5; ring.push([cx + R * Math.cos(a), cy + R * Math.sin(a)]); } };
+        ring.push([x1, yBot]); ring.push([x1, yTop]);
+        arc(x0 + R, yTop - R, Math.PI / 2, Math.PI);
+        arc(x0 + R, yBot + R, Math.PI, 1.5 * Math.PI);
+        const cx = 0.5 * (x0 + x1), cy = 0.5 * (yTop + yBot), T2 = 0.004;
+        const face = dz => {
+          const cI = skin.v(B(genV3.add(F.at(cx, cy), [0, 0, side * dz])), 0.5, genUVPanel(1), F.infl(cx));
+          const ids = ring.map(([x, y]) => skin.v(B(genV3.add(F.at(x, y), [0, 0, side * dz])), Math.max(0, Math.min(1, x)), genUVPanel(1), F.infl(x)));
+          return { cI, ids };
+        };
+        const oF = face(0.010 + T2), iF = face(0.010 - T2), nR = ring.length;
+        for (let i = 0; i < nR; i++) {
+          const j = (i + 1) % nR;
+          if (flip) { skin.tri(oF.cI, oF.ids[j], oF.ids[i]); skin.tri(iF.cI, iF.ids[i], iF.ids[j]); }
+          else { skin.tri(oF.cI, oF.ids[i], oF.ids[j]); skin.tri(iF.cI, iF.ids[j], iF.ids[i]); }
+          if (flip) skin.quad(oF.ids[i], oF.ids[j], iF.ids[j], iF.ids[i]); else skin.quad(oF.ids[i], iF.ids[i], iF.ids[j], oF.ids[j]);
+        }
+      }
     }
   }
   // ---- centre section: the wing carries through above the cabin ----------
@@ -1245,7 +1395,8 @@ function genWing(def) {
                   drive: c.drive, sgn: c.sgn, k: c.k, slide: c.slide || null,
                   line: c.line || null, aft: c.aft || null, up: c.up || null,
                   r: c.r || 0, chord: c.chord || 0, side: c.side || 1,
-                  drive2: c.drive2 || null, sgn2: c.sgn2 || 0 });
+                  drive2: c.drive2 || null, sgn2: c.sgn2 || 0,
+                  ...(c.k2 ? { k2: c.k2 } : {}) });          // G2820: the drooping aileron's travel
   }
   return {
     v: 5, generated: true, wingOnly: true,

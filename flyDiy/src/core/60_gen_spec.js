@@ -2259,7 +2259,131 @@ const GEN_TIPS = {
   // top. `bow` 0 because the blend IS the tip; `fin` is the height in tip
   // chords (0.42 was the old band's).
   winglet: { name: 'Winglet',    e: 1.07, bow: 0,    arc: 0, fin: 0.75 },
+  // G2820 (STOL-WING, the user 2026-10-10: "the large flat surfaces at the
+  // wingtips"). APPENDED, never inserted: the cage saves a tip as an INDEX
+  // into Object.keys(GEN_TIPS), so every saved build keeps its meaning.
+  // ENDPLATE: a flat plate standing above and below the full-chord tip.
+  // Hoerner's end-plate law (e/e0 ~ 1 + 1.9 h/b) at a STOL plate's height
+  // (~0.55 c over a 6-8 AR wing) gives ~+12 %; a flat plate is a poorer
+  // vortex fence than a cambered winglet and its own wetted area is paid as
+  // drag (`plate`: its height and length in tip chords, 62_gen_aero prices
+  // both faces at Cf 0.006). e 1.05 is the honest middle.
+  // DROOPED: the bush tip (Hoerner's drooped tip, the Super Cub / Maule
+  // fibreglass tips) - the last bow rows bent down `droop` tip chords, which
+  // keeps the tip vortex outboard of the span as a Hoerner tip does; e as
+  // the Hoerner row and a hair more, no drag of its own.
+  endplate:{ name: 'Endplate',   e: 1.05, bow: 0,    arc: 0, fin: 0, plate: [0.55, 1.10] },
+  drooped: { name: 'Drooped',    e: 1.03, bow: 0.30, arc: 5, fin: 0, droop: 0.14 },
 };
+
+// ===========================================================================
+// THE STOL WING (G2820) - LEADING-EDGE AND SPANWISE HIGH-LIFT DEVICES
+// ===========================================================================
+// The user (2026-10-10): "it's a bush flying game, and there were plans for
+// STOL wing features back in the day". The flap model (GEN_FLAPS) is a
+// camber + drag + stall-margin delta per strip; what it never had is the
+// OTHER half of a STOL wing - the devices that do not add camber but let the
+// section fly to a HIGHER ANGLE before it lets go: the slat and the slot,
+// vortex generators, the cuff. They are modelled as what they physically
+// are, an increment of the STALL ANGLE (`dAs`, rad: the lift curve runs on
+// past the clean stall, so dCLmax = a3d x dAs on the strip and nothing below
+// the stall moves), plus their profile drag (`cd`, on the strip's own
+// coefficient). A cuff also droops the nose, which is a little camber (dCl).
+//
+// Every device is a SPEC OPTION, OFF BY DEFAULT, on `wings[k].stol` - absent
+// (or null) is off, and an aeroplane without it flies the bits it flew
+// before (GATE STOL's section 1). Numbers, all per section, ~ +-30 %:
+//   slot  the fixed leading-edge slot / fixed slat (Storch, Zenith CH 701,
+//         Savannah): Abbott & von Doenhoff fig. 105 / Hoerner Fluid-Dynamic
+//         Lift 3-15 give ~+8 deg of stall and dCLmax 0.5-0.7; it is ALWAYS
+//         open, so its gap drag is paid at cruise (the 701 cruises ~15 %
+//         under a clean wing on the same power: dCd0 ~0.006).
+//   auto  the Handley Page automatic slat (Helio Courier, Me 108, Do 27):
+//         nested at cruise (a seam's drag), it runs out on its tracks when
+//         the suction peak pulls it - modelled as deploying over the last
+//         `open` rad before the clean stall, ~+10 deg once out, and the gap
+//         drag only while out.
+//   vg    vortex generators (Micro AeroDynamics kits on Cubs, 172s, the
+//         Savannah VG): +2-4 deg and 3-5 mph of stall on the kit sheets,
+//         dCd0 under 0.001.
+//   cuff  a drooped leading-edge cuff (the Robertson / Horton STOL kits) on
+//         the outboard wing: the tip stalls ~4 deg later than the root, so
+//         the aileron still answers in the stall - `dAs` on the cuffed
+//         strips only, a little nose camber.
+//   fence chordwise fences on top of the wing: on a straight wing they stop
+//         the root's separation creeping outboard along the span, a small
+//         stall gain OUTBOARD of the fence; each fence pays its own wetted
+//         area (`h` x the chord, both faces, Cf 0.008).
+//   droop drooping ailerons (Kitfox, Robertson): the ailerons go down with
+//         the flap lever by `droop` of a plain flap's travel (0.35 = 14 deg),
+//         a plain-flap increment at the aileron's own chord, and they still
+//         deflect differentially about the drooped datum.
+//   grow  FOWLER AREA GROWTH: the Fowler's dCl 2.05 stood in for its camber
+//         AND the chord it adds (HANDOVER, session 2). With `grow` the flap
+//         flies the slotted row's camber (1.60) and the strip's own area and
+//         chord grow by slide x flap chord as it runs out - the same lift at
+//         the stall to a few per cent, more of it at every lower angle, the
+//         moment arm and the drag of the bigger wing.
+// The devices' increments ADD on a strip, capped at `dAsMax` (a slatted,
+// VG'd, cuffed wing does not stall at 45 deg - the slat's own wake bounds it).
+const GEN_SLATS = {
+  none: { name: 'None',           dAs: 0,    cd: 0 },
+  slot: { name: 'Fixed slot',     dAs: 0.14, cd: 0.0060 },
+  auto: { name: 'Automatic slat', dAs: 0.17, cd: 0.0006, cdOut: 0.0040, open: 0.10, band: 0.06 },
+};
+const GEN_STOL = {
+  vg:    { dAs: 0.05, cd: 0.0008 },
+  cuff:  { dAs: 0.07, dCl: 0.04, cd: 0.0006 },
+  fence: { dAs: 0.025, h: 0.12, cf: 0.008 },        // h: fence height in local chords
+  dAsMax: 0.22,
+  droopMax: 0.50,                                   // of a plain flap's travel
+  growCamber: 'slotted',                            // the Fowler's camber row under `grow`
+  // THE MACHINE SHOP (the GAME coordinator's): which purchasable pack each
+  // option would sit in. A FLAG, nothing more - no era, no calendar, no
+  // price; the editor greys an option whose pack the player does not own
+  // when (and only when) the page publishes an owned-pack list
+  // (window.MACHINE_SHOP_OWNS, see genStolLocked). Candidates, not rulings.
+  packs: { slat: 'stol-kit', vg: 'stol-kit', cuff: 'stol-kit', fences: 'stol-kit',
+           droop: 'stol-kit', grow: 'stol-kit', endplate: 'stol-kit', drooped: null },
+};
+// the option a pack gates, against a list of owned packs (null/undefined =
+// no machine shop in play: nothing is locked). Returns the pack's name when
+// locked, else null.
+function genStolLocked(opt, owned) {
+  const pk = GEN_STOL.packs[opt];
+  if (!pk || !Array.isArray(owned)) return null;
+  return owned.includes(pk) ? null : pk;
+}
+// THE EDITOR'S ROWS -> the record (the cage's wgSlat... rows; the join and
+// the wing layer both read it, so the drawn wing and the flown one cannot
+// disagree). A P without the rows says nothing (undefined); with them, the
+// record or null - STATED in both states (A3), so the garage's merge can
+// take a device back off.
+const GEN_STOL_ROWS = ['wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgCuffSpan', 'wgDroop', 'wgFowlerGrow'];
+function genStolCage(P) {
+  if (!P || !GEN_STOL_ROWS.some(k => P[k] != null)) return undefined;
+  return genStolOf({ slat: Object.keys(GEN_SLATS)[Math.round(+P.wgSlat || 0)] || 'none',
+                     slatSpan: P.wgSlatSpan, vg: P.wgVG, fences: P.wgFence,
+                     cuff: P.wgCuff, cuffSpan: P.wgCuffSpan,
+                     droop: P.wgDroop, grow: P.wgFowlerGrow });
+}
+// THE PLANE'S STOL RECORD, normalised: null when every device is off (the
+// key then leaves the spec - absent IS off, so an old file and a new file
+// that says "nothing" are the same file).
+function genStolOf(st) {
+  if (!st || typeof st !== 'object') return null;
+  const o = {};
+  if (GEN_SLATS[st.slat] && st.slat !== 'none') {
+    o.slat = st.slat;
+    o.slatSpan = genClamp(st.slatSpan == null ? 1 : +st.slatSpan, 0.30, 1);
+  }
+  if (+st.vg) o.vg = 1;
+  if (+st.fences) o.fences = genClamp(Math.round(+st.fences), 1, 2);
+  if (+st.cuff) { o.cuff = 1; o.cuffSpan = genClamp(st.cuffSpan == null ? 0.40 : +st.cuffSpan, 0.20, 0.60); }
+  if (+st.droop > 0) o.droop = genClamp(+st.droop, 0.05, GEN_STOL.droopMax);
+  if (+st.grow) o.grow = 1;
+  return Object.keys(o).length ? o : null;
+}
 
 // Design constants that are rules rather than choices. Each one reproduces a
 // measured value on the Cub (noted), which is why they are constants and not
@@ -3838,6 +3962,10 @@ function clampWing(w, S, k) {
   w.xLE = genFieldClamp('wings[].xLE', w.xLE);
   w.yRoot = genClampN(w.yRoot, -1.0, 3.0);                  // G266.1
   if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
+  // G2820: the STOL record - normalised, and GONE when nothing is on (null
+  // and absent are both "off", and neither may reach the resolved spec: a
+  // key there moves genCertKey's hash on an aeroplane that flies the same)
+  if ('stol' in w) { const st = genStolOf(w.stol); if (st) w.stol = st; else delete w.stol; }
   // CRANK: a second wing section, and only a second. `crankAt` is the break
   // station as a fraction of the semispan; 0 means a single straight panel.
   // This is the Jodel's wing — a flat centre section and sharply dihedralled

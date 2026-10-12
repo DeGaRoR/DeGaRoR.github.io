@@ -85157,3 +85157,107 @@ user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's
   - freight strapped on the flown aircraft;
   - the club works;
   - night ops.
+
+## G2820 STOL-WING - THE STOL WING: SLATS AND SLOTS, VGs, FENCES, CUFFS, ENDPLATES, DROOPED TIPS, DROOPING AILERONS, FOWLER AREA GROWTH (2026-10-12, STOL-WING for A0, cloud, node only; branch claude/stol-wing-g2820 off origin/master f353a0f8; G2821-G2829 unused)
+
+**READY.** The user (10 Oct): "it's a bush flying game, and there were plans for STOL wing features back in the day ...
+Could we resurrect that?" - slats ("the mini wing on the leading edge"), endplates ("the large flat surfaces at the
+wingtips"), fences / VGs ("the longitudinal ribs channelling air"). Nothing existed in src for slats (the session-2
+flap model said "no slat modeling, no Fowler area growth"); it does now. **Every option is OFF by default and every
+existing build flies, draws and certifies to the bit** (GATE STOL section 1: all 27 cards, the joined bake, against
+a fixture captured on the untouched master: def hash, 4 s of flight with flap/aileron/elevator inputs, the drawn
+wing).
+
+- **THE SPEC (60_gen_spec).** `wings[k].stol = { slat: 'slot'|'auto', slatSpan, vg, fences: 1|2, cuff, cuffSpan,
+  droop, grow }`, normalised by `genStolOf` in clampWing - ABSENT (or null, or all-off) IS OFF and the key leaves the
+  resolved spec, so genCertKey never sees it. Two tips APPENDED to GEN_TIPS (the cage saves a tip as an index):
+  `endplate` (e 1.05, a flat plate 0.55 x 1.10 tip chords, its wetted area priced) and `drooped` (the bush tip:
+  Hoerner's bow bent down 0.14 tip chords, e 1.03). Tables `GEN_SLATS` (none / slot / auto) and `GEN_STOL` (vg, cuff,
+  fence, the dAs cap, droop max, the machine-shop `packs`), each number commented with its source in the file.
+- **THE PHYSICS - a stall-angle device, not a camber delta.** A slat, a slot, VGs and a cuff raise the strip's STALL
+  ANGLE (`dAs`: the lift curve runs on past the clean stall, dCLmax = a3d x dAs; nothing below the stall moves) and pay
+  their profile drag; a cuff adds a little nose camber. Per strip, by coverage fraction (as the flap's), as optional
+  strip keys (`stol`, `dr`, `fg`) - a strip without them takes the old branch of the solver, byte for byte.
+  - fixed slot (Storch / 701 / Savannah): +8 deg, dCd 0.006 always (measured on the Savannah-alike: Vs x0.875,
+    cruise drag +9 %);
+  - automatic slat (Helio / Me 108): +10 deg once OUT - it deploys as a function of alpha over the last 0.10 rad
+    before the clean stall - a seam's 0.0006 at cruise (+1 % drag), its gap drag only while out (Vs x0.852);
+  - VGs: +3 deg, dCd 0.0008 (Vs x0.952 = 4 km/h on the Super Cub, the kit sheets' 3-5 mph);
+  - cuff (Robertson / Horton): outboard 40 %, +4 deg and a little camber - the tip stalls last, the aileron answers;
+  - fences: +1.4 deg outboard of the innermost fence (at the aileron's inboard end; the second midway in), each
+    fence's area priced (axial CdA, like the struts);
+  - drooping ailerons: on the FLAP LEVER (only with a flap), `droop` of a plain flap's travel (0.35 = 14 deg), a
+    plain-flap increment at the aileron chord + its moment; they still deflect about the drooped datum;
+  - Fowler area growth: the Fowler flies the slotted row's camber (1.60) and the flapped strips' area AND chord grow
+    by slide x flap chord as it runs out (the moment arm, Gamma and drag with it): the same CLmax within 2 % (the
+    2.05 stand-in was fitted to it), a steeper lift curve flaps-down.
+  - the devices add on a strip, capped at `GEN_STOL.dAsMax` 0.22 rad. The analytic CLmax / Vs (the AP's speed ladder)
+    includes them (area-weighted); genClMax's sweep runs to 35 deg on a STOL wing only (22 on every other).
+- **THE DRAWING (63_gen_wing, into the plane's own skin - painted, flexed and exported with it, no new group).** The
+  slot stands off the nose rotated nose-down with a visible gap; the auto slat lies nested on the nose (DRAWN HOME -
+  it does not run out in the viewer yet); the cuff is a drooped glove; one VG row (vanes every 0.11 m, toed +-16 deg)
+  on the upper skin; fences wrap the nose and run to 75 % chord at the strips' own stations (`genStolFences`, shared);
+  the endplate stands above and below the tip; the drooped tip's bow bends down; drooping ailerons publish
+  `drive2: 'flap'` (genWing's moving list AND the cage join's snapshot - the path the game flies), k2 = droop x the
+  plain flap's travel. Checked as section cuts / oblique projections rendered in node (no WebGL): the slot and
+  the cuff's sections, the drooped tip's front view, the endplate and the fence in 3/4.
+- **THE EDITOR.** Design flow (big tiles with drawn icons, EDITOR-UX-A G2760 owns the styling): `Leading edge`
+  (none / fixed slot / automatic slat), `Vortex generators`, `Wing fences` (0/1/2), `Leading-edge cuff`, `Drooping
+  ailerons`, `Fowler area growth`; the `Wing tips` row offers Endplate and Drooped. Cage panel: a 'STOL devices' group
+  (with the slat / cuff spans) on the wing panel, droop and growth beside the ailerons / flaps; the second plane does
+  not get them in the editor (W2_DROP) though the spec and the physics take them per plane. Boot card "The STOL wing".
+  Cage rows `wgSlat wgSlatSpan wgVG wgFence wgCuff wgCuffSpan wgDroop wgFowlerGrow` (defaults off, so a saved cage
+  without them is unchanged); `genStolCage(P)` turns them into the record for both the join and the wing layer. The
+  join STATES the record (null when off, A3) so the garage's merge can take a slat back off; bench.js
+  benchStripCosmetic and 76_procure procureFp drop a null `stol` so **no certificate is withdrawn**.
+- **THE MACHINE SHOP (the GAME coordinator's).** A flag, no era calendar: `GEN_STOL.packs` names each option's
+  candidate pack ('stol-kit' for all but the drooped tip); `genStolLocked(opt, owned)` returns the missing pack;
+  the design tiles grey (`inactive`, never write) when the page publishes `window.MACHINE_SHOP_OWNS` (an array) and
+  the pack is not in it. Nothing publishes it today: nothing is locked.
+
+**GATE STOL (new, core, ~75 s, `--selftest` in the row)**: 1 off is the bits (27 cards x def / flight / drawing;
+null, {} and all-zero are the absent key; both fingerprints; the merge takes a device back off); 2 the spec (the
+append rule, the clamps, the cage rows, the join's three states, the shop flag and the greyed tiles, every tile
+drawn); 3 the physics (each device in the tunnel, bands above); 4 the drawing (each device where its strips fly it);
+5 the bench (below); selftest breaks 4 of them. **RESULTS (12 Oct, cloud, one `--only=... --no-build` run on the
+built tree, 713 s wall): 26/26 PASS** - STOL 80 s, FLAPS, GEN (4 shards, 598 s), DEFAULT, HONEST, WEIGHT, DRAG, SKIN,
+UISMOKE, UISMOKE-PHONE, BOOT, BUILD, FIT, HINGE, CLIP, WINGSPLIT, CAGEFIT, JOIN, SPECFIX, ENGINE, STARTER, SAVE, BENCH,
+PARTS (red once mid-session: the second plane's generated twins of the new rows - fixed by W2_DROP), DESIGN, VIEW.
+ARCHETYPES / PILOTMATRIX (full tier) not run: every card's def and 4 s flight are the pre-G2820 bits (section 1), so
+their inputs did not move. The branch carries SOURCE only (the built files, the career chunk's hash and the parked
+cook are the train's).
+
+**THE BENCH against the makers' figures** (GATE STOL section 5, `node tools/_stol_check.js --bench` prints it; Vs =
+the measured stall at the sheet's weight, TO = genTORunAt's roll, LDG~ = Vtd^2/2a, a = 0.3 g, Vtd = 1.1 x the
+landing-configuration stall - an estimate of the bench's own):
+
+| aeroplane (devices) | Vs1 without / with / sheet | Vs0 | TO roll | LDG~ |
+|---|---|---|---|---|
+| Savannah-alike 600 kg (fixed slot) | 77 / **68** / 52 km/h | 66 / **59** / 45 | 163 / 164 / 60 m | 95 / **73** / 70 m |
+| Super Cub-alike 794 kg, O-320, slotted (VGs) | **75** / 71 / 76 | **67** / 63 / 69 | 110 / 108 / 61 | 90 / 80 / 107 |
+| Highlander-alike 599 kg, 912 (VGs + droop) | 65 / **61** / - | 57 / **52** / 45 | 102 / 98 / 30 | 51 / **42** / 46 |
+
+(bold = the configuration the sheet is for; the PA-18's POH predates VG kits.) The devices move every number toward
+the sheets; the Super Cub's stock stall is the POH's to 1 %. **Flown** (perf_study's fly(), the pilot's own circuit,
+HOME, calm): all six builds completed (Savannah stock / slot / auto / everything + endplate; Super Cub stock / VG +
+drooped tips), no stall, no crash; VAppr 28.7 -> 24.4 m/s with the slot.
+
+**What to watch for:**
+- **The take-off roll does not shorten, and neither does the flown landing roll** (Savannah 214 m lift-off run and
+  ~300 m landing roll with or without slats). That is not the wing: a taildragger's lift-off attitude is capped by
+  its three-point deck (genTuneAP), and at the deck the slatted wing gives the clean wing's CL - a slat only pays above
+  the clean stall angle. The pilot also caps pitch at thMax <= 0.26 rad (15 deg; max flown alpha 13-15 deg on every
+  build), lands on the perf study's gentle brake law, and the Savannah/Super Cub cards land FLAPLESS (the trim solver's
+  verdict, ruling owed since TAIL CHANTIER 2 P5). Those are the STOL TECHNIQUE chantier (the pilot: a tail-low,
+  high-alpha take-off and a slow, steep, braked landing; thMax off the measured stall; the flap take-off notch) - the
+  wing now has the lift for it. The taildraggers' +80..+240 % TO gap is the perf study's known #3.
+- The automatic slat is drawn HOME; it does not run out in the viewer (the solver deploys it with alpha; publishing
+  its deployment for the drawing is a small follow-up: sim.out + a moving group).
+- The devices weigh nothing (no ledger lines): a slatted wing is ~1 kg/m heavier in life.
+- The Fowler with growth flies a little LESS lift at mid alpha than the old stand-in and more at high alpha (steeper
+  curve, same CLmax) - a grown-Fowler build's approach trim moves a hair.
+- On a biplane whose flap record is plane 1, `grow` on plane 0 scales nothing (the record's camber is the record
+  plane's); the editor offers the devices on plane 0 only.
+- Sources in GEN_SLATS / GEN_STOL are textbook-class numbers (Abbott & von Doenhoff, Hoerner, the kit sheets), +-30 %;
+  the makers' sheets are generous (the perf study's Jodel / Chinook ruling) - the bench reports the gaps, it does not
+  fit to them.

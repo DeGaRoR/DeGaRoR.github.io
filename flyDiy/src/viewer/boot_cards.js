@@ -150,6 +150,8 @@
       x: 'Cover the fuselage, put spats on the wheels, fair the legs: the plaque’s best L/D shows what each one was worth.' },
     { k: 'garage', set: 'garage', t: 'Four kinds of flap',
       x: 'None, plain, slotted or Fowler. A plain flap does little; the Fowler slides aft and lifts the most. The bench check measures the stall with each.' },
+    { k: 'garage', set: 'garage', t: 'The STOL wing',
+      x: 'A slat or a slot on the leading edge lets the wing fly to a higher angle before it stalls; vortex generators and a cuff buy a little of the same. Fences and endplates sit on the wing too. Each one costs some cruise speed.' },
     { k: 'garage', set: 'garage', t: 'Save, and save again',
       x: 'The working build is kept on every change. Save, save as, new and load live on the name plate - drop a .json on it to import one.' },
     { k: 'garage', set: 'garage', t: 'Wheels or floats',

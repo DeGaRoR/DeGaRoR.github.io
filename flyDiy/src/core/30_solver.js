@@ -2275,11 +2275,43 @@ function makeSim(def, world) {
         const g16 = 16 * hb;
         sig = g16 * g16 / (1 + g16 * g16);
       }
-      const [Cl, Cd] = fl > 0
-        ? polar(al, P, sig, (FP.dCl0 || 0) * fl, (FP.dCd0 || 0) * fl, (FP.dAStall || 0) * fl)
-        : polar(al, P, sig);
+      let Cl, Cd;
+      if (st.stol === undefined && st.dr === undefined) {
+        [Cl, Cd] = fl > 0
+          ? polar(al, P, sig, (FP.dCl0 || 0) * fl, (FP.dCd0 || 0) * fl, (FP.dAStall || 0) * fl)
+          : polar(al, P, sig);
+      } else {
+        // G2820: THE STOL WING. A slat, a slot, VGs or a cuff move the
+        // STALL ANGLE (dAStall goes negative: the lift curve runs on past
+        // the clean stall) and pay their drag; a cuff adds a little nose
+        // camber. The fixed devices act at positive alpha only (a slot does
+        // nothing for an inverted stall); an automatic slat runs out over
+        // the last `so` rad before the clean stall (`sb` wide) and is only
+        // worth its gain - and its gap drag - once out. Drooped ailerons are
+        // a plain flap on the lever. A strip without these keys never
+        // reaches this branch.
+        let dCl = 0, dCd = 0, dAS = 0;
+        if (fl > 0) { dCl = (FP.dCl0 || 0) * fl; dCd = (FP.dCd0 || 0) * fl; dAS = (FP.dAStall || 0) * fl; }
+        const SR = st.stol;
+        if (SR) {
+          let g = al > 0 ? SR.dAs : 0;
+          dCl += SR.dCl; dCd += SR.cd;
+          if (SR.sa) {
+            const dp = Math.min(1, Math.max(0, (al - (P.aStall - SR.so)) / SR.sb));
+            g += dp * SR.sa; dCd += dp * SR.scd;
+          }
+          dAS -= Math.min(SR.mx, g);
+        }
+        if (st.dr && ctl.flap > 0) { dCl += st.dr.dCl * ctl.flap; dCd += st.dr.dCd * ctl.flap; }
+        [Cl, Cd] = polar(al, P, sig, dCl, dCd, dAS);
+      }
       // G461: the stab flies at the body's wake q (P_.tailEta, 1 on a fiche)
-      const q = 0.5 * rho * V2 * st.area * ((st.kind === 'stab' || st.kind === 'vtail') ? (P_.tailEta || 1) : 1), iv = 1 / Math.sqrt(V2);
+      let q = 0.5 * rho * V2 * st.area * ((st.kind === 'stab' || st.kind === 'vtail') ? (P_.tailEta || 1) : 1);
+      const iv = 1 / Math.sqrt(V2);
+      // G2820: Fowler area growth - the strip's area (and below its chord)
+      // grows with the run-out; `fg` exists only on a grown Fowler's strips
+      const cg = (fl > 0 && st.fg) ? 1 + st.fg * fl : 1;
+      if (cg !== 1) q *= cg;
       // G185.5: this strip's circulation for the NEXT pass — Kutta-Joukowski,
       // Gamma = Cl c V / 2 per unit span, signed so that (wind x bound) is
       // the lift direction: the bound runs A -> B (inboard -> outboard) and
@@ -2290,7 +2322,7 @@ function makeSim(def, world) {
         // ev x b, dotted with the normal: the lift of a + circulation A -> B
         const cx = (ry*bz - rz*by), cy = (rz*bx - rx*bz), cz = (rx*by - ry*bx);
         const sgn = (cx*sn[0] + cy*sn[1] + cz*sn[2]) >= 0 ? 1 : -1;
-        Gam[stripIdx] = 0.5 * Cl * st.chord / iv * sgn;
+        Gam[stripIdx] = cg !== 1 ? 0.5 * Cl * st.chord * cg / iv * sgn : 0.5 * Cl * st.chord / iv * sgn;
       }
       // drag along relative wind (in strip plane), lift perpendicular
       const dx=(u*sc[0]+w_*sn[0])*iv, dy=(u*sc[1]+w_*sn[1])*iv, dz=(u*sc[2]+w_*sn[2])*iv;
@@ -2310,8 +2342,12 @@ function makeSim(def, world) {
       // silently ignore the flap pitching moment (HANDOVER "watch Cm0")
       if (st.kind === 'wing') {
         // G185: the strip's own plane's Cm0 and spar spacing
-        const Fc = q * (P.Cm0 + (fl > 0 ? (FP.dCm0 || 0) * fl : 0))
-                     * st.chord / (st.sparSpacing || P_.sparSpacing), t = st.t;
+        let Fc = q * (P.Cm0 + (fl > 0 ? (FP.dCm0 || 0) * fl : 0))
+                     * st.chord / (st.sparSpacing || P_.sparSpacing);
+        const t = st.t;
+        // G2820: the drooped aileron's own moment, and a grown chord's arm
+        if (st.dr && ctl.flap > 0) Fc += q * st.dr.dCm * ctl.flap * st.chord / (st.sparSpacing || P_.sparSpacing);
+        if (cg !== 1) Fc *= cg;
         CW_I[0] = st.fIn; CW_W[0] = (1-t); CW_I[1] = st.fOut; CW_W[1] = t;
         CW_I[2] = st.rIn; CW_W[2] = -(1-t); CW_I[3] = st.rOut; CW_W[3] = -t;
         for (let q = 0; q < 4; q++) {

@@ -67,7 +67,11 @@ function genClMax(def, flap) {
   // negative, and the ATTITUDE the peak occurs at is now a return value.
   // Numerically inert for CLmax — -2 + 16*0.25 lands exactly on the old 2, so
   // the grid is identical and nothing below the stall can out-lift the peak.
-  for (let a = -2; a <= 22; a += 0.25) {
+  // G2820: a STOL wing (slats, VGs, a cuff) stalls past 22 deg - the sweep
+  // runs on to the devices' cap, on that wing only (every other wing's grid
+  // is the one it always had)
+  const aTop = def.strips.some(st => st.stol) ? 22 + Math.ceil(GEN_STOL.dAsMax * 180 / Math.PI) : 22;
+  for (let a = -2; a <= aTop; a += 0.25) {
     const al = a * Math.PI / 180;
     const r = sim.probe([-V * Math.cos(al), -V * Math.sin(al), 0]);
     const L = -r.Fx * Math.sin(al) + r.Fy * Math.cos(al);

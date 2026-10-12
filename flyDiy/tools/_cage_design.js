@@ -134,8 +134,43 @@ function iconTip(key) {
   pts.push([semi - bow, y0 + c], [4, y0 + c]);
   const paths = [{ d: poly(pts) }];
   if (t.fin) paths.push({ d: 'M' + P2(semi - 2, y0 + 2) + ' L' + P2(semi + 6, y0 - 8) });
+  // G2820: an ENDPLATE is the plate itself, standing proud of the chord at
+  // the tip; a DROOPED tip shows its front view under the plan, bending down
+  if (t.plate) paths.push({ d: poly([[semi, y0 - 4], [semi + 3, y0 - 4], [semi + 3, y0 + c + 2], [semi, y0 + c + 2]]) });
+  if (t.droop) paths.push({ d: 'M' + P2(4, 34) + ' L' + P2(40, 34) + ' Q' + P2(50, 34) + ' ' + P2(56, 39) });
   return { vb: '0 0 64 40', paths };
 }
+
+// G2820: THE STOL DEVICES' TILES - the leading-edge section (none / the
+// slat standing off the nose / the automatic slat nested on it), and plan-
+// view sketches of the spanwise devices. Drawn, like the flaps.
+function iconSlat(key) {
+  const wing = 'M12 18 Q26 8 46 14 L60 21 Q30 26 12 24 Z';
+  const p = [{ d: wing }];
+  if (key === 'slot') p.push({ d: 'M2 26 Q0 18 9 13 L12 15 Q5 19 6 25 Z' });
+  if (key === 'auto') p.push({ d: 'M8 23 Q6 16 16 12 L18 14 Q10 17 11 23 Z' });
+  return { vb: '0 0 64 40', paths: p };
+}
+function iconStol(kind, on) {
+  // a planform, the device drawn on it when on
+  const p = [{ d: poly([[4, 12], [58, 12], [58, 28], [4, 28]]) }];
+  if (!on) return { vb: '0 0 64 40', paths: p };
+  if (kind === 'vg') for (let x = 8; x <= 54; x += 5) p.push({ d: 'M' + P2(x, 15) + ' L' + P2(x + 2, 18) });
+  if (kind === 'fence') for (const x of (on >= 2 ? [26, 40] : [40])) p.push({ d: poly([[x, 9], [x + 1.5, 9], [x + 1.5, 24], [x, 24]]) });
+  if (kind === 'cuff') p.push({ d: poly([[36, 9], [58, 9], [58, 13], [36, 13]]) });
+  if (kind === 'droop') { p.push({ d: poly([[36, 24], [58, 24], [58, 28], [36, 28]]) }); p.push({ d: 'M' + P2(47, 30) + ' L' + P2(47, 38) + ' M' + P2(44, 35) + ' L' + P2(47, 38) + ' L' + P2(50, 35) }); }
+  if (kind === 'grow') { p.push({ d: poly([[8, 28], [30, 28], [30, 34], [8, 34]]) }); p.push({ d: 'M' + P2(19, 30) + ' L' + P2(19, 39) }); }
+  return { vb: '0 0 64 40', paths: p };
+}
+// G2820: an option the MACHINE SHOP gates (60_gen_spec GEN_STOL.packs): when
+// the page publishes the packs the player owns (window.MACHINE_SHOP_OWNS, an
+// array - the GAME coordinator's to wire), a device whose pack is missing
+// greys with its reason; with no list published nothing is locked
+const stolLock = opt => {
+  const owned = W.MACHINE_SHOP_OWNS;
+  const pk = (typeof genStolLocked === 'function' ? genStolLocked : W.genStolLocked || (() => null))(opt, owned);
+  return pk ? 'needs the ' + pk + ' pack from the machine shop' : undefined;
+};
 
 // FLAP — the classic trailing-edge cross-sections: none, hinged plain, the
 // slotted gap, the fowler sliding aft. Drawn, because the generator prices a
@@ -1074,10 +1109,12 @@ const DESIGN_ROWS = [
   { key: 'wgTip', label: 'Wing tips', kind: 'discriminator',
     group: 'wing', status: 'live',
     read: P => Math.round(P.wgTip),
+    // G2820: endplate and drooped APPENDED (the index is the saved value)
     options: () => ['square', 'clipped', 'rounded', 'elliptic', 'hoerner',
-                    'winglet'].map((k, i) => ({
+                    'winglet', 'endplate', 'drooped'].map((k, i) => ({
       value: i, label: ((gTips() || {})[k] || { name: k }).name,
-      icon: iconTip(k), writes: { cage: { wgTip: i } } })) },
+      icon: iconTip(k), writes: { cage: { wgTip: i } },
+      ...(stolLock(k) ? { inactive: stolLock(k) } : {}) })) },
 
   { key: 'wgFlapType', label: 'Flaps', kind: 'discriminator',
     group: 'wing', status: 'live',
@@ -1085,6 +1122,50 @@ const DESIGN_ROWS = [
     options: () => ['none', 'plain', 'slotted', 'fowler'].map((k, i) => ({
       value: i, label: ((gFlaps() || {})[k] || { name: k }).name,
       icon: iconFlap(k), writes: { cage: { wgFlapType: i } } })) },
+
+  // ---- G2820: THE STOL WING (60_gen_spec GEN_SLATS / GEN_STOL) ----------
+  // Every device off by default; each tile writes its one cage row. The
+  // shape panel's 'STOL devices' group carries the spans.
+  { key: 'wgSlat', label: 'Leading edge', kind: 'discriminator',
+    group: 'wing', status: 'live',
+    help: 'a slat lets the wing fly to a higher angle before it stalls',
+    read: P => Math.round(P.wgSlat || 0),
+    options: () => ['none', 'slot', 'auto'].map((k, i) => ({
+      value: i, label: (((typeof GEN_SLATS !== 'undefined' ? GEN_SLATS : W.GEN_SLATS) || {})[k] || { name: k }).name,
+      icon: iconSlat(k), writes: { cage: { wgSlat: i } },
+      ...(i && stolLock('slat') ? { inactive: stolLock('slat') } : {}) })) },
+  { key: 'wgVG', label: 'Vortex generators', kind: 'discriminator',
+    group: 'wing', status: 'live',
+    read: P => Math.round(P.wgVG || 0),
+    options: () => [['none', 0], ['VG row', 1]].map(([lb, v]) => ({
+      value: v, label: lb, icon: iconStol('vg', v), writes: { cage: { wgVG: v } },
+      ...(v && stolLock('vg') ? { inactive: stolLock('vg') } : {}) })) },
+  { key: 'wgFence', label: 'Wing fences', kind: 'discriminator',
+    group: 'wing', status: 'live',
+    read: P => Math.round(P.wgFence || 0),
+    options: () => [['none', 0], ['one a side', 1], ['two a side', 2]].map(([lb, v]) => ({
+      value: v, label: lb, icon: iconStol('fence', v), writes: { cage: { wgFence: v } },
+      ...(v && stolLock('fences') ? { inactive: stolLock('fences') } : {}) })) },
+  { key: 'wgCuff', label: 'Leading-edge cuff', kind: 'discriminator',
+    group: 'wing', status: 'live',
+    read: P => Math.round(P.wgCuff || 0),
+    options: () => [['none', 0], ['outboard cuff', 1]].map(([lb, v]) => ({
+      value: v, label: lb, icon: iconStol('cuff', v), writes: { cage: { wgCuff: v } },
+      ...(v && stolLock('cuff') ? { inactive: stolLock('cuff') } : {}) })) },
+  { key: 'wgDroop', label: 'Drooping ailerons', kind: 'discriminator',
+    group: 'wing', status: 'live',
+    help: 'the ailerons go down with the flap lever',
+    read: P => (+P.wgDroop > 0 ? 0.35 : 0),
+    options: () => [['no droop', 0], ['droop with flaps', 0.35]].map(([lb, v]) => ({
+      value: v, label: lb, icon: iconStol('droop', v), writes: { cage: { wgDroop: v } },
+      ...(v && stolLock('droop') ? { inactive: stolLock('droop') } : {}) })) },
+  { key: 'wgFowlerGrow', label: 'Fowler area growth', kind: 'discriminator',
+    group: 'wing', status: 'live',
+    help: 'a Fowler flap that adds its chord to the wing as it runs out',
+    read: P => Math.round(P.wgFowlerGrow || 0),
+    options: () => [['camber only', 0], ['area grows', 1]].map(([lb, v]) => ({
+      value: v, label: lb, icon: iconStol('grow', v), writes: { cage: { wgFowlerGrow: v } },
+      ...(v && stolLock('grow') ? { inactive: stolLock('grow') } : {}) })) },
 
   // ---- propulsion ---------------------------------------------------------
   { key: 'engFamily', label: 'Powertrain family', kind: 'discriminator',

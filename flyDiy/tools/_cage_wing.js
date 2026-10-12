@@ -54,6 +54,7 @@ if (typeof resolveSpec !== 'function' || typeof genFrame !== 'function' ||
 // the garage's @chordTip does.
 const TIP_KEYS = Object.keys(GEN_TIPS);
 const FLAP_KEYS = Object.keys(GEN_FLAPS);
+const SLAT_KEYS = Object.keys(GEN_SLATS);                 // G2820
 // G189: the lamp bay's edges as loft stations — the join's cageWingCuts,
 // the same arithmetic off the same declaration, so the drawn loft and the
 // flown loft have the same rows (see the join's note)
@@ -85,6 +86,11 @@ PAGE.defaults = Object.assign({
   // none); off writes an aileron span of 0 to the spec
   wgAilOn: 1, wgAilSpan: 0.38, wgAilChord: 0.22,
   wgCons: 0,
+  // G2820: THE STOL WING - every device off (60_gen_spec GEN_SLATS /
+  // GEN_STOL). wgSlat indexes Object.keys(GEN_SLATS); the spans are
+  // fractions of the semispan measured in from the tip.
+  wgSlat: 0, wgSlatSpan: 1.0, wgVG: 0, wgFence: 0, wgCuff: 0, wgCuffSpan: 0.40,
+  wgDroop: 0, wgFowlerGrow: 0,
   // G185: THE SECOND PLANE — the full key set of the first (port the full
   // surface: never a subset), its own position band, cabane height, nudge
   // and stagger (metres its leading edge sits AFT of the first plane's,
@@ -236,6 +242,21 @@ const WING_ITEMS = [
     ['wgAilOn', 'ailerons', 0, 1, 1],
     ['wgAilSpan', 'ail. span',   0.15, 0.55, 0.01, { when: P => +P.wgAilOn }],
     ['wgAilChord', 'ail. chord', 0.10, 0.35, 0.01, { when: P => +P.wgAilOn }],
+    // G2820: drooping ailerons ride the flap lever (only with a flap);
+    // Fowler area growth only means something on a Fowler
+    ['wgDroop', 'aileron droop', 0, 0.50, 0.05,
+     { when: P => +P.wgAilOn && FLAP_KEYS[Math.round(P.wgFlapType)] !== 'none' }],
+    ['wgFowlerGrow', 'Fowler area growth', 0, 1, 1,
+     { when: P => FLAP_KEYS[Math.round(P.wgFlapType)] === 'fowler' }],
+  ], 'open', on],
+  // G2820: THE STOL WING - the leading edge and the spanwise devices
+  ['STOL devices', [
+    ['wgSlat', 'leading edge', 0, SLAT_KEYS.length - 1, 1, SLAT_KEYS.map(k => GEN_SLATS[k].name)],
+    ['wgSlatSpan', 'slat span', 0.30, 1.00, 0.05, { when: P => Math.round(P.wgSlat) > 0 }],
+    ['wgVG', 'vortex generators', 0, 1, 1],
+    ['wgFence', 'wing fences', 0, 2, 1, ['none', 'one a side', 'two a side']],
+    ['wgCuff', 'LE cuff', 0, 1, 1],
+    ['wgCuffSpan', 'cuff span', 0.20, 0.60, 0.05, { when: P => +P.wgCuff }],
   ], 'open', on],
 ];
 // G185: THE SECOND PLANE'S ROWS, GENERATED from the first's — the same
@@ -248,7 +269,11 @@ const WING_ITEMS = [
 // `up / down` is the explicit row below, in the spec's own metres; the
 // generated twin was a second row of the same key that moved nothing)
 const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX',   // T2.3: the strut count is the fuselage fan's
-                         'wgDx', 'wgDy', 'wgParaH']);
+                         'wgDx', 'wgDy', 'wgParaH',
+                         // G2820: the STOL devices are the first plane's in the
+                         // editor (the spec and the physics take them per plane)
+                         'wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgCuffSpan',
+                         'wgDroop', 'wgFowlerGrow']);
 const w2Key = k => 'w2' + k.slice(2);
 const w2On = P => +P.wingOn && +P.w2On;
 // the first plane's `when`s read wg* keys; the second plane's rows answer
@@ -625,6 +650,8 @@ PAGE.post = ctx => {
       // G189: the lamp bay's two edges as loft stations, so the cut is the
       // width asked for (the same declaration the bay below resolves)
       cuts: wingCutsOf(P),
+      // G2820: the STOL devices, drawn as the join flies them
+      ...((st => st ? { stol: st } : {})(genStolCage(P))),
     }, ...(+P.w2On ? [w2SpecOf()] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
                struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)

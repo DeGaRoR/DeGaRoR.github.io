@@ -561,6 +561,10 @@ function benchStripCosmetic(spec, defaults) {
   // already carries (the windows, the glazing switch), and the material is
   // the cage's glazeMat row — neither is a second deviation to count
   if (c.cabin && typeof c.cabin === 'object') { delete c.cabin.glazedM2; delete c.cabin.glazingMat; }
+  // G2820: a wing's STOL record at "every device off" is the join STATING
+  // the default (A3) - null hashes as the absent key every build before
+  // the STOL wing carried, so no certificate is withdrawn for it
+  if (Array.isArray(c.wings)) for (const w of c.wings) if (w && typeof w === 'object' && w.stol == null) delete w.stol;
   if (c.cage && typeof c.cage === 'object') {
     const D = (defaults && typeof defaults === 'object') ? defaults : null;
     const out = {};

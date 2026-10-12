@@ -97,6 +97,10 @@ const GATES = [
   { id: 'CLOUD', file: '_cloud_check.js', tier: 'core' },
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
   { id: 'FLAPS', file: 'test_flaps.js', tier: 'core' },
+  // G2820 (STOL-WING): slats / slots, VGs, fences, cuffs, endplates, drooped tips, drooping ailerons, Fowler area
+  // growth - every card off the STOL wing is its pre-G2820 bits (def, 4 s of flight, the drawn wing); each device
+  // measured in the tunnel and drawn where it flies; Savannah / Super Cub / Highlander against their sheets
+  { id: 'STOL', file: '_stol_check.js', argv: ['--selftest'], tier: 'core', wall: 90 },
   { id: 'STRESS', file: 'test_stress.js', tier: 'core' },
   // G384: under core, GEN builds every configuration but flies four of the
   // sixteen circuits (test_gen.js CORE_FLY); --all flies them all

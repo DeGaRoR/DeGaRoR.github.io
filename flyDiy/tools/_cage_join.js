@@ -239,6 +239,13 @@ function cageJoinSpec(P, M, T) {
       // G189: the lamp bay's edges as loft stations (null = none), the same
       // arithmetic the wing layer uses, so the flown loft has the bay's rows
       cuts: cageWingCuts(P),
+      // G2820: THE STOL WING (60_gen_spec genStolCage) - STATED in both
+      // states (A3): the record, or null when every device is off, so the
+      // garage's per-key merge can take a slat back off. A P without the
+      // rows (a headless caller) says nothing. null never reaches the
+      // resolved spec (clampWing drops it) nor the certificate's hash
+      // (bench.js benchStripCosmetic).
+      ...((st => st === undefined ? {} : { stol: st })(typeof genStolCage === 'function' ? genStolCage(P) : undefined)),
       // THE WING'S OWN CONSTRUCTION (G116): 0 says nothing — absent means
       // the aeroplane's own material, which is what every build before this
       // field existed already meant. 1..4 in intCons's display order.
@@ -2589,6 +2596,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         out2.axis = hinge.axis;
         out2.drive = hinge.drive; out2.sgn = hinge.sgn;
         if (hinge.drive2) { out2.drive2 = hinge.drive2; out2.sgn2 = hinge.sgn2; }
+        // G2820: DROOPING AILERONS - plane 0's ailerons also answer the flap
+        // lever, trailing edge down as a flap's goes (the flap's own sign),
+        // `droop` of a plain flap's travel
+        const st0 = spec && spec.wings && spec.wings[0] && spec.wings[0].stol;
+        if (/^ail[RL]$/.test(pt.surf) && st0 && st0.droop > 0 && typeof genTravel === 'function') {
+          out2.drive2 = 'flap'; out2.sgn2 = -1; out2.k2 = st0.droop * genTravel('flap', 'plain');
+        }
         // G237: THE TRAVEL, DECLARED (GEN_TRAVEL). `k` scales the linkage's
         // [-1, 1] to radians of surface, and it was 1 — 57.3 degrees at full
         // stick, on every cage build since G59. It is the table's number now,
