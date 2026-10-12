@@ -182,6 +182,10 @@ const DATA_BUDGET_KB = 400;
 // ?freight=1 boot), measured here beside index.html and never counted in it. Its own tripwire: 305 KB at the split
 // (8 Oct, train 43's nine modules); a career module past this ceiling is something heavy moving into the career's boot.
 const CAREER_BUDGET_KB = 512;
+// G3070 (ROUTE-LAZY): the drawn route's drawing is its own file too (route_draw.<h8>.js, fetched on first demand or at
+// boot for an armed route), measured beside index.html and never counted in it. Its tripwire: 31 KB at the split (12
+// Oct, route_draw.js as train 44 landed it); past this, something heavy is riding the drawing.
+const ROUTE_BUDGET_KB = 64;
 
 // ---------------------------------------------------------------------------
 // the manifests that may reference media/ — one list, so a new externalized
@@ -434,7 +438,15 @@ function checkArtifact() {
     career = { name: cn[0], kb: c.length / 1024, gzKb: zlib.gzipSync(c).length / 1024 };
     check(career.kb <= CAREER_BUDGET_KB, `${cn[0]} is ${career.kb.toFixed(1)} KB against the career core's ${CAREER_BUDGET_KB} KB`);
   }
-  return { mib, gz: MiB(gz), base, step: base.bytes != null ? MiB(page.length - base.bytes) : null, kb, bytes: page.length, gzBytes: gz, career };
+  // G3070: the drawn route's drawing, separately (one file, this build's)
+  const rn = fs.readdirSync(ROOT).filter(n => /^route_draw\.[0-9a-f]{8}\.js$/.test(n));
+  let route = null;
+  if (check(rn.length === 1, `one route_draw.<h8>.js beside index.html (${rn.join(', ') || 'none'})`)) {
+    const c = noCR(fs.readFileSync(path.join(ROOT, rn[0])));
+    route = { name: rn[0], kb: c.length / 1024, gzKb: zlib.gzipSync(c).length / 1024 };
+    check(route.kb <= ROUTE_BUDGET_KB, `${rn[0]} is ${route.kb.toFixed(1)} KB against the route drawing's ${ROUTE_BUDGET_KB} KB`);
+  }
+  return { mib, gz: MiB(gz), base, step: base.bytes != null ? MiB(page.length - base.bytes) : null, kb, bytes: page.length, gzBytes: gz, career, route };
 }
 
 // ---------------------------------------------------------------------------
@@ -529,7 +541,8 @@ console.log(`  ${refs.size} references from ${files.length} manifests, ` +
            : `step not measured: ${art.base.why}, `) +
          `data: ${art.kb.toFixed(0)} KB (budget ${DATA_BUDGET_KB})` : ''));
 if (art) console.log(`  index.html ${art.bytes} B (${(art.bytes / 1024).toFixed(1)} KB, ${(art.gzBytes / 1024).toFixed(1)} KB gzipped)` +
-  (art.career ? ` · the career core ${art.career.name} ${art.career.kb.toFixed(1)} KB (${art.career.gzKb.toFixed(1)} KB gzipped; budget ${CAREER_BUDGET_KB} KB), fetched by a career / ?map=1 / ?freight=1 boot alone` : ''));
+  (art.career ? ` · the career core ${art.career.name} ${art.career.kb.toFixed(1)} KB (${art.career.gzKb.toFixed(1)} KB gzipped; budget ${CAREER_BUDGET_KB} KB), fetched by a career / ?map=1 / ?freight=1 boot alone` : '') +
+  (art.route ? ` · the route drawing ${art.route.name} ${art.route.kb.toFixed(1)} KB (${art.route.gzKb.toFixed(1)} KB gzipped; budget ${ROUTE_BUDGET_KB} KB), fetched when the drawing is opened or a route is armed` : ''));
 if (fail.length) {
   for (const f of fail) console.log('  FAIL ' + f);
   console.log('GATE MEDIA: FAIL');

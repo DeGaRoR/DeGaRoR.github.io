@@ -39,6 +39,9 @@ const PTS = [[1500, -2500, 175], [-3000, -5000, 320], [-4500, -2000, 260], [-350
   await run(`localStorage.setItem('flydiy.flStart', 'lineup'); document.getElementById('bGo').click(); return 1;`);
   await until(`window.BOOT && BOOT.state === 'gone' && window.FLIGHT_PROBE && FLIGHT_PROBE.model() && window.ROUTE_DRAW`, 900000, 'the roll-out');
   await frames(60); await sleep(1500);
+  // G3070 (ROUTE-LAZY): the drawing is its own file, fetched on first demand - asked for and awaited before it is driven
+  await run(`ROUTE_DRAW.want(); return 1;`);
+  await until(`window.ROUTE_DRAW.loaded()`, 120000, 'the route drawing');
   await run(`const W = FLIGHT_PROBE.world(), h = W.aerodromes.find(a => a.id === 'HOME');
     const R = { v: 1, id: 'rbox', name: 'Tamgas loop', end: 'home', margin: 60, pts: ${JSON.stringify(PTS)}.map(p => ({ x: Math.round(h.x + p[0]), z: Math.round(h.z + p[1]), alt: p[2], ref: 'msl', V: null })) };
     ROUTE_DRAW.setOn(true); ROUTE_DRAW.load(R); ROUTE_DRAW.select(1); return 1;`);
