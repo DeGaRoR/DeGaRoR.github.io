@@ -7665,6 +7665,13 @@
     if (!M || !M.grp || !M.data || !M.data.cageM) return [];
     const live = new Set((M.people || []).map(P => P && P.key)), byKey = new Map(), out = [];
     const job = !!(FST.R && FST.R.seats && FST.R.seats.some(q => q.job && q.i > 0));
+    // the live crew but the pilot (a C172's co-pilot holds the yoke: live, and a job's passenger sits there)
+    if (CRW.all || job) for (const P of M.people || []) {
+      const nm = P && P.dum && P.dum.fig && P.dum.fig.name;
+      const r = nm && (M.data.people || []).find(q => nm === 'flDum' + q.idx);
+      if (!r || r.role === 'pilot' || P.dead) continue;
+      out.push({ seat: 'l:' + r.idx, key: P.key, meshes: () => (P.inst ? P.inst.meshes : []) });
+    }
     if (CRW.all || job) for (const k in M.meshes || {}) {
       const m = (M.mats || {})[k];
       if (!m || !m.char || live.has(m.char)) continue;
