@@ -777,6 +777,43 @@ if (plots.length) {
   ed.cmd('tool', { name: 'select' });
 }
 
+// 22 THE ZONES' MEMO (G2960 RUNWAY-ED-PERF): with it, cold and warm, and without it, every composition is the same plots and
+//    trees, byte for byte - the shipped Jolene, the user's rev 23 and rev 26, two v1 fixtures - and after scripted edits (a
+//    strip moved, a zone's corner moved, a road through a zone moved, a site moved); a warm composition keeps every zone; a
+//    change of seed starts the memo over (a new generation); a new world is a new memo
+{
+  const mkW = () => ({ id: 'zm', terrainH: synth.terrainH, waterH: synth.waterH });
+  const out = O => JSON.stringify([O.records.plots, O.records.parks || null, O.records.trees]);
+  const load = fn => PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', fn), 'utf8')).rec;
+  const recs = [['island_jolene.json', load('island_jolene.json')], ['scenery_user_jolene_rev23.json', load('scenery_user_jolene_rev23.json')], ['scenery_user_jolene_rev26.json', load('scenery_user_jolene_rev26.json')], ['premises_v1_village.json', load('premises_v1_village.json')], ['premises_v1_official.json', load('premises_v1_official.json')]];
+  const t0 = Date.now(); let zonesAll = 0, keptAll = 0;
+  for (const [name, r] of recs) {
+    const W = mkW(), A = PG.compose(r, W, { raster: false }), B = PG.compose(r, W, { raster: false }), C = PG.compose(r, mkW(), { raster: false, zoneMemo: false });
+    const nz = r.layers.zones.filter(z => z.poly && z.poly.length >= 3).length; zonesAll += nz; keptAll += B.zoneMemo ? B.zoneMemo.hits : 0;
+    check(!!A.zoneMemo && C.zoneMemo === null && out(A) === out(C) && out(B) === out(C), '22 ' + name + ': the memo cold, warm and off compose the same plots and trees', JSON.stringify([A.zoneMemo, B.zoneMemo]));
+    check(!nz || (B.zoneMemo.hits >= 1 && B.zoneMemo.misses === 0), '22 ' + name + ': a warm composition keeps every zone (' + (B.zoneMemo ? B.zoneMemo.hits + ' kept, ' + B.zoneMemo.misses + ' sown' : '-') + ')');
+  }
+  // the scripted edits, on the user's rev 26 (its zones, its strips): each composed warm against the memo, and without it
+  const r26 = recs[2][1], W26 = mkW(); PG.compose(r26, W26, { raster: false });
+  const edits = [
+    ['a strip moved 40 m', r => { const w = r.layers.runways.find(q => q.id === 'w5'); w.c = [w.c[0] + 40, w.c[1]]; }],
+    ['a zone corner moved 6 m', r => { const z = r.layers.zones.find(q => q.poly && q.poly.length >= 3 && /^v|^z/.test(q.id)) || r.layers.zones.find(q => q.poly && q.poly.length >= 3); z.poly = z.poly.map((q, i) => i ? q : [q[0] + 6, q[1]]); }],
+    ['a road through a zone moved 4 m', r => { const z = r.layers.zones.find(q => q.poly && q.poly.length >= 3), rd = r.layers.roads.find(q => q.pts && q.pts.some(p => PG.inPoly(z.poly, p[0], p[1]))); if (rd) rd.pts = rd.pts.map(p => [p[0] + 4, p[1]]); }],
+    ['a site moved 10 m', r => { const s = r.layers.sites.find(q => q.at); if (s) s.at = Object.assign({}, s.at, { x: s.at.x + 10 }); }],
+  ];
+  let cur = JSON.parse(JSON.stringify(r26));
+  for (const [what, ed2] of edits) {
+    ed2(cur); const M = PG.compose(cur, W26, { raster: false }), N = PG.compose(cur, mkW(), { raster: false, zoneMemo: false });
+    check(out(M) === out(N), '22 rev 26 after ' + what + ': the memo composes the same plots and trees as none', JSON.stringify(M.zoneMemo));
+  }
+  { const r = JSON.parse(JSON.stringify(cur)); const g0 = PG.compose(r, W26, { raster: false }).zoneMemo.gen; r.seed = (r.seed || 0) + 1;
+    const S = PG.compose(r, W26, { raster: false }).zoneMemo;
+    check(S.gen === g0 + 1 && S.hits === 0, '22 a new seed starts the memo over (a new generation, nothing kept)', JSON.stringify(S));
+    const F = PG.compose(r, mkW(), { raster: false }).zoneMemo;
+    check(F.gen === 1 && F.hits === 0, '22 a new world is a new memo', JSON.stringify(F)); }
+  console.log('     22 the zones\' memo: ' + keptAll + ' of ' + zonesAll + ' zones kept warm over ' + recs.length + ' records, ' + edits.length + ' edits identical (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s)');
+}
+
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
