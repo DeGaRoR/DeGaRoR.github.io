@@ -793,6 +793,10 @@ carries the same lines for the game's credits screen):
 - `crowd_1` ... `crowd_6` - **"WIP - Lowpoly People - 2"** by Loïc Norgeot
   (https://sketchfab.com/3d-models/wip-lowpoly-people-2-4cf6f452719c4363bab5faddbc221391)
 
+- the small hydro plants' switchyard (`utility/hydro powerhouse`, `tools/_navaid_gen.js`: one lattice takeoff mast and
+  one small transformer cut out of the pack by `tools/hydro_prep.py`, decimated, worn in our own materials) -
+  **"Substation"** by One80 Solar (https://sketchfab.com/3d-models/substation-8f4e54879b664104bece03d8e7236c15)
+
 NOT SHIPPED: "Satellite \ radio telescope from VotV" (delivered in the same folder) - its file is an
 extraction from the commercial game *Voices of the Void* (Unreal's own WorldGridMaterial in it), so its
 Sketchfab CC BY label cannot stand; blocked, and dropped by the user (2026-10-11).
