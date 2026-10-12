@@ -9,8 +9,8 @@
 //              with the pack's transformer (its generated mesh decodes: the counts, finite, inside its box) and the
 //              procedural mast; <= 3 500 tris at lod 0
 //   4 CATALOGUE  keys navaid/... and utility/...; every entry has a foot, a ground rule, its lights slot
-//   5 SITES    (once placed) the record's sites at their real points: ANN within 5 m of its imagery point, each
-//              powerhouse within 5 m of its; a tree-exclude area round each (the user's rule: cleared only there)
+//   5 SITES    the ANN VOR/DME in the Jolene record near its real point (> 60 m is a fault, > 5 m an editor nudge), its
+//              tree-clear exclude ~30 m round it (the user's rule: cleared only there); the powerhouses are not placed
 //   6 LAZY     the generator is NOT in index.html's static list (build.js MANIFEST.lazy), and every lazy trigger
 //              (world_boot, the house worker) matches both namespaces
 // Run: node tools/_navaid_check.js        (one final `GATE NAVAID: ...`)
@@ -37,9 +37,10 @@ function makeTHREE() {
 
 // the real points (A0 off Esri z18, 12 Oct; the published ones beside): lat, lon
 const POINTS = {
-  ann: { lat: 55.060409 - 4 / 111320, lon: -131.578399 - 7 / (111320 * Math.cos(55.0604 * Math.PI / 180)), why: 'the disc ~7 m W / 4 m S of the FAA point' },
-  purple: { lat: 55.092773, lon: -131.544800, why: 'the shed at the end of Hydroplant Rd' },
-  chester: { lat: 55.117115, lon: -131.545932, why: 'candidate A (grey-blue roof); B = 55.116907, -131.546302' },
+  // game x / z by tools/geo.py (EPSG:3338; run with `py` - the PATH's python is Inkscape's)
+  ann: { lat: 55.060373, lon: -131.578509, x: -1010.1, z: -1663.3, why: 'the disc ~7 m W / 4 m S of the FAA point' },
+  purple: { lat: 55.092773, lon: -131.544800, x: -174.7, z: -5780.2, why: 'the shed at the end of Hydroplant Rd (for the user)' },
+  chester: { lat: 55.117115, lon: -131.545932, x: -1141.9, z: -8313.1, why: 'candidate A, picked by the user' },
 };
 
 const fails = [], notes = [];
@@ -106,22 +107,26 @@ for (const e of cat) {
   if (!e.ground || !e.ground.need) fail(`4 catalogue: ${e.key} has no ground rule`);
   if (!e.slots || e.slots.lights !== 'stats.lit.lights') fail(`4 catalogue: ${e.key} does not publish its lights`);
 }
-// 5 SITES (when placed): the record's sites against the points, through tools/geo.py's own rule (EPSG:3338 needs
-// rasterio: the conversion is done once at placement and written beside the site - its `geo` - and checked here)
+// 5 SITES: the ANN VOR/DME placed at its real point (the user, 12 Oct: "You can put the VOR"; the hydro powerhouses are
+// catalogue assets the user positions - their points are in HANDOVER), with its tree-clear exclude round it
 {
   const rec = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8'));
-  const sites = (rec.layers && rec.layers.sites) || rec.sites || [];
-  const placed = sites.filter(s => (s.items || []).some(it => /^(navaid|utility)\//.test(it.key)));
-  if (!placed.length) notes.push('5 sites: none placed yet');
-  for (const s of placed) {
-    const g = s.geo;
-    if (!g || !POINTS[g.point]) { fail(`5 sites: ${s.id} carries no geo record (its point and converted x/z)`); continue; }
-    const d = Math.hypot(s.at.x - g.x, s.at.z - g.z);
-    if (d > 5) notes.push(`5 sites: ${s.id} moved ${d.toFixed(1)} m off its imagery point (an editor nudge - fine)`);
-    const areas = (rec.layers && rec.layers.areas) || [];
-    const ex = areas.find(a => a.id === s.id + '_clear');
-    if (!ex) fail(`5 sites: ${s.id} has no tree-exclude area (${s.id}_clear)`);
+  const L = rec.layers || {};
+  const sites = (L.sites || []).filter(s => (s.items || []).some(it => /^navaid\//.test(it.key)));
+  const ann = sites.find(s => s.id === 's_vor_ann');
+  if (!ann) fail('5 sites: the ANN VOR/DME (s_vor_ann) is not in the Jolene record');
+  else {
+    const d = Math.hypot(ann.at.x - POINTS.ann.x, ann.at.z - POINTS.ann.z);
+    if (d > 60) fail(`5 sites: s_vor_ann stands ${d.toFixed(0)} m from its real point - not an editor nudge`);
+    else if (d > 5) notes.push(`5 sites: s_vor_ann ${d.toFixed(1)} m off its imagery point (an editor nudge)`);
+    const ex = (L.exclude || []).concat(L.areas || []).find(a => a.id === 's_vor_ann_clear');
+    if (!ex || !(ex.what || (ex.props && ex.props.exclude) || []).toString().includes('trees')) fail('5 sites: s_vor_ann has no tree-clear exclude (s_vor_ann_clear)');
+    else {
+      const r = Math.max(...ex.poly.map(q => Math.hypot(q[0] - ann.at.x, q[1] - ann.at.z)));
+      if (r < 29 || r > 45) fail(`5 sites: the clear round s_vor_ann reaches ${r.toFixed(0)} m (the disc and its shelter want ~30)`);
+    }
   }
+  if ((L.sites || []).some(s => (s.items || []).some(it => /^utility\//.test(it.key)))) notes.push('5 sites: a utility/ site is placed (placed by the user)');
 }
 // 6 LAZY
 {
