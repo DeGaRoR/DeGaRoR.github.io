@@ -950,6 +950,12 @@ if (process.argv.includes('--selftest')) {
       () => /aeroStreak|uWearE/.test('float aeroStreak(vec2 m, vec4 s) {')],
     ['a glass that bakes the years',
       () => !!(/wr \* 0\.55|wr \* 0\.70/.test('return Math.min(1, v + wr * 0.55);'))],
+    // G2870: a ray fanned in page pixels on a 4 x 1 layer (the unsquashed
+    // direction) reads 1:1, not the 0.25 the metric check asks for
+    ['a sunburst fanned in page pixels',
+      () => Math.abs(Math.cos(Math.PI / 4) / Math.sin(Math.PI / 4) - 0.25) >= 0.02],
+    ['a transparent stop at rgba(0,0,0,0)',
+      () => 'rgba(0,0,0,0)' !== 'rgba(255,0,0,0)'],
   ];
   let caught = 0;
   for (const [nm, f] of probes) {
@@ -1723,6 +1729,152 @@ if (process.argv.includes('--selftest')) {
 }
 
 // ---------------------------------------------------------------------------
+// THE USER'S TWO PATTERNS (G2870, LIVERY-PATTERNS): "a gradient, where
+// transparent can be picked as a color. And a sunburst pattern, especially
+// nice for the fins and wings." The draws run here, in node, against a
+// RECORDING context — every style, composite, stop and path point the page
+// would receive — because the far bake, the parked copies and the flown
+// aeroplane all read that page and none of them can be looked at from a gate.
+function patternGate() {
+  const UI = fs.readFileSync(path.join(ROOT, 'tools', '_cage_ui.js'), 'utf8');
+  const P = 256;
+  const rec = () => {
+    const ops = [];
+    const g = {
+      ops, fillStyle: '#000', strokeStyle: '#000', globalCompositeOperation: 'source-over',
+      lineWidth: 1, lineCap: 'butt', lineJoin: 'miter', miterLimit: 10, _path: [],
+      createLinearGradient(x0, y0, x1, y1) {
+        return { lin: [x0, y0, x1, y1], stops: [], addColorStop(t, c) { this.stops.push([t, c]); } };
+      },
+      fillRect(x, y, w, h) { ops.push({ op: 'fillRect', x, y, w, h, style: g.fillStyle, comp: g.globalCompositeOperation }); },
+      fill() { ops.push({ op: 'fill', style: g.fillStyle, comp: g.globalCompositeOperation, path: g._path }); g._path = []; },
+      stroke() { ops.push({ op: 'stroke', style: g.strokeStyle, comp: g.globalCompositeOperation }); },
+      beginPath() { g._path = []; }, closePath() {},
+      moveTo(x, y) { g._path.push(['M', x, y]); }, lineTo(x, y) { g._path.push(['L', x, y]); },
+      bezierCurveTo() {},
+    };
+    return g;
+  };
+  const layer = d => A.aeroKitLayers(A.aeroDecalMerge({ finish: { decals: Object.assign({ m1On: 1 }, d) } }))[0];
+  const run = d => { const L = layer(d), g = rec(); A.AERO_KIT[L.pat].draw(g, P, A.aeroKitArgs(L)); return { L, ops: g.ops }; };
+  const idx = nm => A.AERO_KIT.findIndex(k => k.name === nm);
+  const FADE = idx('fade'), GRAD = idx('gradient'), SUN = idx('sunburst'), CHEAT = idx('cheat line');
+  check(FADE >= 0 && GRAD >= 0 && SUN >= 0, 'patterns: the kit offers fade, gradient and sunburst',
+    [FADE, GRAD, SUN].join(','));
+  if (FADE < 0 || GRAD < 0 || SUN < 0 || typeof A.aeroKitArgs !== 'function') return;
+  check(A.AERO_KIT[FADE].cn.length === 2 && A.AERO_KIT[GRAD].cn.length === 3,
+    'patterns: a fade has two stops and a gradient three');
+
+  // 1 — SAVED BUILDS UNCHANGED. The four new layer fields default to off, and
+  //     a layer saved before them resolves with no transparent stop and with
+  //     aspect 1 for a stripe: its page signature is the old recipe's.
+  const D0 = A.AERO_KIT_LDEF;
+  check(D0.R === null && D0.S === null && D0.Clr === 0 && D0.Fit === 0,
+    'patterns: a new layer field is not off by default — every saved build would change',
+    JSON.stringify({ R: D0.R, S: D0.S, Clr: D0.Clr, Fit: D0.Fit }));
+  const old = layer({ m1Pat: CHEAT, m1W: 4, m1H: 0.5 });
+  check(old.clr === 0 && old.asp === 1 && old.r === 0 && old.s === 0,
+    'patterns: a stripe saved before G2870 reads a new field (or redraws when it is stretched)',
+    JSON.stringify({ clr: old.clr, asp: old.asp, r: old.r, s: old.s }));
+  // ...and draws what it always drew: hex fills, never an erase
+  const o0 = run({ m1Pat: CHEAT });
+  check(o0.ops.length > 0 && o0.ops.every(o => o.comp === 'source-over' && /^#[0-9a-f]{6}$/.test(o.style)),
+    'patterns: an untouched cheat line no longer draws plain colour fills', JSON.stringify(o0.ops[0]));
+
+  // 2 — TRANSPARENT IS A STOP OF ALPHA 0 IN ITS NEIGHBOUR'S COLOUR, never
+  //     rgba(0,0,0,0): a fade that interpolates unpremultiplied would drag
+  //     the colour through black on the way to nothing.
+  const f = run({ m1Pat: FADE, m1A: 0xff0000, m1Clr: 2 });
+  const fg = f.ops[0] && f.ops[0].style;
+  check(!!(fg && fg.stops), 'patterns: a fade does not fill with a gradient');
+  if (fg && fg.stops)
+    check(fg.stops.length === 2 && fg.stops[0][1] === 'rgb(255,0,0)' && fg.stops[1][1] === 'rgba(255,0,0,0)',
+      'patterns: a fade to TRANSPARENT does not end in its own colour at alpha 0', JSON.stringify(fg.stops));
+  check(run({ m1Pat: FADE, m1Clr: 3 }).ops.length === 0,
+    'patterns: a fade with both ends transparent still paints something');
+  // a clear MIDDLE: two stops at one offset, each side in its own colour
+  const gm = run({ m1Pat: GRAD, m1A: 0xff0000, m1D: 0x0000ff, m1Clr: 2, m1R: 0.4 });
+  const gs = gm.ops[0] && gm.ops[0].style && gm.ops[0].style.stops;
+  check(!!gs && gs.length === 4 && gs[1][0] === 0.4 && gs[2][0] === 0.4
+        && gs[1][1] === 'rgba(255,0,0,0)' && gs[2][1] === 'rgba(0,0,255,0)',
+    'patterns: a gradient with a TRANSPARENT middle passes through another colour',
+    JSON.stringify(gs));
+  // and a gradient's start / end are where the layer says: 0..1 edge to edge
+  const ge = run({ m1Pat: GRAD, m1P: 0, m1Q: 0, m1S: 1, m1W: 2, m1H: 2 }).ops[0].style.lin;
+  check(Math.abs(ge[0]) < 1e-6 && Math.abs(ge[2] - P) < 1e-6 && Math.abs(ge[1] - P / 2) < 1e-6,
+    'patterns: an along gradient from 0 to 1 does not run edge to edge of the page',
+    ge.map(x => x.toFixed(1)).join(','));
+
+  // 3 — ANGLES ARE METRES ON THE AEROPLANE, not pixels on a stretched page.
+  //     On a 4 m x 1 m layer a 45-degree gradient's isolines must lie at 45
+  //     degrees on the surface: in the page its direction is (4, -1)-ish.
+  const g45 = run({ m1Pat: GRAD, m1P: 45, m1W: 4, m1H: 1 }).ops[0].style.lin;
+  const gx = g45[2] - g45[0], gy = g45[3] - g45[1];
+  check(Math.abs(gx / -gy - 4) < 0.02,
+    'patterns: a gradient angle is read in page pixels, not metres — it tilts with the stretch',
+    (gx / -gy).toFixed(3));
+  // a 45-degree ray on the same layer climbs steeply in the page (1/4 along per 1 up)
+  const sn = run({ m1Pat: SUN, m1P: 8, m1Q: 0.1, m1W: 4, m1H: 1 });
+  const rf = sn.ops.find(o => o.op === 'fill');
+  const wedge = k => rf.path.slice(k * 3, k * 3 + 3);
+  const mid = w => [w[1][1] - w[0][1] + w[2][1] - w[0][1], w[1][2] - w[0][2] + w[2][2] - w[0][2]];
+  const r1 = mid(wedge(1));                         // the second of eight rays: 45 degrees
+  check(Math.abs(r1[0] / -r1[1] - 0.25) < 0.02,
+    'patterns: a sunburst ray is fanned in page pixels, not metres — the rays bunch on a long wing',
+    (r1[0] / -r1[1]).toFixed(3));
+
+  // 4 — A SUNBURST IS RAYS FROM THE CHOSEN ORIGIN, counted as asked, and its
+  //     transparent 'between' is an ERASE down to the paint below.
+  const s1 = run({ m1Pat: SUN, m1P: 12, m1R: 0.25, m1S: 0.75, m1Clr: 2 });
+  const rays = s1.ops.find(o => o.op === 'fill');
+  const starts = rays ? rays.path.filter(p => p[0] === 'M') : [];
+  check(starts.length === 12, 'patterns: the sunburst does not draw the rays it was asked for', starts.length);
+  check(starts.length > 0 && starts.every(p => p[1] === 0.25 * P && p[2] === 0.25 * P),
+    'patterns: the rays do not start at the chosen origin (along 0.25, across 0.75 = a quarter down the page)');
+  check(s1.ops[0].op === 'fillRect' && s1.ops[0].comp === 'destination-out' && !!rays && rays.comp === 'source-over',
+    'patterns: a TRANSPARENT background is painted rather than erased — the paint below would not show',
+    s1.ops[0].comp + ' / ' + (rays && rays.comp));
+  // ...and transparent reaches the old patterns too: a clear band is a hole
+  // through its keyline, not the keyline showing through a band of nothing
+  const ch = run({ m1Pat: CHEAT, m1Clr: 1 });
+  check(ch.ops.length === 2 && ch.ops[0].comp === 'source-over' && ch.ops[1].comp === 'destination-out',
+    'patterns: a transparent cheat-line band does not cut through its keyline',
+    ch.ops.map(o => o.comp).join(','));
+
+  // 5 — THE SPEC CARRIES IT, and the layer reads it back whole: knobs three
+  //     and four, the transparent bits, the aspect
+  const sv = layer({ m1Pat: SUN, m1P: 20, m1Q: 0.3, m1R: 0.1, m1S: 0.9, m1Clr: 6, m1W: 3, m1H: 1.5 });
+  check(sv.p === 20 && sv.q === 0.3 && sv.r === 0.1 && sv.s === 0.9 && sv.clr === 6 && sv.asp === 2,
+    'patterns: a saved sunburst does not come back as it was saved', JSON.stringify(sv));
+  // one surface on its own: a sunburst for the fin that the wing does not take
+  const tl = layer({ m1Pat: SUN, m1Tgt: 5 }).place.on, wg = layer({ m1Pat: SUN, m1Tgt: 4 }).place.on;
+  check(!!tl.tail && !tl.wing && !tl.body && !!wg.wing && !wg.tail && !wg.body,
+    'patterns: "the tail" / "the wings" do not aim at one surface class alone',
+    JSON.stringify([tl, wg]));
+  check(UI.indexOf("'the wings', 'the tail'],") >= 0,
+    'patterns: the panel does not offer the one-surface targets');
+  check(A.AERO_KIT_FIELDS.indexOf('Clr') >= 0 && A.AERO_KIT_FIELDS.indexOf('Fit') >= 0
+        && 'm3S' in A.AERO_DEC_DEF && 'm2Clr' in A.AERO_DEC_DEF,
+    'patterns: a new field never reaches AERO_DEC_DEF — the save door walks it, so it would not persist');
+
+  // 6 — THE PANEL OFFERS WHAT THE TABLE DECLARES: four knobs, a transparent
+  //     tick per colour, the fit — and the fit is lazy (the 43.1 lesson:
+  //     nothing per garage change that nobody asked for)
+  check(UI.indexOf('knob(0); knob(1); knob(2); knob(3);') >= 0 && UI.indexOf("const key = q + 'PQRS'[j];") >= 0,
+    'patterns: the panel shows fewer knobs than a pattern declares');
+  check(UI.indexOf('tc.dataset.clr = q + slot;') >= 0
+        && UI.indexOf("DEC[q + 'Clr'] = tc.checked ? (v | bit) : (v & ~bit);") >= 0,
+    'patterns: no colour well offers TRANSPARENT');
+  const ap = UI.slice(UI.indexOf('function applyDecals()'), UI.indexOf('function applyDecals()') + 1600);
+  check(ap.indexOf('decFitApply(A);') > 0 && ap.indexOf('decFitApply(A);') < ap.indexOf('A.aeroDecalsFor('),
+    'patterns: a fitted layer is placed AFTER the list is built — the first frame lands where it was');
+  const fa = UI.slice(UI.indexOf('function decFitApply('), UI.indexOf('function decFitGrey('));
+  check(fa.indexOf('if (!any) return;') > 0 && fa.indexOf('if (!any) return;') < fa.indexOf('decFitScan(A)'),
+    'patterns: the surface scan runs with no fitted layer on — per-garage-change work nobody asked for');
+  check(UI.indexOf('function decRange() {\n  decFitStale = true;') >= 0,
+    'patterns: a rebuild does not re-fit — a fitted fade keeps the old wing length');
+}
+
 // THE MARKING KIT (G162)
 // ---------------------------------------------------------------------------
 // A kit pattern is a RECIPE, so unlike the two image channels it travels in
@@ -1767,8 +1919,9 @@ function kitGate() {
           && pat.cn.every(n => typeof n === 'string' && n),
       'kit: a pattern does not name its colour slots — the panel would show ' +
       'unlabelled wells, or hide a colour the draw actually reads', pat.name);
-    check(Array.isArray(pat.k) && pat.k.length === 2,
-      'kit: a pattern does not declare exactly two knobs', pat.name);
+    // G2870: two to four — the panel and the layer carry P, Q, R, S
+    check(Array.isArray(pat.k) && pat.k.length >= 2 && pat.k.length <= 4,
+      'kit: a pattern does not declare two to four knobs', pat.name);
     for (const kd of (pat.k || [])) {
       check(kd && kd.n && typeof kd.lo === 'number' && typeof kd.hi === 'number'
             && typeof kd.st === 'number' && typeof kd.def === 'number',
@@ -1891,7 +2044,8 @@ function kitGate() {
   //     colour or a knob that moves the slider and not the picture.
   const sig = /const sig = \[([^\]]*)\]/.exec(SRC.slice(SRC.indexOf('function aeroKitDraw')));
   check(!!sig, 'kit: aeroKitDraw has no cache signature');
-  for (const f of ['L.pat', 'L.a', 'L.b', 'L.d', 'L.p', 'L.q', 'L.flip'])
+  for (const f of ['L.pat', 'L.a', 'L.b', 'L.d', 'L.p', 'L.q', 'L.flip',
+                   'L.r', 'L.s', 'L.clr', 'L.asp'])
     check(sig && sig[1].indexOf(f) >= 0,
       'kit: the redraw signature omits something the draw reads, so changing ' +
       'it leaves the old page on the aeroplane', f);
@@ -1916,6 +2070,7 @@ function kitGate() {
       'seen is a setting that silently does not persist');
 }
 kitGate();
+patternGate();
 
 const hardN = Object.keys(A.AERO_HARD)
   .reduce((n, l) => n + Object.keys(A.AERO_HARD[l]).length, 0);

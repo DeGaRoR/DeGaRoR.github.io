@@ -3603,6 +3603,8 @@ const DEC_ON = [
   { wing: 1, tail: 1 },               // 1 the flying surfaces
   { body: 1, wing: 1, tail: 1 },      // 2 both
   { body: 1, tail: 1 },               // 3 the body and the tail
+  { wing: 1 },                        // 4 the wings (G2870)
+  { tail: 1 },                        // 5 the tail (G2870)
 ];
 const DEC_MODE = ['field', 'side', 'plan'];
 const MODE_NAMES = ['round the body (field)', 'from the side (box)',
@@ -3849,6 +3851,7 @@ function applyDecals() {
   // has no editor. The list is built in aeroskin.js now and this panel calls
   // it with its LIVE state, so an un-saved drag still previews while the flown
   // aeroplane reads the same code off the saved spec.
+  decFitApply(A);                          // G2870: fitted layers first
   const R = A.aeroDecalsFor(THREE, DEC,
               { reg: decReg(), trim, base });
   ASPECT.regOn = R.aspect;
@@ -3861,6 +3864,92 @@ function applyDecals() {
   if (window.AEROWX && window.AEROWX.aeroWxSetSpiral) window.AEROWX.aeroWxSetSpiral(THREE, DEC);
 }
 
+// ---- FIT TO THE SURFACE (G2870, LIVERY-PATTERNS) ---------------------------
+// "Surface-scaled": a fade or a sunburst means edge to edge of a fin or a
+// wing, and a 1 m fin and a 9 m wing must both get the whole pattern. A
+// fitted layer's rectangle is MEASURED off the drawn surfaces — in the very
+// coordinate the shader places it by (the field's metres, or craft space
+// through the same uCraftInv for the two box projections) — and written into
+// the layer's own L / C / W / H. So the saved build carries plain metres and
+// the flight side, the parked copies and the far bake need nothing new: they
+// read a placement exactly as they always have.
+//
+// LAZY, AND ONLY WHEN ASKED. The scan walks the decal-taking vertices, and
+// the 43.1 hold was exactly per-garage-change work nobody needed: it runs on
+// the first applyDecals after a build ONLY if some layer is on AND fitted.
+// `var`, not `let`: decRange() runs inside boot builds that can reach this
+// before the line is evaluated, and a TDZ throw there is swallowed silently
+var decFitStale = true, decFitBox = null;
+function decFitScan(A) {
+  const S = (typeof window !== 'undefined') && window.CAGE_UI_SCENE;
+  if (!S || typeof THREE === 'undefined' || !A.aeroDecUniforms) return null;
+  const CI = A.aeroDecUniforms(THREE).uCraftInv.value;
+  // [class 0 body, 1 wing, 2 tail][mode 0 field, 1 side, 2 plan] = lo/hi x2
+  const box = [0, 1, 2].map(() => [0, 1, 2].map(() => [1e9, -1e9, 1e9, -1e9]));
+  const ext = (b, x, y) => { if (x < b[0]) b[0] = x; if (x > b[1]) b[1] = x;
+                             if (y < b[2]) b[2] = y; if (y > b[3]) b[3] = y; };
+  const M = new THREE.Matrix4(), v = new THREE.Vector3();
+  S.updateWorldMatrix(true, true);
+  S.traverse(o => {
+    if (!o.isMesh || !o.visible || !o.geometry || !o.geometry.attributes.position) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    // only what a marking can land on: an AEROSKIN material that takes decals
+    const m = mats.find(x => x && x.userData && x.userData.aeroskin
+      && !(x.userData.aeroU && x.userData.aeroU.uDecOk && !x.userData.aeroU.uDecOk.value));
+    if (!m) return;
+    const cls = Math.max(0, Math.min(2, m.userData.aeroWing | 0));
+    const fm = m.userData.aeroFieldM || 1;
+    const P = o.geometry.attributes.position, St = o.geometry.attributes.aStruct;
+    const fld = St && m.userData.aeroSurf;
+    M.multiplyMatrices(CI, o.matrixWorld);
+    const step = Math.max(1, Math.floor(P.count / 6000));
+    for (let i = 0; i < P.count; i += step) {
+      v.fromBufferAttribute(P, i).applyMatrix4(M);
+      ext(box[cls][1], v.y, v.z);                  // side: aft, up
+      ext(box[cls][2], v.x, v.y);                  // plan: lateral, aft
+      if (fld) { const x = St.getX(i), y = St.getY(i);
+        if (x || y) ext(box[cls][0], x * fm, y * fm); }
+    }
+  });
+  // THE WING'S ROOT IS 0. A high wing's centre section runs its span
+  // coordinate NEGATIVE across the cabin roof (G214), and a fit that took it
+  // in would start a root-to-tip fade half a metre inboard of the root.
+  if (box[1][0][0] < 0 && box[1][0][1] > 0) box[1][0][0] = 0;
+  return box;
+}
+function decFitApply(A) {
+  if (!A.AERO_KIT_LAYERS) return;
+  let any = false;
+  for (let i = 1; i <= A.AERO_KIT_LAYERS; i++)
+    if (DEC['m' + i + 'On'] && DEC['m' + i + 'Fit']) { any = true; break; }
+  if (!any) return;
+  if (decFitStale || !decFitBox) { decFitBox = decFitScan(A); decFitStale = false; }
+  if (!decFitBox) return;
+  for (let i = 1; i <= A.AERO_KIT_LAYERS; i++) {
+    const q = 'm' + i;
+    if (!DEC[q + 'On'] || !DEC[q + 'Fit']) continue;
+    const on = DEC_ON[Math.max(0, Math.min(DEC_ON.length - 1, +DEC[q + 'Tgt'] || 0))];
+    const mode = Math.max(0, Math.min(2, +DEC[q + 'Mode'] || 0));
+    const b = [1e9, -1e9, 1e9, -1e9];
+    [on.body, on.wing, on.tail].forEach((y, c) => { if (!y) return;
+      const s = decFitBox[c][mode];
+      b[0] = Math.min(b[0], s[0]); b[1] = Math.max(b[1], s[1]);
+      b[2] = Math.min(b[2], s[2]); b[3] = Math.max(b[3], s[3]); });
+    if (!(b[1] > b[0] && b[3] > b[2])) continue;     // nothing of it drawn
+    const r3 = x => +x.toFixed(3);
+    DEC[q + 'L'] = r3((b[0] + b[1]) / 2); DEC[q + 'C'] = r3((b[2] + b[3]) / 2);
+    DEC[q + 'W'] = r3(Math.max(0.02, b[1] - b[0]));
+    DEC[q + 'H'] = r3(Math.max(0.02, b[3] - b[2]));
+    for (const k of ['L', 'C', 'W', 'H']) if (SYNC[q + k]) SYNC[q + k]();
+  }
+}
+// a fitted layer's four placement sliders are the MEASUREMENT's, not the
+// builder's: shown (they say where it went) and greyed (dragging one would be
+// overwritten by the next fit)
+function decFitGrey(q) {
+  const fit = !!DEC[q + 'Fit'];
+  for (const k of ['L', 'C', 'W', 'H']) if (GREY[q + k]) GREY[q + k](!fit);
+}
 // ---- THE IMAGE PAGES, IN AND OUT (G190) ------------------------------------
 // The body image is atlas page 1 (imgOn), the wing image page 2 (wimOn). Out:
 // the pages that hold an image, as the page's own pixels plus the aspect the
@@ -4289,6 +4378,7 @@ const ASPECT = {};
 // the build's own size, re-read every rebuild
 let decSpan = { len: 6, span: 10, up: 2 };
 function decRange() {
+  decFitStale = true;                      // G2870: the surfaces moved
   const S = (typeof window !== 'undefined') && window.CAGE_UI_SCENE;
   if (!S || typeof THREE === 'undefined' || !THREE.Box3) return;
   try {
@@ -4520,6 +4610,11 @@ function buildDecPanel() {
           // null is "this pattern's own default", which is the only thing a
           // shared value can honestly mean here.
           DEC[q + 'P'] = null; DEC[q + 'Q'] = null;
+          DEC[q + 'R'] = null; DEC[q + 'S'] = null;
+          // G2870: a fade or a sunburst is meant edge to edge of a SURFACE,
+          // so it arrives fitted to the one it goes on (untick FIT to place
+          // it by hand). The stripes keep whatever placement they had.
+          if (patOf(q + 'Pat').asp) DEC[q + 'Fit'] = 1;
           redo();
         }, det);
       refresh.push(() => {
@@ -4538,14 +4633,33 @@ function buildDecPanel() {
         c.type = 'color'; c.style.flex = 'none';
         wellRecent(c);                                   // G156
         c.value = hexOf(DEC[key]);
+        // G2870 TRANSPARENT IS A COLOUR YOU CAN PICK: a tick beside the well,
+        // one bit of the layer's Clr per slot. Picking a colour in the well
+        // un-ticks it — a builder who reaches for a colour wants that colour.
+        const bit = 1 << slot;
+        const tl = document.createElement('label');
+        tl.style.cssText = 'flex:none;display:inline-flex;align-items:center;' +
+          'gap:3px;margin-left:6px;font-size:11px;opacity:.85';
+        tl.title = 'transparent — this colour is left out, and the paint ' +
+          'below shows through';
+        const tc = document.createElement('input'); tc.type = 'checkbox';
+        tc.dataset.clr = q + slot;
+        tl.appendChild(tc); tl.appendChild(document.createTextNode('transparent'));
+        const clrOn = () => !!((+DEC[q + 'Clr'] || 0) & bit);
+        const look = () => { tc.checked = clrOn(); c.style.opacity = tc.checked ? '.3' : ''; };
+        tc.onchange = () => {
+          const v = (+DEC[q + 'Clr'] || 0) & 7;
+          DEC[q + 'Clr'] = tc.checked ? (v | bit) : (v & ~bit);
+          look(); decSavePrefs(); applyDecals(); draw(); };
         c.oninput = () => { DEC[key] = parseInt(c.value.slice(1), 16);
-          decSavePrefs(); applyDecals(); draw(); };
-        d.appendChild(c);
+          if (clrOn()) DEC[q + 'Clr'] = ((+DEC[q + 'Clr'] || 0) & 7) & ~bit;
+          look(); decSavePrefs(); applyDecals(); draw(); };
+        d.appendChild(c); d.appendChild(tl);
         refresh.push(() => {
           const pat = patOf(q + 'Pat'), nm = pat.cn && pat.cn[slot];
           d.style.display = nm ? '' : 'none';
           if (nm && kk) { kk.textContent = nm; kk.title = nm + ' — ' + pat.name; }
-          c.value = hexOf(DEC[key]);
+          c.value = hexOf(DEC[key]); look();
         });
       };
       kwell(0, q + 'A'); kwell(1, q + 'B'); kwell(2, q + 'D');
@@ -4556,7 +4670,7 @@ function buildDecPanel() {
       // one: aeroKitKnob is the same clamp the drawing uses, so what the row
       // shows is what the page gets.
       const knob = j => {
-        const key = q + (j ? 'Q' : 'P');
+        const key = q + 'PQRS'[j];       // G2870: up to four knobs
         const d = row('', '', det);
         const kk = d.querySelector('span.k');
         const i = document.createElement('input');
@@ -4577,7 +4691,7 @@ function buildDecPanel() {
         d.appendChild(i); d.appendChild(v);
         refresh.push(show);
       };
-      knob(0); knob(1);
+      knob(0); knob(1); knob(2); knob(3);
 
       num('opacity', q + 'Alp', 0, 1, 0.02,
           'a transparent layer lets what is under it through — which is how ' +
@@ -4589,6 +4703,11 @@ function buildDecPanel() {
            'flip the pattern fore-and-aft. A sweep that rises AFT becomes one ' +
            'that rises FORE, and it is the same pattern either way',
            null, det);
+      flag('fit to surface', q + 'Fit',
+           'size the layer to the surface it goes on — the whole fuselage, ' +
+           'the wings root to tip, the tail — and keep it fitted when the ' +
+           'aeroplane changes. Off, the four sliders below place it by hand',
+           () => { decFitStale = true; decFitGrey(q); }, det);
       num('station', q + 'L', -1.0, 6.0, 0.05,
           'metres AFT of the firewall', 'len', det);
       num('height on side', q + 'C', -1.2, 1.2, 0.02,
@@ -4599,11 +4718,13 @@ function buildDecPanel() {
           'metres the pattern is stretched over, top to bottom', 'up', det);
       num('turn', q + 'Rot', -0.6, 0.6, 0.01, 'radians', null, det);
       pick('goes on', q + 'Tgt',
-           ['the fuselage', 'the flying surfaces', 'both', 'the body & the tail'],
+           ['the fuselage', 'the flying surfaces', 'both', 'the body & the tail',
+            'the wings', 'the tail'],
            'a kit layer lands on BOTH flanks by construction, like every ' +
            'decal in this panel', null, det);
       pick('projected as', q + 'Mode', MODE_NAMES, MODE_HELP,
            (was, now) => decReframe(was, now, { l: q + 'L', c: q + 'C' }), det);
+      refresh.push(() => decFitGrey(q));
       redo();
     }
   }
