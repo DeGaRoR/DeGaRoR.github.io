@@ -10317,8 +10317,10 @@
     if (!Number.isFinite(az)) az = -2.5;  if (!Number.isFinite(azT)) azT = az;
     if (!Number.isFinite(el)) el = 0.22;  if (!Number.isFinite(elT)) elT = el;
     if (!Number.isFinite(dist)) dist = 14; if (!Number.isFinite(distT)) distT = dist;
-    // G200: who flies is remembered; the hand starts from the reset ctl
-    manual = !!INP && prefGet('flydiy.flManual', '0') === '1';
+    // G200: the hand starts from the reset ctl. G3120: every flight starts on the
+    // autopilot (the user, 12 Oct); the hand is one toggle away, never remembered.
+    // Only a rig boots in the hand (rollout_perf's afloat / latency legs)
+    manual = !!INP && prefGet('flydiy.flManualRig', '0') === '1';
     if (INP) INP.seed(sim.ctl);
     // G208: THE ADVISED TRIM. The bench's certificate can carry the trim the
     // test pilot held on the cruise leg, and the builder can accept it as the
