@@ -148,7 +148,10 @@ console.log('4. a stale cook is detected');
     M.level = (+M.level || 0) + 0.01;
     const W1 = cookWorld(rec0), O1 = W1.premises.set(r1, { catalogue: CAT, globals: GENS, build, pool: [], raster: true });
     const r = O1.rasterCooked || { taken: 0, stale: 0 };
-    ok(r.taken > 0 && r.taken < mine.length && r.stale > ISL.raster.cells.length - mine.length, 'the edited cells are refused, the rest load (' + r.taken + ' taken, ' + r.stale + ' refused)');
+    // (G3014: the refused are the unedited load's own (refusedWant - the other variant's cells) plus the edited ones: every cell the
+    //  edit refuses comes off the taken. It was held to cells - mine, which counted the cells of NO variant asked for as refused
+    //  - 89 of them since the user's scenery grew the cook: 649 cells, 448 the default's, 112 the other's)
+    ok(r.taken > 0 && r.taken < mine.length && r.stale > refusedWant && r.taken + r.stale === mine.length + refusedWant, 'the edited cells are refused, the rest load (' + r.taken + ' taken, ' + r.stale + ' refused)');
     const boot = IN.islandBoot(ID, { noCook: true }), WLz = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: PG.envelope(null, rec0), catalogue: CAT });
     WLz.premises.set(r1, { catalogue: CAT, globals: GENS, build, pool: [], raster: true });
     const b = M.poly.reduce((a, p) => [Math.min(a[0], p[0]), Math.min(a[1], p[1]), Math.max(a[2], p[0]), Math.max(a[3], p[1])], [1e9, 1e9, -1e9, -1e9]);
