@@ -85566,3 +85566,9 @@ READY for the GAME COORDINATOR
   Logs: reports/evidence/FLEET-PROPS-B/g2228c/.
 
 READY for the GAME COORDINATOR: claude/fleet-cowlbake-g2228b be51b15c (this section rides one docs-only commit on top)
+
+## G2715-G2719 - CREW-SEATS (WIP, PAUSED 12 Oct 12:25 on the coordinator's CREDIT MODE; no code yet, no box run)
+
+- WHERE: read only (78_ / freight_strap.js / app.js fsPeople, tools/_cage_crew.js PAGE.post + seatDummy + markLive, _cage_join.js people + seatsAt.filled -> M.occupied, parked.js holdEditor, flown_bake.js keyOf). Branch claude/crew-seats-g2715 off game-t44-2 66ce4f551, worktree D:/Dev/wt-crew.
+- DESIGN: a crew-layer door `CAGE_CREW_JOB({ pax:[i], empty:[i], out:[i] })` (like CAGE_CREW_PILOT): seatDummy seats each job passenger as a LIVE record (the layer's own pose and cast, crosses the join as `people`, never baked), drops the build's occupant the job does not seat, and builds an out seat's chair into a detached group (absent on the stand and from the join). `seatsAt` and `filled` stay the build's, so the spec, the cert key and FREIGHT-STRAP's masses do not change. The snapshot step's key gets the job key, which is '' with no job (the sandbox stays byte-identical). parked.js holdEditor stashes the door (the parked and fleet bakes stay as saved). This replaces fsPeople's flDum hide and pilot-copy figures. Note: a seat out changes the cabin's vertex count, so the flown bake keys anew (named cost). Note: FLYDIY_CREW_PILOT already leaks into parked captures (PILOTS, pre-existing).
+- NEXT: write it, add gate rows (FREIGHT: figures = accepted pax, outs absent, sandbox unchanged; PARKED: door stashed), then ask A0 for ~15 min CPU + ~20 min GPU.
