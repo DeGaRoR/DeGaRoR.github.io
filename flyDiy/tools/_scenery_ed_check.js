@@ -575,6 +575,12 @@ if (plots.length) {
     ed.undo();
     const K5 = PG.roadBuildKeys(Ok());
     check(K5.has('v_west') && K5.get('v_west') === before.get('v_west'), '14d ...and put back: its key the same as before (drawn again, as it was)'); }
+  // 14d' (G3008) THE GAME'S SIDE of an edit (render_world / app.js; the page only - source scans): a placed object's edit
+  //      touches no strip; any other edit re-samples its own box and stands the strips again only when one changed or the
+  //      box reaches one (every edit stood every strip of the island: their fine ground, pavement, lights, socks, rocks)
+  { const AP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8'), RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8');
+    check(/if \(layer === 'objects'\) return;/.test(AP) && /repaintStrips\(null\)/.test(AP) && /refreshGround\(wb\); if \(window\.WORLD\.repaintStrips\) window\.WORLD\.repaintStrips\(wb\)/.test(AP), '14d\' the game: an object\'s edit no strip, another edit its box and its strips');
+    check(/repaintStrips = \(box\) => \{/.test(RW) && /repaintStrips: \(box\) => repaintStrips\(box\)/.test(RW) && /if \(!need\) return false;/.test(RW), '14d\' render_world stands the strips again only when one changed or the box reaches one'); }
   // 14e THE TIMES, headless: an object's release through the editor (the renderer's part is the page's) against what the
   //     whole rebuild composed each time; the keys' own cost on the user's scenery with the town put back (the cache's price)
   { const Tm = f => { const t = process.hrtime.bigint(); f(); return Number(process.hrtime.bigint() - t) / 1e6; };
