@@ -86395,7 +86395,17 @@ asks); activate sweeps any other route_draw.*. storage.js's header names the exc
 
 **THE RIGS**: `tools/route_draw_shot.js` and `tools/perf/route_draw_stills.js` await the drawing (`ROUTE_DRAW.ready()` /
 `want()` + `loaded()`) before driving it. route_draw_shot.js run in the cloud on this build (SwiftShader, the served
-page, real pointer input through the lazy door): the drawing fetched on demand and driven - gestures {"added":3,"moved":true,"afterRight":2,"afterLong":1} (the rig's wanted values), draw / draw_hill / armed stills taken at 426 / 479 / 510 s; the flight leg (up to --fly=900 s) still running at this commit - its result in the READY commit.
+page, real pointer input through the lazy door; 1 run, ~25 min): the drawing fetched on its first demand (ROUTE_DRAW.ready())
+and driven exactly as on train 44 - **gestures {"added":3,"moved":true,"afterRight":2,"afterLong":1}, all four the rig's
+wanted values**; the drawn gate route "17.1 km, lowest 63 m over what stands under it (margin 60)" (GATE ROUTE A's 63 m);
+the hill point red ("-391 m ... the pilot flies it higher", each raised WP said); **FLY THIS ROUTE before the start: the
+drawing armed, the pilot's drawn state 'armed', flydiy.routeDraw saved** ("Armed: flown after the take-off's
+climb-out."). The flight leg did NOT reach the route inside --fly=900 (still on the take-off roll, ROLL 0) - **the same
+as G2120's own cloud run** (above: "still on its take-off roll after 1200 s ... the flown stills are the box script's"):
+SwiftShader frames take seconds and the sim worker holds the flight on the page's heartbeat (G1365). So "flown exactly
+as before" rests on GATE ROUTE B (the real sim and pilot in node, all six flights PASS; the pilot's code untouched) and
+LAZY R4 (an armed route stored: the real page's first pilot holds it 'armed'); A0's box script
+`tools/perf/route_draw_stills.js` (updated to await the drawing) takes the flown stills. Stills not committed (cloud scratch).
 
 **FILES**: src/viewer/route_lazy.js (new), src/viewer/route_draw.js (the IIFE, the registration), src/viewer/app.js (two
 lines), src/viewer/storage.js (comment), tools/build.js, tools/_route_check.js, tools/test_ui_smoke.js, tools/_lazy_check.js,
