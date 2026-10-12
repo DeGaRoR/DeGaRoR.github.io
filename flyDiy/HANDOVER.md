@@ -92640,3 +92640,12 @@ Merged origin/claude/scenery-ship-g3010 (b43779662) on master 0b42f6826 (train 5
 - A0 re-pins: UISMOKE map places + 3 strips, projection roads 76 -> 110 (the road graph + rev27), and flyDiy/BACKLOG.md (the official backlog, source flydiy-notes/backlog.json).
 Gates green except VEHICLE (2 placeholder rows, agreed). The strict gate was NOT run (the RWYTREES row took 15 min; the user chose to land without it). The Tue 00:45 baseline re-take on this master verifies it.
 What to watch for: strip 12 and its roads, contracts at strips 10-12, trees on the user's clearings, typed numbers in the inspector, one strip per runway click.
+
+## TRAIN 41b LANDED (A0, 13 Oct 2026 ~01:35): the damage layer (damage stays OFF by default)
+
+Merged origin/claude/dmg-t41-final ee466b792 (Deform; includes master 09683cb08) + GARAGE-SHEET's garage_lag --clearshake / train_gate garage-leg tools (469107709, 91091a155 parts).
+ACCEPTED BY NAME: index.html +160 KB gz ("(a) now", 12 Oct 18:05) -> WIRE 4.21 MiB with SCENERY-SHIP's +10 KB; owed back: G3020 (lazy damage chunk) before damage ON, then G3021.
+Gates: green except SKINMAT, WEATHER (pre-existing on master; fixes ride train 52) and JOINPARITY (the 8 Oct page capture is stale after master's trains; Deform re-captures in a 5-min slot).
+Strict gate, QUIET re-run 01:09-01:28 (the 00:15 run was spoiled by the user's session): 41b vs master 09683cb08 on the same box minutes apart: cub chase loop 18.9 vs 18.3 ms, render 13.1 vs 12.9, cockpit 19.0 vs 19.0, garage->world 11.3 vs 11.2 s: AT PAR.
+MASTER ITSELF moved vs train 50 (0b42f6826, 20:53): cub chase loop 16.5 -> 18.3 ms, render 11.8 -> 12.9, cockpit loop 16.4 -> 19.0: SCENERY-SHIP (rev27, landed 23:11 without its strict gate by the user's OK) costs ~+2 ms loop at HOME. Still 30 fps at the cap. Owed: find the cost (roads r1 / pavement / zones) - EDITOR-PERF / SCENERY-ED-2.
+What to watch for: nothing visible with damage off. ?damage=1 shows the crash layer (breaks, scars, debris).

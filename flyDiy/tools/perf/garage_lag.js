@@ -41,6 +41,9 @@ const EVMS = +opt('evms', 60000);
 // answers nothing), so a SwiftShader box's minutes-long program links never land inside a measurement; sync and the
 // JS tails (busy/settle: the deferred builds, the commits) are measured, frame is not (it reads as sync)
 const NORENDER = flag('norender');
+// --clearshake (G2920, GARAGE-SHEET): the performance sheet's store (localStorage flydiy.shake, kept per core sha) dropped
+// before the load - every rep's values are the same run to run, so without it a second run reads the first one's sheets
+const CLEARSHAKE = flag('clearshake') ? '\ntry{localStorage.removeItem("flydiy.shake")}catch(e){}' : '';
 const ONLY = opt('only', null) ? new Set(opt('only').split(',')) : null;
 const OUT = path.resolve(opt('out', path.join(__dirname, 'garage_lag_' + Date.now() + '.json')));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -159,7 +162,7 @@ function hot(p) {
     if (b) await b.close(); b = await MB.browser(UDD);
     const url = 'http://localhost:' + PORT + '/' + T.rel + '/' + PAGE;
     if (fresh && !R.warmed) { log('warm-up load (discarded)'); await b.load(url, MB.preScript(B.build, null, B.patch)); await sleep(4000); await b.close(); b = await MB.browser(UDD); R.warmed = true; }
-    const l = await b.load(url, MB.preScript(B.build, null, B.patch));
+    const l = await b.load(url, MB.preScript(B.build, null, B.patch) + CLEARSHAKE);
     log('loaded ' + l.state + ' in ' + l.sec + ' s');
     await sleep(6000);
     log('harness ' + await b.ev(HARNESS));
