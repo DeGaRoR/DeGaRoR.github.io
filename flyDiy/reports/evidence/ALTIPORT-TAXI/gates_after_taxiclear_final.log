@@ -1,0 +1,58 @@
+[run_gates] 0/4 jobs done · running TAXICLEAR/0 30 s, TAXICLEAR/1 30 s, TAXICLEAR/2 30 s, TAXICLEAR/3 30 s
+[run_gates] 0/4 jobs done · running TAXICLEAR/0 60 s, TAXICLEAR/1 60 s, TAXICLEAR/2 60 s, TAXICLEAR/3 60 s
+[run_gates] 0/4 jobs done · running TAXICLEAR/0 90 s, TAXICLEAR/1 90 s, TAXICLEAR/2 90 s, TAXICLEAR/3 90 s
+[run_gates] 0/4 jobs done · running TAXICLEAR/0 120 s, TAXICLEAR/1 120 s, TAXICLEAR/2 120 s, TAXICLEAR/3 120 s
+[run_gates] 1/4 jobs done · running TAXICLEAR/0 150 s, TAXICLEAR/1 150 s, TAXICLEAR/2 150 s
+[run_gates] 1/4 jobs done · running TAXICLEAR/0 180 s, TAXICLEAR/1 180 s, TAXICLEAR/2 180 s
+[run_gates] 1/4 jobs done · running TAXICLEAR/0 210 s, TAXICLEAR/1 210 s, TAXICLEAR/2 210 s
+[run_gates] 1/4 jobs done · running TAXICLEAR/0 240 s, TAXICLEAR/1 240 s, TAXICLEAR/2 240 s
+[run_gates] 1/4 jobs done · running TAXICLEAR/0 270 s, TAXICLEAR/1 270 s, TAXICLEAR/2 270 s
+[run_gates] 1/4 jobs done · running TAXICLEAR/0 300 s, TAXICLEAR/1 300 s, TAXICLEAR/2 300 s
+[run_gates] 2/4 jobs done · running TAXICLEAR/0 330 s, TAXICLEAR/1 330 s
+[run_gates] 2/4 jobs done · running TAXICLEAR/0 360 s, TAXICLEAR/1 360 s
+[run_gates] 2/4 jobs done · running TAXICLEAR/0 390 s, TAXICLEAR/1 390 s
+[run_gates] 3/4 jobs done · running TAXICLEAR/0 420 s
+[run_gates] 3/4 jobs done · running TAXICLEAR/0 450 s
+=== TAXICLEAR ===
+--- shard 0/4 (478.7 s) ---
+stock build     span 10.0 m: flown, nearest wing to a parked footprint 4.62 m (o1 at (-137.5, 670.4) in TAXI)
+  aluminium C172  span 11.0 m: flown, nearest wing to a parked footprint 3.92 m (o1 at (-137.7, 671.5) in TAXI)
+  Jolene: 135 stand / parked / route rows, Jumbo Mine Street's tightest 0.32 m over its need
+  aluminium C172  span 11.0 m from the mill: airborne at 84 s, the wing 1.85 m off the nearest footprint (item mn_s_mine/house3 at (7277.1, -15198.2) in LIFTOFF, t 84 s), 0 contacts, 0 trunk hits
+  the user's Cub  span 10.7 m from the mill: airborne at 81 s, the wing 2.74 m off the nearest footprint (item mn_s_mine/clinic at (7255.5, -15354.1) in TAXI, t 13 s), 0 contacts, 0 trunk hits
+  10 the fleet's spots: w2 12 (aaaaaaaaaaar), HOME 12 (saaaaaaaaaaa), w3 12 (aaaaaaaaaaaa), SEA 12 (rrrrrrrrrrrr), mk_sea 12 (rrrrrrrrrrrr), mn_strip 0 (), nv_strip 5 (aaaar), tw_ski 0 (); 12408 rows in 1.3 s
+  11c the user's Cub   from Jumbo Mine's street 45 m from its south end: airborne at 92 s, the wing 2.52 m off (item mn_s_mine/clinic at (7255.6, -15347.0) in TAXI, t 24 s), 0 contacts | pivot: turning round 21 m on (then the route) - the route's swept wings 8 m into the 3 m margin of a solid thing at (7255, -15335), the turn clear by 0.5 m
+  11 the turn-around [shard 0/4] in 100 s
+GATE TAXICLEAR: PASS
+[stderr]
+SHARD 0/4: 3 of 12 heavy jobs
+--- shard 1/4 (409.6 s) ---
+11a the user's Cub   82 turn-around plans, the tightest 0.15 m over its need (mn_strip end0 -90 m the user's Cub)
+  11c the user's Cub   from the altiport apron after the slope roll-on: airborne at 55 s, the wing 6.62 m off (prop ob:tw_o19 at (315.1, -7807.6) in TAXI, t 27 s), 0 contacts | pivot: turning round here (then the centreline) - the route's swept wings 4.3 m into the 3 m margin of a solid thing at (333, -7849), the turn clear by 2.9 m
+  11c the Jodel        from Jumbo Mine's street 45 m from its south end: NOT airborne at 150 s, the wing 3.85 m off (item mn_s_mine/clinic at (7255.8, -15347.4) in TAXI, t 23 s), 0 contacts | pivot: turning round 18 m on (then the route) - the route's swept wings 4.6 m into the 3 m margin of a solid thing at (7255, -15334), the turn clear by 0.5 m
+  11 the turn-around [shard 1/4] in 396 s
+GATE TAXICLEAR: PASS
+[stderr]
+SHARD 1/4: 3 of 12 heavy jobs
+--- shard 2/4 (311.5 s) ---
+11a the Jodel        82 turn-around plans, the tightest 0.40 m over its need (mn_strip end0 -90 m the Jodel)
+  11c the Jodel        from the altiport apron after the slope roll-on: airborne at 59 s, the wing 7.68 m off (prop ob:tw_o19 at (315.0, -7807.9) in TAXI, t 28 s), 0 contacts | pivot: turning round here (then the centreline) - the route's swept wings 1 m into the 3 m margin of a solid thing at (333, -7849), the turn clear by 4.1 m
+  11c the metal Cessna from Jumbo Mine's street 45 m from its south end: airborne at 96 s, the wing 1.90 m off (item mn_s_mine/house3 at (7277.1, -15198.2) in LIFTOFF, t 96 s), 0 contacts | pivot: turning round 24 m on (then the route) - the route's swept wings 3.6 m into the 3 m margin of a solid thing at (7258, -15385), the turn clear by 0.3 m
+  11 the turn-around [shard 2/4] in 298 s
+GATE TAXICLEAR: PASS
+[stderr]
+SHARD 2/4: 3 of 12 heavy jobs
+--- shard 3/4 (146.6 s) ---
+11a the metal Cessna 82 turn-around plans, the tightest 0.32 m over its need (mn_strip end0 -90 m the metal Cessna)
+  11c the metal Cessna from the altiport apron after the slope roll-on: airborne at 50 s, the wing 6.28 m off (prop ob:tw_o19 at (315.1, -7808.1) in TAXI, t 24 s), 0 contacts | pivot: turning round here (then the centreline) - the route's swept wings 0.1 m into the 3 m margin of a solid thing at (313, -7811), the turn clear by 2.7 m
+  11 the turn-around [shard 3/4] in 134 s
+GATE TAXICLEAR: PASS
+[stderr]
+SHARD 3/4: 3 of 12 heavy jobs
+
+──────── summary ────────
+TAXICLEAR PASS   478.7 s  [4 shards]
+total            478.7 s
+wall             478.8 s  (jobs 4)
+
+BATTERY: PASS

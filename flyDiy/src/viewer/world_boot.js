@@ -126,7 +126,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   const world = makeWorld(0, { premises: premisesPlaced, island: islandAtBoot });
   // THE HOUSES' OWN THREAD (G830, src/viewer/house_worker.js): it makes this same world from the same premises text and
   // the island's own files - its ~5 s beside the garage's boot - so the town step finds it ready to generate
-  try { if (window.HOUSE_WORKER && premisesPlaced && window.ISLAND_BOOT) window.HOUSE_WORKER.start({ premises: premisesPlaced, island: window.ISLAND_BOOT.id }); } catch (e) { console.warn('house worker:', e && e.message); }
+  try { if (window.HOUSE_WORKER && premisesPlaced && window.ISLAND_BOOT) window.HOUSE_WORKER.start({ premises: premisesPlaced, island: window.ISLAND_BOOT.id, hydro: window.ISLAND_BOOT.hydro }); } catch (e) { console.warn('house worker:', e && e.message); }
   // THE TREES THIS MAP CAN REACH (AS1, G908: trees.js treeReachOf): the composed world (the premises' ttype stamps
   // in, the town filter applied) says which species can stand; every tree fetch after this line (the garage's, the
   // roll-out's) asks for those alone. The analytic world answers null: the whole pack, as before

@@ -3093,14 +3093,17 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (!(mask & 4)) quad(lx - hc, lz + hc, lx + hc, lz + hc + skirt, y);
         if (!(mask & 8)) quad(lx - hc, lz - hc - skirt, lx + hc, lz - hc, y);
       }
-      const wg = new THREE.BufferGeometry();
-      wg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      wg.setIndex(idx);
-      wg.computeVertexNormals();
-      if (WSH) { const nv = pos.length / 3, aw = new Float32Array(nv * 2); for (let i = 0; i < nv; i++) aw[i * 2] = i < riverVerts ? 2 : 1; wg.setAttribute('aWater', new THREE.Float32BufferAttribute(aw, 2)); }
-      const wm = new THREE.Mesh(wg, waterMat);
-      wm.receiveShadow = true;
-      scene.add(wm);
+      // (G2990: the island's default water has no reach and no bake lake cell - no empty mesh then)
+      if (idx.length) {
+        const wg = new THREE.BufferGeometry();
+        wg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        wg.setIndex(idx);
+        wg.computeVertexNormals();
+        if (WSH) { const nv = pos.length / 3, aw = new Float32Array(nv * 2); for (let i = 0; i < nv; i++) aw[i * 2] = i < riverVerts ? 2 : 1; wg.setAttribute('aWater', new THREE.Float32BufferAttribute(aw, 2)); }
+        const wm = new THREE.Mesh(wg, waterMat);
+        wm.receiveShadow = true;
+        scene.add(wm);
+      }
     }
   }
 
