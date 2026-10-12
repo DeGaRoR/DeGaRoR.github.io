@@ -30,6 +30,8 @@ Usage (from flyDiy/):  python tools/char_prep.py            # whole table + the 
                        python tools/char_prep.py --report   # inventory only
                        python tools/char_prep.py --budget   # the budget set only
                        python tools/char_prep.py --no-budget
+                       python tools/char_prep.py --cast     # the crowd only (G2970): the cast + its clips,
+                                                            # the crew's manifests and media left alone
 """
 import json
 import os
@@ -41,7 +43,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 from glb_inspect import load, accessor, view_bytes  # noqa: E402
-from media_lib import write_media, prune_media, encode_tex, asset_src, BASE_DECL  # noqa: E402
+from media_lib import write_media, prune_media, prune_media_stems, encode_tex, asset_src, BASE_DECL  # noqa: E402
 CHAR_TEX_MAX = 2048   # the delivered size of a character's maps (LOADING S4)
 import chars_table as TABLE  # noqa: E402
 
@@ -330,12 +332,16 @@ def main(argv):
         return budget()
     os.makedirs(OUT_DIR, exist_ok=True)
     files, keep = [], []
-    for row in TABLE.CHARS:
+    # --cast (G2970): the crew's rows are not re-baked (their media and boot
+    # manifests stay byte for byte what is committed); the prune below then
+    # owns only the cast's and the crowd clips' own stems
+    only_cast = '--cast' in argv
+    for row in ([] if only_cast else TABLE.CHARS):
         name, rels = bake(row, report)
         if name:
             files.append(name)
             keep += rels
-    for row in getattr(TABLE, 'ANIMS', []):
+    for row in ([] if only_cast else getattr(TABLE, 'ANIMS', [])):
         name, rels = bake_anim(row, report)
         if name:
             files.append(name)
@@ -379,9 +385,20 @@ def main(argv):
         pass
     with open(PACK, 'w', encoding='utf8', newline='\n') as f:
         f.write(json.dumps(pack, indent=1) + '\n')
+    own_cast = [r for r in getattr(TABLE, 'CAST', []) if not r.get('reuse')]
+    if only_cast:
+        stems = [r['key'] for r in own_cast] + ['anim_' + r['key'] for r in getattr(TABLE, 'CROWD_CLIPS', [])]
+        gone = prune_media_stems('geo/chars', stems, keep) if stems else []
+        gone += prune_media('chars', cast_keep)
+        for row in own_cast:
+            gone += prune_media('tex/chars/' + row['key'], keep)
+        print('--cast: %d member(s), %d clip(s); pruned %d stale file(s)' % (len(own_cast), len(clips), len(gone)))
+        if '--no-budget' not in argv:
+            budget()
+        return
     gone = prune_media('geo/chars', keep)
     gone += prune_media('chars', cast_keep)
-    for row in TABLE.CHARS + [r for r in getattr(TABLE, 'CAST', []) if not r.get('reuse')]:
+    for row in TABLE.CHARS + own_cast:
         gone += prune_media('tex/chars/' + row['key'], keep)
     with open(os.path.join(OUT_DIR, 'chars_index.json'), 'w', encoding='utf8',
               newline='\n') as f:
