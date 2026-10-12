@@ -4794,7 +4794,8 @@ function buildMatPanel() {
   // `auto (follows …)` under it — but never a tint: a colour drag must not
   // rebuild DOM under an open native picker (syncMatPanel covers the wells).
   const live = Object.keys(SEC_LIVE).sort();
-  const sig = names.join(',') + '|' + consOf() + '|' +
+  // (G2750: + the canopy mode - the waistband row's LABEL is the bubble's 'canopy sill band')
+  const sig = names.join(',') + '|' + consOf() + '|' + (+P.canopy === 3 ? 'bub|' : '') +
     live.map(n => { const r = secResolveAuto(n);
                     return n + ':' + r.fin + ':' + (r.src || ''); }).join(',');
   if (sig === matPanelSig) { syncMatPanel(); return; }
@@ -4869,6 +4870,11 @@ function buildMatPanel() {
   // user's own, kept. The picker fires per notch, so the base it replaces
   // is always the last notch's — a following section never falls behind.
   // The same rule for the base metallic and the base roughness.
+  // G2750 (the user, 11 Oct: "changing the global paint again should just
+  // plain repaint the aircraft"): WITHDRAWN for what the base covers — every
+  // exterior cage section (skin, rail bands, frame bands), every part that
+  // wears the body, and (the user: "include wings and tail too") the wings
+  // and the tail take the pick, a hand colour too. See aeroBaseReach.
   //
   // `reach(map, prev, next, secs)`: for every exterior cage section and
   // every parent-wearing / soft-pinned layer part, write `next` (or delete,
@@ -4880,10 +4886,11 @@ function buildMatPanel() {
   const baseReach = (map, prev, next, neutral, eq) =>
     A.aeroBaseReach(map, prev, next, neutral, eq, names);
   {
-    const d = mkRow2('base colour', 'one colour for the whole fuselage — ' +
-      'the skin, the rings and pillars, the nose deck, the cowl, the ' +
-      'struts, the fairings and the fittings, in one pick; the wells ' +
-      'below still override a section afterwards');
+    const d = mkRow2('base colour', 'one colour for the whole aircraft — ' +
+      'the skin, the rings, the bands and pillars, the nose deck, the cowl, ' +
+      'the wings, the tail, the struts, the fairings and the fittings, in one ' +
+      'pick (a colour set by hand is repainted too; the markings are not ' +
+      'paint and stay); the wells below still override a section afterwards');
     d.dataset.matHead = '1';
     const c = document.createElement('input');
     c.type = 'color'; c.style.flex = 'none';
@@ -5032,7 +5039,13 @@ function buildMatPanel() {
     pillarFront: 'nose frame band', pillarWindow: 'windscreen frame band',
     pillarCabin: 'cabin frame band', pillarPassenger: 'passenger frame band',
     pillarTaper: 'boom frame band', pillarTail: 'tail frame band',
-    drawnPane: 'drawn windows (the panes)', reveal: 'window reveals' };
+    drawnPane: 'drawn windows (the panes)', reveal: 'window reveals',
+    // G2750 (the user: "a dark part around the cockpit ... that can't be accessed using the finish editor"): the three
+    // rails' strips by what they are on screen - and the waist one by what a BUBBLE makes of it, the band the canopy
+    // re-sizes under its seam (cageCanopy) all round the cockpit; the stock Cub's black waist stripe rides into
+    // every build made from it, and on a bubble it is that dark surround
+    waistband: +P.canopy === 3 ? 'canopy sill band' : 'waist band',
+    ceilingLoop: 'roof rail band', floorLoop: 'floor rail band' };
   const DASH_HEAD = [
     ['woods',    ['walnut', 'walnutFig', 'maple', 'spruce', 'ply']],
     ['alloys',   ['panelMetal', 'bareAlu', 'sillAlu', 'alclad', 'castAlu', 'chrome', 'bronze', 'copper']],

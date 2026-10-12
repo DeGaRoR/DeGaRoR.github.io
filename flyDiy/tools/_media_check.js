@@ -165,7 +165,8 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 // measured, this file's own method) - owed back by G3020 (skin_break / wreck_debris / skin_gpu / ground_scar as a lazy
 // chunk loaded only with ?damage=1, ~-50 KB gz) and G3021 (the damage half of app.js, lazy too); both in the official
 // backlog. (Before: 4.05, train 44's ~+30 KB, owed back by ROUTE-LAZY G3070.)
-const WIRE_BUDGET_MIB = 4.19;
+// Master's quote, kept: A0 12 Oct 22:10: the user ACCEPTED BY NAME SCENERY-SHIP's +10 KB (rev27: strip 12, roads, areas) - "ok". Before that, 12 Oct: the user ACCEPTED BY NAME train 44's ~+30 KB (route_draw + 44_vprofile + 38c_route: 4.03 MiB); owed back by ROUTE-LAZY G3070 (route_draw as a lazy chunk)
+const WIRE_BUDGET_MIB = 4.21;   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
 // STEP: how much index.html (CRs removed) may grow over the build before it, MiB.
 // "The build before" is git's: if the built page differs from HEAD's, HEAD (and
 // its parents, when HEAD is a merge); if it IS HEAD's, the parents of the commit
@@ -178,8 +179,8 @@ const STEP_BUDGET_MIB = 0.3;
 const STEP_ACCEPTED = [
   { name: 'train 43: the career features, user-accepted 8 Oct ("Have a sanity check, then accept. It is a major feature, expected to take some space.") - +422.8 KB over train 42.1',
     fromBytes: 12210701, upToBytes: 12660032 },
-  { name: 'train 41: the damage layer, user-accepted 12 Oct by name ("(a) now") - +467 KB raw (+160 KB gz) over master f09cf417f; owed back by G3020 / G3021',
-    fromBytes: 12644598, upToBytes: 13140000 },
+  { name: 'train 41: the damage layer, user-accepted 12 Oct by name ("(a) now") - +467 KB raw (+160 KB gz) over master (09683cb08, SCENERY-SHIP); owed back by G3020 / G3021',
+    fromBytes: 12709352, upToBytes: 13200000 },
 ];
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
@@ -244,6 +245,13 @@ function manifestFiles() {
     ? JSON.parse(fs.readFileSync(loadsMf, 'utf8'))
         .map(f => path.join(ROOT, 'src', 'loads', f))
     : [];
+  // the October scenery kit and the driveable cars (ASSETS-OCT G2904 / G2908): their bakers' tables (tools/scenery_table.py,
+  // tools/car_table.py), their own packs + levels (media/geo/scenery, scenery_lod, media/tex/scenery; media/geo/cars,
+  // cars_lod, media/tex/cars). The scenery packs load ON DEMAND (build.js MANIFEST.lazy); the cars' wait on the car system
+  const kitPacks = (dir, json) => { const mf = path.join(ROOT, 'src', dir, json);
+    return fs.existsSync(mf) ? JSON.parse(fs.readFileSync(mf, 'utf8')).map(f => path.join(ROOT, 'src', dir, f)) : []; };
+  const scenery = kitPacks('scenery', 'scenery_packs.json');
+  const cars = kitPacks('cars', 'cars_packs.json');
   // EVERY payload on disk, not build.js's publish list: the table is the
   // CATALOGUE and MANIFEST.models the published subset (GATE REF's own
   // distinction). draco is baked-but-unpublished — no spec holds its scale —
@@ -304,7 +312,7 @@ function manifestFiles() {
   // the 2-D island map (G2250 MAP-MENU): tools/map_bake.js owns media/map, named by the generated map pack (G2203: was missing,
   // so the map's two files read as orphans)
   const mapp = path.join(ROOT, 'src', 'viewer', 'map_pack.js'), maps = fs.existsSync(mapp) ? [mapp] : [];
-  return v.concat(packs, pier, totems, panelhw, cabin, loads, models, chars, animals, trees, shots, worlds, townkit, sound, maps);
+  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, models, chars, animals, trees, shots, worlds, townkit, sound, maps);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|json)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701)

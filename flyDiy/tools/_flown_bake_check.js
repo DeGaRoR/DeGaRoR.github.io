@@ -484,7 +484,8 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
     let fn = null; try { fn = m ? new Function('return ' + m[0])() : null; } catch (e) {}
     const vs = 'void main() {\n#include <begin_vertex>\n#include <skinning_vertex>\n#include <project_vertex>\n}';
     const sk = fn ? fn({ skinning: true }, vs) : '', pl = fn ? fn({ skinning: false }, vs) : '';
-    const iSk = sk.indexOf('vCraftPos = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;');
+    // (G2750: the craft place is the REST one, through the same bone - aRest, see aeroskin's AERO_MAIN_VS)
+    const iSk = sk.indexOf('vCraftPos = (uCraftInv * modelMatrix * vec4(aeroRestP, 1.0)).xyz;');
     check(!!fn && iSk > sk.indexOf('#include <skinning_vertex>') && iSk < sk.indexOf('#include <project_vertex>') && pl === vs &&
           (AS.match(/aeroSkinnedCraft\(shader, shader\.vertexShader/g) || []).length === 2,
       '8 G1493 a skinned AEROSKIN / AEROGLASS program takes vCraftPos after skinning_vertex (a moving part\'s decals where the skeleton put it); a plain program\'s text unchanged');

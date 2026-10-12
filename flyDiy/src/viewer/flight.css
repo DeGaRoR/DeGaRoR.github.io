@@ -1005,6 +1005,11 @@ body.premOpen #flFly { display:none; }
 #ui .pr-insp .r > span.v { flex:none; width:48px; text-align:right;
   font:500 11px/1 'IBM Plex Sans'; color:var(--ed-ink); }
 #ui .pr-insp .r > .fsel { flex:1; min-width:0; }
+/* (G3017) the slider's typed value: the readout IS the field (the garage's reference panel), a line under it on hover and focus */
+#ui .pr-insp .r > input.v { flex:none; width:48px; text-align:right; font:500 11px/1 'IBM Plex Sans'; color:var(--ed-ink);
+  background:none; border:0; border-bottom:1px solid transparent; border-radius:0; padding:0 0 1px; margin:0; cursor:text; outline:none; }
+#ui .pr-insp .r > input.v:hover { border-bottom-color:var(--ed-border); }
+#ui .pr-insp .r > input.v:focus { border-bottom-color:var(--ed-acc); }
 #ui .pr-insp .r.item { padding:5px 8px; margin:3px 0; border-radius:6px; background:var(--ed-btn-bg); }
 #ui .pr-insp .r.item.on { background:var(--ed-acc-soft); color:var(--ed-ink); }
 #ui .pr-insp .r.item > span.k { width:auto; flex:1; }

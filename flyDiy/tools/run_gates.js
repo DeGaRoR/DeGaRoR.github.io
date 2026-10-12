@@ -230,6 +230,16 @@ const GATES = [
   // cut of a staged photoscan, base + three levels) = the park generator's
   // mirror, and the park plan is a park over twenty seeds. ~1 s.
   { id: 'TOTEM', file: '_totem_check.js', tier: 'core' },
+  // THE OCTOBER SCENERY (ASSETS-OCT, G2907): tools/scenery_table.py = the baked kit (landmarks, vessels, wrecks,
+  // the crowd, the ALMA assembly), the cut rows within their budgets, the levels, CC BY credits, the VotV rip out
+  { id: 'SCENERY', file: '_scenery_check.js', tier: 'core' },
+  // THE DRIVEABLE CARS (ASSETS-OCT, G2908): tools/car_table.py = the baked parts, the data sheet's wheels /
+  // wheelbase / level / steering axis / collision boxes measured and consistent, the estimates named, CC BY
+  { id: 'CARS', file: '_car_check.js', tier: 'core' },
+  // THE NAVAIDS AND THE SMALL UTILITIES (ASSETS-OCT, G2909): NAVAID_GEN (lazy) - the ANN DVOR/DME and the hydro
+  // powerhouses build headless within budget, the FAA dimensions, the red beacon, the two-tone roof, the yard; the sites
+  // at their real points with their tree-clear areas; the generator stays out of index.html
+  { id: 'NAVAID', file: '_navaid_check.js', tier: 'core' },
   // THE ANIMALS (2026-09-22): the declared table = the shipped skins, their
   // clip libraries and the cut levels; and the behaviours run headless
   // against the real vendor three (a herd, a pod and a flock, 900 steps).
@@ -533,6 +543,11 @@ const GATES = [
   { id: 'KNIFE', file: '_knife_check.js', tier: 'core' },     // T2.2: the drawn windows — corpus identity, watertight, shapes, rows, refusal, glazing
   { id: 'FIN', file: '_fin_check.js', tier: 'core' },         // fin + stab vs the sketch
   { id: 'COWL', file: '_cowl_check.js', tier: 'core' },       // the cowl, and the engine inside it
+  // G2880 (NACELLE-LAG): a wing-mounted engine stands on THIS build's wing - card A then card B equals card B fresh
+  // (the engines, the cowls, the flown spec, CG and SM, to the bit) on three wing-engine pairs, the validated builds
+  // register no early reader, the doctored tree (CAGE_WING_EARLY.publish stood down) must reproduce the lag; ~2 min
+  // (8 headless processes, its own pool of 4: weight 4)
+  { id: 'NACLAG', file: '_naclag_check.js', tier: 'core', weight: 4, wall: 120 },
   { id: 'ENGMESH', file: '_eng_mesh_check.js', tier: 'core' },// the engine's own health + ledger
   { id: 'JOIN', file: '_join_check.js', tier: 'core' },       // editor -> spec -> a buildable aeroplane
   // THE RESOLVED SPEC IS A FIXED POINT AND THE CORNERS ARE THE STAND (SPEC-FIXPOINT G1550, the 2026-10-04

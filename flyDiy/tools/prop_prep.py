@@ -703,6 +703,11 @@ def bake(row, bank, log):
         # and dropping every module's pile bottoms to zero threw that away.
         # Centre in plan, leave y alone, and the kit still fits itself.
         off = (-(lo[0] + hi[0]) / 2, 0.0, -(lo[2] + hi[2]) / 2)
+    elif row['place'] == 'centre':
+        # A PART THAT TURNS ON ITS OWN CENTRE (ASSETS-OCT G2908, the driveable car: a wheel, the
+        # steering wheel): the box's centre to the origin on all three axes; where it sat in the
+        # delivered frame is published as `at`, so the vehicle puts it back and spins it there
+        off = (-(lo[0] + hi[0]) / 2, -(lo[1] + hi[1]) / 2, -(lo[2] + hi[2]) / 2)
     else:
         off = (0.0, 0.0, 0.0)
     lo = [lo[k] + off[k] for k in range(3)]
@@ -864,6 +869,8 @@ def bake(row, bank, log):
         rec['piles'] = sorted(piles)
     if row.get('float') is not None:
         rec['float'] = row['float']
+    if row['place'] == 'centre':
+        rec['at'] = [round(-off[k], 4) for k in range(3)]
     return rec
 
 

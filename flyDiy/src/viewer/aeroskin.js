@@ -1102,16 +1102,41 @@ function aeroFinishLegacy(sections) {
 //     under its own-coloured wing) is WRITTEN `next`. Read off the map as it
 //     stood before the pick, so a parent cleared here does not change the
 //     verdict on its child.
+// G2750 (the user, 11 Oct: "the canopy sill band should also be affected by the global paint" and then "I don't think
+// a band changed by hand should keep its color. Changing the global paint again should just plain repaint the
+// aircraft"): THE GLOBAL PAINT REPAINTS what it covers - every exterior cage section (the skin, the rail bands, the
+// frame bands: the stock Cub's black waist stripe, inherited by every build made from it, was the dark band round a
+// bubble that no pick reached) and every part that wears the body (the cowl, the struts, the fairings, the
+// fittings), set by hand or not. G468's "a hand colour survives the base" is withdrawn for these by that ruling; the
+// wells still override a section AFTER a pick. ...AND THE WINGS AND THE TAIL (the user: "include wings and tail too" -
+// one global paint is the whole aircraft): every layer part of the airframe's livery family (its chain reaches the
+// body: the wings and their surfaces, the fin, the stab, the booms, the floats, the gear) drops its own colour and
+// follows the body; a row that walks its own name only (tintOwn, the float's deck) takes the pick itself. What is not
+// the airframe's paint (the propeller, the spinner, the engine, the seats, the crew) keeps G1320's rule: it follows
+// only if it was following. Decals and the registration are not paint and are not touched.
 function aeroBaseReach(map, prev, next, neutral, eq, names) {
   const same = (a, b) => a == null ? b == null : (b != null && eq(a, b));
-  const following = k => map[k] == null || same(map[k], prev);
-  const put = k => { if (!following(k)) return;
+  const put = k => {
     if (next == null || (neutral != null && eq(next, neutral))) delete map[k]; else map[k] = next; };
-  // the layer verdicts first, on the untouched map
+  const reachesBody = k => {
+    for (let s = AERO_SEC[k] && AERO_SEC[k].parent, n = 0; s != null && n < 9; n++) {
+      if (s === 'body') return true;
+      if (!AERO_SEC[s]) return false;
+      s = AERO_SEC[s].parent;
+    }
+    return false;
+  };
+  // the airframe's livery family: repainted whatever it wore (G2750)
+  for (const k in AERO_SEC) {
+    const row = AERO_SEC[k];
+    if (row.wears === 'parent' || row.finFollows || !reachesBody(k)) continue;
+    if (row.tintOwn) put(k); else delete map[k];
+  }
+  // the layer verdicts for the rest, on the map as it stands
   const layer = [];
   for (const k in AERO_SEC) {
     const row = AERO_SEC[k];
-    if (row.wears === 'parent' || row.finFollows || row.tintOwn) continue;
+    if (row.wears === 'parent' || row.finFollows || row.tintOwn || reachesBody(k)) continue;
     if (map[k] == null || !same(map[k], prev)) continue;
     let s = row.parent, toBody = false;
     for (let n = 0; s != null && n < 9; n++) {
@@ -1124,10 +1149,10 @@ function aeroBaseReach(map, prev, next, neutral, eq, names) {
   for (const nm of names || [])
     if (['skin', 'rail', 'pillar'].includes(AERO_ROLE[nm])) put(nm);
   put('body');
-  // the parent-wearing parts follow by having NO override: clear theirs
-  // only when it was the base's own value (a cowl painted by hand keeps it)
+  // the parent-wearing parts follow by having NO override: clear theirs - a hand colour too (G2750: the global paint
+  // plainly repaints what it covers)
   for (const k in AERO_SEC)
-    if ((AERO_SEC[k].wears === 'parent' || AERO_SEC[k].finFollows) && map[k] != null && same(map[k], prev))
+    if ((AERO_SEC[k].wears === 'parent' || AERO_SEC[k].finFollows) && map[k] != null)
       delete map[k];
   for (const [k, toBody] of layer) {
     const v = next != null ? next : neutral;
@@ -2354,6 +2379,7 @@ function aeroSetDecals(THREE, list) {
 const AERO_PARS_VS = `
 attribute vec4 aStruct;
 attribute float aCav;       // G345.5: the baked cavity (aeroweather), 0 where absent
+attribute vec4 aRest;       // G2750: the vertex's REST place (w 2 = present; an unbound attribute reads w 1 - see aeroRestBake)
 uniform mat4 uCraftInv;
 varying vec4 vSurf;
 varying float vCav;
@@ -2370,7 +2396,15 @@ const AERO_MAIN_VS = `
   vCav    = aCav;
   vObjPos = transformed;
   vObjNrm = objectNormal;
-  vCraftPos = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;
+  // THE PAINT RIDES THE SKIN (G2750, the user: "the decal is projected live, so when the control surfaces move ... the
+  // moving part gets a shifting paintjob" and "the weathering 'dots' keep moving constantly, the texture gets stretched
+  // and back"). In flight the rigs WRITE the vertices - the hinges turn a surface in its buffer, the flex bends every
+  // skin vertex - so a craft place read off the posed position re-projected every box decal, every triplanar grunge read,
+  // the holes and the detail sheet each frame across a moving surface. The place is the REST one (aeroRestBake, once
+  // per flown geometry, before the first pose); a part that moves as a WHOLE (a wheel, an engine, a pivot group) still
+  // carries its motion in modelMatrix, so it turns with its own paint as before. No rest (the editor, a bench): the posed one, as before.
+  vec3 aeroRestP = aRest.w > 1.5 ? aRest.xyz : transformed;
+  vCraftPos = (uCraftInv * modelMatrix * vec4(aeroRestP, 1.0)).xyz;
   // ...AND WHICH WAY THE SURFACE FACES, IN THE SAME FRAME (2026-09-11). A
   // marking that must land on ONE SIDE of a thin surface cannot be decided
   // from the position: both faces of a centreline fin are the same 30 mm from
@@ -2390,10 +2424,36 @@ const AERO_MAIN_VS = `
 // program takes vCraftPos again after skinning (AERO_CABIN_HOOK's G272 rule for the crew's legs); vCraftNrm needs nothing
 // (skinnormal_vertex has already turned objectNormal by begin_vertex). Only a skinned program's text changes - a plain
 // one's source stays byte for byte (no program cache miss for it).
+// G2750: THE REST PLACE, once per flown model, ONLY FOR FLIGHT (app.js restBake: when the craft is first shown in the
+// world under the roll-out's screen, else on the first flight frame - never per garage change): the position array as
+// it stands, w 2 marking it present, on every mesh drawn with an aeroskin material - the C4b folds' too (a skinned fold's
+// array is bind space, its members' own, still at rest: the shader takes it through the same bone). The editor and the
+// benches never call it: there nothing writes the vertices and the posed place IS the rest place.
+function aeroRestBake(THREE, obj) {
+  let done = 0;
+  if (!obj || !obj.traverse) return 0;
+  obj.traverse(o => {
+    if (!o.isMesh || !o.geometry) return;
+    const a = o.geometry.attributes, pa = a && a.position;
+    if (!pa || !pa.array || pa.isInterleavedBufferAttribute || pa.itemSize !== 3 || a.aRest) return;
+    const ms = Array.isArray(o.material) ? o.material : [o.material];
+    if (!ms.some(m => m && (m.userData || {}).aeroskin)) return;
+    const p = pa.array, n = pa.count, r = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) { r[i * 4] = p[i * 3]; r[i * 4 + 1] = p[i * 3 + 1]; r[i * 4 + 2] = p[i * 3 + 2]; r[i * 4 + 3] = 2; }
+    o.geometry.setAttribute('aRest', new THREE.BufferAttribute(r, 4));
+    done++;
+  });
+  return done;
+}
 function aeroSkinnedCraft(shader, vs) {
   if (!shader || !shader.skinning) return vs;
+  // G2750: the REST place through the same bone (the fold's bone is the part's whole motion; the rigs' writes are what
+  // the rest place leaves out)
   return vs.replace('#include <project_vertex>',
-    'vCraftPos = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;   // G1493: after skinning\n#include <project_vertex>');
+    'if (aRest.w > 1.5) { vec4 aeroRs = bindMatrix * vec4(aRest.xyz, 1.0);\n' +
+    '  aeroRestP = (bindMatrixInverse * (boneMatX * aeroRs * skinWeight.x + boneMatY * aeroRs * skinWeight.y\n' +
+    '    + boneMatZ * aeroRs * skinWeight.z + boneMatW * aeroRs * skinWeight.w)).xyz; } else aeroRestP = transformed;\n' +
+    'vCraftPos = (uCraftInv * modelMatrix * vec4(aeroRestP, 1.0)).xyz;   // G1493: after skinning\n#include <project_vertex>');
 }
 
 // ---------------------------------------------------------------------------
@@ -4641,6 +4701,7 @@ if (typeof window !== 'undefined')
                       aeroGlassTint, aeroGlassCompanion, GLASS_DEF,
                       aeroGlassSpec,
                       aeroIsInside, aeroCabinHook, aeroSetCabin, aeroSetFootwell, aeroSetHoles,
+                      aeroRestBake,   // G2750
                       AERO_CABIN_DEF, aeroDecOk,
                       aeroSetEnv, aeroSetGlassBlend, aeroGlassLinear, aeroDispose, aeroLinear, AERO_TEX,
                       aeroSetDecals, aeroSetCraft,
@@ -4682,4 +4743,4 @@ if (typeof module !== 'undefined')
                      AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy,
                      AERO_FINISH_DEF, AERO_LAB_FIELDS, AERO_LAB_GRAM,
                      AERO_GAIN_DEF, GLASS_DEF, aeroIsInside, AERO_CABIN_DEF,
-                     aeroDecOk };
+                     aeroDecOk, aeroRestBake };
