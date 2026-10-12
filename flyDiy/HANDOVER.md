@@ -86775,3 +86775,14 @@ No stream sound away from the lakes and the sea. Boot: the world composes ~0.1-0
   - the Tamgas Hill held-speed short field;
   - FLY > drawn route + the map's draw mode;
   - no procedural rivers, the lakes unchanged, the island's hydro boot ~0.15 s faster.
+
+## SCENERY-SHIP x T44 (12 Oct 14:00, SCENERY-ED-2): THE CAR SHEET - FOR GROUND-VEHICLE'S NEXT ROUND
+- `src/cars/car_conquer.json` came from both sides (add/add). Kept: ASSETS-OCT's MEASURED sheet (from the baked model the
+  game draws: wheelbase 3.0143 m, track 1.4123 m, r 0.3501 m, rear axle at x -1.301 (the placeholder -1.505), CG x 0.387,
+  ground 0.0285, the lamps) over GROUND-VEHICLE G2940's 'NOT MEASURED. Written from the brief' placeholder (A0's ruling:
+  the drawn model wins). GATE CARS: PASS.
+- GATE VEHICLE: 2 rows RED, both expectations pinned to the placeholder, not the physics: DEF tests wb === 3.01, track ===
+  1.41, r === 0.35 exactly (the measured sheet parks 2 s with 0.028 mm drift, 56.0 % front, four wheels down); AIRBORNE's
+  ledge is placed for the placeholder's rear axle (-1.505): with the real one the fronts read 0 frames on (the rear's
+  20 / 6 frames and the zero drive are as they should be). NEXT ROUND (GROUND-VEHICLE): read wb / track / r / the axle x
+  from the sheet in DEF and place AIRBORNE's ledge off the sheet's rear axle.
