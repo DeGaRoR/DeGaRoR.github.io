@@ -16,6 +16,7 @@
 //   5 LEVELS    what prop_lod.js's ladder asks per group, each under 0.7 of the level above
 //   6 CREDITS   every row CC BY 4.0 with an author and a sketchfab source, scenery_credits.json
 //               = the table, every author named in CREDITS.md; the blocked VotV rip named nowhere
+//   8 LAZY      the packs in build.js MANIFEST.lazy (never index.html's static list); world_boot and the editor ask
 //   7 ASSEMBLY  src/scenery/scenery_assembly.json: every part a baked row, the fork's axis
 //               vertical, the dish's horizontal, unit axes, each pivot inside its part's box,
 //               at least one obstruction light and every light inside the assembly's box
@@ -256,6 +257,16 @@ function main() {
   const D = gather();
   if (!D.REG.order.length) { console.log('GATE SCENERY: FAIL - no scenery packs (python tools/scenery_kit.py)'); process.exit(1); }
   const R = check(D);
+  // 8 LAZY (G2904): the packs are fetched on demand (build.js MANIFEST.lazy), never index.html's static list; world_boot
+  // asks for them when the record holds props, the editor's placer when it opens
+  {
+    const B = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8'), at = B.indexOf('lazy: [');
+    if (B.slice(0, at).indexOf("'scenery', 'scenery_packs.json'") >= 0) R.fails.push('8 lazy: the scenery packs are in the static list of index.html');
+    if (B.slice(at, at + 4000).indexOf("'scenery', 'scenery_packs.json'") < 0) R.fails.push('8 lazy: the scenery packs are not in MANIFEST.lazy');
+    const WB = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'world_boot.js'), 'utf8'), AP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+    if (!/\^scenery_\//.test(WB) && WB.indexOf('/^scenery_/') < 0) R.fails.push('8 lazy: world_boot.js does not ask for the scenery packs');
+    if (AP.indexOf('/^scenery_/') < 0) R.fails.push('8 lazy: the editor (app.js) does not ask for the scenery packs');
+  }
   if (process.argv.includes('--selftest')) {
     const clone = () => JSON.parse(JSON.stringify(Object.assign({}, D, { bins: {} })));
     const reds = [];

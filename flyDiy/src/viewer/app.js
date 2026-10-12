@@ -61,7 +61,7 @@
       // G909: the editor's scripts (and every generator its palette lists) load on demand the first time
       if ((!window.PREMISES_HOST || !window.PREMISES_UI || !window.MARINE_GEN || !window.NAVAID_GEN) && window.FLYDIY_LAZY && !PREM.loading) {
         PREM.loading = true;
-        window.FLYDIY_LAZY(['_sport_gen', '_marine_gen', '_navaid_gen', 'premises_host', 'premises_ui'])
+        window.FLYDIY_LAZY(['_sport_gen', '_marine_gen', '_navaid_gen'].concat(Object.keys(window.FLYDIY_LAZY_SRC || {}).filter(n => /^scenery_/.test(n)), ['premises_host', 'premises_ui']))
           .then(() => { if (window.PREMISES_HOST && window.PREMISES_UI) { PREM.loading = false; PREM.openEditor(); } },
                 e => console.warn('premises editor: load failed', e))   // REVIEW 2026-10-04 (B23): a failed load is not a held door
           .finally(() => { PREM.loading = false; });

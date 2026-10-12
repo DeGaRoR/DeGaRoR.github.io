@@ -106,6 +106,12 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     else { const kit = () => { if (!window.HOUSE_KIT) return; document.removeEventListener('load', kit, true); gens(); };
       document.addEventListener('load', kit, true); }
   } } catch (e) {}
+  // THE SCENERY KIT'S PACKS (ASSETS-OCT G2904): lazy (build.js MANIFEST.lazy, every scenery_* entry, the levels last) -
+  // asked for when the record holds prop objects (the user's placed models); the premises step waits for pending ones
+  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && window.FLYDIY_LAZY_SRC && /"kind":\s*"prop"/.test(premisesPlaced)) {
+    const sc = Object.keys(window.FLYDIY_LAZY_SRC).filter(n => /^scenery_/.test(n));
+    if (sc.length) window.FLYDIY_LAZY(sc);
+  } } catch (e) {}
   // THE ISLAND (W2): the loader fetched the data world's files when ?world= named one
   // G999: the island loader's promote decoded it in a task of its own (window.ISLAND_MADE, build.js) - taken when it is
   // this boot's island, decoded here otherwise (dev.html, a harness)
