@@ -30,5 +30,6 @@
    ]
   }
  },
- "plotMovesWhy": "the user 12 Oct (via A0): keep the cannery s2; the career base plot SEA moved 13.5 m west (760.5 -> 747.0), the smallest move that keeps its largest shell 3 m off the cannery (GATE TAXICLEAR 12); applied after the ship - a re-ship must apply it again"
+ "plotMovesWhy": "the user 12 Oct (via A0): keep the cannery s2; the career base plot SEA moved 13.5 m west (760.5 -> 747.0), the smallest move that keeps its largest shell 3 m off the cannery (GATE TAXICLEAR 12); applied after the ship - a re-ship must apply it again",
+ "altiport": "the user 12 Oct ('delete any, keep the simplest in terms of profiles'): of the stacked altiports, w4 'strip 9' KEPT (2-point flat profile, 216 m) and w1 'strip 8' dropped (3-point profile falling 47 m over 249 m, band 4, approach 1, own clear side 3 / taper -0.5) - in the import file D:/Dev/flydiy-notes/inbox/jolene_rev27b_one_altiport.json (rev 27 minus w1, sha 8499d63d); both stay held back here until RUNWAY-ED-PROFILE"
 }
