@@ -27,11 +27,16 @@ left() { echo $(( T1 - $(date +%s) - 20 )); }
 # the master tree, served beside this one (git archive: no checkout anywhere)
 if [ ! -d "$WT/_ab/$BASE/flyDiy" ]; then mkdir -p "$WT/_ab/$BASE" && git -C "$WT" archive "$BASE" flyDiy | tar -x -C "$WT/_ab/$BASE"; fi
 cd "$FLY"
-L=$(left); [ "$L" -gt 120 ] || { echo "no time left"; exit 5; }
-echo "--- 1. garage_lag flood (left ${L}s) $(date +%T)"
-timeout $(( L > 600 ? 600 : L )) node tools/perf/garage_lag.js --port 8783 --udd C:/ugl2780 --trees base=_ab/$BASE/flyDiy,here=flyDiy \
-  --builds cub --only flood --reps 3 --page dev.html --out "$OUT/garage_lag_flood.json"
-echo "garage_lag exit $?"
+# a FRESH profile per leg (A0, from GARAGE-SHEET: localStorage 'flydiy.shake' persists in a reused rig profile and the
+# second leg would replay the first leg's cached bench sheets)
+for LEG in base=_ab/$BASE/flyDiy here=flyDiy; do
+  K=${LEG%%=*}; L=$(left); [ "$L" -gt 120 ] || { echo "no time left for $K"; break; }
+  rm -rf "C:/ugl2780$K"
+  echo "--- 1. garage_lag flood $K (left ${L}s) $(date +%T)"
+  timeout $(( L > 300 ? 300 : L )) node tools/perf/garage_lag.js --port 8783 --udd "C:/ugl2780$K" --trees "$LEG" \
+    --builds cub --only flood --reps 3 --page dev.html --out "$OUT/garage_lag_flood_$K.json"
+  echo "garage_lag $K exit $?"
+done
 for B in cub_2026-09-20_corrected cessna172_2026-09-20_corrected; do
   L=$(left); [ "$L" -gt 150 ] || { echo "no time left for $B"; break; }
   echo "--- 2. garage_fps --lights $B (left ${L}s) $(date +%T)"
