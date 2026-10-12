@@ -815,6 +815,21 @@ for (const seed of SEEDS) {
               vil.plots.reduce((a, p) => a + (p.fences || []).length, 0) + ' fence runs');
 }
 
+// THE FENCE SWITCHED OFF (G3007; the user: "we need an option to turn off the fencing around the plots too"): a plot the
+// record marks noFence is finished with no fence - its path as with one (its random draws in their order) - and claims no
+// side, so the village around it keeps its own fences
+{
+  const V = Object.assign({}, VG.VDEF, { seed: 11 });
+  const A = VG.makeVillage(V), B = VG.makeVillage(V);
+  const h0 = A.houses.find(h => (A.plots[h.plot] || {}).poly), k0 = h0 ? h0.plot : -1;
+  if (k0 >= 0) B.plots[k0].noFence = true;
+  for (const [vil] of [[A], [B]]) for (const h of vil.houses) { const plot = vil.plots[h.plot]; h.built = (h.gen === 'big' ? BGN : HG).build(h.P, 0); VG.finishPlot(vil, plot, h, h.built); }
+  const fa = A.plots[k0] && A.plots[k0].fences, fb = B.plots[k0] && B.plots[k0].fences;
+  check(k0 >= 0 && fa && fa.length > 0 && Array.isArray(fb) && fb.length === 0, 'a plot whose fence is off is finished with none (' + (fa ? fa.length : '?') + ' runs with it on)');
+  check(JSON.stringify(A.plots[k0].path) === JSON.stringify(B.plots[k0].path) && JSON.stringify(A.plots[k0].poly) === JSON.stringify(B.plots[k0].poly), '...its boundary and its path as with its fence');
+  check(B.plots.some((p, i) => i !== k0 && (p.fences || []).length), '...and the village around it keeps its fences');
+}
+
 if (SELFTEST) {
   const neg = [];
   const V = Object.assign({}, VG.VDEF, { seed: 3 });

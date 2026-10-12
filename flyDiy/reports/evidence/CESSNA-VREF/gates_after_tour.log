@@ -1,0 +1,74 @@
+=== TOUR ===
+--- shard 0/4 (419.0 s) ---
+FAIL 1 w3 climb-out T1: nothing but the ground through the 1:15 surface, the ground <= 2.5 m  (+4.6 m, ground 75 m out)
+  FAIL 1 mn_strip climb-out T0: nothing but the ground through the 1:15 surface, the ground <= 2.5 m  (+148 m, ground 1475 m out)
+  FAIL 1 mn_strip climb-out T0: the 5.7 % final clears everything by 10 m  (-143.4 m (ground 1500 m out))
+  FAIL 1 nv_strip approach k0: nothing but the ground through the 1:15 surface, the ground <= 2.5 m  (+18.6 m, forest 50 m out)
+  FAIL 1 nv_strip approach k0: the 5.7 % final clears everything by 10 m  (-4.8 m (forest 50 m out))
+  FAIL 1 nv_strip climb-out T1: nothing but the ground through the 1:15 surface, the ground <= 2.5 m  (+18.6 m, forest 50 m out)
+  FAIL 1 nv_strip climb-out T1: the 5.7 % final clears everything by 10 m  (-4.8 m (forest 50 m out))
+  FAIL 2 calibration: Jumbo Mine left south has the ridge through its climb-out  (+1 m 25 m out)
+  FAIL 3a no water on a land strip, a turn pad or the mine's apron  (1826 wet samples, first w2 (825.5, -625.2))
+  FAIL 3 the turn pads exist on this tree (25_airfield turnPadNodes, ISLAND-TOUR G1965)
+  FAIL 3 the pads: Tamgas Hill, the altiport and East Point, both ends  (0 pads)
+  FAIL 4 the mine's apron: a gravel apron surface with the gravel look  (missing)
+  the user's Cub: HOME > w3 > tw_ski > mn_strip > w2 > HOME - NOT DONE, 2 legs, fuel left 23.6 L (404 s)
+  FAIL 5 the user's Cub w3 > tw_ski: stopped at its To with no fault  (ground-loop: the nose 51.1 deg off the landing roll on tw_ski at 20.9 m/s; off-strip: the landing roll left tw_ski's box; crash: the damage ended the flight: a fus member broke; yield: 916 member(s) yielded (first: {"beam":110,"cls":"fus","t":715.4166666567547}); break: 14 member(s) broke; prop-strike: the propeller struck; dent: the airframe dented)
+  FAIL 5 the user's Cub w3 > tw_ski: the final's lowest node 3 m over the ground and the forest  (1.7 m (ground, 885.1 m out))
+  FAIL 5 the user's Cub: the tour is complete, back at HOME  (2 of 5 legs)
+TOUR [shard 0/4]: 15 failed
+GATE TOUR: FAIL (15)
+[stderr]
+SHARD 0/4: 1 of 4 heavy jobs
+(exit code 1)
+--- shard 1/4 (972.5 s) ---
+the aluminium C172: HOME > w3 > tw_ski > w2 > HOME - NOT DONE, 2 legs, fuel left 21.8 L (962 s)
+  FAIL 5 the aluminium C172 w3 > tw_ski: stopped at its To with no fault  (off-strip: the landing roll left tw_ski's box; crash: the damage ended the flight: a fus member broke; yield: 3535 member(s) yielded (first: {"beam":110,"cls":"fus","t":785.9666665969623}); break: 93 member(s) broke; prop-strike: the propeller struck; dent: the airframe dented)
+  FAIL 5 the aluminium C172 w3 > tw_ski: the final's lowest node 3 m over the ground and the forest  (0 m (ground, 785.9 m out))
+  FAIL 5 the aluminium C172: the tour is complete, back at HOME  (2 of 4 legs)
+TOUR [shard 1/4]: 3 failed
+GATE TOUR: FAIL (3)
+[stderr]
+SHARD 1/4: 1 of 4 heavy jobs
+(exit code 1)
+--- shard 2/4 (323.2 s) ---
+the float Cessna: SEA > mk_sea > SEA - NOT DONE, 1 legs, fuel left 24.7 L (318 s)
+  FAIL 5 the float Cessna SEA > mk_sea: stopped at its To with no fault  (yield: 43 member(s) yielded (first: {"beam":121,"cls":"fus","t":277.45805556375433}); dent: the airframe dented)
+  FAIL 5 the float Cessna: the tour is complete, back at SEA  (1 of 2 legs)
+TOUR [shard 2/4]: 2 failed
+GATE TOUR: FAIL (2)
+[stderr]
+SHARD 2/4: 1 of 4 heavy jobs
+(exit code 1)
+--- shard 3/4 (635.0 s) ---
+the user's Cub: HOME > nv_strip > mn_strip (629 s)
+  INFO 6 East Point > Jumbo Mine (PILOT-ONE-2, owed): TAKES OFF - fold East Point into ORDERS.land
+TOUR [shard 3/4]: 0 failed
+GATE TOUR: PASS
+[stderr]
+SHARD 3/4: 1 of 4 heavy jobs
+=== CESSNAVREF ===
+--- shard 0/2 (543.6 s) ---
+the metal Cessna (the load door's): ok   HOME > w3              505 s | dep: turned 102.7 deg, roll 109.8 m in, lift-off 175.6 m | final 3808 m / 194.6 m, clear 7.9 m (ground) | td sink 1.09 m/s, 31.7 m/s, run 271 m, off -0.1 m | fuel 24.3 L
+    verdicts: vx-climb: ground ahead above the aeroplane — climbing at Vx 30.8 m/s until clear | vref-raised: the elevator cannot hold 28.9 m/s at this power — flying the approach faster | held-speed-short-field: the elevator holds 29.7 m/s on this final: the stop from it needs 320 m, 368 m of Tamgas Hill Strip are left past the aim and the float - landing short-field (aim 31 m in, the brakes from the touch)
+    the build: Vs 22.44, Vs0 22.44, landing flap 0 (genTrim: lands flapless), approach trim 0.270 over the 0.18 budget; mass 887.2 kg, 543 s wall
+CESSNAVREF [shard 0/2]: 0 failed
+GATE CESSNAVREF: PASS
+[stderr]
+SHARD 0/2: 1 of 2 heavy jobs
+--- shard 1/2 (639.4 s) ---
+the C172 file build (the control): ok   HOME > w3              561 s | dep: turned 102.7 deg, roll 109.5 m in, lift-off 262.9 m | final 2538.8 m / 208.4 m, clear 13.3 m (ground) | td sink 1.15 m/s, 22.5 m/s, run 211 m, off 0 m | fuel 208 L
+    verdicts: 
+    the build: Vs 25.07, Vs0 20.74, landing flap 1; mass 995.1 kg, 639 s wall
+CESSNAVREF [shard 1/2]: 0 failed
+GATE CESSNAVREF: PASS
+[stderr]
+SHARD 1/2: 1 of 2 heavy jobs
+
+──────── summary ────────
+TOUR      FAIL   972.5 s  [4 shards]
+CESSNAVREF PASS   639.4 s  [2 shards]
+total           1611.9 s
+wall            1935.1 s  (jobs 2)
+
+BATTERY: FAIL — never deliver red.
