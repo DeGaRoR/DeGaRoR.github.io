@@ -92649,3 +92649,22 @@ Gates: green except SKINMAT, WEATHER (pre-existing on master; fixes ride train 5
 Strict gate, QUIET re-run 01:09-01:28 (the 00:15 run was spoiled by the user's session): 41b vs master 09683cb08 on the same box minutes apart: cub chase loop 18.9 vs 18.3 ms, render 13.1 vs 12.9, cockpit 19.0 vs 19.0, garage->world 11.3 vs 11.2 s: AT PAR.
 MASTER ITSELF moved vs train 50 (0b42f6826, 20:53): cub chase loop 16.5 -> 18.3 ms, render 11.8 -> 12.9, cockpit loop 16.4 -> 19.0: SCENERY-SHIP (rev27, landed 23:11 without its strict gate by the user's OK) costs ~+2 ms loop at HOME. Still 30 fps at the cap. Owed: find the cost (roads r1 / pavement / zones) - EDITOR-PERF / SCENERY-ED-2.
 What to watch for: nothing visible with damage off. ?damage=1 shows the crash layer (breaks, scars, debris).
+
+
+## G2936 - BIOME-DENSITY: THE BIOME TAB SAYS WHAT STANDS, AND OFFERS THE DIALS THAT MOVE IT (2026-10-12, TREE-STREAM for A0, local; branch claude/biome-density-g2936 off master; train 52)
+The user: the muskeg's "the stand > trees" read "3000 · 197/ha" while almost nothing grew, and the slider could not add
+trees. MEASURED (node: the fill walk's per-point rule on Jolene through island_node, no premises polygons; scratch
+muskeg_funnel.js): the muskeg (ttype 3 + 7, ~8 500 ha) plants 137 trees/ha at density 200 (grid max 381) and 56/ha at
+128 (grid max 156) against 329/ha nominal (the payload's count 5000, above the old slider's 3000 cap). Lost: the mix's
+clump 0.55 (51 %: "dense packs on little islands"), the grid's 10 % dropout, the ground 3 %, the canopy ramp 1 % - the
+canopy map is NOT the cause (the muskeg is floored: canopyFloor 3.5 over the bog's 3 m cap). The count SATURATES: a mix's
+share of the grid's points is min(1, trees/m2 x the point's area x biomeGain 3.5), full at ~1 660 (density 200) / ~680
+(128) - the slider's upper part did nothing.
+world_rail.js biomeTab, the stand: 'trees' to 6000 (the payload's 5000 inside it: a touch never clamps it) with the
+label "count · nominal/ha · stands ~X/ha (full from N)" (X = the grid's share x 0.9 x (1 - clump), the canopy map full or
+floored; 154 vs the walk's 137 at 200, 63 vs 56 at 128); new rows 'clumps: bare' (forest.clump 0..0.9), 'clump size'
+(clumpM 8..80 m), 'canopy floor' (canopyFloor 0..20 m; 6 m and over: the full stand wherever the biome is). All through
+TREE_FILL.setMix (the walk and the stand cards read the same fields). Gates: node --check, UISMOKE.
+WHAT TO WATCH FOR: the muskeg's trees row now says how many stand (~150/ha at density 200, ~60 at 128) and "(full)"; to
+thicken it, lower 'clumps: bare' (0 = an even stand: ~2.2x the trees) or raise the density setting; 'canopy floor' 6+ m
+fills a biome where the canopy map is thin.

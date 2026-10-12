@@ -707,14 +707,27 @@
     const M = () => B.mixOf(mix), F = () => (M().forest || (M().forest = {}));
     const fs = k => v => t.setMix(mix, ['forest', k], v);
     const St = sec(body, 'the stand', true, 'how much grows');
-    range(St, 'trees', 0, 3000, 10, () => F().count || 0, fs('count'), v => v + ' · ' + (B.density(mix) * 10000).toFixed(0) + '/ha');
+    // G2936 (the user, 12 Oct: the muskeg's "3000 · 197/ha" while almost nothing grows, and no way to add trees): WHAT
+    // STANDS, beside the count. The fill plants at most one tree a grid point (TREE_FILL.get(): the density setting's
+    // grid); a mix's share of the points is min(1, its trees/m2 x the point's area x biomeGain), so past that count
+    // (full) the slider changes nothing; the grid drops 10 % and the clumps leave their bare share. The figure is the
+    // stand where the canopy map is full or a canopy floor stands it (below 6 m of canopy the map thins it further).
+    // Max 6000: the payload's own counts (5000) sit inside it, so a touch never clamps them.
+    const stand = () => { const ng = (t.get && t.get()) || 128, spc = 1024 / ng, gain = ((t.island && t.island()) || {}).biomeGain || 3.5;
+      const kind = Math.min(1, B.density(mix) * spc * spc * gain), r = F().radius || 220;
+      return { ha: kind / (spc * spc) * 0.9 * (1 - Math.min(0.95, F().clump || 0)) * 1e4, full: kind >= 1, at: Math.ceil(Math.PI * r * r / (spc * spc * gain) / 10) * 10 }; };
+    range(St, 'trees', 0, 6000, 10, () => F().count || 0, fs('count'), v => { const P = stand();
+      return v + ' · ' + (B.density(mix) * 10000).toFixed(0) + '/ha · stands ~' + P.ha.toFixed(0) + '/ha' + (P.full ? ' (full from ' + P.at + ')' : ''); });
+    range(St, 'clumps: bare', 0, 0.9, 0.05, () => F().clump || 0, fs('clump'), v => v ? (v * 100).toFixed(0) + ' % of the ground bare' : 'off (an even stand)');
+    range(St, 'clump size', 8, 80, 1, () => F().clumpM || 30, fs('clumpM'), v => v + ' m');
+    range(St, 'canopy floor', 0, 20, 0.5, () => F().canopyFloor || 0, fs('canopyFloor'), v => v ? v + ' m' + (v >= 6 ? ' (the full stand everywhere)' : '') : 'off (the canopy map rules)');
     range(St, 'shrubs', 0, 20, 0.5, () => F().under || 0, fs('under'), v => v + ' /1000 m²');
     range(St, 'stones', 0, 200, 1, () => F().rocks || 0, fs('rocks'), v => v + ' /1000 m²');
     range(St, 'debris', 0, 200, 1, () => F().debris || 0, fs('debris'), v => v + ' /1000 m²');
     range(St, 'blotch', 0, 1, 0.05, () => F().blotch || 0, fs('blotch'));
     range(St, 'blotch size', 4, 60, 1, () => F().blotchM || 18, fs('blotchM'), v => v + ' m');
     range(St, 'size spread', 0, 0.5, 0.01, () => F().coverSpread || 0, fs('coverSpread'));
-    note(St, 'trees: the stand’s count in its 220 m disc (the density the fill plants, x the biome gain in VEGETATION); shrubs, stones, debris: the cover ring’s, near the eye; blotch: clearings and thickets on a noise of that size');
+    note(St, 'trees: the stand’s count in its 220 m disc (x the biome gain in VEGETATION) and what stands of it: at most one tree a grid point of the density setting - past "full" only a higher density adds trees; clumps: the share of the ground left bare between the tree islands, and their size; canopy floor: the stand’s height where the canopy map says less - the map stops thinning it there (6 m and over: the full stand wherever this biome is), and the trees take that height; shrubs, stones, debris: the cover ring’s, near the eye; blotch: clearings and thickets on a noise of that size');
     // the five categories
     const P = PACK();
     for (const C of CATS) {
