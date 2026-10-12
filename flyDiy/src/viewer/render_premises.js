@@ -1273,8 +1273,11 @@ function make(THREE, scene, world, rec0, opts) {
         G.outlines.add(cl); LINES.set(rSel.id + ':clear', { line: cl, layer: 'runways', entry: rSel });
       }
     }
-    // the site items' feet (cyan) and the links (a line from hook to hook)
-    for (const it of O.records.items) {
+    // (G3005 fix) G.plots cleared FIRST: the feet were added and then cleared with the plots, so they never drew (since G386)
+    for (const c of G.plots.children.slice()) { G.plots.remove(c); c.geometry.dispose(); c.material.dispose(); }
+    // the site items' feet (cyan) and the links (a line from hook to hook) - the feet only while editing (the game never had
+    // them: they were cleared at once until this fix; editEnd takes them off)
+    if (o.editing && o.editing()) for (const it of O.records.items) {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(it.foot.map(q => O.frame.toWorld(q[0], q[1])), true, LIFT * 0.8), 3));
       const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x4fc7d0, transparent: true, opacity: it.site === selectedId ? 0.95 : 0.5, depthTest: false }));
@@ -1282,7 +1285,6 @@ function make(THREE, scene, world, rec0, opts) {
       G.plots.add(line);
     }
     // the plots: thin, dim, not hittable
-    for (const c of G.plots.children.slice()) { G.plots.remove(c); c.geometry.dispose(); c.material.dispose(); }
     for (const L of O.records.links) if (L.geom && L.geom.from) {
       const a = O.frame.toWorld(L.geom.from[0], L.geom.from[2]), b = O.frame.toWorld(L.geom.to[0], L.geom.to[2]);
       const geo = new THREE.BufferGeometry();
@@ -3906,6 +3908,7 @@ function make(THREE, scene, world, rec0, opts) {
     previewEnd();
     for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); if (c.material) c.material.dispose(); }
     LINES.clear();
+    for (const c of G.plots.children.slice()) if (/^item:/.test(c.name || '')) { G.plots.remove(c); c.geometry.dispose(); c.material.dispose(); }   // (G3005 fix: the feet are the editor's)
     for (const h of HANDLES) G.handles.remove(h);
     for (const l of STEMS) { G.handles.remove(l); l.geometry.dispose(); }
     HANDLES.length = 0; STEMS.length = 0;
