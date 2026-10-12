@@ -161,7 +161,11 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //
 // WIRE: index.html gzipped (CRs removed), MiB. Raising this needs a reason written here.
 // (back to 4.0 in train 44.1: CAREER-LAZY took the career-only core out of index.html; 4.05 stood for train 43 only)
-const WIRE_BUDGET_MIB = 4.05;   // A0 12 Oct: the user ACCEPTED BY NAME train 44's ~+30 KB (route_draw + 44_vprofile + 38c_route: 4.03 MiB); owed back by ROUTE-LAZY G3070 (route_draw as a lazy chunk)
+// T41b (the user, 12 Oct ~18:05, BY NAME: "(a) now"): train 41's damage layer ACCEPTED, +160 KB gz (4.031 -> 4.187 MiB
+// measured, this file's own method) - owed back by G3020 (skin_break / wreck_debris / skin_gpu / ground_scar as a lazy
+// chunk loaded only with ?damage=1, ~-50 KB gz) and G3021 (the damage half of app.js, lazy too); both in the official
+// backlog. (Before: 4.05, train 44's ~+30 KB, owed back by ROUTE-LAZY G3070.)
+const WIRE_BUDGET_MIB = 4.19;
 // STEP: how much index.html (CRs removed) may grow over the build before it, MiB.
 // "The build before" is git's: if the built page differs from HEAD's, HEAD (and
 // its parents, when HEAD is a merge); if it IS HEAD's, the parents of the commit

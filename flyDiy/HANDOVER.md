@@ -92124,3 +92124,10 @@ No stream sound away from the lakes and the sea. Boot: the world composes ~0.1-0
   - the Tamgas Hill held-speed short field;
   - FLY > drawn route + the map's draw mode;
   - no procedural rivers, the lakes unchanged, the island's hydro boot ~0.15 s faster.
+- **MEDIA, the user's word (12 Oct ~18:05, BY NAME: "(a) now")**: train 41's damage layer is accepted at +160 KB gz
+  (index.html 4.031 -> 4.187 MiB, MEDIA's own measure; +467 KB raw, the src delta +454 KB). WIRE_BUDGET_MIB is now
+  4.19. My Sunday estimate of ~70 KB was wrong: it compared against a master page that still had other content inlined.
+  OWED back, in the official backlog:
+  - **G3020**: skin_break / wreck_debris / skin_gpu / ground_scar as a lazy chunk loaded only with ?damage=1 (like
+    career_core), ~-50 KB gz;
+  - **G3021**: the damage half of app.js (the wreck drawing and the crash flow, ~90 KB raw), lazy too.
