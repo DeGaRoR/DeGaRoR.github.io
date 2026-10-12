@@ -73,6 +73,17 @@ function place(sim, hAbove, V, vy0) {
   const dx = X0 - p[iK * 3], dz = Z0 - p[iK * 3 + 2], dy = (h + hAbove) - p[iK * 3 + 1];
   for (let i = 0; i < sim.n; i++) { p[i * 3] += dx; p[i * 3 + 1] += dy; p[i * 3 + 2] += dz; v[i * 3] = -(V || 0); v[i * 3 + 1] = vy0 || 0; v[i * 3 + 2] = 0; }
 }
+const SG_ROLL = -1;
+// G2540 (TORQUE-BUNDLE-45): THE PILOT'S HANDS ON THE AILERON. Since ENGINE-TORQUE (G2080) the propeller's reaction
+// torque rolls the aeroplane (FAA-H-8083-23: "right aileron control is usually required to offset the effect"); flown
+// hands-off on the roll this fixture's quarter-throttle approach banked onto one float (the touch 0.54 -> 1.40 m/s, the
+// largest one-frame rise 0.072 -> 1.336 W; with PAR.propFx.torque 0 alone: 0.53 m/s / 0.07 W). The approach is flown
+// wings level as a pilot flies it - the aileron on the bank and its rate (the servos' rollP / rollD law), nothing else
+const wingsLevel = (sim, st) => {
+  const ph = SG_ROLL * st.roll * Math.PI / 180, p = (ph - (sim._phPrev ?? ph)) * 60; sim._phPrev = ph;
+  sim.ctl.da = Math.max(-0.3, Math.min(0.3, -1.5 * ph - 0.4 * p));
+  sim._daMax = Math.max(sim._daMax || 0, Math.abs(sim.ctl.da));
+};
 const finite = r => Number.isFinite(r.V) && Number.isFinite(r.trim) && Number.isFinite(r.Fy);
 
 // ---- SETTLE ------------------------------------------------------------------
@@ -148,7 +159,7 @@ console.log('\nLANDING (trimmed approach at 1.3 Vs, quarter throttle, 1 m/s down
   const fly = (de) => {
     const s2 = C.makeSim(def, world); s2.reset(0); place(s2, 30, VA, 0); s2.ctl.thr = thrA; s2.ctl.de = de;
     let acc = 0, n = 0;
-    for (let s = 0; s < 240; s++) { s2.step(1 / 60); if (s >= 180) { acc += state(s2).vy; n++; } }
+    for (let s = 0; s < 240; s++) { s2.step(1 / 60); const r2 = state(s2); wingsLevel(s2, r2); if (s >= 180) { acc += r2.vy; n++; } }
     return acc / n;
   };
   let lo = -0.5, hi = 0.8, vyT = 0;
@@ -161,6 +172,7 @@ console.log('\nLANDING (trimmed approach at 1.3 Vs, quarter throttle, 1 m/s down
     s3.step(1 / 60); T += 1 / 60;
     const r = state(s3);
     if (!finite(r)) { ok = false; break; }
+    wingsLevel(s3, r);
     if (touched == null && r.Fy > 0) { touched = T; sinkTouch = -r.vy; s3.ctl.thr = 0.1; }
     if (touched != null) {
       maxJump = Math.max(maxJump, Math.abs(r.Fy - prev)); peak = Math.max(peak, r.Fy);
@@ -174,7 +186,7 @@ console.log('\nLANDING (trimmed approach at 1.3 Vs, quarter throttle, 1 m/s down
   for (let i = 1; i + 1 < frames.length; i++) if (frames[i] >= frames[i - 1] && frames[i] > frames[i + 1]) { iPk = i; break; }
   if (iPk < 0) iPk = frames.indexOf(Math.max(...frames));
   console.log(`   touch at ${f(touched, 2)} s, sinking ${f(sinkTouch, 2)} m/s; the water's lift frame by frame: ${frames.slice(0, 10).map(v => f(v, 2)).join(' ')} ... first peak ${f(frames[iPk])} W after ${iPk + 1} frames; ` +
-              `largest one-frame change ${f(maxJump)} W; peak ${f(peak)} W; 20 s on: V ${f(endV, 1)} m/s`);
+              `largest one-frame change ${f(maxJump)} W; peak ${f(peak)} W; 20 s on: V ${f(endV, 1)} m/s; the aileron held wings level (|da| <= ${f(s3._daMax || 0, 3)})`);
   verdict(ok, `the landing stays finite`);
   // G451: the bound's floor is 0.35, from 0.5. The Wipline family's transom
   // keel sits 0.8 H over the step keel (the H0 float's sat at 0.6 H), so the

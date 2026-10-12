@@ -348,8 +348,17 @@ for (const seed of [0, 1, 6, 12, 42]) {
   { const ux = Math.cos(mn.hdg), uz = Math.sin(mn.hdg), s = -(mn.len / 2 - 45); flights.push({ a: mn, b: WI.aerodromes.find(q => q.id === 'w2'), pose: { x: mn.x + ux * s, z: mn.z + uz * s, hdg: Math.atan2(-uz, -ux) }, what: 'Jumbo Mine\'s street 45 m from its south end' }); }
   for (const Fl of flights) for (const B of LB) {
     if (!SHD.take()) continue;
-    const F = L.flyTurn(C, WI, IX, B.def, Fl.a, Fl.b, Fl.pose, { tMax: 150 });
+    let F = L.flyTurn(C, WI, IX, B.def, Fl.a, Fl.b, Fl.pose, { tMax: 150 });
     const tag = '11c ' + B.name + ' from ' + Fl.what;
+    // G2540 (TORQUE-BUNDLE-45, with G2450 EAST-POINT-DEPART): East Point (150 m) is no destination for an aeroplane whose
+    // sheet landing run is longer (the Jodel 183 m, the metal Cessna 249 m) - the pilot says so and does not go. The
+    // refusal is held (said, with the reason) and the turn-around is flown to the next strip of the island's order, 02/20
+    if (Fl.a === tw && !F.air && F.verdicts.some(v => /^strip-too-short/.test(v))) {
+      const why = F.verdicts.find(v => /^strip-too-short/.test(v));
+      check(/not going there/.test(why) && !F.phases.includes('ROLL'), tag + ': East Point refused before going, the reason said', why);
+      F = L.flyTurn(C, WI, IX, B.def, Fl.a, WI.aerodromes.find(q => q.id === 'w2'), Fl.pose, { tMax: 150 });
+      console.log('  11c ' + B.name.padEnd(16) + ' declines East Point (' + why + ') - flown to 02/20');
+    }
     // the altiport's 380 m is left by every one; Jumbo Mine's 250 m is held to its taxi (the roll begun) - the take-off
     // there is the roll's own call (G531: a short field's reserve), printed
     if (Fl.a === tw) check(F.air, tag + ': airborne', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
