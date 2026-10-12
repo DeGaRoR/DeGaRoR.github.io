@@ -80,11 +80,12 @@ function makeR() {
     hit(x, z) { const L = O.frame.toLocal(x, z); for (const k of ['areas', 'material', 'surface', 'zones', 'terrain']) for (const e of rec.layers[k]) if (e.poly && PG.inPoly(e.poly, L[0], L[1])) return { id: e.id, layer: k, entry: e }; return null; },
     // (G3006) everything under a point in the renderer's order: the models, the roads, the polygons last (the smallest first)
     hitAll(x, z) { const L = O.frame.toLocal(x, z), out = [];
-      for (const ob of rec.layers.objects) if (isFinite(+ob.x) && Math.hypot(ob.x - L[0], ob.z - L[1]) < 2.5) out.push([0, Math.hypot(ob.x - L[0], ob.z - L[1]), { id: ob.id, layer: 'objects', entry: ob, kind: 'object' }]);
+      for (const ob of rec.layers.objects) if (isFinite(+ob.x) && Math.hypot(ob.x - L[0], ob.z - L[1]) < (PG.objectPickR ? PG.objectPickR(ob) : 2.5)) out.push([0, Math.hypot(ob.x - L[0], ob.z - L[1]), { id: ob.id, layer: 'objects', entry: ob, kind: 'object' }]);
       for (const r of rec.layers.roads) if (r.pts && r.pts.length > 1) { let d = Infinity; for (let i = 0; i + 1 < r.pts.length; i++) d = Math.min(d, PG.distPtSeg(L[0], L[1], r.pts[i], r.pts[i + 1]) - (+r.w || 3.6) / 2); if (d < 1.5) out.push([2, d, { id: r.id, layer: 'roads', entry: r, kind: 'road' }]); }
       for (const k of ['areas', 'material', 'surface', 'zones', 'terrain']) for (const e of rec.layers[k]) if (e.poly && PG.inPoly(e.poly, L[0], L[1])) out.push([4, Math.abs(PG.polyArea(e.poly)), { id: e.id, layer: k, entry: e, kind: 'polygon' }]);
       return out.sort((a, b) => (a[0] - b[0]) || (a[1] - b[1])).map(q => q[2]); },
     ghostModel(sp) { R.ghostAt = sp; },
+    grabAt(x, z) { const L = O.frame.toLocal(x, z); return PG.runwayGrab ? PG.runwayGrab(rec, L[0], L[1]) : null; },   // (G2891 c1: the renderer's own rule)
     heightAt: (x, z) => O.terrainAt ? O.terrainAt(x, z) : synth.terrainH(x, z),
     plots: () => O.records.plots, links: () => [], aerodromes: () => O.aerodromes || [], patternOf: () => null,
   };
@@ -777,6 +778,43 @@ if (plots.length) {
   ed.cmd('tool', { name: 'select' });
 }
 
+// 23 A STRIP'S OWN THINGS TAKE A CLICK (G2891 SCENERY-ED-1 c1; the user, 12 Oct, at HOME: "there is a lot I can't displace"):
+//    a press on the club hangar's footprint selects its strip and drags the hangar; on the stand (within 5 m) the stand; a
+//    press on nothing of a strip grabs nothing; a parked aeroplane standing on the stand is picked as the object it is
+{
+  ed.cmd('tool', { name: 'select' }); ed.select(null);
+  const rw = ed.cmd('add', { layer: 'runways', entry: Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { name: 'grab strip', c: [3000, 3000], hdg: 0, len: 500, wid: 20,
+    stand: { x: 3000, z: 3060, hdg: null }, taxiOut: [[3000, 3000]], hangar: { x: 3040, z: 3062, hdg: 0 } }) });
+  ed.select(null);
+  check(ed.cmd('grab', { x: 3051, z: 3068 }) === true && ed.selected === rw, '23 a press on the club hangar\'s footprint selects its strip and grabs it');
+  ed.cmd('dragMove', { x: 3090, z: 3100 }); ed.cmd('dragEnd', {});
+  const hg = find(rw).entry.hangar;
+  check(hg.x === 3090 && hg.z === 3100, '23 ...and the hangar follows the hand', JSON.stringify(hg));
+  ed.select(null);
+  check(ed.cmd('grab', { x: 3002, z: 3061 }) === true && ed.selected === rw, '23 a press on the stand grabs the stand');
+  ed.cmd('dragMove', { x: 3010, z: 3075 }); ed.cmd('dragEnd', {});
+  check(find(rw).entry.stand.x === 3010 && find(rw).entry.stand.z === 3075, '23 ...and the stand follows', JSON.stringify(find(rw).entry.stand));
+  ed.select(null);
+  check(ed.cmd('grab', { x: 3200, z: 3200 }) === false && ed.selected === null, '23 a press on nothing of a strip grabs nothing');
+  const ac = ed.cmd('add', { layer: 'objects', entry: { kind: 'aircraft', key: 'arch:cub', x: 3010, z: 3075, yaw: 0 } });
+  ed.select(null);
+  check(ed.cmd('grab', { x: 3010.5, z: 3075.5 }) === false, '23 a parked aeroplane on the stand is not grabbed through');
+  check(roundTrip(), '23 the record round-trips');
+  ed.cmd('delete', { id: ac }); ed.cmd('delete', { id: rw });
+}
+// 24 A PARKED AEROPLANE BY ITS SIZE (G2891 c3): picked within 6 m x its scale (its drawn bounding radius x 0.85 when the
+//    page has the group) - a wing's click picked nothing at the old 2.5 m; a prop keeps 2.5 m x its scale; the renderer's
+//    hit() and hitAll() read the one rule
+{
+  check(PG.objectPickR({ kind: 'aircraft' }) === 6 && PG.objectPickR({ kind: 'aircraft' }, 10) === 8.5 && PG.objectPickR({ kind: 'prop' }) === 2.5 && PG.objectPickR({ kind: 'prop', s: 2 }) === 5,
+    '24 objectPickR: an aeroplane 6 m (its built radius x 0.85 when known), a prop 2.5 m x its scale');
+  const ac = ed.cmd('add', { layer: 'objects', entry: { kind: 'aircraft', key: 'arch:c172', x: 3500, z: 3500, yaw: 0 } });
+  const top = R.hitAll(...(() => { const w = R.overlay.frame.toWorld(3504.5, 3500); return [w[0], w[1]]; })())[0];
+  check(top && top.id === ac, '24 a click 4.5 m out on a parked aeroplane\'s wing picks it');
+  const RPs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check((RPs.match(/d < pickR\(ob\)/g) || []).length === 2 && /PG\.objectPickR\(ob, g \? g\.userData\.pickR : undefined\)/.test(RPs) && /objectEdit, hitAll, grabAt,/.test(RPs), '24 the renderer\'s hit() and hitAll() pick by pickR; grabAt is published');
+  ed.cmd('delete', { id: ac });
+}
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');

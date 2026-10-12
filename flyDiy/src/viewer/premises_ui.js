@@ -863,9 +863,25 @@ function mount(host, ctx) {
         if (ctrlEdit(selected, L, h)) { swallowClick = true; return true; }
         return false;
       }
-      return startDrag(h, !!ev.altKey);
+      if (startDrag(h, !!ev.altKey)) return true;
     }
+    // G2891 (c1): a press on a strip's club hangar or its stand grabs it - the strip selected, that handle in the hand
+    if (tool === 'select' && T.state !== 'drawing' && !(ev.ctrlKey || ev.metaKey)) { const g = ctx.ground(ev.clientX, ev.clientY); if (g && grabStrip(g, !!ev.altKey)) return true; }
     return false;
+  }
+  // G2891 (SCENERY-ED-1 c1; the user, 12 Oct: "there is a lot I can't displace" at HOME): the club hangar and the stand are a
+  // strip's own fields, moved by its discs once the strip is selected - the building itself took no click. A press on one
+  // (R.grabAt: PG.runwayGrab, the hangar's footprint, the stand within 5 m) selects its strip and starts that handle's drag,
+  // unless a placed object (a parked aeroplane on the stand) is under the press - the object is picked as before
+  function grabStrip(g, alt) {
+    if (!R.grabAt) return false;
+    const gb = R.grabAt(g[0], g[2]); if (!gb) return false;
+    const top = R.hitAll ? R.hitAll(g[0], g[2])[0] : null;
+    if (top && top.kind === 'object') return false;
+    if (selected !== gb.id) select(gb.id);
+    if (!startDrag({ id: gb.id, key: gb.key, index: 0 }, alt)) return false;
+    strip.status((gb.key === 'hangar' ? 'the club hangar' : 'the stand') + ' of ' + gb.id + ' - drag it (the door\'s heading is a row of the strip\'s inspector)');
+    return true;
   }
   // a drag begins on a handle of the selected feature (the mouse's, or a script's by key)
   function startDrag(h, alt) {
@@ -2244,6 +2260,8 @@ function mount(host, ctx) {
       }
       // G1400: the drag in its three beats, for a bench that times the hand's moves apart from its release
       // (tools/perf/editor_lag.js): the same startDrag / moveDrag / onUp the mouse runs, the ground point given
+      // G2891: a press at a premises point on a strip's own things (the club hangar, the stand) - what the mouse's does
+      if (name === 'grab') { const w = R.overlay.frame.toWorld(args.x, args.z); return grabStrip([w[0], R.heightAt(w[0], w[1]), w[1]], !!args.alt); }
       if (name === 'dragStart') { if (!selected) throw new Error('premises: nothing selected'); const h = R.handles(selected).find(q => q.key === args.key); if (!h) return false; return startDrag({ id: selected, key: h.key, index: +(h.key.slice(1)) || 0, mid: h.key[0] === 'm' }); }
       if (name === 'dragMove') { if (!drag) return false; const w = R.overlay.frame.toWorld(args.x, args.z); return moveDrag([w[0], R.heightAt(w[0], w[1]), w[1]]); }
       if (name === 'dragEnd') return onUp();

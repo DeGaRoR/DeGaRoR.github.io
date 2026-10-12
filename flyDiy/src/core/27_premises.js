@@ -1613,6 +1613,34 @@ function plotWorld(p, F) {
   }
   return o;
 }
+// WHAT A CLICK ON A STRIP'S OWN THINGS GRABS (G2891 SCENERY-ED-1 c1; the user, 12 Oct, reworking HOME: "there is a lot I
+// can't displace"): the club hangar and the stand are fields of the runway record (`hangar`, `stand`), moved by the strip's
+// discs once the strip is selected - a click on the BUILDING itself picked nothing (it is no record of its own). Given a
+// point in the premises frame: { id, key: 'hangar' | 'stand', d } of the nearest one under it (the hangar: inside its
+// footprint, HANGAR_DIMS round its door's heading, either way about - HW / HD are half sizes; the stand: within 5 m),
+// or null. The editor selects that strip and starts that handle's drag; scripts and the gates read it too.
+function runwayGrab(rec, lx, lz) {
+  let best = null;
+  for (const r of (rec && rec.layers && rec.layers.runways) || []) {
+    const h = r.hangar;
+    if (h && isFinite(+h.x) && isFinite(+h.z)) {
+      const a0 = +h.hdg || 0, dx = lx - h.x, dz = lz - h.z, a = dx * Math.cos(a0) + dz * Math.sin(a0), b = -dx * Math.sin(a0) + dz * Math.cos(a0);
+      const W = HANGAR_DIMS.HW, D = HANGAR_DIMS.HD;
+      if ((Math.abs(a) <= D && Math.abs(b) <= W) || (Math.abs(a) <= W && Math.abs(b) <= D)) { const d = Math.hypot(dx, dz); if (!best || d < best.d) best = { id: r.id, key: 'hangar', d }; }
+    }
+    const st = r.stand;
+    if (st && isFinite(+st.x) && isFinite(+st.z)) { const d = Math.hypot(lx - st.x, lz - st.z); if (d <= 5 && (!best || d < best.d)) best = { id: r.id, key: 'stand', d }; }
+  }
+  return best;
+}
+// HOW FAR FROM A PLACED OBJECT A CLICK STILL PICKS IT (G2891 c3): 2.5 m x its scale, as the pick cycle had it - but a
+// parked AEROPLANE spans 9-12 m, and a click on its wing missed it; its built size (`built`, the drawn group's bounding
+// radius when the page has it) or 6 m x its scale for an aeroplane
+function objectPickR(ob, built) {
+  const s = Math.max(1, +(ob && ob.s) || 1);
+  if (ob && ob.kind === 'aircraft') return Math.max(2.5 * s, isFinite(+built) && +built > 0 ? 0.85 * +built : 6 * s);
+  return 2.5 * s;
+}
 function runwaySite(r, F) {
   const W = q => F.toWorld(q[0], q[1]);
   const base = Object.assign({}, r.site || {});
@@ -4203,7 +4231,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
