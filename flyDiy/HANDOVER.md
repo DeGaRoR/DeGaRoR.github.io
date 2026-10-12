@@ -87129,3 +87129,12 @@ What to watch for: no bare band between near and far trees. The far cards dissol
   ledge is placed for the placeholder's rear axle (-1.505): with the real one the fronts read 0 frames on (the rear's
   20 / 6 frames and the zero drive are as they should be). NEXT ROUND (GROUND-VEHICLE): read wb / track / r / the axle x
   from the sheet in DEF and place AIRBORNE's ledge off the sheet's rear axle.
+
+## SCENERY-SHIP LANDED (A0, 12 Oct 2026 ~23:10): the user's rev27 is the shipped Jolene
+
+Merged origin/claude/scenery-ship-g3010 (b43779662) on master 0b42f6826 (train 50):
+- rev27: strip 12 (w7), roads r37/r38, the user's own tree clearings on w5-w7, the pavement look. SEA plot 13.5 m west. w5/w6/w7 in CONTRACT_FIELDS. The island road r1. The runway tool returns to Select (no stacked strips). Typed number fields in the scenery inspector (G3017). w1/w4 altiports held back.
+- ACCEPTED BY NAME (12 Oct): map projection 18.2 KB gz (budget 20 KB); road r28's grade 9.5 cm raster tolerance (that road only, fix owed in train 52); index.html +10 KB (WIRE 4.06 MiB).
+- A0 re-pins: UISMOKE map places + 3 strips, projection roads 76 -> 110 (the road graph + rev27), and flyDiy/BACKLOG.md (the official backlog, source flydiy-notes/backlog.json).
+Gates green except VEHICLE (2 placeholder rows, agreed). The strict gate was NOT run (the RWYTREES row took 15 min; the user chose to land without it). The Tue 00:45 baseline re-take on this master verifies it.
+What to watch for: strip 12 and its roads, contracts at strips 10-12, trees on the user's clearings, typed numbers in the inspector, one strip per runway click.
