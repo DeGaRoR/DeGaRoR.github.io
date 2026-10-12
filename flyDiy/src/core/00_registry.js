@@ -636,6 +636,9 @@ const PAR = {
   rudderSign: 1,        // dr>0 = nose-left (probe reading corrected: +My = nose-LEFT)
   twSteer: 0.5,         // tailwheel deg per rudder deg
   fusCdA: [0.55, 1.30, 1.30], // body-axis CdA: axial, vertical, lateral
+  // G2080 ENGINE-TORQUE: the propeller's four moments (30_solver propMoments), each 1 = on, 0 = off; read once per
+  // makeSim, so an A/B sets it before building the sim. All on is the physics; the switch is the evidence's lever.
+  propFx: { torque: 1, gyro: 1, pfactor: 1, swirl: 1 },
 };
 
 const CRR = 0.05, MU_LAT = 0.8, MU_BRAKE = 0.45;

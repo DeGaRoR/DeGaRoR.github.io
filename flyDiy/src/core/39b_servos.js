@@ -59,6 +59,9 @@ const SERVO_GAINS = {
   hdgP: 0.7, hdgD: 0.9, bankLim: 0.30, bankSlew: 0.18,
   rollP: 2.0, rollD: 2.0, daMax: 0.30,
   betaK: 0.3, yawDampK: 0.6, ariK: 0.35, drAirMax: 0.25,
+  // G2080: THE BALL CENTRED - the slip integrated into a standing rudder (the right boot a pilot holds on a climb
+  // at full power; the propeller's torque, P-factor and swirl make it), rad of rudder per rad.s of slip, its stop
+  betaI: 0.6, drTrimMax: 0.20,
   trimK: 0.15, trimMax: 0.10, trimWin: 0.2, trimBleed: 0.8,
   windArm: 0.5,          // |wind| that arms the classic's in-wind course trim
   // speed (throttle)
@@ -70,6 +73,10 @@ const SERVO_GAINS = {
   steerTailUpK: 1.4, steerTailUpD: 3.0, steerTailUpMin: 0.6, steerTailUpMax: 2.0,
   VTailUp: 12, VSteer: 12, steerMin: 0.30, steerBW: 3.5, trikeSteerD: 0.25,
   steerMassRef: 500, steerMassMin: 200,
+  // G2080: THE GROUND'S RUDDER TRIM - the heading error's integral on the roll (1/s) and its stop (rad): the metal
+  // Cessna rotated 4.1 deg off its heading on P-D alone (0.5 -> 3.5, 1.0 -> 2.8, 2.0 -> 1.7 deg); 1.0 brought the
+  // trike crosswind's pursuit from 14.2 to 10.1 deg and the C172's climb-out from the mill clear of house3 again
+  steerI: 1.0, steerIMax: 0.25,
   drTailDown: 0.45, drTailUp: 0.95, drWater: 0.9,
   // G1937 (PILOT-ONE, for DMG-DAMP): the water-step entry - kP x waterStepK on the water with the hull on the step
   // (tail up); 1 today (no change), DAMP's only pilot gain (0.6 once the solver's rigid-rotation damper is gone)
@@ -77,7 +84,13 @@ const SERVO_GAINS = {
   gAilP: 2.0, gAilD: 1.0, gBankDb: 0.010, gRateDb: 0.02, gAilTaxi: 0.25, gAilRoll: 0.30,
   xwBank: 0.06, xwBankGround: 0.035,
   // taxi
-  taxiDe: 0.30, taxiThrMax: 0.85, taxiP: 0.18, taxiIK: 0.10, taxiForgetS: 2,
+  taxiDe: 0.30, taxiThrMax: 0.85, taxiP: 0.18, taxiIK: 0.10, taxiForgetS: 2, 
+  // G2080: THE TAXI'S PEDALS, a 0.25 s low-pass on the taxi rudder. The swirl at breakaway power (0.85 from the stand)
+  // turns an aeroplane out of its stand faster and it overshoots (the C172 +3 deg): GATE PILOTACT's taxi rudder read
+  // stock / c172 / metal Cessna 20.5 / 24.8 / 16.3 reversals a minute against the limit's 20 (master 14.6 / 16 /
+  // 16.3). Measured: 0.25 s -> 16 / 18.9 / 19.2; 0.35 s -> 16 / 20.4 / 20.7; 0.5 s -> 17.3 / 17.4 / 20.7 (the lag
+  // overshoots the heavy metal Cessna's turns). A rate term (the error's or the yaw rate's) was worse at every gain
+  taxiRudTau: 0.25,
   taxiBrakeDb: 0.8, taxiBrakeK: 0.3, taxiBrakeMax: 0.6, taxiHdgTau: 0.4, taxiHdgForgetS: 0.5,
   // the crosswind decrab
   decrabAgl: 3.5, decrabK: 2.2, decrabD: 0.6, decrabI: 1.0, decrabIMax: 0.2, decrabMax: 0.35,
@@ -139,7 +152,7 @@ function makeServos(sim, def, opts) {
     // the servos' memory a phase may set
     thCA: 0, phCA: 0, vsF: 0, thcI: 0.06, Ith: 0, It: 0, thrC: 0.6,
     IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0, oscK: 1, oscScore: 0,
-    eTrim: 0, aDe: 0, aDa: 0, aDr: 0, tailUp: false,
+    eTrim: 0, drTrim: 0, gI: 0, gIT: -1e9, aDe: 0, aDa: 0, aDr: 0, tailUp: false,
     dcI: 0, dcT: -1, taxiI: 0, taxiLastT: -1e9, taxiHdgF: null, taxiHdgT: -1e9,
   };
   let init = false, thF = 0, phF = 0, thP = 0, phP = 0, eP = 0, eAP = 0;
@@ -181,7 +194,7 @@ function makeServos(sim, def, opts) {
       S.aDe = c.de; S.aDa = c.da; S.aDr = c.dr;
       S.Ith = 0; S.It = 0; S.thcI = 0.06; S.thrC = A.thrCruise ?? 0.6;
       S.IthMax = S.IthMaxT = G.IthMax0; S.IthGain = null;
-      S.eTrim = 0; holdWas = holdActive = false;
+      S.eTrim = 0; S.drTrim = 0; holdWas = holdActive = false;
     }
     const AF = g('attFilt');
     thF += AF * (thRaw - thF); phF += AF * (phRaw - phF);
@@ -267,7 +280,10 @@ function makeServos(sim, def, opts) {
     const bs = g('bankSlew') * S.dt;
     S.phCA += clamp(phC - S.phCA, -bs, bs);
     c.da = clamp(g('rollP') * (S.phCA - S.ph) - g('rollD') * S.p, -G.daMax, G.daMax);
-    c.dr = clamp(-g('betaK') * S.beta - g('yawDampK') * (S.eAR - S.eARslow)
+    // G2080: the slip's integral is the rudder trim (the beta term alone left the climb at full power 4.8 deg
+    // crossed on the Cub: a P loop against a standing yaw keeps a standing error)
+    S.drTrim = clamp(S.drTrim - g('betaI') * S.beta * S.dt, -g('drTrimMax'), g('drTrimMax'));
+    c.dr = clamp(S.drTrim - g('betaK') * S.beta - g('yawDampK') * (S.eAR - S.eARslow)
                  - g('ariK') * c.da, -G.drAirMax, G.drAirMax);
   };
   // course over ground: the standing course trim (a slipping aeroplane needs a
@@ -305,7 +321,10 @@ function makeServos(sim, def, opts) {
   // runway), the opposite sign. G970: with a slow integral (P alone left a
   // standing crab), reset whenever the decrab was not flown a step ago
   S.decrab = (bl) => {
+    // (the decrab's slip is flown on purpose: the rudder trim holds what it had)
+    const trim = S.drTrim;
     S.airLateral(bl ?? G.decrabBank);
+    S.drTrim = trim;
     const t = now(), e = S.e;
     if (t - S.dcT > 0.1) S.dcI = 0;
     S.dcT = t;
@@ -458,7 +477,15 @@ function makeServos(sim, def, opts) {
     }
     const [kP0, kD] = S.steerK(tailUp);
     const kP = (onWater && tailUp) ? kP0 * g('waterStepK') : kP0;   // G1937: DAMP's water-step entry (1 = unchanged)
-    c.dr = clamp(-kP * e - kD * S.eR, -drMax, drMax);
+    // G2080: THE GROUND'S RUDDER TRIM - the heading error's integral (the propeller's swirl and P-factor are a standing
+    // yaw on the roll; P-D alone held it with a standing error: the metal Cessna rotated 4.1 deg off its heading),
+    // forgotten when the steer was not flown a step ago, and handed to the air's slip trim so the lift-off is bumpless
+    const t = now();
+    if (t - S.gIT > 0.1) S.gI = 0;
+    S.gIT = t;
+    S.gI = clamp(S.gI + g('steerI') * e * S.dt, -g('steerIMax'), g('steerIMax'));
+    S.drTrim = clamp(-S.gI, -g('drTrimMax'), g('drTrimMax'));
+    c.dr = clamp(-kP * e - kD * S.eR - S.gI, -drMax, drMax);
     if (FT.xwBank && F) {
       // AILERON INTO THE WIND (2026-09-08, 43): a bank bias the level-wing
       // loop flies; P1.D: on the wheels within xwBankGround
@@ -498,7 +525,16 @@ function makeServos(sim, def, opts) {
   };
   // G630: the taxi rudder — the steer schedule's P, the curvature feed-forward,
   // NO rate term (at taxi speed the wheel steers the heading kinematically)
-  S.taxiRudder = (ff, lim) => { const u = -S.steerK(false)[0] * S.e; return clamp(ff ? u + ff : u, -lim, lim); };
+  let taxiDrF = null, taxiDrT = -1e9;
+  S.taxiRudder = (ff, lim) => {
+    const u = clamp(ff ? -S.steerK(false)[0] * S.e + ff : -S.steerK(false)[0] * S.e, -lim, lim);
+    const tau = g('taxiRudTau'), t = now();
+    if (!(tau > 0)) return u;
+    if (taxiDrF == null || t - taxiDrT > 0.1) taxiDrF = u;
+    else taxiDrF += (u - taxiDrF) * Math.min(1, S.dt / tau);
+    taxiDrT = t;
+    return taxiDrF;
+  };
 
   // ---- the servo slew, on the axes the pilot owns ----------------------------------
   S.slew = (ownV = true, ownL = true) => {
