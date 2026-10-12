@@ -75,11 +75,20 @@ def _mixamo(name):
     return '"%s" character by Adobe Mixamo (mixamo.com), Mixamo licence' % name
 
 
+# THE SET (the user, 12 Oct: "ensure you have inclusivity"): read off the 14
+# characters' own colour maps - the default six had five light skin tones, so
+# kate (Ch21) and brian (Ch02), both light-skinned in jeans like megan, gave
+# way to elizabeth (Ch26: brown skin, a striped casual top) and james (Ch06:
+# dark brown skin, streetwear). Three women, three men; light, light-medium,
+# medium-tan, brown and dark brown skin; a blouse and denim, a stripe, a navy
+# smart-casual, streetwear, a suit and tie, dark smart clothes. Ages and body
+# types are not legible from the maps: the inventory measures each body.
 CAST = [
     dict(key='ch22', reuse=True),                       # megan (Ch22): the crew's
-    dict(key='ch02', reuse=True),                       # brian (Ch02): the crew's
-    dict(key='kate', label='Kate', glb='assets/chars/glb/kate.glb',
-         src='kate_Ch21_nonPBR.fbx', credit=_mixamo('Ch21')),
+    dict(key='elizabeth', label='Elizabeth', glb='assets/chars/glb/elizabeth.glb',
+         src='elizabeth_Ch26_nonPBR.fbx', credit=_mixamo('Ch26')),
+    dict(key='james', label='James', glb='assets/chars/glb/james.glb',
+         src='james_Ch06_nonPBR.fbx', credit=_mixamo('Ch06')),
     dict(key='martha', label='Martha', glb='assets/chars/glb/martha.glb',
          src='martha_Ch27_nonPBR.fbx', credit=_mixamo('Ch27')),
     dict(key='leonard', label='Leonard', glb='assets/chars/glb/leonard.glb',

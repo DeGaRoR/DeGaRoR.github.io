@@ -45,6 +45,7 @@ def character(path):
     j, bin_ = load(path)
     tris = verts = meshes = 0
     lo, hi = [1e9] * 3, [-1e9] * 3
+    allp = []
     for _, n, w, _ in walk(j):
         if 'mesh' not in n:
             continue
@@ -55,6 +56,7 @@ def character(path):
             verts += len(pos)
             tris += len(idx) // 3
             # skinned: the vertices are in scene space (glTF), the node's matrix is ignored
+            allp += pos[::7]
             for p in pos[::7]:
                 for k in range(3):
                     lo[k] = min(lo[k], p[k])
@@ -69,9 +71,18 @@ def character(path):
         side = max(side, w, h)
         nbytes += len(raw)
     joints = len(j['skins'][0]['joints']) if j.get('skins') else 0
+    # BODY BREADTH (G2970, the cast's body types): the depth (z, front to back) of
+    # the bind pose's torso at the chest (68-74 % of the height) and at the waist
+    # (55-60 %), over the height - the T-pose's arms are out along x, so x is no
+    # measure; z is the body's own front-to-back thickness
+    H = hi[1] - lo[1] or 1.0
+    def depth(a, b):
+        zs = [p[2] for p in allp if lo[1] + a * H <= p[1] <= lo[1] + b * H and abs(p[0]) < 0.25 * H]
+        return (max(zs) - min(zs)) if zs else 0.0
+    chest, waist = depth(0.68, 0.74), depth(0.55, 0.60)
     return dict(tris=tris, verts=verts, meshes=meshes, mats=len(j.get('materials', [])),
                 joints=joints, maps=maps, side=side, mapMB=round(nbytes / 1e6, 1),
-                height=round(hi[1] - lo[1], 3))
+                height=round(hi[1] - lo[1], 3), chest=round(chest / H, 3), waist=round(waist / H, 3))
 
 
 def clip(path):
@@ -122,9 +133,9 @@ def main(argv):
             else:
                 r = character(p)
                 rows['chars'][f[:-4]] = r
-                print('char %-12s %6d tris %6d verts %2d meshes %2d mats %2d joints  %2d maps max %4d px %5.1f MB  h %.2f m'
+                print('char %-12s %6d tris %6d verts %2d meshes %2d mats %2d joints  %2d maps max %4d px %5.1f MB  h %.2f m  chest/h %.3f  waist/h %.3f'
                       % (f[:-4], r['tris'], r['verts'], r['meshes'], r['mats'], r['joints'],
-                         r['maps'], r['side'], r['mapMB'], r['height']))
+                         r['maps'], r['side'], r['mapMB'], r['height'], r['chest'], r['waist']))
         except Exception as e:  # noqa
             print('FAIL %s: %s' % (f, e))
     if '--json' in argv:
