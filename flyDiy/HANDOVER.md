@@ -78200,6 +78200,19 @@ up to 12 660 032; any other baseline still meets 0.3 MiB. The WIRE budget is rai
 budget RETURNS TO 4.0 IN THAT TRAIN (owed by the GAME COORDINATOR). T43's pass (490900b8): 26/29, then ECON's two rows
 and the stale fleet pack fixed (5e7df529).
 
+CLOSING LIST (12 Oct, credit mode; the user: wrap by Saturday) - LANDS: train 52 (Tue 13 Oct 09:50) = 44.2 (HANGAR-STORAGE 1+2,
+MAP-GROUP, FLEETB's baked cowl G2228 + INSTANT's fleet-off pin) + the SIM-CLOCK Wait fix G2662 (if Tue 06:45 is green) + MAP-EDGE
+G2730 and ACCEPT-XWIND G2735 if READY by the pass. INSTANT's wall (FLEETB, Tue 15:20) = a gate number for the next landing.
+Career ON (train 46, A0) Wed / Thu after the user's play-through; it does NOT wait for CREW-SEATS.
+PARKED AT: MACHINE-SHOP G2720 (cloud, claude/machine-shop-g2720 - whatever it pushed; the user's simple ladder, design in
+GAME §R.4); CREW-SEATS G2715 (claude/crew-seats-g2715 2cf5b4ef0, design-only stub in its HANDOVER: a CAGE_CREW_JOB door);
+ONBOARD-REVIEW and the SIDE TRACK (ROUTES-RUN, MISSION-PROTOS, OBSERVATORY) - plans only, awaiting the user's go (the board's
+'sidetrack' row); HANGAR-STORAGE's first-time costs (a long-term plane's bake ~1.5 s box / 4.7 s laptop rung, the first
+resident decode) - follow-ups, the user to pick (bake under a held still, or on entering long-term); the sandbox's INSIDE column
+draws nothing (a question for the user); BELLY-POD-2 G2675 (READY 1ac9d9f6) + DMG-POD G2393 - PAUSED by the user; FOUND: FLYDIY_CREW_PILOT
+(PILOTS G2290) leaks into parked captures - a fix item. CONTRACT_DESIGNS / PROCURE models / FREIGHT cards still from the raw
+build files, not the joined spec (the Cub shows 47.7 L, flies 27 L) - a small session after train 41 lands (_load_build.js).
+
 8 OCT 17:20: integration df8eb904 = + CONTRACT-ROUTES G2430, MAP-MERGE G2440, MAP-INFRA G2435 (READY since 7 Oct ~23:30, missed by a
 UTC string filter - see the memory). Pre-pass 15:00 12/12 PASS; on df8eb904 MAPBAKE CONTRACTS STAGES ECON PROCURE FREIGHT PILOTS
 UISMOKE UISMOKE-PHONE PASS, MEDIA red on the step. THE USER (decision 6, via A0): train 43's size 'Have a sanity check, then accept. It's
