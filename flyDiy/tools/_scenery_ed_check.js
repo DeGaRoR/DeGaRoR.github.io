@@ -594,13 +594,13 @@ if (plots.length) {
 }
 
 // 15 THE USER'S SCENERY SHIPPED (G3010 SCENERY-SHIP; the user, 11 Oct 22:45: "I have done a lot of new roads and scenery
-//    that should become default. Not the altiport ... until fixed though"): tools/fixtures/scenery_ship_rev25.json names
+//    that should become default. Not the altiport ... until fixed though"): tools/fixtures/scenery_ship_rev26.json names
 //    the save (kept byte for byte beside it), what is held back (the altiport's strips), the removals the user confirmed
 //    and the record settings. The shipped fixture, migrated, the town cut as a save has it, IS the save entry by entry
 //    (normalised) - but for a `stage`, which a save (the sandbox's view, every track at its max) never carries and the
 //    shipped record keeps, and the entries only a stage stands (`sg_`) or a removal not yet confirmed keeps.
 {
-  const M = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_rev25.json'), 'utf8'));
+  const M = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_rev26.json'), 'utf8'));
   const stxt = fs.readFileSync(path.join(TOOLS, 'fixtures', M.save), 'utf8');
   check(require('crypto').createHash('sha256').update(stxt).digest('hex') === M.sha256, '15 the save beside the manifest is the user\'s, byte for byte (' + M.sha256.slice(0, 16) + ')');
   const A = PG.dropPlaces(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, ['mk_']).rec, B = PG.unwrap(stxt).rec;

@@ -1,0 +1,23 @@
+{
+ "what": "the user's rev 26 scenery shipped into island_jolene.json (tools/scenery_ship.js + .py); GATE SCENERYED 15 holds it",
+ "save": "scenery_user_jolene_rev26.json",
+ "source": "D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev26_2026-10-12_0305.json",
+ "sha256": "e75298b709ac09db9224b7991278fcf526cb2e7415b5d86f61ab7bc55405ac44",
+ "except": [
+  "w1",
+  "w4"
+ ],
+ "remove": [
+  "r_village",
+  "v_shore_e",
+  "v_west",
+  "v_north"
+ ],
+ "record": [
+  "pavement"
+ ],
+ "trim": {
+  "r25": "w5"
+ },
+ "answers": "the user, 11 Oct ~23:55 (relayed by A0): the 4 village roads go (-53 houses accepted); the runway shoulders y_sh13_0/1, y_sh02_0/1 and the fan x_fan02_0 stay (untested); the pavement settings ship; r25 stops at strip 10 (w5); 12 Oct 03:05: 'all new editions can be considered default' - rev 26 (strip 11 w6 ships, flat like w5)"
+}
