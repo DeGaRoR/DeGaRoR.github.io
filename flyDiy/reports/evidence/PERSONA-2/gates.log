@@ -1,0 +1,319 @@
+=== INPUT ===
+pilot/ctl: bank held 31°, pitch +9.7° → re-engaged: peak |pitch| 14°, peak bank 31°, bank at 20-25 s 23.1°, alt loss 3 m, DOWNWIND OK
+  pilot/keys: bank held 43° (ArrowRight → right), pitch +8.8° → re-engaged: peak |pitch| 7°, peak bank 25°, bank at 20-25 s 23.1°, alt loss 7 m, DOWNWIND OK
+  club/ctl: bank held 31°, pitch +10.3° → re-engaged: peak |pitch| 13°, peak bank 31°, bank at 20-25 s 20.4°, alt loss 3 m, DOWNWIND OK
+  club/keys: bank held 46° (ArrowRight → right), pitch +9.4° → re-engaged: peak |pitch| 12°, peak bank 26°, bank at 20-25 s 20.4°, alt loss 13 m, DOWNWIND OK
+90/90 checks
+GATE INPUT: PASS
+=== PILOT ===
+--- shard 0/3 (443.3 s) ---
+-- HEAVY: 12 kW e-PPG + 400 kg cargo + 60 kg baggage --
+   8s rejected-takeoff — not accelerating (0.00 m/s^2 at V=0.2) — thrust is going nowhere
+  ok     heavy: no NaN
+  ok     heavy: the takeoff is REJECTED
+  ok     heavy: rejected and stopped inside 60 s
+  ok     heavy: never airborne (agl max 0.0 m)
+  ok     heavy: the verdict says why, on the record
+-- STANCE: a 6 cm tail-wheel leg, spawned the way the game spawns --
+   stance -11.2 deg | with: dot 0.91 strain 0.021 | level drop: dot 0.33 strain 0.223
+  ok     stance: the airframe was pitched onto its third wheel
+  ok     stance: the short leg keeps its direction
+  ok     stance: the short leg stays under a fifth of strain
+  ok     stance: the level drop is worse than the stance on the same build
+-- HOVER: rotax582 + 360 kg cargo --
+   (flown in another shard)
+-- CARD: the stock build, asked for 70 m and 25 m/s --
+   (flown in another shard)
+-- FAST: the stock build, asked for 50 m/s it does not have --
+   101.5s cant-hold-speed — full throttle holds 153 of the 180 km/h asked
+  ok     fast: the pilot still completes, flying what it CAN
+  ok     fast: an impossible speed ask is SAID, not silently missed
+  ok     fast: the flown speed is the aeroplane's truth (42.7 m/s of 50 asked)
+-- GOOD + AGAIN: the stock garage build lands, turns around on the strip, takes off again --
+   (flown in another shard)
+-- WIND: 3 m/s along the strip, planned from the spawn — lands into it --
+   (flown in another shard)
+-- TRIKE: the stock build on a nosewheel --
+   lift-off run 143 m of a 150 m sheet
+  ok     trike: the tricycle completes its circuit
+  ok     trike: lifts off inside 1.5x the sheet run (143 of 150 m)
+  ok     trike: a landing, not an arrival (0.63 m/s)
+-- TRIKE-XWIND: the user's pusher across 2 m/s --
+   (flown in another shard)
+-- FLAPS + STATUS: the ultralight fixture from the stand --
+   (flown in another shard)
+-- BOX: the modes as a device, over the pilot and over a hand --
+   alt 0.6 m, hdg 0.0 deg, ias 0.1 m/s, vs 0.03 m/s | hand da 0.05, alt 4.6 m | nav xtk 11 m, 2228 m nearer | completed at 541 s
+  ok     box: no NaN
+  ok     box: the phase and the status say the box is flying
+  ok     box: ALT holds the selected altitude (0.6 m off)
+  ok     box: HDG holds the selected heading (0.0 deg off)
+  ok     box: SPD holds the selected airspeed (0.1 m/s off)
+  ok     box: VS holds the selected vertical speed (0.03 m/s off)
+  ok     box: an axis released to the hand is left untouched (da 0.05)
+  ok     box: ALT still holds while the hand rolls (4.6 m)
+  ok     box: NAV direct-to converges on the course (xtk 11 m)
+  ok     box: NAV closes on the waypoint (2228 m nearer)
+  ok     box: the pilot resumes on disengage and lands
+GATE PILOT: PASS
+[stderr]
+SHARD 0/3: 4 of 10 heavy jobs
+--- shard 1/3 (393.9 s) ---
+-- HEAVY: 12 kW e-PPG + 400 kg cargo + 60 kg baggage --
+   (flown in another shard)
+-- STANCE: a 6 cm tail-wheel leg, spawned the way the game spawns --
+   stance -11.2 deg | with: dot 0.91 strain 0.021 | level drop: dot 0.33 strain 0.223
+  ok     stance: the airframe was pitched onto its third wheel
+  ok     stance: the short leg keeps its direction
+  ok     stance: the short leg stays under a fifth of strain
+  ok     stance: the level drop is worse than the stance on the same build
+-- HOVER: rotax582 + 360 kg cargo --
+   41.8s rejected-takeoff — nose-over: 12 deg nose-down on the wheels at V=21.4 — the thrust line is pushing the nose into the ground (a high pusher, the mains under the CG)
+  ok     hover: no NaN
+  ok     hover: put back down = a rejected takeoff
+  ok     hover: the wont-climb (or rejected-takeoff) verdict is on the record
+  ok     hover: down and stopped inside 150 s — the donor hangs here forever
+-- CARD: the stock build, asked for 70 m and 25 m/s --
+   (flown in another shard)
+-- FAST: the stock build, asked for 50 m/s it does not have --
+   (flown in another shard)
+-- GOOD + AGAIN: the stock garage build lands, turns around on the strip, takes off again --
+  ok     good: no NaN
+  ok     good: full stop inside 340 s
+  ok     good: outcome is completed
+  ok     good: no rejection and no giving up on a sound aeroplane
+  ok     good: the landing run came back (245 m)
+  ok     good: touched within 200 m of the aim (49 m)
+  ok     good: a landing, not an arrival (0.67 m/s)
+   77.3s vx-climb — ground ahead above the aeroplane — climbing at Vx 21.5 m/s until clear
+   second leg: TAXI STOP HOLD ROLL LIFTOFF CLIMB CROSSWIND DOWNWIND BASE FINAL FLARE ROLLOUT STOPPED | completed at 394 s
+  ok     again: a second leg was flown from the stopped pose
+  ok     again: it taxied (the turn-around) to a hold before rolling
+  ok     again: the second circuit completes inside 450 s
+  ok     again: no rejection and no lost taxi on the turn-around
+-- WIND: 3 m/s along the strip, planned from the spawn — lands into it --
+   (flown in another shard)
+-- TRIKE: the stock build on a nosewheel --
+   (flown in another shard)
+-- TRIKE-XWIND: the user's pusher across 2 m/s --
+   roll: pursuit 10.1 deg, 0 rudder reversals, bank 1.2 deg on the ground, lift-off -2.2 m off the centreline after 108 m of a 112 m sheet
+  ok     trike-xwind: the pusher completes its circuit across the wind
+  ok     trike-xwind: the roll holds its pursuit line (10.1 deg, bound 12)
+  ok     trike-xwind: no rudder limit cycle on the roll (0 reversals past 0.2, bound 4)
+  ok     trike-xwind: wings level on three wheels (1.2 deg of bank on the ground, bound 5)
+  ok     trike-xwind: lifts off near the centreline (-2.2 m, bound 5)
+  ok     trike-xwind: rotates, not floats (108 of 112 m sheet, bound 1.6x)
+-- FLAPS + STATUS: the ultralight fixture from the stand --
+   (flown in another shard)
+-- BOX: the modes as a device, over the pilot and over a hand --
+   (flown in another shard)
+GATE PILOT: PASS
+[stderr]
+SHARD 1/3: 3 of 10 heavy jobs
+--- shard 2/3 (417.2 s) ---
+-- HEAVY: 12 kW e-PPG + 400 kg cargo + 60 kg baggage --
+   (flown in another shard)
+-- STANCE: a 6 cm tail-wheel leg, spawned the way the game spawns --
+   stance -11.2 deg | with: dot 0.91 strain 0.021 | level drop: dot 0.33 strain 0.223
+  ok     stance: the airframe was pitched onto its third wheel
+  ok     stance: the short leg keeps its direction
+  ok     stance: the short leg stays under a fifth of strain
+  ok     stance: the level drop is worse than the stance on the same build
+-- HOVER: rotax582 + 360 kg cargo --
+   (flown in another shard)
+-- CARD: the stock build, asked for 70 m and 25 m/s --
+   0s card-clamped — speed 25.0 m/s asked, 25.5 m/s flown (92 km/h) — not slower than the approach, not absurd
+  ok     card: the carded circuit completes
+  ok     card: the ask is on the report, unclamped
+  ok     card: held the asked altitude (78 m of 70)
+  ok     card: held the asked speed (25.5 m/s of 25)
+-- FAST: the stock build, asked for 50 m/s it does not have --
+   (flown in another shard)
+-- GOOD + AGAIN: the stock garage build lands, turns around on the strip, takes off again --
+   (flown in another shard)
+-- WIND: 3 m/s along the strip, planned from the spawn — lands into it --
+   190.2s vx-climb — ground ahead above the aeroplane — climbing at Vx 21.5 m/s until clear
+   landed along [1,0] in 515 s
+  ok     wind: the windy circuit completes
+  ok     wind: the landing is INTO the wind
+  ok     wind: touched within 200 m of the aim (33 m)
+-- TRIKE: the stock build on a nosewheel --
+   (flown in another shard)
+-- TRIKE-XWIND: the user's pusher across 2 m/s --
+   (flown in another shard)
+-- FLAPS + STATUS: the ultralight fixture from the stand --
+   50.5s vx-climb — ground ahead above the aeroplane — climbing at Vx 18.6 m/s until clear
+   flap at the flare 0.00 | roll status: accelerating to rotation speed [RWY PITCH SET]
+  ok     flaps: the flapped build completes from the stand
+  ok     flaps: the flare flies the build's own landing flap (0.00 of 0.00 — this build lands FLAPLESS)
+  ok     status: the roll says its goal and its conditions (airspeed, runway left)
+  ok     status: the AFCS modes are annunciated
+-- BOX: the modes as a device, over the pilot and over a hand --
+   (flown in another shard)
+GATE PILOT: PASS
+[stderr]
+SHARD 2/3: 3 of 10 heavy jobs
+=== TAKEOFF ===
+crosswind limit 3.5 m/s (band 12.5 m, roll 9 m at the limit; first failure 4 m/s, 12.68 m) in 31.6 s CPU, 31.9 s wall
+THE TECHNIQUE (pilot_one_trace: Vr, Vlof, the lift-offs, the pitch rate, the run)
+  cub    wheels Vs 16.0 Vr 16.2 Vlof 17.3 (1.08 Vs)  lifts 1 (first at 17.3)  touch-after 0  qMax -4.7 deg/s  run 105 m  to 15 m 213 m
+  jodel  wheels Vs 18.8 Vr 18.7 Vlof 20.8 (1.11 Vs)  lifts 1 (first at 20.8)  touch-after 0  qMax -6.4 deg/s  run 176 m  to 15 m 294 m
+  c172   wheels Vs 24.4 Vr 24.8 Vlof 27.5 (1.13 Vs)  lifts 1 (first at 27.5)  touch-after 0  qMax 7.9 deg/s  run 253 m  to 15 m 419 m
+  wip    water  Vs 24.5 Vr 24.8 Vlof 27.7 (1.13 Vs)  lifts 1 (first at 27.7)  touch-after 0  qMax 7.0 deg/s  run 321 m  to 15 m 461 m
+  ultraf water  Vs 16.1 Vr 16.3 Vlof 21.1 (1.31 Vs)  lifts 1 (first at 21.1)  touch-after 0  qMax -9.0 deg/s  run 87 m  to 15 m 175 m
+  twinf  water  Vs 18.4 Vr 18.7 Vlof 28.3 (1.54 Vs)  lifts 1 (first at 28.3)  touch-after 0  qMax 7.6 deg/s  run 182 m  to 15 m 309 m
+  c172f  water  Vs 26.1 Vr - Vlof - (0.00 Vs)  lifts 0 (first at -)  touch-after 0  qMax 1.3 deg/s  run - m  to 15 m - m  ABORT rejected-takeoff
+THE TURN-AROUND (pilot_one_turnaround: the Cub at East Point, 150 x 12 m, stopped 20 m from the closed end)
+  roll at 23.1 s; max |cross| 3.2 m, past an end -18.6 m, off the surface 0.0 s; LIFTOFF (airborne); pivot,committed-takeoff
+GATE TAKEOFF: PASS
+=== PILOTACT ===
+PILOT MATRIX: 3 cells, 3 at a time (activity) on core_1791413693022.js
+  ok stock:HOME:calm:stand       completed 379.9 s · sink 0.67 · 1.2 Vs · aim 49 · swing 0.5
+  ok fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:standcompleted 311.5 s · sink 1.02 · 1.15 Vs · aim 43 · swing 1.3
+  ok c172:HOME:calm:stand        completed 374 s · sink 1.14 · 1.09 Vs · aim 37 · swing 1.7
+
+cell                              outcome go-arounds  overshoot   roll rev    ctl rev  slope rms  speed rms       sink       V/Vs        aim        off      swing  reversals   t
+  stock:HOME:calm:stand         completed          0        6 m    0.9/min    legs 10      0.8 m   0.17 m/s   0.67 m/s        1.2       49 m        0 m    0.5 deg          0 379.9
+  c172:HOME:calm:stand          completed          0        9 m    1.3/min  taxi 18.9        1 m   0.08 m/s   1.14 m/s       1.09       37 m      0.2 m    1.7 deg          0   374
+  fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:stand  completed          0        6 m    1.5/min  taxi 19.2        1 m   0.06 m/s   1.02 m/s       1.15       43 m      0.1 m    1.3 deg          0 311.5
+
+3 cells: 3 good, 0 warn, 0 bad
+wall 237 s
+  stock:HOME:calm:stand                                taxi 1.5/16  takeoff 2/14  climb 0/0  legs 10/6  downwind 0.6/0.6  base 2/2  final 3.8/1.4  landing 0/2
+  c172:HOME:calm:stand                                 taxi 0/18.9  takeoff 1.9/7.5  climb 0/0  legs 7.5/3.8  downwind 0.7/0  base 3.3/1.7  final 1.2/0.6  landing 0/4
+  fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:stand taxi 0/19.2  takeoff 4/8  climb 0/0  legs 8/6  downwind 0/0  base 3.4/1.7  final 3.8/1.9  landing 0/2
+GATE PILOTACT: PASS
+=== UISMOKE ===
+the loading screen: 24 steps in order, lifted on frame 0
+the Fly button: no pulse untouched; touched, it pulses (an outline while it loads, lit when ready); reduced motion: a still ring
+manual controls: a key flew it, the AP took it back in TAXI
+honest readings: AGL 0.00 m standing, 40.00 m lifted 40 (the pilot's own datum read -0.05); IAS "13" at 12.9 km/h; fly on: a new leg in place (TAXI), not a reset
+one To: taxiing kept, on a leg replan, stopped leg from apron HOME (the From derived), the aeroplane never moved
+load test: HELD — limit 0.59% ultimate 0.88% of semispan
+bench check: FLIES A CIRCUIT — 459 kg, climb 3.38 m/s, take-off 214 m
+bench density altitude: DA 1614 m — 326 m take-off, 2.52 m/s climb on 83% power, service ceiling 5286 m
+bench crosswind limit: the plaque row reads 2.0 m/s · roll 10.1 m · 13° off, and "> 10 m/s" above the cap
+bench wing loading: HELD — limit 0.59% ultimate 0.88% of semispan
+roll out reads the certificate, and is never locked
+mode: workshop in the garage
+editor panel bridge wired; width reaches the inset
+garage -> roll out -> TAXI, mode: flight
+skip to line-up: 120 m from the taxi to the hold, pilot in HOLD, the button stands down
+rail fly: route / drawn / start / patterns / engines / controls - 27 rows, 19 pills
+rail view: camera / instruments / map / trace / screen - 22 rows, 12 pills
+rail sky: night / weather / clouds / ground - 6 rows, 2 pills
+rail graphics: gfx.perf / gfx.light / gfx.terrain / gfx.water / gfx.sky / gfx.post / gfx.town - 33 rows, 106 pills
+rail audio: sound - 14 rows, 0 pills
+rail dev (behind the dev toggle): scenery / world / log / overlays - 4 rows, 3 pills (the covering hidden with #bSkin: no model on the stand here)
+graphics: 36 rows and 112 pills flat, every one reached through the rail (7 folds + the map, the meter, the log)
+the test mode: entered from DEV, the solver held 60 frames, its way out offered, left
+the shed rail: 8 items (camera display night explode controls graphics audio legend), the clouds a fold of night, the graphics in folds
+the seam holds: 22 flight ids, 20 workshop ids, 17 retired
+G1090 the top bar holds one size over 47 texts (29 phase labels): desktop 440 x 143, desktop small 372 x 76, phone screen x 132, phone small screen x 76; the pilot's area 35 px, two lines clamped + the plan line
+ran app block: raf x1877, handlers wired: _ce100 _ce1001 _ce1005 _ce1009 _ce1013 _ce1017 _ce1021 _ce1025 _ce1029 _ce103 _ce1040 _ce1044 _ce1048 _ce1052 _ce106 _ce1060 _ce1066 _ce1069 _ce1073 _ce1078 _ce109 _ce1100 _ce1106 _ce1110 _ce1118 _ce1121 _ce1130 _ce1134 _ce1138 _ce1146 _ce1149 _ce1158 _ce1162 _ce1166 _ce117 _ce1174 _ce1177 _ce1181 _ce1190 _ce1194 _ce1198 _ce1206 _ce1209 _ce1213 _ce1222 _ce1230 _ce1231 _ce1234 _ce1243 _ce1251 _ce1254 _ce1258 _ce1267 _ce1271 _ce1275 _ce128 _ce1283 _ce1286 _ce1295 _ce1299 _ce132 _ce136 _ce140 _ce146 _ce151 _ce152 _ce154 _ce155 _ce156 _ce159 _ce163 _ce167 _ce171 _ce175 _ce179 _ce183 _ce189 _ce194 _ce200 _ce207 _ce208 _ce209 _ce210 _ce211 _ce212 _ce217 _ce218 _ce219 _ce220 _ce224 _ce225 _ce226 _ce227 _ce228 _ce229 _ce233 _ce234 _ce235 _ce236 _ce240 _ce241 _ce244 _ce248 _ce252 _ce256 _ce260 _ce264 _ce271 _ce281 _ce292 _ce298 _ce304 _ce308 _ce314 _ce318 _ce322 _ce326 _ce330 _ce338 _ce344 _ce347 _ce354 _ce355 _ce359 _ce360 _ce361 _ce362 _ce363 _ce364 _ce37 _ce384 _ce389 _ce390 _ce391 _ce392 _ce393 _ce396 _ce400 _ce404 _ce408 _ce412 _ce416 _ce420 _ce424 _ce428 _ce433 _ce434 _ce435 _ce438 _ce442 _ce449 _ce452 _ce457 _ce458 _ce460 _ce461 _ce462 _ce465 _ce469 _ce473 _ce477 _ce483 _ce490 _ce494 _ce498 _ce50 _ce502 _ce506 _ce510 _ce514 _ce518 _ce522 _ce526 _ce530 _ce536 _ce540 _ce544 _ce547 _ce553 _ce556 _ce557 _ce558 _ce56 _ce561 _ce571 _ce572 _ce576 _ce579 _ce584 _ce606 _ce612 _ce620 _ce621 _ce624 _ce631 _ce632 _ce633 _ce634 _ce635 _ce636 _ce641 _ce642 _ce643 _ce644 _ce648 _ce649 _ce650 _ce651 _ce652 _ce653 _ce657 _ce658 _ce659 _ce660 _ce664 _ce665 _ce668 _ce675 _ce676 _ce677 _ce678 _ce682 _ce683 _ce687 _ce688 _ce69 _ce692 _ce693 _ce694 _ce695 _ce696 _ce697 _ce70 _ce701 _ce702 _ce703 _ce704 _ce705 _ce706 _ce71 _ce710 _ce711 _ce715 _ce716 _ce718 _ce72 _ce725 _ce726 _ce727 _ce728 _ce73 _ce732 _ce733 _ce734 _ce735 _ce739 _ce74 _ce740 _ce741 _ce742 _ce746 _ce747 _ce748 _ce749 _ce75 _ce753 _ce754 _ce758 _ce759 _ce76 _ce760 _ce762 _ce769 _ce77 _ce770 _ce774 _ce775 _ce777 _ce784 _ce785 _ce786 _ce79 _ce790 _ce791 _ce792 _ce793 _ce797 _ce798 _ce800 _ce807 _ce808 _ce809 _ce813 _ce814 _ce815 _ce816 _ce82 _ce820 _ce821 _ce822 _ce826 _ce827 _ce831 _ce832 _ce836 _ce837 _ce839 _ce846 _ce847 _ce85 _ce851 _ce852 _ce853 _ce857 _ce858 _ce862 _ce863 _ce866 _ce872 _ce877 _ce88 _ce881 _ce885 _ce889 _ce893 _ce897 _ce901 _ce905 _ce909 _ce91 _ce913 _ce917 _ce921 _ce925 _ce928 _ce936 _ce939 _ce94 _ce948 _ce956 _ce957 _ce960 _ce969 _ce97 _ce974 _ce978 _ce984 _ce988 _ce993 _ce994 _ce996 _ce997 _ce998 bEdit bGo bHangar2 bLog bMood bPause bReset bSkin bSkip bWhy bootFly edClose flLine mm pfdFold selAc selCond selDest selPersona selPilot tabBench tabDesign
+GATE UISMOKE: PASS
+=== PILOTMATRIX ===
+PILOT MATRIX: 18 cells, 2 at a time (quick) on core_1791411123729.js
+  ok cub:HOME:calm               completed 333.8 s · sink 0.65 · 1.15 Vs · aim 32 · swing 1.8
+  ok c172:HOME:calm              completed 331.8 s · sink 1.14 · 1.09 Vs · aim 37 · swing 1.7
+  ok cub:HOME:x2                 completed 343.6 s · sink 0.82 · 1.13 Vs · aim 20 · swing 5.3
+  X  stearman:HOME:calm          completed 317.9 s · sink 0.86 · 1.15 Vs · aim 20 · swing 3.8
+  ok c172:HOME:x2                completed 338.6 s · sink 1.21 · 1.07 Vs · aim 27 · swing 0.7
+  X  stearman:HOME:x2            completed 326.3 s · sink 0.95 · 1.15 Vs · aim 9 · swing 5
+  ok cub:HOME:calm:up4           completed 324.4 s · sink 0.41 · 1.21 Vs · aim 5 · swing 0.7
+  ok cub:HOME-A3:calm            completed 624.7 s · sink 0.61 · 1.15 Vs · aim 33 · swing 1.9
+  ok cub:HOME:calm:dn4           completed 317.1 s · sink 0.37 · 1.23 Vs · aim 8 · swing 1.3
+  ~  cub:HOME:x4                 completed 347.5 s · sink 0.75 · 1.15 Vs · aim 25 · swing 9
+  ~  cub:HOME-A5:calm            completed 709.8 s · sink 0.62 · 1.13 Vs · aim 11 · swing 7.3
+  ok cub:HOME:calm:sand          completed 333.5 s · sink 0.65 · 1.15 Vs · aim 32 · swing 1.7
+  X  stearman:HOME:x4            completed 328.1 s · sink 1.37 · 1.13 Vs · aim 7 · swing 10.7
+  ok cub:HOME:calm:club          completed 338.6 s · sink 0.51 · 1.19 Vs · aim 20 · swing 0.9
+  ok c172:HOME:calm:rh           completed 333.4 s · sink 1.14 · 1.09 Vs · aim 37 · swing 1.7
+  ok cub:HOME:calm:student       completed 353.5 s · sink 0.58 · 1.21 Vs · aim 17 · swing 0.6
+  ok cub:HOME:calm:bush          completed 380 s · sink 0.68 · 1.13 Vs · aim 12 · swing 0.6
+  ~  cub:HOME:calm:hamfist       completed 335.6 s · sink 0.67 · 1.23 Vs · aim 1 · swing 5
+
+cell                              outcome go-arounds  overshoot   roll rev    ctl rev  slope rms  speed rms       sink       V/Vs        aim        off      swing  reversals   t
+  cub:HOME:calm                 completed          0        5 m    1.1/min takeoff 12      0.7 m   0.14 m/s   0.65 m/s       1.15       32 m        0 m    1.8 deg          0 333.8   Δ sink 1.21->0.65, aim -7->32
+  c172:HOME:calm                completed          0        9 m    1.3/min   legs 7.5        1 m   0.08 m/s   1.14 m/s       1.09       37 m      0.2 m    1.7 deg          0 331.8
+ Xstearman:HOME:calm            completed          0        5 m    0.8/min*takeoff 102      0.7 m   0.11 m/s   0.86 m/s       1.15       20 m      0.5 m    3.8 deg          0 317.9   Δ swing 7->3.8
+  cub:HOME:x2                   completed          0        4 m      2/min     legs 8      0.7 m   0.16 m/s   0.82 m/s       1.13       20 m      0.2 m    5.3 deg          0 343.6   Δ sink 1.33->0.82, aim -19->20
+ Xstearman:HOME:x2              completed          0        6 m    1.5/min*takeoff 98      0.6 m   0.11 m/s   0.95 m/s       1.15        9 m      1.1 m      5 deg          1 326.3   Δ sink 1.28->0.95
+  c172:HOME:x2                  completed          0        5 m    1.2/min   legs 7.4      0.9 m   0.07 m/s   1.21 m/s       1.07       27 m      0.4 m    0.7 deg          1 338.6
+  cub:HOME-A3:calm              completed          0        6 m    0.5/min takeoff 12      0.7 m   0.14 m/s   0.61 m/s       1.15       33 m        0 m    1.9 deg          0 624.7   Δ sink 1.49->0.61, aim -9->33
+  cub:HOME:calm:up4             completed          0        5 m      1/min     legs 6      0.7 m   0.14 m/s   0.41 m/s       1.21        5 m        0 m    0.7 deg          0 324.4   Δ sink 1.04->0.41
+  cub:HOME:calm:dn4             completed          0        5 m    0.5/min     legs 8      0.7 m   0.13 m/s   0.37 m/s       1.23        8 m        0 m    1.3 deg          0 317.1   Δ sink 1.76->0.37
+ ~cub:HOME:x4                   completed          0        5 m      1/min    legs 10      0.8 m   0.29 m/s   0.75 m/s       1.15       25 m      0.2 m     ~9 deg          0 347.5   (new)
+ Xstearman:HOME:x4              completed          0        5 m    1.5/min*takeoff 100      0.6 m   0.25 m/s   1.37 m/s       1.13        7 m      1.2 m  ~10.7 deg          0 328.1   (new)
+ ~cub:HOME-A5:calm              completed          0        5 m    0.9/min takeoff 12      0.7 m   0.13 m/s   0.62 m/s       1.13       11 m        0 m   ~7.3 deg          0 709.8   (new)
+  cub:HOME:calm:sand            completed          0        5 m    1.1/min takeoff 10      0.7 m   0.14 m/s   0.65 m/s       1.15       32 m        0 m    1.7 deg          0 333.5   (new)
+  c172:HOME:calm:rh             completed          0       16 m    1.2/min     legs 9      0.9 m   0.07 m/s   1.14 m/s       1.09       37 m      0.5 m    1.7 deg          0 333.4   (new)
+  cub:HOME:calm:club            completed          0        5 m      2/min          —      0.7 m   0.12 m/s   0.51 m/s       1.19       20 m      0.2 m    0.9 deg          0 338.6
+  cub:HOME:calm:student         completed          0        5 m    7.1/min          —      0.8 m   0.18 m/s   0.58 m/s       1.21       17 m        0 m    0.6 deg          0 353.5
+  cub:HOME:calm:bush            completed          0        4 m    1.1/min          —      0.8 m    0.2 m/s   0.68 m/s       1.13       12 m      0.2 m    0.6 deg          0   380
+ ~cub:HOME:calm:hamfist         completed          0       11 m   ~9.6/min          —      0.8 m   0.27 m/s   0.67 m/s       1.23        1 m        1 m      5 deg          0 335.6   Δ sink 0.88->0.67
+
+18 cells: 12 good, 3 warn, 3 bad
+wall 1931 s
+  ratchet: no cell worse than pilot_baseline.json; 3 known bad, 3 warn
+GATE PILOTMATRIX: PASS
+=== SEAPLANE ===
+CIRCUIT (calm, the pilot, SEA -> SEA)
+   lift-off 9.6 s; touch 248.7 s at (-0, 2555), water 95.5 m deep; stopped 297.6 s; max |x| on the water 0.5 m; phases: ROLL LIFTOFF CLIMB CROSSWIND DOWNWIND BASE FINAL FLARE ROLLOUT STOPPED
+PASS the circuit stays finite
+PASS off the water inside 25 s (9.6)
+PASS the touch is on the lane's deep water (95.5 m, -0 m off the centreline)
+PASS rolled out to STOPPED (297.6 s)
+PASS never more than 0.5 m off the centreline on the water (bound 30)
+
+CROSSWIND TAKE-OFF (5 m/s across the lane)
+   lift-off 8.3 s (airborne = dry 2 s; 1 skip before it); the run: max |x| 3.4 m, max heading swing 11.4 deg from the roll's -0; phases: ROLL LIFTOFF CLIMB
+PASS off the water inside 25 s (8.3)
+PASS 1 skip before the aeroplane is away (bound 2)
+PASS the run holds the lane: 3.4 m off (bound 30)
+PASS the heading swings 11.4 deg at most (bound 30)
+
+TAXI (5 m/s across, throttle held at idle, 60 s)
+   max |hdg| 9.7 deg, max |x| 1.0 m
+PASS the water rudder holds the heading within 9.7 deg (bound 20)
+PASS the track within 1.0 m (bound 10)
+
+GATE SEAPLANE: PASS
+=== PLAYER ===
+41 checks
+GATE PLAYER: PASS
+=== ENGTORQUE ===
+PASS INERT: propFx off publishes nothing and the hands-off roll runs straight - published 0.000 swing 0.000 deg
+PASS SHAFT: the static rpm within 3 % of the J-3 tied down (2150) - 2116 rpm
+PASS SHAFT: the static torque is P/omega_rated at the prop shaft - 201.3 vs 201.3 N.m
+PASS SHAFT: H = I . Omega, I from the blades (0.2-2 kg.m2) - I 0.683 H 151.4 vs 151.4
+PASS SIGN torque: the Lycoming hand - (bank on the gear, + = right wing down) - -0.4607
+PASS SIGN torque: the other hand mirrors it (25 %) - 0.4607 vs 0.4607
+PASS SIGN swirl: the Lycoming hand + (hands-off swing, + = left) - 9.8014
+PASS SIGN swirl: the other hand mirrors it (25 %) - -9.8014 vs -9.8014
+PASS SIGN gyro: the Lycoming hand + (yaw after a nose-down pitch rate, + = left) - 0.0183
+PASS SIGN gyro: the other hand mirrors it (25 %) - -0.0183 vs -0.0183
+PASS SIGN pfactor: the Lycoming hand + (yaw at alpha 6.0 deg, + = left) - 0.0648
+PASS SIGN pfactor: the other hand mirrors it (25 %) - -0.0648 vs -0.0648
+PASS SIGN pfactor: flown at a positive angle of attack (> 3 deg) - 6.0
+PASS COUPLES: every pass, the forces on a node set sum to nothing and make exactly the moment (1e-9 per N.m) - net 2.64e-13 /m, miss 7.99e-16
+PASS TWIN: same-hand torques add (> 300 N.m), counter-rotating cancel (< 1 N.m) - 369.5 / 0.000 N.m
+PASS TWIN: same-hand leans left on the gear, counter-rotating under a fifth of it - -0.709 / 0.000 deg
+PASS TWIN: the counter-rotating swing under a fifth of the same-hand swing - same -25.92 counter -0.00 deg
+17/17 checks
+GATE ENGTORQUE: PASS
+
+──────── summary ────────
+INPUT     PASS   135.1 s
+PILOT     PASS   443.3 s  [3 shards]
+TAKEOFF   PASS   513.3 s
+PILOTACT  PASS   237.5 s
+UISMOKE   PASS   221.4 s
+PILOTMATRIX PASS  1930.7 s
+SEAPLANE  PASS   342.6 s
+PLAYER    PASS     0.1 s
+ENGTORQUE PASS   108.1 s
+total           3932.1 s
+wall            2806.8 s  (jobs 4)
+
+BATTERY: PASS
