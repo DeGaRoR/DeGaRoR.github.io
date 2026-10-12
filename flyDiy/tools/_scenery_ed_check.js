@@ -361,7 +361,20 @@ if (plots.length) {
   const O10 = PG.compose(rec(), synth, { raster: false }), r1 = rec().layers.roads.find(r => r.id === 'r1'), E = O10.extent;
   check(r1 && r1.pts.every(q => q[0] >= E.x0 && q[0] <= E.x1 && q[1] >= E.z0 && q[1] <= E.z1), '10 the composed extent covers the island road (it ran 12.7 km past the authored one)', JSON.stringify(E));
   const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, OJ = PG.compose(J, synth, { raster: false });
-  check(JSON.stringify(OJ.extent) === JSON.stringify(J.frame.extent), '10 ...and the shipped Jolene record keeps its own extent exactly (every feature inside it)');
+  // (G2956 / G3014: the shipped record carries the user's features that lie PAST the extent it authors - the island road r1
+  //  (7.7 km past), and since rev 26 strip 11 w6 and its roads - the extent grows to cover them, and only for them: without
+  //  every entry that has a point outside the authored extent it is the authored one exactly)
+  const AE = J.frame.extent, outside = q => q[0] < AE.x0 || q[0] > AE.x1 || q[1] < AE.z0 || q[1] > AE.z1;
+  const ptsOf = (L, e) => L === 'runways' ? PG.runwayBox(Object.assign({}, PG.RUNWAY_DEF, e), 0) : (e.pts || e.poly || (e.at ? [[+e.at.x, +e.at.z]] : (isFinite(+e.x) && isFinite(+e.z) ? [[+e.x, +e.z]] : [])));
+  const far = []; for (const L of Object.keys(J.layers)) for (const e of J.layers[L] || []) if (e && e.id && ptsOf(L, e).some(outside)) far.push([L, e]);
+  const J0 = JSON.parse(JSON.stringify(J)); for (const [L, e] of far) J0.layers[L] = J0.layers[L].filter(q => !q || q.id !== e.id);
+  const EJ = OJ.extent, inEJ = q => q[0] >= EJ.x0 && q[0] <= EJ.x1 && q[1] >= EJ.z0 && q[1] <= EJ.z1;
+  check(far.some(([L, e]) => e.id === 'r1') && JSON.stringify(PG.compose(J0, synth, { raster: false }).extent) === JSON.stringify(AE), '10 ...and the shipped Jolene record without the ' + far.length + ' features past its extent (' + far.map(([L, e]) => e.id).slice(0, 12).join(' ') + ') keeps its own extent exactly');
+  // (the composer grows the extent over what it LAYS - roads, strips, zones, areas; a site or a placed object past it stands on the
+  //  world's ground as it did in the user's editor, so it is listed, not held: rev 26's s26 / s28 at r1's far end, object a5)
+  const LAID = ['roads', 'runways', 'zones', 'areas', 'terrain', 'surface', 'material', 'exclude', 'ttype'];
+  check(EJ.x0 <= AE.x0 && EJ.z0 <= AE.z0 && EJ.x1 >= AE.x1 && EJ.z1 >= AE.z1 && far.filter(([L]) => LAID.includes(L)).every(([L, e]) => L === 'runways' ? inEJ(e.c) : ptsOf(L, e).every(inEJ)), '10 ...with them, its composed extent grows over what they lay (' + JSON.stringify(EJ) + ')');
+  { const past = far.filter(([L, e]) => !LAID.includes(L) && !ptsOf(L, e).every(inEJ)).map(([L, e]) => L + ':' + e.id); if (past.length) console.log('     10 placed past the composed extent (they stand on the world ground, as in the editor): ' + past.join(' ')); }
   ed.select('r1');
   const [tT] = Tm(() => ed.cmd('set', { id: 'r1', patch: { traffic: 12 } }));
   check(R.lastDirty && R.lastDirty.ground === false, '10 the traffic changed is no ground edit (no patch, no ground re-sample)', JSON.stringify(R.lastDirty));
@@ -484,6 +497,23 @@ if (plots.length) {
   console.log('     12 the user\'s rev 23 (sha256 277abdfa66b254bd): r1 ' + r1raw.pts.length + ' points + handles bit for bit through load, compose + road graph (' + G12.edges.filter(e => e.road === 'r1').length + ' span), save; town put back (' + withTown.layers.roads.filter(r => /^mk_/.test(r.id)).length + ' streets, ' + new Set([].concat(...withTown.layers.roads.map(r => r.nodes || [])).filter(Boolean)).size + ' junction ids): r1\'s ground over ' + n + ' samples differs by ' + worst + ' m from the town without junctions');
 }
 
+// 13 THE USER'S ROAD SHIPPED (G2956; the user, 11 Oct: "Please extract my long road to put in official"): r1 of their rev 26
+//    save (tools/road_ship.py; the entry kept in tools/fixtures/scenery_user_r1_rev26.json with the save's sha256) is the
+//    shipped fixture's r1 bit for bit - every field as saved, nothing else of the save shipped (no strip of theirs) -
+//    and the shipped record loads, composes and saves it unchanged
+{
+  const K = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_r1_rev26.json'), 'utf8'));
+  const FX = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), FL = (FX.premises || FX).layers;
+  const shipped = FL.roads.find(r => r.id === 'r1');
+  check(shipped && JSON.stringify(shipped) === JSON.stringify(K.road), '13 the shipped r1 is the user\'s save\'s r1 bit for bit (' + (K.road.pts || []).length + ' points, save sha256 ' + String(K.sha256).slice(0, 16) + ')');
+  check(!FL.runways.some(w => /^strip [89]$/.test(String(w.name || ''))) && FL.roads.filter(r => r.id === 'r1').length === 1, '13 ...and nothing else of the save: none of its strips');
+  const PJ = PG.unwrap(JSON.stringify(FX)).rec, r1j = PJ.layers.roads.find(r => r.id === 'r1');
+  const same = r => JSON.stringify([r.pts, r.tan || null]) === JSON.stringify([K.road.pts, K.road.tan || null]);
+  check(r1j && same(r1j) && same(PG.unwrap(PG.envelope('t', PJ)).rec.layers.roads.find(r => r.id === 'r1')) && same(PG.compose(PJ, synth, { raster: false }).rec.layers.roads.find(r => r.id === 'r1')), '13 the shipped record loads, composes and saves r1 unchanged');
+  const savePath = 'D:/Dev/flydiy-notes/scenery-backups/' + K.save;
+  if (fs.existsSync(savePath)) check(require('crypto').createHash('sha256').update(fs.readFileSync(savePath)).digest('hex') === K.sha256, '13 (the save on this machine is the one it was taken from)');
+}
+
 // 14 PLACER-FAST (G3000-G3009; the user: "adding assets in the editor is a bit of a pain, really, really long to move,
 //    update, rotate"). A placed object's commit - its drop, its drag's release, its turn, a number, its undo - hands the
 //    renderer that object alone (R.objectEdit: no composition, no rebuild); anything else, or a renderer that cannot,
@@ -571,6 +601,88 @@ if (plots.length) {
     console.log('     14 PLACER-FAST: an object released ' + tFast.toFixed(1) + ' ms (editor) vs ' + tFull.toFixed(0) + ' ms (editor + the composition a rebuild runs); road keys ' + tKeys.toFixed(0) + ' ms for ' + OT.roads.length + ' roads'); }
 }
 
+// 15 THE USER'S SCENERY SHIPPED (G3010 SCENERY-SHIP; the user, 11 Oct 22:45: "I have done a lot of new roads and scenery
+//    that should become default. Not the altiport ... until fixed though"): tools/fixtures/scenery_ship_rev26.json names
+//    the save (kept byte for byte beside it), what is held back (the altiport's strips), the removals the user confirmed
+//    and the record settings. The shipped fixture, migrated, the town cut as a save has it, IS the save entry by entry
+//    (normalised) - but for a `stage`, which a save (the sandbox's view, every track at its max) never carries and the
+//    shipped record keeps, and the entries only a stage stands (`sg_`) or a removal not yet confirmed keeps.
+{
+  const M = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_rev27.json'), 'utf8'));
+  const stxt = fs.readFileSync(path.join(TOOLS, 'fixtures', M.save), 'utf8');
+  check(require('crypto').createHash('sha256').update(stxt).digest('hex') === M.sha256, '15 the save beside the manifest is the user\'s, byte for byte (' + M.sha256.slice(0, 16) + ')');
+  const A = PG.dropPlaces(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, ['mk_']).rec, B = PG.unwrap(stxt).rec;
+  const EX = new Set(M.except), RM = new Set(M.remove);
+  // (G3014) a road the user stopped at a strip: the save's road cut by the same function the ship used
+  for (const [rid, wid] of Object.entries(M.trim || {})) { const r = B.layers.roads.find(q => q.id === rid), w = B.layers.runways.find(q => q.id === wid);
+    const cut = r && w && PG.roadCutAtPoly(r, PG.runwayBox(Object.assign({}, PG.RUNWAY_DEF, w), 0));
+    check(!!cut && cut.pts.length < r.pts.length, '15 ' + rid + ' stops at the edge of ' + wid + ' (' + (r ? r.pts.length : '?') + ' -> ' + (cut ? cut.pts.length : '?') + ' points)');
+    if (cut) B.layers.roads[B.layers.roads.indexOf(r)] = cut; }
+  const un = e => { const c = JSON.parse(JSON.stringify(e)); delete c.stage; delete c.src; if (Array.isArray(c.items)) for (const it of c.items) if (it) delete it.stage; return JSON.stringify(c); };
+  const staged = e => !!(e && (e.stage || (Array.isArray(e.items) && e.items.some(it => it && it.stage)) || /^sg_/.test(String(e.id || ''))));
+  // (G3014: the strips the manifest names in clearDefault ship WITHOUT their own `clear` - today's box, as every strip; the rest of
+  //  the entry is the save's)
+  // (G3014: and the plots the manifest moves - plotMoves {runway: {plot: [x, z]}}: the save's plot taken to where it ships)
+  const PMv = M.plotMoves || {};
+  const CD = new Set(M.clearDefault || []), unC = e => { const c = JSON.parse(un(e)); if (CD.has(c.id)) delete c.clear;
+    if (PMv[c.id] && Array.isArray(c.plots)) for (const p of c.plots) if (p && PMv[c.id][p.id]) { p.x = PMv[c.id][p.id][0]; p.z = PMv[c.id][p.id][1]; }
+    return JSON.stringify(c); };
+  check([...CD].every(id => { const w = (A.layers.runways || []).find(q => q.id === id); return w && !('clear' in w); }), '15 the strips the manifest names ship with the clearance of today, not their own (' + [...CD].join(', ') + ')');
+  const bad = [], pending = [];
+  for (const L of PG.LAYERS) {
+    const a = new Map((A.layers[L] || []).map(e => [e.id, e])), b = new Map((B.layers[L] || []).map(e => [e.id, e]));
+    for (const [id, e] of b) { if (EX.has(id)) { if (a.has(id)) bad.push(L + ' ' + id + ' held back, but shipped'); continue; } if (!a.has(id)) bad.push(L + ' ' + id + ' not shipped'); else if (unC(a.get(id)) !== unC(e)) bad.push(L + ' ' + id + ' differs'); }
+    for (const [id, e] of a) if (!b.has(id)) { if (RM.has(id)) bad.push(L + ' ' + id + ' removal confirmed, still shipped'); else if (!staged(e)) pending.push(id); }
+  }
+  check(!bad.length, '15 the shipped record is the save entry by entry (held back: ' + M.except.join(', ') + ')', bad.slice(0, 6).join('; '));
+  const FX = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), FL = (FX.premises || FX).layers;
+  let nSt = 0, nIt = 0; for (const L of Object.keys(FL)) for (const e of FL[L] || []) { if (e && e.stage) nSt++; if (e && Array.isArray(e.items)) for (const it of e.items) if (it && it.stage) nIt++; }
+  check(nSt >= 17 && nIt >= 5, '15 every stage the shipped record had is still on it (' + nSt + ' entries, ' + nIt + ' site items) - a save never carries them');
+  console.log('     15 the user\'s rev 25 shipped: ' + B.layers.roads.length + ' roads in the save; the removals the save makes and the user has not confirmed (kept): ' + (pending.join(', ') || 'none'));
+}
+
+// 16 THE LONE ROAD'S PATCH (G3013; the user's 66 km of graded road made the fine 2 m patch 7x what it was for every
+//    player): on the shipped record as a player has it (the town off), the roads' chunks with the lone rule against the
+//    margin everywhere - far fewer - and every chunk where a road MEETS something (a segment not lone) the same as
+//    before: the patch shrinks only along the lone stretches. The ground is the composition's either way (the patch is
+//    how finely it is drawn, not what it is)
+{
+  const J = PG.dropPlaces(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, ['mk_']).rec;
+  const flat = { id: 'flat', terrainH: () => 0, waterH: () => -100 }, O16 = PG.compose(J, flat, { raster: false }), F = O16.frame, R = O16.rec, PCH = 64;
+  const e = O16.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)];
+  const bounds = { i0: Math.floor((Math.min(...c.map(q => q[0])) - 40) / PCH), i1: Math.floor((Math.max(...c.map(q => q[0])) + 40) / PCH), j0: Math.floor((Math.min(...c.map(q => q[1])) - 40) / PCH), j1: Math.floor((Math.max(...c.map(q => q[1])) + 40) / PCH) };
+  const t0 = process.hrtime.bigint();
+  const NEW = PG.roadPatchChunks(R, F, PCH, bounds, { runways: O16.runways }), ms = Number(process.hrtime.bigint() - t0) / 1e6;
+  const OLD = PG.roadPatchChunks(R, F, PCH, bounds, { runways: O16.runways, lone: false });
+  const lone = PG.roadLoneSegs(R, O16.runways);
+  let segs = 0, nLone = 0; for (const [, s] of lone) { segs += s.length; for (const v of s) nLone += v; }
+  check(NEW.size < OLD.size * 0.7, '16 the lone stretches\' patch: ' + NEW.size + ' chunks of 64 m where the margin everywhere made ' + OLD.size + ' (' + nLone + ' of ' + segs + ' road segments lone; ' + ms.toFixed(0) + ' ms)');
+  // every chunk the old rule marked and the lone rule does not is a lone stretch's alone: no segment that meets anything
+  // marks it by the old rule (its box grown by its margin, its centre within margin + half a diagonal - activeChunks')
+  const HALFD = PCH * 0.7072; let miss = 0, near = 0;
+  const gone = Array.from(OLD).filter(k => !NEW.has(k)); near = gone.length;
+  for (const k of gone) {
+    const [ci, cj] = k.split(',').map(Number), cx = (ci + 0.5) * PCH, cz = (cj + 0.5) * PCH, lc = F.toLocal(cx, cz);
+    let held = false;
+    for (const r of R.layers.roads) { const ls = lone.get(r.id); if (!ls || held) continue; const m = (+r.w || 3.6) / 2 + (+r.falloff || 6) + 6;
+      for (let q = 1; q < r.pts.length && !held; q++) { if (ls[q - 1]) continue; const a = r.pts[q - 1], b = r.pts[q];
+        const cs = [[Math.min(a[0], b[0]) - m, Math.min(a[1], b[1]) - m], [Math.max(a[0], b[0]) + m, Math.max(a[1], b[1]) + m], [Math.min(a[0], b[0]) - m, Math.max(a[1], b[1]) + m], [Math.max(a[0], b[0]) + m, Math.min(a[1], b[1]) - m]].map(z => F.toWorld(z[0], z[1]));
+        const inBox = ci >= Math.floor(Math.min(...cs.map(z => z[0])) / PCH) && ci <= Math.floor(Math.max(...cs.map(z => z[0])) / PCH) && cj >= Math.floor(Math.min(...cs.map(z => z[1])) / PCH) && cj <= Math.floor(Math.max(...cs.map(z => z[1])) / PCH);
+        if (inBox && PG.distPtSeg(lc[0], lc[1], a, b) <= m + HALFD) held = true; } }
+    if (held) miss++;
+  }
+  check(miss === 0 && near > 0, '16 where a road meets anything (its segment not lone), every chunk of the old margin is still drawn finely: the ' + near + ' chunks dropped are on lone stretches only', miss + ' dropped under a segment that meets something');
+  // a lone stretch: every chunk whose centre is in its band is still drawn finely
+  let bandMiss = 0;
+  for (const r of R.layers.roads) { const ls = lone.get(r.id); if (!ls) continue; const m = (+r.w || 3.6) / 2 + (+r.falloff || 6) + 6;
+    for (let s = 1; s < r.pts.length; s++) { if (!ls[s - 1]) continue; const a = r.pts[s - 1], b = r.pts[s], mid = F.toWorld((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), k = Math.floor(mid[0] / PCH) + ',' + Math.floor(mid[1] / PCH);
+      const lc = F.toLocal((Math.floor(mid[0] / PCH) + 0.5) * PCH, (Math.floor(mid[1] / PCH) + 0.5) * PCH); if (PG.distPtSeg(lc[0], lc[1], a, b) <= m && !NEW.has(k)) bandMiss++; } }
+  check(bandMiss === 0, '16 a lone stretch keeps the chunks its band covers', bandMiss + ' missing');
+  const RP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check(/PG\.roadPatchChunks\(rec, F, PCH, \{ i0, i1, j0, j1 \}/.test(RP), '16 the game marks its roads\' chunks with the same function');
+  console.log('     16 the lone road\'s patch (the town off): ' + OLD.size + ' -> ' + NEW.size + ' chunks of 64 m (' + ((OLD.size - NEW.size) * 33 * 33 / 1e6).toFixed(2) + ' M fewer 2 m samples); ' + nLone + ' of ' + segs + ' segments lone');
+}
+
 // 17 A SITE'S ITEMS (G3005; the user: "anything related to placing assets from SITE is painfully slow. Rotate, place, edit,
 //    delete, all of it"): each action ONE rebuild, the ground with it (every item stands on a shelf the composer cuts -
 //    it was left undrawn: the site was rebuilt with the ground as it was) in a box of what changed - an item moved, its
@@ -646,6 +758,23 @@ if (plots.length) {
   check(/plot\.noFence \? new Set\(\) : vil\.fenced/.test(VGs) && /if \(plot\.noFence\) plot\.fences = \[\];/.test(VGs), '19 the village generator keeps no fence for a noFence plot, and claims none of its sides');
   check(/!!p\.noFence !== !!\(h\.plot && h\.plot\.noFence\)/.test(RPs), '19 the renderer builds a plot again when its fence switches (its seed the same)');
   check(/'plot fences'/.test(UI_SRC) && /pick plots: a click switches one plot\\'s fence/.test(UI_SRC) && /name === 'plotFence'/.test(UI_SRC), '19 the zone\'s inspector: the fences switch and the plot pick');
+}
+
+// 21 ONE STRIP A DRAW (G3016; the user, 12 Oct: two strips added on top of each other - rev 24's w1 + w4, the altiport): the
+//    runway tool hands back to SELECT once a strip is placed, so two more clicks add nothing; no two shipped strips stand
+//    within 50 m of each other (Jolene's crossing 02/20 x 13/31 is 939 m centre to centre)
+{
+  ed.select(null); ed.cmd('tool', { name: 'runway' });
+  const n0 = ed.record().layers.runways.length;
+  ed.cmd('point', { x: 6000, z: 6500 }); ed.cmd('point', { x: 6300, z: 6500 });
+  const n1 = ed.record().layers.runways.length;
+  try { ed.cmd('point', { x: 6000, z: 6700 }); ed.cmd('point', { x: 6300, z: 6700 }); } catch (e) {}
+  const n2 = ed.record().layers.runways.length;
+  check(n1 === n0 + 1 && n2 === n1, '21 a strip drawn hands the tool back: two more clicks add no second strip (' + n0 + ' -> ' + n1 + ' -> ' + n2 + ')');
+  const FXr = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec.layers.runways, near = [];
+  for (let i = 0; i < FXr.length; i++) for (let j = i + 1; j < FXr.length; j++) if (Math.hypot(FXr[i].c[0] - FXr[j].c[0], FXr[i].c[1] - FXr[j].c[1]) < 50) near.push(FXr[i].id + '/' + FXr[j].id);
+  check(!near.length, '21 no two shipped strips stand within 50 m of each other', near.join(' '));
+  ed.cmd('tool', { name: 'select' });
 }
 
 // 5 NAMES

@@ -517,6 +517,7 @@ function make(THREE, scene, world, rec0, opts) {
   const patchKindAt = (x0, z0) => (o.patchPick && o.patchPick(x0, z0, x0 + PCH, z0 + PCH)) ? 1 : 0;   // a chunk's ground: 1 the far terrain's (G527)
   const patchBlockOf = k => { const [ci, cj] = k.split(',').map(Number); return patchKindAt(ci * PCH, cj * PCH) + '|' + Math.floor(ci / PL.block) + ',' + Math.floor(cj / PL.block); };
   // skip (G2063): an entry it names is left out - the town's, while its geometry waits (GEO below)
+  const LONE_OFF = typeof location !== 'undefined' && /[?&]lonepatch=0(&|$)/.test(location.search || '');
   function activeChunks(b, skip) {
     const F = O.frame, rec = O.rec, L = rec.layers, act = new Set(), key = (i, j) => i + ',' + j, sk = e => !!(skip && e && skip(e));
     const i0 = Math.floor(b.x0 / PCH), i1 = Math.floor(b.x1 / PCH), j0 = Math.floor(b.z0 / PCH), j1 = Math.floor(b.z1 / PCH);
@@ -539,7 +540,10 @@ function make(THREE, scene, world, rec0, opts) {
     for (const t of L.terrain) { if (sk(t)) continue; if (t.poly) markPoly(t.poly, (+t.falloff || 6) + 4); else if (t.pts) markLine(t.pts, (+t.width || 4) / 2 + (+t.falloff || 6) + 4); }
     for (const s of L.surface) if (!sk(s)) markPoly(s.poly, 4);
     for (const m of L.material) if (!sk(m)) markPoly(m.poly, (+m.fade || 0) + 4);
-    for (const r of L.roads) if (!sk(r) && r.pts && r.pts.length >= 2) markLine(r.pts, (+r.w || 3.6) / 2 + (+r.falloff || 6) + 6);
+    // (G3013) the roads' chunks: PG.roadPatchChunks - a LONE stretch (nothing of the record within LONE_R) marks the chunks
+    // its band covers, not the ones it grazes; where a road meets anything, the margin as before. ?lonepatch=0 the old rule
+    if (PG.roadPatchChunks) { for (const k of PG.roadPatchChunks(rec, F, PCH, { i0, i1, j0, j1 }, { skip: sk, runways: O.runways, lone: !LONE_OFF && window.FLYDIY_LONEPATCH !== false })) act.add(k); }
+    else for (const r of L.roads) if (!sk(r) && r.pts && r.pts.length >= 2) markLine(r.pts, (+r.w || 3.6) / 2 + (+r.falloff || 6) + 6);
     for (const r of O.runways || []) { if (sk(r) || (PG.runwayIsWater && PG.runwayIsWater(r))) continue; markPoly(PG.runwayBox(r, PG.runwayShoulder(r) + 30), 4); }
     for (const z of L.zones) if (!sk(z)) markPoly(z.poly, 40);
     for (const st of L.sites) { if (sk(st)) continue; const a = st.at || { x: 0, z: 0 }; let r = 80; for (const it of st.items || []) r = Math.max(r, Math.hypot(it.x || 0, it.z || 0) + 40); if (st.yard) r = Math.max(r, Math.hypot(st.yard.x1 || 0, st.yard.z1 || 0) + 40, Math.hypot(st.yard.x0 || 0, st.yard.z0 || 0) + 40); markBox({ x0: a.x - r, z0: a.z - r, x1: a.x + r, z1: a.z + r }, 0); }
@@ -3582,7 +3586,7 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function hwComposeNow() {
     HWQ.composeDue = 0;
-    const lazy = ['SPORT_GEN', 'MARINE_GEN'].filter(g => !!window[g]);
+    const lazy = ['SPORT_GEN', 'MARINE_GEN', 'NAVAID_GEN'].filter(g => !!window[g]);
     HWQ.epoch = HWK.compose(rec, composedPool || [], lazy, TALLY ? TALLY.list : null);   // G841: the cook's tallies ride with the composition
     HWQ.needState = true;
   }

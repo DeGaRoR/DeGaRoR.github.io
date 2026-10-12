@@ -179,14 +179,26 @@ PREMISES_HOST.rows = function () {
       for (const q of opts) { const b = document.createElement('button'); b.type = 'button'; b.className = 'pill'; b.dataset.v = String(q[0]); b.textContent = q[1]; if (q[2]) b.title = q[2]; b.onclick = () => { set(q[0]); paint(); b.blur(); }; w.appendChild(b); }
       paint(); d.appendChild(w); p.appendChild(d); return d;
     },
+    // (G3017, the user 12 Oct: 'for rotation and other parameters, I need to be able to manually input a figure') THE TYPED
+    // VALUE: the readout IS the field, as the garage's reference panel has it (refplane.js slider) - focus shows the bare
+    // number, Enter or leaving commits it ONCE through the slider's own setter (one undo step, its coalescing key), clamped to
+    // the slider's range and snapped to its step, in the slider's own units (the rotations are degrees); Escape gives up
     slider: (p, label, lo, hi, st, get, set, fmt) => {
       const d = document.createElement('div'); d.className = 'r';
-      d.innerHTML = '<span class="k" title="' + esc(label) + '">' + esc(label) + '</span><input type="range" class="frng" min="' + lo + '" max="' + hi + '" step="' + st + '"><span class="v"></span>';
+      d.innerHTML = '<span class="k" title="' + esc(label) + '">' + esc(label) + '</span><input type="range" class="frng" min="' + lo + '" max="' + hi + '" step="' + st + '"><input type="text" class="v" inputmode="decimal" title="type a value - Enter sets it">';
       const inp = d.querySelector('input'), val = d.querySelector('.v');
-      const show = v => { val.textContent = fmt ? fmt(v) : (+v).toFixed(2); };
+      const show = v => { val.value = fmt ? fmt(v) : (+v).toFixed(2); };
+      const snap = n => { n = Math.max(+lo, Math.min(+hi, n)); if (+st > 0) n = +lo + Math.round((n - +lo) / +st) * +st; return +n.toFixed(6); };
       let v0 = +get(); if (!isFinite(v0)) v0 = lo;
       inp.value = v0; show(v0);
       inp.oninput = () => { set(+inp.value); show(+inp.value); };
+      let typing = false;
+      val.onfocus = () => { typing = true; const g = +get(); val.value = String(isFinite(g) ? +g.toFixed(4) : ''); if (val.select) val.select(); };
+      val.onchange = () => { if (!typing) return; typing = false; const n = parseFloat(String(val.value).replace(',', '.'));
+        if (isFinite(n)) { const q = snap(n); inp.value = q; set(q); show(q); } else show(+get()); };
+      val.onblur = () => { if (typing) val.onchange(); show(+get()); };
+      val.onkeydown = ev => { if (ev.key === 'Enter') { val.onchange(); if (val.blur) val.blur(); } else if (ev.key === 'Escape') { typing = false; show(+get()); if (val.blur) val.blur(); }
+        if (ev.stopPropagation) ev.stopPropagation(); };
       p.appendChild(d); return d;
     },
     select: (p, label, opts, get, set) => {

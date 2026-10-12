@@ -256,8 +256,8 @@ const premStub = {
 const PLACE = {};
 const PREM_WINDOW = new Proxy({}, {
   get: (o, k) => k === 'RENDER_PREMISES' ? { make(T, sc, w, rec, opts) { PREM.calls.push(['make', !!(opts && opts.game)]); return premStub; } }
-               : k === 'PREMISES_HOST_OPEN' ? false : k === 'TREE_PLACE' ? PLACE.h : undefined,
-  set: (o, k, v) => { if (k === 'TREE_PLACE') PLACE.h = v; return true; },
+               : k === 'PREMISES_HOST_OPEN' ? false : k === 'TREE_PLACE' ? PLACE.h : k === 'TREE_FILL' ? PLACE.fill : undefined,
+  set: (o, k, v) => { if (k === 'TREE_PLACE') PLACE.h = v; if (k === 'TREE_FILL') PLACE.fill = v; return true; },   // TREE_FILL: the stream rows (G2934)
 });
 const warn0 = console.warn;
 console.warn = (...a) => { if (/^premises:/.test(String(a[0]))) PREM.warns.push(a.map(x => String(x && x.message || x)).join(' ')); return warn0.apply(console, a); };
@@ -454,6 +454,74 @@ chk(off === 0, `${off} tree chunks still have frustumCulled = false`);
 for (const m of trees.slice(0, 5))
   chk(m.geometry.boundingSphere.radius > 700,
       `cull sphere ${m.geometry.boundingSphere.radius} m is smaller than a chunk`);
+
+// ---- G2934 THE TREE STREAM (TREE-STREAM G2930-G2934) ----------------------
+// The user (2026-10-11): a bare band between the far trees and the near ones, and near tiles "sometimes after a really
+// long time". The page's half (a stand card in every unbuilt cell, no frame with neither layer) needs the island and a
+// GPU (tools/perf/treestream_probe.js); what a headless world can hold is the streamer's own law:
+//  S1 an edit of the whole ring (TREE_FILL.set: the density) leaves every built part DRAWN until its replacement lands -
+//     the fill's impostor meshes in the scene never drop in a frame (the ring was evicted: zero, then minutes to regrow)
+//  S2 every stale part is replaced (swaps = the parts the edit made stale) and the readiness grid reads 1 where it stands
+//  S3 the ring follows the EYE: the camera parked 6 km from the aircraft gets its own chunks, ready, within N frames
+//  S4 a flight at 60 m/s for 4 km at 30 frames a second keeps the dense band built: no chunk inside uThin.x unready,
+//     no new part the eye could see waiting more than STREAM_MAX_FR frames
+{
+  const TF = PLACE.fill, cam = camera, out = [];
+  // the stub's add() sets no parent, so dropPart's `m.parent.remove(m)` never ran here: S1 would hold by construction
+  for (const c of scene.children) c.parent = scene;
+  scene.add = function (o) { this.children.push(o); o.parent = this; return this; };
+  scene.remove = function (o) { const i = this.children.indexOf(o); if (i >= 0) this.children.splice(i, 1); o.parent = null; return this; };
+  const fillImps = () => scene.children.filter(o => o.isInstancedMesh && o.userData && o.userData.fill && o.geometry && o.geometry.tag === 'plane').length;
+  const frame = (cg, eye) => { cam.position.set(eye[0], eye[1], eye[2]); WF.worldUpdate(cg); };
+  chk(!!TF && typeof TF.stream === 'function' && typeof TF.rdyWant === 'function', 'TREE_FILL has no stream() / rdyWant() (G2933)');
+  // S0 THE CATALOGUE'S RE-READ RUNS (G2935): reachRefresh read the ground block's SPL out of its scope since G906 - a
+  // ReferenceError out of every vegetation polygon edit (vegChanged), the editor's rebuild with it
+  if (TF && TF.reach) { let threw = null; try { TF.reach(); } catch (e) { threw = e.message; } chk(!threw, 'S0 TREE_FILL.reach() threw: ' + threw); }
+  if (TF && TF.stream) {
+    const home = [0, 120, 0];
+    // settle the ring at home by frames (prewarm waits for a tree payload node never has)
+    for (let i = 0; i < 3000; i++) { frame(home, [0, 120, 30]); if (i > 24 && !TF.stream().queued) break; }
+    const st0 = TF.stream(true), n0 = fillImps();
+    out.push(`settled: ${n0} fill impostor meshes, stand-ins ${st0.standIn}, stale ${st0.stale}, rdy@home ${TF.rdyWant(0, 0)}`);
+    chk(n0 > 20, `S0 the ring did not settle (${n0} fill impostor meshes)`);
+    chk(TF.rdyWant(0, 0) === 1, 'S2 the readiness grid does not read 1 under the settled ring at home');
+    // S1/S2: the whole ring stale (the density dial at its own value), stepped frame by frame
+    const parts = (() => { const r = WF.ringStat(); return r.base + r.fill; })();   // every built part goes stale
+    TF.set(TF.get());
+    let minN = Infinity, frames = 0, st;
+    for (; frames < 20000; frames++) { frame(home, [0, 120, 30]); minN = Math.min(minN, fillImps()); st = TF.stream(); if (!st.stale && !st.queued) break; }
+    out.push(`S1 the whole ring stale: fewest fill impostor meshes in a frame ${minN} (was ${n0}), ${frames} frames to rebuild, swaps ${st.swaps} of ${parts} parts`);
+    chk(minN >= n0, `S1 an edit of the whole ring dropped trees before their replacement was built (${minN} < ${n0} meshes in a frame)`);
+    chk(!st.stale && st.swaps >= parts && parts > 0, `S2 not every stale part was replaced (stale ${st.stale}, swaps ${st.swaps} of ${parts})`);
+    chk(TF.rdyWant(0, 0) === 1, 'S2 the readiness grid does not read 1 at home after the rebuild');
+    // S3: the eye 6 km away, the aircraft at home (the editor's free camera)
+    const far = [6000, 300, 0];
+    chk(TF.rdyWant(6000, 0) !== 1, 'S3 the cell under the far eye reads ready before any walk there');
+    let f3 = 0; for (; f3 < 3000 && TF.rdyWant(6000, 0) !== 1; f3++) frame(home, far);
+    out.push(`S3 the eye 6 km from the aircraft: its cell ready after ${f3} frames`);
+    chk(f3 < 3000, 'S3 the ring did not follow the eye (the cell under a free camera 6 km away never became ready)');
+    // ...and the AIRCRAFT keeps its chunks (the solver's trunks, G1330) while the eye is away past the ring's drop edge
+    for (let i = 0; i < 300; i++) frame(home, far);
+    out.push(`S3 the aircraft's own cell with the eye 6 km away: ${TF.rdyWant(0, 0)}`);
+    chk(TF.rdyWant(0, 0) === 1, 'S3 the chunk under the aircraft was evicted while the eye was away (its trunks with it)');
+    // S4: settle at the start line, then fly east at 60 m/s (2 m a frame at 30 fps)
+    const y = 150; let x = -2000;
+    // (prewarm is a no-op here - the payload never settles in node: 'trees' pending - so the ring settles by frames)
+    const THIN = TF.thin ? TF.thin()[0] : 2500;
+    let f4 = 0;
+    for (; f4 < 3000; f4++) { frame([x, y, 0], [x - 30, y + 8, 0]); const q = TF.stream(); if (f4 > 24 && !q.queued && q.minUnreadyM > THIN) break; }
+    chk(f4 < 3000, 'S4 the ring never settled at the start line');
+    TF.stream(true);
+    let lowM = 1e9;
+    for (let i = 0; i < 2000; i++) { x += 2; frame([x, y, 0], [x - 30, y + 8, 0]); lowM = Math.min(lowM, TF.stream().minUnreadyM); }
+    const s4 = TF.stream();
+    const MAXFR = +(process.env.STREAM_MAX_FR || 450);   // 15 s at 30 fps
+    out.push(`S4 60 m/s for 4 km: nearest unready chunk ${lowM >= 1e9 ? 'none' : Math.round(lowM) + ' m'} (dense band ${THIN} m), near parts' worst wait ${s4.nearMaxFr || 0} frames / ${s4.nearMaxMs.toFixed(0)} ms, parts ${s4.n}, urgent ${s4.urgent}`);
+    chk(lowM > THIN, `S4 a chunk inside the dense band (${THIN} m) was unready in flight (nearest ${Math.round(lowM)} m)`);
+    chk((s4.nearMaxFr || 0) <= MAXFR, `S4 a part the eye could see waited ${s4.nearMaxFr} frames (> ${MAXFR})`);
+  }
+  console.log(out.join('\n'));
+}
 
 console.log(why.join('\n'));
 console.log(ok ? 'GATE WORLDRENDER: PASS' : 'GATE WORLDRENDER: FAIL');

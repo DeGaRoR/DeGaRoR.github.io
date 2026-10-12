@@ -1,0 +1,42 @@
+{
+ "what": "FRAMECOST_EYES (tools/scenery_eyes.js): where the census looks at the user's edits - the same file on master and on the ship",
+ "file": "tools/fixtures/island_jolene.json",
+ "base": "base_jolene.json",
+ "eyes": [
+  {
+   "name": "harbour",
+   "x": 2995.6,
+   "z": -2769.8,
+   "hdg": 0,
+   "why": "7 sites: s4 net pens, large, s5 net pens, s6 trestle pier, s7 cannery, s8 warehouse, s9 boat shed, s10 trestle pier, long"
+  },
+  {
+   "name": "w5",
+   "x": 3055.2,
+   "z": -2837.4,
+   "hdg": -2.8274,
+   "why": "strip 10, 310 x 17 m gravel"
+  },
+  {
+   "name": "w6",
+   "x": -4171.7,
+   "z": -22110,
+   "hdg": -3.1241,
+   "why": "strip 11, 311.5 x 21 m gravel"
+  },
+  {
+   "name": "r1_mid",
+   "x": -5353.2,
+   "z": -14722.2,
+   "hdg": -2.6376,
+   "why": "r1 at 12423 of 24845 m"
+  },
+  {
+   "name": "dense",
+   "x": -1232.3,
+   "z": -8316.7,
+   "hdg": 0,
+   "why": "44 of the user's 87 new or changed objects/sites in one 200 m cell: objects:o4, objects:o5, objects:o6, objects:o7, objects:o8, objects:o9, objects:o10, objects:o11 ..."
+  }
+ ]
+}
