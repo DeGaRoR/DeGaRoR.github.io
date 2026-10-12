@@ -175,8 +175,15 @@ function mount(host, ctx) {
   // reopens the editor; a closed one must not eat the flight's keys)
   let active = true;
   const loadWip = () => { try { const t = storage && storage.getItem(LS_WIP); if (t) { const U = PG.unwrap(t); rec = U.rec; recName = U.name; return true; } } catch (e) { console.warn('premises wip:', e.message); } return false; };
+  // THE EDITOR IN THE FLIGHT LOG (G3082 EDITOR-PERF; A0: "measure every editor action on the user's file"): every command's
+  // rebuild, a select, a drag's moves, the autosave, the checks, the open - an 'edit' event with its time and what ran
+  // (the composition, the renderer's steps, the game's ground re-sample, the inspector), which tools/analyze_log.js lists
+  // under EDITOR. Nothing is logged without the recorder
+  const PERF = typeof performance !== 'undefined' ? performance : Date;
+  const logEdit = (ms, what) => { try { const F = typeof window !== 'undefined' && window.FLIGHT_REC; if (F && F.event && !F.off) F.event('edit', +(+ms).toFixed(1), what); } catch (e) {} };
+  let LAST = '';
   let saveT = 0;
-  const autosave = () => { if (!storage) return; clearTimeout(saveT); saveT = setTimeout(() => { saveT = 0; try { storage.setItem(LS_WIP, PG.envelope(recName, rec)); } catch (e) {} snapshot(); }, 1000); };
+  const autosave = () => { if (!storage) return; clearTimeout(saveT); saveT = setTimeout(() => { saveT = 0; const t0 = PERF.now(); try { storage.setItem(LS_WIP, PG.envelope(recName, rec)); } catch (e) {} const k = snapshot(); logEdit(PERF.now() - t0, 'autosave' + (k ? ' + history slot' : '')); }, 1000); };
   // THE ROLLING HISTORY (G2917; the user: "at least the paths I trace manually should be kept safe"): the autosave is one
   // slot, so a bad edit autosaved over the good one was gone. Every HIST_MS of editing the record is also kept as a slot
   // named 'autosave <date time>' (the FILE section's 'load slot' lists them; the host's storage puts back what the boot
@@ -267,9 +274,9 @@ function mount(host, ctx) {
     undoS.push(cmd); if (!isRedo) redoS.length = 0;
     if (undoS.length > 200) undoS.shift();
     dirty(cmdLayer(cmd), cmdBox(cmd), cmdGround(cmd), objsOf(cmd));
-    strip.status('' + cmd.label);
+    strip.status('' + cmd.label); LAST = String(cmd.label);
   }
-  function undo() { const c = undoS.pop(); if (!c) return; if (c.many) for (const q of c.many.slice().reverse()) applyEntry(q.layer, q.id, clone(q.before)); else applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(cmdLayer(c), cmdBox(c), cmdGround(c), objsOf(c, true)); strip.status('undo: ' + c.label); }
+  function undo() { const c = undoS.pop(); if (!c) return; LAST = 'undo: ' + c.label; if (c.many) for (const q of c.many.slice().reverse()) applyEntry(q.layer, q.id, clone(q.before)); else applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(cmdLayer(c), cmdBox(c), cmdGround(c), objsOf(c, true)); strip.status('undo: ' + c.label); }
   function redo() { const c = redoS.pop(); if (!c) return; run(c, true); }
   let coalesce = null;
   function edit(id, layer, mutate, label, key) {
@@ -279,11 +286,12 @@ function mount(host, ctx) {
     mutate(e);
     if (key && coalesce && coalesce.id === id && coalesce.key === key && Date.now() - coalesce.t < 600) {
       const last = undoS[undoS.length - 1];
-      last.after = clone(e); coalesce.t = Date.now();
+      last.after = clone(e); coalesce.t = Date.now(); LAST = String(label);
       soonDirty(layer, changeBox(before, e), groundOf(layer, before, e), objsOf({ layer, before, after: e }));
       return;
     }
     const cmd = { layer, id, before, after: clone(e), label };
+    LAST = String(label);
     applyEntry(layer, id, clone(e));
     undoS.push(cmd); redoS.length = 0;
     coalesce = key ? { id, key, t: Date.now() } : null;
@@ -345,32 +353,45 @@ function mount(host, ctx) {
   };
   function dirty(layer, bbox, ground, objs) {
     if (PEND) { clearTimeout(PEND.t); const p = PEND; PEND = null; if (layer !== p.layer) layer = null; bbox = union(bbox, p.bbox); if (!(ground === false && p.ground === false)) ground = undefined; objs = objsJoin(p.objs, objs); }
+    const t0 = PERF.now(), label = LAST || (layer || 'all'); LAST = '';
     R.setRecord(rec);
     // (G3001) only placed objects changed: the renderer makes them alone
     if (objs && R.objectEdit && R.objectEdit(objs)) {
       FAST.n++;
+      const t1 = PERF.now();
       inspector.refresh();
+      const t2 = PERF.now();
       autosave();
       ctx.onRebuilt && ctx.onRebuilt('objects', false, bbox || null);
       ctx.redraw && ctx.redraw();
       clearTimeout(chkT); chkT = setTimeout(checks, 500);
       plaque();
+      logEdit(PERF.now() - t0, label + ' · object ' + (t1 - t0).toFixed(0) + ' · inspector ' + (t2 - t1).toFixed(0));
       return;
     }
     FAST.full++;
-    if (!layer) R.rebuild(null);
-    else if (groundLayer(layer) && ground !== false) R.rebuild(bbox ? { layer, bbox, pad: 2 } : null);
-    else R.rebuild({ layer, bbox: bbox || { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false });   // no chunk touched: outlines, plots, houses, trees
+    let st = null;
+    if (!layer) st = R.rebuild(null);
+    else if (groundLayer(layer) && ground !== false) st = R.rebuild(bbox ? { layer, bbox, pad: 2 } : null);
+    else st = R.rebuild({ layer, bbox: bbox || { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false });   // no chunk touched: outlines, plots, houses, trees
+    const t1 = PERF.now();
     inspector.refresh();
+    const t2 = PERF.now();
     autosave();
     ctx.onRebuilt && ctx.onRebuilt(layer || null, ground, layer ? bbox || null : null);   // the game re-samples its ground rings (G1400: told the layer and a ground left as it was; G2917: and the box it moved, in the premises frame)
+    const t3 = PERF.now();
     ctx.redraw && ctx.redraw();
     clearTimeout(chkT); chkT = setTimeout(checks, 500);
     plaque();
+    const steps = st && st.steps ? Object.keys(st.steps).filter(k => st.steps[k] >= 1).map(k => k + ' ' + Math.round(st.steps[k])).join(', ') : '';
+    logEdit(PERF.now() - t0, label + ' · rebuild ' + (t1 - t0).toFixed(0) + (st && st.composeMs ? ' (compose ' + Math.round(st.composeMs) + (steps ? '; ' + steps : '') + ')' : steps ? ' (' + steps + ')' : '') +
+      (st && st.outlines ? ' · outlines ' + Math.round(st.outlines.ms) + ' (' + st.outlines.made + ' made)' : '') + ' · inspector ' + (t2 - t1).toFixed(0) + ' · ground ' + (t3 - t2).toFixed(0) + (ground === false ? ' (none)' : bbox ? '' : ' (all)'));
   }
   function checks() {
+    const t0 = PERF.now();
     const lines = PG.checks(rec, world, { overlay: R.overlay, site: ctx.site || null });
     const iss = PG.issues(rec);
+    if (PERF.now() - t0 >= 8) logEdit(PERF.now() - t0, 'checks');
     if (els.chk) els.chk.innerHTML = lines.map(l => '<span class="' + (l.ok ? 'ok' : 'bad') + '">' + (l.ok ? '✓ ' : '✗ ') + l.label + '</span>').join('<br>') +
       (iss.length ? '<br><span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '');
     return lines;
@@ -852,7 +873,7 @@ function mount(host, ctx) {
 
   // ---- selection, handles, dragging -------------------------------------------------
   let selected = null, drag = null;
-  function select(id) { if (id !== selected) { corner = null; if (T.plotPick && T.plotPick !== id) T.plotPick = null; } selected = id; R.select(id); inspector.refresh(); ctx.onSelect && ctx.onSelect(id); ctx.redraw && ctx.redraw(); }
+  function select(id) { const t0 = PERF.now(), was = selected; if (id !== selected) { corner = null; if (T.plotPick && T.plotPick !== id) T.plotPick = null; } selected = id; R.select(id); const t1 = PERF.now(); inspector.refresh(); ctx.onSelect && ctx.onSelect(id); ctx.redraw && ctx.redraw(); const ms = PERF.now() - t0; if (id !== was || ms >= 8) logEdit(ms, 'select ' + (id || 'none') + ' · renderer ' + (t1 - t0).toFixed(0) + ' · inspector ' + (PERF.now() - t1).toFixed(0)); }
   function onDown(ev) {
     if (ev.button !== 0) return false;
     if (tool === 'select' && selected) {
@@ -931,6 +952,9 @@ function mount(host, ctx) {
   }
   // the drag's hand: the WORLD ground point moves the handle's record
   function moveDrag(g) {
+    const tm = PERF.now(); try { return moveDrag0(g); } finally { if (drag) { const d = PERF.now() - tm; drag.mvN = (drag.mvN || 0) + 1; drag.mvSum = (drag.mvSum || 0) + d; drag.mvMax = Math.max(drag.mvMax || 0, d); } }
+  }
+  function moveDrag0(g) {
     const found = PG.findById(rec, drag.id); if (!found) return true;
     const L = drag.F.toLocal(g[0], g[2]);
     if (drag.hold) {
@@ -1021,6 +1045,7 @@ function mount(host, ctx) {
   }
   function onUp() {
     if (!drag) return false;
+    if (drag.mvN) logEdit(drag.mvMax, 'drag ' + drag.id + ' ' + (drag.key || '') + ' · ' + drag.mvN + ' moves, worst ' + drag.mvMax.toFixed(0) + ' ms, mean ' + (drag.mvSum / drag.mvN).toFixed(1));
     if (R.snapHint) R.snapHint(null);
     const found = PG.findById(rec, drag.id);
     // (G2890: a disc clicked and not moved - the corner picked - is no command and no rebuild)
@@ -1028,7 +1053,7 @@ function mount(host, ctx) {
     if (found && (drag.co || drag.snap || drag.detach)) { joinUp(found); drag = null; return true; }   // (G2950)
     if (found) {
       const cmd = { layer: found.layer, id: drag.id, before: drag.before, after: clone(found.entry), label: 'move ' + drag.id };
-      undoS.push(cmd); redoS.length = 0;
+      undoS.push(cmd); redoS.length = 0; LAST = 'release ' + drag.id;
       dirty(found.layer, changeBox(drag.before, found.entry), groundOf(found.layer, drag.before, found.entry), objsOf(cmd));
     }
     drag = null;
@@ -2213,7 +2238,10 @@ function mount(host, ctx) {
   if (ctx.record) { try { const U = PG.unwrap(ctx.record); rec = foldIn(U.rec); recName = U.name; } catch (e) { console.warn('premises record:', e.message); } }
   else if (!ctx.fresh && loadWip()) rec = foldIn(rec);
   buildRail(); buildStrip(); palette.refresh(); ctx.onSection && ctx.onSection(SECTIONS.find(s => s.k === section));
-  R.setRecord(rec); R.rebuild(null); inspector.refresh(); checks(); plaque();
+  // (G3083 EDITOR-PERF) the record the renderer already stands (the game hands the editor its world's): only the editor's
+  // own drawing (R.editStart: the outlines, the handles, the strips' patterns); else, or a renderer that cannot, the rebuild
+  { const t0 = PERF.now(), fast = !!(R.editStart && R.editStart(rec)); R.setRecord(rec); if (!fast) R.rebuild(null); const t1 = PERF.now();
+    inspector.refresh(); checks(); plaque(); logEdit(PERF.now() - t0, 'open · ' + (fast ? 'the world as it stands ' : 'rebuild ') + (t1 - t0).toFixed(0)); }
   // (G2914) Alt + wheel scales the placer's ghost - before the host's wheel zooms (capture, the same element)
   if (view.addEventListener) view.addEventListener('wheel', ev => { if (!active || !ev.altKey || (tool !== 'place' && tool !== 'scatter')) return; ASSET.s = Math.max(0.25, Math.min(4, ASSET.s * (ev.deltaY < 0 ? 1.06 : 1 / 1.06))); armGhost(); ev.preventDefault(); ev.stopImmediatePropagation(); }, { capture: true, passive: false });
 

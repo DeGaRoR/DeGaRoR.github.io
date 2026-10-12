@@ -1244,23 +1244,57 @@ function make(THREE, scene, world, rec0, opts) {
     const pts = worldPts(entry);
     if (pts.length < 2) return null;
     const closed = !!entry.poly;
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(pts, closed, LIFT), 3));
+    const geo = new THREE.BufferGeometry(), arr = groundLoop(pts, closed, LIFT);
+    geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
     const mat = new THREE.LineBasicMaterial({ color: colour, transparent: true, opacity: sel ? 1 : 0.8, depthTest: false });
     const line = new THREE.Line(geo, mat);
-    line.renderOrder = 8; line.name = layer + ':' + entry.id; line.userData.premId = entry.id;
+    line.renderOrder = 8; line.name = layer + ':' + entry.id; line.userData.premId = entry.id; line.userData.wb = xzBox(arr);
     return line;
   }
-  function buildOutlines() {
-    for (const [, L] of LINES) { G.outlines.remove(L.line); L.line.geometry.dispose(); L.line.material.dispose(); }
-    LINES.clear();
-    for (const layer of ['terrain', 'surface', 'material', 'exclude', 'zones', 'roads', 'ttype', 'areas']) for (const e of rec.layers[layer] || []) {
+  // THE OUTLINES, KEPT (G3084 EDITOR-PERF; the user's rev 26: 77 km of roads, 56 areas - and 414 plots with the town). Every
+  // select and every edit's rebuild took every outline down and stood it again: each one re-sampled on the ground every
+  // 2 m (40 000 heights for the roads alone) with a material of its own. Now an outline is made again only when its entry
+  // changed (its layer and its JSON) or the edit's GROUND box reaches it (the heights under it moved); a select changes
+  // the two selections' opacities and the selection's own lines (its white twin, a strip's box / shoulder / clearance);
+  // the plots the same way (their polygon, their side, the ground box). A whole rebuild (no box) makes all of them, as
+  // before. window.FLYDIY_OUTLINECACHE = false (?outlinecache=0) the old way, the A/B
+  const SEL_KEYS = [':sel', ':box', ':shoulder', ':clear'];
+  const OUTLINE_LAYERS = ['terrain', 'surface', 'material', 'exclude', 'zones', 'roads', 'ttype', 'areas'];
+  const xzBox = a => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (let i = 0; i + 2 < a.length; i += 3) { const x = a[i], z = a[i + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; } return [x0, z0, x1, z1]; };
+  const boxesMeet = (a, b) => !(a[2] < b[0] || b[2] < a[0] || a[3] < b[1] || b[3] < a[1]);   // (a NaN box always meets: made again)
+  const outlineCache = () => typeof window === 'undefined' || window.FLYDIY_OUTLINECACHE !== false;
+  function lineGone(key) { const L = LINES.get(key); if (!L) return; G.outlines.remove(L.line); L.line.geometry.dispose(); L.line.material.dispose(); LINES.delete(key); }
+  // the edit's ground box in the world, padded (its pad, the 2 m the patch adds, the outline's lift and its 2 m sampling)
+  function dirtyWorldBox(d) {
+    if (!d || !d.bbox || d.ground === false) return null;
+    const F = O.frame, b = d.bbox, p = (d.pad || 0) + 6;
+    const c = [F.toWorld(b.x0 - p, b.z0 - p), F.toWorld(b.x1 + p, b.z0 - p), F.toWorld(b.x1 + p, b.z1 + p), F.toWorld(b.x0 - p, b.z1 + p)];
+    return [Math.min(c[0][0], c[1][0], c[2][0], c[3][0]), Math.min(c[0][1], c[1][1], c[2][1], c[3][1]), Math.max(c[0][0], c[1][0], c[2][0], c[3][0]), Math.max(c[0][1], c[1][1], c[2][1], c[3][1])];
+  }
+  function buildOutlines(dirty) {
+    const t0 = performance.now(), inc = outlineCache() && !!(dirty && dirty.bbox), wb = inc ? dirtyWorldBox(dirty) : null;
+    for (const k of Array.from(LINES.keys())) if (!inc || SEL_KEYS.some(q => k.endsWith(q))) lineGone(k);
+    const seen = new Set();
+    let made = 0;
+    for (const layer of OUTLINE_LAYERS) for (const e of rec.layers[layer] || []) {
+      const sig = layer + '|' + JSON.stringify(e), L = LINES.get(e.id);
+      if (L && !seen.has(e.id) && L.sig === sig && !(wb && boxesMeet(L.line.userData.wb || [NaN], wb))) { L.entry = e; L.line.material.opacity = e.id === selectedId ? 1 : 0.8; seen.add(e.id); continue; }
+      lineGone(e.id);
       const col = layer === 'zones' ? (ZONE_COL[e.kind] || LAYER_COL.zones) : layer === 'areas' ? areaCol(e) : (LAYER_COL[layer] || 0xffffff);
       const line = lineFor(layer, e, col, e.id === selectedId);
       if (!line) continue;
-      G.outlines.add(line); LINES.set(e.id, { line, layer, entry: e });
-      if (e.id === selectedId) { const l2 = lineFor(layer, e, 0xffffff, true); l2.material.opacity = 0.9; l2.position.y = 0.06; G.outlines.add(l2); LINES.set(e.id + ':sel', { line: l2, layer, entry: e }); }
+      G.outlines.add(line); LINES.set(e.id, { line, layer, entry: e, sig }); seen.add(e.id); made++;
     }
+    for (const k of Array.from(LINES.keys())) if (!seen.has(k)) lineGone(k);   // a feature taken away
+    selLines();
+    plotLines(inc, wb);
+    stats.outlines = { ms: +(performance.now() - t0).toFixed(1), made, kept: seen.size - made };
+  }
+  // the selection's own lines: its outline's white twin, a strip's box, shoulder and clearance
+  function selLines() {
+    for (const k of Array.from(LINES.keys())) if (SEL_KEYS.some(q => k.endsWith(q))) lineGone(k);
+    const S = selectedId ? LINES.get(selectedId) : null;
+    if (S) { const l2 = lineFor(S.layer, S.entry, 0xffffff, true); if (l2) { l2.material.opacity = 0.9; l2.position.y = 0.06; G.outlines.add(l2); LINES.set(selectedId + ':sel', { line: l2, layer: S.layer, entry: S.entry }); } }
     // THE SELECTED STRIP (v9): its box in white and its SHOULDER - the radius of terraforming, where the
     // grade's bank has come back to the terrain - as a fainter loop around it
     const rSel = selectedId ? O.runways.find(r => r.id === selectedId) : null;
@@ -1277,18 +1311,21 @@ function make(THREE, scene, world, rec0, opts) {
         G.outlines.add(cl); LINES.set(rSel.id + ':clear', { line: cl, layer: 'runways', entry: rSel });
       }
     }
-    // (G3005 fix) G.plots cleared FIRST: the feet were added and then cleared with the plots, so they never drew (since G386)
-    for (const c of G.plots.children.slice()) { G.plots.remove(c); c.geometry.dispose(); c.material.dispose(); }
-    // the site items' feet (cyan) and the links (a line from hook to hook) - the feet only while editing (the game never had
-    // them: they were cleared at once until this fix; editEnd takes them off)
+  }
+  // THE PLOTS, THE LINKS AND THE SITE ITEMS' FEET (thin, dim, not hittable). A plot's line is kept while its polygon and side
+  // are the same and the ground box misses it (G3084); the links (two points each, no ground walk) and the feet (a few
+  // dozen small loops) are made again - the feet only while editing (G3005 fix: cleared FIRST, then added; editEnd takes
+  // them off), their opacity the selection's (set again on a select)
+  const PLL = new Map();
+  function plotLines(inc, wb) {
+    for (const c of G.plots.children.slice()) if (!c.userData.plotKey) { G.plots.remove(c); c.geometry.dispose(); c.material.dispose(); }
     if (o.editing && o.editing()) for (const it of O.records.items) {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(it.foot.map(q => O.frame.toWorld(q[0], q[1])), true, LIFT * 0.8), 3));
       const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x4fc7d0, transparent: true, opacity: it.site === selectedId ? 0.95 : 0.5, depthTest: false }));
-      line.renderOrder = 8; line.name = 'item:' + it.id;
+      line.renderOrder = 8; line.name = 'item:' + it.id; line.userData.site = it.site;
       G.plots.add(line);
     }
-    // the plots: thin, dim, not hittable
     for (const L of O.records.links) if (L.geom && L.geom.from) {
       const a = O.frame.toWorld(L.geom.from[0], L.geom.from[2]), b = O.frame.toWorld(L.geom.to[0], L.geom.to[2]);
       const geo = new THREE.BufferGeometry();
@@ -1297,15 +1334,20 @@ function make(THREE, scene, world, rec0, opts) {
       line.renderOrder = 8; line.name = 'link:' + L.link.id;
       G.plots.add(line);
     }
+    const want = new Set(), F = O.frame, n = new Map();
     for (const p of O.records.plots) {
-      const F = O.frame, pts = p.poly.map(q => F.toWorld(q[0], q[1]));
+      const k = 'plot:' + p.id + '#' + (n.get(p.id) || 0); n.set(p.id, (n.get(p.id) || 0) + 1); want.add(k);
+      const sig = JSON.stringify([p.poly, p.side === 'water']), was = PLL.get(k);
+      if (inc && was && was.sig === sig && !(wb && boxesMeet(was.line.userData.wb || [NaN], wb))) continue;
+      if (was) { G.plots.remove(was.line); was.line.geometry.dispose(); was.line.material.dispose(); }
+      const pts = p.poly.map(q => F.toWorld(q[0], q[1])), arr = groundLoop(pts, true, LIFT * 0.6);
       const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(pts, true, LIFT * 0.6), 3));
+      geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
       const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: p.side === 'water' ? 0x4fc7d0 : 0x8fd0a0, transparent: true, opacity: 0.45, depthTest: false }));
-
-      line.renderOrder = 7; line.name = 'plot:' + p.id;
-      G.plots.add(line);
+      line.renderOrder = 7; line.name = 'plot:' + p.id; line.userData.plotKey = k; line.userData.wb = xzBox(arr);
+      G.plots.add(line); PLL.set(k, { line, sig });
     }
+    for (const [k, v] of PLL) if (!want.has(k)) { G.plots.remove(v.line); v.line.geometry.dispose(); v.line.material.dispose(); PLL.delete(k); }
   }
 
   // ---- the runways: the strip's paint over the composed ground, the pattern overlay ---
@@ -2707,8 +2749,8 @@ function make(THREE, scene, world, rec0, opts) {
   function reline(key, pts, closed, lift) {
     const L = LINES.get(key); if (!L || pts.length < 2) return;
     L.line.geometry.dispose();
-    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(pts, closed, lift), 3));
-    L.line.geometry = geo;
+    const arr = groundLoop(pts, closed, lift), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+    L.line.geometry = geo; L.line.userData.wb = xzBox(arr);   // (G3084: the box the kept outlines are tested by)
   }
   function preview(e, layer, before) {
     if (!e) return;
@@ -3904,7 +3946,13 @@ function make(THREE, scene, world, rec0, opts) {
   // ---- rebuild ---------------------------------------------------------------------------------
   // G680: rebuildSteps is the rebuild as a generator - the game's first rebuild runs under the roll-out screen a
   // slice per task (render_world's buildWorldSceneSteps: yield*); rebuild() runs it to the end (an edit, the bench)
-  function rebuild(dirty) { const g = rebuildSteps(dirty); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  // (G3082 EDITOR-PERF) the rebuild's time BY STEP (stats.steps: the composition and the patch before the first step's
+  // name, then each named step - materials, lots, roads, runways, trams, houses, trees, freeze): the flight recorder's
+  // 'edit' events carry it, so a slow edit in the user's log says what ran
+  function rebuild(dirty) {
+    const g = rebuildSteps(dirty), T = {}; let k = 'compose', t = performance.now();
+    for (;;) { const r = g.next(), n = performance.now(); T[k] = +((T[k] || 0) + n - t).toFixed(1); t = n; if (r.done) { if (r.value) r.value.steps = T; return r.value; } k = String(r.value); }
+  }
   // THE EDITOR CLOSED (G2917; the user's log: 'back to flight' a 67 s frame): what the editor added goes - the outlines,
   // the handles, the ghosts, a drag's carried groups - and NOTHING is rebuilt: the world already stands as the last edit's
   // rebuild made it (the editor rebuilds on every edit); close() rebuilt the whole of it to take the outlines off
@@ -3921,12 +3969,28 @@ function make(THREE, scene, world, rec0, opts) {
     if (o.game) for (const c of G.runways.children.slice()) if (/^pattern:/.test(c.name || '')) { G.runways.remove(c); c.traverse(m => { if (m.geometry && !m.userData.sharedGeo) m.geometry.dispose(); }); }
     selectedId = null;
   }
+  // THE EDITOR OPENED ON THE WORLD IT SEES (G3083 EDITOR-PERF). The editor's mount rebuilt the whole record (composed again,
+  // every road, the strips, the houses' sync, the trees, the freeze) to draw what only an open editor shows - the outlines,
+  // the handles, the strips' taxi patterns - though the record it mounts is, as a rule, the very one this renderer stands
+  // (the game hands the editor its world's). Then only those are drawn: true. Anything else - another record (a wip slot,
+  // a fold that changed it), the town still owed (GEO.split: the editor's rebuild builds it at once), not the game, an
+  // edit's rebuild still due, ?editfast=0 (window.FLYDIY_EDITFAST = false) - false, and the caller rebuilds as before
+  function editStart(r) {
+    if (!o.game || !O || !O.rec || GEO.split || GEO.pending || composedFresh || (typeof window !== 'undefined' && window.FLYDIY_EDITFAST === false)) return false;
+    let same = false; try { same = JSON.stringify(PG.normalise(r)) === JSON.stringify(rec); } catch (e) { same = false; }
+    if (!same) return false;
+    const t0 = performance.now();
+    buildOutlines(); buildHandles(); buildRunways();
+    stats.editStart = +(performance.now() - t0).toFixed(1);
+    return true;
+  }
   function* rebuildSteps(dirty) {
     const t0 = performance.now();
     GEO.epoch++;   // G2063: a town build under way is stale now (geoLaterSteps checks)
     if (GEO.split && o.editing && o.editing()) GEO.split = GEO.pending = false;   // (the editor's rebuild is the whole record's, the town at once)
     previewEnd();   // G1400: a drag's carried groups back where they were built, before anything compares seeds
-    if (!(composedFresh && dirty === undefined)) { O = composeNow(); hwCompose(); }
+    stats.composeMs = 0;
+    if (!(composedFresh && dirty === undefined)) { const tc = performance.now(); O = composeNow(); stats.composeMs = +(performance.now() - tc).toFixed(1); hwCompose(); }
     composedFresh = false;
     // G2063: a stand within the town's reach (a place in Metlakatla, the one loading's anchor) builds the town at once
     if (GEO.split && o.anchor && o.geoReach > 0) { GEO.box = undefined; let a = null; try { a = o.anchor(); } catch (e) { a = null; }
@@ -3953,7 +4017,7 @@ function make(THREE, scene, world, rec0, opts) {
       syncTraffic();
       syncAnimals();
       yield 'houses';
-      if (o.editing()) { buildOutlines(); buildHandles(); markDirty(dirty); }
+      if (o.editing()) { buildOutlines(dirty); buildHandles(); markDirty(dirty); }   // (G3084: the outlines its box concerns)
       else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; for (const m of JMARKS) G.handles.remove(m); JMARKS.length = 0; }
       syncHouses();
       hwPrefetch();   // G831: the town step's own dispatch, now - the worker generates while the page lays out the rest
@@ -4116,7 +4180,15 @@ function make(THREE, scene, world, rec0, opts) {
     get game() { return !!o.game; },
     get record() { return rec; },
     get overlay() { return O; },
-    select: id => { if ((id || null) !== selectedId) selCorner = null; selectedId = id || null; buildOutlines(); buildHandles(); },
+    select: id => {
+      if ((id || null) !== selectedId) selCorner = null;
+      const prev = selectedId; selectedId = id || null;
+      // (G3084) a select changes two opacities and the selection's own lines - not every outline of the island
+      if (outlineCache() && LINES.size && O) { const P = prev && LINES.get(prev), N = selectedId && LINES.get(selectedId); if (P) P.line.material.opacity = 0.8; if (N) N.line.material.opacity = 1; selLines(); for (const c of G.plots.children) if (c.userData.site !== undefined && /^item:/.test(c.name || '')) c.material.opacity = c.userData.site === selectedId ? 0.95 : 0.5; }
+      else buildOutlines();
+      buildHandles();
+    },
+    editStart,
     // G2890: the corner of the selection the editor picked (null: none) - drawn white; the handles rebuilt
     corner: i => { if (i !== undefined) { selCorner = (i === null || !isFinite(+i)) ? null : +i; buildHandles(); } return selCorner; },
     get selected() { return selectedId; },
