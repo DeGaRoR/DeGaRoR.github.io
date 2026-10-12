@@ -85157,3 +85157,77 @@ user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's
   - freight strapped on the flown aircraft;
   - the club works;
   - night ops.
+
+## G2800 AVIONICS-GPS - PHASE 1: THE STATUS OF EVERY INTERIOR / ELECTRICS / AVIONICS / LIGHTS OPTION, AND THE PROPOSED ORDER (2026-10-12, AVIONICS-GPS for A0, cloud - node only, read-only survey, nothing in src/ or tools/ touched; branch claude/avionics-gps-g2800 off origin/master f353a0f8; G2800-G2809 reserved, G2800 used)
+
+**PHASE 1 READY for the user's look. Phases 2 and 3 have NOT started.** Phase 3, the GPS with the minimap, waits on the
+user's OK of this status, as briefed.
+
+The source is the user's slider review of 10 Oct ("finish the interior work, ensure the electrics work and correspond to
+elements drawn in 3d, and do the GPS things ... a status on which of these options are wired or not yet"). The rulings of
+11 Oct are taken as given:
+- the GPS stays as-is, independent of the GPS drawn inside;
+- radio and transponder are not priorities;
+- cabin furnishing is accounted accurately in mass.
+
+**THE DELIVERABLE**: `futureDesigns/AVIONICS-STATUS-2026-10.md`. It is one table per family:
+- the instrument fit;
+- the electrics;
+- the avionics;
+- the lights;
+- the cockpit and dash;
+- the seats, controls and crew;
+- the fittings and the engine bay;
+- the interior colours;
+- what is not offered at all.
+
+Each table has the columns spec / 3D / sim / mass / broken, and every claim carries a file:line. It also has the
+measured state of the four reference saves, the mismatches in one list, the proposed order, and the GPS and minimap as
+they stand.
+
+**WHAT IT FOUND, SHORT**:
+- The instrument fit is the one well-wired family. `genSystemsResolve` is the single reader: dials, battery, alternator,
+  starter and radios are billed, loaded on the bus, drawn, and DROPPED WITH A REASON when the build cannot feed them.
+- Everything around it does not follow that rule:
+  - LIGHTS have no mass, no price and no spec field. Their amps are a viewer constant (cockpit.js LIGHT_AMPS) copied by
+    hand into GATE ELEC. They are drawn and never lit on a no-battery build, and a lamp that was never drawn still draws
+    its amps.
+  - The engine bay's battery, alternator and starter are drawn from their own install rows, not from `systems.elec`.
+  - The venturi follows the tier NAME, not `elec.vac`.
+  - NAV and GPS are billed and draw current without a box on the panel and without the avionics master. The GPS is
+    left as-is (ruling).
+  - The avionics master's cap lights only with the lights layer, and it does nothing when clicked in the shed. The
+    vacuum DG never freezes on an aiE build. The alternator turns with a windmilling prop.
+- FURNISHING:
+  - `seatType` never reaches `outfit.seats`, so every save bills 3 kg slings, the Chinook's composite shells included.
+  - Chairs are counted from the LAYOUT table, not the cabin's seats: the 172 bills 2 chairs for 4 seats, and passenger
+    bays are never billed. The seat price uses `S.seats`, so price and mass disagree.
+  - The panel board is billed from the spec default (depth 0.27), not the drawn dash (the Cub's is 0.39).
+  - The floor, door panels, sill shoulders and console are drawn and weigh nothing, while a Raymer furnishing lump keyed
+    to the INSTRUMENT TIER stands in for them.
+
+**THE PROPOSED ORDER** (doc §4). Each step is one commit with its node gate.
+- **A**: one light catalogue in core, `GEN_LIGHTS`. Lamps become systems rows: the drawn census goes to
+  `systems.lights`, a lamp is dropped with "no battery" on a build without one, and each lamp has a load, a mass and a
+  price. GATE ELEC grows to cover it.
+- **B**: what is switched is drawn. The engine bay follows `systems.elec`; the venturi follows the resolved `vac`; the
+  three cockpit fixes. A new GATE FITMATCH over `tools/_scene_headless.js`. Its first risk: that harness excludes the
+  crew and panel layers by default.
+- **C**: the cabin furnishing from what is drawn. `seatType` maps to the seat kind; a chair is billed per seat at its
+  station; the dash maps to `cab.panel`; trim is billed by drawn area. Raymer is kept as GATE WEIGHT's cross-check, and
+  the undrawn headliner is a share keyed to the interior style. Gates BUILD, JOIN and WEIGHT; ENERGYBASE and GEN are
+  re-frozen and named.
+- **D** (optional): the alternator only with the engine running, and the ammeter needle.
+- Then the user's look, then phase 3. Phase 3 is the `PANEL-2026-09-11` session-6 plan, independent of the GPS row:
+  `drawMapInto` becomes one renderer, and the minimap gains a NAV strip from `38_nav` and a direct-to.
+
+**GATES**: none run. Nothing executable changed, and the survey ran `tools/flight_core.js` as committed, read-only.
+
+**OPEN FOR THE USER (via A0)**:
+1. OK the order A → B → C → (D)?
+2. The seat-kind mapping: tube → sling 3 kg, shell → moulded 7 kg, airliner → upholstered 11 kg?
+3. Trim from the drawn areas, with Raymer only as the check (recommended), or keep the Raymer lump keyed to the
+   interior style instead of the instrument tier (smaller change)?
+4. Step C moves every aeroplane's empty mass by a few kg (the 172 by more): OK to re-freeze ENERGYBASE / GEN / WEIGHT
+   on it?
+5. Phase 3 go?
