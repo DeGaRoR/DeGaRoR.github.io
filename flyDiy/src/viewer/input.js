@@ -44,6 +44,15 @@
 // Trim is an input-side bias on the elevator applied AFTER the merge, so it
 // biases a stick exactly as it biases the arrow keys; the model has no trim
 // tab, and this is honest about that — it is a hand held on the stick.
+//
+// G2480 (HAND-CONTROLS, the user: "as many controls as possible should be
+// exposed to hand flying"): the TOE BRAKES (one main each, keys or a pedal's
+// toe axes, onto the solver's brake + brakeD), the brake-steer option, the
+// RUDDER and AILERON trims beside the elevator's (the same input-side bias),
+// trim wheels and a flap lever as axes, the floats' water-rudder handle, the
+// alternator / avionics / pedal light, and the parking brake as a floor under
+// the hand's own brakes. HANDOVER G2480 has the audit of what is still not
+// modelled.
 (() => {
   const VERSION = 1;
   const PREF = 'flydiy.input';
@@ -68,18 +77,58 @@
     { id: 'throttle', kind: 'axis', ctl: 'thr', lo: 0, hi: 1, scale: 1, shape: 'latch',
       label: 'throttle', hint: 'the pilot’s one lever', group: 'flying',
       keys: { pos: 'PageUp', neg: 'PageDown', max: 'Home', min: 'End' } },
-    { id: 'brake', kind: 'button', ctl: 'brake', label: 'brakes', group: 'flying',
-      hint: 'held; an axis works as toe brakes', ramp: { on: 4, off: 6 },
-      keys: { key: 'KeyB' } },
     { id: 'flapDown', kind: 'step', ctl: null, label: 'flaps down', group: 'flying',
       hint: 'one notch', keys: { key: 'KeyF' } },
     { id: 'flapUp', kind: 'step', ctl: null, label: 'flaps up', group: 'flying',
       hint: 'one notch', keys: { key: 'KeyG' } },
-    { id: 'trimUp', kind: 'step', ctl: null, label: 'trim nose up', group: 'flying',
+    // G2480 (HAND-CONTROLS): a flap LEVER on a controller - the notch nearest the lever, travelling at the
+    // aeroplane's own rate as a step's notch does (the detents the pilot's own notches are)
+    { id: 'flapLever', kind: 'axis', ctl: 'flap', lo: 0, hi: 1, scale: 1, shape: 'latch',
+      label: 'flap lever', hint: 'an axis: the nearest notch', group: 'flying', keys: null },
+    // THE BRAKES (G2480). `brake` is both mains alike; the TOE BRAKES are one main each, buttons or axes (the toe
+    // axes of a pair of rudder pedals: a Thrustmaster TFRP / T-Rudder). write() puts every source on its own main and
+    // hands the solver the pair as it defines it (30_solver, G1938): a main's brake is clamp(brake + side x brakeD,
+    // 0, 1), side +1 for the main at +z of the built pose - MEASURED the LEFT main on the Cub, the Jodel and the metal
+    // Cessna - so brake = (L + R) / 2, brakeD = (L - R) / 2, exact on both mains, and brakeD 0 when they agree
+    { id: 'brake', kind: 'button', ctl: 'brake', label: 'brakes', group: 'ground',
+      hint: 'both mains, held; with the brake-steer option the rudder takes the outside one off', ramp: { on: 4, off: 6 },
+      keys: { key: 'KeyB' } },
+    { id: 'brakeL', kind: 'button', ctl: 'brakeD', side: 1, analog: true, label: 'left toe brake', group: 'ground',
+      hint: 'the left main; a pedal\u2019s toe axis binds here', ramp: { on: 4, off: 6 },
+      keys: { key: 'BracketLeft' } },
+    { id: 'brakeR', kind: 'button', ctl: 'brakeD', side: -1, analog: true, label: 'right toe brake', group: 'ground',
+      hint: 'the right main', ramp: { on: 4, off: 6 },
+      keys: { key: 'BracketRight' } },
+    // the floats' water rudders (32_hydro waterRudder): steered by the pedals, raised and lowered by THE RULE (down
+    // below 12 m/s, up at take-off power) unless the hand says - the handle's three places
+    { id: 'waterRudder', kind: 'step', ctl: 'wr', label: 'water rudders', group: 'ground',
+      hint: 'AUTO · UP · DOWN round (floats only)', keys: { key: 'KeyV' } },
+    { id: 'trimUp', kind: 'step', ctl: null, label: 'trim nose up', group: 'trim',
       hint: 'a hand held on the stick; repeats while held', repeat: 0.15,
       keys: { key: 'Numpad1' } },
-    { id: 'trimDown', kind: 'step', ctl: null, label: 'trim nose down', group: 'flying',
+    { id: 'trimDown', kind: 'step', ctl: null, label: 'trim nose down', group: 'trim',
       hint: 'repeats while held', repeat: 0.15, keys: { key: 'Numpad7' } },
+    // G2480: RUDDER AND AILERON TRIM - biases on the pedals and the stick after the merge, exactly as the
+    // elevator's (the model has no trim tab on any surface, and says so). The propeller swings the aeroplane since
+    // G2080: the Cub's climb wants ~0.14 of right rudder held, and the autopilot holds it as its own trim
+    { id: 'trimRudL', kind: 'step', ctl: null, label: 'rudder trim left', group: 'trim',
+      hint: 'repeats while held', repeat: 0.15, keys: { key: 'Numpad0' } },
+    { id: 'trimRudR', kind: 'step', ctl: null, label: 'rudder trim right', group: 'trim',
+      hint: 'against the propeller\u2019s swing on the climb', repeat: 0.15, keys: { key: 'NumpadEnter' } },
+    { id: 'trimRollL', kind: 'step', ctl: null, label: 'aileron trim left', group: 'trim',
+      hint: 'repeats while held', repeat: 0.15, keys: { key: 'Numpad4' } },
+    { id: 'trimRollR', kind: 'step', ctl: null, label: 'aileron trim right', group: 'trim',
+      hint: 'repeats while held', repeat: 0.15, keys: { key: 'Numpad6' } },
+    { id: 'trimCentre', kind: 'step', ctl: null, label: 'rudder + aileron trim centred', group: 'trim',
+      hint: 'the elevator\u2019s stays', keys: { key: 'Numpad5' } },
+    // trim WHEELS on a controller: absolute, the last to speak owns the trim (a wheel that moves takes it from the
+    // keys, a key steps from where the wheel left it)
+    { id: 'trimPitch', kind: 'axis', ctl: null, trim: 'e', lo: -1, hi: 1, scale: 1, shape: 'pass',
+      label: 'elevator trim wheel', hint: 'an axis: + nose up, the whole travel is \u00b10.5', group: 'trim', keys: null },
+    { id: 'trimYaw', kind: 'axis', ctl: null, trim: 'r', lo: -1, hi: 1, scale: 1, shape: 'pass',
+      label: 'rudder trim knob', hint: 'an axis: + right, \u00b10.3', group: 'trim', keys: null },
+    { id: 'trimRoll', kind: 'axis', ctl: null, trim: 'a', lo: -1, hi: 1, scale: 1, shape: 'pass',
+      label: 'aileron trim knob', hint: 'an axis: + right, \u00b10.2', group: 'trim', keys: null },
     { id: 'apToggle', kind: 'step', ctl: null, label: 'autopilot / by hand', group: 'flight',
       hint: 'hands the aeroplane over, either way', keys: { key: 'KeyA' } },
     { id: 'viewNext', kind: 'step', ctl: null, label: 'next view', group: 'flight',
@@ -101,6 +150,10 @@
     { id: 'keyPrev', kind: 'step', ctl: null, label: 'ignition key · back', group: 'dash', hint: '', keys: { key: 'KeyH' } },
     { id: 'park', kind: 'step', ctl: null, label: 'parking brake', group: 'dash', hint: 'toggle', keys: { key: 'KeyP' } },
     { id: 'fuelSel', kind: 'step', ctl: null, label: 'fuel selector', group: 'dash', hint: 'OFF · R · L · BOTH round', keys: { key: 'KeyU' } },
+    // G2480: the rest of the panel the cockpit already models (31_elec's bus, cockpit.js's switches)
+    { id: 'alt', kind: 'step', ctl: null, label: 'alternator', group: 'dash', hint: 'toggle (the bus charges with it)', keys: { key: 'KeyE' } },
+    { id: 'avionics', kind: 'step', ctl: null, label: 'avionics master', group: 'dash', hint: 'toggle (the radios\u2019 loads)', keys: { key: 'KeyX' } },
+    { id: 'dimPedal', kind: 'step', ctl: null, label: 'pedal light', group: 'dash', hint: 'a quarter up, round to off', keys: { key: 'KeyY' } },
     { id: 'eng1', kind: 'axis', ctl: 'eng', idx: 0, lo: 0, hi: 1, scale: 1, shape: 'latch',
       label: 'lever · engine 1', hint: 'inert unless bound', group: 'engines', keys: null },
     { id: 'eng2', kind: 'axis', ctl: 'eng', idx: 1, lo: 0, hi: 1, scale: 1, shape: 'latch',
@@ -132,6 +185,13 @@
   // 0.4 s and recentres in under 0.2; a lever walks its range in 2 s
   const RATES = { centre: 2.5, release: 6, latch: 0.5 };
   const TRIM_STEP = 0.02, TRIM_MAX = 0.5;
+  // G2480: the rudder's and the aileron's, in the PILOT's sense (+ = right pedal / right stick): the Cub's climb
+  // holds 0.14 of right rudder against the swirl (G2080), the Cessna floats' roll 0.18 mean
+  const TRIM_R_STEP = 0.01, TRIM_R_MAX = 0.30, TRIM_A_STEP = 0.01, TRIM_A_MAX = 0.20;
+  // the options a profile carries besides its bindings. brakeSteer: THE BRAKE KEY WITH THE RUDDER HELD brakes the
+  // inside main and lets the outside one off in proportion to the pedal (full right pedal + brake = the right main
+  // alone) - the keyboard's differential brake most sims offer; off by default, the symmetric brake as before
+  const OPTS = { brakeSteer: false };
   const REPEAT_DELAY = 0.4;
   const ACTIVE_FOR = 5;             // seconds an input keeps the stand's sweep off
 
@@ -143,7 +203,7 @@
         ? Object.assign({ dev: 'keyboard', type: 'keys' }, a.keys)
         : { dev: 'keyboard', type: 'key', code: a.keys.key }];
     }
-    return { v: VERSION, bindings: b, rates: Object.assign({}, RATES) };
+    return { v: VERSION, bindings: b, rates: Object.assign({}, RATES), opts: Object.assign({}, OPTS) };
   };
   const DEFAULTS = defaults();
 
@@ -192,6 +252,12 @@
       for (let i = 0; i < a1.length; i++) {
         const r0 = fin(a0[i], 0), r1 = fin(a1[i], 0), d = r1 - r0;
         if (Math.abs(d) < 0.5) continue;
+        // G2480: an ANALOG button (a toe brake) asked for: the pedal's toe axis is a lever from its rest to the
+        // far end, whichever way it runs - bound as an axis, not as a hat position
+        if (act.kind !== 'axis' && act.analog) {
+          const lo = Math.abs(r0) > 0.5 ? Math.sign(r0) : 0;
+          return { dev, type: 'axis', index: i, invert: false, dead: 0.03, expo: 0, gain: 1, lo, hi: Math.sign(d) };
+        }
         if (act.kind !== 'axis') {
           // a hat parks at one of eight values; snap to the nearest
           let at = HAT[0];
@@ -257,8 +323,26 @@
       }
       out.bindings[id] = ok;
     }
+    // G2480: AN ACTION THE STORED PROFILE NEVER HEARD OF (a profile saved before the action existed) takes its
+    // default - an action the player unbound is stored as [] and stays unbound. A default key the stored profile
+    // already gives to another action is left off: the player's binding wins, nothing fires twice
+    const used = {};
+    for (const id in out.bindings) for (const b of out.bindings[id]) {
+      if (b.type === 'key') used[b.code] = 1;
+      if (b.type === 'keys') for (const k of ['pos', 'neg', 'max', 'min']) if (b[k]) used[b[k]] = 1;
+    }
+    for (const a of ACTIONS) {
+      if (out.bindings[a.id] || !a.keys) continue;
+      const codes = Object.keys(a.keys).map(k => a.keys[k]);
+      if (codes.some(c => used[c])) { out.bindings[a.id] = []; continue; }
+      out.bindings[a.id] = [a.kind === 'axis' ? Object.assign({ dev: 'keyboard', type: 'keys' }, a.keys)
+                                              : { dev: 'keyboard', type: 'key', code: a.keys.key }];
+      for (const c of codes) used[c] = 1;
+    }
     if (raw.rates && typeof raw.rates === 'object')
       for (const k in RATES) out.rates[k] = clamp(fin(raw.rates[k], RATES[k]), 0.05, 50);
+    if (raw.opts && typeof raw.opts === 'object')
+      for (const k in OPTS) if (typeof raw.opts[k] === typeof OPTS[k]) out.opts[k] = raw.opts[k];
     return out;
   }
 
@@ -316,11 +400,12 @@
     // per-action shaping state
     const S = {};
     for (const a of ACTIONS) S[a.id] = { kb: 0, out: a.kind === 'axis' ? (a.shape === 'latch' ? a.lo : 0) : 0,
-                                          owner: null, last: {}, fired: false, edge: {} };
-    let trim = 0;
+                                          owner: null, last: {}, fired: false, edge: {}, ramp: 0, moved: false };
+    let trim = 0, trimR = 0, trimA = 0;     // G2480: the rudder's and the aileron's (+ = right)
     let notches = [0], flapI = 0, flapOut = 0, flapRate = 0.15;
     let nEng = 1;
-    let brakeRamp = 0;
+    let wr = null;                          // G2480: the water rudders - null THE RULE (32_hydro), 0 up, 1 down
+    let parkFn = null;                      // G2480: the parking brake's owner (cockpit.js CK.park), read in write()
     let padsNow = [], keysNow = [], rawNow = {};
     let firedNow = [];
     // G318: a step fired by the cockpit's own click (the flap lever), consumed
@@ -514,9 +599,18 @@
     }
 
     // ---- seed: take the aeroplane as it is (the AP→manual handoff) --------
-    function seed(ctl) {
+    // G2480: o.air - the aeroplane is flying: the pilot's rudder and aileron are carried as THEIR trims too
+    // (bumpless, as the elevator always was: the Cub's climb holds 0.14 of right rudder against the swirl, and a
+    // keyboard's pedals centre). On the ground they start centred - a taxi's steering is not a trim - so nothing
+    // the autopilot held on the ground stays on the player's pedals; the parking of the toe brakes and the water
+    // rudders' handle start where the hand has nothing on them (no brake, THE RULE)
+    function seed(ctl, o) {
       const c = ctl || {};
       trim = clamp(fin(c.de, 0), -TRIM_MAX, TRIM_MAX);
+      const air = !!(o && o.air);
+      trimR = air ? clamp(-fin(c.dr, 0), -TRIM_R_MAX, TRIM_R_MAX) : 0;   // (dr > 0 is nose LEFT: the pilot's right is -dr)
+      trimA = air ? clamp(fin(c.da, 0), -TRIM_A_MAX, TRIM_A_MAX) : 0;
+      wr = null;
       for (const a of ACTIONS) {
         const s = S[a.id];
         s.owner = null; s.last = {};
@@ -532,7 +626,7 @@
       for (let i = 0; i < notches.length; i++)
         if (Math.abs(notches[i] - f) < Math.abs(notches[best] - f)) best = i;
       flapI = best; flapOut = f;
-      brakeRamp = 0;
+      for (const a of ACTIONS) S[a.id].ramp = 0;
     }
 
     // ---- update: one frame of input time -----------------------------------
@@ -580,6 +674,7 @@
               else if (pos !== neg) s.kb = clamp(s.kb + (pos ? 1 : -1) * R.latch * (a.hi - a.lo) * dt, a.lo, a.hi);
             }
           }
+          s.moved = padMoved;
           if (padMoved) { s.owner = padDev; s.out = padVal; touchedAt = t; anyPad = true; }
           else if (kbTouch) { s.owner = 'keyboard'; s.out = s.kb; touchedAt = t; }
           else if (padOwn !== null) s.out = padOwn;
@@ -601,9 +696,10 @@
             if (on) digital = true;
           }
           if (a.kind === 'button') {
+            // (G2480: the ramp is each button's own - the toe brakes ramp apart from the pair)
             const ramp = a.ramp || { on: 4, off: 6 };
-            brakeRamp = digital ? Math.min(1, brakeRamp + ramp.on * dt) : Math.max(0, brakeRamp - ramp.off * dt);
-            const out = Math.max(brakeRamp, analog);
+            s.ramp = digital ? Math.min(1, s.ramp + ramp.on * dt) : Math.max(0, s.ramp - ramp.off * dt);
+            const out = Math.max(s.ramp, analog);
             if (digital || analog > 0.05) touchedAt = t;
             s.out = out;
           } else {
@@ -619,8 +715,24 @@
       for (const id of firedNow) {
         if (id === 'trimUp') trim = clamp(trim + TRIM_STEP, -TRIM_MAX, TRIM_MAX);
         else if (id === 'trimDown') trim = clamp(trim - TRIM_STEP, -TRIM_MAX, TRIM_MAX);
+        else if (id === 'trimRudR') trimR = clamp(trimR + TRIM_R_STEP, -TRIM_R_MAX, TRIM_R_MAX);
+        else if (id === 'trimRudL') trimR = clamp(trimR - TRIM_R_STEP, -TRIM_R_MAX, TRIM_R_MAX);
+        else if (id === 'trimRollR') trimA = clamp(trimA + TRIM_A_STEP, -TRIM_A_MAX, TRIM_A_MAX);
+        else if (id === 'trimRollL') trimA = clamp(trimA - TRIM_A_STEP, -TRIM_A_MAX, TRIM_A_MAX);
+        else if (id === 'trimCentre') { trimR = 0; trimA = 0; }
+        else if (id === 'waterRudder') wr = wr === null ? 0 : wr === 0 ? 1 : null;   // AUTO -> UP -> DOWN -> AUTO
         else if (id === 'flapDown') flapI = Math.min(notches.length - 1, flapI + 1);
         else if (id === 'flapUp') flapI = Math.max(0, flapI - 1);
+      }
+      // G2480: a trim wheel or knob that MOVED this frame sets its trim (the steps step from there); a flap lever
+      // that moved picks the nearest notch (the steps walk on from it)
+      if (S.trimPitch.moved) trim = clamp(S.trimPitch.out * TRIM_MAX, -TRIM_MAX, TRIM_MAX);
+      if (S.trimYaw.moved) trimR = clamp(S.trimYaw.out * TRIM_R_MAX, -TRIM_R_MAX, TRIM_R_MAX);
+      if (S.trimRoll.moved) trimA = clamp(S.trimRoll.out * TRIM_A_MAX, -TRIM_A_MAX, TRIM_A_MAX);
+      if (S.flapLever.moved) {
+        const v = S.flapLever.out; let best = 0;
+        for (let i = 0; i < notches.length; i++) if (Math.abs(notches[i] - v) < Math.abs(notches[best] - v)) best = i;
+        flapI = best;
       }
       // flaps travel over seconds (the AP's own rate), never jump
       const ft = notches[flapI] || 0;
@@ -634,10 +746,23 @@
     function write(ctl) {
       if (!ctl) return;
       ctl.de = clamp(fin(S.pitch.out, 0) + trim, -1, 1);
-      ctl.da = clamp(fin(S.roll.out, 0), -1, 1);
-      ctl.dr = clamp(fin(S.yaw.out, 0) * BY_ID.yaw.scale, -1, 1);
+      ctl.da = clamp(fin(S.roll.out, 0) + trimA, -1, 1);
+      ctl.dr = clamp((fin(S.yaw.out, 0) + trimR) * BY_ID.yaw.scale, -1, 1);
       ctl.thr = clamp(fin(S.throttle.out, 0), 0, 1);
-      ctl.brake = clamp(fin(S.brake.out, 0), 0, 1);
+      // G2480: THE BRAKES, PER MAIN. The pair's brake on both (with the brake-steer option the pedal takes the
+      // outside main off: full right pedal leaves the right main alone), each toe brake on its own main, the parking
+      // brake under all of them; then the solver's pair: brake = (L + R) / 2, brakeD = (L - R) / 2 (30_solver: a
+      // main's brake is clamp(brake + side x brakeD, 0, 1), side +1 the LEFT main) - exact on each main, and brakeD
+      // 0 whenever the mains agree, which is the symmetric brake to the bit
+      const sym = clamp(fin(S.brake.out, 0), 0, 1), y = clamp(fin(S.yaw.out, 0), -1, 1);
+      let bL = sym, bR = sym;
+      if (profile.opts && profile.opts.brakeSteer) { bL = sym * (1 - Math.max(0, y)); bR = sym * (1 - Math.max(0, -y)); }
+      bL = Math.max(bL, clamp(fin(S.brakeL.out, 0), 0, 1));
+      bR = Math.max(bR, clamp(fin(S.brakeR.out, 0), 0, 1));
+      if (parkFn) { let pk = false; try { pk = !!parkFn(); } catch (e) {} if (pk) { bL = 1; bR = 1; } }
+      ctl.brake = bL === bR ? bL : (bL + bR) / 2;
+      ctl.brakeD = bL === bR ? 0 : (bL - bR) / 2;
+      ctl.wr = wr;
       ctl.flap = clamp(fin(flapOut, 0), 0, 1);
       if (Array.isArray(ctl.eng))
         for (let i = 0; i < ctl.eng.length && i < 4; i++) {
@@ -662,7 +787,7 @@
     const state = () => {
       const act = {};
       for (const a of ACTIONS) act[a.id] = { value: S[a.id].out, owner: S[a.id].owner, fired: S[a.id].fired };
-      return { actions: act, raw: rawNow, trim, flapI, flapOut, notches, held: Object.keys(held),
+      return { actions: act, raw: rawNow, trim, trimR, trimA, wr, opts: Object.assign({}, profile.opts), flapI, flapOut, notches, held: Object.keys(held),
                listening: listening ? { id: listening.id, want: listening.want, slot: listening.slot } : null,
                t };
     };
@@ -677,6 +802,15 @@
       setProfile, resetDefaults, exportJSON, importJSON,
       devices, state, active: () => t - touchedAt < ACTIVE_FOR,
       trim: () => trim, setTrim: v => { trim = clamp(fin(v, 0), -TRIM_MAX, TRIM_MAX); },
+      // G2480: the rudder's and the aileron's trims (+ = right), the water rudders' handle, the options, the park
+      trims: () => ({ e: trim, r: trimR, a: trimA }),
+      setTrims: o => { if (!o) return; if (o.e != null) trim = clamp(fin(o.e, 0), -TRIM_MAX, TRIM_MAX);
+                       if (o.r != null) trimR = clamp(fin(o.r, 0), -TRIM_R_MAX, TRIM_R_MAX);
+                       if (o.a != null) trimA = clamp(fin(o.a, 0), -TRIM_A_MAX, TRIM_A_MAX); },
+      waterRudder: () => wr,
+      opt: k => profile.opts ? profile.opts[k] : undefined,
+      setOpt: (k, v) => { if (!(k in OPTS) || typeof v !== typeof OPTS[k]) return false; profile.opts[k] = v; save(); return true; },
+      parkFrom: f => { parkFn = typeof f === 'function' ? f : null; },
       // G364: the cockpit's own hand on a lever (the throttle dragged in the
       // 3D cockpit): the axis takes the value and the mouse owns it until a
       // device or a key speaks — a latch, like a key's own step
@@ -689,7 +823,8 @@
     };
   }
 
-  const API = { ACTIONS, DEFAULTS, PREF, VERSION, RATES,
+  const API = { ACTIONS, DEFAULTS, PREF, VERSION, RATES, OPTS,
+                TRIM: { e: TRIM_MAX, r: TRIM_R_MAX, a: TRIM_A_MAX },
                 mapBinding, inferBinding, normalise, deviceKeys, keyLabel, make };
   if (typeof window !== 'undefined') window.FLYDIY_INPUT_API = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;

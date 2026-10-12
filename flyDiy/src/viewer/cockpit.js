@@ -569,12 +569,15 @@ function make(THREE) {
   // mappings"): input.js's steps land here, and each does what the click on
   // that control does - the same writes, the same lamps answering at once.
   const DASH_LIGHT = { lightTaxi: 'taxi', lightLand: 'land', lightNav: 'nav', lightBeacon: 'beacon' };
-  const DASH_DIM = { dimInstr: 'instr', dimFlood: 'flood' };
+  const DASH_DIM = { dimInstr: 'instr', dimFlood: 'flood', dimPedal: 'pedal' };   // (G2480: the pedal light)
   CK.dashAction = id => {
     let did = false;
     if (DASH_LIGHT[id]) { const k = DASH_LIGHT[id]; CK.sw['sw_' + k] = +CK.sw['sw_' + k] > 0.5 ? 0 : 1; CK.handSw['sw_' + k] = true; did = true; }   // the hand's now (lightsRule)
     else if (DASH_DIM[id]) { const k = 'sw_' + DASH_DIM[id], v = +CK.sw[k] || 0; CK.sw[k] = v >= 1 ? 0 : Math.min(1, v + 0.25); CK.handSw[k] = true; did = true; }
     else if (id === 'master') { CK.sw.sw_master = +CK.sw.sw_master > 0.5 ? 0 : 1; did = true; }
+    // G2480 (HAND-CONTROLS): the alternator and the avionics master - the bus reads both every frame (CK.frame)
+    else if (id === 'alt') { CK.sw.sw_alt = +CK.sw.sw_alt > 0.5 ? 0 : 1; did = true; }
+    else if (id === 'avionics') { CK.sw.sw_avionics = +CK.sw.sw_avionics > 0.5 ? 0 : 1; did = true; }
     else if (id === 'keyNext' || id === 'keyPrev') {
       let i = clamp(Math.round(+CK.sw.key || 0), 0, 4);
       if (CK.energy && CK.energy.kind === 'battery') i = i > 0 ? 0 : 3;
