@@ -22,7 +22,8 @@
 //       crash form), the award (a pass with its roundel, a fail with its notes, the master, a wreck's) and the run
 //       card, laid out by Chrome:
 //         D1 the flight at 1920x1080 and 1280x720: each box in the LOWER-LEFT QUADRANT of the viewport (right <= W/2,
-//            top >= H/2), and at 1920x1080 none overlaps the central 50 % x 50 % (the crash rule's row)
+//            top >= H/2), beside the look rail (#flRail, ten buttons, not under the card), and at 1920x1080 none
+//            overlaps the central 50 % x 50 % (the crash rule's row)
 //         D2 the workshop at 1920x1080 (body.mode-ws, its --ws-left / --ws-right): each box in the lower-left quadrant
 //            of the VIEW between the panels
 //         D3 a narrow window flying (390x844, no phone profile): the arrival card a bottom sheet, its top below H/2
@@ -284,6 +285,7 @@ ${SHEETS.map(s => '<link rel="stylesheet" href="/src/viewer/' + s + '">').join('
 <style id="probe"></style></head><body class="mode-fly">
 <canvas id="c"></canvas>
 <div id="ui">
+  <div id="flRail">${'<button class="flRailBtn"><svg viewBox="0 0 16 16"></svg><span>look</span></button>'.repeat(10)}</div>
   <div id="arrCard"><div id="arrHead"><b id="arrTitle">Arrived at Metlakatla Seaplane Base</b><span id="arrTag">landed</span></div>
     <div id="arrRows">${ROWS}</div>
     <div id="arrNotes"><i>Held the speed on final; the flare was late.</i><i>The roll-out drifted left of the centreline.</i></div>
@@ -313,7 +315,7 @@ window.MEASURE = (o) => {
   const box = el => { if (el.hidden) return null; const r = el.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height }; };
   return JSON.stringify({ W: innerWidth, H: innerHeight, wsL: parseFloat(cs.getPropertyValue('--ws-left')) || 0, wsR: parseFloat(cs.getPropertyValue('--ws-right')) || 0,
     phVw: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ph-vw')) || 0,
-    arr: box(arr), aw: box(aw), run: box(run) });
+    arr: box(arr), aw: box(aw), run: box(run), rail: box(document.getElementById('flRail')) });
 };
 </script></body></html>`;
 
@@ -350,6 +352,7 @@ async function runDom() {
     const say = b => b ? f1(b.l) + ',' + f1(b.t) + ' ' + f1(b.w) + 'x' + f1(b.h) : 'none';
     // the lower-left quadrant of a view [x0, x1] x [0, H]
     const inLL = (b, x0, x1, H) => !!b && b.w > 50 && b.h > 30 && b.l >= x0 - 0.5 && b.r <= (x0 + x1) / 2 + 0.5 && b.t >= H / 2 - 0.5 && b.b <= H + 0.5;
+    const meets = (a, b) => !!a && !!b && a.l < b.r - 0.5 && b.l < a.r - 0.5 && a.t < b.b - 0.5 && b.t < a.b - 0.5;
     const offCentre = (b, W, H) => !!b && (b.r <= W * 0.25 + 0.5 || b.l >= W * 0.75 - 0.5 || b.b <= H * 0.25 + 0.5 || b.t >= H * 0.75 - 0.5);
 
     // D1 THE FLIGHT
@@ -365,6 +368,7 @@ async function runDom() {
       ]) {
         const m = await measure(o), b = m[key];
         check(inLL(b, 0, W, H), `D1 ${W}x${H} flight: ${name} in the lower-left quadrant`, say(b));
+        check(!meets(b, m.rail), `D1 ${W}x${H} flight: ${name} beside the look rail, not on it`, say(b) + ' / rail ' + say(m.rail));
         if (W === 1920) check(offCentre(b, W, H), `D1 ${W}x${H} flight: ${name} clear of the central 50 % x 50 %`, say(b));
       }
     }
@@ -384,6 +388,7 @@ async function runDom() {
     for (const [name, o] of [['the arrival card', { body: 'mode-fly', showArr: true }], ["the crash's card", { body: 'mode-fly', showArr: true, arr: 'bad wreck' }]]) {
       const m = await measure(o), b = m.arr;
       check(!!b && b.t >= m.H / 2 - 0.5 && b.l >= 0 && b.r <= m.W + 0.5 && b.b <= m.H + 0.5, `D3 390x844 narrow flight: ${name} a bottom sheet, its top below the middle`, say(b));
+      check(!meets(b, m.rail), `D3 390x844 narrow flight: ${name} beside the look rail`, say(b) + ' / rail ' + say(m.rail));
     }
     // D4 THE PHONE PROFILE
     for (const [W, H, land] of [[390, 844, false], [844, 390, true]]) {
