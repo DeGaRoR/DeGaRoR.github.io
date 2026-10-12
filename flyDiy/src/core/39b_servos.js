@@ -77,6 +77,11 @@ const SERVO_GAINS = {
   // Cessna rotated 4.1 deg off its heading on P-D alone (0.5 -> 3.5, 1.0 -> 2.8, 2.0 -> 1.7 deg); 1.0 brought the
   // trike crosswind's pursuit from 14.2 to 10.1 deg and the C172's climb-out from the mill clear of house3 again
   steerI: 1.0, steerIMax: 0.25,
+  // G3073 (the coordinator's FALLBACK, 13 Oct): the ground rudder trim on a TAILDRAGGER's roll x steerITail - 0 here (OFF):
+  // on PILOT-PROFILE G2125's take-off the integral wound up and the Jodel rejected its take-off at HOME ('will not reach
+  // Vr'; G2540 bisected: steerI 0 -> takes off). A tricycle keeps G2080's 1.0 (the metal Cessna's rotation heading, the
+  // trike crosswind pursuit, the C172 by the mill). 1 restores G2080's taildragger trim once G3072's tail-down law is green
+  steerITail: 0,
   drTailDown: 0.45, drTailUp: 0.95, drWater: 0.9,
   // G1937 (PILOT-ONE, for DMG-DAMP): the water-step entry - kP x waterStepK on the water with the hull on the step
   // (tail up); 1 today (no change), DAMP's only pilot gain (0.6 once the solver's rigid-rotation damper is gone)
@@ -487,7 +492,8 @@ function makeServos(sim, def, opts) {
     // landing's roll-out (the throttle closed) there is no standing yaw, and the integral only lagged the heading loop:
     // the user's Cub on 02/20 with 2.4 m/s behind it swung +10 -> -22 -> +49 deg (a ground loop, GATE TOUR's land tour,
     // either order) - the same roll-out with the integral off: straight, 0.1 m off. Closed throttle: it bleeds off (1 s)
-    if ((c.thr || 0) > 0.3) S.gI = clamp(S.gI + g('steerI') * e * S.dt, -g('steerIMax'), g('steerIMax'));
+    const kI = g('steerI') * (trike ? 1 : g('steerITail'));   // G3073: a taildragger's ground trim behind steerITail
+    if ((c.thr || 0) > 0.3) S.gI = clamp(S.gI + kI * e * S.dt, -g('steerIMax'), g('steerIMax'));
     else S.gI -= S.gI * Math.min(1, S.dt / 1.0);
     S.drTrim = clamp(-S.gI, -g('drTrimMax'), g('drTrimMax'));
     c.dr = clamp(-kP * e - kD * S.eR - S.gI, -drMax, drMax);

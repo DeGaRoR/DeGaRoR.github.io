@@ -88236,3 +88236,13 @@ Merged origin/claude/scenery-ship-g3010 (b43779662) on master 0b42f6826 (train 5
 - A0 re-pins: UISMOKE map places + 3 strips, projection roads 76 -> 110 (the road graph + rev27), and flyDiy/BACKLOG.md (the official backlog, source flydiy-notes/backlog.json).
 Gates green except VEHICLE (2 placeholder rows, agreed). The strict gate was NOT run (the RWYTREES row took 15 min; the user chose to land without it). The Tue 00:45 baseline re-take on this master verifies it.
 What to watch for: strip 12 and its roads, contracts at strips 10-12, trees on the user's clearings, typed numbers in the inspector, one strip per runway click.
+
+## G3073 - PILOT-45-STEEROFF: THE FALLBACK - THE TORQUE BUNDLE WITH A TAILDRAGGER'S GROUND RUDDER TRIM OFF (2026-10-13, the PILOT COORDINATOR for A0; branch claude/pilot-45-steeroff = claude/pilot-45 9ded1303 + master 09683cb0; node --check only until the box)
+WHY: G2540 (TORQUE-BUNDLE-45) is not green - its blocker, bisected: the Jodel REJECTS its take-off at HOME ('will not reach
+Vr') with G2080's ground rudder trim (steerI 1.0) on G2125's take-off; steerI 0 -> it takes off. G3072 (TORQUE-STEER, cloud)
+is the real fix (the trim on the tail-down roll only). THIS is A0's fallback if G3072 is not green at the 15:45 re-gate.
+WHAT: 39b_servos SERVO_GAINS `steerITail: 0` - the ground trim's integral x steerITail on a TAILDRAGGER (the Cub, the
+Jodel); a TRICYCLE keeps G2080's 1.0, because the reasons G2080 measured for it are all tricycles' (the metal Cessna's
+rotation 4.1 -> 2.8 deg, the trike crosswind pursuit 14.2 -> 10.1 deg against PILOT's 12, the C172 by the mill). Setting
+steerITail 1 restores G2080's taildragger trim. Nothing else changes; the rest of the bundle is G2540's.
+GATES: not run yet - the box's 15:45 window (the six G2540 reds + PILOTACT ENGTORQUE PILOT LINEUP SEAPLANE ROUTE).
