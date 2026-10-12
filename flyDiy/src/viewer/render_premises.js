@@ -1666,7 +1666,7 @@ function make(THREE, scene, world, rec0, opts) {
   // kept bags (walls, roof: what the second cut leaves) merged in world space with a vertex colour = the bag's
   // material colour x its map's mean (linear), one shared plain material; their plain bags hide. Glass and lit bags
   // stay the house's own. Built per cell once the cell is live (G592: it waited for the whole queue), rebuilt when its houses change.
-  const HLOD = { on: true, bake: true, tarr: true, cell: 256, near: 150, far2: 1200, dirt: 0.35, gain: 0.2, sig: '', cells: [], cellMap: new Map(), todo: [], warm: [], group: null,
+  const HLOD = { on: true, bake: true, tarr: true, cell: 256, near: 150, far2: 1200, dirt: 0.35, gain: 0.2, gainItem: 1, sig: '', cells: [], cellMap: new Map(), todo: [], warm: [], group: null,
                  lod1: true, outLod: 1, fadeW: 40, proj: true, swapPx: 48, detailPx: 9, hMax: 1440 };
   // LOD 1 PAST HLOD.near (G800, C0 of QUEUE-C; ARCH-2026-09-27 §1.2 / §5 interim 1 / §9 rows 2-3). The far town merged
   // each house's lod-0 kept bags (its three largest: 10x the generator's own far mesh). Now every house is ALSO built at
@@ -1757,6 +1757,16 @@ function make(THREE, scene, world, rec0, opts) {
     };
     m.customProgramCacheKey = () => 'hlod:' + rung;
     return (HLOD[k] = m);
+  }
+  // G2319.2 THE FAR FIFTH IS THE HOUSES' (A0's bug, 12 Oct: "the LODs for the auxiliary hangars in the starting area are
+  // black instead of the mesh colour"). G559 took the far town's colour to a fifth (HLOD.gain) measured against the HOUSE
+  // shader - its AO, dirt line and weathering darken the near house, the plain merged far mesh has none of them. A plain
+  // finish has nothing of the sort near: a hangar shell (tools/_hangar_gen.js wears hangar.js's own HANGAR_LIB steel,
+  // kept far since G1398), a shed, a tank - at the houses' fifth its far walls went ~5x darker than its near ones: black.
+  // A house-shaded finish (the generator's hook, its paint or its dirt) keeps the fifth; every other takes gainItem.
+  function farGain(mat) {
+    const ud = mat && mat.userData;
+    return (ud && (ud.houseShaded || ud.paint || ud.dirt)) ? HLOD.gain : HLOD.gainItem;
   }
   // THE NEAR RUNG'S OTHER BAGS (G801): what G566 merges per distinct material (a site item's finishes, a bag the arrays
   // could not take yet) leaves at the same edge as the TARR bake - a clone of the canonical material with the band after
@@ -1988,7 +1998,7 @@ function make(THREE, scene, world, rec0, opts) {
         // own dirt and taken to a fifth: the plain merged surface has no AO, no dirt line, no weathering to darken it
         const dt = m.material.userData && m.material.userData.dirt;
         if (dt && dt.uDirtOwn) col.lerp(paintC.set(dt.uDirtOwn.value), HLOD.dirt);
-        col.multiplyScalar(HLOD.gain);
+        col.multiplyScalar(farGain(m.material));   // G2319.2: the houses' fifth for a house finish only
         const e = M.elements; nm.getNormalMatrix(M); const q = nm.elements;
         let up = 0, side = 0;
         for (let i = 0; i < n; i++) {
