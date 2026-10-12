@@ -87371,3 +87371,868 @@ NOT RED, NOT ALL RUN: the strict perf gate / FRAMECOST / the parked cook (the bu
 - The game on the box (GPU): East Point's departure in the page, the hand controls on the phone and desktop, the
   torque's feel - the coordinator's fly-through.
 - DMGHULL / DMGPLOUGH can only be judged once the Deform hull law lands (Deform's).
+
+## G2950 - ROAD-GRAPH + ROAD-BED: ROADS JOIN AT WAYPOINTS, A JUNCTION IS ONE NODE, METLAKATLA ONE GRID WITH ITS CONNECTION POINTS, ROADSIDE APRONS, THE ROAD BED (2026-10-12, SCENERY-ED-2 for A0, local; branch claude/road-graph-g2950 off train 44.4 c12f0490c; G2950 graph, G2951 editor, G2952 bed, G2953 aprons, G2954 Metlakatla, G2955 the long road's power line, G2956 the user's road shipped; G2957-G2959 unused, G2960-G2969 the runway train)
+
+The user (11 Oct): "let's have roads snapping to each other. One day I'd like a scenic tour of the island's roads,
+probably with a simple car" - "You could constrain joining on WAYPOINTS only, so we have something really clean" - "I'll
+trace the network between Metlakatla and the airfield, leave that to me" - "a lot of gravel areas next to the road for a
+U-turn or a stop" - "the road is sunk in many places. Maybe build a little bank or something, ensuring the paved surface
+is always visible". Contract v1.37 (futureDesigns/PREMISES-CONTRACT-2026-09-13.md), design §8-§9 of
+futureDesigns/SCENERY-POLYGON-2026-10.md.
+
+- **THE RECORD (G2950).** `roads[].nodes: [id | null, ...]` beside `pts` (one slot a point, like `tan`): a waypoint with an
+  id IS that junction; every road whose waypoint has the same id meets there. `layers.junctions: [{ id, name?, conn? }]`
+  names a junction, `conn: true` makes it a CONNECTION POINT. **Nothing writes `pts`** but the user's hand: the composer,
+  the migrators and the graph only read them (GATE SCENERYED 11 holds r1 of the user's own file bit for bit through every
+  step). A record without `nodes` composes exactly as before.
+- **THE GRAPH.** `O.roadGraph()` - nodes (junctions, road ends `<road>:0|1`, named / connection points, roadside aprons),
+  edges (each road's spans between its nodes on the DRAWN line: len, w, cls, surface, look, steepest grade). One router
+  `PG.graphMake` (Dijkstra, components, nodeAt, edgeAt) - the taxi pattern goes through it too (`graphOfPattern`), and
+  GROUND-VEHICLE G2940 drives on it.
+- **THE JUNCTION'S LEVEL.** The roads through a junction meet at one height: a road ENDING there takes the junction's
+  height, a road passing through takes it from an earlier crossing road but never from a spur's end; held 7 m each side,
+  eased over 7 more (GATE PREMISES 21b: the through road's centre within 2 cm of itself without the crossing). A
+  waypoint with an id lying on its straight span is no corner for the composition (`straightOf`): the grade samples,
+  the plots, the pavement are the road's without it.
+- **THE EDITOR (G2951).** Drag a road's waypoint near another road's waypoint (a few screen pixels): it lands EXACTLY on it
+  (a white ring shows the target) and the two share one junction - the OTHER road never moves. Clicking a new road's
+  point on a waypoint does the same (the junction made when the road is validated). A junction's waypoint (GREEN disc)
+  dragged carries every road's waypoint there - one undo. **Alt+drag** takes this road out of the junction (or the
+  inspector's 'take <road> out of <j>'). Pick a waypoint (click its disc): the inspector's WAYPOINT section - the roads
+  meeting, its name, 'a connection point', '+ roadside apron here'. Every junction of the map shows as a small disc
+  (green; MAGENTA a connection point) even when its road is not selected - what to snap onto. Only waypoints join: a T
+  is a waypoint added on the through road first (click its edge), then the snap.
+- **ROADSIDE APRONS (G2953).** '+ roadside apron here (turn, stop)' on a picked waypoint: a 12 m round gravel area
+  beside it (past a road's end, off its side elsewhere) with `props.roadside: { node, use: ['turn', 'stop'] }`; the
+  waypoint gets a junction id if it had none; the graph's node lists it (`aprons: [{ area, use, poly, centre, r }]`).
+  The area's inspector: ROADSIDE, 'for: turn & stop / turn / stop', remove.
+- **THE ROAD BED (G2952).** The road inspector's **'road bed' on / off** (one click): the road's grade line never under
+  the ground across its paved width (centre and both edges + 15 cm), its dips filled to 12 % both ways (an embankment,
+  never a cut), a flat shoulder of 0.5 m each side, banks 10 m back to the terrain; sliders when on (banks, steepest,
+  over the ground). **New roads have it on; every shipped road and r1 have it OFF** until the user clicks it (r1's points
+  do not move either way).
+- **METLAKATLA (G2954).** `tools/road_review.js` read its 62 `mk_` streets: no junction at all; 20 ends on another
+  street's waypoint, 13 Ts, 109 crossings between waypoints, 8 ends 1.5-3.6 m short of a street, 6 streets apart.
+  `tools/road_review.js --join` (+ `tools/road_patch.py`, every other byte of the fixture kept): 231 waypoints inserted
+  on the streets' straight spans (the crossings, the Ts), 129 junctions `mk_j<n>`: the town's 56-street grid is ONE
+  graph. Its three ways out are named connection points (magenta): **mk_c_east** 'Metlakatla east (the Walden road)'
+  (r1 passes 31 m from it), **mk_c_north** 'Metlakatla north (the old airport road)' (mk_ax05's end),
+  **mk_c_south** 'Metlakatla south (the shore road, the seaplane base)'. The town's 391 plots are the same seed for
+  seed (no end moved: the plots are sown along the streets); the ground changes only at the junctions' level (max
+  1.6 m on the island where two crossing streets' grades disagreed - today one steps there). Left to the user (the
+  review lists them, with coordinates): 3 ends 0.45-1 m off a waypoint and 8 ends 1.5-3.6 m short of a street (drawn
+  so in the data; a drag onto the waypoint joins each), and 6 streets drawn apart from the grid (mk_r_airport +
+  mk_r_skaters 32 m from mk_ax05, mk_r_raven 36 m, mk_r_wolf 17 m, mk_sa05 22 m, mk_sc41 130 m) - a short road each
+  if the user wants them in. Not joined to r1 or the airfield - the user traces that. (Metlakatla is the GRAPHICS 'town' row's 'all': with the town
+  off its streets and connection points are not in the editor.)
+
+- **THE POWER LINE ALONG A LONG ROAD (G2955; the user: "I don't think the poles and cables draw anymore on my long
+  road").** src/viewer/powerline.js capped a road at 140 poles (4.7 km at the 34 m pitch): r1's line stopped 4.7 km
+  from its start. The budget is now PER KM (`perKm` 40; a 34 m pitch raises ~29), no total: r1 gets ~730 poles the
+  whole way (instanced props, as before). What bounds the cost is the draw: `POWERLINE.cull(eye)` (every 20 frames
+  from render_premises' tick) leaves undrawn every cable chunk (10 spans, ~350 m) whose sphere is farther than
+  `reach` 2 400 m from the eye - r1's ~73 chunks (~260 k triangles) become the dozen or so near the camera. The street
+  lamps (every second pole) are bagged BY THE SAME CHUNKS (render_premises buildLine: one metal + one glass mesh a
+  chunk, `POWERLINE.chunk` marks them) and culled with them - one merged mesh along r1 was a bounding sphere always in
+  view (~365 lamps drawn every frame); a culled chunk's lamps take no point light. GATE PAVEMENT 8f: a 25 km road's
+  poles reach its end (dev: 737 poles, the last 18 m from it), the eye at its middle draws 16 of 74 cable chunks and
+  15 of 74 lamp meshes.
+- **r1 MOVED TO SCENERY-SHIP (12 Oct 07:30, A0 with the user, option A):** ROAD-GRAPH ships WITHOUT r1 - its 06:30 battery bisected r1 as the cause of PREMISES 21d, PREMCOOK 4 and FRAMECOST's fine-patch share (blocks 54 -> 118, tris 3.6 -> 6.2 M over r1's 30 km band); the fixture and SCENERYED 10/13 are back to before G2956 (byte for byte), tools/road_ship.py + road_cross.js + the kept rev 26 file stay. r1 ships with SCENERY-SHIP (G3010), whose lone-road patch (G3013) answers the patch. The section below is the record of what was done.
+- **THE USER'S ROAD SHIPPED (G2956; the user, 11 Oct: "Please extract my long road to put in official, but this runway
+  does not get into anything but my local save before it is fixed").** `tools/road_ship.py` copied r1 of their rev 24
+  save - since 12 Oct 03:05 its rev 26 (D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev26_2026-10-12_0305.json, sha256
+  e75298b709ac09db, read only: "all new editions can be considered default"; r1's last three points moved, the rest as rev 24's)
+  into tools/fixtures/island_jolene.json as saved - 254 points + handles, w 7.2, paved, graded, falloff 13, spline,
+  traffic 1, clear 2 - appended after the fixture's roads (graded last, as in their save), every other byte of the
+  fixture kept; NOTHING else of the save (not their strips 'strip 8' / 'strip 9', not their other edits). The entry
+  is kept with the save's sha256 in tools/fixtures/scenery_user_r1_rev26.json; GATE SCENERYED 13 holds the shipped r1
+  equal to it bit for bit. `tools/road_cross.js r1` (20:40, a 0.1 s probe): it crosses NO runway box, stand, hangar
+  or taxi route. It crosses, with no junction (r1 is not moved to make one - the user's to join): the Metlakatla
+  streets mk_sa00 (-2653.0, -8643.4), mk_sa02 (-2735.7, -8663.6), mk_sa04 (-2849.0, -8690.2), mk_r_walden
+  (-1706.0, -8350.2) (all four drawn only with the town on), the tramway's access road tw_r_access (-1553.6, -8280.0),
+  and the Metlakatla gas station's apron mk_m_gas (-2377.4, -8572.6) to (-2361.8, -8568.4). Graded last, r1 lays
+  its own grade over theirs at each crossing (as in the user's save).
+- **THE USER'S OWN RECORD (A0's proof, GATE SCENERYED 12).** The user's backup
+  D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev23_2026-10-11.json is the gate's fixture
+  tools/fixtures/scenery_user_jolene_rev23.json byte for byte (sha256 277abdfa66b254bd). Through the v1.37 loader: r1's
+  244 points + handles bit for bit after the editor's load, after the composition and O.roadGraph() (r1 one span), after
+  a save round trip; with Metlakatla put back (the town switch: restorePlaces, 62 streets, 132 junction ids) r1's
+  ground along its 24.9 km (1 979 samples) is the same to 0 m as with the town's streets carrying no junctions.
+
+**What to watch for (the user):**
+0. **Metlakatla left to you (tools/road_review.js lists them, with coordinates).** Six streets drawn APART from the town's
+   grid: mk_r_airport + mk_r_skaters (32 m from mk_ax05's north end), mk_r_raven (36 m from mk_r_skaters), mk_r_wolf
+   (17 m from mk_r_raven), mk_sa05 (22 m from mk_sc48), mk_sc41 (130 m from mk_sa01) - a short road each if you want
+   them in. Eleven LOOSE ENDS, drawn just off a street: 0.45-1 m off a waypoint - mk_r_skaters end at (-2836.0,
+   -8030.4) by mk_r_airport, mk_sc40 start at (-3509.0, -9056.7) by mk_r_shore, mk_sa08 end at (-3259.0, -8449.0) by
+   mk_sc50; 1.5-3.6 m short of a street - mk_sa04 (-2996.0, -8546.0) / mk_sc40, mk_sc37 (-2898.0, -8566.0) / mk_sa03,
+   mk_sc44 (-3567.1, -8968.1) / mk_r_shore, mk_sc45 (-3591.1, -8922.1) / mk_r_shore, mk_sc47 (-3615.1, -8887.1) /
+   mk_r_shore, mk_sc63 (-3972.0, -8501.0) / mk_ax01, mk_sc64 (-3795.0, -8289.0) / mk_ax02, mk_r_walden start
+   (-2954.0, -8696.0) / mk_sa06. Each joins with one drag of the end onto the street's waypoint (add one on the
+   street first with a click on its edge). Not moved by the tool: the town's plots are sown along its streets.
+1. Select r1, click **'road bed: on'** - the sunk stretches stand on a low bank, the paved surface visible all along;
+   r1's waypoints do not move; 'off' puts it back exactly. Try the 'banks' slider if the bank looks too wide or steep.
+2. Drag a road's end near another road's waypoint: the white ring, then it sits exactly on it - the disc turns green.
+   Drag the green disc: both roads follow. Alt+drag: only the one you hold leaves.
+3. With the town on (GRAPHICS town 'all'): Metlakatla's three magenta discs. **The east one (mk_c_east, the Walden
+   road's end) is 31 m from r1** - add a waypoint on r1 there (click its edge) and drag it, or a short road's end, onto
+   the disc to connect the town to your road.
+4. Pick a waypoint, '+ roadside apron here': a round gravel pad beside the road.
+4b. Fly along r1 far from its start: poles and cables the whole way round the island (they stopped ~4.7 km in);
+   the cable fades in a couple of kilometres ahead as you go (it is not drawn past 2.4 km).
+4c. **r1 is in the official world now, for every player** (no longer only your save): its cars, its clearing, its poles.
+   It crosses the tramway access road and, with the town on, four Metlakatla streets and the gas station's apron
+   without a junction: add a waypoint on each (click the edge) and drag one onto the other to join them.
+5. Nothing else of the island moves: the shipped roads have no junctions and no bed, their ground is today's.
+
+Gates (dev, Sun 11 Oct 20:30, box clean, no build): SCENERYED 103 PASS, PREMISES 552 PASS (the flight world loaded). The window's run (Mon 06:30-07:10: build, re-cook, targeted gates): WINDOW_LINE
+
+## G3000 - PLACER-FAST: AN OBJECT'S EDIT IS THAT OBJECT'S, A ROAD IS DRAWN AGAIN ONLY WHEN IT CHANGED (2026-10-12, SCENERY-ED-2 for A0, local; branch claude/placer-fast-g3000 off claude/road-graph-g2950; G3001 the object's own edit, G3002 the roads kept; G3003-G3009 unused)
+
+The user (11 Oct ~21:10, on Pages 60779e3b3675): "adding assets in the editor is a bit of a pain, really, really long to
+move, update, rotate." THE CAUSE (read from the code): the drag itself was light (the preview carries the built group),
+but its release, every R press, every inspector slider's pause and every number ran the WHOLE rebuild for a placed
+object - the record composed again, then EVERY road's pavement sampled again on the ground (the island road r1's 25 km
+at a 3 m step), its power line (730 poles), its rails, the runways, the lots, the houses' sync, the trees, the freeze -
+for an object nothing earlier in the composition reads.
+- **THE OBJECT'S OWN EDIT (G3001).** premises_ui: a command whose every entry is a placed prop, billboard, tree or
+  animal (its drop, its drag's release, a turn, a scale, a number, its undo / redo, a slider's pause) calls
+  `R.objectEdit([{ layer, before, after }])`: render_premises remakes that object's composed record as the composer does
+  (records.objects / trees / animals, y on the composed ground), takes its group down and builds it at once
+  (syncHouses: only the changed seed), the trees or the herds re-stood when it is one of theirs, the world's record kept
+  in step - no composition, no road, no ground. An aeroplane is not (the strips' way out clears it); a command with
+  anything else rebuilds as before; `?placerfast=0` turns it off. Autosave was already coalesced (1 s).
+- **THE ROADS KEPT (G3002).** Every other edit still rebuilds, but in the editor a road whose `PG.roadBuildKeys` key is
+  unchanged and whose box no ground edit touched keeps its pavement part (merged again), its power line and its rail.
+  The key: the road (composed and recorded), the record's pavement and theme, the strips, and the other roads, plots
+  and paved polygons NEAR it (what its poles and rails keep clear of). A road's own change (its traffic, its look), a
+  pavement laid by it, a ground edit over it, a road taken away or added - each draws the roads concerned again (GATE
+  SCENERYED 14d, a row each). A kept road's pavement table ROW stays its own: merging made it the merged geometry's, so
+  it is taken out of that list before the merged mesh is given back. A whole rebuild, the pavement's A/B, the game out
+  of the editor start over; `?pavcache=0` builds every road as before.
+- **A PROP'S SCALE (found on the way).** The placer's `s` never reached the composed record the prop is built from: a
+  scaled prop stood at x1 after the first rebuild. Now on `records.objects[].s` (only when not 1: every shipped object
+  byte for byte) and in the object's seed (contract v1.38).
+- **GATE SCENERYED 14** (125 checks): a drop, a release, a turn + scale, an undo: the object alone, no rebuild; a
+  renderer that cannot, an aeroplane, a road's edit: rebuilt; the scale on the record; the roads' keys row by row; the
+  times headless (an object's release 0.1 ms through the editor vs 15 ms with a rebuild's composition; the keys 6 ms
+  for 77 roads).
+- **THE PAGE'S NUMBERS (before / after; dev.html, the user's rev 23 with the town on, GPU-locked slot 12 Oct 11:45, one
+  sample each, the command's own time):** a placed prop turned 9-18 ms (before: 799 ms, `FLYDIY_PLACERFAST=false`);
+  its drag released 30 ms; a drop 3 ms. A site item dragged (s_club's clubhouse) 1.3 s (before: 2.5 s, the road cache off
+  and every strip stood again); a road's traffic changed (r_village) 2.1 s (before: 2.5 s). The object path is done;
+  a site item's and a road's edits still compose the record with the town (about 1 s of it) - EDITOR-PERF's (G3080)
+  core commit rides this train (the composition 3.95 -> 0.99 s with the town) and its step 2 is the renderer's share.
+
+**What to watch for (the user):** drag a placed model, let go: it stands at once where you left it, no pause; R turns
+it at once; the scale slider holds (it was lost before). Change a road's traffic: the island does not stall while the
+other roads are drawn again. If anything looks stale (a road not following an edit), say which edit: `?pavcache=0` and
+`?placerfast=0` are the A/B.
+
+## G3010 - SCENERY-SHIP: THE USER'S SCENERY BECOMES THE ISLAND'S (2026-10-12, SCENERY-ED-2 for A0, local; branch claude/scenery-ship-g3010 off claude/placer-fast-g3000; G3010-G3012 the ship, G3013 the lone road's patch, G3014 the user's answers; G3015-G3019 unused)
+
+The user (11 Oct 22:45): "I have done a lot of new roads and scenery that should become default. Not the altiport of the
+last message until fixed though." Their save rev 25 (D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev25_2026-10-11_
+2245.json, sha256 3cb8d1e3bb6d64f7, read only; kept byte for byte as tools/fixtures/scenery_user_jolene_rev25.json).
+- **WHAT SHIPS** (tools/scenery_ship.js computes the patch, tools/scenery_ship.py writes it keeping every other byte;
+  the manifest tools/fixtures/scenery_ship_rev25.json says what and why): 25 roads r2-r26 (~32 km), strip 10 'w5'
+  (310 x 17 m gravel) and its five areas a9-a13, ten sites s1-s10 (fish shack, canneries, net pens, trestle piers, a
+  warehouse, a boat shed), the village and harbour zones as they reshaped them, the home apron y_pad reshaped. Held
+  back: the altiport (strips 8 and 9, w1 / w4) - nothing else of the save lies within 1.5 km of it.
+- **THE USER'S ANSWERS** (11 Oct ~23:55, relayed by A0): the 4 village roads r_village, v_shore_e, v_west, v_north GO
+  ("yes, I know, it's OK": the island's 84 house plots outside Metlakatla -> 31 along their new roads r8 / r9 / r10 -
+  the harbour 10 -> 1); the runway shoulders y_sh13_0/1, y_sh02_0/1 and the fan x_fan02_0 STAY ("I saw no difference
+  ... untested"); their pavement settings ship (sfWear 1.35, grSideW 3.6, grSideA 0.4); r25 STOPS at strip 10's edge
+  (PG.roadCutAtPoly: its points to where its line meets the strip's box, and that point; the longer side, the access).
+  **Why no difference when they removed them:** the four shoulder bands draw nothing - they are gravel under the
+  wheels only (a verge an aeroplane rolls onto); the fan's trees likely were not there to clear (the island's own fill)
+  or the strip's own 30 m clearance holds them - a count of the trees with and without it is owed to them.
+- **A SAVE IS THE SANDBOX'S VIEW** (found here): the editor saves the record as it stands with every career track at its
+  max - no `stage` on any entry or site item, and no entry that stands only below the max (`sg_`). Shipping it raw
+  would have erased 17 stages, 5 items' stages and 7 construction-phase entries. The ship compares with `stage` (and
+  the migration's `src`) taken away, puts the stages back on what it ships, never removes a staged entry, and takes a
+  removal or a record setting only when named (--remove, --record). The fixture stays record v1 (its raw readers read
+  it as before): a new area goes into its `areas` layer, a changed migrated area back into its v1 sources.
+- **THE LONE ROAD'S PATCH (G3013).** ~66 km of graded road put the fine 2 m patch along all of it for every player
+  (64 m chunks, the town off: 283 today, 1 102 with r1, 1 974 with rev 25). A stretch with nothing of the record
+  within 120 m (PG.roadLoneSegs) now marks only the chunks its band covers (PG.roadPatchChunks - the renderer's
+  activeChunks calls it): 1 974 -> 1 219 (0.82 M fewer 2 m samples; 419 of 733 segments lone); where a road meets
+  anything the patch is as before. ?lonepatch=0 is the old rule. The next step (a 4 m patch on lone stretches) waits for
+  a browser look - the user: "I'll keep adding a lot more roads, so if we need to optimize, you can start slowly".
+- **strip 10 (w5)** has no profile: graded flat at its centre's ground (8.5 / 18.8 m at its ends) it fills up to 9.2 m
+  and cuts 3.0 m - their call, to be redrawn with RUNWAY-ED's absolute profile.
+- **GATE SCENERYED 15** (the shipped record migrated, the town cut, IS the save entry by entry - but for the stages, the
+  removals not confirmed, r25 stopped by the same function; every stage still there), **16** (the lone patch: the
+  count, nothing dropped where a road meets anything, a lone band kept).
+
+**What to watch for (the user):** your 25 roads, strip 10 and the harbour buildings are on the island for everyone;
+the village is the 31 houses along your new roads (the old village streets are gone, as you said); road r25 ends at
+strip 10's edge. Far from everything, your roads' ground is drawn a little coarser at their banks (where they meet
+anything it is as before) - if a bank looks blocky somewhere, say where. The world loads more ground than before
+(66 km of road): the roll-out may take a little longer.
+
+Gates: WINDOW_LINE_SHIP
+
+## A0 2026-10-12 - TRAIN 47 LANDED: THE ROAD NETWORK (ROAD-GRAPH G2950-G2957, without r1)
+
+- **Cargo:** claude/road-graph-g2950 3bc377d6c (r1 taken out by 06615683e; island cook acbdbf52d; fleet pack after the cook 3bc377d6c).
+  - Waypoint snapping with a white snap ring.
+  - Shared junctions: green discs; Alt+drag detaches one road.
+  - Connection points: magenta.
+  - Metlakatla as one connected grid (129 junctions, named connection points).
+  - One router (taxi + cars).
+  - Road bed opt-in per road.
+  - Power lines along the whole length (poles per km, cable + lamps culled by chunk); GATE ASSETS MATS back to 23 (overlay handles via MATLIB).
+- **The user's r1 is NOT in this train:** it ships with SCENERY-SHIP (the lone-road patch lever). With r1 here: FRAMECOST +64 patch blocks, PREMISES 21d / PREMCOOK 4 red; the fallback was agreed with the user on 11 Oct.
+- **Gates (SCENERY-ED-2's windows 06:30 + 07:35), PASS:** PREMISES, PREMCOOK, SCENERYED, PAVEMENT, ASSETS, MEDIA, UISMOKE, TAXICLEAR, LIFE, LOOKS, PILOT, LINEUP, COVER, GRASSSIDES, HOUSEWORKER, VILLAGE, PREMRASTER, TOWNKIT, RWYTREES, GAMEPREM, CONTRACTS, BIOME.
+- **STAGES 1 red:** master's since t444. Areas v2's expansion builds keys in a path-dependent order, so sha(O.rec) differs. The fix (one canonical key order in expandAreas) rides PLACER-FAST.
+- **A0's landing:** build, parked re-cook, FRAMECOST after the cook, the light strict gate (compared with the latest master runs; the 3 Oct light baseline is stale until Tue 00:00).
+- **Landing (08:00-08:35):**
+  - merge conflict in the generated fleet_spots_pack.js -> regenerated on the merged tree (premises cook + fleet cook + parked cook, build 10203add0107);
+  - gates PASS: BUILD, MEDIA, UISMOKE, ASSETS, PREMCOOK, PREMISES, TAXICLEAR, SCENERYED;
+  - FRAMECOST: its 5 reds were 44.1 + 44.3's (the same rows on master), admitted by name as part of the user's accepted +1.5 ms -> PASS.
+- **Light strict gate vs master's 44.1+44.3 run:** loop equal or better (cub chase 16.6 -> 16.3, metal 17.1 -> 16.5), render equal, loads equal.
+  - New: cub chase compile 4491 ms (slack 2000 over 1985) - a fresh build = cold shader cache (memory load-ab-cache-position); the Tue 00:00 baseline re-take re-reads it.
+
+## A0 2026-10-12 - TRAIN 48 LANDED: EDITING FAST (PLACER-FAST G3000-G3009 + EDITOR-PERF G3081)
+
+- **Cargo:** claude/placer-fast-g3000 8913d7586, on master t47.
+  - A placed object's edit is local (objectEdit), and roads not touched keep their geometry (road cache).
+  - No island-wide ground re-sample on non-road edits (onRebuilt uses the edit's box).
+  - Strips are repainted only when touched.
+  - Site edits are local ground edits (the shelves' redraw bug is fixed).
+  - Click-cycling (SELECTED n OF m), plot fences (zone switch + per-plot pick), the pavement sliders debounced, the placed prop's scale carried.
+  - STAGES 1 green again (G3009: the gate loads the fixture as the loader does).
+  - EDITOR-PERF's exact roadDist cut: compose 3.95 -> 0.99 s with the town on, 1.71 -> 0.68 s shipped, the user's rev26 110 -> 72 ms.
+- **Page numbers (the user's rev23 + town on, SCENERY-ED-2's 11:45 slot):** a prop turn 799 -> 9-18 ms; a release 30 ms; a drop 3 ms; a site item drag 2.5 -> 1.3 s; a road traffic edit 2.5 -> 2.1 s.
+- **Gates (12:05 window) PASS:** TAXICLEAR, UISMOKE, GRASSSIDES, HOUSEWORKER, MEDIA, ASSETS, VILLAGE, PREMISES, SCENERYED, PREMCOOK, PAVEMENT, LIFE, STAGES.
+- **What to watch for:**
+  - moving, turning, scaling or deleting a placed model is instant;
+  - a site item drag takes ~1 s; road settings ~2 s (EDITOR-PERF's next step);
+  - cyan item footprints in the editor;
+  - the pick cycle;
+  - 'plot fences' on zones.
+- **A0 landing (12:45-13:20):** gates PASS (TAXICLEAR, UISMOKE, BUILD, PREMISES, SCENERYED, PREMCOOK, STAGES); MEDIA PASS after the parked re-cook (an orphan from an earlier cook in the landing tree); FRAMECOST PASS; light gate equal to train 47 (loop 16.3-17.0 ms, render 11.7-12.1, loads equal).
+
+## G2900-G2909 - ASSETS-OCT: THE OCTOBER SCENERY GAME-READY, THE FIRST DRIVEABLE CAR, THE ANNETTE ISLAND VOR/DME AND METLAKATLA'S HYDRO PLANTS (2026-10-11/12, a LOCAL session for A0; branch claude/assets-oct-g2900)
+
+The user (11 Oct): "Most of them need a round of game-readification. There are many raw scans, and we need the full chain:
+decimation, reprojection, like we have done with the woodworking machines ... the buildings are important, large assets, but
+the bulldozer and starfighter are only scenery elements and should be kept reasonable" + "One of the observatory models has no
+texture: pick within our material library". Then, through A0: the ALMA antenna and the people (11 Oct), four driveable cars
+(11 Oct evening), the Annette Island VOR/DME "the real model, at the real spot" (21:00), and Metlakatla's two hydro plants
+(23:55). Licence + spec tables: futureDesigns/SCENERY-OCT-2026-10-11.md.
+
+**LICENCES.** All shipped sources are Sketchfab CC BY 4.0, credited in CREDITS.md (three new sections) and in
+src/scenery/scenery_credits.json / src/cars/car_conquer.json. **BLOCKED and DROPPED: "Satellite \ radio telescope from VotV"** -
+an extraction from the commercial game Voices of the Void (Unreal's own WorldGridMaterial / VertexColorViewMode_RedOnly in the
+file): its CC BY label cannot stand. GATE SCENERY fails if the kit ever names it.
+
+**THE SCENERY KIT** (G2901-G2907; tools/scenery_table.py -> scenery_prep.py / observatory_prep.py (Blender 3.6, CPU) ->
+scenery_kit.py (prop_prep's runner) -> src/scenery/ + media/geo|tex/scenery -> prop_lod.js --kit scenery; GATE SCENERY):
+
+| row | what | delivered | shipped L0 (levels) | notes |
+|---|---|---|---|---|
+| heating_plant | abandoned boiler house, chimney, conveyor (scan) | 1.2 M tris, ONE 1024 map | 60 k (15 k / 3 k) | the 74 x 46 m site cropped to the structures; every GREEN raised face dropped (482 k: shrubs, trees, the grass apron - our ground and trees do them better); the cut edge skirted 0.6 m down |
+| bunker | Devil's Slide WW2 bunker on its mound (scan) | 91 k | 24 k | the mound kept (it is the cliff top) |
+| sky_rest | ruined resort tower (author-cut scan) | 5.2 k, 4096 map | as-is, map 2048 | |
+| observatory | domed observatory, delivered UNTEXTURED | 100 k, no map | 20 k | x0.25 by its stairs (14.3 x 9.4 x 10.4 m); textured from the HOUSE LIBRARY (render, concretes, painted steel, galv) and baked; the user's pick: variant A, telescope = steel + dark glass lens, the side dish white-painted steel (variant B, verdigris, stays in the tool: --variant b) |
+| alma_base / _fork / _dish | ALMA 12 m antenna, 3 rigid parts | 199 k, 35 mats | 24 k for the three | x2.5 to the real 12 m dish; src/scenery/scenery_assembly.json: pivots + axes read off the delivered rig (azimuth vertical, elevation horizontal), 2 red OBSTRUCTION + 2 SERVICE light anchors, the motion = a sim-clock TRACK (15 deg per sim-hour) - the placer drives it |
+| ferry_merituuli | Hailuoto road ferry (modelled) | 87 k, 1303 meshes, 22 mats | 30 k | one 2048 atlas (9 500 islands at 1 px margin: 34 %), glass + lamp split |
+| fishing_boat | steel trawler (game asset) | 27 k | as-is | a reprojection lost its maps' detail |
+| starfighter | stripped F-104G (scan) | 996 k, 4 UDIM | 18.4 k | x1.09 to the type (16.7 m); the collapse FLOORS at 18 404 (hundreds of loose parts in the open bays) - target 18.5 k, not the spec's 16 k |
+| loader_wreck | abandoned wheel loader (scan) | 50 k | 10 k | x0.6 (the scan was ~1.7x on all three axes for its type) |
+| crowd_1..6 | 6 textured photoscanned people (static) | 1.5 k each | as-is, maps 512 | the white / grey twins dropped; NOT char_prep (no rig) |
+
+Night run 12 Oct 03:05-03:13 (A0's go after the user's editing): 17 rows, 21 levels, 4.75 MB geometry + 1.3 MB levels + 12.1 MB
+maps, all LAZY media (the packs are NOT in build.js: SCENERY-ED's placer loads them). GATE SCENERY PASS, --selftest 10/10.
+**KTX2 twins NOT made** (basisu v1.16.4 absent on the box; `npm install` is a download, the user's call): ktx2_twins.js has the
+`scenery` family, one run once basisu is in.
+
+**THE FIRST DRIVEABLE CAR** (G2908; A0: the Conquer '89 pickup is #1, car_scene #2 later, pickup_truck a parked / traffic
+candidate, dirty_car dropped). tools/car_table.py -> car_prep.py -> src/cars/ + media/geo|tex/cars; GATE CARS (core, --selftest
+10/10). AS-IS, split by node: body (17 k, with its interior, glass and lamp covers), wheel L / R (each placed 2x), steering wheel
+(place 'centre', a new prop_prep mode that publishes the part's `at`), head / brake / reverse / blink lamp props; levelled 0.45 deg
+(the export rolled it: 11 mm -> 0.9 mm across the tyres). DATA SHEET src/cars/car_conquer.json - MEASURED: wheelbase 3.014 m,
+track 1.412 m, wheel r 0.350 m, the steering axis (21 deg column tilt), body box, a 2-box collision proxy + wheel cylinders, lamp
+anchors (4 blinkers); ESTIMATED and named so: mass 1 850 kg, CG, inertia, the driver's eye, hood / chase cameras.
+
+**THE ANNETTE ISLAND VOR/DME** (G2909): NAVAID_GEN (tools/_navaid_gen.js, LAZY - build.js MANIFEST.lazy, asked for by world_boot /
+the house worker / the editor when a record names navaid/ or utility/; registered in 27_premises GENERATORS + GEN_NS and the
+headless loaders). key navaid/DVOR-DME: the FAA's extended 150 ft (45.7 m) counterpoise at 16 ft on 60 steel columns with its
+panel seams, 50 sideband "derby" domes on a 44 ft circle (FAA DVOR), the carrier radome, the DME mast with its RED OBSTRUCTION
+LIGHT (glow palette 2 + a `beacon` in stats.lit.lights: the existing night lamp pool), the shelter west of the disc, the ladder;
+4 392 tris (lod 1: 2 224); TOWER_GEN's finish - no new material site. The nav waypoint: NAV_FIXES in 38_nav.js (ANN, VOR/DME,
+117.1 MHz, the FAA-published point; page + worker parity) - PILOT's recipe and review; NAV, PLAN, SIMWORKER PASS.
+
+**METLAKATLA'S HYDRO PLANTS** (G2909): key utility/hydro powerhouse in the same lazy generator: the LONG NARROW SHED on its
+concrete base at the water (25 x 10 m default), a TWO-TONE roof (galvanised / rust halves along its length, as the aerial shows),
+the water-side windows, the roll-up + man door with a lamp, riprap with boulders, and a SMALL fenced yard (the user: "IRL the
+substation is tiny"): a procedural lattice takeoff mast (~200 tris) + the pack's transformer (450, cut by tools/hydro_prep.py
+from "Substation" by One80 Solar, CC BY 4.0, inline int16, no texture). 1 384 tris. GATE NAVAID (core) PASS.
+
+**WHAT THE USER'S PDF SAYS** (idc011708.pdf: the Metlakatla Indian Community's business brochure with the BIA Division of Energy
+and Mineral Development; 8 pages, read through Inkscape's poppler import - its fonts are custom-encoded subsets):
+- **Metlakatla Power & Light (MPL)**, community-owned, **9.5 MW** in all: **two hydro plants, 3.9 MW PURPLE LAKE and 1.1 MW
+  CHESTER LAKE**, a **3.3 MW diesel generator** and a **1.2 MW battery energy storage system** (for the sawmill's surges).
+  The photo the user sent is Figure 2, **the Purple Lake plant** (the user's "4 MW"). Chester Lake could grow to 3.0 MW.
+- Figure 6 puts **Chester Lake Hydroelectric on the EAST shore of Port Chester**, opposite the town, at the lake's outlet.
+- **Port Chester**, a deep-water port (18 fathoms at the loadout); the **old KPC / Louisiana-Pacific sawmill** site (1979-99);
+  **Skaters Lake industrial park** (a level 10-acre site) and its quarry; **Walden Point Road**, 14.5 mi to the north end, for a
+  planned ferry dock (15 min to Ketchikan); a ferry twice daily, five days a week; two small boat harbours, a barge dock, a
+  floatplane dock; the **former Air Force base with a 7,500 ft paved runway and a 5,700 ft gravel crosswind**; ~1,400 people;
+  ~109 in of precipitation a year; the reserve is 130 sq mi and the waters to 3,000 ft out.
+
+**THE SITES** (the island_jolene record; placed after ROAD-GRAPH / RIVERS-OFF, cooked Mon 11:00-11:40), game x / z by tools/geo.py
+(use `py` - the PATH's `python` is Inkscape's, without rasterio):
+| site | point | x | z |
+|---|---|---:|---:|
+| ANN DVOR/DME | the disc, ~7 m W / 4 m S of the FAA point (A0 on Esri z18) | -1010.1 | -1663.3 |
+| Purple Lake powerhouse | the shed at the end of Hydroplant Rd (55.092773, -131.544800) | -174.7 | -5780.2 |
+| Chester Lake powerhouse | candidate A, a grey-blue roof ~10 x 12 m (55.117115, -131.545932) - the default | -1141.9 | -8313.1 |
+| (Chester Lake, candidate B) | a long pale shed ~22 x 10 m (55.116907, -131.546302) - the user knows which | -1156.5 | -8283.4 |
+Movable editor sites, each with a tree-clear area round it (r ~30 m: cleared only where needed). PROPOSED, not built: the gravel
+shore road to Purple Lake (Hydroplant Rd -> Hatchery Rd) for the user's road tool; a penstock / tailrace if wanted.
+
+**TRAPS** (each cost a pass):
+1. Blender 3.6 headless `uv.pack_islands(margin_method='FRACTION')` collapses every island to a point (19 890 of 20 000
+   faces); the default margin method does not. Thousands of tiny islands (rails, posts) are margin-bound: 1 px at 2048.
+2. A Blender render path given relative lands nowhere the shell can find (the first observatory re-shoot "wrote" and nothing
+   changed): absolute paths.
+3. A Nishita sky PLUS a sun lamp is two suns: the first stills were washed (the dark ground read cream).
+4. The glTF importer leaves a second animation clip in an NLA track (ALMA's azimuth): make it the active action before
+   sampling; and a child's turn must be taken RELATIVE to its parent (the dish's world turn carries the fork's azimuth).
+5. `[3] or 1e9` treats a distance of 0.0 as none (the ALMA face split put dish faces in the fork).
+6. A decimate COLLAPSE can floor above its ratio on scans made of many loose parts (F-104: 18.4 k for 16 k) - iterate, then
+   accept the floor and say so.
+7. Editing src/core makes tools/flight_core.js stale: every tool that requires it throws (assertFresh) until `node tools/build.js`
+   (local only; the built files are the train's to commit).
+8. Inkscape 1.3 dropped --pdf-page (use --pages); `--pdf-poppler` reads custom-encoded PDF fonts that a raw stream read cannot.
+9. A bash script is read as it runs: never edit a waiting window script in place - stop, edit, re-arm (each re-arm killed the
+   old waiter by its exact PID).
+
+**GATES**: SCENERY, CARS, NAVAID (new, core); ASSETS green but for MASTER's own MATS red (render_premises.js 26-27 sites vs ALLOW
+23 - not this branch's; A0 routes it); NAV, PLAN, SIMWORKER PASS. OWED: the sites + the premises cook + PREMCOOK / PREMISES / HOUSE /
+BUILD / UISMOKE (Mon 11:00-11:40); KTX2 twins for the scenery and the car (basisu, the user's OK).
+
+## G2940 GROUND-VEHICLE - THE DRIVEABLE VEHICLE'S PHYSICS SPIKE: A RIGID CHASSIS WITH PROVIDERS (STRUTS ON THE TERRAIN'S PLANE, DRIVEN WHEELS FORWARD AND REVERSE, TYRES IN THE FRICTION ELLIPSE, ACKERMANN), THE ROAD FOLLOWED FROM THE REAR AXLE, U-TURNS AT A GRAVEL APRON, setDest = THE FLIGHT'S To; NODE ONLY, THE AEROPLANE UNTOUCHED (2026-10-11, GROUND-VEHICLE for A0, a CLOUD session - node only, nothing rendered; branch claude/ground-vehicle-g2940 off train 43.2 = 0402e132; G2941-G2949 unused)
+
+THE USER'S MVP (11 Oct) this prepares: "a long drive on the road I have traced and back, the ability to set a new
+destination (like the autopilot's in-flight re-routing - use the same thing), chase view, single vehicle, acceptable
+physics, NO manual take-over, the ability to U-turn properly for manoeuvres ... applied to BOATS at some point. Roadside
+aprons (gravel pull-outs) where vehicles can U-turn or stop". THE DOCUMENT: futureDesigns/GROUND-VEHICLE-2026-10.md (the
+shell, the boat seam §2, the route = the flight's To §3, the path traps §4, the aprons + the road graph's data shape for
+SCENERY-ED-2 §5, the acceptance numbers §6, the world's findings §7, the integration §8).
+
+INPUTS NOT FOUND: reports/CAR-FEASIBILITY-STUDY-2026-10-02.md is in NO branch of the repo (master, assets-oct-g2900, the
+369 refs), and src/cars/car_conquer.json was never committed (ASSETS-OCT G2908 committed tools/car_prep.py, which writes
+it from the local asset). Built from the brief and the code: the sheet is AUTHORED in car_prep.py's exact schema from the
+brief's numbers (wheelbase 3.01, track 1.41, wheel r 0.35, 1 850 kg) + car_prep.py's own estimate formulae (56 % front,
+CG 0.72 m, a uniform box's inertia), a placeholder body box; its `authored` field says so. `python tools/car_prep.py` on
+the asset overwrites it field for field; the shell reads only the schema's fields; GATE VEHICLE DEF pins the four numbers.
+
+WHAT LANDED (all new files but one row in run_gates.js; src/core NOT touched):
+- src/vehicle/vehicle.js - THE SHELL. vehicleDef(sheet, tune): the sheet (geometry + mass, measured) + VEH_TUNES[key]
+  (drive / brakes / steering / springs / tyre / air, authored) -> a GENERIC vehicle: N wheels with role flags (steer,
+  drive share, brake share, hand), struts, rMin, the footprint. makeVehicle(def, world): one rigid chassis at 240 Hz (4
+  substeps a frame, 0.43 ms a 60 Hz frame on the world's terrain) and PROVIDERS - 'wheels' (each strut cast down -up onto
+  the terrain's PLANE: terrainH + its normal; spring + damper + bump stop sized so the static car stands at the sheet's
+  wheel centres; the load pushed along the normal: a slope is felt through it), the drive (forward min(F0, P/v), REVERSE a
+  geared ramp to vRev, the engine's drag; through the DRIVEN wheels ON THE GROUND only, each capped at tc mu Fn), the TYRES
+  as sequential impulses (rolling + brake as a capped friction - a braked car HOLDS; the side force as a soft constraint of
+  compliance |v| / (C_alpha Fn) - the linear tyre at speed, no-slip parked; all in the friction ellipse; ABS-capped),
+  'proxy' (the sheet's two collision boxes as penalty contacts), the air (CdA). Ackermann on the steered wheels round the
+  bicycle's centre. VEH_SURF: a TYRE's [mu, crr] per SURFACE (GROUND_SURF is a light aircraft's on the lawn).
+- src/vehicle/vehicle_drive.js - THE DRIVER. vehPath (the road sampler: every vertex filleted, the tangent clamped to
+  half its legs, the fillet cut to the ROAD'S WIDTH), vehLocate (interpolated, monotonic), vehSteer (the taxi follower's
+  law retuned for front steering: the REAR AXLE tracked, kap(ahead) - ey/L^2 - 2 zeta sin(e_psi)/L, L = 2 m + 0.4 s x u,
+  delta = atan(wb kap), the same law reversing), vehProfile + vehSpeedTarget (the curve at 2.2 m/s2 lateral, the road's
+  PROFILE at 2.0 m/s2 vertical, the stop; the binding deceleration fed forward), vehPedals (grade / rolling / air fed
+  forward: the hill start rolls back 0 mm), vehUturnPlan (nose-in two-move, back-in, three-point; the body's footprint
+  swept against road + apron shrunk by a margin, the shortest feasible), vehRoadGraph (roads + places: aprons, stops;
+  Dijkstra), makeDriver(car, graph).setDest(to) - THE FLIGHT'S To: one To, the From derived, re-planned FROM HERE, the
+  cheaper of straight on and a U-turn at an apron ahead; answers 'replan' / 'uturn' / 'queued' (a manoeuvre runs) /
+  'same' / 'none'; phases IDLE / DRIVE / MANOEUVRE / ARRIVED (+ rejoin when 5 m off, STUCK after 20 s on the throttle);
+  the road sampled in 1 500 m WINDOWS re-sampled from the vertex behind the vehicle (the GP_MAXPTS fix).
+- src/cars/car_conquer.json (above). tools/_vehicle_check.js = GATE VEHICLE (new, core tier, ~13 s), its row in
+  tools/run_gates.js after DESTTO.
+- NOT in tools/build.js MANIFEST.core: tools/flight_core.js, the page and every built file are master's (the gate run's
+  rebuild reproduced them byte for byte: build 62f0cd5245c9, `git status` clean of built files). The integration lands the
+  two files as 45_vehicle.js / 45b_vehicle_drive.js (the document's §8: 63 KB of source against GATE MEDIA's budget).
+
+GATE VEHICLE (14 rows, PASS, deterministic): DEF (wb 3.01, track 1.41, r 0.35, 1 850 kg, 56.0 % front; R 5.00 m at the
+rear axle; parked 2 s 0.000 mm) | ACCEL 0-100 km/h 11.9 s, 150 km/h at 40 s | COAST 0.55 m/s2 from 25 m/s | BRAKE from 99
+km/h 47.7 m (0.81 g), straight | REVERSE 7.4 m/s (the gear's 8) | AIRBORNE dropped at full throttle 0 N / 0 mm/s gained;
+the driven axle over a ledge 0 N | TURN 12.99 m kerb to kerb both ways, inner 35.0 / outer 27.8 deg | HILL 10 %: parked
+0.1 mm in 10 s, released it rolls, hill start 0 mm back (5 m/s in 2.5 s), down from 15 m/s stopped in 16.7 m and held
+1.2 mm in 10 s | ROAD a 300 m traced road (2.5 m vertices, R 60 + R 40): 0.27 m max, 0.14 m rms, stopped 0.05 m off |
+UTURN re-routed mid-road: 3 m road + 9 m apron -> nose-in (2 moves), 6 m road + 5 m apron on the left -> back-in, the body
+never outside road + apron, home facing 180.0 deg 0.04 m off; parked short of / past an apron, a To behind -> U-turn,
+home | LONG the world's road 0 (graded, gravel): 5.0 km out / a To behind -> U-turn at MID / home / out -> U-turn at
+HOME / to END, 5 windows, 0.27 m max, 0.04 m rms, 0.04 m at END, the body never on the ground | FORD the world's road 0
+across its stream: crossed at 6.5 m/s, no contact | TRAPS patternPath 62.9 m off a gentle traced curve, the world's road
+3 as one path at 3.02 m | BITS not in MANIFEST.core, flight_core fresh.
+
+THE TRAPS (the document's §4, measured by TRAPS): (1) patternPath's 2-deg DOTS - a traced C2-spline road bends ~1 deg a
+vertex round a gentle curve, so patternPath sees no corner and draws the CHORD (62.9 m off an R 150 m curve, zero
+curvature); (2) GP_MAXPTS - a long road as one path is resampled coarse (road 3: 9.65 km at 3.02 m; 40 km at 10 m). Fixed
+in the vehicle's own sampler + windows; 39_ground_path.js is the aeroplane's and is bit-identical. Two more found driving
+the world: a window re-planned from the vehicle's pose with a join stepped the heading 36 deg mid-corner (spun off road
+0) -> windows re-sample from the vertex behind; the default 60 m fillet put the wheels 4.6 / 9 m inside the world's 45 /
+90 deg single-vertex corners, off the graded bed -> the fillet is cut to the road's width.
+
+THE APRON SIZES for this pickup (the planner, 0.25 m margin; for SCENERY-ED-2's ROAD-GRAPH, the document's §5 with the
+data shape): road 3 m -> 8.5 m deep (nose-in) | 4 m -> 7.5 m | 5 m -> 5.0 m | 6 m -> 4.5 m | 7 m -> 4.0 m (back-in); any
+length >= 14 m; on straight stretches; graded flat, classed GRAVEL. The graph's `pts` must be the COMPOSED centreline (a
+`curve` road's spline samples, not its clicked points).
+
+FINDINGS FOR THE WORLD (§7): every road of the analytic world FORDS its streams - 2-8 places a road where the terrain is
+0.5-2.7 m off the road's own grade (the hydrology's carve beats the grading); road 0 at s 2 696 m: 2.7 m deep, 0.4 m of
+water, ~50 % banks crossed diagonally, 15 m past a 45 deg corner - at 12.6 m/s the body struck, met at the corner's speed
+the pickup slid down the bank and stalled; from rest before it it crosses at 6.5 m/s. Fix in the world: the grade wins at
+a crossing (culvert) or a bridge. No tree / obstacle collision in the shell yet (the integration's: TREE_HITS against the
+proxy boxes).
+
+AIRCRAFT GATES on this branch (src/core unchanged; `node tools/run_gates.js --only=... --jobs=4`, the cloud's 4 cores):
+ALL PASS (11 Oct, 3 061 s wall, jobs 4; the build step reproduced every built file byte for byte): GE 77 s | GEN 590 s
+[4 shards] | PILOT 323 s [3 shards] | TAKEOFF 394 s | SIMWORKER 81 s (35 checks) | DMGMEMBERS 48 s | DMGCERT 324 s | DMGGEAR
+1 105 s | DMGCERTCOST 88 s | DMGCLUSTERS 634 s | DMGINST 227 s | DMGFPS 204 s | DMGINTEGRITY 54 s | DMGSKIN 106 s; and
+VEHICLE through the runner (--only=VEHICLE, 11.8 s) PASS. Not run: --all (the brief's rule) and the rest of the core tier
+(nothing they read changed: src/core, the built files and the page are master's).
+
+FOR A0: nothing to land in the page yet - this is the spike the MVP's integration builds on (the document's §8: the
+bundle, the drive mode with the car's props + the chase camera on estimates.cameras.chase, the To picker over the graph's
+places, SCENERY-ED-2's roads + aprons, the worker, then the boat). Questions for the user: the apron sizes (above) against
+the look of a pull-out; whether the MVP's road is the traced (scenery editor) road or the world's settlement roads first;
+the 4x2 pickup in a ford - stall honestly (today) or the world's crossings fixed first.
+
+## G2990 - RIVERS-OFF: THE ISLAND WITHOUT PROCEDURAL RIVERS (2026-10-12, RIVERS-OFF for A0, local; branch claude/rivers-off-g2990 off master c12f0490c, merged with train 47 31803829d; G2990-G2994 reserved, G2990 used; window CPU 12 Oct 08:50-09:10)
+
+The user (11 Oct ~20:00): "I believe we should drop the procedural rivers. They're bad now that we reach higher levels of fidelity."
+
+- **THE DEFAULT IS 'map' (28_island `hydro`, sim_host x2, island_node x2, build.js's page loader).** 'map' changed
+  meaning: it hands the bake the map's lakes (ISL.lakeAt) as 'blend' does - the lake carve, the trees kept out of
+  the lakes, distW (biomes, the riparian woodland's cedar, the ambience's stream/lake) - and traces no reach (A0m2
+  1e12). The old 'map' (no lakeOf) would have taken the lakes out of distW. `?hydro=blend` (G413) and `?hydro=proc`
+  (G405) stay as switches; the analytic world is untouched (HM 'proc': its cfg is byte for byte what it was).
+- **1024 CELLS STILL.** A0 expected 512: at 512 the handed-in lakes fell 12 266 -> 3 081 cells (206 -> 157 lakes)
+  and carved shores moved -17..+6 m. At 1024 the lakes are the blend's (12 266 cells, 206 lakes).
+- **THE WIN: `bakeHydrology(cfg.rivers === false)`** skips the D8 flow and the accumulation's M log M sort (they
+  feed the reaches alone; on the island the settlements are a stub). The flood, the lakes, carve / water / distW
+  are what they were. Jolene in node: bake 565-662 -> 419-442 ms, makeWorld 1271-1405 -> 1093-1180 ms (both orders).
+  The page pays it three times (the page's world, the sim worker's, the house worker's).
+- **WHAT MOVES (probe, Jolene, 100 m samples, map vs blend):** the ground only RISES, only where a reach carved -
+  643 corridor samples (p50 +0.54 m, max +1.30), 50 by a lake mouth (max +1.29), 1 inside a lake's field (+0.29, a
+  reach's mouth), none elsewhere: no trench is left dry because the carve goes with the water. Water lost at 199
+  samples (178 corridors, 21 a reach's water by a lake mouth), gained nowhere; lake levels identical; SEA and
+  mk_sea wet end to end. Woodland seeds 24 569 -> 24 785 (the river's water no longer keeps them out; riparian
+  cedar -> fir along the old corridors).
+- **CONSUMERS READ:** carve (tV2/terrainH: the beds rise back to the DEM), waterAt (riverWater -Infinity; the lakes'
+  records answer as before), the ribbons (none; the water mesh is no longer added when it is empty - render_world),
+  the minimap's river strokes (none), the tile index's rivers bucket (empty), biomes/woodland/ambience distW (lakes +
+  sea, as the blend's minus the reaches), guardrails' waterY (the field: no river water to fall into), the floats
+  (water lanes are the premises' sea lanes: unchanged), the pilot (waterH). The house worker now gets the page's
+  hydro (it took the default whatever ?hydro= said).
+- **COOKS:** premises_cook --island jolene (the raster cells sign the ground at their corners) and map_bake (the
+  hillshade had the trenches) re-run in the window, on train 47: the places
+  and cells moved: 25 cooked files renamed by their new hash (houses stand on the risen ground; default hash cc8b623516517148, town c7f48d2b61e1ba16), the
+  raster cells re-signed (137, ship 19.77 MB); the map jolene_map.c620385a -> 20b6919f, proj 3d4035a7 -> e61d8d47
+  (map_pack.js). fleet_spots.js --cook: THE SPOTS ARE IDENTICAL - only the town places hash the pack names moved
+  (ecc564eb1f6ca03c -> c7f48d2b61e1ba16), which made TAXICLEAR 10 red until the re-cook. The parked cook is the
+  train's (build id).
+
+Gates (run_gates --no-build, under `take cpu RIVERSOFF`, 08:52-09:09), ALL PASS: GE, TAXICLEAR (after the fleet
+re-cook), UISMOKE, MAPBAKE, WORLDRENDER, TREES, COVER, GRASSSIDES, HOUSEWORKER, LOOKS, LAKEBED, MEDIA, BUILD,
+SIMWORKER, PREMISES, PREMRASTER, PREMCOOK, HYDRODYN, WATER, PAVEMENT, RWYTREES, WORLD (seed-0 goldens unchanged),
+HYDRO (analytic: 528 reaches, unchanged), BIOME, SETTLE, BUILT. NO GOLDEN EDITED: the moved outputs are the cooks'
+own files (premises_packs.json + its cells, the map, the fleet pack), each regenerated by its tool.
+
+What to watch for (no stills): the creeks are gone - fly the valleys that had a blue ribbon (north of HOME, the
+west creeks): no water, no trench, the ground smooth to the DEM. The lakes and their shores look exactly as before
+(the same 206); a lake mouth where a river used to enter is plain shore now. Fewer cedars along the old creeks.
+No stream sound away from the lakes and the sea. Boot: the world composes ~0.1-0.3 s sooner (x3 threads).
+`?hydro=blend` brings the rivers back for a comparison.
+
+## A0 2026-10-12 - TRAIN 44 LANDED: THE AUTOPILOT + NO PROCEDURAL RIVERS + THE CAR SPIKE
+
+- **Cargo:**
+  - pilot-44 7ad7e1ee: PROFILE, ROUTE-DRAW, ALTIPORT-ARRIVAL, CESSNA-VREF, ALTIPORT-TAXI, PILOT-44-REDS;
+  - RIVERS-OFF 8a36380af: island hydro 'map', the lakes identical, no river reaches; the island + map re-cooked;
+  - GROUND-VEHICLE 914774a16: node-only spike, src/vehicle + GATE VEHICLE, not in the page.
+  - Stacked on master 48 (5df684f01); the gate table and HANDOVER unioned; the premises, fleet and parked cooks re-run on the merged tree.
+- **PAGE: 4.03 MiB gz** (route_draw + 44_vprofile + 38c_route).
+  - GATE MEDIA WIRE_BUDGET_MIB 4.0 -> 4.05, ACCEPTED BY NAME by the user 12 Oct ~12:00.
+  - Owed back by ROUTE-LAZY G3070.
+- **Gates PASS:** PILOT battery 9/9 on 7ad7e1ee (PILOT's run); RIVERS-OFF's 26; on the merged tree TAXICLEAR LINEUP VEHICLE UISMOKE MAPBAKE MEDIA BUILD PREMISES SCENERYED PREMCOOK WATER HYDRO (and ALTIPORT PROFILE ROUTE on the 09:35 stacked tree).
+- **Light strict gate vs train 48:** loop / render equal (cub chase 16.0, metal 16.6, metal cockpit 16.8; render 11.2-12.1); loads equal.
+  - The chase 'flight' rows read ~+4 s (cub 49.8 s, metal 46.5 s). Expected: the take-off now runs level in ground effect before it climbs (PILOT's 'what to watch for'). Re-read at Tue 00:00's baseline.
+- **What to watch for:**
+  - take-offs run level in ground effect, then climb (they look lower at the runway end);
+  - the altiport climb-hold (the metal Cessna may refuse with a tailwind and divert HOME);
+  - the Tamgas Hill held-speed short field;
+  - FLY > drawn route + the map's draw mode;
+  - no procedural rivers, the lakes unchanged, the island's hydro boot ~0.15 s faster.
+
+## G2930-G2934 - TREE-STREAM: NO BARE BAND BETWEEN THE FAR TREES AND THE NEAR ONES (THE STAND CARDS HOLD UNTIL THE FILL UNDER THEM IS BUILT), AN EDIT NEVER EVICTS THE RING, THE RING FOLLOWS THE EYE, THE NEED -> READY CLOCK (2026-10-11, TREE-STREAM for A0, local; branch claude/tree-stream-g2930 off train 43.2 0402e132b)
+
+The user (11 Oct): "far away, everything is OK, then there is a transition with nothing, then the more detailed trees will
+load, eventually, per tile, and sometimes after a really long time" (log flydiy-flightlog-20261011T130354-9jis: Jolene,
+custom preset density 200, the scenery editor open most of the session).
+
+THE CAUSES (read in the code; the island's per-chunk timing is booked for Mon 12 Oct 04:45, see OWED).
+1. THE HAND-OVER HAD NO OVERLAP. Inside the stand cards' inner edge (stand_cards.js S.near, 4 km from the EYE) only the
+   1 km fill chunks draw trees; the cards were cut there by distance alone (impostorMat: dCam < uNearB collapses) and their
+   chunks were not even planted inside near - C x 0.71. An unbuilt fill chunk inside 4 km was bare ground: the band.
+2. EVERY EDIT EVICTED THE WHOLE RING. TREE_FILL.vegChanged (each scenery-editor vegetation edit), setMix, setBiome,
+   speciesSize, set (the density), setIsland and TREE_MIX.apply all called evictAll(): every chunk of the 9 km ring dropped
+   at once, then rebuilt nearest first at FILL.budgetMs (4 ms) a frame. At density 200 a chunk is 40 000 grid points
+   (the walk ~4x the 12-14 ms measured at 100, HANDOVER G454.12; the build 57-131 ms, G1297): over a minute for the 4 km
+   ring, minutes for the 9 km one - "per tile, sometimes after a really long time".
+3. THE RING WAS THE AIRCRAFT'S, THE PICTURE THE CAMERA'S. fillUpdate centred and ordered the ring on the CG; in the
+   editor's free camera (the log: 'cam free' all session) the hillside being looked at waited behind the parked
+   aircraft's whole ring, and the stand cards (also centred on the CG) were cut 4 km from the camera.
+
+THE FIX (render_world.js fill block, stand_cards.js):
+- G2930 RDY, THE FILL'S READINESS: one texel per 1 km chunk over the world's square (R8 DataTexture, unpackAlignment 1),
+  1 where the chunk's base is BUILT and its complement too wherever the eye sees the complement (uThin.y). The stand
+  cards' material reads it per instance (impostorMat's new `rdy`, program key 'imp:one:rdy'): inside the edge a card
+  draws wherever its cell is not ready, at ANY distance; a cell going ready dissolves its cards over FILL.rdyS (1.2 s)
+  on the card's own hash; a cell going unready shows them at once. The cards are planted from the eye out (S.standIn,
+  default on; set({ standIn: false }) is the old cut: the A/B). A card chunk wholly inside the edge is drawn only while
+  a cell under it is below 1 (RDY.minIn): the steady state submits the draws it did before (FRAMECOST). The cards' rows
+  are budgeted in flight too (S.rowMs 4: a 2 km chunk ran whole in one frame before; same rows, same cards).
+- G2930 THE RING FOLLOWS THE EYE: fillUpdate centres the ring and orders the queue on uCam; the chunks whose nearest point
+  is within HIT_ON of the CG are still wanted and never evicted inside HIT_OFF (the solver's trunks, G1330). The cards
+  update from the eye. prewarm / ringReady keep their cg (the roll-out's).
+- G2931 STALE, NOT EVICTED: a built part carries `ep` (the generation it was walked at); an edit raises the generation it
+  needs (staleAll: the ring; staleChunk: one chunk) and the part STAYS DRAWN until its replacement lands (landPart: the
+  old one dropped in the same frame). exRegrow (exclusions) and vegChanged (now per polygon: 27_premises vegPolys,
+  regDiff of their keys - the whole ring only when the overlay names none) restale just the chunks under what changed,
+  `hot`: the queue's head and the urgent budget. evictAll stays for a new SHAPE set only (the payload's arrival, a grown
+  catalogue: setShapes disposes the materials the old chunks draw with); the cards cover that regrowth.
+- G2931 THE ORDER: nearest the eye; past 1.5 km a chunk outside the view's half-plane counts double; a complement +300 m;
+  hot first. G2932 THE BUDGET: FILL.urgentMs (8) while a hot chunk is queued or an unready chunk is within FILL.urgentR
+  (1200 m) of the eye - never at a reveal (the roll-out waits for 1.5 km), never in a steady flight; FILL.budgetMs (4)
+  otherwise. The build writes each tree once a rung (P.one: the rung's parts share one matrix/colour attribute, G1200).
+- G2933 THE CLOCK: TREE_FILL.stream([reset]) - need -> ready of every part (n, meanMs, maxMs, maxFr, nearMaxMs/nearMaxFr
+  for a new part inside uThin.y, late over FILL.lateS 20 s), standIn / standInNear, holes (an unready cell inside the
+  edge whose card chunk is not built either; null off an island), holeFrames, oldestMs, minUnreadyM/minUnreadyLow,
+  swaps, stale, urgent; TREE_FILL.rdyAt / rdyWant (x, z). The recorder gets a 'tree' event per part the eye could see
+  (inside uThin.y), per hot part and per late part ('base|fill cx,cz at D m [swap] [hot] | F fr, walk+build X ms, queue
+  Q[, urgent]'); analyze_log prints a TREE STREAM table (median / p90 / worst by kind, the ones over 20 s).
+- G2934 THE GATES: GATE WORLDRENDER S1-S4 (the headless analytic world): S1 a whole-ring edit (TREE_FILL.set) never
+  drops a fill impostor mesh in any frame (fails on the old evictAll: 0 of 55); S2 every stale part is swapped and the
+  grid reads 1; S3 a camera 6 km from the aircraft gets its own ring (fails on a CG ring: 3000 frames) and the
+  aircraft's chunk stays (fails without the HIT_OFF keep); S4 60 m/s for 4 km: no chunk inside uThin.x unready, no near
+  part over STREAM_MAX_FR (450) frames. GATE PREMISES 19d reads the new exRegrow. The page's half (island, GPU):
+  tools/perf/treestream_probe.js (EDIT: the density 128/preset -> 200, JUMP: 5 km toward the middle; ringReady at
+  1.5/3/4 km, per-part cost, frame p50/p95/p99, holes/holeFrames, stand-ins, urgent seconds; master reads '-' for the
+  stream rows). TRAPS: in node the payload never settles, so WF.prewarm is a no-op ('trees') - settle by frames; the
+  stub scene.add sets no parent (the rows patch it, or a removal never shows).
+
+WHAT TO WATCH FOR (the user): no bare band at any distance - where the near forest is still coming in, the far cards
+stand there instead (blockier, a 32 m stand per card) and dissolve into the real trees over about a second; after a
+scenery-editor vegetation or exclusion edit the trees stay and only the edited 1 km tiles change, within a second or two;
+in the editor's free camera the forest grows around where you look, not around the parked aircraft. A card very near the
+camera (a jump, a fresh free-camera spot) looks like a flat block of trees for a moment: that is the stand-in, not a bug.
+
+OWED (booked by A0, Mon 12 Oct; scratchpad ts_slots.sh, unattended): W1 GPU 04:45-05:25 - build, parked cook, the island
+probes branch / master / branch; W2 GPU TIMED 05:30-06:00 - train_gate --light on the branch, tree_perf density 200
+branch vs master. Then the walk's own cost at density 200 (the profile decides whether the walk needs cutting - terrainH
+x5 a point for the slope, BIO.over's premises vegAt per point - or a worker), READY, A0's strict gate at landing.
+
+### G2935 - BIOME-POLY: A POLYGON THAT NAMES A MIX PLANTS IT, NEAR AND FAR (12 Oct ~01:00, A0's split of the user's priority; the ground colour is SCENERY-ED-2's BIOME-PAINT G3040)
+The user: "the biome polygon does nothing I can see ... I'd want it to affect the ground color according to the picked
+biome, plus the actual trees." Cause (SCENERY-ED-2's read, confirmed): the walk's gate was the island's cover raster
+(forestHere / openHere), so a mix over a field, scree or a town's gaps stood nothing; past the gate the canopy ramp
+(~0 on open ground) thinned it away (the record's vegMixOf mixes are never floored); stand_cards had the same gate and
+ramp and nobody called its replant. Now (render_world polyMix / polyGround, stand_cards chunkRows): where the premises'
+vegAt names a known mix the gate opens on any ground but pavement, gravel, water and the aerodromes' blocked ground
+(treeAeroBlocked; the excludes still refuse), the mix is FLOORED (its own density, as tall as the map's canopy, its
+canopyFloor or POLY_CAN 12 m where the map has none; the heath/bog 3 m cap does not apply), in the fill AND the far cards.
+vegChanged restales the fill chunks and the card chunks (stand_cards restale(boxes): the old cards drawn until the new
+mesh lands) under the polygons that changed; setBiome / setMix restale every card chunk. The polygon is read once a point
+(mixHere = the polygon's word, else BIO.mixAt(code)). BIOME-PAINT's hook: vegChanged calls groundTtypeRefresh() when it
+exists (SCENERY-ED-2 declares it with the build's top-level lets, assigns it beside the uGPackB build) - only on a vegSig
+change (any vegetation polygon edit). The page row: treestream_probe.js BIOME (a 400 m open square near the aircraft given
+'conifer' through vegAt / vegPolys / vegSig + vegChanged; the walk's trees before / after / after removal, the ring fresh,
+the card chunks restaled).
+WHAT TO WATCH FOR: a biome polygon over a field now stands that biome's trees inside it, near and far, within a second or
+two of the edit; 'none' still clears; nothing ever stands on a road, an apron, gravel or water inside the polygon.
+
+### G2934 - THE ISLAND'S NUMBERS (Mon 12 Oct, W1 05:10 / W2 05:55, RTX 3080, built pages, parked re-cooked; density 128 -> 200)
+treestream_probe (branch e0acfb0c7 twice, master f353a0f89 once):
+- EDIT (the density to 200, the whole ring): branch - the 4 km ring never unbuilt (0 s; the old parts stood, 331 swaps,
+  all fresh at 65-66 s), no hole, no card standing in; master - the ring evicted: 1.5 / 3 / 4 km whole at 8 / 27 / 38 s,
+  35 s with the 4 km ring incomplete (the bare band). Per part at 200: walk ~41 ms + build 13-16 ms (both).
+- JUMP (5 km toward the middle): branch - 0 hole frames (the cards stood in: up to 38 near cells), but the 4 km ring
+  whole at 28 s vs master's 14 (the view weighting sent the front's far bases first) -> FIXED in 08e4d29e7 (inside the
+  cards' edge first); per part walk ~68 + build 29-37 ms at a fresh spot. Frames p99 27 vs 23 ms during the regrowth.
+- BIOME: threw on BOTH (ReferenceError: SPL is not defined in reachRefresh, from vegChanged) - FIXED in 08e4d29e7, the
+  polygon row is owed a re-run.
+tree_perf (settled, densest stand, full tier, density 200): branch 14.6 / p90 17.2 ms vs master 13.9 / 17.9 (one run each).
+train_gate --light: RED 15 against the LIGHT baseline of train 27 (4 Oct, before the hard 30: every fps row reads 30
+against 33-56, the loop rows likewise) - not a verdict; the two load rows (garage -> world 9.1 -> 11.2 s) need a master
+A/B before anyone reads them as this branch's.
+## G2750 - FINISH-FIX: THE PAINT RIDES THE SKIN (DECALS AND WEATHERING FROM THE REST PLACE), SCRATCHES BY COUNT, THE REGISTRATION RE-BAKES THE FAR MODEL, THE OVERLAY OVER EVERYTHING AND NOT IN THE SHED, THE BAND ROUND A BUBBLE NAMED AND ONE CLICK AWAY, THE ROOF LIGHTS' FRAMES IN STEEL (2026-10-10, FINISH-FIX for A0, local GPU; branch claude/finish-fix-g2750 off origin/master 26e04598b = train 42; G2751-G2759 unused)
+
+**The user** (10 Oct, from screenshots of their Mosquito - `tools/fixtures/repro/mosquito_2.json` / `_3.json`: carbon
+construction under an olive tint, weather age 0.7, a bubble canopy, registration B-MOSQ): "the weathering produces clear
+tiled pattern on carbon"; "the weathering 'dots' keep moving constantly, the texture gets stretched and back"; "when using
+the bubble cockpit mode, there's a dark part around the cockpit, which is not the joint, and that can't be accessed using
+the finish editor"; "the decal is projected live, so when the control surfaces move, the decal gets reprojected, and the
+moving part gets a shifting paintjob"; "I changed the registration, and the far baked model does not reflect that"; "the
+overlay does not draw on top of the runway" + "Overlay persists in the garage. I don't think it should."; "the hangar
+skylight chassis look plain white, flat, ugly, untextured and unrealistic".
+
+**1+2 / 4 - THE PAINT RIDES THE SKIN (aeroskin.js AERO_MAIN_VS, aeroRestBake; app.js beside the cavity bake).** In flight
+the rigs WRITE the vertices: the hinges turn a control surface in its buffer, the flex bends every skin vertex, the
+struts, the legs, the floats. Every projection that reads a craft PLACE took it off the posed vertex (`vCraftPos` from
+`transformed`): the decals' side/plan boxes, the weathering's triplanar and cylindrical reads, its sources, the holes,
+the detail sheet - so a box decal re-projected across a deflecting rudder every frame, and the grunge slid and stretched
+with the flex. (Field-mode markings and the field read on the fuselage skin were always fixed: aStruct is per vertex.)
+THE FIX: `aRest` (vec4: the place as built, w 2 = present) baked ONCE per flown geometry before the first pose
+(`AEROSKIN.aeroRestBake(THREE, grp)` right after `aeroWxBakeCavity`, the same reach - an aeroskin mesh, not a skinned
+one); AERO_MAIN_VS reads `aeroRestP = aRest.w > 1.5 ? aRest.xyz : transformed` and the craft place comes from it. A part
+that moves as a WHOLE (a wheel, an engine, a pivot group) still carries its motion in modelMatrix, so it turns with its
+paint as before. The C4b skinned folds take the rest place through the same bone (aeroSkinnedCraft); the hybrid's views
+merge aRest with the other live attributes (zero = w 0 = falls back, exactly like an unbound attribute's w 1). No rest
+(the editor, the benches, the parked bakes): the posed place, as before. Debris and a crumpled skin now keep their paint
+on the piece. NOT a new varying; one vec4 attribute on the flown skin (16 B a vertex, uploaded once).
+
+**1 - SCRATCHES BY COUNT (aeroweather.js aeroWxScratch).** The scratch layer read the 256-px grunge sheet stretched to a
+tile of 3 cm across x 45 cm along and thresholded it at 0.968: only the sheet's few highest texels passed - the SAME few
+every tile, a lattice of identical dashes, pale substrate (composite chip 0.5) on dark carbon. Now G345.4's rule: a
+lattice of `scratchLen` cells in the part's own frame, each cell rolls the hash of its INDEX (which never repeats) against
+the density, a winner draws one tapered stroke (mostly along, +-15 deg, 0.24-0.6 of a cell, jittered inside its cell),
+antialiased on the footprint and faded below a pixel. Knob `scratchAcross` (a width PERIOD) became `scratchW` (a stroke's
+half-width, 0.7 mm). SEEN: the master flank and cowl in flight carry columns of identical dark dashes (pale on the cowl), gone on G2750 (`1_weathering_dashes_master_vs_g2750.jpg`, the same frame both ways). At the macros this build carries (age 0.7) scratches are now rare by construction - the density is the layer's, the lattice no longer prints.
+
+**3 - THE BAND ROUND A BUBBLE.** Named by repainting each candidate section magenta through the editor's own finish door
+(finishToSpec / finishFromSpec), from two eyes: it is the WAISTBAND - the waist rail's strip, which cageCanopy re-sizes
+into a constant band under the canopy's seam all round the cockpit. The Mosquito carries `waistband: 0x262626` - the stock
+Cub's black waist stripe, inherited by every build made from it; on a bubble that stripe is a dark surround. Not the cabin
+darkening (uCabin 0 changes the interior, not the band), not the shoulder (off: the same band), not the joint (the thin
+ring at the glass). Its row existed - under the FUSELAGE, by the raw key 'waistband'. THE FIX: (a) the row says what it
+is: 'canopy sill band' on a bubble (its tip: 'finish and colour for canopy sill band (waistband)'), 'waist band' otherwise, 'roof rail band' / 'floor rail band' for its
+two siblings (the panel signature carries the bubble so the label follows the mode); (b) NEVER AN UNREACHABLE COLOUR: in
+the FINISH view a click on a cage face opens its part (no step-out on a second click) and that section's own row scrolls
+in and flashes (editor.js EDITOR_PICK, `.secFlash`). Retagging the strip as its own section was weighed and declined:
+ten downstream passes key on 'waistband' faces (the seal, the dash arc, the interior, the shoulder, the knife corpus).
+SEEN: `3_bubble_band_named_magenta_by_section_master.jpg` (each candidate magenta in turn: only waistband paints the band), `3_finish_click_lands_on_canopy_sill_band_g2750.jpg` (a click on the band: Fuselage opens, "canopy sill band" - its dark well the 0x262626 - outlined and scrolled in; master: no row). The dark colour itself is the build's, left as the user saved it.
+
+**5 - THE REGISTRATION RE-BAKES THE FAR MODEL (app.js tripExport).** The trips' key (snapshot, bake, spec) is the build's
+export, and the export carries the finish but not `meta` - and the registration lives in `meta.reg` (finishToSpec strips
+it from the decals: "the registration is not the finish's"). New letters left every key equal: the snapshot, the bake and
+the spec were skipped, the far fold kept the old atlas while the near live view showed the new letters. The key now ends
+`|reg<letters>`: a registration commit (on `change`, never per keystroke) re-runs the snapshot, whose flown preview
+carries meta.reg into the bake's own key. The parked bake (whole spec) and the fleet signature already carried meta.
+ALSO (found on the stills, then in the code): the BAKE STEP painted from the bare export whenever the snapshot was skipped (a trip whose wear moved a step: `bake` keys on build|wear, `snapshot` on build) - no meta, so aeroApplySpecDecals fell back to F-PGAR, under a key that cannot tell registrations apart. The bake now takes `tripSync.flown || GARAGE_SPEC.preview(tripSync.spec)`, the very spec the snapshot flies, so its key is the same whichever step ran. On THIS build a reg change already moved the export (the auto-fitted `regW` follows the letters), so the stills show G-FIXD on both trees (`5_registration_bake_live_master_vs_g2750.jpg`); the reg-only key now holds where regW does not move (a locked width), and the wear path is closed by construction (gate), not by a still.
+
+**6 - THE OVERLAY (app.js applySkinVis, enterGarage).** The frame lines were OPAQUE materials: three sorts them in the
+opaque list whatever their renderOrder (998), and the pavement, the clouds' composite and the glass are transparent and
+drawn after the whole opaque list - with the depth test off the lines wrote no depth, so the runway painted over them
+(the apron is opaque ground: there it showed). Both materials are transparent from birth (no program change on a toggle)
+and the x-ray rides AERO_CLEAR + 998/999, above the craft's see-through band. `enterGarage` resets the mode to Covered.
+SEEN: `6_overlay_over_runway_master_vs_g2750.jpg` (low eyes, the strip behind: master drops every line over the pavement - the gear struts, the wires to the tailwheel, the tail cone under the stab; G2750 draws them all). The run log: back in the shed master still says "Overlay x1", G2750 "Skin x1".
+
+**7 - THE ROOF LIGHTS' FRAMES (hangar.js).** The kerb and bars were flat quads 1.5 cm ABOVE the deck, seen from the floor
+THROUGH the pane - a milky emissive card (opacity 0.3, emissive x2.6): white-blue sheets, no depth. Inside, each member is
+now a slab hanging on the room side of the pane (a face and four flanks built through the slope's own P - no rotation, the
+gate's stub THREE has none), in M.beamSec (the purlins' steel and part: the part system dresses both, the room merge folds
+the frames into the purlins' one draw - zero new draws). The exterior keeps its kerb. SEEN: `7_skylight_frames_master_vs_g2750.jpg` (own camera on the shed scene, from the floor: master pale flat bands under the pane, G2750 dark steel members with flanks; the room view below).
+
+**3b - THE GLOBAL PAINT PLAINLY REPAINTS (aeroskin.js aeroBaseReach; 11 Oct, the user through A0: "the canopy sill
+band should also be affected by the global paint", then "I don't think a band changed by hand should keep its color.
+Changing the global paint again should just plain repaint the aircraft").** The base colour's reach wrote a section only
+when it was FOLLOWING (unset, or equal to the base it replaced - G468, "a hand colour survives the base"): the Cub's black
+waist stripe (0x262626), inherited by every build made from it, differs from any base, so it counted as the builder's own
+and no pick ever reached the band round a bubble. Now every exterior cage section (skin, rail bands, frame bands) and
+every part that wears the body (the cowl, the struts, the fairings, the fittings, the floats) TAKES the pick, a hand
+colour too; the wells still override a section after it. ...AND THE WINGS AND THE TAIL (the user, the same night:
+"include wings and tail too" - one global paint is the whole aircraft): every layer section of the airframe's livery
+family (its chain reaches the body: the wings and their surfaces, the fin, the rudder, the stab, the elevators, the
+booms, the floats, the gear) drops its own colour and follows the body; the float's deck (tintOwn) takes the pick
+itself. G1320's follow-only rule stays only for what is not the airframe's paint (the propeller, the spinner, the
+engine, the seats, the crew). The base row's tip says "one colour for the whole aircraft". The base metallic and roughness ride the same reach, so they
+repaint the same way. Decals and the registration are not paint and are untouched. A first cut that kept hand colours
+(a provenance mark per section) was dropped on the user's correction before it was committed. GATE LIVERYREACH: rule 2
+narrowed to the parts outside the airframe's paint, rule 3 added (every cage section, body-wearing part and
+airframe layer section takes the new base whatever it wore), and the user's own case run on the fixture - the
+Mosquito's sill band 0x262626, a band painted by hand, a wing painted by hand and the rudder -> the pick; the spinner's
+own 0x383838 held.
+
+**PERF.** No new per-frame CPU work; on the GPU one vec4 attribute fetch and a select in the skin's vertex stage; the
+skylight frames are merged into an existing draw; the overlay's order costs nothing. Same-window sanity line (rAF-capped, not a bench), master -> G2750: garage 16.74 / p95 31.3 -> 16.75 / 31.5 ms, taxi 16.73 / 35.4 -> 16.55 / 34.8 ms. A0's train battery is the ratchet.
+
+**43.1 STRICT GATE 8 (11 Oct): two costs of this entry, named from code and removed (b82e24b6d).** (a) THE REST BAKE
+ran in buildModel - which EVERY garage change runs (api.apply -> setAircraft('gen')): a 16 B copy of every skin
+vertex, merged again into the hybrid's views, per slider move (A0 measured garage busy +18 / +29 ms a change, Cub /
+metal). Now restBake(): once per model (model.restBaked), only for flight - when craftInWorld first shows the craft in
+the world under the roll-out's screen (its upload rides the world compile), else the first !inGarage poseModel; the
+folds baked with it (aeroRestBake takes skinned folds: their arrays are the members' own, still at rest). (b) THE
+SCRATCH'S hash maths ran on every weathered fragment, the cockpit interior included where the layer is zero; now behind
+`if (wxScP >= 0.01)`, the footprint (fwidth) taken before the branch. LESSON: anything in buildModel runs per garage
+change - data only flight needs is baked lazily. COMPILE 2.7 -> 5.0 s: no new program variant (an attribute is not in
+three's program key); the aeroskin source changed for every program, so a first run misses the GPU program cache -
+A0's ABBA decides.
+
+**GATES.** WEATHER (scratches by count, no threshold on the tiled sheet, the hash of the cell's index); SKINMAT (the rest
+place read and baked beside the cavity - aeroRestBake RUN in node: w 2, aeroskin meshes only, never twice; the trip key
+carries the registration; the bake paints from the snapshot's spec; the overlay transparent, in the see-through band, reset in the shed; the waistband label; the
+FINISH click lands on its row); FLOWNBAKE (G1493's skinned craft place now the rest one through the bone); HANGAR
+(the frames build on the stub). Green lockless: WEATHER, SKINMAT, FLOWNBAKE, SKIN, FADES, HANGAR, UISMOKE, PARTS, ATMO,
+CLOUD, GFX, LIGHT, LIVERY, LIVERYREACH, MATLIB, ROOMMERGE, STAND, UILAYER, BENCH, PANEL. Targeted battery (A0, the 10 Oct pace rule - no --all before landing): WEATHER, SKINMAT, FLOWNBAKE, SKIN, FADES, HANGAR, UISMOKE, PARTS, LIVERY, LIVERYREACH, MATLIB, ROOMMERGE, STAND, UILAYER, BENCH, PANEL, ROUNDTRIP, PARKED, DMGSKIN, BUILD, BUILT, KNIFE, SHADOWSKY, ATMO, CLOUD, GFX, LIGHT in A0's CPU window Sun 02:25-03:00 (--jobs=6, no lock on A0's booking): BATTERY PASS, all 27 green, 02:25-02:32, wall 442 s
+(total 1425 s; ROUNDTRIP 415 s, CLOUD 322 s, PARKED 234 s, ROOMMERGE 130 s, UISMOKE 128 s). BUILT notes the outputs lag the
+sources until the train's (built) commit, as designed. The 07:36 proof stills were CANCELLED by the user ("no
+screenshots needed for these changes"): the global-paint ruling, the rudder decal and the flight weathering pair rest
+on the gates (LIVERYREACH rule 3, SKINMAT's rest rows, the run log's rest measure).
+
+**Evidence:** `reports/evidence/FINISH-FIX/` (before = origin/master 26e04598b in a clean worktree, after = this branch,
+same rig, same build): the seven sheets above + `run_master_log.json` / `run_g2750_log.json` (the rest measure: master 0 of 53 flown aeroskin geometries carry a rest place; G2750 181 of 181, 77 moved by the rigs up to 8.5 cm while their rest held; the trips per roll-out; the overlay's label after the shed; the FINISH click's row). Rig: `tools/perf/finish_window.sh` (the GPU lock + an EXIT trap) driving
+`tools/perf/finish_stills.js` on `tools/live_driver.js`; own-camera stills render the shed's scene at 1600x900 (the
+garage's own camera is pinned by the bench view).
+
+**Traps paid for:** FLIGHT_PROBE.camSet does not move the GARAGE's camera while the bench view frames it - render the
+hangar scene on your own camera (and resize the renderer: the canvas is the gap between the panels, 640x900). The
+mount's +z is FORWARD. GARAGE_SPEC.update({finish}) does not repaint the editor's live materials - go through
+CAGE_UI.finishToSpec / finishFromSpec + build(). A flight changes the export (the first trip after a load re-runs
+the snapshot for reasons of its own): a registration test must fly once unchanged first. A GLSL comment inside a JS
+template literal must not hold a backtick (node --check catches it; GATE WEATHER checks its own blocks).
+
+**Owed (released by the user, 11 Oct: no screenshots for these):** a STILL of a decal on a deflecting rudder/elevator, live shader, two frames apart (the orbit eyes this rig used never reached the tail - the fix is proven by the measure and the gates, not yet by a picture of the user's own case); the weathering in FLIGHT seen moving on master vs still on G2750 (a held-camera pair in a turn). Both need ~10 GPU minutes.
+## G2880 NACELLE-LAG - A WING-MOUNTED ENGINE STANDS ON THIS BUILD'S WING, NOT THE PREVIOUS BUILD'S: THE WING PLACES ITS EARLY READERS AGAIN, ONCE, IN THE SAME BUILD (CAGE_WING_EARLY); THE VALIDATED BUILDS BIT-IDENTICAL; GATE NACLAG (2026-10-11, NACELLE-LAG for A0, cloud - node only, no GPU; branch claude/nacelle-lag-g2880 off origin/master 37bf5336 = train 43; G2881-G2884 unused)
+
+THE BUG (found by COWL-FIT G2860, its section's last paragraph): `engineFaces` (`_cage_cowl.js`) reads `window.CAGE_WING`
+for the over-the-wing pylon (`engMount` 2) and the nacelle pair (3), but the cowl and engine layers run BEFORE
+`_cage_wing.js` in the post chain (MANIFEST.editor), so both stood on the PREVIOUS build's wing - the DA62-alike loaded
+after the Savannah-alike hung its nacelles at the Savannah's high-wing leading edge until the next rebuild, and the flown
+spec carried them (the report's page readout: 55 % / -2 % against 52 % / +3 % once rebuilt). Physics-bearing: the
+engines' stations are in the spec the bench and the flight read.
+
+MEASURED BEFORE (headless, GATE NACLAG's doctored tree = master's behaviour): DA62-alike after the Savannah-alike -
+hubs x +-1.61, y +0.754, z 2.869 (the Savannah's leading edge), CG 60.35 % MAC, SM -6.29 %; rebuilt: x +-2.45, y -0.237,
+z 2.982, CG 58.05 %, SM -2.63 %. And a process's (a session's) very first build of a wing-engine card had NO engines at
+all (CAGE_WING undefined): the DA62-alike at CG 74.3 %, SM -18.5 %.
+
+### 1. THE CURE - THE G138 IDEA WITHOUT THE REORDER
+G138 cured the gear by loading it after the wing. The cowl and engine layers cannot simply follow: the engine's starters
+write P before every layer runs (its post's head, before prevPost), the cowl fits round the engine and must run before it
+(G154), the access / energy / tank layers read both, CAGE_CHAIN's ORDER / FEEDS / REL_FEEDS name the order, a dozen node
+rigs carry their own file lists, and every validated build's scene order would move. So instead they are PLACED AGAIN,
+once, in the same build, the moment the wing publishes - and only when what they stand on reads differently:
+- `_cage_wing.js` `window.CAGE_WING_EARLY`:
+  `place(key, ctx, fn, sigOf)` - a layer ahead of the wing runs its placement `fn(ctx, null)` now (over the wing as it
+  stands) and, when `sigOf()` is not null (it stands on the wing THIS build: engMount 2 or 3), is remembered with what
+  it read (its faces as a string), the scene children before it ran and the status-line words it wrote.
+  `publish(ctx)` - the wing's post is now `wingPost(ctx); early.publish(ctx)`, so it runs after EVERY exit of the wing's
+  build (the no-wing `CAGE_WING = null` return included): each reader of THIS ctx whose `sigOf()` now reads differently
+  runs `fn(ctx, memo)` once more; its new objects go back into the slot the first pass's stood in (right after the last
+  object that stood before it began - the scene order a steady build makes), its words replace the first pass's in place
+  on the status line (anything said later - the propeller check's microtask - still lands on the real line). Readers of
+  another ctx (a preview's plan that ran the cowl but not the wing) are dropped. `readers` / `last`: what the last
+  publish held and placed again (the gate reads them).
+- `_cage_cowl.js`: the post body is `cowlPlace(ctx, again)`; `cowlForEngine` takes the first pass's starter decision
+  (`dec`: the architecture hit, the birth) so the second pass applies the SAME decision to the current face - neither the
+  starter nor CAGE_COWL_FIT_NEXT is asked twice, and a birth's fit is made against the wing the card actually has. No
+  cowl shape rule changed (the user cancelled G2860's automatic fit; this touches placement only).
+- `_cage_eng.js`: the post body after `prevPost` is `engPlace(ctx, prev)`; the starters stay at the post's head, run once.
+  A superseded first pass's propeller-clearance microtask stands down (`unitOut.superseded`).
+- `_cage_chain.js` `CAGE_CHAIN.as(name, fn)`: the second placement runs inside the wing's turn, so it is attributed to its
+  own layer - its P reads recorded as the cowl's / engine's (not the wing's, which would make a cowl drag re-run the wing),
+  the objects it adds counted in that layer's `objs` and kept out of the wing's (`ADOPT`), its words its `statApp`, the
+  wing's `stat0` re-anchored (a release rebuilds the line from them). `RUN`: the layer whose turn it is, recorded or not.
+- Previews are as they were (a wing drag's tick does not run the cowl / engine; REL_FEEDS wing->eng/cowl at the release,
+  which now also reads the right wing). A rebuild on an unchanged wing places nothing twice (sigOf equal): zero cost.
+GENERIC: anything that reads CAGE_WING from a layer ahead of the wing must place through CAGE_WING_EARLY - GATE NACLAG's
+LINT reads MANIFEST.editor and every `_cage_*` file ahead of `_cage_wing.js` that reads `window.CAGE_WING` (today the cowl
+and the engine, and nothing else ahead of the wing reads it; every other wing reader - brace, gear, access, light,
+energy, hinge, the join - runs after it).
+
+### 2. GATE NACLAG (new, core, tools/_naclag_check.js, ~2 min: 8 headless processes, its own pool of 4 - weight 4)
+Headless through `_bake_joined.js` (the page's own chain in the node scene, then the join's export: the flown spec);
+every card sequence in a FRESH process, each card loaded as the garage loads it (PAGE.load, CAGE_COWL_FIT_NEXT).
+1 LINT - the early readers of CAGE_WING all register (readers: `_cage_cowl.js`, `_cage_eng.js`).
+2 PAIRS, TO THE BIT (every engine hub CAGE_ENG.units[].at, every cowl group's place, every value of the joined spec, the
+  CG % MAC, the static margin, the status line): card A then card B == card B in its own process (its first build AND its
+  steady state); B loaded again == B; B's units placed again in its own build, a rebuild places nothing twice.
+  savannah -> da62: hubs +-2.45 / -0.237 / 2.982, CG 58.05 %, SM -2.63 % (= fresh) | jodel -> twinBush: +-2.8 / 0.816 /
+  3.014, 51.89 %, -11.30 % (= fresh) | da62 -> p38: +-1.347 / 0.154 / 2.574, 35.08 %, +6.54 % (= fresh).
+3 VALIDATED - Cub, Jodel, Cessna 172, Cessna floats: a nose mount, no early reader, nothing placed again.
+4 SELFTEST (always run) - CAGE_WING_EARLY.publish stood down: savannah -> da62 DIFFERS (the numbers above under BEFORE),
+  its rebuild does not: CAUGHT; the LINT over a cowl layer whose registration is renamed away: CAUGHT.
+`--page` (optional, ~12 min, not in the battery): the page in node (tools/_page_node.js), the garage's birth flow loads
+the Savannah-alike card then the DA62-alike, then CAGE_UI.build(): measured G2880 - the load: hubs +-2.45 / -0.237 /
+2.982, CG 52.26 %, SM +2.86 %, placed again ["cowl","eng"], status line "cowl: face 0.40x0.23 at z 2.33" (the second
+pass's words in place); the rebuild: the same numbers, nothing placed again. The report's 52 % / +3 %, on the load.
+
+### 3. THE VALIDATED BUILDS ARE BIT-IDENTICAL
+Cub, Jodel, Cessna 172, Cessna floats and the metal Cessna (bugReports/cessnaMetal (1).json), each baked headless
+(`_bake_joined.bakeJoined`) on master 37bf5336 and on this branch: the joined spec's hash, a fingerprint of every scene
+object (name, matrixWorld, geometry positions), the CG, the SM and the status line - all IDENTICAL (cub 133348f72f7a4487,
+jodel f645f6a5c25e7854, cessna d26db91defbb739c, floats 7454a60f274cac58, metal 4018bc6cec547e60). (The beacon rotor's
+angle is left out: it is the clock's, and differs run to run on one tree.) By construction too: a nose or pusher engine
+returns null from sigOf - nothing is registered, `publish` walks an empty list.
+
+### 4. FOUND ON THE WAY - THE HEADLESS JOINED BAKE IS NOT THE PAGE ON A PROCESS'S FIRST CARD (not fixed in the shared harness: A0's call)
+GATE NACLAG first read card-to-card differences that had nothing to do with the engines. Two harness gaps, both in
+`_bake_joined.js` / `_scene_headless.js` (every headless consumer of the joined bake shares them):
+(a) `window.CAGE_UI` is set only AFTER the scene is built (for the join), but the wing resolves its landing-light bay off
+    `CAGE_UI.P` (`CAGE_BAY_FROM_P`, `_cage_wing.js` G96) - so headless, a card's wing wore the PREVIOUS bake's lamp bay
+    (none on the first): the P-38-alike's nacelle 0.19 m off and its CG 4 % MAC apart between its first and second bake.
+(b) the join (`CAGE_JOIN_WING_CUTS`: the lamp bay's edges as loft stations, G189) is loaded after the first build, so a
+    process's first wing has no cut rows and its bay snaps to the coarse ones - the Twin bush hauler's bay x 1.90-3.12 m
+    instead of 1.75-2.09, right over its nacelle at 2.8 m: the leading edge read 0.24 m aft, the nacelle with it.
+The page has neither (its CAGE_UI.P is the P it builds; MANIFEST.editor loads the join before _cage_ui). GATE NACLAG's
+child sets both the page's way locally (CAGE2.cageFromSpec wrapped to hand its P to CAGE_UI; `joinIn` - now exported -
+before the first bake), and then every card repeats to the bit. Left as it is for the others (GATE ARCHETYPES' joined
+bakes, the perf study, WEIGHT...): fixing it in the shared harness moves their numbers, so it wants its own session and
+its own re-anchoring. OWED (A0's call).
+
+### 5. GATES (this branch's commit, proved in a clean worktree of HEAD: `run_gates.js --only=...`)
+Proved on commit 59399466 in a clean worktree of HEAD (build cf6c4a97f54f), `node tools/run_gates.js
+--only=NACLAG,COWL,CLIP,DESIGN,JOIN,BUILD,STARTER,INSTANT,ARCHETYPES,GEN` (full tier by --only; jobs 4, wall 3448 s):
+NACLAG PASS (103 s, its selftest CAUGHT twice), COWL PASS, CLIP PASS, DESIGN PASS (27 archetypes live), JOIN PASS,
+BUILD PASS, STARTER PASS (3 starters, 4 architectures, 3 doors - the cowl starter's `dec` refactor), ARCHETYPES PASS
+(4 shards, 27 archetypes flown, 0 skipped), GEN PASS (4 shards, 841 s). INSTANT (the chain's CAGE_CHAIN.as / RUN /
+ADOPT) hit the runner's 30-minute spawn timeout in that battery - under 4-way load, mid-way through its second build,
+every row it had finished `same` - and was re-run ALONE on the same worktree: GATE INSTANT: PASS (cub + metal, 26 rows
+same, chain ok 16 layers; 62.8 min wall alone on this 4-core cloud box - its row says wall 480: a faster machine's).
+Not run: the whole battery (`--all`): A0's train.
+FILES: tools/_cage_wing.js (CAGE_WING_EARLY, the post's wrapper), tools/_cage_cowl.js (cowlPlace, cowlForEngine's dec),
+tools/_cage_eng.js (engPlace, the superseded microtask), tools/_cage_chain.js (CAGE_CHAIN.as, RUN, ADOPT),
+tools/_naclag_check.js (new), tools/run_gates.js (the NACLAG row), tools/_bake_joined.js (scene / stat returned,
+joinIn exported - nothing else reads either). Generated outputs not committed (SHARED-TREE-PRACTICES 5).
+
+## TRAIN 50 LANDED (A0, 12 Oct 2026 ~20:55): trees streamed, grass strip colour, finish fixes, wing-engine lag, autopilot by default
+
+Merged on master f09cf417f:
+- TREE-STREAM G2930-G2935 (317639b7c): no bare band, cards stand in, edits restale instead of evicting, biome polygons near and far, the SPL fix (the biome tab saves its edits again).
+- GRASS G2570 (grass-strip-colour): a grass strip wears the ground (grMatch, grMowA).
+- FINISH-FIX G2750 (df404c276): one global paint repaints the whole aircraft, patterns kept; weathering and decal fixes.
+- NACELLE-LAG G2880 (a3ad1085c), AP-DEFAULT G3120 (db0ba1b44): every flight starts on the autopilot.
+- A0: GATE PAVEMENT 13 counts 27 + 2 look keys (G2570's grMatch, grMowA).
+
+Gates: all green except SKINMAT, WEATHER and BENCH (red on master f09cf417f, pre-existing, owned by EDITOR-BUGS / PILOT) and CLOUD (3 world-editor/lamp rows) and ROUNDTRIP (setup sections incl. audio), the same rows as the 43.1 run.
+Strict gate (light, vs the stale 3 Oct base): at par with T44's master run (loop 16.4-16.6 ms, render 11.8, garage->world 11.2 s). New: metal cockpit taskWorst 1188 ms, cub cockpit tasks200 27. TREE-STREAM ran node gates during the run (disclosed), so they are UNPROVEN; the Tue 00:45 baseline re-take checks them on master. If they hold, TREE-STREAM owns the hitch.
+What to watch for: no bare band between near and far trees. The far cards dissolve into near trees over about 1 s. The forest grows around the free camera. A biome polygon grows its trees. A grass strip takes the ground's colour. Global paint covers the wings and tail. Every flight starts on the autopilot.
+## SCENERY-SHIP x T44 (12 Oct 14:00, SCENERY-ED-2): THE CAR SHEET - FOR GROUND-VEHICLE'S NEXT ROUND
+- `src/cars/car_conquer.json` came from both sides (add/add). Kept: ASSETS-OCT's MEASURED sheet (from the baked model the
+  game draws: wheelbase 3.0143 m, track 1.4123 m, r 0.3501 m, rear axle at x -1.301 (the placeholder -1.505), CG x 0.387,
+  ground 0.0285, the lamps) over GROUND-VEHICLE G2940's 'NOT MEASURED. Written from the brief' placeholder (A0's ruling:
+  the drawn model wins). GATE CARS: PASS.
+- GATE VEHICLE: 2 rows RED, both expectations pinned to the placeholder, not the physics: DEF tests wb === 3.01, track ===
+  1.41, r === 0.35 exactly (the measured sheet parks 2 s with 0.028 mm drift, 56.0 % front, four wheels down); AIRBORNE's
+  ledge is placed for the placeholder's rear axle (-1.505): with the real one the fronts read 0 frames on (the rear's
+  20 / 6 frames and the zero drive are as they should be). NEXT ROUND (GROUND-VEHICLE): read wb / track / r / the axle x
+  from the sheet in DEF and place AIRBORNE's ledge off the sheet's rear axle.
+
+## SCENERY-SHIP LANDED (A0, 12 Oct 2026 ~23:10): the user's rev27 is the shipped Jolene
+
+Merged origin/claude/scenery-ship-g3010 (b43779662) on master 0b42f6826 (train 50):
+- rev27: strip 12 (w7), roads r37/r38, the user's own tree clearings on w5-w7, the pavement look. SEA plot 13.5 m west. w5/w6/w7 in CONTRACT_FIELDS. The island road r1. The runway tool returns to Select (no stacked strips). Typed number fields in the scenery inspector (G3017). w1/w4 altiports held back.
+- ACCEPTED BY NAME (12 Oct): map projection 18.2 KB gz (budget 20 KB); road r28's grade 9.5 cm raster tolerance (that road only, fix owed in train 52); index.html +10 KB (WIRE 4.06 MiB).
+- A0 re-pins: UISMOKE map places + 3 strips, projection roads 76 -> 110 (the road graph + rev27), and flyDiy/BACKLOG.md (the official backlog, source flydiy-notes/backlog.json).
+Gates green except VEHICLE (2 placeholder rows, agreed). The strict gate was NOT run (the RWYTREES row took 15 min; the user chose to land without it). The Tue 00:45 baseline re-take on this master verifies it.
+What to watch for: strip 12 and its roads, contracts at strips 10-12, trees on the user's clearings, typed numbers in the inspector, one strip per runway click.
