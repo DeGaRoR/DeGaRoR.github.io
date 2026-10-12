@@ -1,0 +1,306 @@
+altiport_trace: jodel_2026-09-20_corrected.json HOME > tw_ski (elev 695.5222735261833, strip ground 679.6..708.8 m), the game's flight; core tools/flight_core.js
+     0.0 s  >TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8240 m
+     2.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8237 m
+     4.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8231 m
+     6.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8225 m
+     8.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8220 m
+    10.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8213 m
+    12.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8206 m
+    14.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8199 m
+    16.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8192 m
+    18.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8187 m
+    20.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8183 m
+    22.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8181 m
+    24.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8181 m
+    26.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8180 m
+    28.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8179 m
+    30.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8179 m
+    32.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8178 m
+    34.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8178 m
+    36.0 s   TAXI      h   32 MSL   -677 over the strip  ground   31  thr   8177 m
+    38.0 s   TAXI      h   31 MSL   -677 over the strip  ground   30  thr   8177 m
+    40.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8177 m
+    42.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8177 m
+    44.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8177 m
+    46.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8177 m
+    48.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8179 m
+    50.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8181 m
+    52.0 s   TAXI      h   30 MSL   -678 over the strip  ground   29  thr   8183 m
+    54.0 s   TAXI      h   30 MSL   -678 over the strip  ground   29  thr   8184 m
+    56.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8186 m
+    58.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8188 m
+    60.0 s   TAXI      h   31 MSL   -678 over the strip  ground   30  thr   8190 m
+    62.0 s   TAXI      h   30 MSL   -678 over the strip  ground   29  thr   8191 m
+    64.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8193 m
+    66.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8195 m
+    68.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8196 m
+    70.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8197 m
+    72.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8198 m
+    74.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8199 m
+    76.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8200 m
+    78.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8203 m
+    80.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8207 m
+    82.0 s   TAXI      h   30 MSL   -679 over the strip  ground   29  thr   8217 m
+    84.0 s   TAXI      h   29 MSL   -679 over the strip  ground   28  thr   8229 m
+    86.0 s   TAXI      h   29 MSL   -679 over the strip  ground   28  thr   8240 m
+    88.0 s   TAXI      h   29 MSL   -679 over the strip  ground   28  thr   8252 m
+    90.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8263 m
+    92.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8273 m
+    94.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8283 m
+    96.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8294 m
+    98.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8304 m
+   100.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8315 m
+   102.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8326 m
+   104.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8336 m
+   106.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8347 m
+   108.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8358 m
+   110.0 s   TAXI      h   29 MSL   -680 over the strip  ground   28  thr   8368 m
+   112.0 s   TAXI      h   28 MSL   -680 over the strip  ground   27  thr   8379 m
+   114.0 s   TAXI      h   28 MSL   -680 over the strip  ground   27  thr   8390 m
+   116.0 s   TAXI      h   28 MSL   -680 over the strip  ground   27  thr   8400 m
+   118.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8411 m
+   120.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8422 m
+   122.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8433 m
+   124.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8444 m
+   126.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8454 m
+   128.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8462 m
+   130.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8469 m
+   132.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8476 m
+   134.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8481 m
+   136.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8486 m
+   138.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8489 m
+   140.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8491 m
+   142.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8489 m
+   144.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8484 m
+   146.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8477 m
+   148.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8471 m
+   150.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8466 m
+   152.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8463 m
+   154.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8458 m
+   156.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8455 m
+   158.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8451 m
+   160.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8448 m
+   162.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8444 m
+   164.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8440 m
+   166.0 s   TAXI      h   28 MSL   -681 over the strip  ground   27  thr   8436 m
+   167.6 s  >STOP      h   28 MSL   -681 over the strip  ground   27  thr   8433 m
+   168.0 s  >HOLD      h   28 MSL   -681 over the strip  ground   27  thr   8433 m
+   170.0 s   HOLD      h   28 MSL   -681 over the strip  ground   27  thr   8433 m
+   170.0 s  >ROLL      h   28 MSL   -681 over the strip  ground   27  thr   8433 m
+   172.0 s   ROLL      h   28 MSL   -681 over the strip  ground   27  thr   8430 m
+   174.0 s   ROLL      h   28 MSL   -681 over the strip  ground   27  thr   8423 m
+   176.0 s   ROLL      h   28 MSL   -681 over the strip  ground   27  thr   8411 m
+   178.0 s   ROLL      h   28 MSL   -680 over the strip  ground   27  thr   8394 m
+   180.0 s   ROLL      h   28 MSL   -680 over the strip  ground   27  thr   8374 m
+   182.0 s   ROLL      h   29 MSL   -680 over the strip  ground   28  thr   8351 m
+   184.0 s   ROLL      h   29 MSL   -680 over the strip  ground   28  thr   8324 m
+   185.4 s  >LIFTOFF   h   29 MSL   -680 over the strip  ground   28  thr   8304 m
+   186.0 s   LIFTOFF   h   29 MSL   -680 over the strip  ground   28  thr   8295 m
+   188.0 s   LIFTOFF   h   33 MSL   -676 over the strip  ground   28  thr   8264 m
+   190.0 s   LIFTOFF   h   40 MSL   -669 over the strip  ground   28  thr   8235 m
+   192.0 s   LIFTOFF   h   47 MSL   -662 over the strip  ground   29  thr   8209 m
+   194.0 s   LIFTOFF   h   49 MSL   -660 over the strip  ground   29  thr   8185 m
+   196.0 s   LIFTOFF   h   47 MSL   -662 over the strip  ground   29  thr   8159 m
+   198.0 s   LIFTOFF   h   46 MSL   -663 over the strip  ground   29  thr   8131 m
+   200.0 s   LIFTOFF   h   48 MSL   -660 over the strip  ground   29  thr   8103 m
+   202.0 s   LIFTOFF   h   51 MSL   -658 over the strip  ground   29  thr   8074 m
+   204.0 s   LIFTOFF   h   52 MSL   -657 over the strip  ground   30  thr   8044 m
+   206.0 s   LIFTOFF   h   54 MSL   -654 over the strip  ground   30  thr   8013 m
+   208.0 s   LIFTOFF   h   58 MSL   -651 over the strip  ground   30  thr   7981 m
+   208.4 s  >CLIMB     h   59 MSL   -650 over the strip  ground   30  thr   7976 m
+   210.0 s   CLIMB     h   63 MSL   -646 over the strip  ground   30  thr   7949 m
+   212.0 s   CLIMB     h   66 MSL   -642 over the strip  ground   31  thr   7917 m
+   214.0 s   CLIMB     h   62 MSL   -647 over the strip  ground   31  thr   7882 m
+   216.0 s   CLIMB     h   67 MSL   -642 over the strip  ground   31  thr   7845 m
+   218.0 s   CLIMB     h   73 MSL   -636 over the strip  ground   31  thr   7810 m
+   220.0 s   CLIMB     h   79 MSL   -630 over the strip  ground   32  thr   7775 m
+   222.0 s   CLIMB     h   85 MSL   -624 over the strip  ground   32  thr   7740 m
+   224.0 s   CLIMB     h   91 MSL   -618 over the strip  ground   32  thr   7707 m
+   226.0 s   CLIMB     h   97 MSL   -612 over the strip  ground   32  thr   7676 m
+   228.0 s   CLIMB     h  102 MSL   -607 over the strip  ground   33  thr   7646 m
+   230.0 s   CLIMB     h  107 MSL   -601 over the strip  ground   33  thr   7616 m
+   232.0 s   CLIMB     h  113 MSL   -596 over the strip  ground   33  thr   7587 m
+   234.0 s   CLIMB     h  118 MSL   -591 over the strip  ground   33  thr   7559 m
+   236.0 s   CLIMB     h  123 MSL   -586 over the strip  ground   33  thr   7530 m
+   238.0 s   CLIMB     h  128 MSL   -581 over the strip  ground   34  thr   7502 m
+   240.0 s   CLIMB     h  133 MSL   -576 over the strip  ground   34  thr   7473 m
+   242.0 s   CLIMB     h  138 MSL   -570 over the strip  ground   34  thr   7444 m
+   244.0 s   CLIMB     h  144 MSL   -565 over the strip  ground   34  thr   7416 m
+   246.0 s   CLIMB     h  149 MSL   -560 over the strip  ground   35  thr   7387 m
+   247.9 s  >INBOUND   h  154 MSL   -555 over the strip  ground   35  thr   7361 m  leg INBOUND hPlan 826
+   248.0 s   INBOUND   h  154 MSL   -555 over the strip  ground   35  thr   7359 m  leg INBOUND hPlan 826
+   250.0 s   INBOUND   h  160 MSL   -549 over the strip  ground   35  thr   7331 m  leg INBOUND hPlan 826
+   252.0 s   INBOUND   h  165 MSL   -544 over the strip  ground   35  thr   7304 m  leg INBOUND hPlan 826
+   254.0 s   INBOUND   h  170 MSL   -539 over the strip  ground   35  thr   7277 m  leg INBOUND hPlan 826
+   256.0 s   INBOUND   h  175 MSL   -534 over the strip  ground   36  thr   7252 m  leg INBOUND hPlan 826
+   258.0 s   INBOUND   h  180 MSL   -529 over the strip  ground   36  thr   7226 m  leg INBOUND hPlan 826
+   260.0 s   INBOUND   h  185 MSL   -524 over the strip  ground   36  thr   7198 m  leg INBOUND hPlan 826
+   262.0 s   INBOUND   h  190 MSL   -519 over the strip  ground   36  thr   7168 m  leg INBOUND hPlan 826
+   264.0 s   INBOUND   h  195 MSL   -513 over the strip  ground   37  thr   7133 m  leg INBOUND hPlan 826
+   266.0 s   INBOUND   h  201 MSL   -508 over the strip  ground   37  thr   7094 m  leg INBOUND hPlan 826
+   268.0 s   INBOUND   h  206 MSL   -503 over the strip  ground   37  thr   7051 m  leg INBOUND hPlan 826
+   270.0 s   INBOUND   h  211 MSL   -498 over the strip  ground   39  thr   7003 m  leg INBOUND hPlan 826
+   272.0 s   INBOUND   h  216 MSL   -493 over the strip  ground   37  thr   6953 m  leg INBOUND hPlan 826
+   274.0 s   INBOUND   h  221 MSL   -488 over the strip  ground   34  thr   6900 m  leg INBOUND hPlan 826
+   276.0 s   INBOUND   h  226 MSL   -482 over the strip  ground   35  thr   6847 m  leg INBOUND hPlan 826
+   278.0 s   INBOUND   h  232 MSL   -477 over the strip  ground   36  thr   6794 m  leg INBOUND hPlan 826
+   280.0 s   INBOUND   h  237 MSL   -472 over the strip  ground   37  thr   6741 m  leg INBOUND hPlan 826
+   282.0 s   INBOUND   h  241 MSL   -467 over the strip  ground   38  thr   6689 m  leg INBOUND hPlan 826
+   284.0 s   INBOUND   h  246 MSL   -463 over the strip  ground   37  thr   6637 m  leg INBOUND hPlan 826
+   286.0 s   INBOUND   h  251 MSL   -458 over the strip  ground   37  thr   6584 m  leg INBOUND hPlan 826
+   288.0 s   INBOUND   h  255 MSL   -453 over the strip  ground   38  thr   6532 m  leg INBOUND hPlan 826
+   290.0 s   INBOUND   h  260 MSL   -448 over the strip  ground   38  thr   6480 m  leg INBOUND hPlan 826
+   292.0 s   INBOUND   h  265 MSL   -444 over the strip  ground   40  thr   6427 m  leg INBOUND hPlan 826
+   294.0 s   INBOUND   h  270 MSL   -439 over the strip  ground   43  thr   6375 m  leg INBOUND hPlan 826
+   296.0 s   INBOUND   h  275 MSL   -434 over the strip  ground   46  thr   6322 m  leg INBOUND hPlan 826
+   298.0 s   INBOUND   h  279 MSL   -430 over the strip  ground   45  thr   6270 m  leg INBOUND hPlan 826
+   300.0 s   INBOUND   h  284 MSL   -425 over the strip  ground   43  thr   6217 m  leg INBOUND hPlan 826
+   302.0 s   INBOUND   h  289 MSL   -420 over the strip  ground   45  thr   6165 m  leg INBOUND hPlan 826
+   304.0 s   INBOUND   h  293 MSL   -416 over the strip  ground   41  thr   6112 m  leg INBOUND hPlan 826
+   306.0 s   INBOUND   h  298 MSL   -411 over the strip  ground   41  thr   6059 m  leg INBOUND hPlan 826
+   308.0 s   INBOUND   h  303 MSL   -406 over the strip  ground   42  thr   6007 m  leg INBOUND hPlan 826
+   310.0 s   INBOUND   h  307 MSL   -402 over the strip  ground   46  thr   5954 m  leg INBOUND hPlan 826
+   312.0 s   INBOUND   h  312 MSL   -397 over the strip  ground   47  thr   5901 m  leg INBOUND hPlan 826
+   314.0 s   INBOUND   h  316 MSL   -393 over the strip  ground   42  thr   5848 m  leg INBOUND hPlan 826
+   316.0 s   INBOUND   h  321 MSL   -388 over the strip  ground   40  thr   5795 m  leg INBOUND hPlan 826
+   318.0 s   INBOUND   h  325 MSL   -383 over the strip  ground   37  thr   5742 m  leg INBOUND hPlan 826
+   320.0 s   INBOUND   h  330 MSL   -379 over the strip  ground   36  thr   5688 m  leg INBOUND hPlan 826
+   322.0 s   INBOUND   h  335 MSL   -374 over the strip  ground   36  thr   5635 m  leg INBOUND hPlan 826
+   324.0 s   INBOUND   h  339 MSL   -370 over the strip  ground   37  thr   5582 m  leg INBOUND hPlan 826
+   326.0 s   INBOUND   h  344 MSL   -365 over the strip  ground   34  thr   5528 m  leg INBOUND hPlan 826
+   328.0 s   INBOUND   h  349 MSL   -360 over the strip  ground   31  thr   5475 m  leg INBOUND hPlan 826
+   330.0 s   INBOUND   h  354 MSL   -355 over the strip  ground   30  thr   5422 m  leg INBOUND hPlan 826
+   332.0 s   INBOUND   h  358 MSL   -350 over the strip  ground   29  thr   5370 m  leg INBOUND hPlan 826
+   334.0 s   INBOUND   h  363 MSL   -345 over the strip  ground   28  thr   5317 m  leg INBOUND hPlan 826
+   336.0 s   INBOUND   h  368 MSL   -341 over the strip  ground   28  thr   5265 m  leg INBOUND hPlan 826
+   338.0 s   INBOUND   h  373 MSL   -336 over the strip  ground   26  thr   5213 m  leg INBOUND hPlan 826
+   340.0 s   INBOUND   h  378 MSL   -331 over the strip  ground   26  thr   5160 m  leg INBOUND hPlan 826
+   342.0 s   INBOUND   h  382 MSL   -326 over the strip  ground   24  thr   5108 m  leg INBOUND hPlan 826
+   344.0 s   INBOUND   h  387 MSL   -322 over the strip  ground   15  thr   5056 m  leg INBOUND hPlan 826
+   346.0 s   INBOUND   h  392 MSL   -317 over the strip  ground   16  thr   5005 m  leg INBOUND hPlan 826
+   348.0 s   INBOUND   h  397 MSL   -312 over the strip  ground   14  thr   4953 m  leg INBOUND hPlan 826
+   350.0 s   INBOUND   h  401 MSL   -308 over the strip  ground   12  thr   4901 m  leg INBOUND hPlan 826
+   352.0 s   INBOUND   h  405 MSL   -304 over the strip  ground   15  thr   4849 m  leg INBOUND hPlan 826
+   354.0 s   INBOUND   h  410 MSL   -299 over the strip  ground   16  thr   4797 m  leg INBOUND hPlan 826
+   356.0 s   INBOUND   h  414 MSL   -295 over the strip  ground   18  thr   4745 m  leg INBOUND hPlan 826
+   358.0 s   INBOUND   h  418 MSL   -291 over the strip  ground   21  thr   4693 m  leg INBOUND hPlan 826
+   360.0 s   INBOUND   h  422 MSL   -286 over the strip  ground   24  thr   4641 m  leg INBOUND hPlan 826
+   362.0 s   INBOUND   h  427 MSL   -282 over the strip  ground   31  thr   4588 m  leg INBOUND hPlan 826
+   364.0 s   INBOUND   h  431 MSL   -278 over the strip  ground   31  thr   4536 m  leg INBOUND hPlan 826
+   366.0 s   INBOUND   h  435 MSL   -274 over the strip  ground   31  thr   4483 m  leg INBOUND hPlan 826
+   368.0 s   INBOUND   h  439 MSL   -269 over the strip  ground   31  thr   4430 m  leg INBOUND hPlan 826
+   370.0 s   INBOUND   h  444 MSL   -265 over the strip  ground   30  thr   4378 m  leg INBOUND hPlan 826
+   372.0 s   INBOUND   h  448 MSL   -261 over the strip  ground   30  thr   4325 m  leg INBOUND hPlan 826
+   374.0 s   INBOUND   h  453 MSL   -256 over the strip  ground   29  thr   4272 m  leg INBOUND hPlan 826
+   376.0 s   INBOUND   h  457 MSL   -252 over the strip  ground   30  thr   4219 m  leg INBOUND hPlan 826
+   378.0 s   INBOUND   h  462 MSL   -247 over the strip  ground   31  thr   4167 m  leg INBOUND hPlan 826
+   380.0 s   INBOUND   h  466 MSL   -243 over the strip  ground   25  thr   4114 m  leg INBOUND hPlan 826
+   382.0 s   INBOUND   h  471 MSL   -238 over the strip  ground   19  thr   4062 m  leg INBOUND hPlan 826
+   384.0 s   INBOUND   h  475 MSL   -234 over the strip  ground   16  thr   4010 m  leg INBOUND hPlan 826
+   386.0 s   INBOUND   h  480 MSL   -229 over the strip  ground   23  thr   3958 m  leg INBOUND hPlan 826
+   388.0 s   INBOUND   h  484 MSL   -224 over the strip  ground   27  thr   3906 m  leg INBOUND hPlan 826
+   390.0 s   INBOUND   h  489 MSL   -220 over the strip  ground   30  thr   3854 m  leg INBOUND hPlan 826
+   392.0 s   INBOUND   h  494 MSL   -215 over the strip  ground   28  thr   3803 m  leg INBOUND hPlan 826
+   394.0 s   INBOUND   h  499 MSL   -210 over the strip  ground   28  thr   3752 m  leg INBOUND hPlan 826
+   396.0 s   INBOUND   h  503 MSL   -206 over the strip  ground   28  thr   3702 m  leg INBOUND hPlan 826
+   398.0 s   INBOUND   h  508 MSL   -201 over the strip  ground   33  thr   3652 m  leg INBOUND hPlan 826
+   400.0 s   INBOUND   h  513 MSL   -196 over the strip  ground   33  thr   3602 m  leg INBOUND hPlan 826
+   402.0 s   INBOUND   h  518 MSL   -191 over the strip  ground   35  thr   3552 m  leg INBOUND hPlan 826
+   402.1 s  >FINAL     h  518 MSL   -191 over the strip  ground   35  thr   3550 m  leg FINAL hPlan 682
+   404.0 s   FINAL     h  523 MSL   -186 over the strip  ground   40  thr   3501 m  leg FINAL hPlan 682
+   406.0 s   FINAL     h  527 MSL   -182 over the strip  ground   45  thr   3447 m  leg FINAL hPlan 682
+   408.0 s   FINAL     h  530 MSL   -179 over the strip  ground   44  thr   3390 m  leg FINAL hPlan 682
+   410.0 s   FINAL     h  531 MSL   -177 over the strip  ground   42  thr   3331 m  leg FINAL hPlan 682
+   412.0 s   FINAL     h  533 MSL   -176 over the strip  ground   44  thr   3271 m  leg FINAL hPlan 682
+   414.0 s   FINAL     h  534 MSL   -175 over the strip  ground   47  thr   3211 m  leg FINAL hPlan 682
+   416.0 s   FINAL     h  535 MSL   -173 over the strip  ground   49  thr   3150 m  leg FINAL hPlan 682
+   418.0 s   FINAL     h  537 MSL   -172 over the strip  ground   51  thr   3090 m  leg FINAL hPlan 682
+   420.0 s   FINAL     h  539 MSL   -170 over the strip  ground   53  thr   3030 m  leg FINAL hPlan 682
+   422.0 s   FINAL     h  541 MSL   -168 over the strip  ground   54  thr   2970 m  leg FINAL hPlan 682
+   424.0 s   FINAL     h  543 MSL   -166 over the strip  ground   60  thr   2910 m  leg FINAL hPlan 682
+   426.0 s   FINAL     h  545 MSL   -163 over the strip  ground   65  thr   2851 m  leg FINAL hPlan 682
+   428.0 s   FINAL     h  548 MSL   -161 over the strip  ground   64  thr   2793 m  leg FINAL hPlan 682
+   430.0 s   FINAL     h  551 MSL   -158 over the strip  ground   63  thr   2735 m  leg FINAL hPlan 682
+   432.0 s   FINAL     h  554 MSL   -155 over the strip  ground   67  thr   2677 m  leg FINAL hPlan 682
+   434.0 s   FINAL     h  557 MSL   -152 over the strip  ground   62  thr   2619 m  leg FINAL hPlan 682
+   436.0 s   FINAL     h  560 MSL   -149 over the strip  ground   68  thr   2562 m  leg FINAL hPlan 682
+   438.0 s   FINAL     h  563 MSL   -146 over the strip  ground   62  thr   2505 m  leg FINAL hPlan 682
+   440.0 s   FINAL     h  566 MSL   -143 over the strip  ground   48  thr   2447 m  leg FINAL hPlan 682
+   442.0 s   FINAL     h  569 MSL   -140 over the strip  ground   47  thr   2390 m  leg FINAL hPlan 682
+   444.0 s   FINAL     h  572 MSL   -137 over the strip  ground   55  thr   2332 m  leg FINAL hPlan 682
+   446.0 s   FINAL     h  575 MSL   -134 over the strip  ground   62  thr   2274 m  leg FINAL hPlan 682
+   448.0 s   FINAL     h  578 MSL   -131 over the strip  ground   70  thr   2216 m  leg FINAL hPlan 682
+   450.0 s   FINAL     h  581 MSL   -128 over the strip  ground   74  thr   2158 m  leg FINAL hPlan 682
+   452.0 s   FINAL     h  584 MSL   -124 over the strip  ground   72  thr   2101 m  leg FINAL hPlan 682
+   454.0 s   FINAL     h  588 MSL   -121 over the strip  ground   67  thr   2043 m  leg FINAL hPlan 682
+   456.0 s   FINAL     h  591 MSL   -118 over the strip  ground   63  thr   1985 m  leg FINAL hPlan 682
+   458.0 s   FINAL     h  594 MSL   -114 over the strip  ground   60  thr   1928 m  leg FINAL hPlan 682
+   460.0 s   FINAL     h  598 MSL   -111 over the strip  ground   56  thr   1870 m  leg FINAL hPlan 682
+   462.0 s   FINAL     h  601 MSL   -107 over the strip  ground   54  thr   1813 m  leg FINAL hPlan 682
+   464.0 s   FINAL     h  605 MSL   -104 over the strip  ground   53  thr   1755 m  leg FINAL hPlan 682
+   466.0 s   FINAL     h  608 MSL   -101 over the strip  ground   51  thr   1697 m  leg FINAL hPlan 682
+   468.0 s   FINAL     h  612 MSL    -97 over the strip  ground   43  thr   1639 m  leg FINAL hPlan 682
+   470.0 s   FINAL     h  615 MSL    -94 over the strip  ground   37  thr   1581 m  leg FINAL hPlan 682
+   472.0 s   FINAL     h  618 MSL    -90 over the strip  ground   42  thr   1523 m  leg FINAL hPlan 682
+   474.0 s   FINAL     h  622 MSL    -87 over the strip  ground   60  thr   1464 m  leg FINAL hPlan 682
+   476.0 s   FINAL     h  625 MSL    -84 over the strip  ground   69  thr   1405 m  leg FINAL hPlan 682
+   478.0 s   FINAL     h  628 MSL    -80 over the strip  ground   84  thr   1346 m  leg FINAL hPlan 682
+   480.0 s   FINAL     h  632 MSL    -77 over the strip  ground  104  thr   1287 m  leg FINAL hPlan 682
+   482.0 s   FINAL     h  635 MSL    -74 over the strip  ground  112  thr   1227 m  leg FINAL hPlan 682
+   484.0 s   FINAL     h  638 MSL    -71 over the strip  ground  128  thr   1168 m  leg FINAL hPlan 682
+   486.0 s   FINAL     h  641 MSL    -68 over the strip  ground  144  thr   1108 m  leg FINAL hPlan 682
+   488.0 s   FINAL     h  644 MSL    -65 over the strip  ground  161  thr   1048 m  leg FINAL hPlan 682
+   490.0 s   FINAL     h  647 MSL    -61 over the strip  ground  195  thr    988 m  leg FINAL hPlan 682
+   492.0 s   FINAL     h  650 MSL    -58 over the strip  ground  233  thr    927 m  leg FINAL hPlan 682
+   494.0 s   FINAL     h  653 MSL    -55 over the strip  ground  267  thr    866 m  leg FINAL hPlan 682
+   496.0 s   FINAL     h  656 MSL    -52 over the strip  ground  327  thr    805 m  leg FINAL hPlan 682
+   498.0 s   FINAL     h  659 MSL    -49 over the strip  ground  380  thr    744 m  leg FINAL hPlan 682
+   500.0 s   FINAL     h  662 MSL    -46 over the strip  ground  425  thr    682 m  leg FINAL hPlan 682
+   502.0 s   FINAL     h  666 MSL    -43 over the strip  ground  478  thr    620 m  leg FINAL hPlan 682
+   504.0 s   FINAL     h  669 MSL    -40 over the strip  ground  496  thr    559 m  leg FINAL hPlan 682
+   506.0 s   FINAL     h  672 MSL    -37 over the strip  ground  482  thr    497 m  leg FINAL hPlan 682
+   508.0 s   FINAL     h  675 MSL    -34 over the strip  ground  478  thr    435 m  leg FINAL hPlan 682
+   510.0 s   FINAL     h  678 MSL    -31 over the strip  ground  494  thr    373 m  leg FINAL hPlan 682
+   512.0 s   FINAL     h  681 MSL    -28 over the strip  ground  514  thr    312 m  leg FINAL hPlan 682
+   514.0 s   FINAL     h  684 MSL    -25 over the strip  ground  553  thr    250 m  leg FINAL hPlan 682
+   516.0 s   FINAL     h  686 MSL    -23 over the strip  ground  605  thr    189 m  leg FINAL hPlan 682
+   518.0 s   FINAL     h  686 MSL    -23 over the strip  ground  649  thr    129 m  leg FINAL hPlan 682
+   520.0 s   FINAL     h  685 MSL    -24 over the strip  ground  665  thr     70 m  leg FINAL hPlan 682
+   520.9 s  >FLARE     h  684 MSL    -24 over the strip  ground  671  thr     45 m  leg FINAL hPlan 682
+   522.0 s   FLARE     h  684 MSL    -25 over the strip  ground  679  thr     13 m  leg FINAL hPlan 682
+   524.0 s   FLARE     h  687 MSL    -22 over the strip  ground  684  thr    -40 m  leg FINAL hPlan 682
+   525.4 s  >ROLLOUT   h  688 MSL    -21 over the strip  ground  687  thr    -75 m  leg FINAL hPlan 682
+   526.0 s   ROLLOUT   h  690 MSL    -19 over the strip  ground  689  thr    -89 m  leg FINAL hPlan 682
+   528.0 s   ROLLOUT   h  694 MSL    -15 over the strip  ground  693  thr   -132 m  leg FINAL hPlan 682
+   530.0 s   ROLLOUT   h  698 MSL    -11 over the strip  ground  697  thr   -167 m  leg FINAL hPlan 682
+   532.0 s   ROLLOUT   h  700 MSL     -9 over the strip  ground  699  thr   -190 m  leg FINAL hPlan 682
+   534.0 s   ROLLOUT   h  700 MSL     -8 over the strip  ground  699  thr   -183 m  leg FINAL hPlan 682
+   536.0 s   ROLLOUT   h  701 MSL     -8 over the strip  ground  700  thr   -181 m  leg FINAL hPlan 682
+   536.2 s  SAY slope: stopped on a 9.2 % grade — rolling 150 m on to the level part
+   538.0 s   ROLLOUT   h  701 MSL     -8 over the strip  ground  700  thr   -179 m  leg FINAL hPlan 682
+   540.0 s   ROLLOUT   h  701 MSL     -8 over the strip  ground  700  thr   -173 m  leg FINAL hPlan 682
+   542.0 s   ROLLOUT   h  702 MSL     -7 over the strip  ground  701  thr   -166 m  leg FINAL hPlan 682
+   544.0 s   ROLLOUT   h  703 MSL     -6 over the strip  ground  702  thr   -158 m  leg FINAL hPlan 682
+   546.0 s   ROLLOUT   h  703 MSL     -6 over the strip  ground  702  thr   -152 m  leg FINAL hPlan 682
+   548.0 s   ROLLOUT   h  704 MSL     -5 over the strip  ground  703  thr   -146 m  leg FINAL hPlan 682
+   550.0 s   ROLLOUT   h  704 MSL     -5 over the strip  ground  703  thr   -140 m  leg FINAL hPlan 682
+   552.0 s   ROLLOUT   h  705 MSL     -4 over the strip  ground  704  thr   -134 m  leg FINAL hPlan 682
+   554.0 s   ROLLOUT   h  705 MSL     -4 over the strip  ground  704  thr   -128 m  leg FINAL hPlan 682
+   556.0 s   ROLLOUT   h  706 MSL     -3 over the strip  ground  705  thr   -123 m  leg FINAL hPlan 682
+   558.0 s   ROLLOUT   h  706 MSL     -3 over the strip  ground  705  thr   -116 m  leg FINAL hPlan 682
+   560.0 s   ROLLOUT   h  707 MSL     -2 over the strip  ground  706  thr   -110 m  leg FINAL hPlan 682
+   562.0 s   ROLLOUT   h  707 MSL     -2 over the strip  ground  706  thr   -104 m  leg FINAL hPlan 682
+   564.0 s   ROLLOUT   h  708 MSL     -1 over the strip  ground  707  thr    -98 m  leg FINAL hPlan 682
+   566.0 s   ROLLOUT   h  708 MSL     -1 over the strip  ground  707  thr    -92 m  leg FINAL hPlan 682
+   568.0 s   ROLLOUT   h  708 MSL     -0 over the strip  ground  707  thr    -86 m  leg FINAL hPlan 682
+   570.0 s   ROLLOUT   h  709 MSL     -0 over the strip  ground  708  thr    -80 m  leg FINAL hPlan 682
+   572.0 s   ROLLOUT   h  709 MSL      0 over the strip  ground  708  thr    -74 m  leg FINAL hPlan 682
+   574.0 s   ROLLOUT   h  709 MSL      0 over the strip  ground  708  thr    -68 m  leg FINAL hPlan 682
+   576.0 s   ROLLOUT   h  709 MSL      0 over the strip  ground  708  thr    -62 m  leg FINAL hPlan 682
+   578.0 s   ROLLOUT   h  709 MSL      1 over the strip  ground  708  thr    -56 m  leg FINAL hPlan 682
+   580.0 s   ROLLOUT   h  710 MSL      1 over the strip  ground  709  thr    -50 m  leg FINAL hPlan 682
+   582.0 s   ROLLOUT   h  710 MSL      1 over the strip  ground  709  thr    -44 m  leg FINAL hPlan 682
+   584.0 s   ROLLOUT   h  710 MSL      1 over the strip  ground  709  thr    -39 m  leg FINAL hPlan 682
+   586.0 s   ROLLOUT   h  710 MSL      1 over the strip  ground  709  thr    -34 m  leg FINAL hPlan 682
+   586.2 s  >STOPPED   h  710 MSL      1 over the strip  ground  709  thr    -33 m  leg FINAL hPlan 682
+END STOPPED t 586 s  landing {"run":124,"sink":-0.97,"V":20.2,"offCentre":3.7,"pastAim":52,"k":1,"three":true,"onStrip":true,"tdIn":74,"stopLeft":181}  damage {"yields":0,"breaks":0,"over":false,"reason":null}

@@ -1,0 +1,12 @@
+  the user's Jodel: ok   HOME > tw_ski          789 s | dep: turned 103.2 deg, roll 108.9 m in, lift-off 193.6 m | final 3558.3 m / 787.9 m, clear 14.5 m (ground) | td sink -1.14 m/s, 20.9 m/s, run 132 m, off 3.8 m | fuel 42.1 L (1053 s)
+    verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 26.2 m/s until clear | climb-hold: 366 m under the height the final to Skyline Altiport starts from (the climb planned 349 m short) - circling here, climbing, before the approach | slope: stopped on a 9.1 % grade — rolling 140 m on to the level part
+    flares [{"low":685.2,"over":5.7,"d":28.6,"t":727.2}]
+    final {"h":828.9,"d":3558.3,"hC":130}
+  ok   1 the user's Jodel HOME > tw_ski: the game's flight (the 8 kt / 250 deg day, the page's pilot, the damage on)  ({"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1},"shake":true,"damage":true,"fuel":45,"mass":463})
+  ok   1 the user's Jodel HOME > tw_skia: stopped at Skyline Altiport with no fault (what the page saw)  (td {"run":132,"sink":-1.14,"V":20.9,"offCentre":3.8,"pastAim":48,"k":1,"three":true,"onStrip":true,"tdIn":71,"stopLeft":177})
+  ok   1 the user's Jodel HOME > tw_skia: landed on Skyline Altiport  (on tw_ski)
+  ok   1 the user's Jodel HOME > tw_skib: the final begun at the field's circuit height (>= 766 m, over the strip's 709 m)  (FINAL at 828.9 m MSL, 3558.3 m out (120.1 m over the strip's highest ground; the circuit 130 m))
+  ok   1 the user's Jodel HOME > tw_skic: every flare armed over the strip, at most 25 m above it  (5.7 m over the strip's lowest ground 28.6 m out at 727.2 s)
+  ok   1 the user's Jodel HOME > tw_skid: the final's lowest node 3 m over the ground and the forest  (14.5 m (ground, 41.9 m out))
+GATE ALTIPORT [shard 0/3]: PASS
+SHARD 0/3: 1 of 3 heavy jobs
