@@ -560,6 +560,12 @@ if (plots.length) {
     ed.cmd('setProp', { id: cid, prop: 'marks', patch: { kind: 'hatch' } });
     const K3 = PG.roadBuildKeys(Ok()), d3 = diff(K2, K3);
     check(d3.length === 0, '14d its marks changed (paint, not its shape): no road drawn again - the pavement polygon is drawn again on its own', d3.join()); }
+  { // (G2960) a strip moved: the roads near it drawn again, not the island's (a strip was in every road's key)
+    const Ka = PG.roadBuildKeys(Ok()), w = rec().layers.runways.find(r => r.id === 'w3');
+    ed.cmd('set', { id: 'w3', patch: { c: [w.c[0] + 10, w.c[1]] } });
+    const Kb = PG.roadBuildKeys(Ok()), dw = Array.from(Ka.keys()).filter(id => Ka.get(id) !== Kb.get(id));
+    check(dw.length < Ka.size / 3, '14d a strip moved (w3): ' + dw.length + ' of ' + Ka.size + ' roads drawn again - those near it, not the island', dw.join());
+    ed.undo(); }
   { const rd = Ok().roads.find(r => r.id === 'r_airport'), far = Ok().roads.find(r => r.id === 'mn_main'), q = rd.pts[Math.floor(rd.pts.length / 2)];
     const box = { x0: q[0] - 5, z0: q[1] - 5, x1: q[0] + 5, z1: q[1] + 5 };
     check(PG.roadBoxTouch(rd, box, 30) && !PG.roadBoxTouch(far, box, 30), '14d a ground edit\'s box: the road under it drawn again, a road far from it not'); }
