@@ -86808,3 +86808,17 @@ Gates on the formula (sigB = gamma(R/t) x 0.605 E t / R at the station's ring), 
 50/50); 10:08-10:17, each its own process: DMGGEAR, DMGCLUSTERS, DMGINTEGRITY, DMGCERT, DMGCERTCOST, DMGMEMBERS PASS.
 With the 08:35 battery on this tip (GEN, PILOT, TAKEOFF, SEAPLANE, FLOATS, BENCH, SPECFIX, JOIN, FIN, FIT, DESIGN,
 FLEX, LOAD, SIMWORKER, ACCEPT, GEOPARITY, DESIGNCHECK, DMGCERT, DMGCERTCOST, DMGMEMBERS) - READY for 43.1.
+
+### G2640 - GATE DMGSKIN's floats "hop" row (12 Oct, the 43.1 hold): a window artefact, not a host/worker divergence
+DMGSKIN failed on this ref alone (Cessna floats, severe nose-in: "the sets the same ... at the end past its window").
+Measured in A0's slots (17:30, 18:55; tools: a one-process diagnostic, inline sim vs the worker host's): the two sims
+are BITWISE EQUAL at every one of the 240 steps and the 7-step tail; the sets match at every host send; the broken list
+and pieces match. What differs: on this ref the floats' SHELL parts at its ROOT at step 9 and its loose tail, quiet
+for the last second, yields again in the gate's tail (+28 at the tail's step 4, sent by both; +26 at step 5, sent by
+the inline, held by the host inside its 0.1 s set window) - and the gate compared once, at the fixed 7th step: one
+member (303) inline -0.001583 vs the host's last send -0.001036. With the shell off, or its sigB off, nothing yields in
+the tail and the row passes. FIX (tools/_dmg_skin_check.js, a separate commit for DEFORM'S REVIEW - the gate is
+theirs): compare once the host has caught up (its last send carries the inline's own signature, 7 steps at least,
+1 s at most; a wreck that never quiets is judged at the host's last send); a wreck at rest ends at the same 7th step.
+NAMED CRASH CHANGE (damage ON, the user will see it): in the floats' severe nose-in (150 km/h, 10 m/s, 60 deg) the
+SHELL now parts at the ROOT at 0.15 s - the tail comes off; on master the FIN goes at 0.53 s.
