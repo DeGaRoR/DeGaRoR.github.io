@@ -1920,9 +1920,11 @@ function roadBuildKeys(O) {
   const dig = new Map(), bbs = new Map();
   for (const q of roads) if (q && q.pts && q.pts.length > 1) { dig.set(q, fnv(JSON.stringify([q.id, q.pts, q.w]))); bbs.set(q, polyBBox(q.pts)); }
   const plots = ((O && O.records && O.records.plots) || []).filter(p => p && p.poly && p.poly.length >= 3).map(p => [polyBBox(p.poly), fnv(JSON.stringify(p.poly))]);
-  const strips = ((O && O.runways) || []).map(r => [r.id, r.c, r.len, r.wid, r.hdg]);
+  // (G2960: a strip enters the key of the roads NEAR it only - its box grown by its shoulder - a strip's edit kept every
+  //  road of the island drawn again)
+  const strips = ((O && O.runways) || []).filter(r => r && r.c && r.len > 0).map(r => [polyBBox(runwayBox(Object.assign({}, RUNWAY_DEF, r), runwayShoulder(Object.assign({}, RUNWAY_DEF, r)) + 30)), fnv(JSON.stringify([r.id, r.c, r.len, r.wid, r.hdg, r.profile || null, r.slope || 0]))]);
   const paved = ((O && O.pavePolys) || []).map(pp => [pp.bbox || polyBBox(pp.poly), fnv(JSON.stringify([pp.id, pp.poly, pp.look]))]);
-  const glob = JSON.stringify([(O && O.pavement) || null, (O && O.rec && O.rec.theme) || null, strips]);
+  const glob = JSON.stringify([(O && O.pavement) || null, (O && O.rec && O.rec.theme) || null]);
   for (const rd of roads) {
     if (!rd || !rd.pts || rd.pts.length < 2) continue;
     const bb = bbs.get(rd), m = (+rd.w || 3.6) / 2 + 14;
@@ -1931,6 +1933,7 @@ function roadBuildKeys(O) {
     for (const q of roads) if (q !== rd && dig.has(q) && near(bbs.get(q))) ctx.push(dig.get(q));
     for (const [b, h] of plots) if (near(b)) ctx.push(h);
     for (const [b, h] of paved) if (near(b)) ctx.push(h);
+    for (const [b, h] of strips) if (near(b)) ctx.push(h);
     out.set(rd.id, fnv(JSON.stringify([rd, recRoads.get(rd.id) || null])).toString(36) + ':' + fnv(glob + '|' + ctx.join(',')).toString(36));
   }
   return out;
@@ -2141,6 +2144,13 @@ const roadClearOf = r => (!r || r.clear === null || r.clear === undefined || r.c
 // A PLOT'S GROUND (contract v1.35, G2890; the user: "an option to disable plot ground drawing for the houses. The ones
 // on the shore draw grass up till the sea"): a zone's `rules.ground === false` takes the lot patch and the lawn off every
 // plot it sows, `rules.noGround` [plot ids] off those plots alone; a site item's `P.plotGround === false` off its own lot
+// A PLOT'S FENCE (G3007; the user: "we need an option to turn off the fencing around the plots too"): a zone's
+// `rules.fences === false` takes the fence off every plot it sows, `rules.noFence` [plot ids] off those plots alone (the
+// plot's boundary, its house and the rest of its lot as they were); absent - today's fences, every plot record the same
+function plotFenceOff(zone, plotId) {
+  const R = (zone && zone.rules) || {};
+  return R.fences === false || (Array.isArray(R.noFence) && R.noFence.indexOf(plotId) >= 0);
+}
 function plotGroundOff(zone, plotId) {
   const R = (zone && zone.rules) || {};
   return R.ground === false || (Array.isArray(R.noGround) && R.noGround.indexOf(plotId) >= 0);
@@ -3639,7 +3649,7 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; O.records.plots.push(p); n++; }
+        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // (v1.33) a zone below its stage's band sowed to hold its land; its plots go now, their ground kept clear of trees
@@ -4092,7 +4102,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,

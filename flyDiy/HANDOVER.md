@@ -84392,11 +84392,12 @@ futureDesigns/SCENERY-POLYGON-2026-10.md.
   15 of 74 lamp meshes.
 - **THE USER'S ROAD SHIPPED (G2956; the user, 11 Oct: "Please extract my long road to put in official, but this runway
   does not get into anything but my local save before it is fixed").** `tools/road_ship.py` copied r1 of their rev 24
-  save (D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev24_2026-10-11_2030.json, sha256 e1767c67206e84d6, read only)
+  save - since 12 Oct 03:05 its rev 26 (D:/Dev/flydiy-notes/scenery-backups/Jolene_AFB_rev26_2026-10-12_0305.json, sha256
+  e75298b709ac09db, read only: "all new editions can be considered default"; r1's last three points moved, the rest as rev 24's)
   into tools/fixtures/island_jolene.json as saved - 254 points + handles, w 7.2, paved, graded, falloff 13, spline,
   traffic 1, clear 2 - appended after the fixture's roads (graded last, as in their save), every other byte of the
   fixture kept; NOTHING else of the save (not their strips 'strip 8' / 'strip 9', not their other edits). The entry
-  is kept with the save's sha256 in tools/fixtures/scenery_user_r1_rev24.json; GATE SCENERYED 13 holds the shipped r1
+  is kept with the save's sha256 in tools/fixtures/scenery_user_r1_rev26.json; GATE SCENERYED 13 holds the shipped r1
   equal to it bit for bit. `tools/road_cross.js r1` (20:40, a 0.1 s probe): it crosses NO runway box, stand, hangar
   or taxi route. It crosses, with no junction (r1 is not moved to make one - the user's to join): the Metlakatla
   streets mk_sa00 (-2653.0, -8643.4), mk_sa02 (-2735.7, -8663.6), mk_sa04 (-2849.0, -8690.2), mk_r_walden

@@ -6706,7 +6706,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     }
     // THE PREMISES' STRIPS REPAINTED (v8): after a live edit the decal, the sock and the far patch of
     // every premises strip are taken away and stood again from the registry as it is now
-    repaintStrips = () => {
+    // (G3008) A REPAINT ONLY WHEN A STRIP IS CONCERNED: every edit of the premises (a road's, a site's, an area's) stood
+    // EVERY strip of the island again - its fine ground, its pavement, its lights, its socks, its rocks - and merged them
+    // again. Now: repaintStrips(box) with a world box (a ground edit's) stands them again when a strip's composed record
+    // changed or the box reaches one; repaintStrips(null) (no ground moved) when a record changed; repaintStrips() always
+    let stripSig = null;
+    const stripSigOf = () => { const m = new Map(); for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow' && a.kind !== 'water') { let s; try { s = JSON.stringify(a); } catch (e) { s = String(Math.random()); } m.set(a.id, s); } return m; };
+    repaintStrips = (box) => {
+      if (box !== undefined && stripSig && typeof window !== 'undefined' && window.FLYDIY_STRIPALWAYS !== true) {
+        const now = stripSigOf(); let need = now.size !== stripSig.size;
+        for (const [id, s] of now) { if (stripSig.get(id) !== s) { need = true; break; } }
+        if (!need && box) for (const a of world.aerodromes) { if (!a.premises || !now.has(a.id)) continue; const r = (+a.len || 0) / 2 + 160;
+          if (a.x + r >= box.x0 && a.x - r <= box.x1 && a.z + r >= box.z0 && a.z - r <= box.z1) { need = true; break; } }
+        if (!need) return false;
+      }
+      stripSig = stripSigOf();
       unmergeStrips();
       for (const [id, stood] of stripStood) {
         const a0 = world.aerodromes.find(q => q.id === id);
@@ -7364,7 +7378,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
     // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier
     // asked for this so the WEATHER panel and the pilot's briefing can quote the real one.
-    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, treeShadowed, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(), townGeoFinish: () => geoStep(0, true), get farLod() { return farLod; },   // (G2063: the far tier's cut and patch cache, for a rig)
+    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, treeShadowed, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: (box) => repaintStrips(box), townGeoFinish: () => geoStep(0, true), get farLod() { return farLod; },   // (G2063: the far tier's cut and patch cache, for a rig)
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
