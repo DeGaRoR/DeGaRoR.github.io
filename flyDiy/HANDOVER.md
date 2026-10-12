@@ -85303,7 +85303,12 @@ for an object nothing earlier in the composition reads.
   renderer that cannot, an aeroplane, a road's edit: rebuilt; the scale on the record; the roads' keys row by row; the
   times headless (an object's release 0.1 ms through the editor vs 15 ms with a rebuild's composition; the keys 6 ms
   for 77 roads).
-- **THE PAGE'S NUMBERS (before / after, the user's file with r1):** RELEASE_LINE
+- **THE PAGE'S NUMBERS (before / after; dev.html, the user's rev 23 with the town on, GPU-locked slot 12 Oct 11:45, one
+  sample each, the command's own time):** a placed prop turned 9-18 ms (before: 799 ms, `FLYDIY_PLACERFAST=false`);
+  its drag released 30 ms; a drop 3 ms. A site item dragged (s_club's clubhouse) 1.3 s (before: 2.5 s, the road cache off
+  and every strip stood again); a road's traffic changed (r_village) 2.1 s (before: 2.5 s). The object path is done;
+  a site item's and a road's edits still compose the record with the town (about 1 s of it) - EDITOR-PERF's (G3080)
+  core commit rides this train (the composition 3.95 -> 0.99 s with the town) and its step 2 is the renderer's share.
 
 **What to watch for (the user):** drag a placed model, let go: it stands at once where you left it, no pause; R turns
 it at once; the scale slider holds (it was lost before). Change a road's traffic: the island does not stall while the
