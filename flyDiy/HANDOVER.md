@@ -86818,7 +86818,9 @@ for the last second, yields again in the gate's tail (+28 at the tail's step 4, 
 the inline, held by the host inside its 0.1 s set window) - and the gate compared once, at the fixed 7th step: one
 member (303) inline -0.001583 vs the host's last send -0.001036. With the shell off, or its sigB off, nothing yields in
 the tail and the row passes. FIX (tools/_dmg_skin_check.js, a separate commit for DEFORM'S REVIEW - the gate is
-theirs): compare once the host has caught up (its last send carries the inline's own signature, 7 steps at least,
-1 s at most; a wreck that never quiets is judged at the host's last send); a wreck at rest ends at the same 7th step.
+theirs; reviewed and tightened by Deform): judged once the host has caught up (its last applied signature equals the
+inline's, 7 steps at least); a host still behind once the inline has been quiet for its 0.1 s window + 2 steps is a
+FAIL ("the host never flushed its last set" - the host flushes on the trailing edge, so that would be a lost flush);
+only a wreck never quiet inside a second is judged at the host's last send; at rest the same 7th step as before.
 NAMED CRASH CHANGE (damage ON, the user will see it): in the floats' severe nose-in (150 km/h, 10 m/s, 60 deg) the
 SHELL now parts at the ROOT at 0.15 s - the tail comes off; on master the FIN goes at 0.53 s.
