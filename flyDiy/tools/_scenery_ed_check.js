@@ -775,6 +775,110 @@ if (plots.length) {
   check(/'plot fences'/.test(UI_SRC) && /pick plots: a click switches one plot\\'s fence/.test(UI_SRC) && /name === 'plotFence'/.test(UI_SRC), '19 the zone\'s inspector: the fences switch and the plot pick');
 }
 
+// 20 EDITOR-PERF (G3080-G3089; the user, 12 Oct: "If I'm stuck later this week with no credits, I'd rather have a good
+//    editor, not as laggy as the current one"). On the user's own scenery (rev 26: 46 roads, 77 km - the island road r1
+//    25 km -, 56 areas, 37 sites, 144 objects; tools/fixtures/scenery_user_jolene_rev26.json, their backup byte for byte):
+//    20a THE ISLAND ROAD'S QUERIES ARE EXACT (G3081): roadDist with its coarse rings is the walk to the bit, near and
+//        far (a point 384 m+ from r1 walked its ~2 500 segments: r1's box is the island); roadDistNear is roadDist within
+//        its reach and Infinity past it; roadCrossesPoly is roadInPoly's "any sample inside"; roadInPoly, skipping the
+//        samples of segments whose box misses the polygon's, gives the walk's intervals - with Metlakatla put back
+//    20b THE TIMES (headless, node, the stub renderer composing on the synthetic ground - the core and the editor's half
+//        of each action; the page's half is tools/perf/editor_perf.js's): the composition, alone and with the town; then
+//        each action class through the editor's own commands, each under its bound (EP_BUDGET)
+//    20c THE PAGE'S HOOKS (source): the open stands the world as it is (R.editStart) when the record is the renderer's;
+//        a select draws the selection's lines only; the outlines kept by entry and ground box; the rebuild timed by
+//        step; the editor's actions in the flight log ('edit'), and tools/analyze_log.js's EDITOR section
+{
+  const EP_BUDGET = { compose: 600, composeTown: 2500, load: 900, select: 60, roadDrag: 700, areaDrag: 700, siteDrag: 700, objectDrag: 30, stripDrag: 700, taxiDrag: 700, traffic: 700, rotate: 30, undo: 700, redo: 700, deleteUndo: 60 };
+  const txt = fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev26.json'), 'utf8');
+  check(require('crypto').createHash('sha256').update(txt).digest('hex').slice(0, 16) === 'e75298b709ac09db', '20 the fixture is the user\'s rev 26 backup byte for byte');
+  const Tm = f => { const t = process.hrtime.bigint(); const r = f(); return [Number(process.hrtime.bigint() - t) / 1e6, r]; };
+  const U = PG.unwrap(txt).rec, J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
+  const withTown = PG.restorePlaces(U, PG.dropPlaces(J, ['mk_']).cut);
+  // 20a: a deterministic scatter over the island, every long road, near (on its points, a few metres off) and far
+  const walk = (r, x, z) => { let d = Infinity; for (let i = 1; i < r.pts.length; i++) { const e = PG.distPtSeg(x, z, r.pts[i - 1], r.pts[i]); if (e < d) d = e; } return d; };
+  const lines = withTown.layers.roads.filter(r => r.pts && r.pts.length >= 2).map(r => ({ id: r.id, pts: r.curve === 'spline' || r.smooth ? PG.roadLine(r) : r.pts, w: +r.w || 3.6 })).filter(r => r.pts.length >= 48);
+  let nQ = 0, badDist = 0, badNear = 0;
+  for (const r of lines) {
+    const P = [];
+    for (let i = 0; i < 160; i++) P.push([-14000 + 28000 * ((i * 0.6180339887) % 1), -14000 + 28000 * ((i * 0.7548776662) % 1)]);
+    for (let i = 0; i < r.pts.length; i += 7) { const q = r.pts[i]; P.push([q[0] + 3.3, q[1] - 1.7], [q[0] - 40, q[1] + 25], [q[0] + 420, q[1] - 150]); }
+    for (const [x, z] of P) {
+      nQ++; const D = walk(r, x, z);
+      if (!Object.is(PG.roadDist(r, x, z), D)) badDist++;
+      for (const lim of [2.3, 12, 150]) { const v = PG.roadDistNear(r, x, z, lim); if (!(D <= lim ? Object.is(v, D) : v === Infinity)) badNear++; }
+    }
+  }
+  check(lines.length >= 3 && badDist === 0, '20a roadDist with the coarse rings is the walk to the bit (' + nQ + ' queries over ' + lines.length + ' long roads, ' + badDist + ' differ)');
+  check(badNear === 0, '20a roadDistNear: roadDist within its reach, Infinity past it (' + (nQ * 3) + ' queries, ' + badNear + ' wrong)');
+  // the walk roadInPoly was (G3081 keeps its samples and its answers): every 2 m, and the end
+  const inPolySlow = (road, poly) => { const out = []; let t0 = null; for (let t = 0; ; t += 2) { const tt = Math.min(t, road.length), p = road.at(tt).p, inside = PG.inPoly(poly, p[0], p[1]);
+    if (inside && t0 === null) t0 = tt; if (!inside && t0 !== null) { out.push([t0, tt]); t0 = null; } if (tt >= road.length) break; } if (t0 !== null) out.push([t0, road.length]); return out; };
+  let nP = 0, badIn = 0, badAny = 0, hits = 0;
+  for (const r of lines) {
+    const pr = PG.polyRoad(r.pts, r.w), polys = withTown.layers.zones.map(z => z.poly).filter(Boolean).concat((withTown.layers.areas || []).map(a => a.poly).filter(Boolean));
+    for (let i = 0; i < r.pts.length; i += 11) { const q = r.pts[i], s = 4 + (i % 5) * 6; polys.push([[q[0] - s, q[1] - s], [q[0] + s, q[1] - s * 0.5], [q[0] + s, q[1] + s], [q[0] - s * 0.3, q[1] + s]]); polys.push([[q[0] + 30, q[1] + 30], [q[0] + 42, q[1] + 30], [q[0] + 36, q[1] + 44]]); }
+    for (const poly of polys) {
+      nP++; const a = inPolySlow(pr, poly), b = PG.roadInPoly(pr, poly);
+      if (JSON.stringify(a) !== JSON.stringify(b)) badIn++;
+      if (PG.roadCrossesPoly(pr, poly) !== a.length > 0) badAny++;
+      if (a.length) hits++;
+    }
+  }
+  check(badIn === 0 && hits > 20, '20a roadInPoly skipping the segments that miss the polygon: the walk\'s intervals (' + nP + ' polygons, ' + hits + ' crossed, ' + badIn + ' differ)');
+  check(badAny === 0, '20a roadCrossesPoly: roadInPoly\'s answer on every one (' + badAny + ' wrong)');
+  // 20b: the times
+  const flat20 = { id: 'flat', terrainH: () => 0, waterH: () => -100 };   // (the town sows on level ground - the synthetic one floods it)
+  const [tC] = Tm(() => PG.compose(U, synth, { raster: false })), [tCT, OT] = Tm(() => PG.compose(withTown, flat20, { raster: false }));
+  check(tC < EP_BUDGET.compose, '20b the user\'s scenery composes under ' + EP_BUDGET.compose + ' ms (' + tC.toFixed(0) + ')');
+  check(tCT < EP_BUDGET.composeTown && OT.records.plots.length > 300, '20b ...and with Metlakatla put back under ' + EP_BUDGET.composeTown + ' ms (' + tCT.toFixed(0) + ' ms, ' + OT.records.plots.length + ' plots; 3.95 s before G3081 on the flight world)');
+  const R20 = makeR(), ed20 = UI.mount(new El('div'), { THREE: null, world: synth, R: R20, rows, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  const r20 = () => ed20.record(), T20 = {};
+  const time = (k, f) => { const [ms, v] = Tm(f); T20[k] = ms; return v; };
+  time('load', () => ed20.load(txt));
+  const len = r => { let s = 0; for (let i = 1; i < r.pts.length; i++) s += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]); return s; };
+  const road = r20().layers.roads.slice().sort((a, b) => len(b) - len(a))[0], area = r20().layers.areas.filter(a => a.poly).sort((a, b) => Math.abs(PG.polyArea(b.poly)) - Math.abs(PG.polyArea(a.poly)))[0];
+  const site = r20().layers.sites.find(s => s.at && (s.items || []).length), ob = r20().layers.objects.find(o => o.kind === 'prop' || o.kind === 'tree'), rw = r20().layers.runways.find(r => r.taxiOut && r.taxiOut.length > 1) || r20().layers.runways[0];
+  T20.select = Math.max(...[road, area, site, ob].filter(Boolean).map(e => { ed20.select(null); return Tm(() => ed20.select(e.id))[0]; }));
+  const dragTo = (e, key, dx) => { ed20.select(e.id); const h = R20.handles(e.id).find(q => q.key === key) || R20.handles(e.id)[0]; if (!h) return undefined; return Tm(() => ed20.cmd('drag', { key: h.key, x: h.p[0] + dx, z: h.p[2] }))[0]; };   // (the stub draws no strip handles: a strip's drags are the page's - editor_perf.js)
+  T20.roadDrag = dragTo(road, 'v' + (road.pts.length >> 1), 2.5);
+  if (area) T20.areaDrag = dragTo(area, 'v0', 2.5);
+  if (site) T20.siteDrag = dragTo(site, 'at', 2.5);
+  if (ob) { const n0 = R20.rebuilds || 0; T20.objectDrag = dragTo(ob, 'v0', 1.5); check((R20.rebuilds || 0) === n0, '20b a placed object\'s drag is its own edit (no composition)'); }
+  // (a strip's drags are the page's: the stub draws no strip handles, and its inspector draws a profile on a canvas - editor_perf.js)
+  ed20.select(road.id); T20.traffic = Tm(() => ed20.cmd('set', { id: road.id, patch: { traffic: (+road.traffic || 0) + 1 } }))[0];
+  if (ob) { ed20.select(ob.id); T20.rotate = Tm(() => ed20.cmd('set', { id: ob.id, patch: { yaw: (+ob.yaw || 0) + 0.3 } }))[0]; T20.deleteUndo = Tm(() => { ed20.cmd('delete', { id: ob.id }); ed20.undo(); })[0]; }
+  T20.undo = Tm(() => ed20.undo())[0]; T20.redo = Tm(() => ed20.redo())[0];
+  const over = Object.keys(T20).filter(k => !(T20[k] < EP_BUDGET[k]));
+  check(over.length === 0, '20b every action class under its bound (headless: the record and its composition)', over.map(k => k + ' ' + T20[k].toFixed(0) + ' > ' + EP_BUDGET[k]).join(', '));
+  // the open: R.editStart answers -> no rebuild; it declines -> the rebuild as before
+  { const Ra = makeR(); Ra.editStart = () => { Ra.es = (Ra.es || 0) + 1; return true; }; UI.mount(new El('div'), { THREE: null, world: synth, R: Ra, rows, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, record: txt, camera: () => null, redraw: noop });
+    const Rb = makeR(); Rb.editStart = () => false; UI.mount(new El('div'), { THREE: null, world: synth, R: Rb, rows, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, record: txt, camera: () => null, redraw: noop });
+    check(Ra.es === 1 && !Ra.rebuilds && Rb.rebuilds === 1, '20b the open: the world as it stands when the renderer says so (no rebuild), else one rebuild', [Ra.es, Ra.rebuilds, Rb.rebuilds].join());
+    // ...and the edit after a fast open composes the editor\'s record (one rebuild, the road's point where it was put)
+    const edA = UI.mount(new El('div'), { THREE: null, world: synth, R: Ra, rows, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, record: txt, camera: () => null, redraw: noop });
+    const rA = edA.record().layers.roads.find(r => r.id === road.id), q0 = rA.pts[1].slice(); edA.select(road.id);
+    edA.cmd('drag', { key: 'v1', x: q0[0] + 2, z: q0[1] });
+    const rB = Ra.overlay.rec.layers.roads.find(r => r.id === road.id);
+    check(Ra.rebuilds === 1 && rB && rB.pts[1][0] === +(q0[0] + 2).toFixed(2), '20b ...and the first edit after it composes the editor\'s record (one rebuild, the moved point in it)', [Ra.rebuilds, rB && rB.pts[1][0], q0[0] + 2].join()); }
+  // the door's test as render_premises makes it (editStart: JSON of the normalised record the editor mounts === the
+  // renderer's): the record the game hands (its world's, through the envelope) - the same; the town put back on one side
+  // only, or a stage cut - not the same: the rebuild as before (SCENERY-ED-2: "any such difference makes it decline")
+  { const door = (rendRec, editorTxt) => { let r = PG.unwrap(editorTxt).rec; try { if (PG.AREA_LAYERS.some(k => (r.layers[k] || []).some(e => PG.areaFoldable(k, e)))) PG.foldAreas(r); } catch (e) {} return JSON.stringify(PG.normalise(r)) === JSON.stringify(PG.normalise(rendRec)); };
+    const W0 = PG.unwrap(txt).rec;
+    check(door(W0, PG.envelope(W0.name || null, W0)), '20b the door: the world\'s own record through the envelope - the same (the fast open)');
+    check(!door(PG.restorePlaces(W0, PG.dropPlaces(J, ['mk_']).cut), PG.envelope(W0.name || null, W0)), '20b ...Metlakatla on the renderer\'s side only - declined (the rebuild)');
+    const W1 = JSON.parse(JSON.stringify(W0)); W1.layers.objects = W1.layers.objects.slice(1);
+    check(!door(W1, PG.envelope(W0.name || null, W0)), '20b ...one object more on the editor\'s side - declined'); }
+  // 20c: the page's hooks
+  const RP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8'), AL = fs.readFileSync(path.join(TOOLS, 'analyze_log.js'), 'utf8');
+  check(/function editStart\(r\)/.test(RP) && /JSON\.stringify\(PG\.normalise\(r\)\) === JSON\.stringify\(rec\)/.test(RP) && /window\.FLYDIY_EDITFAST === false/.test(RP) && /R\.editStart && R\.editStart\(rec\)/.test(UI_SRC), '20c the open stands the world as it is when the record is the renderer\'s (?editfast=0 the rebuild)');
+  check(/selLines\(\);.*\}\s*else buildOutlines\(\);/.test(RP) && /buildOutlines\(dirty\); buildHandles\(\); markDirty\(dirty\);/.test(RP) && /L\.sig === sig && !\(wb && boxesMeet/.test(RP), '20c a select draws the selection\'s lines; an edit\'s outlines kept by entry and ground box');
+  check(/r\.value\.steps = T/.test(RP) && /F\.event\('edit'/.test(UI_SRC) && /EDITOR \(G3082/.test(AL), '20c the rebuild timed by step, the editor\'s actions in the flight log, analyze_log\'s EDITOR section');
+  console.log('     20 EDITOR-PERF on the user\'s rev 26: ' + nQ + ' roadDist + ' + (nQ * 3) + ' roadDistNear queries and ' + nP + ' polygons exact; compose ' + tC.toFixed(0) + ' ms, with the town ' + tCT.toFixed(0) + ' ms; ' +
+    Object.keys(T20).map(k => k + ' ' + T20[k].toFixed(0)).join(', ') + ' ms (headless)');
+}
+
 // 21 ONE STRIP A DRAW (G3016; the user, 12 Oct: two strips added on top of each other - rev 24's w1 + w4, the altiport): the
 //    runway tool hands back to SELECT once a strip is placed, so two more clicks add nothing; no two shipped strips stand
 //    within 50 m of each other (Jolene's crossing 02/20 x 13/31 is 939 m centre to centre)
