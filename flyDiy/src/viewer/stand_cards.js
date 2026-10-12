@@ -24,7 +24,7 @@
 const STAND_CARDS = (() => {
   function make(THREE, ctx) {
     const { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-            ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy, rdyMin, polyMix, polyGround, POLY_CAN } = ctx;
+            ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy, rdyMin, polyMix, polyGround, POLY_CAN, sheetMean } = ctx;
     // THE WHOLE ISLAND (2026-09-22, the user: "extend the visibility range even beyond the 18 km ... just
     // filling all the parts of the island visible from the camera"): measured 171 k cards at 18 km,
     // 193 k at 26, 193.6 k at 40 - it SATURATES, because Jolene is 39 km across and there is no more
@@ -92,16 +92,46 @@ const STAND_CARDS = (() => {
       }
       const parts = [];
       for (const [mt, L] of byMat) { const g = mergeParts(L); chunkBounds(g, 1024); parts.push({ geo: g, mat: mt, cutout: !!(mt.alphaTest && mt.alphaTest > 0) }); }
-      return parts.length ? { parts } : null;
+      // G3180: each pool species' own tint uniforms (its leaf part's, its bark's light), by reference - the card's tint is
+      // their weighted mean, live (tintNow below), not the first species' alone
+      const tintOf = key => { let b = null; try { b = treeBuild(THREE, key, 1, 'rungs'); } catch (e) { return null; } if (!b) return null;
+        const leaf = b.parts.find(q => q.mat.userData && q.mat.userData.uLeaf && q.mat.userData.uLeaf.value > 0.5), bark = b.parts.find(q => q.mat.userData && q.mat.userData.uLeaf && !(q.mat.userData.uLeaf.value > 0.5) && q.mat.userData.uLight);
+        const u = leaf && leaf.mat.userData; return u && u.uHue ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight, uLightB: bark ? bark.mat.userData.uLight : u.uLight } : null; };
+      const tints = pool.map(q => ({ w: q.w, key: q.key, u: tintOf(q.key) })).filter(q => q.u);
+      return parts.length ? { parts, pool, tints } : null;
     }
-    let P0 = null, tries = 0;
+    let P0 = null, tries = 0, TINT = null, levelTries = 0;
+    const tintNow = () => { if (!TINT || !P0 || !P0.tints) return; let w = 0, h = 0, sa = 0, li = 0, lb = 0;
+      for (const q of P0.tints) { w += q.w; h += q.w * q.u.uHue.value; sa += q.w * q.u.uSat.value; li += q.w * q.u.uLight.value; lb += q.w * q.u.uLightB.value; }
+      if (w > 0) { TINT.uHue.value = h / w; TINT.uSat.value = sa / w; TINT.uLight.value = li / w; TINT.uLightB.value = lb / w; } };
+    // THE LEVEL (G3180): the card's sheet, drawn, against its species' rungs sheets drawn at their own levels (G2591's
+    // IMP_LEVEL), weighted as the block was dealt - k = sum(w Y_s L_s) / sum(w) / Y_card, set as the card sheet's level
+    // (TREE_LOD.impLevel: the same live map the measured sheets use). A dense block of crowns baked as one picture is not
+    // its trees' mean picture; this is what makes it one. STAT.level / STAT.levelSrc say what it found.
+    const lum = v => 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+    function matchLevel(P, atlas) {
+      const LOD = (typeof TREE_LOD !== 'undefined') ? TREE_LOD : null;
+      if (!sheetMean || !LOD || !LOD.impLevel || !atlas || !atlas.key) return;
+      const card = sheetMean(atlas.key, atlas.series || 'rungs'); if (!card || !(lum(card) > 1e-5)) { STAT.levelSrc = 'no card sheet'; return; }
+      let w = 0, y = 0, n = 0;
+      for (const q of P.pool) { const m = sheetMean(q.key, 'rungs'); if (!m) continue; w += q.w; y += q.w * lum(m) * LOD.impLevel(q.key + '|rungs'); n++; }
+      if (!n || !(w > 0)) { STAT.levelSrc = 'no species sheet'; return; }
+      const k = Math.max(0.25, Math.min(4, (y / w) / lum(card)));
+      LOD.impLevel(atlas.key + '|' + (atlas.series || 'rungs'), k);
+      STAT.level = +k.toFixed(3); STAT.levelSrc = n + ' species sheets, card luma ' + lum(card).toFixed(4) + ', theirs ' + (y / w).toFixed(4);
+    }
     function ensure() {
       if (proto || failed) return !!proto;
       const t0 = performance.now();
       if (!P0) P0 = buildProto(); const P = P0; if (!P) { failed = true; return false; }
       const atlas = bakeImpostorAtlas(P.parts, { key: 'stand:' + S.mixKey, series: 'rungs' });
       if (!atlas || !atlas.tex || atlas.refused) { if (++tries > 600) failed = true; return false; }   // refused = a map not decoded yet: again next frame (ten seconds of tries)
-      mat = impostorMat(atlas, S.far, 0, tintUniformsOf(P.parts), S.gain, U_NOTHIN, { value: S.near }, undefined, (S.standIn && rdy) ? rdy : null);
+      // G3180 (CARD-MATCH): THE CARD'S OWN TINT, the proportion-weighted mean of its species' (tintNow, every update); and ITS
+      // LEVEL, matched to their sheets at this bake (matchLevel) - one source for the colour of both tiers
+      TINT = P.tints && P.tints.length ? { uHue: { value: 0 }, uSat: { value: 1 }, uLight: { value: 1 }, uLightB: { value: 1 }, bark: false } : null;
+      if (TINT) tintNow();
+      mat = impostorMat(atlas, S.far, 0, TINT || tintUniformsOf(P.parts), S.gain, U_NOTHIN, { value: S.near }, undefined, (S.standIn && rdy) ? rdy : null);
+      matchLevel(P, atlas);
       quad = new THREE.PlaneGeometry(1, 1); chunkBounds(quad, S.cell / 2);
       proto = { parts: P.parts, atlas };
       STAT.baked = true; STAT.lastMs = performance.now() - t0;
@@ -174,6 +204,9 @@ const STAND_CARDS = (() => {
       if (!S.on || !ISLC || (treesSettled && !treesSettled())) return;   // the bytes AND the maps (the bake's rule)
       if (!proto && sliceSpent()) return;   // (the stand's bake is a slice's worth: at the head of one)
       if (!ensure()) return;
+      tintNow();   // G3180: the card's tint follows its species' every frame (a look's tint, a kind's master)
+      // ...and the level, once its species' sheets exist (the fill may bake them after this card): a try a second, a minute at most
+      if (STAT.level === undefined && proto && (tick % 30) === 0 && ++levelTries <= 60) matchLevel(P0, proto.atlas);
       if ((tick++ % 20) === 0) {
         const C = S.cell, R = Math.ceil(S.far / C) + 1, cx0 = Math.floor(cg[0] / C), cz0 = Math.floor(cg[2] / C);
         const B = world.bounds;   // no chunk outside the island's own square: the sea plants nothing

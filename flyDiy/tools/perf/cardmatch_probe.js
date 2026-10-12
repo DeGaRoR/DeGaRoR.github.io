@@ -38,7 +38,8 @@ const SHEETS = `(() => {
     for (let p = 0; p < px.length; p += 4) if (px[p + 3] >= 255 * (CUT[a.series] || 0.4)) { r += lin(px[p]); g += lin(px[p + 1]); b += lin(px[p + 2]); n++; }
     out[(a.key || '?') + '|' + (a.series || '?')] = n ? [r / n, g / n, b / n, n] : null; }
   const SC = TREE_FILL.stands(), mixKey = SC.get().mixKey, M = TREE_FILL.biomes().mixOf(mixKey);
-  return JSON.stringify({ sheets: out, mixKey, species: Object.keys(M.species || {}) }); })()`;
+  const st = SC.stat ? SC.stat() : {};
+  return JSON.stringify({ sheets: out, mixKey, species: Object.keys(M.species || {}), level: st.level, levelSrc: st.levelSrc }); })()`;
 // one frame of the held view, read back: the canvas pixels (the frame as drawn)
 const GRAB = `(async () => { await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   const R = WORLD.renderer, gl = R.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
@@ -106,6 +107,7 @@ const MODE = m => `(() => { const SC = TREE_FILL.stands(); const fillMat = [];
     const spp = Object.entries(S.sheets).filter(([k, v]) => v && S.species.some(sp => k.startsWith(sp + '|')));
     const y = v => 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
     const sy = spp.length ? spp.reduce((a, [, v]) => a + y(v), 0) / spp.length : NaN;
+    console.log(`${P.tag}: the card's level ${S.level === undefined ? "(none: master)" : S.level + " (" + S.levelSrc + ")"}`);
     console.log(`${P.tag}: card sheet ${card ? card[0] + ' luma ' + y(card[1]).toFixed(4) : 'none'} vs its species' sheets (${spp.length}) mean luma ${sy.toFixed(4)} -> ${card ? (y(card[1]) / sy).toFixed(2) : '-'}x`);
     const R = P.screen.ratio; console.log(`   on screen cards / impostors: r ${R && R.r.toFixed(2)} g ${R && R.g.toFixed(2)} b ${R && R.b.toFixed(2)} luma ${R && R.y.toFixed(2)} (cover imps ${P.screen.imps && P.screen.imps.cover.toFixed(2)}, cards ${P.screen.cards && P.screen.cards.cover.toFixed(2)})`);
   }
