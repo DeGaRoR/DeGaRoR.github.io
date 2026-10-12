@@ -1,0 +1,1024 @@
+{
+ "what": "MAP-GROUP stills (G2714): the contracts grouped by type or contractor, ordered, filtered on their key parameters (the user, 11 Oct)",
+ "page": "index.html",
+ "renderer": "SwiftShader (headless Chromium)",
+ "rule": "every still is of the LOADED page: BOOT.state gone and #boot hidden, plus 2 s, checked before and after each capture; a loading capture is discarded and retaken",
+ "fails": [],
+ "shots": [
+  {
+   "size": "desk",
+   "name": "type",
+   "file": "map_group_desk_type.jpg",
+   "note": "grouped by Type (the default), ordered by pay, high first: Cargo, Passengers, Survey (the legend's order), each header the type's dot and the count",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "list": "contracts",
+   "group": "type",
+   "sort": "pay",
+   "flt": {
+    "type": [],
+    "prov": [],
+    "fits": false,
+    "surf": "any",
+    "stops": "any",
+    "win": "any",
+    "payMin": null,
+    "kmMax": null,
+    "kgMax": null
+   },
+   "fold": {},
+   "fltOpen": false,
+   "sheet": "peek",
+   "phone": false,
+   "overlay": {
+    "badges": 7,
+    "names": 0,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 4,
+    "desig": 0,
+    "routes": 0,
+    "planes": 0,
+    "marks": 0,
+    "labels": 0,
+    "held": 0,
+    "dim": 0
+   },
+   "view": {
+    "groups": [
+     {
+      "key": "t:cargo",
+      "label": "Cargo",
+      "n": 8,
+      "hidden": 0,
+      "rows": [
+       "job:field:0:1",
+       "job:minedock:0:1",
+       "job:minedock:0:2",
+       "job:survey:0:2",
+       "job:field:0:0",
+       "job:resort:0:1",
+       "job:survey:0:1",
+       "field.01"
+      ]
+     },
+     {
+      "key": "t:pax",
+      "label": "Passengers",
+      "n": 7,
+      "hidden": 0,
+      "rows": [
+       "job:resort:0:0",
+       "job:clients:0:1",
+       "job:clients:0:0",
+       "resort.01",
+       "clients.01",
+       "job:clients:0:2",
+       "job:field:0:2"
+      ]
+     },
+     {
+      "key": "t:survey",
+      "label": "Survey",
+      "n": 5,
+      "hidden": 0,
+      "rows": [
+       "job:minedock:0:0",
+       "job:survey:0:0",
+       "minedock.01",
+       "job:resort:0:2",
+       "survey.01"
+      ]
+     }
+    ],
+    "shown": 20,
+    "base": 20,
+    "hidden": {
+     "type": 0,
+     "prov": 0,
+     "fits": 0,
+     "surf": 0,
+     "stops": 0,
+     "win": 0,
+     "payMin": 0,
+     "kmMax": 0,
+     "kgMax": 0
+    },
+    "hiddenAll": 0,
+    "pinned": null,
+    "order": "pay, high first"
+   },
+   "secs": [
+    {
+     "key": "t:cargo",
+     "label": "Cargo",
+     "n": 8,
+     "hidden": "",
+     "rows": [
+      "job:field:0:1",
+      "job:minedock:0:1",
+      "job:minedock:0:2",
+      "job:survey:0:2",
+      "job:field:0:0",
+      "job:resort:0:1",
+      "job:survey:0:1",
+      "field.01"
+     ]
+    },
+    {
+     "key": "t:pax",
+     "label": "Passengers",
+     "n": 7,
+     "hidden": "",
+     "rows": [
+      "job:resort:0:0",
+      "job:clients:0:1",
+      "job:clients:0:0",
+      "resort.01",
+      "clients.01",
+      "job:clients:0:2",
+      "job:field:0:2"
+     ]
+    },
+    {
+     "key": "t:survey",
+     "label": "Survey",
+     "n": 5,
+     "hidden": "",
+     "rows": [
+      "job:minedock:0:0",
+      "job:survey:0:0",
+      "minedock.01",
+      "job:resort:0:2",
+      "survey.01"
+     ]
+    }
+   ],
+   "caps": [],
+   "sum": "20 contracts · by pay, high first",
+   "tracked": null,
+   "dim": 0,
+   "badges": 7,
+   "pinTag": false,
+   "texts": 61,
+   "bad": [],
+   "small": [],
+   "titles": 0,
+   "pref": null
+  },
+  {
+   "size": "desk",
+   "name": "contractor",
+   "file": "map_group_desk_contractor.jpg",
+   "note": "grouped by Contractor (CONTRACT_PROVIDERS' order), ordered by Distance (short first): each row's km under its title; the types' legend in the head",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "list": "contracts",
+   "group": "prov",
+   "sort": "km",
+   "flt": {
+    "type": [],
+    "prov": [],
+    "fits": false,
+    "surf": "any",
+    "stops": "any",
+    "win": "any",
+    "payMin": null,
+    "kmMax": null,
+    "kgMax": null
+   },
+   "fold": {},
+   "fltOpen": false,
+   "sheet": "peek",
+   "phone": false,
+   "overlay": {
+    "badges": 7,
+    "names": 0,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 4,
+    "desig": 0,
+    "routes": 0,
+    "planes": 0,
+    "marks": 0,
+    "labels": 0,
+    "held": 0,
+    "dim": 0
+   },
+   "view": {
+    "groups": [
+     {
+      "key": "p:field",
+      "label": "The Field Trust",
+      "n": 4,
+      "hidden": 0,
+      "rows": [
+       "field.01",
+       "job:field:0:2",
+       "job:field:0:0",
+       "job:field:0:1"
+      ]
+     },
+     {
+      "key": "p:minedock",
+      "label": "Jumbo Mine & Dock Co.",
+      "n": 4,
+      "hidden": 0,
+      "rows": [
+       "job:minedock:0:1",
+       "job:minedock:0:2",
+       "minedock.01",
+       "job:minedock:0:0"
+      ]
+     },
+     {
+      "key": "p:resort",
+      "label": "Skyline Resort",
+      "n": 4,
+      "hidden": 0,
+      "rows": [
+       "job:resort:0:1",
+       "resort.01",
+       "job:resort:0:2",
+       "job:resort:0:0"
+      ]
+     },
+     {
+      "key": "p:survey",
+      "label": "The Survey Office",
+      "n": 4,
+      "hidden": 0,
+      "rows": [
+       "job:survey:0:1",
+       "job:survey:0:2",
+       "survey.01",
+       "job:survey:0:0"
+      ]
+     },
+     {
+      "key": "p:clients",
+      "label": "Private clients & the Club",
+      "n": 4,
+      "hidden": 0,
+      "rows": [
+       "job:clients:0:2",
+       "clients.01",
+       "job:clients:0:0",
+       "job:clients:0:1"
+      ]
+     }
+    ],
+    "shown": 20,
+    "base": 20,
+    "hidden": {
+     "type": 0,
+     "prov": 0,
+     "fits": 0,
+     "surf": 0,
+     "stops": 0,
+     "win": 0,
+     "payMin": 0,
+     "kmMax": 0,
+     "kgMax": 0
+    },
+    "hiddenAll": 0,
+    "pinned": null,
+    "order": "distance, short first"
+   },
+   "secs": [
+    {
+     "key": "p:field",
+     "label": "The Field Trust",
+     "n": 4,
+     "hidden": "",
+     "rows": [
+      "field.01",
+      "job:field:0:2",
+      "job:field:0:0",
+      "job:field:0:1"
+     ]
+    },
+    {
+     "key": "p:minedock",
+     "label": "Jumbo Mine & Dock Co.",
+     "n": 4,
+     "hidden": "",
+     "rows": [
+      "job:minedock:0:1",
+      "job:minedock:0:2",
+      "minedock.01",
+      "job:minedock:0:0"
+     ]
+    },
+    {
+     "key": "p:resort",
+     "label": "Skyline Resort",
+     "n": 4,
+     "hidden": "",
+     "rows": [
+      "job:resort:0:1",
+      "resort.01",
+      "job:resort:0:2",
+      "job:resort:0:0"
+     ]
+    },
+    {
+     "key": "p:survey",
+     "label": "The Survey Office",
+     "n": 4,
+     "hidden": "",
+     "rows": [
+      "job:survey:0:1",
+      "job:survey:0:2",
+      "survey.01",
+      "job:survey:0:0"
+     ]
+    },
+    {
+     "key": "p:clients",
+     "label": "Private clients & the Club",
+     "n": 4,
+     "hidden": "",
+     "rows": [
+      "job:clients:0:2",
+      "clients.01",
+      "job:clients:0:0",
+      "job:clients:0:1"
+     ]
+    }
+   ],
+   "caps": [],
+   "sum": "20 contracts · by distance, short first",
+   "tracked": null,
+   "dim": 0,
+   "badges": 7,
+   "pinTag": false,
+   "texts": 68,
+   "bad": [],
+   "small": [],
+   "titles": 0,
+   "pref": "{\"group\":\"prov\",\"sort\":\"km\",\"fold\":{},\"fltOpen\":false}"
+  },
+  {
+   "size": "desk",
+   "name": "filters",
+   "file": "map_group_desk_filters.jpg",
+   "note": "the filters' panel: Surface land, Km <= 15, Pay >= 4 000 - each caption says how many rows it hides alone, the summary \"n of N · hidden\" and Clear; the tracked water job kept first in its section, \"outside the filters\"; on the map the places no shown contract involves dimmed",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "list": "contracts",
+   "group": "type",
+   "sort": "pay",
+   "flt": {
+    "type": [],
+    "prov": [],
+    "fits": false,
+    "surf": "land",
+    "stops": "any",
+    "win": "any",
+    "payMin": 4000,
+    "kmMax": 15,
+    "kgMax": null
+   },
+   "fold": {},
+   "fltOpen": true,
+   "sheet": "peek",
+   "phone": false,
+   "overlay": {
+    "badges": 7,
+    "names": 2,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 4,
+    "desig": 0,
+    "routes": 2,
+    "planes": 0,
+    "marks": 0,
+    "labels": 0,
+    "held": 0,
+    "dim": 2
+   },
+   "view": {
+    "groups": [
+     {
+      "key": "t:cargo",
+      "label": "Cargo",
+      "n": 2,
+      "hidden": 6,
+      "rows": [
+       "job:minedock:0:1",
+       "job:resort:0:1"
+      ]
+     },
+     {
+      "key": "t:pax",
+      "label": "Passengers",
+      "n": 2,
+      "hidden": 5,
+      "rows": [
+       "job:clients:0:0",
+       "resort.01"
+      ]
+     },
+     {
+      "key": "t:survey",
+      "label": "Survey",
+      "n": 1,
+      "hidden": 4,
+      "rows": [
+       "job:resort:0:2"
+      ]
+     }
+    ],
+    "shown": 5,
+    "base": 20,
+    "hidden": {
+     "type": 0,
+     "prov": 0,
+     "fits": 0,
+     "surf": 2,
+     "stops": 0,
+     "win": 0,
+     "payMin": 5,
+     "kmMax": 9,
+     "kgMax": 0
+    },
+    "hiddenAll": 15,
+    "pinned": "job:minedock:0:1",
+    "order": "pay, high first"
+   },
+   "secs": [
+    {
+     "key": "t:cargo",
+     "label": "Cargo",
+     "n": 2,
+     "hidden": "6 hidden",
+     "rows": [
+      "job:minedock:0:1",
+      "job:resort:0:1"
+     ]
+    },
+    {
+     "key": "t:pax",
+     "label": "Passengers",
+     "n": 2,
+     "hidden": "5 hidden",
+     "rows": [
+      "job:clients:0:0",
+      "resort.01"
+     ]
+    },
+    {
+     "key": "t:survey",
+     "label": "Survey",
+     "n": 1,
+     "hidden": "4 hidden",
+     "rows": [
+      "job:resort:0:2"
+     ]
+    }
+   ],
+   "caps": [
+    "Type",
+    "Contractor",
+    "Fits my fleet",
+    "Surface2 hidden",
+    "Stops",
+    "Window",
+    "Pay ≥5 hidden",
+    "Km ≤9 hidden",
+    "Kg ≤"
+   ],
+   "sum": "5 of 20 · 15 hidden · by pay, high first",
+   "tracked": "job:minedock:0:1",
+   "dim": 2,
+   "badges": 7,
+   "pinTag": true,
+   "texts": 59,
+   "bad": [],
+   "small": [],
+   "titles": 0,
+   "pref": "{\"group\":\"type\",\"sort\":\"pay\",\"fold\":{},\"fltOpen\":true}"
+  },
+  {
+   "size": "desk",
+   "name": "folded",
+   "file": "map_group_desk_folded.jpg",
+   "note": "the Cargo section folded (its header and count only); the others open",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "list": "contracts",
+   "group": "type",
+   "sort": "pay",
+   "flt": {
+    "type": [],
+    "prov": [],
+    "fits": false,
+    "surf": "any",
+    "stops": "any",
+    "win": "any",
+    "payMin": null,
+    "kmMax": null,
+    "kgMax": null
+   },
+   "fold": {
+    "t:cargo": true
+   },
+   "fltOpen": false,
+   "sheet": "peek",
+   "phone": false,
+   "overlay": {
+    "badges": 7,
+    "names": 2,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 4,
+    "desig": 0,
+    "routes": 2,
+    "planes": 0,
+    "marks": 0,
+    "labels": 0,
+    "held": 0,
+    "dim": 0
+   },
+   "view": {
+    "groups": [
+     {
+      "key": "t:cargo",
+      "label": "Cargo",
+      "n": 8,
+      "hidden": 0,
+      "rows": [
+       "job:minedock:0:1",
+       "job:field:0:1",
+       "job:minedock:0:2",
+       "job:survey:0:2",
+       "job:field:0:0",
+       "job:resort:0:1",
+       "job:survey:0:1",
+       "field.01"
+      ]
+     },
+     {
+      "key": "t:pax",
+      "label": "Passengers",
+      "n": 7,
+      "hidden": 0,
+      "rows": [
+       "job:resort:0:0",
+       "job:clients:0:1",
+       "job:clients:0:0",
+       "resort.01",
+       "clients.01",
+       "job:clients:0:2",
+       "job:field:0:2"
+      ]
+     },
+     {
+      "key": "t:survey",
+      "label": "Survey",
+      "n": 5,
+      "hidden": 0,
+      "rows": [
+       "job:minedock:0:0",
+       "job:survey:0:0",
+       "minedock.01",
+       "job:resort:0:2",
+       "survey.01"
+      ]
+     }
+    ],
+    "shown": 20,
+    "base": 20,
+    "hidden": {
+     "type": 0,
+     "prov": 0,
+     "fits": 0,
+     "surf": 0,
+     "stops": 0,
+     "win": 0,
+     "payMin": 0,
+     "kmMax": 0,
+     "kgMax": 0
+    },
+    "hiddenAll": 0,
+    "pinned": null,
+    "order": "pay, high first"
+   },
+   "secs": [
+    {
+     "key": "t:cargo",
+     "label": "Cargo",
+     "n": 8,
+     "hidden": "",
+     "rows": []
+    },
+    {
+     "key": "t:pax",
+     "label": "Passengers",
+     "n": 7,
+     "hidden": "",
+     "rows": [
+      "job:resort:0:0",
+      "job:clients:0:1",
+      "job:clients:0:0",
+      "resort.01",
+      "clients.01",
+      "job:clients:0:2",
+      "job:field:0:2"
+     ]
+    },
+    {
+     "key": "t:survey",
+     "label": "Survey",
+     "n": 5,
+     "hidden": "",
+     "rows": [
+      "job:minedock:0:0",
+      "job:survey:0:0",
+      "minedock.01",
+      "job:resort:0:2",
+      "survey.01"
+     ]
+    }
+   ],
+   "caps": [],
+   "sum": "20 contracts · by pay, high first",
+   "tracked": "job:minedock:0:1",
+   "dim": 0,
+   "badges": 7,
+   "pinTag": false,
+   "texts": 63,
+   "bad": [],
+   "small": [],
+   "titles": 0,
+   "pref": "{\"group\":\"type\",\"sort\":\"pay\",\"fold\":{\"t:cargo\":true},\"fltOpen\":false}"
+  },
+  {
+   "size": "phone",
+   "name": "sheet",
+   "file": "map_group_phone_sheet.jpg",
+   "note": "the phone: the folded sheet - the switch, Type · Contractor, the order, Filters (every target >= 48 px), the first section under them",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1&profile=phone",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "list": "contracts",
+   "group": "type",
+   "sort": "pay",
+   "flt": {
+    "type": [],
+    "prov": [],
+    "fits": false,
+    "surf": "any",
+    "stops": "any",
+    "win": "any",
+    "payMin": null,
+    "kmMax": null,
+    "kgMax": null
+   },
+   "fold": {},
+   "fltOpen": false,
+   "sheet": "peek",
+   "phone": true,
+   "overlay": {
+    "badges": 7,
+    "names": 0,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 1,
+    "desig": 0,
+    "routes": 0,
+    "planes": 0,
+    "marks": 0,
+    "labels": 0,
+    "held": 0,
+    "dim": 0
+   },
+   "view": {
+    "groups": [
+     {
+      "key": "t:cargo",
+      "label": "Cargo",
+      "n": 8,
+      "hidden": 0,
+      "rows": [
+       "job:field:0:1",
+       "job:minedock:0:1",
+       "job:minedock:0:2",
+       "job:survey:0:2",
+       "job:field:0:0",
+       "job:resort:0:1",
+       "job:survey:0:1",
+       "field.01"
+      ]
+     },
+     {
+      "key": "t:pax",
+      "label": "Passengers",
+      "n": 7,
+      "hidden": 0,
+      "rows": [
+       "job:resort:0:0",
+       "job:clients:0:1",
+       "job:clients:0:0",
+       "resort.01",
+       "clients.01",
+       "job:clients:0:2",
+       "job:field:0:2"
+      ]
+     },
+     {
+      "key": "t:survey",
+      "label": "Survey",
+      "n": 5,
+      "hidden": 0,
+      "rows": [
+       "job:minedock:0:0",
+       "job:survey:0:0",
+       "minedock.01",
+       "job:resort:0:2",
+       "survey.01"
+      ]
+     }
+    ],
+    "shown": 20,
+    "base": 20,
+    "hidden": {
+     "type": 0,
+     "prov": 0,
+     "fits": 0,
+     "surf": 0,
+     "stops": 0,
+     "win": 0,
+     "payMin": 0,
+     "kmMax": 0,
+     "kgMax": 0
+    },
+    "hiddenAll": 0,
+    "pinned": null,
+    "order": "pay, high first"
+   },
+   "secs": [
+    {
+     "key": "t:cargo",
+     "label": "Cargo",
+     "n": 8,
+     "hidden": "",
+     "rows": [
+      "job:field:0:1",
+      "job:minedock:0:1",
+      "job:minedock:0:2",
+      "job:survey:0:2",
+      "job:field:0:0",
+      "job:resort:0:1",
+      "job:survey:0:1",
+      "field.01"
+     ]
+    },
+    {
+     "key": "t:pax",
+     "label": "Passengers",
+     "n": 7,
+     "hidden": "",
+     "rows": [
+      "job:resort:0:0",
+      "job:clients:0:1",
+      "job:clients:0:0",
+      "resort.01",
+      "clients.01",
+      "job:clients:0:2",
+      "job:field:0:2"
+     ]
+    },
+    {
+     "key": "t:survey",
+     "label": "Survey",
+     "n": 5,
+     "hidden": "",
+     "rows": [
+      "job:minedock:0:0",
+      "job:survey:0:0",
+      "minedock.01",
+      "job:resort:0:2",
+      "survey.01"
+     ]
+    }
+   ],
+   "caps": [],
+   "sum": "20 contracts · by pay, high first",
+   "tracked": null,
+   "dim": 0,
+   "badges": 7,
+   "pinTag": false,
+   "texts": 23,
+   "bad": [],
+   "small": [],
+   "titles": 0,
+   "pref": null
+  },
+  {
+   "size": "phone",
+   "name": "filters",
+   "file": "map_group_phone_filters.jpg",
+   "note": "the phone: the sheet open on the filters' panel - Passengers and \"✓ only\" set, each caption's hidden count, the summary and Clear, at touch size",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?audio=0&career=1&profile=phone",
+   "boot": {
+    "before": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    },
+    "after": {
+     "state": "gone",
+     "hidden": true,
+     "ok": true
+    }
+   },
+   "open": true,
+   "list": "contracts",
+   "group": "type",
+   "sort": "pay",
+   "flt": {
+    "type": [
+     "pax"
+    ],
+    "prov": [],
+    "fits": true,
+    "surf": "any",
+    "stops": "any",
+    "win": "any",
+    "payMin": null,
+    "kmMax": null,
+    "kgMax": null
+   },
+   "fold": {},
+   "fltOpen": true,
+   "sheet": "open",
+   "phone": true,
+   "overlay": {
+    "badges": 7,
+    "names": 0,
+    "facts": 0,
+    "pois": 0,
+    "hot": 0,
+    "rings": 0,
+    "counts": 0,
+    "runways": 1,
+    "desig": 0,
+    "routes": 0,
+    "planes": 0,
+    "marks": 0,
+    "labels": 0,
+    "held": 0,
+    "dim": 3
+   },
+   "view": {
+    "groups": [
+     {
+      "key": "t:pax",
+      "label": "Passengers",
+      "n": 7,
+      "hidden": 0,
+      "rows": [
+       "job:resort:0:0",
+       "job:clients:0:1",
+       "job:clients:0:0",
+       "resort.01",
+       "clients.01",
+       "job:clients:0:2",
+       "job:field:0:2"
+      ]
+     }
+    ],
+    "shown": 7,
+    "base": 20,
+    "hidden": {
+     "type": 13,
+     "prov": 0,
+     "fits": 3,
+     "surf": 0,
+     "stops": 0,
+     "win": 0,
+     "payMin": 0,
+     "kmMax": 0,
+     "kgMax": 0
+    },
+    "hiddenAll": 13,
+    "pinned": null,
+    "order": "pay, high first"
+   },
+   "secs": [
+    {
+     "key": "t:pax",
+     "label": "Passengers",
+     "n": 7,
+     "hidden": "",
+     "rows": [
+      "job:resort:0:0",
+      "job:clients:0:1",
+      "job:clients:0:0",
+      "resort.01",
+      "clients.01",
+      "job:clients:0:2",
+      "job:field:0:2"
+     ]
+    }
+   ],
+   "caps": [
+    "Type13 hidden",
+    "Contractor",
+    "Fits my fleet3 hidden",
+    "Surface",
+    "Stops",
+    "Window",
+    "Pay ≥",
+    "Km ≤",
+    "Kg ≤"
+   ],
+   "sum": "7 of 20 · 13 hidden · by pay, high first",
+   "tracked": null,
+   "dim": 3,
+   "badges": 7,
+   "pinTag": false,
+   "texts": 39,
+   "bad": [],
+   "small": [],
+   "titles": 0,
+   "pref": "{\"group\":\"type\",\"sort\":\"pay\",\"fold\":{},\"fltOpen\":true}"
+  }
+ ]
+}
