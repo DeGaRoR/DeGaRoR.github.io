@@ -7719,8 +7719,8 @@
     el.hidden = false;
   }
   let arrWhy = false, arrVerd = [];
-  // G1868: a crash's card folds on its title (and unfolds)
-  { const h = $('arrHead'); if (h && h.addEventListener) h.addEventListener('click', () => { const el = $('arrCard'); if (el && el.classList.contains('wreck')) el.classList.toggle('min'); }); }
+  // G1868: a crash's card folds on its title (and unfolds); G3060 (CARDS-CORNER): every ending's card, in its corner
+  { const h = $('arrHead'); if (h && h.addEventListener) h.addEventListener('click', () => { const el = $('arrCard'); if (el) el.classList.toggle('min'); }); }
   function drawArrNotes() {
     const n = $('arrNotes');
     if (!n) return;

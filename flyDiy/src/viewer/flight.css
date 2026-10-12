@@ -698,33 +698,39 @@ body.rollShot #flActs { display:none !important; }
 /* ---- THE ARRIVAL CARD: the only panel that APPEARS. On --ed-panel and not
    a plate, because it is a document and not chrome, and in the plaque's own
    two-column grammar so the flight's numbers and the bench's numbers read as
-   the same kind of thing. ---- */
-#arrCard { position:absolute; left:50%; top:50%;
-  transform:translate(-50%,-50%); width:520px; max-width:calc(100% - 44px);
-  max-height:calc(100% - 44px); overflow-y:auto;   /* a short window scrolls the card, never crops its verbs */
-  padding:20px 22px 18px; background:var(--ed-panel);
+   the same kind of thing.
+   G3060 (CARDS-CORNER; the user, 12 Oct: "the certifications, the end of the flight, the crash, all of them should
+   appear in the bottom left, not hide the plane"): EVERY ending's card is in the lower-left corner, compact - its
+   right edge inside the left quarter of the view (240 px floor) and its top below the middle, so the aeroplane at
+   the centre stays in sight; a long card scrolls, never crops its verbs. Its title folds it to the one line.
+   GATE CARDS holds it (no result card centred; this box in the lower-left quadrant). ---- */
+#arrCard { position:absolute; left:16px; top:auto; bottom:96px;
+  width:max(240px, min(380px, calc(25vw - 32px))); max-width:calc(100% - 32px);
+  max-height:max(200px, calc(50% - 112px)); overflow-y:auto;
+  padding:14px 16px 12px; background:var(--ed-panel);
   border:1px solid var(--ed-border); border-radius:11px;
-  box-shadow:0 24px 60px rgba(0,0,0,.55); z-index:30; }
+  box-shadow:0 12px 36px rgba(0,0,0,.5); z-index:30; }
+#arrCard #arrHead { cursor:pointer; }
+#arrCard.min #arrRows, #arrCard.min #arrNotes, #arrCard.min #arrBtns { display:none; }
+#arrCard.min #arrHead { border-bottom:0; padding-bottom:0; }
 
 #arrCard[hidden] { display:none; }
 
 /* G1868 (DMG-D4b; the user: "I want to SEE the crash"): A CRASH'S CARD is small and in the lower-left corner, not over the
-   wreck; its title folds it to the one line (the reason stays on the top bar). */
-#arrCard.wreck { left:16px; top:auto; bottom:96px; transform:none; width:min(300px, 22vw); padding:12px 14px 10px;
+   wreck; its title folds it to the one line (the reason stays on the top bar).
+   (G3060: the corner and the fold are every card's now; the wreck's stays the smaller one) */
+#arrCard.wreck { width:max(220px, min(300px, 22vw)); padding:12px 14px 10px;
   box-shadow:0 10px 30px rgba(0,0,0,.45); }
-#arrCard.wreck #arrHead { cursor:pointer; padding-bottom:8px; }
+#arrCard.wreck #arrHead { padding-bottom:8px; }
 #arrCard.wreck #arrTitle { font-size:13px; }
-#arrCard.wreck #arrRows { grid-template-columns:1fr; }
 #arrCard.wreck #arrRows div { padding:3px 0; }
 #arrCard.wreck #arrBtns { margin-top:9px; }
 #ui #arrCard.wreck #arrBtns button { padding:8px 0; font-size:10.5px; }
-#arrCard.wreck.min #arrRows, #arrCard.wreck.min #arrNotes, #arrCard.wreck.min #arrBtns { display:none; }
-#arrCard.wreck.min #arrHead { border-bottom:0; padding-bottom:0; }
 
-#arrHead { display:flex; align-items:baseline; gap:12px; padding-bottom:13px;
+#arrHead { display:flex; align-items:baseline; gap:12px; padding-bottom:10px;
   border-bottom:1px solid var(--ed-hair); }
 
-#arrTitle { font:600 17px/1 'IBM Plex Sans'; letter-spacing:.06em;
+#arrTitle { font:600 15px/1.15 'IBM Plex Sans'; letter-spacing:.06em;
   color:var(--ed-ink); }
 
 #arrTag { margin-left:auto; font:500 10px/1 'IBM Plex Sans';
@@ -734,32 +740,32 @@ body.rollShot #flActs { display:none !important; }
 
 #arrCard.bad #arrTag { color:var(--ed-acc-ink); background:var(--ed-warn); }
 
-#arrRows { display:grid; grid-template-columns:1fr 1fr; gap:0 26px;
+#arrRows { display:grid; grid-template-columns:1fr; gap:0 26px;   /* G3060: one column in the corner */
   margin-top:6px; }
 
 #arrRows div { display:flex; justify-content:space-between;
-  align-items:baseline; gap:10px; padding:6px 0;
+  align-items:baseline; gap:10px; padding:4px 0;
   border-bottom:1px solid var(--ed-hair); }
 
 #arrRows span { font:400 11.5px/1.2 'IBM Plex Sans'; color:var(--ed-dim); }
 
-#arrRows b { font:500 12.5px/1 'IBM Plex Sans'; color:var(--ed-ink); }
+#arrRows b { font:500 12.5px/1.2 'IBM Plex Sans'; color:var(--ed-ink); text-align:right; }
 
 #arrRows b.warn { color:var(--ed-warn); }
 
-#arrNotes { margin-top:12px; font:400 11px/1.65 'IBM Plex Sans';
+#arrNotes { margin-top:10px; font:400 11px/1.65 'IBM Plex Sans';
   color:var(--ed-faint); }
 
 #arrNotes:empty { display:none; }
 
 #arrNotes i { display:block; font-style:normal; }
 
-#arrBtns { display:flex; gap:9px; margin-top:15px; }
+#arrBtns { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
 
-#ui #arrBtns button { flex:1; text-align:center; font:500 12px/1 'IBM Plex Sans';
+#ui #arrBtns button { flex:1 1 40%; text-align:center; font:500 11px/1 'IBM Plex Sans';
   letter-spacing:.1em; text-transform:uppercase; color:var(--ed-ink);
   background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);
-  padding:12px 0; border-radius:8px; cursor:pointer;
+  padding:10px 6px; border-radius:8px; cursor:pointer;
   transition:background .12s ease, border-color .12s ease; }
 
 #ui #arrBtns button:hover { border-color:rgba(255,255,255,.3); }
@@ -822,8 +828,9 @@ body.rollShot #flActs { display:none !important; }
   #mmp { right:12px; }
   #mmp.big #mm { width:min(82vmin, calc(100vw - 40px));
     height:min(82vmin, calc(100vw - 40px)); }
-  #arrCard { width:calc(100% - 24px); padding:16px 16px 14px; }
-  #arrRows { grid-template-columns:1fr; }
+  /* G3060: a narrow window's card is a bottom sheet over the verbs, its top below the middle (the aeroplane stays seen) */
+  #arrCard, #arrCard.wreck { left:12px; right:12px; width:auto; max-width:none; bottom:78px;
+    max-height:max(160px, calc(50% - 90px)); padding:12px 14px 10px; }
 }
 
 /* =========================================================================
