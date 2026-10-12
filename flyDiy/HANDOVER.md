@@ -84988,3 +84988,28 @@ window's end): MAP_SMOKE and SAVE not run; PROCURE exited 0 with no verdict line
 no evidence screenshots) - the framing fix is proven by its arithmetic and the gates, not by a picture.
 
 READY for the GAME COORDINATOR: claude/works-club-g2319 c33bad98 (this section rides one docs commit on top)
+
+## G2228 - FLEET-PROPS B: THE COWL'S INSIDE TWIN NEVER REACHES A BAKE (re-applied on t44-1 b38a86f1 after the 44.1 revert; the user: "there is clipping of the cowl. The cowl has an interior mesh, dark. You can get rid of it for baked planes") (2026-10-11/12; branch claude/fleet-cowlbake-g2228b)
+
+- WHAT: every cowl skin mesh has a TWIN 1.5 mm inside it in a near-black BackSide material (G243.1/.3). In a bake,
+  rebuilt two-sided, it fought the skin: patchy dark on the baked nose.
+- WHY THE FIRST TWO CUTS MISSED (44.1, reverted): the material flag never crossed the snapshot - in the game every lit
+  material is UNDERSTUDIED (_cage_ui.js uniOf: a matte Standard whose userData is { cageUni, cageUniOf } only) - and the
+  twin wore exactly its two-sided lining's colour, so it shared the lining's bucket. Lesson: a marker the join must see
+  goes on the MESH.
+- THE FIX: the cowl marks the back twin (mesh userData.innerTwin, material aeroInner; the two-sided lining - the throats,
+  the fold's return, the inner lofts - is seen through the inlets and stays); the join reads the mesh marker (its own
+  bucket, key suffix 'Y'; record `inner: 1`); parked.js isInterior counts `inner`: every baked rung, the far cut, the
+  parked cook (cookPack -> bakeData: it inherits it at the next re-cook) and the fleet leave it out. The flown
+  aeroplane's own bake (flown_bake.js) is untouched.
+- GATE PARKED 11b (the page in node, a real capture of arch:c172 under the metal Cessna) + a headless row: 1 inside-only
+  bucket, 6 062 triangles, FLAGGED; 0 in the far cut, the L1 / bake selection skips it; the silhouette identical
+  (projected area, 2 cm cells: x 10 847, y 58 300, z 23 234 both ways; tolerance 0.1 %); DOCTORED (the flag stripped):
+  6 062 triangles back in the cut - the row sees them. When red it prints the editor's own twin count.
+- Also on this branch (be51b15c): plain INSTANT pins the fleet OFF (?fleet=0; only --fleet / --fleet-baked stand it) and
+  prints the wall per row and per build (the 44.1 landing's 1 186 s: the fleet cleared - Cub alone ~400 s with or without
+  it; the measurement is Mon 12 Oct 13:25-13:50).
+- GATES (12 Oct 10:30-10:33, take cpu FLEETB, tree be51b15c): PARKED PASS (full, 11b green), FLOWNBAKE PASS, SKIN PASS.
+  Logs: reports/evidence/FLEET-PROPS-B/g2228c/.
+
+READY for the GAME COORDINATOR: claude/fleet-cowlbake-g2228b be51b15c (this section rides one docs-only commit on top)
