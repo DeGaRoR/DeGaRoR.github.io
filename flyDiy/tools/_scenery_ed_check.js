@@ -503,16 +503,20 @@ if (plots.length) {
 //    shipped fixture's r1 bit for bit - every field as saved, nothing else of the save shipped (no strip of theirs) -
 //    and the shipped record loads, composes and saves it unchanged
 {
-  const K = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_r1_rev26.json'), 'utf8'));
+  // (G3020: the user re-drew r1 in rev 28 - its junction ids, 254 nodes - and rev 28 ships whole (row 15): r1 is rev 28's,
+  //  bit for bit; the rev 26 extraction (scenery_user_r1_rev26.json) stays as history; 'strip 8' (w1) the user deleted)
+  const M28 = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_rev28.json'), 'utf8'));
+  const S28 = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', M28.save), 'utf8'));
+  const K = { road: (S28.premises || S28).layers.roads.find(r => r.id === 'r1'), sha256: M28.sha256, save: null };
   const FX = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), FL = (FX.premises || FX).layers;
   const shipped = FL.roads.find(r => r.id === 'r1');
   check(shipped && JSON.stringify(shipped) === JSON.stringify(K.road), '13 the shipped r1 is the user\'s save\'s r1 bit for bit (' + (K.road.pts || []).length + ' points, save sha256 ' + String(K.sha256).slice(0, 16) + ')');
-  check(!FL.runways.some(w => /^strip [89]$/.test(String(w.name || ''))) && FL.roads.filter(r => r.id === 'r1').length === 1, '13 ...and nothing else of the save: none of its strips');
+  check(!FL.runways.some(w => /^strip 8$/.test(String(w.name || ''))) && FL.roads.filter(r => r.id === 'r1').length === 1, '13 ...and one r1; strip 8 (w1, deleted by the user) not shipped');
   const PJ = PG.unwrap(JSON.stringify(FX)).rec, r1j = PJ.layers.roads.find(r => r.id === 'r1');
   const same = r => JSON.stringify([r.pts, r.tan || null]) === JSON.stringify([K.road.pts, K.road.tan || null]);
   check(r1j && same(r1j) && same(PG.unwrap(PG.envelope('t', PJ)).rec.layers.roads.find(r => r.id === 'r1')) && same(PG.compose(PJ, synth, { raster: false }).rec.layers.roads.find(r => r.id === 'r1')), '13 the shipped record loads, composes and saves r1 unchanged');
-  const savePath = 'D:/Dev/flydiy-notes/scenery-backups/' + K.save;
-  if (fs.existsSync(savePath)) check(require('crypto').createHash('sha256').update(fs.readFileSync(savePath)).digest('hex') === K.sha256, '13 (the save on this machine is the one it was taken from)');
+  const savePath = K.save ? 'D:/Dev/flydiy-notes/scenery-backups/' + K.save : '';
+  if (savePath && fs.existsSync(savePath)) check(require('crypto').createHash('sha256').update(fs.readFileSync(savePath)).digest('hex') === K.sha256, '13 (the save on this machine is the one it was taken from)');
 }
 
 // 14 PLACER-FAST (G3000-G3009; the user: "adding assets in the editor is a bit of a pain, really, really long to move,

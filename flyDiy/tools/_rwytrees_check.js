@@ -173,8 +173,12 @@ for (const v of VARIANTS) {
   if (v === 'mapx') check(inKept === 0, '4 mapx: the shoulders and the fans stay clear', inKept + ' inside');
 }
 {
-  const nearer = ['HOME L', 'HOME R', 'w2 L', 'w2 R'].filter(k => table[k].col.map < table[k].col.today);
-  check(nearer.length === 4, '4 map: 13/31 and 02/20 have their woods nearer than today on every side', nearer.join(', '));
+  // (G3020 rev 28: the user gave 02/20 its own clear - side 4 / beyond 5, authored, standing in every variant - so a w2 side
+  //  can read the same in 'today' and 'map' (t53 13 Oct: HOME L, HOME R, w2 R nearer, w2 L the same): 'map' never pushes the
+  //  woods back on any side, and brings them nearer on both of 13/31's)
+  const four = ['HOME L', 'HOME R', 'w2 L', 'w2 R'], nearer = four.filter(k => table[k].col.map < table[k].col.today), farther = four.filter(k => table[k].col.map > table[k].col.today);
+  check(!farther.length && nearer.includes('HOME L') && nearer.includes('HOME R'), '4 map: 13/31 has its woods nearer than today on both sides, and no side of 13/31 or 02/20 farther',
+    'nearer ' + nearer.join(', ') + (farther.length ? ' | FARTHER ' + farther.join(', ') : '') + ' | ' + four.map(k => k + ' ' + table[k].col.today.toFixed(1) + ' -> ' + table[k].col.map.toFixed(1)).join(', '));
 }
 
 // 6 the ground paths and the climb-out / approach surfaces in 'map', against the collidable trees
