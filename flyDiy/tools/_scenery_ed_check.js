@@ -631,10 +631,16 @@ if (plots.length) {
     if (PMv[c.id] && Array.isArray(c.plots)) for (const p of c.plots) if (p && PMv[c.id][p.id]) { p.x = PMv[c.id][p.id][0]; p.z = PMv[c.id][p.id][1]; }
     return JSON.stringify(c); };
   check([...CD].every(id => { const w = (A.layers.runways || []).find(q => q.id === id); return w && !('clear' in w); }), '15 the strips the manifest names ship with the clearance of today, not their own (' + [...CD].join(', ') + ')');
+  // (G3020) an AREA compared by what it composes - its areaEntries, keys sorted: an area the user grew in the editor (rev 28's
+  //  tw_t_valley: + wheels + draw; tw_m_parking: + wheels + marks) ships as v1 sources and folds back with its props in the
+  //  fold's order and its marks inside its draw - the same ground, another spelling
+  const sk = v => Array.isArray(v) ? v.map(sk) : v && typeof v === 'object' ? Object.keys(v).sort().reduce((o, k) => (o[k] = sk(v[k]), o), {}) : v;
+  const canA = s => { const c = JSON.parse(s); if (c.props) c.props = PG.areaEntries(Object.assign({}, c, { src: null })).map(q => { const x = Object.assign({}, q.entry); delete x.id; delete x.poly; return [q.layer, sk(x)]; }).sort((p, q) => p[0] < q[0] ? -1 : 1); return JSON.stringify(c); };
+  const same = (L, x, y) => L === 'areas' ? canA(unC(x)) === canA(unC(y)) : unC(x) === unC(y);
   const bad = [], pending = [];
   for (const L of PG.LAYERS) {
     const a = new Map((A.layers[L] || []).map(e => [e.id, e])), b = new Map((B.layers[L] || []).map(e => [e.id, e]));
-    for (const [id, e] of b) { if (EX.has(id)) { if (a.has(id)) bad.push(L + ' ' + id + ' held back, but shipped'); continue; } if (!a.has(id)) bad.push(L + ' ' + id + ' not shipped'); else if (unC(a.get(id)) !== unC(e)) bad.push(L + ' ' + id + ' differs'); }
+    for (const [id, e] of b) { if (EX.has(id)) { if (a.has(id)) bad.push(L + ' ' + id + ' held back, but shipped'); continue; } if (!a.has(id)) bad.push(L + ' ' + id + ' not shipped'); else if (!same(L, a.get(id), e)) bad.push(L + ' ' + id + ' differs'); }
     for (const [id, e] of a) if (!b.has(id)) { if (RM.has(id)) bad.push(L + ' ' + id + ' removal confirmed, still shipped'); else if (!staged(e)) pending.push(id); }
   }
   check(!bad.length, '15 the shipped record is the save entry by entry (held back: ' + (M.except.join(', ') || 'none') + ')', bad.slice(0, 6).join('; '));
