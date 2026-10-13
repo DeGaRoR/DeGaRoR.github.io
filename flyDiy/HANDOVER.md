@@ -92649,3 +92649,21 @@ Gates: green except SKINMAT, WEATHER (pre-existing on master; fixes ride train 5
 Strict gate, QUIET re-run 01:09-01:28 (the 00:15 run was spoiled by the user's session): 41b vs master 09683cb08 on the same box minutes apart: cub chase loop 18.9 vs 18.3 ms, render 13.1 vs 12.9, cockpit 19.0 vs 19.0, garage->world 11.3 vs 11.2 s: AT PAR.
 MASTER ITSELF moved vs train 50 (0b42f6826, 20:53): cub chase loop 16.5 -> 18.3 ms, render 11.8 -> 12.9, cockpit loop 16.4 -> 19.0: SCENERY-SHIP (rev27, landed 23:11 without its strict gate by the user's OK) costs ~+2 ms loop at HOME. Still 30 fps at the cap. Owed: find the cost (roads r1 / pavement / zones) - EDITOR-PERF / SCENERY-ED-2.
 What to watch for: nothing visible with damage off. ?damage=1 shows the crash layer (breaks, scars, debris).
+
+## G3180-G3183 - CARD-MATCH: THE FAR CARDS WERE 0.26x THEIR IMPOSTORS; THEIR TINT AND LEVEL NOW FOLLOW THEIR SPECIES (2026-10-13, TREE-STREAM for A0, local; branch claude/card-match-g3180; train 52)
+The user (13 Oct 00:00): "a color/value shift has developed between the far cards for the trees and the impostors. The dark
+ones are the far cards, the greener ones the impostors. We also need a mechanism to keep them in sync."
+CAUSE, MEASURED (tools/perf/cardmatch_probe.js, census 13 Oct 01:40, master 9450f0e5a): THE BAKE. The stand card's sheet
+(stand_cards.js: a 4 x 4 block of its mix's L1 geometry baked as one picture) reads a mean linear albedo of 0.0157 against its
+species' own rungs sheets' ~0.049 (proportion-weighted) - 0.26x, and bluer. The shader is the same for both tiers (impostorMat:
+the cards take the per-material path, the fill the merged one; the same live tint uniforms, uILit, the flat pivot, ATMO).
+WHY NOW: train 50's stand-in (G2930) draws the cards at 1.5-4 km, where they used to start at 4 km under the haze.
+THE FIX (calibrated; the one-source fix G3184 is on its own branch, below):
+- G3181 the card's tint is the proportion-weighted mean of its species' live tint uniforms (stand_cards tintNow, every update),
+  and its sheet's level is matched at the bake to its species' rungs sheets drawn at their own IMP_LEVEL (render_world sheetMean:
+  an atlas's mean linear albedo, read back; TREE_LOD.impLevel('stand:<mix>|rungs'); retried until the fill's sheets exist).
+- G3183 x CARD_SCREEN_K 0.74: the sheet match (level 3.148) drew the cards 1.35x their impostors on screen (twice) - a block's
+  baked normals face the sky more than a tree's. With it: on screen 1.07 under the default look (r 1.04 g 1.04 b 1.40 - a
+  residual blue), 0.80 under a strong tint (the master's light x 1.5 + hue 0.05). The probe: SHEETS (each atlas read back) and
+  SCREEN (cards only / impostors only / neither, over the densest stand from 300 m, the tree pixels in linear RGB).
+WHAT TO WATCH FOR: the far hillsides' trees as green and as light as the impostor forest in front (a faint blue left).
