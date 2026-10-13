@@ -38,7 +38,11 @@ function run(mut) {
   const world = { island: { id: 'jolene' } };
   FS.setCtx(() => ({ world, doc, flown: 'a-floor', from: 'HOME', cap: 6, inside }));
   const want = n => FS.wants('mine:' + n);
-  ok(want('b-in0') && want('c-in1'), 'an inside aeroplane is wanted (its resident is baked)', JSON.stringify(inside));
+  // G2319.1 (WORKS-COZY, train 52): a CAREER's club main hangar holds PREM_SLOTS.mainClub (1) inside, the sandbox's 2 -
+  // the residents shown follow the building's count: slot 0 wanted, slot 1 only where the building has it
+  const insideN = C.playerStoreSlots(doc, 'HOME').inside;
+  ok(insideN >= 1 && want('b-in0') && (insideN >= 2 ? want('c-in1') : !want('c-in1')),
+     'an inside aeroplane is wanted (its resident is baked), as many as the building holds (' + insideN + ')', JSON.stringify(inside));
   ok(want('a-floor'), 'the floor\'s aeroplane is wanted (a prop once another is loaded)');
   ok(want('e-out0'), 'an apron aeroplane is wanted, as before');
   ok(!want('d-long') && !want('f-away'), 'a long-term aeroplane is never wanted (nor one away at another field)');

@@ -166,7 +166,8 @@ const PREM_SLOTS = { bay: 1, main: 2, mainClub: 1, side: 1, sideClub: 2 };
 const PREM_STORE = {
   shells: { club: { inside: 2, outside: 6 }, works: { inside: 4, outside: 6 }, field: { inside: 0, outside: 2 } },
   outsideMax: 6,
-  spots: { w2: 12, HOME: 12, w3: 12, SEA: 12, mk_sea: 12, nv_strip: 5, mn_strip: 0, tw_ski: 0 },
+  // w5-w8: the field club's and SHIP-2's contract fields, cooked since train 52 / 53 (GATE STORAGE caught the pack ahead of this table)
+  spots: { w2: 12, HOME: 12, w3: 12, SEA: 12, mk_sea: 12, nv_strip: 5, mn_strip: 0, tw_ski: 0, w5: 7, w6: 12, w7: 12, w8: 12 },
   kinds: ['floor', 'inside', 'outside', 'long', 'away'],
 };
 // THE OUTSIDE WEAR (GQ7): visible chalking and streaks after ~10 flown hours
