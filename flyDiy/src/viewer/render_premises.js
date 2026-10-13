@@ -1035,18 +1035,48 @@ function make(THREE, scene, world, rec0, opts) {
   // geometry before that is given back, and handed to the part again. RC.flush (a full rebuild, the pavement's A/B, the
   // game out of the editor) starts over; ?pavcache=0 (window.FLYDIY_PAVCACHE = false) builds every road as before.
   const RC = { map: new Map(), flush: true, box: null, on: !(typeof location !== 'undefined' && /[?&]pavcache=0(&|$)/.test(location.search || '')) };
+  // THE PAVED POLYGONS AND THE MERGES KEPT (G3101 EDITOR-PERF; the user's rev 28 timed 13 Oct: every rebuild of the editor
+  // made every paved polygon again (~128 ms) and merged every road and apron part again (~200 ms), the kept roads too).
+  // RC's rules (SCENERY-ED-2's notes, 13 Oct): a paved polygon is kept while its key - its composed entry, the record's
+  // pavement and theme, the world look's LIVE overlay, the strips - is the same and the edit's ground box (RC.box, padded
+  // by its band) misses it; a bucket's MERGE (the roads', the aprons') is kept while every one of its sources is kept and
+  // they are the same set - nothing merged again, nothing torn down. Flushed with RC (a whole rebuild, out of the editor,
+  // ?pavcache=0, the A/B's restand)
+  const PC = { map: new Map(), merged: { road: null, pave: null }, keep: new Map(), keepMerged: new Set() };
   function* buildRoadsSteps(part) {
     const want = e => (part ? isTown(e) : !geoLater(e));
     const useRC = !part && !!PAV && RC.on && window.FLYDIY_PAVCACHE !== false && !!(o.editing && o.editing()) && !GEO.split && !!PG.roadBuildKeys;
-    if (!useRC || RC.flush) { RC.map.clear(); RC.flush = false; }
+    if (!useRC || RC.flush) { RC.map.clear(); RC.flush = false; PC.map.clear(); PC.merged = { road: null, pave: null }; }   // (G3101: the aprons and the merges with them)
     const keys = useRC ? PG.roadBuildKeys(O) : null, keep = new Map();
     if (useRC) for (const rd of O.roads) {
       const c = RC.map.get(rd.id);
       if (c && c.key === keys.get(rd.id) && !(RC.box && PG.roadBoxTouch(rd, RC.box, (+rd.falloff || 6) + 24)) && rd.ribbon !== false && want(rd)) keep.set(rd.id, c);
     }
+    // (G3101) the aprons kept, and the buckets whose merge is kept (decided while RC.box still names the edit's ground)
+    PC.keep = new Map(); PC.keepMerged = new Set();
+    if (useRC && PAV) {
+      const glob = JSON.stringify([O.pavement || null, (O.rec && O.rec.theme) || null, PAV.look ? PAV.look(THREE) : null, (O.aerodromes || []).map(A => [A.x, A.z, A.len, A.wid, A.hdg])]);
+      for (const pp of O.pavePolys || []) {
+        if (geoLater(pp)) continue;
+        const c = PC.map.get(pp.id), k = PG.fnv(JSON.stringify(pp) + '|' + glob), pad = (+pp.band || 0) + 30, b = pp.bbox || PG.polyBBox(pp.poly);
+        const touched = RC.box && !(b.x1 + pad < RC.box.x0 || b.x0 - pad > RC.box.x1 || b.z1 + pad < RC.box.z0 || b.z0 - pad > RC.box.z1);
+        if (c && c.key === k && !touched) PC.keep.set(pp.id, c); else PC.map.delete(pp.id);
+        if (!(c && c.key === k && !touched)) PC.map.set(pp.id, { key: k, mesh: null, row: null });
+      }
+      for (const id of Array.from(PC.map.keys())) if (!(O.pavePolys || []).some(pp => pp.id === id)) PC.map.delete(id);
+      // a bucket's merge is kept when every source drawn this time is kept and they are the merge's own set
+      const drawnRoads = O.roads.filter(rd => rd.ribbon !== false && want(rd) && PG.RUNWAY_LOOKS[rd.look] && PG.RUNWAY_LOOKS[rd.look].cls).map(rd => rd.id).sort().join(',');
+      const drawnPaves = (O.pavePolys || []).filter(pp => !geoLater(pp) && PG.RUNWAY_LOOKS[pp.look] && PG.RUNWAY_LOOKS[pp.look].cls).map(pp => pp.id).sort().join(',');
+      const M = PC.merged;
+      if (M.road && M.road.ids === drawnRoads && drawnRoads.split(',').every(id => !id || keep.has(id))) PC.keepMerged.add('road');
+      if (M.pave && M.pave.ids === drawnPaves && drawnPaves.split(',').every(id => !id || PC.keep.has(id))) PC.keepMerged.add('pave');
+    }
     RC.box = null;
     const keptObj = new Set(), keptRows = new Set();
     for (const [, c] of keep) { if (c.mesh) keptObj.add(c.mesh); if (c.line) keptObj.add(c.line); if (c.rail) keptObj.add(c.rail); if (c.row) keptRows.add(c.row); }
+    for (const [, c] of PC.keep) { if (c.mesh) keptObj.add(c.mesh); if (c.row) keptRows.add(c.row); }   // (G3101)
+    for (const k of PC.keepMerged) for (const m of PC.merged[k].meshes) keptObj.add(m);   // (G3101: a kept merge is never torn down)
+    for (const k of ['road', 'pave']) if (!PC.keepMerged.has(k)) PC.merged[k] = null;
     if (!part) for (const c of G.roads.children.slice()) {
       if (keptObj.has(c)) continue;   // (G3002: a kept road's line, rail, or its part when it was not merged)
       if (RAIL && c.userData.guardrail) { RAIL.dispose(c); continue; }
@@ -1063,7 +1093,7 @@ function make(THREE, scene, world, rec0, opts) {
         const K = keep.get(rd.id);
         if (K) {
           // (G3002) the part drawn as it was: back under the roads (merged again below), its row its own again
-          if (K.mesh && !K.mesh.parent) { if (K.row) K.mesh.geometry.userData.pavRow = K.row; G.roads.add(K.mesh); }
+          if (K.mesh && !K.mesh.parent && !PC.keepMerged.has('road')) { if (K.row) K.mesh.geometry.userData.pavRow = K.row; G.roads.add(K.mesh); }   // (G3101: in a kept merge, it stays out)
           continue;
         }
         stats.roadsBuilt++;
@@ -1124,6 +1154,7 @@ function make(THREE, scene, world, rec0, opts) {
     for (const c of G.roads.children) if (!c.userData.pavMerged && c.isMesh && c.geometry && PAV.isTable(c.material) && c.geometry.userData.pavRow) {
       const k = /^pave:/.test(c.name) ? 'pave' : 'road'; let b = buckets.get(k); if (!b) buckets.set(k, b = []); b.push(c); }
     for (const [k, list] of buckets) {
+      if (!part && PC.keepMerged.has(k)) continue;   // (G3101: never happens - a kept bucket's sources stay out - but a stray one is not merged twice)
       const out = [];
       yield* PAV.mergeSteps(THREE, list.map(m => ({ geo: m.geometry, order: m.renderOrder })), null, out);
       for (const c of out) {
@@ -1132,6 +1163,7 @@ function make(THREE, scene, world, rec0, opts) {
         G.roads.add(m);
       }
       for (const m of list) { G.roads.remove(m); m.geometry.dispose(); }
+      if (!part && RC.on && o.editing && o.editing()) PC.merged[k] = { ids: list.map(m => (m.name || '').replace(/^(road|pave):/, '')).sort().join(','), meshes: G.roads.children.filter(c => c.userData.pavMerged && c.name === k + ':merged') };   // (G3101)
       stats[k + 'Merged'] = (part ? stats[k + 'Merged'] || 0 : 0) + out.length; stats[k + 'Parts'] = (part ? stats[k + 'Parts'] || 0 : 0) + list.length;   // (G2063: the town's added to the rest)
     }
   }
@@ -1142,6 +1174,8 @@ function make(THREE, scene, world, rec0, opts) {
     for (const pp of O.pavePolys || []) {
       if (part ? !isTown(pp) : geoLater(pp)) continue;   // (G2063: the town's later)
       const L = PG.RUNWAY_LOOKS[pp.look]; if (!L || !L.cls) continue;
+      // (G3101) a kept apron: back under the roads for its bucket's merge (its row its own again) - or left out when the merge is kept
+      { const K = !part && PC.keep.get(pp.id); if (K && K.mesh) { if (!K.mesh.parent && !PC.keepMerged.has('pave')) { if (K.row) K.mesh.geometry.userData.pavRow = K.row; G.roads.add(K.mesh); } continue; } }
       const RS = PAV.resolve(pp, O.rec, L);
       const poly = pp.poly.map(q => O.frame.toWorld(q[0], q[1]));
       const geo = PAV.polyGeometry(THREE, { poly, cls: RS.cls, seed: pavSeed(pp.id), shoulderW: PAV.shoulderFor(RS.band, RS.recipe), heightAt, lift: 0.08, res: 2, yaw: (pp.yaw || 0) + O.frame.yaw,
@@ -1160,6 +1194,7 @@ function make(THREE, scene, world, rec0, opts) {
       const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, poly: true, recipe: RS.recipe, band: RS.band, keep, geo });   // G925: a row of the table
       const m = new THREE.Mesh(geo, mat); m.renderOrder = 2 + (pp.z || 0) * 0.01; m.receiveShadow = true; m.name = 'pave:' + pp.id; m.userData.premId = pp.id;
       G.roads.add(m);
+      { const F = !part && PC.map.get(pp.id); if (F) { F.mesh = m; F.row = geo.userData.pavRow || null; } }   // (G3101: filed for the next rebuild)
       yield 'paved';
     }
   }

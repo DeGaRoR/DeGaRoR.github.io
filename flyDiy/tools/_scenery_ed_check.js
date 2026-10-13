@@ -880,6 +880,11 @@ if (plots.length) {
   const RP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8'), AL = fs.readFileSync(path.join(TOOLS, 'analyze_log.js'), 'utf8');
   check(/function editStart\(r\)/.test(RP) && /JSON\.stringify\(PG\.normalise\(r\)\) === JSON\.stringify\(rec\)/.test(RP) && /window\.FLYDIY_EDITFAST === false/.test(RP) && /R\.editStart && R\.editStart\(rec\)/.test(UI_SRC), '20c the open stands the world as it is when the record is the renderer\'s (?editfast=0 the rebuild)');
   check(/selLines\(\);.*\}\s*else buildOutlines\(\);/.test(RP) && /buildOutlines\(dirty\); buildHandles\(\); markDirty\(dirty\);/.test(RP) && /L\.sig === sig && !\(wb && boxesMeet/.test(RP), '20c a select draws the selection\'s lines; an edit\'s outlines kept by entry and ground box');
+  // 20d (G3101) the aprons and the merges kept (source: the renderer never runs in node - the browser slot is the proof)
+  check(/PC\.map\.clear\(\); PC\.merged = \{ road: null, pave: null \}; \}/.test(RP) && /const touched = RC\.box && !\(b\.x1 \+ pad < RC\.box\.x0/.test(RP) && /PAV\.look \? PAV\.look\(THREE\) : null/.test(RP),
+    '20d an apron kept by its key (its entry, the pavement, the theme, the LIVE look, the strips) and the edit\'s ground box; flushed with the roads\' cache');
+  check(/PC\.keepMerged\.add\('road'\)/.test(RP) && /PC\.keepMerged\.add\('pave'\)/.test(RP) && /for \(const m of PC\.merged\[k\]\.meshes\) keptObj\.add\(m\);/.test(RP) && /!K\.mesh\.parent && !PC\.keepMerged\.has\('road'\)/.test(RP),
+    '20d a bucket\'s merge kept only when every source is kept and the set is the same - never torn down, its sources left out');
   check(/r\.value\.steps = T/.test(RP) && /F\.event\('edit'/.test(UI_SRC) && /EDITOR \(G3082/.test(AL), '20c the rebuild timed by step, the editor\'s actions in the flight log, analyze_log\'s EDITOR section');
   console.log('     20 EDITOR-PERF on the user\'s rev 26: ' + nQ + ' roadDist + ' + (nQ * 3) + ' roadDistNear queries and ' + nP + ' polygons exact; compose ' + tC.toFixed(0) + ' ms, with the town ' + tCT.toFixed(0) + ' ms; ' +
     Object.keys(T20).map(k => k + ' ' + T20[k].toFixed(0)).join(', ') + ' ms (headless)');
