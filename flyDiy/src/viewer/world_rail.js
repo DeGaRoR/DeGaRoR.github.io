@@ -430,15 +430,35 @@
   const liveNote = (p, fn) => { const n = note(p, ''); const f = () => { try { n.textContent = fn(); } catch (e) { n.textContent = '-'; } }; f(); live.push(f); return n; };
   const range = (p, label, lo, hi, step, get, set, f, def) => {
     const inp = $('input', 'frng'); inp.type = 'range'; inp.min = lo; inp.max = hi; inp.step = step;
-    const out = $('output', 'wr-o'); out.title = 'click to type a value';
-    const show = v => { out.textContent = f ? f(v) : fmt(v); };
-    const put = v => { set(v); show(v); changed(); };
-    inp.oninput = () => { const v = +inp.value; set(v); show(v); saveLook(); };
+    // G2938 (the user, 12 Oct: "the density for fireweed does not go low enough. For all these, I need relaxed bounds and
+    // manual number input"): THE READOUT IS THE FIELD, as the scenery inspector's (G3017, premises_host.js slider) - focus
+    // shows the bare number, Enter or leaving commits it ONCE through the slider's own setter, Escape gives up. A typed
+    // value may pass the slider's ends (the slider widens to it, fit below); only the physical bound holds it: a share
+    // (a 0..1 slider) in 0..1, a slider from 0 at >= 0, one whose floor is above 0 (a cell, a spacing: a divisor) at a
+    // tenth of that floor, an angle (-180..180, 0..359) wrapped; nothing snaps to the step (0.02 of fireweed is 0.02)
+    const out = $('input', 'wr-o'); out.type = 'text'; out.setAttribute('inputmode', 'decimal'); out.title = 'type a value - Enter sets it, Escape gives up';
+    const show = v => { out.value = f ? f(v) : fmt(v); };
+    const ANG = (+lo === -180 && +hi === 180) || (+lo === 0 && (+hi === 359 || +hi === 360));
+    const bound = n => { if (ANG) return ((n - +lo) % 360 + 360) % 360 + +lo;
+      const fl = +lo > 0 ? +lo / 10 : +lo === 0 ? 0 : -Infinity, ce = (+lo >= 0 && +hi <= 1) ? 1 : Infinity;
+      return +Math.max(fl, Math.min(ce, n)).toFixed(6); };
+    // G2936 (the user: "the lightness is at 3, the sliders go to 2"): A SLIDER NEVER CAPS BELOW A VALUE IN USE - a typed
+    // value, a saved look's, a payload's: the bounds widen to hold it (an <input type=range> clamps its value to max, so the
+    // first touch wrote the cap back); and a setter that throws (G2935's SPL) no longer skips the show and the save
+    const fit = v => { if (!isFinite(v)) return; if (v > +inp.max) inp.max = v; if (v < +inp.min) inp.min = v; };
+    const put = v => { fit(v); try { set(v); } finally { show(v); changed(); } };
+    inp.oninput = () => { const v = +inp.value; try { set(v); } finally { show(v); saveLook(); } };
     inp.onchange = () => refresh();
-    out.onclick = () => { const s = prompt(label, inp.value); if (s !== null && s !== '' && isFinite(+s)) { inp.value = +s; put(+s); } };
+    let typing = false;
+    out.onfocus = () => { typing = true; let g; try { g = +get(); } catch (e) { g = NaN; } out.value = isFinite(g) ? String(+g.toFixed(6)) : ''; if (out.select) out.select(); };
+    out.onchange = () => { if (!typing) return; typing = false; const n = parseFloat(String(out.value).replace(',', '.'));
+      if (isFinite(n)) { const q = bound(n); fit(q); inp.value = q; put(q); } else b(); };
+    out.onblur = () => { if (typing) out.onchange(); b(); };
+    out.onkeydown = ev => { if (ev.key === 'Enter') { out.onchange(); if (out.blur) out.blur(); } else if (ev.key === 'Escape') { typing = false; b(); if (out.blur) out.blur(); }
+      if (ev.stopPropagation) ev.stopPropagation(); };   // (the rail's and the game's keys stay out of a typed number)
     const r = row(p, label, inp, out);
     if (def !== undefined) { r.firstChild.classList.add('wr-def'); r.firstChild.title = label + ' - double-click: back to ' + (f ? f(def) : def); r.firstChild.ondblclick = () => { inp.value = def; put(def); }; }
-    const b = () => { let v; try { v = +get(); } catch (e) { v = NaN; } if (isFinite(v)) { inp.disabled = false; inp.value = v; show(v); } else { inp.disabled = true; out.textContent = '-'; } };
+    const b = () => { let v; try { v = +get(); } catch (e) { v = NaN; } if (isFinite(v)) { inp.disabled = false; fit(v); inp.value = v; if (!typing) show(v); } else { inp.disabled = true; if (!typing) out.value = '-'; } };
     b(); binds.push(b); return r;
   };
   const select = (p, label, opts, get, set) => {
@@ -574,9 +594,9 @@
     // THE GLOBAL COLOUR
     const C = sec(body, 'global colour', true, 'the stack’s grade and the environment');
     const gs = k => v => g.set({ [k]: v });
-    range(C, 'lightness', 0.2, 2.5, 0.02, () => g.get().light, gs('light'), null, DEF.ground ? DEF.ground.light : undefined);
-    range(C, 'saturation', 0, 2, 0.02, () => g.get().sat, gs('sat'), null, DEF.ground ? DEF.ground.sat : undefined);
-    if (WF().envAlbedo) range(C, 'env. albedo', 0.2, 1.5, 0.02, () => WF().envAlbedo(), v => WF().envAlbedo(v), null, DEF.env === null ? undefined : DEF.env);
+    range(C, 'lightness', 0, 4, 0.02, () => g.get().light, gs('light'), null, DEF.ground ? DEF.ground.light : undefined);
+    range(C, 'saturation', 0, 3, 0.02, () => g.get().sat, gs('sat'), null, DEF.ground ? DEF.ground.sat : undefined);
+    if (WF().envAlbedo) range(C, 'env. albedo', 0, 3, 0.02, () => WF().envAlbedo(), v => WF().envAlbedo(v), null, DEF.env === null ? undefined : DEF.env);
     note(C, 'env. albedo: one gain over the ground (after the sets) and the vegetation; the aeroplane, the buildings and the sky keep theirs');
     if (sp) {
       const kn = k => () => sp.knobs()[k], ss = k => v => sp.set({ [k]: v });
@@ -707,14 +727,27 @@
     const M = () => B.mixOf(mix), F = () => (M().forest || (M().forest = {}));
     const fs = k => v => t.setMix(mix, ['forest', k], v);
     const St = sec(body, 'the stand', true, 'how much grows');
-    range(St, 'trees', 0, 3000, 10, () => F().count || 0, fs('count'), v => v + ' · ' + (B.density(mix) * 10000).toFixed(0) + '/ha');
-    range(St, 'shrubs', 0, 20, 0.5, () => F().under || 0, fs('under'), v => v + ' /1000 m²');
-    range(St, 'stones', 0, 200, 1, () => F().rocks || 0, fs('rocks'), v => v + ' /1000 m²');
-    range(St, 'debris', 0, 200, 1, () => F().debris || 0, fs('debris'), v => v + ' /1000 m²');
+    // G2936 (the user, 12 Oct: the muskeg's "3000 · 197/ha" while almost nothing grows, and no way to add trees): WHAT
+    // STANDS, beside the count. The fill plants at most one tree a grid point (TREE_FILL.get(): the density setting's
+    // grid); a mix's share of the points is min(1, its trees/m2 x the point's area x biomeGain), so past that count
+    // (full) the slider changes nothing; the grid drops 10 % and the clumps leave their bare share. The figure is the
+    // stand where the canopy map is full or a canopy floor stands it (below 6 m of canopy the map thins it further).
+    // Max 6000: the payload's own counts (5000) sit inside it, so a touch never clamps them.
+    const stand = () => { const ng = (t.get && t.get()) || 128, spc = 1024 / ng, gain = ((t.island && t.island()) || {}).biomeGain || 3.5;
+      const kind = Math.min(1, B.density(mix) * spc * spc * gain), r = F().radius || 220;
+      return { ha: kind / (spc * spc) * 0.9 * (1 - Math.min(0.95, F().clump || 0)) * 1e4, full: kind >= 1, at: Math.ceil(Math.PI * r * r / (spc * spc * gain) / 10) * 10 }; };
+    range(St, 'trees', 0, 6000, 10, () => F().count || 0, fs('count'), v => { const P = stand();
+      return v + ' · ' + (B.density(mix) * 10000).toFixed(0) + '/ha · stands ~' + P.ha.toFixed(0) + '/ha' + (P.full ? ' (full from ' + P.at + ')' : ''); });
+    range(St, 'clumps: bare', 0, 0.9, 0.05, () => F().clump || 0, fs('clump'), v => v ? (v * 100).toFixed(0) + ' % of the ground bare' : 'off (an even stand)');
+    range(St, 'clump size', 8, 80, 1, () => F().clumpM || 30, fs('clumpM'), v => v + ' m');
+    range(St, 'canopy floor', 0, 20, 0.5, () => F().canopyFloor || 0, fs('canopyFloor'), v => v ? v + ' m' + (v >= 6 ? ' (the full stand everywhere)' : '') : 'off (the canopy map rules)');
+    range(St, 'shrubs', 0, 100, 0.5, () => F().under || 0, fs('under'), v => v + ' /1000 m²');
+    range(St, 'stones', 0, 1000, 1, () => F().rocks || 0, fs('rocks'), v => v + ' /1000 m²');
+    range(St, 'debris', 0, 1000, 1, () => F().debris || 0, fs('debris'), v => v + ' /1000 m²');
     range(St, 'blotch', 0, 1, 0.05, () => F().blotch || 0, fs('blotch'));
     range(St, 'blotch size', 4, 60, 1, () => F().blotchM || 18, fs('blotchM'), v => v + ' m');
-    range(St, 'size spread', 0, 0.5, 0.01, () => F().coverSpread || 0, fs('coverSpread'));
-    note(St, 'trees: the stand’s count in its 220 m disc (the density the fill plants, x the biome gain in VEGETATION); shrubs, stones, debris: the cover ring’s, near the eye; blotch: clearings and thickets on a noise of that size');
+    range(St, 'size spread', 0, 1, 0.01, () => F().coverSpread || 0, fs('coverSpread'));
+    note(St, 'trees: the stand’s count in its 220 m disc (x the biome gain in VEGETATION) and what stands of it: at most one tree a grid point of the density setting - past "full" only a higher density adds trees; clumps: the share of the ground left bare between the tree islands, and their size; canopy floor: the stand’s height where the canopy map says less - the map stops thinning it there (6 m and over: the full stand wherever this biome is), and the trees take that height; shrubs, stones, debris: the cover ring’s, near the eye; blotch: clearings and thickets on a noise of that size');
     // the five categories
     const P = PACK();
     for (const C of CATS) {
@@ -728,19 +761,21 @@
         for (const c of avail) { const o = $('option', null, pretty(c.name) + ' (' + c.kind + ')'); o.value = c.name; s.appendChild(o); }
         s.onchange = () => { if (!s.value) return; const name = s.value, kd = kindOf(name);
           const row0 = { proportion: 1 }; if (kd === 'cover') Object.assign(row0, { density: 0.5 }); if (kd === 'rock') Object.assign(row0, { size: 4 }); if (kd === 'debris') Object.assign(row0, { tilt: 1, bury: 0.2, tint: 0.3 });
-          M().species = M().species || {}; M().species[name] = row0; t.setMix(mix, ['species', name, 'proportion'], 1); changed(); open('types', true); };
+          // G2936 (the user: "adding a new species from the biome tab does not generate a new section"): setMix threw out of
+          // its catalogue re-read (G2935's SPL, master since G906) before the tab re-rendered - the card now comes whatever it does
+          M().species = M().species || {}; M().species[name] = row0; try { t.setMix(mix, ['species', name, 'proportion'], 1); } finally { changed(); open('types', true); } };
         Cb.appendChild(s);
       }
     }
   }
   // ONE SPECIES: its picture, its numbers (the planters' own keys, by kind), its removal
   const SPK = {
-    tree: [['proportion', 0, 4, 0.05, 1], ['dead', 0, 0.5, 0.01, 0]],
-    dead: [['proportion', 0, 4, 0.05, 1]],
-    shrub: [['proportion', 0, 4, 0.05, 1], ['size', 0.2, 4, 0.05, 1]],
-    cover: [['proportion', 0, 4, 0.05, 1], ['density', 0, 6, 0.05, 0, ' /m²'], ['size', 0.2, 4, 0.05, 1], ['patch', 0, 20, 0.5, 0, ' m'], ['patchShare', 0, 1, 0.05, 0.25]],
-    rock: [['proportion', 0, 4, 0.05, 1], ['size', 0.5, 40, 0.5, 1], ['bury', 0, 0.8, 0.02, 0], ['tilt', 0, 1, 0.05, 0], ['tint', 0, 1, 0.05, 0], ['cluster', 0, 1, 1, 0], ['shore', 0, 1, 1, 0]],
-    debris: [['proportion', 0, 4, 0.05, 1], ['size', 0.001, 3, 0.001, 1], ['tilt', 0, 1, 0.05, 0], ['bury', 0, 0.8, 0.02, 0], ['cluster', 0, 1, 1, 0], ['hollow', 0, 1, 0.05, 0], ['tint', 0, 1, 0.05, 0], ['dim', 0, 1.5, 0.02, 1]],
+    tree: [['proportion', 0, 20, 0.05, 1], ['dead', 0, 1, 0.01, 0]],
+    dead: [['proportion', 0, 20, 0.05, 1]],
+    shrub: [['proportion', 0, 20, 0.05, 1], ['size', 0, 8, 0.05, 1]],
+    cover: [['proportion', 0, 20, 0.05, 1], ['density', 0, 20, 0.01, 0, ' /m²'], ['size', 0, 8, 0.05, 1], ['patch', 0, 60, 0.5, 0, ' m'], ['patchShare', 0, 1, 0.01, 0.25]],
+    rock: [['proportion', 0, 20, 0.05, 1], ['size', 0, 80, 0.1, 1], ['bury', 0, 0.8, 0.02, 0], ['tilt', 0, 1, 0.05, 0], ['tint', 0, 1, 0.05, 0], ['cluster', 0, 1, 1, 0], ['shore', 0, 1, 1, 0]],
+    debris: [['proportion', 0, 20, 0.05, 1], ['size', 0, 6, 0.001, 1], ['tilt', 0, 1, 0.05, 0], ['bury', 0, 0.8, 0.02, 0], ['cluster', 0, 1, 1, 0], ['hollow', 0, 1, 0.05, 0], ['tint', 0, 1, 0.05, 0], ['dim', 0, 3, 0.02, 1]],
   };
   const SPK_NOTE = { patchShare: 'patch share', proportion: 'share' };
   function speciesCard(grid, mix, sp) {
@@ -752,34 +787,34 @@
     const P = PACK(), col = P && P.collections.find(c => c.name === sp);
     if (col && col.credit && col.credit.author) nm.appendChild($('div', 'wr-cred', col.credit.author.replace(/\s*\(.*\)$/, '')));
     const x = $('button', 'wr-x', '×'); x.type = 'button'; x.title = 'remove from this biome';
-    x.onclick = () => { delete B.mixOf(mix).species[sp]; const F = B.mixOf(mix).forest || {}; t.setMix(mix, ['forest', 'count'], F.count || 0); changed(); open('types', true); };
+    x.onclick = () => { delete B.mixOf(mix).species[sp]; const F = B.mixOf(mix).forest || {}; try { t.setMix(mix, ['forest', 'count'], F.count || 0); } finally { changed(); open('types', true); } };
     top.appendChild(x);
     const body = $('div', 'wr-spb'); card.appendChild(body);
     const rowOf = () => B.mixOf(mix).species[sp] || {};
     for (const [k, lo, hi, st, d, unit] of (SPK[kd] || SPK.tree))
       range(body, SPK_NOTE[k] || k, lo, hi, st, () => (rowOf()[k] === undefined ? d : rowOf()[k]), v => t.setMix(mix, ['species', sp, k], v), v => (st >= 1 ? v.toFixed(0) : fmt(v, st < 0.01 ? 3 : 2)) + (unit || ''), d);
     if (kd === 'tree' || kd === 'dead') {
-      if (t.speciesSize) range(body, 'size', 0.3, 2.5, 0.05, () => t.speciesSize(sp), v => t.speciesSize(sp, v), v => 'x' + v.toFixed(2), 1);
+      if (t.speciesSize) range(body, 'size', 0.1, 5, 0.05, () => t.speciesSize(sp), v => t.speciesSize(sp, v), v => 'x' + v.toFixed(2), 1);
       const L = W.TREE_LEAF, c = L && L.collections && L.collections().find(q => q.name === sp);
       if (c) {
-        range(body, 'hue', -0.2, 0.2, 0.005, () => c.tint.hue || 0, v => L.tintOf(sp, { hue: v }), v => v.toFixed(3), 0);
-        range(body, 'saturation', 0, 1.5, 0.02, () => (c.tint.sat === undefined ? 1 : c.tint.sat), v => L.tintOf(sp, { sat: v }), null, 1);
-        range(body, 'lightness', 0.2, 2, 0.02, () => (c.tint.light === undefined ? 1 : c.tint.light), v => L.tintOf(sp, { light: v }), null, 1);
-        range(body, 'bark', 0.2, 2, 0.02, () => (c.tint.bark === undefined ? 1 : c.tint.bark), v => L.tintOf(sp, { bark: v }), null, 1);
+        range(body, 'hue', -0.5, 0.5, 0.005, () => c.tint.hue || 0, v => L.tintOf(sp, { hue: v }), v => v.toFixed(3), 0);
+        range(body, 'saturation', 0, 3, 0.02, () => (c.tint.sat === undefined ? 1 : c.tint.sat), v => L.tintOf(sp, { sat: v }), null, 1);
+        range(body, 'lightness', 0, 4, 0.02, () => (c.tint.light === undefined ? 1 : c.tint.light), v => L.tintOf(sp, { light: v }), null, 1);
+        range(body, 'bark', 0, 4, 0.02, () => (c.tint.bark === undefined ? 1 : c.tint.bark), v => L.tintOf(sp, { bark: v }), null, 1);
       }
       note(body, 'a tree’s height is the canopy map’s x the size gain (VEGETATION); size and colour here are the species’, in every biome');
     } else if (kd === 'shrub' || (kd === 'cover' && !(col && col.maps))) {
       // GRASS-DENSE G2566: the grass field's length here (GRASS-STUDY §4.4): the tuft's median top, its spread, the density by this
       // biome (1 = the meadow's) - the row's own, else the field's table for the mix
       const CRm = W.COVER_RING, FT = CRm && CRm.FIELD_TYPES && CRm.FIELD_SPECIES && CRm.FIELD_SPECIES.includes(sp) ? (CRm.FIELD_TYPES[mix] || CRm.FIELD_TYPES.grassland) : null;
-      if (FT) for (const [k, label, lo, hi, st, f] of [['h', 'field: length', 0.03, 0.8, 0.01, v => v.toFixed(2) + ' m'], ['sigma', 'field: spread', 0, 0.6, 0.01, null], ['dens', 'field: density x', 0, 2, 0.05, null]])
+      if (FT) for (const [k, label, lo, hi, st, f] of [['h', 'field: length', 0, 2, 0.01, v => v.toFixed(2) + ' m'], ['sigma', 'field: spread', 0, 0.6, 0.01, null], ['dens', 'field: density x', 0, 6, 0.05, null]])
         range(body, label, lo, hi, st, () => (rowOf()[k] === undefined ? FT[k] : rowOf()[k]), v => t.setMix(mix, ['species', sp, k], v), f, FT[k]);
       // G1385: a bush's and a grass's own colour (the flowers are their pictures: no tint); the kind's master is in VEGETATION
       const L = W.TREE_LEAF, c = L && L.collections && L.collections().find(q => q.name === sp);
       if (c) {
-        range(body, 'hue', -0.2, 0.2, 0.005, () => c.tint.hue || 0, v => L.tintOf(sp, { hue: v }), v => v.toFixed(3), 0);
-        range(body, 'saturation', 0, 1.5, 0.02, () => (c.tint.sat === undefined ? 1 : c.tint.sat), v => L.tintOf(sp, { sat: v }), null, 1);
-        range(body, 'lightness', 0.2, 2, 0.02, () => (c.tint.light === undefined ? 1 : c.tint.light), v => L.tintOf(sp, { light: v }), null, 1);
+        range(body, 'hue', -0.5, 0.5, 0.005, () => c.tint.hue || 0, v => L.tintOf(sp, { hue: v }), v => v.toFixed(3), 0);
+        range(body, 'saturation', 0, 3, 0.02, () => (c.tint.sat === undefined ? 1 : c.tint.sat), v => L.tintOf(sp, { sat: v }), null, 1);
+        range(body, 'lightness', 0, 4, 0.02, () => (c.tint.light === undefined ? 1 : c.tint.light), v => L.tintOf(sp, { light: v }), null, 1);
       }
     }
   }
@@ -824,8 +859,8 @@
     range(M, 'C share', -1, 1, 0.05, () => C().mix[3], v => setArr('mix', 3, v));
     note(M, 'the cell is the mask’s blob size; a negative A↔B favours A. The height blend (FILTERING) decides the edge inside a blob: the taller texel wins.');
     const V = sec(body, 'variation', true, 'the colour swing over the ground');
-    range(V, 'hue swing', 0, 40, 1, () => (C().vary || [0, 0, 20])[0], v => setArr('vary', 0, v), v => v + '°');
-    range(V, 'value swing', 0, 0.6, 0.01, () => (C().vary || [0, 0, 20])[1], v => setArr('vary', 1, v));
+    range(V, 'hue swing', 0, 90, 1, () => (C().vary || [0, 0, 20])[0], v => setArr('vary', 0, v), v => v + '°');
+    range(V, 'value swing', 0, 1, 0.01, () => (C().vary || [0, 0, 20])[1], v => setArr('vary', 1, v));
     range(V, 'swing cell', 2, 120, 1, () => (C().vary || [0, 0, 20])[2], v => setArr('vary', 2, v), v => v + ' m');
     select(V, 'orient', [['', 'as is'], ['sea', 'face the sea (the beach)']], () => C().orient || '', v => sp.setCode(code, { orient: v || undefined }));
     // the sets this type draws, each one's recolour inline
@@ -886,9 +921,9 @@
     const g = () => sp.grade(key);
     const S1 = $('div', 'wr-sub'); ctl.appendChild(S1); S1.appendChild($('div', 'wr-subh', 'the whole set'));
     colour(S1, 'gain', () => g().gain, v => set({ gain: v }));
-    range(S1, 'saturation', 0, 2, 0.02, () => g().sat, v => set({ sat: v }), null, 1);
+    range(S1, 'saturation', 0, 3, 0.02, () => g().sat, v => set({ sat: v }), null, 1);
     range(S1, 'hue turn', -180, 180, 1, () => g().hue, v => set({ hue: v }), v => v + '°', 0);
-    range(S1, 'contrast', 0, 2, 0.02, () => g().contrast, v => set({ contrast: v }), null, 1);
+    range(S1, 'contrast', 0, 3, 0.02, () => g().contrast, v => set({ contrast: v }), null, 1);
     range(S1, 'gloss', 0, 1, 0.05, () => g().gloss, v => set({ gloss: v }), null, 1);
     range(S1, 'dark \u2192 grass', 0, 1, 0.02, () => g().grass || 0, v => set({ grass: v }), null, 0);
     const S2 = $('div', 'wr-sub'); ctl.appendChild(S2); S2.appendChild($('div', 'wr-subh', 'one colour of it'));
@@ -896,8 +931,8 @@
     range(S2, 'band', 0, 120, 1, () => g().selWidth, v => set({ selWidth: v }), v => v ? '±' + v + '°' : 'off', 0);
     range(S2, 'softness', 0, 1, 0.05, () => g().selSoft, v => set({ selSoft: v }), null, 0.5);
     range(S2, 'shift hue', -180, 180, 1, () => g().selShift, v => set({ selShift: v }), v => v + '°', 0);
-    range(S2, 'saturation', 0, 2.5, 0.02, () => g().selSat, v => set({ selSat: v }), null, 1);
-    range(S2, 'lightness', 0, 2.5, 0.02, () => g().selLight, v => set({ selLight: v }), null, 1);
+    range(S2, 'saturation', 0, 4, 0.02, () => g().selSat, v => set({ selSat: v }), null, 1);
+    range(S2, 'lightness', 0, 4, 0.02, () => g().selLight, v => set({ selLight: v }), null, 1);
     const mrow = row(S2, 'on the ground');
     pills(mrow, [{ label: 'magenta', v: 1 }, { label: 'off', v: 0 }], o => (maskKey === key) === !!o.v, o => { maskKey = o.v ? key : null; sp.showMask(maskKey); });
     note(S2, 'select the grass in a grass-and-rock set (pick its green, widen the band) and turn only it; the rock keeps its colour. Grey texels are never selected.');
@@ -966,12 +1001,12 @@
     if (t.onIsland && t.onIsland()) {
       const I = sec(body, 'the rule', true, 'the map says where and how tall');
       const isl = k => v => t.setIsland({ [k]: v }), D = DEF.island || {};
-      range(I, 'cover from', 0, 10, 0.5, () => t.island().from, isl('from'), v => v + ' m', D.from);
-      range(I, 'full cover', 2, 30, 1, () => t.island().full, isl('full'), v => v + ' m', D.full);
-      range(I, 'size gain', 0.3, 2.5, 0.05, () => t.island().gain, isl('gain'), null, D.gain);
-      range(I, 'size min', 0.1, 1, 0.05, () => t.island().min, isl('min'), null, D.min);
-      range(I, 'size max', 1, 4, 0.1, () => t.island().max, isl('max'), null, D.max);
-      range(I, 'biome gain', 0.5, 8, 0.1, () => t.island().biomeGain, isl('biomeGain'), null, D.biomeGain);
+      range(I, 'cover from', 0, 30, 0.5, () => t.island().from, isl('from'), v => v + ' m', D.from);
+      range(I, 'full cover', 1, 60, 1, () => t.island().full, isl('full'), v => v + ' m', D.full);
+      range(I, 'size gain', 0, 5, 0.05, () => t.island().gain, isl('gain'), null, D.gain);
+      range(I, 'size min', 0, 2, 0.05, () => t.island().min, isl('min'), null, D.min);
+      range(I, 'size max', 0, 8, 0.1, () => t.island().max, isl('max'), null, D.max);
+      range(I, 'biome gain', 0, 20, 0.1, () => t.island().biomeGain, isl('biomeGain'), null, D.biomeGain);
       range(I, 'biome wobble', 0, 30, 1, () => t.island().biomeWobble, isl('biomeWobble'), v => v + ' m', D.biomeWobble);
       note(I, 'the terrain type says the kind of stand, the canopy map how much of it stands and how tall (canopy x size gain over the model’s height), NDVI its vigour; biome gain scales every biome’s tree count; wobble reads the type a little off the point, so a biome’s edge is not the map’s cell edge');
     }
@@ -984,9 +1019,9 @@
       range(R, 'reach', 60, 400, 10, () => r.get().reach, cs('reach'), v => v + ' m', D.reach);
       range(R, 'full to', 10, 200, 5, () => r.get().near, cs('near'), v => v + ' m', D.near);
       range(R, 'taper', 0, 1, 0.05, () => r.get().taper, cs('taper'), null, D.taper);
-      range(R, 'density', 0, 2, 0.05, () => r.get().density, cs('density'), null, D.density);
-      range(R, 'shrubs', 0, 2, 0.05, () => r.get().shrubs, cs('shrubs'), null, D.shrubs);
-      range(R, 'stones', 0, 2, 0.05, () => r.get().rocks, cs('rocks'), null, D.rocks);
+      range(R, 'density', 0, 6, 0.01, () => r.get().density, cs('density'), null, D.density);
+      range(R, 'shrubs', 0, 6, 0.05, () => r.get().shrubs, cs('shrubs'), null, D.shrubs);
+      range(R, 'stones', 0, 6, 0.05, () => r.get().rocks, cs('rocks'), null, D.rocks);
       range(R, 'AGL full', 10, 200, 5, () => r.get().aglFull, cs('aglFull'), v => v + ' m', D.aglFull);
       range(R, 'AGL off', 30, 400, 5, () => r.get().aglOff, cs('aglOff'), v => v + ' m', D.aglOff);
       liveNote(R, () => { const st = r.stat(); return st ? 'under the eye: ' + (st.mixAt || 'no biome') + ' · ' + st.live + ' cells, ' + st.instances + ' instances · ' + st.lastMs.toFixed(1) + ' ms last build' : ''; });
@@ -998,7 +1033,7 @@
     if (fl) {
       const Gf = sec(body, 'the grass field', true, 'the grass: dense, short, the ground’s colour'), fs = k => v => fl.set({ [k]: v }), D = DEF.grass || {};
       toggle(Gf, 'the field (off: today’s patches)', () => fl.get().on, v => { const t = TF(); if (t && t.field) t.field(!!v); });
-      range(Gf, 'tufts / m² (meadow)', 5, 250, 1, () => fl.get().tufts, fs('tufts'), v => v + ' (' + (v * 3).toFixed(0) + ' cards)', D.tufts);
+      range(Gf, 'tufts / m² (meadow)', 0, 1000, 0.5, () => fl.get().tufts, fs('tufts'), v => v + ' (' + (v * 3).toFixed(0) + ' cards)', D.tufts);
       range(Gf, 'full to', 2, 60, 1, () => fl.get().near, fs('near'), v => v + ' m', D.near);
       range(Gf, 'gone at', 20, 250, 5, () => fl.get().reach, fs('reach'), v => v + ' m', D.reach);
       range(Gf, 'taper', 0, 2, 0.05, () => fl.get().taper, fs('taper'), null, D.taper);
@@ -1007,8 +1042,8 @@
       range(Gf, 'size fade: tall reach x', 1, 2, 0.05, () => fl.get().sizeMax, fs('sizeMax'), v => 'x' + v.toFixed(2), D.sizeMax);
       range(Gf, 'AGL full', 5, 200, 1, () => fl.get().aglFull, fs('aglFull'), v => v + ' m', D.aglFull);
       range(Gf, 'AGL off', 10, 400, 5, () => fl.get().aglOff, fs('aglOff'), v => v + ' m', D.aglOff);
-      range(Gf, 'height x', 0.2, 3, 0.05, () => fl.get().hK, fs('hK'), null, D.hK);
-      range(Gf, 'height spread x', 0, 3, 0.05, () => fl.get().sigmaK, fs('sigmaK'), null, D.sigmaK);
+      range(Gf, 'height x', 0, 6, 0.05, () => fl.get().hK, fs('hK'), null, D.hK);
+      range(Gf, 'height spread x', 0, 6, 0.05, () => fl.get().sigmaK, fs('sigmaK'), null, D.sigmaK);
       range(Gf, 'clumps: cell', 1, 12, 0.5, () => fl.get().clumpM, fs('clumpM'), v => v + ' m', D.clumpM);
       range(Gf, 'clumps: amount', 0, 0.8, 0.02, () => fl.get().clumpAmp, fs('clumpAmp'), null, D.clumpAmp);
       range(Gf, 'bare patches', 0, 1, 0.05, () => fl.get().blotch, fs('blotch'), null, D.blotch);
@@ -1016,13 +1051,13 @@
       range(Gf, 'tuft shapes (draws)', 1, 6, 1, () => fl.get().variants, fs('variants'), null, D.variants);
       range(Gf, 'block (cells a side)', 1, 6, 1, () => fl.get().block, fs('block'), v => v + ' (' + v * 16 + ' m)', D.block);
       toggle(Gf, 'colour: the ground as drawn', () => fl.get().colour, v => fl.set({ colour: v ? 1 : 0 }));
-      range(Gf, 'colour: level to the ground', 0.3, 2.5, 0.01, () => fl.get().match, fs('match'), v => 'x' + v.toFixed(2), D.match);
-      range(Gf, 'colour: tuft to tuft', 0, 0.3, 0.01, () => fl.get().vary, fs('vary'), v => '±' + Math.round(v * 100) + ' %', D.vary);
-      range(Gf, 'cut grass: length', 0.02, 0.4, 0.01, () => fl.get().cutH, fs('cutH'), v => v.toFixed(2) + ' m', D.cutH);
+      range(Gf, 'colour: level to the ground', 0, 4, 0.01, () => fl.get().match, fs('match'), v => 'x' + v.toFixed(2), D.match);
+      range(Gf, 'colour: tuft to tuft', 0, 1, 0.01, () => fl.get().vary, fs('vary'), v => '±' + Math.round(v * 100) + ' %', D.vary);
+      range(Gf, 'cut grass: length', 0, 1, 0.01, () => fl.get().cutH, fs('cutH'), v => v.toFixed(2) + ' m', D.cutH);
       range(Gf, 'cut grass: spread', 0, 0.5, 0.01, () => fl.get().cutSigma, fs('cutSigma'), null, D.cutSigma);
-      range(Gf, 'cut grass: density x', 0.2, 3, 0.05, () => fl.get().cutDens, fs('cutDens'), null, D.cutDens);
-      range(Gf, 'grass runway: length', 0.02, 0.3, 0.01, () => fl.get().stripH, fs('stripH'), v => v.toFixed(2) + ' m', D.stripH);
-      range(Gf, 'grass runway: density x', 0.2, 3, 0.05, () => fl.get().stripDens, fs('stripDens'), null, D.stripDens);
+      range(Gf, 'cut grass: density x', 0, 6, 0.05, () => fl.get().cutDens, fs('cutDens'), null, D.cutDens);
+      range(Gf, 'grass runway: length', 0, 1, 0.01, () => fl.get().stripH, fs('stripH'), v => v.toFixed(2) + ' m', D.stripH);
+      range(Gf, 'grass runway: density x', 0, 6, 0.05, () => fl.get().stripDens, fs('stripDens'), null, D.stripDens);
       liveNote(Gf, () => { const st = fl.stat(); return st ? 'under the eye: ' + (st.mixAt || 'no biome') + ' · ' + st.live + ' cells, ' + st.instances + ' tufts held, ' + (st.submitted || 0) + ' drawn · ' + st.lastMs.toFixed(1) + ' ms last cell' : ''; });
       const P = GSD();
       if (P) {
@@ -1042,9 +1077,9 @@
     const L = W.TREE_LEAF;
     if (L && L.master) {
       const C = sec(body, 'the trees’ colour', false, 'every species');
-      range(C, 'hue', -0.2, 0.2, 0.005, () => L.master().hue, v => L.tint({ hue: v }), v => v.toFixed(3), 0);
-      range(C, 'saturation', 0, 2, 0.02, () => L.master().sat, v => L.tint({ sat: v }), null, 1);
-      range(C, 'lightness', 0.2, 2, 0.02, () => L.master().light, v => L.tint({ light: v }), null, 1);   // the tint reaches the impostors too (IMPA.tbl); G1975: this also scaled their lit term - twice for them
+      range(C, 'hue', -0.5, 0.5, 0.005, () => L.master().hue, v => L.tint({ hue: v }), v => v.toFixed(3), 0);
+      range(C, 'saturation', 0, 3, 0.02, () => L.master().sat, v => L.tint({ sat: v }), null, 1);
+      range(C, 'lightness', 0, 4, 0.02, () => L.master().light, v => L.tint({ light: v }), null, 1);   // the tint reaches the impostors too (IMPA.tbl); G1975: this also scaled their lit term - twice for them
       if (W.TREE_MIX) { range(C, 'furnished', 0, 1, 0.05, () => W.TREE_MIX.furnished, v => { W.TREE_MIX.furnished = v; if (W.TREE_MIX.apply) W.TREE_MIX.apply(); });
         range(C, 'size spread', 0, 0.6, 0.02, () => W.TREE_MIX.spread, v => { W.TREE_MIX.spread = v; if (W.TREE_MIX.apply) W.TREE_MIX.apply(); }); }
       note(C, 'each species’ own colour and size are on its card (TYPES > biome); the LOD ladder and the leaf shading stay on F8 - they are the renderer’s, not the art’s');
@@ -1054,9 +1089,9 @@
     if (L && L.kindTint) for (const [kind, title, sub] of [['cover', 'the grass’ colour', 'every grass species (not the flowers)'], ['flower', 'the flowers’ colour', 'every flower species (their pictures)'], ['shrub', 'the bushes’ colour', 'every bush species']]) {
       const K = () => L.kindMaster(kind) || {}, D = (DEF.kindTint && DEF.kindTint[kind]) || { hue: 0, sat: 1, light: 1 };
       const C = sec(body, title, false, sub);
-      range(C, 'hue', -0.2, 0.2, 0.005, () => K().hue, v => L.kindTint(kind, { hue: v }), v => v.toFixed(3), D.hue);
-      range(C, 'saturation', 0, 2, 0.02, () => K().sat, v => L.kindTint(kind, { sat: v }), null, D.sat);
-      range(C, 'lightness', 0.2, 2, 0.02, () => K().light, v => L.kindTint(kind, { light: v }), null, D.light);
+      range(C, 'hue', -0.5, 0.5, 0.005, () => K().hue, v => L.kindTint(kind, { hue: v }), v => v.toFixed(3), D.hue);
+      range(C, 'saturation', 0, 3, 0.02, () => K().sat, v => L.kindTint(kind, { sat: v }), null, D.sat);
+      range(C, 'lightness', 0, 4, 0.02, () => K().light, v => L.kindTint(kind, { light: v }), null, D.light);
       note(C, kind === 'cover' ? 'over the bench’s grass master (sat 1.58, light 1.12) and each species’ own (its card); the tuft’s colour still comes from the ground at its foot - these move what the leaf does with it'
                                : 'over the trees’ master above and each species’ own (its card); exported with the look as kindTint.shrub');
     }
@@ -1082,14 +1117,14 @@
     if (c) {
       const S = sec(body, 'the cliff faces', true), cs = k => v => c.set({ [k]: v }), D = DEF.cliffs || {};
       toggle(S, 'cliffs', () => c.get().on, v => c.set({ on: !!v }));
-      range(S, 'how many', 0, 400, 5, () => c.get().n, cs('n'), v => v.toFixed(0), D.n);
+      range(S, 'how many', 0, 2000, 5, () => c.get().n, cs('n'), v => v.toFixed(0), D.n);
       range(S, 'min slope', 15, 60, 1, () => c.get().minSlope, cs('minSlope'), v => v + '°', D.minSlope);
       range(S, 'spacing', 20, 400, 5, () => c.get().spacing, cs('spacing'), v => v + ' m', D.spacing);
       range(S, 'by the sea', 0, 1, 0.05, () => c.get().coast, cs('coast'), null, D.coast);
       range(S, 'bury', 0, 1, 0.02, () => c.get().bury, cs('bury'), null, D.bury);
-      range(S, 'fit', 0.5, 3, 0.05, () => c.get().fit, cs('fit'), null, D.fit);
-      range(S, 'size min', 0.2, 2, 0.05, () => c.get().minK, cs('minK'), null, D.minK);
-      range(S, 'size max', 0.5, 5, 0.05, () => c.get().maxK, cs('maxK'), null, D.maxK);
+      range(S, 'fit', 0, 6, 0.05, () => c.get().fit, cs('fit'), null, D.fit);
+      range(S, 'size min', 0, 4, 0.05, () => c.get().minK, cs('minK'), null, D.minK);
+      range(S, 'size max', 0, 10, 0.05, () => c.get().maxK, cs('maxK'), null, D.maxK);
       range(S, 'tilt', 0, 1, 0.05, () => c.get().tilt, cs('tilt'), null, D.tilt);
       range(S, 'reach', 500, 10000, 100, () => c.get().reach, cs('reach'), v => v + ' m', D.reach);
       liveNote(S, () => { const s = c.stat(); return s.sites + ' sites, ' + s.placed + ' placed, ' + (s.tris / 1000).toFixed(0) + 'k tris, ' + s.ms.toFixed(0) + ' ms'; });
@@ -1300,7 +1335,9 @@ body.premOpen #ui #wrRail, body.premOpen #ui #wrFly { display:none !important; }
 #ui #wrFly .wr-r > label.wr-def:hover { color:var(--ed-ink); }
 #ui #wrFly .wr-r > .fpills { grid-column:2 / 4; }
 #ui #wrFly .wr-r > .wr-sel { grid-column:2 / 4; }
-#ui #wrFly .wr-o { min-width:52px; text-align:right; color:var(--ed-ink); font-size:10.5px; cursor:text; }
+#ui #wrFly .wr-o { min-width:52px; width:72px; text-align:right; color:var(--ed-ink); font:inherit; font-size:10.5px; cursor:text; background:transparent; border:1px solid transparent; border-radius:3px; padding:0 2px; }
+#ui #wrFly .wr-o:hover { border-color:var(--ed-line, rgba(127,127,127,.35)); }
+#ui #wrFly .wr-o:focus { outline:none; border-color:var(--ed-acc, #6aa0ff); background:var(--ed-bg2, rgba(127,127,127,.12)); }
 #ui #wrFly .wr-sel { width:100%; background:rgba(0,0,0,.25); color:var(--ed-ink); border:1px solid var(--ed-btn-bd); border-radius:5px; font:inherit; padding:3px 4px; }
 #ui #wrFly .wr-sel option { background:#201d1a; }
 #ui #wrFly .wr-col { width:40px; height:20px; border:1px solid var(--ed-btn-bd); background:none; padding:0; border-radius:4px; }

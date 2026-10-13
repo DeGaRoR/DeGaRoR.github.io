@@ -92678,3 +92678,116 @@ opens); press on a parked aeroplane's wing - the aeroplane is selected.
   Also found, not changed: the asset placer offers assembly PARTS as models (car_conquer wheels / steering, the panel's
   buttons / keys / knobs / switches, the Jodel airframe parts, the ALMA's three parts, the pier kit's pieces) - a pack
   flag (`part: true`) for ASSETS-OCT, then the placer hides them (S, train 53); the feature list has no JUNCTIONS group.
+
+
+## G2936 - BIOME-DENSITY: THE BIOME TAB SAYS WHAT STANDS, AND OFFERS THE DIALS THAT MOVE IT (2026-10-12, TREE-STREAM for A0, local; branch claude/biome-density-g2936 off master; train 52)
+The user: the muskeg's "the stand > trees" read "3000 · 197/ha" while almost nothing grew, and the slider could not add
+trees. MEASURED (node: the fill walk's per-point rule on Jolene through island_node, no premises polygons; scratch
+muskeg_funnel.js): the muskeg (ttype 3 + 7, ~8 500 ha) plants 137 trees/ha at density 200 (grid max 381) and 56/ha at
+128 (grid max 156) against 329/ha nominal (the payload's count 5000, above the old slider's 3000 cap). Lost: the mix's
+clump 0.55 (51 %: "dense packs on little islands"), the grid's 10 % dropout, the ground 3 %, the canopy ramp 1 % - the
+canopy map is NOT the cause (the muskeg is floored: canopyFloor 3.5 over the bog's 3 m cap). The count SATURATES: a mix's
+share of the grid's points is min(1, trees/m2 x the point's area x biomeGain 3.5), full at ~1 660 (density 200) / ~680
+(128) - the slider's upper part did nothing.
+world_rail.js biomeTab, the stand: 'trees' to 6000 (the payload's 5000 inside it: a touch never clamps it) with the
+label "count · nominal/ha · stands ~X/ha (full from N)" (X = the grid's share x 0.9 x (1 - clump), the canopy map full or
+floored; 154 vs the walk's 137 at 200, 63 vs 56 at 128); new rows 'clumps: bare' (forest.clump 0..0.9), 'clump size'
+(clumpM 8..80 m), 'canopy floor' (canopyFloor 0..20 m; 6 m and over: the full stand wherever the biome is). All through
+TREE_FILL.setMix (the walk and the stand cards read the same fields). Gates: node --check, UISMOKE.
+WHAT TO WATCH FOR: the muskeg's trees row now says how many stand (~150/ha at density 200, ~60 at 128) and "(full)"; to
+thicken it, lower 'clumps: bare' (0 = an even stand: ~2.2x the trees) or raise the density setting; 'canopy floor' 6+ m
+fills a biome where the canopy map is thin.
+
+### G2937 - THE BIOME TAB: A SPECIES ADDED SHOWS ITS CARD; NO SLIDER CAPS BELOW A VALUE IN USE (2026-10-12, A0's two user bugs, same branch)
+(1) The user: "adding a new species from the biome tab does not generate a new section". CAUSE: '+ add from the catalogue'
+writes the species row, then TREE_FILL.setMix -> reachRefresh, which threw (ReferenceError SPL - G2935's find, on master
+since G906) BEFORE `changed(); open('types', true)` re-rendered the tab: the species was in the mix, the card never drawn
+(and every biome-tab slider's oninput skipped its saveLook the same way). The SPL fix rides train 50 (TREE-STREAM); here
+the add and the remove handlers re-render in a finally, and range()'s setters are wrapped the same way (a throw no longer
+loses the show and the save). The kinds are all in CATS but 'cliff', which the catalogue never offers.
+(2) The user: "the lightness is at 3, the sliders go to 2 ... a lot of limits on sliders that really should not be there".
+range() itself now WIDENS its bounds to the value it binds (a saved look's, a payload's, a typed one): an <input
+type=range> clamps its value to max, so the first touch wrote the cap back over the saved 3. And the artistic ranges,
+widened (shares stay 0..1, distances and the physical ranges unchanged - the widening covers any value in use there):
+  species lightness (trees, bushes/grass) 0.2-2 -> 0-4
+  species bark 0.2-2 -> 0-4
+  species saturation 0-1.5 -> 0-3
+  species hue +-0.2 -> +-0.5
+  tree species size 0.3-2.5 -> 0.1-5
+  the trees' colour + each kind's colour (grass, flowers, bushes) hue +-0.2 -> +-0.5
+  ground colour, the trees' colour, each kind's colour saturation 0-2 -> 0-3
+  the trees' colour + each kind's colour lightness 0.2-2 -> 0-4
+  ground colour lightness 0.2-2.5 -> 0-4
+  env. albedo 0.2-1.5 -> 0-3
+  ground set saturation 0-2 -> 0-3
+  ground set contrast 0-2 -> 0-3
+  ground recolour saturation 0-2.5 -> 0-4
+  ground recolour lightness 0-2.5 -> 0-4
+  variation hue swing 0-40 -> 0-90
+  variation value swing 0-0.6 -> 0-1
+  species share (every kind) 0-4 -> 0-20
+  tree dead share 0-0.5 -> 0-1
+  bush / grass size 0.2-4 -> 0.05-8
+  grass/flower density 0-6 -> 0-20 /m2
+  grass/flower patch 0-20 -> 0-60 m
+  stone size 0.5-40 -> 0.1-80
+  debris size 0.001-3 -> 0.001-6
+  debris dim 0-1.5 -> 0-3
+  the stand: shrubs 0-20 -> 0-100 /1000 m2
+  the stand: stones 0-200 -> 0-1000 /1000 m2
+  the stand: debris 0-200 -> 0-1000 /1000 m2
+  the stand: size spread 0-0.5 -> 0-1
+  vegetation: cover from 0-10 -> 0-30 m
+  vegetation: full cover 2-30 -> 1-60 m
+  vegetation: size gain 0.3-2.5 -> 0.1-5
+  vegetation: size min 0.1-1 -> 0.05-2
+  vegetation: size max 1-4 -> 0.5-8
+  vegetation: biome gain 0.5-8 -> 0.1-20
+  cover ring density 0-2 -> 0-6
+  cover ring shrubs 0-2 -> 0-6
+  cover ring stones 0-2 -> 0-6
+  grass field tufts/m2 5-250 -> 0-1000
+  grass field height x 0.2-3 -> 0.05-6
+  grass field height spread x 0-3 -> 0-6
+  grass field colour level 0.3-2.5 -> 0-4
+  grass field colour tuft to tuft 0-0.3 -> 0-1
+  cut grass length 0.02-0.4 -> 0.01-1 m
+  cut grass density x 0.2-3 -> 0-6
+  grass runway length 0.02-0.3 -> 0.01-1 m
+  grass runway density x 0.2-3 -> 0-6
+  a grass card's field: length 0.03-0.8 -> 0.01-2 m
+  a grass card's field: density x 0-2 -> 0-6
+  cliffs: how many 0-400 -> 0-2000
+  cliffs: fit 0.5-3 -> 0.1-6
+  cliffs: size min 0.2-2 -> 0.05-4
+  cliffs: size max 0.5-5 -> 0.1-10
+WHAT TO WATCH FOR: '+ add from the catalogue' shows the species' card at once (its tint rows once its bin has loaded - reopen the tab); a slider whose saved value is past its old end now shows it (and its track reaches it); the colour sliders go to 4 (lightness), 3 (saturation), +-0.5 (hue).
+
+### G2938 - EVERY WORLD-EDITOR SLIDER TAKES A TYPED NUMBER; THE LOWER BOUNDS RELAXED (2026-10-12, A0 for the user, same branch)
+The user: "the density for fireweed does not go low enough. For all these, I need relaxed bounds and manual number
+input." world_rail.js range() (every slider of the F9 rail: 162 rows) - the readout IS the field, G3017's pattern
+(premises_host.js slider; not shared: two builders, two stylesheets): focus shows the bare number, Enter or leaving
+commits it once through the slider's own setter, Escape gives up, keys stay out of the game. A typed value may pass the
+slider's ends - the slider widens to it (G2937's fit) - and only the physical bound holds it: a 0..1 slider (a share) in
+0..1, a slider from 0 at >= 0, one whose floor is above 0 (a cell, a spacing, a reach: divisors) at a tenth of that floor,
+an angle (-180..180, 0..359) wrapped; no snap to the step. The prompt() click is gone. Lower bounds and steps:
+  grass/flower density: step 0.05 -> 0.01 (fireweed 0.12 -> 0.02 reachable on the slider; typed any)
+  bush / grass size from 0.05 -> 0
+  stone size from 0.1 -> 0
+  debris size from 0.001 -> 0
+  patch share: step 0.05 -> 0.01
+  vegetation: size gain from 0.1 -> 0
+  vegetation: size min from 0.05 -> 0
+  vegetation: size max from 0.5 -> 0
+  vegetation: biome gain from 0.1 -> 0
+  grass field height x from 0.05 -> 0
+  cut grass length from 0.01 -> 0
+  grass runway length from 0.01 -> 0
+  a grass card's field: length from 0.01 -> 0
+  cliffs: fit from 0.1 -> 0
+  cliffs: size min from 0.05 -> 0
+  cliffs: size max from 0.1 -> 0
+  grass field tufts/m2: step 1 -> 0.5
+  cover ring density: step 0.05 -> 0.01
+(kept above 0: a species' size multiplier - TREE_FILL.speciesSize treats 0 as 'reset to 1'; clump size, cells, spacings - divisors.)
+WHAT TO WATCH FOR: click any value on the F9 rail and type (0.02 for fireweed's density, Enter); the slider follows past its old end; Escape restores.
