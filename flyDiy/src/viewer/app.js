@@ -891,6 +891,39 @@
   // changes size rebuilds its blur program too).
   const envGens = {};
   const envGen = k => envGens[k] || (envGens[k] = new THREE.PMREMGenerator(renderer));
+  // T52b (A0 / HWCOV, 13 Oct): THE PMREM PROGRAMS ARE LINKED OFF THE MAIN THREAD BEFORE A BOOT BAKE. A bake's first
+  // PMREM links three's PMREMGGXConvolution (256 GGX samples) - and SphericalGaussianBlur for the sky probe's
+  // fromScene - SYNCHRONOUSLY on its first draw: 11.2 s in the compile step's done() once a merge dirtied the room
+  // during boot (train 52b: worst task 0.9 -> 10.3 s). The programs are keyed by the generator's SIZE, not by the
+  // generator, so one warm per size covers the room's cube (256), the sky probe (fromScene, 256) and the sky's
+  // equirect (its width / 4): compileAsync over the generator's own materials, drawn into its own ping-pong target
+  // (a render target's key: no tone mapping, linear), so the bake's link is a cache hit. three r186's PMREMGenerator
+  // internals (_setSize, _allocateTargets, _ggxMaterial, _blurMaterial, _lodMeshes, _pingPongRenderTarget): any missing,
+  // nothing is warmed and the bake links as before.
+  const pmremWarmed = {};
+  function pmremWarm(key, size) {
+    size = Math.round(size) || 0;
+    if (pmremWarmed[size]) return pmremWarmed[size];
+    const none = Promise.resolve();
+    if (size < 16 || typeof renderer.compileAsync !== 'function' || !THREE.PMREMGenerator || !THREE.Mesh || !THREE.OrthographicCamera) return none;
+    try {
+      const g = envGen(key);
+      if (typeof g._setSize !== 'function' || typeof g._allocateTargets !== 'function') return none;
+      g._setSize(size); const rt = g._allocateTargets(); if (rt && rt.dispose) rt.dispose();
+      const L = g._lodMeshes && g._lodMeshes[1], T = g._pingPongRenderTarget;
+      const mats = [g._ggxMaterial, g._blurMaterial].filter(Boolean);
+      if (!L || !T || !mats.length) return none;
+      const grp = new THREE.Group(); for (const m of mats) grp.add(new THREE.Mesh(L.geometry, m));
+      const prev = renderer.getRenderTarget(); let p = null;
+      try { renderer.setRenderTarget(T); p = renderer.compileAsync(grp, new THREE.OrthographicCamera()); } finally { renderer.setRenderTarget(prev); }
+      return (pmremWarmed[size] = Promise.resolve(p).catch(e => console.warn('pmrem warm:', e && e.message)));
+    } catch (e) { console.warn('pmrem warm:', e && e.message); return none; }
+  }
+  // the sizes a garage bake can ask for: the room's cube, and the sky's equirect when the physical sky is off
+  const pmremWarmBake = () => {
+    const sky = !(typeof ATMO !== 'undefined' && ATMO.enabled) && hangar && hangar.skyTexture ? hangar.skyTexture() : null;   // (the bake's own read)
+    return Promise.all([pmremWarm('room', 256), sky && sky.image && sky.image.width ? pmremWarm('sky', sky.image.width / 4) : null]);
+  };
   function bakeHangarEnv(o) {
     if (envDeferred || envAway) { envDirty = true; return; }
     if (!hangar || !THREE.PMREMGenerator || !renderer.setRenderTarget) return;
@@ -16794,7 +16827,7 @@
     const settled = () => (typeof BOOT.settled !== 'function') || BOOT.settled(['props', 'crew', 'crewBuild']);
     const t0 = performance.now();
     const whenComplete = () => new Promise(res => { const poll = () => { if (settled() || performance.now() - t0 > 8000) res(); else setTimeout(poll, 50); }; poll(); });
-    return whenComplete().then(() => shaderProgress(pass(ensureEnvRT()).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
+    return whenComplete().then(() => shaderProgress(pass(ensureEnvRT()).then(() => pmremWarmBake()).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
       .then(() => compileDepthVariants(hangarScene)), 'garage'))   // G680: its shadow pass and the full-screen passes too
       .then(() => (typeof renderer.initTexture === 'function') ? uploadSliced(hangarScene, 'compile', 'uploading the textures') : null)   // G999: not in the first frame
       .then(() => { tripKeys.shedCompile = gfxKey(); })   // B9: the graphics the shed was compiled for (the Fly press re-checks)
