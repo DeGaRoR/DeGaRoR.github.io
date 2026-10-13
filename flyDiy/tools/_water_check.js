@@ -243,9 +243,13 @@ console.log('\n3. THE LAWS');
     // switches it - no shore drops it, no altitude fades it, a new plane is reached by a slide and a body off the plane keeps the probe
     { const g = src('src/viewer/gfx_settings.js'), r = k => (new RegExp('^\\s*' + k + ':.*mirror: \'(\\w+)\'', 'm').exec(g) || [])[1];
       const gp = { laptop: r('laptop'), potato: r('potato'), retro: r('retro'), current: r('current'), gamer: r('gamer'), ultra: r('ultra') };
-      verdict(gp.gamer === 'live' && gp.ultra === 'live' && ['laptop', 'potato', 'retro', 'current'].every(k => gp[k] === 'off'), `the mirror is live on gamer and ultra, off on the rest (${JSON.stringify(gp)})`);
-      const m0 = W.mirror.mode; W.set({ mirror: 'periodic' }); const p1 = W.mirror.mode; W.set({ mirror: 'banana' }); const p2 = W.mirror.mode; W.set({ mirror: 'live' }); const p3 = W.mirror.mode; W.set({ mirror: m0 });
-      verdict(p1 === 'periodic' && p2 === 'off' && p3 === 'live', `an unknown reflections value is 'off', never 'periodic' (${p1}/${p2}/${p3})`);
+      verdict(gp.gamer === 'auto' && gp.ultra === 'auto' && ['laptop', 'potato', 'retro', 'current'].every(k => gp[k] === 'off'), `the mirror is AUTO on gamer and ultra (the user's default, 13 Oct), off on the rest (${JSON.stringify(gp)})`);
+      verdict(/\{ v: 'off',[^\n]*\n[\s\S]{0,900}\{ v: 'auto',[^\n]*\n\s*\{ v: 'live',\s*label: 'on'/.test(g), "the reflections row: sky only / auto / on (three ways, the menu's ON is 'live')");
+      const m0 = W.mirror.mode; W.set({ mirror: 'periodic' }); const p1 = W.mirror.mode; W.set({ mirror: 'banana' }); const p2 = W.mirror.mode; W.set({ mirror: 'live' }); const p3 = W.mirror.mode; W.set({ mirror: 'auto' }); const p4 = W.mirror.mode; W.set({ mirror: m0 });
+      verdict(p1 === 'periodic' && p2 === 'off' && p3 === 'live' && p4 === 'auto', `an unknown reflections value is 'off', never 'periodic' (${p1}/${p2}/${p3}/${p4})`);
+      // AUTO is master's behaviour: no water under the eye or the CG = off (mirrorOff), the plane the water under the eye, the ceiling's fade
+      verdict(/if \(auto && !hasUnder\) \{ if \(MIR\.on \|\| MIR\.last\) mirrorOff\(\); MIR\.w = 0; return false; \}/.test(mp) && /const waterY = auto \? under : mirrorPlane\(/.test(mp) && /: always \|\| eyeAgl <= MIR\.fadeFrom \? 1/.test(mp),
+        "AUTO: off over land (mirrorOff), the plane the water under the eye, faded out from fadeFrom to maxAgl; ON (live) never: the sticky sliding plane, no ceiling");
       const app = src('src/viewer/app.js'), cs = app.slice(app.indexOf('if (window.WATER && WATER.mirrorRender && !inGarage && WF) {'), app.indexOf('if (FR) FR.lap(FR.S.mirror);'));
       verdict(cs.length > 100 && !/WATER\.mirrorOff\(/.test(cs) && /WATER\.mirrorRender\(THREE, renderer, scene, camera, Number\.isFinite\(wl\) \? wl : null,/.test(cs),
         'app.js hands the water under the eye (null over land) every frame and never switches the mirror off at a shore'); }

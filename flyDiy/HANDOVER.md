@@ -92650,7 +92650,7 @@ Strict gate, QUIET re-run 01:09-01:28 (the 00:15 run was spoiled by the user's s
 MASTER ITSELF moved vs train 50 (0b42f6826, 20:53): cub chase loop 16.5 -> 18.3 ms, render 11.8 -> 12.9, cockpit loop 16.4 -> 19.0: SCENERY-SHIP (rev27, landed 23:11 without its strict gate by the user's OK) costs ~+2 ms loop at HOME. Still 30 fps at the cap. Owed: find the cost (roads r1 / pavement / zones) - EDITOR-PERF / SCENERY-ED-2.
 What to watch for: nothing visible with damage off. ?damage=1 shows the crash layer (breaks, scars, debris).
 
-## G2830 - WATER-STEADY: THE LIVE MIRROR NEVER SWITCHES - LIVE ON GAMER AND ULTRA, OFF BELOW; NO SHORE DROPS IT, NO ALTITUDE FADES IT; A VIEW WITH NO WATER PAYS NOTHING (2026-10-12/13, WATER-STEADY for A0, local GPU; branch claude/water-steady-g2830 off master f353a0f89, rebased on 39570350b; G2831-G2839 unused)
+## G2830 - WATER-STEADY: THE MIRROR THREE WAYS - AUTO (THE DEFAULT ON GAMER AND ULTRA, MASTER'S BEHAVIOUR), ON (NEVER SWITCHES: NO SHORE DROPS IT, NO ALTITUDE FADES IT), OFF; A VIEW WITH NO WATER PAYS NOTHING (2026-10-12/13, WATER-STEADY for A0, local GPU; branch claude/water-steady-g2830 off master f353a0f89, rebased on 39570350b; G2831-G2839 unused)
 The user (10 Oct): "the water model switching from simple to reflective is really annoying ... turn it on for game and ultra, off for the rest, and not auto switching ... It changes the values of the scene fundamentally."
 - **The switch, found:** app.js called `WATER.mirrorOff()` whenever the eye AND the CG were over land, so every shore crossing swapped every water pixel between the capture and the sky probe in one frame. A 500-900 m altitude fade did the same on a climb. `MIR.mode` also defaulted to 'periodic', which the menu does not offer.
 - **The fix (water.js, app.js):**
@@ -92659,7 +92659,7 @@ The user (10 Oct): "the water model switching from simple to reflective is reall
   - A LIVE mirror has no ceiling (the fade stays for 'periodic', a rig's mode). `MIR.mode` defaults to 'off'; an unknown value is 'off'.
   - THE WATER SEEN: an ANY_SAMPLES_PASSED_CONSERVATIVE query in the water meshes' `watch()` hooks (lakes and river ribbons now watched too). The live capture is skipped while the newest answered frame drew no water pixel. A context with no queries (the node harness) always captures.
   - `MIR.skip` (objects left out of the capture's scene draw), `MIR.capturing / calls / captures` for the census rig.
-- **Presets (gfx_settings.js):** gamer and ultra `mirror: 'live'`, laptop / potato / retro / current 'off'. pv 9: a player saved ON gamer / ultra takes the live mirror; a custom mix keeps its row. GATE GFX's FROZEN rows changed for gamer / ultra by the user's 10 Oct call.
+- **Presets (gfx_settings.js) - THE USER'S RULING 13 Oct (for train 54):** the reflections row is three ways - sky only ('off') / auto ('auto') / on ('live'). AUTO is master's behaviour (the plane = the water under the eye, else the CG; OFF over land; faded out 500-900 m; captured every frame) and the DEFAULT on gamer and ultra, so no gamer row pays by default; ON is the never-switching mirror measured below; laptop / potato / retro / current 'off'. The user: "if it ever gets good enough, it becomes default again" (the redesign: D:/Dev/flydiy-notes/WATER-REDESIGN-PLAN-2026-10.md). pv 9: a player saved ON gamer / ultra takes 'auto'; a custom mix keeps its row (a saved ON stays on). GATE GFX's FROZEN rows for gamer / ultra read 'auto'. Both modes keep THE WATER SEEN skip and the per-body plane gate, and the capture at res 0.4.
 - **Measured (gamer, RTX 3080, headless uncapped; frame_perf ABBA, master runs 2+3 vs branch runs 1-3; master run 1 discarded - SCENERY-ED-1's TAXICLEAR overlapped it):**
   - stand 12.3 -> 17.3-17.9 ms; forest 9.6-10.1 -> 17.0-17.4; sea 300 m 8.0-8.3 -> 17.3-22.8 (p90 44-45 -> 26-27); coast 30 m 10.1-11.3 -> 17.7-18.1.
   - The main scene pass's GPU time is unchanged; the whole rise is the capture pass: 4.2-5.9 ms GPU (1200x675, 2 samples), 5.3-6.6 ms CPU, 340-480 draws.
@@ -92677,4 +92677,4 @@ The user (10 Oct): "the water model switching from simple to reflective is reall
   - a lake 30+ m above the sea: sky-only from far off, the reflection dissolving in as you come under 200 m over it (and the sea going to sky-only then);
   - a first sliver of water over a hill: the last capture for 1-3 frames;
   - frame time on gamer near water: ~5 ms GPU more; ultra too (its capture is the same size);
-  - saved gamer / ultra players come back with the mirror on (pv 9).
+  - saved gamer / ultra players come back on AUTO (pv 9) - the old switch at a shore, by the user's choice; ON in GRAPHICS > Water removes it.

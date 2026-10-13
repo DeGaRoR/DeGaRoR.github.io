@@ -898,9 +898,12 @@ const WATER = (() => {
   // wall clock under the rig, so a '3 s' refresh was 20 s and the water drew a capture taken 1500 m away - the
   // reflection stretched and smeared (the user: "reflections seem stretched, everything is twice as long")
   // WATER-STEADY (G2830, the user 10 Oct: "the water model switching from simple to reflective is really annoying ...
-  // It changes the values of the scene fundamentally"): the mirror is a PRESET's, never a moment's. 'live' (gamer,
-  // ultra) is on wherever the eye is - no shore that drops it, no altitude that fades it - and 'off' is off; nothing
-  // in between switches it. 'periodic' is kept for a rig (WATER.set({ mirror: 'periodic' })), never a menu's.
+  // It changes the values of the scene fundamentally"): THREE MODES (the user's ruling 13 Oct, for train 54):
+  //   'live' (the menu's ON): on wherever the eye is - no shore that drops it, no altitude that fades it, the plane slides;
+  //   'auto' (the DEFAULT on gamer and ultra): master's behaviour - the plane is the water under the eye (else the CG), the
+  //     mirror goes OFF over land and fades out from fadeFrom to maxAgl; captured every frame. The user: "if it ever gets
+  //     good enough, it becomes default again" - ON is the redesign's to earn;
+  //   'off': the probe's sky only. 'periodic' is kept for a rig (WATER.set({ mirror: 'periodic' })), never a menu's.
   //   the default is 'off' (the menu's; the GRAPHICS row hands its own on boot - an unknown value is 'off', never 'periodic')
   //   adoptAgl: the plane follows the water under the eye only while the eye is this low over it (a pond crossed at
   //     300 m does not take the plane from the sea); over land it STAYS (THE SHORE NEVER DROPS IT)
@@ -962,12 +965,15 @@ const WATER = (() => {
   function mirrorRender(THREE, renderer, scene, camera, under, opts) {
     opts = opts || {};
     if (MIR.mode === 'off') { if (MIR.on && U) { MIR.on = false; U.uWMirror4.value.x = 0; } MIR.w = 0; return false; }
+    const auto = MIR.mode === 'auto', hasUnder = under !== null && under !== undefined && Number.isFinite(under);
+    // AUTO (master's behaviour): no water under the eye or the CG = the mirror off (the switch the user chose to keep by default)
+    if (auto && !hasUnder) { if (MIR.on || MIR.last) mirrorOff(); MIR.w = 0; return false; }
     const now = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
     const dtc = MIR.t ? Math.min(0.5, now - MIR.t) : 0;
     MIR.t = now;
-    const waterY = mirrorPlane(under, camera.position, dtc);
+    const waterY = auto ? under : mirrorPlane(under, camera.position, dtc);
     const eyeAgl = camera.position.y - waterY;
-    const live = MIR.mode === 'live';
+    const always = MIR.mode === 'live', live = always || auto;   // live: captured every frame; always: no ceiling either
     // THE CEILING IS A FADE, NOT A CLIFF (G522, the user: "do your planar mirror fix"). The mirror used to
     // switch OFF above 60 m over the water, on the reasoning that from the air a water reflects the sky and
     // the probe carries the sky. That is true of the water DIRECTLY BELOW and false of everything else: at
@@ -981,7 +987,7 @@ const WATER = (() => {
     // (G2830: 'periodic' only - a LIVE mirror has no ceiling: a dissolve is still the water changing its values as the
     // aeroplane climbs, and the live capture costs the same at any height; past MIR.far the capture holds the sky)
     const mirW = !(eyeAgl > 0.1) ? 0
-      : live || eyeAgl <= MIR.fadeFrom ? 1
+      : always || eyeAgl <= MIR.fadeFrom ? 1
       : Math.max(0, 1 - (eyeAgl - MIR.fadeFrom) / Math.max(1, MIR.maxAgl - MIR.fadeFrom));
     MIR.w = mirW;
     if (!U || mirW <= 0.001) { if (MIR.on && U) { MIR.on = false; U.uWMirror4.value.x = 0; } return false; }
@@ -1148,7 +1154,7 @@ const WATER = (() => {
     // (G2830: the same hooks ask whether the draw left a pixel - THE WATER SEEN - while the mirror is live; one query of a
     // kind at a time, and the two kinds are different targets, so the timer and the occlusion nest freely)
     mesh.onBeforeRender = () => {
-      if (MIR.mode === 'live' && seenOk()) { const gl = timer.gl; oq = gl.createQuery(); gl.beginQuery(gl.ANY_SAMPLES_PASSED_CONSERVATIVE, oq); }
+      if ((MIR.mode === 'live' || MIR.mode === 'auto') && seenOk()) { const gl = timer.gl; oq = gl.createQuery(); gl.beginQuery(gl.ANY_SAMPLES_PASSED_CONSERVATIVE, oq); }
       if (!timer.on || !timer.ext) return; q = timer.gl.createQuery(); timer.gl.beginQuery(timer.ext.TIME_ELAPSED_EXT, q); };
     mesh.onAfterRender = () => {
       if (oq) { const gl = timer.gl; gl.endQuery(gl.ANY_SAMPLES_PASSED_CONSERVATIVE); seen.pending.push({ q: oq, f: seen.frame }); seen.issued[seen.frame] = (seen.issued[seen.frame] || 0) + 1; oq = null; }
@@ -1255,9 +1261,10 @@ const WATER = (() => {
   function set(o) {
     if (!o) return;
     if ('tier' in o) setTier(o.tier);
-    // (G2830: an unknown value is OFF - the menu offers off / live; 'periodic' only when a rig names it)
-    if ('mirror' in o) { MIR.mode = o.mirror === 'live' ? 'live' : o.mirror === 'periodic' ? 'periodic' : 'off'; if (MIR.mode === 'off') mirrorOff();
-      if (MIR.mode !== 'live') { if (timer.gl) for (const h of seen.pending) timer.gl.deleteQuery(h.q); seen.pending = []; seen.issued = {}; seen.any = {}; seen.base = seen.lastAnswered = seen.frame; seen.lastTrue = -1; } }
+    // (G2830: an unknown value is OFF - the menu offers off / auto / live ('on'); 'periodic' only when a rig names it)
+    if ('mirror' in o) { const m0 = MIR.mode; MIR.mode = o.mirror === 'live' || o.mirror === 'auto' || o.mirror === 'periodic' ? o.mirror : 'off';
+      if (MIR.mode === 'off' || MIR.mode !== m0) mirrorOff();   // (a change of mode starts from no capture, no plane)
+      if (MIR.mode !== 'live' && MIR.mode !== 'auto') { if (timer.gl) for (const h of seen.pending) timer.gl.deleteQuery(h.q); seen.pending = []; seen.issued = {}; seen.any = {}; seen.base = seen.lastAnswered = seen.frame; seen.lastTrue = -1; } }
     for (const k of ['displace', 'detail', 'sigma', 'foam', 'dbg', 'detailK', 'shoreFade', 'lakeK', 'lakeCap', 'foldQ', 'reflKeep', 'slant', 'lap', 'wet']) if (k in o) S[k] = o[k];
     if ('on' in o) S.on = !!o.on;
     if ('timer' in o) timer.on = !!o.timer;

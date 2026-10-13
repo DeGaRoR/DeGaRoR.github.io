@@ -200,9 +200,11 @@
         // (2026-10-03, the user: the periodic capture left the menu - it made the water swap between reflective and plain;
         // G1340 SHADER-GUARD took the LIVE one out too; the user, 2026-10-04: "keep the live water mirror option, just
         // disable it by default" - back in the row, OFF on every preset, ultra included)
-        // WATER-STEADY (G2830, the user 10 Oct: "turn it on for game and ultra, off for the rest, and not auto switching"):
-        // LIVE on gamer and ultra, off on the four below - and wherever it is on it stays on (no shore, no altitude drops it)
-        { v: 'live',     label: 'live', why: 'the reflection captured every frame (a second scene draw at 0.4 of the frame each way; on for gamer and ultra, never switched by the game)' } ] },
+        // WATER-STEADY (G2830): three ways (the user, 13 Oct): AUTO the default on gamer and ultra - master's behaviour, the
+        // mirror over the water and off over land / high up; ON never switched (no shore, no altitude drops it); off below.
+        // "If it ever gets good enough, it becomes default again"
+        { v: 'auto',     label: 'auto', why: 'the reflection over the water, captured every frame; it switches off over land and fades out from 500 to 900 m up (the default on gamer and ultra)' },
+        { v: 'live',     label: 'on', why: 'the reflection captured every frame wherever you are - never switched by the game (a second scene draw at 0.4 of the frame each way)' } ] },
     { k: 'lighting', label: 'lighting', steps: [
         { v: 'sunset', label: 'sunset', why: 'the world’s golden hour' },
         { v: 'alps',   label: 'afternoon', why: 'the bench’s afternoon sky, the light the trees were judged in' } ] },
@@ -270,8 +272,8 @@
     potato:  Object.assign({ ground: 'plain', scale: 0.67, cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 6, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     retro:   Object.assign({ ground: 'lean', scale: 0.85, cover: 'lean', scenery: 'lean', drawDist: 'vis', terrain: 2, aa: 'off',   density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     current: Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 2, aa: 'off',   density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
-    gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'mid', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'simple',   mirror: 'live' }, COLOUR, POST_BLOOM),
-    ultra:   Object.assign({ ground: 'full', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'mid', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_BLOOM),
+    gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'mid', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'simple',   mirror: 'auto' }, COLOUR, POST_BLOOM),
+    ultra:   Object.assign({ ground: 'full', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'mid', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'auto' }, COLOUR, POST_BLOOM),
   };
   // G1113 (TREES-NEAR, 2026-09-30): gamer draws 'minimum' (the full tree to 30 m, its light rung to 60 m) - the step that held
   // the rule "no regression" against master on the low flight over the forest (60 m AGL, the headline), the Cub's and the
@@ -345,7 +347,7 @@
   // G1295 (EVEN-30): the frame rate a preset brings while the player has not picked one - a hard 30 everywhere but ultra
   // (auto's trials of 60 were the judder: the user's 1.5 h log, 130 drops from 60 and 127 failed trials). 'custom' takes 30
   const FPS_OF = p => (p === 'ultra' ? 'auto' : 30);
-  const S = Object.assign({ preset: DEFAULT, build: DEFAULT, pv: 9, fps: FPS_OF(DEFAULT), fpsOwn: false }, PRESETS[DEFAULT]);   // pv: the pref's version (9: G2830, gamer's and ultra's live mirror; 4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'; 7: G1295, the frame rate per preset); fps: G586's frame rate (a free option); fpsOwn: the player picked it; build (G1230): the preset whose BUDGETS row the world builds to (a custom mix keeps the last preset's)
+  const S = Object.assign({ preset: DEFAULT, build: DEFAULT, pv: 9, fps: FPS_OF(DEFAULT), fpsOwn: false }, PRESETS[DEFAULT]);   // pv: the pref's version (9: G2830, gamer's and ultra's auto mirror; 4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'; 7: G1295, the frame rate per preset); fps: G586's frame rate (a free option); fpsOwn: the player picked it; build (G1230): the preset whose BUDGETS row the world builds to (a custom mix keeps the last preset's)
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -377,9 +379,9 @@
       // pv 7 -> 8 (G1520-G1529, POTATO-DEEP): potato's rows moved (the plain ground, ...) - a player ON potato takes potato as it
       // is now (else the saved rows read 'custom'); every other preset's rows are the ones they were
       if (v && !(v.pv >= 8)) { if (v.preset === 'potato') { for (const o of OPTIONS) if (!o.free) delete v[o.k]; Object.assign(v, PRESETS.potato); } v.pv = 8; }
-      // pv 8 -> 9 (G2830, WATER-STEADY): gamer and ultra draw the LIVE mirror - a player ON either takes it (else the saved rows
-      // read 'custom'); a custom mix keeps its own row
-      if (v && !(v.pv >= 9)) { if (v.preset === 'gamer' || v.preset === 'ultra') v.mirror = 'live'; v.pv = 9; }
+      // pv 8 -> 9 (G2830, WATER-STEADY): gamer and ultra default to the AUTO mirror - a player ON either takes it (else the saved
+      // rows read 'custom'); a custom mix keeps its own row (a saved 'live' - the menu's ON - stays on, a saved 'off' stays off)
+      if (v && !(v.pv >= 9)) { if (v.preset === 'gamer' || v.preset === 'ultra') v.mirror = 'auto'; v.pv = 9; }
       v0 = v && typeof v === 'object' ? v : null;
       try { W.localStorage.removeItem(KEY + '.auto'); } catch (e) {}   // G528's first-launch reading, retired with its probe
       for (const o of OPTIONS) if (o.free && !(o.k in S)) S[o.k] = o.steps[0].v;   // train 32 (POTATO-DEEP's find): a free row (town) has a key, so a saved choice reads back
