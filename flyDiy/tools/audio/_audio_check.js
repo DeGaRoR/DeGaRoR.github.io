@@ -4489,8 +4489,8 @@ const MUT = [
   ['the model allocates a frame', 'model', '    s[SI.first] = 0;\n', '    s[SI.first] = 0; st.lastFrame = [s[SI.t]];\n', 'AFALLOC'],
   ['the worklet\'s params renamed', 'worklet', "'stallK', 'creak', 'flapM', 'open', 'duck'];", "'stallK', 'creak', 'flapM', 'open', 'duk'];", 'AFVOICE'],
   ['gravel sounds like scree', 'worklet', '[0.65, 0.20, 3200, 0.8, 28, 3500, 4, 0],', '[0.95, 0.30, 1500, 0.8, 12, 1900, 9, 0],', 'AFVOICE'],
-  ['the touchdown deaf to its severity', 'worklet', 'this.voice(VK_LOW, 1, 1.1, k * (0.08 + 0.35 * s), 0.05 + 0.09 * s, 90 + 150 * s, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * (0.05 + 0.15 * s)', 'this.voice(VK_LOW, 1, 1.1, k * 0.25, 0.1, 160, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * 0.12', 'AFVOICE'],
-  ['the horn outside', 'worklet', 'io += dS * 0.12 * sp *', 'ext += dS * 0.12 * sp *', 'AFVOICE'],
+  ['the touchdown deaf to its severity', 'worklet', 'this.voice(VK_LOW, 1, 0.45, k * (0.035 + 0.15 * s), 0.05 + 0.09 * s, 90 + 150 * s, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * (0.02 + 0.06 * s)', 'this.voice(VK_LOW, 1, 0.45, k * 0.11, 0.1, 160, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * 0.05', 'AFVOICE'],   // (G1726: re-anchored on the tamed levels)
+  ['the horn outside', 'worklet', 'io += dS * STALL_REED * sp *', 'ext += dS * STALL_REED * sp *', 'AFVOICE'],
   ['the closed cabin as loud as the open', 'worklet', '(1 - op) * 2.2 * z[Z_CABW]', '(1 - op) * 22 * z[Z_CABW]', 'AFVOICE'],
   ['the NaN unguarded', 'worklet', "if (!(yE === yE) || !(yI === yI) || !(yR === yR) || !(yO === yO)) { nanHit = 1; yE = 0; yI = 0; yR = 0; yO = 0; }", '', 'AFVOICE'],
   ['process() allocates', 'worklet', '    this.stats[3]++;\n', '    this.stats[3]++; this.lastBlock = [n];\n', 'AFALLOC'],
