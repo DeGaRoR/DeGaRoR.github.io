@@ -2816,6 +2816,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     seaPlaneY = 0.0;   // the DRAWN sea level, for waterDrawY (WSH is this block's own: reading it from the API below threw every frame, G460.11.5)
     water.position.set((BX0 + BX1) / 2, seaPlaneY, (BZ0 + BZ1) / 2);
     water.renderOrder = -10;   // the first transparent drawn, whatever its bounding sphere says from far offshore
+    // (G2832 prototype c, ?wrefl=c|bc: the sea receives the aircraft's shadow - in three r186 a per-object uniform, no new
+    // program; the water's body term is lit by directLight.color, which carries the shadow, so the darkening is the
+    // upwelled light's and scales with the body's own reflectance: faint on the clear sea, plain in a silty harbour)
+    if (WSH && WSH.proto && WSH.proto.shadow) water.receiveShadow = true;
     if (WSH) WSH.watch(water, renderer);   // the perf rig's GPU timer round its draw
     scene.add(water);
     // THE NEAR SEA MOVES (H4, G393; before the water shader, ruling at's
@@ -2836,6 +2840,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     seaGeo.rotateX(-Math.PI / 2);
     const seaNear = new THREE.Mesh(wtag(seaGeo, 0, true), waterMat);
     seaNear.frustumCulled = false; seaNear.visible = false;
+    if (WSH && WSH.proto && WSH.proto.shadow) seaNear.receiveShadow = true;   // (G2832 prototype c)
     if (WSH) WSH.watch(seaNear, renderer);
     scene.add(seaNear);
     // THE SEA LANE IS MARKED (G396.2; the user: "we need to visualize the
