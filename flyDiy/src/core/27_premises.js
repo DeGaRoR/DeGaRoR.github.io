@@ -3988,7 +3988,12 @@ function issues(rec0) {
   for (const s of rec.layers.surface) if (!(s.surface >= 0 && s.surface <= 7)) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
   const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
-  for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0))) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
+  // (t53 OPTION C, 13 Oct: rev 28's 02/20 ENDS on 13/31 - a T, the user's geometry): a strip one of whose ends lies inside the
+  //  other's box while its other end lies outside, at more than 20 deg to it, meets it - not a stack (G3016: both ends
+  //  inside, or side by side, stays an issue)
+  const endsOn = (p, q) => { const E = runwayEnds(p), B = runwayBox(q, 0), i0 = inPoly(B, E.end0[0], E.end0[1]), i1 = inPoly(B, E.end1[0], E.end1[1]);
+    let dh = Math.abs(((p.hdg - q.hdg) % Math.PI + Math.PI) % Math.PI); dh = Math.min(dh, Math.PI - dh); return i0 !== i1 && dh > 20 * Math.PI / 180; };
+  for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0)) && !endsOn(rws[i], rws[j]) && !endsOn(rws[j], rws[i])) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
   for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key');
     if (ob.kind === 'animal') { if (!ob.key) out.push('animal ' + ob.id + ': no species'); if (ob.n !== undefined && (!(+ob.n >= 1) || +ob.n > 24)) out.push('animal ' + ob.id + ': ' + ob.n + ' of them (1 to 24)'); } }
   for (const st of rec.layers.sites) { if (!st.at) out.push('site ' + st.id + ': no anchor'); for (const it of st.items || []) if (!it.key) out.push('site ' + st.id + ': an item without a key'); }
