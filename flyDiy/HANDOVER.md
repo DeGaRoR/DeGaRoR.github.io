@@ -92809,3 +92809,26 @@ THE FIX (calibrated; the one-source fix G3184 is on its own branch, below):
   residual blue), 0.80 under a strong tint (the master's light x 1.5 + hue 0.05). The probe: SHEETS (each atlas read back) and
   SCREEN (cards only / impostors only / neither, over the densest stand from 300 m, the tree pixels in linear RGB).
 WHAT TO WATCH FOR: the far hillsides' trees as green and as light as the impostor forest in front (a faint blue left).
+
+## G2319.2 - THE AUXILIARY HANGARS' FAR WALLS WENT BLACK: THE FAR TOWN'S FIFTH IS THE HOUSES' (2026-10-12/13, WORKS-COZY for A0; branch claude/far-hangar-g2319 off master 0b42f682 = train 50)
+
+The user: "the LODs for the auxiliary hangars in the starting area are black instead of the mesh colour".
+- CAUSE (from the source): HOME's auxiliary hangars are site items (tools/_hangar_gen.js) wearing hangar.js's own
+  steel (HANGAR_LIB); past HLOD.near they join render_premises.js's far town, hlodMerge -> vertex colour = material colour
+  x map mean x HLOD.gain, and the gain 0.2 (G559, 6f3e65e8, 24 Sep) was calibrated against the HOUSE shader (its AO, dirt
+  and weathering darken the near house). A plain finish has none of that near: its far walls came out ~5x darker -
+  black. FIRST BAD: 1fb78aa6 (G1398, 3 Oct: the hangar shell's walls, doors and stem kept in the far version).
+- FIX (680a19fa): HLOD.gainItem 1; farGain(mat): a house-shaded finish (userData houseShaded / paint / dirt) keeps the
+  fifth, every other finish takes gainItem; hlodMerge's colour goes through it. GATE TARR 5z (86/86): a real house finish
+  takes 0.2, a plain steel one gainItem, hlodMerge uses the rule - negative-verified (the old line -> red; gainItem 0.2
+  -> red). The HLOD block is in GATE PREMCOOK's page hash: the premises re-cook rides train 52. Other plain items
+  (sheds, tanks) brighten too.
+- THE CENSUS (A0's slot Tue 13 Oct 03:20, tools/perf/far_hangar_census.js; reports/evidence/FAR-HANGAR/; numbers
+  only): WITH THE FIX the far version matches the near one where measured - s_strip/shed far 112.9 / near 115.7 luma,
+  af_s_fire/bay 119.7 / 118.8. CAVEATS: (1) NO "BEFORE" NUMBER - the live gainItem sweep (cl.sig = '') did not rebuild
+  the far cells (its readings are non-monotonic noise around the fixed build); (2) s_club/hangar_long - the club's long
+  hangar, the likeliest one the user saw - was NOT MEASURED (no framed eye from 4 directions at 200 m). A0's call: ship
+  as is; the user judges the club hangar after the train.
+- Gates owed: every gate reading render_premises.js runs in A0's train-52 battery (PREMCOOK re-cooked there).
+
+READY for A0: claude/far-hangar-g2319 680a19fa (the fix; the census tool, its results and this section ride on top)
