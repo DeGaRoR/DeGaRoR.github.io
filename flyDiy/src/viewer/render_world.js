@@ -1747,7 +1747,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // to move both the terrain and the trees to see what's best". The baked
     // albedo stays the fallback (and the minimap's). Textures sampled by
     // world position; the tint is sRGB (decoded on sample under r152+).
-    const GROUND = { on: false, overlay: 0.75, shade: 0.7, light: 0.94, sat: 0.94, snow: 890, shore: 1.0, mode: 0 };   // light / sat 0.94: the user's F8 world look, 2026-10-03
+    const GROUND = { on: false, overlay: 0.75, shade: 0.7, light: 1.38, sat: 0.94, snow: 890, shore: 1.0, mode: 0 };   // light / sat 0.94: the user's F8 world look, 2026-10-03
     // THE STACK (G404, the user: "a way to edit the stack, like I did in the
     // bench - every layer, on/off, blend mode, alpha"): five albedo layers in
     // a fixed order, each with the bench's twelve blend modes and an opacity.
@@ -4612,7 +4612,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
 
     // (hoisted above the woodland planter, 2026-09-21: the woodland's stands drew their
     // species from the WHOLE pool - a pine no mix names stood in every stand)
-    const SP_SIZE = {};   // species name -> size multiplier (TREE_FILL.speciesSize, the world rail's tree cards)
+    // species name -> size multiplier (TREE_FILL.speciesSize, the world rail's tree cards); G2939: the user's look of 12 Oct
+    const SP_SIZE = {"cedar_tree.glb": 1.3, "fir_tree_georgeous.glb": 1.3, "larch_tree.glb": 1.4, "realistic_fir_trees_pack_lods_gameready.glb": 1.25, "spruce_tree.glb": 1.2};
     const FILL = { ng: world.island ? 160 : 100,   // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26); an island 6.4 m (G400: "MUCH too sparse")
       // the island's knobs (F8 > trees > from the map): coverage ramps from
       // `from` to `full` metres of canopy; a tree is canopy x gain over the
@@ -7610,7 +7611,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // environment"): one number over the ground (GROUND.light = uGLight, after the splat) and the
   // vegetation (the leaf master light and the impostors' lit term, from their booted base) - the
   // aeroplane, the buildings and the sky untouched. F8 > environment > albedo.
-  const ENV_ALB = { k: 1, base: null };
+  // G2939 (the user's look, 12 Oct): the environment albedo at its baked 1.38 - the ground's light IS k (envAlbedo writes it)
+  // and the leaves' master (trees.js MASTER: 0.42 x 1.38) is base x k; so a slider moved from here moves both from the look
+  const ENV_ALB = { k: 1.38, base: 0.42 };
   const envAlbedo = k => {
     if (k === undefined) return ENV_ALB.k;
     if (ENV_ALB.base === null) ENV_ALB.base = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.master) ? TREE_LEAF.master().light : 1;
