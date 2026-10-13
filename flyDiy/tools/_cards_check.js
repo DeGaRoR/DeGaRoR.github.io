@@ -60,6 +60,7 @@ const ALLOW = {
   '#flReticle': 'flight.css: the 10 px aiming reticle - the centre IS its meaning, not a card',
   '#gFleet': "editor.css: the fleet popup - the garage's load door, the player opens it",
   '#dfBirth': 'editor.css: the birth overlay - a new aeroplane, the player opens it',
+  '#hsStore': "storage_ui.js (HANGAR-STORAGE G2690): the storage screen - the garage's 'storage' button opens it (beside 'load'); its .hsAsk is the Fly confirmation the player asks for, inside it",
 };
 // the result cards S2 holds by name, and their entry keyframes
 const CARDS = ['#arrCard', '#bAward', '#bRun'];
