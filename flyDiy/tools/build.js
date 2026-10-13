@@ -550,13 +550,15 @@ const MANIFEST = {
     // window.SIM_HOST (the starter, the Blob's source) and window.SIM_VIEW.
     // sim_link.js (G815, C1b) after them and before app.js: the page's glue -
     // app.js flies through it behind ?simw=1 (window.SIM_LINK), default off.
+    // sheet_link.js (G2920, GARAGE-SHEET) before app.js: the performance sheet's thread (bench_worker.js's 'sheet'
+    // job) - when to ask it, one in flight, the newest wins (window.makeSheetLink; app.js makes the one link).
     // blueprint.js after refplane.js (G573): the reference plane's second
     // source. It builds its half of the panel from REFPLANE.ui, lazily, and
     // stands its planes in app.js's REF_MOUNT.bpGroup.
     // blueprint_library.js before it (G573.2): the prepared sheets, a plain
     // table (window.BLUEPRINT_LIBRARY) that blueprint.js reads lazily.
               'garage.js', 'storage_ui.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
-              'sim_host.js', 'sim_view.js', 'sim_link.js',
+              'sim_host.js', 'sim_view.js', 'sim_link.js', 'sheet_link.js',
     // house_worker.js (G830, C2a): the houses' own thread - the page's client (window.HOUSE_WORKER, started by
     // world_boot.js) and the worker's body, imported RAW by its own Blob worker (with sim_host.js, the core, three and
     // the generators by their URLs) - so it must stay a file the page can fetch, like sim_host.js

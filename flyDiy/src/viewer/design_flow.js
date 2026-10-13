@@ -212,28 +212,63 @@ function pickSeed(row, opt) {
 // IS EARNED (app.js) and stays bench-gated. Compute-only: the join is READ,
 // nothing is committed ("the export is not a button" keeps its ruling).
 // ---------------------------------------------------------------------------
+// G2920 (GARAGE-SHEET): THE STRIP'S SHEET ON THE SHEET'S THREAD. Its genShakedown ran on the page at every render of
+// the window (a tile picked, an undo) - ~0.6-1.2 s of the click. With the page's sheet link up (app.js SHEET_LINK,
+// sheet_link.js) the strip asks the thread instead (its own lane, keyed by the merged spec; the newest render wins),
+// draws '…' where the numbers go and fills them in place when the answer lands; an answer is kept for its spec, so a
+// re-render of the same aeroplane draws at once. No link (the node page, file://, a dead thread): on the page, as before.
+const STRIP_MEMO = new Map();
+let stripWant = null;
+const stripKey = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16) + ':' + s.length; };
+function stripSpec() {
+  let spec = curSpec();
+  if (!spec) return null;
+  if (window.CAGE_JOIN && window.CAGE_JOIN.export)
+    spec = D().designMerge(spec, window.CAGE_JOIN.export());
+  return spec;
+}
+const stripPick = sh => ({ empty: sh.empty, Vs: sh.Vs, TORun: sh.TORun });
 function stripNumbers() {
   try {
     if (typeof buildGen !== 'function' || typeof genShakedown !== 'function')
       return null;
-    let spec = curSpec();
+    const spec = stripSpec();
     if (!spec) return null;
-    if (window.CAGE_JOIN && window.CAGE_JOIN.export)
-      spec = D().designMerge(spec, window.CAGE_JOIN.export());
     // the strip wants a mass and two speeds — not the four loading corners
-    const sh = genShakedown(buildGen(spec), { ledger: true, corners: false });
-    return { empty: sh.empty, Vs: sh.Vs, TORun: sh.TORun };
+    const opts = { ledger: true, corners: false };
+    const L = window.SHEET_LINK;
+    if (L && !L.dead) {
+      const key = stripKey(JSON.stringify(spec));
+      if (STRIP_MEMO.has(key)) return STRIP_MEMO.get(key);
+      stripWant = key;
+      const took = L.request('strip', { key, spec, opts,
+        on: sh => { const n = stripPick(sh); STRIP_MEMO.set(key, n); while (STRIP_MEMO.size > 8) STRIP_MEMO.delete(STRIP_MEMO.keys().next().value);
+                    if (stripWant === key) stripFill(n); },
+        fail: () => { if (stripWant === key) { try { const n = stripPick(genShakedown(buildGen(spec), opts)); STRIP_MEMO.set(key, n); stripFill(n); } catch (e) {} } } });
+      if (took) return { pending: true };
+    }
+    return stripPick(genShakedown(buildGen(spec), opts));
   } catch (e) { return null; }
+}
+// the answer into the strip(s) on screen
+function stripFill(n) {
+  if (typeof document === 'undefined' || !document.querySelectorAll) return;
+  const h = stripCells(n);
+  for (const el of document.querySelectorAll('.dfStrip')) el.innerHTML = h;
+}
+function stripCells(n) {
+  const cell = (v, lab) => '<span><b>' + v + '</b> ' + lab + '</span>';
+  if (n.pending) return cell('…', 'empty') + cell('…', 'stall') + cell('…', 'take-off');
+  const num = (v, f, lab) => Number.isFinite(+v) ? cell(f(+v), lab) : '';
+  return num(n.empty, v => Math.round(v) + ' kg', 'empty') +
+         num(n.Vs, v => Math.round(v * 3.6) + ' km/h', 'stall') +
+         num(n.TORun, v => Math.round(v) + ' m', 'take-off');
 }
 
 function stripHtml() {
   const n = stripNumbers();
   if (!n) return '';
-  const cell = (v, lab) => '<span><b>' + v + '</b> ' + lab + '</span>';
-  const num = (v, f, lab) => Number.isFinite(+v) ? cell(f(+v), lab) : '';
-  return num(n.empty, v => Math.round(v) + ' kg', 'empty') +
-         num(n.Vs, v => Math.round(v * 3.6) + ' km/h', 'stall') +
-         num(n.TORun, v => Math.round(v) + ' m', 'take-off');
+  return stripCells(n);
 }
 
 // ---------------------------------------------------------------------------

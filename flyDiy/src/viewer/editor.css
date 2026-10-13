@@ -1005,6 +1005,8 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edInfo #plaque.on { display:block; margin-top:20px;
   background:rgba(0,0,0,.16); border:1px solid var(--ed-hair);
   border-radius:9px; padding:12px 14px 13px; }
+/* G2920: the last build's numbers while this one's sheet computes on its thread */
+#edInfo #plaque.on.stale { opacity:.45; }
 
 #edInfo #plaque header { display:flex; gap:9px; align-items:baseline;
   margin:0 0 8px; }
