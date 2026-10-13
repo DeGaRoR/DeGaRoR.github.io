@@ -84,7 +84,7 @@ const INSTRUMENT = `(() => {
       dt.push(r.dt); if (r.gpu === r.gpu) g.push(r.gpu); if (r.calls === r.calls) calls.push(r.calls); if (r.tris === r.tris) tris.push(r.tris);
       if (r.cover === r.cover) cov.push(r.cover); if (r.render === r.render) ren.push(r.render); if (r.work === r.work) wk.push(r.work); }
     const sum = dt.reduce((a, b) => a + b, 0), p99 = a => { const b = a.slice().sort((x, y) => x - y); return b.length ? +b[Math.min(b.length - 1, Math.floor(b.length * 0.99))].toFixed(2) : null; };
-    // (the CPU too, G2569: the recorder's slots - `cover` is both cover rings' update (their planting), `render` the submit, `work` the frame)
+    // (the CPU too, G2569: the recorder's slots - 'cover' is both cover rings' update (their planting), 'render' the submit, 'work' the frame)
     // every CPU slot's median too (the main-thread loop, slot by slot: where a +1 ms comes from - A0's question for 44.3)
     const slots = {}; for (const k of (window.FLIGHT_REC.SLOTS || [])) { const a = []; for (let f = f0; f < REC.frame; f++) { const r = REC.row(f); if (r && r[k] === r[k]) a.push(r[k]); } slots[k] = a.length ? +med(a).toFixed(3) : null; }
     return { frameGpuMs: med(g), fps: sum ? +(1000 * dt.length / sum).toFixed(1) : null, draws: med(calls), mtris: tris.length ? +(med(tris) / 1e6).toFixed(2) : null,
