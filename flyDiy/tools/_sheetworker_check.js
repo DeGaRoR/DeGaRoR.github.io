@@ -475,6 +475,9 @@ async function sectionBrowser() {
     console.log('GATE SHEETWORKER --selftest: ' + (fails >= 4 ? 'PASS (' + fails + ' planted faults caught)' : 'FAIL (only ' + fails + ' caught)'));
     process.exit(fails >= 4 ? 0 : 1);
   }
-  console.log('GATE SHEETWORKER' + (BROWSER ? ' (browser)' : '') + ': ' + (pass ? 'PASS' : 'FAIL') + ' (' + (checks - fails) + '/' + checks + ')');
+  // the verdict line exactly as run_gates.js reads it (^GATE <ID>: PASS$ - a suffix on it reads as a FAIL; train 52's
+  // battery held 52b on "PASS (47/47)"), the counts on the line before
+  console.log((checks - fails) + '/' + checks + ' checks');
+  console.log('GATE SHEETWORKER' + (BROWSER ? ' (browser)' : '') + ': ' + (pass ? 'PASS' : 'FAIL'));
   process.exit(pass ? 0 : 1);
 })().catch(e => { console.error(e); process.exit(1); });
