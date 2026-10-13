@@ -85214,3 +85214,17 @@ aeroplane); physics and spec untouched (no bug was found there). New GATE EDBUGS
   the windscreen sees the centre tinted too;
 - tundra wheels look narrower (rounder) than before; weathering grime on a tundra wheel covers 0.50 R, not 0.58;
 - the Mosquito with 'whole cabin': two sill pieces per flank (one per cabin), the arceau bare between them.
+
+### G2787 - EDITOR-BUGS FOLLOW-UP: THE SHED'S LIGHTS JOIN THE COUNT ONLY ONCE LINKED (train 52b's 10 s boot freeze, 2026-10-13)
+EDITOR-UX-A bisected train 52b's 10 s boot freeze (done()'s sync bakeHangarEnv: an 11.2 s PMREM link behind the shed's
+compile queue) to its merge b97bf8bee, which carried G2782. The suspect is G2782 (A0's split-bisect is the proof). G2782 kept every fitted lamp's
+light in three's count at intensity 0 - and the shed's boot compiles take the cage down (G1027 / G1085 craftInShed) and
+key without them, so the first frame re-keyed the room. G2787 applies G1340's law on the shed's side instead: a fitted lamp's light
+is MADE whatever its level but is in the count (visible) only while its row reads > 0, and a light set the shed has no
+programs for (`LINKED`, 'points,spots', '0,0' = the boot's own) is first linked in the background - app.js
+`GARAGE_LIGHTS_PREP(dress)`: compileSliced over the room (env target, AA target) and its depth variants with the new lights
+dressed in, a task at a time - and SHOWN when that resolves (the lens glows at once, the light follows by the link's
+time). With every dimmer at 0 the count is the pre-G2782 count, boot included; no zero-intensity light costs a fragment.
+No room to compile (the bench, SwiftShader, before the hangar): shown at once, as before G2782. GATE LIGHT 5f re-cut.
+**Watch for:** the first notch of a dimmer: the light appears a moment after the lens (never a stall); two dimmer sets
+changed within one link's time may key one set late (a single later re-key, not a freeze).
