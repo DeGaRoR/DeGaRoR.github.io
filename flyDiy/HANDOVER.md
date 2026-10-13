@@ -93949,3 +93949,94 @@ D:/Dev/flydiy-notes/FRAMES-PROPOSAL-2026-10.md). UI only: no src/core, no genera
   `rename`, HIDDEN, `hidden`. The canopy, mirror and covering twins already exist here.
 
 READY for A0 (train 52): claude/editor-ux-a-g2760 (this entry rides the last commit; tip = the SHA in the READY message)
+## G3060-G3063 - CARDS-CORNER: EVERY RESULT CARD IN THE LOWER-LEFT CORNER, COMPACT, NEVER OVER THE AEROPLANE - THE ARRIVAL / END-OF-FLIGHT CARD (EVERY ENDING, FOLDABLE ON ITS TITLE), THE BENCH'S AWARD / CERTIFICATE AND RUN CARD (WORKSHOP AND FLIGHT), THE PHONE'S SHEET; GATE CARDS (2026-10-12, CARDS-CORNER for A0, local; branch claude/cards-corner-g3060 ON TOP OF T41b origin/claude/dmg-t41-final 75224cc19 - A0: "rebase on 41b if you touch its card"; G3064-G3069 unused)
+
+**The ask.** The user, 12 Oct ~04:10: "are we sure we avoid putting windows in the middle of the screen anymore? The
+certifications, the end of the flight, the crash, all of them should appear in the bottom left, not hide the plane."
+This widens the 8 Oct rule (no centre cards after a crash, memory no-center-cards-after-crash) to every card that
+APPEARS without the player asking. Panels the player OPENS stay where they are.
+
+**What was centred (found by GATE CARDS' scan, on 41b):**
+- `flight.css #arrCard`: the arrival card, left/top 50 % + translate(-50%,-50%), 520 px wide. 41b had moved only its
+  crash form (`.wreck`) to the corner.
+- `bench.css #bAward`: the award / certificate, centred on the workshop's view; `body.mode-fly #bAward` at 50vw / 38 %
+  in flight. 41b put a wreck's award in the lower-RIGHT corner.
+- `bench.css #bRun`: the bench's run card, bottom-centre (translateX(-50%)), up to ~330 px tall with its trace.
+
+**What it is now:**
+- **Flight** (`#arrCard`, `body.mode-fly #bAward`, `body.mode-fly #bRun`): `left:96px; bottom:96px`, BESIDE the look rail
+  (#flRail: 22 px + a 62 px plate, ten buttons, ~500 px, centred on the height; 41b's corner at 16 px sat ON its lower
+  buttons). Width `max(260px, min(380px, 25vw - 112px))` (award 340, wreck 300 / 22vw - 80), so the right edge stays in
+  the left quarter at 1920. Max-height `max(200px, 50% - 112px)`, so the top stays below the middle; a long card scrolls.
+  The arrival card is one column (the plaque's two columns do not fit a corner), with tighter rows, verbs that wrap,
+  and a 15 px title. Its title folds it to one line for EVERY ending (41b had this for the wreck only: app.js, one
+  condition removed). The award shows over the arrival card in the same corner while it is up (it closes itself in
+  2.8 s / 9 s, or on a click).
+- **Workshop** (`#bAward`, `#bRun`): `left: calc(var(--ws-left) + 22px); bottom:26px`, the view's lower-left corner (the
+  run card, then its award, in the same place). Width `max(260px, min(340|400px, 25vw - 32px))`, max-height
+  `max(220px, 50vh - 40px)`. The roundel is drawn at 120 px (150 before), the master's at 140 (180 before). The entry
+  animations (bAwIn, bRunIn) slide up 10-12 px instead of carrying the old centring translate.
+- **Narrow window flying (<= 760 px)**: the arrival card is a bottom sheet over the verbs (left 76 px beside the rail,
+  right 12, bottom 78, max-height `max(160px, 50% - 90px)`).
+- **Phone profile** (html.phone, phone.css): the bench's cards sit at the bottom of the SHEET, above the tab bar,
+  never over the view: under it in portrait, beside it in landscape. The phone has no flight, so no arrival card there.
+- **Unchanged:** WHEN the crash card shows (41b's crash watch: the wreck and debris at rest + WATCH_HOLD, then
+  endFlight); the cards' content (CERT-SLIM G2840 is reworking award() / the FICHE on its own branch, and we agreed
+  the split: positioning is here, the card's content is theirs).
+
+**Allowed to stay centred (GATE CARDS' allow-list, each with its reason; a stale entry goes red):**
+- `#ctlPanel`: the controls panel.
+- `#welcome`: the first-launch screen, before any aeroplane.
+- `music.js#musicCredits`: the credits.
+- `#gFleet`: the fleet load door.
+- `#dfBirth`: the new-aeroplane birth overlay.
+- `#flReticle`: a 10 px reticle.
+
+Not cards, so not moved:
+- the top-centre toasts: gfx, update, freight's `#frSay`;
+- the stage caption (bottom 14 %, a reveal shot of a building);
+- the boot card (bottom-right, during loading).
+
+**GATE CARDS** (`tools/_cards_check.js`, core, ~5 s; `--no-browser`, `--selftest`, `--view=<a copy of src/viewer>`):
+- **S1, the scan.** It reads every CSS rule of src/viewer: 7 stylesheets, the CSS blocks inside 141 js / html
+  sources, and 25 cssText statements (1274 rules). A rule fails when it centres a box: top AND left in the 20-80 % /
+  vw / vh band, or a `... / 2` left, or a full-screen host centring its child. The scan proves its own reach, and every
+  allow-list entry must still match a rule.
+- **S2, the cards' own rules.** `#arrCard` / `#bAward` / `#bRun` (any selector, any @media): no % left, no top, no right
+  anchor outside a narrow / phone context, no centring translate in their rules or keyframes. Their base rules anchor
+  left + bottom.
+- **D, the boxes.** Headless Chrome (`--disable-gpu`) lays out a bare page with the 7 real stylesheets and the cards'
+  markup:
+  - D1, flight at 1920x1080 and 1280x720: every card in the lower-left quadrant and off the rail; at 1920, also clear
+    of the central 50 % x 50 %.
+  - D2, workshop at 1920x1080: every card in the lower-left quadrant of the view between the panels.
+  - D3, a narrow window flying: the arrival card is a bottom sheet with its top below the middle.
+  - D4, phone 390x844 / 844x390: the cards are on the sheet, never over the view.
+  - D5: the master's old #arrCard rule, injected, is caught.
+- **Negative proof:** `--view=` on 41b's own unpatched src/viewer goes red on exactly the rules above, 41b's
+  bottom-right wreck award included. `--selftest` catches every old rule, a centring host, and cssText / JS-string
+  forms.
+
+**Proof (12 Oct, ~04:48-04:52, GPU lock CARDS):**
+- GATE CARDS: 56 / 56 PASS (Chrome 154, headless, --disable-gpu).
+- At 1920x1080 in flight, every box sits at x 96..436 (the arrival card 96,556 368x428). The rail is at 22..84.
+- Workshop at 1920: x 342..742, top >= 724, inside the view 320..1280.
+- Phone: portrait top >= 452 (the view ends at 338); landscape left 452 (the view ends at 444).
+- D5 (the old rule injected) is caught.
+- `--selftest` PASS (10 / 10); `--view=` on 41b's sources goes red.
+- UISMOKE PASS (`FLYDIY_STALE_OK=1`: 41b's committed flight_core.js is older than its src/core; this branch leaves
+  src/core alone).
+
+- **The arrival card is smaller.** It has one column and 15 px title. At 1280x720 it is 260 x 248 px and scrolls for
+  a long ending (ten rows + notes). Its title folds it to one line on EVERY ending now, so a player who clicks the
+  title sees the rows vanish (a click unfolds it again).
+- **Two cards, one corner.** In flight, a certificate shows OVER the arrival card in the same corner until it closes
+  (2.8 s for a pass, 9 s for a fail, or on a click). They do not stack side by side.
+- **The workshop's corner.** The run card, then its award, sit at the view's lower-left (`--ws-left` + 22 px). The
+  music's now-playing line (#musicNow, same corner, z 41) is hidden under them while they show. The aeroplane in the
+  garage is wide, so a wingtip can pass behind the card. It still covers far less than the old centred card did.
+- **Narrow window flying (<= 760 px).** The rail scrolls; the sheet starts beside it (left 76 px).
+- **CERT-SLIM G2840** is reworking award()'s content (a 5-number FICHE, an attention list) on its own branch. If the card
+  grows taller than half the view it scrolls. GATE CARDS fails if its rules add a top / % left / centring translate.
+- **For the next result card:** put it bottom-left, or give it an allow-list entry with its reason in
+  tools/_cards_check.js. The scan reads CSS files, CSS in js strings, and cssText statements.
