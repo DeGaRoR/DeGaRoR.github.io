@@ -353,6 +353,10 @@ const MANIFEST = {
          // too) - asked for by world_boot when the record holds prop objects and by the editor's model placer, in the
          // manifest's order (the levels pack last: its rows name the props they stand in for)
          ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'scenery', 'scenery_packs.json'), 'utf8')).map(f => ['src/scenery', f]); } catch (e) { return []; } })(),
+         // ASSETS-OCT G3140-G3149: the camping kit (the user's tents, tools/camp_kit.py) and the infrastructure kit (the
+         // high-voltage pylons, tools/infra_gen.js) - the same rule as the scenery's (GATE ASSETBUDGET row 7)
+         ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'camp', 'camp_packs.json'), 'utf8')).map(f => ['src/camp', f]); } catch (e) { return []; } })(),
+         ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'infra', 'infra_packs.json'), 'utf8')).map(f => ['src/infra', f]); } catch (e) { return []; } })(),
          ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
          ['src/viewer', 'world_rail.js'], ['vendor/ktx2', 'ktx2_loader.js'],
          ['src/viewer', 'townkit.js'], ['src/viewer', 'kit_lot.js'],

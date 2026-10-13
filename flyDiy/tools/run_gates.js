@@ -240,6 +240,10 @@ const GATES = [
   // powerhouses build headless within budget, the FAA dimensions, the red beacon, the two-tone roof, the yard; the sites
   // at their real points with their tree-clear areas; the generator stays out of index.html
   { id: 'NAVAID', file: '_navaid_check.js', tier: 'core' },
+  // THE ASSET PIPELINE'S BUDGET GATE (ASSETS-OCT, G3140-G3149): the spine's first families - the user's tents (camp,
+  // CC BY, as-is + levels + KTX2) and the high-voltage pylons (infra, procedural: levels, attach points, fresh) - held
+  // to their category budgets; every other prop family reported (the baseline the spine migrates)
+  { id: 'ASSETBUDGET', file: '_asset_budget_check.js', tier: 'core' },
   // THE ANIMALS (2026-09-22): the declared table = the shipped skins, their
   // clip libraries and the cut levels; and the behaviours run headless
   // against the real vendor three (a herd, a pod and a flock, 900 steps).
