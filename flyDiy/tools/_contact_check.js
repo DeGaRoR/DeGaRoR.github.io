@@ -67,12 +67,16 @@ const C = require(path.join(T, 'flight_core.js'));
   }
   const sep = execFileSync(process.execPath, [path.join(T, 'ground_surface.js'), '--sep'], { encoding: 'utf8', maxBuffer: 1 << 24 });
   // master b78f8d0c's counts of pavement points within 5 mm of the drawn ground (the 0.5 m grid), +10 % and +20 slack
-  const BASE = { 'apron edge': 6, 'apron side': 98, 'road band': 19, 'road edge': 257, 'road side': 2862, 'concrete edge': 0, 'concrete band': 0, 'concrete side': 0, 'gravel edge': 0, 'grass edge': 0 };
-  const ALLOW = { 'apron edge': 30, 'road band': 90 };      // G1001: the curvature misses, measured 18 and 75 (HANDOVER G1001)
+  // (G3020, 13 Oct: RE-TAKEN on the user's rev 28 (train 52-ab's run) - their own pavement: roads r39-r45, areas a24-a30, r1-r6
+  //  and tw_r_access paved, y_pad reshaped; master's were 6 / 98 / 19 / 257 / 2862 with G1001's allowances 30 (apron edge) and
+  //  90 (road band). The class's n is printed beside the count: read it as a rate when the record grows again)
+  const BASE = { 'apron edge': 663, 'apron side': 1779, 'road band': 196, 'road edge': 331, 'road side': 7528, 'concrete edge': 0, 'concrete band': 0, 'concrete side': 0, 'gravel edge': 0, 'grass edge': 0 };
+  const ALLOW = {};
   for (const k in BASE) {
     const m = new RegExp('^\\s+' + k + '\\s+n.*under 5 mm (\\d+)', 'm').exec(sep), n = m ? +m[1] : NaN;
+    const mn = new RegExp('^\\s+' + k + '\\s+n\\s*(\\d+)', 'm').exec(sep), of = mn ? ' of ' + mn[1] : '';
     const lim = ALLOW[k] != null ? ALLOW[k] : Math.round(BASE[k] * 1.1) + 20;
-    ok(n <= lim, 'Jolene ' + k + ': pavement points within 5 mm of the ground no more than master\'s ' + BASE[k] + ' (+ slack)', n + ' <= ' + lim);
+    ok(n <= lim, 'Jolene ' + k + ': pavement points within 5 mm of the ground no more than rev 28\'s ' + BASE[k] + ' (+ slack)', n + of + ' <= ' + lim);
   }
 }
 
