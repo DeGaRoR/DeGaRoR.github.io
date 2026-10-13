@@ -20438,9 +20438,9 @@
     "id": "o3",
     "kind": "aircraft",
     "key": "arch:jodel",
-    "x": -146.0,
-    "z": 738.0,
-    "yaw": 1.2708
+    "x": -57,
+    "z": 642,
+    "yaw": -1.637
    },
    {
     "id": "a1",
@@ -20534,17 +20534,17 @@
     "id": "af_park1",
     "kind": "aircraft",
     "key": "arch:cub",
-    "x": -208.5,
-    "z": 708.5,
-    "yaw": -1.591
+    "x": -75,
+    "z": 644,
+    "yaw": -1.637
    },
    {
     "id": "af_park2",
     "kind": "aircraft",
     "key": "arch:c172",
-    "x": -208.5,
-    "z": 730.5,
-    "yaw": -1.541
+    "x": -95,
+    "z": 639,
+    "yaw": -1.637
    },
    {
     "id": "af_fuel_truck",
