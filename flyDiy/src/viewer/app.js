@@ -8856,7 +8856,9 @@
     const base = recs.find(r => r.idx === 1) || recs[0];
     const s0 = got.card.seats.find(s => s.i === (base.idx || 1) - 1) || got.card.seats[0];
     const used = new Set(recs.map(r => r.key));
-    const others = (CC.list ? CC.list() : []).map(c => c && c.key).filter(k => k && !used.has(k));
+    // G2970 (CHARACTERS): the crowd's cast first, once its manifests are in (crowdPrep), then the crew's own
+    const cast = window.CROWD && window.CROWD.castKeys ? window.CROWD.castKeys() : [];
+    const others = [...new Set(cast.concat((CC.list ? CC.list() : []).map(c => c && c.key)))].filter(k => k && !used.has(k));
     want.forEach((i, n) => {
       const s = got.card.seats.find(q => q.i === i);
       if (!s) return;
@@ -8872,6 +8874,148 @@
       if (ps && ps[0]) FST.pax.push({ P: ps[0], frame, seat: i });
     });
   }
+  // ---- G2970 (CHARACTERS): THE CROWD ------------------------------------------------------------------------------------
+  // The passengers board at the stand. Every figure seated at the roll-out - a job's passenger FREIGHT-STRAP seats live
+  // (fsPeople, its own character: the crowd's cast first), the build's own baked into the flown model (one bucket per
+  // character: one walker per character) - is hidden, walks out of the hangar's door round the tail, queues at the cabin
+  // door and fades into its seat (src/viewer/crowd.js, lazy; its cast and its clips are media/ files). WHEN: a job that
+  // seats passengers (FREIGHT-STRAP's accepted load); a sandbox build's own passengers only with ?crowd=1 - the stand
+  // rows of the strict gates roll the stock builds out (the C172 seats a co-pilot) and stay as they were. The flight waits
+  // for the last of them (`started` held, so the stand's brake stays on); Go seats everyone at once. ?crowd=0 or
+  // localStorage flydiy.crowd = '0' turns it off. The pilot does not walk (the user: out of scope).
+  const CRW = { on: true, all: false, M: null, gen: 0, seats: new Map(), pending: false, after: null, prep: null, queued: null };
+  try {
+    const q = /[?&]crowd=([01])(&|$)/.exec(window.location.search || '');
+    CRW.on = q ? q[1] === '1' : window.localStorage.getItem('flydiy.crowd') !== '0';
+    CRW.all = !!q && q[1] === '1';
+  } catch (e) {}
+  // the module and the cast's manifests (no bins, no maps), early: fsPeople re-seats a job's passengers as cast members
+  function crowdPrep() {
+    if (CRW.prep) return CRW.prep;
+    return (CRW.prep = Promise.resolve(window.FLYDIY_LAZY ? window.FLYDIY_LAZY('crowd') : null)
+      .then(() => (window.CROWD ? window.CROWD.prepare() : []))
+      .then(ks => { if (ks && ks.length && FST.R && FST.pax.length) { FST.paxKey = null; fsPeople(); } return ks; },
+            e => { CRW.prep = null; throw e; }));
+  }
+  // the figures to walk: { seat, key, meshes() } (meshes() late-bound: a live passenger's character lands async)
+  function crowdSeats() {
+    const M = model;
+    if (!M || !M.grp || !M.data || !M.data.cageM) return [];
+    const live = new Set((M.people || []).map(P => P && P.key)), byKey = new Map(), out = [];
+    const job = !!(FST.R && FST.R.seats && FST.R.seats.some(q => q.job && q.i > 0));
+    // the live crew but the pilot (a C172's co-pilot holds the yoke: live, and a job's passenger sits there)
+    if (CRW.all || job) for (const P of M.people || []) {
+      const nm = P && P.dum && P.dum.fig && P.dum.fig.name;
+      const r = nm && (M.data.people || []).find(q => nm === 'flDum' + q.idx);
+      if (!r || r.role === 'pilot' || P.dead) continue;
+      out.push({ seat: 'l:' + r.idx, key: P.key, meshes: () => (P.inst ? P.inst.meshes : []) });
+    }
+    if (CRW.all || job) for (const k in M.meshes || {}) {
+      const m = (M.mats || {})[k];
+      if (!m || !m.char || live.has(m.char)) continue;
+      if (!byKey.has(m.char)) byKey.set(m.char, []);
+      byKey.get(m.char).push(M.meshes[k]);
+    }
+    for (const [key, ms] of byKey) out.push({ seat: 'b:' + key, key, meshes: () => ms });
+    for (const q of FST.pax || []) if (q && q.P && !q.P.dead) out.push({ seat: 'j:' + q.seat, key: q.P.key, meshes: () => (q.P.inst ? q.P.inst.meshes : []) });
+    return out;
+  }
+  // the route: the cabin door's foot beside the pilot's station on the starboard side (the Cub's door; -x in the crew's
+  // frame), the queue square to the fuselage, from the hangar's door (40 m at most) - see CROWD.route
+  function crowdRoute(n) {
+    // the crew's frame in the world: grp's drawn matrix x cageM, multiplied here - a hand-set child's matrixWorld is NOT
+    // recomputed by updateWorldMatrix without matrixWorldNeedsUpdate (W0.5a, r186: the probe's walk round the origin)
+    const M = model, Wm = new THREE.Matrix4().multiplyMatrices(M.grp.matrixWorld, new THREE.Matrix4().set(...M.data.cageM));
+    const r = M.data.people && M.data.people[0], t = r && r.figM ? [r.figM[12], r.figM[13], r.figM[14]] : [0, 0, 0];
+    const W = (x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(Wm);
+    const c = W(0, t[1], t[2] - 0.6), d = W(-1.3, t[1], t[2] - 0.6), nz = W(0, t[1], t[2] + 0.4);
+    let ox = d.x - c.x, oz = d.z - c.z, fx = nz.x - c.x, fz = nz.z - c.z;
+    const ol = Math.hypot(ox, oz) || 1, fl = Math.hypot(fx, fz) || 1;
+    ox /= ol; oz /= ol; fx /= fl; fz /= fl;
+    const st = lastStart && lastStart.stSite, h = st && st.hangar;
+    let from = h && Number.isFinite(h.x)
+      ? [h.x - Math.cos(h.ry || 0) * ((h.HD || 12.5) + 1.5), h.z + Math.sin(h.ry || 0) * ((h.HD || 12.5) + 1.5)]
+      : [d.x + ox * 25 - fx * 10, d.z + oz * 25 - fz * 10];
+    const far = Math.hypot(from[0] - d.x, from[1] - d.z);
+    if (far > 40) from = [d.x + (from[0] - d.x) * 40 / far, d.z + (from[1] - d.z) * 40 / far];
+    return window.CROWD.route({ door: [d.x, d.z], out: [ox, oz], fwd: [fx, fz], from, n });
+  }
+  function crowdSeatFade(seat, w) {
+    const e = CRW.seats.get(seat);
+    if (!e || !window.CROWD) return;
+    e.w = w;
+    window.CROWD.fadeObjects(THREE, e.meshes(), w);
+    if (w >= 1) CRW.seats.delete(seat);
+  }
+  // the roll-out (under its screen): who is aboard, then the walk
+  function crowdStart() {
+    crowdStop(false);
+    // nobody aboard but the pilot (the default build): nothing fetched, nothing held
+    if (!CRW.on || !model || !model.grp || !crowdSeats().length) return;
+    const gen = ++CRW.gen;
+    CRW.pending = true;
+    CRW.waitN = 0;
+    crowdPrep().then(() => {
+      if (gen !== CRW.gen || inGarage || !window.CROWD) return null;
+      const seats = crowdSeats();
+      if (!seats.length) return null;
+      if (!CRW.M) CRW.M = window.CROWD.make(THREE, {
+        scene,
+        ground: (x, z) => (world && typeof world.terrainH === 'function' ? world.terrainH(x, z) : 0),
+        eye: () => camera.position,
+        seatFade: crowdSeatFade,
+        compile: gs => Promise.all(gs.map(g => (typeof renderer.compileAsync === 'function' ? renderer.compileAsync(g, camera, scene) : null))),
+      });
+      // hidden from now (crowdTick keeps them so); their characters and the clips fetched under the screen
+      for (const q of seats) CRW.seats.set(q.seat, { meshes: q.meshes, w: 0 });
+      const CC = window.CAGE_CHAR;
+      if (CC) for (const k of new Set(seats.map(q => q.key))) CC.load(k);
+      // THE WALK BEGINS WHEN THE SCREEN LIFTS: the aeroplane is on its stand and drawn by then (under the roll-out's
+      // hold its matrices may still be the shed's), so the route is measured there - crowdTick runs CRW.queued
+      return new Promise((res, rej) => {
+        CRW.queued = () => {
+          try {
+            const R = crowdRoute(seats.length);
+            CRW.M.board({ path: R.path, face: R.face, seats: seats.map(q => ({ seat: q.seat, key: q.key })) }).then(res, rej);
+          } catch (e) { rej(e); }
+        };
+      });
+    }).then(() => { if (gen === CRW.gen) { CRW.pending = false; if (!CRW.M || !CRW.M.busy()) crowdDone(true); } },
+            e => { console.warn('flyDiy (crowd): the passengers could not walk -', e && e.message); if (gen === CRW.gen) crowdStop(true); });
+  }
+  // every frame in the world (0 under the roll-out's hold and the pause): the figures still to fade kept hidden or half
+  // (a live passenger's character may land after the walk began), the walk, and the start once the last one is seated
+  function crowdTick(dt) {
+    if (!CRW.M || !window.CROWD) return;
+    if (CRW.queued && !rollHold && crowdPlaced()) { const q = CRW.queued; CRW.queued = null; q(); }
+    for (const [, e] of CRW.seats) if (e.w < 1) window.CROWD.fadeObjects(THREE, e.meshes(), e.w);
+    CRW.M.tick(dt);
+    if (CRW.after && !CRW.pending && !CRW.M.busy()) crowdDone(true);
+  }
+  // THE AEROPLANE DRAWN ON ITS STAND (the probe, 12 Oct: the first unheld frame ticks the crowd BEFORE the loop poses the
+  // model - its group still where it was built, and the walk was measured 700 m off, round the world's origin): the
+  // route waits for the group within 8 m of the solver's CG (a few frames), or ~3 s at most
+  function crowdPlaced() {
+    const M = model;
+    if (!M || !M.grp || !sim) return false;
+    CRW.waitN = (CRW.waitN | 0) + 1;
+    const c = cgFinite(sim.cgPos()), p = M.grp.getWorldPosition(new THREE.Vector3());
+    return Math.hypot(p.x - c[0], p.z - c[2]) < 8 || CRW.waitN > 90;
+  }
+  // 'run': the flight's start waiting on the crowd goes now (Go, a failure) or is dropped (the garage, a new roll-out)
+  function crowdDone(run) { CRW.pending = false; const f = CRW.after; CRW.after = null; if (run && f) f(); }
+  function crowdStop(run) {
+    CRW.gen++;
+    CRW.queued = null;
+    if (CRW.M) CRW.M.clear();
+    for (const k of [...CRW.seats.keys()]) crowdSeatFade(k, 1);
+    CRW.seats.clear();
+    crowdDone(run);
+  }
+  // the start (the roll-out screen's done): now, or when the last passenger is seated
+  function crowdThen(fn) { if (CRW.on && (CRW.pending || (CRW.M && CRW.M.busy()))) CRW.after = fn; else fn(); }
+  if (typeof window !== 'undefined') window.FLYDIY_CROWD = () => ({ on: CRW.on, pending: CRW.pending, waiting: !!CRW.after,
+    seats: [...CRW.seats.keys()], stats: CRW.M ? Object.assign({}, CRW.M.stats) : null });
   // THE DRAWING'S SYNC (the 700 ms entry tick, an accept, a roll-out, a stop): build the group when the load changes,
   // hang it where it is seen
   function fsSync() {
@@ -10407,6 +10551,7 @@
   // player's own aeroplane in it (the shed, the editor, the sync) finish it first (parked.js flush)
   function parkedFlush() { if (typeof window !== 'undefined' && window.PARKED && window.PARKED.flush) window.PARKED.flush(); }   // hoisted: no TDZ
   function enterGarage() {
+    crowdStop(false);                  // G2970: the stand's passengers seated, the start that waited on them dropped
     parkedFlush();
     // G1490 (HYBRID-TRIPS): the flown model back AT REST on its bake - the hybrid's t is the flight's, and a model left in
     // the band met the shed and the next roll-out shot on programs keyed in no compile (a 5.2 s link) - flown_bake.js rest
@@ -10741,6 +10886,7 @@
     inGarage = false; rolledOut = true;
     playerFlightStart();               // PREM-S2: the airframe this flight flies, measured as it rolls out
     fsFlightStart();                   // G2400 (FREIGHT-STRAP): the accepted load aboard (the masses before the reset below)
+    crowdStart();                      // G2970 (CHARACTERS): whoever is aboard walks out to the door first
     certKick();                        // G1831: stamped now if the roll-out's request has landed (or the build was flown before)
     envAway = true;                    // C0c: the room's probe waits for the way back (bakeHangarEnv)
     if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
@@ -11573,6 +11719,7 @@
     if (rollAnimSkip) { rollAnimSkip(); return; }   // B9: a press over the roll-out animation skips it
     if (perfNow() < rollAnimSwallow) return;        // G1027: ...and the click of the press that skipped it is not a start
     if (rollHold) return;
+    if (CRW.after) { crowdStop(true); return; }   // G2970: a press while the passengers board seats them all and starts
     // G700: ...AND AFTER A LANDING IT FLIES ON FROM WHERE THE AEROPLANE STANDS (the playtest: "Fly on" reloaded -
     // fullReset put it back on the departure stand). An arrival at the destination chains the next leg in place,
     // exactly as picking a new destination after landing always did (W14's nextLeg): the same sim, a fresh pilot
@@ -11598,7 +11745,7 @@
       // rolling out, and it runs whether or not the panel happens to be open,
       // because the panel is a view and the design is not.
       storeStart = null;                          // G2690: the garage's own Fly is the floor's (today's roll-out)
-      rollOut(() => { started = true; }, true);   // the sim starts when the screen has lifted, not under it (G680: the sync inside it)
+      rollOut(() => crowdThen(() => { started = true; }), true);   // the sim starts when the screen has lifted, not under it (G680: the sync inside it); G2970: and the passengers are aboard
       return;
     }
     started = true;
@@ -15209,7 +15356,7 @@
     },
     isGen: () => curKey === 'gen',
     inGarage: () => inGarage,
-    rollOut: () => { rollOut(() => { started = true; }); },
+    rollOut: () => { rollOut(() => crowdThen(() => { started = true; })); },
     // BUILD -> LOAD TEST -> FLY. The panel drives the rig and polls it; the
     // rig is the same object GATE LOAD ticks, so the two cannot disagree.
     loadTest: () => startLoadTest(),
@@ -15838,6 +15985,7 @@
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
     if (FR) FR.lap(FR.S.world);        // G620: the world's update (its premises, cover ring and fill pushed apart)
+    if (CRW.M && !inGarage) crowdTick(rollHold || (typeof window !== 'undefined' && window.FLYDIY_HELD) ? 0 : fdt);   // G2970: the passengers
     // G1100 (POSE-SMOOTH): FROM HERE TO THE RENDER THE SIM'S POSITIONS ARE THE DRAWN ONES - between the last two steps,
     // at the frame clock's alpha (POSE_LERP above; restored below the render). In the world only, the page's own flight
     // (the worker's view interpolates itself), and a pause holds the alpha it had

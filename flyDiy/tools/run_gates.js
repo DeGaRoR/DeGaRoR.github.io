@@ -246,6 +246,10 @@ const GATES = [
   // clip libraries and the cut levels; and the behaviours run headless
   // against the real vendor three (a herd, a pod and a flock, 900 steps).
   { id: 'ANIMALS', file: '_animal_check.js', tier: 'core' },
+  // THE CROWD (CHARACTERS G2970): the passengers' cast and clips round-trip from media/, the run walks, queues and
+  // boards them (spacing, order, the door, the fade summing to one, the seat's own pose at the end), the fade twins,
+  // the wire budget, and nothing of it in index.html (~1 s)
+  { id: 'CHARS', file: '_chars_check.js', tier: 'core' },
   // THE TRAM CABIN (G343): the user's cable car baked as a prop and dressed
   // from the house library - roles, metric uvs, the gasket round every
   // window, the livery on both flanks, the liveries published
