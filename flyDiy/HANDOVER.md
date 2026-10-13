@@ -92649,3 +92649,37 @@ Gates: green except SKINMAT, WEATHER (pre-existing on master; fixes ride train 5
 Strict gate, QUIET re-run 01:09-01:28 (the 00:15 run was spoiled by the user's session): 41b vs master 09683cb08 on the same box minutes apart: cub chase loop 18.9 vs 18.3 ms, render 13.1 vs 12.9, cockpit 19.0 vs 19.0, garage->world 11.3 vs 11.2 s: AT PAR.
 MASTER ITSELF moved vs train 50 (0b42f6826, 20:53): cub chase loop 16.5 -> 18.3 ms, render 11.8 -> 12.9, cockpit loop 16.4 -> 19.0: SCENERY-SHIP (rev27, landed 23:11 without its strict gate by the user's OK) costs ~+2 ms loop at HOME. Still 30 fps at the cap. Owed: find the cost (roads r1 / pavement / zones) - EDITOR-PERF / SCENERY-ED-2.
 What to watch for: nothing visible with damage off. ?damage=1 shows the crash layer (breaks, scars, debris).
+
+## G2939 - LOOK-DEFAULTS: THE USER'S WORLD LOOK OF 12 OCT IS THE DEFAULT (2026-10-13, TREE-STREAM for A0; branch claude/look-defaults-g2939; train 53 with SHIP-2)
+The user: "these should be the new defaults, ensure that my settings are not killing performance" - D:/Dev/flydiy-notes/inbox/
+world_look_2026-10-12_2025.json (58 changes), each written into its source per the export's 'where' map (scratch
+apply_look.js + apply_look_json.py; the mixes table by `python tools/tree_prep.py --biomes`; the per-species tints into
+the tuning AND the pack's `tint`, as tree_prep writes it - the full prep wants the raw GLBs a worktree has none of).
+KEPT (the slider-clamp bug, G2937, wrote these): grass_reed's tint light stays 3 (the file's 2), the muskeg's forest
+count stays 5000 (the file's 3000). The ground's light 0.94 -> 1.38 IS the environment albedo (envAlbedo writes it):
+ENV_ALB is { k 1.38, base 0.42 } now, so the leaves stay 0.42 x 1.38 (trees.js MASTER, unchanged) and the slider reads
+the look. The changes:
+- splat code 8 (forest ground) scale [81,3,0] -> [17.5,3,0] (28b_ground_fields.js RECIPE)
+- muskeg: pine_georgeous 1.6 -> 3.6, pine_evolveduk 1.45 -> 3, spruce 1 -> 2.6, grass_reed proportion 0.4 -> 2.65 / density
+  0.48 -> 0.35 / size 0.75 -> 1.1 / field h 0.52, dens 0.2; fireweed added (0.05, density 0.1, patch 8, share 0.8);
+  forest under 4 -> 20, blotch 0.6 -> 0.15, debris 70 -> 14
+- conifer_young: flower_foam 1 -> 2.05 (density 0.5 -> 0.1, size 1.25), bunchberry density 0.5 -> 0.2 / patch 5 -> 1 / size
+  2.75 / share 0.6, grass_reed density 0.48 -> 2.9 / patch 0 -> 5.5 / size 0.75 -> 1.1 / field h 0.49, dens 0.2, sapling
+  size 2.75, shrub size 2.65, holly size 2.75; forest under 3 -> 9.5, blotch 0.6 -> 0, blotchM 18 -> 9, rocks 4 -> 12
+- tints: shrub_deciduous hue -0.009 -> -0.03, sat 0.857 -> 0.38, light 1.535 -> 1.42; sapling_deciduous sat 0.857 -> 0.62,
+  light 1.535 -> 1.3; kindTint cover light 1 -> 1.3, flower hue 0 -> 0.015 / sat 1 -> 0.74 / light 1 -> 0.56 (trees.js)
+- speciesSize (render_world SP_SIZE): cedar 1.3, fir 1.3, larch 1.4, realistic fir 1.25, spruce 1.2
+- the grass field's blotch 0.3 -> 0.05 (cover_ring.js); GRASS_SIDES_DEF sideClear 1.8 -> 0, mowBand 15 -> 6, mowBlend 4 -> 1,
+  roadMow 2 -> 1 (27_premises.js); the ground's light 0.94 -> 1.38 + ENV_ALB k 1.38 (render_world.js)
+PERF (Tue 13 Oct 02:30-03:06, RTX 3080, built pages, the look's parked planes re-cooked; rollout_perf 90 s at HOME, chase,
+the means of A B B A; A = master 39570350b, B = master + the look):
+  gamer   stand loop 7.7 -> 7.8 ms, render 5.0 -> 5.2, p99 41.8 -> 41.9 | taxi loop 16.8 -> 15.5, render 11.6 -> 10.8, p99 33.5
+  current stand loop 7.5 -> 8.0, render 5.2 -> 5.3                    | taxi loop 16.9 -> 15.6, render 11.7 -> 10.9, p99 33.5
+  gamer, the cover ring off (?cover=0, one A / one B): taxi loop 13.2 -> 11.9, render 9.9 -> 8.8
+30 fps held everywhere; the look is ~1.3 ms CHEAPER in the taxi, and that survives without the cover ring (the counts -
+under, rocks, the reed - cost nothing measurable; the saving is the ground's). The one rise: current's stand +0.5 ms loop.
+GATES: the core changed (27_premises, 28b_ground_fields) - every node gate refuses an unbuilt tools/flight_core.js (STALE
+CORE): the battery builds first. On master WORLDRENDER / TREES / GRASSSIDES / PREMISES pass; GRASSSIDES row 3 probes the
+drawn side at sideClear x 0.5 - with sideClear 0 that is the paved edge itself (watch it).
+WHAT TO WATCH FOR: the world as the user left it on 12 Oct - brighter ground (1.38), denser understorey and reed in the young
+conifers and the muskeg, the mown verge narrower (6 m), grass to the paved edge, the deciduous bushes desaturated.
