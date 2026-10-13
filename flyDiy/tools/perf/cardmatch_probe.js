@@ -20,6 +20,8 @@ const URL = opt('url', 'http://localhost:8358/flyDiy/index.html'), OUT = opt('ou
 // --gate: GATE CARDMATCH (G3185) - the default look's on-screen card / impostor luma inside BAND, and its NEGATIVE CONTROL: the
 // same card at half its level (TREE_LOD.impLevel on its sheet x 0.5) must leave the band, or the row cannot see a mismatch
 const GATE = argv.includes('--gate'), BAND = [0.85, 1.15];
+// --compose 0: the card from the merged block's bake (G3181-G3183, levelled) - the A/B against the composed card (G3184)
+const COMPOSE = opt('compose', null);
 const PORT = 9400 + (process.pid % 500);
 const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome'].find(p => fs.existsSync(p));
 const ch = spawn(CHROME, ['--headless=new', '--remote-debugging-port=' + PORT, '--window-size=1600,900', '--hide-scrollbars', '--no-first-run',
@@ -99,7 +101,12 @@ const MODE = m => `(() => { const SC = TREE_FILL.stands(); const fillMat = [];
     const MM = JSON.parse(await ev(MEANS)), I = MM.imps, C = MM.cards;
     return { tag, sheets, screen: { imps: I, cards: C, ratio: I && C ? { r: C.r / I.r, g: C.g / I.g, b: C.b / I.b, y: C.y / I.y } : null } };
   };
-  const res = { url: URL, where: JSON.parse(where), passes: [] };
+  if (COMPOSE !== null) {   // the card rebuilt the other way, then let it settle
+    await ev("(() => { const SC = TREE_FILL.stands(); if (SC && SC.set) SC.set({ compose: " + (COMPOSE === '0' ? 'false' : 'true') + " }); return 1; })()");
+    for (let i = 0; i < 60; i++) { if (await ev("!!(TREE_FILL.stands() && TREE_FILL.stands().atlas())")) break; await sleep(1000); }
+    await sleep(4000);
+  }
+  const res = { url: URL, compose: await ev("(() => { const SC = TREE_FILL.stands(); return SC && SC.get ? SC.get().compose : null; })()"), where: JSON.parse(where), passes: [] };
   res.passes.push(await pass('default'));
   await ev("(() => { const m = TREE_LEAF.master(); TREE_LEAF.tint({ light: m.light * 1.5, hue: (m.hue || 0) + 0.05 }); return 1; })()");
   res.passes.push(await pass('tinted'));
