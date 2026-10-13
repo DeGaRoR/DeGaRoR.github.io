@@ -87138,3 +87138,88 @@ Merged origin/claude/scenery-ship-g3010 (b43779662) on master 0b42f6826 (train 5
 - A0 re-pins: UISMOKE map places + 3 strips, projection roads 76 -> 110 (the road graph + rev27), and flyDiy/BACKLOG.md (the official backlog, source flydiy-notes/backlog.json).
 Gates green except VEHICLE (2 placeholder rows, agreed). The strict gate was NOT run (the RWYTREES row took 15 min; the user chose to land without it). The Tue 00:45 baseline re-take on this master verifies it.
 What to watch for: strip 12 and its roads, contracts at strips 10-12, trees on the user's clearings, typed numbers in the inspector, one strip per runway click.
+
+## G2970 - CHARACTERS: THE PASSENGERS WALK TO THE AEROPLANE, QUEUE AT ITS DOOR AND FADE INTO THEIR SEATS; A CAST OF SIX, LAZY MEDIA, NOTHING IN index.html (2026-10-11/13, CHARACTERS for A0, local; branch claude/characters-g2970 off master c12f0490c, master merged up to SHIP 09683cb08; G2971-G2989 unused)
+
+The user (11 Oct): "animated passengers". MVP: they queue and walk from a start point to the aeroplane's door; BOARDING
+is a fade between two poses, standing at the door -> seated in the seat station (no climbing: the user's word). Out of
+scope: a free-roaming pilot, NPC drivers (a walk-around may come later).
+
+- **THE CAST (tools/chars_table.py CAST).** Six, the user's pick with "ensure you have inclusivity" (read off the
+  characters' own colour maps): megan (Ch22 - the crew's ch22, reused), elizabeth (Ch26), james (Ch06), martha (Ch27),
+  leonard (Ch31), david (Ch28). Three women, three men; light to dark brown skin; a blouse and denim, a stripe, navy
+  smart-casual, streetwear, a suit and tie, dark smart clothes. The other eight of the user's 14 FBX stay source
+  (assets/chars/people/, gitignored). 48-55k triangles each; 22.3 MiB on the wire for the six (geometry .gz.bin +
+  the KTX2 budget set), fetched only when passengers appear.
+- **LAZY, NOT BOOT.** A cast member's manifest is a content-hashed media file (media/chars/<key>.<h8>.json) named by
+  src/chars/crowd_pack.json, with the clips' manifests and the cast's KTX2 rows (written by char_tex_budget.js). The
+  crowd registers a member into CHAR_REG.chars WITHOUT CHAR_REG.order: the editor's "pilot model" select and the crew
+  layer's passenger cycle never list them (a saved spec's dumModel index and every flown model stay what they were).
+  src/viewer/crowd.js is a MANIFEST.lazy file (FLYDIY_LAZY('crowd')). `python tools/char_prep.py --cast` bakes the
+  cast + clips alone: the crew's boot manifests and media byte for byte as committed.
+- **THE CLIPS (CROWD_CLIPS), shared by every character by joint name:** walk (Walking, 1.07 s at 30 fps, 1.67 m/s of
+  its own travel - the crowd moves the person by exactly that, so the feet do not skate - and the Hips' bob per
+  frame), idle (Neutral Idle, 8.8 s), the queue's two idles alternated so the line does not look cloned (Look Around
+  6.4 s, Texting While Standing 23.6 s). The SEATED end is the crew's own Sitting Idle (ANIMS sitidle). One walk for
+  everyone (the user, 12 Oct: no separate women's walk for now; female Walking (1) stays source).
+- **THE RUN (crowd.js, pure: GATE CHARS drives it).** A polyline from the start to the door's foot; queue slots every
+  0.9 m back along it; nobody leaves the start before the one ahead is a spacing clear; nobody comes closer than the
+  spacing or passes; rank 0 at the door turns to face it (0.7 s), then ONE CROSSFADE (1.2 s): the walker's weight and
+  the seat's add to one through the whole fade; the seat ends on its own figure. **THE ROUTE** (CROWD.route): the
+  queue's last leg square to the fuselage; a start aft passes behind the tail on the door's side, one forward swings
+  wide of the propeller and the wing, one on the far side walks aft along its own side and crosses behind the tail.
+- **THE LOOK.** A CAGE_CHAR instance per walker, posed from the clips (two clips blend over 0.3 s, nothing else). THE
+  LADDER: under 60 m the skeleton is posed - the 4 nearest every frame, the rest every third; 60-150 m frozen (no clip
+  sampling; the rig's matrices out of three's walk, gliding as one body); past 150 m not drawn. A shadow for the 4
+  nearest only. THE FADE is a dissolve (a FADE TWIN: the material's own hook first, then a screen-hash discard; its
+  program key 'crowdFade|' + the original's), never `transparent` (G205.1). Walkers are outdoors (the cabin darkness
+  off, uInside 0). The walkers' programs are compiled off the frame (renderer.compileAsync) before they are drawn.
+- **THE PAGE (app.js, G2970 after fsPeople).** At the roll-out (rollOutStand, after fsFlightStart) every figure seated
+  but the pilot - the live crew (a C172's co-pilot holds the yoke: a job's passenger sits there), a job's passenger
+  FREIGHT-STRAP seats (fsPeople, now seating the cast first), the build's own baked passengers (one walker per
+  character bucket) - is hidden; the walk starts when the roll-out's screen lifts (the route measured on the stand);
+  they come out of the hangar's door (40 m at most), round the tail, queue at the cabin door on the starboard side
+  (the Cub's door) and fade into their seats. THE START WAITS for the last one (the stand's brake stays on); GO
+  SEATS EVERYONE AT ONCE and starts. The garage drops it. **WHEN: a job that seats passengers** (career / freight); a
+  sandbox build's own passengers walk only with `?crowd=1` - the strict gate's stand rows (the Cub, the metal C172 with
+  its co-pilot) never start the crowd and fetch nothing. `?crowd=0` or localStorage flydiy.crowd '0' turns it off.
+  window.FLYDIY_CROWD() for the rigs.
+
+**GATES.** GATE CHARS (new, core, ~1 s; tools/_chars_check.js): 1 table == pack; 2 the round trip (each manifest
+and bin hashes to its name, decodeChar inside its slices, joints, weights, inverse binds); 3 the clips (unit quaternions,
+frames, the body's joints on every member, the walk's pace); 4 the run on three paths + the route from seven starts;
+5 the fade twins on real three materials; 6 the budget (member <= 6 MiB, cast <= 30 MiB, clip <= 400 KiB, <= 60k
+triangles); 7 nothing of it in index.html. GATE CHARS: PASS (111). GATE MEDIA: PASS (Tue 13 Oct 07:45 build on master 2212fe8d8: index.html 4.06 MiB gzipped against the 4.06 budget,
++9.7 KB over master - the page hook and the lazy entry; the cast, its clips and crowd.js are never in the page).
+**THE PAGE (tools/crowd_probe.js, the box's GPU, numbers only).** Tue 13 Oct 07:53, master 2212fe8d8 + 7ce6de700, the C172
+with FREIGHT-STRAP's '60 kg of mail + a passenger' (?freight=1&strapload=mail60p:c172): the crowd on, 1 seat to walk
+(the live co-pilot's), the walker drawn, the boarding fade seen, the seat handed back and the start released 23.8 s
+after the roll-out's screen lifted; the frames while she walks: 1295, median 16.7 ms, p99 33.3 ms, 0.2 % over 50 ms;
+GO during the walk: everyone seated, nobody walking, the start released at once; no page error. CROWD PROBE: PASS.
+**THE STAND ROWS** (train_gate --light --only rollout, Mon 12 Oct 18:29, deb559f31; the sandbox's stock Cub and metal C172
+never start the crowd - no job, no ?crowd=1 - so its per-frame cost there is one `if`): chase loop 16.6 ms (Cub and
+metal), render 11.6 / 11.9 ms, cockpit loop 16.3 ms, fps 29.3-30 at the cap - against land_t44b's ~16 / ~11.3 ms.
+The stored light baseline (3 Oct) is stale: its 24 reds are the base's drift, not this change's (A0's reading).
+
+**TRAPS MET (for the next session).** (1) The first unheld frame ticks the world BEFORE the loop poses the model: a
+route measured then is measured where the model was built - crowdPlaced() waits for the group within 8 m of the
+solver's CG. (2) THE W0.5a TRAP AGAIN: a hand-set child (matrixAutoUpdate false) hung under model.grp keeps an IDENTITY
+matrixWorld through updateWorldMatrix(true, false) unless matrixWorldNeedsUpdate is set - the door was measured at the
+origin and the walker walked 700 m off the camera; the route now multiplies grp.matrixWorld x cageM itself.
+(3) A Windows python writing a file for bash writes CRLF (the bake script's GLB paths ended in a carriage return): open
+    it with newline='\n'.
+
+**WHAT TO WATCH FOR (the user).**
+- Take a career or freight job with a passenger, roll out: the passengers come out of the hangar door, walk round
+  the tail and queue on the right side of the cabin; each turns to the door and fades into a seat. The flight starts
+  when the last is seated. Press GO to skip it.
+- A passenger appearing a moment late (their textures were still on the wire) is expected the first time.
+- A person who walks through a wing tip, a strut or another aeroplane on the apron - the route knows the fuselage's
+  line, not the wings: tell us where.
+- The sandbox: nothing changes unless you add `?crowd=1` (then the build's own passengers board too).
+
+**KNOWN LIMITS (owed).** The door's foot is beside the pilot's station on the starboard side for every aeroplane (no
+door model yet): on a low wing the queue stands in the wing root, on a four-seater the rear passengers board at the
+front door. Two seats wearing the same baked character fade in together. Past 60 m a person is a frozen GPU skin (a
+baked static copy if a census says it costs). The cast's KTX2 rows ride in crowd_pack.json, outside GATE KTX2's check
+10 re-measure. The road graph (ROAD-GRAPH G2950) can replace the start -> tail leg of the route later.
