@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="700" viewBox="0 0 980 700" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="980" height="700" fill="#fcfcfb"/>
+<text x="24" y="30" font-size="16" font-weight="700" fill="#0b0b0b">The crushable nose: force against crush depth, per build</text>
+<text x="24" y="50" font-size="12" fill="#52514e">the spinner (Alexander's shell crush on the cone), the propeller at its hub (the blade roots), the nose bowl; past the stack the engine itself (core)</text>
+<text x="80" y="90" font-size="13" font-weight="600" fill="#0b0b0b">the user's Cub (476 kg)</text>
+<line x1="80" x2="480" y1="300" y2="300" stroke="#e4e3df"/><text x="74" y="304" font-size="11" text-anchor="end" fill="#52514e">0</text>
+<line x1="80" x2="480" y1="242.85714285714286" y2="242.85714285714286" stroke="#e4e3df"/><text x="74" y="246.85714285714286" font-size="11" text-anchor="end" fill="#52514e">10</text>
+<line x1="80" x2="480" y1="185.71428571428572" y2="185.71428571428572" stroke="#e4e3df"/><text x="74" y="189.71428571428572" font-size="11" text-anchor="end" fill="#52514e">20</text>
+<line x1="80" x2="480" y1="128.57142857142858" y2="128.57142857142858" stroke="#e4e3df"/><text x="74" y="132.57142857142858" font-size="11" text-anchor="end" fill="#52514e">30</text>
+<text x="80" y="316" font-size="11" text-anchor="middle" fill="#52514e">0</text>
+<text x="160" y="316" font-size="11" text-anchor="middle" fill="#52514e">10</text>
+<text x="240" y="316" font-size="11" text-anchor="middle" fill="#52514e">20</text>
+<text x="320" y="316" font-size="11" text-anchor="middle" fill="#52514e">30</text>
+<text x="400" y="316" font-size="11" text-anchor="middle" fill="#52514e">40</text>
+<text x="480" y="316" font-size="11" text-anchor="middle" fill="#52514e">50</text>
+<line x1="80" x2="480" y1="300" y2="300" stroke="#52514e"/><text x="280" y="334" font-size="11" text-anchor="middle" fill="#52514e">crush from the spinner's tip, cm</text>
+<text transform="translate(40,200) rotate(-90)" font-size="11" text-anchor="middle" fill="#52514e">force, kN</text>
+<rect x="80" y="100" width="189.73600000000005" height="200" fill="#e7f0fb"/><text x="174.86800000000002" y="114" font-size="10" text-anchor="middle" fill="#52514e">spinner</text>
+<rect x="269.73600000000005" y="100" width="96" height="200" fill="#fdf0e6"/><text x="317.73600000000005" y="114" font-size="10" text-anchor="middle" fill="#52514e">prop</text>
+<rect x="365.73600000000005" y="100" width="64" height="200" fill="#eef6ee"/><text x="397.73600000000005" y="114" font-size="10" text-anchor="middle" fill="#52514e">bowl</text>
+<rect x="429.73600000000005" y="100" width="50.26399999999995" height="200" fill="#f1f0ed"/><text x="454.86800000000005" y="114" font-size="10" text-anchor="middle" fill="#52514e">core</text>
+<line x1="80" x2="480" y1="139.835330454384" y2="139.835330454384" stroke="#52514e" stroke-dasharray="5 4"/><text x="476" y="134.835330454384" font-size="10" text-anchor="end" fill="#52514e">the mount certified: 9 g / 1.5 on the nose, 28.0 kN</text>
+<polyline fill="none" stroke="#2a78d6" stroke-width="2.5" stroke-linejoin="round" points="80.0,300.0 84.4,284.9 88.7,278.7 93.1,273.9 97.5,269.9 101.9,266.3 106.2,263.1 110.6,260.1 115.0,257.4 119.3,254.8 123.7,252.4 128.1,250.0 132.5,247.8 136.8,245.7 141.2,243.6 145.6,241.7 149.9,239.7 154.3,237.9 158.7,236.1 163.1,234.3 167.4,232.6 171.8,231.0 176.2,229.3 180.5,227.8 184.9,226.2 189.3,224.7 193.7,223.2 198.0,221.7 202.4,220.3 206.8,218.9 211.2,217.5 215.5,216.1 219.9,214.8 224.3,213.5 228.6,212.2 233.0,210.9 237.4,209.6 241.8,208.4 246.1,207.1 250.5,205.9 254.9,204.7 259.2,203.5 263.6,202.4 268.0,201.2 272.4,201.0 276.7,201.0 281.1,201.0 285.5,201.0 289.8,201.0 294.2,201.0 298.6,201.0 303.0,201.0 307.3,201.0 311.7,201.0 316.1,201.0 320.4,201.0 324.8,201.0 329.2,201.0 333.6,201.0 337.9,201.0 342.3,201.0 346.7,201.0 351.0,201.0 355.4,201.0 359.8,201.0 364.2,201.0 368.5,190.8 372.9,190.8 377.3,190.8 381.6,190.8 386.0,190.8 390.4,190.8 394.8,190.8 399.1,190.8 403.5,190.8 407.9,190.8 412.2,190.8 416.6,190.8 421.0,190.8 425.4,190.8 429.7,190.8"/>
+<polyline fill="none" stroke="#2a78d6" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="4 3" points="269.7,218.3 365.7,218.3"/>
+<text x="317.73600000000005" y="231.30861785714285" font-size="9" text-anchor="middle" fill="#52514e">a separation</text>
+<circle cx="236.8" cy="209.83999999999997" r="5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/><text x="228.8" y="199.83999999999997" font-size="10" text-anchor="end" fill="#0b0b0b">3 m/s, calm: 20 cm, 2.06 kJ</text>
+<text x="80" y="352" font-size="10" fill="#52514e">spinner 24 cm · prop 12 cm · bowl 8 cm · the stack 6.36 kJ; the 3 m/s taxi 2.14 kJ</text>
+<text x="560" y="90" font-size="13" font-weight="600" fill="#0b0b0b">Jodel (463 kg)</text>
+<line x1="560" x2="960" y1="300" y2="300" stroke="#e4e3df"/><text x="554" y="304" font-size="11" text-anchor="end" fill="#52514e">0</text>
+<line x1="560" x2="960" y1="242.85714285714286" y2="242.85714285714286" stroke="#e4e3df"/><text x="554" y="246.85714285714286" font-size="11" text-anchor="end" fill="#52514e">10</text>
+<line x1="560" x2="960" y1="185.71428571428572" y2="185.71428571428572" stroke="#e4e3df"/><text x="554" y="189.71428571428572" font-size="11" text-anchor="end" fill="#52514e">20</text>
+<line x1="560" x2="960" y1="128.57142857142858" y2="128.57142857142858" stroke="#e4e3df"/><text x="554" y="132.57142857142858" font-size="11" text-anchor="end" fill="#52514e">30</text>
+<text x="560" y="316" font-size="11" text-anchor="middle" fill="#52514e">0</text>
+<text x="640" y="316" font-size="11" text-anchor="middle" fill="#52514e">10</text>
+<text x="720" y="316" font-size="11" text-anchor="middle" fill="#52514e">20</text>
+<text x="800" y="316" font-size="11" text-anchor="middle" fill="#52514e">30</text>
+<text x="880" y="316" font-size="11" text-anchor="middle" fill="#52514e">40</text>
+<text x="960" y="316" font-size="11" text-anchor="middle" fill="#52514e">50</text>
+<line x1="560" x2="960" y1="300" y2="300" stroke="#52514e"/><text x="760" y="334" font-size="11" text-anchor="middle" fill="#52514e">crush from the spinner's tip, cm</text>
+<text transform="translate(520,200) rotate(-90)" font-size="11" text-anchor="middle" fill="#52514e">force, kN</text>
+<rect x="560" y="100" width="177.76800000000003" height="200" fill="#e7f0fb"/><text x="648.884" y="114" font-size="10" text-anchor="middle" fill="#52514e">spinner</text>
+<rect x="737.768" y="100" width="96" height="200" fill="#fdf0e6"/><text x="785.768" y="114" font-size="10" text-anchor="middle" fill="#52514e">prop</text>
+<rect x="833.768" y="100" width="64" height="200" fill="#eef6ee"/><text x="865.768" y="114" font-size="10" text-anchor="middle" fill="#52514e">bowl</text>
+<rect x="897.768" y="100" width="62.23199999999997" height="200" fill="#f1f0ed"/><text x="928.884" y="114" font-size="10" text-anchor="middle" fill="#52514e">core</text>
+<line x1="560" x2="960" y1="144.288333805352" y2="144.288333805352" stroke="#52514e" stroke-dasharray="5 4"/><text x="956" y="139.288333805352" font-size="10" text-anchor="end" fill="#52514e">the mount certified: 9 g / 1.5 on the nose, 27.2 kN</text>
+<polyline fill="none" stroke="#2f9e44" stroke-width="2.5" stroke-linejoin="round" points="560.0,300.0 564.2,285.2 568.4,279.1 572.7,274.4 576.9,270.4 581.1,266.9 585.3,263.7 589.6,260.8 593.8,258.1 598.0,255.6 602.2,253.2 606.4,250.9 610.7,248.7 614.9,246.6 619.1,244.6 623.3,242.7 627.6,240.8 631.8,239.0 636.0,237.2 640.2,235.5 644.4,233.8 648.7,232.2 652.9,230.6 657.1,229.0 661.3,227.5 665.6,226.0 669.8,224.5 674.0,223.1 678.2,221.7 682.4,220.3 686.7,218.9 690.9,217.6 695.1,216.3 699.3,215.0 703.6,213.7 707.8,212.4 712.0,211.2 716.2,210.0 720.4,208.7 724.7,207.6 728.9,206.4 733.1,205.2 737.3,204.1 741.6,209.1 745.8,209.1 750.0,209.1 754.2,209.1 758.4,209.1 762.7,209.1 766.9,209.1 771.1,209.1 775.3,209.1 779.5,209.1 783.8,209.1 788.0,209.1 792.2,209.1 796.4,209.1 800.7,209.1 804.9,209.1 809.1,209.1 813.3,209.1 817.5,209.1 821.8,209.1 826.0,209.1 830.2,209.1 834.4,165.1 838.7,165.1 842.9,165.1 847.1,165.1 851.3,165.1 855.5,165.1 859.8,165.1 864.0,165.1 868.2,165.1 872.4,165.1 876.7,165.1 880.9,165.1 885.1,165.1 889.3,165.1 893.5,165.1 897.8,165.1"/>
+<polyline fill="none" stroke="#2f9e44" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="4 3" points="737.8,225.0 833.8,225.0"/>
+<text x="785.768" y="238.00856071428566" font-size="9" text-anchor="middle" fill="#52514e">a separation</text>
+<circle cx="700.8" cy="214.53142857142856" r="5" fill="#2f9e44" stroke="#fcfcfb" stroke-width="2"/><text x="692.8" y="204.53142857142856" font-size="10" text-anchor="end" fill="#0b0b0b">3 m/s, calm: 18 cm, 1.75 kJ</text>
+<text x="560" y="352" font-size="10" fill="#52514e">spinner 22 cm · prop 12 cm · bowl 8 cm · the stack 6.29 kJ; the 3 m/s taxi 2.08 kJ</text>
+<text x="80" y="390" font-size="13" font-weight="600" fill="#0b0b0b">metal Cessna (883 kg)</text>
+<line x1="80" x2="480" y1="600" y2="600" stroke="#e4e3df"/><text x="74" y="604" font-size="11" text-anchor="end" fill="#52514e">0</text>
+<line x1="80" x2="480" y1="569.2307692307693" y2="569.2307692307693" stroke="#e4e3df"/><text x="74" y="573.2307692307693" font-size="11" text-anchor="end" fill="#52514e">10</text>
+<line x1="80" x2="480" y1="538.4615384615385" y2="538.4615384615385" stroke="#e4e3df"/><text x="74" y="542.4615384615385" font-size="11" text-anchor="end" fill="#52514e">20</text>
+<line x1="80" x2="480" y1="507.6923076923077" y2="507.6923076923077" stroke="#e4e3df"/><text x="74" y="511.6923076923077" font-size="11" text-anchor="end" fill="#52514e">30</text>
+<line x1="80" x2="480" y1="476.9230769230769" y2="476.9230769230769" stroke="#e4e3df"/><text x="74" y="480.9230769230769" font-size="11" text-anchor="end" fill="#52514e">40</text>
+<line x1="80" x2="480" y1="446.15384615384613" y2="446.15384615384613" stroke="#e4e3df"/><text x="74" y="450.15384615384613" font-size="11" text-anchor="end" fill="#52514e">50</text>
+<line x1="80" x2="480" y1="415.38461538461536" y2="415.38461538461536" stroke="#e4e3df"/><text x="74" y="419.38461538461536" font-size="11" text-anchor="end" fill="#52514e">60</text>
+<text x="80" y="616" font-size="11" text-anchor="middle" fill="#52514e">0</text>
+<text x="160" y="616" font-size="11" text-anchor="middle" fill="#52514e">10</text>
+<text x="240" y="616" font-size="11" text-anchor="middle" fill="#52514e">20</text>
+<text x="320" y="616" font-size="11" text-anchor="middle" fill="#52514e">30</text>
+<text x="400" y="616" font-size="11" text-anchor="middle" fill="#52514e">40</text>
+<text x="480" y="616" font-size="11" text-anchor="middle" fill="#52514e">50</text>
+<line x1="80" x2="480" y1="600" y2="600" stroke="#52514e"/><text x="280" y="634" font-size="11" text-anchor="middle" fill="#52514e">crush from the spinner's tip, cm</text>
+<text transform="translate(40,500) rotate(-90)" font-size="11" text-anchor="middle" fill="#52514e">force, kN</text>
+<rect x="80" y="400" width="252.17600000000004" height="200" fill="#e7f0fb"/><text x="206.08800000000002" y="414" font-size="10" text-anchor="middle" fill="#52514e">spinner</text>
+<rect x="332.17600000000004" y="400" width="56" height="200" fill="#fdf0e6"/><text x="360.17600000000004" y="414" font-size="10" text-anchor="middle" fill="#52514e">prop</text>
+<rect x="388.17600000000004" y="400" width="64" height="200" fill="#eef6ee"/><text x="420.17600000000004" y="414" font-size="10" text-anchor="middle" fill="#52514e">bowl</text>
+<rect x="452.17600000000004" y="400" width="27.823999999999955" height="200" fill="#f1f0ed"/><text x="466.088" y="414" font-size="10" text-anchor="middle" fill="#52514e">core</text>
+<line x1="80" x2="480" y1="440.0077366435967" y2="440.0077366435967" stroke="#52514e" stroke-dasharray="5 4"/><text x="476" y="435.0077366435967" font-size="10" text-anchor="end" fill="#52514e">the mount certified: 9 g / 1.5 on the nose, 52.0 kN</text>
+<polyline fill="none" stroke="#7048e8" stroke-width="2.5" stroke-linejoin="round" points="80.0,600.0 84.7,591.6 89.3,588.2 94.0,585.5 98.6,583.3 103.3,581.3 107.9,579.5 112.6,577.9 117.2,576.3 121.9,574.9 126.5,573.5 131.2,572.2 135.8,571.0 140.5,569.8 145.1,568.7 149.8,567.6 154.4,566.5 159.1,565.5 163.7,564.5 168.4,563.5 173.0,562.6 177.7,561.7 182.3,560.8 187.0,559.9 191.7,559.0 196.3,558.2 201.0,557.3 205.6,556.5 210.3,555.7 214.9,554.9 219.6,554.2 224.2,553.4 228.9,552.7 233.5,551.9 238.2,551.2 242.8,550.5 247.5,549.8 252.1,549.1 256.8,548.4 261.4,547.7 266.1,547.1 270.7,546.4 275.4,545.8 280.0,545.1 284.7,544.5 289.3,543.9 294.0,543.3 298.7,542.6 303.3,542.0 308.0,541.4 312.6,540.8 317.3,540.2 321.9,539.7 326.6,539.1 331.2,538.5 335.9,570.7 340.5,570.7 345.2,570.7 349.8,570.7 354.5,570.7 359.1,570.7 363.8,570.7 368.4,570.7 373.1,570.7 377.7,570.7 382.4,570.7 387.0,570.7 391.7,526.7 396.3,526.7 401.0,526.7 405.7,526.7 410.3,526.7 415.0,526.7 419.6,526.7 424.3,526.7 428.9,526.7 433.6,526.7 438.2,526.7 442.9,526.7 447.5,526.7 452.2,526.7"/>
+<polyline fill="none" stroke="#7048e8" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="4 3" points="332.2,575.9 388.2,575.9"/>
+<text x="360.17600000000004" y="588.8571930588943" font-size="9" text-anchor="middle" fill="#52514e">a separation</text>
+<circle cx="315.2" cy="540.5076923076923" r="5" fill="#7048e8" stroke="#fcfcfb" stroke-width="2"/><text x="307.2" y="530.5076923076923" font-size="10" text-anchor="end" fill="#0b0b0b">3 m/s, calm: 29 cm, 3.79 kJ</text>
+<text x="80" y="652" font-size="10" fill="#52514e">spinner 32 cm · prop 7 cm · bowl 8 cm · the stack 6.78 kJ; the 3 m/s taxi 3.98 kJ</text>
+<text x="560" y="390" font-size="13" font-weight="600" fill="#0b0b0b">twin (one nacelle)</text>
+<line x1="560" x2="960" y1="600" y2="600" stroke="#e4e3df"/><text x="554" y="604" font-size="11" text-anchor="end" fill="#52514e">0</text>
+<line x1="560" x2="960" y1="569.2307692307693" y2="569.2307692307693" stroke="#e4e3df"/><text x="554" y="573.2307692307693" font-size="11" text-anchor="end" fill="#52514e">10</text>
+<line x1="560" x2="960" y1="538.4615384615385" y2="538.4615384615385" stroke="#e4e3df"/><text x="554" y="542.4615384615385" font-size="11" text-anchor="end" fill="#52514e">20</text>
+<line x1="560" x2="960" y1="507.6923076923077" y2="507.6923076923077" stroke="#e4e3df"/><text x="554" y="511.6923076923077" font-size="11" text-anchor="end" fill="#52514e">30</text>
+<line x1="560" x2="960" y1="476.9230769230769" y2="476.9230769230769" stroke="#e4e3df"/><text x="554" y="480.9230769230769" font-size="11" text-anchor="end" fill="#52514e">40</text>
+<line x1="560" x2="960" y1="446.15384615384613" y2="446.15384615384613" stroke="#e4e3df"/><text x="554" y="450.15384615384613" font-size="11" text-anchor="end" fill="#52514e">50</text>
+<line x1="560" x2="960" y1="415.38461538461536" y2="415.38461538461536" stroke="#e4e3df"/><text x="554" y="419.38461538461536" font-size="11" text-anchor="end" fill="#52514e">60</text>
+<text x="560" y="616" font-size="11" text-anchor="middle" fill="#52514e">0</text>
+<text x="640" y="616" font-size="11" text-anchor="middle" fill="#52514e">10</text>
+<text x="720" y="616" font-size="11" text-anchor="middle" fill="#52514e">20</text>
+<text x="800" y="616" font-size="11" text-anchor="middle" fill="#52514e">30</text>
+<text x="880" y="616" font-size="11" text-anchor="middle" fill="#52514e">40</text>
+<text x="960" y="616" font-size="11" text-anchor="middle" fill="#52514e">50</text>
+<line x1="560" x2="960" y1="600" y2="600" stroke="#52514e"/><text x="760" y="634" font-size="11" text-anchor="middle" fill="#52514e">crush from the spinner's tip, cm</text>
+<text transform="translate(520,500) rotate(-90)" font-size="11" text-anchor="middle" fill="#52514e">force, kN</text>
+<rect x="560" y="400" width="205.736" height="200" fill="#e7f0fb"/><text x="662.8679999999999" y="414" font-size="10" text-anchor="middle" fill="#52514e">spinner</text>
+<rect x="765.736" y="400" width="80" height="200" fill="#fdf0e6"/><text x="805.736" y="414" font-size="10" text-anchor="middle" fill="#52514e">prop</text>
+<rect x="845.736" y="400" width="64" height="200" fill="#eef6ee"/><text x="877.736" y="414" font-size="10" text-anchor="middle" fill="#52514e">bowl</text>
+<rect x="909.736" y="400" width="50.26400000000001" height="200" fill="#f1f0ed"/><text x="934.8679999999999" y="414" font-size="10" text-anchor="middle" fill="#52514e">core</text>
+<polyline fill="none" stroke="#2a78d6" stroke-width="2.5" stroke-linejoin="round" points="560.0,600.0 564.4,591.9 568.7,588.5 573.1,586.0 577.5,583.8 581.9,581.9 586.2,580.1 590.6,578.5 595.0,577.1 599.3,575.7 603.7,574.4 608.1,573.1 612.5,571.9 616.8,570.8 621.2,569.7 625.6,568.6 629.9,567.6 634.3,566.6 638.7,565.6 643.1,564.6 647.4,563.7 651.8,562.8 656.2,562.0 660.5,561.1 664.9,560.3 669.3,559.4 673.7,558.6 678.0,557.9 682.4,557.1 686.8,556.3 691.2,555.6 695.5,554.8 699.9,554.1 704.3,553.4 708.6,552.7 713.0,552.0 717.4,551.3 721.8,550.7 726.1,550.0 730.5,549.3 734.9,548.7 739.2,548.1 743.6,547.4 748.0,546.8 752.4,546.2 756.7,545.6 761.1,545.0 765.5,544.4 769.8,442.1 774.2,442.1 778.6,442.1 783.0,442.1 787.3,442.1 791.7,442.1 796.1,442.1 800.4,442.1 804.8,442.1 809.2,442.1 813.6,442.1 817.9,442.1 822.3,442.1 826.7,442.1 831.0,442.1 835.4,442.1 839.8,442.1 844.2,442.1 848.5,543.7 852.9,543.7 857.3,543.7 861.6,543.7 866.0,543.7 870.4,543.7 874.8,543.7 879.1,543.7 883.5,543.7 887.9,543.7 892.2,543.7 896.6,543.7 901.0,543.7 905.4,543.7 909.7,543.7"/>
+<polyline fill="none" stroke="#2a78d6" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="4 3" points="765.7,469.8 845.7,469.8"/>
+<text x="805.736" y="482.77335336538465" font-size="9" text-anchor="middle" fill="#52514e">a separation</text>
+<text x="560" y="652" font-size="10" fill="#52514e">spinner 26 cm · prop 10 cm · bowl 8 cm · the stack 9.70 kJ (no trunk case on the water)</text>
+</svg>

@@ -66,7 +66,7 @@ function makeAtmos(cfg) {
   const Tsl = ATM.T0 + dISA;
   const psl = c.qnhPa != null ? c.qnhPa : ATM.P0;
   const Tt = Tsl - ATM.L * ATM.HTROP;                       // tropopause temp
-  const pt = psl * Math.pow(Tt / Tsl, ATM.EXP_P);           // and pressure
+  const pt = psl * CORE_MATH.pow(Tt / Tsl, ATM.EXP_P);           // and pressure
   // ---- THE LAYERED DAY (CLIMATE K2, 2026-09-22) -----------------------------
   // A real convective day is NOT one lapse rate. The sun drives a MIXED LAYER
   // that the thermals stir to the dry adiabatic 9.8 K/km, capped by an
@@ -96,7 +96,7 @@ function makeAtmos(cfg) {
     const LAY = [];
     const push = (h0, T0, p0, L) => LAY.push({ h0, T0, p0, L });
     const pAt = (ly, h) => (ly.L !== 0
-      ? ly.p0 * Math.pow((ly.T0 - ly.L * (h - ly.h0)) / ly.T0, ATM.G0 / (ly.L * ATM.R))
+      ? ly.p0 * CORE_MATH.pow((ly.T0 - ly.L * (h - ly.h0)) / ly.T0, ATM.G0 / (ly.L * ATM.R))
       : ly.p0 * Math.exp(-ATM.G0 * (h - ly.h0) / (ATM.R * ly.T0)));
     push(0, Tsl, psl, ATM.LD);                          // the mixed layer, stirred to the dry adiabatic
     let hb = mixH, Tb = Tsl - ATM.LD * mixH, pb = pAt(LAY[0], mixH);
@@ -114,7 +114,7 @@ function makeAtmos(cfg) {
   } else {
   T = h => (h <= ATM.HTROP ? Tsl - ATM.L * h : Tt);
   p = h => (h <= ATM.HTROP
-    ? psl * Math.pow((Tsl - ATM.L * h) / Tsl, ATM.EXP_P)
+    ? psl * CORE_MATH.pow((Tsl - ATM.L * h) / Tsl, ATM.EXP_P)
     : pt * Math.exp(-ATM.G0 * (h - ATM.HTROP) / (ATM.R * Tt)));
   }
   // DENSITY AS A RATIO TO THE DATUM, not as p/(R T) — and the reason is the
@@ -132,9 +132,9 @@ function makeAtmos(cfg) {
   // The altitude at which the STANDARD atmosphere has this density — the
   // number that actually predicts performance, and the one a pilot quotes.
   const densityAlt = h =>
-    (ATM.T0 / ATM.L) * (1 - Math.pow(sigma(h), 1 / ATM.EXP_R));
+    (ATM.T0 / ATM.L) * (1 - CORE_MATH.pow(sigma(h), 1 / ATM.EXP_R));
   // Pressure altitude: what the altimeter reads with 1013 set.
-  const pressureAlt = h => (ATM.T0 / ATM.L) * (1 - Math.pow(p(h) / ATM.P0, 1 / ATM.EXP_P));
+  const pressureAlt = h => (ATM.T0 / ATM.L) * (1 - CORE_MATH.pow(p(h) / ATM.P0, 1 / ATM.EXP_P));
   return { dISA, Tsl, psl, T, p, rho, sigma, a, densityAlt, pressureAlt,
            oatC: Tsl - 273.15,
            // K2: the shape of the column (null when the day never named one)
@@ -274,6 +274,6 @@ function atmosPowerRatio(sig, aspiration, flat = 1, critSig = 1) {
 // only passed through.
 function atmosPropScale(sig, aspiration, flat = 1, critSig = 1) {
   const pr = atmosPowerRatio(sig, aspiration, flat, critSig);
-  const kT = Math.cbrt(sig) * Math.pow(pr, 2 / 3);
+  const kT = Math.cbrt(sig) * CORE_MATH.pow(pr, 2 / 3);
   return { kT, kV: sig, power: pr };
 }

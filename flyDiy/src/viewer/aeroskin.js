@@ -147,6 +147,12 @@ const AERO_FINISH = {
                rough: 0.20, metal: 0.0, nrm: 0.30, alb: 0.22,
                hs: 0.5, bs: 1.0, bake: 'twill',
                cc: 0.60, ccR: 0.10, fld: 0.0006, fldL: 1.0, fldR: 0.2 },
+  // G2047 (DMG-COMPOSITE): E-glass under its gelcoat - a glider's white moulding: the weave buried under
+  // 0.4-0.5 mm of gelcoat (no twill showing), the gloss of a polished mould
+  gelcoat:   { name: 'glass/gelcoat', base: 0xf1f0ea, tile: 0.10,
+               rough: 0.16, metal: 0.0, nrm: 0.05, alb: 0.08,
+               hs: 0.3, bs: 1.0, bake: 'twill',
+               cc: 0.75, ccR: 0.08, fld: 0.0004, fldL: 1.0, fldR: 0.2 },
   bareAlu:   { name: 'bare alloy',   base: 0xb6bcc3, tile: 0.45,
                rough: 0.26, metal: 0.90, nrm: 0.45, alb: 0.10,
                hs: 0.8, bs: 0.6, bake: 'sheet',
@@ -502,6 +508,10 @@ const AERO_BY_CONS = {
                 edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
   carbon:     { skin: 'composite', rail: 'composite', pillar: 'composite',
                 struct: 'composite', panel: 'panelMetal', pad: 'leatherDark',
+                bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
+  glass:      { skin: 'gelcoat', rail: 'gelcoat', pillar: 'gelcoat',
+                struct: 'gelcoat', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
                 edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
   // THE FLYING SURFACES' OWN CONSTRUCTIONS (G213): fabric over wood, fabric

@@ -1,0 +1,27 @@
+
+01:05:07
+bef979b0f DMGCRASHUI on JOINPARITY's page door (the page loads the build itself); the crew rows fall to the box rig where the node page instances no crew; the rig checks the crew after the crash and after Fly again
+boxlock: GPU taken by D4B
+tools/flight_core.js (2480.0 KB), index.html (12150.3 KB), dev.html (109.3 KB) — syntax OK, build 47cac04d2411 (319 named inputs), 594 ms
+boot gone
+clicked
+stand {"cv":true,"sim":true}
+stage { placed: true, simw: true }
+CREW worker: after the crash [false,false,false,false,false,false] (broke up true, crew hidden true); after Fly again {"crew":[true,true,true,true,true,true],"over":false,"structural":{"damaged":false,"broken":0,"separated":[],"why":null}} (before the click [false,false,false,false,false,false])
+CREW worker: PASS
+CRASHUI worker: the flight ended true; view 1600,900, the central bound [400,225,1200,675]; 71 visible elements, in the centre: []
+  card {"hidden":false,"cls":"bad wreck"}, award null, structural {"damaged":true,"broken":96,"separated":[],"why":"the fuselage broke"}, crew hidden true
+CRASHUI worker: PASS
+boot gone
+clicked
+stand {"cv":true,"sim":true}
+stage { placed: true, simw: false }
+CREW inline: after the crash [false,false,false,false,false,false] (broke up false, crew hidden true); after Fly again {"crew":[true,true,true,true,true,true],"over":false,"structural":{"damaged":false,"broken":0,"separated":[],"why":null}} (before the click [false,false,false,false,false,false])
+CREW inline: PASS
+CRASHUI inline: the flight ended true; view 1600,900, the central bound [400,225,1200,675]; 71 visible elements, in the centre: []
+  card {"hidden":false,"cls":"bad wreck"}, award null, structural {"damaged":true,"broken":100,"separated":[],"why":"the fuselage broke"}, crew hidden true
+CRASHUI inline: PASS
+boxlock: GPU released by D4B
+01:08:46
+
+[exited with code 0]

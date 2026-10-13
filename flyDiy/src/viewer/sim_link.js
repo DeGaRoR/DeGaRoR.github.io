@@ -379,7 +379,7 @@ const SIM_LINK = (() => {
     }
 
     // ---- THE MIRROR: the page's sim answers from the snapshot while the flight is live ----------------
-    let saved = null, ctlP = null;
+    let saved = null, ctlP = null, structSaved = null;
     const patch = { set: null, eng: [] };
     function ctlProxy(real) {
       const els = new WeakMap(), arrs = new WeakMap();
@@ -401,7 +401,7 @@ const SIM_LINK = (() => {
       const F = flight, sim = F.sim, V = F.view;
       const own = k => Object.getOwnPropertyDescriptor(sim, k);
       saved = {};
-      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp', 'wetFx', 'setFreight']) saved[k] = own(k);
+      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp', 'dmgState', 'wetFx', 'setFreight', 'drv', 'vView', 'engView']) saved[k] = own(k);
       const realCtl = sim.ctl, orig = { setEngine: sim.setEngine, reset: sim.reset, setFreight: sim.setFreight };
       F.realCtl = realCtl;
       ctlP = ctlProxy(realCtl);
@@ -413,9 +413,27 @@ const SIM_LINK = (() => {
       def('wheelsOnGround', { writable: true, value: () => V.wheelsOnGround() });
       def('wheelContacts', { writable: true, value: () => V.wheels || (saved.wheelContacts && saved.wheelContacts.value ? saved.wheelContacts.value() : null) });
       def('stats', { writable: true, value: () => V.stats() });
+      // G1818 (DMG-SKINGPU, found on the box): THE DAMAGE STATE TOO - the view's (G1850: the broken list and the pieces,
+      // sent on change). Without it the page's dmgNow asked the page's own sim, which the worker never steps: under the
+      // physics worker - the default - no break ever reached the page, so D4a's skin break, D4b's debris and the wreck's
+      // GPU riding never ran (the worker crashed; the page drew the aeroplane whole)
+      def('dmgState', { writable: true, value: () => V.dmgState() });
       // G2090 (WATER-LOOK): the worker's wet-body contacts (sim_view's newest); each slam peak handed to the page once
       def('wetFx', { writable: true, value: () => { const W = V.wet; if (!W) return null;
         const out = W.slice(); for (let i = 0; i < W[0]; i++) W[5 + i * 18 + 13] = 0; return out; } });
+      // G1861.5 (DMG-D4b): ...and DMG-DRIVE's per-engine state (the worker's meta.drv, sim_view's view.drv): the prop draws its grade
+      def('drv', { get: () => V.drv || null });
+      // (...and the worker's node velocities and engines, under their own names - the wreck's reads only: a released part
+      // leaves with its nodes' velocity, a seized prop stops; the page's own v / eng are never stepped under the worker)
+      def('vView', { get: () => V.v || null });
+      def('engView', { get: () => V.eng || null });
+      // DMG-D4b (train 41): THE AEROPLANE'S INTEGRITY (30_solver's DMG.structural) - the worker's (meta.struct), on the page's
+      // own damage object: the page's core is never stepped, its getter would say whole and the default mode would certify a
+      // wreck. Restored at detach
+      { const D0 = sim.damage && sim.damage();
+        if (D0) { structSaved = [D0, Object.getOwnPropertyDescriptor(D0, 'structural') || null];
+          Object.defineProperty(D0, 'structural', { configurable: true, enumerable: false,
+            get: () => V.struct || { damaged: false, broken: 0, separated: [], why: null } }); } }
       def('step', { writable: true, value: () => { st.strays++; } });
       def('setEngine', { writable: true, value: (i, p) => {
         const c = { cmd: 'setEngine', i, patch: Object.assign({}, p) };
@@ -461,6 +479,7 @@ const SIM_LINK = (() => {
       for (const k of Object.keys(saved)) {
         if (saved[k]) Object.defineProperty(sim, k, saved[k]); else delete sim[k];
       }
+      if (structSaved) { const [D0, d] = structSaved; if (d) Object.defineProperty(D0, 'structural', d); else delete D0.structural; structSaved = null; }
       saved = null; ctlP = null; flight.live = false;
     }
     const stamp = c => { if (st.mode === 'lockstep' && flight) c.k = flight.posted; return c; };

@@ -69,7 +69,10 @@ function specOf(key, drawnTail) {
   const D = require(path.join(T, '_cage_design.js'));
   if (/\.json$/i.test(key)) {
     const raw = JSON.parse(fs.readFileSync(key, 'utf8'));
-    return { spec: raw.spec || raw, name: raw.name || path.basename(key), tail: 'file' };
+    // G1985 (JOIN-PARITY): a saved build flies AS THE GAME FLIES IT - the page's load chain (tools/_load_build.js:
+    // the join over the drawing, the energy layer's tanks), not the file as written
+    const spec = process.env.FLYDIY_RAW_BUILDS === '1' ? (raw.spec || raw) : require(path.join(T, '_load_build.js')).gameSpec(raw);
+    return { spec, name: raw.name || path.basename(key), tail: 'file' };
   }
   // G630: 'stock' = the garage's default build (GEN_DEFAULT, what GATE PILOT flies)
   if (key === 'stock') return { spec: JSON.parse(JSON.stringify(coreOf().GEN_DEFAULT)), name: 'stock build', tail: 'stock' };

@@ -1,0 +1,6 @@
+boot ready
+rolled out: true, boot gone
+hook FLYDIY_HEAL_HELDONLY: 1
+cowl intact_heldonly cam1 {"px":1706,"yellow":74.2,"darkYellow":0.1,"other":25.7,"greyOrBlack":15,"backFace":2.1} (the craft: yellow 62.97 %, other 36.91 %)
+cowl intact_heldonly cam2 {"px":29,"yellow":55.2,"darkYellow":0,"other":44.8,"greyOrBlack":41.4,"backFace":100} (the craft: yellow 32.75 %, other 67.14 %)
+cowl intact_heldonly cam3 {"px":56,"yellow":14.3,"darkYellow":0,"other":85.7,"greyOrBlack":3.6,"backFace":100} (the craft: yellow 73.4 %, other 26.51 %)

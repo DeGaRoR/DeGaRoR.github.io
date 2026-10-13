@@ -1,0 +1,27 @@
+{
+ "crash": {
+  "br": 105,
+  "wreck": 26,
+  "stage": {
+   "V": 30,
+   "agl": 1,
+   "tr": 0.5,
+   "D": 40
+  }
+ },
+ "idxAtShed": [
+  "snap cff9c00falcladU1: 0 -> 5914",
+  "snap c452700: 0 -> 7210",
+  "snap c020203frubberKU1: 0 -> 136",
+  "snap c272c32fsteelTubeKU1: 0 -> 946"
+ ],
+ "idxRollout": [
+  "snap cff9c00falcladU1: 0 -> 5914",
+  "snap c452700: 0 -> 7210",
+  "snap c020203frubberKU1: 0 -> 136",
+  "snap c272c32fsteelTubeKU1: 0 -> 946"
+ ],
+ "vis0": [],
+ "visRollout": [],
+ "wreck": null
+}

@@ -1,0 +1,85 @@
+  cub x1             vessels 1  mount meshes 0  shell 16/396  hardware 144/1276 past a skin [straps 72/776 115.9mm, sump 72/72 105.5mm]  fit NOT  flown ves 0 (-6732 verts)  worst shell 144.2 mm through ankleR
+  cub x0.66          vessels 1  mount meshes 0  shell 0/396  hardware 57/1276 past a skin [straps 8/776 2.8mm, sump 49/72 29.9mm]  fit NOT  flown ves 0 (-6732 verts)  worst sump 29.9 mm through ankleR
+  cub x0.45          vessels 1  mount meshes 0  shell 0/396  hardware 0/1276 past a skin  fit ok  flown ves 4
+  pietenpol x1       vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  pietenpol x0.66    vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  pietenpol x0.45    vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  tigermoth x1       vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  tigermoth x0.66    vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  tigermoth x0.45    vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  stearman x1        vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  stearman x0.66     vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  stearman x0.45     vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  pittsAlike x1      vessels 1  mount meshes 0  shell 189/396  hardware 560/1075 past a skin [straps 488/776 146.4mm, sump 72/72 119.6mm]  omitted: filler,vent  fit NOT  flown ves 0 (-6180 verts)  worst shell 186.3 mm through kneeL
+  pittsAlike x0.66   vessels 1  mount meshes 0  shell 93/396  hardware 440/1276 past a skin [straps 368/776 120.5mm, sump 72/72 87.6mm]  fit NOT  flown ves 0 (-6732 verts)  worst shell 174.4 mm through kneeL
+  pittsAlike x0.45   vessels 1  mount meshes 0  shell 12/396  hardware 229/1276 past a skin [straps 176/776 75mm, sump 53/72 28.7mm]  fit NOT  flown ves 0 (-6732 verts)  worst straps 75 mm through kneeR
+  sesqui x1          vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  sesqui x0.66       vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  sesqui x0.45       vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  jodel x1           vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  jodel x0.66        vessels 1  mount meshes 0  shell 0/396  hardware 67/1276 past a skin [straps 67/776 21.4mm]  fit NOT  flown ves 0 (-6732 verts)  worst straps 21.4 mm through kneeR
+  jodel x0.45        vessels 1  mount meshes 0  shell 0/396  hardware 0/1276 past a skin  fit NOT  flown ves 0 (-6732 verts)
+  c172 x1            vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  c172 x0.66         vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  c172 x0.45         vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  KNOWN chinook: G1109: strut pod -> nose (no strut bay on this body), owed (card strut 38 L vs nose 3 L)
+  chinook x1         vessels 1  mount meshes 0  shell 198/396  hardware 392/926 past a skin [straps 392/776 208.1mm]  omitted: filler,sump,outlet,vent  fit NOT  flown ves 0 (-5772 verts)  worst shell 231 mm through fuselage sheet
+  chinook x0.66      vessels 1  mount meshes 0  shell 327/396  hardware 366/926 past a skin [straps 366/776 81.1mm]  omitted: filler,sump,outlet,vent  fit NOT  flown ves 0 (-5772 verts)  worst shell 138.5 mm through fuselage sheet
+  chinook x0.45      vessels 1  mount meshes 0  shell 320/396  hardware 362/926 past a skin [straps 362/776 80.9mm]  omitted: filler,sump,outlet,vent  fit NOT  flown ves 0 (-5772 verts)  worst shell 135.3 mm through fuselage sheet
+  caravan x1         vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  caravan x0.66      vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  caravan x0.45      vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  rv x1              vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  rv x0.66           vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  rv x0.45           vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  savannah x1        vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  savannah x0.66     vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  savannah x0.45     vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  ul1 x1             vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  ul1 x0.66          vessels 1  mount meshes 0  shell 42/396  hardware 80/1276 past a skin [straps 80/776 13.7mm]  fit NOT  flown ves 0 (-6732 verts)  worst straps 13.7 mm through fuselage sheet
+  ul1 x0.45          vessels 1  mount meshes 0  shell 0/396  hardware 0/1276 past a skin  fit ok  flown ves 4
+  floatplane x1      vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  floatplane x0.66   vessels 1  mount meshes 0  shell 14/396  hardware 24/1075 past a skin [straps 24/776 49.7mm]  omitted: filler,vent  fit NOT  flown ves 0 (-6180 verts)  worst shell 74.6 mm through fuselage sheet
+  floatplane x0.45   vessels 1  mount meshes 0  shell 68/396  hardware 48/1276 past a skin [straps 48/776 19.1mm]  fit NOT  flown ves 0 (-6732 verts)  worst shell 46.2 mm through fuselage sheet
+  pusherPod x1       vessels 1  mount meshes 0  shell 0/396  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  pusherPod x0.66    vessels 1  mount meshes 0  shell 30/396  hardware 48/1276 past a skin [straps 48/776 43.4mm]  fit NOT  flown ves 0 (-6732 verts)  worst shell 56.2 mm through fuselage sheet
+  pusherPod x0.45    vessels 1  mount meshes 0  shell 58/396  hardware 86/1195 past a skin [straps 86/776 49.5mm]  omitted: vent  fit NOT  flown ves 0 (-6516 verts)  worst shell 68.9 mm through fuselage sheet
+  motorglider x1     vessels 1  mount meshes 0  shell 290/396  hardware 708/926 past a skin [straps 558/776 226.6mm, sender 150/150 88.4mm]  omitted: filler,sump,outlet,vent  fit NOT  flown ves 0 (-5772 verts)  worst shell 317.1 mm through 
+  motorglider x0.66  vessels 1  mount meshes 0  shell 280/396  hardware 762/1075 past a skin [straps 566/776 202.7mm, sender 150/150 73.9mm, outlet 46/77 9.3mm]  omitted: filler,vent  fit NOT  flown ves 0 (-6180 verts)  worst shell 268.4 mm through fuselage sheet
+  motorglider x0.45  vessels 1  mount meshes 0  shell 280/396  hardware 762/1075 past a skin [straps 566/776 202.7mm, sender 150/150 73.9mm, outlet 46/77 9.3mm]  omitted: filler,vent  fit NOT  flown ves 0 (-6180 verts)  worst shell 268.4 mm through fuselage sheet
+  radial x1          vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  radial x0.66       vessels 1  mount meshes 0  shell 35/396  hardware 104/1276 past a skin [straps 104/776 67.2mm]  fit NOT  flown ves 0 (-6732 verts)  worst shell 86.9 mm through fuselage sheet
+  radial x0.45       vessels 1  mount meshes 0  shell 0/396  hardware 0/1276 past a skin  fit ok  flown ves 4
+  etrainer x1        vessels 1  mount meshes 0  shell 289/396  hardware 683/926 past a skin [straps 533/776 181.9mm, sender 150/150 77mm]  omitted: filler,sump,outlet,vent  fit NOT  flown ves 0 (-5772 verts)  worst shell 283.3 mm through 
+  etrainer x0.66     vessels 1  mount meshes 0  shell 247/396  hardware 664/1075 past a skin [straps 514/776 205.7mm, sender 150/150 72.2mm]  omitted: filler,vent  fit NOT  flown ves 0 (-6180 verts)  worst shell 297.8 mm through fuselage sheet
+  etrainer x0.45     vessels 1  mount meshes 0  shell 247/396  hardware 664/1075 past a skin [straps 514/776 205.7mm, sender 150/150 72.2mm]  omitted: filler,vent  fit NOT  flown ves 0 (-6180 verts)  worst shell 297.8 mm through fuselage sheet
+  ttail x1           vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  ttail x0.66        vessels 1  mount meshes 0  shell 0/396  hardware 0/1276 past a skin  fit ok  flown ves 4
+  ttail x0.45        vessels 1  mount meshes 0  shell 0/396  hardware 0/1276 past a skin  fit ok  flown ves 4
+  vtail x1           vessels 1  mount meshes 0  shell 0/495  hardware 0/1118 past a skin  omitted: outlet,vent  fit ok  flown ves 4
+  vtail x0.66        vessels 1  mount meshes 0  shell 0/396  hardware 0/1276 past a skin  fit NOT  flown ves 0 (-6732 verts)
+  vtail x0.45        vessels 1  mount meshes 0  shell 0/396  hardware 0/1276 past a skin  fit ok  flown ves 4
+  mw5 x1             vessels 1  mount meshes 0  shell 203/396  hardware 538/1046 past a skin [straps 388/776 189.3mm, sender 150/150 64.9mm]  omitted: sump,outlet,vent  fit NOT  flown ves 0 (-6108 verts)  worst shell 241.7 mm through 
+  mw5 x0.66          vessels 1  mount meshes 0  shell 74/396  hardware 48/1075 past a skin [straps 48/776 61.5mm]  omitted: filler,vent  fit NOT  flown ves 0 (-6180 verts)  worst shell 92.3 mm through fuselage sheet
+  mw5 x0.45          vessels 1  mount meshes 0  shell 18/396  hardware 24/1075 past a skin [straps 24/776 51.1mm]  omitted: filler,vent  fit NOT  flown ves 0 (-6180 verts)  worst shell 76.6 mm through fuselage sheet
+  archaeopteryx x1   vessels 1  mount meshes 0  shell 290/396  hardware 702/926 past a skin [straps 552/776 226.6mm, sender 150/150 84.6mm]  omitted: filler,sump,outlet,vent  fit NOT  flown ves 0 (-5772 verts)  worst shell 317.1 mm through 
+  archaeopteryx x0.66 vessels 1  mount meshes 0  shell 294/396  hardware 836/1075 past a skin [straps 686/776 208.3mm, sender 150/150 93.6mm]  omitted: filler,vent  fit NOT  flown ves 0 (-6180 verts)  worst shell 273.9 mm through fuselage sheet
+  archaeopteryx x0.45 vessels 1  mount meshes 0  shell 294/396  hardware 836/1075 past a skin [straps 686/776 208.3mm, sender 150/150 93.6mm]  omitted: filler,vent  fit NOT  flown ves 0 (-6180 verts)  worst shell 273.9 mm through fuselage sheet
+  da62 x1            vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  da62 x0.66         vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  da62 x0.45         vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  twinBush x1        vessels 1  mount meshes 0  shell 122/396  hardware 61/1075 past a skin [straps 61/776 81.6mm]  omitted: filler,vent  fit NOT  flown ves 0 (-6180 verts)  worst shell 116.3 mm through fuselage sheet
+  twinBush x0.66     vessels 1  mount meshes 0  shell 121/396  hardware 80/1075 past a skin [straps 80/776 70.1mm]  omitted: filler,vent  fit NOT  flown ves 0 (-6180 verts)  worst shell 164.9 mm through fuselage sheet
+  twinBush x0.45     vessels 1  mount meshes 0  shell 104/396  hardware 42/1075 past a skin [straps 42/776 32.5mm]  omitted: filler,vent  fit NOT  flown ves 0 (-6180 verts)  worst shell 127.8 mm through fuselage sheet
+  skymaster x1       vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  skymaster x0.66    vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  skymaster x0.45    vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  p38 x1             vessels 1  mount meshes 0  shell 214/396  hardware 388/1046 past a skin [straps 388/776 201.3mm]  omitted: sump,outlet,vent  fit NOT  flown ves 0 (-6108 verts)  worst shell 275.3 mm through 
+  p38 x0.66          vessels 1  mount meshes 0  shell 236/396  hardware 206/998 past a skin [straps 206/776 32.7mm]  omitted: filler,outlet,vent  fit NOT  flown ves 0 (-5970 verts)  worst shell 112.6 mm through fuselage sheet
+  p38 x0.45          vessels 1  mount meshes 0  shell 98/396  hardware 0/1075 past a skin  omitted: filler,vent  fit NOT  flown ves 0 (-6180 verts)  worst shell 24.9 mm through fuselage sheet
+  beaver x1          vessels 1  mount meshes 0  shell 190/396  hardware 269/1075 past a skin [straps 244/776 154.7mm, sump 25/72 50.5mm]  omitted: filler,vent  fit NOT  flown ves 0 (-6180 verts)  worst shell 206.4 mm through ankleL
+  beaver x0.66       vessels 1  mount meshes 0  shell 95/396  hardware 117/1276 past a skin [straps 117/776 160.3mm]  fit NOT  flown ves 0 (-6732 verts)  worst shell 199.9 mm through ankleL
+  beaver x0.45       vessels 1  mount meshes 0  shell 15/396  hardware 18/1276 past a skin [straps 18/776 124.5mm]  fit NOT  flown ves 0 (-6732 verts)  worst straps 124.5 mm through edEng
+GATE TANKMOUNT: PASS
+
+[exit 0 333 s]

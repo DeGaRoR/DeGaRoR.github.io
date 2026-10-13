@@ -64,6 +64,7 @@
 //
 // Usage: node tools/_parked_check.js          (prints GATE PARKED: PASS|FAIL)
 'use strict';
+require('./_core_math_global.js');   // (T41b: CORE_MATH before a core file required alone - 00_registry's)
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
