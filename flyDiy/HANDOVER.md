@@ -87003,3 +87003,4 @@ FAIL ("the host never flushed its last set" - the host flushes on the trailing e
 only a wreck never quiet inside a second is judged at the host's last send; at rest the same 7th step as before.
 NAMED CRASH CHANGE (damage ON, the user will see it): in the floats' severe nose-in (150 km/h, 10 m/s, 60 deg) the
 SHELL now parts at the ROOT at 0.15 s - the tail comes off; on master the FIN goes at 0.53 s.
+**Owed (released by the user, 11 Oct: no screenshots for these):** a STILL of a decal on a deflecting rudder/elevator, live shader, two frames apart (the orbit eyes this rig used never reached the tail - the fix is proven by the measure and the gates, not yet by a picture of the user's own case); the weathering in FLIGHT seen moving on master vs still on G2750 (a held-camera pair in a turn). Both need ~10 GPU minutes.
