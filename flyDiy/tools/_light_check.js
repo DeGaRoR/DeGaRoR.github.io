@@ -472,6 +472,21 @@ check(!/new THREE\.Scene\(\)[\s\S]{0,200}studio/.test(app) && !/\bstudio\./.test
     check(!byLevel.length,
           'a real light is made only when its dimmer reads > 0 — the count follows the dimmer and every lit program re-keys on the first notch',
           byLevel.join(' | '));
+    // G2787: ...and a light at 0 is NOT in the count (G2782 armed them at 0 and the shed's boot compiles, which take
+    // the cage down, keyed without them: train 52b's 10 s boot freeze); a new lit set joins only after the room's
+    // programs linked with it dressed in (app.js GARAGE_LIGHTS_PREP: compileSliced, the depth variants)
+    check(/for \(const \[, l\] of lit\) l\.visible = false;/.test(code) && /if \(LINKED\.has\(sig\)\) show\(\);/.test(code) &&
+          /pr\.then\(\(\) => \{ LINKED\.add\(sig\); LINKING\.delete\(sig\); if \(group === mine\) show\(\); \}\)/.test(code),
+          'a light joins the shed\'s count before its programs linked (or at 0) - the dimmer freeze or the boot freeze is back');
+    check(/const LINKED = new Set\(\['0,0'\]\);/.test(code),
+          'the dimmers-at-0 light set is not the linked default - the boot would wait on a prep for nothing');
+    {
+      const app = stripComments(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8'));
+      const i = app.indexOf('window.GARAGE_LIGHTS_PREP = dress =>');
+      const blk = i >= 0 ? app.slice(i, i + 900) : '';
+      check(/compileSliced\(hangarScene, ensureEnvRT\(\), null, false, dress\)/.test(blk) && /compileDepthVariants\(hangarScene, true, dress\)/.test(blk),
+            'app.js GARAGE_LIGHTS_PREP is gone or does not link the room with the lights dressed in');
+    }
     check(!/if \(ctx\.defer\) \{\s*if \(group\) group\.visible = false/.test(code) &&
           /if \(ctx\.defer\) \{ if \(group\) for \(const c of group\.children\) if \(!c\.isLight\) c\.visible = false;/.test(code),
           'a drag tick hides the whole light group — its lights leave the count and every lit program re-keys at the drag\'s first tick');

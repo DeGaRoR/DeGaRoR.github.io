@@ -16810,6 +16810,22 @@
       .then(() => compileXrayVariants())
       .catch(e => console.warn('shed prelink:', e && e.message));
   }
+  // G2787 (EDITOR-BUGS): THE EDITOR'S LIGHTS JOIN THREE'S COUNT ONLY AFTER THEIR PROGRAMS LINKED - G1340's law on the
+  // shed's side. A cabin dimmer's first notch off 0 adds a PointLight, and three keys every lit program on the count:
+  // the room linked again in one frame (the user's "froze my interface for a few seconds"). G2782 kept the lights in
+  // the count at 0 instead, and the shed's boot compiles (which take the cage down, G1027/G1085) keyed without them:
+  // train 52b's 10 s boot freeze. So the light layer asks HERE with `dress` (f => f() run with its new lights shown,
+  // then put back, a task at a time): the room's programs keyed with them, linked on the driver's threads (its two
+  // targets and its depth variants, as shedPrelink), and the layer shows the lights when this resolves. null when
+  // there is no room to compile (the bench, the cloud's SwiftShader, before the hangar): the layer shows them at once.
+  if (typeof window !== 'undefined') window.GARAGE_LIGHTS_PREP = dress => {
+    if (typeof renderer.compileAsync !== 'function' || !hangar || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return null;
+    shedEnvKey();
+    return compileSliced(hangarScene, ensureEnvRT(), null, false, dress)
+      .then(() => compileSliced(hangarScene, aa && aa.target ? aa.target() : null, null, false, dress))
+      .then(() => compileDepthVariants(hangarScene, true, dress))
+      .catch(e => console.warn('garage lights prep:', e && e.message));
+  };
   bootStep('compile', 'compiling the shaders', 14, () => {
     const done = () => { envDeferred = false; if (envDirty || !envPM) { envDirty = false; bakeHangarEnv(); } if (hangar && hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); };
     if (inGarage) shedDayTick();   // C0c: the day first - the passes compile what first light draws, the bake shoots it once
