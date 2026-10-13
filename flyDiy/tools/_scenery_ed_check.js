@@ -829,6 +829,18 @@ if (plots.length) {
   const UIs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_ui.js'), 'utf8');
   check(/for \(const c of zoneCats\(TH\)\)/.test(UIs) && /function zoneCats\(TH\)/.test(UIs), '28 the zone\'s draws-from pills cover every category the catalogue carries');
 }
+// 29 A ROAD'S GUARDRAIL AND POWER LINE OBEY ITS ROW (G2893; the user: "no effect of enabling/disabling power lines and
+//    guardrails on roads"): the renderer builds both from the COMPOSED road (rd.rail, rd.poles), which never carried them -
+//    every road 'auto' since the port. The composed road carries what the record says; a road that says nothing composes as before
+{
+  const r29 = PG.normalise({ layers: { roads: [{ id: 'ra', pts: [[0, 0], [120, 0]], w: 5, cls: 'gravel', rail: 'off', poles: 'off' }, { id: 'rb', pts: [[0, 60], [120, 60]], w: 5, cls: 'gravel', rail: 'on' },
+    { id: 'rc', pts: [[0, 120], [120, 120]], w: 5, cls: 'gravel' }] } });
+  const O29 = PG.compose(r29, synth), rd = id => O29.roads.find(q => q.id === id);
+  check(rd('ra').rail === 'off' && rd('ra').poles === 'off' && rd('rb').rail === 'on' && rd('rb').poles === undefined, '29 the composed road carries its guardrail and power-line rows');
+  check(!('rail' in rd('rc')) && !('poles' in rd('rc')), '29 a road that says nothing composes as before (no new key)');
+  const RP29 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check(/if \(!RAIL \|\| rd\.rail === 'off'\) return null;/.test(RP29) && /if \(!PWR \|\| rd\.poles === 'off'\) return null;/.test(RP29) && /mode: rd\.rail \|\| 'auto'/.test(RP29) && /mode: rd\.poles \|\| 'auto'/.test(RP29), '29 the renderer builds both from those fields');
+}
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
