@@ -283,6 +283,22 @@ console.log('\n3. THE LAWS');
       // the node harness's recording GL has no queries: the capture always runs there (and FRAMECOST counts it)
       S.ok = false; const v = W.waterSeen(); S.ok = null;
       verdict(v === true, 'a context with no occlusion queries answers seen (the capture runs)'); }
+    // THE PROTOTYPES (G2831-G2833, ?wrefl=b|c|bc - the redesign's P0 look): without the switch NOTHING of them is in the page -
+    // no hull sampler in the water program (its sampler budget, G424), no shader block, the switch's flags all off
+    { verdict(W.proto && W.proto.mode === null && !W.proto.hull && !W.proto.shadow && !W.proto.seaOff && !/uWHull/.test(W.GLSL.frag) && !/uWHull/.test(String(W.material || '')),
+        "without ?wrefl the prototypes are absent: no hull sampler or block in the water's GLSL, every flag off");
+      verdict(/\$\{PROTO\.hull \? HULL_GLSL : ''\}/.test(w) && /\$\{PROTO\.hull \? 'uniform sampler2D uWHull;/.test(w) && /PROTO = \(\(\) => \{ const q = \(typeof location !== 'undefined' && location\.search && \(\/\[\?&\]wrefl=\(b\|c\|bc\)/.test(w),
+        "the hull's sampler and block are declared only under ?wrefl=b / bc");
+      const app = src('src/viewer/app.js'), rw = src('src/viewer/render_world.js');
+      verdict(/WATER\.proto && WATER\.proto\.seaOff && Number\.isFinite\(wl\) && Math\.abs\(wl\) < 0\.05 \? null : wl/.test(app) && /WATER\.proto && WATER\.proto\.hull && WATER\.hullRender/.test(app) && /if \(WSH && WSH\.proto && WSH\.proto\.shadow\) water\.receiveShadow = true;/.test(rw),
+        "the switch: the sea's mirror off (lakes kept), the hull capture under b, the sea receiving the shadow under c");
+      // perspBounds with a view offset is the frustum PerspectiveCamera.updateProjectionMatrix makes (the hull's oblique clip bends THAT one)
+      const cam = (view) => ({ near: 0.5, fov: 60, zoom: 1, aspect: 16 / 9, view });
+      const full = W.perspBounds(cam(null)), all = W.perspBounds(cam({ enabled: true, fullWidth: 1920, fullHeight: 1080, offsetX: 0, offsetY: 0, width: 1920, height: 1080 }));
+      const right = W.perspBounds(cam({ enabled: true, fullWidth: 1920, fullHeight: 1080, offsetX: 960, offsetY: 540, width: 960, height: 540 }));
+      const close = (a, b) => Math.abs(a - b) < 1e-9;
+      verdict(full.every((v, i) => close(v, all[i])) && close(full[0], -full[1]) && close(right[0], 0) && close(right[1], full[1]) && close(right[2], 0) && close(right[3], full[3]),
+        `perspBounds: no offset = the symmetric frustum, a whole-frame offset the same, the lower-right quarter [0, ${right[1].toFixed(3)}] x [0, ${right[3].toFixed(3)}]`); }
   }
   // WATER-FX-FIX (G2834-G2835, objective 5 - the user saw no spray and no wake on float landings, gamer, the worker live):
   // the float's water level crosses the worker (the spray's y was NaN without it) and the wake's foam is drawn on every tier
