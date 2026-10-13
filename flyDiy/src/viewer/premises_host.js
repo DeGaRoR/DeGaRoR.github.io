@@ -206,6 +206,9 @@ PREMISES_HOST.rows = function () {
         else if (+st > 0 && n >= +lo && n <= +hi) n = +lo + Math.round((n - +lo) / +st) * +st;
         return +n.toFixed(6); };
       let v0 = +get(); if (!isFinite(v0)) v0 = lo;
+      // (G3019 (2), the census: 54 site turns -312..349 deg, a lane at 180, a seaplane lane at 224 - an angle past the range is the
+      //  same angle: the thumb and the readout show it wrapped into the range; the record keeps what it holds until it is edited)
+      if (deg && (v0 < +lo || v0 > +hi)) v0 = phys(v0);
       inp.value = v0; show(v0);
       inp.oninput = () => { set(+inp.value); show(+inp.value); };
       let typing = false;

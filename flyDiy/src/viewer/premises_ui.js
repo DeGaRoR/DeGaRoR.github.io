@@ -1315,12 +1315,13 @@ function mount(host, ctx) {
     }
     if (layer === 'terrain') {
       if (e.kind === 'flatten') {
-        rows.slider(insp, 'level (m)', -40, 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, 'level (m)', -40, e.abs ? 1500 : 80, 0.1, () => e.level,   // (G3019 (2): an absolute level is a height - the user's up to 709 m)
+          v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
         rows.check(insp, 'absolute height', () => !!e.abs, v => ed(x => { x.abs = v; }, 'absolute ' + id));
       } else if (e.kind === 'raise') rows.slider(insp, 'lift (m)', -30, 30, 0.1, () => e.dh, v => ed(x => { x.dh = v; }, 'lift of ' + id, 'dh'), v => (v >= 0 ? '+' : '') + v.toFixed(1) + ' m');
       else if (e.kind === 'ramp') {
         if (e.slope === undefined || e.slope === null) { const c = PG.polyCentroid(e.poly), pl = e.plane || [0, 0, 0]; e.level = +(pl[0] * c[0] + pl[1] * c[1] + pl[2]).toFixed(2); e.slope = +Math.hypot(pl[0], pl[1]).toFixed(4); e.hdg = +(Math.atan2(pl[0], pl[1]) * 180 / Math.PI).toFixed(0); }
-        rows.slider(insp, 'height at the middle (m)', -40, 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, 'height at the middle (m)', -40, e.abs ? 1500 : 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
         rows.slider(insp, 'slope (%)', 0, 15, 0.1, () => (e.slope || 0) * 100, v => ed(x => { x.slope = v / 100; }, 'slope of ' + id, 'slope'), v => v.toFixed(1) + ' %');
         rows.slider(insp, 'rising toward (°)', 0, 360, 1, () => ((e.hdg || 0) + 360) % 360, v => ed(x => { x.hdg = v; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
         rows.check(insp, 'absolute height', () => !!e.abs, v => ed(x => { x.abs = v; }, 'absolute ' + id));
@@ -1472,14 +1473,16 @@ function mount(host, ctx) {
         const np = (R.plots ? R.plots() : []).filter(p => p.zone === id).length;
         rows.note(insp, np + ' plot' + (np === 1 ? '' : 's') + ' sown' + (np ? '' : ' — trace a road through the zone'));
       } else rows.note(insp, 'no tree grows here');
-      rows.slider(insp, 'seed', 1, 99, 1, () => (e.seed === null || e.seed === undefined) ? 0 : e.seed, v => ed(x => { x.seed = v; }, 'seed of ' + id, 'seed'), v => (v ? String(v) : 'auto'));
+      rows.slider(insp, 'seed', 0, 99, 1, () => (e.seed === null || e.seed === undefined) ? 0 : e.seed,   // (G3019 (2): 0 is 'auto', every zone's)
+        v => ed(x => { x.seed = v; }, 'seed of ' + id, 'seed'), v => (v ? String(v) : 'auto'));
       rows.button(insp, 're-sow (new seed)', () => ed(x => { x.seed = 1 + Math.floor(Math.random() * 98); }, 're-sow ' + id));
     } else if (layer === 'runways') {
       const nm = $('input', { type: 'text', value: e.name || '' }); nm.className = 'pr-name'; nm.onchange = () => ed(x => { x.name = nm.value; }, 'name of ' + id); insp.appendChild(nm);
       numRow(insp, 'centre x (m)', () => e.c[0], v => ed(x => { x.c = [+v.toFixed(2), x.c[1]]; }, 'centre of ' + id, 'cx'), metres);
       numRow(insp, 'centre z (m)', () => e.c[1], v => ed(x => { x.c = [x.c[0], +v.toFixed(2)]; }, 'centre of ' + id, 'cz'), metres);
       rows.slider(insp, 'length (m)', 150, 3000, 5, () => e.len, v => ed(x => { x.len = v; }, 'length of ' + id, 'len'), v => v.toFixed(0) + ' m');
-      rows.slider(insp, 'width (m)', 8, 45, 1, () => e.wid, v => ed(x => { x.wid = v; }, 'width of ' + id, 'wid'), v => v.toFixed(0) + ' m');
+      rows.slider(insp, 'width (m)', 8, 300, 1, () => e.wid,   // (G3019 (2): a water lane is 200 m wide)
+        v => ed(x => { x.wid = v; }, 'width of ' + id, 'wid'), v => v.toFixed(0) + ' m');
       rows.slider(insp, 'heading (°)', -180, 180, 1, () => e.hdg * 180 / Math.PI, v => ed(x => { x.hdg = v * Math.PI / 180; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
       // THE LOOK (v9): what the strip is drawn as; picking one proposes the class the wheels feel, which
       // the surface row below may still overrule (a paved look on a grass class is a painted strip)
@@ -1761,7 +1764,8 @@ function mount(host, ctx) {
       rows.pills(insp, 'kind', [['flatten', 'flat', 'the ground inside at one level'], ['raise', 'raise / lower', 'the ground lifted or dropped by a height'], ['ramp', 'slope', 'a constant slope through a height at the middle']], () => t.kind,
         v => edT(q => { const lv = medianLevel(poly); if (v === 'flatten') { q.kind = 'flatten'; if (!isFinite(+q.level)) q.level = lv; delete q.dh; } else if (v === 'raise') { q.kind = 'raise'; if (!isFinite(+q.dh)) q.dh = 2; } else { q.kind = 'ramp'; if (!isFinite(+q.level)) q.level = lv; if (!isFinite(+q.slope)) q.slope = 0.02; if (!isFinite(+q.hdg)) q.hdg = 0; } }, 'terraform'));
       if (t.kind === 'flatten' || t.kind === 'ramp') {
-        rows.slider(insp, t.kind === 'ramp' ? 'height at the middle (m)' : 'level (m)', -40, 80, 0.1, () => +t.level || 0, v => edT(q => { q.level = v; }, 'level', 'level'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, t.kind === 'ramp' ? 'height at the middle (m)' : 'level (m)', -40, t.abs ? 1500 : 80, 0.1, () => +t.level || 0,   // (G3019 (2): absolute = a height, a29 530.6 m)
+          v => edT(q => { q.level = v; }, 'level', 'level'), v => v.toFixed(1) + ' m');
         rows.check(insp, 'absolute height', () => !!t.abs, v => edT(q => { q.abs = v; }, 'absolute'));
         rows.button(insp, 'level to the ground under it (its median)', () => edT(q => { q.level = medianLevel(poly); q.abs = false; }, 'level'));
       }
