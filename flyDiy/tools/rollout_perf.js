@@ -272,9 +272,9 @@ const INSTALL = `(() => {
   if (W && W.worldUpdate && !W.__rpW) { const wu = W.worldUpdate; W.worldUpdate = function (cg) { const t = performance.now(); const r = wu.apply(this, arguments); wuMs += performance.now() - t; return r; }; W.__rpW = 1; }
   // the CPU side of every renderer.render() (the scene, the mirror, the probes: submit + any sync
   // stall), three's shadow pass inside it, and each premises stream step
-  let rMs = 0, shMs = 0, pmMs = 0, pmN = 0;
+  let rMs = 0, shMs = 0, pmMs = 0, pmN = 0, dcN = 0, trN = 0;   // (G3200: the draw calls and triangles of every render() a frame)
   const RD = W && W.renderer;
-  if (RD && !RD.__rp) { const rr = RD.render; RD.render = function () { const t = performance.now(); const x = rr.apply(this, arguments); rMs += performance.now() - t; return x; };
+  if (RD && !RD.__rp) { const rr = RD.render; RD.render = function () { const I = RD.info && RD.info.render, keep = RD.info && !RD.info.autoReset, c0 = keep && I ? I.calls : 0, t0 = keep && I ? I.triangles : 0; const t = performance.now(); const x = rr.apply(this, arguments); rMs += performance.now() - t; if (I) { dcN += I.calls - c0; trN += I.triangles - t0; } return x; };
     const SM = RD.shadowMap; if (SM && SM.render) { const sr = SM.render; SM.render = function () { const t = performance.now(); const x = sr.apply(this, arguments); shMs += performance.now() - t; return x; }; }
     RD.__rp = 1; }
   const PR = W && W.premises;
@@ -310,9 +310,11 @@ const INSTALL = `(() => {
       +rMs.toFixed(2), +shMs.toFixed(2), +pmMs.toFixed(2), pmN, x == null ? null : +x.toFixed(2), z == null ? null : +z.toFixed(2),
       apPh, V == null ? null : +V.toFixed(2), onG, hAgl == null ? null : +hAgl.toFixed(2), +mirMs.toFixed(2), mirN, +fldMs.toFixed(2), WT && WT.stats && R.waterGpu ? +WT.stats.gpuMs.toFixed(3) : null, man, wph ]
       // G820 (C1c): THE PHYSICS WORKER'S readings (?simw): its step's cost (ms, eased), its dilation, its steps a turn at most (ms)
-      .concat((() => { const SW = window.FLYDIY_SIMW; const w = SW && SW.perf ? SW.perf() : null; return w && w.live ? [+w.stepMs.toFixed(3), +w.dil.toFixed(4), +w.maxMs.toFixed(2)] : [null, null, null]; })()));
+      .concat((() => { const SW = window.FLYDIY_SIMW; const w = SW && SW.perf ? SW.perf() : null; return w && w.live ? [+w.stepMs.toFixed(3), +w.dil.toFixed(4), +w.maxMs.toFixed(2)] : [null, null, null]; })())
+      // G3200 (PERF-LEDGER): the frame's draw calls and triangles over every renderer.render() (the shadow maps' inside), at 29 / 30
+      .concat([dcN, trN]));
     R.wph = wph;
-    lastNow = now; wuMs = 0; rMs = 0; shMs = 0; pmMs = 0; pmN = 0; mirMs = 0; mirN = 0; fldMs = 0;
+    lastNow = now; wuMs = 0; rMs = 0; shMs = 0; pmMs = 0; pmN = 0; mirMs = 0; mirN = 0; fldMs = 0; dcN = 0; trN = 0;
     return endW(workMs, physMs, steps, now);
   };
   return 'installed';
@@ -739,7 +741,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     wStepP90: rs.some(r => r[26] != null) ? +pct(rs.filter(r => r[26] != null).map(r => r[26]), 0.9).toFixed(2) : null,
     wDilMin: rs.some(r => r[27] != null) ? +Math.min(...rs.filter(r => r[27] != null).map(r => r[27])).toFixed(3) : null,
     workP90: +pct(rs.map(r => r[2]), 0.9).toFixed(1),
-    vMed: +med(rs.map(r => r[17] || 0)).toFixed(1), renderMed: +med(rs.map(r => r[10])).toFixed(1), renderP90: +pct(rs.map(r => r[10]), 0.9).toFixed(1), shadowMed: +med(rs.map(r => r[11])).toFixed(1), premStepMs: +(rs.reduce((s, r) => s + r[12], 0) / Math.max(1, rs.length)).toFixed(2), cap30: +(rs.filter(r => r[6] === 30).length / Math.max(1, rs.length)).toFixed(2),
+    vMed: +med(rs.map(r => r[17] || 0)).toFixed(1), renderMed: +med(rs.map(r => r[10])).toFixed(1), renderP90: +pct(rs.map(r => r[10]), 0.9).toFixed(1), shadowMed: +med(rs.map(r => r[11])).toFixed(1), drawsMed: med(rs.map(r => r[29] || 0)), trisMed: med(rs.map(r => r[30] || 0)), premStepMs: +(rs.reduce((s, r) => s + r[12], 0) / Math.max(1, rs.length)).toFixed(2), cap30: +(rs.filter(r => r[6] === 30).length / Math.max(1, rs.length)).toFixed(2),
     dist: FD.dist(dt, rs.map(r => r[6])) }; };   // G1360: the histogram, p50..p99.9, over 1.5x / 3x the frame's cap, over 100 ms / 1 s
   const phases = {}; for (const k of Object.keys(groups)) phases[k] = row(groups[k]);
   // the gate numbers
