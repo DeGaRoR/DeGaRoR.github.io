@@ -27,7 +27,7 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const URL = opt('url', 'http://localhost:8480/flyDiy/dev.html?world=jolene&gfx=gamer');
 const LABEL = opt('label', 'run');
 const FRAMES = +opt('frames', 120);
-const VIEWS = opt('views', 'sea12,sea40,sea300,lake,inland,sky').split(',').filter(Boolean);
+const VIEWS = opt('views', 'sealow,sea12,sea40,sea300,lake,inland,sky').split(',').filter(Boolean);
 const CENSUS = argv.includes('--census'), FLIGHTS = argv.includes('--flights'), HEADED = argv.includes('--headed');
 const SKIP = opt('skip', null);
 const SIZE = opt('size', '1920x1080').split('x').map(Number);
@@ -35,7 +35,8 @@ const OUT = opt('out', path.join(__dirname, 'mirror_census_' + LABEL + '.json'))
 
 // the eyes (DEV_CAM: yaw 0 = -z, 90 = +x; Jolene's east coast is at x ~ 2640 on z = 0, the sea east of it)
 const EYES = {
-  sea12:  { pos: [2600, 12, 0],   yaw: 270, pitch: -4 },    // low over the sea, the shore and its trees ahead: the classic reflection
+  sea12:  { pos: [2600, 12, 0],   yaw: 270, pitch: -4 },    // AT the coast line looking inland (G2830 census: its frame drew no water - skipped 120/120)
+  sealow: { pos: [2950, 12, 0],   yaw: 270, pitch: -3 },    // 12 m over the open sea, ~300 m of water to the shore and its trees: the classic reflection
   sea40:  { pos: [2800, 40, 0],   yaw: 270, pitch: -10 },
   sea300: { pos: [3000, 300, 0],  yaw: 270, pitch: -25 },   // the island ahead from the air
   lake:   { pos: [-604, 120, -1150], yaw: 0, pitch: -40 },  // an inland lake (water_shot's)

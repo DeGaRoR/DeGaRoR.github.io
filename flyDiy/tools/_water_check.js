@@ -180,7 +180,7 @@ console.log('\n3. THE LAWS');
     verdict(typeof W.mirrorRender === 'function' && W.mirror && W.mirror.mode === 'off' && W.mirror.maxAgl > 10, `the mirror API, '${W.mirror.mode}' by default (the GRAPHICS row hands its own: G2830)`);
     // THE CADENCE (G460.11.4): the clock is real seconds (a call-counted clock ran at a fifth of the wall clock under
     // the rig: a stale capture from 1500 m away, the reflection stretched), the eye's motion re-captures, a jump at once
-    verdict(/MIR\.t = \(typeof performance !== 'undefined' \? performance\.now\(\) : Date\.now\(\)\) \/ 1000;/.test(mp), "the mirror's clock is real seconds (never a count of calls)");
+    verdict(/const now = \(typeof performance !== 'undefined' \? performance\.now\(\) : Date\.now\(\)\) \/ 1000;/.test(mp) && /MIR\.t = now;/.test(mp), "the mirror's clock is real seconds (never a count of calls)");
     // the capture is projected from the STILL surface: through the displaced (faceted) position it creases along
     // every facet edge of the near patch's 3.75 m grid (G460.11.6)
     verdict(/vec4 mp = uWMirrorVP \* vec4\(vWP0 \+ mD, 1\.0\);/.test(w), 'the mirror is projected from the undisplaced position (never the faceted one)');
@@ -247,7 +247,7 @@ console.log('\n3. THE LAWS');
       const m0 = W.mirror.mode; W.set({ mirror: 'periodic' }); const p1 = W.mirror.mode; W.set({ mirror: 'banana' }); const p2 = W.mirror.mode; W.set({ mirror: 'live' }); const p3 = W.mirror.mode; W.set({ mirror: m0 });
       verdict(p1 === 'periodic' && p2 === 'off' && p3 === 'live', `an unknown reflections value is 'off', never 'periodic' (${p1}/${p2}/${p3})`);
       const app = src('src/viewer/app.js'), cs = app.slice(app.indexOf('if (window.WATER && WATER.mirrorRender && !inGarage && WF) {'), app.indexOf('if (FR) FR.lap(FR.S.mirror);'));
-      verdict(cs.length > 100 && !/mirrorOff\(/.test(cs) && /WATER\.mirrorRender\(THREE, renderer, scene, camera, Number\.isFinite\(wl\) \? wl : null,/.test(cs),
+      verdict(cs.length > 100 && !/WATER\.mirrorOff\(/.test(cs) && /WATER\.mirrorRender\(THREE, renderer, scene, camera, Number\.isFinite\(wl\) \? wl : null,/.test(cs),
         'app.js hands the water under the eye (null over land) every frame and never switches the mirror off at a shore'); }
     { // the plane's rule, flown: over the sea, over land, low over a lake, high over a pond, under a kept plane, a cut
       const M = W.mirror, keep = { plane: M.plane, planeT: M.planeT, eyePrev: M.eyePrev };
