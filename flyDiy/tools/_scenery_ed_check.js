@@ -847,6 +847,9 @@ if (plots.length) {
   if (ob) { const n0 = R20.rebuilds || 0; T20.objectDrag = dragTo(ob, 'v0', 1.5); check((R20.rebuilds || 0) === n0, '20b a placed object\'s drag is its own edit (no composition)'); }
   // (a strip's drags are the page's: the stub draws no strip handles, and its inspector draws a profile on a canvas - editor_perf.js)
   ed20.select(road.id); T20.traffic = Tm(() => ed20.cmd('set', { id: road.id, patch: { traffic: (+road.traffic || 0) + 1 } }))[0];
+  // (G3089) a road's WEAR (its `pav`: paint age, cracks, wet, moss) moves no ground - no patch, no ground re-sample (r1's were 11.7 s)
+  ed20.cmd('set', { id: road.id, patch: { pav: Object.assign({}, road.pav, { crackK: 0.35 }) } });
+  check(R20.lastDirty && R20.lastDirty.ground === false, '20b a road\'s wear (pav) is no ground edit (no patch, no ground re-sample)', JSON.stringify(R20.lastDirty));
   if (ob) { ed20.select(ob.id); T20.rotate = Tm(() => ed20.cmd('set', { id: ob.id, patch: { yaw: (+ob.yaw || 0) + 0.3 } }))[0]; T20.deleteUndo = Tm(() => { ed20.cmd('delete', { id: ob.id }); ed20.undo(); })[0]; }
   T20.undo = Tm(() => ed20.undo())[0]; T20.redo = Tm(() => ed20.redo())[0];
   const over = Object.keys(T20).filter(k => !(T20[k] < EP_BUDGET[k]));

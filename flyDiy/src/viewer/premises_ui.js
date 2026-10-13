@@ -342,7 +342,10 @@ function mount(host, ctx) {
   // G2917 (the user: "changing the traffic amount freezes it for a while - maybe 3 minutes"): A ROAD'S TRAFFIC IS NOT ITS
   // GROUND either - its traffic, its guardrail, its power line, its life, its name make no modifier and move no cover: no
   // patch, no ground re-sample (the cars, the rails, the poles are rebuilt by the renderer's own sync)
-  const ROAD_FREE = { traffic: 1, rail: 1, poles: 1, life: 1, name: 1, nodes: 1 };   // (G2950: nor its junction ids - the graph's alone)
+  // (G3089 EDITOR-PERF, the user's rev 28 timed 13 Oct: r1's wear sliders - paint age, cracks, wet, moss - were 11.7 s each,
+  //  8 s of it the fine patch re-sampled along r1's whole corridor) nor its WEAR: `pav` is carried to the renderer's pavement
+  //  and read by nothing of the ground (27_premises: roadObjs.pav, the issues; the patch's sink reads the premises' recipe)
+  const ROAD_FREE = { traffic: 1, rail: 1, poles: 1, life: 1, name: 1, nodes: 1, pav: 1 };   // (G2950: nor its junction ids - the graph's alone)
   const groundOf = (layer, a, b) => {
     if (layer === 'sites') { if (!a || !b) return undefined; for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) if (k !== 'name' && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return undefined; return false; }   // (G3005: a site's name moves no ground)
     if ((layer !== 'runways' && layer !== 'roads') || !a || !b) return undefined;

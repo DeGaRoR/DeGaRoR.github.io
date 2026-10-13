@@ -93011,3 +93011,59 @@ Gates (75 jobs, re-run after a spawn EPERM crash at 27/75): reds accepted -
 - CLOUD 3 of 239: the lamps rows, pre-existing.
 - SKINMAT, WEATHER: red on master f6bda9011 too; EDITOR-BUGS' fix rides train 53b (01:25).
 - SITE 1 of 245: calibration row "a plot turned away from its stand is not seen"; green on t52-full; 53b's gates re-check it.
+## G3080-G3089 - EDITOR-PERF: THE SCENERY EDITOR ON THE USER'S OWN FILE - OPEN, SELECT AND PICK INSTANT; WHAT STILL WAITS (2026-10-12/13, EDITOR-PERF for A0, local; branch claude/editor-perf-g3080 on master 39570350b; HOME-FRAME G3087-G3088 on claude/home-frame-g3087 / claude/patch-far-g3088)
+
+The user (12 Oct): "If I'm stuck later this week with no credits, I'd rather have a good editor, not as laggy as the
+current one." Measured on their CURRENT file (rev28, D:/Dev/flydiy-notes/inbox/jolene_rev28e_home_hangar.json) in the
+game, the box's GPU (A0's slot 13 Oct 21:10), master 39570350b against this branch, town off (town on: the same):
+`tools/perf/editor_perf.js` (every action class through the editor's own commands, worst frame / long task / settle,
+and the editor's own 'edit' events: what ran).
+
+| action (rev28, town off)              | before (master)   | after (this branch) | what ran / why |
+|---------------------------------------|-------------------|---------------------|----------------|
+| open the editor                        | 16.3 s            | 0.06 s              | the world it stands (R.editStart): no recompose, only outlines / handles / strip patterns |
+| select a road / area / site / object   | 100-117 ms        | 0-17 ms             | the selection's lines only (the outlines kept) |
+| pick cycle (a click again)             | 184 ms            | 17 ms               | the same |
+| close, camera orbit / map / fly        | 17 ms             | 17 ms               | - |
+| a placed object: drag, turn, scale, delete | 2 ms          | 2 ms                | PLACER-FAST's own edit |
+| a road point released (r1)             | 2.7 s             | 2.6 s               | compose 0.4 s, r1's pavement 1.27 s (25 km), the pavement table 0.33 s |
+| an area corner / a site released       | 2.7 / 2.5 s       | 2.8 / 2.6 s         | rebuild ~1.1 s (compose 0.4, pavement table 0.33) + the game's ground re-sample 1.5 s |
+| a strip's end released                 | 4.2 s             | 4.2 s               | rebuild 2.1 s (patch 1.1) + the ground re-sample 2.1 s |
+| a taxi point released, undo, redo      | 0.8-1.0 s         | 0.8 s               | compose 0.4 + the pavement table 0.33 + materials 0.07 |
+| r1's wear sliders (paint age, cracks, wet, moss) | 11.7 s  | ~2 s expected (G3089, NOT RUN) | the fine patch re-sampled along r1's whole corridor (7.9 s) + ground 1.5 s - for a look |
+| r1's width / band sliders              | 12.6 / 11.8 s     | the same            | the corridor IS moved: patch 8.8 s + ground 1.5 s + r1's pavement 1.2 s |
+| a site's turn slider                   | 2.5 s             | 2.5 s               | as a site's release |
+
+- **G3081 THE ISLAND ROAD'S QUERIES (landed with PLACER-FAST):** r1's box is the island, so roadDist walked its ~2 500
+  segments for any point >384 m from it - coarse rings, roadDistNear, roadCrossesPoly, roadInPoly's skip; the same
+  answers (records + 20 000 queries identical on 10 fixtures); compose with the town on 3.95 -> 0.99 s, town off 110 -> 72 ms (node).
+- **G3082 THE EDITOR IN THE FLIGHT LOG:** every action an 'edit' event (the rebuild by step, the outlines, the inspector,
+  the game's ground re-sample, a drag's moves, the autosave, the checks, the open); tools/analyze_log.js EDITOR lists
+  them by class (n, median, worst) and the slowest with what ran - the user's next log says what an edit cost.
+- **G3083 THE OPEN** (?editfast=0 the old): the record the renderer already stands - no rebuild.
+- **G3084 THE OUTLINES KEPT** (FLYDIY_OUTLINECACHE=false the old): made again only for a changed entry or one the
+  edit's ground box reaches; a select changes two opacities and the selection's own lines; the plots the same way.
+- **G3085 tools/perf/editor_perf.js** (A/B trees, town off/on, --prof); **G3086 GATE SCENERYED 20** (the core fix exact
+  against the walk, time bounds per action class headless, the open's door both ways, the hooks).
+- **G3089 A ROAD'S WEAR IS NO GROUND EDIT:** `pav` joins ROAD_FREE (the core carries it to the renderer and reads it
+  nowhere for the ground; the patch's sink reads the premises' recipe). GATE SCENERYED 20b. Browser NOT RUN yet.
+- **HOME-FRAME (A0's side job, 13 Oct):** rev27 cost ~+1.8 ms of the loop at HOME. Census (tools/perf/home_census.js):
+  cars drawn to 1200 m (were 3.6 km), cables to 1200 m (G3087, train 53); the far fine-patch corridor blocks merged per
+  2 km super-cell (G3088, GATE PATCHFAR) - HOME render 13.0 -> 11.5, loop 15.3 -> 13.7 ms, draws ~1 450 -> 1 246.
+
+**WHAT STILL WAITS (the target was no action over 100 ms; not met for anything that rebuilds), by size:**
+1. (S) THE GAME'S GROUND RE-SAMPLE after an edit (app.js onRebuilt -> render_world refreshGround): 1.5-2.1 s even for a
+   site's box - each touched ring geometry's normals computed whole, the ring LOD rebuilt whole, the fine ring cleared.
+   Normals and ring chunks for the box only. Needs one --prof run first (render_world's owner to agree).
+2. (S) THE PAVEMENT TABLE (0.33 s every rebuild) and the material map (0.07 s): again only when a pavement / material
+   input changed.
+3. (M-L) THE COMPOSITION (0.4 s in the page, 5x node's - the world's height function): a site-local compose.
+4. (M) A LONG ROAD'S OWN CHANGE (r1 width: its 25 km corridor re-patched, 8.8 s; its pavement 1.2 s): the editor's
+   rebuild in slices over frames instead of one task (the world briefly behind the record), or the corridor per piece.
+
+**What to watch for (the user):** the editor opens at once (no long wait after "open the scenery editor"); clicking
+things selects them at once; dragging a placed model is instant (as before). STILL SLOW, said plainly: releasing a road
+point, an area corner, a site or a strip takes 1-4 s (the island is rebuilt behind it); changing r1's width is ~12 s.
+A road's wear sliders should drop from ~12 s to ~2 s (G3089, to confirm). If an outline looks stale after an edit (a
+line not following the ground): ?outlinecache=0 is the old way - say which edit. The flight log now lists every editor
+action with its time (graphics flyout -> save log).
