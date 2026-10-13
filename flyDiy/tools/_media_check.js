@@ -166,7 +166,7 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 // chunk loaded only with ?damage=1, ~-50 KB gz) and G3021 (the damage half of app.js, lazy too); both in the official
 // backlog. (Before: 4.05, train 44's ~+30 KB, owed back by ROUTE-LAZY G3070.)
 // Master's quote, kept: A0 12 Oct 22:10: the user ACCEPTED BY NAME SCENERY-SHIP's +10 KB (rev27: strip 12, roads, areas) - "ok". Before that, 12 Oct: the user ACCEPTED BY NAME train 44's ~+30 KB (route_draw + 44_vprofile + 38c_route: 4.03 MiB); owed back by ROUTE-LAZY G3070 (route_draw as a lazy chunk)
-const WIRE_BUDGET_MIB = 4.21;   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
+const WIRE_BUDGET_MIB = 4.6;   // the user, 13 Oct ~13:10: "yes, raise the budget to 4.6 MiB" - by-name asks only when ONE train adds > 50 KB gz (the per-train STEP row). Earlier acceptances:   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
 // STEP: how much index.html (CRs removed) may grow over the build before it, MiB.
 // "The build before" is git's: if the built page differs from HEAD's, HEAD (and
 // its parents, when HEAD is a merge); if it IS HEAD's, the parents of the commit
