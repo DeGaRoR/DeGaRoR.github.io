@@ -550,6 +550,17 @@ const GATES = [
   { id: 'NACLAG', file: '_naclag_check.js', tier: 'core', weight: 4, wall: 120 },
   { id: 'ENGMESH', file: '_eng_mesh_check.js', tier: 'core' },// the engine's own health + ledger
   { id: 'JOIN', file: '_join_check.js', tier: 'core' },       // editor -> spec -> a buildable aeroplane
+  // G2640 DESIGN-TRUST: WHAT FLIES IS WHAT IS DRAWN - every flown aero strip (wing, stab, fin) against the drawn sheet
+  // cut at its station, through the page's own join headless: the validated five, the user's mosquito repros (a
+  // turtledeck pod) and synthetic variants on the cage dials (boom +-, fin swept, turtledeck, rod level/inclined); a
+  // doctored fin and stab must go red. ~15 s.
+  { id: 'GEOPARITY', file: '_geoparity_check.js', tier: 'core', wall: 20 },
+  // G2640: THE DESIGN CHECK (64b_gen_design.js, genShakedown's `design`, the bench check's rows): no FAIL on the
+  // validated five; doctored designs fail on their own row with a fix; fin / dihedral / tail-arm sweeps point the right
+  // way; data + determinism + the bench renders it; the shell boom against the drawn shell. ~140 s. DESIGNSIM (full): the predicted spiral root against the sim
+  // flown hands off (the Cub, the mosquito), ~3 min.
+  { id: 'DESIGNCHECK', file: '_designcheck_check.js', tier: 'core', wall: 150 },
+  { id: 'DESIGNSIM', file: '_designcheck_check.js', argv: ['--only=sim'], tier: 'full', wall: 200 },
   // THE RESOLVED SPEC IS A FIXED POINT AND THE CORNERS ARE THE STAND (SPEC-FIXPOINT G1550, the 2026-10-04
   // review's A2 / A3 / B8 / B9 / B13 / E1-E3): GEN_FIELDS against GEN_DEFAULT and clampSpec; clamp idempotent;
   // resolve(resolve(s)) == resolve(s); buildGen leaves its input alone and rebuilds def.spec; the six CG corners

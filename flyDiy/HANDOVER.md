@@ -93090,3 +93090,201 @@ WHAT TO WATCH FOR:
 - The kit panel is built once and does not re-read DEC after a load. This is pre-existing for every kit row; G2870 only syncs the fit tick on a pattern switch.
 - The page's AEROSKIN exports `aeroSharedU`, not `aeroDecUniforms`, and has no `aeroDecalMerge`. These are node-only names. The first GPU run found the fit silently dead because of this; GATE SKINMAT runs in node and could not see it.
 - GATE SKINMAT's G113.4 comment-strip took `f.accept = 'image/*'` for a block comment and ran 40 kB to `/* G2227 */`. That made "1 of 3 reframe rows wired" red on master since G2227. Fixed here: a `/*` glued to a word is not a comment. EDITOR-BUGS was named owner of that red; tell them.
+## G2640 DESIGN-TRUST - WHAT FLIES IS WHAT IS DRAWN (THE TURTLEDECK'S TAIL, EVERY SWEPT FIN, THE LEVEL ROD), A CARBON BOOM IS A SHELL, AND THE BENCH TELLS FROM THE NUMBERS (2026-10-10, DESIGN-TRUST for A0, LOCAL; branch claude/design-trust-g2640 off origin/master 26e04598b = train 42, G2630 RADIAL-DIVERGE merged; G2640-G2649)
+
+### What the user saw, in plain words
+The user's own design 'mosquito' (a 620 kg single-seat low-wing carbon taildragger, the "Turtledeck" body) would
+not fly level, its tail flexed visibly, the fin of the structure overlay stood far from the drawn fin, and the
+bench check found nothing wrong. Four things were really wrong, and three of them were the ENGINE, not the design
+(A0, relaying the user: "we don't care about the mosquito design as such. It is a symptom for our engine"):
+
+1. THE TURTLEDECK'S TAIL WAS NEVER MEASURED. The 'Turtledeck' body (cage.mirror 1, a main choice on the body
+   page) is a mirrored pod: the cage emits no tail rings, so the join found no tail post and skipped the whole aft
+   body - the fin's station, height and sweep, the stab's seat, the post's section, the boom's profile. The garage's
+   merge kept whatever an earlier build had written: the mosquito flew the CUB's boom (its saved tailBot/tailTop
+   0.5718/0.9650 are the Cub's to the digit) and a fin frozen at x 5.229 m while the drawn tail moved with the boom
+   (4.61 -> 5.45 -> 5.84 m): the flown fin 0.54-0.80 m AHEAD of the drawn one (A0's lead, confirmed).
+2. EVERY SWEPT FIN FLEW UPRIGHT. The join put the fin's truss under the drawn top point with no sweep, so a swept
+   fin's strips sat behind the drawn fin: the Jodel's 0.33-0.50 m aft, the swept-fin Cub variant 0.23 m.
+3. A LEVEL ROD KEPT THE RULE'S TAIL (G477's own exception, "owed a look"): the twin on floats flew its fin
+   0.61-0.87 m aft of the drawn one and its stab 0.28 m below. And `stabH` was clamped at 0, so a stab drawn below
+   the tail cone's middle flew 2.6 cm (mosquito) / 4.6 cm (Cub) high.
+4. A MONOCOQUE BOOM FLEW AS A TRUSS. 200 N sideways at the tail post bent the mosquito's carbon boom 18.9 mm where
+   its drawn section as a carbon shell bends 1.8-2.7 mm; the metal Cessna's 12.6 mm against ~0.3-0.6 mm.
+   (The violent tail motion the user saw at rest was G2630's: the tailwheel dampers ringing at the 200-substep cap,
+   17-33 % strain - fixed there, merged here.)
+
+The WING HEIGHT the user measured (">= 10 cm") is NOT in the rest geometry: the physics chord line sits within 2 mm
+of the drawn chord line on every build (GEOPARITY). What the eye compares in the overlay is the strips' chord line
+against the drawn wing's mid-thickness - the camber line, 4 cm above the chord at the quarter chord of a 1.6 m
+NACA 3412. The gap the user saw in flight was most likely the stab and fin above (and the ringing).
+
+### The fixes (all generic - synthetic variants in the gates, not the mosquito)
+- tools/_cage_join.js: (a) a TURTLEDECK HAS A TAIL POST - the pod's boom has the regular tail's stations
+  (buildCage2: the smooth run, the tail pillar band at tPost, the cone to the tip), so the post is that band
+  measured back from the drawn tip and the body's full section ends at the firewall REFLECTED about mirrorZ
+  (zPodRoot -> cabLen, the profile's root); everything downstream then measures as on a cabin build. (b) THE FIN'S
+  DRAWN MID-CHORD LINE: the fin sheet cut at 30 % and 80 % of its height (faces, not vertices: a lofted sheet has
+  vertices at its ribs only - layerCutY), the line through the two mid-chords carried down to the tail top = vX, its
+  rake = vSweep. (c) every ROD takes its tip's section as the tail datum (G477's inclined-only gate removed).
+  (d) stabH down to -0.5 (also in clampSpec).
+- 61_gen_frame.js SHELL block + GEN_RULES.shellSkin / shellBoom: a covered lofted boom of a stressed-skin
+  construction (carbon at 1.2 mm and 0.45 of the fibre modulus = ~60 GPa quasi-isotropic, CMH-17 vol. 2 T300/epoxy
+  QI 50-60 GPa; alloy 0.8 mm = a light aircraft's 0.025-0.032 in 2024-T3 aft skin; plywood 2.5 mm) flies on the
+  TUBE ELEMENT the rod (G314) and the twin boom (G294) already fly on: its aft bays one shape-matched cluster at the
+  drawn section's own cantilever stiffness (thin elliptical shell, Roark, integrated station by station along the
+  profile, the softer way), the twist constraint at the shell's Bredt GJ (4 A^2 t / perimeter), and the twin boom's
+  'oval' dmg record at its root ring (so a crash can cut it - without one a damage-on crash would have held a broken
+  boom together). Tube-and-fabric and the aluminium tube frame stay trusses (the Cub untouched). A cluster is a
+  projection, so the step is NOT shortened: substeps mosquito 183/183, Jodel/Cessna/floats 120/120, mass the same.
+  Revert switch: GEN_RULES.shellBoom = 0.
+- 30_solver.js probe(vel, live, omega): an optional body RATE (and a roll moment out), bit-identical without it.
+- 64b_gen_design.js (new) THE DESIGN CHECK, on genShakedown().design (not on a slim sheet) and on the bench check's
+  card (bench.js benchDesignHtml; a FAIL row withholds the bench certificate and its fix is the card's fix; WARN
+  rows are said and certify). The derivatives measured off the built aeroplane in the solver's own tunnel (live:
+  the cruise thrust and its wash) in STABILITY axes (measured in body axes the roll damping leaks into the cross
+  terms: the Cub's spiral read twice as divergent as it flies), the inertias off the lattice incl. Ixz, Nelson's
+  4-state lateral model (spiral / roll / dutch roll roots) and the short period. 12 rows, each { id, group, label,
+  level, value, unit, limit, why, fix }: pitch.sm (worst loading corner; fail < 0, warn < 0.02 or > 0.40 drawn),
+  pitch.Vh (Raymer; warn < 0.30), pitch.short (MIL-F-8785C), ctl.elevator (nose-up authority at 1.2 Vs, forward
+  CG), yaw.Vv (warn < 0.020), yaw.cnb, roll.clb, roll.spiral (MIL Level 1 T2 >= 20 s), yaw.dutch (zeta >= 0.08,
+  zeta*wn >= 0.15), roll.mode (tau <= 1.4 s), ctl.aileron (pb/2V >= 0.07), ctl.rudder (holds FAR 23.233's
+  0.2 Vso crosswind). The fixes are sized: "grow the fin by X m2 or move it aft by Y m" (a move past 2 m says the
+  area is what is missing), degrees of dihedral, metres of CG. DATA for CERT-SLIM G2840: read sh.design.rows.
+  THE MODEL WAS CHECKED AGAINST THE SIM: the Cub trimmed hands off, banked 2 deg each way, the antisymmetric bank
+  doubles in ~20 s flown vs 15.7 s predicted; the mosquito (3) stable in both (GATE DESIGNSIM, full tier).
+
+### Gates (new)
+- GEOPARITY (core, ~15 s): every flown strip against the drawn sheet at its station - the validated five, the
+  mosquito repros (tools/fixtures/repro/mosquito_0..3.json, copies of the user's Downloads files), 8 dial variants
+  (boom +0.8 / -0.6, fin swept 25, the Cub turtledeck, the mosquito boom 3.6 / 6.0, the Jodel fin upright, the
+  twin's rod inclined) and two doctored self-tests (fin +0.5 m, stab +0.15 m go red). Tolerance: mean station 5 cm,
+  mean height 3 cm, worst strip 15 cm / 5 cm; and per build the SURFACES: strip areas = Sv / Sh = the drawn sheets
+  (+ counted ventrals), control chord fractions = the drawn cuts', aspect ratios within 15 %, the stab's aero centre
+  within 10 cm (32 rows). Master fails it on the Jodel, the twin
+  on floats and the mosquito.
+- DESIGNCHECK (core, ~140 s): no FAIL on the validated five; six doctored designs fail on their own row with a fix
+  (fin 30 %, a sliver, dragged forward; stab 40 %; tail 1.2 m forward at the worst corner; no aileron); fin /
+  dihedral / tail-arm sweeps point the right way; data + determinism + the bench renders it; THE BOOM (the shell
+  within 2x the drawn shell; the revert is the soft truss; the Cub stays a truss).
+- DESIGNSIM (full, ~3 min): the predicted spiral root against the sim, the Cub and the mosquito.
+
+### The evidence pictures
+tools/perf/g2640_overlay/before_<k>.png / after_<k>.png (k = cub, jodel, cessna, twinFloats, mosquito2,
+mosquito3, cub_finSwept25; tools/_geoparity_shot.js, no GPU): the drawn aeroplane grey, the flight model's strips
+red (chord line through each force point), the tail truss blue, side over half-top. The user's acceptance rule:
+"I'll accept when they match for a few planes".
+
+### Named changes on the validated aircraft (before = master's join + no shell, after = this branch; same core)
+| | cub | jodel | cessna | floats | twinFloats | mosquito2 | mosquito3 |
+|---|---|---|---|---|---|---|---|
+| fin station vX, m | 5.07 -> **5.01** | 4.49 -> **3.94** | 5.82 -> **5.34** | 5.82 -> **5.34** | 4.05 -> **3.22** | 5.23 -> **5.44** | 5.23 -> **5.66** |
+| fin sweep, deg | 0.0 -> **5.0** | 0.0 -> **14.2** | 0.0 -> **38.2** | 0.0 -> **38.2** | 9.0 -> **18.1** | 0.0 -> **1.8** | 0.0 -> **18.6** |
+| static margin as drawn | 0.175 | 0.042 -> **0.043** | 0.246 -> **0.243** | 0.275 -> **0.273** | 0.028 -> **0.025** | 0.163 -> **0.184** | 0.292 -> **0.331** |
+| static margin, worst loading corner | 0.030 -> **0.031** | 0.018 -> **0.019** | 0.155 -> **0.153** | 0.199 -> **0.197** | 0.011 -> **0.009** | 0.071 -> **0.111** | 0.175 -> **0.234** |
+| yaw stiffness cn-beta /rad | 0.090 | 0.126 -> **0.114** | 0.127 -> **0.125** | 0.142 -> **0.140** | 0.078 -> **0.056** | 0.082 -> **0.069** | 0.104 -> **0.128** |
+| dihedral effect cl-beta /rad | -0.039 | -0.188 -> **-0.189** | -0.061 | -0.063 | -0.027 -> **-0.026** | -0.044 -> **-0.037** | -0.163 -> **-0.164** |
+| spiral: bank doubles in, s (- = stable) | 15.2 -> **15.3** | - | 38.5 -> **38.6** | 40.3 -> **40.1** | 12.0 -> **14.7** | 19.7 -> **20.1** | - |
+| dutch roll damping | 0.214 -> **0.213** | 0.095 -> **0.068** | 0.191 -> **0.188** | 0.178 -> **0.176** | 0.220 -> **0.180** | 0.176 -> **0.173** | 0.077 -> **0.136** |
+| dutch roll frequency, rad/s | 2.11 | 2.60 -> **2.53** | 2.96 -> **2.95** | 3.09 -> **3.08** | 2.29 -> **2.03** | 2.26 -> **2.13** | 2.34 -> **2.48** |
+| short-period damping | 0.67 | 0.71 -> **0.70** | 0.48 | 0.43 | 0.83 -> **0.87** | 0.62 -> **0.60** | 0.58 -> **0.57** |
+| rudder holds crosswind, kt | 13.6 | 16.8 -> **16.5** | 19.3 | 21.9 | 12.4 -> **12.9** | 14.1 -> **17.1** | 17.4 -> **16.6** |
+| aileron pb/2V | 0.265 | 0.281 | 0.260 | 0.243 | 0.171 -> **0.180** | 0.255 | 0.165 -> **0.161** |
+| FLOWN: hands-off bank after 30 s, deg | 9.2 | 2.4 -> **2.5** | 7.4 -> **7.0** | not flown* | not flown* | -2.1 -> **-1.5** | -5.8 -> **-5.0** |
+| FLOWN: hands-off heading after 30 s, deg | -32 | -11 | 155 -> **150** | not flown* | not flown* | 12 -> **10** | 29 -> **26** |
+| take-off to downwind, s | 64 | 87 | 58 | not flown* | not flown* | 45 -> **44** | 47 -> **48** |
+| substeps | 75 | 120 | 120 | 120 | 104 -> **105** | 182 -> **190** | 169 -> **183** |
+| design check | WARN | WARN | PASS | PASS | WARN | WARN -> **PASS** | WARN -> **PASS** |
+
+(*) node's world starts a seaplane on land: the pilot never reaches the downwind, so the flown rows are not measured
+for the two floatplanes (GATE SEAPLANE / FLOATS fly them on the water). Before = master's join with the shell off,
+after = this branch, on the same merged core (G2630 included), calm air, the pilot trimming then hands off.
+IN WORDS: the Cub and the Cessna pair barely move (their fins were nearly where drawn; the Cessna's 38 deg sweep
+moves its fin's root, not its centre of pressure). THE JODEL's fin now flies where it is drawn - 0.55 m further
+forward at the root, swept 14 deg: less yaw stiffness (0.126 -> 0.114) and less dutch-roll damping (0.095 -> 0.068,
+under the 0.08 Level-1 line: the design check now WARNS it); everything else the same. THE TWIN ON FLOATS' fin and
+stab are now the drawn ones: yaw stiffness 0.078 -> 0.056, dutch damping 0.220 -> 0.180, the spiral SLOWER (12.0 ->
+14.7 s to double). The mosquito: both builds now PASS (the fin where drawn: (3)'s dutch damping 0.077 -> 0.136).
+The shell's own share (the boom stiffer) moves none of these by more than the last digit - it is a structural
+change (the flex), not a handling one.
+
+### Owed / not done
+- KEEL (mostly closed, 10 Oct ~23:20): a fin drawn rooting BELOW the tail post's top (a turtledeck's narrow boom:
+  0.13 m on mosquito (2), 0.15 m on the Cub turtledeck) flew squeezed above the post - aspect 0.78 for the drawing's
+  1.08, chords ~30 % wide, quarter chords 7-9 cm forward. The join now measures the drop (tail.vRootDrop: the fin
+  proper's span against the post's top, within the tail's depth) and the frame roots the fin's truss and strips there;
+  the turtledecks' fins within 1 cm, GEOPARITY's fin tolerance back to 5 cm like the others, the surfaces' areas /
+  control fractions / aspect ratios gated. Every validated build measures 0 (bit-identical). What is left: the keel
+  TAB's own area (under the deck) is still flown on the fin's strips - its force 13-18 cm high; a keel strip, owed.
+- THE MESH SHOWING THE TAIL'S FLEX (scope 2b): the drawn tail does not ride the lattice in flight (only the wing's
+  spar deltas and the strut bind; skin_break's riding is the damage path). With the shell the flex left to show is
+  1-2 mm in the game's breeze (was 21-23 mm), below what the eye sees; owed only for a genuinely soft design.
+- cabin.seats 1 -> 2 on the mosquito through the headless join (a node/page difference, pre-existing on master):
+  for JOIN-PARITY.
+- T41b (Deform) lands first: rebase, re-run DMGCERT / DMGCLUSTERS / DMGCERTCOST / DMGMEMBERS on that tip.
+
+### G2640 gates (10 Oct 22:30-22:51, the booked CPU window, jobs 4, on the merged tip with G2630)
+PASS: GEN, PILOT, TAKEOFF, SEAPLANE, FLOATS, BENCH, SPECFIX, JOIN, FIN, FIT, DESIGN, FLEX, LOAD, SIMWORKER, ACCEPT,
+DMGCERT, DMGMEMBERS; GEOPARITY 17/17 and DESIGNCHECK 24/24 (the battery first read them red: they did not print the
+runner's `GATE <ID>: PASS` line - fixed, both re-run green alone). DMGCERTCOST red on the Jodel's frame budget only
+(1792 -> 1796; the envelope equal to the uncut to the bit): the budget re-written as its own header asks, the Jodel
+1796 / the metal Cessna 1795 / the floats 1761, named in the file - re-run green.
+STILL RED - DMGCLUSTERS on the metal Cessna's new SHELL: "levered over an obstacle at its mid-span station" parts
+cleanly (10 members, its bay, 0 others) but the parted aft piece reads 12.4 mm against the gate's 10 mm rigidity:
+the split hands the aft piece the WHOLE tube's omega (30_solver clApply: C2.omega = C.omega), and a piece a third as
+long is (L / Laft)^1.5 stiffer as a cantilever. The Jodel's shell (omega 1265) passes the same case; the twin boom's
+aft piece (3 nodes) reads 0.2 mm. The fix is in the damage layer's split, which T41b (Deform) rewrites: handed to
+A0 / Deform; re-run DMGCERT / DMGCLUSTERS / DMGCERTCOST / DMGMEMBERS on the T41b tip before landing (43.1).
+SURFACE DETAIL (the user's question via A0, "no horn, no control surface, no leading edge"): fin strips' area = the
+drawn fin + rudder + keel exactly on all six builds (the floatplanes + their counted ventrals), the rudder / elevator
+chord fraction = the drawn one exactly, the arms within 1-7 cm (the Cessna pair's 0.17-0.21 m is its uncounted dorsal),
+aspect ratios within ~10 %; a horn balance is AREA ONLY - the model has no hinge moments (position-commanded controls).
+The blue truss in the overlay is the fin's STRUCTURE (two spars), the strips span the drawn chord.
+
+### G2640 on train 43 (11 Oct, plan B: 43.1 before T41b) - the split, Deform's review, the shell's buckling
+Rebased on master 37bf53368 (train 43; G2630 inside). The 08:35 battery on that tip: every row of last night's list
+green but DMGCLUSTERS (the Cessna's shell, as handed over). Three things fixed it, in 30_solver's damage layer
+(reviewed by Deform; 41's split takes the same hunk):
+- clOmegaPiece: a station piece of a split tube cluster gets the omega of its own length and mass,
+  om0 sqrt((L/Lp)^3 (M/Mp)), CAPPED AT 3 x om0 (uncapped a third of the Cessna's shell read 9x).
+- clReset hands every cluster its as-built omega back (C.omega0) - Deform's catch: the split wrote the forward
+  stub's omega onto the original cluster and Fly again would have flown the whole boom at it. GATE DMGCLUSTERS has
+  the row now (split at the station, reset, every cluster's omega == a fresh sim's), and clusterCuts() reads omega.
+- THE SHELL BREAKS BY BUCKLING: the 'oval' record takes sigB = gamma(R/t) x 0.605 E t / R (NASA SP-8007's bending
+  knockdown gamma = 1 - 0.731 (1 - e^-phi), phi = sqrt(R/t) / 16 - Deform's review: R/t's, not a constant), at the
+  mid-span STATION's own ring (the narrower tailcone; the record carries one section); the limit is min(material,
+  sigB). Values: the metal Cessna 55.8 MPa, the Jodel's plywood 34.4, the mosquito's carbon 138 (the alloy's own
+  ultimate ~450). A LOWER BOUND, named: a real tailcone is stringer- and frame-stiffened and carries load past skin
+  buckling; it stays above the tail's ultimate (DMGCERT green). The metal Cessna's tailcone was
+  credited with 580 kN.m at mid-span (the alloy's full ultimate on a 0.8 mm skin) and the part-off test ramped loads
+  to hundreds of kN - its stab tore off its fittings (32 strays). Now 22 kN.m at mid-span / 31.5 at the root: clean
+  (10 members, 0 strays, rigid 0.2 mm); normal operations peak under it (the flown pull 0.50 of the limit, the drops
+  0.23-0.28). NAMED: with damage on, the Cessna's and the Jodel's aft fuselage break at a realistic tailcone moment.
+WHAT TO WATCH FOR (the user's rule since 11 Oct ~01:40, instead of evidence stills; A0's ruling (a)): damage is OFF
+by default, so default play is unchanged. With ?damage=1, a tail-first crash in the metal Cessna or the Jodel: the
+tailcone now breaks / folds at the mid-span station at a realistic moment instead of almost never (580 kN.m before);
+the stab and fin should come away with the aft piece, the piece itself rigid (not rubbery).
+Gates on the formula: see the 09:47-10:07 window below.
+Gates on the formula (sigB = gamma(R/t) x 0.605 E t / R at the station's ring), 11 Oct: TREECRASH PASS (09:47-10:07,
+50/50); 10:08-10:17, each its own process: DMGGEAR, DMGCLUSTERS, DMGINTEGRITY, DMGCERT, DMGCERTCOST, DMGMEMBERS PASS.
+With the 08:35 battery on this tip (GEN, PILOT, TAKEOFF, SEAPLANE, FLOATS, BENCH, SPECFIX, JOIN, FIN, FIT, DESIGN,
+FLEX, LOAD, SIMWORKER, ACCEPT, GEOPARITY, DESIGNCHECK, DMGCERT, DMGCERTCOST, DMGMEMBERS) - READY for 43.1.
+
+### G2640 - GATE DMGSKIN's floats "hop" row (12 Oct, the 43.1 hold): a window artefact, not a host/worker divergence
+DMGSKIN failed on this ref alone (Cessna floats, severe nose-in: "the sets the same ... at the end past its window").
+Measured in A0's slots (17:30, 18:55; tools: a one-process diagnostic, inline sim vs the worker host's): the two sims
+are BITWISE EQUAL at every one of the 240 steps and the 7-step tail; the sets match at every host send; the broken list
+and pieces match. What differs: on this ref the floats' SHELL parts at its ROOT at step 9 and its loose tail, quiet
+for the last second, yields again in the gate's tail (+28 at the tail's step 4, sent by both; +26 at step 5, sent by
+the inline, held by the host inside its 0.1 s set window) - and the gate compared once, at the fixed 7th step: one
+member (303) inline -0.001583 vs the host's last send -0.001036. With the shell off, or its sigB off, nothing yields in
+the tail and the row passes. FIX (tools/_dmg_skin_check.js, a separate commit for DEFORM'S REVIEW - the gate is
+theirs; reviewed and tightened by Deform): judged once the host has caught up (its last applied signature equals the
+inline's, 7 steps at least); a host still behind once the inline has been quiet for its 0.1 s window + 2 steps is a
+FAIL ("the host never flushed its last set" - the host flushes on the trailing edge, so that would be a lost flush);
+only a wreck never quiet inside a second is judged at the host's last send; at rest the same 7th step as before.
+13 Oct: SUPERSEDED by Deform's equivalent in train 41b (4f5bd23ae: step on until the inline sets hold still 8 frames, at
+most 4 s, then the usual 7) - this branch takes 41b's loop; only the row's message stays mine (S.flushLost: unequal
+after a quiet settle = "THE HOST NEVER FLUSHED ITS LAST SET").
+NAMED CRASH CHANGE (damage ON, the user will see it): in the floats' severe nose-in (150 km/h, 10 m/s, 60 deg) the
+SHELL now parts at the ROOT at 0.15 s - the tail comes off; on master the FIN goes at 0.53 s.
