@@ -1055,7 +1055,8 @@ function make(THREE, scene, world, rec0, opts) {
     // (G3101) the aprons kept, and the buckets whose merge is kept (decided while RC.box still names the edit's ground)
     PC.keep = new Map(); PC.keepMerged = new Set();
     if (useRC && PAV) {
-      const glob = JSON.stringify([O.pavement || null, (O.rec && O.rec.theme) || null, PAV.look ? PAV.look(THREE) : null, (O.aerodromes || []).map(A => [A.x, A.z, A.len, A.wid, A.hdg])]);
+      const glob = JSON.stringify([O.pavement || null, (O.rec && O.rec.theme) || null, PAV.look ? PAV.look(THREE) : null, (O.aerodromes || []).map(A => [A.x, A.z, A.len, A.wid, A.hdg]),
+        O.frame ? [O.frame.anchor, O.frame.yaw, O.frame.y0] : null]);   // (SCENERY-ED-2: the frame places the apron in the world)
       for (const pp of O.pavePolys || []) {
         if (geoLater(pp)) continue;
         const c = PC.map.get(pp.id), k = PG.fnv(JSON.stringify(pp) + '|' + glob), pad = (+pp.band || 0) + 30, b = pp.bbox || PG.polyBBox(pp.poly);
@@ -1157,13 +1158,14 @@ function make(THREE, scene, world, rec0, opts) {
       if (!part && PC.keepMerged.has(k)) continue;   // (G3101: never happens - a kept bucket's sources stay out - but a stray one is not merged twice)
       const out = [];
       yield* PAV.mergeSteps(THREE, list.map(m => ({ geo: m.geometry, order: m.renderOrder })), null, out);
+      const made = [];   // (G3101: this merge's own meshes - the town's later merges carry the same name)
       for (const c of out) {
         const m = new THREE.Mesh(c.geo, list[0].material);
         m.renderOrder = c.order; m.receiveShadow = true; m.name = k + ':merged'; m.userData.pavMerged = true;
-        G.roads.add(m);
+        G.roads.add(m); made.push(m);
       }
       for (const m of list) { G.roads.remove(m); m.geometry.dispose(); }
-      if (!part && RC.on && o.editing && o.editing()) PC.merged[k] = { ids: list.map(m => (m.name || '').replace(/^(road|pave):/, '')).sort().join(','), meshes: G.roads.children.filter(c => c.userData.pavMerged && c.name === k + ':merged') };   // (G3101)
+      if (!part && RC.on && o.editing && o.editing()) PC.merged[k] = { ids: list.map(m => (m.name || '').replace(/^(road|pave):/, '')).sort().join(','), meshes: made };   // (G3101)
       stats[k + 'Merged'] = (part ? stats[k + 'Merged'] || 0 : 0) + out.length; stats[k + 'Parts'] = (part ? stats[k + 'Parts'] || 0 : 0) + list.length;   // (G2063: the town's added to the rest)
     }
   }
