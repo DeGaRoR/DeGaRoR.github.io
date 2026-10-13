@@ -93990,6 +93990,8 @@ APPEARS without the player asking. Panels the player OPENS stay where they are.
 - `music.js#musicCredits`: the credits.
 - `#gFleet`: the fleet load door.
 - `#dfBirth`: the new-aeroplane birth overlay.
+- `#hsStore` (added on train 52's combined tree): HANGAR-STORAGE's storage screen, opened by the garage's 'storage'
+  button, and its Fly confirmation `.hsAsk`.
 - `#flReticle`: a 10 px reticle.
 
 Not cards, so not moved:
