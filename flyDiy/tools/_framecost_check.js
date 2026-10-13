@@ -324,6 +324,11 @@ const ALLOW = [
   { key: 'stand/gl.uniform4fv', build: 'cessna', upTo: 757, why: 'train 20: gamer draws \'mid\' trees (the user\'s choice) - the stand\'s extra tree draws\' uniforms (729 -> 749, cooked)', g: 'G1114.2' },
   { key: 'stand/bytes.uniforms', build: 'cub', upTo: 206300, why: 'train 20: gamer draws \'mid\' trees (the user\'s choice) - the stand\'s extra tree draws\' uniforms (201 254 -> 204 242 B, cooked)', g: 'G1114.2' },
   { key: 'stand/bytes.uniforms', build: 'cessna', upTo: 209850, why: 'train 20: gamer draws \'mid\' trees (the user\'s choice) - the stand\'s extra tree draws\' uniforms (204 778 -> 207 766 B, cooked)', g: 'G1114.2' },
+  // A0 2026-10-12 (train 47 landing): rows red since 44.1 + 44.3 landed together (f353a0f89), not ROAD-GRAPH's.
+  { key: 'stand/three.updateMatrix', build: 'cub', upTo: 3500, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
+  { key: 'taxi/three.updateMatrix', build: 'cub', upTo: 3875, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
+  { key: 'stand/three.updateMatrix', build: 'cessna', upTo: 4850, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
+  { key: 'stand/world.grHeight', build: '*', upTo: 21, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------

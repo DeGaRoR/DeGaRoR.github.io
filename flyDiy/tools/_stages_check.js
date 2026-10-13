@@ -144,7 +144,7 @@ function vectors() {
 
 function main() {
   console.log('GATE STAGES');
-  const t0 = Date.now(), txt = fs.readFileSync(FX, 'utf8'), whole = PG.normalise(JSON.parse(txt));
+  const t0 = Date.now(), txt = fs.readFileSync(FX, 'utf8'), whole = PG.unwrap(txt).rec;   // (G3009: the loader's path - migrate folds a v1 fixture into areas, as the cook and the game load it; normalise alone kept the v1 key order, and sha(O.rec) differed by key order only)
   // 1
   const sb = {};
   for (const v of ['default', 'town']) {
@@ -223,7 +223,7 @@ function main() {
 // ---- NEGATIVE VERIFICATION: each rule red on a doctored input ---------------------------------------------------------
 function selftest() {
   console.log('GATE STAGES --selftest');
-  const txt = fs.readFileSync(FX, 'utf8'), whole = PG.normalise(JSON.parse(txt));
+  const txt = fs.readFileSync(FX, 'utf8'), whole = PG.unwrap(txt).rec;   // (G3009: the loader's path - migrate folds a v1 fixture into areas, as the cook and the game load it; normalise alone kept the v1 key order, and sha(O.rec) differed by key order only)
   let n = 0, red = 0;
   const must = (isRed, what) => { n++; if (isRed) red++; console.log((isRed ? '  red  ' : '  MISS ') + what); };
   const doc = f => { const r = JSON.parse(JSON.stringify(whole)); f(r); return r; };
