@@ -1542,7 +1542,9 @@ function runwayProfile(r) {
 // under 20 %, no touchdown-zone rule (the touchdown IS on the slope), a crest under 5 % of slope change
 // over 30 m (the ease into the flat top the aeroplane stops on), an `approach` named, and the far end
 // higher than the threshold it lands over
-const ALTIPORT = { slopeMax: 0.20, crestMax: 0.05 };
+// (t53 OPTION B, 13 Oct - the user's call on rev 28's strip 9: 33.7 % at its steepest, a crest of 14.2 % over 30 m - the law
+//  relaxed to 35 % / 15 %: steeper than any certified altiport, the game's own bush strips)
+const ALTIPORT = { slopeMax: 0.35, crestMax: 0.15 };
 function profileIssues(r) {
   const out = [], pr = runwayProfile(r), L = r.len, alti = !!r.altiport;
   let worst = 0, tdz = 0, crest = 0;
