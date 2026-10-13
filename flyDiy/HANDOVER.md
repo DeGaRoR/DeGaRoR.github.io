@@ -93304,3 +93304,38 @@ user's 15-min GPU look (tools/_props.html?packs=infra and ?packs=camp); then REA
 Landed: editor-perf (G3080-G3089), HOME-FRAME far merge (G3088), CARD-SOURCE far cards from their impostors (G3184-G3186), pilot track closing, SITE calibration fix (G2894), WATER-STEADY mirror off/AUTO/on (105fd3cca), SND-MIX-2 (MIXLEAD skips without ffmpeg), t56-small (LOOKS 2 declared exception + FRAMECOST ALLOWs for 52ab's rev28 rises), ASSETS-OCT pylons + tents + GATE ASSETBUDGET (209405351).
 A0 fixes on the train: FRAMECOST ALLOW union left a double comma (a hole: find() read undefined); GATE ASSETS admits CARD-SOURCE's composer material (render_world 18 -> 19).
 Strict light gate: PASS, 139 rows in slack, 11 better, 0 red. Gates (60): all green except DMGUPLOAD (the Cub staging broke nothing; Deform's stage-robust row d4e497ecf rides train 56). Left out: GEOM-FIXES + CAREER-ON (rebased, train 55), t54-scenery (revert of the 'map' flip, train 55), DMG-LAZY (dropped by the user).
+
+## G3020-G3023 - SCENERY-ED-2: THE USER'S REV 28 SHIPPED (SHIP-2), THE SLIDERS' RANGES BY CENSUS, TREES TO THE STRIP (HELD)
+
+- **SHIP-2 (G3020, train 53 -> landed with t52-ab 13 Oct 23:00).** The user's rev 28 ("Jolene AFB (16)", sha c54089c9)
+  is the shipped record: `tools/fixtures/scenery_user_jolene_rev28.json` beside `scenery_ship_rev28.json` (the manifest:
+  removals the user made + A0's ship-only shoulders y_sh13_0/1, y_sh02_0/1 and fan x_fan02_0; kept ship-only s_vor_ann +
+  s_vor_ann_clear and the staged sg_; SEA's plot move; `fieldPatches` = SCENERY-ED-1's HOME hangar / stand / taxiOut /
+  taxiOut1 / plots and the three parked aeroplanes o3 / af_park1 / af_park2 moved onto t_pad). GATE SCENERYED 15 holds
+  shipped == save + the named patches; it compares an AREA by what it composes (`PG.areaEntries`, keys sorted).
+  Option A+C landed (A0's default, the user not answering by 17:00): w4 'strip 9' held back (except w4), and issues()
+  accepts a strip that ENDS on another (a T: one end inside the other's box, the other outside, > 20 deg - rev 28's 02/20
+  ends on 13/31). Trap kept in memory: an area grown in the editor folds back under its surface source's id (`~w`) -
+  rename the v1 sources (tw_t_valley, tw_m_parking).
+- **The sliders' ranges (G3019 (2), landed 13 Oct 23:00 as claude/t54-audit).** A census (the editor headless, every
+  slider row captured on every entry of the shipped record and rev 28: 64 rows) found 6 ranges missing a value in use: a
+  degree row shows an angle past its range wrapped (the record untouched), an ABSOLUTE level reaches 1500 m, a zone seed
+  starts at 0 (= auto), a runway's width reaches 300 m. Typed values pass any range (G3019 (1)).
+- **TREES TO THE STRIP (G3022 / G3023, train 54b).** 'map' made the default again (the core fallback AND the page's boot
+  snippet in build.js, which forced 'today' for anything but map / mapx - the core's default never reached the game).
+  GATE LINEUP went red at HOME under 'map' (the Cub's calm-air departure by 13's long left arm, 1591 m / 295 s; a wing
+  1.91 m from fence2) and a +-10/15/20 m clearing along HOME's taxi routes changed nothing. Read from the code: the
+  pilot's runway model scores each take-off direction's climb-out through the canopy over +-47.5 m past the far end, and
+  'map' lifts the approach FANS - including x_fan13_0, which the user KEPT in rev 28. The slot of 14 Oct 09:05 decides:
+  'mapx' as the default (boxes lifted, the user's fans standing) if LINEUP is green under it, else the flip reverted.
+
+### NAMED FOR TRAIN 55 (not done)
+1. **02/20's north end under the pond (with the user).** rev 28's 02/20 composes 28.51-28.57 m at 94-98 % along, the pond
+   at (241, 599) is at 28.65: water on the strip's edge 12-24 m off the centreline, the physics' water the same. GATE LOOKS
+   2 landed RED on 13 Oct by A0's call (the landing note). Fix: w2's profile end 0.3 -> ~0.6 (+0.25 m at the pond) as a
+   manifest fieldPatch + a rev28h import, gates LOOKS / LINEUP / TAXICLEAR / ROUTE in a slot.
+2. **w4 'strip 9' (held back).** Over the altiport law (33.7 % somewhere, a 14.2 % crest over 30 m): the profile tool
+   (RUNWAY-ED-PROFILE) or the law relaxed (option B, claude/t53-optB-law: 35 % / 15 %; GATE LINEUP's w4 rest height
+   -8 cm on its slope is owed with it).
+3. **The trees by the runways**, if the 09:05 read reverts the flip: the user's ruling ("trees cleared only on the strip")
+   still waits; the planner read's numbers say which obstacle and which clearing.
