@@ -109,6 +109,7 @@ const STAND_CARDS = (() => {
     // (TREE_LOD.impLevel: the same live map the measured sheets use). A dense block of crowns baked as one picture is not
     // its trees' mean picture; this is what makes it one. STAT.level / STAT.levelSrc say what it found.
     const lum = v => 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+    const CARD_SCREEN_K = 0.74;   // G3183: 1 / 1.35, measured on screen under the default look (see matchLevel)
     function matchLevel(P, atlas) {
       const LOD = (typeof TREE_LOD !== 'undefined') ? TREE_LOD : null;
       if (!sheetMean || !LOD || !LOD.impLevel || !atlas || !atlas.key) return;
@@ -116,7 +117,9 @@ const STAND_CARDS = (() => {
       let w = 0, y = 0, n = 0;
       for (const q of P.pool) { const m = sheetMean(q.key, 'rungs'); if (!m) continue; w += q.w; y += q.w * lum(m) * LOD.impLevel(q.key + '|rungs'); n++; }
       if (!n || !(w > 0)) { STAT.levelSrc = 'no species sheet'; return; }
-      const k = Math.max(0.25, Math.min(4, (y / w) / lum(card)));
+      // x CARD_SCREEN_K: the sheets match at 3.15 but ON SCREEN the card then drew 1.35x its impostors (cardmatch_probe, 13 Oct
+      // 02:50 + 03:07, the default look) - a block's baked normals face the sky more than a tree's: the light the sheet cannot see
+      const k = Math.max(0.25, Math.min(4, (y / w) / lum(card) * CARD_SCREEN_K));
       LOD.impLevel(atlas.key + '|' + (atlas.series || 'rungs'), k);
       STAT.level = +k.toFixed(3); STAT.levelSrc = n + ' species sheets, card luma ' + lum(card).toFixed(4) + ', theirs ' + (y / w).toFixed(4);
     }
