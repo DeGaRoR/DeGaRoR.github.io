@@ -85214,3 +85214,85 @@ aeroplane); physics and spec untouched (no bug was found there). New GATE EDBUGS
   the windscreen sees the centre tinted too;
 - tundra wheels look narrower (rounder) than before; weathering grime on a tundra wheel covers 0.50 R, not 0.58;
 - the Mosquito with 'whole cabin': two sill pieces per flank (one per cabin), the arceau bare between them.
+
+## G2760-G2769 - EDITOR-UX-A: THE GARAGE EDITOR'S BIG BUTTONS TAKE THEIR ROWS' SLOTS, ONE CLICK APPLIES, EVERYTHING OPEN; WINGS / TAIL / ENGINE / COWL / DRIVETRAIN REORDERED; THE FRAMES BASIC + EXPERT (2026-10-12, EDITOR-UX-A for A0, local; branch claude/editor-ux-a-g2760 on EDITOR-BUGS 075295430)
+
+The user's slider review of 10 Oct (D:/Dev/flydiy-notes/SLIDER-REVIEW-2026-10-10.md), the wings / tail / engine /
+exhaust / cowl / drivetrain half and the global rules, plus the FRAMES pick of 12 Oct (option 2 + bottom height,
+D:/Dev/flydiy-notes/FRAMES-PROPOSAL-2026-10.md). UI only: no src/core, no generator, no key and no default changed.
+
+- **One control per choice: a tile takes its row's slot** (`twin` in _cage_design.js, the editor's emit()). A tile
+  that IS a row is drawn where the row was, and the row stays parked. The tile shows and hides by the row's own
+  `when`s and inherited group rules, carries its changed dot, and relights by signature on every visibility pass
+  (design_flow `sync`). Twins:
+  - flaps, wing tips, wing position, bracing, second wing;
+  - the engine family (powertrain + layout), the mount + engine count, the wing engines' facing;
+  - suspension (the mains' leg), construction, fuselage style, booms, covering, body & deck.
+- **New part tiles, with drawings** (`slot: true`, never in the Custom-build grid):
+  - fin/rudder cut (uncut, hinge only, horn balance), keel extension, leading edge (dorsal fillet);
+  - stab/elevator cut; the stab's seat ('between the booms' shows only on twin booms, A0's ruling);
+  - the exhaust (none, stacks, collector, expansion);
+  - per station: fairing, leg fairing, steering; the tyre carcass.
+  - The two-station 'Wheel fairings' starter left the gear columns and stays in the grid.
+- **One click applies** (the user: "all buttons should work the same, click and apply, at once"): the starter's
+  arm ("will overwrite N tuned values - click again") is gone, and the undo pill stays.
+- **Cowl presets, one per engine type** (boxer = the validated Cessna's own cowl; in-line, V, electric drawn; radial
+  and turbine = COWL_BY_ARCH). The 'Cowl preset' tiles head the cowl. A click writes the fit mode and opens a door
+  (_cage_cowl.js `CAGE_COWL_PRESET_NEXT`): on the next build the shape is the preset's, the size the fitted engine's
+  (CAGE_COWL_FOR_ENGINE), and the drawn sizes are scaled by the front opening. The undo takes the whole panel. The
+  arch-change starter is untouched (boxers are still never restyled unasked). Keyed so a mount variant
+  ('flat@pusher') needs no other change.
+- **Every section open by default**; the user's own folds are still remembered. **'Build' hidden** (`hidden: true`).
+  **'Wing panels' merged into 'Wings'** (`layerHome`: a click on the wing lands on Wings).
+- **Fin and stab:** volume and root loops HIDDEN (a new group flag; values carried and saved). The macro size comes
+  straight after type, and the trunk's two points are renamed 'outline points' below it (`order`, `rename`). The
+  greyed empennage 'Twin boom' tile is deleted.
+- **Cowl** in the user's fitting order (type, size, section at the firewall, nose bowl, barrel, cheeks, inlets);
+  the firewall lip is EXPERT.
+- **Engine:** the 'pick a model (applies once)' list left the engine column (the engine row is that choice).
+- **Axis marks:** fore/aft, up/down, in/out arrows and length/width/height dimension lines before the labels
+  (data-ax, editor.css masks).
+- **THE FRAMES:** each frame has three basic rows (top height, waist half-width, bottom height). The rest is the
+  frame's EXPERT 'detail' group. The Cabin shows windscreen + cabin, and wsRun stays basic. Fuselage opens on
+  'roundness' (topRound, botRound); the two section angles are expert; the reference section stays basic.
+- **Gates:**
+  - GATE DESIGN 8 TWINS: a twin names a rendered row and can set it; a slot tile writes its row alone and offers
+    every value of the drop-down. Plus 3 negative cases.
+  - GATE PARTS 6b: a HIDDEN row is unreachable and no switch. With expert rows off, an EXPERT switch
+    (frPaxProfile, cw_fwLipOn) is reached by the expert pill; the expert pass still holds it to both traps.
+  - GATE CLOUD (A0's ask): the WORLD editor's cloud rows held by their labels with any host argument. The
+    scenery editor builds them into `P`, not `insp`; this was red on master (2 of 239).
+- **Gates run** (A0's CPU window, 12 Oct 23:14-23:21, cpu UXA, tree 1caa597db, build + --no-build --jobs 4):
+  - PASS (28): INPUT CLIMATE DEFAULT UISMOKE UISMOKE-PHONE ROLLANIM UILAYER MEDIA BUILD SKINMAT FRAMES KNIFE FIN
+    COWL JOIN SPECFIX STARTER SAVE GEAR PARTS DESIGN VIEW REF HONESTY HITBOX PROCURE ENERGY PANEL.
+  - The DESIGN selftest caught 25/25 and the PARTS selftest 19/19.
+  - CLOUD's 2 reds were master's, fixed after in eea09866c (static-checked against both trees).
+  - Log: reports/evidence/EDITOR-UX-A/g2760/.
+- **The look** (A0's GPU slot, Tue 13 Oct 02:05-02:08, gpu UXA, tools/_serve.js on 8697 over the main checkout,
+  read off the page with javascript_tool: no stills). Every part's column outline was read:
+  - The tiles stand in their rows' slots (fin, stab, wings, engine, exhaust, mains, third, wheels).
+  - Head tiles skip what a slot holds; no section is folded; 'Build' and 'Wing panels' are out of the tree.
+  - Each frame shows its 3 basic rows.
+  - A fin tile applies on ONE click and its undo restores it.
+  - The Radial and Boxer cowl presets size to the fitted engine, and their undo restores the whole panel bit-exact.
+  - No JS error. Three resource 404s were not attributed: the server logged none, and they are not the editor's.
+  - It turned up four follow-ups, fixed in ef8befd6f and checked live in the same slot: the stab's second
+    'position' heading, the engine's second 'fitted' heading, the mains' Suspension tile at the head of the third
+    wheel, and the frames' axis marks. These four are a group rename, a DESIGN_PART line and a regex; they did not
+    ride the CPU gate run.
+
+**What to watch for:**
+- **Drag cost in the garage:** applyVis now calls DESIGN_FLOW.sync() (a read per placed tile, rebuilt only when
+  its signature changed). Watch the strict garage rows. The root ('My Plane') column is now fully OPEN: hundreds
+  of rows displayed where most were folded; its layout cost on a drag is the one to measure if a garage row moves.
+- **The engine mount tiles write what they always wrote** (the cowl on/off, the rod, the aero nose) where the bare
+  drop-down wrote engMount alone. A builder changing the mount now gets the tile's side effects.
+- **The tiles stand in the root column too** (every twin row, everywhere): a column of buttons where there were
+  selects.
+- **A build saved with finSolid 0 / finRootGuard 0** (or the stab's) keeps it with no row to change it back (the
+  user's ruling). The same for a saved stMount 3 on a single boom: it lights and still loads.
+- **The cowl preset's undo restores the WHOLE panel** to the moment of the click.
+- **EDITOR-UX-B** (fuselage / nose / canopy / boom / under-fuselage) builds on the same mechanisms: `twin`, `order`,
+  `rename`, HIDDEN, `hidden`. The canopy, mirror and covering twins already exist here.
+
+READY for A0 (train 52): claude/editor-ux-a-g2760 (this entry rides the last commit; tip = the SHA in the READY message)
