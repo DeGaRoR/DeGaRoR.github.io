@@ -4032,8 +4032,9 @@ function make(THREE, scene, world, rec0, opts) {
     for (const p of O.pavePolys || []) if (PG.inPoly(p.poly, L[0], L[1])) { const f = featOf(p.id); if (f) return f; }
     for (const it of O.records.items) if (PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) return { id: it.site, layer: 'sites', entry: f.entry, item: it.item }; }
     // a hand-placed tree within two metres wins over the polygon under it
-    let tree = null, td = 2.5;
-    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft' || ob.kind === 'animal') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < td) { td = d; tree = ob; } }
+    // (G2891 c3: a parked aeroplane by its size - pickR)
+    let tree = null, td = Infinity;
+    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft' || ob.kind === 'animal') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < pickR(ob) && d < td) { td = d; tree = ob; } }
     if (tree) return { id: tree.id, layer: 'objects', entry: tree };
     const r = near || best;
     return r ? { id: r.entry.id, layer: r.layer, entry: r.entry } : null;
@@ -4047,8 +4048,10 @@ function make(THREE, scene, world, rec0, opts) {
     const F = O.frame, L = F.toLocal(x, z), out = [], seen = new Set();
     const put = (rank, d, h) => { if (h && !seen.has(h.id + '|' + (h.item || ''))) { seen.add(h.id + '|' + (h.item || '')); out.push([rank, d, h]); } };
     for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft' || ob.kind === 'animal') {
-      const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < 2.5 * Math.max(1, +ob.s || 1)) put(0, d, { id: ob.id, layer: 'objects', entry: ob }); }
+      const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < pickR(ob)) put(0, d, { id: ob.id, layer: 'objects', entry: ob }); }
     for (const it of O.records.items) if (it.foot && PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) put(1, 0, { id: it.site, layer: 'sites', entry: f.entry, item: it.item }); }
+    // (G2891 c1: a strip's club hangar or stand under the point - the strip, ranked with the site items)
+    { const gb = PG.runwayGrab ? PG.runwayGrab(rec, L[0], L[1]) : null; if (gb) { const f = PG.findById(rec, gb.id); if (f) put(1, gb.d, { id: gb.id, layer: 'runways', entry: f.entry, grab: gb.key }); } }
     for (const [id, e] of LINES) {
       if (id.endsWith(':sel')) continue;
       const en = e.entry;
@@ -4063,6 +4066,16 @@ function make(THREE, scene, world, rec0, opts) {
     out.sort((a, b) => (a[0] - b[0]) || (a[1] - b[1]));
     return out.map(q => Object.assign({ kind: ['object', 'site item', 'road', 'strip', 'polygon'][q[0]] }, q[2]));
   }
+  // G2891 (SCENERY-ED-1 c3): a placed object's pick radius - an aeroplane's from its drawn size (the group's bounding sphere,
+  // measured once and kept on the group), else the core's rule (PG.objectPickR: 2.5 m x its scale, 6 m for an aeroplane)
+  function pickR(ob) {
+    if (ob.kind !== 'aircraft' || !PG.objectPickR) return PG.objectPickR ? PG.objectPickR(ob) : 2.5 * Math.max(1, +ob.s || 1);
+    const h = HOUSES.get('ob:' + ob.id), g = h && h.grp;
+    if (g && g.userData.pickR === undefined) { try { const sp = new THREE.Box3().setFromObject(g).getBoundingSphere(new THREE.Sphere()); g.userData.pickR = isFinite(sp.radius) && sp.radius > 0 ? sp.radius : 0; } catch (e) { g.userData.pickR = 0; } }
+    return PG.objectPickR(ob, g ? g.userData.pickR : undefined);
+  }
+  // G2891 (c1): what a press at a WORLD point grabs of a strip's own things (the club hangar, the stand): { id, key } or null
+  function grabAt(x, z) { if (!PG.runwayGrab) return null; const L = O.frame.toLocal(x, z); return PG.runwayGrab(rec, L[0], L[1]); }
   // (v1.36) a composed entry's feature in the record: itself, or the AREA it expanded from (its id, or '<area>~d' and the like)
   function featOf(id) {
     const f = PG.findById(rec, id); if (f) return { id, layer: f.layer, entry: f.entry };
@@ -4097,7 +4110,7 @@ function make(THREE, scene, world, rec0, opts) {
   const R = {
     root, groups: G, stats,
     rebuild, rebuildSteps, preview, previewEnd, editEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
-    objectEdit, hitAll,
+    objectEdit, hitAll, grabAt,
     snapHint, relineEntry,
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,

@@ -92649,3 +92649,32 @@ Gates: green except SKINMAT, WEATHER (pre-existing on master; fixes ride train 5
 Strict gate, QUIET re-run 01:09-01:28 (the 00:15 run was spoiled by the user's session): 41b vs master 09683cb08 on the same box minutes apart: cub chase loop 18.9 vs 18.3 ms, render 13.1 vs 12.9, cockpit 19.0 vs 19.0, garage->world 11.3 vs 11.2 s: AT PAR.
 MASTER ITSELF moved vs train 50 (0b42f6826, 20:53): cub chase loop 16.5 -> 18.3 ms, render 11.8 -> 12.9, cockpit loop 16.4 -> 19.0: SCENERY-SHIP (rev27, landed 23:11 without its strict gate by the user's OK) costs ~+2 ms loop at HOME. Still 30 fps at the cap. Owed: find the cost (roads r1 / pavement / zones) - EDITOR-PERF / SCENERY-ED-2.
 What to watch for: nothing visible with damage off. ?damage=1 shows the crash layer (breaks, scars, debris).
+## G2891 - SCENERY-ED-1 (train 52): A STRIP'S CLUB HANGAR AND STAND TAKE A CLICK; A PARKED AEROPLANE IS PICKED BY ITS SIZE (2026-10-12, SCENERY-ED-1 for A0, local; branch claude/scenery-ed-t52-g2891 off master 09683cb08 = SHIP; c1 + c3 of the HOME inventory; c2 = G2892, train 53; G2893-G2899 unused)
+
+The user (12 Oct, reworking HOME's base zone): "there is a lot I can't displace". A0's inventory (this session, files
+only): around HOME every record polygon is clickable (the strip wins the first click, the pick cycle the next); what
+would not move is DERIVED - the strip's club hangar and stand (fields of the runway record, moved only by its discs once
+the strip is selected), the second hangar plot HOME.2 (no handle: c2), the taxi routes and the fleet's tie-down spots
+(TAXI, Wed), SCENERY LIFE (rules, not records: 'life here' per entry; a bake = backlog c4) - and five ship-only entries
+(the 13/31 and 02/20 gravel shoulders, 02/20's fan), handed to the user as ordinary areas in
+D:/Dev/flydiy-notes/inbox/jolene_rev27c_home_editable.json (rev27 + those five, ED-2's own migrator; README beside it).
+- **c1**: a press on a strip's club hangar (its footprint: HANGAR_DIMS round the door's heading, either way about) or its
+  stand (within 5 m) selects the strip and starts that handle's drag - PG.runwayGrab (core), R.grabAt (render_premises),
+  premises_ui grabStrip in onDown after the handle test, cmd 'grab'. A placed object under the press (a parked aeroplane
+  on the stand) is picked as before. hitAll lists the strip (with `grab`) among the site items, so the pick cycle names it.
+- **c3**: a parked aeroplane is picked by its size - PG.objectPickR: its drawn group's bounding radius x 0.85 (measured
+  once, kept on the group: pickR in render_premises), else 6 m x its scale; props, trees, signs, animals keep 2.5 m x
+  their scale. hit() and hitAll() read the one rule.
+Gates: GATE SCENERYED 23 (the hangar grabbed and moved, the stand grabbed and moved, nothing grabbed off the strip's
+things, a parked aeroplane on the stand not grabbed through, the round trip) + 24 (the rule, a click 4.5 m out on a wing
+picks the aeroplane, the renderer reads it) - 168 checks PASS (node, ~1 s); node --check on the four files.
+What to watch for: in the scenery editor at HOME, press on the WWII hangar and drag - it moves (the strip's inspector
+opens); press on a parked aeroplane's wing - the aeroplane is selected.
+- **(G2891, the same branch) THE SITES PALETTE'S CATEGORIES** (the user: "many categories of sites that the filters do not
+  cover"): the pills were the theme's seven (PG.CATEGORIES); the catalogue also carries 'airport xs / s / m' (19
+  entries: the pilot hut, the field sheds, the club hangars, the cab and regional towers, the terminal, technical
+  services, the seaplane float) - reachable only under 'all'. sitesPalette now adds every category the catalogue's
+  entries carry after the theme's (totem/park is covered: byCat files a park under landmark). GATE SCENERYED 25.
+  Also found, not changed: the asset placer offers assembly PARTS as models (car_conquer wheels / steering, the panel's
+  buttons / keys / knobs / switches, the Jodel airframe parts, the ALMA's three parts, the pier kit's pieces) - a pack
+  flag (`part: true`) for ASSETS-OCT, then the placer hides them (S, train 53); the feature list has no JUNCTIONS group.
