@@ -1,0 +1,9 @@
+cub {"D":4,"V":3,"thr":0,"secs":4} d4ecb12b0ecf
+cub {"D":6,"V":3,"thr":0.62,"secs":4} 9f6da0670abf
+cub {"D":40,"agl":4,"V":30,"thr":0,"secs":3} b736a22d5631
+jodel {"D":4,"V":3,"thr":0,"secs":4} 76b1d657e30e
+jodel {"D":6,"V":3,"thr":0.62,"secs":4} 225ba5f2f463
+jodel {"D":40,"agl":4,"V":30,"thr":0,"secs":3} 592e483dcce0
+metal {"D":4,"V":3,"thr":0,"secs":4} 0cb5d6a70904
+metal {"D":6,"V":3,"thr":0.62,"secs":4} 02bace7597bd
+metal {"D":40,"agl":4,"V":30,"thr":0,"secs":3} 682e0be5deb8

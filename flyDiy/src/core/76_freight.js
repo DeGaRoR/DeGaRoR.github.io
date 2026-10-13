@@ -205,14 +205,14 @@ function freightDoorPass(card, door, item) {
       continue;
     }
     for (let phi = 90; phi >= G.phi; phi -= G.phi) {
-      const sp = Math.sin(phi * rad), cp = Math.cos(phi * rad);
+      const sp = CORE_MATH.sin(phi * rad), cp = CORE_MATH.cos(phi * rad);
       for (let psi = 0; psi < 180; psi += (phi === 90 ? 180 : G.psi)) {
-        const ss = Math.sin(psi * rad), cs = Math.cos(psi * rad);
+        const ss = CORE_MATH.sin(psi * rad), cs = CORE_MATH.cos(psi * rad);
         const u = [cp * cs, cp * ss, sp];
         const e1 = [-ss, cs, 0];
         const e2 = [u[1] * e1[2] - u[2] * e1[1], u[2] * e1[0] - u[0] * e1[2], u[0] * e1[1] - u[1] * e1[0]];
         for (let rho = 0; rho < 180; rho += G.rho) {
-          const cr = Math.cos(rho * rad), sr = Math.sin(rho * rad);
+          const cr = CORE_MATH.cos(rho * rad), sr = CORE_MATH.sin(rho * rad);
           const a2x = cr * e1[0] + sr * e2[0], a2y = cr * e1[1] + sr * e2[1], a2z = cr * e1[2] + sr * e2[2];
           const a3x = -sr * e1[0] + cr * e2[0], a3y = -sr * e1[1] + cr * e2[1], a3z = -sr * e1[2] + cr * e2[2];
           // the slice in the door's plane: v = a - (a_z / u_z) u, its (x, y)

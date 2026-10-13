@@ -1,0 +1,35 @@
+  ok     every edited row really differs from the default aeroplane
+  ok     every edited row is a real parameter
+  ok     enough rows to be a real integrity test (20)
+  ok     the whole panel is under test (937 rows of 940)
+  ok     the save wrote a slot
+  ok     the SAVED FILE carries every edited row
+  ok     the WIP AUTOSAVE carries every edited row
+  ok     the EXPORTED FILE carries every edited row
+  ok     edit -> save -> load returns every edited row to the editor
+  ok     GARAGE_SPEC.json() reports the aeroplane on the stand, not the last one
+  ok     the SAVED FILE describes all 937 moved rows
+  ok     save -> load returns all 937 rows to the editor
+  ok     a row put BACK to its default is back in the SAVED FILE too
+  ok     save -> load of the aeroplane put home returns the DEFAULT for every row
+  ok     the file of an aeroplane put home IS the default aeroplane
+  ok     a side-by-side aeroplane with a central cowl opening saves as one (file says seatLayout 1, cw_apMode 1)
+  ok     the file describes ONE aeroplane — its derived half agrees with its own cage
+  ok     the file just saved describes ONE aeroplane — its derived half agrees with its own cage
+  ok     the autosave describes ONE aeroplane — its derived half agrees with its own cage
+  ok     save -> load -> save is a FIXED POINT over the whole spec
+  ok     the PLAQUE survives the round trip
+  ok     the LOGBOOK survives the round trip
+  ok     the registration, role and class survive the round trip
+  ok     the PAINT survives the round trip
+  ok     the per-section FINISH survives the round trip
+  ok     the fuel, cargo and systems survive the round trip
+  ok     the VESSELS survive the round trip (bay, capacity, station)
+  ok     the vessel SHAPE and the tank’s finish, hue and tint survive it too
+  ok     it asks the editor before writing the build down: const saveAs = name =>
+  ok     it asks the editor before writing the build down: function exportFile()
+  ok     it asks the editor before writing the build down: json: ()
+  20 targeted rows, 937 panel rows moved and put back, the whole envelope as a fixed point, 3 persist doors
+GATE SAVE: PASS
+
+[exit 0 1 s]

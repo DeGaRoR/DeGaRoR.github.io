@@ -85,6 +85,13 @@ const SERVO_GAINS = {
   // G1937: THE STEP-ATTITUDE HOLD (servoStepHold): de = stepDe0 + stepK (stepTrim - trim) - stepD trim-rate, trim in
   // deg, from stepV (m/s) on the step - DAMP's GATE FLOATS script law, owned here as a technique the gates call
   stepDe0: 0.2, stepK: 0.04, stepD: 0.01, stepTrim: 6, stepV: 9,
+  // G1880 (DMG-FLOATTO): THE PORPOISE DAMPED BY BOTH HANDS (S.porpoise, 43's FEATURE porpoise). On a water take-off, an
+  // aeroplane whose thrust couple at full power is a lever of more than porpLever (m: THRUST_ARM x T_static / W, how far
+  // forward full power moves its CG in effect) damps its pitch with the power and the stick. The throttle's ceiling:
+  // 1 - porpKq x the nose-down rate (deg/s) - porpKth x the degrees under porpTh0, never under porpMin, followed by
+  // the hand in porpS (s). The stick, while a float is wet above porpDeV (m/s): forward by porpDeQ per deg/s of
+  // nose-up rate, to deMin at most
+  porpLever: 0.10, porpKq: 0.015, porpKth: 0.05, porpTh0: -2, porpMin: 0.3, porpS: 0.1, porpDeQ: 0.02, porpDeV: 6,
   // G1949 (PILOT-ONE-2): THE PITCH LIMIT CYCLE (S.holdPitch): in the air, an elevator swing of oscAmp or more between
   // two reversals at most oscHalf s apart scores one; the score decays over oscWin s; at oscN the pitch gains step
   // down by oscStep (oscKMin at least) and the score restarts
@@ -99,7 +106,7 @@ const SERVO_GAINS = {
 // key in def.params.ap still wins. G1940: the classic (40) and test (41) rows
 // retired with their pilots - every gate flies 43 and its row.
 const SERVO_TUNE = {
-  pilot: {},       // 43_pilot.js — THE pilot: every flying gate (GEN, FLEX, STRESS, FLAPS, GE, HOTHIGH, PILOT, TAKEOFF, ...)
+  pilot: { waterStepK: 0.6 },  // 43_pilot.js — THE pilot: every flying gate (GEN, FLEX, STRESS, FLAPS, GE, HOTHIGH, PILOT, TAKEOFF, ...); waterStepK: G1888 DMG-DAMP (makeServos' steering)
 };
 
 function servoWrapPi(a) { return a - 2 * Math.PI * Math.round(a / (2 * Math.PI)); }
@@ -117,7 +124,7 @@ function servoCrossWind(out, F) {
 //   trike        the nosewheel steers (the G630 trike schedule)
 //   rotateTD     a taildragger that lifts its tail (the tail-up steer arms)
 //   TW           { Lwb, steer } the follower's geometry (the trike's bandwidth cap)
-//   features     { trimCalm, groundP1D, xwBank, water, deTop } — 43's own laws
+//   features     { trimCalm, groundP1D, xwBank, water, deTop, porpoise } — 43's own laws
 function makeServos(sim, def, opts) {
   opts = opts || {};
   const A = (def && def.params && def.params.ap) || {};
@@ -139,7 +146,7 @@ function makeServos(sim, def, opts) {
     // the servos' memory a phase may set
     thCA: 0, phCA: 0, vsF: 0, thcI: 0.06, Ith: 0, It: 0, thrC: 0.6,
     IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0, oscK: 1, oscScore: 0,
-    eTrim: 0, aDe: 0, aDa: 0, aDr: 0, tailUp: false,
+    eTrim: 0, aDe: 0, aDa: 0, aDr: 0, tailUp: false, thrCap: 1,
     dcI: 0, dcT: -1, taxiI: 0, taxiLastT: -1e9, taxiHdgF: null, taxiHdgT: -1e9,
   };
   let init = false, thF = 0, phF = 0, thP = 0, phP = 0, eP = 0, eAP = 0;
@@ -203,6 +210,31 @@ function makeServos(sim, def, opts) {
   };
 
   // ---- pitch ----------------------------------------------------------------
+  // G1880 (DMG-FLOATTO): THE PORPOISE DAMPED BY BOTH HANDS - a high thrust line's water take-off (43's FEATURE
+  // porpoise). With DMG-DAMP's honest damper (G1885) the user's twin on floats (two 582s 0.54 m over the CG, T/W 0.51:
+  // a lever of 0.27 m) nosed over at 2, 2.5, 4.5 and 5 m/s across. Traced (HANDOVER G1880-G1882): past PILOT-ONE-2's
+  // power ramp the plough is passed nose-up, and with the sea flattened every crosswind run is the calm one - the
+  // failures are THE CHOP the wind raises on the lane (0.07 m crest to trough at 2 m/s, 0.18 m at 5, beam-on) driving
+  // a porpoise on the step that the hull no longer damps: it grows until the water throws the hull out below Vs, where
+  // the thrust couple (~1.3 kN m at full power) beats the elevator, and the bow goes in. An instrument pitch damper of
+  // 2 /s (roll or yaw: nothing) keeps it bounded at 5 m/s; this is the pilot's: the power comes off as the nose falls
+  // (the couple is nose-down: less of it is nose-up), the stick goes forward as it rises (aft stick and less power were
+  // both measured to grow it - the twin's is upper-limit porpoising, its trim already high). `armed`: the pilot's water
+  // take-off (ROLL / LIFTOFF on floats); `lever`: the aeroplane's THRUST_ARM x T_static / W (m), against porpLever - an
+  // aeroplane whose thrust line runs through its CG (the Cessna on floats: 0.003 m) never arms. Moves c.thr and c.de
+  // (after the laws that set them); returns the throttle's ceiling (1 when not armed: the base's controls to the bit)
+  // (its gains read once: the per-aeroplane keys and the pilot's row do not change in flight)
+  const PP = FT.porpoise ? { lever: g('porpLever'), kq: g('porpKq'), kth: g('porpKth'), th0: g('porpTh0'), min: g('porpMin'),
+                             s: g('porpS'), deq: g('porpDeQ'), dev: g('porpDeV') } : null;
+  S.porpoise = (armed, lever) => {
+    if (PP === null || !armed || !(lever > PP.lever)) { S.thrCap = 1; return 1; }
+    const thD = S.th * 57.29577951308232, qD = S.q * 57.29577951308232;
+    const want = Math.max(PP.min, 1 - PP.kq * Math.max(0, -qD) - PP.kth * Math.max(0, PP.th0 - thD));
+    S.thrCap += Math.min(1, S.dt / PP.s) * (want - S.thrCap);
+    if (S.thrCap < 1) c.thr = Math.min(c.thr, S.thrCap);
+    if (S.onG > 0 && S.V > PP.dev) c.de = Math.max(G.deMin, c.de - PP.deq * Math.max(0, qD));
+    return S.thrCap;
+  };
   S.holdPitch = (thC) => {
     const dt = S.dt, th = S.th;
     if (!holdWas) S.thCA = th;                // (re-)engage from the current attitude
@@ -456,8 +488,13 @@ function makeServos(sim, def, opts) {
       tailUp = rotateTD && onG <= 2 && thRest !== null && (thRest - th) > 0.04;
       drMax = tailUp ? G.drTailUp : G.drTailDown;
     }
-    const [kP0, kD] = S.steerK(tailUp);
-    const kP = (onWater && tailUp) ? kP0 * g('waterStepK') : kP0;   // G1937: DAMP's water-step entry (1 = unchanged)
+    // G1888 (DMG-DAMP): ON THE STEP THE HEADING GAIN IS 0.6 OF THE TAIL-UP ONE (waterStepK, 43's row). The air rudder
+    // alone holds the run there (the water rudder is up), and the loop's P was sized while the solver's deformation
+    // damper still damped rigid yaw at 0.5 /s (the independent review's D1, fixed G1885): without it the ultralight on
+    // floats weaved stop-to-stop on the step, -5 -> +18 -> -35 deg at a 4.5 s period in a 3.5 m/s crosswind (GATE
+    // SEAPLANE's run, traced). 0.6: 11.5 deg there; 0.5 and 0.6 measured alike over 2.5-3.75 m/s. The rate term is
+    // unchanged (x1.5 and x2 of it did not damp the weave). Water only: a wheeled roll is bit-identical.
+    const [kP0, kD] = S.steerK(tailUp), kP = onWater && tailUp ? kP0 * g('waterStepK') : kP0;
     c.dr = clamp(-kP * e - kD * S.eR, -drMax, drMax);
     if (FT.xwBank && F) {
       // AILERON INTO THE WIND (2026-09-08, 43): a bank bias the level-wing
@@ -465,7 +502,12 @@ function makeServos(sim, def, opts) {
       const wX = -(o.windX || 0) * F.uz + (o.windZ || 0) * F.ux;
       const vRef = trike ? g('VSteer') : g('VTailUp');
       let phW = g('xwBank') * wX * clamp(vRef / Math.max(V, 6), 0.4, 1.6);
-      if (!onWater && onG >= (trike ? 3 : 1)) phW = clamp(phW, -g('xwBankGround'), g('xwBankGround'));
+      // G1881 (DMG-FLOATTO): ...AND AFLOAT TOO. The water had no bound: xwBank x the wind x (vRef / V) asked the user's
+      // twin on floats for 17-27 deg of bank at 5 m/s across, so the aileron sat on its stop the whole run and, as the
+      // speed built, rolled the floats onto their windward chines (the roll -9 <-> +7.5 deg, the floats' loads
+      // swapping 0.03 / 0.45 W); with the thrust couple below that was the porpoise that grew into the skip. Afloat
+      // the bank is the floats' business, as on the wheels: the same bound
+      if (onWater ? onG > 0 : onG >= (trike ? 3 : 1)) phW = clamp(phW, -g('xwBankGround'), g('xwBankGround'));
       c.da = S.groundAil(phW, G.gAilRoll);
     } else c.da = S.groundAil(0, G.gAilTaxi);
     S.tailUp = tailUp;

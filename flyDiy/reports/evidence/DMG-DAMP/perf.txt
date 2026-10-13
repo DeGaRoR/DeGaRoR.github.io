@@ -1,0 +1,4 @@
+cub ground | base 3.90716 | this core, old formula 3.990548 (2.13 %) | this core 3.934415 (0.70 % vs base, -1.41 % vs the old formula on this core)
+cub air | base 3.685503 | this core, old formula 3.736122 (1.37 %) | this core 3.64866 (-1.00 % vs base, -2.34 % vs the old formula on this core)
+metal ground | base 6.575205 | this core, old formula 6.586582 (0.17 %) | this core 6.610869 (0.54 % vs base, 0.37 % vs the old formula on this core)
+metal air | base 6.351069 | this core, old formula 6.366198 (0.24 %) | this core 6.477729 (1.99 % vs base, 1.75 % vs the old formula on this core)

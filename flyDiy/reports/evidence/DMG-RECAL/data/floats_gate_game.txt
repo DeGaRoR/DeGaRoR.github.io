@@ -1,0 +1,42 @@
+BUILD
+   127 nodes, 519 beams, gross 486.3 kg; floats: L 4.60 m, beam 0.64 m, scale 1.000, 27.2 kg each, the pair displaces 1448 kg to the deck (2.98 x gross); step at x 1.22, keel y -0.46, track 1.60 m; substeps 105
+PASS two floats, two rigid clusters of 15 nodes (five stations, G451)
+PASS the step keels are the mains' refs, no third wheel
+PASS the pair displaces 2.98 x the gross (bound 1.5; the rule is 1.8)
+PASS the sea at (0, 1600): level 0, bed -44.5 m
+
+SETTLE (dropped from 0.3 m, throttle 0)
+   at rest: L/W 1.000, draft at the step 0.266 m, trim 2.94 deg, roll 0.00 deg (max 0.01 through the drop), max beam strain 0.0030
+PASS the settle stays finite
+PASS the water carries the weight: L/W 1.000 (bound +-3 %)
+PASS draft at the step 0.266 m (bound 0.15-0.40)
+PASS trim 2.94 deg nose-up at rest (bound 0.5-10)
+PASS level in roll: 0.00 deg at rest, 0.01 max
+PASS the frame's max strain 0.0030 (bound 0.06)
+
+TAKEOFF (full throttle from rest, stick back, the planing attitude held from 9 m/s)
+   hump R/W 0.211 at 13.3 m/s; steps ventilated to 1.00 before lift-off; airborne at 8.7 s, 26.3 m/s; max roll 0.01 deg
+PASS the take-off stays finite
+PASS a hump of R/W 0.211 at 13.3 m/s (bound 0.10-0.45, under 14 m/s)
+PASS on the step: R/W 0.208 at most (at 16.5 m/s; bound 0.35), the trim between 1.1 and 8.0 deg (bound -1..12)
+PASS the steps ventilate before lift-off (1.00)
+PASS airborne inside 30 s (8.7 s)
+PASS roll under 5 deg through the run (0.01)
+
+LANDING (trimmed approach at 1.3 Vs, quarter throttle, 1 m/s down; throttle to idle at the touch)
+   Vs 16.6 -> approach 21.5 m/s; elevator 0.189 trims -1.02 m/s down
+   touch at 24.45 s, sinking 0.95 m/s; the water's lift frame by frame: 0.01 0.09 0.24 0.38 0.54 0.67 0.77 0.85 0.90 0.90 ... first peak 0.899 W after 10 frames; largest one-frame change 0.163 W; peak 0.899 W (the first contact); 20 s on: V 3.0 m/s
+   skips after the touch (the stick held at the approach's, throttle 0.1): 4
+     re-touch 1 at 28.67 s: 19.5 m/s, sinking 1.83 m/s, trim 3.4 deg; one-frame 0.788 W, peak 1.764 W
+     re-touch 2 at 31.12 s: 17.3 m/s, sinking 2.24 m/s, trim 1.8 deg; one-frame 1.656 W, peak 2.597 W
+     re-touch 3 at 32.90 s: 15.2 m/s, sinking 1.76 m/s, trim 1.8 deg; one-frame 1.021 W, peak 2.030 W
+     re-touch 4 at 33.92 s: 13.3 m/s, sinking 0.95 m/s, trim 24.5 deg; one-frame 0.409 W, peak 1.686 W
+OWED the hands-off arrival skips 4 time(s) and 4 re-touch(es) pass the touchdown's bounds (worst: 1.656 W in a frame, 2.597 W) - a fast (1.3 Vs) touch with no pilot: the landing is not flown after the touch (HANDOVER G2030-G2034, FLOATS)
+PASS the landing stays finite
+PASS the touch at 0.95 m/s down (bound 0.35-1.6)
+PASS the water's lift climbs over 10 frames to its first peak (bound 3)
+PASS no frame adds more than 0.163 W (bound 0.35)
+PASS the touchdown peaks at 0.899 W (bound 2)
+PASS an idle taxi 20 s after the touch: 3.0 m/s (bound 5)
+
+GATE FLOATS: PASS

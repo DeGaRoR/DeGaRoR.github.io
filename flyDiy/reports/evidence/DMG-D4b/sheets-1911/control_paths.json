@@ -1,0 +1,9227 @@
+{
+ "at": "2026-10-06T17:15:00.350Z",
+ "paths": {
+  "place": {
+   "path": "place",
+   "crash": {
+    "broken": 137,
+    "worker": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "why": {
+     "hits": 0,
+     "t": 20.46666666668564,
+     "held": false,
+     "world": true
+    }
+   },
+   "exercised": true,
+   "wreck": {
+    "active": true,
+    "bodies": 10,
+    "gone": [
+     "cowl:crushed",
+     "cowl:crushed",
+     "wheel:off",
+     "wheel:off",
+     "wheel:off",
+     "pane:off",
+     "pane:off",
+     "pane:crushed",
+     "pane:crushed",
+     "pane:crushed"
+    ],
+    "debris": 10,
+    "parts": 4,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 113,
+    "broken": 137,
+    "t": 20.47,
+    "garage": false
+   },
+   "rollIn": "ok",
+   "shed": true,
+   "from": "w2",
+   "set": "w2",
+   "rollOut": "bGo",
+   "world": true,
+   "after": {
+    "active": false,
+    "bodies": 0,
+    "gone": [],
+    "debris": 0,
+    "parts": 7,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 0,
+    "broken": 0,
+    "t": 0,
+    "garage": false
+   },
+   "giant": {
+    "meshes": [
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 3200,
+      "big": 3200,
+      "worst": 26.06,
+      "kind": "static",
+      "material": "MeshStandardMaterial #ffffff"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 2208,
+      "big": 2208,
+      "worst": 110.76,
+      "kind": "static",
+      "material": "ShaderMaterial"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 1216,
+      "big": 1216,
+      "worst": 149.6,
+      "kind": "static",
+      "material": "ShaderMaterial"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < prop:airframe_jodel_wing < prop:airframe_jodel_wing < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 35340,
+      "big": 80,
+      "worst": 2.81,
+      "kind": "static",
+      "material": "matlib:arr #ffffff"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < prop:rug_persian < prop:rug_persian < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 1100,
+      "big": 54,
+      "worst": 3.12,
+      "kind": "static",
+      "material": "matlib:arr #ffffff"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 48,
+      "big": 24,
+      "worst": 5.24,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 5.01,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 5.06,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 5.01,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 5.06,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 4.78,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 4.85,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 4.78,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 4.85,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 4.78,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 4.85,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     }
+    ]
+   },
+   "old": {
+    "sameModel": true,
+    "inScene": true,
+    "scene": "hangar",
+    "visible": true,
+    "meshes": 74,
+    "tris": 344675,
+    "big": 0
+   },
+   "snap": {
+    "snapTris": 147102,
+    "snapBig": 0,
+    "meshes": 33,
+    "meshesBig": 0,
+    "bigNotModel": [],
+    "bigInModel": 0
+   },
+   "scene": [
+    {
+     "scene": "world",
+     "path": "/Group",
+     "uuid": "3a475d47-ec84-4273-b6ce-46715d3ec768",
+     "visible": true,
+     "tris": 824210,
+     "big": 10806,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group/Group",
+     "uuid": "361d8a4b-9eb8-4b6a-a4be-4ab2b581f017",
+     "visible": true,
+     "tris": 824210,
+     "big": 10806,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group/Group",
+     "uuid": "3df157a6-120a-44e7-aca0-29e44e310f2b",
+     "visible": true,
+     "tris": 397423,
+     "big": 64,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group/Group/Mesh",
+     "uuid": "1863d31a-09c8-41f7-ab72-395feae25061",
+     "visible": true,
+     "tris": 76128,
+     "big": 64,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group/Group/cageLayer:crew",
+     "uuid": "b1eab0b5-bb7e-4ffb-9e67-45ecaa264aca",
+     "visible": true,
+     "tris": 137273,
+     "big": 0,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group/Group/cageLayer:cowl",
+     "uuid": "948d8ad0-b1d6-4ca2-87fd-5cbfc7e3343e",
+     "visible": true,
+     "tris": 14206,
+     "big": 0,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group/Group/cageLayer:eng",
+     "uuid": "c3bddaa8-f7a9-4c98-9dee-9851a7fbbfc4",
+     "visible": true,
+     "tris": 44260,
+     "big": 0,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group/Group/cageLayer:wing",
+     "uuid": "e39a264c-3430-462a-af19-bb4f81a0352c",
+     "visible": true,
+     "tris": 29084,
+     "big": 0,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group/Group/cageLayer:gear",
+     "uuid": "10bb3768-d90e-448d-b21d-219d8e9e0edc",
+     "visible": true,
+     "tris": 34808,
+     "big": 0,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group/Group/cageLayer:fin",
+     "uuid": "f8b8d102-a3d1-4953-86a3-35bd40a27617",
+     "visible": true,
+     "tris": 4380,
+     "big": 0,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group/Group/cageLayer:stab",
+     "uuid": "5bd5010e-c4a8-4bae-bae3-a24e85eb7cc2",
+     "visible": true,
+     "tris": 6440,
+     "big": 0,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group/Group/cageLayer:access",
+     "uuid": "23ce1f65-eca3-4b88-a16d-533270d4768f",
+     "visible": true,
+     "tris": 8610,
+     "big": 0,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group/Group/cageLayer:light",
+     "uuid": "c02e8b86-b627-4704-a255-9c1d5addf8fd",
+     "visible": true,
+     "tris": 7310,
+     "big": 0,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group/Group/cageLayer:energy",
+     "uuid": "ddd4bb25-fbb0-463b-9388-0f288f0dba6e",
+     "visible": true,
+     "tris": 2244,
+     "big": 0,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group/Group/cageLayer:hinge",
+     "uuid": "d9ddd1c0-6106-4400-b496-6b525947e980",
+     "visible": true,
+     "tris": 32680,
+     "big": 0,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group",
+     "uuid": "90bf6713-7ddd-4d53-8924-40f8b82d8fe5",
+     "visible": true,
+     "tris": 344675,
+     "big": 0,
+     "isModel": false
+    },
+    {
+     "scene": "world",
+     "path": "/Group/Group",
+     "uuid": "64466ad6-7e89-45be-93f9-ee98dd9c561a",
+     "visible": true,
+     "tris": 344675,
+     "big": 0,
+     "isModel": true
+    }
+   ],
+   "survivors": [
+    {
+     "newUuid": false,
+     "scene": "world",
+     "path": "/Group",
+     "uuid": "3a475d47-ec84-4273-b6ce-46715d3ec768",
+     "visible": true,
+     "tris": 824210,
+     "big": 10806,
+     "isModel": false
+    },
+    {
+     "newUuid": false,
+     "scene": "world",
+     "path": "/Group/Group",
+     "uuid": "361d8a4b-9eb8-4b6a-a4be-4ab2b581f017",
+     "visible": true,
+     "tris": 824210,
+     "big": 10806,
+     "isModel": false
+    },
+    {
+     "newUuid": false,
+     "scene": "world",
+     "path": "/Group/Group",
+     "uuid": "3df157a6-120a-44e7-aca0-29e44e310f2b",
+     "visible": true,
+     "tris": 397423,
+     "big": 64,
+     "isModel": false
+    },
+    {
+     "newUuid": false,
+     "scene": "world",
+     "path": "/Group/Group/Mesh",
+     "uuid": "1863d31a-09c8-41f7-ab72-395feae25061",
+     "visible": true,
+     "tris": 76128,
+     "big": 64,
+     "isModel": false
+    }
+   ],
+   "ok": true,
+   "shots": [
+    "C:\\Users\\denis\\AppData\\Local\\Temp\\claude\\D--Dev-DeGaRoR-github-io\\b3479e2b-6a03-45d0-af42-4316285bb123\\scratchpad\\c_paths\\path_place_after_1.png",
+    "C:\\Users\\denis\\AppData\\Local\\Temp\\claude\\D--Dev-DeGaRoR-github-io\\b3479e2b-6a03-45d0-af42-4316285bb123\\scratchpad\\c_paths\\path_place_after_2.png"
+   ]
+  }
+ },
+ "fresh": [
+  {
+   "scene": "world",
+   "path": "/PerspectiveCamera",
+   "uuid": "f34db889-a016-46ce-a2e9-8f4e29a8c5d0",
+   "visible": true,
+   "tris": 1216,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/PerspectiveCamera/Mesh",
+   "uuid": "77dad235-9a9e-4a69-9ab8-1770d228b958",
+   "visible": true,
+   "tris": 1216,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/cloudComposite",
+   "uuid": "2dfa5eb1-018f-4972-99c7-1db8449326c6",
+   "visible": true,
+   "tris": 2,
+   "big": 2,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "b36ecfa7-0652-40ec-9e42-24a934de85d0",
+   "visible": true,
+   "tris": 524288,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "9f524e51-a4f4-4519-bd5c-183899c0a34c",
+   "visible": true,
+   "tris": 182016,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "ab3ebc5f-c6a8-4d2c-9a34-5b9fcc141655",
+   "visible": true,
+   "tris": 133632,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "66086432-2c13-4e3b-a707-7a4e3b6048f8",
+   "visible": true,
+   "tris": 264960,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "4bde32d2-46ee-4d31-99bc-db88101e6933",
+   "visible": true,
+   "tris": 493056,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "e1160e51-004e-4ec4-a605-ade46b707520",
+   "visible": true,
+   "tris": 2304,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "4bb7b632-8752-471c-aceb-7303551f03ab",
+   "visible": true,
+   "tris": 2304,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "f9f7f3e7-5b98-4f54-86de-8f6ef8947808",
+   "visible": true,
+   "tris": 313344,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "0cf33103-64c0-4866-9241-8ee932ca51b4",
+   "visible": true,
+   "tris": 2304,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c605272f-cc31-41a9-86a3-1120d50a904f",
+   "visible": true,
+   "tris": 105984,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "863e6dbb-2fca-4b85-9a55-ff952f65ad28",
+   "visible": true,
+   "tris": 1057536,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "0c50164b-e0ed-4926-a960-aee0b168fdaa",
+   "visible": true,
+   "tris": 62208,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "11adedea-1fa9-4cf8-bdec-0a936718802a",
+   "visible": true,
+   "tris": 322560,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "0e8f13dc-9c45-42ec-8dcf-e298a6f5d9be",
+   "visible": true,
+   "tris": 617472,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "a693ce8f-fc5d-4987-bd8e-0ed43eb3b64d",
+   "visible": true,
+   "tris": 2304,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "b8be2e14-7fa2-45f4-b252-d16cf3baf038",
+   "visible": true,
+   "tris": 64512,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "a919a403-de79-4e15-9736-eae6bee25802",
+   "visible": true,
+   "tris": 2304,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "219c1cf0-7ca0-4a8a-a957-c0aa26498e65",
+   "visible": true,
+   "tris": 15488,
+   "big": 15488,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "bce63a27-d446-48b2-966a-f2ed214572c4",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "d89fc771-0d88-4c40-b991-0fe38df262d7",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "d15355b7-f1f7-41a7-8f1b-6455ff14afa8",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "77e2f5f9-4f27-40d1-9c5e-b51c0a899923",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "afc0d094-6076-40f6-b545-a2b919bfc1f5",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c4c11f19-afba-46d4-9804-fd9f1b4f1073",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "257d90c0-d42d-4cbf-beef-066e90cdbae7",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "a064285a-c9f9-4035-87be-ad2ba16748eb",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "e44537d4-35dc-47b7-8905-11d11d45a57d",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "350b2b0e-c5a6-4e21-90af-5faeedbb2366",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "7affa25f-7145-4f03-80d4-27e031c4c424",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "cbf64665-777d-4828-8372-c0ed11c69a09",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "df7297bc-f42b-4bac-95e0-d49e021123ec",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "0939397c-aba5-4705-ab0e-cb0f8290dfd3",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "e884194e-a7fa-423c-abab-6901e2718a79",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "b0b1876d-7c6d-40fd-b30a-eab7a8ea05ec",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "5bbd54b9-cb09-4e72-90f7-d726fe2b8a9a",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "a58f62fc-e22d-4562-ad33-e152443837e2",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "0d51a69c-90b4-44dd-ac05-7eb7a0cfbc1e",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c1a2b3ae-c4ec-47df-8e93-dc8f39558e8d",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "50653f35-696d-4c84-a4c9-deb71317e66d",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "23b07ec7-32c8-4550-9753-3af77fb7a3bf",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "16579f9b-85f0-429b-8048-65744b9fad9b",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "97831bc6-0e28-4e00-b60b-566e99255c8b",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "d3aff433-188c-4483-b3cf-7c6e69193b19",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "5c7757f0-1239-4fa4-8abb-49fe36cb86d3",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "9929c436-01a8-42b6-bfb2-6c31fe532d74",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "e5fb1ec3-8d3b-494f-b02f-387770c2766e",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "19e2e45e-68d9-40fa-bced-1d9e40f559f7",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "f21ac91b-80ab-4683-acb1-cbec280df2aa",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "8fc68aa5-f225-4e4f-9a84-cc614d26f4d9",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "e6d3b742-022b-4f4c-a842-ef9d3bc606d7",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "f08e9eb7-b568-4252-bb8a-a612a85d069b",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "32df7802-098a-4079-add2-70de1dca9b61",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "445c27a8-5604-4957-a31b-14ce4a70b98f",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "d6bd7caf-986e-4559-a3ee-ad9d7906de92",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "b8db6007-7a7f-4cb1-80bc-e62ec2194524",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "23a5e7f4-d2ba-49ef-b62f-2e8d507aa023",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "e46bc53b-60ba-496f-820a-a4607bd03c01",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "83f46ea2-edea-44df-b9a2-20f6469b8eaf",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "f6fd76fc-c7bb-49b0-a7bf-02b84f726ba3",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "70be445f-2159-4e53-bbe6-aabc3e3ce8b7",
+   "visible": true,
+   "tris": 168,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/lakes",
+   "uuid": "0583a96d-cfa6-42eb-9af1-4e23dee49dce",
+   "visible": true,
+   "tris": 504,
+   "big": 504,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "b32e2dde-f8bf-4655-b717-64db55e45c80",
+   "visible": true,
+   "tris": 7044,
+   "big": 7044,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs",
+   "uuid": "0f653f7a-422c-4925-909e-11334622d752",
+   "visible": true,
+   "tris": 129004,
+   "big": 342,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "2f5e793f-e930-4939-9d42-c071389d44a5",
+   "visible": true,
+   "tris": 3392,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "16859bbe-16b8-49fd-a338-a3b39931d5c1",
+   "visible": true,
+   "tris": 14,
+   "big": 14,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "732f8b15-8325-4d2b-85f9-bed308f1d06d",
+   "visible": true,
+   "tris": 6711,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "616d1b1d-d4ba-4335-855b-37c91924a07d",
+   "visible": true,
+   "tris": 14,
+   "big": 14,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "87bb7eb9-c7a5-4925-954c-0b2803afb9de",
+   "visible": true,
+   "tris": 6096,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "e0bc5990-282f-402f-9d97-e30ef29a584a",
+   "visible": true,
+   "tris": 14,
+   "big": 14,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "0ab9563d-012e-421b-aa0d-2b52a348183a",
+   "visible": true,
+   "tris": 3336,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "c9c869ae-868f-46bd-88b5-4026eca65a14",
+   "visible": true,
+   "tris": 14,
+   "big": 14,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "b8329b1e-6c52-4271-8e0d-d1b3911d0d0c",
+   "visible": true,
+   "tris": 5602,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "fdb3f97f-199c-4bab-a203-152e5ee7cc8d",
+   "visible": true,
+   "tris": 14,
+   "big": 14,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "d90d13ca-e86f-4444-86ad-09676dfc920e",
+   "visible": true,
+   "tris": 13861,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "544e11c3-95d2-45eb-a227-b9defc61e169",
+   "visible": true,
+   "tris": 14,
+   "big": 14,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "8ff41183-536f-45e8-b7c4-7a2d0b5d3313",
+   "visible": true,
+   "tris": 6656,
+   "big": 20,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "eb6823ee-b44e-4aa8-86e6-f232114d1326",
+   "visible": true,
+   "tris": 1088,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "1be7983f-a48e-4d92-b8b8-cbe00298f2f9",
+   "visible": true,
+   "tris": 14,
+   "big": 14,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "576328f8-0b19-4b0b-8085-63c044d1262f",
+   "visible": true,
+   "tris": 1492,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "41ac3390-0198-44be-add8-408d5e5cdfcf",
+   "visible": true,
+   "tris": 604,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "9d1b2d0d-f20b-43f9-a763-051f40320520",
+   "visible": true,
+   "tris": 15435,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "9703f9ec-44ff-456c-bbc1-05d4ada373c4",
+   "visible": true,
+   "tris": 14,
+   "big": 14,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "1ab1d16a-2551-4416-ae8d-cd2dec5137a2",
+   "visible": true,
+   "tris": 5260,
+   "big": 72,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "f35eaff1-a4e0-4d24-b45d-34a9b8410f10",
+   "visible": true,
+   "tris": 3392,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "77681c2c-29be-4028-af17-ff2ff773f9d2",
+   "visible": true,
+   "tris": 14,
+   "big": 14,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "123ee68f-82ee-4193-9875-690cf1b21a38",
+   "visible": true,
+   "tris": 5490,
+   "big": 34,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "4d1def03-6795-4db1-94c9-e0033b7a8996",
+   "visible": true,
+   "tris": 6096,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "382a8b78-a524-49cf-aba7-ea1ae9d1c3b5",
+   "visible": true,
+   "tris": 14,
+   "big": 14,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "c21d346f-8d22-4217-a96a-d704f1bfecb4",
+   "visible": true,
+   "tris": 6873,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "c84672a6-8391-4311-8657-c3df57ff614c",
+   "visible": true,
+   "tris": 3336,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "c1a1d330-9bb5-4516-a5f9-1b484245eef3",
+   "visible": true,
+   "tris": 14,
+   "big": 14,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "eed3a564-68ea-48f4-8c4d-7786c3bc1b4a",
+   "visible": true,
+   "tris": 5602,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "5497608a-f388-45e5-8f59-02f579b0d8bc",
+   "visible": true,
+   "tris": 14,
+   "big": 14,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "1e241d19-6e42-4ab1-9078-92a74cfd84ad",
+   "visible": true,
+   "tris": 4785,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "a28309ae-8c3c-4f2f-bacd-f090f4023bb7",
+   "visible": true,
+   "tris": 13861,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "487e2028-83a5-4df6-96ad-66812544e9cd",
+   "visible": true,
+   "tris": 14,
+   "big": 14,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "3479d7ab-0ef8-4316-a837-f7039d88c6f6",
+   "visible": true,
+   "tris": 6656,
+   "big": 20,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "99d19f98-7a20-45de-a406-ca10621545f4",
+   "visible": true,
+   "tris": 1088,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "39ccb179-bc4f-47cf-9953-81b7b2a760c8",
+   "visible": true,
+   "tris": 14,
+   "big": 14,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "81aad47d-0947-4111-9257-d2542a5baab8",
+   "visible": true,
+   "tris": 1492,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/treeRungs/Mesh",
+   "uuid": "33f54239-f70b-4556-bb49-7eb2e0615457",
+   "visible": true,
+   "tris": 604,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "8151bff1-6d11-4a5f-89fb-192b2a06d102",
+   "visible": true,
+   "tris": 240,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD",
+   "uuid": "84039fa1-7bc7-4472-a7a1-a00f66f21cbf",
+   "visible": true,
+   "tris": 2440,
+   "big": 1372,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group",
+   "uuid": "3db2cf1c-2b78-488d-a4bb-44922dbc1a0a",
+   "visible": true,
+   "tris": 2440,
+   "big": 1372,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "389ad6d4-557c-48dd-8fa0-ee44b1a570be",
+   "visible": true,
+   "tris": 2,
+   "big": 2,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "6968205f-d1c6-4e56-a262-3cad754b1a9f",
+   "visible": true,
+   "tris": 84,
+   "big": 48,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "36dcabfc-bbe5-477b-94b7-865ad67bf5bc",
+   "visible": true,
+   "tris": 85,
+   "big": 73,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "5c204018-1cf0-46f1-991a-c7a79d43f537",
+   "visible": true,
+   "tris": 48,
+   "big": 48,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "055d889f-4930-41f8-b1f3-0866a6558b44",
+   "visible": true,
+   "tris": 240,
+   "big": 160,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "82ef161a-ad49-4e37-b2dd-4fdcbfe3218d",
+   "visible": true,
+   "tris": 49,
+   "big": 37,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "56f1b115-2c74-4712-8255-9895484b057a",
+   "visible": true,
+   "tris": 272,
+   "big": 88,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "d489b0c4-8ec9-4cff-9187-dd5092a28507",
+   "visible": true,
+   "tris": 12,
+   "big": 8,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "5f8982d9-34e9-4c8f-90e3-19668f18d72c",
+   "visible": true,
+   "tris": 72,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "dc7c081d-affa-4ccc-b5d9-34c03d038d1b",
+   "visible": true,
+   "tris": 24,
+   "big": 16,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "8fb22a4c-ae23-4136-b4ae-91b3020497e3",
+   "visible": true,
+   "tris": 544,
+   "big": 288,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "d6393dbd-8594-4e67-a639-acdec8a8dfb1",
+   "visible": true,
+   "tris": 108,
+   "big": 100,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "fb9067c6-5970-4ff4-8b5a-7da8112fa4d7",
+   "visible": true,
+   "tris": 576,
+   "big": 384,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "c7bf4f7a-9315-487b-984c-8a251b15e8df",
+   "visible": true,
+   "tris": 192,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "f81df91b-ad03-4529-8b5b-49016b578004",
+   "visible": true,
+   "tris": 12,
+   "big": 8,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "59c94ebd-2115-4ca6-a229-e806e1b6bfd1",
+   "visible": true,
+   "tris": 28,
+   "big": 28,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "1b629273-ce8e-4b2d-8ba4-06d00fdb233b",
+   "visible": true,
+   "tris": 28,
+   "big": 28,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "1aee2b18-5927-40ab-b7ec-397e13cacb27",
+   "visible": true,
+   "tris": 12,
+   "big": 8,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "7d92a13b-0015-40bd-b3de-26bcc912df7e",
+   "visible": true,
+   "tris": 12,
+   "big": 12,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "132026c0-f171-4456-ae02-b09f759ba912",
+   "visible": true,
+   "tris": 12,
+   "big": 12,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "9c76296e-ac53-4f37-97bf-1dfbbbeadbda",
+   "visible": true,
+   "tris": 12,
+   "big": 8,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "ca0cbc3e-a1ba-4f17-a025-73768877eead",
+   "visible": true,
+   "tris": 2,
+   "big": 2,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "684e586f-3a88-4431-9d2c-cf0e6e1853bc",
+   "visible": true,
+   "tris": 2,
+   "big": 2,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "9aec0dac-c4ac-481e-bc51-9823abaa9bd9",
+   "visible": true,
+   "tris": 2,
+   "big": 2,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "170af4c8-6673-42ef-8539-d339d537169f",
+   "visible": true,
+   "tris": 2,
+   "big": 2,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "23b79cd3-e4e9-4aa0-b11d-3dfbfc85f470",
+   "visible": true,
+   "tris": 2,
+   "big": 2,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "3a6dedb6-7f05-42eb-82ae-0bd2462093a6",
+   "visible": true,
+   "tris": 2,
+   "big": 2,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "d86de530-c2b5-47fb-81e2-d2e6da0b6d4d",
+   "visible": true,
+   "tris": 2,
+   "big": 2,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/Group/Mesh",
+   "uuid": "76d084a2-a8f1-4897-b49d-573844e5783c",
+   "visible": true,
+   "tris": 2,
+   "big": 2,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/shell:coarse/shell:coarse:openings",
+   "uuid": "04e7e86d-2d81-4519-9019-ce364f1b97f6",
+   "visible": true,
+   "tris": 52,
+   "big": 48,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/shell:coarse/Mesh",
+   "uuid": "e0437de8-a4a7-419a-97cb-239d44e4eaf5",
+   "visible": true,
+   "tris": 2,
+   "big": 2,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/shell:coarse/Mesh",
+   "uuid": "b74f017d-7580-4f62-9718-63419be74e22",
+   "visible": true,
+   "tris": 84,
+   "big": 48,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/shell:coarse/Mesh",
+   "uuid": "b275e6b4-2228-41e0-acf4-8416b47d6747",
+   "visible": true,
+   "tris": 85,
+   "big": 73,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/shell:coarse/Mesh",
+   "uuid": "32706cb8-f3f6-4597-8ff1-987705871857",
+   "visible": true,
+   "tris": 48,
+   "big": 48,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/shell:coarse/Mesh",
+   "uuid": "cf15eae7-d5e2-4e0b-bdc7-c23b7333debc",
+   "visible": true,
+   "tris": 49,
+   "big": 37,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/shell:coarse/Mesh",
+   "uuid": "95b2ec3f-bf8c-41c8-a7f8-3a52602295e9",
+   "visible": true,
+   "tris": 108,
+   "big": 100,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/shell:coarse/Mesh",
+   "uuid": "df50a932-34ea-4179-82b9-9ed676023583",
+   "visible": true,
+   "tris": 28,
+   "big": 28,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/LOD/shell:coarse/Mesh",
+   "uuid": "113c1902-79f2-4f42-9fb3-9e38f611932a",
+   "visible": true,
+   "tris": 28,
+   "big": 28,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances",
+   "uuid": "b49cfc97-c6ea-403d-9714-5040cb5ebf9f",
+   "visible": true,
+   "tris": 44567,
+   "big": 56,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:pole_b_l2#0",
+   "uuid": "5164f858-a7f9-4aa7-b43a-adf5725e1282",
+   "visible": true,
+   "tris": 1625,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:pole_c_l2#0",
+   "uuid": "0d2ba835-84b3-485d-91e2-57afa94d970d",
+   "visible": true,
+   "tris": 2138,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:pole_a_l2#0",
+   "uuid": "82f8ff97-515c-4935-987d-bcdc22aedabf",
+   "visible": true,
+   "tris": 1954,
+   "big": 4,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:jerrycan_green_l1#0",
+   "uuid": "f1d6a1f5-0a25-4027-b9f6-9ba88dc9a5fb",
+   "visible": true,
+   "tris": 2408,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:person_john_l2#0",
+   "uuid": "a18e703f-ba95-4ffb-8ed3-e770d99e1494",
+   "visible": true,
+   "tris": 5056,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:oil_tin_l1#0",
+   "uuid": "8c10bbea-b1b8-4ac4-b268-ef9c0cd3f500",
+   "visible": true,
+   "tris": 1199,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:pallet_one#0",
+   "uuid": "cb5a654a-422e-4fcf-a1b9-d3e2eb2e0435",
+   "visible": true,
+   "tris": 1656,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:person_charles_l2#0",
+   "uuid": "f219eae0-c98b-4036-beb7-176fc461fd95",
+   "visible": true,
+   "tris": 5000,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:person_luke_l2#0",
+   "uuid": "e58ec183-6f46-4513-8c79-380420aac4c8",
+   "visible": true,
+   "tris": 4920,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:person_luke_l2#1",
+   "uuid": "a568706e-38db-44d8-b317-408695cfd512",
+   "visible": true,
+   "tris": 73,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:person_luke_l2#2",
+   "uuid": "988aa286-1735-4848-bcf0-7016f4343f57",
+   "visible": true,
+   "tris": 60,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:pallets_stack_l2#0",
+   "uuid": "7e3747a3-d5c8-47aa-9033-9ec43bc086a7",
+   "visible": true,
+   "tris": 588,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:pallets_three_l2#0",
+   "uuid": "6caa26cc-f4e4-4c2e-8555-4689798498d7",
+   "visible": true,
+   "tris": 400,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:cement_bags_l2#0",
+   "uuid": "e80f7f3a-2618-4fa0-bcb7-6331a988eda4",
+   "visible": true,
+   "tris": 399,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:stool_wood2_l2#0",
+   "uuid": "b3ae45b3-3ecb-43ef-a43a-19a2f4821d53",
+   "visible": true,
+   "tris": 656,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:chair_plastic_l1#0",
+   "uuid": "5341dcc4-5810-4aee-9004-2257e1d85d36",
+   "visible": true,
+   "tris": 400,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:picnic_table_l2#0",
+   "uuid": "708b963c-cdff-4623-8f9b-1aaef7639468",
+   "visible": true,
+   "tris": 612,
+   "big": 44,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:chair_wood_l1#0",
+   "uuid": "2f2f92e2-e360-417d-90bf-eb02d59fcefa",
+   "visible": true,
+   "tris": 399,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:planter_l2#0",
+   "uuid": "15f91a78-f894-4f36-9060-794728712795",
+   "visible": true,
+   "tris": 786,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:bin_metal_l2#0",
+   "uuid": "6b82fedf-0f2f-4833-af1a-d39c7e8763f1",
+   "visible": true,
+   "tris": 400,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:bottle_propane_l2#0",
+   "uuid": "ab8fa23c-260c-4c09-9eb7-8fd33a62a5fe",
+   "visible": true,
+   "tris": 400,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:jerrycan_l2#0",
+   "uuid": "0df3b79a-0e49-4371-8e3a-5b7091bcea97",
+   "visible": true,
+   "tris": 440,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:bags_stack_l2#0",
+   "uuid": "57f3e70e-f941-4a4a-b91a-24a881357b61",
+   "visible": true,
+   "tris": 400,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:oil_tin_l2#0",
+   "uuid": "03d91e57-526c-4632-9ba8-4c61e5fb3246",
+   "visible": true,
+   "tris": 400,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:bags_lean_l2#0",
+   "uuid": "dd71e172-65e5-4259-982c-f1b542992529",
+   "visible": true,
+   "tris": 400,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:fence_old#0",
+   "uuid": "1ebcc36f-6dff-4fa5-894b-c723a64a6307",
+   "visible": true,
+   "tris": 528,
+   "big": 8,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:cinder_pallet_l2#0",
+   "uuid": "5c57cdce-fb97-4616-ab2d-91eb40f437df",
+   "visible": true,
+   "tris": 1122,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:cinder_pallet_l2#1",
+   "uuid": "f898b3bd-74a0-4b3d-9a8b-c2035870eb8b",
+   "visible": true,
+   "tris": 60,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:person_koky_l2#0",
+   "uuid": "ff5f25c9-dd58-461c-8207-a653e2109ea0",
+   "visible": true,
+   "tris": 5000,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:person_andrew_l2#0",
+   "uuid": "badc1cbc-da66-4b75-95bc-46909fcc8ecd",
+   "visible": true,
+   "tris": 4970,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:person_andrew_l2#1",
+   "uuid": "cb2b6393-0c67-4f95-a80a-6528851d0e19",
+   "visible": true,
+   "tris": 59,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/propInstances/propInst:person_andrew_l2#2",
+   "uuid": "00207a24-c224-43c8-97ca-48a42b088b43",
+   "visible": true,
+   "tris": 59,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises",
+   "uuid": "512f6853-fe8d-4a25-a6de-2a5af51a3435",
+   "visible": true,
+   "tris": 4336665,
+   "big": 476762,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:ground",
+   "uuid": "c4e2e42d-a919-4d72-a18e-42ab757d1a21",
+   "visible": true,
+   "tris": 823872,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:ground/premises:patch",
+   "uuid": "2a6d13a9-8a2b-4ca7-aa29-cf89ea820925",
+   "visible": true,
+   "tris": 823872,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:houses",
+   "uuid": "210c8e95-fff0-4382-934e-51de074283db",
+   "visible": true,
+   "tris": 1060455,
+   "big": 3110,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:lots",
+   "uuid": "a398f397-a0dc-49b8-b0ee-8e6a8ce88586",
+   "visible": true,
+   "tris": 1890383,
+   "big": 106367,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads",
+   "uuid": "4e032b2f-a66c-447c-987e-22a633c0977d",
+   "visible": true,
+   "tris": 387042,
+   "big": 357567,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/poles:r_taxi_ne",
+   "uuid": "31aeb547-7280-4c6f-977a-1a4fcf050925",
+   "visible": true,
+   "tris": 108,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/poles:r_taxi_e",
+   "uuid": "bcab1cd1-abee-404b-8b81-7f547a42c266",
+   "visible": true,
+   "tris": 3636,
+   "big": 3456,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/poles:r_airport",
+   "uuid": "84b723eb-07ba-413c-9010-c598f6fa1368",
+   "visible": true,
+   "tris": 19900,
+   "big": 18856,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/poles:r_village",
+   "uuid": "a8eaa85d-e640-44ad-a49b-5ca6cfde794c",
+   "visible": true,
+   "tris": 24184,
+   "big": 23032,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/poles:v_shore_e",
+   "uuid": "af3d837b-0fdd-4835-8dea-795215c90ab4",
+   "visible": true,
+   "tris": 1520,
+   "big": 1088,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/poles:v_west",
+   "uuid": "d79bb571-08b7-424a-af1d-f53c42ae2076",
+   "visible": true,
+   "tris": 3412,
+   "big": 3232,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/rail:v_north",
+   "uuid": "692e7dbb-0307-4ecf-b912-1a3fcebe62ee",
+   "visible": true,
+   "tris": 2996,
+   "big": 1682,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/poles:v_north",
+   "uuid": "2131eb32-0b3d-4fd1-a88e-9f2e130f7dd7",
+   "visible": true,
+   "tris": 252,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/poles:r_strip",
+   "uuid": "42622316-c38c-4c7c-8b4c-c43cf7b6cd56",
+   "visible": true,
+   "tris": 8208,
+   "big": 7488,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/rail:mn_main",
+   "uuid": "4d6b723e-3c3f-4698-8d72-d5a29c7ff9a9",
+   "visible": true,
+   "tris": 15384,
+   "big": 8901,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/poles:mn_main",
+   "uuid": "6def9f86-ced1-4786-8ff7-bcb79ff444b9",
+   "visible": true,
+   "tris": 3864,
+   "big": 3648,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/poles:tw_r_access",
+   "uuid": "1ecaf66b-519f-47dc-a315-3760ced6e91a",
+   "visible": true,
+   "tris": 3316,
+   "big": 3136,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/road:merged",
+   "uuid": "3461fb00-3a80-40b0-a78e-6f357ca27766",
+   "visible": true,
+   "tris": 7452,
+   "big": 7234,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/road:merged",
+   "uuid": "0321f0e4-71d1-493d-ba30-fadaac050156",
+   "visible": true,
+   "tris": 85104,
+   "big": 82274,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/road:merged",
+   "uuid": "73b46659-3352-4082-b67b-eaf2fa117f7a",
+   "visible": true,
+   "tris": 90780,
+   "big": 83348,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/road:merged",
+   "uuid": "c434d18b-0ee7-4f14-861e-deec72902341",
+   "visible": true,
+   "tris": 6920,
+   "big": 6032,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/road:merged",
+   "uuid": "9877d44f-4365-4755-b6b1-50c9ba48a515",
+   "visible": true,
+   "tris": 9576,
+   "big": 6300,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/road:merged",
+   "uuid": "752ea37f-e8dc-410d-9d72-2db8fc197ab6",
+   "visible": true,
+   "tris": 10008,
+   "big": 7438,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/pave:merged",
+   "uuid": "b4ff7de0-8f34-49e8-8a34-4dde9772746e",
+   "visible": true,
+   "tris": 18250,
+   "big": 18250,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/pave:merged",
+   "uuid": "1dd49d27-c618-482d-9f49-9230a631dd62",
+   "visible": true,
+   "tris": 32002,
+   "big": 32002,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/pave:merged",
+   "uuid": "2c655182-ddfb-4132-901d-1c045f573cba",
+   "visible": true,
+   "tris": 9248,
+   "big": 9248,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/pave:merged",
+   "uuid": "f420a72d-3ae5-45a3-8a00-52fa60580bb1",
+   "visible": true,
+   "tris": 6890,
+   "big": 6890,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:roads/roads:batches",
+   "uuid": "52a4ac0e-11aa-4a2d-b934-c75366b61b2e",
+   "visible": true,
+   "tris": 24032,
+   "big": 24032,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:tram",
+   "uuid": "42eed7a7-5c0e-4240-826a-0d7a3820830f",
+   "visible": true,
+   "tris": 142616,
+   "big": 8870,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:tram/tram:tw_l_tram",
+   "uuid": "6a08201b-729b-40f9-b3af-9299750a9259",
+   "visible": true,
+   "tris": 142616,
+   "big": 8870,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:traffic",
+   "uuid": "d654e556-71a9-4855-a6b9-ea990c6f7a9f",
+   "visible": true,
+   "tris": 1450,
+   "big": 138,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:traffic/traffic:r_airport:0",
+   "uuid": "035888c0-9c5f-49da-b9f7-7264411f187c",
+   "visible": true,
+   "tris": 218,
+   "big": 8,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:traffic/traffic:r_airport:1",
+   "uuid": "043abc3c-92e2-4b7f-8495-5942f8e5def5",
+   "visible": true,
+   "tris": 200,
+   "big": 7,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:traffic/traffic:r_village:0",
+   "uuid": "1d5f38cc-8723-4df9-9871-55bed7b0788b",
+   "visible": true,
+   "tris": 212,
+   "big": 9,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:traffic/traffic:r_village:1",
+   "uuid": "72d34820-f111-43b7-8533-1c6e908a14dd",
+   "visible": true,
+   "tris": 220,
+   "big": 74,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:traffic/traffic:v_shore_e:0",
+   "uuid": "c92372d7-26ac-450d-8755-918c02a7608b",
+   "visible": true,
+   "tris": 198,
+   "big": 13,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:traffic/traffic:v_west:0",
+   "uuid": "41b0ef4a-1449-4af7-a6a0-0a8d03e68925",
+   "visible": true,
+   "tris": 200,
+   "big": 18,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:traffic/traffic:r_strip:0",
+   "uuid": "9b845a8a-9d8e-4e2e-aa86-6032eb6c4495",
+   "visible": true,
+   "tris": 202,
+   "big": 9,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:animals",
+   "uuid": "77a22c13-4707-49e9-89a0-030a59509084",
+   "visible": true,
+   "tris": 1782,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:animals/animals",
+   "uuid": "faedde6d-02fd-4646-afd0-afdd3bdc7d16",
+   "visible": true,
+   "tris": 1782,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:life",
+   "uuid": "e05aff4d-c66d-483b-b826-0e7e1ff52b63",
+   "visible": true,
+   "tris": 29065,
+   "big": 710,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:life/life:drum_steel#0",
+   "uuid": "dade7f10-0cbf-4389-9464-462d8577282f",
+   "visible": true,
+   "tris": 1473,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:life/life:person_john_l2#0",
+   "uuid": "1a91422d-e7c6-4645-abe6-8d9475923ec3",
+   "visible": true,
+   "tris": 5056,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:life/life:drum_steel_l1#0",
+   "uuid": "e3390679-174a-47f8-a342-907dafc80191",
+   "visible": true,
+   "tris": 399,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:life/life:person_andrew_l2#0",
+   "uuid": "5bb792e1-341d-4f29-976f-dff4b9a654dd",
+   "visible": true,
+   "tris": 4970,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:life/life:person_andrew_l2#1",
+   "uuid": "9179183d-25fb-4088-99f6-6b7261c9c84e",
+   "visible": true,
+   "tris": 59,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:life/life:person_andrew_l2#2",
+   "uuid": "d21f7509-c907-41ed-928e-fad66d4299cd",
+   "visible": true,
+   "tris": 59,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:life/life:person_luke_l2#0",
+   "uuid": "60554a68-56bc-4752-b327-5096c6d4bbf7",
+   "visible": true,
+   "tris": 4920,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:life/life:person_luke_l2#1",
+   "uuid": "e05d08c7-3898-4663-923f-d76d3f3cfb16",
+   "visible": true,
+   "tris": 73,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:life/life:person_luke_l2#2",
+   "uuid": "5aa95533-541a-453c-abeb-b1b668439dac",
+   "visible": true,
+   "tris": 60,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:life/life:barrel_plastic_l2#0",
+   "uuid": "10f05c63-77bf-4306-9142-a19b0ee4fab0",
+   "visible": true,
+   "tris": 400,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:life/life:person_charles_l2#0",
+   "uuid": "8c7e906e-7802-40b5-8f83-178cad1c9d92",
+   "visible": true,
+   "tris": 5000,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:life/life:pieces:cast",
+   "uuid": "37098ee0-4404-4d7e-bc74-1d026572a8a5",
+   "visible": true,
+   "tris": 6516,
+   "big": 710,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/premises/premises:life/life:beacons",
+   "uuid": "48449170-0504-4ebc-a6dc-7a30db84e170",
+   "visible": true,
+   "tris": 80,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "6d7c4e1a-202a-4090-8545-211e4be0db40",
+   "visible": true,
+   "tris": 240,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "0751002c-c757-4450-90d0-d8a0a8fbb62b",
+   "visible": true,
+   "tris": 128,
+   "big": 64,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "560a958c-a967-4e6e-ae93-4f0bce9a23c2",
+   "visible": true,
+   "tris": 20,
+   "big": 20,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "10bdb477-73ca-4d9c-83aa-f9997df0ee46",
+   "visible": true,
+   "tris": 240,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "1f8e88e5-d90c-44b2-bb5b-94dcff4796bb",
+   "visible": true,
+   "tris": 128,
+   "big": 64,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "45c6ef78-1a6c-466b-9ed8-4615ce876ce0",
+   "visible": true,
+   "tris": 20,
+   "big": 20,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "4560599c-85d0-4573-bc7f-34ba6b25248c",
+   "visible": true,
+   "tris": 240,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c511ed2e-9cde-4297-8df1-9a95364967ce",
+   "visible": true,
+   "tris": 128,
+   "big": 64,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "a4bfdfd1-135e-47b5-98a7-a9f620257e1b",
+   "visible": true,
+   "tris": 20,
+   "big": 20,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "bc7227f5-f941-45af-b04b-90991cf233ec",
+   "visible": true,
+   "tris": 240,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c20474ba-20ba-433c-af18-75e7826a5d5a",
+   "visible": true,
+   "tris": 128,
+   "big": 64,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "067b2f71-361c-493a-8d52-374d219d080e",
+   "visible": true,
+   "tris": 20,
+   "big": 20,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "7d824030-b63a-40d8-8a3a-d7bdb0abaa0d",
+   "visible": true,
+   "tris": 240,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "3541e35d-ca2c-4d42-bcc4-334937ef98f0",
+   "visible": true,
+   "tris": 128,
+   "big": 64,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "b120ee82-065f-4fc9-9f85-7ca732570eaa",
+   "visible": true,
+   "tris": 20,
+   "big": 20,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "290309ae-4129-46fd-b0c9-bce415ed7c86",
+   "visible": true,
+   "tris": 240,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "716fbcad-f999-4418-88dd-e3ffaa4d16ea",
+   "visible": true,
+   "tris": 128,
+   "big": 64,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "d34c8b0e-333f-4a61-a163-8cfc2bb6f6ff",
+   "visible": true,
+   "tris": 20,
+   "big": 20,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/pavement:merged",
+   "uuid": "ae57be1e-6a75-4c8b-8b16-5d34a06f32fb",
+   "visible": true,
+   "tris": 992,
+   "big": 986,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/pavement:merged",
+   "uuid": "4d74a79c-4d64-4190-9114-93aca4d258e3",
+   "visible": true,
+   "tris": 1692,
+   "big": 1692,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/pavement:merged",
+   "uuid": "aa46dfcd-a257-4097-b016-205fac52e1b1",
+   "visible": true,
+   "tris": 3080,
+   "big": 3040,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/pavement:merged",
+   "uuid": "0a214cee-c9a0-4004-a5d3-0f896a287df1",
+   "visible": true,
+   "tris": 3720,
+   "big": 3688,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/pavement:merged",
+   "uuid": "3a1b8257-22e9-440c-b796-3557aa827c69",
+   "visible": true,
+   "tris": 78840,
+   "big": 78776,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing",
+   "uuid": "f0d3d744-8f02-4821-8c54-2db585bdccd9",
+   "visible": true,
+   "tris": 60685,
+   "big": 34636,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "7338aa70-74a3-4088-b44b-2c12e3f342f3",
+   "visible": true,
+   "tris": 1910,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "e425993f-d34d-4a2d-ab8e-8c9eaef3b446",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "cd47e148-6c34-4215-8cfb-73aa25f26686",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "c1419379-8f7c-460b-b833-70b2021388ff",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "a08b7b4a-d345-4e72-a98f-d877814d542b",
+   "visible": true,
+   "tris": 1910,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "60693f9b-4d12-4b1d-8098-3ed1289547e8",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "1d1e37f8-5d36-4111-8fc5-264b1445b168",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "578446b9-2b70-454f-b4db-c9c95db6a68c",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:rock",
+   "uuid": "f44ab445-0c13-4759-905f-6f89ad13a879",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:debris",
+   "uuid": "323fc20e-c9a7-4499-873d-aae355c7be66",
+   "visible": true,
+   "tris": 150,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:debris",
+   "uuid": "08325525-9d51-4e08-ae8c-00dfdba057c7",
+   "visible": true,
+   "tris": 900,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:debris",
+   "uuid": "d4382241-cd8f-4fd6-82bf-85ff298a3f42",
+   "visible": true,
+   "tris": 900,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "4a183e5f-6b76-43d2-9615-4cf11045c068",
+   "visible": true,
+   "tris": 1934,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "a9b92d10-4fe8-4818-a8ac-9c24079b9be3",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "e3dda4d3-af9b-4157-ab4f-2e92dab09b42",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "57e18b24-9433-49de-9073-9de5c6572042",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "c2e3ea1a-e258-4346-9fe1-7fcd38bd3eb9",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "e426fd84-fe65-4700-a428-a10944edcb09",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "ed7639f3-5118-4d02-be70-639ec4b87c44",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "2c305c58-5315-4b7b-b014-971407568dc2",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:shrub",
+   "uuid": "aa5b306b-4f65-4364-8e69-83ab983077cf",
+   "visible": true,
+   "tris": 66,
+   "big": 42,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:shrub",
+   "uuid": "e28dbfed-e1fd-41e6-8e91-450ac8e45315",
+   "visible": true,
+   "tris": 172,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:rock",
+   "uuid": "51a2dac8-a299-4607-94f1-0926183f936c",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:debris",
+   "uuid": "1c1b6000-10bc-49fb-a250-1f6916f7a176",
+   "visible": true,
+   "tris": 2014,
+   "big": 9,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:debris",
+   "uuid": "19fbb13e-6f49-43c4-a9ef-9f57a70f284b",
+   "visible": true,
+   "tris": 2002,
+   "big": 29,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:debris",
+   "uuid": "a10820dd-8a98-4182-8ac6-b552addcf410",
+   "visible": true,
+   "tris": 150,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:debris",
+   "uuid": "c7d5806e-ab21-48be-ab5a-08eb6edb5d72",
+   "visible": true,
+   "tris": 150,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:debris",
+   "uuid": "61598e2f-5084-43c0-b030-ce6190f862b8",
+   "visible": true,
+   "tris": 1200,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "0fd2ec21-1b6a-40dc-95b9-99c3ef0a66d8",
+   "visible": true,
+   "tris": 1934,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "f95921f8-7b8c-46bc-99e2-bbc5567d5a47",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "6136111f-c63b-4440-b69b-fb7248eb3c55",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "110f9121-4d4f-4afa-92dc-4952e3f976fc",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "c397b470-1c96-47a3-a689-3e9495af500a",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "c87a2c78-3a5e-4c79-bdc0-908b80aebdb3",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "56150d7f-44bd-4d6c-8b24-4eb888fc5cf6",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "002e2b92-fb32-47ab-b21b-1d19bfbb6aeb",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:shrub",
+   "uuid": "f4954428-081a-4714-8ff3-7fe90223fcd1",
+   "visible": true,
+   "tris": 1667,
+   "big": 1174,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:shrub",
+   "uuid": "f714b34d-e87f-4d80-b76c-73b78ec7d462",
+   "visible": true,
+   "tris": 3946,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:rock",
+   "uuid": "d1ee5297-d281-46ae-b91a-d2b158d5a31e",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:rock",
+   "uuid": "87ab0ddd-a2b7-40ec-a5bb-f3d310a096bd",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:debris",
+   "uuid": "76882fec-c591-4eb9-9992-584985e1f3b0",
+   "visible": true,
+   "tris": 1996,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:debris",
+   "uuid": "f327af4f-7961-4007-bb2f-ceae069062ec",
+   "visible": true,
+   "tris": 1822,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:debris",
+   "uuid": "ebce2b42-fe2a-4b5f-9e8b-49a932baedc7",
+   "visible": true,
+   "tris": 912,
+   "big": 912,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/cover:debris",
+   "uuid": "87a6ebb5-22be-4a67-b9a6-2c7df5cb3807",
+   "visible": true,
+   "tris": 150,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "3ddf5977-3f64-43d1-9e94-45b7b8f894c5",
+   "visible": true,
+   "tris": 1910,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "a1625bfc-4a75-44c5-acb5-7a5ce2547d70",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "84f96801-603c-4379-a25b-07c73586ee9e",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "1ed3aa89-f973-428d-9572-c460886d1dd7",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "3fd5df40-c7e9-4c9c-817c-11fb30a70573",
+   "visible": true,
+   "tris": 1934,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "5eebf80c-a683-40da-bef3-a67ee22e48d9",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "ebeab0d0-defa-4f2d-a211-afce8c44d5d8",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "4acb19e7-8029-44e7-831f-6626ddf409ca",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "a5029576-06be-4edd-b679-3bdc4118d601",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "c1d77cff-783f-4434-bea0-391a98957658",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "97a5bd49-97f3-42b7-8d39-a433f8496548",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "aaa3b357-1273-446a-84fd-71f2765d4623",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "924efe74-935f-414f-908d-463236af56ac",
+   "visible": true,
+   "tris": 1934,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "79792aad-5a63-4a8d-ad7d-451d408d615d",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "ad0231db-ea69-4f84-9492-e551a2307cb8",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "28f8ea3a-77c9-47ee-abf6-f9c66cbad68c",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "d8ca7f92-6bda-4378-9a89-8b8a439254e8",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "f0f8b743-cd4a-4c3c-9cb2-e700884f635b",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "4110967e-3e3c-4cef-9d50-581290ff9142",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "0c22ff0d-81f7-4926-965c-803d2af02dd8",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "eb157564-8a7e-445c-a9dd-8b01ff4dbb5c",
+   "visible": true,
+   "tris": 1910,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "4988724f-8594-415c-bf2b-40306c5b1f11",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "088d1cd9-5933-4506-9c0f-b9a955d19c5f",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "72fd4527-a96c-4d27-8361-48b9959dc5bf",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "ff4ad40a-5864-491f-8276-c8950a74bda1",
+   "visible": true,
+   "tris": 1934,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "80c8db7c-81b8-4138-ab11-e1fa985eea7d",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "5a15d491-f105-44a2-a89b-7ae4a0b69e48",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "e9b4fddc-8bef-4717-9e52-12b657172a6c",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "2ebf06c8-c92e-4448-9bca-60f9bfd09d95",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "4fa89015-2723-4d78-82f8-fe4ad8919c46",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "8ee1ab6a-b37e-4b73-aee9-a81015e4d5fe",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "31ad9550-4a4a-4f87-8f77-738e1a1e3fa4",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "1d7c7533-42ac-47eb-8372-1d69807b4727",
+   "visible": true,
+   "tris": 1934,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "1e8e460f-e7de-49d1-a22a-eef17fa75094",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "0db995f5-2812-47e5-a649-aa66dc3466a0",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "0c985f0c-2647-48e1-876c-3fd30500117d",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "04d21f89-b24e-435c-8d47-bdcd7888cff7",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "25ee35ab-c118-4941-acb3-98034f75db58",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "e6d88f12-c09d-4674-aba1-f6c581ac2631",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "1e3f179d-5f81-4edf-8593-42b353654e43",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "761d620f-1502-4588-8f06-d1bb15c8a0a0",
+   "visible": true,
+   "tris": 1922,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "1ceb2826-eff5-4dab-8f69-a517fd215864",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "9b757144-2d80-488b-bcce-ad5986b0b204",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "8c5dbe3a-a216-44ce-85f4-036910f21ec9",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "e00f68e1-1239-4a2c-8aa2-d381c1ec2ec8",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "f6a02554-6cf1-41e6-b97b-f426c4f14c17",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "885e7bd9-0eb9-4a0e-8dd5-7df9dd5b1a52",
+   "visible": true,
+   "tris": 1934,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "21c7f553-eff2-4b8b-bbd4-dc9e43e2f19a",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "be051c68-51e1-4db0-b324-c8e775e7c49d",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "71658fe8-8e6e-4d52-a408-e3ae0600e972",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "1dd9c438-a1bb-4e17-8ab4-8b5142a9ae0a",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "0437415b-02ca-435b-ab82-8683fef11e2e",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "5b0a5623-831e-4d2a-8262-881d3bde2135",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "517a3114-417e-4416-a15a-16fd5ece100c",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "8bd80cc7-f3d3-40b2-b6a0-9229b124f670",
+   "visible": true,
+   "tris": 1910,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "8db058ce-e3a4-4912-adad-f5fcdf0f4780",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "4c903f87-70c0-45b4-be54-0fd61b29dc98",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "20296696-24d4-4001-9b47-55dbce291fcc",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "11f738b2-1bf3-4648-b6e4-e51cfb14184b",
+   "visible": true,
+   "tris": 1922,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "3e0e841d-0ce4-460c-9788-770e62e17f1b",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "da5eafd2-2a4d-4b28-a5b0-6b23a4f688a4",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "bd65cc76-d0f5-46bd-adeb-d3e70d3e7951",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "579c5ffc-41d3-4f9f-8e52-c8373ecdc578",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "17abf9f0-7f41-4893-bd9d-eb2efcf2f1da",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "4202456a-ff7a-4570-97d5-36e5db22d6f4",
+   "visible": true,
+   "tris": 1910,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "7b61684f-d0ca-478b-803a-887efc64507a",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "919fdd37-eac1-4df5-a54a-a30664188f1c",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "8c6b6039-2f92-481c-82c0-cc24f97ab5b0",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "52f0f925-f230-4abc-9f83-fde38ce89da5",
+   "visible": true,
+   "tris": 1910,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "8ec6bdaa-2f88-40eb-8a83-91c98cb0cbf5",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "7fb76af3-895a-4518-afd6-d6642486e48f",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "a77917f6-11c5-4118-9e40-4bedf31f492c",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group",
+   "uuid": "de8191e3-8536-429a-a902-4287f414892f",
+   "visible": true,
+   "tris": 1922,
+   "big": 1910,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "f99b1254-da35-417f-8f92-662e7ab7e97b",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "73fbab34-d0ce-4f80-97af-f9906284ca85",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "6b5ad63d-2c24-47a0-b0df-fe6b5c1845d5",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "0fc632c0-a3bb-495a-900a-4ea27166757b",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "2634dc8f-8040-49dd-b6fe-a7403b6964a4",
+   "visible": true,
+   "tris": 6,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "0a5fb351-6873-4d2e-aceb-9eb79ee13241",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "fc90aec3-9a0b-4027-8881-e8e23c5f4272",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "04dfdead-2004-4def-86e5-34bf1c102c3e",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "e2e979ca-c2c1-4a9c-9e89-cee0a21aef21",
+   "visible": true,
+   "tris": 1157,
+   "big": 1157,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "bc7bdcb6-7df0-423f-9b67-4d2a89a59d25",
+   "visible": true,
+   "tris": 236,
+   "big": 236,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/coverRing/Group/Mesh",
+   "uuid": "bfb00391-a4d3-44f9-932f-71089a1591ed",
+   "visible": true,
+   "tris": 517,
+   "big": 517,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/standCards",
+   "uuid": "d676298a-582c-4df7-ae39-e3e129fe88bd",
+   "visible": true,
+   "tris": 238,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2",
+   "uuid": "e03221be-9d58-4129-9538-3e18b39744a0",
+   "visible": true,
+   "tris": 21879,
+   "big": 168,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group",
+   "uuid": "d8c96a17-7429-4d40-b274-473d860870c8",
+   "visible": true,
+   "tris": 21879,
+   "big": 168,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "b30a81b1-e4bf-47d6-9e2d-da9e3831aad9",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "2117594f-59f0-40dd-90fc-defc4c0aa1ec",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "3896c190-d50b-4271-a7a7-b5c3c520e9df",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "774b4978-a80c-4c2a-85c3-8cf50695426f",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "f7923cfb-4c29-4144-9046-50c54949334f",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "be7fcc58-cd1c-49dc-bc99-2663609f001d",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "419894c7-8cbc-4a12-a0fe-8be82dee589b",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "444f58d1-909e-45f2-9e8c-c0c3665a7087",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "71e842e9-c171-4987-84eb-3676cda189d1",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "2cc4df5b-3406-4f64-8bb9-b630951621f0",
+   "visible": true,
+   "tris": 1566,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "f4b28d39-138c-44bf-9526-450f18ec1246",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "33e5750d-dcd3-4d1d-863f-996a03f4e463",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "06a9b851-6d98-454e-8102-1e7de8fb5ef6",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "229833d5-a202-4bbd-9046-ef51df013817",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "f70e1be7-78f5-4661-bf0f-c1fe389972e0",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "b49e9a35-1643-4bdf-a1ec-b40fa32c95a3",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "ecac7eef-98e0-4745-89c2-afdc7a16dda3",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "3b47855e-dc20-4433-8dbb-f2aff88120ee",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "3c085e4b-b839-474c-a627-c65a1a78c6eb",
+   "visible": true,
+   "tris": 1246,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "79976c44-f6d1-45ed-9883-64ee6a4d2705",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "fc23aa4e-7fe0-4a90-b6d0-ec434c3a1ff3",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "5a29fc2a-57e8-4bd9-959f-2bdd2c94c3b3",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "45a92846-9296-4982-a74a-d78d1fa5175f",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "01971490-8b61-41dc-8c08-f9d2bcd5b8cc",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "1ee4010a-4196-4aa5-a0e5-1b89a7228dc4",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "cc96d4be-a4a8-4714-bf1c-78c1ed5e555a",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "40302db9-d174-4919-9e31-4140ef84aebe",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "ec23453c-de1c-401f-8930-a5ece33a027d",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "16f8f412-f7c6-4d34-9c02-bf346c94fd83",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "01b92469-4186-4a28-ba45-413e9037a0f8",
+   "visible": true,
+   "tris": 1688,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "aca7ed89-4acb-4ac9-9dc7-fb5598d5c152",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "055e6332-9775-4a53-9403-713697b8e437",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "6956e0f4-c6a2-4361-94d1-dd797bd0a6c3",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "9454ee8b-2c0c-4f5c-b0d3-3b95e74c6456",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "8bbe2859-6816-49d8-93f0-1be9c96026bd",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "5606bff1-a4d5-4525-b073-ab472057ffdc",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "4821cc51-888a-4504-bd89-560699d2414e",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "c48e4f89-a227-46c1-9709-1ed76bd7ae28",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "705f6ac6-fef9-4aa2-afc5-43e508974042",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "205a7dbf-9994-4d6a-9ed9-3ebbe517c67d",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "8c1f02cf-ee49-464f-bb14-c95a87bfcc05",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "554a2a1b-8bd6-4b2f-a540-e506b73f6b7d",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "a733eb80-b49c-4449-aff9-a5fc766bb60d",
+   "visible": true,
+   "tris": 814,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "fb857c76-b0cb-4864-834f-6fe7a3bbb2db",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "cdb66875-796d-42cc-9a56-ae2caca4cb1c",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "72d124c6-f4d2-49aa-89ff-bf9ea86be676",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "83cf4130-e014-4f62-96e1-94785374e9a5",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "8f04839e-b442-4b86-83c2-35b0113fdeaf",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "0bf3dad2-d78b-487c-bd26-651ca755d8ab",
+   "visible": true,
+   "tris": 2314,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "47bad6dc-9d6f-44f4-b364-213bfd89119a",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "aa6a719d-46db-4876-bfcd-3b8fa25f98b5",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "4fd47883-e0c7-4b02-a5d5-6057b1c03144",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "5cccde96-1e7a-407f-94f4-d4ba6bf322ae",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "a2944a48-0aec-4121-8d9f-346c3108c33c",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "b90a1503-a520-4aa0-b870-5801e1f85f0d",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "c69b1210-2d51-42f0-8cb2-f1def171efc4",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "48a20af2-79a6-4188-835b-ff73345631e6",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "b80452dc-cd40-481c-af98-2e9b4dc309da",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "2bad4005-2de8-4556-b24a-376b7b857bab",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "884b18e2-9160-4e68-991c-477195d1ec5d",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "50f3570b-1398-4467-828b-34050c48d48b",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "3283a136-41ed-477d-a6d8-ceaea100e74e",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "86021b16-5946-4a71-8d83-d1182488b358",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "3377f120-23f1-4af5-99ed-87f7138f789b",
+   "visible": true,
+   "tris": 1158,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "af070226-4c4c-40a9-9e38-807b6031577c",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "64ae7192-36bd-4f2c-aa0a-f2c82c54802f",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "50d8d2c1-fbd4-455f-b7d8-a06e1cbbfd8c",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "e21c6c73-5e52-473e-9291-715958caa241",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "96888c39-842b-4fb4-8c5f-45c7aa945bc2",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "a458358d-9559-4cda-8863-8d9b07896006",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "324b8ac5-f2b7-461a-8dcf-da7f67b1df6b",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "dbc4464d-1776-47f2-83e2-499283f402bc",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "eb47b938-0a4a-467f-a06c-bf508ff7a22b",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "f4211800-a698-4867-8880-43624442e266",
+   "visible": true,
+   "tris": 1932,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "ac951113-1a47-460e-9ad8-dd11a70d0d9a",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "ca36c2b5-fb02-4de5-84d5-a7960677092f",
+   "visible": true,
+   "tris": 4272,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "f7043bec-f1b0-4c25-8b2e-d6ac86a0d3e8",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "fd0ed5cd-7af3-44ad-be0c-c362f671463b",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "ea834f4a-3d44-4897-b334-ef5774c38c61",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "26a3d2c9-19ab-4a5a-96c5-7ffc8220b51e",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w2/Group/rocks:w2",
+   "uuid": "e77f3314-70b7-45fc-b6bf-18ec6070fd38",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME",
+   "uuid": "cd94e740-5451-4f49-bb07-2f23cef97585",
+   "visible": true,
+   "tris": 21417,
+   "big": 168,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group",
+   "uuid": "7b6d91c2-3040-4284-9877-a0ff87bbbd62",
+   "visible": true,
+   "tris": 21417,
+   "big": 168,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "69ce3162-e074-4825-aee4-b4d9f2784027",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "16abfcc7-39ca-4988-8049-eb44938a60b8",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "c1bc48a3-fa07-4891-b8b4-475150747ec1",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "3028fc74-046b-444f-8477-2d42a4fdffec",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "245b0f7b-779f-4bee-9d1a-ded404157022",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "908376be-0873-4d1c-889c-6b96764323f6",
+   "visible": true,
+   "tris": 2604,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "11bd1562-122a-44d4-9ded-1ffbb5115b1c",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "e1ae683b-9243-432a-930a-f13f7a8b91cb",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "f6ce19a3-80d1-44ec-9b5e-32d617c6b9a8",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "921b7480-87f3-4645-b592-887a0681a879",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "6a1c6a43-f506-479b-b25c-2223698dc509",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME",
+   "uuid": "a1fd86ea-0a86-4df7-852e-675ec906d664",
+   "visible": true,
+   "tris": 19673,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group",
+   "uuid": "d33b8faf-6fa2-4652-a5f7-529174859286",
+   "visible": true,
+   "tris": 19673,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "97f440e4-52b7-455e-a34b-612da9bbd846",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "0640fcde-8cff-4b0d-996e-004234010cde",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "4fde9c20-6a8b-40b0-9c59-e7874e27a911",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "60542d60-3363-4548-8117-1c385708ee88",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "185395b0-83d0-485b-a0d6-9d26cb8bf98c",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "84f0b360-5ea4-4a17-bbc3-a5f387b93cad",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "db4d2e7f-986f-4f1b-a203-668e74b25ebe",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "85582017-d83d-48c4-9908-56efd57eb79d",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "ea5e28d6-1198-43dd-9ed2-787d360054a9",
+   "visible": true,
+   "tris": 2360,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "52d5c8ac-eb80-4b18-b5ce-5e21b080cb8e",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "44557077-d746-487b-b056-7166f1cf01b8",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "92cb50a3-b196-4537-aad4-0a5ab23e790b",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "ac1084ba-afd8-4564-99f6-0980e05315c3",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "62c7e0f1-39e8-4199-91db-46facfb01136",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "8750cdfc-7faa-43bf-9638-bbffe3391001",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "021a0143-c42a-4cdc-9a33-f8966eaa8899",
+   "visible": true,
+   "tris": 1600,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "f5627ab7-e453-4453-9699-37198f82d3cf",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "30e1524f-d8bb-42d9-9602-cc42f1300ffd",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "d3152570-b536-4f2e-bfd9-64c86d1718bf",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "e123644c-a24a-4db5-ab32-e37851841476",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "3af8e50d-dce3-4bbe-bb94-410f37577c3e",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "4f910107-ff16-47a3-8437-d2b4a7672391",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "d4aae859-a876-4fd2-92fc-aff1eef915ac",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "5e7c8609-1cad-4886-9459-134989039f30",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "4cc7ce2d-27db-48c9-80e3-19622c734e3c",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "fc1309c3-6a4e-41a1-8aed-a9ab2035447b",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "2a6c3b96-eedc-49fb-98b3-c8561b0421d4",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "f5b67d6b-2a68-429c-8399-8bad0e20f018",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "57b4b147-ca45-4e44-b8ce-80ea0bcd8101",
+   "visible": true,
+   "tris": 1512,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "2bc17d65-f774-42e6-a791-de368254e6db",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "fda5f815-55f6-4285-b8de-8b7edc05e7e1",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "07e7d658-cca0-4308-9730-392e1454c883",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "4f24ea1b-e23f-4fb8-8e54-b1c4d339581c",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "3587901d-9757-4d60-93d3-9269400ba32c",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "1d23e10f-81d4-4c21-ab73-63c0059cf3dd",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "79e2ab71-04ee-4446-8efd-30133beb73ce",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "80bfc7c7-41ed-4b6a-b495-e2e3ec0adb17",
+   "visible": true,
+   "tris": 2064,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "591876e6-8292-4350-8a1b-a6960a4ad912",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "5b6d1c95-10ab-4f50-90de-6b2c92430c55",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "aa8eb205-fb53-471c-aad9-0ebe3830489f",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "94db2d09-3660-4d70-8fc1-4119104945dc",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "1f2a42d2-46cc-4d81-9355-e09f46648ab9",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "8df08ec2-52f4-4303-b2b7-d3f7450f70cb",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "9af26273-ac16-4f5e-946f-02aa3c68c5a4",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "4613fd68-c804-4ac6-bd0e-863d4956bf1b",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "03496391-5a43-474d-8426-9639cc26ebbd",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "33d9a9e2-e194-43b8-9aa0-c567488f36fd",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "3c98c351-4636-4ef4-8957-268c954c0f7c",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "f6ff8878-6ac9-42fa-848b-fb74837d0e34",
+   "visible": true,
+   "tris": 2442,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "c694abba-4aa5-43df-b205-8a8083d898fb",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "c2eeacda-c0f3-48b4-98f6-d677fd69c4e1",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "1cb57a53-cafb-4a29-897a-77024c31b0f2",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME",
+   "uuid": "77fdd773-5e44-4fbc-882e-94261b6c473b",
+   "visible": true,
+   "tris": 14988,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group",
+   "uuid": "fba6d8b7-1206-46c8-b815-4a7d5a2aa6ab",
+   "visible": true,
+   "tris": 14988,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "a4888804-9a43-44c7-942a-8bf5a900d57f",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "bc4b5ffb-1116-4dce-b6ea-61b2e09c052e",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "68aae1b1-500c-4327-a199-94b1450d3fbe",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "13dd8f9d-6ef3-4ce6-bbb7-735b890ceeab",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "69b54ea5-1f02-4b05-80e3-3f9525c809c0",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "416043b6-6f39-44a5-b1e0-db91550a2314",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "e2df6d55-f2a6-4dc1-9475-6c7b96e52241",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "895c79cf-1485-43da-be92-e141188abff3",
+   "visible": true,
+   "tris": 674,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "d59d11bc-f3db-4268-9ec7-49706c07a20d",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "5fb6db39-ddf6-4665-b2da-983e7a533188",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "abf60653-df10-4a34-9826-1e6b2a10c9a6",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "e3d5aae7-1c48-48f9-a9ad-1b2483ba5c33",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "ce6f7dbf-4935-449b-9f75-b7c3360a9105",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "2dde2a7a-b48c-44a2-8bd8-4b0f4ce7434e",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "0ca588cd-53a6-4f51-b15b-bc096dc2a361",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "8c3a4f57-1cc6-4b8a-825f-64f9828da180",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "0f20c7ae-4abf-4fe6-8f3f-a92f92573225",
+   "visible": true,
+   "tris": 4848,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "8b725776-e170-4e6b-bb3a-c3b2ad0cbeba",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "52b88d72-aa14-4998-ab95-15cc3e8590be",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "c6da7222-3668-48e1-8e67-c51a3200f054",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "455ca647-f056-4a7d-b0ba-46187a71bf12",
+   "visible": true,
+   "tris": 576,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "db96276e-4825-4885-b377-b3a440335c3c",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "14161520-023b-4943-a174-b3109f006e49",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME",
+   "uuid": "4efa3949-7757-41c1-a0f2-15506ba2fd51",
+   "visible": true,
+   "tris": 21328,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group",
+   "uuid": "3e7353c1-46a4-4903-a138-2ea2df07c0bf",
+   "visible": true,
+   "tris": 21328,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "4ce59a3e-917f-4513-946d-0377d6a8878c",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "d24ac06d-af3a-4c17-8445-f31067932c4f",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "cfd9a404-a41d-4bae-b6e3-1f82ff9d2429",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "b547a677-0d5e-431b-b844-46827ca4a15d",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "4972e065-3cdc-43d6-82d1-bf8ffaf353da",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "b4da5e33-28fc-45f5-ab6a-d307634bca2d",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "3515dc7e-85db-4ecc-95ee-a2a2e8540096",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "0f90ff70-8696-4428-ae2d-65bfee3739d2",
+   "visible": true,
+   "tris": 2516,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "7c25172e-3b9f-454f-88ad-b5e2a6f14a2d",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "0d8f45ab-33ba-4a92-9fa6-bd69af053ce0",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "b36b2cda-2b50-4056-b56d-6ba6462e1905",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "f1ca2acf-3afd-4526-8bb6-b9d0235d684b",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "ac001665-b0ea-4f96-bcfe-e1ca292839ef",
+   "visible": true,
+   "tris": 2678,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "d68065a5-61a8-44c0-9532-8fb0061c099f",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:HOME/Group/rocks:HOME",
+   "uuid": "945bd411-2013-4599-afe0-33d240c34408",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "4dfb9762-2ab1-40e4-98e2-5f5b38d2124d",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "735e8f92-5760-481f-b508-8e52fd442d87",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "0bb9a344-ae7a-4fe5-b5ec-782232878a35",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "1ed5cb64-460b-4f40-9d94-19ccfefb2271",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "2c83b375-83c9-4ca8-ba0b-1c4ca6fac869",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "fbf8a5ef-2be6-4463-843b-13eebddb3399",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "509243b9-fa4a-4b31-b151-c6b29fa1bb05",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "20910750-d4df-42de-8bea-15fff41f6e33",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "2836df28-7e49-4793-b6ce-616e0050a99f",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "2b645f09-abc8-49b0-95ef-2bf114358bca",
+   "visible": true,
+   "tris": 2150,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "14c77763-d4e0-4955-8b99-ba8e3ff1c5c3",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "ae8739f0-7b5d-4132-a02a-261612f08659",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "2c2d983e-9496-4b52-a6f3-c4998af4d411",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "fcbf6dfc-2dd8-46d8-842c-232e2c3e8b5d",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "49c72576-d565-4a9c-8b21-f4505150b7a9",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "dd6d5f3b-522c-4843-bc2e-291ab8bb787e",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "e56b5bf1-6fd3-49b9-a229-6dd95b0b9e56",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "22ea55e1-19e2-4002-99a8-a10c22cf4826",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "c3e9b596-3410-4d14-b7af-f9a34bb92c2d",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "e9018653-a2ea-408c-9e76-882421811f00",
+   "visible": true,
+   "tris": 2306,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "0ff71bc6-fae1-40af-863b-ec602bb0ddae",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "fa06d36f-98c1-43f3-9581-ba0698fca03f",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "52048d77-c41a-4093-810f-2eaaf2199cb0",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "5866405e-2cee-4d6f-815e-35c3ac9ae734",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "64bdaa59-fd1a-4cda-8b3b-f640ab59e5e5",
+   "visible": true,
+   "tris": 4834,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "be4d411a-1ae7-4176-ab85-193cd2d30250",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "84edc643-c94d-4185-afdc-2a7807b791dd",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "6c985c2a-6d22-4025-917a-5a2d436fc52a",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "cc1df6f2-4398-41a6-9a88-a19a8d8dc9d1",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "56acd945-797e-413e-aad5-accdc705194b",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "31ef0072-e239-42b0-88ac-c3c418375049",
+   "visible": true,
+   "tris": 436,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "84518981-a016-4955-af31-901243c4670d",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "3bfda38f-17f7-42f5-a093-abcbf4d0cb40",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "34edb84c-1826-42c8-b9bd-cb205d808d4c",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "f4f78541-b713-4b9d-9018-0d2705f41d5e",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "0789644e-d2e8-461c-8d2d-7c0262190c6f",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "dd0f40e3-ea46-46a2-8618-2bccc5c423a4",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:w3/Group/rocks:w3",
+   "uuid": "71cd5f6d-d9fa-4c9d-b54c-d5779ca3a88d",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:mn_strip/Group/rocks:mn_strip",
+   "uuid": "a40370d0-9cf1-4920-a69b-9b3f596f3a55",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:mn_strip/Group/rocks:mn_strip",
+   "uuid": "c28c597d-6116-45b9-87d9-2f5edc5ad273",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:mn_strip/Group/rocks:mn_strip",
+   "uuid": "377b0525-d978-4548-adda-19bb5c236efe",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:mn_strip/Group/rocks:mn_strip",
+   "uuid": "c2ce7e09-baed-442c-8cfc-e13f301139b6",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:mn_strip/Group/rocks:mn_strip",
+   "uuid": "0176c6f5-04d0-4729-891d-61302f950e05",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:mn_strip/Group/rocks:mn_strip",
+   "uuid": "4369f994-2cdf-42a9-980f-d776c4956522",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:mn_strip/Group/rocks:mn_strip",
+   "uuid": "9414fe26-c617-422a-a332-376068e72f12",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:mn_strip/Group/rocks:mn_strip",
+   "uuid": "4e630a3a-9e7d-488d-8328-14ccc64ed60e",
+   "visible": true,
+   "tris": 1022,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:mn_strip/Group/rocks:mn_strip",
+   "uuid": "ef7aa050-b7ae-4bb8-9859-a9dfb55f568a",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:mn_strip/Group/rocks:mn_strip",
+   "uuid": "fd0f4dc3-acab-45a2-bed5-5edee9234721",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "5b0851a0-9ab7-40a4-87f2-a416a6fd78ce",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "c1579888-d7a5-43e5-a118-58bf06fed4ed",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "4a5caaef-39e0-449b-9d78-9fd57acc7357",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "2289041e-4df2-4b2e-b9d1-f0a16d8e8e08",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "6fb0b44b-bc99-48c2-99ba-9f6e6e16d80d",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "c149d2c4-5eea-4691-b71b-3cb0cc836d4f",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "ac7cb291-484c-4ccc-9eb7-a1826f5e4adf",
+   "visible": true,
+   "tris": 1524,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "a85b06c0-a71b-4939-a448-4dada5a8523f",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "be82f790-405b-4987-bf9e-9c577674dcef",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "542dd471-c0e8-475f-a9a7-c543e4aee503",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "45f61fff-ce92-4bdb-b647-d1f1faf69abd",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "7bc957ee-ed96-4d21-9f1d-0d748988d9eb",
+   "visible": true,
+   "tris": 5316,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "66244f5b-24c4-41f8-bc6b-c9da9ac658f7",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "e9d8eab0-68e0-44a2-bb90-367b866aebcb",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "b0aa23e9-9b2d-459e-b17d-b41f5ace7a33",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "677641ff-b6a0-42fd-a350-b8caf043e7e3",
+   "visible": true,
+   "tris": 1499,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "fa32b237-5908-4270-9133-14be19c36078",
+   "visible": true,
+   "tris": 1598,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "39f9f604-81f5-450e-b4b1-468de9e5e83e",
+   "visible": true,
+   "tris": 1500,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/rocks:tw_ski/Group/rocks:tw_ski",
+   "uuid": "16b033fa-46b5-45cd-92d4-59a7aef78775",
+   "visible": true,
+   "tris": 1500,
+   "big": 84,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "41c00189-21f9-4fb8-a1a8-b54df5a4c626",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "24b6cc77-cdd1-46e2-aa27-248f86e4c2a3",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "64279458-0d7a-427e-9915-1e7bb94e3604",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "f37cccf8-3ca1-40cb-a342-3d5d2e73a5ac",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "2e0b777d-c7bb-4274-8aeb-0f8072c94827",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "29d2f45d-b23f-4d89-b8d7-a244059ca85a",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "2f8bc856-dc64-4337-ab26-cd781eea93b3",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "6760acb9-ff7f-4ec8-88fc-605b861ac592",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "80580624-b0fa-494d-998a-1cea0cb25b34",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "021564d2-45fc-4bfb-8db3-caa7c04bf148",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "3589c53e-a00a-44a1-a1b0-74fda5b02005",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "e357cc28-6cc5-4fe1-bd45-26cb30c4c6a0",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "1cafea15-d775-4953-b325-efced573d72f",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "7e211871-4bcc-4a19-8c78-a0e75296fcf8",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c2d05376-3c09-4c26-9de4-200a8d582141",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "73f09ef6-eedd-47ed-b0e7-5620502b173b",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "99a9f5e2-c38f-4b6d-90c7-c6dce61f6a55",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "87dd6962-06af-48d5-9898-61b787e4795d",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c23af005-0e64-4432-ad6e-ad8e9a980564",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "1f58b234-b2cd-4dbd-b033-d058c7207cf2",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "299cfc2a-3315-461f-983c-cfe7390f905f",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "5ce601cf-25bc-4519-8d54-5a27a8e4c63a",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "fa520e3c-367a-459c-8a72-9bda538a085e",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "f30bd200-b062-4adf-b775-d5e48c930b5e",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "5fab5abb-e028-4cc7-8cef-37bc55317e05",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "00b1f77d-dcf9-477e-b7ee-8082a4573311",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "5cf8d08b-6028-4062-a565-caf22f41ed81",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "aeb55eeb-2595-438b-9c30-26d2346cf6d7",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "2b27917a-1d6e-4fb8-b99e-c918478d6451",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "040f4995-e28c-4dc8-ab42-ecafd2ee3c55",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "25c2b88a-8a9b-4863-af11-47049611b4cb",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "e7abf28f-19f3-46ca-a75e-cc35c6da69fa",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "9f684a35-904b-441f-af32-665adc82e1c2",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "0c7618e1-edfe-4264-b75e-477cd6bb45af",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "1ac06312-a5d2-4cfa-b9e3-daf30d28aec8",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "2424aa7f-4078-4156-a9d5-59c99c405a13",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "dc81a654-55cd-4351-ab93-deebd57ee2d7",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "235ab987-1f5a-435c-9096-66c761733a5a",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "247cf51c-ae88-43f3-9e55-bce42677cc18",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "7a5da4ef-dc0c-4282-b656-dad0f45254bd",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c3f9ed2a-ed5f-4b5c-b82c-7b14b7a8e098",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "3604ed27-bed3-418c-be54-5340dfb70654",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "feb7923f-6f94-4442-86b9-f30083f0f987",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "10102307-8907-4b4a-a9ef-982bb1724cbb",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "289bb6b0-9971-4264-9c59-2f085e81f266",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "9ac23e19-38de-49be-8d76-445a2e40a2b8",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c441442b-5ec9-4a73-acd8-016b7d4e0388",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "505ecefa-32b5-4a5d-a445-a1c959e89562",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "3b26e610-106e-489a-b18c-49b829021b24",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "b0d12238-d99b-475c-9460-757c259d062c",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "3cf87df9-d67b-49f7-aac8-bedffb3f873c",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "d0f266da-48c9-47a9-be03-477ae2fadb2c",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "6e2e4d57-6316-4c66-91f4-496742991e4f",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "62a29418-f029-4a29-8e36-30211f355fff",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "fe5fc91d-5d91-44fc-a633-98dd31edc66d",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "d109551c-01b4-4e8f-a720-e06bc69f5adb",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "83360950-3746-4554-bd80-a745abec3bdd",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "ed966b7c-6287-40f2-9558-03eda860ce28",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "69a8dff3-f86f-4cbe-ae17-50170b1fb76b",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "225a57a7-8360-40f0-9fdd-5257c188c5a5",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "d7784066-0531-4d16-a876-2f1c561e7e3c",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "ee6c683d-b0f3-47ff-9b82-8349970f0e73",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "e037e583-677e-4a36-b301-01437be2c4d0",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "1f7c5b79-f492-4404-b5e2-737b28954011",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "f44985c1-2f09-4441-bd64-147a3070b1a0",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "ada6c357-8362-4853-806a-3a523d8ac640",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "5df6a236-2f1b-45f2-b3d1-36abf852a050",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "650bb9e4-8da0-4802-acba-a86bc07c1590",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "13593e86-3117-4ec0-ad1a-4a2b8f1de681",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "ebcdcc68-6469-4104-a3bd-fbb573f2e767",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "00912d4d-81ac-45e6-b62c-6619fef1fff5",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "f570d1f4-9509-4125-9979-387ca9874ea4",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c7222d65-5e2b-4666-b83a-a06c8f01cb36",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "9bbe9b81-0ab8-4563-841d-7a2b2f28e1bb",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "7bdc3be5-379e-4ea1-8cdd-22fa26333754",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "971fe882-0f6f-4908-9353-00a9e5c402b9",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "a51add87-3f43-4d79-9b99-33c4563fc5aa",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "892b75ed-d6cb-4a8b-a27e-86e48d284975",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "04a3f66f-bdd9-4119-a373-a92295d06fe8",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "bce31c22-bfe0-452e-bff9-64faed26fd2b",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "69fe79bc-9284-48b0-9d4d-323fbcb003c9",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "df72bfe9-7f50-46b7-b411-ff3ddc2705c6",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "fefc6c2f-015f-4193-a76e-6aeba71f02d9",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "f7d6bbb3-d235-409b-9a53-39637369adf5",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "8a9554f4-070f-4467-ad6b-0fbf800247db",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "ecca7620-c8e5-465d-87ed-c192cb81bb10",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "15263de3-9efe-442f-8aec-393f2594543f",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "bef2bc9d-30ac-4acd-9b0f-7a9084c0b6e8",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "3ff6cfaa-e414-4c36-93ab-c8ab07a8c2e2",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "24c18408-2666-4d68-88e4-6dae975acd90",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "b821d3a8-393f-41a5-a83f-be5b9dda4458",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "e7454eb2-a3a7-4966-8d4a-d3af6eb44317",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "b839c072-c83f-49ba-ae83-d1ea595b7494",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "fc995382-2c80-424a-b474-7bc602545992",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "6db5ee1c-4c4b-4ad0-a0e4-317c79fe0203",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c8cf4c1c-8bf4-434f-8e47-7e2f06e27af9",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "b712108b-483f-4b32-bf01-914a76f119c3",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "12ed7b05-d347-4452-b514-93f62153b6a5",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "24a02f3b-6f51-4b92-8434-4a6bd9040f90",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "900b372c-7e13-4cff-a271-d90a8a5ee64b",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "0b47ddd6-53a5-4d7d-8203-132ac3428ad6",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "b9b31cf5-67e2-489d-984e-3788672301b6",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "5fb6633b-f2f6-4e94-9932-2f29ace6e6fe",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "029a5773-6bf7-49fa-880a-5991f79699be",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "1663e8fe-0b4a-4e60-b1bb-ad18502c24b2",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "32df07e5-b5fa-4dda-87d9-828fc4296258",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "4d2e2161-d7c8-4d83-87ea-23f92567b0e9",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "f4178ca6-8aa2-4966-b19f-f1d9452f8bb1",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "74a4a888-c262-4f3a-97a5-0af659718f1e",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "abc2c8ab-f580-4b96-962b-26c112aff0ae",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "50011e93-b60b-4d70-8831-e594fbedf13f",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "15a797e9-eeaa-42ca-86e1-4b7cba294139",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "59ccbccf-8dc0-4146-9900-85bbde12e9b5",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "cd8c1a84-582b-4c8e-8f52-6ba5111e734a",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "5aa4ff30-840f-4498-985b-40b98940eacb",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "afd9e09f-a874-49f2-b7e2-b33a8a9a451b",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "60368059-9b7b-4ee1-b0c2-18d8c4a9b8e8",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "28308fd3-2adf-4a99-99c6-e8da680c1bdc",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "fbb3479c-338d-4107-92d2-666df39dad0f",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "367809a9-13d9-4946-b1fe-8b785a602fa8",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "65ba04b0-3b40-46d5-8066-f297b0a697d4",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "d2938ac3-a823-41e5-b73c-4c8bcd3636f3",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "72ec7d5f-e70a-4938-b2c8-6e9a1af9c815",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "77a7e54e-cc56-4d62-8177-6ecfefd96307",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "cea1439c-be4f-4caa-ae67-a45301674c8c",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "fdfc9008-45eb-46af-bda9-fe288f780e14",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "3073fc78-ab6c-4f2f-bb77-3b3f4f74b235",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "9685c535-fcf7-4546-9e49-9315703be9cc",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "2807b147-e032-4aad-80ea-3d3903618c1c",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "6cdaa6dc-06d4-4a2d-a687-d3a7bd219b87",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "07e80ef3-53c3-407b-838b-c17c7bb27956",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "44cb3a2d-2718-490b-a3f6-eb7c5bf0a065",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "6d846b74-398b-4f57-9c30-ad5c97e5f8e1",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "45b3343a-35fc-4680-84e3-88a43a6a2442",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "f2560e25-97c7-480f-917b-b3516693e20d",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "8b61b47a-84c2-4fa8-8d22-1b040bd51418",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c8879aec-6719-4041-a8f2-d7f7a0d4b421",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "0f4f6abc-b080-43d3-9370-898ea0635780",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "809e41e9-141f-4d30-8fd7-2e0665a7a060",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "688ef1a7-f9bf-44b5-a996-3b528503df9b",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "6dfd0072-ac6c-459d-82dd-7df1931ec20a",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "1a75fb89-6254-4719-b97a-880fd05e2026",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "1cc3ac37-1635-4d4d-8dd6-f00375b0f432",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "b215bc77-63b2-424c-a13f-28de981f84df",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "16666f22-a249-4209-8f0e-0eec436da0f7",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "40e18f4d-b5bc-49fc-acf4-dc0f16d370ba",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "2c816862-df2e-49e6-98b6-2f39b2ec0ac3",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "2f81b438-0a23-4287-86d0-fb66653d1426",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "faf31d60-e4ed-43fe-97b5-d69bf54d71a2",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "fa4f387a-9883-4594-87e6-58149112614b",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "66b4ef53-3be3-421b-bef3-a41bf2765f9b",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "e9bcae4c-904f-46de-b89c-2ee5f69a9abe",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "6683f91f-5ed3-44e6-a541-5b86203c56ec",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "f1eef770-ac95-4e6f-a8db-2565a39f5b42",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "4b2ba494-5c6c-44c4-91ae-0c1234f9aaea",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "56cefa4d-5fe3-427c-a47f-f40905513e3d",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "b956b446-72fa-402b-98c3-b36f306d35eb",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "24167305-3d47-4335-9b58-cb42de818d6c",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "fac6fae1-7e08-4582-a8d0-9c1e609df85b",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "3f19a421-e8d5-4749-b54f-1d88cbf4bb52",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "8cd88008-b4c9-4e82-a4eb-ef2f01a22193",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "af043be3-53fa-4f40-ab36-de845ae628ef",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "839ea919-124c-439e-8d1d-edbdbdcfcc11",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "f3ad5891-4268-4983-9c1f-d7ee948bfe9c",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "010dabbd-03bd-4246-8180-840baad2a44b",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "2ff645a9-a311-4dca-b91d-d618aedb575c",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "a74bc7cc-e608-4d36-9ec5-3385479d8bbf",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "61dd0c0d-8dff-49dc-b0a3-0f5e5feff436",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "ebf47011-2b7c-497a-9b26-d302c2f06f6d",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "d9b43afe-80f2-403f-8261-a9d3d14a64d3",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "a4ff7fa1-c339-4e2b-a66e-0560c83a4992",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "a44da856-c5a9-4589-99f0-36614bd5a6b6",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "3f46ea27-09b9-4aed-974c-48e51d79059d",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "201a0bf6-9995-4cf9-8ebf-311267d8a373",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "a388a040-0106-4849-b3b9-3f66a77cf60f",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "e5e286f6-72f8-4192-bf19-d90e83b0d134",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "3f2b362d-3e8a-4660-b48b-acd3379cad52",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "132bf8ff-ad2a-4e62-8079-54d30fdd602a",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "6e8790fa-ad64-44e6-b796-38b46b9bdc95",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "fe4161b3-bd96-4031-92df-3fec2f18ca14",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "00750d00-993e-4586-a493-b206a0341431",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c2cf1851-2e82-4eb4-a0b7-da4c55f2cafe",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c163a7af-5e7f-4b76-8c01-d0a46b86147e",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "b3616ad2-edac-41a9-8eb5-43b2e59d3496",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "065455f5-20c7-420b-8f8f-6d297d763fae",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "f72c7812-d252-4144-921d-2baeafeb20a1",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c90cf7c2-51bc-40fe-a3d7-31d522d0fffe",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "892b418b-f103-49df-a5e0-4e8d35b53397",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "27675a56-7853-4c8b-b2d6-9e98a276b3c9",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "5f4afbcc-5c30-4278-8741-245c94d00895",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "ee7b165e-5780-496b-8a86-7323c5b886e5",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "46df9d7d-c4eb-4fea-b1a0-041952f83f52",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "5aa87a91-66eb-45b0-8fed-484c58a24b47",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "582892fe-ef46-4698-82ba-98beff5103ae",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "ca99b9a6-b4ca-432b-ab81-7e2fdb516a2a",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "35a793ab-930a-4df1-a87a-328d5e0868e1",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "3dcb8da9-dac7-4ab6-8815-feacbdaef5f0",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "59aaa4c7-292a-4079-8cbc-e980ec5d3cf0",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "dd392eee-2c9a-47d0-840f-cfd15a22848a",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "825eb32f-8404-4029-aad3-ed35ce95784e",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "be9d6471-02f7-468e-b26e-413d577cf928",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "324deca9-d828-4bfe-8ed1-cabd9780ae4e",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "ac56e258-ee03-4863-b3f4-5bf41f804098",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "a0ee3ced-041c-4356-8b32-d1012791c49c",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "ceee74f9-c5ab-4158-8774-bec687f7c288",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "0596c938-5122-434c-80d7-8a18ee64c772",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "88444f08-81cc-493b-9efa-3b6f47dc9ff5",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "447e1f2b-77d7-41d4-990e-450995480a89",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "89306baf-88e2-4da7-912f-bc427234a3ce",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "97ba6446-753a-4eea-8445-e30f7c5959ea",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "664e9915-fcdd-4108-93de-cabf4e5922ba",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "451cd725-4e8d-4d17-928e-2b203b63b3a1",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "36edf8fc-5504-482e-aa85-b4ed1364ffeb",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "6cec8e0f-1ae0-4998-bfa0-e6408e92641e",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "90878938-cc8f-4ea9-b6eb-3e386ea77117",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "b94300f6-e59c-48f8-8c1f-43e3ef6a476e",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "4f4e2c68-e9ac-4dd7-84fe-1378b8a5e92a",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "7bba5113-2a88-466c-9a99-2916950d75c3",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "0c8b9eb3-04d8-4220-b386-3a267ada2008",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "fc7c4e03-017a-4184-9273-9a02fcc93d7f",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "32f736e6-5e7e-423c-b73b-a3bdb4e1b1d0",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "09649459-a92d-488c-9ff5-bc379ae1ee75",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "62188c43-e285-43df-9cfb-f3687dba0b74",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "f9a28a87-93fa-4160-b5af-8b5b685091b1",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "9c11f627-a379-4219-b1f4-bb3f5e99b4d3",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "84b9415f-6b98-48fc-8ae3-ffd1bc48270f",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "6fcd250f-6b32-4405-b2f9-4b6c0226178d",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "d04de24f-4add-49d3-b79c-869a28f7bef0",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "9043fdc3-3774-4d34-9234-cf1e99d24186",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "be392326-f556-441a-bbe8-dbd332634136",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "a834c5b2-c48d-436c-b44f-194678275633",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "9bf739d2-9030-422f-8547-0aeff3d75e75",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "04da8309-6c65-4964-b547-e260ea7307c4",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "68bbb4ff-45a8-4efe-ac29-6c517a670375",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c1639811-2b7d-4ba0-9754-45ef5868ccf8",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "aa07d5ba-6077-4e88-8878-0b180d3f051f",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "01b6f2b8-45a2-4193-a04b-28db7974d62a",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "6d2b37f1-8383-4225-83a7-e27fef451c1c",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "5a29be72-542c-4c63-a615-070bd563cdd5",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "3a376711-978b-43ea-9649-8133f20d26d5",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "82e65923-0143-411e-a924-3abd7ab74f24",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "7735acee-3ebb-4ab9-b140-478caf78c873",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "1cb384bc-d934-4cb5-9b27-1968e5d30f56",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "5c3baf68-4846-474d-bc71-2db6acdf520d",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "fd8c2d1b-f92a-4438-8019-4b9ef40a9de4",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "3ad86620-42f3-4cf5-b6c7-a1727ddd4dae",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "658d5d58-d12a-46bc-af44-c61850cb93a3",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c32554b6-5eea-4272-b3b3-6ede5243667c",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "139f9d1d-3b7f-4454-9e76-e5ccacbb46de",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "5bdf9e2d-5a7c-4633-84d7-db37f032f556",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "e9aae9ee-218d-472d-a2ab-b1c54e87eb02",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "309e3daa-bfc4-4ac1-aa97-5e033ed39ae1",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "98451bd9-1195-4e2f-85ad-95a7ed7c5e0d",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "bb786df2-753a-4b54-bf82-40447abd272d",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "bd8afee8-16e9-4e28-aa80-b61268e4ac94",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "e23be9d4-9c2b-42e4-874a-641d4d8c4128",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "0d1c5abc-a634-488c-8b8d-07a1d54e7469",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "d09e010a-3f13-4d53-bb90-086296ae03ae",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "8f8ee406-2814-46c2-bb0d-30733954b1be",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "56dea71d-45a9-401a-a206-cde69bfafa6c",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "c5d9462b-7b9e-4463-a830-a51ba6b4607a",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "7f59aa2d-f912-4258-a48c-526c55b9c694",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "0d8ff93b-71b5-4ae5-a541-50e36498b246",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "7edeabca-5b9d-4188-a162-627d60767b42",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "7686d7a7-6ed2-4c00-8109-251c805d2254",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "1fb107af-e047-457b-89ca-5c3ce84ccdd5",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "e7611586-a214-4835-99af-d16882f5efe0",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "8e9f4d95-2d62-46a7-b409-cf0982727a3b",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "babb3a06-9880-41e4-b79d-74cb57eb1e93",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/contact:blobs",
+   "uuid": "de5c20b5-591f-486c-8cb3-7f28f62463a0",
+   "visible": true,
+   "tris": 2,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Group",
+   "uuid": "90bf6713-7ddd-4d53-8924-40f8b82d8fe5",
+   "visible": true,
+   "tris": 344675,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Group/Group",
+   "uuid": "64466ad6-7e89-45be-93f9-ee98dd9c561a",
+   "visible": true,
+   "tris": 344675,
+   "big": 0,
+   "isModel": true
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis",
+   "uuid": "35d33520-3f0d-4dba-add6-1b069edad1ea",
+   "visible": true,
+   "tris": 96,
+   "big": 32,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "73d218c9-b62e-4e80-b494-ca7cf04b5ea1",
+   "visible": true,
+   "tris": 5658,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "089aef00-fb57-4db0-9d6e-54ad3c13b0f6",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "af8af61d-e51b-4779-99de-72b36fab082d",
+   "visible": true,
+   "tris": 2,
+   "big": 2,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "ec8fc01c-efd2-46ff-a55d-d0ebc1841165",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "fecba61b-3eea-4a99-8110-297c58843fc3",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "1e981c0f-16b0-46dd-96a5-f6b8002f15d0",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "d5a7fac0-b60b-4e52-91cb-f08c7ea11d57",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "cad1868e-fae8-4b26-8b71-197ff509a8f5",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "40168c4f-b99d-425b-b430-8d2aea2916ec",
+   "visible": true,
+   "tris": 2,
+   "big": 2,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "9774ba57-cf04-429d-a538-2c7af4a02b74",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "d34b4a8e-fc0d-42cd-95f0-b738d19af06c",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "67056d27-b7e6-4d59-aad2-2d8632de60c0",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "c748f957-53fa-4099-b9d3-cbdd7922189e",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "2567d519-d36c-44a1-8c61-35b7a05d3cc0",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "b47ac550-a3dd-40cc-8735-491e2bc81f40",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "eb723a13-d8ea-4716-950f-88a8c480e405",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "fe40c712-f212-4beb-9583-b057ec9befe2",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "c539d785-7c30-4515-897c-cdb09bc23861",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "7b903d69-896e-4fdb-8e98-db33d714109b",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "2650eec7-0e2c-4180-9a21-0ca4ebd1260c",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "493c3996-7fd3-47a7-9c7e-07dd5ce84df5",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "82bc9c49-7d0c-48a1-9f21-029a69aa5e35",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "5d5b3ddd-24bd-41e0-ae08-d9d3b12a6cd8",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "83bf7c6b-82f4-44b6-8e7c-db0c1be28e94",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "96cf9612-3b9e-4e05-ae68-34c0e15e079c",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:graph/Mesh",
+   "uuid": "21bd3f7e-bd37-4f97-8d62-bf297d085bb3",
+   "visible": true,
+   "tris": 18,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:targets/Mesh",
+   "uuid": "41585c88-bdb0-4459-b077-ef2d92c86b35",
+   "visible": true,
+   "tris": 56,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:targets/Mesh",
+   "uuid": "3d5fc210-3473-4cf3-a5ca-0e8174413df1",
+   "visible": true,
+   "tris": 56,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:papi",
+   "uuid": "53eb6a15-0e1e-4ef2-a7ae-7ff6d90197fb",
+   "visible": true,
+   "tris": 96,
+   "big": 32,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:papi/Mesh",
+   "uuid": "eb929047-7026-4be1-8a51-661f7efcaa04",
+   "visible": true,
+   "tris": 12,
+   "big": 4,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:papi/Mesh",
+   "uuid": "5e993ac7-d405-4924-a505-416e9be5ce81",
+   "visible": true,
+   "tris": 12,
+   "big": 4,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:papi/Mesh",
+   "uuid": "77795380-3155-4ad8-878c-192c048222dc",
+   "visible": true,
+   "tris": 12,
+   "big": 4,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:papi/Mesh",
+   "uuid": "206c65c9-708d-487b-b54f-58a08e4ec42d",
+   "visible": true,
+   "tris": 12,
+   "big": 4,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:papi/Mesh",
+   "uuid": "5fd372b6-316c-47c1-8217-f35a6c571392",
+   "visible": true,
+   "tris": 12,
+   "big": 4,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:papi/Mesh",
+   "uuid": "d48e43b2-6223-481e-a920-71fef56b202f",
+   "visible": true,
+   "tris": 12,
+   "big": 4,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:papi/Mesh",
+   "uuid": "0231dcfa-518a-4800-8bad-6184514f745a",
+   "visible": true,
+   "tris": 12,
+   "big": 4,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/patternVis/pattern:papi/Mesh",
+   "uuid": "eb9346c0-87ae-426b-b75c-499de743a1ad",
+   "visible": true,
+   "tris": 12,
+   "big": 4,
+   "isModel": false
+  },
+  {
+   "scene": "world",
+   "path": "/Mesh",
+   "uuid": "12a9b47e-2491-44e7-b0e4-37105946a775",
+   "visible": true,
+   "tris": 2048,
+   "big": 2048,
+   "isModel": false
+  },
+  {
+   "scene": "hangar",
+   "path": "/Group",
+   "uuid": "3a475d47-ec84-4273-b6ce-46715d3ec768",
+   "visible": true,
+   "tris": 844778,
+   "big": 10806,
+   "isModel": false
+  },
+  {
+   "scene": "hangar",
+   "path": "/Group/Group",
+   "uuid": "361d8a4b-9eb8-4b6a-a4be-4ab2b581f017",
+   "visible": true,
+   "tris": 844778,
+   "big": 10806,
+   "isModel": false
+  },
+  {
+   "scene": "hangar",
+   "path": "/Group/Group",
+   "uuid": "3df157a6-120a-44e7-aca0-29e44e310f2b",
+   "visible": true,
+   "tris": 397423,
+   "big": 64,
+   "isModel": false
+  },
+  {
+   "scene": "hangar",
+   "path": "/Group/Group/Mesh",
+   "uuid": "1863d31a-09c8-41f7-ab72-395feae25061",
+   "visible": true,
+   "tris": 76128,
+   "big": 64,
+   "isModel": false
+  },
+  {
+   "scene": "hangar",
+   "path": "/Group/Group/cageLayer:crew",
+   "uuid": "b1eab0b5-bb7e-4ffb-9e67-45ecaa264aca",
+   "visible": true,
+   "tris": 137273,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "hangar",
+   "path": "/Group/Group/cageLayer:cowl",
+   "uuid": "948d8ad0-b1d6-4ca2-87fd-5cbfc7e3343e",
+   "visible": true,
+   "tris": 14206,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "hangar",
+   "path": "/Group/Group/cageLayer:eng",
+   "uuid": "c3bddaa8-f7a9-4c98-9dee-9851a7fbbfc4",
+   "visible": true,
+   "tris": 44260,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "hangar",
+   "path": "/Group/Group/cageLayer:wing",
+   "uuid": "e39a264c-3430-462a-af19-bb4f81a0352c",
+   "visible": true,
+   "tris": 29084,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "hangar",
+   "path": "/Group/Group/cageLayer:gear",
+   "uuid": "10bb3768-d90e-448d-b21d-219d8e9e0edc",
+   "visible": true,
+   "tris": 34808,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "hangar",
+   "path": "/Group/Group/cageLayer:fin",
+   "uuid": "f8b8d102-a3d1-4953-86a3-35bd40a27617",
+   "visible": true,
+   "tris": 4380,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "hangar",
+   "path": "/Group/Group/cageLayer:stab",
+   "uuid": "5bd5010e-c4a8-4bae-bae3-a24e85eb7cc2",
+   "visible": true,
+   "tris": 6440,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "hangar",
+   "path": "/Group/Group/cageLayer:access",
+   "uuid": "23ce1f65-eca3-4b88-a16d-533270d4768f",
+   "visible": true,
+   "tris": 8610,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "hangar",
+   "path": "/Group/Group/cageLayer:light",
+   "uuid": "c02e8b86-b627-4704-a255-9c1d5addf8fd",
+   "visible": true,
+   "tris": 7310,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "hangar",
+   "path": "/Group/Group/cageLayer:energy",
+   "uuid": "ddd4bb25-fbb0-463b-9388-0f288f0dba6e",
+   "visible": true,
+   "tris": 2244,
+   "big": 0,
+   "isModel": false
+  },
+  {
+   "scene": "hangar",
+   "path": "/Group/Group/cageLayer:hinge",
+   "uuid": "d9ddd1c0-6106-4400-b496-6b525947e980",
+   "visible": true,
+   "tris": 32680,
+   "big": 0,
+   "isModel": false
+  }
+ ],
+ "freshSnap": {
+  "snapTris": 147102,
+  "snapBig": 0,
+  "meshes": 33,
+  "meshesBig": 0,
+  "bigNotModel": [],
+  "bigInModel": 0
+ }
+}

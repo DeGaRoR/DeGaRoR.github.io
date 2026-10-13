@@ -44,8 +44,14 @@ const BUILDS = {
 };
 const ONLY = arg('only', Object.keys(BUILDS).join(',')).split(',');
 
+// G2034 (DMG-RECAL, GATE JOINPARITY's census): a validated build AS THE GAME FLIES IT (tools/_load_build.js; the twin on
+// floats is `twinFloats`, the cage's float row on); the other fixtures as written; FLYDIY_RAW_BUILDS=1: every file as written
+const LB = require(path.join(__dirname, '_load_build.js'));
+const VAL = Object.fromEntries(Object.entries(LB.VALIDATED).map(([k, v]) => [v.build, k]));
 function defOf(B) {
-  const spec = loadSpec(B.file);
+  const raw = process.env.FLYDIY_RAW_BUILDS === '1', tw = B.file === LB.VALIDATED.twinFloats.build;
+  const spec = raw ? loadSpec(B.file) : tw && B.floats ? LB.loadValidated('twinFloats').spec : tw ? LB.loadBuild(path.join(ROOT, B.file)).spec
+    : VAL[B.file] ? LB.loadValidated(VAL[B.file]).spec : loadSpec(B.file);
   if (B.floats) spec.gear.type = 'floats';
   return C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(spec))));
 }

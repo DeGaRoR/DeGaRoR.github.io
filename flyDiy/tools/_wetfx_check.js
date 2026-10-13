@@ -134,7 +134,7 @@ console.log('\n== 5. the worker\'s path: trimmed, carried, handed once ==');
   ok(W1[HD + 1 * R + 13] === 9000 && W1[HD + 13] === 0 && W1[HD + 2 * R + 13] === 0, 'sim_view.js: an unread peak (group 3, 9 kPa) carried onto the newer snapshot\'s same group over its 2 kPa; the others untouched');
   ok(/view\.wet = simViewWetCarry\(view\.wet, M\.wet \|\| null\)/.test(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'sim_view.js'), 'utf8')), 'sim_view.js take() uses it (source)');
   const lsrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'sim_link.js'), 'utf8');
-  ok(/def\('wetFx'/.test(lsrc) && /'certStamp', 'wetFx'\]/.test(lsrc), 'sim_link.js hands the worker\'s records as sim.wetFx and restores the inline one at detach (source)');
+  ok(/def\('wetFx'/.test(lsrc) && /for \(const k of \[[^\]]*'wetFx'[^\]]*\]\) saved\[k\] = own\(k\)/.test(lsrc), 'sim_link.js hands the worker\'s records as sim.wetFx and restores the inline one at detach (source)');
 }
 
 console.log(fails ? `\nGATE WETFX: FAIL (${fails})` : '\nGATE WETFX: PASS');

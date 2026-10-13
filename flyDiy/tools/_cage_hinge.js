@@ -708,9 +708,10 @@ PAGE.post = ctx => {
     if (n === 2) return 'ply';
     if (n === 3) return 'alloy';
     if (n === 4) return 'carbon';
+    if (n === 6) return 'carbon';                    // G2047: a glass surface hangs as a moulded one
     const m = String(P.material || (window.GARAGE_SPEC && window.GARAGE_SPEC.get
       && ((window.GARAGE_SPEC.get().fuselage || {}).material)) || 'tubeFabric');
-    return (m === 'alu' || m === 'alloy') ? 'alloy' : m === 'carbon' ? 'carbon' : 'fabric';
+    return (m === 'alu' || m === 'alloy') ? 'alloy' : (m === 'carbon' || m === 'glass') ? 'carbon' : 'fabric';
   };
 
   const links = [], placed = [];

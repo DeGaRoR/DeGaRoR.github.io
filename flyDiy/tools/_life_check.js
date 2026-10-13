@@ -15,6 +15,7 @@
 //      has the LIFE section; the world pack loads it before the renderer; the world ticks the premises for it.
 // node tools/_life_check.js [--verbose]
 'use strict';
+require('./_core_math_global.js');   // (T41b: CORE_MATH before a core file required alone - 00_registry's)
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');

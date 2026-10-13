@@ -1,0 +1,199 @@
+  ok     the shelf published window.GARAGE_SPEC
+  ok     the shelf has an update door
+  ok     the stock spec carries derived nulls (76)
+  ok     the envelope is tagged flydiy-build
+  ok     the envelope stamps the spec version
+  ok     the envelope carries the plaque and the logbook beside the spec
+  ok     ...and NOT inside it — a result is not a design decision
+  ok     every derived null comes back a null, same paths
+  ok     P -> cageToSpec -> cageFromSpec is identity
+  ok     ...and the layer keys ride through, not just the cage ones
+  ok     there are stock designs to check (6)
+  ok     every stock design loads exactly as its preset applied
+  ok     negative: the un-baked preset keys alone do NOT reproduce it
+  ok     the shelf lists all 6 of them
+  ok     the page declares at least one full build
+  ok     cessna 172: the build declares sections, never a cage
+  ok     piper cub: the build declares sections, never a cage
+  ok     jodel D112: the build declares sections, never a cage
+  ok     chinook: the build declares sections, never a cage
+  ok     every declared build is a listed stock design
+  ok     cessna 172: its engine rides through (a65_sensenich74)
+  ok     cessna 172: its wing rides through
+  ok     cessna 172: its paint and registration ride through
+  ok     cessna 172: its finish rides through
+  ok     piper cub: its engine rides through (a65_sensenich74)
+  ok     piper cub: its wing rides through
+  ok     piper cub: its paint and registration ride through
+  ok     piper cub: its finish rides through
+  ok     jodel D112: its engine rides through (a65_sensenich74)
+  ok     jodel D112: its wing rides through
+  ok     jodel D112: its paint and registration ride through
+  ok     jodel D112: its finish rides through
+  ok     chinook: its engine rides through (rotax582_ivo)
+  ok     chinook: its wing rides through
+  ok     chinook: its paint and registration ride through
+  ok     chinook: its finish rides through
+  ok     a partial sectioned file keeps the controls IT carried
+  ok     ...and its propeller
+  ok     ...and its systems
+  ok     ...and its bracing
+  ok     ...and its sectioned name and registration
+  ok     ...and the cage it actually carried
+  ok     a pre-G3 flat spec still lifts into sections
+  ok     ...carrying its name
+  ok     a cage-only file loads as a whole spec, not a fragment
+  ok     ...still carrying its cage
+  ok     ...with the derived fields still null, not frozen
+  ok     the name and registration survive a build
+  ok     ...and the paint you chose
+  ok     ...and the prop, the cowl and the fuel
+  ok     ...and the wing placement, which merges INSIDE the wing the join rewrote
+  ok     while the joined rows land: span is the editor's
+  ok     ...and the measured gear
+  ok     ...and the shape rides along
+  ok     explodeD never reaches the spec
+  ok     ...while a real deviation still does
+  ok     ...and an older file carrying one cannot set it either
+  ok     the unnamed working build saves with no slot name
+  ok     ...and takes the name once you give it one
+  ok     the named slot is written
+  ok     and the shelf lists it
+  ok     saving stamps the logbook stub with a build date
+  ok     the factory finish is null — a spec that says nothing gets the aeroplane its construction implies
+  ok     a spec from before the field normalises to the factory finish
+  ok     a finish rides through normalise verbatim — aeroskin.js owns which names and ranges are real, not this level
+  ok     clampSpec nulls a truthy non-object finish, the way it does the cage
+  ok     ...and leaves a real one alone
+  ok     the join writes the finish onto the build
+  ok     ...and writes the NULL, so paint can be stripped off again
+  ok     ...and says nothing at all when nothing measured it
+  ok     a changed tint is the new one
+  ok     ...and a section whose override was cleared is GONE
+  ok     ...and so is a wear that went back to zero
+  ok     and stripping the aeroplane back to the factory finish sticks
+  ok     applySpec applies the finish on every load, guarded only against a null spec
+  ok     ...and NOT only when the file happens to carry one
+  ok     both halves are published on window.CAGE_UI
+  ok     there are vintage fixtures to load (12)
+  ok     vintage build_flat_pre-v3.json loads and lands on v10
+  ok     vintage build_v10_birdman_2026-09-18.json loads and lands on v10
+  ok     the fat build_v10_birdman_2026-09-18.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v10_birdman_2026-09-18.json carries every row (996 of 996)
+  ok     vintage build_v10_c172_wipline2350_2026-09-20.json loads and lands on v10
+  ok     the fat build_v10_c172_wipline2350_2026-09-20.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v10_c172_wipline2350_2026-09-20.json carries every row (1010 of 1010)
+  ok     vintage build_v10_cessnaMetal_2026-09-26.json loads and lands on v10
+  ok     the fat build_v10_cessnaMetal_2026-09-26.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v10_cessnaMetal_2026-09-26.json carries every row (996 of 996)
+  ok     vintage build_v5_2026-08-30.json loads and lands on v10
+  ok     the fat build_v5_2026-08-30.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v5_2026-08-30.json carries every row (809 of 809)
+  ok     vintage build_v5_swept_2026-09-01.json loads and lands on v10
+  ok     vintage build_v5_swept_2026-09-01.json: area + MAC survive the migration exactly
+  ok     vintage build_v5_swept_2026-09-01.json: mass within 1.5% (521.7 vs frozen 521.3)
+  ok     vintage build_v5_swept_2026-09-01.json: xAC inside the honesty window (1.1580 vs frozen 1.2861)
+  ok     the fat build_v5_swept_2026-09-01.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v5_swept_2026-09-01.json carries every row (677 of 677)
+  ok     vintage build_v7_twin_2026-09-04.json loads and lands on v10
+  ok     the fat build_v7_twin_2026-09-04.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v7_twin_2026-09-04.json carries every row (688 of 688)
+  ok     vintage build_v7_ultralight_2026-09-05.json loads and lands on v10
+  ok     the fat build_v7_ultralight_2026-09-05.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v7_ultralight_2026-09-05.json carries every row (706 of 706)
+  ok     vintage build_v8_drawn-tail_2026-09-08.json loads and lands on v10
+  ok     vintage build_v8_drawn-tail_2026-09-08.json: area + MAC survive the migration exactly
+  ok     vintage build_v8_drawn-tail_2026-09-08.json: mass within 1.5% (497.2 vs frozen 497.6)
+  ok     vintage build_v8_drawn-tail_2026-09-08.json: xAC inside the honesty window (0.8677 vs frozen 0.8677)
+  ok     vintage build_v8_drawn-tail_2026-09-08.json: the drawn tail it carries flies as drawn (Sh 2.294, Sv 1.248, not auto)
+  ok     the fat build_v8_drawn-tail_2026-09-08.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v8_drawn-tail_2026-09-08.json carries every row (671 of 671)
+  ok     vintage build_v8_pusher_2026-09-11.json loads and lands on v10
+  ok     the fat build_v8_pusher_2026-09-11.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v8_pusher_2026-09-11.json carries every row (705 of 705)
+  ok     vintage build_v8_twin-boom_2026-09-11.json loads and lands on v10
+  ok     the fat build_v8_twin-boom_2026-09-11.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v8_twin-boom_2026-09-11.json carries every row (697 of 697)
+  ok     vintage build_v9_stock_2026-09-15.json loads and lands on v10
+  ok     the fat build_v9_stock_2026-09-15.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v9_stock_2026-09-15.json carries every row (991 of 991)
+  ok     the default aeroplane bakes to EVERY row it knows (672 keys) — a default that moves cannot move a saved design
+  ok     ...cage rows and layer rows at their values, the view keys out
+  ok     deviating one layer key changes that value and adds no key
+  ok     a slim (older) file still loads: what it names it fixes, what it predates takes the default
+  ok     the migrator table carries exactly v5->v6 (the wing stations), v6->v7 (the energy vessels), v7->v8 (the rod taper), v8->v9 (the boom loft) and v9->v10 (the construction tile)
+  ok     v9->v10: an absent tile on an alloy spec becomes the alloy tile
+  ok     v9->v10: a chosen tile is kept over the spec's material
+  ok     v9->v10: no material at all -> the steel tube tile (the default aeroplane)
+  ok     v9->v10: a save with no cage is left alone
+  ok     v7->v8: a rod save carries its taper into boomLen (2.99 -> 4.45)
+  ok     v7->v8: a lofted taper is left alone
+  ok     v7->v8: twin booms are left alone
+  ok     v7->v8: absent keys read as the cage defaults (4.584)
+  ok     v8->v9: a lofted twin boom's diameter and taper become its four sizes (0.2/0.3 -> 0.1/0.15)
+  ok     v8->v9: a rod twin boom stays round
+  ok     v8->v9: a save without the pair is left alone
+  ok     sense: a counter-rotating pair keeps both hands through resolveSpec
+  ok     sense: absent reads as +1
+  ok     sense: anything but -1 is +1
+  ok     a v3 spec walks 3 then 4, in order
+  ok     ...and lands stamped v10
+  ok     ...and a migrator saw the RAW old shape (its rename took)
+  ok     a current spec walks nothing
+  ok     an old vintage is stamped current even with an empty table
+  ok     a FUTURE spec keeps its claim — this build does not lie about understanding it
+  ok     the plaque setter stores the certificate
+  ok     the certificate rides in the envelope, beside the spec, sheets and all
+  ok     loading hands the certificate to the bench, exactly once
+  ok     ...and only AFTER the loaded spec was applied — the storm is over
+  ok     a build saved without a certificate loads with none
+  ok     G116/G213: naming the surface default out loud changes nothing
+  ok     G213: a saved "wood" wing reads as fabric over wood
+  ok     G116: a carbon wing moves the wing ledger
+  ok     G116: the fixed-geometry sections moved by an order less than the wing (the gauge follows the gross)
+  ok     G116: the engines did not move
+  ok     G116: the gear re-rig is an order smaller than the wing change
+  ok     G116: a carbon fin moves the tail ledger
+  ok     G116: ...and the wing's and the fuselage's by an order less (the gauge)
+  ok     G116: an unknown material falls back to the aeroplane's own
+  ok     G116: the price moves the way the material table says
+  ok     G117: the same members exist either way
+  ok     G117: fuselage members move only by the aeroplane-level rescale
+  ok     G117: the wing members split into structure (material) and bracing (aeroplane) and nothing else — 56/8/0
+  ok     G117: the wing k moves by exactly the material table's own ratio
+  ok     G117: the damping follows the same material
+  ok     G117: naming the global changes no member at all
+  ok     writing pax:0 explicitly is the same aeroplane as not writing it
+  ok     pax 9 in a two-seater loads exactly one passenger, not nine (80.8 kg)
+  ok     a passenger weighs 80 kg (80.8)
+  ok     a passenger does not move the CG — the seat rows are collapsing onto one frame again, which is what made a full cabin load like a solo one (moved 102 mm)
+  ok     side4: three passengers weigh 240 kg (242.1)
+  ok     side4: filling the cabin does not move the CG AFT — the back row is being billed onto the front frame
+  ok     tandem4: three passengers weigh 240 kg (238.5)
+  ok     tandem4: filling the cabin does not move the CG AFT — the back row is being billed onto the front frame
+  ok     measured seat stations change where people sit, not how much they weigh (-0.9 kg)
+  ok     billing the people at their seats instead of the cabin pillars moves the CG FORWARD by their lever: expected 74 mm, got 78 mm — a pillar is not a chair
+  ok     the seat lever is arithmetic the builder can check: expected +92 mm, got +98 mm
+  ok     a malformed seatsX is ignored — the pillar rule stands
+  ok     single still builds with 1 aboard (436.3 kg, cg 0.7135)
+  ok     tandem2 still builds with 2 aboard (539.8 kg, cg 0.8449)
+  ok     side2 still builds with 2 aboard (548.6 kg, cg 0.7340)
+  ok     cabin.seats 6 on a side2 resolves to six seats (6)
+  ok     two filled seats weigh 160 kg wherever they are (161.2 / 161.4)
+  ok     the same two passengers in different seats are a different balance: expected +95 mm, got +97 mm
+  ok     the loading numbers are read off the occupancy list (occupants 3, crew 1, pax 2)
+  ok     the pilot is aboard whatever the list says — a seat 0 in the first place is ignored
+  ok     a list longer than the seats is cut to the seats (6)
+  ok     a malformed occupancy list reads as "the first N seats", never as a jump
+  ok     pilots + pax without a list is the first N seats, exactly as before
+  ok     the logbook counts its flights (built 2026-10-08 · 2 flights · 0.25 h)
+  ok     and ACCRUES them: 294 + 600 s is 0.25 h (built 2026-10-08 · 2 flights · 0.25 h)
+  ok     the arrival's own clock is on its row
+  ok     the landing run rides the row
+  ok     a refused flight is still a row
+  ok     a row from before the clock is still a flight (built 2026-10-08 · 3 flights · 0.25 h)
+  ok     ...and does not poison the total to NaN (built 2026-10-08 · 3 flights · 0.25 h)
+  ok     the clock, the date and the run all ride the save envelope
+
+GATE BUILD: PASS
+== exit 0 23 s

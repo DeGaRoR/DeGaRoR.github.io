@@ -1,0 +1,6 @@
+cub ground: base 3.1998 ms, now 3.1920 ms, -0.24 % (the median of 11 processes' medians); pooled 3.2042 -> 3.1881 ms, -0.50 % (every step of every process); alternating pairs, 600 steps each
+cub air: base 3.1192 ms, now 3.1115 ms, -0.24 % (the median of 11 processes' medians); pooled 3.0920 -> 3.1178 ms, 0.83 % (every step of every process); alternating pairs, 600 steps each
+metal ground: base 5.5818 ms, now 5.6321 ms, 0.90 % (the median of 11 processes' medians); pooled 5.5653 -> 5.6466 ms, 1.46 % (every step of every process); alternating pairs, 600 steps each
+metal air: base 5.3447 ms, now 5.4813 ms, 2.56 % (the median of 11 processes' medians); pooled 5.3906 -> 5.4221 ms, 0.58 % (every step of every process); alternating pairs, 600 steps each
+twin taxi: base 16.6693 ms, now 16.8198 ms, 0.90 % (the median of 11 processes' medians); pooled 16.5673 -> 16.4492 ms, -0.71 % (every step of every process); alternating pairs, 600 steps each
+cessna taxi: base 15.7654 ms, now 16.2573 ms, 3.12 % (the median of 11 processes' medians); pooled 15.9130 -> 16.1596 ms, 1.55 % (every step of every process); alternating pairs, 600 steps each

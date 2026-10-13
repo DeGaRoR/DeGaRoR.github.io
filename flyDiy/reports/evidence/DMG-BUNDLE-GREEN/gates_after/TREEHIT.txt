@@ -1,0 +1,41 @@
+1. the island's collidable woodland
+  ok   Jolene composes in node
+  ok   trees rooted over the analytic treeline (165 m) are collidable: 5432 of 24569
+  ok   every collidable tree stands on the tree map's TREE class (0 off it)
+  ok   HOME stands over 24 m (31.7 m): the case the old altitude gate missed
+2. the solver meets a trunk at any elevation
+  ok   the three runs finite and rolling (8.4 m/s at the most)
+  ok   with no tree the aeroplane rolls through the place (82.7 m)
+  ok   at 0 m the trunk stops it (the CG got to 58.2 m of 60)
+  ok   at 300 m the trunk stops it too (58.2 m of 60) - the altitude gate is gone
+  ok   with the woodland cylinders off (world.woodSolid false: the game page and its worker) the same tree is not met (82.7 m)
+3. the trunk rule, the bins, the worker's world
+  ok   a 15 m realistic fir (crown 0.28 H): r 0.3 m, the trunk to 10.05 m
+  ok   a 25 m maple (crown 0.45 H): r 0.5 m, the trunk splits at 12.5 m
+  ok   20 000 points (half beside a trunk) against the brute force: 0 differ; 3400 trunks in 2 sets, the island-wide set on 64 m cells
+  ok   a set dropped goes whole (400 left)
+  ok   the worker's world takes the page's tset / tdrop (3000 trunks, version 1)
+  ok   and its tclear
+  ok   the worker world takes wsolid (woodSolid false); a world no viewer stands on keeps its cylinders
+4. a flight into a forest-fill trunk
+  ok   the fill's rule, a 15 m fir: taxied at it, the trunk stops the aeroplane (the CG to 58.7 m of 60; 82.7 m with none)
+  ok   the fill's rule, a 15 m fir: across the span, 0.7 m -> 60, 1.5 m -> 60, 2.5 m -> 60, 3.5 m -> 62, 4.5 m -> 63 m (the CG past the trunk's line by 5 m at most, or the wing broken on it)
+  ok   the fill's rule, a 15 m fir: flown at it (4 m AGL, 30 m/s): 4794 beam contacts, stopped by it (the CG to 39.1 m, the trunk at 40); with no trunk it flies on past at 32.1 m/s, nothing touched
+5. the census: every tree drawn within 1 km of the aeroplane on HOME's stand (the page in node)
+  ok   the page booted and rolled out (223 s)
+       kind       drawn   collidable now   before
+       fill       15845            15845        2
+       wood           0                0        0
+       prem           0                0        0
+  ok   every fill tree drawn is collidable (15845 of 15845; before: 2)
+  ok   every woodland tree drawn - its neighbours and the placed ones too - is collidable (0 of 0; before: 0)
+  ok   every premises tree drawn is collidable (0 of 0; before: 0)
+  ok   the world holds 59559 trunks in 20 sets (20 fill chunk parts round the aeroplane)
+  ok   no woodland cylinder collides unseen (92 physics seeds within 1000 m, woodSolid false, 0 woodland trees drawn)
+  ok   no page error
+       the page's fill trunk nearest the stand (67 m): r 0.30 m, 6.3 m long
+  ok   the page's own fill trunk: taxied at it, the trunk stops the aeroplane (the CG to 58.7 m of 60; 82.7 m with none)
+  ok   the page's own fill trunk: across the span, 0.7 m -> 60, 1.5 m -> 60, 2.5 m -> 60, 3.5 m -> 62, 4.5 m -> 63 m (the CG past the trunk's line by 5 m at most, or the wing broken on it)
+  ok   the page's own fill trunk: flown at it (4 m AGL, 30 m/s): 4794 beam contacts, stopped by it (the CG to 39.1 m, the trunk at 40); with no trunk it flies on past at 32.1 m/s, nothing touched
+  29/29 checks
+GATE TREEHIT: PASS

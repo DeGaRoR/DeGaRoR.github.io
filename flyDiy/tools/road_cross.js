@@ -3,6 +3,7 @@
 //   node tools/road_cross.js ROAD_ID [--file tools/fixtures/island_jolene.json] [--json]
 // Read only. A road's drawn line is its spline (roadLine); a runway's box its paved width; a stand a disc of 12 m.
 'use strict';
+require('./_core_math_global.js');   // (T41b: CORE_MATH before a core file required alone - 00_registry's)
 const fs = require('fs');
 const path = require('path');
 const PG = require(path.join(__dirname, '..', 'src', 'core', '27_premises.js'));

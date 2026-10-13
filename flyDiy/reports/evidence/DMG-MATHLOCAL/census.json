@@ -1,0 +1,3323 @@
+[
+ {
+  "f": "00_registry.js",
+  "line": 846,
+  "fn": "genShaftRpm",
+  "op": "pow",
+  "via": "Math",
+  "core": false,
+  "why": "pow(x, 2) - every engine agrees"
+ },
+ {
+  "f": "00_registry.js",
+  "line": 865,
+  "fn": "genEnginePrice",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "00_registry.js",
+  "line": 867,
+  "fn": "genEnginePrice",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "00_registry.js",
+  "line": 871,
+  "fn": "genEnginePrice",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "00_registry.js",
+  "line": 879,
+  "fn": "genEnginePrice",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "00_registry.js",
+  "line": 880,
+  "fn": "genEnginePrice",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "00_registry.js",
+  "line": 880,
+  "fn": "genEnginePrice",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "05_atmos.js",
+  "line": 69,
+  "fn": "makeAtmos",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "05_atmos.js",
+  "line": 99,
+  "fn": "pAt",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "05_atmos.js",
+  "line": 117,
+  "fn": "layAt",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "05_atmos.js",
+  "line": 135,
+  "fn": "densityAlt",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "05_atmos.js",
+  "line": 137,
+  "fn": "pressureAlt",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "05_atmos.js",
+  "line": 277,
+  "fn": "atmosPropScale",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "06_solar.js",
+  "line": 33,
+  "fn": "sin",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "06_solar.js",
+  "line": 33,
+  "fn": "sin",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "07_day.js",
+  "line": 152,
+  "fn": "smf",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "07_day.js",
+  "line": 181,
+  "fn": "smf",
+  "op": "pow",
+  "via": "Math",
+  "core": false,
+  "why": "pow(x, 2) - every engine agrees"
+ },
+ {
+  "f": "07_day.js",
+  "line": 214,
+  "fn": "smf",
+  "op": "pow",
+  "via": "Math",
+  "core": false,
+  "why": "pow(x, 2) - every engine agrees"
+ },
+ {
+  "f": "09_climate.js",
+  "line": 105,
+  "fn": "bearingToBase",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 105,
+  "fn": "bearingToBase",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 257,
+  "fn": "shearK",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 269,
+  "fn": "windLegacy",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 280,
+  "fn": "addGust",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 319,
+  "fn": "setWind",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 319,
+  "fn": "setWind",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 349,
+  "fn": "shearOf",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 358,
+  "fn": "smooth",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 358,
+  "fn": "smooth",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 458,
+  "fn": "convNow",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 497,
+  "fn": "wstarOf",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 561,
+  "fn": "thermalAt",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 563,
+  "fn": "thermalAt",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 573,
+  "fn": "thermalAt",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 588,
+  "fn": "thermalAt",
+  "op": "pow",
+  "via": "Math",
+  "core": false,
+  "why": "pow(x, 2) - every engine agrees"
+ },
+ {
+  "f": "09_climate.js",
+  "line": 864,
+  "fn": "thermals",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 866,
+  "fn": "thermals",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "09_climate.js",
+  "line": 871,
+  "fn": "thermals",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 284,
+  "fn": "padRamp",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 284,
+  "fn": "padRamp",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 446,
+  "fn": "coverAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 446,
+  "fn": "coverAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 454,
+  "fn": "coverAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 465,
+  "fn": "coverAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 614,
+  "fn": "regSurf",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 614,
+  "fn": "regSurf",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 650,
+  "fn": "aeroBoxes",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 650,
+  "fn": "aeroBoxes",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 800,
+  "fn": "waterH",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 856,
+  "fn": "seaFrom",
+  "op": "pow",
+  "via": "Math",
+  "core": false,
+  "why": "pow(x, 2) - every engine agrees"
+ },
+ {
+  "f": "20_world.js",
+  "line": 865,
+  "fn": "seaFrom",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 866,
+  "fn": "seaFrom",
+  "op": "pow",
+  "via": "Math",
+  "core": false,
+  "why": "pow(x, 2) - every engine agrees"
+ },
+ {
+  "f": "20_world.js",
+  "line": 866,
+  "fn": "seaFrom",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 872,
+  "fn": "seaFrom",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 872,
+  "fn": "seaFrom",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 913,
+  "fn": "seaApply",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "20_world.js",
+  "line": 913,
+  "fn": "seaApply",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "23_world_settle.js",
+  "line": 105,
+  "fn": "meadowMult",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "23_world_settle.js",
+  "line": 106,
+  "fn": "meadowMult",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "24_world_aero.js",
+  "line": 27,
+  "fn": "probe",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "24_world_aero.js",
+  "line": 27,
+  "fn": "probe",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "24_world_aero.js",
+  "line": 64,
+  "fn": "clean",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "24_world_aero.js",
+  "line": 64,
+  "fn": "clean",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "24_world_aero.js",
+  "line": 95,
+  "fn": "push",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "24_world_aero.js",
+  "line": 95,
+  "fn": "push",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "24_world_aero.js",
+  "line": 131,
+  "fn": "push",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "24_world_aero.js",
+  "line": 132,
+  "fn": "push",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "24_world_aero.js",
+  "line": 153,
+  "fn": "push",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "24_world_aero.js",
+  "line": 153,
+  "fn": "push",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 163,
+  "fn": "siteRunway",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 163,
+  "fn": "siteRunway",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 245,
+  "fn": "name",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 245,
+  "fn": "name",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 259,
+  "fn": "runwayLightPoints",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 259,
+  "fn": "runwayLightPoints",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 364,
+  "fn": "hAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 364,
+  "fn": "hAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 542,
+  "fn": "standFor",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 542,
+  "fn": "standFor",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 624,
+  "fn": "gpParkedDist",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 624,
+  "fn": "gpParkedDist",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 632,
+  "fn": "gpParkedOut",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 632,
+  "fn": "gpParkedOut",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 886,
+  "fn": "onStrip",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "25_airfield.js",
+  "line": 886,
+  "fn": "onStrip",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 133,
+  "fn": "hash2",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 260,
+  "fn": "roadFillet",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 261,
+  "fn": "roadFillet",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 268,
+  "fn": "roadFillet",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 276,
+  "fn": "roadFillet",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 276,
+  "fn": "roadFillet",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 378,
+  "fn": "weight",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 378,
+  "fn": "weight",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 428,
+  "fn": "bound",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 428,
+  "fn": "bound",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 691,
+  "fn": "frameOf",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 691,
+  "fn": "frameOf",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1101,
+  "fn": "runwayEnds",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1101,
+  "fn": "runwayEnds",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1140,
+  "fn": "runwayAerodrome",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1140,
+  "fn": "runwayAerodrome",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1140,
+  "fn": "runwayAerodrome",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1140,
+  "fn": "runwayAerodrome",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1194,
+  "fn": "siteFrame",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1194,
+  "fn": "siteFrame",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1214,
+  "fn": "placeSite",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1214,
+  "fn": "placeSite",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1280,
+  "fn": "siteShelves",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1280,
+  "fn": "siteShelves",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1323,
+  "fn": "solve",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1323,
+  "fn": "solve",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1411,
+  "fn": "smoothPath",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1411,
+  "fn": "smoothPath",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1417,
+  "fn": "smoothPath",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1417,
+  "fn": "smoothPath",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1973,
+  "fn": "codeAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 1973,
+  "fn": "codeAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 2265,
+  "fn": "coverAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 2363,
+  "fn": "waterAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 2363,
+  "fn": "waterAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 2456,
+  "fn": "lawnOf",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 2640,
+  "fn": "shelfCovers",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "27_premises.js",
+  "line": 2640,
+  "fn": "shelfCovers",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "28b_ground_fields.js",
+  "line": 227,
+  "fn": "poolAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "28b_ground_fields.js",
+  "line": 227,
+  "fn": "poolAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "28b_ground_fields.js",
+  "line": 230,
+  "fn": "poolAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "28b_ground_fields.js",
+  "line": 230,
+  "fn": "poolAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "28b_ground_fields.js",
+  "line": 257,
+  "fn": "hueTurn",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "28b_ground_fields.js",
+  "line": 257,
+  "fn": "hueTurn",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "28b_ground_fields.js",
+  "line": 299,
+  "fn": "groundColor",
+  "op": "cos",
+  "via": "Math",
+  "core": false,
+  "why": "shader text"
+ },
+ {
+  "f": "28b_ground_fields.js",
+  "line": 299,
+  "fn": "groundColor",
+  "op": "sin",
+  "via": "Math",
+  "core": false,
+  "why": "shader text"
+ },
+ {
+  "f": "28b_ground_fields.js",
+  "line": 299,
+  "fn": "groundColor",
+  "op": "sin",
+  "via": "Math",
+  "core": false,
+  "why": "shader text"
+ },
+ {
+  "f": "28b_ground_fields.js",
+  "line": 299,
+  "fn": "groundColor",
+  "op": "cos",
+  "via": "Math",
+  "core": false,
+  "why": "shader text"
+ },
+ {
+  "f": "28b_ground_fields.js",
+  "line": 300,
+  "fn": "groundColor",
+  "op": "cos",
+  "via": "Math",
+  "core": false,
+  "why": "shader text"
+ },
+ {
+  "f": "28b_ground_fields.js",
+  "line": 300,
+  "fn": "groundColor",
+  "op": "sin",
+  "via": "Math",
+  "core": false,
+  "why": "shader text"
+ },
+ {
+  "f": "28b_ground_fields.js",
+  "line": 300,
+  "fn": "groundColor",
+  "op": "sin",
+  "via": "Math",
+  "core": false,
+  "why": "shader text"
+ },
+ {
+  "f": "28b_ground_fields.js",
+  "line": 300,
+  "fn": "groundColor",
+  "op": "cos",
+  "via": "Math",
+  "core": false,
+  "why": "shader text"
+ },
+ {
+  "f": "29_obstacles.js",
+  "line": 299,
+  "fn": "side",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "29_obstacles.js",
+  "line": 372,
+  "fn": "ring",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "29_obstacles.js",
+  "line": 373,
+  "fn": "ring",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "29_obstacles.js",
+  "line": 373,
+  "fn": "ring",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "29_obstacles.js",
+  "line": 426,
+  "fn": "lin",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "29_obstacles.js",
+  "line": 426,
+  "fn": "lin",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "29_obstacles.js",
+  "line": 513,
+  "fn": "add",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "29_obstacles.js",
+  "line": 513,
+  "fn": "add",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "29_obstacles.js",
+  "line": 521,
+  "fn": "move",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "29_obstacles.js",
+  "line": 521,
+  "fn": "move",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "30_solver.js",
+  "line": 226,
+  "fn": "rotateRing",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "30_solver.js",
+  "line": 226,
+  "fn": "rotateRing",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "30_solver.js",
+  "line": 337,
+  "fn": "extractRotation",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "30_solver.js",
+  "line": 337,
+  "fn": "extractRotation",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "30_solver.js",
+  "line": 1630,
+  "fn": "driveImb",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "30_solver.js",
+  "line": 1630,
+  "fn": "driveImb",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "30_solver.js",
+  "line": 1759,
+  "fn": "IDLE_T",
+  "op": "pow",
+  "via": "Math",
+  "core": false,
+  "why": "pow(x, 2) - every engine agrees"
+ },
+ {
+  "f": "30_solver.js",
+  "line": 2146,
+  "fn": "stance",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "30_solver.js",
+  "line": 2146,
+  "fn": "stance",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "30_solver.js",
+  "line": 2185,
+  "fn": "polar",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "30_solver.js",
+  "line": 2188,
+  "fn": "polar",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "30_solver.js",
+  "line": 2321,
+  "fn": "aeroPass",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "30_solver.js",
+  "line": 2321,
+  "fn": "aeroPass",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "30_solver.js",
+  "line": 2583,
+  "fn": "blob",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "30_solver.js",
+  "line": 2854,
+  "fn": "substep",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "30_solver.js",
+  "line": 2854,
+  "fn": "substep",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 227,
+  "fn": "rotExp",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 227,
+  "fn": "rotExp",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 240,
+  "fn": "rotPitch",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 240,
+  "fn": "rotPitch",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 262,
+  "fn": "keelTable",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 262,
+  "fn": "keelTable",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 293,
+  "fn": "planF",
+  "op": "pow",
+  "via": "Math",
+  "core": false,
+  "why": "pow(x, 0.5) - every engine agrees"
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 293,
+  "fn": "planF",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 312,
+  "fn": "sectionOf",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 324,
+  "fn": "sectionOf",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 362,
+  "fn": "push",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 524,
+  "fn": "h",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 744,
+  "fn": "apply",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 748,
+  "fn": "apply",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 789,
+  "fn": "apply",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 1123,
+  "fn": "savitskyStatic",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 1123,
+  "fn": "savitskyStatic",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 1130,
+  "fn": "savitskyStatic",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "32_hydro.js",
+  "line": 2015,
+  "fn": "wetCompute",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "33_drive.js",
+  "line": 99,
+  "fn": "genDriveSpec",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "33_drive.js",
+  "line": 211,
+  "fn": "genNoseShell",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "38b_dest.js",
+  "line": 65,
+  "fn": "flightStripGeom",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "38b_dest.js",
+  "line": 65,
+  "fn": "flightStripGeom",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "39_ground_path.js",
+  "line": 144,
+  "fn": "straight",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "39_ground_path.js",
+  "line": 144,
+  "fn": "straight",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "39_ground_path.js",
+  "line": 147,
+  "fn": "straight",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "39_ground_path.js",
+  "line": 147,
+  "fn": "straight",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "39_ground_path.js",
+  "line": 183,
+  "fn": "pathLocate",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "39_ground_path.js",
+  "line": 183,
+  "fn": "pathLocate",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "40_autopilot.js",
+  "line": 26,
+  "fn": "snap",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "40_autopilot.js",
+  "line": 26,
+  "fn": "snap",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "40_autopilot.js",
+  "line": 81,
+  "fn": "clr",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "40_autopilot.js",
+  "line": 81,
+  "fn": "clr",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "40_autopilot.js",
+  "line": 181,
+  "fn": "mkFrame",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "40_autopilot.js",
+  "line": 181,
+  "fn": "mkFrame",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "40_autopilot.js",
+  "line": 190,
+  "fn": "mkFrame",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "40_autopilot.js",
+  "line": 190,
+  "fn": "mkFrame",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "40_autopilot.js",
+  "line": 446,
+  "fn": "vsAgl",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "40_autopilot.js",
+  "line": 446,
+  "fn": "vsAgl",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "40_autopilot.js",
+  "line": 542,
+  "fn": "vsAgl",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "40_autopilot.js",
+  "line": 542,
+  "fn": "vsAgl",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "40_autopilot.js",
+  "line": 596,
+  "fn": "vsAgl",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "40_autopilot.js",
+  "line": 596,
+  "fn": "vsAgl",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "41_test_pilot.js",
+  "line": 93,
+  "fn": "mkFrame",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "41_test_pilot.js",
+  "line": 93,
+  "fn": "mkFrame",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "41_test_pilot.js",
+  "line": 102,
+  "fn": "mkFrame",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "41_test_pilot.js",
+  "line": 102,
+  "fn": "mkFrame",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "41_test_pilot.js",
+  "line": 385,
+  "fn": "vsAgl",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "41_test_pilot.js",
+  "line": 385,
+  "fn": "vsAgl",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "41_test_pilot.js",
+  "line": 468,
+  "fn": "vsAgl",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "41_test_pilot.js",
+  "line": 468,
+  "fn": "vsAgl",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "41_test_pilot.js",
+  "line": 521,
+  "fn": "vsAgl",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "41_test_pilot.js",
+  "line": 521,
+  "fn": "vsAgl",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 262,
+  "fn": "mkFrame",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 262,
+  "fn": "mkFrame",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 267,
+  "fn": "mkFrame",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 267,
+  "fn": "mkFrame",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 589,
+  "fn": "dirAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 589,
+  "fn": "dirAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 595,
+  "fn": "dirAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 595,
+  "fn": "dirAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 600,
+  "fn": "dirAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 600,
+  "fn": "dirAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 614,
+  "fn": "dirAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 614,
+  "fn": "dirAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 616,
+  "fn": "dirAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 616,
+  "fn": "dirAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 617,
+  "fn": "dirAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 617,
+  "fn": "dirAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 933,
+  "fn": "planDeparture",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 933,
+  "fn": "planDeparture",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 946,
+  "fn": "planDeparture",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 946,
+  "fn": "planDeparture",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 1031,
+  "fn": "planDeparture",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 1031,
+  "fn": "planDeparture",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 1230,
+  "fn": "pathFollow",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 1230,
+  "fn": "pathFollow",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 1234,
+  "fn": "pathFollow",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 1234,
+  "fn": "pathFollow",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 1246,
+  "fn": "pathFollow",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 1453,
+  "fn": "apply",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 1453,
+  "fn": "apply",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 1766,
+  "fn": "boxFly",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 1766,
+  "fn": "boxFly",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 1787,
+  "fn": "boxFly",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 1787,
+  "fn": "boxFly",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 1847,
+  "fn": "boxFly",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 1847,
+  "fn": "boxFly",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 2301,
+  "fn": "boxFly",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 2301,
+  "fn": "boxFly",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 2302,
+  "fn": "boxFly",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 2302,
+  "fn": "boxFly",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 2309,
+  "fn": "boxFly",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 2309,
+  "fn": "boxFly",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "43_pilot.js",
+  "line": 2395,
+  "fn": "boxFly",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "50_model_codec.js",
+  "line": 241,
+  "fn": "applyHinges",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "50_model_codec.js",
+  "line": 241,
+  "fn": "applyHinges",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60_gen_spec.js",
+  "line": 2081,
+  "fn": "genPropSynth",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60_gen_spec.js",
+  "line": 2091,
+  "fn": "genPropSynth",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60_gen_spec.js",
+  "line": 2092,
+  "fn": "genPropSynth",
+  "op": "pow",
+  "via": "Math",
+  "core": false,
+  "why": "pow(x, 2) - every engine agrees"
+ },
+ {
+  "f": "60_gen_spec.js",
+  "line": 2701,
+  "fn": "genPropAuto",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60_gen_spec.js",
+  "line": 2702,
+  "fn": "genPropAuto",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60_gen_spec.js",
+  "line": 3743,
+  "fn": "genFlapTau",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60_gen_spec.js",
+  "line": 5032,
+  "fn": "resolvePlane",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60_gen_spec.js",
+  "line": 5032,
+  "fn": "resolvePlane",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60_gen_spec.js",
+  "line": 5088,
+  "fn": "resolvePlane",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60b_gen_loft.js",
+  "line": 81,
+  "fn": "genSect",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60b_gen_loft.js",
+  "line": 81,
+  "fn": "genSect",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60b_gen_loft.js",
+  "line": 86,
+  "fn": "genSect",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60b_gen_loft.js",
+  "line": 86,
+  "fn": "genSect",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60b_gen_loft.js",
+  "line": 86,
+  "fn": "genSect",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60b_gen_loft.js",
+  "line": 94,
+  "fn": "genSuper",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60b_gen_loft.js",
+  "line": 94,
+  "fn": "genSuper",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60b_gen_loft.js",
+  "line": 109,
+  "fn": "genSuper",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60b_gen_loft.js",
+  "line": 109,
+  "fn": "genSuper",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60b_gen_loft.js",
+  "line": 109,
+  "fn": "genSuper",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "60c_gen_energy.js",
+  "line": 266,
+  "fn": "genVesselResolve",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 110,
+  "fn": "finCluster",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 207,
+  "fn": "rodK",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 325,
+  "fn": "B",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 674,
+  "fn": "profAt",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 757,
+  "fn": "profAt",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 762,
+  "fn": "profAt",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 763,
+  "fn": "profAt",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 772,
+  "fn": "profAt",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 773,
+  "fn": "profAt",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 1691,
+  "fn": "far",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 1704,
+  "fn": "far",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 2267,
+  "fn": "iAft",
+  "op": "pow",
+  "via": "Math",
+  "core": false,
+  "why": "pow(x, 2) - every engine agrees"
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 2285,
+  "fn": "iAft",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 2285,
+  "fn": "iAft",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 2904,
+  "fn": "gOf",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 2914,
+  "fn": "furnOf",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "61_gen_frame.js",
+  "line": 2967,
+  "fn": "genFrame",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "62_gen_aero.js",
+  "line": 24,
+  "fn": "genThinAirfoil",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "62_gen_aero.js",
+  "line": 28,
+  "fn": "genThinAirfoil",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "62_gen_aero.js",
+  "line": 29,
+  "fn": "genThinAirfoil",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "62_gen_aero.js",
+  "line": 30,
+  "fn": "genThinAirfoil",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "62_gen_aero.js",
+  "line": 45,
+  "fn": "genOswald",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "62_gen_aero.js",
+  "line": 60,
+  "fn": "genPolar",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "62_gen_aero.js",
+  "line": 171,
+  "fn": "washAt",
+  "op": "pow",
+  "via": "Math",
+  "core": false,
+  "why": "pow(x, 2) - every engine agrees"
+ },
+ {
+  "f": "62_gen_aero.js",
+  "line": 231,
+  "fn": "washAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "62_gen_aero.js",
+  "line": 231,
+  "fn": "washAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "62_gen_aero.js",
+  "line": 1078,
+  "fn": "genNetEig",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 177,
+  "fn": "yt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 178,
+  "fn": "yt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 178,
+  "fn": "yt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 205,
+  "fn": "at",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 205,
+  "fn": "at",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 215,
+  "fn": "xs",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 333,
+  "fn": "midX",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 339,
+  "fn": "midX",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 339,
+  "fn": "midX",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 356,
+  "fn": "xs",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 385,
+  "fn": "xs",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 399,
+  "fn": "xsU",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 400,
+  "fn": "xsL",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 437,
+  "fn": "genRing",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 461,
+  "fn": "genTubeInto",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 461,
+  "fn": "genTubeInto",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 508,
+  "fn": "genRevolveInto",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 508,
+  "fn": "genRevolveInto",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 558,
+  "fn": "genBungeeSect",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 631,
+  "fn": "off",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 632,
+  "fn": "off",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 895,
+  "fn": "surfSec",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 953,
+  "fn": "hOf",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 954,
+  "fn": "hOf",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 963,
+  "fn": "hOf",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 963,
+  "fn": "hOf",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 964,
+  "fn": "hOf",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 964,
+  "fn": "hOf",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 964,
+  "fn": "hOf",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 969,
+  "fn": "hOf",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 969,
+  "fn": "hOf",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 1167,
+  "fn": "off",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "63_gen_wing.js",
+  "line": 1167,
+  "fn": "off",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "64_gen_build.js",
+  "line": 21,
+  "fn": "genProbeAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "64_gen_build.js",
+  "line": 21,
+  "fn": "genProbeAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "64_gen_build.js",
+  "line": 25,
+  "fn": "genProbeAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "64_gen_build.js",
+  "line": 25,
+  "fn": "genProbeAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "64_gen_build.js",
+  "line": 25,
+  "fn": "genProbeAt",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "64_gen_build.js",
+  "line": 26,
+  "fn": "genProbeAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "64_gen_build.js",
+  "line": 26,
+  "fn": "genProbeAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "64_gen_build.js",
+  "line": 26,
+  "fn": "genProbeAt",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "64_gen_build.js",
+  "line": 42,
+  "fn": "yaw",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "64_gen_build.js",
+  "line": 42,
+  "fn": "yaw",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "64_gen_build.js",
+  "line": 72,
+  "fn": "genClMax",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "64_gen_build.js",
+  "line": 72,
+  "fn": "genClMax",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "64_gen_build.js",
+  "line": 73,
+  "fn": "genClMax",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "64_gen_build.js",
+  "line": 73,
+  "fn": "genClMax",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 424,
+  "fn": "vel",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 424,
+  "fn": "vel",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 428,
+  "fn": "Fn",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 428,
+  "fn": "Fn",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 556,
+  "fn": "turn",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 556,
+  "fn": "turn",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 594,
+  "fn": "genCertBow",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 594,
+  "fn": "genCertBow",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 664,
+  "fn": "add",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 664,
+  "fn": "add",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 715,
+  "fn": "genCertTaxi",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 715,
+  "fn": "genCertTaxi",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 715,
+  "fn": "genCertTaxi",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 797,
+  "fn": "genCertSink",
+  "op": "pow",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 846,
+  "fn": "A",
+  "op": "cos",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ },
+ {
+  "f": "66_gen_cert.js",
+  "line": 846,
+  "fn": "A",
+  "op": "sin",
+  "via": "CORE_MATH",
+  "core": true,
+  "why": null
+ }
+]

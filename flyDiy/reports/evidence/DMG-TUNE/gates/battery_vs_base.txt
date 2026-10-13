@@ -1,0 +1,30 @@
+# off = the base's bytes (claude/dmg-integration 4300dc58 built in a worktree, GATES_CORE=1 run_gates --verbose, each gate's whole output)
+UISMOKE: the same bytes
+BUILD: the same bytes
+JOIN: the same bytes
+BENCH: the same bytes once the runner's interleaved progress lines are dropped
+LOAD: the same bytes
+
+# this branch, the targeted set
+  FAIL  jodel trunk-0: the wall out past 1 mm 2.224 % <= 2 % (the base 10.16 %)
+  FAIL  jodel trunk-0: past 1 cm 6038 of 1164232 (<= 0.1 %)
+  FAIL  jodel trunk-0: past 5 cm 1923 of 1164232
+UISMOKE   PASS   136.3 s
+TREECRASH PASS   587.4 s
+DMGMEMBERS PASS    44.1 s
+DMGCERT   PASS   293.0 s
+DMGGEAR   PASS   905.2 s
+DMGCERTCOST PASS    76.4 s
+DMGWIND   PASS   811.9 s
+DMGCLUSTERS PASS   511.7 s
+DMGINST   PASS   206.8 s
+DMGFPS    PASS   192.1 s
+DMGINTEGRITY PASS    49.3 s
+DMGSKIN   PASS   102.5 s
+DMGDRIVE  PASS   663.6 s
+DMGWALL   FAIL   222.2 s
+BUILD     PASS     1.5 s
+JOIN      PASS     5.2 s
+BENCH     PASS    54.4 s
+LOAD      PASS   249.5 s
+BATTERY: FAIL — never deliver red.

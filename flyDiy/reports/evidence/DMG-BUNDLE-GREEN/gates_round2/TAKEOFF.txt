@@ -1,0 +1,12 @@
+  crosswind limit 4 m/s (band 12.5 m, roll 9.74 m at the limit; first failure 4.5 m/s, 14.05 m) in 37.4 s CPU, 57.0 s wall
+THE TECHNIQUE (pilot_one_trace: Vr, Vlof, the lift-offs, the pitch rate, the run)
+  cub    wheels Vs 15.7 Vr 15.9 Vlof 17.1 (1.09 Vs)  lifts 1 (first at 17.1)  touch-after 0  qMax -5.0 deg/s  run 97 m  to 15 m 203 m
+  jodel  wheels Vs 18.8 Vr 18.7 Vlof 20.8 (1.10 Vs)  lifts 1 (first at 20.8)  touch-after 0  qMax -6.9 deg/s  run 178 m  to 15 m 298 m
+  c172   wheels Vs 24.4 Vr 24.8 Vlof 27.3 (1.12 Vs)  lifts 1 (first at 27.3)  touch-after 0  qMax 8.0 deg/s  run 260 m  to 15 m 430 m
+  wip    water  Vs 24.5 Vr 24.8 Vlof 27.5 (1.12 Vs)  lifts 1 (first at 27.5)  touch-after 0  qMax -11.5 deg/s  run 335 m  to 15 m 478 m
+  ultraf water  Vs 16.3 Vr 16.5 Vlof 20.3 (1.25 Vs)  lifts 1 (first at 20.3)  touch-after 0  qMax -8.6 deg/s  run 80 m  to 15 m 180 m
+  twinf  water  Vs 18.4 Vr 18.8 Vlof 28.3 (1.54 Vs)  lifts 1 (first at 28.3)  touch-after 0  qMax 9.1 deg/s  run 186 m  to 15 m 313 m
+  c172f  water  Vs 26.1 Vr - Vlof - (0.00 Vs)  lifts 0 (first at -)  touch-after 0  qMax 0.9 deg/s  run - m  to 15 m - m  ABORT rejected-takeoff
+THE TURN-AROUND (pilot_one_turnaround: the Cub at East Point, 150 x 12 m, stopped 20 m from the closed end)
+  roll at 24.4 s; max |cross| 2.7 m, past an end -18.8 m, off the surface 0.0 s; LIFTOFF (airborne); pivot,committed-takeoff
+GATE TAKEOFF: PASS

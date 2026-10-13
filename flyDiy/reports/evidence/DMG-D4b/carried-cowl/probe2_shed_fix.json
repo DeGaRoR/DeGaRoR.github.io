@@ -1,0 +1,17 @@
+{
+ "crash": {
+  "br": 105,
+  "wreck": 26,
+  "stage": {
+   "V": 30,
+   "agl": 1,
+   "tr": 0.5,
+   "D": 40
+  }
+ },
+ "idxAtShed": [],
+ "idxRollout": [],
+ "vis0": [],
+ "visRollout": [],
+ "wreck": null
+}

@@ -223,7 +223,7 @@ function makeSim(def, world) {
   }
   // (Cm: G1840's measured substep - the turn's force on a node of a cut's part, m e / dt^2, reported to the cut)
   function rotateRing(r, c, a, phi, dt, Cm) {
-    const cw = Math.cos(phi), sw = Math.sin(phi), t = 1 - cw;
+    const cw = CORE_MATH.cos(phi), sw = CORE_MATH.sin(phi), t = 1 - cw;
     const [kx, ky, kz] = a;
     const nm = Cm ? Cm.nm : null;
     for (const i of r) {
@@ -334,7 +334,7 @@ function makeSim(def, world) {
       if (w < 1e-9) break;
       // R <- R * Rot(axis, w)  (Rodrigues, the axis in the cluster's rest frame)
       const ax = dx / w, ay = dy / w, az = dz / w;
-      const cw = Math.cos(w), sw = Math.sin(w), tt = 1 - cw;
+      const cw = CORE_MATH.cos(w), sw = CORE_MATH.sin(w), tt = 1 - cw;
       const Q = [cw + ax*ax*tt,    ax*ay*tt - az*sw, ax*az*tt + ay*sw,
                  ay*ax*tt + az*sw, cw + ay*ay*tt,    ay*az*tt - ax*sw,
                  az*ax*tt - ay*sw, az*ay*tt + ax*sw, cw + az*az*tt];
@@ -429,6 +429,11 @@ function makeSim(def, world) {
   // G1898: on only when asked (params.damage, else the page's ?damage, else GEN_DAMAGE_DEFAULT - 60_gen_spec.js)
   const DMG_ON = (P_.damage ?? (typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE
                   : typeof GEN_DAMAGE_DEFAULT !== 'undefined' && GEN_DAMAGE_DEFAULT)) === true && typeof GEN_CRASH !== 'undefined';
+  // G1883 (DMG-WINDBREAK): the instruments' hooks (sim.onSubstep, sim.damagePush) - null unless a reader asks
+  let subHook = null, tkPush = null;
+  // (and the trunk contact's crush state, G1883 below: each member's deepest intrusion and the substep it was last in contact)
+  const TK_RU = 10, tkIm = new Float64Array(beams.length), tkIt = new Int32Array(beams.length).fill(-2);
+  let tkSub = 0;
   const nb = beams.length;
   const DMG = { yields: 0, breaks: 0, work: 0, broken: [], firstBreak: null, firstYield: null,
                 crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null,
@@ -438,6 +443,12 @@ function makeSim(def, world) {
                 groups: [], floors: 0, cracks: 0, rag: [], armedN: 0,
                 // DMG-D1b: the body frame's refs parted (G1821: when, which node), the strips split / dropped (G1820)
                 brokeUp: null, stripsSplit: 0, stripsDropped: 0 };
+  // G2357 (DMG-SCAR, 34_scar.js): THE GROUND'S SCAR - the contacts of a crash recorded (read, never pushed: the bits are the
+  // base's), sealed per event into DMG.scar = { v, prims } (craters, gouges, the sweep) for the page's grass and decal. Null
+  // with the layer off: one compare a frame and one in the scrape branch
+  // (params.scar === false: no record - GATE DMGSCAR's selftest, the A/B of its cost)
+  const SCR = DMG_ON && P_.scar !== false && typeof scarMake === 'function' ? scarMake(def, P_.nEngines || 1) : null;
+  if (SCR !== null) DMG.scar = SCR.out;
   // G1802 (DMG-D0): THE PLASTIC WORK PER BEAM (J), beside the total: what the repair bill sums by the ledger's section
   // (bm.sec, G1803; DEFORM §10). Written only where the total is (beamYield, beamKink: the armed path), zeroed by reset()
   DMG.wB = new Float64Array(nb);
@@ -516,7 +527,136 @@ function makeSim(def, world) {
       DMG.stripsSplit++;
     }
     aicHash = NaN;                                   // the induction's control points move with the weights
+    if (COV) tieEvent(fd);                           // G2040 (DMG-FABRIC): the covering across a parting
     if (typeof WB !== 'undefined' && WB && HYDRO.wetCut) HYDRO.wetCut(WB, fd, orphan);   // G1898.5: the wet body over the break
+  }
+  // ---- G2040-G2043 (DMG-FABRIC): THE COVERING HOLDS THE WRECK ----
+  // The covering (61_gen_frame parts.dmg.cover: every covered panel as built - its area, its corners, its covering) is
+  // no member: it weighed and dragged, and once the frame under it parted the pieces flew apart with nothing joining
+  // them, where a fabric aeroplane's wreck stays inside its cloth for a while before the cloth tears (the user's
+  // reference pictures). So at the moment two PIECES separate across a covered panel (a break event: compEvent, and a
+  // cluster's part re-formed: clApply) each of the panel's corners on one piece gets a COVER TIE to its nearest corner
+  // on another (a pair made once, ever: a torn tie is never re-made). A tie is a MEMBRANE - tension only, no
+  // compression, no bending: slack below the covering's own length between its two nodes (their rest distance + the
+  // drape's slack), then the covering's law (60_gen_spec GEN_COVER): fabric linear to its strength at its strain at
+  // break, unloading ru x stiffer (the doped cloth keeps the energy); sheet elastic to its tear-out force, flat (the
+  // sheet tearing) to its elongation. Its width is its share of the panel's area over its length (a fuselage bay's
+  // longeron pair half the side's height, the top's half width the other side - two panels add); fabric's strength is
+  // tuN x that width, sheet's one tear-out ligament per panel. IT TEARS BY STRAIN: the peak stretch over the slack
+  // length past eu - a geometric test on the substep's own positions, so no frame rate (the batching of fixed 1/60 s
+  // steps, GATE DMGFPS) and no damper can fake one; the next tie of the seam takes the load and goes next, bay by
+  // bay. The ties do not join pieces (pieces(): the strips, the refs-core) - a wing held by its cloth does not fly.
+  // THE COST: nothing at all until a covered panel parts (the ties are made at an event; the per-substep pass runs
+  // inside the postLive branch, only while a tie is live; postLive's own test reads one counter, nPost, the floors' and
+  // the live ties' - one compare a frame as before)
+  const COV = DMG_ON && def.parts && def.parts.dmg && def.parts.dmg.cover && typeof GEN_COVER !== 'undefined' && GEN_COVER.on !== false ? def.parts.dmg.cover : null;
+  let nTie = 0, nTieL = 0, nPost = 0;
+  const TIE_MAX = COV ? 4 * COV.reduce((a, P) => a + P.ids.length, 0) : 0;
+  const TA = COV ? new Int32Array(TIE_MAX) : null, TB = COV ? new Int32Array(TIE_MAX) : null;
+  const TLs = COV ? new Float64Array(TIE_MAX) : null, TK = COV ? new Float64Array(TIE_MAX) : null, TFy = COV ? new Float64Array(TIE_MAX) : null;
+  const TKu = COV ? new Float64Array(TIE_MAX) : null, TC = COV ? new Float64Array(TIE_MAX) : null, TEu = COV ? new Float64Array(TIE_MAX) : null;
+  const TLp = COV ? new Float64Array(TIE_MAX) : null, TW = COV ? new Float64Array(TIE_MAX) : null, TFp = COV ? new Float64Array(TIE_MAX) : null;
+  const TT = COV ? new Float64Array(TIE_MAX) : null, TT0 = COV ? new Float64Array(TIE_MAX) : null, TSh = COV ? new Uint8Array(TIE_MAX) : null, TG = COV ? new Float64Array(TIE_MAX) : null;
+  const TF = COV ? new Float64Array(TIE_MAX) : null;                    // each tie's force on the last substep (N; 0 slack or torn)
+  const TLIVE = COV ? new Int32Array(TIE_MAX) : null;                  // the live ties' indices (the pass walks only these)
+  const tieOf = new Map(), covDone = COV ? COV.map(() => new Set()) : null;
+  // the covering of a panel: fabric (cloth rows; a wood aeroplane's ply under its doped fabric), sheet (alloy), none (carbon)
+  const covKind = P => P.mat === 'carbon' ? null : P.mat === 'alloy' && !P.cloth ? 'sheet' : 'fabric';
+  // a tie's stiffness is held to its ends' stiffest member as built (the explicit step's own bound: SUPPORT's rule)
+  const kNode = COV ? new Float64Array(n) : null;
+  if (COV) for (const b of beams) for (const i of [b.a, b.b]) if (b.k > kNode[i]) kNode[i] = b.k;
+  if (COV) { DMG.tieN = 0; DMG.tieT = 0; DMG.tieBorn = 0; DMG.tieFirstT = null; }
+  const restD = (i, j) => { const A = def.nodes[i].p, B = def.nodes[j].p; return Math.hypot(B[0] - A[0], B[1] - A[1], B[2] - A[2]); };
+  // a tie's law from what it carries: fabric's width w, or sheet's ligaments (TW counts them); its stiffness capped
+  function tieLaw(q) {
+    const a = TA[q], b = TB[q], Ls = TLs[q], kc = Math.min(kNode[a], kNode[b]) || Infinity, mu = m[a] * m[b] / (m[a] + m[b]);
+    if (TSh[q]) {
+      const S = GEN_COVER.sheet, E = GEN_MATERIALS.alloy.phys.E, t = TG[q];        // (TG: the sheet's gauge, by the panel's section)
+      TFy[q] = S.ftu * t * S.wTear * TW[q]; TK[q] = Math.min(E * t * S.wTear * TW[q] / Ls, kc); TEu[q] = S.eu; TKu[q] = TK[q];
+      TC[q] = 2 * S.zeta * Math.sqrt(TK[q] * mu);
+    } else {
+      const F = GEN_COVER.fabric, Fu = F.tuN * TW[q];
+      TFy[q] = Fu; TK[q] = Math.min(Fu / (F.eu * Ls), kc); TEu[q] = F.eu; TKu[q] = F.ru * TK[q];
+      TC[q] = 2 * F.zeta * Math.sqrt(TK[q] * mu);
+    }
+  }
+  // THE EVENT: the panels whose corners now sit on two pieces; fd the pieces' find (compEvent's) or none (clApply)
+  function tieEvent(fd) {
+    if (!fd) fd = pieces();
+    let made = 0;
+    for (let pi = 0; pi < COV.length; pi++) {
+      const P = COV[pi], ids = P.ids, kind = covKind(P);
+      if (!kind) continue;
+      const r0 = fd(ids[0]); let split = false;
+      for (let q = 1; q < ids.length; q++) if (fd(ids[q]) !== r0) { split = true; break; }
+      if (!split) continue;
+      // each corner to its nearest corner on another piece (at rest): the pairs the covering spans across the parting
+      const Q = [];
+      for (const i of ids) {
+        let jb = -1, db = Infinity; const ri = fd(i);
+        for (const j of ids) if (j !== i && fd(j) !== ri) { const d = restD(i, j); if (d < db) { db = d; jb = j; } }
+        if (jb < 0) continue;
+        const key = Math.min(i, jb) * n + Math.max(i, jb);
+        if (Q.indexOf(key) < 0) Q.push(key);
+      }
+      const D = covDone[pi], fresh = Q.filter(k => !D.has(k));
+      if (!fresh.length) continue;
+      for (const key of fresh) {
+        D.add(key);
+        const a = Math.floor(key / n), b = key - a * n, L0 = restD(a, b);
+        if (!(L0 > 1e-6)) continue;
+        let q = tieOf.get(key);
+        if (q === undefined) {
+          if (nTie >= TIE_MAX) continue;
+          q = nTie++; tieOf.set(key, q);
+          TA[q] = a; TB[q] = b; TSh[q] = kind === 'sheet' ? 1 : 0;
+          const sl = kind === 'sheet' ? GEN_COVER.sheet.slack : GEN_COVER.fabric.slack;
+          TLs[q] = L0 * (1 + sl); TW[q] = 0; TT[q] = -1; TT0[q] = simT; TFp[q] = 0;
+          const a3 = a * 3, b3 = b * 3;
+          TLp[q] = Math.hypot(p[b3] - p[a3], p[b3+1] - p[a3+1], p[b3+2] - p[a3+2]);
+          DMG.tieN++; made++;
+          if (DMG.tieFirstT === null) DMG.tieFirstT = simT;
+          TG[q] = kind === 'sheet' ? (GEN_COVER.sheet.t[P.sec] || GEN_COVER.sheet.t.fuselage) : 0;
+          // born torn: the pieces already further apart than the covering stretches (it tore as they parted)
+          TW[q] += kind === 'sheet' ? 1 : P.A / Q.length / L0;
+          tieLaw(q);
+          if (TLp[q] > TLs[q] * (1 + TEu[q])) { TT[q] = simT; DMG.tieT++; DMG.tieBorn++; continue; }
+          TLIVE[nTieL++] = q;
+        } else if (TT[q] < 0) {                     // a pair two panels span: the second panel's share adds
+          TW[q] += TSh[q] ? 1 : P.A / Q.length / L0;
+          tieLaw(q);
+        }
+      }
+    }
+    nPost = nFlr + nTieL; if (nTieL) postLive = 1;
+    return made;
+  }
+  // THE PASS (per substep, inside postLive, only while a tie is live): tension only, the envelope by the peak stretch,
+  // unloading along TKu, the damper only while it pulls; past eu over the slack length it TEARS (by strain)
+  function tiePass() {
+    let w = 0;
+    for (let s = 0; s < nTieL; s++) {
+      const q = TLIVE[s], a3 = TA[q] * 3, b3 = TB[q] * 3;
+      let dx = p[b3]-p[a3], dy = p[b3+1]-p[a3+1], dz = p[b3+2]-p[a3+2];
+      const L = hyp3(dx, dy, dz) || 1e-9, Ls = TLs[q];
+      let Lp = TLp[q];
+      if (L > Lp) { Lp = L; TLp[q] = L; }
+      if (Lp > Ls * (1 + TEu[q])) { TT[q] = simT; TF[q] = 0; DMG.tieT++; continue; }   // torn: dropped from the live list
+      TLIVE[w++] = q; TF[q] = 0;
+      if (L <= Ls) continue;                                                 // slack: the covering bulges
+      const ep = Lp - Ls, ey = TFy[q] / TK[q];
+      const Fe = ep <= ey ? TK[q] * ep : TFy[q];                             // the envelope at the peak stretch
+      let Fb = Fe - TKu[q] * (Lp - L);
+      if (Fb <= 0) continue;
+      dx /= L; dy /= L; dz /= L;
+      Fb += TC[q] * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
+      if (Fb <= 0) continue;
+      if (Fb > TFp[q]) TFp[q] = Fb;
+      TF[q] = Fb;
+      f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
+      f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
+    }
+    if (w !== nTieL) { nTieL = w; nPost = nFlr + nTieL; }
   }
   const noseB = new Uint8Array(nb);
   // ---- DMG-D1a MEMBERS (G1810-G1815): the members' own limits, stamped once here (nothing new per substep) ----
@@ -552,15 +692,36 @@ function makeSim(def, world) {
   // 2 or 3 stages (seeded): it cracks to 60 % of its strength, pulls out at that over RAG_SLIP of its length, (to 30 %
   // and pulls out again,) then lets go
   const RAG_SLIP = 0.005;
+  // G2361 (DMG-MOUNTRIG): the nose mount's isolators (61_gen_frame parts.dmg.iso)
+  const ISO = new Uint8Array(nb);
+  if (def.parts && def.parts.dmg && def.parts.dmg.iso) for (const bi of def.parts.dmg.iso) if (bi >= 0 && bi < nb) ISO[bi] = 1;
+  // G2367 (DMG-BUNDLE-GREEN): a wing nacelle's fans over its bay (61_gen_frame parts.dmg.lump): lumped stand-ins, no Euler
+  const LUMP = new Uint8Array(nb);
+  if (def.parts && def.parts.dmg && def.parts.dmg.lump) for (const bi of def.parts.dmg.lump) if (bi >= 0 && bi < nb) LUMP[bi] = 1;
+  // G2047 (DMG-COMPOSITE, GEN_CRASH carbon / glass): A LAMINATE BREAKS BRITTLE. Stamped here, nothing new per substep:
+  //   - its plain members at a seeded scatter (R.scat, +-: a laminate's strength CoV - CMH-17's B-basis spread), both
+  //     ways (CMP marks them: the certificate keeps the scatter upward only, as spruce's);
+  //   - its fittings in the laminate round the bolt, at R.fitE of it (Hart-Smith's bolted composite joint);
+  //   - bent sideways it cracks at its FRACTURE moment (the thin tube's elastic section, A D / 4: no plastic hinge), or
+  //     where its sandwich lets go first - the core in shear, PCORE[bi] = 2 tauC b cC (b = A / 2 tS, the strip of two
+  //     skins the member stands for): the transverse load the trunk contact holds it to (beamKink: broken 'core');
+  //   - no set: crushed past cy it is broken at once (ecu 0: noteSet still counts the crush's step, on a member already
+  //     broken - no laminate member is ever SET and whole), bent past its moment it is cracked (thf 0: beamKink returns
+  //     before noteSet). beamYield's own code is left as it was: an untaken branch added there (a return after the kink)
+  //     moved the Jodel's 30 m/s trunk 154 -> 204 broken under V8's optimiser (--no-opt: 154 either way) - HANDOVER G2048.
+  // Null on a build with no laminate member: every other build's bits are the old ones.
+  const CMP = DMG_ON && beams.some(b => b.A > 0 && b.mat && GEN_CRASH[b.mat] && GEN_CRASH[b.mat].scat > 0) ? new Uint8Array(nb) : null;
+  const PCORE = CMP ? new Float64Array(nb).fill(Infinity) : null;
   function dmgMember(bi, b, R) {
     const Lb = b.L > 0 ? b.L : 0, ph = typeof GEN_MATERIALS !== 'undefined' && GEN_MATERIALS[b.mat] ? GEN_MATERIALS[b.mat].phys : null;
     const tube = b.cls === 'cabane' || b.cls === 'interplane' || (b.cls === 'fus' && (b.mat === 'tubeFabric' || b.mat === 'aluTube'));
-    if (tube && !b.tens && ph && ph.E > 0 && Lb > 0) {
+    if (tube && !b.tens && !ISO[bi] && !LUMP[bi] && ph && ph.E > 0 && Lb > 0) {   // (G2361: an isolator does not buckle; G2367: nor a lumped fan)
       const fe = Math.PI * Math.PI * ph.E * (b.A * (GEN_CRASH_TUBE_DT * b.A / Math.PI) / 8) / (Lb * Lb);
       if (fe < b.fc0) b.fc0 = fe;
     }
     const fu = R.tu * b.A;
-    if (b.seam === 'fitting') { b.fy0 = b.fu = 1.15 * fu; b.etu = 0; }
+    if (ISO[bi]) { b.fy0 = b.fu; b.etu = 0; }       // G2361: an isolator takes no set - it holds, then tears (its own break)
+    if (b.seam === 'fitting') { b.fy0 = b.fu = 1.15 * fu * (R.fitE > 0 ? R.fitE : 1); b.etu = 0; }   // (G2047: a laminate's joint efficiency)
     else if (b.seam === 'rivet') { b.fu = 0.7 * fu; b.fy0 = Math.min(b.fy0, 0.9 * b.fu); b.etu = R.etu > 0 ? Math.min(R.etu, 0.02) : 0; if (!(b.etu > 0)) b.fy0 = b.fu; }
     else if (b.seam === 'bond') { b.fy0 = b.fu = (0.6 + 0.2 * dmgRnd(bi, 1)) * fu; b.etu = 0; }
     else if (b.seam === 'opening') { b.fu = fu / (1.5 + 0.5 * dmgRnd(bi, 2)); b.fy0 = Math.min(b.fy0, 0.9 * b.fu); b.etu = R.etu > 0 ? Math.min(R.etu, 0.02) : 0; if (!(b.etu > 0)) b.fy0 = b.fu; }
@@ -568,11 +729,17 @@ function makeSim(def, world) {
       b.fy0 *= 1 + 0.15 * (2 * dmgRnd(bi, 3) - 1); b.fu = b.fy0;
       b.rgN = dmgRnd(bi, 4) < 0.5 ? 2 : 3;
     }
+    if (CMP && R.scat > 0 && b.cls !== 'gear') {
+      const Dt = Math.sqrt(GEN_CRASH_TUBE_DT * b.A / Math.PI);
+      if (!b.seam) { const sc = 1 + R.scat * (2 * dmgRnd(bi, 5) - 1); b.fy0 *= sc; b.fu = b.fy0; b.fc0 *= sc; CMP[bi] = 1; }
+      b.mp = b.fu * Dt / 4;                          // the fracture moment: the elastic section, no hinge
+      if (R.tauC > 0 && R.tS > 0) PCORE[bi] = R.tauC * R.cC * b.A / R.tS;
+    }
   }
   // G1815 (§4.4): THE BREAK GROUPS (61_gen_frame's table): a member that breaks its group (type 0: bm.grp) takes every
   // member of the group with it, the pair's own links (type 1) included, which break no group themselves
   const DGR = DMG_ON && def.parts && def.parts.dmg ? def.parts.dmg.groups : [];
-  const grpOf = new Int32Array(nb).fill(-1), grpAll = DGR.map(G => G.t0.concat(G.t1)), grpDone = new Uint8Array(DGR.length);
+  const grpOf = new Int32Array(nb).fill(-1), grpAll = DGR.map(G => G.t0.concat(G.t1)), grpDone = new Uint8Array(DGR.length), grpLost = new Float64Array(DGR.length);
   if (DGR.length) for (let bi = 0; bi < nb; bi++) { const g = beams[bi].grp; if (g >= 0 && g < DGR.length) grpOf[bi] = g; }
   // G1813 (§4.0): THE KINK FLOOR: a member that KINKED in compression (past ecu) is broken but keeps a compression-only
   // floor at its crushed length (its old k and c, pushing only): the nodes it held apart cannot pass through each
@@ -651,14 +818,19 @@ function makeSim(def, world) {
   function certStamp(Cc) {
     if (!PHY || !Cc || !Cc.Ft || Cc.Ft.length !== nb || DMG.yields || DMG.breaks || DMG.dents || peakOn) return false;
     const K = typeof GEN_CERT !== 'undefined' ? GEN_CERT : null; if (!K) return false;
-    const m = K.m, kap = K.kappa, cap = (x, ph) => Math.min(Math.max(x, kap * ph), ph);
+    // G1895 (DMG-TUNE): the floor per role - the wing at kappa (the card's), the rest at GEN_CERT_FLOOR.body (66_gen_cert)
+    const m = K.m, kapW = K.kappa, kapB = typeof GEN_CERT_FLOOR !== 'undefined' ? GEN_CERT_FLOOR.body : K.kappa;
+    let kap = kapW;
+    const cap = (x, ph) => Math.min(Math.max(x, kap * ph), ph);
     for (let bi = 0; bi < nb; bi++) {
       const b = beams[bi], fyP = PHY[bi * 4], fuP = PHY[bi * 4 + 1], fcP = PHY[bi * 4 + 2];
       if (!(fyP < Infinity) || CERT_ENG[bi]) continue;
       if (b.cls === 'gear') { if (CERT_GEAR[bi] && K.leg) gearStamp(bi, b, Cc.Ft[bi], Cc.Fc[bi], m, K); continue; }
       const Ft = Cc.Ft[bi], Fc = Cc.Fc[bi], fit = !!b.seam;   // a joint: a fitting, a rivet line, a glue line, an opening (§7.2)
+      kap = CERT_WING[bi] ? kapW : kapB;
+      KAP[bi] = kap;
       const brittle = fit || !(b.etu > 0);
-      const scat = b.rgN && PHY[bi * 4 + 3] > 0 ? Math.max(1, fyP / PHY[bi * 4 + 3]) : 1;
+      const scat = (b.rgN || (CMP && CMP[bi])) && PHY[bi * 4 + 3] > 0 ? Math.max(1, fyP / PHY[bi * 4 + 3]) : 1;
       b.fu = cap(1.5 * m * Ft * (fit ? K.uFit : K.uMember) * scat, fuP);
       b.fy0 = brittle ? b.fu : Math.min(cap(Ft * K.yTol, fyP), b.fu);
       if (!brittle && !(b.fu > b.fy0)) b.fu = b.fy0 * (1 + 1e-6);
@@ -694,7 +866,15 @@ function makeSim(def, world) {
   // its certified yield sat on that ringing - the Cessna on floats' circuit read 0.98 of it after its water
   // touchdown. It keeps its physics; the MOUNT (the bearer and its bolts to the firewall, D1a's fittings) is what the
   // certificate stamps and what lets go.
-  const CERT_GEAR = new Uint8Array(nb), CERT_ENG = new Uint8Array(nb), CERT_FLT = new Uint8Array(nb);
+  const CERT_GEAR = new Uint8Array(nb), CERT_ENG = new Uint8Array(nb), CERT_FLT = new Uint8Array(nb), CERT_WING = new Uint8Array(nb);
+  const KAP = PHY ? new Float64Array(nb) : null;   // G1895: the floor each member was stamped with (sim.damageCaps().KAP)
+  // G1895 (DMG-TUNE): THE WING'S LOAD PATH (GEN_CERT_FLOOR): a member with both ends on a wing, a wing's joint (its
+  // root, strut and interplane groups) and their links (the carry-through) - the card's; the rest is the body's floor
+  if (PHY && def.parts && def.parts.dmg) {
+    const PT = def.parts.dmg.part || [], wg = p => typeof p === 'string' && p.slice(0, 4) === 'wing';
+    for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (wg(PT[b.a]) && wg(PT[b.b])) CERT_WING[bi] = 1; }
+    for (const G of DGR) if (wg(G.part)) { for (const j of G.t0) CERT_WING[j] = 1; for (const j of G.t1) CERT_WING[j] = 1; }
+  }
   let CERT_NOSE = -1, CERT_ARCH = 'bungee', CERT_W = 0;
   if (PHY) {
     for (const G of DGR) for (const j of G.t1) CERT_GEAR[j] = 1;
@@ -729,6 +909,20 @@ function makeSim(def, world) {
   peakOn = !!PEAK;   // (G1831: a probed sim's limits are its readout; no later stamp)
   let clDirty = false;
   DMG.cl = []; DMG.firstCl = null;   // G1840 (DMG-D3): the cluster cuts parted, in order
+  // DMG-D4b (train 41; the user: "it hilariously certifies a crashed plane... that rule really has to account for aircraft
+  // integrity"): THE AEROPLANE'S INTEGRITY, ONE FIELD the flight certificate and the career read. damaged: a primary member
+  // broken (the nose crushed round a trunk is a dent - G1470's noseB - not a break) or a part parted (a cluster cut, G1840);
+  // a set within the envelope, a prop strike alone, a dent: not damaged. broken: the primary members broken; separated: the
+  // parts parted (their tags); why: the first, in plain words (the card's). Non-enumerable: the damage object's copies and
+  // hashes see nothing new. Under the physics worker the worker publishes it (sim_host meta.struct) and the page's mirror
+  // reads it there (sim_link) - the page's own core is never stepped (its damage() holds no break at all)
+  const STRUCT_WORDS = { gear: 'the landing gear', wing: 'a wing', tail: 'the tail', fin: 'the tail', fus: 'the fuselage', boom: 'the tail boom',
+                         cabane: 'a wing strut', interplane: 'a wing strut', wire: 'a bracing wire', float: 'a float', rod: 'a strut', bridge: 'a float' };
+  Object.defineProperty(DMG, 'structural', { configurable: true, enumerable: false, get: () => {
+    const separated = DMG.cl.map(c => c.tag), broken = DMG.primary, damaged = broken > 0 || separated.length > 0;
+    const fp = DMG.firstPrimary;
+    return { damaged, broken, separated, why: !damaged ? null : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : 'a part came off' };
+  } });
   // ---- DMG-D3 CLUSTERS (G1840-G1842): A CLUSTER IS ONE BREAKABLE PART (DEFORM-AND-BREAK §4.7 (i)) ----
   // A shape-matched cluster (the fin, the rod, a twin boom, a float) holds its shape by projection, so the members
   // inside it carry almost nothing and no member limit can see what it carries. It is judged as what it stands for: a
@@ -846,7 +1040,13 @@ function makeSim(def, world) {
         pts.forEach((q, j) => { I += q.A * rho[j] * rho[j]; });
         let L = Infinity; pts.forEach((q, j) => { if (rho[j] > 1e-6) L = Math.min(L, q.ty * sh * I / rho[j]); }); return L; };
       const yr = Math.min(...pts.map(q => q.y));
-      lim = { Mu: polar(u, 1), Mv: polar(v, 1), T: polar(a, 1 / SQ3), yb: yr, yt: yr };
+      // G2369 (DMG-BUNDLE-GREEN): the twist about the keel at the members' AXIAL strength, as the bending - a float hangs on
+      // struts and spreaders whose ends are lugs (the gear bracket stamps them so: brittle at 1.5 F_l,t m), and a turn
+      // about its keel loads them along their own axes at their lever arms, not as bolts in a shear plane (the von Mises
+      // tu / sqrt 3 G1840 took). On the certificate's struts that shear factor left the root sqrt 3 under what they hold
+      // together: the twin's floats twisted off at 0.94 of it in the certificate's OWN float drop (3.05 m/s; a member there
+      // sits at most 1 / 1.5 m = 0.63), and in 23.727's 1.2 x reserve drop at 1.15 - both at once, the aeroplane on its hull
+      lim = { Mu: polar(u, 1), Mv: polar(v, 1), T: polar(a, 1), yb: yr, yt: yr };
       addCut(ci, 'root', S.part, null, lim, { nodes: Int32Array.from(pts.map(q => q.i)), w: Float64Array.from(pts.map(q => q.A)) }, S, -1);
       return;
     }
@@ -948,6 +1148,7 @@ function makeSim(def, world) {
     if (ct.done) return;
     ct.done = true;
     const C = clusters[ct.cl];
+    if (HY && ct.kind === 'root' && C.cls === 'float' && HYDRO.hydroFree) HYDRO.hydroFree(HY, ct.inP, ct.P, m);   // G2368: the float rides the water on its own mass
     DMG.cl.push({ tag: C.tag, cl: ct.cl, cut: ct.kind, why, ratio: r, Mb: ct.Mb, T: ct.Tq, t: simT, grp: ct.grp >= 0 ? DGR[ct.grp].key : null });
     if (!DMG.firstCl) DMG.firstCl = DMG.cl[DMG.cl.length - 1];
     clQ.push(k);
@@ -1012,6 +1213,7 @@ function makeSim(def, world) {
     clusters.forEach((C, ci) => { for (const i of C.idx) nodeCl[i] = ci; });
     for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; beamCl[bi] = nodeCl[b.a] >= 0 && nodeCl[b.a] === nodeCl[b.b] ? nodeCl[b.a] : -1; }
     for (const C of clusters) if (C.cuts && C.cuts.length) clMask(C);
+    if (COV) tieEvent(null);                         // G2040 (DMG-FABRIC): a part re-formed may have parted a covered panel
   }
   // reset(): every cluster as built, every cut whole
   function clReset() {
@@ -1030,7 +1232,8 @@ function makeSim(def, world) {
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.dOn = false; b.dk = 0; b.ks = 0;
       b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0;
     }
-    nFlr = 0; postLive = 0; grpDone.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
+    nFlr = 0; postLive = 0; nPost = 0; nTie = 0; nTieL = 0; tieOf.clear(); if (COV) { for (const D of covDone) D.clear(); DMG.tieN = 0; DMG.tieT = 0; DMG.tieBorn = 0; DMG.tieFirstT = null; }
+    grpDone.fill(0); grpLost.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
     for (let i = 0; i < n; i++) { nodeDeg[i] = nodeDeg0[i]; orphan[i] = 0; }
     if (DMG_ON) clReset();          // G1840 (DMG-D3): every cluster as built, every cut whole
     for (const C of clusters) { C.off = false; C.dirty = false; }
@@ -1041,6 +1244,8 @@ function makeSim(def, world) {
     DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; gF = 0; cIx = cIy = cIz = 0;
     for (const b of beams) b.yielded = false;
     DMG.wB.fill(0);   // G1802
+    tkSub += 2;       // G1883: every member's contact starts again
+    if (SCR !== null) scarReset(SCR);   // G2357: no scar (a new version, empty, if there was one: the page lets it go)
   }
   // (G1816) why a member broke, for the break-order gate: 'fold' (bent round a trunk past its fold angle), 'kink'
   // (crushed past ecu), 'ragged' (spruce's last stage), 'tension' (brittle at its strength, or ductile at etu), 'group'
@@ -1050,7 +1255,7 @@ function makeSim(def, world) {
     b.kB = b.k; b.cB = b.c; b.k = 0; b.c = 0; b.broken = true;
     DMG.breaks++; DMG.broken.push(bi);
     if (!DMG.firstBreak) DMG.firstBreak = { beam: bi, cls: b.cls, t: simT, seam: b.seam || null, grp: grpOf[bi], how: how || 'tension' };
-    if (b.kink) { FLR[nFlr++] = bi; DMG.floors++; }  // G1813: the crushed member stays a floor
+    if (b.kink) { FLR[nFlr++] = bi; DMG.floors++; nPost = nFlr + nTieL; }  // G1813: the crushed member stays a floor (G2040: nPost)
     postLive = 1;                                     // G1898.4: a break may need the floors or the limiters
     if (!noseB[bi]) { DMG.primary++; if (!DMG.firstPrimary) DMG.firstPrimary = { beam: bi, cls: b.cls, t: simT }; }
     // G1840 (DMG-D3): a member of a cluster's root or station cut parts that cut (the part comes off, the tube splits);
@@ -1062,8 +1267,21 @@ function makeSim(def, world) {
     // G1815: the member's group breaks whole (once)
     const g = grpOf[bi];
     brkDepth++;
-    if (g >= 0 && !grpDone[g]) {
-      grpDone[g] = 1; DMG.groups.push({ grp: g, key: DGR[g].key, seam: b.seam || null, by: bi, cls: b.cls, t: simT });
+    // G1894 (DMG-TUNE, GEN_DMG_GROUP): the group lets go once its broken members (severed, or kinked: a kinked member's
+    // floor pushes only, its pull is gone) carry `rel` of its tension capacity - one member never takes a group of many;
+    // a cluster's root cut ('root-moment' ...) or a gate's hook whole, at once
+    let rel = false;
+    if (g >= 0 && !grpDone[g] && how !== 'group') {
+      if (how === 'gate' || (how && how.indexOf('-') > 0)) rel = true;
+      else {
+        const G0 = DGR[g].t0; let cap = 0;
+        for (let q = 0; q < G0.length; q++) { const f = beams[G0[q]].fu; cap += f < Infinity ? f : 0; }
+        grpLost[g] += b.fu < Infinity ? b.fu : 0;
+        rel = !(cap > 0) || grpLost[g] >= GEN_DMG_GROUP.rel * cap * (1 - 1e-9);
+      }
+    }
+    if (rel) {
+      grpDone[g] = 1; DMG.groups.push({ grp: g, key: DGR[g].key, seam: b.seam || null, by: bi, cls: b.cls, t: simT, how: how || 'tension' });
       if (grpCut[g] >= 0) cutPart(grpCut[g], 'member', 0);   // G1840: a cluster's root group broken as members: its part is off
       for (const j of grpAll[g]) beamBreak(j, 'group');
     }
@@ -1143,6 +1361,10 @@ function makeSim(def, world) {
   // or folds on (beamYield) at that force, and the frame round it moves as far as that lets it
   function beamKink(bi, dk, Pc) {
     const b = beams[bi];
+    // G2047: a laminate does not fold and hang on - past its moment (or its core's shear) it has cracked, no set
+    // (no work booked: a laminate's fracture energy is its crack's area x G_c, 0.2-2 kJ/m2 (CMH-17's mode I / II, as
+    // recalled) - joules on a member, where Pc x the trunk's way in would book the whole intrusion as absorbed)
+    if (!(b.thf > 0)) { DMG.dents++; beamBreak(bi, PCORE && Pc >= PCORE[bi] ? 'core' : 'fold'); return; }
     dmgW(bi, Pc * (dk - b.dk)); b.dk = dk;
     b.ks = Math.max(b.ks, dk * dk / (2 * b.Lr * b.kt));
     kinkCaps(bi);
@@ -1211,7 +1433,7 @@ function makeSim(def, world) {
     const gC = dtFrame > 0 ? Math.hypot(cIx, cIy, cIz) / (totalM * 9.81 * dtFrame) : 0;
     cIx = cIy = cIz = 0;
     gF += (gC - gF) * Math.min(1, dtFrame / 0.05);
-    if (noseGnd) { noseGnd = false; for (let k = 0; k < eng.length; k++) propStrike(k, 'ground'); }
+    if (noseGnd) { noseGnd = false; for (let k = 0; k < eng.length; k++) propStrike(k, 'ground', PR.D / 2, 'soft'); }
     if (gF > DMG.gPeak) DMG.gPeak = gF;
     // a holed hull slice (GEAR-WATER 2's S8.br: the slam past its skin's breach pressure) is skin damage - a dent
     if (typeof WB !== 'undefined' && WB && WB.slices) { let h = 0; for (const S8 of WB.slices) if (S8.br) h++; DMG.holed = h; }
@@ -1294,35 +1516,43 @@ function makeSim(def, world) {
         _pr[_prN * 2] = bi; _pr[_prN * 2 + 1] = k; _prN++;
       }
     }
-    if (_tkN && DMG_ON) propTrunk();
+    if (_tkN && DMG_ON) propTrunk(Math.sqrt(v2) * dtFrame);
   }
-  // G1470: A PROP STRIKE. The disc (diameter PR.D) about each engine's thrust nodes, from 0.2 m behind them to 1 m
-  // ahead along the thrust line - the prop of a nose tractor stands ahead of its mount nodes, a pusher's behind the
-  // nacelle node it is rigged on, and the band covers both: a trunk inside it (its circle within the disc's half
-  // span of the hub, its height spanning the disc's) stops that engine for good (eng.seized, reset() clears it).
-  // Only when trunkFrame found trunks in reach, so never in the open air.
+  // G1470: A PROP STRIKE - a trunk in an engine's disc stops it (graded by DMG-DRIVE, driveStrike). G2035 (DMG-DRIVE2):
+  // THE DISC IS WHERE THE BLADES ARE. The disc (diameter PR.D) stands at the engine's thrust nodes (the flange) across the
+  // hub's depth (GEN_NOSE.hub, the spec's material: a tractor's hub ahead of its flange, an engine without a nose either
+  // side of it); a trunk strikes once its circle reaches that band (or passed it within the frame's travel), and the
+  // BITE is the blade's span it meets: the disc's radius less the distance from the hub's axis to the trunk's nearest point
+  // in the band (its chord there across, its foot or top up or down) - at most R, the whole blade. Before, the band ran
+  // from 0.2 m behind the thrust nodes to 1 m ahead and the bite was the circle's lateral overlap R + r - lat: the user's
+  // Cub's 3 m/s trunk taxi was graded 0.87-0.95 m BEFORE the trunk reached the flange (0.2-0.3 s before the spinner
+  // touched; the engine seized there) at a bite of 1.31 R. Only when trunkFrame found trunks in reach, never in the air
   const ENG_N = def.refs.engine || [], ENG_K = def.refs.engineOf || ENG_N.map(() => 0);
-  function propTrunk() {
+  function propTrunk(trav) {
     bodyAxes();
     let hx = -xAft[0], hz = -xAft[2]; const hl = Math.hypot(hx, hz) || 1; hx /= hl; hz /= hl;
-    const Rp = PR.D / 2;
+    const Rp = PR.D / 2, th = DRV.sp.hub;
     for (let k = 0; k < eng.length; k++) {
-      if (eng[k].seized) continue;
+      if (eng[k].seized && DRV.st[k].strike === 'separation') continue;   // G1826: an engine stopped by an overspeed still strikes (a stopped prop in a trunk is a strike: the bill's teardown)
       let cx = 0, cy = 0, cz = 0, c = 0;
       for (let j = 0; j < ENG_N.length; j++) if ((ENG_K[j] | 0) === k) { const e = ENG_N[j] * 3; cx += p[e]; cy += p[e+1]; cz += p[e+2]; c++; }
       if (!c) continue;
       cx /= c; cy /= c; cz /= c;
+      const a0 = NOSE && NOSE[k] ? 0 : -th, a1 = th;  // the hub's band along the heading, from the thrust nodes
       for (let t = 0; t < _tkN; t++) {
-        const o = t * 5, dx = _tk[o] - cx, dz = _tk[o+1] - cz, ax = dx * hx + dz * hz;
-        if (ax < -0.2 - _tk[o+3] || ax > 1 + _tk[o+3]) continue;
-        const lx = dx - ax * hx, lz = dz - ax * hz;
-        if (Math.hypot(lx, lz) > Rp + _tk[o+3] || cy - Rp > _tk[o+4] || cy + Rp < _tk[o+2]) continue;
-        propStrike(k, 'trunk');
+        const o = t * 5, rT = _tk[o+3], dx = _tk[o] - cx, dz = _tk[o+1] - cz, ax = dx * hx + dz * hz;
+        if (ax - rT > a1 || ax + rT < a0 - trav) continue;
+        const e = ax > a1 ? ax - a1 : ax < a0 ? a0 - ax : 0, h = e < rT ? Math.sqrt(rT * rT - e * e) : 0;
+        const lat = Math.hypot(dx - ax * hx, dz - ax * hz), ly = Math.max(0, lat - h);
+        const vy = _tk[o+2] > cy ? _tk[o+2] - cy : _tk[o+4] < cy ? cy - _tk[o+4] : 0, dmin = Math.hypot(ly, vy);
+        if (dmin >= Rp) continue;
+        propStrike(k, 'trunk', Rp - dmin, 'rigid');   // the blade's span the trunk meets (G1826's grade on it)
         break;
       }
     }
   }
-  function propStrike(k, what) {
+  function propStrike(k, what, bite, surf) {
+    if (DRV) { driveStrike(k, what, bite, surf); return; }   // G1826 (DMG-DRIVE): graded on the bite and the tip speed
     const e = eng[k]; if (!e || e.seized) return;
     e.seized = true; e.running = false; e.crank = 0;
     DMG.propStrike = true; if (!DMG.propAt) DMG.propAt = { eng: k, what, t: simT };
@@ -1338,8 +1568,11 @@ function makeSim(def, world) {
   // WITH THE DAMAGE LAYER ON it is a prop strike as the ground's (seized for good, DMG.propAt 'water'); OFF, a stall:
   // nothing breaks and the key can start it again once the disc is clear. out.propWet: the engines' mask, written only
   // on an armed frame (a dry flight's `out` never carries it). One waterH sample per engine per armed frame.
+  // T41b: params.drownOff - an INSTRUMENT's switch, never a build's (no generator or save sets it; like defDampMean): GATE
+  // DMGPLOUGH's instrument moves the twin's thrust onto the nose frame (refs.engine), where the disc this asks for is a
+  // point 0.17 m over the CG less a prop's radius - in the water at rest - and the instrument never left the slipway
   function propWater() {
-    if (!world || typeof world.waterH !== 'function' || !(wetArm || (HY && HY.wet > 0))) {
+    if (def.params.drownOff || !world || typeof world.waterH !== 'function' || !(wetArm || (HY && HY.wet > 0))) {
       for (let k = 0; k < eng.length; k++) if (eng[k].drown) eng[k].drown = false;
       return;
     }
@@ -1462,6 +1695,255 @@ function makeSim(def, world) {
   // same thing the cockpit key writes.
   const eng = [];
   for (let i = 0; i < nE0; i++) eng.push({ running: true, key: 'both', crank: 0, seized: false, drown: false });   // seized: a prop strike (G1470); drown: the disc in the water (G2105)
+  // ---- G1826 (DMG-DRIVE, 33_drive.js): THE DRIVETRAIN'S STATE per engine, with the damage layer on (null off: nothing
+  // of it runs - the thrust's factor below stays 1, and x 1 is exact). sim.damage().drive[k] (the fields: 33_drive.js
+  // genDriveState; HANDOVER G1826 names them for D4b, D5 and the sound)
+  const DRV = DMG_ON && typeof genDriveSpec === 'function' ? { sp: genDriveSpec(def), st: [], imb: false, tI: 0, ph: new Float64Array(nE0) } : null;
+  const DK = new Float64Array(nE0).fill(1);         // each engine's thrust factor (a bent prop, a rough engine, a sheared drive)
+  if (DRV) { for (let i = 0; i < nE0; i++) DRV.st.push(genDriveState()); DMG.drive = DRV.st; }
+  function driveReset() {
+    for (let k = 0; k < nE0; k++) Object.assign(DRV.st[k], genDriveState());
+    DK.fill(1); DRV.imb = false; DRV.ph.fill(0); DRV.tI = 0;
+    if (NOSE) { NZ.c.fill(0); NZ.im.fill(0); NZ.it.fill(-2); NZ.gs.fill(0); NZ.arm.fill(0); noseArm = false; }   // G2013
+  }
+  // ---- G2013-G2015 (DMG-NOSE, 33_drive.js genNoseSpec): THE CRUSHABLE NOSE - the spinner, the propeller at its hub and the
+  // cowl's nose bowl, one crush element per tractor engine ahead of its nodes, against the trunks and the ground. Null with
+  // the layer off (DRV null): nothing below runs, the trunk pass is the base's. Per engine: NZ.c the crush (m from the
+  // spinner's tip, permanent, at most the stack's depth), NZ.im / NZ.it the core's deepest intrusion and the substep it was
+  // last in contact (the crush unloading, as the trunk contact's), NZ.g the nose's centre and radius this substep (x, y, z,
+  // Rn), NZ.gy / NZ.gs the ground under the disc (DMG-DRIVE's sample, once a frame) and whether there is one, NZ.arm the
+  // frame's arming (1 a trunk in reach, 2 the ground, 3 both); per node the engine whose body it is (+1), per member 2 when
+  // both its ends are in one engine's body (the crankcase stand-in: the nose is its contact), 1 when one is
+  const NOSE = DRV && typeof genNoseSpec === 'function' ? genNoseSpec(def) : null;
+  const NZ = NOSE ? { c: new Float64Array(NOSE.length), im: new Float64Array(NOSE.length), it: new Int32Array(NOSE.length).fill(-2),
+                      g: new Float64Array(NOSE.length * 4), gy: new Float64Array(NOSE.length), gs: new Uint8Array(NOSE.length),
+                      arm: new Uint8Array(NOSE.length), node: new Int8Array(n), beam: new Uint8Array(nb), K: new Float64Array(NOSE.length),
+                      C: new Float64Array(NOSE.length), wt: new Float64Array(8), sub: 0 } : null;
+  let noseArm = false;
+  if (NOSE) {
+    NOSE.forEach((N, k) => { if (!N) return; for (const i of N.body) { NZ.node[i] = k + 1; NZ.K[k] += KGn0(i); } NZ.C[k] = 1.6 * Math.sqrt(NZ.K[k] * N.m); });
+    for (let bi = 0; bi < nb; bi++) { const a = NZ.node[beams[bi].a], b = NZ.node[beams[bi].b]; NZ.beam[bi] = a && a === b ? 2 : (a || b) ? 1 : 0; }
+  }
+  // the node contact's spring as rigGround sets it (the core's: the engine's nodes against the obstacle)
+  function KGn0(i) { const mi = def.nodes[i].m; return mi <= 6 ? Math.min(9e4, 2.5e5 * mi) : 1.5e4 * mi; }
+  // engine k's nose now: its centre (the spinner's tip less Rn along the engine's own axis - its mass centre to its thrust
+  // nodes, which a bent mount tilts) into NZ.g, its body's velocity into _nzV; false for no nose
+  const _nzV = new Float64Array(3);
+  function noseGeo(k) {
+    const N = NOSE[k]; if (!N) return false;
+    let hx = 0, hy = 0, hz = 0, cx = 0, cy = 0, cz = 0, vx = 0, vy = 0, vz = 0;
+    for (const i of N.thrust) { hx += p[i*3]; hy += p[i*3+1]; hz += p[i*3+2]; }
+    hx /= N.thrust.length; hy /= N.thrust.length; hz /= N.thrust.length;
+    for (let j = 0; j < N.body.length; j++) { const i3 = N.body[j] * 3, w = N.w[j]; cx += w * p[i3]; cy += w * p[i3+1]; cz += w * p[i3+2]; vx += w * v[i3]; vy += w * v[i3+1]; vz += w * v[i3+2]; }
+    let ax = hx - cx, ay = hy - cy, az = hz - cz; const al = Math.sqrt(ax*ax + ay*ay + az*az);
+    if (al > 1e-6) { ax /= al; ay /= al; az /= al; } else { ax = -xAft[0]; ay = -xAft[1]; az = -xAft[2]; }
+    const s = N.Ls - N.Rn, o = k * 4;
+    NZ.g[o] = hx + ax * s; NZ.g[o+1] = hy + ay * s; NZ.g[o+2] = hz + az * s; NZ.g[o+3] = N.Rn;
+    _nzV[0] = vx; _nzV[1] = vy; _nzV[2] = vz;
+    return true;
+  }
+  // ONCE A FRAME: is anything in the nose's reach - a trunk trunkFrame gathered (its circle within the nose's and a frame's
+  // travel, its height spanning it), the ground under the disc (DMG-DRIVE's own sample) within half a metre? Then the
+  // nose's ground is sampled under its centre, once, and the substeps run nosePass. Nothing in reach: one loop over the
+  // engines, no sample
+  function noseFrame(dtFrame) {
+    noseArm = false;
+    for (let k = 0; k < NOSE.length; k++) {
+      NZ.arm[k] = 0;
+      if (!noseGeo(k)) continue;
+      const o = k * 4, gx = NZ.g[o], gyc = NZ.g[o+1], gz = NZ.g[o+2], Rn = NZ.g[o+3];
+      // (a frame's travel: across, to a trunk; down, to the ground - a landing's roll at 30 m/s is no nearer the ground)
+      const mg = 0.1 + 2 * Math.sqrt(_nzV[0]*_nzV[0] + _nzV[2]*_nzV[2]) * dtFrame, mgY = 0.1 + 2 * Math.max(0, -_nzV[1]) * dtFrame;
+      for (let t = 0; t < _tkN; t++) {
+        const q = t * 5, dx = gx - _tk[q], dz = gz - _tk[q+1], R = _tk[q+3] + Rn + mg;
+        if (dx*dx + dz*dz > R*R || gyc - Rn > _tk[q+4] || gyc + Rn < _tk[q+2] - 1) continue;
+        NZ.arm[k] |= 1; break;
+      }
+      if (world && typeof world.terrainH === 'function') {
+        const yb = gyc - Rn;
+        if (!NZ.gs[k] || yb - NZ.gy[k] < 0.5 + mgY) { const g = world.terrainH(gx, gz); if (yb - g < mgY) { NZ.arm[k] |= 2; NZ.gy[k] = g; } }
+      }
+      if (NZ.arm[k]) { noseArm = true; DRV.st[k].crushArm++; }   // (the frames it was armed: GATE DMGNOSE's normal operations)
+    }
+  }
+  // EVERY SUBSTEP OF AN ARMED FRAME: each armed nose against its deepest obstacle (a trunk's circle in the horizontal plane,
+  // or the ground under it), crushed through its stack (genNoseF), the push on the engine's thrust nodes
+  function nosePass(dt) {
+    NZ.sub++;
+    for (let k = 0; k < NOSE.length; k++) {
+      const N = NOSE[k]; if (!N || !NZ.arm[k] || !noseGeo(k)) continue;
+      const o = k * 4, gx = NZ.g[o], gyc = NZ.g[o+1], gz = NZ.g[o+2], Rn = NZ.g[o+3];
+      let best = 0, nx = 0, ny = 0, nz = 0, onT = false;
+      if (NZ.arm[k] & 1) for (let t = 0; t < _tkN; t++) {
+        const q = t * 5, dx = gx - _tk[q], dz = gz - _tk[q+1], d = Math.sqrt(dx*dx + dz*dz) || 1e-6, pen = _tk[q+3] + Rn - d;
+        if (pen <= best || gyc - Rn > _tk[q+4] || gyc + Rn < _tk[q+2] - 1) continue;
+        best = pen; nx = dx / d; ny = 0; nz = dz / d; onT = true;
+      }
+      if (NZ.arm[k] & 2) { const pen = NZ.gy[k] - (gyc - Rn); if (pen > best) { best = pen; nx = 0; ny = 1; nz = 0; onT = false; } }
+      if (best <= 0) continue;
+      const st = DRV.st[k], keep = st.bladeLost > 0 ? Math.max(0, N.blades - st.bladeLost) / N.blades : 1;
+      const vin = -(_nzV[0] * nx + _nzV[1] * ny + _nzV[2] * nz);   // the nose's speed INTO the obstacle
+      const c0 = NZ.c[k];
+      let F;
+      if (best >= c0) {                              // crushing: the plateau at the depth it has reached
+        const c1 = best < N.Dc ? best : N.Dc;
+        if (c1 > c0) { st.crushJ += 0.5 * (genNoseF(N, c0, keep) + genNoseF(N, c1, keep)) * (c1 - c0); NZ.c[k] = c1; }
+        F = genNoseF(N, c1, keep);
+        if (best > N.Dc && onT) {                    // used up: the engine block against the trunk (the core)
+          const e = best - N.Dc; let ret = 0;
+          if (NZ.it[k] < NZ.sub - 1 || e > NZ.im[k]) NZ.im[k] = e; else ret = (TK_RU - 1) * (NZ.im[k] - e);
+          NZ.it[k] = NZ.sub;
+          F += Math.max(0, NZ.K[k] * (e - ret) + NZ.C[k] * vin);
+          st.crushLayer = 'core';
+        } else if (st.crushLayer !== 'core') st.crushLayer = genNoseLayer(N, c1);
+      } else F = Math.max(0, genNoseF(N, c0, keep) - TK_RU * NZ.K[k] * (c0 - best));   // unloaded: a tenth comes back
+      if (!(F > 0)) continue;
+      if (F > st.crushF) st.crushF = F;
+      st.crush = NZ.c[k]; st.crushOf = N.Dc; st.crushOn = onT ? 'trunk' : 'ground';
+      // the crush past the spinner reaches the propeller: a prop still turning stops on it (DMG-DRIVE grades the strike:
+      // a stoppage, or a separation at a tip faster than its blade takes)
+      if (NZ.c[k] > N.layers[0].d1 - 1e-9 && N.layers[0].cone && !eng[k].seized && st.strike !== 'stoppage' && st.strike !== 'separation')
+        propStrike(k, onT ? 'trunk' : 'ground', DRV.sp.R, onT ? 'rigid' : 'soft');
+      let fx = F * nx, fy = F * ny, fz = F * nz;
+      if (!onT) {                                    // the nose scraping the ground
+        const sp = Math.sqrt(_nzV[0]*_nzV[0] + _nzV[2]*_nzV[2]);
+        if (sp > 1e-6) { const kf = Math.min(GEN_NOSE.mu * F / sp, N.mT / dt); fx -= kf * _nzV[0]; fz -= kf * _nzV[2];
+          if (SCR !== null) scarHit(SCR, n + k, gx, gz, F, _nzV[1], kf * sp * sp, dt); }   // G2357: the nose's furrow
+        else if (SCR !== null) scarHit(SCR, n + k, gx, gz, F, _nzV[1], 0, dt);
+      } else {                                       // ...and sliding on the trunk's bark: the crushed cowl and the stopped
+        // prop dig in (GEN_NOSE.muBark). Without it a corner hit slid off the trunk with its energy kept and swung the cabin's
+        // corner into it (the Cub, 7.5 m/s across: a 7 kN blow on VSNR tore a mount fitting the corner push had not)
+        const vt = -_nzV[0] * nz + _nzV[2] * nx;     // the slip along the trunk (the horizontal tangent (-nz, nx))
+        if (vt > 1e-6 || vt < -1e-6) { const Ft = Math.min(GEN_NOSE.muBark * F, N.mT * Math.abs(vt) / dt) * (vt > 0 ? 1 : -1); fx += Ft * nz; fz -= Ft * nx; }
+      }
+      // THE PUSH LANDS ON THE THRUST NODES - the hub, where the certificate's nose cases react it (impactNose on the
+      // centreline, impactNoseL / R at a corner: G2014) - shared between them by where the obstacle meets the nose
+      // across the engine (the contact point's station on the line between them, clamped: a corner hit is the corner
+      // case). (By mass share it went 81 % to the Cub's 90 kg crankcase node, whose tubes no case loads that way: they
+      // crushed at their floor and the mount's bottom fittings tore, 10 of 49 winds)
+      const TN = N.thrust;
+      if (TN.length === 2) {
+        const a3 = TN[0] * 3, b3 = TN[1] * 3, ex = p[b3] - p[a3], ez = p[b3+2] - p[a3+2], e2 = ex * ex + ez * ez;
+        const px = gx - nx * Rn, pz = gz - nz * Rn;
+        let t = e2 > 1e-9 ? ((px - p[a3]) * ex + (pz - p[a3+2]) * ez) / e2 : 0.5; t = t < 0 ? 0 : t > 1 ? 1 : t;
+        NZ.wt[0] = 1 - t; NZ.wt[1] = t;
+      } else for (let j = 0; j < TN.length; j++) NZ.wt[j] = 1 / TN.length;
+      for (let j = 0; j < TN.length; j++) {
+        const i = TN[j], i3 = i * 3, w = NZ.wt[j];
+        f[i3] += fx * w; f[i3+1] += fy * w; f[i3+2] += fz * w;
+        if (tkPush !== null && onT) tkPush[i] += F * w;
+      }
+      cIx += fx * dt; cIy += fy * dt; cIz += fz * dt;
+      if (onT) _tkHits++;
+    }
+  }
+  // THE TRUNK PAIR q IS THE NOSE'S (G2013): its member inside an engine's nose - both ends in the engine's body (the crankcase
+  // stand-in), or one end there and the contact point within the nose's circle (a mount tube's engine end, behind the bowl):
+  // the nose is the engine's contact there; past the circle (the cowl's side, towards the firewall) the member meets the
+  // trunk as before
+  function noseIn(q) {
+    const bi = _pr[q * 2], nb_ = NZ.beam[bi]; if (!nb_) return false;
+    if (nb_ === 2) return true;
+    const b = beams[bi], k = (NZ.node[b.a] || NZ.node[b.b]) - 1, o = k * 4, ia = b.a * 3, ib = b.b * 3, t = _tc[0];
+    const dx = p[ia] + t * (p[ib] - p[ia]) - NZ.g[o], dz = p[ia+2] + t * (p[ib+2] - p[ia+2]) - NZ.g[o+2];
+    return dx * dx + dz * dz < NZ.g[o+3] * NZ.g[o+3];
+  }
+  // A STRIKE on engine k: `bite` m into the disc, on a surface 'soft' (the ground), 'water' or 'rigid' (a trunk); the tier
+  // only ever rises (genDriveStrikeTier: the bite over R, the tip speed now against the blade's)
+  function driveStrike(k, what, bite, surf) {
+    const e = eng[k], st = DRV.st[k], S = DRV.sp; if (!e || !st) return;
+    const tip = Math.PI * S.D * (out.rpm[k] || 0) / 60, w = 2 * Math.PI * (out.rpm[k] || 0) / 60;
+    const tier = genDriveStrikeTier(bite, S.R, surf, tip, S.sepTip, S.Ub > 0 && surf === 'rigid' ? 0.5 * S.I * w * w / S.Ub : null);   // G2036
+    if (tier <= GEN_DRIVE_STRIKE.indexOf(st.strike)) return;
+    const first = !st.strike;
+    st.strike = GEN_DRIVE_STRIKE[tier]; st.teardown = true;
+    st.strikeAt = { t: simT, what, surf, bite, biteR: bite / S.R, tip, rpm: out.rpm[k] || 0 };
+    if (first) st.internal = dmgRnd(nb + k, 17) < GEN_DRIVE.internalP;   // the teardown's finding (seeded: the build's own)
+    DMG.propStrike = true; if (!DMG.propAt) DMG.propAt = { eng: k, what, t: simT };
+    const stopR = GEN_DRIVE.strike.stop[surf] != null ? GEN_DRIVE.strike.stop[surf] : GEN_DRIVE.strike.stop.soft;
+    const stops = tier === 3 || (tier === 4 && bite / S.R > stopR) || e.seized;
+    if (S.gear > 1 && tier >= 2 && st.gearbox !== 'failed') st.gearbox = 'damaged';
+    st.vib = Math.max(st.vib, GEN_DRIVE.strike.vib[st.strike]);
+    if (tier === 2) DK[k] = Math.min(DK[k], GEN_DRIVE.strike.bentK);
+    if (stops) {
+      st.imbN = 0;
+      if (S.gear > 1 && e.running && thrEffOf(k) > GEN_DRIVE.gear.stopPow) { st.gearbox = 'failed'; DK[k] = 0; }   // the drive shears: the engine runs on unloaded
+      else if (!e.seized) { e.seized = true; e.running = false; e.crank = 0; st.failed = true; st.why = st.strike; DK[k] = 0; }
+    } else if (tier === 4) { DK[k] = Math.min(DK[k], GEN_DRIVE.strike.bentK); DRV.imb = true; }
+    if (tier === 4) st.bladeLost = GEN_DRIVE.imb.frac;   // (a stopped prop's lost blade is debris: no imbalance - driveImb skips it)
+  }
+  // the shaft speeds the tacho reads once the drive is hurt: a seized engine turns nothing; a sheared drive lets the prop
+  // freewheel (it windmills) and the engine run unloaded (its rpm over the max: the runaway, on the root of its torque demand)
+  function driveRpm(i, V, sig, pk) {
+    const e = eng[i]; if (!e) return;
+    if (e.seized) { out.rpm[i] = 0; out.rpmEng[i] = 0; return; }
+    if (DRV.st[i].gearbox === 'failed') {
+      out.rpm[i] = genShaftRpm(EN, PR, 0, V, sig, pk, false);
+      out.rpmEng[i] = e.running ? DRV.sp.rpmMax * GEN_DRIVE.gear.runaway * Math.sqrt(thrEffOf(i)) : 0;
+    }
+  }
+  // A LOST BLADE'S IMBALANCE (every substep, in the aero pass): m e w^2 turning with the prop, on its engine's thrust nodes,
+  // in the disc's plane (the body's right and the right x aft)
+  function driveImb() {
+    const dtI = simT - DRV.tI; DRV.tI = simT;
+    const ax = xAft, r = zRt, ux = r[1]*ax[2] - r[2]*ax[1], uy = r[2]*ax[0] - r[0]*ax[2], uz = r[0]*ax[1] - r[1]*ax[0];
+    const S = DRV.sp, mL = GEN_DRIVE.imb.frac * S.mass / S.blades, eL = GEN_DRIVE.imb.at * S.R;
+    for (let k = 0; k < nE0; k++) {
+      const st = DRV.st[k];
+      if (!(st.bladeLost > 0) || eng[k].seized) { st.imbN = 0; continue; }
+      const w = 2 * Math.PI * (out.rpm[k] || 0) / 60;
+      DRV.ph[k] += w * dtI;
+      const F = mL * eL * w * w, c = CORE_MATH.cos(DRV.ph[k]) * F, sn = CORE_MATH.sin(DRV.ph[k]) * F;
+      st.imbN = F;
+      const fx = c * r[0] + sn * ux, fy = c * r[1] + sn * uy, fz = c * r[2] + sn * uz;
+      let cnt = 0; for (let j = 0; j < ENG_N.length; j++) if ((ENG_K[j] | 0) === k) cnt++;
+      if (!cnt) continue;
+      for (let j = 0; j < ENG_N.length; j++) if ((ENG_K[j] | 0) === k) { const q = ENG_N[j] * 3; f[q] += fx / cnt; f[q+1] += fy / cnt; f[q+2] += fz / cnt; }
+    }
+  }
+  // ONCE A FRAME: the disc against the ground and the water (a strike graded on its bite), the overspeed bands, the tip's
+  // Mach, the overhaul band's rough running and the gearbox it hurts
+  function driveFrame(dtFrame) {
+    const S = DRV.sp, Rp = S.R;
+    if (world && typeof world.terrainH === 'function') {
+      bodyAxes();
+      const ay = -xAft[1], dl = Math.max(0.2, Math.sqrt(Math.max(0, 1 - ay * ay)));
+      // the disc's lowest point: down, in the disc's plane
+      const dx = (-xAft[0]) * ay / dl, dy = (-1 + ay * ay) / dl, dz = (-xAft[2]) * ay / dl;
+      for (let k = 0; k < nE0; k++) {
+        const st = DRV.st[k]; if (st.strike === 'separation') continue;
+        let cx = 0, cy = 0, cz = 0, c = 0;
+        for (let j = 0; j < ENG_N.length; j++) if ((ENG_K[j] | 0) === k) { const q = ENG_N[j] * 3; cx += p[q]; cy += p[q+1]; cz += p[q+2]; c++; }
+        if (!c) continue;
+        cx /= c; cy /= c; cz /= c;
+        const lx = cx + Rp * dx, ly = cy + Rp * dy, lz = cz + Rp * dz, g = world.terrainH(lx, lz);
+        if (NOSE) { NZ.gy[k] = g; NZ.gs[k] = 1; }  // G2013: the nose's ground reference (its arming)
+        let pen = g - ly - GEN_DRIVE.strike.turf, surf = 'soft', gap = ly - g;
+        if (ly - g < 30 && typeof world.waterH === 'function') { const w = world.waterH(lx, lz); if (w > -1e8 && w > g) { gap = ly - w; if (w - ly > 0) { pen = w - ly; surf = 'water'; } } }
+        if (gap < st.gapMin) st.gapMin = gap;        // the disc's least clearance over the surface (the turf's top not counted)
+        if (pen > 0) propStrike(k, surf === 'water' ? 'water' : 'ground', pen / dl, surf);   // (what it struck: the water is no ground - GATE WATERDAMP 4 reads it)
+        // G2357 (DMG-SCAR): the slot a turning prop chops in the ground when the strike stops it or tears a blade off (the
+        // grade DMG-DRIVE just gave it; a brush or a bent blade on an airframe that is otherwise whole leaves the turf to hide it)
+        if (SCR !== null && pen > 0 && surf === 'soft' && (st.strike === 'stoppage' || st.strike === 'separation') && (out.rpm[k] || 0) > 30) {
+          const hl = Math.hypot(xAft[0], xAft[2]) || 1;
+          scarStrike(SCR, k, lx, lz, xAft[2] / hl, -xAft[0] / hl, (pen + GEN_DRIVE.strike.turf) / dl, Rp, simT);
+        }
+      }
+    }
+    const a = Math.sqrt(1.4 * 287.05 * ((out.oatC != null ? out.oatC : 15) + 273.15));
+    for (let k = 0; k < nE0; k++) {
+      const st = DRV.st[k], e = eng[k];
+      st.rpmMax = S.rpmMax;
+      st.tipMach = Math.hypot(Math.PI * S.D * (out.rpm[k] || 0) / 60, out.V || 0) / a;
+      if (e.seized) continue;
+      if (genDriveOverspeed(st, (out.rpmEng[k] || 0) / S.rpmMax, dtFrame)) {
+        e.seized = true; e.running = false; e.crank = 0; st.failed = true; st.why = 'overspeed'; DK[k] = 0; st.imbN = 0;
+      }
+      if (st.os === 'overhaul' && !st.failed) { DK[k] = Math.min(DK[k], GEN_DRIVE.os.ovhK); st.vib = Math.max(st.vib, GEN_DRIVE.os.ovhVib); }
+      if (S.gear > 1 && (st.os === 'overhaul' || st.os === 'failed') && !st.gearbox) st.gearbox = 'damaged';
+      st.thrustK = DK[k];
+    }
+  }
   // the burn: the thermo sheet's rated figure (kg/h of fuel, or kW of pack
   // draw), scaled by the effective throttle and the altitude power ratio
   const THERMO = (typeof genEngineThermo === 'function') ? genEngineThermo(EN) : null;
@@ -1522,6 +2004,7 @@ function makeSim(def, world) {
   out.pitch = 0; out.roll = 0; out.hdg = 0; out.rpm = []; out.rpmEng = [];
   function resetPanel() {
     for (const e of eng) { e.running = true; e.key = 'both'; e.crank = 0; e.seized = false; e.drown = false; }
+    if (DRV) driveReset();          // G1826
     fuel.frac = 1; fuel.kg = fuel.kg0; fuel.litres = fuel.litres0; fuel.soc = 1;
     fuel.burnKgH = 0; fuel.drawKW = 0;
     fuel.starved = false; fuel.starvedAt = null; fuel.enduranceS = Infinity;
@@ -1872,7 +2355,11 @@ function makeSim(def, world) {
     // the weight the level stance gives it (the lever of the CG between the mains and the third wheel)
     // over its own ground stiffness. K, C and every force law are unchanged - the spring meets the
     // ground that much earlier, so at rest the wheel's rim is on the surface. Every other node: rC = r.
-    for (let i = 0; i < n; i++) rC[i] = r[i];
+    // G2044 (DMG-SETTLE): ...less its standoff outside the drawn surface (61_gen_frame's `so`: the boxes' third chords, a
+    // modelling depth under the wing's and the stab's drawn section, beside the fin's) - the ground meets the surface.
+    // A Jodel's wing that came off rested on its lower caps, its drawn covering 12 cm over the ground; flight never
+    // reaches the ground with these nodes, and the law (K, C, friction) is unchanged
+    for (let i = 0; i < n; i++) rC[i] = r[i] - (def.nodes[i].so || 0);
     {
       const M = (def.refs && def.refs.mains) || [], tw = def.refs ? def.refs.tw : null, W = totalM * 9.81;
       if (M.length) {
@@ -1940,7 +2427,7 @@ function makeSim(def, world) {
     if (R < 1e-6 || Math.abs(C) > R) return 0;
     const th = Math.asin(C / R) - Math.atan2(B, A);
     if (!(Math.abs(th) < 0.6)) return 0;          // 34 deg: past that it is not a stance
-    const cs = Math.cos(th), sn = Math.sin(th);
+    const cs = CORE_MATH.cos(th), sn = CORE_MATH.sin(th);
     for (let i = 0; i < n; i++) {
       const dx = p[i*3] - ax, dy = p[i*3+1] - ay;
       p[i*3] = ax + dx * cs - dy * sn;
@@ -1975,9 +2462,14 @@ function makeSim(def, world) {
     const s = Math.min(1, Math.max(0, (Math.abs(al) - (P.aStall - dAStall)) / 0.10));
     let a3 = P.a3d;
     if (sig < 1) a3 = 1 / (1 / P.a3d - (1 - sig) / P.eAR);
-    const Cl = (P.Cl0 + dCl0 + a3 * al) * (1 - s) + 1.1 * Math.sin(2 * al) * s;
+    // (G2355: the stalled terms only past the stall's start. With s = 0 each adds a signed zero, which leaves its sum the
+    // same number unless that sum is itself zero - then the whole formula runs, so the bits are the old ones; the attached
+    // flow then needs no sine at all, where it took three a strip a substep)
+    const Ca = (P.Cl0 + dCl0 + a3 * al) * (1 - s);
+    const Cl = s > 0 || Ca === 0 ? Ca + 1.1 * CORE_MATH.sin(2 * al) * s : Ca;
     const CdAtt = P.Cd0 + dCd0 + sig * Cl * Cl / P.eAR;
-    const Cd = CdAtt * (1 - s) + (P.Cd0 + dCd0 + 1.9 * Math.sin(al) * Math.sin(al)) * s;
+    let Cd = CdAtt * (1 - s);
+    if (s > 0 || Cd === 0) { const sa = CORE_MATH.sin(al); Cd += (P.Cd0 + dCd0 + 1.9 * sa * sa) * s; }
     return [Cl, Cd];
   }
 
@@ -2087,13 +2579,14 @@ function makeSim(def, world) {
         // the panel arc: a stopped engine pulls nothing (every engine runs
         // unless the key or the tanks say otherwise — bit-identical before)
         const run = !eng[i] || eng[i].running;
-        Ti[i] = run ? ctl.thr * lev(i) * Tcap : 0; T += Ti[i];
+        Ti[i] = run ? ctl.thr * lev(i) * Tcap * DK[i] : 0; T += Ti[i];   // (DK: G1826's factor, 1 unless the drive is hurt)
         // and the shaft speed the tacho reads: prop rpm, then through the
         // reduction unit (00_registry.js genShaftRpm, the one law)
         if (typeof genShaftRpm === 'function') {
           const thrE = run ? Math.max(0, Math.min(1, ctl.thr * lev(i))) : 0;
           const rp = genShaftRpm(EN, PR, thrE, Vfwd, sig, PS.power, run);
           out.rpm[i] = rp; out.rpmEng[i] = genEngineRpm(EN, rp);
+          if (DRV) driveRpm(i, Vfwd, sig, PS.power);   // G1826: a seized engine, a sheared drive
         }
       }
       // propwash is ONE disc's — the tail flies in the wake of the prop ahead
@@ -2109,7 +2602,7 @@ function makeSim(def, world) {
         const per = Ti[k] / Math.max(1, cnt[k]);
         const tl = TL ? (TL[k] || 0) : 0;
         if (tl) {
-          const cs = Math.cos(tl), sn = Math.sin(tl);
+          const cs = CORE_MATH.cos(tl), sn = CORE_MATH.sin(tl);
           f[e*3]   -= per * (cs * xAft[0] + sn * yUp[0]);
           f[e*3+1] -= per * (cs * xAft[1] + sn * yUp[1]);
           f[e*3+2] -= per * (cs * xAft[2] + sn * yUp[2]);
@@ -2119,6 +2612,7 @@ function makeSim(def, world) {
           f[e*3+2] -= per * xAft[2];
         }
       }
+      if (DRV && DRV.imb) driveImb();               // G1826: a lost blade's imbalance
     }
     out.aeroFy = 0; out.wingFy = 0; out.stabFy = 0; out.dbgAl = 0; out.dbgN = 0;
     const planeFy = out.planeFy = [];                // G185: each plane's lift
@@ -2370,7 +2864,7 @@ function makeSim(def, world) {
         // the body's incidence: the relative wind runs aft (u > 0 flying
         // forward) and from below (wn > 0 along up) with the nose up
         const alB = Math.atan2(wn, u);
-        const M = 2 * P_.bodyMunk.K * P_.bodyMunk.vol * 0.5 * rho * Vr2 * Math.sin(2 * alB) * 0.5;
+        const M = 2 * P_.bodyMunk.K * P_.bodyMunk.vol * 0.5 * rho * Vr2 * CORE_MATH.sin(2 * alB) * 0.5;
         const L = hyp2(bx - ax, by - ay);
         if (L > 0.3) {
           const F = M / L;      // nose-up couple: up on the fore ring, down on the aft
@@ -2385,7 +2879,20 @@ function makeSim(def, world) {
   // (the G115 yaw probe ran free-yaw decay at two settings; the probe
   // retired with the fleet, 2026-09-05), not for play.
   // No fiche and no generated build sets it, so everything flies 0.5 as ever.
-  const G = -9.81, DEFDAMP = def.params.defDamp ?? 0.5;
+  // G1885: it damps the DEFORMATION only (the velocity off the rigid-body field, substep below); defDampMean
+  // brings back the pre-G1885 damper (off the mean velocity, which damped rigid rotation too) for GATE DMGDAMP's
+  // control - an instrument, like defDamp; no build sets it.
+  const G = -9.81, DEFDAMP = def.params.defDamp ?? 0.5, DEFDAMP_MEAN = !!def.params.defDampMean;
+  // G1885: the rigid fit's second moments about the CG (xx yy zz xy xz yz) and its last w, carried through a frame
+  const rigS = new Float64Array(6), rigW = new Float64Array(3);
+  let rigFresh = true;
+  // G1844 (DMG-TYRE): the tyres' cornering stiffness per unit load (/rad; 62_gen_aero `tyre`, TYRE_CN), held as
+  // its inverse (the side force below). A def without `tyre` (a hand-written fiche) reads a standard main and a
+  // tailwheel. `tyreCoulomb` brings back the pre-G1844 side force (Coulomb at 0.02 m/s at every speed) for GATE
+  // DMGTYRE's control - an instrument, like defDampMean; no build sets it.
+  const TYRE_ = P_.tyre || {}, TYRE_OLD = !!P_.tyreCoulomb;
+  const iCnM = TYRE_OLD ? 0 : 1 / (TYRE_.main || TYRE_CN.standard),
+        iCnT = TYRE_OLD ? 0 : 1 / (TYRE_.tw || (P_.twSteer < 0 ? TYRE_CN.nosewheel : TYRE_CN.tailwheel));
   // ground stiffness scales with node mass so light aircraft stay stable at the same dt
   const KGn = new Float64Array(n), CGn = new Float64Array(n),
         KTn = new Float64Array(n), CTn = new Float64Array(n);
@@ -2460,6 +2967,96 @@ function makeSim(def, world) {
       Mz += (p[i*3]-cgx)*(f[i*3+1]-G*m[i]) - (p[i*3+1]-cgy)*f[i*3];
     return -Mz;   // nose-up positive, gravity excluded
   }
+  // G1885: the integration and the deformation damper, its own function (the substep stays the size it was: the
+  // JIT's budget for it is not spent on the damper's sums)
+  function integrate(dt) {
+    const dp = Math.max(0, 1 - DEFDAMP * dt);
+    if (DEFDAMP_MEAN) {
+      // the pre-G1885 damper, kept for GATE DMGDAMP's control only (params.defDampMean; no build sets it)
+      let vmx=0, vmy=0, vmz=0;
+      for (let i = 0; i < n; i++) { vmx+=v[i*3]*m[i]; vmy+=v[i*3+1]*m[i]; vmz+=v[i*3+2]*m[i]; }
+      vmx/=totalM; vmy/=totalM; vmz/=totalM;
+      for (let i = 0; i < n; i++) {
+        const i3 = i*3, im = dt/m[i];
+        v[i3]   = vmx + (v[i3]   + f[i3]*im   - vmx) * dp;
+        v[i3+1] = vmy + (v[i3+1] + f[i3+1]*im - vmy) * dp;
+        v[i3+2] = vmz + (v[i3+2] + f[i3+2]*im - vmz) * dp;
+        p[i3] += v[i3]*dt; p[i3+1] += v[i3+1]*dt; p[i3+2] += v[i3+2]*dt;
+      }
+    } else {
+      // G1885: THE DAMPER TAKES DEFORMATION, NOT ROTATION. It damped v - v_mean, and a rigid rotation is not in
+      // the mean: in vacuum the stock build's roll, pitch and yaw all decayed as exp(-0.5 t) (the independent
+      // review's D1, measured) - a 2 s angular damper on every aeroplane, independent of the air. Now the forces
+      // go in first (v* = v + f dt/m), then the rigid-body field of v* is taken out, v_r(x) = v_cm + w x (x - x_cm)
+      // with w = I^-1 L about the CG (I the nodes' inertia tensor, L their angular momentum, this substep's), and
+      // only v* - v_r is damped. v_r is the mass-weighted least-squares rigid fit, so the damped remainder carries
+      // no momentum and no angular momentum: the damper takes energy out of the deformation and never P or L, and
+      // the forces' impulse goes in whole (the mean's damper scaled the net force by dp as well). The sums ride the
+      // loop that adds the forces; positions relative to node 0 (an aeroplane kilometres from the origin keeps
+      // its digits in the second moments). DEFDAMP's value is the deformation's, unchanged.
+      const ox = p[0], oy = p[1], oz = p[2];
+      let Px=0, Py=0, Pz=0, Rx=0, Ry=0, Rz=0, Lx=0, Ly=0, Lz=0, Sxx=0, Syy=0, Szz=0, Sxy=0, Sxz=0, Syz=0;
+      // the second moments are summed on a frame's first substep (and after any reset); the frame's others carry
+      // them on rigidly with the last w (dS/dt = W S + S W^T): the frame turns the aeroplane by w/60 rad and the
+      // deformation moves them by ~1e-4, against a quarter of the loop's sums every substep (G1885's perf, HANDOVER)
+      const fresh = rigFresh || dp >= 1;
+      if (fresh) for (let i = 0; i < n; i++) {
+        const i3 = i*3, mi = m[i], im = dt/mi;
+        const vx = v[i3] += f[i3]*im, vy = v[i3+1] += f[i3+1]*im, vz = v[i3+2] += f[i3+2]*im;
+        const rx = p[i3] - ox, ry = p[i3+1] - oy, rz = p[i3+2] - oz;
+        const mx = mi*rx, my = mi*ry, mz = mi*rz;
+        Px += mi*vx; Py += mi*vy; Pz += mi*vz; Rx += mx; Ry += my; Rz += mz;
+        Lx += my*vz - mz*vy; Ly += mz*vx - mx*vz; Lz += mx*vy - my*vx;
+        Sxx += mx*rx; Syy += my*ry; Szz += mz*rz; Sxy += mx*ry; Sxz += mx*rz; Syz += my*rz;
+      } else for (let i = 0; i < n; i++) {
+        const i3 = i*3, mi = m[i], im = dt/mi;
+        const vx = v[i3] += f[i3]*im, vy = v[i3+1] += f[i3+1]*im, vz = v[i3+2] += f[i3+2]*im;
+        const mx = mi*(p[i3] - ox), my = mi*(p[i3+1] - oy), mz = mi*(p[i3+2] - oz);
+        Px += mi*vx; Py += mi*vy; Pz += mi*vz; Rx += mx; Ry += my; Rz += mz;
+        Lx += my*vz - mz*vy; Ly += mz*vx - mx*vz; Lz += mx*vy - my*vx;
+      }
+      if (dp < 1) {
+        const iM = 1 / totalM, ux = Px*iM, uy = Py*iM, uz = Pz*iM, cx = Rx*iM, cy = Ry*iM, cz = Rz*iM;
+        // about the CG: L - M c x v_cm, and (fresh) the second moments by the parallel axis
+        Lx -= Ry*uz - Rz*uy; Ly -= Rz*ux - Rx*uz; Lz -= Rx*uy - Ry*ux;
+        if (fresh) {
+          rigS[0] = Sxx - Rx*cx; rigS[1] = Syy - Ry*cy; rigS[2] = Szz - Rz*cz; rigS[3] = Sxy - Rx*cy; rigS[4] = Sxz - Rx*cz; rigS[5] = Syz - Ry*cz;
+          rigFresh = false;
+        } else {
+          const wx = rigW[0] * dt, wy = rigW[1] * dt, wz = rigW[2] * dt;
+          const s0 = rigS[0], s1 = rigS[1], s2 = rigS[2], s3 = rigS[3], s4 = rigS[4], s5 = rigS[5];   // xx yy zz xy xz yz
+          rigS[0] = s0 + 2 * (wy*s4 - wz*s3);
+          rigS[1] = s1 + 2 * (wz*s3 - wx*s5);
+          rigS[2] = s2 + 2 * (wx*s5 - wy*s4);
+          rigS[3] = s3 + (wy*s5 - wz*s1) + (wz*s0 - wx*s4);
+          rigS[4] = s4 + (wy*s2 - wz*s5) + (wx*s3 - wy*s0);
+          rigS[5] = s5 + (wz*s4 - wx*s2) + (wx*s1 - wy*s3);
+        }
+        Sxx = rigS[0]; Syy = rigS[1]; Szz = rigS[2]; Sxy = rigS[3]; Sxz = rigS[4]; Syz = rigS[5];
+        const a = Syy + Szz, b = Sxx + Szz, c = Sxx + Syy;           // I = [[a,-Sxy,-Sxz],[-Sxy,b,-Syz],[-Sxz,-Syz,c]]
+        const k0 = b*c - Syz*Syz, k1 = Sxy*c + Syz*Sxz, k2 = Sxy*Syz + b*Sxz;
+        const det = a*k0 - Sxy*k1 - Sxz*k2;
+        let wx = 0, wy = 0, wz = 0;
+        if (det > 1e-12 * a * b * c) {
+          const id = 1 / det, k4 = a*c - Sxz*Sxz, k5 = a*Syz + Sxy*Sxz, k8 = a*b - Sxy*Sxy;
+          wx = (k0*Lx + k1*Ly + k2*Lz) * id;
+          wy = (k1*Lx + k4*Ly + k5*Lz) * id;
+          wz = (k2*Lx + k5*Ly + k8*Lz) * id;
+        }
+        rigW[0] = wx; rigW[1] = wy; rigW[2] = wz;
+        // v_r = v_cm + w x (x - x_cm) = (v_cm - w x x_cm) + w x x, x_cm and x off node 0 (their digits kept)
+        const qx = ox + cx, qy = oy + cy, qz = oz + cz;
+        const gx = ux - (wy*qz - wz*qy), gy = uy - (wz*qx - wx*qz), gz = uz - (wx*qy - wy*qx);
+        for (let i = 0; i < n; i++) {
+          const i3 = i*3, px = p[i3], py = p[i3+1], pz = p[i3+2];
+          const rgx = gx + wy*pz - wz*py, rgy = gy + wz*px - wx*pz, rgz = gz + wx*py - wy*px;
+          const nx = rgx + (v[i3] - rgx) * dp, ny = rgy + (v[i3+1] - rgy) * dp, nz = rgz + (v[i3+2] - rgz) * dp;
+          v[i3] = nx; v[i3+1] = ny; v[i3+2] = nz;
+          p[i3] = px + nx*dt; p[i3+1] = py + ny*dt; p[i3+2] = pz + nz*dt;
+        }
+      } else for (let i = 0; i < n; i++) { const i3 = i*3; p[i3] += v[i3]*dt; p[i3+1] += v[i3+1]*dt; p[i3+2] += v[i3+2]*dt; }
+    }
+  }
   // G1813: the kinked members' floors - push only, below the crushed length (out of substep's own body: measured, the
   // loop inline cost the metal Cessna's step ~2 % in the air with no floor at all)
   function floorPass() {
@@ -2493,6 +3090,133 @@ function makeSim(def, world) {
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
   }
+  // THE TRUNK PAIR q's CONTACT (G1330 / G1470), read by the contact pass and by tkShares: false when apart, else
+  // _tc = [t, nx, nz, pen, intrusion] - the beam's closest point to the trunk's axis (horizontal; t along a -> b), inside the
+  // radius and between the foot and the top, its normal out of the trunk and how deep it is in.
+  // G1470: a member already BENT ROUND THIS TRUNK keeps the side it was hit from (its line may now cross the trunk's
+  // axis: the bend wraps the trunk, it is not pushed out the far side), and stands clear of it by the bend's depth
+  const _tc = new Float64Array(5);
+  function tkHit(q) {
+    const b = beams[_pr[q * 2]], ia = b.a * 3, ib = b.b * 3;
+    const ax = p[ia], ay = p[ia+1], az = p[ia+2], ex = p[ib] - ax, ey = p[ib+1] - ay, ez = p[ib+2] - az;
+    const e2 = ex*ex + ez*ez;
+    const o = _pr[q * 2 + 1] * 5, tx = _tk[o], tz = _tk[o+1], R = _tk[o+3];
+    let t = e2 > 1e-12 ? ((tx - ax) * ex + (tz - az) * ez) / e2 : 0;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const dx = ax + t * ex - tx, dz = az + t * ez - tz, d2 = dx*dx + dz*dz;
+    const bent = b.dOn && b.dTx === tx && b.dTz === tz;
+    let nx, nz, pen;
+    if (bent) {
+      nx = b.dNx; nz = b.dNz;
+      const sN = dx * nx + dz * nz, lat = dx * nz - dz * nx;
+      if (sN > R || lat * lat > R * R) return false;
+      pen = R - sN - b.dk;
+      if (pen <= 0) return false;
+    } else {
+      if (d2 > R*R) return false;
+      const d = Math.sqrt(d2) || 1e-6; nx = dx / d; nz = dz / d; pen = R - d;
+    }
+    const y = ay + t * ey;
+    if (y > _tk[o+4] || y < _tk[o+2] - 1) return false;
+    _tc[0] = t; _tc[1] = nx; _tc[2] = nz; _tc[3] = pen; _tc[4] = bent ? pen + b.dk : pen;
+    return true;
+  }
+  // G1883 (DMG-WINDBREAK): A NODE TAKES ONE CONTACT'S PUSH FROM A TRUNK. Each pair pushes its member's two ends by
+  // their share (1 - t, t), so a trunk met ON a node (t = 0 or 1 on every member meeting there: they all find their
+  // closest point at that node) pushed it once PER MEMBER - the Cub's thrust node ENGR, five members, took five times
+  // the ground's spring and damper on one node (KGn, CGn: what the same node gets on the ground, once). Its mount
+  // members went from nothing to their crush in 5 ms of a 3 m/s taxi, one kinked and the engine mount's group let go;
+  // the same taxi 14 cm to the side (the 2 deg a 5.5 m/s crosswind weathercocks the parked Cub, the drift on the
+  // roll) met the flange bar mid-span, which bends at its collapse load, and broke nothing. Now the shares a trunk
+  // puts on a node are a partition of one: where a node's shares sum past 1 they are scaled to 1 (one contact, the
+  // node's own spring and damper), split between its members as before; a node no trunk meets more than once is
+  // untouched (bit for bit). A node two trunks meet in one substep keeps the old sum (rare: two trunks within a
+  // member's reach). Only with the damage layer on (off = master's bits): the members' collapse loads, which judge
+  // each share, are the layer's.
+  const TKW = new Float64Array(PR_CAP * 2), tkWn = new Float64Array(n), tkWk = new Int32Array(n).fill(-1);
+  let tkNorm = false;
+  // G1883 (DMG-WINDBREAK): THE CONTACT CRUSHES; IT DOES NOT SPRING BACK. The contact's spring (the node's ground spring, KGn)
+  // stands for what the lattice does not carry as members where the trunk meets it - the skin, the cowl, the spinner -
+  // and that crushes: it loads on KGn and unloads along TK_RU x KGn from the deepest it went (the member's whole
+  // intrusion: its spring's depth plus any bend), so a tenth of what it stored comes back. Elastic both ways, a 3 m/s
+  // taxi stopped on one node (the per-node damper is critical for the node, 0.12 of critical for the 462 kg Cub it
+  // stops) rolled back 2.1-2.5 m: the over-count above had damped it by accident (five dampers on one node). Per
+  // member, the deepest intrusion of its current contact (a member out of contact for a substep starts again).
+  function tkAdd(i, k, w) {
+    if (tkWk[i] === -1) { tkWk[i] = k; tkWn[i] = w; }
+    else if (tkWk[i] === k) tkWn[i] += w;
+    else tkWk[i] = -2;                                 // two trunks on one node: left as it was
+  }
+  function tkShares() {
+    tkNorm = false;
+    for (let q = 0; q < _prN; q++) {
+      if (!tkHit(q) || (NOSE && noseIn(q))) continue;   // G2013: the nose's pairs are the nose's
+      const b = beams[_pr[q * 2]], k = _pr[q * 2 + 1], t = _tc[0];
+      tkAdd(b.a, k, 1 - t); tkAdd(b.b, k, t);
+    }
+    for (let q = 0; q < _prN; q++) {
+      const b = beams[_pr[q * 2]];
+      const sa = tkWk[b.a] >= 0 && tkWn[b.a] > 1 ? 1 / tkWn[b.a] : 1, sb = tkWk[b.b] >= 0 && tkWn[b.b] > 1 ? 1 / tkWn[b.b] : 1;
+      TKW[q * 2] = sa; TKW[q * 2 + 1] = sb;
+      if (sa < 1 || sb < 1) tkNorm = true;
+    }
+    for (let q = 0; q < _prN; q++) { const b = beams[_pr[q * 2]]; tkWk[b.a] = -1; tkWk[b.b] = -1; tkWn[b.a] = 0; tkWn[b.b] = 0; }
+  }
+  // THE TRUNK CONTACT PASS (G1330 / G1470; G1883 moved out of substep(), unchanged in its arithmetic): only when a trunk is in
+  // reach (trunkFrame's pairs) - the per-substep beam loop's function stays as small as it was
+  function trunkPass(dt) {
+    if (DMG_ON && _prN) { tkSub++; tkShares(); }     // G1883: a node takes one contact's push from a trunk
+    for (let q = 0; q < _prN; q++) {
+      if (!tkHit(q) || (NOSE && noseIn(q))) continue;   // G2013: the nose's pairs are the nose's
+      const b = beams[_pr[q * 2]], ia = b.a * 3, ib = b.b * 3;
+      {
+        const o = _pr[q * 2 + 1] * 5, tx = _tk[o], tz = _tk[o+1];
+        const t = _tc[0], nx = _tc[1], nz = _tc[2], pen = _tc[3];
+        const bent = b.dOn && b.dTx === tx && b.dTz === tz;
+        let wa = 1 - t, wb = t;
+        if (tkNorm) { wa *= TKW[q * 2]; wb *= TKW[q * 2 + 1]; }
+        const vna = v[ia] * nx + v[ia+2] * nz, vnb = v[ib] * nx + v[ib+2] * nz;
+        // G1883: the crush's give-back (DMG_ON): how far it has come back out of its deepest intrusion, unloaded at TK_RU x
+        let ret = 0;
+        if (DMG_ON) { const bi = _pr[q * 2], im = _tc[4];
+          if (tkIt[bi] < tkSub - 1 || im > tkIm[bi]) tkIm[bi] = im; else ret = (TK_RU - 1) * (tkIm[bi] - im);
+          tkIt[bi] = tkSub; }
+        // damped both ways and never pulling (a clamp at 0): with the damper on the way IN only, the spring handed the
+        // impact back and a 30 m/s aeroplane bounced 15 m off a trunk (G1333's pictures showed it)
+        let fa = wa * Math.max(0, KGn[b.a] * (pen - ret) - CGn[b.a] * vna), fb = wb * Math.max(0, KGn[b.b] * (pen - ret) - CGn[b.b] * vnb);
+        // G1470: no more than the member's own collapse load at that point (its ends' clusters take a node-on hit:
+        // t held to 0.1..0.9) - past it the member bends round the trunk (beamKink) and the work is gone, where the
+        // spring alone handed the whole impact back (an 8 m/s taxi into a trunk rolled back 16 m)
+        // G1883 (DMG-WINDBREAK): it BENDS under the share of the push ACROSS it (sA). Met along its length (0 < t < 1)
+        // the push is across it by construction (the closest point's normal is square to the member: sA = 1, as
+        // before, bit for bit); met at an END (t = 0 or 1: a trunk on a node) the push may run ALONG the member - a
+        // trunk on the Cub's thrust node pushes its three mount tubes from their engine ends, aft along them - and a push
+        // along a tube is its axial load (the beam's own law: its crush, its kink), not a bend: judged as a bend, the
+        // tubes "bent" at their ends, lost their chord (M_p / dk), the engine pivoted on the far side's fittings and pulled
+        // them out. Now only the across share bends it (sA = the sine between the push and the member)
+        if (b.mp < Infinity && !(b.dOn && !bent)) {
+          const t1 = t < 0.1 ? 0.1 : t > 0.9 ? 0.9 : t, tau = t1 * (1 - t1), F = fa + fb;
+          let Pc = b.mp / (b.Lr * tau);
+          if (PCORE !== null && PCORE[_pr[q * 2]] < Pc) Pc = PCORE[_pr[q * 2]];   // G2047: the sandwich's core in shear
+          let sA = 1;
+          if (!bent && (t === 0 || t === 1)) {
+            const ex = p[ib] - p[ia], ey = p[ib+1] - p[ia+1], ez = p[ib+2] - p[ia+2], e3 = Math.sqrt(ex*ex + ey*ey + ez*ez) || 1e-9;
+            const ca = (nx * ex + nz * ez) / e3; sA = Math.sqrt(Math.max(0, 1 - ca * ca));
+          }
+          if (F * sA > Pc) {
+            if (!bent) { b.dOn = true; b.dTx = tx; b.dTz = tz; b.dNx = nx; b.dNz = nz; b.dk = 0; b.kt = tau; b.kt1 = t1; }
+            const Ke = wa * KGn[b.a] + wb * KGn[b.b], dk = b.dk + pen * sA - Pc / Ke;
+            if (dk > b.dk) beamKink(_pr[q * 2], dk, Pc);
+            const sc = Pc / (F * sA); fa *= sc; fb *= sc;
+          }
+        }
+        f[ia] += fa * nx; f[ia+2] += fa * nz; f[ib] += fb * nx; f[ib+2] += fb * nz;
+        cIx += (fa + fb) * nx * dt; cIz += (fa + fb) * nz * dt;
+        if (tkPush !== null) { tkPush[b.a] += fa; tkPush[b.b] += fb; }   // G1883: the instrument (sim.damagePush)
+        _tkHits++;
+      }
+    }
+  }
   function substep(dt) {
     for (let i = 0; i < n; i++) { f[i*3]=0; f[i*3+1]=G*m[i]; f[i*3+2]=0; }
     aeroPass(false);
@@ -2517,6 +3241,7 @@ function makeSim(def, world) {
     }
     if (postLive) {                                  // G1898.4: one compare a substep for both (none: nothing to do)
       if (nFlr) floorPass();                         // G1813: the kinked members' floors
+      if (nTieL) tiePass();                          // G2040 (DMG-FABRIC): the covering's ties
       if (nSup && (armed || DMG.breaks)) suppPass(); // G1822: the SUPPORT limiters
     }
     // ground: wheels roll, everything else scrapes. Terrain-aware.
@@ -2547,7 +3272,7 @@ function makeSim(def, world) {
         let hx = -xAft[0], hz = -xAft[2];
         if (isTW) {
           const s = P_.twSteer * ctl.dr;   // measured: matches nose-left convention
-          const cs = Math.cos(s), sn_ = Math.sin(s);
+          const cs = CORE_MATH.cos(s), sn_ = CORE_MATH.sin(s);
           const nx = hx*cs - hz*sn_, nz = hx*sn_ + hz*cs;
           hx = nx; hz = nz;
         }
@@ -2583,7 +3308,16 @@ function makeSim(def, world) {
         // second); HOME remains bit-identical (muR == CRR there).
         const muRe = Math.abs(vr_) < 0.5 ? Math.max(muR, CRR) : muR;
         const kR = Math.min(muRe * Fn / Math.max(Math.abs(vr_), 0.2), m[i]/dt);
-        const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02), m[i]/dt);
+        // G1844 (DMG-TYRE): THE SIDE FORCE OF A ROLLING TYRE IS ITS SLIP ANGLE'S. It was Coulomb regularised at
+        // 0.02 m/s at every speed: at 14 m/s a slip of 0.08 deg already took the full mu N, so every tyre was a
+        // bang-bang switch - no cornering stiffness, no yaw damping proportional to the yaw rate, and the steered
+        // third wheel all-or-nothing - and the hidden 2 s angular damper (G1885 took it out) was the ground's
+        // only rate-proportional yaw resistance. Now F = C_alpha tan(alpha) = cN N |vl| / |vr|, linear, until it
+        // reaches the same Coulomb limit mu N; C_alpha = cN N (TYRE_CN, per unit load). As a coefficient on vl
+        // that is mu N / max(|vl|, |vr| mu / cN): the regularising speed grows with the rolling speed. Below
+        // 0.02 cN / mu (0.2 m/s on a standard tyre on grass) the old 0.02 m/s floor wins and the wheel holds as
+        // it always held, bit for bit (no jitter parked: the at-rest law is the old one).
+        const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02, Math.abs(vr_) * su[2] * (isTW ? iCnT : iCnM)), m[i]/dt);
         f[i3]   -= kR*vr_*hx + kL*vl*lx;
         f[i3+2] -= kR*vr_*hz + kL*vl*lz;
       } else {
@@ -2593,7 +3327,8 @@ function makeSim(def, world) {
           const kf = Math.min(0.8 * Fn / sp, m[i]/dt);
           f[i3] -= kf*vx; f[i3+2] -= kf*vz;
           cIx -= kf * vx * dt; cIz -= kf * vz * dt;
-        }
+          if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], kf * sp * sp, dt);   // G2357: the contact, read (DMG-SCAR)
+        } else if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], 0, dt);
       }
     }
     // THE WATER (H1): every wet panel of every float, onto the frame
@@ -2636,54 +3371,8 @@ function makeSim(def, world) {
       // per node (KGn) and its damper on the velocity along the normal, the force never pulling (CGn): the woodland's softer KTn could not
       // hold a taxiing aeroplane inside a 0.3 m radius - the axis crossed the beam and pushed it on through
     }
-    for (let q = 0; q < _prN; q++) {
-      const b = beams[_pr[q * 2]], ia = b.a * 3, ib = b.b * 3;
-      const ax = p[ia], ay = p[ia+1], az = p[ia+2], ex = p[ib] - ax, ey = p[ib+1] - ay, ez = p[ib+2] - az;
-      const e2 = ex*ex + ez*ez;
-      {
-        const o = _pr[q * 2 + 1] * 5, tx = _tk[o], tz = _tk[o+1], R = _tk[o+3];
-        let t = e2 > 1e-12 ? ((tx - ax) * ex + (tz - az) * ez) / e2 : 0;
-        t = t < 0 ? 0 : t > 1 ? 1 : t;
-        const dx = ax + t * ex - tx, dz = az + t * ez - tz, d2 = dx*dx + dz*dz;
-        // G1470: a member already BENT ROUND THIS TRUNK keeps the side it was hit from (its line may now cross the
-        // trunk's axis: the bend wraps the trunk, it is not pushed out the far side), and stands clear of it by the
-        // bend's depth
-        const bent = b.dOn && b.dTx === tx && b.dTz === tz;
-        let nx, nz, pen;
-        if (bent) {
-          nx = b.dNx; nz = b.dNz;
-          const sN = dx * nx + dz * nz, lat = dx * nz - dz * nx;
-          if (sN > R || lat * lat > R * R) continue;
-          pen = R - sN - b.dk;
-          if (pen <= 0) continue;
-        } else {
-          if (d2 > R*R) continue;
-          const d = Math.sqrt(d2) || 1e-6; nx = dx / d; nz = dz / d; pen = R - d;
-        }
-        const y = ay + t * ey;
-        if (y > _tk[o+4] || y < _tk[o+2] - 1) continue;
-        const wa = 1 - t, wb = t;
-        const vna = v[ia] * nx + v[ia+2] * nz, vnb = v[ib] * nx + v[ib+2] * nz;
-        // damped both ways and never pulling (a clamp at 0): with the damper on the way IN only, the spring handed the
-        // impact back and a 30 m/s aeroplane bounced 15 m off a trunk (G1333's pictures showed it)
-        let fa = wa * Math.max(0, KGn[b.a] * pen - CGn[b.a] * vna), fb = wb * Math.max(0, KGn[b.b] * pen - CGn[b.b] * vnb);
-        // G1470: no more than the member's own collapse load at that point (its ends' clusters take a node-on hit:
-        // t held to 0.1..0.9) - past it the member bends round the trunk (beamKink) and the work is gone, where the
-        // spring alone handed the whole impact back (an 8 m/s taxi into a trunk rolled back 16 m)
-        if (b.mp < Infinity && !(b.dOn && !bent)) {
-          const t1 = t < 0.1 ? 0.1 : t > 0.9 ? 0.9 : t, tau = t1 * (1 - t1), Pc = b.mp / (b.Lr * tau), F = fa + fb;
-          if (F > Pc) {
-            if (!bent) { b.dOn = true; b.dTx = tx; b.dTz = tz; b.dNx = nx; b.dNz = nz; b.dk = 0; b.kt = tau; b.kt1 = t1; }
-            const Ke = wa * KGn[b.a] + wb * KGn[b.b], dk = b.dk + pen - Pc / Ke;
-            if (dk > b.dk) beamKink(_pr[q * 2], dk, Pc);
-            const sc = Pc / F; fa *= sc; fb *= sc;
-          }
-        }
-        f[ia] += fa * nx; f[ia+2] += fa * nz; f[ib] += fb * nx; f[ib+2] += fb * nz;
-        cIx += (fa + fb) * nx * dt; cIz += (fa + fb) * nz * dt;
-        _tkHits++;
-      }
-    }
+    if (noseArm) nosePass(dt);                       // G2013 (DMG-NOSE): the crushable nose (an armed frame only)
+    if (_prN) trunkPass(dt);                         // G1883: its own function (the hot substep stays the base's size)
     // G1470: DEBRIS (a node every member of which broke - an engine torn off its mount) meets the trunks as a point:
     // with no beam left to test it would fly through the tree it was torn off on
     if (_tkN && DMG.orphans.length) for (const i of DMG.orphans) {
@@ -2717,20 +3406,10 @@ function makeSim(def, world) {
       }
     }
     if (out.trq) out.trqTotal = trqOf();
-    // integrate; damp only deformation (velocity relative to rigid mean)
-    let vmx=0, vmy=0, vmz=0;
-    for (let i = 0; i < n; i++) { vmx+=v[i*3]*m[i]; vmy+=v[i*3+1]*m[i]; vmz+=v[i*3+2]*m[i]; }
-    vmx/=totalM; vmy/=totalM; vmz/=totalM;
+    // integrate; damp only deformation (G1885: the velocity relative to the RIGID-BODY field, not to the mean)
     // G348: a fresh reset's clusters take their rest from THIS pose (placed)
     if (clusterFresh) { for (const C of clusters) clusterRest(C); clusterFresh = false; }
-    const dp = Math.max(0, 1 - DEFDAMP * dt);
-    for (let i = 0; i < n; i++) {
-      const i3 = i*3, im = dt/m[i];
-      v[i3]   = vmx + (v[i3]   + f[i3]*im   - vmx) * dp;
-      v[i3+1] = vmy + (v[i3+1] + f[i3+1]*im - vmy) * dp;
-      v[i3+2] = vmz + (v[i3+2] + f[i3+2]*im - vmz) * dp;
-      p[i3] += v[i3]*dt; p[i3+1] += v[i3+1]*dt; p[i3+2] += v[i3+2]*dt;
-    }
+    integrate(dt);
     // G294 / G350: the tube holds its shape, and its twist; G1470: a cluster a member broke inside lets go, one a
     // member took a set inside holds its NEW shape (its rest re-taken here, after the substep that bent it)
     for (const C of clusters) { if (C.off) continue; shapeMatch(C, dt); twistHold(C, dt); }
@@ -2752,6 +3431,7 @@ function makeSim(def, world) {
   function step(dtFrame, sub = subN) {
     const dt = dtFrame / sub;
     aicFresh = true;
+    rigFresh = true;               // G1885: the frame's first substep sums the second moments
     // the cone's frame-start samples (a bound the world declares, else off)
     const S = coneOn && world ? world.slopeMax : undefined;
     coneLive = typeof S === 'number' && Number.isFinite(S) && S >= 0;
@@ -2778,15 +3458,17 @@ function makeSim(def, world) {
     }
     obstFrame();
     trunkFrame(dtFrame);
+    if (NOSE) noseFrame(dtFrame);                   // G2013 (DMG-NOSE)
     wetArmFrame(dtFrame);                           // G1384: the water's pass only on a frame that can reach it
     propWater();                                    // G2105: the disc in the water stops its engine
     armFrame();
-    postLive = (nFlr > 0 || (nSup > 0 && (armed || DMG.breaks > 0))) ? 1 : 0;   // G1898.4
+    postLive = (nPost > 0 || (nSup > 0 && (armed || DMG.breaks > 0))) ? 1 : 0;   // G1898.4 (G2040: nPost - the floors and the live cover ties)
     // G1840 (DMG-D3): the clusters' cuts are measured on every substep of an armed frame, and on the last of any other:
     // the members across them read from the substep's own starting state (the beam loop's), the cuts judged once its
     // projection has run, the parts that came off re-formed rigid - all out here, so substep() is the base's
     // G1898.10: no cut (always so with the layer off) - master's own loop, no per-substep flag
-    if (nCut0 === 0) for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
+    // G1883 (DMG-WINDBREAK): an instrument's per-substep reader (sim.onSubstep) takes the second loop; unset, one compare a frame
+    if (nCut0 === 0 && subHook === null) for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
     else for (let s = 0; s < sub; s++) {
       clMs = nCut0 > 0 && (armed || s === sub - 1);
       if (clMs) cutX();
@@ -2794,10 +3476,13 @@ function makeSim(def, world) {
       if (clMs) clCuts();
       if (clQ.length) clApply();
       simT += dt; burn(dt);
+      if (subHook !== null) subHook(s, dt);
     }
     readPanel(dtFrame);
     dmgFrame(dtFrame);
+    if (DRV) driveFrame(dtFrame);                   // G1826 (DMG-DRIVE)
     dmgOver();
+    if (SCR !== null && (SCR.nt > 0 || SCR.ev.open)) scarFrame(SCR, p, m, world, simT, DMG);   // G2357 (DMG-SCAR)
   }
 
   // ONE THRUST MODEL, TWO READERS. 64_gen_build's design-time numbers — the
@@ -2927,7 +3612,7 @@ function makeSim(def, world) {
   // settle shared is the unshared one to the bit).
   // Only for a WHOLE aeroplane: nothing bent, broken or parted, no wet body - snap() returns null otherwise (a damaged
   // lattice's structure is not its def's). Never in the step: what a step costs is untouched.
-  const whole = () => !(DMG.breaks || DMG.yields || DMG.dents || DMG.cl.length || WB || clQ.length);
+  const whole = () => !(DMG.breaks || DMG.yields || DMG.dents || DMG.cl.length || WB || clQ.length || (NOSE && NZ.c.some(x => x > 0)));
   function snap() {
     if (!whole()) return null;
     return { n, nb, nodes: def.nodes, beams: def.beams,
@@ -2946,6 +3631,7 @@ function makeSim(def, world) {
   }
   function unsnap(Sn) {
     if (!Sn || Sn.nodes !== def.nodes || Sn.beams !== def.beams || Sn.n !== n || Sn.nb !== nb || !whole()) return false;
+    if (SCR !== null) scarReset(SCR);               // G2357: the snapshot is a whole aeroplane on unscarred ground
     [p, v, f, m, r, rC, KGn, CGn, KTn, CTn, gcx, gcy, gcz, Gam, GamPrev, vi, AIC, sA, sB, sZA, sZB, cpt, Ez, Dz, Wg, pG, pS, pDz, pEDz, bHalf, _tk, _pr]
       .forEach((a, k) => a.set(Sn.A[k]));
     FRX = Sn.X ? Float64Array.from(Sn.X) : null; FRL = Sn.L ? Sn.L.map(a => a.slice()) : null;   // G2400
@@ -2989,12 +3675,20 @@ function makeSim(def, world) {
            // G1470: the damage - yields, breaks (beam indices), plastic work (J), the largest set (strain), the peak
            // filtered g, the prop strike, and the verdict: crashed (with why and when) / dented / neither
            damage: () => DMG, damagePeak: () => PEAK,
+           damageScar: () => SCR,   // G2357 (DMG-SCAR): the ground's record (34_scar.js scarMake), null with the layer off
+           // G1883 (DMG-WINDBREAK): the instruments - the live caps each member is judged against (FY tension, FC
+           // compression; PHY its physics, 4 a member: yield, break, crush, sigY A) and a per-substep reader
+           // (fn(s, dt), after the substep; null clears it) - nothing of either runs unless asked
+           damageCaps: () => ({ FY, FC, PHY, KAP }), set onSubstep(fn) { subHook = typeof fn === 'function' ? fn : null; },
+           // (and the trunks' push on each node, N, summed since the reader last zeroed it: damagePush(true) arms it)
+           damagePush: on => { if (on && !tkPush) tkPush = new Float64Array(n); else if (!on) tkPush = null; return tkPush; },
            // G1831 (DMG-D2a): stamp the certificate on a sim that has not bent yet (the page's arrives from its
            // worker); true if stamped. cert(): the certificate stamped, or null
            certStamp: Cc => certStamp(Cc), cert: () => CERT,
            snap, unsnap,   // G1891: a whole aeroplane's state, saved and put back into a sim of the same def
            // G1815: break one member as a crash would (GATE DMGMEMBERS' closed-set check: its group, and nothing more)
-           damageBreak: bi => { if (DMG_ON && bi >= 0 && bi < nb) beamBreak(bi, 'gate'); },
+           // (G1894: `how` - 'tension' / 'kink' break it as that, under the group rule; default 'gate': the joint let go)
+           damageBreak: (bi, how) => { if (DMG_ON && bi >= 0 && bi < nb) beamBreak(bi, how || 'gate'); },
            // G1840 (DMG-D3): the clusters' cuts - limits (N.m), the last measured ratios and loads, the peaks, parted -
            // and each tube cluster's twist bays (the worst bay's torque over its limit); `clusters` live (their nodes)
            clusterCuts: () => ({ cuts: CUTS.map((c, k) => ({ k, cl: c.cl, tag: clusters[c.cl] ? clusters[c.cl].tag : null, cls: clusters[c.cl] ? clusters[c.cl].cls : null, kind: c.kind,
@@ -3008,6 +3702,10 @@ function makeSim(def, world) {
            damageStrips: () => ({ dead: stripDead, w: SW }),
            // G1822: the SUPPORT limiters ({ a, b, k, c, L0, path }; closed while their nodes are nearer than L0)
            damageSupp: () => SUP,
+           // G2040 (DMG-FABRIC): the cover ties - a, b (the nodes), Ls (the slack length), k, Fy (strength / tear-out), eu (the
+           // strain at break), Lp (the peak length), Fp (the peak force), w (fabric's width, m; sheet: its ligaments), sheet,
+           // t0 (made), torn (when; -1 live); n of them, nLive. Views on the solver's own arrays (read-only by contract)
+           coverTies: () => COV ? { n: nTie, nLive: nTieL, a: TA, b: TB, Ls: TLs, k: TK, ku: TKu, Fy: TFy, eu: TEu, c: TC, Lp: TLp, Fp: TFp, F: TF, w: TW, sheet: TSh, t0: TT0, torn: TT, live: TLIVE } : null,
            reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),

@@ -68,6 +68,11 @@
 /* A9: on the flight screen (the flown card's award, the master's) the card
    centres on the viewport — the workshop's insets are not there */
 body.mode-fly #bAward { left:50vw; top:38%; }
+/* DMG-D4b (train 41; the user: "no more cards in the middle of the screen, ever. That's for enjoying the crash"): a flight
+   that was not certified (a crash, a damaged aeroplane) - its card in the lower-right corner, clear of the wreck (the
+   crash card holds the lower left); width capped so both stay outside the central half of the view down to 1024 px */
+body.mode-fly #bAward.wreck { left:auto; right:16px; top:auto; bottom:96px; transform:none; animation:none;
+  width:min(300px, 22vw); padding:14px 14px 12px; max-height:calc(100vh - 140px); overflow-y:auto; }
 #bAward.master canvas { width:180px; height:180px; }
 #bAward.master .bAs { border-width:3px; font-size:15px; }
 #bAward .bAw { margin-top:8px; color:var(--ed-warn); opacity:.85; text-align:left; }

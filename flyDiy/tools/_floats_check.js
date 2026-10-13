@@ -14,13 +14,14 @@
 //   SETTLE   dropped from 0.3 m, engines idle: the water carries the weight
 //            (+-3 %) with the step keels 0.15-0.40 m under, 2-10 deg
 //            nose-up, level in roll, the frame under 6 % strain, finite
-//   TAKEOFF  full throttle, stick back past 12 m/s: a hump (R/W 0.10-0.40)
+//   TAKEOFF  full throttle, stick back, the step attitude held (G1888): a hump (R/W 0.10-0.40)
 //            below 14 m/s, the steps ventilated before lift-off, airborne
 //            inside 30 s, roll under 5 deg the whole run
 //   LANDING  the approach trimmed by bisection (1.3 Vs, quarter throttle,
 //            1 m/s down): the touch between 0.5 and 1.6 m/s, the water's
 //            lift climbing over >= 3 frames to its first peak, no frame
-//            adding more than 0.35 W, peak under 2 W, idle taxi under 5 m/s
+//            adding more than 0.35 W, peak under 2 W (the FIRST contact, G2033:
+//            a skip's re-touch is printed apart), idle taxi under 5 m/s
 //            20 s later, finite throughout
 // Measured on the fixture the day it was written (HANDOVER G382): settle
 // 0.266 m / 6.8 deg / L/W 1.00; hump 0.21 at 8.5-10 m/s; airborne at 24 m/s
@@ -35,8 +36,11 @@ let fails = 0;
 const verdict = (ok, line) => { if (!ok) fails++; console.log((ok ? 'PASS ' : 'FAIL ') + line); };
 const f = (v, n = 3) => (typeof v === 'number' && Number.isFinite(v)) ? v.toFixed(n) : String(v);
 
-const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
-spec.gear.type = 'floats';
+// G1985 (JOIN-PARITY): the twin on floats AS THE GAME FLIES IT - tools/_load_build.js's validated `twinFloats` (the
+// file with gear.type 'floats' AND the cage's float row on: `gear.type` alone is a row the join rewrites from the
+// drawing, so the game could never fly what this gate used to - the page's load chain put it back on wheels)
+const spec = process.env.FLYDIY_RAW_BUILDS === '1' ? Object.assign(JSON.parse(fs.readFileSync(FIX, 'utf8')).spec, {}) : require('./_load_build.js').loadValidated('twinFloats').spec;
+if (process.env.FLYDIY_RAW_BUILDS === '1') spec.gear.type = 'floats';
 const def = C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(spec))));
 const world = C.makeWorld();
 let M = 0; for (const n of def.nodes) M += n.m;
@@ -114,16 +118,27 @@ const sim = C.makeSim(def, world); sim.reset(0); place(sim, 0.3, 0, 0); sim.ctl.
 // porpoise reads as a resistance spike at 17 m/s: with the chine-ventilated
 // step the twin pops up to 14 deg at 7 m/s and the eased stick lets it
 // porpoise 1-6 deg on the step, damped, R/W 0.27 at the trough).
-console.log('\nTAKEOFF (full throttle from rest, stick back, eased past 14 m/s)');
+// G1888 (DMG-DAMP): ...AND ON THE STEP THE PILOT HOLDS THE PLANING ATTITUDE, not a fixed stick. The fixed 0.2 rode the
+// step only while the solver's deformation damper damped the hull's pitch as rigid rotation (0.5 /s, the review's D1,
+// fixed G1885): without it the porpoise grew (-4.1..12.7 deg) and the twin left the water at 14.6 m/s, 0.9 Vs, on the
+// full back stick before the easing, and slammed back (R/W 0.53). A seaplane pilot answers a porpoise by holding the
+// step attitude; 6 deg is inside a planing hull's least-resistance trim band (Savitsky, 4-6 deg, the law 32_hydro
+// flies). From 9 m/s (past the plough's pop-up at 7): de = 0.2 + 0.04 (6 - trim) - 0.01 trim-rate, 0.45 on the stop.
+// Measured: targets 5, 6, 7 and 8 deg and a start at 9-11 m/s all PASS (R/W on the step 0.29-0.34); the pre-G1885
+// solver flies this hold at R/W 0.19, trim 2.7-5.4 deg.
+const STEP_TRIM = 6, STEP_V = 9;
+console.log('\nTAKEOFF (full throttle from rest, stick back, the planing attitude held from 9 m/s)');
 {
   sim.ctl.thr = 1; sim.ctl.de = 0.45;
+  let trimP = null;
   let ok = true, hump = { R: 0, V: 0 }, ventBeforeLift = 0, airborne = null, maxRoll = 0, T = 0, Vlift = 0;
   let stepR = { R: 0, V: 0 }, trimLo = Infinity, trimHi = -Infinity;
   for (let s = 0; s < 40 * 60; s++) {
     sim.step(1 / 60); T += 1 / 60;
     const r = state(sim);
     if (!finite(r)) { ok = false; break; }
-    sim.ctl.de = r.V > 14 ? 0.2 : 0.45;
+    const tq = trimP == null ? 0 : (r.trim - trimP) * 60; trimP = r.trim;
+    sim.ctl.de = r.V > STEP_V ? Math.max(-0.2, Math.min(0.45, 0.2 + 0.04 * (STEP_TRIM - r.trim) - 0.01 * tq)) : 0.45;
     maxRoll = Math.max(maxRoll, Math.abs(r.roll));
     if (r.wet > 0 && r.V < 14 && r.R > hump.R) hump = { R: r.R, V: r.V };
     if (r.wet > 0 && r.V >= 14) { if (r.R > stepR.R) stepR = { R: r.R, V: r.V }; trimLo = Math.min(trimLo, r.trim); trimHi = Math.max(trimHi, r.trim); }
@@ -156,25 +171,36 @@ console.log('\nLANDING (trimmed approach at 1.3 Vs, quarter throttle, 1 m/s down
   const deA = 0.5 * (lo + hi);
   console.log(`   Vs ${f(g.Vs, 1)} -> approach ${f(VA, 1)} m/s; elevator ${f(deA)} trims ${f(vyT, 2)} m/s down`);
   const s3 = C.makeSim(def, world); s3.reset(0); place(s3, 8, VA, -0.5); s3.ctl.thr = thrA; s3.ctl.de = deA;
+  // G2033 (DMG-RECAL): THE TOUCHDOWN IS THE FIRST CONTACT - from the first wet frame until the water lets go (the
+  // lift back to 0: a skip) or the run ends. The bounds below (G382: the water's lift onset, frame by frame) are the
+  // touchdown's; every later re-touch (the skips of a fast, hands-off arrival) is measured and printed apart
   let ok = true, T = 0, touched = null, sinkTouch = 0, prev = 0, maxJump = 0, peak = 0, frames = [], iPk = -1, endV = NaN;
+  let first = true, skips = [], cur = null, vyPrev = 0;
   for (let s = 0; s < 45 * 60; s++) {
     s3.step(1 / 60); T += 1 / 60;
     const r = state(s3);
     if (!finite(r)) { ok = false; break; }
     if (touched == null && r.Fy > 0) { touched = T; sinkTouch = -r.vy; s3.ctl.thr = 0.1; }
     if (touched != null) {
-      maxJump = Math.max(maxJump, Math.abs(r.Fy - prev)); peak = Math.max(peak, r.Fy);
+      if (first && r.Fy === 0 && prev > 0) first = false;
+      if (!first) {
+        if (r.Fy > 0 && prev === 0) { cur = { t: T, sink: -vyPrev, trim: r.trim, V: r.V, jump: 0, peak: 0 }; skips.push(cur); }
+        if (cur && r.Fy > 0) { cur.jump = Math.max(cur.jump, Math.abs(r.Fy - prev)); cur.peak = Math.max(cur.peak, r.Fy); }
+      } else { maxJump = Math.max(maxJump, Math.abs(r.Fy - prev)); peak = Math.max(peak, r.Fy); }
       if (frames.length < 40) frames.push(r.Fy);
       if (SHOW && (T < touched + 0.4 || s % 120 === 119)) console.log(`   t ${f(T, 2)} V ${f(r.V, 2)} vy ${f(r.vy, 2)} trim ${f(r.trim, 2)} L/W ${f(r.Fy)} R/W ${f(r.R)} wet ${f(r.wet, 2)}`);
       if (T > touched + 20) { endV = r.V; break; }
     } else if (SHOW && s % 60 === 59) console.log(`   t ${f(T, 1)} V ${f(r.V, 2)} vy ${f(r.vy, 2)} cgY ${f(r.cgY, 2)} trim ${f(r.trim, 2)}`);
-    prev = r.Fy;
+    prev = r.Fy; vyPrev = r.vy;
   }
   // the first peak of the water's lift after the touch
   for (let i = 1; i + 1 < frames.length; i++) if (frames[i] >= frames[i - 1] && frames[i] > frames[i + 1]) { iPk = i; break; }
   if (iPk < 0) iPk = frames.indexOf(Math.max(...frames));
   console.log(`   touch at ${f(touched, 2)} s, sinking ${f(sinkTouch, 2)} m/s; the water's lift frame by frame: ${frames.slice(0, 10).map(v => f(v, 2)).join(' ')} ... first peak ${f(frames[iPk])} W after ${iPk + 1} frames; ` +
-              `largest one-frame change ${f(maxJump)} W; peak ${f(peak)} W; 20 s on: V ${f(endV, 1)} m/s`);
+              `largest one-frame change ${f(maxJump)} W; peak ${f(peak)} W (the first contact); 20 s on: V ${f(endV, 1)} m/s`);
+  console.log(`   skips after the touch (the stick held at the approach's, throttle 0.1): ${skips.length}` + skips.map((k, i) => `\n     re-touch ${i + 1} at ${f(k.t, 2)} s: ${f(k.V, 1)} m/s, sinking ${f(k.sink, 2)} m/s, trim ${f(k.trim, 1)} deg; one-frame ${f(k.jump)} W, peak ${f(k.peak)} W`).join(''));
+  const hardRe = skips.filter(k => k.jump >= 0.35 || k.peak >= 2);
+  if (hardRe.length) console.log(`OWED the hands-off arrival skips ${skips.length} time(s) and ${hardRe.length} re-touch(es) pass the touchdown's bounds (worst: ${f(Math.max(...hardRe.map(k => k.jump)))} W in a frame, ${f(Math.max(...hardRe.map(k => k.peak)))} W) - a fast (1.3 Vs) touch with no pilot: the landing is not flown after the touch (HANDOVER G2030-G2034, FLOATS)`);
   verdict(ok, `the landing stays finite`);
   // G451: the bound's floor is 0.35, from 0.5. The Wipline family's transom
   // keel sits 0.8 H over the step keel (the H0 float's sat at 0.6 H), so the

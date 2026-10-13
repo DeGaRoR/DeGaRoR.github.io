@@ -1,0 +1,145 @@
+=== kappaM=0.3
+cub        CARD BROKE AT 6.040 wing0L:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WF"}
+jodel      CARD BROKE AT 6.120 wing0L:root fitting first {"seam":"bond","how":"tension","cls":"wing","tags":"WB-WF"}
+metal      CARD BROKE AT 6.151 wing0R:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WB"}
+floats     CARD BROKE AT 6.040 wing0L:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BL-WB"}
+twinFloats CARD BROKE AT 6.025 wing0R:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WF"}
+cub        taxi      cert broken   0 work   0.72 kJ {} off: 
+cub        noseover  cert broken  26 work   4.29 kJ {"gear":1,"fuselage":4,"tail":17,"engines":4} off: 
+cub        trunk0    cert broken 123 work  33.50 kJ {"engines":13,"vessel":7,"wings":26,"fuselage":49,"bracing":12,"gear":9,"tail":7} off: eng 90.4; body+fin+stab+tw 61.2; body 49.6; wing0R 42.7; wing0L 42.7; body 41.7; body 41.7;
+cub        trunk25   cert broken  88 work  15.76 kJ {"wings":15,"bracing":8,"vessel":6,"engines":10,"fuselage":16,"tail":32,"gear":1} off: eng 111.7; wing0L 20.6
+cub        hard      cert broken   0 work   0.00 kJ {} off: 
+jodel      taxi      cert broken   0 work   0.77 kJ {} off: 
+jodel      noseover  cert broken   3 work   1.58 kJ {"gear":3} off: 
+jodel      trunk0    cert broken 233 work  46.68 kJ {"engines":13,"wings":28,"vessel":9,"fuselage":39,"gear":15,"bracing":63,"tail":66} off: eng 90.4; body 29.7; body 29.7; body 18.7; body 18.7; stab 12.9; eng 10.5; eng 10.5; gear
+jodel      trunk25   cert broken 196 work  16.08 kJ {"bracing":83,"wings":40,"fuselage":19,"gear":10,"engines":9,"vessel":3,"tail":32} off: wing0L 41.8; gearL 7.1; gearR 7.1; fin 5.3; wing0L 4.8
+jodel      hard      cert broken   0 work   0.00 kJ {} off: 
+metal      taxi      cert broken   1 work   2.70 kJ {"engines":1} off: 
+metal      noseover  cert broken  13 work   3.96 kJ {"engines":6,"gear":7} off: tw 8
+metal      trunk0    cert broken 170 work  69.18 kJ {"engines":13,"gear":15,"wings":23,"bracing":8,"fuselage":55,"vessel":6,"tail":50} off: eng 198.9; body+wing0R 150.4; body+wing0L 150.4; body+stab 131.1; body 75.2; eng 20.1; eng
+metal      trunk25   cert broken  35 work  25.68 kJ {"bracing":6,"wings":5,"gear":14,"engines":10} off: eng+tw 247.1; wing0L 46.6; gearL 9.1; gearR 9.1
+metal      hard      cert broken   0 work   0.00 kJ {} off: 
+floats     trunk0    cert broken 129 work  49.41 kJ {"engines":13,"gear":10,"wings":23,"bracing":8,"fuselage":29,"tail":39,"vessel":7} off: body+floatL+floatR+stab+wing0L+wing0R 555.4; eng 198.9; body 75; eng 19.4; eng 19.4; fin 8
+floats     trunk25   cert broken  10 work   9.55 kJ {"wings":4,"bracing":6} off: wing0L 47.6
+floats     hard      cert broken   0 work   0.23 kJ {} off: 
+floats     digin     cert broken  13 work   1.36 kJ {"engines":11,"wings":2} off: eng 237.7
+twinFloats trunk0    cert broken 131 work  47.14 kJ {"vessel":5,"fuselage":42,"gear":12,"engines":24,"wings":19,"bracing":1,"tail":28} off: body+floatR+wing0R 162.6; engL 60.6; engR 60.6; body+stab 22.2; fin 6.7
+twinFloats trunk25   cert broken  79 work  15.35 kJ {"wings":12,"engines":24,"bracing":8,"fuselage":13,"gear":16,"tail":5,"vessel":1} off: engL 60.6; engR 60.6; body+fin+stab 28.9; floatL 28.4; wing0L 23.9
+twinFloats hard      cert broken   0 work   0.00 kJ {} off: 
+twinFloats digin     cert broken 116 work   5.07 kJ {"fuselage":10,"engines":25,"gear":20,"wings":6,"bracing":12,"tail":42,"vessel":1} off: engR 60.6; engL 46.4; floatL 28.4; floatR 28.4; body+stab 22.2; engL 14.2; fin 6.7
+=== kappaM=0.5
+cub        CARD BROKE AT 6.032 wing0L:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WF"}
+jodel      CARD BROKE AT 6.230 wing0L:root fitting first {"seam":"bond","how":"tension","cls":"wing","tags":"WB-WF"}
+metal      CARD BROKE AT 6.151 wing0R:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WB"}
+floats     CARD BROKE AT 6.143 wing0L:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WB"}
+twinFloats CARD BROKE AT 6.025 wing0R:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WF"}
+cub        taxi      cert broken   0 work   0.72 kJ {} off: 
+cub        noseover  cert broken  13 work   3.83 kJ {"gear":1,"fuselage":4,"tail":4,"engines":4} off: 
+cub        trunk0    cert broken 121 work  33.23 kJ {"engines":13,"vessel":6,"wings":26,"fuselage":48,"bracing":12,"gear":9,"tail":7} off: eng 90.4; body+fin+stab+tw 61.2; body 49.6; wing0R 42.7; wing0L 42.7; body 41.7; body 41.7;
+cub        trunk25   cert broken  65 work  15.16 kJ {"wings":17,"bracing":6,"engines":11,"vessel":4,"fuselage":15,"tail":12} off: eng 111.7; wing0L 20.6
+cub        hard      cert broken   0 work   0.00 kJ {} off: 
+jodel      taxi      cert broken   0 work   0.77 kJ {} off: 
+jodel      noseover  cert broken   3 work   1.58 kJ {"gear":3} off: 
+jodel      trunk0    cert broken 239 work  40.45 kJ {"engines":13,"wings":34,"vessel":9,"fuselage":38,"gear":11,"bracing":69,"tail":65} off: eng 90.4; wing0L 46.7; body+stab+tw 34; body 18.7; body 18.7; eng 10.5; eng 10.5; body 7.
+jodel      trunk25   cert broken 110 work   3.21 kJ {"bracing":67,"wings":32,"engines":10,"fuselage":1} off: eng 111.3; wing0L 46.7
+jodel      hard      cert broken   0 work   0.00 kJ {} off: 
+metal      taxi      cert broken   1 work   2.70 kJ {"engines":1} off: 
+metal      noseover  cert broken  13 work   3.89 kJ {"engines":6,"gear":7} off: tw 8
+metal      trunk0    cert broken 174 work  51.13 kJ {"engines":13,"gear":15,"wings":22,"bracing":8,"fuselage":43,"vessel":7,"tail":66} off: body+wing0L 267.5; eng 198.9; body+wing0R 181; body 75.2; eng 20.1; eng 20.1; stab 14.4; g
+metal      trunk25   cert broken  29 work  26.14 kJ {"bracing":6,"wings":5,"gear":14,"engines":4} off: wing0L 46.6; gearL 9.1; gearR 9.1
+metal      hard      cert broken   0 work   0.00 kJ {} off: 
+floats     trunk0    cert broken 140 work  63.82 kJ {"engines":13,"gear":11,"wings":20,"bracing":8,"fuselage":38,"tail":43,"vessel":7} off: eng 198.9; body 75; eng 19.4; eng 19.4; fin 8.4
+floats     trunk25   cert broken  10 work  10.12 kJ {"bracing":6,"wings":4} off: wing0L 47.6
+floats     hard      cert broken   0 work   0.23 kJ {} off: 
+floats     digin     cert broken  13 work   1.36 kJ {"engines":11,"wings":2} off: eng 237.7
+twinFloats trunk0    cert broken 126 work  45.56 kJ {"vessel":5,"fuselage":41,"gear":12,"engines":24,"wings":13,"tail":26,"bracing":5} off: engL 60.6; engR 60.6; body+stab 22.2; fin 6.7
+twinFloats trunk25   cert broken  81 work  12.59 kJ {"wings":10,"engines":24,"bracing":8,"fuselage":12,"gear":16,"tail":11} off: engL 60.6; engR 60.6; body+fin+stab 28.9; floatL 28.4; wing0L 23.9
+twinFloats hard      cert broken   0 work   0.00 kJ {} off: 
+twinFloats digin     cert broken 111 work   4.76 kJ {"fuselage":10,"engines":25,"gear":20,"bracing":12,"wings":3,"tail":41} off: engL 60.6; engR 46.4; floatL 28.4; floatR 28.4; body+stab 22.2; engR 14.2; fin 6.7
+=== kappaM=1
+cub        CARD BROKE AT 6.032 wing0L:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WF"}
+jodel      CARD BROKE AT 6.310 wing0R:root fitting first {"seam":"bond","how":"tension","cls":"wing","tags":"WB-WF"}
+metal      CARD BROKE AT 6.151 wing0R:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WB"}
+floats     CARD BROKE AT 6.143 wing0L:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WB"}
+twinFloats CARD BROKE AT 6.025 wing0R:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WF"}
+cub        taxi      cert broken   0 work   0.72 kJ {} off: 
+cub        noseover  cert broken  13 work   3.89 kJ {"gear":1,"fuselage":4,"tail":4,"engines":4} off: 
+cub        trunk0    cert broken 119 work  30.54 kJ {"engines":13,"vessel":5,"wings":24,"fuselage":42,"bracing":12,"tail":14,"gear":9} off: eng 90.4; body+fin+stab+tw 61.2; body 49.6; wing0R 42.7; wing0L 42.7; body 41.7; body 41.7
+cub        trunk25   cert broken  56 work  14.49 kJ {"wings":17,"bracing":6,"engines":10,"fuselage":15,"vessel":1,"tail":7} off: eng 111.7; wing0L 20.6
+cub        hard      cert broken   0 work   0.00 kJ {} off: 
+jodel      taxi      cert broken   0 work   0.77 kJ {} off: 
+jodel      noseover  cert broken   3 work   1.58 kJ {"gear":3} off: 
+jodel      trunk0    cert broken 220 work  27.19 kJ {"engines":13,"wings":29,"vessel":5,"fuselage":28,"gear":15,"bracing":76,"tail":54} off: eng 90.4; body+stab 30.4; eng 10.5; eng 10.5; gearL 7.1; gearR 7.1; fin 5.3; tw 3.7
+jodel      trunk25   cert broken 103 work   3.39 kJ {"bracing":67,"wings":31,"engines":4,"gear":1} off: wing0L 46.7
+jodel      hard      cert broken   0 work   0.00 kJ {} off: 
+metal      taxi      cert broken   1 work   2.70 kJ {"engines":1} off: 
+metal      noseover  cert broken  13 work   3.89 kJ {"engines":6,"gear":7} off: tw 8
+metal      trunk0    cert broken 172 work  60.12 kJ {"engines":13,"gear":15,"wings":20,"bracing":8,"fuselage":45,"vessel":6,"tail":65} off: eng 198.9; body+wing0R 181; body+wing0L 181; body 86.5; body 75.2; eng 20.1; eng 20.1; gea
+metal      trunk25   cert broken  47 work  26.39 kJ {"bracing":6,"wings":5,"gear":14,"engines":7,"tail":15} off: wing0L 46.6; gearL 9.1; gearR 9.1
+metal      hard      cert broken   0 work   0.00 kJ {} off: 
+floats     trunk0    cert broken 134 work  46.94 kJ {"engines":13,"gear":15,"wings":18,"bracing":12,"fuselage":19,"tail":53,"vessel":4} off: eng 198.9; wing0R 78.5; floatL 40.3; eng 19.4; eng 19.4; stab 15.6; fin 8.4
+floats     trunk25   cert broken  10 work   9.99 kJ {"bracing":6,"wings":4} off: wing0L 47.6
+floats     hard      cert broken   0 work   0.23 kJ {} off: 
+floats     digin     cert broken  13 work   1.36 kJ {"engines":11,"wings":2} off: eng 237.7
+twinFloats trunk0    cert broken 121 work  46.31 kJ {"vessel":5,"fuselage":40,"gear":12,"engines":24,"wings":16,"tail":20,"bracing":4} off: engL 60.6; engR 60.6; body+stab 22.2; fin 6.7
+twinFloats trunk25   cert broken  91 work  13.17 kJ {"wings":24,"engines":24,"bracing":8,"fuselage":10,"gear":20,"tail":5} off: engL 60.6; engR 60.6; body+fin+stab 28.9; floatL 28.4; floatR 28.4; wing0L 23.9
+twinFloats hard      cert broken   0 work   0.00 kJ {} off: 
+twinFloats digin     cert broken  98 work   5.02 kJ {"fuselage":10,"engines":25,"gear":20,"bracing":9,"wings":2,"tail":32} off: engL 60.6; engR 46.4; floatL 28.4; floatR 28.4; body+stab 22.2; engR 14.2; fin 6.7
+=== kappaM=1,kappaJ=0.2
+cub        CARD BROKE AT 6.080 wing0L:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WF"}
+jodel      CARD BROKE AT undefined null null first {"seam":"bond","how":"tension","cls":"wing","tags":"WB-WB"}
+metal      CARD BROKE AT 6.151 wing0R:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WB"}
+floats     CARD BROKE AT 6.143 wing0L:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WB"}
+twinFloats CARD BROKE AT 6.056 wing0R:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WF"}
+cub        taxi      cert broken   0 work   0.73 kJ {} off: 
+cub        noseover  cert broken  11 work   3.97 kJ {"gear":1,"fuselage":4,"tail":6} off: 
+cub        trunk0    cert broken 107 work  32.35 kJ {"engines":13,"vessel":5,"wings":20,"fuselage":43,"bracing":12,"gear":9,"tail":5} off: eng 90.4; body+fin+stab+tw 61.2; body 49.6; wing0R 42.7; wing0L 42.7; body 41.7; body 41.7;
+cub        trunk25   cert broken  51 work  15.49 kJ {"wings":13,"bracing":6,"engines":11,"fuselage":11,"vessel":1,"tail":9} off: eng 111.7; wing0L 20.6
+cub        hard      cert broken   0 work   0.00 kJ {} off: 
+jodel      taxi      cert broken   0 work   0.77 kJ {} off: 
+jodel      noseover  cert broken   3 work   1.57 kJ {"gear":3} off: 
+jodel      trunk0    cert broken 159 work  25.76 kJ {"engines":13,"wings":25,"vessel":5,"fuselage":24,"gear":15,"bracing":34,"tail":43} off: eng 90.4; wing0R 46.7; eng 10.5; eng 10.5; gearL 7.1; gearR 7.1; fin 5.3; tw 3.7
+jodel      trunk25   cert broken  89 work   9.27 kJ {"bracing":41,"wings":12,"engines":10,"gear":9,"tail":16,"fuselage":1} off: eng 111.3; gearL 7.1; gearR 7.1; fin 5.3
+jodel      hard      cert broken   0 work   0.00 kJ {} off: 
+metal      taxi      cert broken   1 work   2.70 kJ {"engines":1} off: 
+metal      noseover  cert broken   7 work   3.83 kJ {"gear":7} off: tw 8
+metal      trunk0    cert broken 158 work  59.16 kJ {"engines":13,"gear":15,"wings":20,"bracing":8,"fuselage":45,"vessel":5,"tail":52} off: eng 198.9; body+wing0L 181; body+wing0R 150.4; body+stab 101.8; body 75.2; body 30.6; eng 
+metal      trunk25   cert broken  25 work  25.06 kJ {"bracing":6,"wings":5,"gear":13,"engines":1} off: wing0L 46.6; gearL 9.1; gearR 9.1
+metal      hard      cert broken   0 work   0.00 kJ {} off: 
+floats     trunk0    cert broken 134 work  47.25 kJ {"engines":13,"gear":15,"wings":18,"bracing":12,"fuselage":19,"tail":53,"vessel":4} off: eng 198.9; wing0R 78.5; floatL 40.3; eng 19.4; eng 19.4; stab 15.6; fin 8.4
+floats     trunk25   cert broken  10 work   9.99 kJ {"bracing":6,"wings":4} off: wing0L 47.6
+floats     hard      cert broken   0 work   0.23 kJ {} off: 
+floats     digin     cert broken  11 work   1.33 kJ {"engines":10,"gear":1} off: eng 237.7
+twinFloats trunk0    cert broken 137 work  44.79 kJ {"vessel":5,"fuselage":42,"gear":13,"engines":24,"wings":11,"tail":33,"bracing":9} off: engL 60.6; engR 60.6; body+stab 15.6; fin 6.7; body 6.6
+twinFloats trunk25   cert broken  74 work  16.65 kJ {"wings":5,"bracing":12,"fuselage":13,"gear":20,"engines":24} off: engL 60.6; engR 60.6; body+fin+stab 28.9; floatL 28.4; floatR 28.4; wing0L 23.9
+twinFloats hard      cert broken   0 work   0.00 kJ {} off: 
+twinFloats digin     cert broken  97 work   4.47 kJ {"fuselage":12,"gear":20,"wings":4,"engines":19,"bracing":12,"tail":30} off: engL 60.6; floatL 28.4; floatR 28.4; body+stab 22.2; fin 6.7
+=== kappaM=1,kappaJ=0.3
+cub        CARD BROKE AT 9.065 wing0R:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WF"}
+jodel      CARD BROKE AT undefined null null first {"seam":"bond","how":"tension","cls":"wing","tags":"WB-WB"}
+metal      CARD BROKE AT 6.151 wing0R:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WB"}
+floats     CARD BROKE AT 6.143 wing0L:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WB"}
+twinFloats CARD BROKE AT 9.041 wing0R:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WF"}
+cub        taxi      cert broken   0 work   0.73 kJ {} off: 
+cub        noseover  cert broken   7 work   3.61 kJ {"gear":1,"fuselage":4,"tail":2} off: 
+cub        trunk0    cert broken  98 work  31.30 kJ {"engines":13,"vessel":7,"wings":20,"fuselage":36,"bracing":9,"gear":9,"tail":4} off: eng 90.4; body+wing0R 84.4; body+fin+stab+tw 61.2; body 49.6; wing0L 42.7; body 41.7; eng 10
+cub        trunk25   cert broken  41 work  15.10 kJ {"wings":5,"bracing":6,"fuselage":9,"engines":9,"gear":4,"vessel":1,"tail":7} off: wing0L 20.6
+cub        hard      cert broken   0 work   0.00 kJ {} off: 
+jodel      taxi      cert broken   0 work   0.76 kJ {} off: 
+jodel      noseover  cert broken   3 work   1.57 kJ {"gear":3} off: 
+jodel      trunk0    cert broken 130 work  28.51 kJ {"engines":13,"wings":14,"vessel":6,"gear":15,"fuselage":19,"bracing":39,"tail":24} off: eng 90.4; eng 10.5; eng 10.5; gearL 7.1; gearR 7.1; fin 5.3; tw 3.7
+jodel      trunk25   cert broken  50 work   4.51 kJ {"bracing":19,"gear":9,"engines":6,"tail":16} off: gearL 7.1; fin 5.3
+jodel      hard      cert broken   0 work   0.00 kJ {} off: 
+metal      taxi      cert broken   1 work   2.70 kJ {"engines":1} off: 
+metal      noseover  cert broken   7 work   3.83 kJ {"gear":7} off: tw 8
+metal      trunk0    cert broken 160 work  53.85 kJ {"engines":13,"gear":15,"wings":20,"bracing":12,"fuselage":38,"vessel":5,"tail":57} off: body 284.8; eng 198.9; wing0R 81.9; wing0L 81.9; body 75.2; eng 20.1; eng 20.1; gearL 9.1
+metal      trunk25   cert broken  25 work  25.04 kJ {"bracing":6,"wings":5,"gear":13,"engines":1} off: wing0L 46.6; gearL 9.1; gearR 9.1
+metal      hard      cert broken   0 work   0.00 kJ {} off: 
+floats     trunk0    cert broken 130 work  47.14 kJ {"engines":13,"gear":15,"wings":18,"bracing":12,"fuselage":16,"tail":52,"vessel":4} off: eng 198.9; wing0R 78.5; floatL 40.3; eng 19.4; eng 19.4; stab 15.6; fin 8.4
+floats     trunk25   cert broken  10 work   9.99 kJ {"bracing":6,"wings":4} off: wing0L 47.6
+floats     hard      cert broken   0 work   0.23 kJ {} off: 
+floats     digin     cert broken  13 work   2.58 kJ {"engines":10,"gear":2,"wings":1} off: eng 237.7
+twinFloats trunk0    cert broken  99 work  59.89 kJ {"vessel":5,"fuselage":45,"gear":13,"wings":7,"tail":5,"bracing":12,"engines":12} off: body+fin+stab 26.9; body 2
+twinFloats trunk25   cert broken  59 work  16.33 kJ {"wings":4,"bracing":8,"fuselage":13,"gear":20,"engines":14} off: body+fin+stab 28.9; floatL 28.4; floatR 28.4; wing0L 23.9
+twinFloats hard      cert broken   0 work   0.00 kJ {} off: 
+twinFloats digin     cert broken  72 work   6.00 kJ {"fuselage":12,"gear":20,"engines":12,"bracing":12,"wings":6,"tail":10} off: body+fin+stab 28.9; floatL 28.4; floatR 28.4
