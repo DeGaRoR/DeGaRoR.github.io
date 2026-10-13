@@ -93003,3 +93003,90 @@ The user: "the LODs for the auxiliary hangars in the starting area are black ins
 - Gates owed: every gate reading render_premises.js runs in A0's train-52 battery (PREMCOOK re-cooked there).
 
 READY for A0: claude/far-hangar-g2319 680a19fa (the fix; the census tool, its results and this section ride on top)
+## G2870 - LIVERY-PATTERNS: THE GRADIENT WITH A TRANSPARENT STOP, THE SUNBURST, A LAYER FITTED TO ITS SURFACE (2026-10-12/13, LIVERY-PATTERNS for A0, local; branch claude/livery-patterns-g2870 off train 50 master 0b42f6826; G2871-G2879 unused)
+
+THE ASK (the user, 11 Oct): "On the liveries, I would love to have a gradient, where transparent can be picked as a color. And a sunburst pattern, especially nice for the fins and wings."
+
+WHAT IT IS. Three new MARKING-KIT patterns (AERO_KIT, aeroskin.js), which means three canvas recipes drawn into the kit's atlas pages 3-5:
+- `fade`: two stops, with an angle and start / end positions.
+- `gradient`: three stops, with an angle and start / middle / end positions.
+- `sunburst`: N rays of a chosen width from an origin (along / across, as fractions of the layer: along 0 = the forward end, i.e. a wing or fin ROOT; across 0 = the bottom, i.e. a leading edge).
+
+Because the patterns are kit recipes:
+- the GLSL is byte-identical: no program, compile or cache change;
+- there are no new draws;
+- the flown aeroplane, the far bake (flown_bake blockFor) and the parked copies (their cloned decal block + the copied kit pages) read the patterns through the decal block they already read.
+
+The kit's layer row grows four fields, all absent = off, so SAVED BUILDS ARE UNCHANGED:
+- `R` and `S`: knobs 3 and 4. A pattern now declares 2-4 knobs; the panel builds knob(0..3) with keys P, Q, R, S.
+- `Clr`: the transparent stops, one bit per colour slot (A = 1, B = 2, D = 4).
+- `Fit`.
+
+There are also two new targets: 4 'the wings' and 5 'the tail'. A sunburst FITTED to 'the flying surfaces' sizes itself to the wing and leaves the fin a corner. The tail is still fin + stab (one surface class, no shader split).
+
+TRANSPARENT IS PICKABLE ON EVERY KIT WELL: a tick beside the colour, and picking a colour clears the tick.
+- For a solid fill it is an ERASE (`aeroKitInk`: destination-out). A clear cheat-line band cuts through its keyline down to the paint, rather than showing the keyline drawn under it.
+- In a gradient it is a stop of alpha 0 in its NEIGHBOUR's colour (`aeroKitStop`), never rgba(0,0,0,0): an unpremultiplied fade would pass through black.
+- A clear middle is two stops at one offset, so red / clear / blue never passes through purple.
+- Untouched old patterns draw exactly what they drew: hex fills, source-over, asserted.
+
+ANGLES ARE METRES. The page is a square stretched over W x H. A ray's direction squashes by 1/asp, but a gradient's direction is the NORMAL of its isolines and squashes by asp. Without this, a 45-degree ray on a 4 m x 1 m wing lands at 76 degrees. `asp` enters the page signature only for patterns that read it (`asp: 1`), so stretching a stripe never redraws it.
+
+FIT TO SURFACE (`_cage_ui.js` decFitScan / decFitApply):
+- The editor measures the target surface classes' decal-taking vertices, in the coordinate the shader places by: the field's metres, or craft space through the page's own uCraftInv for side / plan.
+- It writes L / C / W / H in metres, so the save carries plain numbers and the flight side needs nothing new.
+- The wing's field is clamped at its root: the centre section runs negative.
+- It is LAZY: the scan runs on the first applyDecals after a build, and only when some layer is on AND fitted. This is the 43.1 lesson: no per-garage-change work nobody asked for.
+- Switching to fade / gradient / sunburst turns Fit on, and its tick follows. Fitted sliders are greyed.
+
+THE GLOBAL REPAINT KEEPS THE PATTERNS (the user's ruling via A0, 12 Oct: they are markings, like the decals and the registration). aeroBaseReach is untouched; the new base shows through every transparent stop.
+
+PROOF:
+- Node gates in A0's CPU slot (Mon 23:42-23:59) on this tree: UISMOKE, BUILD, SKINMAT, LIVERYREACH, LIVERY, SAVE, PARKED, FLOWNBAKE all PASS. The LIVERY selftest makes every probe red; the SKINMAT selftest catches the G2870 probes.
+- GATE SKINMAT `patternGate` runs every new draw against a RECORDING 2D context in node. It checks:
+  - the stops, the clear middle, the edge-to-edge run;
+  - the metric angle (4.00) and the metric ray (0.25 along per 1 up on a 4 x 1 layer);
+  - the ray count and the origin;
+  - the erase;
+  - the old-pattern identity;
+  - the defaults off;
+  - the fields in AERO_DEC_DEF;
+  - the one-surface targets;
+  - the panel's four knobs and transparent tick;
+  - the fit called before the list is built, lazy, and re-armed by decRange.
+- GATE LIVERY:
+  - A then P and P then A (P = a sunburst on the tail with a clear 'between', a fade on the wings, a gradient with a clear middle);
+  - the export equals the spec;
+  - the block holds n4;
+  - the layers come back whole on pages 3, 4, 5;
+  - a probe removing the new LDEF fields goes red.
+
+NOT RE-GATED: the 2-line fit fix (aeroSharedU, from the GPU slot) came after the node gates. It touches decFitScan only, which no node gate executes; node --check only. GPU runs 2 and 3 ran on it.
+
+NUMBERS ON THE USER'S CUB (GPU slot Tue 04:15-04:40, untimed). Numbers only (the user's rule since 11 Oct: no evidence stills); frames were decoded in the page and discarded. Logs are in reports/evidence/LIVERY-PATTERNS/.
+- Fit, in metres:
+  - sunburst on the tail: W 1.40 x H 1.49 (field);
+  - sunburst on the wings: W 4.98 x H 1.69 (root to tip x the Cub's chord);
+  - fade on the flank: W 6.55 x H 2.02 (side box).
+- Atlas pages read back:
+  - sunburst at ray width 0.5: 50.2 % clear / 48.8 % opaque;
+  - sunburst at 0.45: 56 % / 42 %;
+  - fade to transparent: alpha by fifths 236, 170, 102, 34, 0.
+- Page redraw time (the draw + the dilation, one 1024 px page; a knob drag's cost): fade 299 ms, gradient 42 ms, sunburst 178 ms, against the existing cheat line at 239 ms. This is the same order as the kit always cost.
+- Draw calls, before vs after the patterns: tail 4361, wing 4434, flank 5107. UNCHANGED.
+- Red-pixel share, before -> after:
+  - tail 0.07 % -> 4.2 %;
+  - wing 0.06 % -> 8.0 %;
+  - flank 0.35 % -> 8.4 %.
+- After a global repaint to green, with the rays alone (run 3):
+  - red kept: tail 2.47 % -> 2.44 %, wing 7.65 % -> 7.82 %;
+  - yellow 4.5 % / 12.8 % -> 0.02 % / 0 %;
+  - green 0 -> 1.0 % / 8.7 %.
+- Flight, rolled out with both sunbursts: uDecN 3; red share with the far BAKE drawn (hyForce 0) 5.57 % vs live 5.64 %.
+
+WHAT TO WATCH FOR:
+- A global repaint must keep every kit pattern and show the new base through its transparent stops (the user's ruling, 12 Oct). Do not make aeroBaseReach touch `finish.decals`.
+- A fitted layer's L / C / W / H belong to the measurement, and a rebuild re-fits them; a hand placement needs Fit unticked.
+- The kit panel is built once and does not re-read DEC after a load. This is pre-existing for every kit row; G2870 only syncs the fit tick on a pattern switch.
+- The page's AEROSKIN exports `aeroSharedU`, not `aeroDecUniforms`, and has no `aeroDecalMerge`. These are node-only names. The first GPU run found the fit silently dead because of this; GATE SKINMAT runs in node and could not see it.
+- GATE SKINMAT's G113.4 comment-strip took `f.accept = 'image/*'` for a block comment and ran 40 kB to `/* G2227 */`. That made "1 of 3 reframe rows wired" red on master since G2227. Fixed here: a `/*` glued to a word is not a comment. EDITOR-BUGS was named owner of that red; tell them.

@@ -1,0 +1,181 @@
+{
+ "date": "2026-10-13T02:17:43.261Z",
+ "tag": "g2870b",
+ "steps": [
+  "fit",
+  "atlas",
+  "render",
+  "flight"
+ ],
+ "build": {
+  "reg": "F-BCUB",
+  "kit": [
+   "cheat line",
+   "twin stripe",
+   "sweep",
+   "flash",
+   "chequer",
+   "fade",
+   "gradient",
+   "sunburst"
+  ],
+  "decN0": 2
+ },
+ "before": {
+  "tail": {
+   "calls": 4361,
+   "red": 0.0007,
+   "green": 0,
+   "yellow": 0.0705
+  },
+  "wing": {
+   "calls": 4434,
+   "red": 0.0006,
+   "green": 0,
+   "yellow": 0.1915
+  },
+  "flank": {
+   "calls": 5107,
+   "red": 0.0035,
+   "green": 0,
+   "yellow": 0.0914
+  }
+ },
+ "fitSun": [
+  {
+   "pat": "sunburst",
+   "tgt": 5,
+   "fit": 1,
+   "L": 0.701,
+   "C": 0.745,
+   "W": 1.403,
+   "H": 1.49
+  },
+  {
+   "pat": "sunburst",
+   "tgt": 4,
+   "fit": 1,
+   "L": 2.488,
+   "C": 0.845,
+   "W": 4.977,
+   "H": 1.691
+  },
+  {
+   "pat": "fade",
+   "mode": 1,
+   "fit": 1,
+   "L": -0.019,
+   "C": 0.381,
+   "W": 6.552,
+   "H": 2.015
+  }
+ ],
+ "atlas": {
+  "px": 1024,
+  "sunTail": {
+   "clear": 0.502,
+   "opaque": 0.488,
+   "alphaByFifth": [
+    135,
+    114,
+    131,
+    133,
+    115
+   ]
+  },
+  "sunWing": {
+   "clear": 0.564,
+   "opaque": 0.42,
+   "alphaByFifth": [
+    116,
+    112,
+    126,
+    113,
+    80
+   ]
+  },
+  "fade": {
+   "clear": 0.222,
+   "opaque": 0.072,
+   "alphaByFifth": [
+    236,
+    170,
+    102,
+    34,
+    0
+   ]
+  },
+  "redrawMs": {
+   "cheat line": 239.4,
+   "fade": 298.8,
+   "gradient": 41.7,
+   "sunburst": 178.3
+  }
+ },
+ "after": {
+  "tail": {
+   "calls": 4361,
+   "red": 0.0416,
+   "green": 0,
+   "yellow": 0.0378
+  },
+  "wing": {
+   "calls": 4434,
+   "red": 0.0801,
+   "green": 0,
+   "yellow": 0.1191
+  },
+  "flank": {
+   "calls": 5107,
+   "red": 0.0837,
+   "green": 0,
+   "yellow": 0.0532
+  }
+ },
+ "repaint": {
+  "kitKept": [
+   1,
+   1,
+   1,
+   2
+  ],
+  "body": {
+   "tint": 3050302
+  }
+ },
+ "afterRepaint": {
+  "tail": {
+   "calls": 4361,
+   "red": 0.0247,
+   "green": 0.007,
+   "yellow": 0.0002
+  },
+  "wing": {
+   "calls": 4434,
+   "red": 0.0825,
+   "green": 0.0705,
+   "yellow": 0.0003
+  },
+  "flank": {
+   "calls": 5107,
+   "red": 0.0346,
+   "green": 0.0019,
+   "yellow": 0.0001
+  }
+ },
+ "flight": {
+  "decN": 3,
+  "bake": {
+   "draws": 4,
+   "red": 0.0557,
+   "green": 0,
+   "yellow": 0.09
+  },
+  "live": {
+   "draws": 4,
+   "red": 0.0564,
+   "green": 0,
+   "yellow": 0.089
+  }
+ }
+}
