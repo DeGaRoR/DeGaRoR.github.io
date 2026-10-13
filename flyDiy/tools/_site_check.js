@@ -470,9 +470,12 @@ function run(mut) {
 const plotFoot = id => { for (const a in CORE.BASE_OFFERS) { const P = CORE.BASE_OFFERS[a].plots[id]; if (!P) continue; let HW = 0, HD = 0;
   for (const sh of P.shells) { const d = (P.dims && P.dims[sh]) || CORE.SHELLS[sh].dims; HW = Math.max(HW, d.HW); HD = Math.max(HD, d.HD); } return { HW, HD, water: !!P.water }; } return null; };
 const PLOT_MUTS = {
-  // the inline calibrations (every run): w3 moved 40 m down the slope, HOME.2 turned away from its stand, SEA's slip stand ashore
+  // the inline calibrations (every run): w3 moved 40 m down the slope, a plot with its own stand turned away from it, SEA's slip stand ashore
   'cal: a plot on the slope': S => { const p = S.w3.plots.find(q => q.id === 'w3'); p.x += 40; p.z -= 30; },
-  'cal: a plot turned away from its stand': S => { const p = S.HOME.plots.find(q => q.id === 'HOME.2'); p.hdg += Math.PI; p.ry -= Math.PI; },
+  // (a plot with its OWN stand: SHIP-2's rev28e dropped HOME.2's own way, and a plot without one faces "the field", any way)
+  'cal: a plot turned away from its stand': S => { const all = Object.keys(S).flatMap(k => (S[k] && S[k].plots) || []);
+    const p = all.find(q => q.id === 'HOME.2' && q.stand) || all.find(q => q.stand && !q.main && !q.water && !/slip/.test(q.kind || ''));
+    p.hdg += Math.PI; p.ry -= Math.PI; },
   "cal: a slipway's stand ashore": S => { const p = S.SEA.plots.find(q => q.id === 'SEA'); p.stand.x = p.x; p.stand.z = p.z; },
   // the --selftest breaks
   'a plot moved off its field': S => { const p = S.mn_strip.plots[0]; p.x += 900; },

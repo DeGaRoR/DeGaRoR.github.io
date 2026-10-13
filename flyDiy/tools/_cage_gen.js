@@ -3296,7 +3296,21 @@ function cageBodyZones(S) {
     push('cabin', zM);
     if (zWsA != null) push('aftCabin', CZ - zWsA);
     if (zMax > -1e9) push('aftDeck', CZ - zMax);
-    push('boom', -Infinity);
+    // THE POD HAS A TAIL CONE TOO (G2785, the user: "The tail cone cannot be
+    // selected", on the Mosquito). buildCage2's pod boom marches aft from the
+    // reflected aperture (the source's noseRing) over boomLen + tailLen and
+    // stands the TAIL PILLAR BAND at tPost — "the same pillar" as the regular
+    // tail — then the cone to the capped tip. The table ended on 'boom' to
+    // -Infinity, so a click on the cone's skin answered Boom and the Tail cone
+    // part had nothing to select. Same stations as the emission: the cone is
+    // the 'tail' zone aft of the reflected tail post.
+    const apZ = RA.noseRing && RA.noseRing.lv && RA.noseRing.lv.waist ? RA.noseRing.lv.waist.z : null;
+    const dzB = (S.boom && S.boom.len || 0) + (S.tail && S.tail.len || 0);
+    if (apZ != null && dzB > 0) {
+      const tPost = Math.min(0.92, S.boom.len / dzB);
+      push('boom', (CZ - apZ) - dzB * tPost);
+      push('tail', -Infinity);
+    } else push('boom', -Infinity);
   } else {
     for (let i = 1; i < CAGE_ZONE_RINGS.length; i++) {
       const row = CAGE_ZONE_RINGS[i];

@@ -88,6 +88,8 @@ const GATES = [
   // dayMoonAt against 06_solar, the career's day forward-only and round-tripping (v1 -> v2), every `when` window
   // validated and judged, day_clock.js's ONE jump door counted; --selftest breaks each rule in its own source
   { id: 'CLOCK', file: '_clock_check.js', tier: 'core', wall: 30 },
+  // G2664 (SIM-CLOCK-GPU): a Wait re-shoots the shed's room probe a slice a frame, once, never skipped (the page in node)
+  { id: 'CLOCKBAKE', file: '_clockbake_check.js', tier: 'core', wall: 120 },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
   // verbatim copy, the shared zero, the relief raster, the linearised sampler; pure, seconds
   { id: 'CLIMATE', file: 'test_climate.js', tier: 'core' },
@@ -244,6 +246,10 @@ const GATES = [
   // clip libraries and the cut levels; and the behaviours run headless
   // against the real vendor three (a herd, a pod and a flock, 900 steps).
   { id: 'ANIMALS', file: '_animal_check.js', tier: 'core' },
+  // THE CROWD (CHARACTERS G2970): the passengers' cast and clips round-trip from media/, the run walks, queues and
+  // boards them (spacing, order, the door, the fade summing to one, the seat's own pose at the end), the fade twins,
+  // the wire budget, and nothing of it in index.html (~1 s)
+  { id: 'CHARS', file: '_chars_check.js', tier: 'core' },
   // THE TRAM CABIN (G343): the user's cable car baked as a prop and dressed
   // from the house library - roles, metric uvs, the gasket round every
   // window, the livery on both flanks, the liveries published
@@ -427,6 +433,11 @@ const GATES = [
   { id: 'ROLLSND', file: '_rollsnd_check.js', tier: 'core', wall: 180 },
   { id: 'UPDATE', file: '_update_check.js', tier: 'core', wall: 5 },   // UPDATE-NOW G1535-G1539: the "Update" pill on a differing version.json, nothing on the same build or a failed fetch, the cache-busting URL (params kept, stripped after load), the autosave before the navigation, the media worker's sweep across an update
   { id: 'UILAYER', file: '_ui_layer_check.js', tier: 'core', wall: 10 },   // G1370: the in-world helpers on the UI layer; the verbs off for the roll-out shot
+  // CARDS-CORNER G3060-G3069 (the user, 12 Oct: "the certifications, the end of the flight, the crash, all of them should
+  // appear in the bottom left, not hide the plane"): no result card centred in src/viewer's CSS (the scan, an allow-list of
+  // the panels the player opens), the arrival / award / run cards anchored left + bottom; and Chrome (--disable-gpu, a bare
+  // page with the real stylesheets) lays them in the lower-left quadrant (flight, workshop) / on the phone's sheet. ~5 s
+  { id: 'CARDS', file: '_cards_check.js', tier: 'core', wall: 20 },
   { id: 'FADES', file: '_fades_check.js', tier: 'core' },   // A2-FADES G670-G673: the prop disc, the grass's grow / pre-grow / lead, the premises' rise
   { id: 'CONTACT', file: '_contact_check.js', tier: 'core' },   // A6-GROUND G1000-G1003: the pavement at terrainH where the wheels roll, the contact shadows, nothing loose on a pavement
   { id: 'SHADOWSKY', file: '_shadowsky_check.js', tier: 'core' },   // A2-SHADOW-SKY G650-G655: the PCF bias under the reversed buffer + a still kernel, the craft's shadow at any height, the mirror's clip, cloud sync, the cover pass, the pause
@@ -478,6 +489,10 @@ const GATES = [
   // from below" — which has been reported three times, each time by a
   // different KIND of source that no switch could reach.
   { id: 'LIGHT', file: '_light_check.js', tier: 'core' },
+  // EDITOR-BUGS (G2780-G2789, the user's slider review of 10 Oct): the glass centre wears the cabin's glazing, the
+  // tundra is a torus, every tail cone has its zone (the mirrored pod's too), the Mosquito's whole-cabin shoulder,
+  // and the comment strip the source-scan gates share is a lexer. Seconds.
+  { id: 'EDBUGS', file: '_edbugs_check.js', tier: 'core' },
   // THE FITTINGS (G81-G85): GEN_ACCESS resolved against the built skin, and
   // the geometry that lands there. Every fitting on its own skin, one per
   // flank, snapped to real structure, standing OUT, no two in one place, and
@@ -492,7 +507,7 @@ const GATES = [
   { id: 'RAYINDEX', file: '_rayindex_check.js', tier: 'core' },
   // G1445 (GARAGE-INSTANT): a drag's previews end on the plain build's aeroplane (the page in node, the Cub and the
   // metal Cessna, twelve rows: a kept sheet's layer rows, the cage's deformed rows, the sheet's detail rows)
-  { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 480 },
+  { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 1200 },   // G2228: measured ALONE 13 Oct 1 078 s (the Cub 404 s: boot 89 + 13 rows ~20 s; the metal 674 s: boot 108 + 13 rows ~36 s) - no slow row, the old 480 was stale
   // G2071 (GARAGE-LAPTOP): the shed's shadow cache (shed_shadow.js) draws what the full pass draws - per light, the bake's
   // casters + the live pass's == the full pass's, each once (at rest, a prop moved, a prop hidden, a lamp moved, the key
   // held by the day's step); retro's shed frame under 40 % of the full pass's draws (the page in node, the Jodel)
@@ -550,6 +565,17 @@ const GATES = [
   { id: 'NACLAG', file: '_naclag_check.js', tier: 'core', weight: 4, wall: 120 },
   { id: 'ENGMESH', file: '_eng_mesh_check.js', tier: 'core' },// the engine's own health + ledger
   { id: 'JOIN', file: '_join_check.js', tier: 'core' },       // editor -> spec -> a buildable aeroplane
+  // G2640 DESIGN-TRUST: WHAT FLIES IS WHAT IS DRAWN - every flown aero strip (wing, stab, fin) against the drawn sheet
+  // cut at its station, through the page's own join headless: the validated five, the user's mosquito repros (a
+  // turtledeck pod) and synthetic variants on the cage dials (boom +-, fin swept, turtledeck, rod level/inclined); a
+  // doctored fin and stab must go red. ~15 s.
+  { id: 'GEOPARITY', file: '_geoparity_check.js', tier: 'core', wall: 20 },
+  // G2640: THE DESIGN CHECK (64b_gen_design.js, genShakedown's `design`, the bench check's rows): no FAIL on the
+  // validated five; doctored designs fail on their own row with a fix; fin / dihedral / tail-arm sweeps point the right
+  // way; data + determinism + the bench renders it; the shell boom against the drawn shell. ~140 s. DESIGNSIM (full): the predicted spiral root against the sim
+  // flown hands off (the Cub, the mosquito), ~3 min.
+  { id: 'DESIGNCHECK', file: '_designcheck_check.js', tier: 'core', wall: 150 },
+  { id: 'DESIGNSIM', file: '_designcheck_check.js', argv: ['--only=sim'], tier: 'full', wall: 200 },
   // THE RESOLVED SPEC IS A FIXED POINT AND THE CORNERS ARE THE STAND (SPEC-FIXPOINT G1550, the 2026-10-04
   // review's A2 / A3 / B8 / B9 / B13 / E1-E3): GEN_FIELDS against GEN_DEFAULT and clampSpec; clamp idempotent;
   // resolve(resolve(s)) == resolve(s); buildGen leaves its input alone and rebuilds def.spec; the six CG corners
@@ -584,6 +610,12 @@ const GATES = [
   // the fetch path and the Blob's glue; the transport, the pose age and the dilation printed; G1365: the page's freeze
   // HOLDS the flight (60 s on a fake clock, 1.5 s on the real thread) and it goes on from there; ~60 s
   { id: 'SIMWORKER', file: '_simworker_check.js', tier: 'core', wall: 70 },
+  // G2920 (GARAGE-SHEET): the performance sheet (genShakedown) on bench_worker.js's thread - the Blob's source in a real
+  // thread answers the main thread's sheet TO THE BIT for the validated five + the metal Cessna + two synthetic builds
+  // (and the design strip's ledger sheet); sheet_link.js on a fake clock (a 10-tick drag runs ONE sheet, a newer
+  // aeroplane terminates the computing thread, dead links fall back to the page); app.js never runs the sheet in a
+  // rebuild while the thread is up. --browser --udd <dir>: the same parity in Chrome (the box). ~1-2 min
+  { id: 'SHEETWORKER', file: '_sheetworker_check.js', tier: 'core', wall: 150 },
   // G1530 (POSE-BACK; the user at ~2 fps: "as soon as it took off ... it went a little backward over a frame"): the drawn
   // pose through a take-off at a simulated 2 / 5 / 10 / 30 fps (steady, late, ragged pages, a CPU-starved worker) - the
   // worker's view against sim_host's own clock on a fake wall clock, and the inline PACE + POSE_LERP lifted from app.js,
@@ -784,6 +816,18 @@ const GATES = [
   // order-free), the fleet lift refuses nothing, moving is flying, every
   // refusal leaves the document as it came; 16 doctored rules. ~2 s
   { id: 'GAMEPREM', file: '_gameprem_check.js', tier: 'core' },
+  // HANGAR-STORAGE (G2690, futureDesigns/game/HANGAR-STORAGE-2026-10-10.md): every building's slots from its shell (club
+  // 2 / works 4 / field 0 inside; the apron to the cooked spots, max 6), the ONE move (floor / inside / outside / long,
+  // free; a full target refused with its reason), the PLAYER_V 3 migration both ways (nothing lost), long-term never
+  // drawn (fleet_stand.js run; the residents), a Fly from each kind resolved to its start (lined up / the stand / the
+  // door) through the existing roll-out, the storage panel in the garage's look; --selftest 13 breaks. ~5 s
+  { id: 'STORAGE', file: '_storage_check.js', tier: 'core' },
+  // STORESPOT (G2701, HANGAR-STORAGE-2): an apron aeroplane's storage Fly starts on its own tie-down spot (HOME's first
+  // six, the drawn cap): its nose along the prop's, the pilot taxis from there to its roll and lifts off on the runway. ~7 min
+  { id: 'STORESPOT', file: '_store_spot_check.js', tier: 'core', wall: 420 },
+  // STOREDRAW (G2703): the fleet bake bound admits the garage's drawn residents (the inside slots, the floor's), never a
+  // long-term one - an airframe saved on the floor and moved inside had its bake refused, its resident never filled. ~1 s
+  { id: 'STOREDRAW', file: '_store_draw_check.js', tier: 'core' },
   // ACCEPT (G2274, GAME-2026-10-06 §6.2): a build's acceptance - the static checks (no simulation: the phone's),
   // the flown leg (a 5-min stabilised cruise on the AP box, TAS calm-air, the flow, the endurance and range) on the
   // Cub, Jodel, C172 and metal Cessna, run to run deterministic, a disturbed leg refused, the wind taken out, the
