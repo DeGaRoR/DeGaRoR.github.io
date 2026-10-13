@@ -38,6 +38,9 @@
 //              "a class that promises a 16 m span and gets 14 is a FAILURE,
 //              not a clamp doing its job" (§7, gated here because it is
 //              static; GATE ARCHETYPES proves it dynamically).
+//   TWINS      (G2760) a tile standing in a row's slot names a real row and
+//              can set it; a SLOT tile writes its row alone and offers every
+//              value the drop-down did.
 //   ARCHETYPES every archetype selects real rows and real options, a LIVE
 //              archetype touches no inactive option, and designApply resolves
 //              its whole selection with nothing missing.
@@ -114,6 +117,18 @@ function panelKeys(groups) {
   return keys;
 }
 const RENDERED = new Set(panelKeys(W.CAGE_PAGE.groupsOverride));
+// G2760: each rendered row's own declaration, by key (the TWINS check reads
+// a drop-down's value range off it)
+const ROW_DEF = new Map();
+{
+  const walk = items => {
+    for (const it of items) {
+      if (Array.isArray(it[1])) { walk(it[1]); continue; }
+      if (!ROW_DEF.has(it[0])) ROW_DEF.set(it[0], it);
+    }
+  };
+  for (const g of W.CAGE_PAGE.groupsOverride) walk(g[1]);
+}
 const PAGE_BASE = Object.assign({}, G.CAGE_PARAMS,
                                 (W.CAGE_PAGE && W.CAGE_PAGE.defaults) || {});
 // T2.1: a retired row (the ring editor's offsets, the lean, taperW) is a
@@ -562,6 +577,49 @@ function checkCoherence(A) {
   return ok;
 }
 
+// ---------------------------------------------------------------------------
+// 8 TWINS (G2760) — a tile that stands in a row's slot IS that row. The
+// editor draws the tile where the row was and stops drawing the row (the
+// user: "we should remove the drop-down equivalent options"), so a twin
+// that names no rendered row is a tile in no slot, a twin no option writes
+// is a choice the panel lost, and a SLOT tile (its row, drawn bigger) must
+// write its row alone and offer every value the drop-down offered.
+// ---------------------------------------------------------------------------
+function checkTwins(A) {
+  let ok = true;
+  for (const r of A.DESIGN_ROWS) {
+    if (r.slot)
+      ok = check(Array.isArray(r.twin) && r.twin.length > 0,
+        'a slot tile with no row to stand in for', r.key) && ok;
+    if (!r.twin) continue;
+    const live = A.rowOptions(r).filter(o => !o.inactive);
+    const wrote = (o, k) => !!(o.writes && o.writes.cage && k in o.writes.cage);
+    for (const k of r.twin) {
+      ok = check(RENDERED.has(k),
+        'a tile standing in for a row the panel does not render',
+        `${r.key}: ${k}`) && ok;
+      ok = check(live.some(o => wrote(o, k)),
+        'a tile that cannot set the row it replaces', `${r.key}: ${k}`) && ok;
+    }
+    if (!r.slot || !r.twin.length) continue;
+    const k = r.twin[0];
+    for (const o of live) {
+      const ks = Object.keys((o.writes && o.writes.cage) || {});
+      const nSpec = o.writes && o.writes.spec ? patchPaths(o.writes.spec).length : 0;
+      ok = check(ks.length === 1 && ks[0] === k && nSpec === 0,
+        'a slot tile writing beyond its row', `${r.key}/${o.label}`) && ok;
+    }
+    const def = ROW_DEF.get(k);
+    if (def && Array.isArray(def[5]) && typeof def[2] === 'number') {
+      const got = new Set(live.filter(o => wrote(o, k)).map(o => +o.writes.cage[k]));
+      for (let v = def[2]; v <= def[3] + 1e-9; v += (def[4] || 1))
+        ok = check(got.has(v), 'a drop-down value no tile can set',
+          `${r.key}: ${k}=${v}`) && ok;
+    }
+  }
+  return ok;
+}
+
 checkShape(D);
 checkOptions(D);
 checkWrites(D);
@@ -570,6 +628,7 @@ checkWingRows(D, WING_ROWS);
 checkArchetypes(D);
 checkFidelity(D);
 checkCoherence(D);
+checkTwins(D);
 
 // ---------------------------------------------------------------------------
 // NEGATIVE VERIFICATION
@@ -702,6 +761,14 @@ if (process.argv.includes('--selftest')) {
       const i = r.findIndex(x => x && typeof x === 'object' && !Array.isArray(x));
       r[i] = Object.assign({}, r[i], { note: rowOpts(WING_ROWS.get('wgChordTip')).note });
       R.set('w2ChordTip', r); return checkWingRows(A, R); }],
+    // G2760: the twins must themselves be breakable
+    ['a tile standing in for a row the panel does not render', A => {
+      A.rowByKey.wgTip.twin = ['noSuchRow']; return checkTwins(A); }],
+    ['a slot tile that lost a value its drop-down offered', A => {
+      A.rowByKey.finCutT.options.pop(); return checkTwins(A); }],
+    ['a slot tile writing beyond its row', A => {
+      A.rowByKey.exhaustT.options[1].writes.cage.eng_exDrop = 1;
+      return checkTwins(A); }],
     ['a seed on a key that exists nowhere', A => {
       const o = A.rowByKey.role.options.find(x => x.seed);
       o.seed.cage.noSuchParam = 1; return checkWrites(A); }],

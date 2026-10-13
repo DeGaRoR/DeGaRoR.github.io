@@ -1508,14 +1508,17 @@ if (process.argv.includes('--selftest')) {
 // this arc an assertion searched for a name that the explanatory comment
 // directly above it also used, and passed on the prose rather than the code.
 {
-  // (G2870: a `/*` glued to a word is not a comment — `f.accept = 'image/*'`
-  // opened one that ran 40 kB to G2227's `/* G2227 */` and swallowed two of
-  // the three wired reframe rows: this section's red on master since G2227)
-  const strip = s => s.replace(/(^|[^\w'"\/])\/\*[\s\S]*?\*\//g, '$1')
-                      .split('\n').map(l => l.replace(/(^|[^:])\/\/.*$/, '$1'))
-                      .join('\n');
-  const UI4 = strip(fs.readFileSync(
-    path.join(ROOT, 'tools', '_cage_ui.js'), 'utf8'));
+  // G2786: a LEXER, not the slash-star one-liner. That one opened a comment at
+  // _cage_ui.js's `accept = 'image/*'` and, once G2227 wrote `republish /* */`
+  // on the file's last line, closed it there: 774 lines gone, the reframes
+  // read '1 of 3 wired' with all three in the code.
+  const { stripComments: strip, stripLost } = require(path.join(ROOT, 'tools', '_src_strip.js'));
+  const UI4RAW = fs.readFileSync(path.join(ROOT, 'tools', '_cage_ui.js'), 'utf8');
+  const UI4 = strip(UI4RAW);
+  {
+    const lost = stripLost(UI4RAW, UI4, ['function decReframe(', 'window.CAGE_UI = {']);
+    check(!lost.length, 'marking: the strip ate code out of _cage_ui.js (a comment opened inside a string?)', lost.join(', '));
+  }
   const ENG = strip(fs.readFileSync(
     path.join(ROOT, 'tools', '_cage_eng.js'), 'utf8'));
   const SK = strip(SRC);
@@ -1718,6 +1721,10 @@ if (process.argv.includes('--selftest')) {
                 .test("if (k === 'refl') return Math.min(1, v + wr * 0.4);")],
       ['a pane that cannot opt out of the years',
         () => !/secWear\[name\]/.test('wear: 1,')],
+      ['a strip that opens a comment inside a string (G2786)',
+        () => { const raw = "f.accept = 'image/*';\ndecReframe(a, b, {});\nx = { republish /* G2227 */ };";
+                return stripLost(raw, strip(raw), ['decReframe(a, b, {']).length === 0 &&
+                       stripLost(raw, raw.replace(/\/\*[\s\S]*?\*\//g, ''), ['decReframe(a, b, {']).length === 1; }],
     ];
     let caught = 0;
     for (const p of probes) {

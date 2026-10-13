@@ -1375,7 +1375,9 @@ const level = (P, k) => {
 const prevPost = PAGE.post;
 PAGE.post = (ctx) => {
   if (prevPost) prevPost(ctx);
-  if (ctx.defer) { if (group) group.visible = false; return; }   // G1303: a drag tick - built when the hand stops
+  // G1303: a drag tick - built when the hand stops. G2782: the LAMPS hide, the real lights stay: a hidden group
+  // takes its lights out of three's count and every lit program in the shed re-keys at the drag's first tick
+  if (ctx.defer) { if (group) for (const c of group.children) if (!c.isLight) c.visible = false; return; }
   const { scene, P, stat } = ctx;
   if (group) {
     group.traverse(c => { if (c.geometry) c.geometry.dispose(); });
@@ -1598,8 +1600,16 @@ PAGE.post = (ctx) => {
   // picture rather than merely being visible: the landing lamp, which throws a
   // beam, and the cabin flood, which is the only interior source with anything
   // to light. Neither casts a shadow.
+  //
+  // ARMED BY THE FITTING, NOT BY THE DIMMER (G2782, the user: "lights -> inside dimmer -> flood. Moving that
+  // froze my interface for a few seconds"). three keys every lit program on the scene's COUNT of point and spot
+  // lights; a light made only when its row reads > 0 changed that count on the dimmer's first notch, and every
+  // lit material in the shed linked again in one frame (G1340's premises lamp pool, the same freeze). So a
+  // fitted lamp's light is ALWAYS here, at intensity 0 when off - the flight's own rule (cockpit.js setupLights
+  // makes its flood, pedal and landing lights at 0 and drives the intensity). The count moves with what is
+  // fitted (the lights row, a lamp's site), which is a build, never with a dimmer notch.
   const lit = [];
-  if (S.wingLampR && level(P, 'land') > 0) {
+  if (S.wingLampR) {
     const l = new THREE.SpotLight(LIGHTS.land.col, level(P, 'land') * LIGHTS.land.thr,
       70, LIGHTS.land.beam, 0.5, 1.2);
     l.position.set(...S.wingLampR.p);
@@ -1607,7 +1617,7 @@ PAGE.post = (ctx) => {
     l.castShadow = false;
     group.add(l); group.add(l.target); lit.push(['land', l]);
   }
-  if (S.flood && level(P, 'flood') > 0) {
+  if (S.flood) {
     const l = new THREE.PointLight(LIGHTS.flood.col, level(P, 'flood') * 0.9, 2.4, 1.6);
     l.position.set(...S.flood.p);
     l.castShadow = false;
@@ -1616,7 +1626,7 @@ PAGE.post = (ctx) => {
   // ...and the pedalier (G308): the flight has had it since G296; the shed
   // is where the user tests the switches from the seat, so it lights the
   // footwell here too — the same numbers as cockpit.js's
-  if (S.pedal && level(P, 'pedal') > 0) {
+  if (S.pedal) {
     const l = new THREE.PointLight(LIGHTS.pedal.col, level(P, 'pedal') * 0.35, 1.2, 1.6);
     l.position.set(...S.pedal.p);
     l.castShadow = false;

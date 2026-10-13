@@ -45,6 +45,13 @@ function editorInit(api) {
   if (!PT) return;
 
   const treeEl = $('edTree'), rowsEl = $('edRows');
+  // G2760: a part the table marks `hidden` (the dev 'Build' assembly), or
+  // one under it, is kept out of the tree and out of every column
+  function partHidden(p) {
+    for (let a = p; a; a = a.parent ? PT.partByKey[a.parent] : null)
+      if (a.hidden) return true;
+    return false;
+  }
   // WHERE A ROW LIVES WHEN IT IS NOT ON SCREEN. The inspector shows one part
   // at a time and there are 537 rows; the rest are parked here, in the
   // document but not visible, because _cage_ui goes on addressing every one of
@@ -80,6 +87,8 @@ function editorInit(api) {
   // parameters, minimize by default, so we keep an overview. Options for
   // collapsing and extending all. Setup remembered.")
   // =========================================================================
+  // G2760: THE RULE IS NOW "OPEN" (see secShut) — the paragraphs below are
+  // why only what the user folds is stored, which still holds.
   // THE DEFAULT IS A RULE, NOT A STORED STATE, and that distinction is the
   // whole design. Only what the USER has decided is written down; everything
   // else answers the rule afresh — so a group that grows past the threshold
@@ -99,8 +108,6 @@ function editorInit(api) {
   // Counted on VISIBLE rows, not declared ones: a group of nine whose 'when'
   // leaves two on screen is a group of two to the person reading it.
   const LS_SEC = 'flydiy.edSec';
-  const SEC_OPEN = 5;
-  const TRUNK = new Set(['fitted', 'type', 'position', 'size']);
   const secPref = new Map();
   for (const t of String(pref(LS_SEC) || '').split(',')) {
     const i = t.lastIndexOf('=');
@@ -111,10 +118,15 @@ function editorInit(api) {
   // a part heading's own key is the part with no group: it is the section
   // ABOVE the groups, and it folds them with it
   const secKey = (pk, g) => pk + '/' + (g === null || g === undefined ? '*' : g);
-  const secShut = (pk, g, n) => {
+  // EVERYTHING OPEN BY DEFAULT (G2760, the user's slider review: "Let's
+  // have everything uncollapsed by default"). The rule above folded a group
+  // past SEC_OPEN rows; the user now wants the whole column readable on
+  // arrival. What a builder folds by hand is still remembered (secPref) —
+  // the rule's other half, and the reason the pill can still fold all.
+  const secShut = (pk, g) => {
     const k = secKey(pk, g);
     if (secPref.has(k)) return secPref.get(k);
-    return g != null && n > SEC_OPEN && !TRUNK.has(g);
+    return false;
   };
   // A FINISH SECTION DEFAULTS OPEN, whatever it holds, and it is keyed on
   // something that does not move. Two reasons, both found by running it:
@@ -317,7 +329,10 @@ function editorInit(api) {
       return rootNote(shedHost, 'The shed is not in this build.'); } });
 
   let sel = pref(LS_SEL) || 'craft';
+  // G2760: 'Wing panels' merged into 'Wings' — a stored selection follows it
+  if (sel === 'wingPanel') sel = 'wings';
   if (!PT.partByKey[sel] && !rootFor(sel)) sel = 'craft';
+  if (partHidden(PT.partByKey[sel])) sel = 'craft';
   // =========================================================================
   // TWO VIEWS OF ONE TREE (G103) — UI-MODEL §2.3
   // =========================================================================
@@ -595,6 +610,8 @@ function editorInit(api) {
       else out = PT.CAGE_PARTS.some(c => c.parent === key)
         ? PT.cagePartsUnder(key) : [p];
     }
+    // a HIDDEN part (G2760: the dev 'Build' assembly) is in no column
+    out = out.filter(q => !partHidden(q));
     shownCache.set(key, out);
     return out;
   };
@@ -677,6 +694,7 @@ function editorInit(api) {
   // drag. Visibility and the changed dots are updated in place instead.
   const groupsOf = [];                     // [{head, part, group, rows}]
   const headParts = new Set();             // parts whose OWN heading is drawn
+  const tilesPlaced = new Set();           // G2760: tiles drawn in a row's slot
 
   function render() {
     if (!CU) return;
@@ -725,8 +743,15 @@ function editorInit(api) {
     // controls into the shape section ... I can't find the rod setting when
     // clicking on the boom"): design_flow.js knows which macro rows belong
     // to which part and puts them at the head of the column, above the rows.
-    if (window.DESIGN_FLOW && window.DESIGN_FLOW.renderTilesFor)
-      window.DESIGN_FLOW.renderTilesFor(rowsEl, sel);
+    // G2760: a tile that IS a row (`twin`) is drawn in that row's slot
+    // instead (emit), so the head is filled AFTER the rows, leaving out what
+    // a slot already holds — one control per choice.
+    const DF = window.DESIGN_FLOW;
+    if (DF && DF.slotReset) DF.slotReset();
+    tilesPlaced.clear();
+    const headHost = document.createElement('div');
+    headHost.className = 'edTilesHead';
+    rowsEl.appendChild(headHost);
     for (const p of shown) {
       // A PART THAT DOES NOT EXIST IS STILL EMITTED, and then hidden by
       // applyVis — which is where every other existence rule is answered, so
@@ -782,7 +807,16 @@ function editorInit(api) {
       // in a slot says what the slot says ("fore / aft", "up / down",
       // "in / out", "length", "width", "height") where that is literally what
       // it does, and keeps its domain word in brackets where it is not.
+      //
+      // THE PART'S OWN ORDER (G2760, the user's slider review: "for the fin,
+      // the last 'size' section goes up, straight after type"). `order` in
+      // the part table names the head of the column — trunk slots by name,
+      // groups as 'g:<name>' — and `rename` gives a trunk heading the part's
+      // own word for it. Everything not named follows in the usual order, so
+      // a part with neither reads exactly as it always has.
       const trunkKeys = new Set();
+      const blocks = new Map();        // 'fitted' | ... | 'g:<group>' -> block
+      const flow = [];                 // the usual order
       if (p.place) {
         const pl = p.place;
         const L = v => v == null ? [] : (Array.isArray(v) ? v : [v]);
@@ -798,16 +832,33 @@ function editorInit(api) {
         for (const [name, keys] of trunk) {
           if (!keys.length) continue;
           for (const k of keys) trunkKeys.add(k);
-          emit(p, name, keys, name === atOn ? pl.at : null, false);
+          blocks.set(name, [(p.rename && p.rename[name]) || name, keys,
+                            name === atOn ? pl.at : null, false]);
+          flow.push(name);
         }
       }
       for (const g of (p.groups || [])) {
+        // a HIDDEN group (G2760) is claimed and carried, never drawn
+        if (g[2] === PT.HIDDEN) continue;
         const isExp = g[2] === PT.EXPERT;
         // the trunk rows are re-presented above, not repeated here
         const keys = g[1].filter(k => !trunkKeys.has(k));
-        if (keys.length) emit(p, g[0], keys, null, isExp);
+        if (!keys.length) continue;
+        const id = 'g:' + g[0];
+        if (blocks.has(id)) { blocks.get(id)[1].push(...keys); continue; }
+        blocks.set(id, [g[0], keys, null, isExp]);
+        flow.push(id);
+      }
+      const done = new Set();
+      for (const id of (p.order || []).concat(flow)) {
+        if (done.has(id) || !blocks.has(id)) continue;
+        done.add(id);
+        const b = blocks.get(id);
+        emit(p, b[0], b[1], b[2], b[3]);
       }
     }
+    if (!(DF && DF.renderTilesFor && DF.renderTilesFor(headHost, sel, tilesPlaced)))
+      headHost.remove();
     applyVis();
     reopenFly();
   }
@@ -821,14 +872,76 @@ function editorInit(api) {
     secWire(h, part.key, name);
     rowsEl.appendChild(h);
     const rows = [];
+    const DF = window.DESIGN_FLOW;
     for (const r of (extraRows.get(part.key + '/' + name) || []))
       rowsEl.appendChild(r);             // the derived selectors head their group
-    for (const k of keys)
-      for (const m of (rowsFor.get(k) || [])) {
+    for (const k of keys) {
+      const ms = rowsFor.get(k) || [];
+      // A TILE THAT IS THIS ROW (G2760, `twin` in _cage_design.js) takes its
+      // slot, and the row stays parked: the big buttons and the drop-down
+      // were two controls for one choice. The tile is the row's stand-in —
+      // the row's own `when`s and inherited group rules decide whether it
+      // shows (`src`), and its key carries the changed dot. A tile twinning
+      // several rows is drawn at the first of them and nowhere else.
+      const tw = DF && DF.twinsOf ? DF.twinsOf(k) : null;
+      if (tw) {
+        for (const t of tw) {
+          if (tilesPlaced.has(t.key)) continue;
+          tilesPlaced.add(t.key);
+          const el = DF.slotBlock(t);
+          rowsEl.appendChild(el);
+          const m0 = ms[0];
+          rows.push({ k, row: el, opts: m0 ? m0.opts : null,
+                      st: m0 ? m0.st : 0, src: m0 ? m0.row : null });
+        }
+        continue;
+      }
+      for (const m of ms) {
+        axisMark(m, part);
         rowsEl.appendChild(m.row);         // MOVED, never rebuilt
         rows.push(m);
       }
+    }
     groupsOf.push({ head: h, part, group: name, rows, expert: !!expert });
+  }
+
+  // THE AXIS MARKS (G2760, the user's slider review: "We should try having a
+  // clear icon for fore-aft, up-down, in-out, and for length, width and
+  // height, as visual anchors"). A row says which axis it moves by a data
+  // attribute and editor.css draws the mark before its label: an ARROW for a
+  // place (fore / aft along, up / down vertical, in / out across, drawn
+  // oblique as the third axis is on paper), a DIMENSION LINE for a size on
+  // the same three axes. The trunk slot is the authority where the part
+  // has one; otherwise the label's own words, which the layer files were
+  // combed to say at the trunk's birth (2026-09-03: "fore / aft", "up / down",
+  // "in / out", "length", "width", "height"). Decided once per row — rows
+  // are permanent.
+  const AX_SLOT = { fore: 'fore', out: 'out', up: 'up',
+                    len: 'len', wide: 'wide', high: 'high' };
+  const AX_WORDS = [
+    [/fore ?\/ ?aft|fore-aft/i, 'fore'], [/up ?\/ ?down/i, 'up'],
+    [/in ?\/ ?out|left ?\/ ?right/i, 'out'],
+    [/^(length|chord)\b/i, 'len'], [/^(width|span|half-width)\b/i, 'wide'],
+    [/^(height|half-height)\b/i, 'high'],
+    // the frames' rows (G2760): a frame's top / bottom / deck height is a
+    // PLACE on the up axis, its half-widths a size across
+    [/\b(top|bottom|deck|waist|roof|keel) height\b/i, 'up'], [/half-width\b/i, 'wide'],
+  ];
+  function axisMark(m, part) {
+    const r = m.row;
+    if (!r || !r.dataset || r.dataset.ax !== undefined) return;
+    let ax = '';
+    const pl = part && part.place;
+    if (pl) for (const sl in AX_SLOT) {
+      const v = pl[sl];
+      if (v === m.k || (Array.isArray(v) && v.indexOf(m.k) >= 0)) { ax = AX_SLOT[sl]; break; }
+    }
+    if (!ax) {
+      const lab = r.querySelector(':scope > span.k');
+      const t = lab ? lab.textContent.trim() : '';
+      for (const [re, a] of AX_WORDS) if (re.test(t)) { ax = a; break; }
+    }
+    r.dataset.ax = ax;
   }
 
   // =========================================================================
@@ -1108,7 +1221,7 @@ function editorInit(api) {
           if (o.level === 'expert' && !ex) vis = false;
           if (vis && o.when) { try { vis = !!o.when(P); } catch (e) {} }
         }
-        if (vis) for (const w of (inherited.get(m.row) || [])) {
+        if (vis) for (const w of (inherited.get(m.src || m.row) || [])) {
           try { if (!w(P)) { vis = false; break; } } catch (e) {}
         }
         vises.push(vis);
@@ -1152,6 +1265,8 @@ function editorInit(api) {
     // build and every syncSliders, which is exactly when the geometry the
     // discrepancy line was measured against has been replaced.
     { const r = rootFor(sel); if (r && r.refresh) r.refresh(); }
+    // the tiles relight when P moved under them (a load, an undo, a preset)
+    if (window.DESIGN_FLOW && window.DESIGN_FLOW.sync) window.DESIGN_FLOW.sync();
     const cEl = $('edChanged');
     if (cEl) cEl.textContent = changedHere ? changedHere + ' changed' : '';
     secAllLabel();
@@ -1203,7 +1318,7 @@ function editorInit(api) {
     const walk = (parent, lvl) => {
       for (const p of PT.CAGE_PARTS) {
         if (p.root || p.parent !== parent) continue;
-        if (!inTree(p)) continue;
+        if (!inTree(p) || p.hidden) continue;
         rows.push({ p, lvl, name: nameOf(p), kids: hasKids(p.key),
                     off: switchedOff(p) });
         // a FOLDED assembly keeps its own row and hides what is under it
@@ -2464,7 +2579,7 @@ function editorInit(api) {
     [/^edFit_interplane/, 'interplane'],
     [/^edFit_wire/, 'wires'],
     [/^edFit_liftstrut/, 'struts'],
-    [/^edFit_pitot/, 'wingPanel'],
+    [/^edFit_pitot/, 'wings'],
     [/^edSurf_ail/, 'wingCtl'],
     // G300: the hardware NAMES ITSELF now — the hinge halves (fixed ones
     // `edHinge_<host>_<bag>`, moving ones attached under their surface), the
@@ -2488,7 +2603,12 @@ function editorInit(api) {
     [/^(root|lumbar|thorax|neck|head|clavicle|shoulder|elbow|wrist|hip|knee|ankle)/,
      'crew'],
   ];
+  // G2760: a part marked `layerHome` answers first, assembly or not (the
+  // Wings assembly carries the wing's own rows since 'Wing panels' merged
+  // into it; without this an unnamed wing mesh would land on the struts)
   const layerDefault = key => {
+    for (const p of PT.CAGE_PARTS)
+      if (p.layer === key && p.layerHome) return p.key;
     for (const p of PT.CAGE_PARTS)
       if (p.layer === key && p.parent && !p.root) return p.key;
     return null;
