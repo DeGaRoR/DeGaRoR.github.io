@@ -80617,6 +80617,19 @@ up to 12 660 032; any other baseline still meets 0.3 MiB. The WIRE budget is rai
 budget RETURNS TO 4.0 IN THAT TRAIN (owed by the GAME COORDINATOR). T43's pass (490900b8): 26/29, then ECON's two rows
 and the stale fleet pack fixed (5e7df529).
 
+CLOSING LIST (12 Oct, credit mode; the user: wrap by Saturday) - LANDS: train 52 (Tue 13 Oct 09:50) = 44.2 (HANGAR-STORAGE 1+2,
+MAP-GROUP, FLEETB's baked cowl G2228 + INSTANT's fleet-off pin) + the SIM-CLOCK Wait fix G2662 (if Tue 06:45 is green) + MAP-EDGE
+G2730 and ACCEPT-XWIND G2735 if READY by the pass. INSTANT's wall (FLEETB, Tue 15:20) = a gate number for the next landing.
+Career ON (train 46, A0) Wed / Thu after the user's play-through; it does NOT wait for CREW-SEATS.
+PARKED AT: MACHINE-SHOP G2720 (cloud, claude/machine-shop-g2720 - whatever it pushed; the user's simple ladder, design in
+GAME §R.4); CREW-SEATS G2715 (claude/crew-seats-g2715 2cf5b4ef0, design-only stub in its HANDOVER: a CAGE_CREW_JOB door);
+ONBOARD-REVIEW and the SIDE TRACK (ROUTES-RUN, MISSION-PROTOS, OBSERVATORY) - plans only, awaiting the user's go (the board's
+'sidetrack' row); HANGAR-STORAGE's first-time costs (a long-term plane's bake ~1.5 s box / 4.7 s laptop rung, the first
+resident decode) - follow-ups, the user to pick (bake under a held still, or on entering long-term); the sandbox's INSIDE column
+draws nothing (a question for the user); BELLY-POD-2 G2675 (READY 1ac9d9f6) + DMG-POD G2393 - PAUSED by the user; FOUND: FLYDIY_CREW_PILOT
+(PILOTS G2290) leaks into parked captures - a fix item. CONTRACT_DESIGNS / PROCURE models / FREIGHT cards still from the raw
+build files, not the joined spec (the Cub shows 47.7 L, flies 27 L) - a small session after train 41 lands (_load_build.js).
+
 8 OCT 17:20: integration df8eb904 = + CONTRACT-ROUTES G2430, MAP-MERGE G2440, MAP-INFRA G2435 (READY since 7 Oct ~23:30, missed by a
 UTC string filter - see the memory). Pre-pass 15:00 12/12 PASS; on df8eb904 MAPBAKE CONTRACTS STAGES ECON PROCURE FREIGHT PILOTS
 UISMOKE UISMOKE-PHONE PASS, MEDIA red on the step. THE USER (decision 6, via A0): train 43's size 'Have a sanity check, then accept. It's
@@ -91612,6 +91625,96 @@ no evidence screenshots) - the framing fix is proven by its arithmetic and the g
 
 READY for the GAME COORDINATOR: claude/works-club-g2319 c33bad98 (this section rides one docs commit on top)
 
+## G2228 - FLEET-PROPS B: THE COWL'S INSIDE TWIN NEVER REACHES A BAKE (the user: "there is clipping of the cowl. The cowl has an interior mesh, dark. You can get rid of it for baked planes") (2026-10-11, FLEET-PROPS B for A0 / the GAME COORDINATOR; branch claude/fleet-cowlbake-g2228 off origin/claude/game-t44-1 8040b719)
+
+- WHAT: every cowl skin mesh has a TWIN 1.5 mm inside it in a near-black BackSide material (G243.1/.3: the inside seen
+  through a gap). In a bake (materials rebuilt two-sided) it fought the skin: patchy dark on the baked nose.
+- THE FIX, three steps: the cowl flags the BACK twin's material (`aeroInner`; the two-sided lining - the throats, the
+  fold's return, the inner lofts - is seen through the inlets and stays); the join carries it (`inner: 1`) AND gives it
+  its OWN BUCKET ('I' in the colour key: the twin wears exactly its lining's colour, and merged into the lining's bucket
+  the flag was lost - the 13:55 slot's 11b counted 0); parked.js `isInterior` counts `inner`, so every baked rung, the far
+  cut, the parked cook (cookPack -> bakeData: it inherits it at the 44.1 re-cook) and the fleet leave it out. The flown
+  aeroplane's own bake (flown_bake.js) is untouched.
+- GATE PARKED 11b (the page in node, a real capture of arch:c172 under the metal Cessna): the inside twins cross the
+  snapshot FLAGGED (counted, > 0 triangles); none in the far cut, the L1 / bake selection skips every one; the
+  SILHOUETTE: the exterior's projected area on three planes (2 cm cells) with / without them within 0.1 %; DOCTORED: the
+  flag stripped puts them back in the cut and the row counts them. + a headless row (4: `inner` is interior).
+- RUNS (11 Oct 13:55-14:05, take cpu FLEETB, on af5f660e = before the bucket fix): PARKED FAIL on 11b - 0 inside-only
+  buckets (that is how the merged bucket was found; the silhouette rows read x 10 847 / 10 847, y 58 300 / 58 300,
+  z 23 234 / 23 234 cells); INSTANT --fleet-baked PASS. THE BUCKET FIX (79a36b43) IS NOT RE-RUN on the box (no CPU before
+  15:00): PARKED (with 11b) + JOINPARITY are the coordinator's 15:35 pass. (No JOINPARITY gate exists on game-t44-1 /
+  game-integration / master: the JOIN-PARITY branch was reverted from train 38 - the pass must name what it runs.)
+- COLLISIONS: _cage_join.js merges clean with DESIGN-TRUST (origin/claude/design-trust-g2640 4db68051: its hunks at
+  559-1661, mine at the bucket key ~2183 and the material record ~2280); the trial merge's only conflicts are HANDOVER.md
+  and 90_node_exports.js, from the two bases (not this branch's files).
+- The bucket key only moves for an inside-only material: a build's other buckets keep their keys.
+
+READY for the GAME COORDINATOR: claude/fleet-cowlbake-g2228 79a36b43 (11b proven only by the 15:35 pass; this section rides one docs-only commit on top)
+
+## G2700-G2704 - HANGAR-STORAGE-2: THE STORAGE ON THE BOX - THE DRAWN LAYER FOLLOWS THE MOVES, AN APRON AEROPLANE FLIES FROM ITS OWN SPOT, A RESIDENT IS BAKED WHEN MOVED INSIDE; THE TIMED PROOF (2026-10-11, HANGAR-STORAGE-2 for the GAME COORDINATOR, LOCAL-GPU; branch claude/hangar-storage-2-g2700 off game-t44-2 824f0889, game-t44-2 merged up to 8923ec27; G2700-G2704)
+
+futureDesigns/game/HANGAR-STORAGE-2026-10-10.md, on HANGAR-STORAGE-1's WIP commit 0405c10b (its final is not in yet: the
+GPU half re-runs what its final changes). The user, 11 Oct: no evidence stills - the box window was the TIMED proof only.
+
+### Found and fixed (src)
+- **G2703 A resident is baked when it is moved inside.** parked.js bakes a fleet prop only when FLEET_STAND.wants(key) (FLEET-PROPS
+  B's bound), which read the apron alone: an airframe saved on the floor and moved INSIDE never stood outside, its bake was
+  refused (stats.notWanted) and its garage resident never filled. app.js fleetCtx now hands `inside` (the career's residents:
+  playerResidentsShown(here, null, N + 1) - the inside slots in order, then the floor's aeroplane); fleet_stand.js wants() admits
+  them. A long-term airframe is never wanted. GATE STOREDRAW (+ --selftest, 3 breaks caught).
+- **G2701 An apron aeroplane flies from its own tie-down spot.** A storage Fly of an OUTSIDE aeroplane started at the hangar's stand
+  (its spot left empty). app.js storeSpotOf: FLEET_STAND.plan's spot for its slot (every row, no cap, nothing flown) as a stand
+  { x, z, hdg: -ry } - the spot's nose is along (cos ry, -sin ry), placeAtAerodrome's along (cos hdg, sin hdg), checked in node
+  (0.00 deg); applyRoute uses it (its ground read under it), today's stand when the world has no spot. GATE STORESPOT: HOME's six
+  spots (the drawn cap) - the nose along the prop's, the pilot taxis to its roll and lifts off on the centreline (|across| 0.1 m).
+  Spots 1, 2, 4, 5 take 31 by the V's right arm in 175-180 s (the hangar stand: 171 s); spots 0 (stand:af_m_park:5) and 3
+  (apron:22:210) take 13 by the left arm, ~330 s - the pilot's planner chooses (the PILOT COORDINATOR's, not changed here).
+- **G2702** the dragged card is marked (hsDragging) and a slot's dragover no longer bubbles to its column (the column took the
+  light from the slot under the pointer).
+- **The t44-1 merge into t44-2 (6d94178d, done here for the coordinator):** both slot rulings - storage's shell table and `where`
+  model (the sandbox's club 2 inside, a works 4) and G2319.1 (a CAREER's club MAIN hangar = the bay + 1: PREM_SLOTS.mainClub,
+  applied in playerStoreSlots; a shed's own `slots` still overrides); GATE GAMEPREM's GQ7 rows in storage's return shape + the
+  career rows, a doctored rule for the career club.
+
+### Not changed, said plainly
+- **The SANDBOX's INSIDE column draws nothing beside the stand:** the garage residents are the career's (app.js residentsSync
+  returns without CAREER_DEV); the coordinator's ruling (11 Oct): the club identity stays, the question goes to the user.
+- **A career's club main hangar has ONE inside slot** since G2319.1: "two inside + four outside" no longer exists in the career; the
+  A/B's storage side is 1 inside + 1 long-term + 4 outside.
+
+### The box (11 Oct, the laptop rung CPU 3x / GPU x6; GPU 16:35-17:00, CPU 17:30-17:44; locks taken and dropped)
+Rigs: tools/perf/storage2_set.js (the fleet in the career, made by each tree's own core: base v2 / tree v3), storage2_rig.js
+(bake, the moves on the rung, stills, Fly from each kind - the stills and the flights not run, the user's word). Numbers:
+futureDesigns/game/evidence/HANGAR-STORAGE/ (storage2_rig.json, timed/*.json). The base: t44-1 54cd4162 (t44-2 minus STORAGE-1).
+- **The strict per-frame A/B** (rollout_perf as the strict gate uses it, career, the Cub, chase, 90 s + the garage's 5 s; ONE pair -
+  the window lost 10 min to my rig's bake wait): base (6 outside) / tree (1 inside + 1 long + 4 outside):
+  stand 29.8 / 29.6 fps (p99 50 / 50 ms) · taxi 9.4 / 9.7 fps · render 38.3 / 37.0 ms · loop 53.4 / 51.5 ms · garage 30 / 30 fps ·
+  tasks > 200 ms 81 / 73 (the 11-12 s task near 100 s and the 9-10 fps taxi on the rung are on both sides). The tree drew 4 apron
+  props + 1 resident, all filled, no bake (FLEET_STAND census). **No cost.**
+- **The garage's parameter change** (tools/perf/garage_lag.js, the sandbox Cub, reps 2, base vs tree): sync 317 / 318 ms, busy
+  1961 / 1955 ms summed over the ten changes, every change within the strict gate's slack. **Unchanged.** (The metal: no time.)
+- **The moves on the rung** (FLYDIY_STORE.move, long tasks to 700 ms of quiet): inside <-> long, inside <-> outside, outside <-> long:
+  each <= 66 ms, M5 / M6 none. Two FIRST-TIME costs: the Jodel (long-term from the start, so never baked) moved inside baked once -
+  a 4.7 s task on the rung (~1.5 s on the box: the bake a save makes, FLEET-PROPS B's known garage freeze) - and the C172's first
+  decode as a resident, 400 ms (~130 ms). Afterwards no bake on any move. A slider tick with one resident vs none: ~+25 ms on ~810 ms
+  (the rung). The floor moves (Work on, the swap) and the refusal row were not reached (the window).
+- **Gates (CPU 17:30):** STORAGE, STOREDRAW, STORESPOT, GAMEPREM, HANGAR, DESTTO --only store:cub PASS. UISMOKE / UISMOKE-PHONE: a
+  SyntaxError at tools/test_ui_smoke.js:522 from STORAGE-1's WIP 0405c10b (its storage console.log's parentheses) - in every t44-2
+  since 824f0889, STORAGE-1's branch head parses: its final fixes it. FRAMECOST (FRAMECOST_FLEET=1) red, 26 rows (draws / uniforms
+  up) = the STALE parked cook on base and tree alike (parked_cook --check: manifest 62f0cd52 = neither tree's build): judged after
+  the train's re-cook. PARKED and INSTANT --fleet reached the 15-min stop with no verdict.
+
+### Owed / open
+- FOLLOW-UPS (the coordinator: no fix tonight, no box time to prove one; to the user): (1) a long-term airframe that was never baked
+  bakes when it first comes in - 4.7 s on the laptop rung, ~1.5 s on the box; the coordinator's lean: bake it under a held still
+  frame (as the roll-out screen does), or bake when a plane goes INTO long-term; (2) a resident's first decode, 400 ms on the rung
+  (~130 ms on the box) - decode it before the garage asks.
+- The floor moves' timings, the Fly-from-each-kind run in the page, a second A/B pair, the metal's garage_lag, PARKED, INSTANT
+  --fleet, FRAMECOST after the re-cook, UISMOKE after STORAGE-1's final - in a window A0 gives.
+
+READY for the GAME COORDINATOR: claude/hangar-storage-2-g2700 (this section's commit) - the src fixes G2701-G2703 with their gates;
+the timed proof above (one pair); the owed rows listed.
+
 ## G2910 - SCENERY-ED-2: ONE POLYGON WITH ITS PROPERTIES ATTACHED, THE INSPECTOR APART FROM THE TABS, WEATHERED MARKS ON CONCRETE THAT NEVER REPEATS, THE MODEL PLACER (2026-10-11, SCENERY-ED-2 for A0, local; branch claude/scenery-ed2-g2910 off train 43.2 0402e132b; G2910-G2919 all used: G2915 the fly camera, G2916 the river ribbons, G2917 long roads, G2918 the road clearing, G2919 the extent)
 
 The user's notes (11 Oct) on the scenery editor that SCENERY-ED-1 designed (futureDesigns/SCENERY-POLYGON-2026-10.md,
@@ -91769,6 +91872,326 @@ user's next log has the 'traffic' event). NOT IN: ROAD-GRAPH, ROAD-BED (Monday's
   longer damps the aeroplane's rotation, so a firm arrival can rebound once). The sound follows the solver: one thump
   per contact. GATE AUDIO's row counts the touchdown events against the recording's contact onsets, the first the
   firmest. The user judges whether the bounce feels right.
+
+## G2690-G2699 - HANGAR-STORAGE-1: WHERE YOUR AEROPLANES ARE KEPT - EVERY BUILDING'S SLOTS FROM ITS SHELL, AN AEROPLANE IN EXACTLY ONE PLACE (FLOOR / INSIDE / OUTSIDE / LONG-TERM / AWAY), ONE FREE MOVE, PLAYER_V 3 (NOTHING LOST, BOTH WAYS); THE STORAGE PANEL IN THE GARAGE'S LOOK (DRAG AND DROP, TAP THEN COLUMN); FLY FROM WHERE IT STANDS THROUGH THE EXISTING ROLL-OUT; NO IN-WORLD CLICK (2026-10-10, HANGAR-STORAGE-1 for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader for the UI only; branch claude/hangar-storage-g2690 off origin/claude/game-t44-1 cde88339, also pushed as claude/modest-albattani-13wrnx; G2695-G2699 unused)
+
+The brief: futureDesigns/game/HANGAR-STORAGE-2026-10-10.md, the user's OK of 10 Oct with the defaults and ONE correction -
+**no in-world click**: clicking a plane in the world does nothing (kept free on purpose); rolling out and flying a stored
+plane happens ONLY from the garage's STORAGE panel. Built on FLEET-PROPS A/B (the bakes, the drawn cap), WORKS-COZY (the
+residents beside the stand), PREM-S2 / S3 (the ledger, the plots). The belly pod untouched (paused). No generated file
+committed (index.html, dev.html, tools/flight_core.js, sw.js, version.json, career_core.*.js). parked.js untouched.
+The storage model is the SANDBOX's too: it lives in the main core (70 / 71), never in career_core (GATE LAZY green).
+
+**G2690 THE MODEL** (`src/core/71_player_bases.js` HANGAR-STORAGE block, `70_player.js` PLAYER_V 3; pure, exported):
+- **Slots per building, from its SHELL** (`PREM_STORE.shells`, data): club 2 inside / apron 6, works (and the hearth, a
+  works layout) 4 / 6, field 0 / 2. A shed's own `slots: { inside?, outside? }` overrides (the derelict hook: 0 inside
+  until restored - the hook only, nothing builds one). `playerStoreSlots(doc, id)`. **The apron is the aerodrome's**:
+  `playerBaseOutside(doc, aero)` = its held buildings' outside summed, capped by its COOKED fleet spots
+  (`PREM_STORE.spots`, the counts of fleet_spots_pack.js - GATE STORAGE holds them equal: HOME / w2 / w3 / SEA / mk_sea 12,
+  nv_strip 5, mn_strip / tw_ski 0) and by the drawn cap (`outsideMax` 6). An aerodrome the cook does not know (another
+  world's, the analytic rigs' A0) is not capped by it (nothing is drawn there anyway).
+- `playerSlots(doc, id)` (S2's GQ7 reader) now derives from it: `{ bay: 1, parked: inside, total: 1 + inside, inside,
+  outside }` for EVERY held building (its floor + its inside). The club main hangar is 1 + 2 = S2's 3 exactly; a field
+  side shed 1 + 0 = S2's 1; **a side club is now 1 + 2 = 3 (was 2), a works 1 + 4 = 5 (was 3 as the main hangar)** - the
+  study's table, OK'd. PREM_SLOTS kept for an older reader. The geometry stays ON TOP (hangarPark: a slot is a cap, never a
+  promise the floor cannot keep - a second C172 into the fully kitted club is refused by the floor, with its reason).
+- **An aeroplane is in exactly one place**: `playerStoreWhere(doc, name)` -> `{ kind: 'floor' | 'inside' | 'outside' |
+  'long' | 'away' | 'none', hangar, aero, slot }`. The fleet row gains `kind` and `slot` BESIDE the S2 words, which keep
+  their meaning: `hangar` set = in that building (its floor, an inside slot, or long-term there - no outside wear), null =
+  on an apron (`aero` a base of yours) or away. So `playerWhere` (S2's in / out / away, used by economy, pilots, map_menu,
+  career_wire, the popup's badge) still answers right: long-term reads 'in' (kept in the shed), the apron 'out'.
+  `playerResidents` (the slot cap, the packer, release / upgrade) counts the floor + inside, never long-term.
+- **ONE MOVE**: `playerMove(doc, name, { kind, hangar?, slot? })` - floor / inside / outside / long WITHIN the base it stands
+  at; free and instant in sandbox and career (no wallet, no ledger line); every refusal hands the document back untouched
+  with its reason: "INSIDE HOME is full (2/2)", "OUTSIDE at HOME is full (6/6)", "inside slot 1 of HOME is taken", "w3 has
+  no inside slot (a field shed: its floor, the apron and long-term)", "no apron at mn_strip", the door, the floor ("no room
+  in HOME (..)"), "X is away at mk_sea: fly it to a base of yours, or bring it home", another base's building. Long ->
+  shown takes a free slot (or the floor). **The floor is a SWAP**: the aeroplane on the stand takes the mover's old place
+  (its inside slot while the floor still packs, else the apron, else long-term). Between bases: a flight, or "bring it
+  home" (unchanged). The wear runs on the apron only (pbIn / pbOut: frozen inside / long-term, as any hangar stop).
+- The S2 doors adapted, no behaviour lost: `pbIn` (into a building: an inside slot, else its floor if it stands empty -
+  a field shed's one aeroplane -, else long-term), `pbOut` (an apron slot, else long-term in the base's first building,
+  away where nothing is held), `playerArrive` (back where it left = unchanged, the apron included; elsewhere inside ->
+  apron -> long-term; returns `store`), `playerBringHome`, `playerStore` (a long-term row may come back in),
+  `playerWheelOut` (= playerMove outside: refused when the apron is full), the lift (`playerFleetReconcile`: inside, the
+  apron, then long-term - forty builds keep forty aeroplanes: 3 in the hangar, 6 on the apron, 31 long-term).
+- `playerFloorSync(doc, name)` (the stand follows the garage: onto `here`'s floor when it stands at that base),
+  `playerFlyStart(doc, name)` (floor 'door', inside 'lineup', outside / away 'stand', long refused "load it first"),
+  `playerStoreView(doc, hangar)` (the panel's columns), `playerResidentsShown(doc, id, stand, max)` (the drawn residents:
+  inside in slot order, then the floor's when the stand holds another build; never long-term, never the stand's),
+  `playerCardOf(name, spec)` (gear by stripGear, seats off the cabin).
+- **PLAYER_V 3** (`PLAYER_MIGRATORS[2]` = `playerStoreSettle`, and every `playerNormalise` after it - a fixpoint): the
+  rows already in a valid, unique place keep it; the rest are placed by name - today's `in` -> inside while the building's
+  slots remain, then its floor if empty, the rest long-term; `out` at a held base -> the apron while slots remain, the
+  rest long-term (the wear frozen there); elsewhere away. NOTHING IS LOST (a row only changes place). **Both ways**: a v3
+  document is "from the future" to an older game (carried untouched) and its S2 words still say where every aeroplane is;
+  a row an older game then MOVED (its `hangar` changed, its `kind` stale) is placed again at the next v3 load, never
+  dropped. Frozen vintage: `tools/fixtures/player_v3_2026-10-10.json` (the v2 vintage walked + a long-term Jodel).
+
+**G2691 THE PAGE** (`src/viewer/app.js` HANGAR-STORAGE block, `fleet_stand.js`):
+- **The floor follows the stand**: a slot loaded onto the stand (garage.js `api.loaded`: the fleet popup, a resident's
+  swap, "Work on") and the FIRST save of a new airframe (`playerSlotsChanged`, isNew) run `playerFloorSync` - a swap at
+  `here`'s base; an aeroplane at another base is left where it is. **A re-save leaves the aeroplane where it stands**: my
+  first cut floored every save, and PARKED 12p caught it the honest way - its two apron slots, saved, left the apron, so
+  FLEET-PROPS' bake bound (FLEET_STAND.wants: the drawn set) no longer queued them and the row ran out its timers. After a
+  storage move onto the apron the page hands the airframe to `PARKED.fleetQueue` (the same bound; an airframe already
+  baked is a signature hit - a move never re-bakes).
+- `window.FLYDIY_STORE` = { view, where, move, workOn, flyStart, fly, card, canFly, onStand, start, onChange }: the moves
+  written to the document (`playerSave`), then **the drawn layers told** (`storeChanged`: the garage's residents re-plan,
+  FLYDIY_PLAYER.onChange, the panel redraws). "Work on" (= the floor) goes through the garage's own slot load (a
+  resident's in-place swap in the career), refused before any load when the core refuses.
+- **FLY FROM WHERE IT STANDS** (`storeFly`): the start resolved (playerFlyStart), the aeroplane put on the stand by the
+  garage's own load with its place KEPT (the floor sync held for that load), `storeStart` = { slot, kind, start }, then
+  `rollOut(() => { started = true; }, true)` - THE GARAGE'S OWN ROLL-OUT (the trip, the world, applyRoute), never a
+  launcher of its own. applyRoute: an **inside** start is lined up whatever the start pref (`taxiStart` false ->
+  `placeLinedUp`: the pilot's own line-up pose, the take-off direction scored by the wind - G771's skip, the active
+  runway); an **outside** start is today's stand logic (the stand walked out of the shed, the pilot taxis). rollAnim: from
+  inside / the apron no door shot (cut, `trip.anim = 'away'`: no tow animation yet); the **floor** is today's roll-out
+  (the garage's own Fly clears `storeStart`). A restart keeps the start while that aeroplane is on the stand. `var` +
+  a function declaration (applyRoute runs at boot, before the block). The phone garage (GARAGE_ONLY: no world) refuses
+  Fly with its reason, the button off. Nothing moves in the document while it flies (back home it is where it was).
+- **THE DRAWN LAYER FOLLOWS** (written for HANGAR-STORAGE-2 to verify on the GPU; no re-bake on a move, the drawn cap
+  unchanged): the garage's residents are `playerResidentsShown` of the ROOM's building (`roomId()`: `here`'s - HOME in
+  the career's main hangar as before; was hard-wired 'HOME') - the plan's signature carries the names, so a move re-plans
+  (kept / round the stand / the room moves) and stands `PARKED.resident` holders decoded from the existing bakes; long-term
+  never. FLEET_STAND (`fleet_stand.js`): the apron rows carry their slot (`at`); `deal` stands apron slot k on the
+  aerodrome's spot k (away / unslotted rows on the lowest spots left, by name), counted for the cap in spot order;
+  long-term rows (hangar set) are never rows here. A move changes only the mover's spot (the set key `slot@spot` moves,
+  re-stood at the next roll-out from the decoded records - parked.js's LRU, no capture).
+- **No in-world click**: nothing added to the world's input path (fleet_stand.js / parked.js carry no click, raycast or
+  pick; parked.js's passive pointer watchers are FLEET-PROPS B's idle window) - GATE STORAGE holds it.
+
+**G2692 THE STORAGE PANEL** (`src/viewer/storage_ui.js`, new; `body.html` #gStore on the shelf after `load`;
+`editor.css` the token root gains #hsStore; tools/build.js after garage.js): the garage's look - the --ed-* tokens
+(declared once, read, none restated), IBM Plex Sans upright (no serif, no italic; `font-style:normal` on the panel), the
+fleet popup's scrim / box / pills / cards. `STORAGE · HOME`: THE FLOOR (the stand: drop = "Work on"), INSIDE n/N and
+OUTSIDE m/M (numbered slots, empty ones shown), LONG-TERM (count). A card: its picture (the bake's thumbnail when one
+exists - `PARKED.fleetThumb(key)` is the door; NONE EXISTS YET, so a plan-view glyph by gear: wheels / floats / skis), the
+name, gear · seats (· weathered n % outside), "on the stand", `work on` and `fly` (no Fly on long-term). **Drag and drop**
+(HTML5: onto a column = its first free slot, onto a numbered slot = that slot, onto the floor = Work on); **tap a card,
+then a column or a slot** (the phone's way, any pointer; the columns light as targets); a refusal shows its reason in
+the panel's status line, a move its result ("✓ Jodel inside 2 · Cub outside 1" for a swap). **Fly asks first** (a small
+confirmation in the same look: "Fly Jolene Cub from inside? It starts lined up on the runway, into the wind.") then
+FLYDIY_STORE.fly. Phone (max-width 760 / coarse pointer): the columns stacked, 48 px targets. Esc closes.
+
+**G2693 THE GATES** (this tree, built; `node tools/run_gates.js --only ...`; reports/evidence/HANGAR-STORAGE-1/gates.txt):
+all PASS on this tree (built), the box shared by up to 4 gates at a time:
+- **STORAGE** (new, `tools/_storage_check.js`, ~3 s): 82 checks - the slots by shell + the override + the apron per
+  aerodrome (PREM_STORE.spots held EQUAL to the cooked pack's counts); the moves and every refusal untouched; the swap;
+  the geometry on top; the wear; the floor sync; the migration both ways (a v2 shelf of 5 in / 9 out / a field resident /
+  an away one -> inside, inside, floor, long, long / 6 apron + 3 long / floor / apron / away; a v3 read the old way; an
+  older game's edits settled back; every slot one aeroplane); long-term never stood / held / missed by FLEET_STAND (run
+  from its own file), an apron slot k on spot k, a move changes only the mover's spot, the flown spot empty; the
+  residents; each Fly kind and its start resolved on the analytic HOME (inside: the pilot's line-up pose, on the
+  centreline; outside: on the stand); the page's doors and the panel source-scanned; nothing added to the world's input
+  path. `--selftest` **13 of 13 caught** (a club given 3 inside, the spots drifting from the cook, a full apron ignored, the
+  overflow dropped by the migration, FLEET_STAND drawing long-term, FLEET_STAND ignoring the apron slot, an inside Fly
+  from the door, Fly from long-term, a launcher of its own, the floor not following a load, the panel in italics, no
+  tap-then-column, Fly without asking; a selftest anchor gone is a MISS).
+- **GAMEPREM** 609 checks (was 580: + the v3 vintage on the shelf, the S2 rows moved to the study's numbers - OPEN below);
+  `--selftest` PASS with every break honest (the 5 hollow rows re-anchored).
+- **PLAYER** 51 (was 46: the v3 vintage `player_v3_2026-10-10.json` on the shelf). **SAVE, BUILD, LAZY** (the storage
+  model stays in the main core; career_core unchanged, fcd16338) PASS.
+- **UISMOKE** (desktop; `uismoke_desktop.txt`): the PREM-S2 block unchanged and green, and the new storage block: the
+  view (inside 1/2, outside 1/6, long-term 1), a refusal with its reason, storage_ui.js from its own source over a small
+  DOM - #gStore opens it, tap a card then a column moves it, a drop on inside slot 2 moves it there, no Fly on long-term,
+  Fly ASKS ("lined up"), then the confirmed Fly rolls out through the garage's roll-out (out of the garage, the start
+  'lineup', the aeroplane on the stand, its document place unmoved). **UISMOKE-PHONE**: the same panel on the phone
+  profile - the moves by tap, Fly off and refused (no world).
+- **DESTTO** (3 shards, 1040 s; + `store:cub`, `destto_store_cub.txt`): the user's Cub stored INSIDE at HOME starts lined
+  up on the runway - `HOLD>ROLL>LIFTOFF>CLIMB` in 29 s, no taxi; stored on the APRON it starts on the stand and taxis out
+  - `TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB` in 198 s; no crash; the document unmoved while it flew. Every other case as before.
+- **PARKED** (full, alone: 7 min 52 s, 196 checks, `parked.txt`): 11 (the leak closed, its negative control red) and 12p
+  (the fleet in the page) and 13 (the stand rows, now by apron slot). The cook line reads STALE, as on any branch that
+  edits a viewer file (the build id moves; parked.js itself is untouched) - A0's re-cook with the train. (My first full
+  run went past the runner's 30-min cap: see G2691 - PARKED 12p caught a real behaviour change, fixed.)
+- Not run: the full tier; FRAMECOST / INSTANT / the strict gate (HANGAR-STORAGE-2's, on the GPU).
+
+**G2694 THE STILLS** (`tools/storage_shot.js`: index.html served by tools/_serve.js, headless Chromium on SwiftShader;
+every still on a LOADED page - BOOT 'gone', #boot hidden, + 2 s, re-checked at each capture; reports/evidence/HANGAR-STORAGE-1/,
+shots.json carries the page's own answers per still):
+**PASS, 10 stills, 0 page errors** (desk 1600 x 900; phone 390 x 844 @2x, ?profile=phone; the page booted 407 s / 95 s):
+- `storage_desk_open` - the panel from the shelf's `storage`: the floor (empty: the stand holds an unsaved build), INSIDE
+  2/2, OUTSIDE 2/6 (apron 3-6 empty slots), LONG-TERM 2; the cards' glyph, name, gear · seats, `work on` / `fly`.
+- `storage_desk_selected` -> `storage_desk_moved` - a card tapped (the columns light as targets), then LONG-TERM tapped:
+  "✓ Spare Cub long-term".
+- `storage_desk_dropped` - the Metal Cessna DRAGGED (the mouse's own drag and drop) from LONG-TERM onto apron slot 3.
+- `storage_desk_refused` - the Old Jodel dropped on a taken inside slot: "inside slot 1 of HOME is taken", nothing moved.
+- `storage_desk_fly_ask` - Fly on Jolene Cub (inside): "Fly Jolene Cub from inside? It starts lined up on the runway, into
+  the wind." CANCEL / FLY. (The Fly itself is not pictured: the cloud cannot render the world - HANGAR-STORAGE-2.)
+- `storage_phone_open` / `_selected` / `_moved` / `_long` - the columns stacked, 48 px targets, Fly greyed (no world);
+  a card tapped, INSIDE tapped -> "INSIDE HOME is full (2/2)" (refused), then LONG-TERM -> "✓ Club Cub long-term".
+  HONESTLY: Playwright's TOUCH tap stalled on the busy SwiftShader page (it waits on a frame), so the phone's three moves
+  were delivered as the DOM click a tap produces (shots.json `how` says so per still); UISMOKE-PHONE drove the same
+  handlers. A real touch on a device is HANGAR-STORAGE-2's (or phone_still.js --checks on a GPU box).
+
+**WHAT HANGAR-STORAGE-2 (LOCAL-GPU, G2700-G2704) MUST VERIFY, AND ITS MINUTES** (~2 h 45 min):
+1. **The residents follow every move** (?career=1, the garage, the hearth / club): STORAGE moves inside <-> long-term <->
+   the apron <-> the floor; after each, `FLYDIY_CAREER`/`residentsApi()`'s plan = the inside slots in order, every holder
+   `filled` from its existing bake, `PARKED` fleet stats: captures and bakes UNCHANGED by the moves (a decode only); the
+   drawn count never past playerSlots().parked; long-term never in the plan. Stills of the room after each (loaded + 2 s).
+   (The sandbox draws no residents - WORKS-COZY's byte-identical club, unchanged here.) ~35 min.
+2. **The apron props follow** (FLYDIY_FLEET on, the sandbox and the career, six on the apron): a roll-out after moves -
+   FLEET_STAND's stood set = the apron slots on spots 0..5, the moved one on its new spot, the others not re-placed
+   (state.stats: placed / kept), no capture / bake in the world (bakeInWorld 0); long-term never stood. Stills of HOME's
+   apron before / after a swap of two slots. ~30 min.
+3. **A Fly from each kind in the page, on the worker** (?simw=1 and without): inside -> lined up on the runway into the
+   wind (HOLD -> ROLL, no taxi, no door shot: trip.anim 'away'); outside -> the stand, cut, the taxi out; the floor ->
+   the door shot as today; long-term -> refused in the panel. A restart keeps each start. A wind from the other side flips
+   the inside start's runway end. ~40 min.
+4. **The cost** (strict per-frame; the garage's parameter change unchanged): the panel is DOM only (nothing per frame; the
+   residents re-plan only on a signature change); FRAMECOST_FLEET and INSTANT --fleet on a shelf of 8 with 6 on the apron,
+   before / after a dozen moves; the drawn cap 6 / 4 on the light presets unchanged. ~45 min.
+5. Write-up + stills index ~15 min.
+
+**OPEN / FOR THE COORDINATOR**
+- **No thumbnail exists in a fleet bake**: the card draws a glyph by gear. A real one = one small extra render in the idle
+  bake (parked.js, FLEET-PROPS' queue) exposed as `PARKED.fleetThumb('mine:<slot>')` - the panel already reads it.
+- **The apron start is the STAND** (today's stand logic), not the prop's own tie-down spot: a taxi route out of an
+  arbitrary spot is not censused (TAXICLEAR censused the spots off the routes, not routes from them). A later step.
+- **The floor follows a LOAD and a NEW save only**: after flying an aeroplane from an inside slot and coming home, the stand
+  shows it while the document keeps it inside (it is "on the stand" on its card; the next load / save swaps the floor).
+- **GQ7's numbers moved with the study's table**: a side club holds 3 (floor + 2), the works main hangar 5 (floor + 4,
+  was 3) - the hearth now draws up to 4 residents (WORKS-COZY: ~free, +1 draw / +25 k tris each; HANGAR-STORAGE-2's row 4
+  times it). GAMEPREM's rows that wrote S2's numbers were updated to them (PLAYER_V 3, the v3 default, the lift's overflow
+  -> apron then long-term, the works' 5, the side club's floor + 2 and its 4th Jodel long-term at the altiport - which
+  has no apron -, the place badge's apron row); its selftest's "a side club holds one" break re-anchored ("a club holds
+  one inside"), and **a break whose anchor is gone is now a MISS, not a catch** (it had silently counted as caught - the
+  same rule in GATE STORAGE).
+- At the mine's street and the altiport (0 cooked spots) an arrival past the floor / inside slots is kept long-term (no
+  apron there); `outsideMax` 6 is per AERODROME (two buildings at HOME share HOME's 6).
+- The residents now read the room's building (`roomId()`), not 'HOME' hard-wired: the same in the career's main hangar;
+  at a side hangar the garage shows that building's own (career only, as before).
+- Merge points: 70_player.js (header, PLAYER_V 3, the migrator, normalise's last line), 71_player_bases.js (PREM_STORE
+  after PREM_SLOTS, playerResidents, playerSlots + the HANGAR-STORAGE block, pbIn / pbOut, reconcile's tail, store,
+  wheel-out, arrive, bring-home, the ONE MOVE block before HOLDING, playerPlace's `store`), 90_node_exports (tail), app.js
+  (playerSlotsChanged's floor line, residentsSync0's id and names, applyRoute's taxiStart, rollAnim's cut, bGo's
+  storeStart = null, the HANGAR-STORAGE block before STAGES, garageInit's `loaded`), fleet_stand.js (rows / deal / plan),
+  body.html (#gStore), editor.css (the token root), build.js (storage_ui.js), run_gates.js (STORAGE after GAMEPREM),
+  _gameprem_check.js, _destto_check.js (store:cub), test_ui_smoke.js (storageChecks, both profiles), _map_smoke.js (the
+  token root's regex takes #hsStore).
+- A0 at the train: rebuild; parked.js is untouched (the cook's signature unmoved by this branch).
+
+
+## G2710-G2714 - MAP-GROUP: THE CONTRACTS GROUPED BY TYPE OR CONTRACTOR, ORDERED IN SECTIONS, FILTERED ON THEIR KEY PARAMETERS (2026-10-11, MAP-GROUP for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader; branch claude/map-group-g2710 off origin/claude/game-t44-1 8040b719 (922ff5b5 + FREIGHT-STRAP / FLEET-PROPS B merges))
+
+The brief: the user, 11 Oct - *"In the map screen, I think the missions should be grouped either by type of mission, or
+contractor, and generate a ordered list with sections according to the ordering type, and filtering on the key parameters
+of the missions."* Kept, by the standing rulings (GAME-2026-10-06.md §R.2-§R.4, MAP-SIMPLE / MAP-MERGE / MAP-STYLE /
+NIGHT-OPS): no right panel, collapsible one-paragraph rows, ✓ / ✗ only for surface vs gear, the TYPE colours, no auto-zoom,
+the garage's look (--ed-* tokens, Plex upright, its controls at 48 px), the place filter, the Contracts / Fleet / Pilots /
+Market switch. Everything stays in src/viewer/map_menu.js (lazy; nothing moved into the core - CAREER-LAZY's split
+untouched) and its smoke rows; no generated file committed.
+
+**G2710 THE PURE CORE** - `contractView(M, st)` decides, the DOM half only renders it (node-testable like rowsOf; rowsOf is
+now the view's rows in list order). st: `{ group: 'type'|'prov', sort: 'pay'|'km'|'stops'|'load', flt, at, fold }` ->
+`{ groups: [{ key, label, colour, rows, total, hidden }], rows, base, shown, hidden: {filter: n}, hiddenAll, active,
+pinned, by, sort, order }`. The key parameters, each read off a contract once:
+- **distance** `kmOfC` - the route's km (chainOf's, the same number the paragraph prints).
+- **stops** `stopsOf` - the places landed at after the first (an overflown survey site is not a stop), at least 1.
+- **load** `loadOf` - the heaviest leg: { kg, pax, all = kg + pax x PAX_KG (80) }.
+- **surface** `surfOf` - land / water / both, over markOf's own ends (`endsOf`, now shared - markOf byte-equivalent).
+- **window** `winOf` - NIGHT-OPS' `c.night.night` (75_ careerNightLine); the fixture's `when` (after dusk / before dawn)
+  when the record carries no night line; else day.
+
+**G2711 GROUP BY + ORDER** - the head under the switch, one row: **Type · Contractor** (the switch's segmented control),
+the order (the rows' select: Pay / Distance / Stops / Load), **Filters n** (a .verb; n = filters set). Sections in a stable
+order - the types in the legend's (Cargo, Passengers, Survey, Build; NIGHT-OPS gives night work no type of its own, so a
+night job's row carries a small "NIGHT" tag), the contractors in the record's = CONTRACT_PROVIDERS' order; a section only
+when it has contracts. Each header: the type's dot (or the contractor's full name), the count, "n hidden" when the filters
+hide some of it; a tap folds it. Inside: Pay high first (default), Distance short first, Stops fewest first, Load heaviest
+first (kg incl. passengers, then passengers); ties by id. Ordered by anything but pay, the row shows that number under its
+title (14 km / 2 stops / 120 kg + 1 passenger). **The tracked contract heads its section, ★, and is never hidden by a
+filter** ("OUTSIDE THE FILTERS" when one would); accepted rows say "ACCEPTED". A one-line summary over the sections:
+"20 contracts · by pay, high first" / "8 of 20 · 12 hidden · by pay, high first" + CLEAR. Grouped by contractor, the types'
+legend shows in the head (grouped by type, the headers are the legend). **MAP-SIMPLE's customer select is gone**, folded
+into the contractor grouping + the contractor filter.
+
+**G2712 FILTERS** - one panel at the head of the list (folded by Filters; it scrolls with the list, so the peek sheet keeps
+its rows): **type** and **contractor** chips (several at once), **fits my fleet** ("✓ only": the hard no-no rule, builds
+included as not-✓), **surface** (any / land / water / both), **stops** (any / 1 / 2 or more), **window** (any / day /
+night), **pay ≥**, **km ≤**, **kg ≤** (number inputs, read on change). Each caption states the rows that filter hides on
+its own ("STOPS 10 hidden"); CLEAR resets all. The place filter (a map tap, "At <place> ✕") narrows the base the others act
+on and stays exact (MAP-SIMPLE's row "a place's rows are exactly the contracts involving it" unchanged). Remembered per
+viewer (localStorage `flydiy.map.group.v1`, behind try / catch): the grouping, the order, the folded sections, the panel
+open - **never the filters** (a new visit shows every contract). **The map follows the list**: an open row the filters hide
+drops its ring and route; while a filter is set, the badges / names of places no shown contract involves are dimmed
+(overlayOf's `n.dim`); the tracked one keeps its ring.
+
+**G2713 THE GATES** (11 Oct, this branch; `node tools/run_gates.js --only=UISMOKE,UISMOKE-PHONE,MAPBAKE,CONTRACTS,BUILD`
+then `--only=LAZY`):
+- **UISMOKE: PASS (227 s), UISMOKE-PHONE: PASS (121 s), MAPBAKE: PASS (81 s), CONTRACTS: PASS (2478 checks, 120 s),
+  BUILD: PASS (8 s), LAZY: PASS (105 s)**; after the last CSS touch (the captions' wrap) UISMOKE PASS (132 s),
+  UISMOKE-PHONE PASS (28 s), BUILD PASS again on the committed tree.
+- `_map_smoke.js`'s new **MAP-GROUP** row: **7 872 views** - group x sort x filter (each filter at each of its values,
+  every pair of different filters) x with / without the place filter, on the fixture (minedock.reopen tracked) and the
+  real record (a new career, a job tracked): each **deterministic** (twice, and on the contracts in reverse order: the same
+  sections, rows, order); the sections in the legend's / CONTRACT_PROVIDERS' order, each row in its own; **shown + hidden =
+  the unfiltered count** (no filter: the sections sum to it); every shown row passes every filter set, every hidden one
+  fails one; each filter's "n hidden" = the rows it hides alone; the order monotone in its key inside a section, ties by id;
+  **the tracked row first in its section and never gone** (5 000+ times outside the filters, flagged); **✓ / ✗ unchanged**
+  and drawn per row; "fits my fleet" = exactly the ✓ rows (+ the tracked); the headers (dot / name, count, "n hidden"), one
+  mmRow per shown contract, a folded section drawing none, the captions' hidden counts, the summary and Clear; NIGHT-OPS'
+  night jobs tagged and the window filter exactly theirs; a hidden open row's ring / route gone and the dimmed badges =
+  the places no shown row involves; no auto-zoom from the five new controls; the per-viewer memory's shape (no filters,
+  try / catch). The earlier rows adapted, not loosened: the customer select's row is now "the contractor sections sum to
+  All" (fixture 2+3+2+2+2 = 11, real 4x5 = 20); R1 adds the new targets (.mmSegB .mmSel .mmFltB .mmChip .mmClr .mmGrp
+  >= 48 px); ONE LOOK checks them on --ed-btn-bg / -bd and every new `font:` is Plex (27 rules); no serif / italic.
+
+**G2714 THE STILLS** - `tools/map_group_shot.js` (new; out `futureDesigns/game/evidence/MAP-GROUP/`, 6 stills + shots.json
+with the page's own answers). Every still is of the LOADED page (BOOT 'gone', #boot hidden, + 2 s, before and after); each
+probe checks the sections and rows the DOM draws against `MAP_MENU.contractView` of the same state, every text Plex
+upright, every target of the list >= 48 px, no title=, no page error.
+- `map_group_desk_type.jpg` - ?career=1, grouped by Type (default), by pay: Cargo 8, Passengers 7, Survey 5 (= 20).
+- `map_group_desk_contractor.jpg` - grouped by Contractor, by Distance: the five contractors x 4, each row's km, the legend.
+- `map_group_desk_filters.jpg` - a water job tracked, then Surface land, Km ≤ 15, Pay ≥ 4 000: each caption's hidden
+  count, "n of 20 · hidden" + CLEAR, the tracked row first "OUTSIDE THE FILTERS", the places no shown row involves dimmed.
+- `map_group_desk_folded.jpg` - the Cargo section folded; then a reload keeps the order, the fold and the panel open, not
+  the filters (checked).
+- `map_group_phone_sheet.jpg` - the phone's folded sheet: the switch, TYPE · CONTRACTOR, the order, FILTERS, the first
+  section under them.
+- `map_group_phone_filters.jpg` - the phone sheet open on the panel: Passengers + "✓ only" (TYPE 13 hidden, FITS 3 hidden).
+
+Files: src/viewer/map_menu.js (the core block, the head, the CSS, the DOM half's events and memory, overlayOf's ring / dim,
+the header comment), tools/_map_smoke.js (the MAP-GROUP row, the adapted customer / R1 / ONE LOOK rows, its header), new
+tools/map_group_shot.js, tools/map_style_shot.js (one selector), futureDesigns/game/evidence/MAP-GROUP/.
+
+Open / notes:
+- Readings chosen where the brief left room (say if any should change): the place filter stays exact (the tracked row is
+  pinned against the parameter filters, not against a map tap); a section the filters empty is not drawn (the summary
+  counts it); Distance / Stops order short / fewest first, Load heaviest first, no direction toggle; the load counts a
+  passenger at 80 kg (PAX_KG); "fits my fleet" leaves the build contracts out (they carry no ✓).
+- tools/map_style_shot.js probed `.mmCust` for MAP-STYLE's select dress: now the order select `.mmSort` (the same rows'
+  select rule); its committed stills stand.
+- Not run: the full tier.
+
+READY for the GAME COORDINATOR
+
+## G2228 - FLEET-PROPS B: THE COWL'S INSIDE TWIN NEVER REACHES A BAKE (re-applied on t44-1 b38a86f1 after the 44.1 revert; the user: "there is clipping of the cowl. The cowl has an interior mesh, dark. You can get rid of it for baked planes") (2026-10-11/12; branch claude/fleet-cowlbake-g2228b)
+
+- WHAT: every cowl skin mesh has a TWIN 1.5 mm inside it in a near-black BackSide material (G243.1/.3). In a bake,
+  rebuilt two-sided, it fought the skin: patchy dark on the baked nose.
+- WHY THE FIRST TWO CUTS MISSED (44.1, reverted): the material flag never crossed the snapshot - in the game every lit
+  material is UNDERSTUDIED (_cage_ui.js uniOf: a matte Standard whose userData is { cageUni, cageUniOf } only) - and the
+  twin wore exactly its two-sided lining's colour, so it shared the lining's bucket. Lesson: a marker the join must see
+  goes on the MESH.
+- THE FIX: the cowl marks the back twin (mesh userData.innerTwin, material aeroInner; the two-sided lining - the throats,
+  the fold's return, the inner lofts - is seen through the inlets and stays); the join reads the mesh marker (its own
+  bucket, key suffix 'Y'; record `inner: 1`); parked.js isInterior counts `inner`: every baked rung, the far cut, the
+  parked cook (cookPack -> bakeData: it inherits it at the next re-cook) and the fleet leave it out. The flown
+  aeroplane's own bake (flown_bake.js) is untouched.
+- GATE PARKED 11b (the page in node, a real capture of arch:c172 under the metal Cessna) + a headless row: 1 inside-only
+  bucket, 6 062 triangles, FLAGGED; 0 in the far cut, the L1 / bake selection skips it; the silhouette identical
+  (projected area, 2 cm cells: x 10 847, y 58 300, z 23 234 both ways; tolerance 0.1 %); DOCTORED (the flag stripped):
+  6 062 triangles back in the cut - the row sees them. When red it prints the editor's own twin count.
+- Also on this branch (be51b15c): plain INSTANT pins the fleet OFF (?fleet=0; only --fleet / --fleet-baked stand it) and
+  prints the wall per row and per build (the 44.1 landing's 1 186 s: the fleet cleared - Cub alone ~400 s with or without
+  it; the measurement is Mon 12 Oct 13:25-13:50).
+- GATES (12 Oct 10:30-10:33, take cpu FLEETB, tree be51b15c): PARKED PASS (full, 11b green), FLOWNBAKE PASS, SKIN PASS.
+  Logs: reports/evidence/FLEET-PROPS-B/g2228c/.
+
+READY for the GAME COORDINATOR: claude/fleet-cowlbake-g2228b be51b15c (this section rides one docs-only commit on top)
+
 ## G2950 - ROAD-GRAPH + ROAD-BED: ROADS JOIN AT WAYPOINTS, A JUNCTION IS ONE NODE, METLAKATLA ONE GRID WITH ITS CONNECTION POINTS, ROADSIDE APRONS, THE ROAD BED (2026-10-12, SCENERY-ED-2 for A0, local; branch claude/road-graph-g2950 off train 44.4 c12f0490c; G2950 graph, G2951 editor, G2952 bed, G2953 aprons, G2954 Metlakatla, G2955 the long road's power line, G2956 the user's road shipped; G2957-G2959 unused, G2960-G2969 the runway train)
 
 The user (11 Oct): "let's have roads snapping to each other. One day I'd like a scenic tour of the island's roads,
@@ -93288,3 +93711,11 @@ most 4 s, then the usual 7) - this branch takes 41b's loop; only the row's messa
 after a quiet settle = "THE HOST NEVER FLUSHED ITS LAST SET").
 NAMED CRASH CHANGE (damage ON, the user will see it): in the floats' severe nose-in (150 km/h, 10 m/s, 60 deg) the
 SHELL now parts at the ROOT at 0.15 s - the tail comes off; on master the FIN goes at 0.53 s.
+## G2662-G2664 - SIM-CLOCK-GPU FIX: A WAIT IN THE GARAGE 267-396 MS -> 83-107 MS (THE ROOM PROBE ONCE PER JUMP, A FACE A FRAME); GATE CLOCKBAKE (2026-10-11/13, SIM-CLOCK-GPU for the GAME COORDINATOR; branch claude/sim-clock-fix-g2662 off master f353a0f8 (44.1); the measurement is G2660-G2661 on claude/sim-clock-gpu-g2660)
+
+**G2662** (app.js): a jump of the clock re-shot the shed's room probe (a 6-face CubeCamera of the room + PMREM) in ONE frame, and TWICE when it crossed a mood band (shedDayTick's rebake + setMood fromClock). Now the clock's requests coalesce into ONE job shot over eight garage frames (`bakeHangarEnvSliced` / `envSliceStep`: a face a frame through the CubeCamera's own update, the room's PMREM + swap, the outdoors' sky); the old probe stays on screen until the new one is whole; never skipped (a request after the first face re-runs the job); every other caller keeps the one-shot (which supersedes a running job). `window.FLYDIY_ENV_BAKES` counts; `window.FLYDIY_CLOCKSLICE = false` restores the old path (A/B, the gate's control).
+**G2664 GATE CLOCKBAKE** (new, core, the page in node, ~90 s): three mood-crossing Waits -> one job, 8 slices, 0 one-shots, one environment swap after the faces, done in 8 frames; the CONTROL is the old path itself (2 one-shots per Wait, and the jump frame's cube draws 2284 vs the fix's 509 - "a whole bake left the frame"). GREEN on c38a5e99 (12 Oct 11:40; the runner read FAIL only from my verdict line, fixed). GATE PROGRAMS re-anchored (its bake scan went quiet on the new signature). LIGHT CLOCK HANGAR UISMOKE PASS (12 Oct 10:18).
+**THE GPU RE-MEASURE** (Tue 13 Oct 06:45-06:53, the same rig / rung / flags as G2660: CPU x3 + GPU x6, retro, 1920x1080; evidence reports/evidence/SIM-CLOCK-GPU-FIX/, numbers only): the GARAGE Wait's task **267-396 -> 83-107 ms** (9 / 9 jumps, worst frame 100 ms, longest task 107 ms - under taskWorst's 150; 0 programs, 0 LUT re-bakes, back 9 / 9). The STAND unchanged (the fix is the garage's): its first noon still compiles 5 programs (517 ms frame) - G2663, open. Default picture vs master f353a0f8: not pixel-identical (garage 2.8 %, world 0.7 % of pixels over 2 levels); the fix runs nothing at the boot (envDeferred), so read as the shots' 1-2 s apart on a running clock + drifting clouds - unproven.
+**OPEN (credit mode, not started):** G2662.1 (c86d4e32, WITHDRAWN from this tip): the faces re-ran the shadow pass (~850 draws a face, the lamps' point cubes uncached; the old jump frame 14 869 shadow draws); faces with the frame's own maps cut the slices to the steady state, but its first face frame showed a second full shadow pass (4033) - cause unknown (the cache re-baking the newly lit lamps?) - CLOCKBAKE red on it 13 Oct 05:55. G2663 the stand's first-noon programs: 1 standard + 3 basic + 1 depth, the lamp pool's count among them (10 -> 2 points); owners not yet named (probe: scratchpad g2663_probe3.js, searches window.WORLD.scene).
+
+READY for the GAME COORDINATOR (train 52: the garage Wait fix, c38a5e99's code + the gate)
