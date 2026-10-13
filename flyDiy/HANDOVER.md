@@ -92681,3 +92681,11 @@ Limits: occlusion inside the block is the quads' (flat) depth; each tree's own t
 G3185 GATE CARDMATCH: `node tools/perf/cardmatch_probe.js --url <page> --gate` - the default look's on-screen card / impostor
 luma within 0.85-1.15, and the NEGATIVE CONTROL: the same card at half its level must leave the band; PASS only when both
 hold. A GPU row (no node harness renders); its first run is the GPU proof A0 books.
+THE PROOF (Tue 13 Oct 18:05-18:18, RTX 3080, dev.html of the branch; cardmatch_probe, on screen cards / impostors in linear RGB):
+  composed (G3184):            default look luma 1.08 (r 1.01 g 1.08 b 1.25) | the master's light x1.5 + hue 0.05: 0.93
+  merged bake, levelled (G3183): default look luma 1.04 (r 1.02 g 1.02 b 1.36) | tinted: 0.81
+GATE CARDMATCH: PASS (default 1.08 inside 0.85-1.15; the control at half level 0.57 leaves the band). The first run FAILED
+its own control (1.12): every rebuild of the card (the probe's near/standIn set) cleared the level the control set - fixed in
+G3186 (a composed card clears only a level its own matchLevel set), with sheetMean taking the newest sheet of a key.
+WHAT TO WATCH FOR: the far hillsides' trees the colour of the impostor forest in front under any look the user sets (a little
+blue left: b 1.25), and still matched after a world-rail tint change.
