@@ -87,8 +87,16 @@
      167.78,
      628.52
     ]
+   ],
+   "plots": [
+    {
+     "id": "HOME.2",
+     "x": -118,
+     "z": 780,
+     "hdg": -1.9635
+    }
    ]
   }
  },
- "fieldPatchesWhy": "SCENERY-ED-1 G2890 (A0 13 Oct ~01:20 'GO'): HOME's main hangar beside the user's long club hangar, its stand, and the two taxi-outs rerouted over rev 28's y_pad and r_taxi_ne / r_taxi_e (r_airport / r_strip are gone); applied after the ship - a re-ship must apply it again; the user's import with the same patch: D:/Dev/flydiy-notes/inbox/jolene_rev28d_home_hangar.json. plots HOME.2 unchanged (pending the user)"
+ "fieldPatchesWhy": "SCENERY-ED-1 G2890 (A0 13 Oct ~01:20 'GO'): HOME's main hangar beside the user's long club hangar, its stand, and the two taxi-outs rerouted over rev 28's y_pad and r_taxi_ne / r_taxi_e (r_airport / r_strip are gone); applied after the ship - a re-ship must apply it again; the user's import with the same patch: D:/Dev/flydiy-notes/inbox/jolene_rev28d_home_hangar.json. plots HOME.2 unchanged (pending the user); + plots (ED-1, A0's (a), 13 Oct ~02:15): HOME.2 keeps its shed position and heading and loses its own stand + taxiOut - two of its points ((-130,705), (-138,690)) lay inside the new main hangar; runwaySite serves it the field's new stand / route. The user's import: D:/Dev/flydiy-notes/inbox/jolene_rev28e_home_hangar.json (supersedes rev28d)"
 }
