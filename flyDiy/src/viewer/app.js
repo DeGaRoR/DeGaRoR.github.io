@@ -15399,6 +15399,12 @@
   // G1898: ?damage=1|0 - the damage layer for this page's flights (and the worker's, through its init), ahead of
   // GEN_DAMAGE_DEFAULT; a build's own params.damage still wins
   try { const m = /[?&]damage=([01])(&|$)/.exec(location.search || ''); if (m) window.FLYDIY_DAMAGE = m[1] === '1'; } catch (e) {}
+  // G3020 (DMG-LAZY): the damage layer's drawing (skin_break, skin_gpu, wreck_debris) is a LAZY chunk - asked for here, in
+  // that order, whenever this page's flights can have the layer on: ?damage=1, or the default on (GEN_DAMAGE_DEFAULT, the
+  // train-45 flip) without ?damage=0. A build's own params.damage is not known yet here: brkState / brkGpu / wreckFrame
+  // read the modules' presence at every use, so such a flight draws its first frames intact until they land
+  try { const on = window.FLYDIY_DAMAGE === true || (window.FLYDIY_DAMAGE !== false && typeof GEN_DAMAGE_DEFAULT !== 'undefined' && GEN_DAMAGE_DEFAULT === true);
+    if (on && typeof window.FLYDIY_LAZY === 'function') window.FLYDIY_LAZY(['skin_break', 'skin_gpu', 'wreck_debris']); } catch (e) {}
   const SIMW_ON = (() => { try { const m = /[?&]simw=([01])(&|$)/.exec(location.search || ''); if (m) return m[1] === '1';
     const p = prefGet('flydiy.simw', ''); if (p === '0' || p === '1') return p === '1'; } catch (e) {} return SIMW_DEFAULT; })();
   const SIMW = (SIMW_ON && !GARAGE_ONLY && typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined') ? SIM_LINK.make({

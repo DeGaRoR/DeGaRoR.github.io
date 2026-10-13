@@ -363,6 +363,13 @@ const MANIFEST = {
          // G2345 (FREIGHT-LOAD): THE LOADING VIEW - fetched when the LOAD entry is pressed (the entry exists only under
          // ?career=1 with a tracked cargo job, or ?freight=1); app.js's FREIGHT page half is its host
          ['src/viewer', 'freight_load.js'],
+         // G3020 (DMG-LAZY, the user 12 Oct: the damage layer's +160 KB owed back): THE DAMAGE LAYER'S DRAWING - the skin over a
+         // break (SKIN_BREAK), its GPU riding (SKIN_GPU) and the wreck's parts (WRECK_DEBRIS), ~138 KB a flight with the
+         // damage layer off never runs. app.js asks for them, in this order, once FLYDIY_DAMAGE / GEN_DAMAGE_DEFAULT can turn
+         // the layer on (?damage=1, or the default on); every use in app.js sits behind window.SKIN_BREAK / SKIN_GPU /
+         // WRECK_DEBRIS (brkState, brkGpu, wreckFrame), so a frame before they land draws the intact aeroplane as before.
+         // ground_scar.js stays in the world pack: its decal is parked in the world BEFORE the world's compile (G2359)
+         ['src/viewer', 'skin_break.js'], ['src/viewer', 'skin_gpu.js'], ['src/viewer', 'wreck_debris.js'],
          // G2400 (FREIGHT-STRAP): THE STRAPPED LOAD'S DRAWING - fetched the first time an accepted load is to be drawn
          // (the stand, a roll-out); never without ?career=1 / ?freight=1 and a load
          ['src/viewer', 'freight_strap.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
@@ -601,12 +608,8 @@ const MANIFEST = {
               // G999: the world's composition, run by the promote in a task of its own ahead of app.js's evaluation
               // G1804 (DMG-D0): the damage view's colours (window.DMG_TINT, pure; app.js sync() reads it)
               'dmg_overlay.js',
-              // G1851 (DMG-D4a): the skin over a break (window.SKIN_BREAK, pure; app.js poseModel reads it)
-              'skin_break.js',
-              // G1818 (DMG-SKINGPU): the wreck's skin ridden on the GPU (window.SKIN_GPU; app.js brkGpu - nothing at load)
-              'skin_gpu.js',
-              // G1860-G1863 (DMG-D4b): the wreck's non-member parts - debris, the prop strike, the cockpit rule (window.WRECK_DEBRIS, pure)
-              'wreck_debris.js',
+              // (G3020, DMG-LAZY: skin_break.js, skin_gpu.js and wreck_debris.js - the damage layer's drawing - are LAZY files,
+              // below: app.js asks for them when the damage layer can be on; every use of them is behind their presence)
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },
