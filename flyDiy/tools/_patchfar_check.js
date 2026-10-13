@@ -61,7 +61,7 @@ function block(nCh, lp, withPav) {
   check(badA === 0 && badT === 0, '1 the normals, the uvs and every triangle carried as they were', badA + ' / ' + badT + ' wrong');
   check(badPav === 0, '1 the pavement\'s sink attribute: the blocks\' own, zeros for a block without it', badPav + ' wrong');
   check(M.idx instanceof Uint16Array, '1 a small merge indexed 16-bit');
-  const big = H.farMergeArrays([block(40, [0, 0, 0], false), block(40, [512, 0, 0], false)], [256, 0, 0]);
+  const big = H.farMergeArrays(Array.from({ length: 40 }, (_, k) => block(40, [512 * (k % 4), 0, 512 * Math.floor(k / 4)], false)), [1024, 0, 1024]);   // 40 x 1 800 vertices
   check(big.nV > 65535 && big.idx instanceof Uint32Array, '1 a merge past 65 535 vertices indexed 32-bit (' + big.nV + ')');
   const none = H.farMergeArrays([block(1, [0, 0, 0], false), block(1, [512, 0, 0], false)], [256, 0, 0]);
   check(none.pav === null, '1 no block with the sink attribute: none on the merge');
