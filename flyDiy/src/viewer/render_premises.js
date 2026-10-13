@@ -967,6 +967,8 @@ function make(THREE, scene, world, rec0, opts) {
   // plot (it belongs on the verge in front of a frontage, which is the village's own rule - unlike the
   // guardrail, which keeps 8 m clear of one), nor in a junction, nor on a strip.
   const PWR = (typeof POWERLINE !== 'undefined') ? POWERLINE : null;
+  // (G3087 HOME-FRAME) the cables' draw reach from the page's address: ?cablereach=N (powerline DEF 1200; 2400 the old)
+  if (PWR && PWR.set && typeof location !== 'undefined') { const q = /[?&]cablereach=(\d+)/.exec(location.search || ''); if (q) PWR.set({ reach: +q[1] }); }
   function poleKeep(rd) {
     return (lx, lz) => {
       // (G2063: each test skips a shape whose box lies beyond its reach - bbFar, exact; a point outside a plot's box is outside the plot)
@@ -1563,9 +1565,16 @@ function make(THREE, scene, world, rec0, opts) {
     const W = typeof window !== 'undefined' ? window : null, now = typeof performance !== 'undefined' ? performance.now() : 0, k = posed + '/' + all;
     if (W && W.FLIGHT_REC && W.FLIGHT_REC.event && k !== TRC.last && now - TRC.t > 10000) { TRC.t = now; TRC.last = k; W.FLIGHT_REC.event('traffic', null, posed + ' cars posed of ' + all + ' on ' + TRAFFIC.size + ' road' + (TRAFFIC.size === 1 ? '' : 's')); }
   }
+  // THE CARS' DRAW REACH (G3087 HOME-FRAME; A0, 13 Oct: SCENERY-SHIP's rev 27 cost ~+2 ms a frame at HOME). A car's reach
+  // was its prop's own cull distance (props.js propCullDist: 730 x its diagonal - ~3.6 km for a car, 1-2 px there), so
+  // with the user's island road r1 every car within 3.6 km of the eye was posed each frame (the ground read five times,
+  // the tilt, its obstacle moved) and drawn: 32 at HOME, 7 before. TRAFFIC_REACH caps it at 1200 m (a car is 4-5 px
+  // there; the census at HOME: -20 draws, the loop -0.3 ms), ?trafficreach=N / R.trafficReach(N), 0 the prop's own (the old)
+  const TRAFFIC_REACH = { m: (() => { const q = typeof location !== 'undefined' && /[?&]trafficreach=(\d+)/.exec(location.search || ''); return q ? +q[1] : 1200; })() };
+  const tReach = t => (TRAFFIC_REACH.m > 0 ? Math.min(t.reach, TRAFFIC_REACH.m) : t.reach);
   function moveTraffic(t, dt, eye) {
     const F = O.frame, off = Math.max(0.9, Math.min(1.6, t.w / 4)), b = t.box;
-    const pose = !eye || !b || Math.hypot(Math.max(b[0] - eye.x, 0, eye.x - b[2]), Math.max(b[1] - eye.z, 0, eye.z - b[3])) <= t.reach;
+    const pose = !eye || !b || Math.hypot(Math.max(b[0] - eye.x, 0, eye.x - b[2]), Math.max(b[1] - eye.z, 0, eye.z - b[3])) <= tReach(t);
     // G1437 (METLA-TAXI): ...AND OUT OF THE FRAME'S WALKS. An unposed car still stood in the scene graph - its LOD ladder
     // re-composed by updateMatrixWorld and its LOD updated by the render's projectObject every frame, for a car that
     // draws nothing there (its last level is empty at the reach). Hidden and its matrices held until the eye comes back
@@ -1588,7 +1597,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (!pose) continue;
       const a = t.pr.at(c.s), tx = a.tg[0] * c.dir, tz = a.tg[1] * c.dir;
       // (G2917) a car past the draw reach is not posed (its last level is empty there): an island road's far cars cost nothing
-      if (eye) { const w0 = F.toWorld(a.p[0], a.p[1]), far = Math.hypot(w0[0] - eye.x, w0[1] - eye.z) > t.reach; if (far !== !!c.far) { c.far = far; c.grp.visible = !far; c.grp.matrixWorldAutoUpdate = !far; } if (far) continue; }
+      if (eye) { const w0 = F.toWorld(a.p[0], a.p[1]), far = Math.hypot(w0[0] - eye.x, w0[1] - eye.z) > tReach(t); if (far !== !!c.far) { c.far = far; c.grp.visible = !far; c.grp.matrixWorldAutoUpdate = !far; } if (far) continue; }
       const rx = -tz, rz = tx;                                    // the right-hand side of the direction of travel (x right, z toward the viewer, y up)
       const w = F.toWorld(a.p[0] + rx * off, a.p[1] + rz * off);
       const ry = Math.atan2(tx, tz) + (F.yaw || 0);
@@ -4083,6 +4092,7 @@ function make(THREE, scene, world, rec0, opts) {
     root, groups: G, stats,
     rebuild, rebuildSteps, preview, previewEnd, editEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
     objectEdit, hitAll,
+    trafficReach: m => { if (m !== undefined) TRAFFIC_REACH.m = Math.max(0, +m || 0); return TRAFFIC_REACH.m; },   // (G3087)
     snapHint, relineEntry,
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,
