@@ -93003,3 +93003,11 @@ The user: "the LODs for the auxiliary hangars in the starting area are black ins
 - Gates owed: every gate reading render_premises.js runs in A0's train-52 battery (PREMCOOK re-cooked there).
 
 READY for A0: claude/far-hangar-g2319 680a19fa (the fix; the census tool, its results and this section ride on top)
+
+## Train 52ab (A0, 14 Oct 00:30)
+Landed origin/claude/t54-audit = train 52a (editor/vegetation group, fixed) + train 53 (the user's rev28 content: strip 13, altiport, HOME rework, main hangar, world look defaults, cars/cables culled nearer, ROUTE-LAZY) + SCENERY-ED-2's slider range audit (G3019). Strict light gate: PASS, 140 rows in slack, 10 better, 0 red.
+Gates (75 jobs, re-run after a spawn EPERM crash at 27/75): reds accepted -
+- LOOKS 2: the 02/20 north end 13 cm under a pond (rev28 w2), item rwy0220-pond, train 55.
+- CLOUD 3 of 239: the lamps rows, pre-existing.
+- SKINMAT, WEATHER: red on master f6bda9011 too; EDITOR-BUGS' fix rides train 53b (01:25).
+- SITE 1 of 245: calibration row "a plot turned away from its stand is not seen"; green on t52-full; 53b's gates re-check it.
