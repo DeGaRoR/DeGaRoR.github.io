@@ -166,7 +166,10 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 // chunk loaded only with ?damage=1, ~-50 KB gz) and G3021 (the damage half of app.js, lazy too); both in the official
 // backlog. (Before: 4.05, train 44's ~+30 KB, owed back by ROUTE-LAZY G3070.)
 // Master's quote, kept: A0 12 Oct 22:10: the user ACCEPTED BY NAME SCENERY-SHIP's +10 KB (rev27: strip 12, roads, areas) - "ok". Before that, 12 Oct: the user ACCEPTED BY NAME train 44's ~+30 KB (route_draw + 44_vprofile + 38c_route: 4.03 MiB); owed back by ROUTE-LAZY G3070 (route_draw as a lazy chunk)
-const WIRE_BUDGET_MIB = 4.21;   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
+// CHARACTERS G2970 (train 52b): the user, 13 Oct ~12:00, BY NAME (via A0): "a, accept the +4 KB for the passengers" - the
+// crowd's page half in app.js (~4.1 KB gz; the cast, its clips and crowd.js are lazy media). Owed back cheaply if wanted:
+// the page half can move into crowd.js behind a ~2 KB shim (HANDOVER G2970).
+const WIRE_BUDGET_MIB = 4.215;  // (4.21 + the passengers' ~4 KB gz: master measured 4.2091 + ~0.0040)
 // STEP: how much index.html (CRs removed) may grow over the build before it, MiB.
 // "The build before" is git's: if the built page differs from HEAD's, HEAD (and
 // its parents, when HEAD is a merge); if it IS HEAD's, the parents of the commit
