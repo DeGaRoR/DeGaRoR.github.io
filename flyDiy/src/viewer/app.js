@@ -7716,12 +7716,12 @@
   // the route: the cabin door's foot beside the pilot's station on the starboard side (the Cub's door; -x in the crew's
   // frame), the queue square to the fuselage, from the hangar's door (40 m at most) - see CROWD.route
   function crowdRoute(n) {
-    const M = model, f = new THREE.Object3D();
-    f.matrixAutoUpdate = false; f.matrix.set(...M.data.cageM); M.grp.add(f); f.updateWorldMatrix(true, false);
+    // the crew's frame in the world: grp's drawn matrix x cageM, multiplied here - a hand-set child's matrixWorld is NOT
+    // recomputed by updateWorldMatrix without matrixWorldNeedsUpdate (W0.5a, r186: the probe's walk round the origin)
+    const M = model, Wm = new THREE.Matrix4().multiplyMatrices(M.grp.matrixWorld, new THREE.Matrix4().set(...M.data.cageM));
     const r = M.data.people && M.data.people[0], t = r && r.figM ? [r.figM[12], r.figM[13], r.figM[14]] : [0, 0, 0];
-    const W = (x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(f.matrixWorld);
+    const W = (x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(Wm);
     const c = W(0, t[1], t[2] - 0.6), d = W(-1.3, t[1], t[2] - 0.6), nz = W(0, t[1], t[2] + 0.4);
-    M.grp.remove(f);
     let ox = d.x - c.x, oz = d.z - c.z, fx = nz.x - c.x, fz = nz.z - c.z;
     const ol = Math.hypot(ox, oz) || 1, fl = Math.hypot(fx, fz) || 1;
     ox /= ol; oz /= ol; fx /= fl; fz /= fl;
