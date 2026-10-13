@@ -1,0 +1,90 @@
+== Cub (builds/cub_2026-09-20_corrected.json)
+   nodes                             93 -> 93         (+0)
+   members                          394 -> 394        (+0)
+   mass                          476.19 -> 460.39     (-15.81) kg
+   CG x (model frame)             0.669 -> 0.703      (+0.034) m
+   CG y (model frame)             0.552 -> 0.494      (-0.058) m
+   engine node x                 -0.892 -> -0.892     (+0.000) m
+   shakedown cgX                  0.669 -> 0.703      (+0.034) m
+   neutral point npX              0.965 -> 0.969      (+0.004) m
+   static margin                  0.175 -> 0.157      (-0.018)
+   Vs                             15.98 -> 15.72      (-0.27) m/s
+   take-off run (shakedown)         156 -> 142        (-14) m
+   climb rate                      2.97 -> 3.13       (+0.16) m/s
+   fuel litres                       45 -> 27         (-18) L
+   tanks                     45 L nose -> 27 L nose 0.193x0.522x0.313
+   glazed area                        - -> 1.876      m2
+   prop disc low point, settled      35.5 -> 35.6       (+0.1) cm over the ground
+   stance pitch, settled           7.16 -> 7.17       (+0.01) deg
+== Jodel (builds/jodel_2026-09-20_corrected.json)
+   nodes                            111 -> 111        (+0)
+   members                          492 -> 492        (+0)
+   mass                          462.96 -> 463.89     (+0.93) kg
+   CG x (model frame)             0.432 -> 0.424      (-0.009) m
+   CG y (model frame)             0.300 -> 0.301      (+0.001) m
+   engine node x                 -0.986 -> -0.986     (+0.000) m
+   shakedown cgX                  0.432 -> 0.424      (-0.009) m
+   neutral point npX              0.503 -> 0.502      (-0.001) m
+   static margin                  0.042 -> 0.047      (+0.005)
+   Vs                             18.81 -> 18.83      (+0.02) m/s
+   take-off run (shakedown)         205 -> 206        (+1) m
+   climb rate                      2.56 -> 2.55       (-0.01) m/s
+   fuel litres                       45 -> 45         (+0) L
+   tanks                     45 L nose -> 45 L nose 0.305x0.759x0.229
+   glazed area                        - -> 1.213      m2
+   prop disc low point, settled      51.5 -> 51.5       (-0.0) cm over the ground
+   stance pitch, settled           9.51 -> 9.51       (-0.00) deg
+== metal Cessna (bugReports/cessnaMetal (1).json)
+   nodes                            103 -> 103        (+0)
+   members                          442 -> 442        (+0)
+   mass                          883.41 -> 887.24     (+3.83) kg
+   CG x (model frame)             0.818 -> 0.640      (-0.178) m
+   CG y (model frame)             0.593 -> 0.593      (+0.000) m
+   engine node x                 -0.510 -> -1.162     (-0.652) m
+   shakedown cgX                  0.818 -> 0.640      (-0.178) m
+   neutral point npX              1.059 -> 1.052      (-0.008) m
+   static margin                  0.144 -> 0.245      (+0.101)
+   Vs                             22.11 -> 22.16      (+0.05) m/s
+   take-off run (shakedown)         147 -> 147        (+0) m
+   climb rate                      6.97 -> 6.94       (-0.03) m/s
+   fuel litres                       28 -> 28         (+0) L
+   tanks                     28 L nose 0.263x0.601x0.21 -> 28 L nose 0.263x0.601x0.21
+   glazed area                        - -> 1.976      m2
+   prop disc low point, settled      -1.1 -> -2.3       (-1.2) cm over the ground
+   stance pitch, settled          -0.80 -> -1.00      (-0.21) deg
+== Cessna floats (bugReports/cessnaFloatsWOrks.json)
+   nodes                            130 -> 130        (+0)
+   members                          533 -> 533        (+0)
+   mass                         1018.19 -> 951.51     (-66.67) kg
+   CG x (model frame)             0.895 -> 0.646      (-0.249) m
+   CG y (model frame)             0.456 -> 0.511      (+0.055) m
+   engine node x                 -0.510 -> -1.162     (-0.652) m
+   shakedown cgX                  0.895 -> 0.646      (-0.249) m
+   neutral point npX              1.191 -> 1.180      (-0.011) m
+   static margin                  0.176 -> 0.318      (+0.142)
+   Vs                             25.18 -> 24.34      (-0.84) m/s
+   take-off run (shakedown)        1207 -> 1080       (-127) m
+   climb rate                      6.33 -> 6.83       (+0.49) m/s
+   fuel litres                       28 -> 28         (+0) L
+   tanks                     28 L nose 0.263x0.601x0.21 -> 28 L nose 0.263x0.601x0.21
+   glazed area                        - -> 2.804      m2
+   prop disc low point, settled      52.7 -> 53.9       (+1.2) cm over the ground
+   stance pitch, settled          -2.20 -> -1.57      (+0.63) deg
+== twin floatplane (tools/fixtures/build_v7_ultralight_2026-09-05.json)
+   nodes                            127 -> 127        (+0)
+   members                          519 -> 519        (+0)
+   mass                          475.42 -> 489.27     (+13.86) kg
+   CG x (model frame)             0.946 -> 0.936      (-0.010) m
+   CG y (model frame)             0.653 -> 0.648      (-0.005) m
+   engine node x                  0.425 -> 0.424      (-0.000) m
+   shakedown cgX                  0.946 -> 0.936      (-0.010) m
+   neutral point npX              1.166 -> 1.116      (-0.050) m
+   static margin                  0.147 -> 0.120      (-0.026)
+   Vs                             16.08 -> 16.33      (+0.25) m/s
+   take-off run (shakedown)         310 -> 339        (+29) m
+   climb rate                      7.85 -> 7.77       (-0.08) m/s
+   fuel litres                       19 -> 19         (+0) L
+   tanks                     19 L nose 0.38x0.309x0.25 -> 19 L nose 0.38x0.309x0.25
+   glazed area                        - -> 0.440      m2
+   prop disc low point, settled     110.2 -> 68.8       (-41.4) cm over the ground
+   stance pitch, settled           0.15 -> 0.48       (+0.33) deg

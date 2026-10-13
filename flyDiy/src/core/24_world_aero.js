@@ -24,7 +24,7 @@ function bakeAerodromes(D) {
 
   // centreline + shoulder probe: flatness, slope, wetness around a candidate
   function probe(cx, cz, hdg, len, wid) {
-    const dx = Math.cos(hdg), dz = Math.sin(hdg);
+    const dx = CORE_MATH.cos(hdg), dz = CORE_MATH.sin(hdg);
     const K = 11, hs = [];
     let sum = 0;
     for (let i = 0; i < K; i++) {
@@ -61,7 +61,7 @@ function bakeAerodromes(D) {
   const NUDGE = [];
   for (const dv of [0, -60, 60, -120, 120, -180, 180, -240, 240]) for (const du of [0, -80, 80, -160, 160]) if (du || dv) NUDGE.push([du, dv]);
   function clean(cx, cz, hdg, len, wid) {
-    const dx = Math.cos(hdg), dz = Math.sin(hdg), hw = wid / 2 + 6;
+    const dx = CORE_MATH.cos(hdg), dz = CORE_MATH.sin(hdg), hw = wid / 2 + 6;
     const n = Math.ceil(len / STEP);
     for (let i = 0; i <= n; i++) {
       const t = (i / n - 0.5) * len;
@@ -92,7 +92,7 @@ function bakeAerodromes(D) {
   const farFromStrips = (x, z, d) => strips.every(st => Math.hypot(x - st.x, z - st.z) >= d);
 
   function push(cx, cz, hdg, len, wid, surf, elev, name, kind, flyIn) {
-    const dx = Math.cos(hdg), dz = Math.sin(hdg);
+    const dx = CORE_MATH.cos(hdg), dz = CORE_MATH.sin(hdg);
     const feather = 90 + len * 0.1;
     // the box holds the WHOLE feather (G1560, REVIEW C-world): grade() flattens wid/2 + 6 across and feathers past
     // that, and the box stopped at wid/2 + feather - the grade was cut off 6 m short of its end on the long sides,
@@ -128,8 +128,8 @@ function bakeAerodromes(D) {
     const r0 = Math.max(320, s.r + 160);
     for (let ri = 0; ri < 3; ri++) for (let ai = 0; ai < 12; ai++) {
       const ang = (ai / 12) * 2 * Math.PI + hash2(si * 37 + ri, ai) * 0.2;
-      const cx = s.x + Math.cos(ang) * (r0 + ri * 280);
-      const cz = s.z + Math.sin(ang) * (r0 + ri * 280);
+      const cx = s.x + CORE_MATH.cos(ang) * (r0 + ri * 280);
+      const cz = s.z + CORE_MATH.sin(ang) * (r0 + ri * 280);
       if (inHomeZone(cx, cz) || nearMeadow(cx, cz, 1.8) || !farFromStrips(cx, cz, 1500)) continue;
       if (roadNear(cx, cz) > 1100) continue;   // town fields must be road-reachable
       for (let hi = 0; hi < 8; hi++) {
@@ -150,7 +150,7 @@ function bakeAerodromes(D) {
     if (!best && cands.length) {
       const more = [];
       for (const c of cands) {
-        const ux = Math.cos(c.hdg), uz = Math.sin(c.hdg);
+        const ux = CORE_MATH.cos(c.hdg), uz = CORE_MATH.sin(c.hdg);
         for (const [du, dv] of NUDGE) {
           const cx = c.cx + ux * du - uz * dv, cz = c.cz + uz * du + ux * dv;
           if (inHomeZone(cx, cz) || nearMeadow(cx, cz, 1.8) || !farFromStrips(cx, cz, 1500)) continue;

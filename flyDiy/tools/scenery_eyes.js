@@ -7,6 +7,7 @@
 // (its centre, along it), the road's arc-length middle (along it), and the densest 200 m cell of the user's own objects
 // and sites (new or changed against --base; not within 400 m of another eye). Read only, no world loaded.
 'use strict';
+require('./_core_math_global.js');   // (T41b: CORE_MATH before a core file required alone - 00_registry's)
 const fs = require('fs');
 const path = require('path');
 const PG = require(path.join(__dirname, '..', 'src', 'core', '27_premises.js'));

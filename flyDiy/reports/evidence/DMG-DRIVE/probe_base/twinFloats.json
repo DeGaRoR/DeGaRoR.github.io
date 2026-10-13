@@ -1,0 +1,301 @@
+{
+ "key": "twinFloats",
+ "label": "twin floatplane",
+ "engine": {
+  "rated": 6500,
+  "gear": 2.62,
+  "name": "Rotax 582 + 2.62 red."
+ },
+ "speeds": {
+  "VNE": 52.292,
+  "VD": 58.102
+ },
+ "thrCruise": 0.55,
+ "dive": [
+  {
+   "case": "VNE full",
+   "V": 52.292,
+   "thr": 1,
+   "reached": true,
+   "rpmProp": 2797,
+   "rpmEng": 7327,
+   "ratio": 1.127,
+   "tipMach": 0.859,
+   "nz": [
+    0.969,
+    1.051
+   ],
+   "running": [
+    true,
+    true
+   ],
+   "seized": [
+    false,
+    false
+   ],
+   "drive": null,
+   "yields": 0,
+   "breaks": 0,
+   "crashed": false,
+   "finite": true
+  },
+  {
+   "case": "1.1 VD full",
+   "V": 63.912,
+   "thr": 1,
+   "reached": true,
+   "rpmProp": 3033,
+   "rpmEng": 7946,
+   "ratio": 1.222,
+   "tipMach": 0.934,
+   "nz": [
+    -4.579,
+    1.83
+   ],
+   "running": [
+    true,
+    true
+   ],
+   "seized": [
+    false,
+    false
+   ],
+   "drive": null,
+   "yields": 11946,
+   "breaks": 94,
+   "crashed": true,
+   "finite": true
+  },
+  {
+   "case": "VNE cruise",
+   "V": 52.292,
+   "thr": 0.55,
+   "reached": true,
+   "rpmProp": 2402,
+   "rpmEng": 6294,
+   "ratio": 0.968,
+   "tipMach": 0.741,
+   "nz": [
+    0.947,
+    1.029
+   ],
+   "running": [
+    true,
+    true
+   ],
+   "seized": [
+    false,
+    false
+   ],
+   "drive": null,
+   "yields": 0,
+   "breaks": 0,
+   "crashed": false,
+   "finite": true
+  },
+  {
+   "case": "VNE idle",
+   "V": 52.292,
+   "thr": 0,
+   "reached": true,
+   "rpmProp": 1805,
+   "rpmEng": 4728,
+   "ratio": 0.727,
+   "tipMach": 0.566,
+   "nz": [
+    0.898,
+    0.998
+   ],
+   "running": [
+    true,
+    true
+   ],
+   "seized": [
+    false,
+    false
+   ],
+   "drive": null,
+   "yields": 0,
+   "breaks": 0,
+   "crashed": false,
+   "finite": true
+  },
+  {
+   "case": "VNE off",
+   "V": 52.292,
+   "thr": 0,
+   "reached": true,
+   "rpmProp": 1670,
+   "rpmEng": 4375,
+   "ratio": 0.673,
+   "tipMach": 0.527,
+   "nz": [
+    0.898,
+    0.998
+   ],
+   "running": [
+    false,
+    false
+   ],
+   "seized": [
+    false,
+    false
+   ],
+   "drive": null,
+   "yields": 0,
+   "breaks": 0,
+   "crashed": false,
+   "finite": true
+  }
+ ],
+ "noseIn": [
+  {
+   "V": 20,
+   "sink": 1.5,
+   "pitch": 8,
+   "propStrike": false,
+   "propAt": null,
+   "running": [
+    true,
+    true
+   ],
+   "seized": [
+    false,
+    false
+   ],
+   "drive": null,
+   "groups": [],
+   "breaks": 0,
+   "crashed": false,
+   "reason": null,
+   "gPeak": 2.853,
+   "finite": true
+  },
+  {
+   "V": 25,
+   "sink": 5,
+   "pitch": 20,
+   "propStrike": false,
+   "propAt": null,
+   "running": [
+    true,
+    true
+   ],
+   "seized": [
+    false,
+    false
+   ],
+   "drive": null,
+   "groups": [],
+   "breaks": 0,
+   "crashed": false,
+   "reason": null,
+   "gPeak": 5.648,
+   "finite": true
+  }
+ ],
+ "trunk": [
+  {
+   "V": 3,
+   "na": "a floatplane on land"
+  },
+  {
+   "V": 10,
+   "na": "a floatplane on land"
+  },
+  {
+   "V": 30,
+   "flown": true,
+   "propStrike": true,
+   "propAt": {
+    "eng": 0,
+    "what": "trunk",
+    "t": 0.2166666666666602
+   },
+   "running": [
+    false,
+    false
+   ],
+   "seized": [
+    true,
+    true
+   ],
+   "drive": null,
+   "groups": [
+    "engL:mount",
+    "wing0L:strut",
+    "stab:attach",
+    "floatL:strut",
+    "floatR:strut",
+    "engR:mount",
+    "wing0R:strut",
+    "fin:attach",
+    "wing0R:root"
+   ],
+   "breaks": 191,
+   "crashed": true,
+   "reason": "broke up: the fuselage parted (TPB off the core)",
+   "gPeak": 8.888,
+   "finite": true
+  }
+ ],
+ "mount": {
+  "fullPower": {
+   "max": 0.102,
+   "at": {
+    "tag": "ENGL-WF",
+    "s": "t",
+    "grp": "engL:mount"
+   },
+   "body": 0.032
+  },
+  "pull": {
+   "max": 0.546,
+   "at": {
+    "tag": "MNTL-WF",
+    "s": "c",
+    "grp": "engL:mount"
+   },
+   "body": 0.058,
+   "nz": 4.729
+  },
+  "snap": {
+   "max": 0.655,
+   "at": {
+    "tag": "MNTL-WF",
+    "s": "t",
+    "grp": "engL:mount"
+   },
+   "body": 0.047,
+   "wMax": [
+    1.491,
+    0.801,
+    2.542
+   ],
+   "nzMax": 0.734
+  },
+  "land473": {
+   "max": 0.246,
+   "at": {
+    "tag": "ENGR-WR",
+    "s": "c",
+    "grp": "engR:mount"
+   },
+   "body": 0.018,
+   "nz": 1.493,
+   "sink": 2.134
+  },
+  "land473x15": {
+   "max": 0.388,
+   "at": {
+    "tag": "ENGL-WR",
+    "s": "c",
+    "grp": "engL:mount"
+   },
+   "body": 0.029,
+   "nz": 1.558,
+   "sink": 3.2
+  }
+ },
+ "ms": 176669
+}

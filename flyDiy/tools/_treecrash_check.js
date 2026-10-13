@@ -29,7 +29,17 @@
 //      break. The water reaches the beams through the nodes as the ground does: in every case the damage model yields
 //      exactly when the probe's peak passes 1 (the same beam-load path), finite; a holed hull slice is skin damage
 //
-// Run: node tools/_treecrash_check.js   (one final `GATE TREECRASH: PASS|FAIL`; the builds in parallel child processes)
+//   7. G2354 (DMG-DETERMINISM): THE 30 M/S CRASH AS AN ENSEMBLE. One 30 m/s run is one draw of a wreck that depends on its
+//      start (a millimetre on every node moves the Jodel's centreline over 135-196 members broken, the metal Cessna's
+//      single 215 sits in its tail: _treecrash_lib's ENSEMBLE note), so its counts are read as a distribution: on the Cub, the Jodel and the metal Cessna, the trunk on the centreline and 2.5 m out (DMG-TUNE's
+//      standard crashes, the certificate stamped), ENS members (member 0 the run as it was, the others every node's start
+//      nudged by up to 1 mm, seeded) - every member crashed, a wing member broken, finite, no energy from nowhere; and the
+//      distribution of the members broken, the pieces, the member work, the engine mount off and the cowl off against the
+//      stored reference (tools/fixtures/treecrash_ensemble_ref.json): a REGRESSION only when it MOVES - a two-sided
+//      Mann-Whitney rank test at p < 0.01 (_treecrash_lib rankTest). A deliberate change of the physics moves it: rewrite
+//      the reference (--write-ref) and say so in the HANDOVER.
+// Run: node tools/_treecrash_check.js [--ens N] [--write-ref]   (one final `GATE TREECRASH: PASS|FAIL`; the builds in
+// parallel child processes)
 'use strict';
 const path = require('path');
 const argv = process.argv.slice(2);
@@ -66,7 +76,9 @@ if (argv[0] === '--build') {
   if (!/floats/i.test(k)) {
     const KE = r => r.trace.reduce((m, x) => Math.max(m, x.ke || 0), 0);
     const tx = L.atTrunk(k, { D: 4, V: 3, thr: 0, secs: 8 });
-    out.taxi = { dmg: tx.dmg, reach: tx.reach, end: tx.end, finite: tx.finite, eng: tx.eng };
+    out.taxi = { dmg: tx.dmg, reach: tx.reach, end: tx.end, finite: tx.finite, eng: tx.eng,
+      crush: ((tx.sim.damage().drive || [])[0] || {}).crush || 0,   // G2015 (DMG-NOSE): the nose's crush (m) - the dent's home now
+      crushLayer: ((tx.sim.damage().drive || [])[0] || {}).crushLayer || null };   // G2035 (DMG-DRIVE2): how far it went
     const br = L.atTrunk(k, { D: 6, V: 1.4, walk: 1.4, secs: 12, off: 0.85 * g.span / 2 });
     out.brush = { dmg: br.dmg, hits: br.hits, finite: br.finite };
     out.fly = [0, 2.5].map(off => { const r = L.atTrunk(k, { D: 40, agl: 4, V: 30, thr: 0, secs: 5, off });
@@ -122,8 +134,15 @@ const pk = p => (p ? f2(p.max) + ' (' + (p.t >= p.c ? p.clsT + ', tension' : p.c
     if (!r.taxi) { console.log('   (a floatplane: the trunk runs are the land builds\')'); continue; }
     console.log('3. a taxi into a trunk, a wingtip brush');
     const tx = r.taxi;
-    yes(tx.finite && tx.dmg.members > 0 && !tx.dmg.crashed && tx.dmg.propStrike && tx.eng.every(e => !e.running) && tx.reach - tx.end < 2,
-      'taxied at 3 m/s into a trunk: a dent (' + tx.dmg.members + ' members set, ' + tx.dmg.breaks + ' of the nose broken, ' + tx.dmg.work.toFixed(0) + ' J), no crash; the prop struck, the engine stopped; back ' + (tx.reach - tx.end).toFixed(2) + ' m from where it stopped');
+    // (G2015, DMG-NOSE: the dent is the crushable nose's - the spinner crushed - or a member's set; with the nose the 3 m/s
+    // taxi sets no member at all: the crush takes it before the engine's lattice is reached)
+    // (G2035, DMG-DRIVE2: the prop strikes where its blades are - the base graded it with the trunk 0.9 m out. One physics with
+    // DMG-NOSE: the prop struck, and the engine stopped, exactly when the crush passed the spinner; a taxi the spinner takes whole
+    // leaves the blades clear of the trunk and the engine idling)
+    const struck = !!tx.dmg.propStrike, pastSpinner = !!tx.crushLayer && tx.crushLayer !== 'spinner';
+    yes(tx.finite && (tx.dmg.members > 0 || tx.crush > 0) && !tx.dmg.crashed && struck === pastSpinner && (!struck || tx.eng.every(e => !e.running)) && tx.reach - tx.end < 2,
+      'taxied at 3 m/s into a trunk: a dent (the nose crushed ' + (100 * (tx.crush || 0)).toFixed(0) + ' cm, its ' + tx.crushLayer + '; ' + tx.dmg.members + ' members set, ' + tx.dmg.breaks + ' of the nose broken, ' + tx.dmg.work.toFixed(0) + ' J), no crash; ' +
+      (struck ? 'the prop struck, the engine stopped' : 'the spinner took it - the blades never met the trunk, the engine ' + (tx.eng.every(e => e.running) ? 'idling' : 'stopped')) + '; back ' + (tx.reach - tx.end).toFixed(2) + ' m from where it stopped');
     yes(r.brush.finite && r.brush.hits > 0 && !r.brush.dmg.crashed, 'a wingtip into a trunk at walking pace (1.4 m/s): touched (' + r.brush.hits + ' contacts), ' + r.brush.dmg.members + ' members set, no crash');
     console.log('4. a flight into a trunk at 30 m/s');
     for (const fl of r.fly) {
@@ -139,12 +158,39 @@ const pk = p => (p ? f2(p.max) + ' (' + (p.t >= p.c ? p.clsT + ', tension' : p.c
     console.log('6. the water - ' + L.BUILDS[k].label);
     for (const w of r.water) {
       if (w.skip) { console.log('  --    ' + w.lab + ': needs GEAR-WATER 2\'s wet body (32_hydro.js wetBuild), not in this core - skipped'); continue; }
-      const d = w.dmg, same = (w.peak.max >= 1) === (d.members > 0);
+      // G2369 (DMG-BUNDLE-GREEN): a member past its limit SETS where it is ductile and BREAKS where it is brittle (a lug, a
+      // fitting: no set) - the twin's float nose-in on the certificate breaks its float struts' lugs (1.12) and its boom's
+      // root bay (a cluster cut) and sets nothing. Under 1, nothing sets (a cluster's cut may still part: D3's own limit)
+      const d = w.dmg, same = w.peak.max >= 1 ? (d.members > 0 || d.breaks > 0) : d.members === 0;
       const what = w.lab + ': the worst member ' + pk(w.peak) + '; ' + d.members + ' set' + (d.members ? ' ' + JSON.stringify(w.yieldedCls) : '') + ', ' + d.breaks + ' broken'
         + (w.slam != null ? ', the slam ' + w.slam.toFixed(0) + ' kPa, ' + w.holed + ' hull slice(s) holed' : '') + ', ' + f2(d.gPeak) + ' g, '
         + (d.crashed ? 'CRASHED (' + d.reason + ')' : d.dented ? 'dented, no crash' : 'no damage');
       yes(w.finite && same && (!w.severe || (d.members > 0 && d.breaks > 0 && d.crashed)), what + (w.severe ? ' - must yield, break and crash' : '') + '; the damage follows the beams\' own loads');
     }
+  }
+  // 7. the 30 m/s ensemble (G2354)
+  {
+    const ia = argv.indexOf('--ens'), N = ia >= 0 ? +argv[ia + 1] : 16, WRITE = argv.includes('--write-ref');
+    const refF = path.join(__dirname, 'fixtures', 'treecrash_ensemble_ref.json'), fs = require('fs'), os = require('os');
+    const ref = fs.existsSync(refF) ? JSON.parse(fs.readFileSync(refF, 'utf8')) : null, out = { n: N, amp: L.ENS_AMP, rows: {} };
+    const certDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tcens-')), te = Date.now();
+    console.log('7. the 30 m/s crash as an ensemble of ' + N + ' (the start nudged by up to ' + L.ENS_AMP + ' m; a regression = the distribution moves, Mann-Whitney p < ' + L.ENS_P + ')');
+    for (const k of ['cub', 'jodel', 'metal']) for (const id of ['trunk0', 'trunk25']) {
+      let E; try { E = await L.ensemble(k, id, { n: N, jobs: 3, certDir }); } catch (e) { yes(false, k + ' ' + id + ': the ensemble ran - ' + e.message); continue; }
+      const tag = k + '/' + id, M = E.members;
+      out.rows[tag] = { stats: E.stats, members: M.map(m => ({ seed: m.seed, hash: m.hash, broken: m.broken, pieces: m.pieces, work: +m.work.toFixed(1), mountOff: m.mountOff, cowlOff: m.cowlOff })) };
+      const desc = L.ENS_FIELDS.map(f => f + ' ' + L.ensLine(E, f)).join(', ');
+      yes(M.every(m => m.finite && m.crashed && m.wing > 0 && m.keMax <= m.ke0 * 1.001), L.BUILDS[k].label + ', ' + L.STANDARD[id].label + ': every member crashed, a wing member broken, finite, the energy bounded - ' + desc + ' (kJ for the work)');
+      const R0 = ref && ref.rows && ref.rows[tag];
+      if (!R0 || WRITE) { console.log('        (no reference' + (WRITE ? ': --write-ref' : '') + ')'); if (!WRITE) yes(false, tag + ': a stored reference distribution'); continue; }
+      const cmp = L.ensCompare({ members: R0.members }, { members: out.rows[tag].members });   // (both as stored: the work to 0.1 J)
+      const moved = L.ENS_FIELDS.filter(f => cmp[f].moved);
+      yes(!moved.length, tag + ' against the reference: ' + L.ENS_FIELDS.map(f => f + ' ' + (cmp[f].moved ? 'MOVED ' : '') + 'p ' + cmp[f].p.toFixed(3)).join(', ') +
+        (moved.length ? ' - ' + moved.map(f => f + ' median ' + cmp[f].a.median + ' -> ' + cmp[f].b.median + ' (pooled p10-p90 spread ' + cmp[f].pooled.toFixed(1) + ')').join('; ') : ''));
+    }
+    try { fs.rmSync(certDir, { recursive: true, force: true }); } catch (e) { /* stays */ }
+    console.log('        (the ensembles: ' + ((Date.now() - te) / 1000).toFixed(0) + ' s)');
+    if (WRITE) { fs.writeFileSync(refF, JSON.stringify(out)); console.log('        the reference written: ' + path.relative(path.join(__dirname, '..'), refF)); }
   }
   console.log('  ' + (checks - fails) + '/' + checks + ' checks');
   console.log('GATE TREECRASH: ' + (fails ? 'FAIL' : 'PASS'));

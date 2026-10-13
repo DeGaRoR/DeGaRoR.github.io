@@ -250,7 +250,7 @@ function cageJoinSpec(P, M, T) {
       // the row came home. A P without the key (a headless caller) says nothing.
       ...(P.wgCons != null ? { material: Math.round(P.wgCons) > 0
         ? ['carbon', 'steel', 'fabric',
-           'alloy', 'aluFabric'][Math.round(P.wgCons) - 1] : null } : {}),   // G466: the fifth stop
+           'alloy', 'aluFabric', 'glass'][Math.round(P.wgCons) - 1] : null } : {}),   // G466: the fifth stop; G2047 the sixth
     }, ...(+P.w2On ? [cageJoinPlane2(P, T)] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
                struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)
@@ -302,9 +302,16 @@ function cageJoinSpec(P, M, T) {
         // a 172's is. Measured: 144 kg weighed 0.67 m aft of the drawn
         // engine, the CG 7 % MAC aft of the aeroplane on the screen. The
         // flange the layer drew (M.engUnits, kind 'nose') rides out as `x`
-        // like every other mount's; y stays the spec's thrustline rule (the
-        // cowl and the nose gear read engY).
-        ...(mk === 'nose' && EU[0] && isFinite(EU[0].x) ? { x: EU[0].x } : {}),
+        // like every other mount's.
+        // G2365 (DMG-BUNDLE-GREEN): AND ITS HEIGHT. y stayed the spec's
+        // thrustline rule (0.36 of the cabin's height): on the user's metal
+        // Cessna that hung the flown hub 0.28 m under the drawn one, the
+        // disc 2.4 cm INTO the ground at rest where the drawn disc clears
+        // it by 0.26 m (a 172's ~10 in) - every taxi a prop strike. The
+        // flange's y rides out with its x (the cowl, the mount and the nose
+        // leg read engY, now the drawn thrustline).
+        ...(mk === 'nose' && EU[0] && isFinite(EU[0].x)
+          ? Object.assign({ x: EU[0].x }, isFinite(EU[0].y) ? { y: EU[0].y } : {}) : {}),
         ...(mk === 'wingTop' ? { pylon: Math.max(0.05, +P.engPylonH || 0.30) } : {}),
         // G134: THE DRAWN ENGINE IS THE PHYSICS' AUTHOR — the G132 prop rule,
         // applied to the engine itself. M.engineFacts is engResolve over the
@@ -521,8 +528,8 @@ function cageJoinSpec(P, M, T) {
   // material it has; the cage default is 0 (composite) and would have
   // put every such build on carbon.
   if (P.intCons != null)
-    fus.material = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube'][
-      Math.max(0, Math.min(4, Math.round(+P.intCons || 0)))];
+    fus.material = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass'][   // G2047: glassfibre, the sixth stop
+      Math.max(0, Math.min(5, Math.round(+P.intCons || 0)))];
   // G199.5: THE BOOM'S CONSTRUCTION is the cage's own declaration — the frame
   // keys a rod boom's stiffening on it (GEN_RULES.rodBoomK), because the
   // lattice it flies is not the tube it draws. Written on every join: the
@@ -619,7 +626,7 @@ function cageJoinSpec(P, M, T) {
   // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
   // 0 says nothing, absent means the aeroplane's own material
   {
-    const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'];   // G213; G466 the fifth stop
+    const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'];   // G213; G466 the fifth stop; G2047 the sixth
     // SPEC-FIXPOINT (A3): STATED in both states, null = the aeroplane's own
     if (P.finCons != null)
       tl.finMaterial = Math.round(P.finCons) > 0 ? CONS4[Math.round(P.finCons) - 1] : null;
@@ -1006,6 +1013,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // ...nor is HARDWARE a surface (G307): a saddle under a fin's root is
       // in the fin's group and would widen its measured bounds
       if (o.userData && o.userData.edHw) return;
+      // ...and the HINGES are hardware too (G1985, JOIN-PARITY): the elevator's and rudder's brackets and horns
+      // (_cage_hinge.js `edHinge_<surface>_metal`) hang below the surfaces they are bolted to, and their shape follows
+      // the hinge layer's ray probes of the drawn skin - +144 vertices a surface on the page against node's harness,
+      // the tailplane's measured height (tail.stabH) 3-4e-5 apart on the Jodel and both Cessnas
+      if (/^edHinge_/.test(o.name || '')) return;
       const p = o.geometry.attributes.position;
       if (!p) return;
       tmp.multiplyMatrices(inv, o.matrixWorld);
@@ -2026,7 +2038,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       });
     } catch (e) {}
     // merge the build's meshes into groups by material look
-    const groups = {}, mats = {};
+    const groups = {}, mats = {}, debris = [];
+    // G1859 (DMG-WALL): WHICH LAYER AND WHICH OBJECT EACH STATIC VERTEX IS - [layer, bucket, v0, v1, object] ranges (the
+    // buckets are unwelded: a vertex range is a triangle range), the layer the first 'cageLayer:' ancestor, the object
+    // the mesh's own walk index. A wreck's drawing binds a compact part (a cowl panel, a gear plate, a fitting) as one
+    // rigid body and the covering to the frame by them (app.js brkCage). Metadata only: nothing drawn moves
+    const layers = [];
+    let layObj = 0;
     mount.updateMatrixWorld(true);
     const inv = new THREE.Matrix4().copy(mount.matrixWorld).invert();
     const tmp = new THREE.Matrix4(), nm = new THREE.Matrix3(),
@@ -2149,6 +2167,15 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           a = a.parent;
         }
       }
+      // G1860 (DMG-D4b): WHICH STATIC VERTICES ARE THE COWL'S. A cowl is no member: in a crash it leaves as debris (app.js
+      // wreckFrame), so the flight must know which of the static merge's vertices it is - the cowl layer's, by ancestry,
+      // as [tag, bucket, v0, v1] ranges (the buckets are unwelded: a vertex range is a triangle range). Metadata only:
+      // nothing drawn moves
+      let dbrTag = null;
+      if (!part) for (let a = o; a && a !== mount; a = a.parent) if (a.name === 'cageLayer:cowl') { dbrTag = 'cowl'; break; }
+      let layTag = '';
+      const layId = layObj++;
+      if (!part) for (let a = o; a && a !== mount; a = a.parent) if (a.name && a.name.lastIndexOf('cageLayer:', 0) === 0) { layTag = a.name.slice(10); break; }
       const ranges = (matList.length > 1 && geo.groups && geo.groups.length)
         ? geo.groups
         : [{ start: 0, count: idx ? idx.count : p.count, materialIndex: 0 }];
@@ -2364,7 +2391,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                                                          m0.userData.panelSet ||
                                                          m0.userData.propMat))
                                                        ? [] : null });
+        const lv0 = G3.pos.length / 3;
         for (let i = r.start; i < end; i++) pushV(G3, idx ? idx.getX(i) : i);
+        if (dbrTag && !part) debris.push([dbrTag, key, lv0, G3.pos.length / 3]);
+        if (!part) layers.push([layTag, key, lv0, G3.pos.length / 3, layId]);
       }
     });
     // (THE RESTORE USED TO BE HERE, AND THAT WAS THE BUG WITH TEETH. It runs
@@ -2844,6 +2874,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     return { cage: true, groups, mats, off, pitch: beta, parts,
              zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell, holes,
              weather,
+             debris,                     // G1860: the static merge's non-member parts ([tag, bucket, v0, v1])
+             layers,                     // G1859: the static vertices' layers and objects ([layer, bucket, v0, v1, object])
              // G357: the capture's map in the model's x-y plane (row-major
              // 2x2, the identity when no frame) — every rotation the flight
              // applies to a captured part is conjugated by it (app.js

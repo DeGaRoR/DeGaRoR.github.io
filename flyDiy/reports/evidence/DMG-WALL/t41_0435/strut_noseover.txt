@@ -1,0 +1,5 @@
+broken 11: AXLEL-AXLER, S5BL-S5BR, S5BL-S6BR, HR-S6BL, HR-S6BR, TW-S6BL, TW-S6BR, TW-TPB, TW-TPT, TW-HTL, TW-HTR
+inhSt {"places":11649,"tube":4561,"tubeFar":411,"cover":1617,"wall":4950,"wallFar":110,"rigid":0,"parts":0,"bigParts":0,"keep":0,"over8":259,"done":true,"tubeLoose":42,"tubePieces":1}
+tube  {"name":"stube","strut":false,"places":4972,"tubeV":29316,"members":[["S6BL~S6TR",448],["S1BR~S1TR",235],["S1BL~S1TL",234],["S0BR~S0TR",221],["S0BL~S0TL",220],["S5BR~S5TR",187],["S5BL~S5TL",184],["WF~WF",160]],"nMembers":66,"kink":{"len":2.76,"restMax":1.229,"liveMax":1.228,"worstGrow":0.017}}
+strut kinks over time [{"t":1.5,"worst":[]},{"t":2,"worst":[]},{"t":2.5,"worst":[]},{"t":3,"worst":[]},{"t":3.5,"worst":[]},{"t":4,"worst":[]},{"t":4.5,"worst":[]},{"t":5,"worst":[]},{"t":5.5,"worst":[]},{"t":6,"worst":[]}]
+normals (live tris whose drawn normal turned against their face, by record:layer) {"stube:":{"tris":9724,"flips":0,"skew":2,"restBack":241},"scloth:":{"tris":7332,"flips":0,"skew":1,"restBack":4}}

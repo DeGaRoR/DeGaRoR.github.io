@@ -11,7 +11,7 @@
 //            back on the lane's water (deep, inside its width), a roll-out
 //            to STOPPED inside 400 s, never more than 30 m off the lane's
 //            centreline on the water, finite
-//   CROSSWIND 5 m/s across the lane: the take-off run holds the lane — under
+//   CROSSWIND 5 m/s across the lane (G1882; 0.30 V_SO, FAR 23.233 asks 0.2): the run holds the lane — under
 //            30 m off the centreline and under 30 deg of heading swing —
 //            and lifts off inside 25 s (the water rudder below the step,
 //            the air rudder on it; without H4 it left 186 m off at 51 deg)
@@ -30,8 +30,9 @@ let fails = 0;
 const verdict = (ok, line) => { if (!ok) fails++; console.log((ok ? 'PASS ' : 'FAIL ') + line); };
 const f = (v, n = 2) => (typeof v === 'number' && Number.isFinite(v)) ? v.toFixed(n) : String(v);
 
-const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
-spec.gear.type = 'floats';
+// G1985 (JOIN-PARITY): the twin on floats AS THE GAME FLIES IT (tools/_load_build.js `twinFloats`, see _floats_check.js)
+const spec = process.env.FLYDIY_RAW_BUILDS === '1' ? JSON.parse(fs.readFileSync(FIX, 'utf8')).spec : require('./_load_build.js').loadValidated('twinFloats').spec;
+if (process.env.FLYDIY_RAW_BUILDS === '1') spec.gear.type = 'floats';
 const def = C.buildGen(C.genMigrateSpec(spec));
 
 function fly(o) {
@@ -97,10 +98,37 @@ console.log('CIRCUIT (calm, the pilot, SEA -> SEA)');
   verdict(R.maxXWater < 30, `never more than ${f(R.maxXWater, 1)} m off the centreline on the water (bound 30)`);
 }
 if (ONLY.includes('crosswind')) {
-console.log('\nCROSSWIND TAKE-OFF (5 m/s across the lane)');
-  const R = fly({ wind: [5, 0, 0], untilPhase: 'CLIMB', maxS: 120 });
+// G1888 (DMG-DAMP): THE CROSSWIND IS 0.2 V_SO (FAR 23.233: the 90-degree cross-component a type must demonstrate safe
+// for taxiing, take-off and landing, seaplanes on the water included), 3.3 m/s on this build (no flaps: V_SO = Vs
+// 16.4 m/s). It was 5 m/s, a number with no reference, and the pre-G1885 aeroplane held it by 2 deg (28 deg against
+// 30): the solver's deformation damper damped rigid yaw at 0.5 /s (the review's D1) and that was the margin. Swept on
+// the pre-G1885 core: held to 4.5 m/s (28.3 deg), water-looped at 5.5. On this one (with G1888's step gain): 0.5-1.5
+// m/s 1-5 deg, 2.5-3.75 m/s 8-16 deg, and a WATER LOOP at 2 m/s and from 4 m/s - at the hump, the water rudder raised
+// at 7.2 m/s, full air rudder, the yaw rate 0.3 -> 3 rad/s in a quarter second. No pilot gain holds those (x2-x4 of
+// the displacement gains, x1.5-x2 of the rate term, the water rudder raised later at 9.6 or 12 m/s: measured, none).
+// HANDOVER G1885-G1889 carries it as the open question it is (the water's yaw at the hump).
+// G1848 (DMG-HULL): NOT RESTORED TO 5 m/s. Traced, those "loops" are NOSE-OVERS at the plough (both bows bury at 6-7
+// m/s, the pitch to -70..-89 deg, the heading reads 180 once the nose has gone through the vertical) - on the base and
+// with the hull's side force (G1847) alike, at 2, 4, 4.5 and 5 m/s; the side force cannot hold a pitch. GATE DMGHULL
+// sweeps 0-5 m/s and classes every failure; HANDOVER G1847-G1849, open question 1.
+// G1808 (DMG-PLOUGH): STILL NOT RESTORED. The plough's bow-up trim is already in the water law; the nose-over is the
+// twin's own thrust couple (two engines 0.57 m over the CG, the water drag 1.5 m under it) beating its floats' nose-down
+// restoring once the afterbody unwets - with the thrust put 0.17 m over the CG (an instrument) it is clean 0-5 m/s.
+// GATE DMGPLOUGH; HANDOVER G1807-G1809, open question 1 (the pilot's power at the plough, or the build).
+// G1882 (DMG-FLOATTO): RESTORED TO 5 m/s. Past PILOT-ONE-2's water power ramp the twin's failures were the CHOP the
+// wind raises on the lane (0.07 m crest to trough at 2 m/s, 0.18 m at 5; with the sea flattened every crosswind run is
+// the calm one) driving a porpoise on the step the solver no longer damps, until the water threw the hull out below Vs
+// and the thrust couple beat the elevator. With the pilot's technique (G1880: the porpoise damped by both hands; G1881:
+// the into-wind bank afloat bounded as on the wheels) every validated floatplane takes off clean 0-5 m/s across (GATE
+// DMGFLOATTO: the twin's lowest pitch at a float contact -7.7 deg, its run's worst swing 15.9; the Cessna on floats
+// -1.1 / 18.6), so the bar is the pre-DAMP 5 m/s again - 0.30 V_SO on this build, above FAR 23.233's 0.2 V_SO (3.3
+// m/s). And the take-off is judged to CLIMB: a hop that is dry for 2 s, settles back and is rejected read as a pass
+const V_SO = def.params.gen.VsFlap || def.params.gen.Vs, XW = Math.max(5, 0.2 * V_SO);
+console.log(`\nCROSSWIND TAKE-OFF (${f(XW, 1)} m/s across the lane = ${f(XW / V_SO, 2)} V_SO; FAR 23.233 asks 0.2)`);
+  const R = fly({ wind: [XW, 0, 0], untilPhase: 'CLIMB', maxS: 120 });
   console.log(`   lift-off ${f(R.lift, 1)} s (airborne = dry 2 s; ${R.skips} skip${R.skips === 1 ? '' : 's'} before it); the run: max |x| ${f(R.maxXRun, 1)} m, max heading swing ${f(R.maxHdgRun, 1)} deg from the roll's ${f(R.hdgRef, 0)}; phases: ${R.phases.map(p => p.split(' ')[1]).join(' ')}`);
   verdict(R.finite && R.lift != null && R.lift < 25, `off the water inside 25 s (${f(R.lift, 1)})`);
+  verdict(R.phases.some(p => p.endsWith(' CLIMB')), `the pilot reaches CLIMB (G1882: ${R.phases.map(p => p.split(' ')[1]).join(' ')})`);
   // the ultralight hops once on the step at 13 m/s (0.4 s dry, the nose-high
   // trim the ventilated step leaves it with — the owed hump-trim item) and
   // touches once after the unstick; the loop is what the heading and lane

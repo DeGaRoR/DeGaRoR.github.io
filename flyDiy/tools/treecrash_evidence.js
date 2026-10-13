@@ -19,7 +19,8 @@ if (argv[0] === '--perf-child') {
   const core = argv[1], key = argv[2], mode = argv[3];
   const dir = path.dirname(core);
   const L = require(path.join(dir, '_treecrash_lib.js'));
-  const C = L.core(), def = L.defOf(key), { W, strip } = L.flatWorld(0);
+  // (G1883: PERF_ELASTIC=1 times the layer OFF - params.damage false, master's path)
+  const C = L.core(), def = L.defOf(key, { elastic: process.env.PERF_ELASTIC === '1' }), { W, strip } = L.flatWorld(0);
   // a forest set far away (registered, nothing near): trunkFrame's own one-length-check and its set walk
   const TH = W.treeHits, A = []; for (let i = 0; i < 4000; i++) A.push(5000 + (i % 63) * 9, 5000 + Math.floor(i / 63) * 9, 0, 0.3, 10);
   TH.set('far', A);

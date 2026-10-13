@@ -1,0 +1,169 @@
+1. THE BANDS AND THE TIERS (the laws, 33_drive.js)
+  ok    the engine 8.0 % over its maximum for 30 s reaches 'logged' (want 'logged'; dose 0.00) - SB 369: up to 10 % - no action, a logbook entry [as recalled - A0 to open]
+  ok    the engine 15.0 % over its maximum for 2 s reaches 'inspect' (want 'inspect'; dose 0.00) - SB 369: 10-20 % - the prop off, the flange's run-out, the valve train [as recalled - A0 to open]
+  ok    the engine 15.0 % over its maximum for 0.5 s reaches 'none' (want 'none'; dose 0.00) - the 1 s filter (a frame's tick is not an overspeed: nothing logged, the peak kept) [GAME - no source]
+  ok    the engine 25.0 % over its maximum for 1.5 s reaches 'overhaul' (want 'overhaul'; dose 0.00) - SB 369: past 20 % - the engine overhauled [as recalled - A0 to open]
+  ok    the engine 35.0 % over its maximum for 2 s reaches 'overhaul' (want 'overhaul'; dose 0.20) - the failure dose 0.20 < 0.25 [GAME - no source]
+  ok    the engine 35.0 % over its maximum for 3 s reaches 'failed' (want 'failed'; dose 0.30) - the failure dose 0.30 >= 0.25: a thrown rod / valve [GAME - no source]
+  ok    the engine 50.0 % over its maximum for 1.05 s reaches 'failed' (want 'failed'; dose 0.26) - 50 % over for 1 s [GAME - no source]
+  (Lycoming Service Bulletin No. 369 family (engine inspection after overspeed; current letter not recalled))
+  ok    23.361(c): 4 cylinders -> limit torque = mean x 2 [as recalled - A0 to open]
+  ok    23.361(c): 3 cylinders -> limit torque = mean x 3 [as recalled - A0 to open]
+  ok    23.361(c): 2 cylinders -> limit torque = mean x 4 [as recalled - A0 to open]
+  ok    23.361(c): 6 cylinders -> limit torque = mean x 1.33 [as recalled - A0 to open]
+  ok    23.361(c): 9 cylinders -> limit torque = mean x 1.33 [as recalled - A0 to open]
+  ok    23.361(c): a turboprop -> limit torque = mean x 1.25 [as recalled - A0 to open]
+  ok    a strike 2 % into the disc (soft, tip 200 m/s, the blade's 120): brush - tips dressed on the ground (no separation on a soft brush) [GAME - no source]
+  ok    a strike 10 % into the disc (soft, tip 80 m/s, the blade's 120): bent - a bite of 10 % into the ground at idle: bent [GAME - no source]
+  ok    a strike 30 % into the disc (soft, tip 80 m/s, the blade's 120): stoppage - 30 %: the prop stopped (SB 533's sudden stoppage) [GAME - no source]
+  ok    a strike 10 % into the disc (rigid, tip 80 m/s, the blade's 120): stoppage - a trunk 10 % into the disc stops it [GAME - no source]
+  ok    a strike 20 % into the disc (water, tip 80 m/s, the blade's 120): bent - the water gives: bent at 20 % [GAME - no source]
+  ok    a strike 3 % into the disc (rigid, tip 211 m/s, the blade's 120): separation - a wood tip grazing a trunk at full power breaks off [GAME - no source]
+  ok    a strike 3 % into the disc (rigid, tip 150 m/s, the blade's 200): brush - an alloy tip at 150 m/s only dents [GAME - no source]
+  ok    a strike 10 % into the disc (soft, tip 211 m/s, the blade's 120): separation - wood into the ground at full power: a blade breaks [GAME - no source]
+  ok    a strike 5 % into the disc (water, tip 150 m/s, the blade's 120): bent - carbon into the water at 150 m/s bends (the water gives: 1.6 x the tip speed) [GAME - no source]
+(2590 s, 5 builds; damage on, on the certificate)
+Cub:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  ok    VNE full (51.24 m/s, throttle 1.00): 2564 rpm against 2300 (11.5 %), tip Mach 0.79 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    1.1 VD full (62.63 m/s, throttle 1.00): 2775 rpm against 2300 (20.6 %), tip Mach 0.86 -> 'overhaul', rough (thrust x 0.85, the teardown owed) [as recalled - A0 to open]
+  ok    VNE cruise (51.24 m/s, throttle 0.65): 2281 rpm against 2300 (-0.8 %), tip Mach 0.71 -> 'none' - no exceedance
+  ok    VNE idle (51.24 m/s, throttle 0.00): 1629 rpm against 2300 (-29.2 %), tip Mach 0.51 -> 'none' - no exceedance
+  ok    VNE off (51.24 m/s, throttle 0.00): 1500 rpm against 2300 (-34.8 %), tip Mach 0.48 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    a nose-over at 2 m/s: the disc meets the ground 0.02 s in, the strike 0.05 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.17 R, tip 111 m/s), the engine stopped, a teardown owed
+  ok    a nose-over at 4 m/s: the disc meets the ground 0.02 s in, the strike 0.03 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.20 R, tip 111 m/s), the engine stopped, a teardown owed
+  ok    a nose-over at 8 m/s: the disc meets the ground 0.02 s in, the strike 0.02 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.15 R, tip 112 m/s), the engine stopped, a teardown owed
+  ok    a brush (2 cm of soil past the turf's 5 cm): 'brush', the engine runs on, a teardown still owed (SB 533: any strike that needs the prop repaired)
+  ok    a trunk in the disc at 3 m/s: 'separation' (tip 128 m/s: the blades broke off), the engine stopped (a sudden stoppage)
+  ok    a trunk grazing the tips (3 cm) at full power (2116 rpm, tip 212 m/s): a blade breaks off and the prop turns on short of it - 30.74 kN of imbalance (m e w^2) - the mount lets go 0.02 s later (the engine leaves) [GAME - no source]
+  ok    the same graze at idle (644 rpm, tip 64 m/s): 'brush', the engine runs, the mount holds
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 402.73 N m (mean 201.37 x 1 through the reduction x 2, 4 cylinders); the prop's I 1.14 kg m2 at 240.86 rad/s; the drive cases govern none of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.34 of its yield, MNTTR-S0TR) and lets go at 2.94 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.11 of its yield, MNTBL-S0BL) and lets go at 9.29 x it (MNTBL-S0BL: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.11 of its yield, MNTBR-S0BR) and lets go at 9.29 x it (MNTBR-S0BR: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.21 of its yield, MNTTL-S0TL) and lets go at 4.72 x it (MNTTL-S0TL: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.21 of its yield, MNTTR-S0TR) and lets go at 4.72 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.31 of its yield, MNTTL-S0TL) and lets go at 3.19 x it (MNTTL-S0TL: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.31 of its yield, MNTTR-S0TR) and lets go at 3.19 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 0.86, pitch 2.34 rad/s (2.34 x 23.371's) - the mount at 0.33 of its certified yield (MNTTR-S0TR; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (completed, 321 s; the take-off at full power): no strike, no exceedance - the engine's peak 2283 rpm, the disc's least clearance 0.24 m
+  ok    a 4.10 g pull at full power: no strike, no exceedance
+  ok    half brakes from 12 m/s (the nose dips): no strike - the disc's least clearance 0.24 m
+  ok    (and the classic: FULL brakes from 12 m/s stand the taildragger on its nose - 'stoppage' (bite 0.15 R), the engine stopped, a teardown owed)
+Jodel:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  --    REPORT VNE full (60.41 m/s, throttle 1.00): 2584 rpm against 2300 (12.3 %), tip Mach 0.77 -> 'inspect' - the airframe broke up first (a tail member broke at 10.03 s, 16 members; the speed reached at 12.33 s): a wreck's windmill, not the drivetrain's band
+  --    REPORT 1.1 VD full (73.83 m/s, throttle 1.00): 3073 rpm against 2300 (33.6 %), tip Mach 0.92 -> 'failed' - the airframe broke up first (broke up: the fuselage parted (TPB off the core) at 10.90 s, 243 members; the speed reached at 18.78 s): a wreck's windmill, not the drivetrain's band
+  ok    VNE cruise (60.41 m/s, throttle 0.65): 2305 rpm against 2300 (0.2 %), tip Mach 0.69 -> 'logged' (inside SB 369's no-action band: 3.32 s logged) - no exceedance
+  ok    VNE idle (60.41 m/s, throttle 0.00): 1668 rpm against 2300 (-27.5 %), tip Mach 0.52 -> 'none' - no exceedance
+  ok    VNE off (60.41 m/s, throttle 0.00): 1543 rpm against 2300 (-32.9 %), tip Mach 0.48 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    a nose-over at 2 m/s: the disc meets the ground 0.02 s in, the strike 0.05 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.17 R, tip 106 m/s), the engine stopped, a teardown owed, the teardown finds internal damage
+  ok    a nose-over at 4 m/s: the disc meets the ground 0.02 s in, the strike 0.03 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.16 R, tip 106 m/s), the engine stopped, a teardown owed, the teardown finds internal damage
+  ok    a nose-over at 8 m/s: the disc meets the ground 0.02 s in, the strike 0.02 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.16 R, tip 107 m/s), the engine stopped, a teardown owed, the teardown finds internal damage
+  ok    a brush (2 cm of soil past the turf's 5 cm): 'brush', the engine runs on, a teardown still owed (SB 533: any strike that needs the prop repaired)
+  ok    a trunk in the disc at 3 m/s: 'separation' (tip 122 m/s: the blades broke off), the engine stopped (a sudden stoppage)
+  ok    a trunk grazing the tips (3 cm) at full power (2116 rpm, tip 203 m/s): a blade breaks off and the prop turns on short of it - 26.47 kN of imbalance (m e w^2) - the mount lets go 0.03 s later (the engine leaves) [GAME - no source]
+  ok    the same graze at idle (644 rpm, tip 62 m/s): 'brush', the engine runs, the mount holds
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 402.73 N m (mean 201.37 x 1 through the reduction x 2, 4 cylinders); the prop's I 0.94 kg m2 at 240.86 rad/s; the drive cases govern none of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.22 of its yield, MNTTR-S0TR) and lets go at 4.46 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.08 of its yield, MNTTL-S0TL) and lets go at 12.50 x it (MNTTL-S0TL: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.08 of its yield, MNTTR-S0TR) and lets go at 12.50 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.15 of its yield, MNTTL-S0TL) and lets go at 6.51 x it (MNTTL-S0TL: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.15 of its yield, MNTTR-S0TR) and lets go at 6.51 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.21 of its yield, MNTTL-S0TL) and lets go at 4.83 x it (MNTTL-S0TL: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.21 of its yield, MNTTR-S0TR) and lets go at 4.83 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 1.68, pitch 2.76 rad/s (2.76 x 23.371's) - the mount at 0.31 of its certified yield (MNTBR-S0BR; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (null, 340 s; the take-off at full power): no strike, no exceedance - the engine's peak 2286 rpm, the disc's least clearance 0.18 m
+  ok    a 4.77 g pull at full power: no strike, no exceedance
+  ok    half brakes from 12 m/s (the nose dips): no strike - the disc's least clearance 0.18 m
+  ok    (and the classic: FULL brakes from 12 m/s stand the taildragger on its nose - 'stoppage' (bite 0.15 R), the engine stopped, a teardown owed)
+metal Cessna:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  ok    VNE full (71.69 m/s, throttle 1.00): 2848 rpm against 2575 (10.6 %), tip Mach 0.95 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    1.1 VD full (87.63 m/s, throttle 1.00): 3063 rpm against 2575 (19.0 %), tip Mach 1.03 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    VNE cruise (71.69 m/s, throttle 0.48): 2356 rpm against 2575 (-8.5 %), tip Mach 0.80 -> 'none' - no exceedance
+  ok    VNE idle (71.69 m/s, throttle 0.00): 1778 rpm against 2575 (-31.0 %), tip Mach 0.62 -> 'none' - no exceedance
+  ok    VNE off (71.69 m/s, throttle 0.00): 1630 rpm against 2575 (-36.7 %), tip Mach 0.57 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    a nose-over at 2 m/s: the disc meets the ground 0.02 s in, the strike 0.05 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.15 R, tip 134 m/s), the engine stopped, a teardown owed, the teardown finds internal damage
+  ok    a nose-over at 4 m/s: the disc meets the ground 0.02 s in, the strike 0.03 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.19 R, tip 134 m/s), the engine stopped, a teardown owed, the teardown finds internal damage
+  ok    a nose-over at 8 m/s: the disc meets the ground 0.02 s in, the strike 0.02 s (the base: only once the nose's nodes did) - 'stoppage' (bite 0.18 R, tip 134 m/s), the engine stopped, a teardown owed, the teardown finds internal damage
+  ok    a brush (2 cm of soil past the turf's 5 cm): 'brush', the engine runs on, a teardown still owed (SB 533: any strike that needs the prop repaired)
+  ok    a trunk in the disc at 3 m/s: 'stoppage' (tip 154 m/s), the engine stopped (a sudden stoppage)
+  ok    a trunk grazing the tips (3 cm) at full power (2370 rpm, tip 256 m/s): a blade breaks off and the prop turns on short of it - 87.91 kN of imbalance (m e w^2) - the mount lets go 0.22 s later (the engine leaves) [GAME - no source]
+  ok    the same graze at idle (721 rpm, tip 78 m/s): 'brush', the engine runs, the mount holds
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 863.15 N m (mean 648.98 x 1 through the reduction x 1.33, 6 cylinders); the prop's I 2.80 kg m2 at 269.65 rad/s; the drive cases govern none of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.28 of its yield, MNTTR-S0TR) and lets go at 3.56 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.08 of its yield, MNTBL-S0BL) and lets go at 12.91 x it (MNTBL-S0BL: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.08 of its yield, MNTBR-S0BR) and lets go at 12.91 x it (MNTBR-S0BR: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.18 of its yield, MNTTL-S0TL) and lets go at 5.71 x it (MNTTL-S0TL: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.18 of its yield, MNTTR-S0TR) and lets go at 5.71 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.27 of its yield, MNTTL-S0TL) and lets go at 3.65 x it (MNTTL-S0TL: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.27 of its yield, MNTTR-S0TR) and lets go at 3.65 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 1.55, pitch 1.84 rad/s (1.84 x 23.371's) - the mount at 0.27 of its certified yield (MNTBR-S0BR; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (completed, 340 s; the take-off at full power): no strike, no exceedance - the engine's peak 2513 rpm, the disc's least clearance 0.22 m
+  ok    a 4.51 g pull at full power: no strike, no exceedance
+  ok    half brakes from 12 m/s (the nose dips): no strike - the disc's least clearance 0.22 m
+Cessna floats:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  ok    VNE full (79.57 m/s, throttle 1.00): 2950 rpm against 2575 (14.6 %), tip Mach 0.99 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    1.1 VD full (97.25 m/s, throttle 1.00): 3223 rpm against 2575 (25.2 %), tip Mach 1.09 -> 'overhaul', rough (thrust x 0.85, the teardown owed) [as recalled - A0 to open]
+  ok    VNE cruise (79.57 m/s, throttle 0.59): 2587 rpm against 2575 (0.5 %), tip Mach 0.87 -> 'logged' (inside SB 369's no-action band: 2.63 s logged) - no exceedance
+  ok    VNE idle (79.57 m/s, throttle 0.00): 1957 rpm against 2575 (-24.0 %), tip Mach 0.68 -> 'none' - no exceedance
+  ok    VNE off (79.57 m/s, throttle 0.00): 1824 rpm against 2575 (-29.2 %), tip Mach 0.64 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    the bow digging in at 90 km/h, 5 m/s, 20 deg (the ordinary water case): the disc clears the water by 0.27 m - no strike, the engine running
+  ok    the bow digging in at 150 km/h, 10 m/s, 60 deg (TREECRASH's severe nose-in): the disc strikes the WATER - 'stoppage', the engine stopped
+  ok    a trunk grazing the tips (3 cm) at full power (2369 rpm, tip 256 m/s): a blade breaks off and the prop turns on short of it - 87.90 kN of imbalance (m e w^2) - the mount lets go 0.03 s later (the engine leaves) [GAME - no source]
+  ok    the same graze at idle (721 rpm, tip 78 m/s): 'brush', the engine runs, the mount holds
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 863.15 N m (mean 648.98 x 1 through the reduction x 1.33, 6 cylinders); the prop's I 2.80 kg m2 at 269.65 rad/s; the drive cases govern none of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.15 of its yield, MNTTR-S0BR) and lets go at 6.52 x it (MNTTR-S0BR: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.04 of its yield, MNTTL-S0BL) and lets go at 23.92 x it (MNTTL-S0BL: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.04 of its yield, MNTTR-S0BR) and lets go at 23.92 x it (MNTTR-S0BR: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.13 of its yield, MNTTL-S0BL) and lets go at 7.76 x it (MNTTL-S0BL: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.13 of its yield, MNTTR-S0BR) and lets go at 7.76 x it (MNTTR-S0BR: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.13 of its yield, MNTTL-S0TL) and lets go at 7.98 x it (MNTTL-S0TL: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.13 of its yield, MNTTR-S0TR) and lets go at 7.98 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 1.55, pitch 1.61 rad/s (1.61 x 23.371's) - the mount at 0.11 of its certified yield (MNTBR-S0BR; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (null, 340 s; the take-off at full power): no strike, no exceedance - the engine's peak 2774 rpm (logged 74.78 s), the disc's least clearance 0.50 m
+  ok    a 4.62 g pull at full power: no strike, no exceedance
+twin floatplane:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  ok    VNE full (52.89 m/s, throttle 1.00): 7357 rpm against 6800 (8.2 %), tip Mach 0.86 -> 'logged' [as recalled - A0 to open]
+  ok    1.1 VD full (64.64 m/s, throttle 1.00): 7999 rpm against 6800 (17.6 %), tip Mach 0.94 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    VNE cruise (52.89 m/s, throttle 0.53): 6267 rpm against 6800 (-7.8 %), tip Mach 0.74 -> 'none' - no exceedance
+  ok    VNE idle (52.89 m/s, throttle 0.00): 4775 rpm against 6800 (-29.8 %), tip Mach 0.57 -> 'none' - no exceedance
+  ok    VNE off (52.89 m/s, throttle 0.00): 4426 rpm against 6800 (-34.9 %), tip Mach 0.53 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    the bow digging in at 90 km/h, 5 m/s, 20 deg (the ordinary water case): the disc strikes the WATER (the base: no strike on water at all) - 'stoppage', the engine stopped
+  ok    the bow digging in at 150 km/h, 10 m/s, 60 deg (TREECRASH's severe nose-in): the disc strikes the WATER - 'stoppage', the engine stopped
+  ok    a trunk grazing the tips (3 cm) at full power (2282 rpm, tip 228 m/s): a blade breaks off and the prop turns on short of it - 23.85 kN of imbalance (m e w^2) - the mount lets go 0.02 s later (the engine leaves) [GAME - no source]
+  ok    the same graze at idle (695 rpm, tip 69 m/s): 'brush', the engine runs, the mount holds
+  ok    4. the gearbox (Rotax 582 (B / C / E gearbox) and 912 Maintenance Manuals [as recalled - A0 to open]): a stoppage at full power shears the drive - the engine runs away unloaded (9860 rpm, 45.0 %) and throws a rod 1.27 s later [GAME - no source]
+  ok    4. a stoppage at idle: the engine stops ('stoppage'), the gearbox marked for its inspection (Rotax's manual after a strike) [as recalled - A0 to open]
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 739.03 N m (mean 70.52 x 2.62 through the reduction x 4, 2 cylinders); the prop's I 0.76 kg m2 at 259.80 rad/s; the drive cases govern none of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.26 of its yield, CGE-WF) and lets go at 3.89 x it (CGE-WF: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.06 of its yield, CGE-WF) and lets go at 17.84 x it (CGE-WF: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.06 of its yield, CGE-WF) and lets go at 17.84 x it (CGE-WF: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.22 of its yield, CGE-WF) and lets go at 4.61 x it (CGE-WF: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.22 of its yield, CGE-WF) and lets go at 4.61 x it (CGE-WF: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.23 of its yield, MNTR-WR) and lets go at 4.26 x it (MNTR-WR: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.23 of its yield, MNTL-WR) and lets go at 4.26 x it (MNTL-WR: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 1.52, pitch 2.95 rad/s (2.95 x 23.371's) - the mount at 0.41 of its certified yield (MNTL-WF; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (completed, 302 s; the take-off at full power): no strike, no exceedance - the engine's peak 6432 rpm, the disc's least clearance 0.40 m
+  ok    a 5.15 g pull at full power: no strike, no exceedance
+  --    the teardown's internal damage (seeded, 15 %): AOPA, 2007 (the DEFORM doc §10.2's line: only 10-20 % of the engines torn down after a strike show internal damage) 10-20 % - a ratio for the bill, never a gate
+  131/131 checks
+GATE DMGDRIVE: PASS

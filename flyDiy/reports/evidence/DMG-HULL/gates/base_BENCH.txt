@@ -1,0 +1,118 @@
+THE SHEET
+  ok   drawPlaque prints 48 literal rows
+  ok   every row has an explanation
+  ok   every section heading has its line
+  ok   the energy section's two headings are explained
+  ok   climb bound 0.5 m/s, red below it
+  ok   take-off run 500 / 1100 m
+  ok   static margin 0.05 / 0
+  ok   crosswind 4 / 2 m/s
+  ok   prop clearance 0.12 / 0.05 m
+  ok   the four loading corners left the plaque
+  ok   the bench check runs without the corners
+  ok   judge: climb
+  ok   judge: take-off run
+  ok   judge: static margin
+  ok   the band bar's marker stays on the bar and its zone is the judge's
+  ok   the marker moves monotonically with the value
+  ok   the sheet renders headings and rows
+  ok   a red row carries its fix in the hover text
+  ok   a judged row carries its band bar
+  ok   no row went unexplained
+THE WORD
+  ok   a new colour, a new finish and a new name keep the fingerprint
+  ok   a longer wing changes it
+  ok   a cage row changes it
+  ok   the hash is eight hex digits and stable
+  ok   FNV-1a reference values
+  ok   the cosmetic set is paint, finish, meta
+  ok   a tank hue, tint or finish keeps it
+  ok   the panel bezel keeps it
+  ok   the lights, who is aboard, a view toggle and a look row keep it
+  ok   a cage row added at its default keeps it
+  ok   the key order keeps it
+  ok   a float printed to the last digit keeps it
+  ok   a cage row moved off its default changes it
+  ok   a row put back to its default changes it (it was moved)
+  ok   a vessel capacity changes it
+  ok   the systems fit changes it
+  ok   without defaults every row counts (a core-only caller)
+  ok   the scheme is named in the tag
+  ok   canonical JSON sorts keys at every depth
+  ok   fpNow reads the default aeroplane garage.js publishes
+  ok   another PHYSICS_V is another fingerprint, the same one the same
+  ok   the versions are folded in (a bare context reads v0|p0)
+  ok   the dirty hook compares fingerprints
+  ok   the restore withdraws a changed, unstamped or old-scheme certificate instead of stamping the live fingerprint on it
+  ok   a withdrawn certificate is kept, struck through
+  ok   every settled result is dated
+  ok   BENCH_STATE carries the advised trim only from a live, accepted flight
+  ok   roll-out seeds the hand from the advised trim
+  ok   the pilot publishes the trim it held
+  ok   trim words in clicks of 0.02
+THE STRIP
+  ok   the phase strip knows all 19 pilot phases
+  ok   the crosswind leg is cruise, taxi and stopped map to their steps (A9: the ladder has its own card)
+  ok   all six roundels draw on a stub context
+  ok   the master roundel draws: AIRWORTHY, 250 mm, on page 7
+  ok   the master is dated by the last GATING certificate (a rating does not date it)
+  ok   a roundel is a disc with lettering round it
+  ok   one sticker per declared test, and every test has one (six: the crosswind's A9, the hydroplane's S1 G451.1)
+  ok   six 120 mm roundels in a 0.87 m strip
+  ok   no decal block = the rear fuselage under the registration
+  ok   the fin place (box side frame), fine-tuned, smaller, turned
+  ok   with a measured fin, the strip is centred on its chord 0.35 m under the top
+  ok   without a chord, hung short of the top's station
+  ok   no decal block = the master 250 mm, one roundel wide
+  ok   the master on the fin, fine-tuned, bigger, turned — on its own keys
+  ok   the master off hides the master and not the strip
+  ok   with a measured wing, the strip lies across the span on its chord station
+  ok   stickers shown off = no strip
+  ok   five named places, each with surfaces and a projection
+  ok   the sticker keys are decal defaults, so they ride finish.decals — and the default place is the fin
+  ok   the master keys are decal defaults too (the rear fuselage under the registration), with their panel rows
+  ok   the panel has a stickers block and the finish view a heading for it
+  ok   the strip lives on atlas page 6 (0 reg, 1-2 images, 3-5 the kit)
+  ok   the shader has the eighth decal slot (the strip and the master)
+  ok   aeroDecalsFor takes the stickers through the hook, with the decal block
+  ok   the manifest carries plaque.js, stickers.js, bench_worker.js, bench.js and bench.css
+  ok   the editor can be asked to rebuild its decal list
+THE THREAD
+  ok   the worker imports this module and the core bundle, and names the rig and the ladder
+  ok   the page backend steps under a frame's budget
+  ok   the rig's thread is killed at every way out (5 sites), with terminate()
+  ok   the certificate fails on a break-up or the tip cap, never on the yield proxy
+  ok   the proxy is reported as a warning, named for what it is
+  ok   the fix line names rows that exist (fixation, construction, span), not a deeper spar
+  ok   the advisor's levers are the wing page's rows; thickness and spar stations are not offered (measured useless / worse)
+  ok   a cantilever aluminium wing is offered struts, carbon and a metre off — not aluminium again
+  ok   a wing that follows an aluminium fuselage is not offered aluminium either (genSurfKey decides)
+  ok   the advisor runs after the verdict through the bridge, line by line
+  ok   a lever line names the row and the tip it buys
+  ok   the test flight is a flown card: it hands off to the game
+  ok   an arrival on the pilot awards, with the landing run and the trim
+  ok   a refusal is a failed test with its reason
+  ok   an arrival by hand awards, and carries no trim reading
+  ok   logFlight hands every flight to the bench; the offscreen circuit is gone
+  ok   the game pilot publishes the trim it held (the advisor reads the real flight now)
+  ok   the director cuts on the phases and a framing pick ends it
+  ok   2x steps twice a frame (twice what the real time owes, G586), refuses floats, drops itself
+  ok   the crosswind is its own advisory card
+  ok   the verdict names the limit and every rung
+  ok   under the plaque's bar it says why, with the first failed rung
+  ok   the probe publishes its rungs as they land (read-only)
+  ok   the plaque has the crosswind section, from the card's sheet
+  ok   the worker's run is the rig: same verdict, same tip (HELD, 1.022 %)
+THE FLIGHT
+  ok   the default garage build leaves LIFTOFF for CLIMB within 40 s of lifting off (10 s)
+  ok   it flies the whole circuit and stops: completed — ROLL LIFTOFF CLIMB CRUISE TURNBACK INBOUND APPROACH FLARE ROLLOUT STOPPED
+  ok   with a landing run (302 m)
+THE FIRST FLIGHT
+  ok   an unarmed arrival settles the flight certificate on the roll-out's fingerprint (161a1797)
+  ok   the award card shows on the first arrival and not again (1, then 0)
+  ok   the reload restores it valid, with its first day
+  ok   NEGATIVE: the pre-G700 arrival (fingerprinted out in the world) is lost on the reload (certified before fingerprints)
+  ok   app.js rollOut fingerprints the aeroplane before it closes the editor
+
+109/109 checks
+GATE BENCH: PASS

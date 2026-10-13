@@ -1,0 +1,4 @@
+# GATE FLOWNBAKE (node tools/_flown_bake_check.js) - exit 0, 0 s, 2026-10-07T00:21:46Z, branch claude/dmg-foldnode 774dac7, build FLYDIY_BUILD='22321372b7c2'
+FLOWNBAKE: 83 checks
+GATE FLOWNBAKE: PASS
+# exit 0

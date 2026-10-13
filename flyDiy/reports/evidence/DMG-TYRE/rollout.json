@@ -1,0 +1,122 @@
+{
+ "3:before": {
+  "outcome": "completed",
+  "rollout": {
+   "maxE": 110.3,
+   "zeroX": 0,
+   "maxDr": 0.95,
+   "xtEnd": -3.4
+  },
+  "landing": {
+   "sink": 0.71,
+   "V": 18.7,
+   "VoverVs": 1.15,
+   "pastAim": 28,
+   "off": -0.7,
+   "run": 129,
+   "three": false,
+   "drift": -0.14
+  },
+  "t": 342.9
+ },
+ "3:after": {
+  "outcome": "completed",
+  "rollout": {
+   "maxE": 8,
+   "zeroX": 0,
+   "maxDr": 0.5,
+   "xtEnd": 0.2
+  },
+  "landing": {
+   "sink": 0.71,
+   "V": 18.7,
+   "VoverVs": 1.15,
+   "pastAim": 28,
+   "off": -0.7,
+   "run": 161,
+   "three": false,
+   "drift": -0.14
+  },
+  "t": 344.3
+ },
+ "4:before": {
+  "outcome": "completed",
+  "rollout": {
+   "maxE": 89.2,
+   "zeroX": 0,
+   "maxDr": 0.95,
+   "xtEnd": 22.6
+  },
+  "landing": {
+   "sink": 0.73,
+   "V": 18.7,
+   "VoverVs": 1.15,
+   "pastAim": 27,
+   "off": -1,
+   "run": 142,
+   "three": false,
+   "drift": -0.18
+  },
+  "t": 349
+ },
+ "4:after": {
+  "outcome": "completed",
+  "rollout": {
+   "maxE": 10.4,
+   "zeroX": 0,
+   "maxDr": 0.64,
+   "xtEnd": 0.2
+  },
+  "landing": {
+   "sink": 0.74,
+   "V": 18.7,
+   "VoverVs": 1.15,
+   "pastAim": 27,
+   "off": -1,
+   "run": 157,
+   "three": false,
+   "drift": -0.18
+  },
+  "t": 349.4
+ },
+ "5:before": {
+  "outcome": "completed",
+  "rollout": {
+   "maxE": 151.3,
+   "zeroX": 1,
+   "maxDr": 0.95,
+   "xtEnd": 14.6
+  },
+  "landing": {
+   "sink": 0.73,
+   "V": 18.8,
+   "VoverVs": 1.15,
+   "pastAim": 25,
+   "off": -1.1,
+   "run": 106,
+   "three": false,
+   "drift": -0.1
+  },
+  "t": 352.1
+ },
+ "5:after": {
+  "outcome": "completed",
+  "rollout": {
+   "maxE": 12.3,
+   "zeroX": 1,
+   "maxDr": 0.72,
+   "xtEnd": 0.3
+  },
+  "landing": {
+   "sink": 0.73,
+   "V": 18.8,
+   "VoverVs": 1.15,
+   "pastAim": 25,
+   "off": -1.1,
+   "run": 154,
+   "three": false,
+   "drift": -0.1
+  },
+  "t": 355.7
+ }
+}

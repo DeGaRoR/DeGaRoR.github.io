@@ -1,0 +1,53 @@
+# GATE DMGWIND (node tools/_dmg_wind_check.js) - exit 0, 750 s, 2026-10-07T00:47:29Z, branch claude/dmg-foldnode 1dea065, build FLYDIY_BUILD='22321372b7c2'
+(749 s; on the certificate, damage on)
+1. THE PAGE'S STAGING: settled 2 s in the wind, 3 m/s, the throttle shut, a trunk 6 m ahead (49 winds a build)
+  the user's Cub:
+        U \ from       0     30     60     90    120    150    180    210    240    270    300    330   (deg off the nose; cell: mount members broken / plastic kJ)
+           0 m/s   0/0.2   (calm: one run)
+         2.5 m/s   0/0.2  0/0.2  0/0.3  0/0.3  0/0.3  0/0.3  0/0.3  0/0.3  0/0.3  0/0.3  0/0.3  0/0.2
+           5 m/s   0/0.2  0/0.3  0/0.0  0/0.0  0/0.0  0/0.3  0/0.3  0/0.3  0/0.0  0/0.0  0/0.0  0/0.3
+         7.5 m/s   0/0.2  0/0.0  0/0.1  0/0.2  0/0.2  0/0.0  0/0.4 10/0.0  0/0.2  0/0.2  0/0.1  0/0.0
+          10 m/s   0/0.2  0/0.0  0/0.0  0/0.0  0/0.2  0/0.4  0/0.6  0/0.4  0/0.2  0/0.0  0/0.0  0/0.0
+  ok    the user's Cub: no mount member breaks in any wind to 5 m/s (25 of 49 runs gated, 49 met the trunk at 1.18-2.47 m/s; the mount's worst 1.04 of its limit)
+  --    REPORT the user's Cub at 7.5 and 10 m/s: 1 of 24 winds break the mount: 7.5 m/s from 210: CGE-S0TR tension (16 J, met at 2.28 m/s)
+  --    REPORT the user's Cub: mirror symmetry (a wind from th vs 360 - th, the plastic work within 5 %): every pair
+  Jodel:
+        U \ from       0     30     60     90    120    150    180    210    240    270    300    330   (deg off the nose; cell: mount members broken / plastic kJ)
+           0 m/s   0/0.6   (calm: one run)
+         2.5 m/s   0/0.6  0/0.7  0/0.7  0/0.7  0/0.7  0/0.7  0/0.6  0/0.7  0/0.7  0/0.7  0/0.7  0/0.7
+           5 m/s   0/0.6  0/0.5  0/0.0  0/0.0  0/0.0  0/0.4  0/0.6  0/0.4  0/0.0  0/0.0  0/0.0  0/0.5
+         7.5 m/s   0/0.6  0/0.0  0/0.2  0/0.1  0/0.2  0/0.0  0/0.6  0/0.0  0/0.2  0/0.1  0/0.2  0/0.0
+          10 m/s   0/0.6  0/0.2  0/0.0  0/0.0  0/0.0  0/0.0  0/0.7  0/0.0  0/0.0  0/0.0  0/0.0  0/0.2
+  ok    Jodel: no mount member breaks in any wind to 10 m/s (49 of 49 runs gated, 49 met the trunk at 1.66-2.36 m/s; the mount's worst 1.01 of its limit)
+  --    REPORT Jodel: other members broken (not the mount): 7.5/60 VSNR-S0TR kink; 7.5/90 VSNR-S0TR kink; 7.5/120 VSNR-S0TR kink; 7.5/240 VSNL-S0TL kink; 7.5/270 VSNL-S0TL kink; 7.5/300 VSNL-S0TL kink; 10/30 VSNR-S0TR kink; 10/330 VSNL-S0TL kink
+  --    REPORT Jodel: mirror symmetry (a wind from th vs 360 - th, the plastic work within 5 %): every pair
+  metal Cessna:
+        U \ from       0     30     60     90    120    150    180    210    240    270    300    330   (deg off the nose; cell: mount members broken / plastic kJ)
+           0 m/s   0/0.8   (calm: one run)
+         2.5 m/s   0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8
+           5 m/s   0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8  0/0.8
+         7.5 m/s   0/0.7  0/0.8  0/0.8  0/0.9  0/0.9  0/0.8  0/0.8  0/0.8  0/0.9  0/0.9  0/0.8  0/0.8
+          10 m/s   0/0.7  0/0.8  0/0.9  0/0.9  0/0.9  0/0.9  0/0.8  0/0.9  0/0.9  0/0.9  0/0.9  0/0.8
+  ok    metal Cessna: no mount member breaks in any wind to 10 m/s (49 of 49 runs gated, 49 met the trunk at 2.07-2.22 m/s; the mount's worst 1.01 of its limit)
+  --    REPORT metal Cessna: other members broken (not the mount): 0/0 ENGL-ENGR fold; 2.5/0 ENGL-ENGR fold; 2.5/30 ENGL-ENGR fold; 2.5/60 ENGL-ENGR fold; 2.5/90 ENGL-ENGR fold; 2.5/120 ENGL-ENGR fold; 2.5/150 ENGL-ENGR fold; 2.5/180 ENGL-ENGR fold; 2.5/210 ENGL-ENGR fold; 2.5/240 ENGL-ENGR fold; 2.5/270 ENGL-ENGR fold; 2.5/300 ENGL-ENGR fold; 2.5/330 ENGL-ENGR fold; 5/0 ENGL-ENGR fold; 5/30 ENGL-ENGR fold; 5/60 ENGL-ENGR fold; 5/90 ENGL-ENGR fold; 5/120 ENGL-ENGR fold; 5/150 ENGL-ENGR fold; 5/180 ENGL-ENGR fold; 5/210 ENGL-ENGR fold; 5/240 ENGL-ENGR fold; 5/270 ENGL-ENGR fold; 5/300 ENGL-ENGR fold; 5/330 ENGL-ENGR fold; 7.5/0 ENGL-ENGR fold; 7.5/30 ENGL-ENGR fold; 7.5/60 ENGL-ENGR fold; 7.5/90 ENGL-ENGR fold; 7.5/120 ENGL-ENGR fold; 7.5/150 ENGL-ENGR fold; 7.5/180 ENGL-ENGR fold; 7.5/210 ENGL-ENGR fold; 7.5/240 ENGL-ENGR fold; 7.5/270 ENGL-ENGR fold; 7.5/300 ENGL-ENGR fold; 7.5/330 ENGL-ENGR fold; 10/0 ENGL-ENGR fold; 10/150 ENGL-ENGR fold; 10/180 ENGL-ENGR fold; 10/210 ENGL-ENGR fold
+  --    REPORT metal Cessna: mirror symmetry (a wind from th vs 360 - th, the plastic work within 5 %): every pair
+2. THE PAGE'S OWN WIND on the Cub (5.48 m/s from 112 deg off the nose; the gust field 1 m over the CG at t = 2 s: -1.91, -0.11, 5.06)
+  ok    steady, started at 3 m/s (met the trunk at 2.22): mount 0, broken 0, 4 J, the mount's worst 1.02
+  ok    gust 0.5, started at 3 m/s (met the trunk at 2.21): mount 0, broken 0, 4 J, the mount's worst 1.02
+  ok    gust 1, started at 3 m/s (met the trunk at 2.21): mount 0, broken 0, 6 J, the mount's worst 1.02
+  ok    steady, started at 3.6 m/s (met the trunk at 2.98): mount 0, broken 0, 236 J, the mount's worst 1.08
+  ok    gust 0.5, started at 3.6 m/s (met the trunk at 2.98): mount 0, broken 0, 232 J, the mount's worst 1.08
+  --    REPORT gust 1, started at 3.6 m/s (met the trunk at 2.97): mount 10, broken 10, 155 J, the mount's worst 1.07 - first CGE-S0BR tension (the page's impact speed: see the REPORT below)
+3. THE FLOATPLANES on the water, 10 s at 3 m/s in the wind
+  ok    Cessna floats: nothing breaks (9 winds to 10 m/s; yields 0 at most)
+  ok    twin floatplane: nothing breaks (9 winds to 10 m/s; yields 0 at most)
+  ok    the per-substep reader (sim.onSubstep, damagePush) changes nothing: 23d4604cd11e / 23d4604cd11e (13500 substeps read)
+REPORT: THE PAGE'S IMPACT SPEED (started at 3.6 m/s: the trunk met at ~3 m/s, as on the page)
+  --    REPORT the user's Cub: 17 of 49 winds break the mount (met at 2.17-3.14 m/s): 2.5/30 CGE-ENGR fold (1235 J); 2.5/90 CGE-ENGR fold (1196 J); 2.5/120 CGE-ENGR fold (1326 J); 2.5/150 CGE-ENGR fold (1202 J); 2.5/180 CGE-ENGL fold (1219 J); 2.5/210 CGE-ENGL fold (1201 J); 2.5/240 CGE-ENGL fold (1327 J); 2.5/270 CGE-ENGL fold (1197 J); 2.5/330 CGE-ENGL fold (1235 J); 5/150 CGE-S0TR tension (696 J); 5/180 CGE-ENGL fold (1354 J); 7.5/30 CGE-S0TR tension (58 J); 7.5/150 CGE-S0TR tension (19 J); 7.5/180 CGE-ENGL fold (1238 J); 7.5/210 CGE-S0BL tension (85 J); 7.5/330 CGE-S0BL tension (84 J); 10/180 CGE-ENGL fold (1368 J)
+  --    REPORT Jodel: 0 of 49 winds break the mount (met at 2.54-3.07 m/s)
+  --    REPORT metal Cessna: 4 of 49 winds break the mount (met at 2.86-2.98 m/s): 10/60 ENGL-ENGR fold (2220 J); 10/90 ENGL-ENGR fold (1527 J); 10/270 ENGL-ENGR fold (1593 J); 10/300 ENGL-ENGR fold (2264 J)
+  --    REPORT the Cub, no wind, started at 3 m/s, the trunk across the nose (-0.45..0.45 m): 3 of 19 break the mount: 0.3 m CGE-S0TR tension; 0.35 m CGE-S0TR tension; 0.4 m CGE-S0TR tension
+  --    REPORT the Cub, no wind, started at 3.6 m/s, the trunk across the nose (-0.45..0.45 m): 11 of 19 break the mount: -0.35 m CGE-S0TR tension; -0.3 m CGE-S0TR tension; -0.25 m CGE-S0TR tension; -0.1 m CGE-S0TR tension; -0.05 m CGE-ENGR fold; 0.05 m CGE-ENGL fold; 0.15 m ENGL-ENGR fold; 0.25 m CGE-S0BL tension; 0.3 m CGE-S0BL tension; 0.35 m CGE-S0BL tension; 0.4 m CGE-S0TR tension
+  11/11 checks
+GATE DMGWIND: PASS
+# exit 0

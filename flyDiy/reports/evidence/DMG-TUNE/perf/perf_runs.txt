@@ -1,0 +1,13 @@
+perf cub ground master 2.879 ms, now 2.805 ms (the median of 5 processes' medians, 600 steps each)
+perf cub air master 3.072 ms, now 2.719 ms (the median of 5 processes' medians, 600 steps each)
+perf metal ground master 5.022 ms, now 4.993 ms (the median of 5 processes' medians, 600 steps each)
+perf metal air master 4.769 ms, now 4.785 ms (the median of 5 processes' medians, 600 steps each)
+perf cub ground master 2.970 ms, now 2.991 ms (the median of 5 processes' medians, 600 steps each)
+perf cub air master 2.713 ms, now 2.793 ms (the median of 5 processes' medians, 600 steps each)
+perf metal ground master 4.872 ms, now 5.257 ms (the median of 5 processes' medians, 600 steps each)
+perf metal air master 4.754 ms, now 4.948 ms (the median of 5 processes' medians, 600 steps each)
+OFF
+perf cub ground master 2.806 ms, now 2.820 ms (the median of 5 processes' medians, 600 steps each)
+perf cub air master 2.730 ms, now 2.836 ms (the median of 5 processes' medians, 600 steps each)
+perf metal ground master 4.929 ms, now 5.082 ms (the median of 5 processes' medians, 600 steps each)
+perf metal air master 4.745 ms, now 4.674 ms (the median of 5 processes' medians, 600 steps each)

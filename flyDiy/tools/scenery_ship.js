@@ -18,6 +18,7 @@
 // Nothing of a place the save cut (the town, `mk_`) is touched. --verify: the patched fixture, migrated, the town cut,
 // equals the save minus the held-back entries, entry by entry (normalised) - GATE SCENERYED holds it.
 'use strict';
+require('./_core_math_global.js');   // (T41b: CORE_MATH before a core file required alone - 00_registry's)
 const fs = require('fs');
 const path = require('path');
 const PG = require(path.join(__dirname, '..', 'src', 'core', '27_premises.js'));

@@ -78,6 +78,7 @@
 // NEGATIVE-VERIFIED: --selftest crosses a polygon, forges an envelope, moves
 // a level after compose, and requires each rule red.
 'use strict';
+require('./_core_math_global.js');   // (T41b: CORE_MATH before a core file required alone - 00_registry's)
 const fs = require('fs');
 const path = require('path');
 

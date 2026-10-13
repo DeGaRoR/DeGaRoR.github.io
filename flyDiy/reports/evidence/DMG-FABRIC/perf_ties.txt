@@ -1,0 +1,6 @@
+cub    trunk25  ties made 4 live at rest 4 (taut 0) | the pass 122.8 ns -> 30.7 ns a tie a substep; 75 substeps a frame -> 9.21 us a frame
+jodel  trunk25  ties made 7 live at rest 3 (taut 0) | the pass 170.7 ns -> 56.9 ns a tie a substep; 120 substeps a frame -> 20.49 us a frame
+cub    trunk0   ties made 19 live at rest 5 (taut 1) | the pass 171.4 ns -> 34.3 ns a tie a substep; 75 substeps a frame -> 12.86 us a frame
+metal  trunk0   ties made 30 live at rest 13 (taut 1) | the pass 310.9 ns -> 23.9 ns a tie a substep; 120 substeps a frame -> 37.31 us a frame
+twinFloats trunk25  ties made 2 live at rest 2 (taut 0) | the pass 75.0 ns -> 37.5 ns a tie a substep; 120 substeps a frame -> 9.00 us a frame
+RESULT [{"k":"cub","id":"trunk25","made":4,"live":4,"taut":0,"left":4,"subs":75,"nsPass":122.8,"nsPerTieSub":30.69,"nsPerFrame":9207},{"k":"jodel","id":"trunk25","made":7,"live":3,"taut":0,"left":3,"subs":120,"nsPass":170.7,"nsPerTieSub":56.91,"nsPerFrame":20487},{"k":"cub","id":"trunk0","made":19,"live":5,"taut":1,"left":5,"subs":75,"nsPass":171.4,"nsPerTieSub":34.28,"nsPerFrame":12855},{"k":"metal","id":"trunk0","made":30,"live":13,"taut":1,"left":13,"subs":120,"nsPass":310.9,"nsPerTieSub":23.92,"nsPerFrame":37311},{"k":"twinFloats","id":"trunk25","made":2,"live":2,"taut":0,"left":2,"subs":120,"nsPass":75,"nsPerTieSub":37.51,"nsPerFrame":9002}]

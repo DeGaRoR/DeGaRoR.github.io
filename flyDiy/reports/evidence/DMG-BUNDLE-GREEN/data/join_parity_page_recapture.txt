@@ -1,0 +1,6 @@
+cub         n 97 nb 404 mass 460.483 kg  (552 s)
+jodel       n 115 nb 502 mass 463.875 kg  (581 s)
+metal       n 107 nb 452 mass 887.974 kg  (604 s)
+floats      n 134 nb 543 mass 951.650 kg  (580 s)
+wrote tools/fixtures/join_parity_page.json
+EXIT 0

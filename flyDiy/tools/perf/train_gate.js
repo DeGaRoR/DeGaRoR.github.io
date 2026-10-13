@@ -79,8 +79,12 @@ function steps(dir, port, udd) {
         sec: EST.chrome + EST.warmLoad + EST.rollout + M.secs });
     }
   }
+  // G2920 (GARAGE-SHEET): --clearshake - the performance sheet's store (localStorage flydiy.shake, per core sha) lives in
+  // the rig's profile and garage_lag sets the same values every run, so a profile that ran before read its sheets from
+  // the store and the garage rows timed less than a first visit pays (the metal tank row 953 -> 279 ms busy); every load
+  // now starts with the store empty. A baseline taken without it is not comparable: re-take it (--update)
   if (ONLY.has('garage')) S.push({ id: 'garage_lag', part: 'garage', what: 'the garage, the Cub and the metal Cessna, ten changes x ' + M.glReps + ' reps',
-    args: ['tools/perf/garage_lag.js', '--port', P(1), '--udd', path.join(udd, 'p'), '--builds', 'cub,metal', '--reps', String(M.glReps), '--out', path.join(dir, 'garage_lag.json')],
+    args: ['tools/perf/garage_lag.js', '--port', P(1), '--udd', path.join(udd, 'p'), '--builds', 'cub,metal', '--reps', String(M.glReps), '--clearshake', '--out', path.join(dir, 'garage_lag.json')],
     sec: 2 * (EST.chrome + EST.warmLoad + 6 + 10 * (M.glReps + 1) * EST.glEval) });
   if (ONLY.has('bench')) S.push({ id: 'master_bench', part: 'bench', what: 'every load' + (M.cold ? ' (the cold one too)' : ' (no cold load)') + ', the garage, the taxi at HOME and @' + REMOTE + ', the floats\' water taxi',
     args: ['tools/master_bench.js', '--port', P(2), '--udd', path.join(udd, 'p'), '--builds', 'cub', '--only', 'loads,garage,taxi,water', '--places', 'HOME,' + REMOTE,

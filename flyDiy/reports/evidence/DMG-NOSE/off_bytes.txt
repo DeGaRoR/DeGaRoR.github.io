@@ -1,0 +1,15 @@
+DAMAGE OFF = THE BASE'S BYTES (DMG-NOSE, 2026-10-06; node tools/run_gates.js --only=LOAD,BENCH,UISMOKE,BUILD,JOIN --verbose, GATES_CORE=1)
+base = claude/dmg-integration d3d5e24 (git archive, built); this branch's run is the targeted battery's (the same five sections).
+Each gate's whole printed output compared line by line, NOTHING masked; the runner's own timing table after the last section is the only difference.
+
+LOAD      116 lines base,  116 this branch: IDENTICAL; GATE LOAD: PASS
+BENCH     118 lines base,  118 this branch: IDENTICAL; GATE BENCH: PASS
+UISMOKE    28 lines base,   28 this branch: IDENTICAL; GATE UISMOKE: PASS
+BUILD     198 lines base,  198 this branch: IDENTICAL; GATE BUILD: PASS
+JOIN      246 lines base,  246 this branch: IDENTICAL; GATE JOIN: PASS
+
+The solver's own bits, damage OFF (params.damage false: no DRV, no nose, the trunk pass the base's), the md5 of every node's position
+and velocity after the run, base -> this branch:
+  cub   taxi 3.6 m/s into a trunk 9bb1f0210dee -> 9bb1f0210dee; 30 m/s into a trunk b736a22d5631 -> b736a22d5631
+  jodel taxi 57f1bc9c9c54 -> 57f1bc9c9c54; 30 m/s 592e483dcce0 -> 592e483dcce0
+  metal taxi c5e69b8e0703 -> c5e69b8e0703; 30 m/s 682e0be5deb8 -> 682e0be5deb8

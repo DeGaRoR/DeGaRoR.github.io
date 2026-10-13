@@ -1,0 +1,50 @@
+(623 s; on the certificate, damage on)
+1. THE PAGE'S STAGING: settled 2 s in the wind, 3 m/s, the throttle shut, a trunk 6 m ahead (49 winds a build)
+  the user's Cub:
+        U \ from       0     30     60     90    120    150    180    210    240    270    300    330   (deg off the nose; cell: mount members broken / plastic kJ)
+           0 m/s   0/0.4   (calm: one run)
+         2.5 m/s   0/0.4  0/0.4 10/0.4 10/0.5 10/0.5  0/0.4  0/0.4 10/0.6  0/0.5  0/0.5  0/0.4 10/0.5
+           5 m/s   0/0.4  0/0.4  0/0.4  0/0.5  0/0.5  0/0.5  0/0.4  0/0.5  0/0.5  0/0.5  0/0.4  0/0.4
+         7.5 m/s   0/0.3  0/0.2 10/0.1  0/0.1 10/0.2  0/0.6  0/0.5 10/0.5 10/0.2  0/0.1 10/0.1  0/0.2
+          10 m/s   0/0.3  0/0.0  0/0.0  0/0.0  0/0.2  0/0.2  0/0.6  0/0.2  0/0.2  0/0.0  0/0.0  0/0.0
+  FAIL  the user's Cub: no mount member breaks in any wind (49 runs, 49 met the trunk at 1.18-2.47 m/s; the mount's worst 1.11 of its limit) - BROKE: 2.5 m/s from 60: CGE-S0TR tension; 2.5 m/s from 90: CGE-S0TR tension; 2.5 m/s from 120: CGE-S0TR tension; 2.5 m/s from 210: CGE-S0TR tension; 2.5 m/s from 330: CGE-S0TR tension; 7.5 m/s from 60: CGE-S0TL tension; 7.5 m/s from 120: CGE-S0TL tension; 7.5 m/s from 210: ENGL-S0TL kink; 7.5 m/s from 240: CGE-S0TR tension; 7.5 m/s from 300: CGE-S0TR tension
+  --    REPORT the user's Cub: other members broken (not the mount): 7.5/60 CGE-S0TL tension; 7.5/90 VSNR-S0TR kink; 7.5/240 CGE-S0TR tension; 7.5/270 VSNL-S0TL kink; 7.5/300 CGE-S0TR tension; 10/150 VSNR-S0TR kink; 10/210 VSNL-S0TL kink
+  --    REPORT the user's Cub: mirror symmetry (a wind from th vs 360 - th, the plastic work within 5 %): 3 pairs differ: 2.5/30 399 J vs 543; 2.5/150 430 J vs 643; 7.5/150 568 J vs 534
+  Jodel:
+        U \ from       0     30     60     90    120    150    180    210    240    270    300    330   (deg off the nose; cell: mount members broken / plastic kJ)
+           0 m/s   0/0.7   (calm: one run)
+         2.5 m/s   0/0.7  0/0.7  0/0.7  0/0.6  0/0.6  0/0.7  0/0.7  0/0.7  0/0.6  0/0.6  0/0.7  0/0.7
+           5 m/s   0/0.7  0/0.3 10/0.4 10/0.4 10/0.4  0/0.3  0/0.7  0/0.3 10/0.4 10/0.4 10/0.4  0/0.3
+         7.5 m/s   0/0.7 10/0.4  0/0.1  0/0.1  0/0.2 10/0.4  0/0.8 10/0.4  0/0.2  0/0.1  0/0.1 10/0.4
+          10 m/s   0/0.6  0/0.0  0/0.0  0/0.0  0/0.1  0/0.0  0/0.9  0/0.0  0/0.1  0/0.0  0/0.0  0/0.0
+  FAIL  Jodel: no mount member breaks in any wind (49 runs, 49 met the trunk at 1.66-2.36 m/s; the mount's worst 1.02 of its limit) - BROKE: 5 m/s from 60: ENGR-S0TR kink; 5 m/s from 90: ENGR-S0TR kink; 5 m/s from 120: ENGR-S0TR kink; 5 m/s from 240: ENGL-S0TL kink; 5 m/s from 270: ENGL-S0TL kink; 5 m/s from 300: ENGL-S0TL kink; 7.5 m/s from 30: ENGR-S0TR kink; 7.5 m/s from 150: ENGR-S0TR kink; 7.5 m/s from 210: ENGL-S0TL kink; 7.5 m/s from 330: ENGL-S0TL kink
+  --    REPORT Jodel: other members broken (not the mount): 7.5/60 VSNR-S0TR kink; 7.5/90 VSNR-S0TR kink; 7.5/120 VSNR-S0TR kink; 7.5/240 VSNL-S0TL kink; 7.5/270 VSNL-S0TL kink; 7.5/300 VSNL-S0TL kink; 10/150 VSNR-S0TR kink; 10/210 VSNL-S0TL kink
+  --    REPORT Jodel: mirror symmetry (a wind from th vs 360 - th, the plastic work within 5 %): every pair
+  metal Cessna:
+        U \ from       0     30     60     90    120    150    180    210    240    270    300    330   (deg off the nose; cell: mount members broken / plastic kJ)
+           0 m/s   0/0.7   (calm: one run)
+         2.5 m/s   0/0.7  0/0.7  0/0.7  0/0.7  0/0.7  0/0.7  0/0.7  0/0.7  0/0.7  0/0.7  0/0.7  0/0.7
+           5 m/s   0/0.7  0/0.7  0/0.8  0/0.8  0/0.8  0/0.7  0/0.7  0/0.7  0/0.8  0/0.8  0/0.8  0/0.7
+         7.5 m/s   0/0.7  0/0.9  0/0.8  0/0.8  0/0.9  0/0.9  0/0.7  0/0.9  0/0.9  0/0.8  0/0.8  0/0.9
+          10 m/s   0/0.6  0/0.7  0/0.6  0/0.6  0/0.6  0/0.9  0/0.7  0/0.9  0/0.6  0/0.6  0/0.6  0/0.7
+  ok    metal Cessna: no mount member breaks in any wind (49 runs, 49 met the trunk at 2.07-2.22 m/s; the mount's worst 0.92 of its limit)
+  --    REPORT metal Cessna: mirror symmetry (a wind from th vs 360 - th, the plastic work within 5 %): every pair
+2. THE PAGE'S OWN WIND on the Cub (5.48 m/s from 112 deg off the nose; the gust field 1 m over the CG at t = 2 s: -1.91, -0.11, 5.06)
+  FAIL  steady, started at 3 m/s (met the trunk at 2.22): mount 10, broken 10, 513 J, the mount's worst 1.09 - first ENGR-S0TR kink
+  FAIL  gust 0.5, started at 3 m/s (met the trunk at 2.21): mount 10, broken 10, 512 J, the mount's worst 1.09 - first ENGR-S0TR kink
+  FAIL  gust 1, started at 3 m/s (met the trunk at 2.21): mount 10, broken 10, 514 J, the mount's worst 1.09 - first ENGR-S0TR kink
+  --    REPORT steady, started at 3.6 m/s (met the trunk at 2.98): mount 10, broken 10, 523 J, the mount's worst 1.13 - first ENGR-S0TR kink (the page's impact speed: see the REPORT below)
+  --    REPORT gust 0.5, started at 3.6 m/s (met the trunk at 2.98): mount 10, broken 10, 523 J, the mount's worst 1.13 - first ENGR-S0TR kink (the page's impact speed: see the REPORT below)
+  --    REPORT gust 1, started at 3.6 m/s (met the trunk at 2.97): mount 10, broken 10, 526 J, the mount's worst 1.14 - first ENGR-S0TR kink (the page's impact speed: see the REPORT below)
+3. THE FLOATPLANES on the water, 10 s at 3 m/s in the wind
+  ok    twin floatplane: nothing breaks (9 winds to 10 m/s; yields 0 at most)
+  ok    Cessna floats: nothing breaks (9 winds to 10 m/s; yields 0 at most)
+  ok    the per-substep reader (sim.onSubstep, damagePush) changes nothing: 304e8e9104e7 / 304e8e9104e7 (13500 substeps read)
+REPORT: THE PAGE'S IMPACT SPEED (started at 3.6 m/s: the trunk met at ~3 m/s, as on the page)
+  --    REPORT the user's Cub: 24 of 49 winds break the mount (met at 2.17-3.14 m/s): 2.5/210 CGE-S0TR tension (1009 J); 2.5/240 CGE-S0TR tension (1285 J); 2.5/270 CGE-S0TR tension (1361 J); 2.5/300 CGE-S0TR tension (1296 J); 2.5/330 CGE-S0TR tension (951 J); 5/30 ENGR-S0BL tension (962 J); 5/60 ENGR-S0TR kink (838 J); 5/90 ENGR-S0TR kink (659 J); 5/120 ENGR-S0TR kink (825 J); 5/150 ENGR-S0BL tension (1287 J); 5/210 ENGL-S0BR tension (1304 J); 5/240 ENGL-S0TL kink (870 J); 5/270 ENGL-S0TL kink (1652 J); 5/300 ENGL-S0TL kink (879 J); 5/330 ENGL-S0BR tension (958 J); 7.5/30 ENGR-S0TR kink (595 J); 7.5/60 CGE-S0TR tension (237 J); 7.5/120 CGE-S0TR tension (323 J); 7.5/150 ENGR-S0TR kink (535 J); 7.5/210 ENGL-S0TL kink (539 J); 7.5/240 CGE-S0TL tension (299 J); 7.5/270 VSNL-S0TL kink (1042 J); 7.5/300 CGE-S0BL tension (258 J); 7.5/330 ENGL-S0TL kink (594 J)
+  --    REPORT Jodel: 12 of 49 winds break the mount (met at 2.54-3.07 m/s): 5/60 ENGR-S0TR kink (502 J); 5/90 ENGR-S0TR kink (1167 J); 5/120 ENGR-S0TR kink (1028 J); 5/240 ENGL-S0TL kink (1037 J); 5/270 ENGL-S0TL kink (1169 J); 5/300 ENGL-S0TL kink (503 J); 7.5/30 ENGR-S0TR kink (1275 J); 7.5/150 ENGR-S0TR kink (470 J); 7.5/210 ENGL-S0TL kink (470 J); 7.5/330 ENGL-S0TL kink (1276 J); 10/30 ENGR-S0BR tension (155 J); 10/330 ENGL-S0BL tension (158 J)
+  --    REPORT metal Cessna: 4 of 49 winds break the mount (met at 2.86-2.98 m/s): 10/60 CGE-S0BL tension (2554 J); 10/90 CGE-S0BR tension (1672 J); 10/270 CGE-S0BL tension (1498 J); 10/300 CGE-S0BR tension (2562 J)
+  --    REPORT the Cub, no wind, started at 3 m/s, the trunk across the nose (-0.45..0.45 m): 8 of 19 break the mount: -0.4 m CGE-S0TR tension; -0.35 m CGE-S0TR tension; -0.3 m CGE-S0TR tension; -0.05 m CGE-S0TR tension; 0.3 m CGE-S0BL tension; 0.35 m CGE-S0TL tension; 0.4 m CGE-S0TL tension; 0.45 m CGE-S0TR tension
+  --    REPORT the Cub, no wind, started at 3.6 m/s, the trunk across the nose (-0.45..0.45 m): 17 of 19 break the mount: -0.45 m CGE-S0TR tension; -0.4 m CGE-S0TR tension; -0.35 m CGE-S0TR tension; -0.3 m ENGR-S0TR kink; -0.25 m ENGR-S0TR kink; -0.2 m ENGR-S0TR kink; -0.15 m ENGR-S0TR kink; -0.1 m ENGR-S0BL tension; 0.05 m CGE-S0TR tension; 0.1 m ENGL-S0BR tension; 0.15 m ENGL-S0TL kink; 0.2 m ENGL-S0TL kink; 0.25 m ENGL-S0TL kink; 0.3 m ENGL-S0TL kink; 0.35 m CGE-S0TL tension; 0.4 m CGE-S0TL tension; 0.45 m CGE-S0TL tension
+  4/9 checks
+GATE DMGWIND: FAIL

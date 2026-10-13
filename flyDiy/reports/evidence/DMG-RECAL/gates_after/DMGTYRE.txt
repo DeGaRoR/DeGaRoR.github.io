@@ -1,0 +1,2 @@
+GATE DMGTYRE: PASS
+exit 0 secs 437

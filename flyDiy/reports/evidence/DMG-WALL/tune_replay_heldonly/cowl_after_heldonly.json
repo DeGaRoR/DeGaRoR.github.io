@@ -1,0 +1,56 @@
+[
+ {
+  "cam": [
+   200,
+   22,
+   9
+  ],
+  "file": "cowl_after_heldonly_1.jpg",
+  "cowl": {
+   "px": 47,
+   "yellow": 48.9,
+   "darkYellow": 4.3,
+   "other": 46.8,
+   "greyOrBlack": 25.5,
+   "backFace": 100
+  },
+  "yellow": 68.51,
+  "other": 31.13
+ },
+ {
+  "cam": [
+   300,
+   40,
+   10
+  ],
+  "file": "cowl_after_heldonly_2.jpg",
+  "cowl": {
+   "px": 34,
+   "yellow": 52.9,
+   "darkYellow": 8.8,
+   "other": 38.2,
+   "greyOrBlack": 8.8,
+   "backFace": 100
+  },
+  "yellow": 76.91,
+  "other": 22.03
+ },
+ {
+  "cam": [
+   150,
+   8,
+   4.5
+  ],
+  "file": "cowl_after_heldonly_3.jpg",
+  "cowl": {
+   "px": 34,
+   "yellow": 85.3,
+   "darkYellow": 0,
+   "other": 14.7,
+   "greyOrBlack": 5.9,
+   "backFace": 100
+  },
+  "yellow": 79.94,
+  "other": 19.62
+ }
+]

@@ -1,0 +1,1349 @@
+{
+ "before": {
+  "releases": 93,
+  "single": 35,
+  "byHow": {
+   "tension": 71,
+   "fold": 8,
+   "kink": 3,
+   "cluster cut": 11
+  },
+  "list": [
+   {
+    "k": "cub",
+    "id": "noseover",
+    "key": "stab:attach",
+    "how": "tension",
+    "othersMax": 1.08,
+    "n0": 32,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "eng:mount",
+    "how": "fold",
+    "othersMax": 1.11,
+    "n0": 10,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "wing0R:root",
+    "how": "tension",
+    "othersMax": 1.59,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "wing0L:root",
+    "how": "tension",
+    "othersMax": 1.59,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "wing0R:strut",
+    "how": "tension",
+    "othersMax": 1.31,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "wing0L:strut",
+    "how": "tension",
+    "othersMax": 1.32,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "stab:attach",
+    "how": "tension",
+    "othersMax": 0.87,
+    "n0": 32,
+    "single": true
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "gearL:gear",
+    "how": "tension",
+    "othersMax": 0.05,
+    "n0": 4,
+    "single": true
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "gearR:gear",
+    "how": "tension",
+    "othersMax": 0.05,
+    "n0": 4,
+    "single": true
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "tw:gear",
+    "how": "kink",
+    "othersMax": 1.01,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk25",
+    "key": "wing0L:strut",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 1.56,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk25",
+    "key": "eng:mount",
+    "how": "tension",
+    "othersMax": 1.35,
+    "n0": 10,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk25",
+    "key": "wing0L:root",
+    "how": "kink",
+    "othersMax": 1.04,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk25",
+    "key": "wing0R:strut",
+    "how": "tension",
+    "othersMax": 0.44,
+    "n0": 6,
+    "single": true
+   },
+   {
+    "k": "cub",
+    "id": "trunk25",
+    "key": "stab:attach",
+    "how": "tension",
+    "othersMax": 0.84,
+    "n0": 32,
+    "single": true
+   },
+   {
+    "k": "cub",
+    "id": "trunk25",
+    "key": "gearR:gear",
+    "how": "tension",
+    "othersMax": 0.69,
+    "n0": 4,
+    "single": true
+   },
+   {
+    "k": "jodel",
+    "id": "noseover",
+    "key": "gearL:gear",
+    "how": "tension",
+    "othersMax": 1.02,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "noseover",
+    "key": "gearR:gear",
+    "how": "tension",
+    "othersMax": 1.02,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "noseover",
+    "key": "stab:attach",
+    "how": "tension",
+    "othersMax": 0.72,
+    "n0": 32,
+    "single": true
+   },
+   {
+    "k": "jodel",
+    "id": "noseover",
+    "key": "fin:attach",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 1.05,
+    "n0": 16,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "noseover",
+    "key": "eng:mount",
+    "how": "tension",
+    "othersMax": 1,
+    "n0": 10,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "noseover",
+    "key": "tw:gear",
+    "how": "tension",
+    "othersMax": 0.9,
+    "n0": 6,
+    "single": true
+   },
+   {
+    "k": "jodel",
+    "id": "trunk0",
+    "key": "eng:mount",
+    "how": "fold",
+    "othersMax": 1.1,
+    "n0": 10,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk0",
+    "key": "wing0R:root",
+    "how": "tension",
+    "othersMax": 1.24,
+    "n0": 10,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk0",
+    "key": "wing0L:root",
+    "how": "tension",
+    "othersMax": 1.24,
+    "n0": 10,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk0",
+    "key": "gearL:gear",
+    "how": "tension",
+    "othersMax": 0.13,
+    "n0": 4,
+    "single": true
+   },
+   {
+    "k": "jodel",
+    "id": "trunk0",
+    "key": "gearR:gear",
+    "how": "tension",
+    "othersMax": 0.12,
+    "n0": 4,
+    "single": true
+   },
+   {
+    "k": "jodel",
+    "id": "trunk0",
+    "key": "stab:attach",
+    "how": "tension",
+    "othersMax": 1,
+    "n0": 32,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk0",
+    "key": "fin:attach",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 1.09,
+    "n0": 16,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk0",
+    "key": "tw:gear",
+    "how": "tension",
+    "othersMax": 1.04,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk25",
+    "key": "eng:mount",
+    "how": "tension",
+    "othersMax": 0.61,
+    "n0": 10,
+    "single": true
+   },
+   {
+    "k": "jodel",
+    "id": "trunk25",
+    "key": "wing0L:root",
+    "how": "tension",
+    "othersMax": 0.53,
+    "n0": 10,
+    "single": true
+   },
+   {
+    "k": "jodel",
+    "id": "trunk25",
+    "key": "gearR:gear",
+    "how": "tension",
+    "othersMax": 0.32,
+    "n0": 4,
+    "single": true
+   },
+   {
+    "k": "jodel",
+    "id": "trunk25",
+    "key": "gearL:gear",
+    "how": "tension",
+    "othersMax": 1,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk25",
+    "key": "fin:attach",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 0.51,
+    "n0": 16,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk25",
+    "key": "stab:attach",
+    "how": "tension",
+    "othersMax": 0.9,
+    "n0": 32,
+    "single": true
+   },
+   {
+    "k": "jodel",
+    "id": "trunk25",
+    "key": "tw:gear",
+    "how": "tension",
+    "othersMax": 1.01,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "noseover",
+    "key": "eng:mount",
+    "how": "tension",
+    "othersMax": 1,
+    "n0": 10,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "noseover",
+    "key": "tw:gear",
+    "how": "fold",
+    "othersMax": 1.02,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "noseover",
+    "key": "fin:attach",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 1.85,
+    "n0": 16,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "eng:mount",
+    "how": "fold",
+    "othersMax": 1.2,
+    "n0": 10,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "wing0R:root",
+    "how": "tension",
+    "othersMax": 0.19,
+    "n0": 8,
+    "single": true
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "wing0L:root",
+    "how": "tension",
+    "othersMax": 0.19,
+    "n0": 8,
+    "single": true
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "tw:gear",
+    "how": "fold",
+    "othersMax": 1.02,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "wing0R:strut",
+    "how": "tension",
+    "othersMax": 2.11,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "wing0L:strut",
+    "how": "tension",
+    "othersMax": 2.11,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "gearL:gear",
+    "how": "tension",
+    "othersMax": 1.44,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "gearR:gear",
+    "how": "tension",
+    "othersMax": 1.45,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "stab:attach",
+    "how": "tension",
+    "othersMax": 1,
+    "n0": 32,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "fin:attach",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 1,
+    "n0": 16,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk25",
+    "key": "wing0L:strut",
+    "how": "fold",
+    "othersMax": 1.02,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk25",
+    "key": "tw:gear",
+    "how": "kink",
+    "othersMax": 1.01,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk25",
+    "key": "gearR:gear",
+    "how": "tension",
+    "othersMax": 1,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk25",
+    "key": "gearL:gear",
+    "how": "tension",
+    "othersMax": 1,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk25",
+    "key": "eng:mount",
+    "how": "tension",
+    "othersMax": 0.63,
+    "n0": 10,
+    "single": true
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "eng:mount",
+    "how": "fold",
+    "othersMax": 1.18,
+    "n0": 10,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "wing0L:root",
+    "how": "tension",
+    "othersMax": 0.37,
+    "n0": 8,
+    "single": true
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "wing0R:root",
+    "how": "tension",
+    "othersMax": 1.06,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "wing0L:strut",
+    "how": "tension",
+    "othersMax": 2.47,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "wing0R:strut",
+    "how": "tension",
+    "othersMax": 2.39,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "floatL:strut",
+    "how": "tension",
+    "othersMax": 1.07,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "floatR:strut",
+    "how": "tension",
+    "othersMax": 1.07,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "fin:attach",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 1.09,
+    "n0": 16,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "stab:attach",
+    "how": "tension",
+    "othersMax": 0.99,
+    "n0": 32,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk25",
+    "key": "wing0L:strut",
+    "how": "fold",
+    "othersMax": 1.1,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "digin",
+    "key": "eng:mount",
+    "how": "tension",
+    "othersMax": 0.8,
+    "n0": 10,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk0",
+    "key": "engL:mount",
+    "how": "tension",
+    "othersMax": 0.86,
+    "n0": 12,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk0",
+    "key": "engR:mount",
+    "how": "tension",
+    "othersMax": 0.85,
+    "n0": 12,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk0",
+    "key": "floatL:strut",
+    "how": "tension",
+    "othersMax": 0.75,
+    "n0": 8,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk0",
+    "key": "floatR:strut",
+    "how": "tension",
+    "othersMax": 0.43,
+    "n0": 8,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk0",
+    "key": "wing0L:strut",
+    "how": "tension",
+    "othersMax": 0.76,
+    "n0": 6,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk0",
+    "key": "wing0R:strut",
+    "how": "tension",
+    "othersMax": 0.75,
+    "n0": 6,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk0",
+    "key": "wing0L:root",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 0.49,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk0",
+    "key": "wing0R:root",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 0.5,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk0",
+    "key": "stab:attach",
+    "how": "tension",
+    "othersMax": 1.01,
+    "n0": 32,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk0",
+    "key": "fin:attach",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 1.09,
+    "n0": 16,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk25",
+    "key": "engL:mount",
+    "how": "tension",
+    "othersMax": 0.89,
+    "n0": 12,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk25",
+    "key": "wing0L:strut",
+    "how": "tension",
+    "othersMax": 1.81,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk25",
+    "key": "floatL:strut",
+    "how": "tension",
+    "othersMax": 0.72,
+    "n0": 8,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk25",
+    "key": "floatR:strut",
+    "how": "tension",
+    "othersMax": 0.61,
+    "n0": 8,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk25",
+    "key": "stab:attach",
+    "how": "tension",
+    "othersMax": 0.92,
+    "n0": 32,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk25",
+    "key": "engR:mount",
+    "how": "tension",
+    "othersMax": 1.02,
+    "n0": 12,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk25",
+    "key": "wing0R:strut",
+    "how": "tension",
+    "othersMax": 0.76,
+    "n0": 6,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "digin",
+    "key": "engL:mount",
+    "how": "tension",
+    "othersMax": 0.83,
+    "n0": 12,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "digin",
+    "key": "engR:mount",
+    "how": "tension",
+    "othersMax": 0.84,
+    "n0": 12,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "digin",
+    "key": "floatL:strut",
+    "how": "tension",
+    "othersMax": 0.61,
+    "n0": 8,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "digin",
+    "key": "floatR:strut",
+    "how": "tension",
+    "othersMax": 0.6,
+    "n0": 8,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "digin",
+    "key": "wing0R:root",
+    "how": "tension",
+    "othersMax": 0.61,
+    "n0": 8,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "digin",
+    "key": "wing0L:root",
+    "how": "tension",
+    "othersMax": 0.66,
+    "n0": 8,
+    "single": true
+   },
+   {
+    "k": "twinFloats",
+    "id": "digin",
+    "key": "wing0L:strut",
+    "how": "tension",
+    "othersMax": 0.99,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "digin",
+    "key": "wing0R:strut",
+    "how": "tension",
+    "othersMax": 1.02,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "digin",
+    "key": "stab:attach",
+    "how": "tension",
+    "othersMax": 0.92,
+    "n0": 32,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "digin",
+    "key": "fin:attach",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 1.11,
+    "n0": 16,
+    "single": false
+   }
+  ]
+ },
+ "after": {
+  "releases": 54,
+  "single": 0,
+  "byHow": {
+   "fold": 8,
+   "tension": 29,
+   "cluster cut": 11,
+   "kink": 6
+  },
+  "list": [
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "eng:mount",
+    "how": "fold",
+    "othersMax": 1.26,
+    "n0": 10,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "wing0R:root",
+    "how": "tension",
+    "othersMax": 1.96,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "wing0L:root",
+    "how": "tension",
+    "othersMax": 1.96,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "wing0R:strut",
+    "how": "tension",
+    "othersMax": 1.22,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "wing0L:strut",
+    "how": "tension",
+    "othersMax": 1.27,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "gearL:gear",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 1.01,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "gearR:gear",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 1.01,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk0",
+    "key": "fin:attach",
+    "how": "root-member",
+    "othersMax": 1.08,
+    "n0": 16,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk25",
+    "key": "wing0L:strut",
+    "how": "fold",
+    "othersMax": 1.63,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk25",
+    "key": "wing0L:root",
+    "how": "kink",
+    "othersMax": 1.37,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "cub",
+    "id": "trunk25",
+    "key": "wing0R:root",
+    "how": "tension",
+    "othersMax": 1.22,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk0",
+    "key": "eng:mount",
+    "how": "fold",
+    "othersMax": 1.1,
+    "n0": 10,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk0",
+    "key": "wing0R:root",
+    "how": "kink",
+    "othersMax": 1.58,
+    "n0": 10,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk0",
+    "key": "wing0L:root",
+    "how": "kink",
+    "othersMax": 1.58,
+    "n0": 10,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk0",
+    "key": "fin:attach",
+    "how": "root-bend",
+    "othersMax": 0.55,
+    "n0": 16,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk0",
+    "key": "gearR:gear",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 1.01,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk0",
+    "key": "gearL:gear",
+    "how": "tension",
+    "othersMax": 1.02,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk0",
+    "key": "tw:gear",
+    "how": "tension",
+    "othersMax": 1.03,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk25",
+    "key": "gearR:gear",
+    "how": "tension",
+    "othersMax": 1,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk25",
+    "key": "gearL:gear",
+    "how": "kink",
+    "othersMax": 1,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "jodel",
+    "id": "trunk25",
+    "key": "fin:attach",
+    "how": "root-bend",
+    "othersMax": 0.14,
+    "n0": 16,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "noseover",
+    "key": "tw:gear",
+    "how": "fold",
+    "othersMax": 1.02,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "eng:mount",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 1.22,
+    "n0": 10,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "tw:gear",
+    "how": "fold",
+    "othersMax": 1.02,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "wing0R:strut",
+    "how": "tension",
+    "othersMax": 2.12,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "wing0L:strut",
+    "how": "tension",
+    "othersMax": 2.11,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "wing0R:root",
+    "how": "tension",
+    "othersMax": 3.21,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "wing0L:root",
+    "how": "tension",
+    "othersMax": 3.19,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "gearL:gear",
+    "how": "tension",
+    "othersMax": 1.25,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "gearR:gear",
+    "how": "tension",
+    "othersMax": 1.24,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk0",
+    "key": "fin:attach",
+    "how": "root-member",
+    "othersMax": 1.07,
+    "n0": 16,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk25",
+    "key": "wing0L:strut",
+    "how": "a cluster's cut (D3)",
+    "othersMax": 1.45,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk25",
+    "key": "tw:gear",
+    "how": "kink",
+    "othersMax": 1.02,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk25",
+    "key": "gearR:gear",
+    "how": "tension",
+    "othersMax": 1,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "metal",
+    "id": "trunk25",
+    "key": "gearL:gear",
+    "how": "tension",
+    "othersMax": 1,
+    "n0": 4,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "eng:mount",
+    "how": "fold",
+    "othersMax": 1.18,
+    "n0": 10,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "wing0R:root",
+    "how": "tension",
+    "othersMax": 1.03,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "floatL:strut",
+    "how": "tension",
+    "othersMax": 1.07,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "floatR:strut",
+    "how": "tension",
+    "othersMax": 1.03,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "wing0R:strut",
+    "how": "tension",
+    "othersMax": 1.46,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "wing0L:strut",
+    "how": "tension",
+    "othersMax": 1.18,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "wing0L:root",
+    "how": "tension",
+    "othersMax": 2.33,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "fin:attach",
+    "how": "root-member",
+    "othersMax": 1.11,
+    "n0": 16,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk0",
+    "key": "stab:attach",
+    "how": "tension",
+    "othersMax": 1.05,
+    "n0": 32,
+    "single": false
+   },
+   {
+    "k": "floats",
+    "id": "trunk25",
+    "key": "wing0L:strut",
+    "how": "fold",
+    "othersMax": 1.28,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk0",
+    "key": "wing0R:root",
+    "how": "tension",
+    "othersMax": 1.05,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk25",
+    "key": "wing0L:strut",
+    "how": "fold",
+    "othersMax": 1.24,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk25",
+    "key": "floatL:strut",
+    "how": "root-bend",
+    "othersMax": 0.79,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk25",
+    "key": "engL:mount",
+    "how": "kink",
+    "othersMax": 1.1,
+    "n0": 12,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "trunk25",
+    "key": "floatR:strut",
+    "how": "tension",
+    "othersMax": 1.01,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "digin",
+    "key": "floatL:strut",
+    "how": "tension",
+    "othersMax": 1.01,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "digin",
+    "key": "floatR:strut",
+    "how": "tension",
+    "othersMax": 1.01,
+    "n0": 8,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "digin",
+    "key": "wing0R:strut",
+    "how": "tension",
+    "othersMax": 1.03,
+    "n0": 6,
+    "single": false
+   },
+   {
+    "k": "twinFloats",
+    "id": "digin",
+    "key": "wing0L:root",
+    "how": "tension",
+    "othersMax": 1.01,
+    "n0": 8,
+    "single": false
+   }
+  ]
+ }
+}

@@ -308,6 +308,16 @@ function makePilot(sim, def, world, opts) {
   // (G396.4: neutral through the hump, the 0.15 ceiling) already say what
   // the stick does; the thrust line is theirs to hold, not this rule's.
   const highThrust = !sim.hydro && THRUST_ARM > (A.highThrustArm ?? 0.30);
+  // G1880 (DMG-FLOATTO): THE THRUST COUPLE'S LEVER - THRUST_ARM x the static thrust over the weight (m): how far
+  // forward full power moves the CG, in effect. The user's twin on floats 0.27 (two 582s 0.54 m over the CG, T/W 0.51),
+  // the Cessna on floats 0.003, the Cub -0.006, the Jodel 0.017. Its water take-off's porpoise law (39b S.porpoise)
+  // arms on it
+  const THRUST_LEVER = (() => {
+    const PP = POWERPLANTS[def.params.powerplant], PR = def.params.prop || (PP && PP.prop);
+    let M = 0;
+    for (const nd of def.nodes) M += nd.m;
+    return PR && M > 0 ? THRUST_ARM * PR.Tstatic * (def.params.nEngines || 1) / (M * 9.81) : 0;
+  })();
   const TW = (() => {
     const N = def.nodes, R = def.refs;
     let Lwb = 4.0;
@@ -333,7 +343,7 @@ function makePilot(sim, def, world, opts) {
   // ground steer, the aileron into wind, the water's branch and stick top)
   const restH0 = servoRestHeight(def);      // B5: the design pose's CG rest height over the ground
   const SV = makeServos(sim, def, { pilot: 'pilot', now: () => ap.t, trike, rotateTD, TW, features: {
-    trimCalm: true, groundP1D: true, xwBank: true, water: true,
+    trimCalm: true, groundP1D: true, xwBank: true, water: true, porpoise: true,
     // G396.2 / G970: on the step the stick comes all the way back, through LIFTOFF
     deTop: (onG) => (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : 0.35 } });
   const taxiFF = (() => {
@@ -385,12 +395,12 @@ function makePilot(sim, def, world, opts) {
   // calibrated xAim (-520) is 70 m short of the touchdown target along the
   // landing direction u = (ux, uz). k = which of the pattern's two targets.
   const mkFrame = (a, sx, sz) => {
-    let ux = snap(Math.cos(a.hdg)), uz = snap(Math.sin(a.hdg));
+    let ux = snap(CORE_MATH.cos(a.hdg)), uz = snap(CORE_MATH.sin(a.hdg));
     if (sx !== undefined) {
       const d = ux * sx + uz * sz;
       if (d < 0) { ux = -ux; uz = -uz; }
     } else { ux = -ux; uz = -uz; }
-    const k = (ux * Math.cos(a.hdg) + uz * Math.sin(a.hdg)) > 0 ? 1 : 0;
+    const k = (ux * CORE_MATH.cos(a.hdg) + uz * CORE_MATH.sin(a.hdg)) > 0 ? 1 : 0;
     const PT = ap.patOf(a);
     const td = (PT && PT.approaches && PT.approaches[k]) ? PT.approaches[k].td : a.tdz;
     return { ux, uz, ox: td[0] + 450 * ux, oz: td[1] + 450 * uz, k, td: [td[0], td[1]] };
@@ -432,6 +442,9 @@ function makePilot(sim, def, world, opts) {
     intent: { phase: 'ROLL', legs: null, legI: 0, to: null, x: null, z: null, h: null, hField: null, hGround: null, vs: 0, vsCmd: null,
               vsUp: null, vsDn: null, climbMax: null, sinkIdle: null, path: null, pathI: 0, taxi: null, route: null },
   };
+  // G1882: the water take-off law's throttle ceiling, readable (GATE DMGFLOATTO): a getter, never a store per frame -
+  // measured, writing a double onto `ap` every update cost the pilot's update 4-8 % on the water
+  Object.defineProperty(ap, 'thrCap', { get: () => SV.thrCap });   // (not enumerable: nothing that copies `ap` sees it)
   const say = (code, note) => {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });
   };
@@ -723,7 +736,7 @@ function makePilot(sim, def, world, opts) {
       // min on the ham-fist - a vibration, not a coarse hand
       const a = Math.min(1, dt / 0.5), sq = Math.sqrt(2 * a), b = Math.min(1, dt / 0.12);
       for (let k = 0; k < 3; k++) {
-        const w = Math.sqrt(-2 * Math.log(Math.max(1e-12, humRand()))) * Math.cos(2 * Math.PI * humRand());
+        const w = Math.sqrt(-2 * Math.log(Math.max(1e-12, humRand()))) * CORE_MATH.cos(2 * Math.PI * humRand());
         HUM.x[k] += -a * HUM.x[k] + sq * w;
         HUM.y[k] += (HUM.x[k] - HUM.y[k]) * b;
       }
@@ -918,18 +931,18 @@ function makePilot(sim, def, world, opts) {
   const xwFromLeft = (u, w) => -(w[0] * u[1] - w[1] * u[0]);
   const tqBonus = (a, u, w, mode) => (mode === 'takeoff' && tqHand && (sim.hydro || a.surface === 4)) ? TQ_SIDE_K * tqHand * xwFromLeft(u, w) : 0;
   const dirAt = (a, px, pz, mode, taxiLen) => {
-    const axx = snap(Math.cos(a.hdg)), axz = snap(Math.sin(a.hdg));
+    const axx = snap(CORE_MATH.cos(a.hdg)), axz = snap(CORE_MATH.sin(a.hdg));
     const w = windAt(a, 30);
     const M = siteModelOf(a);
     if (M && typeof siteScoreDirections === 'function') {
       let pref = [px, pz];
       // G398.3: a ONE-WAY strip (a premises runway with `approach`) names its landing direction
-      if (typeof a.landHdg === 'number') pref = [Math.cos(a.landHdg), Math.sin(a.landHdg)];
+      if (typeof a.landHdg === 'number') pref = [CORE_MATH.cos(a.landHdg), CORE_MATH.sin(a.landHdg)];
       // GTRAM: an ALTIPORT is landed uphill and LEFT DOWNHILL - its one way reverses for the take-off
       if (typeof a.landHdg === 'number' && a.altiport && mode === 'takeoff') pref = [-pref[0], -pref[1]];
       // G527.3: a strip that names its way out (runway `departure`) is left that way in calm air
       const tko = mode === 'takeoff' && typeof a.takeoffHdg === 'number';
-      if (tko) pref = [Math.cos(a.takeoffHdg), Math.sin(a.takeoffHdg)];
+      if (tko) pref = [CORE_MATH.cos(a.takeoffHdg), CORE_MATH.sin(a.takeoffHdg)];
       // G2450 EAST-POINT-DEPART: A NAMED WAY OUT IS THE SURVEYED ONE. The runway model's climb-out cone is crude (from the
       // far end, 31 m either side, the tallest tree within 20 m of each sample): at East Point the trees beside the sea
       // end read as a 92 % climb and refused the named way (-1000) - worse than the one-way rule's -500 - and the Cub was
@@ -954,15 +967,15 @@ function makePilot(sim, def, world, opts) {
       return M.dir[sc.k].u.slice();
     }
     let dx = px, dz = pz;
-    if (a.altiport && typeof a.landHdg === 'number') { const k = mode === 'takeoff' ? -1 : 1; dx = k * Math.cos(a.landHdg); dz = k * Math.sin(a.landHdg); }   // GTRAM: whatever the wind
+    if (a.altiport && typeof a.landHdg === 'number') { const k = mode === 'takeoff' ? -1 : 1; dx = k * CORE_MATH.cos(a.landHdg); dz = k * CORE_MATH.sin(a.landHdg); }   // GTRAM: whatever the wind
     else if (Math.hypot(w[0], w[1]) > 0.7) {
       dx = -w[0]; dz = -w[1];
       // G2080: the headwind along each way, plus the torque's side on the water; the better way
       const hw = sg => -(w[0] * axx + w[1] * axz) * sg + tqBonus(a, [axx * sg, axz * sg], w, mode);
       if (tqBonus(a, [axx, axz], w, mode)) { const sg = hw(1) >= hw(-1) ? 1 : -1; dx = axx * sg; dz = axz * sg; }
     }
-    else if (mode === 'takeoff' && typeof a.takeoffHdg === 'number') { dx = Math.cos(a.takeoffHdg); dz = Math.sin(a.takeoffHdg); }   // G527.3: the named way out, in calm air
-    else if (typeof a.landHdg === 'number') { dx = Math.cos(a.landHdg); dz = Math.sin(a.landHdg); }
+    else if (mode === 'takeoff' && typeof a.takeoffHdg === 'number') { dx = CORE_MATH.cos(a.takeoffHdg); dz = CORE_MATH.sin(a.takeoffHdg); }   // G527.3: the named way out, in calm air
+    else if (typeof a.landHdg === 'number') { dx = CORE_MATH.cos(a.landHdg); dz = CORE_MATH.sin(a.landHdg); }
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
     return [axx * sg, axz * sg];
   };
@@ -1411,7 +1424,7 @@ function makePilot(sim, def, world, opts) {
     const wR = sweepOf(P, bandOf(P, half));
     if (wR.d >= 0) return null;
     // the strip's axis the way back (the turn's heading), and how far the strip goes on ahead of the nose
-    const ux = Math.cos(from.hdg), uz = Math.sin(from.hdg), sgN = (nose[0] * ux + nose[1] * uz) >= 0 ? 1 : -1;
+    const ux = CORE_MATH.cos(from.hdg), uz = CORE_MATH.sin(from.hdg), sgN = (nose[0] * ux + nose[1] * uz) >= 0 ? 1 : -1;
     const back = [-sgN * ux, -sgN * uz], hB = Math.atan2(back[1], back[0]);
     const sNow = (cg[0] - from.x) * ux + (cg[2] - from.z) * uz;
     let reach = 0;
@@ -1480,7 +1493,7 @@ function makePilot(sim, def, world, opts) {
     const PAT = ap.patOf(from);
     const half = (from.wid || 30) / 2;
     const need = runNeeded();
-    const d0 = [snap(Math.cos(from.hdg)), snap(Math.sin(from.hdg))];
+    const d0 = [snap(CORE_MATH.cos(from.hdg)), snap(CORE_MATH.sin(from.hdg))];
     const rx = cg[0] - from.x, rz = cg[2] - from.z;
     const along = rx * d0[0] + rz * d0[1];
     const cross = -rx * d0[1] + rz * d0[0];
@@ -1493,7 +1506,7 @@ function makePilot(sim, def, world, opts) {
     const sgN = (nose[0] * d0[0] + nose[1] * d0[1]) >= 0 ? 1 : -1;
     const ahead = from.len / 2 - sgN * along;
     const enough = !onStrip || ahead >= need;                     // the run ahead of the nose suffices
-    if (from.altiport && typeof from.landHdg === 'number') t = [-snap(Math.cos(from.landHdg)), -snap(Math.sin(from.landHdg))];   // GTRAM: an altiport is left downhill, whatever the wind
+    if (from.altiport && typeof from.landHdg === 'number') t = [-snap(CORE_MATH.cos(from.landHdg)), -snap(CORE_MATH.sin(from.landHdg))];   // GTRAM: an altiport is left downhill, whatever the wind
     else if (siteModelOf(from)) {
       // G772: off the strip, each direction's way out is measured (its route from here, as it would be flown)
       let tl = null;
@@ -1603,7 +1616,7 @@ function makePilot(sim, def, world, opts) {
                    stopAfterLineup: ap.stopAfterLineup, taxiTgt: ap.taxiTgt, taxiPath: ap.taxiPath };
     try {
       const from = ap.route.from;
-      const ux = Math.cos(from.hdg), uz = Math.sin(from.hdg);
+      const ux = CORE_MATH.cos(from.hdg), uz = CORE_MATH.sin(from.hdg);
       const onC = (x, z) => { const s = (x - from.x) * ux + (z - from.z) * uz; return [from.x + ux * s, from.z + uz * s]; };
       // ALREADY ON THE LINE: a start on the spawn identity (a strip with no stand - the game rolls from it
       // with no taxi at all) is lined up along the nose with HOLD's own run ahead (the need, capped at 0.7
@@ -1804,11 +1817,11 @@ function makePilot(sim, def, world, opts) {
       // damper rang the rudder stop to stop (6 s, the Jolene playtest). The
       // tangent is interpolated between the 5 m samples (a fillet's heading
       // steps 1-2 deg per sample, and the damper differentiates it)
-      const q0 = P[L.i], qd = (cg[0] - q0.x) * Math.cos(q0.hdg) + (cg[2] - q0.z) * Math.sin(q0.hdg);
+      const q0 = P[L.i], qd = (cg[0] - q0.x) * CORE_MATH.cos(q0.hdg) + (cg[2] - q0.z) * CORE_MATH.sin(q0.hdg);
       const qa = qd >= 0 ? q0 : P[Math.max(0, L.i - 1)], qb = qd >= 0 ? P[Math.min(P.length - 1, L.i + 1)] : q0;
       const qf = qb.s > qa.s ? clamp((qd >= 0 ? qd : qd + (qb.s - qa.s)) / (qb.s - qa.s), 0, 1) : 0;
       const hT = qa.hdg + qf * wrapPi(qb.hdg - qa.hdg);
-      ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
+      ap.targetDir = [CORE_MATH.cos(hT), 0, CORE_MATH.sin(hT)];
       let j = L.i;
       const s0 = P[L.i].s;
       while (j < P.length - 1 && P[j].s - s0 < L1) j++;
@@ -1820,7 +1833,7 @@ function makePilot(sim, def, world, opts) {
       // acceleration is NOT added again (a first cut did, and the cub rolled
       // to its limit at the start of every fillet, turned inside the arc and
       // crossed the leg by 67 m on the far side)
-      const aL1 = 2 * Vg2 * Vg2 * Math.sin(eta) / clamp(rl, 20, L1);
+      const aL1 = 2 * Vg2 * Vg2 * CORE_MATH.sin(eta) / clamp(rl, 20, L1);
       const phC = clamp(Math.atan(aL1 / 9.81), -bl, bl);
       rollTo(phC);
       pathDbg = { i: L.i, ey: L.ey, sRem: L.sRem, eta, kap: P[L.i].kap, phC };
@@ -2137,7 +2150,7 @@ function makePilot(sim, def, world, opts) {
       if (SEL.deadThr) c.thr = 0;
       // lateral
       switch (AF.lat) {
-        case 'HDG': ap.targetDir = [Math.cos(SEL.hdg), 0, Math.sin(SEL.hdg)]; airLateral(SEL.bank ?? bankLim); break;
+        case 'HDG': ap.targetDir = [CORE_MATH.cos(SEL.hdg), 0, CORE_MATH.sin(SEL.hdg)]; airLateral(SEL.bank ?? bankLim); break;
         case 'TRK': {
           const ddx = SEL.trk[0] - cg[0], ddz = SEL.trk[1] - cg[2], dl = Math.hypot(ddx, ddz) || 1e-9;
           ap.targetDir = [ddx / dl, 0, ddz / dl]; airLateral(SEL.bank ?? bankLim); break;
@@ -2653,7 +2666,7 @@ function makePilot(sim, def, world, opts) {
       let rem = piv.sg * err0; if (rem < -0.6) rem += 2 * Math.PI;
       const err = piv.sg * rem, sg = rem >= 0 ? piv.sg : -piv.sg, r = Math.abs(SV.eR);
       if (!piv.thr) piv.thr = A.pivotThr0 ?? 0.35;
-      ap.targetDir = [Math.cos(hdgT), 0, Math.sin(hdgT)];
+      ap.targetDir = [CORE_MATH.cos(hdgT), 0, CORE_MATH.sin(hdgT)];
       // on the heading within ~9 deg and not swinging fast: the taxi's own steering takes the rest rolling
       // (a TRICYCLE walks round its turn at ~1-1.5 m/s on the nosewheel - G1949: holding it to 1.0 m/s here kept the
       // C172's pivot 'not done' while its own power rolled it 20 m along East Point, 8 m off the centreline, for 40 s)
@@ -2698,7 +2711,7 @@ function makePilot(sim, def, world, opts) {
       if (O) {
         rr = Math.hypot(cg[0] - O.x, cg[2] - O.z) || 1e-9;
         const phA = Math.atan2(cg[2] - O.z, cg[0] - O.x) + Hd.sg * 2 * Math.max(Vg, 8) / O.R;
-        const rx = Math.cos(phA), rz = Math.sin(phA), kR = clamp(3 * (rr - O.R) / O.R, -1, 1);
+        const rx = CORE_MATH.cos(phA), rz = CORE_MATH.sin(phA), kR = clamp(3 * (rr - O.R) / O.R, -1, 1);
         SEL.hdg = Math.atan2(rx * Hd.sg - kR * rz, -rz * Hd.sg - kR * rx);
       } else SEL.hdg = Math.atan2(vcg[2], vcg[0]) + Hd.sg * 0.87;
       flapTgt = 0;
@@ -2749,7 +2762,7 @@ function makePilot(sim, def, world, opts) {
         let next;
         if (ap.atHold) {
           const H = ap.atHold; ap.atHold = null;
-          setTakeoffDir([snap(Math.cos(H.hdg)), snap(Math.sin(H.hdg))]);
+          setTakeoffDir([snap(CORE_MATH.cos(H.hdg)), snap(CORE_MATH.sin(H.hdg))]);
           ap.path = null; ap.stopAfterLineup = true; next = 'STOP';
         } else next = planDeparture(cg, nose);
         engage('NONE', 'DE', 'SET', { de: A.taxiDe ?? 0.30, thr: 0 });
@@ -2809,7 +2822,7 @@ function makePilot(sim, def, world, opts) {
               // centreline first: pivoting where its tight part began (4.4 m off, the CG 3 m from the clinic) put the Cub's
               // wing into the clinic and left it stuck 6 m off the centreline - the follower flies the teardrop clean, as before
               const fr = ap.route.from, fh = fr.hdg || 0;
-              const crB0 = -(P[b0].x - fr.x) * Math.sin(fh) + (P[b0].z - fr.z) * Math.cos(fh);
+              const crB0 = -(P[b0].x - fr.x) * CORE_MATH.sin(fh) + (P[b0].z - fr.z) * CORE_MATH.cos(fh);
               if (Math.abs(turn) > 2.6 && Math.abs(crB0) <= 2) {   // (Rpiv: 13 m at least - the site's lane U-turn is a 12 m arc)
                 // G1949: WHERE THE TURN COMES BACK BY THE AEROPLANE, the pivot resumes there. A teardrop (MILL-TAXI's at
                 // Jumbo Mine: out 6 m one side, round 13 m the other, back on a diagonal) ends its tight part on the far
@@ -2837,7 +2850,7 @@ function makePilot(sim, def, world, opts) {
           // sample of a bend (and as the look-ahead shrinks with the speed):
           // the rudder differentiated every step into a kick
           const hF = SV.taxiHeading(hT);
-          ap.targetDir = [Math.cos(hF), 0, Math.sin(hF)];
+          ap.targetDir = [CORE_MATH.cos(hF), 0, CORE_MATH.sin(hF)];
           { const pe = ap.path.pts[ap.path.pts.length - 1]; if (pe) { pubN = 'HOLD'; pubX = pe.x; pubZ = pe.z; } }
           const drFF = -Math.atan(TW.Lwb * K.kapL) / Math.max(0.05, TW.steer);
           const drMaxG = 0.85 - 0.40 * clamp((Vg - 6) / 4, 0, 1);
@@ -2967,7 +2980,7 @@ function makePilot(sim, def, world, opts) {
           const K = pathLook(ap.path, L.i, Vg);
           const hT = K.hdgL;
           const hF = SV.taxiHeading(hT);
-          ap.targetDir = [Math.cos(hF), 0, Math.sin(hF)];
+          ap.targetDir = [CORE_MATH.cos(hF), 0, CORE_MATH.sin(hF)];
           dr = SV.taxiRudder(0, 0.85);
         }
         engage('TAXI', 'DE', 'SET', { dr, de: A.taxiDe ?? 0.30, thr: 0 });
@@ -3586,15 +3599,15 @@ function makePilot(sim, def, world, opts) {
             let best = null;
             for (let k = -3; k <= 3; k++) {
               const h = h0 + k * Math.PI / 6;
-              let gk = gradAhead(cg[0], cg[2], Math.cos(h), Math.sin(h), 1500, cg[1], 30);
-              if (escapeHdg != null && Math.abs(Math.atan2(Math.sin(h - escapeHdg), Math.cos(h - escapeHdg))) < 0.1) gk -= 0.01;
+              let gk = gradAhead(cg[0], cg[2], CORE_MATH.cos(h), CORE_MATH.sin(h), 1500, cg[1], 30);
+              if (escapeHdg != null && Math.abs(Math.atan2(CORE_MATH.sin(h - escapeHdg), CORE_MATH.cos(h - escapeHdg))) < 0.1) gk -= 0.01;
               if (!best || gk < best.g) best = { h, g: gk };
             }
             escapeHdg = best.h; escapeCircle = best.g > gammaGA();
             if (escapeCircle) {
               // no heading can be made: a climbing turn toward the least bad
               // one — the selected heading stays 50 deg ahead of the track
-              const trk = Math.atan2(vcg[2], vcg[0]), toward = Math.atan2(Math.sin(best.h - trk), Math.cos(best.h - trk));
+              const trk = Math.atan2(vcg[2], vcg[0]), toward = Math.atan2(CORE_MATH.sin(best.h - trk), CORE_MATH.cos(best.h - trk));
               escapeHdg = trk + (toward >= 0 ? 0.87 : -0.87);
             }
             ap.escape = { hdg: Math.round(escapeHdg * 57.3), need: Math.round(gNeed * 1000) / 10, best: Math.round(best.g * 1000) / 10, circle: escapeCircle };
@@ -3657,7 +3670,7 @@ function makePilot(sim, def, world, opts) {
             const side = sg => {
               const x = L.B[0] - sg * Rh * FN.uz, z = L.B[1] + sg * Rh * FN.ux;
               let g = -1e9;
-              if (world && typeof world.terrainH === 'function') for (let k = 0; k < 16; k++) g = Math.max(g, groundH(x + Rh * Math.cos(k * Math.PI / 8), z + Rh * Math.sin(k * Math.PI / 8)));
+              if (world && typeof world.terrainH === 'function') for (let k = 0; k < 16; k++) g = Math.max(g, groundH(x + Rh * CORE_MATH.cos(k * Math.PI / 8), z + Rh * CORE_MATH.sin(k * Math.PI / 8)));
               return { sg, x, z, g };
             };
             const S1 = side(1), S2 = side(-1), O = S1.g <= S2.g ? S1 : S2;
@@ -3745,7 +3758,7 @@ function makePilot(sim, def, world, opts) {
         // (the tangent read 2 s ahead round the circle: the heading law lags a target that turns V/R all the time)
         const rr = Math.hypot(cg[0] - Hd.x, cg[2] - Hd.z) || 1e-9;
         const phA = Math.atan2(cg[2] - Hd.z, cg[0] - Hd.x) + Hd.sg * 2 * Math.max(Vg, 8) / Hd.R;
-        const rx = Math.cos(phA), rz = Math.sin(phA);
+        const rx = CORE_MATH.cos(phA), rz = CORE_MATH.sin(phA);
         const kR = clamp(3 * (rr - Hd.R) / Hd.R, -1, 1);
         const dx = -rz * Hd.sg - kR * rx, dz = rx * Hd.sg - kR * rz;
         altMode(Hd.h, Math.min(ap.VCruise, Math.max(VTurn, ap.VClimb || 0)), bankLim, 'HDG');
@@ -3783,7 +3796,7 @@ function makePilot(sim, def, world, opts) {
         // P0.6: the last fillet (base -> final) is the path's; LOC takes over
         // once the nose is within 11 deg of the runway and 60 m of the line
         const nS = nose[0] * F.ux + nose[1] * F.uz;
-        const onPathF = !!airPath && !(nS > Math.cos(0.19) && Math.abs(sCr) < 60);
+        const onPathF = !!airPath && !(nS > CORE_MATH.cos(0.19) && Math.abs(sCr) < 60);
         const bF = onPathF ? bankLim : Math.abs(sCr) > 60 ? Math.min(bankLim, 0.30) : 0.18;
         const latF = onPathF ? 'PATH' : 'LOC';
         const bFs = slipK > 0.02 ? Math.max(bF, 0.35) : bF;   // G1936: the slip's bank holds the track
@@ -4199,6 +4212,10 @@ function makePilot(sim, def, world, opts) {
         break;
     }
     if (!BX.on) { apply(); flapsTo(flapTgt); if (PRA) humanise(dt, onG); }   // G1943: a profile's hands (the expert's are the servos')
+    // G1880 (DMG-FLOATTO): THE PORPOISE DAMPED BY BOTH HANDS on a high thrust line's water take-off (39b S.porpoise):
+    // the run and the lift-off on floats, until CLIMB; the power's ceiling and the stick's damping over what the laws
+    // above set (nothing anywhere else: the base's controls to the bit)
+    SV.porpoise(!BX.on && !!sim.hydro && (ap.phase === 'ROLL' || ap.phase === 'LIFTOFF'), THRUST_LEVER);
     // the servo slew on the axes the pilot owns; a hand-flown axis (the box
     // with that mode released) passes through and the servo tracks it, so
     // nothing jumps when the box takes the axis
