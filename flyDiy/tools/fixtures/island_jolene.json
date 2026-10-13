@@ -14801,68 +14801,6 @@
     }
    },
    {
-    "id": "w4",
-    "name": "strip 9",
-    "len": 216.4,
-    "wid": 8,
-    "surface": 6,
-    "look": "gravel",
-    "slope": 0,
-    "crossfall": 0,
-    "disp": [
-     0,
-     0
-    ],
-    "papi": [
-     true,
-     true
-    ],
-    "falloff": 75,
-    "site": null,
-    "pattern": null,
-    "stand": null,
-    "taxiOut": null,
-    "taxiOut1": null,
-    "profile": [
-     [
-      0,
-      28.04
-     ],
-     [
-      0.31,
-      22.06
-     ],
-     [
-      0.795,
-      -9.06
-     ],
-     [
-      1,
-      -17.61
-     ]
-    ],
-    "approach": 1,
-    "hangar": null,
-    "plots": null,
-    "circuit": null,
-    "band": 14.5,
-    "pav": {
-     "paintAge": 1.14
-    },
-    "altiport": true,
-    "c": [
-     -1403.58,
-     -17698.62
-    ],
-    "hdg": -2.2895,
-    "clear": {
-     "side": 0,
-     "beyond": 20,
-     "taper": 0,
-     "bushes": false
-    }
-   },
-   {
     "id": "w8",
     "name": "strip 13",
     "len": 391.7,
