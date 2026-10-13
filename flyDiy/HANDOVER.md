@@ -87004,3 +87004,12 @@ only a wreck never quiet inside a second is judged at the host's last send; at r
 NAMED CRASH CHANGE (damage ON, the user will see it): in the floats' severe nose-in (150 km/h, 10 m/s, 60 deg) the
 SHELL now parts at the ROOT at 0.15 s - the tail comes off; on master the FIN goes at 0.53 s.
 **Owed (released by the user, 11 Oct: no screenshots for these):** a STILL of a decal on a deflecting rudder/elevator, live shader, two frames apart (the orbit eyes this rig used never reached the tail - the fix is proven by the measure and the gates, not yet by a picture of the user's own case); the weathering in FLIGHT seen moving on master vs still on G2750 (a held-camera pair in a turn). Both need ~10 GPU minutes.
+**SLOT (A0, Tue 13 Oct 05:40-05:43, node only, --jobs=1) on 0eb063865 (DT 5afffcb27 + FF df404c276 + G3050):** the 12
+targeted gates PASS (WINGROWS, JOIN, DESIGN, GEOPARITY, BIPLANE, CLIP, STRUT, PARTS, SPECFIX, WINGSPLIT, FLOATS, GEAR).
+Coerce cost in the garage: 0.005 ms a build with no wing row changed, 0.092 ms on a wing-row change. OVERLAY STILLS
+(tools/_geoparity_shot.js; before = the same two heads without G3050), read: Jodel at fore / aft 1.8 (before: the drawn
+wing over the cowl, the flown strips 1.16 m behind; after: on it), Cessna parasol 1.20 + up 1.0 (strips ~0.7 m under
+the drawn wing -> on it, struts following), Cub biplane with a parasol upper plane (upper strips ~0.4 m under -> on it;
+GEOPARITY measures plane 0 only, the still shows plane 2), and Cub / Jodel / Cessna at default: before = after,
+pixel-identical. Rides TRAIN 54 (A0). Rebase note: master's G2880 NACELLE-LAG wingPost / early.publish wrapper sits
+where wingGSpec was lifted - keep master's wrapper after the function (the only conflict in the wing file).
