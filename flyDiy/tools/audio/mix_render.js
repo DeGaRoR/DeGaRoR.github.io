@@ -456,7 +456,9 @@ async function measureState(key, stateKey, interior, o) {
   const cut = c => c.map(y => y.subarray(Math.round(warm * SR), Math.round((warm + seconds) * SR)));
   const buses = { engine: cut(A.out.engine), prop: cut(A.out.prop), airframe: cut(A.out.airframe) };
   const open = A.P.s[A.P.I.open] > 0;
-  const amb = await ambienceBuses(st.place, st.h, interior, open, seconds);
+  // (opt.noAmb: no ambience nor emitters - GATE MIXLEAD's states that assert nothing on them)
+  const nz = () => [new Float32Array(Math.round(seconds * SR)), new Float32Array(Math.round(seconds * SR))];
+  const amb = opt.noAmb ? { ambience: nz(), emitters: nz(), where: { place: st.place }, emitterCalls: 0, emitS: seconds } : await ambienceBuses(st.place, st.h, interior, open, seconds);
   buses.ambience = amb.ambience; buses.emitters = amb.emitters;
   const S = settings(), T = mixTrims();
   const flying = 1;   // every state here is out of the shed and past the loading screen
@@ -464,7 +466,7 @@ async function measureState(key, stateKey, interior, o) {
   const musicOn = !!(opt.music || st.music);
   // the bus gains audio.js schedules (applyGains): the viewpoint fader 1 on the side heard, the headset off
   const kAir = S.aircraft != null && S.engine == null ? S.aircraft : 1;   // (the old tree: 'aircraft' scaled every aircraft source)
-  const kEng = S.engine != null ? S.engine : 1, kFrame = S.engine != null ? S.aircraft : 1;
+  const kEng = opt.engine != null ? opt.engine : S.engine != null ? S.engine : 1, kFrame = S.engine != null ? S.aircraft : 1;
   const cabK = interior ? SC.cabinTransfer(B.spec).ambienceK : 1;
   const kAmb = S.environment * cabK * T.ambience * T.ambienceRun;   // (every state here has its engine running)
   const kMus = S.music * (flying && !musicOn ? 0 : 1) * T.music;
@@ -500,7 +502,7 @@ async function measureState(key, stateKey, interior, o) {
     row.st = { enginePlusProp: levels(ep), airframe: levels(sc(buses.airframe, gA)), music: musicOn ? levels(sc(buses.music, G.music * S.master)) : null,
                ambience: levels(sc(buses.ambience, G.ambience * S.master)), emitters: levels(sc(buses.emitters, G.emitters * S.master)) };
     row.layers = {};
-    for (const L of CONT.concat(TRANS)) {
+    for (const L of opt.layers || CONT.concat(TRANS)) {
       const y = cut(aircraftBuses(B, st, interior, seconds + warm, { solo: L }).out.airframe);
       row.layers[L] = levels(sc(y, gA));
     }
@@ -607,11 +609,48 @@ async function study(tag, only, states) {
         TRANS.map(L => L + ' ' + f(lay[L].m)).join(' ') + ' | mus ' + f(r.st.music && r.st.music.st) + ' amb ' + f(r.st.ambience.st) + ' emit ' + f(r.st.emitters.st) + ' | GR ' + r.limiter.grMaxDb + ' pk ' + r.buses.master.peak);
     }
   }
-  if (tag) fs.writeFileSync(path.join(OUT2, 'study_' + tag + '.json'), JSON.stringify({ when: new Date().toISOString().slice(0, 10), sr: SR, rows }, null, 1) + '\n');
+  // G1728: the engine slider at its top (200 %): the limiter's work and the peak in every state and view
+  const top = [];
+  if (tag) for (const key of BUILDS) {
+    if (only.length && !only.includes(key)) continue;
+    for (const s of states || Object.keys(STATES).concat(Object.keys(STUDY))) for (const inn of [1, 0]) {
+      const r = await measureState(key, s, inn, { music: s === 'cruise', engine: 2 });
+      top.push({ build: key, state: s, persp: r.persp, peak: r.buses.master.peak, grMaxDb: r.limiter.grMaxDb, grOver1dBShare: r.limiter.grOver1dBShare });
+    }
+    const w = top.filter(r => r.build === key).sort((a, b) => b.peak - a.peak)[0];
+    console.log(key + ' engine 200 %: the loudest peak ' + w.peak + ' dBFS (' + w.state + ' ' + w.persp + '), GR max ' + Math.max(...top.filter(r => r.build === key).map(r => r.grMaxDb)) + ' dB');
+  }
+  if (tag) fs.writeFileSync(path.join(OUT2, 'study_' + tag + '.json'), JSON.stringify({ when: new Date().toISOString().slice(0, 10), sr: SR, rows, engineTop: top.length ? top : undefined }, null, 1) + '\n');
   return rows;
 }
 
+// G1725 THE COMPACT TABLE (HANDOVER / README): per build x state x view, before -> after, everything against the engine +
+// prop's short-term loudness (3 s median): the loudest continuous source (the airframe's continuous layers summed are
+// the airframe bus minus its events: its 3 s max where no event fires; the layers' own 3 s max otherwise), the loudest
+// airframe texture (soloed), the loudest transient (momentary 0.4 s max, soloed), the music, the ambience, the master's
+// peak and the limiter's GR max
+function table2(before, after) {
+  const key = r => r.build + ' ' + r.state + ' ' + r.persp, B = {}; for (const r of before.rows) B[key(r)] = r;
+  const d = x => (x == null || !isFinite(x) ? '-' : (x >= 0 ? '+' : '') + x.toFixed(1));
+  const top = (r, list, f) => { let best = null; for (const L of list) { const v = r.layers[L] && r.layers[L][f]; if (v != null && (!best || v > best[1])) best = [L, v]; } return best; };
+  const cell = (r, fn) => { const v = fn(r); return v; };
+  const tex = r => { const t = top(r, CONT, 'st'); return t ? t[0] + ' ' + d(t[1] - r.st.enginePlusProp.stMed) : '-'; };
+  const trn = r => { const t = top(r, TRANS, 'm'); return t ? t[0] + ' ' + d(t[1] - r.st.enginePlusProp.stMed) : '-'; };
+  const rel = (r, k) => d(r.st[k] && r.st[k].st != null ? r.st[k].st - r.st.enginePlusProp.stMed : null);
+  const lines = ['| state | e+p (3 s) | loudest texture vs e+p | loudest transient (0.4 s) vs e+p | music | ambience | emitters | peak dBFS | GR max |', '|---|---|---|---|---|---|---|---|---|'];
+  for (const r of after.rows) {
+    const b = B[key(r)], ba = (fn) => (b ? cell(b, fn) + ' → ' : '') + '**' + cell(r, fn) + '**';
+    lines.push('| ' + key(r) + ' | ' + r.st.enginePlusProp.stMed + ' | ' + ba(tex) + ' | ' + ba(trn) + ' | ' + ba(x => rel(x, 'music')) + ' | ' + ba(x => rel(x, 'ambience')) + ' | ' +
+      ba(x => rel(x, 'emitters')) + ' | ' + ba(x => x.buses.master.peak) + ' | ' + ba(x => x.limiter.grMaxDb) + ' |');
+  }
+  return lines.join('\n');
+}
+
 async function main() {
+  if (process.argv.includes('--table2')) {
+    const rd = f => JSON.parse(fs.readFileSync(path.join(OUT2, f), 'utf8'));
+    console.log(table2(rd('study_before.json'), rd('study_after.json'))); return;
+  }
   { const sa = process.argv.find(a => a.startsWith('--study'));
     if (sa) { const o = (process.argv.find(a => a.startsWith('--only=')) || '').slice(7).split(',').filter(Boolean), st = (process.argv.find(a => a.startsWith('--states=')) || '').slice(9).split(',').filter(Boolean);
       await study(sa.split('=')[1] || '', o, st.length ? st : null); return; } }
