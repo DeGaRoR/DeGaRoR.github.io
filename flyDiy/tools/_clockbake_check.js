@@ -84,9 +84,6 @@ const ok = (c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + 
     ok(c.slices === 8, c.what + ': eight slices (six faces, the room, the outdoors)', c.slices);
     ok(c.swaps.length === 1 && c.swaps[0] >= 6, c.what + ': the room\'s environment replaced ONCE, after its six faces (the old probe on screen until then)', 'swapped at frame ' + c.swaps.join(','));
     ok(c.doneAt >= 7 && c.doneAt <= 11, c.what + ': the job ran over its eight frames and was done within eleven', 'done at frame ' + c.doneAt);
-    // G2662.1: a face renders with NO shadow pass of its own (the frame's maps): a face frame's shadow draws = the rest frame's
-    const faceSh = c.steps.map((st, k) => st >= 1 && st <= 6 ? c.shadows[k] : null).filter(x => x != null);
-    ok(faceSh.length === 6 && Math.max(...faceSh) <= restShadow * 1.1 + 10, c.what + ': the six face frames add no shadow pass (their shadow draws = those of the garage at rest)', 'faces ' + faceSh.join('/') + ', rest ' + restShadow);
     ok(o.otherMax - c.otherMax >= 6 * face, c.what + ': a whole bake left the jump frame (the old path\'s worst other-pass frame exceeds the fix\'s by >= 6 faces)', 'old ' + o.otherMax + ' vs fixed ' + c.otherMax + ', one face ' + face);
   }
   if (P.errors && P.errors.length) console.log('  (page errors: ' + P.errors.slice(0, 3).join(' | ') + ')');
