@@ -1035,6 +1035,10 @@ function make(THREE, scene, world, rec0, opts) {
   // geometry before that is given back, and handed to the part again. RC.flush (a full rebuild, the pavement's A/B, the
   // game out of the editor) starts over; ?pavcache=0 (window.FLYDIY_PAVCACHE = false) builds every road as before.
   const RC = { map: new Map(), flush: true, box: null, on: !(typeof location !== 'undefined' && /[?&]pavcache=0(&|$)/.test(location.search || '')) };
+  // (G2961 RUNWAY-ED-PERF) THE STRIPS' PATTERN VIS KEPT: while editing in the game every rebuild drew every strip's taxi pattern
+  // again (sitePattern + buildPatternVis, each strip); a strip's is kept when its key (the strip + its aerodrome) is the same and
+  // the rebuild's ground box missed it (PVC_PAD: the pattern's reach); a whole rebuild, the editor closed, ?pvcache=0 start over
+  const PVC = { map: new Map(), flush: true, box: null, on: !(typeof location !== 'undefined' && /[?&]pvcache=0(&|$)/.test(location.search || '')) }, PVC_PAD = 1500;
   function* buildRoadsSteps(part) {
     const want = e => (part ? isTown(e) : !geoLater(e));
     const useRC = !part && !!PAV && RC.on && window.FLYDIY_PAVCACHE !== false && !!(o.editing && o.editing()) && !GEO.split && !!PG.roadBuildKeys;
@@ -1313,16 +1317,25 @@ function make(THREE, scene, world, rec0, opts) {
   // (flight_core.js in the page); with none the strip is a bare quad
   const SITE = o.site || {};
   function buildRunways() {
-    for (const c of G.runways.children.slice()) { G.runways.remove(c); c.traverse(m => { if (m.geometry && !m.userData.sharedGeo) m.geometry.dispose(); if (m.material && m.material.map && m.userData.ownMap) m.material.map.dispose(); if (m.userData.pavMat) disposePav(m); }); }
+    // (G2961) which strips' pattern vis stand as they are (the game, editing): same key, the ground box away
+    const usePV = !!o.game && !!(o.editing && o.editing()) && PVC.on && (typeof window === 'undefined' || window.FLYDIY_PVCACHE !== false);
+    const pvKey = (r, A) => JSON.stringify([r, A ? [A.x, A.z, A.hdg, A.len, A.wid, A.elev, A.surface] : null]);
+    const keepPV = new Set();
+    if (!usePV || PVC.flush) { PVC.map.clear(); PVC.flush = false; }
+    else O.runways.forEach((r, i) => { const c = PVC.map.get(r.id); if (c && c.key === pvKey(r, O.aerodromes[i]) && !(PVC.box && !(PVC.box.x1 < c.bb.x0 || PVC.box.x0 > c.bb.x1 || PVC.box.z1 < c.bb.z0 || PVC.box.z0 > c.bb.z1)) && c.grp.parent === G.runways) keepPV.add(c.grp); });
+    PVC.box = null;
+    for (const c of G.runways.children.slice()) { if (keepPV.has(c)) continue; G.runways.remove(c); c.traverse(m => { if (m.geometry && !m.userData.sharedGeo) m.geometry.dispose(); if (m.material && m.material.map && m.userData.ownMap) m.material.map.dispose(); if (m.userData.pavMat) disposePav(m); }); }
     O.runways.forEach((r, i) => {
       const A = O.aerodromes[i];
       // the game paints every registry strip itself (render_world's decals); here only the pattern, while editing
       if (o.game) {
         if (o.editing() && SITE.sitePattern && window.PATTERN_VIS) {
+          { const c = PVC.map.get(r.id); if (c && keepPV.has(c.grp)) return; }   // (G2961) kept
           try {
             const pat = SITE.sitePattern(A, r.site || null);
             const pv = window.PATTERN_VIS.buildPatternVis(THREE, pat, (x, z) => heightAt(x, z), { patternPath: SITE.patternPath, siteRunway: SITE.siteRunway });
             const grp = pv.group || pv; if (pv.setLayers) pv.setLayers({ graph: true, slope: true, targets: true }); grp.name = 'pattern:' + r.id; G.runways.add(grp);
+            if (usePV) { const bb = PG.polyBBox(PG.runwayBox(Object.assign({}, PG.RUNWAY_DEF, r), 0)); PVC.map.set(r.id, { key: pvKey(r, A), grp, bb: { x0: bb.x0 - PVC_PAD, z0: bb.z0 - PVC_PAD, x1: bb.x1 + PVC_PAD, z1: bb.z1 + PVC_PAD } }); }   // (G2961)
           } catch (e) { console.warn('premises pattern', r.id, e && e.message); }
         }
         return;
@@ -3918,6 +3931,7 @@ function make(THREE, scene, world, rec0, opts) {
     HANDLES.length = 0; STEMS.length = 0;
     ghost(null); ghostModel(null);
     // the strips' taxi patterns are the editor's in the game (buildRunways draws them only while editing)
+    PVC.map.clear(); PVC.flush = true;   // (G2961: the patterns go below)
     if (o.game) for (const c of G.runways.children.slice()) if (/^pattern:/.test(c.name || '')) { G.runways.remove(c); c.traverse(m => { if (m.geometry && !m.userData.sharedGeo) m.geometry.dispose(); }); }
     selectedId = null;
   }
@@ -3936,6 +3950,7 @@ function make(THREE, scene, world, rec0, opts) {
     const groundDirty = !dirty || !dirty.bbox || dirty.ground !== false;
     // (G3002) the roads kept: a whole rebuild starts them over; a ground edit's box builds again the roads it touches
     if (!dirty || !dirty.bbox) RC.flush = true; else if (groundDirty) { const pd = (dirty.pad || 0) + 2, b = dirty.bbox; RC.box = { x0: b.x0 - pd, z0: b.z0 - pd, x1: b.x1 + pd, z1: b.z1 + pd }; }
+    if (!dirty || !dirty.bbox) PVC.flush = true; PVC.box = (dirty && dirty.bbox && groundDirty) ? Object.assign({}, RC.box) : null;   // (G2961)
     if (o.game) {
       // (G2917) an editor's edit re-patches the BLOCKS its box touches (G2063's part build), not the whole patch: an
       // island-long road's corridor was every block of the island, re-sampled at 2 m for one point moved
