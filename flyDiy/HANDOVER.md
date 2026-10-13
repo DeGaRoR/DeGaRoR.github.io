@@ -88237,3 +88237,112 @@ Merged origin/claude/scenery-ship-g3010 (b43779662) on master 0b42f6826 (train 5
 - A0 re-pins: UISMOKE map places + 3 strips, projection roads 76 -> 110 (the road graph + rev27), and flyDiy/BACKLOG.md (the official backlog, source flydiy-notes/backlog.json).
 Gates green except VEHICLE (2 placeholder rows, agreed). The strict gate was NOT run (the RWYTREES row took 15 min; the user chose to land without it). The Tue 00:45 baseline re-take on this master verifies it.
 What to watch for: strip 12 and its roads, contracts at strips 10-12, trees on the user's clearings, typed numbers in the inspector, one strip per runway click.
+
+## G3072 - TORQUE-STEER: THE GROUND RUDDER TRIM WINDS ONLY WHILE THE LINE IS HELD - THE JODEL TAKES OFF AT HOME AGAIN (2026-10-13, TORQUE-STEER for the PILOT COORDINATOR, cloud - node only; branch claude/pilot-45 on 9ded1303, master 09683cb0 merged in first)
+
+IN PLAIN WORDS: the user's Jodel was refusing to take off from HOME on Jolene. The take-off roll there starts with a turn
+onto the runway. During that turn the pilot's new "rudder trim" (G2080, which cancels the propeller's steady pull to one
+side) treated the turn as a steady pull and wound itself fully one way. When the turn ended, the trim was wrong and the
+Jodel weaved +-25 deg down the runway, never got up to speed and gave up. Now the trim only learns while the aeroplane is
+pointing down the line (within ~6 deg) and stops learning once a taildragger's tail is up. The Jodel takes off again. The
+trim still does its job: the metal Cessna's heading at rotation and the ball in the climb are unchanged.
+
+### MERGE FIRST
+origin/master (09683cb0: train 44 7ad7e1ee landed + train 50 + SCENERY-SHIP) merged into pilot-45 (50cc2145): conflicts in
+HANDOVER (both kept) and 90_node_exports (union: PILOT_STAB + NAV_FIXES); built files master's.
+
+### THE CAUSE - MEASURED, NOT WHAT THE BRIEF EXPECTED
+G2540's bisect (steerI 0 -> takes off) holds. But the wind-up is NOT in PILOT-PROFILE's level acceleration in ground
+effect. Probed (the servo state each frame, tools/pilot_trace runTrace, Jolene HOME -> mn_strip, GATE PROFILE 2's trip):
+every take-off at Jolene's HOME (the Jodel, the Cub, the metal Cessna) starts its ROLL **85 deg off the runway heading** -
+a rolling turn onto it. The integral (steerI 1.0/s) hits its stop (gI -0.25) within 1 s and holds it through the turn;
+out of the turn the Jodel swings +26 / -14 / +25 / -18 deg, the integral slamming between +-0.25 - **all on the tail-DOWN
+roll** (the Jodel's tail never came up: tailUp false to the abort at 14 s, 12.8 m/s). So A0's ruling as written (wind
+only below the tail-up speed / tail down; hold once the tail is up) changes nothing here - flown: 'rejected-takeoff ...
+0.18 m/s^2 needs 512 m more', the same to the metre.
+
+### THE FIX (src/core/39b_servos.js groundSteer, SERVO_GAINS.steerIBand 0.10)
+The trim is a standing yaw's, not a turn's: it is HELD (not wound, not reset) while |heading error| > steerIBand (0.10
+rad = 5.7 deg; the metal Cessna's standing error on P-D alone was 4.1 deg = 0.07 rad, inside it), and - A0's ruling - held
+once a land taildragger's tail is up (rotateTD && !onWater && tailUp). A tricycle has no tail-up: G2080's law, banded only.
+The water is untouched by the tail-up hold. Under power only (G2450) and the 1 s bleed at idle as before.
+Tried apart (scratch env switch, removed): the tail-up hold alone = no change anywhere measured; the band alone = the fix;
+both = the band's numbers at HOME and on G2080's probe.
+
+### BEFORE / AFTER (before = this tree without the fix; after = 9ad5eaa8)
+Jolene HOME -> Jumbo Mine (GATE PROFILE 2's take-off, pilot_trace):
+| aeroplane | before | after |
+|---|---|---|
+| Jodel | ROLL 0 s, ABORT 14 s ('will not reach Vr: 0.18 m/s^2 needs 512 m more, 720 m left') | LIFTOFF 17.2 s, CLIMB 34.1 s, ENROUTE 78.7 s (G2540's steerI-0: 17.1 / 78.7) |
+| Cub | LIFTOFF 14.2 s, CLIMB 22.9 s, ENROUTE 56.7 s | LIFTOFF 13.8 s, CLIMB 28.2 s, ENROUTE 56.2 s |
+| metal Cessna | LIFTOFF 10.8 s, CLIMB 14.7 s, ENROUTE 34.7 s | LIFTOFF 10.8 s, CLIMB 14.7 s, ENROUTE 34.6 s |
+G2080's own evidence (tools/engine_torque_probe.js, PILOT, the HOME circuit lined up, effects on):
+| aeroplane | rotation heading before -> after | off-line at lift-off | CLIMB beta (the ball) | CLIMB dr |
+|---|---|---|---|---|
+| metal Cessna | 2.82 -> **2.83 deg** (G2080: 4.1 on P-D alone -> 2.8 with steerI - kept) | -1.47 -> -1.47 m | -0.08 -> -0.07 deg | -0.124 |
+| Jodel | -0.23 -> -0.02 deg | -0.39 -> -0.73 m | -0.02 -> -0.01 deg | -0.120 |
+| Cub | -0.28 -> 0.13 deg | -0.35 -> -0.72 m | -0.12 -> -0.11 deg | -0.131 |
+(the Jodel / Cub moves are the tail-up hold's; the band alone gave the before's numbers within 0.01)
+
+### THE GATES (node tools/build.js; run_gates --no-build --jobs=4, one run, 4297 s wall, on the fix as committed)
+| gate | G2540 | G3072 | |
+|---|---|---|---|
+| PROFILE | FAIL (2 jodel: no enroute plan) | **PASS** | the Jodel's plan: cruise 810 m, ToC 9552 m, ToD 10050 m, clears 627 / 168 m |
+| PILOTMATRIX | PASS | PASS | no cell worse than tools/pilot_baseline.json |
+| PILOTACT | PASS | PASS | taxi rudder c172 18.9 / metal Cessna **19.2** per min (limit 20) - unmoved: the taxi's rudder is taxiRudder, not this law. Still THIN, G2080's |
+| ENGTORQUE | PASS | PASS (17/17) | |
+| PILOT | PASS | PASS (3 shards) | |
+| LINEUP | PASS | PASS | |
+| SEAPLANE | PASS | PASS | crosswind take-off swing 17.0 deg (bound 30), taxi 10.2 deg (bound 20) |
+| ROUTE | PASS | PASS (3 shards) | |
+| TAKEOFF | FAIL twinf 1.64 Vs | FAIL twinf **1.64** Vs (bound 1.6) | not moved: JODEL-PITCH's named red (G2540 #4). The bound stays |
+| TAXICLEAR | FAIL 9 / 11c -0.01 m | FAIL 9 / 11c **-0.01 m** (house3 LIFTOFF 83 s / house4 CLIMB 97 s) | not moved: JODEL-PITCH's (G2540 #5) - the metal Cessna's rotation heading 2.83 deg as before. The bound stays |
+| ALTIPORT | FAIL 3 | FAIL 3 (the other three shards PASS; 1 the Jodel HOME > tw_ski lands, 129 m run) | see 2 below - not the ground trim |
+| TOUR | FAIL 5 Cub; shard 2 no result | FAIL 5 Cub, FAIL 5 float Cessna mk_sea > SEA (shard 2 now ran: 2577 s) | see 3 below - neither is the ground trim |
+
+### G2540'S REDS, EACH
+1. **PROFILE 2 jodel - GONE** (the cause above, fixed).
+2. **ALTIPORT 3, the doctored Jodel arrival - STILL RED, NOT the ground trim.** Flown on the fix with steerI 0 (SERVO_TUNE
+   override): the same three FAILs (11 g vs 10 g). Without the fix (this tree) the Jodel never even leaves HOME on that
+   leg (taxi-timeout / replan 'not lined up' x2, the 900 s cap) - the fix gets it away and the doctored arrival flies:
+   FINAL at 550.7 m MSL (the strip 680..709 m) but PERSONA-2's stabilisation gate goes round first ('unstabilised
+   approach at -129 m: low 239 m on the slope', then 'fast 28.2 m/s') - **the flare guard is never reached, so the
+   calibration row cannot see it** (G2520's guard x G2460's PILOT_STAB). Then 'divert: twice round Skyline Altiport ->
+   Tamgas Hill Strip (w3, 520 m)': traced, its flare at w3 FLOATS - from 17 m before the threshold at 26.3 m/s, then
+   21.6 m/s at ~1 m with the power back in (thr 0.25-0.40 from 795 s: the elevator-at-its-stop power law?), touching
+   409 m into the 520 m strip, over the end at ~17 m/s, into the water (prop-strike, 10-11 g). dr and e ~0 throughout:
+   no steering in it. The second FAIL row reads that w3 flare against tw_ski's ground (-642.9 m) - the row assumes no
+   divert. OWNER: ALTIPORT-ARRIVAL G2520 with PERSONA-2 G2460 (the go-around before the guard; the float at w3).
+3. **TOUR 5, the Cub's nv_strip > w2 ground loop - STILL RED, NOT the ground trim.** 30.3 deg at 11.6 m/s (G2540: 30.2);
+   this tree without the fix 30.1 deg at 9.9 m/s; the fix with steerI 0: 30.3 at 11.7. Traced (the leg alone, nv_strip ->
+   w2, reproduces: 30 deg at 12 m/s): no water under any node (the strips block's wet w2 samples are not on its track);
+   touchdown ~16 m/s, throttle 0.40 -> 0, the rudder on its stop +0.8..0.9 from 15.5 m/s and the yaw still diverging,
+   then the other stop -0.78: a growing weave (13 deg, then 33 deg) - the tail-down roll-out's P-D steer at that speed
+   (the integral bleeds at idle and is out of it). The same family as GATE ALTIPORT 2's KNOWN Cub roll-out at tw_ski
+   (30.1-30.4 deg at ~9.7 m/s, 'the roll-out law's, routed'). OWNER: EAST-POINT-DEPART G2450 / the roll-out law.
+   **TOUR 6 (East Point HOME > nv_strip > mn_strip): PASS.**
+   **NEW, TOUR 5 the float Cessna mk_sea > SEA: prop-strike (water, t 680.2), it never rolls** (TAXI > STOP > HOLD >
+   DEPART x4, 'gave-up' at 810.6 s). G2540's shard 2 hit the 3600 s cap and never showed it. NOT the fix, NOT master's
+   merge: the same on this tree without the fix (t 679.1) and on the un-merged bundle 9ded1303 (t 678.9).
+   On the base 7ad7e1ee the tour never reaches that leg (leg 1 SEA > mk_sea fails there: 31 yields, prop-strike - the
+   train-44 KNOWN red; ENGINE-TORQUE / JODEL-PITCH made leg 1 clean, so the bundle is the first to fly leg 2 in-tour).
+   Flown ALONE from Metlakatla's stand (lined up, so not the gate's stuck taxi) the leg fails on every tree at SEA's
+   water touchdown, 'vref-raised: the elevator cannot hold 34.4 m/s at this power': base 7ad7e1ee prop-strike (35.2
+   m/s); this tree without the fix prop-strike (38.7 m/s, t 441.7); the fix BROKE UP (t 442.3, the fuselage parted);
+   the fix with steerI 0 prop-strike (38 m/s). Deterministic (each flown twice, the same). The ground steer is not in
+   a water landing at idle (the integral bleeds); the take-offs differ by 2.5 m (lift-off 388.1 / 390.6 m) and the
+   touchdown at ~38 m/s is the same knife edge - the outcome on it moves. NOT GATED (the gate's leg is the in-tour
+   one, unchanged by the fix), but SAID: a ~38 m/s touch on the water at Vs ~26 is the load-door float Cessna's
+   vref-raised (CESSNA-VREF G2500 'owed', JOIN-PARITY G1970.4 - the outbound leg's KNOWN red, the same cause) on
+   the return leg too. OWNER: the in-tour taxi at mk_sea (TAXI/DEPART replan x4 with a prop strike on the water at
+   ~680 s): the water taxi / ENGINE-TORQUE G2080's water steer; the return landing: CESSNA-VREF / JOIN-PARITY.
+4. **TAKEOFF twinf 1.64 Vs - STILL RED, unmoved** (JODEL-PITCH's own; the bound stays).
+5. **TAXICLEAR 9 / 11c the mill -0.01 m - STILL RED, unmoved** (JODEL-PITCH's own; the bound stays).
+6. DMGCERTCOST - not in this bar (A0's --write-ref at the train).
+
+### NOT DONE / OWED
+- No bound moved, no baseline written.
+- The game on the box (GPU): a take-off from Jolene's HOME in the page (the rolling turn onto the runway) - the
+  coordinator's fly-through.
+- TAKEOFF / TAXICLEAR / ALTIPORT 3 / TOUR 5 (the Cub's w2 roll-out, the float Cessna at Metlakatla) are their owners'
+  (above); none is the ground trim's.
