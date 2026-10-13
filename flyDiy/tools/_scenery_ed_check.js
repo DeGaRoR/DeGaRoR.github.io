@@ -1073,6 +1073,57 @@ if (plots.length) {
   check(K0.get('rc') !== K1.get('rc') && K0.get('ra') === K1.get('ra'), '30 a guardrail row changed: that road drawn again, the others kept');
 }
 
+// 26 ANIMALS IN THE MODEL PLACER (G2893; the user: "I did not succeed placing animals"): the ASSETS tab's bank lists every
+//    species as an 'animals' tile; a place drops a herd record (the OBJECTS tool's own defaults), a scatter ONE hotspot of
+//    that many within that radius - and the OBJECTS tool still writes the same record
+// 27 THE PARTS HIDDEN, THE ASSEMBLY WHOLE (G2893): a prop its pack flags `part`, the groups that are a kit's pieces and an
+//    assembly's parts are not tiles; the assembly is ONE tile, and its drop ONE record, its head part's key and the rest in
+//    `with` - composed with it (the objects' record carries `with`), so the renderer stands every part at that pose
+// 28 THE ZONE DRAWS FROM EVERY CATEGORY (G2893): its 'draws from' pills are the theme's and every category the catalogue carries
+{
+  const PRs = { groups: [['landmark', 'landmark buildings'], ['knob', 'knobs'], ['vessel', 'drums & bins']], order: ['ant_base', 'ant_fork', 'ant_dish', 'drum', 'knob_a', 'stray', 'bear_l1'],
+    props: { ant_base: { key: 'ant_base', group: 'landmark', label: 'antenna base', asm: 'ant', nt: 10 }, ant_fork: { key: 'ant_fork', group: 'landmark', asm: 'ant', asmParent: 'base', nt: 20 },
+             ant_dish: { key: 'ant_dish', group: 'landmark', asm: 'ant', asmParent: 'fork', nt: 30 }, drum: { key: 'drum', group: 'vessel', label: 'drum' }, knob_a: { key: 'knob_a', group: 'knob' },
+             stray: { key: 'stray', group: 'vessel', part: true }, bear_l1: { key: 'bear_l1', group: 'animal', lodOf: 'bear', lodDist: 40 } }, texs: {} };
+  win.PROP_REG = PRs;
+  win.ANIMALS = { list: k => [{ key: 'bear', kind: 'land', label: 'bear', length: 2.2, nt: 9000, clips: [] }, { key: 'doe', kind: 'land', label: 'doe', length: 1.6, nt: 5000, clips: [] }].filter(a => !k || a.kind === k),
+                  reg: k => ({ bear: { key: 'bear', kind: 'land', label: 'bear', length: 2.2, nt: 9000, clips: [] }, doe: { key: 'doe', kind: 'land', label: 'doe', length: 1.6, nt: 5000, clips: [] } })[k] || null };
+  const CATZ = new Map([['house/cottage', { key: 'house/cottage', cat: 'residential' }], ['hangar/field shed', { key: 'hangar/field shed', cat: 'airport xs' }]]);
+  const rowsZ = Object.assign({}, rows);
+  const stripZ = new El('div');
+  const edz = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rowsZ, els: { chk: null, plaque: null, strip: stripZ }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop,
+    catalogue: { entries: CATZ, keys: () => Array.from(CATZ.keys()), byCat: c => Array.from(CATZ.values()).filter(e => e.cat === c), byTag: () => [] } });
+  const bank = edz.cmd('bank', {}), K = bank.map(t => t.k);
+  check(K.indexOf('animal:bear') >= 0 && K.indexOf('animal:doe') >= 0 && bank.find(t => t.k === 'animal:bear').group === 'animals', '26 the placer\'s bank lists every species as an animals tile', K.join(','));
+  edz.setSection('assets'); edz.cmd('tool', { name: 'place' }); edz.cmd('pick', { key: 'animal:doe' });
+  edz.cmd('click', { x: 200, z: 200 });
+  const objs = () => edz.record().layers.objects, herd = objs().find(o => o.kind === 'animal');
+  check(herd && herd.key === 'doe' && herd.n === 4 && herd.r === 120, '26 a place drops a herd record with the species\' defaults', JSON.stringify(herd));
+  edz.cmd('tool', { name: 'scatter' }); edz.cmd('pick', { key: 'animal:bear' });
+  edz.cmd('click', { x: 300, z: 300 });
+  const bears = objs().filter(o => o.kind === 'animal' && o.key === 'bear');
+  check(bears.length === 1 && bears[0].n >= 2 && bears[0].r >= 2, '26 a scatter of an animal is ONE hotspot of that many within that radius', JSON.stringify(bears));
+  edz.setSection('objects'); edz.cmd('tool', { name: 'animal' }); edz.cmd('click', { x: 400, z: 400 });
+  check(objs().filter(o => o.kind === 'animal').length === 3, '26 the OBJECTS tool still writes a herd');
+  check(K.indexOf('ant_fork') < 0 && K.indexOf('ant_dish') < 0 && K.indexOf('ant_base') < 0 && K.indexOf('knob_a') < 0 && K.indexOf('stray') < 0 && K.indexOf('bear_l1') < 0 && K.indexOf('drum') >= 0,
+    '27 parts, flagged pieces, a kit\'s groups and the LOD cuts are no tiles; a whole model is', K.join(','));
+  const asm = bank.find(t => t.k === 'asm:ant');
+  check(asm && asm.key === 'ant_base' && JSON.stringify(asm.with) === '["ant_fork","ant_dish"]', '27 the assembly is ONE tile: its head part and the others with it', JSON.stringify(asm));
+  edz.setSection('assets'); edz.cmd('tool', { name: 'place' }); edz.cmd('pick', { key: 'asm:ant' }); edz.cmd('click', { x: 500, z: 500 });
+  const ant = objs().find(o => o.kind === 'prop' && o.key === 'ant_base');
+  check(ant && JSON.stringify(ant.with) === '["ant_fork","ant_dish"]', '27 the assembly\'s drop is ONE record, its parts in `with`', JSON.stringify(ant));
+  const Oz = PG.compose(edz.record(), synth), cr = (Oz.records.objects || []).find(o => o.id === ant.id);
+  check(cr && JSON.stringify(cr.with) === '["ant_fork","ant_dish"]' && PG.objScale({ s: 1 }).with === undefined, '27 the composed record carries `with` (and a record without it composes as before)');
+  check(PG.unwrap(PG.envelope('z', edz.record())).rec.layers.objects.find(o => o.id === ant.id).with.length === 2, '27 `with` round-trips through the store');
+  const RPs27 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check(/for \(const k of Array\.isArray\(ob\.with\) \? ob\.with : \[\]\)/.test(RPs27) && /ob\.with \? \[ob\.with\] : \[\]/.test(RPs27), '27 the renderer stands the `with` parts and a changed `with` builds the object again');
+  edz.close(); delete win.PROP_REG; delete win.ANIMALS;
+}
+{
+  // 28 (the source): the zone's pills read zoneCats - the theme's then the catalogue's others
+  const UIs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_ui.js'), 'utf8');
+  check(/for \(const c of zoneCats\(TH\)\)/.test(UIs) && /function zoneCats\(TH\)/.test(UIs), '28 the zone\'s draws-from pills cover every category the catalogue carries');
+}
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
