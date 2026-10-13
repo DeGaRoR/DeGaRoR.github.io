@@ -158,7 +158,12 @@ const RP = read('render_premises.js'), RW = read('render_world.js'), WA = read('
           '4 the failed layer is the set\'s mean colour (sRGB) over a flat normal; the landed one its cooked planes', [d[0], d[1], d[2], d[S], n[S]].join(',')); }
       ok(warn.some(m => /bad layers failed/.test(m)), '4 the failure is said on the console');
       // ---- 5. the cover ring ----
-      ok(RW.includes('if (h < 0.3 || world.waterH(x, z) > h - 0.3 || drawnWet(x, z, h)) return false;') && RW.includes('drawnLakeSD = lakeRsd;'), '5 the cover ring refuses the drawn water (drawnWet: the drawn lakes\' field and waterDrawY)');
+      // (G2572: the land test is landBy(x, z, lake) - okAt the first ring's at 0.3 m everywhere, okLake the grass field's at
+      // lakeMargin by a lake - and the drawn water's test wetBy, the same field and waterDrawY; the sea's 0.3 m in both)
+      ok(RW.includes('if (h < 0.3 || wl > h - (lake && wl > 0.05 ? lakeM() : 0.3) || wetBy(x, z, h, lake)) return false;')
+         && RW.includes('const wetBy = (x, z, h, lake) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z);')
+         && RW.includes('const okAt = (x, z) => landBy(x, z, false), okLake = (x, z) => landBy(x, z, true);') && RW.includes('drawnLakeSD = lakeRsd;'),
+         '5 the cover ring refuses the drawn water (wetBy: the drawn lakes\' field and waterDrawY; the first ring at 0.3 m, the grass field at lakeMargin by a lake)');
       console.log('GATE LOOKS: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
       process.exit(fails ? 1 : 0);
     }, 300);

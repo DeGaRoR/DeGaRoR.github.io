@@ -686,9 +686,14 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
   // (c) THE LOOK: 9 knobs x 3 surface types, every one a KNOB row with its default inside its range; a class's look
   // through lookOf; the defaults draw the plain surface (multipliers 1, the edge zone's side)
   const K = {}; for (const row of P.KNOBS) if (row.length > 1) K[row[0]] = row;
-  const okK = P.LOOK_KEYS.length === 27 + 2 &&   // + G2570's two grass-strip keys (grMatch, grMowA)
+  const okK = P.LOOK_KEYS.length === 30 + 2 &&   // + G2570's two grass-strip keys (grMatch, grMowA)
     P.LOOK_KEYS.every(k => K[k] && P.RECIPE[k] >= K[k][2] && P.RECIPE[k] <= K[k][3]);
-  verdict(okK, `the runway look: ${P.LOOK_KEYS.length} knobs (${Object.keys(P.LOOK_GROUPS).join(', ')} x 9), each a KNOBS row, its default in range`);
+  verdict(okK, `the runway look: ${P.LOOK_KEYS.length} knobs (${Object.keys(P.LOOK_GROUPS).join(', ')} x 10), each a KNOBS row, its default in range`);
+  // (G3018) THE SATURATION knob: 1 is today's grading exactly (the look carries 1, the graded mean the same bits), 0 is grey
+  { const lk = P.lookOf('concrete'), lk0 = P.lookOf('concrete', Object.assign({}, P.RECIPE, { pvSat: 0 }));
+    verdict(lk.sat === 1 && lk0.sat === 0 && ['pvSat', 'sfSat', 'grSat'].every(k => P.RECIPE[k] === 1), `the surface saturation: 1 by default for every type (${lk.sat}), 0 read (${lk0.sat})`);
+    if (P.gradedMean) { const a = P.gradedMean('concreteA', P.RECIPE, null), b = P.gradedMean('concreteA', P.RECIPE, null, 1), c = P.gradedMean('concreteA', P.RECIPE, null, 0);
+      verdict(JSON.stringify(a) === JSON.stringify(b) && Math.abs(c[0] - c[1]) < 1e-12 && Math.abs(c[1] - c[2]) < 1e-12, `the graded mean: x1 the same bits, x0 grey (${c.map(v => v.toFixed(4)).join(' ')})`); } }
   const L0 = P.lookOf('asphalt'), Lg = P.lookOf('grass');
   verdict(L0.surf.every(c => Math.abs(c - 1) < 1e-9) && L0.side.every(c => Math.abs(c - 1) < 1e-9) && L0.sideW === P.RECIPE.sideW && L0.sideA === P.RECIPE.sideA && Lg.sideA === 0 && Lg.sideW === P.RECIPE.edgeSoft && P.groupOf('dirt') === 'sf'
     && Math.abs(PG.PAVE_SIDE_SOFT - 3.05 * P.RECIPE.edgeSoft) < 0.1,
