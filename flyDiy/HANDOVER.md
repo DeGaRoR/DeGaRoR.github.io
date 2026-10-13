@@ -93011,3 +93011,22 @@ Gates (75 jobs, re-run after a spawn EPERM crash at 27/75): reds accepted -
 - CLOUD 3 of 239: the lamps rows, pre-existing.
 - SKINMAT, WEATHER: red on master f6bda9011 too; EDITOR-BUGS' fix rides train 53b (01:25).
 - SITE 1 of 245: calibration row "a plot turned away from its stand is not seen"; green on t52-full; 53b's gates re-check it.
+
+READY for the GAME COORDINATOR (train 52: the garage Wait fix, c38a5e99's code + the gate)
+
+## G2740 - CAREER-ON: THE WELCOME'S CAREER IS LIVE (NEW CAREER + CONTINUE), THE PLAYER'S CAREER ON flydiy.career.main, ?career=1 STAYS THE DEV CAREER (2026-10-13, the GAME COORDINATOR; the user: "Let's push career tonight"; branch claude/career-on-g2740 off claude/game-t44-2 b17327cd, train 54)
+
+- welcome.js: `READY.career = true`. **New career** chooses the career (FLYDIY_MODE 'career'). **Continue** shows when
+  `flydiy.career.main` holds a career document; it is first and has focus. A New career over a saved one sets
+  `flydiy.career.fresh` = '1'. `?mode=career` skips the menu into the career. A broken save means no Continue.
+- app.js: `CAREER_DEV` = `?career=1` (the dev career, `flydiy.career.dev`, unchanged) OR `FLYDIY_MODE === 'career'` (the
+  player's career, `flydiy.career.main`, seeded `c<time>`, named "your career"). The fresh flag moves the old document
+  to `flydiy.career.main.prev` and clears it. career_core is fetched by that choice: build.js `FLYDIY_CAREER_WANT` already
+  reads FLYDIY_MODE.
+- world_boot.js: the player's career stands its own stage tracks (`flydiy.career.main`). While the fresh flag waits, it
+  stands none (every track at 0).
+- Gates: GFX (the modes rows: career READY; ?mode=career → career; New career live; Continue / fresh / broken-save rows)
+  and UISMOKE (the flag table; the app.js scans read CAREER_DEVFLAG / CAREER_ID). GFX: storage_ui.js's phone-layout
+  `(pointer: coarse)` CSS is allowed (1). It was a red on train 52's branch, not a device test in code.
+- Backlog (non-blockers, the play-through is on the live game): no career name entry (always "your career"); no
+  "restore the backup" door for `.prev`; one career slot.
