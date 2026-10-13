@@ -102,7 +102,7 @@ const STAND_CARDS = (() => {
       const tints = pool.map(q => ({ w: q.w, key: q.key, u: tintOf(q.key) })).filter(q => q.u);
       return parts.length ? { parts, pool, tints, layout } : null;
     }
-    let P0 = null, tries = 0, TINT = null, levelTries = 0, COMPOSED = false;
+    let P0 = null, tries = 0, TINT = null, levelTries = 0, COMPOSED = false, LEVEL_MINE = false;
     const tintNow = () => { if (!TINT || !P0 || !P0.tints) return; let w = 0, h = 0, sa = 0, li = 0, lb = 0;
       for (const q of P0.tints) { w += q.w; h += q.w * q.u.uHue.value; sa += q.w * q.u.uSat.value; li += q.w * q.u.uLight.value; lb += q.w * q.u.uLightB.value; }
       if (w > 0) { TINT.uHue.value = h / w; TINT.uSat.value = sa / w; TINT.uLight.value = li / w; TINT.uLightB.value = lb / w; } };
@@ -122,7 +122,7 @@ const STAND_CARDS = (() => {
       // x CARD_SCREEN_K: the sheets match at 3.15 but ON SCREEN the card then drew 1.35x its impostors (cardmatch_probe, 13 Oct
       // 02:50 + 03:07, the default look) - a block's baked normals face the sky more than a tree's: the light the sheet cannot see
       const k = Math.max(0.25, Math.min(4, (y / w) / lum(card) * CARD_SCREEN_K));
-      LOD.impLevel(atlas.key + '|' + (atlas.series || 'rungs'), k);
+      LOD.impLevel(atlas.key + '|' + (atlas.series || 'rungs'), k); LEVEL_MINE = true;
       STAT.level = +k.toFixed(3); STAT.levelSrc = n + ' species sheets, card luma ' + lum(card).toFixed(4) + ', theirs ' + (y / w).toFixed(4);
     }
     function ensure() {
@@ -141,7 +141,9 @@ const STAND_CARDS = (() => {
       TINT = P.tints && P.tints.length ? { uHue: { value: 0 }, uSat: { value: 1 }, uLight: { value: 1 }, uLightB: { value: 1 }, bark: false } : null;
       if (TINT) tintNow();
       mat = impostorMat(atlas, S.far, 0, TINT || tintUniformsOf(P.parts), S.gain, U_NOTHIN, { value: S.near }, undefined, (S.standIn && rdy) ? rdy : null);
-      if (!COMPOSED) matchLevel(P, atlas); else { if (typeof TREE_LOD !== 'undefined' && TREE_LOD.impLevel) TREE_LOD.impLevel(atlas.key + '|' + atlas.series, null); STAT.level = 1; STAT.levelSrc = 'composed from ' + P.layout.length + ' trees\' own sheets'; }
+      // (a composed card clears only a level matchLevel set - never one set from outside, e.g. GATE CARDMATCH's control: the 18:05 proof
+      // of 13 Oct read 1.12 at 'half level' because each rebuild cleared it)
+      if (!COMPOSED) matchLevel(P, atlas); else { if (LEVEL_MINE && typeof TREE_LOD !== 'undefined' && TREE_LOD.impLevel) TREE_LOD.impLevel(atlas.key + '|' + atlas.series, null); LEVEL_MINE = false; STAT.level = 1; STAT.levelSrc = 'composed from ' + P.layout.length + ' trees\' own sheets'; }
       quad = new THREE.PlaneGeometry(1, 1); chunkBounds(quad, S.cell / 2);
       proto = { parts: P.parts, atlas };
       STAT.baked = true; STAT.lastMs = performance.now() - t0;

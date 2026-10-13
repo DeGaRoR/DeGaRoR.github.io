@@ -3413,8 +3413,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // for the stand cards' level match at their bake and for the audit
     sheetMean = (key, series) => {
       const CUT = { rungs: 0.40, stand: 0.15, snag: 0.10 }, lin = v => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
-      for (const a of ATLAS.values()) {
-        if (a.key !== key || a.series !== series || !a.read || !a.N) continue;
+      // the NEWEST sheet of that key (a card rebuilt bakes again under its key; the old one stays in ATLAS - the 18:05 proof's
+      // A/B levelled the merged bake against the composed sheet before it)
+      let pick = null; for (const a of ATLAS.values()) if (a.key === key && a.series === series && a.read && a.N) pick = a;
+      for (const a of pick ? [pick] : []) {
         const px = new Uint8Array(a.N * a.N * 4); try { a.read(px); } catch (e) { return null; }
         const cut = 255 * (CUT[series] || 0.4); let rr = 0, gg = 0, bb = 0, n = 0;
         for (let i = 0; i < px.length; i += 4) if (px[i + 3] >= cut) { rr += lin(px[i]); gg += lin(px[i + 1]); bb += lin(px[i + 2]); n++; }
