@@ -202,7 +202,7 @@
         // disable it by default" - back in the row, OFF on every preset, ultra included)
         // WATER-STEADY (G2830, the user 10 Oct: "turn it on for game and ultra, off for the rest, and not auto switching"):
         // LIVE on gamer and ultra, off on the four below - and wherever it is on it stays on (no shore, no altitude drops it)
-        { v: 'live',     label: 'live', why: 'the reflection captured every frame (a second scene draw at quarter size; on for gamer and ultra, never switched by the game)' } ] },
+        { v: 'live',     label: 'live', why: 'the reflection captured every frame (a second scene draw at 0.4 of the frame each way; on for gamer and ultra, never switched by the game)' } ] },
     { k: 'lighting', label: 'lighting', steps: [
         { v: 'sunset', label: 'sunset', why: 'the world’s golden hour' },
         { v: 'alps',   label: 'afternoon', why: 'the bench’s afternoon sky, the light the trees were judged in' } ] },

@@ -92671,7 +92671,7 @@ The user (10 Oct): "the water model switching from simple to reflective is reall
 - **Rig:** `tools/perf/mirror_census.js` (off vs live per view, the capture's ms / draws / skips, `--census` by object, `--flights` shore + climb weight / plane traces, `--skip`).
 - **Left open:**
   - patternVis's 8 draws reach the capture (the route ribbons reflect): a G1370 UI-layer gap, in A0's backlog.
-  - A cheaper capture if wanted: `MIR.res` 0.5 -> 0.4 (~36 % fewer pixels, ~1.5-2 ms GPU), not measured.
+  - `MIR.res` 0.5 -> 0.4 (the user's pick, A0's option (b), 13 Oct ~15:00): ~36 % fewer capture pixels, expected ~1.5-2 ms GPU back; the numbers above are at 0.5 - train 54 measures 0.4.
 - **What to watch for:**
   - the water over a shore crossing and on a climb: no change of brightness, no pop;
   - a lake 30+ m above the sea: sky-only from far off, the reflection dissolving in as you come under 200 m over it (and the sea going to sky-only then);

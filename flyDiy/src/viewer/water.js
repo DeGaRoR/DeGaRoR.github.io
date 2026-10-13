@@ -906,7 +906,9 @@ const WATER = (() => {
   //     300 m does not take the plane from the sea); over land it STAYS (THE SHORE NEVER DROPS IT)
   //   slideS: a new plane is reached by a slide of this time constant, never a jump (a cut snaps: jumpM in one frame)
   //   seaY: the sea's drawn plane (render_world seaPlaneY), the plane before any water was under the eye
-  const MIR = { mode: 'off', every: 3.0, minGap: 0.25, moveM: 3, turnDeg: 3, jumpM: 15, jumpDeg: 12, fadeFrom: 500, maxAgl: 900, moveAgl: 0.05, guard: 1.25, res: 0.5, perturb: 0.15, lod: 5.0, far: 4000, w: 0, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0,
+  //   res 0.4 (was 0.5; the user's pick 13 Oct, A0's option (b)): the capture at 0.4 of the frame each way x the guard band -
+  //     ~36 % fewer pixels than 0.5; the pass was 4.2-5.9 ms GPU at 0.5 on gamer (frame_perf ABBA 13 Oct)
+  const MIR = { mode: 'off', every: 3.0, minGap: 0.25, moveM: 3, turnDeg: 3, jumpM: 15, jumpDeg: 12, fadeFrom: 500, maxAgl: 900, moveAgl: 0.05, guard: 1.25, res: 0.4, perturb: 0.15, lod: 5.0, far: 4000, w: 0, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0,
     adoptAgl: 200, slideS: 0.35, seaY: 0, plane: null, planeT: null, eyePrev: null, skip: [], skipped: 0, captures: 0, calls: 0, capturing: false };
   const mirrorTmp = {};
   // mirrorPlane(under, eye, dt): the plane the capture mirrors about (G2830). `under` is the drawn water's level under the
