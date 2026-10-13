@@ -221,7 +221,10 @@ function judgeTech(R) {
   check(R.lifts === 1, tag + 'exactly one lift-off (no hop, no skip)', R.lifts + ' (the first at ' + f(R.hopV) + ' m/s)');
   check(R.touchAfter === 0, tag + 'no contact after the lift-off', String(R.touchAfter));
   check(R.hopV >= 0.95 * R.Vs, tag + 'no lift-off before Vr (0.95 Vs)', f(R.hopV) + ' of ' + f(0.95 * R.Vs));
-  const hi = R.float ? 1.6 : 1.35;
+  // G3074: THE TWIN ON FLOATS lifts off at 1.64 Vs since JODEL-PITCH G2470 measured the Munk body couple along the body (the
+  // base's 1.53 was a fictitious nose-up couple's margin; no stick, pull or throttle reaches it honestly) - the user, 13 Oct, BY
+  // NAME: "the 2 first issues are simple margins to recalibrate". Its band is 1.65; every other floatplane keeps 1.6
+  const hi = R.float ? (R.name === 'twinf' ? 1.65 : 1.6) : 1.35;
   check(R.Vlof / R.Vs >= 1.0 && R.Vlof / R.Vs <= hi, tag + 'the lift-off at 1.0-' + hi + ' Vs', f(R.Vlof / R.Vs, 2));
   check(Math.abs(R.qMax) <= 12, tag + 'the pitch rate bounded (12 deg/s) from the roll to 2 hSafe', f(R.qMax));
   const ref = TECH_REF[R.name];

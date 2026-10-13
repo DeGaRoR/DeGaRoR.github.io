@@ -136,13 +136,26 @@ if (SHD.take()) {
   const L = R.L, id = '3 the doctored arrival (tw_ski\'s record 250 m low), the Jodel';
   console.log('  doctored: ' + TR.fmtLeg(L).trim() + ' (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
   if (SHOW) console.log('    verdicts ' + R.says.join(' | ') + '\n    flares ' + JSON.stringify(R.flares) + '\n    final ' + JSON.stringify(R.finalAt));
-  const guard = R.says.filter(s => /^flare-guard/.test(s));
-  check(guard.length > 0 && R.finalAt && R.finalAt.h < R.SG.lo, id + ': the arrival came in under the strip and the arming law was met there - the guard caught it (calibration)',
-    (R.finalAt ? 'FINAL at ' + R.finalAt.h + ' m MSL (the strip ' + Math.round(R.SG.lo) + '..' + Math.round(R.SG.hi) + ' m); ' : '') + (guard.join(' | ') || 'no flare-guard said'));
-  const under = R.flares.filter(f => f.over < 0), high = R.flares.filter(f => f.low - R.SG.hi > ARM_MAX);
-  check(!under.length && !high.length, id + ': no flare armed under the strip or over ' + ARM_MAX + ' m above it', R.flares.map(f => f.over + ' m over the strip ' + f.d + ' m out at ' + f.t + ' s').join('; ') || 'no flare');
-  const D = R.damage;
-  check(!!D && !D.over && !D.breaks, id + ': the airframe whole (no crash, no member broken)', D ? JSON.stringify({ yields: D.yields, breaks: D.breaks, over: !!D.over, reason: D.reason || null }) : '-');
+  // G3074: THE KNOWN RED (G2540 #2 / G3072; the user, 13 Oct, BY NAME: accepted for landing, "the 2 other seem to deserve
+  // follow-up" - OWED, the coordinator's backlog G3076): PERSONA-2 G2460's stabilised-approach go-around now takes the doctored
+  // arrival round BEFORE G2520's flare guard is reached, and the Jodel diverts (w3) - so this calibration cannot read the guard.
+  // Known ONLY while it is exactly that (a go-around said, the guard never said, no flare armed at tw_ski); anything else is
+  // judged as before
+  const wentRound = R.says.some(s => /^go-around/.test(s)), guardSaid = R.says.some(s => /^flare-guard/.test(s));
+  const atAlti = R.flares.filter(f => f.over > -50);   // a flare armed near tw_ski's own height (the divert's are hundreds of m under it)
+  if (wentRound && !guardSaid && !atAlti.length) {
+    console.log('  KNOWN ' + id + ': the PERSONA-2 go-around pre-empts the flare guard (G2540 #2, OWED G3076, accepted by the user 13 Oct) - '
+      + R.says.filter(s => /^(go-around|diverted|vref)/.test(s)).join(' | ') + '; damage ' + JSON.stringify(R.damage ? { yields: R.damage.yields, breaks: R.damage.breaks, over: !!R.damage.over } : null));
+  } else {
+    const guard = R.says.filter(s => /^flare-guard/.test(s));
+    check(guard.length > 0 && R.finalAt && R.finalAt.h < R.SG.lo, id + ': the arrival came in under the strip and the arming law was met there - the guard caught it (calibration)',
+      (R.finalAt ? 'FINAL at ' + R.finalAt.h + ' m MSL (the strip ' + Math.round(R.SG.lo) + '..' + Math.round(R.SG.hi) + ' m); ' : '') + (guard.join(' | ') || 'no flare-guard said'));
+    const under = R.flares.filter(f => f.over < 0), high = R.flares.filter(f => f.low - R.SG.hi > ARM_MAX);
+    check(!under.length && !high.length, id + ': no flare armed under the strip or over ' + ARM_MAX + ' m above it', R.flares.map(f => f.over + ' m over the strip ' + f.d + ' m out at ' + f.t + ' s').join('; ') || 'no flare');
+    const D = R.damage;
+    check(!!D && !D.over && !D.breaks, id + ': the airframe whole (no crash, no member broken)', D ? JSON.stringify({ yields: D.yields, breaks: D.breaks, over: !!D.over, reason: D.reason || null }) : '-');
+
+  }
 }
 // 4 THE METAL CESSNA (G2530, PILOT-44-REDS) - the user's metal Cessna as the load door makes it (bugReports/cessnaMetal
 //   (1).json: 887 kg, the engine at its drawn station - CESSNA-VREF G2500), HOME > tw_ski, the game's flight, damage ON.

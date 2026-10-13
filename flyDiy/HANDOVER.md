@@ -88346,3 +88346,21 @@ G2080's own evidence (tools/engine_torque_probe.js, PILOT, the HOME circuit line
   coordinator's fly-through.
 - TAKEOFF / TAXICLEAR / ALTIPORT 3 / TOUR 5 (the Cub's w2 roll-out, the float Cessna at Metlakatla) are their owners'
   (above); none is the ground trim's.
+
+## G3074 - T45 LANDING CALIBRATION: TWO MARGINS RECALIBRATED, TWO REDS KNOWN AND OWED (2026-10-13, the PILOT COORDINATOR; on claude/pilot-45 over G3072 ce804a88)
+THE USER, 13 Oct ~13:20, BY NAME (relayed by A0): "Land the autopilot bundle; the 2 first issues are simple margins to
+recalibrate I guess, but the 2 other seem to deserve follow-up."
+RECALIBRATED (G2540 #4 / #5 - JODEL-PITCH G2470's honest Munk couple removed a fictitious margin; no stick, pull or throttle
+reaches the old numbers honestly):
+- GATE TAKEOFF: the twin on floats' lift-off band 1.6 -> 1.65 Vs (it flies 1.64; the base read 1.53). Every other floatplane
+  keeps 1.6, every wheeled build 1.35 (tools/_takeoff_check.js `hi`).
+- GATE TAXICLEAR 9 / 11c: the metal Cessna's wing by the mill's house3 / house4 1.5 -> 1.45 m (it reads 1.49; its rotation
+  swings 2.9 deg right as the nosewheel unloads). Every other build and footprint keeps 1.5 (`wingNeed`).
+KNOWN, OWED (accepted for landing, printed KNOWN with their numbers, judged as before the moment they are anything else):
+- G3076 OWED - GATE ALTIPORT 3, the doctored Jodel arrival: PERSONA-2 G2460's stabilised-approach go-around takes it round
+  before G2520's flare guard is reached; the Jodel diverts (w3, floats 409 m in, overruns). The calibration needs an arrival
+  the go-around does not catch (or the guard reached first). Owner: the pilot track (PERSONA-2 x ALTIPORT-ARRIVAL).
+- G3075 OWED - GATE TOUR 5, the user's Cub nv_strip > w2: the landing roll weaves and loops (~30 deg at ~11.6 m/s) - the
+  same class as GATE ALTIPORT's KNOWN tw_ski roll-out (ALTIPORT-ROLLOUT G2550, running). Owner: the pilot track (ROLLOUT).
+GATES: node --check only here; the box's 15:45 window gates this head (PROFILE TAKEOFF TAXICLEAR ALTIPORT TOUR PILOTMATRIX
+PILOTACT ENGTORQUE PILOT LINEUP SEAPLANE ROUTE PLAN CESSNAVREF HEADING).

@@ -196,7 +196,18 @@ if (SHD.first) {
 //   and the metal Cessna's propeller, on the roll-out at ~31 m/s, strikes it ('water'). The same on fa4e2409 and here
 //   (reports/evidence/PILOT-44-REDS w2strike_*). Known only while ISLAND-TOUR is absent, the strike is the water's, it is
 //   the leg's only fault, and the aeroplane landed and stopped on w2
+//   THE USER'S CUB ON 02/20 AFTER EAST POINT - THE ROLL-OUT LOOP (G2540 #3 / G3072; the user, 13 Oct, BY NAME: accepted for
+//   landing, "the 2 other seem to deserve follow-up" - OWED, the coordinator's backlog G3075): on the nv_strip > w2 leg the
+//   landing roll weaves and loops (~30 deg at ~11.6 m/s) - the same class as GATE ALTIPORT's KNOWN tw_ski roll-out. Known only
+//   while it is exactly that: the faults ground-loop / off-strip and nothing else, landed on w2, no break, no crash
+function knownCubRoll(b, L2) {
+  if (b !== 'cub' || L2.from !== 'nv_strip' || L2.to !== 'w2') return null;
+  const D = L2.damage || {}, ks = L2.faults.map(f => f.k);
+  if (!ks.length || !ks.every(k => k === 'ground-loop' || k === 'off-strip') || D.breaks || D.crashed || L2.landedOn !== 'w2') return null;
+  return "the user's Cub's roll-out on 02/20 after East Point (G2540 #3, OWED G3075, accepted by the user 13 Oct): " + L2.faults.map(f => f.k + ': ' + f.note).join('; ');
+}
 function knownRed(b, L2, R) {
+  { const kc = knownCubRoll(b, L2); if (kc) return kc; }
   if (b === 'c172' && L2.to === 'w2') {
     const pa = L2.damage && L2.damage.propAt, ld = L2.arr && L2.arr.landing;
     if (ISLAND || !pa || pa.what !== 'water' || !L2.faults.every(f => f.k === 'prop-strike') || L2.landedOn !== 'w2' || L2.arr.stopS == null) return null;

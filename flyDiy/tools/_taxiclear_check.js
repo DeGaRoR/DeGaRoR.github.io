@@ -220,6 +220,11 @@ for (const seed of [0, 1, 6, 12, 42]) {
   check(b0.worst.d < 2 && /clinic$/.test(b0.worst.what.id), '8 calibration: the old south U-turn passes the clinic inside 2 m', b0.worst.d.toFixed(2) + ' m to ' + L.fmtWhat(b0.worst.what));
   check(r.stand.d < 8.5 && /airtaxi$/.test(r.stand.what.id), '8 calibration: the old stand stood inside 8.5 m of the air taxi office', r.stand.d.toFixed(2) + ' m');
 }
+// G3074: THE METAL CESSNA BY THE MILL'S HOUSES (house3 / house4) - its rotation swings 2.9 deg right as the nosewheel unloads
+// since JODEL-PITCH G2470 measured the Munk body couple along the body: the wing reads 1.49 m off (the base's 1.5+ was a
+// fictitious couple's margin). The user, 13 Oct, BY NAME: "the 2 first issues are simple margins to recalibrate" - 1.45 m
+// for that aeroplane at those two houses only; every other build and footprint keeps 1.5
+const wingNeed = (B, at) => (B.key === METAL && /house[34]/.test(at || '')) ? 1.45 : 1.5;
 // 9 flown from the mill
 {
   const a = WI.aerodromes.find(q => q.id === 'mn_strip'), s = C.siteOf('mn_strip');
@@ -229,7 +234,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
     const F = L.flyOut(C, WI, IX, B.def, a, s);
     check(F.air, '9 ' + B.name + ' taxied from the mill and took off', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
     check(F.contacts === 0 && F.trunkHits === 0 && !F.crashed, '9 ' + B.name + ' touched nothing', F.contacts + ' node contacts' + (F.cWhat ? ' (' + F.cWhat + ')' : '') + ', ' + F.trunkHits + ' trunk hits, crashed ' + F.crashed);
-    check(F.minWing >= 1.5, '9 ' + B.name + ' wing kept 1.5 m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
+    check(F.minWing >= wingNeed(B, F.at), '9 ' + B.name + ' wing kept ' + wingNeed(B, F.at) + ' m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
     console.log('  ' + B.name.padEnd(15) + ' span ' + F.span.toFixed(1) + ' m from the mill: ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off the nearest footprint (' + F.at + ')' + (Number.isFinite(F.overMin) ? '; flew over a footprint ' + F.overMin.toFixed(1) + ' m above its top (' + F.overAt + ')' : '') + ', ' + F.contacts + ' contacts, ' + F.trunkHits + ' trunk hits');
   }
 }
@@ -366,7 +371,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
     if (Fl.a === tw) check(F.air, tag + ': airborne', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
     else check(F.phases.includes('ROLL'), tag + ': taxied to the take-off run', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>') + (F.air ? ', airborne' : ', ' + (F.verdicts.find(v => /reject|abort|declin/i.test(v)) || 'not airborne')));
     check(F.contacts === 0 && F.trunkHits === 0 && !F.crashed, tag + ': touched nothing', F.contacts + ' node contacts' + (F.cWhat ? ' (' + F.cWhat + ')' : '') + ', ' + F.trunkHits + ' trunk hits, crashed ' + F.crashed);
-    check(F.minWing >= 1.5, tag + ': the wing 1.5 m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
+    check(F.minWing >= wingNeed(B, F.at), tag + ': the wing ' + wingNeed(B, F.at) + ' m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
     console.log('  11c ' + B.name.padEnd(16) + ' from ' + Fl.what + ': ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off (' + F.at + ')' + (Number.isFinite(F.overMin) ? '; flew over a footprint ' + F.overMin.toFixed(1) + ' m above its top (' + F.overAt + ')' : '') + ', ' + F.contacts + ' contacts | ' + F.verdicts.filter(v => /pivot|taxi-clearance/.test(v)).join('; '));
   }
   if (SHD.take()) {
