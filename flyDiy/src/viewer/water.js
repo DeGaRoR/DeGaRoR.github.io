@@ -60,6 +60,34 @@
 'use strict';
 
 const WATER = (() => {
+  // WATER-STEADY PROTOTYPES (G2831-G2833, the redesign's P0 look - D:/Dev/flydiy-notes/WATER-REDESIGN-PLAN-2026-10.md):
+  // ?wrefl=b  the aircraft's own reflection - a hull-only planar capture (hullRender), the sea's planar mirror off
+  // ?wrefl=c  transparency + the cast shadow - the sea receives the aircraft's shadow, the sea's planar mirror off
+  // ?wrefl=bc both. Lakes keep today's mirror (the redesign's scissored lake capture is P3). Without the switch NOTHING
+  // changes: the hull's sampler and shader block are not even declared (the water program's sampler budget, G424)
+  const PROTO = (() => { const q = (typeof location !== 'undefined' && location.search && (/[?&]wrefl=(b|c|bc)(?:&|$)/.exec(location.search) || [])[1]) || null;
+    return { mode: q, hull: q === 'b' || q === 'bc', shadow: q === 'c' || q === 'bc', seaOff: !!q }; })();
+  const HULL_GLSL = `
+          // THE AIRCRAFT'S OWN REFLECTION (G2831, prototype b): the hull-only capture, read like the mirror - the slope walks the
+          // point from the mirrored eye (G460.11.9), one plane one body, blurred and faded by the roughness; alpha 0 around the hull
+          if (uWHull4.x > 0.001) {
+            vec3 hEye = cameraPosition;
+            vec3 hR = reflect(normalize(vWP0 - hEye), wNw);
+            float hH = hEye.y - uWHull4.w, hL = max(distance(vWP0, hEye), 1.0e-3);
+            float hT = hH / max(hR.y, min(hH / hL, 0.02));
+            vec3 hD = vec3(hEye.x + hR.x * hT, vWP0.y, hEye.z + hR.z * hT) - vWP0;
+            hD *= min(1.0, uWHull4.y * hL / max(length(hD), 1.0e-4));
+            vec4 hp = uWHullVP * vec4(vWP0 + hD, 1.0);
+            if (hp.w > 0.0) {
+              vec2 huv = hp.xy / hp.w * 0.5 + 0.5;
+              if (huv.x > 0.0 && huv.x < 1.0 && huv.y > 0.0 && huv.y < 1.0) {
+                vec4 hr = textureLod(uWHull, huv, material.roughness * uWHull4.z);
+                float hk = smoothstep(0.06, 0.35, hr.a) * (1.0 - smoothstep(1.0, 3.0, abs(vWP0.y - uWHull4.w))) * (1.0 - material.roughness) * (1.0 - material.roughness) * uWHull4.x;
+                iblRadiance = mix(iblRadiance, hr.rgb / max(hr.a, 0.02), hk);
+              }
+            }
+          }
+`;
   const NTR = 32;                                                 // trains the uniform array holds (seaFrom makes 32: a swell band and a wind sea drawn from the spectrum, G460.3)
   const TWO_PI = 2 * Math.PI;
 
@@ -127,6 +155,7 @@ const WATER = (() => {
     uniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;
     uniform sampler2D uWDetail;
     uniform sampler2D uWInter; uniform vec4 uWInterBox;   // x0, z0, 1/size, on
+    ${PROTO.hull ? 'uniform sampler2D uWHull; uniform mat4 uWHullVP; uniform vec4 uWHull4;   // G2831: the hull-only capture (x weight, y walk cap, z lod per roughness, w plane)' : ''}
     uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
     uniform vec4 uWFoam;       // x: the fold's RMS Q sqrt(sum (A k)^2 / 2), y: the whitecap cover (Monahan, of the wind), z: the swell's A (m), w: 0
@@ -430,6 +459,7 @@ const WATER = (() => {
               }
             }
           }
+${PROTO.hull ? HULL_GLSL : ''}
           iblRadiance *= wMeanF; }`)
       .replace('#include <normal_fragment_maps>', '')
       // G794 THE REFLECTION IS THE SURFACE'S, NOT THE COLUMN'S (W-LOOK, the user on the harbour from 40 m: "water feels
@@ -568,6 +598,7 @@ const WATER = (() => {
       uWSdf: { value: null }, uWGrid: { value: v4(0, 0, 1, 1) }, uWSdfOn: { value: 0 },
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
+      uWHull: { value: null }, uWHullVP: { value: new THREE.Matrix4() }, uWHull4: { value: v4() },   // G2831 (prototype b)
       uWNear: { value: v4() }, uWDbg: { value: 0 }, uWLook: { value: v4(S.reflKeep, S.slant, S.lap, S.wet) },
     };
     applyPresets();
@@ -1145,10 +1176,98 @@ const WATER = (() => {
   }
   // perspBounds(cam): the frustum's left, right, top, bottom at its near plane, as PerspectiveCamera.updateProjectionMatrix makes them (no view offset, no film offset - the mirror camera has neither)
   function perspBounds(cam) {
-    const top = cam.near * Math.tan(Math.PI / 180 * 0.5 * cam.fov) / cam.zoom, h = 2 * top, w = cam.aspect * h;
-    return [-0.5 * w, 0.5 * w, top, top - h];
+    let top = cam.near * Math.tan(Math.PI / 180 * 0.5 * cam.fov) / cam.zoom, h = 2 * top, w = cam.aspect * h, left = -0.5 * w;
+    // (G2831) a view offset (setViewOffset: the hull capture's scissor) narrows the frustum exactly as
+    // PerspectiveCamera.updateProjectionMatrix does - Lengyel's clip must bend THAT frustum
+    const v = cam.view;
+    if (v && v.enabled) { left += v.offsetX * w / v.fullWidth; top -= v.offsetY * h / v.fullHeight; w *= v.width / v.fullWidth; h *= v.height / v.fullHeight; }
+    return [left, left + w, top, top - h];
   }
   function mirrorOff() { MIR.on = false; MIR.last = null; MIR.plane = MIR.planeT = null; MIR.eyePrev = null; if (U) U.uWMirror4.value.x = 0; }
+
+  // ---- THE AIRCRAFT'S OWN REFLECTION (G2831, prototype b - ?wrefl=b / bc) ---------------------------------------------
+  // The user (13 Oct): "all coastal screenshots are at risk of looking wrong without it". A second, tiny planar capture: the
+  // mirrored eye (as the mirror's), the frustum narrowed by setViewOffset to the aircraft's rectangle as THAT eye sees it (+
+  // a margin), the scene drawn with every top-level object hidden but the aircraft and the lights - alpha 0 around the hull,
+  // so the shader keeps the sky (or the lake's mirror) there. Weighted by the aircraft's height over the water (full under
+  // nearAgl, gone by farAgl: a speck the wind smears out) and, per pixel, by (1 - roughness)^2.
+  const HULL = { res: 0.5, margin: 0.12, nearAgl: 30, farAgl: 200, perturb: 0.15, lod: 5.0, maxPx: 1024, w: 0, on: false, ms: 0, calls: 0, rt: null, cam: null, r: 0, rAt: -1e9, c: null };
+  const hullTmp = {};
+  function hullOff() { HULL.on = false; HULL.w = 0; if (U && U.uWHull4) U.uWHull4.value.x = 0; }
+  function hullRender(THREE, renderer, scene, camera, waterY, root, opts) {
+    opts = opts || {};
+    if (!PROTO.hull || !U || !root || !root.parent || !(waterY !== null && waterY !== undefined && Number.isFinite(waterY))) { if (HULL.on) hullOff(); return false; }
+    const t0 = performance.now();
+    // the aircraft's sphere: its local box re-read every 2 s (a build can change), its centre every frame
+    if (t0 - HULL.rAt > 2000 || !HULL.c) {
+      const b = hullTmp.box || (hullTmp.box = new THREE.Box3()); b.setFromObject(root);
+      if (b.isEmpty()) { if (HULL.on) hullOff(); return false; }
+      const c = b.getCenter(hullTmp.c || (hullTmp.c = new THREE.Vector3())); HULL.r = 0.5 * b.getSize(hullTmp.s || (hullTmp.s = new THREE.Vector3())).length();
+      HULL.c = root.worldToLocal(c.clone()); HULL.rAt = t0;
+    }
+    const C = (hullTmp.cw || (hullTmp.cw = new THREE.Vector3())).copy(HULL.c); root.localToWorld(C);
+    const agl = C.y - HULL.r * 0.3 - waterY;
+    const w = agl <= HULL.nearAgl ? 1 : Math.max(0, 1 - (agl - HULL.nearAgl) / Math.max(1, HULL.farAgl - HULL.nearAgl));
+    if (w <= 0.001 || camera.position.y - waterY <= 0.1) { if (HULL.on) hullOff(); return false; }
+    if (!HULL.cam) HULL.cam = new THREE.PerspectiveCamera();
+    const mc = HULL.cam;
+    if (typeof UI_LAYER !== 'undefined') UI_LAYER.blind(mc);
+    const RZ = !!(renderer.capabilities && renderer.capabilities.reversedDepthBuffer);
+    if (RZ) mc._reversedDepth = true;
+    const pos = camera.position, q = camera.quaternion;
+    const fwd = hullTmp.fwd || (hullTmp.fwd = new THREE.Vector3()), up = hullTmp.up || (hullTmp.up = new THREE.Vector3()), tgt = hullTmp.tgt || (hullTmp.tgt = new THREE.Vector3());
+    camera.getWorldDirection(fwd); up.set(0, 1, 0).applyQuaternion(q);
+    mc.position.set(pos.x, 2 * waterY - pos.y, pos.z);
+    fwd.y = -fwd.y; up.y = -up.y;
+    tgt.copy(mc.position).add(fwd); mc.up.copy(up); mc.lookAt(tgt);
+    mc.fov = camera.fov; mc.aspect = camera.aspect; mc.near = camera.near; mc.far = camera.far; mc.clearViewOffset();
+    mc.updateProjectionMatrix(); mc.updateMatrixWorld(true);
+    // the rectangle: the sphere's box corners through the mirrored eye (no offset yet), in the frame's pixels
+    const size = renderer.getDrawingBufferSize ? renderer.getDrawingBufferSize(hullTmp.v2 || (hullTmp.v2 = new THREE.Vector2())) : { x: 1920, y: 1080 };
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9, behind = false;
+    const p = hullTmp.p || (hullTmp.p = new THREE.Vector3());
+    for (let i = 0; i < 8; i++) {
+      p.set(C.x + (i & 1 ? 1 : -1) * HULL.r, C.y + (i & 2 ? 1 : -1) * HULL.r, C.z + (i & 4 ? 1 : -1) * HULL.r);
+      p.applyMatrix4(mc.matrixWorldInverse); if (p.z > -mc.near) { behind = true; continue; }
+      p.applyMatrix4(mc.projectionMatrix);
+      const px = (p.x * 0.5 + 0.5) * size.x, py = (0.5 - p.y * 0.5) * size.y;
+      x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+    }
+    if (behind) { x0 = 0; y0 = 0; x1 = size.x; y1 = size.y; }   // the eye inside the sphere (the cockpit): the whole frame
+    const mx = (x1 - x0) * HULL.margin, my = (y1 - y0) * HULL.margin;
+    x0 = Math.max(0, Math.floor(x0 - mx)); y0 = Math.max(0, Math.floor(y0 - my)); x1 = Math.min(size.x, Math.ceil(x1 + mx)); y1 = Math.min(size.y, Math.ceil(y1 + my));
+    if (x1 - x0 < 2 || y1 - y0 < 2) { if (HULL.on) hullOff(); return false; }   // the reflection is off the frame
+    mc.setViewOffset(size.x, size.y, x0, y0, x1 - x0, y1 - y0);   // (updates the projection: the frustum is the rectangle's)
+    mc.updateMatrixWorld(true);
+    // the target: the rectangle at HULL.res, grown in steps of 64 px (never re-made every frame)
+    const tw = Math.min(HULL.maxPx, Math.max(64, Math.ceil((x1 - x0) * HULL.res / 64) * 64)), th = Math.min(HULL.maxPx, Math.max(64, Math.ceil((y1 - y0) * HULL.res / 64) * 64));
+    if (!HULL.rt || HULL.rt.width < tw || HULL.rt.height < th || HULL.rt.width > 2 * tw + 64 || HULL.rt.height > 2 * th + 64) {
+      if (HULL.rt) HULL.rt.dispose();
+      HULL.rt = new THREE.WebGLRenderTarget(tw, th, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: true, depthBuffer: true, stencilBuffer: false, samples: 0 });
+      HULL.rt.texture.wrapS = HULL.rt.texture.wrapT = THREE.ClampToEdgeWrapping;
+    }
+    obliqueClip(THREE, mc, waterY, RZ);
+    // the scene down to the aircraft and the lights (the sky dome rides the camera, a scene child: hidden with it)
+    const hidden = [];
+    for (const o of scene.children) if (o !== root && o.visible && !o.isLight) { o.visible = false; hidden.push(o); }
+    for (const m of (opts.hideMaterials || [])) if (m && m.visible !== false) { m.visible = false; hidden.push(m); }
+    const prevT = renderer.getRenderTarget(), ac = renderer.autoClear, sm = renderer.shadowMap.autoUpdate;
+    const cc = renderer.getClearColor(hullTmp.cc || (hullTmp.cc = new THREE.Color())), ca = renderer.getClearAlpha();
+    const bg = scene.background; scene.background = null;
+    renderer.shadowMap.autoUpdate = false;
+    renderer.setRenderTarget(HULL.rt); renderer.setClearColor(0x000000, 0); renderer.autoClear = false; renderer.clear();
+    try { renderer.render(scene, mc); } finally {
+      HULL.calls = renderer.info && renderer.info.render ? renderer.info.render.calls : 0;
+      scene.background = bg;
+      renderer.setClearColor(cc, ca); renderer.setRenderTarget(prevT); renderer.autoClear = ac; renderer.shadowMap.autoUpdate = sm;
+      for (const o of hidden) o.visible = true;
+    }
+    U.uWHull.value = HULL.rt.texture;
+    U.uWHullVP.value.multiplyMatrices(mc.projectionMatrix, mc.matrixWorldInverse);
+    U.uWHull4.value.set(w, HULL.perturb, HULL.lod, waterY);
+    HULL.w = w; HULL.on = true; HULL.ms = performance.now() - t0;
+    return true;
+  }
 
   // ---- THE GPU TIMER: the water's own draws, summed a frame (EXT_disjoint_timer_query_webgl2) ----
   // watch(mesh) puts a query round every draw of a water mesh; stats.gpuMs is the last frame's sum of the
@@ -1340,7 +1459,7 @@ const WATER = (() => {
   const API = { NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
     gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
-    mirrorRender, mirrorOff, mirror: MIR, obliqueClip, mirrorPlane, waterSeen, seen,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
+    mirrorRender, mirrorOff, mirror: MIR, obliqueClip, mirrorPlane, waterSeen, seen, hullRender, hullOff, hull: HULL, proto: PROTO, perspBounds,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
     stamp, fieldStep, fieldOn, fieldProbe, warmList, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
     get uniforms() { return U; }, get trains() { return trains; }, get clock() { return T; } };
   if (typeof window !== 'undefined') window.WATER = API;
