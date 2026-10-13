@@ -92667,3 +92667,17 @@ THE FIX (calibrated; the one-source fix G3184 is on its own branch, below):
   residual blue), 0.80 under a strong tint (the master's light x 1.5 + hue 0.05). The probe: SHEETS (each atlas read back) and
   SCREEN (cards only / impostors only / neither, over the densest stand from 300 m, the tree pixels in linear RGB).
 WHAT TO WATCH FOR: the far hillsides' trees as green and as light as the impostor forest in front (a faint blue left).
+
+### G3184-G3185 - CARD-SOURCE: THE CARD COMPOSED FROM ITS SPECIES' OWN SHEETS; GATE CARDMATCH (2026-10-13, branch claude/card-source-g3184 on card-match; train 53/54 after its GPU proof)
+The user asked for "a mechanism to keep them in sync": the calibrated fix (G3183) matches one look only. G3184 makes the card
+the same picture by construction: render_world composeCardAtlas draws each tree of the card's block AS ITS IMPOSTOR into the
+card's tiles - a quad facing the tile's own direction (impDir, the bake camera's), its species' rungs sheet sampled with the
+draw's three-tap octahedral lookup at level 0; the albedo pass writes the species' texel x its sheet's level (G2591), the normal
+pass the species' normal texel and leaf flag, both un-premultiplied by the albedo's coverage as the draw does. The card's
+texels ARE its species' texels: the same albedo, normals, leaf/bark split - the same answer to the sun, the sky and any tint.
+No level match (the card's level cleared to 1), no screen constant. stand_cards S.compose (default on; false = the merged
+block's bake + G3181-G3183's level: the A/B); it waits for the species' sheets (the fill bakes them), the old bake after ~10 s.
+Limits: occlusion inside the block is the quads' (flat) depth; each tree's own tint is the card's mean (G3181).
+G3185 GATE CARDMATCH: `node tools/perf/cardmatch_probe.js --url <page> --gate` - the default look's on-screen card / impostor
+luma within 0.85-1.15, and the NEGATIVE CONTROL: the same card at half its level must leave the band; PASS only when both
+hold. A GPU row (no node harness renders); its first run is the GPU proof A0 books.
