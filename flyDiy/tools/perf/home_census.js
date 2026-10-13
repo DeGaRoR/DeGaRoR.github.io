@@ -34,6 +34,7 @@
   const patchBlocks = () => [].concat(...patch().map(p => p.children.filter(c => c.isLOD)));
   const roadBatches = () => { const out = []; if (G.roads) G.roads.traverse(o => { if (o.isMesh && o.parent && o.parent.userData && o.parent.userData.batch) out.push(o); }); return out; };
   const V = [
+    ['far merge OFF (the blocks, as before G3088)', () => { if (!R.patchFar) return null; R.patchFar(false); return () => R.patchFar(true); }],
     ['cars capped at 1200 m', () => { R.trafficReach(1200); return () => R.trafficReach(0); }],
     ['cars capped at 600 m', () => { R.trafficReach(600); return () => R.trafficReach(0); }],
     ['cars none (probe)', () => { R.trafficReach(1); return () => R.trafficReach(0); }],
@@ -44,7 +45,8 @@
     ['road batches > 3 km hidden (probe)', () => hide(roadBatches().filter(m => far(m, 3000)))],
     ['roads + poles + cables all hidden (probe)', () => (G.roads ? hide([G.roads]) : null)],
   ];
-  const out = { at: [+cg[0].toFixed(0), +cg[2].toFixed(0)], stats: Object.assign({}, R.stats, { steps: undefined }), patchBlocks: patchBlocks().length, roadBatches: roadBatches().length, rows: [] };
+  await sleep(1200);   // (G3088: the tick's first far switch)
+  const out = { far: R.patchFar ? R.patchFar() : null, patchFar: R.stats.patchFar || null, at: [+cg[0].toFixed(0), +cg[2].toFixed(0)], stats: Object.assign({}, R.stats, { steps: undefined }), patchBlocks: patchBlocks().length, roadBatches: roadBatches().length, rows: [] };
   const pb = document.getElementById('bPause'), wasRunning = pb && /Pause/.test(pb.textContent);
   if (pb && wasRunning) { pb.click(); await sleep(1000); }
   await sleep(SETTLE);
