@@ -92716,5 +92716,28 @@ RESULTS (12 Oct overnight, A0's windows, the locks held; rebased on f353a0f89 at
 - garage_lag ABBA, same tree, ?sheetw=0 vs the thread (cub + metal, reps 2): CONFOUNDED by the store above (first runs
   only: off cub 2022 / metal 2649 ms busy summed = the master numbers quoted; the thread's rows read 0 ms main sheet but
   may be store hits). Noisy besides (A0, 12 Oct): two peers' sub-second `node -e` reads ran inside it ~04:30-04:45 -
-  no timing from 04:30-04:56 counts. The clean ABBA (--clearshake) is A0's GPU TIMED window Tue 13 Oct 04:45-05:10:
-  TABLE BELOW.
+  no timing from 04:30-04:56 counts.
+- **THE CLEAN ABBA (Tue 13 Oct 04:45-05:00, A0's GPU TIMED window, the lock held, --clearshake, reps 2; the same tree,
+  ?sheetw=0 = the old path vs the thread; order off1 on1 | off1 on1 | on2 off2 | on2 off2):**
+
+  | ten changes | off (the page) run 1 / run 2 | on (the thread) run 1 / run 2 |
+  |---|---:|---:|
+  | Cub: genShakedown on the page's thread, ms (the wrapped function, exact) | 925 / 923 | **0 / 0** |
+  | Cub: busy summed, ms | 1426 / 1856 | 1578 / 1628 |
+  | Cub: sync summed, ms | 323 / 323 | 319 / 329 |
+  | metal: genShakedown on the page's thread, ms | 1546 / 1565 | **0 / 0** |
+  | metal: busy summed, ms | 1498 / 2042 | 1704 / 2223 |
+  | metal: sync summed, ms | 373 / 366 | 371 / 389 |
+
+  Where the sheet ran on the old path: the TANK row (its release commits, the energy layer's update puts a new
+  aeroplane on the stand: Cub 622-628 ms, metal 1029-1030 ms of sheet) and the LIVERY row (a paint change that builds:
+  Cub 302-303, metal 516-536). Measured busy of the tank row, when its tail fell inside the window: off Cub 628 / metal
+  972 -> on Cub 224-259 / metal 268-284. Every row without the sheet reads the same on both paths (wing 81 / 81, tail
+  61 / 60, gear 62 / 61, engine 194 / 194 ...); sync (the handlers) unchanged; no page exceptions.
+  **WHY BUSY SUMMED DOES NOT SHOW IT (the rig, not the page):** garage_lag's busy sums the long tasks until the page has
+  been quiet 700 ms - and the old path's sheet is a TAIL (G1302's shakeSoon: 600 ms after the change, then an idle slot;
+  the tank's commitSoon: 250 ms + an idle slot up to 1.5 s), so it lands outside the window at random: off reads "busy
+  0" with 622-1030 ms of sheet counted inside the same rep (tank / livery rows), and the fuselage / frame rows flip
+  0 <-> 400-560 ms on both paths. At reps 2 that noise (+-400 ms a sum) is the size of the effect; the summed busy is
+  not the proof here - the exact counter is. A busy row that sees the tails needs a quiet longer than the tails
+  (--quiet 2500) - proposed to A0 for the strict gate.
