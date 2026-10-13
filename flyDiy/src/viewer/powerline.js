@@ -52,7 +52,7 @@ const POWERLINE = (() => {
     //  the island road's line 4.7 km from its start): the budget is PER KILOMETRE, the whole road gets its line; what
     //  bounds the cost is the draw - the poles instanced, the cable's chunks past `reach` from the eye not drawn (cull)
     perKm: 40,          // the most poles a kilometre may raise (a 34 m pitch raises ~29)
-    reach: 2400,        // metres from the eye past which a cable chunk is not drawn (a 35 mm wire is far under a pixel)
+    reach: 1200,        // metres from the eye past which a cable chunk is not drawn (a 35 mm wire is far under a pixel; G3087: 2400 -> 1200, the census at HOME -75 draws, the loop -0.3 ms)
     maxSpan: 110,       // a gap wider than this breaks the cable (the run stopped, it did not stride)
     lampEvery: 2,       // every second pole carries the street lamp
     // the pole (the yard kit's presets: 6.13 m tall, the crossarm 1.2 m across). The kit's is a

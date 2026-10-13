@@ -1,0 +1,115 @@
+{
+ "what": "the user's rev 28 scenery shipped into island_jolene.json (tools/scenery_ship.js + .py, A0's slot Tue 13 Oct 02:00); GATE SCENERYED 15 holds it",
+ "save": "scenery_user_jolene_rev28.json",
+ "source": "D:/Dev/flydiy-notes/inbox/jolene_rev28_2026-10-13_0050.json (\"Jolene AFB (16)\", 13 Oct 00:50)",
+ "sha256": "c54089c97eaac97a624444c01f4b63552dd1fe3d2259159d9a633d0ecf6ce658",
+ "except": [
+  "w4"
+ ],
+ "remove": [
+  "r_airport",
+  "r_strip",
+  "y_taxi_ne",
+  "y_taxi_e",
+  "x_fan13_1",
+  "x_fan02_1",
+  "x_fan3_1",
+  "y_sh13_0",
+  "y_sh13_1",
+  "y_sh02_0",
+  "y_sh02_1",
+  "x_fan02_0"
+ ],
+ "record": [
+  "pavement"
+ ],
+ "trim": {},
+ "answers": "the user, 11 Oct ~23:55 (relayed by A0): the 4 village roads go (-53 houses accepted); the runway shoulders y_sh13_0/1, y_sh02_0/1 and the fan x_fan02_0 stay (untested); the pavement settings ship; r25 stops at strip 10 (w5); 12 Oct 03:05: 'all new editions can be considered default' - rev 26 (strip 11 w6 ships, flat like w5); 12 Oct 15:47 rev 27: w7 'strip 12' (1020 m dirt, the North East strip) + its roads r37 / r38, r31 joined to r37 (j1), the pavement's look - shipped (A0: w7 joins CONTRACT_FIELDS like w5 / w6, no own clear); 13 Oct 00:50 rev 28 (A0 relaying): 'I have fixed the altiports, so the current save is all you need, nothing to ignore. I have added a few runways; they need integrating in the trunk.' - w4 'strip 9' ships (the one altiport left; w1 gone), w8 'strip 13' new, w2 / w3 moved and shortened, HOME's area reworked (r_airport, r_strip, y_taxi_ne, y_taxi_e and the fans x_fan13_1 / x_fan02_1 / x_fan3_1 removed in the save); A0 13 Oct ~01:00: the ship-only shoulders y_sh13_0/1, y_sh02_0/1 and the fan x_fan02_0 (never in a save; the 40 m tree cut at HOME) dropped too; w4 + w8 join CONTRACT_FIELDS; every own clear as authored",
+ "clearDefault": [],
+ "clearDefaultWhy": "none: every strip's own clear is the user's authored one (A0 12 Oct ~16:10, and 13 Oct: 'keep every own clear as authored') - HOME 0 / 60, w2 4 / 5, w3 6 / 150, w4 0 / 20, w5, w6, w7, w8 12 / 150",
+ "plotMoves": {
+  "SEA": {
+   "SEA": [
+    747.0,
+    -2851.0
+   ]
+  }
+ },
+ "plotMovesWhy": "the user 12 Oct (via A0): keep the cannery s2; the career base plot SEA moved 13.5 m west (760.5 -> 747.0), the smallest move that keeps its largest shell 3 m off the cannery (GATE TAXICLEAR 12); applied after the ship - a re-ship must apply it again",
+ "kept": "ship-only entries no save carries and the user never removed: the VOR site s_vor_ann and its clear s_vor_ann_clear; the staged sg_ entries (kept by the ship)",
+ "altiport": "rev 28: the user fixed the altiports themselves - w1 'strip 8' deleted in the save, w4 'strip 9' reshaped (216 m, a 4-point profile 28 -> -17.6 m, own clear 0 / 20); train 53 (13 Oct) found it over the altiport law (33.7 % somewhere, over 20 %; a crest of 14.2 % over 30 m, over 5 %) - HELD BACK again until the profile tool (A0 / the user, option A); its objects, roads and areas ship",
+ "fieldPatches": {
+  "HOME": {
+   "hangar": {
+    "x": -138.12,
+    "z": 700.58,
+    "hdg": -0.8552
+   },
+   "stand": {
+    "x": -118.11,
+    "z": 677.57,
+    "hdg": null
+   },
+   "taxiOut": [
+    [
+     -128,
+     645
+    ],
+    [
+     -142.55,
+     563.38
+    ],
+    [
+     -143.88,
+     389.2
+    ],
+    [
+     -128.23,
+     371.19
+    ]
+   ],
+   "taxiOut1": [
+    [
+     -100,
+     672
+    ],
+    [
+     -40,
+     676
+    ],
+    [
+     1.61,
+     682.64
+    ],
+    [
+     175.8,
+     635.49
+    ]
+   ],
+   "plots": [
+    {
+     "id": "HOME.2",
+     "x": -118,
+     "z": 780,
+     "hdg": -1.9635
+    }
+   ]
+  },
+  "o3": {
+   "x": -57,
+   "z": 642,
+   "yaw": -1.637
+  },
+  "af_park1": {
+   "x": -75,
+   "z": 644,
+   "yaw": -1.637
+  },
+  "af_park2": {
+   "x": -95,
+   "z": 639,
+   "yaw": -1.637
+  }
+ },
+ "fieldPatchesWhy": "(t53, 13 Oct: taxiOut1 ends where r_taxi_e's own line meets 13/31's centreline - (175.8, 635.49) - its 16 m dogleg onto the strip was a 1.9 m corner under the 6 m TAXICLEAR 3 holds) SCENERY-ED-1 G2890 (A0 13 Oct ~01:20 'GO'): HOME's main hangar beside the user's long club hangar, its stand, and the two taxi-outs rerouted over rev 28's y_pad and r_taxi_ne / r_taxi_e (r_airport / r_strip are gone); applied after the ship - a re-ship must apply it again; the user's import with the same patch: D:/Dev/flydiy-notes/inbox/jolene_rev28d_home_hangar.json. plots HOME.2 unchanged (pending the user); + plots (ED-1, A0's (a), 13 Oct ~02:15): HOME.2 keeps its shed position and heading and loses its own stand + taxiOut - two of its points ((-130,705), (-138,690)) lay inside the new main hangar; runwaySite serves it the field's new stand / route. The user's import: D:/Dev/flydiy-notes/inbox/jolene_rev28e_home_hangar.json (supersedes rev28d); + the three parked aeroplanes o3 / af_park1 / af_park2 moved onto the pad (t_pad's flatten), keys kept (SCENERY-ED-1, 13 Oct ~15:00: the user's rev 28 note 'the aircraft collection must be redone'; rev 28's y_pad no longer reached them - GATE PARKED 7) - in a row, noses to the eastbound route"
+}

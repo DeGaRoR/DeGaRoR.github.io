@@ -12635,6 +12635,9 @@
     simw: () => { try { return SIMW; } catch (e) { return null; } },
     box: () => (WF && WF.minimapBox) || { x0: -12000, z0: -12000, size: 24000 },
     redraw: () => { if (!$('mmp').hidden) drawMap(); },
+    // G3070 ROUTE-LAZY: an action asked before the drawing's file had run (route_lazy.js) is done once it has - the
+    // rail (and the setup screen) rebuilt then, as a pill's pick rebuilds them
+    rail: () => flyOpenSet(flyOpen),
     // the drawing wants the map shown and large; closing it puts the map back as it was
     mapOpen: on => {
       if (on) { rdMapWas = { show: !!panels.map, big: mapBig }; if (!panels.map) flPanel('map', true); if (!mapBig) flMapBig(true); $('mmp').classList.add('draw'); }
@@ -13390,6 +13393,7 @@
     drawn(body) {
       const RD = typeof ROUTE_DRAW !== 'undefined' ? ROUTE_DRAW : null;
       if (!RD) { flNote(body, 'This build has no route drawing.'); return; }
+      if (RD.want) RD.want();   // G3070 ROUTE-LAZY: the section open is the drawing's first demand - its file fetched now
       const R = RD.route(), n = R ? R.pts.length : 0;
       const fr = flRow(body, 'route');
       const v = document.createElement('span');

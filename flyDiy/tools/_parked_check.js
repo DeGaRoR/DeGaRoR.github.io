@@ -592,7 +592,8 @@ async function cookRungs() {
     const objs = (rec.layers.objects || []).filter(o => o.kind === 'aircraft');
     check(objs.length >= 2, '7 the field parks at least two aeroplanes', String(objs.length));
     const design = fs.readFileSync(path.join(TOOLS, '_cage_design.js'), 'utf8');
-    const flats = rec.layers.terrain.filter(t => t.kind === 'flatten');
+    // (G3020 rev 28: a flatten is a v1 terrain entry or a v2 AREA's terraform - the user's own areas, a29 under o64 / o65)
+    const flats = rec.layers.terrain.filter(t => t.kind === 'flatten').concat((rec.layers.areas || []).filter(a => a && a.poly && a.props && a.props.terraform && a.props.terraform.kind === 'flatten'));
     for (const ob of objs) {
       check(!!ob.key && /^(arch|stock|mine):/.test(ob.key), '7 ' + ob.id + ' names a build', ob.key);
       const m = /^arch:(\w+)$/.exec(ob.key || '');

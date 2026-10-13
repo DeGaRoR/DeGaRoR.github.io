@@ -421,6 +421,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         uBarkL = { value: IMPK.barkLit };   // and its own tier gain (in place of uILit)
   // the audit's list of baked impostor sheets (assigned where the atlas cache lives, below)
   let treeAtlases = () => [];
+  let sheetMean = () => null;         // G3180 (CARD-MATCH): an atlas's mean linear albedo, read back (tree block)
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
   // instance outside its band, and the impostor bake draws the same material
   // from thirty metres: an L2 whose band starts at 300 m baked an EMPTY sheet,
@@ -1747,7 +1748,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // to move both the terrain and the trees to see what's best". The baked
     // albedo stays the fallback (and the minimap's). Textures sampled by
     // world position; the tint is sRGB (decoded on sample under r152+).
-    const GROUND = { on: false, overlay: 0.75, shade: 0.7, light: 0.94, sat: 0.94, snow: 890, shore: 1.0, mode: 0 };   // light / sat 0.94: the user's F8 world look, 2026-10-03
+    const GROUND = { on: false, overlay: 0.75, shade: 0.7, light: 1.38, sat: 0.94, snow: 890, shore: 1.0, mode: 0 };   // light / sat 0.94: the user's F8 world look, 2026-10-03
     // THE STACK (G404, the user: "a way to edit the stack, like I did in the
     // bench - every layer, on/off, blend mode, alpha"): five albedo layers in
     // a fixed order, each with the bench's twelve blend modes and an opacity.
@@ -3406,6 +3407,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // targets back (TREE-IMPORT.md §6: every one of its six faults presented
     // as "the impostor is wrong" and none looked like its cause).
     treeAtlases = () => { const out = []; ATLAS.forEach(a => out.push(a)); return out; };
+    // G3180 (CARD-MATCH, the user 13 Oct: "a color/value shift has developed between the far cards for the trees and the
+    // impostors ... we also need a mechanism to keep them in sync"): ONE SHEET'S MEAN - the linear albedo of its drawn texels
+    // (alpha at the series' own cut; the bytes are sRGB, decoded here), [r, g, b, texels] or null; one readback (atlas.read),
+    // for the stand cards' level match at their bake and for the audit
+    sheetMean = (key, series) => {
+      const CUT = { rungs: 0.40, stand: 0.15, snag: 0.10 }, lin = v => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+      for (const a of ATLAS.values()) {
+        if (a.key !== key || a.series !== series || !a.read || !a.N) continue;
+        const px = new Uint8Array(a.N * a.N * 4); try { a.read(px); } catch (e) { return null; }
+        const cut = 255 * (CUT[series] || 0.4); let rr = 0, gg = 0, bb = 0, n = 0;
+        for (let i = 0; i < px.length; i += 4) if (px[i + 3] >= cut) { rr += lin(px[i]); gg += lin(px[i + 1]); bb += lin(px[i + 2]); n++; }
+        return n ? [rr / n, gg / n, bb / n, n] : null;
+      }
+      return null;
+    };
     let BAKE_RT = null;                    // the shared bake pair (see bakeImpostorAtlasNow)
     // ---- THE SHEETS ARE LAYERS (PERF 2026-09-23) --------------------------------------------------
     // Every impostor sheet was a texture of its own and every (chunk, subject, series) an InstancedMesh
@@ -4612,7 +4628,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
 
     // (hoisted above the woodland planter, 2026-09-21: the woodland's stands drew their
     // species from the WHOLE pool - a pine no mix names stood in every stand)
-    const SP_SIZE = {};   // species name -> size multiplier (TREE_FILL.speciesSize, the world rail's tree cards)
+    // species name -> size multiplier (TREE_FILL.speciesSize, the world rail's tree cards); G2939: the user's look of 12 Oct
+    const SP_SIZE = {"cedar_tree.glb": 1.3, "fir_tree_georgeous.glb": 1.3, "larch_tree.glb": 1.4, "realistic_fir_trees_pack_lods_gameready.glb": 1.25, "spruce_tree.glb": 1.2};
     const FILL = { ng: world.island ? 160 : 100,   // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26); an island 6.4 m (G400: "MUCH too sparse")
       // the island's knobs (F8 > trees > from the map): coverage ramps from
       // `from` to `full` metres of canopy; a tree is canopy x gain over the
@@ -5511,9 +5528,17 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           };
           // G753: nor where WATER IS DRAWN - the drawn lakes' field (the ground is discarded a metre inside it) with its quad over
           // the ground; the physics' waterH alone let the flecks stand on a pond the runway's grade had filled, over the quad
-          const drawnWet = (x, z, h) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z); return wy !== null && Number.isFinite(wy) && wy > h - 0.3; };
-          const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3 || drawnWet(x, z, h)) return false;
+          // THE GRASS TO THE LAKE'S EDGE (GRASS-DENSE G2572; the user, 12 Oct: "the lakes seem to clear the grass within a few metres,
+          // that's undesirable"): a point was refused while the water stood within 0.3 m UNDER its ground - on a lake's gentle bank
+          // (the carve's slope, a few %) that is metres of bare shore. A LAKE now refuses only `lakeMargin` m (the grass field's dial,
+          // 0.03 by default: the ground just above the drawn water); the SEA keeps its 0.3 m (the tide line, the beach - unchanged)
+          // (the grass field's alone: the first ring - its flowers, bushes, rocks, debris and the far rock map - keeps the 0.3 m
+          // everywhere, A0 11 Oct: what else stands on a lake's bank is another call)
+          const lakeM = () => (grassField && grassField.lakeMargin ? grassField.lakeMargin() : 0.3);
+          const wetBy = (x, z, h, lake) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z); return wy !== null && Number.isFinite(wy) && wy > h - (lake && wy > 0.05 ? lakeM() : 0.3); };
+          const landBy = (x, z, lake) => { const h = world.terrainH(x, z), wl = world.waterH(x, z); if (h < 0.3 || wl > h - (lake && wl > 0.05 ? lakeM() : 0.3) || wetBy(x, z, h, lake)) return false;
             const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
+          const okAt = (x, z) => landBy(x, z, false), okLake = (x, z) => landBy(x, z, true);
           // THE COVER'S QUERY (v1.17): the world's coverAt with `col` added - the linear colour the PAVEMENT
           // draws there (the class's base set mean, graded as the shader grades it: what the eye sees), so a
           // tuft on a band or a grass road takes its own ground's colour; null where no pavement is drawn
@@ -5532,7 +5557,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // the field's land test: the cover's, and - under the 'sides' law with `hard` (27_premises GRASS_SIDES, the user's call) - a
           // point the physics calls gravel / paved where nothing hard is drawn (kill under 1: a shoulder polygon, a strip box's margin)
           const PGN = (typeof PREMISES_GEN !== 'undefined') ? PREMISES_GEN : null;
-          const okField = (x, z) => { if (okAt(x, z)) return true;
+          const okField = (x, z) => { if (okLake(x, z)) return true;   // (G2572: to a lake's edge)
             const L = PGN && PGN.grassSides ? PGN.grassSides() : null; if (!L || L.law !== 'sides' || !L.hard) return false;
             const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3) return false;
             const s = world.surface(x, z); if (s !== world.SURFACE.GRAVEL && s !== world.SURFACE.PAVED && s !== world.SURFACE.SAND) return false;
@@ -5543,7 +5568,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
             standCards = STAND_CARDS.make(THREE, { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN });   // rdy: G2930, the cards stand in for an unbuilt fill
+                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN, sheetMean });   // sheetMean: G3180, the card matched to its species' sheets   // rdy: G2930, the cards stand in for an unbuilt fill
           // THE ROCK MAP (rock_map.js): the rocks' far tier, on the island's ground programs (gU.uRockMap)
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
@@ -7610,7 +7635,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // environment"): one number over the ground (GROUND.light = uGLight, after the splat) and the
   // vegetation (the leaf master light and the impostors' lit term, from their booted base) - the
   // aeroplane, the buildings and the sky untouched. F8 > environment > albedo.
-  const ENV_ALB = { k: 1, base: null };
+  // G2939 (the user's look, 12 Oct): the environment albedo at its baked 1.38 - the ground's light IS k (envAlbedo writes it)
+  // and the leaves' master (trees.js MASTER: 0.42 x 1.38) is base x k; so a slider moved from here moves both from the look
+  const ENV_ALB = { k: 1.38, base: 0.42 };
   const envAlbedo = k => {
     if (k === undefined) return ENV_ALB.k;
     if (ENV_ALB.base === null) ENV_ALB.base = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.master) ? TREE_LEAF.master().light : 1;

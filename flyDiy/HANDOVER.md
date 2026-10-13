@@ -92649,3 +92649,357 @@ Gates: green except SKINMAT, WEATHER (pre-existing on master; fixes ride train 5
 Strict gate, QUIET re-run 01:09-01:28 (the 00:15 run was spoiled by the user's session): 41b vs master 09683cb08 on the same box minutes apart: cub chase loop 18.9 vs 18.3 ms, render 13.1 vs 12.9, cockpit 19.0 vs 19.0, garage->world 11.3 vs 11.2 s: AT PAR.
 MASTER ITSELF moved vs train 50 (0b42f6826, 20:53): cub chase loop 16.5 -> 18.3 ms, render 11.8 -> 12.9, cockpit loop 16.4 -> 19.0: SCENERY-SHIP (rev27, landed 23:11 without its strict gate by the user's OK) costs ~+2 ms loop at HOME. Still 30 fps at the cap. Owed: find the cost (roads r1 / pavement / zones) - EDITOR-PERF / SCENERY-ED-2.
 What to watch for: nothing visible with damage off. ?damage=1 shows the crash layer (breaks, scars, debris).
+
+## G2939 - LOOK-DEFAULTS: THE USER'S WORLD LOOK OF 12 OCT IS THE DEFAULT (2026-10-13, TREE-STREAM for A0; branch claude/look-defaults-g2939; train 53 with SHIP-2)
+The user: "these should be the new defaults, ensure that my settings are not killing performance" - D:/Dev/flydiy-notes/inbox/
+world_look_2026-10-12_2025.json (58 changes), each written into its source per the export's 'where' map (scratch
+apply_look.js + apply_look_json.py; the mixes table by `python tools/tree_prep.py --biomes`; the per-species tints into
+the tuning AND the pack's `tint`, as tree_prep writes it - the full prep wants the raw GLBs a worktree has none of).
+KEPT (the slider-clamp bug, G2937, wrote these): grass_reed's tint light stays 3 (the file's 2), the muskeg's forest
+count stays 5000 (the file's 3000). The ground's light 0.94 -> 1.38 IS the environment albedo (envAlbedo writes it):
+ENV_ALB is { k 1.38, base 0.42 } now, so the leaves stay 0.42 x 1.38 (trees.js MASTER, unchanged) and the slider reads
+the look. The changes:
+- splat code 8 (forest ground) scale [81,3,0] -> [17.5,3,0] (28b_ground_fields.js RECIPE)
+- muskeg: pine_georgeous 1.6 -> 3.6, pine_evolveduk 1.45 -> 3, spruce 1 -> 2.6, grass_reed proportion 0.4 -> 2.65 / density
+  0.48 -> 0.35 / size 0.75 -> 1.1 / field h 0.52, dens 0.2; fireweed added (0.05, density 0.1, patch 8, share 0.8);
+  forest under 4 -> 20, blotch 0.6 -> 0.15, debris 70 -> 14
+- conifer_young: flower_foam 1 -> 2.05 (density 0.5 -> 0.1, size 1.25), bunchberry density 0.5 -> 0.2 / patch 5 -> 1 / size
+  2.75 / share 0.6, grass_reed density 0.48 -> 2.9 / patch 0 -> 5.5 / size 0.75 -> 1.1 / field h 0.49, dens 0.2, sapling
+  size 2.75, shrub size 2.65, holly size 2.75; forest under 3 -> 9.5, blotch 0.6 -> 0, blotchM 18 -> 9, rocks 4 -> 12
+- tints: shrub_deciduous hue -0.009 -> -0.03, sat 0.857 -> 0.38, light 1.535 -> 1.42; sapling_deciduous sat 0.857 -> 0.62,
+  light 1.535 -> 1.3; kindTint cover light 1 -> 1.3, flower hue 0 -> 0.015 / sat 1 -> 0.74 / light 1 -> 0.56 (trees.js)
+- speciesSize (render_world SP_SIZE): cedar 1.3, fir 1.3, larch 1.4, realistic fir 1.25, spruce 1.2
+- the grass field's blotch 0.3 -> 0.05 (cover_ring.js); GRASS_SIDES_DEF sideClear 1.8 -> 0, mowBand 15 -> 6, mowBlend 4 -> 1,
+  roadMow 2 -> 1 (27_premises.js); the ground's light 0.94 -> 1.38 + ENV_ALB k 1.38 (render_world.js)
+PERF (Tue 13 Oct 02:30-03:06, RTX 3080, built pages, the look's parked planes re-cooked; rollout_perf 90 s at HOME, chase,
+the means of A B B A; A = master 39570350b, B = master + the look):
+  gamer   stand loop 7.7 -> 7.8 ms, render 5.0 -> 5.2, p99 41.8 -> 41.9 | taxi loop 16.8 -> 15.5, render 11.6 -> 10.8, p99 33.5
+  current stand loop 7.5 -> 8.0, render 5.2 -> 5.3                    | taxi loop 16.9 -> 15.6, render 11.7 -> 10.9, p99 33.5
+  gamer, the cover ring off (?cover=0, one A / one B): taxi loop 13.2 -> 11.9, render 9.9 -> 8.8
+30 fps held everywhere; the look is ~1.3 ms CHEAPER in the taxi, and that survives without the cover ring (the counts -
+under, rocks, the reed - cost nothing measurable; the saving is the ground's). The one rise: current's stand +0.5 ms loop.
+GATES: the core changed (27_premises, 28b_ground_fields) - every node gate refuses an unbuilt tools/flight_core.js (STALE
+CORE): the battery builds first. On master WORLDRENDER / TREES / GRASSSIDES / PREMISES pass; GRASSSIDES row 3 probes the
+drawn side at sideClear x 0.5 - with sideClear 0 that is the paved edge itself (watch it).
+WHAT TO WATCH FOR: the world as the user left it on 12 Oct - brighter ground (1.38), denser understorey and reed in the young
+conifers and the muskeg, the mown verge narrower (6 m), grass to the paved edge, the deciduous bushes desaturated.
+
+## G3070 - ROUTE-LAZY: THE DRAWN ROUTE'S DRAWING OUT OF THE PAGE - route_draw.js AS route_draw.<h8>.js BESIDE index.html, FETCHED ON FIRST DEMAND (THE MAP'S DRAW MODE, FLY > drawn route) OR RUN AT BOOT AHEAD OF app.js WHEN AN ARMED ROUTE IS STORED; route_lazy.js KEEPS window.ROUTE_DRAW'S DOORS IN THE PAGE; sw.js CACHE-FIRST + SWEPT; GATES ROUTE C / UISMOKE / LAZY / MEDIA / BUILT EXTENDED (2026-10-12, ROUTE-LAZY for the PILOT COORDINATOR, cloud - node + headless Chromium / SwiftShader; branch claude/route-lazy-g3070 off origin/claude/pilot-44 7ad7e1ee - origin/master 31803829 does not contain 7ad7e1ee; G3071-G3079 unused)
+
+The user's ruling (via A0, 12 Oct): train 44's page step (~+30 KB, index.html 4.03 MiB gz) is accepted by name and
+OWED: "route_draw.js (the FLY > drawn route UI) as a lazy chunk loaded only when the user opens it, like career_core,
+giving the bytes back". **No generated file committed** (index.html, dev.html, sw.js, version.json, tools/flight_core.js,
+career_core.*.js and the new route_draw.<h8>.js are the train's (built) commit's - **that commit must add
+route_draw.<h8>.js beside career_core.<h8>.js**: BUILT's OUTPUTS names it, BUILT_STRICT goes red without it).
+
+**THE BYTES** (each tree built with its own tools/build.js; CRs removed, gz = zlib level 6, as GATE MEDIA measures):
+
+| | bytes | KB | gzipped |
+|---|---|---|---|
+| index.html, base 7ad7e1ee (train 44 = pilot-44) | 12 611 442 | 12 315.9 | 4 215 690 B = 4 116.9 KB (4.02 MiB) |
+| **index.html, this branch** | **12 587 142** | **12 292.1** | **4 208 132 B = 4 109.5 KB (4.01 MiB)** |
+| **given back** | **-24 300 B (-23.7 KB)** | | **-7 558 B (-7.4 KB)** |
+| route_draw.df5cd4af.js (beside the page; on demand / armed boot only) | 32 112 | 31.4 | 10 598 B = 10.3 KB |
+
+route_draw.js leaves the page whole (31.0 KB raw, 10.1 KB gz); what stays in its place is the door, route_lazy.js (4.7 KB,
+~1.9 KB gz: the same doors app.js calls, the fetch-and-run, the stored-draft answers), the boot's armed-route loader
+(1.1 KB) and one promote line - net -23.7 KB raw / -7.4 KB gz.
+
+**38c_route.js AND 44_vprofile.js (item 3) - MEASURED, KEPT INLINE.** 38c_route.js 15 410 B (5.8 KB gz alone),
+44_vprofile.js 17 694 B (6.6 KB gz alone): together 32.2 KB raw / ~12.4 KB gz of the page. Both are core - the page's
+pilot and the worker's (sim_host imports tools/flight_core.js whole) fly them: 43_pilot.js calls routeNormalise (+
+routeNew), routePerf, routeVPerf, routeLegs (+ routeAltMSL, routeGroundAt) and VPROFILE.plan / .at (the one altitude
+planner). **44_vprofile.js: nothing can move** (VPROFILE is the pilot's planner; routeProfile calls the same plan). **38c:
+a drawing-only half CAN move without touching the pilot** - routeSafeAlt, routeSetRef, routeAddPt, routeSpeedOf,
+routeCaptureR, routeVLegs, routeProfile (+ ROUTE_AGL_DEFAULT, ROUTE_SAFE_R): **8 275 B raw / ~3.2 KB gz**, called in the
+page only by route_draw.js (90_node_exports names them for node). NOT done here: it means splitting a core file the
+pilot sessions are in (a 38d_route_draw.js in MANIFEST.core for flight_core / the workers / the gates, cut from the page's
+core and prepended to route_draw.<h8>.js - the career split's mechanism), and MAP-MENU is named as routeProfile's next
+page caller ("the game map can draw one with routeProfile / routeLegs", G2122), which would then have to load the chunk.
+A follow-up if A0 wants the 3.2 KB gz.
+
+**G3070 THE SPLIT** (`tools/build.js`): `MANIFEST.routeDraw = 'route_draw.js'`; MANIFEST.viewer.scripts carries
+`route_lazy.js` in route_draw.js's old place (before app.js). `writeRouteDraw()` writes route_draw.<h8>.js beside the page
+(h8 = sha256 of its bytes; header + src/viewer/route_draw.js verbatim + sourceURL; the build's syntax check, served),
+sweeps any other route_draw.*.js, and OUTPUTS gains it after career_core (GATE BUILT compares seven files; a superseded
+route_draw in the tree is a stray, red). Post-build assertions: index.html carries none of the drawing (its registration
+line, drawProfile's declaration) and its loader names this build's file. **route_draw.js** is wrapped in one IIFE: it
+declares no global, registers `window.ROUTE_DRAW_UI` and binds itself to the page's door (`ROUTE_DRAW.bindUI`) when the
+door is already there. **app.js: two lines** - the attach gains `rail: () => flyOpenSet(flyOpen)` (an action asked before
+the file ran rebuilds the rail once it has, as a pill's pick does) and FLY > drawn route calls `RD.want()` (the section
+unfolded is the first demand). Every other app.js call is unchanged (`typeof ROUTE_DRAW`, the same doors).
+
+**G3070 THE LOAD** (`src/viewer/route_lazy.js`, NEW, inline): `window.ROUTE_DRAW` with the drawing's doors. Until the file
+has run: on() / flying() false, profile() / mapView() null, drawOnMap / tick / setFrame nothing (the drawing draws only
+while open or armed, and an armed route has the file from the boot), route() / armed() / state() read the stored draft
+exactly as the drawing's attach does. **First demand**: setOn(true) (the map's draw mode - FLY > drawn route > "draw on
+the map"), fly(), leave() or want() fetch FLYDIY_ROUTE_SRC once, run it as a script, bind it (attach with app.js's doors),
+then do the asked action and rebuild the rail; a failure is said in the console and the next demand tries again; the page
+tells sw.js to keep the file ({ flydiy: 'route-draw' }). dev.html: FLYDIY_ROUTE_SRC = src/viewer/route_draw.js?v=<h8>.
+
+**HOW THE ARMED ROUTE REACHES THE PILOT** (no visible delay): index.html's `ROUTE_LOADER` (right after CAREER_LOADER, in
+the head, before any script is promoted) reads `localStorage['flydiy.routeDraw']` - `FLYDIY_ROUTE_WANT()`: { fly: true }
+with a route and a point. Only then it fetches route_draw.<h8>.js **in parallel with the island's fetches** (no welcome to
+wait for; 10.3 KB gz against the island's megabytes) and FLYDIY_BOOT waits both; **the promote runs the text right after
+the core** (after the career core when there is one) - before route_lazy.js, which binds it at its evaluation, and before
+app.js, whose first flight's mkPilot calls ROUTE_DRAW.onPilot -> the drawing's own onPilot, as before. The minimap draws
+the armed route before the start, FLY > drawn route says "armed", the rail's terrain warning reads profile() - all the
+drawing's own code. dev.html: the file's tag `data-routedraw` ahead of route_lazy.js, promoted only under the same rule.
+**Belt and braces**: if the file cannot be had (offline with no copy in the worker's cache), the door still hands the
+stored armed record to every new pilot (routeNormalise -> p.flyRoute - the drawing's own rule, core code only): the route
+is flown; only its drawing waits for the next demand. A stored route NOT armed fetches nothing at boot.
+
+**G3070 SW** (sw.js's source in build.js): `ROUTE_KEEP = ['route_draw.<h8>.js']`, `ROUTE_RE`; cache-first for exactly that
+name, cached on the way through and on the page's word (a page that ran it: the drawing opened, or an armed route's
+boot - so an armed route's next boot has it offline); never fetched on install (no URL says a route is armed; the page
+asks); activate sweeps any other route_draw.*. storage.js's header names the exception.
+
+**THE GATES** - `node tools/build.js` then `node --max-old-space-size=2048 tools/run_gates.js --no-build
+--only=ROUTE,UISMOKE,UISMOKE-PHONE,BUILD,MEDIA,SIMWORKER,PLAN,SAVE,BUILT,LAZY --jobs=4`:
+
+| gate | verdict | time |
+|---|---|---|
+| ROUTE (3 shards: A the model, **C the drawing through the built chunk**, B the flights + the personas) | **PASS** | 535 / 567 / 528 s |
+| UISMOKE | **PASS** | 191 s |
+| UISMOKE-PHONE | **PASS** | 34 s |
+| BUILD | **PASS** | 2 s |
+| MEDIA | **FAIL - the wire row only, red on the base too** (below) | 1 s |
+| SIMWORKER | **PASS** | 94 s |
+| PLAN | **PASS** | 368 s |
+| SAVE | **PASS** | 0.5 s |
+| BUILT | **PASS** | 2 s |
+| LAZY (+ the route rows, request lists in headless Chromium) | **PASS** | 143 s |
+
+- **GATE ROUTE C** (`tools/_route_check.js drawing()`, now async; battery awaited): the door (route_lazy.js) and the BUILT
+  route_draw.<h8>.js in a vm with the core's globals, a fetch serving the file beside the page (counted) and a document
+  whose <script> runs its text - the page's own path. Booted: nothing fetched, nothing drawn, nothing armed; the draw mode
+  asked: fetched once, run, the mode on, the rail rebuilt; asked again: not fetched again; the drawing declares no global;
+  then every old row (points at their safe default, inserted into a leg, every edit remembered, FLY arms the pilot, a new
+  flight's pilot handed it); **an armed reload**: the boot's rule read from index.html wants the file, the file run ahead
+  of the door, the route and its arming back, the first pilot handed it, the door fetched nothing; **the file refused**:
+  the stored armed route still reaches the pilot, said, not loaded; a route not armed: the boot wants nothing; leave
+  disarms; the profile clean. **GATE ROUTE B unchanged** (core only - 38c / 43_pilot / 44_vprofile untouched): the Cub,
+  the Jodel, the metal Cessna and the three personas fly the drawn route as before.
+- **UISMOKE**: route_lazy.js runs from its source in the sandbox (FLYDIY_ROUTE_SRC read from index.html's loader; a fetch
+  that records the file and never answers, any other fetch absent as before): the boot without an armed route - the door
+  up, the file never asked for; the FLY census (every fold open) reaches 'draw on the map' and **asks for the file once**.
+- **LAZY** (G2685's gate, extended; `tools/_lazy_check.js`): R1 one route_draw.<h8>.js, its own sha, = route_draw.js
+  verbatim, runs alone with no global; R2 index.html inlines none of it, inlines route_lazy.js, keeps 38c_route.js and
+  44_vprofile.js, its loader names the file; dev.html's data-routedraw tag and promote rule; R3 sw.js in a vm (ROUTE_KEEP,
+  install fetches nothing, the page's word caches it, cache-first, another build's not answered, swept on activate); R4
+  the request lists: **the default boot never requests route_draw** (app.js saw no drawing) and **ROUTE_DRAW.ready()
+  fetches it once and runs it**; **an armed route stored: requested at boot ahead of the promoted payloads, run BEFORE
+  app.js (its setter sees ROUTE_DRAW_UI bound), the drawing has it armed and the first flight's pilot holds it (drawn
+  'armed')**, no page error; sw.js holds it after the visit; **OFFLINE, the armed boot again with its network blocked: run
+  from sw.js's cache before app.js**.
+- **MEDIA**: the route drawing measured beside the page, never counted in it, its own tripwire ROUTE_BUDGET_KB 64:
+  `index.html 12587142 B (12292.1 KB, 4109.5 KB gzipped) · ... · the route drawing route_draw.df5cd4af.js 31.4 KB (10.3
+  KB gzipped; budget 64 KB)`. **The wire row is RED: index.html 4.01 MiB gzipped against WIRE_BUDGET_MIB 4.0** - it was
+  red on the base too (7ad7e1ee: 4.02 MiB, the step the user accepted by name); this cut brings it 7.4 KB gz closer and
+  **13 828 B (13.5 KB) gz still over**. The bound is not loosened. What would close it, measured: the 38c drawing half
+  above (-3.2 KB gz) is not enough alone; the next UI-only candidates by gzipped size in the page are the editor
+  (editor.js 66.5 KB gz, a shed UI), bench.js (27.9 KB gz) and the career's page halves in app.js (G2685's note: ~41 KB) -
+  each its own cut, the coordinator's call. Every other MEDIA row passes.
+- **BUILT**: seven outputs (route_draw.<h8>.js the seventh); a superseded route_draw.* in the tree is a stray.
+
+**THE RIGS**: `tools/route_draw_shot.js` and `tools/perf/route_draw_stills.js` await the drawing (`ROUTE_DRAW.ready()` /
+`want()` + `loaded()`) before driving it. route_draw_shot.js run in the cloud on this build (SwiftShader, the served
+page, real pointer input through the lazy door; 1 run, ~25 min): the drawing fetched on its first demand (ROUTE_DRAW.ready())
+and driven exactly as on train 44 - **gestures {"added":3,"moved":true,"afterRight":2,"afterLong":1}, all four the rig's
+wanted values**; the drawn gate route "17.1 km, lowest 63 m over what stands under it (margin 60)" (GATE ROUTE A's 63 m);
+the hill point red ("-391 m ... the pilot flies it higher", each raised WP said); **FLY THIS ROUTE before the start: the
+drawing armed, the pilot's drawn state 'armed', flydiy.routeDraw saved** ("Armed: flown after the take-off's
+climb-out."). The flight leg did NOT reach the route inside --fly=900 (still on the take-off roll, ROLL 0) - **the same
+as G2120's own cloud run** (above: "still on its take-off roll after 1200 s ... the flown stills are the box script's"):
+SwiftShader frames take seconds and the sim worker holds the flight on the page's heartbeat (G1365). So "flown exactly
+as before" rests on GATE ROUTE B (the real sim and pilot in node, all six flights PASS; the pilot's code untouched) and
+LAZY R4 (an armed route stored: the real page's first pilot holds it 'armed'); A0's box script
+`tools/perf/route_draw_stills.js` (updated to await the drawing) takes the flown stills. Stills not committed (cloud scratch).
+
+**FILES**: src/viewer/route_lazy.js (new), src/viewer/route_draw.js (the IIFE, the registration), src/viewer/app.js (two
+lines), src/viewer/storage.js (comment), tools/build.js, tools/_route_check.js, tools/test_ui_smoke.js, tools/_lazy_check.js,
+tools/_media_check.js, tools/_built_check.js, tools/run_gates.js (LAZY's note), tools/route_draw_shot.js,
+tools/perf/route_draw_stills.js.
+## G2891 - SCENERY-ED-1 (train 52): A STRIP'S CLUB HANGAR AND STAND TAKE A CLICK; A PARKED AEROPLANE IS PICKED BY ITS SIZE (2026-10-12, SCENERY-ED-1 for A0, local; branch claude/scenery-ed-t52-g2891 off master 09683cb08 = SHIP; c1 + c3 of the HOME inventory; c2 = G2892, train 53; G2893-G2899 unused)
+
+The user (12 Oct, reworking HOME's base zone): "there is a lot I can't displace". A0's inventory (this session, files
+only): around HOME every record polygon is clickable (the strip wins the first click, the pick cycle the next); what
+would not move is DERIVED - the strip's club hangar and stand (fields of the runway record, moved only by its discs once
+the strip is selected), the second hangar plot HOME.2 (no handle: c2), the taxi routes and the fleet's tie-down spots
+(TAXI, Wed), SCENERY LIFE (rules, not records: 'life here' per entry; a bake = backlog c4) - and five ship-only entries
+(the 13/31 and 02/20 gravel shoulders, 02/20's fan), handed to the user as ordinary areas in
+D:/Dev/flydiy-notes/inbox/jolene_rev27c_home_editable.json (rev27 + those five, ED-2's own migrator; README beside it).
+- **c1**: a press on a strip's club hangar (its footprint: HANGAR_DIMS round the door's heading, either way about) or its
+  stand (within 5 m) selects the strip and starts that handle's drag - PG.runwayGrab (core), R.grabAt (render_premises),
+  premises_ui grabStrip in onDown after the handle test, cmd 'grab'. A placed object under the press (a parked aeroplane
+  on the stand) is picked as before. hitAll lists the strip (with `grab`) among the site items, so the pick cycle names it.
+- **c3**: a parked aeroplane is picked by its size - PG.objectPickR: its drawn group's bounding radius x 0.85 (measured
+  once, kept on the group: pickR in render_premises), else 6 m x its scale; props, trees, signs, animals keep 2.5 m x
+  their scale. hit() and hitAll() read the one rule.
+Gates: GATE SCENERYED 23 (the hangar grabbed and moved, the stand grabbed and moved, nothing grabbed off the strip's
+things, a parked aeroplane on the stand not grabbed through, the round trip) + 24 (the rule, a click 4.5 m out on a wing
+picks the aeroplane, the renderer reads it) - 168 checks PASS (node, ~1 s); node --check on the four files.
+What to watch for: in the scenery editor at HOME, press on the WWII hangar and drag - it moves (the strip's inspector
+opens); press on a parked aeroplane's wing - the aeroplane is selected.
+- **(G2891, the same branch) THE SITES PALETTE'S CATEGORIES** (the user: "many categories of sites that the filters do not
+  cover"): the pills were the theme's seven (PG.CATEGORIES); the catalogue also carries 'airport xs / s / m' (19
+  entries: the pilot hut, the field sheds, the club hangars, the cab and regional towers, the terminal, technical
+  services, the seaplane float) - reachable only under 'all'. sitesPalette now adds every category the catalogue's
+  entries carry after the theme's (totem/park is covered: byCat files a park under landmark). GATE SCENERYED 25.
+  Also found, not changed: the asset placer offers assembly PARTS as models (car_conquer wheels / steering, the panel's
+  buttons / keys / knobs / switches, the Jodel airframe parts, the ALMA's three parts, the pier kit's pieces) - a pack
+  flag (`part: true`) for ASSETS-OCT, then the placer hides them (S, train 53); the feature list has no JUNCTIONS group.
+
+
+## G2936 - BIOME-DENSITY: THE BIOME TAB SAYS WHAT STANDS, AND OFFERS THE DIALS THAT MOVE IT (2026-10-12, TREE-STREAM for A0, local; branch claude/biome-density-g2936 off master; train 52)
+The user: the muskeg's "the stand > trees" read "3000 · 197/ha" while almost nothing grew, and the slider could not add
+trees. MEASURED (node: the fill walk's per-point rule on Jolene through island_node, no premises polygons; scratch
+muskeg_funnel.js): the muskeg (ttype 3 + 7, ~8 500 ha) plants 137 trees/ha at density 200 (grid max 381) and 56/ha at
+128 (grid max 156) against 329/ha nominal (the payload's count 5000, above the old slider's 3000 cap). Lost: the mix's
+clump 0.55 (51 %: "dense packs on little islands"), the grid's 10 % dropout, the ground 3 %, the canopy ramp 1 % - the
+canopy map is NOT the cause (the muskeg is floored: canopyFloor 3.5 over the bog's 3 m cap). The count SATURATES: a mix's
+share of the grid's points is min(1, trees/m2 x the point's area x biomeGain 3.5), full at ~1 660 (density 200) / ~680
+(128) - the slider's upper part did nothing.
+world_rail.js biomeTab, the stand: 'trees' to 6000 (the payload's 5000 inside it: a touch never clamps it) with the
+label "count · nominal/ha · stands ~X/ha (full from N)" (X = the grid's share x 0.9 x (1 - clump), the canopy map full or
+floored; 154 vs the walk's 137 at 200, 63 vs 56 at 128); new rows 'clumps: bare' (forest.clump 0..0.9), 'clump size'
+(clumpM 8..80 m), 'canopy floor' (canopyFloor 0..20 m; 6 m and over: the full stand wherever the biome is). All through
+TREE_FILL.setMix (the walk and the stand cards read the same fields). Gates: node --check, UISMOKE.
+WHAT TO WATCH FOR: the muskeg's trees row now says how many stand (~150/ha at density 200, ~60 at 128) and "(full)"; to
+thicken it, lower 'clumps: bare' (0 = an even stand: ~2.2x the trees) or raise the density setting; 'canopy floor' 6+ m
+fills a biome where the canopy map is thin.
+
+### G2937 - THE BIOME TAB: A SPECIES ADDED SHOWS ITS CARD; NO SLIDER CAPS BELOW A VALUE IN USE (2026-10-12, A0's two user bugs, same branch)
+(1) The user: "adding a new species from the biome tab does not generate a new section". CAUSE: '+ add from the catalogue'
+writes the species row, then TREE_FILL.setMix -> reachRefresh, which threw (ReferenceError SPL - G2935's find, on master
+since G906) BEFORE `changed(); open('types', true)` re-rendered the tab: the species was in the mix, the card never drawn
+(and every biome-tab slider's oninput skipped its saveLook the same way). The SPL fix rides train 50 (TREE-STREAM); here
+the add and the remove handlers re-render in a finally, and range()'s setters are wrapped the same way (a throw no longer
+loses the show and the save). The kinds are all in CATS but 'cliff', which the catalogue never offers.
+(2) The user: "the lightness is at 3, the sliders go to 2 ... a lot of limits on sliders that really should not be there".
+range() itself now WIDENS its bounds to the value it binds (a saved look's, a payload's, a typed one): an <input
+type=range> clamps its value to max, so the first touch wrote the cap back over the saved 3. And the artistic ranges,
+widened (shares stay 0..1, distances and the physical ranges unchanged - the widening covers any value in use there):
+  species lightness (trees, bushes/grass) 0.2-2 -> 0-4
+  species bark 0.2-2 -> 0-4
+  species saturation 0-1.5 -> 0-3
+  species hue +-0.2 -> +-0.5
+  tree species size 0.3-2.5 -> 0.1-5
+  the trees' colour + each kind's colour (grass, flowers, bushes) hue +-0.2 -> +-0.5
+  ground colour, the trees' colour, each kind's colour saturation 0-2 -> 0-3
+  the trees' colour + each kind's colour lightness 0.2-2 -> 0-4
+  ground colour lightness 0.2-2.5 -> 0-4
+  env. albedo 0.2-1.5 -> 0-3
+  ground set saturation 0-2 -> 0-3
+  ground set contrast 0-2 -> 0-3
+  ground recolour saturation 0-2.5 -> 0-4
+  ground recolour lightness 0-2.5 -> 0-4
+  variation hue swing 0-40 -> 0-90
+  variation value swing 0-0.6 -> 0-1
+  species share (every kind) 0-4 -> 0-20
+  tree dead share 0-0.5 -> 0-1
+  bush / grass size 0.2-4 -> 0.05-8
+  grass/flower density 0-6 -> 0-20 /m2
+  grass/flower patch 0-20 -> 0-60 m
+  stone size 0.5-40 -> 0.1-80
+  debris size 0.001-3 -> 0.001-6
+  debris dim 0-1.5 -> 0-3
+  the stand: shrubs 0-20 -> 0-100 /1000 m2
+  the stand: stones 0-200 -> 0-1000 /1000 m2
+  the stand: debris 0-200 -> 0-1000 /1000 m2
+  the stand: size spread 0-0.5 -> 0-1
+  vegetation: cover from 0-10 -> 0-30 m
+  vegetation: full cover 2-30 -> 1-60 m
+  vegetation: size gain 0.3-2.5 -> 0.1-5
+  vegetation: size min 0.1-1 -> 0.05-2
+  vegetation: size max 1-4 -> 0.5-8
+  vegetation: biome gain 0.5-8 -> 0.1-20
+  cover ring density 0-2 -> 0-6
+  cover ring shrubs 0-2 -> 0-6
+  cover ring stones 0-2 -> 0-6
+  grass field tufts/m2 5-250 -> 0-1000
+  grass field height x 0.2-3 -> 0.05-6
+  grass field height spread x 0-3 -> 0-6
+  grass field colour level 0.3-2.5 -> 0-4
+  grass field colour tuft to tuft 0-0.3 -> 0-1
+  cut grass length 0.02-0.4 -> 0.01-1 m
+  cut grass density x 0.2-3 -> 0-6
+  grass runway length 0.02-0.3 -> 0.01-1 m
+  grass runway density x 0.2-3 -> 0-6
+  a grass card's field: length 0.03-0.8 -> 0.01-2 m
+  a grass card's field: density x 0-2 -> 0-6
+  cliffs: how many 0-400 -> 0-2000
+  cliffs: fit 0.5-3 -> 0.1-6
+  cliffs: size min 0.2-2 -> 0.05-4
+  cliffs: size max 0.5-5 -> 0.1-10
+WHAT TO WATCH FOR: '+ add from the catalogue' shows the species' card at once (its tint rows once its bin has loaded - reopen the tab); a slider whose saved value is past its old end now shows it (and its track reaches it); the colour sliders go to 4 (lightness), 3 (saturation), +-0.5 (hue).
+
+### G2938 - EVERY WORLD-EDITOR SLIDER TAKES A TYPED NUMBER; THE LOWER BOUNDS RELAXED (2026-10-12, A0 for the user, same branch)
+The user: "the density for fireweed does not go low enough. For all these, I need relaxed bounds and manual number
+input." world_rail.js range() (every slider of the F9 rail: 162 rows) - the readout IS the field, G3017's pattern
+(premises_host.js slider; not shared: two builders, two stylesheets): focus shows the bare number, Enter or leaving
+commits it once through the slider's own setter, Escape gives up, keys stay out of the game. A typed value may pass the
+slider's ends - the slider widens to it (G2937's fit) - and only the physical bound holds it: a 0..1 slider (a share) in
+0..1, a slider from 0 at >= 0, one whose floor is above 0 (a cell, a spacing, a reach: divisors) at a tenth of that floor,
+an angle (-180..180, 0..359) wrapped; no snap to the step. The prompt() click is gone. Lower bounds and steps:
+  grass/flower density: step 0.05 -> 0.01 (fireweed 0.12 -> 0.02 reachable on the slider; typed any)
+  bush / grass size from 0.05 -> 0
+  stone size from 0.1 -> 0
+  debris size from 0.001 -> 0
+  patch share: step 0.05 -> 0.01
+  vegetation: size gain from 0.1 -> 0
+  vegetation: size min from 0.05 -> 0
+  vegetation: size max from 0.5 -> 0
+  vegetation: biome gain from 0.1 -> 0
+  grass field height x from 0.05 -> 0
+  cut grass length from 0.01 -> 0
+  grass runway length from 0.01 -> 0
+  a grass card's field: length from 0.01 -> 0
+  cliffs: fit from 0.1 -> 0
+  cliffs: size min from 0.05 -> 0
+  cliffs: size max from 0.1 -> 0
+  grass field tufts/m2: step 1 -> 0.5
+  cover ring density: step 0.05 -> 0.01
+(kept above 0: a species' size multiplier - TREE_FILL.speciesSize treats 0 as 'reset to 1'; clump size, cells, spacings - divisors.)
+WHAT TO WATCH FOR: click any value on the F9 rail and type (0.02 for fireweed's density, Enter); the slider follows past its old end; Escape restores.
+
+## G3180-G3183 - CARD-MATCH: THE FAR CARDS WERE 0.26x THEIR IMPOSTORS; THEIR TINT AND LEVEL NOW FOLLOW THEIR SPECIES (2026-10-13, TREE-STREAM for A0, local; branch claude/card-match-g3180; train 52)
+The user (13 Oct 00:00): "a color/value shift has developed between the far cards for the trees and the impostors. The dark
+ones are the far cards, the greener ones the impostors. We also need a mechanism to keep them in sync."
+CAUSE, MEASURED (tools/perf/cardmatch_probe.js, census 13 Oct 01:40, master 9450f0e5a): THE BAKE. The stand card's sheet
+(stand_cards.js: a 4 x 4 block of its mix's L1 geometry baked as one picture) reads a mean linear albedo of 0.0157 against its
+species' own rungs sheets' ~0.049 (proportion-weighted) - 0.26x, and bluer. The shader is the same for both tiers (impostorMat:
+the cards take the per-material path, the fill the merged one; the same live tint uniforms, uILit, the flat pivot, ATMO).
+WHY NOW: train 50's stand-in (G2930) draws the cards at 1.5-4 km, where they used to start at 4 km under the haze.
+THE FIX (calibrated; the one-source fix G3184 is on its own branch, below):
+- G3181 the card's tint is the proportion-weighted mean of its species' live tint uniforms (stand_cards tintNow, every update),
+  and its sheet's level is matched at the bake to its species' rungs sheets drawn at their own IMP_LEVEL (render_world sheetMean:
+  an atlas's mean linear albedo, read back; TREE_LOD.impLevel('stand:<mix>|rungs'); retried until the fill's sheets exist).
+- G3183 x CARD_SCREEN_K 0.74: the sheet match (level 3.148) drew the cards 1.35x their impostors on screen (twice) - a block's
+  baked normals face the sky more than a tree's. With it: on screen 1.07 under the default look (r 1.04 g 1.04 b 1.40 - a
+  residual blue), 0.80 under a strong tint (the master's light x 1.5 + hue 0.05). The probe: SHEETS (each atlas read back) and
+  SCREEN (cards only / impostors only / neither, over the densest stand from 300 m, the tree pixels in linear RGB).
+WHAT TO WATCH FOR: the far hillsides' trees as green and as light as the impostor forest in front (a faint blue left).
+
+## G2319.2 - THE AUXILIARY HANGARS' FAR WALLS WENT BLACK: THE FAR TOWN'S FIFTH IS THE HOUSES' (2026-10-12/13, WORKS-COZY for A0; branch claude/far-hangar-g2319 off master 0b42f682 = train 50)
+
+The user: "the LODs for the auxiliary hangars in the starting area are black instead of the mesh colour".
+- CAUSE (from the source): HOME's auxiliary hangars are site items (tools/_hangar_gen.js) wearing hangar.js's own
+  steel (HANGAR_LIB); past HLOD.near they join render_premises.js's far town, hlodMerge -> vertex colour = material colour
+  x map mean x HLOD.gain, and the gain 0.2 (G559, 6f3e65e8, 24 Sep) was calibrated against the HOUSE shader (its AO, dirt
+  and weathering darken the near house). A plain finish has none of that near: its far walls came out ~5x darker -
+  black. FIRST BAD: 1fb78aa6 (G1398, 3 Oct: the hangar shell's walls, doors and stem kept in the far version).
+- FIX (680a19fa): HLOD.gainItem 1; farGain(mat): a house-shaded finish (userData houseShaded / paint / dirt) keeps the
+  fifth, every other finish takes gainItem; hlodMerge's colour goes through it. GATE TARR 5z (86/86): a real house finish
+  takes 0.2, a plain steel one gainItem, hlodMerge uses the rule - negative-verified (the old line -> red; gainItem 0.2
+  -> red). The HLOD block is in GATE PREMCOOK's page hash: the premises re-cook rides train 52. Other plain items
+  (sheds, tanks) brighten too.
+- THE CENSUS (A0's slot Tue 13 Oct 03:20, tools/perf/far_hangar_census.js; reports/evidence/FAR-HANGAR/; numbers
+  only): WITH THE FIX the far version matches the near one where measured - s_strip/shed far 112.9 / near 115.7 luma,
+  af_s_fire/bay 119.7 / 118.8. CAVEATS: (1) NO "BEFORE" NUMBER - the live gainItem sweep (cl.sig = '') did not rebuild
+  the far cells (its readings are non-monotonic noise around the fixed build); (2) s_club/hangar_long - the club's long
+  hangar, the likeliest one the user saw - was NOT MEASURED (no framed eye from 4 directions at 200 m). A0's call: ship
+  as is; the user judges the club hangar after the train.
+- Gates owed: every gate reading render_premises.js runs in A0's train-52 battery (PREMCOOK re-cooked there).
+
+READY for A0: claude/far-hangar-g2319 680a19fa (the fix; the census tool, its results and this section ride on top)

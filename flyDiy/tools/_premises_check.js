@@ -1546,11 +1546,13 @@ if (SELFTEST) {
     const Od = PG.compose(rd, wW), pp = (Od.pavePolys || []).find(q => q.id === 'a1~d');
     check(pp && pp.marks && pp.marks.kind === 'dock' && pp.waterEdges && pp.waterEdges[2] === 1 && pp.waterEdges[0] === 0 && pp.waterEdges[1] === 0, '20h compose finds the quay: the one edge whose outside is water', JSON.stringify(pp && pp.waterEdges));
   }
-  // 20i Jolene's shoulder bands: areas that keep the trees out and draw nothing (the user's "gravel" polygons)
+  // 20i Jolene's shoulder bands: areas that kept the trees out and drew nothing (the user's "gravel" polygons) - (G3020 rev 28)
+  //     dropped with the user's rev 28 (A0 13 Oct: never in a save, they cut HOME's trees at 40 m): none is shipped; an area
+  //     with wheels and no draw is still the inspector's (GATE SCENERYED 6)
   {
     const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
     const sh = J.layers.areas.filter(a => /^y_sh/.test(a.id));
-    check(sh.length === 4 && sh.every(a => a.props.wheels && a.props.wheels.surface === PG.SURFACE.GRAVEL && !a.props.draw), '20i Jolene\'s four gravel bands are areas with gravel wheels and no draw (the inspector says so)', sh.map(a => a.id).join());
+    check(sh.length === 0, '20i Jolene\'s four gravel bands are gone (rev 28): no y_sh area shipped', sh.map(a => a.id).join());
   }
 }
 
@@ -1620,9 +1622,9 @@ if (SELFTEST) {
     const r2 = base(); r2.layers.roads.push(road({ on: false, bank: 20 }));
     check(JSON.stringify(PG.compose(r2, bumpy).terrainAt(10, 3)) === JSON.stringify(PG.compose(r0, bumpy).terrainAt(10, 3)) && PG.bedOf(r2.layers.roads[0]) === null, '21c a bed `on: false` is no bed');
     const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
-    // (G3014: the user's rev 27 roads r37 / r38 came with a bed - the editor's default for a new road since G2952; a bed stands only
+    // (G3014: the user's rev 27 roads r37 / r38 came with a bed (rev 28: r39-r45 too) - the editor's default for a new road since G2952; a bed stands only
     //  on a road the user's own save gives one)
-    const bedU = new Set(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev27.json'), 'utf8')).rec.layers.roads.filter(r => r.bed).map(r => r.id));
+    const bedU = new Set(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev28.json'), 'utf8')).rec.layers.roads.filter(r => r.bed).map(r => r.id));
     check(J.layers.roads.every(r => !r.bed || bedU.has(r.id)), '21c a shipped road carries a bed only where the user gave it one (' + [...bedU].join(', ') + ')', J.layers.roads.filter(r => r.bed && !bedU.has(r.id)).map(r => r.id).join(' '));
   }
   // 21d METLAKATLA ONE GRID (G2954): its streets one component of shared-waypoint junctions; its connection points named;
@@ -1649,7 +1651,7 @@ if (SELFTEST) {
     // (G3014: re-taken as this comment's rule says - the user's rev 26 edited Metlakatla's streets, 391 -> 398 plots, sha below.
     //  NOT 'the ids taken off': an id'd waypoint on a straight span is no corner BY DESIGN, so taking the ids off makes those
     //  waypoints corners and moves the plots - that is no counterfactual for 'without the junctions')
-    check(hp === '084d97ba39a234b8', '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town had without them (re-taken for rev 26)', hp);
+    check(hp === '5a61e780db99fc4b', '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town had without them (re-taken for rev 28: train 53, 13 Oct)', hp);
     check(!PG.issues(J).some(t => /junction|roadside/.test(t)), '21d no junction issue', PG.issues(J).filter(t => /junction|roadside/.test(t)).slice(0, 3).join('; '));
   }
 }

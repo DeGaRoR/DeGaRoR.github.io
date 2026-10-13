@@ -81,11 +81,12 @@ function makeR() {
     hit(x, z) { const L = O.frame.toLocal(x, z); for (const k of ['areas', 'material', 'surface', 'zones', 'terrain']) for (const e of rec.layers[k]) if (e.poly && PG.inPoly(e.poly, L[0], L[1])) return { id: e.id, layer: k, entry: e }; return null; },
     // (G3006) everything under a point in the renderer's order: the models, the roads, the polygons last (the smallest first)
     hitAll(x, z) { const L = O.frame.toLocal(x, z), out = [];
-      for (const ob of rec.layers.objects) if (isFinite(+ob.x) && Math.hypot(ob.x - L[0], ob.z - L[1]) < 2.5) out.push([0, Math.hypot(ob.x - L[0], ob.z - L[1]), { id: ob.id, layer: 'objects', entry: ob, kind: 'object' }]);
+      for (const ob of rec.layers.objects) if (isFinite(+ob.x) && Math.hypot(ob.x - L[0], ob.z - L[1]) < (PG.objectPickR ? PG.objectPickR(ob) : 2.5)) out.push([0, Math.hypot(ob.x - L[0], ob.z - L[1]), { id: ob.id, layer: 'objects', entry: ob, kind: 'object' }]);
       for (const r of rec.layers.roads) if (r.pts && r.pts.length > 1) { let d = Infinity; for (let i = 0; i + 1 < r.pts.length; i++) d = Math.min(d, PG.distPtSeg(L[0], L[1], r.pts[i], r.pts[i + 1]) - (+r.w || 3.6) / 2); if (d < 1.5) out.push([2, d, { id: r.id, layer: 'roads', entry: r, kind: 'road' }]); }
       for (const k of ['areas', 'material', 'surface', 'zones', 'terrain']) for (const e of rec.layers[k]) if (e.poly && PG.inPoly(e.poly, L[0], L[1])) out.push([4, Math.abs(PG.polyArea(e.poly)), { id: e.id, layer: k, entry: e, kind: 'polygon' }]);
       return out.sort((a, b) => (a[0] - b[0]) || (a[1] - b[1])).map(q => q[2]); },
     ghostModel(sp) { R.ghostAt = sp; },
+    grabAt(x, z) { const L = O.frame.toLocal(x, z); return PG.runwayGrab ? PG.runwayGrab(rec, L[0], L[1]) : null; },   // (G2891 c1: the renderer's own rule)
     heightAt: (x, z) => O.terrainAt ? O.terrainAt(x, z) : synth.terrainH(x, z),
     plots: () => O.records.plots, links: () => [], aerodromes: () => O.aerodromes || [], patternOf: () => null,
   };
@@ -503,16 +504,20 @@ if (plots.length) {
 //    shipped fixture's r1 bit for bit - every field as saved, nothing else of the save shipped (no strip of theirs) -
 //    and the shipped record loads, composes and saves it unchanged
 {
-  const K = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_r1_rev26.json'), 'utf8'));
+  // (G3020: the user re-drew r1 in rev 28 - its junction ids, 254 nodes - and rev 28 ships whole (row 15): r1 is rev 28's,
+  //  bit for bit; the rev 26 extraction (scenery_user_r1_rev26.json) stays as history; 'strip 8' (w1) the user deleted)
+  const M28 = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_rev28.json'), 'utf8'));
+  const S28 = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', M28.save), 'utf8'));
+  const K = { road: (S28.premises || S28).layers.roads.find(r => r.id === 'r1'), sha256: M28.sha256, save: null };
   const FX = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), FL = (FX.premises || FX).layers;
   const shipped = FL.roads.find(r => r.id === 'r1');
   check(shipped && JSON.stringify(shipped) === JSON.stringify(K.road), '13 the shipped r1 is the user\'s save\'s r1 bit for bit (' + (K.road.pts || []).length + ' points, save sha256 ' + String(K.sha256).slice(0, 16) + ')');
-  check(!FL.runways.some(w => /^strip [89]$/.test(String(w.name || ''))) && FL.roads.filter(r => r.id === 'r1').length === 1, '13 ...and nothing else of the save: none of its strips');
+  check(!FL.runways.some(w => /^strip 8$/.test(String(w.name || ''))) && FL.roads.filter(r => r.id === 'r1').length === 1, '13 ...and one r1; strip 8 (w1, deleted by the user) not shipped');
   const PJ = PG.unwrap(JSON.stringify(FX)).rec, r1j = PJ.layers.roads.find(r => r.id === 'r1');
   const same = r => JSON.stringify([r.pts, r.tan || null]) === JSON.stringify([K.road.pts, K.road.tan || null]);
   check(r1j && same(r1j) && same(PG.unwrap(PG.envelope('t', PJ)).rec.layers.roads.find(r => r.id === 'r1')) && same(PG.compose(PJ, synth, { raster: false }).rec.layers.roads.find(r => r.id === 'r1')), '13 the shipped record loads, composes and saves r1 unchanged');
-  const savePath = 'D:/Dev/flydiy-notes/scenery-backups/' + K.save;
-  if (fs.existsSync(savePath)) check(require('crypto').createHash('sha256').update(fs.readFileSync(savePath)).digest('hex') === K.sha256, '13 (the save on this machine is the one it was taken from)');
+  const savePath = K.save ? 'D:/Dev/flydiy-notes/scenery-backups/' + K.save : '';
+  if (savePath && fs.existsSync(savePath)) check(require('crypto').createHash('sha256').update(fs.readFileSync(savePath)).digest('hex') === K.sha256, '13 (the save on this machine is the one it was taken from)');
 }
 
 // 14 PLACER-FAST (G3000-G3009; the user: "adding assets in the editor is a bit of a pain, really, really long to move,
@@ -609,7 +614,7 @@ if (plots.length) {
 //    (normalised) - but for a `stage`, which a save (the sandbox's view, every track at its max) never carries and the
 //    shipped record keeps, and the entries only a stage stands (`sg_`) or a removal not yet confirmed keeps.
 {
-  const M = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_rev27.json'), 'utf8'));
+  const M = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_rev28.json'), 'utf8'));
   const stxt = fs.readFileSync(path.join(TOOLS, 'fixtures', M.save), 'utf8');
   check(require('crypto').createHash('sha256').update(stxt).digest('hex') === M.sha256, '15 the save beside the manifest is the user\'s, byte for byte (' + M.sha256.slice(0, 16) + ')');
   const A = PG.dropPlaces(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, ['mk_']).rec, B = PG.unwrap(stxt).rec;
@@ -625,21 +630,30 @@ if (plots.length) {
   //  the entry is the save's)
   // (G3014: and the plots the manifest moves - plotMoves {runway: {plot: [x, z]}}: the save's plot taken to where it ships)
   const PMv = M.plotMoves || {};
+  // (G3020: and the fields the manifest patches after the ship - fieldPatches {entry id: {field: value}}, SCENERY-ED-1's HOME rework on rev 28)
+  const FPa = M.fieldPatches || {};
   const CD = new Set(M.clearDefault || []), unC = e => { const c = JSON.parse(un(e)); if (CD.has(c.id)) delete c.clear;
+    if (FPa[c.id]) Object.assign(c, JSON.parse(JSON.stringify(FPa[c.id])));
     if (PMv[c.id] && Array.isArray(c.plots)) for (const p of c.plots) if (p && PMv[c.id][p.id]) { p.x = PMv[c.id][p.id][0]; p.z = PMv[c.id][p.id][1]; }
     return JSON.stringify(c); };
   check([...CD].every(id => { const w = (A.layers.runways || []).find(q => q.id === id); return w && !('clear' in w); }), '15 the strips the manifest names ship with the clearance of today, not their own (' + [...CD].join(', ') + ')');
+  // (G3020) an AREA compared by what it composes - its areaEntries, keys sorted: an area the user grew in the editor (rev 28's
+  //  tw_t_valley: + wheels + draw; tw_m_parking: + wheels + marks) ships as v1 sources and folds back with its props in the
+  //  fold's order and its marks inside its draw - the same ground, another spelling
+  const sk = v => Array.isArray(v) ? v.map(sk) : v && typeof v === 'object' ? Object.keys(v).sort().reduce((o, k) => (o[k] = sk(v[k]), o), {}) : v;
+  const canA = s => { const c = JSON.parse(s); if (c.props) c.props = PG.areaEntries(Object.assign({}, c, { src: null })).map(q => { const x = Object.assign({}, q.entry); delete x.id; delete x.poly; return [q.layer, sk(x)]; }).sort((p, q) => p[0] < q[0] ? -1 : 1); return JSON.stringify(c); };
+  const same = (L, x, y) => L === 'areas' ? canA(unC(x)) === canA(unC(y)) : unC(x) === unC(y);
   const bad = [], pending = [];
   for (const L of PG.LAYERS) {
     const a = new Map((A.layers[L] || []).map(e => [e.id, e])), b = new Map((B.layers[L] || []).map(e => [e.id, e]));
-    for (const [id, e] of b) { if (EX.has(id)) { if (a.has(id)) bad.push(L + ' ' + id + ' held back, but shipped'); continue; } if (!a.has(id)) bad.push(L + ' ' + id + ' not shipped'); else if (unC(a.get(id)) !== unC(e)) bad.push(L + ' ' + id + ' differs'); }
+    for (const [id, e] of b) { if (EX.has(id)) { if (a.has(id)) bad.push(L + ' ' + id + ' held back, but shipped'); continue; } if (!a.has(id)) bad.push(L + ' ' + id + ' not shipped'); else if (!same(L, a.get(id), e)) bad.push(L + ' ' + id + ' differs'); }
     for (const [id, e] of a) if (!b.has(id)) { if (RM.has(id)) bad.push(L + ' ' + id + ' removal confirmed, still shipped'); else if (!staged(e)) pending.push(id); }
   }
-  check(!bad.length, '15 the shipped record is the save entry by entry (held back: ' + M.except.join(', ') + ')', bad.slice(0, 6).join('; '));
+  check(!bad.length, '15 the shipped record is the save entry by entry (held back: ' + (M.except.join(', ') || 'none') + ')', bad.slice(0, 6).join('; '));
   const FX = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), FL = (FX.premises || FX).layers;
   let nSt = 0, nIt = 0; for (const L of Object.keys(FL)) for (const e of FL[L] || []) { if (e && e.stage) nSt++; if (e && Array.isArray(e.items)) for (const it of e.items) if (it && it.stage) nIt++; }
   check(nSt >= 17 && nIt >= 5, '15 every stage the shipped record had is still on it (' + nSt + ' entries, ' + nIt + ' site items) - a save never carries them');
-  console.log('     15 the user\'s rev 25 shipped: ' + B.layers.roads.length + ' roads in the save; the removals the save makes and the user has not confirmed (kept): ' + (pending.join(', ') || 'none'));
+  console.log('     15 the user\'s ' + M.save + ' shipped: ' + B.layers.roads.length + ' roads in the save; the removals the save makes and the user has not confirmed (kept): ' + (pending.join(', ') || 'none'));
 }
 
 // 16 THE LONE ROAD'S PATCH (G3013; the user's 66 km of graded road made the fine 2 m patch 7x what it was for every
@@ -776,6 +790,105 @@ if (plots.length) {
   for (let i = 0; i < FXr.length; i++) for (let j = i + 1; j < FXr.length; j++) if (Math.hypot(FXr[i].c[0] - FXr[j].c[0], FXr[i].c[1] - FXr[j].c[1]) < 50) near.push(FXr[i].id + '/' + FXr[j].id);
   check(!near.length, '21 no two shipped strips stand within 50 m of each other', near.join(' '));
   ed.cmd('tool', { name: 'select' });
+}
+
+// 22 THE ZONES' MEMO (G2960 RUNWAY-ED-PERF): with it, cold and warm, and without it, every composition is the same plots and
+//    trees, byte for byte - the shipped Jolene, the user's rev 23 and rev 26, two v1 fixtures - and after scripted edits (a
+//    strip moved, a zone's corner moved, a road through a zone moved, a site moved); a warm composition keeps every zone; a
+//    change of seed starts the memo over (a new generation); a new world is a new memo
+{
+  const mkW = () => ({ id: 'zm', terrainH: synth.terrainH, waterH: synth.waterH });
+  const out = O => JSON.stringify([O.records.plots, O.records.parks || null, O.records.trees]);
+  const load = fn => PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', fn), 'utf8')).rec;
+  const recs = [['island_jolene.json', load('island_jolene.json')], ['scenery_user_jolene_rev23.json', load('scenery_user_jolene_rev23.json')], ['scenery_user_jolene_rev26.json', load('scenery_user_jolene_rev26.json')], ['premises_v1_village.json', load('premises_v1_village.json')], ['premises_v1_official.json', load('premises_v1_official.json')]];
+  const t0 = Date.now(); let zonesAll = 0, keptAll = 0;
+  for (const [name, r] of recs) {
+    const W = mkW(), A = PG.compose(r, W, { raster: false }), B = PG.compose(r, W, { raster: false }), C = PG.compose(r, mkW(), { raster: false, zoneMemo: false });
+    const nz = r.layers.zones.filter(z => z.poly && z.poly.length >= 3).length; zonesAll += nz; keptAll += B.zoneMemo ? B.zoneMemo.hits : 0;
+    check(!!A.zoneMemo && C.zoneMemo === null && out(A) === out(C) && out(B) === out(C), '22 ' + name + ': the memo cold, warm and off compose the same plots and trees', JSON.stringify([A.zoneMemo, B.zoneMemo]));
+    check(!nz || (B.zoneMemo.hits >= 1 && B.zoneMemo.misses === 0), '22 ' + name + ': a warm composition keeps every zone (' + (B.zoneMemo ? B.zoneMemo.hits + ' kept, ' + B.zoneMemo.misses + ' sown' : '-') + ')');
+  }
+  // the scripted edits, on the user's rev 26 (its zones, its strips): each composed warm against the memo, and without it
+  const r26 = recs[2][1], W26 = mkW(); PG.compose(r26, W26, { raster: false });
+  const edits = [
+    ['a strip moved 40 m', r => { const w = r.layers.runways.find(q => q.id === 'w5'); w.c = [w.c[0] + 40, w.c[1]]; }],
+    ['a zone corner moved 6 m', r => { const z = r.layers.zones.find(q => q.poly && q.poly.length >= 3 && /^v|^z/.test(q.id)) || r.layers.zones.find(q => q.poly && q.poly.length >= 3); z.poly = z.poly.map((q, i) => i ? q : [q[0] + 6, q[1]]); }],
+    ['a road through a zone moved 4 m', r => { const z = r.layers.zones.find(q => q.poly && q.poly.length >= 3), rd = r.layers.roads.find(q => q.pts && q.pts.some(p => PG.inPoly(z.poly, p[0], p[1]))); if (rd) rd.pts = rd.pts.map(p => [p[0] + 4, p[1]]); }],
+    ['a site moved 10 m', r => { const s = r.layers.sites.find(q => q.at); if (s) s.at = Object.assign({}, s.at, { x: s.at.x + 10 }); }],
+  ];
+  let cur = JSON.parse(JSON.stringify(r26));
+  for (const [what, ed2] of edits) {
+    ed2(cur); const M = PG.compose(cur, W26, { raster: false }), N = PG.compose(cur, mkW(), { raster: false, zoneMemo: false });
+    check(out(M) === out(N), '22 rev 26 after ' + what + ': the memo composes the same plots and trees as none', JSON.stringify(M.zoneMemo));
+  }
+  { const r = JSON.parse(JSON.stringify(cur)); const g0 = PG.compose(r, W26, { raster: false }).zoneMemo.gen; r.seed = (r.seed || 0) + 1;
+    const S = PG.compose(r, W26, { raster: false }).zoneMemo;
+    check(S.gen === g0 + 1 && S.hits === 0, '22 a new seed starts the memo over (a new generation, nothing kept)', JSON.stringify(S));
+    const F = PG.compose(r, mkW(), { raster: false }).zoneMemo;
+    check(F.gen === 1 && F.hits === 0, '22 a new world is a new memo', JSON.stringify(F)); }
+  console.log('     22 the zones\' memo: ' + keptAll + ' of ' + zonesAll + ' zones kept warm over ' + recs.length + ' records, ' + edits.length + ' edits identical (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s)');
+}
+
+// 22b THE STRIPS' PATTERN VIS KEPT (G2961; the renderer never runs in node - source scans, the browser slot is the proof):
+//     a kept strip's group skips the take-down and draws nothing new, a drawn one is filed with its key and its reach, the
+//     rebuild hands the cache its own ground box, the editor closed empties it
+{
+  const RP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check(/if \(keepPV\.has\(c\)\) continue;/.test(RP) && /if \(c && keepPV\.has\(c\.grp\)\) return; \}/.test(RP) && /PVC\.map\.set\(r\.id, \{ key: pvKey\(r, A\), grp, bb:/.test(RP)
+    && /PVC\.box = \(dirty && dirty\.bbox && groundDirty\)/.test(RP) && /PVC\.map\.clear\(\); PVC\.flush = true;/.test(RP) && /window\.FLYDIY_PVCACHE !== false/.test(RP),
+    '22b the strips\' pattern vis: kept by key and ground box, filed when drawn, emptied when the editor closes, ?pvcache=0 / FLYDIY_PVCACHE');
+}
+// 23 A STRIP'S OWN THINGS TAKE A CLICK (G2891 SCENERY-ED-1 c1; the user, 12 Oct, at HOME: "there is a lot I can't displace"):
+//    a press on the club hangar's footprint selects its strip and drags the hangar; on the stand (within 5 m) the stand; a
+//    press on nothing of a strip grabs nothing; a parked aeroplane standing on the stand is picked as the object it is
+{
+  ed.cmd('tool', { name: 'select' }); ed.select(null);
+  const rw = ed.cmd('add', { layer: 'runways', entry: Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { name: 'grab strip', c: [3000, 3000], hdg: 0, len: 500, wid: 20,
+    stand: { x: 3000, z: 3060, hdg: null }, taxiOut: [[3000, 3000]], hangar: { x: 3040, z: 3062, hdg: 0 } }) });
+  ed.select(null);
+  check(ed.cmd('grab', { x: 3051, z: 3068 }) === true && ed.selected === rw, '23 a press on the club hangar\'s footprint selects its strip and grabs it');
+  ed.cmd('dragMove', { x: 3090, z: 3100 }); ed.cmd('dragEnd', {});
+  const hg = find(rw).entry.hangar;
+  check(hg.x === 3090 && hg.z === 3100, '23 ...and the hangar follows the hand', JSON.stringify(hg));
+  ed.select(null);
+  check(ed.cmd('grab', { x: 3002, z: 3061 }) === true && ed.selected === rw, '23 a press on the stand grabs the stand');
+  ed.cmd('dragMove', { x: 3010, z: 3075 }); ed.cmd('dragEnd', {});
+  check(find(rw).entry.stand.x === 3010 && find(rw).entry.stand.z === 3075, '23 ...and the stand follows', JSON.stringify(find(rw).entry.stand));
+  ed.select(null);
+  check(ed.cmd('grab', { x: 3200, z: 3200 }) === false && ed.selected === null, '23 a press on nothing of a strip grabs nothing');
+  const ac = ed.cmd('add', { layer: 'objects', entry: { kind: 'aircraft', key: 'arch:cub', x: 3010, z: 3075, yaw: 0 } });
+  ed.select(null);
+  check(ed.cmd('grab', { x: 3010.5, z: 3075.5 }) === false, '23 a parked aeroplane on the stand is not grabbed through');
+  check(roundTrip(), '23 the record round-trips');
+  ed.cmd('delete', { id: ac }); ed.cmd('delete', { id: rw });
+}
+// 24 A PARKED AEROPLANE BY ITS SIZE (G2891 c3): picked within 6 m x its scale (its drawn bounding radius x 0.85 when the
+//    page has the group) - a wing's click picked nothing at the old 2.5 m; a prop keeps 2.5 m x its scale; the renderer's
+//    hit() and hitAll() read the one rule
+{
+  check(PG.objectPickR({ kind: 'aircraft' }) === 6 && PG.objectPickR({ kind: 'aircraft' }, 10) === 8.5 && PG.objectPickR({ kind: 'prop' }) === 2.5 && PG.objectPickR({ kind: 'prop', s: 2 }) === 5,
+    '24 objectPickR: an aeroplane 6 m (its built radius x 0.85 when known), a prop 2.5 m x its scale');
+  const ac = ed.cmd('add', { layer: 'objects', entry: { kind: 'aircraft', key: 'arch:c172', x: 3500, z: 3500, yaw: 0 } });
+  const top = R.hitAll(...(() => { const w = R.overlay.frame.toWorld(3504.5, 3500); return [w[0], w[1]]; })())[0];
+  check(top && top.id === ac, '24 a click 4.5 m out on a parked aeroplane\'s wing picks it');
+  const RPs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check((RPs.match(/d < pickR\(ob\)/g) || []).length === 2 && /PG\.objectPickR\(ob, g \? g\.userData\.pickR : undefined\)/.test(RPs) && /objectEdit, hitAll, grabAt,/.test(RPs), '24 the renderer\'s hit() and hitAll() pick by pickR; grabAt is published');
+  ed.cmd('delete', { id: ac });
+}
+// 25 EVERY SITE CATEGORY HAS ITS PILL (G2891; the user, 12 Oct: "there are many categories of sites that the filters do
+//    not cover"): the SITES palette's category pills are the theme's AND every category the catalogue's entries carry -
+//    the airfield's 'airport xs / s / m' (19 entries of the real catalogue) were reachable only under 'all'
+{
+  const E = new Map([['house/cottage', { key: 'house/cottage', cat: 'residential' }], ['tower/field cab', { key: 'tower/field cab', cat: 'airport xs' }],
+    ['hangar/club hangar', { key: 'hangar/club hangar', cat: 'airport s' }], ['totem/park', { key: 'totem/park', kind: 'park' }]]);
+  const catStub = { entries: E, keys: () => Array.from(E.keys()), byCat: c => Array.from(E.values()).filter(e => (e.cat || (e.kind === 'park' ? 'landmark' : null)) === c), byTag: () => [] };
+  let pills = null;
+  const rows25 = Object.assign({}, rows, { pills: (h, t, opts) => { if (t === 'category') pills = opts.map(o => o[0]); } });
+  const ed25 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows25, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop, catalogue: catStub });
+  ed25.setSection('sites');
+  check(pills && pills.indexOf('airport s') >= 0 && pills.indexOf('airport xs') >= 0 && pills.indexOf('residential') >= 0 && pills[0] === 'all', '25 the SITES palette has a pill for every category the catalogue carries', JSON.stringify(pills));
+  check(pills && pills.indexOf('airport s') > pills.indexOf('sports'), '25 the theme\'s categories first, the catalogue\'s others after');
+  ed25.close();
 }
 
 // 5 NAMES

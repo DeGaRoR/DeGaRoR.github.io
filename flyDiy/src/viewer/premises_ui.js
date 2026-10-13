@@ -863,9 +863,25 @@ function mount(host, ctx) {
         if (ctrlEdit(selected, L, h)) { swallowClick = true; return true; }
         return false;
       }
-      return startDrag(h, !!ev.altKey);
+      if (startDrag(h, !!ev.altKey)) return true;
     }
+    // G2891 (c1): a press on a strip's club hangar or its stand grabs it - the strip selected, that handle in the hand
+    if (tool === 'select' && T.state !== 'drawing' && !(ev.ctrlKey || ev.metaKey)) { const g = ctx.ground(ev.clientX, ev.clientY); if (g && grabStrip(g, !!ev.altKey)) return true; }
     return false;
+  }
+  // G2891 (SCENERY-ED-1 c1; the user, 12 Oct: "there is a lot I can't displace" at HOME): the club hangar and the stand are a
+  // strip's own fields, moved by its discs once the strip is selected - the building itself took no click. A press on one
+  // (R.grabAt: PG.runwayGrab, the hangar's footprint, the stand within 5 m) selects its strip and starts that handle's drag,
+  // unless a placed object (a parked aeroplane on the stand) is under the press - the object is picked as before
+  function grabStrip(g, alt) {
+    if (!R.grabAt) return false;
+    const gb = R.grabAt(g[0], g[2]); if (!gb) return false;
+    const top = R.hitAll ? R.hitAll(g[0], g[2])[0] : null;
+    if (top && top.kind === 'object') return false;
+    if (selected !== gb.id) select(gb.id);
+    if (!startDrag({ id: gb.id, key: gb.key, index: 0 }, alt)) return false;
+    strip.status((gb.key === 'hangar' ? 'the club hangar' : 'the stand') + ' of ' + gb.id + ' - drag it (the door\'s heading is a row of the strip\'s inspector)');
+    return true;
   }
   // a drag begins on a handle of the selected feature (the mouse's, or a script's by key)
   function startDrag(h, alt) {
@@ -1299,12 +1315,13 @@ function mount(host, ctx) {
     }
     if (layer === 'terrain') {
       if (e.kind === 'flatten') {
-        rows.slider(insp, 'level (m)', -40, 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, 'level (m)', -40, e.abs ? 1500 : 80, 0.1, () => e.level,   // (G3019 (2): an absolute level is a height - the user's up to 709 m)
+          v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
         rows.check(insp, 'absolute height', () => !!e.abs, v => ed(x => { x.abs = v; }, 'absolute ' + id));
       } else if (e.kind === 'raise') rows.slider(insp, 'lift (m)', -30, 30, 0.1, () => e.dh, v => ed(x => { x.dh = v; }, 'lift of ' + id, 'dh'), v => (v >= 0 ? '+' : '') + v.toFixed(1) + ' m');
       else if (e.kind === 'ramp') {
         if (e.slope === undefined || e.slope === null) { const c = PG.polyCentroid(e.poly), pl = e.plane || [0, 0, 0]; e.level = +(pl[0] * c[0] + pl[1] * c[1] + pl[2]).toFixed(2); e.slope = +Math.hypot(pl[0], pl[1]).toFixed(4); e.hdg = +(Math.atan2(pl[0], pl[1]) * 180 / Math.PI).toFixed(0); }
-        rows.slider(insp, 'height at the middle (m)', -40, 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, 'height at the middle (m)', -40, e.abs ? 1500 : 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
         rows.slider(insp, 'slope (%)', 0, 15, 0.1, () => (e.slope || 0) * 100, v => ed(x => { x.slope = v / 100; }, 'slope of ' + id, 'slope'), v => v.toFixed(1) + ' %');
         rows.slider(insp, 'rising toward (°)', 0, 360, 1, () => ((e.hdg || 0) + 360) % 360, v => ed(x => { x.hdg = v; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
         rows.check(insp, 'absolute height', () => !!e.abs, v => ed(x => { x.abs = v; }, 'absolute ' + id));
@@ -1456,12 +1473,16 @@ function mount(host, ctx) {
         const np = (R.plots ? R.plots() : []).filter(p => p.zone === id).length;
         rows.note(insp, np + ' plot' + (np === 1 ? '' : 's') + ' sown' + (np ? '' : ' — trace a road through the zone'));
       } else rows.note(insp, 'no tree grows here');
-      rows.slider(insp, 'seed', 1, 99, 1, () => (e.seed === null || e.seed === undefined) ? 0 : e.seed, v => ed(x => { x.seed = v; }, 'seed of ' + id, 'seed'), v => (v ? String(v) : 'auto'));
+      rows.slider(insp, 'seed', 0, 99, 1, () => (e.seed === null || e.seed === undefined) ? 0 : e.seed,   // (G3019 (2): 0 is 'auto', every zone's)
+        v => ed(x => { x.seed = v; }, 'seed of ' + id, 'seed'), v => (v ? String(v) : 'auto'));
       rows.button(insp, 're-sow (new seed)', () => ed(x => { x.seed = 1 + Math.floor(Math.random() * 98); }, 're-sow ' + id));
     } else if (layer === 'runways') {
       const nm = $('input', { type: 'text', value: e.name || '' }); nm.className = 'pr-name'; nm.onchange = () => ed(x => { x.name = nm.value; }, 'name of ' + id); insp.appendChild(nm);
+      numRow(insp, 'centre x (m)', () => e.c[0], v => ed(x => { x.c = [+v.toFixed(2), x.c[1]]; }, 'centre of ' + id, 'cx'), metres);
+      numRow(insp, 'centre z (m)', () => e.c[1], v => ed(x => { x.c = [x.c[0], +v.toFixed(2)]; }, 'centre of ' + id, 'cz'), metres);
       rows.slider(insp, 'length (m)', 150, 3000, 5, () => e.len, v => ed(x => { x.len = v; }, 'length of ' + id, 'len'), v => v.toFixed(0) + ' m');
-      rows.slider(insp, 'width (m)', 8, 45, 1, () => e.wid, v => ed(x => { x.wid = v; }, 'width of ' + id, 'wid'), v => v.toFixed(0) + ' m');
+      rows.slider(insp, 'width (m)', 8, 300, 1, () => e.wid,   // (G3019 (2): a water lane is 200 m wide)
+        v => ed(x => { x.wid = v; }, 'width of ' + id, 'wid'), v => v.toFixed(0) + ' m');
       rows.slider(insp, 'heading (°)', -180, 180, 1, () => e.hdg * 180 / Math.PI, v => ed(x => { x.hdg = v * Math.PI / 180; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
       // THE LOOK (v9): what the strip is drawn as; picking one proposes the class the wheels feel, which
       // the surface row below may still overrule (a paved look on a grass class is a painted strip)
@@ -1538,6 +1559,8 @@ function mount(host, ctx) {
       else rows.note(insp, 'the pattern is the DERIVED one (two holds 110 m in); touch a hold and it becomes yours');
     } else if (layer === 'sites') {
       const nm = $('input', { type: 'text', value: e.name || '' }); nm.className = 'pr-name'; nm.onchange = () => ed(x => { x.name = nm.value; }, 'name of ' + id); insp.appendChild(nm);
+      numRow(insp, 'x (m)', () => e.at.x, v => ed(x => { x.at = Object.assign({}, x.at, { x: +v.toFixed(2) }); }, 'place of ' + id, 'atx'), metres);
+      numRow(insp, 'z (m)', () => e.at.z, v => ed(x => { x.at = Object.assign({}, x.at, { z: +v.toFixed(2) }); }, 'place of ' + id, 'atz'), metres);
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.at.yaw || 0) * 180 / Math.PI, v => ed(x => { x.at.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
       const items = e.items || [];
       rows.note(insp, items.length + ' item' + (items.length === 1 ? '' : 's') + ' - the faint discs move each in the site\'s frame; the bright one moves the site whole');
@@ -1563,6 +1586,8 @@ function mount(host, ctx) {
         insp.appendChild(d);
         if (!open) continue;
         if (ctx.catalogue) rows.select(insp, 'building', ctx.catalogue.keys().map(k => [k, labelOf(k)]), () => it.key, v => ed(x => { x.items.find(q => q.id === it.id).key = v; }, 'building of ' + it.id));
+        numRow(insp, 'x in the site (m)', () => it.x || 0, v => ed(x => { x.items.find(q => q.id === it.id).x = +v.toFixed(2); }, 'place of ' + it.id, 'ix:' + it.id), metres);
+        numRow(insp, 'z in the site (m)', () => it.z || 0, v => ed(x => { x.items.find(q => q.id === it.id).z = +v.toFixed(2); }, 'place of ' + it.id, 'iz:' + it.id), metres);
         rows.slider(insp, 'turn (°)', -180, 180, 1, () => (it.yaw || 0) * 180 / Math.PI, v => ed(x => { x.items.find(q => q.id === it.id).yaw = v * Math.PI / 180; }, 'turn of ' + it.id, 'yaw:' + it.id), v => v.toFixed(0) + '°');
         // (v1.35, G2890) the lot's ground under it: drawn (never under the water line), or the island's own
         rows.check(insp, 'its lot\'s ground drawn', () => !(it.P && it.P.plotGround === false), v => ed(x => { const q = x.items.find(o => o.id === it.id); q.P = Object.assign({}, q.P); if (v) delete q.P.plotGround; else q.P.plotGround = false; }, 'lot ground of ' + it.id));
@@ -1583,6 +1608,10 @@ function mount(host, ctx) {
     } else if (layer === 'objects' && (e.kind === 'prop' || e.kind === 'billboard' || e.kind === 'aircraft')) {
       const keys = objectKeys(e.kind, rec);
       if (keys.length) rows.select(insp, e.kind, keys, () => e.key, v => ed(x => { x.key = v; }, e.kind + ' of ' + id));
+      numRow(insp, 'x (m)', () => e.x, v => ed(x => { x.x = +v.toFixed(2); }, 'place of ' + id, 'x'), metres);
+      numRow(insp, 'z (m)', () => e.z, v => ed(x => { x.z = +v.toFixed(2); }, 'place of ' + id, 'z'), metres);
+      numRow(insp, 'x (m)', () => e.x, v => ed(x => { x.x = +v.toFixed(2); }, 'place of ' + id, 'x'), metres);
+      numRow(insp, 'z (m)', () => e.z, v => ed(x => { x.z = +v.toFixed(2); }, 'place of ' + id, 'z'), metres);
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
       if (e.kind === 'prop') {
         rows.slider(insp, 'lift (m)', -1, 3, 0.05, () => e.dy || 0, v => ed(x => { x.dy = v; }, 'lift of ' + id, 'dy'), v => v.toFixed(2));
@@ -1598,6 +1627,8 @@ function mount(host, ctx) {
       const pool = ctx.pool ? ctx.pool() : [];
       if (pool.length) rows.select(insp, 'species', pool.map(p => [p.key, p.key.replace(/\.glb\|/, ' · ').slice(0, 30)]), () => e.key, v => ed(x => { x.key = v; }, 'species of ' + id));
       rows.slider(insp, 'size', 0.4, 1.8, 0.02, () => e.size || 1, v => ed(x => { x.size = v; }, 'size of ' + id, 'size'));
+      numRow(insp, 'x (m)', () => e.x, v => ed(x => { x.x = +v.toFixed(2); }, 'place of ' + id, 'x'), metres);
+      numRow(insp, 'z (m)', () => e.z, v => ed(x => { x.z = +v.toFixed(2); }, 'place of ' + id, 'z'), metres);
       rows.slider(insp, 'turn (°)', 0, 360, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
     }
     shapeRows(e, id);
@@ -1616,6 +1647,8 @@ function mount(host, ctx) {
     } else if (PG.rectOk(e.rect)) {
       const Q = e.rect, setQ = (patch, label, key) => ed(x => { x.rect = Object.assign({}, x.rect, patch); x.poly = PG.rectPoly(x.rect); }, label + ' of ' + id, key);
       rows.section(insp, 'SHAPE · RECTANGLE');
+      numRow(insp, 'centre x (m)', () => Q.c[0], v => setQ({ c: [+v.toFixed(2), Q.c[1]] }, 'centre', 'qcx'), metres);
+      numRow(insp, 'centre z (m)', () => Q.c[1], v => setQ({ c: [Q.c[0], +v.toFixed(2)] }, 'centre', 'qcz'), metres);
       rows.slider(insp, 'length (m)', 3, 400, 0.5, () => 2 * Q.hw, v => setQ({ hw: v / 2 }, 'length', 'qw'), v => v.toFixed(1) + ' m');
       rows.slider(insp, 'width (m)', 3, 400, 0.5, () => 2 * Q.hd, v => setQ({ hd: v / 2 }, 'width', 'qd'), v => v.toFixed(1) + ' m');
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (+Q.yaw || 0) * 180 / Math.PI, v => setQ({ yaw: +(v * Math.PI / 180).toFixed(4) }, 'turn', 'qy'), v => v.toFixed(0) + '°');
@@ -1731,7 +1764,8 @@ function mount(host, ctx) {
       rows.pills(insp, 'kind', [['flatten', 'flat', 'the ground inside at one level'], ['raise', 'raise / lower', 'the ground lifted or dropped by a height'], ['ramp', 'slope', 'a constant slope through a height at the middle']], () => t.kind,
         v => edT(q => { const lv = medianLevel(poly); if (v === 'flatten') { q.kind = 'flatten'; if (!isFinite(+q.level)) q.level = lv; delete q.dh; } else if (v === 'raise') { q.kind = 'raise'; if (!isFinite(+q.dh)) q.dh = 2; } else { q.kind = 'ramp'; if (!isFinite(+q.level)) q.level = lv; if (!isFinite(+q.slope)) q.slope = 0.02; if (!isFinite(+q.hdg)) q.hdg = 0; } }, 'terraform'));
       if (t.kind === 'flatten' || t.kind === 'ramp') {
-        rows.slider(insp, t.kind === 'ramp' ? 'height at the middle (m)' : 'level (m)', -40, 80, 0.1, () => +t.level || 0, v => edT(q => { q.level = v; }, 'level', 'level'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, t.kind === 'ramp' ? 'height at the middle (m)' : 'level (m)', -40, t.abs ? 1500 : 80, 0.1, () => +t.level || 0,   // (G3019 (2): absolute = a height, a29 530.6 m)
+          v => edT(q => { q.level = v; }, 'level', 'level'), v => v.toFixed(1) + ' m');
         rows.check(insp, 'absolute height', () => !!t.abs, v => edT(q => { q.abs = v; }, 'absolute'));
         rows.button(insp, 'level to the ground under it (its median)', () => edT(q => { q.level = medianLevel(poly); q.abs = false; }, 'level'));
       }
@@ -1865,7 +1899,11 @@ function mount(host, ctx) {
   // its generator's word); 'all' lists the whole catalogue - and the site themes the theme tool stands
   function sitesPalette(P) {
     if (!ctx.catalogue) { rows.note(P, 'no catalogue - no generator loaded'); return; }
-    const TH = PG.themeOf(rec), cats = TH.categories || PG.CATEGORIES;
+    // G2891 (the user, 12 Oct: "there are many categories of sites that the filters do not cover"): the theme's categories,
+    // then every category the catalogue's entries carry that the theme does not name (the airfield's 'airport xs / s / m':
+    // the pilot hut, the field sheds, the club hangars, the towers, the terminal - 19 entries only 'all' reached)
+    const TH = PG.themeOf(rec), cats = (TH.categories || PG.CATEGORIES).slice();
+    { const extra = new Set(); const E = ctx.catalogue.entries; if (E && E.forEach) E.forEach(en => { if (en && en.cat && cats.indexOf(en.cat) < 0) extra.add(en.cat); }); for (const c of Array.from(extra).sort()) cats.push(c); }
     const keysOf = c => (c === 'all' ? ctx.catalogue.keys() : ctx.catalogue.byCat(c).map(q => q.key));
     const nOf = c => keysOf(c).length;
     if (!PALETTE_CAT || (PALETTE_CAT !== 'all' && !nOf(PALETTE_CAT))) PALETTE_CAT = cats.find(c => nOf(c)) || 'all';
@@ -2111,6 +2149,9 @@ function mount(host, ctx) {
       rows.note(d2, 'the declared width is the drawn width whatever the surface; the side is drawn outside it (its width past the edge zone, from its alpha)');
     }
   }
+  // (G3018, the user: 'I need to be able to manually input a figure') a typed number with no slider - the host's, when it has one
+  const numRow = (p, label, get, set, fmt) => (rows.number ? rows.number(p, label, get, set, fmt) : null);
+  const metres = v => (+v).toFixed(1) + ' m';
   function viewRows(P) {
     rows.section(P, 'VIEW');
     if (ctx.cameras) rows.select(P, 'camera', [['orbit', 'orbit (right-drag)'], ['map', 'map (top-down)']].concat(ctx.cameras.flyOk && ctx.cameras.flyOk() ? [['fly', 'fly (WASD / ZQSD, R / F, right-drag looks)']] : []), () => ctx.cameras.mode(), v => { ctx.cameras.set(v); palette.refresh(); });
@@ -2244,6 +2285,8 @@ function mount(host, ctx) {
       }
       // G1400: the drag in its three beats, for a bench that times the hand's moves apart from its release
       // (tools/perf/editor_lag.js): the same startDrag / moveDrag / onUp the mouse runs, the ground point given
+      // G2891: a press at a premises point on a strip's own things (the club hangar, the stand) - what the mouse's does
+      if (name === 'grab') { const w = R.overlay.frame.toWorld(args.x, args.z); return grabStrip([w[0], R.heightAt(w[0], w[1]), w[1]], !!args.alt); }
       if (name === 'dragStart') { if (!selected) throw new Error('premises: nothing selected'); const h = R.handles(selected).find(q => q.key === args.key); if (!h) return false; return startDrag({ id: selected, key: h.key, index: +(h.key.slice(1)) || 0, mid: h.key[0] === 'm' }); }
       if (name === 'dragMove') { if (!drag) return false; const w = R.overlay.frame.toWorld(args.x, args.z); return moveDrag([w[0], R.heightAt(w[0], w[1]), w[1]]); }
       if (name === 'dragEnd') return onUp();

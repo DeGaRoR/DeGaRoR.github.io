@@ -23,7 +23,7 @@
 // 74_career.js at call time.
 // ===========================================================================
 
-// ---- THE FIELDS (the 8 runways of Jolene; GATE CONTRACTS holds every row to the record) -------------------
+// ---- THE FIELDS (the 12 runways of Jolene; GATE CONTRACTS holds every row to the record) -------------------
 //   x, z     the strip's centre (the record's `c`, metres) — distances are centre to centre
 //   len      the strip's length (m); surf the vocabulary word (25_airfield.js stripSurface)
 //   alti     an altiport (the record's `altiport`): sloped, high, a surface bonus
@@ -32,8 +32,8 @@
 //   glide    the record's glideslope lights (`papi`): 'vasi' (Jolene AFB's two-bar VASI) | 'papi'; absent: none
 const CONTRACT_FIELDS = {
   HOME:     { id: 'HOME',     name: 'Jolene AFB 13/31',         x: -301,  z: 221,    len: 2325, surf: 'concrete', lit: true, glide: 'vasi' },
-  w2:       { id: 'w2',       name: 'Jolene AFB 02/20',         x: 584,   z: -94,    len: 1835, surf: 'concrete', lit: true },
-  w3:       { id: 'w3',       name: 'Tamgas Hill Strip',        x: -800,  z: -2400,  len: 520,  surf: 'gravel', lit: true, glide: 'papi' },
+  w2:       { id: 'w2',       name: 'Jolene AFB 02/20',         x: 599,   z: -130,   len: 1758, surf: 'concrete', lit: true, glide: 'papi' },   // (rev 28: the user moved, shortened it, gave it a PAPI)
+  w3:       { id: 'w3',       name: 'Tamgas Hill Strip',        x: -811,  z: -2397,  len: 543,  surf: 'gravel', lit: true, glide: 'papi' },   // (rev 28: moved)
   SEA:      { id: 'SEA',      name: 'Annette Dock',             x: 361,   z: -3661,  len: 1500, surf: 'water', lit: false },
   mk_sea:   { id: 'mk_sea',   name: 'Metlakatla Seaplane Base', x: -3980, z: -9420,  len: 1500, surf: 'water', lit: false },
   mn_strip: { id: 'mn_strip', name: 'Jumbo Mine Street',        x: 7250,  z: -15429, len: 250,  surf: 'gravel', lit: true },
@@ -43,6 +43,9 @@ const CONTRACT_FIELDS = {
   w5:       { id: 'w5',       name: 'strip 10',                 x: 3055,  z: -2837,  len: 310,  surf: 'gravel', lit: true, glide: 'papi' },
   w6:       { id: 'w6',       name: 'strip 11',                 x: -4172, z: -22110, len: 312,  surf: 'gravel', lit: true },
   w7:       { id: 'w7',       name: 'strip 12',                 x: -3554, z: -23721, len: 1020, surf: 'dirt', lit: true },   // (rev 27: the user's North East strip)
+  // (G3020, rev 28: 'I have fixed the altiports ... I have added a few runways; they need integrating in the trunk')
+  // (w4 'strip 9' held back until the profile tool - over the altiport law, train 53)
+  w8:       { id: 'w8',       name: 'strip 13',                 x: 4361,  z: -16251, len: 392,  surf: 'sand', lit: true },
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
