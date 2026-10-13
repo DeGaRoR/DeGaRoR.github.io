@@ -3882,8 +3882,9 @@ function applyDecals() {
 var decFitStale = true, decFitBox = null;
 function decFitScan(A) {
   const S = (typeof window !== 'undefined') && window.CAGE_UI_SCENE;
-  if (!S || typeof THREE === 'undefined' || !A.aeroDecUniforms) return null;
-  const CI = A.aeroDecUniforms(THREE).uCraftInv.value;
+  // aeroSharedU: the name the PAGE exports (aeroDecUniforms is only its internal alias - the 04:15 run found the fit dead)
+  if (!S || typeof THREE === 'undefined' || !A.aeroSharedU) return null;
+  const CI = A.aeroSharedU(THREE).uCraftInv.value;
   // [class 0 body, 1 wing, 2 tail][mode 0 field, 1 side, 2 plan] = lo/hi x2
   const box = [0, 1, 2].map(() => [0, 1, 2].map(() => [1e9, -1e9, 1e9, -1e9]));
   const ext = (b, x, y) => { if (x < b[0]) b[0] = x; if (x > b[1]) b[1] = x;

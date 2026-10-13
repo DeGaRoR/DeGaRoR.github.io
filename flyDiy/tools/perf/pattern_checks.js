@@ -29,7 +29,7 @@ const CLASSIFY = `const cls = d => { let red = 0, grn = 0, yel = 0, n = d.length
     return { red: +(red / n).toFixed(4), green: +(grn / n).toFixed(4), yellow: +(yel / n).toFixed(4) }; };`;
 // THE AIM, in the craft frame the decals use (x lateral, y aft, z up, metres; uCraftInv inverted): the centre of one
 // surface class's meshes (0 body, 1 wing, 2 tail; -1 all) plus an eye and a look-at offset
-const aim = (cls, eye, at) => `const CI = AEROSKIN.aeroDecUniforms(THREE).uCraftInv.value;
+const aim = (cls, eye, at) => `const CI = AEROSKIN.aeroSharedU(THREE).uCraftInv.value;
   const M3 = new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().copy(CI).invert());
   const S = window.CAGE_UI_SCENE; S.updateWorldMatrix(true, true); const bb = new THREE.Box3();
   S.traverse(o => { if (!o.isMesh || !o.visible || !o.geometry) return; const ms = Array.isArray(o.material) ? o.material : [o.material];
@@ -75,12 +75,13 @@ const FADE_FLANK = { On: 1, Pat: 'fade', A: RED, Clr: 2, P: 0, Q: 0.05, R: 0.8, 
   await until(`window.BOOT && BOOT.state === 'gone' && window.FLIGHT_PROBE && window.CAGE_UI && window.AEROSKIN`, 600000, 'the garage boot');
   await run(`[...document.querySelectorAll('button')].filter(b => /keep the current build/i.test(b.textContent)).forEach(b => b.click()); return 1;`);
   await sleep(3000);
-  log.build = await run(`const s = GARAGE_SPEC.get(); return { reg: s.meta && s.meta.reg, kit: AEROSKIN.AERO_KIT.map(k => k.name), decN0: AEROSKIN.aeroDecUniforms(THREE).uDecN.value };`);
+  log.build = await run(`const s = GARAGE_SPEC.get(); return { reg: s.meta && s.meta.reg, kit: AEROSKIN.AERO_KIT.map(k => k.name), decN0: AEROSKIN.aeroSharedU(THREE).uDecN.value };`);
   await run(`window.__f0 = JSON.stringify(CAGE_UI.finishToSpec()); return 1;`);
   try {
     if (STEPS.includes('render')) log.before = await measureAll();
-    if (STEPS.includes('fit')) log.fitSun = await paint([SUN_TAIL, SUN_WING, FADE_FLANK]);
-    else await paint([SUN_TAIL, SUN_WING, FADE_FLANK]);
+    const SET = STEPS.includes('nofade') ? [SUN_TAIL, SUN_WING] : [SUN_TAIL, SUN_WING, FADE_FLANK];   // nofade: the rays alone (the repaint's red share)
+    if (STEPS.includes('fit')) log.fitSun = await paint(SET);
+    else await paint(SET);
     await frames(20);
     if (STEPS.includes('atlas')) log.atlas = await run(`const A = AEROSKIN, cv = A.aeroAtlas(THREE).image, N = A.AERO_ATLAS_N, P = cv.width / N;
       const page = p => cv.getContext('2d').getImageData((p % N) * P, Math.floor(p / N) * P, P, P);
@@ -90,7 +91,7 @@ const FADE_FLANK = { On: 1, Pat: 'fade', A: RED, Clr: 2, P: 0, Q: 0.05, R: 0.8, 
         const n = P * P; return { clear: +(z / n).toFixed(3), opaque: +(o / n).toFixed(3), alphaByFifth: col.map(s => Math.round(s / (n / 5))) }; };
       const out = { px: P, sunTail: st(3), sunWing: st(4), fade: st(5) };
       // a knob drag's cost: one page redraw (the draw + the dilation), each pattern, signature forced
-      const L = A.aeroKitLayers(A.aeroDecalMerge({ finish: CAGE_UI.finishToSpec() }));
+      const dd = (CAGE_UI.finishToSpec() || {}).decals || {}, D = Object.assign({}, A.AERO_DEC_DEF); for (const k in dd) if (dd[k] != null) D[k] = dd[k]; const L = A.aeroKitLayers(D);
       out.redrawMs = {};
       for (const nm of ['cheat line', 'fade', 'gradient', 'sunburst']) {
         const l = Object.assign({}, L[0], { pat: A.AERO_KIT.findIndex(k => k.name === nm), p: null, q: null });
@@ -121,7 +122,7 @@ const FADE_FLANK = { On: 1, Pat: 'fade', A: RED, Clr: 2, P: 0, Q: 0.05, R: 0.8, 
     await until(`window.BOOT && BOOT.state === 'gone' && /Fly the circuit/.test((document.getElementById('bGo') || {}).textContent || '') && window.FLIGHT_PROBE && FLIGHT_PROBE.model()`, 900000, 'the roll-out');
     await frames(60); await sleep(2500); await overlayGone();
     await run(`if (document.getElementById('bPause') && !window.FLYDIY_HELD) document.getElementById('bPause').click(); FLIGHT_PROBE.camMode('orbit'); return 1;`);
-    log.flight = { decN: await run(`return AEROSKIN.aeroDecUniforms(THREE).uDecN.value;`) };
+    log.flight = { decN: await run(`return AEROSKIN.aeroSharedU(THREE).uDecN.value;`) };
     for (const [k, t] of [['bake', 0], ['live', 1]]) {
       await run(`FLOWN_BAKE.FB.hyForce = ${t}; FLIGHT_PROBE.camSet(2.4, 0.32, 9.5); return 1;`);
       await frames(30); await sleep(600);
