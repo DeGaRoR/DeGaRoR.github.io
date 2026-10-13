@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 3405bc0ecb8a4da5
+// body-sha256: c9a953f75e35bc40
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -9148,6 +9148,37 @@ function frameOf(rec, world) {
   return { anchor: a, toWorld, toLocal, y0, worldId: wid, yaw: a.yaw || 0, c, s };
 }
 
+// THE ZONES' MEMO (G2960 RUNWAY-ED-PERF; the user: "editing the runways is the worst lag"; the profile, 12 Oct: a strip moved
+// 2 m paid the island's plot sowing and forest planting again - 0.9 s of the 1.1 s - for zones it never came near). A zone's
+// plots (sowPlots) and its wood (planForest) are KEPT from the previous composition when an EXACT key matches: the zone and
+// every input the sower / planter reads that meets the zone's box (+ ZMEMO_M): the roads (id, points, width), the tree
+// excludes, the keep-outs, the plots (and trees) sown before it, the ground's modifiers in their apply order (source + base),
+// the water level, the seed, the planter's pool. Both are pure (their randomness seeded per zone and road), so a hit is the
+// same answer by construction. ONE MEMO A WORLD (a reload starts empty) AND A GENERATION: the seed, the theme, the catalogue,
+// the trees' mode and the raster flag in its signature - any change starts it over (A0). ?zonememo=0 / FLYDIY_ZONEMEMO =
+// false / env FLYDIY_ZONEMEMO=0 / opts.zoneMemo false: every zone sown as before. O.zoneMemo = { gen, hits, misses }.
+const ZMEMO = typeof WeakMap !== 'undefined' ? new WeakMap() : null, ZMEMO_M = 20;
+const zmClone = typeof structuredClone === 'function' ? v => structuredClone(v) : v => JSON.parse(JSON.stringify(v));
+function zoneMemoOf(world, o, sig) {
+  if (!ZMEMO || !world || typeof world !== 'object' || (o && o.zoneMemo === false)) return null;
+  if (typeof window !== 'undefined' && (window.FLYDIY_ZONEMEMO === false || /[?&]zonememo=0(&|$)/.test((window.location && window.location.search) || ''))) return null;
+  if (typeof process !== 'undefined' && process.env && process.env.FLYDIY_ZONEMEMO === '0') return null;
+  let M = ZMEMO.get(world);
+  if (!M || M.sig !== sig) { M = { sig, gen: M ? M.gen + 1 : 1, sow: new Map(), forest: new Map() }; ZMEMO.set(world, M); }
+  M.hits = 0; M.misses = 0; M.seen = new Set();
+  return M;
+}
+// the memo's answer for a zone (kind 'sow' | 'forest'): the kept output when the key matches, else run() and keep it
+function zoneMemoRun(M, kind, id, keyOf, run) {
+  if (!M) return run();
+  let key = null; try { key = keyOf(); } catch (e) { key = null; }   // (an input that will not serialise: no memo for it)
+  const T = M[kind], had = T.get(id); M.seen.add(kind + ':' + id);
+  if (key !== null && had && had.key === key) { M.hits++; return zmClone(had.out); }
+  const out = run(); M.misses++;
+  if (key !== null) T.set(id, { key, out: zmClone(out) }); else T.delete(id);
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // THE SOWER — makePlots' loop, generalised: every road inside the zone, both
 // sides, the water side named by the ground, the fold test, the back-in
@@ -9427,7 +9458,7 @@ const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge
 // `hard` (the user's call, default 0): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
 // shoulder polygons (y_sh*: 46 m beside 13/31 and 02/20) and the declared strip box's margin, drawn as the island's ground since
 // G660. 1 grows the cut grass there (the eye's WYSIWYG); the surface itself (friction) is not touched. Read by the viewer's okAt.
-const GRASS_SIDES_DEF = { law: 'sides', sideClear: PAVE_SIDE, softClear: 0.3, mowBand: 15, mowBlend: 4, roadMow: 2, stripGrass: 1, hard: 0 };
+const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 6, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 0 };   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
 const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
 function grassSides(o) {
   if (o && typeof o === 'object') for (const k in o) {
@@ -9663,6 +9694,34 @@ function plotWorld(p, F) {
     if (Array.isArray(p.taxiOut1) && p.taxiOut1.length) o.taxiOut1 = p.taxiOut1.map(W).map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]);
   }
   return o;
+}
+// WHAT A CLICK ON A STRIP'S OWN THINGS GRABS (G2891 SCENERY-ED-1 c1; the user, 12 Oct, reworking HOME: "there is a lot I
+// can't displace"): the club hangar and the stand are fields of the runway record (`hangar`, `stand`), moved by the strip's
+// discs once the strip is selected - a click on the BUILDING itself picked nothing (it is no record of its own). Given a
+// point in the premises frame: { id, key: 'hangar' | 'stand', d } of the nearest one under it (the hangar: inside its
+// footprint, HANGAR_DIMS round its door's heading, either way about - HW / HD are half sizes; the stand: within 5 m),
+// or null. The editor selects that strip and starts that handle's drag; scripts and the gates read it too.
+function runwayGrab(rec, lx, lz) {
+  let best = null;
+  for (const r of (rec && rec.layers && rec.layers.runways) || []) {
+    const h = r.hangar;
+    if (h && isFinite(+h.x) && isFinite(+h.z)) {
+      const a0 = +h.hdg || 0, dx = lx - h.x, dz = lz - h.z, a = dx * Math.cos(a0) + dz * Math.sin(a0), b = -dx * Math.sin(a0) + dz * Math.cos(a0);
+      const W = HANGAR_DIMS.HW, D = HANGAR_DIMS.HD;
+      if ((Math.abs(a) <= D && Math.abs(b) <= W) || (Math.abs(a) <= W && Math.abs(b) <= D)) { const d = Math.hypot(dx, dz); if (!best || d < best.d) best = { id: r.id, key: 'hangar', d }; }
+    }
+    const st = r.stand;
+    if (st && isFinite(+st.x) && isFinite(+st.z)) { const d = Math.hypot(lx - st.x, lz - st.z); if (d <= 5 && (!best || d < best.d)) best = { id: r.id, key: 'stand', d }; }
+  }
+  return best;
+}
+// HOW FAR FROM A PLACED OBJECT A CLICK STILL PICKS IT (G2891 c3): 2.5 m x its scale, as the pick cycle had it - but a
+// parked AEROPLANE spans 9-12 m, and a click on its wing missed it; its built size (`built`, the drawn group's bounding
+// radius when the page has it) or 6 m x its scale for an aeroplane
+function objectPickR(ob, built) {
+  const s = Math.max(1, +(ob && ob.s) || 1);
+  if (ob && ob.kind === 'aircraft') return Math.max(2.5 * s, isFinite(+built) && +built > 0 ? 0.85 * +built : 6 * s);
+  return 2.5 * s;
 }
 function runwaySite(r, F) {
   const W = q => F.toWorld(q[0], q[1]);
@@ -11779,6 +11838,23 @@ function compose(rec0, world, opts) {
     // (G2918: a road's clearing keeps the TREES and the grass out, never the plots a zone sows along it - the forest's planting
     // takes it below, the sower does not)
     const ctx = { T: O.localH, waterY, waterAt, seed: rec.seed, excludes: excl.filter(e => e.what.indexOf('trees') >= 0 && !e.roadClear).map(e => e.poly), plots: O.records.plots, keepOut: excl.filter(e => e.what.indexOf('plots') >= 0).map(e => e.poly) };
+    // (G2960) the zones' memo for this composition, and the key of a zone's inputs (see zoneMemoOf)
+    const ZM = zoneMemoOf(world, o, JSON.stringify([rec.seed, themeOf(rec), Object.keys(catS || {}).sort().join(), o.rwyTrees || null, !!o.raster, typeof STAGE_V !== 'undefined' ? STAGE_V : 0]));
+    const zmApart = (a, b) => a.x1 < b.x0 || b.x1 < a.x0 || a.z1 < b.z0 || b.z1 < a.z0;
+    const zmBoxOf = (pts, pad) => { const b = polyBBox(pts); return { x0: b.x0 - pad, z0: b.z0 - pad, x1: b.x1 + pad, z1: b.z1 + pad }; };
+    const zmKey = (z, c, rds, forest) => {
+      const B = zmBoxOf(z.poly, ZMEMO_M), meets = (pts, pad) => !!(pts && pts.length) && !zmApart(zmBoxOf(pts, pad || 0), B);
+      const G = [], seenM = new Set();
+      index.rect(B.x0, B.z0, B.x1, B.z1, M => { if (!seenM.has(M) && !zmApart(M.bbox, B)) { seenM.add(M); G.push(M); } });
+      G.sort((p, q) => p.ord - q.ord);
+      return JSON.stringify([z, c.waterY, c.seed,
+        rds.filter(r => r && meets(r.pts, (+r.w || 3.6) / 2 + 2)).map(r => [r.id, r.pts, r.w]),
+        (c.excludes || []).filter(p => meets(p)), (c.keepOut || []).filter(p => meets(p)),
+        (c.plots || []).filter(p => p && meets(p.poly)).map(p => [p.id, p.poly]),
+        forest ? (c.trees || []).filter(t => t && t.x >= B.x0 - 30 && t.x <= B.x1 + 30 && t.z >= B.z0 - 30 && t.z <= B.z1 + 30) : null,
+        forest ? c.pool : null,
+        G.map(M => [M.def, M.y0])]);   // (in their apply order - the sort - not their place in the whole list: a strip added far away moves every ord)
+    };
     // THE SITES (stage 5a): placed first; every item's foot + margin keeps the plots and the wood out
     const cat = catS;
     for (const st of rec.layers.sites) {
@@ -11801,7 +11877,8 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; O.records.plots.push(p); n++; }
+        { let n = 0; const zc = Object.assign({}, ctx, { waterY: zoneWaterY(z) });
+          for (const p of zoneMemoRun(ZM, 'sow', z.id, () => zmKey(z, zc, roads, null), () => sowPlots(z, roads, zc))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // (v1.33) a zone below its stage's band sowed to hold its land; its plots go now, their ground kept clear of trees
@@ -11888,7 +11965,9 @@ function compose(rec0, world, opts) {
     const pool = (typeof o.pool === 'function' ? o.pool() : o.pool) || [];
     const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes.concat(excl.filter(e => e.roadClear).map(e => e.poly)), plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
     for (const z of rec.layers.zones) if (z.kind === 'forest' && z.poly && z.poly.length >= 3 && polySimple(z.poly))
-      for (const t of planForest(z, Object.assign({}, tctx, { waterY: zoneWaterY(z) }))) O.records.trees.push(t);
+      { const zc = Object.assign({}, tctx, { waterY: zoneWaterY(z) });
+        for (const t of zoneMemoRun(ZM, 'forest', z.id, () => zmKey(z, zc, roadObjs, zc), () => planForest(z, zc))) O.records.trees.push(t); }
+    O.zoneMemo = ZM ? { gen: ZM.gen, hits: ZM.hits, misses: ZM.misses } : null;   // (G2960)
     // THE GARDEN TREES ARE GONE (2026-09-23, the user: "I don't want them to be fixed
     // trees, I want to use the normal tree system, and just paint those zones ... never
     // any tree as fixture without its lod system, we take the normal ones, maybe alter
@@ -12039,7 +12118,12 @@ function issues(rec0) {
   for (const s of rec.layers.surface) if (!(s.surface >= 0 && s.surface <= 7)) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
   const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
-  for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0))) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
+  // (t53 OPTION C, 13 Oct: rev 28's 02/20 ENDS on 13/31 - a T, the user's geometry): a strip one of whose ends lies inside the
+  //  other's box while its other end lies outside, at more than 20 deg to it, meets it - not a stack (G3016: both ends
+  //  inside, or side by side, stays an issue)
+  const endsOn = (p, q) => { const E = runwayEnds(p), B = runwayBox(q, 0), i0 = inPoly(B, E.end0[0], E.end0[1]), i1 = inPoly(B, E.end1[0], E.end1[1]);
+    let dh = Math.abs(((p.hdg - q.hdg) % Math.PI + Math.PI) % Math.PI); dh = Math.min(dh, Math.PI - dh); return i0 !== i1 && dh > 20 * Math.PI / 180; };
+  for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0)) && !endsOn(rws[i], rws[j]) && !endsOn(rws[j], rws[i])) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
   for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key');
     if (ob.kind === 'animal') { if (!ob.key) out.push('animal ' + ob.id + ': no species'); if (ob.n !== undefined && (!(+ob.n >= 1) || +ob.n > 24)) out.push('animal ' + ob.id + ': ' + ob.n + ' of them (1 to 24)'); } }
   for (const st of rec.layers.sites) { if (!st.at) out.push('site ' + st.id + ': no anchor'); for (const it of st.items || []) if (!it.key) out.push('site ' + st.id + ': an item without a key'); }
@@ -12254,7 +12338,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
@@ -12674,7 +12758,7 @@ const GROUND_FIELDS = (() => {
       5:  { tex: ['rocksG', null, null], scale: [41.5, 90, 0], far: [null, null, null], farScale: [90, 0, 0], mix: [30, 3, 0, 0], vary: [3, 0.1, 20], para: 1 },
       6:  { tex: ['cliff', null, null], scale: [71.5, 79, 0], far: [null, null, null], farScale: [79, 90, 0], mix: [60, 3, 0, 0], vary: [3, 0.1, 40], para: 1 },
       7:  { tex: ['mud', 'grassRock', 'rockyA'], scale: [3, 15.04, 90], far: ['grassRock', 'rockyA', null], farScale: [15, 90, 0], mix: [30, 3, 0.05, -0.25], vary: [10, 0.18, 25], para: 0.2, wet: 0.32, poolScale: 3 },   // the user, 2026-09-21: the scrub IS the muskeg - mud with pools (the procedure ported from 3), the moor's sets under a cloud mask, 100 trees/ha   // the user, 2026-09-21: the bush was a lawn (grass + lush); the moor instead
-      8:  { tex: ['forestAir', 'mud', null],   scale: [81, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [20, 3, -0.3, 0],     vary: [6, 0.15, 30], para: 0.3 },   // the user, 2026-09-21: the forest ground is aerial rock 04
+      8:  { tex: ['forestAir', 'mud', null],   scale: [17.5, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [20, 3, -0.3, 0],     vary: [6, 0.15, 30], para: 0.3 },   // the user, 2026-09-21: the forest ground is aerial rock 04
       9:  { tex: ['snowAir', null, null],      scale: [81, 0, 0],   far: [null, null, null],                  farScale: [0, 0, 0],    mix: [30, 1, 0, 0],       vary: [0, 0.04, 40], para: 0.2 },
       10: { tex: ['dirt', 'coastA', 'beach'], scale: [1.5, 19.94, 29.98], far: ['dirt', null, null], farScale: [11.5, 0, 0], mix: [20, 1, 0, 0], vary: [2, 0.06, 10], para: 0.2 },
       11: { tex: ['coastA', 'rocksG', 'coastSand'], scale: [19.94, 2, 15.2], far: ['coastA', null, 'coastSand'], farScale: [19.94, 0, 15.2], mix: [14, 3, -0.2, -0.3], vary: [3, 0.08, 15], para: 0.6 },   // the rocky beach (TERRAIN FOLLOW-UP 4, 2026-09-21): the dark foreshore aerial (coast_land_rocks_01) with pale rock chunks (rocksG) in it and the green-tufted upper shore (coast_sand_rocks_02) a third of the band - four recipes judged straight down at -4414,-4936 (bench/coast/try_4.png); `pebble` (Gravel022, pale) left the code. A NEGATIVE bias A|B favours A
@@ -44770,7 +44854,7 @@ function acceptPlaqueLeg(legs, fp) {
 // 74_career.js at call time.
 // ===========================================================================
 
-// ---- THE FIELDS (the 8 runways of Jolene; GATE CONTRACTS holds every row to the record) -------------------
+// ---- THE FIELDS (the 12 runways of Jolene; GATE CONTRACTS holds every row to the record) -------------------
 //   x, z     the strip's centre (the record's `c`, metres) — distances are centre to centre
 //   len      the strip's length (m); surf the vocabulary word (25_airfield.js stripSurface)
 //   alti     an altiport (the record's `altiport`): sloped, high, a surface bonus
@@ -44779,8 +44863,8 @@ function acceptPlaqueLeg(legs, fp) {
 //   glide    the record's glideslope lights (`papi`): 'vasi' (Jolene AFB's two-bar VASI) | 'papi'; absent: none
 const CONTRACT_FIELDS = {
   HOME:     { id: 'HOME',     name: 'Jolene AFB 13/31',         x: -301,  z: 221,    len: 2325, surf: 'concrete', lit: true, glide: 'vasi' },
-  w2:       { id: 'w2',       name: 'Jolene AFB 02/20',         x: 584,   z: -94,    len: 1835, surf: 'concrete', lit: true },
-  w3:       { id: 'w3',       name: 'Tamgas Hill Strip',        x: -800,  z: -2400,  len: 520,  surf: 'gravel', lit: true, glide: 'papi' },
+  w2:       { id: 'w2',       name: 'Jolene AFB 02/20',         x: 599,   z: -130,   len: 1758, surf: 'concrete', lit: true, glide: 'papi' },   // (rev 28: the user moved, shortened it, gave it a PAPI)
+  w3:       { id: 'w3',       name: 'Tamgas Hill Strip',        x: -811,  z: -2397,  len: 543,  surf: 'gravel', lit: true, glide: 'papi' },   // (rev 28: moved)
   SEA:      { id: 'SEA',      name: 'Annette Dock',             x: 361,   z: -3661,  len: 1500, surf: 'water', lit: false },
   mk_sea:   { id: 'mk_sea',   name: 'Metlakatla Seaplane Base', x: -3980, z: -9420,  len: 1500, surf: 'water', lit: false },
   mn_strip: { id: 'mn_strip', name: 'Jumbo Mine Street',        x: 7250,  z: -15429, len: 250,  surf: 'gravel', lit: true },
@@ -44790,6 +44874,9 @@ const CONTRACT_FIELDS = {
   w5:       { id: 'w5',       name: 'strip 10',                 x: 3055,  z: -2837,  len: 310,  surf: 'gravel', lit: true, glide: 'papi' },
   w6:       { id: 'w6',       name: 'strip 11',                 x: -4172, z: -22110, len: 312,  surf: 'gravel', lit: true },
   w7:       { id: 'w7',       name: 'strip 12',                 x: -3554, z: -23721, len: 1020, surf: 'dirt', lit: true },   // (rev 27: the user's North East strip)
+  // (G3020, rev 28: 'I have fixed the altiports ... I have added a few runways; they need integrating in the trunk')
+  // (w4 'strip 9' held back until the profile tool - over the altiport law, train 53)
+  w8:       { id: 'w8',       name: 'strip 13',                 x: 4361,  z: -16251, len: 392,  surf: 'sand', lit: true },
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------

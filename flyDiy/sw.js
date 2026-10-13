@@ -1,4 +1,4 @@
-// GENERATED FILE - DO NOT EDIT. Written by tools/build.js (LOADING S4). Build 03c964e34b7a.
+// GENERATED FILE - DO NOT EDIT. Written by tools/build.js (LOADING S4). Build ef36f4aae7fa.
 // The media cache: cache-first for media/ (content-hashed, immutable), nothing else.
 // The world payloads and mesh bins this build asks for; anything else under
 // media/world/ or media/geo/ is swept on activate (a superseded world is ~35 MB,
@@ -9,10 +9,17 @@ const GEO_KEEP = ["media/geo/airframe/airframe_jodel_body.19f6f9f4.gz.bin","medi
 // stale. Precached on install when a career page is open (?career=1 / ?map=1 / ?freight=1), and on the career loader's
 // word (a page that fetched it), so a career boots offline after one visit; a sandbox never asks and never caches it.
 // Any other career_core.*.js in the cache is a superseded build's and is swept on activate.
-const CAREER_KEEP = ["career_core.a3cb7957.js"];
+const CAREER_KEEP = ["career_core.138167cf.js"];
 const CAREER_RE = /\/career_core\.[0-9a-f]{8}\.js$/;
 const CAREER_URL = /[?&](career|map|freight)=1(&|$)/;
+// G3070 (ROUTE-LAZY): THE DRAWN ROUTE'S DRAWING, this build's (route_draw.<h8>.js) - the same rules: cache-first for
+// this name, cached on the way through and on the page's word (a page that ran it: the drawing opened, or an armed
+// route's boot), so an armed route's next boot has it offline; any other route_draw.*.js swept on activate.
+const ROUTE_KEEP = ["route_draw.df5cd4af.js"];
+const ROUTE_RE = /\/route_draw\.[0-9a-f]{8}\.js$/;
 const CACHE = 'flydiy-media-v1';
+const routeCache = () => caches.open(CACHE).then(c => Promise.all(ROUTE_KEEP.map(f => c.match(new URL(f, self.registration.scope).href)
+  .then(hit => hit || c.add(new URL(f, self.registration.scope).href))))).catch(() => {});
 const careerCache = () => caches.open(CACHE).then(c => Promise.all(CAREER_KEEP.map(f => c.match(new URL(f, self.registration.scope).href)
   .then(hit => hit || c.add(new URL(f, self.registration.scope).href))))).catch(() => {});
 self.addEventListener('install', e => {
@@ -21,14 +28,18 @@ self.addEventListener('install', e => {
   e.waitUntil(Promise.resolve().then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
     .then(list => (list.some(c => CAREER_URL.test(new URL(c.url).search)) ? careerCache() : null)).catch(() => {}));
 });
-self.addEventListener('message', e => { if (e.data && e.data.flydiy === 'career-core') { const p = careerCache(); if (e.waitUntil) e.waitUntil(p); } });
+self.addEventListener('message', e => {
+  if (e.data && e.data.flydiy === 'career-core') { const p = careerCache(); if (e.waitUntil) e.waitUntil(p); }
+  if (e.data && e.data.flydiy === 'route-draw') { const p = routeCache(); if (e.waitUntil) e.waitUntil(p); }
+});
 self.addEventListener('activate', e => { e.waitUntil((async () => {
   await self.clients.claim();
   try {
-    const c = await caches.open(CACHE), keep = new Set(WORLD_KEEP.concat(GEO_KEEP)), careerKeep = new Set(CAREER_KEEP);
+    const c = await caches.open(CACHE), keep = new Set(WORLD_KEEP.concat(GEO_KEEP)), careerKeep = new Set(CAREER_KEEP), routeKeep = new Set(ROUTE_KEEP);
     for (const req of await c.keys()) {
       const p = new URL(req.url).pathname;
       if (CAREER_RE.test(p)) { if (!careerKeep.has(p.slice(p.lastIndexOf('/') + 1))) await c.delete(req); continue; }
+      if (ROUTE_RE.test(p)) { if (!routeKeep.has(p.slice(p.lastIndexOf('/') + 1))) await c.delete(req); continue; }
       let i = p.indexOf('/media/world/');
       if (i < 0) i = p.indexOf('/media/geo/');
       if (i >= 0 && !keep.has(p.slice(i + 1))) await c.delete(req);
@@ -41,7 +52,9 @@ self.addEventListener('fetch', e => {
   let u; try { u = new URL(req.url); } catch (err) { return; }
   if (u.origin !== self.location.origin) return;
   // G2685: the career's core, this build's name alone - cache-first, cached on the way through
-  if (CAREER_RE.test(u.pathname) && CAREER_KEEP.includes(u.pathname.slice(u.pathname.lastIndexOf('/') + 1))) {
+  // G3070: the drawn route's drawing, this build's name alone - the same
+  if ((CAREER_RE.test(u.pathname) && CAREER_KEEP.includes(u.pathname.slice(u.pathname.lastIndexOf('/') + 1)))
+      || (ROUTE_RE.test(u.pathname) && ROUTE_KEEP.includes(u.pathname.slice(u.pathname.lastIndexOf('/') + 1)))) {
     e.respondWith(caches.open(CACHE).then(c => c.match(u.href).then(hit => hit || fetch(req).then(res => {
       if (res && res.ok) c.put(u.href, res.clone()).catch(() => {});
       return res;
