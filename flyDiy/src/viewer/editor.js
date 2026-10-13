@@ -923,6 +923,9 @@ function editorInit(api) {
     [/in ?\/ ?out|left ?\/ ?right/i, 'out'],
     [/^(length|chord)\b/i, 'len'], [/^(width|span|half-width)\b/i, 'wide'],
     [/^(height|half-height)\b/i, 'high'],
+    // the frames' rows (G2760): a frame's top / bottom / deck height is a
+    // PLACE on the up axis, its half-widths a size across
+    [/\b(top|bottom|deck|waist|roof|keel) height\b/i, 'up'], [/half-width\b/i, 'wide'],
   ];
   function axisMark(m, part) {
     const r = m.row;

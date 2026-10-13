@@ -119,7 +119,7 @@ const DESIGN_PART = {
   empennage: ['tail', 'fin', 'stab'],
   finArch: ['tail', 'fin', 'stab'],
   gearLayout: ['gear', 'mains', 'third'], retract: ['gear'],
-  suspension: ['mains', 'gear', 'third'],
+  suspension: ['mains', 'gear'],          // G2760: it is the MAINS' leg
   cowlPreset: ['cowl'],
 };
 // `skip`: the rows the editor has already drawn in their twins' slots in

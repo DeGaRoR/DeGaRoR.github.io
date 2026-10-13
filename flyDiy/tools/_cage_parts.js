@@ -771,7 +771,9 @@ const CAGE_PARTS = [
     groups: [
       ['fitted', ['stOn']],
       ['construction', ['stCons']],
-      ['position', ['stInc', 'stMount', 'stX', 'stY', 'stZ', 'stCant']],
+      // (the trunk lifts out stX / stY / stZ; what stays is the seat and the
+      // two angles — G2760: no second 'position' heading)
+      ['seat & angles', ['stInc', 'stMount', 'stX', 'stY', 'stZ', 'stCant']],
       ['cut', ['stCut', 'stCutGap']],
       ['thickness', ['stThick', 'stThickTE']],
       ['always solid, guard pair', ['stSolid', 'stRootGuard'], HIDDEN],
@@ -839,7 +841,9 @@ const CAGE_PARTS = [
     // bucket, which is a home but not an ANSWER.
     sections: ['engBlock', 'engJug', 'engCover', 'engMount'],
     groups: [
-      ['fitted', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engRotate', 'engPylonH',
+      // (G2760: what the trunk leaves here is the thrust line and the mount's
+      // own dials — no second 'fitted' heading under the trunk's)
+      ['thrust line & mounting', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engRotate', 'engPylonH',
                   'engBlockZ', 'engBlockY', 'engTilt', 'engPower', 'engPreset', 'engY']],   // G477: the thrust line's tilt
       // THE STAND FIRST (2026-09-03, the user: "the stand is very important for
       // engine placement"): the mount's stand-off is the engine's fore / aft seat
