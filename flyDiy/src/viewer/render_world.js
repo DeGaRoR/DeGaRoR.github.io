@@ -421,6 +421,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         uBarkL = { value: IMPK.barkLit };   // and its own tier gain (in place of uILit)
   // the audit's list of baked impostor sheets (assigned where the atlas cache lives, below)
   let treeAtlases = () => [];
+  let sheetMean = () => null;         // G3180 (CARD-MATCH): an atlas's mean linear albedo, read back (tree block)
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
   // instance outside its band, and the impostor bake draws the same material
   // from thirty metres: an L2 whose band starts at 300 m baked an EMPTY sheet,
@@ -3406,6 +3407,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // targets back (TREE-IMPORT.md §6: every one of its six faults presented
     // as "the impostor is wrong" and none looked like its cause).
     treeAtlases = () => { const out = []; ATLAS.forEach(a => out.push(a)); return out; };
+    // G3180 (CARD-MATCH, the user 13 Oct: "a color/value shift has developed between the far cards for the trees and the
+    // impostors ... we also need a mechanism to keep them in sync"): ONE SHEET'S MEAN - the linear albedo of its drawn texels
+    // (alpha at the series' own cut; the bytes are sRGB, decoded here), [r, g, b, texels] or null; one readback (atlas.read),
+    // for the stand cards' level match at their bake and for the audit
+    sheetMean = (key, series) => {
+      const CUT = { rungs: 0.40, stand: 0.15, snag: 0.10 }, lin = v => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+      for (const a of ATLAS.values()) {
+        if (a.key !== key || a.series !== series || !a.read || !a.N) continue;
+        const px = new Uint8Array(a.N * a.N * 4); try { a.read(px); } catch (e) { return null; }
+        const cut = 255 * (CUT[series] || 0.4); let rr = 0, gg = 0, bb = 0, n = 0;
+        for (let i = 0; i < px.length; i += 4) if (px[i + 3] >= cut) { rr += lin(px[i]); gg += lin(px[i + 1]); bb += lin(px[i + 2]); n++; }
+        return n ? [rr / n, gg / n, bb / n, n] : null;
+      }
+      return null;
+    };
     let BAKE_RT = null;                    // the shared bake pair (see bakeImpostorAtlasNow)
     // ---- THE SHEETS ARE LAYERS (PERF 2026-09-23) --------------------------------------------------
     // Every impostor sheet was a texture of its own and every (chunk, subject, series) an InstancedMesh
@@ -5543,7 +5559,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
             standCards = STAND_CARDS.make(THREE, { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN });   // rdy: G2930, the cards stand in for an unbuilt fill
+                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN, sheetMean });   // sheetMean: G3180, the card matched to its species' sheets   // rdy: G2930, the cards stand in for an unbuilt fill
           // THE ROCK MAP (rock_map.js): the rocks' far tier, on the island's ground programs (gU.uRockMap)
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot

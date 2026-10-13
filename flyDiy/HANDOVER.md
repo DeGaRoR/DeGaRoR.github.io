@@ -92791,3 +92791,21 @@ an angle (-180..180, 0..359) wrapped; no snap to the step. The prompt() click is
   cover ring density: step 0.05 -> 0.01
 (kept above 0: a species' size multiplier - TREE_FILL.speciesSize treats 0 as 'reset to 1'; clump size, cells, spacings - divisors.)
 WHAT TO WATCH FOR: click any value on the F9 rail and type (0.02 for fireweed's density, Enter); the slider follows past its old end; Escape restores.
+
+## G3180-G3183 - CARD-MATCH: THE FAR CARDS WERE 0.26x THEIR IMPOSTORS; THEIR TINT AND LEVEL NOW FOLLOW THEIR SPECIES (2026-10-13, TREE-STREAM for A0, local; branch claude/card-match-g3180; train 52)
+The user (13 Oct 00:00): "a color/value shift has developed between the far cards for the trees and the impostors. The dark
+ones are the far cards, the greener ones the impostors. We also need a mechanism to keep them in sync."
+CAUSE, MEASURED (tools/perf/cardmatch_probe.js, census 13 Oct 01:40, master 9450f0e5a): THE BAKE. The stand card's sheet
+(stand_cards.js: a 4 x 4 block of its mix's L1 geometry baked as one picture) reads a mean linear albedo of 0.0157 against its
+species' own rungs sheets' ~0.049 (proportion-weighted) - 0.26x, and bluer. The shader is the same for both tiers (impostorMat:
+the cards take the per-material path, the fill the merged one; the same live tint uniforms, uILit, the flat pivot, ATMO).
+WHY NOW: train 50's stand-in (G2930) draws the cards at 1.5-4 km, where they used to start at 4 km under the haze.
+THE FIX (calibrated; the one-source fix G3184 is on its own branch, below):
+- G3181 the card's tint is the proportion-weighted mean of its species' live tint uniforms (stand_cards tintNow, every update),
+  and its sheet's level is matched at the bake to its species' rungs sheets drawn at their own IMP_LEVEL (render_world sheetMean:
+  an atlas's mean linear albedo, read back; TREE_LOD.impLevel('stand:<mix>|rungs'); retried until the fill's sheets exist).
+- G3183 x CARD_SCREEN_K 0.74: the sheet match (level 3.148) drew the cards 1.35x their impostors on screen (twice) - a block's
+  baked normals face the sky more than a tree's. With it: on screen 1.07 under the default look (r 1.04 g 1.04 b 1.40 - a
+  residual blue), 0.80 under a strong tint (the master's light x 1.5 + hue 0.05). The probe: SHEETS (each atlas read back) and
+  SCREEN (cards only / impostors only / neither, over the densest stand from 300 m, the tree pixels in linear RGB).
+WHAT TO WATCH FOR: the far hillsides' trees as green and as light as the impostor forest in front (a faint blue left).
