@@ -282,6 +282,7 @@ function nodesInside(C, W, sim) {
 }
 
 // ---- the validated builds (the brief: the stock build, the aluminium C172 - 11 m, the widest - and the user's Cub) ----
+// (keys, not specs: the callers fly them through pilot_trace.js specOf - tools/_load_build.js, the game's aeroplane)
 const BUILDS = [
   { key: 'stock', name: 'stock build' },
   { key: path.join(__dirname, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json'), name: 'aluminium C172' },

@@ -1,0 +1,1529 @@
+{
+ "at": "2026-10-06T01:01:30.543Z",
+ "cases": {
+  "trunk-0": {
+   "label": "a trunk at 30 m/s, the centreline",
+   "shots": [
+    {
+     "cam": [
+      200,
+      22,
+      14
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/trunk-0_1_after.jpg",
+     "census": {
+      "px": 11103,
+      "craftAll": 11520,
+      "yellow": 48.8,
+      "darkYellow": 1,
+      "other": 50.2,
+      "greyOrBlack": 36.1,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      300,
+      45,
+      20
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/trunk-0_2_after.jpg",
+     "census": {
+      "px": 4891,
+      "craftAll": 5167,
+      "yellow": 28.5,
+      "darkYellow": 1.2,
+      "other": 70.4,
+      "greyOrBlack": 56.1,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      120,
+      12,
+      10
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/trunk-0_3_after.jpg",
+     "census": {
+      "px": 12489,
+      "craftAll": 13549,
+      "yellow": 57.3,
+      "darkYellow": 0.2,
+      "other": 42.5,
+      "greyOrBlack": 29.3,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      200,
+      22,
+      14
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/trunk-0_1_skin.jpg",
+     "census": {
+      "px": 11212,
+      "craftAll": 16716,
+      "yellow": 48.8,
+      "darkYellow": 1.5,
+      "other": 49.7,
+      "greyOrBlack": 34.4,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      300,
+      45,
+      20
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/trunk-0_2_skin.jpg",
+     "census": {
+      "px": 4956,
+      "craftAll": 7223,
+      "yellow": 32.6,
+      "darkYellow": 1.5,
+      "other": 65.9,
+      "greyOrBlack": 51.5,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      120,
+      12,
+      10
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/trunk-0_3_skin.jpg",
+     "census": {
+      "px": 12141,
+      "craftAll": 22977,
+      "yellow": 56.7,
+      "darkYellow": 0.4,
+      "other": 42.9,
+      "greyOrBlack": 28.6,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      200,
+      22,
+      14
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/trunk-0_1_before.jpg",
+     "census": {
+      "px": 26421,
+      "craftAll": 33966,
+      "yellow": 32.9,
+      "darkYellow": 7.6,
+      "other": 59.5,
+      "greyOrBlack": 35.1,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      300,
+      45,
+      20
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/trunk-0_2_before.jpg",
+     "census": {
+      "px": 16596,
+      "craftAll": 19491,
+      "yellow": 30.8,
+      "darkYellow": 1.6,
+      "other": 67.6,
+      "greyOrBlack": 45.7,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      120,
+      12,
+      10
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/trunk-0_3_before.jpg",
+     "census": {
+      "px": 29772,
+      "craftAll": 42432,
+      "yellow": 16,
+      "darkYellow": 1.2,
+      "other": 82.8,
+      "greyOrBlack": 46.8,
+      "w": 800,
+      "h": 450
+     }
+    }
+   ],
+   "intact": [
+    {
+     "cam": [
+      200,
+      22,
+      14
+     ],
+     "census": {
+      "px": 17958,
+      "craftAll": 21093,
+      "yellow": 89.6,
+      "darkYellow": 0,
+      "other": 10.4,
+      "greyOrBlack": 8.5,
+      "w": 800,
+      "h": 450
+     },
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/trunk-0_1_intact.jpg"
+    },
+    {
+     "cam": [
+      300,
+      45,
+      20
+     ],
+     "census": {
+      "px": 12298,
+      "craftAll": 13685,
+      "yellow": 37,
+      "darkYellow": 1.1,
+      "other": 61.9,
+      "greyOrBlack": 43.5,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    },
+    {
+     "cam": [
+      120,
+      12,
+      10
+     ],
+     "census": {
+      "px": 19002,
+      "craftAll": 23776,
+      "yellow": 69.1,
+      "darkYellow": 0.1,
+      "other": 30.8,
+      "greyOrBlack": 21.4,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    }
+   ],
+   "stage": {
+    "steps": 888,
+    "crashed": true,
+    "over": true,
+    "reason": "broke up: the fuselage parted (S0TL off the core)",
+    "broken": 148,
+    "brokeUp": true,
+    "frameMed": 47.5,
+    "frameP95": 80.8,
+    "frameMax": 141.2,
+    "wreck": {
+     "on": true,
+     "active": true,
+     "parts": [
+      {
+       "kind": "eng",
+       "gone": false,
+       "why": null,
+       "crush": null
+      },
+      {
+       "kind": "spinner",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.269
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.362
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.154
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.091
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.185
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.087
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.09
+      },
+      {
+       "kind": "blade",
+       "gone": true,
+       "why": "strike",
+       "crush": null
+      },
+      {
+       "kind": "blade",
+       "gone": true,
+       "why": "strike",
+       "crush": null
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -470.69,
+        32.9,
+        72.97
+       ],
+       "tris": 870
+      },
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -478.75,
+        32.81,
+        70.15
+       ],
+       "tris": 878
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -480.25,
+        32.97,
+        62.52
+       ],
+       "tris": 13242
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -481.59,
+        32.78,
+        60.85
+       ],
+       "tris": 19
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -478.92,
+        32.76,
+        64.73
+       ],
+       "tris": 37
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -478.9,
+        32.77,
+        66.58
+       ],
+       "tris": 64
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -474.62,
+        32.99,
+        65.9
+       ],
+       "tris": 49
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -482.28,
+        32.8,
+        64.29
+       ],
+       "tris": 32
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -481.38,
+        32.92,
+        64.01
+       ],
+       "tris": 5203
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -483.4,
+        33.36,
+        61.93
+       ],
+       "tris": 8522
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -457.42,
+        31.07,
+        84.22
+       ],
+       "tris": 13242
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -458.32,
+        31.05,
+        78.07
+       ],
+       "tris": 8324
+      }
+     ],
+     "strikes": [
+      {
+       "eng": 0,
+       "drive": null,
+       "what": "trunk",
+       "material": "wood",
+       "metal": false,
+       "rpm": 955,
+       "V": 25.47,
+       "E": 159988,
+       "breaks": true,
+       "cut": [
+        0.33,
+        0.28
+       ],
+       "curl": [
+        0,
+        0
+       ],
+       "dent": 0.06,
+       "nb": 2,
+       "R": 0.968
+      }
+     ],
+     "eyeCut": null,
+     "eye": null,
+     "cab": {
+      "bay": 0,
+      "d0": 0.163
+     },
+     "ms": {
+      "plan": 4.699999928474426,
+      "release": 14.399999976158142,
+      "frame": 0.2999999523162842
+     }
+    },
+    "skin": {
+     "on": true,
+     "recs": 100,
+     "ms": {
+      "records": 42.09999978542328,
+      "event": 44.300000071525574,
+      "frames": 1.6999999284744263,
+      "pose": 36.39999997615814,
+      "recordsT": 125.20000004768372,
+      "eventT": 968.6000006198883,
+      "poseT": 7296.299998164177,
+      "frameMax": 92,
+      "n": 363,
+      "last": 23.800000071525574,
+      "lastRec": 0.10000002384185791,
+      "lastEv": 0,
+      "lastFrames": 0.10000002384185791,
+      "lastPose": 23.600000023841858,
+      "lastT": 14.833333333345422
+     },
+     "removed": 64464,
+     "torn": 46490,
+     "tris": 166550,
+     "riding": 499650
+    }
+   },
+   "clip": {
+    "skinTris": 41598,
+    "furnitureOutside": {
+     "sampled": 9744,
+     "past3cm": 4029,
+     "share": 0.4135,
+     "worst": 0.279
+    },
+    "debrisInside": {
+     "sampled": 21567,
+     "past3cm": 0,
+     "share": 0,
+     "worst": 0
+    }
+   }
+  },
+  "nosein": {
+   "label": "a nose-in on the ground (180 km/h, 10 m/s, 60 deg; DMG-D4a's nose-in still)",
+   "shots": [
+    {
+     "cam": [
+      150,
+      20,
+      12
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/nosein_1_after.jpg",
+     "census": {
+      "px": 4886,
+      "craftAll": 4946,
+      "yellow": 11.6,
+      "darkYellow": 0.2,
+      "other": 88.1,
+      "greyOrBlack": 72.3,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      235,
+      28,
+      14
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/nosein_2_after.jpg",
+     "census": {
+      "px": 5554,
+      "craftAll": 5642,
+      "yellow": 40.2,
+      "darkYellow": 0.4,
+      "other": 59.4,
+      "greyOrBlack": 41.1,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      150,
+      20,
+      12
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/nosein_1_skin.jpg",
+     "census": {
+      "px": 4767,
+      "craftAll": 6033,
+      "yellow": 11.9,
+      "darkYellow": 0.2,
+      "other": 87.9,
+      "greyOrBlack": 72.2,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      235,
+      28,
+      14
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/nosein_2_skin.jpg",
+     "census": {
+      "px": 5389,
+      "craftAll": 7028,
+      "yellow": 41.4,
+      "darkYellow": 0.4,
+      "other": 58.2,
+      "greyOrBlack": 39.7,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      150,
+      20,
+      12
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/nosein_1_before.jpg",
+     "census": {
+      "px": 26736,
+      "craftAll": 68115,
+      "yellow": 30.7,
+      "darkYellow": 0,
+      "other": 69.2,
+      "greyOrBlack": 17.4,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      235,
+      28,
+      14
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/nosein_2_before.jpg",
+     "census": {
+      "px": 39452,
+      "craftAll": 84551,
+      "yellow": 66,
+      "darkYellow": 0.2,
+      "other": 33.8,
+      "greyOrBlack": 9.6,
+      "w": 800,
+      "h": 450
+     }
+    }
+   ],
+   "intact": [
+    {
+     "cam": [
+      150,
+      20,
+      12
+     ],
+     "census": {
+      "px": 34091,
+      "craftAll": 46889,
+      "yellow": 41.7,
+      "darkYellow": 2.2,
+      "other": 56,
+      "greyOrBlack": 28.6,
+      "w": 800,
+      "h": 450
+     },
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/nosein_1_intact.jpg"
+    },
+    {
+     "cam": [
+      235,
+      28,
+      14
+     ],
+     "census": {
+      "px": 23802,
+      "craftAll": 31452,
+      "yellow": 60.8,
+      "darkYellow": 3.5,
+      "other": 35.6,
+      "greyOrBlack": 16.6,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    }
+   ],
+   "stage": {
+    "steps": 1282,
+    "crashed": true,
+    "over": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "broken": 164,
+    "brokeUp": true,
+    "frameMed": 38.3,
+    "frameP95": 48.2,
+    "frameMax": 92.6,
+    "wreck": {
+     "on": true,
+     "active": true,
+     "parts": [
+      {
+       "kind": "eng",
+       "gone": false,
+       "why": null,
+       "crush": null
+      },
+      {
+       "kind": "spinner",
+       "gone": false,
+       "why": null,
+       "crush": 0.009
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.693
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.656
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.001
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.002
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.349
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.355
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.22
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.22
+      },
+      {
+       "kind": "blade",
+       "gone": true,
+       "why": "strike",
+       "crush": null
+      },
+      {
+       "kind": "blade",
+       "gone": true,
+       "why": "strike",
+       "crush": null
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -473.56,
+        32.8,
+        68.57
+       ],
+       "tris": 754
+      },
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -478.87,
+        32.8,
+        65.65
+       ],
+       "tris": 780
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -510.51,
+        33.04,
+        37.79
+       ],
+       "tris": 8379
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -510.7,
+        32.95,
+        36.62
+       ],
+       "tris": 5115
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -510.06,
+        33.34,
+        40.5
+       ],
+       "tris": 8324
+      },
+      {
+       "kind": "pane",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -510.68,
+        32.97,
+        37.71
+       ],
+       "tris": 23
+      },
+      {
+       "kind": "pane",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -511.69,
+        32.97,
+        38.47
+       ],
+       "tris": 23
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -507.29,
+        32.95,
+        40.65
+       ],
+       "tris": 32
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -506.84,
+        32.95,
+        42.2
+       ],
+       "tris": 32
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -504.13,
+        33.03,
+        43.21
+       ],
+       "tris": 42
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -506.63,
+        32.84,
+        42.14
+       ],
+       "tris": 13242
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -506.23,
+        32.85,
+        42.3
+       ],
+       "tris": 13242
+      }
+     ],
+     "strikes": [
+      {
+       "eng": 0,
+       "drive": null,
+       "what": "ground",
+       "material": "wood",
+       "metal": false,
+       "rpm": 0,
+       "V": 46.57,
+       "E": 501317,
+       "breaks": true,
+       "cut": [
+        0.43,
+        0.39
+       ],
+       "curl": [
+        0,
+        0
+       ],
+       "dent": 0.06,
+       "nb": 2,
+       "R": 0.968
+      }
+     ],
+     "eyeCut": null,
+     "eye": null,
+     "cab": {
+      "bay": 0,
+      "d0": 0.163
+     },
+     "ms": {
+      "plan": 4,
+      "release": 14.399999976158142,
+      "frame": 0.20000004768371582
+     }
+    },
+    "skin": {
+     "on": true,
+     "recs": 100,
+     "ms": {
+      "records": 42.09999978542328,
+      "event": 44.300000071525574,
+      "frames": 1.6999999284744263,
+      "pose": 36.39999997615814,
+      "recordsT": 133.89999949932098,
+      "eventT": 1457.7000008821487,
+      "poseT": 14837.399998664856,
+      "frameMax": 92,
+      "n": 840,
+      "last": 23.600000023841858,
+      "lastRec": 0.10000002384185791,
+      "lastEv": 0,
+      "lastFrames": 0.10000002384185791,
+      "lastPose": 23.399999976158142,
+      "lastT": 21.400000000020114
+     },
+     "removed": 68520,
+     "torn": 51073,
+     "tris": 166550,
+     "riding": 499650
+    }
+   },
+   "clip": {
+    "skinTris": 38866,
+    "furnitureOutside": {
+     "sampled": 12066,
+     "past3cm": 48,
+     "share": 0.004,
+     "worst": 0.142
+    },
+    "debrisInside": {
+     "sampled": 39797,
+     "past3cm": 1,
+     "share": 0,
+     "worst": 0.042
+    }
+   }
+  },
+  "noseover": {
+   "label": "a nose-over: 12 m/s on the ground into a 35 cm stump (the wheels stopped)",
+   "shots": [
+    {
+     "cam": [
+      200,
+      22,
+      9
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/noseover_1_after.jpg",
+     "census": {
+      "px": 39275,
+      "craftAll": 43920,
+      "yellow": 70,
+      "darkYellow": 0.3,
+      "other": 29.7,
+      "greyOrBlack": 15.7,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      90,
+      15,
+      7
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/noseover_2_after.jpg",
+     "census": {
+      "px": 28317,
+      "craftAll": 47425,
+      "yellow": 40.6,
+      "darkYellow": 4.6,
+      "other": 54.9,
+      "greyOrBlack": 23.9,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      300,
+      40,
+      10
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/noseover_3_after.jpg",
+     "census": {
+      "px": 32782,
+      "craftAll": 38678,
+      "yellow": 46.9,
+      "darkYellow": 1.3,
+      "other": 51.8,
+      "greyOrBlack": 27.2,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      200,
+      22,
+      9
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/noseover_1_skin.jpg",
+     "census": {
+      "px": 36254,
+      "craftAll": 41033,
+      "yellow": 65.7,
+      "darkYellow": 0.3,
+      "other": 34,
+      "greyOrBlack": 22.5,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      90,
+      15,
+      7
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/noseover_2_skin.jpg",
+     "census": {
+      "px": 30134,
+      "craftAll": 50217,
+      "yellow": 37.6,
+      "darkYellow": 4.3,
+      "other": 58.1,
+      "greyOrBlack": 21.5,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      300,
+      40,
+      10
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/noseover_3_skin.jpg",
+     "census": {
+      "px": 31942,
+      "craftAll": 37792,
+      "yellow": 45.4,
+      "darkYellow": 1.3,
+      "other": 53.3,
+      "greyOrBlack": 28.3,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      200,
+      22,
+      9
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/noseover_1_before.jpg",
+     "census": {
+      "px": 63792,
+      "craftAll": 68106,
+      "yellow": 72.9,
+      "darkYellow": 0.1,
+      "other": 27,
+      "greyOrBlack": 17.1,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      90,
+      15,
+      7
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/noseover_2_before.jpg",
+     "census": {
+      "px": 40870,
+      "craftAll": 58109,
+      "yellow": 63.6,
+      "darkYellow": 0.8,
+      "other": 35.6,
+      "greyOrBlack": 8.3,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      300,
+      40,
+      10
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/noseover_3_before.jpg",
+     "census": {
+      "px": 59792,
+      "craftAll": 64395,
+      "yellow": 57.3,
+      "darkYellow": 1,
+      "other": 41.7,
+      "greyOrBlack": 26.3,
+      "w": 800,
+      "h": 450
+     }
+    }
+   ],
+   "intact": [
+    {
+     "cam": [
+      200,
+      22,
+      9
+     ],
+     "census": {
+      "px": 63553,
+      "craftAll": 125872,
+      "yellow": 56.8,
+      "darkYellow": 0.7,
+      "other": 42.4,
+      "greyOrBlack": 20,
+      "w": 800,
+      "h": 450
+     },
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/cowl/noseover_1_intact.jpg"
+    },
+    {
+     "cam": [
+      90,
+      15,
+      7
+     ],
+     "census": {
+      "px": 60745,
+      "craftAll": 231476,
+      "yellow": 14.8,
+      "darkYellow": 0.3,
+      "other": 84.9,
+      "greyOrBlack": 33.5,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    },
+    {
+     "cam": [
+      300,
+      40,
+      10
+     ],
+     "census": {
+      "px": 67093,
+      "craftAll": 204675,
+      "yellow": 60.8,
+      "darkYellow": 0.1,
+      "other": 39.1,
+      "greyOrBlack": 11.8,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    }
+   ],
+   "stage": {
+    "steps": 1200,
+    "crashed": true,
+    "over": true,
+    "reason": "a gear member broke",
+    "broken": 63,
+    "brokeUp": false,
+    "frameMed": 21.8,
+    "frameP95": 47.3,
+    "frameMax": 68.3,
+    "wreck": {
+     "on": true,
+     "active": true,
+     "parts": [
+      {
+       "kind": "eng",
+       "gone": false,
+       "why": null,
+       "crush": null
+      },
+      {
+       "kind": "spinner",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.603
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.429
+      },
+      {
+       "kind": "wheel",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "blade",
+       "gone": true,
+       "why": "strike",
+       "crush": null
+      },
+      {
+       "kind": "blade",
+       "gone": true,
+       "why": "strike",
+       "crush": null
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -529.23,
+        33.75,
+        26.48
+       ],
+       "tris": 938
+      },
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -529.66,
+        33.32,
+        20.86
+       ],
+       "tris": 810
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -525.36,
+        33.04,
+        27.42
+       ],
+       "tris": 8324
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -508.45,
+        25.11,
+        41.32
+       ],
+       "tris": 12708
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": false,
+       "sunk": false,
+       "x": [
+        -526.71,
+        -10.72,
+        41.26
+       ],
+       "tris": 888
+      }
+     ],
+     "strikes": [
+      {
+       "eng": 0,
+       "drive": null,
+       "what": "trunk",
+       "material": "wood",
+       "metal": false,
+       "rpm": 0,
+       "V": 11.52,
+       "E": 30681,
+       "breaks": true,
+       "cut": [
+        0.26,
+        0.35
+       ],
+       "curl": [
+        0,
+        0
+       ],
+       "dent": 0.024,
+       "nb": 2,
+       "R": 0.968
+      }
+     ],
+     "eyeCut": null,
+     "eye": null,
+     "cab": {
+      "bay": 0,
+      "d0": 0.163
+     },
+     "ms": {
+      "plan": 1.6999999284744263,
+      "release": 14.399999976158142,
+      "frame": 0.2999999523162842
+     }
+    },
+    "skin": {
+     "on": true,
+     "recs": 100,
+     "ms": {
+      "records": 42.09999978542328,
+      "event": 44.300000071525574,
+      "frames": 1.6999999284744263,
+      "pose": 36.39999997615814,
+      "recordsT": 137.89999961853027,
+      "eventT": 1604.500001192093,
+      "poseT": 17911.49999821186,
+      "frameMax": 92,
+      "n": 1034,
+      "last": 25.700000047683716,
+      "lastRec": 0,
+      "lastEv": 0,
+      "lastFrames": 0.20000004768371582,
+      "lastPose": 25.5,
+      "lastT": 21.53333333335361
+     },
+     "removed": 65952,
+     "torn": 51723,
+     "tris": 166550,
+     "riding": 499650
+    }
+   },
+   "clip": {
+    "skinTris": 39814,
+    "furnitureOutside": {
+     "sampled": 12501,
+     "past3cm": 66,
+     "share": 0.0053,
+     "worst": 0.279
+    },
+    "debrisInside": {
+     "sampled": 12708,
+     "past3cm": 0,
+     "share": 0,
+     "worst": 0
+    }
+   }
+  }
+ },
+ "standClip": {
+  "skinTris": 72364,
+  "furnitureOutside": {
+   "sampled": 19542,
+   "past3cm": 239,
+   "share": 0.0122,
+   "worst": 0.27
+  },
+  "debrisInside": {
+   "sampled": 0,
+   "past3cm": 0,
+   "share": 0,
+   "worst": 0
+  }
+ }
+}

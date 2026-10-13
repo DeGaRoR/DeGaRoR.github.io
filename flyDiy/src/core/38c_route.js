@@ -54,7 +54,7 @@ function routeGroundAt(world, x, z, trees) {
 function routeSafeAlt(world, x, z) {
   let top = routeGroundAt(world, x, z, true);
   for (const r of [ROUTE_SAFE_R / 2, ROUTE_SAFE_R])
-    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; top = Math.max(top, routeGroundAt(world, x + r * Math.cos(a), z + r * Math.sin(a), true)); }
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; top = Math.max(top, routeGroundAt(world, x + r * CORE_MATH.cos(a), z + r * CORE_MATH.sin(a), true)); }
   return Math.ceil((top + ROUTE_AGL_DEFAULT) / 10) * 10;
 }
 function routeAltMSL(pt, world) {
@@ -126,10 +126,10 @@ function routeCaptureR(route, i, perf, prev) {
   const P = route.pts, p = P[i], a = P[i - 1] || (i === 0 ? prev : null), b = P[i + 1];
   if (!p || !a || !b) return 150;
   const u1 = Math.atan2(p.z - a.z, p.x - a.x), u2 = Math.atan2(b.z - p.z, b.x - p.x);
-  const t = Math.abs(Math.atan2(Math.sin(u2 - u1), Math.cos(u2 - u1)));
+  const t = Math.abs(Math.atan2(CORE_MATH.sin(u2 - u1), CORE_MATH.cos(u2 - u1)));
   const V = Math.min(routeSpeedOf(p, perf), routeSpeedOf(b, perf));
   const R = V * V / (9.81 * Math.tan(perf.bank || 0.30)) * 1.15;
-  return Math.max(150, R * (1 / Math.cos(Math.min(t, 2.6) / 2) - 1) + 80);
+  return Math.max(150, R * (1 / CORE_MATH.cos(Math.min(t, 2.6) / 2) - 1) + 80);
 }
 
 // THE PLANNER'S NUMBERS for a route (G2125 PILOT-PROFILE owns the one altitude planner, 44_vprofile.js; A0's ruling:

@@ -187,6 +187,14 @@ if (argv[0] === '--build') {
       const [xA, yU] = simI.axes(), zL = [xA[1]*yU[2]-xA[2]*yU[1], xA[2]*yU[0]-xA[0]*yU[2], xA[0]*yU[1]-xA[1]*yU[0]], down = [-xA[1], -yU[1], -zL[1]];
       { const t0 = process.hrtime.bigint(); SB.nodeFrames(NF, T, D, rest, live); S.nfMs += Number(process.hrtime.bigint() - t0) / 1e6; S.nfN++; }
       const BP = SB.brokenPairs(T, D);
+      // G2040 (DMG-FABRIC): the physics' own live cover ties (sim.coverTies, not the hop's): a COVERING record may reach
+      // across a parting only through a node TIED to its vertex's piece, and only across a broken pair the physics ties
+      const TY = simI.coverTies ? simI.coverTies() : null, tiedG = new Set(), tornG = new Set(), tiedTo = new Map();
+      if (TY) for (let q = 0; q < TY.n; q++) { const a = TY.a[q], b = TY.b[q], k2 = Math.min(a, b) * n + Math.max(a, b);
+        if (TY.torn[q] >= 0) { tornG.add(k2); continue; } tiedG.add(k2);
+        for (const [x, y] of [[a, b], [b, a]]) { let L2 = tiedTo.get(x); if (!L2) tiedTo.set(x, L2 = new Set()); L2.add(own[y]); } }
+      if (tiedG.size) S.tiedFrames = (S.tiedFrames || 0) + 1;
+      const pairKey = (x, y) => Math.min(x, y) * n + Math.max(x, y);
       for (const r of recs) {
         const g = r.m.g;
         { const t0 = process.hrtime.bigint(); if (SB.event(r.RG, T, D, rest, g.pos) | SB.event(r.RC, T, D, rest, g.pos)) { S.events++; S.eventMs += Number(process.hrtime.bigint() - t0) / 1e6; } }
@@ -200,16 +208,22 @@ if (argv[0] === '--build') {
           const ws = SB.worstStretch(RR, g.pos, pos);
           if (ws.ex > S.excess) { S.excess = ws.ex; S.stretchAt = { t: +simI.t.toFixed(3), mesh: r.m.nm, cage: RR === r.RC, tri: ws.t }; }
           if (ws.m > S.stretch) S.stretch = ws.m;
+          if (ws.hm > (S.heldStretch || 0)) S.heldStretch = ws.hm;
+          if (RR.held) { let h = 0; for (let t = 0; t < RR.nt; t++) if (RR.held[t] && !RR.dead[t]) h++; if (h > (S.heldMax || 0)) S.heldMax = h; }
           // every live triangle: its vertices' kept nodes on one piece (the gate's own), no broken pair among its dominants
           const i0 = RR.idx0, Kk = RR.K;
           for (let t = 0; t < RR.nt; t++) {
             if (RR.dead[t]) continue;
             let piece = -1, bad = false;
-            for (let q = 0; q < 3 && !bad; q++) { const v = i0[t * 3 + q];
-              for (let kk = 0; kk < Kk; kk++) if (RR.w2[v * Kk + kk] > 0) { const p = own[RR.wi[v * Kk + kk]]; if (piece < 0) piece = p; else if (p !== piece) { bad = true; break; } } }
+            const cv = !!RR.cov;     // (G2040: a covering record while the physics ties a parting)
+            for (let q = 0; q < 3 && !bad; q++) { const v = i0[t * 3 + q], vpc = own[RR.dom[v]];
+              for (let kk = 0; kk < Kk; kk++) if (RR.w2[v * Kk + kk] > 0) { const i = RR.wi[v * Kk + kk], p = own[i];
+                if (cv) { if (p !== vpc && !(tiedTo.get(i) && tiedTo.get(i).has(vpc))) { bad = true; break; } continue; }   // its own piece, or tied to it
+                if (piece < 0) piece = p; else if (p !== piece) { bad = true; break; } } }
             if (bad) { S.span++; if (!S.spanBad) S.spanBad = { t: +simI.t.toFixed(3), mesh: r.m.nm, cage: RR === r.RC, tri: t }; }
             const a = RR.dom[i0[t * 3]], b = RR.dom[i0[t * 3 + 1]], cc = RR.dom[i0[t * 3 + 2]];
-            if (BP.has(a, b) || BP.has(b, cc) || BP.has(a, cc)) S.crossBroken++;
+            const brk = (x, y) => cv ? ((BP.has(x, y) && !tiedG.has(pairKey(x, y))) || (x !== y && tornG.has(pairKey(x, y)))) : BP.has(x, y);
+            if (brk(a, b) || brk(b, cc) || brk(a, cc)) S.crossBroken++;
           }
           if (RR.sag) for (let v = 0; v < RR.nv; v++) if (RR.sag[v] > S.sagMax) S.sagMax = RR.sag[v];
         }
@@ -221,29 +235,23 @@ if (argv[0] === '--build') {
         S.detachedSkin = Math.max(S.detachedSkin, dv);
       }
     }
-    // the sets at the end, past the window (the host's last send). G2640 (reviewed by Deform): judged once the host has
-    // CAUGHT UP - its last applied signature (stW.sS) equals the inline's (stI.sS), 7 steps at least (past the host's
-    // 0.1 s set window). The host flushes on the trailing edge (sim_host simDmgHop: a changed signature is sent once
-    // its window has passed, changing or not), so once the INLINE has been quiet for the window + 2 steps the host MUST
-    // have caught up - if not, that is a FAIL (the host never flushed its last set), never a judgement at its last send.
-    // Only a wreck that never goes quiet inside a second is judged at the host's last send (the sets equal there, as
-    // the loop's own row does). A wreck still yielding at a fixed 7th step was compared mid-flow (the floats' shell
-    // parted at its root, its loose tail working: the host's held window read as a mismatch, the sims bitwise equal).
-    // At rest it ends at the same 7th step - the old verdict.
-    const QUIET = Math.ceil(0.1 * 60) + 2;       // sim_host SIM_DMG_SET_S at 60 Hz, + 2 steps
-    let quiet = 0, lastIS = stI.sS, sameAtSend = true, endV = null;
-    S.flushLost = false;
-    for (let j = 0; j < 60; j++) {
-      simW.step(1 / 60); simI.step(1 / 60);
-      const PI = SH.simDmgHop(simI, hopI, core, 0); if (PI) SV.simViewDmgApply(stI, PI);
-      const m2 = H.meta();
-      if (m2.dmgB) { SV.simViewDmgApply(stW, v8.deserialize(v8.serialize(m2.dmgB))); if (m2.dmgB.st) sameAtSend = stI.set.every((x, i) => x === stW.set[i]); }
-      if (stI.sS === lastIS) quiet++; else { quiet = 0; lastIS = stI.sS; }
-      const caught = stW.sS === stI.sS;
-      if (j >= 6 && caught) { endV = stI.set.every((x, i) => x === stW.set[i]); break; }
-      if (quiet >= QUIET && !caught) { endV = false; S.flushLost = true; break; }
-    }
-    S.setsEnd = endV === null ? sameAtSend : endV;
+    // the sets at the end, past the window (the host's last send). A wreck still settling may yield in its last frames
+    // (the metal Cessna's 2.5 m trunk after DMG-WINDBREAK: a member's set moving until ~0.1 s before the run's end):
+    // step on until the inline sets have held still for a whole window (8 frames > SIM_DMG_SET_S), at most 4 s, then
+    // flush the host's last send as before - the claim is 'equal once the window has passed', not 'equal at an
+    // arbitrary end frame'
+    { let still = 0, prev = stI.set.slice();
+      for (let j = 0; j < 240 && still < 8; j++) {
+        simW.step(1 / 60); simI.step(1 / 60);
+        const PI = SH.simDmgHop(simI, hopI, core, 0); if (PI) SV.simViewDmgApply(stI, PI);
+        const m2 = H.meta(); if (m2.dmgB) SV.simViewDmgApply(stW, v8.deserialize(v8.serialize(m2.dmgB)));
+        const same = stI.set.length === prev.length && stI.set.every((x, i) => x === prev[i]);
+        still = same ? still + 1 : 0; prev = stI.set.slice();
+      }
+      S.settleSteps = still; }
+    for (let j = 0; j < 7; j++) { simW.step(1 / 60); simI.step(1 / 60); const PI = SH.simDmgHop(simI, hopI, core, 0); if (PI) SV.simViewDmgApply(stI, PI); const m2 = H.meta(); if (m2.dmgB) SV.simViewDmgApply(stW, v8.deserialize(v8.serialize(m2.dmgB))); }
+    S.setsEnd = stI.set.every((x, i) => x === stW.set[i]);
+    S.flushLost = S.settleSteps >= 8 && !S.setsEnd;   // (G2640, Deform's welcome: unequal after the inline held still a whole window = the host's trailing flush lost)
     for (const r of recs) { S.removedG += r.RG.removed; S.tornG += r.RG.torn; S.removedC += r.RC.removed; S.tornC += r.RC.torn; }
     const Dm = simI.damage();
     S.nb = Dm.broken.length; S.crashed = Dm.crashed; S.reason = Dm.reason; S.groups = Dm.groups.map(g => g.key);
@@ -317,10 +325,11 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
       yes(S.piecesMis === 0, 'the hop\'s pieces are DMG-D1b\'s (the gate\'s own union-find of the live members and clusters) on every frame');
       yes(S.hop.sends > 0 && S.hop.bytes > 0, 'the hop\'s cost in the crash: ' + S.hop.sends + ' payloads over ' + S.steps + ' snapshots, ' + S.hop.bytes + ' bytes (' + S.hop.perSend + ' a payload), ' + S.hop.ms + ' ms building them');
       if (S.frames) {
-        yes(S.span === 0, 'no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)' + (S.spanBad ? ' - ' + JSON.stringify(S.spanBad) : ''));
-        yes(S.crossBroken === 0, 'no live triangle spans a broken member (its vertices\' dominant nodes joined only by broken members)');
-        yes(S.excess <= 1e-6, 'no live triangle edge past (1 + ' + SB.TEAR + ') x its rest + ' + SB.TEAR_ABS * 1000 + ' mm: the worst ' + (S.excess * 1000).toFixed(2) + ' mm from it'
-          + (S.stretchAt ? ' (' + JSON.stringify(S.stretchAt) + ')' : '') + '; the worst stretch of an edge of 2 cm or more ' + S.stretch.toFixed(4));
+        yes(S.span === 0, 'no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)' + (S.spanBad ? ' - ' + JSON.stringify(S.spanBad) : ''));
+        yes(S.crossBroken === 0, 'no live triangle spans a broken member (its vertices\' dominant nodes joined only by broken members; G2040: a covering\'s, unless the physics ties that pair - and never a torn tie\'s)');
+        yes(S.excess <= 1e-6, 'no live triangle edge past (1 + ' + SB.TEAR + ') x its rest + ' + SB.TEAR_ABS * 1000 + ' mm (G2040: but a HELD covering triangle - the physics\' tie decides): the worst ' + (S.excess * 1000).toFixed(2) + ' mm from it'
+          + (S.stretchAt ? ' (' + JSON.stringify(S.stretchAt) + ')' : '') + '; the worst stretch of an edge of 2 cm or more ' + S.stretch.toFixed(4)
+          + (S.tiedFrames ? '; HELD by cover ties on ' + S.tiedFrames + ' frames, up to ' + (S.heldMax || 0) + ' held triangles, their worst edge stretch ' + (S.heldStretch || 0).toFixed(3) : ''));
         yes(S.finite, 'every skin position finite');
       }
       console.log('    the cost (node): the first break\'s binding ' + S.bindG.toFixed(1) + ' ms generated (whole), ' + S.bindC.toFixed(1) + ' ms cage (nearest nodes; ' + r.skin.verts + ' vertices); '

@@ -791,26 +791,34 @@ window.CAGE_COWL_STARTER = cowlArchStarter;
 // keep the bench default exactly as the user ruled.
 let fitNext = false;
 window.CAGE_COWL_FIT_NEXT = () => { fitNext = true; };
-function cowlForEngine(P, face, stat) {
-  let hit = cowlArchStarter(P);
-  const birth = fitNext;
-  if (!hit && fitNext) {
-    const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
-    try {
-      const spec = specOf && +P.engOn ? specOf(P) : null;
-      const R = spec && EG2 && EG2.engResolve ? EG2.engResolve(spec) : null;
-      if (R && COWL_BY_ARCH[spec.arch]) hit = { arch: spec.arch, R };
-    } catch (e) { hit = null; }
+// G2880: `dec` is a first pass's decision, for a placement run again over the
+// wing just published (CAGE_WING_EARLY, _cage_wing.js): the starter and the
+// birth are not asked twice, the same decision is applied to the new face
+function cowlForEngine(P, face, stat, dec) {
+  let hit, birth;
+  if (dec) { hit = dec.hit; birth = dec.birth; }
+  else {
+    hit = cowlArchStarter(P);
+    birth = fitNext;
+    if (!hit && fitNext) {
+      const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
+      try {
+        const spec = specOf && +P.engOn ? specOf(P) : null;
+        const R = spec && EG2 && EG2.engResolve ? EG2.engResolve(spec) : null;
+        if (R && COWL_BY_ARCH[spec.arch]) hit = { arch: spec.arch, R };
+      } catch (e) { hit = null; }
+    }
+    fitNext = false;
   }
-  fitNext = false;
-  if (!hit) return { birth, styled: false };
+  dec = { hit, birth };
+  if (!hit) return { birth, styled: false, dec };
   const got = window.CAGE_COWL_FOR_ENGINE(hit.arch, hit.R.env, face);
-  if (!got) return { birth, styled: false };
+  if (!got) return { birth, styled: false, dec };
   for (const k in got.vals) if (P[k] !== undefined) P[k] = got.vals[k];
   const UI = window.CAGE_UI;
   if (UI && UI.syncSliders) UI.syncSliders();
   if (got.note && stat) stat.textContent += '  ·  ' + got.note;
-  return { birth, styled: true };
+  return { birth, styled: true, dec };
 }
 
 // THE SECTION THE FUSELAGE IMPLIES, as the five firewall rows. `fitted`
@@ -826,17 +834,37 @@ function sectionFromFace(face) {
   return out;
 }
 
+// G2880 (NACELLE-LAG): the faces this layer stands on the WING (the pylon, the
+// nacelle pair) are read off CAGE_WING, which the wing layer - later in the
+// chain - publishes; the placement is handed to the wing's early readers
+// (CAGE_WING_EARLY, _cage_wing.js) and placed again, once, over the wing this
+// build publishes when that wing reads differently. A nose or a pusher face
+// never touches the wing and is placed once, as it always was.
+const onWing = P => { const m = Math.round(+(P && P.engMount) || 0); return m === 2 || m === 3; };
+const facesSig = ctx => {
+  const P = ctx.P;
+  if (!+P.cowlOn || !onWing(P)) return null;
+  const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  return JSON.stringify(engineFaces(ctx.mesh, FS, P));
+};
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
+  const EW = window.CAGE_WING_EARLY;
+  if (EW) EW.place('cowl', ctx, cowlPlace, () => facesSig(ctx));
+  else cowlPlace(ctx, null);
+};
+// the layer's own build; `again` is the first pass's starter decision when the
+// wing places it again (returned here for that)
+function cowlPlace(ctx, again) {
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
-  if (!P.cowlOn) return;
+  if (!P.cowlOn) return null;
 
   LIVE_P = P;
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
   const units = engineFaces(mesh, FS, P);
-  if (!units.length) { if (stat) stat.textContent += '  ·  cowl: no engine face on this body'; return; }
+  if (!units.length) { if (stat) stat.textContent += '  ·  cowl: no engine face on this body'; return null; }
   const station = units[0].face;
   const AF = GG ? GG.cageAirframe(mesh, FS) : null;
   // SIZE from the cap, SHAPE from the first dense slice behind it (a
@@ -852,7 +880,7 @@ PAGE.post = ctx => {
   // staleness the manifest's own comments warn about twice. It runs here, with
   // the firewall just measured and the panel's values not yet copied, so the
   // cowl this frame draws is the cowl the new engine asked for.
-  const forEng = cowlForEngine(P, face, stat) || { birth: false, styled: false };
+  const forEng = cowlForEngine(P, face, stat, again) || { birth: false, styled: false };
   // A BIRTH SEEDS THE SECTION ONCE (G213): sealed is the default now, so a
   // newborn would otherwise wear the bench's own section against a nose
   // that is not that shape. Written into the PANEL's rows (they are the
@@ -1051,7 +1079,8 @@ PAGE.post = ctx => {
       `${(CW.zEnd() * 1000).toFixed(0)} mm long` +
       (face.seat ? ` · seat +${(face.seat * 1000).toFixed(1)} mm` : '');
   }
-};
+  return forEng.dec || null;
+}
 // THE AERO AFT, CUT 1 (2026-09-04, TWIN-BOOM spec §1.2; the user: "an 'aero
 // aft' to the cabin, encompassing the bulkhead — not so different from a cowl
 // fitted at the back really, maybe we can start there? — and finishing

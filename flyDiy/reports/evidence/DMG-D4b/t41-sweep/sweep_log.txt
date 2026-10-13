@@ -1,0 +1,21 @@
+14:10:17
+GPU_BENCH.lock: COZY 13:56 WORKS-COZY untimed shake-down to 14:16
+boxlock: DMG-D4b waiting for cpu - held: GPU_BENCH.lock 
+boxlock: CPU battery taken by DMG-D4b
+fe7425145 Merge remote-tracking branch 'origin/claude/dmg-t39' into claude/dmg-d4b-t41
+V30_a1_t0.5_r1: {"br":114,"wreck":12,"stage":{"V":30,"agl":1,"tr":0.5,"D":40}} true
+V30_a1_t0.5_r2: {"br":114,"wreck":12,"stage":{"V":30,"agl":1,"tr":0.5,"D":40}} true
+V30_a2_t0.5_r1: {"br":99,"wreck":12,"stage":{"V":30,"agl":2,"tr":0.5,"D":40}} true
+V30_a2_t0.5_r2: {"br":99,"wreck":12,"stage":{"V":30,"agl":2,"tr":0.5,"D":40}} true
+V40_a2_t0.3_r1: {"br":1,"wreck":0,"stage":{"V":40,"agl":2,"tr":0.3,"D":40}} true
+V40_a2_t0.3_r2: {"br":1,"wreck":0,"stage":{"V":40,"agl":2,"tr":0.3,"D":40}} true
+V40_a2_t0.5_r1: {"br":1,"wreck":0,"stage":{"V":40,"agl":2,"tr":0.5,"D":40}} true
+V40_a2_t0.5_r2: {"br":1,"wreck":0,"stage":{"V":40,"agl":2,"tr":0.5,"D":40}} true
+V40_a4_t0.5_r1: {"br":0,"wreck":0,"stage":{"V":40,"agl":4,"tr":0.5,"D":40}} true
+V40_a4_t0.5_r2: {"br":0,"wreck":0,"stage":{"V":40,"agl":4,"tr":0.5,"D":40}} true
+V50_a2_t0.5_r1: {"br":129,"wreck":12,"stage":{"V":50,"agl":2,"tr":0.5,"D":40}} true
+V50_a2_t0.5_r2: {"br":129,"wreck":12,"stage":{"V":50,"agl":2,"tr":0.5,"D":40}} true
+boxlock: CPU battery released by DMG-D4b
+14:18:28
+
+[exited with code 0]

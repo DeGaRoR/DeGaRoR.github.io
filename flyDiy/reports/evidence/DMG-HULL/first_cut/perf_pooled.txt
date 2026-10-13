@@ -1,0 +1,6 @@
+cub:ground: base 3.6730 ms, now 3.6542 ms, -0.51 % (pooled, 11 processes a side)
+cub:air: base 3.5297 ms, now 3.5741 ms, 1.26 % (pooled, 26 processes a side)
+metal:ground: base 6.4708 ms, now 6.4367 ms, -0.53 % (pooled, 11 processes a side)
+metal:air: base 6.1629 ms, now 6.1375 ms, -0.41 % (pooled, 11 processes a side)
+twin:taxi: base 17.5415 ms, now 17.6415 ms, 0.57 % (pooled, 26 processes a side)
+cessna:taxi: base 16.1395 ms, now 16.5785 ms, 2.72 % (pooled, 26 processes a side)

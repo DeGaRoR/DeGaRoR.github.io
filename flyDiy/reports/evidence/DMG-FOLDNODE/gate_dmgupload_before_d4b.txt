@@ -1,0 +1,4 @@
+# BEFORE - GATE DMGUPLOAD as DMG-D4b left it (98f2b905 / 8f12bbf, no fold in the node page), the Cub's damage-ON run
+# (node tools/_dmg_upload_check.js --only=cub at 8f12bbf; its damage-OFF child is not shown: the gate file was edited while it ran)
+GATE DMGUPLOAD - what the GPU holds after a wreck is what the CPU holds (dev.html?simw=1&damage=1: crash -> the shed -> roll-out)
+  cub: fresh - 1148 drawn buffers checked, 0 stale; the crash {"br":224,"wreck":11}; after the shed and the roll-out (live true) - 1148 checked, 0 STALE; uploads {"uploads":18502,"subs":90669,"contexts":3}; drawn meshes by class {"still":2,"mesh":226}; the flown bake {"module":true,"forPayload":false,"hybrid":false}

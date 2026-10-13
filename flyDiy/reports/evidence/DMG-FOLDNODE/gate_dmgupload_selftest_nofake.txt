@@ -1,0 +1,12 @@
+# BEFORE - the selftest with the gate as D4b left it (--fakebake=0: no fold in the node page): D4b's mark off does NOT turn it red
+DMGUPLOAD selftest: the heal's upload marking off (the bug as it was) must turn it red
+  cub: fresh - 1148 drawn buffers checked, 0 stale; the crash {"br":224,"wreck":11}; after the shed and the roll-out (live true) - 1148 checked, 0 STALE; uploads {"uploads":18502,"subs":90669,"contexts":3}; drawn meshes by class {"still":2,"mesh":226}; the flown bake {"module":true,"hit":null,"cm":null,"hybrid":true,"hyT":0,"folds":0,"foldMeshes":0,"views":0,"merge":null}
+  FAIL  the fault turned the stale-buffer row red
+  FAIL  a stale buffer is a FOLD's (0 fold buffers stale)
+  ok    the fake bake made the folds and they were drawn and checked
+GATE DMGUPLOAD-SELFTEST: FAIL
+
+real	9m0.408s
+user	10m29.200s
+sys	0m22.895s
+exit 1

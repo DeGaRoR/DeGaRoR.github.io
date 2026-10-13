@@ -76,6 +76,7 @@
 // NEGATIVE-VERIFIED: --selftest breaks rules of 1, 1b, 2 and 3 in turn (1b hands
 // the gate the puddle field as it was on master - tiled every 133 m, 13 % water).
 'use strict';
+require('./_core_math_global.js');   // (T41b: CORE_MATH before a core file required alone - 00_registry's)
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');

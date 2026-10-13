@@ -130,7 +130,7 @@ function mulberry32(seed) {
 }
 const seedOf = (seed, layer, id) => hash32(seed | 0, fnv(layer + ':' + id));
 // the village's value noise, for a forest's clearings
-function hash2(x, y, s) { const h = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return h - Math.floor(h); }
+function hash2(x, y, s) { const h = CORE_MATH.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return h - Math.floor(h); }
 function vnoise(x, y, s) {
   const ix = Math.floor(x), iy = Math.floor(y);
   let fx = x - ix, fy = y - iy;
@@ -257,15 +257,15 @@ function roadFillet(pts, w) {
     const half = inner / 2, tanHalf = Math.tan(half);
     let R = want;
     R = Math.min(R, 0.45 * Math.min(la, lc) * tanHalf);  // the legs: tangent = R / tan(inner/2)
-    const sag = 1 - Math.sin(half);                      // sagitta = R * (1/sin(half) - 1) * sin(half)
-    if (sag > 1e-6) R = Math.min(R, 0.35 * (+w || 4) * Math.sin(half) / sag);
+    const sag = 1 - CORE_MATH.sin(half);                      // sagitta = R * (1/sin(half) - 1) * sin(half)
+    if (sag > 1e-6) R = Math.min(R, 0.35 * (+w || 4) * CORE_MATH.sin(half) / sag);
     const tl = R / tanHalf;                              // how far back along each leg the arc starts
     if (!(R > 0.05) || !(tl > 0.05)) { out.push(B); continue; }
     const T0 = [B[0] + ua[0] * tl, B[1] + ua[1] * tl], T1 = [B[0] + uc[0] * tl, B[1] + uc[1] * tl];
     const bis = [ua[0] + uc[0], ua[1] + uc[1]];
     const lb = Math.hypot(bis[0], bis[1]);
     if (lb < 1e-6) { out.push(B); continue; }            // a straight-back hairpin: no centre to find
-    const d = R / Math.sin(half);                        // B to the arc's centre, along the bisector
+    const d = R / CORE_MATH.sin(half);                        // B to the arc's centre, along the bisector
     const O = [B[0] + bis[0] / lb * d, B[1] + bis[1] / lb * d];
     let a0 = Math.atan2(T0[1] - O[1], T0[0] - O[0]);
     const a1 = Math.atan2(T1[1] - O[1], T1[0] - O[0]);
@@ -273,7 +273,7 @@ function roadFillet(pts, w) {
     while (sweep > Math.PI) sweep -= 2 * Math.PI;
     while (sweep < -Math.PI) sweep += 2 * Math.PI;
     const n = Math.max(2, Math.ceil(Math.abs(sweep) / (8 * Math.PI / 180)));
-    for (let k = 0; k <= n; k++) { const ang = a0 + sweep * k / n; out.push([O[0] + Math.cos(ang) * R, O[1] + Math.sin(ang) * R]); }
+    for (let k = 0; k <= n; k++) { const ang = a0 + sweep * k / n; out.push([O[0] + CORE_MATH.cos(ang) * R, O[1] + CORE_MATH.sin(ang) * R]); }
   }
   out.push(P[P.length - 1]);
   return out;
@@ -527,7 +527,7 @@ function makeModifier0(m, y0) {
       // (degrees, 0 = +z, 90 = +x); the old `plane` [a, b, c] form still reads
       let pl;
       if (m.slope !== undefined && m.slope !== null && m.level !== undefined) {
-        const c = polyCentroid(poly), hd = (+m.hdg || 0) * Math.PI / 180, a = (+m.slope || 0) * Math.sin(hd), b = (+m.slope || 0) * Math.cos(hd);
+        const c = polyCentroid(poly), hd = (+m.hdg || 0) * Math.PI / 180, a = (+m.slope || 0) * CORE_MATH.sin(hd), b = (+m.slope || 0) * CORE_MATH.cos(hd);
         pl = [a, b, (+m.level || 0) - a * c[0] - b * c[1]];
       } else pl = m.plane || [0, 0, 0];
       target = (x, z) => y0 + pl[0] * x + pl[1] * z + (pl[2] || 0);
@@ -577,7 +577,7 @@ function makeModifier0(m, y0) {
   if (m.kind === 'shelf') {
     // THE SHELF (the village's withShelf, verbatim): a pad rect in the ITEM's frame (c, yaw), level
     // inside, the base beyond a front margin (front and sides) or a back margin, smoothstepped
-    const c = m.c, cy = Math.cos(m.yaw), sy = Math.sin(m.yaw), R = m.rect;
+    const c = m.c, cy = CORE_MATH.cos(m.yaw), sy = CORE_MATH.sin(m.yaw), R = m.rect;
     const mF = Math.max(0.5, +m.marginF || 6), mB = Math.max(0.5, +m.marginB || mF);
     const corners = [[R.x0 - mF, R.z0 - mB], [R.x1 + mF, R.z0 - mB], [R.x1 + mF, R.z1 + mF], [R.x0 - mF, R.z1 + mF]].map(q => [c[0] + q[0] * cy + q[1] * sy, c[1] - q[0] * sy + q[1] * cy]);
     const bbox = polyBBox(corners);
@@ -877,7 +877,7 @@ function stageVaryOf(st, tracks) {
 // a kit's props and frame, in the record's frame, ids `<kit id>:<n>` (seeded per kit: the same record, the same kit)
 function stageKitObjects(k) {
   const K = STAGE_KITS[k.kit]; if (!K) return [];
-  const w = +k.w || 24, d = +k.d || 18, yaw = +k.yaw || 0, c = Math.cos(yaw), s = Math.sin(yaw);
+  const w = +k.w || 24, d = +k.d || 18, yaw = +k.yaw || 0, c = CORE_MATH.cos(yaw), s = CORE_MATH.sin(yaw);
   // local (u across w, v across d) -> the record's frame, the placement law of an item in its site (x = u c + v s, z = -u s + v c)
   const at = (u, v) => [+(+k.x + u * c + v * s).toFixed(3), +(+k.z - u * s + v * c).toFixed(3)];
   const rnd = mulberry32(hash32(7, fnv('kit:' + k.id))), out = [];
@@ -906,7 +906,7 @@ function stageKitObjects(k) {
 const stageFrameKey = f => (f.gen && GEN_NS[f.gen] ? GEN_NS[f.gen] + '/' + f.preset : f.key || null);
 // the kit's plot as a polygon (the tree exclude while it stands)
 function stageKitPoly(k) {
-  const w = (+k.w || 24) / 2 + 2, d = (+k.d || 18) / 2 + 2, yaw = +k.yaw || 0, c = Math.cos(yaw), s = Math.sin(yaw);
+  const w = (+k.w || 24) / 2 + 2, d = (+k.d || 18) / 2 + 2, yaw = +k.yaw || 0, c = CORE_MATH.cos(yaw), s = CORE_MATH.sin(yaw);
   return [[-w, -d], [w, -d], [w, d], [-w, d]].map(q => [+(+k.x + q[0] * c + q[1] * s).toFixed(3), +(+k.z - q[0] * s + q[1] * c).toFixed(3)]);
 }
 // a COPY of the record as it stands at `tracks` (null: the sandbox), and what was cut / changed, so an edit made on the
@@ -1089,7 +1089,7 @@ function zoneWaterYOf(world, F, z, fallback) {
 function frameOf(rec, world) {
   const wid = (world && world.id) || '*';
   const a = rec.frame.anchors[wid] || rec.frame.anchors['*'] || { x: 0, z: 0, yaw: 0 };
-  const c = Math.cos(a.yaw || 0), s = Math.sin(a.yaw || 0);
+  const c = CORE_MATH.cos(a.yaw || 0), s = CORE_MATH.sin(a.yaw || 0);
   const toWorld = (lx, lz) => [a.x + lx * c + lz * s, a.z - lx * s + lz * c];
   const toLocal = (x, z) => { const dx = x - a.x, dz = z - a.z; return [dx * c - dz * s, dx * s + dz * c]; };
   const y0 = world && world.terrainH ? world.terrainH(a.x, a.z) : 0;
@@ -1568,7 +1568,7 @@ function profileIssues(r) {
 // length law: 40 m + 6 % of the length, at most 120 m
 function runwayShoulder(r) { return r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + (+r.len || 0) * 0.06); }
 function runwayEnds(r) {
-  const d = [Math.cos(r.hdg), Math.sin(r.hdg)], hl = r.len / 2;
+  const d = [CORE_MATH.cos(r.hdg), CORE_MATH.sin(r.hdg)], hl = r.len / 2;
   return { d, n: [-d[1], d[0]], end0: [r.c[0] - d[0] * hl, r.c[1] - d[1] * hl], end1: [r.c[0] + d[0] * hl, r.c[1] + d[1] * hl] };
 }
 // the strip's box, with a margin, as a polygon (for the exclude and the hit)
@@ -1644,7 +1644,7 @@ function stageAero(a, r) { if (r.sock === false) a.sock = false; if (r.ties === 
 function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   const E = runwayEnds(r);
   const c = F.toWorld(r.c[0], r.c[1]);
-  const dw = [E.d[0] * Math.cos(F.yaw) + E.d[1] * Math.sin(F.yaw), -E.d[0] * Math.sin(F.yaw) + E.d[1] * Math.cos(F.yaw)];
+  const dw = [E.d[0] * CORE_MATH.cos(F.yaw) + E.d[1] * CORE_MATH.sin(F.yaw), -E.d[0] * CORE_MATH.sin(F.yaw) + E.d[1] * CORE_MATH.cos(F.yaw)];
   const hdg = Math.atan2(dw[1], dw[0]);
   const hl = r.len / 2, aimIn = (r.len - 10) / 4;
   // the pilot lands along -hdg over thr1 (5 m inside end1): the target sits a quarter in from that bar
@@ -1698,7 +1698,7 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
 // world yaw is at.yaw + pi + item.yaw (placeSite: atan2(-up) + it.yaw)
 function siteFrame(site) {
   const a = site.at || { x: 0, z: 0, yaw: 0 };
-  const c = Math.cos(a.yaw || 0), sn = Math.sin(a.yaw || 0);
+  const c = CORE_MATH.cos(a.yaw || 0), sn = CORE_MATH.sin(a.yaw || 0);
   return { at: a, toLocal: (lx, lz) => [a.x + lx * c + lz * sn, a.z - lx * sn + lz * c] };
 }
 // a slot's place in a plan: the entry's slots map names a path ('plan.house'); the plan publishes it
@@ -1718,7 +1718,7 @@ function placeSite(site, cat, ctx) {
     if (!entry) { issues.push('site ' + site.id + ': no catalogue entry for ' + it.key); return; }
     const c = SF.toLocal(it.x || 0, it.z || 0);
     const yaw = (SF.at.yaw || 0) + Math.PI + (it.yaw || 0);
-    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const cy = CORE_MATH.cos(yaw), sy = CORE_MATH.sin(yaw);
     const toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
     const oy = ctx.T(c[0], c[1]);
     const ground = (lx, lz) => { const w = toWorld(lx, lz); return ctx.T(w[0], w[1]) - oy; };
@@ -1784,7 +1784,7 @@ function siteShelves(site, cat, T) {
     if (!entry || !entry.ground || entry.ground.need === 'none' || !entry.ground.need) return;
     const c = SF.toLocal(it.x || 0, it.z || 0);
     const yaw = (SF.at.yaw || 0) + Math.PI + (it.yaw || 0);
-    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const cy = CORE_MATH.cos(yaw), sy = CORE_MATH.sin(yaw);
     const toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
     const P = entry.params ? entry.params(Object.assign({ recvZ: it.z || 0 }, it.P || {})) : Object.assign({}, entry.P || {}, it.bottomOnRoad ? { recvZ: it.z || 0 } : {}, it.P || {});
     const id = site.id + '/' + (it.id || ('i' + k)) + ':ground';
@@ -1827,7 +1827,7 @@ const LINK_SOLVERS = {
   // the target in the mill's own frame, at the shed's eave
   conveyor: { needs: 'placed', band: { maxDx: 120, dyMin: -40, dyMax: 60 },
     solve(link, A, B) {
-      const c = Math.cos(A.yaw), sn = Math.sin(A.yaw);
+      const c = CORE_MATH.cos(A.yaw), sn = CORE_MATH.sin(A.yaw);
       const dx = B.x - A.x, dz = B.z - A.z;
       const ty = B.y + (B.P.floorY || 0) + (B.P.eaveH || 5) - A.y;
       const to = [dx * c - dz * sn, ty, dx * sn + dz * c];
@@ -1915,13 +1915,13 @@ function smoothPath(pts, radius) {
     const P0 = [p[0] + v0[0] * t, p[1] + v0[1] * t], P1 = [p[0] + v1[0] * t, p[1] + v1[1] * t];
     const bl = Math.hypot(v0[0] + v1[0], v0[1] + v1[1]) || 1;
     const bis = [(v0[0] + v1[0]) / bl, (v0[1] + v1[1]) / bl];
-    const C = [p[0] + bis[0] * R / Math.sin(ang / 2), p[1] + bis[1] * R / Math.sin(ang / 2)];
+    const C = [p[0] + bis[0] * R / CORE_MATH.sin(ang / 2), p[1] + bis[1] * R / CORE_MATH.sin(ang / 2)];
     const a0 = Math.atan2(P0[1] - C[1], P0[0] - C[0]);
     let da = Math.atan2(P1[1] - C[1], P1[0] - C[0]) - a0;
     while (da > Math.PI) da -= Math.PI * 2;
     while (da < -Math.PI) da += Math.PI * 2;
     const n = Math.max(2, Math.ceil(Math.abs(da) / 0.3));
-    for (let k = 0; k <= n; k++) { const th = a0 + da * k / n; out.push([C[0] + Math.cos(th) * R, C[1] + Math.sin(th) * R]); }
+    for (let k = 0; k <= n; k++) { const th = a0 + da * k / n; out.push([C[0] + CORE_MATH.cos(th) * R, C[1] + CORE_MATH.sin(th) * R]); }
   }
   out.push([pts[pts.length - 1][0], pts[pts.length - 1][1]]);
   return out;
@@ -2039,6 +2039,96 @@ function roadBuildKeys(O) {
   }
   return out;
 }
+// THE LONE ROAD'S PATCH (G3013 SCENERY-SHIP; the user's ~66 km of graded road put the fine 2 m patch along all of it for
+// every player - 283 chunks of 64 m before the island road, 1 981 with the user's scenery). A road's chunks were every
+// chunk whose CENTRE lies within its half width + falloff + 6 m + half a chunk's diagonal of its line - a chunk the band
+// only grazes too. That margin is for where the road MEETS something (a junction, a plot's lot, a strip's shoulder, an
+// apron): there the patch must reach every chunk the ground is shaped in. A stretch with nothing of the record within
+// LONE_R of it is a LONE stretch: its chunks are those whose centre lies within the band itself (half width + falloff +
+// 6 m); the grazed ones are left to the island's ground ring, which samples the same composed ground more coarsely.
+// roadLoneSegs(rec, runways?) -> Map(road id -> Uint8Array, 1 a lone segment of its points); roadPatchChunks(rec, F,
+// PCH, bounds, opts) -> Set('i,j') the chunks the roads mark (the renderer's activeChunks reads it; opts.lone false =
+// the margin everywhere, as before; opts.skip(entry)).
+const LONE_R = 120, LONE_CELL = 128;
+function roadLoneSegs(rec, runways) {
+  const L = (rec && rec.layers) || {}, cells = new Map(), key = (i, j) => i + ',' + j;
+  const mark = (x0, z0, x1, z1, owner) => {
+    for (let i = Math.floor((x0 - LONE_R) / LONE_CELL); i <= Math.floor((x1 + LONE_R) / LONE_CELL); i++) for (let j = Math.floor((z0 - LONE_R) / LONE_CELL); j <= Math.floor((z1 + LONE_R) / LONE_CELL); j++) {
+      const k = key(i, j); let s = cells.get(k); if (!s) cells.set(k, s = new Set()); s.add(owner);
+    }
+  };
+  const polys = [];
+  for (const k of ['terrain', 'surface', 'material', 'exclude', 'zones', 'ttype', 'areas']) for (const e of L[k] || []) {
+    if (e && Array.isArray(e.poly) && e.poly.length >= 3) polys.push(e.poly);
+    else if (e && Array.isArray(e.pts) && e.pts.length >= 2) polys.push(e.pts);
+  }
+  for (const p of polys) { const b = polyBBox(p); mark(b.x0, b.z0, b.x1, b.z1, '*'); }
+  for (const r0 of runways || L.runways || []) { const r = Object.assign({}, RUNWAY_DEF, r0); if (!r.c || !(r.len > 0)) continue; const b = polyBBox(runwayBox(r, runwayShoulder(r) + 30)); mark(b.x0, b.z0, b.x1, b.z1, '*'); }
+  for (const st of L.sites || []) { const a = st.at || { x: 0, z: 0 }; mark(a.x - 80, a.z - 80, a.x + 80, a.z + 80, '*'); }
+  for (const ob of L.objects || []) if (isFinite(+ob.x) && isFinite(+ob.z)) mark(+ob.x - 30, +ob.z - 30, +ob.x + 30, +ob.z + 30, '*');
+  // every road's own line, its id the owner: another road near a stretch is a junction's or a parallel's - not lone
+  const step = 32;
+  for (const r of L.roads || []) if (r && Array.isArray(r.pts)) for (let s = 1; s < r.pts.length; s++) {
+    const a = r.pts[s - 1], b = r.pts[s], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
+    for (let k = 0; k <= n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, z = a[1] + (b[1] - a[1]) * k / n; mark(x, z, x, z, 'r:' + r.id); }
+  }
+  const out = new Map();
+  for (const r of L.roads || []) {
+    if (!r || !Array.isArray(r.pts) || r.pts.length < 2) continue;
+    const segs = new Uint8Array(r.pts.length - 1), own = 'r:' + r.id;
+    for (let s = 1; s < r.pts.length; s++) {
+      const a = r.pts[s - 1], b = r.pts[s], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
+      let lone = 1;
+      for (let k = 0; k <= n && lone; k++) { const x = a[0] + (b[0] - a[0]) * k / n, z = a[1] + (b[1] - a[1]) * k / n, c = cells.get(key(Math.floor(x / LONE_CELL), Math.floor(z / LONE_CELL)));
+        if (c) for (const o of c) if (o !== own) { lone = 0; break; } }
+      segs[s - 1] = lone;
+    }
+    out.set(r.id, segs);
+  }
+  return out;
+}
+function roadPatchChunks(rec, F, PCH, bounds, opts) {
+  const o = opts || {}, act = new Set(), HALFD = PCH * 0.7072, lone = o.lone === false ? null : roadLoneSegs(rec, o.runways);
+  const { i0, i1, j0, j1 } = bounds;
+  for (const r of ((rec && rec.layers && rec.layers.roads) || [])) {
+    if ((o.skip && o.skip(r)) || !r || !Array.isArray(r.pts) || r.pts.length < 2) continue;
+    const m = (+r.w || 3.6) / 2 + (+r.falloff || 6) + 6, ls = lone && lone.get(r.id);
+    for (let s = 1; s < r.pts.length; s++) {
+      const a = r.pts[s - 1], b = r.pts[s], reach = m + (ls && ls[s - 1] ? 0 : HALFD);
+      const c = [[Math.min(a[0], b[0]) - m, Math.min(a[1], b[1]) - m], [Math.max(a[0], b[0]) + m, Math.min(a[1], b[1]) - m], [Math.max(a[0], b[0]) + m, Math.max(a[1], b[1]) + m], [Math.min(a[0], b[0]) - m, Math.max(a[1], b[1]) + m]].map(q => F.toWorld(q[0], q[1]));
+      const x0 = Math.min(...c.map(q => q[0])), x1 = Math.max(...c.map(q => q[0])), z0 = Math.min(...c.map(q => q[1])), z1 = Math.max(...c.map(q => q[1]));
+      for (let i = Math.max(i0, Math.floor(x0 / PCH)); i <= Math.min(i1, Math.floor(x1 / PCH)); i++) for (let j = Math.max(j0, Math.floor(z0 / PCH)); j <= Math.min(j1, Math.floor(z1 / PCH)); j++) {
+        const k = i + ',' + j; if (act.has(k)) continue;
+        const lc = F.toLocal((i + 0.5) * PCH, (j + 0.5) * PCH);
+        if (distPtSeg(lc[0], lc[1], a, b) <= reach) act.add(k);
+      }
+    }
+  }
+  return act;
+}
+// A ROAD STOPPED AT A STRIP (G3014 SCENERY-SHIP; the user, of their road across their new strip: "You can stop it at the
+// strip indeed"): the road's waypoints up to where its line first meets the polygon (a strip's box) and that point, on
+// the side it comes from - the longer of the two outside parts when it crosses (the access, not the overrun). Its own
+// points and handles are kept to the cut (`tan`, `nodes` cut with them); the cut point is new (cm). null when it never
+// meets the polygon or lies inside it.
+function roadCutAtPoly(r, poly) {
+  const P = r && r.pts; if (!Array.isArray(P) || P.length < 2 || !Array.isArray(poly) || poly.length < 3) return null;
+  const hit = (a, b) => { let best = null; for (let k = 0; k < poly.length; k++) { const c = poly[k], d = poly[(k + 1) % poly.length];
+    const rx = b[0] - a[0], rz = b[1] - a[1], sx = d[0] - c[0], sz = d[1] - c[1], den = rx * sz - rz * sx; if (Math.abs(den) < 1e-12) continue;
+    const qx = c[0] - a[0], qz = c[1] - a[1], t = (qx * sz - qz * sx) / den, u = (qx * rz - qz * rx) / den; if (t >= 0 && t <= 1 && u >= 0 && u <= 1 && (!best || t < best.t)) best = { t, p: [a[0] + rx * t, a[1] + rz * t] }; } return best; };
+  const len = Q => { let s = 0; for (let i = 1; i < Q.length; i++) s += Math.hypot(Q[i][0] - Q[i - 1][0], Q[i][1] - Q[i - 1][1]); return s; };
+  const cm = p => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100];
+  let A = null, B = null;
+  if (!inPoly(poly, P[0][0], P[0][1])) for (let i = 0; i + 1 < P.length; i++) { const h = hit(P[i], P[i + 1]); if (h) { A = { n: i + 1, p: cm(h.p) }; break; } }
+  const L = P.length - 1;
+  if (!inPoly(poly, P[L][0], P[L][1])) for (let i = L; i > 0; i--) { const h = hit(P[i], P[i - 1]); if (h) { B = { n: i, p: cm(h.p) }; break; } }
+  if (!A && !B) return null;
+  const keep = (x, pts) => { const o = Object.assign({}, r, { pts });
+    for (const k of ['tan', 'nodes']) if (Array.isArray(r[k])) o[k] = x === 'A' ? r[k].slice(0, A.n).concat([null]) : [null].concat(r[k].slice(B.n)); return o; };
+  const pa = A ? P.slice(0, A.n).concat([A.p]) : null, pb = B ? [B.p].concat(P.slice(B.n)) : null;
+  if (pa && (!pb || len(pa) >= len(pb))) return keep('A', pa);
+  return keep('B', pb);
+}
 // a ground edit's box (premises frame) over a road: its points' box grown by its half width and `pad` (its banks)
 function roadBoxTouch(rd, box, pad) {
   if (!rd || !rd.pts || rd.pts.length < 1 || !box) return false;
@@ -2145,7 +2235,7 @@ const roadLine = r => (r.curve === 'spline' ? roadCurve(r.pts, r.tan) : r.smooth
 function roundPoly(R) {
   const n = Math.max(12, Math.min(128, Math.round(+R.n || 48))), r = Math.max(1, +R.r || 10), c = R.c;
   const out = [];
-  for (let k = 0; k < n; k++) { const a = 2 * Math.PI * k / n; out.push([+(c[0] + Math.cos(a) * r).toFixed(3), +(c[1] + Math.sin(a) * r).toFixed(3)]); }
+  for (let k = 0; k < n; k++) { const a = 2 * Math.PI * k / n; out.push([+(c[0] + CORE_MATH.cos(a) * r).toFixed(3), +(c[1] + CORE_MATH.sin(a) * r).toFixed(3)]); }
   return out;   // counter-clockwise (+x toward +z)
 }
 const roundOk = R => !!(R && Array.isArray(R.c) && isFinite(+R.c[0]) && isFinite(+R.c[1]) && +R.r > 0);
@@ -2199,12 +2289,12 @@ const MARK_DEF = { parking: { bay: 2.7, depth: 5.5, aisle: 6.5, inset: 1, line: 
 // a ROUNDED RECTANGLE (the shape of a parking lot, a dock's quay): its polygon, counter-clockwise like roundPoly's
 function rectPoly(Q) {
   const hw = Math.max(0.5, +Q.hw || 5), hd = Math.max(0.5, +Q.hd || 5), r = clamp(+Q.radius || 0, 0, Math.min(hw, hd) * 0.999);
-  const yaw = +Q.yaw || 0, cs = Math.cos(yaw), sn = Math.sin(yaw), c = Q.c, out = [];
+  const yaw = +Q.yaw || 0, cs = CORE_MATH.cos(yaw), sn = CORE_MATH.sin(yaw), c = Q.c, out = [];
   const put = (x, z) => out.push([+(c[0] + x * cs - z * sn).toFixed(3), +(c[1] + x * sn + z * cs).toFixed(3)]);
   const cen = [[hw - r, hd - r], [-(hw - r), hd - r], [-(hw - r), -(hd - r)], [hw - r, -(hd - r)]];
   for (let k = 0; k < 4; k++) {
     if (r <= 0.01) { put(k === 0 || k === 3 ? hw : -hw, k < 2 ? hd : -hd); continue; }
-    for (let i = 0; i <= 6; i++) { const a = (k + i / 6) * Math.PI / 2; put(cen[k][0] + Math.cos(a) * r, cen[k][1] + Math.sin(a) * r); }
+    for (let i = 0; i <= 6; i++) { const a = (k + i / 6) * Math.PI / 2; put(cen[k][0] + CORE_MATH.cos(a) * r, cen[k][1] + CORE_MATH.sin(a) * r); }
   }
   return out;
 }
@@ -2329,7 +2419,7 @@ function areaOfEntry(rec, id) {
 function areaMarks(poly, spec, frame, water) {
   const S = Object.assign({}, MARK_DEF[spec && spec.kind] || {}, spec || {}), out = { rects: [], segs: [], kind: S.kind, n: 0, issues: [] };
   if (!Array.isArray(poly) || poly.length < 3 || MARK_DEF[S.kind] === undefined) return out;
-  const yaw = +(frame && frame.yaw) || 0, c = Math.cos(yaw), sn = Math.sin(yaw);
+  const yaw = +(frame && frame.yaw) || 0, c = CORE_MATH.cos(yaw), sn = CORE_MATH.sin(yaw);
   const bb = polyBBox(poly), cx = frame && isFinite(frame.cx) ? frame.cx : (bb.x0 + bb.x1) / 2, cz = frame && isFinite(frame.cz) ? frame.cz : (bb.z0 + bb.z1) / 2;
   const P = poly.map(q => { const dx = q[0] - cx, dz = q[1] - cz; return [dx * c + dz * sn, -dx * sn + dz * c]; });
   const kind = S.colour === 'white' ? 0 : 1, ins = Math.max(0, +S.inset || 0);
@@ -3132,7 +3222,7 @@ function compose(rec0, world, opts) {
           // the nearest open ground beyond the reach: rings of 8 directions, 10 m apart, out to 120 m
           let code = -1;
           for (let r = g.cell; r <= 120 && code < 0; r += g.cell) for (let q = 0; q < 8 && code < 0; q++) {
-            const x = cx + Math.cos(q * Math.PI / 4) * r, z = cz + Math.sin(q * Math.PI / 4) * r, L2 = F.toLocal(x, z);
+            const x = cx + CORE_MATH.cos(q * Math.PI / 4) * r, z = cz + CORE_MATH.sin(q * Math.PI / 4) * r, L2 = F.toLocal(x, z);
             if (b.sd(L2[0], L2[1]) <= b.reach) continue;
             const c = codeAt(x, z); if (c >= 0 && BAND_SKIP.indexOf(c) < 0) code = c;
           }
@@ -3481,7 +3571,7 @@ function compose(rec0, world, opts) {
       // a grass pavement is the world's grass with the wear drawn on it: thinned, not bare - except a STRIP's
       // surface, where no grass grows at all (G665, the user: "the runways should be able excluding the grass")
       if (it.cls === 'grass' && !(it.kind === 'strip' && d >= 0)) k *= 0.6;
-      const bump = out <= it.band ? 0 : (out < it.band + PAVE_FADE + 6 ? Math.sin(Math.PI * Math.min(1, (out - it.band) / (PAVE_FADE + 6))) : 0);
+      const bump = out <= it.band ? 0 : (out < it.band + PAVE_FADE + 6 ? CORE_MATH.sin(Math.PI * Math.min(1, (out - it.band) / (PAVE_FADE + 6))) : 0);
       // a soft road's own edge is where the grass creeps in: the bump reaches into its last metre
       const soft = it.soft && d > 0 && d < 1 ? 0.5 * (1 - d) : 0;
       if (k > kill) { kill = k; }
@@ -3539,7 +3629,7 @@ function compose(rec0, world, opts) {
         if (it.cls === 'grass') k *= 0.6;
         if (out > it.band) c = out <= mow ? 1 : Math.max(0, 1 - (out - mow) / blend);
       }
-      if (out > v0 && out < v0 + VERGE) boost = Math.max(boost, 0.7 * Math.sin(Math.PI * (out - v0) / VERGE));
+      if (out > v0 && out < v0 + VERGE) boost = Math.max(boost, 0.7 * CORE_MATH.sin(Math.PI * (out - v0) / VERGE));
       if (k > kill) kill = k;
       if (c > cut) cut = c;
     }
@@ -3627,7 +3717,7 @@ function compose(rec0, world, opts) {
         let best = -Infinity;
         for (let k = 0; k < n; k++) {
           const a = Math.PI * 2 * k / n;
-          const w = F.toWorld(lx + Math.cos(a) * r, lz + Math.sin(a) * r);
+          const w = F.toWorld(lx + CORE_MATH.cos(a) * r, lz + CORE_MATH.sin(a) * r);
           const v = world.waterH(w[0], w[1]);
           if (isFinite(v) && v > best) best = v;
         }
@@ -3727,7 +3817,7 @@ function compose(rec0, world, opts) {
           const front = plan.toWorld(0, plan.local.patch.z1 + 0.6);
           const sway = (prnd() < 0.5 ? -1 : 1) * (3 + prnd() * 3);
           const pts = [];
-          for (let i = 0; i <= 10; i++) { const u = i / 10, sw = Math.sin(u * Math.PI) * sway; pts.push([+(p0[0] + (front[0] - p0[0]) * u + tg[0] * sw).toFixed(3), +(p0[1] + (front[1] - p0[1]) * u + tg[1] * sw).toFixed(3)]); }
+          for (let i = 0; i <= 10; i++) { const u = i / 10, sw = CORE_MATH.sin(u * Math.PI) * sway; pts.push([+(p0[0] + (front[0] - p0[0]) * u + tg[0] * sw).toFixed(3), +(p0[1] + (front[1] - p0[1]) * u + tg[1] * sw).toFixed(3)]); }
           park.path = { pts, width: 1.4 };
           const q = p.poly;
           park.fences = [
@@ -3946,7 +4036,7 @@ function bake(overlay, world, extent, cell) {
 // a shelf's ground in the premises frame: the pad's rect grown by its larger margin, in the item's frame
 function shelfCovers(sh, lx, lz) {
   if (sh.kind !== 'shelf') return sh.poly ? inPoly(sh.poly, lx, lz) : false;
-  const dx = lx - sh.c[0], dz = lz - sh.c[1], cy = Math.cos(sh.yaw), sy = Math.sin(sh.yaw);
+  const dx = lx - sh.c[0], dz = lz - sh.c[1], cy = CORE_MATH.cos(sh.yaw), sy = CORE_MATH.sin(sh.yaw);
   const x = dx * cy - dz * sy, z = dx * sy + dz * cy, m = Math.max(+sh.marginF || 0, +sh.marginB || 0);
   return x >= sh.rect.x0 - m && x <= sh.rect.x1 + m && z >= sh.rect.z0 - m && z <= sh.rect.z1 + m;
 }
@@ -4079,8 +4169,8 @@ function checks(rec0, world, opts) {
 // the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
-const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
-const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', MARINE_GEN: 'marine' };
+const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN', 'NAVAID_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
+const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', NAVAID_GEN: 'navaid', MARINE_GEN: 'marine' };
 function collect(globals) {
   const entries = new Map(), aliases = {}, issuesOut = [];
   for (const g of GENERATORS) {
@@ -4114,7 +4204,7 @@ function collect(globals) {
 }
 
 const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
-  fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale,
+  fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,

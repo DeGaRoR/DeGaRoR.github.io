@@ -304,7 +304,42 @@ const GEN_MATERIALS = {
     price: 30,                          // bolted tube and sewn sail: the cheapest way to fly
     cd0: 0.0022, clmaxK: 1.00,
   },
+  // G2047 (DMG-COMPOSITE, the user 2026-10-06: "something made out of glassfiber/carbon"): E-GLASS / EPOXY - the
+  // homebuilt's and the glider's structure (wet layup or prepreg; quasi-isotropic woven skins over foam, UD
+  // rovings in the spar caps). Derived from the carbon row it shares a construction with (moulded sandwich, the
+  // same moulds and hours), by the material alone - AS RECALLED, not opened here (A0 opens the sources):
+  //   phys    E 20 GPa: a QI / woven E-glass laminate (7781 satin / BID +-45 + UNI, Vf 0.40-0.50) 17-22 GPa
+  //           (MIL-HDBK-17-2 / CMH-17 Vol 2 woven E-glass/epoxy; Hexcel 7781 / Gurit SE 84 datasheets) against a
+  //           carbon QI's 45-55 - the UD 135 GPa of the carbon row is a FIBRE-DIRECTION number, kept for GATE FLEX;
+  //           rho 1900 (glass 2540 at Vf 0.45 in epoxy 1150-1200); sigY the governing allowable IN COMPRESSION,
+  //           as the row defines it: 0.6 x the laminate's tension (GEN_CRASH.glass), 180 MPa.
+  //   lin     x1.3 the carbon row's: a glass structure of the same stiffness needs more laminate (a glass glider
+  //           against its carbon successor ~ +20-30 % in wing structure: ASW 19 / ASW 24, LS4 / LS8 class
+  //           figures as recalled) - the gauge then follows the design gross as every row's does.
+  //   cover   x1.25 the carbon row's sandwich: the same cloth / foam / cloth, glass plies heavier for the
+  //           same job (a Rutan VariEze / Long-EZ glass-foam shell ~2.5-3.5 kg/m2 finished, as recalled).
+  //   k, c    the carbon row's per class x0.5 on the fuselage and the wing (E x A: 20 / 50 GPa on 1.3 x the
+  //           carbon section, 0.4-0.5 - a glass airframe is the floppy one: a glass glider's tip deflects
+  //           visibly where a carbon one does not), the damping by root(k m) to hold zeta as the alloy row's
+  //           note asks (x0.81); the GEAR's row is the carbon row's, its c by root(m): the leg is the gear's.
+  //   refMass / refGross: the carbon row's (the same size of composite two-seater the k/c ride from).
+  //   price   below carbon's: the cloth is a tenth the price per kilo, the moulds and the hours are the same.
+  glass: {
+    name: 'glass + epoxy',
+    phys: { E: 20e9, rho: 1900, sigY: 180e6 },
+    lin:   { fus: 0.50, wing: 0.57, gear: 1.10 },
+    cover: 3.00,
+    k:     { fus: 6.05e5, wing: 1.80e6, gear: 1.55e5 },
+    c:     { fus: 222,   wing: 725,   gear: 2128 },
+    refMass: 420,
+    refGross: 600, coverGauged: true,
+    cdWet: 0.0045,                      // moulded, gelcoated: as smooth as the carbon
+    price: 110,
+    cd0: 0.0004, clmaxK: 1.05,
+  },
 };
+// G2047 (DMG-COMPOSITE): a moulded composite (carbon or glass): no laced rings, no screwed panels, bonded joints
+function genComposite(m) { return m === 'carbon' || m === 'glass'; }
 
 // ===========================================================================
 // GEN_CRASH (G1470, TREE-CRASH) — WHERE A MEMBER STOPS SPRINGING BACK, AND WHERE IT BREAKS
@@ -341,7 +376,33 @@ const GEN_MATERIALS = {
 //                          uniform ~10 %. A riveted skin-stringer field folds in compression early: 3 %.
 //   6061-T6 tube           MIL-HDBK-5J Table 3.6.2.0(b): Ftu 42 / Fty 35 ksi (x1.20), elongation 10 %,
 //                          uniform ~6 %.
-//   carbon / epoxy UD      no yield (GEN_MATERIALS.carbon): linear to failure, ~1.1 % strain; ty = tu, 0.
+//   carbon / epoxy         no yield (GEN_MATERIALS.carbon): linear to failure; ty = tu, etu 0. G2047 (DMG-COMPOSITE):
+//                          the LAMINATE's, not the UD fibre's - the 1500 MPa this row carried is a 0-degree UD coupon
+//                          (T300 / AS4 UD 1.4-2.1 GPa); a lattice member stands for a skin (QI or +-45 woven) with its
+//                          caps, and a QI carbon/epoxy laminate breaks at 0.5-0.65 GPa in tension (MIL-HDBK-17-2 /
+//                          CMH-17 Vol 2, AS4/3501-6 and T300 fabric [0/45/90/-45]s, AS RECALLED): 600 MPa. Compression
+//                          ~0.6 x tension (CMH-17's QI and open-hole figures; compression after impact lower still): 360.
+//   E-glass / epoxy        G2047: a QI / woven E-glass laminate 250-350 MPa in tension (MIL-HDBK-17-2 7781/epoxy
+//                          warp ~400 on its axes, ~half at 45 deg; Rutan's BID / UNI wet layup class, AS RECALLED):
+//                          300 MPa; compression 0.6 x: 180. Interlaminar (short-beam) shear 40-60 MPa (carbon 70-90):
+//                          the delamination - where the plies part, at a bond, round a fitting.
+//   COMPOSITES BREAK BRITTLE (both rows, G2047; 30_solver.js dmgMember / beamKink / beamYield):
+//     - no plastic set either way: tension breaks at its strength (etu 0); compression past cy is crushed through
+//       at once (ecu 0: broken, its kink floor still pushes - the crushed shell is still in the way);
+//     - a seeded SCATTER (scat, +-): a laminate's strength CoV is 5-10 % (CMH-17's B-basis spreads; a hand
+//       layup the wide end), applied to the plain members as spruce's 15 % is;
+//     - its FITTINGS (a metal fitting potted or bolted into the laminate) break in the laminate round the bolt at
+//       fitE of the laminate (Hart-Smith, NASA CR-144899 / CR-3271, 1976-80: a bolted composite joint's efficiency
+//       seldom over 0.5 of the unnotched laminate; a metal one 0.7-0.9), not the steel's 1.15;
+//     - its GLUE LINES (bond: a rib, a box web, the moulded shell's halves at the centreline, the cabin-to-
+//       tailcone joint) at 0.6-0.8 of the member (D1a's bond row, the seeded scatter);
+//     - BENT SIDEWAYS (a trunk at a point along it) a laminate member does not fold and hang on: it cracks at
+//       its fracture moment (thf 0), or sooner where its SANDWICH lets go first - the core in shear: a panel
+//       strip of the member's own section (two skins of tS, b = A / 2 tS wide) over a foam core cC deep carries
+//       a transverse load P = 2 tauC b cC (the core's shear on both sides of the load) before the skin parts from
+//       the core: PVC foam H60-H80 0.8-1.2 MPa in shear (Divinycell / Airex datasheets), 3/8 in (9.5 mm) cores
+//       and 2-3 plies a skin (Rutan's VariEze / Long-EZ, the Glasair's, AS RECALLED) - the delamination of a
+//       sandwich, broken 'core'.
 //   fabric covering        NOT A MEMBER (cover is mass only, 60_gen_spec), so nothing reads this row: AC
 //                          43.13-1B Table 2-1, grade A cotton 80 lb/in new (14 kN/m), a polyester system
 //                          (Ceconite, Poly-Fiber STCs) at or over it, ~15-20 % elongation. A fabric wing's
@@ -353,18 +414,68 @@ const GEN_MATERIALS = {
 //        about its weak axis and 6.5 about its strong one). A welded or riveted tube folds flat and still hangs on
 //        (Jones, Structural Impact, ch. 3: a tube's hinge runs to large rotations before it tears): 1.2 rad steel,
 //        0.8 the aluminiums (lower elongation). Spruce breaks in bending at about span / 25 of deflection (Wood
-//        Handbook ch. 5, work to maximum load): 0.12 rad. Carbon: 0.05.
+//        Handbook ch. 5, work to maximum load): 0.12 rad. Carbon, glass: 0 (G2047: a laminate cracks, above).
 const GEN_CRASH_TUBE_DT = 30;
 // G1898 (DEFORM COORDINATOR): THE DAMAGE LAYER'S DEFAULT - ONE CONSTANT. A build's params.damage (true / false) wins;
 // else the page's ?damage=1|0 (FLYDIY_DAMAGE, the worker's from its init); else this. Off until DMG-D2 anchors the
 // limits on the certificate (DEFORM-AND-BREAK §11.4: train 35 flips it); params.damage === false stays master's bits.
 const GEN_DAMAGE_DEFAULT = false;
+// G1894 (DMG-TUNE): WHEN A BREAK GROUP LETS GO (DEFORM §4.4; the solver's beamBreak). A group is a part's attachment:
+// the members joining it to the rest (D1a's fittings - in the lattice the bolt and the tube end are one member) - an
+// engine mount's 10-12 tubes and bolts, a stab's 32, a wing root's 8-10. D1a let a group go WHOLE on ANY ONE member's
+// break (BeamNG's breakGroupType 0), which is right for a group that is one bolt and wrong for one that is many:
+// measured (reports/evidence/DMG-TUNE/groups.md), every group that let go in the standard crashes went on one member,
+// most with the others at 0.2-0.6 of their limits - one mount tube kinking or one lug at its ultimate took the
+// engine, one stab fitting of 32 the tailplane. Now:
+//   - one member never lets a group of many go: a mount tube KINKING (crushed past its kink strain) is a bent joint,
+//     not a released one - the rest of the joint still pulls, its own floor still pushes;
+//   - the group lets go once its broken members carry `rel` of the group's tension capacity (the sum of its members'
+//     break forces) - severed (a lug or bolt at its ultimate in tension, spruce's last ragged stage, a tube torn
+//     through at its fold angle) or kinked (the kink floor pushes only: its pull is gone, so its share is lost): a
+//     THIRD - with a third of its strength gone the rest carries 1.5 x its share, and a joint sized to its ultimate
+//     (1.5 x its limit, FAR 23.303) has nothing left past it: the joint, not a member, has failed. (Measured: at a half
+//     the Jodel's card read 6.14 g against the band's 6.14; at a third 6.06; at a quarter 6.05 - the crashes alike);
+//   - a cluster's root cut (DMG-D3: the section's moment or torque, the joint judged whole) and a gate's hook
+//     (sim.damageBreak: "this joint let go") release it whole, as before.
+const GEN_DMG_GROUP = { rel: 1 / 3 };
+// G2040-G2043 (DMG-FABRIC): THE COVERING HOLDS THE WRECK - a cover tie per pair of frame nodes a covered panel spans
+// once the frame under it has parted (the solver's tieEvent; 61_gen_frame parts.dmg.cover the panels). The covering is
+// a MEMBRANE: tension only, no compression, no bending; slack until stretched past the length the covering has between
+// those two nodes; it tears at its strain at break, by strain (never by a rate or a frame), one tie - one bay's worth
+// of covering - at a time. Sources (AS RECALLED unless marked; A0 opens them before a number becomes a gate):
+//   fabric  AC 43.13-1B Table 2-1: grade A cotton 80 lb/in new (14.0 kN/m), airworthy down to 70 % of new (56 lb/in,
+//           9.8 kN/m: the replace-at); a polyester system's STC fabric is at or over it - Ceconite 102 108 lb/in (Aircraft
+//           Spruce's catalogue page for P/N 09-00900, a search summary; the Ceconite / Poly-Fiber procedure manuals not
+//           opened). Elongation at break 15-20 % (polyester; GEN_CRASH.fabric.etu = 0.15, the drawing's TEAR): the
+//           lower is taken. Taken: 80 lb/in at 15 % - the floor every STC fabric meets, new; the replace-at and the
+//           Ceconite 102 are the sensitivity rows (HANDOVER G2042). A wood aeroplane's ply (the Jodel) is covered in the
+//           same doped fabric (the user's "fabric over ply"); the ply itself is the frame's members (glue lines).
+//           The tie is linear to its strength at its strain at break (its modulus = strength / strain: 93 kN/m per unit
+//           strain), and the doped cloth TAKES the energy: it unloads ru = 10 x stiffer than it loaded (the crimp and the
+//           dope do not come back - a declared ratio, as TREE-CRASH's TK_RU), so a held piece swinging on its covering
+//           loses 9/10 of each swing's stretch energy. slack: the covering is longer than the chord between two frame
+//           nodes by the sag it draws between them (skin_break DRAPE_K 0.06 of the span: (8/3) 0.06^2 = 0.96 %).
+//   sheet   2024-T3: Ftu 64 ksi (441 MPa, MIL-HDBK-5J Table 3.2.3.0(b) - GEN_CRASH.alloy's own source), elongation 15 %
+//           (ibid.). A riveted panel whose rivet line has let go holds by TEARING: the ligament a tear runs through is
+//           about one rivet pitch (AC 43.13-1B ch. 4: pitch 6-8 D, 1/8 in rivets on a light single's skin: ~25 mm), so a
+//           panel's tie flows at Ftu t x 25 mm (the tear-out) and tears through at the sheet's 15 %. Gauges (a 172's
+//           structural repair manual, as recalled): the fuselage 0.025 in, the wing 0.020 in, the tail 0.016 in.
+//           Elastic at E t w_tear / L to the tear-out, then flat - the sheet's plastic tearing - to the 15 %.
+//   carbon  no tie: the laminate is the structure (its members), brittle; nothing spans it once it has broken.
+const GEN_COVER = {
+  fabric: { tuN: 80 * 4.44822 / 0.0254, eu: 0.15, ru: 10, slack: (8 / 3) * 0.06 * 0.06, zeta: 0.05 },
+  sheet:  { ftu: 441e6, eu: 0.15, wTear: 0.025, t: { fuselage: 0.025 * 0.0254, wings: 0.020 * 0.0254, tail: 0.016 * 0.0254 }, slack: 0, zeta: 0.05 },
+  on: true,                  // (GATE DMGFABRIC --selftest: false - no tie is made)
+};
 const GEN_CRASH = {
   tubeFabric: { ty: 460e6, tu: 460e6 * 95 / 75, etu: 0.08, cy: 460e6, ecu: 0.03, thf: 1.2 },
   wood:       { ty: 70e6,  tu: 70e6,            etu: 0,    cy: 39e6,  ecu: 0.03, thf: 0.12 },
   alloy:      { ty: 345e6, tu: 345e6 * 64 / 47, etu: 0.10, cy: 345e6, ecu: 0.03, thf: 0.8 },
   aluTube:    { ty: 276e6, tu: 276e6 * 42 / 35, etu: 0.06, cy: 276e6, ecu: 0.03, thf: 0.8 },
-  carbon:     { ty: 1500e6, tu: 1500e6,         etu: 0,    cy: 1500e6, ecu: 0,   thf: 0.05 },
+  carbon:     { ty: 600e6, tu: 600e6,           etu: 0,    cy: 360e6, ecu: 0,    thf: 0,
+                scat: 0.10, fitE: 0.5, tauC: 0.9e6, cC: 0.0095, tS: 0.0006 },
+  glass:      { ty: 300e6, tu: 300e6,           etu: 0,    cy: 180e6, ecu: 0,    thf: 0,
+                scat: 0.10, fitE: 0.5, tauC: 0.9e6, cC: 0.0095, tS: 0.0008 },
   fabric:     { cover: true, tuN_m: 14e3, etu: 0.15 },   // reported only (above)
 };
 // the GEN_MATERIALS key a phys row is (surface rows share their structure's phys object)
@@ -458,6 +569,10 @@ const GEN_SURF_MATERIALS = {
             tail: { cover: 0.70, section: 0.10 } }),
   carbon: Object.assign({}, GEN_MATERIALS.carbon, { shop: 'composite', cover: 1.6,
             tail: { cover: 0.70, section: 0.10 } }),
+  // G2047 (DMG-COMPOSITE): the glass glider's wing - the carbon row's moulded wing in glass, its cover x1.25 as
+  // the fuselage rows' (GEN_MATERIALS.glass)
+  glass:  Object.assign({}, GEN_MATERIALS.glass,  { shop: 'composite', cover: 2.0,
+            tail: { cover: 0.70, section: 0.10 } }),
 };
 // what a surface that says nothing is built of, by the fuselage it hangs on.
 // THE WING: fabric over a wooden structure on both a wood and a tube
@@ -470,9 +585,9 @@ const GEN_SURF_MATERIALS = {
 // stiffness (k.fus 8.0e5 -> 4.15e5) and the stab rolled 3.7 deg against the
 // mains through a taxi, over GATE TAKEOFF's 3.5 deg bar set with the tube.
 const GEN_SURF_DEFAULT = { tubeFabric: 'fabric', wood: 'fabric',
-                           alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric' };
+                           alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass' };
 const GEN_SURF_DEFAULT_TAIL = { tubeFabric: 'steel', wood: 'fabric',
-                                alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric' };
+                                alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass' };
 // the tokens a saved spec may still carry from before G213, read as what
 // they always meant on a flying surface: a "wood" wing was fabric over
 // wood, a "tubeFabric" wing was fabric over tube
@@ -659,6 +774,8 @@ GEN_BUILD_GRAMMAR.aluTube   = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
                                             { name: '6061 tube + Dacron', alias: 'tubeFabric' });
 GEN_BUILD_GRAMMAR.aluFabric = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
                                             { name: '6061 tube + Dacron', alias: 'tubeFabric' });
+// G2047: a glass moulding reads as the carbon one - no fasteners, no seams, the mould's parting line
+GEN_BUILD_GRAMMAR.glass = Object.assign({}, GEN_BUILD_GRAMMAR.carbon, { name: 'glass + epoxy', alias: 'carbon' });
 
 
 // ===========================================================================
@@ -876,7 +993,7 @@ const GEN_ACCESS = {
     // the boom keel is straight and empty.
     // ...AND NONE AT ALL ON A ROD (G189): a bare tube has no fabric to lace
     // a ring into and nothing inside it to inspect — the cables run outside.
-    need: R => (R.material === 'carbon' || R.rod) ? 0 : (R.booms ? 2 : 1),
+    need: R => (genComposite(R.material) || R.rod) ? 0 : (R.booms ? 2 : 1),
     // G278: on twin booms, one a boom on the outboard flank, where the cable
     // runs to the fin and the elevator are reached
     on: R => R.booms ? 'boom' : 'body',
@@ -889,7 +1006,7 @@ const GEN_ACCESS = {
   inspBelly: {
     name: 'Belly inspection panel',
     serves: 'the control runs and the seat-belt anchorages under the floor',
-    need: R => R.material === 'carbon' ? 0 : 1,
+    need: R => genComposite(R.material) ? 0 : 1,
     at: R => ({ sL: R.cabinAft * 0.72, lv: 0.55 }),
     snap: 'bay', side: 'centre',
     form: R => (R.material === 'tubeFabric' || R.material === 'aluTube') ? 'ringLace' : 'plateOval',
@@ -898,7 +1015,7 @@ const GEN_ACCESS = {
   inspAileron: {
     name: 'Aileron bellcrank cover',
     serves: 'the aileron bellcrank and its cable ends',
-    need: R => (R.wing && R.material !== 'carbon') ? 2 : 0,
+    need: R => (R.wing && !genComposite(R.material)) ? 2 : 0,
     on: 'wing',
     // AFT OF THE REAR SPAR (lv > 1) and UNDERNEATH, because that is where a
     // bellcrank is and where you reach it from. lv runs past 1 to the trailing
@@ -925,7 +1042,7 @@ const GEN_ACCESS = {
   inspAileron2: {
     name: 'Second aileron bellcrank cover',
     serves: 'the second plane\'s aileron bellcrank',
-    need: R => (R.wing2 && R.ail2 && R.material !== 'carbon') ? 2 : 0,
+    need: R => (R.wing2 && R.ail2 && !genComposite(R.material)) ? 2 : 0,
     on: 'wing2',
     at: R => ({ sL: R.semispan2 * 0.66, lv: 1.25 }),
     snap: 'bay', side: 'lower',
@@ -1556,7 +1673,7 @@ const GEN_HINGE_KIT = {
 // answer and is still there as the builder's explicit choice (hgFamily 2).
 function genHingeFamily(surfMat) {
   const m = String(surfMat || 'fabric');
-  return (m === 'alloy' || m === 'carbon' || m === 'composite') ? 'bracket' : 'strap';
+  return (m === 'alloy' || genComposite(m) || m === 'composite') ? 'bracket' : 'strap';
 }
 
 // HOW MANY, from the span it has to hold: one bay every pitchMax, never
@@ -1629,7 +1746,7 @@ const GEN_SEATS = {
 //   glass   3 mm acrylic, which is what a light aeroplane's screen is
 const GEN_OUTFIT = {
   panelKgM2: 6.0,
-  cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0, aluTube: 1.6 },
+  cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0, aluTube: 1.6, glass: 2.4 },
   glassKgM2: 3.6,
   // THE GLAZING MATERIAL (T2.2, 2026-09-22): acrylic is the 3 mm sheet above;
   // polycarbonate (Lexan, 1.20 g/cc against acrylic's 1.19) weighs the same
@@ -2078,7 +2195,7 @@ function genPropSynth(pr, pitchKey) {
   pr.fm = PI.fm * (1 + 0.055 * (pr.blades - 2));
   // MOMENTUM THEORY. The ideal static thrust of a disc absorbing P is
   // (2 rho A)^(1/3) P^(2/3); a real propeller reaches a fraction of it.
-  pr.Tstatic = pr.fm * Math.cbrt(2 * RHO * pr.area) * Math.pow(P, 2 / 3);
+  pr.Tstatic = pr.fm * Math.cbrt(2 * RHO * pr.area) * CORE_MATH.pow(P, 2 / 3);
   // and the quadratic decay, through the speed at which thrust runs out. One
   // constant on the only velocity scale there is; the pitch trade rides in
   // Tstatic, so a fine prop's thrust runs out earlier without being told to.
@@ -2088,7 +2205,7 @@ function genPropSynth(pr, pitchKey) {
   pr.VPeak = pr.V0 / Math.sqrt(3);
   pr.pitchUsed = GEN_PROP_PITCH[pitchKey] ? pitchKey : 'standard';
   // blade mass, at the very front of the aeroplane
-  pr.mass = pr.blades * MT.kg * Math.pow(pr.D / 1.88, 2.5);
+  pr.mass = pr.blades * MT.kg * CORE_MATH.pow(pr.D / 1.88, 2.5);
   pr.price = Math.round(MT.price * pr.blades / 2 * Math.pow(pr.D / 1.88, 2));
   pr.name = `${pr.blades}-blade ${MT.name.toLowerCase()} ${pr.D.toFixed(2)} m`;
   return pr;
@@ -2489,7 +2606,7 @@ const GEN_RULES = {
   // (G461: [0.3, 0.4] -> [0.2, 0.3]; the stock alloy and carbon variants
   // read the same substeps at 0.2 as at 0.7, the 172's cone 36 -> 33 kg
   // against a 172R's ~28)
-  fusAftFloors: { alloy: [0.2, 0.3], carbon: [0.2, 0.3] },
+  fusAftFloors: { alloy: [0.2, 0.3], carbon: [0.2, 0.3], glass: [0.2, 0.3] },
   // G445.8: the engine INSTALLATION as a fraction of the dry mass — the
   // mount, the baffles, the oil, the hoses and the engine controls
   // (60_gen_spec engInstallM). NOT the cowl and NOT the exhaust: the outfit
@@ -2507,6 +2624,25 @@ const GEN_RULES = {
   // to the spar is shallow; past the spar the post is. The spar is the
   // stiff point of the wing, and the foot stands on it.
   mountFootAt: 1.0,
+  // G2361 (DMG-MOUNTRIG): A NOSE ENGINE'S MOUNT IS A RING AT THE ENGINE'S REAR FACE (61_gen_frame's nose block). The
+  // numbers are as recalled, not looked up (A0 to check them against a mount drawing):
+  //   mountRing   the ring's station, metres ahead of the firewall: a light-aircraft engine mount is ~0.4 m deep - the
+  //               172's dynafocal mount for its O-320 / O-300, the PA-18's conical mount for its O-200 / A-65 class, a
+  //               Jodel's for its O-200 / C90; the engine's rear (accessory) face sits on it, ~0.75 m behind the prop
+  //               flange (an O-320 is ~29.5 in long, an O-200 ~28.5, an A-65 ~31: flange to the rear face, as recalled)
+  //   mountCgGap  the ring stays at least this far aft of the engine's CG (the block's CG inside it), and mountFw this
+  //               far ahead of the firewall; a build whose engine CG sits too close to the firewall for both keeps the
+  //               old rig (no room for a mount: the lump hangs on the flange pair and the firewall, as before)
+  //   mountTubeA  the bearer's section, 4130 tube: 1.000 x 0.049 in (94.5 mm2) on an engine over mountTubeHeavy kg
+  //               installed (the 172's dynafocal mount, as recalled), 0.875 x 0.035 (59.6 mm2) under it (the Cub's and
+  //               the Jodel's conical mounts, as recalled)
+  //   mountIsoA   an isolator's own break section: the AN7 (7/16 in) through-bolt's shank, 0.150 in2 (97.0 mm2), 4130
+  //               class - the rubber cup carries the load to its snubbing washer and the bolt is what lets go
+  //   mountCaseA  the engine's own case between its rear face, its CG and the flange (the crankcase, cast aluminium,
+  //               ~6 mm wall round ~1.2 m of girth, as its steel equivalent): one rigid body - it never yields
+  mountRing: 0.40, mountCgGap: 0.10, mountFw: 0.10,
+  mountTubeA: { heavy: 9.45e-5, light: 5.96e-5 }, mountTubeHeavy: 120,
+  mountIsoA: 9.70e-5, mountCaseA: 4.0e-3,
   // WING STIFFNESS CORRECTION (2026-08-11, GATE FLEX). The wing class is x19
   // softer than the structure the MASS MODEL already pays for: lin.wing
   // 0.62 kg/m over rho 7850 is 0.79 cm2 of cap, and E*A/L at a 1.7 m bay is
@@ -2709,8 +2845,8 @@ const GEN_RULES = {
   // a 26" bush tyre (0.33) 12, a 4" microlight wheel (0.13) 1.2 — the
   // exponent sits between area and volume. The stock Cub (R 0.20 / 0.10)
   // reproduces the 3.5 / 2.0 literals it had.
-  wheelKg:     R => 3.5 * Math.pow(Math.max(0.03, R) / 0.20, 2.5),
-  wheelTwKg:   R => 2.0 * Math.pow(Math.max(0.03, R) / 0.10, 1.5),
+  wheelKg:     R => 3.5 * CORE_MATH.pow(Math.max(0.03, R) / 0.20, 2.5),
+  wheelTwKg:   R => 2.0 * CORE_MATH.pow(Math.max(0.03, R) / 0.10, 1.5),
   // THE BOX'S WEBS ON A SKINNED WING (chantier 1, see 61_gen_frame's
   // bracing section): the fraction of the cap's linear density a web, rib
   // post or shear diagonal of the torsion-box lattice bills when the
@@ -2920,7 +3056,7 @@ const GEN_MIGRATORS = {
     if (!c || typeof c !== 'object') return r;
     if (c.intCons == null) {
       const m = r.fuselage && r.fuselage.material;
-      c.intCons = { carbon: 0, tubeFabric: 1, wood: 2, alloy: 3, aluTube: 4 }[m];
+      c.intCons = { carbon: 0, tubeFabric: 1, wood: 2, alloy: 3, aluTube: 4, glass: 5 }[m];
       if (c.intCons == null) c.intCons = 1;
     }
     return r;
@@ -3755,7 +3891,7 @@ const genClampN = (v, lo, hi) => (v == null ? null : genClamp(v, lo, hi));
 // chord, and theory only supplies the TREND away from it.
 const genFlapTau = c => {
   const th = Math.acos(2 * genClamp(c, 0.05, 0.70) - 1);   // 0.70: GEN_TAIL_ENVELOPE's ceiling and a margin
-  return 1 - (th - Math.sin(th)) / Math.PI;
+  return 1 - (th - CORE_MATH.sin(th)) / Math.PI;
 };
 const genTauAt = (c, refC, refTau) => refTau * genFlapTau(c) / genFlapTau(refC);
 
@@ -4021,9 +4157,9 @@ const GEN_FIELDS = {
                                          v: ['tail.Sh', 'tail.Sv', 'tail.boomX', 'tail.boomLen', 'tail.boomR', 'tail.boomX0',
                                              'tail.boomTaper', 'tail.boomOval', 'tail.boomIncl', 'tail.boomDy', 'tail.stabY'],
                                          twinBoom: ['tail.vAngle', 'tail.Svt'] } } },
-  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric'] } },
-  'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric'] } },
-  'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric'] } },
+  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
+  'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
+  'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
   'bracing.cabane':       { def: 'N', rule: 'input', join: { states: ['N', 'V'] } },
   'bracing.interplane':   { def: 'none', rule: 'input', join: { states: ['none', 'N', 'I'] } },
   'bracing.interplaneAt': { def: 0.62, clamp: [0.30, 0.95], rule: 'input', join: { states: [0.62] } },
@@ -5048,7 +5184,7 @@ function resolveSpec(spec) {
   // always pitch, which is why real V-tails are big.
   if (S.tail.type === 'v') {
     const G = S.tail.vAngle * Math.PI / 180;
-    const cG = Math.cos(G), sG = Math.sin(G);
+    const cG = CORE_MATH.cos(G), sG = CORE_MATH.sin(G);
     // A BUILT V-TAIL IS THE TAIL (2026-09-04, the G54.3 rule): when the join
     // measured the panels (hSpan = their horizontal projection, hChord their
     // chord), the panel span is that projection un-canted and the area is
@@ -5104,7 +5240,7 @@ function resolveSpec(spec) {
   //    axle track. At the clamp (20 deg, 0.40 m wheels) that is 14 cm on a
   //    track of about 1.5 m — an honest cut, and the only one camber makes.
   S.gear.camberRad = S.gear.camber * Math.PI / 180;
-  S.gear.contactR = S.gear.wheelR * Math.cos(S.gear.camberRad);
+  S.gear.contactR = S.gear.wheelR * CORE_MATH.cos(S.gear.camberRad);
   const REG = (typeof POWERPLANTS !== 'undefined' && POWERPLANTS[S.engine]) || null;
   // G134: a CUSTOM row (the editor's dials, resolved + clamped) outranks the
   // registry row it started from. Shape-compatible with a registry entry so
@@ -5183,6 +5319,15 @@ function resolveSpec(spec) {
     const e0 = S.engines[0];
     if (e0 && (e0.mount || 'nose') === 'nose' && typeof e0.x === 'number' && isFinite(e0.x) && e0.x < 0)
       S.engX = e0.x + pl.engineDx;
+    // G2365 (DMG-BUNDLE-GREEN): ...AND A MEASURED THRUSTLINE OUTRANKS ITS
+    // RULE. The join writes the drawn flange's height too (metres over the
+    // cabin keel). Measured: the rule hung the user's metal Cessna's hub
+    // 0.28 m under the drawn one and its 2.06 m disc 2.4 cm into the ground
+    // at rest (the drawing clears it by 0.26 m); the Cub's 0.13 m low, the
+    // Jodel's 0.05 m high. A bake with no drawn engine keeps the rule.
+    if (e0 && (e0.mount || 'nose') === 'nose' && typeof e0.x === 'number' && isFinite(e0.x) && e0.x < 0
+        && typeof e0.y === 'number' && isFinite(e0.y))
+      S.engY = e0.y + pl.engineDy;
   }
 
   // WHERE EACH ENGINE ACTUALLY SITS (2026-09-04): engX/engY stay the NOSE

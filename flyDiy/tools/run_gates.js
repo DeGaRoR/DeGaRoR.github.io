@@ -230,6 +230,16 @@ const GATES = [
   // cut of a staged photoscan, base + three levels) = the park generator's
   // mirror, and the park plan is a park over twenty seeds. ~1 s.
   { id: 'TOTEM', file: '_totem_check.js', tier: 'core' },
+  // THE OCTOBER SCENERY (ASSETS-OCT, G2907): tools/scenery_table.py = the baked kit (landmarks, vessels, wrecks,
+  // the crowd, the ALMA assembly), the cut rows within their budgets, the levels, CC BY credits, the VotV rip out
+  { id: 'SCENERY', file: '_scenery_check.js', tier: 'core' },
+  // THE DRIVEABLE CARS (ASSETS-OCT, G2908): tools/car_table.py = the baked parts, the data sheet's wheels /
+  // wheelbase / level / steering axis / collision boxes measured and consistent, the estimates named, CC BY
+  { id: 'CARS', file: '_car_check.js', tier: 'core' },
+  // THE NAVAIDS AND THE SMALL UTILITIES (ASSETS-OCT, G2909): NAVAID_GEN (lazy) - the ANN DVOR/DME and the hydro
+  // powerhouses build headless within budget, the FAA dimensions, the red beacon, the two-tone roof, the yard; the sites
+  // at their real points with their tree-clear areas; the generator stays out of index.html
+  { id: 'NAVAID', file: '_navaid_check.js', tier: 'core' },
   // THE ANIMALS (2026-09-22): the declared table = the shipped skins, their
   // clip libraries and the cut levels; and the behaviours run headless
   // against the real vendor three (a herd, a pod and a flock, 900 steps).
@@ -252,7 +262,7 @@ const GATES = [
   // builds); a taxi into a trunk dents, a 30 m/s flight into one crashes with a wing broken; reset heals. Three builds at once.
   // G1833 (DMG-D2a): flown on THE CERTIFICATE's limits (the game's, with the layer on): the load test clean to its limit and
   // held at its ultimate, the pull read to the limit; `--physics` flies D1a's physics limits as before
-  { id: 'TREECRASH', file: '_treecrash_check.js', tier: 'core', weight: 3, wall: 900 },
+  { id: 'TREECRASH', file: '_treecrash_check.js', tier: 'core', weight: 3, wall: 1300 },   // (G2354: + the 30 m/s ensembles)
   // G1810-G1817 (DMG-D1a MEMBERS): the seams and the break groups (closed sets, in the generator and in the solver), Euler on
   // the tube members, the seam rules, spruce's ragged break, the kink floor, nothing armed parked, and the break order on
   // the bench to destruction and in the trunk flights (the first group to let go is a fitting's). Three builds at once
@@ -272,6 +282,17 @@ const GATES = [
   // is still this physics' answer, else computed again) to the bit; the store (IndexedDB) - a record's checks, the round
   // trip (in headless Chromium when Playwright is here: a second page load stamps from it in under 50 ms). Two at once
   { id: 'DMGCERTCOST', file: '_dmg_certcost_check.js', tier: 'core', weight: 2, wall: 300 },
+  // G1883-G1884 (DMG-WINDBREAK): the 3 m/s taxi into a trunk IN A WIND breaks no engine mount - the page's staging (settled in
+  // the wind, 3 m/s, the throttle shut, a trunk 6 m ahead) in steady winds 0-10 m/s from 12 directions on the Cub, the Jodel
+  // and the metal Cessna, the page's own wind (steady and the climate's gust field), the floatplanes on the water; the
+  // per-substep reader changes nothing; REPORTs the page's impact speed and the trunk's offset. Three at once
+  { id: 'DMGWIND', file: '_dmg_wind_check.js', tier: 'core', weight: 3, wall: 1500 },
+  // G2013-G2015 (DMG-NOSE): the crushable nose (the spinner, the propeller at its hub, the nose bowl ahead of the engine's
+  // nodes) and the nose's 9 g at either corner on the certificate - the stack's numbers, the corner cases and the mount's
+  // mirror pairs (no limit lowered), the 3 m/s taxi into a trunk at the page's impact speed in 49 winds and 19 offsets on
+  // the Cub, the Jodel and the metal Cessna (no mount comes off), one physics with DMG-DRIVE's strike, nothing in the nose's
+  // reach in a circuit, the 30 m/s trunks still crash. Three at once
+  { id: 'DMGNOSE', file: '_dmg_nose_check.js', tier: 'core', weight: 3, wall: 1500 },
   // G1840-G1843 (DMG-D3 CLUSTERS): a shape-matched cluster is one breakable part - the fin, the twin's rod, the floats (and
   // the twin-boom fixture, reported): its root load read off the cut equals the statics; nothing parts in normal
   // operations (the load test, the pull, the drops, a circuit, parked, the ordinary water cases); a scripted pull takes
@@ -296,6 +317,90 @@ const GATES = [
   // nothing broken), and the skin over a break - no live triangle on two pieces or across a broken member, none stretched
   // past 1.15 x its rest + 1 cm, on TREECRASH / DMGINTEGRITY's crash cases; damage off = the base's skin bit for bit. Three at once
   { id: 'DMGSKIN', file: '_dmg_skin_check.js', tier: 'core', weight: 3, wall: 240 },
+  // DMG-D4b: what the GPU holds after a wreck is what the CPU holds (the page in node, the worker: crash -> the shed ->
+  // roll-out; every drawn buffer of the flown model shadowed off the GL, GPU copy = CPU array; damage off: no extra upload).
+  // The hybrid bake's folds are not made in node (no GPU bake): their heal upload is box-proved, not gated here
+  { id: 'DMGUPLOAD', file: '_dmg_upload_check.js', tier: 'core', weight: 3, wall: 900 },
+  // GATE DMGCRASHUI (DMG-D4b, train 41): after a crash the crew is never drawn outside the wreck, a damaged aeroplane is not
+  // certified (sim.damage().structural, the same inline and under the worker), and the card names it - worker and inline
+  { id: 'DMGCRASHUI', file: '_dmg_crash_ui_check.js', tier: 'core', weight: 3, wall: 900 },
+  // G2044-G2046 (DMG-SETTLE): a wreck's pieces lie ON the ground at rest (the user: "the pieces hover") - on the Cub, the
+  // Jodel and the metal Cessna's 30 m/s trunk break-ups, 15 s: every detached piece's lowest node within +1 / -6 cm of
+  // the ground (the boxes' third chords meet it at the drawn surface: 61_gen_frame `so`, 30_solver rC), its flown-snapshot
+  // covering within +2 / -25 cm, the islands on a loose node released as bodies, every debris body resting HELD on its
+  // drawn support points (stand-ins, 20 seeded drops each). --selftest: the bug as found goes red. Three builds at once
+  { id: 'DMGSETTLE', file: '_dmg_settle_check.js', tier: 'core', weight: 3, wall: 400 },
+  // G1824-G1827 (DMG-DRIVE): the drivetrain against the real numbers (reports/evidence/DMG-DRIVE/real_numbers.json, every
+  // row's source printed with its 'as recalled - A0 to open' flag): Lycoming SB 369's overspeed bands in the dives (V_NE and
+  // 1.1 V_D at full throttle), the graded prop strike (SB 533: nose-overs, a brush, a trunk, the bow in the water, a tip lost
+  // at power and its imbalance tearing the mount), the 582's gearbox, FAR 23.361 / .363 / .371 on the mount's certificate,
+  // and the negatives (the circuit, a 3.8 g pull, the brakes: nothing). Three children at once
+  { id: 'DMGDRIVE', file: '_dmg_drive_check.js', tier: 'core', weight: 3, wall: 1500 },
+  // G1818-G1819 (DMG-SKINGPU): the wreck's skin ridden on the GPU - the shader's JS mirror on the packed data against the
+  // CPU's riding (0.1 mm in the world, 1 deg) on the crash cases, the tear on read-back places against the full tear, and
+  // the page's code: the GPU path only past the damage guard, no material or program touched. Three at once
+  { id: 'DMGSKINGPU', file: '_dmg_skingpu_check.js', tier: 'core', weight: 3, wall: 240 },
+  // G1819 (DMG-SKINGPU, the coordinator's page-level row; A0: DMG rigs run the default mode): THE PAGE in node under the
+  // physics worker (dev.html?simw=1&damage=1, sim_host in a real thread, the user's Cub) - a trunk crash's breaks reach the
+  // page (its dmgState), the skin break and the debris run there; --selftest: the mirror's dmgState taken away goes red.
+  // One page process (~3.8 GB)
+  { id: 'DMGPAGEW', file: '_dmg_page_worker_check.js', tier: 'core', weight: 4, wall: 150 },
+  // G1865 (DMG-D4b WRECK DRAWN): the wreck's non-member parts (src/viewer/wreck_debris.js) on the crash cases - which leave
+  // and why, every body at rest on the ground or the water, the prop strike's bend or break, the clip against the live
+  // cabin, the cockpit rule; damage off (and nothing broken) = no release, the crash's bits unread. Three at once
+  { id: 'DMGWRECK', file: '_dmg_wreck_check.js', tier: 'core', weight: 3, wall: 150 },
+  // G1855-G1859 (DMG-WALL): one wall, no stretch - the flown snapshot's lining / beads / glazing stay on their covering
+  // (out past 1 mm in at most 1 % of the place-frames), no compact part triangle past 1 %, on the validated builds' crashes
+  // with the binding inherited (the old binding beside it for the report). Three builds at once
+  { id: 'DMGWALL', file: '_dmg_wall_check.js', tier: 'core', weight: 3, wall: 1200 },   // (G2354: the 30 m/s rows' ensembles)
+  { id: 'DMGHEAL', file: '_dmg_heal_check.js', tier: 'core', weight: 4, wall: 300 },   // G1859.8 (DMG-WALL): a wreck's tears never reach the next flight (node page)
+  // G1886 (DMG-DAMP): the deformation damper takes deformation, not rotation - in vacuum the five validated builds spun
+  // about roll, pitch and yaw keep L about the CG (<= 1e-3 over 10 s, the damper's own share <= 1e-5), the pre-G1885
+  // damper as the control reproduces exp(-0.5 t), and a plucked wingtip still rings down as before; ~3.5 min
+  { id: 'DMGDAMP', file: '_dmgdamp_check.js', tier: 'core', wall: 220 },
+  // G1849 (DMG-HULL): the hull's side force (G1847, slender body on the keel's draft): zero at rest and dry, linear in
+  // U x v, the closed form on the step, Jones' sin b cos b into the base's cross-flow; GATE SEAPLANE's crosswind take-off
+  // swept 0-5 m/s on the twin and the Cessna on floats, every failure classed (yaw loop / nose-over at the plough); a
+  // 0.3 rad/s yaw kick at rest, the hump and the step against DMG-DAMP's before / after. 42 runs in its own children
+  { id: 'DMGHULL', file: '_dmghull_check.js', tier: 'full', weight: 4, wall: 1800 },
+  // G1809 (DMG-PLOUGH): the plough - the plough wave (G1807, shipped OFF) on the bench forced on: zero at rest and dry,
+  // whole to Fn 0.5, gone by Fn 1 (on the step); the calm take-off's keel trim at the hump against the tank band (8-12
+  // deg: the Cessna on floats asserted, the twin OWED), the twin with its thrust at the nose frame (an INSTRUMENT: its
+  // floats trim it nose-up through the plough, so the nose-down is its thrust couple); GATE SEAPLANE's crosswind
+  // take-off swept 0-5 m/s on both floatplanes and on the instrumented twin, every failure classed. 37 runs in children
+  { id: 'DMGPLOUGH', file: '_dmgplough_check.js', tier: 'full', weight: 4, wall: 900 },
+  // G1846 (DMG-TYRE): the tyre's side force is its slip angle's - measured in the solver per tyre class (zero at zero
+  // slip, F = cN tan(beta) N linear, then the Coulomb mu N; the old law as the control), parked 30 s without jitter
+  // (the old law's at-rest hold), the user's Cub's crosswind roll-out at 3 / 4 / 5 m/s held (three pilot_trace
+  // children), the Jodel's and the metal Cessna's taxi turns within 0.80-1.10 of the old radius; ~6 min
+  { id: 'DMGTYRE', file: '_dmgtyre_check.js', tier: 'core', weight: 4, wall: 420 },
+  // G1882 (DMG-FLOATTO): the floatplanes' crosswind take-off in the chop the wind raises, flown as a high-thrust-line
+  // seaplane is (G1880: the porpoise damped by both hands - the power off as the nose falls, the stick forward as it
+  // rises; G1881: the into-wind bank afloat bounded) - the twin on floats and the Cessna on floats, THE PILOT, the SEA
+  // lane, 0-5 m/s across in 0.5 steps: every run reaches CLIMB, no nose-over (pitch at every float contact >= -20 deg),
+  // the run's swing and lane under 30; the technique never arms on a wheeled take-off. 24 runs in children, ~2.5 min
+  { id: 'DMGFLOATTO', file: '_dmgfloatto_check.js', tier: 'full', weight: 4, wall: 300 },
+  // G2040-G2043 (DMG-FABRIC): the covering holds the wreck until it tears - the covered panels per build, no cover tie on an
+  // intact aeroplane (parked, the drop, a pull), in the crashes (the certificate stamped) every tie tension only, never past
+  // its strain at break, torn by strain; the Cub's struck wing held; the page's batching changes no bit; damage off and the
+  // ties off = the base's bytes; the hop carries the ties. --selftest: red with the ties disabled. Three children at once
+  { id: 'DMGFABRIC', file: '_dmg_fabric_check.js', tier: 'core', weight: 3, wall: 600 },
+  // G2047-G2049 (DMG-COMPOSITE): the composite build (builds/composite_jodel_2026-10-07.json: the Jodel in E-glass) certifies
+  // (BROKE AT in the band, no set) and flies a circuit; it breaks brittle - no laminate member set in DMG-TUNE's standard
+  // crashes, pieces off at 30 m/s, the shell cracked (never past 5 % + 1 cm) on more than one piece; damage OFF on the
+  // base's bytes for the Cub, the Jodel and the metal Cessna. Three children at once. Carries --selftest
+  { id: 'DMGCOMPOSITE', file: '_dmg_composite_check.js', tier: 'core', weight: 3, wall: 600 },
+  // G2357-G2360 (DMG-SCAR): the ground's scar - nothing on an intact aircraft or with the layer off (the page's bytes); the
+  // standard crashes scar the ground under their contacts (craters, gouges, the prop's slot, the sweep; at most 64), read
+  // never pushed (the same bits), the hop through the worker = inline, reset restores; the grass cull exactly the footprint
+  // and no program linked in a crash (the real cover ring and the decal on the real three over a fake GL). Three builds at once
+  { id: 'DMGSCAR', file: '_dmg_scar_check.js', tier: 'core', weight: 3, wall: 900 },
+  // G2353-G2356 (DMG-DETERMINISM): the same crash is the same bits everywhere - node refuses a stale generated core (the
+  // "JIT" 154 / 204 was train 37's committed core); the standard crashes (taxi, nose-over, the 30 m/s trunks; damage OFF the
+  // trunk and a 20 s flight) one hash under the interpreter, Sparkplug, Maglev, TurboFan; the certificate alike; and in a
+  // page (headless Chromium, when present) the same hashes as node - the core's own sin / cos / pow (00_registry.js).
+  // Three children at once
+  { id: 'DMGDETERMINISM', file: '_dmg_determinism_check.js', tier: 'core', weight: 3, wall: 1800 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
@@ -438,6 +543,11 @@ const GATES = [
   { id: 'KNIFE', file: '_knife_check.js', tier: 'core' },     // T2.2: the drawn windows — corpus identity, watertight, shapes, rows, refusal, glazing
   { id: 'FIN', file: '_fin_check.js', tier: 'core' },         // fin + stab vs the sketch
   { id: 'COWL', file: '_cowl_check.js', tier: 'core' },       // the cowl, and the engine inside it
+  // G2880 (NACELLE-LAG): a wing-mounted engine stands on THIS build's wing - card A then card B equals card B fresh
+  // (the engines, the cowls, the flown spec, CG and SM, to the bit) on three wing-engine pairs, the validated builds
+  // register no early reader, the doctored tree (CAGE_WING_EARLY.publish stood down) must reproduce the lag; ~2 min
+  // (8 headless processes, its own pool of 4: weight 4)
+  { id: 'NACLAG', file: '_naclag_check.js', tier: 'core', weight: 4, wall: 120 },
   { id: 'ENGMESH', file: '_eng_mesh_check.js', tier: 'core' },// the engine's own health + ledger
   { id: 'JOIN', file: '_join_check.js', tier: 'core' },       // editor -> spec -> a buildable aeroplane
   // G2640 DESIGN-TRUST: WHAT FLIES IS WHAT IS DRAWN - every flown aero strip (wing, stab, fin) against the drawn sheet
@@ -457,6 +567,11 @@ const GATES = [
   // the same lattice as the stand - on the five validated builds and an offset / envelope / null corpus; and the
   // page's join headless, on -> off -> commit through the garage's merge, back to never-on. ~70 s (the joins).
   { id: 'SPECFIX', file: '_specfix_check.js', tier: 'core', wall: 75 },
+  // NODE FLIES THE GAME'S AEROPLANE (G1985-G1989, JOIN-PARITY): tools/_load_build.js - the page's load chain under node
+  // (the join, the energy layer's tanks, the pilots' characters) - against the real page's spec for the five validated
+  // builds (tools/fixtures/join_parity_page.json, tools/join_parity_page.js), def to def to 1e-9; the file as written
+  // differs; the chain is pure; a save is a fixed point; every loader of a validated build goes through it. ~40 s cold.
+  { id: 'JOINPARITY', file: '_joinparity_check.js', tier: 'core', wall: 60 },
   // G134: the custom engine — thermo laws over the registry, the clamp
   // door, and the row reaching the frame; ENGID is the identity ruling
   // (untouched preset = the certified row; deviated = modified/custom)

@@ -141,8 +141,8 @@ const BASE_GROUPS = [
   ]],
   ['interior', [
     ['intOn',     'interior on',   0, 1, 1],
-    ['intCons',   'construction',  0, 4, 1, ['composite', 'steel tube',
-                                             'plywood', 'aluminium', 'aluminium tube']],
+    ['intCons',   'construction',  0, 5, 1, ['composite', 'steel tube',
+                                             'plywood', 'aluminium', 'aluminium tube', 'glassfibre']],   // G2047: the sixth stop
     ['intBulk',   'aft bulkhead',  0, 1, 1],
     ['intFire',   'firewall',      0, 1, 1],
     ['intPillars','pillar bodies', 0, 1, 1],
@@ -291,8 +291,8 @@ const XRAY_A = 0.12;
 // their own: a cowl at 0.15 over a fuselage at 0.12 is two x-rays, and the
 // eye reads the difference as the cowl still being there.
 VIEW.xrayA = XRAY_A;
-const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane',
-                        'skyWindows']);
+// (G1985: the one list, _cage_gen.js's - cageGlazedM2 measures the same set)
+const GLASSM = G.CAGE_GLASS_MATS;
 const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele']);
 // boomTube = the G26 rod: it IS structure — fading the fuselage skin
 // must leave the rod standing (the naked Ruckus test)
@@ -352,7 +352,8 @@ const fieldM = () => (G.CAGE_UNIT || 1) * (P.planeScale || 1);
 // 'metal' and is NOT renamed casually — G14's ruling — while the material the
 // player reads is 'aluminium')
 const CONS_MAP = { tube: 'tubeFabric', wood: 'wood', metal: 'alloy',
-                   carbon: 'carbon', alu: 'aluTube' };   // G466: the ultralight's bolted 6061 + Dacron
+                   carbon: 'carbon', alu: 'aluTube',     // G466: the ultralight's bolted 6061 + Dacron
+                   glass: 'glass' };                     // G2047 (DMG-COMPOSITE): E-glass / epoxy
 // THE MEMBER SCREWS' NUMBERS (G214), metres, or null when hidden or when the
 // construction has none to show (fabric is stitched, not screwed)
 const memFOf = () => {
@@ -361,8 +362,8 @@ const memFOf = () => {
   if (c === 'tubeFabric' || c === 'aluTube') return null;   // a sail is sewn, not screwed
   return [+P.memPitch || 0.03, +P.memDia || 0.0025, +P.memRise || 0.0004];
 };
-const consOf = () => CONS_MAP[['carbon', 'tube', 'wood', 'metal', 'alu'][
-  Math.max(0, Math.min(4, Math.round(P.intCons || 0)))]] || 'tubeFabric';
+const consOf = () => CONS_MAP[['carbon', 'tube', 'wood', 'metal', 'alu', 'glass'][
+  Math.max(0, Math.min(5, Math.round(P.intCons || 0)))]] || 'tubeFabric';
 // which section is on which shader branch — filled by meshFrom from the
 // mesh's own groups, so there is ONE description of the split (G66)
 const matSurf = {};
@@ -1968,20 +1969,8 @@ function* buildSteps() {
   // every glass section (windscreen, side bands, skylight, drawn panes) by
   // triangle area, as built (a cut part's offset moves it, not its area),
   // in metres after the scale; the join carries it to spec.cabin.glazedM2
-  if (window.CAGE_UI) {
-    let a = 0;
-    for (const f of s.F) {
-      if (!GLASSM.has(f.m) || f.v.length < 3) continue;
-      const p0 = s.V[f.v[0]];
-      for (let i = 1; i + 1 < f.v.length; i++) {
-        const p1 = s.V[f.v[i]], p2 = s.V[f.v[i + 1]];
-        const ax = p1[0] - p0[0], ay = p1[1] - p0[1], az = p1[2] - p0[2];
-        const bx = p2[0] - p0[0], by = p2[1] - p0[1], bz = p2[2] - p0[2];
-        a += 0.5 * Math.hypot(ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx);
-      }
-    }
-    window.CAGE_UI.glazedM2 = a * FS * FS;
-  }
+  // (G1985: CAGE2.cageGlazedM2, the pure function the headless page chain calls too)
+  if (window.CAGE_UI) window.CAGE_UI.glazedM2 = G.cageGlazedM2(s, FS);
   meshObj.scale.setScalar(FS);
   scene.add(meshObj);
 
@@ -2578,7 +2567,14 @@ const loaded = () => { if (PAGE.load) try { PAGE.load(); } catch (e) {} };
 // G680: `steps` - the load is done now and the build comes back as a generator (buildSteps: the sheet | the layers),
 // for parked.js's capture a step a task (applySpecSteps); without it, as always, the build runs here
 function applySpec(spec, what, steps) {
-  Object.assign(P, G.cageFromSpec(spec));
+  // A LOAD REPLACES P (G1985, JOIN-PARITY). cageFromSpec answers every key the template and the page's defaults
+  // declare; a row no table declares (a layer's own, read with its fallback when absent: the floats' bow and side,
+  // the cowl's stub deck) was KEPT from the aeroplane open before - measured in the game, the twin floatplane opened
+  // after the boot's stock design flew that design's float bows (fltBow 0.36, fltBowB 0.15, fltSide 0.22) and its
+  // cowl stub. A build fully determines the aeroplane (G63): those rows go back to absent; the view keys stay.
+  const F = G.cageFromSpec(spec), VK = G.CAGE_VIEW_KEYS || {};
+  for (const k of Object.keys(P)) if (!(k in F) && !(k in VK)) delete P[k];
+  Object.assign(P, F);
   loaded();
   // THE PAINT COMES WITH THE AEROPLANE (G105). Unconditional, INCLUDING when
   // the file has no `finish` at all: that is a build with no overrides, and
@@ -4798,7 +4794,8 @@ function buildMatPanel() {
   // `auto (follows …)` under it — but never a tint: a colour drag must not
   // rebuild DOM under an open native picker (syncMatPanel covers the wells).
   const live = Object.keys(SEC_LIVE).sort();
-  const sig = names.join(',') + '|' + consOf() + '|' +
+  // (G2750: + the canopy mode - the waistband row's LABEL is the bubble's 'canopy sill band')
+  const sig = names.join(',') + '|' + consOf() + '|' + (+P.canopy === 3 ? 'bub|' : '') +
     live.map(n => { const r = secResolveAuto(n);
                     return n + ':' + r.fin + ':' + (r.src || ''); }).join(',');
   if (sig === matPanelSig) { syncMatPanel(); return; }
@@ -4873,6 +4870,11 @@ function buildMatPanel() {
   // user's own, kept. The picker fires per notch, so the base it replaces
   // is always the last notch's — a following section never falls behind.
   // The same rule for the base metallic and the base roughness.
+  // G2750 (the user, 11 Oct: "changing the global paint again should just
+  // plain repaint the aircraft"): WITHDRAWN for what the base covers — every
+  // exterior cage section (skin, rail bands, frame bands), every part that
+  // wears the body, and (the user: "include wings and tail too") the wings
+  // and the tail take the pick, a hand colour too. See aeroBaseReach.
   //
   // `reach(map, prev, next, secs)`: for every exterior cage section and
   // every parent-wearing / soft-pinned layer part, write `next` (or delete,
@@ -4884,10 +4886,11 @@ function buildMatPanel() {
   const baseReach = (map, prev, next, neutral, eq) =>
     A.aeroBaseReach(map, prev, next, neutral, eq, names);
   {
-    const d = mkRow2('base colour', 'one colour for the whole fuselage — ' +
-      'the skin, the rings and pillars, the nose deck, the cowl, the ' +
-      'struts, the fairings and the fittings, in one pick; the wells ' +
-      'below still override a section afterwards');
+    const d = mkRow2('base colour', 'one colour for the whole aircraft — ' +
+      'the skin, the rings, the bands and pillars, the nose deck, the cowl, ' +
+      'the wings, the tail, the struts, the fairings and the fittings, in one ' +
+      'pick (a colour set by hand is repainted too; the markings are not ' +
+      'paint and stay); the wells below still override a section afterwards');
     d.dataset.matHead = '1';
     const c = document.createElement('input');
     c.type = 'color'; c.style.flex = 'none';
@@ -5036,7 +5039,13 @@ function buildMatPanel() {
     pillarFront: 'nose frame band', pillarWindow: 'windscreen frame band',
     pillarCabin: 'cabin frame band', pillarPassenger: 'passenger frame band',
     pillarTaper: 'boom frame band', pillarTail: 'tail frame band',
-    drawnPane: 'drawn windows (the panes)', reveal: 'window reveals' };
+    drawnPane: 'drawn windows (the panes)', reveal: 'window reveals',
+    // G2750 (the user: "a dark part around the cockpit ... that can't be accessed using the finish editor"): the three
+    // rails' strips by what they are on screen - and the waist one by what a BUBBLE makes of it, the band the canopy
+    // re-sizes under its seam (cageCanopy) all round the cockpit; the stock Cub's black waist stripe rides into
+    // every build made from it, and on a bubble it is that dark surround
+    waistband: +P.canopy === 3 ? 'canopy sill band' : 'waist band',
+    ceilingLoop: 'roof rail band', floorLoop: 'floor rail band' };
   const DASH_HEAD = [
     ['woods',    ['walnut', 'walnutFig', 'maple', 'spruce', 'ply']],
     ['alloys',   ['panelMetal', 'bareAlu', 'sillAlu', 'alclad', 'castAlu', 'chrome', 'bronze', 'copper']],

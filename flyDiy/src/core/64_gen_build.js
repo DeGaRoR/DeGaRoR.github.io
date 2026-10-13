@@ -18,12 +18,12 @@
 function genProbeAt(sim, V, a) {
   const [xA, yU] = sim.axes();
   const vel = [0, 0, 0];
-  for (let k = 0; k < 3; k++) vel[k] = -V * (Math.cos(a) * xA[k] + Math.sin(a) * yU[k]);
+  for (let k = 0; k < 3; k++) vel[k] = -V * (CORE_MATH.cos(a) * xA[k] + CORE_MATH.sin(a) * yU[k]);
   const r = sim.probe(vel);
   r.tailEps = sim.out.tailEps || 0;          // G185.5: the measured downwash
   // forward unit vector: drag is the aero force opposing it
-  r.drag = -(r.Fx * -Math.cos(a) * xA[0] + r.Fy * -Math.cos(a) * xA[1] + r.Fz * -Math.cos(a) * xA[2])
-           - (r.Fx * -Math.sin(a) * yU[0] + r.Fy * -Math.sin(a) * yU[1] + r.Fz * -Math.sin(a) * yU[2]);
+  r.drag = -(r.Fx * -CORE_MATH.cos(a) * xA[0] + r.Fy * -CORE_MATH.cos(a) * xA[1] + r.Fz * -CORE_MATH.cos(a) * xA[2])
+           - (r.Fx * -CORE_MATH.sin(a) * yU[0] + r.Fy * -CORE_MATH.sin(a) * yU[1] + r.Fz * -CORE_MATH.sin(a) * yU[2]);
   return r;
 }
 
@@ -39,7 +39,7 @@ function genProbeAt(sim, V, a) {
 function genYawStiff(sim, def, V) {
   const bet = 0.06;
   const yaw = b => sim.probe(
-    [-V * Math.cos(b), 0, -V * Math.sin(b)]).yawLeft;
+    [-V * CORE_MATH.cos(b), 0, -V * CORE_MATH.sin(b)]).yawLeft;
   const dN = (yaw(bet) - yaw(-bet)) / (2 * bet);
   const g = def.params.gen || {};
   // G185: the span itself when the build states it; the AR back-derivation
@@ -69,8 +69,8 @@ function genClMax(def, flap) {
   // the grid is identical and nothing below the stall can out-lift the peak.
   for (let a = -2; a <= 22; a += 0.25) {
     const al = a * Math.PI / 180;
-    const r = sim.probe([-V * Math.cos(al), -V * Math.sin(al), 0]);
-    const L = -r.Fx * Math.sin(al) + r.Fy * Math.cos(al);
+    const r = sim.probe([-V * CORE_MATH.cos(al), -V * CORE_MATH.sin(al), 0]);
+    const L = -r.Fx * CORE_MATH.sin(al) + r.Fy * CORE_MATH.cos(al);
     // RHO, not the live density: every number on this sheet is quoted at the
     // datum, which is what makes them comparable between two builds and what
     // makes the speeds equivalent airspeeds (G72).
@@ -225,6 +225,17 @@ function genTrim(def) {
       const d = (m2 - r.pitchUp) / 0.20;
       return Math.abs(d) < 1e-9 ? 0 : -r.pitchUp / d;
     };
+    // G2034 (DMG-RECAL): HALF THE STOP ON THE SIDE THE TRIM NEEDS. The budget above was written for the nose-up stop
+    // (0.18 of the servo's +0.35: 0.514 of it); holdPitch's nose-DOWN stop is -0.30 (39b SERVO_GAINS deMin), so a trim
+    // that needs forward stick has 0.514 x 0.30 = 0.154 of it before the loop loses its headroom. The user's Cub as the
+    // game flies it (G1985: 3.4 cm aft of the file's CG) trims its full-flap approach at -0.170 prop off: inside 0.18,
+    // past 0.154 - and flown, under approach power, its elevator sat on the forward stop the whole final (pitch -9.6 deg
+    // at 17.5 m/s), the flare began 9 deg nose-down at 2.7 m/s of sink and it mushed on at 1.03 Vs0, 1.4-1.5 m/s, and
+    // the crosswind roll-outs swung 19.5 / 28.5 deg (GATE DMGTYRE). Flapless (this rule's own cure) it lands at
+    // 1.14 Vs, 0.6 m/s, and swings 8.5 / 11.1 / 13.1 deg at 3 / 4 / 5 m/s across. Of every active archetype card and
+    // the five validated builds only that Cub moves (the C172-alike sits at -0.153: inside, by 0.001 - flown, its
+    // final holds -0.07). The budget a trim de is judged against:
+    const trimBudget = de => 0.18 * (de < 0 ? -SERVO_GAINS.deMin / SERVO_GAINS.deMax : 1);
     const rat = g.Vs / Math.max(1e-6, g.VsFlap);          // back onto the clean stall
     const landFlapless = () => {
       def.params.flaps.ldg = 0;          // the AP's flap schedule reads this
@@ -232,7 +243,7 @@ function genTrim(def) {
       g.VsFlap = g.Vs; g.landsFlapless = true;
       return genTrim(def);               // re-measure the lot at the new config
     };
-    if (Math.abs(g.deAppr) > 0.18 && ldg > 0) {
+    if (Math.abs(g.deAppr) > trimBudget(g.deAppr) && ldg > 0) {
       sim.ctl.flap = 0;
       const Va0 = A.VAppr * rat;
       const de0 = deAt(Va0, genAlphaForLift(sim, Va0, W, aMax));
@@ -265,7 +276,7 @@ function genTrim(def) {
       }
       sim.ctl.flap = flapWas;
     }
-    if (Math.abs(g.deAppr) > 0.18) g.apprTrimFail = g.deAppr;
+    if (Math.abs(g.deAppr) > trimBudget(g.deAppr)) g.apprTrimFail = g.deAppr;
     g.W = W;
     g.alphaAppr = aA;
     g.LDappr = rA.Fy / Math.max(1e-6, rA.drag);

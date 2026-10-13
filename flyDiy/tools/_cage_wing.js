@@ -193,8 +193,8 @@ const WING_ITEMS = [
   // aluminium (never plywood: a wooden wing is fabric-covered, the ply is the
   // leading-edge D-box only); 'as the aeroplane' is fabric on a wood or tube
   // fuselage, alloy on alloy, carbon on carbon (GEN_SURF_DEFAULT)
-  ['wgCons', 'construction', 0, 5, 1,
-   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube'],
+  ['wgCons', 'construction', 0, 6, 1,
+   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube', 'glassfibre'],
    on],
   ['wgDx',     'fore / aft',       -1.5, 1.8, 0.05, on],
   ['wgDy',     'up / down',         -1.0, 1.0, 0.02, on],
@@ -387,13 +387,13 @@ function wingMat(cl, plane) {
   // dresses every class
   // G213: the wing's own tokens in the row's order, and 'as the aeroplane'
   // through GEN_SURF_DEFAULT (fabric on a wood or tube fuselage)
-  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'];   // G466: the fifth stop
-  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube'];
+  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'];   // G466: the fifth stop; G2047 the sixth
+  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass'];
   const SD = (typeof GEN_SURF_DEFAULT !== 'undefined' && GEN_SURF_DEFAULT) ||
-    { tubeFabric: 'fabric', wood: 'fabric', alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric' };
+    { tubeFabric: 'fabric', wood: 'fabric', alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass' };
   const kc = Math.round((plane ? P0.w2Cons : P0.wgCons) || 0);
   const cons = kc > 0 ? CONS4[kc - 1]
-    : SD[FUS4[Math.max(0, Math.min(4, Math.round(P0.intCons || 0)))]] ||
+    : SD[FUS4[Math.max(0, Math.min(5, Math.round(P0.intCons || 0)))]] ||
       'fabric';
   // the editor's per-part livery, when its UI is on the page; the direct
   // factory call below stays as the standalone bench's path
@@ -546,9 +546,107 @@ const dispose = o => {
   if (o.parent) o.parent.remove(o);
 };
 
+// ---- G2880 (NACELLE-LAG): THE WING'S EARLY READERS -------------------------
+// The post chain runs in load order (build.js MANIFEST.editor), and a layer
+// that runs BEFORE this one and stands something on CAGE_WING reads the
+// PREVIOUS build's wing: the cowl's and the engine's engineFaces (the
+// over-the-wing pylon, the nacelle pair) put a DA62-alike's engines where the
+// Savannah-alike loaded before it had its leading edge, and the flown CG with
+// them, until the next rebuild. The gear's cure (G138) was to load after the
+// wing; the cowl and the engine cannot (the engine's starters write P before
+// every layer, the cowl fits round the engine, the access and tank layers read
+// both), so they are PLACED AGAIN instead, once, in the same build:
+//   place(key, ctx, fn, sigOf) - a reader's placement: fn(ctx, memo) runs now,
+//     over the wing as it stands. When sigOf() is not null (the reader stands
+//     on the wing this build - its own test) it is remembered with what it read
+//     (sigOf(): its faces, as a string) and its scene slot and words.
+//   publish(ctx) - this layer, the moment its build is done (every exit): each
+//     reader of THIS build whose sigOf() now reads differently runs fn again,
+//     once, over the wing just published (memo: what its first pass returned -
+//     the cowl's starter decision), its scene objects put back where the first
+//     pass's stood, its words in place of the first pass's on the status line;
+//     under the flat chain (CAGE_CHAIN.as) its P reads and objects stay its own.
+// A reader that never touches the wing (a nose or pusher engine) registers
+// nothing and is never run twice: the validated builds are untouched. A build
+// in which the wing does not run (a preview's plan) leaves its readers to the
+// next publish, which drops them (another ctx). GATE NACLAG holds it.
+const EARLY = new Map();
+const LAST = [], READ = [];                  // the keys the last publish placed again / held for its build
+const early = window.CAGE_WING_EARLY = {
+  place(key, ctx, fn, sigOf) {
+    const sc = ctx && ctx.scene, st = ctx && ctx.stat;
+    const pre = sc ? new Set(sc.children) : null;
+    const at = st && typeof st.textContent === 'string' ? st.textContent.length : -1;
+    const memo = fn(ctx, null);
+    let sig0 = null;
+    try { sig0 = sigOf(); } catch (e) { sig0 = null; }
+    EARLY.delete(key);
+    if (sig0 != null) EARLY.set(key, { key, ctx, fn, sigOf, sig0, memo, pre,
+      at, words: at >= 0 ? st.textContent.slice(at) : null });
+    return memo;
+  },
+  publish(ctx) {
+    const list = [...EARLY.values()];
+    EARLY.clear();
+    LAST.length = 0; READ.length = 0;
+    const NEW = new Set();
+    for (const e of list) {
+      if (e.ctx !== ctx) continue;
+      READ.push(e.key);
+      const CH = window.CAGE_CHAIN;
+      const go = () => {
+        let s;
+        try { s = e.sigOf(); } catch (er) { s = 'threw: ' + (er && er.message); }
+        if (s === e.sig0) return null;
+        e.again = (e.again || 0) + 1;
+        const sc = ctx.scene, real = ctx.stat;
+        const k0 = sc ? new Set(sc.children) : null;
+        // the words: what the pass says now stands in place of what the first
+        // pass said; anything said after the build (the propeller's check, a
+        // microtask) lands on the real line, as it always did
+        let seg = '', live = false;
+        const st = (real && e.words != null) ? {
+          get textContent() { return live ? real.textContent : seg; },
+          set textContent(v) { if (live) real.textContent = v; else seg = v; },
+        } : real;
+        e.fn(Object.assign({}, ctx, { stat: st }), e.memo);
+        let delta = 0, line = null;
+        if (st !== real) {
+          const t = real.textContent, i = t.indexOf(e.words, e.at);
+          if (i >= 0) { real.textContent = t.slice(0, i) + seg + t.slice(i + e.words.length); delta = seg.length - e.words.length; }
+          else real.textContent = t + seg;
+          line = real.textContent;
+          live = true;
+        }
+        // the slot: right after the last object that stood before the first
+        // pass began (or that an earlier reader just put back)
+        const added = sc ? sc.children.filter(o => !k0.has(o)) : [];
+        if (added.length) {
+          const rest = sc.children.filter(o => k0.has(o));
+          let j = -1;
+          for (let i = 0; i < rest.length; i++) if (e.pre.has(rest[i]) || NEW.has(rest[i])) j = i;
+          sc.children.splice(0, sc.children.length, ...rest.slice(0, j + 1), ...added, ...rest.slice(j + 1));
+          for (const o of added) NEW.add(o);
+        }
+        return { added, words: st !== real ? seg : null, delta, line };
+      };
+      if (CH && CH.as) CH.as(e.key, go); else go();
+      if (e.again) LAST.push(e.key);
+    }
+  },
+  // what the last publish held and placed again (GATE NACLAG reads them)
+  get readers() { return READ.slice(); },
+  get last() { return LAST.slice(); },
+};
+
 const prevPost = PAGE.post;
 let boomGroup = null;                        // the twin booms (2026-09-04)
+// G2880: the build below, then its early readers (above) - after every exit
 PAGE.post = ctx => {
+  wingPost(ctx);
+  early.publish(ctx);
+};
+const wingPost = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, spec, mesh, P, stat } = ctx;
   dispose(group); group = null;

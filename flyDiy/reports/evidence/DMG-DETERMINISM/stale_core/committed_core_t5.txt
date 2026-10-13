@@ -1,0 +1,3 @@
+{"k":"cub","s":"t5","on":"on","hash":"8873243509ec2bb5","broken":169,"work":29862.2,"ms":13611}
+{"k":"jodel","s":"t5","on":"on","hash":"a474fbbd6ba2b8fe","broken":204,"work":39568.3,"ms":27383}
+{"k":"metal","s":"t5","on":"on","hash":"44b1e9ea5f39a293","broken":208,"work":51335,"ms":24422}

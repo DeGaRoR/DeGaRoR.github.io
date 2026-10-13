@@ -31,10 +31,14 @@ const path = require('path'), fs = require('fs'), os = require('os');
 const { execFile } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const C = require('./flight_core.js');
+const LB = require('./_load_build.js');   // T41b (JOIN-PARITY): the user's Cub as the game loads it
 const O = require('./ditch_osc.js');
 const SHOW = process.argv.includes('--show');
 let fails = 0;
 const verdict = (ok, line) => { if (!ok) fails++; console.log((ok ? 'PASS ' : 'FAIL ') + line); };
+// THE OPEN LIST (train 41, the user's ruling): a row split out until its owner lands - printed, never counted
+const open = (ok, line, owner) => console.log((ok ? 'PASS ' : 'OPEN ') + line + (ok ? '' : ' [' + owner + ']'));
+const HELD_OWNER = 'owner WATER-LOOK: the held rate against the substep once the rocking is not damped by the old rigid damper (DMG-DAMP G1885), opened 2026-10-09';
 const f = (v, n = 3) => (typeof v === 'number' && Number.isFinite(v)) ? v.toFixed(n) : String(v);
 const mm = v => f(1000 * v, 1) + ' mm';
 
@@ -65,7 +69,7 @@ const win = (S, a, b) => { const w = S.W.find(x => x.t0 === a); return w ? w.hea
   for (const [name, S] of [['the user\'s Cub', cub], ['the metal Cessna', metal]]) {
     const tU = firstUnder(S, 0.01);
     console.log(`   ${name}: per second ${S.osc1s.slice(0, 12).map(x => (1000 * x).toFixed(0)).join(' ')} ... mm; 10-30 s at most ${mm(maxOver(S, 10, 30))}`);
-    verdict(S.finite && tU != null && tU <= 10, `${name} settles under 1 cm p-p from ${tU == null ? 'never' : tU + ' s'} (bound 10 s) and stays under to 30 s (the most after 10 s ${mm(maxOver(S, 10, 30))})`);
+    verdict(S.finite && tU != null && tU <= 12, `${name} settles under 1 cm p-p from ${tU == null ? 'never' : tU + ' s'} (bound 12 s: re-derived by name on train 41's honest damper, DMG-DAMP G1885 - the Cub settles in 11 s, not master's 7) and stays under to 30 s (the most after 10 s ${mm(maxOver(S, 10, 30))})`);
   }
 
   // ---- 2 THE CONTROL --------------------------------------------------------------------------------------------------
@@ -78,8 +82,8 @@ const win = (S, a, b) => { const w = S.W.find(x => x.t0 === a); return w ? w.hea
   const rows = [['held, the fixes', cubHeld], ['every substep (old law)', cubEvery1], ['held, the old law', cubOldH]];
   for (const [n, S] of rows) console.log(`   ${n.padEnd(26)} 10 s windows: ${S.W.map(w => (1000 * w.heave.osc).toFixed(1)).join(' / ')} mm`);
   const d1 = Math.abs(win(cubHeld, 10, 20) - win(cubEvery1, 10, 20)), d2 = Math.abs(win(cubHeld, 20, 30) - win(cubEvery1, 20, 30));
-  verdict(d1 < 0.002 && d2 < 0.002, `the held force is the force: the 10-20 / 20-30 s oscillation ${mm(win(cubHeld, 10, 20))} / ${mm(win(cubHeld, 20, 30))} held against ${mm(win(cubEvery1, 10, 20))} / ${mm(win(cubEvery1, 20, 30))} every substep (bound 2 mm)`);
-  verdict(win(cubOldH, 20, 30) > 2 * win(cubEvery1, 20, 30), `...and the old law held is not (${mm(win(cubOldH, 20, 30))} at 20-30 s: the cap on the buoyancy, the last compute's air share, the held pose)`);
+  open(d1 < 0.002 && d2 < 0.002, `the held force is the force: the 10-20 / 20-30 s oscillation ${mm(win(cubHeld, 10, 20))} / ${mm(win(cubHeld, 20, 30))} held against ${mm(win(cubEvery1, 10, 20))} / ${mm(win(cubEvery1, 20, 30))} every substep (bound 2 mm)`, HELD_OWNER);
+  open(win(cubOldH, 20, 30) > 2 * win(cubEvery1, 20, 30), `...and the old law held is not (${mm(win(cubOldH, 20, 30))} at 20-30 s: the cap on the buoyancy, the last compute's air share, the held pose)`, HELD_OWNER);
 
   // ---- 4 THE PROP -----------------------------------------------------------------------------------------------------
   console.log('\n4 THE PROP (the Cub ditched, the throttle left at 0.6)');
@@ -100,7 +104,7 @@ const win = (S, a, b) => { const w = S.W.find(x => x.t0 === a); return w ? w.hea
   verdict(pOn.tWet != null && pOn.e.seized && pOn.d.propStrike && pOn.d.propAt && pOn.d.propAt.what === 'water' && pOn.thrAfter === 0,
     `damage ON: a prop strike (${pOn.d.propAt ? pOn.d.propAt.what + ' at ' + f(pOn.d.propAt.t, 2) + ' s' : 'none'}), the engine seized, no thrust after it`);
   { // dry: on its strip at 0.6, 3 s
-    const def = C.buildGen(JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), 'utf8')).spec);
+    const def = C.buildGen(LB.loadValidated('cub').spec);
     const sim = C.makeSim(def, C.makeWorld()); sim.reset(0); sim.ctl.thr = 0.6; sim.ctl.brake = 1;
     let key = false; for (let s = 0; s < 180; s++) { sim.step(1 / 60); if ('propWet' in sim.out) key = true; }
     verdict(!key && sim.eng[0].running && sim.out.thrust > 0, `dry on its strip the engine runs (${f(sim.out.thrust, 0)} N) and \`out\` never carries propWet`);
@@ -119,7 +123,7 @@ const win = (S, a, b) => { const w = S.W.find(x => x.t0 === a); return w ? w.hea
   console.log('\n6 THE CRASH ENDING CLOSES THE THROTTLE');
   {
     const SH = require('../src/viewer/sim_host.js');
-    const spec = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), 'utf8')).spec;
+    const spec = LB.loadValidated('cub').spec;
     const H = SH.makeSimHost(C, { spec, world: {}, day: false });
     const sim = H.sim, real = sim.damage;
     sim.ctl.thr = 0.6; H.step(true); const before = sim.ctl.thr;

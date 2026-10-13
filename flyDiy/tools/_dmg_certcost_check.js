@@ -31,14 +31,19 @@ const BW_PATH = path.join(__dirname, '..', 'src', 'viewer', 'bench_worker.js');
 // node-time ceiling - the cloud box, each build alone in its process, measured 8.1 / 16.1 / 14.3 / 21.1 / 24.1 s (D2b's:
 // 13.5 / 25.1 / 22.0 / 38.8 / 43.5); the ceiling is about twice that, loose on purpose (the gate runs beside others):
 // the frames catch a lost cut, the ceiling a gross slowdown, neither a noisy machine
-// G2640 (DESIGN-TRUST): the stressed-skin boom on the shell cluster (61_gen_frame SHELL) moved three settles by a few
-// frames - the Jodel 1792 -> 1796, the metal Cessna 1797 -> 1795, the Cessna floats 1763 -> 1761 (their envelopes still
-// equal the uncut certificate's to the bit); the Cub (a truss) and the twin floatplane (a rod) unmoved
+// G2365 (DMG-BUNDLE-GREEN): the frames belong to an AEROPLANE - each sim settles until steady - and G1892 took them on the
+// files as written; since G1985 (JOIN-PARITY) the gates certify the game's aeroplanes. On today's code the files as
+// written still step 1796 / 1761 (metal / floats: inside the old 1797 / 1763, so no cut was lost); the game's metal Cessna
+// and Cessna on floats step 1831 / 1795 (their engine at the drawn flange, 65 cm forward, and its height): those are the
+// budgets now. The Cub, the Jodel and the twin fit theirs (1807 / 1792 / 1786)
+// G2640 (DESIGN-TRUST): on top - the stressed-skin boom on the shell cluster moves the Jodel's settle +4 (1792 -> 1796,
+// its envelope equal to the uncut certificate's to the bit); the Cessnas' moved -2 on the files as written (1797 -> 1795,
+// 1763 -> 1761), inside the budgets above
 const BUDGET = {
   cub:        { frames: 1809, s: 18 },
   jodel:      { frames: 1796, s: 32 },
-  metal:      { frames: 1795, s: 30 },
-  floats:     { frames: 1761, s: 42 },
+  metal:      { frames: 1831, s: 30 },
+  floats:     { frames: 1795, s: 42 },
   twinFloats: { frames: 1791, s: 48 },
 };
 const TARGET_S = 5;
@@ -71,17 +76,17 @@ if (argv[0] === '--build') {
   const K = C.genCertify(def, { world });
   const ms = Date.now() - t0;
   const out = { key, ms, frames: K.ms.frames, cases: K.ms.cases, static: K.ms.flight, nb: K.nb };
-  const tag = { rules: rulesKey(C), phys: C.PHYSICS_V, spec: fnv(0x811c9dc5, JSON.stringify(def.spec || null)).toString(16), fp: fingerprint(C, def, world) };
+  const tag = { rules: rulesKey(C), cv: C.GEN_CERT_V, phys: C.PHYSICS_V, spec: fnv(0x811c9dc5, JSON.stringify(def.spec || null)).toString(16), fp: fingerprint(C, def, world) };
   let ref = null, how;
   const R = fs.existsSync(REF) ? JSON.parse(fs.readFileSync(REF, 'utf8')) : {};
   const r = R[key];
-  if (!argv.includes('--full') && !argv.includes('--write-ref') && r && r.rules === tag.rules && r.phys === tag.phys && r.spec === tag.spec && r.fp === tag.fp) {
+  if (!argv.includes('--full') && !argv.includes('--write-ref') && r && r.rules === tag.rules && r.cv === tag.cv && r.phys === tag.phys && r.spec === tag.spec && r.fp === tag.fp) {
     ref = { Ft: unf64(r.Ft), Fc: unf64(r.Fc), frames: r.frames, ms: r.ms }; how = 'stored';
   } else {
     const t1 = Date.now();
     const U = C.genCertify(def, { world, share: false, full: true });
     ref = { Ft: U.Ft, Fc: U.Fc, frames: U.ms.frames, ms: Date.now() - t1 };
-    how = r ? 'computed (the stored reference is not this physics: ' + ['rules', 'phys', 'spec', 'fp'].filter(k => r[k] !== tag[k]).join(', ') + ')' : 'computed';
+    how = r ? 'computed (the stored reference is not this physics: ' + ['rules', 'cv', 'phys', 'spec', 'fp'].filter(k => r[k] !== tag[k]).join(', ') + ')' : 'computed';
     if (argv.includes('--write-ref')) out.write = Object.assign({}, tag, { Ft: f64(U.Ft), Fc: f64(U.Fc), frames: U.ms.frames, ms: ref.ms, when: new Date().toISOString() });
   }
   const dT = worstDev(K.Ft, ref.Ft), dC = worstDev(K.Fc, ref.Fc);
@@ -250,8 +255,15 @@ function child(k) {
   console.log('3. the store (node, an in-memory IndexedDB):');
   for (const [line, ok] of await storeNode(C, cert, def)) check(ok, line);
   if (!argv.includes('--no-browser')) {
-    let j = JSON.parse(fs.readFileSync(path.join(__dirname, '..', L.BUILDS.cub.build), 'utf8'));
-    const spec = C.genMigrateSpec ? C.genMigrateSpec(j.spec || j) : (j.spec || j);
+    // G2365 (DMG-BUNDLE-GREEN): the worker is handed THE GAME'S Cub (tools/_load_build.js, the spec L.defOf builds and
+    // the node certificate above is of), not the file as written - that one is another aeroplane (the pre-G1985 Cub:
+    // its tank, its engine station), and its certificate read 2.3 (relative) off node's: the two sides compared two
+    // aeroplanes, not two V8s. (FLYDIY_RAW_BUILDS=1: the file as written on both sides, as L.defOf.)
+    let spec;
+    if (process.env.FLYDIY_RAW_BUILDS === '1') {
+      const j = JSON.parse(fs.readFileSync(path.join(__dirname, '..', L.BUILDS.cub.build), 'utf8'));
+      spec = C.genMigrateSpec ? C.genMigrateSpec(j.spec || j) : (j.spec || j);
+    } else spec = require('./_load_build.js').loadValidated('cub').spec;
     const rows = await storeBrowser(C, cert, spec);
     if (!rows) console.log('3. REPORT: no Playwright / Chromium here - the round trip in a browser not run (a cloud session runs it)');
     else { console.log('3. the store (headless Chromium, the bench worker):'); for (const [line, ok] of rows) check(ok, line); }

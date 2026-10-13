@@ -1,0 +1,109 @@
+1. PARITY - the shipped GLSL against world.waterH
+PASS the world exports sea / setSea
+PASS setSea made 32 trains (the uniform array holds 32)
+PASS a sea point found on the analytic world
+PASS 3000 samples, t up to 1e5 s: max |waterH - gerstnerJS| = 1.09e-11 m (at t 78517)
+PASS the Gerstner GLSL stays inside the transpiler's subset
+PASS the GLSL is the reduced-phase form (cos(k d - phase), phase = mod(om t - ph, 2 pi))
+PASS one wGerstnerH in water.js, spliced into both stages from the one string
+PASS 30_solver.js publishes its clock (get t)
+PASS app.js hands the solver's clock to WATER.setTime after the step (sim.t, or the drawn pose's time: G1100)
+PASS no trains: 0
+PASS the felt band: 8 trains felt (the swell band, L >= 0.75 L), 24 drawn as slope only
+PASS waterH is the felt band, not the sum of all 32 (the two differ)
+PASS the two-train sea is felt whole
+PASS the golden: setWind([3,0,4]) draws 32 trains, A 0.0900 L 10.000, FNV 63eccad3 (pinned 63eccad3)
+
+2. THE RULES
+PASS one onBeforeCompile assignment in water.js (1)
+PASS ATMO.inject(sh) is the hook's first statement
+PASS nothing interpolated into the hook's GLSL (the cache key is the hook's source)
+PASS the uniform arrays hold 32 trains
+PASS seaFrom at 30 m/s: 32 trains <= 32
+PASS render_world.js lifts the patch on the GPU (the CPU loop is the no-shader path only)
+PASS the far plane is at the level with the shader (-0.4 only without it)
+PASS the buoys and the patch read the shader's clock (the solver's)
+PASS the sea, the patch and the lakes take the one material with their body attribute
+PASS the coast and lake fields reach the water
+PASS the wind reaches the water (setWindVis)
+PASS build.js lists water.js before render_world.js
+PASS dev.html carries water.js
+PASS four samplers of its own: uWSdf, uWDetail, uWInter, uWMirror
+PASS the interaction slot (setInteraction) exists and the shader reads it
+
+3. THE LAWS
+PASS preset sea: abs 0.46/0.36/1.28 opa 2.17 sct 0.010/0.014/0.004 wave 1 detail 1 depth 14 m
+PASS preset lake: abs 0.55/0.72/2.70 opa 1.56 sct 0.001/0.001/0.000 wave 0 detail 0.55 depth 4 m
+PASS preset river: abs 0.40/0.34/1.11 opa 1.71 sct 0.009/0.011/0.004 wave 0 detail 0.35 depth 1.5 m
+PASS preset premises: abs 0.46/0.36/1.28 opa 2.17 sct 0.010/0.014/0.004 wave 0 detail 0.7 depth 6 m
+PASS clear water is blue (0.0010/0.0063/0.0303)
+PASS a muskeg lake is near-black (0.0011/0.0011/0.0005)
+PASS a bloom is green (0.0022/0.0080/0.0033)
+PASS a silted river is milky (0.0696/0.1409/0.0944)
+PASS the sea upwells under 2 %, green over blue - no lagoon (0.0105/0.0138/0.0042)
+PASS every body is three constituents (cdom, chl, sed)
+PASS the mirror replaces the IBL only where the capture has something, its colour un-premultiplied (alphaToCoverage resolves to a partial alpha)
+PASS the capture is multisampled (its depth texture a resolve: the clouds' composite samples it while drawing into it)
+PASS the capture hides the water, reuses the shadow maps, restores the target and the background
+PASS the capture draws the sky dome at the mirrored eye first (and hands it back to its parent)
+PASS app.js hands the world's sky dome to the capture
+PASS the sky pass makes the dome VISIBLE for its own draw (opts.hide had already silenced it) and puts it back
+PASS Bruneton's mean Fresnel is applied AFTER the mirror's mix (the probe and the capture dim alike)
+PASS the mirror API, 'periodic' by default, under 900 m over the water
+PASS the mirror's clock is real seconds (never a count of calls)
+PASS the mirror is projected from the undisplaced position (never the faceted one)
+PASS the slope walks the POINT on the water (the mirrored eye's reflected ray back to the plane), never the capture's uv
+PASS the mirror's plane rides uWMirror4.w (the walk needs it) and the walk is capped at 15 % of the view distance
+PASS the mirror fades out with altitude (full to 500 m, gone by 900 m) - never a cliff
+PASS the re-capture distance scales with the eye's height (3 m at the dock, 5 % of the altitude above it)
+PASS the walk over 2000 eyes: flat water gives back the point (0 misses), it stays on the plane (0), it never exceeds the cap (0)
+PASS the eye re-captures at 3 m / 3 deg, a jump (15 m / 12 deg) at once
+PASS GRAPHICS has the reflections row and hands it to the water
+PASS sigma^2 grows with the footprint
+PASS sigma^2 grows with the wind
+PASS sigma^2 inside Cox-Munk's total, roughness inside [0.05, 1]
+PASS at 7 m/s: the horizon's sigma^2 0.0388 (roughness 0.44), the dock's 0.00000 (roughness 0.06)
+
+4. THE TILE
+PASS deterministic (64x64, two bakes byte-equal), no NaN
+PASS periodic across the seam: mean step 5.56 at the wrap vs 6.32 inside
+PASS zero-mean slope (0.000, -0.000)
+
+5. THE FIELD
+PASS the field's API (stamp / fieldStep / fieldOn), 384^2 texels over 192 m
+PASS the kernel's response is never negative (min 0.0066 on the axis, 0.0260 on the diagonal)
+PASS the kernel sums to zero (-1.8e-9)
+PASS the response is |k| over the band: 0.50 |k| at lambda 31 texels, 1.00 at 12.6, 0.98 at 6.3
+PASS the fine level's highest mode: omega dt = 0.148 at the 1/30 s clamp (< 0.5)
+PASS two levels over 192 m (384 / 96: 0.50 / 2.0 m texels), viscosity 0.04
+PASS the derive pass sums both levels' slopes
+PASS damping per SECOND: a wave's e-fold 8 s, the foam's 2 s (never per frame)
+PASS a stamp displaces h and h_prev together (never a velocity)
+PASS the absorbing rim (0.04 of the box)
+PASS the derive pass writes the slot's encode (slope over [-2, 2]) and the shader decodes the same
+PASS the state is cleared to 0 on first use (not the scene's sky colour)
+PASS the slot is half float (a byte slot cannot hold a zero slope: 127.5 rounds to a tilt over the whole box)
+PASS fieldStep reads the caller's target before its clears and restores it after its passes
+PASS app.js stamps press / ring / foam from the hydro's own numbers
+PASS the wake ribbons are retired (the field carries the wake)
+PASS app.js steps the field at the CG (with its velocity) every frame while a floatplane is over water, on the frame's own dt (G586)
+PASS without hydro the field runs only when the dev panel forces it, or something ASKS for it
+PASS the ask EXPIRES (half a second) and is read off window.WATER (a bare WATER throws where the layer is absent - GATE UISMOKE caught exactly that)
+
+6. THE SPRAY
+PASS spray.js loads headless: make + the two kinds
+PASS droplet: life 0.6-1 s, size 0.012-0.04 m, grow 1.6, drag 0.25, gravity 1
+PASS puff: life 1.2-2 s, size 0.2-0.5 m, grow 2, drag 2.2, gravity 0.12
+PASS the sprite shader splices the log-depth chunks (both stages)
+PASS the sprite shader ends in three's tone-mapping and colour-space chunks
+PASS the sprite is stretched along its velocity
+PASS the sprite is lit by the sun and the sky, alpha-blended (never additive)
+PASS app.js draws the spray through spray.js (both kinds emitted, lit each frame)
+PASS build.js lists spray.js beside water.js
+PASS the bow wave: a press ahead of the stem while under way
+PASS spray.js makes the chine sheets (log-depth + tone-mapping chunks)
+PASS app.js builds two sheets per float off the wet chine stations and commits them each frame
+PASS the droplets peel off the sheet's far edge with its velocity
+PASS the join lists floatStrut among the truss kinds (its members exported for app.js's two-end follow)
+
+GATE WATER: PASS

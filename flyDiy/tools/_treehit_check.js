@@ -77,6 +77,7 @@ if (argv[0] === '--page') {
   })().catch(e => { console.error(e); process.exit(2); });
   return;
 }
+require('./_core_fresh.js').assertFresh(require('path').join(__dirname, 'flight_core.js'));   // G2353: never a stale generated core
 const C = require('./flight_core.js');
 let fails = 0, checks = 0;
 const yes = (c, m) => { checks++; if (!c) fails++; console.log((c ? '  ok   ' : '  FAIL ') + m); };

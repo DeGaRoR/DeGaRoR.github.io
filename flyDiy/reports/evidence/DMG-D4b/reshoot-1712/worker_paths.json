@@ -1,0 +1,137 @@
+{
+ "at": "2026-10-06T15:11:55.422Z",
+ "paths": {
+  "place": {
+   "path": "place",
+   "crash": {
+    "broken": 138,
+    "worker": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "why": {
+     "hits": 0,
+     "t": 20.216666666685335,
+     "held": false,
+     "world": true
+    }
+   },
+   "exercised": true,
+   "wreck": {
+    "active": true,
+    "bodies": 9,
+    "gone": [
+     "cowl:crushed",
+     "cowl:crushed",
+     "wheel:off",
+     "wheel:off",
+     "wheel:off",
+     "pane:crushed",
+     "pane:crushed",
+     "pane:crushed",
+     "pane:crushed",
+     "pane:crushed"
+    ],
+    "debris": 9,
+    "parts": 4,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 113,
+    "broken": 138,
+    "t": 20.22,
+    "garage": false
+   },
+   "rollIn": "ok",
+   "shed": true,
+   "from": "w2",
+   "set": "w2",
+   "rollOut": "bGo",
+   "world": true,
+   "after": {
+    "active": false,
+    "bodies": 0,
+    "gone": [],
+    "debris": 0,
+    "parts": 7,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 0,
+    "broken": 0,
+    "t": 0,
+    "garage": false
+   },
+   "giant": {
+    "meshes": []
+   },
+   "ok": true,
+   "shots": [
+    "C:\\Users\\denis\\AppData\\Local\\Temp\\claude\\D--Dev-DeGaRoR-github-io\\b3479e2b-6a03-45d0-af42-4316285bb123\\scratchpad\\r_paths\\path_place_after_1.png",
+    "C:\\Users\\denis\\AppData\\Local\\Temp\\claude\\D--Dev-DeGaRoR-github-io\\b3479e2b-6a03-45d0-af42-4316285bb123\\scratchpad\\r_paths\\path_place_after_2.png"
+   ]
+  },
+  "garage": {
+   "path": "garage",
+   "crash": {
+    "broken": 172,
+    "worker": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "why": {
+     "hits": 0,
+     "t": 9.033333333338334,
+     "held": false,
+     "world": true
+    }
+   },
+   "exercised": true,
+   "wreck": {
+    "active": true,
+    "bodies": 10,
+    "gone": [
+     "eng:loose",
+     "spinner:crushed",
+     "cowl:off",
+     "cowl:off",
+     "wheel:off",
+     "wheel:off",
+     "wheel:off",
+     "pane:off",
+     "pane:off",
+     "pane:off",
+     "pane:off",
+     "pane:off"
+    ],
+    "debris": 10,
+    "parts": 1,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 126,
+    "broken": 172,
+    "t": 9.03,
+    "garage": false
+   },
+   "rollIn": "ok",
+   "shed": true,
+   "rollOut": "bGo",
+   "world": true,
+   "after": {
+    "active": false,
+    "bodies": 0,
+    "gone": [],
+    "debris": 0,
+    "parts": 7,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 0,
+    "broken": 0,
+    "t": 0,
+    "garage": false
+   },
+   "giant": {
+    "meshes": []
+   },
+   "ok": true,
+   "shots": [
+    "C:\\Users\\denis\\AppData\\Local\\Temp\\claude\\D--Dev-DeGaRoR-github-io\\b3479e2b-6a03-45d0-af42-4316285bb123\\scratchpad\\r_paths\\path_garage_after_1.png",
+    "C:\\Users\\denis\\AppData\\Local\\Temp\\claude\\D--Dev-DeGaRoR-github-io\\b3479e2b-6a03-45d0-af42-4316285bb123\\scratchpad\\r_paths\\path_garage_after_2.png"
+   ]
+  }
+ }
+}

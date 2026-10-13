@@ -1,0 +1,2 @@
+metal:air both passes, median of 26 process medians: base 6.5894 now 6.3761 -3.24 %
+cessna:taxi both passes, median of 26 process medians: base 16.9742 now 16.9369 -0.22 %

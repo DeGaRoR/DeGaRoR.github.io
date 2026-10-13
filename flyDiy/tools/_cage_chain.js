@@ -78,6 +78,8 @@
   };
   // ---- the recording view of P -------------------------------------------------------------------------------
   let CUR = null;                        // the layer whose own body is running
+  let RUN = null;                        // ...recorded or not (G2880: whose turn another layer is placed again in)
+  const ADOPT = new WeakSet();           // G2880: objects a layer added inside another layer's turn
   const snapV = v => (v !== null && typeof v === 'object') ? (() => { try { return 'json:' + JSON.stringify(v); } catch (e) { return NaN; } })() : v;
   const same = (a, b) => a === b || (a !== a && b !== b);
   const views = new WeakMap();
@@ -108,7 +110,8 @@
     if (plan && !plan.run[i]) { Ly.ran = false; Ly.ms = 0; if (i > 0) runLayer(i - 1, ctx); return; }
     Ly.ran = true; Ly.seq = ++SEQ; Ly.stale = !!(ctx && ctx.defer && DEFERS.has(Ly.name)); Ly.mesh = ctx ? ctx.mesh : null;
     const rec = C.on && ctx && ctx.__rec;
-    const prev = CUR;
+    const prev = CUR, prevRun = RUN;
+    RUN = Ly;
     if (rec) { CUR = Ly; Ly.reads = new Map(); Ly.all = false; Ly.allSnap = null; } else CUR = null;
     const outer = childAcc; childAcc = 0;
     const t0 = now();
@@ -116,13 +119,13 @@
     try { return Ly.f.call(PAGE, ctx); }
     finally {
       const k0 = Ly.kids0; Ly.kids0 = null;
-      Ly.objs = k0 ? ctx.scene.children.filter(o => !k0.has(o)) : [];
+      Ly.objs = k0 ? ctx.scene.children.filter(o => !k0.has(o) && !ADOPT.has(o)) : [];
       const st = statTxt(ctx);
       Ly.statApp = (st != null && Ly.stat0 != null && st.length >= Ly.stat0.length && st.slice(0, Ly.stat0.length) === Ly.stat0) ? st.slice(Ly.stat0.length) : '';
       const dt = now() - t0;
       Ly.ms = dt - childAcc; childAcc = outer + dt;
       if (rec && Ly.all) Ly.allSnap = snapV(rec.P);
-      CUR = prev;
+      CUR = prev; RUN = prevRun;
     }
   }
   Object.defineProperty(PAGE, 'post', {
@@ -155,6 +158,27 @@
   };
   // the layer whose own body is running (a section stamped now is that layer's), or null
   C.cur = () => CUR;
+  // G2880 (NACELLE-LAG): as(name, fn) - layer `name`'s placement run AGAIN inside the running layer's turn (the wing
+  // places a unit that stood on the previous build's wing once more, _cage_wing.js CAGE_WING_EARLY): its P reads are
+  // recorded as that layer's, the scene objects it adds are counted as its own and not the running layer's, its words
+  // (the status line's) are its own. fn returns { added, words, delta, line } (delta: how much the line before the
+  // running layer's own words grew, line: the line after - so the running layer's words stay its own)
+  C.as = (name, fn) => {
+    const Ly = L.find(l => l.name === name), host = RUN, prev = CUR;
+    if (!Ly || Ly === host) return fn();
+    CUR = prev ? (Ly.reads ? Ly : null) : null;
+    let r;
+    try { r = fn(); }
+    finally { CUR = prev; }
+    if (r && r.added) {
+      for (const o of r.added) ADOPT.add(o);
+      Ly.objs = (Ly.objs || []).filter(o => o.parent).concat(r.added);
+    }
+    if (r && typeof r.words === 'string') Ly.statApp = r.words;
+    if (r && r.delta && host && host.stat0 != null && typeof r.line === 'string')
+      host.stat0 = r.line.slice(0, Math.max(0, host.stat0.length + r.delta));
+    return r;
+  };
   // the run counter (each layer's `seq` is the counter at its last run)
   C.seqNow = () => SEQ;
   // only(names): a plan that runs the named layers (and the always-run ones) and skips the rest
