@@ -92684,6 +92684,10 @@ PARKED - TRAIN 66, NEXT WEEK ("Torque bundle re-tuned on 41b physics"):
 - OWED WITH IT: G3076 GATE ALTIPORT 3 (PERSONA-2's go-around pre-empts G2520's flare guard: the calibration needs an arrival
   the go-around does not catch); G3075 GATE TOUR 5 the user's Cub's 02/20 roll-out loop after East Point (~30 deg at 11.6 m/s);
   G2550 ALTIPORT-ROLLOUT (the Cub's tw_ski roll-out loop in node - train 44's KNOWN red; its cloud session was started).
+- ADDED 14 Oct (A0's board item pilot-vy-shortfield, skipped for train 56 as not cheap): the take-off climb's Vy is genAP's
+  1.38 Vs (44_vprofile climbSpeeds only floors it) against the POH's ~1.54 Vs - a shallower, faster climb moves every climb-out
+  gate (PROFILE TAKEOFF TAXICLEAR RWYTREES TOUR ALTIPORT CESSNAVREF PILOTMATRIX); and the Jodel not airborne at Jumbo Mine
+  from 45 m (a 205 m sheet run on 250 m) is the strip-length go / no-go EAST-POINT-DEPART's shortOfRun carries (in the bundle).
 
 KNOWN REDS ON MASTER (printed KNOWN, owners): the load door's float Cessna SEA > mk_sea (Deform / JOIN-PARITY); the metal
 Cessna's prop in the water on 02/20's concrete (ISLAND-TOUR G1971, not landed); the Cub's tw_ski roll-out in node (G2550).
