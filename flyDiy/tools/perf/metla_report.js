@@ -26,7 +26,13 @@ function load(f) {
   const lt = j.longTasks || [], g = (j.tGarage || 0) * 1000, fr = (j.frames || []).filter(r => r[1] > 0);
   const near = MK ? fr.filter(r => typeof r[14] === 'number' && Math.hypot(r[14] - MK[0], r[15] - MK[1]) <= NEAR) : [];
   let closest = null; if (MK) for (const r of fr) if (typeof r[14] === 'number') { const d = Math.hypot(r[14] - MK[0], r[15] - MK[1]); if (closest == null || d < closest) closest = d; }
-  const n0 = near.length ? near[0][0] : null, n1 = near.length ? near[near.length - 1][0] : null;
+  const n0 = near.length ? near[0][0] : null, n1 = near.length ? near[near.length - 1][0] : null;   // (s after the reveal)
+  const dist = r => (MK && typeof r[14] === 'number' ? Math.hypot(r[14] - MK[0], r[15] - MK[1]) : Infinity);
+  const even = rows => { const d = rows.map(r => r[1]).filter(x => x > 0); if (!d.length) return null; let run = 0, best = 0; for (const x of d) { if (x > 34) { run += x; if (run > best) best = run; } else run = 0; }
+    const sh = t => 100 * d.filter(x => x > t).length / d.length; return { n: d.length, o34: sh(34), o50: sh(50), o100: sh(100), p95: pct(d, 0.95), p99: pct(d, 0.99), worst: Math.max(...d), run: best / 1000 }; };
+  const appr = fr.filter(r => { const x = dist(r); return x > NEAR && x <= 6000; });
+  const apPh = []; { let pv = null; for (const r of fr) if (r[16] !== pv) { apPh.push(r[16] + '@' + (+r[0]).toFixed(1)); pv = r[16]; } }
+  const wPh = []; { let pv = null; for (const r of fr) if (r[25] && r[25] !== pv) { wPh.push(r[25] + '@' + (+r[0]).toFixed(1)); pv = r[25]; } }
   const ph = j.phases || {}, P = k => ph[k] || {};
   const nm = i => med(near.map(r => r[i]));
   const steps = {}; { let set = null; for (const b of (j.bootLog || [])) { if (b.k === 'run') { set = b.set; continue; } if (b.k === 'step' && set === 'garage') steps[b.id] = (steps[b.id] || 0) + (b.ms || 0); } }
@@ -35,9 +41,9 @@ function load(f) {
     bootWorst: Math.max(0, ...lt.filter(x => x[0] <= g).map(x => x[1])), afterWorst: Math.max(0, ...lt.filter(x => x[0] > g).map(x => x[1])),
     standLoop: P('stand').workMed, standRender: P('stand').renderMed, standDraws: P('stand').drawsMed,
     taxiLoop: P('taxi').workMed, taxiRender: P('taxi').renderMed, taxiDraws: P('taxi').drawsMed, taxiFps: P('taxi').fpsDelivered,
-    nearS: near.length ? (n1 - n0) / 1000 : 0, nearLoop: med(near.map(r => r[2])), nearRender: med(near.map(r => r[10])), nearDraws: med(near.map(r => r[29])),
+    nearS: near.length ? n1 - n0 : 0, nearLoop: med(near.map(r => r[2])), nearRender: med(near.map(r => r[10])), nearDraws: med(near.map(r => r[29])),
     nearP99: pct(near.map(r => r[1]), 0.99), nearWorstDt: near.length ? Math.max(...near.map(r => r[1])) : null,
-    nearWorstTask: near.length ? Math.max(0, ...lt.filter(x => x[0] >= n0 - 2000 && x[0] <= n1).map(x => x[1])) : null,
+    evNear: even(near), evAppr: even(appr), evAll: even(fr), variant: j.variant, routeTo: j.start && j.start.route ? j.start.route.to : null, apPh, wPh,
     privMB: mm ? +mm[1].replace(/,/g, '') : null, wsMB: mm ? +mm[2].replace(/,/g, '') : null, heapMB: ev && ev.heapMB, houses: ev && ev.houses, town: ev && ev.town, closest };
 }
 const all = fs.readdirSync(dir).filter(f => /^(metla|metlacub)_\d+_[AB]\.json$/.test(f)).map(load);
@@ -45,9 +51,26 @@ if (!all.length) { console.error('metla_report: no runs in ' + dir); process.exi
 const f1 = x => (x == null ? '-' : Math.abs(x) >= 100 ? x.toFixed(0) : x.toFixed(1)), sg = x => (x == null ? '-' : (x > 0 ? '+' : '') + f1(x));
 const L = ['# METLA-ONOFF - Metlakatla OFF (A, ?town=0) vs ON (B, ?town=1), ABBA', '',
   'The box\'s default preset (GFX.get() kept per run). garage = navigation -> garage (s, warm profile), boot worst = the worst main-thread task before it, roll-out = Roll out -> flight (s); loop = the frame\'s JS work, render = renderer.render() CPU (ms), draws a frame (shadows in); memory = Chrome\'s whole process tree (peak private / working set, MB) and the JS heap at the end; closest = the nearest the aeroplane came to the Metlakatla seaplane base (m); NEAR = every frame within ' + NEAR + ' m of it (s spent, loop, render, draws, frame p99 / worst, the worst task).', ''];
+// ---- EVENNESS FIRST (the user, 14 Oct: "frame evenness is where it could hurt") - the floats runs, OFF (A) vs ON (B)
+{ const FLr = all.filter(r => r.pre === 'metla');
+  if (FLr.length) {
+    L.push('## FRAME EVENNESS - OFF vs ON (the floats leg; NEAR = within ' + NEAR + ' m of the Metlakatla seaplane base, APPROACH = ' + NEAR + ' m - 6 km, ALL = every frame after the reveal)', '',
+      'A frame over 34 ms is a missed 30-fps frame; "longest below 30" = the longest unbroken stretch of such frames (s).', '',
+      '| run | window | frames | > 34 ms % | > 50 ms % | > 100 ms % | p95 | p99 | worst | longest below 30 (s) |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+    const row = (lab, w, e) => L.push('| ' + lab + ' | ' + w + ' | ' + (e ? e.n : 0) + ' | ' + (e ? e.o34.toFixed(1) : '-') + ' | ' + (e ? e.o50.toFixed(1) : '-') + ' | ' + (e ? e.o100.toFixed(2) : '-') + ' | ' + (e ? f1(e.p95) : '-') + ' | ' + (e ? f1(e.p99) : '-') + ' | ' + (e ? f1(e.worst) : '-') + ' | ' + (e ? e.run.toFixed(2) : '-') + ' |');
+    for (const r of FLr.sort((a, b) => a.n - b.n)) { const lab = r.f.replace('.json', '') + ' (' + (r.side === 'A' ? 'OFF' : 'ON') + ')'; row(lab, 'near', r.evNear); row(lab, 'approach', r.evAppr); row(lab, 'all', r.evAll); }
+    for (const [sd, nm] of [['A', 'OFF'], ['B', 'ON']]) for (const w of ['evNear', 'evAppr', 'evAll']) {
+      const es = FLr.filter(r => r.side === sd && r[w]).map(r => r[w]); if (!es.length) continue;
+      const m = k => es.reduce((p, e) => p + e[k], 0) / es.length;
+      row('**mean ' + nm + '**', w === 'evNear' ? 'near' : w === 'evAppr' ? 'approach' : 'all', { n: Math.round(m('n')), o34: m('o34'), o50: m('o50'), o100: m('o100'), p95: m('p95'), p99: m('p99'), worst: Math.max(...es.map(e => e.worst)), run: Math.max(...es.map(e => e.run)) });
+    }
+    L.push('', '### The landings (pilot phases and water phases, s after the reveal) - for the Pilot', '');
+    for (const r of FLr) L.push('- ' + r.f.replace('.json', '') + ' (to ' + r.routeTo + '): pilot ' + r.apPh.join(' ') + ' | water ' + r.wPh.slice(0, 24).join(' ') + (r.wPh.length > 24 ? ' ...' : ''));
+    L.push('', '(The frame rows carry no attitude: a flip is read from the phases - a FLARE / ROLLOUT that goes back to circuit is a skip; STOPPED with the water phase flickering is the float at rest.)', '');
+  } }
 const S = {};
 for (const [pre, title, K] of [
-  ['metla', 'THE FIRST VISIT - the Cessna on floats, SEA lane -> the Metlakatla seaplane base, 330 s', ['garage', 'bootWorst', 'rollout', 'nearS', 'nearLoop', 'nearRender', 'nearDraws', 'nearP99', 'nearWorstDt', 'nearWorstTask', 'afterWorst', 'privMB', 'wsMB', 'heapMB', 'houses', 'closest']],
+  ['metla', 'THE FIRST VISIT - the Cessna on floats, SEA lane -> the Metlakatla seaplane base, 330 s', ['garage', 'bootWorst', 'rollout', 'nearS', 'nearLoop', 'nearRender', 'nearDraws', 'nearP99', 'nearWorstDt', 'afterWorst', 'privMB', 'wsMB', 'heapMB', 'houses', 'closest']],
   ['metlacub', 'HOME - the Cub, stand and taxi', ['garage', 'bootWorst', 'rollout', 'standLoop', 'standRender', 'standDraws', 'taxiLoop', 'taxiRender', 'taxiDraws', 'taxiFps', 'afterWorst', 'privMB', 'heapMB', 'houses']]]) {
   const runs = all.filter(r => r.pre === pre).sort((a, b) => a.n - b.n); if (!runs.length) continue;
   const mean = (s, k) => { const v = runs.filter(r => r.side === s).map(r => r[k]).filter(x => typeof x === 'number' && isFinite(x)); return v.length ? v.reduce((p, q) => p + q, 0) / v.length : null; };
@@ -56,7 +79,8 @@ for (const [pre, title, K] of [
   L.push('## ' + title, '', '| run | ' + K.join(' | ') + ' | town |', '|' + ' --- |'.repeat(K.length + 2));
   for (const r of runs) L.push('| ' + r.f.replace('.json', '') + ' | ' + K.map(k => f1(r[k])).join(' | ') + ' | ' + r.town + ' |');
   L.push('| **A off** | ' + K.map(k => f1(A[k])).join(' | ') + ' | |', '| **B on** | ' + K.map(k => f1(B[k])).join(' | ') + ' | |', '| **B - A** | ' + K.map(k => sg(S[pre].D(k))).join(' | ') + ' | |', '');
-  if (runs.some(r => (r.side === 'B') !== !!r.town)) L.push('WARNING: a run\'s town state (FLYDIY_TOWN.all) does not match its side - that run is void.', '');
+  const bad = runs.filter(r => (r.side === 'A' ? !(r.town === false || r.variant === 'nomet-sea') : !(r.town && r.variant !== 'nomet-sea')) || (pre === 'metla' && r.routeTo && r.routeTo !== 'mk_sea'));
+  if (bad.length) L.push('WARNING: void runs (side vs town / variant, or a route not to mk_sea): ' + bad.map(r => r.f + ' (town ' + r.town + ', variant ' + r.variant + ', to ' + r.routeTo + ')').join('; '), '');
 }
 // ---- THE BREAKDOWN (A0 14 Oct: the Metlakatla-ON chantier's baseline) - from the floats runs (they end at the town)
 const FL = all.filter(r => r.pre === 'metla');
@@ -87,7 +111,7 @@ if (FL.length) {
   L.push('### The three biggest levers', '', '(written from these numbers after the run - see below)', '');
 }
 const V = S.metla, C = S.metlacub;
-if (V) L.push('**ON costs ' + sg(V.D('nearLoop')) + ' ms loop / ' + sg(V.D('nearRender')) + ' ms render a frame over the town (draws ' + sg(V.D('nearDraws')) + ', frame p99 ' + f1(V.A.nearP99) + ' -> ' + f1(V.B.nearP99) + ' ms, worst frame ' + f1(V.A.nearWorstDt) + ' -> ' + f1(V.B.nearWorstDt) + ' ms, worst task near ' + f1(V.A.nearWorstTask) + ' -> ' + f1(V.B.nearWorstTask) + ' ms)' +
+if (V) L.push('**ON costs ' + sg(V.D('nearLoop')) + ' ms loop / ' + sg(V.D('nearRender')) + ' ms render a frame over the town (draws ' + sg(V.D('nearDraws')) + ', frame p99 ' + f1(V.A.nearP99) + ' -> ' + f1(V.B.nearP99) + ' ms, worst frame ' + f1(V.A.nearWorstDt) + ' -> ' + f1(V.B.nearWorstDt) + ' ms)' +
   (C ? '; at HOME taxi ' + sg(C.D('taxiLoop')) + ' / ' + sg(C.D('taxiRender')) + ' ms' : '') + '; ' + sg(V.D('garage')) + ' s to the garage, ' + sg(V.D('rollout')) + ' s roll-out; ' + sg(V.D('privMB')) + ' MB peak private (' + sg(V.D('heapMB')) + ' MB JS heap).**', '');
 fs.writeFileSync(path.join(dir, 'metla_onoff.md'), L.join('\n'));
 console.log(L.join('\n'));

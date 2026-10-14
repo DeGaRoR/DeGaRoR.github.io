@@ -226,10 +226,12 @@ function preScript() {
   // G1945 DEST-TO: the pref is v2 { base, to } - a --from that is not the base rides as the rigs' `spawn` (no picker has it)
   lines.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: DEST, spawn: FROM !== 'HOME' ? FROM : undefined })) + ');localStorage.setItem("flydiy.flManualRig","' + (AFLOAT > 0 || LATENCY ? '1' : '0') + '")}catch(e){}');
   if (PROBE) lines.push(fs.readFileSync(path.join(__dirname, 'latency_probe_page.js'), 'utf8'));   // G1165: before the page's first script
-  if (VARIANT === 'nomet') {
-    const F = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));
+  // G3205 (METLA-ONOFF): 'nomet-sea' keeps the runways (the Metlakatla seaplane base stays a destination: the OFF side flies the
+  // same route under ?town=1, the town's premises gone); --fixture <file> filters the SERVED tree's fixture (a --url run)
+  if (VARIANT === 'nomet' || VARIANT === 'nomet-sea') {
+    const F = JSON.parse(fs.readFileSync(opt('fixture', null) ? path.resolve(opt('fixture')) : path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));
     let cut = 0;
-    for (const k of Object.keys(F.layers)) if (Array.isArray(F.layers[k])) {
+    for (const k of Object.keys(F.layers)) if (Array.isArray(F.layers[k]) && !(VARIANT === 'nomet-sea' && k === 'runways')) {
       const n = F.layers[k].length;
       F.layers[k] = F.layers[k].filter(e => !(e && typeof e.id === 'string' && e.id.startsWith('mk_')));
       cut += n - F.layers[k].length;
