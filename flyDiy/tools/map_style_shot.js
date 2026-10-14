@@ -70,7 +70,7 @@ const TOK = ['panel', 'board', 'plate', 'ink', 'dim', 'faint', 'acc', 'acc-ink',
     const byCls = {}; for (const x of texts) if (!byCls[x.cls]) byCls[x.cls] = x.weight + ' ' + x.size + ' ' + x.style + ' ' + x.family.split(',')[0];
     return { open: true, list: S && S.list, item: S && S.item, opened: S && S.open, sheet: S && S.sheet, phone: S && S.phone, overlay: S && S.lastOverlay,
       texts: texts.length, bad: bad.slice(0, 12), byCls, tokens, plexLoaded: document.fonts.check("500 13px 'IBM Plex Sans'"),
-      dress: { primary: dress('.mmBody .mmTrack:not(.on)') || dress('.mmBody .mmAct:not(.sec)'), select: dress('.mmCust') || dress('.mmOptSel'), switchOn: dress('.mmSwB.on'), switchOff: dress('.mmSwB:not(.on)'), zoom: dress('.mmCtl button'), scale: dress('.mmScale') },
+      dress: { primary: dress('.mmBody .mmTrack:not(.on)') || dress('.mmBody .mmAct:not(.sec)'), select: dress('.mmSort') || dress('.mmOptSel'), switchOn: dress('.mmSwB.on'), switchOff: dress('.mmSwB:not(.on)'), zoom: dress('.mmCtl button'), scale: dress('.mmScale') },
       labels: { lbl: scr.querySelectorAll('.mmLbl').length, names: scr.querySelectorAll('.mmNm').length, hotN: scr.querySelectorAll('.mmHotN').length, poi: scr.querySelectorAll('.mmPoi').length },
       small, titles: scr.querySelectorAll('[title]').length };
   }, TOK);
@@ -123,7 +123,7 @@ const TOK = ['panel', 'board', 'plate', 'ink', 'dim', 'faint', 'acc', 'acc-ink',
     ({ st, p } = await shot(pg, 'desk', 'contracts', 'the contracts list, "Mail off the water" opened: the paragraph in Plex, the ✗ in the garage\'s alert colour, Track the primary verb (the accent); the customer select the rows\' select; the switch the segmented control'));
     listJpg = p; lookOk(st, 'contracts');
     check(st.dress.primary && st.dress.primary.tt === 'uppercase' && st.dress.primary.bg === 'rgb(230, 219, 201)' && st.dress.primary.color === 'rgb(34, 31, 27)', 'Track is the garage\'s primary verb (.verb.pri: --ed-acc on --ed-acc-ink, uppercase) ' + JSON.stringify(st.dress.primary));
-    check(st.dress.select && st.dress.select.bg === 'rgba(255, 255, 255, 0.06)' && st.dress.select.border === 'rgba(255, 255, 255, 0.18)' && st.dress.select.h >= 48, 'the customer select is the rows\' select (--ed-btn-bg / --ed-btn-bd), ' + st.dress.select.h + ' px');
+    check(st.dress.select && st.dress.select.bg === 'rgba(255, 255, 255, 0.06)' && st.dress.select.border === 'rgba(255, 255, 255, 0.18)' && st.dress.select.h >= 48, 'the order select (G2710; was the customer select) is the rows\' select (--ed-btn-bg / --ed-btn-bd), ' + st.dress.select.h + ' px');
     check(st.dress.switchOn && st.dress.switchOn.bg === 'rgb(230, 219, 201)' && st.dress.switchOff.color === 'rgb(151, 144, 127)', 'the switch is the segmented control (on: the accent; off: --ed-faint) ' + JSON.stringify([st.dress.switchOn, st.dress.switchOff]));
     await tap(pg, '#mapScreen .mmSwB[data-list="market"]');
     await tap(pg, '#mapScreen .mmRow[data-id="m:scout"]');

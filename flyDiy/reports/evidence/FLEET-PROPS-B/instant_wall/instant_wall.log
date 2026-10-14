@@ -1,0 +1,7 @@
+boxlock: GPU taken by FLEETB
+21:55:08 tree 423600ee8
+21:55:10 build: tools/flight_core.js (2833.6 KB), index.html (12119.0 KB), dev.html (112.5 KB), career_core.f36739eb.js (342.1 KB) — syntax OK, build 51e33c96467a (341 named 
+21:55:10 RUN INSTANT cub,metal (cut at 1490s)
+22:13:08 END INSTANT rc 0 after 1078 s:   wall cub: 404 s (boot 89 s; slowest rows dashBack 21 s, seatH 21 s, shoulderT 20 s)|  wall metal: 674 s (boot 108 s; slowest rows stSpan 38 s, seatH 37 s, halfW 37 s)|GATE INSTANT: PASS|
+22:13:08 over at 22:13:08
+boxlock: GPU released by FLEETB

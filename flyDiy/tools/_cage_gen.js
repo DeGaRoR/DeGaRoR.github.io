@@ -3296,7 +3296,21 @@ function cageBodyZones(S) {
     push('cabin', zM);
     if (zWsA != null) push('aftCabin', CZ - zWsA);
     if (zMax > -1e9) push('aftDeck', CZ - zMax);
-    push('boom', -Infinity);
+    // THE POD HAS A TAIL CONE TOO (G2785, the user: "The tail cone cannot be
+    // selected", on the Mosquito). buildCage2's pod boom marches aft from the
+    // reflected aperture (the source's noseRing) over boomLen + tailLen and
+    // stands the TAIL PILLAR BAND at tPost — "the same pillar" as the regular
+    // tail — then the cone to the capped tip. The table ended on 'boom' to
+    // -Infinity, so a click on the cone's skin answered Boom and the Tail cone
+    // part had nothing to select. Same stations as the emission: the cone is
+    // the 'tail' zone aft of the reflected tail post.
+    const apZ = RA.noseRing && RA.noseRing.lv && RA.noseRing.lv.waist ? RA.noseRing.lv.waist.z : null;
+    const dzB = (S.boom && S.boom.len || 0) + (S.tail && S.tail.len || 0);
+    if (apZ != null && dzB > 0) {
+      const tPost = Math.min(0.92, S.boom.len / dzB);
+      push('boom', (CZ - apZ) - dzB * tPost);
+      push('tail', -Infinity);
+    } else push('boom', -Infinity);
   } else {
     for (let i = 1; i < CAGE_ZONE_RINGS.length; i++) {
       const row = CAGE_ZONE_RINGS[i];
@@ -8823,12 +8837,29 @@ function cageGlazedM2(s, FS) {
   return a * FS * FS;
 }
 
+// G3050: THE STATIONS THE JOIN MEASURES FROM, in one home. A named ring's z
+// (its waist line, else its keel), metres; and the FIREWALL - the windscreen
+// base ring, the lattice's x datum (the cowl deck forward of it, the glass
+// step above it). The join anchors every x on it, and the wing layer reads the
+// same station to keep the drawn wing inside the flown one's envelope.
+function cageNamedZ(R, FS) {
+  return name => {
+    const r = R && R.rings && R.rings.find(q => q.name === name);
+    const l = r && r.lv && (r.lv.waist || r.lv.keel);
+    return l && isFinite(l.z) ? l.z * FS : null;
+  };
+}
+function cageFirewallZ(zOf) {
+  for (const n of ['wsFront', 'wsAft', 'aeroWsA', 'ring']) { const z = zOf(n); if (z != null) return z; }
+  return null;
+}
+
 if (typeof module !== 'undefined')
   module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB, cageJointSweep,
                      CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                      cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                      CAGE_UNIT,
-                     buildCage2, cageResolve, cageSpec, cageSubdivide, cageRefitArc,
+                     buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc,
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
@@ -8839,7 +8870,7 @@ if (typeof window !== 'undefined')
                    CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                    cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                    CAGE_UNIT,
-                   buildCage2, cageResolve, cageSpec, cageSubdivide, cageRefitArc,
+                   buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc,
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,

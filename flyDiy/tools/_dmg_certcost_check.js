@@ -36,9 +36,12 @@ const BW_PATH = path.join(__dirname, '..', 'src', 'viewer', 'bench_worker.js');
 // written still step 1796 / 1761 (metal / floats: inside the old 1797 / 1763, so no cut was lost); the game's metal Cessna
 // and Cessna on floats step 1831 / 1795 (their engine at the drawn flange, 65 cm forward, and its height): those are the
 // budgets now. The Cub, the Jodel and the twin fit theirs (1807 / 1792 / 1786)
+// G2640 (DESIGN-TRUST): on top - the stressed-skin boom on the shell cluster moves the Jodel's settle +4 (1792 -> 1796,
+// its envelope equal to the uncut certificate's to the bit); the Cessnas' moved -2 on the files as written (1797 -> 1795,
+// 1763 -> 1761), inside the budgets above
 const BUDGET = {
   cub:        { frames: 1809, s: 18 },
-  jodel:      { frames: 1792, s: 32 },
+  jodel:      { frames: 1796, s: 32 },
   metal:      { frames: 1831, s: 30 },
   floats:     { frames: 1795, s: 42 },
   twinFloats: { frames: 1791, s: 48 },

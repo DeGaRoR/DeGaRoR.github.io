@@ -44,14 +44,18 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
 (async () => {
   const { openPage } = require('./_page_node.js');
   let bad = 0;
+  const T = [];   // G2228: the wall per build and per row (the summary names a slow one)
   for (const bk of WANT) {
+    const tB = Date.now(), rowT = [];
     const storage = { 'flydiy.wip': fs.readFileSync(path.join(ROOT, BUILDS[bk] || bk), 'utf8') };
     if (FLEETQ) Object.assign(storage, require('./perf/fleet_b_set.js').storage());
     // --fleet: an empty store (every key unbaked: the garage's idle path captures), the GPU bake a stub
     const fhooks = FLEETQ ? { afterScript(name, Pg) { if (name === 'src/viewer/parked.js' && Pg.win.PARKED) { const Wp = Pg.win, m = new Map();
       Wp.PARKED.fleet.store = BAKED ? require('./_fleet_synth.js').fleetStore(Wp) : { get: k => Wp.Promise.resolve(m.has(k) ? m.get(k) : null), put: (k, v) => { m.set(k, v); return Wp.Promise.resolve(); } };
       Wp.PARKED.fleet.bake = async () => null; } } } : undefined;
-    const P = await openPage(Object.assign({ quiet: true, storage }, FLEETQ ? { query: 'fleet=1', hooks: fhooks } : {}));
+    // (G2228: plain INSTANT pins the fleet OFF - ?fleet=0 - since FLYDIY_FLEET is on by default (G2226): only --fleet /
+    // --fleet-baked stand it; a plain run never depends on the fleet's queue or decodes)
+    const P = await openPage(Object.assign({ quiet: true, storage }, FLEETQ ? { query: 'fleet=1', hooks: fhooks } : { query: 'fleet=0' }));
     const W = P.win, D = W.document, run = c => vm.runInContext(c, P.ctx);
     await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
     await P.until(() => !!W.CAGE_UI, 60000);
@@ -63,7 +67,9 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
     const FL = FLEETQ ? W.PARKED.fleet : null, EVO = FLEETQ ? { bubbles: true } : undefined;
     if (FL) log('fleet: on ' + W.PARKED.fleetOn() + ', stood ' + (W.FLEET_STAND ? W.FLEET_STAND.state.holders.length : 0) + ', queued ' + FL.stats.queued + ', captures so far ' + FL.stats.captures + ', queue ' + FL.queue.join(' '));
     let dragCaps = 0;
+    const tBoot = Date.now() - tB;
     for (const k of ROWS) {
+      const tR = Date.now();
       const el = D.getElementById('p_' + k);
       if (!el || el.type !== 'range' || el.offsetParent === null || el.disabled) { log(k.padEnd(12) + ' (no visible slider)'); continue; }
       const lo = +el.min, hi = +el.max, x0 = +el.value, st = +el.step || 0.001, dir = (hi - x0) > (x0 - lo) ? 1 : -1;
@@ -109,7 +115,8 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       }
       const same = !diffs.length && hA === hB;
       if (!same) bad++;
-      log(k.padEnd(12) + ' previews ' + previews + '/4 (deformed ' + deforms + ')  objects ' + A.out.length + '/' + B.out.length + '  ' + (same ? 'same' : 'DIFFER ' + diffs.length + (hA !== hB ? ' + spec ' + hA + ' vs ' + hB : '')) + (noise ? '  (noise ' + noise + ')' : '') + (previews < 4 ? '  [' + (U.preview && U.preview.deformWhy) + ']' : '') + relTxt);
+      log(k.padEnd(12) + ' previews ' + previews + '/4 (deformed ' + deforms + ')  objects ' + A.out.length + '/' + B.out.length + '  ' + (same ? 'same' : 'DIFFER ' + diffs.length + (hA !== hB ? ' + spec ' + hA + ' vs ' + hB : '')) + (noise ? '  (noise ' + noise + ')' : '') + (previews < 4 ? '  [' + (U.preview && U.preview.deformWhy) + ']' : '') + relTxt + '  (' + ((Date.now() - tR) / 1000).toFixed(1) + ' s)');
+      rowT.push([k, Date.now() - tR]);
       for (const i of diffs.slice(0, 3)) { const a = A.out[i] || '(none)', b = B.out[i] || '(none)'; let c = 0; while (c < a.length && a[c] === b[c]) c++;
         log('   @' + i + ' short: ' + a.slice(0, 50) + ' ..@' + c + ': ' + a.slice(Math.max(0, c - 60), c + 120) + '\n     long:  ' + b.slice(0, 50) + ' ..@' + c + ': ' + b.slice(Math.max(0, c - 60), c + 120)); }
       // back to the build's value (a whole build)
@@ -124,6 +131,8 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       log('fleet: ' + (ok ? 'ok' : 'RED') + ' - captures ' + FL.stats.captures + ' (during drags ' + dragCaps + '), input waits ' + FL.stats.inputWaits + ', not wanted ' + FL.stats.notWanted + ', queue left ' + FL.queue.length);
     }
     P.close();
+    T.push([bk, Date.now() - tB, tBoot, rowT]);
+    log('wall ' + bk + ': ' + ((Date.now() - tB) / 1000).toFixed(0) + ' s (boot ' + (tBoot / 1000).toFixed(0) + ' s; slowest rows ' + rowT.slice().sort((x, y) => y[1] - x[1]).slice(0, 3).map(r => r[0] + ' ' + (r[1] / 1000).toFixed(0) + ' s').join(', ') + ')');
   }
   console.log(bad ? '  ' + bad + ' row(s) differ' : '  every drag ended on the plain build\'s aeroplane');
   console.log(bad ? 'GATE INSTANT: FAIL (' + bad + ' row(s) differ)' : 'GATE INSTANT: PASS');

@@ -2552,6 +2552,17 @@ const GEN_RULES = {
   // omega scales as sqrt(K / M). A number is that number; 0 = rigid.
   twinBoomTubeW: 'computed',
   rodWall:     1.2e-3, // the rod boom's tube wall, m (4130: 1.2 mm on a 113 mm tube)
+  // G2640 (DESIGN-TRUST): A STRESSED-SKIN BOOM IS A SHELL (61_gen_frame's SHELL
+  // block): a covered lofted boom of one of these constructions flies on the
+  // tube element at its drawn section's stiffness as a thin shell. `t` the
+  // skin, `eK` the share of the material's modulus a shell laminate carries -
+  // carbon's phys E is the fibre's (135 GPa, UD); a quasi-isotropic layup is
+  // ~0.45 of it (~60 GPa: CMH-17 vol. 2, T300/epoxy quasi-isotropic 50-60
+  // GPa); alloy 0.8 mm (a light aircraft's aft fuselage skin, 0.025-0.032 in
+  // 2024-T3); plywood 2.5 mm at 0.9 (the Jodel's box). Tube-and-fabric and the
+  // aluminium tube frame are trusses: the lattice is them.
+  shellSkin: { carbon: { t: 1.2e-3, eK: 0.45 }, alloy: { t: 0.8e-3, eK: 1 }, wood: { t: 2.5e-3, eK: 0.9 } },
+  shellBoom: 1,
   // G351 (the user: "let's do a"): THE REAR FUSELAGE'S GAUGE. Aft of the
   // cabin box every fuselage-class member was billed at the one lin.fus of
   // the material — 71 members, 47-54 m of tube at 0.58 kg/m, 41-44 kg of
@@ -3617,7 +3628,11 @@ const GEN_DEFAULT = {
           boomDy: 0,                      // G271: the root's height over the trailing-edge line, m
           // G266.2: the drawn stab's height (frame y) on a twin boom — the
           // panel seats above the booms' crown; null = on the crown
-          stabY: null },
+          stabY: null,
+          // G2640 (the KEEL row): how far the drawn fin roots BELOW the tail
+          // post's top (m, the join measures it); the fin's truss and strips
+          // start there. 0 = on the post, as every build before
+          vRootDrop: 0 },
   // `stiffness` is the suspension: 1.0 is the mass-scaled default, below that
   // is soft (long travel, bottoms out), above is hard (jars, but holds).
   // type 'taildragger' puts the third wheel at the tail and the mains AHEAD of
@@ -4586,8 +4601,12 @@ function clampSpec(spec) {
   }
   if (!GEN_TIPS[S.tail.tip]) S.tail.tip = 'rounded';
   // null is legal on the two overrides and means 'use tail.tip'
-  S.tail.stabH = genClamp(S.tail.stabH == null ? 0 : S.tail.stabH, 0, 1);
+  // G2640: down to -0.5 - a stab drawn BELOW the tail cone's mid-height (the
+  // mosquito's on its boom's centre, the Cub's on its longerons) was clamped up
+  // to it: 2.6 and 4.6 cm above the drawn stab (the geometry-parity row)
+  S.tail.stabH = genClamp(S.tail.stabH == null ? 0 : S.tail.stabH, -0.5, 1);
   S.tail.vSweep = genFieldClamp('tail.vSweep', S.tail.vSweep);
+  S.tail.vRootDrop = genClamp(S.tail.vRootDrop == null ? 0 : S.tail.vRootDrop, 0, 1.0);   // G2640
   const dr = S.tail.dorsal || (S.tail.dorsal = {});
   dr.height = genClamp(dr.height == null ? 0.16 : dr.height, 0, 0.90);
   dr.width  = genClamp(dr.width  == null ? 0.55 : dr.width,  0.15, 1.60);
