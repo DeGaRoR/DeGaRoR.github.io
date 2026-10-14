@@ -1,0 +1,56 @@
+[
+ {
+  "cam": [
+   200,
+   22,
+   9
+  ],
+  "file": "cowl_intact_fix_1.jpg",
+  "cowl": {
+   "px": 1734,
+   "yellow": 69.8,
+   "darkYellow": 0.1,
+   "other": 30.1,
+   "greyOrBlack": 16.7,
+   "backFace": 4
+  },
+  "yellow": 61.53,
+  "other": 38.36
+ },
+ {
+  "cam": [
+   300,
+   40,
+   10
+  ],
+  "file": "cowl_intact_fix_2.jpg",
+  "cowl": {
+   "px": 12,
+   "yellow": 16.7,
+   "darkYellow": 0,
+   "other": 83.3,
+   "greyOrBlack": 83.3,
+   "backFace": 100
+  },
+  "yellow": 28.26,
+  "other": 71.68
+ },
+ {
+  "cam": [
+   150,
+   8,
+   4.5
+  ],
+  "file": "cowl_intact_fix_3.jpg",
+  "cowl": {
+   "px": 111,
+   "yellow": 60.4,
+   "darkYellow": 0,
+   "other": 39.6,
+   "greyOrBlack": 33.3,
+   "backFace": 83.8
+  },
+  "yellow": 61.83,
+  "other": 38.15
+ }
+]

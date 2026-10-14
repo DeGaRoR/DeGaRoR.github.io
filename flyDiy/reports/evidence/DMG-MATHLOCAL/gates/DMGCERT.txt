@@ -1,0 +1,113 @@
+(912 s, 5 builds)
+the rules: kappa 0.1, m 1.05, a joint at 1.5 F_l m x 1, a member at 1.5 F_l m x 1.15, the first set at 1.01 x F_l, the controls' cases x 2
+Cub:
+1. the certificate (47 cases: pullA, pullD, negC, pullAq, pullDq, rollR, rollL, flapF, elevUpD, elevUpDuL, elevUpDuR, elevDownD, elevDownDuL, elevDownDuR, rudRA, rudLA, crashFwd, crashUp, crashDown, crashSideR, crashSideL, impactNose, impactNoseL, impactNoseR, torque361, side363R, side363L, gyro371a, gyro371b, gyro371c, gyro371d, bench, drop, dropLevel, dropOne, drop473, taxiRough, gSideR, gSideL, gBrake, gTailObs, gTailSideR, gTailSideL, flown, flownElev, flownRud, flownElevF)
+  ok    379 members certified (the gear's 15 apart), every one with an envelope, none past its physics; tension: 182 on the certificate, 197 on the floor; compression: 233 / 142
+  ok    the gear's 15 members: its 15 joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float's hull) on D1a's limits
+  ok    with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate
+  ok    computed once per build (46694 ms in node: flight cases 3294.87, bench 25.70, the dynamic ones 41879.41); a second build of the same spec takes it from the cache in 0 ms
+2. the card on the bench (LIMIT 3.80 g / ULTIMATE 5.70 g)
+  ok    to the limit x 1.0 (3.80 g): HELD, no set
+  ok    to the limit x 1.2 (4.56 g): 0 set, nothing broken
+  REPORT  a brittle wing (spruce, its joints fittings): no member of it can take a set - past its limit it holds until it breaks
+  ok    to the ultimate (5.70 g): HELD, 0 set, nothing broken
+  ok    to the ultimate x 1.1 (6.27 g): it breaks (23 members), the first group wing0R:strut, the first member a fitting (S1BR-WF, tension)
+3. to destruction
+  ok    BROKE AT 6.01 g (wing0R:strut, fitting) - within [5.70, 5.99] g (+2.5 % for the ramp's lag); first set 6.01 g
+  ok    the first member broken: fitting (wing S1BR-WF, tubeFabric, tension) - a joint, never the middle of a ductile member
+  ok    the page's bench thread (bench_worker.js benchLoadRun, the roll-out's certificate handed in) breaks it the same: the card reads "LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.01 g (the right wing's strut, a fitting, let go first) — the test to destruction, free"
+4. the flight
+  ok    the flown pull to the limit (the wing's load 3.83 W, the CG reading 3.00 g): nothing yields; the worst member 0.95 of its certified limit
+  ok    parked 10 s on its wheels and 10 s in the air (1.6 Vs, 0.75 throttle): nothing yields, no frame armed once settled (6 armed while it settled) - the quiet path stays quiet on the certificate's limits
+5. a bad design
+  ok    the lift struts (12 members) built at half the section their certificate asks (x 0.06 and less), certified as built: the bench BROKE UP (first broken at 2.94 g, under its 5.70 g ultimate)
+  REPORT  the drawn lift struts in compression: member 146 certified 4.5 kN (elevDownDuR) -> crushes at 8.2 kN (physics 36.5); member 147 certified 1.8 kN (flownElev) -> crushes at 3.7 kN (physics 36.5); member 148 certified 2.9 kN (elevDownD) -> crushes at 5.3 kN (physics 36.5); member 149 certified 2.2 kN (flownElevF) -> crushes at 4.0 kN (physics 36.5)
+Jodel:
+1. the certificate (47 cases: pullA, pullD, negC, pullAq, pullDq, rollR, rollL, flapF, elevUpD, elevUpDuL, elevUpDuR, elevDownD, elevDownDuL, elevDownDuR, rudRA, rudLA, crashFwd, crashUp, crashDown, crashSideR, crashSideL, impactNose, impactNoseL, impactNoseR, torque361, side363R, side363L, gyro371a, gyro371b, gyro371c, gyro371d, bench, drop, dropLevel, dropOne, drop473, taxiRough, gSideR, gSideL, gBrake, gTailObs, gTailSideR, gTailSideL, flown, flownElev, flownRud, flownElevF)
+  ok    477 members certified (the gear's 15 apart), every one with an envelope, none past its physics; tension: 160 on the certificate, 317 on the floor; compression: 240 / 233
+  ok    the gear's 15 members: its 15 joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float's hull) on D1a's limits
+  ok    with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate
+  ok    computed once per build (74824 ms in node: flight cases 7536.51, bench 57.54, the dynamic ones 66174.22); a second build of the same spec takes it from the cache in 1 ms
+2. the card on the bench (LIMIT 3.80 g / ULTIMATE 5.70 g)
+  ok    to the limit x 1.0 (3.80 g): HELD, no set
+  ok    to the limit x 1.2 (4.56 g): 0 set, nothing broken
+  REPORT  a brittle wing (spruce, its joints fittings): no member of it can take a set - past its limit it holds until it breaks
+  ok    to the ultimate (5.70 g): HELD, 0 set, nothing broken
+  ok    to the ultimate x 1.1 (6.27 g): it breaks (79 members), the first group wing0L:root, the first member a bond (WB-WF, tension)
+3. to destruction
+  ok    BROKE AT 6.02 g (wing0L:root, fitting) - within [5.70, 5.99] g (+2.5 % for the ramp's lag); first set 6.01 g
+  ok    the first member broken: bond (wing WB-WF, wood, tension) - a joint, never the middle of a ductile member
+  ok    the page's bench thread (bench_worker.js benchLoadRun, the roll-out's certificate handed in) breaks it the same: the card reads "LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.02 g (the left wing's root, a fitting, let go first) — the test to destruction, free"
+4. the flight
+  ok    the flown pull to the limit (the wing's load 4.23 W, the CG reading 2.04 g): nothing yields; the worst member 0.56 of its certified limit
+  ok    parked 10 s on its wheels and 10 s in the air (1.6 Vs, 0.75 throttle): nothing yields, no frame armed once settled (4 armed while it settled) - the quiet path stays quiet on the certificate's limits
+5. a bad design
+  ok    the wing root (20 members) built at half the section their certificate asks (x 0.05 and less), certified as built: the bench BROKE UP (first broken at 3.92 g, under its 5.70 g ultimate)
+  REPORT  the Jodel's first member broken on the bench to destruction: bond WB-WF (wood, tension); its first group wing0L:root
+metal Cessna:
+1. the certificate (48 cases: pullA, pullD, negC, pullAq, pullDq, rollR, rollL, flapF, elevUpD, elevUpDuL, elevUpDuR, elevDownD, elevDownDuL, elevDownDuR, rudRA, rudLA, crashFwd, crashUp, crashDown, crashSideR, crashSideL, impactNose, impactNoseL, impactNoseR, torque361, side363R, side363L, gyro371a, gyro371b, gyro371c, gyro371d, bench, drop, dropNoseUp, dropOne, drop473, taxiRough, gSideR, gSideL, gBrake, gNoseAft, gNoseFwd, gNoseSideR, gNoseSideL, flown, flownElev, flownRud, flownElevF)
+  ok    427 members certified (the gear's 15 apart), every one with an envelope, none past its physics; tension: 262 on the certificate, 165 on the floor; compression: 266 / 157
+  ok    the gear's 15 members: its 15 joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float's hull) on D1a's limits
+  ok    with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate
+  ok    computed once per build (66725 ms in node: flight cases 3781.05, bench 67.19, the dynamic ones 61658.57); a second build of the same spec takes it from the cache in 1 ms
+2. the card on the bench (LIMIT 3.80 g / ULTIMATE 5.70 g)
+  ok    to the limit x 1.0 (3.80 g): HELD, no set
+  ok    to the limit x 1.2 (4.56 g): 16 members set (the largest 0.18 %), nothing broken - the first set is just past the limit
+  ok    to the ultimate (5.70 g): HELD, 32 set, nothing broken
+  ok    to the ultimate x 1.1 (6.27 g): it breaks (38 members), the first group wing0R:strut, the first member a fitting (S1BR-WB, tension)
+3. to destruction
+  ok    BROKE AT 6.06 g (wing0R:strut, fitting) - within [5.70, 5.99] g (+2.5 % for the ramp's lag); first set 3.85 g
+  ok    the first member broken: fitting (wing S1BR-WB, alloy, tension) - a joint, never the middle of a ductile member
+  ok    the page's bench thread (bench_worker.js benchLoadRun, the roll-out's certificate handed in) breaks it the same: the card reads "LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.06 g (the right wing's strut, a fitting, let go first) — the test to destruction, free"
+4. the flight
+  ok    the flown pull to the limit (the wing's load 3.82 W, the CG reading 2.72 g): nothing yields; the worst member 0.93 of its certified limit
+  ok    parked 10 s on its wheels and 10 s in the air (1.6 Vs, 0.75 throttle): nothing yields, no frame armed once settled - the quiet path stays quiet on the certificate's limits
+5. a bad design
+  ok    the lift struts (12 members) built at half the section their certificate asks (x 0.05 and less), certified as built: the bench BROKE UP (first broken at 2.14 g, under its 5.70 g ultimate)
+  REPORT  the drawn lift struts in compression: member 151 certified 14.6 kN (bench) -> crushes at 26.5 kN (physics 68.3); member 152 certified 19.2 kN (bench) -> crushes at 34.8 kN (physics 68.3); member 153 certified 3.0 kN (flownElev) -> crushes at 6.8 kN (physics 68.3); member 154 certified 2.6 kN (flownElevF) -> crushes at 6.8 kN (physics 68.3)
+Cessna floats:
+1. the certificate (49 cases: pullA, pullD, negC, pullAq, pullDq, rollR, rollL, flapF, elevUpD, elevUpDuL, elevUpDuR, elevDownD, elevDownDuL, elevDownDuR, rudRA, rudLA, crashFwd, crashUp, crashDown, crashSideR, crashSideL, impactNose, impactNoseL, impactNoseR, torque361, side363R, side363L, gyro371a, gyro371b, gyro371c, gyro371d, bench, drop, bow, dropStep, dropOne, dropDriftR, dropDriftL, drop473, wWeave, wStep, wUnsymR, wUnsymL, wOneL, wOneR, flown, flownElev, flownRud, flownElevF)
+  ok    427 members certified (the gear's 106 apart), every one with an envelope, none past its physics; tension: 315 on the certificate, 112 on the floor; compression: 315 / 108
+  ok    the gear's 106 members: its 20 joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float's hull) on D1a's limits
+  ok    with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate
+  ok    computed once per build (90404 ms in node: flight cases 7587.39, bench 109.92, the dynamic ones 75821.79); a second build of the same spec takes it from the cache in 0 ms
+2. the card on the bench (LIMIT 3.80 g / ULTIMATE 5.70 g)
+  ok    to the limit x 1.0 (3.80 g): HELD, no set
+  ok    to the limit x 1.2 (4.56 g): 17 members set (the largest 0.18 %), nothing broken - the first set is just past the limit
+  ok    to the ultimate (5.70 g): HELD, 35 set, nothing broken
+  ok    to the ultimate x 1.1 (6.27 g): it breaks (33 members), the first group wing0R:strut, the first member a fitting (S1BR-WB, tension)
+3. to destruction
+  ok    BROKE AT 6.08 g (wing0R:strut, fitting) - within [5.70, 5.99] g (+2.5 % for the ramp's lag); first set 3.85 g
+  ok    the first member broken: fitting (wing S1BR-WB, alloy, tension) - a joint, never the middle of a ductile member
+  ok    the page's bench thread (bench_worker.js benchLoadRun, the roll-out's certificate handed in) breaks it the same: the card reads "LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.08 g (the right wing's strut, a fitting, let go first) — the test to destruction, free"
+4. the flight
+  ok    the flown pull to the limit (the wing's load 3.86 W, the CG reading 2.89 g): nothing yields; the worst member 0.97 of its certified limit
+  ok    parked 10 s on the water and 10 s in the air (1.6 Vs, 0.75 throttle): nothing yields, no frame armed once settled (39 armed while it settled) - the quiet path stays quiet on the certificate's limits
+5. a bad design
+  ok    the lift struts (28 members) built at half the section their certificate asks (x 0.04 and less), certified as built: the bench BROKE UP (first broken at 2.04 g, under its 5.70 g ultimate)
+  REPORT  the drawn lift struts in compression: member 151 certified 18.4 kN (bench) -> crushes at 33.3 kN (physics 70.3); member 152 certified 24.4 kN (bench) -> crushes at 44.2 kN (physics 70.3); member 153 certified 4.0 kN (flownElev) -> crushes at 7.2 kN (physics 70.3); member 154 certified 3.2 kN (flownElevF) -> crushes at 7.0 kN (physics 70.3)
+twin floatplane:
+1. the certificate (47 cases: pullA, pullD, negC, pullAq, pullDq, rollR, rollL, flapF, elevUpD, elevUpDuL, elevUpDuR, elevDownD, elevDownDuL, elevDownDuR, rudRA, rudLA, crashFwd, crashUp, crashDown, crashSideR, crashSideL, impactNose, torque361, side363R, side363L, gyro371a, gyro371b, gyro371c, gyro371d, bench, drop, bow, dropStep, dropOne, dropDriftR, dropDriftL, drop473, wWeave, wStep, wUnsymR, wUnsymL, wOneL, wOneR, flown, flownElev, flownRud, flownElevF)
+  ok    413 members certified (the gear's 106 apart), every one with an envelope, none past its physics; tension: 223 on the certificate, 190 on the floor; compression: 277 / 132
+  ok    the gear's 106 members: its 20 joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float's hull) on D1a's limits
+  ok    with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate
+  ok    computed once per build (73740 ms in node: flight cases 5673.06, bench 75.34, the dynamic ones 62465.09); a second build of the same spec takes it from the cache in 1 ms
+2. the card on the bench (LIMIT 3.80 g / ULTIMATE 5.70 g)
+  ok    to the limit x 1.0 (3.80 g): HELD, no set
+  ok    to the limit x 1.2 (4.56 g): 0 set, nothing broken
+  REPORT  a brittle wing (spruce, its joints fittings): no member of it can take a set - past its limit it holds until it breaks
+  ok    to the ultimate (5.70 g): HELD, 0 set, nothing broken
+  ok    to the ultimate x 1.1 (6.27 g): it breaks (62 members), the first group wing0R:strut, the first member a fitting (S1BR-WF, tension)
+3. to destruction
+  ok    BROKE AT 6.01 g (wing0R:strut, fitting) - within [5.70, 5.99] g (+2.5 % for the ramp's lag); first set 6.02 g
+  ok    the first member broken: fitting (wing S1BR-WF, tubeFabric, tension) - a joint, never the middle of a ductile member
+  ok    the page's bench thread (bench_worker.js benchLoadRun, the roll-out's certificate handed in) breaks it the same: the card reads "LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.01 g (the right wing's strut, a fitting, let go first) — the test to destruction, free"
+4. the flight
+  ok    the flown pull to the limit (the wing's load 3.94 W, the CG reading 3.00 g): nothing yields; the worst member 0.99 of its certified limit
+  ok    parked 10 s on the water and 10 s in the air (1.6 Vs, 0.75 throttle): nothing yields, no frame armed once settled (43 armed while it settled) - the quiet path stays quiet on the certificate's limits
+5. a bad design
+  ok    the lift struts (28 members) built at half the section their certificate asks (x 0.01 and less), certified as built: the bench BROKE UP (first broken at 2.97 g, under its 5.70 g ultimate)
+  REPORT  the drawn lift struts in compression: member 133 certified 5.8 kN (bow) -> crushes at 10.5 kN (physics 36.3); member 134 certified 3.2 kN (dropDriftR) -> crushes at 5.9 kN (physics 36.3); member 135 certified 12.6 kN (dropDriftR) -> crushes at 22.8 kN (physics 36.3); member 136 certified 3.6 kN (flownElevF) -> crushes at 6.5 kN (physics 36.3)
+  70/70 checks
+GATE DMGCERT: PASS
+exit=0 wall_s=913

@@ -263,7 +263,7 @@ function genVesselResolve(kind, capacity, vesselKey, mediumKey) {
     mediumPrice = V * fuel.price;
   }
   const m3 = litres / 1000;
-  const surface = ves.shapeK * Math.pow(Math.max(1e-9, m3), 2 / 3);
+  const surface = ves.shapeK * CORE_MATH.pow(Math.max(1e-9, m3), 2 / 3);
   const vesselKg = m3 > 1e-9 ? surface * ves.kgM2 + ves.fixed : 0;
   return {
     kind, capacity: V, vessel: ves, litres, battery,

@@ -64,6 +64,13 @@ const KITS = {
   // THE LOADS (FREIGHT-ASSETS, G2405; tools/load_table.py): each group its own ladder
   loads: { dir: 'loads', manifest: 'loads_packs.json', out: 'loads_lods.js', sub: 'geo/loads_lod',
            from: 'baked load packs', tex: 'media/tex/loads/', only: 'media/geo/loads/' },
+  // THE SCENERY KIT (ASSETS-OCT, G2904; tools/scenery_table.py): each group its own ladder
+  scenery: { dir: 'scenery', manifest: 'scenery_packs.json', out: 'scenery_lods.js', sub: 'geo/scenery_lod',
+             from: 'baked scenery packs', tex: 'media/tex/scenery/', only: 'media/geo/scenery/' },
+  // THE DRIVEABLE CARS (ASSETS-OCT G2908; tools/car_table.py): the 'car' ladder (the body; a wheel, the
+  // steering wheel and the lamp groups are under its floor and get no level)
+  cars: { dir: 'cars', manifest: 'cars_packs.json', out: 'cars_lods.js', sub: 'geo/cars_lod',
+          from: 'baked car packs', tex: 'media/tex/cars/', only: 'media/geo/cars/' },
 };
 let KIT = KITS.pier, PIER = path.join(ROOT, 'src', KIT.dir), SUB = KIT.sub,
     OUT = path.join(PIER, KIT.out), MANIFEST = path.join(PIER, KIT.manifest);
@@ -103,6 +110,12 @@ const LEVELS = {
   load:   [[2000, 2000, 2], [400, 400, 15]],
   // the camp / medevac dressing stands at a site, seen like the yard
   camp:   [[0.25, 1200, 20], [0.06, 400, 60]],
+  // THE SCENERY KIT (ASSETS-OCT, futureDesigns/SCENERY-OCT-2026-10-11.md): landmarks are
+  // seen from the air - a quarter past 150 m, 5 % past 600 m (the boiler house 60k ->
+  // 15k / 3k); ships a little nearer; the wrecks are props (the F-104 16k -> 4k / 1k)
+  landmark: [[0.25, 1500, 150], [0.05, 400, 600]],
+  vessel:   [[0.25, 2000, 150], [0.06, 500, 500]],
+  wreck:    [[0.25, 1200, 60], [0.06, 400, 200]],
 };
 // the levels a prop actually gets: [target tris, metres]
 function levelsFor(prop, ladder) {

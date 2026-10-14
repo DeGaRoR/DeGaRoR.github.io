@@ -78,6 +78,7 @@
 // NEGATIVE-VERIFIED: --selftest crosses a polygon, forges an envelope, moves
 // a level after compose, and requires each rule red.
 'use strict';
+require('./_core_math_global.js');   // (T41b: CORE_MATH before a core file required alone - 00_registry's)
 const fs = require('fs');
 const path = require('path');
 
@@ -112,7 +113,7 @@ try {
   const ctx = { window: GENS, THREE: makeTHREE(), console, Math, JSON, Float32Array, Object, Array, Set, Map, Number, String, isFinite, parseInt, parseFloat };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_sport_gen.js', '_marine_gen.js', '_shed_gen.js', '_hangar_gen.js', '_tower_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_sport_gen.js', '_marine_gen.js', '_shed_gen.js', '_hangar_gen.js', '_tower_gen.js', '_navaid_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx, { filename: f });
 } catch (e) { console.log('  (generators not loaded headless: ' + e.message + ')'); }
 const CAT = PG.collect(GENS);
@@ -894,7 +895,7 @@ for (const fx of fixtures) {
   check(reg && reg.x0 <= Math.min(w00[0], w64[0]) && reg.x1 >= Math.max(w00[0], w64[0]) && reg.z0 <= Math.min(w00[1], w64[1]) && reg.z1 >= Math.max(w00[1], w64[1]), '19d an exclusion\'s region covers it in world metres');
   // ...and the game's streamer answers a premises edit by those regions (the hook, the diff, the eviction by box)
   const RW = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_world.js'), 'utf8'), APP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'app.js'), 'utf8');
-  check(/vegChanged: \(\) => \{\s*const exN = exRegrow\(\);/.test(RW) && /O\.treeExRegions \? O\.treeExRegions\(\)/.test(RW) && /dropPart\(c2\.base\); dropPart\(c2\.fill\); chunks\.delete\(k\); n\+\+;/.test(RW), '19d TREE_FILL.vegChanged regrows the chunks under a changed exclusion');
+  check(/vegChanged: \(\) => \{\s*const exN = exRegrow\(\);/.test(RW) && /O\.treeExRegions \? O\.treeExRegions\(\)/.test(RW) && /staleChunk\(c2, true\); n\+\+;/.test(RW) && /const n = staleRegions\(regDiff\(was, now\)\);/.test(RW), '19d TREE_FILL.vegChanged regrows the chunks under a changed exclusion (G2931: stale until rebuilt, then swapped)');
   check(/onRebuilt:[^\n]*window\.TREE_FILL\.vegChanged\(\)/.test(APP), '19d the editor\'s rebuild calls TREE_FILL.vegChanged');
   // 19e THE SHAPE THROUGH THE STORE: a corner inserted, a corner removed, a road's handles beside its points - each
   //     edit saved and loaded back is the same record; a handle list shorter or longer than the points is laid beside them
@@ -988,7 +989,12 @@ if (SELFTEST) {
       const far = r.toWorld(L / 2 - 2, 0);
       if (!(O.terrainAt(far[0], far[1]) <= 0.05)) dry.push(r.key + ' @' + far.map(v => v.toFixed(0)));
     }
-    check(dry.length === 0, '14e a pier, a float and a wharf reaches the water', dry.slice(0, 5).join(', '));
+    // (G3014, A0 + the user's default 12 Oct: two of the user's rev 26 placements stand dry AS DRAWN - kept, and flagged for the
+    //  user to move in the editor; any other dry pier, float or wharf is still red)
+    const DRY_OK = ['marine/net pens @69,-10640', 'marine/wharf deck, small @-1452,-8371'];
+    const dryNew = dry.filter(d => DRY_OK.indexOf(d) < 0), dryUser = dry.filter(d => DRY_OK.indexOf(d) >= 0);
+    if (dryUser.length) console.log('     14e FLAGGED for the user (their rev 26, drawn on dry ground; kept as drawn): ' + dryUser.join(' | '));
+    check(dryNew.length === 0, '14e a pier, a float and a wharf reaches the water', dryNew.slice(0, 5).join(', '));
     check(rec.layers.terrain.every(t => !/^mk_/.test(t.id) || t.abs === true),
           "14f the town's terrain is absolute — a level read off the DEM is not relative to an anchor");
     // the road network is dry, end to end
@@ -1432,7 +1438,11 @@ if (SELFTEST) {
     .concat(fs.readdirSync(path.join(TOOLS, 'jolene_parts')).filter(f => /\.json$/.test(f)).map(f => { const o = JSON.parse(fs.readFileSync(path.join(TOOLS, 'jolene_parts', f), 'utf8')); return ['part ' + f, JSON.stringify({ layers: o.layers })]; }));
   let folded = 0;
   for (const [name, txt] of sources) {
-    const raw = JSON.parse(txt), r1 = PG.normalise(JSON.parse(JSON.stringify(raw.premises || raw))), r2 = PG.unwrap(txt).rec, X = PG.expandAreas(r2);
+    // (G3014: a record may carry NATIVE areas too - the user's rev 26 shipped into Jolene drew a14..a23 as areas; they never were
+    //  v1 entries, so the round trip is the FOLDED areas' alone: the native ones are left out of the expansion compared)
+    const raw = JSON.parse(txt), r1 = PG.normalise(JSON.parse(JSON.stringify(raw.premises || raw))), r2 = PG.unwrap(txt).rec;
+    const native = new Set((((raw.premises || raw).layers || {}).areas || []).map(a => a && a.id));
+    const X = PG.expandAreas(Object.assign({}, r2, { layers: Object.assign({}, r2.layers, { areas: r2.layers.areas.filter(a => !native.has(a.id)) }) }));
     folded += r2.layers.areas.length;
     const badL = PG.AREA_LAYERS.filter(k => canon(X.layers[k]) !== canon(r1.layers[k]));
     check(!badL.length, '20a ' + name + ': its ' + r2.layers.areas.length + ' areas expand to the v1 layers it had', badL.join(', '));
@@ -1610,7 +1620,10 @@ if (SELFTEST) {
     const r2 = base(); r2.layers.roads.push(road({ on: false, bank: 20 }));
     check(JSON.stringify(PG.compose(r2, bumpy).terrainAt(10, 3)) === JSON.stringify(PG.compose(r0, bumpy).terrainAt(10, 3)) && PG.bedOf(r2.layers.roads[0]) === null, '21c a bed `on: false` is no bed');
     const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
-    check(J.layers.roads.every(r => !r.bed), '21c no shipped road carries a bed (the user turns it on)');
+    // (G3014: the user's rev 27 roads r37 / r38 came with a bed - the editor's default for a new road since G2952; a bed stands only
+    //  on a road the user's own save gives one)
+    const bedU = new Set(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev27.json'), 'utf8')).rec.layers.roads.filter(r => r.bed).map(r => r.id));
+    check(J.layers.roads.every(r => !r.bed || bedU.has(r.id)), '21c a shipped road carries a bed only where the user gave it one (' + [...bedU].join(', ') + ')', J.layers.roads.filter(r => r.bed && !bedU.has(r.id)).map(r => r.id).join(' '));
   }
   // 21d METLAKATLA ONE GRID (G2954): its streets one component of shared-waypoint junctions; its connection points named;
   //     a path from one connection point to another runs on its streets; it is not joined to the island's other roads
@@ -1633,7 +1646,10 @@ if (SELFTEST) {
     const flat = { id: 'flat', terrainH: () => 0, waterH: () => -100 };
     const kp = JSON.stringify((PG.compose(J, flat, { raster: false }).records.plots || []).filter(p => /^mk_/.test(String(p.zone))).map(p => [p.zone, p.road, p.seed, p.quad || p.poly]));
     const hp = require('crypto').createHash('sha256').update(kp).digest('hex').slice(0, 16);
-    check(hp === '010ca477a8e4145c', '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town had without them', hp);
+    // (G3014: re-taken as this comment's rule says - the user's rev 26 edited Metlakatla's streets, 391 -> 398 plots, sha below.
+    //  NOT 'the ids taken off': an id'd waypoint on a straight span is no corner BY DESIGN, so taking the ids off makes those
+    //  waypoints corners and moves the plots - that is no counterfactual for 'without the junctions')
+    check(hp === '084d97ba39a234b8', '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town had without them (re-taken for rev 26)', hp);
     check(!PG.issues(J).some(t => /junction|roadside/.test(t)), '21d no junction issue', PG.issues(J).filter(t => /junction|roadside/.test(t)).slice(0, 3).join('; '));
   }
 }

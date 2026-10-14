@@ -1,0 +1,264 @@
+{
+ "label": "",
+ "at": "2026-10-05T19:39:28.802Z",
+ "cases": {
+  "trunk-0:before": {
+   "label": "a trunk at 30 m/s, the centreline",
+   "reason": "broke up: the fuselage parted (S0BR off the core)",
+   "broken": 168,
+   "frames": 681,
+   "worst": {
+    "t": 1.367,
+    "ms": 263.4,
+    "phys": 22.3,
+    "work": 240.1,
+    "scene": 198.7,
+    "render": 19.5,
+    "shader": 0,
+    "shadow": 2.9,
+    "brk": 164.4,
+    "brkRec": 85.7,
+    "brkEv": 39,
+    "brkPose": 37.8,
+    "wreck": 27.9,
+    "broken": 13
+   },
+   "impactMean": 91.3,
+   "impactFrames": 30,
+   "impactSum": {
+    "ms": 2739.2,
+    "phys": 261.5,
+    "scene": 1497.3,
+    "brk": 1360.2,
+    "brkRec": 86.3,
+    "brkEv": 407.3,
+    "brkPose": 826.1,
+    "wreck": 58.1,
+    "render": 339.5,
+    "shader": 0,
+    "shadow": 53.2
+   },
+   "calm": 40.3,
+   "rest": {
+    "med": 25.8,
+    "max": 55.1,
+    "brk": 629.5
+   }
+  },
+  "trunk-2.5:before": {
+   "label": "a trunk at 30 m/s, the wing 2.5 m out (DMG-D4a's wing still)",
+   "reason": "a wing member broke",
+   "broken": 112,
+   "frames": 244,
+   "worst": {
+    "t": 2.967,
+    "ms": 144.6,
+    "phys": 15.7,
+    "work": 125.2,
+    "scene": 99.2,
+    "render": 17.9,
+    "shader": 0,
+    "shadow": 5.4,
+    "brk": 95.5,
+    "brkRec": 0,
+    "brkEv": 50.3,
+    "brkPose": 44.9,
+    "wreck": 0.6,
+    "broken": 105
+   },
+   "impactMean": 55,
+   "impactFrames": 30,
+   "impactSum": {
+    "ms": 1650.2,
+    "phys": 202.8,
+    "scene": 930.3,
+    "brk": 865.7,
+    "brkRec": 0.6,
+    "brkEv": 30.5,
+    "brkPose": 830.5,
+    "wreck": 9.3,
+    "render": 295.7,
+    "shader": 0,
+    "shadow": 47
+   },
+   "calm": 24.2,
+   "rest": {
+    "med": 52.7,
+    "max": 64.1,
+    "brk": 1552.6
+   }
+  },
+  "nosein:before": {
+   "label": "a nose-in on the ground (180 km/h, 10 m/s, 60 deg; DMG-D4a's nose-in still)",
+   "reason": "broke up: the fuselage parted (TPB off the core)",
+   "broken": 143,
+   "frames": 517,
+   "worst": {
+    "t": 0.067,
+    "ms": 115.8,
+    "phys": 7.8,
+    "work": 107.7,
+    "scene": 76.6,
+    "render": 12.3,
+    "shader": 0.5,
+    "shadow": 3.3,
+    "brk": 64.2,
+    "brkRec": 0,
+    "brkEv": 27.8,
+    "brkPose": 36.3,
+    "wreck": 10.6,
+    "broken": 28
+   },
+   "impactMean": 64.5,
+   "impactFrames": 30,
+   "impactSum": {
+    "ms": 1936,
+    "phys": 221.2,
+    "scene": 1124.6,
+    "brk": 1037,
+    "brkRec": 0.9,
+    "brkEv": 237.5,
+    "brkPose": 794.7,
+    "wreck": 34.6,
+    "render": 334.5,
+    "shader": 0.5,
+    "shadow": 56.7
+   },
+   "calm": 7,
+   "rest": {
+    "med": 24.4,
+    "max": 59,
+    "brk": 364.1
+   }
+  },
+  "trunk-0:fast": {
+   "label": "a trunk at 30 m/s, the centreline",
+   "reason": "broke up: the fuselage parted (S0BR off the core)",
+   "broken": 134,
+   "frames": 682,
+   "worst": {
+    "t": 10.9,
+    "ms": 103.6,
+    "phys": 16.4,
+    "work": 84.6,
+    "scene": 1,
+    "render": 78.4,
+    "shader": 0,
+    "shadow": 2.8,
+    "brk": 0,
+    "brkRec": 0,
+    "brkEv": 0,
+    "brkPose": 0,
+    "wreck": 0.5,
+    "broken": 134
+   },
+   "impactMean": 58.5,
+   "impactFrames": 30,
+   "impactSum": {
+    "ms": 1756.1,
+    "phys": 213.9,
+    "scene": 957.4,
+    "brk": 856.3,
+    "brkRec": 0.5,
+    "brkEv": 400.6,
+    "brkPose": 449.8,
+    "wreck": 46.6,
+    "render": 348.3,
+    "shader": 0,
+    "shadow": 52.2
+   },
+   "calm": 23.3,
+   "rest": {
+    "med": 22.9,
+    "max": 55.3,
+    "brk": 27.3
+   }
+  },
+  "trunk-2.5:fast": {
+   "label": "a trunk at 30 m/s, the wing 2.5 m out (DMG-D4a's wing still)",
+   "reason": "a wing member broke",
+   "broken": 112,
+   "frames": 244,
+   "worst": {
+    "t": 3.4,
+    "ms": 137.7,
+    "phys": 16.7,
+    "work": 115.8,
+    "scene": 93.7,
+    "render": 17.1,
+    "shader": 0,
+    "shadow": 1.6,
+    "brk": 89.7,
+    "brkRec": 0,
+    "brkEv": 61.7,
+    "brkPose": 27.8,
+    "wreck": 0.6,
+    "broken": 112
+   },
+   "impactMean": 43.5,
+   "impactFrames": 30,
+   "impactSum": {
+    "ms": 1304.6,
+    "phys": 207.2,
+    "scene": 542.7,
+    "brk": 477.7,
+    "brkRec": 0.6,
+    "brkEv": 34,
+    "brkPose": 439.8,
+    "wreck": 9.7,
+    "render": 315.2,
+    "shader": 0,
+    "shadow": 43.1
+   },
+   "calm": 22,
+   "rest": {
+    "med": 41.8,
+    "max": 47.9,
+    "brk": 906.3
+   }
+  },
+  "nosein:fast": {
+   "label": "a nose-in on the ground (180 km/h, 10 m/s, 60 deg; DMG-D4a's nose-in still)",
+   "reason": "broke up: the fuselage parted (TPB off the core)",
+   "broken": 143,
+   "frames": 369,
+   "worst": {
+    "t": 0.133,
+    "ms": 96.2,
+    "phys": 7.5,
+    "work": 86.2,
+    "scene": 59,
+    "render": 11.9,
+    "shader": 0,
+    "shadow": 0.7,
+    "brk": 48.4,
+    "brkRec": 0,
+    "brkEv": 33.4,
+    "brkPose": 14.8,
+    "wreck": 8.9,
+    "broken": 121
+   },
+   "impactMean": 51.6,
+   "impactFrames": 30,
+   "impactSum": {
+    "ms": 1547.9,
+    "phys": 221.3,
+    "scene": 776.4,
+    "brk": 691.1,
+    "brkRec": 0.6,
+    "brkEv": 249.3,
+    "brkPose": 437.5,
+    "wreck": 36.1,
+    "render": 298.8,
+    "shader": 0,
+    "shadow": 41.2
+   },
+   "calm": 80.1,
+   "rest": {
+    "med": 21.4,
+    "max": 41.2,
+    "brk": 44
+   }
+  }
+ }
+}

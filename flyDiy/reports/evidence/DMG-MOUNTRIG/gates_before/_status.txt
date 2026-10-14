@@ -1,0 +1,9 @@
+treecrash exit 0
+dmg_clusters exit 1
+_dmg_cert_check exit 1 407 s
+_dmg_gear_check exit 1 3571 s
+_dmg_drive_check exit 1 1731 s
+_dmg_wind_check exit 1 2257 s
+_dmg_integrity_check exit 0 176 s
+_dmg_wall_check exit 1 920 s
+_dmg_wall_check exit 1 215 s

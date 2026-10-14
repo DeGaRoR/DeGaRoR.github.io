@@ -1,0 +1,43 @@
+cub prop D 1.91 R 0.955 params.prop {"D":1.91,"Tstatic":1214.657319372056,"kV2":0.20035888889933626} powerplant a65_sensenich74
+engine nodes [ 'ENGL -0.892,0.470,-0.205', 'ENGR -0.892,0.470,0.205' ]
+CGE -0.692,0.470,0.000 m 90.40
+MNTBL -0.400,0.265,-0.205 m 0.98
+MNTTL -0.400,0.674,-0.205 m 0.98
+TW 5.488,0.416,0.000 m 3.94
+S0BL 0.000,0.000,-0.342 m 21.91
+S0TL 0.000,0.924,-0.342 m 7.82
+at rest: hub y 1.303 disc low 0.355 pitch deg -7.23
+gapMin [ 0.11661692260848933 ]
+lowest nodes TW:0.078 AXLER:0.221 AXLEL:0.221 TPB:0.295 S6BR:0.310 S6BL:0.310 S5BL:0.339 S5BR:0.339
+jodel prop D 1.83 R 0.915 params.prop {"D":1.83,"Tstatic":1039.4329931607733,"kV2":0.12555580407284608} powerplant a65_sensenich74
+engine nodes [ 'ENGL -0.986,0.377,-0.293', 'ENGR -0.986,0.377,0.293' ]
+CGE -0.786,0.377,0.000 m 90.40
+MNTBL -0.400,0.083,-0.293 m 1.09
+MNTTL -0.400,0.670,-0.293 m 1.09
+TW 4.346,0.237,0.000 m 3.69
+S0BL 0.000,0.000,-0.491 m 29.51
+S0TL 0.000,0.767,-0.491 m 8.39
+at rest: hub y 1.416 disc low 0.514 pitch deg -9.58
+gapMin [ 0.23460079551921897 ]
+lowest nodes TW:0.068 AXLEL:0.201 AXLER:0.201 TPB:0.310 S6BR:0.339 S6BL:0.339 S5BL:0.378 S5BR:0.378
+metal prop D 2.06 R 1.03 params.prop {"D":2.06,"Tstatic":3005.2034609245666,"kV2":0.2330646037480397} powerplant o540_hartzell
+engine nodes [ 'ENGL -1.162,0.522,-0.326', 'ENGR -1.162,0.522,0.326' ]
+CGE -0.832,0.522,0.000 m 198.88
+MNTBL -0.400,0.196,-0.326 m 1.30
+MNTTL -0.400,0.848,-0.326 m 1.30
+TW -0.337,-0.363,0.000 m 8.02
+S0BL 0.000,0.000,-0.545 m 47.56
+S0TL 0.000,1.115,-0.545 m 13.72
+at rest: hub y 1.006 disc low -0.024 pitch deg 1.06
+gapMin [ -0.05449250036331099 ]
+lowest nodes TW:0.140 AXLEL:0.185 AXLER:0.185 S1BL:0.490 S1BR:0.490 S0BL:0.499 S0BR:0.499 S2BR:0.510
+floats prop D 2.06 R 1.03 params.prop {"D":2.06,"Tstatic":3005.2034609245666,"kV2":0.2330646037480397} powerplant o540_hartzell
+engine nodes [ 'ENGL -1.162,0.522,-0.326', 'ENGR -1.162,0.522,0.326' ]
+CGE -0.832,0.522,0.000 m 198.88
+MNTBL -0.400,0.196,-0.326 m 1.30
+MNTTL -0.400,0.848,-0.326 m 1.30
+S0BL 0.000,0.000,-0.545 m 47.25
+S0TL 0.000,1.115,-0.545 m 13.81
+at rest: hub y 1.567 disc low 0.537 pitch deg 1.68
+gapMin [ 0.489393267404862 ]
+lowest nodes FLK:-0.014 FLK:-0.014 FLK:0.012 FLK:0.012 FLK:0.179 FLK:0.179 FLK:0.185 FLK:0.185

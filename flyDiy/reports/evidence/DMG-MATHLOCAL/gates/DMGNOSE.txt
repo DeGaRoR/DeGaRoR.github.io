@@ -1,0 +1,103 @@
+(1982 s; on the certificate, damage on)
+1. THE STACK - the spinner, the propeller at its hub, the nose bowl (33_drive.js GEN_NOSE: Alexander 1960, MIL-HDBK-5J, the
+   Wood Handbook, as recalled - A0 to open; the hub's protrusion, the blade root's thickness and arm, the bowl's depth GAME)
+  the user's Cub (476 kg; wood prop, 2 blades; Rn 0.27 m, spinner tip 0.36 m ahead of the hub; body ENGL/ENGR/CGE 112 kg): spinner 24 cm to 17.4 kN, prop 12 cm to 17.3 kN, bowl 8 cm to 19.1 kN; 6.36 kJ in 44 cm
+  ok    the user's Cub: every plateau under the certificate's nose reaction at limit (19.1 < 28.0 kN: the whole aeroplane at 9 g / 1.5)
+  ok    the user's Cub: the stack takes a 3 m/s taxi's energy (6.36 > 2.14 kJ)
+  ok    the user's Cub: a separation leaves less (the prop layer 17.3 -> 14.3 kN, the stack 6.36 -> 5.99 kJ)
+  Jodel (463 kg; wood prop, 2 blades; Rn 0.41 m, spinner tip 0.34 m ahead of the hub; body ENGL/ENGR/CGE 111 kg): spinner 22 cm to 16.8 kN, prop 12 cm to 15.9 kN, bowl 8 cm to 23.6 kN; 6.29 kJ in 42 cm
+  ok    Jodel: every plateau under the certificate's nose reaction at limit (23.6 < 27.2 kN: the whole aeroplane at 9 g / 1.5)
+  ok    Jodel: the stack takes a 3 m/s taxi's energy (6.29 > 2.08 kJ)
+  ok    Jodel: a separation leaves less (the prop layer 15.9 -> 13.1 kN, the stack 6.29 -> 5.96 kJ)
+  metal Cessna (883 kg; alu prop, 2 blades; Rn 0.41 m, spinner tip 0.39 m ahead of the hub; body ENGL/ENGR/CGE 238 kg): spinner 32 cm to 20.0 kN, prop 7 cm to 9.5 kN, bowl 8 cm to 23.8 kN; 6.78 kJ in 47 cm
+  ok    metal Cessna: every plateau under the certificate's nose reaction at limit (23.8 < 52.0 kN: the whole aeroplane at 9 g / 1.5)
+  ok    metal Cessna: the stack takes a 3 m/s taxi's energy (6.78 > 3.98 kJ)
+  ok    metal Cessna: a separation leaves less (the prop layer 9.5 -> 7.8 kN, the stack 6.78 -> 6.67 kJ)
+  Cessna floats (1018 kg; alu prop, 2 blades; Rn 0.41 m, spinner tip 0.39 m ahead of the hub; body ENGL/ENGR/CGE 237 kg): spinner 32 cm to 20.0 kN, prop 7 cm to 9.5 kN, bowl 8 cm to 23.8 kN; 6.78 kJ in 47 cm
+  ok    Cessna floats: every plateau under the certificate's nose reaction at limit (23.8 < 59.9 kN: the whole aeroplane at 9 g / 1.5)
+  ok    Cessna floats: the stack takes a 3 m/s taxi's energy (6.78 > 4.58 kJ)
+  ok    Cessna floats: a separation leaves less (the prop layer 9.5 -> 7.8 kN, the stack 6.78 -> 6.67 kJ)
+  twin floatplane engine 0 (475 kg; carbon prop, 2 blades; Rn 0.24 m, spinner tip 0.36 m ahead of the hub; body ENGL/MNTL/CGE 61 kg): spinner 26 cm to 18.1 kN, prop 10 cm to 51.3 kN, bowl 8 cm to 18.3 kN; 9.70 kJ in 44 cm
+  --    REPORT twin floatplane engine 0: the nacelle's stack (no trunk case on the water): its top 51.3 kN
+  twin floatplane engine 1 (475 kg; carbon prop, 2 blades; Rn 0.24 m, spinner tip 0.36 m ahead of the hub; body ENGR/MNTR/CGE 61 kg): spinner 26 cm to 18.1 kN, prop 10 cm to 51.3 kN, bowl 8 cm to 18.3 kN; 9.70 kJ in 44 cm
+  --    REPORT twin floatplane engine 1: the nacelle's stack (no trunk case on the water): its top 51.3 kN
+2. THE CERTIFICATE - the nose's 9 g reacted at either corner (impactNoseL / R), the mount's mirror pairs alike, no limit lowered
+  ok    the user's Cub: the corner cases (impactNoseL, impactNoseR; 47 cases)
+  ok    the user's Cub: every mirror pair of the mount alike (6 pairs)
+  ok    the user's Cub: no member's envelope under the rules before (35 of 394 raised)
+  --    REPORT the user's Cub: the mount's stamped limits (FY / FC kN, before -> after): ENGL-S0TL 5.0/11.7 -> 5.0/12.9 (gyro371c / impactNoseR); ENGL-S0BL 5.0/7.3 -> 5.0/12.7 (gyro371a / impactNoseL); ENGL-S0BR 5.0/4.4 -> 5.0/8.5 (gSideR / impactNoseR); ENGR-S0TR 5.0/11.7 -> 5.0/12.9 (gyro371d / impactNoseR); ENGR-S0BR 5.0/7.3 -> 5.0/12.7 (gyro371b / impactNoseL); ENGR-S0BL 5.0/4.4 -> 5.0/8.5 (gSideR / impactNoseR); CGE-S0TL 6.2/2.0 -> 6.2/2.7 (dropOne / impactNoseR); CGE-S0TR 5.0/2.0 -> 6.2/2.7 (dropOne / impactNoseR); CGE-S0BR 5.0/6.5 -> 5.0/6.8 (crashFwd / dropOne)
+  ok    Jodel: the corner cases (impactNoseL, impactNoseR; 47 cases)
+  ok    Jodel: every mirror pair of the mount alike (6 pairs)
+  ok    Jodel: no member's envelope under the rules before (30 of 492 raised)
+  --    REPORT Jodel: the mount's stamped limits (FY / FC kN, before -> after): ENGL-S0BL 5.0/7.7 -> 5.0/11.4 (gyro371a / impactNoseR); ENGL-S0BR 5.0/4.6 -> 5.0/7.4 (dropOne / impactNoseR); ENGR-S0BR 5.0/7.7 -> 5.0/11.4 (gyro371b / impactNoseR); ENGR-S0BL 5.0/4.6 -> 5.0/7.4 (dropOne / impactNoseR); CGE-S0TL 11.1/3.9 -> 11.1/4.5 (dropLevel / impactNoseL); CGE-S0TR 11.1/3.9 -> 11.1/4.5 (dropLevel / impactNoseL)
+  ok    metal Cessna: the corner cases (impactNoseL, impactNoseR; 48 cases)
+  ok    metal Cessna: every mirror pair of the mount alike (7 pairs)
+  ok    metal Cessna: no member's envelope under the rules before (47 of 442 raised)
+  --    REPORT metal Cessna: the mount's stamped limits (FY / FC kN, before -> after): ENGL-S0BL 9.3/21.9 -> 9.3/22.7 (taxiRough / impactNoseR); ENGL-S0BR 8.3/10.0 -> 8.6/10.2 (taxiRough / impactNoseL); ENGR-S0BR 9.1/21.9 -> 9.3/22.7 (taxiRough / impactNoseR); ENGR-S0BL 8.6/10.0 -> 8.6/10.2 (taxiRough / impactNoseL); CGE-S0TL 11.8/5.0 -> 12.1/6.9 (dropOne / impactNoseL); CGE-S0TR 12.1/5.0 -> 12.1/6.9 (dropOne / impactNoseL); CGE-S0BL 5.8/10.7 -> 8.8/10.7 (impactNoseR / dropOne); CGE-S0BR 5.8/10.4 -> 8.8/10.7 (impactNoseR / dropOne)
+  ok    Cessna floats: the corner cases (impactNoseL, impactNoseR; 49 cases)
+  ok    Cessna floats: every mirror pair of the mount alike (6 pairs)
+  ok    Cessna floats: no member's envelope under the rules before (19 of 533 raised)
+  --    REPORT Cessna floats: the mount's stamped limits (FY / FC kN, before -> after): ENGL-S0BL 7.0/22.7 -> 7.0/22.7 (bow / impactNoseR); ENGL-S0BR 13.3/10.2 -> 21.4/10.2 (wWeave / wWeave); ENGR-S0TR 13.8/20.0 -> 13.8/20.0 (bow / impactNoseL); CGE-S0TL 28.9/19.4 -> 31.2/19.4 (wWeave / wWeave); CGE-S0TR 31.2/18.4 -> 31.2/19.4 (wWeave / wWeave); CGE-S0BR 6.5/21.8 -> 9.9/21.8 (wWeave / dropDriftR)
+  --    REPORT twin floatplane: no nose engine (its engines on the wing): no corner case, the nose reacts on the nose frame as before
+  ok    twin floatplane: every mirror pair of the mount alike (14 pairs)
+  ok    twin floatplane: no member's envelope under the rules before (18 of 519 raised)
+  --    REPORT twin floatplane: the mount's stamped limits (FY / FC kN, before -> after): MNTL-WF 5.0/8.3 -> 5.0/8.3 (bow / dropDriftR); CGE-WF 11.0/6.9 -> 11.0/6.9 (dropDriftL / bow); CGE-WF 18.8/16.2 -> 18.8/16.2 (dropDriftR / bow); CGE-WR 8.4/1.8 -> 8.4/1.8 (bow / dropDriftR); ENGR-WF 5.0/4.6 -> 5.0/4.7 (gyro371d / bow); ENGR-WR 6.1/3.2 -> 6.1/3.2 (bow / drop); ENGR-WR 5.0/7.6 -> 5.0/7.6 (bow / dropDriftL); MNTR-WR 5.7/2.6 -> 5.8/3.5 (bow / flownRud); MNTR-WR 5.0/2.8 -> 5.0/2.8 (gyro371c / elevUpD); CGE-WF 18.8/16.1 -> 18.8/16.2 (dropDriftR / bow); CGE-WR 8.4/1.8 -> 8.4/1.8 (bow / dropDriftR); CGE-WR 5.0/3.4 -> 5.0/3.4 (crashFwd / dropDriftL)
+3a. THE ACCEPTANCE: 3 m/s into a trunk at the page's impact speed (started at 3.6 m/s), steady winds 0-10 m/s from 12 directions
+  the user's Cub:
+        U \ from         0       30       60       90      120      150      180      210      240      270      300      330   (deg off the nose; cell: mount members broken / the nose's crush, cm)
+           0 m/s      0/20   (calm: one run)
+         2.5 m/s      0/19     0/19     0/19     0/19     0/20     0/20     0/20     0/20     0/20     0/19     0/19     0/19
+           5 m/s      0/18     0/18     0/17     0/16     0/17     0/19     0/20     0/19     0/17     0/16     0/17     0/18
+         7.5 m/s      0/17     0/11      0/5      0/4      0/5     0/14     0/20     0/14      0/5      0/4      0/5     0/11
+          10 m/s      0/16      0/0      0/0      0/0      0/0      0/2     0/21      0/2      0/0      0/0      0/0      0/0
+  ok    the user's Cub: no mount member breaks in any of 49 winds (49 met the trunk at 2.17-3.18 m/s; the nose crushed 0-21 cm; the mount's worst 1.04 of its limit)
+  --    REPORT the user's Cub: runs where a mount member passed its limit (a set, nothing broken): 14 - 5/90 1.01 CGE-S0TL; 5/270 1.01 CGE-S0TR; 7.5/30 1.02 CGE-S0TL; 7.5/60 1.04 CGE-S0TL; 7.5/90 1.03 CGE-S0TL; 7.5/120 1.04 CGE-S0TL; 7.5/150 1.02 CGE-S0TL; 7.5/210 1.02 CGE-S0TR; 7.5/240 1.04 CGE-S0TR; 7.5/270 1.03 CGE-S0TR; 7.5/300 1.04 CGE-S0TR; 7.5/330 1.02 CGE-S0TR; 10/150 1.01 CGE-S0TR; 10/210 1.01 CGE-S0TL
+  Jodel:
+        U \ from         0       30       60       90      120      150      180      210      240      270      300      330   (deg off the nose; cell: mount members broken / the nose's crush, cm)
+           0 m/s      0/18   (calm: one run)
+         2.5 m/s      0/17     0/17     0/17     0/17     0/18     0/18     0/18     0/18     0/18     0/17     0/17     0/17
+           5 m/s      0/17     0/17     0/15     0/15     0/15     0/17     0/18     0/17     0/15     0/15     0/15     0/17
+         7.5 m/s      0/16     0/14      0/4      0/2      0/4     0/12     0/18     0/12      0/4      0/2      0/4     0/14
+          10 m/s      0/16      0/7      0/0      0/0      0/0      0/0     0/19      0/0      0/0      0/0      0/0      0/7
+  ok    Jodel: no mount member breaks in any of 49 winds (49 met the trunk at 2.54-3.11 m/s; the nose crushed 0-19 cm; the mount's worst 0.84 of its limit)
+  --    REPORT Jodel: other members broken (not the mount): 7.5/60 VSNR-S0TR kink; 7.5/90 VSNR-S0TR kink; 7.5/120 VSNR-S0TR kink; 7.5/240 VSNL-S0TL kink; 7.5/270 VSNL-S0TL kink; 7.5/300 VSNL-S0TL kink; 10/150 AXLER-S0BR tension; 10/210 AXLEL-S0BL tension
+  --    REPORT Jodel: runs where a mount member passed its limit (a set, nothing broken): none
+  metal Cessna:
+        U \ from         0       30       60       90      120      150      180      210      240      270      300      330   (deg off the nose; cell: mount members broken / the nose's crush, cm)
+           0 m/s      0/29   (calm: one run)
+         2.5 m/s      0/29     0/29     0/29     0/29     0/29     0/30     0/30     0/30     0/29     0/29     0/29     0/29
+           5 m/s      0/29     0/29     0/29     0/29     0/29     0/29     0/30     0/29     0/29     0/29     0/29     0/29
+         7.5 m/s      0/29     0/29     0/29     0/29     0/29     0/29     0/30     0/29     0/29     0/29     0/29     0/29
+          10 m/s      0/28     0/28     0/28     0/28     0/28     0/29     0/30     0/29     0/28     0/28     0/28     0/28
+  ok    metal Cessna: no mount member breaks in any of 49 winds (49 met the trunk at 2.94-3.03 m/s; the nose crushed 28-30 cm; the mount's worst 0.45 of its limit)
+  --    REPORT metal Cessna: runs where a mount member passed its limit (a set, nothing broken): none
+3b. THE ACCEPTANCE: the trunk across the nose (-0.45..0.45 m, no wind), started at 3.6 m/s
+        offset m  -0.45  -0.4 -0.35  -0.3 -0.25  -0.2 -0.15  -0.1 -0.05     0  0.05   0.1  0.15   0.2  0.25   0.3  0.35   0.4  0.45
+        mount         0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0
+        crush cm      5     7     9    12    14    16    18    19    19    20    19    19    18    16    14    12     9     7     5
+  ok    the user's Cub: no mount member breaks at any of 19 offsets (the mount's worst 1.04 of its limit)
+        offset m  -0.45  -0.4 -0.35  -0.3 -0.25  -0.2 -0.15  -0.1 -0.05     0  0.05   0.1  0.15   0.2  0.25   0.3  0.35   0.4  0.45
+        mount         0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0
+        crush cm     10    12    13    14    16    16    17    17    18    18    18    17    17    16    16    14    13    12    10
+  ok    Jodel: no mount member breaks at any of 19 offsets (the mount's worst 0.84 of its limit)
+        offset m  -0.45  -0.4 -0.35  -0.3 -0.25  -0.2 -0.15  -0.1 -0.05     0  0.05   0.1  0.15   0.2  0.25   0.3  0.35   0.4  0.45
+        mount         0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0
+        crush cm     16    19    22    24    26    27    28    29    29    29    29    29    28    27    26    24    22    19    16
+  ok    metal Cessna: no mount member breaks at any of 19 offsets (the mount's worst 0.73 of its limit)
+  ok    4. one physics with DMG-DRIVE: every run whose crush passed the spinner (0 of 204) has a stopped prop (a stoppage or a separation): 0
+  --    REPORT the strikes: cub stoppage 68, jodel stoppage 62, metal stoppage 68, jodel brush 4, jodel null 2
+5. NORMAL OPERATIONS: the circuit - nothing in the nose's reach (the crush layer costs nothing and pushes nothing)
+  ok    the user's Cub: the circuit (completed, 335 s): the nose armed 0 frames, 0 J; 0 yields, 0 broken
+  ok    Jodel: the circuit (null, 340 s): the nose armed 0 frames, 0 J; 0 yields, 0 broken
+  ok    metal Cessna: the circuit (completed, 271 s): the nose armed 0 frames, 0 J; 0 yields, 0 broken
+  ok    Cessna floats: the circuit (null, 340 s): the nose armed 0 frames, 0 J; 0 yields, 0 broken
+  ok    twin floatplane: the circuit (completed, 292 s): the nose armed 0 frames, 0 J; 0 yields, 0 broken
+6. THE CRASHES STILL CRASH: 30 m/s into a trunk on the centreline
+  ok    the user's Cub: crashed (broke up: the fuselage parted (TPB off the core); 171 broken, 18.7 kJ; the nose 44 of 44 cm, to its core, 6.35 kJ)
+  ok    Jodel: crashed (broke up: the fuselage parted (TPB off the core); 124 broken, 21.1 kJ; the nose 42 of 42 cm, to its core, 6.30 kJ)
+  ok    metal Cessna: crashed (broke up: the fuselage parted (TPB off the core); 215 broken, 36.8 kJ; the nose 47 of 47 cm, to its core, 6.78 kJ)
+  --    REPORT the user's Cub: a nose-over at 4 m/s (DMG-DRIVE's): strike stoppage, the nose on the ground 31 cm (prop, 3966 J, 17.4 kN), 30 broken, crashed
+  --    REPORT metal Cessna: a nose-over at 4 m/s (DMG-DRIVE's): strike stoppage, the nose on the - 0 cm (-, 0 J, 0.0 kN), 0 broken
+  41/41 checks
+GATE DMGNOSE: PASS
+exit=0 wall_s=1983

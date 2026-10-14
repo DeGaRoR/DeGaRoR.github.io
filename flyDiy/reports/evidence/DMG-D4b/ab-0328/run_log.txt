@@ -1,0 +1,89 @@
+CPU_BATTERY_POTATO-repro.lock: POTATO-repro 03:26 train 38 re-apply throw + clouds repro (node, until 03:44)
+03:28:06
+c33960d6 Merge remote-tracking branch 'origin/claude/dmg-foldnode' into claude/dmg-d4b-wreck
+boxlock: GPU taken by DMG-D4b
+boot gone
+clicked
+stand {"cv":true,"sim":true}
+== cub_A (608 s left)
+  garage IN THE SHED: the model frame {"frames":[{"name":"Group","auto":false,"len":[1,1,0.998],"ang01":86.6,"ang02":90,"ang12":90},{"name":"Group","auto":true,"len":[1,1,1],"ang01":90,"ang02":90,"ang12":90},{"name":"Scene","auto":true,"len":[1,1,1],"ang01":90,"ang02":90,"ang12":90}],"worldTris":346163,"worldBig":0,"meshesBig":[]}
+  garage groups with giant triangles not in a fresh load: [{"newUuid":false,"scene":"world","path":"/Group","uuid":"5d6aa896-3960-4a75-98b3-7d0450cfde88","visible":true,"tris":824210,"big":10806,"isModel":false},{"newUuid":false,"scene":"world","path":"/Group/Group","uuid":"69d60d0e-2106-4a8a-a0e6-b947a7e7e3ad","visible":true,"tris":824210,"big":10806,"isModel":false},{"newUuid":false,"scene":"world","path":"/Group/Group","uuid":"6b3ab4d4-1154-48dd-b6d1-ead252d8a408","visible":true,"tris":397423
+  garage the crashed model after the path: {"sameModel":true,"inScene":true,"scene":"hangar","visible":true,"meshes":74,"tris":344675,"big":0}
+  garage giant triangles (an edge past 2 m): {"meshes":[{"scene":"world","chain":"Mesh < Group < Group < Scene","inFlightModel":false,"key":null,"sec":null,"tris":3200,"big":3200,"worst":26.06,"kind":"static","material":"MeshStandardMaterial #ffffff"},{"scene":"world","chain":"Mesh < Group < Group < Scene","inFlightModel":false,"key":null,"sec":null,"tris":2208,"big":2208,"worst":110.76,"kind":"static","material":"ShaderMaterial"},{"scene":"world","chain":"Mesh < Group < Group < Scene","inFlight
+  garage HEAL COST (every fold marked stale, then the frame it lands on): {"folds":7,"bytes":19305072,"baseMedMs":28.4,"baseMaxMs":30.9,"afterMs":[4.4,32.6,0.7,29.4],"healCount":2}
+garage: crash {"broken":143,"worker":true,"reason":"broke up: the fuselage parted (TPB off the core)","why":{"hits":0,"t":18.033333333349333,"held":false,"world":true}} wreck {"active":true,"bodies":9,"gone":["cowl:crushed","cowl:crushed","wheel:off","wheel:off","wheel:off","pane:off","pane:off","pane:crushed","pane:crushed","pane:crushed"],"debris":9,"parts":4,"hidden":0,"collapsed":0,"skinRecs":113,"broken":143,"t":18.03,"garage":false} -> after {"active":false,"bodies":0,"gone":[],"debris":0,
+WRECK_PATHS garage CLEAN
+== cub_B (565 s left)
+  garage IN THE SHED: the model frame {"frames":[{"name":"Group","auto":false,"len":[1,1,0.998],"ang01":86.6,"ang02":90,"ang12":90},{"name":"Group","auto":true,"len":[1,1,1],"ang01":90,"ang02":90,"ang12":90},{"name":"Scene","auto":true,"len":[1,1,1],"ang01":90,"ang02":90,"ang12":90}],"worldTris":346163,"worldBig":0,"meshesBig":[]}
+  garage groups with giant triangles not in a fresh load: [{"newUuid":false,"scene":"world","path":"/Group","uuid":"5d6aa896-3960-4a75-98b3-7d0450cfde88","visible":true,"tris":824210,"big":10806,"isModel":false},{"newUuid":false,"scene":"world","path":"/Group/Group","uuid":"69d60d0e-2106-4a8a-a0e6-b947a7e7e3ad","visible":true,"tris":824210,"big":10806,"isModel":false},{"newUuid":false,"scene":"world","path":"/Group/Group","uuid":"6b3ab4d4-1154-48dd-b6d1-ead252d8a408","visible":true,"tris":397423
+  garage the crashed model after the path: {"sameModel":true,"inScene":true,"scene":"hangar","visible":true,"meshes":74,"tris":344675,"big":0}
+  garage giant triangles (an edge past 2 m): {"meshes":[{"scene":"world","chain":"Mesh < Group < Group < Scene","inFlightModel":false,"key":null,"sec":null,"tris":3200,"big":3200,"worst":26.06,"kind":"static","material":"MeshStandardMaterial #ffffff"},{"scene":"world","chain":"Mesh < Group < Group < Scene","inFlightModel":false,"key":null,"sec":null,"tris":2208,"big":2208,"worst":110.76,"kind":"static","material":"ShaderMaterial"},{"scene":"world","chain":"Mesh < Group < Group < Scene","inFlight
+  garage HEAL COST (every fold marked stale, then the frame it lands on): {"folds":7,"bytes":19305072,"baseMedMs":24.5,"baseMaxMs":39.2,"afterMs":[3,34.9,0.3,29.2],"healCount":2}
+garage: crash {"broken":172,"worker":true,"reason":"broke up: the fuselage parted (TPB off the core)","why":{"hits":0,"t":14.883333333345483,"held":false,"world":true}} wreck {"active":true,"bodies":10,"gone":["eng:loose","spinner:crushed","cowl:off","cowl:off","wheel:off","wheel:off","wheel:off","pane:off","pane:off","pane:off","pane:off","pane:off"],"debris":10,"parts":1,"hidden":0,"collapsed":0,"skinRecs":126,"broken":172,"t":14.88,"garage":false} -> after {"active":false,"bodies":0,"gone":[]
+WRECK_PATHS garage CLEAN
+boot gone
+clicked
+stand {"cv":true,"sim":true}
+== jodel_A (436 s left)
+  garage IN THE SHED: the model frame {"frames":[{"name":"Group","auto":false,"len":[1,1,0.998],"ang01":86.4,"ang02":90,"ang12":90},{"name":"Group","auto":true,"len":[1,1,1],"ang01":90,"ang02":90,"ang12":90},{"name":"Scene","auto":true,"len":[1,1,1],"ang01":90,"ang02":90,"ang12":90}],"worldTris":317837,"worldBig":0,"meshesBig":[]}
+  garage groups with giant triangles not in a fresh load: [{"newUuid":false,"scene":"world","path":"/Group","uuid":"da5e19b4-2000-4331-9fbd-4758ca074157","visible":true,"tris":824210,"big":10806,"isModel":false},{"newUuid":false,"scene":"world","path":"/Group/Group","uuid":"a0c0786a-968f-4422-8b26-7266796ab0ef","visible":true,"tris":824210,"big":10806,"isModel":false}]
+  garage the crashed model after the path: {"sameModel":true,"inScene":true,"scene":"hangar","visible":true,"meshes":65,"tris":316349,"big":0}
+  garage giant triangles (an edge past 2 m): {"meshes":[{"scene":"world","chain":"Mesh < Group < Group < Scene","inFlightModel":false,"key":null,"sec":null,"tris":3200,"big":3200,"worst":26.06,"kind":"static","material":"MeshStandardMaterial #ffffff"},{"scene":"world","chain":"Mesh < Group < Group < Scene","inFlightModel":false,"key":null,"sec":null,"tris":2208,"big":2208,"worst":110.76,"kind":"static","material":"ShaderMaterial"},{"scene":"world","chain":"Mesh < Group < Group < Scene","inFlight
+  garage HEAL COST (every fold marked stale, then the frame it lands on): {"folds":7,"bytes":17715456,"baseMedMs":28.8,"baseMaxMs":30.7,"afterMs":[32,1.5,28.8,4.5],"healCount":2}
+garage: crash {"broken":170,"worker":true,"reason":"a gear member broke","why":{"hits":0,"t":21.399999999964287,"held":false,"world":true}} wreck {"active":true,"bodies":10,"gone":["cowl:off","cowl:crushed","wheel:off","wheel:off","wheel:off","pane:crushed","pane:crushed","pane:crushed","pane:crushed","pane:crushed"],"debris":10,"parts":4,"hidden":0,"collapsed":0,"skinRecs":109,"broken":170,"t":21.4,"garage":false} -> after {"active":false,"bodies":0,"gone":[],"debris":0,"parts":7,"hidden":0,"co
+WRECK_PATHS garage CLEAN
+boot gone
+clicked
+stand {"cv":true,"sim":true}
+== cessna_A (304 s left)
+  garage IN THE SHED: the model frame {"frames":[{"name":"Group","auto":false,"len":[1,1,1],"ang01":89.5,"ang02":90,"ang12":90},{"name":"Group","auto":true,"len":[1,1,1],"ang01":90,"ang02":90,"ang12":90},{"name":"Scene","auto":true,"len":[1,1,1],"ang01":90,"ang02":90,"ang12":90}],"worldTris":464116,"worldBig":0,"meshesBig":[]}
+  garage groups with giant triangles not in a fresh load: [{"newUuid":false,"scene":"world","path":"/Group","uuid":"ca008177-0db1-4296-a321-c8bcaa5bd5a8","visible":true,"tris":814190,"big":10806,"isModel":false},{"newUuid":false,"scene":"world","path":"/Group/Group","uuid":"c4eda32c-6e45-4cf1-9fe3-fcd58611be7c","visible":true,"tris":814190,"big":10806,"isModel":false},{"newUuid":false,"scene":"world","path":"/Group/Group","uuid":"be0af0a6-34cf-40e9-9346-5ca0273c745b","visible":true,"tris":554780
+  garage the crashed model after the path: {"sameModel":true,"inScene":true,"scene":"hangar","visible":true,"meshes":85,"tris":462628,"big":0}
+  garage giant triangles (an edge past 2 m): {"meshes":[{"scene":"world","chain":"Mesh < Group < Group < Scene","inFlightModel":false,"key":null,"sec":null,"tris":3200,"big":3200,"worst":26.06,"kind":"static","material":"MeshStandardMaterial #ffffff"},{"scene":"world","chain":"Mesh < Group < Group < Scene","inFlightModel":false,"key":null,"sec":null,"tris":2208,"big":2208,"worst":110.76,"kind":"static","material":"ShaderMaterial"},{"scene":"world","chain":"Mesh < Group < Group < Scene","inFlight
+  garage HEAL COST (every fold marked stale, then the frame it lands on): {"folds":7,"bytes":23919552,"baseMedMs":29.4,"baseMaxMs":32,"afterMs":[33.3,0.4,29.7,3.3],"healCount":2}
+garage: crash {"broken":142,"worker":true,"reason":"broke up: the fuselage parted (TPB off the core)","why":{"hits":0,"t":8.549999999990257,"held":false,"world":true}} wreck {"active":true,"bodies":12,"gone":["eng:loose","spinner:crushed","cowl:off","cowl:off","wheel:off","wheel:off","wheel:off","pane:off","pane:off","pane:off","pane:off","pane:off"],"debris":12,"parts":1,"hidden":0,"collapsed":0,"skinRecs":115,"broken":142,"t":8.55,"garage":false} -> after {"active":false,"bodies":0,"gone":[],"
+WRECK_PATHS garage CLEAN
+C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/ab:
+cessna_A
+cub_A
+cub_B
+jodel_A
+
+C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/ab/cessna_A:
+path_garage_after_1.png
+path_garage_after_2.png
+path_garage_after_reupload.png
+path_garage_in_shed.png
+path_garage_reupload_fold.png
+path_garage_reupload_model.png
+path_garage_reupload_other.png
+path_garage_reupload_still.png
+paths.json
+
+C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/ab/cub_A:
+path_garage_after_1.png
+path_garage_after_2.png
+path_garage_after_reupload.png
+path_garage_in_shed.png
+path_garage_reupload_fold.png
+path_garage_reupload_model.png
+path_garage_reupload_other.png
+path_garage_reupload_still.png
+paths.json
+
+C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/ab/cub_B:
+path_garage_after_1.png
+path_garage_after_2.png
+path_garage_after_reupload.png
+path_garage_in_shed.png
+path_garage_reupload_fold.png
+path_garage_reupload_model.png
+path_garage_reupload_other.png
+path_garage_reupload_still.png
+paths.json
+
+C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/ab/jodel_A:
+boxlock: GPU released by DMG-D4b
+03:35:23
+
+[exited with code 0]

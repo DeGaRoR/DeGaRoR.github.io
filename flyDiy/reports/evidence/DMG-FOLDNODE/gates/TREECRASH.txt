@@ -1,0 +1,83 @@
+# GATE TREECRASH (node tools/_treecrash_check.js) - exit 0, 463 s, 2026-10-07T01:13:26Z, branch claude/dmg-foldnode e5c13d9, build FLYDIY_BUILD='22321372b7c2'
+(463 s, 5 builds; the certificate's limits (DMG-D2a, 66_gen_cert.js))
+Cub:
+1. the table
+  ok    394 members, every one with a section and a GEN_CRASH material (tubeFabric, wood)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 0.64 (wing, tension)); at 5.7 g HELD, 0 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 0.95 (wing, tension)
+  ok    a flown pull from 42 m/s to the limit (the wing's load 3.83 W; the CG then reading 3.00 g): nothing yields; the worst member 0.95 (fus, tension)
+  ok    a drop at 2.13 m/s (7.00 ft/s, FAR 23.473): 1.67 g, nothing yields; the worst member 0.70 (gear, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 1.93 g, nothing yields; the worst member 0.84 (gear, compression)
+  ok    a circuit with the pilot (completed, 335 s, 1.32 g at the most): nothing yields; the worst member 0.33 (gear, tension)
+3. a taxi into a trunk, a wingtip brush
+  ok    taxied at 3 m/s into a trunk: a dent (5 members set, 0 of the nose broken, 722 J), no crash; the prop struck, the engine stopped; back 0.37 m from where it stopped
+  ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (8228 contacts), 0 members set, no crash
+4. a flight into a trunk at 30 m/s
+  ok    the centreline: CRASHED (broke up: the fuselage parted (TPB off the core) at 1.32 s), 177 members broken (36 of the wing), 23.7 kJ of plastic work, 21.89 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.37 s), 118 members broken (32 of the wing), 13.4 kJ of plastic work, 8.53 g; finite; the kinetic energy at most 100.0 % of the impact's
+5. reset heals
+  ok    after a crash, reset() and the same taxi: the fresh sim's bits (45581a6b5939 / 45581a6b5939)
+Jodel:
+1. the table
+  ok    492 members, every one with a section and a GEN_CRASH material (wood, tubeFabric)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 0.64 (wing, tension)); at 5.7 g HELD, 0 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 0.95 (wing, tension)
+  ok    a flown pull from 49 m/s to the limit (the wing's load 4.23 W; the CG then reading 2.04 g): nothing yields; the worst member 0.56 (gear, tension)
+  ok    a drop at 2.17 m/s (7.12 ft/s, FAR 23.473): 1.86 g, nothing yields; the worst member 0.64 (gear, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 2.21 g, nothing yields; the worst member 0.84 (gear, compression)
+  ok    a circuit with the pilot (null, 340 s, 1.67 g at the most): nothing yields; the worst member 0.29 (gear, compression)
+3. a taxi into a trunk, a wingtip brush
+  ok    taxied at 3 m/s into a trunk: a dent (10 members set, 0 of the nose broken, 766 J), no crash; the prop struck, the engine stopped; back 0.23 m from where it stopped
+  ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (19656 contacts), 0 members set, no crash
+4. a flight into a trunk at 30 m/s
+  ok    the centreline: CRASHED (broke up: the fuselage parted (TPB off the core) at 1.30 s), 197 members broken (33 of the wing), 29.0 kJ of plastic work, 26.24 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 153 members broken (66 of the wing), 4.2 kJ of plastic work, 4.84 g; finite; the kinetic energy at most 100.0 % of the impact's
+5. reset heals
+  ok    after a crash, reset() and the same taxi: the fresh sim's bits (4c12527390e5 / 4c12527390e5)
+metal Cessna:
+1. the table
+  ok    442 members, every one with a section and a GEN_CRASH material (alloy, tubeFabric)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 1.00 (wing, tension)); at 5.7 g HELD, 32 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 1.47 (wing, tension)
+  ok    a flown pull from 58 m/s to the limit (the wing's load 3.82 W; the CG then reading 2.72 g): nothing yields; the worst member 0.93 (fus, tension)
+  ok    a drop at 2.38 m/s (7.79 ft/s, FAR 23.473): 2.12 g, nothing yields; the worst member 0.69 (gear, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 2.43 g, nothing yields; the worst member 0.84 (gear, compression)
+  ok    a circuit with the pilot (completed, 271 s, 1.76 g at the most): nothing yields; the worst member 0.36 (fus, tension)
+3. a taxi into a trunk, a wingtip brush
+  ok    taxied at 3 m/s into a trunk: a dent (7 members set, 1 of the nose broken, 1012 J), no crash; the prop struck, the engine stopped; back 0.35 m from where it stopped
+  ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (35764 contacts), 1 members set, no crash
+4. a flight into a trunk at 30 m/s
+  ok    the centreline: CRASHED (broke up: the fuselage parted (TPB off the core) at 1.30 s), 191 members broken (32 of the wing), 47.9 kJ of plastic work, 30.52 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 42 members broken (11 of the wing), 10.5 kJ of plastic work, 4.33 g; finite; the kinetic energy at most 100.0 % of the impact's
+5. reset heals
+  ok    after a crash, reset() and the same taxi: the fresh sim's bits (de5f08115528 / de5f08115528)
+Cessna floats:
+1. the table
+  ok    533 members, every one with a section and a GEN_CRASH material (alloy, tubeFabric)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 1.00 (wing, tension)); at 5.7 g HELD, 35 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 1.48 (wing, tension)
+  ok    a flown pull from 67 m/s to the limit (the wing's load 3.86 W; the CG then reading 2.89 g): nothing yields; the worst member 0.97 (fus, tension)
+  ok    a drop at 2.54 m/s (8.33 ft/s, FAR 23.473): 1.66 g, nothing yields; the worst member 0.47 (wing, tension)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 1.75 g, nothing yields; the worst member 0.64 (wing, tension)
+  ok    a circuit with the pilot (null, 340 s, 2.22 g at the most): nothing yields; the worst member 0.37 (fus, tension)
+   (a floatplane: the trunk runs are the land builds')
+twin floatplane:
+1. the table
+  ok    519 members, every one with a section and a GEN_CRASH material (tubeFabric, wood)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 0.64 (wing, tension)); at 5.7 g HELD, 0 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 0.95 (wing, tension)
+  ok    a flown pull from 43 m/s to the limit (the wing's load 3.94 W; the CG then reading 3.00 g): nothing yields; the worst member 0.99 (fus, tension)
+  ok    a drop at 2.13 m/s (7.00 ft/s, FAR 23.473): 1.49 g, nothing yields; the worst member 0.42 (gear, tension)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 1.55 g, nothing yields; the worst member 0.62 (gear, tension)
+  ok    a circuit with the pilot (completed, 292 s, 1.73 g at the most): nothing yields; the worst member 0.27 (fus, tension)
+   (a floatplane: the trunk runs are the land builds')
+6. the water - Cub
+  ok    a 5 m/s level pancake: the worst member 4.40 (fus, tension); 35 set {"fus":25,"wing":10}, 13 broken, the slam 523 kPa, 2 hull slice(s) holed, 7.78 g, CRASHED (a fus member broke); the damage follows the beams' own loads
+  ok    a 100 km/h nose-in ditch (4 m/s, 10 deg): the worst member 4.11 (fus, compression); 58 set {"fus":45,"wing":10,"tail":3}, 70 broken, the slam 302 kPa, 3 hull slice(s) holed, 12.16 g, CRASHED (a gear member broke); the damage follows the beams' own loads
+  ok    SEVERE: 180 km/h, 10 m/s, 60 deg nose-in: the worst member 17.20 (fus, compression); 157 set {"fus":54,"wing":31,"tail":72}, 177 broken, the slam 288 kPa, 5 hull slice(s) holed, 12.82 g, CRASHED (broke up: the fuselage parted (S0BR off the core)) - must yield, break and crash; the damage follows the beams' own loads
+6. the water - twin floatplane
+  ok    a float nose-in (90 km/h, 5 m/s, 20 deg): the worst member 0.83 (fus, compression); 0 set, 0 broken, 5.62 g, no damage; the damage follows the beams' own loads
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst member 14.30 (gear, tension); 204 set {"fus":67,"wing":37,"tail":100}, 220 broken, 20.60 g, CRASHED (broke up: the fuselage parted (TPB off the core)) - must yield, break and crash; the damage follows the beams' own loads
+  50/50 checks
+GATE TREECRASH: PASS
+# exit 0

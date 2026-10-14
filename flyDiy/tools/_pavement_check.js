@@ -686,7 +686,8 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
   // (c) THE LOOK: 9 knobs x 3 surface types, every one a KNOB row with its default inside its range; a class's look
   // through lookOf; the defaults draw the plain surface (multipliers 1, the edge zone's side)
   const K = {}; for (const row of P.KNOBS) if (row.length > 1) K[row[0]] = row;
-  const okK = P.LOOK_KEYS.length === 27 && P.LOOK_KEYS.every(k => K[k] && P.RECIPE[k] >= K[k][2] && P.RECIPE[k] <= K[k][3]);
+  const okK = P.LOOK_KEYS.length === 27 + 2 &&   // + G2570's two grass-strip keys (grMatch, grMowA)
+    P.LOOK_KEYS.every(k => K[k] && P.RECIPE[k] >= K[k][2] && P.RECIPE[k] <= K[k][3]);
   verdict(okK, `the runway look: ${P.LOOK_KEYS.length} knobs (${Object.keys(P.LOOK_GROUPS).join(', ')} x 9), each a KNOBS row, its default in range`);
   const L0 = P.lookOf('asphalt'), Lg = P.lookOf('grass');
   verdict(L0.surf.every(c => Math.abs(c - 1) < 1e-9) && L0.side.every(c => Math.abs(c - 1) < 1e-9) && L0.sideW === P.RECIPE.sideW && L0.sideA === P.RECIPE.sideA && Lg.sideA === 0 && Lg.sideW === P.RECIPE.edgeSoft && P.groupOf('dirt') === 'sf'
@@ -708,8 +709,20 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
   P.look(THREE, null);
   verdict(live.grBright === 0.6 && !('bogus' in live) && Math.abs(afterLive - P.tintRGB(0.2, 0.4)[0] * 0.6) < 1e-6 && Math.abs(U.uWet.value.y - exp[0]) < 1e-6 && Object.keys(P.look()).length === 0,
     `the live overlay reaches a made part (surface r ${f(exp[0], 3)} -> ${f(afterLive, 3)}), takes only look keys, and clearing it gives the premises' back`);
-  verdict(P.groundColor('grass', rec).every((c, i) => c > 0) && P.opaqueDepth('grass', 9, null, 'strip') === P.RECIPE.edgeChip + 0.2 && P.opaqueDepth('grass', 3, null, 'road') === Infinity && P.opaqueDepth('dirt', 9, null, 'road') === P.RECIPE.edgeChip + 0.2,
-    `opaqueDepth: a soft edge and a grass strip as deep as a paved chip (${P.RECIPE.edgeChip + 0.2} m), a grass road still never sunk`);
+  // (the grass strip's own LAWN - grMatch 0, as before G2570 - is sunk like a soft edge; a MATCHED one shows the ground and is not)
+  const lawn = Object.assign({}, rec, { grMatch: 0 });
+  verdict(P.groundColor('grass', lawn).every((c, i) => c > 0) && P.opaqueDepth('grass', 9, lawn, 'strip') === P.RECIPE.edgeChip + 0.2 && P.opaqueDepth('grass', 3, null, 'road') === Infinity && P.opaqueDepth('dirt', 9, null, 'road') === P.RECIPE.edgeChip + 0.2,
+    `opaqueDepth: a soft edge and a grass strip's own lawn as deep as a paved chip (${P.RECIPE.edgeChip + 0.2} m), a grass road still never sunk`);
+  // G2570 THE GRASS STRIP WEARS THE GROUND (the user, 12 Oct: "the color of the grassy runway ... similar to the surrounding colors"):
+  // matched (the default), its ground is not sunk, a tuft on it takes the ground's own colour (groundColor null -> the cover ring's
+  // meanAt), the part carries match and the mown tint in its row, and the shader lets the ground through but for the tracks and a
+  // wash of at most grMowA - the strip's drawn colour within grMowA of the ground's own; no new program (the same uniform rows)
+  { const mr = P.resolve({ cls: 'grass' }, { pavement: {} }).recipe, mm = P.make(THREE, { lib, cls: 'grass', recipe: mr, band: 1.5 }), MU = mm.uniforms;
+    const law = P.GLSL.map.indexOf('if (grassy && !road && uMacro.w > 0.0) {') >= 0 && P.GLSL.map.indexOf('gPavA = mix(gPavA, max(worn * gPavA, uStain.w * wPav), uMacro.w);') >= 0;
+    verdict(P.RECIPE.grMatch === 1 && P.groundColor('grass', mr) === null && P.opaqueDepth('grass', 9, mr, 'strip') === Infinity && MU.uMacro.value.w === 1
+      && Math.abs(MU.uStain.value.w - P.RECIPE.grMowA) < 1e-9 && P.RECIPE.grMowA <= 0.2 && law && P.LOOK_KEYS.indexOf('grMatch') >= 0 && P.LOOK_KEYS.indexOf('grMowA') >= 0,
+      `a grass strip shows the ground under it (grMatch ${P.RECIPE.grMatch}): not sunk, its tufts the ground's colour, its wash ${P.RECIPE.grMowA} - two look keys, the law in GLSL.map`);
+    P.dispose(mm); }
   P.dispose(m);
 }
 

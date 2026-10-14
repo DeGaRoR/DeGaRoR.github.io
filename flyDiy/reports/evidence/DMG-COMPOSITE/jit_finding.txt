@@ -1,0 +1,20 @@
+G2048 - THE CRASH IS SENSITIVE TO V8'S OPTIMISER (found while proving the validated crashes unchanged)
+
+The first cut of the composite "no set on a crush" added ONE untaken branch to 30_solver.js beamYield, after the kink:
+    if (b.ec >= b.ecu) { ...; beamBreak(bi, 'kink'); if (!(b.ecu > 0)) return; }
+No validated member has ecu 0 (counted at the stamp: 0; instrumented in the run: the branch never fired). Yet:
+
+  jodel, 30 m/s trunk on the centreline, damage ON, certificate stamped (hash, broken, member work J)
+    base 849058d8                         4702df076ce1bee8  154  32225.7
+    base, run twice in parallel           4702df076ce1bee8  154  32225.7   (deterministic)
+    branch with the return                a474fbbd6ba2b8fe  204  39568.3
+    branch with the return, node --no-opt 4702df076ce1bee8  154  32225.7
+    branch, return instrumented (a push)  4702df076ce1bee8  154  32225.7
+    branch, the return removed            4702df076ce1bee8  154  32225.7
+  cub 125 -> 169, metal 178 -> 208 the same way; the nose-overs identical throughout.
+
+So the 30 m/s numbers move with how TurboFan compiles beamYield, not with the physics: an untaken branch changed them.
+(Most likely an operation whose float result differs between V8 tiers on this run's path - not isolated here.) The
+branch was removed (the crushed laminate member is broken in the same step, so "no laminate member set and whole"
+holds without it) and the validated bytes are back. Consequence for every DMG gate and table: a 30 m/s trunk count
+(TREECRASH's 125 / 159 / 178, the sanity table's 154) can move with an unrelated edit to the solver's hot functions.

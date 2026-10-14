@@ -1,0 +1,4 @@
+floats BROKE AT 6.209 key wing0L:strut first S1BL-WB fitting tension limit 3.8 m 1.05 uFit 1
+floats BROKE AT 6.238 key wing0L:strut first S1BL-WB fitting tension limit 3.8 m 1.05 uFit 1
+
+[exited with code 0]

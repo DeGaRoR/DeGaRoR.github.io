@@ -15,6 +15,7 @@
 //   roads' waypoints share is ONE junction id (`<prefix>j<n>`, beside `pts` in `nodes`). Nothing else of a road changes: a
 //   waypoint inserted lies on its straight span (a fillet road's corner of nought - the line drawn the same).
 'use strict';
+require('./_core_math_global.js');   // (T41b: CORE_MATH before a core file required alone - 00_registry's)
 const fs = require('fs');
 const path = require('path');
 const PG = require(path.join(__dirname, '..', 'src', 'core', '27_premises.js'));

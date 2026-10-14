@@ -54,7 +54,7 @@
 // floats (wheelsOnGround: 3 displacing, 2 on the step), and a WATER PHASE label read in the page: to-afloat /
 // to-displace / to-step (the take-off run: the pilot has no water taxi, it runs from the lane's spawn) / climb /
 // circuit / flare / ldg-step / ldg-displace / ldg-afloat (the landing's run-out and the stop). --afloat <s> holds
-// the flight in the page's MANUAL mode at idle for s seconds from the reveal (the `flydiy.flManual` pref, then
+// the flight in the page's MANUAL mode at idle for s seconds from the reveal (the `flydiy.flManualRig` pref (G3120: the game's own choice is no longer remembered), then
 // FLIGHT_PROBE.setManual(false): the pilot takes it from there) - the aeroplane afloat at rest. --shot-phase
 // all|<label,...> captures a PNG 1.5 s into each listed phase; --water-gpu turns the water's own GPU timer on
 // (WATER.set({timer}): the sea's and the near sea's draws, EXT_disjoint_timer_query). The mirror's capture
@@ -224,7 +224,7 @@ function preScript() {
   lines.push('try{for(const k of Object.keys(localStorage))if(/^flydiy\\.(fl([A-Z]|$)|route$|world$)/.test(k))localStorage.removeItem(k)}catch(e){}');
   // G790: the route and who flies, stated every run (a warm profile keeps both from the last one)
   // G1945 DEST-TO: the pref is v2 { base, to } - a --from that is not the base rides as the rigs' `spawn` (no picker has it)
-  lines.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: DEST, spawn: FROM !== 'HOME' ? FROM : undefined })) + ');localStorage.setItem("flydiy.flManual","' + (AFLOAT > 0 || LATENCY ? '1' : '0') + '")}catch(e){}');
+  lines.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: DEST, spawn: FROM !== 'HOME' ? FROM : undefined })) + ');localStorage.setItem("flydiy.flManualRig","' + (AFLOAT > 0 || LATENCY ? '1' : '0') + '")}catch(e){}');
   if (PROBE) lines.push(fs.readFileSync(path.join(__dirname, 'latency_probe_page.js'), 'utf8'));   // G1165: before the page's first script
   if (VARIANT === 'nomet') {
     const F = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));

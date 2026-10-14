@@ -1,0 +1,1052 @@
+{
+ "at": "2026-10-06T15:22:05.007Z",
+ "cases": {
+  "taxi": {
+   "label": "a taxi into a trunk at 3 m/s, the throttle shut (the prop strike: a wooden prop snaps, a metal one bends)",
+   "shots": [
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/r2_taxi/taxi_1_after.jpg",
+     "census": {
+      "px": 96755,
+      "craftAll": 142642,
+      "yellow": 58,
+      "darkYellow": 0.2,
+      "other": 41.9,
+      "greyOrBlack": 19.7,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/r2_taxi/taxi_2_after.jpg",
+     "census": {
+      "px": 86939,
+      "craftAll": 97376,
+      "yellow": 91.4,
+      "darkYellow": 0,
+      "other": 8.6,
+      "greyOrBlack": 5.5,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "nose",
+      10,
+      4.2
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/r2_taxi/taxi_3_after.jpg",
+     "census": {
+      "px": 61108,
+      "craftAll": 91852,
+      "yellow": 91.3,
+      "darkYellow": 0.3,
+      "other": 8.5,
+      "greyOrBlack": 3.3,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "noseL",
+      6,
+      3
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/r2_taxi/taxi_4_after.jpg",
+     "census": {
+      "px": 80649,
+      "craftAll": 125111,
+      "yellow": 85.3,
+      "darkYellow": 0.4,
+      "other": 14.3,
+      "greyOrBlack": 3.7,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/r2_taxi/taxi_1_skin.jpg",
+     "census": {
+      "px": 86811,
+      "craftAll": 119619,
+      "yellow": 58.8,
+      "darkYellow": 0.1,
+      "other": 41.1,
+      "greyOrBlack": 20,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/r2_taxi/taxi_2_skin.jpg",
+     "census": {
+      "px": 85293,
+      "craftAll": 93987,
+      "yellow": 91.9,
+      "darkYellow": 0,
+      "other": 8.1,
+      "greyOrBlack": 5.1,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "nose",
+      10,
+      4.2
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/r2_taxi/taxi_3_skin.jpg",
+     "census": {
+      "px": 58522,
+      "craftAll": 86338,
+      "yellow": 91.9,
+      "darkYellow": 0.2,
+      "other": 7.8,
+      "greyOrBlack": 3.4,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "noseL",
+      6,
+      3
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/r2_taxi/taxi_4_skin.jpg",
+     "census": {
+      "px": 85621,
+      "craftAll": 131502,
+      "yellow": 87,
+      "darkYellow": 0.4,
+      "other": 12.7,
+      "greyOrBlack": 3.5,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/r2_taxi/taxi_1_before.jpg",
+     "census": {
+      "px": 87454,
+      "craftAll": 120100,
+      "yellow": 59.4,
+      "darkYellow": 0.1,
+      "other": 40.5,
+      "greyOrBlack": 19.2,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/r2_taxi/taxi_2_before.jpg",
+     "census": {
+      "px": 86466,
+      "craftAll": 95169,
+      "yellow": 92.8,
+      "darkYellow": 0,
+      "other": 7.2,
+      "greyOrBlack": 5.1,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "nose",
+      10,
+      4.2
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/r2_taxi/taxi_3_before.jpg",
+     "census": {
+      "px": 61240,
+      "craftAll": 89086,
+      "yellow": 91.7,
+      "darkYellow": 0.2,
+      "other": 8.1,
+      "greyOrBlack": 2.4,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "noseL",
+      6,
+      3
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/r2_taxi/taxi_4_before.jpg",
+     "census": {
+      "px": 113772,
+      "craftAll": 159266,
+      "yellow": 91.4,
+      "darkYellow": 0.2,
+      "other": 8.4,
+      "greyOrBlack": 1.8,
+      "w": 800,
+      "h": 450
+     }
+    }
+   ],
+   "intact": [
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "census": {
+      "px": 113115,
+      "craftAll": 137496,
+      "yellow": 58.6,
+      "darkYellow": 3,
+      "other": 38.5,
+      "greyOrBlack": 11.1,
+      "w": 800,
+      "h": 450
+     },
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/r2_taxi/taxi_1_intact.jpg"
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "census": {
+      "px": 80219,
+      "craftAll": 92320,
+      "yellow": 91.9,
+      "darkYellow": 0,
+      "other": 8.1,
+      "greyOrBlack": 5.8,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    },
+    {
+     "cam": [
+      "nose",
+      10,
+      4.2
+     ],
+     "census": {
+      "px": 66104,
+      "craftAll": 133980,
+      "yellow": 85.2,
+      "darkYellow": 0.4,
+      "other": 14.4,
+      "greyOrBlack": 3.5,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    },
+    {
+     "cam": [
+      "noseL",
+      6,
+      3
+     ],
+     "census": {
+      "px": 123117,
+      "craftAll": 242968,
+      "yellow": 86,
+      "darkYellow": 0.5,
+      "other": 13.5,
+      "greyOrBlack": 4,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    }
+   ],
+   "stage": {
+    "steps": 700,
+    "crashed": true,
+    "over": true,
+    "reason": "a fus member broke",
+    "broken": 12,
+    "brokeUp": false,
+    "mountFirst": {
+     "t": 3.267,
+     "member": "ENGL-S0BR"
+    },
+    "frameMed": 54.1,
+    "frameP95": 60.3,
+    "frameMax": 129,
+    "wreck": {
+     "on": true,
+     "active": true,
+     "parts": [
+      {
+       "kind": "eng",
+       "gone": true,
+       "why": "loose",
+       "crush": null
+      },
+      {
+       "kind": "spinner",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.386
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.386
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.386
+      },
+      {
+       "kind": "wheel",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0.002
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0.001
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0.012
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0.012
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0.012
+      },
+      {
+       "kind": "blade",
+       "gone": true,
+       "why": "strike",
+       "crush": null
+      },
+      {
+       "kind": "blade",
+       "gone": true,
+       "why": "strike",
+       "crush": null
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -521.27,
+        32.99,
+        30.08
+       ],
+       "tris": 340
+      },
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -520.16,
+        33.02,
+        28.66
+       ],
+       "tris": 540
+      },
+      {
+       "kind": "eng",
+       "why": "loose",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -525,
+        33.28,
+        29.43
+       ],
+       "tris": 43380
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "asleep": false,
+       "sunk": false,
+       "x": [
+        -540.17,
+        36.13,
+        48.16
+       ],
+       "tris": 1520
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -522.99,
+        33.28,
+        30.02
+       ],
+       "tris": 8227
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -523.27,
+        33.13,
+        29.2
+       ],
+       "tris": 5077
+      }
+     ],
+     "strikes": [
+      {
+       "eng": 0,
+       "t": 2.933,
+       "drive": "separation",
+       "what": "trunk",
+       "material": "wood",
+       "metal": false,
+       "rpm": 1442,
+       "V": 3.82,
+       "E": 26321,
+       "breaks": true,
+       "cut": [
+        0.86,
+        0.65
+       ],
+       "curl": [
+        0,
+        0
+       ],
+       "dent": 0.06,
+       "nb": 2,
+       "R": 0.968,
+       "biteR": 1.1972632617861136,
+       "surf": "rigid",
+       "tip": 144.19244830655092,
+       "bladeLost": 0.35
+      }
+     ],
+     "eyeCut": null,
+     "eye": null,
+     "cab": {
+      "bay": 0,
+      "d0": 0.163
+     },
+     "ms": {
+      "plan": 4.800000071525574,
+      "release": 19.200000047683716,
+      "frame": 0.2999999523162842
+     }
+    },
+    "skin": {
+     "on": true,
+     "recs": 126,
+     "ms": {
+      "records": 35.700000047683716,
+      "event": 27.399999976158142,
+      "frames": 1.2000000476837158,
+      "pose": 36.700000047683716,
+      "recordsT": 140.0000001192093,
+      "eventT": 87.09999990463257,
+      "poseT": 8734.599998354912,
+      "frameMax": 78,
+      "n": 314,
+      "last": 28.800000071525574,
+      "lastRec": 0.10000002384185791,
+      "lastEv": 0,
+      "lastFrames": 0,
+      "lastPose": 28.700000047683716,
+      "lastT": 13.66666666667733,
+      "inh": 16.90000009536743,
+      "inhT": 105.50000011920929
+     },
+     "removed": 1382,
+     "torn": 470,
+     "tris": 202022,
+     "riding": 606066
+    }
+   },
+   "tears": {
+    "broken": 12,
+    "members": [
+     "ENGL-ENGR",
+     "CGE-ENGL",
+     "ENGL-S0BR",
+     "ENGL-S0TL",
+     "ENGL-S0BL",
+     "ENGR-S0TR",
+     "ENGR-S0BR",
+     "ENGR-S0BL",
+     "CGE-S0TL",
+     "CGE-S0TR",
+     "CGE-S0BL",
+     "CGE-S0BR"
+    ],
+    "workJ": 1701,
+    "energyJ": 2080,
+    "reason": "a fus member broke",
+    "wings": {
+     "z+": {
+      "tris": 224,
+      "gone": 0,
+      "by": {}
+     },
+     "z-": {
+      "tris": 224,
+      "gone": 0,
+      "by": {}
+     }
+    },
+    "other": {
+     "ceilingLoop": {
+      "tris": 448,
+      "gone": 0,
+      "by": {}
+     },
+     "body": {
+      "tris": 1408,
+      "gone": 0,
+      "by": {}
+     },
+     "waistband": {
+      "tris": 448,
+      "gone": 0,
+      "by": {}
+     },
+     "floorLoop": {
+      "tris": 448,
+      "gone": 0,
+      "by": {}
+     },
+     "pillarPassenger": {
+      "tris": 448,
+      "gone": 0,
+      "by": {}
+     },
+     "pasengerWindow": {
+      "tris": 64,
+      "gone": 0,
+      "by": {}
+     },
+     "pillarCabin": {
+      "tris": 448,
+      "gone": 0,
+      "by": {}
+     },
+     "pilotWindow": {
+      "tris": 128,
+      "gone": 0,
+      "by": {}
+     },
+     "pillarWindow": {
+      "tris": 448,
+      "gone": 0,
+      "by": {}
+     },
+     "windshield": {
+      "tris": 64,
+      "gone": 0,
+      "by": {}
+     },
+     "pillarFront": {
+      "tris": 256,
+      "gone": 0,
+      "by": {}
+     },
+     "paneEdge": {
+      "tris": 112,
+      "gone": 0,
+      "by": {}
+     },
+     "joint": {
+      "tris": 8840,
+      "gone": 4,
+      "by": {
+       "stretch tear": 4
+      }
+     },
+     "bulkhead": {
+      "tris": 228,
+      "gone": 0,
+      "by": {}
+     },
+     "tube": {
+      "tris": 9772,
+      "gone": 121,
+      "by": {
+       "tube tear (WALL)": 111,
+       "pieces/broken member": 10
+      }
+     },
+     "cloth": {
+      "tris": 10128,
+      "gone": 0,
+      "by": {}
+     },
+     "dash": {
+      "tris": 2344,
+      "gone": 0,
+      "by": {}
+     },
+     "dashFace": {
+      "tris": 344,
+      "gone": 0,
+      "by": {}
+     },
+     "fireProof": {
+      "tris": 128,
+      "gone": 0,
+      "by": {}
+     },
+     "firewall": {
+      "tris": 192,
+      "gone": 0,
+      "by": {}
+     },
+     "fireSeal": {
+      "tris": 64,
+      "gone": 0,
+      "by": {}
+     },
+     "shoulder": {
+      "tris": 856,
+      "gone": 0,
+      "by": {}
+     },
+     "c321408fhideIKU1": {
+      "tris": 1920,
+      "gone": 0,
+      "by": {}
+     },
+     "caf9c77fhideIKU1": {
+      "tris": 1792,
+      "gone": 0,
+      "by": {}
+     },
+     "c77808bfbareAluIKU1": {
+      "tris": 4656,
+      "gone": 0,
+      "by": {}
+     },
+     "c454c52fcastAluIKU1": {
+      "tris": 644,
+      "gone": 0,
+      "by": {}
+     },
+     "cbcc8d6fchromeIKU1": {
+      "tris": 3000,
+      "gone": 0,
+      "by": {}
+     },
+     "c29323dfsteelTubeIKU1": {
+      "tris": 288,
+      "gone": 0,
+      "by": {}
+     },
+     "c090b0efplasticIKU1": {
+      "tris": 136,
+      "gone": 0,
+      "by": {}
+     },
+     "c030304fplasticScrIKU1": {
+      "tris": 320,
+      "gone": 0,
+      "by": {}
+     },
+     "cffffffa100Glabel": {
+      "tris": 28,
+      "gone": 0,
+      "by": {}
+     },
+     "ca1a8affpanelMetalIKU1": {
+      "tris": 208,
+      "gone": 0,
+      "by": {}
+     },
+     "c020203fplasticIKU1": {
+      "tris": 460,
+      "gone": 0,
+      "by": {}
+     },
+     "c06080afplasticGrnIKU1": {
+      "tris": 16,
+      "gone": 0,
+      "by": {}
+     },
+     "c030304fplasticIKU1": {
+      "tris": 4440,
+      "gone": 0,
+      "by": {}
+     },
+     "c997547Lpinstr": {
+      "tris": 1080,
+      "gone": 0,
+      "by": {}
+     },
+     "c060708ftrimIKU1": {
+      "tris": 4320,
+      "gone": 0,
+      "by": {}
+     },
+     "c060709fplasticGrnIKU1": {
+      "tris": 2736,
+      "gone": 0,
+      "by": {}
+     },
+     "c8d959ffsteelTubeIKU1": {
+      "tris": 10080,
+      "gone": 0,
+      "by": {}
+     },
+     "cffffffGfaces": {
+      "tris": 352,
+      "gone": 0,
+      "by": {}
+     },
+     "c000000a100Gao": {
+      "tris": 162,
+      "gone": 0,
+      "by": {}
+     },
+     "cde5a08ftrimIKU1": {
+      "tris": 64,
+      "gone": 0,
+      "by": {}
+     },
+     "cafb8c4fchromeIKU1": {
+      "tris": 3272,
+      "gone": 0,
+      "by": {}
+     },
+     "ccec6afftrimIKU1": {
+      "tris": 540,
+      "gone": 0,
+      "by": {}
+     },
+     "c060708fplasticWornIKU1": {
+      "tris": 3040,
+      "gone": 0,
+      "by": {}
+     },
+     "cffffffa100Greg": {
+      "tris": 2,
+      "gone": 0,
+      "by": {}
+     },
+     "c523313fplyIKU1": {
+      "tris": 1396,
+      "gone": 0,
+      "by": {}
+     },
+     "cff9c00falcladU1": {
+      "tris": 5914,
+      "gone": 5914,
+      "by": {
+       "debris": 5512,
+       "pieces/broken member": 402
+      }
+     },
+     "c452700": {
+      "tris": 7210,
+      "gone": 7210,
+      "by": {
+       "debris": 6716,
+       "pieces/broken member": 494
+      }
+     },
+     "c020203frubberKU1": {
+      "tris": 136,
+      "gone": 136,
+      "by": {
+       "debris": 130,
+       "pieces/broken member": 6
+      }
+     },
+     "c272c32fsteelTubeKU1": {
+      "tris": 946,
+      "gone": 946,
+      "by": {
+       "debris": 946
+      }
+     },
+     "cff9c00ffabricfabricSW1U1": {
+      "tris": 4286,
+      "gone": 0,
+      "by": {}
+     },
+     "c000000ffabricfabricSW1U1": {
+      "tris": 2222,
+      "gone": 0,
+      "by": {}
+     },
+     "c6c95afa20fglassU1": {
+      "tris": 104,
+      "gone": 0,
+      "by": {}
+     },
+     "c292929fbareAluKU0.68": {
+      "tris": 3568,
+      "gone": 0,
+      "by": {}
+     },
+     "c15171b": {
+      "tris": 48,
+      "gone": 0,
+      "by": {}
+     },
+     "c7d8792": {
+      "tris": 64,
+      "gone": 0,
+      "by": {}
+     },
+     "cff9c00ffabricsteelSW2U0.68X0": {
+      "tris": 528,
+      "gone": 2,
+      "by": {
+       "stretch tear": 2
+      }
+     },
+     "cff9c00ffabricsteelSW2U0.68X1": {
+      "tris": 1152,
+      "gone": 22,
+      "by": {
+       "stretch tear": 22
+      }
+     },
+     "cff9c00ftrimKU1": {
+      "tris": 1474,
+      "gone": 0,
+      "by": {}
+     },
+     "c7c8a9afbareAluKU1": {
+      "tris": 7136,
+      "gone": 14,
+      "by": {
+       "stretch tear": 14
+      }
+     },
+     "c9aa1a9LcnavLk0.33": {
+      "tris": 868,
+      "gone": 0,
+      "by": {}
+     },
+     "c99150dLpnav": {
+      "tris": 468,
+      "gone": 0,
+      "by": {}
+     },
+     "c0a8629Lpnav": {
+      "tris": 468,
+      "gone": 0,
+      "by": {}
+     },
+     "c060708frubberKU1": {
+      "tris": 168,
+      "gone": 0,
+      "by": {}
+     },
+     "c9aa1a9Lctaxi": {
+      "tris": 306,
+      "gone": 0,
+      "by": {}
+     },
+     "c999180Lptaxi": {
+      "tris": 210,
+      "gone": 0,
+      "by": {}
+     },
+     "c9aa1a9Lcland": {
+      "tris": 306,
+      "gone": 0,
+      "by": {}
+     },
+     "c999690Lpland": {
+      "tris": 210,
+      "gone": 0,
+      "by": {}
+     },
+     "c9aa1a9LcfloodLk0.33": {
+      "tris": 240,
+      "gone": 0,
+      "by": {}
+     },
+     "c9aa1a9Lcflood": {
+      "tris": 272,
+      "gone": 0,
+      "by": {}
+     },
+     "c99825eLpflood": {
+      "tris": 354,
+      "gone": 0,
+      "by": {}
+     },
+     "c9aa1a9LcpedalLk0.33": {
+      "tris": 240,
+      "gone": 28,
+      "by": {
+       "stretch tear": 28
+      }
+     },
+     "c9aa1a9Lcpedal": {
+      "tris": 272,
+      "gone": 39,
+      "by": {
+       "stretch tear": 39
+      }
+     },
+     "c997347Lppedal": {
+      "tris": 354,
+      "gone": 62,
+      "by": {
+       "stretch tear": 62
+      }
+     },
+     "c9aa1a9LcpaxLk0.33": {
+      "tris": 240,
+      "gone": 0,
+      "by": {}
+     },
+     "c9aa1a9Lcpax": {
+      "tris": 272,
+      "gone": 0,
+      "by": {}
+     },
+     "c99825eLppax": {
+      "tris": 354,
+      "gone": 0,
+      "by": {}
+     },
+     "cff9c00fsteelTubeKU1": {
+      "tris": 23696,
+      "gone": 0,
+      "by": {}
+     },
+     "?": {
+      "tris": 54920,
+      "gone": 188,
+      "by": {
+       "stretch tear": 188
+      }
+     }
+    }
+   },
+   "clip": {
+    "skinTris": 58116,
+    "furnitureOutside": {
+     "sampled": 16707,
+     "past3cm": 217,
+     "share": 0.013,
+     "worst": 0.266
+    },
+    "debrisInside": {
+     "sampled": 50455,
+     "past3cm": 0,
+     "share": 0,
+     "worst": 0
+    }
+   }
+  }
+ },
+ "standClip": {
+  "skinTris": 72364,
+  "furnitureOutside": {
+   "sampled": 19542,
+   "past3cm": 269,
+   "share": 0.0138,
+   "worst": 0.27
+  },
+  "debrisInside": {
+   "sampled": 0,
+   "past3cm": 0,
+   "share": 0,
+   "worst": 0
+  }
+ }
+}

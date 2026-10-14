@@ -1,0 +1,6 @@
+# scripts/graze3.js twinFloats 0 (the base rig): the trunk planted at z -0.577, the hub at -1.651 (INBOARD, in the pod)
+7.017 lat 1.0737 bite 0.0313 strike brush 0.0300
+7.100 lat 1.0666 bite 0.0384 strike brush
+7.117 lat 1.0660 bite 0.0390 strike stoppage 0.0384
+# control (graze4.js, the trunk 0.10 m clear): the hub drifts 1.6 mm outboard in 0.2 s - the trunk was pushing the pod
+# after G2367 (the trunk outboard): 'brush' 0.0314 R, the engine runs; full power: 'separation', the mount lets go 0.017 s

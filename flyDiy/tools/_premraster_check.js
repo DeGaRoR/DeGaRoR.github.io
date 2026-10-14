@@ -33,14 +33,17 @@ const exact = W.terrainHExact ? (x, z) => W.terrainHExact(x, z) : (x, z) => O.te
 let s = 20260926; const rnd = () => { s = (Math.imul(s, 1103515245) + 12345) >>> 0; return s / 4294967296; };
 // ---- 1. the raster against the analytic path
 {
+  // (G3014, ADMITTED BY NAME - A0 + the user 12 Oct, "accept 9.5 cm on road r28's grade, that road only, the raster fix in train 52: yes" (12 Oct 21:33, via A0): the user's road r28's grade is steeper than the raster's lattice
+  //  follows there - 94.8 mm at worst; held to 0.1 m, that road alone; the raster-grade fix is owed to train 52)
+  const LONE = { re: /^grade r28:/, worst: 0.10 }; let worstL = 0;
   const errs = []; let worst = null;
-  const probe = (x, z, tag) => { const d = Math.abs(W.terrainH(x, z) - exact(x, z)); errs.push(d); if (!worst || d > worst.d) worst = { d, x, z, tag }; };
+  const probe = (x, z, tag) => { const d = Math.abs(W.terrainH(x, z) - exact(x, z)); errs.push(d); if (LONE.re.test(tag)) { worstL = Math.max(worstL, d); return; } if (!worst || d > worst.d) worst = { d, x, z, tag }; };
   const mods = new Set(); O.index.rect(-1e6, -1e6, 1e6, 1e6, M => mods.add(M));
   for (const M of mods) { const b = M.bbox; for (let k = 0; k < 300; k++) { const w = F.toWorld(b.x0 + rnd() * (b.x1 - b.x0), b.z0 + rnd() * (b.z1 - b.z0)); probe(w[0], w[1], M.kind + ' ' + M.id); } }
   const st = C.siteOf('HOME').stand;
   for (let x = st.x - 40; x <= st.x + 40; x += 0.25) for (let z = st.z - 40; z <= st.z + 40; z += 0.25) probe(x, z, 'the stand');
   errs.sort((a, b) => a - b); const q = f => errs[Math.floor(f * (errs.length - 1))];
-  verdict(q(0.99) <= 0.002 && q(0.999) <= 0.01 && worst.d <= 0.06,
+  verdict(q(0.99) <= 0.002 && q(0.999) <= 0.01 && worst.d <= 0.06 && worstL <= LONE.worst,
     `the raster against the analytic ground, ${errs.length} points: p50 ${(q(0.5) * 1000).toFixed(3)} mm, p99 ${(q(0.99) * 1000).toFixed(2)} mm, p99.9 ${(q(0.999) * 1000).toFixed(1)} mm, worst ${(worst.d * 1000).toFixed(1)} mm (${worst.tag})`);
   const lvl = W.terrainH(st.x, st.z), lvl0 = exact(st.x, st.z);
   let pad = 0; for (let k = 0; k < 400; k++) pad = Math.max(pad, Math.abs(W.terrainH(st.x + (rnd() - 0.5) * 6, st.z + (rnd() - 0.5) * 6) - lvl0));
@@ -86,7 +89,9 @@ let s = 20260926; const rnd = () => { s = (Math.imul(s, 1103515245) + 12345) >>>
     const R = Ox.raster; return { made: R.baked + R.decoded, evicted: R.evicted };
   };
   const cold = sweep(false), warm = sweep(true), extra = warm.made - cold.made;
-  verdict(cold.evicted > 500 && extra >= 1 && extra <= 3,
+  // (G3014: the stand's tile may already be the sweep's own - the user's rev 26 / 27 areas reach it, so the sweep alone makes it and
+  //  it is never evicted: 0 extra; the LRU's claim is that it is never made more than a few times, where the old cache made it tens)
+  verdict(cold.evicted > 500 && extra >= 0 && extra <= 3,
     `the cache is an LRU: the stand's tile, read between every two of a sweep's reads (${cold.evicted} evictions), is made ${extra} time(s) - the sweep alone makes ${cold.made} tiles, with the stand's reads ${warm.made}`);
 }
 // ---- 3. the indexes answer as the scans

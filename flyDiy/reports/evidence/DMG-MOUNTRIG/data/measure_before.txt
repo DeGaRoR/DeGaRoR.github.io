@@ -1,0 +1,70 @@
+== Cub (93 nodes, 394 members)
+  taxi 1 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 2 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 7 cm
+  taxi 3 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 16 cm
+  taxi 4 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 26 cm
+  taxi 5 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 37 cm
+  taxi 1 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 4 cm
+  taxi 2 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 11 cm
+  taxi 3 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 19 cm
+  taxi 4 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 29 cm
+  taxi 5 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 41 cm
+  nose-over 4 m/s        broken  30 (mount 10)  work    243 J (mount 0)  CRASH (a fus member broke)  engine seized  nose 30 cm  [WR-WR 46, WR-WF 42, WR-WF 36, S1TR-S2TL 16, S1BL-S2TL 14, S1TL-S2TL 12]
+  30 m/s centreline      broken 157 (mount 12)  work  17960 J (mount 3625)  CRASH (broke up: the fuselage parted (TPB off the core))  engine seized  nose 44 cm  [ENGL-ENGR 939, VSNL-VSNR 661, S2TL-S2TR 598, S0TL-S0TR 595, VSNL-S0TR 585, VSNR-S0BL 568]
+  30 m/s 2.5 m out       broken 123 (mount 10)  work  14025 J (mount 71)  CRASH (a wing member broke)  engine seized  nose 27 cm  [WF-WR 3229, WR-WF 2572, WF-WF 1515, WR-WR 795, S1BL-WF 375, WR-WF 312]
+== Jodel (111 nodes, 492 members)
+  taxi 1 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 2 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 6 cm
+  taxi 3 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 15 cm
+  taxi 4 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 24 cm
+  taxi 5 m/s thr 0       broken   0 (mount 0)  work      4 J (mount 0)  no crash  engine seized  nose 35 cm  [TW-TPB 3, TW-TPT 1]
+  taxi 1 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 3 cm
+  taxi 2 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 9 cm
+  taxi 3 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 17 cm
+  taxi 4 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 28 cm
+  taxi 5 m/s thr 0.3     broken   0 (mount 0)  work      7 J (mount 0)  no crash  engine seized  nose 38 cm  [TW-TPB 4, TW-TPT 2]
+  nose-over 4 m/s        broken  10 (mount 10)  work      1 J (mount 0)  CRASH (a fus member broke)  engine seized  nose 34 cm
+  30 m/s centreline      broken 164 (mount 12)  work  18586 J (mount 3232)  CRASH (broke up: the fuselage parted (TPB off the core))  engine seized  nose 42 cm  [S0BL-S0BR 2704, S0BL-S0TR 1984, S0BR-S0TL 1702, S0TL-S0TR 1350, AXLEL-S0BR 969, ENGL-ENGR 820]
+  30 m/s 2.5 m out       broken  68 (mount 10)  work   1946 J (mount 0)  CRASH (a wing member broke)  engine seized  nose 31 cm  [WB-WB 209, WR-WF 181, WR-WB 142, WR-WB 142, WB-WB 141, WF-WR 137]
+== metal Cessna (103 nodes, 442 members)
+  taxi 1 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 0 cm
+  taxi 2 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 12 cm
+  taxi 3 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 26 cm
+  taxi 4 m/s thr 0       broken   0 (mount 0)  work      9 J (mount 9)  no crash  engine seized  nose 44 cm  [ENGL-S0TL 4, ENGR-S0TR 4]
+  taxi 5 m/s thr 0       broken  30 (mount 10)  work   1436 J (mount 908)  CRASH (a fus member broke)  engine seized  nose 47 cm  [ENGL-S0TL 301, ENGR-S0TR 299, ENGR-S0BR 109, ENGL-S0BL 109, WF-WB 77, S0TL-S1TL 67]
+  taxi 1 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 8 cm
+  taxi 2 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 18 cm
+  taxi 3 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 30 cm
+  taxi 4 m/s thr 0.3     broken   0 (mount 0)  work     44 J (mount 44)  no crash  engine seized  nose 47 cm  [ENGR-S0TR 22, ENGL-S0TL 22]
+  taxi 5 m/s thr 0.3     broken  30 (mount 10)  work   1605 J (mount 993)  CRASH (a fus member broke)  engine seized  nose 47 cm  [ENGL-S0TL 301, ENGR-S0TR 299, ENGR-S0BR 132, ENGL-S0BL 132, S0TL-S1TL 83, WF-WB 70]
+  nose-over 4 m/s        broken   0 (mount 0)  work    227 J (mount 0)  no crash  engine seized  nose 0 cm  [TW-S0BR 94, TW-S1BR 66, TW-S1BL 44, TW-S0BL 23]
+  30 m/s centreline      broken 209 (mount 14)  work  33540 J (mount 3789)  CRASH (broke up: the fuselage parted (TPB off the core))  engine seized  nose 47 cm  [S0BL-S0BR 1458, S0BR-S0TL 1197, S0BL-S0TR 1193, ENGL-ENGR 1183, S2TL-S2TR 1093, S2BL-S3BR 905]
+  30 m/s 2.5 m out       broken  94 (mount 12)  work  18908 J (mount 0)  CRASH (a wing member broke)  engine seized  nose 36 cm  [WF-WF 5360, S1BL-WF 2447, S1BL-WB 2443, WR-WF 1351, WF-WR 773, WR-WF 518]
+== Cessna floats (130 nodes, 533 members)
+  taxi 1 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 2 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 3 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 4 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 0 cm
+  taxi 5 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 21 cm
+  taxi 1 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 2 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 3 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 0 cm
+  taxi 4 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 2 cm
+  taxi 5 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine seized  nose 26 cm
+  nose-over 4 m/s        broken 143 (mount 10)  work  12582 J (mount 0)  CRASH (a gear member broke)  engine seized  nose 47 cm  [S0BL-S1BR 1465, S0BR-S1BL 1456, S0BL-S1BL 1137, S0BR-S1BR 1127, S0TR-S1TL 590, S2BL-S2BR 414]
+  30 m/s centreline      broken 163 (mount 12)  work  30238 J (mount 3417)  CRASH (broke up: the fuselage parted (S0BR off the core))  engine seized  nose 47 cm  [FLD-FLD 2758, S0TR-S1TL 2503, S0TL-S0TR 1230, S0BL-S0TR 1206, S0TL-S1TR 1092, ENGL-ENGR 985]
+  30 m/s 2.5 m out       broken  86 (mount 10)  work  13857 J (mount 285)  CRASH (an impact of 10 g)  engine seized  nose 28 cm  [WF-WF 3494, S1BL-WB 2092, S1BL-WF 2066, WR-WR 1193, WR-WF 1028, WF-WR 498]
+== twin floatplane (127 nodes, 519 members)
+  taxi 1 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 2 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 3 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 4 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 5 m/s thr 0       broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 1 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 2 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 3 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 4 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  taxi 5 m/s thr 0.3     broken   0 (mount 0)  work      0 J (mount 0)  no crash  engine on  nose 0 cm
+  nose-over 4 m/s        broken 181 (mount 24)  work   4976 J (mount 248)  CRASH (broke up: the fuselage parted (TPB off the core))  engine seized  nose 22 cm  [S0TR-S1BR 326, S0TL-S1BL 323, HTL-S6BL 291, HTR-S6BR 251, WR-WF 154, WF-WF 146]
+  30 m/s centreline      broken 194 (mount 24)  work  43455 J (mount 0)  CRASH (broke up: the fuselage parted (TPB off the core))  engine seized  nose 6 cm  [WF-WF 6000, WF-WR 1957, WF-WR 1946, WF-S1TR 1911, WF-S1TL 1779, S0TL-S0TR 1429]
+  30 m/s 2.5 m out       broken 132 (mount 24)  work  14310 J (mount 0)  CRASH (broke up: the fuselage parted (TPB off the core))  engine seized  nose 5 cm  [WF-WF 3764, WF-WR 2307, WR-WR 2248, WR-WF 1394, S1BL-WF 398, S0BL-S1BL 368]

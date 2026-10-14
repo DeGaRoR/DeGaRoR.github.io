@@ -238,7 +238,7 @@ function applyHinges(hb, surfaces, base, pos, ctl) {
     const g = hb.per[si], [px, py, pz] = s.p, [ax, ay, az] = s.ax;
     for (let j = 0; j < g.idx.length; j++) {
       const i = g.idx[j], a = ang * g.w[j];
-      const c = Math.cos(a), s_ = Math.sin(a), C = 1 - c;
+      const c = CORE_MATH.cos(a), s_ = CORE_MATH.sin(a), C = 1 - c;
       const vx = base[i*3] - px, vy = base[i*3+1] - py, vz = base[i*3+2] - pz;
       const d = ax*vx + ay*vy + az*vz;
       pos[i*3]   = px + vx*c + (ay*vz - az*vy)*s_ + ax*d*C;
