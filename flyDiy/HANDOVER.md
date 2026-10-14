@@ -93327,3 +93327,12 @@ READY for the GAME COORDINATOR (train 52: the garage Wait fix, c38a5e99's code +
 ## Train 56 (A0, 14 Oct 20:55)
 Landed: CAREER ON (G2740, 31d61c631: DESTTO's row updated for the flip), DMG impact-lag v1 (G3022: one shared GPU read-back, no hypot), DMGUPLOAD stage-robust row (d4e497ecf), trees cut only on the strip: rwyTrees 'mapx' default (ED-2 be453a378, LINEUP PASS), the benches load matlib.js (cbd553a51).
 Strict light gate: PASS, 138 rows in slack, 12 better, 0 red. Gates: CLOUD (lamps, known), SKINMAT + WEATHER (master's stale strip; fixed by the garage group, train 57), DMGUPLOAD still red (the Cub staging breaks nothing even with the retries - Deform), FRAMECOST 2 rows from mapx's trees by the strip (taxi tris.shadow 1.78 -> 3.66 M, bindBuffer 2 -> 7): the look the user asked for, to admit by ALLOW.
+
+## OBJECTIVE 1 - SCENERY-ED-2 (G3090 / G3091 + G2893's toggles): ON HOLD FOR CREDITS (15 Oct)
+- origin claude/ed2-obj1 = 591ac20b1 (master e21d9c7fc + 7 commits; merge-tree clean on a7e449434). node --check ONLY - NO gate has passed on it.
+  A0's early landing crashed SCENERYED on 2efb7bb9a; both causes fixed in 591ac20b1 (wayRows / plotRows take `ed`; row 31 re-draws the inspector).
+- Content: road guardrail / power-line toggles (ED-1's G2893 + polesSide, SCENERYED 30); the base zone (base plots' discs, typed stand / hangar /
+  way-out points, plots added / removed, SCENERYED 31); editor_lag labels; flRange typed (app.js, droppable alone); FRAMECOST 'mapx' ALLOWs;
+  the runway profile drag applies its terraform.
+- AFTER THE RESET, first: build + run_gates --only SCENERYED,PREMISES,SCENERY,UISMOKE,UISMOKE-PHONE,PATCHFAR,STAGES,TAXICLEAR,LINEUP,PREMCOOK
+  (scratchpad window_obj1.sh, its times to change); then land. TAXICLEAR's Jumbo numbers may move (poles 'off' by the lane honoured).
