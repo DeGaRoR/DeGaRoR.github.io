@@ -22,7 +22,7 @@ const { spawn, execSync, spawnSync } = require('child_process');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const flag = k => argv.includes('--' + k);
-{ const known = new Set(['plan', 'prepare', 'run', 'report', 'trains', 'all', 'add', 'until', 'port', 'secs']);
+{ const known = new Set(['plan', 'prepare', 'run', 'report', 'trains', 'all', 'add', 'until', 'port', 'secs', 'runs', 'reps', 'raw']);
   for (let i = 0; i < argv.length; i++) { const a = argv[i]; if (!a.startsWith('--')) continue; if (!known.has(a.slice(2))) { console.error('perf_ledger: unknown flag ' + a + ' - nothing run (known: ' + [...known].join(', ') + ')'); process.exit(2); } } }
 
 const ROOT = path.join(__dirname, '..', '..');                 // this tree's flyDiy
@@ -30,7 +30,7 @@ const REPO = path.resolve(ROOT, '..');
 const MAIN = 'D:/Dev/DeGaRoR.github.io';                       // the fallback for gitignored data (bench/, assets/*, node_modules)
 const WT = 'D:/pl';                                            // the trees: D:/pl/<label>
 const UDD = 'D:/plu';                                          // the profiles: D:/plu/<label> (SHORT: MAX_PATH)
-const OUT = path.join(ROOT, 'reports', 'evidence', 'PERF-LEDGER'), RAW = path.join(OUT, 'raw');
+const RAW = opt('raw', null) ? path.resolve(opt('raw')) : path.join(ROOT, 'reports', 'evidence', 'PERF-LEDGER', 'raw'), OUT = path.dirname(RAW);
 // the chain, oldest first: each train's BUILT master (git log origin/master: '(built)'; 44.1 alone = train t441's cook commit on
 // 44.4, before 44.3 merged; 44.1 + 44.3 landed as ONE built commit)
 const TRAINS = [
@@ -38,18 +38,22 @@ const TRAINS = [
   ['t38', 'd05252a9e'], ['t40', '7937e8ed2'], ['t42', '26e04598b'], ['t42.1', '6c1fa3c8'], ['t43', '37bf53368'], ['t43.2', '0402e132b'],
   ['t44.4', 'c12f0490c'], ['t44.1', '6c9dad5ec', '44.1 alone (t441 on 44.4)'], ['t44.3', 'f353a0f89', '44.1 + 44.3'],
   ['t47', '31803829d'], ['t48', '5df684f01'], ['t44', 'f09cf417f'], ['t50', '0b42f6826'], ['ship', '09683cb08', 'SCENERY-SHIP'],
-  ['t41b', '9450f0e5a'],
+  ['t41b', '9450f0e5a'], ['t52ab', '750d85b86'], ['t54b', 'b0cbaf781'],
 ];
 for (const a of (opt('add', '') || '').split(',').filter(Boolean)) { const [l, c] = a.split('='); TRAINS.push([l, c, 'added']); }
 const PRIORITY = ['3oct', 't43', 't44.1', 't44.3', 't44', 't50', 'ship', 't41b'];   // A0: if 2 h cannot cover every train
 const pick = flag('all') ? TRAINS.map(t => t[0]) : (opt('trains', null) ? opt('trains').split(',') : PRIORITY.concat(TRAINS.filter(t => t[2] === 'added').map(t => t[0])));
 const SEL = TRAINS.filter(t => pick.includes(t[0]));
 for (const l of pick) if (!TRAINS.some(t => t[0] === l)) { console.error('perf_ledger: unknown train ' + l); process.exit(2); }
+// --runs cub:chase,metal:cockpit - a subset (PERF-PRESTUDY's +22 s question: the Cub chase alone); --reps n measured runs a visit
 const RUNS = [['cub', 'builds/cub_2026-09-20_corrected.json'], ['metal', 'bugReports/cessnaMetal (1).json']]
-  .flatMap(([b, f]) => ['chase', 'cockpit'].map(c => ({ b, f, c })));
+  .flatMap(([b, f]) => ['chase', 'cockpit'].map(c => ({ b, f, c })))
+  .filter(R => !opt('runs', null) || opt('runs').split(',').includes(R.b + ':' + R.c));
+const REPS = Math.max(1, +opt('reps', 1) || 1);
+const WARMS = [...new Map(RUNS.map(R => [R.b, R.f])).entries()];   // a warm-up a build measured (discarded)
 const SECS = +opt('secs', 20), RUN_S = 83, WARM_S = 66;       // the light gate's own estimates a run
 const VISITS = [...SEL].reverse().map(t => ({ t, pass: 1 })).concat(SEL.map(t => ({ t, pass: 2 })));
-const visitS = v => (v.pass === 1 ? 2 * WARM_S : 0) + RUNS.length * RUN_S + 15;
+const visitS = v => (v.pass === 1 ? WARMS.length * WARM_S : 0) + RUNS.length * REPS * RUN_S + 15;
 const tree = l => path.join(WT, l.replace(/\./g, '_'));
 const now = () => new Date().toTimeString().slice(0, 8);
 const log = s => console.log(now() + ' ' + s);
@@ -113,14 +117,14 @@ if (flag('run')) (async () => {
     if (!up) { log(l + ': the server never answered on ' + PORT + ' - skipped'); killTree(srv.pid); continue; }
     const udd = path.join(UDD, l.replace(/\./g, '_'));
     log('== ' + l + ' (' + c + ') pass ' + v.pass + (v.t[2] ? ' - ' + v.t[2] : ''));
-    if (v.pass === 1 || !fs.existsSync(udd)) for (const [b, f] of [['cub', RUNS[0].f], ['metal', RUNS[2].f]]) {
+    if (v.pass === 1 || !fs.existsSync(udd)) for (const [b, f] of WARMS) {
       if (Date.now() + WARM_S * 1000 > end) break;
       const r = await runRig(['--url', URL, '--build', f, '--cam', 'cockpit', '--secs', '3', '--udd', udd, '--label', 'pl_warm', '--out', path.join(UDD, 'warm.json')], 240);
       log('  warm ' + b + ' (discarded)' + (r.code ? ' exit ' + r.code : ''));
     }
-    for (const R of RUNS) {
+    for (const R of RUNS) for (let k = 1; k <= REPS; k++) {
       if (Date.now() + RUN_S * 1000 > end) { log('  the hard stop: ' + R.b + ' ' + R.c + ' skipped'); continue; }
-      const lab = ['pl', l, 'p' + v.pass, R.b, R.c].join('_'), out = path.join(RAW, lab + '.json');
+      const lab = ['pl', l, 'p' + v.pass, R.b, R.c].concat(REPS > 1 ? ['r' + k] : []).join('_'), out = path.join(RAW, lab + '.json');
       const r = await runRig(['--url', URL, '--build', R.f, '--cam', R.c, '--secs', String(SECS), '--udd', udd, '--label', lab, '--out', out, '--eval', EVAL], 300);
       const j = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, 'utf8')) : null;
       const ph = j && j.phases || {}, s = ph.stand || {}, t = ph.taxi || {};
@@ -137,15 +141,17 @@ if (flag('report')) {
   const files = fs.existsSync(RAW) ? fs.readdirSync(RAW).filter(f => /^pl_.*\.json$/.test(f)) : [];
   const rows = {};   // label -> build_cam -> [results]
   for (const f of files) {
-    const m = /^pl_(.+)_p(\d)_(cub|metal)_(chase|cockpit)\.json$/.exec(f); if (!m) continue;
+    const m = /^pl_(.+)_p(\d)_(cub|metal)_(chase|cockpit)(?:_r\d+)?\.json$/.exec(f); if (!m) continue;
     const j = JSON.parse(fs.readFileSync(path.join(RAW, f), 'utf8')), ph = j.phases || {}, s = ph.stand || {}, t = ph.taxi || {};
-    let gfx = null; try { gfx = typeof j.eval === 'string' ? JSON.parse(j.eval) : j.eval; } catch (e) {}
+    let gfx = j.eval; for (let i = 0; i < 2 && typeof gfx === 'string'; i++) { try { gfx = JSON.parse(gfx); } catch (e) { gfx = null; } }
+    const steps = {}; { let set = null; for (const b of (j.bootLog || [])) { if (b.k === 'run') { set = b.set; continue; } if (b.k === 'step' && set === 'garage') steps[b.id] = (steps[b.id] || 0) + (b.ms || 0); } }
+    const dts = (j.frames || []).map(r => r[1]).filter(x => x > 0), o34 = dts.length ? 100 * dts.filter(x => x > 34).length / dts.length : null;
     ((rows[m[1]] = rows[m[1]] || {})[m[3] + ' ' + m[4]] = rows[m[1]][m[3] + ' ' + m[4]] || []).push({ pass: +m[2], preset: gfx && gfx.preset,
       sLoop: s.workMed, sRender: s.renderMed, sWorld: s.worldMed, sDraws: s.drawsMed, sFps: s.fpsDelivered,
       tLoop: t.workMed, tRender: t.renderMed, tWorld: t.worldMed, tDraws: t.drawsMed, tFps: t.fpsDelivered, tP99: t.dtP99,
-      garage: j.tGarage, rollout: j.tReveal });
+      garage: j.tGarage, rollout: j.tReveal, o34, steps });
   }
-  const K = ['sLoop', 'sRender', 'sWorld', 'sDraws', 'tLoop', 'tRender', 'tWorld', 'tDraws', 'tFps', 'tP99', 'garage', 'rollout'];
+  const K = ['sLoop', 'sRender', 'sWorld', 'sDraws', 'tLoop', 'tRender', 'tWorld', 'tDraws', 'tFps', 'tP99', 'o34', 'garage', 'rollout'];
   const mean = (a, k) => { const v = a.map(r => r[k]).filter(x => typeof x === 'number'); return v.length ? v.reduce((p, q) => p + q, 0) / v.length : null; };
   const f1 = x => (x == null ? '-' : Math.abs(x) >= 100 ? x.toFixed(0) : x.toFixed(1)), sg = x => (x == null ? '-' : (x > 0 ? '+' : '') + f1(x));
   const order = TRAINS.map(t => t[0]).filter(l => rows[l]);
@@ -153,7 +159,7 @@ if (flag('report')) {
     'HOME, the box\'s default preset (GFX.get() per run below), 20 s recorded a run; each cell the mean of the train\'s visits (n). ' +
     'stand / taxi: loop = the frame\'s JS work, render = renderer.render() CPU, world = WORLD.worldUpdate, draws = draw calls a frame (shadows included); ' +
     'garage = navigation -> garage (s), roll-out = Roll out -> flight (s). The second line of a train: the delta to the train above.', ''];
-  const cols = ['stand loop', 'stand render', 'stand world', 'stand draws', 'taxi loop', 'taxi render', 'taxi world', 'taxi draws', 'taxi fps', 'taxi p99', 'garage s', 'roll-out s'];
+  const cols = ['stand loop', 'stand render', 'stand world', 'stand draws', 'taxi loop', 'taxi render', 'taxi world', 'taxi draws', 'taxi fps', 'taxi p99', 'over 34 ms %', 'garage s', 'roll-out s'];
   const J = {};
   for (const bc of RUNS.map(R => R.b + ' ' + R.c)) {
     L.push('## ' + bc, '', '| train | n | preset | ' + cols.join(' | ') + ' |', '|' + ' --- |'.repeat(cols.length + 3));
@@ -167,6 +173,21 @@ if (flag('report')) {
       prev = { l, m };
     }
     L.push('');
+    // THE LOAD BY STEP (PERF-PRESTUDY: "what added +22 s of warm load?"): the garage boot's steps (ms), each train's mean, the delta
+    const ids = [...new Set(order.flatMap(l => ((rows[l] || {})[bc] || []).flatMap(r => Object.keys(r.steps || {}))))];
+    if (ids.length) {
+      const sm = (l, id) => mean(((rows[l] || {})[bc] || []).map(r => ({ v: r.steps ? r.steps[id] || 0 : null })), 'v');
+      L.push('### ' + bc + ' - the garage boot by step (ms; the delta to the train above below each)', '', '| train | ' + ids.join(' | ') + ' | sum |', '|' + ' --- |'.repeat(ids.length + 2));
+      let pv = null; const grew = [];
+      for (const l of order) { if (!((rows[l] || {})[bc] || []).length) continue;
+        const v = ids.map(id => sm(l, id)), sum = v.reduce((p, q) => p + (q || 0), 0);
+        L.push('| ' + l + ' | ' + v.map(x => (x == null ? '-' : Math.round(x))).join(' | ') + ' | ' + Math.round(sum) + ' |');
+        if (pv) { const d = v.map((x, i) => (x != null && pv.v[i] != null ? x - pv.v[i] : null));
+          L.push('| &nbsp;&nbsp;Δ vs ' + pv.l + ' | ' + d.map(x => (x == null ? '-' : (x > 0 ? '+' : '') + Math.round(x))).join(' | ') + ' | ' + (sum - pv.sum > 0 ? '+' : '') + Math.round(sum - pv.sum) + ' |');
+          d.forEach((x, i) => { if (x != null && Math.abs(x) >= 1000) grew.push(pv.l + ' -> ' + l + ': ' + ids[i] + ' ' + (x > 0 ? '+' : '') + (x / 1000).toFixed(1) + ' s'); }); }
+        pv = { l, v, sum }; }
+      L.push('', '**Steps that moved by 1 s or more:** ' + (grew.length ? grew.join('; ') : 'none'), '');
+    }
   }
   fs.mkdirSync(OUT, { recursive: true });
   fs.writeFileSync(path.join(OUT, 'ledger.md'), L.join('\n'));
