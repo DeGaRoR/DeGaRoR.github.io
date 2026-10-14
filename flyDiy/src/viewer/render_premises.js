@@ -2755,6 +2755,9 @@ function make(THREE, scene, world, rec0, opts) {
         (f.entry.taxiOut1 || []).forEach((q, i) => put(q, 'ty' + i, true)); }   // G772: the way out toward end1
       // THE CLUB HANGAR (G434): its disc moves the garage's shell; the inspector turns it
       if (f.entry.hangar) put([f.entry.hangar.x, f.entry.hangar.z], 'hangar');
+      // (G3091, objective 1) THE BASE PLOTS: a disc each (it moves the plot with its stand and way out), a small one for its stand
+      for (const q of f.entry.plots || []) { if (!q || !isFinite(+q.x) || !isFinite(+q.z)) continue; put([+q.x, +q.z], 'pl:' + q.id);
+        if (q.stand && isFinite(+q.stand.x) && isFinite(+q.stand.z)) put([+q.stand.x, +q.stand.z], 'ps:' + q.id, true); }
       // THE HOLDS: the pattern's two stop bars, draggable along the centreline (the pattern's hand)
       const A = O.aerodromes[O.runways.findIndex(r => r.id === selectedId)];
       if (A && SITE.sitePattern) {

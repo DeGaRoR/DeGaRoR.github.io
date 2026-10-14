@@ -996,6 +996,14 @@ function mount(host, ctx) {
       }
     }
     // (G1400: `drag.runway &&` - a polygon's or a road's corner has no runway key, and its drag threw here on every move: no corner could be dragged)
+    else if (drag.runway && (drag.runway.indexOf('pl:') === 0 || drag.runway.indexOf('ps:') === 0)) {
+      // (G3091, objective 1) A BASE PLOT's disc moves the plot (its stand and its way out with it); its stand's disc the stand alone
+      const e = found.entry, p = (e.plots || []).find(q => q && q.id === drag.runway.slice(3));
+      if (p && drag.runway[1] === 'l') { const dx = +L[0].toFixed(2) - p.x, dz = +L[1].toFixed(2) - p.z; p.x = +L[0].toFixed(2); p.z = +L[1].toFixed(2);
+        if (p.stand) { p.stand.x = +(p.stand.x + dx).toFixed(2); p.stand.z = +(p.stand.z + dz).toFixed(2); }
+        for (const k of ['taxiOut', 'taxiOut1']) if (Array.isArray(p[k])) p[k] = p[k].map((q, i, a) => i === a.length - 1 ? q : [+(q[0] + dx).toFixed(2), +(q[1] + dz).toFixed(2)]); }
+      else if (p && p.stand) { p.stand.x = +L[0].toFixed(2); p.stand.z = +L[1].toFixed(2); }
+    }
     else if (drag.runway && (drag.runway === 'stand' || drag.runway === 'hangar' || drag.runway.indexOf('tx') === 0 || drag.runway.indexOf('ty') === 0)) {
       // the stand or a taxi point moves; the LAST taxi point stays on the centreline (it is the entry)
       const e = found.entry, E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, e));
@@ -1566,8 +1574,13 @@ function mount(host, ctx) {
       rows.note(insp, 'drag an end disc to turn or stretch the strip (the other end stays); the faint disc moves it whole; the amber discs are the holds - drag one along the strip and the validator answers');
       if (e.stand && e.taxiOut) {
         rows.note(insp, 'THE STAND: the aeroplane starts here, parked toward its first taxi point; the way out runs through ' + e.taxiOut.length + ' point' + (e.taxiOut.length > 1 ? 's' : '') + ' to the centreline');
-        rows.button(insp, 'add a taxi point', () => ed(x => { const t = x.taxiOut, n = t.length, a = n > 1 ? t[n - 2] : [x.stand.x, x.stand.z], b = t[n - 1]; t.splice(n - 1, 0, [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]); }, 'taxi point of ' + id));
-        if (e.taxiOut.length > 1) rows.button(insp, 'drop the last taxi point before the entry', () => ed(x => { x.taxiOut.splice(x.taxiOut.length - 2, 1); }, 'taxi point of ' + id));
+        // (G3091, objective 1; the user: "the main hangar rotation, position, taxiways, spawn points ... will need to be redone")
+        numRow(insp, 'stand x (m)', () => e.stand.x, v => ed(x => { x.stand.x = +v.toFixed(2); }, 'stand of ' + id, 'sx'), metres);
+        numRow(insp, 'stand z (m)', () => e.stand.z, v => ed(x => { x.stand.z = +v.toFixed(2); }, 'stand of ' + id, 'sz'), metres);
+        standHeading(insp, e.stand, e.taxiOut, f => ed(x => f(x.stand), 'heading of the stand of ' + id, 'shdg'));
+        wayRows(insp, e, 'taxiOut', 'the way out toward end 0', id);
+        if (e.taxiOut1) wayRows(insp, e, 'taxiOut1', 'the way out toward end 1', id);
+        else rows.button(insp, 'add a way out toward end 1', () => ed(x => { x.taxiOut1 = wayToward(x, x.stand, 1); }, 'way out of ' + id));
         rows.button(insp, 'remove the stand', () => ed(x => { x.stand = null; x.taxiOut = null; x.taxiOut1 = null; }, 'stand of ' + id));
       } else rows.note(insp, 'no stand: the aeroplane starts 35 m in from end 0 (the stand tool puts one beside the strip)');
       // THE CLUB HANGAR (G434): the garage's own shell stood at the field - the building the aeroplane rolls
@@ -1576,6 +1589,8 @@ function mount(host, ctx) {
       if (e.hangar) {
         rows.note(insp, 'THE CLUB HANGAR: the garage\'s shell stands here, its door facing ' + ((+e.hangar.hdg || 0) * 180 / Math.PI).toFixed(0) + '°; drag its disc to move it');
         rows.slider(insp, 'door faces (°)', -180, 180, 1, () => (+e.hangar.hdg || 0) * 180 / Math.PI, v => ed(x => { x.hangar.hdg = v * Math.PI / 180; }, 'hangar of ' + id, 'hangarHdg'), v => v.toFixed(0) + '°');
+        numRow(insp, 'hangar x (m)', () => e.hangar.x, v => ed(x => { x.hangar.x = +v.toFixed(2); }, 'hangar of ' + id, 'hx'), metres);   // (G3091)
+        numRow(insp, 'hangar z (m)', () => e.hangar.z, v => ed(x => { x.hangar.z = +v.toFixed(2); }, 'hangar of ' + id, 'hz'), metres);
         rows.button(insp, 'remove the club hangar', () => ed(x => { x.hangar = null; }, 'hangar of ' + id));
       } else if (e.stand) {
         rows.button(insp, 'stand the club hangar behind the stand', () => ed(x => {
@@ -1583,6 +1598,7 @@ function mount(host, ctx) {
           x.hangar = { x: +(x.stand.x - 34 * Math.cos(h)).toFixed(2), z: +(x.stand.z - 34 * Math.sin(h)).toFixed(2), hdg: +h.toFixed(4) };
         }, 'hangar of ' + id));
       } else rows.note(insp, 'a club hangar (the garage\'s shell) can stand behind a stand: put the stand first');
+      plotRows(insp, e, id);   // (G3091: the base plots)
       if (e.site && e.site.pattern) rows.button(insp, 'pattern: back to the derived one', () => ed(x => { const st = Object.assign({}, x.site); delete st.pattern; x.site = Object.keys(st).length ? st : null; }, 'derived pattern of ' + id));
       else rows.note(insp, 'the pattern is the DERIVED one (two holds 110 m in); touch a hold and it becomes yours');
     } else if (layer === 'sites') {
@@ -1636,8 +1652,6 @@ function mount(host, ctx) {
     } else if (layer === 'objects' && (e.kind === 'prop' || e.kind === 'billboard' || e.kind === 'aircraft')) {
       const keys = objectKeys(e.kind, rec);
       if (keys.length) rows.select(insp, e.kind, keys, () => e.key, v => ed(x => { x.key = v; }, e.kind + ' of ' + id));
-      numRow(insp, 'x (m)', () => e.x, v => ed(x => { x.x = +v.toFixed(2); }, 'place of ' + id, 'x'), metres);
-      numRow(insp, 'z (m)', () => e.z, v => ed(x => { x.z = +v.toFixed(2); }, 'place of ' + id, 'z'), metres);
       numRow(insp, 'x (m)', () => e.x, v => ed(x => { x.x = +v.toFixed(2); }, 'place of ' + id, 'x'), metres);
       numRow(insp, 'z (m)', () => e.z, v => ed(x => { x.z = +v.toFixed(2); }, 'place of ' + id, 'z'), metres);
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
@@ -2179,6 +2193,62 @@ function mount(host, ctx) {
   }
   // (G3018, the user: 'I need to be able to manually input a figure') a typed number with no slider - the host's, when it has one
   const numRow = (p, label, get, set, fmt) => (rows.number ? rows.number(p, label, get, set, fmt) : null);
+  // (G3091, objective 1) THE BASE ZONE'S ROWS. A stand's PARKED HEADING: its own `hdg` (radians) or, null, toward its first taxi
+  // point (placeAtStand's rule) - the row shows the heading it parks at either way; 'toward the way out' gives it back
+  const DEG = 180 / Math.PI, wrapDeg = d => ((d + 180) % 360 + 360) % 360 - 180;
+  const standHdg = (st, way) => (st.hdg !== null && st.hdg !== undefined && isFinite(+st.hdg)) ? +st.hdg : (way && way.length ? Math.atan2(way[0][1] - st.z, way[0][0] - st.x) : 0);
+  function standHeading(p, st, way, apply, pre) {
+    pre = pre || '';
+    rows.slider(p, pre + 'parked heading (°)', -180, 180, 1, () => wrapDeg(standHdg(st, way) * DEG), v => apply(s => { s.hdg = +(v / DEG).toFixed(4); }), v => v.toFixed(0) + '°' + (st.hdg === null || st.hdg === undefined ? ' (toward the way out)' : ''));
+    if (st.hdg !== null && st.hdg !== undefined) rows.button(p, pre + 'parked heading: toward the way out', () => apply(s => { s.hdg = null; }));
+  }
+  // A WAY OUT's points, typed; the last is the entry, on the centreline (a typed entry is taken to its nearest centreline point,
+  // as its drag is); a point added after any but the entry (half way to the next), removed (never the entry)
+  const onLine = (x, q) => { const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, x)), along = (q[0] - x.c[0]) * E.d[0] + (q[1] - x.c[1]) * E.d[1]; return [+(x.c[0] + E.d[0] * along).toFixed(2), +(x.c[1] + E.d[1] * along).toFixed(2)]; };
+  function wayRows(p, e, key, label, id) {
+    const W = e[key]; if (!Array.isArray(W) || !W.length) return;
+    rows.note(p, label.toUpperCase() + ': ' + W.length + ' point' + (W.length > 1 ? 's' : '') + ' (the last is the entry on the centreline)');
+    W.forEach((q, i) => {
+      const last = i === W.length - 1, set = (k, v) => ed(x => { const T = x[key], P = T[i].slice(); P[k] = +v.toFixed(2); T[i] = last ? onLine(x, P) : P; }, 'way out of ' + id, key + i + k);
+      numRow(p, (last ? 'entry' : 'point ' + (i + 1)) + ' x (m)', () => W[i][0], v => set(0, v), metres);
+      numRow(p, (last ? 'entry' : 'point ' + (i + 1)) + ' z (m)', () => W[i][1], v => set(1, v), metres);
+      if (!last) rows.button(p, 'add a point after point ' + (i + 1), () => ed(x => { const T = x[key], a = T[i], b = T[i + 1]; T.splice(i + 1, 0, [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]); }, 'way out of ' + id));
+      if (!last && W.length > 1) rows.button(p, 'remove point ' + (i + 1), () => ed(x => { x[key].splice(i, 1); }, 'way out of ' + id));
+    });
+    if (key === 'taxiOut1') rows.button(p, 'remove the way out toward end 1', () => ed(x => { x.taxiOut1 = null; }, 'way out of ' + id));
+  }
+  // a new way out toward end k (0 / 1): half way from the stand to the centreline, then the entry 60 m along toward that end
+  function wayToward(x, st, k) {
+    const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, x)), P = onLine(x, [st.x, st.z]), sg = k ? 1 : -1;
+    const entry = onLine(x, [P[0] + E.d[0] * 60 * sg, P[1] + E.d[1] * 60 * sg]);
+    return [[+((st.x + P[0]) / 2).toFixed(2), +((st.z + P[1]) / 2).toFixed(2)], entry];
+  }
+  // THE BASE PLOTS (the career's: where a player's hangar stands - HOME.2 and the others): a disc each on the map (its stand's too),
+  // the place and heading typed, a stand of its own given or taken (without one the field's stand and way out serve it), a plot
+  // added beside the stand, removed
+  function plotRows(p, e, id) {
+    const P = Array.isArray(e.plots) ? e.plots : [];
+    rows.note(p, 'BASE PLOTS: ' + (P.length ? P.map(q => q.id).join(', ') + ' - drag a plot\'s disc (its stand and way out come with it), its stand\'s small disc alone' : 'none'));
+    P.forEach((q, i) => {
+      const pid = q.id, upd = (f, k) => ed(x => f(x.plots[i]), 'plot ' + pid + ' of ' + id, k ? 'p' + i + k : undefined);
+      rows.note(p, 'PLOT ' + pid);
+      numRow(p, pid + ' x (m)', () => q.x, v => upd(o => { o.x = +v.toFixed(2); }, 'x'), metres);
+      numRow(p, pid + ' z (m)', () => q.z, v => upd(o => { o.z = +v.toFixed(2); }, 'z'), metres);
+      rows.slider(p, pid + ' heading (°)', -180, 180, 1, () => wrapDeg((+q.hdg || 0) * DEG), v => upd(o => { o.hdg = +(v / DEG).toFixed(4); }, 'h'), v => v.toFixed(0) + '°');
+      if (q.stand) {
+        numRow(p, pid + ' stand x (m)', () => q.stand.x, v => upd(o => { o.stand.x = +v.toFixed(2); }, 'sx'), metres);
+        numRow(p, pid + ' stand z (m)', () => q.stand.z, v => upd(o => { o.stand.z = +v.toFixed(2); }, 'sz'), metres);
+        standHeading(p, q.stand, q.taxiOut, f => upd(o => f(o.stand), 'sh'), pid + ' ');
+        rows.button(p, pid + ': no stand of its own (the field\'s serves it)', () => upd(o => { delete o.stand; delete o.taxiOut; delete o.taxiOut1; }));
+      } else rows.button(p, pid + ': give it a stand of its own', () => upd(o => { const h = +o.hdg || 0; o.stand = { x: +(o.x + 20 * Math.cos(h)).toFixed(2), z: +(o.z + 20 * Math.sin(h)).toFixed(2), hdg: null }; }));
+      rows.button(p, 'remove plot ' + pid, () => ed(x => { x.plots.splice(i, 1); if (!x.plots.length) x.plots = null; }, 'plot ' + pid + ' of ' + id));
+    });
+    if (e.stand) rows.button(p, 'add a base plot beside the stand', () => ed(x => {
+      const ids = new Set((x.plots || []).map(q => q.id)); let n = 2; while (ids.has(id + '.' + n)) n++;
+      const h = standHdg(x.stand, x.taxiOut);
+      x.plots = (x.plots || []).concat([{ id: id + '.' + n, x: +(x.stand.x - 40 * Math.sin(h)).toFixed(2), z: +(x.stand.z + 40 * Math.cos(h)).toFixed(2), hdg: +h.toFixed(4) }]);
+    }, 'plot of ' + id));
+  }
   const metres = v => (+v).toFixed(1) + ' m';
   function viewRows(P) {
     rows.section(P, 'VIEW');
