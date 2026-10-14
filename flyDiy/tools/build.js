@@ -1071,10 +1071,10 @@ function buildViewer(core) {
     var gb = gq || (gs && (gs.build || gs.preset)); if (gb === 'potato' || gb === 'laptop') townOn = false; } catch (e) {} }
   window.FLYDIY_TOWN_VARIANT = townOn ? 'town' : 'default';
   // (G1091, POLISH-2) THE TREES BY THE RUNWAYS: ?rwytrees=today|map|mapx (or localStorage flydiy.rwytrees) - read by
-  // the premises' composition (27_premises.js rwyTreesMode) for a data island; anything else is 'today', the default
+  // the premises' composition (27_premises.js rwyTreesMode) for a data island; anything else is 'mapx', the default (G3023)
   var rt = new URLSearchParams(location.search).get('rwytrees');
   if (rt === null) { try { rt = localStorage.getItem('flydiy.rwytrees'); } catch (e) {} }
-  window.FLYDIY_RWYTREES = rt === 'map' || rt === 'mapx' ? rt : 'today';
+  window.FLYDIY_RWYTREES = rt === 'today' || rt === 'map' ? rt : 'mapx';   // (G3023: 'mapx' the default)
   var u8 = function (b) { return new Uint8Array(b); };
   var gz = function (buf) { var ds = new DecompressionStream('gzip'); return new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer().then(u8); };
   // the manifest key is a dotted path; this is the only assembly either
