@@ -512,9 +512,23 @@
   // by careerNew (a fixed seed) on the first load, the saved builds lifted into ITS fleet as the sandbox lifts them -
   // and the sandbox's flydiy.player is not read or written. WITHOUT the flag nothing below the CAREER_DEV guards runs:
   // no career key is written and the sandbox is today's page (GATE UISMOKE / DESTTO hold both).
-  const CAREER_DEV = (() => { try { return /[?&]career=1(&|$)/.test(window.location.search || ''); } catch (e) { return false; } })()
-    && typeof careerNew === 'function';
-  const PLAYER_KEY = CAREER_DEV ? careerKey('dev') : 'flydiy.player';
+  // G2740 (CAREER-ON, the user 13 Oct): the welcome's career (New career / Continue: window.FLYDIY_MODE 'career', decided
+  // before this script runs; career_core.<h8>.js fetched by that same choice - CAREER-LAZY) turns the career on too, on its
+  // own document flydiy.career.main; ?career=1 stays THE DEV CAREER on flydiy.career.dev. The name CAREER_DEV is kept
+  // (every career guard reads it): it means "a career is on". The sandbox: neither, today's page byte for byte.
+  const CAREER_DEVFLAG = (() => { try { return /[?&]career=1(&|$)/.test(window.location.search || ''); } catch (e) { return false; } })();
+  const CAREER_DEV = (CAREER_DEVFLAG || (typeof window !== 'undefined' && window.FLYDIY_MODE === 'career')) && typeof careerNew === 'function';
+  const CAREER_ID = CAREER_DEVFLAG ? 'dev' : 'main';
+  const PLAYER_KEY = CAREER_DEV ? careerKey(CAREER_ID) : 'flydiy.player';
+  // a New career over a saved one (welcome.js sets flydiy.career.fresh): the old document is kept under <key>.prev, once
+  if (CAREER_DEV && CAREER_ID === 'main') try {
+    if (localStorage.getItem('flydiy.career.fresh') === '1') {
+      const old = localStorage.getItem(PLAYER_KEY);
+      if (old) localStorage.setItem(PLAYER_KEY + '.prev', old);
+      localStorage.removeItem(PLAYER_KEY);
+      localStorage.removeItem('flydiy.career.fresh');
+    }
+  } catch (e) {}
   let ecWalletEl = null, ecNote = '';      // G2260 (ECONOMY): the garage's wallet line (career only; its page half below)
   // G2315 (GARAGE-RESIDENTS): the career's airframes stand in its garage as fleet props, so the career turns the fleet on
   // (FLEET-PROPS A's bake on save, decode at the stand) unless the page said otherwise; the sandbox is untouched
@@ -526,7 +540,8 @@
     // G2630: a document that does not parse is SET ASIDE under <key>.corrupt (never silently lifted over and lost)
     { const txt = prefGet(PLAYER_KEY, null); doc = jsonReadFinite(txt, 'the player document');
       if (txt != null && doc == null && txt !== 'null') prefSet(PLAYER_KEY + '.corrupt', txt); }
-    if (!doc && CAREER_DEV) doc = careerNew({ id: 'dev', seed: 'dev', name: 'the dev career', started: new Date().toISOString().slice(0, 10) });
+    const dev = CAREER_ID === 'dev', birth = { id: CAREER_ID, seed: dev ? 'dev' : 'c' + Date.now().toString(36), name: dev ? 'the dev career' : 'your career', started: new Date().toISOString().slice(0, 10) };
+    if (!doc && CAREER_DEV) doc = careerNew(birth);
     else if (!doc) {                         // the one-time lift
       let dims = null, parts = null;
       try { dims = JSON.parse(prefGet('flydiy.hangarDims', 'null')); } catch (e) {}

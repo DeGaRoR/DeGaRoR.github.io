@@ -443,12 +443,13 @@ const modes = async () => {
   vm.runInNewContext(wsrc, Object.assign({ window: ww }, ww));
   const WL = ww.WELCOME, nav = { userAgent: 'Mozilla/5.0 Chrome/141' }, rig = { userAgent: 'Mozilla/5.0 HeadlessChrome/141' };
   const M = (q, host, n) => WL.decideMode(q, n || nav, host);
-  ok(WL.MODES.join() === 'sandbox,career,garage' && WL.READY.sandbox && !WL.READY.career && !WL.READY.garage,
-     'three modes; the sandbox ready, the career and garage-only not yet (CAREER-START; MOBILE-GARAGE M1)');
+  ok(WL.MODES.join() === 'sandbox,career,garage' && WL.READY.sandbox && WL.READY.career && !WL.READY.garage,
+     'three modes; the sandbox and the career ready (G2740 CAREER-ON), garage-only not yet (MOBILE-GARAGE M1)');
   ok(M('', 'degaror.github.io').mode === null && M('?gfx=potato', 'degaror.github.io').mode === null, 'a real host: the menu at every load (?gfx= picks the preset, not the mode)');
   ok(M('?mode=sandbox', 'degaror.github.io').mode === 'sandbox' && M('?a=1&mode=sandbox', 'degaror.github.io').mode === 'sandbox', '?mode=sandbox skips it');
-  ok(['career', 'garage'].every(k => { const r = M('?mode=' + k, 'degaror.github.io'); return r.mode === 'sandbox' && r.asked === k; }),
-     '?mode=career / ?mode=garage, not built yet: the sandbox, the ask kept for the console');
+  ok(M('?mode=career', 'degaror.github.io').mode === 'career', '?mode=career skips the menu into the career (G2740)');
+  ok((r => r.mode === 'sandbox' && r.asked === 'garage')(M('?mode=garage', 'degaror.github.io')),
+     '?mode=garage, not built yet: the sandbox, the ask kept for the console');
   ok(M('?mode=bogus', 'degaror.github.io').mode === null && M('?mode=bogus', 'localhost').mode === 'sandbox', 'an unknown ?mode= is no mode');
   ok(M('', 'localhost').mode === 'sandbox' && M('', '127.0.0.1').mode === 'sandbox' && M('', '[::1]').mode === 'sandbox', 'localhost skips it: implicitly the sandbox');
   ok(M('', 'degaror.github.io', rig).mode === 'sandbox' && M('', 'degaror.github.io', { webdriver: true }).mode === 'sandbox', 'the rigs skip it anywhere: implicitly the sandbox');
@@ -499,13 +500,31 @@ const modes = async () => {
   { const w = await pg('', PAGES, Object.assign({}, seen));
     ok(w.screen() === 'menu' && w.FLYDIY_MODE === null && !!w.FLYDIY_WELCOME, 'Pages, a returning player: the menu first, the load held, the mode not chosen');
     const rows = w.$(x => x.className.split(' ').includes('wmode'));
-    ok(!w.mode('continue') && w.mode('career').disabled && /coming/.test(w.mode('career').textContent) && !w.mode('sandbox').disabled &&
+    ok(!w.mode('continue') && !w.mode('career').disabled && !/coming/.test(w.mode('career').textContent) && !w.mode('sandbox').disabled &&
        w.mode('garage').disabled && !w.mode('settings').disabled && /graphics: gamer/.test(w.mode('settings').textContent),
-       'the rows: no Continue (no career), New career disabled "coming", Sandbox, Garage only disabled, Settings naming the preset');
+       'the rows: no Continue (no career saved), New career LIVE (G2740), Sandbox, Garage only disabled, Settings naming the preset');
     ok(rows.every(b => b.getAttribute('title') === null), 'no row says anything in title= (R17: nothing hover-only)');
     let got = 'unresolved'; w.FLYDIY_WELCOME.then(p => { got = p; });
     w.mode('sandbox').onclick(); await tick(); await tick();
     ok(w.FLYDIY_MODE === 'sandbox' && w.screen() === 'none' && got === null && !w.WELCOME.pick, 'Sandbox: the menu gone, FLYDIY_MODE sandbox, no preset forced (the saved one stands)');
+  }
+  // G2740 (CAREER-ON): New career with nothing saved -> the career, no fresh flag; a saved career -> Continue (first, focused)
+  { const w = await pg('', PAGES, Object.assign({}, seen));
+    w.mode('career').onclick(); await tick(); await tick();
+    ok(w.FLYDIY_MODE === 'career' && w.screen() === 'none' && !('flydiy.career.fresh' in w.store), 'New career (none saved): FLYDIY_MODE career, nothing to back up');
+  }
+  { const saved = { 'flydiy.career.main': JSON.stringify({ mode: 'career', career: { name: 'your career' } }) };
+    const w = await pg('', PAGES, Object.assign({}, seen, saved));
+    ok(!!w.mode('continue') && /your career/.test(w.mode('continue').textContent) && /backup/.test(w.mode('career').textContent),
+       'a saved career: Continue naming it; New career says the current one is kept as a backup');
+    w.mode('continue').onclick(); await tick(); await tick();
+    ok(w.FLYDIY_MODE === 'career' && !('flydiy.career.fresh' in w.store), 'Continue: the career, the save untouched (no fresh flag)');
+    const w2 = await pg('', PAGES, Object.assign({}, seen, saved));
+    w2.mode('career').onclick(); await tick(); await tick();
+    ok(w2.FLYDIY_MODE === 'career' && w2.store['flydiy.career.fresh'] === '1', 'New career over a saved one: the fresh flag (app.js moves the old one to .prev)');
+  }
+  { const w = await pg('', PAGES, Object.assign({}, seen, { 'flydiy.career.main': '{broken' }));
+    ok(!w.mode('continue') && !w.mode('career').disabled, 'a broken career save: no Continue, the menu still opens');
   }
   // a first visit: the card, then the menu; the card's pick is today's
   { const w = await pg('', PAGES, {});
@@ -561,7 +580,9 @@ const modes = async () => {
   const extra = [];
   for (const f of files) { const r = path.relative(path.join(__dirname, '..'), f).split(path.sep).join('/'); if (r === 'src/viewer/welcome.js' || r === 'tools/build.js') continue;
     const n = (fs.readFileSync(f, 'utf8').replace(/\.uX \{[^}]*\}/g, '').match(DEV) || []).length;
-    const allow = r === 'src/viewer/update_now.js' ? 2 : (KNOWN[r] || 0);   // update_now.js: its rig test + its pill's coarse-pointer CSS
+    // update_now.js: its rig test + its pill's coarse-pointer CSS; storage_ui.js (HANGAR-STORAGE G2690): its phone layout's
+    // coarse-pointer CSS (the study's "phone: tap a card, then a column") - CSS, not a device test in code
+    const allow = r === 'src/viewer/update_now.js' ? 2 : r === 'src/viewer/storage_ui.js' ? 1 : (KNOWN[r] || 0);
     if (n > allow) extra.push(r + ' ' + n + ' > ' + allow); }
   ok(!extra.length, 'no device test outside welcome.js beyond the six of 6 Oct (rigs, records, the pill\'s CSS)' + (extra.length ? ': ' + extra.join('; ') : ''));
 };

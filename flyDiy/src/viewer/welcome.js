@@ -345,14 +345,20 @@
   // world-free path (MOBILE-GARAGE M1; today the garage-only boot exists only as the rig's ten source transforms of app.js,
   // tools/perf/mobile_garage_node.js), so it is shown, disabled, and ?mode=garage boots the sandbox
   const MODES = ['sandbox', 'career', 'garage'];
-  const READY = { sandbox: true, career: false, garage: false };
-  // the saved career a "Continue" would resume: none exists until CAREER-START writes one, so Continue is never shown
-  const career = () => null;
+  // G2740 (CAREER-ON, the user 13 Oct: "Let's push career tonight"): the career is READY - New career and Continue are live
+  const READY = { sandbox: true, career: true, garage: false };
+  // the saved career a "Continue" resumes: the player document under flydiy.career.main (74_career.js careerKey('main')),
+  // read here before the core loads (the key is the core's CAREER_KEY + 'main'); null when there is none or it doesn't parse
+  const CAREER_MAIN_KEY = 'flydiy.career.main', CAREER_FRESH_KEY = 'flydiy.career.fresh';
+  const career = store => {
+    try { const d = JSON.parse(read(store, CAREER_MAIN_KEY) || 'null'); return d && d.mode === 'career' ? { name: (d.career && d.career.name) || 'your career' } : null; }
+    catch (e) { return null; }
+  };
   // (query, navigator, host) -> { mode: a MODES entry, or null for the menu; why; asked: what ?mode= said }. Pure, GATE GFX
   const decideMode = (q, nav, host) => {
     const m = /[?&]mode=([a-z]+)/.exec(q || ''), asked = m ? m[1] : null;
     // G2320 (CAREER-WIRE): ?career=1 is THE DEV CAREER (app.js: flydiy.career.dev) - the career mode for the page's
-    // game code, on any host and on the rigs; the menu's New career row stays "coming" (READY.career is false)
+    // game code, on any host and on the rigs. (G2740: the menu's career - New career / Continue - is flydiy.career.main)
     if (/[?&]career=1(&|$)/.test(q || '')) return { mode: 'career', why: '?career=1: the dev career', asked, dev: true };
     if (asked && MODES.indexOf(asked) >= 0) return READY[asked] ? { mode: asked, why: '?mode=' + asked, asked }
       : { mode: 'sandbox', why: '?mode=' + asked + ' is not built yet: the sandbox', asked };
@@ -385,9 +391,11 @@
       return b;
     };
     const done = m => { o.remove(); res(m); };
-    const c = career();
-    if (c) row('continue', '▶', 'Continue', 'Career “' + (c.name || '') + '”', '', () => done('career'));
-    row('career', '✚', 'New career', 'contracts, money, your own fleet', 'coming', READY.career ? () => done('career') : null);
+    const c = career(store);
+    const cont = c ? row('continue', '▶', 'Continue', 'Career “' + (c.name || '') + '”', '', () => done('career')) : null;
+    // G2740: a New career over a saved one starts afresh - app.js keeps the old document under flydiy.career.main.prev
+    row('career', '✚', 'New career', c ? 'start again (your current career is kept as a backup)' : 'contracts, money, your own fleet', READY.career ? '' : 'coming',
+      READY.career ? () => { if (c) { try { store.setItem(CAREER_FRESH_KEY, '1'); } catch (e) {} } done('career'); } : null);
     const go = row('sandbox', '◇', 'Sandbox', 'everything free: the garage, the island, every aeroplane', '', () => done('sandbox'));
     go.classList.add('wgo');
     row('garage', '✎', 'Garage only', READY.garage ? 'build without loading the island' : 'build without loading the island: not built yet', READY.garage ? '' : 'coming',
@@ -406,7 +414,7 @@
     card.appendChild(list);
     card.appendChild(el('div', 'wnote', 'Shown at every start. The sandbox is the game as it has always been.'));
     stampFoot(card);
-    try { go.focus(); } catch (e) {}
+    try { (cont || go).focus(); } catch (e) {}
   });
 
   // ---- THE LOST CONTEXT -----------------------------------------------------------------------------------------
