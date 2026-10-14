@@ -328,7 +328,18 @@ const ALLOW = [
   { key: 'stand/three.updateMatrix', build: 'cub', upTo: 3500, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
   { key: 'taxi/three.updateMatrix', build: 'cub', upTo: 3875, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
   { key: 'stand/three.updateMatrix', build: 'cessna', upTo: 4850, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
-  { key: 'stand/world.grHeight', build: '*', upTo: 21, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },
+  { key: 'stand/world.grHeight', build: '*', upTo: 21, why: 'trains 44.1 + 44.3 (the parked fleet republished G2227 + the dense grass G2560): part of the +1.2-1.6 ms main-thread loop the user ACCEPTED BY NAME 11 Oct 23:12 (option a); the Tue 13 Oct 06:00 split attributes it', g: 'G2227/G2560' },,
+  // G3020 (SHIP-2, the user's rev 28 + SCENERY-ED-1's HOME patch G2893, train 52ab 14 Oct 00:41): HOME REWORKED - the stand moved to
+  // (-118, 678), taxiOut1 rerouted along the apron, the airfield's props and site items moved round it (the user's), and five parked
+  // aeroplanes now 37-71 m from the stand - three of them (o3, af_park1, af_park2) put on the pad by the patch, beside the new
+  // eastbound taxi leg (a parked C172 casts ~314 k shadow triangles, GATE PARKED 11): the taxi's shadow pass +1.16 M, the stand's
+  // matrices +725 / +4352, the taxi's texture uploads x2. Read off the data (no A/B against the patch alone): master 750d85b86's
+  // FRAMECOST, as A0 measured it
+  { key: 'stand/three.updateMatrix', build: 'cub', upTo: 4250, why: 'the user\'s rev 28 HOME (G3020): the stand moved among the airfield\'s props and five parked aeroplanes (3429 -> 4154)', g: 'G3020' },
+  { key: 'stand/three.updateMatrixWorld', build: 'cub', upTo: 13000, why: 'the user\'s rev 28 HOME (G3020): the stand moved among the airfield\'s props and five parked aeroplanes (8349 -> 12701)', g: 'G3020' },
+  { key: 'taxi/tris.shadow', build: 'cub', upTo: 3000000, why: 'the user\'s rev 28 HOME (G3020) + the three parked aeroplanes moved onto the pad beside the new taxi leg (G2893): 1.78 M -> 2.94 M', g: 'G3020' },
+  { key: 'taxi/bytes.texSubImage2D', build: 'cub', upTo: 600000, why: 'the user\'s rev 28 HOME (G3020): the new taxi leg past the club, the props and the parked row (288 k -> 587 k)', g: 'G3020' },
+  { key: 'boot/garage:compile/bytes.bufferData', build: 'cub', upTo: 1600000, why: 'the user\'s rev 28 content compiled at boot (G3020): 1.52 -> 1.56 MB', g: 'G3020' }
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
