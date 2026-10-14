@@ -93259,3 +93259,43 @@ GATES (this branch's head): AUDIO PASS (356/356 mutations; +MIX: the engine's
   (SND-ENGINE), if the ear wants it; (3) a recorded brake / tyre / stall sample would blend in through src_airframe.js's
   LOOPS / EV_KEY at their OLD gains (0.05 / 0.12 / 0.07 for brake / reed / buzzer) - re-measure with mix_render --study
   when one is added.
+## G3140-G3149 - ASSETS-OCT: THE HIGH-VOLTAGE PYLONS (INFRASTRUCTURE) AND THE USER'S TENTS (CAMPING) - THE ASSET PIPELINE'S FIRST CUSTOMERS, AND ITS BUDGET GATE (2026-10-13, a LOCAL session for A0; branch claude/assets-oct-g2900)
+
+The user (13 Oct, through A0): "could you also model (or take from the substation set) pillars for electricity, like the
+major large ones please? And make them usable assets under an INFRASTRUCTURE category." and "add these tent models, after
+slicing through the new import workflow". The plan: D:/Dev/flydiy-notes/ASSET-PIPELINE-PLAN-2026-10.md (the spine, §3).
+
+**THE PYLONS (G3140-G3143), PROCEDURAL** - tools/infra_gen.js -> src/infra/infra_pylon.js (+ infra_packs.json) +
+media/geo/infra/; group 'infra' ("infrastructure" in the editor's prop list), levels in the same pack (group lod).
+Why not the substation set: it is ONE merged OBJ (24 spatial chunks, one material, ~650 k tris) whose tall frames are bus
+gantries, not line towers. A lattice tower is a list of members, so every level is cut from the same list - no decimator,
+no bake, no licence, no maps (flat galvanised / porcelain / wire / concrete / timber records: nothing for KTX2).
+| key | what | L0 / L1 / L2 budget | levels past |
+| pylon_suspension | double-circuit lattice, 230 kV, ~44 m, barrel arms (5.2 / 6.6 / 5.2 m), hanging strings, earth peak | 5 000 / 2 000 / 320 | 150 / 600 m |
+| pylon_tall | the same +9 m body extension (water / valley crossings) | same | same |
+| pylon_tension | angle / section to 30 deg: wider heavier body, strings strained both ways, jumper loops | same | same |
+| pylon_terminal | the line's end: the tension body, strings on +z only | same | same |
+| pylon_hframe | WOODEN 115 kV H-frame (A0: the region's own): 2 poles 4.6 m apart, 18 m, double crossarm, X brace, 3 strings, 2 shield wires | 900 / 300 / 120 | 100 / 350 m |
+L2 is the OUTLINE (legs in two runs, one X a face, a member an arm), not an alpha card: prop materials carry no alphaTest.
+**ATTACH POINTS** (a future line tool; powerline.js already strings catenaries): each L0 record carries `attach`
+[{id, kind phase|earth, circuit, phase, p [x,y,z] in the prop frame, type suspension|strain, side both|back|ahead}] and
+`line` {kv, maxAngle, span, dir '+z'} - x across the line, y up, z ALONG it.
+
+**THE TENTS (G3145)** - tools/camp_table.py -> tools/camp_kit.py (prop_prep's runner) -> src/camp/camp_camp.js +
+media/geo/camp + media/tex/camp -> prop_lod.js --kit camp ('camp' ladder: 1 200 past 20 m, 400 past 60 m) ->
+ktx2_twins.js --family camp. All four Sketchfab CC BY 4.0 (asset.extras read): tent_hiking (rileylane, 3.4 k, baked
+OPAQUE - its BLEND is the export's default), tent_frame (alexxx_xarchenko, 3.2 k, with a cot), tent_big
+(marsh_tt, 2.1 k, with its kit), tent_small (Tactical_Gamer, 553: no levels). All game-ready, one material on 1024 maps:
+the CUT route degenerate (as-is + levels), no REPROJECT. Sources: assets/camp/ (gitignored; the user's files are in
+D:/Dev/flydiy-notes/inbox/tents/ - copy them to the main checkout's flyDiy/assets/camp/ for any later re-bake).
+
+**GATE ASSETBUDGET** (tools/_asset_budget_check.js, core, --selftest 14 breaks): camp + infra held to their category
+budgets (table, physical incl. the centimetre-export trap, L0 / level budgets and distances, map sizes, KTX2 twins, the
+pylons' attach points mirrored / clear of the cage / phase spacing / earth above / strain sides, infra_gen --check fresh,
+the lazy wiring + instancing); every other prop family REPORTED (worst L0, props without levels, maps without a twin).
+Wiring: build.js MANIFEST.lazy, world_boot.js + app.js /^camp_/ /^infra_/, props.js PROP_INST_REPEAT += tent_ / pylon_,
+_media_check.js kitPacks, asset_census.js, prop_lod.js KITS.camp, ktx2_twins.js FAMILIES.camp, run_gates.js.
+
+**OWED**: the CPU slot (scratchpad win_wed.sh: infra_gen, camp_kit, lod, ktx2, build, ASSETBUDGET --selftest, MEDIA /
+SCENERY / PROPS / KTX2 / ASSETS / BUILD) - the code was written on node --check alone (no box before the slot); then the
+user's 15-min GPU look (tools/_props.html?packs=infra and ?packs=camp); then READY.

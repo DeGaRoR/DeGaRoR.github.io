@@ -109,7 +109,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // THE SCENERY KIT'S PACKS (ASSETS-OCT G2904): lazy (build.js MANIFEST.lazy, every scenery_* entry, the levels last) -
   // asked for when the record holds prop objects (the user's placed models); the premises step waits for pending ones
   try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && window.FLYDIY_LAZY_SRC && /"kind":\s*"prop"/.test(premisesPlaced)) {
-    const sc = Object.keys(window.FLYDIY_LAZY_SRC).filter(n => /^scenery_/.test(n));
+    // (G3140-G3149: the camping kit's and the infrastructure kit's packs ride the same rule)
+    const sc = Object.keys(window.FLYDIY_LAZY_SRC).filter(n => /^scenery_/.test(n) || /^camp_/.test(n) || /^infra_/.test(n));
     if (sc.length) window.FLYDIY_LAZY(sc);
   } } catch (e) {}
   // THE ISLAND (W2): the loader fetched the data world's files when ?world= named one

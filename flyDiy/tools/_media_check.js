@@ -256,6 +256,10 @@ function manifestFiles() {
     return fs.existsSync(mf) ? JSON.parse(fs.readFileSync(mf, 'utf8')).map(f => path.join(ROOT, 'src', dir, f)) : []; };
   const scenery = kitPacks('scenery', 'scenery_packs.json');
   const cars = kitPacks('cars', 'cars_packs.json');
+  // the camping kit and the infrastructure kit (ASSETS-OCT G3140-G3149): the tents (tools/camp_kit.py: media/geo/camp,
+  // camp_lod, media/tex/camp) and the pylons (tools/infra_gen.js: media/geo/infra, no maps) - lazy like the scenery
+  const camp = kitPacks('camp', 'camp_packs.json');
+  const infra = kitPacks('infra', 'infra_packs.json');
   // EVERY payload on disk, not build.js's publish list: the table is the
   // CATALOGUE and MANIFEST.models the published subset (GATE REF's own
   // distinction). draco is baked-but-unpublished — no spec holds its scale —
@@ -316,7 +320,7 @@ function manifestFiles() {
   // the 2-D island map (G2250 MAP-MENU): tools/map_bake.js owns media/map, named by the generated map pack (G2203: was missing,
   // so the map's two files read as orphans)
   const mapp = path.join(ROOT, 'src', 'viewer', 'map_pack.js'), maps = fs.existsSync(mapp) ? [mapp] : [];
-  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, models, chars, animals, trees, shots, worlds, townkit, sound, maps);
+  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, camp, infra, models, chars, animals, trees, shots, worlds, townkit, sound, maps);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|json)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701)

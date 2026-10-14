@@ -71,6 +71,9 @@ const KITS = {
   // steering wheel and the lamp groups are under its floor and get no level)
   cars: { dir: 'cars', manifest: 'cars_packs.json', out: 'cars_lods.js', sub: 'geo/cars_lod',
           from: 'baked car packs', tex: 'media/tex/cars/', only: 'media/geo/cars/' },
+  // THE CAMPING KIT (ASSETS-OCT G3145; tools/camp_table.py): the user's tents, the 'camp' ladder
+  camp: { dir: 'camp', manifest: 'camp_packs.json', out: 'camp_lods.js', sub: 'geo/camp_lod',
+          from: 'baked camp packs', tex: 'media/tex/camp/', only: 'media/geo/camp/', ladder: 'camp' },
 };
 let KIT = KITS.pier, PIER = path.join(ROOT, 'src', KIT.dir), SUB = KIT.sub,
     OUT = path.join(PIER, KIT.out), MANIFEST = path.join(PIER, KIT.manifest);

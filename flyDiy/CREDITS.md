@@ -817,6 +817,29 @@ licence and must stay visible wherever it is shown:
 Candidates delivered beside it, not shipped yet: "Car Scene" by toivo (car #2, later), "Pickup Truck" by
 00amza (a parked / traffic prop candidate), "Dirty car" by 3D Error 404 (dropped) - all CC-BY-4.0.
 
+## The camping kit (`assets/camp/`, baked and served from media/)
+
+The user's four tents (ASSETS-OCT G3145, 2026-10-13), the first assets through the pipeline's spine: declared
+in `tools/camp_table.py`, baked AS-IS by `tools/camp_kit.py` (the prop baker's runner) into `src/camp/` +
+`media/geo/camp/` + `media/tex/camp/`, their far levels cut by `tools/prop_lod.js --kit camp`, KTX2 twins
+beside the maps; `src/camp/camp_credits.json` carries each line.
+
+**Sketchfab, CC-BY-4.0** (https://creativecommons.org/licenses/by/4.0/) - attribution is a condition of the
+licence and must stay visible wherever it is shown:
+
+- `tent_hiking` - **"Hiking Tent"** by rileylane
+  (https://sketchfab.com/3d-models/hiking-tent-441cd8395bf84bf9908375c35e07f809)
+- `tent_frame` - **"Tent"** by alexxx_xarchenko
+  (https://sketchfab.com/3d-models/tent-f6fef44f1e11487e8aec68123042cf03)
+- `tent_big` - **"Tent"** by marsh_tt (https://sketchfab.com/3d-models/tent-e85539fc03a24eb3abc7cdb8699e52f2)
+- `tent_small` - **"Tent"** by Tactical_Gamer
+  (https://sketchfab.com/3d-models/tent-9006af5d7af4491dbb573fdddaf8b30b)
+
+## The infrastructure kit (procedural, `tools/infra_gen.js`)
+
+The high-voltage pylons (ASSETS-OCT G3140, 2026-10-13) - four lattice towers and a wooden 115 kV H-frame - are
+written by `tools/infra_gen.js` from their dimensions: no source model, nothing to credit.
+
 ## The animals (`assets/animals/`, baked and served from media/)
 
 Six rigged, animated animals for Jolene (2026-09-22): three land animals with
