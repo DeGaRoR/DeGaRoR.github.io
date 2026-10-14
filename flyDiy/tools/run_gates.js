@@ -81,6 +81,10 @@ const GATES = [
   // controls on the page's DOM, MY MUSIC (blob: URLs made and revoked, the handle alone kept, nothing before a gesture)
   // with the picker stubbed - and every check mutated red; < 1 s
   { id: 'BOOMBOX', file: 'audio/_boombox_check.js', tier: 'core' },
+  // THE ENGINE LEADS (G1727, SND-MIX-2): mix_render.js's own numbers on the Jodel - cockpit cruise (the radio on), chase
+  // idle, taxi on the brakes, a chase touchdown, the engine slider at 200 % into the limiter - against the Coordinator's
+  // targets, every assertion mutated red (the sources held in memory, the files untouched); ~1-2 min
+  { id: 'MIXLEAD', file: 'audio/_mixlead_check.js', tier: 'core', wall: 240 },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
   // SIM-CLOCK G2650-G2659 (GAME-2026-10-06 §R.3): the one clock acted on - the tick never bumps the version (the re-bakes'

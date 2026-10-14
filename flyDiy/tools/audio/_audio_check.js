@@ -537,7 +537,16 @@ function checkMix(S) {
     if (!ra || ra[3] !== 'airframe' || !/wind/.test(ra[4])) F.push('the "aircraft" row is not the airframe (' + JSON.stringify(ra) + ')');
     if (re && ra && !(R.indexOf(re) < R.indexOf(ra))) F.push('the engine row does not come before the airframe');
     A.set('engine', 0.55);
-    if (pg.store['flydiy.audio.engine'] !== '0.55') F.push('the engine volume is not persisted as flydiy.audio.engine (' + pg.store['flydiy.audio.engine'] + ')'); }
+    if (pg.store['flydiy.audio.engine'] !== '0.55') F.push('the engine volume is not persisted as flydiy.audio.engine (' + pg.store['flydiy.audio.engine'] + ')');
+    // G1728 (SND-MIX-2, "even at max"): the engine goes to 200 % (+6 dB); every other volume still stops at 100 %
+    if (!re || re[5] !== 2) F.push('the engine row has no 200 % top (' + JSON.stringify(re) + ')');
+    A.set('engine', 1.8);
+    if (A.get('engine') !== 1.8 || pg.store['flydiy.audio.engine'] !== '1.8') F.push('the engine at 180 % reads ' + A.get('engine') + ' (stored ' + pg.store['flydiy.audio.engine'] + ')');
+    A.set('engine', 7); if (A.get('engine') !== 2) F.push('the engine set to 700 % reads ' + A.get('engine') + ' (want the 200 % top)');
+    A.set('aircraft', 1.5); A.set('music', 1.5);
+    if (A.get('aircraft') !== 1 || A.get('music') !== 1) F.push('another volume passed 100 % (airframe ' + A.get('aircraft') + ', music ' + A.get('music') + ')');
+    const p2 = makePage(S, { quiet: true, store: { 'flydiy.audio.engine': '1.6', 'flydiy.audio.music': '1.6' } });
+    if (p2.A.get('engine') !== 1.6 || p2.A.get('music') !== 1) F.push('stored 160 % reads engine ' + p2.A.get('engine') + ', music ' + p2.A.get('music') + ' (want 1.6 / 1)'); }
   // A STORED 'aircraft' (it scaled the engine and the airframe) moves neither: the engine takes its value, and keeps it
   { const st = { 'flydiy.audio.aircraft': '0.4' }, pg = makePage(S, { quiet: true, store: st });
     if (pg.A.get('engine') !== 0.4 || pg.A.get('aircraft') !== 0.4 || st['flydiy.audio.engine'] !== '0.4') F.push('a stored aircraft 0.4 left the engine at ' + pg.A.get('engine') + ' (stored ' + st['flydiy.audio.engine'] + '): the player would hear the engine move');
@@ -565,6 +574,12 @@ function checkMix(S) {
     A.set('engine', 1); A.set('aircraft', 0.25); pg.frame(false);
     if (ins().some(v => !near(v, kE, 1e-9))) F.push('the airframe slider moved the engine (' + ins() + ')');
     if (!near(gA.ins[3].gain.value, 0.25 * kA, 1e-9) || !near(G.afIn.gain.value, 0.25 * kA, 1e-9)) F.push('the airframe slider at 25 % left the airframe at ' + gA.ins[3].gain.value.toFixed(3) + ' / ' + G.afIn.gain.value.toFixed(3));
+    // G1728: the engine at 200 % out of the shed doubles the inputs; the shed holds them at 100 % (the garage as ruled)
+    A.set('aircraft', 1); A.set('engine', 2); pg.frame(false);
+    if (ins().some(v => !near(v, 2 * kE, 1e-9))) F.push('the engine at 200 % out of the shed left the inputs at ' + ins().map(v => v.toFixed(3)) + ' (want ' + (2 * kE).toFixed(3) + ')');
+    pg.frame(true);
+    if (ins().some(v => !near(v, 1, 1e-9))) F.push('the engine at 200 % reached the shed (' + ins().map(v => v.toFixed(3)) + '): the garage must not move');
+    A.set('engine', 1); pg.frame(false);
     // both perspectives: each input feeds its directivity (outside) and the cabin (inside: the side, the tonal through its trim)
     const to = (n, d) => n.edges.some(e => e.d === d);
     for (let k = 0; k < 3; k++) if (!to(g0.ins[k], g0.dirs[k]) || !(to(g0.ins[k], g0.side) || (g0.tonalCab && to(g0.ins[k], g0.tonalCab)))) F.push('engine input ' + k + ' does not reach both the exterior chain and the cabin');
@@ -4474,8 +4489,8 @@ const MUT = [
   ['the model allocates a frame', 'model', '    s[SI.first] = 0;\n', '    s[SI.first] = 0; st.lastFrame = [s[SI.t]];\n', 'AFALLOC'],
   ['the worklet\'s params renamed', 'worklet', "'stallK', 'creak', 'flapM', 'open', 'duck'];", "'stallK', 'creak', 'flapM', 'open', 'duk'];", 'AFVOICE'],
   ['gravel sounds like scree', 'worklet', '[0.65, 0.20, 3200, 0.8, 28, 3500, 4, 0],', '[0.95, 0.30, 1500, 0.8, 12, 1900, 9, 0],', 'AFVOICE'],
-  ['the touchdown deaf to its severity', 'worklet', 'this.voice(VK_LOW, 1, 1.1, k * (0.08 + 0.35 * s), 0.05 + 0.09 * s, 90 + 150 * s, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * (0.05 + 0.15 * s)', 'this.voice(VK_LOW, 1, 1.1, k * 0.25, 0.1, 160, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * 0.12', 'AFVOICE'],
-  ['the horn outside', 'worklet', 'io += dS * 0.12 * sp *', 'ext += dS * 0.12 * sp *', 'AFVOICE'],
+  ['the touchdown deaf to its severity', 'worklet', 'this.voice(VK_LOW, 1, 0.45, k * (0.035 + 0.15 * s), 0.05 + 0.09 * s, 90 + 150 * s, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * (0.02 + 0.06 * s)', 'this.voice(VK_LOW, 1, 0.45, k * 0.11, 0.1, 160, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * 0.05', 'AFVOICE'],   // (G1726: re-anchored on the tamed levels)
+  ['the horn outside', 'worklet', 'io += dS * STALL_REED * sp *', 'ext += dS * STALL_REED * sp *', 'AFVOICE'],
   ['the closed cabin as loud as the open', 'worklet', '(1 - op) * 2.2 * z[Z_CABW]', '(1 - op) * 22 * z[Z_CABW]', 'AFVOICE'],
   ['the NaN unguarded', 'worklet', "if (!(yE === yE) || !(yI === yI) || !(yR === yR) || !(yO === yO)) { nanHit = 1; yE = 0; yI = 0; yR = 0; yO = 0; }", '', 'AFVOICE'],
   ['process() allocates', 'worklet', '    this.stats[3]++;\n', '    this.stats[3]++; this.lastBlock = [n];\n', 'AFALLOC'],
@@ -4512,7 +4527,13 @@ const MUT = [
   ['the engine slider moves the airframe', 'space', 'if (ga && ga.ins[3]) st(ga.ins[3].gain, lv[1]);', 'if (ga && ga.ins[3]) st(ga.ins[3].gain, lv[0]);', 'MIX'],
   ['the airframe\'s interior layers deaf to its volume', 'space', 'st(G.afIn.gain, lv[1]);', '', 'MIX'],
   ['a stored aircraft silently moves the engine', 'audio', "if (a != null && +a === +a) ls.setItem(PREF + '.engine', String(a));", '', 'MIX'],
-  ['the garage gets the flight trims', 'audio', 'lv[0] = set.engine * (world ? MIXK.engine : 1);', 'lv[0] = set.engine * MIXK.engine;', 'MIX'],
+  ['the garage gets the flight trims', 'audio', 'lv[0] = world ? set.engine * MIXK.engine : Math.min(1, set.engine);', 'lv[0] = set.engine * MIXK.engine;', 'MIX'],
+  // G1728 (SND-MIX-2): the engine's 200 % top
+  ['the engine slider stops at 100 %', 'audio', "'the engine and the propeller', 2],", "'the engine and the propeller'],", 'MIX'],
+  ['set() clamps the engine at 100 %', 'audio', 'Math.max(0, Math.min(TOP[k], +v || 0));', 'Math.max(0, Math.min(1, +v || 0));', 'MIX'],
+  ['a stored 160 % read as 100 %', 'audio', 'Math.max(0, Math.min(TOP[k], v))) : DEF[k];', 'Math.max(0, Math.min(1, v))) : DEF[k];', 'MIX'],
+  ['every volume to 200 %', 'audio', 'TOP[r[0]] = r[5] > 0 ? r[5] : 1;', 'TOP[r[0]] = 2;', 'MIX'],
+  ['the shed gets the engine past 100 %', 'audio', 'Math.min(1, set.engine);   // G1728', 'set.engine;   // G1728', 'MIX'],
   ['the shed\'s ambience trimmed', 'audio', '* (world ? MIXK.ambience : 1) * kRun,', '* MIXK.ambience * kRun,', 'MIX'],
   ['the prop\'s tonal untrimmed in the cabin', 'spcfg', 'const CABIN_TONAL_DB = -10;', 'const CABIN_TONAL_DB = 0;', 'MIX'],
   ['the engine\'s frame tau ignored', 'engine', 'const tau = A.tauS && A.tauS[0] > TAU ? A.tauS[0] : TAU;', 'const tau = TAU;', 'MIX'],
