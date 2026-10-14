@@ -93140,3 +93140,31 @@ REVIEWS OWED: SCENERY-ED-2's altiport landHdg from the drawn profile's end eleva
 bit-identical, a reversed-ends altiport landed uphill). DONE: ASSETS-OCT's ANN VOR/DME waypoint (fe660b94, approved).
 WHERE: the progress board https://claude.ai/artifact/N4nhDmRGZUSh7rfnMW1oQc, the evidence board
 https://claude.ai/artifact/TB8t1nCxrMdBfcwLYNKx4e; the runs D:/Dev/pilot_runs/.
+## G2830 - WATER-STEADY: THE MIRROR THREE WAYS - AUTO (THE DEFAULT ON GAMER AND ULTRA, MASTER'S BEHAVIOUR), ON (NEVER SWITCHES: NO SHORE DROPS IT, NO ALTITUDE FADES IT), OFF; A VIEW WITH NO WATER PAYS NOTHING (2026-10-12/13, WATER-STEADY for A0, local GPU; branch claude/water-steady-g2830 off master f353a0f89, rebased on 39570350b; G2831-G2839 unused)
+The user (10 Oct): "the water model switching from simple to reflective is really annoying ... turn it on for game and ultra, off for the rest, and not auto switching ... It changes the values of the scene fundamentally."
+- **The switch, found:** app.js called `WATER.mirrorOff()` whenever the eye AND the CG were over land, so every shore crossing swapped every water pixel between the capture and the sky probe in one frame. A 500-900 m altitude fade did the same on a climb. `MIR.mode` also defaulted to 'periodic', which the menu does not offer.
+- **The fix (water.js, app.js):**
+  - `mirrorPlane`: the plane is ADOPTED from the water under the eye only while the eye is under 200 m over it, KEPT over land and higher up, and reached by a 0.35 s slide (a cut of >100 m snaps).
+  - The shader gates each water body by its distance from the plane (`mPlane`): a lake 38 m over the sea keeps the probe instead of a wrong reflection, and the slide makes a plane change a dissolve.
+  - A LIVE mirror has no ceiling (the fade stays for 'periodic', a rig's mode). `MIR.mode` defaults to 'off'; an unknown value is 'off'.
+  - THE WATER SEEN: an ANY_SAMPLES_PASSED_CONSERVATIVE query in the water meshes' `watch()` hooks (lakes and river ribbons now watched too). The live capture is skipped while the newest answered frame drew no water pixel. A context with no queries (the node harness) always captures.
+  - `MIR.skip` (objects left out of the capture's scene draw), `MIR.capturing / calls / captures` for the census rig.
+- **Presets (gfx_settings.js) - THE USER'S RULING 13 Oct (for train 54):** the reflections row is three ways - sky only ('off') / auto ('auto') / on ('live'). AUTO is master's behaviour (the plane = the water under the eye, else the CG; OFF over land; faded out 500-900 m; captured every frame) and the DEFAULT on gamer and ultra, so no gamer row pays by default; ON is the never-switching mirror measured below; laptop / potato / retro / current 'off'. The user: "if it ever gets good enough, it becomes default again" (the redesign: D:/Dev/flydiy-notes/WATER-REDESIGN-PLAN-2026-10.md). pv 9: a player saved ON gamer / ultra takes 'auto'; a custom mix keeps its row (a saved ON stays on). GATE GFX's FROZEN rows for gamer / ultra read 'auto'. Both modes keep THE WATER SEEN skip and the per-body plane gate, and the capture at res 0.4.
+- **Measured (gamer, RTX 3080, headless uncapped; frame_perf ABBA, master runs 2+3 vs branch runs 1-3; master run 1 discarded - SCENERY-ED-1's TAXICLEAR overlapped it):**
+  - stand 12.3 -> 17.3-17.9 ms; forest 9.6-10.1 -> 17.0-17.4; sea 300 m 8.0-8.3 -> 17.3-22.8 (p90 44-45 -> 26-27); coast 30 m 10.1-11.3 -> 17.7-18.1.
+  - The main scene pass's GPU time is unchanged; the whole rise is the capture pass: 4.2-5.9 ms GPU (1200x675, 2 samples), 5.3-6.6 ms CPU, 340-480 draws.
+  - Water is in view at the stand and over the forest (the query says so), so the capture runs there. Looking at the sky: 8.2 -> 8.2 ms, skipped 120/120.
+  - Every row stays under 33 ms at p90 (worst p90 27 ms): over 30 fps delivered on the gamer preset (capped at 30).
+  - mirror_census flights: across the shore and back at 30 m and a climb from 20 m to 1500 m, the mirror's weight held at 1 every frame (0 steps), the plane at 0. Master, same flights: 1 -> 0 in one step over land.
+  - The census by group (no category worth a visual cut): ~60 aeroplane draws, ~85 unnamed instanced, stand cards, premises patches and far houses, birds 16, coverRing 10-40, patternVis 8.
+- **Gates:** WATER (new rows: the preset rows, 'off' for an unknown value, no mirrorOff at the call site, the plane flown, mPlane, THE WATER SEEN on a fake context), GFX (pv 9 migration row), UILAYER, SHADOWSKY, FLIGHTREC, WORLDRENDER: PASS. FRAMECOST: 77 counters ALLOWED (G2830; the recording GL answers no occlusion query, so the capture runs every frame there, ~850 draws).
+- **Rig:** `tools/perf/mirror_census.js` (off vs live per view, the capture's ms / draws / skips, `--census` by object, `--flights` shore + climb weight / plane traces, `--skip`).
+- **Left open:**
+  - patternVis's 8 draws reach the capture (the route ribbons reflect): a G1370 UI-layer gap, in A0's backlog.
+  - `MIR.res` 0.5 -> 0.4 (the user's pick, A0's option (b), 13 Oct ~15:00): ~36 % fewer capture pixels, expected ~1.5-2 ms GPU back; the numbers above are at 0.5 - train 54 measures 0.4.
+- **What to watch for:**
+  - the water over a shore crossing and on a climb: no change of brightness, no pop;
+  - a lake 30+ m above the sea: sky-only from far off, the reflection dissolving in as you come under 200 m over it (and the sea going to sky-only then);
+  - a first sliver of water over a hill: the last capture for 1-3 frames;
+  - frame time on gamer near water: ~5 ms GPU more; ultra too (its capture is the same size);
+  - saved gamer / ultra players come back on AUTO (pv 9) - the old switch at a shore, by the user's choice; ON in GRAPHICS > Water removes it.

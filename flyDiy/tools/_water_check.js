@@ -157,7 +157,7 @@ console.log('\n3. THE LAWS');
     verdict(W.WATER_TYPES && ['sea', 'lake', 'river', 'premises'].every(k => W.WATER_TYPES[k] && ['cdom', 'chl', 'sed'].every(q => Number.isFinite(W.WATER_TYPES[k][q]))), 'every body is three constituents (cdom, chl, sed)'); }
   // THE MIRROR (G460.11): the shader reads the capture where the point projects, keeps the probe's sky where the
   // capture is empty; the pass hides the water's own material, reuses the shadow maps, restores the target
-  { verdict(/uniform sampler2D uWMirror; uniform mat4 uWMirrorVP;/.test(W.GLSL.frag) && /vec3 mcol = mr\.rgb \/ max\(mr\.a, 0\.02\);/.test(src('src/viewer/water.js')) && /iblRadiance = mix\(iblRadiance, mcol, mmask \* edge \* uWMirror4\.x\);/.test(src('src/viewer/water.js')), 'the mirror replaces the IBL only where the capture has something, its colour un-premultiplied (alphaToCoverage resolves to a partial alpha)');
+  { verdict(/uniform sampler2D uWMirror; uniform mat4 uWMirrorVP;/.test(W.GLSL.frag) && /vec3 mcol = mr\.rgb \/ max\(mr\.a, 0\.02\);/.test(src('src/viewer/water.js')) && /iblRadiance = mix\(iblRadiance, mcol, mmask \* edge \* mPlane \* uWMirror4\.x\);/.test(src('src/viewer/water.js')), 'the mirror replaces the IBL only where the capture has something, its colour un-premultiplied (alphaToCoverage resolves to a partial alpha)');
   verdict(/samples: 2,/.test(src('src/viewer/water.js')) && /depthTexture: THREE\.DepthTexture \? new THREE\.DepthTexture\(w, h, [^)]*THREE\.UnsignedInt248Type\)/.test(src('src/viewer/water.js')), "the capture is multisampled (its depth texture a resolve: the clouds' composite samples it while drawing into it)");
     const w = src('src/viewer/water.js'), mp = w.slice(w.indexOf('function mirrorRender('), w.indexOf('function mirrorOff('));
     verdict(/mat\.visible = false/.test(mp) && /renderer\.shadowMap\.autoUpdate = false/.test(mp) && /renderer\.setRenderTarget\(prevT\)/.test(mp) && /scene\.background = null/.test(mp), 'the capture hides the water, reuses the shadow maps, restores the target and the background');
@@ -175,12 +175,12 @@ console.log('\n3. THE LAWS');
         'the sky pass makes the dome VISIBLE for its own draw (opts.hide had already silenced it) and puts it back'); }
     // the mean Fresnel rides the MIRROR too: with the sky in the capture the mirror supplies the whole
     // reflection, and a dim that rode only the probe would leave the grazing sea a hard mirror again
-    verdict(/float wMeanF = mix\(1\.0, clamp\(wFm \/ max\(wF5, 1\.0e-4\), 0\.0, 1\.0\), smoothstep\(0\.55, 0\.15, wC\)\);/.test(w) && w.indexOf('float wMeanF =') < w.indexOf('iblRadiance = mix(iblRadiance, mcol, mmask * edge * uWMirror4.x);') && /iblRadiance \*= wMeanF; \}`\)/.test(w),
+    verdict(/float wMeanF = mix\(1\.0, clamp\(wFm \/ max\(wF5, 1\.0e-4\), 0\.0, 1\.0\), smoothstep\(0\.55, 0\.15, wC\)\);/.test(w) && w.indexOf('float wMeanF =') < w.indexOf('iblRadiance = mix(iblRadiance, mcol, mmask * edge * mPlane * uWMirror4.x);') && /iblRadiance \*= wMeanF; \}`\)/.test(w),
       "Bruneton's mean Fresnel is applied AFTER the mirror's mix (the probe and the capture dim alike)");
-    verdict(typeof W.mirrorRender === 'function' && W.mirror && W.mirror.mode === 'periodic' && W.mirror.maxAgl > 10, `the mirror API, '${W.mirror.mode}' by default, under ${W.mirror.maxAgl} m over the water`);
+    verdict(typeof W.mirrorRender === 'function' && W.mirror && W.mirror.mode === 'off' && W.mirror.maxAgl > 10, `the mirror API, '${W.mirror.mode}' by default (the GRAPHICS row hands its own: G2830)`);
     // THE CADENCE (G460.11.4): the clock is real seconds (a call-counted clock ran at a fifth of the wall clock under
     // the rig: a stale capture from 1500 m away, the reflection stretched), the eye's motion re-captures, a jump at once
-    verdict(/MIR\.t = \(typeof performance !== 'undefined' \? performance\.now\(\) : Date\.now\(\)\) \/ 1000;/.test(mp), "the mirror's clock is real seconds (never a count of calls)");
+    verdict(/const now = \(typeof performance !== 'undefined' \? performance\.now\(\) : Date\.now\(\)\) \/ 1000;/.test(mp) && /MIR\.t = now;/.test(mp), "the mirror's clock is real seconds (never a count of calls)");
     // the capture is projected from the STILL surface: through the displaced (faceted) position it creases along
     // every facet edge of the near patch's 3.75 m grid (G460.11.6)
     verdict(/vec4 mp = uWMirrorVP \* vec4\(vWP0 \+ mD, 1\.0\);/.test(w), 'the mirror is projected from the undisplaced position (never the faceted one)');
@@ -203,9 +203,9 @@ console.log('\n3. THE LAWS');
     // the hand-over to the probe dissolves; and the move threshold scales with the eye's height, or raising
     // the ceiling would fire a capture almost every frame at cruise (the nearest thing a mirrored eye at
     // height h reflects is about h away, so 3 m at the dock and 3 m at 500 m are not the same error).
-    verdict(/const mirW = MIR\.mode === 'off'/.test(mp) && /MIR\.fadeFrom/.test(mp) && /MIR\.maxAgl - MIR\.fadeFrom/.test(mp) &&
+    verdict(/const mirW = !\(eyeAgl > 0\.1\) \? 0\s*\n\s*: always \|\| eyeAgl <= MIR\.fadeFrom \? 1/.test(mp) && /MIR\.maxAgl - MIR\.fadeFrom/.test(mp) &&
             W.mirror.fadeFrom > 60 && W.mirror.maxAgl > W.mirror.fadeFrom,
-      `the mirror fades out with altitude (full to ${W.mirror.fadeFrom} m, gone by ${W.mirror.maxAgl} m) - never a cliff`);
+      `a 'periodic' mirror fades out with altitude (full to ${W.mirror.fadeFrom} m, gone by ${W.mirror.maxAgl} m) - never a cliff; an ON (live) one has no ceiling, an AUTO one fades like master (G2830)`);
     verdict(/const moveLim = Math\.max\(MIR\.moveM, eyeAgl \* MIR\.moveAgl\);/.test(mp) && /moved > moveLim/.test(mp) && W.mirror.moveAgl > 0,
       `the re-capture distance scales with the eye's height (${W.mirror.moveM} m at the dock, ${(W.mirror.moveAgl * 100).toFixed(0)} % of the altitude above it)`);
     { // the shader's arithmetic, scalar-wise (the lines above are asserted verbatim, so the two cannot drift
@@ -237,7 +237,53 @@ console.log('\n3. THE LAWS');
       verdict(flat === 0 && plane === 0 && cap === 0,
         `the walk over 2000 eyes: flat water gives back the point (${flat} misses), it stays on the plane (${plane}), it never exceeds the cap (${cap})`); }
     verdict(W.mirror.moveM <= 4 && W.mirror.turnDeg <= 4 && W.mirror.jumpM > 0 && /due = jump \|\|/.test(mp), `the eye re-captures at ${W.mirror.moveM} m / ${W.mirror.turnDeg} deg, a jump (${W.mirror.jumpM} m / ${W.mirror.jumpDeg} deg) at once`);
-    const gfx = src('src/viewer/gfx_settings.js'); verdict(/k: 'mirror'/.test(gfx) && /W\.WATER\.set\(\{ mirror: S\.mirror \}\)/.test(gfx), 'GRAPHICS has the reflections row and hands it to the water'); }
+    const gfx = src('src/viewer/gfx_settings.js'); verdict(/k: 'mirror'/.test(gfx) && /W\.WATER\.set\(\{ mirror: S\.mirror \}\)/.test(gfx), 'GRAPHICS has the reflections row and hands it to the water');
+    // WATER-STEADY (G2830, the user 10 Oct: "the water model switching from simple to reflective is really annoying ... It changes the
+    // values of the scene fundamentally"): the mirror is a PRESET's (live on gamer and ultra, off below) and nothing in the game
+    // switches it - no shore drops it, no altitude fades it, a new plane is reached by a slide and a body off the plane keeps the probe
+    { const g = src('src/viewer/gfx_settings.js'), r = k => (new RegExp('^\\s*' + k + ':.*mirror: \'(\\w+)\'', 'm').exec(g) || [])[1];
+      const gp = { laptop: r('laptop'), potato: r('potato'), retro: r('retro'), current: r('current'), gamer: r('gamer'), ultra: r('ultra') };
+      verdict(gp.gamer === 'auto' && gp.ultra === 'auto' && ['laptop', 'potato', 'retro', 'current'].every(k => gp[k] === 'off'), `the mirror is AUTO on gamer and ultra (the user's default, 13 Oct), off on the rest (${JSON.stringify(gp)})`);
+      verdict(/\{ v: 'off',[^\n]*\n[\s\S]{0,900}\{ v: 'auto',[^\n]*\n\s*\{ v: 'live',\s*label: 'on'/.test(g), "the reflections row: sky only / auto / on (three ways, the menu's ON is 'live')");
+      const m0 = W.mirror.mode; W.set({ mirror: 'periodic' }); const p1 = W.mirror.mode; W.set({ mirror: 'banana' }); const p2 = W.mirror.mode; W.set({ mirror: 'live' }); const p3 = W.mirror.mode; W.set({ mirror: 'auto' }); const p4 = W.mirror.mode; W.set({ mirror: m0 });
+      verdict(p1 === 'periodic' && p2 === 'off' && p3 === 'live' && p4 === 'auto', `an unknown reflections value is 'off', never 'periodic' (${p1}/${p2}/${p3}/${p4})`);
+      // AUTO is master's behaviour: no water under the eye or the CG = off (mirrorOff), the plane the water under the eye, the ceiling's fade
+      verdict(/if \(auto && !hasUnder\) \{ if \(MIR\.on \|\| MIR\.last\) mirrorOff\(\); MIR\.w = 0; return false; \}/.test(mp) && /const waterY = auto \? under : mirrorPlane\(/.test(mp) && /: always \|\| eyeAgl <= MIR\.fadeFrom \? 1/.test(mp),
+        "AUTO: off over land (mirrorOff), the plane the water under the eye, faded out from fadeFrom to maxAgl; ON (live) never: the sticky sliding plane, no ceiling");
+      const app = src('src/viewer/app.js'), cs = app.slice(app.indexOf('if (window.WATER && WATER.mirrorRender && !inGarage && WF) {'), app.indexOf('if (FR) FR.lap(FR.S.mirror);'));
+      verdict(cs.length > 100 && !/WATER\.mirrorOff\(/.test(cs) && /WATER\.mirrorRender\(THREE, renderer, scene, camera, Number\.isFinite\(wl\) \? wl : null,/.test(cs),
+        'app.js hands the water under the eye (null over land) every frame and never switches the mirror off at a shore'); }
+    { // the plane's rule, flown: over the sea, over land, low over a lake, high over a pond, under a kept plane, a cut
+      const M = W.mirror, keep = { plane: M.plane, planeT: M.planeT, eyePrev: M.eyePrev };
+      M.plane = M.planeT = null; M.eyePrev = null;
+      let x = 0; const step = (under, y, n) => { let p; for (let i = 0; i < (n || 1); i++) { x += 0.5; p = W.mirrorPlane(under, { x, y, z: 0 }, 1 / 60); } return p; };
+      const sea = step(0, 40, 10), land = step(null, 40, 600), first = step(38.2, 60, 1), mid = step(38.2, 60, 20), lake = step(38.2, 60, 400);
+      const pond = step(12.5, 520, 60), under = step(null, 30, 600); x += 500; const cutP = step(5.5, 30, 1);
+      Object.assign(M, keep);
+      verdict(sea === 0 && land === 0 && first > 0 && first < 2 && mid > first && mid < 38.2 && lake === 38.2 && pond === 38.2 && under === 0 && cutP === 5.5,
+        `the plane: sea ${sea}, over land 10 s later ${land} (kept), a lake 22 m below slides ${first.toFixed(2)} -> ${mid.toFixed(1)} -> ${lake} (never a jump), a pond 507 m below leaves it ${pond}, an eye under the kept lake level takes the sea's ${under}, a cut snaps ${cutP}`); }
+    verdict(/float mPlane = 1\.0 - smoothstep\(1\.0, 3\.0, abs\(vWP0\.y - uWMirror4\.w\)\);/.test(w), "a water body off the capture's plane keeps the probe (one plane, one body; the slide makes the hand-over a dissolve)");
+    { // THE WATER SEEN: a fake context answers the hooks' occlusion queries two polls late; a view with no water skips the capture
+      let ans = true;
+      const gl = { ANY_SAMPLES_PASSED_CONSERVATIVE: 0x8D6A, QUERY_RESULT_AVAILABLE: 0x8867, QUERY_RESULT: 0x8866,
+        createQuery: () => ({ polls: 0, r: ans }), beginQuery: () => {}, endQuery: () => {}, deleteQuery: () => {},
+        getQueryParameter: (q, k) => k === 0x8867 ? (++q.polls >= 2) : (q.r ? 1 : 0), getExtension: () => null };
+      const mesh = {}; W.watch(mesh, { getContext: () => gl });
+      const m0 = W.mirror.mode; W.set({ mirror: 'live' });
+      const S = W.seen; S.ok = null; S.frame = 0; S.pending = []; S.issued = {}; S.any = {}; S.base = 0; S.lastAnswered = 0; S.lastTrue = -1;
+      const fr = draws => { const v = W.waterSeen(); for (let i = 0; i < draws; i++) { mesh.onBeforeRender(); mesh.onAfterRender(); } return v; };
+      const a = [fr(2), fr(2), fr(2), fr(2)];                       // the sea drawn and seen
+      ans = false; const b = [fr(2), fr(2), fr(2), fr(2), fr(2)];   // drawn, every pixel hidden (behind a hangar)
+      ans = true; const c = [fr(0), fr(0), fr(0), fr(0)];           // nothing drawn (out of the frustum)
+      const d = [fr(1), fr(1), fr(1), fr(1)];                       // back in view
+      W.set({ mirror: m0 });
+      verdict(a.every(v => v) && b.slice(-2).every(v => !v) && c.slice(-2).every(v => !v) && d[d.length - 1] === true && W.seen.pending.length === 0,
+        `THE WATER SEEN: seen ${a.map(Number).join('')}, hidden ${b.map(Number).join('')}, out of view ${c.map(Number).join('')}, back ${d.map(Number).join('')} (the answers land two polls late; the capture runs on 1); the queries are freed on leaving live`);
+      verdict(/if \(live && MIR\.last && !vis\) \{ MIR\.skipped\+\+; return false; \}/.test(mp), 'a live capture is skipped while the newest answered frame drew no water pixel (the last capture stays bound)');
+      // the node harness's recording GL has no queries: the capture always runs there (and FRAMECOST counts it)
+      S.ok = false; const v = W.waterSeen(); S.ok = null;
+      verdict(v === true, 'a context with no occlusion queries answers seen (the capture runs)'); }
+  }
   let mono = true, bounded = true, prev = -1;
   for (const U10 of [0, 2, 5, 10, 20, 30]) {
     prev = -1;
