@@ -86,7 +86,14 @@ const RP = read('render_premises.js'), RW = read('render_world.js'), WA = read('
     ok(ms < 1500, '2 the field is made in the scene\'s build time', ms + ' ms');
     const pond = lakes.find(L => Math.hypot((L.x0 + L.x1) / 2 - 241, (L.z0 + L.z1) / 2 - 599) < 15);
     ok(!!pond, '2 the pond beside 02/20 (241, 599) is a lake of the island', pond && ('level ' + pond.level.toFixed(2)));
-    if (pond) { const T = env.lakeTexels(pond); ok(T.inside === 0, '2 02/20\'s pond: the runway\'s grade filled it - no field texel left, no quad, no hole', 'texels left ' + T.inside); }
+    // (G3020 rev 28: the user moved / shortened 02/20 - the pond lies 29 m off its centreline, 7 m past its edge; the runway's grade
+    //  fills only the part under it, the rest stays water over its bed, as the field rule draws it (the composed ground under the
+    //  level). What matters: no water ON 02/20 - no field texel inside its box + 2 m)
+    if (pond) { const T = env.lakeTexels(pond), a = (W.aerodromes || []).find(q => q.id === 'w2'); let onRwy = 0;
+      if (a && env.lakeR) { const i0 = Math.max(0, Math.floor((pond.x0 - G.x0) / G.cell) - 2), i1 = Math.min(G.w - 1, Math.ceil((pond.x1 - G.x0) / G.cell) + 2), j0 = Math.max(0, Math.floor((pond.z0 - G.z0) / G.cell) - 2), j1 = Math.min(G.h - 1, Math.ceil((pond.z1 - G.z0) / G.cell) + 2);
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { if (env.lakeR[j * G.w + i] <= 128) continue; const dx = G.x0 + (i + 0.5) * G.cell - a.x, dz = G.z0 + (j + 0.5) * G.cell - a.z;
+          if (Math.abs(dx * Math.cos(a.hdg) + dz * Math.sin(a.hdg)) < a.len / 2 + 2 && Math.abs(-dx * Math.sin(a.hdg) + dz * Math.cos(a.hdg)) < a.wid / 2 + 2) onRwy++; } }
+      ok(!!a && onRwy === 0, '2 02/20\'s pond: no water on 02/20 - the runway\'s grade filled the part under it (rev 28: the pond lies beside the runway)', 'texels left ' + T.inside + ', on 02/20 (+2 m) ' + onRwy); }
     let seaNoSea = 0, sea = 0, big = null;
     for (const L of lakes) { if (L.level <= 0.2 || L.cells < 3) continue; if (env.isSea(L)) { sea++; const T = env.lakeTexels(L); if (T.sea * 2 < T.inside) seaNoSea++; }
       if (L.x0 < 9900 && L.x1 > 10100 && L.z0 < -9100 && L.z1 > -9000) big = L; }
@@ -158,7 +165,12 @@ const RP = read('render_premises.js'), RW = read('render_world.js'), WA = read('
           '4 the failed layer is the set\'s mean colour (sRGB) over a flat normal; the landed one its cooked planes', [d[0], d[1], d[2], d[S], n[S]].join(',')); }
       ok(warn.some(m => /bad layers failed/.test(m)), '4 the failure is said on the console');
       // ---- 5. the cover ring ----
-      ok(RW.includes('if (h < 0.3 || world.waterH(x, z) > h - 0.3 || drawnWet(x, z, h)) return false;') && RW.includes('drawnLakeSD = lakeRsd;'), '5 the cover ring refuses the drawn water (drawnWet: the drawn lakes\' field and waterDrawY)');
+      // (G2572: the land test is landBy(x, z, lake) - okAt the first ring's at 0.3 m everywhere, okLake the grass field's at
+      // lakeMargin by a lake - and the drawn water's test wetBy, the same field and waterDrawY; the sea's 0.3 m in both)
+      ok(RW.includes('if (h < 0.3 || wl > h - (lake && wl > 0.05 ? lakeM() : 0.3) || wetBy(x, z, h, lake)) return false;')
+         && RW.includes('const wetBy = (x, z, h, lake) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z);')
+         && RW.includes('const okAt = (x, z) => landBy(x, z, false), okLake = (x, z) => landBy(x, z, true);') && RW.includes('drawnLakeSD = lakeRsd;'),
+         '5 the cover ring refuses the drawn water (wetBy: the drawn lakes\' field and waterDrawY; the first ring at 0.3 m, the grass field at lakeMargin by a lake)');
       console.log('GATE LOOKS: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
       process.exit(fails ? 1 : 0);
     }, 300);

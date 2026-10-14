@@ -939,7 +939,9 @@ const GATES = [
   // sandbox's page - index.html inlines none of it, flight_core.js keeps it all, the split core runs and equals
   // flight_core's, sw.js keeps this build's file for an offline career; then headless Chromium's request lists: a default
   // boot never requests it, ?career=1 / ?map=1 / ?freight=1 fetch and run it before app.js, an offline career boots from
-  // the worker's cache (SKIPPED without Playwright); ~2 s static + ~3-6 min of SwiftShader boots
+  // the worker's cache (SKIPPED without Playwright); ~2 s static + ~3-6 min of SwiftShader boots. G3070 (ROUTE-LAZY): the
+  // drawn route's drawing (route_draw.<h8>.js) the same - not in the page, the door's first demand fetches it, an armed
+  // route's boot runs it before app.js (and offline from the worker's cache)
   { id: 'LAZY', file: '_lazy_check.js', tier: 'core', wall: 360 },
 ];
 

@@ -967,6 +967,8 @@ function make(THREE, scene, world, rec0, opts) {
   // plot (it belongs on the verge in front of a frontage, which is the village's own rule - unlike the
   // guardrail, which keeps 8 m clear of one), nor in a junction, nor on a strip.
   const PWR = (typeof POWERLINE !== 'undefined') ? POWERLINE : null;
+  // (G3087 HOME-FRAME) the cables' draw reach from the page's address: ?cablereach=N (powerline DEF 1200; 2400 the old)
+  if (PWR && PWR.set && typeof location !== 'undefined') { const q = /[?&]cablereach=(\d+)/.exec(location.search || ''); if (q) PWR.set({ reach: +q[1] }); }
   function poleKeep(rd) {
     return (lx, lz) => {
       // (G2063: each test skips a shape whose box lies beyond its reach - bbFar, exact; a point outside a plot's box is outside the plot)
@@ -1035,6 +1037,10 @@ function make(THREE, scene, world, rec0, opts) {
   // geometry before that is given back, and handed to the part again. RC.flush (a full rebuild, the pavement's A/B, the
   // game out of the editor) starts over; ?pavcache=0 (window.FLYDIY_PAVCACHE = false) builds every road as before.
   const RC = { map: new Map(), flush: true, box: null, on: !(typeof location !== 'undefined' && /[?&]pavcache=0(&|$)/.test(location.search || '')) };
+  // (G2961 RUNWAY-ED-PERF) THE STRIPS' PATTERN VIS KEPT: while editing in the game every rebuild drew every strip's taxi pattern
+  // again (sitePattern + buildPatternVis, each strip); a strip's is kept when its key (the strip + its aerodrome) is the same and
+  // the rebuild's ground box missed it (PVC_PAD: the pattern's reach); a whole rebuild, the editor closed, ?pvcache=0 start over
+  const PVC = { map: new Map(), flush: true, box: null, on: !(typeof location !== 'undefined' && /[?&]pvcache=0(&|$)/.test(location.search || '')) }, PVC_PAD = 1500;
   function* buildRoadsSteps(part) {
     const want = e => (part ? isTown(e) : !geoLater(e));
     const useRC = !part && !!PAV && RC.on && window.FLYDIY_PAVCACHE !== false && !!(o.editing && o.editing()) && !GEO.split && !!PG.roadBuildKeys;
@@ -1313,16 +1319,25 @@ function make(THREE, scene, world, rec0, opts) {
   // (flight_core.js in the page); with none the strip is a bare quad
   const SITE = o.site || {};
   function buildRunways() {
-    for (const c of G.runways.children.slice()) { G.runways.remove(c); c.traverse(m => { if (m.geometry && !m.userData.sharedGeo) m.geometry.dispose(); if (m.material && m.material.map && m.userData.ownMap) m.material.map.dispose(); if (m.userData.pavMat) disposePav(m); }); }
+    // (G2961) which strips' pattern vis stand as they are (the game, editing): same key, the ground box away
+    const usePV = !!o.game && !!(o.editing && o.editing()) && PVC.on && (typeof window === 'undefined' || window.FLYDIY_PVCACHE !== false);
+    const pvKey = (r, A) => JSON.stringify([r, A ? [A.x, A.z, A.hdg, A.len, A.wid, A.elev, A.surface] : null]);
+    const keepPV = new Set();
+    if (!usePV || PVC.flush) { PVC.map.clear(); PVC.flush = false; }
+    else O.runways.forEach((r, i) => { const c = PVC.map.get(r.id); if (c && c.key === pvKey(r, O.aerodromes[i]) && !(PVC.box && !(PVC.box.x1 < c.bb.x0 || PVC.box.x0 > c.bb.x1 || PVC.box.z1 < c.bb.z0 || PVC.box.z0 > c.bb.z1)) && c.grp.parent === G.runways) keepPV.add(c.grp); });
+    PVC.box = null;
+    for (const c of G.runways.children.slice()) { if (keepPV.has(c)) continue; G.runways.remove(c); c.traverse(m => { if (m.geometry && !m.userData.sharedGeo) m.geometry.dispose(); if (m.material && m.material.map && m.userData.ownMap) m.material.map.dispose(); if (m.userData.pavMat) disposePav(m); }); }
     O.runways.forEach((r, i) => {
       const A = O.aerodromes[i];
       // the game paints every registry strip itself (render_world's decals); here only the pattern, while editing
       if (o.game) {
         if (o.editing() && SITE.sitePattern && window.PATTERN_VIS) {
+          { const c = PVC.map.get(r.id); if (c && keepPV.has(c.grp)) return; }   // (G2961) kept
           try {
             const pat = SITE.sitePattern(A, r.site || null);
             const pv = window.PATTERN_VIS.buildPatternVis(THREE, pat, (x, z) => heightAt(x, z), { patternPath: SITE.patternPath, siteRunway: SITE.siteRunway });
             const grp = pv.group || pv; if (pv.setLayers) pv.setLayers({ graph: true, slope: true, targets: true }); grp.name = 'pattern:' + r.id; G.runways.add(grp);
+            if (usePV) { const bb = PG.polyBBox(PG.runwayBox(Object.assign({}, PG.RUNWAY_DEF, r), 0)); PVC.map.set(r.id, { key: pvKey(r, A), grp, bb: { x0: bb.x0 - PVC_PAD, z0: bb.z0 - PVC_PAD, x1: bb.x1 + PVC_PAD, z1: bb.z1 + PVC_PAD } }); }   // (G2961)
           } catch (e) { console.warn('premises pattern', r.id, e && e.message); }
         }
         return;
@@ -1563,9 +1578,16 @@ function make(THREE, scene, world, rec0, opts) {
     const W = typeof window !== 'undefined' ? window : null, now = typeof performance !== 'undefined' ? performance.now() : 0, k = posed + '/' + all;
     if (W && W.FLIGHT_REC && W.FLIGHT_REC.event && k !== TRC.last && now - TRC.t > 10000) { TRC.t = now; TRC.last = k; W.FLIGHT_REC.event('traffic', null, posed + ' cars posed of ' + all + ' on ' + TRAFFIC.size + ' road' + (TRAFFIC.size === 1 ? '' : 's')); }
   }
+  // THE CARS' DRAW REACH (G3087 HOME-FRAME; A0, 13 Oct: SCENERY-SHIP's rev 27 cost ~+2 ms a frame at HOME). A car's reach
+  // was its prop's own cull distance (props.js propCullDist: 730 x its diagonal - ~3.6 km for a car, 1-2 px there), so
+  // with the user's island road r1 every car within 3.6 km of the eye was posed each frame (the ground read five times,
+  // the tilt, its obstacle moved) and drawn: 32 at HOME, 7 before. TRAFFIC_REACH caps it at 1200 m (a car is 4-5 px
+  // there; the census at HOME: -20 draws, the loop -0.3 ms), ?trafficreach=N / R.trafficReach(N), 0 the prop's own (the old)
+  const TRAFFIC_REACH = { m: (() => { const q = typeof location !== 'undefined' && /[?&]trafficreach=(\d+)/.exec(location.search || ''); return q ? +q[1] : 1200; })() };
+  const tReach = t => (TRAFFIC_REACH.m > 0 ? Math.min(t.reach, TRAFFIC_REACH.m) : t.reach);
   function moveTraffic(t, dt, eye) {
     const F = O.frame, off = Math.max(0.9, Math.min(1.6, t.w / 4)), b = t.box;
-    const pose = !eye || !b || Math.hypot(Math.max(b[0] - eye.x, 0, eye.x - b[2]), Math.max(b[1] - eye.z, 0, eye.z - b[3])) <= t.reach;
+    const pose = !eye || !b || Math.hypot(Math.max(b[0] - eye.x, 0, eye.x - b[2]), Math.max(b[1] - eye.z, 0, eye.z - b[3])) <= tReach(t);
     // G1437 (METLA-TAXI): ...AND OUT OF THE FRAME'S WALKS. An unposed car still stood in the scene graph - its LOD ladder
     // re-composed by updateMatrixWorld and its LOD updated by the render's projectObject every frame, for a car that
     // draws nothing there (its last level is empty at the reach). Hidden and its matrices held until the eye comes back
@@ -1588,7 +1610,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (!pose) continue;
       const a = t.pr.at(c.s), tx = a.tg[0] * c.dir, tz = a.tg[1] * c.dir;
       // (G2917) a car past the draw reach is not posed (its last level is empty there): an island road's far cars cost nothing
-      if (eye) { const w0 = F.toWorld(a.p[0], a.p[1]), far = Math.hypot(w0[0] - eye.x, w0[1] - eye.z) > t.reach; if (far !== !!c.far) { c.far = far; c.grp.visible = !far; c.grp.matrixWorldAutoUpdate = !far; } if (far) continue; }
+      if (eye) { const w0 = F.toWorld(a.p[0], a.p[1]), far = Math.hypot(w0[0] - eye.x, w0[1] - eye.z) > tReach(t); if (far !== !!c.far) { c.far = far; c.grp.visible = !far; c.grp.matrixWorldAutoUpdate = !far; } if (far) continue; }
       const rx = -tz, rz = tx;                                    // the right-hand side of the direction of travel (x right, z toward the viewer, y up)
       const w = F.toWorld(a.p[0] + rx * off, a.p[1] + rz * off);
       const ry = Math.atan2(tx, tz) + (F.yaw || 0);
@@ -1670,7 +1692,7 @@ function make(THREE, scene, world, rec0, opts) {
   // kept bags (walls, roof: what the second cut leaves) merged in world space with a vertex colour = the bag's
   // material colour x its map's mean (linear), one shared plain material; their plain bags hide. Glass and lit bags
   // stay the house's own. Built per cell once the cell is live (G592: it waited for the whole queue), rebuilt when its houses change.
-  const HLOD = { on: true, bake: true, tarr: true, cell: 256, near: 150, far2: 1200, dirt: 0.35, gain: 0.2, sig: '', cells: [], cellMap: new Map(), todo: [], warm: [], group: null,
+  const HLOD = { on: true, bake: true, tarr: true, cell: 256, near: 150, far2: 1200, dirt: 0.35, gain: 0.2, gainItem: 1, sig: '', cells: [], cellMap: new Map(), todo: [], warm: [], group: null,
                  lod1: true, outLod: 1, fadeW: 40, proj: true, swapPx: 48, detailPx: 9, hMax: 1440 };
   // LOD 1 PAST HLOD.near (G800, C0 of QUEUE-C; ARCH-2026-09-27 §1.2 / §5 interim 1 / §9 rows 2-3). The far town merged
   // each house's lod-0 kept bags (its three largest: 10x the generator's own far mesh). Now every house is ALSO built at
@@ -1761,6 +1783,16 @@ function make(THREE, scene, world, rec0, opts) {
     };
     m.customProgramCacheKey = () => 'hlod:' + rung;
     return (HLOD[k] = m);
+  }
+  // G2319.2 THE FAR FIFTH IS THE HOUSES' (A0's bug, 12 Oct: "the LODs for the auxiliary hangars in the starting area are
+  // black instead of the mesh colour"). G559 took the far town's colour to a fifth (HLOD.gain) measured against the HOUSE
+  // shader - its AO, dirt line and weathering darken the near house, the plain merged far mesh has none of them. A plain
+  // finish has nothing of the sort near: a hangar shell (tools/_hangar_gen.js wears hangar.js's own HANGAR_LIB steel,
+  // kept far since G1398), a shed, a tank - at the houses' fifth its far walls went ~5x darker than its near ones: black.
+  // A house-shaded finish (the generator's hook, its paint or its dirt) keeps the fifth; every other takes gainItem.
+  function farGain(mat) {
+    const ud = mat && mat.userData;
+    return (ud && (ud.houseShaded || ud.paint || ud.dirt)) ? HLOD.gain : HLOD.gainItem;
   }
   // THE NEAR RUNG'S OTHER BAGS (G801): what G566 merges per distinct material (a site item's finishes, a bag the arrays
   // could not take yet) leaves at the same edge as the TARR bake - a clone of the canonical material with the band after
@@ -1992,7 +2024,7 @@ function make(THREE, scene, world, rec0, opts) {
         // own dirt and taken to a fifth: the plain merged surface has no AO, no dirt line, no weathering to darken it
         const dt = m.material.userData && m.material.userData.dirt;
         if (dt && dt.uDirtOwn) col.lerp(paintC.set(dt.uDirtOwn.value), HLOD.dirt);
-        col.multiplyScalar(HLOD.gain);
+        col.multiplyScalar(farGain(m.material));   // G2319.2: the houses' fifth for a house finish only
         const e = M.elements; nm.getNormalMatrix(M); const q = nm.elements;
         let up = 0, side = 0;
         for (let i = 0; i < n; i++) {
@@ -3918,6 +3950,7 @@ function make(THREE, scene, world, rec0, opts) {
     HANDLES.length = 0; STEMS.length = 0;
     ghost(null); ghostModel(null);
     // the strips' taxi patterns are the editor's in the game (buildRunways draws them only while editing)
+    PVC.map.clear(); PVC.flush = true;   // (G2961: the patterns go below)
     if (o.game) for (const c of G.runways.children.slice()) if (/^pattern:/.test(c.name || '')) { G.runways.remove(c); c.traverse(m => { if (m.geometry && !m.userData.sharedGeo) m.geometry.dispose(); }); }
     selectedId = null;
   }
@@ -3936,6 +3969,7 @@ function make(THREE, scene, world, rec0, opts) {
     const groundDirty = !dirty || !dirty.bbox || dirty.ground !== false;
     // (G3002) the roads kept: a whole rebuild starts them over; a ground edit's box builds again the roads it touches
     if (!dirty || !dirty.bbox) RC.flush = true; else if (groundDirty) { const pd = (dirty.pad || 0) + 2, b = dirty.bbox; RC.box = { x0: b.x0 - pd, z0: b.z0 - pd, x1: b.x1 + pd, z1: b.z1 + pd }; }
+    if (!dirty || !dirty.bbox) PVC.flush = true; PVC.box = (dirty && dirty.bbox && groundDirty) ? Object.assign({}, RC.box) : null;   // (G2961)
     if (o.game) {
       // (G2917) an editor's edit re-patches the BLOCKS its box touches (G2063's part build), not the whole patch: an
       // island-long road's corridor was every block of the island, re-sampled at 2 m for one point moved
@@ -4017,8 +4051,9 @@ function make(THREE, scene, world, rec0, opts) {
     for (const p of O.pavePolys || []) if (PG.inPoly(p.poly, L[0], L[1])) { const f = featOf(p.id); if (f) return f; }
     for (const it of O.records.items) if (PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) return { id: it.site, layer: 'sites', entry: f.entry, item: it.item }; }
     // a hand-placed tree within two metres wins over the polygon under it
-    let tree = null, td = 2.5;
-    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft' || ob.kind === 'animal') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < td) { td = d; tree = ob; } }
+    // (G2891 c3: a parked aeroplane by its size - pickR)
+    let tree = null, td = Infinity;
+    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft' || ob.kind === 'animal') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < pickR(ob) && d < td) { td = d; tree = ob; } }
     if (tree) return { id: tree.id, layer: 'objects', entry: tree };
     const r = near || best;
     return r ? { id: r.entry.id, layer: r.layer, entry: r.entry } : null;
@@ -4032,8 +4067,10 @@ function make(THREE, scene, world, rec0, opts) {
     const F = O.frame, L = F.toLocal(x, z), out = [], seen = new Set();
     const put = (rank, d, h) => { if (h && !seen.has(h.id + '|' + (h.item || ''))) { seen.add(h.id + '|' + (h.item || '')); out.push([rank, d, h]); } };
     for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft' || ob.kind === 'animal') {
-      const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < 2.5 * Math.max(1, +ob.s || 1)) put(0, d, { id: ob.id, layer: 'objects', entry: ob }); }
+      const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < pickR(ob)) put(0, d, { id: ob.id, layer: 'objects', entry: ob }); }
     for (const it of O.records.items) if (it.foot && PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) put(1, 0, { id: it.site, layer: 'sites', entry: f.entry, item: it.item }); }
+    // (G2891 c1: a strip's club hangar or stand under the point - the strip, ranked with the site items)
+    { const gb = PG.runwayGrab ? PG.runwayGrab(rec, L[0], L[1]) : null; if (gb) { const f = PG.findById(rec, gb.id); if (f) put(1, gb.d, { id: gb.id, layer: 'runways', entry: f.entry, grab: gb.key }); } }
     for (const [id, e] of LINES) {
       if (id.endsWith(':sel')) continue;
       const en = e.entry;
@@ -4048,6 +4085,16 @@ function make(THREE, scene, world, rec0, opts) {
     out.sort((a, b) => (a[0] - b[0]) || (a[1] - b[1]));
     return out.map(q => Object.assign({ kind: ['object', 'site item', 'road', 'strip', 'polygon'][q[0]] }, q[2]));
   }
+  // G2891 (SCENERY-ED-1 c3): a placed object's pick radius - an aeroplane's from its drawn size (the group's bounding sphere,
+  // measured once and kept on the group), else the core's rule (PG.objectPickR: 2.5 m x its scale, 6 m for an aeroplane)
+  function pickR(ob) {
+    if (ob.kind !== 'aircraft' || !PG.objectPickR) return PG.objectPickR ? PG.objectPickR(ob) : 2.5 * Math.max(1, +ob.s || 1);
+    const h = HOUSES.get('ob:' + ob.id), g = h && h.grp;
+    if (g && g.userData.pickR === undefined) { try { const sp = new THREE.Box3().setFromObject(g).getBoundingSphere(new THREE.Sphere()); g.userData.pickR = isFinite(sp.radius) && sp.radius > 0 ? sp.radius : 0; } catch (e) { g.userData.pickR = 0; } }
+    return PG.objectPickR(ob, g ? g.userData.pickR : undefined);
+  }
+  // G2891 (c1): what a press at a WORLD point grabs of a strip's own things (the club hangar, the stand): { id, key } or null
+  function grabAt(x, z) { if (!PG.runwayGrab) return null; const L = O.frame.toLocal(x, z); return PG.runwayGrab(rec, L[0], L[1]); }
   // (v1.36) a composed entry's feature in the record: itself, or the AREA it expanded from (its id, or '<area>~d' and the like)
   function featOf(id) {
     const f = PG.findById(rec, id); if (f) return { id, layer: f.layer, entry: f.entry };
@@ -4082,7 +4129,8 @@ function make(THREE, scene, world, rec0, opts) {
   const R = {
     root, groups: G, stats,
     rebuild, rebuildSteps, preview, previewEnd, editEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
-    objectEdit, hitAll,
+    objectEdit, hitAll, grabAt,
+    trafficReach: m => { if (m !== undefined) TRAFFIC_REACH.m = Math.max(0, +m || 0); return TRAFFIC_REACH.m; },   // (G3087)
     snapHint, relineEntry,
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,

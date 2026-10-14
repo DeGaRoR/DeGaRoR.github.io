@@ -366,6 +366,7 @@ function el(id) {
   };
 }
 const els = {};
+const routeFetched = [];   // G3070: the drawing's file, each time route_lazy.js asked for it
 let ceN = 0;
 let rafCb = null, rafCount = 0;
 const sandbox = {
@@ -519,6 +520,13 @@ try {
   // THE CLOCK (G2650 SIM-CLOCK): day_clock.js rides the RENDER block too - run from its own source so app.js binds the
   // real DAY_CLOCK (no storage, no location here: the game's day) and the route rows carry its clock line and wait select
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'day_clock.js'), 'utf8'), sandbox, { filename: 'day_clock.js' });
+  // G3070 (ROUTE-LAZY): the drawn route's door (route_lazy.js) rides the RENDER block - run from its own source, with
+  // the page's file name (index.html's ROUTE_LOADER) and a fetch that records the drawing's file and never answers (the
+  // drawing itself is GATE ROUTE's); any other fetch is what it was here, absent
+  sandbox.window.FLYDIY_ROUTE_SRC = (/var SRC = window\.FLYDIY_ROUTE_SRC = "(route_draw\.[0-9a-f]{8}\.js)";/.exec(html) || [])[1];
+  if (!sandbox.window.FLYDIY_ROUTE_SRC) throw new Error("index.html's route loader names no route_draw.<h8>.js (G3070)");
+  sandbox.fetch = u => { if (String(u) !== sandbox.window.FLYDIY_ROUTE_SRC) throw new ReferenceError('fetch is not defined'); routeFetched.push(String(u)); return new Promise(() => {}); };
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'route_lazy.js'), 'utf8'), sandbox, { filename: 'route_lazy.js' });
   vm.runInContext(bootBlock, sandbox, { filename: 'boot.js' });      // the loading screen's brain
   vm.runInContext(worldBootBlock, sandbox, { filename: 'world_boot.js' });   // G999: FLYDIY_WORLD_COMPOSE (app.js runs it)
   vm.runInContext(appBlock, sandbox, { filename: 'app.js' });        // UI (runs setAircraft)
@@ -552,6 +560,13 @@ try {
   // G2400 (FREIGHT-STRAP): ...and no strapped load: no FLYDIY_STRAP, the lazy drawing never fetched
   if (sandbox.window.FLYDIY_STRAP !== undefined || sandbox.window.FREIGHT_STRAP_VIEW !== undefined) throw new Error('the sandbox booted with the strapped load (FLYDIY_STRAP / FREIGHT_STRAP_VIEW) without ?career=1 or ?freight=1');
   console.log('the sandbox without the flags: no FLYDIY_STRAP, no strap drawing');
+  // G3070 (ROUTE-LAZY): ...and no route drawing: the door is up, the drawing's file never asked for
+  {
+    const RD = sandbox.window.ROUTE_DRAW;
+    if (!RD || !RD.attach || RD.loaded()) throw new Error('the drawn route\'s door (route_lazy.js window.ROUTE_DRAW) is not up, or the drawing is already there');
+    if (routeFetched.length) throw new Error('the boot asked for the route drawing (' + routeFetched.join(', ') + ') with no route armed');
+    console.log('the boot without an armed route: the door up (window.ROUTE_DRAW), ' + sandbox.window.FLYDIY_ROUTE_SRC + ' never asked for');
+  }
   // G2260 (ECONOMY): ...and no wallet: no FLYDIY_ECON, no wallet line in the garage
   if (sandbox.window.FLYDIY_ECON !== undefined || els.ecWallet || els.ecSum) throw new Error('the sandbox booted with the wallet (FLYDIY_ECON / #ecWallet) without ?career=1');
   console.log('the sandbox without the flag: no FLYDIY_ECON, no wallet line');
@@ -1071,7 +1086,8 @@ try {
       if (!R.home(k) && !items.some(i => i.k === k)) throw new Error('the old rail item / section `' + k + '` has no home');
     // what each item must reach (a row or a pill each) - one or more per old item, and the moved rows
     const WANT = {
-      fly: ['from', 'to', 'taxi out', 'taxi graph', 'glide slopes', 'engine', 'lever', 'thrust', 'sync levers', 'the pilot', 'map the controls…',
+      fly: ['from', 'to', 'taxi out', 'draw on the map',   // G3070: FLY > drawn route, through route_lazy.js's door
+            'taxi graph', 'glide slopes', 'engine', 'lever', 'thrust', 'sync levers', 'the pilot', 'map the controls…',
             // G2085 (PILOT-PERSONA): the personality row, every person, and the custom person's knobs (the census opens the fold)
             'personality', 'Expert', 'Club', 'Student', 'Bush', 'Ham-fist', 'Custom', 'custom pilot', 'start from', 'reaction', 'hands', 'grip',
             'unsteadiness', 'over-rotation', 'flare height', 'bank', 'comfort g', 'field technique', 'slips', 'step hold'],
@@ -1098,6 +1114,11 @@ try {
                   (it.k === 'dev' && !skinShown ? ' (the covering hidden with #bSkin: no model on the stand here)' : ''));
     }
     if (R.current() !== null) throw new Error('the census left a flyout open (' + R.current() + ')');
+    // G3070 (ROUTE-LAZY): FLY > drawn route unfolded (the census opens every fold) is the drawing's first demand: its file
+    // asked for, once (route_lazy.js asks in a microtask: let it)
+    await new Promise(r => setImmediate(r));
+    if (routeFetched.join() !== sandbox.window.FLYDIY_ROUTE_SRC) throw new Error('FLY > drawn route opened: the drawing\'s file asked for ' + routeFetched.length + ' times (' + routeFetched.join(', ') + '), once expected');
+    console.log('FLY > drawn route opened: ' + routeFetched[0] + ' asked for once (its first demand)');
     if (R.dev() !== false) throw new Error('the census of DEV put DEV on the rail (a census saves nothing)');
     // NO GRAPHICS ROW LOST: the menu as the one flat list it was, counted, against the rows the rail reaches
     {

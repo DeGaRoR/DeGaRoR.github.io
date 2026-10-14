@@ -363,7 +363,7 @@
   // onto the conifers' 0.42) with MASTER's hue - hue added, saturation and lightness multiplied. Identity by
   // default: nothing moves until the world rail moves it (TREE_LEAF.kindTint; the world look's `kindTint`).
   const COVER_BASE = { sat: 1.58, light: 1.12 };
-  const KIND_MASTER = { cover: { hue: 0, sat: 1, light: 1 }, shrub: { hue: 0, sat: 1, light: 1 }, flower: { hue: 0, sat: 1, light: 1 } };
+  const KIND_MASTER = { cover: { hue: 0, sat: 1, light: 1.3 }, shrub: { hue: 0, sat: 1, light: 1 }, flower: { hue: 0.015, sat: 0.74, light: 0.56 } };   // G2939: the user's look, 12 Oct
   // THE FLOWERS' COLOUR (GRASS-DENSE G2566, the user 9-10 Oct: colour options for the flowers, "they stand out"): a flower is its
   // picture (no tint of its own, the ring's 'cut' material), so its kind master is a hook of its own - TINT_GLSL after the map with
   // these uniforms (no flattening: uFlat 1), identity by default. TREE_LEAF.kindTint('flower', { sat: 0.7 }) moves every flower
@@ -515,14 +515,26 @@
   // after the colour is read, the alpha then set to 1 (an opaque material ignores it; nothing else reads it). The
   // same stream, the same thresholds: the thinning is the instanced draw's, instance for instance.
   const BATCH_RAND_VS = '#ifdef USE_BATCHING\n  float _bRand = 0.5;\n  #ifdef USE_BATCHING_COLOR\n  _bRand = vColor.a; vColor.a = 1.0;\n  #endif\n#endif';
-  const fadeInject = (sh, set) => {
+  // THE ROOT GRADIENT (GRASS-DENSE G2571; the user, 12 Oct: "Apply a gradient from dark at the bottom to transparent at the top (or
+  // black to white in multiply mode). That will greatly help anchor the grass"): a material's own uRoot (x strength 0..1, y the
+  // height it fades out by as a share of the reference top, z that top in the model's units), after the tint: the diffuse
+  // x mix(1 - x, 1, smoothstep(0, y, height / z)) - black at the root to white by y. The reed's material carries it (cover_ring.js:
+  // the grass field's dials, the first ring's patches the same material); every other faded material reads U_ROOT_OFF. x 0: the
+  // branch is not taken, the picture is today's to the byte. One uniform and one varying - no new program
+  const U_ROOT_OFF = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(0, 0.4, 1, 0) : { x: 0, y: 0.4, z: 1, w: 0 } };
+  const ROOT_FS = 'if (uRoot.x > 0.0) diffuseColor.rgb *= mix(1.0 - uRoot.x, 1.0, smoothstep(0.0, max(uRoot.y, 1e-3), vRootY));';
+  const fadeInject = (sh, set, mat) => {
     const F = set || FADE_GLOBAL;
+    sh.uniforms.uRoot = (mat && mat.userData.uRoot) || U_ROOT_OFF;
+    { let fs = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n' + ROOT_FS);
+      fs = declOnce(fs, 'varying float vRootY;'); sh.fragmentShader = declOnce(fs, 'uniform vec4 uRoot;'); }
     sh.uniforms.uFadeNear = F.near; sh.uniforms.uFadeReach = F.reach; sh.uniforms.uFadeTaper = F.taper; sh.uniforms.uFadeAgl = F.agl;
     sh.uniforms.uFadeSize = F.size; sh.uniforms.uFadeHRef = F.href; sh.uniforms.uFadeSizeMax = F.smax;
     sh.uniforms.uFadeBand = U_FADE_BAND; sh.uniforms.uFadeNow = U_FADE_NOW; sh.uniforms.uFadeGrow = U_FADE_GROW;
     sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
     sh.uniforms.uWind = U_WIND;
     let vs = sh.vertexShader
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRootY = position.y / max(uRoot.z, 1e-3);')   // G2571: the model's height, before any bend
       .replace('#include <color_vertex>', '#include <color_vertex>\n' + BATCH_RAND_VS)
       .replace('#include <project_vertex>', FADE_VS + '\n#include <project_vertex>\n' + FADE_CUT_VS)
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
@@ -530,6 +542,7 @@
     // carries, and its NORMAL is not touched (see UP_VS)
     vs = swayOnce(vs, 'aRand * 6.2831');
     vs = declOnce(vs, 'uniform vec4 uWind;');
+    vs = declOnce(vs, 'uniform vec4 uRoot; varying float vRootY;');
     vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp, uFadeBand, uFadeNow, uFadeGrow, uFadeSize, uFadeHRef, uFadeSizeMax;');
     vs = declOnce(vs, '#ifdef USE_INSTANCING\nattribute float aBorn;\n#endif');
     // in a batch `aRand` names the value taken from the colour's alpha (BATCH_RAND_VS), declared in main before its first read
@@ -550,7 +563,7 @@
     // (the material's own set: the same program, its own uniforms; a material handed from one ring to the other recompiles)
     if ((mat.userData.fadeSet || null) !== (set || null)) { if (mat.userData.fadeSet !== undefined) mat.needsUpdate = true; mat.userData.fadeSet = set || null; }
     mat.customProgramCacheKey = () => 'fade' + (mat.userData.uLeaf ? '-leaf' : '');
-    if (!mat.userData.uLeaf) { const prev = mat.onBeforeCompile; mat.onBeforeCompile = sh => { if (prev) prev(sh); fadeInject(sh, mat.userData.fadeSet); }; }
+    if (!mat.userData.uLeaf) { const prev = mat.onBeforeCompile; mat.onBeforeCompile = sh => { if (prev) prev(sh); fadeInject(sh, mat.userData.fadeSet, mat); }; }
     return mat;
   }
   // THE TINT IS A DRAW-TIME TERM ON BOTH TIERS (W0c.20). The impostor sheet
@@ -608,7 +621,7 @@
         vs = declOnce(vs, 'uniform vec4 uWind;');
         vs = declOnce(vs, 'varying float vAoV;');
         sh.vertexShader = declOnce(vs, 'attribute float aoV;'); }
-      if (mat.userData.fade) fadeInject(sh, mat.userData.fadeSet);
+      if (mat.userData.fade) fadeInject(sh, mat.userData.fadeSet, mat);
       // A LEAF READS THE SHADOW MAP WITH FOUR TAPS, NOT SOFT. The renderer's
       // PCFSoft (the aeroplane's, kept) costs ~16 taps a fragment, and a
       // dense stand on the supersampled tier is the most fragments the frame

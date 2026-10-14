@@ -190,7 +190,7 @@ const fadeCheck = (W, set, sizeK, href, smax) => {   // (smax: the size fade's c
 // 8 THE GRASS FIELD (G2563): the second ring of the same file, layer 'grass' - the reed's cards cut into tufts (none bent, moved
 // apart or added), the length by the ground and cut where the premises say, the ground's colour over the tinted texel, the tiers
 // nested (a nearer eye only adds), and its own truncation exact under the size fade
-function fieldRing() {
+function fieldRing(opts) {   // (opts: { codeAt, mixAt } - a world of the caller's; GATE COVER 8g)
   const B = boot();
   const { THREE, renderer: R, ctx } = B;
   B.load(path.join('src', 'viewer', 'trees.js'));
@@ -207,7 +207,7 @@ function fieldRing() {
   const treeList = () => [{ key: 'reed1', col: cols[0], sub: { bb: [-70, 0, -70, 70, 100, 70], h: 100 } }];
   const treeBuild = () => ({ parts: [{ geo: g, mat }] });
   const mix = { species: { grass_reed: { proportion: 1, density: 0.48 } }, forest: { cover: 1 } };
-  const BIO = { mixAt: () => 'grassland', mixOf: () => mix };
+  const BIO = { mixAt: (opts && opts.mixAt) || (() => 'grassland'), mixOf: () => mix };
   const world = { terrainH: () => 0, waterH: () => -10, island: null };
   const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(0, 2, 0); camera.lookAt(40, 0, 10); camera.updateMatrixWorld();
   const scene = new THREE.Scene();
@@ -215,7 +215,7 @@ function fieldRing() {
   const GM = [0.05, 0.06, 0.02];
   const coverAt = (x, z) => (x > 20 && x < 44 && z > -20 && z < 20) ? { kill: 0, boost: 0, kind: null, cls: 'concrete', cut: 1, surf: 0 } : null;
   const CR = ctx.COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null, layer: 'grass',
-    biomeAt: () => 'grassland', codeAt: () => 2, okAt: () => true, coverAt, groundMeanAt: () => GM.slice() });
+    biomeAt: () => 'grassland', codeAt: (opts && opts.codeAt) || (() => 2), okAt: () => true, coverAt, groundMeanAt: () => GM.slice() });
   CR.set({ on: true, budgetMs: 1e9, blockBudget: 1e9, grow: 0, tufts: 12, reach: 60, near: 10, blotch: 0 });   // (the field ships off: FIELD_ON)
   for (let i = 0; i < 4; i++) CR.update();
   return { B, THREE, R, CR, scene, camera, ctx, g, GM };
@@ -274,8 +274,32 @@ function fieldRing() {
     const L = Fd.ctx.TREE_LEAF, fs = Fd.CR.fadeSet ? Fd.CR.fadeSet() : null;
     const Fx = fs ? fadeCheck(Fd, fs, L.fadeSize(null, null, fs)[0], L.fadeSize(null, null, fs)[1], L.fadeSize(null, null, fs)[2]) : { meshes: 0, cut: 0, bad: 1 };
     ok(Fx.meshes > 0 && Fx.bad === 0, '8e the field\'s truncation leaves out only tufts its own fade (and size fade) collapses', Fx.cut + ' left out, ' + Fx.bad + ' that would draw');
+    // (f) THE ROOT GRADIENT (G2571): the reed's compiled program reads the ring's own uRoot - identity by default, live A -> B -> A
+    // (0 -> 0.5 -> 0) - and every other faded material of the first ring (rocks, debris, shrubs) carries an identity uRoot of its own,
+    // so a cache-hit program never keeps another material's state (the cached-program uniforms trap); the law after the map's tint
+    { const reed = meshes[0] && meshes[0].material, rnd = () => { Fd.CR.update(); Fd.R.render(Fd.scene, Fd.camera); }, uR = () => { const p = Fd.R.properties.get(reed); return p && p.uniforms && p.uniforms.uRoot; };
+      rnd(); const a0 = uR(), x0 = a0 ? a0.value.x : NaN;
+      Fd.CR.set({ root: 0.5 }); rnd(); const x1 = uR() ? uR().value.x : NaN;
+      Fd.CR.set({ root: 0 }); rnd(); const x2 = uR() ? uR().value.x : NaN;
+      let others = 0, othersOk = 0; Bt.R.render(Bt.scene, Bt.camera);
+      Bt.CR.root.traverse(o => { if (!(o.isInstancedMesh || o.isBatchedMesh) || !o.material || !o.material.userData.fade || o.userData.coverKind === 'cover') return;
+        const p = Bt.R.properties.get(o.material); others++; if (p && p.uniforms && p.uniforms.uRoot && p.uniforms.uRoot.value.x === 0 && p.uniforms.uRoot !== a0) othersOk++; });
+      const fsOk = Fd.B.links.some(l => l.fs && l.fs.indexOf('if (uRoot.x > 0.0) diffuseColor.rgb *= mix(1.0 - uRoot.x, 1.0,') >= 0);
+      ok(a0 && x0 === 0 && x1 === 0.5 && x2 === 0 && others > 0 && othersOk === others && fsOk,
+         '8f the root gradient: the reed reads the field\'s uRoot (0 -> 0.5 -> 0 live), every other faded material its own identity, the law in the program',
+         'x ' + [x0, x1, x2].join(' -> ') + ', ' + othersOk + ' of ' + others + ' others identity'); }
   }
 }
+
+// 8g THE LAKE'S EDGE (G2572; the user: "the lakes seem to clear the grass within a few metres"): dry land the island's 10 m grid calls
+// LAKE (1) - its bank - takes the nearest land code round it and grows the field's grass; the sea (0) keeps nothing
+{ let L = null, S0 = null;
+  try { L = fieldRing({ codeAt: x => (x > 30 && x < 34 ? 1 : 2), mixAt: cd => (cd >= 2 ? 'grassland' : null) });
+        S0 = fieldRing({ codeAt: x => (x > 30 && x < 34 ? 0 : 2), mixAt: cd => (cd >= 2 ? 'grassland' : null) }); } catch (e) { ok(false, '8g the field plants by a lake', (e && e.message || String(e)).slice(0, 200)); }
+  if (L && S0) {
+    const inBand = W => { let n = 0; W.CR.root.traverse(o => { if (!o.isInstancedMesh) return; const M = o.instanceMatrix.array; for (let i = 0; i < o.userData.n; i++) { const x = M[i * 16 + 12]; if (x > 30.5 && x < 33.5) n++; } }); return n; };
+    const nl = inBand(L), ns = inBand(S0);
+    ok(nl > 0 && ns === 0, '8g a lake-coded bank grows grass (the nearest land code), a sea-coded band none', nl + ' tufts on the lake band, ' + ns + ' on the sea band'); } }
 
 console.log('GATE COVER: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

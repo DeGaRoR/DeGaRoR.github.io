@@ -30,7 +30,16 @@
 //
 // app.js attaches it (ROUTE_DRAW.attach(deps)) and calls drawOnMap / tick from
 // drawMap, mapView for the frame, onPilot from the flights' mkPilot sites.
+//
+// G3070 ROUTE-LAZY (train 44's page step, owed by the user's ruling 12 Oct): THIS
+// FILE IS NOT IN THE PAGE. tools/build.js writes it as route_draw.<h8>.js beside
+// index.html; the page carries route_lazy.js (window.ROUTE_DRAW, the same doors),
+// which fetches and runs this file on first demand (the drawing opened, FLY >
+// drawn route unfolded) or the boot runs it ahead of app.js when an ARMED route is
+// stored. Run, it registers itself (window.ROUTE_DRAW_UI, and the page's
+// ROUTE_DRAW.bindUI when the shim is already there) and declares no global.
 // ============================================================
+(function (G) {
 const ROUTE_DRAW = (() => {
   'use strict';
   const COL = { route: '#f58fd8', routeDim: 'rgba(245,143,216,.55)', bad: '#ff6b5a', ink: '#fbf4ea', dark: 'rgba(20,14,8,.85)',
@@ -542,4 +551,6 @@ const ROUTE_DRAW = (() => {
     state: () => ({ on: S.on, armed: S.armed, sel: S.sel, n: S.route ? S.route.pts.length : 0, view: S.view ? Object.assign({}, S.view) : null, msg: S.msg }),
   };
 })();
-if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
+G.ROUTE_DRAW_UI = ROUTE_DRAW;
+if (G.ROUTE_DRAW && typeof G.ROUTE_DRAW.bindUI === 'function') G.ROUTE_DRAW.bindUI(ROUTE_DRAW);
+})(typeof window !== 'undefined' ? window : globalThis);
