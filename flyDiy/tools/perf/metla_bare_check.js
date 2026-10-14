@@ -18,7 +18,15 @@ async function child(q) {
   await P.until(() => W.BOOT && W.BOOT.state === 'gone' && !(W.BOOT.busy && W.BOOT.busy()), 1800000);
   const PR = () => W.WORLD && W.WORLD.premises;
   for (let k = 0; k < 40; k++) { await P.frames(100); const s = PR() && PR().stats; if (!(s && s.queued > 0)) break; }
-  const R = PR(), G = R && R.groups, out = { q, town: !!(W.FLYDIY_TOWN && W.FLYDIY_TOWN.all), stats: {} };
+  // the stand is 10 km from Metlakatla: its plots never stream in there - build the town round its median plot (FRAMECOST's
+  // Metlakatla view: _framecost_check.js metPose + the renderer's drainNear)
+  const R0 = PR(); let drained = null;
+  try { if (R0 && R0.plots && W.PREMISES_GEN && W.FLIGHT_PROBE && W.FLIGHT_PROBE.world) {
+    const F = W.PREMISES_GEN.frameOf(R0.record, W.FLIGHT_PROBE.world()), pts = [];
+    for (const p of R0.plots()) if (/^mk_/.test(String(p.zone)) && p.poly && p.poly.length) { let x = 0, z = 0; for (const qq of p.poly) { x += qq[0]; z += qq[1]; } pts.push(F.toWorld(x / p.poly.length, z / p.poly.length)); }
+    if (pts.length) { const med = k => pts.map(t => t[k]).sort((x, y) => x - y)[pts.length >> 1];
+      const left = R0.drainNear(med(0), med(1), 900); drained = { plots: pts.length, left }; await P.frames(60); } } } catch (e) { drained = { err: String(e && e.message || e) }; }
+  const R = PR(), G = R && R.groups, out = { q, town: !!(W.FLYDIY_TOWN && W.FLYDIY_TOWN.all), stats: {}, drained };
   if (R && R.stats) for (const k of ['houses', 'houseTris', 'queued', 'metlaBare', 'lotsBatches', 'lotsBatched', 'lotsHidden', 'obstacles']) out.stats[k] = R.stats[k];
   const tally = root => { const t = { meshes: 0, tris: 0, geoMB: 0, mkYards: 0, mkFences: 0 }, seen = new Set();
     if (!root) return t;
