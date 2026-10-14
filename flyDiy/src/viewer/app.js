@@ -4419,6 +4419,13 @@
   try { const m = /[?&]teargpu=([0-9.]+)(&|$)/.exec(location.search || ''); if (m) TEAR_EVERY_GPU = +m[1]; } catch (e) {}
   const tearEveryGpu = () => (typeof window.FLYDIY_TEAR_GPU_S === 'number' ? window.FLYDIY_TEAR_GPU_S : TEAR_EVERY_GPU);
   const BRK_TEAR_WAIT = 300;                              // (train 41: ms a GPU tear sample may take before the CPU tears instead)
+  // G3022 v3 (DMG-IMPACT-LAG, PKG5: a crash frame <= 100 ms): THE BREAK EVENTS BUDGETED - at most BRK_EV_MS of record events a
+  // frame (the box, 14 Oct: 20-52 ms of events in the 135-175 ms impact frames, every record's event in the frame of the break);
+  // the records left wait a frame, the next frame starting where this one stopped (each event catches up with the whole damage
+  // state since its last: nothing is lost, a far record's triangles go a frame or two later). ?evms=<ms> (0: no budget - the A/B)
+  let BRK_EV_MS = 8;
+  try { const m = /[?&]evms=([0-9.]+)(&|$)/.exec(location.search || ''); if (m) BRK_EV_MS = +m[1]; } catch (e) {}
+  const brkEvMs = () => (typeof window.FLYDIY_EV_MS === 'number' ? window.FLYDIY_EV_MS : BRK_EV_MS);
   try { if (/[?&]wreckfast=0(&|$)/.test(location.search || '')) window.FLYDIY_WRECK_FAST = false; } catch (e) {}
   const brkFast = () => window.FLYDIY_WRECK_FAST !== false;
   const G3022 = { sampled: 0, skipped: 0 };               // (G3022 v2: the tear samples asked and skipped - the box rig reads them)
@@ -4857,15 +4864,19 @@
     // done every place rides its nearest node (as G1864's budget); when it is, every record's event is made again on it
     let tInh = 0;
     if (inhOn) { const t0 = performance.now(); brkInhStep(groups); tInh = performance.now() - t0; }
-    let evd = false;
-    for (const [own] of groups) {
-      const R = own.brkR; if (!R) continue;
-      const t1 = performance.now();
-      R.lastBound = 0;
-      if (SB.event(R, K.T, D, K.rest, R.baseD, Math.max(0, bud))) { brkIdx(R); evd = true; }
-      bud -= R.lastBound || 0;                            // (an event binds within what is left of the frame's budget)
-      tEv += performance.now() - t1;
-    }
+    let evd = false, evLeft = false;
+    { const evMs = brkEvMs(), ng = groups.length, at = ng ? (BRK.evAt || 0) % ng : 0;   // (G3022 v3: from where the last frame stopped)
+      for (let j = 0; j < ng; j++) {
+        const R = groups[(at + j) % ng][0].brkR; if (!R) continue;
+        if (R.vB === D.vB) continue;
+        if (evMs > 0 && tEv >= evMs) { if (!evLeft) { evLeft = true; BRK.evAt = (at + j) % ng; BRK.evDeferred = (BRK.evDeferred | 0) + 1; } continue; }
+        const t1 = performance.now();
+        R.lastBound = 0;
+        if (SB.event(R, K.T, D, K.rest, R.baseD, Math.max(0, bud))) { brkIdx(R); evd = true; }
+        bud -= R.lastBound || 0;                            // (an event binds within what is left of the frame's budget)
+        tEv += performance.now() - t1;
+      }
+      if (!evLeft) BRK.evAt = 0; }
     // (G1856: a wall place takes its covering point's event - its kept weights, piece and drape)
     if (evd && K.inhL && K.inhSt.done) for (const E of K.inhL) if (E.on && SB.wallSync(E, K.inhL)) brkIdx(E.R);   // (G2040: true when a held wall triangle went)
     brkWallCut(groups, D);                                // G1858
@@ -4944,7 +4955,7 @@
       if (gone !== K.inhGone) { K.inhGone = gone; for (const E of K.inhL) if (E.on && SB.wallFollow(E, K.inhL)) brkIdx(E.R); } }
     if (GP) { BRK.ms.gpu = Math.max(BRK.ms.gpu || 0, BRK.ms.lastGpu = GP.frame(X));
       BRK.liveAt = BRK.liveAt && BRK.liveAt.length === sim.p.length ? (BRK.liveAt.set(sim.p), BRK.liveAt) : Float64Array.from(sim.p); }   // (the check: the nodes the GPU drew)
-    BRK.vB = D.vB; BRK.posed = true; BRK.gpuOn = window.FLYDIY_SKINGPU !== false;
+    BRK.vB = evLeft ? -2 : D.vB; BRK.posed = true; BRK.gpuOn = window.FLYDIY_SKINGPU !== false;   // (G3022 v3: events left - no rest skip next frame)
     const t4 = performance.now(), M = BRK.ms;
     M.records = Math.max(M.records, tRec); M.event = Math.max(M.event, tEv); M.frames = Math.max(M.frames, t3 - t2); M.pose = Math.max(M.pose, t4 - t3);
     M.recordsT += tRec; M.eventT += tEv; M.poseT += t4 - t3; M.frameMax = Math.max(M.frameMax, t4 - tm); M.n++;
