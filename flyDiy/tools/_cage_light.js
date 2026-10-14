@@ -1350,6 +1350,10 @@ let group = null, board = null;
 // `lampMats` is rebuilt with the group; `driveLevels` outlives a rebuild (a slider dragged
 // at night rebuilds the lamps, and they must come back lit).
 let lampMats = [], driveLevels = null;
+// G2787: the light sets the shed has linked programs for ('points,spots' of the layer's lights in the count)
+const LINKED = new Set(['0,0']);
+const LINKING = new Map();            // sig -> the prep under way (a second build of the same set waits on it)
+const CUR_ON = new Map();             // sig -> the newest build's lights of that set (what that set's prep dresses in)
 const LENS_K = 2.4, CUP_K = 0.55;
 function applyDrive() {
   const L = driveLevels;
@@ -1375,7 +1379,9 @@ const level = (P, k) => {
 const prevPost = PAGE.post;
 PAGE.post = (ctx) => {
   if (prevPost) prevPost(ctx);
-  if (ctx.defer) { if (group) group.visible = false; return; }   // G1303: a drag tick - built when the hand stops
+  // G1303: a drag tick - built when the hand stops. G2782: the LAMPS hide, the real lights stay: a hidden group
+  // takes its lights out of three's count and every lit program in the shed re-keys at the drag's first tick
+  if (ctx.defer) { if (group) for (const c of group.children) if (!c.isLight) c.visible = false; return; }
   const { scene, P, stat } = ctx;
   if (group) {
     group.traverse(c => { if (c.geometry) c.geometry.dispose(); });
@@ -1598,8 +1604,18 @@ PAGE.post = (ctx) => {
   // picture rather than merely being visible: the landing lamp, which throws a
   // beam, and the cabin flood, which is the only interior source with anything
   // to light. Neither casts a shadow.
+  //
+  // IN THE COUNT ONLY WHEN LIT, AND ONLY ONCE ITS PROGRAMS LINKED (G2782 -> G2787, the user: "lights -> inside
+  // dimmer -> flood. Moving that froze my interface for a few seconds"). three keys every lit program on the scene's
+  // COUNT of point and spot lights, so the dimmer's first notch off 0 linked the whole shed again in one frame.
+  // G2782 kept every fitted lamp's light in the count at 0 (the flight's rule) - and the shed's boot compiles, which
+  // take the cage down (G1027 / G1085), keyed without them: train 52b's 10 s boot freeze. So G1340's law, the shed's
+  // side: a fitted lamp's light is MADE whatever its level, but it is in the count (visible) only while its row reads
+  // > 0, and a light set the shed has not linked yet is first linked in the background (app.js GARAGE_LIGHTS_PREP,
+  // the room compiled with the new lights dressed in, a task at a time) and SHOWN when that resolves - the lamp's lens
+  // glows at once, its light follows. With every dimmer at 0 the count is the pre-G2782 count, boot included.
   const lit = [];
-  if (S.wingLampR && level(P, 'land') > 0) {
+  if (S.wingLampR) {
     const l = new THREE.SpotLight(LIGHTS.land.col, level(P, 'land') * LIGHTS.land.thr,
       70, LIGHTS.land.beam, 0.5, 1.2);
     l.position.set(...S.wingLampR.p);
@@ -1607,7 +1623,7 @@ PAGE.post = (ctx) => {
     l.castShadow = false;
     group.add(l); group.add(l.target); lit.push(['land', l]);
   }
-  if (S.flood && level(P, 'flood') > 0) {
+  if (S.flood) {
     const l = new THREE.PointLight(LIGHTS.flood.col, level(P, 'flood') * 0.9, 2.4, 1.6);
     l.position.set(...S.flood.p);
     l.castShadow = false;
@@ -1616,11 +1632,33 @@ PAGE.post = (ctx) => {
   // ...and the pedalier (G308): the flight has had it since G296; the shed
   // is where the user tests the switches from the seat, so it lights the
   // footwell here too — the same numbers as cockpit.js's
-  if (S.pedal && level(P, 'pedal') > 0) {
+  if (S.pedal) {
     const l = new THREE.PointLight(LIGHTS.pedal.col, level(P, 'pedal') * 0.35, 1.2, 1.6);
     l.position.set(...S.pedal.p);
     l.castShadow = false;
     group.add(l); lit.push(['pedal', l]);
+  }
+  // G2787: which of them are in the count. `LINKED` (module scope, it outlives a rebuild) holds the light sets the
+  // shed has programs for, by their point / spot count; the dimmers-at-0 set is the boot's own
+  {
+    const on = lit.filter(([k]) => level(P, k) > 0).map(x => x[1]);
+    const sig = on.filter(l => l.isPointLight).length + ',' + on.filter(l => l.isSpotLight).length;
+    for (const [, l] of lit) l.visible = false;
+    const show = () => { for (const l of on) l.visible = true; };
+    CUR_ON.set(sig, on);
+    if (LINKED.has(sig)) show();
+    else {
+      const prep = window.GARAGE_LIGHTS_PREP;
+      // the dress shows the NEWEST build's lights (a prep a later build joined compiles on, after this group is gone)
+      const dress = f => { const L = CUR_ON.get(sig) || [], was = L.map(l => l.visible); for (const l of L) l.visible = true; try { return f(); } finally { L.forEach((l, i) => { l.visible = was[i]; }); } };
+      const pr = LINKING.get(sig) || (typeof prep === 'function' ? prep(dress) : null);
+      if (pr) LINKING.set(sig, pr);
+      if (!pr) { LINKED.add(sig); show(); }            // no room to compile (the bench, before the hangar): as before
+      else {
+        const mine = group;
+        pr.then(() => { LINKED.add(sig); LINKING.delete(sig); if (group === mine) show(); });
+      }
+    }
   }
 
   // ---- THE SWITCHBOARD ----------------------------------------------------

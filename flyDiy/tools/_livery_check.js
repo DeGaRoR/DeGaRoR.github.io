@@ -256,11 +256,27 @@ function run(SRC) {
     return bad.length;
   };
 
+  // G2870 THE PATTERNS: a build wearing the user's two (a sunburst on the
+  // tail with transparent between the rays, a fade on the wings into the
+  // paint) plus a three-stop gradient with a clear middle — every new layer
+  // field set off its default, so a field the doors drop shows here
+  const KIT = skinOf(SRC).AERO_KIT, kitIx = nm => KIT.findIndex(k => k.name === nm);
+  const SPEC_P = Object.assign(CORE.genNormaliseSpec({}), { finish: { decals: {
+    m1On: 1, m1Pat: kitIx('sunburst'), m1P: 20, m1Q: 0.42, m1R: 0.05, m1S: 0.9, m1Clr: 2,
+    m1Fit: 1, m1Tgt: 1, m1L: 1.1, m1C: 0.6, m1W: 1.4, m1H: 1.2, m1A: 0xd22b2b,
+    m2On: 1, m2Pat: kitIx('fade'), m2P: 90, m2Q: 0.1, m2R: 0.8, m2Clr: 2, m2A: 0x1b3a5c,
+    m3On: 1, m3Pat: kitIx('gradient'), m3P: -45, m3R: 0.35, m3S: 0.95, m3Clr: 2 } } });
+  check(Math.min(kitIx('sunburst'), kitIx('fade'), kitIx('gradient')) >= 0,
+        'the kit offers the G2870 patterns (fade, gradient, sunburst)');
+
   // 1 THE SEQUENCE, BOTH WAYS -------------------------------------------------
   const pairs = [['A (cessnaMetal) then B (default, no cage)', SPEC_A, SPEC_B],
                  ["A then B' (default with its own finish)", SPEC_A, SPEC_B2],
                  ["B' then A", SPEC_B2, SPEC_A],
-                 ['B then A', SPEC_B, SPEC_A]];
+                 ['B then A', SPEC_B, SPEC_A],
+                 // G2870: the patterns survive a load, and do not leak into the next aeroplane
+                 ['A then P (the patterns)', SPEC_A, SPEC_P],
+                 ['P then A', SPEC_P, SPEC_A]];
   for (const [tag, S1, S2] of pairs) {
     const store = browser();
     const p1 = page(SRC, store, 1, consOfSpec(S1)); p1.seed(S1);
@@ -278,6 +294,25 @@ function run(SRC) {
           tag + ': the second aeroplane holds exactly the finish its spec carries',
           canon(p2.ED.finishToSpec()).slice(0, 140) + ' vs ' + canon(S2.finish || null).slice(0, 140));
     cmp(tag, state(p2, S2), clean(S2));
+  }
+  // 1b THE PATTERNS REACH THE BLOCK (G2870) ------------------------------------
+  // the shared marking block is what the flown aeroplane, the far bake
+  // (flown_bake blockFor) and the parked copies (their cloned block + atlas
+  // pages) all read: three kit layers and the registration, each read back
+  // whole from the export
+  {
+    const pg = page(SRC, browser(), 1, consOfSpec(SPEC_P)); pg.seed(SPEC_P);
+    const st = state(pg, SPEC_P);
+    check(/^n4 /.test(st.dec), 'the patterns reach the marking block (three layers + the registration)', st.dec.slice(0, 40));
+    // the merge aeroDecalMerge does (node-only export; the page's AEROSKIN has the table, not the function)
+    const dec = (JSON.parse(st.fin) || {}).decals || {}, D = Object.assign({}, pg.A.AERO_DEC_DEF);
+    for (const k in dec) if (dec[k] != null) D[k] = dec[k];
+    const L = pg.A.aeroKitLayers(D);
+    check(L.length === 3 && L[0].name === 'sunburst' && L[0].clr === 2 && L[0].r === 0.05 && L[0].s === 0.9
+          && L[0].asp === +(1.4 / 1.2).toFixed(3) && L[1].name === 'fade' && L[1].p === 90 && L[1].r === 0.8
+          && L[2].name === 'gradient' && L[2].clr === 2 && L[2].r === 0.35 && L[2].s === 0.95,
+          'the patterns come back from a save exactly as they were drawn', JSON.stringify(L.map(l => [l.name, l.clr, l.p, l.r, l.s, l.asp])));
+    check(L.map(l => l.page).join(',') === '3,4,5', 'the patterns keep their own atlas pages', L.map(l => l.page).join(','));
   }
 
   // 2 THE BOOT -------------------------------------------------------------------
@@ -407,6 +442,9 @@ if (process.argv.includes('--selftest')) {
       'if (A && A.aeroFinishLegacy) S = A.aeroFinishLegacy(S).sections;', '') })],
     ['the wears-parent walk on the parent\'s finish base again (G1912)', S => Object.assign({}, S, { skin: S.skin.replace(
       '    if (pr.tint != null) tint = pr.tint;\n    else if (pf) tint = pf.base;', '    if (pf) tint = pf.base;') })],
+    // G2870: the pattern fields out of the defaults, so the save/load doors never walk them
+    ['the G2870 layer fields out of AERO_KIT_LDEF', S => Object.assign({}, S, { skin: S.skin.replace(
+      '  R: null, S: null, Clr: 0, Fit: 0,\n', '') })],
     ['the stock Cub\'s strut pin back (d244cabf)', S => Object.assign({}, S, { page5: S.page5.replace(
       '          body: { tint: 16764160 },', '          strut: { fin: "castAlu", tint: 16777215 },\n          body: { tint: 16764160 },') })],
   ];
