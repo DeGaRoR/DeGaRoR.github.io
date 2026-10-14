@@ -23,7 +23,9 @@
 //     under ?career=1 - the wallet pays, ECONOMY's rules; Take, free, in the sandbox ?map=1) and the drawing board.
 //     The map then shows that list's markers in the places' badge style, sized to the zoom; a tap filters the list.
 //   THE MAP is the user's own AI painting of the island (map_bake.js ships it as media/map/jolene_art.<h8>.jpg, in the
-//     projection's frame exactly), on its edge's sea colour, no border. Pan by a left-button drag anywhere (no image
+//     projection's frame exactly), on its edge's sea colour, no border - the painting's own edge sampled and faded into
+//     that colour around it (G2730 MAP-EDGE: one small canvas baked once in a worker, moving with the painting), so no
+//     rectangle shows at any zoom. Pan by a left-button drag anywhere (no image
 //     drag, no text selection; a click counts only if the pointer barely moved), zoom by the wheel at the cursor, a
 //     pinch, + / − / fit; kept in bounds; NO AUTO-ZOOM when a contract opens.
 //   THE GAME DRAWS EVERY SITE (the painting's own runways drift ~0.5-0.8 km): a badge per place (airfield, strip,
@@ -890,6 +892,118 @@
     return { svg, n };
   }
 
+  // ---- THE PAINTING'S EDGE (G2730-G2734, MAP-EDGE; the user, 12 Oct: "the borders of the map not being exactly the blue
+  // of the background ... sample the colors at the edge of the map and softly blend them with the background") ----------
+  // The painting's sea is not one blue along its sides, so on a flat background its rectangle showed. ONCE, when the
+  // painting has loaded: a downscaled copy of it, its EDGE sampled as a ring (the outer ~0.3-1.5 %, EDGE.seg segments a
+  // side, each corner the mean of its two sides' end segments), the segments joined linearly along each side; then ONE
+  // small canvas (a texel = EDGE.texel picture px) that the stage carries with the painting (the same transform):
+  //   OUTSIDE the painting: the edge clamped outward (a side's colour runs straight out, a corner's radially), fading
+  //     into the page's background over EDGE.fade of the map's longer side by a smoothstep, a half-level dither through
+  //     the ramp (none at its two ends): at the fade's end and beyond, the page's colour EXACTLY (art.edge) - no second
+  //     seam; past the canvas the page itself, the same colour.
+  //   OVER the painting's outer EDGE.rim: the same edge colours, opaque at the painting's border and transparent EDGE.rim
+  //     in (a smoothstep), so the painting's own last waves dissolve into the band instead of meeting it at a line;
+  //     inside that, nothing (the painting untouched).
+  // The colours carry the painting's look (EDGE.look: the img's CSS filter, saturate then contrast in sRGB as the
+  // filter functions are, so both sides of the border are the same colour on screen). Pure: edgeRing, edgeBake.
+  const EDGE = { seg: 48, band: [0.003, 0.015], fade: 0.14, rim: 0.015, texel: 8, look: { sat: 1.08, con: 1.02 } };
+  const ART_FILTER = 'saturate(' + EDGE.look.sat + ') contrast(' + EDGE.look.con + ')';
+  const hexRGB = h => { const m = /^#?([0-9a-f]{6})$/i.exec(String(h || '').trim()); const v = m ? parseInt(m[1], 16) : 0x9db6c2; return [v >> 16 & 255, v >> 8 & 255, v & 255]; };
+  // the img's filter on one colour (the CSS filter functions' matrices, each clamped)
+  function lookOf(c, L) {
+    const s = L.sat, k = L.con, cl = v => clamp(v, 0, 255), [r, g, b] = c;
+    const sr = cl((0.213 + 0.787 * s) * r + (0.715 - 0.715 * s) * g + (0.072 - 0.072 * s) * b),
+          sg = cl((0.213 - 0.213 * s) * r + (0.715 + 0.285 * s) * g + (0.072 - 0.072 * s) * b),
+          sb = cl((0.213 - 0.213 * s) * r + (0.715 - 0.715 * s) * g + (0.072 + 0.928 * s) * b);
+    return [sr, sg, sb].map(v => cl((v - 127.5) * k + 127.5));
+  }
+  // the ring: { top, bottom (left to right), left, right (top to bottom) } - EDGE.seg mean colours a side, the look applied
+  function edgeRing(img, o) {
+    o = Object.assign({}, EDGE, o || {});
+    const { data, width: W0, height: H0 } = img, N = o.seg, L = Math.max(W0, H0);
+    const d0 = Math.floor(o.band[0] * L), d1 = Math.max(d0 + 1, Math.round(o.band[1] * L));
+    const mean = (x0, x1, y0, y1) => { const s = [0, 0, 0]; let n = 0; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = (y * W0 + x) * 4; s[0] += data[i]; s[1] += data[i + 1]; s[2] += data[i + 2]; n++; } return lookOf(s.map(v => v / Math.max(1, n)), o.look); };
+    const cut = (len, k) => [Math.floor(k * len / N), Math.max(Math.floor(k * len / N) + 1, Math.floor((k + 1) * len / N))];
+    const R = { top: [], bottom: [], left: [], right: [] };
+    for (let k = 0; k < N; k++) {
+      const [a, b] = cut(W0, k), [c, e] = cut(H0, k);
+      R.top.push(mean(a, b, d0, d1)); R.bottom.push(mean(a, b, H0 - d1, H0 - d0));
+      R.left.push(mean(d0, d1, c, e)); R.right.push(mean(W0 - d1, W0 - d0, c, e));
+    }
+    return R;
+  }
+  // the canvas: w x h the painting (its px), page the background's colour; returns the texels (RGBA) and where they sit
+  // (the canvas spans -m .. w + m, -m .. h + m in the painting's px)
+  function edgeBake(R, w, h, page, o) {
+    o = Object.assign({}, EDGE, o || {});
+    const N = o.seg, F = o.fade * Math.max(w, h), RIM = o.rim * Math.max(w, h), m = F + 2 * o.texel;
+    const cw = Math.round((w + 2 * m) / o.texel), ch = Math.round((h + 2 * m) / o.texel), sx = (w + 2 * m) / cw, sy = (h + 2 * m) / ch;
+    const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+    const ss = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+    // each corner the mean of its two sides' end segments; a side's colour at u: through its ends' corners and the
+    // segments' centres, linear between
+    const tl = mix(R.top[0], R.left[0], 0.5), tr = mix(R.top[N - 1], R.right[0], 0.5), bl = mix(R.bottom[0], R.left[N - 1], 0.5), br = mix(R.bottom[N - 1], R.right[N - 1], 0.5);
+    const side = (S, c0, c1, len) => u => {
+      const f = u / len * N - 0.5;
+      if (f <= 0) return mix(c0, S[0], clamp((f + 0.5) * 2, 0, 1));
+      if (f >= N - 1) return mix(S[N - 1], c1, clamp((f - (N - 1)) * 2, 0, 1));
+      const k = Math.floor(f); return mix(S[k], S[k + 1], f - k);
+    };
+    const B = { top: side(R.top, tl, tr, w), bottom: side(R.bottom, bl, br, w), left: side(R.left, tl, bl, h), right: side(R.right, tr, br, h) };
+    // the four sides' colours per texel column / row (a texel outside the span clamps to the corner's)
+    const X = new Float64Array(cw), Y = new Float64Array(ch), tab = (n, f, pos) => { const T = new Float64Array(n * 3); for (let i = 0; i < n; i++) T.set(f(pos[i]), i * 3); return T; };
+    for (let i = 0; i < cw; i++) X[i] = (i + 0.5) * sx - m;
+    for (let j = 0; j < ch; j++) Y[j] = (j + 0.5) * sy - m;
+    const cx = X.map(x => clamp(x, 0, w)), cy = Y.map(y => clamp(y, 0, h));
+    const T = { top: tab(cw, B.top, cx), bottom: tab(cw, B.bottom, cx), left: tab(ch, B.left, cy), right: tab(ch, B.right, cy) };
+    const data = new Uint8ClampedArray(cw * ch * 4);
+    let seed = 0x2730;
+    const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296 - 0.5; };
+    // the painting's inside past the rim stays clear: its rows jump from the left rim to the right one
+    let iLo = 0, iHi = cw - 1;
+    while (iLo < cw && X[iLo] < RIM) iLo++;
+    while (iHi >= 0 && X[iHi] > w - RIM) iHi--;
+    for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) {
+      if (i === iLo && iHi >= iLo && Y[j] >= RIM && Y[j] <= h - RIM) i = iHi + 1;
+      const x = X[i], y = Y[j], p = (j * cw + i) * 4;
+      if (x < 0 || x > w || y < 0 || y > h) {
+        // OUTSIDE: the nearest point of the painting's border, its colour, faded by the distance
+        const ex = x - cx[i], ey = y - cy[j], t = ss(Math.sqrt(ex * ex + ey * ey) / F);
+        data[p + 3] = 255;
+        if (t >= 1) { data[p] = page[0]; data[p + 1] = page[1]; data[p + 2] = page[2]; continue; }
+        const S = y < 0 ? T.top : y > h ? T.bottom : x < 0 ? T.left : T.right, k = (y < 0 || y > h ? i : j) * 3, dz = 4 * t * (1 - t);
+        data[p] = S[k] + (page[0] - S[k]) * t + rnd() * dz;
+        data[p + 1] = S[k + 1] + (page[1] - S[k + 1]) * t + rnd() * dz;
+        data[p + 2] = S[k + 2] + (page[2] - S[k + 2]) * t + rnd() * dz;
+        continue;
+      }
+      // OVER THE RIM: the sides within EDGE.rim weighted by their nearness, opaque at the border, clear EDGE.rim in
+      const dmin = Math.min(y, h - y, x, w - x);
+      if (dmin >= RIM) continue;
+      const qT = y < RIM ? (1 - y / RIM) ** 2 : 0, qB = h - y < RIM ? (1 - (h - y) / RIM) ** 2 : 0, qL = x < RIM ? (1 - x / RIM) ** 2 : 0, qR = w - x < RIM ? (1 - (w - x) / RIM) ** 2 : 0;
+      const sw = qT + qB + qL + qR, a3 = i * 3, b3 = j * 3;
+      for (let c = 0; c < 3; c++) data[p + c] = (T.top[a3 + c] * qT + T.bottom[a3 + c] * qB + T.left[b3 + c] * qL + T.right[b3 + c] * qR) / sw;
+      data[p + 3] = 255 * (1 - ss(dmin / RIM));
+    }
+    return { cw, ch, m, F, RIM, data, page: page.slice() };
+  }
+
+  // THE BAKE OFF THE MAIN THREAD: a worker built from these same functions (their own source, one file): it fetches the
+  // painting (the cache the img just filled), decodes and downscales it (an ImageBitmap), reads the copy (an
+  // OffscreenCanvas), rings and bakes, puts the texels on a canvas of its own and hands that picture back (an
+  // ImageBitmap, transferred): the page only shows it (a bitmaprenderer: no raster work on the main thread)
+  const edgeWorkerSrc = () => '"use strict";\nconst EDGE = ' + JSON.stringify(EDGE) + ';\nconst clamp = ' + clamp + ';\n' + lookOf + '\n' + edgeRing + '\n' + edgeBake + '\n' +
+    'onmessage = async e => {\n  const { url, sw, sh, w, h, page } = e.data;\n  try {\n' +
+    '    const t0 = performance.now(), b = await (await fetch(url)).blob();\n' +
+    '    const bm = await createImageBitmap(b, { resizeWidth: sw, resizeHeight: sh, resizeQuality: "high" });\n' +
+    '    const c = new OffscreenCanvas(sw, sh), g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(bm, 0, 0); bm.close();\n' +
+    '    const E = edgeBake(edgeRing(g.getImageData(0, 0, sw, sh)), w, h, page);\n' +
+    '    const o = new OffscreenCanvas(E.cw, E.ch); o.getContext("2d", { willReadFrequently: true }).putImageData(new ImageData(E.data, E.cw, E.ch), 0, 0);\n' +
+    '    const bmp = o.transferToImageBitmap(); delete E.data;\n' +
+    '    postMessage({ E, bmp, ms: performance.now() - t0 }, [bmp]);\n' +
+    '  } catch (err) { postMessage({ err: String((err && err.message) || err) }); }\n};\n';
+
   const CORE = { TYPES, LOD, infraOf, mapAdapt, whereOf, placesOf, designators, stripWord, typeOf, payOf, chainOf, routeWord, involves, allows, fleetGears, markOf,
                  rowsOf, listHTML, paraHTML, headHTML, atHTML, statusHTML, act, overlayOf, subsNow, subsAll, ZOOM_MAX, ZOOM_ABS,
                  // G2440 (MAP-MERGE): the switch and the other three lists; G2280 (PROCURE) and G2290 (PILOTS)'s pure exports kept
@@ -897,7 +1011,9 @@
                  marketAdapt, marketListHTML, modelCardHTML, usedCardHTML, marketMarkers, certRows, pilotsListHTML, pilotCardHTML,
                  // G2710 (MAP-GROUP): the grouping, the order, the filters - the view the list renders
                  GROUPS, SORTS, FILTERS, SURFS, STOPS, WINS, FLT0, fltOf, groupOf, sortOf, sectionsOf, contractView, endsOf, kmOfC, stopsOf, loadOf, surfOf, winOf,
-                 filtersHTML, sectionHTML, sumHTML, rowHTML };
+                 filtersHTML, sectionHTML, sumHTML, rowHTML,
+                 // G2730 (MAP-EDGE): the painting's edge, sampled and extended into the page's colour
+                 EDGE, ART_FILTER, hexRGB, lookOf, edgeRing, edgeBake, edgeWorkerSrc };
   if (typeof module !== 'undefined' && module.exports) module.exports = CORE;
   if (!W || !W.document) return;
 
@@ -961,7 +1077,8 @@
 #mapScreen .mmMap.drag{cursor:grabbing}
 #mapScreen .mmMap img,#mapScreen .mmMap svg{-webkit-user-drag:none;user-select:none}
 #mapScreen .mmStage{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
-#mapScreen .mmStage img{display:block;pointer-events:none;filter:saturate(1.08) contrast(1.02)}
+#mapScreen .mmStage img{display:block;pointer-events:none;filter:${ART_FILTER}}
+#mapScreen .mmStage .mmEdge{position:absolute;display:none;pointer-events:none}
 #mapScreen .mmOv{position:absolute;inset:0;pointer-events:none}
 #mapScreen .mmOv>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 #mapScreen .mmRwy{pointer-events:auto;cursor:pointer}
@@ -1112,7 +1229,7 @@
       '<aside class="mmSide" aria-label="contracts"><button type="button" class="mmHandle" data-act="sheet" aria-label="the list: open or fold"><i></i><span></span></button>' +
         '<div class="mmHead"><div class="mmTitle"><h1>Contracts</h1><button type="button" class="mmClose" data-act="close" aria-label="close the map">✕</button></div><div class="mmHeadIn"></div></div>' +
         '<div class="mmAtHost"></div><div class="mmList"></div></aside>' +
-      '<main class="mmMap" aria-label="the island map: drag to pan, wheel or pinch to zoom"><div class="mmStage"><img alt="the island" draggable="false"></div>' +
+      '<main class="mmMap" aria-label="the island map: drag to pan, wheel or pinch to zoom"><div class="mmStage"><img alt="the island" draggable="false"><canvas class="mmEdge" aria-hidden="true"></canvas></div>' +
         '<svg class="mmInfra" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g></g></svg>' +
         '<div class="mmOv"><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="false"></svg><div class="mmOvH"></div></div>' +
         '<svg class="mmRose" viewBox="-32 -32 64 64" aria-hidden="true"><circle class="rk" r="27" stroke-width="1"/><circle class="rk" r="22" stroke-width=".6"/>' +
@@ -1127,6 +1244,7 @@
       $[k] = root.querySelector('.' + k);
     $.mmH1 = root.querySelector('.mmTitle h1');
     $.img = root.querySelector('.mmStage img'); $.svg = root.querySelector('.mmOv svg'); $.inf = root.querySelector('.mmInfra g');   // G2435
+    $.edge = root.querySelector('.mmStage .mmEdge');   // G2730 (MAP-EDGE): the painting's edge, baked once
     root.addEventListener('click', onClick);
     // (G2710 MAP-GROUP) the order (the head's select); a filter's choice or number (the panel's) - read on change
     root.addEventListener('change', e => {
@@ -1324,8 +1442,46 @@
     return src.then(raw => {
       reread(raw, live);   // the contracts (MAP-SIMPLE's adapter) and the market (G2280)
       render(); fit();   // the layout first (the phone's has no columns), then the fit
-      return new Promise(res => { if ($.img.complete && $.img.naturalWidth) res(true); else { $.img.onload = () => res(true); $.img.onerror = () => res(false); } });
+      return new Promise(res => { if ($.img.complete && $.img.naturalWidth) res(true); else { $.img.onload = () => res(true); $.img.onerror = () => res(false); } })
+        .then(ok => { if (ok) edgeOnce(art); return ok; });   // G2730 (MAP-EDGE)
     }, err => { console.warn('flyDiy: the contracts did not load -', err && err.message); M = mapAdapt({}, pack, null); render(); fit(); return false; });
+  }
+  // G2730 (MAP-EDGE): the painting's edge, ONCE per painting - after it has loaded, off the open's own frame: a
+  // downscaled copy (a texel's size), its ring, the one canvas the stage carries (a child of .mmStage: the painting's
+  // transform, nothing per frame). The copy, the bake and its picture in a worker (edgeWorkerSrc); a page without workers,
+  // OffscreenCanvas or fetch (a file:// page) does them here on the decoded img; one that cannot read the painting's
+  // pixels at all keeps the plain edge colour.
+  let edgeKey = '', edgeInfo = { ready: false };
+  function edgeOnce(art) {
+    if (edgeKey === art.img) return;
+    edgeKey = art.img; edgeInfo = { ready: false };
+    const img = $.img, t0 = W.performance.now();
+    const job = { url: new W.URL(art.img, D.baseURI).href, sw: Math.max(8, Math.round(pack.w / EDGE.texel)), sh: Math.max(8, Math.round(pack.h / EDGE.texel)), w: pack.w, h: pack.h, page: hexRGB(art.edge) };
+    const inWorker = () => new Promise((res, rej) => {
+      if (!W.Worker || !W.OffscreenCanvas || !W.createImageBitmap || !W.fetch || !/^https?:/.test(job.url)) return rej(new Error('no worker'));
+      // (the worker is left idle, never terminated: terminating it makes the page wait for its canvas's teardown)
+      const u = W.URL.createObjectURL(new W.Blob([edgeWorkerSrc()], { type: 'text/javascript' })), wk = new W.Worker(u), end = () => { wk.onmessage = wk.onerror = null; W.URL.revokeObjectURL(u); };
+      wk.onmessage = e => { end(); if (e.data && e.data.E && e.data.bmp) res({ E: e.data.E, bmp: e.data.bmp, via: 'worker', msOff: e.data.ms }); else rej(new Error((e.data && e.data.err) || 'the worker failed')); };
+      wk.onerror = e => { end(); rej(new Error((e && e.message) || 'the worker failed')); };
+      wk.postMessage(job);
+    });
+    const here = () => (img.decode ? img.decode() : Promise.resolve()).catch(() => null).then(() => new Promise(res => W.setTimeout(() => {
+      const c = D.createElement('canvas'); c.width = job.sw; c.height = job.sh;
+      const g = c.getContext('2d', { willReadFrequently: true }); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+      g.drawImage(img, 0, 0, job.sw, job.sh);
+      const t1 = W.performance.now(), E = edgeBake(edgeRing(g.getImageData(0, 0, job.sw, job.sh)), job.w, job.h, job.page);
+      res({ E, via: 'page', msOff: 0, msHere: W.performance.now() - t1 });
+    }, 0)));
+    inWorker().catch(() => here()).then(r => {
+      if (img.getAttribute('src') !== art.img) return;
+      const t1 = W.performance.now(), E = r.E, cv = $.edge;
+      cv.width = E.cw; cv.height = E.ch;
+      if (r.bmp) cv.getContext('bitmaprenderer').transferFromImageBitmap(r.bmp);
+      else cv.getContext('2d').putImageData(new W.ImageData(E.data, E.cw, E.ch), 0, 0);
+      Object.assign(cv.style, { left: -E.m + 'px', top: -E.m + 'px', width: (pack.w + 2 * E.m) + 'px', height: (pack.h + 2 * E.m) + 'px', display: 'block' });
+      edgeInfo = { ready: true, via: r.via, msTotal: +(W.performance.now() - t0).toFixed(1), msOff: +(+r.msOff).toFixed(1), msMain: +(W.performance.now() - t1 + (r.msHere || 0)).toFixed(1),
+                   cw: E.cw, ch: E.ch, m: E.m, F: E.F, rim: E.RIM, page: art.edge };
+    }).catch(e => { edgeInfo = { ready: false, err: e && e.message }; console.info('flyDiy: the map\'s edge stays the plain sea colour -', e && e.message); });
   }
   function close() {
     if (root && root.parentNode) root.parentNode.removeChild(root);
@@ -1335,5 +1491,5 @@
   W.MAP_MENU = Object.assign({ open, close, isOpen: () => !!(root && root.parentNode), state: () => st, model: () => M,
                                view: () => Object.assign({}, V), set: o => { Object.assign(st, o || {}); render(); },
                                zoomTo: (x, z, k) => { const v = view(); V.s = clamp(V.fit * k, V.fit, sMax()); V.tx = v.width / 2 - ((x - pack.x0) / pack.mpp) * V.s; V.ty = v.height / 2 - ((z - pack.z0) / pack.mpp) * V.s; place(); },
-                               fit: () => fit() }, CORE);
+                               fit: () => fit(), edge: () => Object.assign({}, edgeInfo) }, CORE);
 })();
