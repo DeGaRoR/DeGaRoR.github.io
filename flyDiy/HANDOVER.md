@@ -93168,3 +93168,94 @@ The user (10 Oct): "the water model switching from simple to reflective is reall
   - a first sliver of water over a hill: the last capture for 1-3 frames;
   - frame time on gamer near water: ~5 ms GPU more; ultra too (its capture is the same size);
   - saved gamer / ultra players come back on AUTO (pv 9) - the old switch at a shore, by the user's choice; ON in GRAPHICS > Water removes it.
+## G1725-G1729 - SND-MIX-2: THE AIRFRAME'S OWN VOICES MEASURED, THE METAL SQUEAL NAMED (THE BRAKES' HELD 1250 Hz TONE; THE TOUCHDOWN CHIRP; THE ROLLOUT'S ROAR) AND TAMED AT THE SOURCE, THE ENGINE SLIDER TO 200 %, GATE MIXLEAD; READY (2026-10-13, SND-MIX-2 for the Sound Coordinator, cloud, node only; branch claude/snd-mix-2 off origin/master 39570350b = train 41b; G1729 unused)
+
+The user (2026-10-13, after SND-MIX landed in train 38): "engine sound remains too faint compared to the rest (music or
+other plane sounds, or ambient sounds). Even when at max... Your engine is quieter than a metal squeal, very abnormal."
+Evidence: reports/evidence/SND-MIX-2/README.md (the study, the full table, the renders, what to listen for).
+
+G1725 THE STUDY - tools/audio/mix_render.js `--study=<tag>`: SND-MIX's offline renderer with the states it never measured
+  (taxi on the brakes 3 m/s, a pivot on the brakes, a 2 m/s-sink touchdown at idle on paved, cruise in moderate turbulence,
+  the stall warning and the flap motor FORCED - neither the Jodel nor the Cub has either -, the flap lever, a roll on grass
+  and on gravel with its recording) x the Jodel and the user's Cub x cockpit / chase, the model's EVENTS now posted to the
+  voice (SND-MIX drained them unheard), and EVERY airframe layer soloed (wind, ground, rattle, brake, creak, stall, flap
+  motor; touchdown, chirp, thump, lever): integrated LUFS, short-term max (3 s), momentary max (0.4 s), sample peak, against
+  the engine + prop's short-term loudness; music, ambience, emitters, the master's peak and the limiter's GR as SND-MIX;
+  the engine at 200 % in every state. `--table2` prints the compact before -> after table. setSources() lets a gate
+  measure in-memory sources (G1727).
+  THE METAL SQUEAL: THE BRAKES (T.brk) - a PURE 1250 Hz tone held as long as the brakes are on rolling under 9 m/s: 3.9 LU
+  under the engine in chase, 5.0-6.6 in the cockpit while taxiing on them (a keyboard pilot taxis on the brakes), a tone
+  far more salient than its LUFS. Then THE TOUCHDOWN: the chirp +12..+18 LU (0.4 s) over the idling engine, the thud
+  +10..+17.5, the rollout's ground +14 / +17 in the cockpit (the structure-borne rumble at 1.4). On the builds that have
+  one, the stall reed +13 / +15, the flap motor +7 / +8. None of these has a recording (gnd.brake / squeal / thump, stall.*,
+  mech.flap resolve to nothing): the worklet's own voices, on the airframe bus at MIX +4. The creak was not it (-20..-29).
+
+  | (Jodel; the Cub alike) | e+p LUFS 3 s | loudest texture before -> after | loudest transient | music | GR |
+  |---|---|---|---|---|---|
+  | cockpit taxi on the brakes | -26.9 | brake -6.6 -> -15.8 | - | - | 0 |
+  | chase taxi on the brakes | -23.9 | brake -3.9 -> -13.1 | - | - | 0 |
+  | cockpit touchdown (idle) | -38.8 | ground +17.0 -> -4.2 | chirp +18.2 -> touchdown +2.2 | - | 0 |
+  | chase touchdown (idle) | -35.3 | ground +0.7 -> -9.2 | chirp +14.2 -> touchdown -2.2 | - | 0 |
+  | cockpit cruise, radio on | -20.7 | wind -11.8 -> -16.5 | - | -6.1 -> -10.1 | 0 |
+  | chase idle | -38.6 | ambience -8.5 -> -8.8 | - | - | 0 |
+  | cockpit grass 8 m/s | -26.8 | ground -6.1 -> -21.3 | thump -6.2 -> -11.6 | - | 0 |
+  | cockpit stall (reed forced) | -30.9 | stall +14.9 -> -2.7 | - | - | 0 |
+  | cockpit flaps (motor forced) | -30.5 | motor +8.4 -> -11.1 | lever -4.9 -> -8.9 | - | 0 |
+
+G1726 THE REBALANCE, AT THE SOURCE (airframe_worklet.js, airframe_model.js), then the trims (audio.js MIX):
+  THE BRAKES: a FRICTION band (noise 750 Hz Q 1.4, 0.2) breathing with the wheel; the 1250 Hz tone only a 0.006 trace
+  where the wander peaks (it comes and goes) - was a held 0.05 tone. THE CHIRP: k(0.01 + 0.025 s) (was 0.06 + 0.14 s), its
+  sine 0.15 (was 0.8) in a Q 1.1 band (was 2): a scrub, not a whistle. THE TOUCHDOWN: the thud k(0.035 + 0.15 s), its cabin
+  share 0.45 (was 0.08 + 0.35 s, 1.1); the crack k(0.02 + 0.06 s). THE THUMP's cabin share 0.8 (1.2). THE GROUND: the
+  structure-borne rumble 0.2 (1.4), the tread hum 1.2 (2.5, a whine at speed), and past 12 m/s the roll no longer grows
+  (AF_TUNE.gndHi 0; was vr^1.1 to 2.5x). THE RATTLE inside 0.3 (0.6). THE STALL: the reed 0.025 (0.12), the buzzer 0.015
+  (0.07) - an alarm just under the engine. THE FLAP MOTOR 0.008 / 0.004 (0.05 / 0.012). THE CLOSED CABIN's wind 0.09 (0.1).
+  MIX: airframe 0 (was +4), music -10 (was -6). Everything else in the sound unchanged (the engine, the prop, the space,
+  the beds, the emitters, G1724's frame tau).
+  TARGETS (the Coordinator's), after, both builds: the engine + prop leads every continuous source by >= 8 LU in the
+  cockpit and >= 6 in chase, and no texture comes within 6 LU of it - IN EVERY STATE BUT ONE: the cockpit at the instant of
+  an idle touchdown rollout held at 1.2 Vs (the ground -4.2 Jodel / -5.4 Cub, the wind -8.8 / -12). The engine is at idle
+  there, 18 dB under its cruise; meeting 8 LU would leave the ground inaudible at taxi. NAMED, NOT FIXED HERE: the engine
+  voice's idle-to-cruise range in the cockpit is 21.5 dB (a real light aeroplane ~12-15) - SND-ENGINE's law. Transients
+  <= +3 LU over the engine at that moment: met (+2.2 at worst). Music in flight >= 10 LU under in the cockpit: met (-10.1 /
+  -11.8). Ambience and emitters >= 15 under in flight: met (<= -31.8 or gated). The stall reed (-2.7 / -4.4) is an alarm,
+  forced on builds that have none. The limiter: GR 0 dB in every state, the loudest peak -8.6 dBFS (was -6.8).
+
+G1727 GATE MIXLEAD (NEW, tools/audio/_mixlead_check.js, run_gates.js core): mix_render's numbers on the Jodel, the sources
+  held in memory (setSources: audio.js, airframe_model.js, airframe_worklet.js; the files never written) - cockpit cruise
+  (radio on): the engine leads the airframe >= 8, the music >= 10, ambience / emitters >= 15; chase idle: >= 6 over the
+  airframe, ambience, emitters; taxi on the brakes, cockpit >= 8 and chase >= 6 over the airframe, the brakes alone >= 11
+  (the design margin: 13-16 measured; the brief's floor 6 would not see the old tone, 8-10 under once the airframe's trim
+  came down); chase touchdown: the airframe's 0.4 s max <= +3 over the idling engine; the engine at 200 %, cockpit climb:
+  peak <= -1 dBFS, GR <= 1 dB. 7 mutations, each red: the brakes' old held squeal, the chirp's old level, the touchdown's
+  old level, the engine's trim lost, the music's old trim, a cabin wind 13 dB hotter, the cockpit trim pushed into the
+  limiter. ~40 s.
+
+G1728 THE ENGINE SLIDER TO 200 % ("even at max") - audio.js SETTINGS rows carry a 6th field, the volume's top; 'engine' 2
+  (+6 dB), every other volume 1. readSetting / set() clamp to the row's top; the rails' range 0-200; the boombox panel's
+  engine slider 0-200 (boombox.js range(..., top)). The SHED HOLDS IT AT 100 % (applyGains: lv[0] = min(1, engine) in the
+  garage - the garage untouched). CHOSEN OVER A HIGHER BASE because the measured fault was relative (the airframe's
+  synthesised voices beating the engine), now fixed at its source; the absolute level is the player's taste and the limiter
+  has the room: at 200 % the loudest state (the Cub's cruise chase, radio on) peaks at -4.3 dBFS, GR 0 dB in every state
+  and view (study_after.json engineTop). A higher base would have spent that headroom for every player and moved SND-MIX's
+  measured balance with it. GATE AUDIO MIX: the row's top, 180 % read and persisted, 700 % clamped to 200, the airframe and
+  the music still stopping at 100 %, a stored 160 % read back, 200 % doubling the engine inputs out of the shed and held at
+  100 % in it (5 new mutations; the G1722 'garage' mutation re-anchored). GATE BOOMBOX: the engine slider's max 200 and a
+  180 % set (1 new mutation, 1 re-anchored).
+
+LOW FPS (G1724) unchanged. BUDGET (A0's contract): AUDIO.update untouched (the changes are inside the worklet's process()
+  and the model's arithmetic, no new allocation: GATE AUDIO BUDGET / AFALLOC); nothing before the gesture; ?audio=0 builds
+  nothing (the stub untouched).
+
+GATES (this branch's head): AUDIO PASS (356/356 mutations; +MIX: the engine's
+  200 % top, its clamp, its persistence, the shed held at 100 % - 5 new mutations; AFVOICE's touchdown and horn mutations
+  re-anchored on the tamed levels; BUDGET: update() 4.23 us mean, 206 us worst, 0.43 B a frame), AUDIOENG PASS, BUILD PASS,
+  UISMOKE PASS, BOOMBOX PASS (40/40: the engine slider's 200 % top), ROLLSND PASS, MIXLEAD PASS (NEW, 7/7).
+- HOT FILES: src/viewer/audio/airframe_worklet.js, airframe_model.js, audio.js; src/viewer/boombox.js;
+  tools/audio/mix_render.js, _audio_check.js, _boombox_check.js; tools/run_gates.js. NEW: tools/audio/_mixlead_check.js,
+  reports/evidence/SND-MIX-2/. Not touched: app.js, space.js, src_airframe.js, the engine / prop worklets, build.js.
+- FOR THE COORDINATOR: (1) listen to the three before / after renders (README "what to listen for"); (2) the one missed
+  target is the idle rollout in the cockpit (above) - the lever for it is the engine's idle level in the cockpit
+  (SND-ENGINE), if the ear wants it; (3) a recorded brake / tyre / stall sample would blend in through src_airframe.js's
+  LOOPS / EV_KEY at their OLD gains (0.05 / 0.12 / 0.07 for brake / reed / buzzer) - re-measure with mix_render --study
+  when one is added.

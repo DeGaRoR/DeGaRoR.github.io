@@ -73,13 +73,19 @@ const AF_SURF_W = 8;
 const AF_E_TD = 1, AF_E_CHIRP = 2, AF_E_THUMP = 3, AF_E_SPLASH = 4, AF_E_LEVER = 5;
 const VK_LOW = 1, VK_BAND = 2, VK_CHIRP = 3, VK_RING = 4;
 const NV = 8;
+// G1726: the brakes' friction band and the squeal's trace (amplitudes)
+const BRK_FRIC = 0.2, BRK_SQ = 0.006, GND_STRUCT = 0.2, GND_TREAD = 1.2;
+// the stall warning's amplitudes (G1726: were 0.12 / 0.07 - a reed +13-15 LU over the engine at approach power; now a
+// clear alarm just under it - mix_render --study, the reed forced on the Jodel and the Cub, which have none)
+const STALL_REED = 0.025, STALL_BUZ = 0.015;
 
 // ---- THE STATE: one Float64Array, named offsets -------------------------------------------------------------
 // an SVF takes 8 slots: ic1 ic2 a1 a2 a3 k fc Q
 let _o = 0;
 const svfAt = () => { const o = _o; _o += 8; return o; };
 const F_WIND = svfAt(), F_HISS = svfAt(), F_TONE = svfAt(), F_CRUNCH = svfAt(), F_RATTLE = svfAt(), F_SPRAY = svfAt(),
-      F_SLAP = svfAt(), F_BUB = svfAt(), F_BREATH = svfAt(), F_CRK1 = svfAt(), F_CRK2 = svfAt(), F_TICK = svfAt();
+      F_SLAP = svfAt(), F_BUB = svfAt(), F_BREATH = svfAt(), F_CRK1 = svfAt(), F_CRK2 = svfAt(), F_TICK = svfAt(),
+      F_BRK = svfAt();   // G1726: the brakes' friction band
 const F_VOICE = _o; _o += 8 * NV;
 // scalars
 const sl = () => _o++;
@@ -159,13 +165,16 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
     this.evPan = (e === AF_E_TD || e === AF_E_CHIRP) ? (a === 0 ? -0.6 : a === 1 ? 0.6 : 0) : 0;
     this.evIo = e === AF_E_LEVER ? 1 : 0;
     const surfHz = b === 5 ? 1500 : b === 6 || b === 2 ? 3000 : b === 0 ? 2500 : 1800;
+    // G1726 (SND-MIX-2, the user: "your engine is quieter than a metal squeal"): measured against the engine at that
+    // moment (mix_render --study), a 2 m/s touchdown at idle was +10 / +18 LU over it (chase / cockpit), its chirp +14 /
+    // +18: now ~+3 at most. The chirp is a SCRUB (a broad band, the tone a trace), not a whistle
     if (e === AF_E_TD) {
-      this.voice(VK_LOW, 1, 1.1, k * (0.08 + 0.35 * s), 0.05 + 0.09 * s, 90 + 150 * s, 0, 1, 0, 0.9);
-      this.voice(VK_BAND, 1, 0.3, k * (0.05 + 0.15 * s), 0.02 + 0.03 * s, surfHz, 0, 1, 0, 0.7);
+      this.voice(VK_LOW, 1, 0.45, k * (0.035 + 0.15 * s), 0.05 + 0.09 * s, 90 + 150 * s, 0, 1, 0, 0.9);
+      this.voice(VK_BAND, 1, 0.3, k * (0.02 + 0.06 * s), 0.02 + 0.03 * s, surfHz, 0, 1, 0, 0.7);
     } else if (e === AF_E_CHIRP) {
-      this.voice(VK_CHIRP, 1, 0.35, k * (0.06 + 0.14 * s), 0.03, 2300, 1500, 0.07 + 0.13 * s, 0, 2);
+      this.voice(VK_CHIRP, 1, 0.35, k * (0.01 + 0.025 * s), 0.03, 2300, 1500, 0.07 + 0.13 * s, 0, 1.1);
     } else if (e === AF_E_THUMP) {
-      this.voice(VK_LOW, 0.5, 1.2, k * (0.1 + 0.3 * s), 0.09, 55 + 30 * s, 0, 1, 0, 0.9);
+      this.voice(VK_LOW, 0.5, 0.8, k * (0.1 + 0.3 * s), 0.09, 55 + 30 * s, 0, 1, 0, 0.9);
       this.voice(VK_RING, 0.3, 1, k * (0.03 + 0.08 * s), 0.05, 650, 0, 0.004, 0, 8);
     } else if (e === AF_E_SPLASH) {
       this.voice(VK_BAND, 1, 0.5, k * (0.1 + 0.25 * s), 0.18 + 0.3 * s, 900, 0, 1, 0, 0.4);
@@ -227,6 +236,7 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
       z[F_TONE + 6] = Math.min(1800, Math.max(40, gndV / 0.03)) * pch; z[F_TONE + 7] = 8; this.coef(F_TONE);
       z[F_CRUNCH + 6] = gHz * pch; z[F_CRUNCH + 7] = 1.1; this.coef(F_CRUNCH);
     }
+    if (doBrk) { z[F_BRK + 6] = 750 * pch; z[F_BRK + 7] = 1.4; this.coef(F_BRK); }
     if (doRat) { z[F_RATTLE + 6] = 1900; z[F_RATTLE + 7] = 5; this.coef(F_RATTLE); }
     if (doSpray) { z[F_SPRAY + 6] = (1800 + 90 * watV) * pch; z[F_SPRAY + 7] = 0.5; this.coef(F_SPRAY); }
     if (doSlap) { z[F_SLAP + 6] = 180 + 20 * watV; z[F_SLAP + 7] = 0.8; this.coef(F_SLAP); }
@@ -316,9 +326,9 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
           tone = z[o + 5] * v1;
         }
         const gd = g * dG;
-        ext += gd * (wR * rum + wH * hiss + 1.6 * crunch + 2.5 * wT * tone);
+        ext += gd * (wR * rum + wH * hiss + 1.6 * crunch + GND_TREAD * wT * tone);   // G1726: the tread hum was 2.5 (a whine at speed)
         air += gd * (0.25 * wH * hiss + 0.3 * crunch + 0.4 * wT * tone);
-        inn += gd * 1.4 * wR * rum;
+        inn += gd * GND_STRUCT * wR * rum;   // G1726: the structure-borne rumble (was 1.4: +14-17 LU over the idling engine on a rollout)
       }
       if (doRat) {
         const tr = pTailR + (tailR - pTailR) * u;
@@ -328,14 +338,21 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
         const v3 = x - z[o + 1], v1 = z[o + 2] * z[o] + z[o + 3] * v3, v2 = z[o + 1] + z[o + 3] * z[o] + z[o + 4] * v3;
         z[o] = 2 * v1 - z[o] + den; z[o + 1] = 2 * v2 - z[o + 1] + den;
         const rat = 2 * tr * z[o + 5] * v1;
-        ext += 0.8 * rat; inn += 0.6 * rat;
+        ext += 0.8 * rat; inn += 0.3 * rat;
       }
       if (doBrk) {
         z[Z_WANDER] += (w1 - z[Z_WANDER]) * cWan;
         const wn = z[Z_WANDER] * nWan;
+        // G1726: the pads on the drum are a FRICTION BAND (noise, 750 Hz, Q 1.4) breathing with the wheel; the squeal - a
+        // tone, the old layer's whole sound, 1250 Hz held as long as the brakes were - is only a trace that comes and goes
+        // where the wander peaks. Measured, the old tone sat 4-7 LU under the engine while taxiing on the brakes
+        const o = F_BRK;
+        const v3 = w2 - z[o + 1], v1 = z[o + 2] * z[o] + z[o + 3] * v3, v2 = z[o + 1] + z[o + 3] * z[o] + z[o + 4] * v3;
+        z[o] = 2 * v1 - z[o] + den; z[o + 1] = 2 * v2 - z[o + 1] + den;
         z[Z_PHB] += (1250 + 60 * wn) * pch / sr; if (z[Z_PHB] >= 1) z[Z_PHB] -= 1;
-        const ph = 6.283185307179586 * z[Z_PHB];
-        const sq = (Math.sin(ph) + 0.35 * Math.sin(2 * ph + 0.5)) * 0.05 * (pBrk + (brk - pBrk) * u) * (0.7 + 0.3 * (wn < -1 ? -1 : wn > 1 ? 1 : wn));
+        const sqG = wn > 0.9 ? (wn > 1.9 ? 1 : wn - 0.9) : 0;
+        const b = pBrk + (brk - pBrk) * u;
+        const sq = b * (0.7 + 0.3 * (wn < -1 ? -1 : wn > 1 ? 1 : wn)) * (BRK_FRIC * z[o + 5] * v1 + BRK_SQ * sqG * Math.sin(6.283185307179586 * z[Z_PHB]));
         ext += sq; air += 0.6 * sq;
       }
       // ---- WATER ----
@@ -380,11 +397,11 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
           const v3 = w2 - z[o + 1], v1 = z[o + 2] * z[o] + z[o + 3] * v3, v2 = z[o + 1] + z[o + 3] * z[o] + z[o + 4] * v3;
           z[o] = 2 * v1 - z[o] + den; z[o + 1] = 2 * v2 - z[o + 1] + den;
           const sp = s > 0 ? Math.pow(s, 1.3) : 0;
-          io += dS * 0.12 * sp * ((0.35 + 0.65 * s) * wave + (0.6 - 0.4 * s) * z[o + 5] * v1);
+          io += dS * STALL_REED * sp * ((0.35 + 0.65 * s) * wave + (0.6 - 0.4 * s) * z[o + 5] * v1);
         } else {              // the buzzer: a square, softened
           const sq = z[Z_PHS] < 0.5 ? 1 : -1;
           z[Z_BUZLP] += (sq - z[Z_BUZLP]) * cBuz;
-          io += dS * 0.07 * s * z[Z_BUZLP];
+          io += dS * STALL_BUZ * s * z[Z_BUZLP];
         }
       }
       // ---- CREAKS AND RATTLES (interior only) ----
@@ -417,7 +434,7 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
         z[Z_PHM] += fMot / sr; if (z[Z_PHM] >= 1) z[Z_PHM] -= 1;
         z[Z_MOTLP] += (2 * z[Z_PHM] - 1 + 0.3 * w1 - z[Z_MOTLP]) * cMot;
         const m = (pFlapM + (flapM - pFlapM) * u) * z[Z_MOTLP];
-        io += 0.05 * m; ext += 0.012 * m;
+        io += 0.008 * m; ext += 0.004 * m;   // G1726: was 0.05 / 0.012 (+7-8 LU over the engine on an approach)
       }
       // ---- THE ONE-SHOTS ----
       if (voices > 0) {
@@ -438,7 +455,7 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
           else if (kind === VK_RING) y = z[f + 5] * v1 * 10;
           else {   // the chirp: the tyre's squeal, a tone sweeping down through its own band of noise
             v[o + 11] += z[f + 6] / sr; if (v[o + 11] >= 1) v[o + 11] -= 1;
-            y = (Math.sin(6.283185307179586 * v[o + 11]) * 0.8 + z[f + 5] * v1 * 1.5) * v[o + 5];
+            y = (Math.sin(6.283185307179586 * v[o + 11]) * 0.15 + z[f + 5] * v1 * 1.5) * v[o + 5];
           }
           y *= v[o + 3];
           if (kind === VK_RING) y *= v[o + 5];
