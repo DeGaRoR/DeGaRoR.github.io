@@ -93326,8 +93326,9 @@ Strict light gate: PASS, 139 rows in slack, 11 better, 0 red. Gates (60): all gr
   GATE LINEUP went red at HOME under 'map' (the Cub's calm-air departure by 13's long left arm, 1591 m / 295 s; a wing
   1.91 m from fence2) and a +-10/15/20 m clearing along HOME's taxi routes changed nothing. Read from the code: the
   pilot's runway model scores each take-off direction's climb-out through the canopy over +-47.5 m past the far end, and
-  'map' lifts the approach FANS - including x_fan13_0, which the user KEPT in rev 28. The slot of 14 Oct 09:05 decides:
-  'mapx' as the default (boxes lifted, the user's fans standing) if LINEUP is green under it, else the flip reverted.
+  'map' lifts the approach FANS - including x_fan13_0, which the user KEPT in rev 28. The 09:05 read was lost to the machine's
+  shutdown (14 Oct): the flip was REVERTED (train 54b left 'today' the default); the read runs 14 Oct 15:00 - 'mapx' (boxes
+  lifted, the user's fans standing) as the default on claude/t56-mapx for train 56 if LINEUP is green under it.
 
 ### NAMED FOR TRAIN 55 (not done)
 1. **DROPPED (the user, 14 Oct 02:15: "I don't see issues with runways on my side, so keep it this way.") - GATE LOOKS 2 a declared exception on claude/t56-small 415afe9ac, train 56.** Was: 02/20's north end under the pond. rev 28's 02/20 composes 28.51-28.57 m at 94-98 % along, the pond
