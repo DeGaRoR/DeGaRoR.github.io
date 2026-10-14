@@ -126,7 +126,7 @@ const C_ = (o) => o;   // (a marker: an authored record)
 const CONTRACT_PROVIDERS = {
   field: {
     id: 'field', name: 'prov.field.name', desc: 'prov.field.desc', track: 'field', base: 250,
-    fields: ['HOME', 'w3'],
+    fields: ['HOME', 'w3', 'w5', 'w6', 'w7'],   // (+ the user's strips 10-12, SCENERY-SHIP rev27: the field club works them too)
     goods: [
       { id: 'mail',  kind: 'kg',  kg: [10, 40],  word: 'goods.mail' },
       { id: 'tools', kind: 'kg',  kg: [20, 80],  word: 'goods.tools' },
