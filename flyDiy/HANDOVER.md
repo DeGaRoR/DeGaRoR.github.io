@@ -92686,8 +92686,9 @@ PARKED - TRAIN 66, NEXT WEEK ("Torque bundle re-tuned on 41b physics"):
   G2550 ALTIPORT-ROLLOUT (the Cub's tw_ski roll-out loop in node - train 44's KNOWN red; its cloud session was started).
 - ADDED 14 Oct (A0's board item pilot-vy-shortfield, skipped for train 56 as not cheap): the take-off climb's Vy is genAP's
   1.38 Vs (44_vprofile climbSpeeds only floors it) against the POH's ~1.54 Vs - a shallower, faster climb moves every climb-out
-  gate (PROFILE TAKEOFF TAXICLEAR RWYTREES TOUR ALTIPORT CESSNAVREF PILOTMATRIX); and the Jodel not airborne at Jumbo Mine
-  from 45 m (a 205 m sheet run on 250 m) is the strip-length go / no-go EAST-POINT-DEPART's shortOfRun carries (in the bundle).
+  gate (PROFILE TAKEOFF TAXICLEAR RWYTREES TOUR ALTIPORT CESSNAVREF PILOTMATRIX). (The Jodel at Jumbo Mine from 45 m is DROPPED -
+  the user, 14 Oct: "Stop testing the Jodel, the cub is the reference for short strips." Short-strip gates and rows use the Cub;
+  a gate row flying the Jodel on a short strip goes, check-only, whenever that gate is next touched.)
 
 KNOWN REDS ON MASTER (printed KNOWN, owners): the load door's float Cessna SEA > mk_sea (Deform / JOIN-PARITY); the metal
 Cessna's prop in the water on 02/20's concrete (ISLAND-TOUR G1971, not landed); the Cub's tw_ski roll-out in node (G2550).
