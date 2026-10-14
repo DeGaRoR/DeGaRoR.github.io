@@ -36,7 +36,7 @@ function load(f) {
   const ph = j.phases || {}, P = k => ph[k] || {};
   const nm = i => med(near.map(r => r[i]));
   const steps = {}; { let set = null; for (const b of (j.bootLog || [])) { if (b.k === 'run') { set = b.set; continue; } if (b.k === 'step' && set === 'garage') steps[b.id] = (steps[b.id] || 0) + (b.ms || 0); } }
-  return { f, pre: m[1], n: +m[2], side: m[3], garage: j.tGarage, rollout: j.tReveal, steps, census: ev && ev.census, gl: ev && ev.gl,
+  return { f, pre: m[1], n: +m[2], side: m[3], garage: j.tGarage, rollout: j.tReveal, steps, census: ev && ev.census, gl: ev && ev.gl, lotsHeld: ev && ev.lotsHeld, metlaBare: ev && ev.metlaBare,
     nearShadow: nm(11), nearWorld: nm(5), nearPrem: nm(12), nearTris: nm(30),
     bootWorst: Math.max(0, ...lt.filter(x => x[0] <= g).map(x => x[1])), afterWorst: Math.max(0, ...lt.filter(x => x[0] > g).map(x => x[1])),
     standLoop: P('stand').workMed, standRender: P('stand').renderMed, standDraws: P('stand').drawsMed,
@@ -107,6 +107,9 @@ if (FL.length) {
   for (const x of rows.slice(0, 18)) L.push('| ' + x.c + ' | ' + K(x.aD) + ' -> ' + K(x.bD) + ' (' + KS(x.dD) + ') | ' + K(x.aT) + ' -> ' + K(x.bT) + ' (' + KS(x.dT) + ') | ' + K(x.bV) + ' | ' + K(x.bSD) + ' / ' + K(x.bS) + ' | ' + f1(x.bG) + ' (' + sg(x.dG) + ') | ' + f1(x.bX) + ' | ' + K(x.bMk) + ' |');
   const tot = k => rows.reduce((p, x) => p + (x[k] || 0), 0);
   L.push('| **all** | ' + K(tot('aD')) + ' -> ' + K(tot('bD')) + ' (' + KS(tot('dD')) + ') | ' + K(tot('aT')) + ' -> ' + K(tot('bT')) + ' (' + KS(tot('dT')) + ') | ' + K(tot('bV')) + ' | ' + K(tot('bSD')) + ' / ' + K(tot('bS')) + ' | ' + f1(tot('bG')) + ' (' + sg(tot('dG')) + ') | ' + f1(tot('bX')) + ' | ' + K(tot('bMk')) + ' |', '');
+  L.push('### THE LOTS HELD (A0: built and kept, drawn or not - every mesh under the lots group at the end of each run)', '', '| run | meshes | of them hidden | triangles | geometry MB | mk_ yards | Metlakatla entries bared |', '| --- | --- | --- | --- | --- | --- | --- |');
+  for (const r of FL) if (r.lotsHeld) L.push('| ' + r.f.replace('.json', '') + ' | ' + r.lotsHeld.meshes + ' | ' + r.lotsHeld.hidden + ' | ' + K(r.lotsHeld.tris) + ' | ' + f1(r.lotsHeld.geoMB) + ' | ' + r.lotsHeld.mkYards + ' | ' + (r.metlaBare || 0) + ' |');
+  L.push('');
   if (FL.some(r => !r.census)) L.push('(a run without a census: ' + FL.filter(r => !r.census).map(r => r.f).join(', ') + ')', '');
   L.push('### The three biggest levers', '', '(written from these numbers after the run - see below)', '');
 }

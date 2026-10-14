@@ -42,6 +42,16 @@
     for (const k in C) for (const f of ['tris', 'shadowTris', 'inViewTris', 'mkTris']) C[k][f] = Math.round(C[k][f]);
     for (const k in C) { C[k].geoMB = +C[k].geoMB.toFixed(1); C[k].texMB = +C[k].texMB.toFixed(1); }
     out.census = C; out.censusCam = !!fr;
+    // (A0 14 Oct: THE LOTS HELD - every mesh under the premises' lots group, drawn or not: G3210 draws them near only, they are
+    // still built and held - the geometry kept, the hidden share)
+    const LG = W.premises && W.premises.groups && W.premises.groups.lots;
+    if (LG) { const H = { meshes: 0, hidden: 0, tris: 0, geoMB: 0, mkYards: 0 }, sg = new Set();
+      LG.traverse(o => { if (typeof o.name === 'string' && o.name.startsWith('yard:mk_')) H.mkYards++;
+        if (!o.isMesh || !o.geometry) return; H.meshes++; if (!visible(o)) H.hidden++; const g = o.geometry;
+        H.tris += (g.index ? g.index.count : g.attributes.position ? g.attributes.position.count : 0) / 3;
+        if (!sg.has(g.uuid)) { sg.add(g.uuid); for (const k in g.attributes) H.geoMB += g.attributes[k].array ? g.attributes[k].array.byteLength / 1e6 : 0; if (g.index && g.index.array) H.geoMB += g.index.array.byteLength / 1e6; } });
+      H.tris = Math.round(H.tris); H.geoMB = +H.geoMB.toFixed(1); out.lotsHeld = H; }
+    if (W.premises && W.premises.stats) out.lotsHidden = W.premises.stats.lotsHidden, out.metlaBare = W.premises.stats.metlaBare;
   } catch (e) { out.censusErr = String(e && e.message || e); }
   return out;
 })()
