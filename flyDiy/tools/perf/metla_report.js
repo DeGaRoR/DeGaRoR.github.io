@@ -70,7 +70,7 @@ const L = ['# METLA-ONOFF - Metlakatla OFF (A, ?town=0) vs ON (B, ?town=1), ABBA
   } }
 const S = {};
 for (const [pre, title, K] of [
-  ['metla', 'THE FIRST VISIT - the Cessna on floats, SEA lane -> the Metlakatla seaplane base, 330 s', ['garage', 'bootWorst', 'rollout', 'nearS', 'nearLoop', 'nearRender', 'nearDraws', 'nearP99', 'nearWorstDt', 'afterWorst', 'privMB', 'wsMB', 'heapMB', 'houses', 'closest']],
+  ['metla', 'THE FLOATS LEG - the Cessna on floats from the SEA lane, 330 s (the route each run flew: see the landings; distances to the Metlakatla seaplane base)', ['garage', 'bootWorst', 'rollout', 'nearS', 'nearLoop', 'nearRender', 'nearDraws', 'nearP99', 'nearWorstDt', 'afterWorst', 'privMB', 'wsMB', 'heapMB', 'houses', 'closest']],
   ['metlacub', 'HOME - the Cub, stand and taxi', ['garage', 'bootWorst', 'rollout', 'standLoop', 'standRender', 'standDraws', 'taxiLoop', 'taxiRender', 'taxiDraws', 'taxiFps', 'afterWorst', 'privMB', 'heapMB', 'houses']]]) {
   const runs = all.filter(r => r.pre === pre).sort((a, b) => a.n - b.n); if (!runs.length) continue;
   const mean = (s, k) => { const v = runs.filter(r => r.side === s).map(r => r[k]).filter(x => typeof x === 'number' && isFinite(x)); return v.length ? v.reduce((p, q) => p + q, 0) / v.length : null; };
@@ -79,8 +79,8 @@ for (const [pre, title, K] of [
   L.push('## ' + title, '', '| run | ' + K.join(' | ') + ' | town |', '|' + ' --- |'.repeat(K.length + 2));
   for (const r of runs) L.push('| ' + r.f.replace('.json', '') + ' | ' + K.map(k => f1(r[k])).join(' | ') + ' | ' + r.town + ' |');
   L.push('| **A off** | ' + K.map(k => f1(A[k])).join(' | ') + ' | |', '| **B on** | ' + K.map(k => f1(B[k])).join(' | ') + ' | |', '| **B - A** | ' + K.map(k => sg(S[pre].D(k))).join(' | ') + ' | |', '');
-  const bad = runs.filter(r => (r.side === 'A' ? !(r.town === false || r.variant === 'nomet-sea') : !(r.town && r.variant !== 'nomet-sea')) || (pre === 'metla' && r.routeTo && r.routeTo !== 'mk_sea'));
-  if (bad.length) L.push('WARNING: void runs (side vs town / variant, or a route not to mk_sea): ' + bad.map(r => r.f + ' (town ' + r.town + ', variant ' + r.variant + ', to ' + r.routeTo + ')').join('; '), '');
+  const bad = runs.filter(r => (r.side === 'A' ? !(r.town === false || r.variant === 'nomet-sea') : !(r.town && r.variant !== 'nomet-sea')) || (r.routeTo !== runs[0].routeTo));   // (14 Oct: the floats never routed to mk_sea - every run flew the SEA lane's CIRCUIT, 3.9 km from the town: the A/B holds while the routes agree)
+  if (bad.length) L.push('WARNING: void runs (side vs town / variant, or a route unlike the first run\'s): ' + bad.map(r => r.f + ' (town ' + r.town + ', variant ' + r.variant + ', to ' + r.routeTo + ')').join('; '), '');
 }
 // ---- THE BREAKDOWN (A0 14 Oct: the Metlakatla-ON chantier's baseline) - from the floats runs (they end at the town)
 const FL = all.filter(r => r.pre === 'metla');
