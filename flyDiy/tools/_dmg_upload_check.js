@@ -92,7 +92,7 @@ function staleOf(W, S) {
 async function child() {
   const out = arg('out'), fault = arg('fault', ''), SECS = +arg('secs', 5), key = arg('build', 'cub'), dmg = arg('damage', '1') !== '0';
   // (the staging: the mild one by default - 4 m up, 30 m/s, a 0.3 m trunk 40 m ahead; STAGES.hard the breaking-up one)
-  const SV = +arg('V', 30), SAGL = +arg('agl', 4), STR = +arg('tr', 0.3), SD = +arg('D', 40), PROBE = arg('probe', '0') === '1';
+  const SV = +arg('V', 30), SAGL = +arg('agl', 4), STR = +arg('tr', 0.3), SD = +arg('D', 40), SOFF = +arg('off', 0), PROBE = arg('probe', '0') === '1';
   const { openPage } = require('./_page_node.js');
   const R = { key, fault, damage: dmg, errors: [] };
   const storage = { 'flydiy.wip': fs.readFileSync(path.join(ROOT, BUILDS[key]), 'utf8') };
@@ -157,12 +157,12 @@ async function child() {
     const c = sim.cgPos(), g = world.terrainH(c[0], c[2]); let yMin = Infinity; for (let i = 1; i < sim.p.length; i += 3) yMin = Math.min(yMin, sim.p[i]);
     let placed = false; FP.place({ at: [c[0], g + SAGL + (c[1] - yMin), c[2]], zeroV: true, dv: [SV * fx, 0, SV * fz] }).then(() => { placed = true; });
     await P.until(() => placed, 60000);
-    const c2 = sim.cgPos(), tx = c2[0] + fx * SD, tz = c2[2] + fz * SD, gt = world.terrainH(tx, tz);
+    const c2 = sim.cgPos(), tx = c2[0] + fx * SD - fz * SOFF, tz = c2[2] + fz * SD + fx * SOFF, gt = world.terrainH(tx, tz);
     world.treeHits.set('fill:upload', [tx, tz, gt, STR, gt + 10]); sim.ctl.thr = 0;
     const tA = sim.t; let br = 0;
     for (let f = 0; f < SECS * 60 + 600 && sim.t - tA < SECS; f++) { await P.frames(1); const DS = W.FLYDIY_DMG_STATE ? W.FLYDIY_DMG_STATE() : null; br = Math.max(br, DS && DS.br ? DS.br.length : 0); }
     world.treeHits.drop ? world.treeHits.drop('fill:upload') : world.treeHits.delete && world.treeHits.delete('fill:upload');
-    R.crash = { br, wreck: W.FLYDIY_WRECK_STATS ? (W.FLYDIY_WRECK_STATS().bodies || []).length : null, stage: { V: SV, agl: SAGL, tr: STR, D: SD } }; }
+    R.crash = { br, wreck: W.FLYDIY_WRECK_STATS ? (W.FLYDIY_WRECK_STATS().bodies || []).length : null, stage: { V: SV, agl: SAGL, tr: STR, D: SD, off: SOFF } }; }
   if (PROBE) { fs.writeFileSync(out, JSON.stringify(R)); P.close(); process.exit(0); }
   if (arg('path', '') === 'retry') {   // (the card's Fly again after the crash: the game's own reset, no shed)
     R.idxAtCrash = idxCensus();
@@ -206,10 +206,25 @@ const STAGES = { hard: { id: 'hard', V: 30, agl: 1, tr: 0.5, D: 40 } }, HARD_MIN
 function runChild(key, fault, secs, damage, stage) {
   const out = path.join(os.tmpdir(), 'dmgupload_' + process.pid + '_' + key + (fault ? '_' + fault : '') + (damage === false ? '_off' : '') + (stage ? '_' + stage.id : '') + '.json');
   const a = [__filename, '--child=1', '--out=' + out, '--build=' + key, '--secs=' + secs, '--fakebake=' + arg('fakebake', '1')]; if (fault) a.push('--fault=' + fault); if (damage === false) a.push('--damage=0');
-  if (stage) for (const k of ['V', 'agl', 'tr', 'D', 'path']) if (stage[k] != null) a.push('--' + k + '=' + stage[k]);
+  if (stage) for (const k of ['V', 'agl', 'tr', 'D', 'off', 'path']) if (stage[k] != null) a.push('--' + k + '=' + stage[k]);
   const r = spawnSync(process.execPath, ['--max-old-space-size=6000'].concat(a), { stdio: ['ignore', 'inherit', 'inherit'], timeout: 2 * 3600 * 1000 });
   if (r.status !== 0 || !fs.existsSync(out)) return { key, failed: 'child exit ' + r.status + (r.signal ? ' ' + r.signal : '') };
   const R = JSON.parse(fs.readFileSync(out, 'utf8')); fs.unlinkSync(out); return R;
+}
+// (14 Oct, train 54: the Cub's mild staging broke nothing on the page - a crash's break count is chaotic, not a dial, and one
+// fixed staging can land on an unbroken path after any core or world change. A staging that broke NOTHING (the aeroplane whole)
+// is flown again with the trunk moved sideways, 0.3 m each way; a partial break is never retried (a broken aeroplane flown again
+// would add up). The tries are in R.crash.tries, said with the crash; the row stays red when every one broke nothing)
+const STAGE_OFFS = [0.3, -0.3];
+function runStaged(key, fault, secs, damage, stage) {
+  let R = runChild(key, fault, secs, damage, stage); const tries = [];
+  for (const off of STAGE_OFFS) {
+    if (damage === false || R.failed || !R.crash || R.crash.br > 0) break;
+    tries.push({ off: (stage && stage.off) || 0, br: 0 });
+    R = runChild(key, fault, secs, damage, Object.assign({}, stage || {}, { id: ((stage && stage.id) || 'mild') + '_off' + off, off }));
+  }
+  if (tries.length && R.crash) R.crash.tries = tries.concat([{ off: R.crash.stage ? R.crash.stage.off : null, br: R.crash.br }]);
+  return R;
 }
 function judge(R, say) {
   const f = [], bad = m => f.push(R.key + ': ' + m);
@@ -270,12 +285,12 @@ function parent() {
   let fails = [];
   const pf = arg('fault', '');   // (G2350: --fault=nomark|noowe|aswas on the gate's own runs - a fix's A/B; the gate's verdict then reads it)
   if (pf) say('  (fault ' + pf + ')');
-  for (const k of keys) fails = fails.concat(judge(runChild(k, pf, secs), say));
+  for (const k of keys) fails = fails.concat(judge(runStaged(k, pf, secs), say));
   // (train 41: the mild staging above kept; on the train-39 physics - DRIVE2, WALL, TUNE - it broke the Cub only a little
   // (12 members). A breaking-up Cub is staged too, so the folds' heal is tested on a real wreck)
   if (keys.includes('cub') && arg('hard', '1') !== '0') {
     say('  cub, THE HARD STAGING (' + JSON.stringify(STAGES.hard) + '): the wreck must break up (' + HARD_MIN + '+ members)');
-    const R = runChild('cub', pf, secs, undefined, STAGES.hard), f = judge(R, say), br = R.crash ? R.crash.br : 0;
+    const R = runStaged('cub', pf, secs, undefined, STAGES.hard), f = judge(R, say), br = R.crash ? R.crash.br : 0;
     if (!(br >= HARD_MIN)) f.push('cub (hard): the hard staging broke ' + br + ' members, not a break-up (' + HARD_MIN + '+): it tests the mild case again');
     fails = fails.concat(f);
   }
@@ -284,7 +299,7 @@ function parent() {
   // cowl): THE GAME'S RESET. Crash (the hard staging), Fly again (#bGo, fullReset), 90 frames: nothing removed, nothing
   // hidden that the fresh aeroplane drew, no hybrid member against its fold, the wreck layer idle - damage on AND off
   if (keys.includes('cub') && arg('retry', '1') !== '0') for (const dmg of [true, false]) {
-    const R = runChild('cub', pf, secs, dmg ? undefined : false, Object.assign({}, STAGES.hard, { id: 'retry', path: 'retry' })), f = [], bad = m => f.push('cub (Fly again, damage ' + (dmg ? 'on' : 'OFF') + '): ' + m);
+    const R = runStaged('cub', pf, secs, dmg ? undefined : false, Object.assign({}, STAGES.hard, { id: 'retry', path: 'retry' })), f = [], bad = m => f.push('cub (Fly again, damage ' + (dmg ? 'on' : 'OFF') + '): ' + m);
     const T = R.retry;
     say('  cub FLY AGAIN after the crash (damage ' + (dmg ? 'on' : 'OFF') + '): the crash ' + JSON.stringify(R.crash) + '; removed triangles at the crash ' + (R.idxCrash ? R.idxCrash.length : '?') + ' meshes, after Fly again ' + JSON.stringify(R.idxRetry || null) +
         '; hidden fresh ' + R.hidden0 + ' / after ' + (T ? T.hidden : '?') + (T && T.newShown && T.newShown.length ? ' (drawn now, hidden fresh: ' + T.newShown.join(', ') + ')' : '') + '; members against their fold ' + JSON.stringify(R.visRetry || null) + '; the wreck layer ' + (T && T.stats && T.stats.active ? 'ACTIVE' : 'idle'));
