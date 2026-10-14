@@ -71,8 +71,11 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     const S = { tracks: null, key: 'sandbox', view: null, text: null };
     try {
       if (!premisesPlaced || typeof PREMISES_GEN === 'undefined' || !PREMISES_GEN.stageView || typeof stageKey !== 'function') return S;
-      if (/[?&]career=1(&|$)/.test(location.search || '') && typeof careerKey === 'function' && typeof stageTracksOf === 'function') {
-        let doc = null; try { doc = JSON.parse(localStorage.getItem(careerKey('dev')) || 'null'); } catch (e) {}
+      // G2740 (CAREER-ON): the player's career (the welcome's choice, FLYDIY_MODE 'career') stands ITS tracks, off
+      // flydiy.career.main - none while a New career's fresh flag waits (app.js backs the old one up and starts at 0)
+      const devC = /[?&]career=1(&|$)/.test(location.search || ''), mainC = !devC && typeof window !== 'undefined' && window.FLYDIY_MODE === 'career';
+      if ((devC || mainC) && typeof careerKey === 'function' && typeof stageTracksOf === 'function') {
+        let doc = null; try { doc = mainC && localStorage.getItem('flydiy.career.fresh') === '1' ? null : JSON.parse(localStorage.getItem(careerKey(devC ? 'dev' : 'main')) || 'null'); } catch (e) {}
         S.tracks = stageTracksOf(doc) || stageTracksOf({ career: { tracks: {} } });
         // the stills' door (tools/stages_shot.js): ?stages=field:1,minedock:3 composes those values over the document's,
         // for this load only (nothing is written; with ?career=1 alone)
