@@ -4412,6 +4412,12 @@
   // the groups at the break are made first, brkRecOrder)
   const WRECK_STILL = 3e-3, TEAR_EVERY = 0.05, REC_BUDGET = 40000;
   const TEAR_MOVE = 1e-3, TEAR_JITTER = 5e-5;             // (G3022 v2: the motion clock - a GPU tear sample only after 1 mm of motion)
+  // G3022 v2 (3), A LOOK CHANGE (the user decides): the GPU path's tear sampled every TEAR_EVERY_GPU s of sim time, not
+  // TEAR_EVERY - a third of the stalled frames in the impact second; a tear shows up to 0.1 s later. ?teargpu=<s> (or
+  // window.FLYDIY_TEAR_GPU_S) sets it - 0.05 is the cadence before, the A/B
+  let TEAR_EVERY_GPU = 0.15;
+  try { const m = /[?&]teargpu=([0-9.]+)(&|$)/.exec(location.search || ''); if (m) TEAR_EVERY_GPU = +m[1]; } catch (e) {}
+  const tearEveryGpu = () => (typeof window.FLYDIY_TEAR_GPU_S === 'number' ? window.FLYDIY_TEAR_GPU_S : TEAR_EVERY_GPU);
   const BRK_TEAR_WAIT = 300;                              // (train 41: ms a GPU tear sample may take before the CPU tears instead)
   try { if (/[?&]wreckfast=0(&|$)/.test(location.search || '')) window.FLYDIY_WRECK_FAST = false; } catch (e) {}
   const brkFast = () => window.FLYDIY_WRECK_FAST !== false;
@@ -4921,7 +4927,7 @@
             // (the held bits as they stood at the sample - G2040 x G1818: an event since may have re-judged a triangle)
             if (SB.tearPlaces(R, Wd.Wp, ge.p0, R.baseD, R.heldAsk !== undefined ? R.heldAsk : R.held)) { brkIdx(R); R.tornNew = true; }
             R.heldAsk = undefined; }
-        } else if (!(brkFast() && sinceT < TEAR_EVERY)) {
+        } else if (!(brkFast() && sinceT < (onGpu ? tearEveryGpu() : TEAR_EVERY))) {
           // (G3022 v2: no sample for a record with nothing to tear - no watched triangle, or tearPlaces' own no-tear rule - nor
           // for one the motion clock has not moved TEAR_MOVE since its last sample: its tear clock starts again)
           if (onGpu && (!R.watch || !R.watch.length || (R.noTear && !R.tubeTear && !R.sheetTear && !R.shellTear) ||
