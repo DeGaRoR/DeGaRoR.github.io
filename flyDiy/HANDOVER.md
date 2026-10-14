@@ -93323,3 +93323,7 @@ READY for the GAME COORDINATOR (train 52: the garage Wait fix, c38a5e99's code +
   `(pointer: coarse)` CSS is allowed (1). It was a red on train 52's branch, not a device test in code.
 - Backlog (non-blockers, the play-through is on the live game): no career name entry (always "your career"); no
   "restore the backup" door for `.prev`; one career slot.
+
+## Train 56 (A0, 14 Oct 20:55)
+Landed: CAREER ON (G2740, 31d61c631: DESTTO's row updated for the flip), DMG impact-lag v1 (G3022: one shared GPU read-back, no hypot), DMGUPLOAD stage-robust row (d4e497ecf), trees cut only on the strip: rwyTrees 'mapx' default (ED-2 be453a378, LINEUP PASS), the benches load matlib.js (cbd553a51).
+Strict light gate: PASS, 138 rows in slack, 12 better, 0 red. Gates: CLOUD (lamps, known), SKINMAT + WEATHER (master's stale strip; fixed by the garage group, train 57), DMGUPLOAD still red (the Cub staging breaks nothing even with the retries - Deform), FRAMECOST 2 rows from mapx's trees by the strip (taxi tris.shadow 1.78 -> 3.66 M, bindBuffer 2 -> 7): the look the user asked for, to admit by ALLOW.
