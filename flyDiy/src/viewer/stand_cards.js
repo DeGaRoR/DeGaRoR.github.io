@@ -24,7 +24,7 @@
 const STAND_CARDS = (() => {
   function make(THREE, ctx) {
     const { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-            ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy, rdyMin, polyMix, polyGround, POLY_CAN, sheetMean } = ctx;
+            ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy, rdyMin, polyMix, polyGround, POLY_CAN, sheetMean, composeCardAtlas } = ctx;
     // THE WHOLE ISLAND (2026-09-22, the user: "extend the visibility range even beyond the 18 km ... just
     // filling all the parts of the island visible from the camera"): measured 171 k cards at 18 km,
     // 193 k at 26, 193.6 k at 40 - it SATURATES, because Jolene is 39 km across and there is no more
@@ -36,7 +36,8 @@ const STAND_CARDS = (() => {
     // it is not built yet - render_world's readiness grid (ctx.rdy), read per instance in the impostor's vertex stage. A
     // built chunk dissolves its cards; the fill never leaves a hole while it streams. standIn false: the old cut by
     // distance alone (the A/B). rowMs: a chunk's rows in flight stop once this much of the frame is spent (they ran whole)
-    const S = { on: true, far: 30000, near: 4000, spacing: 32, cell: 2048, gain: 6, block: 4, treeH: 12, mixKey: 'conifer_young', standIn: true, rowMs: 4 };
+    // compose (G3184): the card drawn from its species' own impostor sheets (false: the merged block's bake, levelled - the A/B)
+    const S = { on: true, far: 30000, near: 4000, spacing: 32, cell: 2048, gain: 6, block: 4, treeH: 12, mixKey: 'conifer_young', standIn: true, rowMs: 4, compose: true };
     const STAT = { chunks: 0, instances: 0, lastMs: 0, maxMs: 0, baked: false };
     const root = new THREE.Group(); root.name = 'standCards'; scene.add(root);
     const chunks = new Map();
@@ -80,7 +81,7 @@ const STAND_CARDS = (() => {
       const draw = r => { let acc = r * tot; for (const p of pool) { acc -= p.w; if (acc <= 0) return p; } return pool[pool.length - 1]; };
       // the block: n x n trees at the fill's spacing, the L1 rung (stick + full foliage), every tree at
       // treeH x a spread, merged per (species part) so each merged geometry keeps its own material
-      const byMat = new Map(); const n = S.block, sp = S.spacing / S.block; let seed = 7;
+      const byMat = new Map(), layout = []; const n = S.block, sp = S.spacing / S.block; let seed = 7;
       const R = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
       for (let iz = 0; iz < n; iz++) for (let ix = 0; ix < n; ix++) {
         const p = draw(R()); let b = null; try { b = treeBuild(THREE, p.key, 1, 'rungs'); } catch (e) { continue; }
@@ -88,6 +89,7 @@ const STAND_CARDS = (() => {
         const s = S.treeH * (0.8 + 0.4 * R()) / p.h, yaw = R() * Math.PI * 2;
         const x = (ix - (n - 1) / 2) * sp + (R() - 0.5) * sp * 0.6, z = (iz - (n - 1) / 2) * sp + (R() - 0.5) * sp * 0.6;
         const m = new THREE.Matrix4().makeRotationY(yaw).scale(new THREE.Vector3(s, s, s)).setPosition(x, 0, z);
+        layout.push({ x, z, s, key: p.key });   // G3184: the block's trees, for the card composed from their sheets
         for (const q of b.parts) { let L = byMat.get(q.mat); if (!L) byMat.set(q.mat, L = []); L.push({ geo: q.geo, mat: q.mat, m }); }
       }
       const parts = [];
@@ -98,9 +100,9 @@ const STAND_CARDS = (() => {
         const leaf = b.parts.find(q => q.mat.userData && q.mat.userData.uLeaf && q.mat.userData.uLeaf.value > 0.5), bark = b.parts.find(q => q.mat.userData && q.mat.userData.uLeaf && !(q.mat.userData.uLeaf.value > 0.5) && q.mat.userData.uLight);
         const u = leaf && leaf.mat.userData; return u && u.uHue ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight, uLightB: bark ? bark.mat.userData.uLight : u.uLight } : null; };
       const tints = pool.map(q => ({ w: q.w, key: q.key, u: tintOf(q.key) })).filter(q => q.u);
-      return parts.length ? { parts, pool, tints } : null;
+      return parts.length ? { parts, pool, tints, layout } : null;
     }
-    let P0 = null, tries = 0, TINT = null, levelTries = 0;
+    let P0 = null, tries = 0, TINT = null, levelTries = 0, COMPOSED = false, LEVEL_MINE = false;
     const tintNow = () => { if (!TINT || !P0 || !P0.tints) return; let w = 0, h = 0, sa = 0, li = 0, lb = 0;
       for (const q of P0.tints) { w += q.w; h += q.w * q.u.uHue.value; sa += q.w * q.u.uSat.value; li += q.w * q.u.uLight.value; lb += q.w * q.u.uLightB.value; }
       if (w > 0) { TINT.uHue.value = h / w; TINT.uSat.value = sa / w; TINT.uLight.value = li / w; TINT.uLightB.value = lb / w; } };
@@ -120,21 +122,28 @@ const STAND_CARDS = (() => {
       // x CARD_SCREEN_K: the sheets match at 3.15 but ON SCREEN the card then drew 1.35x its impostors (cardmatch_probe, 13 Oct
       // 02:50 + 03:07, the default look) - a block's baked normals face the sky more than a tree's: the light the sheet cannot see
       const k = Math.max(0.25, Math.min(4, (y / w) / lum(card) * CARD_SCREEN_K));
-      LOD.impLevel(atlas.key + '|' + (atlas.series || 'rungs'), k);
+      LOD.impLevel(atlas.key + '|' + (atlas.series || 'rungs'), k); LEVEL_MINE = true;
       STAT.level = +k.toFixed(3); STAT.levelSrc = n + ' species sheets, card luma ' + lum(card).toFixed(4) + ', theirs ' + (y / w).toFixed(4);
     }
     function ensure() {
       if (proto || failed) return !!proto;
       const t0 = performance.now();
       if (!P0) P0 = buildProto(); const P = P0; if (!P) { failed = true; return false; }
-      const atlas = bakeImpostorAtlas(P.parts, { key: 'stand:' + S.mixKey, series: 'rungs' });
-      if (!atlas || !atlas.tex || atlas.refused) { if (++tries > 600) failed = true; return false; }   // refused = a map not decoded yet: again next frame (ten seconds of tries)
+      // G3184: THE CARD COMPOSED FROM ITS SPECIES' OWN SHEETS (render_world composeCardAtlas) - their texels, their normals: the
+      // same colour as the impostors by construction, no level to match. Until their sheets exist it waits (the fill bakes
+      // them); after ~10 s of tries the old bake of the merged block takes over, levelled (matchLevel, G3181-G3183)
+      let atlas = null; COMPOSED = false;
+      if (composeCardAtlas && S.compose && tries < 600) { atlas = composeCardAtlas(P.layout, { key: 'stand:' + S.mixKey, series: 'rungs' }); if (!atlas) { tries++; return false; } COMPOSED = true; }
+      if (!atlas) atlas = bakeImpostorAtlas(P.parts, { key: 'stand:' + S.mixKey, series: 'rungs' });
+      if (!atlas || !atlas.tex || atlas.refused) { if (++tries > 1200) failed = true; return false; }   // refused = a map not decoded yet: again next frame (ten seconds of tries)
       // G3180 (CARD-MATCH): THE CARD'S OWN TINT, the proportion-weighted mean of its species' (tintNow, every update); and ITS
       // LEVEL, matched to their sheets at this bake (matchLevel) - one source for the colour of both tiers
       TINT = P.tints && P.tints.length ? { uHue: { value: 0 }, uSat: { value: 1 }, uLight: { value: 1 }, uLightB: { value: 1 }, bark: false } : null;
       if (TINT) tintNow();
       mat = impostorMat(atlas, S.far, 0, TINT || tintUniformsOf(P.parts), S.gain, U_NOTHIN, { value: S.near }, undefined, (S.standIn && rdy) ? rdy : null);
-      matchLevel(P, atlas);
+      // (a composed card clears only a level matchLevel set - never one set from outside, e.g. GATE CARDMATCH's control: the 18:05 proof
+      // of 13 Oct read 1.12 at 'half level' because each rebuild cleared it)
+      if (!COMPOSED) matchLevel(P, atlas); else { if (LEVEL_MINE && typeof TREE_LOD !== 'undefined' && TREE_LOD.impLevel) TREE_LOD.impLevel(atlas.key + '|' + atlas.series, null); LEVEL_MINE = false; STAT.level = 1; STAT.levelSrc = 'composed from ' + P.layout.length + ' trees\' own sheets'; }
       quad = new THREE.PlaneGeometry(1, 1); chunkBounds(quad, S.cell / 2);
       proto = { parts: P.parts, atlas };
       STAT.baked = true; STAT.lastMs = performance.now() - t0;
@@ -209,7 +218,7 @@ const STAND_CARDS = (() => {
       if (!ensure()) return;
       tintNow();   // G3180: the card's tint follows its species' every frame (a look's tint, a kind's master)
       // ...and the level, once its species' sheets exist (the fill may bake them after this card): a try a second, a minute at most
-      if (STAT.level === undefined && proto && (tick % 30) === 0 && ++levelTries <= 60) matchLevel(P0, proto.atlas);
+      if (STAT.level === undefined && proto && !COMPOSED && (tick % 30) === 0 && ++levelTries <= 60) matchLevel(P0, proto.atlas);
       if ((tick++ % 20) === 0) {
         const C = S.cell, R = Math.ceil(S.far / C) + 1, cx0 = Math.floor(cg[0] / C), cz0 = Math.floor(cg[2] / C);
         const B = world.bounds;   // no chunk outside the island's own square: the sea plants nothing
@@ -240,8 +249,8 @@ const STAND_CARDS = (() => {
     const api = {
       update, root,
       get: () => Object.assign({}, S),
-      set: o => { const was = { far: S.far, near: S.near, spacing: S.spacing, standIn: S.standIn }; Object.assign(S, o || {});
-        if (S.far !== was.far || S.near !== was.near || S.spacing !== was.spacing || S.standIn !== was.standIn) { for (const k of [...chunks.keys()]) drop(k); if (mat) { mat.dispose(); } proto = null; mat = null; job = null; }
+      set: o => { const was = { far: S.far, near: S.near, spacing: S.spacing, standIn: S.standIn, compose: S.compose }; Object.assign(S, o || {});
+        if (S.far !== was.far || S.near !== was.near || S.spacing !== was.spacing || S.standIn !== was.standIn || S.compose !== was.compose) { for (const k of [...chunks.keys()]) drop(k); if (mat) { mat.dispose(); } proto = null; mat = null; job = null; tries = 0; failed = false; delete STAT.level; levelTries = 0; }
         return api.get(); },
       replant: () => { for (const k of [...chunks.keys()]) drop(k); job = null; },
       // G2935: the chunks under these world boxes (every chunk with null) are walked again; each keeps its cards drawn

@@ -17,6 +17,11 @@ const fs = require('fs'), path = require('path'), http = require('http');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const URL = opt('url', 'http://localhost:8358/flyDiy/index.html'), OUT = opt('out', path.join(__dirname, 'cardmatch.json')), SHOTS = opt('shots', null);
+// --gate: GATE CARDMATCH (G3185) - the default look's on-screen card / impostor luma inside BAND, and its NEGATIVE CONTROL: the
+// same card at half its level (TREE_LOD.impLevel on its sheet x 0.5) must leave the band, or the row cannot see a mismatch
+const GATE = argv.includes('--gate'), BAND = [0.85, 1.15];
+// --compose 0: the card from the merged block's bake (G3181-G3183, levelled) - the A/B against the composed card (G3184)
+const COMPOSE = opt('compose', null);
 const PORT = 9400 + (process.pid % 500);
 const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome'].find(p => fs.existsSync(p));
 const ch = spawn(CHROME, ['--headless=new', '--remote-debugging-port=' + PORT, '--window-size=1600,900', '--hide-scrollbars', '--no-first-run',
@@ -96,10 +101,23 @@ const MODE = m => `(() => { const SC = TREE_FILL.stands(); const fillMat = [];
     const MM = JSON.parse(await ev(MEANS)), I = MM.imps, C = MM.cards;
     return { tag, sheets, screen: { imps: I, cards: C, ratio: I && C ? { r: C.r / I.r, g: C.g / I.g, b: C.b / I.b, y: C.y / I.y } : null } };
   };
-  const res = { url: URL, where: JSON.parse(where), passes: [] };
+  if (COMPOSE !== null) {   // the card rebuilt the other way, then let it settle
+    await ev("(() => { const SC = TREE_FILL.stands(); if (SC && SC.set) SC.set({ compose: " + (COMPOSE === '0' ? 'false' : 'true') + " }); return 1; })()");
+    for (let i = 0; i < 60; i++) { if (await ev("!!(TREE_FILL.stands() && TREE_FILL.stands().atlas())")) break; await sleep(1000); }
+    await sleep(4000);
+  }
+  const res = { url: URL, compose: await ev("(() => { const SC = TREE_FILL.stands(); return SC && SC.get ? SC.get().compose : null; })()"), where: JSON.parse(where), passes: [] };
   res.passes.push(await pass('default'));
   await ev("(() => { const m = TREE_LEAF.master(); TREE_LEAF.tint({ light: m.light * 1.5, hue: (m.hue || 0) + 0.05 }); return 1; })()");
   res.passes.push(await pass('tinted'));
+  if (GATE) {
+    await ev("(() => { const m = TREE_LEAF.master(); TREE_LEAF.tint({ light: m.light / 1.5, hue: (m.hue || 0) - 0.05 }); return 1; })()");   // the default look back
+    const key = await ev("(() => { const a = TREE_FILL.stands().atlas(); return a ? a.key + '|' + a.series : null; })()");
+    const k0 = key ? await ev("TREE_LOD.impLevel(" + JSON.stringify(key) + ")") : null;
+    if (key) await ev("TREE_LOD.impLevel(" + JSON.stringify(key) + ", " + (k0 * 0.5) + ")");
+    res.control = await pass('control: the card at half its level');
+    if (key) await ev("TREE_LOD.impLevel(" + JSON.stringify(key) + ", " + k0 + ")");
+  }
   ws.close(); kill();
   fs.writeFileSync(OUT, JSON.stringify(res, null, 1));
   for (const P of res.passes) {
@@ -112,4 +130,12 @@ const MODE = m => `(() => { const SC = TREE_FILL.stands(); const fillMat = [];
     const R = P.screen.ratio; console.log(`   on screen cards / impostors: r ${R && R.r.toFixed(2)} g ${R && R.g.toFixed(2)} b ${R && R.b.toFixed(2)} luma ${R && R.y.toFixed(2)} (cover imps ${P.screen.imps && P.screen.imps.cover.toFixed(2)}, cards ${P.screen.cards && P.screen.cards.cover.toFixed(2)})`);
   }
   console.log('-> ' + OUT);
+  if (GATE) {
+    const y = P => P && P.screen && P.screen.ratio ? P.screen.ratio.y : NaN, d = y(res.passes[0]), c = y(res.control);
+    const inB = v => v >= BAND[0] && v <= BAND[1];
+    console.log('  default look on screen ' + (isFinite(d) ? d.toFixed(2) : '-') + ' (band ' + BAND.join('-') + ') ' + (inB(d) ? 'ok' : 'RED') +
+                ' | control (half level) ' + (isFinite(c) ? c.toFixed(2) : '-') + ' ' + (isFinite(c) && !inB(c) ? 'fails as it must' : 'RED: the row cannot see a mismatch'));
+    console.log('GATE CARDMATCH: ' + (inB(d) && isFinite(c) && !inB(c) ? 'PASS' : 'FAIL'));
+    process.exitCode = inB(d) && isFinite(c) && !inB(c) ? 0 : 1;
+  }
 })().catch(e => { console.error('cardmatch_probe: ' + (e && e.stack || e)); kill(); process.exit(1); });

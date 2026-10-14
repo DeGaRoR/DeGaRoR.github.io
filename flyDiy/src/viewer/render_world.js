@@ -3415,8 +3415,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // for the stand cards' level match at their bake and for the audit
     sheetMean = (key, series) => {
       const CUT = { rungs: 0.40, stand: 0.15, snag: 0.10 }, lin = v => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
-      for (const a of ATLAS.values()) {
-        if (a.key !== key || a.series !== series || !a.read || !a.N) continue;
+      // the NEWEST sheet of that key (a card rebuilt bakes again under its key; the old one stays in ATLAS - the 18:05 proof's
+      // A/B levelled the merged bake against the composed sheet before it)
+      let pick = null; for (const a of ATLAS.values()) if (a.key === key && a.series === series && a.read && a.N) pick = a;
+      for (const a of pick ? [pick] : []) {
         const px = new Uint8Array(a.N * a.N * 4); try { a.read(px); } catch (e) { return null; }
         const cut = 255 * (CUT[series] || 0.4); let rr = 0, gg = 0, bb = 0, n = 0;
         for (let i = 0; i < px.length; i += 4) if (px[i + 3] >= cut) { rr += lin(px[i]); gg += lin(px[i + 1]); bb += lin(px[i + 2]); n++; }
@@ -3683,6 +3685,111 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       atlas.read = (px, which) => { const T = which === 'nrm' ? IMPA.nrm : IMPA.col, R = which === 'nrm' ? rtN : rt;
         renderer.copyTextureToTexture(T, R.texture, new THREE.Box3(new THREE.Vector3(0, 0, atlas.layer), new THREE.Vector3(N, N, atlas.layer + 1)), null);
         renderer.readRenderTargetPixels(R, 0, 0, N, N, px); return px; };
+      return atlas;
+    }
+    // G3184 (CARD-MATCH, the one source; the user 13 Oct: "we also need a mechanism to keep them in sync"): A STAND CARD
+    // COMPOSED FROM ITS SPECIES' OWN SHEETS. The card was a block of 16 trees' L1 geometry baked as one picture - measured
+    // 0.26x its species' sheets (cardmatch_probe, 13 Oct), and once levelled, bluer and answering a tint differently (its
+    // baked normals are the block's, not the trees'). Here each tree of the block is drawn as ITS IMPOSTOR into the card's
+    // tiles: a quad facing the tile's own direction (the bake camera's, impDir), its species' rungs sheet sampled with the
+    // draw's three-tap octahedral lookup at level 0 - the albedo pass writes the species' texel (x its sheet's level,
+    // G2591), the normal pass the species' normal texel and leaf flag, both un-premultiplied by the albedo's coverage as the
+    // draw does. The card's texels ARE its species' texels: the same albedo, the same normals, so the same answer to the sun,
+    // the sky and every tint. entries: [{ x, z, s, key }] (the block's trees, metres, scale, 'collection|subject');
+    // null while a species' rungs sheet is not baked yet (the caller tries again)
+    let CARD_MAT = null;
+    const cardMat = () => CARD_MAT || (CARD_MAT = new THREE.ShaderMaterial({
+      uniforms: { uCol: IMPA.U.col, uNrm: IMPA.U.nrm, uDir: { value: new THREE.Vector3(0, 1, 0) }, uG: { value: IMP_G }, uTile: { value: IMP_TILE }, uPass: { value: 0 } },
+      vertexShader: [
+        'attribute vec3 aPos;', 'attribute float aS, aL, aCy, aDiam, aLev;', 'uniform vec3 uDir;',
+        'varying vec2 vUvI;', 'flat varying float vL, vLev;',
+        'void main() {',
+        '  vec3 ctr = aPos + vec3(0.0, aCy * aS, 0.0);',
+        '  vec3 upRef = abs(uDir.y) > 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);',
+        '  vec3 rgt = normalize(cross(upRef, uDir)), upv = cross(uDir, rgt);',
+        '  vec3 wp = ctr + (rgt * position.x + upv * position.y) * (aDiam * aS);',
+        '  vUvI = uv; vL = aL; vLev = aLev;',
+        '  gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);',
+        '}'].join('\n'),
+      fragmentShader: [
+        'uniform highp sampler2DArray uCol, uNrm;', 'uniform vec3 uDir;', 'uniform float uG, uTile, uPass;',
+        'varying vec2 vUvI;', 'flat varying float vL, vLev;',
+        'void main() {',
+        '  vec3 dI = uDir;',
+        '  vec2 pp = vec2(dI.x, dI.z) / (abs(dI.x) + abs(dI.z) + max(dI.y, 0.0) + 1e-5);',
+        '  vec2 oc = clamp(vec2(pp.x + pp.y, pp.x - pp.y), -1.0, 1.0);',
+        '  vec2 gp = (oc * 0.5 + 0.5) * (uG - 1.0);',
+        '  vec2 g0 = min(floor(gp), uG - 2.0);',
+        '  vec2 gf = gp - g0;',
+        '  vec2 cB = vec2(1.0, 0.0), cC = vec2(0.0, 1.0), cA; vec3 wB;',
+        '  if (gf.x + gf.y < 1.0) { cA = vec2(0.0); wB = vec3(1.0 - gf.x - gf.y, gf.x, gf.y); }',
+        '  else { cA = vec2(1.0); wB = vec3(gf.x + gf.y - 1.0, 1.0 - gf.y, 1.0 - gf.x); }',
+        '  vec2 qv = (vUvI * (1.0 - 2.0 / uTile) + 1.0 / uTile) / uG;',
+        '  vec2 uvA = (g0 + cA) / uG + qv, uvB = (g0 + cB) / uG + qv, uvC = (g0 + cC) / uG + qv;',
+        '  vec4 t0 = textureLod(uCol, vec3(uvA, vL), 0.0), t1 = textureLod(uCol, vec3(uvB, vL), 0.0), t2 = textureLod(uCol, vec3(uvC, vL), 0.0);',
+        '  float aSol = max(max(t0.a, t1.a), t2.a);',
+        '  if (aSol < 0.5) discard;',
+        '  vec4 tc = t0 * wB.x + t1 * wB.y + t2 * wB.z; float cov = max(tc.a, 1e-4);',
+        '  if (uPass < 0.5) { gl_FragColor = vec4(clamp(tc.rgb / cov * vLev, 0.0, 1.0), 1.0); }',
+        '  else { vec4 n0 = textureLod(uNrm, vec3(uvA, vL), 0.0), n1 = textureLod(uNrm, vec3(uvB, vL), 0.0), n2 = textureLod(uNrm, vec3(uvC, vL), 0.0);',
+        '         vec4 nc = n0 * wB.x + n1 * wB.y + n2 * wB.z; gl_FragColor = vec4(clamp(nc.rgb / cov, 0.0, 1.0), clamp(nc.a / cov, 0.0, 1.0)); }',
+        '  #include <colorspace_fragment>',
+        '}'].join('\n'),
+      side: THREE.DoubleSide, depthTest: true, depthWrite: true, toneMapped: false }));
+    function composeCardAtlas(entries, tag) {
+      if (!canBake || IMPA.stub || !IMPA.col || !THREE.InstancedBufferGeometry || !entries || !entries.length) return null;
+      const sheets = new Map(); for (const a of ATLAS.values()) if (a.series === 'rungs' && a.key && a.layer >= 0) sheets.set(a.key, a);
+      const E = []; for (const e of entries) { const a = sheets.get(e.key); if (!a) return null; E.push({ e, a }); }   // a species' sheet not baked yet
+      // the card's sphere: every quad's (its centre height, its half diagonal), about the block's middle
+      let y0 = Infinity, y1 = -Infinity; for (const { e, a } of E) { const cy = a.cy * e.s, h = a.diam * e.s / 2; y0 = Math.min(y0, cy - h); y1 = Math.max(y1, cy + h); }
+      const cy = (y0 + y1) / 2; let R = 0;
+      for (const { e, a } of E) R = Math.max(R, Math.hypot(e.x, a.cy * e.s - cy, e.z) + a.diam * e.s * Math.SQRT1_2);
+      const M = R * 1.04, N = IMP_G * IMP_TILE, atlas = { cy, diam: 2 * M, tex: null, nrm: null, composed: true };
+      if (tag) { atlas.key = tag.key; atlas.series = tag.series; }
+      if (!BAKE_RT) return null;   // (the trees' own bakes made them: a card comes after its species)
+      const rt = BAKE_RT.rt, rtN = BAKE_RT.rtN;
+      const g = new THREE.InstancedBufferGeometry(), q = new THREE.PlaneGeometry(1, 1);
+      g.index = q.index; g.setAttribute('position', q.attributes.position); g.setAttribute('uv', q.attributes.uv);
+      const n = E.length, P3 = new Float32Array(n * 3), S1 = new Float32Array(n), L1 = new Float32Array(n), C1 = new Float32Array(n), D1 = new Float32Array(n), V1 = new Float32Array(n);
+      E.forEach(({ e, a }, i) => { P3[i * 3] = e.x; P3[i * 3 + 1] = 0; P3[i * 3 + 2] = e.z; S1[i] = e.s; L1[i] = a.layer; C1[i] = a.cy; D1[i] = a.diam; V1[i] = impLevelOf(a.key + '|rungs'); });
+      g.setAttribute('aPos', new THREE.InstancedBufferAttribute(P3, 3)); g.setAttribute('aS', new THREE.InstancedBufferAttribute(S1, 1));
+      g.setAttribute('aL', new THREE.InstancedBufferAttribute(L1, 1)); g.setAttribute('aCy', new THREE.InstancedBufferAttribute(C1, 1));
+      g.setAttribute('aDiam', new THREE.InstancedBufferAttribute(D1, 1)); g.setAttribute('aLev', new THREE.InstancedBufferAttribute(V1, 1));
+      g.instanceCount = n;
+      const mat = cardMat(), mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false;
+      const sc = new THREE.Scene(); sc.add(mesh);
+      if (IMPA.dirtyMips) IMPA.frame();   // the species' layers settled before they are read
+      const cam = new THREE.OrthographicCamera(-M, M, M, -M, 0.1, R * 8), ctr = new THREE.Vector3(0, cy, 0);
+      const pRT = renderer.getRenderTarget(), pAC = renderer.autoClear, pCol = new THREE.Color(), pA = renderer.getClearAlpha();
+      const pVP = renderer.getViewport(new THREE.Vector4()), pSC = renderer.getScissor(new THREE.Vector4());
+      { const gc = renderer.getClearColor(pCol); if (gc && gc !== pCol) pCol.copy(gc); }
+      const pTM = renderer.toneMapping; renderer.toneMapping = THREE.NoToneMapping;
+      const drawAll = (target, pass) => {
+        mat.uniforms.uPass.value = pass;
+        renderer.setRenderTarget(target); renderer.autoClear = false; renderer.setClearColor(0x000000, 0); renderer.clear(true, true, false);
+        renderer.setScissorTest(true);
+        for (let j = 0; j < IMP_G; j++) for (let i = 0; i < IMP_G; i++) {
+          const d = impDir(i, j);
+          mat.uniforms.uDir.value.copy(d);
+          cam.up.set(0, 1, 0); if (Math.abs(d.y) > 0.999) cam.up.set(0, 0, 1);
+          cam.position.copy(ctr).addScaledVector(d, R * 4); cam.lookAt(ctr); cam.updateProjectionMatrix();
+          renderer.setViewport(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE); renderer.setScissor(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE);
+          renderer.clearDepth(); renderer.render(sc, cam);
+        }
+        renderer.setScissorTest(false);
+      };
+      drawAll(rt, 0); drawAll(rtN, 1);
+      renderer.toneMapping = pTM; renderer.setViewport(pVP); renderer.setScissor(pSC); renderer.setRenderTarget(pRT); renderer.autoClear = pAC; renderer.setClearColor(pCol, pA);
+      g.dispose();
+      const layer = IMPA.take(); if (layer < 0) { atlas.refused = true; return atlas; }
+      const at0 = new THREE.Vector3(0, 0, layer);
+      renderer.copyTextureToTexture(rt.texture, IMPA.col, null, at0); renderer.copyTextureToTexture(rtN.texture, IMPA.nrm, null, at0);
+      IMPA.dirtyMips = true;
+      atlas.layer = layer; atlas.tex = IMPA.col; atlas.nrm = IMPA.nrm; atlas.N = N;
+      atlas.read = (px, which) => { const T = which === 'nrm' ? IMPA.nrm : IMPA.col, R2 = which === 'nrm' ? rtN : rt;
+        renderer.copyTextureToTexture(T, R2.texture, new THREE.Box3(new THREE.Vector3(0, 0, atlas.layer), new THREE.Vector3(N, N, atlas.layer + 1)), null);
+        renderer.readRenderTargetPixels(R2, 0, 0, N, N, px); return px; };
+      ATLAS.set('card:' + (tag ? tag.key : n), atlas);   // the audit's and sheetMean's list (WORLD.treeAtlases)
       return atlas;
     }
     // One quad geometry per CHUNK SIZE (the cull sphere lives on the geometry —
@@ -5570,7 +5677,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
             standCards = STAND_CARDS.make(THREE, { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN, sheetMean });   // sheetMean: G3180, the card matched to its species' sheets   // rdy: G2930, the cards stand in for an unbuilt fill
+                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN, sheetMean, composeCardAtlas });   // composeCardAtlas: G3184, the card from its species' sheets   // sheetMean: G3180, the card matched to its species' sheets   // rdy: G2930, the cards stand in for an unbuilt fill
           // THE ROCK MAP (rock_map.js): the rocks' far tier, on the island's ground programs (gU.uRockMap)
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
