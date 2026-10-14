@@ -998,6 +998,24 @@ if (plots.length) {
   ed25.close();
 }
 
+// 30 A ROAD'S GUARDRAIL AND POWER LINE OBEY ITS ROW (G2893, SCENERY-ED-1's row 29, objective 1; the user: "no effect of
+//    enabling/disabling power lines and guardrails on roads"): the renderer builds both from the COMPOSED road (rd.rail,
+//    rd.poles, rd.polesSide), which never carried them - every road 'auto' since the port. The composed road carries what the
+//    record says; a road that says nothing composes as before
+{
+  const r30 = PG.normalise({ layers: { roads: [{ id: 'ra', pts: [[0, 0], [120, 0]], w: 5, cls: 'gravel', rail: 'off', poles: 'off' }, { id: 'rb', pts: [[0, 60], [120, 60]], w: 5, cls: 'gravel', rail: 'on', polesSide: -1 },
+    { id: 'rc', pts: [[0, 120], [120, 120]], w: 5, cls: 'gravel' }] } });
+  const O30 = PG.compose(r30, synth), rd = id => O30.roads.find(q => q.id === id);
+  check(rd('ra').rail === 'off' && rd('ra').poles === 'off' && rd('rb').rail === 'on' && rd('rb').poles === undefined && rd('rb').polesSide === -1, '30 the composed road carries its guardrail and power-line rows');
+  check(!('rail' in rd('rc')) && !('poles' in rd('rc')) && !('polesSide' in rd('rc')), '30 a road that says nothing composes as before (no new key)');
+  const RP30 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check(/if \(!RAIL \|\| rd\.rail === 'off'\) return null;/.test(RP30) && /if \(!PWR \|\| rd\.poles === 'off'\) return null;/.test(RP30) && /mode: rd\.rail \|\| 'auto'/.test(RP30) && /mode: rd\.poles \|\| 'auto'/.test(RP30), '30 the renderer builds both from those fields');
+  // (and the edit reaches the renderer: a road's own key holds the composed road, so a guardrail row's change draws that road again)
+  const K0 = PG.roadBuildKeys(O30), r30b = JSON.parse(JSON.stringify(r30)); r30b.layers.roads[2].rail = 'off';
+  const K1 = PG.roadBuildKeys(PG.compose(r30b, synth));
+  check(K0.get('rc') !== K1.get('rc') && K0.get('ra') === K1.get('ra'), '30 a guardrail row changed: that road drawn again, the others kept');
+}
+
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
