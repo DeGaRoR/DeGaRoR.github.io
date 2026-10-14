@@ -93327,3 +93327,25 @@ READY for the GAME COORDINATOR (train 52: the garage Wait fix, c38a5e99's code +
 ## Train 56 (A0, 14 Oct 20:55)
 Landed: CAREER ON (G2740, 31d61c631: DESTTO's row updated for the flip), DMG impact-lag v1 (G3022: one shared GPU read-back, no hypot), DMGUPLOAD stage-robust row (d4e497ecf), trees cut only on the strip: rwyTrees 'mapx' default (ED-2 be453a378, LINEUP PASS), the benches load matlib.js (cbd553a51).
 Strict light gate: PASS, 138 rows in slack, 12 better, 0 red. Gates: CLOUD (lamps, known), SKINMAT + WEATHER (master's stale strip; fixed by the garage group, train 57), DMGUPLOAD still red (the Cub staging breaks nothing even with the retries - Deform), FRAMECOST 2 rows from mapx's trees by the strip (taxi tris.shadow 1.78 -> 3.66 M, bindBuffer 2 -> 7): the look the user asked for, to admit by ALLOW.
+
+## G3210-G3212 - METLA-ON: Metlakatla ON by default, the plots first (2026-10-14/15, HW-COVERAGE -> the METLAKATLA session for A0; branches claude/metla-on-g3210 (lever 1, gated, in train 58) and claude/metla-on-g3212-wip (lever 2, NOT gated); PAUSED for credits until Sat 20:00)
+STATE
+- G3210 (in train 58): Metlakatla bare - an mk_ plot's fence and yard, an mk_ site's fences, an mk_ road's guardrail taken down at
+  buildOne0 (?metlabare=0); the lots near-only everywhere - a lot cell's merged meshes drawn within 600 m (?lotnear=0). Gates PASS;
+  tools/perf/metla_bare_check.js PASS (lots 1 040 -> 108 MB with the town built). A/B at 4 km (floats SEA circuit, 3.9 km from the
+  town; evidence origin/claude/perf-ledger-g3200 reports/evidence/PERF-LEDGER/metla-on/METLA-ON-G3210.md): ON - OFF loop +12.1 ->
+  +5.8 ms, render +6.9 -> +1.8, worldUpdate +3.0 (unchanged), draws +506 -> +22, lots held 549 -> 110 MB; frames over 34 ms 10.4 %
+  (OFF 2.0 %), over 100 ms 0.68 % - the ON flip NOT applied.
+- The '~4 ms town loader variant' cost was a misattribution (one outlier OFF run): withdrawn.
+- G3212 (this WIP branch, coded, node --check, LIFTS identical, NEVER RUN): the +3 ms worldUpdate is the premises STREAM building
+  Metlakatla from 6 km (its 3 ms bank a frame, 177 items an approach) although the town kit's host already draws every kit house:
+  sortFrom pushes a kit plot past KIT_NEAR (1 200 m) out of every reach (?kitnear=0); the kit casts no shadow past 600 m of the
+  town's footprint (?kitshadow=0; 644 k shadow tris at 3.9 km, none in view).
+NEXT
+1. Gate G3212 (PREMISES PREMCOOK PREMRASTER FRAMECOST LIFE TARR STAGES BUILD + metla_bare_check) and the A/B A B C C B A
+   (C = ?town=1&kitnear=0&kitshadow=0) on the floats circuit; merge into claude/metla-on-g3210 only if green.
+2. The enable rule (Codex PERF-STUDY): ON <= +3 ms loop at 4 km, frames over 34 ms within ~1 point of OFF. Then the ON flip commit:
+   gfx_settings.js town row 'all' first, pv 9 -> 10 migrating a stored 'nearby' to 'all' (the old default), and tools/build.js's
+   loader rule `gp.pv >= 7` -> `gp.pv >= 10`.
+3. metla-far-roads (+53 draws / +0.9 M tris at 4 km): a far form or a user OK on a cull radius - not a 1.2 km cull.
+4. A close visit needs the floats routed to mk_sea (app.js routeFitted refits a water To to CIRCUIT for floats too - a Pilot bug).
