@@ -2653,6 +2653,25 @@ function make(THREE, scene, world, rec0, opts) {
     if (!KT.want || KT.status !== 'decoded') return;
     if (!KT.host || KT.O !== O) ktBuild();
     if (KT.host) KT.host.tick(e);
+    if (KT.host && KIT_SHADOW > 0 && e) ktShadow(e);
+  }
+  // G3212 (METLA-ON): THE KIT CASTS NO SHADOW FROM AFAR. Its batched houses were 644 k shadow-casting triangles from 3.9 km, none
+  // of them in view (the census of 14 Oct): past KIT_SHADOW m of the town's footprint the host's meshes cast none (the town's
+  // shadows are invisible there; the near shadow cascade covers what is close). ?kitshadow=0 keeps them, as before.
+  const KIT_SHADOW = (m => (m ? +m[1] : 600))(typeof location !== 'undefined' && /[?&]kitshadow=([0-9.]+)/.exec(location.search || ''));
+  function ktShadow(e) {
+    const H = KT.host;
+    if (KT.shHost !== H) {   // (a new host: its footprint, and its meshes cast again until told otherwise)
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+      for (const r of H.rows || []) { if (r.x < x0) x0 = r.x; if (r.x > x1) x1 = r.x; if (r.z < z0) z0 = r.z; if (r.z > z1) z1 = r.z; }
+      KT.shHost = H; KT.shBox = isFinite(x0) ? [x0, x1, z0, z1] : null; KT.shFar = null;
+    }
+    const B = KT.shBox; if (!B) return;
+    const dx = Math.max(B[0] - e.x, 0, e.x - B[1]), dz = Math.max(B[2] - e.z, 0, e.z - B[3]);
+    const far = Math.hypot(dx, dz) > KIT_SHADOW;
+    if (far === KT.shFar) return;
+    KT.shFar = far; stats.kitShadowFar = far;
+    H.group.traverse(m => { if (m.isMesh) m.castShadow = !far; });
   }
   function ktStats() {
     const H = KT.host;
@@ -3593,9 +3612,22 @@ function make(THREE, scene, world, rec0, opts) {
     afterBuilt(n);   // once for the whole drain (G591): it ran per item - a 1024^2 wear repaint and a freeze walk each
     return queue.length;
   }
+  // G3212 (METLA-ON lever 2): A KIT PLOT STREAMS ONLY NEAR. The town kit's host draws every kit house (Metlakatla's) from the
+  // cooked table, built once (ktBuild); what the stream adds for a kit plot - its plan props, its obstacle rasters, its
+  // dressing - is invisible from afar, yet the stream spent its whole 3 ms bank a frame on Metlakatla from 6 km (G3205/G3210:
+  // worldUpdate +3.0 ms at 4 km, 177 items in an approach). A kit plot past KIT_NEAR m of the eye is pushed out of every reach
+  // (its queue distance + KIT_FAR): the stream, the worker's dispatch, the prewarm and the near / settle counts all read _d.
+  // The far look is the host's, unchanged; a kit house's obstacle exists within KIT_NEAR (where the aircraft is).
+  //   ?kitnear=<m>   the radius (default 1200: the host's lod-1 edge; 0 = every reach, as before)
+  const KIT_NEAR = (m => (m ? +m[1] : 1200))(typeof location !== 'undefined' && /[?&]kitnear=([0-9.]+)/.exec(location.search || ''));
+  const KIT_FAR = 1e6;
   function sortFrom(cx, cz) {
-    for (const p of queue) { const w = qPos(p); p._d = w ? Math.hypot(w[0] - cx, w[1] - cz) : 0; }
+    let kd = 0;
+    for (const p of queue) { const w = qPos(p); let d = w ? Math.hypot(w[0] - cx, w[1] - cz) : 0;
+      if (KIT_NEAR > 0 && d > KIT_NEAR && kitOf(p) >= 0) { d += KIT_FAR; kd++; }
+      p._d = d; }
     queue.sort((a, b) => a._d - b._d);
+    stats.kitDeferred = kd;
   }
   // THE STREAM (G591, the 2026-09-26 playtest): the far premises came in one item every third rendered frame, from
   // any distance, parked or not - 18-29 ms a frame over the taxi, a house being ~45 ms. Now the host hands the
