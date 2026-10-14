@@ -4,6 +4,18 @@
 // data: arm): a re-baked map is a new name with no row, and the page loads the map itself (src/viewer/props.js
 // propTexture). { fam, twin, role, opts (the role's, as named), codec, w, h, mean: the map's mean sRGB colour }.
 const KTX2_TWINS_TABLE = {
+  "media/tex/camp/0856f31abe89.jpg|normal": {"fam":"camp","twin":"media/tex/ktx2/camp/0856f31abe89_normal.74a6ae4e.ktx2","role":"ktx2-normal","opts":{"rdo":3,"dict":32768},"codec":"UASTC","w":1024,"h":1024,"mean":[128.6,127.1,247.1]},
+  "media/tex/camp/178da43e8b4a.jpg|color": {"fam":"camp","twin":"media/tex/ktx2/camp/178da43e8b4a.ae61920f.ktx2","role":"ktx2-color","opts":{"mip":"srgb"},"codec":"ETC1S","w":1024,"h":1024,"mean":[114.7,123.5,92.7]},
+  "media/tex/camp/1ede2faf5d52.jpg|normal": {"fam":"camp","twin":"media/tex/ktx2/camp/1ede2faf5d52_normal.b3cc80ac.ktx2","role":"ktx2-normal","opts":{"rdo":3,"dict":32768},"codec":"UASTC","w":1024,"h":1024,"mean":[128.4,128.5,241.7]},
+  "media/tex/camp/21a16f39aae2.jpg|data": {"fam":"camp","twin":"media/tex/ktx2/camp/21a16f39aae2_data.3e122710.ktx2","role":"ktx2-data","opts":{"channels":3,"rdo":3,"dict":32768},"codec":"UASTC","w":1024,"h":1024,"mean":[253.2,111,2.6]},
+  "media/tex/camp/3770d012f651.jpg|data": {"fam":"camp","twin":"media/tex/ktx2/camp/3770d012f651_data.5945d5bc.ktx2","role":"ktx2-data","opts":{"channels":3,"rdo":3,"dict":32768},"codec":"UASTC","w":1024,"h":1024,"mean":[143.5,154.3,5.1]},
+  "media/tex/camp/4e10389d5b7b.jpg|color": {"fam":"camp","twin":"media/tex/ktx2/camp/4e10389d5b7b.783da5a0.ktx2","role":"ktx2-color","opts":{"mip":"srgb"},"codec":"ETC1S","w":1024,"h":1024,"mean":[42.5,105,132.6]},
+  "media/tex/camp/5f9326271b07.jpg|color": {"fam":"camp","twin":"media/tex/ktx2/camp/5f9326271b07.9b893323.ktx2","role":"ktx2-color","opts":{"mip":"srgb"},"codec":"ETC1S","w":1024,"h":1024,"mean":[75.1,71,50.9]},
+  "media/tex/camp/702989756722.jpg|normal": {"fam":"camp","twin":"media/tex/ktx2/camp/702989756722_normal.83f15ace.ktx2","role":"ktx2-normal","opts":{"rdo":3,"dict":32768},"codec":"UASTC","w":1024,"h":1024,"mean":[124.5,127,243.1]},
+  "media/tex/camp/9516afca44e1.jpg|normal": {"fam":"camp","twin":"media/tex/ktx2/camp/9516afca44e1_normal.42808b15.ktx2","role":"ktx2-normal","opts":{"rdo":3,"dict":32768},"codec":"UASTC","w":1024,"h":1024,"mean":[127.8,127.4,253.9]},
+  "media/tex/camp/a553c6397bb1.jpg|data": {"fam":"camp","twin":"media/tex/ktx2/camp/a553c6397bb1_data.7458a6ca.ktx2","role":"ktx2-data","opts":{"channels":3,"rdo":3,"dict":32768},"codec":"UASTC","w":1024,"h":1024,"mean":[227.8,71.1,29]},
+  "media/tex/camp/bd4ff0db8eeb.jpg|color": {"fam":"camp","twin":"media/tex/ktx2/camp/bd4ff0db8eeb.0a5c1d66.ktx2","role":"ktx2-color","opts":{"mip":"srgb"},"codec":"ETC1S","w":1024,"h":1024,"mean":[55.3,51.1,46.5]},
+  "media/tex/camp/d3575c61fd64.jpg|data": {"fam":"camp","twin":"media/tex/ktx2/camp/d3575c61fd64_data.4c04d219.ktx2","role":"ktx2-data","opts":{"channels":3,"rdo":3,"dict":32768},"codec":"UASTC","w":1024,"h":1024,"mean":[248.4,233.8,0.4]},
   "media/tex/pier/0248569f8b4d.jpg|color": {"fam":"pier","twin":"media/tex/ktx2/pier/0248569f8b4d.4431754d.ktx2","role":"ktx2-color","opts":{"mip":"srgb"},"codec":"ETC1S","w":512,"h":512,"mean":[68.6,65.5,63.7]},
   "media/tex/pier/0410fd05fe40.jpg|normal": {"fam":"pier","twin":"media/tex/ktx2/pier/0410fd05fe40_normal.d555858e.ktx2","role":"ktx2-normal","opts":{"rdo":3,"dict":32768},"codec":"UASTC","w":512,"h":512,"mean":[128,134.3,249.9]},
   "media/tex/pier/0522eef52762.jpg|color": {"fam":"pier","twin":"media/tex/ktx2/pier/0522eef52762.08068552.ktx2","role":"ktx2-color","opts":{"mip":"srgb","codec":"uastc"},"codec":"UASTC","w":512,"h":512,"mean":[119,28,12.4]},
