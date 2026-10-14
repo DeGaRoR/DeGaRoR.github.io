@@ -47,6 +47,38 @@ const propReg = () => (typeof PROP_REG !== 'undefined' ? PROP_REG : (typeof wind
 // ring is 17.6 m polys; the graded strip and the lawns need better), road RIBBONS (the wear canvas
 // is the bench's), no trees (the world's stand, its excludes applied at the make) and no strip paint
 // (the world paints every registry strip); outlines and handles only while opts.editing() says so
+// ---- PATCH FAR (G3088) BEGIN ------------------------------------------------------------------------------------------
+// THE FAR CORRIDOR, MERGED (G3088 HOME-FRAME; A0's census at HOME, 13 Oct: the fine patch's 512 m blocks along the 79 km
+// of roads the user drew were 164 draws past 3 km - render -0.6, loop -0.7 ms of the frame - each a THREE.LOD at its
+// coarsest level, a few chunks of a road's corridor in it). A 2 km SUPER-CELL's blocks have their coarsest level merged
+// into ONE mesh (the same vertices, offset by each block's place); the super-cell shows it, and hides its blocks, only
+// while EVERY block in it is past its own coarsest level's distance - three's LOD rule (distance >= the level's), so the
+// picture is the very one the blocks draw there. farWant switches on 3 % past it (no flicker on the line) and off at it.
+const FAR_SC = 2048, FAR_HYST = 0.03;
+// members: [{ pos, nrm, uv, pav (or null), idx, lp: [x, y, z] (the block's place) }], origin [x, y, z] -> the merged arrays
+function farMergeArrays(members, origin) {
+  let nV = 0, nI = 0; const anyPav = members.some(m => m.pav);
+  for (const m of members) { nV += m.pos.length / 3; nI += m.idx.length; }
+  const pos = new Float32Array(nV * 3), nrm = new Float32Array(nV * 3), uv = new Float32Array(nV * 2), pav = anyPav ? new Float32Array(nV) : null;
+  const idx = nV > 65535 ? new Uint32Array(nI) : new Uint16Array(nI);
+  let v = 0, i = 0;
+  for (const m of members) {
+    const n = m.pos.length / 3, dx = m.lp[0] - origin[0], dy = m.lp[1] - origin[1], dz = m.lp[2] - origin[2];
+    for (let k = 0; k < n; k++) { pos[(v + k) * 3] = m.pos[k * 3] + dx; pos[(v + k) * 3 + 1] = m.pos[k * 3 + 1] + dy; pos[(v + k) * 3 + 2] = m.pos[k * 3 + 2] + dz; }
+    nrm.set(m.nrm.subarray(0, n * 3), v * 3); uv.set(m.uv.subarray(0, n * 2), v * 2);
+    if (pav && m.pav) pav.set(m.pav.subarray(0, n), v);
+    for (let k = 0; k < m.idx.length; k++) idx[i + k] = m.idx[k] + v;
+    v += n; i += m.idx.length;
+  }
+  return { pos, nrm, uv, pav, idx, nV, nI };
+}
+// need: [[x, y, z, d]] each member's world place and its coarsest level's distance; shown: the merge drawn now
+function farWant(eye, need, shown) {
+  if (!eye || !need.length) return false;
+  for (const q of need) { const d = Math.hypot(eye.x - q[0], eye.y - q[1], eye.z - q[2]); if (!(d >= q[3] * (shown ? 1 : 1 + FAR_HYST))) return false; }
+  return true;
+}
+// ---- PATCH FAR (G3088) END --------------------------------------------------------------------------------------------
 function make(THREE, scene, world, rec0, opts) {
   const o = Object.assign({ cell: 1, water: true, grass: null, pool: () => [], onBuilt: null, game: false, editing: () => true, patchMat: null, patchUV: null }, opts || {});
   let rec = PG.normalise(rec0 || PG.DEF());
@@ -562,6 +594,9 @@ function make(THREE, scene, world, rec0, opts) {
   // its surface's normals) so two neighbours at different levels never open a crack onto the sunk ring below.
   // G1527 (POTATO-DEEP): the build budget's pixel error for the patch's levels (potato / laptop 3; 6 outruns the pavement's 0.8 m sink past ~150 m): the user's
   // GTX 660 taxi paid ~6 ms a million triangles and the patch was the taxi's largest owner (780 k of 4.1 M at tolPx 1)
+  // (G3088) the far merges: the blocks' coarsest levels kept by block key (src), the super-cells' merged meshes (cells);
+  // ?patchfar=0 the blocks alone, as before
+  const FAR = { on: !(typeof location !== 'undefined' && /[?&]patchfar=0(&|$)/.test(location.search || '')), src: new Map(), cells: new Map(), group: null, n: 0 };
   const PL = { res: [2, 4, 8, 16], block: 8, focal: 1160, minQuads: 25, skirt: [0.5, 1, 2, 3],
                tolPx: (typeof window !== 'undefined' && window.GFX && typeof window.GFX.budget === 'function' && window.GFX.budget().patchTolPx > 1) ? window.GFX.budget().patchTolPx : 1 };
   // ?patchtol=N (G1527, a rig's A/B): the patch's level error forced, whatever the budget - the still's before / after in one build
@@ -675,6 +710,7 @@ function make(THREE, scene, world, rec0, opts) {
     const key = [b.x0, b.z0, b.x1, b.z1].join(',') + '|' + list.join(';');
     const RES = PL.res[0], n = PCH / RES, per = (n + 1) * (n + 1);
     if (!part && patch) { G.ground.remove(patch); patch.traverse(m => { if (m.geometry) m.geometry.dispose(); }); patch = null; }
+    if (!part) { FAR.src.clear(); FAR.cells.clear(); FAR.group = null; }   // (G3088: the merges went with the patch)
     patchAct = A; patchB = b;   // the world's rings read it (patchCovers, patchDepth): the ring sinks under the patch (G434.1)
     lotZones = null; lotChunks.clear();   // G1541: the lots' zones as the record has them now (an edit may move one)
     // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
@@ -844,6 +880,8 @@ function make(THREE, scene, world, rec0, opts) {
         g.setIndex(idx); g.computeBoundingSphere();
         if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(g, true);   // G1200 (G1230: uploaded as the build's slice ends): drawn only (a re-patch builds a new group)
         const mesh = new THREE.Mesh(g, matOwn(B.k));
+        // (G3088) the coarsest level's arrays, kept for its super-cell's far merge (before the upload releases them)
+        if (FAR.on && L === PL.res.length - 1) FAR.src.set(bk, { k: B.k, mat: mesh.material, pos: pos.subarray(0, v * 3), nrm: nrm.subarray(0, v * 3), uv: uv.subarray(0, v * 2), pav: pav ? pav.subarray(0, v) : null, idx: idx.slice(), lp: [cx, lod.position.y, cz], d });
         mesh.receiveShadow = true; mesh.name = 'premises:patch'; mesh.renderOrder = -0.3;   // the ground, after the occluders (render_world.js ORDER_NOTE)
         mesh.matrixAutoUpdate = false;
         lod.addLevel(mesh, d);
@@ -856,7 +894,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (part && patch) {
       // (G2917) an edit's named block that has no active chunk any more: its old block goes
       if (part.edit) { const built = new Set(group.children.map(l => l.userData.bk));
-        for (const bk of part.blocks) if (!built.has(bk)) { const old = patch.children.find(l => l.userData.bk === bk); if (old) { patch.remove(old); old.traverse(m => { if (m.geometry) m.geometry.dispose(); }); } } }
+        for (const bk of part.blocks) if (!built.has(bk)) { FAR.src.delete(bk); const old = patch.children.find(l => l.userData.bk === bk); if (old) { patch.remove(old); old.traverse(m => { if (m.geometry) m.geometry.dispose(); }); } } }
       // G2063: each block made again stands in for the one it replaces; the counts over the whole patch again
       for (const lod of group.children.slice()) {
         const old = patch.children.find(c => c.userData.bk === lod.userData.bk);
@@ -867,17 +905,60 @@ function make(THREE, scene, world, rec0, opts) {
         lod.traverse(m => { m.matrixAutoUpdate = false; m.matrixWorldAutoUpdate = false; });
       }
       let t0 = 0, ta = 0; for (const lod of patch.children) (lod.levels || []).forEach((lv, i) => { const g = lv.object.geometry, t = g && g.index ? g.index.count / 3 : 0; if (!i) t0 += t; ta += t; });
-      Object.assign(patch.userData, { chunks: [...A.act].sort(), neighbours: A, tris: t0, trisAll: ta, blocks: patch.children.length, sunk: (patch.userData.sunk || 0) + sunk, sinkDeep: Math.max(patch.userData.sinkDeep || 0, sinkDeep) });
+      Object.assign(patch.userData, { chunks: [...A.act].sort(), neighbours: A, tris: t0, trisAll: ta, blocks: patch.children.filter(c => c.isLOD).length, sunk: (patch.userData.sunk || 0) + sunk, sinkDeep: Math.max(patch.userData.sinkDeep || 0, sinkDeep) });
       patchKey = key;
     } else {
     group.userData.chunks = list; group.userData.neighbours = A; group.userData.tris = tris0; group.userData.trisAll = trisAll; group.userData.blocks = blocks.size; group.userData.sunk = sunk; group.userData.sinkDeep = sinkDeep;
     patch = group; patchKey = key;
     G.ground.add(patch);
     }
+    farRebuild(part ? part.blocks : null);   // (G3088) the super-cells these blocks are in: merged again
     // G1200 (MEM-DIET): the sampling's grids go with the build. The patch materials' hooks (matOwn, cached across
     // rebuilds) are closures of this generator: its context - these four grids with it - lived as long as they did
     // (~32 MB over Jolene, the first build's, kept for the session)
     Y = Y0 = UV = NRM = null;
+  }
+  // (G3088) THE FAR MERGES (farMergeArrays / farWant above): a super-cell's key from a block's (its kind and the cell of
+  // its centre); farRebuild makes the touched super-cells' merges again (all of them after a whole patch), farTick shows a
+  // merge and hides its blocks while every one of them is past its coarsest level's distance (render_premises tick)
+  function farCellOf(bk) { const m = /^(.*)\|(-?\d+),(-?\d+)$/.exec(bk || ''); if (!m) return null; const bs = PL.block * PCH; return m[1] + '|' + Math.floor((+m[2] * bs + bs / 2) / FAR_SC) + ',' + Math.floor((+m[3] * bs + bs / 2) / FAR_SC); }
+  function farRebuild(bks) {
+    if (!FAR.on || !patch) return;
+    if (!FAR.group || FAR.group.parent !== patch) { FAR.group = new THREE.Group(); FAR.group.name = 'premises:patchfar'; patch.add(FAR.group); FAR.cells.clear(); bks = null; }
+    const keys = new Set();
+    for (const bk of (bks || FAR.src.keys())) { const c = farCellOf(bk); if (c) keys.add(c); }
+    const lods = new Map(); for (const c of patch.children) if (c.isLOD && c.userData.bk) lods.set(c.userData.bk, c);
+    patch.updateWorldMatrix(true, false);
+    const W = new THREE.Vector3();
+    for (const ck of keys) {
+      const old = FAR.cells.get(ck);
+      if (old) { FAR.group.remove(old.mesh); old.mesh.geometry.dispose(); for (const l of old.lods) l.visible = true; FAR.cells.delete(ck); }
+      const mem = []; for (const [bk, q] of FAR.src) if (lods.has(bk) && farCellOf(bk) === ck) mem.push([bk, q]);
+      if (mem.length < 2) continue;   // one block: nothing to merge
+      const sc = /\|(-?\d+),(-?\d+)$/.exec(ck), origin = [(+sc[1] + 0.5) * FAR_SC, mem.reduce((a, x) => a + x[1].lp[1], 0) / mem.length, (+sc[2] + 0.5) * FAR_SC];
+      const A = farMergeArrays(mem.map(x => x[1]), origin), g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(A.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(A.nrm, 3)); g.setAttribute('uv', new THREE.BufferAttribute(A.uv, 2));
+      if (A.pav) g.setAttribute('aPav', new THREE.BufferAttribute(A.pav, 1));
+      g.setIndex(new THREE.BufferAttribute(A.idx, 1)); g.computeBoundingSphere();
+      if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(g, true);
+      const mesh = new THREE.Mesh(g, mem[0][1].mat);
+      mesh.receiveShadow = true; mesh.name = 'premises:patchfar'; mesh.renderOrder = -0.3; mesh.visible = false;
+      mesh.position.set(origin[0], origin[1], origin[2]); mesh.updateMatrix(); mesh.matrixAutoUpdate = false;
+      FAR.group.add(mesh); THREE.Object3D.prototype.updateMatrixWorld.call(mesh, true); mesh.matrixWorldAutoUpdate = false;
+      const need = mem.map(x => { const q = x[1]; W.set(q.lp[0], q.lp[1], q.lp[2]).applyMatrix4(patch.matrixWorld); return [W.x, W.y, W.z, q.d]; });
+      FAR.cells.set(ck, { mesh, lods: mem.map(x => lods.get(x[0])), need, shown: false });
+    }
+    FAR.n = FAR.cells.size;
+  }
+  function farTick(eye) {
+    if (!FAR.on || !FAR.cells.size || !eye) return;
+    let shown = 0, hid = 0;
+    for (const [, c] of FAR.cells) {
+      const w = farWant(eye, c.need, c.shown);
+      if (w !== c.shown) { c.shown = w; c.mesh.visible = w; for (const l of c.lods) l.visible = !w; }
+      if (c.shown) { shown++; hid += c.lods.length; }
+    }
+    stats.patchFar = { cells: FAR.cells.size, shown, blocksHidden: hid };
   }
   // THE ROADS (game): a draped ribbon per road in its class's tone (the bench wears them into its own
   // ground canvas; the game's terrain has no such canvas) - 3 m along, the width plus a soft verge
@@ -2570,7 +2651,7 @@ function make(THREE, scene, world, rec0, opts) {
     }
   }
   // (G2955) every 20 frames the power lines' cable chunks past their reach from the eye are not drawn
-  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); if (PWR && PWR.cull && freezeTick % 20 === 0 && o.eye) { const e = o.eye(); if (e) stats.cables = PWR.cull(e); } detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) { t.run.tick(dt).apply(); if (CABIN_FAR > 0 && t.cabs) cabinCut(t.cabs); } if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); trafficCount(); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
+  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); if (freezeTick % 10 === 5 && FAR.cells.size && o.eye) farTick(o.eye());   /* (G3088) */ if (PWR && PWR.cull && freezeTick % 20 === 0 && o.eye) { const e = o.eye(); if (e) stats.cables = PWR.cull(e); } detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) { t.run.tick(dt).apply(); if (CABIN_FAR > 0 && t.cabs) cabinCut(t.cabs); } if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); trafficCount(); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
@@ -4195,6 +4276,7 @@ function make(THREE, scene, world, rec0, opts) {
     rebuild, rebuildSteps, preview, previewEnd, editEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
     objectEdit, hitAll, grabAt,
     trafficReach: m => { if (m !== undefined) TRAFFIC_REACH.m = Math.max(0, +m || 0); return TRAFFIC_REACH.m; },   // (G3087)
+    patchFar: on => { if (on === false) { for (const [, c] of FAR.cells) { c.shown = false; c.mesh.visible = false; for (const l of c.lods) l.visible = true; } FAR.on = false; } else if (on === true) FAR.on = true; return { on: FAR.on, cells: FAR.cells.size, src: FAR.src.size }; },   // (G3088: the census's A/B; true again - the next tick merges)
     snapHint, relineEntry,
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,
