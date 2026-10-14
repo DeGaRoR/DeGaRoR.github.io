@@ -7306,7 +7306,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     try { geoStep(GEO_MS, dEye < 2500); } catch (e) { console.warn('premises: the town geometry', e); geoGen = geoRefresh = null; }
     finally { if (FRw) FRw.pop(); }
   }
-  let premTramLast = 0, premStreamTick = 0;
+  let premTramLast = 0, premStreamTick = 0, lotsNearTick = 0;
   function worldUpdate(cg) {
     // a live edit's builds one a frame; the premises streamed by the AIRCRAFT's position (G591: it was one item every
     // third frame from anywhere, parked or not - 18-29 ms a frame of the taxi)
@@ -7320,6 +7320,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (FRw) { FRw.pop(); const built = q0 - premisesR.stats.queued; if (built > 0) FRw.event('prem', performance.now() - tP, built + ' built, ' + premisesR.stats.queued + ' queued'); }
     }
     if (premisesR && !(typeof window !== 'undefined' && window.PREMISES_HOST_OPEN)) geoTick(cg);   // G2063: the town's patch and roads, near it
+    if (premisesR && premisesR.lotsNear && ++lotsNearTick % 10 === 0) premisesR.lotsNear(camera.position.x, camera.position.z);   // G3210: the plots near the eye only
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
     if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast && !(typeof window !== 'undefined' && window.FLYDIY_HELD) ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // (G650: not while the player has paused)   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
     // G586: the frame's own dt (app.js FLYDIY_PACE; 1/60 where there is no clock - a rig, a harness)
