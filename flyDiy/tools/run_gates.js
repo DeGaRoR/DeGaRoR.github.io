@@ -578,6 +578,11 @@ const GATES = [
   // turtledeck pod) and synthetic variants on the cage dials (boom +-, fin swept, turtledeck, rod level/inclined); a
   // doctored fin and stab must go red. ~15 s.
   { id: 'GEOPARITY', file: '_geoparity_check.js', tier: 'core', wall: 20 },
+  // G3050 GEOM-FIXES (CONFIGURATIONS §9, the user's WYSIWYG): THE WING ROW IS THE WING DRAWN AND FLOWN - the editor writes
+  // every wing row back to the resolved wing (both planes; §9's tip, span, fore/aft + tip offset, crank, centre width,
+  // flap span, up/down), the layer draws the station and root heights inside the flown envelope; a 400-build sweep, the
+  // validated builds bit-identical in flight, the rows' ends through the page chain headless, a self-test. ~8 s.
+  { id: 'WINGROWS', file: '_wingrows_check.js', tier: 'core', wall: 15 },
   // G2640: THE DESIGN CHECK (64b_gen_design.js, genShakedown's `design`, the bench check's rows): no FAIL on the
   // validated five; doctored designs fail on their own row with a fix; fin / dihedral / tail-arm sweeps point the right
   // way; data + determinism + the bench renders it; the shell boom against the drawn shell. ~140 s. DESIGNSIM (full): the predicted spiral root against the sim

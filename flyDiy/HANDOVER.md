@@ -93072,6 +93072,393 @@ Gates: green except SKINMAT, WEATHER (pre-existing on master; fixes ride train 5
 Strict gate, QUIET re-run 01:09-01:28 (the 00:15 run was spoiled by the user's session): 41b vs master 09683cb08 on the same box minutes apart: cub chase loop 18.9 vs 18.3 ms, render 13.1 vs 12.9, cockpit 19.0 vs 19.0, garage->world 11.3 vs 11.2 s: AT PAR.
 MASTER ITSELF moved vs train 50 (0b42f6826, 20:53): cub chase loop 16.5 -> 18.3 ms, render 11.8 -> 12.9, cockpit loop 16.4 -> 19.0: SCENERY-SHIP (rev27, landed 23:11 without its strict gate by the user's OK) costs ~+2 ms loop at HOME. Still 30 fps at the cap. Owed: find the cost (roads r1 / pavement / zones) - EDITOR-PERF / SCENERY-ED-2.
 What to watch for: nothing visible with damage off. ?damage=1 shows the crash layer (breaks, scars, debris).
+## G2640 DESIGN-TRUST - WHAT FLIES IS WHAT IS DRAWN (THE TURTLEDECK'S TAIL, EVERY SWEPT FIN, THE LEVEL ROD), A CARBON BOOM IS A SHELL, AND THE BENCH TELLS FROM THE NUMBERS (2026-10-10, DESIGN-TRUST for A0, LOCAL; branch claude/design-trust-g2640 off origin/master 26e04598b = train 42, G2630 RADIAL-DIVERGE merged; G2640-G2649)
+
+### What the user saw, in plain words
+The user's own design 'mosquito' (a 620 kg single-seat low-wing carbon taildragger, the "Turtledeck" body) would
+not fly level, its tail flexed visibly, the fin of the structure overlay stood far from the drawn fin, and the
+bench check found nothing wrong. Four things were really wrong, and three of them were the ENGINE, not the design
+(A0, relaying the user: "we don't care about the mosquito design as such. It is a symptom for our engine"):
+
+1. THE TURTLEDECK'S TAIL WAS NEVER MEASURED. The 'Turtledeck' body (cage.mirror 1, a main choice on the body
+   page) is a mirrored pod: the cage emits no tail rings, so the join found no tail post and skipped the whole aft
+   body - the fin's station, height and sweep, the stab's seat, the post's section, the boom's profile. The garage's
+   merge kept whatever an earlier build had written: the mosquito flew the CUB's boom (its saved tailBot/tailTop
+   0.5718/0.9650 are the Cub's to the digit) and a fin frozen at x 5.229 m while the drawn tail moved with the boom
+   (4.61 -> 5.45 -> 5.84 m): the flown fin 0.54-0.80 m AHEAD of the drawn one (A0's lead, confirmed).
+2. EVERY SWEPT FIN FLEW UPRIGHT. The join put the fin's truss under the drawn top point with no sweep, so a swept
+   fin's strips sat behind the drawn fin: the Jodel's 0.33-0.50 m aft, the swept-fin Cub variant 0.23 m.
+3. A LEVEL ROD KEPT THE RULE'S TAIL (G477's own exception, "owed a look"): the twin on floats flew its fin
+   0.61-0.87 m aft of the drawn one and its stab 0.28 m below. And `stabH` was clamped at 0, so a stab drawn below
+   the tail cone's middle flew 2.6 cm (mosquito) / 4.6 cm (Cub) high.
+4. A MONOCOQUE BOOM FLEW AS A TRUSS. 200 N sideways at the tail post bent the mosquito's carbon boom 18.9 mm where
+   its drawn section as a carbon shell bends 1.8-2.7 mm; the metal Cessna's 12.6 mm against ~0.3-0.6 mm.
+   (The violent tail motion the user saw at rest was G2630's: the tailwheel dampers ringing at the 200-substep cap,
+   17-33 % strain - fixed there, merged here.)
+
+The WING HEIGHT the user measured (">= 10 cm") is NOT in the rest geometry: the physics chord line sits within 2 mm
+of the drawn chord line on every build (GEOPARITY). What the eye compares in the overlay is the strips' chord line
+against the drawn wing's mid-thickness - the camber line, 4 cm above the chord at the quarter chord of a 1.6 m
+NACA 3412. The gap the user saw in flight was most likely the stab and fin above (and the ringing).
+
+### The fixes (all generic - synthetic variants in the gates, not the mosquito)
+- tools/_cage_join.js: (a) a TURTLEDECK HAS A TAIL POST - the pod's boom has the regular tail's stations
+  (buildCage2: the smooth run, the tail pillar band at tPost, the cone to the tip), so the post is that band
+  measured back from the drawn tip and the body's full section ends at the firewall REFLECTED about mirrorZ
+  (zPodRoot -> cabLen, the profile's root); everything downstream then measures as on a cabin build. (b) THE FIN'S
+  DRAWN MID-CHORD LINE: the fin sheet cut at 30 % and 80 % of its height (faces, not vertices: a lofted sheet has
+  vertices at its ribs only - layerCutY), the line through the two mid-chords carried down to the tail top = vX, its
+  rake = vSweep. (c) every ROD takes its tip's section as the tail datum (G477's inclined-only gate removed).
+  (d) stabH down to -0.5 (also in clampSpec).
+- 61_gen_frame.js SHELL block + GEN_RULES.shellSkin / shellBoom: a covered lofted boom of a stressed-skin
+  construction (carbon at 1.2 mm and 0.45 of the fibre modulus = ~60 GPa quasi-isotropic, CMH-17 vol. 2 T300/epoxy
+  QI 50-60 GPa; alloy 0.8 mm = a light aircraft's 0.025-0.032 in 2024-T3 aft skin; plywood 2.5 mm) flies on the
+  TUBE ELEMENT the rod (G314) and the twin boom (G294) already fly on: its aft bays one shape-matched cluster at the
+  drawn section's own cantilever stiffness (thin elliptical shell, Roark, integrated station by station along the
+  profile, the softer way), the twist constraint at the shell's Bredt GJ (4 A^2 t / perimeter), and the twin boom's
+  'oval' dmg record at its root ring (so a crash can cut it - without one a damage-on crash would have held a broken
+  boom together). Tube-and-fabric and the aluminium tube frame stay trusses (the Cub untouched). A cluster is a
+  projection, so the step is NOT shortened: substeps mosquito 183/183, Jodel/Cessna/floats 120/120, mass the same.
+  Revert switch: GEN_RULES.shellBoom = 0.
+- 30_solver.js probe(vel, live, omega): an optional body RATE (and a roll moment out), bit-identical without it.
+- 64b_gen_design.js (new) THE DESIGN CHECK, on genShakedown().design (not on a slim sheet) and on the bench check's
+  card (bench.js benchDesignHtml; a FAIL row withholds the bench certificate and its fix is the card's fix; WARN
+  rows are said and certify). The derivatives measured off the built aeroplane in the solver's own tunnel (live:
+  the cruise thrust and its wash) in STABILITY axes (measured in body axes the roll damping leaks into the cross
+  terms: the Cub's spiral read twice as divergent as it flies), the inertias off the lattice incl. Ixz, Nelson's
+  4-state lateral model (spiral / roll / dutch roll roots) and the short period. 12 rows, each { id, group, label,
+  level, value, unit, limit, why, fix }: pitch.sm (worst loading corner; fail < 0, warn < 0.02 or > 0.40 drawn),
+  pitch.Vh (Raymer; warn < 0.30), pitch.short (MIL-F-8785C), ctl.elevator (nose-up authority at 1.2 Vs, forward
+  CG), yaw.Vv (warn < 0.020), yaw.cnb, roll.clb, roll.spiral (MIL Level 1 T2 >= 20 s), yaw.dutch (zeta >= 0.08,
+  zeta*wn >= 0.15), roll.mode (tau <= 1.4 s), ctl.aileron (pb/2V >= 0.07), ctl.rudder (holds FAR 23.233's
+  0.2 Vso crosswind). The fixes are sized: "grow the fin by X m2 or move it aft by Y m" (a move past 2 m says the
+  area is what is missing), degrees of dihedral, metres of CG. DATA for CERT-SLIM G2840: read sh.design.rows.
+  THE MODEL WAS CHECKED AGAINST THE SIM: the Cub trimmed hands off, banked 2 deg each way, the antisymmetric bank
+  doubles in ~20 s flown vs 15.7 s predicted; the mosquito (3) stable in both (GATE DESIGNSIM, full tier).
+
+### Gates (new)
+- GEOPARITY (core, ~15 s): every flown strip against the drawn sheet at its station - the validated five, the
+  mosquito repros (tools/fixtures/repro/mosquito_0..3.json, copies of the user's Downloads files), 8 dial variants
+  (boom +0.8 / -0.6, fin swept 25, the Cub turtledeck, the mosquito boom 3.6 / 6.0, the Jodel fin upright, the
+  twin's rod inclined) and two doctored self-tests (fin +0.5 m, stab +0.15 m go red). Tolerance: mean station 5 cm,
+  mean height 3 cm, worst strip 15 cm / 5 cm; and per build the SURFACES: strip areas = Sv / Sh = the drawn sheets
+  (+ counted ventrals), control chord fractions = the drawn cuts', aspect ratios within 15 %, the stab's aero centre
+  within 10 cm (32 rows). Master fails it on the Jodel, the twin
+  on floats and the mosquito.
+- DESIGNCHECK (core, ~140 s): no FAIL on the validated five; six doctored designs fail on their own row with a fix
+  (fin 30 %, a sliver, dragged forward; stab 40 %; tail 1.2 m forward at the worst corner; no aileron); fin /
+  dihedral / tail-arm sweeps point the right way; data + determinism + the bench renders it; THE BOOM (the shell
+  within 2x the drawn shell; the revert is the soft truss; the Cub stays a truss).
+- DESIGNSIM (full, ~3 min): the predicted spiral root against the sim, the Cub and the mosquito.
+
+### The evidence pictures
+tools/perf/g2640_overlay/before_<k>.png / after_<k>.png (k = cub, jodel, cessna, twinFloats, mosquito2,
+mosquito3, cub_finSwept25; tools/_geoparity_shot.js, no GPU): the drawn aeroplane grey, the flight model's strips
+red (chord line through each force point), the tail truss blue, side over half-top. The user's acceptance rule:
+"I'll accept when they match for a few planes".
+
+### Named changes on the validated aircraft (before = master's join + no shell, after = this branch; same core)
+| | cub | jodel | cessna | floats | twinFloats | mosquito2 | mosquito3 |
+|---|---|---|---|---|---|---|---|
+| fin station vX, m | 5.07 -> **5.01** | 4.49 -> **3.94** | 5.82 -> **5.34** | 5.82 -> **5.34** | 4.05 -> **3.22** | 5.23 -> **5.44** | 5.23 -> **5.66** |
+| fin sweep, deg | 0.0 -> **5.0** | 0.0 -> **14.2** | 0.0 -> **38.2** | 0.0 -> **38.2** | 9.0 -> **18.1** | 0.0 -> **1.8** | 0.0 -> **18.6** |
+| static margin as drawn | 0.175 | 0.042 -> **0.043** | 0.246 -> **0.243** | 0.275 -> **0.273** | 0.028 -> **0.025** | 0.163 -> **0.184** | 0.292 -> **0.331** |
+| static margin, worst loading corner | 0.030 -> **0.031** | 0.018 -> **0.019** | 0.155 -> **0.153** | 0.199 -> **0.197** | 0.011 -> **0.009** | 0.071 -> **0.111** | 0.175 -> **0.234** |
+| yaw stiffness cn-beta /rad | 0.090 | 0.126 -> **0.114** | 0.127 -> **0.125** | 0.142 -> **0.140** | 0.078 -> **0.056** | 0.082 -> **0.069** | 0.104 -> **0.128** |
+| dihedral effect cl-beta /rad | -0.039 | -0.188 -> **-0.189** | -0.061 | -0.063 | -0.027 -> **-0.026** | -0.044 -> **-0.037** | -0.163 -> **-0.164** |
+| spiral: bank doubles in, s (- = stable) | 15.2 -> **15.3** | - | 38.5 -> **38.6** | 40.3 -> **40.1** | 12.0 -> **14.7** | 19.7 -> **20.1** | - |
+| dutch roll damping | 0.214 -> **0.213** | 0.095 -> **0.068** | 0.191 -> **0.188** | 0.178 -> **0.176** | 0.220 -> **0.180** | 0.176 -> **0.173** | 0.077 -> **0.136** |
+| dutch roll frequency, rad/s | 2.11 | 2.60 -> **2.53** | 2.96 -> **2.95** | 3.09 -> **3.08** | 2.29 -> **2.03** | 2.26 -> **2.13** | 2.34 -> **2.48** |
+| short-period damping | 0.67 | 0.71 -> **0.70** | 0.48 | 0.43 | 0.83 -> **0.87** | 0.62 -> **0.60** | 0.58 -> **0.57** |
+| rudder holds crosswind, kt | 13.6 | 16.8 -> **16.5** | 19.3 | 21.9 | 12.4 -> **12.9** | 14.1 -> **17.1** | 17.4 -> **16.6** |
+| aileron pb/2V | 0.265 | 0.281 | 0.260 | 0.243 | 0.171 -> **0.180** | 0.255 | 0.165 -> **0.161** |
+| FLOWN: hands-off bank after 30 s, deg | 9.2 | 2.4 -> **2.5** | 7.4 -> **7.0** | not flown* | not flown* | -2.1 -> **-1.5** | -5.8 -> **-5.0** |
+| FLOWN: hands-off heading after 30 s, deg | -32 | -11 | 155 -> **150** | not flown* | not flown* | 12 -> **10** | 29 -> **26** |
+| take-off to downwind, s | 64 | 87 | 58 | not flown* | not flown* | 45 -> **44** | 47 -> **48** |
+| substeps | 75 | 120 | 120 | 120 | 104 -> **105** | 182 -> **190** | 169 -> **183** |
+| design check | WARN | WARN | PASS | PASS | WARN | WARN -> **PASS** | WARN -> **PASS** |
+
+(*) node's world starts a seaplane on land: the pilot never reaches the downwind, so the flown rows are not measured
+for the two floatplanes (GATE SEAPLANE / FLOATS fly them on the water). Before = master's join with the shell off,
+after = this branch, on the same merged core (G2630 included), calm air, the pilot trimming then hands off.
+IN WORDS: the Cub and the Cessna pair barely move (their fins were nearly where drawn; the Cessna's 38 deg sweep
+moves its fin's root, not its centre of pressure). THE JODEL's fin now flies where it is drawn - 0.55 m further
+forward at the root, swept 14 deg: less yaw stiffness (0.126 -> 0.114) and less dutch-roll damping (0.095 -> 0.068,
+under the 0.08 Level-1 line: the design check now WARNS it); everything else the same. THE TWIN ON FLOATS' fin and
+stab are now the drawn ones: yaw stiffness 0.078 -> 0.056, dutch damping 0.220 -> 0.180, the spiral SLOWER (12.0 ->
+14.7 s to double). The mosquito: both builds now PASS (the fin where drawn: (3)'s dutch damping 0.077 -> 0.136).
+The shell's own share (the boom stiffer) moves none of these by more than the last digit - it is a structural
+change (the flex), not a handling one.
+
+### Owed / not done
+- KEEL (mostly closed, 10 Oct ~23:20): a fin drawn rooting BELOW the tail post's top (a turtledeck's narrow boom:
+  0.13 m on mosquito (2), 0.15 m on the Cub turtledeck) flew squeezed above the post - aspect 0.78 for the drawing's
+  1.08, chords ~30 % wide, quarter chords 7-9 cm forward. The join now measures the drop (tail.vRootDrop: the fin
+  proper's span against the post's top, within the tail's depth) and the frame roots the fin's truss and strips there;
+  the turtledecks' fins within 1 cm, GEOPARITY's fin tolerance back to 5 cm like the others, the surfaces' areas /
+  control fractions / aspect ratios gated. Every validated build measures 0 (bit-identical). What is left: the keel
+  TAB's own area (under the deck) is still flown on the fin's strips - its force 13-18 cm high; a keel strip, owed.
+- THE MESH SHOWING THE TAIL'S FLEX (scope 2b): the drawn tail does not ride the lattice in flight (only the wing's
+  spar deltas and the strut bind; skin_break's riding is the damage path). With the shell the flex left to show is
+  1-2 mm in the game's breeze (was 21-23 mm), below what the eye sees; owed only for a genuinely soft design.
+- cabin.seats 1 -> 2 on the mosquito through the headless join (a node/page difference, pre-existing on master):
+  for JOIN-PARITY.
+- T41b (Deform) lands first: rebase, re-run DMGCERT / DMGCLUSTERS / DMGCERTCOST / DMGMEMBERS on that tip.
+
+### G2640 gates (10 Oct 22:30-22:51, the booked CPU window, jobs 4, on the merged tip with G2630)
+PASS: GEN, PILOT, TAKEOFF, SEAPLANE, FLOATS, BENCH, SPECFIX, JOIN, FIN, FIT, DESIGN, FLEX, LOAD, SIMWORKER, ACCEPT,
+DMGCERT, DMGMEMBERS; GEOPARITY 17/17 and DESIGNCHECK 24/24 (the battery first read them red: they did not print the
+runner's `GATE <ID>: PASS` line - fixed, both re-run green alone). DMGCERTCOST red on the Jodel's frame budget only
+(1792 -> 1796; the envelope equal to the uncut to the bit): the budget re-written as its own header asks, the Jodel
+1796 / the metal Cessna 1795 / the floats 1761, named in the file - re-run green.
+STILL RED - DMGCLUSTERS on the metal Cessna's new SHELL: "levered over an obstacle at its mid-span station" parts
+cleanly (10 members, its bay, 0 others) but the parted aft piece reads 12.4 mm against the gate's 10 mm rigidity:
+the split hands the aft piece the WHOLE tube's omega (30_solver clApply: C2.omega = C.omega), and a piece a third as
+long is (L / Laft)^1.5 stiffer as a cantilever. The Jodel's shell (omega 1265) passes the same case; the twin boom's
+aft piece (3 nodes) reads 0.2 mm. The fix is in the damage layer's split, which T41b (Deform) rewrites: handed to
+A0 / Deform; re-run DMGCERT / DMGCLUSTERS / DMGCERTCOST / DMGMEMBERS on the T41b tip before landing (43.1).
+SURFACE DETAIL (the user's question via A0, "no horn, no control surface, no leading edge"): fin strips' area = the
+drawn fin + rudder + keel exactly on all six builds (the floatplanes + their counted ventrals), the rudder / elevator
+chord fraction = the drawn one exactly, the arms within 1-7 cm (the Cessna pair's 0.17-0.21 m is its uncounted dorsal),
+aspect ratios within ~10 %; a horn balance is AREA ONLY - the model has no hinge moments (position-commanded controls).
+The blue truss in the overlay is the fin's STRUCTURE (two spars), the strips span the drawn chord.
+
+### G2640 on train 43 (11 Oct, plan B: 43.1 before T41b) - the split, Deform's review, the shell's buckling
+Rebased on master 37bf53368 (train 43; G2630 inside). The 08:35 battery on that tip: every row of last night's list
+green but DMGCLUSTERS (the Cessna's shell, as handed over). Three things fixed it, in 30_solver's damage layer
+(reviewed by Deform; 41's split takes the same hunk):
+- clOmegaPiece: a station piece of a split tube cluster gets the omega of its own length and mass,
+  om0 sqrt((L/Lp)^3 (M/Mp)), CAPPED AT 3 x om0 (uncapped a third of the Cessna's shell read 9x).
+- clReset hands every cluster its as-built omega back (C.omega0) - Deform's catch: the split wrote the forward
+  stub's omega onto the original cluster and Fly again would have flown the whole boom at it. GATE DMGCLUSTERS has
+  the row now (split at the station, reset, every cluster's omega == a fresh sim's), and clusterCuts() reads omega.
+- THE SHELL BREAKS BY BUCKLING: the 'oval' record takes sigB = gamma(R/t) x 0.605 E t / R (NASA SP-8007's bending
+  knockdown gamma = 1 - 0.731 (1 - e^-phi), phi = sqrt(R/t) / 16 - Deform's review: R/t's, not a constant), at the
+  mid-span STATION's own ring (the narrower tailcone; the record carries one section); the limit is min(material,
+  sigB). Values: the metal Cessna 55.8 MPa, the Jodel's plywood 34.4, the mosquito's carbon 138 (the alloy's own
+  ultimate ~450). A LOWER BOUND, named: a real tailcone is stringer- and frame-stiffened and carries load past skin
+  buckling; it stays above the tail's ultimate (DMGCERT green). The metal Cessna's tailcone was
+  credited with 580 kN.m at mid-span (the alloy's full ultimate on a 0.8 mm skin) and the part-off test ramped loads
+  to hundreds of kN - its stab tore off its fittings (32 strays). Now 22 kN.m at mid-span / 31.5 at the root: clean
+  (10 members, 0 strays, rigid 0.2 mm); normal operations peak under it (the flown pull 0.50 of the limit, the drops
+  0.23-0.28). NAMED: with damage on, the Cessna's and the Jodel's aft fuselage break at a realistic tailcone moment.
+WHAT TO WATCH FOR (the user's rule since 11 Oct ~01:40, instead of evidence stills; A0's ruling (a)): damage is OFF
+by default, so default play is unchanged. With ?damage=1, a tail-first crash in the metal Cessna or the Jodel: the
+tailcone now breaks / folds at the mid-span station at a realistic moment instead of almost never (580 kN.m before);
+the stab and fin should come away with the aft piece, the piece itself rigid (not rubbery).
+Gates on the formula: see the 09:47-10:07 window below.
+Gates on the formula (sigB = gamma(R/t) x 0.605 E t / R at the station's ring), 11 Oct: TREECRASH PASS (09:47-10:07,
+50/50); 10:08-10:17, each its own process: DMGGEAR, DMGCLUSTERS, DMGINTEGRITY, DMGCERT, DMGCERTCOST, DMGMEMBERS PASS.
+With the 08:35 battery on this tip (GEN, PILOT, TAKEOFF, SEAPLANE, FLOATS, BENCH, SPECFIX, JOIN, FIN, FIT, DESIGN,
+FLEX, LOAD, SIMWORKER, ACCEPT, GEOPARITY, DESIGNCHECK, DMGCERT, DMGCERTCOST, DMGMEMBERS) - READY for 43.1.
+
+## G2750 - FINISH-FIX: THE PAINT RIDES THE SKIN (DECALS AND WEATHERING FROM THE REST PLACE), SCRATCHES BY COUNT, THE REGISTRATION RE-BAKES THE FAR MODEL, THE OVERLAY OVER EVERYTHING AND NOT IN THE SHED, THE BAND ROUND A BUBBLE NAMED AND ONE CLICK AWAY, THE ROOF LIGHTS' FRAMES IN STEEL (2026-10-10, FINISH-FIX for A0, local GPU; branch claude/finish-fix-g2750 off origin/master 26e04598b = train 42; G2751-G2759 unused)
+
+**The user** (10 Oct, from screenshots of their Mosquito - `tools/fixtures/repro/mosquito_2.json` / `_3.json`: carbon
+construction under an olive tint, weather age 0.7, a bubble canopy, registration B-MOSQ): "the weathering produces clear
+tiled pattern on carbon"; "the weathering 'dots' keep moving constantly, the texture gets stretched and back"; "when using
+the bubble cockpit mode, there's a dark part around the cockpit, which is not the joint, and that can't be accessed using
+the finish editor"; "the decal is projected live, so when the control surfaces move, the decal gets reprojected, and the
+moving part gets a shifting paintjob"; "I changed the registration, and the far baked model does not reflect that"; "the
+overlay does not draw on top of the runway" + "Overlay persists in the garage. I don't think it should."; "the hangar
+skylight chassis look plain white, flat, ugly, untextured and unrealistic".
+
+**1+2 / 4 - THE PAINT RIDES THE SKIN (aeroskin.js AERO_MAIN_VS, aeroRestBake; app.js beside the cavity bake).** In flight
+the rigs WRITE the vertices: the hinges turn a control surface in its buffer, the flex bends every skin vertex, the
+struts, the legs, the floats. Every projection that reads a craft PLACE took it off the posed vertex (`vCraftPos` from
+`transformed`): the decals' side/plan boxes, the weathering's triplanar and cylindrical reads, its sources, the holes,
+the detail sheet - so a box decal re-projected across a deflecting rudder every frame, and the grunge slid and stretched
+with the flex. (Field-mode markings and the field read on the fuselage skin were always fixed: aStruct is per vertex.)
+THE FIX: `aRest` (vec4: the place as built, w 2 = present) baked ONCE per flown geometry before the first pose
+(`AEROSKIN.aeroRestBake(THREE, grp)` right after `aeroWxBakeCavity`, the same reach - an aeroskin mesh, not a skinned
+one); AERO_MAIN_VS reads `aeroRestP = aRest.w > 1.5 ? aRest.xyz : transformed` and the craft place comes from it. A part
+that moves as a WHOLE (a wheel, an engine, a pivot group) still carries its motion in modelMatrix, so it turns with its
+paint as before. The C4b skinned folds take the rest place through the same bone (aeroSkinnedCraft); the hybrid's views
+merge aRest with the other live attributes (zero = w 0 = falls back, exactly like an unbound attribute's w 1). No rest
+(the editor, the benches, the parked bakes): the posed place, as before. Debris and a crumpled skin now keep their paint
+on the piece. NOT a new varying; one vec4 attribute on the flown skin (16 B a vertex, uploaded once).
+
+**1 - SCRATCHES BY COUNT (aeroweather.js aeroWxScratch).** The scratch layer read the 256-px grunge sheet stretched to a
+tile of 3 cm across x 45 cm along and thresholded it at 0.968: only the sheet's few highest texels passed - the SAME few
+every tile, a lattice of identical dashes, pale substrate (composite chip 0.5) on dark carbon. Now G345.4's rule: a
+lattice of `scratchLen` cells in the part's own frame, each cell rolls the hash of its INDEX (which never repeats) against
+the density, a winner draws one tapered stroke (mostly along, +-15 deg, 0.24-0.6 of a cell, jittered inside its cell),
+antialiased on the footprint and faded below a pixel. Knob `scratchAcross` (a width PERIOD) became `scratchW` (a stroke's
+half-width, 0.7 mm). SEEN: the master flank and cowl in flight carry columns of identical dark dashes (pale on the cowl), gone on G2750 (`1_weathering_dashes_master_vs_g2750.jpg`, the same frame both ways). At the macros this build carries (age 0.7) scratches are now rare by construction - the density is the layer's, the lattice no longer prints.
+
+**3 - THE BAND ROUND A BUBBLE.** Named by repainting each candidate section magenta through the editor's own finish door
+(finishToSpec / finishFromSpec), from two eyes: it is the WAISTBAND - the waist rail's strip, which cageCanopy re-sizes
+into a constant band under the canopy's seam all round the cockpit. The Mosquito carries `waistband: 0x262626` - the stock
+Cub's black waist stripe, inherited by every build made from it; on a bubble that stripe is a dark surround. Not the cabin
+darkening (uCabin 0 changes the interior, not the band), not the shoulder (off: the same band), not the joint (the thin
+ring at the glass). Its row existed - under the FUSELAGE, by the raw key 'waistband'. THE FIX: (a) the row says what it
+is: 'canopy sill band' on a bubble (its tip: 'finish and colour for canopy sill band (waistband)'), 'waist band' otherwise, 'roof rail band' / 'floor rail band' for its
+two siblings (the panel signature carries the bubble so the label follows the mode); (b) NEVER AN UNREACHABLE COLOUR: in
+the FINISH view a click on a cage face opens its part (no step-out on a second click) and that section's own row scrolls
+in and flashes (editor.js EDITOR_PICK, `.secFlash`). Retagging the strip as its own section was weighed and declined:
+ten downstream passes key on 'waistband' faces (the seal, the dash arc, the interior, the shoulder, the knife corpus).
+SEEN: `3_bubble_band_named_magenta_by_section_master.jpg` (each candidate magenta in turn: only waistband paints the band), `3_finish_click_lands_on_canopy_sill_band_g2750.jpg` (a click on the band: Fuselage opens, "canopy sill band" - its dark well the 0x262626 - outlined and scrolled in; master: no row). The dark colour itself is the build's, left as the user saved it.
+
+**5 - THE REGISTRATION RE-BAKES THE FAR MODEL (app.js tripExport).** The trips' key (snapshot, bake, spec) is the build's
+export, and the export carries the finish but not `meta` - and the registration lives in `meta.reg` (finishToSpec strips
+it from the decals: "the registration is not the finish's"). New letters left every key equal: the snapshot, the bake and
+the spec were skipped, the far fold kept the old atlas while the near live view showed the new letters. The key now ends
+`|reg<letters>`: a registration commit (on `change`, never per keystroke) re-runs the snapshot, whose flown preview
+carries meta.reg into the bake's own key. The parked bake (whole spec) and the fleet signature already carried meta.
+ALSO (found on the stills, then in the code): the BAKE STEP painted from the bare export whenever the snapshot was skipped (a trip whose wear moved a step: `bake` keys on build|wear, `snapshot` on build) - no meta, so aeroApplySpecDecals fell back to F-PGAR, under a key that cannot tell registrations apart. The bake now takes `tripSync.flown || GARAGE_SPEC.preview(tripSync.spec)`, the very spec the snapshot flies, so its key is the same whichever step ran. On THIS build a reg change already moved the export (the auto-fitted `regW` follows the letters), so the stills show G-FIXD on both trees (`5_registration_bake_live_master_vs_g2750.jpg`); the reg-only key now holds where regW does not move (a locked width), and the wear path is closed by construction (gate), not by a still.
+
+**6 - THE OVERLAY (app.js applySkinVis, enterGarage).** The frame lines were OPAQUE materials: three sorts them in the
+opaque list whatever their renderOrder (998), and the pavement, the clouds' composite and the glass are transparent and
+drawn after the whole opaque list - with the depth test off the lines wrote no depth, so the runway painted over them
+(the apron is opaque ground: there it showed). Both materials are transparent from birth (no program change on a toggle)
+and the x-ray rides AERO_CLEAR + 998/999, above the craft's see-through band. `enterGarage` resets the mode to Covered.
+SEEN: `6_overlay_over_runway_master_vs_g2750.jpg` (low eyes, the strip behind: master drops every line over the pavement - the gear struts, the wires to the tailwheel, the tail cone under the stab; G2750 draws them all). The run log: back in the shed master still says "Overlay x1", G2750 "Skin x1".
+
+**7 - THE ROOF LIGHTS' FRAMES (hangar.js).** The kerb and bars were flat quads 1.5 cm ABOVE the deck, seen from the floor
+THROUGH the pane - a milky emissive card (opacity 0.3, emissive x2.6): white-blue sheets, no depth. Inside, each member is
+now a slab hanging on the room side of the pane (a face and four flanks built through the slope's own P - no rotation, the
+gate's stub THREE has none), in M.beamSec (the purlins' steel and part: the part system dresses both, the room merge folds
+the frames into the purlins' one draw - zero new draws). The exterior keeps its kerb. SEEN: `7_skylight_frames_master_vs_g2750.jpg` (own camera on the shed scene, from the floor: master pale flat bands under the pane, G2750 dark steel members with flanks; the room view below).
+
+**3b - THE GLOBAL PAINT PLAINLY REPAINTS (aeroskin.js aeroBaseReach; 11 Oct, the user through A0: "the canopy sill
+band should also be affected by the global paint", then "I don't think a band changed by hand should keep its color.
+Changing the global paint again should just plain repaint the aircraft").** The base colour's reach wrote a section only
+when it was FOLLOWING (unset, or equal to the base it replaced - G468, "a hand colour survives the base"): the Cub's black
+waist stripe (0x262626), inherited by every build made from it, differs from any base, so it counted as the builder's own
+and no pick ever reached the band round a bubble. Now every exterior cage section (skin, rail bands, frame bands) and
+every part that wears the body (the cowl, the struts, the fairings, the fittings, the floats) TAKES the pick, a hand
+colour too; the wells still override a section after it. ...AND THE WINGS AND THE TAIL (the user, the same night:
+"include wings and tail too" - one global paint is the whole aircraft): every layer section of the airframe's livery
+family (its chain reaches the body: the wings and their surfaces, the fin, the rudder, the stab, the elevators, the
+booms, the floats, the gear) drops its own colour and follows the body; the float's deck (tintOwn) takes the pick
+itself. G1320's follow-only rule stays only for what is not the airframe's paint (the propeller, the spinner, the
+engine, the seats, the crew). The base row's tip says "one colour for the whole aircraft". The base metallic and roughness ride the same reach, so they
+repaint the same way. Decals and the registration are not paint and are untouched. A first cut that kept hand colours
+(a provenance mark per section) was dropped on the user's correction before it was committed. GATE LIVERYREACH: rule 2
+narrowed to the parts outside the airframe's paint, rule 3 added (every cage section, body-wearing part and
+airframe layer section takes the new base whatever it wore), and the user's own case run on the fixture - the
+Mosquito's sill band 0x262626, a band painted by hand, a wing painted by hand and the rudder -> the pick; the spinner's
+own 0x383838 held.
+
+**PERF.** No new per-frame CPU work; on the GPU one vec4 attribute fetch and a select in the skin's vertex stage; the
+skylight frames are merged into an existing draw; the overlay's order costs nothing. Same-window sanity line (rAF-capped, not a bench), master -> G2750: garage 16.74 / p95 31.3 -> 16.75 / 31.5 ms, taxi 16.73 / 35.4 -> 16.55 / 34.8 ms. A0's train battery is the ratchet.
+
+**43.1 STRICT GATE 8 (11 Oct): two costs of this entry, named from code and removed (b82e24b6d).** (a) THE REST BAKE
+ran in buildModel - which EVERY garage change runs (api.apply -> setAircraft('gen')): a 16 B copy of every skin
+vertex, merged again into the hybrid's views, per slider move (A0 measured garage busy +18 / +29 ms a change, Cub /
+metal). Now restBake(): once per model (model.restBaked), only for flight - when craftInWorld first shows the craft in
+the world under the roll-out's screen (its upload rides the world compile), else the first !inGarage poseModel; the
+folds baked with it (aeroRestBake takes skinned folds: their arrays are the members' own, still at rest). (b) THE
+SCRATCH'S hash maths ran on every weathered fragment, the cockpit interior included where the layer is zero; now behind
+`if (wxScP >= 0.01)`, the footprint (fwidth) taken before the branch. LESSON: anything in buildModel runs per garage
+change - data only flight needs is baked lazily. COMPILE 2.7 -> 5.0 s: no new program variant (an attribute is not in
+three's program key); the aeroskin source changed for every program, so a first run misses the GPU program cache -
+A0's ABBA decides.
+
+**GATES.** WEATHER (scratches by count, no threshold on the tiled sheet, the hash of the cell's index); SKINMAT (the rest
+place read and baked beside the cavity - aeroRestBake RUN in node: w 2, aeroskin meshes only, never twice; the trip key
+carries the registration; the bake paints from the snapshot's spec; the overlay transparent, in the see-through band, reset in the shed; the waistband label; the
+FINISH click lands on its row); FLOWNBAKE (G1493's skinned craft place now the rest one through the bone); HANGAR
+(the frames build on the stub). Green lockless: WEATHER, SKINMAT, FLOWNBAKE, SKIN, FADES, HANGAR, UISMOKE, PARTS, ATMO,
+CLOUD, GFX, LIGHT, LIVERY, LIVERYREACH, MATLIB, ROOMMERGE, STAND, UILAYER, BENCH, PANEL. Targeted battery (A0, the 10 Oct pace rule - no --all before landing): WEATHER, SKINMAT, FLOWNBAKE, SKIN, FADES, HANGAR, UISMOKE, PARTS, LIVERY, LIVERYREACH, MATLIB, ROOMMERGE, STAND, UILAYER, BENCH, PANEL, ROUNDTRIP, PARKED, DMGSKIN, BUILD, BUILT, KNIFE, SHADOWSKY, ATMO, CLOUD, GFX, LIGHT in A0's CPU window Sun 02:25-03:00 (--jobs=6, no lock on A0's booking): BATTERY PASS, all 27 green, 02:25-02:32, wall 442 s
+(total 1425 s; ROUNDTRIP 415 s, CLOUD 322 s, PARKED 234 s, ROOMMERGE 130 s, UISMOKE 128 s). BUILT notes the outputs lag the
+sources until the train's (built) commit, as designed. The 07:36 proof stills were CANCELLED by the user ("no
+screenshots needed for these changes"): the global-paint ruling, the rudder decal and the flight weathering pair rest
+on the gates (LIVERYREACH rule 3, SKINMAT's rest rows, the run log's rest measure).
+
+**Evidence:** `reports/evidence/FINISH-FIX/` (before = origin/master 26e04598b in a clean worktree, after = this branch,
+same rig, same build): the seven sheets above + `run_master_log.json` / `run_g2750_log.json` (the rest measure: master 0 of 53 flown aeroskin geometries carry a rest place; G2750 181 of 181, 77 moved by the rigs up to 8.5 cm while their rest held; the trips per roll-out; the overlay's label after the shed; the FINISH click's row). Rig: `tools/perf/finish_window.sh` (the GPU lock + an EXIT trap) driving
+`tools/perf/finish_stills.js` on `tools/live_driver.js`; own-camera stills render the shed's scene at 1600x900 (the
+garage's own camera is pinned by the bench view).
+
+**Traps paid for:** FLIGHT_PROBE.camSet does not move the GARAGE's camera while the bench view frames it - render the
+hangar scene on your own camera (and resize the renderer: the canvas is the gap between the panels, 640x900). The
+mount's +z is FORWARD. GARAGE_SPEC.update({finish}) does not repaint the editor's live materials - go through
+CAGE_UI.finishToSpec / finishFromSpec + build(). A flight changes the export (the first trip after a load re-runs
+the snapshot for reasons of its own): a registration test must fly once unchanged first. A GLSL comment inside a JS
+template literal must not hold a backtick (node --check catches it; GATE WEATHER checks its own blocks).
+
+**Owed (released by the user, 11 Oct: no screenshots for these):** a STILL of a decal on a deflecting rudder/elevator, live shader, two frames apart (the orbit eyes this rig used never reached the tail - the fix is proven by the measure and the gates, not yet by a picture of the user's own case); the weathering in FLIGHT seen moving on master vs still on G2750 (a held-camera pair in a turn). Both need ~10 GPU minutes.
+
+
+## G3050 - GEOM-FIXES: THE WING ROW IS THE WING DRAWN AND FLOWN (CONFIGURATIONS §9, EVERY WING ROW, BOTH PLANES) (2026-10-12, GEOM-FIXES for A0, local; branch claude/geom-fixes-g3050 off the 43.1 preview = design-trust cfa7cfe9b + finish-fix 94add5046; G3050-G3059, sub-numbers unused)
+
+The user (11 Oct): "do the wing fixes after 43.1"; RULING 3 + WYSIWYG (8 Oct). §9 named three rows that do not reach
+what they say. G1283 (3 Oct) made them SAY so (a note, an ERRS row); this makes the row, the drawing and the flown wing
+one number. Second wing as a general lifting surface (ruling bq) NOT touched; the biplane keeps its truss.
+**THE TWO DEFECT KINDS (re-measured on the code, generic):**
+1. **Row != drawn = flown** (the wing layer resolves the same spec the join flies, so the drawing was honest and the
+   ROW lied): §9.1 tip chord (taper 0.45-1: 0.55 on a 2.10 root flies 0.945), §9.3 span (4-20 x chord: 6.5 on 2.10
+   flies 8.40) - and four siblings found the same way: tip/crank offset (+-tan 30 deg of the semispan: tip aft 2.5 on a
+   6.5 m span flies 1.70), crank under 15 % (no crank), centre width under 0.20 (0.20), flap span past the aileron
+   (1 - ail - 0.04). FIX: `PAGE.coerce` (the pair rule's mechanism) writes every live wing row back to
+   `resolveSpec(wingGSpec(P))` - the layer's OWN spec builder, lifted to a module function - on both planes (w2 keys
+   through w2Key / w2View). Only a row off its clamp by > 1e-9 moves, onto the value it already flew: no physics
+   change for anything. Memoised on the wing spec's JSON (one resolve per change of the wing rows).
+2. **Drawn != flown** (the join MEASURES the station / height off the drawing, clampWing cuts it): §9.2 fore / aft
+   (xLE -0.20..3.00: the Jodel at 1.8 was drawn 1.16 m ahead of its flown wing, the Cub 1.32, the Cessna 1.36) - and a
+   sibling: the up / down rows vs clampWing's yRoot -1..3 (a parasol at 1.20 m + up 1.0 on the Cessna was drawn 3.72 m
+   over the keel and flew at 3.00; a biplane's parasol upper plane drew 3.39). FIX: the wing layer draws inside the
+   window the flight keeps - `wingDxWindow` off the build's own cage spec (the firewall + ring stations now in ONE home,
+   `CAGE2.cageNamedZ` / `cageFirewallZ`, the join refactored onto them), the yRoot window off the resolver itself
+   (`wingYRootEnv`: no copy of its numbers), plane 2 re-framed once with its place.dy moved by the overshoot - publishes
+   `CAGE_WING.anchor.dx/dy/dxWin/dyWin`; the join measures the DRAWN nudge; the layer writes the rows back (+ syncSliders).
+   This runs in the GAME's path too (no coerce there): what flies was already the clamp; now the drawing is.
+**NOTES.** A held row says it until moved again: "held at 0.945 (asked 0.55) — the tip is held to 0.45–1 × the root
+chord" (HELD; tip, span, tip/crank aft, crank at, centre width, flap span, fore / aft). G1283's "flies X" notes kept
+(the bench pages without the coerce). No row range changed (EDITOR-UX-A G2760 owns the row layout).
+**SAVED BUILDS - EXACTLY WHAT CHANGES** (GATE WINGROWS KEPT; flown wing + controls compared as JSON before / after):
+- Cub (corrected): row `wgChordTip` 1.75 -> 1.70 on open (the tip already flew 1.70: taper 1). Flight bit-identical.
+- twin on floats (v7 fixture): `wgChordTip` 1.6 -> 1.5 (taper capped at 1; flew 1.5). Flight bit-identical.
+- Jodel, Cessna (metal), Cessna floats, mosquito: no row moves. Flight bit-identical. Drawing unchanged (the station
+  and heights were inside their windows).
+- Any build: a row the resolver overruled moves onto what it flew, when opened in the editor (and is saved so). A build
+  whose fore / aft or up / down sat PAST the flown window now DRAWS where it flies (the wing moves on screen, the
+  struts and fittings with it); its flight is unchanged. None of the validated builds is such a build.
+- Trade-off the user may want to know: the coupled rows are now lossy - a tip held at 0.945 by a 2.10 root stays 0.945
+  when the root goes back to 1.0 (it was 0.55 in the row before). That IS what the drawing showed.
+**GATE WINGROWS** (new, core, ~8 s, `tools/_wingrows_check.js`): S9 (11 cases, both planes, row + note), SWEEP (400
+seeded random wings vs the JOIN's mapping - the two homes of P -> spec cross-checked; 318 had a row overruled; a second
+coerce moves nothing), KEPT (above), STATION (fore / aft and up / down at their ends through the page chain headless:
+measured xLE / yRoot = flown on every plane, GEOPARITY's wing rows in tolerance, rows = drawn), SELF (the coerce
+removed -> S9 + SWEEP red; the drawn window removed -> the Jodel at 1.8 red). 29/29 PASS on this branch.
+**COST.** The coerce: one resolveSpec only when a wing row changed (wing spec JSON memo); the station window reuses the
+build's cage spec in the layer (cageResolve 0.02 ms; a cageSpec in the coerce measured 0.73 ms a build, so it is NOT
+there). Garage latency not yet measured on the box (needs a slot).
+**FOUND, NOT CHASED:** GEOPARITY on the Cessna at fore / aft -1.5 (inside the window) reads worst 0.157 at the 2.30 m
+station only (the drawn chord 0.18 wider: the lift strut enters GEOPARITY's slice when the wing is far aft) - a
+measurement artefact of the slice, not the wing; every other station identical to the default's.
+**PROCESS:** I ran ~5 s of node inside G2840's CPU timing lock (04:48-) by mistake and a 1 s core build in a GATE CARDS
+lock; both sessions told. tools/flight_core.js etc. were rebuilt locally for the tests and are NOT committed (43.1's
+src/core is ahead of master's build).
+### G2640 - GATE DMGSKIN's floats "hop" row (12 Oct, the 43.1 hold): a window artefact, not a host/worker divergence
+DMGSKIN failed on this ref alone (Cessna floats, severe nose-in: "the sets the same ... at the end past its window").
+Measured in A0's slots (17:30, 18:55; tools: a one-process diagnostic, inline sim vs the worker host's): the two sims
+are BITWISE EQUAL at every one of the 240 steps and the 7-step tail; the sets match at every host send; the broken list
+and pieces match. What differs: on this ref the floats' SHELL parts at its ROOT at step 9 and its loose tail, quiet
+for the last second, yields again in the gate's tail (+28 at the tail's step 4, sent by both; +26 at step 5, sent by
+the inline, held by the host inside its 0.1 s set window) - and the gate compared once, at the fixed 7th step: one
+member (303) inline -0.001583 vs the host's last send -0.001036. With the shell off, or its sigB off, nothing yields in
+the tail and the row passes. FIX (tools/_dmg_skin_check.js, a separate commit for DEFORM'S REVIEW - the gate is
+theirs; reviewed and tightened by Deform): judged once the host has caught up (its last applied signature equals the
+inline's, 7 steps at least); a host still behind once the inline has been quiet for its 0.1 s window + 2 steps is a
+FAIL ("the host never flushed its last set" - the host flushes on the trailing edge, so that would be a lost flush);
+only a wreck never quiet inside a second is judged at the host's last send; at rest the same 7th step as before.
+13 Oct: SUPERSEDED by Deform's equivalent in train 41b (4f5bd23ae: step on until the inline sets hold still 8 frames, at
+most 4 s, then the usual 7) - this branch takes 41b's loop; only the row's message stays mine (S.flushLost: unequal
+after a quiet settle = "THE HOST NEVER FLUSHED ITS LAST SET").
+NAMED CRASH CHANGE (damage ON, the user will see it): in the floats' severe nose-in (150 km/h, 10 m/s, 60 deg) the
+SHELL now parts at the ROOT at 0.15 s - the tail comes off; on master the FIN goes at 0.53 s.
+**Owed (released by the user, 11 Oct: no screenshots for these):** a STILL of a decal on a deflecting rudder/elevator, live shader, two frames apart (the orbit eyes this rig used never reached the tail - the fix is proven by the measure and the gates, not yet by a picture of the user's own case); the weathering in FLIGHT seen moving on master vs still on G2750 (a held-camera pair in a turn). Both need ~10 GPU minutes.
+**SLOT (A0, Tue 13 Oct 05:40-05:43, node only, --jobs=1) on 0eb063865 (DT 5afffcb27 + FF df404c276 + G3050):** the 12
+targeted gates PASS (WINGROWS, JOIN, DESIGN, GEOPARITY, BIPLANE, CLIP, STRUT, PARTS, SPECFIX, WINGSPLIT, FLOATS, GEAR).
+Coerce cost in the garage: 0.005 ms a build with no wing row changed, 0.092 ms on a wing-row change. OVERLAY STILLS
+(tools/_geoparity_shot.js; before = the same two heads without G3050), read: Jodel at fore / aft 1.8 (before: the drawn
+wing over the cowl, the flown strips 1.16 m behind; after: on it), Cessna parasol 1.20 + up 1.0 (strips ~0.7 m under
+the drawn wing -> on it, struts following), Cub biplane with a parasol upper plane (upper strips ~0.4 m under -> on it;
+GEOPARITY measures plane 0 only, the still shows plane 2), and Cub / Jodel / Cessna at default: before = after,
+pixel-identical. Rides TRAIN 54 (A0). Rebase note: master's G2880 NACELLE-LAG wingPost / early.publish wrapper sits
+where wingGSpec was lifted - keep master's wrapper after the function (the only conflict in the wing file).
 
 ## G2939 - LOOK-DEFAULTS: THE USER'S WORLD LOOK OF 12 OCT IS THE DEFAULT (2026-10-13, TREE-STREAM for A0; branch claude/look-defaults-g2939; train 53 with SHIP-2)
 The user: "these should be the new defaults, ensure that my settings are not killing performance" - D:/Dev/flydiy-notes/inbox/

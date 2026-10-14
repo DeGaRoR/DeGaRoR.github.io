@@ -1175,14 +1175,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const CSp = C2.cageSpec({ ...P });
         const R = C2.cageResolve(CSp);
         const FS = (C2.CAGE_UNIT || 1) * (P.planeScale || 1);
-        zOf2 = (name) => {
-          const r = R.rings.find(q => q.name === name);
-          const l = r && r.lv && (r.lv.waist || r.lv.keel);
-          return l && isFinite(l.z) ? l.z * FS : null;
-        };
-        const fw = zOf2('wsFront') != null ? zOf2('wsFront')
-                 : zOf2('wsAft') != null ? zOf2('wsAft')
-                 : zOf2('aeroWsA') != null ? zOf2('aeroWsA') : zOf2('ring');
+        zOf2 = C2.cageNamedZ(R, FS);
+        const fw = C2.cageFirewallZ(zOf2);        // G3050: one home with the wing layer
         if (fw != null) { zFw = fw; fwOk = true; }
         zPost = zOf2('tailPost');          // a ROD boom has no tail rings
         // G295 (TWIN-BOOM-2 §3): a twin-boom POD has no post either — it ends
@@ -1244,7 +1238,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // front-spar node onto its anchor (deck / waist / belly band, plus
       // the up/down nudge); read it back in the frame's own y
       if (W && W.anchor && typeof W.anchor.yAnchor === 'number')
-        M.wingY = W.anchor.yAnchor + (+P.wgDy || 0) - yD;
+        M.wingY = W.anchor.yAnchor + (typeof W.anchor.dy === 'number' ? W.anchor.dy : (+P.wgDy || 0)) - yD;   // G3050: the drawn nudge
       // ...and the second plane's, off its own drawn root front-spar node
       // (the wing layer publishes each plane's rootY in cage metres)
       if (W && W.planes && W.planes[1] && typeof W.planes[1].rootY === 'number')
@@ -1413,7 +1407,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         if (zRing != null) {
           const sparF = (typeof GEN_RULES !== 'undefined' &&
                          GEN_RULES.sparFront) || 0.15;
-          M.wingXLE = (zFw - zRing - (P.wgDx || 0))
+          // G3050: the nudge the wing layer DREW (it holds the drawn
+          // leading edge inside the flown envelope), the row's when absent
+          const dxW = W && W.anchor && typeof W.anchor.dx === 'number' ? W.anchor.dx : (P.wgDx || 0);
+          M.wingXLE = (zFw - zRing - dxW)
                     - sparF * (P.wgChord || 1.5);
           const cut = cageWingStationCut(M.wingXLE,
             typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null);
