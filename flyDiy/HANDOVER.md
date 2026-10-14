@@ -93151,3 +93151,55 @@ GATES (this branch's head): AUDIO PASS (356/356 mutations; +MIX: the engine's
   (SND-ENGINE), if the ear wants it; (3) a recorded brake / tyre / stall sample would blend in through src_airframe.js's
   LOOPS / EV_KEY at their OLD gains (0.05 / 0.12 / 0.07 for brake / reed / buzzer) - re-measure with mix_render --study
   when one is added.
+## G3071 - PILOT TRACK: CLOSING (2026-10-13, the PILOT COORDINATOR; the user, 12 Oct: "we need to wrap these long turn efforts this week. That also includes the auto-pilot work"; 13 Oct: PARK the torque bundle, re-tune it next week as train 66)
+
+WHAT LANDED AND WORKS (train 44, claude/pilot-44 7ad7e1ee; box 9/9 PASS 11 Oct; the game flew every trip clean 11 Oct 02:25):
+- PILOT-PROFILE G2125: the take-off climb on SPEED (level in ground effect to the climb speed, never nose-up under 1.3 Vs:
+  the user's "almost stall" gone - the Jodel's lowest climb speed below 60 m 18.0 -> 22.6 m/s); the planned climb / cruise /
+  descent with terrain look-ahead (44_vprofile, no porpoising by construction); the rough tree / obstacle perception.
+- ROUTE-DRAW G2120: routes drawn on the map (points, MSL / AGL altitudes, speeds, the profile strip, the end: hold / home /
+  land), flown through PILOT-PROFILE's one planner.
+- ALTIPORT-ARRIVAL G2520 (a field above is climbed to before its final; FLARE_ARM_MAX), CESSNA-VREF G2500 (the metal Cessna
+  stops on Tamgas Hill, or refuses a strip with the wind behind, says so and diverts), ALTIPORT-TAXI G2490 (a turn-around
+  keeps its wings off what stands there), PILOT-44-REDS G2530.
+- Train 41b: PILOT-STUDENT-T41 G2510 (the student's reaction 0.35 s on DMG-DAMP's honest damper).
+- Earlier: PILOT-ONE / PILOT-ONE-2 (train 38: one pilot, the water take-off, the short field, the turn on the spot),
+  PILOT-PERSONA G2085 (train 40: the six people, the custom pilot).
+PENDING LANDING: ROUTE-LAZY G3070 claude/route-lazy-g3070 ba59426e (route_draw.js as a lazy chunk, -23.7 KB raw / -7.4 KB
+gz; the user's by-name page budget) - A0's train 53.
+
+PARKED - TRAIN 66, NEXT WEEK ("Torque bundle re-tuned on 41b physics"):
+- THE TORQUE BUNDLE, claude/pilot-45 a69f31fd = ENGINE-TORQUE G2080 + JODEL-PITCH G2470 + PERSONA-2 G2460 + HAND-CONTROLS
+  G2480 + EAST-POINT-DEPART G2450 (G2540's assembly) + TORQUE-STEER G3072 (the ground trim held beyond steerIBand and once a
+  taildragger's tail is up: the Jodel takes off at HOME again) + G3074 (the user's by-name calibrations: TAKEOFF twinf 1.65 Vs,
+  TAXICLEAR the metal Cessna at the mill's house3/4 1.45 m) + master 39570350 merged (train 41's physics).
+  WHY PARKED: green-ish on train 44's physics (G3072, cloud: PROFILE PILOTMATRIX PILOTACT ENGTORQUE PILOT LINEUP SEAPLANE ROUTE
+  PASS), RED on train 41's (box 13 Oct 15:45, D:/Dev/pilot_runs/slot45_20261013/): 8 of 19 - GEN (rule 11, the pusher noses
+  over), PILOTACT, TAXICLEAR (the aluminium C172 aborts at the mill and touches cement_bags6; the user's Cub from Jumbo Mine's
+  street never airborne), TOUR (diversions, East Point's first approach round, the float Cessna's prop strike), PROFILE,
+  DMGFLOATTO, PILOTMATRIX (the student gives up again), SEAPLANE (the twin's water run swings 39.5 deg vs 30). The bundle's
+  torque / steer / persona tuning was all done on the old damper; DMG-DAMP G1885's honest damper (no artificial rotation
+  damping) moves every one of those loops. Train 66 re-tunes them on 41b physics, re-gates the whole pilot set + GEN + the
+  Deform float rows, and re-flies the game's AFTER set before landing.
+  The fallback claude/pilot-45-steeroff 53d55eee (G3073: a taildragger's ground trim off behind steerITail) is superseded.
+- OWED WITH IT: G3076 GATE ALTIPORT 3 (PERSONA-2's go-around pre-empts G2520's flare guard: the calibration needs an arrival
+  the go-around does not catch); G3075 GATE TOUR 5 the user's Cub's 02/20 roll-out loop after East Point (~30 deg at 11.6 m/s);
+  G2550 ALTIPORT-ROLLOUT (the Cub's tw_ski roll-out loop in node - train 44's KNOWN red; its cloud session was started).
+- ADDED 14 Oct (A0's board item pilot-vy-shortfield, skipped for train 56 as not cheap): the take-off climb's Vy is genAP's
+  1.38 Vs (44_vprofile climbSpeeds only floors it) against the POH's ~1.54 Vs - a shallower, faster climb moves every climb-out
+  gate (PROFILE TAKEOFF TAXICLEAR RWYTREES TOUR ALTIPORT CESSNAVREF PILOTMATRIX). (The Jodel at Jumbo Mine from 45 m is DROPPED -
+  the user, 14 Oct: "Stop testing the Jodel, the cub is the reference for short strips." Short-strip gates and rows use the Cub;
+  a gate row flying the Jodel on a short strip goes, check-only, whenever that gate is next touched.)
+
+KNOWN REDS ON MASTER (printed KNOWN, owners): the load door's float Cessna SEA > mk_sea (Deform / JOIN-PARITY); the metal
+Cessna's prop in the water on 02/20's concrete (ISLAND-TOUR G1971, not landed); the Cub's tw_ski roll-out in node (G2550).
+
+PARKED, NOT STARTED: NIGHT PILOT (after GAME's SIM-CLOCK / NIGHT-OPS: go / no-go on unlit strips, night-shy traits, the drawn
+route's night margin); tools/pilot_persona.js on the load door's spec (_load_build.js loadBuild - off DOORS.legacy, then the
+persona bands re-measured); ISLAND-TOUR / ISLAND-TOUR-2's src (turn pads, the mine's apron, the 02/20 water); the persona
+hooks still to cut (precision, drift, fatigue, skill growth); ENGINE-TORQUE's named cuts (the wing's de-swirl, the swirl's
+radial profile, the upwash on the disc, the propeller's normal force, a windmilling prop).
+REVIEWS OWED: SCENERY-ED-2's altiport landHdg from the drawn profile's end elevations (G2960; ALTIPORT / TOUR / LINEUP on tw_ski
+bit-identical, a reversed-ends altiport landed uphill). DONE: ASSETS-OCT's ANN VOR/DME waypoint (fe660b94, approved).
+WHERE: the progress board https://claude.ai/artifact/N4nhDmRGZUSh7rfnMW1oQc, the evidence board
+https://claude.ai/artifact/TB8t1nCxrMdBfcwLYNKx4e; the runs D:/Dev/pilot_runs/.
