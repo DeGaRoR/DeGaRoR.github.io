@@ -93,7 +93,11 @@ const RP = read('render_premises.js'), RW = read('render_world.js'), WA = read('
       if (a && env.lakeR) { const i0 = Math.max(0, Math.floor((pond.x0 - G.x0) / G.cell) - 2), i1 = Math.min(G.w - 1, Math.ceil((pond.x1 - G.x0) / G.cell) + 2), j0 = Math.max(0, Math.floor((pond.z0 - G.z0) / G.cell) - 2), j1 = Math.min(G.h - 1, Math.ceil((pond.z1 - G.z0) / G.cell) + 2);
         for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { if (env.lakeR[j * G.w + i] <= 128) continue; const dx = G.x0 + (i + 0.5) * G.cell - a.x, dz = G.z0 + (j + 0.5) * G.cell - a.z;
           if (Math.abs(dx * Math.cos(a.hdg) + dz * Math.sin(a.hdg)) < a.len / 2 + 2 && Math.abs(-dx * Math.sin(a.hdg) + dz * Math.cos(a.hdg)) < a.wid / 2 + 2) onRwy++; } }
-      ok(!!a && onRwy === 0, '2 02/20\'s pond: no water on 02/20 - the runway\'s grade filled the part under it (rev 28: the pond lies beside the runway)', 'texels left ' + T.inside + ', on 02/20 (+2 m) ' + onRwy); }
+      // (DECLARED EXCEPTION, the user 14 Oct 02:15 via A0: "I don't see issues with runways on my side, so keep it this way." -
+      //  rev 28's 02/20 north end sits ~13 cm under the pond's level (28.51-28.57 m vs 28.65, 94-98 % along): 9 field texels on
+      //  the strip's box + 2 m, 28 left of the pond, ACCEPTED AS MEASURED. More water on the strip, or another runway's, is red)
+      const POND_ON_W2 = 9, POND_LEFT = 28;
+      ok(!!a && onRwy <= POND_ON_W2 && T.inside <= POND_LEFT, '2 02/20\'s pond: no more water on 02/20 than the user accepted (rev 28: ' + POND_ON_W2 + ' texels on the strip, ' + POND_LEFT + ' left of the pond - the user\'s ruling, 14 Oct)', 'texels left ' + T.inside + ', on 02/20 (+2 m) ' + onRwy); }
     let seaNoSea = 0, sea = 0, big = null;
     for (const L of lakes) { if (L.level <= 0.2 || L.cells < 3) continue; if (env.isSea(L)) { sea++; const T = env.lakeTexels(L); if (T.sea * 2 < T.inside) seaNoSea++; }
       if (L.x0 < 9900 && L.x1 > 10100 && L.z0 < -9100 && L.z1 > -9000) big = L; }
