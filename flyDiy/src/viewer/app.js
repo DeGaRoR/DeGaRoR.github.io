@@ -4411,9 +4411,12 @@
   // (G1818: REC_BUDGET 120k -> 40k vertices a frame - the records' ~330 ns a vertex was a 40 ms first-break frame on the box;
   // the groups at the break are made first, brkRecOrder)
   const WRECK_STILL = 3e-3, TEAR_EVERY = 0.05, REC_BUDGET = 40000;
+  const TEAR_MOVE = 1e-3, TEAR_JITTER = 5e-5;             // (G3022 v2: the motion clock - a GPU tear sample only after 1 mm of motion)
   const BRK_TEAR_WAIT = 300;                              // (train 41: ms a GPU tear sample may take before the CPU tears instead)
   try { if (/[?&]wreckfast=0(&|$)/.test(location.search || '')) window.FLYDIY_WRECK_FAST = false; } catch (e) {}
   const brkFast = () => window.FLYDIY_WRECK_FAST !== false;
+  const G3022 = { sampled: 0, skipped: 0 };               // (G3022 v2: the tear samples asked and skipped - the box rig reads them)
+  try { window.FLYDIY_TEAR_SAMPLES = () => Object.assign({ motion: BRK.motion || 0 }, G3022); } catch (e) {}
   const BRK_ISLAND = 40;                                  // G1864: a torn island under this many triangles goes with the tear
   const BRK_INH = 1500;                                   // G1855: ...and the inherited one (each place weighs every member: ~12 us a place on the box, measured: 4000 was a 47 ms frame)
   const BRK = { model: null, recs: [], vB: -1, posed: false, ms: { records: 0, event: 0, frames: 0, pose: 0, recordsT: 0, eventT: 0, poseT: 0, frameMax: 0, n: 0 } };
@@ -4873,6 +4876,16 @@
     // G1818 (DMG-SKINGPU): the records the GPU rides (brkGpu: their drawers made, the program linked) are not posed here
     const GP = brkGpu(K);
     if (GP) GP.poll();
+    // G3022 v2: THE MOTION CLOCK - the largest node move a frame, summed (a move under TEAR_JITTER - a resting wreck's contact
+    // jitter - not counted). A record whose clock has not run TEAR_MOVE since its last tear sample has no edge more than that
+    // nearer its bound than at the sample: it is not sampled. Each sample stalls its frame ~14 ms on the box (the 14 Oct A/B:
+    // the read waits on the GPU however small), and the wreck at rest was sampled every 3 frames
+    { const p = sim.p, q = BRK.motP; let d = 0;
+      if (q && q.length === p.length) {
+        for (let i = 0; i < p.length; i += 3) { const dx = p[i] - q[i], dy = p[i + 1] - q[i + 1], dz = p[i + 2] - q[i + 2], e = dx * dx + dy * dy + dz * dz; if (e > d) d = e; }
+        q.set(p);
+      } else BRK.motP = Float64Array.from(p);
+      d = Math.sqrt(d); if (d > TEAR_JITTER) BRK.motion = (BRK.motion || 0) + d; }
     for (const [own, , pa, , off] of groups) {
       const R = own.brkR; if (!R || !R.active) continue;
       const ge = GP ? GP.of(R, pa, off, o) : null, onGpu = !!ge && !ge.cpu;
@@ -4909,7 +4922,11 @@
             if (SB.tearPlaces(R, Wd.Wp, ge.p0, R.baseD, R.heldAsk !== undefined ? R.heldAsk : R.held)) { brkIdx(R); R.tornNew = true; }
             R.heldAsk = undefined; }
         } else if (!(brkFast() && sinceT < TEAR_EVERY)) {
-          if (onGpu) { GP.sample(ge); R.tearAsk = sim.t; R.tearAskMs = performance.now(); R.heldAsk = R.held ? R.held.slice() : null; }
+          // (G3022 v2: no sample for a record with nothing to tear - no watched triangle, or tearPlaces' own no-tear rule - nor
+          // for one the motion clock has not moved TEAR_MOVE since its last sample: its tear clock starts again)
+          if (onGpu && (!R.watch || !R.watch.length || (R.noTear && !R.tubeTear && !R.sheetTear && !R.shellTear) ||
+                        (R.tearMot != null && (BRK.motion || 0) - R.tearMot < TEAR_MOVE))) { R.tearT = sim.t; G3022.skipped++; }
+          else if (onGpu) { R.tearMot = BRK.motion || 0; G3022.sampled++; GP.sample(ge); R.tearAsk = sim.t; R.tearAskMs = performance.now(); R.heldAsk = R.held ? R.held.slice() : null; }
           else { R.tearT = sim.t; if (SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; } }
         } }
       // G1864: the confetti the tear leaves (islands under BRK_ISLAND triangles that touch it), at most every 0.25 s
