@@ -97,7 +97,7 @@ const ALLOW = {
     "src/viewer/powerline.js": 1,
     "src/viewer/refplane.js": 1,
     "src/viewer/render_premises.js": 23,
-    "src/viewer/render_world.js": 18,
+    "src/viewer/render_world.js": 19,   // +1 CARD-SOURCE G3184: the stand-card composer ShaderMaterial (a bake-time pass, A0 14 Oct)
     "src/viewer/rock_map.js": 2,
     "src/viewer/shader_warm.js": 2,
     "src/viewer/sky_glare.js": 1,
