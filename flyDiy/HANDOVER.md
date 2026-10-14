@@ -94977,3 +94977,7 @@ Open / notes:
   version.json: rebuild on the train).
 
 READY for the GAME COORDINATOR
+
+## Train 57 (A0, 15 Oct 00:10)
+Landed: the garage group 53b (t52-full: FRAMES, cowl presets, livery patterns, garage sheet off the thread, result cards, hangar storage, passengers, boot-freeze fix G2787), GEOM-FIXES G3050 (+ DESIGN-TRUST), scenery + car KTX2 twins (c0b64cbf8), MAP-EDGE G2730, the DMGWRECK row rounding fix, the SITE calibration union.
+Accepted by the user by name (14 Oct): the metal Cessna +6 s load; the passengers' KTX2 budget row; the garage-restore FRAMECOST row; the Cub cockpit worst task; the metal fuseWidth slider busy (0 -> 604 ms). Landed under the user's 15 Oct 00:05 priority (editor fixes first, credits 96 %): floats world -> garage 0.23 -> 1.85 s (strict gate) and WORLDRENDER's tier count (impostor 60814 vs canopy 60741; every branch alone passes: a combination effect) - both to fix in PERF-1. Known reds: CLOCK, CLOUD (lamps), DMGUPLOAD (fix in train 58), FRAMECOST mapx rows (ALLOWs ride train 60).
