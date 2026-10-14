@@ -94981,3 +94981,16 @@ READY for the GAME COORDINATOR
 ## Train 57 (A0, 15 Oct 00:10)
 Landed: the garage group 53b (t52-full: FRAMES, cowl presets, livery patterns, garage sheet off the thread, result cards, hangar storage, passengers, boot-freeze fix G2787), GEOM-FIXES G3050 (+ DESIGN-TRUST), scenery + car KTX2 twins (c0b64cbf8), MAP-EDGE G2730, the DMGWRECK row rounding fix, the SITE calibration union.
 Accepted by the user by name (14 Oct): the metal Cessna +6 s load; the passengers' KTX2 budget row; the garage-restore FRAMECOST row; the Cub cockpit worst task; the metal fuseWidth slider busy (0 -> 604 ms). Landed under the user's 15 Oct 00:05 priority (editor fixes first, credits 96 %): floats world -> garage 0.23 -> 1.85 s (strict gate) and WORLDRENDER's tier count (impostor 60814 vs canopy 60741; every branch alone passes: a combination effect) - both to fix in PERF-1. Known reds: CLOCK, CLOUD (lamps), DMGUPLOAD (fix in train 58), FRAMECOST mapx rows (ALLOWs ride train 60).
+
+## G2905 - ASSETS-CUT: THE WORST OFFENDERS CUT THROUGH THE CURRENT PIPELINE (2026-10-15, ASSETS-OCT for A0; branch claude/assets-cut-g2905)
+
+The user: "couldn't we cut the worst offenders through our current pipeline" (the emergency part of
+ASSET-PIPELINE-PLAN-2026-10 #2, no new import tool). tools/prop_lod.js gains `--base` and a BASE table: totem_lod.js's
+rule for photoscans (the base is a cut too), the same half-edge collapse (the delivered maps stay), the prop's record
+rewritten in its OWN pack (`srcNt` keeps the source count), its superseded bin deleted; the levels then re-cut from the
+new base by the plain run. Cut: the pier's five scanned people 1.3 M -> 5 x 8 k (the user, 13 Oct: CUT to <= 8 k; their
+24 k level drops away by the ladder's own rule), boat_grady 370 k -> 30 k. GATE ASSETBUDGET holds every cap, so a
+tools/pier_prep.py re-bake (which would restore the scans) cannot pass unseen. NOT cut: the hangar's 80 k props
+(cart_tool_cab, compressor) already have levels and are seen at 1-3 m - the user's call; the "8 props without levels"
+of the report are small props under the ladder's floor, by design.
+Run: node tools/prop_lod.js --base && node tools/prop_lod.js (the pier kit is the default).
