@@ -21,6 +21,12 @@
 'use strict';
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const ROOT = path.join(__dirname, '..', '..');
+// SKIP ON A MACHINE WITHOUT ffmpeg (A0's box, train 54 held: the gate threw there). mix_render decodes the shipped MP3s -
+// the ambience, the emitters, the music, the voice - with ffmpeg, which the box does not have; the gate is then a cloud
+// session's, exactly as SOFTGPU's without Playwright (run_gates.js, train 31's rule: `GATE <ID>: SKIP`, exit 0, shown as
+// SKIP - never a PASS, never a FAIL). Checked before mix_render is even loaded.
+{ let have = true; try { require('child_process').execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); } catch (e) { have = false; }
+  if (!have) { console.log('  no ffmpeg here - the mix render decodes the shipped MP3s with it: the gate runs in a cloud session (G1727)'); console.log('GATE MIXLEAD: SKIP'); process.exit(0); } }
 const MR = require('./mix_render.js');
 const FILES = { audio: 'src/viewer/audio/audio.js', model: 'src/viewer/audio/airframe_model.js', worklet: 'src/viewer/audio/airframe_worklet.js' };
 const readAll = () => { const S = {}; for (const k in FILES) S[k] = fs.readFileSync(path.join(ROOT, FILES[k]), 'utf8'); return S; };
