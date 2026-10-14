@@ -472,7 +472,9 @@ const plotFoot = id => { for (const a in CORE.BASE_OFFERS) { const P = CORE.BASE
 const PLOT_MUTS = {
   // the inline calibrations (every run): w3 moved 40 m down the slope, HOME.2 turned away from its stand, SEA's slip stand ashore
   'cal: a plot on the slope': S => { const p = S.w3.plots.find(q => q.id === 'w3'); p.x += 40; p.z -= 30; },
-  'cal: a plot turned away from its stand': S => { const p = S.HOME.plots.find(q => q.id === 'HOME.2'); p.hdg += Math.PI; p.ry -= Math.PI; },
+  // (G2894: the plot that keeps a stand of its OWN on land - since rev 28 HOME.2 takes the field's, whose door check reads no
+  //  door line, so turning it was seen by nothing; w3's today, whichever it is tomorrow)
+  'cal: a plot turned away from its stand': S => { const p = Object.values(S).flatMap(st => (st && st.plots) || []).find(q => !q.main && q.stand && !(plotFoot(q.id) || { water: true }).water); p.hdg += Math.PI; p.ry -= Math.PI; },
   "cal: a slipway's stand ashore": S => { const p = S.SEA.plots.find(q => q.id === 'SEA'); p.stand.x = p.x; p.stand.z = p.z; },
   // the --selftest breaks
   'a plot moved off its field': S => { const p = S.mn_strip.plots[0]; p.x += 900; },
