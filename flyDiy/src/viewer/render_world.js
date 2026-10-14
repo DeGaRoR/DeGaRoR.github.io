@@ -3096,6 +3096,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           for (const k of names) mg.setAttribute(k, new THREE.BufferAttribute(out[k], lakeGeos[0].attributes[k].itemSize));
           mg.setIndex(new THREE.BufferAttribute(idx, 1)); mg.computeBoundingSphere();
           const m = new THREE.Mesh(mg, lakeMat); m.receiveShadow = true; m.matrixAutoUpdate = false; m.name = 'lakes'; scene.add(m);
+          if (typeof WATER !== 'undefined' && WATER.watch) WATER.watch(m, renderer);   // G2830: the mirror's WATER SEEN query (and the rig's timer) round the lakes' draws too
         }
         console.log('island lakes: ' + n + ' surfaces, one quad each in one mesh, the field cuts the edge; ' + seaSkipped + ' on the coast left to the sea, ' + filled + ' filled by the premises');
       }
@@ -3118,6 +3119,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (WSH) { const nv = pos.length / 3, aw = new Float32Array(nv * 2); for (let i = 0; i < nv; i++) aw[i * 2] = i < riverVerts ? 2 : 1; wg.setAttribute('aWater', new THREE.Float32BufferAttribute(aw, 2)); }
         const wm = new THREE.Mesh(wg, waterMat);
         wm.receiveShadow = true;
+        if (typeof WATER !== 'undefined' && WATER.watch) WATER.watch(wm, renderer);   // G2830 (as the lakes')
         scene.add(wm);
       }
     }

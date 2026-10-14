@@ -414,7 +414,11 @@ const WATER = (() => {
                 // shows the sky, a thin twig no longer paints the sky over the wood
                 vec3 mcol = mr.rgb / max(mr.a, 0.02);
                 float mmask = smoothstep(0.06, 0.35, mr.a);
-                iblRadiance = mix(iblRadiance, mcol, mmask * edge * uWMirror4.x);   // (G522: x is the altitude fade's weight, so the hand-over to the probe is a dissolve and not a pop)
+                // ONE PLANE, ONE BODY (G2830): the capture is the reflection about ITS plane - a lake 38 m over the sea read
+                // through the sea's capture shows the ground at the lake, the sea under a lake's plane is clipped out of
+                // it. A body off the plane keeps the probe; the plane SLIDES between bodies (mirrorPlane), so this is a dissolve
+                float mPlane = 1.0 - smoothstep(1.0, 3.0, abs(vWP0.y - uWMirror4.w));
+                iblRadiance = mix(iblRadiance, mcol, mmask * edge * mPlane * uWMirror4.x);   // (G522: x is the altitude fade's weight, so the hand-over to the probe is a dissolve and not a pop)
               }
             }
           }
@@ -880,7 +884,7 @@ const WATER = (() => {
   // edge looks bad"; one dome draw makes the capture opaque and the reflection one source), the water meshes and
   // the spray hidden (opts.hide), the near plane made OBLIQUE so nothing under the water is captured - into a half-float target with mips, cleared to alpha 0:
   // the shader reads it where a point projects in that capture and keeps the probe's sky where the capture is
-  // empty. The capture is AMORTISED: a 'periodic' mode (the default) re-captures when the eye has moved 4 m or
+  // empty. The capture is AMORTISED: a 'periodic' mode (a rig's since G2830; the menu has off / live) re-captures when the eye has moved 4 m or
   // turned 3 deg or after `every` seconds (never under 0.25 s; a jump captures at once), 'live' every frame (the rigs that can afford it), 'off' never; only
   // when the eye is under `maxAgl` over the water - higher, the reflection is the sky. Cost: one scene render
   // at a quarter of the frame's pixels when it fires (measured in HANDOVER).
@@ -893,11 +897,83 @@ const WATER = (() => {
   // captures at once whatever the gap. THE CLOCK IS REAL SECONDS: a fake 1/60-a-call clock ran at a fifth of the
   // wall clock under the rig, so a '3 s' refresh was 20 s and the water drew a capture taken 1500 m away - the
   // reflection stretched and smeared (the user: "reflections seem stretched, everything is twice as long")
-  const MIR = { mode: 'periodic', every: 3.0, minGap: 0.25, moveM: 3, turnDeg: 3, jumpM: 15, jumpDeg: 12, fadeFrom: 500, maxAgl: 900, moveAgl: 0.05, guard: 1.25, res: 0.5, perturb: 0.15, lod: 5.0, far: 4000, w: 0, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0 };
+  // WATER-STEADY (G2830, the user 10 Oct: "the water model switching from simple to reflective is really annoying ...
+  // It changes the values of the scene fundamentally"): THREE MODES (the user's ruling 13 Oct, for train 54):
+  //   'live' (the menu's ON): on wherever the eye is - no shore that drops it, no altitude that fades it, the plane slides;
+  //   'auto' (the DEFAULT on gamer and ultra): master's behaviour - the plane is the water under the eye (else the CG), the
+  //     mirror goes OFF over land and fades out from fadeFrom to maxAgl; captured every frame. The user: "if it ever gets
+  //     good enough, it becomes default again" - ON is the redesign's to earn;
+  //   'off': the probe's sky only. 'periodic' is kept for a rig (WATER.set({ mirror: 'periodic' })), never a menu's.
+  //   the default is 'off' (the menu's; the GRAPHICS row hands its own on boot - an unknown value is 'off', never 'periodic')
+  //   adoptAgl: the plane follows the water under the eye only while the eye is this low over it (a pond crossed at
+  //     300 m does not take the plane from the sea); over land it STAYS (THE SHORE NEVER DROPS IT)
+  //   slideS: a new plane is reached by a slide of this time constant, never a jump (a cut snaps: jumpM in one frame)
+  //   seaY: the sea's drawn plane (render_world seaPlaneY), the plane before any water was under the eye
+  //   res 0.4 (was 0.5; the user's pick 13 Oct, A0's option (b)): the capture at 0.4 of the frame each way x the guard band -
+  //     ~36 % fewer pixels than 0.5; the pass was 4.2-5.9 ms GPU at 0.5 on gamer (frame_perf ABBA 13 Oct)
+  const MIR = { mode: 'off', every: 3.0, minGap: 0.25, moveM: 3, turnDeg: 3, jumpM: 15, jumpDeg: 12, fadeFrom: 500, maxAgl: 900, moveAgl: 0.05, guard: 1.25, res: 0.4, perturb: 0.15, lod: 5.0, far: 4000, w: 0, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0,
+    adoptAgl: 200, slideS: 0.35, seaY: 0, plane: null, planeT: null, eyePrev: null, skip: [], skipped: 0, captures: 0, calls: 0, capturing: false };
   const mirrorTmp = {};
-  function mirrorRender(THREE, renderer, scene, camera, waterY, opts) {
+  // mirrorPlane(under, eye, dt): the plane the capture mirrors about (G2830). `under` is the drawn water's level under the
+  // eye (else under the CG), null over land. The plane is ADOPTED from it only while the eye is low over that water,
+  // KEPT over land and high up, and moved by a slide: the shader gates each body by its distance from the plane, so a
+  // slide is a dissolve between two bodies' reflections and a jump would be the switch the user asked to be rid of.
+  function mirrorPlane(under, eye, dt) {
+    const hasUnder = under !== null && under !== undefined && Number.isFinite(under);
+    if (hasUnder && eye.y - under > 0.1 && eye.y - under < MIR.adoptAgl) MIR.planeT = under;
+    if (MIR.planeT === null) MIR.planeT = hasUnder && eye.y - under > 0.1 ? under : MIR.seaY;
+    if (MIR.planeT > eye.y - 0.1 && eye.y - MIR.seaY > 0.1) MIR.planeT = MIR.seaY;   // an eye under a kept lake's level: the sea's plane
+    const E = MIR.eyePrev, cut = !E || Math.hypot(eye.x - E[0], eye.y - E[1], eye.z - E[2]) > 100;   // a teleport, a camera cut, a new flight
+    MIR.eyePrev = [eye.x, eye.y, eye.z];
+    if (MIR.plane === null || cut || !(MIR.slideS > 0)) MIR.plane = MIR.planeT;
+    else { MIR.plane += (MIR.planeT - MIR.plane) * (1 - Math.exp(-Math.max(0, dt) / MIR.slideS)); if (Math.abs(MIR.planeT - MIR.plane) < 0.01) MIR.plane = MIR.planeT; }
+    return MIR.plane;
+  }
+  // THE WATER SEEN (G2830): the live capture is skipped while the main pass drew no water pixel. watch()'s hooks (round
+  // every draw of a water mesh, already there for the GPU timer) put an ANY_SAMPLES_PASSED_CONSERVATIVE query round the
+  // draw while the mirror is live; a frame's answer lands a frame or three later. A view with no water in it (the forest,
+  // the stand with the sea behind a hangar) pays nothing; one where a sliver of water shows draws the last capture for
+  // the frames its answer takes. A context with no queries (the node harness's recording GL) answers 'seen' - the
+  // capture always runs there.
+  const seen = { frame: 0, pending: [], issued: {}, any: {}, base: 0, lastAnswered: 0, lastTrue: -1, ok: null };   // (frames up to `base` were never asked: no answer yet)
+  function seenOk() {
+    if (seen.ok === null) { const gl = timer.gl; seen.ok = !!(gl && typeof gl.createQuery === 'function' && typeof gl.beginQuery === 'function' && gl.ANY_SAMPLES_PASSED_CONSERVATIVE); }
+    return seen.ok;
+  }
+  function seenPoll() {
+    const gl = timer.gl, keep = [];
+    for (const h of seen.pending) {
+      if (gl.getQueryParameter(h.q, gl.QUERY_RESULT_AVAILABLE)) { if (gl.getQueryParameter(h.q, gl.QUERY_RESULT)) seen.any[h.f] = true; gl.deleteQuery(h.q); seen.issued[h.f]--; }
+      else keep.push(h);
+    }
+    seen.pending = keep;
+    // a frame is answered when every query it issued has come back (a frame that drew no water issued none: answered, unseen)
+    for (let f = seen.lastAnswered + 1; f < seen.frame; f++) {
+      if (seen.issued[f] > 0) break;
+      seen.lastAnswered = f; if (seen.any[f]) seen.lastTrue = f;
+      delete seen.issued[f]; delete seen.any[f];
+    }
+  }
+  // waterSeen(): did the newest answered frame draw water (true while nothing has answered yet, or the context has no queries)
+  function waterSeen() {
+    if (!seenOk()) return true;
+    seenPoll();
+    seen.frame++;
+    if (seen.lastAnswered <= seen.base || seen.frame - seen.lastAnswered > 8) return true;   // no answer yet, or the answers stalled: capture
+    return seen.lastTrue === seen.lastAnswered;
+  }
+  function mirrorRender(THREE, renderer, scene, camera, under, opts) {
     opts = opts || {};
+    if (MIR.mode === 'off') { if (MIR.on && U) { MIR.on = false; U.uWMirror4.value.x = 0; } MIR.w = 0; return false; }
+    const auto = MIR.mode === 'auto', hasUnder = under !== null && under !== undefined && Number.isFinite(under);
+    // AUTO (master's behaviour): no water under the eye or the CG = the mirror off (the switch the user chose to keep by default)
+    if (auto && !hasUnder) { if (MIR.on || MIR.last) mirrorOff(); MIR.w = 0; return false; }
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
+    const dtc = MIR.t ? Math.min(0.5, now - MIR.t) : 0;
+    MIR.t = now;
+    const waterY = auto ? under : mirrorPlane(under, camera.position, dtc);
     const eyeAgl = camera.position.y - waterY;
+    const always = MIR.mode === 'live', live = always || auto;   // live: captured every frame; always: no ceiling either
     // THE CEILING IS A FADE, NOT A CLIFF (G522, the user: "do your planar mirror fix"). The mirror used to
     // switch OFF above 60 m over the water, on the reasoning that from the air a water reflects the sky and
     // the probe carries the sky. That is true of the water DIRECTLY BELOW and false of everything else: at
@@ -908,14 +984,18 @@ const WATER = (() => {
     // Lake. And 60 m was a CLIFF: fly up through it and the reflection vanished between two frames.
     // So: full weight to `fadeFrom`, easing to nothing at `maxAgl`, and the weight rides uWMirror4.x - the
     // shader mixes by it rather than testing it, so the hand-over to the probe is a dissolve.
-    const mirW = MIR.mode === 'off' || !(eyeAgl > 0.1) ? 0
-      : eyeAgl <= MIR.fadeFrom ? 1
+    // (G2830: 'periodic' only - a LIVE mirror has no ceiling: a dissolve is still the water changing its values as the
+    // aeroplane climbs, and the live capture costs the same at any height; past MIR.far the capture holds the sky)
+    const mirW = !(eyeAgl > 0.1) ? 0
+      : always || eyeAgl <= MIR.fadeFrom ? 1
       : Math.max(0, 1 - (eyeAgl - MIR.fadeFrom) / Math.max(1, MIR.maxAgl - MIR.fadeFrom));
     MIR.w = mirW;
     if (!U || mirW <= 0.001) { if (MIR.on && U) { MIR.on = false; U.uWMirror4.value.x = 0; } return false; }
-    MIR.t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
+    // (G2830) no water in the newest answered frame: no capture (the last one stays bound, its texture and its matrix together)
+    const vis = live ? waterSeen() : true;
+    if (live && MIR.last && !vis) { MIR.skipped++; return false; }
     const pos = camera.position, q = camera.quaternion;
-    let due = MIR.mode === 'live' || !MIR.last;
+    let due = live || !MIR.last;
     if (!due && MIR.last) {
       const L = MIR.last, moved = Math.hypot(pos.x - L.x, pos.y - L.y, pos.z - L.z), turned = 2 * Math.acos(Math.min(1, Math.abs(q.x * L.qx + q.y * L.qy + q.z * L.qz + q.w * L.qw)));
       const jump = moved > MIR.jumpM || turned > MIR.jumpDeg * Math.PI / 180 || Math.abs(waterY - L.wy) > 0.5;
@@ -1016,7 +1096,13 @@ const WATER = (() => {
     // the oblique near plane (Lengyel; three's Reflector): the clip plane y = waterY in the mirror camera's view
     obliqueClip(THREE, mc, waterY, RZ);
     const bg = scene.background; scene.background = null;
-    renderer.render(scene, mc);
+    // (G2830) the scene's draw alone, counted (renderer.info resets at each render) and flagged for a census rig's hook;
+    // MIR.skip: objects left out of the scene's draw only (the culls a census names; the sky pass above keeps the dome)
+    const skipped = [];
+    for (const o of MIR.skip) if (o && o.visible) { o.visible = false; skipped.push(o); }
+    MIR.capturing = true;
+    try { renderer.render(scene, mc); } finally { MIR.capturing = false; for (const o of skipped) o.visible = true; }
+    MIR.calls = renderer.info && renderer.info.render ? renderer.info.render.calls : 0; MIR.captures++;
     scene.background = bg;
     renderer.setClearColor(cc, ca); renderer.setRenderTarget(prevT); renderer.autoClear = ac; renderer.shadowMap.autoUpdate = sm;
     for (const m of hidden) m.visible = true;
@@ -1054,7 +1140,7 @@ const WATER = (() => {
     const top = cam.near * Math.tan(Math.PI / 180 * 0.5 * cam.fov) / cam.zoom, h = 2 * top, w = cam.aspect * h;
     return [-0.5 * w, 0.5 * w, top, top - h];
   }
-  function mirrorOff() { MIR.on = false; MIR.last = null; if (U) U.uWMirror4.value.x = 0; }
+  function mirrorOff() { MIR.on = false; MIR.last = null; MIR.plane = MIR.planeT = null; MIR.eyePrev = null; if (U) U.uWMirror4.value.x = 0; }
 
   // ---- THE GPU TIMER: the water's own draws, summed a frame (EXT_disjoint_timer_query_webgl2) ----
   // watch(mesh) puts a query round every draw of a water mesh; stats.gpuMs is the last frame's sum of the
@@ -1064,9 +1150,15 @@ const WATER = (() => {
   const stats = { gpuMs: 0, draws: 0 };
   function watch(mesh, renderer) {
     if (!timer.gl && renderer) { try { timer.gl = renderer.getContext(); timer.ext = timer.gl.getExtension('EXT_disjoint_timer_query_webgl2'); } catch (e) { timer.ext = null; } }
-    let q = null;
-    mesh.onBeforeRender = () => { if (!timer.on || !timer.ext) return; q = timer.gl.createQuery(); timer.gl.beginQuery(timer.ext.TIME_ELAPSED_EXT, q); };
-    mesh.onAfterRender = () => { if (!q) return; timer.gl.endQuery(timer.ext.TIME_ELAPSED_EXT); timer.pending.push({ q, f: timer.frame }); timer.issued[timer.frame] = (timer.issued[timer.frame] || 0) + 1; q = null; };
+    let q = null, oq = null;
+    // (G2830: the same hooks ask whether the draw left a pixel - THE WATER SEEN - while the mirror is live; one query of a
+    // kind at a time, and the two kinds are different targets, so the timer and the occlusion nest freely)
+    mesh.onBeforeRender = () => {
+      if ((MIR.mode === 'live' || MIR.mode === 'auto') && seenOk()) { const gl = timer.gl; oq = gl.createQuery(); gl.beginQuery(gl.ANY_SAMPLES_PASSED_CONSERVATIVE, oq); }
+      if (!timer.on || !timer.ext) return; q = timer.gl.createQuery(); timer.gl.beginQuery(timer.ext.TIME_ELAPSED_EXT, q); };
+    mesh.onAfterRender = () => {
+      if (oq) { const gl = timer.gl; gl.endQuery(gl.ANY_SAMPLES_PASSED_CONSERVATIVE); seen.pending.push({ q: oq, f: seen.frame }); seen.issued[seen.frame] = (seen.issued[seen.frame] || 0) + 1; oq = null; }
+      if (!q) return; timer.gl.endQuery(timer.ext.TIME_ELAPSED_EXT); timer.pending.push({ q, f: timer.frame }); timer.issued[timer.frame] = (timer.issued[timer.frame] || 0) + 1; q = null; };
     return mesh;
   }
   // a frame's queries answer a few frames later, not all at once: a frame's sum is published only when
@@ -1169,7 +1261,10 @@ const WATER = (() => {
   function set(o) {
     if (!o) return;
     if ('tier' in o) setTier(o.tier);
-    if ('mirror' in o) { MIR.mode = o.mirror === 'live' ? 'live' : o.mirror === 'off' ? 'off' : 'periodic'; if (MIR.mode === 'off') mirrorOff(); }
+    // (G2830: an unknown value is OFF - the menu offers off / auto / live ('on'); 'periodic' only when a rig names it)
+    if ('mirror' in o) { const m0 = MIR.mode; MIR.mode = o.mirror === 'live' || o.mirror === 'auto' || o.mirror === 'periodic' ? o.mirror : 'off';
+      if (MIR.mode === 'off' || MIR.mode !== m0) mirrorOff();   // (a change of mode starts from no capture, no plane)
+      if (MIR.mode !== 'live' && MIR.mode !== 'auto') { if (timer.gl) for (const h of seen.pending) timer.gl.deleteQuery(h.q); seen.pending = []; seen.issued = {}; seen.any = {}; seen.base = seen.lastAnswered = seen.frame; seen.lastTrue = -1; } }
     for (const k of ['displace', 'detail', 'sigma', 'foam', 'dbg', 'detailK', 'shoreFade', 'lakeK', 'lakeCap', 'foldQ', 'reflKeep', 'slant', 'lap', 'wet']) if (k in o) S[k] = o[k];
     if ('on' in o) S.on = !!o.on;
     if ('timer' in o) timer.on = !!o.timer;
@@ -1236,7 +1331,7 @@ const WATER = (() => {
   const API = { NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
     gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
-    mirrorRender, mirrorOff, mirror: MIR, obliqueClip,
+    mirrorRender, mirrorOff, mirror: MIR, obliqueClip, mirrorPlane, waterSeen, seen,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
     stamp, fieldStep, fieldOn, fieldProbe, warmList, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
     get uniforms() { return U; }, get trains() { return trains; }, get clock() { return T; } };
   if (typeof window !== 'undefined') window.WATER = API;
