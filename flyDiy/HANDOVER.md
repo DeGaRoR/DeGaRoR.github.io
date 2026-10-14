@@ -93330,11 +93330,11 @@ Strict light gate: PASS, 139 rows in slack, 11 better, 0 red. Gates (60): all gr
   'mapx' as the default (boxes lifted, the user's fans standing) if LINEUP is green under it, else the flip reverted.
 
 ### NAMED FOR TRAIN 55 (not done)
-1. **02/20's north end under the pond (with the user).** rev 28's 02/20 composes 28.51-28.57 m at 94-98 % along, the pond
+1. **DROPPED (the user, 14 Oct 02:15: "I don't see issues with runways on my side, so keep it this way.") - GATE LOOKS 2 a declared exception on claude/t56-small 415afe9ac, train 56.** Was: 02/20's north end under the pond. rev 28's 02/20 composes 28.51-28.57 m at 94-98 % along, the pond
    at (241, 599) is at 28.65: water on the strip's edge 12-24 m off the centreline, the physics' water the same. GATE LOOKS
    2 landed RED on 13 Oct by A0's call (the landing note). Fix: w2's profile end 0.3 -> ~0.6 (+0.25 m at the pond) as a
    manifest fieldPatch + a rev28h import, gates LOOKS / LINEUP / TAXICLEAR / ROUTE in a slot.
-2. **w4 'strip 9' (held back).** Over the altiport law (33.7 % somewhere, a 14.2 % crest over 30 m): the profile tool
+2. **w4 'strip 9' (held back; any w4 profile change is OFF - A0 / the user 14 Oct).** Over the altiport law (33.7 % somewhere, a 14.2 % crest over 30 m): the profile tool
    (RUNWAY-ED-PROFILE) or the law relaxed (option B, claude/t53-optB-law: 35 % / 15 %; GATE LINEUP's w4 rest height
    -8 cm on its slope is owed with it).
 3. **The trees by the runways**, if the 09:05 read reverts the flip: the user's ruling ("trees cleared only on the strip")
