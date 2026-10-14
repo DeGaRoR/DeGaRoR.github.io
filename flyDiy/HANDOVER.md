@@ -93299,3 +93299,8 @@ _media_check.js kitPacks, asset_census.js, prop_lod.js KITS.camp, ktx2_twins.js 
 **OWED**: the CPU slot (scratchpad win_wed.sh: infra_gen, camp_kit, lod, ktx2, build, ASSETBUDGET --selftest, MEDIA /
 SCENERY / PROPS / KTX2 / ASSETS / BUILD) - the code was written on node --check alone (no box before the slot); then the
 user's 15-min GPU look (tools/_props.html?packs=infra and ?packs=camp); then READY.
+
+## Train 54b (A0, 14 Oct 12:20, after the 07:10 shutdown)
+Landed: editor-perf (G3080-G3089), HOME-FRAME far merge (G3088), CARD-SOURCE far cards from their impostors (G3184-G3186), pilot track closing, SITE calibration fix (G2894), WATER-STEADY mirror off/AUTO/on (105fd3cca), SND-MIX-2 (MIXLEAD skips without ffmpeg), t56-small (LOOKS 2 declared exception + FRAMECOST ALLOWs for 52ab's rev28 rises), ASSETS-OCT pylons + tents + GATE ASSETBUDGET (209405351).
+A0 fixes on the train: FRAMECOST ALLOW union left a double comma (a hole: find() read undefined); GATE ASSETS admits CARD-SOURCE's composer material (render_world 18 -> 19).
+Strict light gate: PASS, 139 rows in slack, 11 better, 0 red. Gates (60): all green except DMGUPLOAD (the Cub staging broke nothing; Deform's stage-robust row d4e497ecf rides train 56). Left out: GEOM-FIXES + CAREER-ON (rebased, train 55), t54-scenery (revert of the 'map' flip, train 55), DMG-LAZY (dropped by the user).

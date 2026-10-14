@@ -3,7 +3,7 @@
   {
    "id": "jolene",
    "fixture": "tools/fixtures/island_jolene.json",
-   "cooked": "2026-10-13",
+   "cooked": "2026-10-14",
    "variants": [
     {
      "name": "default",
