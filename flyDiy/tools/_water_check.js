@@ -203,9 +203,9 @@ console.log('\n3. THE LAWS');
     // the hand-over to the probe dissolves; and the move threshold scales with the eye's height, or raising
     // the ceiling would fire a capture almost every frame at cruise (the nearest thing a mirrored eye at
     // height h reflects is about h away, so 3 m at the dock and 3 m at 500 m are not the same error).
-    verdict(/const mirW = !\(eyeAgl > 0\.1\) \? 0\s*\n\s*: live \|\| eyeAgl <= MIR\.fadeFrom \? 1/.test(mp) && /MIR\.maxAgl - MIR\.fadeFrom/.test(mp) &&
+    verdict(/const mirW = !\(eyeAgl > 0\.1\) \? 0\s*\n\s*: always \|\| eyeAgl <= MIR\.fadeFrom \? 1/.test(mp) && /MIR\.maxAgl - MIR\.fadeFrom/.test(mp) &&
             W.mirror.fadeFrom > 60 && W.mirror.maxAgl > W.mirror.fadeFrom,
-      `a 'periodic' mirror fades out with altitude (full to ${W.mirror.fadeFrom} m, gone by ${W.mirror.maxAgl} m) - never a cliff; a LIVE one has no ceiling (G2830)`);
+      `a 'periodic' mirror fades out with altitude (full to ${W.mirror.fadeFrom} m, gone by ${W.mirror.maxAgl} m) - never a cliff; an ON (live) one has no ceiling, an AUTO one fades like master (G2830)`);
     verdict(/const moveLim = Math\.max\(MIR\.moveM, eyeAgl \* MIR\.moveAgl\);/.test(mp) && /moved > moveLim/.test(mp) && W.mirror.moveAgl > 0,
       `the re-capture distance scales with the eye's height (${W.mirror.moveM} m at the dock, ${(W.mirror.moveAgl * 100).toFixed(0)} % of the altitude above it)`);
     { // the shader's arithmetic, scalar-wise (the lines above are asserted verbatim, so the two cannot drift
