@@ -13611,7 +13611,7 @@
       flGroundLive(sim ? sim.out : null);
       // G1091 (POLISH-2): THE TREES BY THE RUNWAYS - the three ways the user is judging (27_premises.js RWY_TREES):
       // the pick is kept (flydiy.rwytrees) and the page reloads, since the woods are planted with the world
-      const rtNow = world && world.rwyTrees ? world.rwyTrees() : 'today';   // (27_premises rwyTreesMode's default)
+      const rtNow = world && world.rwyTrees ? world.rwyTrees() : 'mapx';   // (27_premises rwyTreesMode's default, G3023)
       flRow(body, 'trees by the runways').classList.add('fsec');
       flPills(body, [{ label: 'today', value: 'today', title: 'as before: the woods held back ~60 m from 13/31' },
                      { label: 'the map', value: 'map', title: 'the tree map everywhere but the paving and its drawn side' },
