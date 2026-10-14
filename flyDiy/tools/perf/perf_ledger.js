@@ -101,7 +101,7 @@ if (flag('run')) (async () => {
   const end = (() => { const d = new Date(), [h, m] = until.split(':').map(Number); d.setHours(h, m, 0, 0); if (d < new Date()) d.setDate(d.getDate() + 1); return d.getTime(); })();
   const PORT = +opt('port', 8710);
   fs.mkdirSync(RAW, { recursive: true }); fs.mkdirSync(UDD, { recursive: true });
-  const EVAL = 'JSON.stringify(window.GFX && GFX.get ? GFX.get() : null)';
+  const EVAL = 'window.GFX && GFX.get ? GFX.get() : null';   // (rollout_perf stringifies the value itself)
   log('PERF-LEDGER run: ' + VISITS.length + ' visits, the hard stop ' + until + ', the rig ' + path.join(ROOT, 'tools', 'rollout_perf.js'));
   for (const v of VISITS) {
     const [l, c] = v.t, d = tree(l);
