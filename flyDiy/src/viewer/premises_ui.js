@@ -1578,8 +1578,8 @@ function mount(host, ctx) {
         numRow(insp, 'stand x (m)', () => e.stand.x, v => ed(x => { x.stand.x = +v.toFixed(2); }, 'stand of ' + id, 'sx'), metres);
         numRow(insp, 'stand z (m)', () => e.stand.z, v => ed(x => { x.stand.z = +v.toFixed(2); }, 'stand of ' + id, 'sz'), metres);
         standHeading(insp, e.stand, e.taxiOut, f => ed(x => f(x.stand), 'heading of the stand of ' + id, 'shdg'));
-        wayRows(insp, e, 'taxiOut', 'the way out toward end 0', id);
-        if (e.taxiOut1) wayRows(insp, e, 'taxiOut1', 'the way out toward end 1', id);
+        wayRows(insp, e, 'taxiOut', 'the way out toward end 0', id, ed);
+        if (e.taxiOut1) wayRows(insp, e, 'taxiOut1', 'the way out toward end 1', id, ed);
         else rows.button(insp, 'add a way out toward end 1', () => ed(x => { x.taxiOut1 = wayToward(x, x.stand, 1); }, 'way out of ' + id));
         rows.button(insp, 'remove the stand', () => ed(x => { x.stand = null; x.taxiOut = null; x.taxiOut1 = null; }, 'stand of ' + id));
       } else rows.note(insp, 'no stand: the aeroplane starts 35 m in from end 0 (the stand tool puts one beside the strip)');
@@ -1598,7 +1598,7 @@ function mount(host, ctx) {
           x.hangar = { x: +(x.stand.x - 34 * Math.cos(h)).toFixed(2), z: +(x.stand.z - 34 * Math.sin(h)).toFixed(2), hdg: +h.toFixed(4) };
         }, 'hangar of ' + id));
       } else rows.note(insp, 'a club hangar (the garage\'s shell) can stand behind a stand: put the stand first');
-      plotRows(insp, e, id);   // (G3091: the base plots)
+      plotRows(insp, e, id, ed);   // (G3091: the base plots)
       if (e.site && e.site.pattern) rows.button(insp, 'pattern: back to the derived one', () => ed(x => { const st = Object.assign({}, x.site); delete st.pattern; x.site = Object.keys(st).length ? st : null; }, 'derived pattern of ' + id));
       else rows.note(insp, 'the pattern is the DERIVED one (two holds 110 m in); touch a hold and it becomes yours');
     } else if (layer === 'sites') {
@@ -2206,7 +2206,7 @@ function mount(host, ctx) {
   // A WAY OUT's points, typed; the last is the entry, on the centreline (a typed entry is taken to its nearest centreline point,
   // as its drag is); a point added after any but the entry (half way to the next), removed (never the entry)
   const onLine = (x, q) => { const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, x)), along = (q[0] - x.c[0]) * E.d[0] + (q[1] - x.c[1]) * E.d[1]; return [+(x.c[0] + E.d[0] * along).toFixed(2), +(x.c[1] + E.d[1] * along).toFixed(2)]; };
-  function wayRows(p, e, key, label, id) {
+  function wayRows(p, e, key, label, id, ed) {
     const W = e[key]; if (!Array.isArray(W) || !W.length) return;
     rows.note(p, label.toUpperCase() + ': ' + W.length + ' point' + (W.length > 1 ? 's' : '') + ' (the last is the entry on the centreline)');
     W.forEach((q, i) => {
@@ -2227,7 +2227,7 @@ function mount(host, ctx) {
   // THE BASE PLOTS (the career's: where a player's hangar stands - HOME.2 and the others): a disc each on the map (its stand's too),
   // the place and heading typed, a stand of its own given or taken (without one the field's stand and way out serve it), a plot
   // added beside the stand, removed
-  function plotRows(p, e, id) {
+  function plotRows(p, e, id, ed) {
     const P = Array.isArray(e.plots) ? e.plots : [];
     rows.note(p, 'BASE PLOTS: ' + (P.length ? P.map(q => q.id).join(', ') + ' - drag a plot\'s disc (its stand and way out come with it), its stand\'s small disc alone' : 'none'));
     P.forEach((q, i) => {

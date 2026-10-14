@@ -1020,6 +1020,7 @@ if (plots.length) {
     stand: { x: 5000, z: 5060, hdg: null }, taxiOut: [[5000, 5030], [5000, 5000]], hangar: { x: 5040, z: 5070, hdg: 0 },
     plots: [{ id: 'bs.2', x: 5100, z: 5080, hdg: 0, stand: { x: 5100, z: 5060, hdg: null }, taxiOut: [[5100, 5030], [5100, 5000]] }] }) });
   const S = () => PG.findById(ed31.record(), rid).entry, P2 = () => (S().plots || []).find(q => q.id === 'bs.2');
+  const re = () => { ed31.select(null); ed31.select(rid); };   // (the inspector drawn again: the stub's setTimeout never fires)
   ed31.select(rid);
   ed31.cmd('drag', { key: 'pl:bs.2', x: 5110, z: 5085 });
   check(P2().x === 5110 && P2().z === 5085 && P2().stand.x === 5110 && P2().stand.z === 5065 && JSON.stringify(P2().taxiOut) === '[[5110,5035],[5100,5000]]', '31 a base plot\'s disc moves the plot, its stand and its way out (the entry stays on the centreline)', JSON.stringify(P2()));
@@ -1027,21 +1028,21 @@ if (plots.length) {
   ed31.cmd('drag', { key: 'ps:bs.2', x: 5120, z: 5070 });
   check(P2().x === 5110 && P2().stand.x === 5120 && P2().stand.z === 5070, '31 its stand\'s disc moves the stand alone', JSON.stringify(P2()));
   ed31.select(null); ed31.select(rid);
-  nums.get('stand x (m)')(5005); nums.get('hangar z (m)')(5075); nums.get('entry x (m)')(5050);
+  nums.get('stand x (m)')(5005); re(); nums.get('hangar z (m)')(5075); re(); nums.get('entry x (m)')(5050); re();
   check(S().stand.x === 5005 && S().hangar.z === 5075 && S().taxiOut[1][0] === 5050 && S().taxiOut[1][1] === 5000, '31 the stand, the hangar and an entry typed (the entry on the centreline)', JSON.stringify([S().stand, S().hangar, S().taxiOut]));
-  sliders.get('parked heading (°)').set(90);
+  re(); sliders.get('parked heading (°)').set(90); re();
   check(Math.abs(S().stand.hdg - Math.PI / 2) < 1e-3 && btns.has('parked heading: toward the way out'), '31 the stand\'s parked heading turned', String(S().stand.hdg));
-  btns.get('parked heading: toward the way out')();
+  btns.get('parked heading: toward the way out')(); re();
   check(S().stand.hdg === null, '31 ...and given back to the way out');
-  btns.get('add a point after point 1')();
+  btns.get('add a point after point 1')(); re();
   check(S().taxiOut.length === 3, '31 a point added after point 1 of the way out', JSON.stringify(S().taxiOut));
-  btns.get('add a way out toward end 1')();
+  btns.get('add a way out toward end 1')(); re();
   const t1 = S().taxiOut1;
   check(Array.isArray(t1) && t1.length === 2 && t1[1][1] === 5000 && t1[1][0] > 5005, '31 a way out toward end 1 added, its entry on the centreline toward end 1', JSON.stringify(t1));
-  btns.get('add a base plot beside the stand')();
+  btns.get('add a base plot beside the stand')(); re();
   check(S().plots.length === 2 && S().plots.some(q => q.id === rid + '.2' || q.id === rid + '.3'), '31 a base plot added beside the stand', JSON.stringify(S().plots.map(q => q.id)));
   const nid = S().plots.find(q => q.id !== 'bs.2').id;
-  btns.get(nid + ': give it a stand of its own')();
+  btns.get(nid + ': give it a stand of its own')(); re();
   check(!!S().plots.find(q => q.id === nid).stand, '31 a plot given a stand of its own');
   btns.get('remove plot bs.2')();
   check(S().plots.length === 1 && !S().plots.some(q => q.id === 'bs.2'), '31 a plot removed');
