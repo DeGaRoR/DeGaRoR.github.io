@@ -94986,3 +94986,74 @@ Accepted by the user by name (14 Oct): the metal Cessna +6 s load; the passenger
 Landed: METLA-ON lever 1 (G3210, 32795aee7: Metlakatla bare - no plots/yards/fences/rails; lots drawn within 600 m elsewhere; ON-OFF at 4 km loop +12.1 -> +5.8 ms, draws +506 -> +22), the DMGUPLOAD wing retry (79e23a50b). Metlakatla stays OFF by default (not even yet).
 Strict light gate: 1 RED, the metal fuseWidth slider (accepted by the user by name 14 Oct). Gates: CLOCK, CLOUD (lamps), KTX2 (accepted), FRAMECOST (accepted restore row + the mapx rows whose ALLOWs ride ed2-obj1), DMGUPLOAD still red (Deform, after the reset).
 Queue after the Sat 17 Oct reset: memory post-reset-plan-2026-10-17.
+
+## G2735-G2739 - ACCEPT-XWIND: THE CONTRACTS' CROSSWIND IS THE DESIGN CHECK'S RUDDER ROW (2026-10-15, ACCEPT-XWIND for the GAME COORDINATOR, cloud - node + headless UI smoke; branch claude/accept-xwind-g2735 off origin/master 85857a1e, DESIGN-TRUST G2640 on master since train 52c / G3050)
+
+The brief: the user via CERT-SLIM G2840, *"the cross wind is far too long and boring"*. CERT-SLIM kept a crosswind
+ladder row only for accepted contracts with an `xwindKt` criterion (resort.b2 >= 15 kt, clients.04 >= 12 kt); A0 asked
+ACCEPT to read DESIGN-TRUST's deterministic row instead, so the ladder can go entirely. Edits in src/core and tools only; no
+generated file committed (index.html, dev.html, tools/flight_core.js, sw.js, version.json, career_core: rebuild on the train).
+
+**G2735 ACCEPT reads ctl.rudder** (src/core/72_accept.js). `ACCEPT_KINDS.xwindKt` is still `src: 'static'`, now "the
+crosswind full rudder holds: the design check's rudder row (genDesignCheck ctl.rudder)". `acceptDesignRow(ev, id)` (new,
+exported in place of `acceptBenchXwind`, which is gone with `ACCEPT_MS_KT`) reads `ev.design` (genShakedown's `design` or
+its rows) when the evidence carries it, else the bench check's settled row `ev.bench.shake.design` (bench.js BENCH_TESTS
+shake: the rows the garage shows the player); a withdrawn (`stale`) or running check counts for nothing. The value is the
+row's own kt (2 decimals), the source line the row's `why` ("full rudder holds 19.74 deg of sideslip at 73.56 km/h").
+No bench check yet: value null -> acceptVerdict's `needs-test` ("the bench check has not been run: its design check gives
+the crosswind the rudder holds"). No solver call (GATE ACCEPT scans acceptDesignRow with the rest). accept_rec.js needed
+no change: its evidence() already hands BENCH_STATE().results (with `shake`) to acceptEvidence.
+
+**G2736 the contracts' kind** (src/core/73_contracts.js, 72_contract_data.js). `CONTRACT_CRIT_KINDS.xwindKt`: `when:
+'static', how: 'design', src: 'genDesignCheck ctl.rudder (64b_gen_design: full rudder's sideslip at 1.3 Vs; G2735)'`
+(`how` gains 'design' in the header's list). The criterion's words now match the row: `crit.xwindKt` "its rudder holds
+{v} kt of crosswind" (was "lands in {v} kt of crosswind"; "rudder" is not a configuration word - every aeroplane has one).
+
+**G2737 WINNABLE - both contracts, no threshold change.** ctl.rudder on master's code, the joined spec the game flies
+(tools/_load_build.js VALIDATED, GATE ACCEPT E), deterministic to the digit on a second, separate genDesignCheck run:
+
+| design | ctl.rudder (joined) | CONTRACTS' raw-file measure | cost |
+|---|---|---|---|
+| Cub | 13.41 kt | 13.63 | 30 834 |
+| Jodel | 16.50 kt | 16.80 | 34 422 |
+| metal Cessna | 19.33 kt | 19.46 | 94 095 |
+| Cessna floats | 21.91 kt | 22.12 | 95 789 |
+| twin floatplane | 12.61 kt | 11.49 | 35 442 |
+
+- resort.b2 (>= 15 kt): the Jodel, the metal Cessna, the Cessna floats. Its follow-up (prefers xwindKt: 18 kt) - the metal
+  Cessna and the floats.
+- clients.04 (>= 12 kt): every design on the joined spec (the twin on the raw file is 11.49: borderline, still four
+  others). NOTE, not mine and unchanged: clients.04 also asks **costMax <= 25 000**, and no validated design's bill is
+  under 31 000 - it is a build contract (the player builds a cheaper trainer), so the crosswind clause is met by stock
+  designs but the contract as a whole needs a new build. The coordinator may want to put that to the user.
+
+**G2738 nothing else in the career reads the ladder** - the remaining readers of the bench crosswind ladder, all GARAGE /
+bench, none career (for CERT-SLIM's owner to remove the kept row; I removed nothing):
+- src/viewer/bench.js BENCH_TESTS `xwind` row (:333-:377) and its card branch (:1297); on claude/cert-slim-g2840 also
+  its `when: api => api.xwindAsked()` and app.js `xwindAsked` (the contract test) - both now pointless: drop them with the row.
+- src/viewer/app.js the bench bridge xwindStart/xwindPoll/xwindEnd (:9495-:9530, :15454-:15457), the sheets'
+  `xwind: xwIfRun()` / restore (:15442-:15446), the plaque's "crosswind limit" rows and "in a crosswind" section (:9730-:9777).
+- src/viewer/bench_worker.js the `xwind` job (benchXwindRun); src/viewer/stickers.js the CROSSWIND sticker;
+  src/viewer/profile.js benchOff 'xwind'; src/core/44_machine_sheet.js `xwindLimit` (no caller passes opts.xwind);
+  src/core/42_crosswind.js (makeCrosswindProbe / genCrosswindLimit) itself. 66_gen_cert's gearDrop.xwind is the
+  certificate's landing case, unrelated.
+- tools: _bench_check.js, test_ui_smoke.js (the plaque's crosswind sheet rows), _takeoff_check.js, test_pilot.js,
+  bench_shot.js, arch_fly.js - they follow whatever CERT-SLIM does with the row.
+
+**G2739 GATES** (`node tools/run_gates.js --only=ACCEPT,CONTRACTS,ECON,LAZY,UISMOKE,BUILD`, after `node tools/build.js`):
+BATTERY PASS - UISMOKE 384 s, BUILD 5 s, ACCEPT 773 s (220 checks; the legs re-flown on master, flights.json updated),
+CONTRACTS 2504 checks, ECON 148, LAZY PASS. Selftests: ACCEPT 27 of 27 (new: the crosswind off another design row, in
+m/s, a withdrawn bench check counted, the crosswind still read off the ladder); CONTRACTS PASS (new: a crosswind no
+validated rudder holds, the crosswind flown on the bench again).
+- GATE ACCEPT E (new): per validated design - the design check ran; ctl.rudder in kt; the second run equal; xwindKt off
+  the bench check's row = ctl.rudder; off genShakedown's `design` (and its bare rows) the same; >= value ok, >= floor+1
+  refused. No check: null; withdrawn / running: null; a 9 m/s ladder row beside the check changes nothing; resort.b2 and
+  clients.04 each met (names printed). Section C's verdicts now ride the Cub's real bench-check row (xwindKt 8 ok, 15 fail;
+  §6.3's "cheap and forgiving": crosswind ok, cost refused).
+- GATE CONTRACTS (new): xwindKt static / design / src names genDesignCheck ctl.rudder; every design's rudder measured
+  (genShakedown's design, the raw-file path its cache already used); every xwindKt criterion, authored and down the
+  follow-up chains, met by >= 1 validated design; the static-kind rule admits how 'design'.
+
+Commits: a2b3fcb2 (code + gates); this section and the ACCEPT flights evidence on top.
+
+READY for the GAME COORDINATOR
