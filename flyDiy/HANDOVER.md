@@ -94981,3 +94981,8 @@ READY for the GAME COORDINATOR
 ## Train 57 (A0, 15 Oct 00:10)
 Landed: the garage group 53b (t52-full: FRAMES, cowl presets, livery patterns, garage sheet off the thread, result cards, hangar storage, passengers, boot-freeze fix G2787), GEOM-FIXES G3050 (+ DESIGN-TRUST), scenery + car KTX2 twins (c0b64cbf8), MAP-EDGE G2730, the DMGWRECK row rounding fix, the SITE calibration union.
 Accepted by the user by name (14 Oct): the metal Cessna +6 s load; the passengers' KTX2 budget row; the garage-restore FRAMECOST row; the Cub cockpit worst task; the metal fuseWidth slider busy (0 -> 604 ms). Landed under the user's 15 Oct 00:05 priority (editor fixes first, credits 96 %): floats world -> garage 0.23 -> 1.85 s (strict gate) and WORLDRENDER's tier count (impostor 60814 vs canopy 60741; every branch alone passes: a combination effect) - both to fix in PERF-1. Known reds: CLOCK, CLOUD (lamps), DMGUPLOAD (fix in train 58), FRAMECOST mapx rows (ALLOWs ride train 60).
+
+## Landing L15c (A0, 15 Oct 02:55) - the last before the credit reset
+Landed: METLA-ON lever 1 (G3210, 32795aee7: Metlakatla bare - no plots/yards/fences/rails; lots drawn within 600 m elsewhere; ON-OFF at 4 km loop +12.1 -> +5.8 ms, draws +506 -> +22), the DMGUPLOAD wing retry (79e23a50b). Metlakatla stays OFF by default (not even yet).
+Strict light gate: 1 RED, the metal fuseWidth slider (accepted by the user by name 14 Oct). Gates: CLOCK, CLOUD (lamps), KTX2 (accepted), FRAMECOST (accepted restore row + the mapx rows whose ALLOWs ride ed2-obj1), DMGUPLOAD still red (Deform, after the reset).
+Queue after the Sat 17 Oct reset: memory post-reset-plan-2026-10-17.
