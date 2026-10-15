@@ -573,7 +573,7 @@ const CONTRACT_TEXT = {
   'crit.powertrain': CT_('{v} power'), 'crit.tankL': CT_('a tank of at most {v} L'),
   'crit.batteryKWh': CT_('a battery of at most {v} kWh'), 'crit.spanM': CT_('a span of at most {v} m'),
   'crit.costMax': CT_('costs at most {v} credits'), 'crit.ultimateG': CT_('strong to {v} g'),
-  'crit.xwindKt': CT_('lands in {v} kt of crosswind'), 'crit.hydro': CT_('operates from water'),
+  'crit.xwindKt': CT_('its rudder holds {v} kt of crosswind'), 'crit.hydro': CT_('operates from water'),
   'crit.tasKmh': CT_('cruises at {v} km/h or more {at}'), 'crit.enduranceMin': CT_('{v} min in the air plus a reserve {at}'),
   'crit.rangeKm': CT_('{v} km on a tank'), 'crit.takeoffAt': CT_('takes off from {v} {at}'),
   'crit.landAt': CT_('lands at {v} {at}'),

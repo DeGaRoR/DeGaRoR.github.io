@@ -79,7 +79,7 @@ const ACCEPT_KINDS = {
   spanM:        { src: 'static', op: '<=', unit: 'm',      what: 'the span as built (the measured plan); with `at.door` / `at.shed`, through that door' },
   costMax:      { src: 'static', op: '<=', unit: '',       what: 'the build cost: the ledger' },
   ultimateG:    { src: 'static', op: '>=', unit: 'g',      what: 'the structural certificate’s ultimate load factor' },
-  xwindKt:      { src: 'static', op: '>=', unit: 'kt',     what: 'the bench’s awarded crosswind limit' },
+  xwindKt:      { src: 'static', op: '>=', unit: 'kt',     what: 'the crosswind full rudder holds: the design check’s rudder row (genDesignCheck ctl.rudder)' },
   hydro:        { src: 'static', op: '==', unit: '',       what: 'the bench’s hydroplane test: lifts off the water' },
   tasKmh:       { src: 'flown',  op: '>=', unit: 'km/h',   what: 'true airspeed in a stabilised cruise at the load, calm air' },
   enduranceMin: { src: 'flown',  op: '>=', unit: 'min',    what: 'usable tank / the measured flow, minus the reserve' },
@@ -153,17 +153,19 @@ function acceptEvidence(def, extra) {
   return ev;
 }
 
-// the bench's crosswind: the settled row (bench.js `results.xwind`, ok or not:
-// a limit is a measurement), m/s. `limit` when the row carries it, else read off
-// its verdict ('CROSSWIND LIMIT 6.2 m/s' / 'CROSSWIND LIMIT > 10 m/s')
-function acceptBenchXwind(bench) {
-  const r = bench && bench.xwind;
-  if (!r || r.stale || r.running) return null;
-  if (acceptNum(r.limit) != null) return { ms: r.limit, capped: !!r.capped };
-  const m = /CROSSWIND LIMIT\s*(>)?\s*([0-9.]+)\s*m\/s/.exec(String(r.verdict || ''));
-  return m ? { ms: +m[2], capped: !!m[1] } : null;
+// (G2735 ACCEPT-XWIND) THE CROSSWIND IS THE DESIGN CHECK'S RUDDER ROW (64b_gen_design genDesignCheck `ctl.rudder`,
+// G2640 DESIGN-TRUST): the steady sideslip full rudder holds at 1.3 Vs, as a crosswind in kt, off the built
+// aeroplane's own derivatives - the number the garage's design check shows the player, deterministic, no flight and
+// no ladder. Read off `ev.design` (genShakedown's `design`, or its rows) when the evidence carries it, else off the
+// bench check's settled row (bench.js `results.shake.design`: the same rows); a withdrawn or running row counts for
+// nothing (the build it measured is not this one). -> the row or null
+function acceptDesignRow(ev, id) {
+  let D = ev && ev.design;
+  if (!D) { const r = ev && ev.bench && ev.bench.shake; if (r && !r.stale && !r.running) D = r.design; }
+  const rows = D && (Array.isArray(D) ? D : D.rows);
+  if (!Array.isArray(rows)) return null;
+  return rows.find(r => r && r.id === id) || null;
 }
-const ACCEPT_MS_KT = 1.943844;
 
 // ---- THE STATIC CHECKS -----------------------------------------------------
 // -> { k, ok, value, need, source } ; value null = no evidence (a test to run).
@@ -204,9 +206,10 @@ function acceptStatic(c, ev) {
         C ? 'the structural certificate (66_gen_cert: limit ' + C.limit + ' g, ultimate ' + C.ult + ' g)' : 'no certificate yet: the bench computes it at the roll-out');
     }
     case 'xwindKt': {
-      const X = acceptBenchXwind(ev.bench);
-      return out(X ? Math.round(X.ms * ACCEPT_MS_KT * 10) / 10 : null,
-        X ? 'the bench’s crosswind ladder (' + (X.capped ? '> ' : '') + X.ms + ' m/s)' : 'the bench’s crosswind test has not been run', X ? { capped: X.capped } : null);
+      const R = acceptDesignRow(ev, 'ctl.rudder'), v = R ? acceptNum(R.value) : null;
+      return out(v, v != null ? 'the design check’s rudder row (genDesignCheck ctl.rudder): ' + (R.why || v + ' kt')
+                              : 'the bench check has not been run: its design check gives the crosswind the rudder holds',
+        v != null ? { level: R.level || null } : null);
     }
     case 'hydro': {
       const r = ev.bench && ev.bench.hydro;

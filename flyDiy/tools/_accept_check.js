@@ -14,8 +14,8 @@
 // A. THE STATIC CHECKS on the validated builds (the user's Cub, the Jodel, the Cessna 172, the metal Cessna) plus the
 //    user's 2 kWh electric trainer and the Cessna on floats: seats, empty mass, powertrain, tank / pack, span (and the
 //    door rule), cost, the certificate's ultimate, the bench's crosswind and hydroplane - each against its known value
-//    (the plaque's own genShakedown, the spec, the measured plan, a real certificate of the Cub, the bench's own
-//    xwind row built by bench.js) - and NO SIMULATION in them (the phone runs them: GQ19): their sources hold no
+//    (the plaque's own genShakedown, the spec, the measured plan, a real certificate of the Cub, the bench check's own
+//    row built by bench.js) - and NO SIMULATION in them (the phone runs them: GQ19): their sources hold no
 //    solver call, and the lot runs in milliseconds.
 // B. THE LEGS (tools/_accept_fly.js, one process each, run once): the Cub, Jodel, C172 and metal Cessna each hold a
 //    5-minute stabilised cruise at 75 % throttle, 300 m over HOME, on the AP box; each leg valid, in its bands, signed,
@@ -30,7 +30,11 @@
 //    the bonus - and over §6.3's own examples; withdrawn under another fingerprint, a load not flown, a record
 //    tampered with, a refused leg, an unknown kind.
 // D. THE PAGE (source): the manifest, the frame hook, the logbook row's proof fields, the plaque's section and its
-//    explanations, the bench's fingerprint doors and the xwind row's number, the worker's door.
+//    explanations, the bench's fingerprint doors, the worker's door.
+// E. (G2735 ACCEPT-XWIND) THE CROSSWIND IS THE DESIGN CHECK'S: every validated design (LB.VALIDATED, the joined spec the
+//    game flies) through genShakedown as the page runs it and the bench check's own row (bench.js BENCH_TESTS shake):
+//    xwindKt = genDesignCheck's ctl.rudder, the same on a second, separate run; a withdrawn / running bench check
+//    counts for nothing; resort.b2 (>= 15 kt) and clients.04 (>= 12 kt) each met by a validated design.
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os'), cp = require('child_process');
 const T = __dirname, ROOT = path.join(T, '..');
@@ -86,12 +90,23 @@ function staticFixtures() {
   const cert = C0.genCertify(D.cub.def);
   D.cub.cert = { limit: cert.limit, ult: cert.ult };
   D.certS = (Date.now() - t0) / 1000;
-  // the bench's own crosswind row (bench.js BENCH_TESTS xwind), built from a ladder's result: the number it now carries
-  const XT = B.BENCH_TESTS.find(t => t.id === 'xwind');
-  try { D.xwRow = XT.poll({ xwindPoll: () => ({ done: true, result: { limit: 6.2, cap: 10, roll: 310, e: 0.05 }, runs: [] }) }); }
-  catch (e) { D.xwRow = { error: String(e) }; }
-  try { D.xwRowCap = XT.poll({ xwindPoll: () => ({ done: true, result: { limit: null, cap: 10, roll: 300 }, runs: [] }) }); }
-  catch (e) { D.xwRowCap = { error: String(e) }; }
+  // (G2735) THE DESIGN CHECK of every validated design (the joined spec the game flies): the shakedown as the page
+  // runs it (app.js shakeFetch: genShakedown(def, { corners: false }), which carries `design`), the bench check's own
+  // row off it (bench.js BENCH_TESTS shake.run: the row results.shake holds), and genDesignCheck again on a def built
+  // afresh (the second run: deterministic)
+  const ST = B.BENCH_TESTS.find(t => t.id === 'shake');
+  D.dc = {};
+  for (const k of Object.keys(LB.VALIDATED)) {
+    try {
+      const spec = LB.loadValidated(k).spec;
+      const def = C0.buildGen(C0.genMigrateSpec(spec));
+      const sh = C0.genShakedown(def, { corners: false });
+      const row = ST.run({ shake: () => sh });
+      const again = C0.genDesignCheck(C0.buildGen(C0.genMigrateSpec(spec)), sh);
+      const rud = d => (d && d.rows.find(r => r.id === 'ctl.rudder')) || null;
+      D.dc[k] = { label: LB.VALIDATED[k].label, def, row, rudder: rud(sh.design), again: rud(again), shRows: sh.design ? sh.design.rows : null };
+    } catch (e) { D.dc[k] = { label: k, error: String(e && e.stack || e).slice(0, 300) }; }
+  }
   return D;
 }
 
@@ -147,17 +162,47 @@ function runChecks(C, F, D, src, quiet) {
   ok(D.cub.cert.ult === C0.GEN_CERT.ult && D.cub.cert.limit === C0.GEN_CERT.limit, 'the Cub\'s certificate (computed, ' + D.certS.toFixed(0) + ' s): limit ' + D.cub.cert.limit + ' g, ultimate ' + D.cub.cert.ult + ' g');
   ok(st('ultimateG', { v: 5.7 }, cub).ok && !st('ultimateG', { v: 6 }, cub).ok, 'ultimateG >= 5.7 ok, >= 6 refused (the normal category\'s certificate)');
   ok(st('ultimateG', { v: 3 }, EV.jodel).value === null, 'no certificate: no value (a test to run), not a pass');
-  ok(D.xwRow && D.xwRow.limit === 6.2 && D.xwRow.capped === false && D.xwRowCap.capped === true && D.xwRowCap.limit === 10, 'the bench\'s crosswind row carries its limit (6.2 m/s; capped > 10)');
-  const xw = st('xwindKt', { v: 12 }, Object.assign({}, cub, { bench: { xwind: D.xwRow } }));
-  ok(xw.ok && near(xw.value, 12.1, 0.05), 'xwindKt from the bench\'s row: 6.2 m/s = ' + xw.value + ' kt >= 12');
-  ok(!st('xwindKt', { v: 13 }, Object.assign({}, cub, { bench: { xwind: D.xwRow } })).ok, 'xwindKt >= 13 refused');
-  ok(near(st('xwindKt', { v: 1 }, { bench: { xwind: { verdict: 'CROSSWIND LIMIT 4.1 m/s', ok: true } } }).value, 8.0, 0.05), 'an older row (no `limit`) read off its verdict: 4.1 m/s = 8.0 kt');
-  ok(st('xwindKt', { v: 1 }, { bench: { xwind: Object.assign({}, D.xwRow, { stale: true }) } }).value === null, 'a WITHDRAWN crosswind row counts for nothing');
+  // ===== E. (G2735 ACCEPT-XWIND) THE CROSSWIND IS THE DESIGN CHECK'S RUDDER ROW =====
+  const XW = {};
+  for (const k of Object.keys(D.dc)) {
+    const X = D.dc[k];
+    if (!ok(!X.error && X.rudder && X.again && X.row && X.row.design, k + ': the design check ran (the shakedown\'s rows, the bench check\'s row, a second run)' + (X.error ? ' - ' + X.error : ''))) continue;
+    const kt = X.rudder.value;
+    ok(typeof kt === 'number' && kt > 0 && X.rudder.unit === 'kt', k + ': ctl.rudder ' + kt + ' kt (' + X.rudder.why + ')');
+    ok(kt === X.again.value, k + ': deterministic - a second, separate run of genDesignCheck gives ' + X.again.value + ' kt');
+    const evB = Object.assign(C.acceptEvidence(X.def), { bench: { shake: X.row } });
+    const s1 = st('xwindKt', { v: 1 }, evB);
+    ok(s1.value === kt, k + ': xwindKt off the bench check\'s row = ctl.rudder (' + s1.value + ' kt; ' + s1.source + ')');
+    ok(st('xwindKt', { v: 1 }, Object.assign(C.acceptEvidence(X.def), { design: { rows: X.shRows } })).value === kt
+       && st('xwindKt', { v: 1 }, Object.assign(C.acceptEvidence(X.def), { design: X.shRows })).value === kt, k + ': xwindKt off genShakedown\'s `design` (or its rows) = the same ' + kt + ' kt');
+    ok(st('xwindKt', { v: kt }, evB).ok && !st('xwindKt', { v: Math.floor(kt) + 1 }, evB).ok, k + ': xwindKt >= ' + kt + ' ok, >= ' + (Math.floor(kt) + 1) + ' refused');
+    XW[k] = kt;
+  }
+  {
+    const X = D.dc.cub || {};
+    const ev0 = X.def ? C.acceptEvidence(X.def) : {};
+    ok(st('xwindKt', { v: 1 }, ev0).value === null && /not been run/.test(st('xwindKt', { v: 1 }, ev0).source), 'no bench check: no value (a test to run), not a pass');
+    if (X.row) {
+      ok(st('xwindKt', { v: 1 }, Object.assign({}, ev0, { bench: { shake: Object.assign({}, X.row, { stale: true }) } })).value === null, 'a WITHDRAWN bench check (its rows still on it) counts for nothing');
+      ok(st('xwindKt', { v: 1 }, Object.assign({}, ev0, { bench: { shake: Object.assign({}, X.row, { running: true }) } })).value === null, 'a bench check still running counts for nothing');
+      ok(st('xwindKt', { v: 1 }, Object.assign({}, ev0, { bench: { shake: X.row, xwind: { limit: 9, verdict: 'CROSSWIND LIMIT 9 m/s', ok: true } } })).value === X.rudder.value,
+         'the bench\'s crosswind ladder is no longer read: a 9 m/s ladder row beside the check changes nothing');
+    }
+  }
+  // the two contracts that ask a crosswind (72_contract_data.js): each met by a validated design's rudder
+  if (typeof C.contractAuthored === 'function') {
+    const A = C.contractAuthored();
+    for (const id of ['resort.b2', 'clients.04']) {
+      const c = A[id] && C.contractCrit(A[id]).find(x => x.k === 'xwindKt');
+      const meet = c ? Object.keys(XW).filter(k => XW[k] >= c.v) : [];
+      ok(c && meet.length >= 1, id + ': xwindKt >= ' + (c && c.v) + ' kt met by ' + (meet.map(k => D.dc[k].label + ' ' + XW[k]).join(', ') || 'NO validated design'));
+    }
+  }
   ok(st('hydro', {}, { bench: { hydro: { ok: true, verdict: 'LIFTS OFF THE WATER' } } }).ok && !st('hydro', {}, { bench: { hydro: { ok: false, verdict: 'STUCK AT THE HUMP' } } }).ok
      && st('hydro', {}, EV.floats).value === null, 'hydro: lifts off ok, stuck refused, not run = no value');
   // NO SIMULATION (GQ19): the sources of the static door hold no solver call, and they run in milliseconds
   const SOLVER = /\bmakeSim\b|genShakedown|genCertify|makePilot|buildGen|\.step\(|genTrim|genDensityAlt|makeLoadTest/;
-  for (const fn of ['acceptStatic', 'acceptEvidence', 'acceptBenchXwind'])
+  for (const fn of ['acceptStatic', 'acceptEvidence', 'acceptDesignRow'])
     ok(typeof C[fn] === 'function' && !SOLVER.test(C[fn].toString()), 'no simulation in ' + fn + ' (the phone runs it)');
   const t0 = process.hrtime.bigint();
   for (let r = 0; r < 20; r++) for (const k of Object.keys(BUILDS)) { const e = C.acceptEvidence(D[k].def); for (const kk of Object.keys(C.ACCEPT_KINDS)) if (C.ACCEPT_KINDS[kk].src === 'static') C.acceptStatic({ k: kk, v: 1 }, e); }
@@ -237,7 +282,7 @@ function runChecks(C, F, D, src, quiet) {
 
   // ===== C. THE VERDICT =====
   const legCub = cubF && cubF.record, rowCub = cubF && cubF.row, fpCub = cubF && cubF.fp;
-  const evC = C.acceptEvidence(D.cub.def, { cert: D.cub.cert, bench: { xwind: D.xwRow }, legs: legCub ? [legCub] : [], flights: rowCub ? [rowCub] : [], fp: fpCub });
+  const evC = C.acceptEvidence(D.cub.def, { cert: D.cub.cert, bench: { shake: D.dc.cub && D.dc.cub.row }, legs: legCub ? [legCub] : [], flights: rowCub ? [rowCub] : [], fp: fpCub });
   const V = (crit, ev) => C.acceptVerdict(crit, ev || evC);
   const one = (c, ev) => V([c], ev).rows[0];
   const per = [
@@ -350,7 +395,10 @@ const DOCTORS = [
   ['a static check that simulates', 'core', 'function acceptStatic(c, ev) {', 'function acceptStatic(c, ev) { if (ev && ev.__never) makeSim(null, null);'],
   ['the bonus for any pass', 'core', 'row.beat = row.marginPct >=', 'row.beat = true || row.marginPct >='],
   ['a refused leg counted', 'core', 'legs.filter(r => acceptSigned(r) && r.valid &&', 'legs.filter(r => acceptSigned(r) &&'],
-  ['the crosswind in m/s', 'core', 'X.ms * ACCEPT_MS_KT * 10', 'X.ms * 10'],
+  ['the crosswind off another design row', 'core', "acceptDesignRow(ev, 'ctl.rudder')", "acceptDesignRow(ev, 'ctl.aileron')"],
+  ['the crosswind in m/s', 'core', 'v = R ? acceptNum(R.value) : null', 'v = R ? acceptNum(R.value) / 1.943844 : null'],
+  ['a withdrawn bench check counted', 'core', 'if (r && !r.stale && !r.running) D = r.design;', 'if (r) D = r.design;'],
+  ['the crosswind still read off the ladder', 'core', "if (!D) { const r = ev && ev.bench && ev.bench.shake;", "if (!D && ev && ev.bench && ev.bench.xwind) D = [{ id: 'ctl.rudder', value: ev.bench.xwind.limit * 1.943844 }]; if (!D) { const r = ev && ev.bench && ev.bench.shake;"],
   ['the door without its clearance', 'core', 'span + 2 * ACCEPT_RULES.doorClr <= at.door', 'span <= at.door'],
   ['a landing without a stop', 'core', 'f.at === id && f.sink != null && !f.outcome', '(f.at === id || f.to === id || f.from === id)'],
   ['a take-off from anywhere', 'core', '? f.from === id && f.sink != null', '? f.sink != null || f.from === id'],
