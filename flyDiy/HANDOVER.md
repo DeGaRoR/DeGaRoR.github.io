@@ -95044,3 +95044,50 @@ Strict light gate: 16 better; 2 RED already accepted (metal fuseWidth slider; fl
 ## Landing L18b (A0, 18 Oct 14:30)
 Landed: ED-1's placer animals (a tile drops a herd, a scatter makes a hotspot), the ALMA as one tile, packs' loose parts hidden, zone pills for every category (G2893).
 Strict light gate: 16 better; only the accepted metal fuseWidth slider row red. Gates: CLOCK, CLOUD (lamps), FRAMECOST (master's restore row), KTX2 (accepted characters), TOUR shard 0 (the Cub's prop strike in 02/20's pond at w2, the user's kept pond; identical on master per Pilot 18 Oct).
+
+## G2770-G2779 - EDITOR-UX-B: THE SLIDER REVIEW'S FUSELAGE / NOSE / CANOPY / DOOR / BOOM / UNDER-FUSELAGE HALF (2026-10-17, EDITOR-UX-B for A0, local; branch claude/editor-ux-b-g2770 off master 05cc2acc0)
+
+The second half of the user's slider review of 10 Oct (D:/Dev/flydiy-notes/SLIDER-REVIEW-2026-10-10.md). The frames
+and the fuselage's roundness landed with G2760. This half reuses G2760's mechanisms: `twin`/`slot` tiles, part
+`order`, HIDDEN groups. UI only: no key, no default, no generator changed; a saved build is the same build.
+
+- **Nose:** "the length parameter needs to be promoted out of frame and put back into the size" - `noseLen` is the
+  nose trunk's length. "The main option is nose front; either firewall or aerodynamic" - `noseFinish` is the trunk's
+  type, drawn as two tiles in its row's slot (`noseFrontT`). It already follows the engine configuration: the engine
+  mount tiles (G2760 made them the mount row's only control) write it with the mount. A nose engine sets the
+  firewall; a pusher or a wing engine sets the faired nose.
+- **Propeller ("nose cone"):** "put blades and design point under expert" - the blades' shape and the design point
+  are EXPERT groups. The trunk keeps the blade count, the diameter and the material.
+- **Canopy:** "the bubble glass option is misleading ... should be hidden in real canopy bubble mode" - the row hides
+  under canopy 3 (its value is kept). "Arceau fit should always be on, the option should disappear" - HIDDEN (the
+  default is 1).
+- **Pilot door:** "no effect in bubble canopy mode ... it should be hidden" - the part's `when` is canopy != 3 (the
+  canopy is the design part's row, so the way back never leaves the tree). "What is deep jamb, and do we need that?"
+  - it cuts the door on down through the floor band as well as the window bands (_cage_gen.js `doors.deep`, on by
+  default; off gives a door that stops at the waist). Relabelled 'door reaches the floor' and moved to expert.
+- **Boom:** "the tail cone ... should be a section of the boom" - Tail cone is a child of the Boom (its rows, zone
+  and sections unchanged).
+- **Under the fuselage:** "the configuration section is obsolete. Starter does not matter and should go" - the
+  seating starter (the derived select) is no longer placed; it stays parked in its accordion group. "This section
+  seems to have a lot of duplicated controls ... to be unified" - the Design & construction column no longer opens on
+  the whole Custom-build grid (every tile has its own part or its row's slot; the grid is NEW > Custom build's).
+  Construction and the turtledeck were already big buttons in their slots (G2760).
+
+**Not done (Monday, if wanted):**
+- **The design point from the engine** ("ensure that you fill it according to the engine selection, these
+  parameters can be deduced from the engine"). It is logic, not UI: cw_rpm / cw_power from the engine, cw_tas from
+  the airframe. Done on a load it would change saved props. It wants a one-click "from the engine" tile, or a rule on
+  an engine change only, and a gate.
+- **"Boom style does not seem to change anything, obsolete?"** - kept, not checked. The row is the Fuselage style
+  tile's twin (lofted skin vs rod & pod; the rod brings the taper section on). Why it looked inert on the user's
+  build was not looked at in this pass: a look at their build first, then a word with the user, rather than a
+  deletion.
+
+**What to watch for:**
+- a bubble build no longer shows the pilot door in the tree (by design); a saved bubble build with doorOn 1 keeps it
+  in the save, unchanged;
+- the Design & construction column is short now: its own rows (construction, fuselage style, body & deck, canopy,
+  wing position / bracing / second wing, what it has). A builder who used it as the "all tiles" page finds them under
+  their parts, or in NEW > Custom build;
+- the tree: Tail cone is under Boom; the Boom's column shows the cone's rows after its own;
+- the nose column opens: fitted, type (nose front tiles), position (droop), size (length, width, height).
