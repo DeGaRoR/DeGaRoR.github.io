@@ -340,7 +340,10 @@
       if (st !== gl.SIGNALED) return false;
       gl.deleteSync(P.sync); P.read = true; if (G.pendAll === P) G.pendAll = null;
       if (!G.WAll || G.WAll.length < P.n * 3) G.WAll = new Float32Array(Math.ceil(P.n * 1.25) * 3);
+      const tr = performance.now();
       gl.bindBuffer(gl.COPY_READ_BUFFER, G.rAll); gl.getBufferSubData(gl.COPY_READ_BUFFER, 0, G.WAll, 0, P.n * 3); gl.bindBuffer(gl.COPY_READ_BUFFER, null);
+      const dr = performance.now() - tr, S = G.stats;   // (G3022 v2: a read's own time and size - the stall against the bytes)
+      S.wReadMs = (S.wReadMs || 0) + dr; S.wReadMax = Math.max(S.wReadMax || 0, dr); S.wBytes = (S.wBytes || 0) + P.n * 12; S.wBytesMax = Math.max(S.wBytesMax || 0, P.n * 12);
       P.gen = G.wGen = (G.wGen | 0) + 1;
       G.stats.wReads = (G.stats.wReads || 0) + 1; G.stats.wLagMs = Math.max(G.stats.wLagMs || 0, performance.now() - P.t);
     }

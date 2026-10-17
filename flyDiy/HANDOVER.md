@@ -94995,3 +94995,10 @@ Queue after the Sat 17 Oct reset: memory post-reset-plan-2026-10-17.
   the runway profile drag applies its terraform.
 - AFTER THE RESET, first: build + run_gates --only SCENERYED,PREMISES,SCENERY,UISMOKE,UISMOKE-PHONE,PATCHFAR,STAGES,TAXICLEAR,LINEUP,PREMCOOK
   (scratchpad window_obj1.sh, its times to change); then land. TAXICLEAR's Jumbo numbers may move (poles 'off' by the lane honoured).
+
+## G3022 DMG-IMPACT-LAG - state at the credit stop (15 Oct, Deform)
+- Landed (t56): v1 - the tear's GPU reads batched into one + squared-length tear check (skin_gpu.js, skin_break.js).
+- APPROVED by the user, not landed: claude/dmg-impact-lag-v2 (the motion clock + the GPU tear every 0.15 s, ?teargpu=0.05 the old cadence). Rebase on master, gate DMGSKIN / DMGSKINGPU / DMGPAGEW / DMGUPLOAD / DMGWRECK, land.
+- UNPROVEN: claude/dmg-impact-lag-v3 (on v2): break events budgeted 8 ms a frame (?evms=0 off). Needs the box A/B (scratchpad g3022/v3_1545.sh pattern: dmg_skingpu_box --flown gpu, trunk-0/2.5, Cub + metal, v3 vs ?evms=0) against PKG5's crash worst <= 100 ms.
+- Measured 14 Oct: a WebGL getBufferSubData after a signaled fence still stalls ~10-12 ms per call at any size (0.4-0.8 MB) - the read must go: G3023, the tear on the CPU in a worker sending back only the torn triangles (PERF-1 week).
+- Owed too: the damage-ON readiness re-run on master (hitch Cub + metal, laptop rung on/off); DMGUPLOAD wing retry (claude/dmg-upload-robust2) - if the wing also breaks nothing, drop the Cub's mild staging; DMGWRECK rounding row (claude/dmg-wreck-row-round).
