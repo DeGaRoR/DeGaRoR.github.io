@@ -285,12 +285,12 @@ console.log('\n3. THE LAWS');
       verdict(v === true, 'a context with no occlusion queries answers seen (the capture runs)'); }
     // THE PROTOTYPES (G2831-G2833, ?wrefl=b|c|bc - the redesign's P0 look): without the switch NOTHING of them is in the page -
     // no hull sampler in the water program (its sampler budget, G424), no shader block, the switch's flags all off
-    { verdict(W.proto && W.proto.mode === null && !W.proto.hull && !W.proto.shadow && !W.proto.seaOff && !/uWHull/.test(W.GLSL.frag) && !/uWHull/.test(String(W.material || '')),
-        "without ?wrefl the prototypes are absent: no hull sampler or block in the water's GLSL, every flag off");
-      verdict(/\$\{PROTO\.hull \? HULL_GLSL : ''\}/.test(w) && /\$\{PROTO\.hull \? 'uniform sampler2D uWHull;/.test(w) && /PROTO = \(\(\) => \{ const q = \(typeof location !== 'undefined' && location\.search && \(\/\[\?&\]wrefl=\(b\|c\|bc\)/.test(w),
-        "the hull's sampler and block are declared only under ?wrefl=b / bc");
+    { verdict(W.proto && W.proto.mode === null && !W.proto.hull && !W.proto.shadow && !W.proto.seaOff && /#ifdef W_HULL\s*\n\s*uniform sampler2D uWHull;/.test(W.GLSL.frag),
+        "without ?wrefl the prototypes are absent: every flag off, the hull's uniforms only under #ifdef W_HULL");
+      verdict(/#ifdef W_HULL\s*\n\s*\/\/ THE AIRCRAFT'S OWN REFLECTION/.test(w) && /if \(PROTO\.hull\) mat\.defines = Object\.assign\(mat\.defines \|\| \{\}, \{ W_HULL: '' \}\);/.test(w) && !/\$\{PROTO/.test(w) && /PROTO = \(\(\) => \{ const q = \(typeof location !== 'undefined' && location\.search && \(\/\[\?&\]wrefl=\(b\|c\|bc\)/.test(w),
+        "the hull's sampler and block live under #ifdef W_HULL, defined on the material only under ?wrefl=b / bc (nothing interpolated)");
       const app = src('src/viewer/app.js'), rw = src('src/viewer/render_world.js');
-      verdict(/WATER\.proto && WATER\.proto\.seaOff && Number\.isFinite\(wl\) && Math\.abs\(wl\) < 0\.05 \? null : wl/.test(app) && /WATER\.proto && WATER\.proto\.hull && WATER\.hullRender/.test(app) && /if \(WSH && WSH\.proto && WSH\.proto\.shadow\) water\.receiveShadow = true;/.test(rw),
+      verdict(/if \(WATER\.proto && WATER\.proto\.seaOff && Number\.isFinite\(wl\) && Math\.abs\(wl\) < 0\.05\) wl = null;/.test(app) && /WATER\.proto && WATER\.proto\.hull && WATER\.hullRender/.test(app) && /if \(WSH && WSH\.proto && WSH\.proto\.shadow\) water\.receiveShadow = true;/.test(rw),
         "the switch: the sea's mirror off (lakes kept), the hull capture under b, the sea receiving the shadow under c");
       // perspBounds with a view offset is the frustum PerspectiveCamera.updateProjectionMatrix makes (the hull's oblique clip bends THAT one)
       const cam = (view) => ({ near: 0.5, fov: 60, zoom: 1, aspect: 16 / 9, view });
