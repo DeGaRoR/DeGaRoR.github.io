@@ -73,6 +73,74 @@
     '}'].join('\n');
   const RIDE_FS = '#version 300 es\nprecision lowp float; out vec4 o; void main() { o = vec4(0.0); }';
 
+  // ---- G3023 (DMG-IMPACT-LAG, PKG5: the read-back removed): THE TEAR'S PLACES IN A WORKER. A read-back of the GPU's places
+  // stalled its frame ~10-12 ms whatever its size (getBufferSubData behind a passed fence, the box, 14 Oct): the tear's
+  // positions are made instead by a worker running RIDE_VS's places mode (uMode 1) in JS, on the same place texels the GPU
+  // gets (sent with each upRows) and the frame's node texels (G.ndA). The answer comes back as the drawers' Wp, transferred
+  // (no copy), on poll's interface - app.js unchanged. ?tearw=0 (or window.FLYDIY_TEARW = false), or a page without Blob
+  // workers (the node page unless asked): the GPU's places pass and read as before
+  const TW_SRC = `'use strict';
+const K = ['PA', 'PW0', 'PW1', 'PI0', 'PI1'], D = new Map();
+// RIDE_VS, uMode 1 (the world position less the origin): the slots in order, the dominant's turn the sign's reference
+function ride(A, ND, np, dn, out) {
+  const PA = A.PA, W0 = A.PW0, W1 = A.PW1, I0 = A.PI0, I1 = A.PI1;
+  for (let p = 0; p < np; p++) {
+    const t = p * 4, f0 = I0[t], j0 = (f0 >= 0 ? (f0 + 0.5) | 0 : (-f0 - 0.5) | 0) * 8;
+    const a0 = ND[j0 + 4], a1 = ND[j0 + 5], a2 = ND[j0 + 6], a3 = ND[j0 + 7];
+    let q0 = 0, q1 = 0, q2 = 0, q3 = 0, l0 = 0, l1 = 0, l2 = 0;
+    for (let a = 0; a < 8; a++) {
+      const w = a < 4 ? W0[t + a] : W1[t + a - 4]; if (a >= 4 && w === 0) break;
+      const f = a < 4 ? I0[t + a] : I1[t + a - 4], tn = f >= 0, j = (tn ? (f + 0.5) | 0 : (-f - 0.5) | 0) * 8;
+      const b0 = ND[j + 4], b1 = ND[j + 5], b2 = ND[j + 6], b3 = ND[j + 7];
+      if (tn) { const sw = (b0 * a0 + b1 * a1 + b2 * a2 + b3 * a3) < 0 ? -w : w; q0 += sw * b0; q1 += sw * b1; q2 += sw * b2; q3 += sw * b3; }
+      l0 += w * ND[j]; l1 += w * ND[j + 1]; l2 += w * ND[j + 2];
+    }
+    const L = Math.sqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3); if (L > 0) { q0 /= L; q1 /= L; q2 /= L; q3 /= L; }
+    const x = PA[t], y = PA[t + 1], z = PA[t + 2], aw = PA[t + 3];
+    const tx = 2 * (q1 * z - q2 * y), ty = 2 * (q2 * x - q0 * z), tz = 2 * (q0 * y - q1 * x), o = p * 3;
+    out[o] = l0 + (x + q3 * tx + (q1 * tz - q2 * ty)) + aw * dn[0];
+    out[o + 1] = l1 + (y + q3 * ty + (q2 * tx - q0 * tz)) + aw * dn[1];
+    out[o + 2] = l2 + (z + q3 * tz + (q0 * ty - q1 * tx)) + aw * dn[2];
+  }
+}
+onmessage = e => {
+  const m = e.data;
+  if (m.op === 'rows') {
+    let d = D.get(m.id);
+    if (!d || d.rows !== m.rows) { d = { rows: m.rows, A: {} }; for (const k of K) d.A[k] = new Float32Array(m.rows * m.W * 4); D.set(m.id, d); }
+    for (const k of K) d.A[k].set(m.data[k], m.r0 * m.W * 4);
+  } else if (m.op === 'free') D.delete(m.id);
+  else if (m.op === 'sample') {
+    const t0 = performance.now(), out = [], tr = [];
+    for (const e of m.list) { const d = D.get(e.id), W = new Float32Array(e.np * 3); if (d) ride(d.A, m.nd, Math.min(e.np, d.rows * m.W), m.down, W); out.push([e.id, W]); tr.push(W.buffer); }
+    postMessage({ seq: m.seq, out, ms: performance.now() - t0 }, tr);
+  }
+};`;
+  // the worker, made once a page (null: none - the GPU's read)
+  function tw() {
+    if (G.tw !== undefined) return G.tw;
+    G.tw = null;
+    try { if (typeof window !== 'undefined' && (window.FLYDIY_TEARW === false || /[?&]tearw=0(&|$)/.test((window.location && window.location.search) || ''))) return null; } catch (e) {}
+    try {
+      const w = new Worker(URL.createObjectURL(new Blob([TW_SRC], { type: 'text/javascript' })));
+      w.onmessage = e => { const m = e.data, P = G.twPend; if (!P || m.seq !== P.seq) return;
+        P.out = new Map(m.out); P.read = true; P.gen = G.wGen = (G.wGen | 0) + 1; G.twPend = null;
+        const S = G.stats; S.twReads = (S.twReads || 0) + 1; S.twMs = (S.twMs || 0) + m.ms; S.twMsMax = Math.max(S.twMsMax || 0, m.ms);
+        S.wLagMs = Math.max(S.wLagMs || 0, performance.now() - P.t); };
+      w.onerror = () => { G.tw = null; G.twPend = null; G.err = G.err || 'the tear worker failed'; };   // (the GPU's read from then on)
+      G.tw = w; G.twN = 0; G.twSeq = 0;
+    } catch (e) { G.tw = null; }
+    return G.tw;
+  }
+  // the rows [r0, r1) of a drawer's place texels to the worker as they go up to the GPU (copies: the CPU keeps its own)
+  function twRows(D, r0, r1) {
+    const w = tw(); if (!w) return;
+    if (!D.twId) D.twId = ++G.twN;
+    const data = {}, tr = [];
+    for (const k of TXK) { const a = D.cpu[k].slice(r0 * PW_W * 4, r1 * PW_W * 4); data[k] = a; tr.push(a.buffer); }
+    w.postMessage({ op: 'rows', id: D.twId, rows: D.rows, W: PW_W, r0, data }, tr);
+  }
+
   const G = { prog: null, gl: null, ext: null, t0: 0, linkMs: null, ok: null, err: null, loc: null, tf: null, nd: null, ndW: 0,
               stats: { frames: 0, draws: 0, ms: 0, msMax: 0, upPl: 0, upNon: 0, drawers: 0, ranges: 0 } };
 
@@ -234,8 +302,9 @@
     // by side into one read buffer under one fence, read once (poll) and handed out by slice. A read a drawer was a GPU round
     // trip each - 39 drawers on the user's Cub, a sample every 3 frames: 1.3-1.5 s of the crash's main thread on the box
     // (14 Oct profile, Cub and metal Cessna). No new pass while a read is in flight (the asking drawers join the next)
-    const batch = []; let bN = 0, bOff = 0;
-    if (!G.pendAll) {
+    const batch = [], twList = [], TW = tw(); let bN = 0, bOff = 0;
+    if (TW) { if (!G.twPend) for (const D of F.drawers) if (D.wantW && D.np && D.vao && !D.off && D.twId) { twList.push({ id: D.twId, np: D.np, D }); D.wantW = false; } }
+    else if (!G.pendAll) {
       for (const D of F.drawers) if (D.wantW && D.np && D.vao && !D.off) bN += D.np;
       if (bN && !(G.rAll && G.rAllN >= bN)) {
         if (G.rAll) gl.deleteBuffer(G.rAll);
@@ -246,7 +315,7 @@
     for (const D of F.drawers) {
       // the stale records: packed (whole after an event, by place after a step of the binding) and sent by rows
       const [r0, r1] = packStale(D, F.SB, F.rest, F.base);
-      if (r1 > r0) { upRows(D, r0, r1); gl.useProgram(G.prog); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, G.nd); }
+      if (r1 > r0) { upRows(D, r0, r1); twRows(D, r0, r1); gl.useProgram(G.prog); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, G.nd); }
       if (chk) chk('places up');
       // the members that do not ride (a fold's legs, floats, links): sent by range as their attributes moved
       if (D.views) {
@@ -313,6 +382,13 @@
         if (chk) chk('places copied');
       }
     }
+    // (G3023: the frame's asks to the worker - the node texels as packed above, after this frame's rows)
+    if (twList.length) {
+      const nd = G.ndA.slice(0, n * 8), P = { w: true, seq: ++G.twSeq, t: performance.now(), tag: F.tag, read: false, gen: 0, out: null };
+      G.twPend = P; for (const e of twList) e.D.pend = P;
+      TW.postMessage({ op: 'sample', seq: P.seq, nd, down: [F.down[0], F.down[1], F.down[2]], W: PW_W, list: twList.map(e => ({ id: e.id, np: e.np })) }, [nd.buffer]);
+      G.stats.twAsks = (G.stats.twAsks || 0) + 1;
+    }
     // one fence for the frame's places (tag: the frame sampled - G1818 t41); poll reads it once the fence has passed
     if (batch.length) {
       const P = { sync: gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0), t: performance.now(), tag: F.tag, list: batch, n: bOff, read: false, gen: 0 };
@@ -335,6 +411,14 @@
   function poll(D) {
     const gl = G.gl, P = D.pend;
     if (!P) return false;
+    if (P.w) {                                            // (G3023: the worker's places - transferred, taken as they are)
+      if (!P.read) return false;
+      D.pend = null;
+      const W = P.out.get(D.twId);
+      if (!W || W.length !== D.np * 3 || P.gen !== G.wGen) return false;
+      D.Wp = W; D.wSeq++; D.wTag = P.tag; G.stats.wSlices = (G.stats.wSlices || 0) + 1;
+      return true;
+    }
     if (!P.read) {
       const st = gl.getSyncParameter(P.sync, gl.SYNC_STATUS);
       if (st !== gl.SIGNALED) return false;
@@ -403,6 +487,7 @@
     if (D.tex) for (const t of D.tex) gl.deleteTexture(t);
     D.vao = D.inPl = D.inN = D.tex = D.vaoW = D.inId = D.wBuf = D.rBuf = D.wSink = D.pend = null; D.wSeq = 0;
     if (inputsOnly) return;
+    if (D.twId && G.tw) { try { G.tw.postMessage({ op: 'free', id: D.twId }); } catch (e) {} D.twId = 0; }
     if (D.posBuf) gl.deleteBuffer(D.posBuf); if (D.nrmBuf) gl.deleteBuffer(D.nrmBuf);
     D.posBuf = D.nrmBuf = null;
   }
@@ -415,7 +500,7 @@
   }
 
   const API = { RIDE_VS, RIDE_FS, PW_W, TXK, G, packStale, prepare, ready, drawer: kept(drawer), layout: kept(layout),
-                frame: kept(frame), poll, readBack: kept(readBack), release: kept(release) };   // (poll binds only COPY_READ_BUFFER, which three never caches: unwrapped - wrapped, its 39 calls a frame were ~800 getParameter, ~5 ms a frame on the box)
+                frame: kept(frame), poll, TW_SRC, readBack: kept(readBack), release: kept(release) };   // (poll binds only COPY_READ_BUFFER, which three never caches: unwrapped - wrapped, its 39 calls a frame were ~800 getParameter, ~5 ms a frame on the box)
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (W) W.SKIN_GPU = API;
 })();
