@@ -91,8 +91,9 @@ if (typeof window !== 'undefined') {
 // controls into the shape section ... I can't find the rod setting when
 // clicking on the boom"). Part keys are tools/_cage_parts.js's; a row lists
 // every part whose selection should show it. The livery rows are FINISH's
-// and are listed nowhere. 'design' (the Design & construction part) shows
-// every non-livery row, 'craft' (the root) the identity rows.
+// and are listed nowhere. 'craft' (the root) shows the identity rows;
+// 'design' (the Design & construction part) shows only its own rows' tiles,
+// in their slots (G2770 - it used to open on every non-livery row).
 // G2760: 'wingPanel' merged into 'wings'; the engine model's list left the
 // engine column (the engine row's own preset is that choice, and the list
 // "does not work and is redundant" — the user); the two-station fairing
@@ -129,7 +130,13 @@ function rowsForPart(sel, skip) {
   return d.DESIGN_ROWS.filter(r => {
     if (r.slot || (skip && skip.has(r.key))) return false;
     if (r.when && P) { try { if (!r.when(P)) return false; } catch (e) {} }
-    if (sel === 'design') return r.group !== 'livery' && r.grid !== false;
+    // G2770 (the user: "This section seems to have a lot of duplicated
+    // controls, but in the same format. To be unified"): the design part's
+    // column no longer opens on the whole Custom-build grid - every one of
+    // those tiles has its own part (DESIGN_PART) or its row's slot, and the
+    // grid itself is NEW > Custom build's. Its own rows' tiles stand in
+    // their slots as everywhere else.
+    if (sel === 'design') return false;
     const pk = DESIGN_PART[r.key];
     return !!pk && pk.indexOf(sel) >= 0;
   });
