@@ -129,7 +129,8 @@
     const rec = {
       sid: opt.sid || (new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '') + '-' + Math.floor(Math.random() * 1e6).toString(36)),
       started: new Date().toISOString(), probe: null, info: null, renderer: null,
-      gpu: { ext: null, gl: null, pool: [], pend: [], pendF: [], active: null, activeF: -1, spoiled: false, foreignF: -1e9, ok: 0, bad: 0, foreign: 0 },
+      gpu: { ext: null, gl: null, pool: [], pend: [], pendF: [], active: null, activeF: -1, spoiled: false, foreignF: -1e9, ok: 0, bad: 0, foreign: 0,
+             share: 4, req: 0, subF: 0, open: 0, nest: 0, rogue: 0, rogueF: -1e9 },   // PERF-1 P1: the arbitration (gpuMay, below)
     };
 
     function event(kind, t, ms, detail) {
@@ -252,11 +253,27 @@
     }
 
     // ---- the GPU's time (EXT_disjoint_timer_query_webgl2) ------------------------------------------------------
+    // PERF-1 P1: ONE OWNER FOR THE GPU TIMER. TIME_ELAPSED queries cannot nest, and the recorder used to stand aside for
+    // 2 s after any other module's timer: with the clouds' timer on by default it timed nothing - the owner's 11 Oct log,
+    // 0 timed frames in 66 067, 242 346 foreign timer calls (the perf study, section 7). Now the frames are SHARED: the
+    // recorder times the whole frame on 3 frames in 4 (`share`); the 4th is the subsystems' (clouds, post, water, the AA's
+    // auto scale), and a subsystem asks before it opens its own (FLIGHT_REC.gpuMay(): its frame, and no TIME_ELAPSED open -
+    // so theirs do not nest either). A timer that does not ask and opens on the recorder's frame spoils that frame's query
+    // (counted: `rogue`) and the recorder stands aside 2 s, as before. The header's gpuTimer says how many whole frames were
+    // asked for (req) and timed (ok): the coverage. A frame not timed is NaN in the log - unknown, never 0.
+    function gpuMay() {
+      const G = rec.gpu;
+      if (!G.ext || G.off || !rec.renderer) return G.open === 0;
+      return fi % G.share === G.share - 1 && G.open === 0 && !G.active;
+    }
     function gpuBegin() {
       const G = rec.gpu;
       if (!G.ext || G.off) return;                  // (G1995: G.off - the self-test's 'timer off' variant, live)
       if ((fi & 3) === 0) gpuPoll();                  // the results read every 4th frame, in a batch (each read is a GL call)
-      if (fi - G.foreignF < 120) return;              // another module's timer ran in the last 2 s: not ours to open
+      G.open = 0;                                     // (a query is begun and ended inside one frame: a count left over is a failed begin's)
+      if (fi % G.share === G.share - 1) { G.subF++; return; }   // the subsystems' frame
+      if (fi - G.rogueF < 120) return;                // a timer that does not ask ran on our frame in the last 2 s: not ours to open
+      G.req++;
       const qy = G.pool.length ? G.pool.pop() : (G.pend.length < 16 ? G.gl.createQuery() : null);
       if (!qy) return;
       G.active = qy; G.activeF = fi; G.spoiled = false;
@@ -286,7 +303,9 @@
     function foreignBegin() {
       const G = rec.gpu;
       G.foreignF = fi; G.foreign++;
-      if (G.active && !G.spoiled) { G.end.call(G.gl, G.ext.TIME_ELAPSED_EXT); G.spoiled = true; }
+      if (G.open > 0) G.nest++;                       // inside another module's open query: GL refuses it (counted, never fixed here)
+      G.open++;
+      if (G.active && !G.spoiled) { G.end.call(G.gl, G.ext.TIME_ELAPSED_EXT); G.spoiled = true; G.rogue++; G.rogueF = fi; }
     }
 
     // ---- the renderer's wrappers: the same calls, counted and timed ------------------------------------------
@@ -346,6 +365,7 @@
         const G = rec.gpu, TE = ext.TIME_ELAPSED_EXT;
         G.gl = gl; G.ext = ext; G.begin = gl.beginQuery; G.end = gl.endQuery;
         gl.beginQuery = function (target, qy) { if (target === TE) foreignBegin(); return G.begin.call(gl, target, qy); };
+        gl.endQuery = function (target) { if (target === TE && G.open > 0) G.open--; return G.end.call(gl, target); };
       }
     }
 
@@ -391,7 +411,8 @@
         overhead: { frameUsMean: sampN ? +(V[SAMP_SUM] / sampN * 1000).toFixed(1) : null, frameUsMax: +(V[SAMP_MAX] * 1000).toFixed(1), sampled: sampN,
           gpuTimerUsMean: sampN ? +(V[SAMP_GL_SUM] / sampN * 1000).toFixed(1) : null,
           endUsMean: selfN ? +(V[SELF_US] / selfN).toFixed(2) : null, endUsMax: +V[SELF_MAX].toFixed(1), frames: selfN },
-        gpuTimer: rec.gpu.ext ? { ok: rec.gpu.ok, disjoint: rec.gpu.bad, foreignFrames: rec.gpu.foreign } : null,
+        gpuTimer: rec.gpu.ext ? { ok: rec.gpu.ok, disjoint: rec.gpu.bad, foreignFrames: rec.gpu.foreign,
+          requested: rec.gpu.req, coverage: rec.gpu.req ? +(rec.gpu.ok / rec.gpu.req).toFixed(3) : null, subsystemFrames: rec.gpu.subF, rogue: rec.gpu.rogue, nested: rec.gpu.nest } : null,
       };
       const R = rec.renderer;
       if (R && R.domElement) H.canvas = { w: R.domElement.width, h: R.domElement.height, cssW: R.domElement.clientWidth, cssH: R.domElement.clientHeight, pixelRatio: R.getPixelRatio ? R.getPixelRatio() : null };
@@ -446,7 +467,7 @@
 
     const api = {
       SLOTS, S, COLS, C, F, N, CHUNK, rec,
-      attach, begin, end, lap, push, pop, event, stats, header, logParts, chunkRec, eventsSince, reveal,
+      attach, begin, end, lap, push, pop, event, stats, header, logParts, chunkRec, eventsSince, reveal, gpuMay,
       codeOf, names,
       get frame() { return fi; }, get open() { return open; }, get events() { return events; },
       set chunkSink(fn) { chunkSink = fn; },
@@ -479,6 +500,7 @@
     begin: REC.begin, end: REC.end, lap: REC.lap, push: REC.push, pop: REC.pop,
     event: (kind, ms, detail) => REC.event(kind, null, ms, detail),
     reveal: how => REC.reveal(how),
+    gpuMay: () => OFF || REC.gpuMay(),   // PERF-1 P1: may a subsystem open its GPU timer this frame? (the recorder's arbitration)
     gpuTimer: on => { if (on !== undefined) REC.rec.gpu.off = !on; return !!REC.rec.gpu.ext && !REC.rec.gpu.off; },   // G1995: the GPU timer on / off, live (the self-test)   // G1995: the flight handed to the player (app.js flRevealStart), screen or none
     stats: w => REC.stats(w), header: () => REC.header(), self: REC.self,
     get off() { return OFF; }, rec: REC,

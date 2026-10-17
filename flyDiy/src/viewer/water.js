@@ -1155,7 +1155,8 @@ const WATER = (() => {
     // kind at a time, and the two kinds are different targets, so the timer and the occlusion nest freely)
     mesh.onBeforeRender = () => {
       if ((MIR.mode === 'live' || MIR.mode === 'auto') && seenOk()) { const gl = timer.gl; oq = gl.createQuery(); gl.beginQuery(gl.ANY_SAMPLES_PASSED_CONSERVATIVE, oq); }
-      if (!timer.on || !timer.ext) return; q = timer.gl.createQuery(); timer.gl.beginQuery(timer.ext.TIME_ELAPSED_EXT, q); };
+      // (PERF-1 P1: the timer on the frames the flight recorder gives the subsystems - FLIGHT_REC.gpuMay)
+      if (!timer.on || !timer.ext || !(typeof FLIGHT_REC === 'undefined' || !FLIGHT_REC.gpuMay || FLIGHT_REC.gpuMay())) return; q = timer.gl.createQuery(); timer.gl.beginQuery(timer.ext.TIME_ELAPSED_EXT, q); };
     mesh.onAfterRender = () => {
       if (oq) { const gl = timer.gl; gl.endQuery(gl.ANY_SAMPLES_PASSED_CONSERVATIVE); seen.pending.push({ q: oq, f: seen.frame }); seen.issued[seen.frame] = (seen.issued[seen.frame] || 0) + 1; oq = null; }
       if (!q) return; timer.gl.endQuery(timer.ext.TIME_ELAPSED_EXT); timer.pending.push({ q, f: timer.frame }); timer.issued[timer.frame] = (timer.issued[timer.frame] || 0) + 1; q = null; };
