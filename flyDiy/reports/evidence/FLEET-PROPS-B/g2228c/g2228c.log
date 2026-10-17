@@ -1,0 +1,11 @@
+boxlock: CPU battery taken by FLEETB
+10:30:14 tree be51b15cf
+10:30:15 build: tools/flight_core.js (2833.6 KB), index.html (12119.0 KB), dev.html (112.5 KB), career_core.f36739eb.js (342.1 KB) — syntax OK, build 51e33c96467a (341 named 
+10:30:15 RUN PARKED
+10:33:26 END PARKED rc 0: GATE PARKED: PASS|
+10:33:27 RUN FLOWNBAKE
+10:33:27 END FLOWNBAKE rc 0: GATE FLOWNBAKE: PASS|
+10:33:27 RUN SKIN
+10:33:30 END SKIN rc 0: GATE SKIN: PASS|
+10:33:30 G2228 runs over at 10:33:30
+boxlock: CPU battery released by FLEETB

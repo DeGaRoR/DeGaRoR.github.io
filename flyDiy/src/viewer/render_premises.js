@@ -159,6 +159,39 @@ function make(THREE, scene, world, rec0, opts) {
   // the window and the splat channels ride along), the sources hidden (they stay for picking and for the next
   // merge). A prop (its LOD, its shared geometry) is never merged. Re-merged whenever the set of sources changes.
   const BATCH = { cell: 256, group: null, sig: '', pending: false };
+  // G3210 (METLA-ON, the user 14 Oct: "the house plots ... should never ever impact anything 4 km away. We could drop the plots
+  // and the barriers in that town too"). METLA-ONOFF (G3205) measured Metlakatla ON from 3.9 km: the lots 0.8 -> 8.9 M triangles,
+  // 53 -> 549 MB of geometry, ~1 % of it in view; the frame 16.5 -> 28.6 ms, 13.8 % of frames over 34 ms.
+  // METLAKATLA BARE: an mk_ plot's dressing (its fence, its yard: the lot ground patch, the slab, the cars in it), an mk_ site's
+  // fences and an mk_ road's guardrail are not kept - taken down at once, the teardown's way (bareMetla, buildRail); the houses,
+  // the outbuildings, the roads and the town kit stay. The generation is untouched (the cook's tallies hold: GATE PREMCOOK).
+  //   ?metlabare=0   kept, as before (the A/B)
+  // THE LOTS NEAR-ONLY: a lot cell's merged meshes (the yards, the fences: BATCH.cells) are drawn within LOT_NEAR m of the
+  // eye only (lotsNear, from render_world's frame) - nowhere else do the plots reach the far frame.
+  //   ?lotnear=<m>   the radius (default 600; 0 = everywhere, as before)
+  const METLA_BARE = !(typeof location !== 'undefined' && /[?&]metlabare=0(&|$)/.test(location.search || ''));
+  const isMetla = id => typeof id === 'string' && id.startsWith('mk_');
+  const LOT_NEAR = (m => (m ? +m[1] : 600))(typeof location !== 'undefined' && /[?&]lotnear=([0-9.]+)/.exec(location.search || ''));
+  function bareMetla(h, p) {
+    const drop = g => { hitDrop(g); if (g.parent) g.parent.remove(g); g.traverse(c => { if (c.geometry && !c.userData.sharedGeo) c.geometry.dispose(); }); };
+    if (p.isFence) { if (h.grp) drop(h.grp); h.grp = new THREE.Group(); stats.metlaBare = (stats.metlaBare || 0) + 1; return h; }
+    h.extra = (h.extra || []).filter(g => {
+      if (!g || !(g.name === 'fence' || (typeof g.name === 'string' && g.name.startsWith('yard:')))) return true;
+      drop(g); stats.metlaBare = (stats.metlaBare || 0) + 1; return false;
+    });
+    return h;
+  }
+  function lotsNear(ex, ez) {
+    if (!(LOT_NEAR > 0) || !BATCH.cells) return 0;
+    let n = 0; const C = BATCH.cell, R = LOT_NEAR + C * 0.71;   // (the cell's half-diagonal: a cell touching the radius stays)
+    for (const [ck, cell] of BATCH.cells) {
+      const i = ck.indexOf(','), cx = (+ck.slice(0, i) + 0.5) * C, cz = (+ck.slice(i + 1) + 0.5) * C;
+      const v = Math.hypot(cx - ex, cz - ez) < R;
+      for (const m of cell.meshes) if (m.visible !== v) { m.visible = v; n++; }
+    }
+    if (n) stats.lotsHidden = [...BATCH.cells.values()].reduce((a, c) => a + c.meshes.filter(m => !m.visible).length, 0);
+    return n;
+  }
   function mergeInto(list) {
     const g0 = list[0].geometry, names = Object.keys(g0.attributes);
     let nV = 0, nI = 0;
@@ -1034,6 +1067,7 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function buildRail(rd, pr) {
     if (!RAIL || rd.rail === 'off') return null;
+    if (METLA_BARE && isMetla(rd.id)) return null;   // G3210: Metlakatla without its barriers (the user, 14 Oct)
     const F = O.frame, hL = (lx, lz) => { const W = F.toWorld(lx, lz); return heightAt(W[0], W[1]); };
     const m = RAIL.build(THREE, { path: pr, w: rd.w, mode: rd.rail || 'auto', name: 'rail:' + rd.id,
       hAt: hL, heightAt, toWorld: (x, z) => F.toWorld(x, z), seed: PG.fnv(String(rd.id)) % 997,
@@ -3673,7 +3707,7 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function buildOne0(p, R) {
     if (!R && TALLY_ON && !(p.isPark || p.isObject)) BLD.atRank(p._tr);   // G841: generated here, on the cook's tallies for its rank
-    try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec, R) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec, R) : kitOf(p) >= 0 ? buildKitLot(p, R) : buildHouse(p, R); if (h && o.game) houseThrift(h.grp, !!(p.isPark || p.isItem || p.isObject || p.isFence)); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
+    try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec, R) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec, R) : kitOf(p) >= 0 ? buildKitLot(p, R) : buildHouse(p, R); if (h && METLA_BARE && isMetla(p.zone || (p.rec && p.rec.id) || p.id)) bareMetla(h, p); if (h && o.game) houseThrift(h.grp, !!(p.isPark || p.isItem || p.isObject || p.isFence)); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
     catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
   }
   // what a batch of builds owes once (not once an item)
@@ -4273,6 +4307,7 @@ function make(THREE, scene, world, rec0, opts) {
 
   const R = {
     root, groups: G, stats,
+    lotsNear,   // G3210: the lots' cells drawn near the eye only (render_world, every 10 frames)
     rebuild, rebuildSteps, preview, previewEnd, editEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
     objectEdit, hitAll, grabAt,
     trafficReach: m => { if (m !== undefined) TRAFFIC_REACH.m = Math.max(0, +m || 0); return TRAFFIC_REACH.m; },   // (G3087)

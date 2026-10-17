@@ -472,7 +472,9 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   FB.FB.noRest = true; FB.rest(); const keptNoRest = o2.meshes[0].material !== inMat && FB.FB_FADE.value === 0.5; FB.FB.noRest = false;
   FB.rest();
   const atRest = o2.meshes[0].material === inMat && o2.meshes[0].visible && k1.parent === null && !k1.visible && k1.material === live && FB.FB_FADE.value === 0 && FB.FB.hyT === 0;
-  check(inBand && keptNoRest && atRest && /function enterGarage\(\) \{\s*parkedFlush\(\);[\s\S]{0,400}?FLOWN_BAKE\.rest\(\)/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8')) && FB.FB.hyA === 1.0 && FB.FB.hyB === 1.25,
+  // (train 52: G2970's crowdStop(false) now opens enterGarage - the rest is still early on the way back; what is held is
+  // that it comes after parkedFlush, a few statements in, not that parkedFlush is the very first line)
+  check(inBand && keptNoRest && atRest && /function enterGarage\(\) \{[^}]{0,240}?parkedFlush\(\);[\s\S]{0,400}?FLOWN_BAKE\.rest\(\)/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8')) && FB.FB.hyA === 1.0 && FB.FB.hyB === 1.25,
     '8 G1490 the way back (enterGarage) puts the flown model at rest: the folds on their own baked material, the live meshes parked, t 0 (?fbake=norest the A/B); the band 1.0-1.25 (G1325)',
     JSON.stringify({ inBand, keptNoRest, atRest, hyA: FB.FB.hyA, hyB: FB.FB.hyB }));
   // G1493: the live AEROSKIN / AEROGLASS programs on a SKINNED mesh (C4b's moving folds, the hybrid's views on them) take the

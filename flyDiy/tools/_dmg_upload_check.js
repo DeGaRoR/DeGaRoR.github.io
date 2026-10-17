@@ -213,14 +213,17 @@ function runChild(key, fault, secs, damage, stage) {
 }
 // (14 Oct, train 54: the Cub's mild staging broke nothing on the page - a crash's break count is chaotic, not a dial, and one
 // fixed staging can land on an unbroken path after any core or world change. A staging that broke NOTHING (the aeroplane whole)
-// is flown again with the trunk moved sideways, 0.3 m each way; a partial break is never retried (a broken aeroplane flown again
-// would add up). The tries are in R.crash.tries, said with the crash; the row stays red when every one broke nothing)
-const STAGE_OFFS = [0.3, -0.3];
+// is flown again with the trunk moved sideways; a partial break is never retried (a broken aeroplane flown again would add
+// up). The tries are in R.crash.tries, said with the crash; the row stays red when every one broke nothing.
+// (train 56: 0.3 m each way was not enough - the Cub's crushable nose (DMG-NOSE) takes the mild staging's thin trunk at any
+// of the three without a member breaking, 0 / 0 / 0. The trunk now goes into the WING, 2.5 m out each way - the rig's
+// trunk-2.5, where a wing member breaks on every validated aircraft)
+const STAGE_OFFS = [2.5, -2.5];
 function runStaged(key, fault, secs, damage, stage) {
   let R = runChild(key, fault, secs, damage, stage); const tries = [];
   for (const off of STAGE_OFFS) {
     if (damage === false || R.failed || !R.crash || R.crash.br > 0) break;
-    tries.push({ off: (stage && stage.off) || 0, br: 0 });
+    tries.push({ off: R.crash.stage ? R.crash.stage.off : null, br: R.crash.br });   // (the try just flown, as it was flown)
     R = runChild(key, fault, secs, damage, Object.assign({}, stage || {}, { id: ((stage && stage.id) || 'mild') + '_off' + off, off }));
   }
   if (tries.length && R.crash) R.crash.tries = tries.concat([{ off: R.crash.stage ? R.crash.stage.off : null, br: R.crash.br }]);

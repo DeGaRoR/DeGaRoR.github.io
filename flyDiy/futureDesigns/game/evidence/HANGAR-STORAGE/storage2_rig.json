@@ -1,0 +1,1505 @@
+{
+ "url": "http://localhost:8701/flyDiy/index.html?career=1",
+ "size": [
+  2216,
+  1023
+ ],
+ "label": "tree",
+ "sha": "4cc5b9131",
+ "rung": {
+  "cpu": 3,
+  "gpux": 6
+ },
+ "errs": [],
+ "stills": [],
+ "discarded": [],
+ "moves": [
+  {
+   "tag": "M1 inside->long",
+   "name": "fleet-1-cub",
+   "to": {
+    "kind": "long"
+   },
+   "ok": true,
+   "why": "",
+   "swapped": null,
+   "callMs": 20.6,
+   "busy": {
+    "tasks": [
+     65,
+     58,
+     50
+    ],
+    "worst": 65,
+    "sum": 173
+   },
+   "residents": [],
+   "how": "round the stand",
+   "resMs": 0.2,
+   "apron": [
+    "fleet-3-c172",
+    "fleet-4-c172floats",
+    "fleet-5-twinfloats",
+    "fleet-6-metal"
+   ],
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 1,
+     "slots": [
+      null
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      "fleet-3-c172",
+      "fleet-4-c172floats",
+      "fleet-5-twinfloats",
+      "fleet-6-metal",
+      null,
+      null
+     ]
+    },
+    "long": [
+     "fleet-1-cub",
+     "fleet-2-jodel"
+    ],
+    "others": []
+   }
+  },
+  {
+   "tag": "M2 long->inside",
+   "name": "fleet-2-jodel",
+   "to": {
+    "kind": "inside",
+    "slot": 0
+   },
+   "ok": true,
+   "why": "",
+   "swapped": null,
+   "callMs": 43.1,
+   "busy": {
+    "tasks": [
+     59,
+     51,
+     50,
+     50
+    ],
+    "worst": 59,
+    "sum": 210
+   },
+   "residents": [
+    "fleet-2-jodel"
+   ],
+   "how": "the room moved",
+   "resMs": 7.2,
+   "apron": [
+    "fleet-3-c172",
+    "fleet-4-c172floats",
+    "fleet-5-twinfloats",
+    "fleet-6-metal"
+   ],
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 1,
+     "slots": [
+      "fleet-2-jodel"
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      "fleet-3-c172",
+      "fleet-4-c172floats",
+      "fleet-5-twinfloats",
+      "fleet-6-metal",
+      null,
+      null
+     ]
+    },
+    "long": [
+     "fleet-1-cub"
+    ],
+    "others": []
+   }
+  },
+  {
+   "tag": "M3 inside->outside",
+   "name": "fleet-2-jodel",
+   "to": {
+    "kind": "outside"
+   },
+   "ok": true,
+   "why": "",
+   "swapped": null,
+   "callMs": 15.8,
+   "busy": {
+    "tasks": [
+     66,
+     53,
+     52,
+     4730,
+     306
+    ],
+    "worst": 4730,
+    "sum": 5207
+   },
+   "residents": [],
+   "how": "round the stand",
+   "resMs": 0,
+   "apron": [
+    "fleet-3-c172",
+    "fleet-4-c172floats",
+    "fleet-5-twinfloats",
+    "fleet-6-metal",
+    "fleet-2-jodel"
+   ],
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 1,
+     "slots": [
+      null
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      "fleet-3-c172",
+      "fleet-4-c172floats",
+      "fleet-5-twinfloats",
+      "fleet-6-metal",
+      "fleet-2-jodel",
+      null
+     ]
+    },
+    "long": [
+     "fleet-1-cub"
+    ],
+    "others": []
+   }
+  },
+  {
+   "tag": "M4 outside->inside",
+   "name": "fleet-3-c172",
+   "to": {
+    "kind": "inside",
+    "slot": 0
+   },
+   "ok": true,
+   "why": "",
+   "swapped": null,
+   "callMs": 35.7,
+   "busy": {
+    "tasks": [
+     66,
+     79,
+     67,
+     58,
+     101,
+     400,
+     52
+    ],
+    "worst": 400,
+    "sum": 823
+   },
+   "residents": [
+    "fleet-3-c172"
+   ],
+   "how": "the room moved",
+   "resMs": 0.2,
+   "apron": [
+    "fleet-4-c172floats",
+    "fleet-5-twinfloats",
+    "fleet-6-metal",
+    "fleet-2-jodel"
+   ],
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 1,
+     "slots": [
+      "fleet-3-c172"
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      null,
+      "fleet-4-c172floats",
+      "fleet-5-twinfloats",
+      "fleet-6-metal",
+      "fleet-2-jodel",
+      null
+     ]
+    },
+    "long": [
+     "fleet-1-cub"
+    ],
+    "others": []
+   }
+  },
+  {
+   "tag": "M5 outside->long",
+   "name": "fleet-5-twinfloats",
+   "to": {
+    "kind": "long"
+   },
+   "ok": true,
+   "why": "",
+   "swapped": null,
+   "callMs": 15.3,
+   "busy": {
+    "tasks": [],
+    "worst": 0,
+    "sum": 0
+   },
+   "residents": [
+    "fleet-3-c172"
+   ],
+   "how": "the room moved",
+   "resMs": 0,
+   "apron": [
+    "fleet-4-c172floats",
+    "fleet-6-metal",
+    "fleet-2-jodel"
+   ],
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 1,
+     "slots": [
+      "fleet-3-c172"
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      null,
+      "fleet-4-c172floats",
+      null,
+      "fleet-6-metal",
+      "fleet-2-jodel",
+      null
+     ]
+    },
+    "long": [
+     "fleet-1-cub",
+     "fleet-5-twinfloats"
+    ],
+    "others": []
+   }
+  },
+  {
+   "tag": "M6 long->outside",
+   "name": "fleet-5-twinfloats",
+   "to": {
+    "kind": "outside"
+   },
+   "ok": true,
+   "why": "",
+   "swapped": null,
+   "callMs": 14.5,
+   "busy": {
+    "tasks": [],
+    "worst": 0,
+    "sum": 0
+   },
+   "residents": [
+    "fleet-3-c172"
+   ],
+   "how": "the room moved",
+   "resMs": 0,
+   "apron": [
+    "fleet-5-twinfloats",
+    "fleet-4-c172floats",
+    "fleet-6-metal",
+    "fleet-2-jodel"
+   ],
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 1,
+     "slots": [
+      "fleet-3-c172"
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      "fleet-5-twinfloats",
+      "fleet-4-c172floats",
+      null,
+      "fleet-6-metal",
+      "fleet-2-jodel",
+      null
+     ]
+    },
+    "long": [
+     "fleet-1-cub"
+    ],
+    "others": []
+   }
+  },
+  {
+   "tag": "M7 inside->long",
+   "name": "fleet-3-c172",
+   "to": {
+    "kind": "long"
+   },
+   "ok": true,
+   "why": "",
+   "swapped": null,
+   "callMs": 14.9,
+   "busy": {
+    "tasks": [
+     58,
+     56,
+     53
+    ],
+    "worst": 58,
+    "sum": 167
+   },
+   "residents": [],
+   "how": "round the stand",
+   "resMs": 0.2,
+   "apron": [
+    "fleet-5-twinfloats",
+    "fleet-4-c172floats",
+    "fleet-6-metal",
+    "fleet-2-jodel"
+   ],
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 1,
+     "slots": [
+      null
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      "fleet-5-twinfloats",
+      "fleet-4-c172floats",
+      null,
+      "fleet-6-metal",
+      "fleet-2-jodel",
+      null
+     ]
+    },
+    "long": [
+     "fleet-1-cub",
+     "fleet-3-c172"
+    ],
+    "others": []
+   }
+  }
+ ],
+ "refs": {
+  "sliderResidents": [
+   {
+    "key": "noseLen",
+    "inputMs": 1132,
+    "toFrameMs": 1350.3
+   },
+   {
+    "key": "noseLen",
+    "inputMs": 1048.9,
+    "toFrameMs": 1267.6
+   },
+   {
+    "key": "noseLen",
+    "inputMs": 830.9,
+    "toFrameMs": 980.9
+   },
+   {
+    "key": "noseLen",
+    "inputMs": 837.5,
+    "toFrameMs": 1034
+   },
+   {
+    "key": "noseLen",
+    "inputMs": 799.7,
+    "toFrameMs": 1006.7
+   }
+  ]
+ },
+ "flights": [],
+ "checks": [
+  {
+   "ok": true,
+   "what": "start: the residents are the inside slots, in order",
+   "extra": {
+    "residents": [
+     "fleet-1-cub"
+    ],
+    "inside": [
+     "fleet-1-cub"
+    ],
+    "floor": null,
+    "stand": null
+   }
+  },
+  {
+   "ok": true,
+   "what": "start: no long-term aeroplane among the residents",
+   "extra": [
+    "fleet-2-jodel"
+   ]
+  },
+  {
+   "ok": true,
+   "what": "start: every resident drawn (filled from its bake)",
+   "extra": [
+    {
+     "name": "fleet-1-cub",
+     "filled": true
+    }
+   ]
+  },
+  {
+   "ok": true,
+   "what": "start: the apron's drawn set within the cap (6), no long-term one",
+   "extra": {
+    "stand": [
+     {
+      "slot": "fleet-3-c172",
+      "spotI": 0
+     },
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-5-twinfloats",
+      "spotI": 2
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     }
+    ],
+    "held": [],
+    "miss": 0
+   }
+  },
+  {
+   "ok": true,
+   "what": "start: each apron slot k stands on spot k",
+   "extra": {
+    "apron": [
+     {
+      "slot": "fleet-3-c172",
+      "spotI": 0
+     },
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-5-twinfloats",
+      "spotI": 2
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     }
+    ],
+    "outside": [
+     "fleet-3-c172",
+     "fleet-4-c172floats",
+     "fleet-5-twinfloats",
+     "fleet-6-metal",
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "ok": true,
+   "what": "M1 inside->long: the residents are the inside slots, in order",
+   "extra": {
+    "residents": [],
+    "inside": [
+     null
+    ],
+    "floor": null,
+    "stand": null
+   }
+  },
+  {
+   "ok": true,
+   "what": "M1 inside->long: no long-term aeroplane among the residents",
+   "extra": [
+    "fleet-1-cub",
+    "fleet-2-jodel"
+   ]
+  },
+  {
+   "ok": true,
+   "what": "M1 inside->long: every resident drawn (filled from its bake)",
+   "extra": []
+  },
+  {
+   "ok": true,
+   "what": "M1 inside->long: the apron's drawn set within the cap (6), no long-term one",
+   "extra": {
+    "stand": [
+     {
+      "slot": "fleet-3-c172",
+      "spotI": 0
+     },
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-5-twinfloats",
+      "spotI": 2
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     }
+    ],
+    "held": [],
+    "miss": 0
+   }
+  },
+  {
+   "ok": true,
+   "what": "M1 inside->long: each apron slot k stands on spot k",
+   "extra": {
+    "apron": [
+     {
+      "slot": "fleet-3-c172",
+      "spotI": 0
+     },
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-5-twinfloats",
+      "spotI": 2
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     }
+    ],
+    "outside": [
+     "fleet-3-c172",
+     "fleet-4-c172floats",
+     "fleet-5-twinfloats",
+     "fleet-6-metal",
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "ok": true,
+   "what": "M1 inside->long: no bake, nothing queued",
+   "extra": {
+    "before": {
+     "captures": 5,
+     "bakes": 5,
+     "decodes": 1,
+     "queued": 10,
+     "notWanted": 1,
+     "queue": 0,
+     "busy": false,
+     "cap": 6
+    },
+    "after": {
+     "captures": 5,
+     "bakes": 5,
+     "decodes": 1,
+     "queued": 10,
+     "notWanted": 1,
+     "queue": 0,
+     "busy": false,
+     "cap": 6
+    }
+   }
+  },
+  {
+   "ok": true,
+   "what": "M2 long->inside: the residents are the inside slots, in order",
+   "extra": {
+    "residents": [
+     "fleet-2-jodel"
+    ],
+    "inside": [
+     "fleet-2-jodel"
+    ],
+    "floor": null,
+    "stand": null
+   }
+  },
+  {
+   "ok": true,
+   "what": "M2 long->inside: no long-term aeroplane among the residents",
+   "extra": [
+    "fleet-1-cub"
+   ]
+  },
+  {
+   "ok": false,
+   "what": "M2 long->inside: every resident drawn (filled from its bake)",
+   "extra": [
+    {
+     "name": "fleet-2-jodel",
+     "filled": false
+    }
+   ]
+  },
+  {
+   "ok": true,
+   "what": "M2 long->inside: the apron's drawn set within the cap (6), no long-term one",
+   "extra": {
+    "stand": [
+     {
+      "slot": "fleet-3-c172",
+      "spotI": 0
+     },
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-5-twinfloats",
+      "spotI": 2
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     }
+    ],
+    "held": [],
+    "miss": 0
+   }
+  },
+  {
+   "ok": true,
+   "what": "M2 long->inside: each apron slot k stands on spot k",
+   "extra": {
+    "apron": [
+     {
+      "slot": "fleet-3-c172",
+      "spotI": 0
+     },
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-5-twinfloats",
+      "spotI": 2
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     }
+    ],
+    "outside": [
+     "fleet-3-c172",
+     "fleet-4-c172floats",
+     "fleet-5-twinfloats",
+     "fleet-6-metal",
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "ok": false,
+   "what": "M2 long->inside: no bake, nothing queued",
+   "extra": {
+    "before": {
+     "captures": 5,
+     "bakes": 5,
+     "decodes": 1,
+     "queued": 10,
+     "notWanted": 1,
+     "queue": 0,
+     "busy": false,
+     "cap": 6
+    },
+    "after": {
+     "captures": 5,
+     "bakes": 5,
+     "decodes": 1,
+     "queued": 11,
+     "notWanted": 1,
+     "queue": 1,
+     "busy": false,
+     "cap": 6
+    }
+   }
+  },
+  {
+   "ok": true,
+   "what": "M3 inside->outside: the residents are the inside slots, in order",
+   "extra": {
+    "residents": [],
+    "inside": [
+     null
+    ],
+    "floor": null,
+    "stand": null
+   }
+  },
+  {
+   "ok": true,
+   "what": "M3 inside->outside: no long-term aeroplane among the residents",
+   "extra": [
+    "fleet-1-cub"
+   ]
+  },
+  {
+   "ok": true,
+   "what": "M3 inside->outside: every resident drawn (filled from its bake)",
+   "extra": []
+  },
+  {
+   "ok": true,
+   "what": "M3 inside->outside: the apron's drawn set within the cap (6), no long-term one",
+   "extra": {
+    "stand": [
+     {
+      "slot": "fleet-3-c172",
+      "spotI": 0
+     },
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-5-twinfloats",
+      "spotI": 2
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     },
+     {
+      "slot": "fleet-2-jodel",
+      "spotI": 4
+     }
+    ],
+    "held": [],
+    "miss": 0
+   }
+  },
+  {
+   "ok": true,
+   "what": "M3 inside->outside: each apron slot k stands on spot k",
+   "extra": {
+    "apron": [
+     {
+      "slot": "fleet-3-c172",
+      "spotI": 0
+     },
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-5-twinfloats",
+      "spotI": 2
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     },
+     {
+      "slot": "fleet-2-jodel",
+      "spotI": 4
+     }
+    ],
+    "outside": [
+     "fleet-3-c172",
+     "fleet-4-c172floats",
+     "fleet-5-twinfloats",
+     "fleet-6-metal",
+     "fleet-2-jodel",
+     null
+    ]
+   }
+  },
+  {
+   "ok": false,
+   "what": "M3 inside->outside: no bake, nothing queued",
+   "extra": {
+    "before": {
+     "captures": 5,
+     "bakes": 5,
+     "decodes": 1,
+     "queued": 10,
+     "notWanted": 1,
+     "queue": 0,
+     "busy": false,
+     "cap": 6
+    },
+    "after": {
+     "captures": 6,
+     "bakes": 5,
+     "decodes": 1,
+     "queued": 11,
+     "notWanted": 1,
+     "queue": 0,
+     "busy": true,
+     "cap": 6
+    }
+   }
+  },
+  {
+   "ok": true,
+   "what": "M4 outside->inside: the residents are the inside slots, in order",
+   "extra": {
+    "residents": [
+     "fleet-3-c172"
+    ],
+    "inside": [
+     "fleet-3-c172"
+    ],
+    "floor": null,
+    "stand": null
+   }
+  },
+  {
+   "ok": true,
+   "what": "M4 outside->inside: no long-term aeroplane among the residents",
+   "extra": [
+    "fleet-1-cub"
+   ]
+  },
+  {
+   "ok": true,
+   "what": "M4 outside->inside: every resident drawn (filled from its bake)",
+   "extra": [
+    {
+     "name": "fleet-3-c172",
+     "filled": true
+    }
+   ]
+  },
+  {
+   "ok": true,
+   "what": "M4 outside->inside: the apron's drawn set within the cap (6), no long-term one",
+   "extra": {
+    "stand": [
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-5-twinfloats",
+      "spotI": 2
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     },
+     {
+      "slot": "fleet-2-jodel",
+      "spotI": 4
+     }
+    ],
+    "held": [],
+    "miss": 0
+   }
+  },
+  {
+   "ok": true,
+   "what": "M4 outside->inside: each apron slot k stands on spot k",
+   "extra": {
+    "apron": [
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-5-twinfloats",
+      "spotI": 2
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     },
+     {
+      "slot": "fleet-2-jodel",
+      "spotI": 4
+     }
+    ],
+    "outside": [
+     null,
+     "fleet-4-c172floats",
+     "fleet-5-twinfloats",
+     "fleet-6-metal",
+     "fleet-2-jodel",
+     null
+    ]
+   }
+  },
+  {
+   "ok": false,
+   "what": "M4 outside->inside: no bake, nothing queued",
+   "extra": {
+    "before": {
+     "captures": 5,
+     "bakes": 5,
+     "decodes": 1,
+     "queued": 10,
+     "notWanted": 1,
+     "queue": 0,
+     "busy": false,
+     "cap": 6
+    },
+    "after": {
+     "captures": 6,
+     "bakes": 6,
+     "decodes": 2,
+     "queued": 11,
+     "notWanted": 1,
+     "queue": 0,
+     "busy": false,
+     "cap": 6
+    }
+   }
+  },
+  {
+   "ok": true,
+   "what": "M5 outside->long: the residents are the inside slots, in order",
+   "extra": {
+    "residents": [
+     "fleet-3-c172"
+    ],
+    "inside": [
+     "fleet-3-c172"
+    ],
+    "floor": null,
+    "stand": null
+   }
+  },
+  {
+   "ok": true,
+   "what": "M5 outside->long: no long-term aeroplane among the residents",
+   "extra": [
+    "fleet-1-cub",
+    "fleet-5-twinfloats"
+   ]
+  },
+  {
+   "ok": true,
+   "what": "M5 outside->long: every resident drawn (filled from its bake)",
+   "extra": [
+    {
+     "name": "fleet-3-c172",
+     "filled": true
+    }
+   ]
+  },
+  {
+   "ok": true,
+   "what": "M5 outside->long: the apron's drawn set within the cap (6), no long-term one",
+   "extra": {
+    "stand": [
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     },
+     {
+      "slot": "fleet-2-jodel",
+      "spotI": 4
+     }
+    ],
+    "held": [],
+    "miss": 0
+   }
+  },
+  {
+   "ok": true,
+   "what": "M5 outside->long: each apron slot k stands on spot k",
+   "extra": {
+    "apron": [
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     },
+     {
+      "slot": "fleet-2-jodel",
+      "spotI": 4
+     }
+    ],
+    "outside": [
+     null,
+     "fleet-4-c172floats",
+     null,
+     "fleet-6-metal",
+     "fleet-2-jodel",
+     null
+    ]
+   }
+  },
+  {
+   "ok": false,
+   "what": "M5 outside->long: no bake, nothing queued",
+   "extra": {
+    "before": {
+     "captures": 5,
+     "bakes": 5,
+     "decodes": 1,
+     "queued": 10,
+     "notWanted": 1,
+     "queue": 0,
+     "busy": false,
+     "cap": 6
+    },
+    "after": {
+     "captures": 6,
+     "bakes": 6,
+     "decodes": 2,
+     "queued": 11,
+     "notWanted": 1,
+     "queue": 0,
+     "busy": false,
+     "cap": 6
+    }
+   }
+  },
+  {
+   "ok": true,
+   "what": "M6 long->outside: the residents are the inside slots, in order",
+   "extra": {
+    "residents": [
+     "fleet-3-c172"
+    ],
+    "inside": [
+     "fleet-3-c172"
+    ],
+    "floor": null,
+    "stand": null
+   }
+  },
+  {
+   "ok": true,
+   "what": "M6 long->outside: no long-term aeroplane among the residents",
+   "extra": [
+    "fleet-1-cub"
+   ]
+  },
+  {
+   "ok": true,
+   "what": "M6 long->outside: every resident drawn (filled from its bake)",
+   "extra": [
+    {
+     "name": "fleet-3-c172",
+     "filled": true
+    }
+   ]
+  },
+  {
+   "ok": true,
+   "what": "M6 long->outside: the apron's drawn set within the cap (6), no long-term one",
+   "extra": {
+    "stand": [
+     {
+      "slot": "fleet-5-twinfloats",
+      "spotI": 0
+     },
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     },
+     {
+      "slot": "fleet-2-jodel",
+      "spotI": 4
+     }
+    ],
+    "held": [],
+    "miss": 0
+   }
+  },
+  {
+   "ok": true,
+   "what": "M6 long->outside: each apron slot k stands on spot k",
+   "extra": {
+    "apron": [
+     {
+      "slot": "fleet-5-twinfloats",
+      "spotI": 0
+     },
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     },
+     {
+      "slot": "fleet-2-jodel",
+      "spotI": 4
+     }
+    ],
+    "outside": [
+     "fleet-5-twinfloats",
+     "fleet-4-c172floats",
+     null,
+     "fleet-6-metal",
+     "fleet-2-jodel",
+     null
+    ]
+   }
+  },
+  {
+   "ok": false,
+   "what": "M6 long->outside: no bake, nothing queued",
+   "extra": {
+    "before": {
+     "captures": 5,
+     "bakes": 5,
+     "decodes": 1,
+     "queued": 10,
+     "notWanted": 1,
+     "queue": 0,
+     "busy": false,
+     "cap": 6
+    },
+    "after": {
+     "captures": 6,
+     "bakes": 6,
+     "decodes": 2,
+     "queued": 11,
+     "notWanted": 1,
+     "queue": 0,
+     "busy": false,
+     "cap": 6
+    }
+   }
+  },
+  {
+   "ok": true,
+   "what": "a taken inside slot is refused with its reason",
+   "extra": "inside slot 1 of HOME is taken"
+  },
+  {
+   "ok": true,
+   "what": "M7 inside->long: the residents are the inside slots, in order",
+   "extra": {
+    "residents": [],
+    "inside": [
+     null
+    ],
+    "floor": null,
+    "stand": null
+   }
+  },
+  {
+   "ok": true,
+   "what": "M7 inside->long: no long-term aeroplane among the residents",
+   "extra": [
+    "fleet-1-cub",
+    "fleet-3-c172"
+   ]
+  },
+  {
+   "ok": true,
+   "what": "M7 inside->long: every resident drawn (filled from its bake)",
+   "extra": []
+  },
+  {
+   "ok": true,
+   "what": "M7 inside->long: the apron's drawn set within the cap (6), no long-term one",
+   "extra": {
+    "stand": [
+     {
+      "slot": "fleet-5-twinfloats",
+      "spotI": 0
+     },
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     },
+     {
+      "slot": "fleet-2-jodel",
+      "spotI": 4
+     }
+    ],
+    "held": [],
+    "miss": 0
+   }
+  },
+  {
+   "ok": true,
+   "what": "M7 inside->long: each apron slot k stands on spot k",
+   "extra": {
+    "apron": [
+     {
+      "slot": "fleet-5-twinfloats",
+      "spotI": 0
+     },
+     {
+      "slot": "fleet-4-c172floats",
+      "spotI": 1
+     },
+     {
+      "slot": "fleet-6-metal",
+      "spotI": 3
+     },
+     {
+      "slot": "fleet-2-jodel",
+      "spotI": 4
+     }
+    ],
+    "outside": [
+     "fleet-5-twinfloats",
+     "fleet-4-c172floats",
+     null,
+     "fleet-6-metal",
+     "fleet-2-jodel",
+     null
+    ]
+   }
+  },
+  {
+   "ok": false,
+   "what": "M7 inside->long: no bake, nothing queued",
+   "extra": {
+    "before": {
+     "captures": 5,
+     "bakes": 5,
+     "decodes": 1,
+     "queued": 10,
+     "notWanted": 1,
+     "queue": 0,
+     "busy": false,
+     "cap": 6
+    },
+    "after": {
+     "captures": 6,
+     "bakes": 6,
+     "decodes": 2,
+     "queued": 11,
+     "notWanted": 1,
+     "queue": 0,
+     "busy": false,
+     "cap": 6
+    }
+   }
+  }
+ ],
+ "fails": [
+  "M2 long->inside: every resident drawn (filled from its bake)",
+  "M2 long->inside: no bake, nothing queued",
+  "M3 inside->outside: no bake, nothing queued",
+  "M4 outside->inside: no bake, nothing queued",
+  "M5 outside->long: no bake, nothing queued",
+  "M6 long->outside: no bake, nothing queued",
+  "M7 inside->long: no bake, nothing queued"
+ ],
+ "load": 75.428,
+ "simw": {
+  "on": true,
+  "phase": "idle",
+  "reason": null,
+  "mode": "realtime",
+  "flights": 0,
+  "inline": 0,
+  "stepsPosted": 0,
+  "lastStep": 0,
+  "snaps": 0,
+  "cmds": 2,
+  "batches": 0,
+  "strays": 0,
+  "wvSent": 1,
+  "wvSeen": 0,
+  "wvBad": 0,
+  "wvLagFrames": 0,
+  "wvMaxLag": 0,
+  "placeOk": null,
+  "placeDiff": null,
+  "initMs": null,
+  "bootFetchMs": 285.59999990463257,
+  "bootBytes": 82827017,
+  "readyWaitFrames": 0,
+  "errors": [],
+  "lastError": null,
+  "physMs": 0,
+  "host": null,
+  "premEdits": 0,
+  "prewarmed": true,
+  "worldMs": 860.8000000715256,
+  "legs": 0,
+  "diverged": false,
+  "pre": [
+   "vendor/three.min.js",
+   "tools/_house_kit.js",
+   "tools/_house_gen.js",
+   "tools/_big_gen.js",
+   "tools/_shed_gen.js",
+   "tools/_hangar_gen.js",
+   "tools/_tower_gen.js",
+   "tools/_tram_gen.js",
+   "tools/_totem_gen.js"
+  ],
+  "cookedCells": 92,
+  "dead": null,
+  "flight": null,
+  "view": null,
+  "ring": null
+ },
+ "baked": {
+  "secs": 301.08,
+  "residents": {
+   "plan": [
+    {
+     "name": "fleet-1-cub",
+     "filled": true
+    }
+   ],
+   "unplaced": [],
+   "err": null,
+   "how": "the room moved",
+   "ms": 0,
+   "packs": 3
+  },
+  "fleet": {
+   "captures": 5,
+   "bakes": 5,
+   "decodes": 1,
+   "queued": 10,
+   "notWanted": 1,
+   "queue": 0,
+   "busy": false,
+   "cap": 6
+  }
+ },
+ "start": {
+  "V": {
+   "aero": "HOME",
+   "hangar": "HOME",
+   "shell": "club",
+   "floor": null,
+   "inside": {
+    "N": 1,
+    "slots": [
+     "fleet-1-cub"
+    ]
+   },
+   "outside": {
+    "M": 6,
+    "slots": [
+     "fleet-3-c172",
+     "fleet-4-c172floats",
+     "fleet-5-twinfloats",
+     "fleet-6-metal",
+     null,
+     null
+    ]
+   },
+   "long": [
+    "fleet-2-jodel"
+   ],
+   "others": []
+  },
+  "R": {
+   "plan": [
+    {
+     "name": "fleet-1-cub",
+     "filled": true
+    }
+   ],
+   "unplaced": [],
+   "err": null,
+   "how": "the room moved",
+   "ms": 0.1,
+   "packs": 3
+  },
+  "A": {
+   "stand": [
+    {
+     "slot": "fleet-3-c172",
+     "spotI": 0
+    },
+    {
+     "slot": "fleet-4-c172floats",
+     "spotI": 1
+    },
+    {
+     "slot": "fleet-5-twinfloats",
+     "spotI": 2
+    },
+    {
+     "slot": "fleet-6-metal",
+     "spotI": 3
+    }
+   ],
+   "held": [],
+   "miss": 0
+  },
+  "FS": {
+   "captures": 5,
+   "bakes": 5,
+   "decodes": 1,
+   "queued": 10,
+   "notWanted": 1,
+   "queue": 0,
+   "busy": false,
+   "cap": 6
+  }
+ },
+ "stats0": {
+  "captures": 5,
+  "bakes": 5,
+  "decodes": 1,
+  "queued": 10,
+  "notWanted": 1,
+  "queue": 0,
+  "busy": false,
+  "cap": 6
+ }
+}

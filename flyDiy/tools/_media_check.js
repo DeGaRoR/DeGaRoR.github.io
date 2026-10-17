@@ -276,6 +276,16 @@ function manifestFiles() {
       .filter(f => /_(?:char|anim)\.js$|^chars_ktx2\.js$/.test(f))   // + AS6's budget table (G935)
       .map(f => path.join(ROOT, 'src', 'chars', f))
     : [];
+  // THE CROWD (CHARACTERS G2970): src/chars/crowd_pack.json names the clips' bins, the cast's budget KTX2 and each cast
+  // member's manifest - a media file itself (media/chars/<key>.<h8>.json), read as a manifest too (its bin, its maps)
+  const crowdP = path.join(ROOT, 'src', 'chars', 'crowd_pack.json');
+  if (fs.existsSync(crowdP)) {
+    chars.push(crowdP);
+    try {
+      for (const c of JSON.parse(fs.readFileSync(crowdP, 'utf8')).cast || [])
+        if (c.man && fs.existsSync(path.join(ROOT, c.man))) chars.push(path.join(ROOT, c.man));
+    } catch (e) {}
+  }
   // the animals (2026-09-22): the baked skins and their clip libraries, plus
   // the levels pack tools/animal_lod.js cuts - every manifest on disk, the
   // same catalogue-not-publish-list reasoning as the models above

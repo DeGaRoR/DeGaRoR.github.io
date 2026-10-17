@@ -619,6 +619,9 @@
         if (foots[info.saved]) d.fleet[info.saved].foot = parkFoot(foots[info.saved]);
         if (info.repainted) d = playerWearReset(d, info.saved).doc;
         if (CAREER_DEV && isNew) d = econMaterialiseNow(d, info.saved);   // G2260 (ECONOMY): a new airframe is paid for
+        // G2690 (HANGAR-STORAGE): a NEW airframe just saved is the one on the stand - onto `here`'s floor (a swap). A
+        // re-save leaves it where it stands (FLEET-PROPS' bake bound reads its place: an apron airframe saved is baked)
+        if (isNew && typeof playerFloorSync === 'function') d = playerFloorSync(d, info.saved).doc;
       }
       // G2280 (PROCURE, GQ2): a maker's or a used airframe saved under another fingerprint is MODIFIED - the factory
       // certificate withdrawn, the change billed at build price (dm11); a repaint changes nothing (career only)
@@ -888,6 +891,10 @@
   // drawElements while the driver linked the world's programs - a probe of a room nobody is standing in. envAway is
   // set on the way out (rollOutStand) and cleared on the way back (enterGarage), which bakes once if anything asked.
   let envDeferred = false, envDirty = false, envAway = false;
+  // G2662: the clock's sliced bake (bakeHangarEnvSliced / envSliceStep, after bakeHangarEnv) and the bakes' counts
+  let envSlice = null;
+  const ENV_BAKES = { oneShot: 0, slices: 0, jobs: 0, requests: 0 };
+  if (typeof window !== 'undefined') window.FLYDIY_ENV_BAKES = () => Object.assign({ running: envSlice ? envSlice.step : -1 }, ENV_BAKES);
   function ensureEnvRT() {
     if (!envRT && THREE.WebGLCubeRenderTarget) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
     return envRT;
@@ -899,9 +906,47 @@
   // changes size rebuilds its blur program too).
   const envGens = {};
   const envGen = k => envGens[k] || (envGens[k] = new THREE.PMREMGenerator(renderer));
-  function bakeHangarEnv() {
+  // T52b (A0 / HWCOV, 13 Oct): THE PMREM PROGRAMS ARE LINKED OFF THE MAIN THREAD BEFORE A BOOT BAKE. A bake's first
+  // PMREM links three's PMREMGGXConvolution (256 GGX samples) - and SphericalGaussianBlur for the sky probe's
+  // fromScene - SYNCHRONOUSLY on its first draw: 11.2 s in the compile step's done() once a merge dirtied the room
+  // during boot (train 52b: worst task 0.9 -> 10.3 s). The programs are keyed by the generator's SIZE, not by the
+  // generator, so one warm per size covers the room's cube (256), the sky probe (fromScene, 256) and the sky's
+  // equirect (its width / 4): compileAsync over the generator's own materials, drawn into its own ping-pong target
+  // (a render target's key: no tone mapping, linear), so the bake's link is a cache hit. three r186's PMREMGenerator
+  // internals (_setSize, _allocateTargets, _ggxMaterial, _blurMaterial, _lodMeshes, _pingPongRenderTarget): any missing,
+  // nothing is warmed and the bake links as before.
+  const pmremWarmed = {};
+  function pmremWarm(key, size) {
+    size = Math.round(size) || 0;
+    if (pmremWarmed[size]) return pmremWarmed[size];
+    const none = Promise.resolve();
+    if (size < 16 || typeof renderer.compileAsync !== 'function' || !THREE.PMREMGenerator || !THREE.Mesh || !THREE.OrthographicCamera) return none;
+    try {
+      const g = envGen(key);
+      if (typeof g._setSize !== 'function' || typeof g._allocateTargets !== 'function') return none;
+      g._setSize(size); const rt = g._allocateTargets(); if (rt && rt.dispose) rt.dispose();
+      const L = g._lodMeshes && g._lodMeshes[1], T = g._pingPongRenderTarget;
+      const mats = [g._ggxMaterial, g._blurMaterial].filter(Boolean);
+      if (!L || !T || !mats.length) return none;
+      const grp = new THREE.Group(); for (const m of mats) grp.add(new THREE.Mesh(L.geometry, m));
+      const prev = renderer.getRenderTarget(); let p = null;
+      try { renderer.setRenderTarget(T); p = renderer.compileAsync(grp, new THREE.OrthographicCamera()); } finally { renderer.setRenderTarget(prev); }
+      return (pmremWarmed[size] = Promise.resolve(p).catch(e => console.warn('pmrem warm:', e && e.message)));
+    } catch (e) { console.warn('pmrem warm:', e && e.message); return none; }
+  }
+  // the sizes a garage bake can ask for: the room's cube, and the sky's equirect when the physical sky is off
+  const pmremWarmBake = () => {
+    const sky = !(typeof ATMO !== 'undefined' && ATMO.enabled) && hangar && hangar.skyTexture ? hangar.skyTexture() : null;   // (the bake's own read)
+    return Promise.all([pmremWarm('room', 256), sky && sky.image && sky.image.width ? pmremWarm('sky', sky.image.width / 4) : null]);
+  };
+  function bakeHangarEnv(o) {
     if (envDeferred || envAway) { envDirty = true; return; }
     if (!hangar || !THREE.PMREMGenerator || !renderer.setRenderTarget) return;
+    // G2662: `o.part` is one slice of the clock's sliced bake (envSliceStep, below): 'face' (o.face, 0-5: that face of
+    // the cube only), 'room' (the PMREM of the faces already shot + the swap), 'outdoors' (the outdoor materials' sky).
+    // No `o` = the one-shot bake every other caller asks for; it shoots everything now, so a sliced job is moot.
+    const part = o && o.part;
+    if (!part) { envSlice = null; ENV_BAKES.oneShot++; } else ENV_BAKES.slices++;
     // (one light model everywhere since W0.5a: r186 has only the physical one)
     const pm = envGen('room');
     // ASKED FOR, not remembered (G62): the sky changes with the mood, so the
@@ -909,7 +954,7 @@
     // A GRADED ROOM (G62.2) has no baked picture to hand over: its sky only
     // exists as the backdrop's own shader, so it renders one at probe size on
     // demand. `renderSky` is a no-op when nothing has changed since the last.
-    if (hangar.renderSky) hangar.renderSky(renderer);
+    if (hangar.renderSky && !part) hangar.renderSky(renderer);
     const sky = hangar.skyTexture ? hangar.skyTexture() : null;
     const skyReady = envSource === 'sky' && sky && sky.image &&
                      sky.image.width && pm.fromEquirectangular;
@@ -923,8 +968,9 @@
       const pmS = envGen('sky');
       pmS.compileEquirectangularShader();
       rt = pmS.fromEquirectangular(sky);
-    } else if (THREE.WebGLCubeRenderTarget) {
+    } else if (THREE.WebGLCubeRenderTarget && part !== 'outdoors') {
       ensureEnvRT();
+      if (part !== 'room') {
       const cam = new THREE.CubeCamera(0.5, 100, envRT);
       if (UIL) for (const c of cam.children) UIL.blind(c);   // G1370: the probe never bakes a UI helper (its six are born blind; said)
       // G439 (A5): THE PROBE STANDS UNDER THE LAMPS. 3.2 m is a club-hangar
@@ -1007,11 +1053,19 @@
         gWas.push([m, m.color.clone()]);
         m.color.multiplyScalar(gb);
       }
-      cam.update(renderer, hangarScene);
+      if (part === 'face') {
+        // G2662: ONE FACE - the CubeCamera's own update (its targets, its faces' order, the mip rule on the last), the other
+        // five renders skipped; the subjects hidden and the ground scaled around this face exactly as around all six
+        const rr = renderer.render, want = cam.children[o.face];
+        renderer.render = function (sc, c) { if (c === want) return rr.apply(this, arguments); };
+        try { cam.update(renderer, hangarScene); } finally { renderer.render = rr; }
+      } else cam.update(renderer, hangarScene);
       for (const [m, c0] of gWas) m.color.copy(c0);
       hangar.shafts.visible = shWas;
       subjects.forEach((o, i) => { if (o) o.visible = subWas[i]; });
       craft.visible = crWas;
+      }
+      if (part === 'face') return;
       rt = pm.fromCubemap(envRT.texture);
     }
     if (rt) {
@@ -1019,6 +1073,7 @@
       if (envPM && envPM !== rt) envPM.dispose();
       envPM = rt;
     }
+    if (part === 'room') return;
     // ---- THE OUTDOORS IS LIT BY THE SKY, NOT BY THE SHED (G123) ----------
     // scene.environment is one texture for the whole room, and the room's is a
     // cube probe taken INSIDE it: warm sheet steel, warm lamps, a warm floor.
@@ -1059,6 +1114,35 @@
       sky.image.addEventListener('load', () => { sky.needsUpdate = true; bakeHangarEnv(); });
     }
   }
+  // G2662 (SIM-CLOCK-GPU, 2026-10-11): THE CLOCK'S BAKE, A SLICE A FRAME. A jump of the clock (a Wait, a preset) re-shot the
+  // room's probe in ONE frame - six cube faces of the whole room and the PMREM, and when the jump crossed a mood band
+  // setMood shot it a SECOND time in the same frame: 267-384 ms tasks on the laptop rung (G2660). The clock's two
+  // requests (shedDayTick's rebake, setMood fromClock) now coalesce into ONE job shot over eight garage frames: a face a
+  // frame, then the room's PMREM and swap, then the outdoors' sky. The room keeps its old probe on screen until the new
+  // one is whole (~0.27 s at 30 fps, inside the light's own 1.2 s ease) - never skipped, never left stale: a request
+  // that arrives after the job's first face runs the job once more. Every other caller keeps the one-shot bake, which
+  // also supersedes a running job. Counted in window.FLYDIY_ENV_BAKES (the node rows read it).
+  function bakeHangarEnvSliced() {
+    if (envDeferred || envAway) { envDirty = true; return; }
+    ENV_BAKES.requests++;
+    // (window.FLYDIY_CLOCKSLICE = false: the old path - a one-shot per request - for the A/B and GATE CLOCKBAKE's control)
+    if (typeof window !== 'undefined' && window.FLYDIY_CLOCKSLICE === false) { bakeHangarEnv(); return; }
+    const sky = hangar && hangar.skyTexture ? hangar.skyTexture() : null;
+    // the sky source is one equirect PMREM, no cube to slice: the one-shot
+    if (!hangar || !THREE.WebGLCubeRenderTarget || !THREE.PMREMGenerator || !renderer.setRenderTarget || (envSource === 'sky' && sky && sky.image && sky.image.width)) { bakeHangarEnv(); return; }
+    if (envSlice) { if (envSlice.step > 0) envSlice.again = true; return; }   // nothing shot yet: this job already sees it
+    envSlice = { step: 0, again: false };
+  }
+  function envSliceStep() {
+    const J = envSlice;
+    if (!J) return;
+    if (envDeferred || envAway || !hangar) { envSlice = null; envDirty = true; return; }
+    if (J.step === 0 && hangar.renderSky) hangar.renderSky(renderer);
+    bakeHangarEnv(J.step < 6 ? { part: 'face', face: J.step } : { part: J.step === 6 ? 'room' : 'outdoors' });
+    if (envSlice !== J) return;   // (a one-shot inside it took over)
+    J.step++;
+    if (J.step > 7) { envSlice = null; ENV_BAKES.jobs++; if (J.again) bakeHangarEnvSliced(); }
+  }
   // ONE SKY (S5): the day on the shed (the frame loop's, every garage frame; and the boot's compile step, once): the
   // physical dome and the cloud dome swapped in, the key aimed, the sky's LUT, the mood's row; the room's probe re-shot
   // when the sun has moved 1.5 deg. C0c: THE BOOT APPLIES IT BEFORE ITS BAKE. applyDay was the frame loop's alone, so the
@@ -1069,7 +1153,7 @@
   function shedDayTick() {
     if (!hangar || !hangar.applyDay || !world.day) return;
     const r = hangar.applyDay(world.day, renderer);
-    if (r && r.rebake) { bakeHangarEnv(); r.markBaked(); }
+    if (r && r.rebake) { bakeHangarEnvSliced(); r.markBaked(); }   // G2662: the clock's bake, a slice a frame
     if (r && hangar.moodFor) { const mi = hangar.moodFor(world.day); if (mi !== hangarMood) setMood(mi, { fromClock: true }); }
     shedCraftLights(world.day);
   }
@@ -1338,13 +1422,17 @@
     const t0 = performance.now();
     if (!RES.group) { RES.group = new THREE.Group(); RES.group.name = 'garageResidents'; }
     if (RES.group.parent !== hangarScene) hangarScene.add(RES.group);
-    const d = playerLoad(), id = 'HOME', shed = d.sheds[id];
+    // G2690 (HANGAR-STORAGE): the room's own residents (`here`'s building; HOME's in the career as before)
+    const d = playerLoad(), id = roomId(), shed = d.sheds[id];
     if (!shed) return;
     const stand = slotOnStand();
     // the parked slots (playerSlots: { bay, parked, total } - the main hangar's bay is the stand's)
     const S = typeof playerSlots === 'function' ? playerSlots(d, id) : null;
     const max = Math.max(0, (S && isFinite(S.parked)) ? S.parked : 2);
-    const names = playerResidents(d, id).filter(n => n !== stand).slice(0, max);
+    // G2690: the INSIDE slots, in slot order (then the floor's aeroplane when the stand holds another build) - a
+    // long-term airframe is never drawn; a storage move re-plans from here, the props decoded from their bakes
+    const names = typeof playerResidentsShown === 'function' ? playerResidentsShown(d, id, stand, max)
+      : playerResidents(d, id).filter(n => n !== stand).slice(0, max);
     const q = v => Math.round(v * 4) / 4, clr = typeof PARK_CLR === 'number' ? PARK_CLR : 0.5;
     const has = !!(bb && isFinite(bb.min.x) && bb.max.x > bb.min.x);
     // the stand's box, scene frame, and as a footprint about its origin (the model's)
@@ -1517,7 +1605,7 @@
     // A MOOD IS A NEW SKY, so the reflections belong to a different time of
     // day: re-bake. Deliberately NOT in applyEnv — that is on the editor's
     // slider drag path and a PMREM per frame would stall it.
-    if (hangar) bakeHangarEnv();
+    if (hangar) { if (opt && opt.fromClock) bakeHangarEnvSliced(); else bakeHangarEnv(); }   // G2662: the clock's mood joins its job
   }
   // THE ENV HANDLE (G40, reworked G41): the editor panel's "hangar"
   // section drives the room through this — lighting mood, the material
@@ -5935,7 +6023,14 @@
     const shedD = shedDimsAt(from.id, st, rh);   // PREM-S2: the shed at THIS field (HOME's is the player's room); G2310: the hangar it leaves
     // G700: ...on ITS OWN GROUND - the walked stand reads the terrain under it (it fell back to the runway's elevation)
     const stGround = (world && typeof world.terrainH === 'function') ? ((x, z) => world.terrainH(x, z)) : null;
-    const stand = (st && flStartTaxi()) ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : st.stand) : null;
+    // G2690 (HANGAR-STORAGE): an aeroplane flown from an INSIDE slot starts lined up on the runway (the taxi's end, by the
+    // wind: placeLinedUp below), whatever the start pref; from the apron, the stand (today's stand logic)
+    const ssNow = storeStartNow();
+    const taxiStart = flStartTaxi() && !(ssNow && ssNow.start === 'lineup');
+    // G2701: an apron aeroplane on its own tie-down spot (its ground read under it), else today's stand
+    const spot = (ssNow && ssNow.start === 'stand' && ssNow.spot && ssNow.spot.aero === from.id) ? ssNow.spot : null;
+    const spotStand = spot ? Object.assign({ x: spot.x, z: spot.z, hdg: spot.hdg }, stGround && Number.isFinite(+stGround(spot.x, spot.z)) ? { elev: +(+stGround(spot.x, spot.z)).toFixed(2) } : {}) : null;
+    const stand = (st && taxiStart) ? (spotStand || ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : st.stand)) : null;
     const stSite = (st && stand && stand !== st.stand) ? Object.assign({}, st, { stand }) : st;
     patternVisFor(from, stSite);
     // G771: how this flight began - the skip reads it (the stand it would taxi from, the site it plans on)
@@ -7799,8 +7894,8 @@
     el.hidden = false;
   }
   let arrWhy = false, arrVerd = [];
-  // G1868: a crash's card folds on its title (and unfolds)
-  { const h = $('arrHead'); if (h && h.addEventListener) h.addEventListener('click', () => { const el = $('arrCard'); if (el && el.classList.contains('wreck')) el.classList.toggle('min'); }); }
+  // G1868: a crash's card folds on its title (and unfolds); G3060 (CARDS-CORNER): every ending's card, in its corner
+  { const h = $('arrHead'); if (h && h.addEventListener) h.addEventListener('click', () => { const el = $('arrCard'); if (el) el.classList.toggle('min'); }); }
   function drawArrNotes() {
     const n = $('arrNotes');
     if (!n) return;
@@ -7888,6 +7983,110 @@
       return r;
     } catch (e) { return null; }
   }
+  // ---- G2690 HANGAR-STORAGE: WHERE THE AEROPLANES ARE KEPT, AND FLYING ANY OF THEM FROM WHERE IT STANDS ------------
+  // futureDesigns/game/HANGAR-STORAGE-2026-10-10.md (the user's OK, 10 Oct: no in-world click - this is the ONLY door).
+  // The model is 71_player_bases.js's (playerMove / playerFloorSync / playerFlyStart / playerStoreView, pure); this is the
+  // page's half: the floor follows the stand (a slot load, a save), the moves written to the document, the drawn layers
+  // told (the residents re-plan off their existing bakes; the apron's FLEET_STAND keys its spots by slot at the next
+  // roll-out - no bake on a move), and FLY FROM WHERE IT STANDS through the existing roll-out (rollOut: the trip, the
+  // world, applyRoute's stand / placeLinedUp) - never a launcher of its own. Sandbox and career alike, free and instant.
+  // `var` and a function declaration (hoisted, no TDZ): applyRoute and rollAnim read the start before this line has run
+  var storeStart = null, storeSyncHold = false;
+  // the start a storage Fly asked for, while that aeroplane is still the one on the stand (a restart keeps it)
+  function storeStartNow() { try { return storeStart && storeStart.slot === slotOnStand() ? storeStart : null; } catch (e) { return null; } }
+  function storeChanged() {
+    try { if (inGarage) residentsSync(RES.bb); } catch (e) {}
+    try { if (window.FLYDIY_PLAYER && window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
+    try { if (window.FLYDIY_STORE && window.FLYDIY_STORE.onChange) window.FLYDIY_STORE.onChange(); } catch (e) {}
+  }
+  // a slot loaded onto the stand (garage.js api.loaded): it is on `here`'s floor now (a swap); a storage Fly's own load
+  // keeps its place (the aeroplane departs from where it stands)
+  function storeFloorFollows(name) {
+    if (storeSyncHold || !name || typeof playerFloorSync !== 'function') return;
+    try {
+      const r = playerFloorSync(playerLoad(), name);
+      if (r.ok && r.doc !== playerLoad()) { player = r.doc; playerSave(); storeChanged(); }
+    } catch (e) { console.warn('flyDiy: the floor could not follow the stand -', e && e.message); }
+  }
+  const storeFoots = name => { const f = {}; try { if (name && name === slotOnStand() && def && typeof playerFootOfDef === 'function') { const m = playerFootOfDef(def); if (m) f[name] = m; } } catch (e) {} return f; };
+  // ONE MOVE: { kind: 'floor' | 'inside' | 'outside' | 'long', hangar?, slot? } -> { ok, why, where, swapped }. The floor IS
+  // "Work on": the slot onto the stand through the garage's own load (the fleet rack's door, a resident's swap in the
+  // career), which moves it there (storeFloorFollows); an unsaved build on the stand is the caller's to confirm.
+  function storeMove(name, to) {
+    const out = r => ({ ok: !!r.ok, why: r.why || '', where: r.where || null, swapped: r.swapped || null });
+    try {
+      if (to && to.kind === 'floor' && name !== slotOnStand() && window.GARAGE_SPEC && window.GARAGE_SPEC.open) {
+        const pre = playerMove(playerLoad(), name, Object.assign({ hangar: roomId() }, to));   // refused? say why, load nothing
+        if (!pre.ok) return out(pre);
+        if (CAREER_DEV && RES.plan.some(p => p.name === name)) residentSwap(name, { force: true });
+        else window.GARAGE_SPEC.open(name);
+        if (inGarage) applyEnv();
+        const W = playerStoreWhere(playerLoad(), name);
+        return { ok: W.kind === 'floor', why: W.kind === 'floor' ? '' : 'the load did not reach the stand', where: W, swapped: pre.swapped };
+      }
+      const r = playerMove(playerLoad(), name, to, { foots: storeFoots(name) });
+      if (r.ok && r.doc !== playerLoad()) {
+        player = r.doc; playerSave(); storeChanged();
+        // onto the apron: the fleet's bake queue looks at it (FLEET-PROPS' bound decides; an airframe already baked is a
+        // signature hit - a move never re-bakes)
+        try { if (window.PARKED && window.PARKED.fleetQueue) for (const n of [name, r.swapped && r.swapped.name]) if (n && playerStoreWhere(player, n).kind === 'outside') window.PARKED.fleetQueue(n); } catch (e) {}
+      }
+      return out(r);
+    } catch (e) { return { ok: false, why: String((e && e.message) || e), where: null, swapped: null }; }
+  }
+  // FLY FROM WHERE IT STANDS (playerFlyStart): inside -> lined up on the runway (by the wind), outside -> the stand, the
+  // floor -> today's roll-out; long-term refused. The aeroplane is put on the stand (the garage's load, its place kept)
+  // and rolled out exactly as the garage's own Fly does.
+  function storeFly(name) {
+    const S = typeof playerFlyStart === 'function' ? playerFlyStart(playerLoad(), name) : { ok: false, why: 'no storage model' };
+    if (!S.ok) return S;
+    if (GARAGE_ONLY) return Object.assign({}, S, { ok: false, why: 'the garage on its own has no world to fly in' });
+    if (!inGarage) return Object.assign({}, S, { ok: false, why: 'Fly from the garage' });
+    if (name !== slotOnStand()) {
+      if (!window.GARAGE_SPEC || !window.GARAGE_SPEC.open) return Object.assign({}, S, { ok: false, why: 'the garage is not up' });
+      storeSyncHold = true;
+      try { window.GARAGE_SPEC.open(name); } finally { storeSyncHold = false; }
+      if (name !== slotOnStand()) return Object.assign({}, S, { ok: false, why: name + ' could not be loaded' });
+    }
+    storeStart = { slot: name, kind: S.kind, start: S.start, spot: S.kind === 'outside' ? storeSpotOf(name, S.aero) : null };
+    rollOut(() => { started = true; }, true);
+    return S;
+  }
+  // G2701 (HANGAR-STORAGE-2): AN APRON AEROPLANE STARTS ON ITS OWN SPOT - the tie-down spot FLEET_STAND stands its prop on
+  // (the cooked pack's spot by its apron slot, the same deal - every row, no cap, nothing flown), as a stand: { x, z, hdg }
+  // (a spot's nose is along (cos ry, -sin ry), placeAtAerodrome's along (cos hdg, sin hdg): hdg = -ry). null when the
+  // world has no spot for it - the start is then today's stand.
+  function storeSpotOf(name, aero) {
+    try {
+      const F = window.FLEET_STAND, isl = world && world.island && world.island.id;
+      if (!F || !F.plan || !isl || !aero) return null;
+      const p = F.plan(playerLoad(), null, window.FLEET_SPOTS_PACK, isl, null, aero, null).stand.find(q => q.slot === name);
+      return p && Number.isFinite(p.x) && Number.isFinite(p.z) ? { aero, x: p.x, z: p.z, hdg: -p.ry, spot: p.spot } : null;
+    } catch (e) { return null; }
+  }
+  // the cards: { name, gear, seats, wear, onStand, thumb } - the saved envelope read for its gear and seats; a baked
+  // thumbnail when the fleet's bake carries one (PARKED.fleetThumb: none yet - the card draws its glyph)
+  function storeCard(name) {
+    let spec = null;
+    try { const env = JSON.parse(prefGet('flydiy.build.' + name, 'null')); spec = env && env.spec; } catch (e) {}
+    const c = typeof playerCardOf === 'function' ? playerCardOf(name, spec) : { name, gear: 'wheels', seats: 0 };
+    let thumb = null;
+    try { if (window.PARKED && typeof window.PARKED.fleetThumb === 'function') thumb = window.PARKED.fleetThumb('mine:' + name) || null; } catch (e) {}
+    return Object.assign(c, { wear: typeof playerWearNow === 'function' ? playerWearNow(playerLoad(), name) : 0, onStand: name === slotOnStand(), thumb });
+  }
+  window.FLYDIY_STORE = {
+    view: () => (typeof playerStoreView === 'function' ? playerStoreView(playerLoad(), roomId()) : null),
+    where: n => (typeof playerStoreWhere === 'function' ? playerStoreWhere(playerLoad(), n) : null),
+    move: (n, to) => storeMove(n, to),
+    workOn: n => storeMove(n, { kind: 'floor' }),
+    flyStart: n => (typeof playerFlyStart === 'function' ? playerFlyStart(playerLoad(), n) : null),
+    fly: n => storeFly(n),
+    card: n => storeCard(n),
+    canFly: () => !GARAGE_ONLY && inGarage,
+    onStand: () => slotOnStand(),
+    start: () => storeStartNow(),
+    onChange: null,
+  };
   // ---- G2300 (STAGES): THE BUILDINGS THE MISSIONS PUT UP - composed at the load (world_boot.js) and at a ROLL-OUT, never
   // in flight (76_stages.js stageHost: a change noted in 'flight' waits, queued). The roll-out's 'stages' trip step
   // recomposes the world on the WHOLE record's view at the new tracks through the world editor's own path - the
@@ -8739,7 +8938,9 @@
     const base = recs.find(r => r.idx === 1) || recs[0];
     const s0 = got.card.seats.find(s => s.i === (base.idx || 1) - 1) || got.card.seats[0];
     const used = new Set(recs.map(r => r.key));
-    const others = (CC.list ? CC.list() : []).map(c => c && c.key).filter(k => k && !used.has(k));
+    // G2970 (CHARACTERS): the crowd's cast first, once its manifests are in (crowdPrep), then the crew's own
+    const cast = window.CROWD && window.CROWD.castKeys ? window.CROWD.castKeys() : [];
+    const others = [...new Set(cast.concat((CC.list ? CC.list() : []).map(c => c && c.key)))].filter(k => k && !used.has(k));
     want.forEach((i, n) => {
       const s = got.card.seats.find(q => q.i === i);
       if (!s) return;
@@ -8755,6 +8956,148 @@
       if (ps && ps[0]) FST.pax.push({ P: ps[0], frame, seat: i });
     });
   }
+  // ---- G2970 (CHARACTERS): THE CROWD ------------------------------------------------------------------------------------
+  // The passengers board at the stand. Every figure seated at the roll-out - a job's passenger FREIGHT-STRAP seats live
+  // (fsPeople, its own character: the crowd's cast first), the build's own baked into the flown model (one bucket per
+  // character: one walker per character) - is hidden, walks out of the hangar's door round the tail, queues at the cabin
+  // door and fades into its seat (src/viewer/crowd.js, lazy; its cast and its clips are media/ files). WHEN: a job that
+  // seats passengers (FREIGHT-STRAP's accepted load); a sandbox build's own passengers only with ?crowd=1 - the stand
+  // rows of the strict gates roll the stock builds out (the C172 seats a co-pilot) and stay as they were. The flight waits
+  // for the last of them (`started` held, so the stand's brake stays on); Go seats everyone at once. ?crowd=0 or
+  // localStorage flydiy.crowd = '0' turns it off. The pilot does not walk (the user: out of scope).
+  const CRW = { on: true, all: false, M: null, gen: 0, seats: new Map(), pending: false, after: null, prep: null, queued: null };
+  try {
+    const q = /[?&]crowd=([01])(&|$)/.exec(window.location.search || '');
+    CRW.on = q ? q[1] === '1' : window.localStorage.getItem('flydiy.crowd') !== '0';
+    CRW.all = !!q && q[1] === '1';
+  } catch (e) {}
+  // the module and the cast's manifests (no bins, no maps), early: fsPeople re-seats a job's passengers as cast members
+  function crowdPrep() {
+    if (CRW.prep) return CRW.prep;
+    return (CRW.prep = Promise.resolve(window.FLYDIY_LAZY ? window.FLYDIY_LAZY('crowd') : null)
+      .then(() => (window.CROWD ? window.CROWD.prepare() : []))
+      .then(ks => { if (ks && ks.length && FST.R && FST.pax.length) { FST.paxKey = null; fsPeople(); } return ks; },
+            e => { CRW.prep = null; throw e; }));
+  }
+  // the figures to walk: { seat, key, meshes() } (meshes() late-bound: a live passenger's character lands async)
+  function crowdSeats() {
+    const M = model;
+    if (!M || !M.grp || !M.data || !M.data.cageM) return [];
+    const live = new Set((M.people || []).map(P => P && P.key)), byKey = new Map(), out = [];
+    const job = !!(FST.R && FST.R.seats && FST.R.seats.some(q => q.job && q.i > 0));
+    // the live crew but the pilot (a C172's co-pilot holds the yoke: live, and a job's passenger sits there)
+    if (CRW.all || job) for (const P of M.people || []) {
+      const nm = P && P.dum && P.dum.fig && P.dum.fig.name;
+      const r = nm && (M.data.people || []).find(q => nm === 'flDum' + q.idx);
+      if (!r || r.role === 'pilot' || P.dead) continue;
+      out.push({ seat: 'l:' + r.idx, key: P.key, meshes: () => (P.inst ? P.inst.meshes : []) });
+    }
+    if (CRW.all || job) for (const k in M.meshes || {}) {
+      const m = (M.mats || {})[k];
+      if (!m || !m.char || live.has(m.char)) continue;
+      if (!byKey.has(m.char)) byKey.set(m.char, []);
+      byKey.get(m.char).push(M.meshes[k]);
+    }
+    for (const [key, ms] of byKey) out.push({ seat: 'b:' + key, key, meshes: () => ms });
+    for (const q of FST.pax || []) if (q && q.P && !q.P.dead) out.push({ seat: 'j:' + q.seat, key: q.P.key, meshes: () => (q.P.inst ? q.P.inst.meshes : []) });
+    return out;
+  }
+  // the route: the cabin door's foot beside the pilot's station on the starboard side (the Cub's door; -x in the crew's
+  // frame), the queue square to the fuselage, from the hangar's door (40 m at most) - see CROWD.route
+  function crowdRoute(n) {
+    // the crew's frame in the world: grp's drawn matrix x cageM, multiplied here - a hand-set child's matrixWorld is NOT
+    // recomputed by updateWorldMatrix without matrixWorldNeedsUpdate (W0.5a, r186: the probe's walk round the origin)
+    const M = model, Wm = new THREE.Matrix4().multiplyMatrices(M.grp.matrixWorld, new THREE.Matrix4().set(...M.data.cageM));
+    const r = M.data.people && M.data.people[0], t = r && r.figM ? [r.figM[12], r.figM[13], r.figM[14]] : [0, 0, 0];
+    const W = (x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(Wm);
+    const c = W(0, t[1], t[2] - 0.6), d = W(-1.3, t[1], t[2] - 0.6), nz = W(0, t[1], t[2] + 0.4);
+    let ox = d.x - c.x, oz = d.z - c.z, fx = nz.x - c.x, fz = nz.z - c.z;
+    const ol = Math.hypot(ox, oz) || 1, fl = Math.hypot(fx, fz) || 1;
+    ox /= ol; oz /= ol; fx /= fl; fz /= fl;
+    const st = lastStart && lastStart.stSite, h = st && st.hangar;
+    let from = h && Number.isFinite(h.x)
+      ? [h.x - Math.cos(h.ry || 0) * ((h.HD || 12.5) + 1.5), h.z + Math.sin(h.ry || 0) * ((h.HD || 12.5) + 1.5)]
+      : [d.x + ox * 25 - fx * 10, d.z + oz * 25 - fz * 10];
+    const far = Math.hypot(from[0] - d.x, from[1] - d.z);
+    if (far > 40) from = [d.x + (from[0] - d.x) * 40 / far, d.z + (from[1] - d.z) * 40 / far];
+    return window.CROWD.route({ door: [d.x, d.z], out: [ox, oz], fwd: [fx, fz], from, n });
+  }
+  function crowdSeatFade(seat, w) {
+    const e = CRW.seats.get(seat);
+    if (!e || !window.CROWD) return;
+    e.w = w;
+    window.CROWD.fadeObjects(THREE, e.meshes(), w);
+    if (w >= 1) CRW.seats.delete(seat);
+  }
+  // the roll-out (under its screen): who is aboard, then the walk
+  function crowdStart() {
+    crowdStop(false);
+    // nobody aboard but the pilot (the default build): nothing fetched, nothing held
+    if (!CRW.on || !model || !model.grp || !crowdSeats().length) return;
+    const gen = ++CRW.gen;
+    CRW.pending = true;
+    CRW.waitN = 0;
+    crowdPrep().then(() => {
+      if (gen !== CRW.gen || inGarage || !window.CROWD) return null;
+      const seats = crowdSeats();
+      if (!seats.length) return null;
+      if (!CRW.M) CRW.M = window.CROWD.make(THREE, {
+        scene,
+        ground: (x, z) => (world && typeof world.terrainH === 'function' ? world.terrainH(x, z) : 0),
+        eye: () => camera.position,
+        seatFade: crowdSeatFade,
+        compile: gs => Promise.all(gs.map(g => (typeof renderer.compileAsync === 'function' ? renderer.compileAsync(g, camera, scene) : null))),
+      });
+      // hidden from now (crowdTick keeps them so); their characters and the clips fetched under the screen
+      for (const q of seats) CRW.seats.set(q.seat, { meshes: q.meshes, w: 0 });
+      const CC = window.CAGE_CHAR;
+      if (CC) for (const k of new Set(seats.map(q => q.key))) CC.load(k);
+      // THE WALK BEGINS WHEN THE SCREEN LIFTS: the aeroplane is on its stand and drawn by then (under the roll-out's
+      // hold its matrices may still be the shed's), so the route is measured there - crowdTick runs CRW.queued
+      return new Promise((res, rej) => {
+        CRW.queued = () => {
+          try {
+            const R = crowdRoute(seats.length);
+            CRW.M.board({ path: R.path, face: R.face, seats: seats.map(q => ({ seat: q.seat, key: q.key })) }).then(res, rej);
+          } catch (e) { rej(e); }
+        };
+      });
+    }).then(() => { if (gen === CRW.gen) { CRW.pending = false; if (!CRW.M || !CRW.M.busy()) crowdDone(true); } },
+            e => { console.warn('flyDiy (crowd): the passengers could not walk -', e && e.message); if (gen === CRW.gen) crowdStop(true); });
+  }
+  // every frame in the world (0 under the roll-out's hold and the pause): the figures still to fade kept hidden or half
+  // (a live passenger's character may land after the walk began), the walk, and the start once the last one is seated
+  function crowdTick(dt) {
+    if (!CRW.M || !window.CROWD) return;
+    if (CRW.queued && !rollHold && crowdPlaced()) { const q = CRW.queued; CRW.queued = null; q(); }
+    for (const [, e] of CRW.seats) if (e.w < 1) window.CROWD.fadeObjects(THREE, e.meshes(), e.w);
+    CRW.M.tick(dt);
+    if (CRW.after && !CRW.pending && !CRW.M.busy()) crowdDone(true);
+  }
+  // THE AEROPLANE DRAWN ON ITS STAND (the probe, 12 Oct: the first unheld frame ticks the crowd BEFORE the loop poses the
+  // model - its group still where it was built, and the walk was measured 700 m off, round the world's origin): the
+  // route waits for the group within 8 m of the solver's CG (a few frames), or ~3 s at most
+  function crowdPlaced() {
+    const M = model;
+    if (!M || !M.grp || !sim) return false;
+    CRW.waitN = (CRW.waitN | 0) + 1;
+    const c = cgFinite(sim.cgPos()), p = M.grp.getWorldPosition(new THREE.Vector3());
+    return Math.hypot(p.x - c[0], p.z - c[2]) < 8 || CRW.waitN > 90;
+  }
+  // 'run': the flight's start waiting on the crowd goes now (Go, a failure) or is dropped (the garage, a new roll-out)
+  function crowdDone(run) { CRW.pending = false; const f = CRW.after; CRW.after = null; if (run && f) f(); }
+  function crowdStop(run) {
+    CRW.gen++;
+    CRW.queued = null;
+    if (CRW.M) CRW.M.clear();
+    for (const k of [...CRW.seats.keys()]) crowdSeatFade(k, 1);
+    CRW.seats.clear();
+    crowdDone(run);
+  }
+  // the start (the roll-out screen's done): now, or when the last passenger is seated
+  function crowdThen(fn) { if (CRW.on && (CRW.pending || (CRW.M && CRW.M.busy()))) CRW.after = fn; else fn(); }
+  if (typeof window !== 'undefined') window.FLYDIY_CROWD = () => ({ on: CRW.on, pending: CRW.pending, waiting: !!CRW.after,
+    seats: [...CRW.seats.keys()], stats: CRW.M ? Object.assign({}, CRW.M.stats) : null });
   // THE DRAWING'S SYNC (the 700 ms entry tick, an accept, a roll-out, a stop): build the group when the load changes,
   // hang it where it is seen
   function fsSync() {
@@ -9048,12 +9391,14 @@
     if (v === undefined && key) { const st = shakeStore(); if (st && st.entries[key]) { v = st.entries[key]; shakeMem.set(key, v); } }
     if (v === undefined) {
       v = genShakedown(def, { corners: false });
-      if (key) {
-        shakeMem.set(key, v);
-        try { const st = shakeStore(); if (st) { st.entries[key] = v; const ks = Object.keys(st.entries); while (ks.length > 8) delete st.entries[ks.shift()]; prefSet(SHAKE_KEY, JSON.stringify(st)); } } catch (e) {}
-      }
+      if (key) { shakeKeep(key, v); try { if (SHEET) SHEET.cancel('stand', key); } catch (e) {} }   // G2920: known now - its thread stops
     }
     return v;
+  }
+  // a sheet into the memo and the core's store (the page's own run, or the thread's answer - the same value)
+  function shakeKeep(key, v) {   // (G2640: the stored copy carries the design check's rows + verdict only - its derivatives and modes doubled the memo)
+    shakeMem.set(key, v);
+    try { const st = shakeStore(); if (st) { st.entries[key] = v && v.design ? Object.assign({}, v, { design: { verdict: v.design.verdict, rows: v.design.rows } }) : v; const ks = Object.keys(st.entries); while (ks.length > 8) delete st.entries[ks.shift()]; prefSet(SHAKE_KEY, JSON.stringify(st)); } } catch (e) {}
   }
   const shakeOf = () => {
     if (curKey !== 'gen') return null;
@@ -9088,8 +9433,61 @@
     const st = shakeStore();
     return !!(st && st.entries[key]);
   }
+  // G2920 (GARAGE-SHEET): ...AND THE SHEET ITSELF IS COMPUTED ON ITS OWN THREAD (sheet_link.js; bench_worker.js's
+  // 'sheet' job: the same buildGen + genShakedown on the same spec, from the core bundle this page inlines, asked by its
+  // sha). The stand's request waits for the hand to leave the slider and 250 ms of quiet (a drag asks once), one is
+  // computed at a time, and a newer aeroplane stops the older one's thread. The answer is believed only for the def it
+  // was asked for (the key) and only when the thread's def has this def's signature (BENCH_WORKER.sheetSig: a stale
+  // core is caught, the link killed); then it is kept exactly as the page's own run would be (shakeKeep) and the
+  // readouts that stepped down re-read it. No thread (file://, the node page - the gates' path), a thread that fails,
+  // or `?sheetw=0`: the post-idle run on the page below, as before.
+  const SHEET = (() => {
+    try {
+      if (/[?&]sheetw=0(&|$)/.test(location.search || '')) return null;
+      if (typeof makeSheetLink !== 'function' || !window.BENCH_WORKER || typeof window.BENCH_WORKER.start !== 'function') return null;
+      return makeSheetLink({
+        start: (onMsg, onErr) => window.BENCH_WORKER.start(onMsg, onErr, { versioned: true }),
+        held: () => { const U = window.CAGE_UI; return !!(U && typeof U.dragging === 'function' && U.dragging()); },
+        settleMs: 250, now: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
+      });
+    } catch (e) { return null; }
+  })();
+  if (typeof window !== 'undefined') window.SHEET_LINK = SHEET;
+  const shakeKeyOf = d => { try { return d && d.spec ? shakeHash(JSON.stringify(d.spec)) : null; } catch (e) { return null; } };
+  // the stand's sheet asked of the thread: true when the link took it
+  function sheetAsk() {
+    if (!SHEET || SHEET.dead || curKey !== 'gen' || !def || !genSpec) return false;
+    const d = def, key = shakeKeyOf(d);
+    if (!key) return false;
+    return SHEET.request('stand', { key, spec: genSpec, opts: { corners: false },
+      on: (sh, r) => sheetLand(d, key, sh, r),
+      fail: () => { if (def === d && !shakeKnown()) shakeSoonPage(); } });
+  }
+  function sheetLand(d, key, sh, r) {
+    const BW = window.BENCH_WORKER, sig = BW && BW.sheetSig ? BW.sheetSig(d) : null, ws = r && r.sig;
+    if (!sig || !ws || sig.nn !== ws.nn || sig.nb !== ws.nb || sig.m !== ws.m || sig.x !== ws.x || sig.y !== ws.y) {
+      console.warn('performance sheet: the thread built another aeroplane (a stale core?) - computing on the page');
+      SHEET.kill('the thread built another def than the page');  // (every waiting job fails over to the page)
+      if (def === d && !shakeKnown()) shakeSoonPage();            // ...and this one too
+      return;
+    }
+    shakeKeep(key, sh);
+    if (def === d && shakeFor !== d) { shakeFor = d; shakeVal = sh; }
+    sheetReread(d);
+  }
+  // the readouts that stepped down for this def take the sheet now
+  function sheetReread(d) {
+    if (!inGarage || curKey !== 'gen' || def !== d) return;
+    try { flRender(); } catch (e) {}
+    try { drawPlaque(); } catch (e) {}
+    try { if (indStale) buildIndicators(); } catch (e) {}
+  }
   let shakeSoonT = null, shakeSoonI = null;
   function shakeSoon() {
+    if (sheetAsk()) return;
+    shakeSoonPage();
+  }
+  function shakeSoonPage() {
     if (shakeSoonT) clearTimeout(shakeSoonT);
     if (shakeSoonI && typeof cancelIdleCallback === 'function') cancelIdleCallback(shakeSoonI);
     shakeSoonI = null;
@@ -9101,6 +9499,7 @@
         try { shakeOf(); } catch (e) {}
         try { flRender(); } catch (e) {}
         try { drawPlaque(); } catch (e) {}
+        try { if (indStale) buildIndicators(); } catch (e) {}
       };
       if (typeof requestIdleCallback === 'function') shakeSoonI = requestIdleCallback(go, { timeout: 2000 });
       else go();
@@ -9263,16 +9662,30 @@
   // Every editor rebuild takes it away again (BENCH_DIRTY), which is the load
   // test's own "a changed spec loses its certificate" ruling generalised.
   let plaqueLive = false;
+  // G2920: the plaque has numbers up (a sheet drawn since it last went down)
+  let pqShown = false;
   function drawPlaque() {
     const box = $('plaque');
     if (!box) return;                              // core-only build
     const on = plaqueLive && curKey === 'gen' && inGarage;
     box.classList.toggle('on', on);
-    if (!on) return;
+    if (!on) { pqShown = false; box.classList.remove('stale'); return; }
     let s = null;
-    if (shakeDeferred()) { box.classList.remove('on'); return; }   // G1302: the numbers come post-idle
+    if (shakeDeferred()) {                         // G1302: the numbers come post-idle (G2920: off the page's thread)
+      // G2920: the numbers up stay, dimmed and the verdict saying so, until this aeroplane's sheet lands - no blank
+      // plaque, and no number shown as this aeroplane's that is not
+      if (pqShown && SHEET && !SHEET.dead) {
+        box.classList.add('stale');
+        const v = $('pqVerdict');
+        if (v) { v.className = ''; v.textContent = 'UPDATING — these numbers are the last build’s'; }
+        return;
+      }
+      box.classList.remove('on'); pqShown = false; return;
+    }
+    box.classList.remove('stale');
     try { s = shakeOf(); } catch (e) {}
-    if (!s) { box.classList.remove('on'); return; }
+    if (!s) { box.classList.remove('on'); pqShown = false; return; }
+    pqShown = true;
     const n1 = (v, d) => (v == null || !isFinite(v)) ? '—' : v.toFixed(d);
     $('pqName').textContent = (def.params && def.params.name) || '';
     // THE VERDICT is the generator's own flyableCircuit, and when it says
@@ -9597,6 +10010,17 @@
   // they are right even while `sim` is the previous roll-out. Cleared when
   // `def` is rebuilt; until the next answer the posts fall back to `sim`.
   let LAST_BAL = null;
+  // G2920 (GARAGE-SHEET): THE POSTS NEVER RUN THE SHEET ON THE PAGE. A new aeroplane on the stand (GARAGE_SPEC.update ->
+  // apply clears LAST_BAL -> enterGarage -> buildIndicators) read its posts off shakeOf() until the balance job
+  // answered: genShakedown inside the change's own task (the metal Cessna ~1 s; the Deform coordinator's --prof, 11 Oct).
+  // With the sheet's thread up, a def whose sheet is not known yet keeps the posts that stand (the last aeroplane's,
+  // their labels dimmed: 'updating', never a number presented as this aeroplane's) and asks the thread; the balance
+  // job's answer or the sheet's rebuilds them. Without the thread (the node page, file://): the page's run, as before.
+  let indStale = false;
+  function indicatorsStale() {
+    indStale = true;
+    for (const l of gLabels) { if (l.material) { l.material.opacity = 0.4; l.material.needsUpdate = true; } }
+  }
   function refreshIndicators(b) {
     if (!b || !isFinite(b.cgX) || !isFinite(b.npX) || !isFinite(b.gearX)) return;
     LAST_BAL = b;
@@ -9659,6 +10083,15 @@
     if (d) gGrp.position.set(d[0], d[1], d[2]);
   }
   function buildIndicators() {
+    // G2920: nothing to draw this aeroplane's posts from yet - the standing ones stay, dimmed, until an answer lands
+    // (sheetAsk last: it is the thread's request, false where there is none - the node page - and the page's run below)
+    if (SHEET && !SHEET.dead && inGarage && curKey === 'gen' && def && def.parts &&
+        !(LAST_BAL && def.parts.GAL != null && def.parts.GAR != null) && !shakeKnown() && sheetAsk()) {
+      indicatorsStale();
+      if (gInd || gLabels.length) placeIndicators();
+      return;
+    }
+    indStale = false;
     if (gInd) { gGrp.remove(gInd); gInd.geometry.dispose(); gInd = null; }
     // G1027: THE LABELS' OLD MATERIALS GO ONE BUILD LATE. Disposed at once, the last label sprite released the sprite
     // program and the new labels linked it again on the next frame - a synchronous link on every refresh (a slider's
@@ -10200,6 +10633,7 @@
   // player's own aeroplane in it (the shed, the editor, the sync) finish it first (parked.js flush)
   function parkedFlush() { if (typeof window !== 'undefined' && window.PARKED && window.PARKED.flush) window.PARKED.flush(); }   // hoisted: no TDZ
   function enterGarage() {
+    crowdStop(false);                  // G2970: the stand's passengers seated, the start that waited on them dropped
     parkedFlush();
     // G1490 (HYBRID-TRIPS): the flown model back AT REST on its bake - the hybrid's t is the flight's, and a model left in
     // the band met the shed and the next roll-out shot on programs keyed in no compile (a 5.2 s link) - flown_bake.js rest
@@ -10502,6 +10936,8 @@
     // aeroplane rolls out of it (its fleet row is in it, or tied down at that field, or it has none); anything else
     // (its row in another hangar, another field) is cut to its stand. The sandbox: HOME's door, exactly as before.
     { const rh = rollHangarId(); if (rollFromId() !== roomBase() || (rh && rh !== roomId())) { trip.anim = 'away'; next(); return; } }
+    // G2690 (HANGAR-STORAGE): flown from an inside slot or the apron - no door shot (no tow animation yet): cut to it
+    { const ss = storeStartNow(); if (ss && ss.start !== 'door') { trip.anim = 'away'; next(); return; } }
     if (typeof window.BENCH_ROLLOUT === 'function') { try { window.BENCH_ROLLOUT(); } catch (e) {} }
     benchFp = true;
     let over = false, h = null;
@@ -10532,6 +10968,7 @@
     inGarage = false; rolledOut = true;
     playerFlightStart();               // PREM-S2: the airframe this flight flies, measured as it rolls out
     fsFlightStart();                   // G2400 (FREIGHT-STRAP): the accepted load aboard (the masses before the reset below)
+    crowdStart();                      // G2970 (CHARACTERS): whoever is aboard walks out to the door first
     certKick();                        // G1831: stamped now if the roll-out's request has landed (or the build was flown before)
     envAway = true;                    // C0c: the room's probe waits for the way back (bakeHangarEnv)
     if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
@@ -10688,8 +11125,18 @@
   // G2225 (FLEET-STAND): the fleet's set as the 'parking' step's key ('' with FLYDIY_FLEET off), and the stand itself
   // the game's context for the stand and the queue's bound: the drawn set is the roll-out's aerodrome's outside rows, the
   // airframe on the stand left out, at most PARKED.fleetCap() (6; 4 on a light preset)
-  const fleetCtx = () => ({ world, doc: playerLoad(), flown: slotOnStand(), from: inGarage ? rollFromId() : fromId,
-                            cap: window.PARKED && PARKED.fleetCap ? PARKED.fleetCap() : 6 });
+  // G2703 (HANGAR-STORAGE-2): ...AND THE GARAGE'S DRAWN RESIDENTS (the career's: its building's inside slots, then the
+  // floor's aeroplane - the stand's too, a prop once another is loaded; at most N + 1): an airframe saved on the floor and
+  // moved inside never stood outside, and the bound refused its bake - its resident never filled
+  const fleetInside = d => {
+    try {
+      if (!CAREER_DEV || typeof playerResidentsShown !== 'function') return [];
+      const id = roomId(), S = typeof playerSlots === 'function' ? playerSlots(d, id) : null;
+      return playerResidentsShown(d, id, null, ((S && isFinite(S.parked)) ? S.parked : 2) + 1);
+    } catch (e) { return []; }
+  };
+  const fleetCtx = () => { const d = playerLoad(); return { world, doc: d, flown: slotOnStand(), from: inGarage ? rollFromId() : fromId,
+                            cap: window.PARKED && PARKED.fleetCap ? PARKED.fleetCap() : 6, inside: fleetInside(d) }; };
   const FS_ON = () => { const F = window.FLEET_STAND; if (!F) return false; F.setCtx(fleetCtx); return F.on(); };
   const fleetStandKey = () => { if (!FS_ON()) return ''; try { return '|fleet ' + FLEET_STAND.key(fleetCtx()); } catch (e) { return '|fleet ?'; } };
   const fleetStand = () => {
@@ -11354,6 +11801,7 @@
     if (rollAnimSkip) { rollAnimSkip(); return; }   // B9: a press over the roll-out animation skips it
     if (perfNow() < rollAnimSwallow) return;        // G1027: ...and the click of the press that skipped it is not a start
     if (rollHold) return;
+    if (CRW.after) { crowdStop(true); return; }   // G2970: a press while the passengers board seats them all and starts
     // G700: ...AND AFTER A LANDING IT FLIES ON FROM WHERE THE AEROPLANE STANDS (the playtest: "Fly on" reloaded -
     // fullReset put it back on the departure stand). An arrival at the destination chains the next leg in place,
     // exactly as picking a new destination after landing always did (W14's nextLeg): the same sim, a fresh pilot
@@ -11378,7 +11826,8 @@
       // second button's job: the export through the join is a STEP inside
       // rolling out, and it runs whether or not the panel happens to be open,
       // because the panel is a view and the design is not.
-      rollOut(() => { started = true; }, true);   // the sim starts when the screen has lifted, not under it (G680: the sync inside it)
+      storeStart = null;                          // G2690: the garage's own Fly is the floor's (today's roll-out)
+      rollOut(() => crowdThen(() => { started = true; }), true);   // the sim starts when the screen has lifted, not under it (G680: the sync inside it); G2970: and the passengers are aboard
       return;
     }
     started = true;
@@ -14956,7 +15405,7 @@
     canSave: (name, isNew) => (CAREER_DEV ? econSaveWhy(name, isNew) : ''),
     // G2280 (PROCURE): a slot the garage has just built (the join settled) - a maker's or a used airframe's factory
     // certificate is signed on THAT aeroplane, once (the build files are not the join's fixpoint: measured on the page)
-    loaded: (name, spec) => { if (CAREER_DEV) procureLoaded(name, spec); },
+    loaded: (name, spec) => { if (CAREER_DEV) procureLoaded(name, spec); storeFloorFollows(name); },
     place: n => window.FLYDIY_PLAYER.place(n),
     wear: n => window.FLYDIY_PLAYER.wear(n),
     flyFrom: n => {
@@ -14989,7 +15438,7 @@
     },
     isGen: () => curKey === 'gen',
     inGarage: () => inGarage,
-    rollOut: () => { rollOut(() => { started = true; }); },
+    rollOut: () => { rollOut(() => crowdThen(() => { started = true; })); },
     // BUILD -> LOAD TEST -> FLY. The panel drives the rig and polls it; the
     // rig is the same object GATE LOAD ticks, so the two cannot disagree.
     loadTest: () => startLoadTest(),
@@ -15492,6 +15941,7 @@
       if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4/F3: no sky in the shed, so no aerial perspective - but the MIST still runs, as the room's own air
       // ONE SKY (S5): the day on the shed every frame; the room's probe re-shot when the sun has moved 1.5 deg
       shedDayTick();
+      envSliceStep();   // G2662: the clock's room-probe bake, a slice this frame
       // CONTROL CHECK. The solver is stopped in the garage, so every control
       // sits at zero and the surfaces never move — which reads as "the surfaces
       // do not work" even when they do. Sweep them instead, the way you would
@@ -15617,6 +16067,7 @@
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
     if (FR) FR.lap(FR.S.world);        // G620: the world's update (its premises, cover ring and fill pushed apart)
+    if (CRW.M && !inGarage) crowdTick(rollHold || (typeof window !== 'undefined' && window.FLYDIY_HELD) ? 0 : fdt);   // G2970: the passengers
     // G1100 (POSE-SMOOTH): FROM HERE TO THE RENDER THE SIM'S POSITIONS ARE THE DRAWN ONES - between the last two steps,
     // at the frame clock's alpha (POSE_LERP above; restored below the render). In the world only, the page's own flight
     // (the worker's view interpolates itself), and a pause holds the alpha it had
@@ -16411,6 +16862,22 @@
       .then(() => compileXrayVariants())
       .catch(e => console.warn('shed prelink:', e && e.message));
   }
+  // G2787 (EDITOR-BUGS): THE EDITOR'S LIGHTS JOIN THREE'S COUNT ONLY AFTER THEIR PROGRAMS LINKED - G1340's law on the
+  // shed's side. A cabin dimmer's first notch off 0 adds a PointLight, and three keys every lit program on the count:
+  // the room linked again in one frame (the user's "froze my interface for a few seconds"). G2782 kept the lights in
+  // the count at 0 instead, and the shed's boot compiles (which take the cage down, G1027/G1085) keyed without them:
+  // train 52b's 10 s boot freeze. So the light layer asks HERE with `dress` (f => f() run with its new lights shown,
+  // then put back, a task at a time): the room's programs keyed with them, linked on the driver's threads (its two
+  // targets and its depth variants, as shedPrelink), and the layer shows the lights when this resolves. null when
+  // there is no room to compile (the bench, the cloud's SwiftShader, before the hangar): the layer shows them at once.
+  if (typeof window !== 'undefined') window.GARAGE_LIGHTS_PREP = dress => {
+    if (typeof renderer.compileAsync !== 'function' || !hangar || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return null;
+    shedEnvKey();
+    return compileSliced(hangarScene, ensureEnvRT(), null, false, dress)
+      .then(() => compileSliced(hangarScene, aa && aa.target ? aa.target() : null, null, false, dress))
+      .then(() => compileDepthVariants(hangarScene, true, dress))
+      .catch(e => console.warn('garage lights prep:', e && e.message));
+  };
   bootStep('compile', 'compiling the shaders', 14, () => {
     const done = () => { envDeferred = false; if (envDirty || !envPM) { envDirty = false; bakeHangarEnv(); } if (hangar && hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); };
     if (inGarage) shedDayTick();   // C0c: the day first - the passes compile what first light draws, the bake shoots it once
@@ -16428,7 +16895,7 @@
     const settled = () => (typeof BOOT.settled !== 'function') || BOOT.settled(['props', 'crew', 'crewBuild']);
     const t0 = performance.now();
     const whenComplete = () => new Promise(res => { const poll = () => { if (settled() || performance.now() - t0 > 8000) res(); else setTimeout(poll, 50); }; poll(); });
-    return whenComplete().then(() => shaderProgress(pass(ensureEnvRT()).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
+    return whenComplete().then(() => shaderProgress(pass(ensureEnvRT()).then(() => pmremWarmBake()).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
       .then(() => compileDepthVariants(hangarScene)), 'garage'))   // G680: its shadow pass and the full-screen passes too
       .then(() => (typeof renderer.initTexture === 'function') ? uploadSliced(hangarScene, 'compile', 'uploading the textures') : null)   // G999: not in the first frame
       .then(() => { tripKeys.shedCompile = gfxKey(); })   // B9: the graphics the shed was compiled for (the Fly press re-checks)

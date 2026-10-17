@@ -1017,7 +1017,10 @@ function makeSim(def, world) {
       const Mb = fu * sh * S.EI / (S.E * S.r);
       lim = { Mu: Mb, Mv: Mb, T: fu / SQ3 * S.GJ / (G * S.r), yb: ty / (fu * sh), yt: ty / fu };
     } else if (S.kind === 'oval' && fu) {
-      lim = { Mu: fu * sh * S.EIv / (S.E * S.cv), Mv: fu * sh * S.EIl / (S.E * S.cl), T: fu / SQ3 * S.GJ / (G * S.rT), yb: ty / (fu * sh), yt: ty / fu };
+      // G2640: a thin SKIN fails by local buckling long before its material's ultimate (S.sigB, 61_gen_frame's SHELL:
+      // ~0.3 E t / R); absent (the twin boom's tube) the material's, as ever
+      const fb = S.sigB > 0 ? Math.min(fu, S.sigB) : fu, sb = S.sigB > 0 && S.sigB < fu ? 1 : sh;
+      lim = { Mu: fb * sb * S.EIv / (S.E * S.cv), Mv: fb * sb * S.EIl / (S.E * S.cl), T: fb / SQ3 * S.GJ / (G * S.rT), yb: Math.min(1, ty / (fb * sb)), yt: Math.min(1, ty / fb) };
     }
     const inR = S.root ? nodeSet(S.root) : null;
     if (S.kind === 'bolts') {
@@ -1179,6 +1182,27 @@ function makeSim(def, world) {
   // the parts that came off this substep: a ROOT cut's part keeps its cluster on its own nodes (the root's dropped) - a
   // rigid body that detaches; a STATION's (a bay's) splits the tube into two rigid clusters. A cluster still holding
   // nodes on both sides (a twin boom's fin stands on the station's ring and the ring before) lets go of the fewer
+  // G2640: the omega of a piece of a split tube cluster - its length along the tube's axis (the first ring to the last,
+  // at rest) and its mass against the whole's: om0 sqrt((L / Lp)^3 (M / Mp)), CAPPED AT 3 x om0. Uncapped, a third of
+  // the metal Cessna's shell read 9x: omega dt ~1 at its substep, and the hold - a projection, (omega dt)^2 of the way
+  // a substep - snapped the piece to its rest shape in one substep and broke 32 of the members hanging on it in the
+  // clean part-off (GATE DMGCLUSTERS). 3x holds the piece to under its 10 mm and snaps nothing. A cluster without
+  // rings (a fin, a float) keeps its omega
+  function clOmegaPiece(C, om0, piece) {
+    const R0 = C.rings0;
+    if (!(om0 > 0) || !R0 || R0.length < 2 || !C.idx0) return om0;
+    const cen = r => { const c = [0, 0, 0]; for (const i of r) for (let j = 0; j < 3; j++) c[j] += def.nodes[i].p[j] / r.length; return c; };
+    const a0 = cen(R0[0]), a1 = cen(R0[R0.length - 1]);
+    const ax = [a1[0] - a0[0], a1[1] - a0[1], a1[2] - a0[2]], la = hyp3(ax[0], ax[1], ax[2]);
+    if (!(la > 1e-6)) return om0;
+    const ext = ids => { let lo = Infinity, hi = -Infinity, M = 0;
+      for (const i of ids) { const P = def.nodes[i].p, d = ((P[0] - a0[0]) * ax[0] + (P[1] - a0[1]) * ax[1] + (P[2] - a0[2]) * ax[2]) / la;
+        if (d < lo) lo = d; if (d > hi) hi = d; M += m[i]; }
+      return { L: hi - lo, M }; };
+    const W = ext(C.idx0), Pp = ext(piece);
+    if (!(Pp.L > 0.05) || !(Pp.M > 0) || !(W.L > Pp.L)) return om0;
+    return om0 * Math.sqrt(Math.min(9, Math.pow(W.L / Pp.L, 3) * (W.M / Pp.M)));
+  }
   function clApply() {
     for (const k of clQ) {
       const ct = CUTS[k], C = clusters[ct.cl];
@@ -1189,9 +1213,16 @@ function makeSim(def, world) {
         for (const j of C.cuts) CUTS[j].done = true;
         if (other.length) setIdx(C, keep);
       } else {
+        // G2640 (DESIGN-TRUST): A PIECE OF A TUBE IS A SHORTER TUBE. The cluster's omega is its whole length's
+        // cantilever (61_gen_frame: 3 EI / L^3 against the cluster's mass); split at a mid-span station, each piece is
+        // a cantilever of its own length and mass - (L / Lp)^3 stiffer on (M / Mp) less mass. Handed the whole tube's
+        // omega, the metal Cessna's shell's aft piece flexed 12.4 mm in the clean part-off (GATE DMGCLUSTERS' 10 mm)
+        const om0 = C.omega0 || (C.omega0 = C.omega);
+        const oFwd = clOmegaPiece(C, om0, other), oAft = clOmegaPiece(C, om0, keep);
         setIdx(C, other);
+        C.omega = oFwd;
         if (keep.length >= 3) {
-          const C2 = { cls: C.cls, tag: C.tag + '/aft', idx: null, q: null, R: [1, 0, 0, 0, 1, 0, 0, 0, 1], omega: C.omega,
+          const C2 = { cls: C.cls, tag: C.tag + '/aft', idx: null, q: null, R: [1, 0, 0, 0, 1, 0, 0, 0, 1], omega: oAft,
                        rings: C.rings0, rk: C.rk0, gj: C.gj, twist: null, off: false, dirty: false, cuts: [], nm: null, ms: false,
                        twL0: C.twL0, twPk: 0, twR: 0, dmgS: null };
           setIdx(C2, keep);
@@ -1219,7 +1250,8 @@ function makeSim(def, world) {
   function clReset() {
     clusters.length = nCl0;
     CUTS.length = nCut0;
-    for (const C of clusters) if (C.idx0) { C.idx = C.idx0; C.q = C.q0; C.rings = C.rings0; C.rk = C.rk0; C.cuts = C.cuts.filter(k => k < nCut0); C.twPk = 0; C.twR = 0; C.ms = false; }
+    for (const C of clusters) if (C.idx0) { C.idx = C.idx0; C.q = C.q0; C.rings = C.rings0; C.rk = C.rk0; C.cuts = C.cuts.filter(k => k < nCut0); C.twPk = 0; C.twR = 0; C.ms = false;
+      if (C.omega0 != null) C.omega = C.omega0; }   // G2640 (Deform's review): a split stub's omega back to the whole tube's
     for (const ct of CUTS) { ct.done = false; ct.rb = ct.rt = ct.Mb = ct.Tq = ct.pk = ct.pkB = ct.pkT = 0; }
     beamCl.set(beamCl0);
     for (const C of clusters) if (C.cuts && C.cuts.length) clMask(C);
@@ -3515,10 +3547,26 @@ function makeSim(def, world) {
   // ---- wind tunnel: prescribe uniform velocity, measure aero force+moment ----
   // (G1830, DMG-D2a: `live` - the pass as the step makes it, the propeller's thrust and its wash over the tail and the
   // inner wing included; the certificate's flight cases read the node forces it leaves in f. Absent: as ever)
-  function probe(vel, live) {
+  // G2640 (DESIGN-TRUST): `omega` - a body RATE as well [wx, wy, wz] rad/s in
+  // the sim's axes (x aft, y up, z left), about the mass centre: every node
+  // flies vel + omega x (p - cg), so the bench's design check measures the
+  // damping derivatives (roll Lp, yaw Nr, pitch Mq) and the cross terms (Lr,
+  // Np) off the built aeroplane. Absent: the uniform probe, to the bit.
+  function probe(vel, live, omega) {
+    let ocx = 0, ocy = 0, ocz = 0;
+    if (omega) {
+      for (let i = 0; i < n; i++) { ocx += p[i*3]*m[i]; ocy += p[i*3+1]*m[i]; ocz += p[i*3+2]*m[i]; }
+      ocx /= totalM; ocy /= totalM; ocz /= totalM;
+    }
     for (let i = 0; i < n; i++) {
       f[i*3]=f[i*3+1]=f[i*3+2]=0;
       v[i*3]=vel[0]; v[i*3+1]=vel[1]; v[i*3+2]=vel[2];
+      if (omega) {
+        const rx = p[i*3] - ocx, ry = p[i*3+1] - ocy, rz = p[i*3+2] - ocz;
+        v[i*3]   += omega[1] * rz - omega[2] * ry;
+        v[i*3+1] += omega[2] * rx - omega[0] * rz;
+        v[i*3+2] += omega[0] * ry - omega[1] * rx;
+      }
     }
     // G185.5: a probe has no history, so the circulation is iterated to a
     // fixed point — a FIXED number of passes (never a tolerance loop: the
@@ -3533,14 +3581,16 @@ function makeSim(def, world) {
     let cgx=0, cgy=0, cgz=0;
     for (let i = 0; i < n; i++) { cgx+=p[i*3]*m[i]; cgy+=p[i*3+1]*m[i]; cgz+=p[i*3+2]*m[i]; }
     cgx/=totalM; cgy/=totalM; cgz/=totalM;
-    let Fx=0, Fy=0, Fz=0, Mz=0, My=0;
+    let Fx=0, Fy=0, Fz=0, Mz=0, My=0, Mx=0;
     for (let i = 0; i < n; i++) {
       Fx+=f[i*3]; Fy+=f[i*3+1]; Fz+=f[i*3+2];
       Mz += (p[i*3]-cgx)*f[i*3+1] - (p[i*3+1]-cgy)*f[i*3];
       My += (p[i*3+2]-cgz)*f[i*3] - (p[i*3]-cgx)*f[i*3+2];
+      Mx += (p[i*3+1]-cgy)*f[i*3+2] - (p[i*3+2]-cgz)*f[i*3+1];
     }
     // nose-up pitch = -Mz ; nose-LEFT yaw = +My  (nose -x, +z is the LEFT side)
-    return { Fx, Fy, Fz, pitchUp: -Mz, yawLeft: My, cg: [cgx, cgy, cgz],
+    // G2640: +Mx about the aft axis lifts the right (-z) wing: LEFT roll
+    return { Fx, Fy, Fz, pitchUp: -Mz, yawLeft: My, rollLeft: Mx, cg: [cgx, cgy, cgz],
              planeFy: out.planeFy ? out.planeFy.slice() : [] };   // G185
   }
 
@@ -3695,7 +3745,7 @@ function makeSim(def, world) {
                                    Mu: c.Mu, Mv: c.Mv, T: c.T, yb: c.yb, yt: c.yt, rb: c.rb, rt: c.rt, Mb: c.Mb, Tq: c.Tq, pk: c.pk, pkB: c.pkB, pkT: c.pkT, done: c.done,
                                    grp: c.grp >= 0 ? DGR[c.grp].key : null, P: Array.from(c.P), X: Array.from(c.X), bay: c.bay })),
                                  twist: clusters.map((C, ci) => C.twL0 ? { cl: ci, tag: C.tag, lim: C.twL0.slice(), r: C.twR, pk: C.twPk } : null).filter(x => x),
-                                 clusters: clusters.map(C => ({ tag: C.tag, cls: C.cls, off: !!C.off, nodes: Array.from(C.idx) })) }),
+                                 clusters: clusters.map(C => ({ tag: C.tag, cls: C.cls, off: !!C.off, nodes: Array.from(C.idx), omega: C.omega })) }),   // (G2640: omega read out)
            // G1801: the velocity guard - { vMax, node, peak, fault: null | { why: 'speed' | 'nan', node, v, t } }
            guard: () => VG, fault: () => VG.fault,
            // G1820: the strips as the aero pass flies them (dead, and each one's weights: the build's or a split's)
