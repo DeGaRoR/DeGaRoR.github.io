@@ -997,6 +997,54 @@ function make(THREE, scene, world, rec0, opts) {
   // ground canvas; the game's terrain has no such canvas) - 3 m along, the width plus a soft verge
   const ROAD_TONE = { 6: 0x8f8574, 5: 0x63636a, 7: 0xb8a57e, 0: 0x6e6a4a, 3: 0x5d5844 };
   let roadMat = null;
+  // G3214 (METLA-ON, metla-far-roads; the user OKs the far look): THE TOWN'S ROADS FAR. From 3.9 km Metlakatla's roads were +53
+  // draws / +0.9 M triangles (the pavement sampled every 3 m, its shoulders, its marks - G3205 / G3210's census). Past ROAD_FAR m
+  // of the town's roads they are ONE coarse ribbon mesh (every ROAD_FAR_STEP m, the surface's tone, no shoulder, no mark, a
+  // little over the ground); within it the pavement as built. The town's merged pavement meshes are marked when the town part
+  // merges them (mergePavSteps); roadsFar, from render_world every 10 frames, switches the two by the eye's distance to the
+  // town roads' box.   ?roadfar=<m>  the radius (default 1500; 0 = the pavement at every distance, as before)
+  const ROAD_FAR = (m => (m ? +m[1] : 1500))(typeof location !== 'undefined' && /[?&]roadfar=([0-9.]+)/.exec(location.search || ''));
+  const ROAD_FAR_STEP = 12, ROADFAR = { mesh: null, box: null, far: null };
+  function roadsFarBuild() {
+    if (ROADFAR.mesh) { if (ROADFAR.mesh.parent) ROADFAR.mesh.parent.remove(ROADFAR.mesh); ROADFAR.mesh.geometry.dispose(); ROADFAR.mesh = null; }
+    const pos = [], col = [], idx = [], c = new THREE.Color();
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const rd of O.roads) {
+      if (rd.ribbon === false || !isTown(rd) || !rd.pts || rd.pts.length < 2) continue;
+      const pr = PG.polyRoad(rd.pts, rd.w), n = Math.max(2, Math.ceil(pr.length / ROAD_FAR_STEP)), hw = rd.w / 2 + 0.6, base = pos.length / 3;
+      c.set(ROAD_TONE[rd.surface] || 0x63636a);
+      for (let k = 0; k <= n; k++) {
+        const a = pr.at(pr.length * k / n);
+        for (const sgn of [-1, 1]) {
+          const w = O.frame.toWorld(a.p[0] + a.n[0] * hw * sgn, a.p[1] + a.n[1] * hw * sgn);
+          pos.push(w[0], heightAt(w[0], w[1]) + 0.5, w[1]); col.push(c.r, c.g, c.b);
+          if (w[0] < x0) x0 = w[0]; if (w[0] > x1) x1 = w[0]; if (w[1] < z0) z0 = w[1]; if (w[1] > z1) z1 = w[1];
+        }
+        if (k) { const b = base + 2 * k; idx.push(b - 2, b, b - 1, b - 1, b, b + 1); }
+      }
+    }
+    if (!idx.length) return null;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.setIndex(new THREE.BufferAttribute(new Uint32Array(idx), 1)); g.computeVertexNormals(); g.computeBoundingSphere();
+    const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+    const m = new THREE.Mesh(g, mat); m.name = 'road:far'; m.renderOrder = 3; m.receiveShadow = true; m.userData.roadFar = true; m.visible = false;
+    G.roads.add(m);
+    ROADFAR.mesh = m; ROADFAR.box = [x0, x1, z0, z1]; ROADFAR.far = null;
+    stats.roadFarTris = idx.length / 3;
+    return m;
+  }
+  function roadsFar(ex, ez) {
+    if (!(ROAD_FAR > 0)) return 0;
+    if (ROADFAR.mesh && !ROADFAR.mesh.parent) { ROADFAR.mesh.geometry.dispose(); ROADFAR.mesh = null; }   // (a whole rebuild took it: the town part makes it again)
+    const B = ROADFAR.box; if (!ROADFAR.mesh || !B) return 0;
+    const far = Math.hypot(Math.max(B[0] - ex, 0, ex - B[1]), Math.max(B[2] - ez, 0, ez - B[3])) > ROAD_FAR;
+    if (far === ROADFAR.far) return 0;
+    ROADFAR.far = far; stats.roadFarOn = far;
+    for (const ch of G.roads.children) if (ch.userData.townRoad) ch.visible = !far;
+    ROADFAR.mesh.visible = far;
+    return 1;
+  }
   // THE PAVEMENT (contract v1.16, 2026-09-22): when src/viewer/pavement.js is on the page every road, every
   // paved polygon and (in the bench) every strip is a PAVEMENT mesh - the one material, the class from the
   // look, the recipe resolved through PAVEMENT.resolve (the module's, the look's preset, the premises',
@@ -1205,6 +1253,7 @@ function make(THREE, scene, world, rec0, opts) {
       }
       yield* buildPolysSteps(part);
       yield* mergePavSteps(part);
+      if (part && ROAD_FAR > 0) roadsFarBuild();   // G3214: the town's roads far
       return;
     }
     if (!roadMat) roadMat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: 0.92, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
@@ -1250,6 +1299,7 @@ function make(THREE, scene, world, rec0, opts) {
       for (const c of out) {
         const m = new THREE.Mesh(c.geo, list[0].material);
         m.renderOrder = c.order; m.receiveShadow = true; m.name = k + ':merged'; m.userData.pavMerged = true;
+        if (part) m.userData.townRoad = true;   // (G3214: the town's own, switched for the far ribbon by roadsFar)
         G.roads.add(m);
       }
       for (const m of list) { G.roads.remove(m); m.geometry.dispose(); }
@@ -4339,6 +4389,7 @@ function make(THREE, scene, world, rec0, opts) {
 
   const R = {
     root, groups: G, stats,
+    roadsFar,   // G3214: the town's roads as one coarse ribbon past ROAD_FAR m (render_world, every 10 frames)
     lotsNear,   // G3210: the lots' cells drawn near the eye only (render_world, every 10 frames)
     rebuild, rebuildSteps, preview, previewEnd, editEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
     objectEdit, hitAll, grabAt,
