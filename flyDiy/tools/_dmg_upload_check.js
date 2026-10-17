@@ -288,7 +288,14 @@ function parent() {
   let fails = [];
   const pf = arg('fault', '');   // (G2350: --fault=nomark|noowe|aswas on the gate's own runs - a fix's A/B; the gate's verdict then reads it)
   if (pf) say('  (fault ' + pf + ')');
-  for (const k of keys) fails = fails.concat(judge(runStaged(k, pf, secs), say));
+  // (17 Oct: the Cub's MILD staging is not flown when the hard one is - since DMG-NOSE its crushable nose takes the mild thin
+  // trunk whole, and the wing retry broke nothing either on train 58: it tested nothing. The hard staging below (30 m/s, 1 m up,
+  // a 0.5 m trunk: 90+ members, a break-up) is the Cub's crash for every row; the other builds keep the mild one)
+  const hardCub = keys.includes('cub') && arg('hard', '1') !== '0';
+  for (const k of keys) {
+    if (k === 'cub' && hardCub) { say('  cub: the mild staging not flown - its crushable nose takes it whole; the hard staging below is its crash'); continue; }
+    fails = fails.concat(judge(runStaged(k, pf, secs), say));
+  }
   // (train 41: the mild staging above kept; on the train-39 physics - DRIVE2, WALL, TUNE - it broke the Cub only a little
   // (12 members). A breaking-up Cub is staged too, so the folds' heal is tested on a real wreck)
   if (keys.includes('cub') && arg('hard', '1') !== '0') {
