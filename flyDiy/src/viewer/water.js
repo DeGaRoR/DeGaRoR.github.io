@@ -64,30 +64,9 @@ const WATER = (() => {
   // ?wrefl=b  the aircraft's own reflection - a hull-only planar capture (hullRender), the sea's planar mirror off
   // ?wrefl=c  transparency + the cast shadow - the sea receives the aircraft's shadow, the sea's planar mirror off
   // ?wrefl=bc both. Lakes keep today's mirror (the redesign's scissored lake capture is P3). Without the switch NOTHING
-  // changes: the hull's sampler and shader block are not even declared (the water program's sampler budget, G424)
+  // changes: the hull's sampler and shader block sit under #ifdef W_HULL, defined only then (the water program's sampler budget, G424)
   const PROTO = (() => { const q = (typeof location !== 'undefined' && location.search && (/[?&]wrefl=(b|c|bc)(?:&|$)/.exec(location.search) || [])[1]) || null;
     return { mode: q, hull: q === 'b' || q === 'bc', shadow: q === 'c' || q === 'bc', seaOff: !!q }; })();
-  const HULL_GLSL = `
-          // THE AIRCRAFT'S OWN REFLECTION (G2831, prototype b): the hull-only capture, read like the mirror - the slope walks the
-          // point from the mirrored eye (G460.11.9), one plane one body, blurred and faded by the roughness; alpha 0 around the hull
-          if (uWHull4.x > 0.001) {
-            vec3 hEye = cameraPosition;
-            vec3 hR = reflect(normalize(vWP0 - hEye), wNw);
-            float hH = hEye.y - uWHull4.w, hL = max(distance(vWP0, hEye), 1.0e-3);
-            float hT = hH / max(hR.y, min(hH / hL, 0.02));
-            vec3 hD = vec3(hEye.x + hR.x * hT, vWP0.y, hEye.z + hR.z * hT) - vWP0;
-            hD *= min(1.0, uWHull4.y * hL / max(length(hD), 1.0e-4));
-            vec4 hp = uWHullVP * vec4(vWP0 + hD, 1.0);
-            if (hp.w > 0.0) {
-              vec2 huv = hp.xy / hp.w * 0.5 + 0.5;
-              if (huv.x > 0.0 && huv.x < 1.0 && huv.y > 0.0 && huv.y < 1.0) {
-                vec4 hr = textureLod(uWHull, huv, material.roughness * uWHull4.z);
-                float hk = smoothstep(0.06, 0.35, hr.a) * (1.0 - smoothstep(1.0, 3.0, abs(vWP0.y - uWHull4.w))) * (1.0 - material.roughness) * (1.0 - material.roughness) * uWHull4.x;
-                iblRadiance = mix(iblRadiance, hr.rgb / max(hr.a, 0.02), hk);
-              }
-            }
-          }
-`;
   const NTR = 32;                                                 // trains the uniform array holds (seaFrom makes 32: a swell band and a wind sea drawn from the spectrum, G460.3)
   const TWO_PI = 2 * Math.PI;
 
@@ -155,7 +134,9 @@ const WATER = (() => {
     uniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;
     uniform sampler2D uWDetail;
     uniform sampler2D uWInter; uniform vec4 uWInterBox;   // x0, z0, 1/size, on
-    ${PROTO.hull ? 'uniform sampler2D uWHull; uniform mat4 uWHullVP; uniform vec4 uWHull4;   // G2831: the hull-only capture (x weight, y walk cap, z lod per roughness, w plane)' : ''}
+    #ifdef W_HULL
+    uniform sampler2D uWHull; uniform mat4 uWHullVP; uniform vec4 uWHull4;   // G2831: the hull-only capture (x weight, y walk cap, z lod per roughness, w plane)
+    #endif
     uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
     uniform vec4 uWFoam;       // x: the fold's RMS Q sqrt(sum (A k)^2 / 2), y: the whitecap cover (Monahan, of the wind), z: the swell's A (m), w: 0
@@ -459,7 +440,27 @@ const WATER = (() => {
               }
             }
           }
-${PROTO.hull ? HULL_GLSL : ''}
+          #ifdef W_HULL
+          // THE AIRCRAFT'S OWN REFLECTION (G2831, prototype b): the hull-only capture, read like the mirror - the slope walks the
+          // point from the mirrored eye (G460.11.9), one plane one body, blurred and faded by the roughness; alpha 0 around the hull
+          if (uWHull4.x > 0.001) {
+            vec3 hEye = cameraPosition;
+            vec3 hR = reflect(normalize(vWP0 - hEye), wNw);
+            float hH = hEye.y - uWHull4.w, hL = max(distance(vWP0, hEye), 1.0e-3);
+            float hT = hH / max(hR.y, min(hH / hL, 0.02));
+            vec3 hD = vec3(hEye.x + hR.x * hT, vWP0.y, hEye.z + hR.z * hT) - vWP0;
+            hD *= min(1.0, uWHull4.y * hL / max(length(hD), 1.0e-4));
+            vec4 hp = uWHullVP * vec4(vWP0 + hD, 1.0);
+            if (hp.w > 0.0) {
+              vec2 huv = hp.xy / hp.w * 0.5 + 0.5;
+              if (huv.x > 0.0 && huv.x < 1.0 && huv.y > 0.0 && huv.y < 1.0) {
+                vec4 hr = textureLod(uWHull, huv, material.roughness * uWHull4.z);
+                float hk = smoothstep(0.06, 0.35, hr.a) * (1.0 - smoothstep(1.0, 3.0, abs(vWP0.y - uWHull4.w))) * (1.0 - material.roughness) * (1.0 - material.roughness) * uWHull4.x;
+                iblRadiance = mix(iblRadiance, hr.rgb / max(hr.a, 0.02), hk);
+              }
+            }
+          }
+          #endif
           iblRadiance *= wMeanF; }`)
       .replace('#include <normal_fragment_maps>', '')
       // G794 THE REFLECTION IS THE SURFACE'S, NOT THE COLUMN'S (W-LOOK, the user on the harbour from 40 m: "water feels
@@ -1315,6 +1316,7 @@ ${PROTO.hull ? HULL_GLSL : ''}
       envMapIntensity: (opts && opts.envMapIntensity != null) ? opts.envMapIntensity : 1.0,
     });
     mat.name = 'water';
+    if (PROTO.hull) mat.defines = Object.assign(mat.defines || {}, { W_HULL: '' });   // (G2831 prototype b: the hull's sampler and block exist only under ?wrefl=b / bc - the program's sampler budget)
     if (THREE.DataTexture) U.uWDetail.value = makeTile(THREE);
     U.uWDetailK.value.w = tile ? tile.userData.bake.w : 1;
     mat.onBeforeCompile = hook;   // through ATMO's accessor: the key is 'atmo.inject+' + this hook's source
