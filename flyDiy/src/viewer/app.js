@@ -13405,6 +13405,18 @@
     b.className = 'v'; b.textContent = fmt(+i.value);
     i.oninput = () => { set(+i.value); b.textContent = fmt(+i.value); };
     i.onchange = () => flOther();
+    // (objective 1, the user 13 Oct: "typed numbers for every parameter") THE READOUT TYPED: a click edits the bare number, Enter or
+    // leaving sets it once, Escape gives up; past the range within physical bounds only (premises_host G3019: degrees wrap, a
+    // [0, 1] range clamps, a range from 0 up stays >= 0) - the thumb rests at its end, the value is the typed one
+    const deg = /\u00b0|°/.test(String(label) + (() => { try { return String(fmt(+lo)); } catch (e) { return ''; } })()) && +hi - +lo >= 359;
+    const phys = n => deg ? +lo + ((((n - +lo) % 360) + 360) % 360) : (+lo === 0 && +hi === 1) ? Math.max(0, Math.min(1, n)) : (+lo >= 0 ? Math.max(0, n) : n);
+    b.contentEditable = 'true'; b.spellcheck = false; b.title = 'type a value - Enter sets it'; b.style.cursor = 'text';
+    let typing = false;
+    b.onfocus = () => { typing = true; const g = +get(); b.textContent = isFinite(g) ? String(+g.toFixed(4)) : ''; };
+    const commit = () => { if (!typing) return; typing = false; const n = parseFloat(String(b.textContent).replace(',', '.'));
+      if (isFinite(n)) { const q = +phys(n).toFixed(6); i.value = q; set(q); b.textContent = fmt(q); flOther(); } else b.textContent = fmt(+get()); };
+    b.onblur = commit;
+    b.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); commit(); b.blur(); } else if (ev.key === 'Escape') { typing = false; b.textContent = fmt(+get()); b.blur(); } ev.stopPropagation(); };
     r.appendChild(i); r.appendChild(b);
     return r;
   };

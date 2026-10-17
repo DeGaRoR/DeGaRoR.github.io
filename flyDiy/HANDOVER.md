@@ -94986,3 +94986,12 @@ Accepted by the user by name (14 Oct): the metal Cessna +6 s load; the passenger
 Landed: METLA-ON lever 1 (G3210, 32795aee7: Metlakatla bare - no plots/yards/fences/rails; lots drawn within 600 m elsewhere; ON-OFF at 4 km loop +12.1 -> +5.8 ms, draws +506 -> +22), the DMGUPLOAD wing retry (79e23a50b). Metlakatla stays OFF by default (not even yet).
 Strict light gate: 1 RED, the metal fuseWidth slider (accepted by the user by name 14 Oct). Gates: CLOCK, CLOUD (lamps), KTX2 (accepted), FRAMECOST (accepted restore row + the mapx rows whose ALLOWs ride ed2-obj1), DMGUPLOAD still red (Deform, after the reset).
 Queue after the Sat 17 Oct reset: memory post-reset-plan-2026-10-17.
+
+## OBJECTIVE 1 - SCENERY-ED-2 (G3090 / G3091 + G2893's toggles): ON HOLD FOR CREDITS (15 Oct)
+- origin claude/ed2-obj1 = 591ac20b1 (master e21d9c7fc + 7 commits; merge-tree clean on a7e449434). node --check ONLY - NO gate has passed on it.
+  A0's early landing crashed SCENERYED on 2efb7bb9a; both causes fixed in 591ac20b1 (wayRows / plotRows take `ed`; row 31 re-draws the inspector).
+- Content: road guardrail / power-line toggles (ED-1's G2893 + polesSide, SCENERYED 30); the base zone (base plots' discs, typed stand / hangar /
+  way-out points, plots added / removed, SCENERYED 31); editor_lag labels; flRange typed (app.js, droppable alone); FRAMECOST 'mapx' ALLOWs;
+  the runway profile drag applies its terraform.
+- AFTER THE RESET, first: build + run_gates --only SCENERYED,PREMISES,SCENERY,UISMOKE,UISMOKE-PHONE,PATCHFAR,STAGES,TAXICLEAR,LINEUP,PREMCOOK
+  (scratchpad window_obj1.sh, its times to change); then land. TAXICLEAR's Jumbo numbers may move (poles 'off' by the lane honoured).
