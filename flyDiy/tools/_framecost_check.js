@@ -486,7 +486,7 @@ async function census(build) {
   let cur = null, rows = null;
   const landing = () => { const B = W.BOOT; if (bootMark.cur && B && B.state === 'landing' && !/:landing$/.test(bootMark.cur)) bootMark.open(bootMark.cur.split(':')[0] + ':landing'); };
   P.onFrame((ph) => {
-    if (ph === 'start') { landing(); if (C.injectFrame) C.injectFrame(P.frameNo); wrapPremises(FP && FP.world(), C); P.rec.resetUsed(); C.drawn = rows ? [] : null; C.drawnShadow = rows ? [] : null; C.shadowPass = rows && SHADOW_PASSES ? [] : null; if (C.shadowPass && !rows.length) C.lastPasses = {}; cur = snap(); }
+    if (ph === 'start') { landing(); if (C.injectFrame) C.injectFrame(P.frameNo); if (C.uni) { C.uni.on = !!rows; if (rows && !rows.length) { C.uni.t = {}; C.uni.n = 0; } if (rows) C.uni.n++; } wrapPremises(FP && FP.world(), C); P.rec.resetUsed(); C.drawn = rows ? [] : null; C.drawnShadow = rows ? [] : null; C.shadowPass = rows && SHADOW_PASSES ? [] : null; if (C.shadowPass && !rows.length) C.lastPasses = {}; cur = snap(); }
     else if (ph === 'end' && rows && cur) { const r = diff(cur, snap()); r.programs = P.rec.progUsed.size; rows.push(r); if (C.drawn) { C.lastDrawn = C.drawn; C.lastShadow = C.drawnShadow; if (C.shadowPass) Object.assign(C.lastPasses, shadowPassList(C.drawnShadow, C.shadowPass)); } }
   });
   let FP = null;
@@ -544,6 +544,7 @@ async function census(build) {
   const views = {};
   C.phase = () => P.rec.phase;
   if (SHADOW_PASSES) shadowPassHooks(W, C);
+  if (UNIFORMS) uniInstall(P, C);
   await debugAids(W, P, FP, C, () => rows, v => { rows = v; });
   // FRAMECOST_PROBE=<file.js> (G1531, a debugging aid, never the gate's): module.exports = async (W, P, FP) => ..., run here, before
   // the views - a repro's live switch and its read-back (stderr)
@@ -680,6 +681,7 @@ async function census(build) {
   detail.patch = (() => { let g = null; if (W.WORLD && W.WORLD.scene) W.WORLD.scene.traverse(o => { if (!g && o.name === 'premises:patch' && o.userData && o.userData.blocks) g = o; });
     return g ? { tris0: g.userData.tris, trisAll: g.userData.trisAll, blocks: g.userData.blocks, sunk: g.userData.sunk, sinkDeep: g.userData.sinkDeep } : null; })();
   if (process.env.FRAMECOST_WHAT) process.stderr.write('DETAIL ' + JSON.stringify(detail, null, 1) + '\n');
+  if (UNIFORMS) process.stderr.write('UNIFORMS ' + JSON.stringify(Object.fromEntries(Object.entries(detail).map(([v, d]) => [v, d && d.uniforms])), null, 1) + '\n');
   // AS3 (G918): the KTX2 path (reported): the ground library's packs (KTX2 or raw, why not), the transcodes, the worker ms
   const ktx2 = { ground: W.GROUND_LIB && W.GROUND_LIB.stats ? W.GROUND_LIB.stats() : null, loader: W.KTX2 && W.KTX2.stats ? W.KTX2.stats() : null, workerMsgs: P.io.workerMsgs };
   // AS6 (G937): THE CREW at the stand (reported, never ratcheted): the characters seated in the flown aeroplane, the
@@ -750,6 +752,7 @@ function pageHooks(C, getCam) {
 //   FRAMECOST_WHAT=1    what the main pass drew in one frame, by object path and material (=taxi: at the taxi pose)
 //   FRAMECOST_VILLAGE=1 a third view, `village`: the aeroplane by the thickest cluster of the premises' repeated
 //                       dressing props (G934's instancer) - for a --compare, never in the verdict
+//   FRAMECOST_UNIFORMS=1  every uniform upload of the measured frames by call, uniform, pass, program and drawn object
 //   FRAMECOST_PROBE=N   N frames at the stand, a line every 10 (draws, GL calls, terrainH, ...): how the world settles
 async function debugAids(W, P, FP, C, getRows, setRows, at) {
   const E = process.env;
@@ -832,7 +835,37 @@ function drawnDetail(C) {
       const path = []; for (let p = o; p && p.parent; p = p.parent) if (p.name) path.unshift(p.name);
       const k = path.slice(0, +(process.env.FRAMECOST_TRIS_DEPTH || 3)).join('/') || (o.type + ':' + ([].concat(o.material)[0] || {}).type); tris[k] = (tris[k] || 0) + n / 3 * inst; }
     tris = Object.fromEntries(Object.entries(tris).sort((a, b) => b[1] - a[1]).slice(0, 60).map(([k, v]) => [k, Math.round(v)])); }
-  return { main: count(C.lastDrawn), shadow: count(C.lastShadow), mats: matTally(C.lastDrawn || []), names, tris, shadowPasses: C.lastPasses || undefined };
+  return { main: count(C.lastDrawn), shadow: count(C.lastShadow), mats: matTally(C.lastDrawn || []), names, tris, shadowPasses: C.lastPasses || undefined, uniforms: uniDetail(C) };
+}
+// FRAMECOST_UNIFORMS=1 (PERF-1 P3a, a debugging aid, never in the verdict): WHO SENDS THE UNIFORMS. Every uniform* call of
+// the measured frames, tagged by the call, the uniform's name, the pass, the program (its SHADER_NAME) and the object three
+// was drawing - the last one whose onBeforeRender / onBeforeShadow it read: three uploads a draw's uniforms right after
+// (a program's first draw in a pass also carries the camera's and lights' uniforms). Per frame (calls, bytes), rolled up
+// several ways, in the census's detail.<view>.uniforms and on stderr ('UNIFORMS'). The question it answers: the taxi's
+// gl.uniform4fv 626 -> 5176 at 52ab (three re-uploads a vec4 ARRAY uniform at every material switch, with no value cache).
+const UNIFORMS = !!process.env.FRAMECOST_UNIFORMS;
+function uniInstall(P, C) {
+  C.uni = { on: false, n: 0, t: {} };
+  P.rec.onUni = (name, b, loc) => {
+    const U = C.uni; if (!U.on) return;
+    const o = C.cur, m = o && [].concat(o.material)[0], pth = [];
+    for (let q = o; q && pth.length < 3; q = q.parent) if (q.name) pth.unshift(q.name);
+    const k = [name, loc && loc.name ? loc.name.replace(/\[0\]$/, '[]') : '?', P.rec.phase, loc ? P.rec.progNames.get(loc.p) || '?' : '?',
+      o ? famOf(o) : '-', pth.join('/') || (o ? o.type : '-'), m ? m.name || m.type : '-'].join('\t');
+    const e = U.t[k] || (U.t[k] = [0, 0]); e[0]++; e[1] += b || 0;
+  };
+}
+// the tally rolled up by some of its fields ([calls, bytes] a frame, the top `top` by calls); `only` keeps those calls
+function uniDetail(C) {
+  const U = C.uni; if (!U || !U.n) return undefined;
+  const roll = (idx, top, only) => { const r = {};
+    for (const [k, [c, b]] of Object.entries(U.t)) { const f = k.split('\t'); if (only && !only.test(f[0])) continue;
+      const kk = idx.map(i => f[i]).join(' | '), e = r[kk] || (r[kk] = [0, 0]); e[0] += c; e[1] += b; }
+    return Object.fromEntries(Object.entries(r).sort((a, b) => b[1][0] - a[1][0]).slice(0, top).map(([k, [c, b]]) => [k, [+(c / U.n).toFixed(1), Math.round(b / U.n)]])); };
+  const V4 = /^uniform4f/;
+  return { frames: U.n, fields: 'call | uniform | pass | program | family | path | material', byCall: roll([0], 30), byCallPass: roll([0, 2], 40),
+    v4ByFamily: roll([0, 2, 4], 40, V4), v4ByUniform: roll([0, 1], 60, V4), v4ByProgramUniform: roll([0, 3, 1], 60, V4),
+    v4ByPathMaterial: roll([0, 2, 5, 6], 80, V4), v4Rows: roll([0, 1, 2, 3, 4, 5, 6], 150, V4), allByFamily: roll([2, 4], 40) };
 }
 // FRAMECOST_SHADOW_PASSES=1 (G1125, NEAR-LAYER; a debugging aid, never in the verdict): the last measured frame's shadow
 // draws BY PASS (each pass as the last measured frame that drew it had it: the far map draws every 2nd frame) - the light and the viewport three asked getCamera for ('sun:0' the world's far map, 'sunNear:0' the
@@ -872,7 +905,7 @@ function installThree(T, C) {
   const hook = (proto, k, ctr, pick) => {
     const DEF = proto[k], slot = '__fc_' + k;
     Object.defineProperty(proto, k, { configurable: true,
-      get() { const f = this[slot]; if (pick && C.drawn && this.isMesh && (!C.phase || C.phase() === pick)) { (pick === 'shadow' ? C.drawnShadow : C.drawn).push(this); if (pick === 'shadow' && C.shadowPass) C.shadowPass.push(C.shCur); }
+      get() { const f = this[slot]; if (pick) C.cur = this; if (pick && C.drawn && this.isMesh && (!C.phase || C.phase() === pick)) { (pick === 'shadow' ? C.drawnShadow : C.drawn).push(this); if (pick === 'shadow' && C.shadowPass) C.shadowPass.push(C.shCur); }
         if (C.craft && (pick || k === 'onBeforeShadow') && C.craft.set.has(this)) craftDraw(C, this, k === 'onBeforeShadow' ? 'shadow' : C.phase ? C.phase() : 'main');
         if (f) { C[ctr]++; return f; } return DEF; },
       set(f) { Object.defineProperty(this, slot, { value: f === DEF ? undefined : f, writable: true, configurable: true, enumerable: false }); } });
