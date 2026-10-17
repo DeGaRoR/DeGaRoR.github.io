@@ -6440,6 +6440,10 @@
       const eK = out.W[F.edge.K];
       const vK = fx.ctx.velAt(eK, [0, 0, 0]);
       const V = Math.hypot(vK[0], vK[2]);
+      // G2834: the water level the spray is thrown from - the hydro pass's (the worker sends it); never NaN (a missing level
+      // drew every particle at y = NaN: no splash, no spray under the worker)
+      if (!Number.isFinite(fx.h)) fx.h = world.waterH ? world.waterH(eK[0], eK[2]) : 0;
+      if (!Number.isFinite(fx.h)) { waterFx.wasWet[k] = true; continue; }
       // THE FIELD'S EMITTERS (H7, G460.8) - the hydro's own numbers, never authored:
       if (WT) {
         const beam = F.P ? F.P.B : 0.8, wetK = Math.min(1, fx.wet / Math.max(0.5, 2 * beam * (F.P ? F.P.L : 4)));
