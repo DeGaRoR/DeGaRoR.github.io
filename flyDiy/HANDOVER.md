@@ -95155,3 +95155,15 @@ Strict light gate: 16 better; only the accepted metal fuseWidth slider row red. 
   - the occasions authored, flyable where they stand, one-time; the used market of a career without a story unchanged;
   - T5 and open;
   - the source: the guards, the card's corner and look, the bench hook.
+- **Gates (18 Oct, through run_gates):**
+  - PASS: STORY (+ --selftest), UISMOKE, UISMOKE-PHONE, DESTTO (3 shards), CONTRACTS, PLAYER, SAVE, STORAGE, LAZY (its
+    Chromium boots), BUILD, GFX, MEDIA, PROCURE, ECON.
+  - UISMOKE first failed on map_menu's `.title =` (the NOHOVER scan). f851e450 fixed it; UISMOKE, UISMOKE-PHONE, STORY
+    and LAZY were re-run on the final source: PASS.
+  - A one-off headless Chromium boot of `?mode=career` (a scratch check, not a gate) gave:
+    - no page error;
+    - the story at T0 with the no-cabin note, Rufus fetched from the candidate and on the stand at HOME;
+    - OK -> T1;
+    - the map's 20 rows held;
+    - the card at (12, 72), 296 px wide, IBM Plex Sans, upright.
+- **READY** @ f851e450 (the work: e2aaea74 + f851e450) for the rolling landing.
