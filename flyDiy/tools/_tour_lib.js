@@ -286,7 +286,7 @@ function gameHost(C, W, def, from, to, g) {
   const shedD = st && C.playerShedDims && C.playerDefault ? C.playerShedDims(C.playerDefault(), 'HOME', st) : null;
   const stand = st ? (shedD && C.standFor ? C.standFor(st, shedD, (x, z) => W.terrainH(x, z)) : st.stand) : null;
   const H = SH.makeSimHost(C, { spec, place: { from: from.id, to: to.id, stand: stand ? JSON.parse(JSON.stringify(stand)) : false, seat: true },
-    pilot: { kind: 'auto', shakedown: shake, nav: g.nav !== false }, withV: false, day: day || null,
+    pilot: { kind: 'auto', shakedown: shake, nav: g.nav !== false, profile: g.profile || undefined }, withV: false, day: day || null,
     damage: g.damage !== undefined ? !!g.damage : !!(def.params && def.params.damage) }, W);
   if (!day) H.dayTick = () => {};
   H.game = { day, shake: !!shake, stand: stand ? { x: r1(stand.x), z: r1(stand.z) } : null, mass: r1(H.sim.totalM), fuel: H.sim.fuel ? r1(H.sim.fuel.litres) : null,
