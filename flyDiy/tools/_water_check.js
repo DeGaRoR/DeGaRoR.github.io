@@ -290,6 +290,13 @@ console.log('\n3. THE LAWS');
       verdict(/#ifdef W_HULL\s*\n\s*\/\/ THE AIRCRAFT'S OWN REFLECTION/.test(w) && /if \(PROTO\.hull\) mat\.defines = Object\.assign\(mat\.defines \|\| \{\}, \{ W_HULL: '' \}\);/.test(w) && !/\$\{PROTO/.test(w) && /PROTO = \(\(\) => \{ const q = \(typeof location !== 'undefined' && location\.search && \(\/\[\?&\]wrefl=\(b\|c\|bc\)/.test(w),
         "the hull's sampler and block live under #ifdef W_HULL, defined on the material only under ?wrefl=b / bc (nothing interpolated)");
       const app = src('src/viewer/app.js'), rw = src('src/viewer/render_world.js');
+      // THE RING STUDY (G2836, ?wrefl=ring - the user, 18 Oct: the full mirror within 1 km of land and 300 m over the water, the fades
+      // outside them, one sky for both models): absent without the switch; its capture holds no sky and no clouds
+      { const M = W.mirror, mp2 = w.slice(w.indexOf('function mirrorRender('), w.indexOf('function obliqueClip('));
+        verdict(!W.proto.ring && M.ringD0 === 1000 && M.ringD1 === 1300 && M.ringH0 === 300 && M.ringH1 === 400 && M.ringD1 > M.ringD0 && M.ringH1 > M.ringH0,
+          `the ring: full to ${M.ringD0} m from land and ${M.ringH0} m up, gone by ${M.ringD1} / ${M.ringH1} m (the fades outside the user's numbers); off without ?wrefl=ring`);
+        verdict(/if \(opts\.sky && !PROTO\.ring\)/.test(mp2) && /if \(opts\.clouds && !PROTO\.ring\)/.test(mp2) && /ringW = \(1 - sstep\(MIR\.ringH0, MIR\.ringH1, eyeAgl\)\) \* \(1 - sstep\(MIR\.ringD0, MIR\.ringD1, ld\)\);/.test(mp2),
+          'under the ring the capture holds no sky and no clouds (alpha 0: the probe sky for both models), weighted by height x distance to land'); }
       verdict(/if \(WATER\.proto && WATER\.proto\.seaOff && Number\.isFinite\(wl\) && Math\.abs\(wl\) < 0\.05\) wl = null;/.test(app) && /WATER\.proto && WATER\.proto\.hull && WATER\.hullRender/.test(app) && /if \(WSH && WSH\.proto && WSH\.proto\.shadow\) water\.receiveShadow = true;/.test(rw),
         "the switch: the sea's mirror off (lakes kept), the hull capture under b, the sea receiving the shadow under c");
       // perspBounds with a view offset is the frustum PerspectiveCamera.updateProjectionMatrix makes (the hull's oblique clip bends THAT one)

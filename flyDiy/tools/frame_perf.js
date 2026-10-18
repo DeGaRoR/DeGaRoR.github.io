@@ -297,7 +297,9 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
     console.error('  [' + name + '] ' + await ev("document.body.innerText.replace(/\s+/g,' ').slice(0,160)")); };
   const rows = [];
   for (const place of PLACES) {
-    const where = await ev(PLACE_JS[place] || (/^at:/.test(place) ? PLACE_AT(place) : PLACE_JS.stand));
+    // (G2836, the ring study) coast:<d>:<agl> - d m from land seaward of the dock, agl over the water; lake:<agl> - on a drawn lake
+    const WPL = /^(coast|lake):/.test(place) ? require('./perf/water_places.js') : null, wpa = place.split(':');
+    const where = await ev(PLACE_JS[place] || (/^at:/.test(place) ? PLACE_AT(place) : WPL ? WPL.placeJS(wpa[0], wpa[1], wpa[2]) : PLACE_JS.stand));
     await sleep(1500);
     let settled = false;
     for (let i = 0; i < 60 && !settled; i++) settled = await ev(SETTLED);

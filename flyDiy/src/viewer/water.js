@@ -65,8 +65,13 @@ const WATER = (() => {
   // ?wrefl=c  transparency + the cast shadow - the sea receives the aircraft's shadow, the sea's planar mirror off
   // ?wrefl=bc both. Lakes keep today's mirror (the redesign's scissored lake capture is P3). Without the switch NOTHING
   // changes: the hull's sampler and shader block sit under #ifdef W_HULL, defined only then (the water program's sampler budget, G424)
-  const PROTO = (() => { const q = (typeof location !== 'undefined' && location.search && (/[?&]wrefl=(b|c|bc)(?:&|$)/.exec(location.search) || [])[1]) || null;
-    return { mode: q, hull: q === 'b' || q === 'bc', shadow: q === 'c' || q === 'bc', seaOff: !!q }; })();
+  // ?wrefl=ring (G2836, THE RING STUDY - the user, 18 Oct: "the full mirror in a ring of 1 km from the shore, below 300 m
+  //   above the water, blended smoothly by proximity, with one sky for both models"): the full mirror weighted by the eye's
+  //   height and its distance to land (MIR.ring*), its capture with NO sky (alpha 0: the probe's sky through it, the same sky
+  //   the plain water reflects - one sky for both); the hull's reflection (b) and the shadow (c) on every water; the cost's
+  //   dials (MIR.res, MIR.nth, MIR.ringSkip, MIR.scissor) for the measurement
+  const PROTO = (() => { const q = (typeof location !== 'undefined' && location.search && (/[?&]wrefl=(b|c|bc|ring)(?:&|$)/.exec(location.search) || [])[1]) || null;
+    return { mode: q, hull: q === 'b' || q === 'bc' || q === 'ring', shadow: q === 'c' || q === 'bc' || q === 'ring', seaOff: q === 'b' || q === 'c' || q === 'bc', ring: q === 'ring' }; })();
   const NTR = 32;                                                 // trains the uniform array holds (seaFrom makes 32: a swell band and a wind sea drawn from the spectrum, G460.3)
   const TWO_PI = 2 * Math.PI;
 
@@ -952,7 +957,11 @@ const WATER = (() => {
   //   res 0.4 (was 0.5; the user's pick 13 Oct, A0's option (b)): the capture at 0.4 of the frame each way x the guard band -
   //     ~36 % fewer pixels than 0.5; the pass was 4.2-5.9 ms GPU at 0.5 on gamer (frame_perf ABBA 13 Oct)
   const MIR = { mode: 'off', every: 3.0, minGap: 0.25, moveM: 3, turnDeg: 3, jumpM: 15, jumpDeg: 12, fadeFrom: 500, maxAgl: 900, moveAgl: 0.05, guard: 1.25, res: 0.4, perturb: 0.15, lod: 5.0, far: 4000, w: 0, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0,
-    adoptAgl: 200, slideS: 0.35, seaY: 0, plane: null, planeT: null, eyePrev: null, skip: [], skipped: 0, captures: 0, calls: 0, capturing: false };
+    adoptAgl: 200, slideS: 0.35, seaY: 0, plane: null, planeT: null, eyePrev: null, skip: [], skipped: 0, captures: 0, calls: 0, capturing: false,
+    // G2836 (?wrefl=ring): full to ringD0 m from land and ringH0 m over the water, gone by ringD1 / ringH1 (the fades OUTSIDE the
+    // user's 1 km / 300 m - A0); the cost's dials: nth (a capture every nth frame), ringSkip (no grass / cover / route helpers in
+    // the capture), scissor (only the rows under the water's horizon rasterised), ringSamples (no clouds in it: no MSAA needed)
+    ringD0: 1000, ringD1: 1300, ringH0: 300, ringH1: 400, nth: 1, ringSkip: true, scissor: true, ringSamples: 0, ringW: 0, landD: Infinity, landAt: null, frameN: 0 };
   const mirrorTmp = {};
   // mirrorPlane(under, eye, dt): the plane the capture mirrors about (G2830). `under` is the drawn water's level under the
   // eye (else under the CG), null over land. The plane is ADOPTED from it only while the eye is low over that water,
@@ -1002,8 +1011,23 @@ const WATER = (() => {
     if (seen.lastAnswered <= seen.base || seen.frame - seen.lastAnswered > 8) return true;   // no answer yet, or the answers stalled: capture
     return seen.lastTrue === seen.lastAnswered;
   }
+  // ringLandDist(eye, isLand): the eye's distance to the nearest land, out to MIR.ringD1 (Infinity past it) - 32 headings in 25 m
+  // steps, cached until the eye has moved 40 m or 0.5 s went by (the weight it feeds is smooth over 300 m: a stale metre is nothing)
+  const ringTmp = { at: null, t: -1e9 };
+  function ringLandDist(eye, isLand, now) {
+    if (typeof isLand !== 'function') return Infinity;
+    if (ringTmp.at && Math.hypot(eye.x - ringTmp.at[0], eye.z - ringTmp.at[1]) < 40 && now - ringTmp.t < 0.5) return MIR.landD;
+    let best = Infinity;
+    if (isLand(eye.x, eye.z)) best = 0;
+    else for (let k = 0; k < 32; k++) { const a = k / 32 * 2 * Math.PI, dx = Math.sin(a), dz = Math.cos(a);
+      for (let r = 25; r <= MIR.ringD1 && r < best; r += 25) if (isLand(eye.x + dx * r, eye.z + dz * r)) { best = r; break; } }
+    ringTmp.at = [eye.x, eye.z]; ringTmp.t = now; MIR.landD = best;
+    return best;
+  }
+  const sstep = (e0, e1, x) => { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
   function mirrorRender(THREE, renderer, scene, camera, under, opts) {
     opts = opts || {};
+    if (PROTO.ring && MIR.mode !== 'live') { MIR.mode = 'live'; mirrorOff(); }   // (the study's mirror is the never-switching one, weighted by the ring)
     if (MIR.mode === 'off') { if (MIR.on && U) { MIR.on = false; U.uWMirror4.value.x = 0; } MIR.w = 0; return false; }
     const auto = MIR.mode === 'auto', hasUnder = under !== null && under !== undefined && Number.isFinite(under);
     // AUTO (master's behaviour): no water under the eye or the CG = the mirror off (the switch the user chose to keep by default)
@@ -1029,8 +1053,14 @@ const WATER = (() => {
     const mirW = !(eyeAgl > 0.1) ? 0
       : always || eyeAgl <= MIR.fadeFrom ? 1
       : Math.max(0, 1 - (eyeAgl - MIR.fadeFrom) / Math.max(1, MIR.maxAgl - MIR.fadeFrom));
-    MIR.w = mirW;
-    if (!U || mirW <= 0.001) { if (MIR.on && U) { MIR.on = false; U.uWMirror4.value.x = 0; } return false; }
+    // THE RING (G2836): the full mirror near land and low, dissolving outside 1 km / 300 m (a weight on the eye's own state:
+    // it moves with the aeroplane, never a frame's switch) - no capture at all where it is 0
+    let ringW = 1;
+    if (PROTO.ring) { const ld = ringLandDist(camera.position, opts.isLand || MIR.landAt, now);
+      ringW = (1 - sstep(MIR.ringH0, MIR.ringH1, eyeAgl)) * (1 - sstep(MIR.ringD0, MIR.ringD1, ld)); MIR.ringW = ringW; }
+    MIR.w = mirW * ringW;
+    if (!U || MIR.w <= 0.001) { if (MIR.on && U) { MIR.on = false; U.uWMirror4.value.x = 0; } return false; }
+    if (PROTO.ring && MIR.nth > 1 && MIR.last && (++MIR.frameN % MIR.nth) !== 0) { U.uWMirror4.value.x = MIR.w; return false; }   // (the guard: every nth frame - the weight still follows every frame)
     // (G2830) no water in the newest answered frame: no capture (the last one stays bound, its texture and its matrix together)
     const vis = live ? waterSeen() : true;
     if (live && MIR.last && !vis) { MIR.skipped++; return false; }
@@ -1058,13 +1088,14 @@ const WATER = (() => {
     const size = renderer.getDrawingBufferSize ? renderer.getDrawingBufferSize(mirrorTmp.v2 || (mirrorTmp.v2 = new THREE.Vector2())) : { x: 1920, y: 1080 };
     const G = Math.max(1, MIR.guard || 1);   // (the guard band keeps the capture's texel density: the target grows with it)
     const w = Math.max(64, Math.round(size.x * MIR.res * G)), h = Math.max(64, Math.round(size.y * MIR.res * G));
-    if (!MIR.rt || MIR.rt.width !== w || MIR.rt.height !== h) {
+    const smp = PROTO.ring ? MIR.ringSamples : 2;
+    if (!MIR.rt || MIR.rt.width !== w || MIR.rt.height !== h || MIR.rt.samples !== smp) {
       if (MIR.rt) MIR.rt.dispose();
       // (a depth texture: the clouds' march reads the capture's depth, as it reads the frame's - and the capture is
       // MULTISAMPLED x2 so that texture is the RESOLVE of the depth, not the attachment itself: the clouds' composite
       // samples it while drawing into the capture, and on a single-sampled target that is a feedback loop WebGL
       // drops the draw of - no cloud in any mirror, G460.11.1)
-      MIR.rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: true, depthBuffer: true, stencilBuffer: true, samples: 2,
+      MIR.rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: true, depthBuffer: true, stencilBuffer: true, samples: smp,
         depthTexture: THREE.DepthTexture ? new THREE.DepthTexture(w, h, renderer.capabilities && renderer.capabilities.reversedDepthBuffer ? THREE.FloatType : THREE.UnsignedInt248Type) : null });   // float under the reversed buffer (app.js, PERF 2026-09-23)
       if (MIR.rt.depthTexture) { MIR.rt.depthTexture.format = THREE.DepthStencilFormat; MIR.rt.depthTexture.minFilter = MIR.rt.depthTexture.magFilter = THREE.NearestFilter; }
       MIR.rt.resolveStencilBuffer = false;   // the capture's depth is read, its stencil never (aa_resolve.js: PERF 2026-09-23)
@@ -1113,7 +1144,7 @@ const WATER = (() => {
     // for its own draw and hidden again before the scene's. The user: "the cloud reflections look really
     // strange ... my brain does not reconcile it as being the mirrored sky")
     let skyPar = null;
-    if (opts.sky) {
+    if (opts.sky && !PROTO.ring) {   // (G2836: under the ring no sky in the capture - alpha 0, the probe's sky through it: ONE sky)
       const sky = opts.sky;
       MIR.skyScene = MIR.skyScene || new THREE.Scene();
       skyPar = sky.parent;
@@ -1129,7 +1160,7 @@ const WATER = (() => {
     // for the mirrored eye into this capture (opts.clouds = CLOUDS.draw), composited by the scene's cloud quad -
     // with the FRAME's far (the composite writes its depth against log2(far + 1): a cloud 10 km out under the
     // capture's capped far read as depth > 1 and was clipped - no cloud in the mirror, G460.11.1)
-    if (opts.clouds) { try { opts.clouds(renderer, mc, MIR.rt); } catch (e) {} }
+    if (opts.clouds && !PROTO.ring) { try { opts.clouds(renderer, mc, MIR.rt); } catch (e) {} }
     if (skyPar) { const sky = opts.sky; sky.position.set(0, 0, 0); skyPar.add(sky); }
     // the scene's own far CAPPED (the capture's cost is its draw calls; the decor past it is the sky's in the reflection)
     mc.far = Math.min(camera.far, MIR.far); mc.updateProjectionMatrix();
@@ -1139,9 +1170,30 @@ const WATER = (() => {
     // (G2830) the scene's draw alone, counted (renderer.info resets at each render) and flagged for a census rig's hook;
     // MIR.skip: objects left out of the scene's draw only (the culls a census names; the sky pass above keeps the dome)
     const skipped = [];
-    for (const o of MIR.skip) if (o && o.visible) { o.visible = false; skipped.push(o); }
+    // (G2836 ring guard) the small things out of the capture: the cover ring (grass, tufts, rocks, debris), the route helpers
+    const skipList = PROTO.ring && MIR.ringSkip ? MIR.skip.concat(scene.children.filter(o => /^(coverRing|patternVis|grassField|grass)/.test(o.name || ''))) : MIR.skip;
+    for (const o of skipList) if (o && o.visible) { o.visible = false; skipped.push(o); }
+    // (G2836 ring guard) THE SCISSOR: a water pixel reads the capture at its own screen row (G460.11.4: projected uv = pixel uv on y),
+    // so only the rows under the water's horizon (+ a margin for the slope's walk and the edge fade) are ever read - the rest is not
+    // rasterised. The horizon: the plane's far points along the view's left / centre / right headings, through the MAIN camera
+    let sc = false;
+    if (PROTO.ring && MIR.scissor) {
+      const hp = mirrorTmp.hp || (mirrorTmp.hp = new THREE.Vector3()), dir = mirrorTmp.hd || (mirrorTmp.hd = new THREE.Vector3());
+      let yTop = -Infinity;
+      for (const sx of [-1, 0, 1]) {
+        dir.set(sx * Math.tan(Math.PI / 360 * camera.fov) * camera.aspect, 0, -1).applyQuaternion(camera.quaternion); dir.y = 0;
+        if (dir.lengthSq() < 1e-8) { yTop = Infinity; break; }
+        dir.normalize(); hp.set(pos.x + dir.x * 2e4, waterY, pos.z + dir.z * 2e4).project(camera);
+        if (hp.z < 1) yTop = Math.max(yTop, hp.y);
+      }
+      if (Number.isFinite(yTop)) {
+        const yC = Math.min(1, (yTop + 0.12) / G);   // the capture's NDC is the frame's / G (the guard band)
+        const rows = Math.max(1, Math.min(h, Math.ceil((yC + 1) / 2 * h)));
+        if (rows < h) { MIR.rt.scissor.set(0, 0, w, rows); MIR.rt.scissorTest = true; renderer.setRenderTarget(MIR.rt); sc = true; MIR.rows = rows / h; }   // (the TARGET's scissor: three applies it on binding)
+      }
+    }
     MIR.capturing = true;
-    try { renderer.render(scene, mc); } finally { MIR.capturing = false; for (const o of skipped) o.visible = true; }
+    try { renderer.render(scene, mc); } finally { MIR.capturing = false; for (const o of skipped) o.visible = true; if (sc) { MIR.rt.scissorTest = false; MIR.rows = MIR.rows || 1; } }
     MIR.calls = renderer.info && renderer.info.render ? renderer.info.render.calls : 0; MIR.captures++;
     scene.background = bg;
     renderer.setClearColor(cc, ca); renderer.setRenderTarget(prevT); renderer.autoClear = ac; renderer.shadowMap.autoUpdate = sm;
@@ -1151,7 +1203,7 @@ const WATER = (() => {
     MIR.last = { x: pos.x, y: pos.y, z: pos.z, qx: q.x, qy: q.y, qz: q.z, qw: q.w, wy: waterY, margin }; MIR.lastT = MIR.t; MIR.on = true;
     U.uWMirror.value = MIR.rt.texture;
     U.uWMirrorVP.value.multiplyMatrices(mc.projectionMatrix, mc.matrixWorldInverse);
-    U.uWMirror4.value.set(mirW, MIR.perturb, MIR.lod, waterY);   // x: the mirror's WEIGHT (G522, the altitude fade); w: the mirror's plane, which the slope's walk needs (G460.11.9)
+    U.uWMirror4.value.set(MIR.w, MIR.perturb, MIR.lod, waterY);   // x: the mirror's WEIGHT (G522, the altitude fade); w: the mirror's plane, which the slope's walk needs (G460.11.9)
     U.uWRes.value.set(size.x, size.y);
     return true;
   }
