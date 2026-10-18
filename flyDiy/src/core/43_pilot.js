@@ -449,9 +449,13 @@ function makePilot(sim, def, world, opts) {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });
   };
   let phaseT = 0;
+  // G3077 (TORQUE-RETUNE-66): the water rudders held down through a crosswind run's hump (ROLL, below) - the handle given
+  // back to the rule the moment the phase changes; wrUp: raised for good this run (the hull labours)
+  let wrHold = false, wrUp = false;
   const go = (ph) => {
     if (ph !== ap.phase) ap.report.phases.push({ t: Math.round(ap.t * 10) / 10, phase: ph });
     ap.phase = ph; phaseT = 0;
+    if (wrHold) { sim.ctl.wr = null; wrHold = false; }
     piv = null;                                  // G1938: a pivot belongs to the phase that began it
     { const S_ = ap.afcs.sel; S_.wK = S_.vFloor = S_.toCap = S_.thrFull = S_.flc = S_.thMin = null; if (flcOn) { flcOn = false; SV.IthGain = null; SV.pitchK = 1; } }   // G2125: the climb law's selections are the phase's that set them
   };
@@ -3075,7 +3079,7 @@ function makePilot(sim, def, world, opts) {
         }
         if (thRest === null) thRest = th;
         if (rollS0 === null) {
-          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false;
+          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false; wrUp = false;
           depC = null; toAccelDone = false; toHoldH = null; toLowT = 0; flcI = 0; flcTh = flcVt = null; flcSet = false; flcSetT = 0; flcRelax = 0;   // G2125: a new run, a new climb-out
           // P1.C: THE DEPARTURE PLAN (PILOT-ROADMAP C.3-C.4), the approach
           // plan's twin: 'short' when the strip is under 2 x the sheet's
@@ -3151,6 +3155,23 @@ function makePilot(sim, def, world, opts) {
           if (humpPk > 0.05 && humpR < (A.humpOff ?? 0.6) * humpPk) humpPast = true;
         }
         const atHump = !!(sim.hydro && (sim.hydro.floats.some(fx => fx.out && fx.out.wetA > 0.2) || !humpPast));
+        // G3077 (TORQUE-RETUNE-66): IN A CROSSWIND THE WATER RUDDERS STAY DOWN THROUGH THE HUMP (FAA-H-8083-23: the water
+        // rudders help hold the heading early in a crosswind run; 32_hydro G451: "a crosswind seaplane keeps its water
+        // rudders down until it is nearly on the step"). The rule raises them at take-off power from 0.6 WR_UP_V (7.2 m/s),
+        // and from there the user's twin on floats in GATE SEAPLANE's 5 m/s across (0.30 Vs0: 24 deg of sideslip on the fin
+        // at 11 m/s) weathercocked with the air rudder on its stop - with the solver's old rigid-yaw damper (DMG-DAMP G1885's
+        // control, defDampMean) the swing levelled at 15 deg; without it the yaw ran on, the hull skipped off at 0.9 Vs and
+        // touched again 30-60 deg crabbed: master 1 of 5 winds 4.6-5.4 m/s (5.0 alone, by 18 deg), the torque bundle 0 of 5
+        // (64.7 deg at 5.0). Held to the hump's end: 7 of 7 winds 3.3-6 m/s, the swing 4-15 deg, 0.7 m off the lane. But
+        // their drag (G396.4: 0.02 W at the hump) is more than a labouring hull can spare - held on the Cessna on floats
+        // (R/W 0.19-0.24 at the hump) it never got over it - so the moment the run's acceleration falls under 0.1 g they
+        // come up for good: the Cessna raises them at 8-10 m/s and lifts off as before (21.9-24.1 s); the twin, accelerating
+        // over 0.1 g to the step, never does. Calm (|cross| under xwArm) or on the wheels: the rule, untouched
+        if (sim.hydro && rollS0 !== null) {
+          if (!wrUp && V > 0.6 * (typeof WR_UP_V === 'number' ? WR_UP_V : 12) && SV.accF < 0.1 * 9.81) wrUp = true;
+          const wr = Math.abs(SV.crossWind(F)) > (SERVO_GAINS.xwArm ?? 0.5) && !humpPast && !wrUp;
+          if (wr) { c.wr = 1; wrHold = true; } else if (wrHold) { c.wr = null; wrHold = false; }
+        }
         if (canStopHere) {
           // the prediction waits for the 2 s acceleration filter to settle
           // (three time constants after the throttle opens): at 3 s a slow
