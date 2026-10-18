@@ -169,7 +169,7 @@ function makeServos(sim, def, opts) {
     // the servos' memory a phase may set
     thCA: 0, phCA: 0, vsF: 0, thcI: 0.06, Ith: 0, It: 0, thrC: 0.6,
     IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0, oscK: 1, oscScore: 0,
-    eTrim: 0, drTrim: 0, gI: 0, gIT: -1e9, aDe: 0, aDa: 0, aDr: 0, tailUp: false, thrCap: 1,
+    eTrim: 0, drTrim: 0, betaIK: 1, gI: 0, gIT: -1e9, aDe: 0, aDa: 0, aDr: 0, tailUp: false, thrCap: 1,
     dcI: 0, dcT: -1, taxiI: 0, taxiLastT: -1e9, taxiHdgF: null, taxiHdgT: -1e9,
   };
   let init = false, thF = 0, phF = 0, thP = 0, phP = 0, eP = 0, eAP = 0;
@@ -324,7 +324,7 @@ function makeServos(sim, def, opts) {
     c.da = clamp(g('rollP') * (S.phCA - S.ph) - g('rollD') * S.p, -G.daMax, G.daMax);
     // G2080: the slip's integral is the rudder trim (the beta term alone left the climb at full power 4.8 deg
     // crossed on the Cub: a P loop against a standing yaw keeps a standing error)
-    S.drTrim = clamp(S.drTrim - g('betaI') * S.beta * S.dt, -g('drTrimMax'), g('drTrimMax'));
+    S.drTrim = clamp(S.drTrim - g('betaI') * S.betaIK * S.beta * S.dt, -g('drTrimMax'), g('drTrimMax'));
     c.dr = clamp(S.drTrim - g('betaK') * S.beta - g('yawDampK') * (S.eAR - S.eARslow)
                  - g('ariK') * c.da, -G.drAirMax, G.drAirMax);
   };

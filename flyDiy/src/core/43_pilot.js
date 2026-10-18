@@ -704,6 +704,13 @@ function makePilot(sim, def, world, opts) {
   // left the Jodel student's balloon-and-drop (2.6-2.9); the wheels' delay whole: the Jodel student 0.93-1.24, the
   // ham-fists 1.09-1.99 on every seed. The person still flares LATE (flareK) with their own hands (smooth, hamFist)
   const humGain = (rx, onG) => (onG > 0 || ap.phase === 'FLARE') ? 1 : PRF.gain != null ? PRF.gain : 1 / (1 + rx / HUM_TG);
+  // G3077 (TORQUE-RETUNE-66): A PERSON TRIMS THE BALL AS SLOWLY AS THEY FLY. ENGINE-TORQUE's slip trim (39b rollTo: the slip's
+  // integral, betaI 0.6 /s) is the expert's; behind a person's delay it closed a loop of its own - the student's final on the
+  // Cub archetype weaved bank +-22 deg, heading +-35 deg on a 6 s cycle (the honest solver, DMG-DAMP G1885: no rigid-yaw
+  // damper; with defDampMean it landed) and went round 'off the centreline by 15 m' (GATE PILOTMATRIX cub:HOME:calm:student
+  // gave-up; betaI 0: landed 0.4 m off). The person's trim runs at their own grip (humGain in the air: the student's 0.30 ->
+  // betaI 0.18: landed 0.0 m off, seed 1 0.7 m); the expert's is whole (bit-identical)
+  if (PRA) SV.betaIK = humGain(PRF.reaction, 0);
   // G2463 (PERSONA-2): WHAT THE ELEVATOR'S STOP IS JUDGED ON - the machine's own adaptations (G975's landing flap
   // 'the elevator cannot hold it', G399.7's Vref raised 'the elevator cannot hold this speed') read the elevator to
   // find the AEROPLANE's authority. Under a person they read the person's HAND: the ham-fist's wander (0.05 rms) on
