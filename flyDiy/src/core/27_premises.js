@@ -1764,6 +1764,18 @@ function runwaySite(r, F) {
 // (v1.33) a stage's `sock: false` / `ties: false` onto the aerodrome (render_world's windsock, 25_airfield fleetSpots);
 // absent - the record never says it - the aerodrome is untouched
 function stageAero(a, r) { if (r.sock === false) a.sock = false; if (r.ties === false) a.ties = false; return a; }
+// G3098 (the Cabin Strip): A STRIP'S DRAWN FLIGHT - `fly` { dep, appr, circuit?, side?, terrainOk? } in the premises frame (the
+// pilot's: dep from the lift-off end, its last point where the tight zone is passed, no turn before it; appr outermost first,
+// ending at the threshold; a point [x, z] or [x, z, metres above the strip's top end]), handed to the pilot in the world
+function flyWorld(f, F) {
+  if (!f || typeof f !== 'object') return null;
+  const W = L => Array.isArray(L) ? L.filter(q => Array.isArray(q) && isFinite(+q[0]) && isFinite(+q[1])).map(q => { const w = F.toWorld(+q[0], +q[1]); return q.length > 2 && isFinite(+q[2]) ? [+w[0].toFixed(2), +w[1].toFixed(2), +q[2]] : [+w[0].toFixed(2), +w[1].toFixed(2)]; }) : null;
+  const o = { dep: W(f.dep), appr: W(f.appr) };
+  if (Array.isArray(f.circuit)) o.circuit = W(f.circuit);
+  if (f.side === 1 || f.side === -1) o.side = f.side;
+  if (f.terrainOk === true) o.terrainOk = true;
+  return o;
+}
 function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   const E = runwayEnds(r);
   const c = F.toWorld(r.c[0], r.c[1]);
@@ -1810,7 +1822,7 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
            // (0|1); without it a one-way strip is left the way it is landed. East Point is landed over the sea and left
            // back out over it - the trees close in at the other end
            takeoffHdg: r.departure === 1 ? hdg : r.departure === 0 ? hdg + Math.PI : null,
-           slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null };
+           slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null, ...(r.fly ? { fly: flyWorld(r.fly, F) } : {}) };
 }
 
 // ---------------------------------------------------------------------------
@@ -4104,6 +4116,9 @@ function issues(rec0) {
     else for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).refuse) out.push(i);
     if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
     if (r.approach !== undefined && r.approach !== null && r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': approach is 0, 1 or null');
+    // (G3098) a drawn flight: dep / appr lists of points, side +-1
+    if (r.fly != null) { const f = r.fly, pts = L => L == null || (Array.isArray(L) && L.every(q => Array.isArray(q) && q.length >= 2 && isFinite(+q[0]) && isFinite(+q[1])));
+      if (typeof f !== 'object' || !pts(f.dep) || !pts(f.appr) || !pts(f.circuit) || (f.side != null && f.side !== 1 && f.side !== -1)) out.push('runway ' + r.id + ': fly is { dep, appr, circuit? (lists of [x, z]), side? +1 / -1, terrainOk? }'); }
     if (r.circuit != null) {
       const c = r.circuit;
       if (typeof c !== 'object') out.push('runway ' + r.id + ': circuit is an object { hand, height, join } or null');
