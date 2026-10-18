@@ -95054,7 +95054,12 @@ landing (every node touchdown 1.28-1.34 Vs, 200-210 m of roll). The report: flyd
   alpha swept from the 1.2 Vs attitude to polarWing.aStall; where the moment turns nose-down, sqrt(best lift / that lift) is
   the slowest speed the elevator holds (FAR 23.201's "elevator on its stop" stall). pass <= 1.05 Vs, warn to 1.30, fail above.
   The fix is sized: the CG shift that brings the moment at the stall angle to zero. Free air (ground effect not modelled).
-- GATE DESIGNCHECK: the row count >= 13; a doctored Cub (elevator chord x0.25) must fail ctl.flare; the user's Rufus
-  (tools/fixtures/repro/rufus_2026-10-18.json, a copy of their inbox file) must not pass it, within 0.08 of the flown 1.16.
-- NOT RUN YET (A0: runs 23:15-00:10): the validated five through the new row go to A0 BEFORE ready - a red validated build
-  is the user's call.
+- GATE DESIGNCHECK: the row count >= 13; a doctored Cub with its wing 0.4 m aft of the CG must FAIL ctl.flare (1.35 Vs);
+  THE GAP: the Cub with its engine 0.8 m forward keeps ctl.elevator's pass (0.088) while ctl.flare warns (1.17 Vs); the
+  user's Rufus (tools/fixtures/repro/rufus_2026-10-18.json, a copy of their inbox file) must not pass it, within 0.08 of
+  the flown 1.16 (reads 1.09). An elevator cut to 25 % of its chord is NOT a case: near the stall the Cub's moment barely
+  moves with it (1.01) - so the fix names the CG, not the elevator.
+- MEASURED 18 Oct 23:16 (A0's UNTIMED window), the flare row: cub 1.00 pass, jodel pass, metal Cessna 1.07 WARN (the CG
+  0.08 m too far forward for its elevator: it flares to 85 km/h against an 80 km/h stall), Cessna floats 1.03 pass, twin
+  floats pass, mosquito 2/3 pass, Rufus as built 1.09 warn, Rufus B pass. No validated build red; the Cessna's new WARN is
+  the user's call (A0). GATE DESIGNCHECK 27/27 PASS.

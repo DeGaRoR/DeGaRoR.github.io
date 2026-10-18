@@ -96,8 +96,9 @@ if (!ONLY_SIM) {
     ['the stab shrunk to 40 %', S => { S.tail.Sh *= 0.4; }, 'pitch.Vh'],
     ['the tail pulled 1.2 m forward', S => { S.tail.place = { dx: -1.2 }; }, 'pitch.sm'],
     ['no aileron', S => { S.controls = Object.assign({}, S.controls, { aileron: { span: 0, chord: 0.22 } }); S.wings[0].ailSpan = 0; }, 'ctl.aileron'],
-    // G3271: an elevator too small to flare it power off
-    ['the elevator chord cut to 25 %', S => { S.controls = Object.assign({}, S.controls, { elevator: Object.assign({}, S.controls.elevator, { chord: S.controls.elevator.chord * 0.25 }) }); }, 'ctl.flare'],
+    // G3271: the CG far ahead of the wing - the elevator cannot bring it to its stall power off (measured 1.35 Vs;
+    // an elevator cut to 25 % of its chord is NOT a case: near the stall the Cub's moment barely moves with it, 1.01)
+    ['the wing 0.4 m aft of the CG', S => { S.wings[0].xLE += 0.4; }, 'ctl.flare'],
   ];
   // (the dihedral effect has no doctored row: the wing's dihedral is clamped
   // to 0-6 deg, and the flattest low wing that clamp allows - the Jodel at 0
@@ -106,6 +107,14 @@ if (!ONLY_SIM) {
     const { dc } = check(cub, mut, true);
     const r = row(dc, id);
     ok(r.level === 'fail' && !!r.fix, `${name}: ${id} ${r.level} (${r.value}) -> ${r.fix || 'no fix'}`);
+  }
+  // G3271: THE GAP the flare row closes - a nose-heavy Cub (its engine 0.8 m further forward, Rufus's case) keeps
+  // ctl.elevator's pass at 1.2 Vs, and only ctl.flare says it cannot be slowed to its stall (measured 1.17 Vs)
+  {
+    const { dc } = check(cub, S => { S.engines[0].x -= 0.8; }, true);
+    const e = row(dc, 'ctl.elevator'), f = row(dc, 'ctl.flare');
+    ok(e.level === 'pass' && f.level !== 'pass' && f.value > 1.05 && !!f.fix,
+       `the engine 0.8 m forward: ctl.elevator ${e.level} (${e.value}), ctl.flare ${f.level} (${f.value} x Vs) -> ${f.fix || 'no fix'}`);
   }
 
   console.log('SWEEPS - the physics points the right way');

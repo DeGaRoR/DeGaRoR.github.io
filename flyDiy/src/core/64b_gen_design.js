@@ -335,7 +335,7 @@ function genDesignCheck(def, sh, simIn, opts) {
           limit: 'engine idle, CG at its forward limit, the stick on its stop: the slowest speed held must be the stall (pass <= 1.05 Vs; warn to 1.30 Vs - it lands fast; fail above: it cannot be slowed to an approach speed)',
           why: held ? 'full up elevator takes the wing to its stall angle with the engine idle'
                     : 'full up elevator, engine idle, CG at the forward corner: the nose stops rising at ' + r2(ratio * Vs * 3.6) + ' km/h (the stall is ' + r2(Vs * 3.6) + ' km/h)',
-          fix: lvl === 'pass' ? '' : 'it is nose-heavy for its elevator: the CG ' + r2(cgAft) + ' m further aft (a lighter engine, or the wing moved forward by about that), or a bigger elevator chord' });
+          fix: lvl === 'pass' ? '' : 'it is nose-heavy for its elevator: the CG ' + r2(cgAft) + ' m further aft (a lighter engine, or the wing moved forward by about that) - near the stall a bigger elevator barely helps' });
   }
   // ---- YAW AND ROLL -------------------------------------------------------
   if (t && geom && t.Sv > 0) {
