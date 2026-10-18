@@ -95,6 +95,31 @@ function run(M) {
   ok(s.open && s.beat === 'open' && M.storyJobsOpen(d) && M.storyMask(d) === null && r.effects.some(e => e.k === 'open'), 'the rails end: open, the job list open, no mask');
   ok(s.done.join() === 'T0,T1,T2,T3,T4,T5,T6,T7', 'every beat done, in order', s.done.join());
   ok(!M.storyStep(d, { k: 'ack' }, { aeros }).ok, 'an open story refuses steps');
+  // ---- G2743 TWO OWNED HANGARS: the cabin granted at the start, HOME locked until T1, send-to between them
+  let h = M.careerNormalise(M.careerNew({ id: 'h', seed: 'story2', name: 'gate' }));
+  const w0 = h.wallet;
+  r = M.storyStart(h, 'ul', { cabin: { aero: 'w1', plot: 'w1' } });
+  ok(r.ok && !r.why && r.doc.sheds.w1 && r.doc.sheds.w1.shell === 'field' && r.doc.sheds.w1.base === 'w1' && r.doc.here === 'w1' && r.doc.wallet === w0,
+     'the start: the cabin\'s field shed is ours, free, and we are there', r.why);
+  ok(M.playerShedLocked(r.doc, 'HOME') && !M.playerGoTo(r.doc, 'HOME').ok && M.playerShedsOpen(r.doc).join() === 'w1', 'HOME is locked until T1: not here, not open');
+  h = r.doc;
+  const back1 = M.careerNormalise(JSON.parse(JSON.stringify(h)));
+  ok(back1.sheds.HOME.locked === 'story' && back1.sheds.w1 && back1.here === 'w1', 'saved and reloaded: the cabin and the lock kept');
+  // a plane of ours away at HOME: bring it home / send it home before T1
+  h = JSON.parse(JSON.stringify(h)); h.fleet.ul = { hangar: null, aero: 'HOME', kind: 'away' }; h = M.careerNormalise(h);
+  const bh = M.playerBringHome(h, 'ul');
+  ok(bh.ok && M.playerWhere(bh.doc, 'ul').hangar === 'w1', 'bring it home before T1: to the cabin, never the locked HOME', JSON.stringify(M.playerWhere(bh.doc, 'ul')));
+  ok(!M.playerSendTo(h, 'ul', 'HOME').ok, 'send-to HOME before T1: refused (not yours yet)');
+  ok(M.playerSendTo(h, 'ul', 'w1').ok, 'send-to the cabin: ok');
+  const noPlot = M.storyStart(M.careerNormalise(M.careerNew({ id: 'n', seed: 'n' })), 'ul', { cabin: { aero: 'nv_strip' } });
+  ok(noPlot.ok && /no shed/.test(noPlot.why || '') && !M.playerShedLocked(noPlot.doc, 'HOME'), 'a cabin with no plot on offer: the start keeps HOME open and says why', noPlot.why);
+  // T0 -> T1 at HOME lifts the lock
+  let x = M.storyStep(h, { k: 'ack' }, { aeros }); h = x.doc;
+  x = M.storyStep(h, { k: 'stop', stop: stop('HOME'), slot: 'ul' }, { aeros });
+  ok(x.ok && !M.playerShedLocked(x.doc, 'HOME') && M.playerShedsOpen(x.doc).join() === 'HOME,w1', 'T1 done: HOME is ours too; both hangars open (HOME first)');
+  const st = M.playerSendTo(x.doc, 'ul', 'HOME');
+  ok(st.ok && M.playerWhere(st.doc, 'ul').hangar === 'HOME', 'send-to HOME after T1: inside HOME', JSON.stringify(M.playerWhere(st.doc, 'ul')));
+  ok(!M.playerSendTo(x.doc, 'ul', 'w5').ok, 'send-to a hangar we do not hold: refused');
   // the save
   const back = M.careerNormalise(JSON.parse(JSON.stringify(d)));
   ok(JSON.stringify(M.storyOf(back)) === JSON.stringify(M.storyOf(d)) && JSON.stringify(M.storyNormalise(JSON.parse(JSON.stringify(back.career.story)))) === JSON.stringify(back.career.story), 'saved and reloaded: the story unchanged (careerNormalise keeps it)');

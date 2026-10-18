@@ -111,14 +111,31 @@ function storyNormalise(s) {
 }
 // the story of a career document, or null (the sandbox, a career without one)
 const storyOf = doc => (doc && doc.mode === 'career' && doc.career && doc.career.story) ? storyNormalise(doc.career.story) : null;
-// a new career WITH the story (STORY-PAGE calls this once, at New career): the starter plane's slot is bound by the page
-function storyStart(doc, starterSlot) {
+// G2743 THE CABIN, GRANTED: the shed on the cabin's plot (BASE_OFFERS[aero].plots[plot]) is the player's, free - the
+// story's gift, no ledger charge - and HOME's shed is LOCKED until T1 (71_ playerShedLocked: the start owns ONLY the
+// cabin, the user 18 Oct). `here` is the cabin. A cabin with no plot on offer -> refused with the reason (the start
+// stays at HOME's garage and the page says why; never a guess).
+function storyGrantCabin(d, aero, plot) {
+  const O = typeof BASE_OFFERS !== 'undefined' && BASE_OFFERS[aero], P = O && O.plots[plot || aero];
+  if (!P) return 'no shed to hold at ' + aero + ' (BASE_OFFERS has no plot there)';
+  const id = plot || aero, shell = P.shells[0];
+  if (!d.sheds[id]) d.sheds[id] = { shell, kits: (P.kits || []).slice(), base: aero, tenure: 'own',
+    dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}), price: 0, since: 0, story: true };
+  if (d.sheds[PREM_MAIN] && id !== PREM_MAIN) d.sheds[PREM_MAIN].locked = 'story';
+  d.here = id;
+  return null;
+}
+// a new career WITH the story (STORY-PAGE calls this once, at New career): the starter plane's slot is bound by the page;
+// o.cabin = { aero, plot } (storySite('cabin') and its base plot) grants the cabin and locks HOME until T1
+function storyStart(doc, starterSlot, o) {
   if (!doc || doc.mode !== 'career' || !doc.career) return { ok: false, doc, why: 'not a career' };
   if (doc.career.story) return { ok: false, doc, why: 'the story has already started' };
   const d = JSON.parse(JSON.stringify(doc)), s = storyNew();
   if (typeof starterSlot === 'string') s.planes.starter = starterSlot;
+  let note = null;
+  if (o && o.cabin && o.cabin.aero) note = storyGrantCabin(d, o.cabin.aero, o.cabin.plot);
   d.career.story = s;
-  return { ok: true, doc: d, effects: storyEnterEffects('T0') };
+  return { ok: true, doc: d, effects: storyEnterEffects('T0'), why: note };
 }
 // Q1 (§10, accepted): the generated job list is held until the three occasions; the story's own jobs are offered
 const storyJobsOpen = doc => { const s = storyOf(doc); return !s || s.open; };
@@ -182,6 +199,8 @@ function storyStep(doc, ev, ctx) {
   const effects = (B.done || []).map(e => Object.assign({ beat: B.id }, e));
   s.done.push(B.id);
   if (B.id === 'T4' && s.planes.client) s.planes.gift = s.planes.client;          // the gift: the client's Cub is ours
+  // G2743: T1's reward - the WWII field's hangar is ours: HOME's lock (storyStart) is lifted
+  if (B.id === 'T1' && d.sheds && d.sheds[PREM_MAIN] && d.sheds[PREM_MAIN].locked) delete d.sheds[PREM_MAIN].locked;
   const i = STORY_IDS.indexOf(B.id), next = STORY_IDS[i + 1] || null;
   if (effects.some(e => e.k === 'open') || !next) { s.beat = 'open'; s.open = true; }
   else { s.beat = next; for (const e of storyEnterEffects(next)) effects.push(e); }

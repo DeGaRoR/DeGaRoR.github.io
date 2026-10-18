@@ -91,6 +91,14 @@
 // PLACE in the world (x, z, door heading) is the premises record's —
 // session 3 (GAME-PREMISES §5); HOME's is the club hangar G434 stood.
 const BASE_OFFERS = {
+  // G2743 (STORY, the user 18 Oct): THE CABIN STRIP - runway w1 'Cabin Strip' of the user's save 17 (gravel 383 m, an S up
+  // a lake valley, one approach through a mountain gap); its base plot 'w1' at the flat top end (SCENERY-ED-2). The
+  // story's start GRANTS it (79_story.js storyStart): the smallest shed, made comfortable. "The middle of nowhere."
+  w1: {
+    words: 'the Cabin Strip · gravel up a lake valley',
+    plots: { w1: { shells: ['field', 'club'], kits: ['park', 'bench', 'comfort'], pf: 0.6,
+                   dims: { field: { HW: 7, HD: 9, EAVE: 3.6 } } } },
+  },
   HOME: {
     words: 'Jolene AFB · the WWII field',
     plots: {
@@ -784,13 +792,23 @@ function playerRecover(doc, name, opts) {
 // a wreck), back into the hangar it last left, else the main hangar - a slot
 // free and the floor for it, as any arrival - else stationed outside at
 // HOME. Free and instant in both modes; the recovery line is written at 0.
+// G2743 (STORY): a held shed may be LOCKED - the story's HOME before beat T1 (the user: the start owns ONLY the cabin; the
+// WWII field is the hub you fly to). A locked shed stays in the document (HOME is the main hangar everywhere) but is never a
+// destination: not here, not home, not a send-to, not a move's target. The beat that grants it clears the lock.
+const playerShedLocked = (doc, id) => !!(doc && doc.sheds && doc.sheds[id] && doc.sheds[id].locked);
+// the held, unlocked sheds, the main hangar first (the order "bring it home" falls back through)
+const playerShedsOpen = doc => Object.keys(doc.sheds || {}).filter(id => doc.sheds[id] && typeof doc.sheds[id] === 'object' && !doc.sheds[id].locked)
+  .sort((a, b) => (a === PREM_MAIN ? -1 : b === PREM_MAIN ? 1 : 0));
 function playerBringHome(doc, name, opts) {
   opts = opts || {};
   const e = doc.fleet[name];
   if (!e) return pbNo(doc, name + ' is not in the fleet');
   const W = playerWhere(doc, name);
   const order = [];
-  for (const id of [e.left, PREM_MAIN]) if (id && doc.sheds[id] && !order.includes(id)) order.push(id);
+  // (G2743) a SEND-TO names the one hangar; else the one it left, then the main hangar, then any other open one
+  const cand = opts.to ? [opts.to] : [e.left, PREM_MAIN].concat(playerShedsOpen(doc));
+  for (const id of cand) if (id && doc.sheds[id] && !doc.sheds[id].locked && !order.includes(id)) order.push(id);
+  if (opts.to && !order.length) return pbNo(doc, playerShedLocked(doc, opts.to) ? opts.to + ' is not yours yet' : 'no hangar ' + opts.to);
   // inside a hangar of yours already: it is home (a resident is never shuffled by this door)
   if (W.kind === 'in') return { ok: true, doc, kind: 'in', hangar: W.hangar, why: 'already inside ' + W.hangar };
   const d = pbClone(doc);
@@ -799,7 +817,9 @@ function playerBringHome(doc, name, opts) {
     if (hangarDoorWhy(d.sheds[id], playerFootOf(d, name, opts.foots))) continue;
     if (playerFits(d, id, playerResidents(d, id).concat([name]), opts.foots, opts).ok) { at = id; break; }
   }
-  const homeAero = d.sheds[PREM_MAIN] ? d.sheds[PREM_MAIN].base : PREM_MAIN;
+  // the apron it falls back to: the named hangar's (send-to), else the main hangar's, else the first open hangar's
+  const fall = order[0] && (opts.to || !d.sheds[PREM_MAIN] || d.sheds[PREM_MAIN].locked) ? order[0] : PREM_MAIN;
+  const homeAero = d.sheds[fall] ? d.sheds[fall].base : PREM_MAIN;
   // G2690: no room inside -> the home apron (its own slot kept when it stands there already), else long-term at home
   const SW = playerStoreWhere(d, name);
   const got = at ? pbIn(d, name, at)
@@ -1122,8 +1142,15 @@ function playerUpgrade(doc, hangarId, change, opts) {
 // ---- THE GARAGE'S DOOR, THE CLOCK, THE LABOUR ------------------------------------
 // which hangar the garage opens in (the premises screen's "go there"):
 // instant — the pilot travels with the aeroplanes (GAME-PREMISES Q7)
+// G2743 (STORY, the user 18 Oct: "keep it simple: a 'send to' pick between the owned hangars"): an aeroplane of yours to
+// the named hangar, free and instant like "bring it home" (GQ5) - inside when its door and a slot take it, else that
+// field's apron, else long-term there. Refused: a hangar you do not hold, or one still locked by the story.
+function playerSendTo(doc, name, hangarId, opts) {
+  return playerBringHome(doc, name, Object.assign({}, opts || {}, { to: hangarId }));
+}
 function playerGoTo(doc, hangarId) {
   if (!doc.sheds[hangarId]) return pbNo(doc, 'no hangar ' + hangarId);
+  if (doc.sheds[hangarId].locked) return pbNo(doc, hangarId + ' is not yours yet');
   const d = pbClone(doc);
   d.here = hangarId;
   return { ok: true, doc: d, why: '' };

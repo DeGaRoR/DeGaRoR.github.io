@@ -95072,3 +95072,20 @@ Strict light gate: 16 better; only the accepted metal fuseWidth slider row red. 
     occasions from hand-authored listings.
   - The events sent: the stop at a flight's end, certified at the garage's certificate, jobDone at a delivery.
 - **READY** for the rolling landing.
+
+### G2743 - TWO OWNED HANGARS: THE CABIN GRANTED AT THE START, HOME LOCKED UNTIL T1, "SEND TO" (2026-10-18, the GAME COORDINATOR; the user via A0: "test all these mechanics", "the start owns ONLY the cabin", "keep it simple: a 'send to' pick")
+- **BASE_OFFERS.w1**: the Cabin Strip's base plot 'w1' (SCENERY-ED-2: runway w1 'Cabin Strip' of the user's save 17, plot
+  'w1' at the flat top end, on claude/ready/cabin-strip). Shells field + club; kits park, bench, comfort.
+- **storyStart(doc, slot, { cabin: { aero, plot } })** grants the cabin's FIELD shed free (`story: true`, price 0), sets
+  `here` to the cabin and LOCKS HOME (`sheds.HOME.locked = 'story'`). With no plot on offer, it keeps HOME open and
+  returns the reason.
+- **T1 done** lifts the lock: the WWII field's hangar is ours.
+- **71_ playerShedLocked / playerShedsOpen**. A locked shed is not `here` (playerGoTo refuses it), not a bring-home
+  destination and not a send-to. "Bring it home" goes to the hangar the plane left, else HOME, else any open hangar.
+- **71_ playerSendTo(doc, name, hangarId)**: free and instant (GQ5). Inside when the door and a slot take it, else that
+  field's apron, else long-term. Refused for a hangar not held or still locked.
+- Note for the user: "the cozy preset" in our code is a layout of the 40 m WORKS shell. The cabin gets the smallest
+  FIELD shed with the comfort kit (stove, rug, lamps), per GAME-PLAN §3 "the smallest shed". Say if you want another.
+- GATE STORY rows added (two hangars). node --check only: the box is reserved 18:05-21:59, so the landing runs STORY,
+  PLAYER, STORAGE, GAMEPREM, SITE. Expect GAMEPREM / SITE to want the w1 plot on the island, which comes with
+  claude/ready/cabin-strip in the same landing.
