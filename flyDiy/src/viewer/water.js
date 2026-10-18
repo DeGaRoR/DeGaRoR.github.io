@@ -1253,7 +1253,14 @@ const WATER = (() => {
     const t0 = performance.now();
     // the aircraft's sphere: its local box re-read every 2 s (a build can change), its centre every frame
     if (t0 - HULL.rAt > 2000 || !HULL.c) {
-      const b = hullTmp.box || (hullTmp.box = new THREE.Box3()); b.setFromObject(root);
+      // (G2836 fix) the AIRCRAFT's meshes only: the spray's batches ride the same group, never frustum-culled, their unused slots
+      // parked at y = -1e4 - a box over them put the centre kilometres under the water (the weight read 1 at any height and the
+      // rectangle took the whole frame: 2-12 ms of CPU in the 19 Oct ring study)
+      const b = hullTmp.box || (hullTmp.box = new THREE.Box3()), mb = hullTmp.mb || (hullTmp.mb = new THREE.Box3()); b.makeEmpty();
+      root.updateMatrixWorld(true);
+      root.traverse(o => { if (!o.isMesh || o.frustumCulled === false || !o.geometry) return;
+        if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+        mb.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); if (mb.getSize(hullTmp.s2 || (hullTmp.s2 = new THREE.Vector3())).length() < 200) b.union(mb); });
       if (b.isEmpty()) { if (HULL.on) hullOff(); return false; }
       const c = b.getCenter(hullTmp.c || (hullTmp.c = new THREE.Vector3())); HULL.r = 0.5 * b.getSize(hullTmp.s || (hullTmp.s = new THREE.Vector3())).length();
       HULL.c = root.worldToLocal(c.clone()); HULL.rAt = t0;
