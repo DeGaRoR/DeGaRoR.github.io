@@ -582,7 +582,8 @@ var CLOUDS = (function () {
   }
   // ---- the GPU timer: one query round the pass, read back when it lands ----------
   const timer = { ext: null, gl: null, pending: [], on: true };
-  function tBegin(tag) { if (!timer.ext || !timer.on) return null; const q = timer.gl.createQuery(); timer.gl.beginQuery(timer.ext.TIME_ELAPSED_EXT, q); return { q, tag }; }
+  // PERF-1 P1: on the frames the flight recorder gives the subsystems (FLIGHT_REC.gpuMay) - its whole-frame timer owns the rest
+  function tBegin(tag) { if (!timer.ext || !timer.on || !(typeof FLIGHT_REC === 'undefined' || !FLIGHT_REC.gpuMay || FLIGHT_REC.gpuMay())) return null; const q = timer.gl.createQuery(); timer.gl.beginQuery(timer.ext.TIME_ELAPSED_EXT, q); return { q, tag }; }
   function tEnd(h) { if (!h) return; timer.gl.endQuery(timer.ext.TIME_ELAPSED_EXT); timer.pending.push(h); }
   function tPoll() {
     if (!timer.ext || !timer.pending.length) return;
