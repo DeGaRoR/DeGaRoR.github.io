@@ -131,8 +131,8 @@ async function runVariant(variant, views, idx) {
     };
     // (G2836) THE RING'S GRID: h<agl>_d<dist> - the aircraft agl m over the water (0: afloat), dist m from land seaward of the dock,
     // the eye 30 m further out and 5 m up, looking at it and the shore
-    for (const v of views) { const g = /^h(\d+)_d(\d+)$/.exec(v); if (!g || spec[v]) continue;
-      const P = JSON.parse(await ev('JSON.stringify(__WP.seaward(__WP.dock, ' + (+g[2]) + '))')), lvl = await ev('__WP.level(' + P.x + ',' + P.z + ')'), agl = +g[1];
+    for (const v of views) { const g = /^([ho])(\d+)_d(\d+)$/.exec(v); if (!g || spec[v]) continue; const openSea = g[1] === 'o'; g.splice(1, 1);   // (round 2: o<agl>_d<dist> on the open sea)
+      const P = JSON.parse(await ev(openSea ? 'JSON.stringify(__WP.towards(__WP.open, ' + (+g[2]) + '))' : 'JSON.stringify(__WP.seaward(__WP.dock, ' + (+g[2]) + '))')), lvl = await ev('__WP.level(' + P.x + ',' + P.z + ')'), agl = +g[1];
       spec[v] = () => ({ P, y: agl > 0.5 ? lvl + agl : lvl + H0 - 0.25, back: 30, up: 5, side: 6, toShore: true, yEye: (agl > 0.5 ? lvl + agl : lvl) + 5 });
       NOTE[v] = NOTE[v] || `the aircraft ${agl > 0.5 ? agl + ' m over the water' : 'afloat'}, ${g[2]} m from land (measured ${Math.round(P.r)} m)`; }
     for (const v of views) {
