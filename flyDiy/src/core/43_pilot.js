@@ -2084,7 +2084,14 @@ function makePilot(sim, def, world, opts) {
     };
     const steerK = SV.steerK, groundAil = SV.groundAil;
     const groundSteer = () => { tailUpNow = SV.groundSteer(thRest, F); };
-    const taxi = (Vtgt) => SV.taxi(Vtgt, taxiFF(), Math.min(A.taxiThrMax ?? 0.85, GP.cap));
+    // G3077 (TORQUE-RETUNE-66): IN A TURN THE TAXI POWER IS HALF. Breakaway power (0.85) held through the turn out of a
+    // stand put ENGINE-TORQUE's swirl into the turn: the metal Cessna, 35 deg off its way at HOME's stand, turned at 38
+    // deg/s and overshot 10 deg, the pedals reversing behind it - GATE PILOTACT's taxi rudder on the honest damper 23.6
+    // reversals a minute (the stock build 23.4, the C172 29; limit 20; master, no swirl, 16.2 / 17.5 / 17.5). A pilot
+    // turning on the ground uses the power that keeps it rolling: while the heading is more than 0.10 rad off its way
+    // the throttle is held to 0.5, never under the rolling resistance's share + 0.15 (a soft or uphill taxi still rolls)
+    const taxiCap = () => Math.min(A.taxiThrMax ?? 0.85, GP.cap, Math.abs(SV.e) > 0.10 ? Math.max(0.5, taxiFF() + 0.15) : 1);
+    const taxi = (Vtgt) => SV.taxi(Vtgt, taxiFF(), taxiCap());
     const vsAgl = v => aglG < A.hSafe ? Math.max(v, 1.0) : v;
     const taxiV = (A.taxiV ?? 5.0) * ST.taxiK;
 

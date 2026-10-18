@@ -93,8 +93,15 @@ const SERVO_GAINS = {
   // stock / c172 / metal Cessna 20.5 / 24.8 / 16.3 reversals a minute against the limit's 20 (master 14.6 / 16 /
   // 16.3). Measured: 0.25 s -> 16 / 18.9 / 19.2; 0.35 s -> 16 / 20.4 / 20.7; 0.5 s -> 17.3 / 17.4 / 20.7 (the lag
   // overshoots the heavy metal Cessna's turns). A rate term (the error's or the yaw rate's) was worse at every gain
-  taxiRudTau: 0.25,
-  taxiBrakeDb: 0.8, taxiBrakeK: 0.3, taxiBrakeMax: 0.6, taxiHdgTau: 0.4, taxiHdgForgetS: 0.5,
+  // G3077 (TORQUE-RETUNE-66): ...OFF ON THE HONEST SOLVER. With DMG-DAMP G1885 (no rigid-yaw damper) the lag is a lag in
+  // the heading loop: master's own taxi law with it read stock / C172 / metal Cessna 17.5 / 17.5 / 16.2 -> 15.9 / 26.2 /
+  // 23.6; the swirl's overshoot it was for is the throttle's in a turn now (43 taxiCap). 0 = the law without it (the code kept)
+  taxiRudTau: 0,
+  taxiBrakeDb: 0.8, taxiBrakeK: 0.3, taxiBrakeMax: 0.6, taxiHdgForgetS: 0.5,
+  // G3077 (TORQUE-RETUNE-66): the look-ahead heading's filter 0.4 -> 0.8 s - the target STEPS as the look-ahead passes each
+  // sample of a bend, and with the swirl's standing right boot every step was a pedal reversal (with taxiCap: the metal
+  // Cessna 20.2 -> 17.2, the C172 19.2 -> 16.3 a minute at HOME)
+  taxiHdgTau: 0.8,
   // the crosswind decrab
   decrabAgl: 3.5, decrabK: 2.2, decrabD: 0.6, decrabI: 1.0, decrabIMax: 0.2, decrabMax: 0.35,
   decrabBank: 0.12, xwArm: 0.5,
