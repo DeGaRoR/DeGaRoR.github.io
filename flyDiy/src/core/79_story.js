@@ -21,7 +21,10 @@ const STORY_V = 1;
 // lists it in `roles`), else whose NAME matches, else the first of the fallback ids present on the island. A role that
 // resolves to nothing returns null and the beat that needs it is refused with its reason (never a guess).
 const STORY_ROLES = {
-  cabin:  { name: /\bcabin\b/i, ids: [], words: 'the cabin strip' },
+  // the user, 18 Oct: "the start of the game should really feel like you're in the middle of nowhere" - with no strip named
+  // Cabin yet, the story starts at a REMOTE strip (East Point Clearing, 150 m gravel; Rufus B needs 62 m), else Tamgas
+  // Hill; never HOME (the hub you fly to later)
+  cabin:  { name: /\bcabin\b/i, ids: ['nv_strip', 'w3'], words: 'the cabin strip' },
   home:   { name: null, ids: ['HOME'], words: 'the WWII field' },
   client: { name: /\bowner\b/i, ids: ['w6', 'w7', 'w5'], words: "the owner's strip" },        // long and easy (§3 T3)
   water:  { name: null, kinds: ['water'], ids: ['SEA', 'mk_sea'], words: 'the seaplane base' },

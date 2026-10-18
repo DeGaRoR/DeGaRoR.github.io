@@ -95057,7 +95057,9 @@ Strict light gate: 16 better; only the accepted metal fuseWidth slider row red. 
     page must apply: hangar, clientPlane, giftPlane, routeOffer (ROUTES G3260), occasions, open.
 - **The places by role**, in `storySite(role, aeros)`: a `role` tag on the aerodrome record, else its NAME (the cabin:
   `/\bcabin\b/i`), else fallback ids. A role nothing plays is null, and the beat is refused with the reason, never a
-  guess. **The cabin is the user's to name** (18 Oct). Name the strip with "Cabin" in it, and the story finds it. Today
+  guess. **The cabin is the user's to name** (18 Oct). Name the strip with "Cabin" in it, and the story finds it. With none
+  named yet it falls back to a REMOTE strip, East Point Clearing then Tamgas Hill, never HOME (the user: "the middle of
+  nowhere"; HOME is the hub you fly to in T1). Today
   the gate prints `cabin = none yet, home = HOME, client = w6, water = SEA`.
 - **Q1**: `storyJobsOpen(doc)` is false until T7 is read, so the page holds the generated job list. `storyMask(doc)`
   feeds TECH-MASK's tutorial mode (G3230).

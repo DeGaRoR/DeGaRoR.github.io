@@ -25,7 +25,10 @@ function run(M) {
   // ---- the roles
   ok(M.storySite('cabin', aeros) === 'w9', 'the cabin: the strip the user NAMED "Cabin Strip"');
   ok(M.storySite('cabin', aeros.concat([{ id: 'w8', name: 'strip 13', kind: 'strip', role: 'cabin' }])) === 'w8', 'a role tag wins over a name');
-  ok(M.storySite('cabin', aeros.filter(a => a.id !== 'w9')) === null, 'no cabin on the island: null (never a guess)');
+  ok(M.storySite('cabin', aeros.filter(a => a.id !== 'w9')) === null, 'no cabin and no remote fallback on the island: null (never HOME)');
+  const remote = aeros.filter(a => a.id !== 'w9').concat([{ id: 'w3', name: 'Tamgas Hill Strip', kind: 'strip' }, { id: 'nv_strip', name: 'East Point Clearing', kind: 'strip' }]);
+  ok(M.storySite('cabin', remote) === 'nv_strip' && M.storySite('cabin', remote.filter(a => a.id !== 'nv_strip')) === 'w3',
+     'no strip named Cabin yet: the remote fallback, East Point Clearing then Tamgas Hill (the user: "the middle of nowhere")');
   ok(M.storySite('home', aeros) === 'HOME' && M.storySite('client', aeros) === 'w6' && M.storySite('water', aeros) === 'SEA', 'home, the owner\'s strip and the water by their fallbacks');
   ok(M.storySite('nope', aeros) === null, 'an unknown role: null');
   // ---- the documents
