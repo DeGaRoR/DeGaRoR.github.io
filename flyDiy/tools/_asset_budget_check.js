@@ -14,7 +14,8 @@
 //               H-frame 17-19.5 m, the tall tower 9 m (+-0.3) above the suspension tower
 //   3 BUDGET    L0 within the category's budget (camp_table BUDGET.l0; infra_gen BUDGET per kind and level), each level
 //               <= 0.7 of the one above, the levels the ladder asks (prop_lod 'camp'; infra_gen SHEET) at its distances,
-//               the camp maps <= BUDGET.tex px, <= 5 materials a prop
+//               the camp maps <= BUDGET.tex px, <= 5 materials a prop; and every BASE CUT holds (prop_lod.js BASE,
+//               G2905: the pier's scanned people <= 8 k, boat_grady <= 30 k - a kit re-bake would bring the scans back)
 //   4 KTX2      camp: every map a material reads has its twin in src/viewer/ktx2_twins.js for that slot kind; infra:
 //               no map at all (flat records)
 //   5 ATTACH    infra: the conductor / earth points a line tool strings - the count per kind, mirrored across the
@@ -243,6 +244,12 @@ function check(D) {
   if (!/\bcamp:\s*\{/.test(W.ktx2)) fail('7 wiring: ktx2_twins.js has no camp family');
   if (W.gates.indexOf("'_asset_budget_check.js'") < 0) fail('7 wiring: run_gates.js does not run GATE ASSETBUDGET');
 
+  // ---- 3 the base cuts (G2905)
+  for (const b of D.baseCaps || []) {
+    if (b.nt === undefined) fail(`3 budget: the base-cut prop ${b.key} is not in the ${b.kit} packs`);
+    else if (b.nt > b.cap * 1.02) fail(`3 budget: ${b.key} L0 ${b.nt} tris over its base cap ${b.cap} (node tools/prop_lod.js --kit ${b.kit} --base: a re-bake brought the scan back?)`);
+  }
+
   // ---- 8 REPORT
   for (const r of D.report) notes.push(`8 report ${r}`);
   return { fails, notes };
@@ -292,7 +299,13 @@ function gather() {
     }
     report.push(`${dir}: ${full.length} props, worst L0 ${worst} ${R.props[worst].nt} tris, ${full.filter(k => !lv.has(k)).length} without levels, ${bare.size} / ${maps.size} map slots without a KTX2 twin`);
   }
-  return { CORE, LT, IG, camp, infra, twins, wiring, fresh, report };
+  // the base cuts prop_lod.js declares (G2905), read from their kits' packs
+  const baseCaps = [];
+  for (const [kit, caps] of Object.entries(LT.BASE || {})) {
+    const K = LT.KITS[kit], R = readPacks(K.dir, K.manifest);
+    for (const [key, cap] of Object.entries(caps)) baseCaps.push({ kit, key, cap, nt: R.props[key] ? R.props[key].nt : undefined });
+  }
+  return { CORE, LT, IG, camp, infra, twins, wiring, fresh, report, baseCaps };
 }
 
 function main() {
@@ -325,6 +338,7 @@ function main() {
     brk('5 a phase in the cage', C => { const a = C.infra.REG.props.pylon_tall.attach.filter(x => x.kind === 'phase'); a[0].p[0] = 1.5; a[1].p[0] = -1.5; });
     brk('6 a stale pack', C => { C.fresh = { ok: false, why: 'selftest' }; });
     brk('7 the lazy list', C => { C.wiring.build = C.wiring.build.replace("'infra', 'infra_packs.json'", "'x', 'x'"); });
+    brk('3 a base cap', C => { C.baseCaps = C.baseCaps.map(b => Object.assign({}, b, { cap: 10 })); });
     brk('7 not instanced', C => { C.wiring.props = C.wiring.props.replace('pylon_', 'pyIon_'); });
     for (const [n, red] of reds) if (!red) R.fails.push(`selftest: breaking "${n}" did not turn the gate red`);
     R.notes.push(`selftest: ${reds.filter(x => x[1]).length}/${reds.length} breaks caught`);

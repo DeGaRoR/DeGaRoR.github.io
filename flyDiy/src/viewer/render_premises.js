@@ -1156,18 +1156,49 @@ function make(THREE, scene, world, rec0, opts) {
   // again (sitePattern + buildPatternVis, each strip); a strip's is kept when its key (the strip + its aerodrome) is the same and
   // the rebuild's ground box missed it (PVC_PAD: the pattern's reach); a whole rebuild, the editor closed, ?pvcache=0 start over
   const PVC = { map: new Map(), flush: true, box: null, on: !(typeof location !== 'undefined' && /[?&]pvcache=0(&|$)/.test(location.search || '')) }, PVC_PAD = 1500;
+  // THE PAVED POLYGONS AND THE MERGES KEPT (G3101 EDITOR-PERF; the user's rev 28 timed 13 Oct: every rebuild of the editor
+  // made every paved polygon again (~128 ms) and merged every road and apron part again (~200 ms), the kept roads too).
+  // RC's rules (SCENERY-ED-2's notes, 13 Oct): a paved polygon is kept while its key - its composed entry, the record's
+  // pavement and theme, the world look's LIVE overlay, the strips - is the same and the edit's ground box (RC.box, padded
+  // by its band) misses it; a bucket's MERGE (the roads', the aprons') is kept while every one of its sources is kept and
+  // they are the same set - nothing merged again, nothing torn down. Flushed with RC (a whole rebuild, out of the editor,
+  // ?pavcache=0, the A/B's restand)
+  const PC = { map: new Map(), merged: { road: null, pave: null }, keep: new Map(), keepMerged: new Set() };
   function* buildRoadsSteps(part) {
     const want = e => (part ? isTown(e) : !geoLater(e));
     const useRC = !part && !!PAV && RC.on && window.FLYDIY_PAVCACHE !== false && !!(o.editing && o.editing()) && !GEO.split && !!PG.roadBuildKeys;
-    if (!useRC || RC.flush) { RC.map.clear(); RC.flush = false; }
+    if (!useRC || RC.flush) { RC.map.clear(); RC.flush = false; PC.map.clear(); PC.merged = { road: null, pave: null }; }   // (G3101: the aprons and the merges with them)
     const keys = useRC ? PG.roadBuildKeys(O) : null, keep = new Map();
     if (useRC) for (const rd of O.roads) {
       const c = RC.map.get(rd.id);
       if (c && c.key === keys.get(rd.id) && !(RC.box && PG.roadBoxTouch(rd, RC.box, (+rd.falloff || 6) + 24)) && rd.ribbon !== false && want(rd)) keep.set(rd.id, c);
     }
+    // (G3101) the aprons kept, and the buckets whose merge is kept (decided while RC.box still names the edit's ground)
+    PC.keep = new Map(); PC.keepMerged = new Set();
+    if (useRC && PAV) {
+      const glob = JSON.stringify([O.pavement || null, (O.rec && O.rec.theme) || null, PAV.look ? PAV.look(THREE) : null, (O.aerodromes || []).map(A => [A.x, A.z, A.len, A.wid, A.hdg]),
+        O.frame ? [O.frame.anchor, O.frame.yaw, O.frame.y0] : null]);   // (SCENERY-ED-2: the frame places the apron in the world)
+      for (const pp of O.pavePolys || []) {
+        if (geoLater(pp)) continue;
+        const c = PC.map.get(pp.id), k = PG.fnv(JSON.stringify(pp) + '|' + glob), pad = (+pp.band || 0) + 30, b = pp.bbox || PG.polyBBox(pp.poly);
+        const touched = RC.box && !(b.x1 + pad < RC.box.x0 || b.x0 - pad > RC.box.x1 || b.z1 + pad < RC.box.z0 || b.z0 - pad > RC.box.z1);
+        if (c && c.key === k && !touched) PC.keep.set(pp.id, c); else PC.map.delete(pp.id);
+        if (!(c && c.key === k && !touched)) PC.map.set(pp.id, { key: k, mesh: null, row: null });
+      }
+      for (const id of Array.from(PC.map.keys())) if (!(O.pavePolys || []).some(pp => pp.id === id)) PC.map.delete(id);
+      // a bucket's merge is kept when every source drawn this time is kept and they are the merge's own set
+      const drawnRoads = O.roads.filter(rd => rd.ribbon !== false && want(rd) && PG.RUNWAY_LOOKS[rd.look] && PG.RUNWAY_LOOKS[rd.look].cls).map(rd => rd.id).sort().join(',');
+      const drawnPaves = (O.pavePolys || []).filter(pp => !geoLater(pp) && PG.RUNWAY_LOOKS[pp.look] && PG.RUNWAY_LOOKS[pp.look].cls).map(pp => pp.id).sort().join(',');
+      const M = PC.merged;
+      if (M.road && M.road.ids === drawnRoads && drawnRoads.split(',').every(id => !id || keep.has(id))) PC.keepMerged.add('road');
+      if (M.pave && M.pave.ids === drawnPaves && drawnPaves.split(',').every(id => !id || PC.keep.has(id))) PC.keepMerged.add('pave');
+    }
     RC.box = null;
     const keptObj = new Set(), keptRows = new Set();
     for (const [, c] of keep) { if (c.mesh) keptObj.add(c.mesh); if (c.line) keptObj.add(c.line); if (c.rail) keptObj.add(c.rail); if (c.row) keptRows.add(c.row); }
+    for (const [, c] of PC.keep) { if (c.mesh) keptObj.add(c.mesh); if (c.row) keptRows.add(c.row); }   // (G3101)
+    for (const k of PC.keepMerged) for (const m of PC.merged[k].meshes) keptObj.add(m);   // (G3101: a kept merge is never torn down)
+    for (const k of ['road', 'pave']) if (!PC.keepMerged.has(k)) PC.merged[k] = null;
     if (!part) for (const c of G.roads.children.slice()) {
       if (keptObj.has(c)) continue;   // (G3002: a kept road's line, rail, or its part when it was not merged)
       if (RAIL && c.userData.guardrail) { RAIL.dispose(c); continue; }
@@ -1184,7 +1215,7 @@ function make(THREE, scene, world, rec0, opts) {
         const K = keep.get(rd.id);
         if (K) {
           // (G3002) the part drawn as it was: back under the roads (merged again below), its row its own again
-          if (K.mesh && !K.mesh.parent) { if (K.row) K.mesh.geometry.userData.pavRow = K.row; G.roads.add(K.mesh); }
+          if (K.mesh && !K.mesh.parent && !PC.keepMerged.has('road')) { if (K.row) K.mesh.geometry.userData.pavRow = K.row; G.roads.add(K.mesh); }   // (G3101: in a kept merge, it stays out)
           continue;
         }
         stats.roadsBuilt++;
@@ -1245,14 +1276,17 @@ function make(THREE, scene, world, rec0, opts) {
     for (const c of G.roads.children) if (!c.userData.pavMerged && c.isMesh && c.geometry && PAV.isTable(c.material) && c.geometry.userData.pavRow) {
       const k = /^pave:/.test(c.name) ? 'pave' : 'road'; let b = buckets.get(k); if (!b) buckets.set(k, b = []); b.push(c); }
     for (const [k, list] of buckets) {
+      if (!part && PC.keepMerged.has(k)) continue;   // (G3101: never happens - a kept bucket's sources stay out - but a stray one is not merged twice)
       const out = [];
       yield* PAV.mergeSteps(THREE, list.map(m => ({ geo: m.geometry, order: m.renderOrder })), null, out);
+      const made = [];   // (G3101: this merge's own meshes - the town's later merges carry the same name)
       for (const c of out) {
         const m = new THREE.Mesh(c.geo, list[0].material);
         m.renderOrder = c.order; m.receiveShadow = true; m.name = k + ':merged'; m.userData.pavMerged = true;
-        G.roads.add(m);
+        G.roads.add(m); made.push(m);
       }
       for (const m of list) { G.roads.remove(m); m.geometry.dispose(); }
+      if (!part && RC.on && o.editing && o.editing()) PC.merged[k] = { ids: list.map(m => (m.name || '').replace(/^(road|pave):/, '')).sort().join(','), meshes: made };   // (G3101)
       stats[k + 'Merged'] = (part ? stats[k + 'Merged'] || 0 : 0) + out.length; stats[k + 'Parts'] = (part ? stats[k + 'Parts'] || 0 : 0) + list.length;   // (G2063: the town's added to the rest)
     }
   }
@@ -1263,6 +1297,8 @@ function make(THREE, scene, world, rec0, opts) {
     for (const pp of O.pavePolys || []) {
       if (part ? !isTown(pp) : geoLater(pp)) continue;   // (G2063: the town's later)
       const L = PG.RUNWAY_LOOKS[pp.look]; if (!L || !L.cls) continue;
+      // (G3101) a kept apron: back under the roads for its bucket's merge (its row its own again) - or left out when the merge is kept
+      { const K = !part && PC.keep.get(pp.id); if (K && K.mesh) { if (!K.mesh.parent && !PC.keepMerged.has('pave')) { if (K.row) K.mesh.geometry.userData.pavRow = K.row; G.roads.add(K.mesh); } continue; } }
       const RS = PAV.resolve(pp, O.rec, L);
       const poly = pp.poly.map(q => O.frame.toWorld(q[0], q[1]));
       const geo = PAV.polyGeometry(THREE, { poly, cls: RS.cls, seed: pavSeed(pp.id), shoulderW: PAV.shoulderFor(RS.band, RS.recipe), heightAt, lift: 0.08, res: 2, yaw: (pp.yaw || 0) + O.frame.yaw,
@@ -1281,6 +1317,7 @@ function make(THREE, scene, world, rec0, opts) {
       const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, poly: true, recipe: RS.recipe, band: RS.band, keep, geo });   // G925: a row of the table
       const m = new THREE.Mesh(geo, mat); m.renderOrder = 2 + (pp.z || 0) * 0.01; m.receiveShadow = true; m.name = 'pave:' + pp.id; m.userData.premId = pp.id;
       G.roads.add(m);
+      { const F = !part && PC.map.get(pp.id); if (F) { F.mesh = m; F.row = geo.userData.pavRow || null; } }   // (G3101: filed for the next rebuild)
       yield 'paved';
     }
   }
@@ -2653,6 +2690,25 @@ function make(THREE, scene, world, rec0, opts) {
     if (!KT.want || KT.status !== 'decoded') return;
     if (!KT.host || KT.O !== O) ktBuild();
     if (KT.host) KT.host.tick(e);
+    if (KT.host && KIT_SHADOW > 0 && e) ktShadow(e);
+  }
+  // G3212 (METLA-ON): THE KIT CASTS NO SHADOW FROM AFAR. Its batched houses were 644 k shadow-casting triangles from 3.9 km, none
+  // of them in view (the census of 14 Oct): past KIT_SHADOW m of the town's footprint the host's meshes cast none (the town's
+  // shadows are invisible there; the near shadow cascade covers what is close). ?kitshadow=0 keeps them, as before.
+  const KIT_SHADOW = (m => (m ? +m[1] : 600))(typeof location !== 'undefined' && /[?&]kitshadow=([0-9.]+)/.exec(location.search || ''));
+  function ktShadow(e) {
+    const H = KT.host;
+    if (KT.shHost !== H) {   // (a new host: its footprint, and its meshes cast again until told otherwise)
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+      for (const r of H.rows || []) { if (r.x < x0) x0 = r.x; if (r.x > x1) x1 = r.x; if (r.z < z0) z0 = r.z; if (r.z > z1) z1 = r.z; }
+      KT.shHost = H; KT.shBox = isFinite(x0) ? [x0, x1, z0, z1] : null; KT.shFar = null;
+    }
+    const B = KT.shBox; if (!B) return;
+    const dx = Math.max(B[0] - e.x, 0, e.x - B[1]), dz = Math.max(B[2] - e.z, 0, e.z - B[3]);
+    const far = Math.hypot(dx, dz) > KIT_SHADOW;
+    if (far === KT.shFar) return;
+    KT.shFar = far; stats.kitShadowFar = far;
+    H.group.traverse(m => { if (m.isMesh) m.castShadow = !far; });
   }
   function ktStats() {
     const H = KT.host;
@@ -2789,6 +2845,9 @@ function make(THREE, scene, world, rec0, opts) {
         (f.entry.taxiOut1 || []).forEach((q, i) => put(q, 'ty' + i, true)); }   // G772: the way out toward end1
       // THE CLUB HANGAR (G434): its disc moves the garage's shell; the inspector turns it
       if (f.entry.hangar) put([f.entry.hangar.x, f.entry.hangar.z], 'hangar');
+      // (G3091, objective 1) THE BASE PLOTS: a disc each (it moves the plot with its stand and way out), a small one for its stand
+      for (const q of f.entry.plots || []) { if (!q || !isFinite(+q.x) || !isFinite(+q.z)) continue; put([+q.x, +q.z], 'pl:' + q.id);
+        if (q.stand && isFinite(+q.stand.x) && isFinite(+q.stand.z)) put([+q.stand.x, +q.stand.z], 'ps:' + q.id, true); }
       // THE HOLDS: the pattern's two stop bars, draggable along the centreline (the pattern's hand)
       const A = O.aerodromes[O.runways.findIndex(r => r.id === selectedId)];
       if (A && SITE.sitePattern) {
@@ -3593,9 +3652,22 @@ function make(THREE, scene, world, rec0, opts) {
     afterBuilt(n);   // once for the whole drain (G591): it ran per item - a 1024^2 wear repaint and a freeze walk each
     return queue.length;
   }
+  // G3212 (METLA-ON lever 2): A KIT PLOT STREAMS ONLY NEAR. The town kit's host draws every kit house (Metlakatla's) from the
+  // cooked table, built once (ktBuild); what the stream adds for a kit plot - its plan props, its obstacle rasters, its
+  // dressing - is invisible from afar, yet the stream spent its whole 3 ms bank a frame on Metlakatla from 6 km (G3205/G3210:
+  // worldUpdate +3.0 ms at 4 km, 177 items in an approach). A kit plot past KIT_NEAR m of the eye is pushed out of every reach
+  // (its queue distance + KIT_FAR): the stream, the worker's dispatch, the prewarm and the near / settle counts all read _d.
+  // The far look is the host's, unchanged; a kit house's obstacle exists within KIT_NEAR (where the aircraft is).
+  //   ?kitnear=<m>   the radius (default 1200: the host's lod-1 edge; 0 = every reach, as before)
+  const KIT_NEAR = (m => (m ? +m[1] : 1200))(typeof location !== 'undefined' && /[?&]kitnear=([0-9.]+)/.exec(location.search || ''));
+  const KIT_FAR = 1e6;
   function sortFrom(cx, cz) {
-    for (const p of queue) { const w = qPos(p); p._d = w ? Math.hypot(w[0] - cx, w[1] - cz) : 0; }
+    let kd = 0;
+    for (const p of queue) { const w = qPos(p); let d = w ? Math.hypot(w[0] - cx, w[1] - cz) : 0;
+      if (KIT_NEAR > 0 && d > KIT_NEAR && kitOf(p) >= 0) { d += KIT_FAR; kd++; }
+      p._d = d; }
     queue.sort((a, b) => a._d - b._d);
+    stats.kitDeferred = kd;
   }
   // THE STREAM (G591, the 2026-09-26 playtest): the far premises came in one item every third rendered frame, from
   // any distance, parked or not - 18-29 ms a frame over the taxi, a house being ~45 ms. Now the host hands the

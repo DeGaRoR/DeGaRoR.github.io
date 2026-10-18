@@ -170,17 +170,31 @@ const S = FR.rec.S, SL = FR.SLOTS;
   for (let i = 0; i < 12; i++) { G.frame++; oneFrame(1); }
   const withGpu = [];
   for (let f = R.frame - 12; f < R.frame; f++) { const g = R.row(f).gpu; if (g === g) withGpu.push(g); }
-  verdict(withGpu.length >= 6 && withGpu.every(g => near(g, 5, 1e-4)) && G.nested === 0, `  the GPU time of the frame: ${withGpu.length} of 12 frames timed so far (read in batches every 4th frame), ${withGpu[0]} ms each, never nested`);
-  // another module opens its own TIME_ELAPSED query mid-frame: ours ends first, theirs works, we stay off for 120 frames
+  // (PERF-1 P1: the recorder times 3 frames in 4 - the 4th is the subsystems' - so 12 frames give 9 queries, ~6 landed by now)
+  verdict(withGpu.length >= 4 && withGpu.every(g => near(g, 5, 1e-4)) && G.nested === 0, `  the GPU time of the frame: ${withGpu.length} of 12 frames timed so far (3 in 4 are the recorder's; read in batches every 4th frame), ${withGpu[0]} ms each, never nested`);
+  // another module opens its own TIME_ELAPSED query mid-frame WITHOUT ASKING, on one of the recorder's frames: ours ends
+  // first, theirs works, we stay off for 120 frames
   const TE = gl.getExtension('EXT_disjoint_timer_query_webgl2').TIME_ELAPSED_EXT;
-  let theirs = 'none';
-  G.frame++;
-  oneFrame(1, () => { const q = gl.createQuery(); try { gl.beginQuery(TE, q); gl.endQuery(TE); theirs = 'ok'; } catch (e) { theirs = e.message; } });
-  const fForeign = R.row(R.frame - 1);
+  let theirs = 'none', fForeign = null;
+  for (let k = 0; k < 8 && theirs === 'none'; k++) {
+    G.frame++;
+    oneFrame(1, () => { if (!R.rec.gpu.active) return; const q = gl.createQuery(); try { gl.beginQuery(TE, q); gl.endQuery(TE); theirs = 'ok'; } catch (e) { theirs = e.message; } });
+    if (theirs !== 'none') fForeign = R.row(R.frame - 1);
+  }
   const beginsAt = G.begins.length;
   for (let i = 0; i < 30; i++) { G.frame++; oneFrame(1); }
-  verdict(theirs === 'ok' && G.nested === 0 && (fForeign.flags & FR.F.gpuForeign) && !(fForeign.gpu === fForeign.gpu) && G.begins.length === beginsAt,
-    `  another module's timer mid-frame: theirs ${theirs}, ours yielded (frame flagged, no GPU time) and stays off (${G.begins.length - beginsAt} of ours in the next 30 frames)`);
+  verdict(theirs === 'ok' && fForeign && G.nested === 0 && (fForeign.flags & FR.F.gpuForeign) && !(fForeign.gpu === fForeign.gpu) && G.begins.length === beginsAt && R.rec.gpu.rogue === 1,
+    `  another module's timer mid-frame, unasked: theirs ${theirs}, ours yielded (frame flagged, no GPU time, rogue ${R.rec.gpu.rogue}) and stays off (${G.begins.length - beginsAt} of ours in the next 30 frames)`);
+  // PERF-1 P1, ONE OWNER: a module that ASKS (FLIGHT_REC.gpuMay) times on the subsystems' frames only - every 4th - and the
+  // recorder keeps the other three: both measured, nothing nested, no frame spoiled (the clouds' timer used to black the
+  // recorder out for good: 0 timed frames in the owner's 11 Oct log)
+  for (let i = 0; i < 100; i++) { G.frame++; oneFrame(1); }   // (past the 120 frames the unasked timer cost)
+  let coop = 0, refused = 0; const ok0 = R.rec.gpu.ok, req0 = R.rec.gpu.req;
+  for (let i = 0; i < 32; i++) { G.frame++; oneFrame(1, () => { if (!R.gpuMay()) { refused++; return; } const q = gl.createQuery(); try { gl.beginQuery(TE, q); gl.endQuery(TE); coop++; } catch (e) { coop = -1e9; } }); }
+  for (let i = 0; i < 8; i++) { G.frame++; oneFrame(1); }   // (the last results land)
+  const okN = R.rec.gpu.ok - ok0, reqN = R.rec.gpu.req - req0;
+  verdict(coop === 8 && refused === 24 && G.nested === 0 && R.rec.gpu.rogue === 1 && reqN >= 30 && okN >= reqN - 3,
+    `  a timer that asks: it timed ${coop} of 32 frames (refused ${refused}), the recorder ${okN} of ${reqN} it asked for, nested ${G.nested}, rogue still ${R.rec.gpu.rogue}`);
 }
 
 // ---- 2. freezes, the hidden gap, the abandoned frame ------------------------------------------------------------------------

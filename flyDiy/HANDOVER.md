@@ -94993,3 +94993,50 @@ Accepted by the user by name (14 Oct): the metal Cessna +6 s load; the passenger
 Landed: METLA-ON lever 1 (G3210, 32795aee7: Metlakatla bare - no plots/yards/fences/rails; lots drawn within 600 m elsewhere; ON-OFF at 4 km loop +12.1 -> +5.8 ms, draws +506 -> +22), the DMGUPLOAD wing retry (79e23a50b). Metlakatla stays OFF by default (not even yet).
 Strict light gate: 1 RED, the metal fuseWidth slider (accepted by the user by name 14 Oct). Gates: CLOCK, CLOUD (lamps), KTX2 (accepted), FRAMECOST (accepted restore row + the mapx rows whose ALLOWs ride ed2-obj1), DMGUPLOAD still red (Deform, after the reset).
 Queue after the Sat 17 Oct reset: memory post-reset-plan-2026-10-17.
+
+## OBJECTIVE 1 - SCENERY-ED-2 (G3090 / G3091 + G2893's toggles): ON HOLD FOR CREDITS (15 Oct)
+- origin claude/ed2-obj1 = 591ac20b1 (master e21d9c7fc + 7 commits; merge-tree clean on a7e449434). node --check ONLY - NO gate has passed on it.
+  A0's early landing crashed SCENERYED on 2efb7bb9a; both causes fixed in 591ac20b1 (wayRows / plotRows take `ed`; row 31 re-draws the inspector).
+- Content: road guardrail / power-line toggles (ED-1's G2893 + polesSide, SCENERYED 30); the base zone (base plots' discs, typed stand / hangar /
+  way-out points, plots added / removed, SCENERYED 31); editor_lag labels; flRange typed (app.js, droppable alone); FRAMECOST 'mapx' ALLOWs;
+  the runway profile drag applies its terraform.
+- AFTER THE RESET, first: build + run_gates --only SCENERYED,PREMISES,SCENERY,UISMOKE,UISMOKE-PHONE,PATCHFAR,STAGES,TAXICLEAR,LINEUP,PREMCOOK
+  (scratchpad window_obj1.sh, its times to change); then land. TAXICLEAR's Jumbo numbers may move (poles 'off' by the lane honoured).
+
+## G3022 DMG-IMPACT-LAG - state at the credit stop (15 Oct, Deform)
+- Landed (t56): v1 - the tear's GPU reads batched into one + squared-length tear check (skin_gpu.js, skin_break.js).
+- APPROVED by the user, not landed: claude/dmg-impact-lag-v2 (the motion clock + the GPU tear every 0.15 s, ?teargpu=0.05 the old cadence). Rebase on master, gate DMGSKIN / DMGSKINGPU / DMGPAGEW / DMGUPLOAD / DMGWRECK, land.
+- UNPROVEN: claude/dmg-impact-lag-v3 (on v2): break events budgeted 8 ms a frame (?evms=0 off). Needs the box A/B (scratchpad g3022/v3_1545.sh pattern: dmg_skingpu_box --flown gpu, trunk-0/2.5, Cub + metal, v3 vs ?evms=0) against PKG5's crash worst <= 100 ms.
+- Measured 14 Oct: a WebGL getBufferSubData after a signaled fence still stalls ~10-12 ms per call at any size (0.4-0.8 MB) - the read must go: G3023, the tear on the CPU in a worker sending back only the torn triangles (PERF-1 week).
+- Owed too: the damage-ON readiness re-run on master (hitch Cub + metal, laptop rung on/off); DMGUPLOAD wing retry (claude/dmg-upload-robust2) - if the wing also breaks nothing, drop the Cub's mild staging; DMGWRECK rounding row (claude/dmg-wreck-row-round).
+
+## Landing L17a (A0, 18 Oct 03:25)
+Landed: ED-2's editor batch ed2-obj1 (road power-line/guardrail toggles act, HOME ways out + stand + club hangar + base plots editable, typed numbers in the flight menu, the runway-profile drag applies its terraform, FRAMECOST 'mapx' ALLOWs) + Deform's impact-lag v2 (motion clock + the user-approved 0.15 s GPU tear).
+Strict light gate: the metal fuseWidth slider row (accepted 14 Oct) + NEW cub round trip 2 garage -> world worst task 0 -> 200 ms (slack 150), landed under the user's "editor fixes first" priority (15 Oct), flagged to the user, to PERF-1. Gates: CLOCK, CLOUD (lamps), KTX2 (accepted), FRAMECOST (master's restore row), DMGUPLOAD (fixed on dmg-impact-lag-v3, L18a). SCENERYED PASS.
+## G3212 - METLA-ON lever 2: Metlakatla's kit plots stream only near; the kit casts no far shadow (2026-10-18, HW-COVERAGE -> METLAKATLA for A0; on master L15c 85857a1e8)
+- sortFrom pushes a kit plot past 1 200 m out of every reach (the kit host draws every kit house from the cooked table: the far look
+  unchanged; ?kitnear=0); the kit's meshes cast no shadow past 600 m of the town's footprint (?kitshadow=0). LIFTS identical.
+- Gates (18 Oct 01:13, a fresh cook): PREMISES PREMRASTER PREMCOOK TARR LIFE STAGES BUILD PASS; FRAMECOST red on two rows (cub taxi
+  bindBuffer 2 -> 7.5, cessna garage:restore updateMatrixWorld 2269 -> 4553) - the SAME two rows on master L15c with its own fresh
+  cook (02:05 control): master's, not this branch's (lever 2 is inert with the town off). metla_bare_check PASS.
+- A/B A B C C B A on the floats circuit (3.9-6 km; C = ON without lever 2): the stream 3.0 -> 0.01 ms; ON - OFF loop +5.85 ->
+  +4.75 ms, worldUpdate +2.5 -> +1.3, frames over 34 ms 9.85 -> 4.16 % (OFF 1.88 %), over 100 ms 0.49 -> 0.16 %; the JS heap +0.9 -> +0.3 GB.
+- The enable rule (ON <= +3 ms loop at 4 km, frames over 34 ms within ~1 point of OFF) not met yet: render +1.95 ms (the town's roads
+  at 4 km: G3214 far roads next), worldUpdate +1.3 ms (the town's per-frame ticks). A 233 ms worst frame in both ON runs (not in C):
+  unexplained, look first (the kit's shadow switch or a kit plot crossing the 1 200 m line).
+## G2905 - ASSETS-CUT: THE WORST OFFENDERS CUT THROUGH THE CURRENT PIPELINE (2026-10-15, ASSETS-OCT for A0; branch claude/assets-cut-g2905)
+
+The user: "couldn't we cut the worst offenders through our current pipeline" (the emergency part of
+ASSET-PIPELINE-PLAN-2026-10 #2, no new import tool). tools/prop_lod.js gains `--base` and a BASE table: totem_lod.js's
+rule for photoscans (the base is a cut too), the same half-edge collapse (the delivered maps stay), the prop's record
+rewritten in its OWN pack (`srcNt` keeps the source count), its superseded bin deleted; the levels then re-cut from the
+new base by the plain run. Cut: the pier's five scanned people 1.3 M -> 5 x 8 k (the user, 13 Oct: CUT to <= 8 k; their
+24 k level drops away by the ladder's own rule), boat_grady 370 k -> 30 k. GATE ASSETBUDGET holds every cap, so a
+tools/pier_prep.py re-bake (which would restore the scans) cannot pass unseen. NOT cut: the hangar's 80 k props
+(cart_tool_cab, compressor) already have levels and are seen at 1-3 m - the user's call; the "8 props without levels"
+of the report are small props under the ladder's floor, by design.
+Run: node tools/prop_lod.js --base && node tools/prop_lod.js (the pier kit is the default).
+
+## Landing L18a (A0, 18 Oct 06:10)
+Landed: EDITOR-PERF ground fixes (G3100 ring normals, G3101 paved merges + pavement cache), METLA-ON lever 2 (G3212: kit plots stream only near + no far kit shadow; ON-OFF loop +5.85 -> +4.75 ms, >34 ms frames 9.85 -> 4.16 %), damage impact v3 (break events budgeted) + the DMGUPLOAD Cub fix, the asset cut (pier people ~8 k each, boat 370 k -> 30 k), the float spray/wake fix (G2834/G2835), the floats route + water flare (G3078/G3079), PERF-1 (fixed reference tooling, census, parked shadows, 28 dead ALLOWs dropped).
+Strict light gate: 16 better; 2 RED already accepted (metal fuseWidth slider; floats world -> garage, also in train 57). Gates: CLOCK, CLOUD (lamps), FRAMECOST (master's restore row), KTX2 (the 9 character files: accepted, see accepted-4). DMGUPLOAD and TOUR PASS.

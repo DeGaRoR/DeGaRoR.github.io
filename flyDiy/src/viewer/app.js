@@ -5850,11 +5850,16 @@
   // `baseId` is where a roll-out spawns (FLIGHT_BASES: HOME, the WWII hangar, today); `spawnId` is the perf
   // rigs' override (a v2 pref's `spawn`, FLYDIY_ROUTE.spawn) - on no picker.
   let baseId = 'HOME', spawnId = null, destId = 'CIRCUIT', routeMigrated = false;
+  // G3078 (FLOATS-FIX, 17 Oct): THE PLAYER'S TO (`destWant`) IS KEPT APART FROM THE TO THIS BUILD MAY FLY (`destId`). The fit
+  // below used to overwrite destId - at boot the bench still held a wheeled build, Metlakatla Seaplane Base (mk_sea) was
+  // fitted to the circuit, and when the floats build arrived the refit started from 'CIRCUIT': the water To never came back,
+  // and the next routeRemember saved the circuit. Every fit now starts from destWant; the pref keeps destWant
+  let destWant = 'CIRCUIT';
   // G710: THE ROUTE IS REMEMBERED (flydiy.route, v2 { v: 2, base, to }; a v1 { from, dest } migrates once:
   // flightRouteMigrate); checked against the world's strips where the picker is filled
   try {
     const r = typeof flightRouteMigrate === 'function' ? flightRouteMigrate(JSON.parse(prefGet('flydiy.route', 'null'))) : null;
-    if (r) { baseId = r.base; destId = r.to; spawnId = r.spawn; routeMigrated = !!r.migrated; }
+    if (r) { baseId = r.base; destId = destWant = r.to; spawnId = r.spawn; routeMigrated = !!r.migrated; }
   } catch (e) {}
   // PREM-S2 (G2230): THE BASE IS THE GARAGE'S - the hangar it opens in (the player's `here`), its aerodrome the base
   // (38b_dest.js flightBasesOf: the bases derived from the hangars held, ruling gp1). A pref's `base` is no longer a
@@ -5927,7 +5932,7 @@
     if (did !== 'CIRCUIT') { const d = world.aerodromes.find(a => a.id === did); if (!d || !stripAllows(gear, d).ok) did = 'CIRCUIT'; }
     return [fid, did];
   };
-  const routeFit = gear => { destId = routeFitted(gear, fromId, destId)[1]; };   // G1945: the From is derived - only the To is fitted
+  const routeFit = gear => { destId = routeFitted(gear, fromId, destWant)[1]; };   // G1945: the From is derived - only the To is fitted
   let routeRefresh = () => {};   // the pickers re-labelled for the gear (the selects' block below)
   // 'taxi' (the stand, G151) or 'lineup' (the runway). A string on purpose:
   // the flight layer's flPref objects are declared far below this and this
@@ -5967,7 +5972,7 @@
     // G1945 DEST-TO: every roll-out starts at the base (or the rig's spawn), never where the last flight was
     // PREM-S2 (G2230): ...at the place the fleet ledger says the aeroplane stands (rollFromId) - the base for a build
     // with no slot; a stop on an aerodrome moved it there (playerArrive), a crash or a field landing moved nothing
-    const [fid, did] = routeFitted(gearNow, rollFromId(), destId);
+    const [fid, did] = routeFitted(gearNow, rollFromId(), destWant);
     fromId = fid;
     if (!shed) { destId = did; routeRefresh(false); }
     const from = aeroById(fid);
@@ -6474,6 +6479,10 @@
       const eK = out.W[F.edge.K];
       const vK = fx.ctx.velAt(eK, [0, 0, 0]);
       const V = Math.hypot(vK[0], vK[2]);
+      // G2834: the water level the spray is thrown from - the hydro pass's (the worker sends it); never NaN (a missing level
+      // drew every particle at y = NaN: no splash, no spray under the worker)
+      if (!Number.isFinite(fx.h)) fx.h = world.waterH ? world.waterH(eK[0], eK[2]) : 0;
+      if (!Number.isFinite(fx.h)) { waterFx.wasWet[k] = true; continue; }
       // THE FIELD'S EMITTERS (H7, G460.8) - the hydro's own numbers, never authored:
       if (WT) {
         const beam = F.P ? F.P.B : 0.8, wetK = Math.min(1, fx.wet / Math.max(0.5, 2 * beam * (F.P ? F.P.L : 4)));
@@ -12400,9 +12409,9 @@
     routeFit(gear0);
     fill($('selDest'), gear0);
     // G710: a remembered id the world does not have (another island, a strip deleted) is not a route
-    if (![...$('selDest').options].some(o => o.value === destId)) destId = 'CIRCUIT';
+    if (![...$('selDest').options].some(o => o.value === destWant)) destId = destWant = 'CIRCUIT';   // (G3078: the world has no such strip)
     $('selDest').value = destId;
-    const routeRemember = () => prefSet('flydiy.route', JSON.stringify({ v: 2, base: baseId, to: destId, spawn: spawnId || undefined }));
+    const routeRemember = () => prefSet('flydiy.route', JSON.stringify({ v: 2, base: baseId, to: destWant, spawn: spawnId || undefined }));   // G3078: the player's To
     if (routeMigrated) { routeMigrated = false; routeRemember(); }   // G1945: a v1 pref is written back as v2, once
     const routeSels = [];                // { sel, kind } - the pickers this block built ('to', and 'base' when there are bases to pick)
     const routeSync = () => {
@@ -12449,7 +12458,7 @@
     }
     window.FLYDIY_DEST_LAST = null;
     function setTo(id) {
-      destId = id; routeRemember(); routeSync();
+      destId = destWant = id; routeRemember(); routeSync();
       const r = destApply();
       window.FLYDIY_DEST_LAST = { to: id, how: r, phase: ap ? ap.phase : null };
       if (FL.ready) flRender();
@@ -12608,7 +12617,7 @@
     };
     window.FLYDIY_ROUTE = {
       // `from` is the leg's From (derived), kept in the shape the rigs read
-      get: () => ({ from: fromId, dest: destId, to: destId, base: baseId, spawn: spawnId }),
+      get: () => ({ from: fromId, dest: destId, to: destId, base: baseId, spawn: spawnId, want: destWant }),   // G3078: `want` the player's To
       sync: () => routeRefresh(), gear: () => refGear,
       to: id => setTo(id), where: () => flWhere(),
       baseRow: where => baseRows[where] || null,   // PREM-S2: the base line / select each host shows
@@ -13439,6 +13448,18 @@
     b.className = 'v'; b.textContent = fmt(+i.value);
     i.oninput = () => { set(+i.value); b.textContent = fmt(+i.value); };
     i.onchange = () => flOther();
+    // (objective 1, the user 13 Oct: "typed numbers for every parameter") THE READOUT TYPED: a click edits the bare number, Enter or
+    // leaving sets it once, Escape gives up; past the range within physical bounds only (premises_host G3019: degrees wrap, a
+    // [0, 1] range clamps, a range from 0 up stays >= 0) - the thumb rests at its end, the value is the typed one
+    const deg = /\u00b0|°/.test(String(label) + (() => { try { return String(fmt(+lo)); } catch (e) { return ''; } })()) && +hi - +lo >= 359;
+    const phys = n => deg ? +lo + ((((n - +lo) % 360) + 360) % 360) : (+lo === 0 && +hi === 1) ? Math.max(0, Math.min(1, n)) : (+lo >= 0 ? Math.max(0, n) : n);
+    b.contentEditable = 'true'; b.spellcheck = false; b.title = 'type a value - Enter sets it'; b.style.cursor = 'text';
+    let typing = false;
+    b.onfocus = () => { typing = true; const g = +get(); b.textContent = isFinite(g) ? String(+g.toFixed(4)) : ''; };
+    const commit = () => { if (!typing) return; typing = false; const n = parseFloat(String(b.textContent).replace(',', '.'));
+      if (isFinite(n)) { const q = +phys(n).toFixed(6); i.value = q; set(q); b.textContent = fmt(q); flOther(); } else b.textContent = fmt(+get()); };
+    b.onblur = commit;
+    b.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); commit(); b.blur(); } else if (ev.key === 'Escape') { typing = false; b.textContent = fmt(+get()); b.blur(); } ev.stopPropagation(); };
     r.appendChild(i); r.appendChild(b);
     return r;
   };

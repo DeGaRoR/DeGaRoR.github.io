@@ -2613,7 +2613,13 @@ function compose(rec0, world, opts) {
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
   // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
   const roadObjs = roads.map(r => Object.assign({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
-    look: roadLook(r).key, band: r.band === undefined ? null : r.band, pav: r.pav || null }, roadClearOf(r) !== null ? { clear: roadClearOf(r) } : {}));   // (G2918: its own clearing) the pavement's (v1.16)
+    look: roadLook(r).key, band: r.band === undefined ? null : r.band, pav: r.pav || null }, roadClearOf(r) !== null ? { clear: roadClearOf(r) } : {},
+    // G2893 (SCENERY-ED-1; the user: "no effect of enabling/disabling power lines and guardrails on roads"): the guardrail and the
+    // power line read THIS object (render_premises buildRail / buildLine: rd.rail, rd.poles, rd.polesSide), which never carried
+    // them - every road 'auto' whatever the inspector wrote, since the port (G385). Carried when the record says one (a road
+    // without composes as before)
+    typeof r.rail === 'string' && r.rail ? { rail: r.rail } : {}, typeof r.poles === 'string' && r.poles ? { poles: r.poles } : {},
+    (+r.polesSide === 1 || +r.polesSide === -1) ? { polesSide: +r.polesSide } : {}));   // (G2918: its own clearing) the pavement's (v1.16)
   const nAuth = mods.length;
   // THE RUNWAYS (stage 2, BEFORE the roads - v1.2: a taxi road near a strip must sit on the strip's graded ground, so its nodes are read after the runway grades): a DERIVED grade along the centreline at elev + slope * s
   // (elev = T1 at the centre), a DERIVED surface strip of the record's class,
