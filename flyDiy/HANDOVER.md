@@ -95044,3 +95044,20 @@ Strict light gate: 16 better; 2 RED already accepted (metal fuseWidth slider; fl
 ## Landing L18b (A0, 18 Oct 14:30)
 Landed: ED-1's placer animals (a tile drops a herd, a scatter makes a hotspot), the ALMA as one tile, packs' loose parts hidden, zone pills for every category (G2893).
 Strict light gate: 16 better; only the accepted metal fuseWidth slider row red. Gates: CLOCK, CLOUD (lamps), FRAMECOST (master's restore row), KTX2 (accepted characters), TOUR shard 0 (the Cub's prop strike in 02/20's pond at w2, the user's kept pond; identical on master per Pilot 18 Oct).
+
+## PERF-1 (18 Oct, parked for the perf week: the user, "it's not now yet - objectives 1, 2 and 4")
+Done and landed (L18a / L18d): FRAMECOST_UNIFORMS (who sends the uniforms), parked aeroplanes cast their next LOD rung
+(counts only: stand shadow tris -378 k; neutral on the box, for the weak GPUs), the fixed reference in train_gate.js
+(identity refusal, cumulative budgets, tools/perf/perf_ledger.json; inert until A0 runs --reference-take), one owner for
+the GPU timer (the recorder times 3 frames in 4; the clouds / post / water / AA timers ask FLIGHT_REC.gpuMay).
+Found: the taxi's "uniform4fv x8 at 52ab" (626 -> 5176) never existed - a stale parked cook in the 14 Oct split trees;
+master sends 524-530. The taxi's triangles flip ~12 M <-> ~18 M between and within runs whatever the arm (on the board
+for PKG3/PKG5: the mirror's AUTO capture or a herd coming in reach - not named yet).
+GATE-ANCHOR (claude/perf-1-anchor -> claude/ready/perf-1 after its Mon 06:10 check): evenness rows first (over34, worst,
+slow34s, loopAll), the floatplane's take-off leg from SEA, the Cub + the metal Cessna + the Cessna 172 by file, every
+rollout run --set mirror=off. The first gate with it takes --update for the new rows.
+PARKED, coded, NOT measured: claude/perf-1-u4 (c4e33c3b1) - app.js sends a vec4 ARRAY uniform only when its floats
+changed for that location (uMist[] / uCloudP[]: 380 of the taxi's 530 uniform4fv); ?u4cache=0 = the old path;
+tools/_fake_gl.js lets a page-assigned context method shadow the recording one. To land: FRAMECOST (census with and
+without ?u4cache=0, the gate) and a GPU ABBA (the Cub, HOME chase, mirror off) - the slot script is drafted in PERF-1's
+session (perf1_gpu_1019.sh, never armed), with the first fixed-reference capture on master after the anchor lands.
