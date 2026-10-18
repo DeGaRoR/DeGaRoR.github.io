@@ -292,13 +292,21 @@ const WATER = (() => {
             float tear = texture2D(uWDetail, vWP.xz / 7.0 + vec2(0.13, 0.71)).a;
             lap = 0.55 * smoothstep(-14.0, -1.0, wF.x) * smoothstep(0.25, 0.85, tear * (0.65 + 0.35 * hh));
           }
-          // THE FIELD'S FOAM (H7) is a coverage, not a paint: torn by the tile's noise at 2.3 m so a wake's
-          // trail is a scatter of patches thinning as it decays (the untorn write was a solid white bar
-          // 17 m long behind a hull, h7n/wake2.png), solid only where it is fresh
+          wFoam = clamp(crest + lap, 0.0, 1.0);
+        }
+        // THE FIELD'S FOAM (H7) is a coverage, not a paint: torn by the tile's noise at 2.3 m so a wake's
+        // trail is a scatter of patches thinning as it decays (the untorn write was a solid white bar
+        // 17 m long behind a hull, h7n/wake2.png), solid only where it is fresh.
+        // G2835 (WATER-FX-FIX, objective 5: "no spray, wake or bubbles on float landings"): ON EVERY TIER. It sat inside
+        // the 'full' tier's foam gate (uWMisc.w: the whitecaps and the shore's lap), so on gamer and every preset under
+        // it ('simple' water) a hull's wake was never drawn - only its slope reached the reflection. The wake is the
+        // aeroplane's own interaction, near it only (the field's box), not the sea's ambient foam: the whitecaps and the
+        // lap stay the full tier's. A branch on the field's own value: no fetch where the field is empty
+        if (wIn.z > 0.001) {
           float tearI = texture2D(uWDetail, vWP.xz / 2.3 + vec2(0.37, 0.11)).a;
           tearI = tearI * 0.7 + 0.3 * texture2D(uWDetail, vWP.xz / 0.65 + vec2(0.81, 0.29)).a;   // (G460.9) a second octave at 0.65 m: bubbles inside the patches
           float fieldFoam = wIn.z * smoothstep(0.15, 0.85, tearI * (0.55 + 0.9 * wIn.z));
-          wFoam = clamp(crest + lap + fieldFoam, 0.0, 1.0);
+          wFoam = clamp(wFoam + fieldFoam, 0.0, 1.0);
         }
         vec3 wV = normalize(vViewPosition);
         vec3 wUpV = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
