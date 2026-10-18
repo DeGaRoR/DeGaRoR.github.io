@@ -95044,3 +95044,29 @@ Strict light gate: 16 better; 2 RED already accepted (metal fuseWidth slider; fl
 ## Landing L18b (A0, 18 Oct 14:30)
 Landed: ED-1's placer animals (a tile drops a herd, a scatter makes a hotspot), the ALMA as one tile, packs' loose parts hidden, zone pills for every category (G2893).
 Strict light gate: 16 better; only the accepted metal fuseWidth slider row red. Gates: CLOCK, CLOUD (lamps), FRAMECOST (master's restore row), KTX2 (accepted characters), TOUR shard 0 (the Cub's prop strike in 02/20's pond at w2, the user's kept pond; identical on master per Pilot 18 Oct).
+
+## G2741 - STORY-CORE: THE TUTORIAL'S BEATS T0-T7 ON THE CAREER DOCUMENT, PURE; THE STORY'S PLACES BY ROLE (THE CABIN STRIP AS THE USER NAMES IT); GATE STORY (2026-10-18, the GAME COORDINATOR; futureDesigns/game/GAME-PLAN-2026-10-15.md §3, §R; branch claude/ready/story-core off origin/master 05cc2acc0)
+
+- **src/core/79_story.js** (career-lazy, in MANIFEST.career: LAZY now counts ten modules).
+  - `career.story` rides the career block. careerNormalise keeps it. A career without one (every career before this,
+    the dev career) has no rails.
+  - The beats are data, in STORY_BEATS: T0 the cabin (mask 'finish'), T1 the move to HOME, T2 the client's plane (the
+    checklist: engine, flaps, fat tyres, lights = an electrical system, panel, paint; cost cap 9000), T3 delivery at
+    the owner's strip, T4 the gift, T5 three jobs, T6 the water job on floats, T7 the three occasions, then open.
+  - `storyStep(doc, ev, {aeros})` is pure. Events: ack / bind / stop / certified / jobDone. It returns the EFFECTS the
+    page must apply: hangar, clientPlane, giftPlane, routeOffer (ROUTES G3260), occasions, open.
+- **The places by role**, in `storySite(role, aeros)`: a `role` tag on the aerodrome record, else its NAME (the cabin:
+  `/\bcabin\b/i`), else fallback ids. A role nothing plays is null, and the beat is refused with the reason, never a
+  guess. **The cabin is the user's to name** (18 Oct). Name the strip with "Cabin" in it, and the story finds it. Today
+  the gate prints `cabin = none yet, home = HOME, client = w6, water = SEA`.
+- **Q1**: `storyJobsOpen(doc)` is false until T7 is read, so the page holds the generated job list. `storyMask(doc)`
+  feeds TECH-MASK's tutorial mode (G3230).
+- **GATE STORY** (tools/_story_check.js): the roles, the whole run, every refusal, the save round trip, the sandbox,
+  plus a --selftest of 4 breaks. Result: PASS, selftest PASS, LAZY PASS, BUILD PASS (18 Oct 15:55, box lock UNTIMED).
+- **Next (STORY-PAGE, G2742+):** app.js wiring.
+  - New career = storyStart with the user's ultralight at the cabin.
+  - The beat card at the edge (garage look).
+  - The effects applied: the client's Cub from a hand-authored file, the gift, the route offer through ROUTES, the
+    occasions from hand-authored listings.
+  - The events sent: the stop at a flight's end, certified at the garage's certificate, jobDone at a delivery.
+- **READY** for the rolling landing.
