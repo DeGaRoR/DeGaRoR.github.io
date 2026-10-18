@@ -996,6 +996,14 @@ function mount(host, ctx) {
       }
     }
     // (G1400: `drag.runway &&` - a polygon's or a road's corner has no runway key, and its drag threw here on every move: no corner could be dragged)
+    else if (drag.runway && (drag.runway.indexOf('pl:') === 0 || drag.runway.indexOf('ps:') === 0)) {
+      // (G3091, objective 1) A BASE PLOT's disc moves the plot (its stand and its way out with it); its stand's disc the stand alone
+      const e = found.entry, p = (e.plots || []).find(q => q && q.id === drag.runway.slice(3));
+      if (p && drag.runway[1] === 'l') { const dx = +L[0].toFixed(2) - p.x, dz = +L[1].toFixed(2) - p.z; p.x = +L[0].toFixed(2); p.z = +L[1].toFixed(2);
+        if (p.stand) { p.stand.x = +(p.stand.x + dx).toFixed(2); p.stand.z = +(p.stand.z + dz).toFixed(2); }
+        for (const k of ['taxiOut', 'taxiOut1']) if (Array.isArray(p[k])) p[k] = p[k].map((q, i, a) => i === a.length - 1 ? q : [+(q[0] + dx).toFixed(2), +(q[1] + dz).toFixed(2)]); }
+      else if (p && p.stand) { p.stand.x = +L[0].toFixed(2); p.stand.z = +L[1].toFixed(2); }
+    }
     else if (drag.runway && (drag.runway === 'stand' || drag.runway === 'hangar' || drag.runway.indexOf('tx') === 0 || drag.runway.indexOf('ty') === 0)) {
       // the stand or a taxi point moves; the LAST taxi point stays on the centreline (it is the entry)
       const e = found.entry, E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, e));
@@ -1185,16 +1193,8 @@ function mount(host, ctx) {
     if (tool === 'prop' || tool === 'billboard' || tool === 'aircraft' || tool === 'animal') {
       const key = OBJ_PICK[tool] || (objectKeys(tool, rec)[0] || [null])[0];
       if (!key) { strip.status('no ' + tool + ' to place here'); return; }
-      const AN0 = (typeof window !== 'undefined' && window.ANIMALS) || null;
-      const kind0 = (AN0 && AN0.reg(key)) ? AN0.reg(key).kind : 'land';
-      const e = tool === 'prop' ? { id: PG.newId(rec, 'objects'), kind: 'prop', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0, dy: 0, on: 'ground' }
+      const e = tool === 'animal' ? animalRecord(key, L) : tool === 'prop' ? { id: PG.newId(rec, 'objects'), kind: 'prop', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0, dy: 0, on: 'ground' }
               : tool === 'aircraft' ? { id: PG.newId(rec, 'objects'), kind: 'aircraft', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0 }
-              // the defaults are the species' own: a bear alone on 60 m, a herd
-              // of four on 120, a POD OF FIVE on 300 (orca travel in pods of
-              // four or five, and one whale is one whale), a flock of six on 220
-              : tool === 'animal' ? { id: PG.newId(rec, 'objects'), kind: 'animal', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0,
-                                      n: kind0 === 'sea' ? (key === 'whale' ? 1 : 5) : kind0 === 'air' ? 6 : (key === 'bear' ? 1 : 4),
-                                      r: kind0 === 'sea' ? 300 : kind0 === 'air' ? 220 : (key === 'bear' ? 60 : 120), dy: 0 }
                                 : { id: PG.newId(rec, 'objects'), kind: 'billboard', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0, w: 3.6 };
       run({ layer: 'objects', id: e.id, before: null, after: e, label: tool + ' ' + e.id });
       select(e.id);
@@ -1459,7 +1459,7 @@ function mount(host, ctx) {
         { const TH = PG.themeOf(rec), rule = (TH.plots || {})[e.kind] || {}, own = (e.rules && Array.isArray(e.rules.cats)) ? e.rules.cats : [];
           const d = $('div', { class: 'r' }); d.appendChild($('span', { class: 'k', text: 'draws from', title: 'the categories this zone\'s plots draw from' }));
           const w = $('span', { class: 'pills' });
-          for (const c of TH.categories || PG.CATEGORIES) { const on = own.length ? own.indexOf(c) >= 0 : (rule.cats || []).indexOf(c) >= 0; const b = $('button', { class: 'pill' + (on ? ' on' : ''), text: c, type: 'button', title: own.length ? 'this zone\'s own list' : 'the ' + TH.name + ' theme\'s list for a ' + e.kind + ' zone' }); b.onclick = () => ed(x => { const cur = (x.rules && Array.isArray(x.rules.cats) && x.rules.cats.length) ? x.rules.cats.slice() : (rule.cats || []).slice(); const i = cur.indexOf(c); if (i >= 0) cur.splice(i, 1); else cur.push(c); x.rules = Object.assign({}, x.rules, { cats: cur }); }, 'categories of ' + id); w.appendChild(b); }
+          for (const c of zoneCats(TH)) { const on = own.length ? own.indexOf(c) >= 0 : (rule.cats || []).indexOf(c) >= 0; const b = $('button', { class: 'pill' + (on ? ' on' : ''), text: c, type: 'button', title: own.length ? 'this zone\'s own list' : 'the ' + TH.name + ' theme\'s list for a ' + e.kind + ' zone' }); b.onclick = () => ed(x => { const cur = (x.rules && Array.isArray(x.rules.cats) && x.rules.cats.length) ? x.rules.cats.slice() : (rule.cats || []).slice(); const i = cur.indexOf(c); if (i >= 0) cur.splice(i, 1); else cur.push(c); x.rules = Object.assign({}, x.rules, { cats: cur }); }, 'categories of ' + id); w.appendChild(b); }
           d.appendChild(w); insp.appendChild(d);
           if (own.length) rows.button(insp, 'back to the theme\'s categories', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.cats; x.rules = r2; }, 'categories of ' + id));
           else if (rule.tag) rows.note(insp, 'a ' + e.kind + ' zone stands what the theme tags ' + rule.tag + ' (' + (ctx.catalogue ? ctx.catalogue.byTag(rule.tag).length : 0) + ' in the catalogue)');
@@ -1566,8 +1566,13 @@ function mount(host, ctx) {
       rows.note(insp, 'drag an end disc to turn or stretch the strip (the other end stays); the faint disc moves it whole; the amber discs are the holds - drag one along the strip and the validator answers');
       if (e.stand && e.taxiOut) {
         rows.note(insp, 'THE STAND: the aeroplane starts here, parked toward its first taxi point; the way out runs through ' + e.taxiOut.length + ' point' + (e.taxiOut.length > 1 ? 's' : '') + ' to the centreline');
-        rows.button(insp, 'add a taxi point', () => ed(x => { const t = x.taxiOut, n = t.length, a = n > 1 ? t[n - 2] : [x.stand.x, x.stand.z], b = t[n - 1]; t.splice(n - 1, 0, [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]); }, 'taxi point of ' + id));
-        if (e.taxiOut.length > 1) rows.button(insp, 'drop the last taxi point before the entry', () => ed(x => { x.taxiOut.splice(x.taxiOut.length - 2, 1); }, 'taxi point of ' + id));
+        // (G3091, objective 1; the user: "the main hangar rotation, position, taxiways, spawn points ... will need to be redone")
+        numRow(insp, 'stand x (m)', () => e.stand.x, v => ed(x => { x.stand.x = +v.toFixed(2); }, 'stand of ' + id, 'sx'), metres);
+        numRow(insp, 'stand z (m)', () => e.stand.z, v => ed(x => { x.stand.z = +v.toFixed(2); }, 'stand of ' + id, 'sz'), metres);
+        standHeading(insp, e.stand, e.taxiOut, f => ed(x => f(x.stand), 'heading of the stand of ' + id, 'shdg'));
+        wayRows(insp, e, 'taxiOut', 'the way out toward end 0', id, ed);
+        if (e.taxiOut1) wayRows(insp, e, 'taxiOut1', 'the way out toward end 1', id, ed);
+        else rows.button(insp, 'add a way out toward end 1', () => ed(x => { x.taxiOut1 = wayToward(x, x.stand, 1); }, 'way out of ' + id));
         rows.button(insp, 'remove the stand', () => ed(x => { x.stand = null; x.taxiOut = null; x.taxiOut1 = null; }, 'stand of ' + id));
       } else rows.note(insp, 'no stand: the aeroplane starts 35 m in from end 0 (the stand tool puts one beside the strip)');
       // THE CLUB HANGAR (G434): the garage's own shell stood at the field - the building the aeroplane rolls
@@ -1576,6 +1581,8 @@ function mount(host, ctx) {
       if (e.hangar) {
         rows.note(insp, 'THE CLUB HANGAR: the garage\'s shell stands here, its door facing ' + ((+e.hangar.hdg || 0) * 180 / Math.PI).toFixed(0) + '°; drag its disc to move it');
         rows.slider(insp, 'door faces (°)', -180, 180, 1, () => (+e.hangar.hdg || 0) * 180 / Math.PI, v => ed(x => { x.hangar.hdg = v * Math.PI / 180; }, 'hangar of ' + id, 'hangarHdg'), v => v.toFixed(0) + '°');
+        numRow(insp, 'hangar x (m)', () => e.hangar.x, v => ed(x => { x.hangar.x = +v.toFixed(2); }, 'hangar of ' + id, 'hx'), metres);   // (G3091)
+        numRow(insp, 'hangar z (m)', () => e.hangar.z, v => ed(x => { x.hangar.z = +v.toFixed(2); }, 'hangar of ' + id, 'hz'), metres);
         rows.button(insp, 'remove the club hangar', () => ed(x => { x.hangar = null; }, 'hangar of ' + id));
       } else if (e.stand) {
         rows.button(insp, 'stand the club hangar behind the stand', () => ed(x => {
@@ -1583,6 +1590,7 @@ function mount(host, ctx) {
           x.hangar = { x: +(x.stand.x - 34 * Math.cos(h)).toFixed(2), z: +(x.stand.z - 34 * Math.sin(h)).toFixed(2), hdg: +h.toFixed(4) };
         }, 'hangar of ' + id));
       } else rows.note(insp, 'a club hangar (the garage\'s shell) can stand behind a stand: put the stand first');
+      plotRows(insp, e, id, ed);   // (G3091: the base plots)
       if (e.site && e.site.pattern) rows.button(insp, 'pattern: back to the derived one', () => ed(x => { const st = Object.assign({}, x.site); delete st.pattern; x.site = Object.keys(st).length ? st : null; }, 'derived pattern of ' + id));
       else rows.note(insp, 'the pattern is the DERIVED one (two holds 110 m in); touch a hold and it becomes yours');
     } else if (layer === 'sites') {
@@ -1636,8 +1644,6 @@ function mount(host, ctx) {
     } else if (layer === 'objects' && (e.kind === 'prop' || e.kind === 'billboard' || e.kind === 'aircraft')) {
       const keys = objectKeys(e.kind, rec);
       if (keys.length) rows.select(insp, e.kind, keys, () => e.key, v => ed(x => { x.key = v; }, e.kind + ' of ' + id));
-      numRow(insp, 'x (m)', () => e.x, v => ed(x => { x.x = +v.toFixed(2); }, 'place of ' + id, 'x'), metres);
-      numRow(insp, 'z (m)', () => e.z, v => ed(x => { x.z = +v.toFixed(2); }, 'place of ' + id, 'z'), metres);
       numRow(insp, 'x (m)', () => e.x, v => ed(x => { x.x = +v.toFixed(2); }, 'place of ' + id, 'x'), metres);
       numRow(insp, 'z (m)', () => e.z, v => ed(x => { x.z = +v.toFixed(2); }, 'place of ' + id, 'z'), metres);
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
@@ -1945,6 +1951,14 @@ function mount(host, ctx) {
     const THS = window.VILLAGE_GEN && window.VILLAGE_GEN.THEMES;
     if (THS) { const tk = Object.keys(THS); if (!SITE_THEME || tk.indexOf(SITE_THEME) < 0) SITE_THEME = tk[0]; rows.select(P, 'site theme', tk.map(k => [k, THS[k].name]), () => SITE_THEME, v => { SITE_THEME = v; }); }
   }
+  // G2893 (the user: "there are many categories of sites that the filters do not cover"): a zone may draw from every
+  // category the catalogue carries - the theme's first, then the others its entries name (the airfield's 'airport xs / s
+  // / m': a zone of field sheds, a row of club hangars)
+  function zoneCats(TH) {
+    const cats = (TH.categories || PG.CATEGORIES).slice(), E = ctx.catalogue && ctx.catalogue.entries, extra = new Set();
+    if (E && E.forEach) E.forEach(en => { if (en && en.cat && cats.indexOf(en.cat) < 0) extra.add(en.cat); });
+    return cats.concat(Array.from(extra).sort());
+  }
   function objectsPalette(P) {
     for (const kind of ['prop', 'billboard', 'aircraft', 'animal']) {
       const keys = objectKeys(kind, rec);
@@ -1956,6 +1970,15 @@ function mount(host, ctx) {
     rows.note(P, 'an ANIMAL record is a HOTSPOT, not one animal: how many of the species live there and over what radius. They sow themselves inside it, seeded per individual, so changing the count never moves the ones already standing.');
   }
 
+  // AN ANIMAL HOTSPOT (G2893: the OBJECTS tool's and the model placer's one record). The defaults are the species' own: a
+  // bear alone on 60 m, a herd of four on 120, a POD OF FIVE on 300 (orca travel in pods of four or five, and one whale is
+  // one whale), a flock of six on 220; `n` / `r` given (the placer's scatter) win
+  function animalRecord(key, L, yaw, n, r) {
+    const AN = (typeof window !== 'undefined' && window.ANIMALS) || null, kind = (AN && AN.reg && AN.reg(key)) ? AN.reg(key).kind : 'land';
+    return { id: PG.newId(rec, 'objects'), kind: 'animal', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: +(+yaw || 0).toFixed(4),
+             n: n || (kind === 'sea' ? (key === 'whale' ? 1 : 5) : kind === 'air' ? 6 : (key === 'bear' ? 1 : 4)),
+             r: r || (kind === 'sea' ? 300 : kind === 'air' ? 220 : (key === 'bear' ? 60 : 120)), dy: 0 };
+  }
   // ---- THE MODEL PLACER (G2914; the user: "A generic asset visualizer allowing me to drop models from the available bank") --
   // The bank is the prop registry (PROP_REG: every baked pack registers there - the hangar's, the pier kit, the scenery
   // packs ASSETS-OCT G2900 prepares - so nothing here names a key, contract rule 13); its groups are the pills, a search
@@ -1966,10 +1989,61 @@ function mount(host, ctx) {
   // (R, the inspector) and scaled (the inspector) like any prop, and saved with the premises.
   const ASSET = { key: null, group: 'all', q: '', yaw: 0, s: 1, level: false, n: 8, r: 12, seed: 1, jitter: 0.15, thumbs: new Map(), queue: [], busy: false };
   const propRegOf = () => (typeof PROP_REG !== 'undefined' ? PROP_REG : ((typeof window !== 'undefined' && window.PROP_REG) || null));
+  // G2893 THE BANK'S TILES (the user: "I did not succeed placing animals"; A0: the parts hidden, the ALMA one placeable).
+  // A tile is a MODEL (a prop of the registry), an ASSEMBLY (its parts placed together: ONE prop record, its head part's key
+  // and the others in `with` - the ALMA's base, fork and dish were baked in one frame) or an ANIMAL (a herd record, the
+  // OBJECTS tool's). Hidden: an assembly's parts, a prop its pack flags `part: true`, and - until the packs flag them - the
+  // groups that are a kit's pieces (the panel's buttons, keys, knobs and switches, the airframe in build, the driveable
+  // car's body, wheels and steering). The assemblies: the packs' own `asm` / `asmParent` when they carry them, else the
+  // committed src/scenery/scenery_assembly.json (tools/scenery_prep.py's), read once when the palette first opens.
+  const PART_GROUPS = { button: 1, key: 1, knob: 1, switch: 1, airframe: 1, car: 1 };
+  const ASM = { file: null, tried: false };
+  function asmFetch() {
+    if (ASM.tried || typeof XMLHttpRequest === 'undefined') return;
+    ASM.tried = true;
+    const go = (urls) => { if (!urls.length) return; const x = new XMLHttpRequest(); x.open('GET', urls[0]);
+      x.onload = () => { if (x.status === 200) { try { ASM.file = JSON.parse(x.responseText); if (section === 'assets') palette.refresh(); } catch (e) {} } else go(urls.slice(1)); };
+      x.onerror = () => go(urls.slice(1)); x.send(); };
+    go(['src/scenery/scenery_assembly.json', '../src/scenery/scenery_assembly.json']);
+  }
+  // { id: [{ key, parent }] } - every assembly the bank can stand whole
+  function assemblies() {
+    const PR = propRegOf(), out = {};
+    if (!PR || !PR.props) return out;
+    for (const k of PR.order || Object.keys(PR.props)) { const p = PR.props[k]; if (p && p.asm) (out[p.asm] = out[p.asm] || []).push({ key: k, parent: p.asmParent || null }); }
+    const F = ASM.file || (typeof window !== 'undefined' && window.SCENERY_ASSEMBLY) || null;
+    if (F) for (const id in F) if (!out[id] && F[id] && Array.isArray(F[id].parts)) {
+      const parts = F[id].parts.filter(q => PR.props[q.row]);
+      if (parts.length === F[id].parts.length && parts.length) out[id] = parts.map(q => ({ key: q.row, parent: q.parent || null }));
+    }
+    return out;
+  }
+  function bankTiles() {
+    const PR = propRegOf(), out = [], inAsm = new Set();
+    if (PR && PR.props) {
+      const A = assemblies();
+      for (const id in A) {
+        const parts = A[id], head = parts.find(q => !q.parent) || parts[0], hp = PR.props[head.key];
+        for (const q of parts) inAsm.add(q.key);
+        out.push({ k: 'asm:' + id, kind: 'asm', key: head.key, with: parts.filter(q => q !== head).map(q => q.key), group: hp.group, label: (hp.label || id).replace(/\s*\(?base\)?$/i, '') + ' (' + parts.length + ' parts)', thumb: head.key, dim: hp.dim, nt: parts.reduce((a, q) => a + ((PR.props[q.key] || {}).nt || 0), 0) });
+      }
+      for (const k of PR.order || Object.keys(PR.props)) {
+        const p = PR.props[k];
+        if (!p || p.lodOf || p.part === true || inAsm.has(k) || PART_GROUPS[p.group]) continue;
+        out.push({ k, kind: 'prop', key: k, group: p.group, label: p.label || k, thumb: k, dim: p.dim, nt: p.nt });
+      }
+    }
+    const AN = (typeof window !== 'undefined' && window.ANIMALS) || null;
+    if (AN && AN.list) for (const a of AN.list()) {
+      let lod = null; if (PR && PR.props) for (const k of PR.order || []) { const p = PR.props[k]; if (p && p.lodOf === a.key && (!lod || (+p.lodDist || 0) < (+PR.props[lod].lodDist || 0))) lod = k; }
+      out.push({ k: 'animal:' + a.key, kind: 'animal', key: a.key, group: 'animals', label: (a.label || a.key) + ' (a herd)', thumb: lod, dim: a.length ? [a.length] : null, nt: a.nt });
+    }
+    return out;
+  }
+  const tileOf = k => bankTiles().find(t => t.k === k) || null;
   function assetKeys() {
-    const PR = propRegOf(); if (!PR || !PR.props) return [];
     const q = ASSET.q.trim().toLowerCase();
-    return (PR.order || Object.keys(PR.props)).filter(k => { const p = PR.props[k]; if (!p || p.lodOf) return false; if (ASSET.group !== 'all' && p.group !== ASSET.group) return false; return !q || (k + ' ' + (p.label || '') + ' ' + (p.group || '')).toLowerCase().indexOf(q) >= 0; });
+    return bankTiles().filter(t => (ASSET.group === 'all' || t.group === ASSET.group) && (!q || (t.k + ' ' + t.label + ' ' + (t.group || '')).toLowerCase().indexOf(q) >= 0)).map(t => t.k);
   }
   // a thumbnail: the host's renderer draws the prop into a small target once its bytes are here (ctx.thumb), one a frame
   function thumbOf(key, img) {
@@ -1989,11 +2063,13 @@ function mount(host, ctx) {
   }
   function assetsPalette(P) {
     const PR = propRegOf();
-    if (!PR || !PR.props || !(PR.order || []).length) { rows.note(P, 'no model bank on this page (the prop registry is empty)'); return; }
+    asmFetch();
+    const TL = bankTiles();
+    if (!TL.length) { rows.note(P, 'no model bank on this page (the prop registry is empty)'); return; }
     const srch = $('input', { type: 'text', placeholder: 'search the bank', value: ASSET.q }); srch.className = 'pr-name';
     srch.oninput = () => { ASSET.q = srch.value; fillGrid(); };
     P.appendChild(srch);
-    const groups = (PR.groups || []).filter(g => (PR.order || []).some(k => PR.props[k] && !PR.props[k].lodOf && PR.props[k].group === g[0]));
+    const groups = ((PR && PR.groups) || []).filter(g => TL.some(t => t.group === g[0])).concat(TL.some(t => t.kind === 'animal') ? [['animals', 'animals (a herd)']] : []);
     rows.pills(P, 'group', [['all', 'all', 'every model of the bank']].concat(groups.map(g => [g[0], g[1] || g[0]])), () => ASSET.group, v => { ASSET.group = v; fillGrid(); });
     const grid = $('div', { class: 'pr-assets' }); P.appendChild(grid);
     const info = $('div', { class: 'note' }); P.appendChild(info);
@@ -2001,11 +2077,12 @@ function mount(host, ctx) {
       grid.innerHTML = '';
       const ks = assetKeys();
       for (const k of ks.slice(0, 240)) {
-        const p = PR.props[k], b = $('button', { class: 'pr-asset' + (k === ASSET.key ? ' on' : ''), type: 'button', title: k + (p.dim ? ' · ' + p.dim.map(v => (+v).toFixed(1)).join(' x ') + ' m' : '') + (p.nt ? ' · ' + p.nt.toLocaleString() + ' tris' : '') });
+        const p = tileOf(k); if (!p) continue;
+        const b = $('button', { class: 'pr-asset' + (k === ASSET.key ? ' on' : ''), type: 'button', title: k + (p.dim ? ' · ' + p.dim.map(v => (+v).toFixed(1)).join(' x ') + ' m' : '') + (p.nt ? ' · ' + p.nt.toLocaleString() + ' tris' : '') });
         const img = $('img', { alt: '' }); b.appendChild(img); b.appendChild($('span', { text: p.label || k }));
         b.onclick = () => { ASSET.key = k; if (tool !== 'place' && tool !== 'scatter') setTool('place'); else armGhost(); fillGrid(); b.blur && b.blur(); };
         grid.appendChild(b);
-        thumbOf(k, img);
+        if (p.thumb) thumbOf(p.thumb, img);
       }
       info.textContent = ks.length + ' model' + (ks.length === 1 ? '' : 's') + (ks.length > 240 ? ' (the first 240 shown - search to narrow)' : '') + (ASSET.key ? ' · picked: ' + ASSET.key : ' · pick one, then click the ground');
     };
@@ -2024,15 +2101,25 @@ function mount(host, ctx) {
   let ghostAt = null;
   function armGhost(g) {
     if (g) ghostAt = g;
-    if ((tool !== 'place' && tool !== 'scatter') || !ASSET.key || !ghostAt) { if (R.ghostModel) R.ghostModel(null); return; }
-    if (R.ghostModel) R.ghostModel({ key: ASSET.key, x: ghostAt[0], z: ghostAt[2], yaw: ASSET.yaw + (R.overlay ? R.overlay.frame.yaw : 0), s: ASSET.s, level: ASSET.level, r: tool === 'scatter' ? ASSET.r : 0 });
+    const T0 = ASSET.key ? tileOf(ASSET.key) : null;
+    if ((tool !== 'place' && tool !== 'scatter') || !T0 || !ghostAt || T0.kind === 'animal') { if (R.ghostModel) R.ghostModel(null); return; }
+    if (R.ghostModel) R.ghostModel({ key: T0.key, x: ghostAt[0], z: ghostAt[2], yaw: ASSET.yaw + (R.overlay ? R.overlay.frame.yaw : 0), s: ASSET.s, level: ASSET.level, r: tool === 'scatter' ? ASSET.r : 0 });
     ctx.redraw && ctx.redraw();
   }
   // ONE drop: a prop record at a premises point (the place tool's click, a script's)
   function placeAsset(L, key, yaw, s, level, only) {
-    const k = key || ASSET.key; if (!k) { strip.status('pick a model in the palette first'); return null; }
+    const tk = key || ASSET.key; if (!tk) { strip.status('pick a model in the palette first'); return null; }
+    const T0 = tileOf(tk) || { kind: 'prop', key: tk };
+    if (T0.kind === 'animal') {
+      const e = animalRecord(T0.key, L, yaw === undefined ? ASSET.yaw : yaw);
+      if (only) return e;
+      run({ layer: 'objects', id: e.id, before: null, after: e, label: 'animals ' + e.id + ' (' + T0.key + ')' });
+      return e.id;
+    }
+    const k = T0.key;
     const e = { id: PG.newId(rec, 'objects'), kind: 'prop', key: k, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: +(yaw === undefined ? ASSET.yaw : yaw).toFixed(4), dy: 0, on: (level === undefined ? ASSET.level : level) ? 'flat' : 'ground' };
     const sc = s === undefined ? ASSET.s : s; if (Math.abs(sc - 1) > 1e-3) e.s = +sc.toFixed(3);
+    if (T0.kind === 'asm' && T0.with && T0.with.length) e.with = T0.with.slice();   // (G2893: the assembly's other parts, stood with it)
     if (only) return e;
     run({ layer: 'objects', id: e.id, before: null, after: e, label: 'model ' + e.id + ' (' + k + ')' });
     return e.id;
@@ -2041,6 +2128,8 @@ function mount(host, ctx) {
   // each its own record (select one and Del takes it out alone); the scatter is one undo step
   function scatterAsset(L, o) {
     const k = (o && o.key) || ASSET.key; if (!k) { strip.status('pick a model in the palette first'); return []; }
+    // (G2893: an animal's scatter IS its herd - one hotspot of that many within that radius)
+    { const T0 = tileOf(k); if (T0 && T0.kind === 'animal') { const e = animalRecord(T0.key, L, ASSET.yaw, Math.max(1, Math.min(24, (o && o.n) || ASSET.n)), (o && o.r) || ASSET.r); run({ layer: 'objects', id: e.id, before: null, after: e, label: 'animals ' + e.id + ' (' + T0.key + ')' }); strip.status(e.n + ' ' + T0.key + ' within ' + e.r.toFixed(0) + ' m'); return [e.id]; } }
     const n = (o && o.n) || ASSET.n, r = (o && o.r) || ASSET.r, rnd = PG.mulberry32(PG.hash32((o && o.seed) || ASSET.seed, PG.fnv(k + ':' + L[0].toFixed(1) + ':' + L[1].toFixed(1)))), jit = o && o.jitter !== undefined ? o.jitter : ASSET.jitter;
     const many = [];
     for (let i = 0; i < n; i++) {
@@ -2085,9 +2174,10 @@ function mount(host, ctx) {
       note.className = 'note' + (iss.length ? ' bad' : '');
     };
     const near = ev => { const rct = cv.getBoundingClientRect(), px = (ev.clientX - rct.left) * W / rct.width, py = (ev.clientY - rct.top) * H / rct.height; const P = pts(); let best = -1, bd = 9; P.forEach((q, i) => { const d = Math.hypot(X(q[0]) - px, Y(q[1]) - py); if (d < bd) { bd = d; best = i; } }); return { i: best, px, py }; };
-    cv.addEventListener('mousedown', ev => { if (ev.button !== 0) return; const n = near(ev); sel = n.i; dragging = sel >= 0; draw(); ev.preventDefault(); ev.stopPropagation(); });
+    let prof0 = null;   // (objective 1: the profile as it was at the press - the release's ed() must see the change, the terraform with it)
+    cv.addEventListener('mousedown', ev => { if (ev.button !== 0) return; const n = near(ev); sel = n.i; dragging = sel >= 0; if (dragging) prof0 = e.profile === undefined ? undefined : JSON.parse(JSON.stringify(e.profile)); draw(); ev.preventDefault(); ev.stopPropagation(); });
     addEventListener('mousemove', ev => { if (!dragging || sel < 0 || !active) return; const n = near(ev); const P = pts().map(q => q.slice()); const t = (sel === 0) ? 0 : (sel === P.length - 1) ? 1 : Math.max(P[sel - 1][0] + 0.01, Math.min(P[sel + 1][0] - 0.01, tOf(n.px))); P[sel] = [+t.toFixed(3), +dyOf(n.py).toFixed(2)]; e.profile = P; R.setRecord(rec); draw(); });
-    addEventListener('mouseup', () => { if (!dragging) return; dragging = false; const P = pts(); ed(x => { x.profile = P.map(q => q.slice()); }, 'profile of ' + e.id); });
+    addEventListener('mouseup', () => { if (!dragging) return; dragging = false; const P = pts(); if (prof0 === undefined) delete e.profile; else e.profile = prof0; prof0 = null; ed(x => { x.profile = P.map(q => q.slice()); }, 'profile of ' + e.id); });
     cv.addEventListener('dblclick', ev => { const n = near(ev); if (n.i >= 0) return; const P = pts().map(q => q.slice()); const t = +tOf(n.px).toFixed(3); const pr = PG.runwayProfile(Object.assign({}, PG.RUNWAY_DEF, e, { profile: P })); P.push([t, +pr.at(t * e.len).toFixed(2)]); P.sort((a, b) => a[0] - b[0]); ed(x => { x.profile = P; }, 'profile point of ' + e.id); ev.stopPropagation(); });
     const btns = $('div', { style: 'display:flex;gap:6px;margin-top:4px' });
     const del = $('button', { class: 'btn pill', type: 'button', text: '✕ remove the selected point' }); del.onclick = () => { const P = pts(); if (sel <= 0 || sel >= P.length - 1) return; const Q = P.filter((q, i) => i !== sel); sel = -1; ed(x => { x.profile = Q; }, 'profile point of ' + e.id); };
@@ -2179,6 +2269,62 @@ function mount(host, ctx) {
   }
   // (G3018, the user: 'I need to be able to manually input a figure') a typed number with no slider - the host's, when it has one
   const numRow = (p, label, get, set, fmt) => (rows.number ? rows.number(p, label, get, set, fmt) : null);
+  // (G3091, objective 1) THE BASE ZONE'S ROWS. A stand's PARKED HEADING: its own `hdg` (radians) or, null, toward its first taxi
+  // point (placeAtStand's rule) - the row shows the heading it parks at either way; 'toward the way out' gives it back
+  const DEG = 180 / Math.PI, wrapDeg = d => ((d + 180) % 360 + 360) % 360 - 180;
+  const standHdg = (st, way) => (st.hdg !== null && st.hdg !== undefined && isFinite(+st.hdg)) ? +st.hdg : (way && way.length ? Math.atan2(way[0][1] - st.z, way[0][0] - st.x) : 0);
+  function standHeading(p, st, way, apply, pre) {
+    pre = pre || '';
+    rows.slider(p, pre + 'parked heading (°)', -180, 180, 1, () => wrapDeg(standHdg(st, way) * DEG), v => apply(s => { s.hdg = +(v / DEG).toFixed(4); }), v => v.toFixed(0) + '°' + (st.hdg === null || st.hdg === undefined ? ' (toward the way out)' : ''));
+    if (st.hdg !== null && st.hdg !== undefined) rows.button(p, pre + 'parked heading: toward the way out', () => apply(s => { s.hdg = null; }));
+  }
+  // A WAY OUT's points, typed; the last is the entry, on the centreline (a typed entry is taken to its nearest centreline point,
+  // as its drag is); a point added after any but the entry (half way to the next), removed (never the entry)
+  const onLine = (x, q) => { const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, x)), along = (q[0] - x.c[0]) * E.d[0] + (q[1] - x.c[1]) * E.d[1]; return [+(x.c[0] + E.d[0] * along).toFixed(2), +(x.c[1] + E.d[1] * along).toFixed(2)]; };
+  function wayRows(p, e, key, label, id, ed) {
+    const W = e[key]; if (!Array.isArray(W) || !W.length) return;
+    rows.note(p, label.toUpperCase() + ': ' + W.length + ' point' + (W.length > 1 ? 's' : '') + ' (the last is the entry on the centreline)');
+    W.forEach((q, i) => {
+      const last = i === W.length - 1, set = (k, v) => ed(x => { const T = x[key], P = T[i].slice(); P[k] = +v.toFixed(2); T[i] = last ? onLine(x, P) : P; }, 'way out of ' + id, key + i + k);
+      numRow(p, (last ? 'entry' : 'point ' + (i + 1)) + ' x (m)', () => W[i][0], v => set(0, v), metres);
+      numRow(p, (last ? 'entry' : 'point ' + (i + 1)) + ' z (m)', () => W[i][1], v => set(1, v), metres);
+      if (!last) rows.button(p, 'add a point after point ' + (i + 1), () => ed(x => { const T = x[key], a = T[i], b = T[i + 1]; T.splice(i + 1, 0, [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]); }, 'way out of ' + id));
+      if (!last && W.length > 1) rows.button(p, 'remove point ' + (i + 1), () => ed(x => { x[key].splice(i, 1); }, 'way out of ' + id));
+    });
+    if (key === 'taxiOut1') rows.button(p, 'remove the way out toward end 1', () => ed(x => { x.taxiOut1 = null; }, 'way out of ' + id));
+  }
+  // a new way out toward end k (0 / 1): half way from the stand to the centreline, then the entry 60 m along toward that end
+  function wayToward(x, st, k) {
+    const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, x)), P = onLine(x, [st.x, st.z]), sg = k ? 1 : -1;
+    const entry = onLine(x, [P[0] + E.d[0] * 60 * sg, P[1] + E.d[1] * 60 * sg]);
+    return [[+((st.x + P[0]) / 2).toFixed(2), +((st.z + P[1]) / 2).toFixed(2)], entry];
+  }
+  // THE BASE PLOTS (the career's: where a player's hangar stands - HOME.2 and the others): a disc each on the map (its stand's too),
+  // the place and heading typed, a stand of its own given or taken (without one the field's stand and way out serve it), a plot
+  // added beside the stand, removed
+  function plotRows(p, e, id, ed) {
+    const P = Array.isArray(e.plots) ? e.plots : [];
+    rows.note(p, 'BASE PLOTS: ' + (P.length ? P.map(q => q.id).join(', ') + ' - drag a plot\'s disc (its stand and way out come with it), its stand\'s small disc alone' : 'none'));
+    P.forEach((q, i) => {
+      const pid = q.id, upd = (f, k) => ed(x => f(x.plots[i]), 'plot ' + pid + ' of ' + id, k ? 'p' + i + k : undefined);
+      rows.note(p, 'PLOT ' + pid);
+      numRow(p, pid + ' x (m)', () => q.x, v => upd(o => { o.x = +v.toFixed(2); }, 'x'), metres);
+      numRow(p, pid + ' z (m)', () => q.z, v => upd(o => { o.z = +v.toFixed(2); }, 'z'), metres);
+      rows.slider(p, pid + ' heading (°)', -180, 180, 1, () => wrapDeg((+q.hdg || 0) * DEG), v => upd(o => { o.hdg = +(v / DEG).toFixed(4); }, 'h'), v => v.toFixed(0) + '°');
+      if (q.stand) {
+        numRow(p, pid + ' stand x (m)', () => q.stand.x, v => upd(o => { o.stand.x = +v.toFixed(2); }, 'sx'), metres);
+        numRow(p, pid + ' stand z (m)', () => q.stand.z, v => upd(o => { o.stand.z = +v.toFixed(2); }, 'sz'), metres);
+        standHeading(p, q.stand, q.taxiOut, f => upd(o => f(o.stand), 'sh'), pid + ' ');
+        rows.button(p, pid + ': no stand of its own (the field\'s serves it)', () => upd(o => { delete o.stand; delete o.taxiOut; delete o.taxiOut1; }));
+      } else rows.button(p, pid + ': give it a stand of its own', () => upd(o => { const h = +o.hdg || 0; o.stand = { x: +(o.x + 20 * Math.cos(h)).toFixed(2), z: +(o.z + 20 * Math.sin(h)).toFixed(2), hdg: null }; }));
+      rows.button(p, 'remove plot ' + pid, () => ed(x => { x.plots.splice(i, 1); if (!x.plots.length) x.plots = null; }, 'plot ' + pid + ' of ' + id));
+    });
+    if (e.stand) rows.button(p, 'add a base plot beside the stand', () => ed(x => {
+      const ids = new Set((x.plots || []).map(q => q.id)); let n = 2; while (ids.has(id + '.' + n)) n++;
+      const h = standHdg(x.stand, x.taxiOut);
+      x.plots = (x.plots || []).concat([{ id: id + '.' + n, x: +(x.stand.x - 40 * Math.sin(h)).toFixed(2), z: +(x.stand.z + 40 * Math.cos(h)).toFixed(2), hdg: +h.toFixed(4) }]);
+    }, 'plot of ' + id));
+  }
   const metres = v => (+v).toFixed(1) + ' m';
   function viewRows(P) {
     rows.section(P, 'VIEW');
@@ -2351,6 +2497,7 @@ function mount(host, ctx) {
       if (name === 'paletteEl') { return pal; }
       if (name === 'snapshot') { return snapshot(true); }
       if (name === 'inspector') { return insp; }
+      if (name === 'bank') { return bankTiles().map(t => ({ k: t.k, kind: t.kind, key: t.key, with: t.with || null, group: t.group })); }   // G2893
       if (name === 'tool') { setTool(args.name); return tool; }
       if (name === 'section') { setSection(args.name); return section; }
       throw new Error('premises: unknown cmd ' + name);

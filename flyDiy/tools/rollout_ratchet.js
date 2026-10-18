@@ -78,6 +78,8 @@ function metrics(j) {
     fps: taxi.fpsDelivered != null ? taxi.fpsDelivered : null,
     uneven, p99: taxi.dtP99 != null ? taxi.dtP99 : null,
     loop: taxi.workMed != null ? taxi.workMed : null, render: taxi.renderMed != null ? taxi.renderMed : null, solver: taxi.physMed != null ? taxi.physMed : null,
+    // PERF-1 P1: the taxi's loop / render tail (p90: what rollout_perf's phases carry) - the fixed reference's cumulative budget reads loopP90
+    loopP90: taxi.workP90 != null ? taxi.workP90 : null, renderP90: taxi.renderP90 != null ? taxi.renderP90 : null,
     over100: g.over100ms ? g.over100ms.n : null, below30s: g.below30run ? g.below30run.sec : null,
     tasks1s: lt.filter(x => x > 1000).length, tasks200: lt.filter(x => x > 200).length, taskWorst: lt.length ? Math.max(...lt) : 0,
     slice: j.worldSlices ? j.worldSlices.worst : null,
@@ -110,6 +112,8 @@ const RULES = {
   over1s:   { up: false, rel: 0,    abs: 0,    unit: '', info: true },
   loop:     { up: false, rel: 0.10, abs: 0.8,  unit: 'ms' },
   render:   { up: false, rel: 0.10, abs: 0.6,  unit: 'ms' },
+  loopP90:  { up: false, rel: 0.10, abs: 1.0,  unit: 'ms' },   // PERF-1 P1: the taxi's loop and render at p90
+  renderP90:{ up: false, rel: 0.10, abs: 0.8,  unit: 'ms' },
   solver:   { up: false, rel: 0.15, abs: 0.6,  unit: 'ms' },
   over100:  { up: false, rel: 0,    abs: 1,    unit: '' },
   tasks1s:  { up: false, rel: 0,    abs: 1,    unit: '' },   // a task at ~1 s flips across the line run to run; R4 still wants 0

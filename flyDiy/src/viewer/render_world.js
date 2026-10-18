@@ -7249,6 +7249,40 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (premisesR.ringSink) return premisesR.ringSink(x, z);
     return (premisesR.patchCovers && premisesR.patchCovers(x, z)) ? 4 : 0;
   }
+  // ---- GROUND BOX (G3100) BEGIN ----------------------------------------------------------------------------------------
+  // THE RING'S NORMALS FOR THE EDIT'S BOX ONLY (G3100 EDITOR-PERF; the user's rev 28 timed 13 Oct: every ground edit of the
+  // scenery editor paid the WHOLE ring's computeVertexNormals - 513 x 513 vertices - for a box of a few hundred metres).
+  // The vertices whose normal can change are the moved ones and every vertex of a face touching one; each is summed again
+  // over ALL its faces, in three's own order and arithmetic (BufferGeometry.computeVertexNormals: per face, in index order,
+  // cross(c - b, a - b) in doubles added into the Float32 normal - rounded at each add - then normalizeNormals: x * (1 / len),
+  // len 0 -> 1): the same normals, bit for bit, as the whole call (GATE GROUNDBOX against three itself). groundAdj: the faces
+  // of each vertex in index order (CSR), made once per geometry.
+  function groundAdj(I, nV) {
+    const start = new Uint32Array(nV + 1);
+    for (let k = 0; k < I.length; k++) start[I[k] + 1]++;
+    for (let v = 0; v < nV; v++) start[v + 1] += start[v];
+    const fac = new Uint32Array(I.length), fill = start.slice(0, nV);
+    for (let f = 0; f < I.length; f += 3) { fac[fill[I[f]]++] = f; fac[fill[I[f + 1]]++] = f; fac[fill[I[f + 2]]++] = f; }
+    return { n: I.length, start, fac };
+  }
+  // P positions, N normals (Float32Array, written), I the index, A groundAdj's, moved: the moved vertices -> the count rewritten
+  function groundNormalsBox(P, N, I, A, moved) {
+    const aff = new Set();
+    for (const v of moved) for (let k = A.start[v]; k < A.start[v + 1]; k++) { const f = A.fac[k]; aff.add(I[f]); aff.add(I[f + 1]); aff.add(I[f + 2]); }
+    for (const v of aff) {
+      let x = 0, y = 0, z = 0;
+      for (let k = A.start[v]; k < A.start[v + 1]; k++) {
+        const f = A.fac[k], a = I[f] * 3, b = I[f + 1] * 3, c = I[f + 2] * 3;
+        const hx = P[c] - P[b], hy = P[c + 1] - P[b + 1], hz = P[c + 2] - P[b + 2], dx = P[a] - P[b], dy = P[a + 1] - P[b + 1], dz = P[a + 2] - P[b + 2];
+        x = Math.fround(x + (hy * dz - hz * dy)); y = Math.fround(y + (hz * dx - hx * dz)); z = Math.fround(z + (hx * dy - hy * dx));
+      }
+      const s = 1 / (Math.sqrt(x * x + y * y + z * z) || 1);
+      N[v * 3] = x * s; N[v * 3 + 1] = y * s; N[v * 3 + 2] = z * s;
+    }
+    return aff.size;
+  }
+  // ---- GROUND BOX (G3100) END ------------------------------------------------------------------------------------------
+  const GBOX = { on: !(typeof location !== 'undefined' && /[?&]groundbox=0(&|$)/.test(location.search || '')), adj: new WeakMap(), last: null };   // ?groundbox=0: the whole ring's normals, as before
   function refreshGround(bb) { const g = refreshGroundSteps(bb); while (!g.next().done); }
   // G995 (A5-LOAD): the same in steps (the roll-out's world build: 2.0-2.4 s in one task at 'premises ground' - the
   // ring's heights under the patch from the raster, then the far tier's re-cut): a yield every 8 k vertices tested
@@ -7256,11 +7290,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     let moved = 0;   // G2063: no ring vertex under the box (the town 9 km out) - no ring to rebuild, the far tier alone
     for (const g of groundGeos) {
       const pa = g.attributes.position; let n = 0;
+      const box = GBOX.on && g.index && g.attributes.normal ? [] : null;   // (G3100) the moved vertices, for their normals alone
       for (let i = 0; i < pa.count; i++) {
         if (i && !(i & 8191)) yield 'ground under the premises';
         const x = pa.getX(i), z = pa.getZ(i); if (x < bb.x0 - 40 || x > bb.x1 + 40 || z < bb.z0 - 40 || z > bb.z1 + 40) continue; pa.setY(i, world.terrainH(x, z) - groundSink(x, z)); n++;
+        if (box) box.push(i);
       }
-      if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); moved += n; }
+      if (n) {
+        pa.needsUpdate = true;
+        if (box && n < pa.count / 4) {
+          let A = GBOX.adj.get(g); if (!A || A.n !== g.index.count) { A = groundAdj(g.index.array, pa.count); GBOX.adj.set(g, A); }
+          const t0 = performance.now(), k = groundNormalsBox(pa.array, g.attributes.normal.array, g.index.array, A, box);
+          g.attributes.normal.needsUpdate = true; GBOX.last = { moved: n, normals: k, ms: +(performance.now() - t0).toFixed(1) };
+        } else g.computeVertexNormals();
+        g.computeBoundingSphere(); moved += n;
+      }
     }
     if (moved || !groundGeos.length) {
       if (fineRing && fineRing.clear) fineRing.clear();   // the tiles carry the ring's heights in their rim: rebuilt on the next frame

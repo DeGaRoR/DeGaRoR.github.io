@@ -60,7 +60,8 @@ const POST_FX = (() => {
 
   // ---- the GPU timer: one query round a pass, read back when it lands (clouds.js) ---------
   const timer = { ext: null, pending: [] };
-  function tBegin(tag) { if (!timer.ext) return null; const q = gl.createQuery(); gl.beginQuery(timer.ext.TIME_ELAPSED_EXT, q); return { q, tag }; }
+  // PERF-1 P1: on the frames the flight recorder gives the subsystems (FLIGHT_REC.gpuMay) - its whole-frame timer owns the rest
+  function tBegin(tag) { if (!timer.ext || !(typeof FLIGHT_REC === 'undefined' || !FLIGHT_REC.gpuMay || FLIGHT_REC.gpuMay())) return null; const q = gl.createQuery(); gl.beginQuery(timer.ext.TIME_ELAPSED_EXT, q); return { q, tag }; }
   function tEnd(h) { if (!h) return; gl.endQuery(timer.ext.TIME_ELAPSED_EXT); timer.pending.push(h); }
   function tPoll() {
     if (!timer.ext || !timer.pending.length) return;

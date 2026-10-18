@@ -417,51 +417,32 @@ const ALLOW = [
   // PASSED 52ab: the frame time is in slack. upTo = the measured value + 5 %.
   // PERF LEAD (A0, for the Metlakatla chantier, not chased now): taxi gl.uniform4fv x8 (626 -> 5176), uniform4f 6 -> 484,
   // bytes.uniforms 187 k -> 646 k - per-draw uniforms at HOME's taxi, likely the parked aircraft / props' materials uploaded a draw
-  { key: 'stand/bytes.uniforms', build: 'cub', upTo: 385997, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (205152 -> 367616)', g: 'G3020' },
-  { key: 'stand/draws.shadow', build: 'cub', upTo: 274, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (169.5 -> 260.5)', g: 'G3020' },
-  { key: 'stand/gl.calls', build: 'cub', upTo: 10113, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (7803.5 -> 9631)', g: 'G3020' },
-  { key: 'stand/gl.uniform4f', build: 'cub', upTo: 234, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (6 -> 222)', g: 'G3020' },
-  { key: 'stand/gl.uniform4fv', build: 'cub', upTo: 2735, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (741 -> 2604)', g: 'G3020' },
+  // PERF-1 P3a (17 Oct, FRAMECOST_UNIFORMS on 85857a1e8): GONE - the 54 master already read 524 (D:/Dev/m54_gates.log), tonight
+  // 530, every one of the three split runs 5176: the whole step (draws, shadow, every uniform kind) came and went at once - most
+  // likely the stale-cook signature (parked aeroplanes captured live in the split trees; not proven), not content. Its uniform / draw / call
+  // ALLOWs (28) are taken out: they would admit a x8 again. Tonight's 530: uMist[] 192 + uCloudP[] 188 (the atmosphere's and the
+  // cloud shadow's vec4 arrays, the same values in every program, re-sent at every material switch) - the next uniform lever
   { key: 'stand/three.updateMatrix', build: 'cub', upTo: 4363, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (3429 -> 4155)', g: 'G3020' },
   { key: 'stand/three.updateMatrixWorld', build: 'cub', upTo: 13338, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (8349 -> 12702)', g: 'G3020' },
   { key: 'taxi/bytes.texSubImage2D', build: 'cub', upTo: 619497, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (288108 -> 589997)', g: 'G3020' },
-  { key: 'taxi/bytes.uniforms', build: 'cub', upTo: 677996, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (187496 -> 645710)', g: 'G3020' },
-  { key: 'taxi/draws.main', build: 'cub', upTo: 1146, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (844 -> 1091)', g: 'G3020' },
-  { key: 'taxi/draws.shadow', build: 'cub', upTo: 163, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (100.5 -> 155)', g: 'G3020' },
-  { key: 'taxi/gl.calls', build: 'cub', upTo: 14738, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (7310 -> 14035.5)', g: 'G3020' },
-  { key: 'taxi/gl.uniform1f', build: 'cub', upTo: 908, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (257 -> 864)', g: 'G3020' },
-  { key: 'taxi/gl.uniform2f', build: 'cub', upTo: 283, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (45 -> 269)', g: 'G3020' },
-  { key: 'taxi/gl.uniform3f', build: 'cub', upTo: 272, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (62 -> 259)', g: 'G3020' },
-  { key: 'taxi/gl.uniform4f', build: 'cub', upTo: 509, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (6 -> 484)', g: 'G3020' },
-  { key: 'taxi/gl.uniform4fv', build: 'cub', upTo: 5435, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (626 -> 5176)', g: 'G3020' },
   { key: 'taxi/three.updateMatrix', build: 'cub', upTo: 4750, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (3803 -> 4523.5)', g: 'G3020' },
   { key: 'taxi/three.updateMatrixWorld', build: 'cub', upTo: 13722, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (8727 -> 13068.5)', g: 'G3020' },
   { key: 'taxi/tris.shadow', build: 'cub', upTo: 3483411, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1782437 -> 3317534)', g: 'G3020' },
   { key: 'boot/garage:compile/bytes.bufferData', build: 'cub', upTo: 1637328, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1519232 -> 1559360)', g: 'G3020' },
   { key: 'boot/garage:landing/bytes.bufferData', build: 'cub', upTo: 807, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (0 -> 768)', g: 'G3020' },
-  { key: 'stand/bytes.uniforms', build: 'cessna', upTo: 389697, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (208782 -> 371140)', g: 'G3020' },
-  { key: 'stand/draws.shadow', build: 'cessna', upTo: 274, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (176.5 -> 260.5)', g: 'G3020' },
-  { key: 'stand/gl.calls', build: 'cessna', upTo: 10224, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (7929 -> 9737)', g: 'G3020' },
-  { key: 'stand/gl.uniform4f', build: 'cessna', upTo: 240, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (12 -> 228)', g: 'G3020' },
-  { key: 'stand/gl.uniform4fv', build: 'cessna', upTo: 2747, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (753 -> 2616)', g: 'G3020' },
   { key: 'stand/three.updateMatrix', build: 'cessna', upTo: 5782, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (4782 -> 5506)', g: 'G3020' },
   { key: 'stand/three.updateMatrixWorld', build: 'cessna', upTo: 13916, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (8902 -> 13253)', g: 'G3020' },
   { key: 'stand/world.grHeight', build: 'cessna', upTo: 24, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (15 -> 21.5)', g: 'G3020' },
   { key: 'taxi/bytes.texSubImage2D', build: 'cessna', upTo: 626217, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (294508 -> 596397)', g: 'G3020' },
-  { key: 'taxi/bytes.uniforms', build: 'cessna', upTo: 682746, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (190892 -> 650234)', g: 'G3020' },
-  { key: 'taxi/draws.main', build: 'cessna', upTo: 1158, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (854 -> 1102)', g: 'G3020' },
-  { key: 'taxi/draws.shadow', build: 'cessna', upTo: 166, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (106.5 -> 158)', g: 'G3020' },
-  { key: 'taxi/gl.calls', build: 'cessna', upTo: 14886, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (7423 -> 14176.5)', g: 'G3020' },
-  { key: 'taxi/gl.uniform1f', build: 'cessna', upTo: 908, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (267 -> 864)', g: 'G3020' },
-  { key: 'taxi/gl.uniform2f', build: 'cessna', upTo: 289, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (51 -> 275)', g: 'G3020' },
-  { key: 'taxi/gl.uniform3f', build: 'cessna', upTo: 275, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (64 -> 261)', g: 'G3020' },
-  { key: 'taxi/gl.uniform4f', build: 'cessna', upTo: 515, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (12 -> 490)', g: 'G3020' },
-  { key: 'taxi/gl.uniform4fv', build: 'cessna', upTo: 5448, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (638 -> 5188)', g: 'G3020' },
   { key: 'taxi/three.updateMatrix', build: 'cessna', upTo: 6169, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (5156 -> 5874.5)', g: 'G3020' },
   { key: 'taxi/three.updateMatrixWorld', build: 'cessna', upTo: 14301, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (9280 -> 13619.5)', g: 'G3020' },
   { key: 'taxi/tris.shadow', build: 'cessna', upTo: 3551597, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1908541 -> 3382473)', g: 'G3020' },
   { key: 'boot/garage:compile/bytes.bufferData', build: 'cessna', upTo: 1637328, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1519232 -> 1559360)', g: 'G3020' },
-  { key: 'boot/garage:landing/bytes.bufferData', build: 'cessna', upTo: 807, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (0 -> 768)', g: 'G3020' }
+  { key: 'boot/garage:landing/bytes.bufferData', build: 'cessna', upTo: 807, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (0 -> 768)', g: 'G3020' },
+  // G3023 (RWYTREES-MAP, train 56 e21d9c7fc): 'mapx' the default - the woods to the strip's edge, the user's fans and own clears
+  // standing: the taxi's shadow pass carries the new tree line (A0's FRAMECOST on master); upTo = measured + 5 %
+  { key: 'taxi/tris.shadow', build: 'cub', upTo: 3848164, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (1782437 -> 3664917.5)', g: 'G3023' },
+  { key: 'taxi/gl.bindBuffer', build: 'cub', upTo: 10, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (2 -> 7)', g: 'G3023' }
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
@@ -486,7 +467,7 @@ async function census(build) {
   let cur = null, rows = null;
   const landing = () => { const B = W.BOOT; if (bootMark.cur && B && B.state === 'landing' && !/:landing$/.test(bootMark.cur)) bootMark.open(bootMark.cur.split(':')[0] + ':landing'); };
   P.onFrame((ph) => {
-    if (ph === 'start') { landing(); if (C.injectFrame) C.injectFrame(P.frameNo); wrapPremises(FP && FP.world(), C); P.rec.resetUsed(); C.drawn = rows ? [] : null; C.drawnShadow = rows ? [] : null; C.shadowPass = rows && SHADOW_PASSES ? [] : null; if (C.shadowPass && !rows.length) C.lastPasses = {}; cur = snap(); }
+    if (ph === 'start') { landing(); if (C.injectFrame) C.injectFrame(P.frameNo); if (C.uni) { C.uni.on = !!rows; if (rows && !rows.length) { C.uni.t = {}; C.uni.n = 0; } if (rows) C.uni.n++; } wrapPremises(FP && FP.world(), C); P.rec.resetUsed(); C.drawn = rows ? [] : null; C.drawnShadow = rows ? [] : null; C.shadowPass = rows && SHADOW_PASSES ? [] : null; if (C.shadowPass && !rows.length) C.lastPasses = {}; cur = snap(); }
     else if (ph === 'end' && rows && cur) { const r = diff(cur, snap()); r.programs = P.rec.progUsed.size; rows.push(r); if (C.drawn) { C.lastDrawn = C.drawn; C.lastShadow = C.drawnShadow; if (C.shadowPass) Object.assign(C.lastPasses, shadowPassList(C.drawnShadow, C.shadowPass)); } }
   });
   let FP = null;
@@ -544,6 +525,7 @@ async function census(build) {
   const views = {};
   C.phase = () => P.rec.phase;
   if (SHADOW_PASSES) shadowPassHooks(W, C);
+  if (UNIFORMS) uniInstall(P, C);
   await debugAids(W, P, FP, C, () => rows, v => { rows = v; });
   // FRAMECOST_PROBE=<file.js> (G1531, a debugging aid, never the gate's): module.exports = async (W, P, FP) => ..., run here, before
   // the views - a repro's live switch and its read-back (stderr)
@@ -680,6 +662,7 @@ async function census(build) {
   detail.patch = (() => { let g = null; if (W.WORLD && W.WORLD.scene) W.WORLD.scene.traverse(o => { if (!g && o.name === 'premises:patch' && o.userData && o.userData.blocks) g = o; });
     return g ? { tris0: g.userData.tris, trisAll: g.userData.trisAll, blocks: g.userData.blocks, sunk: g.userData.sunk, sinkDeep: g.userData.sinkDeep } : null; })();
   if (process.env.FRAMECOST_WHAT) process.stderr.write('DETAIL ' + JSON.stringify(detail, null, 1) + '\n');
+  if (UNIFORMS) process.stderr.write('UNIFORMS ' + JSON.stringify(Object.fromEntries(Object.entries(detail).map(([v, d]) => [v, d && d.uniforms])), null, 1) + '\n');
   // AS3 (G918): the KTX2 path (reported): the ground library's packs (KTX2 or raw, why not), the transcodes, the worker ms
   const ktx2 = { ground: W.GROUND_LIB && W.GROUND_LIB.stats ? W.GROUND_LIB.stats() : null, loader: W.KTX2 && W.KTX2.stats ? W.KTX2.stats() : null, workerMsgs: P.io.workerMsgs };
   // AS6 (G937): THE CREW at the stand (reported, never ratcheted): the characters seated in the flown aeroplane, the
@@ -750,6 +733,7 @@ function pageHooks(C, getCam) {
 //   FRAMECOST_WHAT=1    what the main pass drew in one frame, by object path and material (=taxi: at the taxi pose)
 //   FRAMECOST_VILLAGE=1 a third view, `village`: the aeroplane by the thickest cluster of the premises' repeated
 //                       dressing props (G934's instancer) - for a --compare, never in the verdict
+//   FRAMECOST_UNIFORMS=1  every uniform upload of the measured frames by call, uniform, pass, program and drawn object
 //   FRAMECOST_PROBE=N   N frames at the stand, a line every 10 (draws, GL calls, terrainH, ...): how the world settles
 async function debugAids(W, P, FP, C, getRows, setRows, at) {
   const E = process.env;
@@ -832,7 +816,37 @@ function drawnDetail(C) {
       const path = []; for (let p = o; p && p.parent; p = p.parent) if (p.name) path.unshift(p.name);
       const k = path.slice(0, +(process.env.FRAMECOST_TRIS_DEPTH || 3)).join('/') || (o.type + ':' + ([].concat(o.material)[0] || {}).type); tris[k] = (tris[k] || 0) + n / 3 * inst; }
     tris = Object.fromEntries(Object.entries(tris).sort((a, b) => b[1] - a[1]).slice(0, 60).map(([k, v]) => [k, Math.round(v)])); }
-  return { main: count(C.lastDrawn), shadow: count(C.lastShadow), mats: matTally(C.lastDrawn || []), names, tris, shadowPasses: C.lastPasses || undefined };
+  return { main: count(C.lastDrawn), shadow: count(C.lastShadow), mats: matTally(C.lastDrawn || []), names, tris, shadowPasses: C.lastPasses || undefined, uniforms: uniDetail(C) };
+}
+// FRAMECOST_UNIFORMS=1 (PERF-1 P3a, a debugging aid, never in the verdict): WHO SENDS THE UNIFORMS. Every uniform* call of
+// the measured frames, tagged by the call, the uniform's name, the pass, the program (its SHADER_NAME) and the object three
+// was drawing - the last one whose onBeforeRender / onBeforeShadow it read: three uploads a draw's uniforms right after
+// (a program's first draw in a pass also carries the camera's and lights' uniforms). Per frame (calls, bytes), rolled up
+// several ways, in the census's detail.<view>.uniforms and on stderr ('UNIFORMS'). The question it answers: the taxi's
+// gl.uniform4fv 626 -> 5176 at 52ab (three re-uploads a vec4 ARRAY uniform at every material switch, with no value cache).
+const UNIFORMS = !!process.env.FRAMECOST_UNIFORMS;
+function uniInstall(P, C) {
+  C.uni = { on: false, n: 0, t: {} };
+  P.rec.onUni = (name, b, loc) => {
+    const U = C.uni; if (!U.on) return;
+    const o = C.cur, m = o && [].concat(o.material)[0], pth = [];
+    for (let q = o; q && pth.length < 3; q = q.parent) if (q.name) pth.unshift(q.name);
+    const k = [name, loc && loc.name ? loc.name.replace(/\[0\]$/, '[]') : '?', P.rec.phase, loc ? P.rec.progNames.get(loc.p) || '?' : '?',
+      o ? famOf(o) : '-', pth.join('/') || (o ? o.type : '-'), m ? m.name || m.type : '-'].join('\t');
+    const e = U.t[k] || (U.t[k] = [0, 0]); e[0]++; e[1] += b || 0;
+  };
+}
+// the tally rolled up by some of its fields ([calls, bytes] a frame, the top `top` by calls); `only` keeps those calls
+function uniDetail(C) {
+  const U = C.uni; if (!U || !U.n) return undefined;
+  const roll = (idx, top, only) => { const r = {};
+    for (const [k, [c, b]] of Object.entries(U.t)) { const f = k.split('\t'); if (only && !only.test(f[0])) continue;
+      const kk = idx.map(i => f[i]).join(' | '), e = r[kk] || (r[kk] = [0, 0]); e[0] += c; e[1] += b; }
+    return Object.fromEntries(Object.entries(r).sort((a, b) => b[1][0] - a[1][0]).slice(0, top).map(([k, [c, b]]) => [k, [+(c / U.n).toFixed(1), Math.round(b / U.n)]])); };
+  const V4 = /^uniform4f/;
+  return { frames: U.n, fields: 'call | uniform | pass | program | family | path | material', byCall: roll([0], 30), byCallPass: roll([0, 2], 40),
+    v4ByFamily: roll([0, 2, 4], 40, V4), v4ByUniform: roll([0, 1], 60, V4), v4ByProgramUniform: roll([0, 3, 1], 60, V4),
+    v4ByPathMaterial: roll([0, 2, 5, 6], 80, V4), v4Rows: roll([0, 1, 2, 3, 4, 5, 6], 150, V4), allByFamily: roll([2, 4], 40) };
 }
 // FRAMECOST_SHADOW_PASSES=1 (G1125, NEAR-LAYER; a debugging aid, never in the verdict): the last measured frame's shadow
 // draws BY PASS (each pass as the last measured frame that drew it had it: the far map draws every 2nd frame) - the light and the viewport three asked getCamera for ('sun:0' the world's far map, 'sunNear:0' the
@@ -872,7 +886,7 @@ function installThree(T, C) {
   const hook = (proto, k, ctr, pick) => {
     const DEF = proto[k], slot = '__fc_' + k;
     Object.defineProperty(proto, k, { configurable: true,
-      get() { const f = this[slot]; if (pick && C.drawn && this.isMesh && (!C.phase || C.phase() === pick)) { (pick === 'shadow' ? C.drawnShadow : C.drawn).push(this); if (pick === 'shadow' && C.shadowPass) C.shadowPass.push(C.shCur); }
+      get() { const f = this[slot]; if (pick) C.cur = this; if (pick && C.drawn && this.isMesh && (!C.phase || C.phase() === pick)) { (pick === 'shadow' ? C.drawnShadow : C.drawn).push(this); if (pick === 'shadow' && C.shadowPass) C.shadowPass.push(C.shCur); }
         if (C.craft && (pick || k === 'onBeforeShadow') && C.craft.set.has(this)) craftDraw(C, this, k === 'onBeforeShadow' ? 'shadow' : C.phase ? C.phase() : 'main');
         if (f) { C[ctr]++; return f; } return DEF; },
       set(f) { Object.defineProperty(this, slot, { value: f === DEF ? undefined : f, writable: true, configurable: true, enumerable: false }); } });

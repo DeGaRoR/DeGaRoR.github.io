@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: e7716c6405a95e70
+// body-sha256: 56fe9b57de45ea89
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -10122,7 +10122,10 @@ function roadHandles(pts, tan) {
   return pts.map((q, i) => (T[i] ? T[i] : i < n - 1 ? [S.Dout[i][0] * S.h[i] / 3, S.Dout[i][1] * S.h[i] / 3] : [S.Din[i][0] * S.h[i - 1] / 3, S.Din[i][1] * S.h[i - 1] / 3]));
 }
 // a placed prop's scale (v1.36 `s`, the model placer's) on its composed record - only when it is not 1 (G3001)
-const objScale = ob => (+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3 ? { s: +ob.s } : {});
+// a placed prop's own extras on its composed record: its scale (G2914), and (G2893) `with` - an ASSEMBLY's other parts, stood
+// at the same pose (the placer's one record for the ALMA's base, fork and dish); a record with neither composes as before
+const objScale = ob => Object.assign(+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3 ? { s: +ob.s } : {},
+  Array.isArray(ob.with) && ob.with.length ? { with: ob.with.filter(k => typeof k === 'string' && k) } : {});
 // THE ROADS' BUILD KEYS (G3002 PLACER-FAST; the user: "adding assets in the editor is a bit of a pain, really, really
 // long to move, update, rotate" - every edit's rebuild made EVERY road's pavement, its poles and its rails again, the
 // island road's 25 km among them). A road's drawn things (its pavement row, its power line, its guardrail) are a
@@ -10664,7 +10667,13 @@ function compose(rec0, world, opts) {
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
   // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
   const roadObjs = roads.map(r => Object.assign({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
-    look: roadLook(r).key, band: r.band === undefined ? null : r.band, pav: r.pav || null }, roadClearOf(r) !== null ? { clear: roadClearOf(r) } : {}));   // (G2918: its own clearing) the pavement's (v1.16)
+    look: roadLook(r).key, band: r.band === undefined ? null : r.band, pav: r.pav || null }, roadClearOf(r) !== null ? { clear: roadClearOf(r) } : {},
+    // G2893 (SCENERY-ED-1; the user: "no effect of enabling/disabling power lines and guardrails on roads"): the guardrail and the
+    // power line read THIS object (render_premises buildRail / buildLine: rd.rail, rd.poles, rd.polesSide), which never carried
+    // them - every road 'auto' whatever the inspector wrote, since the port (G385). Carried when the record says one (a road
+    // without composes as before)
+    typeof r.rail === 'string' && r.rail ? { rail: r.rail } : {}, typeof r.poles === 'string' && r.poles ? { poles: r.poles } : {},
+    (+r.polesSide === 1 || +r.polesSide === -1) ? { polesSide: +r.polesSide } : {}));   // (G2918: its own clearing) the pavement's (v1.16)
   const nAuth = mods.length;
   // THE RUNWAYS (stage 2, BEFORE the roads - v1.2: a taxi road near a strip must sit on the strip's graded ground, so its nodes are read after the runway grades): a DERIVED grade along the centreline at elev + slope * s
   // (elev = T1 at the centre), a DERIVED surface strip of the record's class,
@@ -22983,6 +22992,7 @@ function makePilot(sim, def, world, opts) {
   // G381: the arc turn in progress, the latched level altitude before the
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let finalLevel = null;
+  let flThr0 = 0, flWI = 0;   // G3079 (FLOATS-FIX, PERSONA-2 G2462's): the water flare's power - the approach throttle at the flare's start, its integrator
   let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false, altG = 0;   // altG: GTRAM, the altiport's grade at the aim
   // G381.1: the power assist on the approach (see apply)
   let pAsst = 0, flLeft = Infinity;
@@ -26069,7 +26079,7 @@ function makePilot(sim, def, world, opts) {
           }
         }
         if (flareArm) {
-          go('FLARE'); thFlare0 = th;
+          go('FLARE'); thFlare0 = th; flThr0 = c.thr; flWI = 0;
           // G381: the hold-off's timescale (continuous with the sink it
           // arrives with), its cap (the three-point attitude on a
           // taildragger, thMax on a tricycle), its integrator and filter
@@ -26157,6 +26167,15 @@ function makePilot(sim, def, world, opts) {
           SV.pitchK = A.flarePK ?? 2.0; SV.pitchDK = A.flareDK ?? 1.0;
           SV.IthMaxT = A.rotateIMax ?? 0.30; SV.IthGain = A.flareIth ?? 0.4;
           if (altG > 0) engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SPD', { pitch: thC, bank: 0.10, ias: 0.95 * ap.VAppr });   // GTRAM: the round-out onto the slope is flown on power
+          else if (sim.hydro) {
+            // G3079 (FLOATS-FIX; PERSONA-2 G2462's law, alone): ON THE WATER THE FLARE IS FLOWN ON POWER (FAA-H-8083-23, the
+            // seaplane handbook: the touchdown in a slightly nose-high attitude at a low rate of descent, power controlling
+            // it). The throttle stays where the approach had it and a PI on the sink trims it: closed at the flare's start,
+            // the floats' nose fell, the sink grew and the hull met the water hard - the skip, then the flip
+            const eS = vsC - flVsF;   // > 0: sinking faster than asked
+            flWI = clamp(flWI + (A.flareWaterI ?? 0.10) * eS * dt, -flThr0, 0.4);
+            engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SET', { pitch: thC, bank: 0.10, thr: clamp(flThr0 + (A.flareWaterP ?? 0.25) * eS + flWI, 0, Math.min(1, flThr0 + 0.4)) });
+          }
           else engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: thC, bank: 0.10, idle: A.flareThr ?? 0 });
         }
         if (onG > 0) {
@@ -26182,7 +26201,13 @@ function makePilot(sim, def, world, opts) {
           }
           break;
         }
-        if (trike) {
+        // G3079 (FLOATS-FIX; PERSONA-2 G2462's): ON THE WATER THE ATTITUDE IS HELD WHILE THE HULL PLANES (FAA-H-8083-23: after
+        // the touchdown the back pressure comes in gradually as the seaplane slows off the step) - full back stick the instant
+        // the floats touched threw the Wipline C172 to +16 deg and off the water for 3 s; held to 0.7 Vs0, then the laws below.
+        // On a float Cessna whose sheet rolls out as a trike too (the de-rotation's 2 deg nose-down pinned the bows in)
+        const VsW = sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99;
+        if (sim.hydro && V > 0.7 * VsW) engage('RWY', 'PITCH', 'SET', { thr: 0, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
+        else if (trike) {
           // P1.B soft: the nosewheel stays off to 0.7 Vs, then full up
           const soft = ap.appr && ap.appr.technique === 'soft';
           if (V > (soft ? 0.7 * (sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99) : (A.VDerotate ?? 20))) engage('RWY', 'PITCH', 'SET', { pitch: A.rolloutTh ?? 0.035, thr: 0 });

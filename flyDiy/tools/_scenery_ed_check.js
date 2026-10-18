@@ -63,6 +63,14 @@ function makeR() {
     if (PG.roundOk(e.round)) return [{ key: 'rc', p: [e.round.c[0], 0, e.round.c[1]] }, { key: 'rr', p: [e.round.c[0] + e.round.r, 0, e.round.c[1]], mid: true }];
     if (isFinite(+e.x) && isFinite(+e.z) && !e.poly) return [{ key: 'v0', p: [+e.x, 0, +e.z] }];   // a point object (a model): one disc
     if (e.at && Array.isArray(e.items)) { const SF = PG.siteFrame(e); return [{ key: 'at', p: [e.at.x, 0, e.at.z] }].concat(e.items.map(it => { const q = SF.toLocal(it.x || 0, it.z || 0); return { key: 'i:' + it.id, p: [q[0], 0, q[1]] }; })); }   // (G3005) a site: its anchor, its items
+    // (G3091) a STRIP's own discs, as render_premises buildHandles names them: its stand, its ways out's points, its club hangar,
+    // its base plots and their stands
+    if (f.layer === 'runways') {
+      if (e.stand && e.taxiOut) { out.push({ key: 'stand', p: [e.stand.x, 0, e.stand.z] }); e.taxiOut.forEach((q, i) => out.push({ key: 'tx' + i, p: [q[0], 0, q[1]], mid: true })); (e.taxiOut1 || []).forEach((q, i) => out.push({ key: 'ty' + i, p: [q[0], 0, q[1]], mid: true })); }
+      if (e.hangar) out.push({ key: 'hangar', p: [e.hangar.x, 0, e.hangar.z] });
+      for (const q of e.plots || []) { out.push({ key: 'pl:' + q.id, p: [q.x, 0, q.z] }); if (q.stand) out.push({ key: 'ps:' + q.id, p: [q.stand.x, 0, q.stand.z], mid: true }); }
+      return out;
+    }
     const arr = e.poly || e.pts; if (!arr) return out;
     arr.forEach((q, i) => { out.push({ key: 'v' + i, p: [q[0], 0, q[1]] }); if (e.poly || i + 1 < arr.length) out.push({ key: 'm' + i, p: [q[0], 0, q[1]], mid: true }); });
     if (e.pts && e.curve === 'spline') PG.roadHandles(e.pts, e.tan).forEach((h, i) => out.push({ key: 'h' + i, p: [e.pts[i][0] + h[0], 0, e.pts[i][1] + h[1]] }));
@@ -877,6 +885,11 @@ if (plots.length) {
   const RP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8'), AL = fs.readFileSync(path.join(TOOLS, 'analyze_log.js'), 'utf8');
   check(/function editStart\(r\)/.test(RP) && /JSON\.stringify\(PG\.normalise\(r\)\) === JSON\.stringify\(rec\)/.test(RP) && /window\.FLYDIY_EDITFAST === false/.test(RP) && /R\.editStart && R\.editStart\(rec\)/.test(UI_SRC), '20c the open stands the world as it is when the record is the renderer\'s (?editfast=0 the rebuild)');
   check(/selLines\(\);.*\}\s*else buildOutlines\(\);/.test(RP) && /buildOutlines\(dirty\); buildHandles\(\); markDirty\(dirty\);/.test(RP) && /L\.sig === sig && !\(wb && boxesMeet/.test(RP), '20c a select draws the selection\'s lines; an edit\'s outlines kept by entry and ground box');
+  // 20d (G3101) the aprons and the merges kept (source: the renderer never runs in node - the browser slot is the proof)
+  check(/PC\.map\.clear\(\); PC\.merged = \{ road: null, pave: null \}; \}/.test(RP) && /const touched = RC\.box && !\(b\.x1 \+ pad < RC\.box\.x0/.test(RP) && /PAV\.look \? PAV\.look\(THREE\) : null/.test(RP),
+    '20d an apron kept by its key (its entry, the pavement, the theme, the LIVE look, the strips) and the edit\'s ground box; flushed with the roads\' cache');
+  check(/PC\.keepMerged\.add\('road'\)/.test(RP) && /PC\.keepMerged\.add\('pave'\)/.test(RP) && /for \(const m of PC\.merged\[k\]\.meshes\) keptObj\.add\(m\);/.test(RP) && /!K\.mesh\.parent && !PC\.keepMerged\.has\('road'\)/.test(RP),
+    '20d a bucket\'s merge kept only when every source is kept and the set is the same - never torn down, its sources left out');
   check(/r\.value\.steps = T/.test(RP) && /F\.event\('edit'/.test(UI_SRC) && /EDITOR \(G3082/.test(AL), '20c the rebuild timed by step, the editor\'s actions in the flight log, analyze_log\'s EDITOR section');
   console.log('     20 EDITOR-PERF on the user\'s rev 26: ' + nQ + ' roadDist + ' + (nQ * 3) + ' roadDistNear queries and ' + nP + ' polygons exact; compose ' + tC.toFixed(0) + ' ms, with the town ' + tCT.toFixed(0) + ' ms; ' +
     Object.keys(T20).map(k => k + ' ' + T20[k].toFixed(0)).join(', ') + ' ms (headless)');
@@ -998,6 +1011,119 @@ if (plots.length) {
   ed25.close();
 }
 
+// 31 THE BASE ZONE EDITABLE (G3090 / G3091, objective 1; the user, 13 Oct: "I am reworking the base zone, and there is a lot I
+//    can't displace ... the main hangar rotation, position, taxiways, spawn points and aircraft collection will need to be
+//    redone"): a strip's BASE PLOTS take a disc each - a plot's moves it with its stand and its way out (the entry kept on the
+//    centreline), its stand's moves the stand alone; the inspector types the stand, the hangar, every point of both ways out (an
+//    entry typed lands on the centreline), turns the stand's parked heading and gives it back to the way out, adds a point after
+//    any, a way out toward end 1, a plot beside the stand, a plot its own stand, and removes a plot; the record round-trips
+{
+  const nums = new Map(), btns = new Map(), sliders = new Map();
+  const rows31 = Object.assign({}, rows, { number: (h, label, get, set) => { nums.set(label, set); }, button: (h, label, fn) => { btns.set(label, fn); }, slider: (h, label, lo, hi, st, get, set) => { sliders.set(label, { get, set }); } });
+  const ed31 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows31, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  const rid = ed31.cmd('add', { layer: 'runways', entry: Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { name: 'base strip', c: [5000, 5000], hdg: 0, len: 600, wid: 20,
+    stand: { x: 5000, z: 5060, hdg: null }, taxiOut: [[5000, 5030], [5000, 5000]], hangar: { x: 5040, z: 5070, hdg: 0 },
+    plots: [{ id: 'bs.2', x: 5100, z: 5080, hdg: 0, stand: { x: 5100, z: 5060, hdg: null }, taxiOut: [[5100, 5030], [5100, 5000]] }] }) });
+  const S = () => PG.findById(ed31.record(), rid).entry, P2 = () => (S().plots || []).find(q => q.id === 'bs.2');
+  const re = () => { ed31.select(null); ed31.select(rid); };   // (the inspector drawn again: the stub's setTimeout never fires)
+  ed31.select(rid);
+  ed31.cmd('drag', { key: 'pl:bs.2', x: 5110, z: 5085 });
+  check(P2().x === 5110 && P2().z === 5085 && P2().stand.x === 5110 && P2().stand.z === 5065 && JSON.stringify(P2().taxiOut) === '[[5110,5035],[5100,5000]]', '31 a base plot\'s disc moves the plot, its stand and its way out (the entry stays on the centreline)', JSON.stringify(P2()));
+  ed31.select(rid);
+  ed31.cmd('drag', { key: 'ps:bs.2', x: 5120, z: 5070 });
+  check(P2().x === 5110 && P2().stand.x === 5120 && P2().stand.z === 5070, '31 its stand\'s disc moves the stand alone', JSON.stringify(P2()));
+  ed31.select(null); ed31.select(rid);
+  nums.get('stand x (m)')(5005); re(); nums.get('hangar z (m)')(5075); re(); nums.get('entry x (m)')(5050); re();
+  check(S().stand.x === 5005 && S().hangar.z === 5075 && S().taxiOut[1][0] === 5050 && S().taxiOut[1][1] === 5000, '31 the stand, the hangar and an entry typed (the entry on the centreline)', JSON.stringify([S().stand, S().hangar, S().taxiOut]));
+  re(); sliders.get('parked heading (°)').set(90); re();
+  check(Math.abs(S().stand.hdg - Math.PI / 2) < 1e-3 && btns.has('parked heading: toward the way out'), '31 the stand\'s parked heading turned', String(S().stand.hdg));
+  btns.get('parked heading: toward the way out')(); re();
+  check(S().stand.hdg === null, '31 ...and given back to the way out');
+  btns.get('add a point after point 1')(); re();
+  check(S().taxiOut.length === 3, '31 a point added after point 1 of the way out', JSON.stringify(S().taxiOut));
+  btns.get('add a way out toward end 1')(); re();
+  const t1 = S().taxiOut1;
+  check(Array.isArray(t1) && t1.length === 2 && t1[1][1] === 5000 && t1[1][0] > 5005, '31 a way out toward end 1 added, its entry on the centreline toward end 1', JSON.stringify(t1));
+  btns.get('add a base plot beside the stand')(); re();
+  check(S().plots.length === 2 && S().plots.some(q => q.id === rid + '.2' || q.id === rid + '.3'), '31 a base plot added beside the stand', JSON.stringify(S().plots.map(q => q.id)));
+  const nid = S().plots.find(q => q.id !== 'bs.2').id;
+  btns.get(nid + ': give it a stand of its own')(); re();
+  check(!!S().plots.find(q => q.id === nid).stand, '31 a plot given a stand of its own');
+  btns.get('remove plot bs.2')();
+  check(S().plots.length === 1 && !S().plots.some(q => q.id === 'bs.2'), '31 a plot removed');
+  const back = PG.unwrap(PG.envelope('b31', ed31.record())).rec, eb = PG.findById(back, rid).entry;
+  check(JSON.stringify(eb.plots) === JSON.stringify(S().plots) && JSON.stringify(eb.taxiOut1) === JSON.stringify(S().taxiOut1), '31 the record round-trips');
+  ed31.close();
+}
+// 30 A ROAD'S GUARDRAIL AND POWER LINE OBEY ITS ROW (G2893, SCENERY-ED-1's row 29, objective 1; the user: "no effect of
+//    enabling/disabling power lines and guardrails on roads"): the renderer builds both from the COMPOSED road (rd.rail,
+//    rd.poles, rd.polesSide), which never carried them - every road 'auto' since the port. The composed road carries what the
+//    record says; a road that says nothing composes as before
+{
+  const r30 = PG.normalise({ layers: { roads: [{ id: 'ra', pts: [[0, 0], [120, 0]], w: 5, cls: 'gravel', rail: 'off', poles: 'off' }, { id: 'rb', pts: [[0, 60], [120, 60]], w: 5, cls: 'gravel', rail: 'on', polesSide: -1 },
+    { id: 'rc', pts: [[0, 120], [120, 120]], w: 5, cls: 'gravel' }] } });
+  const O30 = PG.compose(r30, synth), rd = id => O30.roads.find(q => q.id === id);
+  check(rd('ra').rail === 'off' && rd('ra').poles === 'off' && rd('rb').rail === 'on' && rd('rb').poles === undefined && rd('rb').polesSide === -1, '30 the composed road carries its guardrail and power-line rows');
+  check(!('rail' in rd('rc')) && !('poles' in rd('rc')) && !('polesSide' in rd('rc')), '30 a road that says nothing composes as before (no new key)');
+  const RP30 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check(/if \(!RAIL \|\| rd\.rail === 'off'\) return null;/.test(RP30) && /if \(!PWR \|\| rd\.poles === 'off'\) return null;/.test(RP30) && /mode: rd\.rail \|\| 'auto'/.test(RP30) && /mode: rd\.poles \|\| 'auto'/.test(RP30), '30 the renderer builds both from those fields');
+  // (and the edit reaches the renderer: a road's own key holds the composed road, so a guardrail row's change draws that road again)
+  const K0 = PG.roadBuildKeys(O30), r30b = JSON.parse(JSON.stringify(r30)); r30b.layers.roads[2].rail = 'off';
+  const K1 = PG.roadBuildKeys(PG.compose(r30b, synth));
+  check(K0.get('rc') !== K1.get('rc') && K0.get('ra') === K1.get('ra'), '30 a guardrail row changed: that road drawn again, the others kept');
+}
+
+// 26 ANIMALS IN THE MODEL PLACER (G2893; the user: "I did not succeed placing animals"): the ASSETS tab's bank lists every
+//    species as an 'animals' tile; a place drops a herd record (the OBJECTS tool's own defaults), a scatter ONE hotspot of
+//    that many within that radius - and the OBJECTS tool still writes the same record
+// 27 THE PARTS HIDDEN, THE ASSEMBLY WHOLE (G2893): a prop its pack flags `part`, the groups that are a kit's pieces and an
+//    assembly's parts are not tiles; the assembly is ONE tile, and its drop ONE record, its head part's key and the rest in
+//    `with` - composed with it (the objects' record carries `with`), so the renderer stands every part at that pose
+// 28 THE ZONE DRAWS FROM EVERY CATEGORY (G2893): its 'draws from' pills are the theme's and every category the catalogue carries
+{
+  const PRs = { groups: [['landmark', 'landmark buildings'], ['knob', 'knobs'], ['vessel', 'drums & bins']], order: ['ant_base', 'ant_fork', 'ant_dish', 'drum', 'knob_a', 'stray', 'bear_l1'],
+    props: { ant_base: { key: 'ant_base', group: 'landmark', label: 'antenna base', asm: 'ant', nt: 10 }, ant_fork: { key: 'ant_fork', group: 'landmark', asm: 'ant', asmParent: 'base', nt: 20 },
+             ant_dish: { key: 'ant_dish', group: 'landmark', asm: 'ant', asmParent: 'fork', nt: 30 }, drum: { key: 'drum', group: 'vessel', label: 'drum' }, knob_a: { key: 'knob_a', group: 'knob' },
+             stray: { key: 'stray', group: 'vessel', part: true }, bear_l1: { key: 'bear_l1', group: 'animal', lodOf: 'bear', lodDist: 40 } }, texs: {} };
+  win.PROP_REG = PRs;
+  win.ANIMALS = { list: k => [{ key: 'bear', kind: 'land', label: 'bear', length: 2.2, nt: 9000, clips: [] }, { key: 'doe', kind: 'land', label: 'doe', length: 1.6, nt: 5000, clips: [] }].filter(a => !k || a.kind === k),
+                  reg: k => ({ bear: { key: 'bear', kind: 'land', label: 'bear', length: 2.2, nt: 9000, clips: [] }, doe: { key: 'doe', kind: 'land', label: 'doe', length: 1.6, nt: 5000, clips: [] } })[k] || null };
+  const CATZ = new Map([['house/cottage', { key: 'house/cottage', cat: 'residential' }], ['hangar/field shed', { key: 'hangar/field shed', cat: 'airport xs' }]]);
+  const rowsZ = Object.assign({}, rows);
+  const stripZ = new El('div');
+  const edz = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rowsZ, els: { chk: null, plaque: null, strip: stripZ }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop,
+    catalogue: { entries: CATZ, keys: () => Array.from(CATZ.keys()), byCat: c => Array.from(CATZ.values()).filter(e => e.cat === c), byTag: () => [] } });
+  const bank = edz.cmd('bank', {}), K = bank.map(t => t.k);
+  check(K.indexOf('animal:bear') >= 0 && K.indexOf('animal:doe') >= 0 && bank.find(t => t.k === 'animal:bear').group === 'animals', '26 the placer\'s bank lists every species as an animals tile', K.join(','));
+  edz.setSection('assets'); edz.cmd('tool', { name: 'place' }); edz.cmd('pick', { key: 'animal:doe' });
+  edz.cmd('click', { x: 200, z: 200 });
+  const objs = () => edz.record().layers.objects, herd = objs().find(o => o.kind === 'animal');
+  check(herd && herd.key === 'doe' && herd.n === 4 && herd.r === 120, '26 a place drops a herd record with the species\' defaults', JSON.stringify(herd));
+  edz.cmd('tool', { name: 'scatter' }); edz.cmd('pick', { key: 'animal:bear' });
+  edz.cmd('click', { x: 300, z: 300 });
+  const bears = objs().filter(o => o.kind === 'animal' && o.key === 'bear');
+  check(bears.length === 1 && bears[0].n >= 2 && bears[0].r >= 2, '26 a scatter of an animal is ONE hotspot of that many within that radius', JSON.stringify(bears));
+  edz.setSection('objects'); edz.cmd('tool', { name: 'animal' }); edz.cmd('click', { x: 400, z: 400 });
+  check(objs().filter(o => o.kind === 'animal').length === 3, '26 the OBJECTS tool still writes a herd');
+  check(K.indexOf('ant_fork') < 0 && K.indexOf('ant_dish') < 0 && K.indexOf('ant_base') < 0 && K.indexOf('knob_a') < 0 && K.indexOf('stray') < 0 && K.indexOf('bear_l1') < 0 && K.indexOf('drum') >= 0,
+    '27 parts, flagged pieces, a kit\'s groups and the LOD cuts are no tiles; a whole model is', K.join(','));
+  const asm = bank.find(t => t.k === 'asm:ant');
+  check(asm && asm.key === 'ant_base' && JSON.stringify(asm.with) === '["ant_fork","ant_dish"]', '27 the assembly is ONE tile: its head part and the others with it', JSON.stringify(asm));
+  edz.setSection('assets'); edz.cmd('tool', { name: 'place' }); edz.cmd('pick', { key: 'asm:ant' }); edz.cmd('click', { x: 500, z: 500 });
+  const ant = objs().find(o => o.kind === 'prop' && o.key === 'ant_base');
+  check(ant && JSON.stringify(ant.with) === '["ant_fork","ant_dish"]', '27 the assembly\'s drop is ONE record, its parts in `with`', JSON.stringify(ant));
+  const Oz = PG.compose(edz.record(), synth), cr = (Oz.records.objects || []).find(o => o.id === ant.id);
+  check(cr && JSON.stringify(cr.with) === '["ant_fork","ant_dish"]' && PG.objScale({ s: 1 }).with === undefined, '27 the composed record carries `with` (and a record without it composes as before)');
+  check(PG.unwrap(PG.envelope('z', edz.record())).rec.layers.objects.find(o => o.id === ant.id).with.length === 2, '27 `with` round-trips through the store');
+  const RPs27 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check(/for \(const k of Array\.isArray\(ob\.with\) \? ob\.with : \[\]\)/.test(RPs27) && /ob\.with \? \[ob\.with\] : \[\]/.test(RPs27), '27 the renderer stands the `with` parts and a changed `with` builds the object again');
+  edz.close(); delete win.PROP_REG; delete win.ANIMALS;
+}
+{
+  // 28 (the source): the zone's pills read zoneCats - the theme's then the catalogue's others
+  const UIs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_ui.js'), 'utf8');
+  check(/for \(const c of zoneCats\(TH\)\)/.test(UIs) && /function zoneCats\(TH\)/.test(UIs), '28 the zone\'s draws-from pills cover every category the catalogue carries');
+}
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');

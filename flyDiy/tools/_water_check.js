@@ -284,6 +284,17 @@ console.log('\n3. THE LAWS');
       S.ok = false; const v = W.waterSeen(); S.ok = null;
       verdict(v === true, 'a context with no occlusion queries answers seen (the capture runs)'); }
   }
+  // WATER-FX-FIX (G2834-G2835, objective 5 - the user saw no spray and no wake on float landings, gamer, the worker live):
+  // the float's water level crosses the worker (the spray's y was NaN without it) and the wake's foam is drawn on every tier
+  { const sh = src('src/viewer/sim_host.js'), sl = src('src/viewer/sim_link.js'), app = src('src/viewer/app.js'), w = src('src/viewer/water.js');
+    verdict(/floats: HY\.floats\.map\(fx => \(\{ side: fx\.side, wet: fx\.wet, h: fx\.h,/.test(sh) && /a\.wet = b\.wet; if \(Number\.isFinite\(b\.h\)\) a\.h = b\.h;/.test(sl),
+      "the worker's snapshot carries each float's water level and the page takes it (the spray's y)");
+    verdict(/if \(!Number\.isFinite\(fx\.h\)\) fx\.h = world\.waterH \? world\.waterH\(eK\[0\], eK\[2\]\) : 0;/.test(app),
+      'the spray never throws from a missing level (the drawn water under the keel)');
+    const fb = w.slice(w.indexOf('if (uWMisc.w > 0.5) {'), w.indexOf('vec3 wV = normalize(vViewPosition);'));
+    const gateEnd = fb.indexOf('wFoam = clamp(crest + lap, 0.0, 1.0);');
+    verdict(gateEnd > 0 && fb.indexOf('float fieldFoam =') > gateEnd && /if \(wIn\.z > 0\.001\) \{/.test(fb) && /wFoam = clamp\(wFoam \+ fieldFoam, 0\.0, 1\.0\);/.test(fb),
+      "the wake's foam (the field's) is drawn on every tier; the whitecaps and the shore's lap stay the full tier's"); }
   let mono = true, bounded = true, prev = -1;
   for (const U10 of [0, 2, 5, 10, 20, 30]) {
     prev = -1;

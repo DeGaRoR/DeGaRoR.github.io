@@ -41,8 +41,8 @@ const log = s => console.log('  ' + s);
 // THE SCRIPT: [name, the fixture it acts on, the handle key (a drag) or the inspector button's text (a click)]
 const ACTIONS = [
   { name: 'taxiDrag',   fix: 'rwy',   key: 'tx0' },             // a taxi point of the stand's way out
-  { name: 'taxiAdd',    fix: 'rwy',   button: /^add a taxi point/ },
-  { name: 'taxiDel',    fix: 'rwy',   button: /^drop the last taxi point/ },
+  { name: 'taxiAdd',    fix: 'rwy',   button: /^add a point after point 1$/ },   // (G3091: the way out's rows)
+  { name: 'taxiDel',    fix: 'rwy',   button: /^remove point 1$/ },
   { name: 'propMove',   fix: 'prop',  key: 'v0' },              // a prop (an asset): its one disc
   { name: 'houseMove',  fix: 'site',  key: 'at' },              // a house (a site): its anchor
   { name: 'runwayEnd',  fix: 'rwy',   key: 'e1' },              // a runway's end
