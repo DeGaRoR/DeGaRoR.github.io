@@ -25,7 +25,10 @@ const VIEWS = opt('views', 'dock,off300,lowpass,approach,lake,opensea').split(',
 const BUILD = opt('build', 'bugReports/cessnaFloats.json');
 const OUT = path.resolve(opt('out', 'screenshots/water_look'));
 const WAIT = +opt('wait', 3500), BOOT_CAP = +opt('boot-cap', 150000);
-const LABEL = { ref: 'today (AUTO mirror)', b: 'b - the hull reflection', c: 'c - transparency + shadow', bc: 'b + c' };
+const LABEL = { ref: 'today (AUTO mirror)', b: 'b - the hull reflection', c: 'c - transparency + shadow', bc: 'b + c', ring: 'ring - the full mirror near land + the hull + the shadow (one sky)' };
+// --dials '<js>' (G2836): run after the boot of every variant (the ring's fades, its guards), e.g. "WATER.mirror.ringD0=700"
+const DIALS = opt('dials', null);
+const WP = require('./water_places.js');
 const NOTE = {
   dock: 'the floatplane afloat at the water aerodrome nearest a shore, eye 4 m up, the shore behind it',
   off300: 'afloat 300 m off the coast, eye 6 m up, the shore ahead',
@@ -105,6 +108,11 @@ async function runVariant(variant, views, idx) {
     rec.gfx = JSON.parse(await ev('JSON.stringify(window.GFX ? GFX.get() : null)'));
     rec.proto = JSON.parse(await ev('JSON.stringify(WATER.proto || null)'));
     rec.where = JSON.parse(await ev(VIEWS_JS));
+    // (G2836) the shared finder: the lake ON a drawn lake (the P0 look's lake was taken under the terrain from water_shot's eye point)
+    rec.places = await ev(WP.FIND);
+    rec.lake = JSON.parse(await ev('JSON.stringify(window.__WP && __WP.lake ? { x: __WP.lake.x, z: __WP.lake.z, y: __WP.lake.y, n: __WP.lake.n } : null)'));
+    if (rec.lake) { rec.where.lake = rec.lake; rec.where.levels.lake = rec.lake.y; } else rec.where.lake = null;
+    if (DIALS) await ev('(()=>{' + DIALS + ';return 1;})()');
     await ev("(()=>{FLIGHT_PROBE.world().setSea({A:0.09,L:10,dir:0.4});WATER.setWind(5,0.4);return 1;})()");   // 5 m/s: the plan's pinned sea
     await ev("(()=>{const R=window.FLYDIY_RAIL,f=document.getElementById('flFly');if(R)R.open(f&&!f.hidden?null:'camera');return 1;})()");
     await sleep(300);
@@ -118,18 +126,25 @@ async function runVariant(variant, views, idx) {
       off300:   () => ({ P: W0.off, y: W0.levels.off + H0 - 0.25, back: 25, up: 6, side: 5, toShore: true }),
       lowpass:  () => ({ P: W0.off, y: W0.levels.off + 15, back: 6, up: 10, side: 40, toShore: true }),
       approach: () => { const n = W0.dock.n; return { P: { x: W0.dock.x - n.dx * 1500, z: W0.dock.z - n.dz * 1500, n }, y: W0.levels.dock + 150, back: 30, up: 5, side: 0, toShore: true }; },
-      lake:     () => ({ P: W0.lake, y: W0.levels.lake + H0 - 0.25, back: 25, up: 8, side: 6, toShore: true }),
+      lake:     () => W0.lake ? ({ P: W0.lake, y: W0.levels.lake + H0 - 0.25, back: 25, up: 8, side: 6, toShore: true }) : null,
       opensea:  () => ({ P: W0.far, y: W0.levels.far + 30, back: 30, up: 0, side: 8, toShore: true }),
     };
+    // (G2836) THE RING'S GRID: h<agl>_d<dist> - the aircraft agl m over the water (0: afloat), dist m from land seaward of the dock,
+    // the eye 30 m further out and 5 m up, looking at it and the shore
+    for (const v of views) { const g = /^h(\d+)_d(\d+)$/.exec(v); if (!g || spec[v]) continue;
+      const P = JSON.parse(await ev('JSON.stringify(__WP.seaward(__WP.dock, ' + (+g[2]) + '))')), lvl = await ev('__WP.level(' + P.x + ',' + P.z + ')'), agl = +g[1];
+      spec[v] = () => ({ P, y: agl > 0.5 ? lvl + agl : lvl + H0 - 0.25, back: 30, up: 5, side: 6, toShore: true, yEye: (agl > 0.5 ? lvl + agl : lvl) + 5 });
+      NOTE[v] = NOTE[v] || `the aircraft ${agl > 0.5 ? agl + ' m over the water' : 'afloat'}, ${g[2]} m from land (measured ${Math.round(P.r)} m)`; }
     for (const v of views) {
       if (!spec[v]) continue;
-      const S = spec[v](), n = S.P.n || { dx: 1, dz: 0 };
+      const S = spec[v](); if (!S) { console.log('  ' + variant + ' ' + v + ': no place (skipped)'); continue; }
+      const n = S.P.n || { dx: 1, dz: 0 };
       // the aircraft
       await ev(`(async()=>{const s=FLIGHT_PROBE.sim(),c=s.cgPos();await FLIGHT_PROBE.place({by:[${S.P.x}-c[0],${S.y}-c[1],${S.P.z}-c[2]],zeroV:true});return 1;})()`);
       // the eye: behind the aircraft (away from the shore when the shore is the backdrop), up, to the side; aimed at the CG
       const sgn = S.toShore ? -1 : 1, ex = S.P.x + sgn * n.dx * S.back + n.dz * S.side, ez = S.P.z + sgn * n.dz * S.back - n.dx * S.side;
       const level = v === 'lake' ? W0.levels.lake : (v === 'dock' ? W0.levels.dock : W0.levels.off);
-      const ey = (v === 'lowpass' || v === 'approach' || v === 'opensea') ? S.y + S.up : level + S.up;
+      const ey = S.yEye !== undefined ? S.yEye : (v === 'lowpass' || v === 'approach' || v === 'opensea') ? S.y + S.up : level + S.up;
       const dx = S.P.x - ex, dz = S.P.z - ez, dy = S.y - ey, yaw = Math.atan2(dx, -dz), pitch = Math.atan2(dy, Math.hypot(dx, dz));
       await ev(`(()=>{const c=DEV_CAM;c.pos.set(${ex},${ey},${ez});c.yaw=${yaw};c.pitch=${pitch};return 1;})()`);
       await sleep(WAIT);
@@ -137,7 +152,7 @@ async function runVariant(variant, views, idx) {
       const file = path.join(OUT, v + '_' + variant + '.png');
       fs.writeFileSync(file, Buffer.from(shot.result.data, 'base64'));
       rec.shots[v] = { file: path.basename(file), eye: [ex, ey, ez].map(t => +t.toFixed(1)), at: [S.P.x, S.y, S.P.z].map(t => +t.toFixed(1)),
-        state: JSON.parse(await ev('JSON.stringify({ mirror: WATER.mirror.on, mirrorW: WATER.mirror.w, hull: WATER.hull ? { on: WATER.hull.on, w: +WATER.hull.w.toFixed(2), calls: WATER.hull.calls, ms: +WATER.hull.ms.toFixed(2) } : null })')) };
+        state: JSON.parse(await ev('JSON.stringify({ mirror: WATER.mirror.on, mirrorW: +(WATER.mirror.w || 0).toFixed(3), ringW: WATER.mirror.ringW, landD: WATER.mirror.landD, hull: WATER.hull ? { on: WATER.hull.on, w: +WATER.hull.w.toFixed(2), calls: WATER.hull.calls, ms: +WATER.hull.ms.toFixed(2) } : null })')) };
       console.log(`  ${variant.padEnd(3)} ${v.padEnd(8)} -> ${file}  ${JSON.stringify(rec.shots[v].state)}`);
     }
     ws.close();
