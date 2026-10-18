@@ -3166,10 +3166,15 @@ function makePilot(sim, def, world, opts) {
         // their drag (G396.4: 0.02 W at the hump) is more than a labouring hull can spare - held on the Cessna on floats
         // (R/W 0.19-0.24 at the hump) it never got over it - so the moment the run's acceleration falls under 0.1 g they
         // come up for good: the Cessna raises them at 8-10 m/s and lifts off as before (21.9-24.1 s); the twin, accelerating
-        // over 0.1 g to the step, never does. Calm (|cross| under xwArm) or on the wheels: the rule, untouched
+        // over 0.1 g to the step, never does. ONLY PAST THE TYPE'S DEMONSTRATED CROSSWIND (FAR 23.233: 0.2 Vs0): held in the game's
+        // 8 kt day the load door's float Cessna (its cross component 0.13 Vs0) ploughed at 8-10 deg of trim with the blades deep,
+        // heeled 4 -> 20 deg and capsized at 9.7 s (GATE TOUR SEA > mk_sea); under 0.2 Vs0 the type holds its run on its air
+        // rudder as it always did (the Cessna's own 3-5 m/s runs, swing 1.5-3.5 deg) and the rule raises them. Over it: the
+        // twin's 3.3-6 m/s (0.20-0.36 Vs0), the Cessna's 7-8 m/s (swing 3.8 / 4.5 deg, raised at the hump). On the wheels: untouched
         if (sim.hydro && rollS0 !== null) {
           if (!wrUp && V > 0.6 * (typeof WR_UP_V === 'number' ? WR_UP_V : 12) && SV.accF < 0.1 * 9.81) wrUp = true;
-          const wr = Math.abs(SV.crossWind(F)) > (SERVO_GAINS.xwArm ?? 0.5) && !humpPast && !wrUp;
+          const vs0W = sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99;
+          const wr = Math.abs(SV.crossWind(F)) > 0.2 * vs0W && !humpPast && !wrUp;
           if (wr) { c.wr = 1; wrHold = true; } else if (wrHold) { c.wr = null; wrHold = false; }
         }
         if (canStopHere) {
