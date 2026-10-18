@@ -204,6 +204,7 @@ onmessage = e => {
   // vertex in the drawer), pa (its position attribute), nB (its rest normals) }] - skin_break.js placesOf has run on each R
   function layout(D, recs) {
     const gl = G.gl;
+    G.stats.layouts = (G.stats.layouts || 0) + 1;   // (G3024 census: a layout re-packs and re-sends the drawer whole)
     D.recs = recs.slice().sort((a, b) => a.vo - b.vo);
     D.riding = new Set(D.recs.map(r => r.pa));
     let nIn = 0, np = 0;
@@ -248,9 +249,11 @@ onmessage = e => {
     for (const r of D.recs) {
       const R = r.R;
       if (R.dvUp !== R.dv) { SB.packPlaces(R, rest, baseOf(r), D.cpu, r.p0);
+        { const S = G.stats; S.packWhole = (S.packWhole || 0) + 1; S.packWholePl = (S.packWholePl || 0) + R.pl.length; if (R.dvUp === -1) S.packAfterLayout = (S.packAfterLayout || 0) + R.pl.length; }   // (G3024 census)
         R.dvUp = R.dv; R.dirtyPl = null; const a = Math.floor(r.p0 / PW_W), b = Math.ceil((r.p0 + R.pl.length) / PW_W);
         r0 = Math.min(r0, a); r1 = Math.max(r1, b); for (let k = a; k < b && k < mk.length; k++) mk[k] = 1; }
       else if (R.dirtyPl && R.dirtyPl.length) {
+        G.stats.packDirtyPl = (G.stats.packDirtyPl || 0) + R.dirtyPl.length;   // (G3024 census)
         for (const j of R.dirtyPl) { SB.packPlaces(R, rest, baseOf(r), D.cpu, r.p0, j, j + 1);
           const row = Math.floor((r.p0 + j) / PW_W); if (row < r0) r0 = row; if (row + 1 > r1) r1 = row + 1; if (row < mk.length) mk[row] = 1; }
         R.dirtyPl = null;
