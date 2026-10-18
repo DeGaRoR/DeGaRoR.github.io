@@ -95073,6 +95073,14 @@ and the fuselage's roundness landed with G2760. This half reuses G2760's mechani
   the whole Custom-build grid (every tile has its own part or its row's slot; the grid is NEW > Custom build's).
   Construction and the turtledeck were already big buttons in their slots (G2760).
 
+- **GATE PARTS 5 (EXISTENCE)**: the probe also accepts a part that exists EXCEPT at an enum's top end (true at 0,
+  false at the row's maximum): the pilot door's `when` (canopy != 3) failed the 'off at 0, on at default/max' probe.
+  A constant `when` still fails (selftest caught).
+- **Gates** (A0's CPU slot 18 Oct 17:30-17:37, beside ASSETSOCT's UNTIMED lock, on 22de0706b): 27 of 29 PASS (INPUT
+  DEFAULT UISMOKE UISMOKE-PHONE CABIN UILAYER SKINMAT EDBUGS CAGEFIT FRAMES KNIFE FIN COWL JOIN SPECFIX STARTER SAVE GEAR
+  BAY SHOULDER DESIGN VIEW REF HONESTY HITBOX ENERGY PANEL), DESIGN selftest PASS. CLOUD 1/239 = master's lamps-pool
+  row (not this branch). PARTS red on the pilot door's `when` -> fixed in the gate, PARTS + its selftest PASS at 17:37.
+
 **Not done (Monday, if wanted):**
 - **The design point from the engine** ("ensure that you fill it according to the engine selection, these
   parameters can be deduced from the engine"). It is logic, not UI: cw_rpm / cw_power from the engine, cw_tas from
