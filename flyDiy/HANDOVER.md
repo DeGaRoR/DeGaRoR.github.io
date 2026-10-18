@@ -94851,6 +94851,13 @@ changed within one link's time may key one set late (a single later re-key, not 
 ## Train 56 (A0, 14 Oct 20:55)
 Landed: CAREER ON (G2740, 31d61c631: DESTTO's row updated for the flip), DMG impact-lag v1 (G3022: one shared GPU read-back, no hypot), DMGUPLOAD stage-robust row (d4e497ecf), trees cut only on the strip: rwyTrees 'mapx' default (ED-2 be453a378, LINEUP PASS), the benches load matlib.js (cbd553a51).
 Strict light gate: PASS, 138 rows in slack, 12 better, 0 red. Gates: CLOUD (lamps, known), SKINMAT + WEATHER (master's stale strip; fixed by the garage group, train 57), DMGUPLOAD still red (the Cub staging breaks nothing even with the retries - Deform), FRAMECOST 2 rows from mapx's trees by the strip (taxi tris.shadow 1.78 -> 3.66 M, bindBuffer 2 -> 7): the look the user asked for, to admit by ALLOW.
+
+## G3022 DMG-IMPACT-LAG - state at the credit stop (15 Oct, Deform)
+- Landed (t56): v1 - the tear's GPU reads batched into one + squared-length tear check (skin_gpu.js, skin_break.js).
+- APPROVED by the user, not landed: claude/dmg-impact-lag-v2 (the motion clock + the GPU tear every 0.15 s, ?teargpu=0.05 the old cadence). Rebase on master, gate DMGSKIN / DMGSKINGPU / DMGPAGEW / DMGUPLOAD / DMGWRECK, land.
+- UNPROVEN: claude/dmg-impact-lag-v3 (on v2): break events budgeted 8 ms a frame (?evms=0 off). Needs the box A/B (scratchpad g3022/v3_1545.sh pattern: dmg_skingpu_box --flown gpu, trunk-0/2.5, Cub + metal, v3 vs ?evms=0) against PKG5's crash worst <= 100 ms.
+- Measured 14 Oct: a WebGL getBufferSubData after a signaled fence still stalls ~10-12 ms per call at any size (0.4-0.8 MB) - the read must go: G3023, the tear on the CPU in a worker sending back only the torn triangles (PERF-1 week).
+- Owed too: the damage-ON readiness re-run on master (hitch Cub + metal, laptop rung on/off); DMGUPLOAD wing retry (claude/dmg-upload-robust2) - if the wing also breaks nothing, drop the Cub's mild staging; DMGWRECK rounding row (claude/dmg-wreck-row-round).
 ## G3020-G3023 - SCENERY-ED-2: THE USER'S REV 28 SHIPPED (SHIP-2), THE SLIDERS' RANGES BY CENSUS, TREES TO THE STRIP (HELD)
 
 - **SHIP-2 (G3020, train 53 -> landed with t52-ab 13 Oct 23:00).** The user's rev 28 ("Jolene AFB (16)", sha c54089c9)
