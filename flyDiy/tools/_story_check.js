@@ -129,6 +129,8 @@ function run(M) {
   const st = M.playerSendTo(x.doc, 'ul', 'HOME');
   ok(st.ok && M.playerWhere(st.doc, 'ul').hangar === 'HOME', 'send-to HOME after T1: inside HOME', JSON.stringify(M.playerWhere(st.doc, 'ul')));
   ok(!M.playerSendTo(x.doc, 'ul', 'w5').ok, 'send-to a hangar we do not hold: refused');
+  const back2 = M.playerSendTo(st.doc, 'ul', 'w1');
+  ok(back2.ok && M.playerWhere(back2.doc, 'ul').hangar === 'w1', 'send-to from INSIDE HOME back to the cabin: moved (not "already inside")', JSON.stringify(M.playerWhere(back2.doc, 'ul')));
   // the save
   const back = M.careerNormalise(JSON.parse(JSON.stringify(d)));
   ok(JSON.stringify(M.storyOf(back)) === JSON.stringify(M.storyOf(d)) && JSON.stringify(M.storyNormalise(JSON.parse(JSON.stringify(back.career.story)))) === JSON.stringify(back.career.story), 'saved and reloaded: the story unchanged (careerNormalise keeps it)');

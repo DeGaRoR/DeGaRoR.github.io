@@ -145,6 +145,7 @@
     const pilots = (raw.pilots || []).map(p => JSON.parse(JSON.stringify(p)));
     // G2742 (STORY-PAGE): the story's own goal while its rails hold the list (app.js storyRecord); null otherwise
     const story = raw.story && raw.story.title ? { title: String(raw.story.title), brief: raw.story.brief || '', held: raw.story.held || '',
+      at: typeof raw.story.at === 'string' ? raw.story.at : null,
       step: raw.story.step || null, of: raw.story.of || null, rows: (raw.story.rows || []).map(r => ({ words: String(r.words), ok: !!r.ok })) } : null;
     return { providers, prov, contracts, career, fleet, voucher, pilots, story, aeros, places, placeOf, hotspots: (pack && pack.hotspots) || [], pois: (pack && pack.pois) || [], source: raw.source || 'fixture' };
   }
@@ -561,7 +562,8 @@
     const used = (doc ? P.procureMarketOf(doc) : []).map(L => Object.assign({}, L, { words: P.procureUsedWords(L), cert: P.procureUsedCert(L),
       name: P.procureText(P.PROCURE_MODELS[L.model].name), colour: P.PROCURE_MAKERS[P.PROCURE_MODELS[L.model].maker].colour }));
     const sheds = (doc && doc.sheds) || {};
-    const hangars = Object.keys(sheds).filter(id => sheds[id] && typeof sheds[id] === 'object').sort((a, b) => (a === 'HOME' ? -1 : b === 'HOME' ? 1 : a < b ? -1 : 1))
+    // (G2744) a hangar the story still holds back (HOME before T1: `locked`) is not the player's yet
+    const hangars = Object.keys(sheds).filter(id => sheds[id] && typeof sheds[id] === 'object' && !sheds[id].locked).sort((a, b) => (a === 'HOME' ? -1 : b === 'HOME' ? 1 : a < b ? -1 : 1))
       .map(id => ({ id, base: sheds[id].base, main: id === 'HOME' }));
     return { P, mode: career ? 'career' : 'sandbox', makers, used, wallet: doc ? doc.wallet : null,
              voucher: career ? Object.assign({}, doc.career.voucher) : null, hangars, econ: P.procureEconSource(),
@@ -1327,6 +1329,15 @@
     V.ty = h <= v.height ? (v.height - h) / 2 : Math.min(0, Math.max(v.height - h, V.ty));
   }
   function fit() { const v = view(); V.fit = Math.min(v.width / pack.w, v.height / pack.h) || 1; V.s = V.fit; V.tx = (v.width - pack.w * V.s) / 2; V.ty = (v.height - pack.h * V.s) / 2; place(); }
+  // G2744 (the user: "the start of the game should really feel like you're in the middle of nowhere"): while the story
+  // runs from the cabin (M.story.at, app.js storyRecord), the map opens 3x the fit, centred on that strip
+  function storyFocus() {
+    const at = M && M.story && M.story.at, A = at && pack && Array.isArray(pack.aerodromes) ? pack.aerodromes.find(a => a.id === at) : null;
+    if (!A) return;
+    const v = view(), px = (A.x - pack.x0) / pack.mpp, py = (A.z - pack.z0) / pack.mpp;
+    V.s = clamp(V.fit * 3, V.fit, sMax()); V.tx = v.width / 2 - px * V.s; V.ty = v.height / 2 - py * V.s;
+    clampView(); place();
+  }
   function zoomAt(k, cx, cy) { const s2 = clamp(V.s * k, V.fit, sMax()); V.tx = cx - (cx - V.tx) * s2 / V.s; V.ty = cy - (cy - V.ty) * s2 / V.s; V.s = s2; place(); }
   // PAN BY A LEFT-BUTTON DRAG ANYWHERE (a badge included): no native image drag, no text selection; the capture is
   // taken once it IS a drag (4 px), and the click that ends a drag is swallowed, so a click counts only if the pointer
@@ -1465,6 +1476,7 @@
     return src.then(raw => {
       reread(raw, live);   // the contracts (MAP-SIMPLE's adapter) and the market (G2280)
       render(); fit();   // the layout first (the phone's has no columns), then the fit
+      storyFocus();      // G2744: the story's opening reads remote - the map on the cabin, not the whole island
       return new Promise(res => { if ($.img.complete && $.img.naturalWidth) res(true); else { $.img.onload = () => res(true); $.img.onerror = () => res(false); } })
         .then(ok => { if (ok) edgeOnce(art); return ok; });   // G2730 (MAP-EDGE)
     }, err => { console.warn('flyDiy: the contracts did not load -', err && err.message); M = mapAdapt({}, pack, null); render(); fit(); return false; });

@@ -95186,3 +95186,14 @@ Strict light gate: 16 better; only the accepted metal fuseWidth slider row red. 
     - the map's 20 rows held;
     - the card at (12, 72), 296 px wide, IBM Plex Sans, upright.
 - **READY** @ f851e450 (the work: e2aaea74 + f851e450) for the rolling landing.
+
+### G2744 - THE OPENING READS REMOTE + SEND TO (2026-10-18, the GAME COORDINATOR, on claude/story-core after the STORY-PAGE merge)
+- **The map** opens 3x the fit, centred on the strip the story runs from, while the rails hold and `here` is not HOME
+  (app.js storyRecord `at`, map_menu.js storyFocus). A hangar still LOCKED by the story (HOME before T1) is not listed
+  as the player's.
+- **Send to**: a plain select on every storage card (inside, outside and long-term): "send to... the hangar at <field>".
+  It lists the held, unlocked hangars other than the one the plane is in (FLYDIY_STORE.sendTargets / sendTo ->
+  71_ playerSendTo). Free and instant; a refusal shows its reason. 71_ playerBringHome now moves a plane INSIDE one
+  hangar to ANOTHER on a send-to (bring-home still leaves an inside plane be). GATE STORY row added.
+- node --check only (the box reserved 18:05-21:59). Land with STORY, UISMOKE, UISMOKE-PHONE, STORAGE, PLAYER, GAMEPREM,
+  SITE, LAZY, BUILD, together with claude/ready/cabin-strip.

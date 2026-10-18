@@ -8107,6 +8107,14 @@
     fly: n => storeFly(n),
     card: n => storeCard(n),
     canFly: () => !GARAGE_ONLY && inGarage,
+    // G2744 SEND TO (the user via A0: "keep it simple: a 'send to' pick between the owned hangars"): the held, unlocked
+    // hangars other than the one it is in (71_ playerShedsOpen), and the free, instant move there (71_ playerSendTo)
+    sendTargets: n => { if (typeof playerShedsOpen !== 'function') return [];
+      const d = playerLoad(), W = playerWhere(d, n);
+      return playerShedsOpen(d).filter(id => !(W.kind === 'in' && W.hangar === id)).map(id => ({ id, base: d.sheds[id].base, main: id === 'HOME' })); },
+    sendTo: (n, id) => { try { const r = playerSendTo(playerLoad(), n, id, { foots: storeFoots(n) });
+      if (r.ok && r.doc !== playerLoad()) { player = r.doc; playerSave(); storeChanged(); }
+      return { ok: !!r.ok, why: r.why || '' }; } catch (e) { return { ok: false, why: String((e && e.message) || e) }; } },
     onStand: () => slotOnStand(),
     start: () => storeStartNow(),
     onChange: null,
@@ -8660,7 +8668,10 @@
     if (storyJobsOpen(d)) return R;
     for (const c of R.contracts || []) c.held = storyJobHeld(d, c.id);
     const K = storyCardNow();
-    R.story = K ? { title: K.title, brief: K.brief, rows: K.rows.slice(), step: K.step, of: K.of, held: 'after the move-in' } : null;
+    // G2744 (the user: "the middle of nowhere"): while the story runs from the cabin, the map opens on it (`at`)
+    const hereB = d.sheds && d.sheds[d.here] ? d.sheds[d.here].base : null;
+    R.story = K ? { title: K.title, brief: K.brief, rows: K.rows.slice(), step: K.step, of: K.of, held: 'after the move-in',
+                    at: hereB && hereB !== 'HOME' ? hereB : null } : null;
     return R;
   }
   // THE BEAT CARD

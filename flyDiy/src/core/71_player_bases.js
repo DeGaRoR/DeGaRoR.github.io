@@ -810,7 +810,8 @@ function playerBringHome(doc, name, opts) {
   for (const id of cand) if (id && doc.sheds[id] && !doc.sheds[id].locked && !order.includes(id)) order.push(id);
   if (opts.to && !order.length) return pbNo(doc, playerShedLocked(doc, opts.to) ? opts.to + ' is not yours yet' : 'no hangar ' + opts.to);
   // inside a hangar of yours already: it is home (a resident is never shuffled by this door)
-  if (W.kind === 'in') return { ok: true, doc, kind: 'in', hangar: W.hangar, why: 'already inside ' + W.hangar };
+  // (G2744) a send-to another hangar moves it even from inside one (or long-term in one); bring-home leaves it be
+  if (W.kind === 'in' && (!opts.to || W.hangar === opts.to)) return { ok: true, doc, kind: 'in', hangar: W.hangar, why: 'already inside ' + W.hangar };
   const d = pbClone(doc);
   let at = null;
   for (const id of order) {
