@@ -5,9 +5,10 @@
 // a row past its slack is RED, named, and the train does not land (exit 1).
 //
 //   1. ROLLOUT  tools/rollout_perf.js at HOME (the route HOME / CIRCUIT), the CHASE view and the COCKPIT view, the user's Cub
-//               (builds/cub_2026-09-20_corrected.json) and the Cessna 172 (builds/cessna172_2026-09-20_corrected.json) -
-//               GATE-ANCHOR (A0 for the user, 18 Oct): every build pinned BY FILE, never the OLD STOCK default; the metal
-//               Cessna's legs before it; and the floatplane's TAKE-OFF from the SEA lane (bugReports/cessnaFloatsWOrks.json,
+//               (builds/cub_2026-09-20_corrected.json), the metal Cessna (bugReports/cessnaMetal (1).json) and the Cessna 172
+//               (builds/cessna172_2026-09-20_corrected.json) - GATE-ANCHOR (A0 for the user, 18 Oct): every build pinned BY
+//               FILE, never the OLD STOCK default (metal + 172 both until the user names the right Cessna file); and the
+//               floatplane's TAKE-OFF from the SEA lane (bugReports/cessnaFloatsWOrks.json,
 //               the chase view, --float-secs; the user: "the water take off is extremely uneven"); every run with the water
 //               mirror PINNED (--mirror, default off: AUTO's switching over the shore is noise in a timed run); --reps runs per group, the
 //               medians gated through rollout_ratchet.js's own metrics() and RULES (fps, p99 taxi / all, the share over
@@ -61,8 +62,8 @@ if (opt('secs', null)) M.secs = +opt('secs');
 if (opt('float-secs', null)) M.floatSecs = +opt('float-secs');   // (0: no float leg)
 const ONLY = new Set(opt('only', 'rollout,garage,bench').split(','));
 const REMOTE = opt('remote', 'mn_strip');
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', c172: 'builds/cessna172_2026-09-20_corrected.json' };
-const NAMES = { cub: 'the Cub', c172: 'the Cessna 172', floats: 'the Cessna on floats' };
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', c172: 'builds/cessna172_2026-09-20_corrected.json' };
+const NAMES = { cub: 'the Cub', metal: 'the metal Cessna', c172: 'the Cessna 172', floats: 'the Cessna on floats' };
 const FLOATS = 'bugReports/cessnaFloatsWOrks.json';
 const VIEWS = ['chase', 'cockpit'];
 const MIRROR = opt('mirror', 'off');   // GATE-ANCHOR: the water mirror pinned for every rollout run (off / auto / on)
@@ -79,7 +80,7 @@ function steps(dir, port, udd) {
     // the metal's own programs warmed once (the bench's discarded load warms the Cub's; without the bench, the Cub too):
     // a short cockpit run each, discarded
     // (GATE-ANCHOR: the float leg's water programs are warmed by the bench's water taxi - without the bench, a short float run)
-    for (const b of ONLY.has('bench') ? ['c172'] : ['cub', 'c172'].concat(M.floatSecs ? ['floats'] : []))
+    for (const b of ONLY.has('bench') ? ['metal', 'c172'] : ['cub', 'metal', 'c172'].concat(M.floatSecs ? ['floats'] : []))
       S.push({ id: 'warm_' + b, part: 'warmup', what: NAMES[b] + ', a short ' + (b === 'floats' ? 'chase' : 'cockpit') + ' run on the fresh profile (discarded)',
         args: ['tools/rollout_perf.js', '--build', b === 'floats' ? FLOATS : BUILDS[b], '--cam', b === 'floats' ? 'chase' : 'cockpit', '--secs', '3', '--set', 'mirror=' + MIRROR, '--port', P(0), '--udd', path.join(udd, 'p'), '--label', 'tg_warm_' + b, '--out', path.join(dir, 'warm_' + b + '.json')],
         sec: EST.chrome + EST.warmLoad + EST.rollout + 3 });
@@ -196,7 +197,7 @@ function compare(G, B) {
   if (B.meta.size && G.meta.size && B.meta.size !== G.meta.size) return { refuse: 'the baseline viewport is ' + B.meta.size + ', this run ' + G.meta.size };
   if (B.meta.mode !== G.meta.mode) return { refuse: 'the baseline is a ' + B.meta.mode + ' gate, this run ' + G.meta.mode + ' - compare with the ' + G.meta.mode + ' baseline' };
   const now = new Map(G.rows.map(r => [r.id, r])), ran = new Set(G.meta.parts || []);
-  // GATE-ANCHOR: a rollout GROUP this run did not run (the metal Cessna's legs, gone for the Cessna 172) is skipped and
+  // GATE-ANCHOR: a rollout GROUP this run did not run (a build taken out of BUILDS, or --only) is skipped and
   // counted, not MISSING - a run that ran the group and lost a row still is
   const groups = G.meta.groups ? new Set(G.meta.groups) : null, groupOf = id => String(id).split('|')[1];
   for (const b of B.rows) {
