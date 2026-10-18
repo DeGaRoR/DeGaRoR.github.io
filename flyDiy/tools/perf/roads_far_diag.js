@@ -7,7 +7,7 @@
 'use strict';
 (async () => {
   const { openPage } = require('../_page_node.js');
-  const P = await openPage({ quiet: true, query: 'town=1', workers: /house_worker\.js|sim_host\.js/ });
+  const P = await openPage({ quiet: true, query: process.env.DIAG_Q || 'town=1', workers: /house_worker\.js|sim_host\.js/ });
   const W = P.win;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone' && !(W.BOOT.busy && W.BOOT.busy()), 1800000);
   await P.frames(30);

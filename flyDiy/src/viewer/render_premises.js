@@ -1253,7 +1253,7 @@ function make(THREE, scene, world, rec0, opts) {
       }
       yield* buildPolysSteps(part);
       yield* mergePavSteps(part);
-      if (part && ROAD_FAR > 0) roadsFarBuild();   // G3214: the town's roads far
+      if (ROAD_FAR > 0 && GEO.defer && (part || !GEO.split)) roadsFarBuild();   // G3214: the town's roads far (the part, or a whole build with the town in it)
       return;
     }
     if (!roadMat) roadMat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: 0.92, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
@@ -1295,11 +1295,16 @@ function make(THREE, scene, world, rec0, opts) {
       const k = /^pave:/.test(c.name) ? 'pave' : 'road'; let b = buckets.get(k); if (!b) buckets.set(k, b = []); b.push(c); }
     for (const [k, list] of buckets) {
       const out = [];
+      // (G3214: the town's rows - a merged mesh is the town's when every row it holds is; a whole build merges the town's roads
+      // apart from the field's, they lie km apart, but the test is exact either way)
+      const townRows = new Set();
+      for (const c of list) { const nm = String(c.name || ''), id = nm.slice(nm.indexOf(':') + 1); if (id && isTown({ id }) && c.geometry.userData.pavRow) townRows.add(c.geometry.userData.pavRow); }
       yield* PAV.mergeSteps(THREE, list.map(m => ({ geo: m.geometry, order: m.renderOrder })), null, out);
       for (const c of out) {
         const m = new THREE.Mesh(c.geo, list[0].material);
         m.renderOrder = c.order; m.receiveShadow = true; m.name = k + ':merged'; m.userData.pavMerged = true;
-        if (part) m.userData.townRoad = true;   // (G3214: the town's own, switched for the far ribbon by roadsFar)
+        const rows = c.geo.userData.pavRows;   // (G3214: the town's own - switched for the far ribbon by roadsFar)
+        if (part || (townRows.size && Array.isArray(rows) && rows.length && rows.every(r => townRows.has(r)))) m.userData.townRoad = true;
         G.roads.add(m);
       }
       for (const m of list) { G.roads.remove(m); m.geometry.dispose(); }
