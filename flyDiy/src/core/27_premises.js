@@ -1515,6 +1515,10 @@ const ZONE_GRASS = { residential: { kind: 'lawn', h: 0.12, density: 1 }, commerc
   industrial: { kind: 'none' }, harbour: { kind: 'none' }, airfield: { kind: 'meadow' }, forest: { kind: 'meadow' }, clear: { kind: 'meadow' } };
 function zoneGrass(zone) { return Object.assign({}, ZONE_GRASS[zone && zone.kind] || { kind: 'meadow' }, (zone && zone.rules && zone.rules.grass) || {}); }
 // a road's look: its own, else its class's; the pavement's row for it (or null for 'none')
+// ONE SURFACE (the user, 18 Oct): what a road's wheels feel (its own `surface`, else its class's - the composer's rule) and
+// whether a look feels as a class does (a look with no feel of its own - markings only - feels as anything)
+function roadFeel(r) { return r.surface !== undefined && r.surface !== null ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL); }
+function lookFeelsAs(look, feel) { const L = RUNWAY_LOOKS[look]; return !L || L.surface === null || L.surface === undefined || +L.surface === +feel; }
 function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD_LOOK[r.cls] || 'gravel'); return { key: k, row: RUNWAY_LOOKS[k] }; }
 // THE ONE-WAY STRIP (v9, contract v1.11): `approach` names the end the landing comes over (0 or 1) when
 // the air is calm - a strip with a ridge at one end lands from the other and departs toward it; null
@@ -4362,7 +4366,7 @@ function collect(globals) {
 const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, roadFeel, lookFeelsAs, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
