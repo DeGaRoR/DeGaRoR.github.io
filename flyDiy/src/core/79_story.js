@@ -74,7 +74,10 @@ const STORY_BEATS = [
   { id: 'T2', title: "The client's plane", mask: 'checklist',
     brief: 'A client brings an unfinished Cub. The checklist is on the bench; keep it on budget.',
     enter: [{ k: 'clientPlane', at: 'home' }],
-    goal: { k: 'certified', plane: 'client', checklist: ['engine', 'flaps', 'tyres', 'lights', 'panel', 'paint'], costCap: 9000 } },
+    // costCap (G2742 STORY-PAGE, measured): the page's cost is dm11's edit bill (every ledger line the work rebuilt, at build
+    // price) against the Cub as it arrived. G2741's 9000 could not be met by any finish (the cheapest complete one, on the
+    // Rotax 582, bills 24 248); finished on the Jabiru 2200 35 114, the Rotax 912 38 089, the O-200 44 355, the O-320 48 745
+    goal: { k: 'certified', plane: 'client', checklist: ['engine', 'flaps', 'tyres', 'lights', 'panel', 'paint'], costCap: 40000 } },
   { id: 'T3', title: 'The delivery', brief: "Certified. Fly it to its owner's strip.",
     goal: { k: 'stop', at: 'client', plane: 'client' } },
   { id: 'T4', title: 'The gift', brief: '"I can’t pay you. Keep it." The Cub is yours.',
@@ -104,7 +107,15 @@ function storyNormalise(s) {
   for (const k of Object.keys(d.planes)) planes[k] = (s.planes && typeof s.planes[k] === 'string') ? s.planes[k] : null;
   const base = (s.base && typeof s.base === 'object' && !Array.isArray(s.base)) ? s.base : {};
   const jobs = (typeof s.jobs === 'number' && isFinite(s.jobs) && s.jobs > 0) ? Math.floor(s.jobs) : 0;
-  return { v: STORY_V, beat, done, planes, base, jobs, open: beat === 'open' || !!s.open };
+  const out = { v: STORY_V, beat, done, planes, base, jobs, open: beat === 'open' || !!s.open };
+  // (G2742 STORY-PAGE) what the page recorded, carried when present: where the story began (`cabin`: the strip and the
+  // shed, or null with `note` - no cabin on the island yet), the offers it recorded (`offers`: the route stub), the
+  // occasions listed (`occasions`: the authored listings' ids) - absent on a story that has none
+  if (s.cabin === null || (s.cabin && typeof s.cabin === 'object' && typeof s.cabin.aero === 'string')) out.cabin = s.cabin ? { aero: s.cabin.aero, hangar: typeof s.cabin.hangar === 'string' ? s.cabin.hangar : null } : null;
+  if (typeof s.note === 'string' && s.note) out.note = s.note;
+  if (Array.isArray(s.offers)) out.offers = s.offers.filter(o => o && typeof o === 'object').map(o => JSON.parse(JSON.stringify(o)));
+  if (Array.isArray(s.occasions)) out.occasions = s.occasions.filter(id => typeof id === 'string');
+  return out;
 }
 // the story of a career document, or null (the sandbox, a career without one)
 const storyOf = doc => (doc && doc.mode === 'career' && doc.career && doc.career.story) ? storyNormalise(doc.career.story) : null;
@@ -184,4 +195,189 @@ function storyStep(doc, ev, ctx) {
   else { s.beat = next; for (const e of storyEnterEffects(next)) effects.push(e); }
   d.career.story = s;
   return { ok: true, doc: d, advanced: [B.id], effects, why: null };
+}
+
+// ===========================================================================
+// THE PAGE'S HALF, PURE (G2742-G2749 STORY-PAGE): what app.js does to the document for the story - the new career at the
+// cabin, the client's Cub as it arrives, each effect applied, the occasions listed, the beat card's words, the job list
+// held. The page owns the fetches, the slots and the DOM; everything that decides lives here, so GATE STORY's page half
+// asks it in node. Every function works on a clone and returns { ok, doc, why, ... }; a refusal hands the document back.
+// ===========================================================================
+// THE STORY'S PLANES' FILES (fetched by the page, relative to the game's folder). The starter is the user's Rufus (18 Oct):
+// RUFUS-CERT (G3270) moves its certified file into builds/ - the page asks builds/ first, then the archived candidate.
+const STORY_FILES = {
+  starter: ['builds/rufus_2026-10-18.json', 'builds/rufus_2026-10-18_corrected.json', 'builds/rufus.json',
+            'futureDesigns/game/aircraft-candidates/rufus-starter_2026-10-18.json'],
+  client: ['builds/cub_2026-09-20.json'],          // the validated Cub, unfinished by storyClientSpec
+};
+const STORY_SLOTS = { starter: 'Rufus', client: 'Client Cub' };
+// THE CABIN'S SHED: the smallest shell (the field's), sized as HOME's own field option so the Rufus's 10.9 m passes its
+// door; a plot the cabin's aerodrome offers (BASE_OFFERS) gives its own id, kits and dims instead
+const STORY_CABIN_SHED = { shell: 'field', dims: { HW: 9, HD: 10, EAVE: 4.0 }, kits: ['park', 'bench'] };
+const STORY_NO_CABIN = 'No strip on the island is the cabin yet (name one "Cabin…" in the scenery editor): the story starts at HOME.';
+// T5 (Q1: the generated list is held, the story's own goals shown instead): the story's three quick jobs are the authored
+// openers of three contractors - a pickup, a survey, a small load (72_contract_data.js; the narrative pack may re-author)
+const STORY_JOBS = ['clients.01', 'survey.01', 'resort.01'];
+// T7: THE THREE OCCASIONS - one-time listings in the used market, AUTHORED BY HAND (the user's rule: a missing plane is
+// authored, never generated). PLACEHOLDERS until the user authors the two planes the story names (HANDOVER G2742): the
+// fabric 4-seater stands as the validated metal Cessna (meridian), the Jodel-class one as the validated Jodel (pinson);
+// the Cub is the story's own. `price` is the occasion's factor on the maker's catalogue (well under a used listing's).
+const STORY_OCCASIONS = [
+  { id: 'occ:fabric4', model: 'meridian', opts: { avionics: 'basic', finish: 'white', reg: 'N4OCC' }, hours: 2400, repair: 'skin',
+    seller: 'used.seller.3', aero: 'HOME', price: 0.30, placeholder: 'the fabric 4-seater (stands as the metal Cessna until authored)' },
+  { id: 'occ:jodel', model: 'pinson', opts: { engine: 'a65', finish: 'red', reg: 'N2OCC' }, hours: 1150, repair: 'none',
+    seller: 'used.seller.0', aero: 'HOME', price: 0.35, placeholder: 'the Jodel-class one (stands as the validated Jodel until authored)' },
+  { id: 'occ:cub', model: 'scout', opts: { engine: 'a65', avionics: 'minimal', finish: 'green', reg: 'N3OCC' }, hours: 1800, repair: 'gear',
+    seller: 'used.seller.2', aero: 'HOME', price: 0.35, placeholder: null },
+];
+const stClone = o => JSON.parse(JSON.stringify(o));
+const stNo = (doc, why) => ({ ok: false, doc, why });
+// an aerodrome's name in words, its runway's numbers off ('Jolene AFB 13/31' -> 'Jolene AFB', as the map's cwBase)
+const storyAeroName = (id, aeros) => { const a = (aeros || []).find(x => x && x.id === id);
+  const n = (a && a.name) || (typeof CONTRACT_FIELDS !== 'undefined' && CONTRACT_FIELDS[id] && CONTRACT_FIELDS[id].name) || id;
+  return String(n).replace(/\s+\d{2}[LRC]?\/\d{2}[LRC]?$/, ''); };
+
+// the cabin's shed: the plot its aerodrome offers a field shell on (its id, dims and kits), else the aerodrome's own id
+function storyCabinShed(aero, clock) {
+  const O = (typeof BASE_OFFERS !== 'undefined' && BASE_OFFERS[aero]) || null;
+  const plot = O ? Object.keys(O.plots).find(k => O.plots[k].shells.includes('field')) : null;
+  const P = plot ? O.plots[plot] : null;
+  const S = (typeof SHELLS !== 'undefined' && SHELLS.field) ? SHELLS.field.dims : {};
+  return { id: plot || aero, shed: { shell: 'field', kits: ((P && P.kits) || STORY_CABIN_SHED.kits).slice(), base: aero, tenure: 'own',
+    dims: Object.assign({}, S, STORY_CABIN_SHED.dims, (P && P.dims && P.dims.field) || {}), since: Math.round(clock || 0), story: 'cabin' } };
+}
+// A NEW CAREER WITH THE STORY (the welcome's New career, the player's career 'main' only): storyStart with the starter's
+// slot, then the cabin - the strip that plays the cabin (storySite, never a guess) gets the smallest shed, the garage opens
+// in it, and the WWII field's hangar is held for the move (`locked`: T1's 'hangar' effect hands it over). No cabin on the
+// island yet: the story starts at HOME, the reason recorded for the beat card. The starter's airframe row is written here;
+// its slot (the envelope) is the page's, and the page's lift stands it in the cabin's shed once the slot exists.
+// o: { aeros: world.aerodromes, starter? } -> { ok, doc, effects, cabin, why }
+function storyNewCareer(doc, o) {
+  o = o || {};
+  const slot = o.starter || STORY_SLOTS.starter;
+  const r = storyStart(doc, slot);
+  if (!r.ok) return r;
+  const d = r.doc, s = storyNormalise(d.career.story), cabin = storySite('cabin', o.aeros);
+  if (cabin && cabin !== 'HOME') {
+    const C = storyCabinShed(cabin, d.clock);
+    d.sheds[C.id] = C.shed;
+    d.here = C.id;
+    if (d.sheds.HOME) d.sheds.HOME.locked = 'story';
+    s.cabin = { aero: cabin, hangar: C.id };
+  } else { s.cabin = null; s.note = STORY_NO_CABIN; }
+  d.career.story = s;
+  d.career.airframes[slot] = { from: 'story', story: 'starter', factory: false, modified: false, paid: 0, at: Math.round(d.clock || 0) };
+  return { ok: true, doc: d, effects: r.effects, cabin: s.cabin, why: null };
+}
+// THE CLIENT'S CUB AS IT ARRIVES (T2): the validated Cub unfinished - its flaps off, the minimal panel (no battery, so no
+// lights), bare metal - on the same engine. Every item of T2's checklist is open on it (GATE STORY holds that).
+function storyClientSpec(cub) {
+  const s = stClone(cub || {});
+  s.controls = Object.assign({}, s.controls || {}, { flap: { type: 'none', span: 0, chord: 0 } });
+  s.systems = { fit: 'minimal' };
+  s.paint = Object.assign({}, s.paint || {}, { job: 'bare' });
+  s.meta = Object.assign({}, s.meta || {}, { name: STORY_SLOTS.client });
+  return s;
+}
+// EACH EFFECT, APPLIED (storyStep hands them; the page fetches what a plane needs first and passes it in o):
+//   hangar      the WWII field's hangar is ours: the lock lifted, a ledger line at 0
+//   clientPlane the client's Cub in the HOME hangar (o.slot: its slot, already written): stationed there, its airframe row
+//               the client's; the page then binds it ({ k: 'bind', role: 'client', slot, spec })
+//   giftPlane   the Cub is ours: the client's mark lifted, a ledger line at 0 (no money)
+//   routeOffer  ROUTES (G3260) absent: the offer recorded as a stub on the story (o.route: ROUTES' own record when present)
+//   occasions   the three authored listings on the used market (one-time: a sale removes it for good)
+//   open        the rails end (nothing to the world)
+// -> { ok, doc, why, line } (line: the words for the beat card / the arrival card, or null)
+function storyApply(doc, e, o) {
+  o = o || {};
+  if (!storyOf(doc)) return stNo(doc, 'no story in this document');
+  if (!e || typeof e.k !== 'string') return stNo(doc, 'no effect');
+  const d = stClone(doc), s = storyNormalise(d.career.story), clock = Math.round(d.clock || 0);
+  let line = null;
+  if (e.k === 'hangar') {
+    const id = PREM_MAIN;
+    if (!d.sheds[id]) return stNo(doc, 'no hangar at HOME');
+    delete d.sheds[id].locked;
+    playerLedger(d, 'story', 0, id);
+    line = 'The WWII field’s hangar is yours.';
+  } else if (e.k === 'clientPlane') {
+    const slot = o.slot || STORY_SLOTS.client;
+    if (d.fleet[slot] && s.planes.client === slot) return { ok: true, doc, why: 'the client’s plane is here already', line: null };
+    d.fleet[slot] = { hangar: null, aero: PREM_MAIN };
+    if (o.foot) d.fleet[slot].foot = parkFoot(o.foot);
+    const r = playerArrive(d, slot, PREM_MAIN, { prefer: PREM_MAIN, foots: o.foot ? { [slot]: o.foot } : null });
+    const D = r.ok ? r.doc : d;
+    D.career.airframes[slot] = { from: 'story', story: 'client', owner: 'client', factory: false, modified: false, paid: 0, at: clock };
+    D.career.story = s;
+    return { ok: true, doc: D, why: '', line: 'The client’s Cub is in the hangar at HOME.', where: r.ok ? (r.hangar || r.kind) : null };
+  } else if (e.k === 'giftPlane') {
+    const slot = s.planes.gift || s.planes.client;
+    if (!slot || !d.career.airframes[slot]) return stNo(doc, 'no client plane to give');
+    delete d.career.airframes[slot].owner;
+    d.career.airframes[slot].gift = true;
+    playerLedger(d, 'gift', 0, slot);
+    line = 'The Cub is yours.';
+  } else if (e.k === 'routeOffer') {
+    const offer = Object.assign({ k: 'route', plane: s.planes.gift || null, a: storySite(e.a, o.aeros) || e.a, b: storySite(e.b, o.aeros) || e.b,
+                                  at: clock, stub: !o.route }, o.route ? { route: stClone(o.route) } : {});
+    s.offers = (s.offers || []).filter(x => x.k !== 'route').concat([offer]);
+    line = o.route ? 'A route is offered, with a hired pilot.' : 'A route is offered (the routes come later: the offer is kept).';
+  } else if (e.k === 'occasions') {
+    s.occasions = STORY_OCCASIONS.slice(0, e.n || STORY_OCCASIONS.length).map(L => L.id);
+    line = 'Three aeroplanes on offer, once only: see the Market.';
+  } else if (e.k === 'open') {
+    line = 'The island is open: every contractor’s work is on the map.';
+  } else return stNo(doc, 'an unknown effect ' + e.k);
+  d.career.story = s;
+  return { ok: true, doc: d, why: '', line };
+}
+// THE OCCASIONS ON OFFER (procureMarketOf lists them before the generated ones): the authored listings the story listed,
+// minus the sold, in the used market's shape (76_procure.js procureUsedListing's), priced at the occasion's factor
+function storyOccasionListings(doc) {
+  const s = storyOf(doc);
+  if (!s || !s.occasions || !s.occasions.length || typeof procureDefaults !== 'function') return [];
+  const sold = typeof procureSold === 'function' ? procureSold(doc) : [];
+  const out = [];
+  for (const A of STORY_OCCASIONS) {
+    if (!s.occasions.includes(A.id) || sold.includes(A.id) || !PROCURE_MODELS[A.model]) continue;
+    const o = Object.assign(procureDefaults(A.model), A.opts);
+    const design = procureDesignOf(A.model, o);
+    if (!procureValidated(design)) continue;
+    const cat = procurePrice(A.model, o).total;
+    out.push({ id: A.id, model: A.model, design, opts: o, hours: A.hours, repair: A.repair, older: false, kg: 0, seller: A.seller,
+               condition: A.price, aero: A.aero, catalogue: cat, price: Math.round(cat * A.price / 100) * 100, occasion: true,
+               placeholder: A.placeholder || null });
+  }
+  return out;
+}
+// Q1: THE JOB LIST HELD - the story's own jobs (T5's) are the only ones offered while the rails run
+const storyJobIds = doc => { const s = storyOf(doc); return s && !s.open && s.beat === 'T5' ? STORY_JOBS.filter(id => !doc.career.contracts.done.some(x => x.id === id)) : []; };
+const storyJobHeld = (doc, id) => !storyJobsOpen(doc) && !storyJobIds(doc).includes(id);
+// THE BEAT CARD'S WORDS: the beat's title and brief, its goal's state, the button. o: { aeros, spec (the client plane's
+// spec as it stands now, T2), cost (its edit bill), jobs: { id: title } } -> null (no story, or open) | { beat, title,
+// brief, rows: [{ words, ok }], ack (an OK sends { k: 'ack' }), note }
+function storyCard(doc, o) {
+  o = o || {};
+  const s = storyOf(doc);
+  if (!s || s.open) return null;
+  const B = storyBeatOf(s.beat), G = B.goal, rows = [];
+  const plane = k => s.planes[k] || (k === 'gift' ? s.planes.client : null);
+  if (G.k === 'stop') {
+    const at = storySite(G.at, o.aeros), P = plane(G.plane);
+    rows.push({ words: at ? 'Land at ' + storyAeroName(at, o.aeros) + (P ? ' with ' + P : '') + (G.gear ? ', on ' + G.gear : '') + ', stopped and whole'
+                          : 'No aerodrome plays ' + STORY_ROLES[G.at].words + ' on this island yet', ok: false });
+  } else if (G.k === 'certified') {
+    for (const r of storyChecklist(o.spec || s.base.client, s.base.client, G.checklist)) rows.push({ words: r.words, ok: r.ok });
+    rows.push({ words: 'on budget: ' + (typeof o.cost === 'number' ? Math.round(o.cost) + ' of ' : 'at most ') + G.costCap, ok: typeof o.cost === 'number' && o.cost <= G.costCap });
+    rows.push({ words: 'certified in the garage (the bench)', ok: false });
+  } else if (G.k === 'jobs') {
+    rows.push({ words: s.jobs + ' of ' + G.n + ' jobs', ok: s.jobs >= G.n });
+    const T = o.jobs || {};
+    for (const id of STORY_JOBS) rows.push({ words: T[id] || id, ok: doc.career.contracts.done.some(x => x.id === id) });
+  }
+  const notes = [];
+  if (s.note) notes.push(s.note);
+  if (B.id === 'T0' && doc.sheds && doc.sheds.HOME && doc.sheds.HOME.locked) notes.push('The WWII field’s hangar is not yours yet.');
+  return { beat: B.id, title: B.title, brief: B.brief, rows, ack: G.k === 'ack', note: notes.join(' ') || null,
+           step: STORY_IDS.indexOf(B.id) + 1, of: STORY_IDS.length };
 }

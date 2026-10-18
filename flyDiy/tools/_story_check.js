@@ -10,6 +10,15 @@
 //   - the save: storyNormalise(JSON round trip) is the same document; careerNormalise keeps the story; a career
 //     without a story (and the sandbox) has no rails;
 //   - the island today: which aerodrome plays each role (printed; the cabin may be null until the user names it).
+// G2742-G2749 (STORY-PAGE) THE PAGE HALF, headless: app.js's own story half (sliced off the source, run in node over the
+// core with a minimal DOM and the build files read off the disk) -
+//   - a New career -> storyStart at the cabin strip (the smallest shed, the garage there, HOME held), no cabin -> HOME with
+//     the reason on the card; the starter's slot fetched (builds/ first, else the archived candidate) and stood at the cabin;
+//   - the beat card (top-left, the garage's look, never centred; no italics, no serif), its OK -> { k: 'ack' };
+//   - a stop at HOME with the starter -> T1's hangar ours, T2's client Cub (flaps off, minimal panel, bare, the same engine)
+//     in the HOME hangar, bound with its arrival spec, the checklist on the card, the story's line on the arrival card;
+//   - the garage's certificate -> T3; Q1 the map's rows held (greyed) and Track refused; the occasions authored, one-time;
+//   - the source: every call into the story behind CAREER_DEV, the dev career keeps none, the bench's hook.
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
@@ -63,12 +72,12 @@ function run(M) {
   const half = JSON.parse(JSON.stringify(done)); half.controls.flap = { type: 'none' };
   r = step({ k: 'certified', slot: 'client-cub', spec: half, cost: 5000 }, 'T2: a build without flaps is refused', false);
   ok(/flaps/.test(r.why || ''), 'T2: the refusal names the missing item', r.why);
-  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 12000 }, 'T2: over budget is refused', false);
+  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 48745 }, 'T2: over budget is refused (the O-320 finish)', false);
   step({ k: 'certified', slot: 'ul', spec: done, cost: 5000 }, 'T2: another plane is refused', false);
   const list = M.storyChecklist(done, base, ['engine', 'flaps', 'tyres', 'lights', 'panel', 'paint']);
   ok(list.every(x => x.ok), 'the checklist on the delivered Cub: every item met', list.filter(x => !x.ok).map(x => x.k).join());
   ok(M.storyChecklist(base, base, ['engine', 'flaps', 'tyres', 'lights', 'panel', 'paint']).every(x => !x.ok), 'the checklist on the Cub as it arrived: every item open');
-  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 8000 }, 'T2: the checklist met on budget', true);
+  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 35114 }, 'T2: the checklist met on budget (the Jabiru finish)', true);
   // T3
   step({ k: 'stop', stop: stop('HOME'), slot: 'client-cub' }, 'T3: HOME is not the owner\'s strip', false);
   r = step({ k: 'stop', stop: stop('w6'), slot: 'client-cub' }, 'T3: delivered at the owner\'s strip', true);
@@ -106,11 +115,177 @@ function run(M) {
   return fails;
 }
 
+// ---- THE PAGE HALF (G2742-G2749 STORY-PAGE) -------------------------------------------------------------------------
+async function page() {
+  const fails = [];
+  const ok = (c, what, x) => { if (!c) fails.push(what); console.log('  ' + (c ? 'ok  ' : 'FAIL') + ' ' + what + (x != null ? '  [' + x + ']' : '')); };
+  const M = C;
+  const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+  const css = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8');
+  const bench = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'bench.js'), 'utf8');
+  const i0 = app.indexOf("G2742-G2749 (STORY-PAGE): THE STORY'S PAGE HALF"), i1 = app.indexOf('  window.FLYDIY_PLAYER = {', i0);
+  ok(i0 > 0 && i1 > i0, "app.js: the story's page half is where this gate reads it");
+  if (!(i0 > 0 && i1 > i0)) return fails;
+  const half = app.slice(app.lastIndexOf('\n', i0) + 1, i1);
+  // ---- the source
+  ok(/const STORY_PAGE = CAREER_DEV && CAREER_ID === 'main' && typeof storyNewCareer === 'function';/.test(app), "the story rides the player's career alone (the dev career ?career=1 keeps none)");
+  const outside = (app.slice(0, i0) + app.slice(i1)).split('\n').filter(l => /\bstory[A-Z]\w*\(/.test(l.replace(/\/\/.*$/, '')));
+  const loose = outside.filter(l => !/CAREER_DEV/.test(l));
+  ok(outside.length >= 4 && !loose.length, 'every call into the story outside its half is behind CAREER_DEV', outside.length + ' calls' + (loose.length ? '; loose: ' + loose.map(l => l.trim().slice(0, 60)).join(' | ') : ''));
+  ok(/if \(CAREER_DEV && born && STORY_PAGE\)[\s\S]{0,400}storyNewCareer\(player/.test(app), 'a New career (careerNew in playerLoad) calls storyNewCareer, before the lift');
+  ok(/careerStopApply\(d, how, W, wrecked\); d = c\.doc; out\.career = c; \}\n[^\n]*\n\s*if \(CAREER_DEV && STORY_PAGE && d\.career && out\.career\) d = storyOnFlightEnd\(d, out\);/.test(app), 'the stop meets the story where careerOnStop runs (right after careerStopApply)');
+  ok(/if \(STORY_PAGE\) window\.BENCH_CERTIFIED = storyCertified;/.test(half) && /typeof window\.BENCH_CERTIFIED === 'function'\) \{ try \{ window\.BENCH_CERTIFIED\(\); \}/.test(bench), "the bench's airworthiness certificate reaches the story (its hook set only under STORY_PAGE)");
+  const card = (css.match(/#stCard \{[^}]*\}/) || [''])[0], all = (css.match(/#stCard[^{]*\{[^}]*\}/g) || []).join('\n');
+  ok(/position:fixed/.test(card) && /left:12px/.test(card) && /top:72px/.test(card) && !/translate|left:50%|top:50%|inset:0/.test(all), 'the beat card stands in the top-left corner (never centred)');
+  ok(!/italic|serif['";,\s]*[;}]|Georgia|Times/.test(all.replace(/sans-serif/g, '')) && /font-style:normal/.test(card) && /IBM Plex Sans/.test(card) && /var\(--ed-plate\)/.test(card) && /#stCard\) \{/.test(css), "the garage's look: --ed-* tokens, IBM Plex Sans upright, no serif, no italics");
+  // ---- the half, run: the core's globals, a minimal DOM, the files off the disk
+  const prefs = new Map();
+  const els = [];
+  const mkEl = tag => { const e = { tag, id: '', hidden: false, dataset: {}, innerHTML: '', _cls: new Set(), attrs: {}, listeners: {},
+    classList: { toggle(c) { if (e._cls.has(c)) e._cls.delete(c); else e._cls.add(c); }, contains: c => e._cls.has(c) },
+    setAttribute(k, v) { e.attrs[k] = v; }, addEventListener(t, f) { e.listeners[t] = f; } }; els.push(e); return e; };
+  const document = { body: { appendChild: e => e }, createElement: mkEl, getElementById: id => els.find(e => e.id === id) || null };
+  const aerosCabin = [{ id: 'HOME', name: 'Jolene AFB 13/31', kind: 'strip' }, { id: 'w6', name: 'strip 11', kind: 'strip' },
+                      { id: 'SEA', name: 'Greywater Dock', kind: 'water' }, { id: 'w9', name: 'Cabin Strip', kind: 'strip' }];
+  const world = { aerodromes: aerosCabin };
+  let player = null, stand = null, liveSpec = null, fetched = [];
+  const H = Object.assign(Object.create(null), M, {
+    STORY_PAGE: true, CAREER_DEV: true, world, document, console: { log() {}, info() {}, warn() {}, error: console.error },
+    CustomEvent: function (t, o) { this.type = t; this.detail = o && o.detail; }, JSON, Math, Date, Object, Array, String, Number, Set, Map, Promise, Error, isFinite, encodeURI,
+    setTimeout, setInterval: () => 0,
+    fetch: url => { fetched.push(url); const f = path.join(ROOT, decodeURI(url));
+      return Promise.resolve(fs.existsSync(f) ? { ok: true, status: 200, json: () => Promise.resolve(JSON.parse(fs.readFileSync(f, 'utf8'))) } : { ok: false, status: 404 }); },
+    prefGet: (k, d) => (prefs.has(k) ? prefs.get(k) : d), prefSet: (k, v) => { prefs.set(k, v); },
+    playerSlotNames: () => [...prefs.keys()].filter(k => k.startsWith('flydiy.build.')).map(k => k.slice(13)).sort(),
+    playerLoad: () => player, playerSave: () => {}, slotOnStand: () => stand,
+    procureLedger: spec => { try { return M.buildGen(M.genMigrateSpec(JSON.parse(JSON.stringify(spec)))).parts.ledger; } catch (e) { return null; } },
+  });
+  H.window = H;
+  H.window.GARAGE_SPEC = { get: () => liveSpec, preview: () => liveSpec, open: n => { stand = n; } };
+  H.window.CAGE_JOIN = { export: () => liveSpec };
+  vm.createContext(H);
+  // `player` is the page's own let: the half assigns it - the shim reads it back through a setter pair
+  Object.defineProperty(H, 'player', { get: () => player, set: v => { player = v; }, configurable: true });
+  const run = vm.runInContext('(function () {\n' + half + '\n' +
+    'return { storyOnFlightEnd, storyCardSync, storyCardNow, storyEvent, storyRecord, storyCertified, stQueue: () => stQueue, line: () => stLine, el: () => stCardEl }; })', H, { filename: 'app.js (the story half)' });
+  void run;
+  return { fails, ok, H, prefs, els, set: d => { player = d; }, get: () => player, standSet: n => { stand = n; }, specSet: s => { liveSpec = s; }, fetched, half, M, aerosCabin };
+}
+
+async function pageRun() {
+  const P = await page();
+  const { fails, ok, H, prefs, M, aerosCabin } = P;
+  if (fails.length) return fails;
+  const settle = async () => { for (let i = 0; i < 400; i++) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY || !H.window.FLYDIY_STORY.pending()) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY.pending()) return; } } };
+  // ---- a New career with no cabin on the island: HOME, the reason on the card
+  {
+    const today = (() => { try { const w = {}; vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'map_pack.js'), 'utf8'), { window: w }); return (w.MAP_PACK && w.MAP_PACK.aerodromes) || []; } catch (e) { return []; } })();
+    const noCab = today.filter(a => M.storySite('cabin', [a]) == null);
+    const r = M.storyNewCareer(M.careerNormalise(M.careerNew({ id: 'main', seed: 'gate' })), { aeros: noCab.length ? noCab : [{ id: 'HOME', name: 'Jolene AFB 13/31' }] });
+    const K = M.storyCard(r.doc, { aeros: noCab });
+    ok(r.ok && r.doc.here === 'HOME' && M.storyOf(r.doc).cabin === null && !r.doc.sheds.HOME.locked && K && K.note === M.STORY_NO_CABIN, 'no cabin on the island: the story starts at HOME, the reason on the beat card (never a guessed strip)', K && K.note);
+  }
+  // ---- a New career at the cabin: playerLoad's own step (careerNew -> storyNewCareer), then the page half boots
+  let d = M.careerNormalise(M.careerNew({ id: 'main', seed: 'gate' }));
+  let r = M.storyNewCareer(d, { aeros: aerosCabin });
+  d = r.doc;
+  ok(r.ok && M.storyOf(d).beat === 'T0' && d.here === 'w9' && d.sheds.w9 && d.sheds.w9.shell === 'field' && d.sheds.w9.base === 'w9' && d.sheds.HOME.locked === 'story',
+     'New career -> storyStart at the cabin: the smallest shed (a field shell) at "Cabin Strip", the garage there, the WWII hangar held', JSON.stringify(d.sheds.w9 && d.sheds.w9.dims));
+  P.set(d);
+  const half = vm.runInContext('(function () {\n' + P.half + '\nreturn { storyOnFlightEnd, storyCardSync, storyRecord, careerAct: null, el: () => stCardEl, line: () => stLine }; })', H)();
+  await settle();
+  d = P.get();
+  const starterFile = M.STORY_FILES.starter.find(f => fs.existsSync(path.join(ROOT, f)));
+  ok(prefs.has('flydiy.build.Rufus') && d.fleet.Rufus && d.fleet.Rufus.aero === 'w9' && d.fleet.Rufus.hangar === 'w9' && M.storyOf(d).planes.starter === 'Rufus',
+     'the starter: the first file found (builds/ first) written as the slot "Rufus", standing in the cabin\'s shed', starterFile + ' -> ' + JSON.stringify(d.fleet.Rufus));
+  ok(P.fetched[0] && P.fetched[0].startsWith('builds/') && P.fetched.slice(-1)[0] === starterFile, 'builds/ is asked before the archived candidate', P.fetched.join(' > '));
+  ok(H.window.FLYDIY_STORY.mask() === 'finish' && H.window.FLYDIY_STORY.jobsOpen() === false, "window.FLYDIY_STORY: the tech mask's tutorial mode ('finish' at T0), the job list held");
+  // ---- the beat card
+  let el = half.el();
+  ok(el && el.id === 'stCard' && !el.hidden && /The cabin/.test(el.innerHTML) && /The story · 1 of 8/.test(el.innerHTML) && /data-st="ok"/.test(el.innerHTML) && /not yours yet/.test(el.innerHTML),
+     "the beat card: T0's title and brief, the step, the OK (an ack beat), the hangar not ours yet");
+  ok(!/<i>|<em>|font-style:\s*italic/.test(el.innerHTML), 'the card writes no italics');
+  el.listeners.click({ target: { closest: () => ({ dataset: { st: 'ok' } }) } });
+  d = P.get();
+  ok(M.storyOf(d).beat === 'T1' && /The move/.test(half.el().innerHTML) && /Land at Jolene AFB with Rufus/.test(half.el().innerHTML) && !/data-st="ok"/.test(half.el().innerHTML),
+     "OK sends { k: 'ack' }: T1 on the card, its goal (the stop at HOME with Rufus), no OK", M.storyOf(d).beat);
+  // ---- Q1 on the map's record
+  const R0 = half.storyRecord(M.careerMapRecord(d, null, {}));
+  ok(R0.contracts.length > 0 && R0.contracts.every(c => c.held === true) && R0.story && R0.story.title === 'The move' && R0.story.held === 'after the move-in',
+     'Q1: every generated row held on the map ("after the move-in"), the story\'s own goal at the head', R0.contracts.length + ' held');
+  const MM = require(path.join(ROOT, 'src', 'viewer', 'map_menu.js'));
+  try {
+    const w = {}; vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'map_pack.js'), 'utf8'), { window: w });
+    const A = MM.mapAdapt(R0, w.MAP_PACK, null);
+    const html = MM.contractsListHTML(A, {});
+    ok(A.story && /class="mmStory"/.test(html) && /The move/.test(html) && /class="mmItem held"/.test(html) && /after the move-in<\/small>/.test(html), 'the map draws the held rows greyed with their tag, and the story\'s goal above them');
+  } catch (e) { ok(false, 'the map draws the held rows', e.message); }
+  // ---- a stop at HOME with the starter (playerFlightEnd's own order: the arrival, careerStopApply, then the story)
+  d = M.playerArrive(d, 'Rufus', 'HOME', {}).doc;
+  const stop = M.careerStopRecord({ how: 'stopped', aero: 'HOME', slot: 'Rufus', gear: 'wheels', row: { from: 'w9', to: 'HOME', t: 900 } });
+  const out = { slot: 'Rufus', career: { stop, events: [], lines: [] } };
+  d = half.storyOnFlightEnd(d, out);
+  P.set(d);
+  await settle();
+  d = P.get();
+  const S = M.storyOf(d), cub = d.fleet[S.planes.client || ''] || null;
+  ok(S.beat === 'T2' && !d.sheds.HOME.locked && d.ledger.some(l => l.k === 'story' && l.ref === 'HOME'), 'T1 done: the WWII field\'s hangar is ours (the lock lifted, its ledger line)');
+  ok(cub && cub.hangar === 'HOME' && M.playerWhere(d, S.planes.client).kind === 'in', "T2: the client's Cub stands in the HOME hangar", S.planes.client + ' ' + JSON.stringify(cub));
+  const env = JSON.parse(prefs.get('flydiy.build.' + S.planes.client) || 'null'), base = S.base.client || {};
+  const file = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cub_2026-09-20.json'), 'utf8')).spec;
+  ok(env && env.spec && base.controls.flap.type === 'none' && base.systems.fit === 'minimal' && base.paint.job === 'bare' && base.engines[0].type === file.engines[0].type &&
+     JSON.stringify(env.spec) === JSON.stringify(base) && d.career.airframes[S.planes.client].owner === 'client',
+     "the Cub as it arrives: flaps off, the minimal panel, bare, the same engine; bound with that spec, the client's", base.engines[0].type);
+  ok(M.storyChecklist(base, base, M.STORY_BEATS.find(b => b.id === 'T2').goal.checklist).every(x => !x.ok), 'every item of the checklist is open on it (no battery: no lights)');
+  ok(out.career.lines.some(l => l.k === 'story' && /hangar is yours/.test(l.text)), "the arrival card carries the story's line", (out.career.lines[0] || {}).text);
+  half.storyCardSync(); half.storyCardSync();                       // (the budget is measured once the build held still a tick)
+  el = half.el();
+  const ticks = (el.innerHTML.match(/<li/g) || []).length;
+  const open6 = M.STORY_BEATS.find(b => b.id === 'T2').goal.checklist.map(k => M.STORY_CHECKS[k].words).every(w => el.innerHTML.includes('<li class=""><span class="stTick" aria-hidden="true"></span>' + w.replace(/&/g, '&amp;')));
+  ok(/The client's plane/.test(el.innerHTML) && ticks === 8 && open6 && /on budget: 0 of 40000/.test(el.innerHTML), "the card: T2's checklist (six items open, the budget at 0, the certificate)", ticks + ' rows');
+  // ---- the garage's certificate on the finished Cub
+  const done = JSON.parse(JSON.stringify(base));
+  done.engines[0].type = 'jabiru2200_std';                         // a stronger engine, on budget (the 80 hp Jabiru: 35 114)
+  done.controls.flap = { type: 'plain', span: 0.4, chord: 0.25 }; done.gear.wheelR = +base.gear.wheelR * 1.3; done.systems = { fit: 'basic' };
+  done.paint = Object.assign({}, base.paint, { job: 'full', base: 0x2244aa });
+  P.standSet(S.planes.client); P.specSet(done);
+  half.storyCardSync();
+  const lis = (half.el().innerHTML.match(/<li class="ok"/g) || []).length;
+  ok(lis >= 6, 'the card ticks the checklist off the build on the stand', lis + ' ticked');
+  H.window.BENCH_CERTIFIED();
+  d = P.get();
+  const cost = H.window.FLYDIY_STORY.card();
+  ok(M.storyOf(d).beat === 'T3' && cost && cost.title === 'The delivery', "the bench's certificate moves T2 (the checklist met, the edit bill on budget): T3 on the card", M.storyOf(d).beat);
+  // ---- the occasions: authored, one-time, in the used market
+  let o = M.storyApply(d, { k: 'occasions', n: 3 }, {}).doc;
+  const occ = M.procureMarketOf(o).filter(L => L.occasion);
+  ok(occ.length === 3 && occ.every(L => M.STORY_OCCASIONS.some(A => A.id === L.id) && L.price < L.catalogue && M.procureFlyableAt(M.procureUsedCert(L), L.aero)),
+     'T7: three occasions on the market, authored by hand, under the catalogue, flyable where they stand', occ.map(L => L.id + ' ' + L.price).join(', '));
+  const file2 = JSON.parse(fs.readFileSync(path.join(ROOT, M.CONTRACT_DESIGNS[occ[1].design].build), 'utf8')).spec;
+  o.wallet = 1e6;
+  const b = M.procureBuyUsed(o, occ[1].id, { slot: 'Occasion', slotNames: [], fileSpec: file2 });
+  ok(b.ok && !M.procureMarketOf(b.doc).some(L => L.id === occ[1].id) && M.procureMarketOf(b.doc).filter(L => L.occasion).length === 2, 'bought once, gone for good (one-time)', b.why || occ[1].id);
+  const plain = M.careerNormalise(M.careerNew({ id: 'x', seed: 'gate' }));
+  ok(JSON.stringify(M.procureMarketOf(plain)) === JSON.stringify(M.procureMarket('gate', 0, [])), 'a career without the story: the used market exactly as before');
+  // ---- Q1 at T5 and after
+  const t5 = JSON.parse(JSON.stringify(d)); t5.career.story.beat = 'T5';
+  ok(M.STORY_JOBS.every(id => !M.storyJobHeld(t5, id)) && M.careerOfferIds(t5).filter(id => !M.STORY_JOBS.includes(id)).every(id => M.storyJobHeld(t5, id)), "T5: the story's three jobs offered, every other one held");
+  const op = JSON.parse(JSON.stringify(d)); op.career.story.beat = 'open'; op.career.story.open = true;
+  ok(M.careerOfferIds(op).every(id => !M.storyJobHeld(op, id)) && M.storyCard(op) === null, 'open: nothing held, no card');
+  return fails;
+}
+
 if (!SELF) {
-  const f = run();
-  console.log(f.length ? f.length + ' failing' : 'all story rows hold');
-  console.log('GATE STORY: ' + (f.length ? 'FAIL' : 'PASS'));
-  process.exit(f.length ? 1 : 0);
+  (async () => {
+    const f = run();
+    console.log('  -- the page half (G2742-G2749 STORY-PAGE)');
+    let g = [];
+    try { g = await pageRun(); } catch (e) { g = ['the page half threw: ' + (e && e.stack || e)]; console.log('  FAIL ' + g[0]); }
+    const all = f.concat(g);
+    console.log(all.length ? all.length + ' failing' : 'all story rows hold');
+    console.log('GATE STORY: ' + (all.length ? 'FAIL' : 'PASS'));
+    process.exit(all.length ? 1 : 0);
+  })();
 } else {
   const brk = (name, fn) => Object.assign({}, C, { [name]: fn });
   const breaks = [

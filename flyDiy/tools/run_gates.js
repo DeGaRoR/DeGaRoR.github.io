@@ -867,7 +867,9 @@ const GATES = [
   // in flight (the queue + the page's source); every arc unlock mapped; the kits existing props; the editor's save
   // restores the whole record. ~70 s. `--selftest`: 18 doctored rules, each red (~15 s)
   { id: 'STAGES', file: '_stages_check.js', tier: 'core', wall: 70 },
-  { id: 'STORY', file: '_story_check.js', tier: 'core', wall: 20 },   // G2741 STORY-CORE: the tutorial's beats, pure
+  // G2741 STORY-CORE: the tutorial's beats, pure; G2742 STORY-PAGE: + the page half (app.js's story half run headless over
+  // the core: a New career at the cabin, the card, an ack, a stop at HOME -> the client's Cub in the hangar; Q1; the occasions)
+  { id: 'STORY', file: '_story_check.js', tier: 'core', wall: 20 },
   // G2260 (ECONOMY): one price book, the career wallet's rules, the calibration bands, az through physical gates (~26 s)
   { id: 'ECON', file: '_econ_check.js', tier: 'core' },
   // PROCUREMENT (G2280 PROCURE, GAME-2026-10-06.md §5, §R GQ2): the makers' catalogues over the validated builds only,
