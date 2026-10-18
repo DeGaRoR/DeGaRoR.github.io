@@ -1140,6 +1140,7 @@ const CAGE_PARTS = [
 
   { key: 'controls', name: 'Controls', parent: 'fit', layer: 'crew',
     when: P => +P.crewOn,
+    sections: ['cabFloor'],                 // G2795: the floor's boards (its rows are here)
     groups: [
       ['pitch & roll', ['ctlStick', 'stickX', 'stickY', 'stickZ', 'yokeGap', 'stickLen', 'stickCrank']],
       ['throttle', ['ctlThr', 'thrX', 'thrY', 'thrZ', 'thrLen']],
@@ -1147,6 +1148,8 @@ const CAGE_PARTS = [
       ['console', ['consoleOn']],
       ['flaps', ['flapCtl', 'flapX', 'flapZ']],            // G335, T2.3 (18)
       ['trim wheel', ['trimX', 'trimY', 'trimZ']],         // G331
+      ['parking brake', ['parkX', 'parkY', 'parkZ']],      // G2791
+      ['fuel selector', ['fselX', 'fselY', 'fselZ']],      // G2791
       ['floor', ['floorOn', 'floorLift']],                 // G331
     ] },
 
@@ -1196,7 +1199,7 @@ const CAGE_PARTS = [
                       'dumHandGrip', 'dumFist', 'dumIdle']],
       ['passenger pose', ['paxSize', 'paxRecline', 'paxFeetOn', 'paxFeetZ',
                           'paxFeetY', 'paxFeetX', 'paxIdle']],
-      ['markers', ['dumMarkers']],
+      ['markers', ['dumMarkers'], EXPERT],                  // G2794: an expert's instrument
     ] },
 
   // LIGHTS ARE A CABIN FITTING and not a fuselage one, because the thing you
