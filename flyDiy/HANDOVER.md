@@ -95006,3 +95006,14 @@ Queue after the Sat 17 Oct reset: memory post-reset-plan-2026-10-17.
 ## Landing L17a (A0, 18 Oct 03:25)
 Landed: ED-2's editor batch ed2-obj1 (road power-line/guardrail toggles act, HOME ways out + stand + club hangar + base plots editable, typed numbers in the flight menu, the runway-profile drag applies its terraform, FRAMECOST 'mapx' ALLOWs) + Deform's impact-lag v2 (motion clock + the user-approved 0.15 s GPU tear).
 Strict light gate: the metal fuseWidth slider row (accepted 14 Oct) + NEW cub round trip 2 garage -> world worst task 0 -> 200 ms (slack 150), landed under the user's "editor fixes first" priority (15 Oct), flagged to the user, to PERF-1. Gates: CLOCK, CLOUD (lamps), KTX2 (accepted), FRAMECOST (master's restore row), DMGUPLOAD (fixed on dmg-impact-lag-v3, L18a). SCENERYED PASS.
+## G3212 - METLA-ON lever 2: Metlakatla's kit plots stream only near; the kit casts no far shadow (2026-10-18, HW-COVERAGE -> METLAKATLA for A0; on master L15c 85857a1e8)
+- sortFrom pushes a kit plot past 1 200 m out of every reach (the kit host draws every kit house from the cooked table: the far look
+  unchanged; ?kitnear=0); the kit's meshes cast no shadow past 600 m of the town's footprint (?kitshadow=0). LIFTS identical.
+- Gates (18 Oct 01:13, a fresh cook): PREMISES PREMRASTER PREMCOOK TARR LIFE STAGES BUILD PASS; FRAMECOST red on two rows (cub taxi
+  bindBuffer 2 -> 7.5, cessna garage:restore updateMatrixWorld 2269 -> 4553) - the SAME two rows on master L15c with its own fresh
+  cook (02:05 control): master's, not this branch's (lever 2 is inert with the town off). metla_bare_check PASS.
+- A/B A B C C B A on the floats circuit (3.9-6 km; C = ON without lever 2): the stream 3.0 -> 0.01 ms; ON - OFF loop +5.85 ->
+  +4.75 ms, worldUpdate +2.5 -> +1.3, frames over 34 ms 9.85 -> 4.16 % (OFF 1.88 %), over 100 ms 0.49 -> 0.16 %; the JS heap +0.9 -> +0.3 GB.
+- The enable rule (ON <= +3 ms loop at 4 km, frames over 34 ms within ~1 point of OFF) not met yet: render +1.95 ms (the town's roads
+  at 4 km: G3214 far roads next), worldUpdate +1.3 ms (the town's per-frame ticks). A 233 ms worst frame in both ON runs (not in C):
+  unexplained, look first (the kit's shadow switch or a kit plot crossing the 1 200 m line).
