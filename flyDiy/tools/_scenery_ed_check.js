@@ -1073,6 +1073,44 @@ if (plots.length) {
   check(K0.get('rc') !== K1.get('rc') && K0.get('ra') === K1.get('ra'), '30 a guardrail row changed: that road drawn again, the others kept');
 }
 
+// 32 TAXI-ALL (G3092-G3095; the user, 18 Oct: taxiway editing must "work properly for all airstrips, not just home, it is
+//    currently a broken promise"): a way out FOLLOWS A ROAD - the composed site's way (what the pilot reads: the site's
+//    taxiOut) is the road's points from the stand's end, its last on the centreline; the road moved, the pilot's way moves with
+//    it; a way that follows none is its own points; a via to a missing road is an issue. The editor: a strip without a stand
+//    gets one and a way out following the road that meets it; 'follows road' unlinks and links; a plot's own way out is given
+//    and takes the same rows
+{
+  const mk = (via, pts) => PG.normalise({ layers: { roads: [{ id: 'tv', pts: pts || [[6010, 6085], [6030, 6050], [6020, 6005]], w: 8, cls: 'paved' }],
+    runways: [Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'rw32', name: 'r32', c: [6000, 6000], hdg: 0, len: 600, wid: 20,
+      stand: { x: 6000, z: 6080, hdg: null }, taxiOut: [[6000, 6040], [6000, 6000]] }, via ? { taxiOutVia: via } : {})] } });
+  const wayOf = r => { const O = PG.compose(r, synth), q = (O.runways || []).find(z => z.id === 'rw32');
+    return q && q.site && q.site.taxiOut ? JSON.stringify(q.site.taxiOut.map(w => O.frame.toLocal(w[0], w[1]).map(v => +v.toFixed(1)))) : null; };
+  check(wayOf(mk('tv')) === '[[6010,6085],[6030,6050],[6020,6000]]', '32 a way that follows a road is the road\'s points from the stand\'s end, its last on the centreline (what the pilot reads)', wayOf(mk('tv')));
+  check(wayOf(mk('tv', [[6010, 6085], [6060, 6050], [6020, 6005]])) === '[[6010,6085],[6060,6050],[6020,6000]]', '32 the road moved: the pilot\'s way moves with it', wayOf(mk('tv', [[6010, 6085], [6060, 6050], [6020, 6005]])));
+  check(wayOf(mk(null)) === '[[6000,6040],[6000,6000]]', '32 a way that follows none is its own points', wayOf(mk(null)));
+  check(PG.issues(mk('nope')).some(t => /follows road nope, which is not there/.test(t)) && !PG.issues(mk('tv')).some(t => /follows road/.test(t)), '32 a via to a missing road is an issue (a present one is not)');
+  const nums = new Map(), btns = new Map(), sels = new Map();
+  const rows32 = Object.assign({}, rows, { number: (h, label, get, set) => { nums.set(label, set); }, button: (h, label, fn) => { btns.set(label, fn); }, select: (h, label, opts, get, set) => { sels.set(label, { opts, get, set }); } });
+  const ed32 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows32, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  const tw = ed32.cmd('add', { layer: 'roads', entry: { pts: [[7050, 7008], [7050, 7090]], w: 8, cls: 'paved' } });
+  const rs = ed32.cmd('add', { layer: 'runways', entry: Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { name: 'no stand', c: [7000, 7000], hdg: 0, len: 600, wid: 20,
+    plots: [{ id: 'ns.2', x: 7100, z: 7060, hdg: 0, stand: { x: 7100, z: 7040, hdg: null } }] }) });
+  const S = () => PG.findById(ed32.record(), rs).entry, re = () => { ed32.select(null); ed32.select(rs); };
+  re();
+  btns.get('give it a stand and a way out')(); re();
+  check(S().stand && S().stand.x === 7050 && S().stand.z === 7090 && S().taxiOutVia === tw && JSON.stringify(S().taxiOut) === '[[7050,7090],[7050,7000]]', '32 a strip without a stand gets one and a way out, following the road that meets it', JSON.stringify([S().stand, S().taxiOutVia, S().taxiOut]));
+  sels.get('follows road').set(''); re();
+  check(S().taxiOutVia === undefined, '32 \'follows road: none\' unlinks the way');
+  sels.get('follows road').set(tw); re();
+  check(S().taxiOutVia === tw, '32 ...and a road picked links it again');
+  btns.get('ns.2: give it its own way out')(); re();
+  const pw = () => S().plots.find(q => q.id === 'ns.2').taxiOut;
+  check(Array.isArray(pw()) && pw().length === 2 && pw()[1][1] === 7000, '32 a plot given its own way out (its entry on the centreline)', JSON.stringify(pw()));
+  btns.get('ns.2 add a point after point 1')(); re();
+  check(pw().length === 3, '32 ...and its rows are the way\'s own (a point added)', JSON.stringify(pw()));
+  ed32.close();
+}
+
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
