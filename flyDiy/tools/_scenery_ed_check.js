@@ -1174,6 +1174,17 @@ if (plots.length) {
   const door = [Math.cos(sq), Math.sin(sq)], toSt = [8000 - 8000, 8060 - 8110];
   check(sq !== null && dd < 1e-3 && door[0] * toSt[0] + door[1] * toSt[1] > 0, '33 square to the buildings: the shell\'s axes on the building\'s (mod 90 deg), its door toward the stand', 'hdg ' + sq + ', off ' + (dd * 180 / Math.PI).toFixed(3) + ' deg');
   const RP33 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8'), RW33 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8');
+  // the shipped HOME (the user: "no plane can take off"): the main shed, at the default and at a 45 x 40 m drawn size, stands on
+  // neither its stand nor any leg of its two ways out (sampled every 5 %), and its heading is the square rule's already
+  { const J = PG.expandAreas(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec), H = J.layers.runways.find(r => r.id === 'HOME'), h = H.hangar;
+    const box = (HW, HD) => { const c = Math.cos(h.hdg), sn = Math.sin(h.hdg); return [[HD, HW], [HD, -HW], [-HD, -HW], [-HD, HW]].map(([u, v]) => [h.x + u * c - v * sn, h.z + u * sn + v * c]); };
+    const hits = [];
+    for (const [nm, HW, HD] of [['30 x 25', 15, 12.5], ['45 x 40', 22.5, 20]]) { const B = box(HW, HD);
+      if (PG.inPoly(B, H.stand.x, H.stand.z)) hits.push(nm + ' the stand');
+      for (const k of ['taxiOut', 'taxiOut1']) { const W = [[H.stand.x, H.stand.z]].concat(H[k] || []);
+        for (let i = 1; i < W.length; i++) for (let t = 0; t <= 1.0001; t += 0.05) if (PG.inPoly(B, W[i - 1][0] + (W[i][0] - W[i - 1][0]) * t, W[i - 1][1] + (W[i][1] - W[i - 1][1]) * t)) { hits.push(nm + ' ' + k + ' leg ' + i); break; } } }
+    const sqH = PG.hangarSquare(J, H, H.stand, 0), off = Math.abs(Math.atan2(Math.sin(sqH - h.hdg), Math.cos(sqH - h.hdg)));
+    check(!hits.length && off < 0.01, '33 the shipped HOME: its main shed clears the stand and both ways out (30 x 25 and 45 x 40), square to the buildings', hits.join('; ') + ' | square off ' + (off * 180 / Math.PI).toFixed(2) + ' deg'); }
   check(/PG\.runwayGrab\(rec, L\[0\], L\[1\], o\.shedDims \? o\.shedDims\(\) : null\)/.test(RP33) && (RW33.match(/shedDims: \(\) => shedDims/g) || []).length === 2, '33 the page hands the premises its shed dims (both builds)');
 }
 
