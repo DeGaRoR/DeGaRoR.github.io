@@ -96,8 +96,8 @@ function preScript() {
   L.push('try{localStorage.setItem("flydiy.wip",' + JSON.stringify(txt) + ')}catch(e){}');
   L.push('try{localStorage.removeItem("flydiy.gfx")}catch(e){}');
   L.push('try{for(const k of Object.keys(localStorage))if(/^flydiy\\.(fl([A-Z]|$)|route$|world$)/.test(k))localStorage.removeItem(k)}catch(e){}');
-  // the shed's To picker's pref (G1945 v2): the roll-out departs the base's stand for the first To
-  L.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: ORDER[1] })) + ');localStorage.setItem("flydiy.flManual","0")}catch(e){}');
+  // the shed's To picker's pref (G1945 v2): the roll-out departs the base's stand (the order's first, G3081: SEA for floats) for the first To
+  L.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: ORDER[0], to: ORDER[1] })) + ');localStorage.setItem("flydiy.flManual","0")}catch(e){}');
   L.push('try{localStorage.removeItem("flydiy.premises.game.jolene")}catch(e){}');
   return L.join('\n');
 }
