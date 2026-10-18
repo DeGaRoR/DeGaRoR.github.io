@@ -1211,6 +1211,9 @@ const CAGE_PARTS = [
     when: P => +P.lightOn, gate: 'lightOn',
     groups: [
       ['fitted', ['lightOn', 'lightSw']],
+      // G2796: each light on its own
+      ['fitted, one by one', ['li_navFit', 'li_beaconFit', 'li_taxiFit', 'li_landFit',
+                              'li_floodFit', 'li_instrFit', 'li_pedalFit', 'li_paxFit']],
       ['outside (switches)', ['li_taxi', 'li_beacon', 'li_land', 'li_nav']],
       ['inside (dimmers)', ['li_flood', 'li_instr', 'li_pedal', 'li_pax']],
       // the wing bay is the lights' own geometry: where it is cut, how big it
