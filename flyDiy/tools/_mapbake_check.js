@@ -135,8 +135,8 @@ function check(o) {
       a.id + ' (' + a.name + ', ' + a.len + ' x ' + a.wid + ' m ' + a.surface.word + ', hdg ' + (a.hdg * 180 / Math.PI).toFixed(1) + ' deg): ' +
       rc.per[a.id] + ' px for ' + expect.toFixed(1) + ' px of true area');
   }
-  // (G3014: the user's rev 26 / 27 strips w5, w6, w7 shipped - eleven; G3020 rev 28: w8 strip 13 - twelve; w4 held back, train 53)
-  ok(proj.aerodromes.length === 12, 'the 12 runways are in the projection (' + proj.aerodromes.map(a => a.id).join(', ') + ')');
+  // (G3014: the user's rev 26 / 27 strips w5, w6, w7 shipped - eleven; G3020 rev 28: w4 strip 9, w8 strip 13 - thirteen)
+  ok(proj.aerodromes.length === 13, 'the 13 runways are in the projection (' + proj.aerodromes.map(a => a.id).join(', ') + ')');
 
   console.log('THE BUDGET');
   ok(png.length <= 2 * 1024 * 1024, 'the picture ' + (png.length / 1024).toFixed(0) + ' KB <= 2048 KB');
