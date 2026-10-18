@@ -812,18 +812,25 @@ function unwrap(txt) {
 // village, tw_ the tramway, af_ the airfield). dropPlaces returns a COPY without them and what it cut, by layer;
 // restorePlaces puts the cut back into a record that was edited without them (an entry the edit re-used the id
 // of is the edit's) - so a save made with the place off never deletes it.
-const placeOf = (e, prefixes) => !!(e && typeof e.id === 'string' && prefixes.some(p => e.id.startsWith(p)));
-function dropPlaces(rec, prefixes) {
+// `keep` (METLA-WRAPUP, the user 18 Oct: Metlakatla behind its flag, the seaplane base standing): ids that stay although
+// their prefix is dropped - TOWN_OFF below, the page's switch (world_boot.js) and the cook's 'default' variant (premises_cook.js)
+const placeOf = (e, prefixes, keep) => !!(e && typeof e.id === 'string' && prefixes.some(p => e.id.startsWith(p)) && !(keep && keep.includes(e.id)));
+function dropPlaces(rec, prefixes, keep) {
   const out = Object.assign({}, rec, { layers: Object.assign({}, rec.layers) }), cut = {};
   let n = 0;
   for (const k of Object.keys(out.layers)) {
     const a = out.layers[k]; if (!Array.isArray(a)) continue;
-    const keep = [], gone = [];
-    for (const e of a) (placeOf(e, prefixes) ? gone : keep).push(e);
-    if (gone.length) { out.layers[k] = keep; cut[k] = gone; n += gone.length; }
+    const keep_ = [], gone = [];
+    for (const e of a) (placeOf(e, prefixes, keep) ? gone : keep_).push(e);
+    if (gone.length) { out.layers[k] = keep_; cut[k] = gone; n += gone.length; }
   }
   return { rec: out, cut, n };
 }
+// THE TOWN SWITCHED OFF (G590; METLA-WRAPUP 18 Oct): Metlakatla's every entry (mk_) but its SEAPLANE BASE - the water lane
+// (runway mk_sea, its player plot with it) and the dock it is flown to (the trestle and the float) - which the career's
+// minedock arc, the generated jobs and the floats' routes name (72_contract_data CONTRACT_FIELDS): a standalone site, the
+// town's houses, roads and plots behind the flag. ONE definition: the page's switch and the cook's 'default' variant read it.
+const TOWN_OFF = Object.freeze({ drop: Object.freeze(['mk_']), keep: Object.freeze(['mk_sea', 'mk_mp_air', 'mk_mf_air']) });
 function restorePlaces(rec, cut) {
   if (!cut) return rec;
   const out = Object.assign({}, rec, { layers: Object.assign({}, rec.layers) });
@@ -4304,7 +4311,7 @@ const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, 
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
-  makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
+  makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
   frameOf, zoneWaterY: zoneWaterYOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };

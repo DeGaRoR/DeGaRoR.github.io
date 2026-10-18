@@ -1172,8 +1172,19 @@ if (SELFTEST) {
       check(same && back.layers.objects.some(e => e.id === 'o_g590') && (!mv || back.layers.sites.find(s => s.id === mv.id).at.x === mv.at.x),
             '14q restorePlaces puts every cut entry back and keeps the edit');
       const AP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'app.js'), 'utf8') + fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'world_boot.js'), 'utf8');   // G999: the load's composition is world_boot.js's
-      check(/off: \['mk_'\]/.test(AP) && /PREMISES_GEN\.dropPlaces\(U\.rec, TOWN\.off\)/.test(AP) && /makeWorld\(0, \{ premises: premisesPlaced/.test(AP) && /restorePlaces\(U\.rec, TOWN\.cut\)/.test(AP),
+      check(/off: TO \? TO\.drop\.slice\(\) : \['mk_'\]/.test(AP) && /PREMISES_GEN\.dropPlaces\(U\.rec, TOWN\.off, TOWN\.keep\)/.test(AP) && /makeWorld\(0, \{ premises: premisesPlaced/.test(AP) && /restorePlaces\(U\.rec, TOWN\.cut\)/.test(AP),
             '14q app.js drops the town at load by default and restores it in every editor save');
+      // 14q (METLA-WRAPUP, the user 18 Oct: Metlakatla behind its flag): the page's switch (PREMISES_GEN.TOWN_OFF) keeps the
+      // SEAPLANE BASE - the lane, its player plot, the trestle and the float - which the career's contracts fly to
+      const TO = PG.TOWN_OFF, K = PG.dropPlaces(rec, TO.drop, TO.keep);
+      const kept = Object.keys(K.rec.layers).reduce((a, k) => a.concat(Array.isArray(K.rec.layers[k]) ? K.rec.layers[k].filter(isMk).map(e => e.id) : []), []).sort();
+      check(JSON.stringify(kept) === JSON.stringify(TO.keep.slice().sort()) && K.n === D.n - TO.keep.length, '14q the switch keeps the seaplane base, and only it', kept.join(',') + ' kept, ' + K.n + ' cut');
+      check(PG.issues(K.rec).length === 0, '14q ...with no issue', PG.issues(K.rec).slice(0, 3).join(' / '));
+      const OK = PG.compose(K.rec, IW, { catalogue: CAT, globals: GENS }), kid = OK.aerodromes.map(a => a.id);
+      check(kid.includes('mk_sea') && ['HOME', 'SEA', 'mn_strip', 'nv_strip', 'tw_ski'].every(id => kid.includes(id)),
+            '14q mk_sea stays a destination (the minedock arc, the jobs, the floats\' routes)', kid.join(','));
+      check(OK.records.items.some(r => r.site === 'mk_mp_air') && OK.records.items.some(r => r.site === 'mk_mf_air') && OK.records.trees.filter(t => /^mk_/.test(String(t.zone || ''))).length === 0,
+            '14q the trestle and the float are placed, no town tree');
     }
 
     // 14r THE AUTHORS ARE DETERMINISTIC, held by a source scan rather than by
