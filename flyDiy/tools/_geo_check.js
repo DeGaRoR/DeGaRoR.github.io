@@ -141,6 +141,9 @@ function loadManifests() {
   const glob = (dir, re) => { const d = path.join(ROOT, 'src', dir); return fs.existsSync(d) ? fs.readdirSync(d).filter(f => re.test(f)).map(f => path.join(d, f)) : []; };
   for (const f of [].concat(list('props', 'props_packs.json'), list('pier', 'pier_packs.json'), list('totems', 'totems_packs.json'),
                             list('cabin', 'cabin_packs.json'), list('loads', 'loads_packs.json'), list('panelhw', 'panelhw_packs.json'), list('animals', 'animals_packs.json'),
+                            // ASSETS-OCT kits (G2904 the scenery, G2908 the car, G3140-G3149 the tents + the pylons): every bin a manifest
+                            list('scenery', 'scenery_packs.json'), list('cars', 'cars_packs.json'), list('camp', 'camp_packs.json'),
+                            list('infra', 'infra_packs.json'),
                             glob('models', /_model\.js$/), glob('chars', /_(?:char|anim)\.js$/), glob('animals', /_animal\.js$/))) run(f);
   const T = path.join(ROOT, 'src', 'core', 'trees_pack.json');
   if (fs.existsSync(T)) for (const c of JSON.parse(fs.readFileSync(T, 'utf8')).collections || []) if (c.bin) recs.push({ kind: 'tree', key: c.name, bin: c.bin, rec: c, src: 'src/core/trees_pack.json' });

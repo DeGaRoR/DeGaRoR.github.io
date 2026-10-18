@@ -95024,3 +95024,15 @@ Strict light gate: the metal fuseWidth slider row (accepted 14 Oct) + NEW cub ro
 - The enable rule (ON <= +3 ms loop at 4 km, frames over 34 ms within ~1 point of OFF) not met yet: render +1.95 ms (the town's roads
   at 4 km: G3214 far roads next), worldUpdate +1.3 ms (the town's per-frame ticks). A 233 ms worst frame in both ON runs (not in C):
   unexplained, look first (the kit's shadow switch or a kit plot crossing the 1 200 m line).
+## G2905 - ASSETS-CUT: THE WORST OFFENDERS CUT THROUGH THE CURRENT PIPELINE (2026-10-15, ASSETS-OCT for A0; branch claude/assets-cut-g2905)
+
+The user: "couldn't we cut the worst offenders through our current pipeline" (the emergency part of
+ASSET-PIPELINE-PLAN-2026-10 #2, no new import tool). tools/prop_lod.js gains `--base` and a BASE table: totem_lod.js's
+rule for photoscans (the base is a cut too), the same half-edge collapse (the delivered maps stay), the prop's record
+rewritten in its OWN pack (`srcNt` keeps the source count), its superseded bin deleted; the levels then re-cut from the
+new base by the plain run. Cut: the pier's five scanned people 1.3 M -> 5 x 8 k (the user, 13 Oct: CUT to <= 8 k; their
+24 k level drops away by the ladder's own rule), boat_grady 370 k -> 30 k. GATE ASSETBUDGET holds every cap, so a
+tools/pier_prep.py re-bake (which would restore the scans) cannot pass unseen. NOT cut: the hangar's 80 k props
+(cart_tool_cab, compressor) already have levels and are seen at 1-3 m - the user's call; the "8 props without levels"
+of the report are small props under the ladder's floor, by design.
+Run: node tools/prop_lod.js --base && node tools/prop_lod.js (the pier kit is the default).
