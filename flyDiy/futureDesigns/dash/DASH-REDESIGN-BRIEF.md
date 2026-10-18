@@ -36,3 +36,11 @@
   - the Cessna (`builds/cessna172_2026-09-20_corrected.json`);
   - the user's Rufus (`builds/rufus_2026-10-18_certified.json`, once landed).
 - **Gates:** CAGEFIT, CABIN, PANEL, PARTS, ENERGY, JOIN.
+
+## The user's design direction (18 Oct, 20:00): follow this
+"I think the proper design is 1 mesh for the dash/black part, including the lip, but basically like an arch, and the flat front panel."
+- **One mesh, like an arch:**
+  - The black dash part is ONE mesh: the glareshield top, its lip and the two sides.
+  - It is shaped like an arch over the panel: it comes down the sides to the floor or the cage side rails, with no closed bottom box.
+- **The instrument panel stays a separate FLAT plate** at the front, in the arch, with the straight vertical edge.
+- **The space under and behind:** the arch leaves the volume under and behind the panel open, so tanks fit without collisions.
