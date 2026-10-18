@@ -139,9 +139,17 @@ def main(argv):
         left.append((rel, n))
         if report or check:
             continue
-        buf = io.BytesIO()
-        Image.fromarray(glaze(img, keep)).save(buf, 'JPEG', quality=QUALITY)
-        raw = buf.getvalue()
+        # the JPEG re-encode can merge white specks that were each under MIN_FRAC into a window-sized one:
+        # glaze, encode, decode, look again - until nothing is left (three passes at most)
+        for _ in range(3):
+            buf = io.BytesIO()
+            Image.fromarray(glaze(img, keep)).save(buf, 'JPEG', quality=QUALITY)
+            raw = buf.getvalue()
+            img = np.array(Image.open(io.BytesIO(raw)).convert('RGB'))
+            keep, more, _ = windows(img)
+            if not more:
+                break
+            n += more
         nid = hashlib.sha256(raw).hexdigest()[:12]
         nrel = 'media/tex/pier/%s.jpg' % nid
         with open(os.path.join(ROOT, *nrel.split('/')), 'wb') as fh:
