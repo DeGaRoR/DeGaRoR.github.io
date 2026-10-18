@@ -4499,9 +4499,25 @@
   // (G1818: REC_BUDGET 120k -> 40k vertices a frame - the records' ~330 ns a vertex was a 40 ms first-break frame on the box;
   // the groups at the break are made first, brkRecOrder)
   const WRECK_STILL = 3e-3, TEAR_EVERY = 0.05, REC_BUDGET = 40000;
+  const TEAR_MOVE = 1e-3, TEAR_JITTER = 5e-5;             // (G3022 v2: the motion clock - a GPU tear sample only after 1 mm of motion)
+  // G3022 v2 (3), A LOOK CHANGE (the user decides): the GPU path's tear sampled every TEAR_EVERY_GPU s of sim time, not
+  // TEAR_EVERY - a third of the stalled frames in the impact second; a tear shows up to 0.1 s later. ?teargpu=<s> (or
+  // window.FLYDIY_TEAR_GPU_S) sets it - 0.05 is the cadence before, the A/B
+  let TEAR_EVERY_GPU = 0.15;
+  try { const m = /[?&]teargpu=([0-9.]+)(&|$)/.exec(location.search || ''); if (m) TEAR_EVERY_GPU = +m[1]; } catch (e) {}
+  const tearEveryGpu = () => (typeof window.FLYDIY_TEAR_GPU_S === 'number' ? window.FLYDIY_TEAR_GPU_S : TEAR_EVERY_GPU);
   const BRK_TEAR_WAIT = 300;                              // (train 41: ms a GPU tear sample may take before the CPU tears instead)
+  // G3022 v3 (DMG-IMPACT-LAG, PKG5: a crash frame <= 100 ms): THE BREAK EVENTS BUDGETED - at most BRK_EV_MS of record events a
+  // frame (the box, 14 Oct: 20-52 ms of events in the 135-175 ms impact frames, every record's event in the frame of the break);
+  // the records left wait a frame, the next frame starting where this one stopped (each event catches up with the whole damage
+  // state since its last: nothing is lost, a far record's triangles go a frame or two later). ?evms=<ms> (0: no budget - the A/B)
+  let BRK_EV_MS = 8;
+  try { const m = /[?&]evms=([0-9.]+)(&|$)/.exec(location.search || ''); if (m) BRK_EV_MS = +m[1]; } catch (e) {}
+  const brkEvMs = () => (typeof window.FLYDIY_EV_MS === 'number' ? window.FLYDIY_EV_MS : BRK_EV_MS);
   try { if (/[?&]wreckfast=0(&|$)/.test(location.search || '')) window.FLYDIY_WRECK_FAST = false; } catch (e) {}
   const brkFast = () => window.FLYDIY_WRECK_FAST !== false;
+  const G3022 = { sampled: 0, skipped: 0 };               // (G3022 v2: the tear samples asked and skipped - the box rig reads them)
+  try { window.FLYDIY_TEAR_SAMPLES = () => Object.assign({ motion: BRK.motion || 0 }, G3022); } catch (e) {}
   const BRK_ISLAND = 40;                                  // G1864: a torn island under this many triangles goes with the tear
   const BRK_INH = 1500;                                   // G1855: ...and the inherited one (each place weighs every member: ~12 us a place on the box, measured: 4000 was a 47 ms frame)
   const BRK = { model: null, recs: [], vB: -1, posed: false, ms: { records: 0, event: 0, frames: 0, pose: 0, recordsT: 0, eventT: 0, poseT: 0, frameMax: 0, n: 0 } };
@@ -4936,15 +4952,19 @@
     // done every place rides its nearest node (as G1864's budget); when it is, every record's event is made again on it
     let tInh = 0;
     if (inhOn) { const t0 = performance.now(); brkInhStep(groups); tInh = performance.now() - t0; }
-    let evd = false;
-    for (const [own] of groups) {
-      const R = own.brkR; if (!R) continue;
-      const t1 = performance.now();
-      R.lastBound = 0;
-      if (SB.event(R, K.T, D, K.rest, R.baseD, Math.max(0, bud))) { brkIdx(R); evd = true; }
-      bud -= R.lastBound || 0;                            // (an event binds within what is left of the frame's budget)
-      tEv += performance.now() - t1;
-    }
+    let evd = false, evLeft = false;
+    { const evMs = brkEvMs(), ng = groups.length, at = ng ? (BRK.evAt || 0) % ng : 0;   // (G3022 v3: from where the last frame stopped)
+      for (let j = 0; j < ng; j++) {
+        const R = groups[(at + j) % ng][0].brkR; if (!R) continue;
+        if (R.vB === D.vB) continue;
+        if (evMs > 0 && tEv >= evMs) { if (!evLeft) { evLeft = true; BRK.evAt = (at + j) % ng; BRK.evDeferred = (BRK.evDeferred | 0) + 1; } continue; }
+        const t1 = performance.now();
+        R.lastBound = 0;
+        if (SB.event(R, K.T, D, K.rest, R.baseD, Math.max(0, bud))) { brkIdx(R); evd = true; }
+        bud -= R.lastBound || 0;                            // (an event binds within what is left of the frame's budget)
+        tEv += performance.now() - t1;
+      }
+      if (!evLeft) BRK.evAt = 0; }
     // (G1856: a wall place takes its covering point's event - its kept weights, piece and drape)
     if (evd && K.inhL && K.inhSt.done) for (const E of K.inhL) if (E.on && SB.wallSync(E, K.inhL)) brkIdx(E.R);   // (G2040: true when a held wall triangle went)
     brkWallCut(groups, D);                                // G1858
@@ -4961,6 +4981,16 @@
     // G1818 (DMG-SKINGPU): the records the GPU rides (brkGpu: their drawers made, the program linked) are not posed here
     const GP = brkGpu(K);
     if (GP) GP.poll();
+    // G3022 v2: THE MOTION CLOCK - the largest node move a frame, summed (a move under TEAR_JITTER - a resting wreck's contact
+    // jitter - not counted). A record whose clock has not run TEAR_MOVE since its last tear sample has no edge more than that
+    // nearer its bound than at the sample: it is not sampled. Each sample stalls its frame ~14 ms on the box (the 14 Oct A/B:
+    // the read waits on the GPU however small), and the wreck at rest was sampled every 3 frames
+    { const p = sim.p, q = BRK.motP; let d = 0;
+      if (q && q.length === p.length) {
+        for (let i = 0; i < p.length; i += 3) { const dx = p[i] - q[i], dy = p[i + 1] - q[i + 1], dz = p[i + 2] - q[i + 2], e = dx * dx + dy * dy + dz * dz; if (e > d) d = e; }
+        q.set(p);
+      } else BRK.motP = Float64Array.from(p);
+      d = Math.sqrt(d); if (d > TEAR_JITTER) BRK.motion = (BRK.motion || 0) + d; }
     for (const [own, , pa, , off] of groups) {
       const R = own.brkR; if (!R || !R.active) continue;
       const ge = GP ? GP.of(R, pa, off, o) : null, onGpu = !!ge && !ge.cpu;
@@ -4996,8 +5026,12 @@
             // (the held bits as they stood at the sample - G2040 x G1818: an event since may have re-judged a triangle)
             if (SB.tearPlaces(R, Wd.Wp, ge.p0, R.baseD, R.heldAsk !== undefined ? R.heldAsk : R.held)) { brkIdx(R); R.tornNew = true; }
             R.heldAsk = undefined; }
-        } else if (!(brkFast() && sinceT < TEAR_EVERY)) {
-          if (onGpu) { GP.sample(ge); R.tearAsk = sim.t; R.tearAskMs = performance.now(); R.heldAsk = R.held ? R.held.slice() : null; }
+        } else if (!(brkFast() && sinceT < (onGpu ? tearEveryGpu() : TEAR_EVERY))) {
+          // (G3022 v2: no sample for a record with nothing to tear - no watched triangle, or tearPlaces' own no-tear rule - nor
+          // for one the motion clock has not moved TEAR_MOVE since its last sample: its tear clock starts again)
+          if (onGpu && (!R.watch || !R.watch.length || (R.noTear && !R.tubeTear && !R.sheetTear && !R.shellTear) ||
+                        (R.tearMot != null && (BRK.motion || 0) - R.tearMot < TEAR_MOVE))) { R.tearT = sim.t; G3022.skipped++; }
+          else if (onGpu) { R.tearMot = BRK.motion || 0; G3022.sampled++; GP.sample(ge); R.tearAsk = sim.t; R.tearAskMs = performance.now(); R.heldAsk = R.held ? R.held.slice() : null; }
           else { R.tearT = sim.t; if (SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; } }
         } }
       // G1864: the confetti the tear leaves (islands under BRK_ISLAND triangles that touch it), at most every 0.25 s
@@ -5009,7 +5043,7 @@
       if (gone !== K.inhGone) { K.inhGone = gone; for (const E of K.inhL) if (E.on && SB.wallFollow(E, K.inhL)) brkIdx(E.R); } }
     if (GP) { BRK.ms.gpu = Math.max(BRK.ms.gpu || 0, BRK.ms.lastGpu = GP.frame(X));
       BRK.liveAt = BRK.liveAt && BRK.liveAt.length === sim.p.length ? (BRK.liveAt.set(sim.p), BRK.liveAt) : Float64Array.from(sim.p); }   // (the check: the nodes the GPU drew)
-    BRK.vB = D.vB; BRK.posed = true; BRK.gpuOn = window.FLYDIY_SKINGPU !== false;
+    BRK.vB = evLeft ? -2 : D.vB; BRK.posed = true; BRK.gpuOn = window.FLYDIY_SKINGPU !== false;   // (G3022 v3: events left - no rest skip next frame)
     const t4 = performance.now(), M = BRK.ms;
     M.records = Math.max(M.records, tRec); M.event = Math.max(M.event, tEv); M.frames = Math.max(M.frames, t3 - t2); M.pose = Math.max(M.pose, t4 - t3);
     M.recordsT += tRec; M.eventT += tEv; M.poseT += t4 - t3; M.frameMax = Math.max(M.frameMax, t4 - tm); M.n++;
@@ -5816,11 +5850,16 @@
   // `baseId` is where a roll-out spawns (FLIGHT_BASES: HOME, the WWII hangar, today); `spawnId` is the perf
   // rigs' override (a v2 pref's `spawn`, FLYDIY_ROUTE.spawn) - on no picker.
   let baseId = 'HOME', spawnId = null, destId = 'CIRCUIT', routeMigrated = false;
+  // G3078 (FLOATS-FIX, 17 Oct): THE PLAYER'S TO (`destWant`) IS KEPT APART FROM THE TO THIS BUILD MAY FLY (`destId`). The fit
+  // below used to overwrite destId - at boot the bench still held a wheeled build, Metlakatla Seaplane Base (mk_sea) was
+  // fitted to the circuit, and when the floats build arrived the refit started from 'CIRCUIT': the water To never came back,
+  // and the next routeRemember saved the circuit. Every fit now starts from destWant; the pref keeps destWant
+  let destWant = 'CIRCUIT';
   // G710: THE ROUTE IS REMEMBERED (flydiy.route, v2 { v: 2, base, to }; a v1 { from, dest } migrates once:
   // flightRouteMigrate); checked against the world's strips where the picker is filled
   try {
     const r = typeof flightRouteMigrate === 'function' ? flightRouteMigrate(JSON.parse(prefGet('flydiy.route', 'null'))) : null;
-    if (r) { baseId = r.base; destId = r.to; spawnId = r.spawn; routeMigrated = !!r.migrated; }
+    if (r) { baseId = r.base; destId = destWant = r.to; spawnId = r.spawn; routeMigrated = !!r.migrated; }
   } catch (e) {}
   // PREM-S2 (G2230): THE BASE IS THE GARAGE'S - the hangar it opens in (the player's `here`), its aerodrome the base
   // (38b_dest.js flightBasesOf: the bases derived from the hangars held, ruling gp1). A pref's `base` is no longer a
@@ -5893,7 +5932,7 @@
     if (did !== 'CIRCUIT') { const d = world.aerodromes.find(a => a.id === did); if (!d || !stripAllows(gear, d).ok) did = 'CIRCUIT'; }
     return [fid, did];
   };
-  const routeFit = gear => { destId = routeFitted(gear, fromId, destId)[1]; };   // G1945: the From is derived - only the To is fitted
+  const routeFit = gear => { destId = routeFitted(gear, fromId, destWant)[1]; };   // G1945: the From is derived - only the To is fitted
   let routeRefresh = () => {};   // the pickers re-labelled for the gear (the selects' block below)
   // 'taxi' (the stand, G151) or 'lineup' (the runway). A string on purpose:
   // the flight layer's flPref objects are declared far below this and this
@@ -5933,7 +5972,7 @@
     // G1945 DEST-TO: every roll-out starts at the base (or the rig's spawn), never where the last flight was
     // PREM-S2 (G2230): ...at the place the fleet ledger says the aeroplane stands (rollFromId) - the base for a build
     // with no slot; a stop on an aerodrome moved it there (playerArrive), a crash or a field landing moved nothing
-    const [fid, did] = routeFitted(gearNow, rollFromId(), destId);
+    const [fid, did] = routeFitted(gearNow, rollFromId(), destWant);
     fromId = fid;
     if (!shed) { destId = did; routeRefresh(false); }
     const from = aeroById(fid);
@@ -6440,6 +6479,10 @@
       const eK = out.W[F.edge.K];
       const vK = fx.ctx.velAt(eK, [0, 0, 0]);
       const V = Math.hypot(vK[0], vK[2]);
+      // G2834: the water level the spray is thrown from - the hydro pass's (the worker sends it); never NaN (a missing level
+      // drew every particle at y = NaN: no splash, no spray under the worker)
+      if (!Number.isFinite(fx.h)) fx.h = world.waterH ? world.waterH(eK[0], eK[2]) : 0;
+      if (!Number.isFinite(fx.h)) { waterFx.wasWet[k] = true; continue; }
       // THE FIELD'S EMITTERS (H7, G460.8) - the hydro's own numbers, never authored:
       if (WT) {
         const beam = F.P ? F.P.B : 0.8, wetK = Math.min(1, fx.wet / Math.max(0.5, 2 * beam * (F.P ? F.P.L : 4)));
@@ -12366,9 +12409,9 @@
     routeFit(gear0);
     fill($('selDest'), gear0);
     // G710: a remembered id the world does not have (another island, a strip deleted) is not a route
-    if (![...$('selDest').options].some(o => o.value === destId)) destId = 'CIRCUIT';
+    if (![...$('selDest').options].some(o => o.value === destWant)) destId = destWant = 'CIRCUIT';   // (G3078: the world has no such strip)
     $('selDest').value = destId;
-    const routeRemember = () => prefSet('flydiy.route', JSON.stringify({ v: 2, base: baseId, to: destId, spawn: spawnId || undefined }));
+    const routeRemember = () => prefSet('flydiy.route', JSON.stringify({ v: 2, base: baseId, to: destWant, spawn: spawnId || undefined }));   // G3078: the player's To
     if (routeMigrated) { routeMigrated = false; routeRemember(); }   // G1945: a v1 pref is written back as v2, once
     const routeSels = [];                // { sel, kind } - the pickers this block built ('to', and 'base' when there are bases to pick)
     const routeSync = () => {
@@ -12415,7 +12458,7 @@
     }
     window.FLYDIY_DEST_LAST = null;
     function setTo(id) {
-      destId = id; routeRemember(); routeSync();
+      destId = destWant = id; routeRemember(); routeSync();
       const r = destApply();
       window.FLYDIY_DEST_LAST = { to: id, how: r, phase: ap ? ap.phase : null };
       if (FL.ready) flRender();
@@ -12574,7 +12617,7 @@
     };
     window.FLYDIY_ROUTE = {
       // `from` is the leg's From (derived), kept in the shape the rigs read
-      get: () => ({ from: fromId, dest: destId, to: destId, base: baseId, spawn: spawnId }),
+      get: () => ({ from: fromId, dest: destId, to: destId, base: baseId, spawn: spawnId, want: destWant }),   // G3078: `want` the player's To
       sync: () => routeRefresh(), gear: () => refGear,
       to: id => setTo(id), where: () => flWhere(),
       baseRow: where => baseRows[where] || null,   // PREM-S2: the base line / select each host shows
@@ -13405,6 +13448,18 @@
     b.className = 'v'; b.textContent = fmt(+i.value);
     i.oninput = () => { set(+i.value); b.textContent = fmt(+i.value); };
     i.onchange = () => flOther();
+    // (objective 1, the user 13 Oct: "typed numbers for every parameter") THE READOUT TYPED: a click edits the bare number, Enter or
+    // leaving sets it once, Escape gives up; past the range within physical bounds only (premises_host G3019: degrees wrap, a
+    // [0, 1] range clamps, a range from 0 up stays >= 0) - the thumb rests at its end, the value is the typed one
+    const deg = /\u00b0|°/.test(String(label) + (() => { try { return String(fmt(+lo)); } catch (e) { return ''; } })()) && +hi - +lo >= 359;
+    const phys = n => deg ? +lo + ((((n - +lo) % 360) + 360) % 360) : (+lo === 0 && +hi === 1) ? Math.max(0, Math.min(1, n)) : (+lo >= 0 ? Math.max(0, n) : n);
+    b.contentEditable = 'true'; b.spellcheck = false; b.title = 'type a value - Enter sets it'; b.style.cursor = 'text';
+    let typing = false;
+    b.onfocus = () => { typing = true; const g = +get(); b.textContent = isFinite(g) ? String(+g.toFixed(4)) : ''; };
+    const commit = () => { if (!typing) return; typing = false; const n = parseFloat(String(b.textContent).replace(',', '.'));
+      if (isFinite(n)) { const q = +phys(n).toFixed(6); i.value = q; set(q); b.textContent = fmt(q); flOther(); } else b.textContent = fmt(+get()); };
+    b.onblur = commit;
+    b.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); commit(); b.blur(); } else if (ev.key === 'Escape') { typing = false; b.textContent = fmt(+get()); b.blur(); } ev.stopPropagation(); };
     r.appendChild(i); r.appendChild(b);
     return r;
   };

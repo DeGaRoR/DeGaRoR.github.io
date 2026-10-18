@@ -2071,7 +2071,10 @@ function roadHandles(pts, tan) {
   return pts.map((q, i) => (T[i] ? T[i] : i < n - 1 ? [S.Dout[i][0] * S.h[i] / 3, S.Dout[i][1] * S.h[i] / 3] : [S.Din[i][0] * S.h[i - 1] / 3, S.Din[i][1] * S.h[i - 1] / 3]));
 }
 // a placed prop's scale (v1.36 `s`, the model placer's) on its composed record - only when it is not 1 (G3001)
-const objScale = ob => (+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3 ? { s: +ob.s } : {});
+// a placed prop's own extras on its composed record: its scale (G2914), and (G2893) `with` - an ASSEMBLY's other parts, stood
+// at the same pose (the placer's one record for the ALMA's base, fork and dish); a record with neither composes as before
+const objScale = ob => Object.assign(+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3 ? { s: +ob.s } : {},
+  Array.isArray(ob.with) && ob.with.length ? { with: ob.with.filter(k => typeof k === 'string' && k) } : {});
 // THE ROADS' BUILD KEYS (G3002 PLACER-FAST; the user: "adding assets in the editor is a bit of a pain, really, really
 // long to move, update, rotate" - every edit's rebuild made EVERY road's pavement, its poles and its rails again, the
 // island road's 25 km among them). A road's drawn things (its pavement row, its power line, its guardrail) are a
@@ -2613,7 +2616,13 @@ function compose(rec0, world, opts) {
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
   // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
   const roadObjs = roads.map(r => Object.assign({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
-    look: roadLook(r).key, band: r.band === undefined ? null : r.band, pav: r.pav || null }, roadClearOf(r) !== null ? { clear: roadClearOf(r) } : {}));   // (G2918: its own clearing) the pavement's (v1.16)
+    look: roadLook(r).key, band: r.band === undefined ? null : r.band, pav: r.pav || null }, roadClearOf(r) !== null ? { clear: roadClearOf(r) } : {},
+    // G2893 (SCENERY-ED-1; the user: "no effect of enabling/disabling power lines and guardrails on roads"): the guardrail and the
+    // power line read THIS object (render_premises buildRail / buildLine: rd.rail, rd.poles, rd.polesSide), which never carried
+    // them - every road 'auto' whatever the inspector wrote, since the port (G385). Carried when the record says one (a road
+    // without composes as before)
+    typeof r.rail === 'string' && r.rail ? { rail: r.rail } : {}, typeof r.poles === 'string' && r.poles ? { poles: r.poles } : {},
+    (+r.polesSide === 1 || +r.polesSide === -1) ? { polesSide: +r.polesSide } : {}));   // (G2918: its own clearing) the pavement's (v1.16)
   const nAuth = mods.length;
   // THE RUNWAYS (stage 2, BEFORE the roads - v1.2: a taxi road near a strip must sit on the strip's graded ground, so its nodes are read after the runway grades): a DERIVED grade along the centreline at elev + slope * s
   // (elev = T1 at the centre), a DERIVED surface strip of the record's class,

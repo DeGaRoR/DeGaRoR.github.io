@@ -438,7 +438,11 @@ const ALLOW = [
   { key: 'taxi/three.updateMatrixWorld', build: 'cessna', upTo: 14301, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (9280 -> 13619.5)', g: 'G3020' },
   { key: 'taxi/tris.shadow', build: 'cessna', upTo: 3551597, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1908541 -> 3382473)', g: 'G3020' },
   { key: 'boot/garage:compile/bytes.bufferData', build: 'cessna', upTo: 1637328, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1519232 -> 1559360)', g: 'G3020' },
-  { key: 'boot/garage:landing/bytes.bufferData', build: 'cessna', upTo: 807, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (0 -> 768)', g: 'G3020' }
+  { key: 'boot/garage:landing/bytes.bufferData', build: 'cessna', upTo: 807, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (0 -> 768)', g: 'G3020' },
+  // G3023 (RWYTREES-MAP, train 56 e21d9c7fc): 'mapx' the default - the woods to the strip's edge, the user's fans and own clears
+  // standing: the taxi's shadow pass carries the new tree line (A0's FRAMECOST on master); upTo = measured + 5 %
+  { key: 'taxi/tris.shadow', build: 'cub', upTo: 3848164, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (1782437 -> 3664917.5)', g: 'G3023' },
+  { key: 'taxi/gl.bindBuffer', build: 'cub', upTo: 10, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (2 -> 7)', g: 'G3023' }
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
