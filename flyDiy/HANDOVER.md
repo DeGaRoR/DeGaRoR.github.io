@@ -95089,3 +95089,100 @@ Strict light gate: 16 better; only the accepted metal fuseWidth slider row red. 
 - GATE STORY rows added (two hangars). node --check only: the box is reserved 18:05-21:59, so the landing runs STORY,
   PLAYER, STORAGE, GAMEPREM, SITE. Expect GAMEPREM / SITE to want the w1 plot on the island, which comes with
   claude/ready/cabin-strip in the same landing.
+
+## G2742-G2749 - STORY-PAGE: THE STORY ON THE PAGE - A NEW CAREER AT THE CABIN WITH THE USER'S RUFUS, THE BEAT CARD IN THE CORNER, THE EVENTS INTO storyStep, THE EFFECTS APPLIED, Q1 ON THE MAP, THE THREE OCCASIONS (2026-10-18, the GAME COORDINATOR; branch claude/ready/story-page off origin/claude/ready/story-core 0ebd4254, STORY-CORE G2741 not on master yet)
+
+- **Where it runs.** `STORY_PAGE = CAREER_DEV && CAREER_ID === 'main'`: the welcome's career only.
+  - The dev career (?career=1) keeps NO story, so every gate's fixture career stays rail-free.
+  - The sandbox runs none of it (GATE UISMOKE's new scan: every call into the story outside its page half is behind
+    CAREER_DEV; the half's doors are behind STORY_PAGE).
+  - A career made before this (Continue) has no story: no card, nothing held.
+- **New career** (`playerLoad`: `careerNew`, then `storyNewCareer`, before the fleet lift; 79_story.js, pure).
+  - The starter is the user's Rufus. Its slot is named `Rufus`, or `Rufus 2` when a saved build already holds that name
+    (never overwritten). The page fetches the first file of `STORY_FILES.starter` that loads:
+    `builds/rufus_2026-10-18.json`, `builds/rufus_2026-10-18_corrected.json`, `builds/rufus.json`, then the archived
+    candidate `futureDesigns/game/aircraft-candidates/rufus-starter_2026-10-18.json`.
+    **RUFUS-CERT (G3270): name the certified file one of those three builds/ names** (or add yours to STORY_FILES.starter).
+  - It stands at the CABIN: `storySite('cabin', world.aerodromes)`. The cabin gets the smallest shed, a `field` shell
+    (the plot's own id, dims and kits when BASE_OFFERS has one there; else the aerodrome's id, 18 x 20 x 4 m so the
+    Rufus's 10.9 m passes the door). The garage opens there (`here`). HOME's hangar carries `locked: 'story'` until T1.
+  - **No cabin on the island (today: GATE STORY prints `cabin = none yet`)**: the story starts at HOME. The beat card
+    says why (`STORY_NO_CABIN`); no strip is guessed.
+  - Once the user names the strip "Cabin..." (18 Oct), a NEW career starts there. The shed is drawn in the world only where
+    the premises record places a plot (`siteOf(aero).plots`): the room itself opens either way.
+- **The beat card** (`#stCard`, app.js + editor.css).
+  - Top-left corner (left 12 px, top 72 px), 300 px wide, never centred. It folds on its head.
+  - The garage's look: the `--ed-*` tokens (`#stCard` joined editor.css's token root), IBM Plex Sans upright, no serif,
+    no italics.
+  - It shows the step (`n of 8`), the title, the brief, and the goal's state: the stop's place and plane; T2's checklist
+    ticked off the build on the stand (or its slot), the budget and the certificate; T5's "n of 3 jobs" and the three
+    jobs. An ack beat has **OK**, which sends `{ k: 'ack' }`. The effects' lines show under it, and on the arrival card.
+- **The events** (`storyEvent` -> `storyStep`, `{ aeros: world.aerodromes }`).
+  - `stop`, at every flight's end, right after `careerStopApply` (`storyOnFlightEnd`).
+  - `jobDone`, for each `done` event that stop delivered.
+  - `certified`: bench.js calls `window.BENCH_CERTIFIED` when the airworthiness certificate lands (the last gating test).
+    It carries the slot on the stand, the spec as a Save would write it, and the cost: dm11's edit bill against the Cub
+    as it arrived (`procureEditBill` x `procureEcon('edit')`).
+  - `bind`, after the page writes a story plane's slot: the starter, and the client's Cub with its arrival spec.
+- **The effects** (`storyApply`, pure; the page fetches a plane's file first).
+  - `hangar`: HOME's lock lifted, a ledger line at 0.
+  - `clientPlane`: `storyClientSpec(builds/cub_2026-09-20.json)`: flaps off, `systems.fit 'minimal'` (no battery, so no
+    lights), paint `bare`, the same engine. It goes in slot `Client Cub`, stationed in the HOME hangar, its airframe row
+    marked as the client's, then bound.
+  - `giftPlane`: the client's mark lifted, a `gift` ledger line at 0.
+  - `routeOffer`: **ROUTES (G3260) is on no branch yet**, so the offer is recorded as a stub (`story.offers`, `stub: true`).
+    When ROUTES lands, its record goes in `o.route` from the page.
+  - `occasions`: the three authored listings (`STORY_OCCASIONS`) go on the used market (`procureMarketOf` lists them
+    first). They are one-time: a purchase sells them for good.
+  - `open`: the rails end.
+- **Q1 on the map.** While `storyJobsOpen` is false:
+  - the record (`storyRecord`) marks every generated row `held`; map_menu draws them greyed, tagged "after the move-in",
+    with Track off, and `careerAct` refuses them;
+  - the story's own goal heads the contracts list (`.mmStory`);
+  - at T5 the story's three jobs are offered: `STORY_JOBS` = the authored openers `clients.01` (a pickup), `survey.01`
+    and `resort.01` (a small load).
+- **The tech mask.** `storyMask(doc)` is handed to `window.TECH_MASK.tutorial(m)` when TECH-MASK (G3230) is present
+  (it is on no branch yet). It is also sent as a `flydiy-story` window event, and readable as
+  `window.FLYDIY_STORY.mask()`.
+- **The market in the player's career.** `PROCURE_PAGE` also opens under CAREER_DEV. The welcome's career has a map with
+  a Market tab, but before this it had no buy doors (only ?map=1 / ?career=1 did); the occasions are bought there.
+- **A recalibration, for the user to confirm.** T2's `costCap` was 9000 (G2741). No finish could meet it: the edit bill
+  for the cheapest complete checklist (on the Rotax 582) is 24 248. The cap is now **40 000**, measured:
+  - the Jabiru 2200 finish: 35 114 (passes);
+  - the Rotax 912 finish: 38 089 (passes);
+  - the O-200 finish: 44 355 (over);
+  - the O-320 finish: 48 745 (over).
+- **PLACEHOLDERS THE USER MUST AUTHOR** (the user's rule: a missing plane is authored by hand, never generated):
+  1. **The fabric 4-seater** (T7's first occasion, `occ:fabric4`). It stands as the validated metal Cessna (`meridian`).
+  2. **The Jodel-class one** (`occ:jodel`). It stands as the validated Jodel (`pinson`).
+  3. The third occasion is the validated Cub (`scout`, `occ:cub`): not a placeholder.
+  4. The beats' words are still G2741's placeholders, for the narrative pack.
+  5. So are T5's three jobs (the arc openers).
+- **Not found in the repo:** `futureDesigns/game/GAME-PLAN-2026-10-15.md` is on no branch. This session worked from the
+  G2741 section and 79_story.js.
+- **GATE STORY** now has a page half. It slices app.js's own story half and runs it headless in node over the core, with
+  a minimal DOM and the build files read off the disk. It checks:
+  - no cabin -> HOME, with the reason on the card;
+  - a New career at a "Cabin Strip": the field shed, the garage there, HOME held;
+  - the starter fetched builds/-first and stood at the cabin;
+  - the card at T0 and its OK -> T1;
+  - Q1: the map's rows held and drawn greyed;
+  - a stop at HOME -> the hangar ours, the client's Cub in the HOME hangar as it arrives, bound, the story's line on the
+    arrival card;
+  - the T2 card's checklist ticked off the stand;
+  - the bench's certificate (the Jabiru finish) -> T3;
+  - the occasions authored, flyable where they stand, one-time; the used market of a career without a story unchanged;
+  - T5 and open;
+  - the source: the guards, the card's corner and look, the bench hook.
+- **Gates (18 Oct, through run_gates):**
+  - PASS: STORY (+ --selftest), UISMOKE, UISMOKE-PHONE, DESTTO (3 shards), CONTRACTS, PLAYER, SAVE, STORAGE, LAZY (its
+    Chromium boots), BUILD, GFX, MEDIA, PROCURE, ECON.
+  - UISMOKE first failed on map_menu's `.title =` (the NOHOVER scan). f851e450 fixed it; UISMOKE, UISMOKE-PHONE, STORY
+    and LAZY were re-run on the final source: PASS.
+  - A one-off headless Chromium boot of `?mode=career` (a scratch check, not a gate) gave:
+    - no page error;
+    - the story at T0 with the no-cabin note, Rufus fetched from the candidate and on the stand at HOME;
+    - OK -> T1;
+    - the map's 20 rows held;
+    - the card at (12, 72), 296 px wide, IBM Plex Sans, upright.
+- **READY** @ f851e450 (the work: e2aaea74 + f851e450) for the rolling landing.

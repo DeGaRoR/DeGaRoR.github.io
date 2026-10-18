@@ -130,7 +130,9 @@
     const contracts = (raw.contracts || []).map(c => ({ id: c.id, provider: c.provider, kind: c.kind || 'job', title: say(c.title), brief: say(c.brief),
       stages: (c.stages || []).map(s => ({ subs: (s.subs || []).map(subOf) })), pay: c.pay || {},
       // (G2665 NIGHT-OPS) the window, each runway lit / unlit, the moon (75_ careerNightLine's facts; null: no window)
-      night: c.night && typeof c.night.line === 'string' ? { line: c.night.line, night: !!c.night.night, open: !!c.night.open, moon: c.night.moonWords || '' } : null })).filter(c => prov[c.provider]);
+      night: c.night && typeof c.night.line === 'string' ? { line: c.night.line, night: !!c.night.night, open: !!c.night.open, moon: c.night.moonWords || '' } : null,
+      // (G2742 STORY-PAGE, Q1) held while the story runs: the row stands greyed, its Track off
+      held: c.held === true })).filter(c => prov[c.provider]);
     let fleet = (raw.fleet || []).map(f => ({ slot: f.slot, name: f.name || f.slot, where: Object.assign({ kind: 'none', aero: null, hangar: null }, f.where || {}), cert: f.cert ? Object.assign({}, f.cert) : null }));
     if (live && live.fleet && Object.keys(live.fleet).length) {
       const certOf = {}; for (const f of fleet) certOf[f.slot] = f.cert;
@@ -141,7 +143,10 @@
     const voucher = vd ? { name: 'the ' + (vd.label || v.model) + ' your voucher buys', gear: vd.gear || (vd.cert && vd.cert.gear) || 'wheels' } : null;
     // G2290 (PILOTS): the roster's cards as the record states them (76_pilots.js pilotsCard), copied
     const pilots = (raw.pilots || []).map(p => JSON.parse(JSON.stringify(p)));
-    return { providers, prov, contracts, career, fleet, voucher, pilots, aeros, places, placeOf, hotspots: (pack && pack.hotspots) || [], pois: (pack && pack.pois) || [], source: raw.source || 'fixture' };
+    // G2742 (STORY-PAGE): the story's own goal while its rails hold the list (app.js storyRecord); null otherwise
+    const story = raw.story && raw.story.title ? { title: String(raw.story.title), brief: raw.story.brief || '', held: raw.story.held || '',
+      step: raw.story.step || null, of: raw.story.of || null, rows: (raw.story.rows || []).map(r => ({ words: String(r.words), ok: !!r.ok })) } : null;
+    return { providers, prov, contracts, career, fleet, voucher, pilots, story, aeros, places, placeOf, hotspots: (pack && pack.hotspots) || [], pois: (pack && pack.pois) || [], source: raw.source || 'fixture' };
   }
   // 71_player_bases.js playerWhere's three kinds, read off the v2 document (the same rule; that file is the core's)
   function whereOf(doc, n) {
@@ -340,16 +345,18 @@
     const p = M.prov[c.provider], P = payOf(M, c), K = markOf(M, c), tr = M.career.tracked === c.id;
     return '<div class="mmBody"><p>' + esc(p.name) + ': ' + esc(c.brief) + ' Pays ' + fmt(P.total) + '.' +
       '<span class="mmRw">' + esc(routeWord(M, c)) + '</span>' + nightHTML(c) + (K.mark === '✗' ? '<span class="mmWhy">' + esc(K.why) + '</span>' : '') + '</p>' +
-      '<button type="button" class="mmTrack' + (tr ? ' on' : '') + '" data-act="track" data-id="' + esc(c.id) + '" aria-pressed="' + tr + '">' + (tr ? 'Tracking ★' : 'Track') + '</button></div>';
+      (c.held ? '<button type="button" class="mmTrack" disabled>' + esc(M.story && M.story.held ? M.story.held : 'later') + '</button></div>'
+       : '<button type="button" class="mmTrack' + (tr ? ' on' : '') + '" data-act="track" data-id="' + esc(c.id) + '" aria-pressed="' + tr + '">' + (tr ? 'Tracking ★' : 'Track') + '</button></div>');
   }
   // the order's own number under the title when the list is not ordered by pay (the pay is the row's number already)
   const keyWord = (M, c, so) => so === 'km' ? kmWord(kmOfC(M, c)) : so === 'stops' ? (stopsOf(c) === 1 ? '1 stop' : stopsOf(c) + ' stops') : so === 'load' ? loadWord(loadOf(c)) : '';
   function rowHTML(M, st, c, V) {
     const ty = typeOf(c), K = markOf(M, c), on = st.open === c.id, tr = M.career.tracked === c.id, acc = !tr && M.career.accepted.includes(c.id);
-    const tags = [winOf(c) === 'night' ? '<small class="mmTag night">night</small>' : '', acc ? '<small class="mmTag">accepted</small>' : '',
+    const tags = [c.held ? '<small class="mmTag held">' + esc((M.story && M.story.held) || 'later') + '</small>' : '',
+                  winOf(c) === 'night' ? '<small class="mmTag night">night</small>' : '', acc ? '<small class="mmTag">accepted</small>' : '',
                   V.pinned === c.id ? '<small class="mmTag pin">outside the filters</small>' : ''].join('');
     const kw = keyWord(M, c, V.sort);
-    return '<div class="mmItem' + (on ? ' open' : '') + (tr ? ' trk' : '') + '" data-id="' + esc(c.id) + '">' +
+    return '<div class="mmItem' + (on ? ' open' : '') + (tr ? ' trk' : '') + (c.held ? ' held' : '') + '" data-id="' + esc(c.id) + '">' +
       '<button type="button" class="mmRow" data-act="row" data-id="' + esc(c.id) + '" aria-expanded="' + on + '">' +
         '<i class="mmDot" style="background:' + TYPE_COLOUR[ty] + '" aria-label="' + esc(TYPES.find(t => t[0] === ty)[1]) + '"></i>' +
         '<span class="mmT">' + esc(c.title) + (tr ? ' <em>★</em>' : '') + (kw || tags ? '<span class="mmSub">' + (kw ? '<small class="mmKey">' + esc(kw) + '</small>' : '') + tags + '</span>' : '') + '</span>' +
@@ -389,9 +396,17 @@
     return '<div class="mmSum"><span>' + (V.active ? V.shown + ' of ' + V.base + ' · <b>' + V.hiddenAll + ' hidden</b>' : V.base + (V.base === 1 ? ' contract' : ' contracts')) + ' · by ' + esc(V.order) + '</span>' +
       (V.active ? '<button type="button" class="mmClr" data-act="fclear">Clear</button>' : '') + '</div>';
   }
+  // G2742 (STORY-PAGE, Q1): THE STORY'S OWN GOAL heads the list while its rails hold the generated work
+  function storyHTML(M) {
+    const S = M.story;
+    if (!S) return '';
+    return '<div class="mmStory" role="note"><span class="mmTag">The story' + (S.step ? ' · ' + S.step + ' of ' + S.of : '') + '</span><b>' + esc(S.title) + '</b>' +
+      '<p>' + esc(S.brief) + '</p>' + (S.rows.length ? '<ul>' + S.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '">' + (r.ok ? '✓ ' : '· ') + esc(r.words) + '</li>').join('') + '</ul>' : '') +
+      '<p class="mmFine">The rest of the work comes ' + esc(S.held || 'later') + '.</p></div>';
+  }
   function contractsListHTML(M, st) {
     const V = contractView(M, st);
-    const top = (st.fltOpen ? filtersHTML(M, st, V) : '') + (V.base ? sumHTML(M, st, V) : '');
+    const top = storyHTML(M) + (st.fltOpen ? filtersHTML(M, st, V) : '') + (V.base ? sumHTML(M, st, V) : '');
     if (!V.base) return top + '<p class="mmEmpty">' + (st.at ? 'No contract involves ' + esc(placeName(M, st.at)) + ' yet.' : 'No work on offer yet.') + '</p>';
     if (!V.rows.length) return top + '<p class="mmEmpty">No contract passes the filters: ' + V.hiddenAll + ' hidden.</p>';
     return top + V.groups.filter(g => g.rows.length).map(g => sectionHTML(M, st, g, V)).join('');   // a section the filters empty: the summary counts it
@@ -575,7 +590,7 @@
     const K = MK(M), L = K.used.find(x => x.id === id);
     if (!L) return '<p>Sold: this aeroplane is no longer for sale.</p>';
     return '<p>' + esc(L.words.seller) + '<span class="mmRw">Stands at ' + esc(aeroName(M, L.aero) + ' ' + stripWord(M.aeros[L.aero])) + '</span>' +
-      '<span class="mmRw">' + esc(factsWord(L.cert)) + ' · ' + fmt(L.price) + ' (' + fmt(L.catalogue) + ' new × ' + Math.round(L.condition * 100) + ' % for its condition)</span></p>' +
+      '<span class="mmRw">' + esc(factsWord(L.cert)) + ' · ' + fmt(L.price) + ' (' + fmt(L.catalogue) + ' new × ' + Math.round(L.condition * 100) + (L.occasion ? ' %: an occasion, offered once' : ' % for its condition') + ')</span></p>' +
       '<div class="mmActs">' + actHTML(buyWord(K, L.price, true), 'data-act="buy" data-id="' + esc('u:' + id) + '"') + '</div>';
   }
   // THE DRAWING BOARD (§5.4, G-DESIGN): the saved builds as designs (free, shared with the sandbox) and the career's
@@ -1171,6 +1186,14 @@
 #mapScreen .mmTag{font:500 10.5px/1.3 'IBM Plex Sans';letter-spacing:.06em;text-transform:uppercase;color:var(--ed-faint)}
 #mapScreen .mmTag.night{color:var(--ed-acc)}
 #mapScreen .mmTag.pin{color:var(--ed-warn)}
+#mapScreen .mmItem.held{opacity:.48}
+#mapScreen .mmTag.held{color:var(--ed-faint)}
+#mapScreen .mmStory{margin:4px 0 10px;padding:10px 12px;border:1px solid var(--ed-border);border-radius:8px;background:var(--ed-acc-soft);font:400 12.5px/1.4 'IBM Plex Sans';font-style:normal;color:var(--ed-ink)}
+#mapScreen .mmStory b{display:block;font:600 14px/1.3 'IBM Plex Sans';margin:2px 0 4px}
+#mapScreen .mmStory p{margin:4px 0;color:var(--ed-dim)}
+#mapScreen .mmStory ul{list-style:none;margin:6px 0;padding:0}
+#mapScreen .mmStory li{color:var(--ed-dim)}
+#mapScreen .mmStory li.ok{color:var(--ed-ink)}
 #mapScreen .mmPl.dim i{opacity:.38;box-shadow:none}
 #mapScreen .mmNm.dim span{opacity:.5}
 /* THE PHONE (GQ19): the map full, the list a bottom sheet over it; the map and the sheet never share a gesture (R20) */
