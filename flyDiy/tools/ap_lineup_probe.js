@@ -7,7 +7,7 @@
 //           flew), as the page does when the button is pressed mid-taxi
 // Each: 0.1 s rows from the roll until --after s past the lift-off; the heading off the roll's, the rudder, the tail.
 //   node tools/ap_lineup_probe.js --build <file.json> [--ways taxi,lineup,kept] [--taxi-s 23] [--after 12] [--calm]
-//        [--profile p] [--json out.json]
+//        [--profile p] [--wind kts,dirDeg[,gust[,breeze]]] [--json out.json]
 'use strict';
 const path = require('path'), fs = require('fs');
 const T = __dirname;
@@ -22,7 +22,9 @@ const key = path.resolve(opt('build'));
 const TW = TR.tourWorld(C, IN, fs);
 const W = TW.W, A = id => W.aerodromes.find(q => q.id === id);
 const a = A('HOME'), b = A(opt('to', 'w3'));
-const day = argv.includes('--calm') ? null : undefined;
+// --wind kts,dirDeg[,gust[,breeze]]: the game's day with its wind replaced (the day card's own spec fields), the rest the game's
+let day = argv.includes('--calm') ? null : undefined;
+if (opt('wind')) { const [k, d, g, b] = opt('wind').split(',').map(Number); day = TR.gameDay(C); day.wind = Object.assign({}, day.wind, { kts: k, dirDeg: d }, isFinite(g) ? { gust: g } : {}, isFinite(b) ? { breeze: b } : {}); }
 const taxiS = +opt('taxi-s', 23), after = +opt('after', 12);
 const wrap = d => { while (d > 180) d -= 360; while (d < -180) d += 360; return d; };
 const r2 = v => v == null || !isFinite(v) ? null : Math.round(v * 100) / 100;
@@ -67,7 +69,7 @@ for (const way of opt('ways', 'taxi,lineup,kept').split(',')) {
   } else continue;
   const R = fly(H, way);
   out[way] = R;
-  console.log(JSON.stringify(R.L));
+  R.L.wind = opt('wind') || (day === null ? 'calm' : 'game'); console.log(JSON.stringify(R.L));
 }
-out.cols = 'tFromRoll,ph,onG,tailUp,dpsi,ias,gs,agl,bank,pitch,dr,da,de,thr,beta';
+out.wind = day ? day.wind : null; out.cols = 'tFromRoll,ph,onG,tailUp,dpsi,ias,gs,agl,bank,pitch,dr,da,de,thr,beta';
 if (opt('json')) fs.writeFileSync(opt('json'), JSON.stringify(out));
