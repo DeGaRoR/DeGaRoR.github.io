@@ -356,7 +356,11 @@ const wingNeed = (B, at) => (B.key === METAL && /house[34]/.test(at || '')) ? 1
   // c: flown (a job a flight)
   const flights = [{ a: tw, b: nv, pose: POSE, what: 'the altiport apron after the slope roll-on' }];
   { const ux = Math.cos(mn.hdg), uz = Math.sin(mn.hdg), s = -(mn.len / 2 - 45); flights.push({ a: mn, b: WI.aerodromes.find(q => q.id === 'w2'), pose: { x: mn.x + ux * s, z: mn.z + uz * s, hdg: Math.atan2(-uz, -ux) }, what: 'Jumbo Mine\'s street 45 m from its south end' }); }
-  for (const Fl of flights) for (const B of LB) {
+  // G3077 (TORQUE-RETUNE-66): THE CUB IS THE REFERENCE FOR SHORT STRIPS (the user, 14 Oct: "Stop testing the Jodel, the cub is
+  // the reference for short strips") - 11c's two flights are short strips' (the altiport's apron to East Point's 150 m,
+  // Jumbo Mine's 250 m street): the Jodel's rows are dropped, check-only (it is still planned in 11a, as every land build)
+  const LBc = LB.filter(B => B.name !== 'the Jodel');
+  for (const Fl of flights) for (const B of LBc) {
     if (!SHD.take()) continue;
     let F = L.flyTurn(C, WI, IX, B.def, Fl.a, Fl.b, Fl.pose, { tMax: 150 });
     const tag = '11c ' + B.name + ' from ' + Fl.what;
