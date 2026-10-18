@@ -3303,6 +3303,8 @@ function makePilot(sim, def, world, opts) {
         const depFly = ap.route && ap.route.from && ap.route.from.fly, depE = depFly && depFly.dep && depFly.dep.length ? depFly.dep[depFly.dep.length - 1] : null;
         const tightLeft = depE ? (depE[0] - cg[0]) * climbDirNow[0] + (depE[1] - cg[2]) * climbDirNow[1] : 0;
         if (tightLeft > 0 && !tightSaid) { tightSaid = true; say('tight-zone', 'climbing straight out until past the tight zone, ' + tightLeft.toFixed(0) + ' m ahead'); }
+        // (the Cabin Strip's is 3.4 km: an ultralight is at its circuit height long before - it levels there on the line)
+        if (tightLeft > 0 && agl >= ap.hCruise - 8) engage('LOC', 'TECS', 'TECS', { alt: ap.refAlt + ap.hCruise, vs: null, gs: null, vsUp: null, vsDn: null, ias: ap.VClimb, bank: bankLim });
         if (tightLeft <= 0 && (agl >= hTurn || stalled || marginal || terrainTurn)) {
           const first = routeArmed ? routeStart() : planFromHere();
           go(first); climbMode = !(stalled || marginal); ceilT = 0;
