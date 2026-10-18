@@ -1188,6 +1188,28 @@ if (plots.length) {
   check(/PG\.runwayGrab\(rec, L\[0\], L\[1\], o\.shedDims \? o\.shedDims\(\) : null\)/.test(RP33) && (RW33.match(/shedDims: \(\) => shedDims/g) || []).length === 2, '33 the page hands the premises its shed dims (both builds)');
 }
 
+// 34 THE CABIN STRIP (G3097 / G3098; the user, 18 Oct: "we need to place the little hangar atop the flat bit of the new strip ...
+//    our second owned hangar ... a storage zone too ... the circuit should ensure to pass the tight zone before manoeuvring"):
+//    the shipped w1 is the story's cabin (its name), its top end flat; its base plot 'w1' (the field hangar's place), its stand
+//    and its way out's first point stand on the apron; the outside storage carries two painted stands within the fleet's reach
+//    of the stand; its drawn flight reaches the pilot in the world (aerodrome.fly), the approach straight in; no issue names it
+{
+  const J = PG.expandAreas(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec), w = J.layers.runways.find(r => r.id === 'w1');
+  check(!!w && /\bcabin\b/i.test(w.name || '') && JSON.stringify(w.profile[w.profile.length - 1]) === '[1,15.16]' && w.profile[w.profile.length - 2][1] === 15.16, '34 w1 is the story\'s cabin strip (its name), its top end flat', w && JSON.stringify([w.name, w.profile]));
+  const ap = (J.layers.terrain || []).concat(J.layers.surface || []).find(e => e.id === 'cab_apron' || /^cab_apron/.test(e.id || ''));
+  const P = w && (w.plots || []).find(q => q.id === 'w1');
+  check(!!ap && !!P && !!w.stand && PG.inPoly(ap.poly, P.x, P.z) && PG.inPoly(ap.poly, w.stand.x, w.stand.z) && PG.inPoly(ap.poly, w.taxiOut[0][0], w.taxiOut[0][1]),
+    '34 the base plot w1, the stand and the way out\'s first point stand on the apron', JSON.stringify([P, w && w.stand]));
+  const st = (J.layers.material || []).find(e => /^cab_store/.test(e.id || '') && e.stands);
+  const cs = st ? PG.polyCentroid(st.poly) : null;
+  check(!!st && st.stands.n >= 2 && Math.hypot(cs[0] - w.stand.x, cs[1] - w.stand.z) <= 150, '34 the outside storage: two painted stands within the fleet\'s reach of the stand', st && JSON.stringify(st.stands));
+  const O = PG.compose(J, synth), A = (O.aerodromes || []).find(a => a.id === 'w1');
+  check(!!A && A.fly && Array.isArray(A.fly.dep) && A.fly.dep.length >= 2 && Array.isArray(A.fly.appr) && A.fly.appr.length >= 2 && A.fly.terrainOk === true && w.circuit && w.circuit.join === 'straight',
+    '34 its drawn flight reaches the pilot (aerodrome.fly: dep, appr, terrainOk) and its circuit joins straight in', A && JSON.stringify(A.fly).slice(0, 160));
+  const iss = PG.issues(J).filter(t => /runway w1\b/.test(t));
+  check(!iss.length, '34 no issue names w1', iss.join(' / '));
+}
+
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
