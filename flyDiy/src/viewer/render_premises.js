@@ -1292,23 +1292,23 @@ function make(THREE, scene, world, rec0, opts) {
     if (!PAV || !PAV.mergeSteps) return;
     const buckets = new Map();
     for (const c of G.roads.children) if (!c.userData.pavMerged && c.isMesh && c.geometry && PAV.isTable(c.material) && c.geometry.userData.pavRow) {
-      const k = /^pave:/.test(c.name) ? 'pave' : 'road'; let b = buckets.get(k); if (!b) buckets.set(k, b = []); b.push(c); }
-    for (const [k, list] of buckets) {
-      const out = [];
-      // (G3214: the town's rows - a merged mesh is the town's when every row it holds is; a whole build merges the town's roads
-      // apart from the field's, they lie km apart, but the test is exact either way)
-      const townRows = new Set();
-      for (const c of list) { const nm = String(c.name || ''), id = nm.slice(nm.indexOf(':') + 1); if (id && isTown({ id }) && c.geometry.userData.pavRow) townRows.add(c.geometry.userData.pavRow); }
+      // (G3214: with the far ribbon on, a whole build merges the town's sources apart - the merge joins parts whose boxes touch,
+      // and Metlakatla's roads touch the field's, so no merged mesh was the town's alone (18 Oct 09:25 diag). The town part
+      // merges them apart already.)
+      const kind = /^pave:/.test(c.name) ? 'pave' : 'road', town = part || (ROAD_FAR > 0 && isTown({ id: String(c.name).slice(kind.length + 1) }));
+      const k = kind + (town ? '|town' : ''); let b = buckets.get(k); if (!b) buckets.set(k, b = Object.assign([], { kind, town })); b.push(c); }
+    if (!part) for (const kind of ['pave', 'road']) stats[kind + 'Merged'] = stats[kind + 'Parts'] = 0;
+    for (const list of buckets.values()) {
+      const out = [], k = list.kind;
       yield* PAV.mergeSteps(THREE, list.map(m => ({ geo: m.geometry, order: m.renderOrder })), null, out);
       for (const c of out) {
         const m = new THREE.Mesh(c.geo, list[0].material);
         m.renderOrder = c.order; m.receiveShadow = true; m.name = k + ':merged'; m.userData.pavMerged = true;
-        const rows = c.geo.userData.pavRows;   // (G3214: the town's own - switched for the far ribbon by roadsFar)
-        if (part || (townRows.size && Array.isArray(rows) && rows.length && rows.every(r => townRows.has(r)))) m.userData.townRoad = true;
+        if (list.town) m.userData.townRoad = true;   // (G3214: the town's own - switched for the far ribbon by roadsFar)
         G.roads.add(m);
       }
       for (const m of list) { G.roads.remove(m); m.geometry.dispose(); }
-      stats[k + 'Merged'] = (part ? stats[k + 'Merged'] || 0 : 0) + out.length; stats[k + 'Parts'] = (part ? stats[k + 'Parts'] || 0 : 0) + list.length;   // (G2063: the town's added to the rest)
+      stats[k + 'Merged'] = (stats[k + 'Merged'] || 0) + out.length; stats[k + 'Parts'] = (stats[k + 'Parts'] || 0) + list.length;   // (G2063: the town's added to the rest)
     }
   }
   if (PAV && PAV.onRebuild) PAV.onRebuild(() => { RC.flush = true; if (root.parent) buildRoads(); });   // G928: the A/B stands them again the other way (G3002: every road anew)
