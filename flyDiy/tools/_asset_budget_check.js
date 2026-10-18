@@ -250,6 +250,9 @@ function check(D) {
     else if (b.nt > b.cap * 1.02) fail(`3 budget: ${b.key} L0 ${b.nt} tris over its base cap ${b.cap} (node tools/prop_lod.js --kit ${b.kit} --base: a re-bake brought the scan back?)`);
   }
 
+  // ---- 3 the traffic cars' windows glazed (G2906: tools/auto_glass.py --check; a pier re-bake brings the white back)
+  if (D.glass && !D.glass.ok) fail(`3 budget: the traffic cars' windows are not glazed - ${D.glass.why} (python tools/auto_glass.py)`);
+
   // ---- 8 REPORT
   for (const r of D.report) notes.push(`8 report ${r}`);
   return { fails, notes };
@@ -305,7 +308,14 @@ function gather() {
     const K = LT.KITS[kit], R = readPacks(K.dir, K.manifest);
     for (const [key, cap] of Object.entries(caps)) baseCaps.push({ kit, key, cap, nt: R.props[key] ? R.props[key].nt : undefined });
   }
-  return { CORE, LT, IG, camp, infra, twins, wiring, fresh, report, baseCaps };
+  // the traffic cars' windows (G2906)
+  const glass = { ok: false, why: 'python could not run tools/auto_glass.py --check' };
+  for (const exe of ['python', 'py', 'python3']) {
+    const r = spawnSync(exe, [path.join(__dirname, 'auto_glass.py'), '--check'], { encoding: 'utf8' });
+    if (r.status === 0) { glass.ok = true; glass.why = ''; break; }
+    if (r.status === 1) { glass.why = (r.stdout.trim().split(/\r?\n/).pop() || 'stale'); break; }
+  }
+  return { CORE, LT, IG, camp, infra, twins, wiring, fresh, report, baseCaps, glass };
 }
 
 function main() {
@@ -338,6 +348,7 @@ function main() {
     brk('5 a phase in the cage', C => { const a = C.infra.REG.props.pylon_tall.attach.filter(x => x.kind === 'phase'); a[0].p[0] = 1.5; a[1].p[0] = -1.5; });
     brk('6 a stale pack', C => { C.fresh = { ok: false, why: 'selftest' }; });
     brk('7 the lazy list', C => { C.wiring.build = C.wiring.build.replace("'infra', 'infra_packs.json'", "'x', 'x'"); });
+    brk('3 white car windows', C => { C.glass = { ok: false, why: 'selftest' }; });
     brk('3 a base cap', C => { C.baseCaps = C.baseCaps.map(b => Object.assign({}, b, { cap: 10 })); });
     brk('7 not instanced', C => { C.wiring.props = C.wiring.props.replace('pylon_', 'pyIon_'); });
     for (const [n, red] of reds) if (!red) R.fails.push(`selftest: breaking "${n}" did not turn the gate red`);
