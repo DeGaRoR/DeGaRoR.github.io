@@ -698,7 +698,7 @@ function makePilot(sim, def, world, opts) {
   // P0.6 (PILOT-ROADMAP §6.3 rules 1 and 3): THE PATH — the circuit as one
   // filleted geometry planned once, followed by one lateral law (L1) with
   // the arc's curvature fed forward; `path: false` keeps the pursuit + arc
-  let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false, vxHeld = false, vxSaid = false;
+  let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false, tightSaid = false, vxHeld = false, vxSaid = false;
   let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
   // G399.7: the speed the ELEVATOR can hold — raised while it sits on its nose-up stop
   let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false;
@@ -3296,7 +3296,14 @@ function makePilot(sim, def, world, opts) {
         const climbDirNow = [F.ux * ap.dirX, F.uz * ap.dirX];
         const terrainTurn = agl > A.hSafe + 10 && gradAhead(cg[0], cg[2], climbDirNow[0], climbDirNow[1], 1500, cg[1], 30) > gammaGA();
         if (terrainTurn && !terrainTurnSaid) { terrainTurnSaid = true; say('terrain-turn', 'the ground ahead climbs faster than the aeroplane — turning at ' + Math.round(agl) + ' m'); }
-        if (agl >= hTurn || stalled || marginal || terrainTurn) {
+        // G3321 CABIN-CIRCUIT (the user, 18 Oct: "the circuit should ensure to pass the tight zone before manoeuvring"): a strip
+        // whose record draws its climb-out (fly.dep - 27_premises hands it in world metres, its last point the tight zone
+        // passed) is climbed out straight on the runway line until the aeroplane is past that point: no crosswind turn, no
+        // terrain-turn, no ceiling's early circuit before it. A strip without fly.dep: as before, to the bit
+        const depFly = ap.route && ap.route.from && ap.route.from.fly, depE = depFly && depFly.dep && depFly.dep.length ? depFly.dep[depFly.dep.length - 1] : null;
+        const tightLeft = depE ? (depE[0] - cg[0]) * climbDirNow[0] + (depE[1] - cg[2]) * climbDirNow[1] : 0;
+        if (tightLeft > 0 && !tightSaid) { tightSaid = true; say('tight-zone', 'climbing straight out until past the tight zone, ' + tightLeft.toFixed(0) + ' m ahead'); }
+        if (tightLeft <= 0 && (agl >= hTurn || stalled || marginal || terrainTurn)) {
           const first = routeArmed ? routeStart() : planFromHere();
           go(first); climbMode = !(stalled || marginal); ceilT = 0;
           if (!climbMode) { SV.thrC = A.thrCruise; SV.thcI = 0.04; }
@@ -3660,7 +3667,10 @@ function makePilot(sim, def, world, opts) {
         // flies again, the same slope over the same ground. The clearance on the slope is the runway
         // model's to plan (its cone, the canopy included); the pilot goes around when it is under 15 m
         // AND more than a third below what the slope leaves over the ground here
-        if (world && d > 400 && canGA && aglT < Math.min(15, 0.67 * (hGS - terrainNow))) { goAround('terrain under the approach'); break; }
+        // G3321 CABIN-CIRCUIT: a strip whose record vouches for its approach (fly.terrainOk - the user's Cabin Strip, through a
+        // mountain gap and over a lake: "you may need to ignore ground proximity warnings") is not gone around from for the
+        // ground under it - the designer's clearance, per strip; every other strip as before
+        if (world && d > 400 && canGA && !(ap.route.to.fly && ap.route.to.fly.terrainOk) && aglT < Math.min(15, 0.67 * (hGS - terrainNow))) { goAround('terrain under the approach'); break; }
         if (d <= -150 && agl > A.flareAgl * 3) {
           if (canGA) { goAround('past the aim at ' + Math.round(agl) + ' m'); break; }
           if (!committed) { committed = true; say('committed-landing', 'past the aim at ' + Math.round(agl) + ' m agl — landing it'); }
