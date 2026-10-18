@@ -94986,3 +94986,15 @@ Accepted by the user by name (14 Oct): the metal Cessna +6 s load; the passenger
 Landed: METLA-ON lever 1 (G3210, 32795aee7: Metlakatla bare - no plots/yards/fences/rails; lots drawn within 600 m elsewhere; ON-OFF at 4 km loop +12.1 -> +5.8 ms, draws +506 -> +22), the DMGUPLOAD wing retry (79e23a50b). Metlakatla stays OFF by default (not even yet).
 Strict light gate: 1 RED, the metal fuseWidth slider (accepted by the user by name 14 Oct). Gates: CLOCK, CLOUD (lamps), KTX2 (accepted), FRAMECOST (accepted restore row + the mapx rows whose ALLOWs ride ed2-obj1), DMGUPLOAD still red (Deform, after the reset).
 Queue after the Sat 17 Oct reset: memory post-reset-plan-2026-10-17.
+
+## G3212 - METLA-ON lever 2: Metlakatla's kit plots stream only near; the kit casts no far shadow (2026-10-18, HW-COVERAGE -> METLAKATLA for A0; on master L15c 85857a1e8)
+- sortFrom pushes a kit plot past 1 200 m out of every reach (the kit host draws every kit house from the cooked table: the far look
+  unchanged; ?kitnear=0); the kit's meshes cast no shadow past 600 m of the town's footprint (?kitshadow=0). LIFTS identical.
+- Gates (18 Oct 01:13, a fresh cook): PREMISES PREMRASTER PREMCOOK TARR LIFE STAGES BUILD PASS; FRAMECOST red on two rows (cub taxi
+  bindBuffer 2 -> 7.5, cessna garage:restore updateMatrixWorld 2269 -> 4553) - the SAME two rows on master L15c with its own fresh
+  cook (02:05 control): master's, not this branch's (lever 2 is inert with the town off). metla_bare_check PASS.
+- A/B A B C C B A on the floats circuit (3.9-6 km; C = ON without lever 2): the stream 3.0 -> 0.01 ms; ON - OFF loop +5.85 ->
+  +4.75 ms, worldUpdate +2.5 -> +1.3, frames over 34 ms 9.85 -> 4.16 % (OFF 1.88 %), over 100 ms 0.49 -> 0.16 %; the JS heap +0.9 -> +0.3 GB.
+- The enable rule (ON <= +3 ms loop at 4 km, frames over 34 ms within ~1 point of OFF) not met yet: render +1.95 ms (the town's roads
+  at 4 km: G3214 far roads next), worldUpdate +1.3 ms (the town's per-frame ticks). A 233 ms worst frame in both ON runs (not in C):
+  unexplained, look first (the kit's shadow switch or a kit plot crossing the 1 200 m line).
