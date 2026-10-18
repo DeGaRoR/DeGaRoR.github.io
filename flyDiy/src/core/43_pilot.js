@@ -342,10 +342,13 @@ function makePilot(sim, def, world, opts) {
   // this pilot flies it with its own laws on (the calm-air course trim, P1.D's
   // ground steer, the aileron into wind, the water's branch and stick top)
   const restH0 = servoRestHeight(def);      // B5: the design pose's CG rest height over the ground
+  // G3077 (TORQUE-RETUNE-66): THE NOSEWHEEL THAT WILL NOT LIFT - past Vr with the stick on the servo's 0.35 top for a second
+  // and the nose not up, the pull goes on to the stick's full travel (ROLL, below); rotStuckT the time it has been so
+  let rotPull = false, rotStuckT = 0;
   const SV = makeServos(sim, def, { pilot: 'pilot', now: () => ap.t, trike, rotateTD, TW, features: {
     trimCalm: true, groundP1D: true, xwBank: true, water: true, porpoise: true,
     // G396.2 / G970: on the step the stick comes all the way back, through LIFTOFF
-    deTop: (onG) => (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : 0.35 } });
+    deTop: (onG) => (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : (rotPull && ap.phase === 'ROLL') ? (A.deRotateFull ?? 0.70) : 0.35 } });
   const taxiFF = (() => {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
@@ -3086,7 +3089,7 @@ function makePilot(sim, def, world, opts) {
         }
         if (thRest === null) thRest = th;
         if (rollS0 === null) {
-          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false; wrUp = false;
+          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false; wrUp = false; rotPull = false; rotStuckT = 0;
           depC = null; toAccelDone = false; toHoldH = null; toLowT = 0; flcI = 0; flcTh = flcVt = null; flcSet = false; flcSetT = 0; flcRelax = 0;   // G2125: a new run, a new climb-out
           // P1.C: THE DEPARTURE PLAN (PILOT-ROADMAP C.3-C.4), the approach
           // plan's twin: 'short' when the strip is under 2 x the sheet's
@@ -3292,6 +3295,17 @@ function makePilot(sim, def, world, opts) {
                 : (threePoint || softTO || V < (A.VTailUp ?? 0)) ? ((threePoint || softTO) ? Math.min(thRest, A.liftoffTh) : (A.thTailUp ?? 0.02))
                 : (A.thTailUp ?? 0.02);
         } else if (V > vrT) { vert = 'PITCH'; pitch = (A.thRotate ?? A.liftoffTh) + (PRA ? PRF.overRotate : 0); }
+        // G3077 (TORQUE-RETUNE-66): A NOSEWHEEL THAT WILL NOT LIFT IS PULLED HARDER. The servo's elevator top on the wheels is
+        // 0.35 (the cruise's stop); with ENGINE-TORQUE's propeller on the honest solver the metal Cessna at Jumbo Mine (the load
+        // door's forward CG, the mill's 250 m) held 0.35 from 24 to 30 m/s with the nose at -0.1 deg and ran off the end ('will
+        // not unstick' - GATE TAXICLEAR 9; with the four effects off it rotated at Vr). A pilot whose nose will not come up
+        // past Vr comes back to the stop: on a tricycle, past Vr, after a second on the 0.35 top with the attitude still within
+        // 2 deg of the rest attitude, the top opens to the stick's full travel (deRotateFull, the water's 0.70) until the wheels
+        // leave; the attitude servo still flies the rotation to its target from there
+        if (!rotateTD && !sim.hydro && V > vrT && thRest != null) {
+          rotStuckT = (SV.aDe >= 0.34 && th < thRest + 0.035) ? rotStuckT + dt : 0;
+          if (!rotPull && rotStuckT > 1.0) { rotPull = true; say('rotate-pull', 'the nose will not come up at ' + V.toFixed(1) + ' m/s on the stop - full back stick'); }
+        }
         else if (softTO) deRoll = 0.20;                        // P1.C soft, a trike: the nosewheel light through the roll
         // G970: ON THE WATER THE RUN ATTITUDE IS NOT A WHEEL'S. G431's tail-up
         // attitude (liftoffTh - 0.05, the J-3's run a few degrees under its
