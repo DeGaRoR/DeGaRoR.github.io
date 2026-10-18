@@ -95040,3 +95040,7 @@ Run: node tools/prop_lod.js --base && node tools/prop_lod.js (the pier kit is th
 ## Landing L18a (A0, 18 Oct 06:10)
 Landed: EDITOR-PERF ground fixes (G3100 ring normals, G3101 paved merges + pavement cache), METLA-ON lever 2 (G3212: kit plots stream only near + no far kit shadow; ON-OFF loop +5.85 -> +4.75 ms, >34 ms frames 9.85 -> 4.16 %), damage impact v3 (break events budgeted) + the DMGUPLOAD Cub fix, the asset cut (pier people ~8 k each, boat 370 k -> 30 k), the float spray/wake fix (G2834/G2835), the floats route + water flare (G3078/G3079), PERF-1 (fixed reference tooling, census, parked shadows, 28 dead ALLOWs dropped).
 Strict light gate: 16 better; 2 RED already accepted (metal fuseWidth slider; floats world -> garage, also in train 57). Gates: CLOCK, CLOUD (lamps), FRAMECOST (master's restore row), KTX2 (the 9 character files: accepted, see accepted-4). DMGUPLOAD and TOUR PASS.
+
+## Landing L18b (A0, 18 Oct 14:30)
+Landed: ED-1's placer animals (a tile drops a herd, a scatter makes a hotspot), the ALMA as one tile, packs' loose parts hidden, zone pills for every category (G2893).
+Strict light gate: 16 better; only the accepted metal fuseWidth slider row red. Gates: CLOCK, CLOUD (lamps), FRAMECOST (master's restore row), KTX2 (accepted characters), TOUR shard 0 (the Cub's prop strike in 02/20's pond at w2, the user's kept pond; identical on master per Pilot 18 Oct).

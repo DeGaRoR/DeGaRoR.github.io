@@ -2071,7 +2071,10 @@ function roadHandles(pts, tan) {
   return pts.map((q, i) => (T[i] ? T[i] : i < n - 1 ? [S.Dout[i][0] * S.h[i] / 3, S.Dout[i][1] * S.h[i] / 3] : [S.Din[i][0] * S.h[i - 1] / 3, S.Din[i][1] * S.h[i - 1] / 3]));
 }
 // a placed prop's scale (v1.36 `s`, the model placer's) on its composed record - only when it is not 1 (G3001)
-const objScale = ob => (+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3 ? { s: +ob.s } : {});
+// a placed prop's own extras on its composed record: its scale (G2914), and (G2893) `with` - an ASSEMBLY's other parts, stood
+// at the same pose (the placer's one record for the ALMA's base, fork and dish); a record with neither composes as before
+const objScale = ob => Object.assign(+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3 ? { s: +ob.s } : {},
+  Array.isArray(ob.with) && ob.with.length ? { with: ob.with.filter(k => typeof k === 'string' && k) } : {});
 // THE ROADS' BUILD KEYS (G3002 PLACER-FAST; the user: "adding assets in the editor is a bit of a pain, really, really
 // long to move, update, rotate" - every edit's rebuild made EVERY road's pavement, its poles and its rails again, the
 // island road's 25 km among them). A road's drawn things (its pavement row, its power line, its guardrail) are a
