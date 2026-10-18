@@ -150,6 +150,7 @@ onmessage = e => {
     const gl = renderer && renderer.getContext && renderer.getContext();
     if (!gl || typeof WebGL2RenderingContext === 'undefined' || !(gl instanceof WebGL2RenderingContext)) { G.ok = false; G.err = 'no WebGL2'; return; }
     G.gl = gl; G.ext = gl.getExtension('KHR_parallel_shader_compile'); G.t0 = performance.now();
+    try { G.askAll = /[?&]glask=1(&|$)/.test((typeof location !== 'undefined' && location.search) || ''); } catch (e) { G.askAll = false; }
     // a lost context ends the GPU's riding for the page (its program and buffers went with it): the CPU rides from then on
     try { gl.canvas.addEventListener('webglcontextlost', () => { G.ok = false; G.err = 'the WebGL context was lost'; G.lostAt = G.stats.frames; }); } catch (e) {}
     const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
@@ -240,18 +241,24 @@ onmessage = e => {
   }
   // THE STALE PLACES PACKED into D.cpu: a record whose data moved since it last went up (R.dv: an event) whole, else the
   // places a binding step listed (R.dirtyPl). Returns the rows [r0, r1) to send. Pure (GATE DMGSKINGPU runs it)
+  // (G3024: the rows touched are kept in D.runs - the runs of consecutive rows - and sent run by run; [r0, r1) their span)
   function packStale(D, SB, rest, baseOf) {
     let r0 = Infinity, r1 = -1;
+    const mk = D._rowMk && D._rowMk.length === D.rows ? D._rowMk.fill(0) : (D._rowMk = new Uint8Array(D.rows));
     for (const r of D.recs) {
       const R = r.R;
       if (R.dvUp !== R.dv) { SB.packPlaces(R, rest, baseOf(r), D.cpu, r.p0);
-        R.dvUp = R.dv; R.dirtyPl = null; r0 = Math.min(r0, Math.floor(r.p0 / PW_W)); r1 = Math.max(r1, Math.ceil((r.p0 + R.pl.length) / PW_W)); }
+        R.dvUp = R.dv; R.dirtyPl = null; const a = Math.floor(r.p0 / PW_W), b = Math.ceil((r.p0 + R.pl.length) / PW_W);
+        r0 = Math.min(r0, a); r1 = Math.max(r1, b); for (let k = a; k < b && k < mk.length; k++) mk[k] = 1; }
       else if (R.dirtyPl && R.dirtyPl.length) {
         for (const j of R.dirtyPl) { SB.packPlaces(R, rest, baseOf(r), D.cpu, r.p0, j, j + 1);
-          const row = Math.floor((r.p0 + j) / PW_W); if (row < r0) r0 = row; if (row + 1 > r1) r1 = row + 1; }
+          const row = Math.floor((r.p0 + j) / PW_W); if (row < r0) r0 = row; if (row + 1 > r1) r1 = row + 1; if (row < mk.length) mk[row] = 1; }
         R.dirtyPl = null;
       }
     }
+    const runs = [];
+    for (let k = 0; k < mk.length; k++) if (mk[k]) { let e = k; while (e + 1 < mk.length && mk[e + 1]) e++; runs.push([k, e + 1]); k = e; }
+    D.runs = runs;
     return [r0, r1];
   }
   // the place texels of rows [r0, r1) up
@@ -315,7 +322,8 @@ onmessage = e => {
     for (const D of F.drawers) {
       // the stale records: packed (whole after an event, by place after a step of the binding) and sent by rows
       const [r0, r1] = packStale(D, F.SB, F.rest, F.base);
-      if (r1 > r0) { upRows(D, r0, r1); twRows(D, r0, r1); gl.useProgram(G.prog); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, G.nd); }
+      if (r1 > r0) { for (const [a, b] of (D.runs && D.runs.length ? D.runs : [[r0, r1]])) { upRows(D, a, b); twRows(D, a, b); }
+        gl.useProgram(G.prog); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, G.nd); }
       if (chk) chk('places up');
       // the members that do not ride (a fold's legs, floats, links): sent by range as their attributes moved
       if (D.views) {
@@ -447,8 +455,12 @@ onmessage = e => {
   const UNITS = 6;
   function saveGL() {
     const gl = G.gl, st = { prog: gl.getParameter(gl.CURRENT_PROGRAM), vao: gl.getParameter(gl.VERTEX_ARRAY_BINDING), unit: gl.getParameter(gl.ACTIVE_TEXTURE),
-      ab: gl.getParameter(gl.ARRAY_BUFFER_BINDING), pub: gl.getParameter(gl.PIXEL_UNPACK_BUFFER_BINDING), tfb: gl.getParameter(gl.TRANSFORM_FEEDBACK_BINDING),
-      disc: gl.isEnabled(gl.RASTERIZER_DISCARD), tex: [],
+      ab: gl.getParameter(gl.ARRAY_BUFFER_BINDING),
+      // (G3024: three never binds a pixel-unpack buffer or a feedback and never turns the rasterizer off - and this module
+      // leaves them unbound / off: not asked, each a query the GPU process answers (a sync: the crash's main thread waited
+      // there 2.2 s on the box, 18 Oct, once the read-back was gone). ?glask=1 asks them again)
+      pub: G.askAll ? gl.getParameter(gl.PIXEL_UNPACK_BUFFER_BINDING) : null, tfb: G.askAll ? gl.getParameter(gl.TRANSFORM_FEEDBACK_BINDING) : null,
+      disc: G.askAll ? gl.isEnabled(gl.RASTERIZER_DISCARD) : false, tex: [],
       px: [gl.UNPACK_ALIGNMENT, gl.UNPACK_FLIP_Y_WEBGL, gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, gl.UNPACK_ROW_LENGTH, gl.UNPACK_SKIP_ROWS, gl.UNPACK_SKIP_PIXELS, gl.UNPACK_IMAGE_HEIGHT].map(k => [k, gl.getParameter(k)]) };
     for (let k = 0; k < UNITS; k++) { gl.activeTexture(gl.TEXTURE0 + k); st.tex.push(gl.getParameter(gl.TEXTURE_BINDING_2D)); }
     gl.activeTexture(st.unit);

@@ -330,9 +330,9 @@
       if (!touched) { R.vB = D.vB; R.evBr = D.br.length; R.lastBound = 0; R.skipped = (R.skipped | 0) + 1; return false; }
     }
     R.vB = D.vB;
-    R.dv = (R.dv | 0) + 1; R.dirtyPl = null;         // (G1818: the GPU's copy of the record is stale, whole)
     const { nv, K, wi, ww } = R, idx = R.idx;
     if (!D.br.length) {                        // healed (a reset): the index as built, nothing held
+      R.dv = (R.dv | 0) + 1; R.dirtyPl = null;        // (G1818: the GPU's copy of the record is stale, whole)
       if (R.idx0) idx.set(R.idx0);
       R.active = false; R.vp = R.dom = R.w2 = R.ride = R.dead = R.watch = R.sag = null; R.torn = R.removed = R.cut = 0; R.held = R.xv = R.tp = null; R.cov = false; R.heldTorn = 0;   // (G2040)
       R.evTied = R.evTorn = null;
@@ -399,6 +399,11 @@
         if (!chg[v]) for (let k = 0; k < K; k++) if (Tm[wi[o + k]]) { chg[v] = 1; break; } }
     }
     R._evBound = null; R._bmBound = null;
+    // G3024: a LOCAL event leaves every place it did not change bit for bit as packed (above: the rest 'as it stands') - the
+    // GPU's copy is re-packed BY PLACE (R.dirtyPl, as a binding step's), not whole: a crash's events re-sent ~64 MB of place
+    // texels on the box (18 Oct), the GPU process behind every frame. A full event (or a record not packed yet): whole
+    if (loc && chg && R.pl && R.dv === R.dvUp) { const L = R.dirtyPl || (R.dirtyPl = []), pl = R.pl; for (let j = 0; j < pl.length; j++) if (chg[pl[j]]) L.push(j); }
+    else { R.dv = (R.dv | 0) + 1; R.dirtyPl = null; }   // (G1818: the GPU's copy of the record is stale, whole)
     R.BP = BP; R.pc = pc;
     // (G1818: a welded record is prepared once a place, its copies given their place's piece, dominant node and ride -
     // the same bytes prepV's copy branch wrote, without a call a vertex: ~500k vertices, ~85k places on the user's Cub)
