@@ -2155,17 +2155,17 @@
                     // G279: the editor's measured fist correction, hand frame
                     fixH: j.fixH ? new THREE.Vector3().fromArray(j.fixH) : null,
                     fixF: j.fixF ? new THREE.Vector3().fromArray(j.fixF) : null,   // G468: the sole
-                    ctx: { s: r.s, palm: r.palm, base: null, notes: null,
+                    ctx: { s: r.s, palm: r.palm, palmL: r.palmL, palmR: r.palmR, base: null, notes: null,
                            poleFig: new THREE.Vector3().fromArray(j.poleFig) } });
       }
-      const P = { key: r.key, dum, sDum, jobs, inst: null, fist: r.fist,
+      const P = { key: r.key, dum, sDum, jobs, inst: null, fist: r.fist, fistL: r.fistL, fistR: r.fistR,
                   anim: (r.anim && r.anim.amp > 0) ? r.anim : null };
       out.push(P);
       const go = () => {
         if (P.dead) return;
         const inst = CC.instance(r.key);
         if (!inst) return;
-        CC.dress(inst, dum, { fist: r.fist, from: sDum });
+        CC.dress(inst, dum, { fist: r.fist, fistL: r.fistL, fistR: r.fistR, from: sDum });
         P.inst = inst;
         if (P.anim && CC.animLoad) CC.animLoad(P.anim.key);
       };
@@ -2189,7 +2189,7 @@
       }
       for (const bn in P.sDum.bones)        // solved locals -> the drawn twin
         P.dum.bones[bn].quaternion.copy(P.sDum.bones[bn].quaternion);
-      CC.dress(P.inst, P.dum, { fist: P.fist, from: P.sDum });
+      CC.dress(P.inst, P.dum, { fist: P.fist, fistL: P.fistL, fistR: P.fistR, from: P.sDum });
       if (P.anim && CC.animStep) CC.animStep(P.inst, now, P.anim);
     }
   }

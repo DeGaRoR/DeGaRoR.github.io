@@ -1197,6 +1197,7 @@ const CAGE_PARTS = [
       ['aboard', ['dumOn', 'pilotWho', 'cabOcc', 'copWho']],
       ['pilot pose', ['dumSize', 'dumElbows', 'dumKnees', 'dumRecline',
                       'dumHandGrip', 'dumFist', 'dumIdle']],
+      ['hands', ['dumHandsApart', 'dumFistL', 'dumFistR', 'dumGripL', 'dumGripR']],   // G2797
       ['passenger pose', ['paxSize', 'paxRecline', 'paxFeetOn', 'paxFeetZ',
                           'paxFeetY', 'paxFeetX', 'paxIdle']],
       ['markers', ['dumMarkers'], EXPERT],                  // G2794: an expert's instrument

@@ -162,6 +162,8 @@ window.CAGE_PAGE = {
     swMaster: 0, swAlt: 0, swAvionics: 0,      // G311/G318: the shed's button states (off, unlit)
     paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
     dumHandGrip: 0.075,
+    // G2797: the hands apart (0 = one setting for both, as always)
+    dumHandsApart: 0, dumFistL: 0.5, dumFistR: 0.5, dumGripL: 0.075, dumGripR: 0.075,
     // G180 — WHO IS ABOARD, per section, and the passengers' own seat and
     // pose. THE PILOT ALONE by default (2026-09-07, the user: 'by default,
     // there is only the pilot'); it was full — what `dum2On 1` (retired,
@@ -746,11 +748,21 @@ window.CAGE_PAGE = {
         ['dumElbows', 'elbows in/out', -0.25, 0.25, 0.005],
         ['dumKnees',  'knees in/out',  -0.25, 0.25, 0.005],
         ['dumRecline','recline offset',-15, 25, 0.5],
-        ['dumHandGrip','hand on grip',  0, 0.16, 0.005],
+        ['dumHandGrip','hand on grip',  0, 0.16, 0.005,
+         { when: P => !+P.dumHandsApart }],
         // G205: how far the fingers close (0 flat, 1 a fist; a character
         // only), and the pilot's breathing/glancing amplitude off the
         // sitting-idle clip (0 = a statue)
-        ['dumFist',   'fist closed',    0, 1, 0.05],
+        ['dumFist',   'fist closed',    0, 1, 0.05,
+         { when: P => !+P.dumHandsApart }],
+        // G2797 (the user's garage review, 18 Oct: "hand controls applied per
+        // hand"): the two hands set apart - each one's fist and its place on
+        // the grip; off, both follow the two rows above
+        ['dumHandsApart', 'each hand its own', 0, 1, 1],
+        ['dumFistL',  'left fist closed',  0, 1, 0.05, { when: P => !!+P.dumHandsApart }],
+        ['dumFistR',  'right fist closed', 0, 1, 0.05, { when: P => !!+P.dumHandsApart }],
+        ['dumGripL',  'left hand on grip',  0, 0.16, 0.005, { when: P => !!+P.dumHandsApart }],
+        ['dumGripR',  'right hand on grip', 0, 0.16, 0.005, { when: P => !!+P.dumHandsApart }],
         ['dumIdle',   'idle motion',    0, 1, 0.05],
         ['dumMarkers','eye point',      0, 1, 1],
       ], 'open', { when: P => +P.crewOn }],

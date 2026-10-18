@@ -2687,6 +2687,13 @@ function anchorWorld(o) {
 // poleFig (a frozen pole in the fig's frame, or null: derive it from the
 // current bend as the editor does) }. Returns the reach gap.
 const _pole = new THREE.Vector3();
+// G2797: the fist options a dress() takes off P - one fist, or one per hand
+function fistOpts(P) {
+  const f = P.dumFist == null ? 0.5 : +P.dumFist;
+  if (!+P.dumHandsApart) return { fist: f };
+  return { fist: f, fistL: P.dumFistL == null ? f : +P.dumFistL,
+           fistR: P.dumFistR == null ? f : +P.dumFistR };
+}
 function solveGripJob(dum, j, ctx) {
   const c = CHAINS[j.chain], s = ctx.s;
   const pole = _pole;
@@ -2723,7 +2730,10 @@ function solveGripJob(dum, j, ctx) {
     // hand's own axis (its -y) by the palm offset, scaled with
     // stature so a small dummy does not over-reach.
     _hv.set(0, -1, 0).applyQuaternion(alignQ);
-    aw.p.addScaledVector(_hv, -ctx.palm);
+    // G2797: each hand's own palm when the hands are set apart
+    const palm = /L$/.test(c.end) ? (ctx.palmL != null ? ctx.palmL : ctx.palm)
+                                  : (ctx.palmR != null ? ctx.palmR : ctx.palm);
+    aw.p.addScaledVector(_hv, -palm);
     // THE FIST CLOSES ON THE GRIP (G279): `fixH` is where the dressed rig's
     // fist actually closed relative to the grip, in the hand's own frame,
     // measured by fitFists() below and carried into flight by the join —
@@ -3529,7 +3539,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       const inst = window.CAGE_CHAR.instance(CH.key);
       if (inst) {
         window.CAGE_CHAR.dress(inst, dum,
-          { fist: P.dumFist == null ? 0.5 : +P.dumFist });
+          fistOpts(P));
         dum.char = inst;
         // THE IDLE (G205): a passenger wears the sitting-idle clip on the
         // upper body (seat, recline and feet stay ours); a pilot only its
@@ -3588,7 +3598,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       }
       if (!moved) break;
       window.CAGE_CHAR.dress(dum.char, dum,
-        { fist: P.dumFist == null ? 0.5 : +P.dumFist });
+        fistOpts(P));
     }
   };
   // THE SOLES ON THE PEDALS (G468, item 25): fitFists' twin for the legs. A
@@ -3624,7 +3634,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       }
       if (!moved) break;
       window.CAGE_CHAR.dress(dum.char, dum,
-        { fist: P.dumFist == null ? 0.5 : +P.dumFist });
+        fistOpts(P));
     }
   };
   const markLive = (dum, CH, role, idx, s, jobs, ctx) => {
@@ -3635,6 +3645,12 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
                  fist: P.dumFist == null ? 0.5 : +P.dumFist,
                  anim: dum.animSpec || null,
                  jobs: jobs.filter(j => j.ctl) };
+    // G2797: the two hands, only when set apart (one hand = the record as ever)
+    if (+P.dumHandsApart) {
+      const fo = fistOpts(P);
+      Object.assign(dum.live, { fistL: fo.fistL, fistR: fo.fistR,
+                                palmL: ctx.palmL, palmR: ctx.palmR });
+    }
     LIVE_CREW.push(dum);
     return dum;
   };
@@ -3733,6 +3749,11 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     const ctx = { s, palm: (P.dumHandGrip != null ? P.dumHandGrip : 0.075) * s,
                   elbows: +P.dumElbows || 0, knees: +P.dumKnees || 0,
                   base, notes, poleFig: null };
+    // G2797: each hand on its grip by its own amount when the hands are apart
+    if (+P.dumHandsApart) {
+      ctx.palmL = (P.dumGripL != null ? +P.dumGripL : ctx.palm / s) * s;
+      ctx.palmR = (P.dumGripR != null ? +P.dumGripR : ctx.palm / s) * s;
+    }
     const solveJob = j => {
       // WHICH MOVING PART HOLDS THE ANCHOR (live crew): the grip is authored
       // inside the control's own moving group (G240), so the first ancestor
