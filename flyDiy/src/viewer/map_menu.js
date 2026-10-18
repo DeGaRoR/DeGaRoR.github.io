@@ -144,7 +144,7 @@
     // G2290 (PILOTS): the roster's cards as the record states them (76_pilots.js pilotsCard), copied
     const pilots = (raw.pilots || []).map(p => JSON.parse(JSON.stringify(p)));
     // G2742 (STORY-PAGE): the story's own goal while its rails hold the list (app.js storyRecord); null otherwise
-    const story = raw.story && typeof raw.story.title === 'string' ? { title: raw.story.title, brief: raw.story.brief || '', held: raw.story.held || '',
+    const story = raw.story && raw.story.title ? { title: String(raw.story.title), brief: raw.story.brief || '', held: raw.story.held || '',
       step: raw.story.step || null, of: raw.story.of || null, rows: (raw.story.rows || []).map(r => ({ words: String(r.words), ok: !!r.ok })) } : null;
     return { providers, prov, contracts, career, fleet, voucher, pilots, story, aeros, places, placeOf, hotspots: (pack && pack.hotspots) || [], pois: (pack && pack.pois) || [], source: raw.source || 'fixture' };
   }
