@@ -95002,3 +95002,7 @@ Queue after the Sat 17 Oct reset: memory post-reset-plan-2026-10-17.
 - UNPROVEN: claude/dmg-impact-lag-v3 (on v2): break events budgeted 8 ms a frame (?evms=0 off). Needs the box A/B (scratchpad g3022/v3_1545.sh pattern: dmg_skingpu_box --flown gpu, trunk-0/2.5, Cub + metal, v3 vs ?evms=0) against PKG5's crash worst <= 100 ms.
 - Measured 14 Oct: a WebGL getBufferSubData after a signaled fence still stalls ~10-12 ms per call at any size (0.4-0.8 MB) - the read must go: G3023, the tear on the CPU in a worker sending back only the torn triangles (PERF-1 week).
 - Owed too: the damage-ON readiness re-run on master (hitch Cub + metal, laptop rung on/off); DMGUPLOAD wing retry (claude/dmg-upload-robust2) - if the wing also breaks nothing, drop the Cub's mild staging; DMGWRECK rounding row (claude/dmg-wreck-row-round).
+
+## Landing L17a (A0, 18 Oct 03:25)
+Landed: ED-2's editor batch ed2-obj1 (road power-line/guardrail toggles act, HOME ways out + stand + club hangar + base plots editable, typed numbers in the flight menu, the runway-profile drag applies its terraform, FRAMECOST 'mapx' ALLOWs) + Deform's impact-lag v2 (motion clock + the user-approved 0.15 s GPU tear).
+Strict light gate: the metal fuseWidth slider row (accepted 14 Oct) + NEW cub round trip 2 garage -> world worst task 0 -> 200 ms (slack 150), landed under the user's "editor fixes first" priority (15 Oct), flagged to the user, to PERF-1. Gates: CLOCK, CLOUD (lamps), KTX2 (accepted), FRAMECOST (master's restore row), DMGUPLOAD (fixed on dmg-impact-lag-v3, L18a). SCENERYED PASS.
