@@ -3309,7 +3309,7 @@ function makePilot(sim, def, world, opts) {
         // past Vr comes back to the stop: on a tricycle, past Vr, after a second on the 0.35 top with the attitude still within
         // 2 deg of the rest attitude, the top opens to the stick's full travel (deRotateFull, the water's 0.70) until the wheels
         // leave; the attitude servo still flies the rotation to its target from there
-        if (!rotateTD && !sim.hydro && V > vrT && thRest != null) {
+        if (trike && !sim.hydro && V > vrT && thRest != null) {
           rotStuckT = (SV.aDe >= 0.34 && th < thRest + 0.035) ? rotStuckT + dt : 0;
           if (!rotPull && rotStuckT > 1.0) { rotPull = true; say('rotate-pull', 'the nose will not come up at ' + V.toFixed(1) + ' m/s on the stop - full back stick'); }
         }
