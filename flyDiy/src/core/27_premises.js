@@ -1686,6 +1686,8 @@ function wayFrom(r, st, rd) {
   const along = (last[0] - r.c[0]) * E.d[0] + (last[1] - r.c[1]) * E.d[1], off = Math.abs(-(last[0] - r.c[0]) * E.d[1] + (last[1] - r.c[1]) * E.d[0]);
   const a = Math.max(-r.len / 2, Math.min(r.len / 2, along)), entry = [r.c[0] + E.d[0] * a, r.c[1] + E.d[1] * a];
   if (off <= r.wid / 2 + 1) P[P.length - 1] = entry; else P.push(entry);
+  // a point ON the stand (a road that starts there) is no leg: the stand faces its first taxi point, which must be away from it
+  while (P.length > 1 && d2(P[0]) < 4) P.shift();
   return P.map(q => [+q[0].toFixed(2), +q[1].toFixed(2)]);
 }
 // the composed copy of a strip with its ways that follow a road built from it (a way whose road is not there keeps its own points)
