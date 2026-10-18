@@ -1,0 +1,4 @@
+{
+ "note": "THE PERF LEDGER (PERF-1, train_gate.js THE FIXED REFERENCE): a cost the user accepted BY NAME, admitted over its cumulative budget until it expires. One entry per gate row: id (the row's id, e.g. 'rollout|cub chase|loop'), add (in the row's unit), owner, train, scenario (machine/preset + view), ruling (the user's words and the date), repay (the target and who owes it), expires (YYYY-MM-DD). Never edit the reference to admit a cost: add an entry here.",
+ "entries": []
+}

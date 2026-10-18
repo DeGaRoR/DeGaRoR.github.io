@@ -866,16 +866,18 @@
     // (train 41, with G2047: a composite shell cracks past 5 % + 1 cm on the GPU as over() has it on the CPU)
     const k1 = R.tubeTear ? 1.2 : R.shellTear ? 1 + SHELL_TEAR : R.sheetTear ? 1.4 : 1 + TEAR, ab = R.tubeTear ? 0.003 : R.shellTear ? SHELL_ABS : R.sheetTear ? 0.02 : TEAR_ABS;
     const pl = R.pl, plOf = R.plOf, i0 = R.idx0, idx = R.idx, dead = R.dead, Wt = R.watch;
+    // (G3022: squared lengths, one square root an edge - Math.hypot was 0.7-0.9 s of the crash's main thread on the box; a NaN
+    // edge is torn too: a comparison with NaN is false)
     const ok = (a, b) => { const A = (p0 + a) * 3, B = (p0 + b) * 3, va = pl[a] * 3, vb = pl[b] * 3;
-      const l = Math.hypot(Wp[A] - Wp[B], Wp[A + 1] - Wp[B + 1], Wp[A + 2] - Wp[B + 2]);
-      const r = Math.hypot(base[va] - base[vb], base[va + 1] - base[vb + 1], base[va + 2] - base[vb + 2]);
-      return l <= k1 * r + ab; };                        // (a NaN edge is torn too)
+      const dx = Wp[A] - Wp[B], dy = Wp[A + 1] - Wp[B + 1], dz = Wp[A + 2] - Wp[B + 2];
+      const rx = base[va] - base[vb], ry = base[va + 1] - base[vb + 1], rz = base[va + 2] - base[vb + 2], m = k1 * Math.sqrt(rx * rx + ry * ry + rz * rz) + ab;
+      return dx * dx + dy * dy + dz * dz <= m * m; };
     // (train 41, with G2040: a HELD triangle - the covering's ties hold it across a parting - stretches to HELD + TEAR_ABS as
     // on the CPU's tear(), counted in heldTorn when it goes)
     const H = heldAt !== undefined ? heldAt : R.held, okH = (a, b) => { const A = (p0 + a) * 3, B = (p0 + b) * 3, va = pl[a] * 3, vb = pl[b] * 3;
-      const l = Math.hypot(Wp[A] - Wp[B], Wp[A + 1] - Wp[B + 1], Wp[A + 2] - Wp[B + 2]);
-      const r = Math.hypot(base[va] - base[vb], base[va + 1] - base[vb + 1], base[va + 2] - base[vb + 2]);
-      return l <= HELD * r + TEAR_ABS; };
+      const dx = Wp[A] - Wp[B], dy = Wp[A + 1] - Wp[B + 1], dz = Wp[A + 2] - Wp[B + 2];
+      const rx = base[va] - base[vb], ry = base[va + 1] - base[vb + 1], rz = base[va + 2] - base[vb + 2], m = HELD * Math.sqrt(rx * rx + ry * ry + rz * rz) + TEAR_ABS;
+      return dx * dx + dy * dy + dz * dz <= m * m; };
     let n = 0;
     for (let j = 0; j < Wt.length; j++) {
       const t = Wt[j]; if (dead[t]) continue;

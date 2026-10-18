@@ -883,6 +883,13 @@ function genShakedown(def, opts) {
   }
   // G2410: the pod loaded to its rated load - the CG it makes, against the corners' range and the neutral point
   if (out.pod && P && P.pod) out.pod.balance = genPodBalance(out, P.pod);
+  // G2640 DESIGN-TRUST: THE DESIGN CHECK (64b_gen_design.js) - the derivatives,
+  // the modes, the rows with their pointers, off this same sim; read by the
+  // bench check and CERT-SLIM. ~3 ms; not on a slim sheet (the corners, the
+  // reserve) and never fatal to the sheet it rides on.
+  if (!(opts && opts.slim) && typeof genDesignCheck === 'function') {
+    try { out.design = genDesignCheck(def, out, sim); } catch (e) { out.design = null; }
+  }
   return out;
 }
 

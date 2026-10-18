@@ -683,13 +683,17 @@ function checkNoDeadEnds(P) {
       if (P.cagePartParams(q).indexOf(k) >= 0) return q;
     return null;
   };
-  const isExpertRow = k => {
+  const inFlagged = (k, flag) => {
     const o = ownerOf(k);
     if (!o) return false;
     for (const g of (o.groups || []))
-      if (g[2] === PARTS.EXPERT && g[1].indexOf(k) >= 0) return true;
+      if (g[2] === flag && g[1].indexOf(k) >= 0) return true;
     return false;
   };
+  const isExpertRow = k => inFlagged(k, PARTS.EXPERT);
+  // G2760: a HIDDEN row is never drawn (a choice the user RULED — the fin's
+  // volume and root loops), so it is never reachable either
+  const isHiddenRow = k => inFlagged(k, PARTS.HIDDEN);
   const rowShown = (r, S, expert) => {
     if (r.opts && r.opts.level === 'expert' && !expert) return false;
     return (r.opts.when ? [r.opts.when] : []).concat(r.whens)
@@ -698,7 +702,7 @@ function checkNoDeadEnds(P) {
   // CAN A BUILDER TOUCH THIS KEY, in this state, with expert rows on or off?
   const reach = (k, S, expert) => {
     const rows = PANELROWS.get(k) || [];
-    if (!rows.length) return false;
+    if (!rows.length || isHiddenRow(k)) return false;
     if (isExpertRow(k) && !expert) return false;
     const part = ownerOf(k);
     let partOk = true;
@@ -727,6 +731,11 @@ function checkNoDeadEnds(P) {
   const doors = [], dead = [];
   for (const expert of [false, true]) {
     for (const S of DISC) {
+      // G2760: a ruled (HIDDEN) row is no switch at all; and with expert rows
+      // off, an EXPERT switch (the passenger run's profile, the firewall lip)
+      // is reached by the expert pill, which is always on the panel — the
+      // expert pass below holds it to both traps like any other switch
+      if (isHiddenRow(S) || (!expert && isExpertRow(S))) continue;
       if (reach(S, PLANE, expert)) {
         for (let v = 0; v <= 3; v++) {
           const St = Object.assign({}, PLANE); St[S] = v;

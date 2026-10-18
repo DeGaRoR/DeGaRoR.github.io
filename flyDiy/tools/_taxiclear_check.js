@@ -142,7 +142,10 @@ for (const B of BUILDS) {
       // (G1926: o1 stands 2.5 m further west, off the authored ways by the census's half-span + 3 m: the old way is
       // measured against that law, half + 3 m, and still reads as the fault)
       const need4 = half + 3;
-      const w0 = worstOf(P0, s.parked, P0.routes.out[0], need4);
+      // (t53, SCENERY-ED-1 G2893: the user's rev 28 moved their Cub o1 off that old way - the calibration stands its OWN Cub
+      //  on the unbent way's second leg, so the row keeps proving the clearance check reads the fault whatever the user parks)
+      const cal = [{ id: 'o1', key: 'arch:cub', x: -134, z: 622, ry: -1.5708 }].concat((s.parked || []).filter(q => q.id !== 'o1'));
+      const w0 = worstOf(P0, cal, P0.routes.out[0], need4);
       check(!!w0 && w0.d < -1 && w0.id === 'o1', '4 ' + B.name + ' calibration: the unbent HOME way passes inside the Cub o1\'s clearance',
             w0 ? w0.id + ' at ' + (w0.d + need4).toFixed(2) + ' m of ' + need4.toFixed(1) : 'nothing near');
     }
@@ -250,7 +253,7 @@ const wingNeed = (B, at) => (B.key === METAL && /house[34]/.test(at || '')) ? 1
   foots.default = { half: C.GP_PARKED_DEFAULT[0], fwd: C.GP_PARKED_DEFAULT[1], aft: C.GP_PARKED_DEFAULT[2] };
   const t0 = Date.now(), SC = L.spotCensus(C, WI, IX, VB, foots);
   // (G3014: the user's rev 26 shipped strips 10 and 11 (w5, w6) - ten runways; the count is the shipped record's)
-  const NRW = 11;   // (rev 27: w7, the North East strip)
+  const NRW = 12;   // (rev 27: w7, the North East strip; rev 28: w8 strip 13 - w4 strip 9 held back, train 53)
   check(WI.aerodromes.length === NRW && SC.per.length === NRW, '10 Jolene\'s ' + NRW + ' runways', SC.per.map(p => p.id).join(' '));
   for (const p of SC.per) {
     // a field with no room stands no spot (never a bad one): every candidate it had was refused by a rule
@@ -432,7 +435,9 @@ if (BASE) {
       }
     }
   }
-  check(n >= 5 && nWay >= 2, '12 Jolene\'s plots were censused', n + ' plots, ' + nWay + ' with a way of their own');
+  // (t53, A0's ruling (a), 13 Oct: HOME.2's own way out was dropped - it crossed rev 28's new main hangar - and it takes the
+  //  field's until the user places it; one plot with a way of its own remains)
+  check(n >= 5 && nWay >= 1, '12 Jolene\'s plots were censused', n + ' plots, ' + nWay + ' with a way of their own');
   // calibration: the mine's shed with a way of its own reads MILL-TAXI's faults; a plot on the hut is seen
   {
     const a = WI.aerodromes.find(q => q.id === 'mn_strip'), s = C.siteOf('mn_strip'), p = s.plots.find(q => q.id === 'mn_strip');

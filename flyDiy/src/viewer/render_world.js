@@ -421,6 +421,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         uBarkL = { value: IMPK.barkLit };   // and its own tier gain (in place of uILit)
   // the audit's list of baked impostor sheets (assigned where the atlas cache lives, below)
   let treeAtlases = () => [];
+  let sheetMean = () => null;         // G3180 (CARD-MATCH): an atlas's mean linear albedo, read back (tree block)
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
   // instance outside its band, and the impostor bake draws the same material
   // from thirty metres: an L2 whose band starts at 300 m baked an EMPTY sheet,
@@ -1747,7 +1748,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // to move both the terrain and the trees to see what's best". The baked
     // albedo stays the fallback (and the minimap's). Textures sampled by
     // world position; the tint is sRGB (decoded on sample under r152+).
-    const GROUND = { on: false, overlay: 0.75, shade: 0.7, light: 0.94, sat: 0.94, snow: 890, shore: 1.0, mode: 0 };   // light / sat 0.94: the user's F8 world look, 2026-10-03
+    const GROUND = { on: false, overlay: 0.75, shade: 0.7, light: 1.38, sat: 0.94, snow: 890, shore: 1.0, mode: 0 };   // light / sat 0.94: the user's F8 world look, 2026-10-03
     // THE STACK (G404, the user: "a way to edit the stack, like I did in the
     // bench - every layer, on/off, blend mode, alpha"): five albedo layers in
     // a fixed order, each with the bench's twelve blend modes and an opacity.
@@ -3095,6 +3096,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           for (const k of names) mg.setAttribute(k, new THREE.BufferAttribute(out[k], lakeGeos[0].attributes[k].itemSize));
           mg.setIndex(new THREE.BufferAttribute(idx, 1)); mg.computeBoundingSphere();
           const m = new THREE.Mesh(mg, lakeMat); m.receiveShadow = true; m.matrixAutoUpdate = false; m.name = 'lakes'; scene.add(m);
+          if (typeof WATER !== 'undefined' && WATER.watch) WATER.watch(m, renderer);   // G2830: the mirror's WATER SEEN query (and the rig's timer) round the lakes' draws too
         }
         console.log('island lakes: ' + n + ' surfaces, one quad each in one mesh, the field cuts the edge; ' + seaSkipped + ' on the coast left to the sea, ' + filled + ' filled by the premises');
       }
@@ -3117,6 +3119,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (WSH) { const nv = pos.length / 3, aw = new Float32Array(nv * 2); for (let i = 0; i < nv; i++) aw[i * 2] = i < riverVerts ? 2 : 1; wg.setAttribute('aWater', new THREE.Float32BufferAttribute(aw, 2)); }
         const wm = new THREE.Mesh(wg, waterMat);
         wm.receiveShadow = true;
+        if (typeof WATER !== 'undefined' && WATER.watch) WATER.watch(wm, renderer);   // G2830 (as the lakes')
         scene.add(wm);
       }
     }
@@ -3406,6 +3409,23 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // targets back (TREE-IMPORT.md §6: every one of its six faults presented
     // as "the impostor is wrong" and none looked like its cause).
     treeAtlases = () => { const out = []; ATLAS.forEach(a => out.push(a)); return out; };
+    // G3180 (CARD-MATCH, the user 13 Oct: "a color/value shift has developed between the far cards for the trees and the
+    // impostors ... we also need a mechanism to keep them in sync"): ONE SHEET'S MEAN - the linear albedo of its drawn texels
+    // (alpha at the series' own cut; the bytes are sRGB, decoded here), [r, g, b, texels] or null; one readback (atlas.read),
+    // for the stand cards' level match at their bake and for the audit
+    sheetMean = (key, series) => {
+      const CUT = { rungs: 0.40, stand: 0.15, snag: 0.10 }, lin = v => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+      // the NEWEST sheet of that key (a card rebuilt bakes again under its key; the old one stays in ATLAS - the 18:05 proof's
+      // A/B levelled the merged bake against the composed sheet before it)
+      let pick = null; for (const a of ATLAS.values()) if (a.key === key && a.series === series && a.read && a.N) pick = a;
+      for (const a of pick ? [pick] : []) {
+        const px = new Uint8Array(a.N * a.N * 4); try { a.read(px); } catch (e) { return null; }
+        const cut = 255 * (CUT[series] || 0.4); let rr = 0, gg = 0, bb = 0, n = 0;
+        for (let i = 0; i < px.length; i += 4) if (px[i + 3] >= cut) { rr += lin(px[i]); gg += lin(px[i + 1]); bb += lin(px[i + 2]); n++; }
+        return n ? [rr / n, gg / n, bb / n, n] : null;
+      }
+      return null;
+    };
     let BAKE_RT = null;                    // the shared bake pair (see bakeImpostorAtlasNow)
     // ---- THE SHEETS ARE LAYERS (PERF 2026-09-23) --------------------------------------------------
     // Every impostor sheet was a texture of its own and every (chunk, subject, series) an InstancedMesh
@@ -3665,6 +3685,111 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       atlas.read = (px, which) => { const T = which === 'nrm' ? IMPA.nrm : IMPA.col, R = which === 'nrm' ? rtN : rt;
         renderer.copyTextureToTexture(T, R.texture, new THREE.Box3(new THREE.Vector3(0, 0, atlas.layer), new THREE.Vector3(N, N, atlas.layer + 1)), null);
         renderer.readRenderTargetPixels(R, 0, 0, N, N, px); return px; };
+      return atlas;
+    }
+    // G3184 (CARD-MATCH, the one source; the user 13 Oct: "we also need a mechanism to keep them in sync"): A STAND CARD
+    // COMPOSED FROM ITS SPECIES' OWN SHEETS. The card was a block of 16 trees' L1 geometry baked as one picture - measured
+    // 0.26x its species' sheets (cardmatch_probe, 13 Oct), and once levelled, bluer and answering a tint differently (its
+    // baked normals are the block's, not the trees'). Here each tree of the block is drawn as ITS IMPOSTOR into the card's
+    // tiles: a quad facing the tile's own direction (the bake camera's, impDir), its species' rungs sheet sampled with the
+    // draw's three-tap octahedral lookup at level 0 - the albedo pass writes the species' texel (x its sheet's level,
+    // G2591), the normal pass the species' normal texel and leaf flag, both un-premultiplied by the albedo's coverage as the
+    // draw does. The card's texels ARE its species' texels: the same albedo, the same normals, so the same answer to the sun,
+    // the sky and every tint. entries: [{ x, z, s, key }] (the block's trees, metres, scale, 'collection|subject');
+    // null while a species' rungs sheet is not baked yet (the caller tries again)
+    let CARD_MAT = null;
+    const cardMat = () => CARD_MAT || (CARD_MAT = new THREE.ShaderMaterial({
+      uniforms: { uCol: IMPA.U.col, uNrm: IMPA.U.nrm, uDir: { value: new THREE.Vector3(0, 1, 0) }, uG: { value: IMP_G }, uTile: { value: IMP_TILE }, uPass: { value: 0 } },
+      vertexShader: [
+        'attribute vec3 aPos;', 'attribute float aS, aL, aCy, aDiam, aLev;', 'uniform vec3 uDir;',
+        'varying vec2 vUvI;', 'flat varying float vL, vLev;',
+        'void main() {',
+        '  vec3 ctr = aPos + vec3(0.0, aCy * aS, 0.0);',
+        '  vec3 upRef = abs(uDir.y) > 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);',
+        '  vec3 rgt = normalize(cross(upRef, uDir)), upv = cross(uDir, rgt);',
+        '  vec3 wp = ctr + (rgt * position.x + upv * position.y) * (aDiam * aS);',
+        '  vUvI = uv; vL = aL; vLev = aLev;',
+        '  gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);',
+        '}'].join('\n'),
+      fragmentShader: [
+        'uniform highp sampler2DArray uCol, uNrm;', 'uniform vec3 uDir;', 'uniform float uG, uTile, uPass;',
+        'varying vec2 vUvI;', 'flat varying float vL, vLev;',
+        'void main() {',
+        '  vec3 dI = uDir;',
+        '  vec2 pp = vec2(dI.x, dI.z) / (abs(dI.x) + abs(dI.z) + max(dI.y, 0.0) + 1e-5);',
+        '  vec2 oc = clamp(vec2(pp.x + pp.y, pp.x - pp.y), -1.0, 1.0);',
+        '  vec2 gp = (oc * 0.5 + 0.5) * (uG - 1.0);',
+        '  vec2 g0 = min(floor(gp), uG - 2.0);',
+        '  vec2 gf = gp - g0;',
+        '  vec2 cB = vec2(1.0, 0.0), cC = vec2(0.0, 1.0), cA; vec3 wB;',
+        '  if (gf.x + gf.y < 1.0) { cA = vec2(0.0); wB = vec3(1.0 - gf.x - gf.y, gf.x, gf.y); }',
+        '  else { cA = vec2(1.0); wB = vec3(gf.x + gf.y - 1.0, 1.0 - gf.y, 1.0 - gf.x); }',
+        '  vec2 qv = (vUvI * (1.0 - 2.0 / uTile) + 1.0 / uTile) / uG;',
+        '  vec2 uvA = (g0 + cA) / uG + qv, uvB = (g0 + cB) / uG + qv, uvC = (g0 + cC) / uG + qv;',
+        '  vec4 t0 = textureLod(uCol, vec3(uvA, vL), 0.0), t1 = textureLod(uCol, vec3(uvB, vL), 0.0), t2 = textureLod(uCol, vec3(uvC, vL), 0.0);',
+        '  float aSol = max(max(t0.a, t1.a), t2.a);',
+        '  if (aSol < 0.5) discard;',
+        '  vec4 tc = t0 * wB.x + t1 * wB.y + t2 * wB.z; float cov = max(tc.a, 1e-4);',
+        '  if (uPass < 0.5) { gl_FragColor = vec4(clamp(tc.rgb / cov * vLev, 0.0, 1.0), 1.0); }',
+        '  else { vec4 n0 = textureLod(uNrm, vec3(uvA, vL), 0.0), n1 = textureLod(uNrm, vec3(uvB, vL), 0.0), n2 = textureLod(uNrm, vec3(uvC, vL), 0.0);',
+        '         vec4 nc = n0 * wB.x + n1 * wB.y + n2 * wB.z; gl_FragColor = vec4(clamp(nc.rgb / cov, 0.0, 1.0), clamp(nc.a / cov, 0.0, 1.0)); }',
+        '  #include <colorspace_fragment>',
+        '}'].join('\n'),
+      side: THREE.DoubleSide, depthTest: true, depthWrite: true, toneMapped: false }));
+    function composeCardAtlas(entries, tag) {
+      if (!canBake || IMPA.stub || !IMPA.col || !THREE.InstancedBufferGeometry || !entries || !entries.length) return null;
+      const sheets = new Map(); for (const a of ATLAS.values()) if (a.series === 'rungs' && a.key && a.layer >= 0) sheets.set(a.key, a);
+      const E = []; for (const e of entries) { const a = sheets.get(e.key); if (!a) return null; E.push({ e, a }); }   // a species' sheet not baked yet
+      // the card's sphere: every quad's (its centre height, its half diagonal), about the block's middle
+      let y0 = Infinity, y1 = -Infinity; for (const { e, a } of E) { const cy = a.cy * e.s, h = a.diam * e.s / 2; y0 = Math.min(y0, cy - h); y1 = Math.max(y1, cy + h); }
+      const cy = (y0 + y1) / 2; let R = 0;
+      for (const { e, a } of E) R = Math.max(R, Math.hypot(e.x, a.cy * e.s - cy, e.z) + a.diam * e.s * Math.SQRT1_2);
+      const M = R * 1.04, N = IMP_G * IMP_TILE, atlas = { cy, diam: 2 * M, tex: null, nrm: null, composed: true };
+      if (tag) { atlas.key = tag.key; atlas.series = tag.series; }
+      if (!BAKE_RT) return null;   // (the trees' own bakes made them: a card comes after its species)
+      const rt = BAKE_RT.rt, rtN = BAKE_RT.rtN;
+      const g = new THREE.InstancedBufferGeometry(), q = new THREE.PlaneGeometry(1, 1);
+      g.index = q.index; g.setAttribute('position', q.attributes.position); g.setAttribute('uv', q.attributes.uv);
+      const n = E.length, P3 = new Float32Array(n * 3), S1 = new Float32Array(n), L1 = new Float32Array(n), C1 = new Float32Array(n), D1 = new Float32Array(n), V1 = new Float32Array(n);
+      E.forEach(({ e, a }, i) => { P3[i * 3] = e.x; P3[i * 3 + 1] = 0; P3[i * 3 + 2] = e.z; S1[i] = e.s; L1[i] = a.layer; C1[i] = a.cy; D1[i] = a.diam; V1[i] = impLevelOf(a.key + '|rungs'); });
+      g.setAttribute('aPos', new THREE.InstancedBufferAttribute(P3, 3)); g.setAttribute('aS', new THREE.InstancedBufferAttribute(S1, 1));
+      g.setAttribute('aL', new THREE.InstancedBufferAttribute(L1, 1)); g.setAttribute('aCy', new THREE.InstancedBufferAttribute(C1, 1));
+      g.setAttribute('aDiam', new THREE.InstancedBufferAttribute(D1, 1)); g.setAttribute('aLev', new THREE.InstancedBufferAttribute(V1, 1));
+      g.instanceCount = n;
+      const mat = cardMat(), mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false;
+      const sc = new THREE.Scene(); sc.add(mesh);
+      if (IMPA.dirtyMips) IMPA.frame();   // the species' layers settled before they are read
+      const cam = new THREE.OrthographicCamera(-M, M, M, -M, 0.1, R * 8), ctr = new THREE.Vector3(0, cy, 0);
+      const pRT = renderer.getRenderTarget(), pAC = renderer.autoClear, pCol = new THREE.Color(), pA = renderer.getClearAlpha();
+      const pVP = renderer.getViewport(new THREE.Vector4()), pSC = renderer.getScissor(new THREE.Vector4());
+      { const gc = renderer.getClearColor(pCol); if (gc && gc !== pCol) pCol.copy(gc); }
+      const pTM = renderer.toneMapping; renderer.toneMapping = THREE.NoToneMapping;
+      const drawAll = (target, pass) => {
+        mat.uniforms.uPass.value = pass;
+        renderer.setRenderTarget(target); renderer.autoClear = false; renderer.setClearColor(0x000000, 0); renderer.clear(true, true, false);
+        renderer.setScissorTest(true);
+        for (let j = 0; j < IMP_G; j++) for (let i = 0; i < IMP_G; i++) {
+          const d = impDir(i, j);
+          mat.uniforms.uDir.value.copy(d);
+          cam.up.set(0, 1, 0); if (Math.abs(d.y) > 0.999) cam.up.set(0, 0, 1);
+          cam.position.copy(ctr).addScaledVector(d, R * 4); cam.lookAt(ctr); cam.updateProjectionMatrix();
+          renderer.setViewport(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE); renderer.setScissor(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE);
+          renderer.clearDepth(); renderer.render(sc, cam);
+        }
+        renderer.setScissorTest(false);
+      };
+      drawAll(rt, 0); drawAll(rtN, 1);
+      renderer.toneMapping = pTM; renderer.setViewport(pVP); renderer.setScissor(pSC); renderer.setRenderTarget(pRT); renderer.autoClear = pAC; renderer.setClearColor(pCol, pA);
+      g.dispose();
+      const layer = IMPA.take(); if (layer < 0) { atlas.refused = true; return atlas; }
+      const at0 = new THREE.Vector3(0, 0, layer);
+      renderer.copyTextureToTexture(rt.texture, IMPA.col, null, at0); renderer.copyTextureToTexture(rtN.texture, IMPA.nrm, null, at0);
+      IMPA.dirtyMips = true;
+      atlas.layer = layer; atlas.tex = IMPA.col; atlas.nrm = IMPA.nrm; atlas.N = N;
+      atlas.read = (px, which) => { const T = which === 'nrm' ? IMPA.nrm : IMPA.col, R2 = which === 'nrm' ? rtN : rt;
+        renderer.copyTextureToTexture(T, R2.texture, new THREE.Box3(new THREE.Vector3(0, 0, atlas.layer), new THREE.Vector3(N, N, atlas.layer + 1)), null);
+        renderer.readRenderTargetPixels(R2, 0, 0, N, N, px); return px; };
+      ATLAS.set('card:' + (tag ? tag.key : n), atlas);   // the audit's and sheetMean's list (WORLD.treeAtlases)
       return atlas;
     }
     // One quad geometry per CHUNK SIZE (the cull sphere lives on the geometry —
@@ -4612,7 +4737,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
 
     // (hoisted above the woodland planter, 2026-09-21: the woodland's stands drew their
     // species from the WHOLE pool - a pine no mix names stood in every stand)
-    const SP_SIZE = {};   // species name -> size multiplier (TREE_FILL.speciesSize, the world rail's tree cards)
+    // species name -> size multiplier (TREE_FILL.speciesSize, the world rail's tree cards); G2939: the user's look of 12 Oct
+    const SP_SIZE = {"cedar_tree.glb": 1.3, "fir_tree_georgeous.glb": 1.3, "larch_tree.glb": 1.4, "realistic_fir_trees_pack_lods_gameready.glb": 1.25, "spruce_tree.glb": 1.2};
     const FILL = { ng: world.island ? 160 : 100,   // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26); an island 6.4 m (G400: "MUCH too sparse")
       // the island's knobs (F8 > trees > from the map): coverage ramps from
       // `from` to `full` metres of canopy; a tree is canopy x gain over the
@@ -5511,9 +5637,17 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           };
           // G753: nor where WATER IS DRAWN - the drawn lakes' field (the ground is discarded a metre inside it) with its quad over
           // the ground; the physics' waterH alone let the flecks stand on a pond the runway's grade had filled, over the quad
-          const drawnWet = (x, z, h) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z); return wy !== null && Number.isFinite(wy) && wy > h - 0.3; };
-          const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3 || drawnWet(x, z, h)) return false;
+          // THE GRASS TO THE LAKE'S EDGE (GRASS-DENSE G2572; the user, 12 Oct: "the lakes seem to clear the grass within a few metres,
+          // that's undesirable"): a point was refused while the water stood within 0.3 m UNDER its ground - on a lake's gentle bank
+          // (the carve's slope, a few %) that is metres of bare shore. A LAKE now refuses only `lakeMargin` m (the grass field's dial,
+          // 0.03 by default: the ground just above the drawn water); the SEA keeps its 0.3 m (the tide line, the beach - unchanged)
+          // (the grass field's alone: the first ring - its flowers, bushes, rocks, debris and the far rock map - keeps the 0.3 m
+          // everywhere, A0 11 Oct: what else stands on a lake's bank is another call)
+          const lakeM = () => (grassField && grassField.lakeMargin ? grassField.lakeMargin() : 0.3);
+          const wetBy = (x, z, h, lake) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z); return wy !== null && Number.isFinite(wy) && wy > h - (lake && wy > 0.05 ? lakeM() : 0.3); };
+          const landBy = (x, z, lake) => { const h = world.terrainH(x, z), wl = world.waterH(x, z); if (h < 0.3 || wl > h - (lake && wl > 0.05 ? lakeM() : 0.3) || wetBy(x, z, h, lake)) return false;
             const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
+          const okAt = (x, z) => landBy(x, z, false), okLake = (x, z) => landBy(x, z, true);
           // THE COVER'S QUERY (v1.17): the world's coverAt with `col` added - the linear colour the PAVEMENT
           // draws there (the class's base set mean, graded as the shader grades it: what the eye sees), so a
           // tuft on a band or a grass road takes its own ground's colour; null where no pavement is drawn
@@ -5532,7 +5666,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // the field's land test: the cover's, and - under the 'sides' law with `hard` (27_premises GRASS_SIDES, the user's call) - a
           // point the physics calls gravel / paved where nothing hard is drawn (kill under 1: a shoulder polygon, a strip box's margin)
           const PGN = (typeof PREMISES_GEN !== 'undefined') ? PREMISES_GEN : null;
-          const okField = (x, z) => { if (okAt(x, z)) return true;
+          const okField = (x, z) => { if (okLake(x, z)) return true;   // (G2572: to a lake's edge)
             const L = PGN && PGN.grassSides ? PGN.grassSides() : null; if (!L || L.law !== 'sides' || !L.hard) return false;
             const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3) return false;
             const s = world.surface(x, z); if (s !== world.SURFACE.GRAVEL && s !== world.SURFACE.PAVED && s !== world.SURFACE.SAND) return false;
@@ -5543,7 +5677,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
             standCards = STAND_CARDS.make(THREE, { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN });   // rdy: G2930, the cards stand in for an unbuilt fill
+                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN, sheetMean, composeCardAtlas });   // composeCardAtlas: G3184, the card from its species' sheets   // sheetMean: G3180, the card matched to its species' sheets   // rdy: G2930, the cards stand in for an unbuilt fill
           // THE ROCK MAP (rock_map.js): the rocks' far tier, on the island's ground programs (gU.uRockMap)
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
@@ -7115,6 +7249,40 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (premisesR.ringSink) return premisesR.ringSink(x, z);
     return (premisesR.patchCovers && premisesR.patchCovers(x, z)) ? 4 : 0;
   }
+  // ---- GROUND BOX (G3100) BEGIN ----------------------------------------------------------------------------------------
+  // THE RING'S NORMALS FOR THE EDIT'S BOX ONLY (G3100 EDITOR-PERF; the user's rev 28 timed 13 Oct: every ground edit of the
+  // scenery editor paid the WHOLE ring's computeVertexNormals - 513 x 513 vertices - for a box of a few hundred metres).
+  // The vertices whose normal can change are the moved ones and every vertex of a face touching one; each is summed again
+  // over ALL its faces, in three's own order and arithmetic (BufferGeometry.computeVertexNormals: per face, in index order,
+  // cross(c - b, a - b) in doubles added into the Float32 normal - rounded at each add - then normalizeNormals: x * (1 / len),
+  // len 0 -> 1): the same normals, bit for bit, as the whole call (GATE GROUNDBOX against three itself). groundAdj: the faces
+  // of each vertex in index order (CSR), made once per geometry.
+  function groundAdj(I, nV) {
+    const start = new Uint32Array(nV + 1);
+    for (let k = 0; k < I.length; k++) start[I[k] + 1]++;
+    for (let v = 0; v < nV; v++) start[v + 1] += start[v];
+    const fac = new Uint32Array(I.length), fill = start.slice(0, nV);
+    for (let f = 0; f < I.length; f += 3) { fac[fill[I[f]]++] = f; fac[fill[I[f + 1]]++] = f; fac[fill[I[f + 2]]++] = f; }
+    return { n: I.length, start, fac };
+  }
+  // P positions, N normals (Float32Array, written), I the index, A groundAdj's, moved: the moved vertices -> the count rewritten
+  function groundNormalsBox(P, N, I, A, moved) {
+    const aff = new Set();
+    for (const v of moved) for (let k = A.start[v]; k < A.start[v + 1]; k++) { const f = A.fac[k]; aff.add(I[f]); aff.add(I[f + 1]); aff.add(I[f + 2]); }
+    for (const v of aff) {
+      let x = 0, y = 0, z = 0;
+      for (let k = A.start[v]; k < A.start[v + 1]; k++) {
+        const f = A.fac[k], a = I[f] * 3, b = I[f + 1] * 3, c = I[f + 2] * 3;
+        const hx = P[c] - P[b], hy = P[c + 1] - P[b + 1], hz = P[c + 2] - P[b + 2], dx = P[a] - P[b], dy = P[a + 1] - P[b + 1], dz = P[a + 2] - P[b + 2];
+        x = Math.fround(x + (hy * dz - hz * dy)); y = Math.fround(y + (hz * dx - hx * dz)); z = Math.fround(z + (hx * dy - hy * dx));
+      }
+      const s = 1 / (Math.sqrt(x * x + y * y + z * z) || 1);
+      N[v * 3] = x * s; N[v * 3 + 1] = y * s; N[v * 3 + 2] = z * s;
+    }
+    return aff.size;
+  }
+  // ---- GROUND BOX (G3100) END ------------------------------------------------------------------------------------------
+  const GBOX = { on: !(typeof location !== 'undefined' && /[?&]groundbox=0(&|$)/.test(location.search || '')), adj: new WeakMap(), last: null };   // ?groundbox=0: the whole ring's normals, as before
   function refreshGround(bb) { const g = refreshGroundSteps(bb); while (!g.next().done); }
   // G995 (A5-LOAD): the same in steps (the roll-out's world build: 2.0-2.4 s in one task at 'premises ground' - the
   // ring's heights under the patch from the raster, then the far tier's re-cut): a yield every 8 k vertices tested
@@ -7122,11 +7290,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     let moved = 0;   // G2063: no ring vertex under the box (the town 9 km out) - no ring to rebuild, the far tier alone
     for (const g of groundGeos) {
       const pa = g.attributes.position; let n = 0;
+      const box = GBOX.on && g.index && g.attributes.normal ? [] : null;   // (G3100) the moved vertices, for their normals alone
       for (let i = 0; i < pa.count; i++) {
         if (i && !(i & 8191)) yield 'ground under the premises';
         const x = pa.getX(i), z = pa.getZ(i); if (x < bb.x0 - 40 || x > bb.x1 + 40 || z < bb.z0 - 40 || z > bb.z1 + 40) continue; pa.setY(i, world.terrainH(x, z) - groundSink(x, z)); n++;
+        if (box) box.push(i);
       }
-      if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); moved += n; }
+      if (n) {
+        pa.needsUpdate = true;
+        if (box && n < pa.count / 4) {
+          let A = GBOX.adj.get(g); if (!A || A.n !== g.index.count) { A = groundAdj(g.index.array, pa.count); GBOX.adj.set(g, A); }
+          const t0 = performance.now(), k = groundNormalsBox(pa.array, g.attributes.normal.array, g.index.array, A, box);
+          g.attributes.normal.needsUpdate = true; GBOX.last = { moved: n, normals: k, ms: +(performance.now() - t0).toFixed(1) };
+        } else g.computeVertexNormals();
+        g.computeBoundingSphere(); moved += n;
+      }
     }
     if (moved || !groundGeos.length) {
       if (fineRing && fineRing.clear) fineRing.clear();   // the tiles carry the ring's heights in their rim: rebuilt on the next frame
@@ -7172,7 +7350,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     try { geoStep(GEO_MS, dEye < 2500); } catch (e) { console.warn('premises: the town geometry', e); geoGen = geoRefresh = null; }
     finally { if (FRw) FRw.pop(); }
   }
-  let premTramLast = 0, premStreamTick = 0;
+  let premTramLast = 0, premStreamTick = 0, lotsNearTick = 0;
   function worldUpdate(cg) {
     // a live edit's builds one a frame; the premises streamed by the AIRCRAFT's position (G591: it was one item every
     // third frame from anywhere, parked or not - 18-29 ms a frame of the taxi)
@@ -7186,6 +7364,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (FRw) { FRw.pop(); const built = q0 - premisesR.stats.queued; if (built > 0) FRw.event('prem', performance.now() - tP, built + ' built, ' + premisesR.stats.queued + ' queued'); }
     }
     if (premisesR && !(typeof window !== 'undefined' && window.PREMISES_HOST_OPEN)) geoTick(cg);   // G2063: the town's patch and roads, near it
+    if (premisesR && premisesR.lotsNear && ++lotsNearTick % 10 === 0) premisesR.lotsNear(camera.position.x, camera.position.z);   // G3210: the plots near the eye only
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
     if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast && !(typeof window !== 'undefined' && window.FLYDIY_HELD) ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // (G650: not while the player has paused)   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
     // G586: the frame's own dt (app.js FLYDIY_PACE; 1/60 where there is no clock - a rig, a harness)
@@ -7610,7 +7789,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // environment"): one number over the ground (GROUND.light = uGLight, after the splat) and the
   // vegetation (the leaf master light and the impostors' lit term, from their booted base) - the
   // aeroplane, the buildings and the sky untouched. F8 > environment > albedo.
-  const ENV_ALB = { k: 1, base: null };
+  // G2939 (the user's look, 12 Oct): the environment albedo at its baked 1.38 - the ground's light IS k (envAlbedo writes it)
+  // and the leaves' master (trees.js MASTER: 0.42 x 1.38) is base x k; so a slider moved from here moves both from the look
+  const ENV_ALB = { k: 1.38, base: 0.42 };
   const envAlbedo = k => {
     if (k === undefined) return ENV_ALB.k;
     if (ENV_ALB.base === null) ENV_ALB.base = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.master) ? TREE_LEAF.master().light : 1;

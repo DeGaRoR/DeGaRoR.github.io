@@ -213,6 +213,16 @@ function knownRed(b, L2, R) {
     if (ISLAND || !pa || pa.what !== 'water' || !L2.faults.every(f => f.k === 'prop-strike') || L2.landedOn !== 'w2' || L2.arr.stopS == null) return null;
     return 'the water on 02/20\'s concrete (ISLAND-TOUR G1971, not on this tree) - the propeller struck water at t ' + pa.t + ' s on the roll-out; the touch ' + (ld ? ld.V + ' m/s, sink ' + ld.sink + ' m/s, run ' + ld.run + ' m' : '-') + '; no other fault';
   }
+  // G3079 (FLOATS-FIX, 18 Oct): THE RETURN LEG mk_sea > SEA is the same aeroplane's same finding. With the water flare on power the
+  // outbound touch is soft (sink 1.87 -> 0.25 m/s) and no longer ends the tour, so the return leg is flown for the first time and
+  // the load door's float Cessna strikes its propeller on the water there. Known ONLY while it is exactly that: 'vref-raised'
+  // said on the leg, the faults prop-strike / yield / dent and nothing else, no break, no crash (owner: Deform / JOIN-PARITY)
+  if (b === 'floats' && L2.from === 'mk_sea' && L2.to === 'SEA') {
+    const said2 = c => (L2.verdicts || []).some(v => v.startsWith(c)), D2 = L2.damage || {};
+    const only2 = L2.faults.length && L2.faults.every(f => f.k === 'yield' || f.k === 'prop-strike' || f.k === 'dent');
+    if (!said2('vref-raised') || !only2 || D2.breaks || D2.crashed) return null;
+    return 'JOIN-PARITY’s load-door float Cessna (G1970.4), the return leg (G3079) - ' + (L2.verdicts.find(v => v.startsWith('vref-raised')) || '') + '; ' + L2.faults.map(f => f.k).join(', ') + '; no break, no crash';
+  }
   if (b !== 'floats' || L2.from !== 'SEA' || L2.to !== 'mk_sea') return null;
   const said = c => (L2.verdicts || []).some(v => v.startsWith(c));
   const D = L2.damage || {}, ld = L2.arr && L2.arr.landing;

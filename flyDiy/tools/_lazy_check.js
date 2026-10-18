@@ -26,6 +26,17 @@
 //       _FREIGHT)
 //     9 OFFLINE: a second ?career=1 boot in the same profile with career_core's network blocked boots the career from
 //       sw.js's cache
+//   G3070 ROUTE-LAZY: THE DRAWN ROUTE'S DRAWING (src/viewer/route_draw.js -> route_draw.<h8>.js, run by route_lazy.js on
+//   first demand, or by the promote at boot when an ARMED route is stored - ROUTE_LOADER), the same rules:
+//     R1 ONE route_draw.<h8>.js, its own sha, = the header + route_draw.js verbatim; it declares no global
+//     R2 index.html inlines none of it and inlines route_lazy.js (the door), 38c_route.js and 44_vprofile.js (the pilot's:
+//        core, the page's pilot and the worker's fly them); its loader names this build's file; dev.html tags it
+//        data-routedraw ahead of route_lazy.js and promotes it only under FLYDIY_ROUTE_WANT()
+//     R3 sw.js: ROUTE_KEEP this build's name; an install fetches nothing for it; the page's word caches it; cache-first;
+//        another build's not answered, swept on activate
+//     R4 (request lists) a default boot never requests it; the door's first demand does (once); an ARMED route stored:
+//        requested and run BEFORE app.js (its setter sees ROUTE_DRAW_UI), the route armed on the pilot; OFFLINE, that
+//        armed boot again with its network blocked: from sw.js's cache
 //   --no-browser: the static half alone. Verdict contract: one final `GATE LAZY: PASS|FAIL`, exit code to match.
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm'), crypto = require('crypto'), os = require('os'), net = require('net'), http = require('http');
@@ -113,6 +124,28 @@ ok(fcBody === B.MANIFEST.core.map(f => parts[f]).join(''), 'tools/flight_core.js
   ok(list.length > 5 && !list.some(n => globals.has(n)), 'the physics worker\'s core list (SIM_HOST_CORE, ' + list.length + ' names) names none of the career\'s: it imports tools/flight_core.js whole and calls nothing of it');
 }
 
+// ---- R1 / R2 the drawn route's drawing (G3070 ROUTE-LAZY) ------------------------------------------------------------
+const RNAMES = B.routeDrawNames(ROOT);
+ok(RNAMES.length === 1, 'one route_draw.<h8>.js beside the page (' + (RNAMES.join(', ') || 'none') + ')');
+const RNAME = RNAMES[0] || '';
+const rchunk = RNAME ? read(RNAME) : '', rsrc = read('src/viewer/' + B.MANIFEST.routeDraw);
+ok(!!RNAME && sha8(rchunk) === RNAME.slice(11, 19), RNAME + ': named by its own sha256 (' + sha8(rchunk) + ')');
+ok(rchunk.includes(rsrc) && rchunk.length - rsrc.length < 600, RNAME + ' = src/viewer/route_draw.js verbatim under its header (' + KB(rchunk.length) + ')');
+{
+  const alone = vm.createContext({});
+  let threw = null; try { vm.runInContext(rchunk, alone, { filename: RNAME }); } catch (e) { threw = e; }
+  ok(!threw && vm.runInContext("typeof ROUTE_DRAW === 'undefined' && typeof ROUTE_DRAW_UI === 'object'", alone), RNAME + ' runs alone and declares no global (it registers ROUTE_DRAW_UI)' + (threw ? ': ' + threw.message : ''));
+  const sigs = ['G.ROUTE_DRAW_UI = ROUTE_DRAW;', 'function drawProfile() {', 'function hitLeg(bx, by) {'];
+  ok(!sigs.some(x => html.includes(x)), 'index.html inlines none of the drawing (' + sigs.join(' | ') + ')');
+  const lazy = read('src/viewer/route_lazy.js');
+  ok(html.includes(lazy.slice(lazy.indexOf('const ROUTE_DRAW = (() => {'))), 'index.html inlines route_lazy.js (window.ROUTE_DRAW, the door app.js calls)');
+  ok(['38c_route.js', '44_vprofile.js'].every(f => html.includes(declOf(parts[f]))), 'index.html keeps 38c_route.js and 44_vprofile.js (the pilot\'s - core, the worker flies them too)');
+  ok(html.includes('var SRC = window.FLYDIY_ROUTE_SRC = ' + JSON.stringify(RNAME) + ';'), 'the page\'s route loader names ' + RNAME);
+  const i1 = dev.indexOf('<script data-routedraw type="text/x-flydiy" src="src/viewer/route_draw.js?v='), i2 = dev.indexOf('src="src/viewer/route_lazy.js?v=');
+  ok(i1 > 0 && i2 > i1 && dev.split('data-routedraw').length === 3, 'dev.html tags route_draw.js data-routedraw, ahead of route_lazy.js');
+  ok(/if \(tags\[i\]\.hasAttribute\('data-routedraw'\) && !route\) continue;/.test(dev), 'dev.html\'s promote: data-routedraw only under FLYDIY_ROUTE_WANT()');
+}
+
 // ---- 6 sw.js in a vm -------------------------------------------------------------------------------------------------
 (async () => {
   const swSrc = read('sw.js');
@@ -161,6 +194,27 @@ ok(fcBody === B.MANIFEST.core.map(f => parts[f]).join(''), 'tools/flight_core.js
     c.store.set(old, {}); c.store.set(SCOPE + 'media/tex/x.jpg', {});
     await c.fire('activate', {});
     ok(!c.store.has(old) && c.store.has(cur) && c.store.has(SCOPE + 'media/tex/x.jpg'), 'activate sweeps a superseded career_core and keeps this build\'s (and media/)');
+    // R3 (G3070): the drawn route's drawing, the same rules - never on install, on the page's word, cache-first, swept
+    {
+      ok(new RegExp('const ROUTE_KEEP = \\["' + RNAME.replace(/\./g, '\\.') + '"\\];').test(swSrc), 'sw.js lists this build\'s ' + RNAME + ' (ROUTE_KEEP)');
+      const rcur = SCOPE + RNAME, rold = SCOPE + 'route_draw.00000000.js';
+      const e = runSw([SCOPE + 'index.html', SCOPE + 'index.html?career=1']);
+      await e.fire('install', {});
+      ok(!e.store.has(rcur) && !e.net.includes(rcur), 'install: ' + RNAME + ' not fetched (a page asks for it)');
+      await e.fire('message', { data: { flydiy: 'route-draw', src: RNAME } });
+      ok(e.store.has(rcur), 'the page\'s word (the drawing ran): ' + RNAME + ' cached');
+      const n1 = e.net.length;
+      const q1 = await e.fire('fetch', { request: { method: 'GET', url: rcur, headers: { get: () => null } } });
+      ok(!!q1 && e.net.length === n1, 'a fetch of it is answered from the cache (no network)');
+      const f = runSw([]);
+      const q2 = await f.fire('fetch', { request: { method: 'GET', url: rcur, headers: { get: () => null } } });
+      ok(!!q2 && f.store.has(rcur) && f.net.length === 1, 'a fetch of it uncached: from the network, cached on the way through');
+      const q3 = await f.fire('fetch', { request: { method: 'GET', url: rold, headers: { get: () => null } } });
+      ok(q3 === null, 'another build\'s route_draw is not this worker\'s to answer');
+      f.store.set(rold, {}); f.store.set(SCOPE + 'media/tex/x.jpg', {});
+      await f.fire('activate', {});
+      ok(!f.store.has(rold) && f.store.has(rcur) && f.store.has(SCOPE + 'media/tex/x.jpg'), 'activate sweeps a superseded route_draw and keeps this build\'s (and media/)');
+    }
     const d = runSw([]);
     const r4 = await d.fire('fetch', { request: { method: 'GET', url: SCOPE + 'src/viewer/app.js', headers: { get: () => null } } });
     ok(r4 === null, 'scripts and pages are still never the worker\'s (app.js passes through)');
@@ -185,7 +239,8 @@ const freePort = () => new Promise((res, rej) => { const s = net.createServer();
 const HOOK = `(() => {
   let v; window.__lazy = { app: null };
   Object.defineProperty(window, 'FLYDIY_PLAYER', { configurable: true, get: () => v, set: x => {
-    if (!window.__lazy.app) window.__lazy.app = { t: performance.now(), career: typeof careerNew === 'function', procure: typeof procureBuyModel === 'function', freight: typeof freightLoadNew === 'function' };
+    if (!window.__lazy.app) window.__lazy.app = { t: performance.now(), career: typeof careerNew === 'function', procure: typeof procureBuyModel === 'function', freight: typeof freightLoadNew === 'function',
+      route: typeof window.ROUTE_DRAW_UI === 'object' && !!(window.ROUTE_DRAW && window.ROUTE_DRAW.loaded()) };
     v = x; } });
 })();`;
 
@@ -235,6 +290,12 @@ async function requestLists() {
       ok(r.app && !r.app.career && !r.app.procure && !r.app.freight, 'default: app.js saw no career code (typeof careerNew / procureBuyModel / freightLoadNew undefined)');
       ok(!hit.length, 'THE DEFAULT SANDBOX NEVER REQUESTS career_core (' + (hit.map(q => q.url).join(', ') || 'none of ' + r.reqs.length) + ')');
       ok(!r.errs.length, 'default: no page error' + (r.errs.length ? ': ' + r.errs.slice(0, 2).join(' | ') : ''));
+      // R4 (G3070): ...nor the route drawing; the door's first demand fetches it, once
+      const rhit = r.reqs.filter(q => /route_draw\./.test(q.url));
+      ok(r.app && !r.app.route && !rhit.length, 'THE DEFAULT SANDBOX NEVER REQUESTS route_draw (' + (rhit.map(q => q.url).join(', ') || 'none of ' + r.reqs.length) + '; app.js saw no drawing)');
+      const dem = await r.page.evaluate(() => window.ROUTE_DRAW.ready().then(() => ({ loaded: window.ROUTE_DRAW.loaded(), ran: window.FLYDIY_ROUTE_RAN }), e => ({ err: String(e && e.message) }))).catch(e => ({ err: String(e) }));
+      const rhit2 = r.reqs.filter(q => q.url.endsWith('/' + RNAME));
+      ok(dem.loaded && dem.ran === RNAME && rhit2.length === 1, 'default: the door\'s first demand (ROUTE_DRAW.ready) fetched ' + RNAME + ' once and ran it' + (dem.err ? ' - ' + dem.err : ''));
       r.off(); await ctx.close();
     }
     // 8 the three flags
@@ -259,6 +320,33 @@ async function requestLists() {
         r2.off();
       } else r.off();
       await ctx.close();
+    }
+    // R4 (G3070): AN ARMED ROUTE STORED - the drawing requested and run before app.js, the route armed on the pilot;
+    // then offline (its network blocked): from sw.js's cache
+    {
+      const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+      await ctx.addInitScript(() => { try { localStorage.setItem('flydiy.routeDraw', JSON.stringify({ v: 1, fly: true, route: { v: 1, id: 'rlazy', name: 'lazy', end: 'hold', margin: 60,
+        pts: [{ x: 1500, z: -2500, alt: 400, ref: 'msl', V: null }, { x: -3000, z: -5000, alt: 400, ref: 'msl', V: null }] } })); } catch (e) {} });
+      await ctx.addInitScript(HOOK);
+      const r = await boot(ctx, '', 'armed');
+      const i = r.reqs.findIndex(x => x.url.endsWith('/' + RNAME)), iApp = r.reqs.findIndex(x => /\/src\/models\//.test(x.url));
+      ok(i >= 0 && (iApp < 0 || i < iApp), 'armed: ' + RNAME + ' requested at boot, ahead of the promoted payloads (#' + i + ' < #' + iApp + ' of ' + r.reqs.length + ')');
+      ok(!!r.app && r.app.route, 'armed: run BEFORE app.js (its setter saw ROUTE_DRAW_UI bound to the door)');
+      let st = null;
+      for (let k = 0; k < 60 && !(st && st.drawn); k++) {
+        st = await r.page.evaluate(() => { const a = window.FLIGHT_PROBE && window.FLIGHT_PROBE.ap && window.FLIGHT_PROBE.ap();
+          return { armed: window.ROUTE_DRAW.armed(), name: window.ROUTE_DRAW.route() && window.ROUTE_DRAW.route().name, drawn: a && a.drawn ? a.drawn.state : null }; }).catch(() => null);
+        if (!(st && st.drawn)) await sleep(1000);
+      }
+      ok(st && st.armed && st.name === 'lazy' && (st.drawn === 'armed' || st.drawn === 'flying'), 'armed: the drawing has it armed and the first flight\'s pilot holds it (' + JSON.stringify(st) + ')');
+      ok(!r.errs.length, 'armed: no page error' + (r.errs.length ? ': ' + r.errs.slice(0, 2).join(' | ') : ''));
+      const cached = await r.page.evaluate(async n => { for (let k = 0; k < 40; k++) { const m = await caches.match(new URL(n, location.href).href); if (m) return true; await new Promise(z => setTimeout(z, 500)); } return false; }, RNAME).catch(() => false);
+      ok(cached, 'armed: sw.js holds ' + RNAME + ' after the visit');
+      await r.page.close(); r.off();
+      await ctx.route('**/' + RNAME, rt => rt.abort());
+      const r2 = await boot(ctx, '', 'armed offline');
+      ok(!!r2.app && r2.app.route, 'OFFLINE: a second armed boot with ' + RNAME + '\'s network blocked runs the drawing from sw.js\'s cache, before app.js');
+      r2.off(); await ctx.close();
     }
     console.log('  the request lists in ' + T());
   } catch (e) { ok(false, 'the request lists: ' + (e && e.message || e)); }

@@ -87,7 +87,9 @@ function reflectProgram(vsrc, fsrc) {
 const DRAWS = new Set(['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements',
   'multiDrawArraysWEBGL', 'multiDrawElementsWEBGL', 'multiDrawArraysInstancedWEBGL', 'multiDrawElementsInstancedWEBGL']);
 function makeRecorder() {
-  const R = { phase: 'other', calls: Object.create(null), bytes: Object.create(null), draws: Object.create(null), tris: Object.create(null), programs: new Set(), progUsed: new Set(), links: 0, contexts: 0,
+  // PERF-1 (P3a): progNames - a program's id -> its SHADER_NAME (a uniform location carries the id); onUni(name, bytes, loc)
+  // - when set, every uniform* call with its location ({ p: program id, name }): GATE FRAMECOST's FRAMECOST_UNIFORMS tally
+  const R = { phase: 'other', calls: Object.create(null), bytes: Object.create(null), draws: Object.create(null), tris: Object.create(null), programs: new Set(), progUsed: new Set(), links: 0, contexts: 0, progNames: new Map(), onUni: null,
     count(name, b) { R.calls[name] = (R.calls[name] || 0) + 1; if (b) R.bytes[name] = (R.bytes[name] || 0) + b; if (R.onCall) R.onCall(name, b); },
     // G800: a draw's triangles by pass (TRIANGLES only: count / 3, times the instances) - what the GPU is handed, not a cost
     draw(name, a) { R.count(name); R.draws[R.phase] = (R.draws[R.phase] || 0) + 1; const t = drawTris(name, a, R.TRI); if (t) R.tris[R.phase] = (R.tris[R.phase] || 0) + t; },
@@ -121,6 +123,7 @@ function byteCount(name, a) {
   return 0;
 }
 
+const UNI = /^uniform/;
 function makeGL(opts) {
   opts = opts || {};
   const links = opts.links || [], rec = opts.rec || null;
@@ -170,7 +173,7 @@ function makeGL(opts) {
     attachShader: (p, s) => { PR.get(p).push(s); },
     linkProgram: p => { const sh = PR.get(p) || []; const vs = sh.find(s => s.type === k('VERTEX_SHADER')), fs = sh.find(s => s.type !== k('VERTEX_SHADER'));
       const L = { vs: vs ? SH.get(vs) : '', fs: fs ? SH.get(fs) : '' }; links.push(L);
-      if (rec) { rec.links++; const r = reflectProgram(L.vs, L.fs), sn = /#define SHADER_NAME (\S+)/.exec(L.fs || L.vs || ''); if (sn) r.name = sn[1]; REF.set(p, r); } },
+      if (rec) { rec.links++; const r = reflectProgram(L.vs, L.fs), sn = /#define SHADER_NAME (\S+)/.exec(L.fs || L.vs || ''); if (sn) r.name = sn[1]; REF.set(p, r); rec.progNames.set(p.id, r.name || 'p' + p.id); } },
     getProgramParameter: (p, q) => { const n = N.get(q);
       if (rec && REF.has(p)) { if (n === 'ACTIVE_UNIFORMS') return REF.get(p).uniforms.length; if (n === 'ACTIVE_ATTRIBUTES') return REF.get(p).attrs.length; }
       return /ACTIVE|ATTACHED/.test(n) ? 0 : true; },
@@ -198,7 +201,7 @@ function makeGL(opts) {
   const wrap = (p, f) => { let w = wrapped.get(p); if (w) return w;
     w = rec ? (DRAWS.has(p) ? (...a) => { rec.draw(p, a); feedbackCheck(p); return f && f(...a); }
       : p === 'useProgram' ? (prog) => { rec.count(p); FB.prog = prog || null; if (prog) rec.progUsed.add(prog.id); }
-      : (...a) => { rec.count(p, byteCount(p, a)); return f ? f(...a) : undefined; }) : (f || (() => undefined));
+      : (...a) => { const b = byteCount(p, a); rec.count(p, b); if (rec.onUni && UNI.test(p)) rec.onUni(p, b, a[0]); return f ? f(...a) : undefined; }) : (f || (() => undefined));
     wrapped.set(p, w); return w; };
   const gl = new Proxy(Object.create(WebGL2RenderingContext.prototype), { get(t, p) {
     if (p in fns) return rec ? wrap(p, fns[p]) : fns[p];

@@ -71,8 +71,11 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     const S = { tracks: null, key: 'sandbox', view: null, text: null };
     try {
       if (!premisesPlaced || typeof PREMISES_GEN === 'undefined' || !PREMISES_GEN.stageView || typeof stageKey !== 'function') return S;
-      if (/[?&]career=1(&|$)/.test(location.search || '') && typeof careerKey === 'function' && typeof stageTracksOf === 'function') {
-        let doc = null; try { doc = JSON.parse(localStorage.getItem(careerKey('dev')) || 'null'); } catch (e) {}
+      // G2740 (CAREER-ON): the player's career (the welcome's choice, FLYDIY_MODE 'career') stands ITS tracks, off
+      // flydiy.career.main - none while a New career's fresh flag waits (app.js backs the old one up and starts at 0)
+      const devC = /[?&]career=1(&|$)/.test(location.search || ''), mainC = !devC && typeof window !== 'undefined' && window.FLYDIY_MODE === 'career';
+      if ((devC || mainC) && typeof careerKey === 'function' && typeof stageTracksOf === 'function') {
+        let doc = null; try { doc = mainC && localStorage.getItem('flydiy.career.fresh') === '1' ? null : JSON.parse(localStorage.getItem(careerKey(devC ? 'dev' : 'main')) || 'null'); } catch (e) {}
         S.tracks = stageTracksOf(doc) || stageTracksOf({ career: { tracks: {} } });
         // the stills' door (tools/stages_shot.js): ?stages=field:1,minedock:3 composes those values over the document's,
         // for this load only (nothing is written; with ?career=1 alone)
@@ -109,7 +112,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // THE SCENERY KIT'S PACKS (ASSETS-OCT G2904): lazy (build.js MANIFEST.lazy, every scenery_* entry, the levels last) -
   // asked for when the record holds prop objects (the user's placed models); the premises step waits for pending ones
   try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && window.FLYDIY_LAZY_SRC && /"kind":\s*"prop"/.test(premisesPlaced)) {
-    const sc = Object.keys(window.FLYDIY_LAZY_SRC).filter(n => /^scenery_/.test(n));
+    // (G3140-G3149: the camping kit's and the infrastructure kit's packs ride the same rule)
+    const sc = Object.keys(window.FLYDIY_LAZY_SRC).filter(n => /^scenery_/.test(n) || /^camp_/.test(n) || /^infra_/.test(n));
     if (sc.length) window.FLYDIY_LAZY(sc);
   } } catch (e) {}
   // THE ISLAND (W2): the loader fetched the data world's files when ?world= named one

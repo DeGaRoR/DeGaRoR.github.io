@@ -307,7 +307,9 @@ const f2 = x => (x == null || !Number.isFinite(x)) ? String(x) : x.toFixed(2);
       }
       if (c.id === 'trunk-0') yes(S.strikes.some(s => s.info.what === 'trunk'), 'a trunk at 30 m/s strikes the prop on the trunk, drawn');
       // G1860.1: dented sheet stays on its fasteners - a cowl panel or a spinner leaves crushed only past TORN
-      yes(S.rel.every(x => !((x.kind === 'cowl' || x.kind === 'spinner') && x.why === 'crushed') || x.crush > WD.TORN), 'a cowl / spinner leaves only loose, off or torn past ' + (WD.TORN * 100) + ' cm (' + c.id + ')');
+      // (train 55: the summary's crush is rounded to the mm (toFixed(3)) - a cowl the layer released at 25.02 cm (> TORN) read 0.250
+      // here and failed the row; the bound less half the rounding step reads the layer's own decision)
+      yes(S.rel.every(x => !((x.kind === 'cowl' || x.kind === 'spinner') && x.why === 'crushed') || x.crush > WD.TORN - 5e-4), 'a cowl / spinner leaves only loose, off or torn past ' + (WD.TORN * 100) + ' cm (' + c.id + ')');
       if (S.eye) console.log('    the cockpit (eye in bay ' + S.eyeBay + ', ' + (S.eyeD0 * 100).toFixed(0) + ' cm clear at rest): ' + (S.eye.crushed ? 'CRUSHED - ' + S.eye.why + ': the chase view' : 'clear (' + (S.eye.depth * 100).toFixed(0) + ' cm, the bay at ' + (S.eye.vol * 100).toFixed(0) + ' % of its volume)'));
       yes(c.off.rel.length === 0 && c.off.payloads === 0 && c.off.bodies.length === 0 && c.off.hash === c.offBare.hash, 'damage OFF: no payload, nothing released, no body (' + c.off.strikes.length + ' strikes the solver itself does not make), the same bits as without the layer');
     }

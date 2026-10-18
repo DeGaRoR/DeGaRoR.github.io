@@ -65,15 +65,20 @@
 .bDestroy > span { text-transform:none; letter-spacing:.02em; font:600 10.5px/1.45 'IBM Plex Sans'; color:var(--ed-ink); margin-bottom:0; }
 .bAdvice div { color:var(--ed-ink); }
 .bAdvice div:before { content:'▸ '; color:var(--ed-faint); }
-/* A9: on the flight screen (the flown card's award, the master's) the card
-   centres on the viewport — the workshop's insets are not there */
-body.mode-fly #bAward { left:50vw; top:38%; }
+/* A9: on the flight screen (the flown card's award, the master's) the workshop's insets are not there.
+   G3060 (CARDS-CORNER; the user, 12 Oct: "the certifications, the end of the flight, the crash, all of them should
+   appear in the bottom left, not hide the plane"): the arrival card's corner (flight.css #arrCard), over it while it
+   shows - it closes itself or on a click */
+body.mode-fly #bAward { left:96px; bottom:96px; width:max(260px, min(340px, calc(25vw - 112px)));
+  max-height:max(200px, calc(50vh - 112px)); }
+body.mode-fly #bRun { left:96px; bottom:96px; width:max(260px, min(400px, calc(25vw - 112px)));
+  max-height:max(200px, calc(50vh - 112px)); }   /* (a flown test has no run card today; if one shows, the same place) */
 /* DMG-D4b (train 41; the user: "no more cards in the middle of the screen, ever. That's for enjoying the crash"): a flight
-   that was not certified (a crash, a damaged aeroplane) - its card in the lower-right corner, clear of the wreck (the
-   crash card holds the lower left); width capped so both stay outside the central half of the view down to 1024 px */
-body.mode-fly #bAward.wreck { left:auto; right:16px; top:auto; bottom:96px; transform:none; animation:none;
-  width:min(300px, 22vw); padding:14px 14px 12px; max-height:calc(100vh - 140px); overflow-y:auto; }
-#bAward.master canvas { width:180px; height:180px; }
+   that was not certified (a crash, a damaged aeroplane) - its card the crash card's size, clear of the wreck; width capped
+   so it stays outside the central half of the view down to 1024 px (G3060: the lower LEFT now, as every result card) */
+body.mode-fly #bAward.wreck { animation:none;
+  width:max(220px, min(300px, calc(22vw - 80px))); padding:14px 14px 12px; }
+#bAward.master canvas { width:140px; height:140px; }
 #bAward.master .bAs { border-width:3px; font-size:15px; }
 #bAward .bAw { margin-top:8px; color:var(--ed-warn); opacity:.85; text-align:left; }
 #bRun .bRlive .dim { color:var(--ed-faint); }
@@ -102,17 +107,18 @@ body.benchBusy #edWrap, body.benchBusy #edInfo, body.benchBusy #edProps {
 body.benchBusy #edInfo { opacity:.72; }
 
 /* ---- THE RUN CARD: what is happening, as it happens ------------------ */
+/* G3060 (CARDS-CORNER): the view's lower-left corner, where its award follows it - never over the aeroplane */
 #bRun { position:fixed; z-index:61; bottom:26px;
-  left:calc(var(--ws-left, 0px) + (100vw - var(--ws-left, 0px) - var(--ws-right, 0px)) / 2);
-  transform:translateX(-50%);
-  width:400px; max-width:calc(100vw - 40px); box-sizing:border-box;
+  left:calc(var(--ws-left, 0px) + 22px);
+  width:max(260px, min(400px, calc(25vw - 32px))); max-width:calc(100vw - 40px); box-sizing:border-box;
+  max-height:max(220px, calc(50vh - 40px)); overflow-y:auto;
   background:var(--ed-plate); border:1px solid var(--ed-border);
   border-radius:12px; padding:12px 14px 13px; color:var(--ed-ink);
   box-shadow:0 12px 40px rgba(0,0,0,.45); font:400 11px/1.4 'IBM Plex Sans';
   animation:bRunIn .25s ease-out; }
 #bRun[hidden] { display:none; }
-@keyframes bRunIn { from { opacity:0; transform:translateX(-50%) translateY(10px); }
-                    to { opacity:1; transform:translateX(-50%) translateY(0); } }
+@keyframes bRunIn { from { opacity:0; transform:translateY(10px); }
+                    to { opacity:1; transform:translateY(0); } }
 #bRun .bRh { display:flex; gap:9px; align-items:baseline; }
 #bRun .bRk { font:600 9px/1 'IBM Plex Sans'; letter-spacing:.2em;
   text-transform:uppercase; color:var(--ed-faint); }
@@ -153,21 +159,24 @@ body.benchBusy #edInfo { opacity:.72; }
 #bRun .bRnotes div:before { content:'▸ '; color:var(--ed-faint); }
 
 /* ---- THE AWARD: the stamp, and the sticker it earns ------------------ */
-#bAward { position:fixed; z-index:62; top:50%;
-  left:calc(var(--ws-left, 0px) + (100vw - var(--ws-left, 0px) - var(--ws-right, 0px)) / 2);
-  transform:translate(-50%,-50%);
-  width:340px; max-width:calc(100vw - 40px); box-sizing:border-box;
+/* G3060 (CARDS-CORNER; the user, 12 Oct: "...all of them should appear in the bottom left, not hide the plane"): the
+   view's lower-left corner, the run card's place - compact (its right edge in the view's left quarter at 1920, its top
+   below the middle); a long one scrolls. GATE CARDS holds it */
+#bAward { position:fixed; z-index:62; top:auto; bottom:26px;
+  left:calc(var(--ws-left, 0px) + 22px);
+  width:max(260px, min(340px, calc(25vw - 32px))); max-width:calc(100vw - 40px); box-sizing:border-box;
+  max-height:max(220px, calc(50vh - 40px)); overflow-y:auto;
   background:var(--ed-plate); border:1px solid var(--ed-border);
-  border-radius:14px; padding:22px 20px 18px; text-align:center;
+  border-radius:14px; padding:16px 16px 14px; text-align:center;
   color:var(--ed-ink); box-shadow:0 18px 60px rgba(0,0,0,.5); cursor:pointer;
   font:400 11.5px/1.5 'IBM Plex Sans'; animation:bAwIn .3s ease-out; }
 #bAward[hidden] { display:none; }
-@keyframes bAwIn { from { opacity:0; transform:translate(-50%,-46%); }
-                   to { opacity:1; transform:translate(-50%,-50%); } }
+@keyframes bAwIn { from { opacity:0; transform:translateY(12px); }
+                   to { opacity:1; transform:translateY(0); } }
 #bAward .bAk { font:600 9px/1 'IBM Plex Sans'; letter-spacing:.22em;
   text-transform:uppercase; color:var(--ed-faint); }
 #bAward .bAn { font:500 14px/1.2 'IBM Plex Sans'; margin-top:6px; }
-#bAward canvas { display:block; width:150px; height:150px; margin:14px auto 6px;
+#bAward canvas { display:block; width:120px; height:120px; margin:10px auto 4px;
   animation:bSeal .55s cubic-bezier(.2,1.4,.4,1) both; animation-delay:.25s; }
 @keyframes bSeal { from { opacity:0; transform:scale(1.9) rotate(-14deg); }
                    60% { opacity:1; }
@@ -229,3 +238,17 @@ body.benchBusy #edInfo { opacity:.72; }
   padding:9px 11px; color:var(--ed-dim); font:400 11px/1.5 'IBM Plex Sans';
   white-space:pre-line; box-shadow:0 8px 30px rgba(0,0,0,.45); }
 #pqTip[hidden] { display:none; }
+
+/* G2640 DESIGN-TRUST: the design check under the bench check - a row a line,
+   the level's mark, the value; a warn or a fail says why and what to change */
+.bDc { margin-top:7px; padding:7px 9px; border-radius:6px; text-align:left;
+  border:1px solid var(--ed-hair); color:var(--ed-dim); font:400 10.5px/1.45 'IBM Plex Sans'; }
+.bDc > span { display:block; font:600 9px/1.3 'IBM Plex Sans'; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--ed-faint); margin-bottom:4px; }
+.bDcR { display:grid; grid-template-columns:14px 1fr auto; gap:0 6px; padding:1px 0; }
+.bDcR i { font-style:normal; font-weight:600; color:var(--ed-acc); }
+.bDcR b { font-weight:400; color:var(--ed-ink); }
+.bDcR em { font-style:normal; color:var(--ed-val); white-space:nowrap; }
+.bDcR > div { grid-column:2 / 4; color:var(--ed-dim); padding:1px 0 3px; }
+.bDcR.warn i, .bDcR.warn em { color:var(--ed-warn); }
+.bDcR.fail i, .bDcR.fail em, .bDcR.fail b { color:var(--ed-bad); }

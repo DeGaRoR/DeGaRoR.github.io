@@ -175,8 +175,15 @@ function mount(host, ctx) {
   // reopens the editor; a closed one must not eat the flight's keys)
   let active = true;
   const loadWip = () => { try { const t = storage && storage.getItem(LS_WIP); if (t) { const U = PG.unwrap(t); rec = U.rec; recName = U.name; return true; } } catch (e) { console.warn('premises wip:', e.message); } return false; };
+  // THE EDITOR IN THE FLIGHT LOG (G3082 EDITOR-PERF; A0: "measure every editor action on the user's file"): every command's
+  // rebuild, a select, a drag's moves, the autosave, the checks, the open - an 'edit' event with its time and what ran
+  // (the composition, the renderer's steps, the game's ground re-sample, the inspector), which tools/analyze_log.js lists
+  // under EDITOR. Nothing is logged without the recorder
+  const PERF = typeof performance !== 'undefined' ? performance : Date;
+  const logEdit = (ms, what) => { try { const F = typeof window !== 'undefined' && window.FLIGHT_REC; if (F && F.event && !F.off) F.event('edit', +(+ms).toFixed(1), what); } catch (e) {} };
+  let LAST = '';
   let saveT = 0;
-  const autosave = () => { if (!storage) return; clearTimeout(saveT); saveT = setTimeout(() => { saveT = 0; try { storage.setItem(LS_WIP, PG.envelope(recName, rec)); } catch (e) {} snapshot(); }, 1000); };
+  const autosave = () => { if (!storage) return; clearTimeout(saveT); saveT = setTimeout(() => { saveT = 0; const t0 = PERF.now(); try { storage.setItem(LS_WIP, PG.envelope(recName, rec)); } catch (e) {} const k = snapshot(); logEdit(PERF.now() - t0, 'autosave' + (k ? ' + history slot' : '')); }, 1000); };
   // THE ROLLING HISTORY (G2917; the user: "at least the paths I trace manually should be kept safe"): the autosave is one
   // slot, so a bad edit autosaved over the good one was gone. Every HIST_MS of editing the record is also kept as a slot
   // named 'autosave <date time>' (the FILE section's 'load slot' lists them; the host's storage puts back what the boot
@@ -267,9 +274,9 @@ function mount(host, ctx) {
     undoS.push(cmd); if (!isRedo) redoS.length = 0;
     if (undoS.length > 200) undoS.shift();
     dirty(cmdLayer(cmd), cmdBox(cmd), cmdGround(cmd), objsOf(cmd));
-    strip.status('' + cmd.label);
+    strip.status('' + cmd.label); LAST = String(cmd.label);
   }
-  function undo() { const c = undoS.pop(); if (!c) return; if (c.many) for (const q of c.many.slice().reverse()) applyEntry(q.layer, q.id, clone(q.before)); else applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(cmdLayer(c), cmdBox(c), cmdGround(c), objsOf(c, true)); strip.status('undo: ' + c.label); }
+  function undo() { const c = undoS.pop(); if (!c) return; LAST = 'undo: ' + c.label; if (c.many) for (const q of c.many.slice().reverse()) applyEntry(q.layer, q.id, clone(q.before)); else applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(cmdLayer(c), cmdBox(c), cmdGround(c), objsOf(c, true)); strip.status('undo: ' + c.label); }
   function redo() { const c = redoS.pop(); if (!c) return; run(c, true); }
   let coalesce = null;
   function edit(id, layer, mutate, label, key) {
@@ -279,11 +286,12 @@ function mount(host, ctx) {
     mutate(e);
     if (key && coalesce && coalesce.id === id && coalesce.key === key && Date.now() - coalesce.t < 600) {
       const last = undoS[undoS.length - 1];
-      last.after = clone(e); coalesce.t = Date.now();
+      last.after = clone(e); coalesce.t = Date.now(); LAST = String(label);
       soonDirty(layer, changeBox(before, e), groundOf(layer, before, e), objsOf({ layer, before, after: e }));
       return;
     }
     const cmd = { layer, id, before, after: clone(e), label };
+    LAST = String(label);
     applyEntry(layer, id, clone(e));
     undoS.push(cmd); redoS.length = 0;
     coalesce = key ? { id, key, t: Date.now() } : null;
@@ -334,7 +342,10 @@ function mount(host, ctx) {
   // G2917 (the user: "changing the traffic amount freezes it for a while - maybe 3 minutes"): A ROAD'S TRAFFIC IS NOT ITS
   // GROUND either - its traffic, its guardrail, its power line, its life, its name make no modifier and move no cover: no
   // patch, no ground re-sample (the cars, the rails, the poles are rebuilt by the renderer's own sync)
-  const ROAD_FREE = { traffic: 1, rail: 1, poles: 1, life: 1, name: 1, nodes: 1 };   // (G2950: nor its junction ids - the graph's alone)
+  // (G3089 EDITOR-PERF, the user's rev 28 timed 13 Oct: r1's wear sliders - paint age, cracks, wet, moss - were 11.7 s each,
+  //  8 s of it the fine patch re-sampled along r1's whole corridor) nor its WEAR: `pav` is carried to the renderer's pavement
+  //  and read by nothing of the ground (27_premises: roadObjs.pav, the issues; the patch's sink reads the premises' recipe)
+  const ROAD_FREE = { traffic: 1, rail: 1, poles: 1, life: 1, name: 1, nodes: 1, pav: 1 };   // (G2950: nor its junction ids - the graph's alone)
   const groundOf = (layer, a, b) => {
     if (layer === 'sites') { if (!a || !b) return undefined; for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) if (k !== 'name' && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return undefined; return false; }   // (G3005: a site's name moves no ground)
     if ((layer !== 'runways' && layer !== 'roads') || !a || !b) return undefined;
@@ -345,32 +356,45 @@ function mount(host, ctx) {
   };
   function dirty(layer, bbox, ground, objs) {
     if (PEND) { clearTimeout(PEND.t); const p = PEND; PEND = null; if (layer !== p.layer) layer = null; bbox = union(bbox, p.bbox); if (!(ground === false && p.ground === false)) ground = undefined; objs = objsJoin(p.objs, objs); }
+    const t0 = PERF.now(), label = LAST || (layer || 'all'); LAST = '';
     R.setRecord(rec);
     // (G3001) only placed objects changed: the renderer makes them alone
     if (objs && R.objectEdit && R.objectEdit(objs)) {
       FAST.n++;
+      const t1 = PERF.now();
       inspector.refresh();
+      const t2 = PERF.now();
       autosave();
       ctx.onRebuilt && ctx.onRebuilt('objects', false, bbox || null);
       ctx.redraw && ctx.redraw();
       clearTimeout(chkT); chkT = setTimeout(checks, 500);
       plaque();
+      logEdit(PERF.now() - t0, label + ' · object ' + (t1 - t0).toFixed(0) + ' · inspector ' + (t2 - t1).toFixed(0));
       return;
     }
     FAST.full++;
-    if (!layer) R.rebuild(null);
-    else if (groundLayer(layer) && ground !== false) R.rebuild(bbox ? { layer, bbox, pad: 2 } : null);
-    else R.rebuild({ layer, bbox: bbox || { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false });   // no chunk touched: outlines, plots, houses, trees
+    let st = null;
+    if (!layer) st = R.rebuild(null);
+    else if (groundLayer(layer) && ground !== false) st = R.rebuild(bbox ? { layer, bbox, pad: 2 } : null);
+    else st = R.rebuild({ layer, bbox: bbox || { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false });   // no chunk touched: outlines, plots, houses, trees
+    const t1 = PERF.now();
     inspector.refresh();
+    const t2 = PERF.now();
     autosave();
     ctx.onRebuilt && ctx.onRebuilt(layer || null, ground, layer ? bbox || null : null);   // the game re-samples its ground rings (G1400: told the layer and a ground left as it was; G2917: and the box it moved, in the premises frame)
+    const t3 = PERF.now();
     ctx.redraw && ctx.redraw();
     clearTimeout(chkT); chkT = setTimeout(checks, 500);
     plaque();
+    const steps = st && st.steps ? Object.keys(st.steps).filter(k => st.steps[k] >= 1).map(k => k + ' ' + Math.round(st.steps[k])).join(', ') : '';
+    logEdit(PERF.now() - t0, label + ' · rebuild ' + (t1 - t0).toFixed(0) + (st && st.composeMs ? ' (compose ' + Math.round(st.composeMs) + (steps ? '; ' + steps : '') + ')' : steps ? ' (' + steps + ')' : '') +
+      (st && st.outlines ? ' · outlines ' + Math.round(st.outlines.ms) + ' (' + st.outlines.made + ' made)' : '') + ' · inspector ' + (t2 - t1).toFixed(0) + ' · ground ' + (t3 - t2).toFixed(0) + (ground === false ? ' (none)' : bbox ? '' : ' (all)'));
   }
   function checks() {
+    const t0 = PERF.now();
     const lines = PG.checks(rec, world, { overlay: R.overlay, site: ctx.site || null });
     const iss = PG.issues(rec);
+    if (PERF.now() - t0 >= 8) logEdit(PERF.now() - t0, 'checks');
     if (els.chk) els.chk.innerHTML = lines.map(l => '<span class="' + (l.ok ? 'ok' : 'bad') + '">' + (l.ok ? '✓ ' : '✗ ') + l.label + '</span>').join('<br>') +
       (iss.length ? '<br><span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '');
     return lines;
@@ -852,7 +876,7 @@ function mount(host, ctx) {
 
   // ---- selection, handles, dragging -------------------------------------------------
   let selected = null, drag = null;
-  function select(id) { if (id !== selected) { corner = null; if (T.plotPick && T.plotPick !== id) T.plotPick = null; } selected = id; R.select(id); inspector.refresh(); ctx.onSelect && ctx.onSelect(id); ctx.redraw && ctx.redraw(); }
+  function select(id) { const t0 = PERF.now(), was = selected; if (id !== selected) { corner = null; if (T.plotPick && T.plotPick !== id) T.plotPick = null; } selected = id; R.select(id); const t1 = PERF.now(); inspector.refresh(); ctx.onSelect && ctx.onSelect(id); ctx.redraw && ctx.redraw(); const ms = PERF.now() - t0; if (id !== was || ms >= 8) logEdit(ms, 'select ' + (id || 'none') + ' · renderer ' + (t1 - t0).toFixed(0) + ' · inspector ' + (PERF.now() - t1).toFixed(0)); }
   function onDown(ev) {
     if (ev.button !== 0) return false;
     if (tool === 'select' && selected) {
@@ -863,9 +887,25 @@ function mount(host, ctx) {
         if (ctrlEdit(selected, L, h)) { swallowClick = true; return true; }
         return false;
       }
-      return startDrag(h, !!ev.altKey);
+      if (startDrag(h, !!ev.altKey)) return true;
     }
+    // G2891 (c1): a press on a strip's club hangar or its stand grabs it - the strip selected, that handle in the hand
+    if (tool === 'select' && T.state !== 'drawing' && !(ev.ctrlKey || ev.metaKey)) { const g = ctx.ground(ev.clientX, ev.clientY); if (g && grabStrip(g, !!ev.altKey)) return true; }
     return false;
+  }
+  // G2891 (SCENERY-ED-1 c1; the user, 12 Oct: "there is a lot I can't displace" at HOME): the club hangar and the stand are a
+  // strip's own fields, moved by its discs once the strip is selected - the building itself took no click. A press on one
+  // (R.grabAt: PG.runwayGrab, the hangar's footprint, the stand within 5 m) selects its strip and starts that handle's drag,
+  // unless a placed object (a parked aeroplane on the stand) is under the press - the object is picked as before
+  function grabStrip(g, alt) {
+    if (!R.grabAt) return false;
+    const gb = R.grabAt(g[0], g[2]); if (!gb) return false;
+    const top = R.hitAll ? R.hitAll(g[0], g[2])[0] : null;
+    if (top && top.kind === 'object') return false;
+    if (selected !== gb.id) select(gb.id);
+    if (!startDrag({ id: gb.id, key: gb.key, index: 0 }, alt)) return false;
+    strip.status((gb.key === 'hangar' ? 'the club hangar' : 'the stand') + ' of ' + gb.id + ' - drag it (the door\'s heading is a row of the strip\'s inspector)');
+    return true;
   }
   // a drag begins on a handle of the selected feature (the mouse's, or a script's by key)
   function startDrag(h, alt) {
@@ -931,6 +971,9 @@ function mount(host, ctx) {
   }
   // the drag's hand: the WORLD ground point moves the handle's record
   function moveDrag(g) {
+    const tm = PERF.now(); try { return moveDrag0(g); } finally { if (drag) { const d = PERF.now() - tm; drag.mvN = (drag.mvN || 0) + 1; drag.mvSum = (drag.mvSum || 0) + d; drag.mvMax = Math.max(drag.mvMax || 0, d); } }
+  }
+  function moveDrag0(g) {
     const found = PG.findById(rec, drag.id); if (!found) return true;
     const L = drag.F.toLocal(g[0], g[2]);
     if (drag.hold) {
@@ -953,6 +996,14 @@ function mount(host, ctx) {
       }
     }
     // (G1400: `drag.runway &&` - a polygon's or a road's corner has no runway key, and its drag threw here on every move: no corner could be dragged)
+    else if (drag.runway && (drag.runway.indexOf('pl:') === 0 || drag.runway.indexOf('ps:') === 0)) {
+      // (G3091, objective 1) A BASE PLOT's disc moves the plot (its stand and its way out with it); its stand's disc the stand alone
+      const e = found.entry, p = (e.plots || []).find(q => q && q.id === drag.runway.slice(3));
+      if (p && drag.runway[1] === 'l') { const dx = +L[0].toFixed(2) - p.x, dz = +L[1].toFixed(2) - p.z; p.x = +L[0].toFixed(2); p.z = +L[1].toFixed(2);
+        if (p.stand) { p.stand.x = +(p.stand.x + dx).toFixed(2); p.stand.z = +(p.stand.z + dz).toFixed(2); }
+        for (const k of ['taxiOut', 'taxiOut1']) if (Array.isArray(p[k])) p[k] = p[k].map((q, i, a) => i === a.length - 1 ? q : [+(q[0] + dx).toFixed(2), +(q[1] + dz).toFixed(2)]); }
+      else if (p && p.stand) { p.stand.x = +L[0].toFixed(2); p.stand.z = +L[1].toFixed(2); }
+    }
     else if (drag.runway && (drag.runway === 'stand' || drag.runway === 'hangar' || drag.runway.indexOf('tx') === 0 || drag.runway.indexOf('ty') === 0)) {
       // the stand or a taxi point moves; the LAST taxi point stays on the centreline (it is the entry)
       const e = found.entry, E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, e));
@@ -1021,6 +1072,7 @@ function mount(host, ctx) {
   }
   function onUp() {
     if (!drag) return false;
+    if (drag.mvN) logEdit(drag.mvMax, 'drag ' + drag.id + ' ' + (drag.key || '') + ' · ' + drag.mvN + ' moves, worst ' + drag.mvMax.toFixed(0) + ' ms, mean ' + (drag.mvSum / drag.mvN).toFixed(1));
     if (R.snapHint) R.snapHint(null);
     const found = PG.findById(rec, drag.id);
     // (G2890: a disc clicked and not moved - the corner picked - is no command and no rebuild)
@@ -1028,7 +1080,7 @@ function mount(host, ctx) {
     if (found && (drag.co || drag.snap || drag.detach)) { joinUp(found); drag = null; return true; }   // (G2950)
     if (found) {
       const cmd = { layer: found.layer, id: drag.id, before: drag.before, after: clone(found.entry), label: 'move ' + drag.id };
-      undoS.push(cmd); redoS.length = 0;
+      undoS.push(cmd); redoS.length = 0; LAST = 'release ' + drag.id;
       dirty(found.layer, changeBox(drag.before, found.entry), groundOf(found.layer, drag.before, found.entry), objsOf(cmd));
     }
     drag = null;
@@ -1299,12 +1351,13 @@ function mount(host, ctx) {
     }
     if (layer === 'terrain') {
       if (e.kind === 'flatten') {
-        rows.slider(insp, 'level (m)', -40, 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, 'level (m)', -40, e.abs ? 1500 : 80, 0.1, () => e.level,   // (G3019 (2): an absolute level is a height - the user's up to 709 m)
+          v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
         rows.check(insp, 'absolute height', () => !!e.abs, v => ed(x => { x.abs = v; }, 'absolute ' + id));
       } else if (e.kind === 'raise') rows.slider(insp, 'lift (m)', -30, 30, 0.1, () => e.dh, v => ed(x => { x.dh = v; }, 'lift of ' + id, 'dh'), v => (v >= 0 ? '+' : '') + v.toFixed(1) + ' m');
       else if (e.kind === 'ramp') {
         if (e.slope === undefined || e.slope === null) { const c = PG.polyCentroid(e.poly), pl = e.plane || [0, 0, 0]; e.level = +(pl[0] * c[0] + pl[1] * c[1] + pl[2]).toFixed(2); e.slope = +Math.hypot(pl[0], pl[1]).toFixed(4); e.hdg = +(Math.atan2(pl[0], pl[1]) * 180 / Math.PI).toFixed(0); }
-        rows.slider(insp, 'height at the middle (m)', -40, 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, 'height at the middle (m)', -40, e.abs ? 1500 : 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
         rows.slider(insp, 'slope (%)', 0, 15, 0.1, () => (e.slope || 0) * 100, v => ed(x => { x.slope = v / 100; }, 'slope of ' + id, 'slope'), v => v.toFixed(1) + ' %');
         rows.slider(insp, 'rising toward (°)', 0, 360, 1, () => ((e.hdg || 0) + 360) % 360, v => ed(x => { x.hdg = v; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
         rows.check(insp, 'absolute height', () => !!e.abs, v => ed(x => { x.abs = v; }, 'absolute ' + id));
@@ -1456,12 +1509,16 @@ function mount(host, ctx) {
         const np = (R.plots ? R.plots() : []).filter(p => p.zone === id).length;
         rows.note(insp, np + ' plot' + (np === 1 ? '' : 's') + ' sown' + (np ? '' : ' — trace a road through the zone'));
       } else rows.note(insp, 'no tree grows here');
-      rows.slider(insp, 'seed', 1, 99, 1, () => (e.seed === null || e.seed === undefined) ? 0 : e.seed, v => ed(x => { x.seed = v; }, 'seed of ' + id, 'seed'), v => (v ? String(v) : 'auto'));
+      rows.slider(insp, 'seed', 0, 99, 1, () => (e.seed === null || e.seed === undefined) ? 0 : e.seed,   // (G3019 (2): 0 is 'auto', every zone's)
+        v => ed(x => { x.seed = v; }, 'seed of ' + id, 'seed'), v => (v ? String(v) : 'auto'));
       rows.button(insp, 're-sow (new seed)', () => ed(x => { x.seed = 1 + Math.floor(Math.random() * 98); }, 're-sow ' + id));
     } else if (layer === 'runways') {
       const nm = $('input', { type: 'text', value: e.name || '' }); nm.className = 'pr-name'; nm.onchange = () => ed(x => { x.name = nm.value; }, 'name of ' + id); insp.appendChild(nm);
+      numRow(insp, 'centre x (m)', () => e.c[0], v => ed(x => { x.c = [+v.toFixed(2), x.c[1]]; }, 'centre of ' + id, 'cx'), metres);
+      numRow(insp, 'centre z (m)', () => e.c[1], v => ed(x => { x.c = [x.c[0], +v.toFixed(2)]; }, 'centre of ' + id, 'cz'), metres);
       rows.slider(insp, 'length (m)', 150, 3000, 5, () => e.len, v => ed(x => { x.len = v; }, 'length of ' + id, 'len'), v => v.toFixed(0) + ' m');
-      rows.slider(insp, 'width (m)', 8, 45, 1, () => e.wid, v => ed(x => { x.wid = v; }, 'width of ' + id, 'wid'), v => v.toFixed(0) + ' m');
+      rows.slider(insp, 'width (m)', 8, 300, 1, () => e.wid,   // (G3019 (2): a water lane is 200 m wide)
+        v => ed(x => { x.wid = v; }, 'width of ' + id, 'wid'), v => v.toFixed(0) + ' m');
       rows.slider(insp, 'heading (°)', -180, 180, 1, () => e.hdg * 180 / Math.PI, v => ed(x => { x.hdg = v * Math.PI / 180; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
       // THE LOOK (v9): what the strip is drawn as; picking one proposes the class the wheels feel, which
       // the surface row below may still overrule (a paved look on a grass class is a painted strip)
@@ -1517,8 +1574,13 @@ function mount(host, ctx) {
       rows.note(insp, 'drag an end disc to turn or stretch the strip (the other end stays); the faint disc moves it whole; the amber discs are the holds - drag one along the strip and the validator answers');
       if (e.stand && e.taxiOut) {
         rows.note(insp, 'THE STAND: the aeroplane starts here, parked toward its first taxi point; the way out runs through ' + e.taxiOut.length + ' point' + (e.taxiOut.length > 1 ? 's' : '') + ' to the centreline');
-        rows.button(insp, 'add a taxi point', () => ed(x => { const t = x.taxiOut, n = t.length, a = n > 1 ? t[n - 2] : [x.stand.x, x.stand.z], b = t[n - 1]; t.splice(n - 1, 0, [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]); }, 'taxi point of ' + id));
-        if (e.taxiOut.length > 1) rows.button(insp, 'drop the last taxi point before the entry', () => ed(x => { x.taxiOut.splice(x.taxiOut.length - 2, 1); }, 'taxi point of ' + id));
+        // (G3091, objective 1; the user: "the main hangar rotation, position, taxiways, spawn points ... will need to be redone")
+        numRow(insp, 'stand x (m)', () => e.stand.x, v => ed(x => { x.stand.x = +v.toFixed(2); }, 'stand of ' + id, 'sx'), metres);
+        numRow(insp, 'stand z (m)', () => e.stand.z, v => ed(x => { x.stand.z = +v.toFixed(2); }, 'stand of ' + id, 'sz'), metres);
+        standHeading(insp, e.stand, e.taxiOut, f => ed(x => f(x.stand), 'heading of the stand of ' + id, 'shdg'));
+        wayRows(insp, e, 'taxiOut', 'the way out toward end 0', id, ed);
+        if (e.taxiOut1) wayRows(insp, e, 'taxiOut1', 'the way out toward end 1', id, ed);
+        else rows.button(insp, 'add a way out toward end 1', () => ed(x => { x.taxiOut1 = wayToward(x, x.stand, 1); }, 'way out of ' + id));
         rows.button(insp, 'remove the stand', () => ed(x => { x.stand = null; x.taxiOut = null; x.taxiOut1 = null; }, 'stand of ' + id));
       } else rows.note(insp, 'no stand: the aeroplane starts 35 m in from end 0 (the stand tool puts one beside the strip)');
       // THE CLUB HANGAR (G434): the garage's own shell stood at the field - the building the aeroplane rolls
@@ -1527,6 +1589,8 @@ function mount(host, ctx) {
       if (e.hangar) {
         rows.note(insp, 'THE CLUB HANGAR: the garage\'s shell stands here, its door facing ' + ((+e.hangar.hdg || 0) * 180 / Math.PI).toFixed(0) + '°; drag its disc to move it');
         rows.slider(insp, 'door faces (°)', -180, 180, 1, () => (+e.hangar.hdg || 0) * 180 / Math.PI, v => ed(x => { x.hangar.hdg = v * Math.PI / 180; }, 'hangar of ' + id, 'hangarHdg'), v => v.toFixed(0) + '°');
+        numRow(insp, 'hangar x (m)', () => e.hangar.x, v => ed(x => { x.hangar.x = +v.toFixed(2); }, 'hangar of ' + id, 'hx'), metres);   // (G3091)
+        numRow(insp, 'hangar z (m)', () => e.hangar.z, v => ed(x => { x.hangar.z = +v.toFixed(2); }, 'hangar of ' + id, 'hz'), metres);
         rows.button(insp, 'remove the club hangar', () => ed(x => { x.hangar = null; }, 'hangar of ' + id));
       } else if (e.stand) {
         rows.button(insp, 'stand the club hangar behind the stand', () => ed(x => {
@@ -1534,10 +1598,13 @@ function mount(host, ctx) {
           x.hangar = { x: +(x.stand.x - 34 * Math.cos(h)).toFixed(2), z: +(x.stand.z - 34 * Math.sin(h)).toFixed(2), hdg: +h.toFixed(4) };
         }, 'hangar of ' + id));
       } else rows.note(insp, 'a club hangar (the garage\'s shell) can stand behind a stand: put the stand first');
+      plotRows(insp, e, id, ed);   // (G3091: the base plots)
       if (e.site && e.site.pattern) rows.button(insp, 'pattern: back to the derived one', () => ed(x => { const st = Object.assign({}, x.site); delete st.pattern; x.site = Object.keys(st).length ? st : null; }, 'derived pattern of ' + id));
       else rows.note(insp, 'the pattern is the DERIVED one (two holds 110 m in); touch a hold and it becomes yours');
     } else if (layer === 'sites') {
       const nm = $('input', { type: 'text', value: e.name || '' }); nm.className = 'pr-name'; nm.onchange = () => ed(x => { x.name = nm.value; }, 'name of ' + id); insp.appendChild(nm);
+      numRow(insp, 'x (m)', () => e.at.x, v => ed(x => { x.at = Object.assign({}, x.at, { x: +v.toFixed(2) }); }, 'place of ' + id, 'atx'), metres);
+      numRow(insp, 'z (m)', () => e.at.z, v => ed(x => { x.at = Object.assign({}, x.at, { z: +v.toFixed(2) }); }, 'place of ' + id, 'atz'), metres);
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.at.yaw || 0) * 180 / Math.PI, v => ed(x => { x.at.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
       const items = e.items || [];
       rows.note(insp, items.length + ' item' + (items.length === 1 ? '' : 's') + ' - the faint discs move each in the site\'s frame; the bright one moves the site whole');
@@ -1563,6 +1630,8 @@ function mount(host, ctx) {
         insp.appendChild(d);
         if (!open) continue;
         if (ctx.catalogue) rows.select(insp, 'building', ctx.catalogue.keys().map(k => [k, labelOf(k)]), () => it.key, v => ed(x => { x.items.find(q => q.id === it.id).key = v; }, 'building of ' + it.id));
+        numRow(insp, 'x in the site (m)', () => it.x || 0, v => ed(x => { x.items.find(q => q.id === it.id).x = +v.toFixed(2); }, 'place of ' + it.id, 'ix:' + it.id), metres);
+        numRow(insp, 'z in the site (m)', () => it.z || 0, v => ed(x => { x.items.find(q => q.id === it.id).z = +v.toFixed(2); }, 'place of ' + it.id, 'iz:' + it.id), metres);
         rows.slider(insp, 'turn (°)', -180, 180, 1, () => (it.yaw || 0) * 180 / Math.PI, v => ed(x => { x.items.find(q => q.id === it.id).yaw = v * Math.PI / 180; }, 'turn of ' + it.id, 'yaw:' + it.id), v => v.toFixed(0) + '°');
         // (v1.35, G2890) the lot's ground under it: drawn (never under the water line), or the island's own
         rows.check(insp, 'its lot\'s ground drawn', () => !(it.P && it.P.plotGround === false), v => ed(x => { const q = x.items.find(o => o.id === it.id); q.P = Object.assign({}, q.P); if (v) delete q.P.plotGround; else q.P.plotGround = false; }, 'lot ground of ' + it.id));
@@ -1583,6 +1652,8 @@ function mount(host, ctx) {
     } else if (layer === 'objects' && (e.kind === 'prop' || e.kind === 'billboard' || e.kind === 'aircraft')) {
       const keys = objectKeys(e.kind, rec);
       if (keys.length) rows.select(insp, e.kind, keys, () => e.key, v => ed(x => { x.key = v; }, e.kind + ' of ' + id));
+      numRow(insp, 'x (m)', () => e.x, v => ed(x => { x.x = +v.toFixed(2); }, 'place of ' + id, 'x'), metres);
+      numRow(insp, 'z (m)', () => e.z, v => ed(x => { x.z = +v.toFixed(2); }, 'place of ' + id, 'z'), metres);
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
       if (e.kind === 'prop') {
         rows.slider(insp, 'lift (m)', -1, 3, 0.05, () => e.dy || 0, v => ed(x => { x.dy = v; }, 'lift of ' + id, 'dy'), v => v.toFixed(2));
@@ -1598,6 +1669,8 @@ function mount(host, ctx) {
       const pool = ctx.pool ? ctx.pool() : [];
       if (pool.length) rows.select(insp, 'species', pool.map(p => [p.key, p.key.replace(/\.glb\|/, ' · ').slice(0, 30)]), () => e.key, v => ed(x => { x.key = v; }, 'species of ' + id));
       rows.slider(insp, 'size', 0.4, 1.8, 0.02, () => e.size || 1, v => ed(x => { x.size = v; }, 'size of ' + id, 'size'));
+      numRow(insp, 'x (m)', () => e.x, v => ed(x => { x.x = +v.toFixed(2); }, 'place of ' + id, 'x'), metres);
+      numRow(insp, 'z (m)', () => e.z, v => ed(x => { x.z = +v.toFixed(2); }, 'place of ' + id, 'z'), metres);
       rows.slider(insp, 'turn (°)', 0, 360, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
     }
     shapeRows(e, id);
@@ -1616,6 +1689,8 @@ function mount(host, ctx) {
     } else if (PG.rectOk(e.rect)) {
       const Q = e.rect, setQ = (patch, label, key) => ed(x => { x.rect = Object.assign({}, x.rect, patch); x.poly = PG.rectPoly(x.rect); }, label + ' of ' + id, key);
       rows.section(insp, 'SHAPE · RECTANGLE');
+      numRow(insp, 'centre x (m)', () => Q.c[0], v => setQ({ c: [+v.toFixed(2), Q.c[1]] }, 'centre', 'qcx'), metres);
+      numRow(insp, 'centre z (m)', () => Q.c[1], v => setQ({ c: [Q.c[0], +v.toFixed(2)] }, 'centre', 'qcz'), metres);
       rows.slider(insp, 'length (m)', 3, 400, 0.5, () => 2 * Q.hw, v => setQ({ hw: v / 2 }, 'length', 'qw'), v => v.toFixed(1) + ' m');
       rows.slider(insp, 'width (m)', 3, 400, 0.5, () => 2 * Q.hd, v => setQ({ hd: v / 2 }, 'width', 'qd'), v => v.toFixed(1) + ' m');
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (+Q.yaw || 0) * 180 / Math.PI, v => setQ({ yaw: +(v * Math.PI / 180).toFixed(4) }, 'turn', 'qy'), v => v.toFixed(0) + '°');
@@ -1731,7 +1806,8 @@ function mount(host, ctx) {
       rows.pills(insp, 'kind', [['flatten', 'flat', 'the ground inside at one level'], ['raise', 'raise / lower', 'the ground lifted or dropped by a height'], ['ramp', 'slope', 'a constant slope through a height at the middle']], () => t.kind,
         v => edT(q => { const lv = medianLevel(poly); if (v === 'flatten') { q.kind = 'flatten'; if (!isFinite(+q.level)) q.level = lv; delete q.dh; } else if (v === 'raise') { q.kind = 'raise'; if (!isFinite(+q.dh)) q.dh = 2; } else { q.kind = 'ramp'; if (!isFinite(+q.level)) q.level = lv; if (!isFinite(+q.slope)) q.slope = 0.02; if (!isFinite(+q.hdg)) q.hdg = 0; } }, 'terraform'));
       if (t.kind === 'flatten' || t.kind === 'ramp') {
-        rows.slider(insp, t.kind === 'ramp' ? 'height at the middle (m)' : 'level (m)', -40, 80, 0.1, () => +t.level || 0, v => edT(q => { q.level = v; }, 'level', 'level'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, t.kind === 'ramp' ? 'height at the middle (m)' : 'level (m)', -40, t.abs ? 1500 : 80, 0.1, () => +t.level || 0,   // (G3019 (2): absolute = a height, a29 530.6 m)
+          v => edT(q => { q.level = v; }, 'level', 'level'), v => v.toFixed(1) + ' m');
         rows.check(insp, 'absolute height', () => !!t.abs, v => edT(q => { q.abs = v; }, 'absolute'));
         rows.button(insp, 'level to the ground under it (its median)', () => edT(q => { q.level = medianLevel(poly); q.abs = false; }, 'level'));
       }
@@ -1865,7 +1941,11 @@ function mount(host, ctx) {
   // its generator's word); 'all' lists the whole catalogue - and the site themes the theme tool stands
   function sitesPalette(P) {
     if (!ctx.catalogue) { rows.note(P, 'no catalogue - no generator loaded'); return; }
-    const TH = PG.themeOf(rec), cats = TH.categories || PG.CATEGORIES;
+    // G2891 (the user, 12 Oct: "there are many categories of sites that the filters do not cover"): the theme's categories,
+    // then every category the catalogue's entries carry that the theme does not name (the airfield's 'airport xs / s / m':
+    // the pilot hut, the field sheds, the club hangars, the towers, the terminal - 19 entries only 'all' reached)
+    const TH = PG.themeOf(rec), cats = (TH.categories || PG.CATEGORIES).slice();
+    { const extra = new Set(); const E = ctx.catalogue.entries; if (E && E.forEach) E.forEach(en => { if (en && en.cat && cats.indexOf(en.cat) < 0) extra.add(en.cat); }); for (const c of Array.from(extra).sort()) cats.push(c); }
     const keysOf = c => (c === 'all' ? ctx.catalogue.keys() : ctx.catalogue.byCat(c).map(q => q.key));
     const nOf = c => keysOf(c).length;
     if (!PALETTE_CAT || (PALETTE_CAT !== 'all' && !nOf(PALETTE_CAT))) PALETTE_CAT = cats.find(c => nOf(c)) || 'all';
@@ -2019,9 +2099,10 @@ function mount(host, ctx) {
       note.className = 'note' + (iss.length ? ' bad' : '');
     };
     const near = ev => { const rct = cv.getBoundingClientRect(), px = (ev.clientX - rct.left) * W / rct.width, py = (ev.clientY - rct.top) * H / rct.height; const P = pts(); let best = -1, bd = 9; P.forEach((q, i) => { const d = Math.hypot(X(q[0]) - px, Y(q[1]) - py); if (d < bd) { bd = d; best = i; } }); return { i: best, px, py }; };
-    cv.addEventListener('mousedown', ev => { if (ev.button !== 0) return; const n = near(ev); sel = n.i; dragging = sel >= 0; draw(); ev.preventDefault(); ev.stopPropagation(); });
+    let prof0 = null;   // (objective 1: the profile as it was at the press - the release's ed() must see the change, the terraform with it)
+    cv.addEventListener('mousedown', ev => { if (ev.button !== 0) return; const n = near(ev); sel = n.i; dragging = sel >= 0; if (dragging) prof0 = e.profile === undefined ? undefined : JSON.parse(JSON.stringify(e.profile)); draw(); ev.preventDefault(); ev.stopPropagation(); });
     addEventListener('mousemove', ev => { if (!dragging || sel < 0 || !active) return; const n = near(ev); const P = pts().map(q => q.slice()); const t = (sel === 0) ? 0 : (sel === P.length - 1) ? 1 : Math.max(P[sel - 1][0] + 0.01, Math.min(P[sel + 1][0] - 0.01, tOf(n.px))); P[sel] = [+t.toFixed(3), +dyOf(n.py).toFixed(2)]; e.profile = P; R.setRecord(rec); draw(); });
-    addEventListener('mouseup', () => { if (!dragging) return; dragging = false; const P = pts(); ed(x => { x.profile = P.map(q => q.slice()); }, 'profile of ' + e.id); });
+    addEventListener('mouseup', () => { if (!dragging) return; dragging = false; const P = pts(); if (prof0 === undefined) delete e.profile; else e.profile = prof0; prof0 = null; ed(x => { x.profile = P.map(q => q.slice()); }, 'profile of ' + e.id); });
     cv.addEventListener('dblclick', ev => { const n = near(ev); if (n.i >= 0) return; const P = pts().map(q => q.slice()); const t = +tOf(n.px).toFixed(3); const pr = PG.runwayProfile(Object.assign({}, PG.RUNWAY_DEF, e, { profile: P })); P.push([t, +pr.at(t * e.len).toFixed(2)]); P.sort((a, b) => a[0] - b[0]); ed(x => { x.profile = P; }, 'profile point of ' + e.id); ev.stopPropagation(); });
     const btns = $('div', { style: 'display:flex;gap:6px;margin-top:4px' });
     const del = $('button', { class: 'btn pill', type: 'button', text: '✕ remove the selected point' }); del.onclick = () => { const P = pts(); if (sel <= 0 || sel >= P.length - 1) return; const Q = P.filter((q, i) => i !== sel); sel = -1; ed(x => { x.profile = Q; }, 'profile point of ' + e.id); };
@@ -2111,6 +2192,65 @@ function mount(host, ctx) {
       rows.note(d2, 'the declared width is the drawn width whatever the surface; the side is drawn outside it (its width past the edge zone, from its alpha)');
     }
   }
+  // (G3018, the user: 'I need to be able to manually input a figure') a typed number with no slider - the host's, when it has one
+  const numRow = (p, label, get, set, fmt) => (rows.number ? rows.number(p, label, get, set, fmt) : null);
+  // (G3091, objective 1) THE BASE ZONE'S ROWS. A stand's PARKED HEADING: its own `hdg` (radians) or, null, toward its first taxi
+  // point (placeAtStand's rule) - the row shows the heading it parks at either way; 'toward the way out' gives it back
+  const DEG = 180 / Math.PI, wrapDeg = d => ((d + 180) % 360 + 360) % 360 - 180;
+  const standHdg = (st, way) => (st.hdg !== null && st.hdg !== undefined && isFinite(+st.hdg)) ? +st.hdg : (way && way.length ? Math.atan2(way[0][1] - st.z, way[0][0] - st.x) : 0);
+  function standHeading(p, st, way, apply, pre) {
+    pre = pre || '';
+    rows.slider(p, pre + 'parked heading (°)', -180, 180, 1, () => wrapDeg(standHdg(st, way) * DEG), v => apply(s => { s.hdg = +(v / DEG).toFixed(4); }), v => v.toFixed(0) + '°' + (st.hdg === null || st.hdg === undefined ? ' (toward the way out)' : ''));
+    if (st.hdg !== null && st.hdg !== undefined) rows.button(p, pre + 'parked heading: toward the way out', () => apply(s => { s.hdg = null; }));
+  }
+  // A WAY OUT's points, typed; the last is the entry, on the centreline (a typed entry is taken to its nearest centreline point,
+  // as its drag is); a point added after any but the entry (half way to the next), removed (never the entry)
+  const onLine = (x, q) => { const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, x)), along = (q[0] - x.c[0]) * E.d[0] + (q[1] - x.c[1]) * E.d[1]; return [+(x.c[0] + E.d[0] * along).toFixed(2), +(x.c[1] + E.d[1] * along).toFixed(2)]; };
+  function wayRows(p, e, key, label, id, ed) {
+    const W = e[key]; if (!Array.isArray(W) || !W.length) return;
+    rows.note(p, label.toUpperCase() + ': ' + W.length + ' point' + (W.length > 1 ? 's' : '') + ' (the last is the entry on the centreline)');
+    W.forEach((q, i) => {
+      const last = i === W.length - 1, set = (k, v) => ed(x => { const T = x[key], P = T[i].slice(); P[k] = +v.toFixed(2); T[i] = last ? onLine(x, P) : P; }, 'way out of ' + id, key + i + k);
+      numRow(p, (last ? 'entry' : 'point ' + (i + 1)) + ' x (m)', () => W[i][0], v => set(0, v), metres);
+      numRow(p, (last ? 'entry' : 'point ' + (i + 1)) + ' z (m)', () => W[i][1], v => set(1, v), metres);
+      if (!last) rows.button(p, 'add a point after point ' + (i + 1), () => ed(x => { const T = x[key], a = T[i], b = T[i + 1]; T.splice(i + 1, 0, [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]); }, 'way out of ' + id));
+      if (!last && W.length > 1) rows.button(p, 'remove point ' + (i + 1), () => ed(x => { x[key].splice(i, 1); }, 'way out of ' + id));
+    });
+    if (key === 'taxiOut1') rows.button(p, 'remove the way out toward end 1', () => ed(x => { x.taxiOut1 = null; }, 'way out of ' + id));
+  }
+  // a new way out toward end k (0 / 1): half way from the stand to the centreline, then the entry 60 m along toward that end
+  function wayToward(x, st, k) {
+    const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, x)), P = onLine(x, [st.x, st.z]), sg = k ? 1 : -1;
+    const entry = onLine(x, [P[0] + E.d[0] * 60 * sg, P[1] + E.d[1] * 60 * sg]);
+    return [[+((st.x + P[0]) / 2).toFixed(2), +((st.z + P[1]) / 2).toFixed(2)], entry];
+  }
+  // THE BASE PLOTS (the career's: where a player's hangar stands - HOME.2 and the others): a disc each on the map (its stand's too),
+  // the place and heading typed, a stand of its own given or taken (without one the field's stand and way out serve it), a plot
+  // added beside the stand, removed
+  function plotRows(p, e, id, ed) {
+    const P = Array.isArray(e.plots) ? e.plots : [];
+    rows.note(p, 'BASE PLOTS: ' + (P.length ? P.map(q => q.id).join(', ') + ' - drag a plot\'s disc (its stand and way out come with it), its stand\'s small disc alone' : 'none'));
+    P.forEach((q, i) => {
+      const pid = q.id, upd = (f, k) => ed(x => f(x.plots[i]), 'plot ' + pid + ' of ' + id, k ? 'p' + i + k : undefined);
+      rows.note(p, 'PLOT ' + pid);
+      numRow(p, pid + ' x (m)', () => q.x, v => upd(o => { o.x = +v.toFixed(2); }, 'x'), metres);
+      numRow(p, pid + ' z (m)', () => q.z, v => upd(o => { o.z = +v.toFixed(2); }, 'z'), metres);
+      rows.slider(p, pid + ' heading (°)', -180, 180, 1, () => wrapDeg((+q.hdg || 0) * DEG), v => upd(o => { o.hdg = +(v / DEG).toFixed(4); }, 'h'), v => v.toFixed(0) + '°');
+      if (q.stand) {
+        numRow(p, pid + ' stand x (m)', () => q.stand.x, v => upd(o => { o.stand.x = +v.toFixed(2); }, 'sx'), metres);
+        numRow(p, pid + ' stand z (m)', () => q.stand.z, v => upd(o => { o.stand.z = +v.toFixed(2); }, 'sz'), metres);
+        standHeading(p, q.stand, q.taxiOut, f => upd(o => f(o.stand), 'sh'), pid + ' ');
+        rows.button(p, pid + ': no stand of its own (the field\'s serves it)', () => upd(o => { delete o.stand; delete o.taxiOut; delete o.taxiOut1; }));
+      } else rows.button(p, pid + ': give it a stand of its own', () => upd(o => { const h = +o.hdg || 0; o.stand = { x: +(o.x + 20 * Math.cos(h)).toFixed(2), z: +(o.z + 20 * Math.sin(h)).toFixed(2), hdg: null }; }));
+      rows.button(p, 'remove plot ' + pid, () => ed(x => { x.plots.splice(i, 1); if (!x.plots.length) x.plots = null; }, 'plot ' + pid + ' of ' + id));
+    });
+    if (e.stand) rows.button(p, 'add a base plot beside the stand', () => ed(x => {
+      const ids = new Set((x.plots || []).map(q => q.id)); let n = 2; while (ids.has(id + '.' + n)) n++;
+      const h = standHdg(x.stand, x.taxiOut);
+      x.plots = (x.plots || []).concat([{ id: id + '.' + n, x: +(x.stand.x - 40 * Math.sin(h)).toFixed(2), z: +(x.stand.z + 40 * Math.cos(h)).toFixed(2), hdg: +h.toFixed(4) }]);
+    }, 'plot of ' + id));
+  }
+  const metres = v => (+v).toFixed(1) + ' m';
   function viewRows(P) {
     rows.section(P, 'VIEW');
     if (ctx.cameras) rows.select(P, 'camera', [['orbit', 'orbit (right-drag)'], ['map', 'map (top-down)']].concat(ctx.cameras.flyOk && ctx.cameras.flyOk() ? [['fly', 'fly (WASD / ZQSD, R / F, right-drag looks)']] : []), () => ctx.cameras.mode(), v => { ctx.cameras.set(v); palette.refresh(); });
@@ -2213,7 +2353,10 @@ function mount(host, ctx) {
   if (ctx.record) { try { const U = PG.unwrap(ctx.record); rec = foldIn(U.rec); recName = U.name; } catch (e) { console.warn('premises record:', e.message); } }
   else if (!ctx.fresh && loadWip()) rec = foldIn(rec);
   buildRail(); buildStrip(); palette.refresh(); ctx.onSection && ctx.onSection(SECTIONS.find(s => s.k === section));
-  R.setRecord(rec); R.rebuild(null); inspector.refresh(); checks(); plaque();
+  // (G3083 EDITOR-PERF) the record the renderer already stands (the game hands the editor its world's): only the editor's
+  // own drawing (R.editStart: the outlines, the handles, the strips' patterns); else, or a renderer that cannot, the rebuild
+  { const t0 = PERF.now(), fast = !!(R.editStart && R.editStart(rec)); R.setRecord(rec); if (!fast) R.rebuild(null); const t1 = PERF.now();
+    inspector.refresh(); checks(); plaque(); logEdit(PERF.now() - t0, 'open · ' + (fast ? 'the world as it stands ' : 'rebuild ') + (t1 - t0).toFixed(0)); }
   // (G2914) Alt + wheel scales the placer's ghost - before the host's wheel zooms (capture, the same element)
   if (view.addEventListener) view.addEventListener('wheel', ev => { if (!active || !ev.altKey || (tool !== 'place' && tool !== 'scatter')) return; ASSET.s = Math.max(0.25, Math.min(4, ASSET.s * (ev.deltaY < 0 ? 1.06 : 1 / 1.06))); armGhost(); ev.preventDefault(); ev.stopImmediatePropagation(); }, { capture: true, passive: false });
 
@@ -2244,6 +2387,8 @@ function mount(host, ctx) {
       }
       // G1400: the drag in its three beats, for a bench that times the hand's moves apart from its release
       // (tools/perf/editor_lag.js): the same startDrag / moveDrag / onUp the mouse runs, the ground point given
+      // G2891: a press at a premises point on a strip's own things (the club hangar, the stand) - what the mouse's does
+      if (name === 'grab') { const w = R.overlay.frame.toWorld(args.x, args.z); return grabStrip([w[0], R.heightAt(w[0], w[1]), w[1]], !!args.alt); }
       if (name === 'dragStart') { if (!selected) throw new Error('premises: nothing selected'); const h = R.handles(selected).find(q => q.key === args.key); if (!h) return false; return startDrag({ id: selected, key: h.key, index: +(h.key.slice(1)) || 0, mid: h.key[0] === 'm' }); }
       if (name === 'dragMove') { if (!drag) return false; const w = R.overlay.frame.toWorld(args.x, args.z); return moveDrag([w[0], R.heightAt(w[0], w[1]), w[1]]); }
       if (name === 'dragEnd') return onUp();

@@ -93,10 +93,11 @@ console.log('GATE GFX');
   ok(Object.keys(G.PRESETS).join(',') === 'laptop,potato,retro,current,gamer,ultra' && G.DEFAULT === 'gamer',
      'six tiers, laptop .. ultra, gamer the default (' + Object.keys(G.PRESETS).join(',') + ')');
   const OLD_MEDIUM = { ground: 'far1', terrain: 1, scale: 1, drawDist: 'vis', aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple', mirror: 'off' };
+  OLD_MEDIUM.mirror = 'auto';   // G2830 (WATER-STEADY, the user 13 Oct: AUTO the default on gamer and ultra - master's behaviour)
   OLD_MEDIUM.cover = 'full'; OLD_MEDIUM.scenery = 'full';   // G570's rows: gamer keeps the whole of both
   OLD_MEDIUM.bloom = 'soft';   // the default look (2026-09-23): the soft bloom from 'current' up
   OLD_MEDIUM.bands = 'mid';   // G1113 'minimum', G1114.2 'mid': gamer's trees whole to 50 m, the light rung to 120 m (TREES-NEAR, the user's call)
-  ok(G.OPTIONS.every(o => G.PRESETS.gamer[o.k] === OLD_MEDIUM[o.k]), 'gamer is the medium of before, option for option (plus the far ground lean, G513; simple water and no mirror since 2026-10-03, the user)');
+  ok(G.OPTIONS.every(o => G.PRESETS.gamer[o.k] === OLD_MEDIUM[o.k]), 'gamer is the medium of before, option for option (plus the far ground lean, G513; simple water since 2026-10-03; the auto mirror since G2830, the user)');
   const w2 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({ preset: 'medium' }, OLD_MEDIUM)) });
   ok(w2.GFX.get().preset === 'gamer', 'a choice saved as medium reads as gamer');
   ok(Object.keys(G.PRESETS).every(p => G.PRESET_LABEL[p]), 'every tier has its label');
@@ -358,13 +359,13 @@ console.log('GATE GFX');
 // 10. POTATO-DEEP (G1520-G1529): THE DESKTOP PRESETS UNTOUCHED, POTATO AND THE LAPTOP RUNG UNDER IT
 {
   // the rows and the build budgets of retro .. ultra as train 31 shipped them (the user: "desktop presets must not change at all")
-  const FROZEN = {"retro":{"ground":"lean","scale":0.85,"cover":"lean","scenery":"lean","drawDist":"vis","terrain":2,"aa":"off","density":100,"bands":"near","shadows":"near","canopy":"off","rails":"on","poles":"off","glare":"on","sway":"off","mist":"on","clouds":"off","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"off","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"current":{"ground":"far1","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":2,"aa":"off","density":128,"bands":"near","shadows":"full","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"on","clouds":"half","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"gamer":{"ground":"far1","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":1,"aa":"msaa","density":128,"bands":"mid","shadows":"full","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"land","clouds":"half","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"ultra":{"ground":"full","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":1,"aa":"full","density":200,"bands":"mid","shadows":"ultra","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"banks","clouds":"full","water":"full","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"}};
+  const FROZEN = {"retro":{"ground":"lean","scale":0.85,"cover":"lean","scenery":"lean","drawDist":"vis","terrain":2,"aa":"off","density":100,"bands":"near","shadows":"near","canopy":"off","rails":"on","poles":"off","glare":"on","sway":"off","mist":"on","clouds":"off","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"off","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"current":{"ground":"far1","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":2,"aa":"off","density":128,"bands":"near","shadows":"full","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"on","clouds":"half","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"gamer":{"ground":"far1","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":1,"aa":"msaa","density":128,"bands":"mid","shadows":"full","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"land","clouds":"half","water":"simple","mirror":"auto","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"ultra":{"ground":"full","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":1,"aa":"full","density":200,"bands":"mid","shadows":"ultra","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"banks","clouds":"full","water":"full","mirror":"auto","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"}};
   // (G1529, A0's call 2026-10-05: retro's BUILD budget moved - no flown bake - after the user's i5-9300H / GTX 1660 Ti laptop loaded
   // the garage in 120.5 s on retro (the bake 38.5 s + 31.3 s at the roll-out); townBoot stays 4000 (1500 streamed houses into the
   // taxi: 217-250 ms hitches); retro's drawn ROWS are untouched, current / gamer / ultra's budgets too)
   const FROZEN_B = {"retro":{"heapMB":1500,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1,"flownBake":false},"current":{"heapMB":1500,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1},"gamer":{"heapMB":2000,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1},"ultra":{"heapMB":2000,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1}};
   const G = boot({}).GFX;
-  ok(['retro', 'current', 'gamer', 'ultra'].every(k => JSON.stringify(G.PRESETS[k]) === JSON.stringify(FROZEN[k])), 'retro, current, gamer, ultra: every row as train 31 shipped it');
+  ok(['retro', 'current', 'gamer', 'ultra'].every(k => JSON.stringify(G.PRESETS[k]) === JSON.stringify(FROZEN[k])), 'retro, current, gamer, ultra: every row as train 31 shipped it (gamer and ultra: the auto mirror, G2830 - the user’s call)');
   ok(['retro', 'current', 'gamer', 'ultra'].every(k => JSON.stringify(G.BUDGETS[k]) === JSON.stringify(FROZEN_B[k])), '...and their build budgets (none of the new levers; retro: G1529 no flown bake - the user’s laptop load)');
   ok(G.PRESETS.potato.ground === 'plain' && G.PRESETS.laptop.ground === 'plain' && G.PRESETS.retro.ground === 'lean', "potato and laptop draw the plain ground; retro keeps 'lean'");
   const BP = G.BUDGETS.potato, BL = G.BUDGETS.laptop;
@@ -375,11 +376,19 @@ console.log('GATE GFX');
   // the pref's pv 8: a player ON potato (saved before this session: the lean ground) reads potato as it is now, not custom
   const old = { preset: 'potato', pv: 7, fps: 30, ground: 'lean', scale: 0.67, cover: 'off', scenery: 'low', terrain: 3 };
   const wp = boot({ 'flydiy.gfx': JSON.stringify(old) });
-  ok(wp.GFX.get().preset === 'potato' && wp.GFX.get().ground === 'plain' && wp.GFX.get().pv === 8, 'a potato saved at pv 7 reads potato, the plain ground (pv 8)');
+  ok(wp.GFX.get().preset === 'potato' && wp.GFX.get().ground === 'plain' && wp.GFX.get().pv >= 8, 'a potato saved at pv 7 reads potato, the plain ground (pv 8)');
   const wg = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({}, FROZEN.gamer, { preset: 'gamer', pv: 7, fps: 30 })) });
   ok(wg.GFX.get().preset === 'gamer' && Object.keys(FROZEN.gamer).every(k => wg.GFX.get()[k] === FROZEN.gamer[k]), '...a gamer saved at pv 7 reads gamer, every row the same');
   const wc = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({}, FROZEN.gamer, { preset: 'custom', pv: 7, fps: 30, shadows: 'off' })) });
   ok(wc.GFX.get().preset === 'custom' && wc.GFX.get().shadows === 'off', '...a custom mix keeps its rows');
+  // pv 9 (G2830, WATER-STEADY): a player ON gamer / ultra saved before the auto mirror takes it; a custom mix keeps its row (a saved ON stays on)
+  { const pre = k => Object.assign({}, FROZEN[k], { preset: k, pv: 8, fps: 30, mirror: 'off' });
+    const g9 = boot({ 'flydiy.gfx': JSON.stringify(pre('gamer')) }).GFX.get(), u9 = boot({ 'flydiy.gfx': JSON.stringify(pre('ultra')) }).GFX.get();
+    const c9 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign(pre('gamer'), { preset: 'custom' })) }).GFX.get();
+    const r9 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({}, FROZEN.retro, { preset: 'retro', pv: 8, fps: 30 })) }).GFX.get();
+    const on9 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign(pre('gamer'), { preset: 'custom', mirror: 'live' })) }).GFX.get();
+    ok(g9.preset === 'gamer' && g9.mirror === 'auto' && u9.preset === 'ultra' && u9.mirror === 'auto' && c9.mirror === 'off' && on9.mirror === 'live' && on9.preset === 'custom' && r9.preset === 'retro' && r9.mirror === 'off' && g9.pv === 9,
+      `...a gamer / ultra saved at pv 8 takes the auto mirror (${g9.preset}/${g9.mirror}, ${u9.preset}/${u9.mirror}); a custom mix keeps its 'off' (${c9.mirror}) and a saved ON stays on (${on9.mirror}); retro stays off (${r9.mirror})`); }
   // the live hooks: the plain ground (the splat's plain()), the shed glass (FLYDIY_SHED), the MSAA cap (FLYDIY_AA.setMsaaCap)
   const hook = q => { const w = makeWindow({}); const calls = { plain: [], msaa: [] };
     let pl = false; calls.reload = 0;   // the splat's plain state (a real page builds it as the budget's row says)
@@ -434,12 +443,13 @@ const modes = async () => {
   vm.runInNewContext(wsrc, Object.assign({ window: ww }, ww));
   const WL = ww.WELCOME, nav = { userAgent: 'Mozilla/5.0 Chrome/141' }, rig = { userAgent: 'Mozilla/5.0 HeadlessChrome/141' };
   const M = (q, host, n) => WL.decideMode(q, n || nav, host);
-  ok(WL.MODES.join() === 'sandbox,career,garage' && WL.READY.sandbox && !WL.READY.career && !WL.READY.garage,
-     'three modes; the sandbox ready, the career and garage-only not yet (CAREER-START; MOBILE-GARAGE M1)');
+  ok(WL.MODES.join() === 'sandbox,career,garage' && WL.READY.sandbox && WL.READY.career && !WL.READY.garage,
+     'three modes; the sandbox and the career ready (G2740 CAREER-ON), garage-only not yet (MOBILE-GARAGE M1)');
   ok(M('', 'degaror.github.io').mode === null && M('?gfx=potato', 'degaror.github.io').mode === null, 'a real host: the menu at every load (?gfx= picks the preset, not the mode)');
   ok(M('?mode=sandbox', 'degaror.github.io').mode === 'sandbox' && M('?a=1&mode=sandbox', 'degaror.github.io').mode === 'sandbox', '?mode=sandbox skips it');
-  ok(['career', 'garage'].every(k => { const r = M('?mode=' + k, 'degaror.github.io'); return r.mode === 'sandbox' && r.asked === k; }),
-     '?mode=career / ?mode=garage, not built yet: the sandbox, the ask kept for the console');
+  ok(M('?mode=career', 'degaror.github.io').mode === 'career', '?mode=career skips the menu into the career (G2740)');
+  ok((r => r.mode === 'sandbox' && r.asked === 'garage')(M('?mode=garage', 'degaror.github.io')),
+     '?mode=garage, not built yet: the sandbox, the ask kept for the console');
   ok(M('?mode=bogus', 'degaror.github.io').mode === null && M('?mode=bogus', 'localhost').mode === 'sandbox', 'an unknown ?mode= is no mode');
   ok(M('', 'localhost').mode === 'sandbox' && M('', '127.0.0.1').mode === 'sandbox' && M('', '[::1]').mode === 'sandbox', 'localhost skips it: implicitly the sandbox');
   ok(M('', 'degaror.github.io', rig).mode === 'sandbox' && M('', 'degaror.github.io', { webdriver: true }).mode === 'sandbox', 'the rigs skip it anywhere: implicitly the sandbox');
@@ -490,13 +500,31 @@ const modes = async () => {
   { const w = await pg('', PAGES, Object.assign({}, seen));
     ok(w.screen() === 'menu' && w.FLYDIY_MODE === null && !!w.FLYDIY_WELCOME, 'Pages, a returning player: the menu first, the load held, the mode not chosen');
     const rows = w.$(x => x.className.split(' ').includes('wmode'));
-    ok(!w.mode('continue') && w.mode('career').disabled && /coming/.test(w.mode('career').textContent) && !w.mode('sandbox').disabled &&
+    ok(!w.mode('continue') && !w.mode('career').disabled && !/coming/.test(w.mode('career').textContent) && !w.mode('sandbox').disabled &&
        w.mode('garage').disabled && !w.mode('settings').disabled && /graphics: gamer/.test(w.mode('settings').textContent),
-       'the rows: no Continue (no career), New career disabled "coming", Sandbox, Garage only disabled, Settings naming the preset');
+       'the rows: no Continue (no career saved), New career LIVE (G2740), Sandbox, Garage only disabled, Settings naming the preset');
     ok(rows.every(b => b.getAttribute('title') === null), 'no row says anything in title= (R17: nothing hover-only)');
     let got = 'unresolved'; w.FLYDIY_WELCOME.then(p => { got = p; });
     w.mode('sandbox').onclick(); await tick(); await tick();
     ok(w.FLYDIY_MODE === 'sandbox' && w.screen() === 'none' && got === null && !w.WELCOME.pick, 'Sandbox: the menu gone, FLYDIY_MODE sandbox, no preset forced (the saved one stands)');
+  }
+  // G2740 (CAREER-ON): New career with nothing saved -> the career, no fresh flag; a saved career -> Continue (first, focused)
+  { const w = await pg('', PAGES, Object.assign({}, seen));
+    w.mode('career').onclick(); await tick(); await tick();
+    ok(w.FLYDIY_MODE === 'career' && w.screen() === 'none' && !('flydiy.career.fresh' in w.store), 'New career (none saved): FLYDIY_MODE career, nothing to back up');
+  }
+  { const saved = { 'flydiy.career.main': JSON.stringify({ mode: 'career', career: { name: 'your career' } }) };
+    const w = await pg('', PAGES, Object.assign({}, seen, saved));
+    ok(!!w.mode('continue') && /your career/.test(w.mode('continue').textContent) && /backup/.test(w.mode('career').textContent),
+       'a saved career: Continue naming it; New career says the current one is kept as a backup');
+    w.mode('continue').onclick(); await tick(); await tick();
+    ok(w.FLYDIY_MODE === 'career' && !('flydiy.career.fresh' in w.store), 'Continue: the career, the save untouched (no fresh flag)');
+    const w2 = await pg('', PAGES, Object.assign({}, seen, saved));
+    w2.mode('career').onclick(); await tick(); await tick();
+    ok(w2.FLYDIY_MODE === 'career' && w2.store['flydiy.career.fresh'] === '1', 'New career over a saved one: the fresh flag (app.js moves the old one to .prev)');
+  }
+  { const w = await pg('', PAGES, Object.assign({}, seen, { 'flydiy.career.main': '{broken' }));
+    ok(!w.mode('continue') && !w.mode('career').disabled, 'a broken career save: no Continue, the menu still opens');
   }
   // a first visit: the card, then the menu; the card's pick is today's
   { const w = await pg('', PAGES, {});
@@ -552,7 +580,9 @@ const modes = async () => {
   const extra = [];
   for (const f of files) { const r = path.relative(path.join(__dirname, '..'), f).split(path.sep).join('/'); if (r === 'src/viewer/welcome.js' || r === 'tools/build.js') continue;
     const n = (fs.readFileSync(f, 'utf8').replace(/\.uX \{[^}]*\}/g, '').match(DEV) || []).length;
-    const allow = r === 'src/viewer/update_now.js' ? 2 : (KNOWN[r] || 0);   // update_now.js: its rig test + its pill's coarse-pointer CSS
+    // update_now.js: its rig test + its pill's coarse-pointer CSS; storage_ui.js (HANGAR-STORAGE G2690): its phone layout's
+    // coarse-pointer CSS (the study's "phone: tap a card, then a column") - CSS, not a device test in code
+    const allow = r === 'src/viewer/update_now.js' ? 2 : r === 'src/viewer/storage_ui.js' ? 1 : (KNOWN[r] || 0);
     if (n > allow) extra.push(r + ' ' + n + ' > ' + allow); }
   ok(!extra.length, 'no device test outside welcome.js beyond the six of 6 Oct (rigs, records, the pill\'s CSS)' + (extra.length ? ': ' + extra.join('; ') : ''));
 };

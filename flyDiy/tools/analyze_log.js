@@ -15,6 +15,9 @@
 //     time outside the loop, and the events in the interval (long tasks and the scripts that held them, shader
 //     links, premises built, settings, GC-ish drops, marks)
 //   - seconds slower than 30 fps and the longest such stretch; frames over 100 ms; long tasks over 1 s
+//   - EDITOR (G3082): the scenery editor's actions (premises_ui's 'edit' events - an edit's rebuild by step, a select,
+//     a drag's moves, the autosave, the checks, the open): per class the count, the median and the worst ms; then the
+//     slowest actions with what ran and the frame interval each one landed in
 //   - THE ROLLOUT TARGETS (PASS / FAIL each): no frame over 100 ms after the reveal; never more than 3 s in a
 //     row below 30 fps; the stand and the taxi at a median of 50 fps or better; no task over 1 s.
 //     `--gate` exits 1 when any fails (else the tool exits 0 whatever it finds).
@@ -178,6 +181,20 @@ function analyze(log, opt) {
     return Object.assign({}, e, { afterReveal: revealT != null && e.t > revealT, loaf: loaf.map(x => x.detail) });
   });
   const evCount = {}; for (const e of events) evCount[e.kind] = (evCount[e.kind] || 0) + 1;
+  // ---- THE EDITOR (G3082): its actions, by class (the detail's first word: open, select, drag, release, move, set, add,
+  // delete, undo:, redo, autosave, checks ...), and the frame each one landed in (the action's event is logged as it ends)
+  const edits = events.filter(e => e.kind === 'edit').map(e => {
+    const d = String(e.detail || ''), cls = (d.split(/[ ·]/)[0] || '?').replace(/:$/, '');
+    const fr = rows.find(r => r.t >= e.t) || null;
+    return { t: e.t, ms: e.ms, cls, detail: d, frame: fr ? fr.dt : null };
+  });
+  const editor = (() => {
+    if (!edits.length) return null;
+    const by = {};
+    for (const e of edits) (by[e.cls] = by[e.cls] || []).push(e.ms || 0);
+    const classes = Object.keys(by).map(k => { const a = by[k].slice().sort((x, y) => x - y); return { cls: k, n: a.length, med: a[(a.length - 1) >> 1], worst: a[a.length - 1] }; }).sort((a, b) => b.worst - a.worst);
+    return { n: edits.length, classes, slowest: edits.slice().sort((a, b) => (b.ms || 0) - (a.ms || 0)).slice(0, opt.worst || 20), over100: edits.filter(e => e.ms > 100).length, over1s: edits.filter(e => e.ms > 1000).length };
+  })();
   // G1357: the frames the catcher kept (post_fx.js catcher: a frame apart from both neighbours, with its state and a 64 x 36 JPEG)
   const catches = events.filter(e => e.kind === 'catch' && e.detail && typeof e.detail === 'object').map(e => Object.assign({ t: e.t }, e.detail));
   // ---- the loading screens: each run of the boot's steps (the shed's, the roll-out's), from the boot's own log
@@ -217,7 +234,7 @@ function analyze(log, opt) {
     return { t: e.t, ms: e.ms, part: m ? m[1] : '?', at: m ? +m[4] : null, swap: / swap/.test(d), hot: / hot/.test(d), urgent: /urgent/.test(d), detail: d };
   });
   return { trees: treeEv, hwsteps: events.filter(e => e.kind === 'hwstep'), skies: events.filter(e => e.kind === 'sky'), header: H, t0, revealT, revealInferred, reveals, frames: rows.length, boots, scopeName, scopeFrames: scope.length, dist, phases, worst, stretches: stretches.slice(0, 10), slowS,
-    over100: over100.slice(0, 30).map(r => ({ i: r.i, t: r.t, dt: r.dt, phase: r.ph })), over100N: over100.length, longTasks, evCount, catches, catcher: H.catcher || null, targets };
+    over100: over100.slice(0, 30).map(r => ({ i: r.i, t: r.t, dt: r.dt, phase: r.ph })), over100N: over100.length, longTasks, evCount, catches, catcher: H.catcher || null, targets, editor };
 }
 
 // ---- the text ------------------------------------------------------------------------------------------------------
@@ -273,6 +290,15 @@ function report(A) {
   L.push('LONG TASKS OVER 1 S (the whole log): ' + A.longTasks.length);
   for (const e of A.longTasks) L.push('  ' + f0(e.ms) + ' ms at ' + ts(e.t) + (e.afterReveal ? ' (after the reveal)' : ' (before the reveal)') + (e.detail ? ' ' + e.detail : '') + (e.loaf.length ? ' - ' + e.loaf.join(' | ').slice(0, 300) : ''));
   L.push('');
+  if (A.editor) {
+    const E = A.editor;
+    L.push('EDITOR (G3082 - the scenery editor\'s actions): ' + E.n + ', ' + E.over100 + ' over 100 ms, ' + E.over1s + ' over 1 s');
+    L.push('  action        n   median ms   worst ms');
+    for (const c of E.classes) L.push('  ' + c.cls.padEnd(12) + String(c.n).padStart(3) + f0(c.med).padStart(12) + f0(c.worst).padStart(11));
+    L.push('  the slowest (ms, at, the frame it landed in, what ran):');
+    for (const e of E.slowest) L.push('  ' + f0(e.ms).padStart(6) + ' ms at ' + ts(e.t) + (e.frame != null ? '  frame ' + f0(e.frame) + ' ms' : '') + '  ' + e.detail.slice(0, 220));
+    L.push('');
+  }
   if (A.catcher || A.catches.length) {
     const K = A.catcher;
     L.push('CAUGHT FRAMES (G1357 - a frame apart from both neighbours): ' + A.catches.length + (K ? ' (the catcher: ' + K.taps + ' taps, ' + K.reads + ' reads, ' + K.skipped +

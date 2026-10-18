@@ -30,6 +30,7 @@
 // vertex collapses along its seam or not at all.
 //
 // Usage: node tools/prop_lod.js            (bake the levels)
+//        node tools/prop_lod.js --base     (cut the BASE of the props BASE names first: G2905, see below)
 //        node tools/prop_lod.js --report   (decimate, print, write nothing)
 //        node tools/prop_lod.js --kit props   (the HANGAR's props, AS5b below)
 // Run after tools/pier_prep.py (the levels are cut from its bins) - or, for
@@ -71,11 +72,14 @@ const KITS = {
   // steering wheel and the lamp groups are under its floor and get no level)
   cars: { dir: 'cars', manifest: 'cars_packs.json', out: 'cars_lods.js', sub: 'geo/cars_lod',
           from: 'baked car packs', tex: 'media/tex/cars/', only: 'media/geo/cars/' },
+  // THE CAMPING KIT (ASSETS-OCT G3145; tools/camp_table.py): the user's tents, the 'camp' ladder
+  camp: { dir: 'camp', manifest: 'camp_packs.json', out: 'camp_lods.js', sub: 'geo/camp_lod',
+          from: 'baked camp packs', tex: 'media/tex/camp/', only: 'media/geo/camp/', ladder: 'camp' },
 };
-let KIT = KITS.pier, PIER = path.join(ROOT, 'src', KIT.dir), SUB = KIT.sub,
+let KIT_NAME = 'pier', KIT = KITS.pier, PIER = path.join(ROOT, 'src', KIT.dir), SUB = KIT.sub,
     OUT = path.join(PIER, KIT.out), MANIFEST = path.join(PIER, KIT.manifest);
 function useKit(name) {
-  KIT = KITS[name];
+  KIT = KITS[name]; KIT_NAME = name;
   if (!KIT) throw new Error('prop_lod: no kit ' + name + ' (' + Object.keys(KITS).join(', ') + ')');
   PIER = path.join(ROOT, 'src', KIT.dir); SUB = KIT.sub; OUT = path.join(PIER, KIT.out); MANIFEST = path.join(PIER, KIT.manifest);
 }
@@ -117,6 +121,69 @@ const LEVELS = {
   vessel:   [[0.25, 2000, 150], [0.06, 500, 500]],
   wreck:    [[0.25, 1200, 60], [0.06, 400, 200]],
 };
+// THE BASE CUTS (ASSETS-OCT G2905, 2026-10-15; the user: "couldn't we cut the worst offenders through our current
+// pipeline" - and of the pier's scanned people, 13 Oct: "that's ridiculous", CUT to <= 8 k). totem_lod.js's rule
+// for a photoscan - the as-is base is the scanner's noise floor, so the BASE is a cut too - on the props named here:
+// `--base` decimates each to its cap with the same half-edge collapse (a surviving vertex keeps its int16 position,
+// normal and uv: the delivered map stays, no re-bake), writes its new bin beside the pack's, deletes the superseded
+// one, rewrites the prop's record in its OWN pack (`srcNt` keeps what it was cut from) - and the levels are then cut
+// from the new base by the plain run. A re-bake by the kit's own baker (tools/pier_prep.py) would bring the scan back:
+// GATE ASSETBUDGET holds every cap below, so it cannot pass unseen. Idempotent: a prop at its cap is left alone.
+const BASE = {
+  pier: { person_andrew: 8000, person_charles: 8000, person_john: 8000, person_koky: 8000, person_luke: 8000,
+          boat_grady: 30000 },
+};
+function cutBase(report) {
+  const caps = BASE[KIT_NAME] || {};
+  if (!Object.keys(caps).length) { console.log('prop_lod --base: kit ' + KIT_NAME + ' has no base caps'); return; }
+  const files = JSON.parse(fs.readFileSync(MANIFEST, 'utf8')).filter(f => f !== path.basename(OUT));
+  const loaded = files.map(f => {
+    const got = [], sb = { registerPropPack: p => got.push(p), console };
+    vm.createContext(sb);
+    vm.runInContext(fs.readFileSync(path.join(PIER, f), 'utf8'), sb, { filename: f });
+    return { f, pack: got[0] };
+  });
+  const usedBins = new Set();
+  for (const { pack } of loaded) for (const k in pack.props) if (pack.props[k].bin) usedBins.add(pack.props[k].bin);
+  for (const { f, pack } of loaded) {
+    let changed = false;
+    for (const key of pack.order) {
+      const cap = caps[key], prop = pack.props[key];
+      if (!cap || !prop) continue;
+      if (prop.nt <= cap * 1.02) { console.log('%s  already %d tris (cap %d)', key, prop.nt, cap); continue; }
+      const t0 = Date.now(), bin = readGeo(prop.bin), byMat = new Map();
+      for (const part of prop.parts) (byMat.get(part.mat) || byMat.set(part.mat, []).get(part.mat)).push(readPart(bin, part));
+      const meshes = [...byMat].map(([mat, parts]) => [mat, mergeParts(parts)]);
+      const total = meshes.reduce((s, m) => s + m[1].nt, 0);
+      const parts = [];
+      for (const [mat, M] of meshes) {
+        const D = decimate(M, prop.bb, Math.max(MIN_TRIS, Math.round(cap * M.nt / total)));
+        for (const p of packParts(mat, M, D.idx)) parts.push(p);
+      }
+      const nt = parts.reduce((s, p) => s + p.nt, 0), nv = parts.reduce((s, p) => s + p.nv, 0);
+      console.log('%s  BASE %d -> %d tris (%d verts, %d parts)  %ss', key, prop.nt, nt, nv, parts.length, ((Date.now() - t0) / 1000).toFixed(1));
+      if (report) continue;
+      const buf = Buffer.concat(parts.map(p => p.bytes));
+      let off = 0;
+      for (const p of parts) { p.off = off; p.len = p.bytes.length; off += p.len; delete p.bytes; }
+      const old = prop.bin, sub = path.posix.dirname(old).replace(/^media\//, '');
+      prop.srcNt = prop.srcNt || prop.nt;
+      prop.note = (prop.note ? prop.note + ' ' : '') + 'BASE CUT (tools/prop_lod.js --base, G2905): ' + prop.srcNt + ' -> ' + nt + ' tris.';
+      Object.assign(prop, { parts, nv, nt, bin: writeMedia(sub, key, 'bin', buf) });
+      usedBins.delete(old);
+      if (old !== prop.bin && ![...usedBins].includes(old)) { try { fs.unlinkSync(path.join(ROOT, ...old.split('/'))); } catch (e) { /* gone */ } }
+      changed = true;
+    }
+    if (changed) {
+      // the pack file keeps its header and its wrapper; only the payload is the rewritten one
+      const text = fs.readFileSync(path.join(PIER, f), 'utf8').replace(/\r\n/g, '\n');
+      const i = text.lastIndexOf('})('), j = text.lastIndexOf('));');
+      if (i < 0 || j < i) throw new Error('prop_lod --base: cannot find the payload in ' + f);
+      fs.writeFileSync(path.join(PIER, f), text.slice(0, i + 3) + JSON.stringify(pack) + text.slice(j));
+      console.log('rewrote %s', path.relative(ROOT, path.join(PIER, f)));
+    }
+  }
+}
 // the levels a prop actually gets: [target tris, metres]
 function levelsFor(prop, ladder) {
   const out = [];
@@ -283,6 +350,7 @@ function main(argv) {
   const report = argv.includes('--report');
   const ki = argv.indexOf('--kit');
   if (ki >= 0) useKit(argv[ki + 1]);
+  if (argv.includes('--base')) return cutBase(report);
   const only = argv.filter((a, i) => !a.startsWith('--') && !(ki >= 0 && i === ki + 1));
   const packs = readPacks();
   const texs = {};
@@ -368,4 +436,4 @@ function main(argv) {
 }
 
 if (require.main === module) main(process.argv.slice(2));
-module.exports = { decimate, mergeParts, packParts, readPart, LEVELS, levelsFor, KITS };
+module.exports = { decimate, mergeParts, packParts, readPart, LEVELS, levelsFor, KITS, BASE };

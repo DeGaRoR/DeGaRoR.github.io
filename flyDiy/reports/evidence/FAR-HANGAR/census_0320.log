@@ -1,0 +1,21 @@
+boxlock: GPU taken by COZY
+2026-10-13 03:20:01 taken on 196582555
+tools/flight_core.js (2997.4 KB), index.html (12384.7 KB), dev.html (112.8 KB), career_core.f36739eb.js (342.1 KB) — syntax OK, build 91105eb07956 (344 named inputs), 3499 ms
+2026-10-13 03:20:05 build exit 0
+hangars [{"id":"s_club/hangar_long","c":[-193.00006611767162,38.421000057272614,672.0000110197367],"size":[36.9,15.6,28.9]},{"id":"s_strip/shed","c":[-662.7488691694945,25.867456207284704,-2359.135750484199],"size":[24.2,12.7,27]},{"id":"af_s_fire/bay","c":[-176,33.93100004773587,622.3749960513027],"size":[18.9,6.6,16.7]}]
+near s_strip/shed {"dir":0,"box":{"x0":905,"x1":1015,"y0":515,"y1":570,"eye":[-462.7,40.9,-2359.1]},"luma":115.69}
+near af_s_fire/bay {"dir":0,"box":{"x0":927,"x1":993,"y0":526,"y1":556,"eye":[24,48.9,622.4]},"luma":118.83}
+far hlod {"near":150,"gain":0.2,"gainItem":1,"proj":false}
+far s_strip/shed gainItem 0.2 {"box":{"x0":905,"x1":1015,"y0":515,"y1":570,"eye":[-462.7,40.9,-2359.1]},"luma":126.61}
+far af_s_fire/bay gainItem 0.2 {"box":{"x0":927,"x1":993,"y0":526,"y1":556,"eye":[24,48.9,622.4]},"luma":114.73}
+far s_strip/shed gainItem 0.6 {"box":{"x0":905,"x1":1015,"y0":515,"y1":570,"eye":[-462.7,40.9,-2359.1]},"luma":101.31}
+far af_s_fire/bay gainItem 0.6 {"box":{"x0":927,"x1":993,"y0":526,"y1":556,"eye":[24,48.9,622.4]},"luma":118.83}
+far s_strip/shed gainItem 1 {"box":{"x0":905,"x1":1015,"y0":515,"y1":570,"eye":[-462.7,40.9,-2359.1]},"luma":112.88}
+far af_s_fire/bay gainItem 1 {"box":{"x0":927,"x1":993,"y0":526,"y1":556,"eye":[24,48.9,622.4]},"luma":119.68}
+far s_strip/shed gainItem 1.4 {"box":{"x0":905,"x1":1015,"y0":515,"y1":570,"eye":[-462.7,40.9,-2359.1]},"luma":123.28}
+far af_s_fire/bay gainItem 1.4 {"box":{"x0":927,"x1":993,"y0":526,"y1":556,"eye":[24,48.9,622.4]},"luma":119.03}
+FAR_HANGAR {"s_strip/shed":{"near":115.69,"far":{"1":112.88,"0.2":126.61,"0.6":101.31,"1.4":123.28},"nearest":1},"af_s_fire/bay":{"near":118.83,"far":{"1":119.68,"0.2":114.73,"0.6":118.83,"1.4":119.03},"nearest":0.6}}
+2026-10-13 03:23:36 census exit 0
+boxlock: GPU released by COZY
+2026-10-13 03:23:36 dropped
+2026-10-13 03:23:36 done

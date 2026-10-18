@@ -1,0 +1,144 @@
+{
+ "what": "flydiy-player",
+ "v": 3,
+ "wallet": 41250,
+ "mode": "career",
+ "here": "w3",
+ "clock": 18450,
+ "sheds": {
+  "HOME": {
+   "shell": "club",
+   "kits": [
+    "park",
+    "bench",
+    "wood",
+    "metal",
+    "store",
+    "handling",
+    "office",
+    "comfort",
+    "curio",
+    "wip"
+   ],
+   "dims": {
+    "HW": 15,
+    "HD": 12.5,
+    "EAVE": 7
+   },
+   "parts": {
+    "ground": {
+     "set": "cracked",
+     "tile": 4,
+     "rough": 1,
+     "nrm": 1
+    }
+   },
+   "name": "Home hangar",
+   "base": "HOME",
+   "tenure": "own"
+  },
+  "HOME.2": {
+   "shell": "works",
+   "kits": [
+    "park",
+    "metal",
+    "handling"
+   ],
+   "dims": {
+    "HW": 20,
+    "HD": 20,
+    "EAVE": 9.5
+   },
+   "base": "HOME",
+   "tenure": "own",
+   "price": 15000,
+   "since": 7200
+  },
+  "w3": {
+   "shell": "field",
+   "kits": [
+    "park",
+    "bench"
+   ],
+   "dims": {
+    "HW": 8.5,
+    "HD": 9,
+    "EAVE": 3.6
+   },
+   "name": "Tamgas shed",
+   "base": "w3",
+   "tenure": "rent",
+   "price": 4800,
+   "since": 12000
+  }
+ },
+ "fleet": {
+  "Jolene Cub": {
+   "hangar": "w3",
+   "aero": "w3",
+   "foot": {
+    "half": 5.4,
+    "fwd": 1.3,
+    "aft": 5.5,
+    "h": 2
+   },
+   "kind": "floor"
+  },
+  "Metal Cessna": {
+   "hangar": "HOME",
+   "aero": "HOME",
+   "foot": {
+    "half": 5.5,
+    "fwd": 1.5,
+    "aft": 6.1,
+    "h": 2.7
+   },
+   "kind": "inside",
+   "slot": 0
+  },
+  "Twin floats": {
+   "hangar": null,
+   "aero": "mk_sea",
+   "foot": {
+    "half": 8,
+    "fwd": 0.7,
+    "aft": 7.1
+   },
+   "kind": "away"
+  },
+  "Spare Jodel": {
+   "hangar": null,
+   "aero": "HOME",
+   "kind": "outside",
+   "slot": 0,
+   "outSince": 18450
+  },
+  "Old Jodel": {
+   "hangar": "HOME",
+   "aero": "HOME",
+   "kind": "long",
+   "foot": {
+    "half": 4.4,
+    "fwd": 1.2,
+    "aft": 5,
+    "h": 1.9
+   }
+  }
+ },
+ "ledger": [
+  {
+   "k": "acquire",
+   "amt": 15000,
+   "ref": "HOME.2",
+   "clock": 7200,
+   "free": false
+  },
+  {
+   "k": "rent",
+   "amt": 307,
+   "ref": null,
+   "clock": 18450,
+   "free": false
+  }
+ ]
+}

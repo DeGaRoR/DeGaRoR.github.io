@@ -739,7 +739,10 @@ function makeSimHost(CORE, init, keptWorld) {
       // came over as arrays of undefined and the page's spray threw on every frame under the worker (the water taxi
       // drew nothing for 16 s). They stay here: the page refills W from the mirrored nodes (ctx.fill), and gets the
       // WET panels the spray reads, flat (simHostPanels)
-      hydro: HY ? { wet: HY.wet, tick: HY.tick, floats: HY.floats.map(fx => ({ side: fx.side, wet: fx.wet, out: simHostPlain(fx.out, 2, ['W', 'dq', 'per', 'd']), per: simHostPanels(fx.out.per), lam: fx.lam.slice() })) } : null,
+      // G2834 (WATER-FX-FIX, objective 5): and h, the float's water level - only the hydro pass writes it (32_hydro.js
+      // hydroSolverCompute), so under the worker the page's was never set and every spray particle and chine sheet was
+      // emitted at y = NaN: no touchdown splash, no spray on float landings (the user, HWCOV's runs)
+      hydro: HY ? { wet: HY.wet, tick: HY.tick, floats: HY.floats.map(fx => ({ side: fx.side, wet: fx.wet, h: fx.h, out: simHostPlain(fx.out, 2, ['W', 'dq', 'per', 'd']), per: simHostPanels(fx.out.per), lam: fx.lam.slice() })) } : null,
       wheels: sim.wheelContacts ? sim.wheelContacts() : null,
       // G2090 (WATER-LOOK): the wet body's contacts (32_hydro.js wetFx), only while any - a dry flight sends nothing
       wet: simHostWet(sim),

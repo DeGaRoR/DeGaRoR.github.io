@@ -26,6 +26,7 @@
 //         node tools/perf/train_gate.js --full --port 8700 [--udd D:/tg] [--fallback D:/Dev/DeGaRoR.github.io] [--label t26]
 //               [--only rollout,garage,bench] [--baseline <f.json>] [--out <f.json>] [--update] [--remote mn_strip]
 //               [--reps n] [--secs s]
+//         node tools/perf/train_gate.js --reference-take tools/perf/train_gate_<label>.json [--reference-replace "<ruling>"]  (PERF-1, below)
 //         node tools/perf/train_gate.js --compare tools/perf/train_gate_<label>.json [--baseline <f.json>]   (no browser)
 //         node tools/perf/train_gate.js --update tools/perf/train_gate_<label>.json                           (no browser)
 // The baseline is per mode: tools/perf/train_gate_baseline_<light|full>.json. --update (with a run, or a saved gate JSON)
@@ -120,8 +121,12 @@ const readJSON = f => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } c
 
 function rowsRollout(files) {
   const rows = [], groups = {};
-  let gpu = null, size = null;
-  for (const f of files) { const j = readJSON(f.path); if (!j) continue; gpu = gpu || j.gpu; size = size || (j.size || []).join('x'); (groups[f.group] = groups[f.group] || []).push(RT.metrics(j)); }
+  let gpu = null, size = null, env = null;
+  for (const f of files) { const j = readJSON(f.path); if (!j) continue; gpu = gpu || j.gpu; size = size || (j.size || []).join('x');
+    const m = RT.metrics(j); (groups[f.group] = groups[f.group] || []).push(m);
+    // PERF-1 P1: what the runs ran on and with, for the fixed reference's identity - the first run's, and 'MIXED' where two runs differ
+    const e = { ua: j.ua || null, dpr: j.dpr || null, settings: j.gfx0 ? JSON.stringify(j.gfx0) : null, flags: j.chromeFlags ? JSON.stringify(j.chromeFlags) : null, cap: m.cap || null };
+    if (!env) env = e; else for (const k in e) if (env[k] !== e[k]) env[k] = 'MIXED'; }
   for (const g of Object.keys(groups).sort()) {
     const ms = groups[g];
     for (const [n, R] of Object.entries(RT.RULES)) {
@@ -129,7 +134,7 @@ function rowsRollout(files) {
       rows.push({ id: 'rollout|' + g + '|' + n, part: 'rollout', what: g + ' ' + n, value: r4(RT.med(ms.map(m => m[n]))), runs: ms.length, rule: { up: !!R.up, rel: R.rel, abs: R.abs, unit: R.unit, info: !!R.info } });
     }
   }
-  return { rows, gpu, size };
+  return { rows, gpu, size, env };
 }
 function rowsGarage(j) {
   const rows = [];
@@ -210,6 +215,116 @@ function writeBaseline(G) {
   console.log('BASELINE (' + G.meta.mode + ', ' + G.rows.length + ' rows) -> ' + rel(BASELINE));
 }
 
+// ---- PERF-1 P1: THE FIXED REFERENCE -----------------------------------------------------------------------------------------
+// WHY (the perf study, 14 Oct; the owner's ruling: the target is box/gamer, the RTX 3080 on the gamer preset): the baseline
+// above is re-taken after every landing, so a train is only ever compared with the one before it - each step inside its
+// slack, the sum never (+5.8 ms of loop and +22 s of load between 3 and 13 Oct, every train green). The REFERENCE is taken
+// ONCE, in a quiet slot, and --update never touches it: every run is ALSO compared with it, its budgeted rows by CUMULATIVE
+// budgets (what every train since the reference may add, together) and the rest under the reference's own rules, frozen
+// with it (a slack widened later does not forgive an old row).
+// IT REFUSES WHAT IT CANNOT COMPARE: a run on another GPU, viewport, Chrome, pixel ratio, cap, settings, Chrome flags, mode,
+// secs / reps, remote strip, aircraft files or rules is NOT COMPARED (exit 2); a run that does not record one of them is
+// INCOMPLETE (exit 2) - never trusted. The code's own hashes (commit, source tree, page, packs, cook) are recorded beside:
+// they are what is meant to change.
+// A cost the user accepts BY NAME goes in the LEDGER (tools/perf/perf_ledger.json: the row, how much, owner, train,
+// scenario, the ruling, the repayment, the expiry): it admits that much over the budget until it expires, and is printed
+// every run. It never rewrites the reference.
+//   node tools/perf/train_gate.js --reference-take tools/perf/train_gate_<label>.json        (once; refuses over an existing one)
+//   node tools/perf/train_gate.js --reference-take <f> --reference-replace "<the user's words>" (the old one kept in .history)
+const REF_DIR = process.env.TRAIN_GATE_REF_DIR || __dirname;   // (the reference's own check points it at a scratch folder)
+const refFile = mode => path.join(REF_DIR, 'train_gate_reference_' + mode + '.json');
+const LEDGER = path.join(REF_DIR, 'perf_ledger.json');
+// the cumulative budgets (the study's section 7): what the whole climb since the reference may add
+const BUDGETS = [
+  { re: /^rollout\|.*\|loop$/, add: 0.5, unit: 'ms', what: 'the taxi\'s median loop' },
+  { re: /^rollout\|.*\|loopP90$/, add: 1.0, unit: 'ms', what: 'the taxi\'s loop p90' },
+  { re: /^rollout\|.*\|(garage|flight)$/, add: 2, unit: 's', what: 'navigation -> garage / first flight' },
+  { re: /^bench\|.*warm.*\|sec$/, add: 2, unit: 's', what: 'a warm load' },
+];
+// the absolute targets (box/gamer, the study's section 7): printed with the reference, never red here
+const TARGETS = [
+  { re: /^rollout\|.*\|p99all$/, max: 50, what: 'p99 <= 50 ms' }, { re: /^rollout\|.*\|p999$/, max: 66.7, what: 'p99.9 <= 66.7 ms' },
+  { re: /^rollout\|.*\|over100$/, max: 0, what: 'no frame > 100 ms' }, { re: /\|tasks1s$/, max: 0, what: 'no task > 1 s' },
+  { re: /^rollout\|.*\|uneven$/, max: 0.15, what: 'uneven <= 15 %' } ];
+const sha = f => { try { return require('crypto').createHash('sha256').update(fs.readFileSync(path.join(ROOT, f))).digest('hex').slice(0, 12); } catch (e) { return null; } };
+const git = a => { try { return require('child_process').execSync('git ' + a, { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch (e) { return null; } };
+const rulesHash = () => require('crypto').createHash('sha256').update(JSON.stringify([RT.RULES, R_LOAD, R_SCENE, R_GARAGE])).digest('hex').slice(0, 12);
+// a run's identity, taken when it runs: env (must equal the reference's) and code (recorded)
+function codeId() {
+  const packs = readJSON(path.join(ROOT, 'src', 'core', 'parked_packs.json')) || {};
+  return { commit: git('rev-parse --short HEAD'), source: git('rev-parse HEAD:flyDiy'), dirty: !!git('status --porcelain --untracked-files=no -- .'),
+    build: (readJSON(path.join(ROOT, 'version.json')) || {}).build || null, page: sha('index.html'), packs: sha('src/core/parked_packs.json'), cook: packs.build || null };
+}
+function identity(ro, code) {
+  const e = ro.env || {};
+  return {
+    env: { gpu: ro.gpu || null, size: ro.size || null, ua: e.ua || null, dpr: e.dpr || null, settings: e.settings || null, flags: e.flags || null, cap: e.cap || null,
+      mode: MODE, secs: M.secs, reps: M.reps, glReps: M.glReps, cold: M.cold, remote: REMOTE, parts: [...ONLY].sort().join(','), rules: rulesHash(),
+      aircraft: Object.values(BUILDS).concat(['bugReports/cessnaFloatsWOrks.json']).map(f => sha(f) || 'missing').join(',') },
+    code: code || codeId(),
+  };
+}
+const short = v => { const s = String(v); return s.length > 40 ? s.slice(0, 37) + '...' : s; };
+function compareRef(G, Ref, ledger) {
+  const gi = G.meta.identity, ri = Ref.identity;
+  if (!gi || !gi.env) return { incomplete: ['its identity (a gate JSON from before PERF-1)'] };
+  const miss = Object.keys(ri.env).filter(k => gi.env[k] == null || gi.env[k] === 'MIXED');
+  if (miss.length) return { incomplete: miss };
+  const diff = Object.keys(ri.env).filter(k => String(gi.env[k]) !== String(ri.env[k]));
+  if (diff.length) return { refuse: diff.map(k => k + ' (reference ' + short(ri.env[k]) + ', this run ' + short(gi.env[k]) + ')') };
+  const BUD = (Ref.budgets || []).map(b => Object.assign({}, b, { re: new RegExp(b.re) }));
+  const now = new Map(G.rows.map(r => [r.id, r])), today = Date.now();
+  const out = { red: [], ok: 0, better: [], budget: [], ledger: [], targets: [] };
+  for (const b of Ref.rows) {
+    const R = b.rule || {}, was = b.value;   // the rule FROZEN with the reference
+    if (was == null || R.info) continue;
+    const n = now.get(b.id), v = n ? n.value : (/\|taskWorst$/.test(b.id) ? 0 : null);
+    if (v == null) { out.red.push({ id: b.id, what: b.what, was, now: null, why: n ? 'not measured' : 'MISSING (the row is gone)' }); continue; }
+    const B = BUD.find(x => x.re.test(b.id));
+    const slack = B ? B.add : Math.max(R.abs || 0, Math.abs(was) * (R.rel || 0)), worse = R.up ? was - v : v - was;
+    const L = (ledger || []).filter(e => e.id === b.id && !(e.expires && Date.parse(e.expires) < today));
+    const row = { id: b.id, what: b.what, was, now: v, unit: R.unit || (B && B.unit) || '', slack: r4(slack), grew: r4(worse), budget: B ? B.what : null };
+    if (B) out.budget.push(row);
+    if (worse > slack + L.reduce((s, e) => s + (+e.add || 0), 0)) out.red.push(row);
+    else if (worse > slack) out.ledger.push(Object.assign(row, { by: L.map(e => e.owner + ' (' + e.train + ', ' + e.ruling + ')').join('; ') }));
+    else if (worse < -slack) out.better.push(row); else out.ok++;
+  }
+  for (const r of G.rows) { const T = TARGETS.find(t => t.re.test(r.id)); if (T && r.value != null && r.value > T.max) out.targets.push({ what: r.what, now: r.value, target: T.what }); }
+  return out;
+}
+function printRef(G) {
+  const RF = refFile(G.meta.mode), Ref = readJSON(RF);
+  if (!Ref) { console.log('\nREFERENCE: none yet (' + rel(RF) + ') - take it once in a quiet slot: --reference-take <gate.json>'); return 0; }
+  const C = compareRef(G, Ref, (readJSON(LEDGER) || {}).entries || []);
+  const head = '\nREFERENCE (fixed: ' + Ref.meta.commit + ' of ' + Ref.meta.date + ', ' + Ref.taken.why + ')';
+  if (C.incomplete) { console.log(head + ': INCOMPLETE - this run does not record ' + C.incomplete.join(', ') + ': not trusted'); return 2; }
+  if (C.refuse) { console.log(head + ': NOT COMPARED - ' + C.refuse.join('; ')); return 2; }
+  const f = x => x == null ? '-' : String(x);
+  console.log(head + ': ' + C.ok + ' rows within · ' + C.better.length + ' better · ' + C.ledger.length + ' over budget by the ledger · ' + C.red.length + ' RED');
+  if (C.budget.length) { console.log('\n  CUMULATIVE BUDGETS (the growth since the reference, all trains together)');
+    for (const r of C.budget) console.log('    ' + r.what.padEnd(48) + f(r.was).padStart(9) + ' -> ' + f(r.now).padEnd(9) + ' grew ' + f(r.grew).padStart(7) + ' of ' + r.slack + ' ' + r.unit); }
+  if (C.ledger.length) { console.log('\n  OVER BUDGET, ADMITTED BY THE LEDGER (repay)'); for (const r of C.ledger) console.log('    ' + r.what.padEnd(48) + ' grew ' + r.grew + ' ' + r.unit + ' - ' + r.by); }
+  if (C.targets.length) { console.log('\n  TARGETS MISSED (box/gamer, not gated)'); for (const t of C.targets) console.log('    ' + t.what.padEnd(48) + f(t.now).padStart(9) + '  (' + t.target + ')'); }
+  if (C.red.length) { console.log('\n  RED vs THE REFERENCE'); for (const r of C.red) console.log('    RED ' + r.what.padEnd(48) + f(r.was).padStart(9) + ' -> ' + f(r.now).padEnd(9) + ' ' + (r.why || 'grew ' + r.grew + ' ' + r.unit + ' (allowed ' + r.slack + ')')); }
+  console.log(C.red.length ? 'REFERENCE: RED (' + C.red.length + ') - the climb since the reference is past its budget' : 'REFERENCE: within');
+  return C.red.length ? 1 : 0;
+}
+function takeReference(G, why) {
+  const no = m => { console.error('train_gate --reference-take: ' + m); process.exit(2); };
+  const id = G.meta.identity; if (!id) no('the gate JSON has no identity (a run from before PERF-1): run the gate again');
+  const miss = Object.keys(id.env).filter(k => id.env[k] == null || id.env[k] === 'MIXED'); if (miss.length) no('incomplete identity: ' + miss.join(', '));
+  if (id.code.dirty) no('the run was on a dirty tree - a reference is a commit');
+  const failed = (G.meta.steps || []).filter(s => s.code !== 0 && s.part !== 'warmup'); if (failed.length) no('steps failed: ' + failed.map(s => s.id).join(', '));
+  const RF = refFile(G.meta.mode), old = readJSON(RF);
+  if (old && !why) no('a reference exists (' + old.meta.commit + ', ' + old.meta.date + '): it is replaced only by the user\'s ruling, --reference-replace "<their words>"');
+  if (old) { const H = RF.replace(/\.json$/, '.history.json'), h = readJSON(H) || []; h.push({ replaced: new Date().toISOString(), why, ref: old }); fs.writeFileSync(H, JSON.stringify(h, null, 1) + '\n'); }
+  const rows = G.rows.map(r => Object.assign({}, r, { rule: ruleNow(r) || r.rule }));
+  fs.writeFileSync(RF, JSON.stringify({ note: 'train_gate FIXED REFERENCE (PERF-1): never re-taken by --update; see train_gate.js THE FIXED REFERENCE',
+    taken: { date: new Date().toISOString(), why: why || 'the first reference' }, meta: G.meta, identity: id,
+    budgets: BUDGETS.map(b => ({ re: b.re.source, add: b.add, unit: b.unit, what: b.what })), rows }, null, 1) + '\n');
+  console.log('REFERENCE (' + G.meta.mode + ', ' + rows.length + ' rows, ' + id.code.commit + ') -> ' + rel(RF));
+}
+
 // ---- one step: a child node process, its output to the console and to its log ------------------------------------------------
 function runStep(s, dir) {
   return new Promise(res => {
@@ -234,13 +349,15 @@ function plan(S) {
 
 if (require.main === module) (async () => {
   // no browser: --compare <gate.json>, --update <gate.json>
-  const cmpF = opt('compare', null), updF = opt('update', null);
-  if (cmpF || updF) {
-    const G = readJSON(path.resolve(cmpF || updF));
-    if (!G || !G.rows) { console.error('train_gate: not a gate JSON: ' + (cmpF || updF)); process.exit(2); }
+  const cmpF = opt('compare', null), updF = opt('update', null), refF = opt('reference-take', null);
+  if (cmpF || updF || refF) {
+    const G = readJSON(path.resolve(cmpF || updF || refF));
+    if (!G || !G.rows) { console.error('train_gate: not a gate JSON: ' + (cmpF || updF || refF)); process.exit(2); }
+    if (refF) { takeReference(G, opt('reference-replace', null)); process.exit(0); }
     if (updF) { writeBaseline(G); process.exit(0); }
     const B = readJSON(BASELINE); if (!B) { console.error('train_gate: no baseline at ' + rel(BASELINE) + ' - take one with --update'); process.exit(2); }
-    process.exit(printCompare(compare(G, B), G, B));
+    const code = printCompare(compare(G, B), G, B), refCode = printRef(G);
+    process.exit(code || refCode);
   }
   const stamp = (d => [d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes()].map(x => String(x).padStart(2, '0')).join(''))(new Date());
   const LABEL = opt('label', stamp);
@@ -254,14 +371,14 @@ if (require.main === module) (async () => {
   const commit = (() => { try { return require('child_process').execSync('git rev-parse --short HEAD', { cwd: REPO }).toString().trim(); } catch (e) { return '?'; } })();
   const build = (readJSON(path.join(ROOT, 'version.json')) || {}).build || '?';
   console.log('TRAIN GATE ' + MODE + ' · commit ' + commit + ' (build ' + build + ') · reports in ' + rel(DIR) + ' · profile ' + path.join(UDD, stamp));
-  const T0 = Date.now(), ran = [];
+  const T0 = Date.now(), ran = [], code0 = codeId();   // (the code's identity before the reports land in tools/perf)
   for (const s of S) ran.push(Object.assign(await runStep(s, DIR), { part: s.part }));
   // ---- the rows
   const parts = [...new Set(S.map(s => s.part).filter(p => p !== 'warmup'))];
   const ro = rowsRollout(S.filter(s => s.part === 'rollout').map(s => ({ path: s.args[s.args.indexOf('--out') + 1], group: s.group })));
   const rows = [].concat(ro.rows, rowsGarage(readJSON(path.join(DIR, 'garage_lag.json'))), rowsBench(readJSON(path.join(DIR, 'master_bench.json'))));
   const G = { meta: { date: new Date().toISOString(), commit, build, mode: MODE, parts, gpu: ro.gpu, size: ro.size, label: LABEL, remote: REMOTE, m: M, minutes: +((Date.now() - T0) / 60000).toFixed(1),
-    steps: ran, reports: rel(DIR) }, rows };
+    steps: ran, reports: rel(DIR), identity: identity(ro, code0) }, rows };
   const OUT = path.resolve(opt('out', path.join(__dirname, 'train_gate_' + LABEL + '.json')));
   fs.writeFileSync(OUT, JSON.stringify(G, null, 1) + '\n');
   const failed = ran.filter(r => r.code !== 0 && r.part !== 'warmup');
@@ -269,8 +386,8 @@ if (require.main === module) (async () => {
   if (flag('update')) { if (failed.length) { console.error('train_gate: a step failed - no baseline taken'); process.exit(1); } writeBaseline(G); process.exit(0); }
   const B = readJSON(BASELINE);
   if (!B) { console.error('train_gate: no baseline at ' + rel(BASELINE) + ' - take one with --update ' + rel(OUT)); process.exit(2); }
-  const code = printCompare(compare(G, B), G, B);
-  process.exit(failed.length && code === 0 ? 1 : code);
+  const code = printCompare(compare(G, B), G, B), refCode = printRef(G);
+  process.exit(failed.length && code === 0 ? 1 : code || refCode);
 })().catch(e => { console.error('train_gate: ' + (e && e.stack || e)); process.exit(1); });
 
-module.exports = { compare, rowsRollout, rowsGarage, rowsBench };
+module.exports = { compare, rowsRollout, rowsGarage, rowsBench, compareRef, identity, takeReference, printRef, BUDGETS, TARGETS };

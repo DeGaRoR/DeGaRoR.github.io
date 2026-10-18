@@ -7,8 +7,14 @@
 //     gear (water vs wheels, land vs floats only), judged against the player's fleet; a build contract carries none.
 //     A tap opens ONE short paragraph (who + what + pay; the runways condensed, "Jumbo Mine Street 250 × 18 m gravel →
 //     Annette Dock 1 500 m water lane · 14 km"; the ✗'s reason) and ONE button, Track (accept and track are one gesture;
-//     a second tap untracks). The customers are a FILTER (a select), not colours; a place tapped on the map filters the
-//     list to the contracts involving it ("At <place> ✕").
+//     a second tap untracks). The customers are a FILTER, not colours; a place tapped on the map filters the list to the
+//     contracts involving it ("At <place> ✕").
+//   GROUPED, ORDERED, FILTERED (G2710 MAP-GROUP; the user, 11 Oct): the list in SECTIONS - by Type (the default) or by
+//     Contractor, each header the type's dot or the contractor's name, a count, folded with a tap (remembered per
+//     viewer); ordered inside by Pay (high first), Distance, Stops or Load, ties by id, the tracked contract first and
+//     never hidden; filtered on the key parameters (type, contractor, fits my fleet, surface, stops, window, pay,
+//     distance, load), each stating how many rows it hides, one Clear. MAP-SIMPLE's customer select is folded into the
+//     contractor grouping and filter. The map's rings and badges follow the filtered list. Pure: contractView.
 //   THE SWITCH (G2440 MAP-MERGE, the coordinator's default of 7 Oct): a small switch at the top of the same list -
 //     Contracts · Fleet · Pilots · Market. The other three are drawn the contracts' way (a collapsible row: an icon, the
 //     title, ONE number; ONE short paragraph when opened; at most two buttons; no right panel, no card wall): your
@@ -17,7 +23,9 @@
 //     under ?career=1 - the wallet pays, ECONOMY's rules; Take, free, in the sandbox ?map=1) and the drawing board.
 //     The map then shows that list's markers in the places' badge style, sized to the zoom; a tap filters the list.
 //   THE MAP is the user's own AI painting of the island (map_bake.js ships it as media/map/jolene_art.<h8>.jpg, in the
-//     projection's frame exactly), on its edge's sea colour, no border. Pan by a left-button drag anywhere (no image
+//     projection's frame exactly), on its edge's sea colour, no border - the painting's own edge sampled and faded into
+//     that colour around it (G2730 MAP-EDGE: one small canvas baked once in a worker, moving with the painting), so no
+//     rectangle shows at any zoom. Pan by a left-button drag anywhere (no image
 //     drag, no text selection; a click counts only if the pointer barely moved), zoom by the wheel at the cursor, a
 //     pinch, + / − / fit; kept in bounds; NO AUTO-ZOOM when a contract opens.
 //   THE GAME DRAWS EVERY SITE (the painting's own runways drift ~0.5-0.8 km): a badge per place (airfield, strip,
@@ -198,11 +206,16 @@
   // can use every strip the contract lands at or leaves from? -> { mark: '✓' | '✗' | '', why } ('' for a build
   // contract, or a fleet with nothing to judge by). Nothing else is judged: the paragraph gives the runways, the player
   // decides.
+  // the strips a contract lands at or leaves from (a survey's site is flown over, not landed at)
+  function endsOf(M, c) {
+    const ends = [];
+    for (const u of subsAll(c)) for (const id of (u.do === 'survey' ? [u.from] : [u.from, u.to])) if (id && M.aeros[id] && !ends.includes(id)) ends.push(id);
+    return ends;
+  }
   function markOf(M, c) {
     if (c.kind === 'build') return { mark: '', why: '' };
     const G = fleetGears(M); if (!G.length) return { mark: '', why: '' };
-    const ends = [];
-    for (const u of subsAll(c)) for (const id of (u.do === 'survey' ? [u.from] : [u.from, u.to])) if (id && M.aeros[id] && !ends.includes(id)) ends.push(id);
+    const ends = endsOf(M, c);
     if (G.some(g => ends.every(id => allows(g.gear, M.aeros[id]).ok))) return { mark: '✓', why: '' };
     const names = ids => ids.map(id => aeroName(M, id)).join(', ');
     const wet = ends.filter(id => M.aeros[id].surface.cls === 'water'), dry = ends.filter(id => !wet.includes(id));
@@ -218,16 +231,105 @@
     return { mark: '✗', why };
   }
 
-  // ---- THE LIST --------------------------------------------------------------------------------------------------
-  // f: { cust: 'all' | provider id, at: place id | null }
-  function rowsOf(M, f) {
-    f = f || {};
-    const order = {}; M.providers.forEach((p, i) => { order[p.id] = i; });
-    const kindO = { contract: 0, build: 1, job: 2, survey: 3, challenge: 4 };
-    const L = M.contracts.filter(c => (!f.cust || f.cust === 'all' || c.provider === f.cust) && (!f.at || involves(M, c, f.at)));
-    const rank = c => (c.id === M.career.tracked ? 0 : M.career.accepted.includes(c.id) ? 1 : 2);
-    return L.slice().sort((a, b) => rank(a) - rank(b) || order[a.provider] - order[b.provider] || (kindO[a.kind] || 9) - (kindO[b.kind] || 9) || (a.id < b.id ? -1 : 1));
+  // ---- THE LIST: GROUPED, ORDERED, FILTERED (G2710-G2714, MAP-GROUP; the user, 11 Oct: "the missions should be grouped
+  // either by type of mission, or contractor, and generate a ordered list with sections according to the ordering type,
+  // and filtering on the key parameters of the missions"). Pure: contractView decides, the DOM half only renders it.
+  //   GROUP BY  Type (the default: Cargo, Passengers, Survey, Build - the legend's order; NIGHT-OPS gives night work no
+  //             type of its own, so a night job carries a "night" tag) or Contractor (CONTRACT_PROVIDERS' order, the
+  //             record's). A section per group that has contracts: its header (the type's dot or the contractor's
+  //             name, the count, what the filters hide in it), collapsible.
+  //   ORDER     inside a section: Pay (the default, high first), Distance (the route's km, short first), Stops (fewest
+  //             first), Load (the heaviest leg: kg with a passenger at PAX_KG, then the passengers; heaviest first);
+  //             ties by id. The tracked contract heads its section, ★, and stays when a filter would hide it.
+  //   FILTERS   type and contractor (chips, several at once), fits my fleet (only ✓: the hard no-no, surface vs gear),
+  //             surface (land / water / both: the strips it lands at), stops (1 / 2+), window (day / night: NIGHT-OPS'
+  //             window), pay (a minimum), distance (a maximum km), load (a maximum kg). Each states how many rows it
+  //             hides alone; one Clear resets them. The place filter (a tap on the map) narrows the base they act on
+  //             and stays exact: the contracts involving that place.
+  // THE KEY PARAMETERS, read off a contract (pure)
+  const kmOfC = (M, c) => chainKm(M, chainOf(c));
+  const stopsOf = c => Math.max(1, chainOf(c).slice(1).filter(p => !p.over).length);
+  // the heaviest leg's load: { kg, pax, all: kg + pax x PAX_KG }
+  function loadOf(c) {
+    let o = { kg: 0, pax: 0, all: 0 };
+    for (const u of subsAll(c)) {
+      const L = u.load || {}, kg = +L.kg || 0, pax = +L.pax || 0, all = kg + pax * PAX_KG;
+      if (all > o.all || (all === o.all && pax > o.pax)) o = { kg, pax, all };
+    }
+    return o;
   }
+  // the strips it lands at / leaves from: all on land, all water, or both
+  function surfOf(M, c) {
+    const E = endsOf(M, c), wet = E.filter(id => M.aeros[id].surface.cls === 'water').length;
+    return !wet ? 'land' : wet === E.length ? 'water' : 'both';
+  }
+  // the window: NIGHT-OPS' (75_ careerNightLine's `night`), else the record's `when` (after dusk / before dawn); else day
+  const winOf = c => c.night ? (c.night.night ? 'night' : 'day') : subsAll(c).some(u => u.when && (u.when.after === 'dusk' || u.when.before === 'dawn')) ? 'night' : 'day';
+  const kmWord = k => (k < 10 ? k.toFixed(1).replace(/\.0$/, '') : fmt(k)) + ' km';
+  const loadWord = L => !L.all ? 'no load' : [L.kg ? fmt(L.kg) + ' kg' : '', L.pax ? L.pax + (L.pax === 1 ? ' passenger' : ' passengers') : ''].filter(Boolean).join(' + ');
+
+  const GROUPS = [['type', 'Type'], ['prov', 'Contractor']];
+  // [id, the control's word, the direction (-1: high first), the order's words]
+  const SORTS = [['pay', 'Pay', -1, 'pay, high first'], ['km', 'Distance', 1, 'distance, short first'], ['stops', 'Stops', 1, 'stops, fewest first'], ['load', 'Load', -1, 'load, heaviest first']];
+  const SORT_KEY = { pay: (M, c) => [payOf(M, c).total], km: (M, c) => [kmOfC(M, c)], stops: (M, c) => [stopsOf(c)], load: (M, c) => { const L = loadOf(c); return [L.all, L.pax]; } };
+  const SURFS = [['any', 'Any'], ['land', 'Land'], ['water', 'Water'], ['both', 'Both']], STOPS = [['any', 'Any'], ['1', '1'], ['2+', '2 or more']], WINS = [['any', 'Any'], ['day', 'Day'], ['night', 'Night']];
+  const FLT0 = () => ({ type: [], prov: [], fits: false, surf: 'any', stops: 'any', win: 'any', payMin: null, kmMax: null, kgMax: null });
+  const numOf = v => (v === null || v === undefined || v === '' || !isFinite(+v) || +v < 0) ? null : +v;
+  function fltOf(st) {
+    const F = Object.assign(FLT0(), (st && st.flt) || {});
+    F.type = (F.type || []).filter(t => TYPE_COLOUR[t]); F.prov = (F.prov || []).slice(); F.fits = !!F.fits;
+    if (!SURFS.some(s => s[0] === F.surf)) F.surf = 'any'; if (!STOPS.some(s => s[0] === F.stops)) F.stops = 'any'; if (!WINS.some(s => s[0] === F.win)) F.win = 'any';
+    for (const k of ['payMin', 'kmMax', 'kgMax']) F[k] = numOf(F[k]);
+    return F;
+  }
+  // the filters: [id, its words, is it set, the test (true: the row passes)]
+  const FILTERS = [
+    ['type', 'Type', F => F.type.length > 0, (M, c, F) => F.type.includes(typeOf(c))],
+    ['prov', 'Contractor', F => F.prov.length > 0, (M, c, F) => F.prov.includes(c.provider)],
+    ['fits', 'Fits my fleet', F => F.fits, (M, c) => markOf(M, c).mark === '✓'],
+    ['surf', 'Surface', F => F.surf !== 'any', (M, c, F) => surfOf(M, c) === F.surf],
+    ['stops', 'Stops', F => F.stops !== 'any', (M, c, F) => F.stops === '1' ? stopsOf(c) === 1 : stopsOf(c) >= 2],
+    ['win', 'Window', F => F.win !== 'any', (M, c, F) => winOf(c) === F.win],
+    ['payMin', 'Pay at least', F => F.payMin != null, (M, c, F) => payOf(M, c).total >= F.payMin],
+    ['kmMax', 'Distance at most', F => F.kmMax != null, (M, c, F) => kmOfC(M, c) <= F.kmMax],
+    ['kgMax', 'Load at most', F => F.kgMax != null, (M, c, F) => loadOf(c).all <= F.kgMax],
+  ];
+  const groupOf = st => (st && GROUPS.some(g => g[0] === st.group)) ? st.group : 'type';
+  const sortOf = st => (st && SORTS.some(s => s[0] === st.sort)) ? st.sort : 'pay';
+  // the sections a grouping has, in their stable order: [{ key, label, colour, has(c) }]
+  function sectionsOf(M, by) {
+    if (by === 'prov') return M.providers.map(p => ({ key: 'p:' + p.id, label: p.name, colour: null, has: c => c.provider === p.id }));
+    return TYPES.map(t => ({ key: 't:' + t[0], label: t[1], colour: t[2], has: c => typeOf(c) === t[0] }));
+  }
+  // THE VIEW: st { group, sort, flt, at } -> { groups: [{ key, label, colour, rows, total, hidden }], rows (in the list's
+  // order), base (the contracts the place filter leaves), shown, hidden: { filter id: rows it hides alone }, hiddenAll,
+  // active (filters set), pinned (the tracked id when a filter would hide it), by, sort, order }
+  function contractView(M, st) {
+    st = st || {};
+    const F = fltOf(st), by = groupOf(st), so = sortOf(st), S = SORTS.find(s => s[0] === so), tr = M.career.tracked;
+    const base = M.contracts.filter(c => !st.at || involves(M, c, st.at));
+    const on = FILTERS.filter(f => f[2](F)), pass = c => on.every(f => f[3](M, c, F));
+    const hidden = {}; for (const f of FILTERS) hidden[f[0]] = f[2](F) ? base.filter(c => c.id !== tr && !f[3](M, c, F)).length : 0;
+    const kept = base.filter(c => c.id === tr || pass(c));
+    const trC = kept.find(c => c.id === tr), pinned = trC && !pass(trC) ? tr : null;
+    const key = {}; for (const c of kept) key[c.id] = SORT_KEY[so](M, c);
+    const cmp = (a, b) => {
+      if (a.id === tr || b.id === tr) return a.id === tr ? -1 : 1;
+      const A = key[a.id], B = key[b.id];
+      for (let i = 0; i < A.length; i++) if (A[i] !== B[i]) return (A[i] - B[i]) * S[2];
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    };
+    const groups = [];
+    for (const s of sectionsOf(M, by)) {
+      const total = base.filter(s.has).length; if (!total) continue;
+      const rows = kept.filter(s.has).sort(cmp);
+      groups.push({ key: s.key, label: s.label, colour: s.colour, rows, total, hidden: total - rows.length });
+    }
+    return { groups, rows: groups.reduce((a, g) => a.concat(g.rows), []), base: base.length, shown: kept.length, hidden, hiddenAll: base.length - kept.length,
+             active: on.length, pinned, by, sort: so, order: S[3] };
+  }
+  // the list's rows, in its order (every section's, folded or not)
+  const rowsOf = (M, st) => contractView(M, st).rows;
   const placeName = (M, pid) => ((M.places.find(p => p.id === pid) || {}).name) || pid || '';
   // (G2665 NIGHT-OPS) THE JOB LINE'S TIME OF DAY: the window ("after dusk · opens 22:29", "arrive 00:00-01:00"), and at
   // night each runway lit or unlit and the moon at the window's hour ("full moon, up" / "half moon, down" / "no moon") -
@@ -240,25 +342,70 @@
       '<span class="mmRw">' + esc(routeWord(M, c)) + '</span>' + nightHTML(c) + (K.mark === '✗' ? '<span class="mmWhy">' + esc(K.why) + '</span>' : '') + '</p>' +
       '<button type="button" class="mmTrack' + (tr ? ' on' : '') + '" data-act="track" data-id="' + esc(c.id) + '" aria-pressed="' + tr + '">' + (tr ? 'Tracking ★' : 'Track') + '</button></div>';
   }
-  function contractsListHTML(M, st) {
-    const rows = rowsOf(M, st);
-    if (!rows.length) return '<p class="mmEmpty">' + (st.at ? 'No contract involves ' + esc(placeName(M, st.at)) + ' yet.' : M.contracts.length ? 'No contract from this customer yet.' : 'No work on offer yet.') + '</p>';
-    return rows.map(c => {
-      const ty = typeOf(c), K = markOf(M, c), on = st.open === c.id, tr = M.career.tracked === c.id;
-      return '<div class="mmItem' + (on ? ' open' : '') + (tr ? ' trk' : '') + '" data-id="' + esc(c.id) + '">' +
-        '<button type="button" class="mmRow" data-act="row" data-id="' + esc(c.id) + '" aria-expanded="' + on + '">' +
-          '<i class="mmDot" style="background:' + TYPE_COLOUR[ty] + '" aria-label="' + esc(TYPES.find(t => t[0] === ty)[1]) + '"></i>' +
-          '<span class="mmT">' + esc(c.title) + (tr ? ' <em>★</em>' : '') + '</span><span class="mmPay">' + fmt(payOf(M, c).total) + '</span>' +
-          '<span class="mmMark ' + (K.mark === '✓' ? 'ok' : K.mark === '✗' ? 'no' : '') + '" aria-label="' + (K.mark === '✓' ? 'nothing rules your fleet out' : K.mark === '✗' ? 'a hard no-no for your fleet' : '') + '">' + K.mark + '</span>' +
-        '</button>' + (on ? paraHTML(M, c) : '') + '</div>';
-    }).join('');
+  // the order's own number under the title when the list is not ordered by pay (the pay is the row's number already)
+  const keyWord = (M, c, so) => so === 'km' ? kmWord(kmOfC(M, c)) : so === 'stops' ? (stopsOf(c) === 1 ? '1 stop' : stopsOf(c) + ' stops') : so === 'load' ? loadWord(loadOf(c)) : '';
+  function rowHTML(M, st, c, V) {
+    const ty = typeOf(c), K = markOf(M, c), on = st.open === c.id, tr = M.career.tracked === c.id, acc = !tr && M.career.accepted.includes(c.id);
+    const tags = [winOf(c) === 'night' ? '<small class="mmTag night">night</small>' : '', acc ? '<small class="mmTag">accepted</small>' : '',
+                  V.pinned === c.id ? '<small class="mmTag pin">outside the filters</small>' : ''].join('');
+    const kw = keyWord(M, c, V.sort);
+    return '<div class="mmItem' + (on ? ' open' : '') + (tr ? ' trk' : '') + '" data-id="' + esc(c.id) + '">' +
+      '<button type="button" class="mmRow" data-act="row" data-id="' + esc(c.id) + '" aria-expanded="' + on + '">' +
+        '<i class="mmDot" style="background:' + TYPE_COLOUR[ty] + '" aria-label="' + esc(TYPES.find(t => t[0] === ty)[1]) + '"></i>' +
+        '<span class="mmT">' + esc(c.title) + (tr ? ' <em>★</em>' : '') + (kw || tags ? '<span class="mmSub">' + (kw ? '<small class="mmKey">' + esc(kw) + '</small>' : '') + tags + '</span>' : '') + '</span>' +
+        '<span class="mmPay">' + fmt(payOf(M, c).total) + '</span>' +
+        '<span class="mmMark ' + (K.mark === '✓' ? 'ok' : K.mark === '✗' ? 'no' : '') + '" aria-label="' + (K.mark === '✓' ? 'nothing rules your fleet out' : K.mark === '✗' ? 'a hard no-no for your fleet' : '') + '">' + K.mark + '</span>' +
+      '</button>' + (on ? paraHTML(M, c) : '') + '</div>';
   }
-  // the head: the switch (G2440), then for the contracts the types' legend and the customer filter; the place filter's row
+  const hidWord = n => n ? '<small class="mmHid">' + n + ' hidden</small>' : '';
+  // a section's header: the type's dot or the contractor's name, the count, what the filters hide in it; a tap folds it
+  function sectionHTML(M, st, g, V) {
+    const fold = !!(st.fold && st.fold[g.key]);
+    return '<section class="mmGs" data-g="' + esc(g.key) + '"><button type="button" class="mmGrp" data-act="fold" data-g="' + esc(g.key) + '" aria-expanded="' + !fold + '">' +
+      (g.colour ? '<i class="mmDot" style="background:' + g.colour + '"></i>' : '') + '<span class="mmGl">' + esc(g.label) + '</span><b class="mmGn">' + g.rows.length + '</b>' + hidWord(g.hidden) +
+      '<span class="mmChev" aria-hidden="true">' + (fold ? '▸' : '▾') + '</span></button>' + (fold ? '' : g.rows.map(c => rowHTML(M, st, c, V)).join('')) + '</section>';
+  }
+  // THE FILTERS (one panel at the head of the list, folded by its button): the chips, the three choices, the three numbers
+  function chipHTML(f, v, on, inner, label) {
+    return '<button type="button" class="mmChip' + (on ? ' on' : '') + '" data-act="fchip" data-f="' + f + '" data-v="' + esc(v) + '" aria-pressed="' + on + '"' + (label ? ' aria-label="' + esc(label) + '"' : '') + '>' + inner + '</button>';
+  }
+  const capHTML = (V, f, word) => '<span class="mmCap">' + esc(word) + hidWord(V.hidden[f]) + '</span>';
+  function filtersHTML(M, st, V) {
+    const F = fltOf(st);
+    const sel = (f, opts) => '<select class="mmFsel mmSel" data-f="' + f + '" aria-label="' + esc(FILTERS.find(x => x[0] === f)[1]) + '">' +
+      opts.map(([v, w]) => '<option value="' + v + '"' + (F[f] === v ? ' selected' : '') + '>' + esc(w) + '</option>').join('') + '</select>';
+    const num = (f, unit) => '<input class="mmFnum mmSel" type="number" inputmode="numeric" min="0" step="' + (f === 'payMin' ? 500 : f === 'kmMax' ? 1 : 10) + '" data-f="' + f + '" value="' + (F[f] != null ? F[f] : '') +
+      '" placeholder="any" aria-label="' + esc(FILTERS.find(x => x[0] === f)[1] + (unit ? ' (' + unit + ')' : '')) + '">';
+    const cell = (f, word, ctl) => '<label class="mmFc">' + capHTML(V, f, word) + ctl + '</label>';
+    return '<div class="mmFlt" role="group" aria-label="filters">' +
+      '<div class="mmFr">' + capHTML(V, 'type', 'Type') + '<div class="mmChips">' + TYPES.map(t => chipHTML('type', t[0], F.type.includes(t[0]), '<i class="mmDot" style="background:' + t[2] + '"></i>' + esc(t[1]))).join('') + '</div></div>' +
+      '<div class="mmFr">' + capHTML(V, 'prov', 'Contractor') + '<div class="mmChips">' + M.providers.map(p => chipHTML('prov', p.id, F.prov.includes(p.id), esc(p.short), p.name)).join('') + '</div></div>' +
+      '<div class="mmFr">' + capHTML(V, 'fits', 'Fits my fleet') + '<div class="mmChips">' + chipHTML('fits', '1', F.fits, '<b class="ok">✓</b> only', 'only the contracts one of your planes can land at') + '</div></div>' +
+      '<div class="mmFg">' + cell('surf', 'Surface', sel('surf', SURFS)) + cell('stops', 'Stops', sel('stops', STOPS)) + cell('win', 'Window', sel('win', WINS)) + '</div>' +
+      '<div class="mmFg">' + cell('payMin', 'Pay ≥', num('payMin')) + cell('kmMax', 'Km ≤', num('kmMax', 'km')) + cell('kgMax', 'Kg ≤', num('kgMax', 'kg')) + '</div></div>';
+  }
+  // the line over the sections: how many, in what order; with filters set, how many they hide and Clear
+  function sumHTML(M, st, V) {
+    return '<div class="mmSum"><span>' + (V.active ? V.shown + ' of ' + V.base + ' · <b>' + V.hiddenAll + ' hidden</b>' : V.base + (V.base === 1 ? ' contract' : ' contracts')) + ' · by ' + esc(V.order) + '</span>' +
+      (V.active ? '<button type="button" class="mmClr" data-act="fclear">Clear</button>' : '') + '</div>';
+  }
+  function contractsListHTML(M, st) {
+    const V = contractView(M, st);
+    const top = (st.fltOpen ? filtersHTML(M, st, V) : '') + (V.base ? sumHTML(M, st, V) : '');
+    if (!V.base) return top + '<p class="mmEmpty">' + (st.at ? 'No contract involves ' + esc(placeName(M, st.at)) + ' yet.' : 'No work on offer yet.') + '</p>';
+    if (!V.rows.length) return top + '<p class="mmEmpty">No contract passes the filters: ' + V.hiddenAll + ' hidden.</p>';
+    return top + V.groups.filter(g => g.rows.length).map(g => sectionHTML(M, st, g, V)).join('');   // a section the filters empty: the summary counts it
+  }
+  // the head: the switch (G2440); for the contracts, the grouping (Type · Contractor), the order and the filters' button
+  // (how many are set); grouped by contractor, the types' legend (by type, the sections are the legend)
   function headHTML(M, st) {
     if (listOf(st) !== 'contracts') return switchHTML(st);
-    return switchHTML(st) + '<div class="mmTypes" aria-label="contract types">' + TYPES.map(t => '<span><i class="mmDot" style="background:' + t[2] + '"></i>' + t[1] + '</span>').join('') + '</div>' +
-      '<label class="mmFilter">Customer <select class="mmCust" aria-label="customer"><option value="all"' + (st.cust === 'all' ? ' selected' : '') + '>All</option>' +
-      M.providers.map(p => '<option value="' + esc(p.id) + '"' + (st.cust === p.id ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') + '</select></label>';
+    const by = groupOf(st), so = sortOf(st), n = FILTERS.filter(f => f[2](fltOf(st))).length;
+    return switchHTML(st) + '<div class="mmOrd">' +
+      '<div class="mmSeg" role="group" aria-label="group by">' + GROUPS.map(([id, w]) => '<button type="button" class="mmSegB' + (by === id ? ' on' : '') + '" data-act="group" data-by="' + id + '" aria-pressed="' + (by === id) + '">' + w + '</button>').join('') + '</div>' +
+      '<select class="mmSort mmSel" aria-label="order by">' + SORTS.map(s => '<option value="' + s[0] + '"' + (so === s[0] ? ' selected' : '') + '>' + s[1] + '</option>').join('') + '</select>' +
+      '<button type="button" class="mmFltB' + (n ? ' set' : '') + '" data-act="flt" aria-expanded="' + !!st.fltOpen + '">Filters' + (n ? ' <b>' + n + '</b>' : '') + '</button></div>' +
+      (by === 'prov' ? '<div class="mmTypes" aria-label="contract types">' + TYPES.map(t => '<span><i class="mmDot" style="background:' + t[2] + '"></i>' + t[1] + '</span>').join('') + '</div>' : '');
   }
   const atHTML = (M, st) => st.at ? '<div class="mmAt"><span>At ' + esc(placeName(M, st.at)) + '</span><button type="button" class="mmAtX" data-act="atx" aria-label="show every place">✕</button></div>' : '';
   function statusHTML(M) {
@@ -507,11 +654,17 @@
     const s = view.s, zr = s / view.fit, mpp = pack.mpp, near = s / mpp;   // screen px per metre
     const X = x => view.tx + ((x - pack.x0) / mpp) * s, Y = z => view.ty + ((z - pack.z0) / mpp) * s;
     const bs = Math.round(clamp(10 + 9 * zr, 16, 34)), hs = Math.round(clamp(6 + 7 * zr, 14, 26));
-    const n = { badges: 0, names: 0, facts: 0, pois: 0, hot: 0, rings: 0, counts: 0, runways: 0, desig: 0, routes: 0, planes: 0, marks: 0, labels: 0, held: 0 };   // marks (G2440), labels / held (G2435)
+    const n = { badges: 0, names: 0, facts: 0, pois: 0, hot: 0, rings: 0, counts: 0, runways: 0, desig: 0, routes: 0, planes: 0, marks: 0, labels: 0, held: 0, dim: 0 };   // marks (G2440), labels / held (G2435), dim (G2710)
     const contractsOn = listOf(st) === 'contracts';   // (G2440) the other lists keep the tracked contract, not an open one
     let html = '', svg = '';
     // the open and the tracked contracts' places -> their type colour (the badge takes a ring)
-    const lit = [contractsOn ? st.open : null, M.career.tracked].filter(Boolean).map(id => M.contracts.find(c => c.id === id)).filter(Boolean);
+    // (G2710 MAP-GROUP) the markers follow the filtered list: an open row the filters hide drops its ring and route; with
+    // a filter set, a place none of the shown contracts involves is dimmed
+    const CV = contractsOn ? contractView(M, st) : null, shown = CV ? new Set(CV.rows.map(c => c.id)) : null;
+    const lit = [contractsOn && shown.has(st.open) ? st.open : null, M.career.tracked].filter(Boolean).map(id => M.contracts.find(c => c.id === id)).filter(Boolean);
+    const live = {};
+    if (CV && CV.active) for (const c of CV.rows) for (const q of chainOf(c)) if (M.placeOf[q.id]) live[M.placeOf[q.id]] = 1;
+    const dimmed = pid => !!(CV && CV.active && !live[pid]);
     const ring = {};
     for (const c of lit) for (const p of chainOf(c)) { const pid = M.placeOf[p.id]; if (pid && !ring[pid]) ring[pid] = TYPE_COLOUR[typeOf(c)]; }
     // 1. the hotspots (from the second zoom step; the zone ring and the count closer in)
@@ -599,13 +752,14 @@
         x += -uy * off * side; y += ux * off * side;
       }
       at[p.id] = [x, y];
-      const col = ring[p.id], on = st.at === p.id;
-      html += '<button type="button" class="mmPl' + (main.surface.cls === 'water' ? ' water' : '') + (on ? ' on' : '') + '" data-place="' + esc(p.id) + '" style="left:' + n1(x) + 'px;top:' + n1(y) + 'px;--bs:' + bs + 'px" aria-label="' + esc(p.name + ', ' + KIND_WORD[p.kind] + ': show its contracts') + '" aria-pressed="' + on + '">' +
+      const col = ring[p.id], on = st.at === p.id, dim = dimmed(p.id) && !on;
+      if (dim) n.dim++;
+      html += '<button type="button" class="mmPl' + (main.surface.cls === 'water' ? ' water' : '') + (on ? ' on' : '') + (dim ? ' dim' : '') + '" data-place="' + esc(p.id) + '" style="left:' + n1(x) + 'px;top:' + n1(y) + 'px;--bs:' + bs + 'px" aria-label="' + esc(p.name + ', ' + KIND_WORD[p.kind] + ': show its contracts') + '" aria-pressed="' + on + '">' +
         '<i' + (col ? ' style="box-shadow:0 0 0 3px ' + col + ',0 0 0 5px #1c1a17,0 1px 4px rgba(0,0,0,.5)"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + ICON[p.kind] + '</svg></i></button>';
       n.badges++;
       if (zr < LOD.names && !col && !on) continue;
       const facts = zr >= LOD.facts ? p.aeros.map(id => { const a = M.aeros[id], d = p.aeros.length > 1 ? designators(a) : null; return (d ? d.join('/') + ' ' : '') + stripWord(a); }).join(' · ') : '';
-      html += '<button type="button" class="mmNm" data-place="' + esc(p.id) + '" style="left:' + n1(x + bs / 2 + 4) + 'px;top:' + n1(y) + 'px" aria-label="' + esc(p.name + ': show its contracts') + '"><span>' + esc(p.name) + (facts ? ' <small>' + esc(facts) + '</small>' : '') + '</span></button>';
+      html += '<button type="button" class="mmNm' + (dim ? ' dim' : '') + '" data-place="' + esc(p.id) + '" style="left:' + n1(x + bs / 2 + 4) + 'px;top:' + n1(y) + 'px" aria-label="' + esc(p.name + ': show its contracts') + '"><span>' + esc(p.name) + (facts ? ' <small>' + esc(facts) + '</small>' : '') + '</span></button>';
       n.names++; if (facts) n.facts++;
     }
     // 6. your planes, where they stand (the contracts list); the other lists draw their own markers instead (7.)
@@ -738,11 +892,128 @@
     return { svg, n };
   }
 
+  // ---- THE PAINTING'S EDGE (G2730-G2734, MAP-EDGE; the user, 12 Oct: "the borders of the map not being exactly the blue
+  // of the background ... sample the colors at the edge of the map and softly blend them with the background") ----------
+  // The painting's sea is not one blue along its sides, so on a flat background its rectangle showed. ONCE, when the
+  // painting has loaded: a downscaled copy of it, its EDGE sampled as a ring (the outer ~0.3-1.5 %, EDGE.seg segments a
+  // side, each corner the mean of its two sides' end segments), the segments joined linearly along each side; then ONE
+  // small canvas (a texel = EDGE.texel picture px) that the stage carries with the painting (the same transform):
+  //   OUTSIDE the painting: the edge clamped outward (a side's colour runs straight out, a corner's radially), fading
+  //     into the page's background over EDGE.fade of the map's longer side by a smoothstep, a half-level dither through
+  //     the ramp (none at its two ends): at the fade's end and beyond, the page's colour EXACTLY (art.edge) - no second
+  //     seam; past the canvas the page itself, the same colour.
+  //   OVER the painting's outer EDGE.rim: the same edge colours, opaque at the painting's border and transparent EDGE.rim
+  //     in (a smoothstep), so the painting's own last waves dissolve into the band instead of meeting it at a line;
+  //     inside that, nothing (the painting untouched).
+  // The colours carry the painting's look (EDGE.look: the img's CSS filter, saturate then contrast in sRGB as the
+  // filter functions are, so both sides of the border are the same colour on screen). Pure: edgeRing, edgeBake.
+  const EDGE = { seg: 48, band: [0.003, 0.015], fade: 0.14, rim: 0.015, texel: 8, look: { sat: 1.08, con: 1.02 } };
+  const ART_FILTER = 'saturate(' + EDGE.look.sat + ') contrast(' + EDGE.look.con + ')';
+  const hexRGB = h => { const m = /^#?([0-9a-f]{6})$/i.exec(String(h || '').trim()); const v = m ? parseInt(m[1], 16) : 0x9db6c2; return [v >> 16 & 255, v >> 8 & 255, v & 255]; };
+  // the img's filter on one colour (the CSS filter functions' matrices, each clamped)
+  function lookOf(c, L) {
+    const s = L.sat, k = L.con, cl = v => clamp(v, 0, 255), [r, g, b] = c;
+    const sr = cl((0.213 + 0.787 * s) * r + (0.715 - 0.715 * s) * g + (0.072 - 0.072 * s) * b),
+          sg = cl((0.213 - 0.213 * s) * r + (0.715 + 0.285 * s) * g + (0.072 - 0.072 * s) * b),
+          sb = cl((0.213 - 0.213 * s) * r + (0.715 - 0.715 * s) * g + (0.072 + 0.928 * s) * b);
+    return [sr, sg, sb].map(v => cl((v - 127.5) * k + 127.5));
+  }
+  // the ring: { top, bottom (left to right), left, right (top to bottom) } - EDGE.seg mean colours a side, the look applied
+  function edgeRing(img, o) {
+    o = Object.assign({}, EDGE, o || {});
+    const { data, width: W0, height: H0 } = img, N = o.seg, L = Math.max(W0, H0);
+    const d0 = Math.floor(o.band[0] * L), d1 = Math.max(d0 + 1, Math.round(o.band[1] * L));
+    const mean = (x0, x1, y0, y1) => { const s = [0, 0, 0]; let n = 0; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = (y * W0 + x) * 4; s[0] += data[i]; s[1] += data[i + 1]; s[2] += data[i + 2]; n++; } return lookOf(s.map(v => v / Math.max(1, n)), o.look); };
+    const cut = (len, k) => [Math.floor(k * len / N), Math.max(Math.floor(k * len / N) + 1, Math.floor((k + 1) * len / N))];
+    const R = { top: [], bottom: [], left: [], right: [] };
+    for (let k = 0; k < N; k++) {
+      const [a, b] = cut(W0, k), [c, e] = cut(H0, k);
+      R.top.push(mean(a, b, d0, d1)); R.bottom.push(mean(a, b, H0 - d1, H0 - d0));
+      R.left.push(mean(d0, d1, c, e)); R.right.push(mean(W0 - d1, W0 - d0, c, e));
+    }
+    return R;
+  }
+  // the canvas: w x h the painting (its px), page the background's colour; returns the texels (RGBA) and where they sit
+  // (the canvas spans -m .. w + m, -m .. h + m in the painting's px)
+  function edgeBake(R, w, h, page, o) {
+    o = Object.assign({}, EDGE, o || {});
+    const N = o.seg, F = o.fade * Math.max(w, h), RIM = o.rim * Math.max(w, h), m = F + 2 * o.texel;
+    const cw = Math.round((w + 2 * m) / o.texel), ch = Math.round((h + 2 * m) / o.texel), sx = (w + 2 * m) / cw, sy = (h + 2 * m) / ch;
+    const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+    const ss = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+    // each corner the mean of its two sides' end segments; a side's colour at u: through its ends' corners and the
+    // segments' centres, linear between
+    const tl = mix(R.top[0], R.left[0], 0.5), tr = mix(R.top[N - 1], R.right[0], 0.5), bl = mix(R.bottom[0], R.left[N - 1], 0.5), br = mix(R.bottom[N - 1], R.right[N - 1], 0.5);
+    const side = (S, c0, c1, len) => u => {
+      const f = u / len * N - 0.5;
+      if (f <= 0) return mix(c0, S[0], clamp((f + 0.5) * 2, 0, 1));
+      if (f >= N - 1) return mix(S[N - 1], c1, clamp((f - (N - 1)) * 2, 0, 1));
+      const k = Math.floor(f); return mix(S[k], S[k + 1], f - k);
+    };
+    const B = { top: side(R.top, tl, tr, w), bottom: side(R.bottom, bl, br, w), left: side(R.left, tl, bl, h), right: side(R.right, tr, br, h) };
+    // the four sides' colours per texel column / row (a texel outside the span clamps to the corner's)
+    const X = new Float64Array(cw), Y = new Float64Array(ch), tab = (n, f, pos) => { const T = new Float64Array(n * 3); for (let i = 0; i < n; i++) T.set(f(pos[i]), i * 3); return T; };
+    for (let i = 0; i < cw; i++) X[i] = (i + 0.5) * sx - m;
+    for (let j = 0; j < ch; j++) Y[j] = (j + 0.5) * sy - m;
+    const cx = X.map(x => clamp(x, 0, w)), cy = Y.map(y => clamp(y, 0, h));
+    const T = { top: tab(cw, B.top, cx), bottom: tab(cw, B.bottom, cx), left: tab(ch, B.left, cy), right: tab(ch, B.right, cy) };
+    const data = new Uint8ClampedArray(cw * ch * 4);
+    let seed = 0x2730;
+    const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296 - 0.5; };
+    // the painting's inside past the rim stays clear: its rows jump from the left rim to the right one
+    let iLo = 0, iHi = cw - 1;
+    while (iLo < cw && X[iLo] < RIM) iLo++;
+    while (iHi >= 0 && X[iHi] > w - RIM) iHi--;
+    for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) {
+      if (i === iLo && iHi >= iLo && Y[j] >= RIM && Y[j] <= h - RIM) i = iHi + 1;
+      const x = X[i], y = Y[j], p = (j * cw + i) * 4;
+      if (x < 0 || x > w || y < 0 || y > h) {
+        // OUTSIDE: the nearest point of the painting's border, its colour, faded by the distance
+        const ex = x - cx[i], ey = y - cy[j], t = ss(Math.sqrt(ex * ex + ey * ey) / F);
+        data[p + 3] = 255;
+        if (t >= 1) { data[p] = page[0]; data[p + 1] = page[1]; data[p + 2] = page[2]; continue; }
+        const S = y < 0 ? T.top : y > h ? T.bottom : x < 0 ? T.left : T.right, k = (y < 0 || y > h ? i : j) * 3, dz = 4 * t * (1 - t);
+        data[p] = S[k] + (page[0] - S[k]) * t + rnd() * dz;
+        data[p + 1] = S[k + 1] + (page[1] - S[k + 1]) * t + rnd() * dz;
+        data[p + 2] = S[k + 2] + (page[2] - S[k + 2]) * t + rnd() * dz;
+        continue;
+      }
+      // OVER THE RIM: the sides within EDGE.rim weighted by their nearness, opaque at the border, clear EDGE.rim in
+      const dmin = Math.min(y, h - y, x, w - x);
+      if (dmin >= RIM) continue;
+      const qT = y < RIM ? (1 - y / RIM) ** 2 : 0, qB = h - y < RIM ? (1 - (h - y) / RIM) ** 2 : 0, qL = x < RIM ? (1 - x / RIM) ** 2 : 0, qR = w - x < RIM ? (1 - (w - x) / RIM) ** 2 : 0;
+      const sw = qT + qB + qL + qR, a3 = i * 3, b3 = j * 3;
+      for (let c = 0; c < 3; c++) data[p + c] = (T.top[a3 + c] * qT + T.bottom[a3 + c] * qB + T.left[b3 + c] * qL + T.right[b3 + c] * qR) / sw;
+      data[p + 3] = 255 * (1 - ss(dmin / RIM));
+    }
+    return { cw, ch, m, F, RIM, data, page: page.slice() };
+  }
+
+  // THE BAKE OFF THE MAIN THREAD: a worker built from these same functions (their own source, one file): it fetches the
+  // painting (the cache the img just filled), decodes and downscales it (an ImageBitmap), reads the copy (an
+  // OffscreenCanvas), rings and bakes, puts the texels on a canvas of its own and hands that picture back (an
+  // ImageBitmap, transferred): the page only shows it (a bitmaprenderer: no raster work on the main thread)
+  const edgeWorkerSrc = () => '"use strict";\nconst EDGE = ' + JSON.stringify(EDGE) + ';\nconst clamp = ' + clamp + ';\n' + lookOf + '\n' + edgeRing + '\n' + edgeBake + '\n' +
+    'onmessage = async e => {\n  const { url, sw, sh, w, h, page } = e.data;\n  try {\n' +
+    '    const t0 = performance.now(), b = await (await fetch(url)).blob();\n' +
+    '    const bm = await createImageBitmap(b, { resizeWidth: sw, resizeHeight: sh, resizeQuality: "high" });\n' +
+    '    const c = new OffscreenCanvas(sw, sh), g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(bm, 0, 0); bm.close();\n' +
+    '    const E = edgeBake(edgeRing(g.getImageData(0, 0, sw, sh)), w, h, page);\n' +
+    '    const o = new OffscreenCanvas(E.cw, E.ch); o.getContext("2d", { willReadFrequently: true }).putImageData(new ImageData(E.data, E.cw, E.ch), 0, 0);\n' +
+    '    const bmp = o.transferToImageBitmap(); delete E.data;\n' +
+    '    postMessage({ E, bmp, ms: performance.now() - t0 }, [bmp]);\n' +
+    '  } catch (err) { postMessage({ err: String((err && err.message) || err) }); }\n};\n';
+
   const CORE = { TYPES, LOD, infraOf, mapAdapt, whereOf, placesOf, designators, stripWord, typeOf, payOf, chainOf, routeWord, involves, allows, fleetGears, markOf,
                  rowsOf, listHTML, paraHTML, headHTML, atHTML, statusHTML, act, overlayOf, subsNow, subsAll, ZOOM_MAX, ZOOM_ABS,
                  // G2440 (MAP-MERGE): the switch and the other three lists; G2280 (PROCURE) and G2290 (PILOTS)'s pure exports kept
                  LISTS, PAX_KG, listOf, switchHTML, contractsListHTML, listCount, listMarkers, factsWord, whereWord, fleetListHTML, fleetParaHTML,
-                 marketAdapt, marketListHTML, modelCardHTML, usedCardHTML, marketMarkers, certRows, pilotsListHTML, pilotCardHTML };
+                 marketAdapt, marketListHTML, modelCardHTML, usedCardHTML, marketMarkers, certRows, pilotsListHTML, pilotCardHTML,
+                 // G2710 (MAP-GROUP): the grouping, the order, the filters - the view the list renders
+                 GROUPS, SORTS, FILTERS, SURFS, STOPS, WINS, FLT0, fltOf, groupOf, sortOf, sectionsOf, contractView, endsOf, kmOfC, stopsOf, loadOf, surfOf, winOf,
+                 filtersHTML, sectionHTML, sumHTML, rowHTML,
+                 // G2730 (MAP-EDGE): the painting's edge, sampled and extended into the page's colour
+                 EDGE, ART_FILTER, hexRGB, lookOf, edgeRing, edgeBake, edgeWorkerSrc };
   if (typeof module !== 'undefined' && module.exports) module.exports = CORE;
   if (!W || !W.document) return;
 
@@ -782,7 +1053,6 @@
 #mapScreen .mmTypes{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px;color:var(--ed-dim)}
 #mapScreen .mmTypes span{display:inline-flex;align-items:center;gap:6px}
 #mapScreen .mmFilter{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ed-dim)}
-#mapScreen .mmCust{flex:1;max-width:240px;font:400 13px/1.2 'IBM Plex Sans';text-transform:none;letter-spacing:normal;color:var(--ed-ink);background:var(--ed-btn-bg);border:1px solid var(--ed-btn-bd);border-radius:7px;padding:0 10px;min-height:48px;color-scheme:dark}
 #mapScreen select option{background:var(--ed-panel);color:var(--ed-ink)}
 #mapScreen .mmDot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
 #mapScreen .mmAt{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 8px 0 16px;background:var(--ed-acc-soft);border-bottom:1px solid var(--ed-hair);font-size:13px}
@@ -807,7 +1077,8 @@
 #mapScreen .mmMap.drag{cursor:grabbing}
 #mapScreen .mmMap img,#mapScreen .mmMap svg{-webkit-user-drag:none;user-select:none}
 #mapScreen .mmStage{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
-#mapScreen .mmStage img{display:block;pointer-events:none;filter:saturate(1.08) contrast(1.02)}
+#mapScreen .mmStage img{display:block;pointer-events:none;filter:${ART_FILTER}}
+#mapScreen .mmStage .mmEdge{position:absolute;display:none;pointer-events:none}
 #mapScreen .mmOv{position:absolute;inset:0;pointer-events:none}
 #mapScreen .mmOv>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 #mapScreen .mmRwy{pointer-events:auto;cursor:pointer}
@@ -867,6 +1138,41 @@
 #mapScreen .mmLm i{width:var(--ms,26px);height:var(--ms,26px);border-radius:50%;display:grid;place-items:center;font-weight:600;line-height:1;font-size:calc(var(--ms,26px) * .46);color:var(--ed-acc-ink);border:1.5px solid var(--ed-acc-ink);box-shadow:0 1px 3px rgba(0,0,0,.45)}
 #mapScreen .mmLm.used i{border-radius:6px}
 #mapScreen .mmLm.on i{box-shadow:0 0 0 3px var(--ed-acc),0 0 0 4.5px var(--ed-acc-ink),0 1px 3px rgba(0,0,0,.45)}
+/* THE LIST GROUPED, ORDERED, FILTERED (G2710 MAP-GROUP): the grouping a segmented control (the switch's), the order the
+   rows' select, the filters' button a .verb; the sections' headers the drawing board's section rule at 48 px; the chips
+   the garage's toggles (the accent when on); the filters' selects and numbers the rows' select */
+#mapScreen .mmOrd{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;align-items:center}
+#mapScreen .mmSeg{display:grid;grid-template-columns:auto auto;gap:2px;padding:2px;border-radius:7px;background:var(--ed-track)}
+#mapScreen .mmSegB{min-height:48px;padding:0 10px;text-align:center;font:600 11px/1 'IBM Plex Sans';letter-spacing:.06em;text-transform:uppercase;color:var(--ed-faint);border-radius:5px}
+#mapScreen .mmSegB.on{background:var(--ed-acc);color:var(--ed-acc-ink)}
+#mapScreen .mmSel{width:100%;min-width:0;font:400 13px/1.2 'IBM Plex Sans';text-transform:none;letter-spacing:normal;color:var(--ed-ink);background:var(--ed-btn-bg);border:1px solid var(--ed-btn-bd);border-radius:7px;padding:0 8px;min-height:48px;color-scheme:dark}
+#mapScreen .mmFltB{min-height:48px;padding:0 12px;text-align:center;font:600 11px/1 'IBM Plex Sans';letter-spacing:.06em;text-transform:uppercase;color:var(--ed-ink);background:var(--ed-btn-bg);border:1px solid var(--ed-btn-bd);border-radius:7px;white-space:nowrap}
+#mapScreen .mmFltB b{display:inline-block;min-width:18px;margin-left:4px;padding:2px 5px;border-radius:9px;background:var(--ed-acc);color:var(--ed-acc-ink);font-weight:600}
+#mapScreen .mmFltB[aria-expanded="true"]{border-color:var(--ed-acc)}
+#mapScreen .mmFlt{display:grid;gap:10px;padding:12px 16px 14px;border-bottom:1px solid var(--ed-hair);background:var(--ed-board)}
+#mapScreen .mmFr{display:grid;gap:4px}
+#mapScreen .mmCap{display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline;font:600 10.5px/1.2 'IBM Plex Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--ed-faint)}
+#mapScreen .mmHid{white-space:nowrap;font:500 11.5px/1.2 'IBM Plex Sans';letter-spacing:normal;text-transform:none;color:var(--ed-warn)}
+#mapScreen .mmChips{display:flex;flex-wrap:wrap;gap:6px}
+#mapScreen .mmChip{display:inline-flex;align-items:center;gap:6px;min-height:48px;padding:0 11px;font:500 12.5px/1 'IBM Plex Sans';color:var(--ed-dim);background:var(--ed-btn-bg);border:1px solid var(--ed-btn-bd);border-radius:7px}
+#mapScreen .mmChip.on{color:var(--ed-ink);background:var(--ed-acc-soft);border-color:var(--ed-acc)}
+#mapScreen .mmChip .ok{font-weight:600}
+#mapScreen .mmFg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#mapScreen .mmFc{display:grid;gap:4px;min-width:0}
+#mapScreen .mmSum{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;padding:4px 8px 4px 16px;font-size:12px;color:var(--ed-dim);border-bottom:1px solid var(--ed-hair)}
+#mapScreen .mmSum b{font-weight:500;color:var(--ed-warn)}
+#mapScreen .mmClr{min-height:48px;padding:0 14px;text-align:center;font:600 11px/1 'IBM Plex Sans';letter-spacing:.08em;text-transform:uppercase;color:var(--ed-ink);background:var(--ed-btn-bg);border:1px solid var(--ed-btn-bd);border-radius:7px}
+#mapScreen .mmGrp{width:100%;display:flex;align-items:center;gap:8px;min-height:48px;padding:12px 16px 6px;border-bottom:1px solid var(--ed-hair);font:600 10.5px/1 'IBM Plex Sans';letter-spacing:.16em;text-transform:uppercase;color:var(--ed-faint)}
+#mapScreen .mmGl{color:var(--ed-dim)}
+#mapScreen .mmGn{font-weight:600;letter-spacing:normal;color:var(--ed-ink)}
+#mapScreen .mmChev{margin-left:auto;font-size:12px;letter-spacing:normal}
+#mapScreen .mmSub{display:flex;flex-wrap:wrap;gap:2px 8px;margin-top:2px}
+#mapScreen .mmKey{font:400 12px/1.3 'IBM Plex Sans';color:var(--ed-dim)}
+#mapScreen .mmTag{font:500 10.5px/1.3 'IBM Plex Sans';letter-spacing:.06em;text-transform:uppercase;color:var(--ed-faint)}
+#mapScreen .mmTag.night{color:var(--ed-acc)}
+#mapScreen .mmTag.pin{color:var(--ed-warn)}
+#mapScreen .mmPl.dim i{opacity:.38;box-shadow:none}
+#mapScreen .mmNm.dim span{opacity:.5}
 /* THE PHONE (GQ19): the map full, the list a bottom sheet over it; the map and the sheet never share a gesture (R20) */
 #mapScreen.mmPhone{display:block}
 #mapScreen.mmPhone .mmMap{position:absolute;inset:0}
@@ -883,10 +1189,19 @@
 #mapScreen.mmPhone .mmTitle{position:fixed;top:8px;right:8px;z-index:4}
 #mapScreen.mmPhone .mmTitle h1{display:none}
 #mapScreen.mmPhone .mmClose{background:var(--ed-plate);border-color:var(--ed-border)}
-#mapScreen.mmPhone .mmCust{max-width:none}
 `;
 
   let root = null, M = null, pack = null, st = null, $ = {}, infKey = '';
+  // (G2710 MAP-GROUP) REMEMBERED PER VIEWER: the grouping, the order, the folded sections, the filters' panel open - this
+  // browser's own convenience (never the filters themselves: a new visit shows every contract)
+  const PREF = 'flydiy.map.group.v1';
+  function prefLoad() {
+    let o = null; try { o = JSON.parse(W.localStorage.getItem(PREF) || 'null'); } catch (e) { o = null; }
+    if (!o || typeof o !== 'object') return {};
+    const fold = {}; if (o.fold && typeof o.fold === 'object') for (const k of Object.keys(o.fold)) if (o.fold[k] === true) fold[k] = true;
+    return { group: groupOf(o), sort: sortOf(o), fold, fltOpen: o.fltOpen === true };
+  }
+  const prefSave = () => { try { W.localStorage.setItem(PREF, JSON.stringify({ group: st.group, sort: st.sort, fold: st.fold, fltOpen: !!st.fltOpen })); } catch (e) { /* storage off: this visit only */ } };
   const V = { s: 1, tx: 0, ty: 0, fit: 1 };
   // G2280 (PROCURE): the core's procurement functions are the page's globals (the core bundle); the page's doors to
   // the player's document and the slots are window.FLYDIY_PROCURE (app.js, only under ?map=1 / ?career=1)
@@ -914,7 +1229,7 @@
       '<aside class="mmSide" aria-label="contracts"><button type="button" class="mmHandle" data-act="sheet" aria-label="the list: open or fold"><i></i><span></span></button>' +
         '<div class="mmHead"><div class="mmTitle"><h1>Contracts</h1><button type="button" class="mmClose" data-act="close" aria-label="close the map">✕</button></div><div class="mmHeadIn"></div></div>' +
         '<div class="mmAtHost"></div><div class="mmList"></div></aside>' +
-      '<main class="mmMap" aria-label="the island map: drag to pan, wheel or pinch to zoom"><div class="mmStage"><img alt="the island" draggable="false"></div>' +
+      '<main class="mmMap" aria-label="the island map: drag to pan, wheel or pinch to zoom"><div class="mmStage"><img alt="the island" draggable="false"><canvas class="mmEdge" aria-hidden="true"></canvas></div>' +
         '<svg class="mmInfra" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g></g></svg>' +
         '<div class="mmOv"><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="false"></svg><div class="mmOvH"></div></div>' +
         '<svg class="mmRose" viewBox="-32 -32 64 64" aria-hidden="true"><circle class="rk" r="27" stroke-width="1"/><circle class="rk" r="22" stroke-width=".6"/>' +
@@ -929,8 +1244,15 @@
       $[k] = root.querySelector('.' + k);
     $.mmH1 = root.querySelector('.mmTitle h1');
     $.img = root.querySelector('.mmStage img'); $.svg = root.querySelector('.mmOv svg'); $.inf = root.querySelector('.mmInfra g');   // G2435
+    $.edge = root.querySelector('.mmStage .mmEdge');   // G2730 (MAP-EDGE): the painting's edge, baked once
     root.addEventListener('click', onClick);
-    root.addEventListener('change', e => { if (e.target && e.target.classList.contains('mmCust')) { st.cust = e.target.value; renderList(); } });
+    // (G2710 MAP-GROUP) the order (the head's select); a filter's choice or number (the panel's) - read on change
+    root.addEventListener('change', e => {
+      const t = e.target; if (!t || !t.classList) return;
+      if (t.classList.contains('mmSort')) { st.sort = t.value; prefSave(); return render(); }
+      if (t.classList.contains('mmFsel')) { st.flt = Object.assign(fltOf(st), { [t.dataset.f]: t.value }); return render(); }
+      if (t.classList.contains('mmFnum')) { st.flt = Object.assign(fltOf(st), { [t.dataset.f]: numOf(t.value) }); return render(); }
+    });
     root.addEventListener('change', e => {   // G2280 (PROCURE): the gear chosen for a maker's model (its one option here)
       const t = e.target; if (!t || !t.classList.contains('mmOptSel')) return;
       const [id, row] = t.dataset.opt.split(':'); st.mopts = st.mopts || {}; st.mopts[id] = Object.assign({}, st.mopts[id] || {}, { [row]: t.value }); renderList();
@@ -1084,6 +1406,12 @@
     if (a === 'atx') { st.at = null; return renderList(); }
     if (a === 'row') { st.open = st.open === t.dataset.id ? null : t.dataset.id; return renderList(); }   // NO AUTO-ZOOM: the view is untouched
     if (a === 'track') return track(t.dataset.id);
+    // G2710 (MAP-GROUP): the grouping, the filters' panel, a chip, Clear, a section's fold - the list only, never the view
+    if (a === 'group') { st.group = t.dataset.by; prefSave(); return render(); }
+    if (a === 'flt') { st.fltOpen = !st.fltOpen; prefSave(); return render(); }
+    if (a === 'fchip') { const F = fltOf(st), f = t.dataset.f, v = t.dataset.v; if (f === 'fits') F.fits = !F.fits; else F[f] = F[f].includes(v) ? F[f].filter(x => x !== v) : F[f].concat([v]); st.flt = F; return render(); }
+    if (a === 'fclear') { st.flt = FLT0(); return render(); }
+    if (a === 'fold') { st.fold = Object.assign({}, st.fold); if (st.fold[t.dataset.g]) delete st.fold[t.dataset.g]; else st.fold[t.dataset.g] = true; prefSave(); return renderList(); }
     // G2440: the switch (the place filter carries over), a row of the other lists, a list's marker (filters and opens)
     if (a === 'list') { st.list = t.dataset.list; st.msg = ''; return render(); }
     if (a === 'item') { st.item = st.item === t.dataset.id ? null : t.dataset.id; return renderList(); }   // NO AUTO-ZOOM either
@@ -1102,7 +1430,7 @@
     if (!pack) { console.warn('flyDiy: the map pack is not loaded'); return Promise.resolve(false); }
     if (!root) build();
     if (!root.parentNode) D.body.appendChild(root);
-    st = st || { list: 'contracts', item: null, cust: 'all', at: null, open: null, sheet: 'peek' };
+    st = st || Object.assign({ list: 'contracts', item: null, at: null, open: null, sheet: 'peek', group: 'type', sort: 'pay', flt: FLT0(), fold: {}, fltOpen: false }, prefLoad());
     st.phone = isPhone();
     const art = pack.art || { img: pack.img, edge: '#9db6c2' };
     $.mmMap.style.background = art.edge;
@@ -1114,8 +1442,46 @@
     return src.then(raw => {
       reread(raw, live);   // the contracts (MAP-SIMPLE's adapter) and the market (G2280)
       render(); fit();   // the layout first (the phone's has no columns), then the fit
-      return new Promise(res => { if ($.img.complete && $.img.naturalWidth) res(true); else { $.img.onload = () => res(true); $.img.onerror = () => res(false); } });
+      return new Promise(res => { if ($.img.complete && $.img.naturalWidth) res(true); else { $.img.onload = () => res(true); $.img.onerror = () => res(false); } })
+        .then(ok => { if (ok) edgeOnce(art); return ok; });   // G2730 (MAP-EDGE)
     }, err => { console.warn('flyDiy: the contracts did not load -', err && err.message); M = mapAdapt({}, pack, null); render(); fit(); return false; });
+  }
+  // G2730 (MAP-EDGE): the painting's edge, ONCE per painting - after it has loaded, off the open's own frame: a
+  // downscaled copy (a texel's size), its ring, the one canvas the stage carries (a child of .mmStage: the painting's
+  // transform, nothing per frame). The copy, the bake and its picture in a worker (edgeWorkerSrc); a page without workers,
+  // OffscreenCanvas or fetch (a file:// page) does them here on the decoded img; one that cannot read the painting's
+  // pixels at all keeps the plain edge colour.
+  let edgeKey = '', edgeInfo = { ready: false };
+  function edgeOnce(art) {
+    if (edgeKey === art.img) return;
+    edgeKey = art.img; edgeInfo = { ready: false };
+    const img = $.img, t0 = W.performance.now();
+    const job = { url: new W.URL(art.img, D.baseURI).href, sw: Math.max(8, Math.round(pack.w / EDGE.texel)), sh: Math.max(8, Math.round(pack.h / EDGE.texel)), w: pack.w, h: pack.h, page: hexRGB(art.edge) };
+    const inWorker = () => new Promise((res, rej) => {
+      if (!W.Worker || !W.OffscreenCanvas || !W.createImageBitmap || !W.fetch || !/^https?:/.test(job.url)) return rej(new Error('no worker'));
+      // (the worker is left idle, never terminated: terminating it makes the page wait for its canvas's teardown)
+      const u = W.URL.createObjectURL(new W.Blob([edgeWorkerSrc()], { type: 'text/javascript' })), wk = new W.Worker(u), end = () => { wk.onmessage = wk.onerror = null; W.URL.revokeObjectURL(u); };
+      wk.onmessage = e => { end(); if (e.data && e.data.E && e.data.bmp) res({ E: e.data.E, bmp: e.data.bmp, via: 'worker', msOff: e.data.ms }); else rej(new Error((e.data && e.data.err) || 'the worker failed')); };
+      wk.onerror = e => { end(); rej(new Error((e && e.message) || 'the worker failed')); };
+      wk.postMessage(job);
+    });
+    const here = () => (img.decode ? img.decode() : Promise.resolve()).catch(() => null).then(() => new Promise(res => W.setTimeout(() => {
+      const c = D.createElement('canvas'); c.width = job.sw; c.height = job.sh;
+      const g = c.getContext('2d', { willReadFrequently: true }); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+      g.drawImage(img, 0, 0, job.sw, job.sh);
+      const t1 = W.performance.now(), E = edgeBake(edgeRing(g.getImageData(0, 0, job.sw, job.sh)), job.w, job.h, job.page);
+      res({ E, via: 'page', msOff: 0, msHere: W.performance.now() - t1 });
+    }, 0)));
+    inWorker().catch(() => here()).then(r => {
+      if (img.getAttribute('src') !== art.img) return;
+      const t1 = W.performance.now(), E = r.E, cv = $.edge;
+      cv.width = E.cw; cv.height = E.ch;
+      if (r.bmp) cv.getContext('bitmaprenderer').transferFromImageBitmap(r.bmp);
+      else cv.getContext('2d').putImageData(new W.ImageData(E.data, E.cw, E.ch), 0, 0);
+      Object.assign(cv.style, { left: -E.m + 'px', top: -E.m + 'px', width: (pack.w + 2 * E.m) + 'px', height: (pack.h + 2 * E.m) + 'px', display: 'block' });
+      edgeInfo = { ready: true, via: r.via, msTotal: +(W.performance.now() - t0).toFixed(1), msOff: +(+r.msOff).toFixed(1), msMain: +(W.performance.now() - t1 + (r.msHere || 0)).toFixed(1),
+                   cw: E.cw, ch: E.ch, m: E.m, F: E.F, rim: E.RIM, page: art.edge };
+    }).catch(e => { edgeInfo = { ready: false, err: e && e.message }; console.info('flyDiy: the map\'s edge stays the plain sea colour -', e && e.message); });
   }
   function close() {
     if (root && root.parentNode) root.parentNode.removeChild(root);
@@ -1125,5 +1491,5 @@
   W.MAP_MENU = Object.assign({ open, close, isOpen: () => !!(root && root.parentNode), state: () => st, model: () => M,
                                view: () => Object.assign({}, V), set: o => { Object.assign(st, o || {}); render(); },
                                zoomTo: (x, z, k) => { const v = view(); V.s = clamp(V.fit * k, V.fit, sMax()); V.tx = v.width / 2 - ((x - pack.x0) / pack.mpp) * V.s; V.ty = v.height / 2 - ((z - pack.z0) / pack.mpp) * V.s; place(); },
-                               fit: () => fit() }, CORE);
+                               fit: () => fit(), edge: () => Object.assign({}, edgeInfo) }, CORE);
 })();

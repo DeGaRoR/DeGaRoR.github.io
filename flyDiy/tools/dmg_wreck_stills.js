@@ -40,6 +40,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const CASES = {
   'trunk-0':   { label: 'a trunk at 30 m/s, the centreline', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 0, steps: 1500 }, cams: [[200, 22, 14], [300, 45, 20], [120, 12, 10]] },
+  'trunk-3v':  { label: 'a trunk at 30 m/s, the centreline - side, three-quarter front, top (the user, 14 Oct)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 0, steps: 1500 }, cams: [['side', 10, 14], ['q34', 18, 13], ['side', 80, 17]] },
   'trunk-2.5': { label: 'a trunk at 30 m/s, the wing 2.5 m out (DMG-D4a\'s wing still)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, steps: 1500 }, cams: [[200, 22, 16], [250, 55, 26]] },
   'nosein':    { label: 'a nose-in on the ground (180 km/h, 10 m/s, 60 deg; DMG-D4a\'s nose-in still)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 1500 }, cams: [[150, 20, 12], [235, 28, 14]] },
   // G1863: the cockpit rule - the severe nose-in watched from the pilot's eye; no stills, its verdict read
@@ -58,7 +59,10 @@ function pageView([az, el, dist]) {
   if (FLIGHT_PROBE.camModeNow() !== 'orbit') FLIGHT_PROBE.camMode('orbit');   // (the chase writes its own pose: camSet is the orbit's)
   // (az 'nose': a front-quarter close on the prop, from the aeroplane's own heading - the orbit is centred on the CG)
   // ('noseL': the other front quarter, closer - the bent blades' close-up)
-  if (az === 'nose' || az === 'noseL') { const [xA] = FLIGHT_PROBE.sim().axes(); FLIGHT_PROBE.camSet(Math.atan2(-xA[2], -xA[0]) + (az === 'nose' ? 0.6 : -0.6), el * Math.PI / 180, dist); }
+  // (14 Oct, the user's comparison stills: 'side' the left side square on, 'q34' the front three-quarter - both from the
+  // aeroplane's own heading, as 'nose'; a top view is 'side' at 80 deg)
+  if (az === 'side' || az === 'q34') { const [xA] = FLIGHT_PROBE.sim().axes(); FLIGHT_PROBE.camSet(Math.atan2(-xA[2], -xA[0]) + (az === 'side' ? Math.PI / 2 : 0.7), el * Math.PI / 180, dist); }
+  else if (az === 'nose' || az === 'noseL') { const [xA] = FLIGHT_PROBE.sim().axes(); FLIGHT_PROBE.camSet(Math.atan2(-xA[2], -xA[0]) + (az === 'nose' ? 0.6 : -0.6), el * Math.PI / 180, dist); }
   else FLIGHT_PROBE.camSet(az * Math.PI / 180, el * Math.PI / 180, dist);
   return new Promise(r => setTimeout(() => r(1), 900));
 }
@@ -410,7 +414,8 @@ if (require.main === module) (async () => {
     if (out.stage && out.stage.err) { R.cases[k] = out; continue; }
     // the wreck drawn first from every camera, then D4a's alone, then neither (a heal does not fly the debris again: it
     // would re-release them from the wreck at rest)
-    for (const [tag, wreck, skin] of [['after', true, true], ['skin', false, true], ['before', false, false]]) {
+    const TAGS = opt('tags', 'after,skin,before').split(',');   // (--tags after: the wreck as drawn only)
+    for (const [tag, wreck, skin] of [['after', true, true], ['skin', false, true], ['before', false, false]].filter(t => TAGS.includes(t[0]))) {
       await post('/run', 'window.FLYDIY_WRECK = ' + wreck + '; window.FLYDIY_SKINBREAK = ' + skin + '; await new Promise(r => setTimeout(r, 700)); return 1;');
       if (tag === 'after') { try { const dump = await run(pageDump); if (opt('dump', null)) fs.writeFileSync(path.join(opt('dump'), k + '_dump.json'), JSON.stringify(dump));
           out.clip = clipOf(dump); } catch (e) { out.clip = { err: String(e && e.message || e) }; } }

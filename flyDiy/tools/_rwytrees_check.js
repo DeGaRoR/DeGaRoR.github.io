@@ -117,11 +117,13 @@ console.log('GATE RWYTREES - the trees by the runways (' + (FULL ? 'core + full'
 {
   const cl = O0.rwyClearances(), by = k => cl.filter(c => c.kind === k).map(c => c.id).sort();
   // (G3014: the user's rev 26 shipped strips 10 and 11 (w5, w6): two more strip boxes, 6 -> 8)
-  check(by('fan').length === 9 && by('box').length === 9 && by('shoulder').join() === 'y_sh02_0,y_sh02_1,y_sh13_0,y_sh13_1',
+  // (G3020 rev 28: + w4, w8 - 11 boxes; the user removed the fans x_fan13_1, x_fan02_1, x_fan3_1 and A0 dropped the ship-only
+  //  shoulders y_sh13_0/1, y_sh02_0/1 + the fan x_fan02_0 (the 40 m tree cut at HOME) - 5 fans, no shoulder)
+  check(by('fan').length === 5 && by('box').length === 10 && by('shoulder').join() === '',   // (w4 held back, train 53: 10 boxes)
     '1 Jolene\'s runway clearances are named', 'fans ' + by('fan').join(' ') + ' | boxes ' + by('box').length + ' | shoulders ' + by('shoulder').join(' '));
   for (const v of VARIANTS) {
     const O = worlds[v].premises.overlay, off = O.rwyClearances().filter(c => c.off), kinds = [...new Set(off.map(c => c.kind))].sort().join('+') || 'none';
-    const want = { today: 'none', map: 'box+fan+shoulder', mapx: 'box' }[v];
+    const want = { today: 'none', map: 'box+fan', mapx: 'box' }[v];   // (G3020: no shoulder left to lift)
     check(O.rwyTrees === v && worlds[v].rwyTrees() === v && kinds === want, '1 ' + v + ' lifts ' + want, off.length + ' lifted: ' + kinds);
   }
 }
@@ -171,8 +173,12 @@ for (const v of VARIANTS) {
   if (v === 'mapx') check(inKept === 0, '4 mapx: the shoulders and the fans stay clear', inKept + ' inside');
 }
 {
-  const nearer = ['HOME L', 'HOME R', 'w2 L', 'w2 R'].filter(k => table[k].col.map < table[k].col.today);
-  check(nearer.length === 4, '4 map: 13/31 and 02/20 have their woods nearer than today on every side', nearer.join(', '));
+  // (G3020 rev 28: the user gave 02/20 its own clear - side 4 / beyond 5, authored, standing in every variant - so a w2 side
+  //  can read the same in 'today' and 'map' (t53 13 Oct: HOME L, HOME R, w2 R nearer, w2 L the same): 'map' never pushes the
+  //  woods back on any side, and brings them nearer on both of 13/31's)
+  const four = ['HOME L', 'HOME R', 'w2 L', 'w2 R'], nearer = four.filter(k => table[k].col.map < table[k].col.today), farther = four.filter(k => table[k].col.map > table[k].col.today);
+  check(!farther.length && nearer.includes('HOME L') && nearer.includes('HOME R'), '4 map: 13/31 has its woods nearer than today on both sides, and no side of 13/31 or 02/20 farther',
+    'nearer ' + nearer.join(', ') + (farther.length ? ' | FARTHER ' + farther.join(', ') : '') + ' | ' + four.map(k => k + ' ' + table[k].col.today.toFixed(1) + ' -> ' + table[k].col.map.toFixed(1)).join(', '));
 }
 
 // 6 the ground paths and the climb-out / approach surfaces in 'map', against the collidable trees
@@ -295,10 +301,13 @@ if (FULL) {
     if (u < r.len / 2 + beyond && v < r.wid / 2 + side + (taper && u > r.len / 2 ? taper * (u - r.len / 2) : 0)) n++; } return n; };
   const wide = { side: 200, beyond: 500, taper: 0.15 }, narrow = { side: 10, beyond: 20, taper: 0 };
   const Ww = withClear(wide), Wn = withClear(narrow);
-  const t0 = census(W0, 200, 500, 0.15), tw = census(Ww, 200, 500, 0.15), tToday = census(W0, 60, 150, 0), nNarrowIn = census(Wn, 60, 150, 0), nOwn = census(Wn, 10, 20, 0);
+  // (G3020 rev 28: the user gave w2 a clear of its own (side 4 / beyond 5) - the census's 'today' is w2 with it taken off)
+  const Wt = withClear(undefined);
+  const t0 = census(Wt, 200, 500, 0.15), tw = census(Ww, 200, 500, 0.15), tToday = census(Wt, 60, 150, 0), nNarrowIn = census(Wn, 60, 150, 0), nOwn = census(Wn, 10, 20, 0);
   // (G3014: the user's rev 26 / 27 strips carry their OWN authored clearances - w5 side 0 / beyond 0, w6 side 0 / taper 0.21, w7
   //  side 4 / taper -0.5; every other strip keeps today's box; no collidable tree stands inside any own clearance)
-  const OWN = ['w5', 'w6', 'w7'], ownNow = (env.premises || env).layers.runways.filter(q => q.clear).map(q => q.id).sort();
+  // (G3020 rev 28: HOME 0 / 60, w2 4 / 5, w3 6 / 150, w4 0 / 20, w8 12 / 150 - every own clear as authored)
+  const OWN = ['HOME', 'w2', 'w3', 'w5', 'w6', 'w7', 'w8'], ownNow = (env.premises || env).layers.runways.filter(q => q.clear).map(q => q.id).sort();
   const inOwn = OWN.map(id => { const q = land.find(z => z.id === id), a = W0.aerodromes.find(z => z.id === id); if (!q || !a || !a.treeClear) return id + ' none';
     const c = q.clear, Eq = [Math.cos(q.hdg), Math.sin(q.hdg)]; let n = 0;
     for (const Tr of W0.trees) { const dx = Tr.x - q.c[0], dz = Tr.z - q.c[1], u = Math.abs(dx * Eq[0] + dz * Eq[1]), v = Math.abs(-dx * Eq[1] + dz * Eq[0]);

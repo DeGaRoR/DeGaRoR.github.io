@@ -31,6 +31,19 @@
 //     the verbs, the selects, the switch and the zoom on the garage's control rules (.verb.pri / .verb, the rows' select,
 //     the segmented control, the plate). What stays the map's (the TYPE colours, the edge, the badges' icons, INK) is
 //     not CSS palette.
+//   GROUPED, ORDERED, FILTERED (G2710, MAP-GROUP; the user, 11 Oct): MAP-SIMPLE's customer select folded into the
+//     grouping by contractor and its filter (the contractor sections sum to All); every group-by x sort x filter view
+//     (each filter at each value and every pair of them, with and without the place filter, on the fixture and the real
+//     record) deterministic and independent of the record's order; the sections in the legend's / CONTRACT_PROVIDERS'
+//     order; shown + hidden = the unfiltered count; each filter's "n hidden" the rows it hides alone, on its caption; the
+//     order monotone inside a section, ties by id; the tracked row first in its section and never hidden ("outside the
+//     filters" when a filter would); ✓ / ✗ unchanged; NIGHT-OPS' night jobs tagged and the window filter theirs; the
+//     map's rings and badges following the filtered list; no auto-zoom from the new controls; the per-viewer memory
+//     (grouping, order, folds, the panel) behind try / catch and never the filters.
+//   THE PAINTING'S EDGE (G2730, MAP-EDGE; the user, 12 Oct): one canvas in the stage (the painting's transform; baked once
+//     per painting in a worker from the same functions - byte for byte - never in place()); the ring is the band's mean
+//     with the img's look; the fade's outer colour = the page's art.edge exactly; the seam continuous, the fade without
+//     steps, the painting untouched inside the rim; no pointer.
 //   NOHOVER (MOBILE-GARAGE R17/R18): no title=, no mouseenter / mouseover / pointerover, no :hover in map_menu.js or the
 //     entry. R1: every interactive class >= 48 px. R20: the map touch-action none, the list / sheet pan-y, the handle
 //     none. --phone: the bottom sheet's rules.
@@ -97,25 +110,26 @@ module.exports = function mapSmoke(html, phone) {
   // NO RIGHT PANEL, NO ASSET TABS: the list is the whole interface
   need(!/mmRight|cardHTML|tabsHTML|data-tab=|mmLayers/.test(menuSrc) && !MM.cardHTML && !MM.tabsHTML, 'the screen still carries a right panel, the provider tabs or the layer buttons');
   // (G2440) the switch at the top of the same list: Contracts · Fleet · Pilots · Market; the contracts list carries none of them
-  const sw = MM.headHTML(M, { cust: 'all' });
+  const sw = MM.headHTML(M, {});
   need((sw.match(/data-act="list"/g) || []).length === 4 && ['contracts', 'fleet', 'pilots', 'market'].every(l => sw.includes('data-list="' + l + '"')) && /class="mmSwB on" data-act="list" data-list="contracts"/.test(sw),
     'the switch: Contracts · Fleet · Pilots · Market, the contracts first');
-  need(!/Fleet|Pilots|Market|data-list=/.test(MM.listHTML(M, { cust: 'all' })) && !/mmTypes|mmCust/.test(MM.headHTML(M, { cust: 'all', list: 'fleet' })), 'the contracts list carries the other lists, or the other lists the contracts\' legend / customer');
-  // the customer filter: a select, whose rows sum to All
-  const st = { cust: 'all', at: null, open: null, phone };
-  const all = MM.rowsOf(M, st).length, per = M.providers.map(p => MM.rowsOf(M, { cust: p.id }).length);
-  need(all === M.contracts.length && per.reduce((a, b) => a + b, 0) === all && per.every(n => n >= 1), 'the customer filter: All ' + all + ', per customer ' + per.join('/'));
+  need(!/Fleet|Pilots|Market|data-list=/.test(MM.listHTML(M, {})) && !/mmTypes|mmOrd|mmSort|mmFltB/.test(MM.headHTML(M, { list: 'fleet' })), 'the contracts list carries the other lists, or the other lists the contracts\' legend / grouping / order / filters');
+  // (G2710 MAP-GROUP) the customers: MAP-SIMPLE's select folded into the grouping by contractor (and its filter) - the
+  // contractor sections sum to All
+  const st = { at: null, open: null, phone };
+  const all = MM.rowsOf(M, st).length, per = MM.contractView(M, { group: 'prov' }).groups.map(g => g.rows.length);
+  need(all === M.contracts.length && per.length === M.providers.length && per.reduce((a, b) => a + b, 0) === all && per.every(n => n >= 1), 'the contractor sections: All ' + all + ', per contractor ' + per.join('/'));
   const head = MM.headHTML(M, st);
-  need(/<select class="mmCust"/.test(head) && (head.match(/<option /g) || []).length === M.providers.length + 1, 'the customers are not a select (All + 5)');
+  need(!/mmCust|<label class="mmFilter">Customer/.test(head + MM.listHTML(M, st)) && /<div class="mmOrd">/.test(head) && (head.match(/data-act="group"/g) || []).length === 2 && /<select class="mmSort mmSel"/.test(head) && /data-act="flt"/.test(head), 'the head: the customer select still there, or no grouping (Type · Contractor) / order / filters button');
   // one row per contract: the type's dot, the title, the pay, the mark; the colours are the TYPES', never a customer's
   const L = MM.listHTML(M, st);
-  need((L.match(/class="mmRow"/g) || []).length === all && (L.match(/class="mmDot"/g) || []).length === all && (L.match(/class="mmPay"/g) || []).length === all, 'the All list does not draw one row (dot, title, pay, mark) per contract');
+  need((L.match(/class="mmRow"/g) || []).length === all && (L.match(/data-act="row" [^>]*><i class="mmDot"/g) || []).length === all && (L.match(/class="mmPay"/g) || []).length === all, 'the All list does not draw one row (dot, title, pay, mark) per contract');
   const typeCols = MM.TYPES.map(t => t[2]), provCols = raw.providers.map(p => p.colour);
   need((L.match(/background:(#[0-9a-f]{6})/gi) || []).every(m => typeCols.includes(m.slice(11))) && !provCols.some(c => L.includes(c)), 'a row is coloured by its customer, not its type');
   const types = {}; for (const c of M.contracts) types[MM.typeOf(c)] = (types[MM.typeOf(c)] || 0) + 1;
   need(MM.typeOf(M.contracts.find(c => c.id === 'clients.b.fast4')) === 'build' && MM.typeOf(M.contracts.find(c => c.id === 'resort.j.guests')) === 'pax' &&
        MM.typeOf(M.contracts.find(c => c.id === 'survey.j.count')) === 'survey' && MM.typeOf(M.contracts.find(c => c.id === 'minedock.j.parts')) === 'cargo', 'the contract types (build / passengers / survey / cargo)');
-  say('the list is the whole interface (no right panel, no provider tabs; the switch Contracts · Fleet · Pilots · Market on top): ' + all + ' rows (type dot, title, pay, mark), the customers a select (' + per.join(' + ') + ' = ' + all + '), coloured by type ' + JSON.stringify(types));
+  say('the list is the whole interface (no right panel, no provider tabs; the switch Contracts · Fleet · Pilots · Market on top): ' + all + ' rows (type dot, title, pay, mark), the customers the contractor sections (' + per.join(' + ') + ' = ' + all + '), coloured by type ' + JSON.stringify(types));
   // the paragraph and its one button
   const para = (MX, c) => MM.paraHTML(MX, c);
   const checkPara = (MX, c, tag) => {
@@ -150,14 +164,14 @@ module.exports = function mapSmoke(html, phone) {
   say('✓ / ✗ only on surface vs gear against the fleet: parts ✗ "' + mk(M, 'minedock.j.parts').why + '"; payload / seats / runs never move a mark; an amphibian clears them; wheels-only ✗ water, floats-only ✗ land; builds unmarked');
   // the place filter: a place's rows are exactly the contracts involving it
   for (const p of M.places) {
-    const got = MM.rowsOf(M, { cust: 'all', at: p.id }).map(c => c.id).sort(), want = M.contracts.filter(c => MM.subsAll(c).some(u => p.aeros.includes(u.from) || p.aeros.includes(u.to))).map(c => c.id).sort();
+    const got = MM.rowsOf(M, { at: p.id }).map(c => c.id).sort(), want = M.contracts.filter(c => MM.subsAll(c).some(u => p.aeros.includes(u.from) || p.aeros.includes(u.to))).map(c => c.id).sort();
     need(got.join() === want.join(), 'the place filter at ' + p.id + ': ' + got.join() + ' vs ' + want.join());
     const A = MM.atHTML(M, { at: p.id });
     need(A.includes('At ' + escH(p.name)) && /data-act="atx"/.test(A), 'the "At ' + p.name + ' ✕" row');
   }
-  need(!MM.atHTML(M, st) && /No contract involves/.test(MM.listHTML({ ...M, contracts: [] }, { cust: 'all', at: 'nv_strip' })), 'the filter row without a place, or the empty place');
-  need(M.places.map(p => p.name).join() === 'Jolene AFB,Tamgas Hill Strip,Annette Dock,Metlakatla Seaplane Base,Jumbo Mine Street,East Point Clearing,Skyline Altiport,strip 10,strip 11,strip 12' &&
-       M.places.map(p => p.kind).join() === 'airfield,strip,seaplane,seaplane,mine,clearing,altiport,strip,strip,strip',   // + the user's strips 10-12 (w5-w7, SCENERY-SHIP rev27)
+  need(!MM.atHTML(M, st) && /No contract involves/.test(MM.listHTML({ ...M, contracts: [] }, { at: 'nv_strip' })), 'the filter row without a place, or the empty place');
+  need(M.places.map(p => p.name).join() === 'Jolene AFB,Tamgas Hill Strip,Annette Dock,Metlakatla Seaplane Base,Jumbo Mine Street,East Point Clearing,Skyline Altiport,strip 10,strip 11,strip 12,strip 13' &&
+       M.places.map(p => p.kind).join() === 'airfield,strip,seaplane,seaplane,mine,clearing,altiport,strip,strip,strip,strip',   // + the user's strips 10-12 (w5-w7, SCENERY-SHIP rev27); strip 13 (w8) appended (G3020 rev28; strip 9 held back, train 53)
        'the places and their kinds: ' + M.places.map(p => p.name + ' (' + p.kind + ')').join(', '));
   say('the place filter: ' + M.places.length + ' places (' + M.places.map(p => p.name + ' ' + MM.rowsOf(M, { at: p.id }).length).join(', ') + '), each listing exactly the contracts involving it, under "At <place> ✕"');
   // Track: accept and track are one gesture, a second tap untracks
@@ -192,12 +206,12 @@ module.exports = function mapSmoke(html, phone) {
   // every place is a tap: the badge, the name and the runway carry its id
   need(M.places.every(p => o3.html.includes('class="mmPl') && o3.html.includes('data-place="' + p.id + '"')) && /<button type="button" class="mmNm" data-place=/.test(o3.html) && /<g class="mmRwy" data-place="HOME"/.test(o8.svg), 'a place (badge, name or runway) is not a tap target');
   // the open / tracked contract's places ringed in its type's colour, named even at the fit; its route drawn
-  const lit = ov(1, { cust: 'all', at: null, open: 'minedock.j.parts' });
+  const lit = ov(1, { at: null, open: 'minedock.j.parts' });
   need(/data-place="mn_strip" [^>]*><i style="box-shadow:0 0 0 3px #d99a3c/.test(lit.html) && /data-place="SEA" [^>]*><i style="box-shadow:0 0 0 3px #d99a3c/.test(lit.html) && lit.n.routes >= 1 && lit.n.names >= 2, 'the open contract\'s places are not ringed in its type colour, named, and joined');
   say('the map: a badge per place at the fit (' + o1.bs + ' px), names + ' + o2.n.hot + ' hotspots from the second step (' + o2.bs + ' px), rings + counts + places + runway facts closer (' + o3.bs + ' px), close up every runway at true scale (Jolene AFB 13/31 and 02/20 with their designators; the lane buoyed, the gravel edge-marked); the open contract ringed in its type colour');
   // (G2435) THE INFRASTRUCTURE by zoom band, over the projection's infra
   const IF = pack.infra, inf = k => MM.infraOf(pack, { s: fit * k, fit });
-  need(IF && IF.roads.length === 110 &&   // A0 12 Oct: the re-baked map carries the road graph (train 47) + the user's rev27 roads (was 76)
+  need(IF && IF.roads.length === 115 &&   // A0 12 Oct: the re-baked map carries the road graph (train 47) + the user's rev27 roads (was 76); rev 28 (G3020): -r_airport -r_strip +r39..r45
     IF.zones.length >= 10 && IF.links.length === 1, 'the projection carries no infra (roads, zones, the tram)');
   const mainN = IF.roads.filter(r => r.main).length, nH = IF.houses.split(' ').length;
   const i1 = inf(1), i2 = inf(2), i3 = inf(3), i8 = inf(8);
@@ -243,7 +257,7 @@ module.exports = function mapSmoke(html, phone) {
     need(!bad.length, what + ' carries hover-only information: ' + bad.join(', '));
   }
   const css = /const CSS = `([\s\S]*?)`;/.exec(menuSrc)[1];
-  for (const cls of ['mmRow', 'mmTrack', 'mmAtX', 'mmClose', 'mmCust', 'mmNm', 'mmSwB', 'mmAct', 'mmOptSel']) {
+  for (const cls of ['mmRow', 'mmTrack', 'mmAtX', 'mmClose', 'mmNm', 'mmSwB', 'mmAct', 'mmOptSel', 'mmSegB', 'mmSel', 'mmFltB', 'mmChip', 'mmClr', 'mmGrp']) {
     const r = new RegExp('#mapScreen \\.' + cls + '\\{[^}]*?(?:min-height|height):(\\d+)px').exec(css);
     need(r && +r[1] >= 48, '.' + cls + ' is under 48 px (R1)');
   }
@@ -252,7 +266,7 @@ module.exports = function mapSmoke(html, phone) {
   {
     const edCss = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8');
     const TOK = ['panel', 'board', 'plate', 'ink', 'dim', 'faint', 'acc', 'acc-ink', 'acc-soft', 'hair', 'border', 'btn-bg', 'btn-bd', 'track', 'off', 'warn', 'bad'];
-    const blk = /:is\(#wsUI, #edView, #mapScreen\) \{([^}]*)\}/.exec(edCss);
+    const blk = /:is\(#wsUI, #edView, #mapScreen(?:, #\w+)*\) \{([^}]*)\}/.exec(edCss);   // (G2690: + #hsStore, the storage panel)
     need(blk && TOK.every(t => new RegExp('--ed-' + t + ':').test(blk[1])), 'editor.css\'s workshop token block does not declare the --ed-* tokens on #mapScreen');
     const code = menuSrc.replace(/\/\*[\s\S]*?\*\//g, '');
     const old = code.match(/(?<!sans-)serif|italic|oblique|IM Fell|Georgia|Times New Roman/gi) || [];
@@ -268,7 +282,7 @@ module.exports = function mapSmoke(html, phone) {
     need(/#mapScreen\{[^}]*font:400 14px\/1\.5 'IBM Plex Sans'[^}]*font-style:normal/.test(css) && /#mapScreen em,#mapScreen i,#mapScreen small\{font-style:normal\}/.test(css), 'the screen is not Plex upright at its root (em / i / small upright)');
     const rule = sel => (new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\{([^}]*)\\}').exec(css) || [])[1] || '';
     for (const sel of ['#mapScreen .mmTrack', '#mapScreen .mmAct']) need(/background:var\(--ed-acc\)/.test(rule(sel)) && /color:var\(--ed-acc-ink\)/.test(rule(sel)), sel + ' is not the garage\'s primary verb (.verb.pri: the accent)');
-    for (const sel of ['#mapScreen .mmTrack.on', '#mapScreen .mmAct.sec', '#mapScreen .mmCust', '#mapScreen .mmOptSel', '#mapScreen .mmClose', '#mapScreen .mmAtX'])
+    for (const sel of ['#mapScreen .mmTrack.on', '#mapScreen .mmAct.sec', '#mapScreen .mmSel', '#mapScreen .mmOptSel', '#mapScreen .mmFltB', '#mapScreen .mmChip', '#mapScreen .mmClr', '#mapScreen .mmClose', '#mapScreen .mmAtX'])
       need(/background:var\(--ed-btn-bg\)/.test(rule(sel)) && /var\(--ed-btn-bd\)/.test(rule(sel)), sel + ' is not on --ed-btn-bg / --ed-btn-bd (the garage\'s .verb / row select)');
     need(/background:var\(--ed-track\)/.test(rule('#mapScreen .mmSw')) && /background:var\(--ed-acc\)/.test(rule('#mapScreen .mmSwB.on')) && /color:var\(--ed-faint\)/.test(rule('#mapScreen .mmSwB')), 'the switch is not the garage\'s segmented control');
     need(/background:var\(--ed-plate\)/.test(rule('#mapScreen .mmCtl button')) && /background:var\(--ed-plate\)/.test(rule('#mapScreen .mmScale')), 'the zoom / the scale bar are not the garage\'s plate');
@@ -291,7 +305,7 @@ module.exports = function mapSmoke(html, phone) {
   const RR = C.careerMapRecord(doc0, null, {}), MR = MM.mapAdapt(RR, pack, null, C.CONTRACT_DESIGNS);
   need(MR.source === 'career' && MR.providers.map(p => p.id).join() === Object.keys(C.CONTRACT_PROVIDERS).join(), 'the real record: the five providers ' + MR.providers.map(p => p.id).join());
   need(MR.contracts.length === doc0.career.contracts.offered.length && MR.contracts.length === 5 * 4, 'the real record: a new career\'s 20 offers (' + MR.contracts.length + ')');
-  const allR = MM.rowsOf(MR, st).length, perR = MR.providers.map(p => MM.rowsOf(MR, { cust: p.id }).length);
+  const allR = MM.rowsOf(MR, st).length, perR = MM.contractView(MR, { group: 'prov' }).groups.map(g => g.rows.length);
   need(allR === MR.contracts.length && perR.reduce((a, b) => a + b, 0) === allR && perR.every(n => n === 4), 'the real customers: All ' + allR + ', per customer ' + perR.join('/'));
   need((MM.listHTML(MR, st).match(/class="mmRow"/g) || []).length === allR, 'the real All list does not draw every row');
   for (const c of MR.contracts) {
@@ -347,6 +361,236 @@ module.exports = function mapSmoke(html, phone) {
     say('the night line (G2665): ' + nN + ' night jobs on new careers\' maps, each paragraph states its window, every runway lit / unlit and the moon ("' + sample + '"); ' + nWet + ' unlit water jobs at night ✓ for a fleet on floats (never a ✗)');
   }
 
+  // ---- G2710 (MAP-GROUP): THE LIST GROUPED, ORDERED, FILTERED (the user, 11 Oct: "grouped either by type of mission, or
+  // contractor ... an ordered list with sections according to the ordering type, and filtering on the key parameters").
+  // On the fixture (minedock.reopen tracked) and the real record (a new career, one job tracked): EVERY group-by x sort x
+  // filter combination (each filter alone at each of its values, and every pair of them) - deterministic (twice, and on
+  // the contracts in reverse order: the same sections, the same rows in the same order); the sections in their stable
+  // order (the legend's types, CONTRACT_PROVIDERS' contractors); the shown rows + what the filters hide = the unfiltered
+  // count (and with no filter the sections sum to it); every shown row passes every filter set, every hidden row fails
+  // one; each filter's "n hidden" is the rows it hides alone, stated on its caption; the order monotone inside a
+  // section, ties by id; THE TRACKED ROW NEVER VANISHES (first in its section, marked when outside the filters); the
+  // ✓ / ✗ unchanged by any of it; the map's rings and badges follow the filtered list ----
+  {
+    const MG = MM.mapAdapt(JSON.parse(JSON.stringify(raw)), pack, null);
+    const docT = JSON.parse(JSON.stringify(doc0)); docT.career.contracts.tracked = docT.career.contracts.offered[5];
+    if (docT.career.contracts.accepted && !docT.career.contracts.accepted.includes(docT.career.contracts.tracked)) docT.career.contracts.accepted.push(docT.career.contracts.tracked);
+    const MT = MM.mapAdapt(C.careerMapRecord(docT, null, {}), pack, null, C.CONTRACT_DESIGNS);
+    need(MG.career.tracked === 'minedock.reopen' && MT.career.tracked && MT.contracts.some(c => c.id === MT.career.tracked), 'the MAP-GROUP models: a tracked contract on each (' + MG.career.tracked + ', ' + MT.career.tracked + ')');
+    need(['GROUPS', 'SORTS', 'FILTERS', 'contractView', 'fltOf', 'FLT0', 'stopsOf', 'loadOf', 'surfOf', 'winOf', 'kmOfC', 'filtersHTML', 'sectionHTML'].every(n => MM[n]), 'the pure MAP-GROUP exports');
+    need(MM.GROUPS.map(g => g[0]).join() === 'type,prov' && MM.SORTS.map(s => s[0]).join() === 'pay,km,stops,load' && MM.SORTS[0][2] === -1 &&
+         MM.FILTERS.map(f => f[0]).join() === 'type,prov,fits,surf,stops,win,payMin,kmMax,kgMax', 'the controls: group Type / Contractor; sort Pay (high first) / Distance / Stops / Load; the nine filters');
+    // the defaults: grouped by type, ordered by pay, nothing filtered
+    const V0 = MM.contractView(MG, {});
+    need(V0.by === 'type' && V0.sort === 'pay' && !V0.active && V0.hiddenAll === 0, 'the defaults: by type, by pay, no filter');
+    // each filter at each of its values; then every pair (two different filters)
+    const sing = MX => {
+      const pays = MX.contracts.map(c => MM.payOf(MX, c).total).sort((a, b) => a - b), kms = MX.contracts.map(c => MM.kmOfC(MX, c)).sort((a, b) => a - b), kgs = MX.contracts.map(c => MM.loadOf(c).all).sort((a, b) => a - b);
+      const mid = A => A[Math.floor(A.length / 2)];
+      const out = [];
+      for (const t of MM.TYPES) out.push({ type: [t[0]] });
+      out.push({ type: ['cargo', 'pax'] });
+      for (const p of MX.providers) out.push({ prov: [p.id] });
+      out.push({ prov: MX.providers.slice(0, 2).map(p => p.id) });
+      out.push({ fits: true });
+      for (const v of ['land', 'water', 'both']) out.push({ surf: v });
+      for (const v of ['1', '2+']) out.push({ stops: v });
+      for (const v of ['day', 'night']) out.push({ win: v });
+      out.push({ payMin: mid(pays) }, { kmMax: Math.round(mid(kms)) }, { kgMax: mid(kgs) }, { kgMax: 0 });
+      return out;
+    };
+    const ids = V => V.groups.map(g => g.key + ':' + g.rows.map(c => c.id).join(',')).join('|');
+    let combos = 0, pinnedN = 0;
+    for (const [tag, MX] of [['the fixture', MG], ['the real record', MT]]) {
+      const tr = MX.career.tracked, MR2 = Object.assign({}, MX, { contracts: MX.contracts.slice().reverse() });
+      const S1 = sing(MX), sets = [{}].concat(S1);
+      for (let i = 0; i < S1.length; i++) for (let j = i + 1; j < S1.length; j++) { const a = Object.keys(S1[i])[0], b = Object.keys(S1[j])[0]; if (a !== b) sets.push(Object.assign({}, S1[i], S1[j])); }
+      const marks0 = MX.contracts.map(c => MM.markOf(MX, c).mark).join('');
+      for (const by of ['type', 'prov']) for (const so of ['pay', 'km', 'stops', 'load']) for (const flt of sets) for (const at of [null, 'HOME']) {
+        const sx = { group: by, sort: so, flt, at };
+        const V = MM.contractView(MX, sx), V2 = MM.contractView(MX, sx), V3 = MM.contractView(MR2, sx), what = tag + ' ' + by + '/' + so + ' ' + JSON.stringify(flt) + (at ? ' at ' + at : '');
+        combos++;
+        need(ids(V) === ids(V2) && ids(V) === ids(V3), what + ': not deterministic (or hangs on the record\'s order)');
+        // the sections in their stable order, each holding its own
+        const want = by === 'type' ? MM.TYPES.map(t => 't:' + t[0]) : MX.providers.map(p => 'p:' + p.id);
+        need(V.groups.map(g => g.key).join() === want.filter(k => V.groups.some(g => g.key === k)).join(), what + ': the sections out of order (' + V.groups.map(g => g.key).join() + ')');
+        for (const g of V.groups) for (const c of g.rows) need(by === 'type' ? 't:' + MM.typeOf(c) === g.key : 'p:' + c.provider === g.key, what + ': ' + c.id + ' in the wrong section ' + g.key);
+        // the counts: shown + hidden = the unfiltered count; no filter: the sections sum to it
+        const base = MX.contracts.filter(c => !at || MM.involves(MX, c, at)).length;
+        need(V.base === base && V.rows.length === V.shown && V.shown + V.hiddenAll === base && V.groups.reduce((t, g) => t + g.total, 0) === base && V.groups.reduce((t, g) => t + g.rows.length + g.hidden, 0) === base,
+          what + ': the sections (' + V.shown + ' shown + ' + V.hiddenAll + ' hidden) do not sum to the unfiltered ' + base);
+        if (!V.active) need(V.shown === base, what + ': no filter, yet rows hidden');
+        // each filter: the rows it hides alone; every shown row passes them all, every hidden row fails one
+        const F = MM.fltOf(sx), on = MM.FILTERS.filter(f => f[2](F)), inBase = MX.contracts.filter(c => !at || MM.involves(MX, c, at));
+        need(on.length === V.active, what + ': the active count');
+        for (const f of MM.FILTERS) need(V.hidden[f[0]] === (f[2](F) ? inBase.filter(c => c.id !== tr && !f[3](MX, c, F)).length : 0), what + ': ' + f[0] + ' says ' + V.hidden[f[0]] + ' hidden');
+        const shownIds = new Set(V.rows.map(c => c.id));
+        for (const c of inBase) {
+          const ok = on.every(f => f[3](MX, c, F));
+          need(c.id === tr ? shownIds.has(c.id) : ok === shownIds.has(c.id), what + ': ' + c.id + (ok ? ' passes and is hidden' : ' fails and is shown'));
+        }
+        // THE TRACKED ROW NEVER VANISHES: in the list whenever the place keeps it, first in its section, marked outside
+        if (inBase.some(c => c.id === tr)) {
+          const g = V.groups.find(x => x.rows.some(c => c.id === tr));
+          need(g && g.rows[0].id === tr, what + ': the tracked row vanished or is not first in its section');
+          const out = !on.every(f => f[3](MX, MX.contracts.find(c => c.id === tr), F));
+          need((V.pinned === tr) === out, what + ': the tracked row\'s "outside the filters" flag');
+          if (out) pinnedN++;
+        }
+        // the order inside a section: monotone in its key, ties by id
+        const S = MM.SORTS.find(s => s[0] === so);
+        const key = c => so === 'pay' ? [MM.payOf(MX, c).total] : so === 'km' ? [MM.kmOfC(MX, c)] : so === 'stops' ? [MM.stopsOf(c)] : [MM.loadOf(c).all, MM.loadOf(c).pax];
+        for (const g of V.groups) {
+          const R = g.rows.filter(c => c.id !== tr);
+          for (let k = 1; k < R.length; k++) {
+            const A = key(R[k - 1]), B = key(R[k]); let d = 0;
+            for (let q = 0; q < A.length && !d; q++) d = (B[q] - A[q]) * S[2];
+            need(d > 0 || (d === 0 && R[k - 1].id < R[k].id), what + ': ' + R[k - 1].id + ' before ' + R[k].id + ' breaks the order');
+          }
+        }
+      }
+      // the marks: unchanged by the grouping, the order and the filters; the list draws each row's own
+      need(MX.contracts.map(c => MM.markOf(MX, c).mark).join('') === marks0, tag + ': a mark moved under the filters');
+      const LH = MM.listHTML(MX, { group: 'prov', sort: 'km', flt: { surf: 'land' } });
+      for (const c of MM.rowsOf(MX, { group: 'prov', sort: 'km', flt: { surf: 'land' } })) {
+        const seg = LH.split('data-id="' + c.id + '"')[2].split('</button>')[0], K = MM.markOf(MX, c);
+        need(new RegExp('class="mmMark ' + (K.mark === '✓' ? 'ok' : K.mark === '✗' ? 'no' : '') + '"[^>]*>' + K.mark + '</span>').test(seg), tag + ': ' + c.id + '\'s row lost its mark ' + K.mark);
+      }
+      const VF = MM.contractView(MX, { flt: { fits: true } });
+      need(VF.rows.every(c => c.id === tr || MM.markOf(MX, c).mark === '✓') && VF.shown + VF.hiddenAll === MX.contracts.length, tag + ': "fits my fleet" is not exactly the ✓ rows (+ the tracked)');
+    }
+    need(pinnedN > 10, 'the tracked row was outside the filters only ' + pinnedN + ' times: the pin is not exercised');
+    // THE MARKUP: the sections' headers (the type's dot or the contractor's name, the count, "n hidden"), the rows (one
+    // mmRow each, folded sections drawing none), the filters' captions with their hidden counts, Clear
+    const sx = { group: 'type', sort: 'km', fltOpen: true, flt: { surf: 'land', stops: '1' } }, VX = MM.contractView(MG, sx), HX = MM.listHTML(MG, sx);
+    need((HX.match(/class="mmRow"/g) || []).length === VX.rows.length && (HX.match(/<button type="button" class="mmGrp"/g) || []).length === VX.groups.filter(g => g.rows.length).length, 'the markup: one row per shown contract, one header per non-empty section');
+    for (const g of VX.groups.filter(x => x.rows.length)) {
+      const h = (new RegExp('<button type="button" class="mmGrp" data-act="fold" data-g="' + g.key + '"[^]*?</button>').exec(HX) || [''])[0];
+      need(h.includes('<i class="mmDot" style="background:' + g.colour + '"></i>') && h.includes('>' + g.label + '<') && h.includes('<b class="mmGn">' + g.rows.length + '</b>') && (!g.hidden || h.includes(g.hidden + ' hidden')), 'the ' + g.label + ' header: ' + h);
+    }
+    for (const f of ['surf', 'stops']) need(VX.hidden[f] > 0 && new RegExp('data-f="' + f + '"').test(HX) && HX.includes('<small class="mmHid">' + VX.hidden[f] + ' hidden</small>'), 'the ' + f + ' filter does not state the ' + VX.hidden[f] + ' rows it hides');
+    need(/data-act="fclear"/.test(HX) && HX.includes(VX.shown + ' of ' + VX.base) && HX.includes(VX.hiddenAll + ' hidden'), 'the summary (n of N, hidden) and Clear');
+    need(!/data-act="fclear"/.test(MM.listHTML(MG, {})) && !/class="mmFlt"/.test(MM.listHTML(MG, {})), 'Clear without a filter, or the filters\' panel unasked');
+    const VP = MM.contractView(MG, { group: 'prov' }), HP = MM.listHTML(MG, { group: 'prov' });
+    need(VP.groups.every(g => HP.includes('<span class="mmGl">' + escH(g.label) + '</span><b class="mmGn">' + g.rows.length + '</b>')) && /mmTypes/.test(MM.headHTML(MG, { group: 'prov' })) && !/mmTypes/.test(MM.headHTML(MG, {})), 'the contractor headers (the name, the count), the legend with the contractor grouping only');
+    const HF = MM.listHTML(MG, { fold: { 't:cargo': true } });
+    need((HF.match(/class="mmRow"/g) || []).length === V0.rows.length - V0.groups.find(g => g.key === 't:cargo').rows.length && /data-g="t:cargo" aria-expanded="false"/.test(HF), 'a folded section still draws its rows');
+    need(/<small class="mmTag pin">outside the filters<\/small>/.test(MM.listHTML(MG, { flt: { fits: true } }).split('data-id="minedock.reopen"')[2].split('</button>')[0]) && !/outside the filters/.test(MM.listHTML(MG, {})), 'the tracked row outside the filters is not marked so');
+    // the chips' toggles: a type, a contractor, fits; the selects; the numbers - and what the head says (Filters n)
+    const hd = MM.headHTML(MG, { flt: { type: ['cargo'], fits: true, kmMax: 10 } });
+    need(/class="mmFltB set" data-act="flt" aria-expanded="false">Filters <b>3<\/b>/.test(hd), 'the filters\' button does not count the filters set');
+    // (G2665) the night tag: a real night job carries it, and the window filter is NIGHT-OPS' own
+    let nights = 0;
+    for (let k = 0; k < 40 && nights < 3; k++) {
+      const MN = MM.mapAdapt(C.careerMapRecord(C.careerNew({ id: 'dev', seed: 'night' + k }), null, {}), pack, null, C.CONTRACT_DESIGNS);
+      const VN = MM.contractView(MN, { flt: { win: 'night' } });
+      need(VN.rows.every(c => c.night && c.night.night) && MN.contracts.filter(c => c.night && c.night.night).length === VN.rows.length, 'the night window filter is not NIGHT-OPS\' night');
+      const HN = MM.listHTML(MN, {});
+      for (const c of VN.rows) { nights++; need(/<small class="mmTag night">night<\/small>/.test(HN.split('data-id="' + c.id + '"')[2].split('</button>')[0]), c.id + ': a night job\'s row lacks its night tag'); }
+    }
+    need(nights >= 3, 'no night job to tag (' + nights + ')');
+    // the map follows the list: an open row the filters hide drops its ring and route; the places none of the shown rows
+    // involves dimmed while a filter is set
+    const Mo2 = MM.mapAdapt(JSON.parse(JSON.stringify(raw)), pack, null); Mo2.career.tracked = null;
+    const view1 = { s: 0.3, fit: 0.3, tx: 0, ty: 0 };
+    const oOpen = MM.overlayOf(Mo2, { open: 'minedock.j.parts' }, pack, view1), oHid = MM.overlayOf(Mo2, { open: 'minedock.j.parts', flt: { surf: 'land' } }, pack, view1);
+    need(/data-place="SEA" [^>]*><i style="box-shadow:0 0 0 3px/.test(oOpen.html) && oOpen.n.routes >= 1 && !/box-shadow:0 0 0 3px/.test(oHid.html) && oHid.n.routes === 0, 'a hidden open row keeps its ring or its route on the map');
+    const VW = MM.contractView(Mo2, { flt: { surf: 'water' } }), liveP = new Set(); for (const c of VW.rows) for (const q of MM.chainOf(c)) if (Mo2.placeOf[q.id]) liveP.add(Mo2.placeOf[q.id]);
+    const oW = MM.overlayOf(Mo2, { flt: { surf: 'water' } }, pack, view1);
+    need(oW.n.dim === Mo2.places.length - liveP.size && oW.n.dim > 0 && MM.overlayOf(Mo2, {}, pack, view1).n.dim === 0 && Mo2.places.filter(p => !liveP.has(p.id)).every(p => new RegExp('class="mmPl[^"]* dim" data-place="' + p.id + '"').test(oW.html)), 'the badges do not follow the filtered list (' + oW.n.dim + ' dimmed)');
+    // NO AUTO-ZOOM from the new controls; the per-viewer memory: the grouping, the order, the folds, the panel - never
+    // the filters, and storage behind try / catch
+    for (const a of ['group', 'flt', 'fchip', 'fclear', 'fold']) {
+      const l = new RegExp('if \\(a === \'' + a + '\'\\)[^\\n]*').exec(menuSrc);
+      need(l && !/zoom|fit\(|V\.|focus|place\(\)/.test(l[0].replace(/render(List)?\(\)/g, '')), 'the ' + a + ' control moves the map (no auto-zoom)');
+    }
+    const prefSave = /const prefSave = [^\n]*/.exec(menuSrc), prefLoad = /function prefLoad\(\) \{[\s\S]*?\n  \}/.exec(menuSrc);
+    need(prefSave && prefLoad && /try \{ W\.localStorage\.setItem/.test(prefSave[0]) && !/\bflt\b/.test(prefSave[0]) && /group: st\.group, sort: st\.sort, fold: st\.fold, fltOpen/.test(prefSave[0]) && /try \{ o = JSON\.parse\(W\.localStorage\.getItem/.test(prefLoad[0]) && !/\bflt\b/.test(prefLoad[0]),
+      'the per-viewer memory: the grouping / order / folds / panel, behind try-catch, and never the filters');
+    say('MAP-GROUP (G2710): ' + combos + ' group x sort x filter views (each filter at each value, every pair, with and without the place filter; the fixture and the real record) deterministic and order-proof; the sections in the legend\'s / CONTRACT_PROVIDERS\' order, shown + hidden = the unfiltered count, each filter\'s "n hidden" its own; the order monotone, ties by id; the tracked row first and never gone (' + pinnedN + ' times outside the filters, marked); ✓ / ✗ unchanged; ' + nights + ' night jobs tagged; the map\'s rings and badges follow the list (' + oW.n.dim + ' places dimmed by "water")');
+  }
+
+  // ---- G2730 (MAP-EDGE): THE PAINTING'S EDGE SAMPLED AND FADED INTO THE PAGE (the user, 12 Oct: "the borders of the map
+  // not being exactly the blue of the background ... sample the colors at the edge of the map and softly blend them") -
+  // ONE canvas in the stage (the painting's transform, nothing per frame), baked once from a downscaled copy; its outer
+  // colour the page's EXACTLY; the seam continuous; the painting's inside untouched past the rim ----
+  {
+    for (const n of ['EDGE', 'ART_FILTER', 'hexRGB', 'lookOf', 'edgeRing', 'edgeBake']) need(MM[n] !== undefined, 'the pure export ' + n + ' is gone');
+    const E0 = MM.EDGE, art = pack.art, page = MM.hexRGB(art.edge);
+    need(page.join() === [0, 0x42, 0x79].join() && art.edge.toLowerCase() === '#004279', 'the page colour is not the painting\'s edge (' + art.edge + ')');
+    // THE DOM: one canvas, a child of the stage after the painting; the stage's transform is the painting's; the bake
+    // once per painting (keyed on its file), after load + decode, off the open's frame; place() never touches it
+    need((menuSrc.match(/class="mmEdge"/g) || []).length === 1 && /<div class="mmStage"><img [^>]*><canvas class="mmEdge" aria-hidden="true"><\/canvas><\/div>/.test(menuSrc), 'the edge canvas: not exactly one, inside the stage after the painting');
+    need(/\.mmStage \.mmEdge\{position:absolute;display:none;pointer-events:none\}/.test(menuSrc) && /\.mmStage\{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform\}/.test(menuSrc) && /\$\.mmStage\.style\.transform = 'translate\('/.test(menuSrc), 'the edge canvas takes a pointer, or the stage does not carry the painting\'s transform');
+    const place = /function place\(\) \{[\s\S]*?\n  \}/.exec(menuSrc)[0], once = /function edgeOnce\(art\) \{[\s\S]*?\n  \}/.exec(menuSrc);
+    need(!/edge/i.test(place), 'place() (every pan / zoom) touches the edge: per-frame work');
+    need(once && /if \(edgeKey === art\.img\) return;/.test(once[0]) && (menuSrc.match(/edgeOnce\(art\)/g) || []).length === 2 && /\.then\(ok => \{ if \(ok\) edgeOnce\(art\); return ok; \}\)/.test(menuSrc), 'the bake is not once per painting, after its load');
+    need(/inWorker\(\)\.catch\(\(\) => here\(\)\)/.test(once[0]) && /img\.decode \? img\.decode\(\)/.test(once[0]) && /W\.setTimeout\(/.test(once[0]) && !/phone/.test(once[0]), 'the bake: not in a worker (the page\'s fallback after the img\'s decode, off the open\'s frame), or by layout (desk and phone share one look)');
+    need(/page: hexRGB\(art\.edge\)/.test(once[0]) && /\$\.mmMap\.style\.background = art\.edge;/.test(menuSrc) && (once[0].match(/edgeBake\(edgeRing\(g\.getImageData\(0, 0, job\.sw, job\.sh\)\), job\.w, job\.h, job\.page\)/g) || []).length === 1, 'the fade\'s end and the page background are not the same art.edge');
+    need(/left: -E\.m \+ 'px', top: -E\.m \+ 'px', width: \(pack\.w \+ 2 \* E\.m\) \+ 'px', height: \(pack\.h \+ 2 \* E\.m\) \+ 'px'/.test(once[0]) && /sw: Math\.max\(8, Math\.round\(pack\.w \/ EDGE\.texel\)\)/.test(once[0]), 'the canvas does not span the painting and its margin in the painting\'s px');
+    need(/\.mmStage img\{display:block;pointer-events:none;filter:\$\{ART_FILTER\}\}/.test(menuSrc) && MM.ART_FILTER === 'saturate(' + E0.look.sat + ') contrast(' + E0.look.con + ')', 'the painting\'s CSS filter is not the look the edge colours carry');
+    need([[0, 66, 121], [12, 200, 40], [255, 0, 128]].every(c => MM.lookOf(c, { sat: 1, con: 1 }).every((v, k) => Math.abs(v - c[k]) < 1e-9)) && MM.lookOf([127.5, 127.5, 127.5], E0.look).every(v => Math.abs(v - 127.5) < 1e-9), 'lookOf is not the CSS saturate / contrast');
+    // a SYNTHETIC painting at the DOM half's size (a texel's downscale): a sea whose colour wanders along every side, the
+    // waves (+-8 per pixel), a land blob in the middle
+    const sw = Math.round(pack.w / E0.texel), sh = Math.round(pack.h / E0.texel), px = new Uint8ClampedArray(sw * sh * 4);
+    let sd = 7; const rn = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647 - 0.5; };
+    const seaAt = (x, y) => [0, 70 + 16 * Math.sin(x / 23) + 10 * Math.cos(y / 31), 126 + 12 * Math.sin(x / 19 + y / 41)];
+    for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
+      const i = (y * sw + x) * 4, land = Math.hypot(x - sw / 2, y - sh / 2) < sw * 0.3, c = land ? [90, 120, 60] : seaAt(x, y), wv = land ? 0 : rn() * 16;
+      px[i] = c[0] + wv; px[i + 1] = c[1] + wv; px[i + 2] = c[2] + wv; px[i + 3] = 255;
+    }
+    const R = MM.edgeRing({ data: px, width: sw, height: sh }), B = MM.edgeBake(R, pack.w, pack.h, page), B2 = MM.edgeBake(MM.edgeRing({ data: px, width: sw, height: sh }), pack.w, pack.h, page);
+    need(['top', 'bottom', 'left', 'right'].every(k => R[k].length === E0.seg) && Buffer.compare(Buffer.from(B.data.buffer), Buffer.from(B2.data.buffer)) === 0, 'the ring is not EDGE.seg a side, or the bake is not deterministic');
+    // THE WORKER bakes with these same functions: its source, run in a bare context (no page, no module), gives the
+    // same texels byte for byte, and its message handler asks for the painting through fetch / ImageBitmap / OffscreenCanvas
+    const WS = MM.edgeWorkerSrc(), box = { Math, Object, Uint8ClampedArray, Float64Array, JSON };
+    vm.createContext(box); vm.runInContext(WS + '\n;globalThis.__E = edgeBake(edgeRing(__img), __w, __h, __page);', Object.assign(box, { __img: { data: px, width: sw, height: sh }, __w: pack.w, __h: pack.h, __page: page }));
+    need(box.__E && Buffer.compare(Buffer.from(box.__E.data.buffer), Buffer.from(B.data.buffer)) === 0 && box.__E.m === B.m, 'the worker\'s bake is not the page\'s byte for byte');
+    need(/await fetch\(url\)/.test(WS) && /createImageBitmap\(b, \{ resizeWidth: sw, resizeHeight: sh/.test(WS) && /new OffscreenCanvas\(sw, sh\)/.test(WS) && /o\.getContext\("2d", \{ willReadFrequently: true \}\)\.putImageData\(new ImageData\(E\.data, E\.cw, E\.ch\), 0, 0\)/.test(WS) && /postMessage\(\{ E, bmp, ms: [^}]*\}, \[bmp\]\)/.test(WS) && /transferFromImageBitmap\(r\.bmp\)/.test(once[0]) && !/terminate\(\)/.test(once[0]), 'the worker does not decode the painting off the page, paint the texels on a CPU-backed canvas and transfer the picture back (a bitmaprenderer shows it; never terminated)');
+    // the ring follows the painting's edge (the sea's wander, the look applied), never the land, the waves averaged out
+    const L = Math.max(sw, sh), d0 = Math.floor(E0.band[0] * L), d1 = Math.max(d0 + 1, Math.round(E0.band[1] * L));
+    let ringErr = 0, waveErr = 0;
+    for (let k = 0; k < E0.seg; k++) {
+      const x0 = Math.floor(k * sw / E0.seg), x1 = Math.max(x0 + 1, Math.floor((k + 1) * sw / E0.seg)), s = [0, 0, 0]; let n = 0;
+      for (let y = d0; y < d1; y++) for (let x = x0; x < x1; x++) { const i = (y * sw + x) * 4; s[0] += px[i]; s[1] += px[i + 1]; s[2] += px[i + 2]; n++; }
+      const want = MM.lookOf(s.map(v => v / n), E0.look); ringErr = Math.max(ringErr, ...want.map((v, c) => Math.abs(v - R.top[k][c])));
+      const calm = MM.lookOf(seaAt((x0 + x1) / 2, (d0 + d1) / 2), E0.look); waveErr = Math.max(waveErr, ...calm.map((v, c) => Math.abs(v - R.top[k][c])));
+    }
+    need(ringErr < 1e-6 && waveErr < 6 && R.top.every(c => c[0] < 1), 'the ring is not the band\'s mean on the painting\'s top edge (' + ringErr + '), does not follow the sea under the waves (' + waveErr.toFixed(2) + ') or saw the land');
+    // the canvas: small, spanning the painting plus the fade; the fade 10-15 % of the map
+    const { cw, ch, m, F, RIM, data } = B, Lp = Math.max(pack.w, pack.h);
+    need(cw <= 512 && ch <= 512 && F >= 0.1 * Lp && F <= 0.15 * Lp && m > F && RIM > 0 && RIM < 0.03 * Lp, 'the canvas ' + cw + 'x' + ch + ' or the fade ' + Math.round(F) + ' px / rim ' + Math.round(RIM) + ' px of a ' + Lp + ' px map');
+    const tx = (i, j) => { const p = (j * cw + i) * 4; return [data[p], data[p + 1], data[p + 2], data[p + 3]]; };
+    const X = i => (i + 0.5) * (pack.w + 2 * m) / cw - m, Y = j => (j + 0.5) * (pack.h + 2 * m) / ch - m;
+    // THE OUTER COLOUR = THE PAGE'S EXACTLY: the canvas's border texels and every texel past the fade
+    let outerMax = 0, past = 0;
+    for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) {
+      const x = X(i), y = Y(j), dx = x - Math.max(0, Math.min(pack.w, x)), dy = y - Math.max(0, Math.min(pack.h, y));
+      if (!(i === 0 || j === 0 || i === cw - 1 || j === ch - 1 || Math.hypot(dx, dy) >= F)) continue;
+      const c = tx(i, j); past++; outerMax = Math.max(outerMax, Math.abs(c[0] - page[0]), Math.abs(c[1] - page[1]), Math.abs(c[2] - page[2]), 255 - c[3]);
+    }
+    need(outerMax === 0 && past > 2 * (cw + ch), 'the fade\'s outer colour is not the page\'s exactly (max ' + outerMax + ' over ' + past + ' texels)');
+    // THE SEAM: along every side, the texel just outside and the texel just inside (the rim, opaque at the border) the
+    // same colour; the fade soft (no texel-to-texel step over 3 levels on any outward line); inside the rim, nothing
+    let seam = 0, seamN = 0, step = 0, inner = 0;
+    const iIn = [], jIn = [];
+    for (let i = 0; i < cw; i++) if (X(i) >= 0 && X(i) <= pack.w) iIn.push(i);
+    for (let j = 0; j < ch; j++) if (Y(j) >= 0 && Y(j) <= pack.h) jIn.push(j);
+    const i0 = iIn[0], i1 = iIn[iIn.length - 1], j0 = jIn[0], j1 = jIn[jIn.length - 1];
+    const pair = (a, b) => { seam = Math.max(seam, ...[0, 1, 2].map(c => Math.abs(a[c] - b[c]))); seamN++; need(b[3] >= 0.85 * 255, 'the rim is not opaque at the painting\'s border (' + b[3] + ')'); };
+    for (const i of iIn.slice(4, -4)) { pair(tx(i, j0 - 1), tx(i, j0)); pair(tx(i, j1 + 1), tx(i, j1)); }
+    for (const j of jIn.slice(4, -4)) { pair(tx(i0 - 1, j), tx(i0, j)); pair(tx(i1 + 1, j), tx(i1, j)); }
+    const line = (i, j, di, dj) => { let a = tx(i, j); for (let k = 1; i + di * k >= 0 && i + di * k < cw && j + dj * k >= 0 && j + dj * k < ch; k++) { const b = tx(i + di * k, j + dj * k); step = Math.max(step, ...[0, 1, 2].map(c => Math.abs(a[c] - b[c]))); a = b; } };
+    for (const i of iIn) { line(i, j0 - 1, 0, -1); line(i, j1 + 1, 0, 1); }
+    for (const j of jIn) { line(i0 - 1, j, -1, 0); line(i1 + 1, j, 1, 0); }
+    line(i0 - 1, j0 - 1, -1, -1); line(i1 + 1, j1 + 1, 1, 1);
+    for (const j of jIn) for (const i of iIn) { const x = X(i), y = Y(j); if (Math.min(x, y, pack.w - x, pack.h - y) >= RIM) inner = Math.max(inner, tx(i, j)[3]); }
+    need(seam <= 2 && seamN > 2 * (iIn.length + jIn.length) - 40, 'the seam: ' + seam + ' levels between the texels either side of the painting\'s border');
+    need(step <= 3, 'the fade steps ' + step + ' levels between neighbouring texels (banding)');
+    need(inner === 0, 'the canvas covers the painting inside its rim (alpha ' + inner + ')');
+    say('MAP-EDGE (G2730): the painting\'s edge sampled as a ring (' + E0.seg + ' segments a side, the outer ' + (E0.band[0] * 100).toFixed(1) + '-' + (E0.band[1] * 100).toFixed(1) + ' %, the img\'s look ' + MM.ART_FILTER + ' applied; the band\'s mean exactly, ' + waveErr.toFixed(1) + ' levels from the sea under the waves, the land unseen), ONE ' + cw + 'x' + ch + ' canvas in the stage (the painting\'s transform; baked once per painting in a worker - the same functions, byte for byte - or after the img\'s decode, never in place()), faded over ' + Math.round(F) + ' px (' + Math.round(E0.fade * 100) + ' %) with a ' + Math.round(RIM) + ' px rim over the painting; the outer colour = the page\'s ' + art.edge + ' exactly (max 0 over ' + past + ' texels); the seam <= ' + seam + ' levels, the fade\'s steps <= ' + step + ', the painting untouched inside the rim; no pointer');
+  }
+
   // ---- G2440 (MAP-MERGE): THE THREE OTHER LISTS, the contracts' way - a row (an icon, the title, ONE number), ONE
   // paragraph when opened, at most two buttons; no card, no table; each list's markers on the map; a marker's tap filters ----
   for (const n of ['marketAdapt', 'marketListHTML', 'modelCardHTML', 'usedCardHTML', 'marketMarkers', 'certRows', 'pilotsListHTML', 'pilotCardHTML', 'fleetListHTML', 'listMarkers', 'switchHTML'])
@@ -362,7 +606,7 @@ module.exports = function mapSmoke(html, phone) {
     return b;
   };
   // FLEET: the real fleet (the voucher's Cub at HOME, a kit at w3): where each stands, seats, payload, gear, range
-  const fl = { list: 'fleet', cust: 'all', at: null, phone };
+  const fl = { list: 'fleet', at: null, phone };
   const FH = MM.listHTML(M1, fl);
   need(keysOf(FH).join() === 'f:Cub,f:Kit' && (FH.match(/class="mmRow mmRowI"/g) || []).length === 2 && (FH.match(/class="mmIc"/g) || []).length === 2, 'the Fleet list: a row per aeroplane (' + keysOf(FH).join() + ')');
   const fb = checkItem(M1, fl, 'f:Cub', 'the Fleet: ');
@@ -377,7 +621,7 @@ module.exports = function mapSmoke(html, phone) {
   need(o1R.n.marks === 0 && o1R.n.planes === 2, 'the contracts list draws the other lists\' markers');
   say('the Fleet: ' + M1.fleet.length + ' rows (✈, the name, the payload), the paragraph "' + fb.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() + '", no button; the place filter; a marker per aeroplane at its base, sized to the zoom (' + /--ms:(\d+)px/.exec(oF.html)[1] + ' -> ' + /--ms:(\d+)px/.exec(oF3.html)[1] + ' px)');
   // PILOTS (G2290): the real record - kit hired, 2-3 looking for work; Hire / Flies next / Fire (disabled in the preview)
-  const pst = { list: 'pilots', cust: 'all', at: null, phone };
+  const pst = { list: 'pilots', at: null, phone };
   const PL = MR.pilots || [], PH = MM.listHTML(MR, pst);
   need(PL.length >= 3 && PL.length <= 4 && PL.filter(p => p.hired).map(p => p.id).join() === 'kit' && PL.filter(p => !p.hired).every(p => p.onOffer), 'the real Pilots: kit hired, 2-3 looking for work (' + PL.map(p => p.id + (p.hired ? '*' : '')).join() + ')');
   need(keysOf(PH).length === PL.length && PH.indexOf('Your pilots') < PH.indexOf('data-key="p:kit"') && PH.indexOf('data-key="p:kit"') < PH.indexOf('Looking for work'), 'the Pilots list: a row per pilot, yours first');
@@ -398,7 +642,7 @@ module.exports = function mapSmoke(html, phone) {
     need(ids.every(id => Object.values(C.PROCURE_MODELS[id].designs).every(d => C.CONTRACT_DESIGNS[d] && C.CONTRACT_DESIGNS[d].build)), 'a catalogue model that is not a validated build');
     need(KC.used.length >= 1 && KC.used.length <= 4 && KC.used.every(L => MR.aeros[L.aero]), 'the used listings: 1-4, each at an aerodrome of the map (' + KC.used.length + ')');
     const MKc = Object.assign({}, MR, { market: KC }), MKs = Object.assign({}, MR, { market: KS });
-    const mst = { list: 'market', cust: 'all', at: null, phone };
+    const mst = { list: 'market', at: null, phone };
     const lh = MM.listHTML(MKc, mst), ks = keysOf(lh);
     need(ks.filter(k => k.startsWith('m:')).length === ids.length && ks.filter(k => k.startsWith('u:')).length === KC.used.length && lh.indexOf('data-key="m:') < lh.indexOf('data-key="u:'), 'the Market list: the makers\' models, then the used listings');
     for (const id of ids) {

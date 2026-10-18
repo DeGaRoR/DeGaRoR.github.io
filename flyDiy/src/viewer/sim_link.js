@@ -498,7 +498,7 @@ const SIM_LINK = (() => {
       if (sim.fuel && V.fuel) merge(sim.fuel, V.fuel, 3);
       if (sim.hydro && V.hydro) {
         const H = sim.hydro, h = V.hydro; H.wet = h.wet; H.tick = h.tick;
-        for (let i = 0; i < H.floats.length && i < h.floats.length; i++) { const a = H.floats[i], b = h.floats[i]; a.wet = b.wet; merge(a.out, b.out, 2); for (let j = 0; j < a.lam.length && j < b.lam.length; j++) a.lam[j] = b.lam[j];
+        for (let i = 0; i < H.floats.length && i < h.floats.length; i++) { const a = H.floats[i], b = h.floats[i]; a.wet = b.wet; if (Number.isFinite(b.h)) a.h = b.h; merge(a.out, b.out, 2);   /* G2834: the float's water level (the spray's y) */ for (let j = 0; j < a.lam.length && j < b.lam.length; j++) a.lam[j] = b.lam[j];
           // G1180: the world vertices from the nodes just mirrored (sim_host keeps its tables), the wet panels from the worker
           if (a.ctx && a.ctx.fill && a.out.W) a.ctx.fill(a.out.W);
           if (b.per && a.out.per) { for (const o of a.out.per) o.wet = 0;

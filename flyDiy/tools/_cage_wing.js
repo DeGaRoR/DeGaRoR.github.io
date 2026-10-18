@@ -116,17 +116,36 @@ const flownOf = (P, plane) => {
          f.of.tip === +P.wgChordTip ? f : null;
 };
 const ENVW = () => (typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null);
+// G3050: and since the rows are WRITTEN BACK to the flown wing (the coerce
+// below), a row the resolver held says where and why until it is moved again
+// (HELD: what was asked, what was written). (P, plane) as the notes above.
+const WHY = {
+  wgSpan: E => `the span is held to ${E.span[0]}–${E.span[1]} m and ${E.spanPerChord[0]}–${E.spanPerChord[1]} × the root chord`,
+  wgChordTip: E => `the tip is held to ${E.taper[0]}–${E.taper[1]} × the root chord`,
+  wgTipX: () => 'the tip offset is held to tan 30° of the semispan',
+  wgCrankX: () => 'the crank offset is held to tan 30° of the semispan',
+  wgCrankAt: () => 'a crank inboard of 15 % of the semispan is no crank',
+  wgCentreW: () => 'the narrowest centre section is 0.20 m',
+  wgFlapSpan: () => 'the flap ends 4 % of the semispan short of the aileron',
+  wgDx: E => `the leading edge is held ${E.xLE[0]}–${E.xLE[1]} m aft of the firewall (the flown envelope)`,
+};
+const heldNote = k0 => (P, plane) => {
+  const k = plane ? 'w2' + k0.slice(2) : k0, h = HELD[k], E = ENVW();
+  if (!h || +P[k0] !== h.wrote || !E) return '';
+  const f2 = v => (Math.round(v * 1000) / 1000).toString();
+  return `held at ${f2(h.wrote)} (asked ${f2(h.asked)}) — ` + (WHY[k0] ? WHY[k0](E) : 'the flown envelope');
+};
 const spanNote = (P, plane) => {
   const f = flownOf(P, plane), E = ENVW();
-  if (!f || !E || !(Math.abs(f.span - f.of.span) > 0.005)) return '';
+  if (!f || !E || !(Math.abs(f.span - f.of.span) > 0.005)) return heldNote('wgSpan')(P, plane);
   return `flies ${f.span.toFixed(2)} m — the span is held to ` +
          `${E.spanPerChord[0]}–${E.spanPerChord[1]} × the root chord`;
 };
 const tipNote = (P, plane) => {
   const f = flownOf(P, plane), E = ENVW();
-  if (!f || !E) return '';
+  if (!f || !E) return heldNote('wgChordTip')(P, plane);
   const tip = f.chord * f.taper;
-  if (!(Math.abs(tip - f.of.tip) > 0.005)) return '';
+  if (!(Math.abs(tip - f.of.tip) > 0.005)) return heldNote('wgChordTip')(P, plane);
   return `flies ${tip.toFixed(2)} m — the tip is held to ` +
          `${E.taper[0]}–${E.taper[1]} × the root chord`;
 };
@@ -144,7 +163,7 @@ const WING_ITEMS = [
   ['wgChordTip', 'tip chord',    0.55, 2.10, 0.05, { ...on, dim: 'm', note: tipNote }],
   ['wgTip',    'tips',           0, TIP_KEYS.length - 1, 1,
    TIP_KEYS.map(k => GEN_TIPS[k].name), on],
-  ['wgCrankAt', 'crank at',      0, 0.85, 0.05, on],
+  ['wgCrankAt', 'crank at',      0, 0.85, 0.05, { ...on, note: heldNote('wgCrankAt') }],
   // G140: the crank SECTION — its own chord and fore/aft seat, the same
   // two numbers the root and tip carry. On a strutted wing the crank is
   // where the strut lands (the frame's ruling), so this trio IS the
@@ -152,12 +171,12 @@ const WING_ITEMS = [
   ['wgCrankChord', 'crank chord', 0.55, 2.10, 0.05,
    { when: P => +P.wingOn && +P.wgCrankAt > 0, dim: 'm' }],
   ['wgCrankX', 'crank aft',      -0.8, 1.5, 0.05,
-   { when: P => +P.wingOn && +P.wgCrankAt > 0, dim: 'm' }],
+   { when: P => +P.wingOn && +P.wgCrankAt > 0, dim: 'm', note: heldNote('wgCrankX') }],
   ['wgDihedralOut', 'dih. outer', 0, 20, 0.5,
    { when: P => +P.wingOn && +P.wgCrankAt > 0 }],
   // G140: sweep retired — the TIP's fore/aft seat is the honest knob (the
   // old angle was tan(this / exposed semispan))
-  ['wgTipX',   'tip aft',        -1.5, 2.5, 0.05, { ...on, dim: 'm' }],
+  ['wgTipX',   'tip aft',        -1.5, 2.5, 0.05, { ...on, dim: 'm', note: heldNote('wgTipX') }],
   ['wgDihedral', 'dihedral',     0, 6, 0.5, on],
   ['wgIncidence', 'incidence',   -1, 4, 0.1, on],
   ['wgWashout', 'washout',       0, 4, 0.1, on],
@@ -176,7 +195,7 @@ const WING_ITEMS = [
     'top half glass', 'top half fuselage', 'removed'],
    { when: P => +P.wingOn }],
   ['wgCentreW', 'centre section width (0 = cabin)', 0, 3.0, 0.05,
-   { ...on, dim: 'm' }],
+   { ...on, dim: 'm', note: heldNote('wgCentreW') }],
   // T2.3 (48): the carry-through BEAM in a cut centre section — optional
   // (default on), a real box or tube in bare metal (the finish tab repaints)
   ['wgBeam', 'carry-through beam', 0, 1, 1,
@@ -196,7 +215,7 @@ const WING_ITEMS = [
   ['wgCons', 'construction', 0, 6, 1,
    ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube', 'glassfibre'],
    on],
-  ['wgDx',     'fore / aft',       -1.5, 1.8, 0.05, on],
+  ['wgDx',     'fore / aft',       -1.5, 1.8, 0.05, { ...on, note: heldNote('wgDx') }],
   ['wgDy',     'up / down',         -1.0, 1.0, 0.02, on],
   ['wgParaH',  'height (cabane)',    0.25, 1.20, 0.01,
    { when: P => +P.wingOn && Math.round(P.wgPos) === 3, dim: 'm' }],
@@ -230,7 +249,7 @@ const WING_ITEMS = [
     ['wgFlapType', 'flaps',      0, FLAP_KEYS.length - 1, 1,
      FLAP_KEYS.map(k => GEN_FLAPS[k].name)],
     ['wgFlapSpan', 'flap span',  0.10, 0.60, 0.02,
-     { when: P => FLAP_KEYS[Math.round(P.wgFlapType)] !== 'none' }],
+     { when: P => FLAP_KEYS[Math.round(P.wgFlapType)] !== 'none', note: heldNote('wgFlapSpan') }],
     ['wgFlapChord', 'flap chord', 0.10, 0.40, 0.01,
      { when: P => FLAP_KEYS[Math.round(P.wgFlapType)] !== 'none' }],
     ['wgAilOn', 'ailerons', 0, 1, 1],
@@ -306,6 +325,86 @@ const W0_POS_KEYS = ['high', 'mid', 'low', 'parasol'];
   if (want === p1) return false;
   P.w2Pos = W2_POS_KEYS.indexOf(want);
   return true;
+});
+// G3050 (CONFIGURATIONS §9, RULING 3; the user's WYSIWYG, 8 Oct): THE ROW IS
+// THE WING THAT FLIES. G1283 made the clamped rows SAY so (a note); the row
+// still read 0.55 over a 0.945 m tip, 6.5 over an 8.40 m span, a crank at 10 %
+// that is no crank. Every wing row is now written back to what the resolver
+// makes of it - the same resolveSpec(wingGSpec(P)) the layer draws from, so the
+// drawing, the flown wing and the row are one number - and the fore / aft row
+// to the station window the layer draws inside (wingDxWindow, written back by
+// the layer from the build's own cage spec). Nothing flies
+// or draws differently for a row already inside its clamp: only a row the
+// resolver had overruled moves, to the value it already flew. Bit-identical
+// writes: a row is written only when it differs from the flown value by more
+// than 1e-9 (a tip of chord x taper re-divides to its taper within an ulp).
+// HELD remembers what was asked, so the row's note can say why it stopped
+// (until the row is moved again).
+const HELD = {};
+const HELD_EPS = 1e-9;
+// [row key (plane 0), what the resolved plane says, when the row is live]
+// - the second plane's rows are the same list through w2Key
+const ROWBACK = [
+  ['wgChord', w => w.chord],
+  ['wgSpan', w => w.span],
+  ['wgChordTip', w => w.chord * w.taper],
+  ['wgTipX', w => w.tipX],
+  ['wgCrankAt', w => w.crankAt, P => +P.wgCrankAt > 0],
+  ['wgCrankChord', w => w.crankChord, P => +P.wgCrankAt > 0],
+  ['wgCrankX', w => w.crankX, P => +P.wgCrankAt > 0],
+  ['wgDihedralOut', w => w.dihedralOut, P => +P.wgCrankAt > 0],
+  ['wgDihedral', w => w.dihedral],
+  ['wgIncidence', w => w.incidence],
+  ['wgWashout', w => w.washout],
+  ['wgCamber', w => Math.floor(w.naca / 1000)],
+  ['wgThick', w => w.naca % 100],
+  ['wgPanels', w => w.panels],
+  ['wgCentreW', w => w.centreW, P => +P.wgCentreW > 0],
+  ['wgAilSpan', (w, c) => c.aileron.span, P => +P.wgAilOn && +P.wgAilSpan > 0],
+  ['wgAilChord', (w, c) => c.aileron.chord, P => +P.wgAilOn],
+  ['wgFlapSpan', (w, c) => c.flap.span, P => FLAP_KEYS[Math.round(P.wgFlapType)] !== 'none'],
+  ['wgFlapChord', (w, c) => c.flap.chord, P => FLAP_KEYS[Math.round(P.wgFlapType)] !== 'none'],
+];
+// the cabane height rides the position: plane 0's parasol is stop 3, plane 1's stop 0
+const PARA_LIVE = [P => Math.round(P.wgPos) === 3, P => Math.round(P.w2Pos) === 0];
+let RB_KEY = null;
+function wingRowsFlown(P) {
+  // what the resolver makes of every live wing row: [[key, value], ...]
+  const out = [];
+  const R = resolveSpec(wingGSpec(P)).spec;
+  const planes = [[R.wings[0], R.controls, k => k, P]];
+  if (+P.w2On && R.wings[1]) planes.push([R.wings[1], R.wings[1].controls, w2Key, w2View(P)]);
+  planes.forEach(([w, c, key, V], k) => {
+    for (const [k0, get, live] of ROWBACK) {
+      if (live && !live(V)) continue;
+      if (/^wgAil|^wgFlap/.test(k0) && !c) continue;
+      const v = get(w, c);
+      if (typeof v === 'number' && isFinite(v)) out.push([key(k0), v]);
+    }
+    if (PARA_LIVE[k](P) && typeof w.cabaneH === 'number') out.push([key('wgParaH'), w.cabaneH]);
+    if (k === 1 && typeof w.stagger === 'number') out.push(['w2Stagger', w.stagger]);
+  });
+  return out;
+}
+(PAGE.coerce = PAGE.coerce || []).push(P => {
+  for (const k in HELD) if (P[k] !== HELD[k].wrote) delete HELD[k];
+  if (!+P.wingOn) return false;
+  let ch = false;
+  const put = (k, v, why) => {
+    if (!(Math.abs(+P[k] - v) > HELD_EPS)) return;
+    HELD[k] = { asked: +P[k], wrote: v, why };
+    P[k] = v; ch = true;
+  };
+  // the planform and the controls: one resolve per change of the wing rows
+  const key = JSON.stringify(wingGSpec(P));
+  if (key !== RB_KEY) {
+    for (const [k, v] of wingRowsFlown(P)) put(k, v);
+    RB_KEY = ch ? JSON.stringify(wingGSpec(P)) : key;
+  }
+  // (the fore / aft row is written back by the layer itself, off the cage
+  // spec the build already made - wingDxWindow in PAGE.post; a cageSpec here
+  // would cost 0.7 ms a build)
+  return ch;
 });
 const host6 = (PAGE.groupsOverride || []).find(g => g[0] === '6 · wings');
 if (host6) host6[1].push(...WING_ITEMS, ['second wing', W2_ITEMS, { when: P => +P.wingOn }]);
@@ -639,30 +738,10 @@ const early = window.CAGE_WING_EARLY = {
   get last() { return LAST.slice(); },
 };
 
-const prevPost = PAGE.post;
-let boomGroup = null;                        // the twin booms (2026-09-04)
-// G2880: the build below, then its early readers (above) - after every exit
-PAGE.post = ctx => {
-  wingPost(ctx);
-  early.publish(ctx);
-};
-const wingPost = ctx => {
-  if (prevPost) prevPost(ctx);
-  const { scene, spec, mesh, P, stat } = ctx;
-  dispose(group); group = null;
-  dispose(group2); group2 = null;
-  // G133: no wing, no contract — a stale CAGE_WING would hand the gear
-  // layer an underside probe for a wing that is no longer there
-  if (!P.wingOn) { window.CAGE_WING = null; return; }
-  const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
-
-  // the game spec: defaults + the panel's wing — everything else rides
-  // the generator's own defaults (its fuselage is built and discarded;
-  // only the wing subset is kept). The NACA digits and the tip chord
-  // compose exactly as the garage's own @ knobs do.
-  // G59.2: the airframe contract, hoisted — the frame this layer builds
-  // needs the BUILT cabin, not the generator's default one (see below).
-  const AF = GG && GG.cageAirframe ? GG.cageAirframe(mesh, FS) : null;
+// G3050: THE WING SPEC FROM THE ROWS, one home for the layer's build and
+// the rows' write-back (PAGE.coerce below): the wing subset of the game
+// spec, before the measured cabin is added.
+function wingGSpec(P) {
   const cam = Math.round(P.wgCamber), thk = Math.round(P.wgThick);
   // G185: the second plane's spec, from its own rows (the join writes the
   // same fields — _join_check holds the mapping)
@@ -739,6 +818,69 @@ const wingPost = ctx => {
                  chord: P.wgAilChord },
     },
   };
+  return gspec;
+}
+
+// G3050 (CONFIGURATIONS §9 defect 2): THE FORE / AFT ROW STOPS WHERE THE
+// FLOWN WING STOPS. The join reads the wing's station back off the DRAWN wing
+// (xLE = firewall - ring - nudge - sparFront x chord, G52/G295) and clampWing
+// cuts it to GEN_WING_ENVELOPE.xLE; past that the drawing kept going and the
+// flown wing did not (G1283 said so in an ERRS row). The window is the nudge
+// that keeps the drawn leading edge inside the envelope, off the same stations
+// the join measures (CAGE2.cageNamedZ / cageFirewallZ) and the same chord
+// (the row's - the chord row is the envelope's). null = the join measures
+// nothing either (no firewall ring): the row is the drawing.
+function wingDxWindow(P, CSp) {
+  const E = typeof GEN_WING_ENVELOPE !== 'undefined' && GEN_WING_ENVELOPE.xLE;
+  if (!E || !CG2 || !CG2.cageNamedZ || !CSp) return null;
+  let zOf;
+  try { zOf = CG2.cageNamedZ(CG2.cageResolve(CSp), (CG2.CAGE_UNIT || 1) * (P.planeScale || 1)); }
+  catch (e) { return null; }
+  const zFw = CG2.cageFirewallZ(zOf), zRing = zOf('ring');
+  if (zFw == null || zRing == null) return null;
+  const sparF = (typeof GEN_RULES !== 'undefined' && GEN_RULES.sparFront) || 0.15;
+  const base = zFw - zRing - sparF * (P.wgChord || 1.5);
+  return [base - E[1], base - E[0]];
+}
+const clampTo = (v, w) => w ? Math.max(w[0], Math.min(w[1], v)) : v;
+// clampWing's root-height bounds (yRoot, metres over the keel datum), read off
+// the resolver itself so the window has no copy of its numbers
+let YR_ENV;
+const wingYRootEnv = () => {
+  if (YR_ENV !== undefined) return YR_ENV;
+  try {
+    const f = y => resolveSpec({ wings: [{ yRoot: y }] }).spec.wings[0].yRoot;
+    const r = [f(-1e3), f(1e3)];
+    YR_ENV = r.every(v => typeof v === 'number' && isFinite(v)) && r[0] < r[1] ? r : null;
+  } catch (e) { YR_ENV = null; }
+  return YR_ENV;
+};
+
+const prevPost = PAGE.post;
+let boomGroup = null;                        // the twin booms (2026-09-04)
+// G2880: the build below, then its early readers (above) - after every exit
+PAGE.post = ctx => {
+  wingPost(ctx);
+  early.publish(ctx);
+};
+const wingPost = ctx => {
+  if (prevPost) prevPost(ctx);
+  const { scene, spec, mesh, P, stat } = ctx;
+  dispose(group); group = null;
+  dispose(group2); group2 = null;
+  // G133: no wing, no contract — a stale CAGE_WING would hand the gear
+  // layer an underside probe for a wing that is no longer there
+  if (!P.wingOn) { window.CAGE_WING = null; return; }
+  const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+
+  // the game spec: defaults + the panel's wing — everything else rides
+  // the generator's own defaults (its fuselage is built and discarded;
+  // only the wing subset is kept). The NACA digits and the tip chord
+  // compose exactly as the garage's own @ knobs do.
+  // G59.2: the airframe contract, hoisted — the frame this layer builds
+  // needs the BUILT cabin, not the generator's default one (see below).
+  const AF = GG && GG.cageAirframe ? GG.cageAirframe(mesh, FS) : null;
+  const gspec = wingGSpec(P);
   // THE STRUT LANDS ON THE BUILT CABIN (G59.2, user: "the wing struts do
   // not land where they should... the reference for hook points should be
   // the internal structure"). The comment above is the bug: with only the
@@ -754,7 +896,13 @@ const wingPost = ctx => {
     const hh0 = AF.surf(zs0, Math.PI)[1] - AF.surf(zs0, 0)[1];
     if (hw0 > 0.05 && hh0 > 0.2) gspec.cabin = { halfW: hw0, h: hh0 };
   }
-  let def, pay;
+  // G3050: AT MOST TWO PASSES - the second only when the second plane's
+  // drawn root would stand outside the flown root heights (below)
+  let def, pay, N2, wf, WN, toBody, rootF, refP, yAnchor, keelY = null, dy, dyWin = null, held2 = null;
+  const S2 = spec || {};
+  const zCab = (S2.ring && S2.ring.z != null ? S2.ring.z : 2.0) * FS;
+  const YR = wingYRootEnv();
+  for (let pass = 0; pass < 2; pass++) {
   try {
     const RS = resolveSpec(gspec);        // -> {spec, auto}
     const fr = genFrame(RS.spec);
@@ -768,35 +916,75 @@ const wingPost = ctx => {
     if (stat) stat.textContent += '  ·  wing: ' + e.message;
     return;
   }
-  const N2 = def.nodes, wf = def.parts.wf;
-  const WN = new Set();
+  N2 = def.nodes; wf = def.parts.wf;
+  WN = new Set();
   for (const side of [wf.L, wf.R]) if (side)
     for (const arr of [side.F, side.R]) if (arr)
       for (const i of arr) WN.add(i);
   if (!WN.size) { if (stat) stat.textContent += '  ·  wing: no spar nodes'; return; }
 
-  const toBody = bodyFrameOf(def);
+  toBody = bodyFrameOf(def);
   // anchors: root LE at the cage's cabin-front station, root height on
   // the deck (high) / keel band (low) — the fin's own anchoring move,
   // read through the gear module's airframe contract
   // def nodes are already body-frame — only the EMITTED skin went through
   // the rest transform, which is what toBody undoes per vertex
-  const rootF = wf.R && wf.R.F && wf.R.F.length ? wf.R.F[0] : null;
-  const refP = rootF != null ? N2[rootF].p : [0, 0, 0];
-  const S2 = spec || {};
-  const zCab = (S2.ring && S2.ring.z != null ? S2.ring.z : 2.0) * FS;
-  let yAnchor = refP[1];
+  rootF = wf.R && wf.R.F && wf.R.F.length ? wf.R.F[0] : null;
+  refP = rootF != null ? N2[rootF].p : [0, 0, 0];
+  yAnchor = refP[1];
   if (AF) {
     const zs = Math.max(AF.z0 + 0.05, Math.min(AF.z1 - 0.05, zCab - 0.3));
     const deckY = AF.surf(zs, Math.PI)[1];
-    const keelY = AF.surf(zs, 0)[1];
+    keelY = AF.surf(zs, 0)[1];
     const pos = Math.round(P.wgPos);
     yAnchor = pos === 2 ? keelY + 0.22 * (deckY - keelY)  // low: belly band
       : pos === 1 ? keelY + 0.55 * (deckY - keelY)        // mid: the waist
       : pos === 3 ? deckY + 0.01 + (+P.wgParaH || 0.45)   // parasol: the cabane
       : deckY + 0.01;                                     // high: the deck
   }
-  const dx = P.wgDx || 0, dy = P.wgDy || 0;
+  // G3050: THE ROOT HEIGHT DRAWN IS THE ROOT HEIGHT THAT FLIES. The join reads
+  // each plane's root height back off this drawing (yRoot over the keel datum,
+  // G266.1 / the biplane audit) and clampWing holds it to YR: a parasol on a
+  // tall cabin at the top of its rows was drawn 3.72 m over the keel and flew
+  // at 3.00. The up / down nudge is held to the window that keeps the root
+  // inside (the join's keel datum is this keelY: the same station).
+  dyWin = YR && keelY != null ? [YR[0] - (yAnchor - keelY), YR[1] - (yAnchor - keelY)] : null;
+  dy = clampTo(P.wgDy || 0, dyWin);
+  // ...and the second plane's: its root stands where the frame puts it off
+  // the first (the pair's gap, its cabane, its place.dy nudge); out of the
+  // window, its nudge is moved by the overshoot and the frame made again
+  const PL1x = +P.w2On && def.parts.planes && def.parts.planes[1];
+  const r2 = PL1x && PL1x.wf && PL1x.wf.R && PL1x.wf.R.F ? PL1x.wf.R.F[0] : null;
+  if (pass > 0 || !YR || keelY == null || r2 == null || !gspec.wings[1]) break;
+  const y2 = yAnchor + (N2[r2].p[1] - refP[1]) + dy - keelY;   // nodeCage's map (rootYOf, the join's wingY2)
+  const shift = clampTo(y2, YR) - y2;
+  if (!(Math.abs(shift) > HELD_EPS)) break;
+  const pd = gspec.wings[1].place || (gspec.wings[1].place = { dx: 0, dy: 0 });
+  held2 = { asked: +P.w2Dy || 0, wrote: (+pd.dy || 0) + shift };
+  pd.dy = held2.wrote;
+  }
+  // G3050: the nudge DRAWN is the nudge that flies (wingDxWindow above);
+  // the join reads it back from the anchor
+  const dxWin = wingDxWindow(P, spec);
+  const dx = clampTo(P.wgDx || 0, dxWin);
+  // ...and the rows say the station and heights drawn (the build is already
+  // the written P's: re-run with it, the layer draws the same wing). The
+  // chain records the old reads, so the next build re-runs this layer once;
+  // the sliders follow now.
+  let wrote = false;
+  const writeRow = (k, v) => {
+    if (!(Math.abs((+P[k] || 0) - v) > HELD_EPS)) return;
+    HELD[k] = { asked: +P[k] || 0, wrote: v };
+    P[k] = v; wrote = true;
+  };
+  writeRow('wgDx', dx);
+  writeRow('wgDy', dy);
+  if (held2) writeRow('w2Dy', def.spec.wings[1] && def.spec.wings[1].place
+    ? +def.spec.wings[1].place.dy || 0 : held2.wrote);
+  if (wrote) {
+    const U = window.CAGE_UI;
+    if (U && typeof U.syncSliders === 'function') try { U.syncSliders(); } catch (e) {}
+  }
   // body (x aft, z lateral) -> cage (z forward, x lateral, y shared)
   const toCage = p0 => {
     const p = toBody(p0);
@@ -1595,11 +1783,42 @@ const wingPost = ctx => {
   // GLASS CENTRE (G32, user): the game emits a 'glass' carry-through into
   // its CANOPY group — the binding filter pulls the wing-bound faces out
   // and they take the glazing treatment (view panel's glass alpha)
+  // G2781 (the user, 10 Oct: "glass center section does not work anymore
+  // (wrong material)"): it wore `glassMat()`, a hand-rolled Standard with no
+  // `aeroskin` flag — so the understudy pass flattened it to matte blue in the
+  // shed, and with no `aeroFinish` the snapshot rebuilt it as COVERING in
+  // flight: the lamp lens's own two failures (see lensMatW above), never
+  // carried over to the centre. It is the CABIN'S glazing now: the pane the
+  // builder set up (material, dials, tint) through the fuselage's own
+  // resolver, the lens's pooled glass when the page has no cage sections.
   if (gs.canopy) {
     const parts = pickParts(gs.canopy, wingVert(gs.canopy), toCage, null);
     if (parts.x) {
+      // the glazing is FRONT-SIDE (the far limb of a curved pane must not show
+      // through the near one), so the closed carry-through must wind OUTWARD:
+      // its signed volume says, and an inside-out loft is turned round here
+      // rather than trusting which root the generator called L
+      const gi = parts.x.geo.index, gp = parts.x.geo.attributes.position;
+      if (gi && gp) {
+        let vol = 0;
+        for (let t = 0; t < gi.count; t += 3) {
+          const a = gi.getX(t), b = gi.getX(t + 1), c = gi.getX(t + 2);
+          const ax = gp.getX(a), ay = gp.getY(a), az = gp.getZ(a);
+          const bx = gp.getX(b), by = gp.getY(b), bz = gp.getZ(b);
+          const cx = gp.getX(c), cy = gp.getY(c), cz = gp.getZ(c);
+          vol += ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx);
+        }
+        if (vol < 0) {
+          for (let t = 0; t < gi.count; t += 3) { const b = gi.getX(t + 1); gi.setX(t + 1, gi.getX(t + 2)); gi.setX(t + 2, b); }
+          gi.needsUpdate = true;
+          parts.x.geo.computeVertexNormals();
+        }
+      }
+      const paneMat = () => (window.CAGE_MAT_OF && window.CAGE_MAT_OF('windshield')) || lensMatW() || glassMat();
       const o = WIRE ? new THREE.LineSegments(parts.x.wire, wireMat('glassC'))
-                     : new THREE.Mesh(parts.x.geo, glassMat());
+                     : new THREE.Mesh(parts.x.geo, paneMat());
+      o.name = 'edGlassCentre';
+      o.renderOrder = 1003;          // over the aerodrome's decals, as the lens (AERO_CLEAR)
       group.add(o);
     }
   }
@@ -2095,7 +2314,7 @@ const wingPost = ctx => {
   window.CAGE_WING = { surfs,
                        struts: STRUTS_OUT,   // G477: the drawn lift struts, {pin, tip} in cage metres
                        def, semi: def.spec.geom && def.spec.geom.semi,
-                       skinFaces: faces, anchor: { zCab, yAnchor }, group,
+                       skinFaces: faces, anchor: { zCab, yAnchor, dx, dy, dxWin, dyWin }, group,
                        underAt, overAt, leAt, teAt, box: wbox,
                        // G185: what the BRACE layer needs to put a fitting on
                        // this wing and on the body it stands on

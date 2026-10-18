@@ -166,7 +166,7 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 // chunk loaded only with ?damage=1, ~-50 KB gz) and G3021 (the damage half of app.js, lazy too); both in the official
 // backlog. (Before: 4.05, train 44's ~+30 KB, owed back by ROUTE-LAZY G3070.)
 // Master's quote, kept: A0 12 Oct 22:10: the user ACCEPTED BY NAME SCENERY-SHIP's +10 KB (rev27: strip 12, roads, areas) - "ok". Before that, 12 Oct: the user ACCEPTED BY NAME train 44's ~+30 KB (route_draw + 44_vprofile + 38c_route: 4.03 MiB); owed back by ROUTE-LAZY G3070 (route_draw as a lazy chunk)
-const WIRE_BUDGET_MIB = 4.21;   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
+const WIRE_BUDGET_MIB = 4.6;   // the user, 13 Oct ~13:10: "yes, raise the budget to 4.6 MiB" - by-name asks only when ONE train adds > 50 KB gz (the per-train STEP row). Earlier acceptances:   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
 // STEP: how much index.html (CRs removed) may grow over the build before it, MiB.
 // "The build before" is git's: if the built page differs from HEAD's, HEAD (and
 // its parents, when HEAD is a merge); if it IS HEAD's, the parents of the commit
@@ -189,6 +189,10 @@ const DATA_BUDGET_KB = 400;
 // ?freight=1 boot), measured here beside index.html and never counted in it. Its own tripwire: 305 KB at the split
 // (8 Oct, train 43's nine modules); a career module past this ceiling is something heavy moving into the career's boot.
 const CAREER_BUDGET_KB = 512;
+// G3070 (ROUTE-LAZY): the drawn route's drawing is its own file too (route_draw.<h8>.js, fetched on first demand or at
+// boot for an armed route), measured beside index.html and never counted in it. Its tripwire: 31 KB at the split (12
+// Oct, route_draw.js as train 44 landed it); past this, something heavy is riding the drawing.
+const ROUTE_BUDGET_KB = 64;
 
 // ---------------------------------------------------------------------------
 // the manifests that may reference media/ — one list, so a new externalized
@@ -252,6 +256,10 @@ function manifestFiles() {
     return fs.existsSync(mf) ? JSON.parse(fs.readFileSync(mf, 'utf8')).map(f => path.join(ROOT, 'src', dir, f)) : []; };
   const scenery = kitPacks('scenery', 'scenery_packs.json');
   const cars = kitPacks('cars', 'cars_packs.json');
+  // the camping kit and the infrastructure kit (ASSETS-OCT G3140-G3149): the tents (tools/camp_kit.py: media/geo/camp,
+  // camp_lod, media/tex/camp) and the pylons (tools/infra_gen.js: media/geo/infra, no maps) - lazy like the scenery
+  const camp = kitPacks('camp', 'camp_packs.json');
+  const infra = kitPacks('infra', 'infra_packs.json');
   // EVERY payload on disk, not build.js's publish list: the table is the
   // CATALOGUE and MANIFEST.models the published subset (GATE REF's own
   // distinction). draco is baked-but-unpublished — no spec holds its scale —
@@ -268,6 +276,16 @@ function manifestFiles() {
       .filter(f => /_(?:char|anim)\.js$|^chars_ktx2\.js$/.test(f))   // + AS6's budget table (G935)
       .map(f => path.join(ROOT, 'src', 'chars', f))
     : [];
+  // THE CROWD (CHARACTERS G2970): src/chars/crowd_pack.json names the clips' bins, the cast's budget KTX2 and each cast
+  // member's manifest - a media file itself (media/chars/<key>.<h8>.json), read as a manifest too (its bin, its maps)
+  const crowdP = path.join(ROOT, 'src', 'chars', 'crowd_pack.json');
+  if (fs.existsSync(crowdP)) {
+    chars.push(crowdP);
+    try {
+      for (const c of JSON.parse(fs.readFileSync(crowdP, 'utf8')).cast || [])
+        if (c.man && fs.existsSync(path.join(ROOT, c.man))) chars.push(path.join(ROOT, c.man));
+    } catch (e) {}
+  }
   // the animals (2026-09-22): the baked skins and their clip libraries, plus
   // the levels pack tools/animal_lod.js cuts - every manifest on disk, the
   // same catalogue-not-publish-list reasoning as the models above
@@ -312,7 +330,7 @@ function manifestFiles() {
   // the 2-D island map (G2250 MAP-MENU): tools/map_bake.js owns media/map, named by the generated map pack (G2203: was missing,
   // so the map's two files read as orphans)
   const mapp = path.join(ROOT, 'src', 'viewer', 'map_pack.js'), maps = fs.existsSync(mapp) ? [mapp] : [];
-  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, models, chars, animals, trees, shots, worlds, townkit, sound, maps);
+  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, camp, infra, models, chars, animals, trees, shots, worlds, townkit, sound, maps);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|json)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701)
@@ -448,7 +466,15 @@ function checkArtifact() {
     career = { name: cn[0], kb: c.length / 1024, gzKb: zlib.gzipSync(c).length / 1024 };
     check(career.kb <= CAREER_BUDGET_KB, `${cn[0]} is ${career.kb.toFixed(1)} KB against the career core's ${CAREER_BUDGET_KB} KB`);
   }
-  return { mib, gz: MiB(gz), base, step: base.bytes != null ? MiB(page.length - base.bytes) : null, kb, bytes: page.length, gzBytes: gz, career };
+  // G3070: the drawn route's drawing, separately (one file, this build's)
+  const rn = fs.readdirSync(ROOT).filter(n => /^route_draw\.[0-9a-f]{8}\.js$/.test(n));
+  let route = null;
+  if (check(rn.length === 1, `one route_draw.<h8>.js beside index.html (${rn.join(', ') || 'none'})`)) {
+    const c = noCR(fs.readFileSync(path.join(ROOT, rn[0])));
+    route = { name: rn[0], kb: c.length / 1024, gzKb: zlib.gzipSync(c).length / 1024 };
+    check(route.kb <= ROUTE_BUDGET_KB, `${rn[0]} is ${route.kb.toFixed(1)} KB against the route drawing's ${ROUTE_BUDGET_KB} KB`);
+  }
+  return { mib, gz: MiB(gz), base, step: base.bytes != null ? MiB(page.length - base.bytes) : null, kb, bytes: page.length, gzBytes: gz, career, route };
 }
 
 // ---------------------------------------------------------------------------
@@ -543,7 +569,8 @@ console.log(`  ${refs.size} references from ${files.length} manifests, ` +
            : `step not measured: ${art.base.why}, `) +
          `data: ${art.kb.toFixed(0)} KB (budget ${DATA_BUDGET_KB})` : ''));
 if (art) console.log(`  index.html ${art.bytes} B (${(art.bytes / 1024).toFixed(1)} KB, ${(art.gzBytes / 1024).toFixed(1)} KB gzipped)` +
-  (art.career ? ` · the career core ${art.career.name} ${art.career.kb.toFixed(1)} KB (${art.career.gzKb.toFixed(1)} KB gzipped; budget ${CAREER_BUDGET_KB} KB), fetched by a career / ?map=1 / ?freight=1 boot alone` : ''));
+  (art.career ? ` · the career core ${art.career.name} ${art.career.kb.toFixed(1)} KB (${art.career.gzKb.toFixed(1)} KB gzipped; budget ${CAREER_BUDGET_KB} KB), fetched by a career / ?map=1 / ?freight=1 boot alone` : '') +
+  (art.route ? ` · the route drawing ${art.route.name} ${art.route.kb.toFixed(1)} KB (${art.route.gzKb.toFixed(1)} KB gzipped; budget ${ROUTE_BUDGET_KB} KB), fetched when the drawing is opened or a route is armed` : ''));
 if (fail.length) {
   for (const f of fail) console.log('  FAIL ' + f);
   console.log('GATE MEDIA: FAIL');

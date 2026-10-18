@@ -268,6 +268,9 @@ function meshPayloads() {
   for (const f of packs('totems', 'totems_packs.json')) load(f, 'totems');
   // the October scenery kit (ASSETS-OCT, G2904; tools/scenery_table.py): landmarks, vessels, wrecks, the crowd
   for (const f of packs('scenery', 'scenery_packs.json')) load(f, path.basename(f) === 'scenery_lods.js' ? 'scenery_lod' : 'scenery');
+  // the camping kit (the user's tents) and the infrastructure kit (the pylons, procedural) - ASSETS-OCT G3140-G3149
+  for (const f of packs('camp', 'camp_packs.json')) load(f, path.basename(f) === 'camp_lods.js' ? 'camp_lod' : 'camp');
+  for (const f of packs('infra', 'infra_packs.json')) load(f, 'infra');
   for (const f of packs('cabin', 'cabin_packs.json')) load(f, 'cabin');
   for (const f of packs('panelhw', 'panelhw_packs.json')) load(f, 'panelhw');
   for (const f of packs('animals', 'animals_packs.json')) load(f, 'animal_lod');
@@ -315,7 +318,7 @@ function biomeReach() {
 // ---------------------------------------------------------------------------------------------
 const MAT_RE = /new THREE\.(Mesh(?:Basic|Lambert|Phong|Standard|Physical|Toon|Matcap|Depth|Distance|Normal)Material|ShaderMaterial|RawShaderMaterial|PointsMaterial|LineBasicMaterial|LineDashedMaterial|SpriteMaterial|ShadowMaterial)\b/g;
 function materialSites() {
-  const files = walk(path.join(ROOT, 'src')).filter(f => /\.js$/.test(f) && !/_(model|char|anim|animal)\.js$|props_|pier_|totems_|scenery_|panelhw_|cabin_cabin/.test(path.basename(f)))
+  const files = walk(path.join(ROOT, 'src')).filter(f => /\.js$/.test(f) && !/_(model|char|anim|animal)\.js$|props_|pier_|totems_|scenery_|camp_camp|camp_lods|infra_pylon|panelhw_|cabin_cabin/.test(path.basename(f)))
     .concat(fs.readdirSync(path.join(ROOT, 'tools')).filter(f => /^_.*_(gen|kit)\.js$/.test(f)).map(f => path.join(ROOT, 'tools', f)));
   const rows = [];
   for (const f of files) {

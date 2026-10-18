@@ -17,7 +17,9 @@
 //    profile of a point drawn under a hill is red (a conflict, said), a point too steep for the aeroplane is flagged
 //    with what it asks against the limit, the take-off's climb-out is not a conflict; a point's speed is clamped to the
 //    aeroplane's; the legs carry the drawn altitudes.
-// C. THE DRAWING (no browser): route_draw.js in a vm - points added at their safe default, inserted into a leg, every
+// C. THE DRAWING (no browser): the page's door (route_lazy.js) loading the BUILT route_draw.<h8>.js in a vm (G3070
+//    ROUTE-LAZY: nothing fetched at boot, the draw mode's first demand fetches and runs it once; an armed route reloaded runs
+//    it at boot and reaches the pilot, and reaches it from the stored record when the file is refused) - points added at their safe default, inserted into a leg, every
 //    edit remembered (flydiy.routeDraw), FLY THIS ROUTE arming the pilot, a new flight's pilot handed it, a reload
 //    bringing it back, leaving it disarming. (Its gestures are real pointer input in tools/route_draw_shot.js.)
 // B. THE FLIGHTS (fly:<build>): the same 5-point route over Jolene (170 / 350 / 300 / 220 / 170 m MSL - climbs, a
@@ -126,20 +128,46 @@ function model(check, doctor) {
   log('model: safe ' + safe + ' m; gate route min clearance ' + P1.minClr.toFixed(0) + ' m; hill ' + P2.minClr.toFixed(0) + ' m; steep ' + P3.pts[1].why);
 }
 
-// ---- C. the drawing (route_draw.js, no browser): the page's module in a vm with the core's globals and stub doors ----
-function drawing(check, doctor) {
+// ---- C. the drawing (route_draw.js, no browser): the page's door (route_lazy.js) and the BUILT drawing it loads
+// (route_draw.<h8>.js, G3070 ROUTE-LAZY) in a vm with the core's globals, stub doors, a fetch that serves the file
+// beside the page and a document whose <script> runs its text - the page's own load path ----
+async function drawing(check, doctor) {
   const vm = require('vm');
+  const B = require(path.join(T, 'build.js'));
   const W = jolene(), H = W.aerodromes.find(a => a.id === 'HOME');
   const store = {};
   const def = L.defOf('cub'), sim = C.makeSim(def, W); sim.reset(0);
   let ap = C.makePilot(sim, def, W, {});
-  const ctx = vm.createContext(Object.assign({ console, Date, JSON, Math, Map, setTimeout, clearTimeout }, C));
-  vm.runInContext(fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'route_draw.js'), 'utf8') + '\n;this.RD = ROUTE_DRAW;', ctx);
-  const RD = ctx.RD;
-  let redraws = 0;
+  const names = B.routeDrawNames(path.join(T, '..'));
+  check(names.length === 1, 'one route_draw.<h8>.js beside the page (node tools/build.js)', names.join(', ') || 'none');
+  if (names.length !== 1) return;
+  const NAME = names[0], CHUNK = fs.readFileSync(path.join(T, '..', NAME), 'utf8');
+  const SHIM = fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'route_lazy.js'), 'utf8');
+  // a page: the core's globals, FLYDIY_ROUTE_SRC, fetch (the file, counted; `fail` refuses it), a <script> that runs
+  const page = fail => {
+    const ctx = vm.createContext(Object.assign({ console: { log() {}, info() {}, error: console.error, warn() {} }, Date, JSON, Math, Map, Promise, setTimeout, clearTimeout }, C));
+    ctx.FLYDIY_ROUTE_SRC = NAME; ctx.fetched = [];
+    ctx.fetch = async u => { ctx.fetched.push(u); if (fail || u !== NAME) return { ok: false, status: 404, text: async () => '' }; return { ok: true, status: 200, text: async () => CHUNK }; };
+    ctx.document = { getElementById: () => null, createElement: () => ({}), head: { appendChild: s => vm.runInContext(s.textContent, ctx, { filename: NAME }) } };
+    return ctx;
+  };
+  const shim = ctx => { vm.runInContext(SHIM + '\n;this.RD = ROUTE_DRAW;', ctx, { filename: 'route_lazy.js' }); return ctx.RD; };
+  let redraws = 0, rails = 0;
   const deps = { ap: () => ap, sim: () => sim, world: () => W, started: () => false, prefGet: (k, d) => (k in store ? store[k] : d), prefSet: (k, v) => { store[k] = v; },
-                 simw: () => null, box: () => ({ x0: -14000, z0: -30000, size: 39000 }), redraw: () => { redraws++; }, mapOpen: () => {} };
+                 simw: () => null, box: () => ({ x0: -14000, z0: -30000, size: 39000 }), redraw: () => { redraws++; }, mapOpen: () => {}, rail: () => { rails++; } };
+  const ctx = page(false), RD = shim(ctx);
   RD.attach(deps);
+  check(!RD.loaded() && !ctx.fetched.length && RD.route() === null && !RD.armed() && !RD.on() && RD.mapView() === null, 'the page boots without the drawing: nothing fetched, nothing drawn, nothing armed');
+  // THE FIRST DEMAND: the map's draw mode asked (FLY > drawn route > draw on the map) - the file fetched, run, the mode on
+  RD.setOn(true);
+  await RD.ready();
+  await new Promise(r => setTimeout(r, 0));
+  check(RD.loaded() && ctx.fetched.length === 1 && ctx.fetched[0] === NAME && RD.on() && rails === 1 && ctx.FLYDIY_ROUTE_RAN === NAME, 'the draw mode asked: ' + NAME + ' fetched once, run, the mode on, the rail rebuilt', ctx.fetched.join(', ') + ' rails ' + rails);
+  { const alone = vm.createContext({}); vm.runInContext(CHUNK, alone, { filename: NAME });
+    check(vm.runInContext("typeof ROUTE_DRAW === 'undefined' && typeof ROUTE_DRAW_UI === 'object'", alone) && RD.loaded(), 'the drawing declares no global of its own (it registers window.ROUTE_DRAW_UI; bound to the page\'s door)'); }
+  await RD.ready(); RD.want();
+  check(ctx.fetched.length === 1, 'asked again: not fetched again');
+  RD.setOn(false);
   check(RD.route() === null && !RD.armed(), 'the drawing starts empty, nothing armed');
   for (const [dx, dz] of ROUTE_PTS) RD.add(H.x + dx, H.z + dz);
   const R = RD.route();
@@ -156,11 +184,36 @@ function drawing(check, doctor) {
   ap = C.makePilot(sim, def, W, {});
   RD.onPilot(ap);
   check(ap.drawn && ap.drawn.state === 'armed' && ap.drawn.legs.length === 5, 'a new flight\'s pilot is handed the armed route', ap.drawn && ap.drawn.state);
-  // a page reload: the draft and the arming come back from the pref
-  const ctx2 = vm.createContext(Object.assign({ console, Date, JSON, Math, Map, setTimeout, clearTimeout }, C));
-  vm.runInContext(fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'route_draw.js'), 'utf8') + '\n;this.RD = ROUTE_DRAW;', ctx2);
-  ctx2.RD.attach(deps);
-  check(ctx2.RD.armed() && ctx2.RD.route() && ctx2.RD.route().name === 'lib' && ctx2.RD.route().pts.length === 5, 'reloaded, the drawn route and its arming are back');
+  // A PAGE RELOAD WITH THE ROUTE ARMED: the boot's rule (FLYDIY_ROUTE_WANT, index.html's ROUTE_LOADER) fetches the file
+  // and the promote runs it right after the core - ahead of the door, which binds it at its evaluation; the draft and the
+  // arming are back, the first flight's pilot is handed it, the door itself fetched nothing
+  {
+    const html = fs.readFileSync(path.join(T, '..', 'index.html'), 'utf8');
+    const m = /window\.FLYDIY_ROUTE_WANT = (function \(\) \{[^\n]*?\});/.exec(html);
+    const want = m ? vm.runInContext('(' + m[1] + ')', vm.createContext({ JSON, localStorage: { getItem: k => (k in store ? store[k] : null) } })) : null;
+    check(!!want && want() === true, 'the boot\'s rule (index.html FLYDIY_ROUTE_WANT) wants the file: an armed route is stored');
+    const ctx2 = page(false);
+    vm.runInContext(CHUNK, ctx2, { filename: NAME });
+    const RD2 = shim(ctx2);
+    RD2.attach(deps);
+    check(RD2.loaded() && !ctx2.fetched.length && RD2.armed() && RD2.route() && RD2.route().name === 'lib' && RD2.route().pts.length === 5, 'reloaded armed: the drawing ran at boot, the drawn route and its arming are back');
+    const ap2 = C.makePilot(sim, def, W, {});
+    RD2.onPilot(ap2);
+    check(ap2.drawn && ap2.drawn.state === 'armed' && ap2.drawn.legs.length === 5, 'reloaded armed: the first flight\'s pilot is handed it');
+    // ...and the file refused (offline, no copy in sw.js's cache): the door alone still hands the stored armed route
+    const ctx3 = page(true), RD3 = shim(ctx3);
+    RD3.attach(deps);
+    const ap3 = C.makePilot(sim, def, W, {});
+    RD3.onPilot(ap3);
+    check(!RD3.loaded() && RD3.armed() && ap3.drawn && ap3.drawn.state === 'armed' && ap3.drawn.legs.length === 5 && ap3.drawn.route.name === 'lib', 'the file refused: the stored armed route still reaches the pilot (the door hands the record)');
+    let threw = null; try { await RD3.ready(); } catch (e) { threw = e; }
+    check(!!threw && ctx3.fetched.length === 1 && !RD3.loaded(), 'the file refused: said, the drawing not there (the next demand tries again)');
+    // and not armed: the boot wants nothing
+    const st = JSON.parse(store['flydiy.routeDraw']); st.fly = false;
+    const was = store['flydiy.routeDraw']; store['flydiy.routeDraw'] = JSON.stringify(st);
+    check(!!want && want() === false, 'a stored route NOT armed: the boot wants nothing (fetched on demand)');
+    store['flydiy.routeDraw'] = was;
+  }
   RD.leave();
   check(!RD.armed() && JSON.parse(store['flydiy.routeDraw']).fly === false, 'leaving it disarms, remembered');
   const P = RD.profile();
@@ -276,14 +329,14 @@ const CASES = [
   { id: 'persona:hamfist', run: (c, d) => flight('cub', 'home', c, d, 'hamfist') },
 ];
 
-function battery(doctor, only) {
+async function battery(doctor, only) {
   only = only || ONLY;
   const fail = [];
   const check = (ok, label, extra) => { if (!ok) fail.push(label + (extra != null && extra !== '' ? ' - ' + extra : '')); if (SHOW && ok) console.log('  ok   ' + label + (extra ? '  (' + extra + ')' : '')); return ok; };
   if (SH.first && (!only || only.includes('model'))) {
     const n0 = fail.length;
     try { model(check, doctor); } catch (e) { check(false, 'model threw', e.stack.split('\n').slice(0, 3).join(' | ')); }
-    try { drawing(check, doctor); } catch (e) { check(false, 'the drawing threw', e.stack.split('\n').slice(0, 3).join(' | ')); }
+    try { await drawing(check, doctor); } catch (e) { check(false, 'the drawing threw', e.stack.split('\n').slice(0, 3).join(' | ')); }
     console.log('  model: ' + (fail.length === n0 ? 'ok' : (fail.length - n0) + ' failed'));
   }
   for (const K of CASES) {
@@ -296,10 +349,11 @@ function battery(doctor, only) {
   return fail;
 }
 
+(async () => {
 if (SELF) {
   // the negatives: (1) a profile that never judges the ground (the hill and the steep point must go red);
   // (2) a pilot handed the route with every altitude 60 m higher than drawn (the +-15 m check must go red)
-  const neg = battery({
+  const neg = await battery({
     profile: (R, W, perf) => { const P = C.routeProfile(R, W, { perf, from: null }); P.unsafe = false; P.conflicts = []; P.steep = []; P.ok = true; P.warnings = []; P.pts.forEach(p => { p.ok = true; p.why = ''; }); P.minClr = 999; return P; },
     flown: R => Object.assign({}, R, { pts: R.pts.map(p => Object.assign({}, p, { alt: p.alt + 60 })) }),
   }, ONLY || ['model', 'fly:cub']);
@@ -310,8 +364,9 @@ if (SELF) {
   process.exit(ok ? 0 : 1);
 }
 const t0 = Date.now();
-const fail = battery(null);
+const fail = await battery(null);
 for (const f of fail) console.log('  FAIL ' + f);
 console.log('ROUTE: ' + fail.length + ' failure(s), ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s' + SH.tag);
 console.log('GATE ROUTE: ' + (fail.length ? 'FAIL' : 'PASS'));
 process.exit(fail.length ? 1 : 0);
+})();

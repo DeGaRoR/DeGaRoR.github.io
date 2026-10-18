@@ -656,8 +656,8 @@ function makePilot(sim, def, world, opts) {
   // G381: the arc turn in progress, the latched level altitude before the
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let finalLevel = null;
+  let flThr0 = 0, flWI = 0;   // G3079 (FLOATS-FIX, PERSONA-2 G2462's): the water flare's power - the approach throttle at the flare's start, its integrator
   let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false, altG = 0;   // altG: GTRAM, the altiport's grade at the aim
-  let flThr0 = 0, flWI = 0;   // G2462: the water flare's power - the approach throttle at the flare's start, its integrator
   // G381.1: the power assist on the approach (see apply)
   let pAsst = 0, flLeft = Infinity;
   // G1936: the forward slip on a short final (FINAL, below) - its amount 0..1, its side, said once
@@ -4069,11 +4069,11 @@ function makePilot(sim, def, world, opts) {
           SV.IthMaxT = A.rotateIMax ?? 0.30; SV.IthGain = A.flareIth ?? 0.4;
           if (altG > 0) engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SPD', { pitch: thC, bank: 0.10, ias: 0.95 * ap.VAppr });   // GTRAM: the round-out onto the slope is flown on power
           else if (sim.hydro) {
-            // G2462 (PERSONA-2): ON THE WATER THE FLARE IS FLOWN ON POWER (FAA-H-8083-23, the seaplane handbook: the
-            // touchdown is made in a slightly nose-high attitude at a low rate of descent, power used to control it).
-            // The throttle stays where the approach had it and a PI on the sink trims it: closed at the flare's start,
-            // the Wipline C172 (full flap, the thrust line under the drag) pitched -3.5 -> -5.3 deg, sank 2.2 -> 3.0 m/s,
-            // the elevator never got the nose above -1 deg and the hull met the water at 2.16 m/s
+            // G3079 (FLOATS-FIX; PERSONA-2 G2462's law, alone): ON THE WATER THE FLARE IS FLOWN ON POWER (FAA-H-8083-23, the
+            // seaplane handbook: the touchdown in a slightly nose-high attitude at a low rate of descent, power controlling
+            // it). The throttle stays where the approach had it and a PI on the sink trims it: closed at the flare's start,
+            // the floats' nose fell, the sink grew and the hull met the water hard - the skip, then the flip
+            // (G3077: ONE water flare - PERSONA-2 G2462's and FLOATS-FIX G3079's are this same law, merged once)
             const eS = vsC - flVsF;   // > 0: sinking faster than asked
             flWI = clamp(flWI + (A.flareWaterI ?? 0.10) * eS * dt, -flThr0, 0.4);
             engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SET', { pitch: thC, bank: 0.10, thr: clamp(flThr0 + (A.flareWaterP ?? 0.25) * eS + flWI, 0, Math.min(1, flThr0 + 0.4)) });
@@ -4103,7 +4103,13 @@ function makePilot(sim, def, world, opts) {
           }
           break;
         }
-        if (trike) {
+        // G3079 (FLOATS-FIX; PERSONA-2 G2462's): ON THE WATER THE ATTITUDE IS HELD WHILE THE HULL PLANES (FAA-H-8083-23: after
+        // the touchdown the back pressure comes in gradually as the seaplane slows off the step) - full back stick the instant
+        // the floats touched threw the Wipline C172 to +16 deg and off the water for 3 s; held to 0.7 Vs0, then the laws below.
+        // On a float Cessna whose sheet rolls out as a trike too (the de-rotation's 2 deg nose-down pinned the bows in)
+        const VsW = sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99;
+        if (sim.hydro && V > 0.7 * VsW) engage('RWY', 'PITCH', 'SET', { thr: 0, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
+        else if (trike) {
           // P1.B soft: the nosewheel stays off to 0.7 Vs, then full up
           const soft = ap.appr && ap.appr.technique === 'soft';
           if (V > (soft ? 0.7 * (sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99) : (A.VDerotate ?? 20))) engage('RWY', 'PITCH', 'SET', { pitch: A.rolloutTh ?? 0.035, thr: 0 });
@@ -4120,13 +4126,8 @@ function makePilot(sim, def, world, opts) {
           // the weathercock (+/-9 deg, saturating), and the tail dropped
           // onto a heading 8 deg off — an 88 deg ground loop on the stearman
           // in 2 m/s across. The tailwheel steers from the first second now.
-          // G2462 (PERSONA-2): ON THE WATER THE ATTITUDE IS HELD WHILE THE HULL PLANES (FAA-H-8083-23: after the
-          // touchdown the back pressure comes in gradually as the seaplane slows off the step) - full back stick the
-          // instant the floats touched at 25 m/s threw the Wipline C172 to +16 deg and off the water for 3 s, the
-          // second touch at 2.7 m/s. The touchdown attitude is held to 0.7 Vs0, then the stick comes back
-          const VsW = sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99;
-          if (sim.hydro && V > 0.7 * VsW) engage('RWY', 'PITCH', 'SET', { thr: 0, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
-          else if (V < 1.15 * (A.VRot || 18)) engage('RWY', 'DE', 'SET', { thr: 0, de: 0.35 });
+          // (G3077: PERSONA-2 G2462's water hold is the one above, G3079's - merged once)
+          if (V < 1.15 * (A.VRot || 18)) engage('RWY', 'DE', 'SET', { thr: 0, de: 0.35 });
           else engage('RWY', 'PITCH', 'SET', { thr: 0, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
         } else engage('RWY', 'DE', 'SET', { thr: 0, de: V > (A.VTailDown ?? A.VTailUp) ? -0.05
                     : (th > (A.thPinMax ?? 0.26) ? 0.05 : V > (A.VPinFull ?? 0) ? 0.14 : 0.35) });
