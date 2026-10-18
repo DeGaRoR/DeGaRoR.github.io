@@ -2100,7 +2100,12 @@ function makePilot(sim, def, world, opts) {
     // reversals a minute (the stock build 23.4, the C172 29; limit 20; master, no swirl, 16.2 / 17.5 / 17.5). A pilot
     // turning on the ground uses the power that keeps it rolling: while the heading is more than 0.10 rad off its way
     // the throttle is held to 0.5, never under the rolling resistance's share + 0.15 (a soft or uphill taxi still rolls)
-    const taxiCap = () => Math.min(A.taxiThrMax ?? 0.85, GP.cap, Math.abs(SV.e) > 0.10 ? Math.max(0.5, taxiFF() + 0.15) : 1);
+    // ...AND ON THE WATER IT IS HALF ALWAYS (FAA-H-8083-23: the displacement taxi, idle to low power; never near the hump while
+    // manoeuvring): the load door's float Cessna taxiing out of Metlakatla for the return leg took the governor's 0.85 to 5-7
+    // m/s - the plough - and ENGINE-TORQUE's reaction torque heeled it 4.6 -> 17 -> 44 -> 130 deg: capsized, the propeller in the
+    // water (GATE TOUR mk_sea > SEA, t 672.6; G3072 saw it at 680). Held to 0.5 it taxis at 3.5 m/s and flies the leg (lift-off
+    // 174 m, the touch at SEA 0.63 m/s). The water's 0.5 is flat (the land's rolling share is not a hull's)
+    const taxiCap = () => Math.min(A.taxiThrMax ?? 0.85, GP.cap, sim.hydro ? 0.5 : Math.abs(SV.e) > 0.10 ? Math.max(0.5, taxiFF() + 0.15) : 1);
     const taxi = (Vtgt) => SV.taxi(Vtgt, taxiFF(), taxiCap());
     const vsAgl = v => aglG < A.hSafe ? Math.max(v, 1.0) : v;
     const taxiV = (A.taxiV ?? 5.0) * ST.taxiK;
