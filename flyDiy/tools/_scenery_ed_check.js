@@ -1149,7 +1149,7 @@ if (plots.length) {
   const S = () => PG.findById(ed32.record(), rs).entry, re = () => { ed32.select(null); ed32.select(rs); };
   re();
   btns.get('give it a stand and a way out')(); re();
-  check(S().stand && S().stand.x === 7050 && S().stand.z === 7090 && S().taxiOutVia === tw && JSON.stringify(S().taxiOut) === '[[7050,7090],[7050,7000]]', '32 a strip without a stand gets one and a way out, following the road that meets it', JSON.stringify([S().stand, S().taxiOutVia, S().taxiOut]));
+  check(S().stand && S().stand.x === 7050 && S().stand.z === 7090 && S().taxiOutVia === tw && JSON.stringify(S().taxiOut) === '[[7050,7000]]', '32 a strip without a stand gets one and a way out, following the road that meets it (no point on the stand itself)', JSON.stringify([S().stand, S().taxiOutVia, S().taxiOut]));
   sels.get('follows road').set(''); re();
   check(S().taxiOutVia === undefined, '32 \'follows road: none\' unlinks the way');
   sels.get('follows road').set(tw); re();
