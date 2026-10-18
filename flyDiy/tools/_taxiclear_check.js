@@ -68,6 +68,13 @@ const check = (ok, what, detail) => {
 const FX = path.join(T, 'fixtures', 'island_jolene.json');
 const METAL = path.join(T, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json');
 const BUILDS = [{ key: 'stock', name: 'stock build' }, { key: METAL, name: 'aluminium C172' }];
+// G3074: THE METAL CESSNA BY THE MILL'S HOUSES (house3 / house4) - its rotation swings 2.9 deg right as the nosewheel unloads
+// since JODEL-PITCH G2470 measured the Munk body couple along the body: the wing reads 1.49 m off (the base's 1.5+ was a
+// fictitious couple's margin). The user, 13 Oct, BY NAME: "the 2 first issues are simple margins to recalibrate" - 1.45 m
+// for that aeroplane at those two houses only; every other build and footprint keeps 1.5
+// (G3077: declared at the top - inside sections 1-10's block shards 1-3 never had it and threw at 11c's wing row; and its
+// regex held a backspace character where \b was meant, so the 1.45 m never applied)
+const wingNeed = (B, at) => (B.key === METAL && /house[34]\b/.test(at || '')) ? 1.45 : 1.5;
 // G2490 (ALTIPORT-TAXI): THE GATE IN SHARDS (run_gates `shards: 3`). Sections 1-10 are ONE heavy job (tools/_shard.js take:
 // shard 0); 11's plans and flights are jobs of their own, dealt round-robin. Unsharded, everything runs here, as before
 const SHD = require(path.join(T, '_shard.js'));
@@ -223,11 +230,6 @@ for (const seed of [0, 1, 6, 12, 42]) {
   check(b0.worst.d < 2 && /clinic$/.test(b0.worst.what.id), '8 calibration: the old south U-turn passes the clinic inside 2 m', b0.worst.d.toFixed(2) + ' m to ' + L.fmtWhat(b0.worst.what));
   check(r.stand.d < 8.5 && /airtaxi$/.test(r.stand.what.id), '8 calibration: the old stand stood inside 8.5 m of the air taxi office', r.stand.d.toFixed(2) + ' m');
 }
-// G3074: THE METAL CESSNA BY THE MILL'S HOUSES (house3 / house4) - its rotation swings 2.9 deg right as the nosewheel unloads
-// since JODEL-PITCH G2470 measured the Munk body couple along the body: the wing reads 1.49 m off (the base's 1.5+ was a
-// fictitious couple's margin). The user, 13 Oct, BY NAME: "the 2 first issues are simple margins to recalibrate" - 1.45 m
-// for that aeroplane at those two houses only; every other build and footprint keeps 1.5
-const wingNeed = (B, at) => (B.key === METAL && /house[34]/.test(at || '')) ? 1.45 : 1.5;
 // 9 flown from the mill
 {
   const a = WI.aerodromes.find(q => q.id === 'mn_strip'), s = C.siteOf('mn_strip');
