@@ -76,6 +76,16 @@ if (!ONLY_SIM) {
     const { dc } = check(joined('tools/fixtures/repro/' + k + '.json'), null, true);
     console.log('           ' + k + ': ' + dc.verdict.toUpperCase() + ' ' + line(dc));
   }
+  // G3271 (RUFUS-CERT): the user's Rufus as built (tools/fixtures/repro/rufus_2026-10-18.json, a copy of their
+  // inbox file) - flown power off with the stick on its stop it settles at 1.16 Vs and never stalls; ctl.elevator
+  // passed it, ctl.flare must not, and must read within 0.08 of the flown 1.16
+  console.log('THE USER\'S RUFUS (nose-heavy: the elevator runs out before the stall) - ctl.flare catches it');
+  {
+    const { dc } = check(joined('tools/fixtures/repro/rufus_2026-10-18.json'), null, true);
+    const r = row(dc, 'ctl.flare');
+    ok(r.level !== 'pass' && !!r.fix && Math.abs(r.value - 1.16) <= 0.08,
+       `rufus: ctl.flare ${r.level} (${r.value} x Vs; flown 1.16) -> ${r.fix || 'no fix'}`);
+  }
 
   console.log('DOCTORED - each defect fails on its own row, with a fix');
   const cub = J.cub;
@@ -86,6 +96,8 @@ if (!ONLY_SIM) {
     ['the stab shrunk to 40 %', S => { S.tail.Sh *= 0.4; }, 'pitch.Vh'],
     ['the tail pulled 1.2 m forward', S => { S.tail.place = { dx: -1.2 }; }, 'pitch.sm'],
     ['no aileron', S => { S.controls = Object.assign({}, S.controls, { aileron: { span: 0, chord: 0.22 } }); S.wings[0].ailSpan = 0; }, 'ctl.aileron'],
+    // G3271: an elevator too small to flare it power off
+    ['the elevator chord cut to 25 %', S => { S.controls = Object.assign({}, S.controls, { elevator: Object.assign({}, S.controls.elevator, { chord: S.controls.elevator.chord * 0.25 }) }); }, 'ctl.flare'],
   ];
   // (the dihedral effect has no doctored row: the wing's dihedral is clamped
   // to 0-6 deg, and the flattest low wing that clamp allows - the Jodel at 0
@@ -122,7 +134,7 @@ if (!ONLY_SIM) {
   {
     const a = check(cub).dc, b = check(cub).dc;
     const keys = ['id', 'group', 'label', 'level', 'limit', 'why'];
-    ok(a.rows.length >= 12 && a.rows.every(r => keys.every(k => r[k] != null && r[k] !== '') && (r.level === 'pass' || r.fix)),
+    ok(a.rows.length >= 13 && a.rows.every(r => keys.every(k => r[k] != null && r[k] !== '') && (r.level === 'pass' || r.fix)),
        a.rows.length + ' rows, every one with ' + keys.join('/') + ' and a fix when not a pass');
     ok(JSON.stringify(a) === JSON.stringify(b), 'the same build twice: the same check to the bit');
     const BE = (() => { const m = { exports: {} }; require('vm').runInNewContext(fs.readFileSync(path.join(ROOT, 'src/viewer/bench.js'), 'utf8'),

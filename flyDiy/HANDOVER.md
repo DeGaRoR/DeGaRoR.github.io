@@ -95044,3 +95044,17 @@ Strict light gate: 16 better; 2 RED already accepted (metal fuseWidth slider; fl
 ## Landing L18b (A0, 18 Oct 14:30)
 Landed: ED-1's placer animals (a tile drops a herd, a scatter makes a hotspot), the ALMA as one tile, packs' loose parts hidden, zone pills for every category (G2893).
 Strict light gate: 16 better; only the accepted metal fuseWidth slider row red. Gates: CLOCK, CLOUD (lamps), FRAMECOST (master's restore row), KTX2 (accepted characters), TOUR shard 0 (the Cub's prop strike in 02/20's pond at w2, the user's kept pond; identical on master per Pilot 18 Oct).
+
+## G3271 - RUFUS-CERT: THE FLARE ROW (power off, judged at the stall) (2026-10-18, for A0 / Game's ULTRALIGHT-CERT G3270-G3279; branch claude/rufus-flare-g3271)
+
+The user's Rufus (ul1, a Rotax 915 on the nose, CG 12 % of the chord) passed the design check's `ctl.elevator` (0.099 Cm at
+1.2 Vs) but, flown power off with the stick on its stop, settles at 1.16 Vs and never stalls: it cannot be flared to a slow
+landing (every node touchdown 1.28-1.34 Vs, 200-210 m of roll). The report: flydiy-notes/RUFUS-CERT-2026-10.md.
+- 64b_gen_design.js: a 13th row `ctl.flare` - full up elevator, the dead tunnel (engine idle), CG at the forward corner,
+  alpha swept from the 1.2 Vs attitude to polarWing.aStall; where the moment turns nose-down, sqrt(best lift / that lift) is
+  the slowest speed the elevator holds (FAR 23.201's "elevator on its stop" stall). pass <= 1.05 Vs, warn to 1.30, fail above.
+  The fix is sized: the CG shift that brings the moment at the stall angle to zero. Free air (ground effect not modelled).
+- GATE DESIGNCHECK: the row count >= 13; a doctored Cub (elevator chord x0.25) must fail ctl.flare; the user's Rufus
+  (tools/fixtures/repro/rufus_2026-10-18.json, a copy of their inbox file) must not pass it, within 0.08 of the flown 1.16.
+- NOT RUN YET (A0: runs 23:15-00:10): the validated five through the new row go to A0 BEFORE ready - a red validated build
+  is the user's call.
