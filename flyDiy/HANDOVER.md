@@ -95036,3 +95036,7 @@ tools/pier_prep.py re-bake (which would restore the scans) cannot pass unseen. N
 (cart_tool_cab, compressor) already have levels and are seen at 1-3 m - the user's call; the "8 props without levels"
 of the report are small props under the ladder's floor, by design.
 Run: node tools/prop_lod.js --base && node tools/prop_lod.js (the pier kit is the default).
+
+## Landing L18a (A0, 18 Oct 06:10)
+Landed: EDITOR-PERF ground fixes (G3100 ring normals, G3101 paved merges + pavement cache), METLA-ON lever 2 (G3212: kit plots stream only near + no far kit shadow; ON-OFF loop +5.85 -> +4.75 ms, >34 ms frames 9.85 -> 4.16 %), damage impact v3 (break events budgeted) + the DMGUPLOAD Cub fix, the asset cut (pier people ~8 k each, boat 370 k -> 30 k), the float spray/wake fix (G2834/G2835), the floats route + water flare (G3078/G3079), PERF-1 (fixed reference tooling, census, parked shadows, 28 dead ALLOWs dropped).
+Strict light gate: 16 better; 2 RED already accepted (metal fuseWidth slider; floats world -> garage, also in train 57). Gates: CLOCK, CLOUD (lamps), FRAMECOST (master's restore row), KTX2 (the 9 character files: accepted, see accepted-4). DMGUPLOAD and TOUR PASS.
