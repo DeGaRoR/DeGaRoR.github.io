@@ -204,6 +204,9 @@ function makeGL(opts) {
       : (...a) => { const b = byteCount(p, a); rec.count(p, b); if (rec.onUni && UNI.test(p)) rec.onUni(p, b, a[0]); return f ? f(...a) : undefined; }) : (f || (() => undefined));
     wrapped.set(p, w); return w; };
   const gl = new Proxy(Object.create(WebGL2RenderingContext.prototype), { get(t, p) {
+    // (PERF-1 P3: a method the PAGE assigned on the context - app.js's vec4-array cache, the recorder's wraps - shadows the
+    // recording one, as an own property shadows the prototype's on a real context; it calls through to the recorder's)
+    if (typeof p === 'string' && Object.prototype.hasOwnProperty.call(t, p)) return t[p];
     if (p in fns) return rec ? wrap(p, fns[p]) : fns[p];
     if (typeof p === 'string' && /^[A-Z0-9_]+$/.test(p)) return k(p);
     if (p === 'canvas') return canvas;

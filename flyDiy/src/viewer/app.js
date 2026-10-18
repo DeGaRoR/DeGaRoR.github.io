@@ -218,6 +218,27 @@
   if (typeof ATMO !== 'undefined') ATMO.init(renderer);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;   // PCFSoft is gone in r186 (W0.5a): PCF, the fallback it names
+  // PERF-1 P3, A VEC4 ARRAY SENT ONLY WHEN IT CHANGED (the uniform census, 17 Oct: 530 gl.uniform4fv a frame at HOME's taxi,
+  // 380 of them uMist[] and uCloudP[] - the atmosphere's and the cloud shadow's arrays, the SAME floats in every program, sent
+  // again at every material switch: three r186 uploads a vec4 ARRAY uniform with no value cache). A uniform location belongs
+  // to ONE program and a program keeps its uniforms' values, so an array whose floats are those its location last received is
+  // not sent again (the location's own copy: three hands over a pooled scratch array). Single vec4s are three's own cache's;
+  // an upload with an offset / a length passes. A restored context forgets every copy. ?u4cache=0: every upload sent (A/B).
+  if (!/[?&]u4cache=0(?:&|$)/.test((typeof location !== 'undefined' && location.search) || '')) (gl => {
+    if (!gl || typeof gl.uniform4fv !== 'function') return;
+    const send = gl.uniform4fv, U4 = window.FLYDIY_U4 = { sent: 0, held: 0 };
+    let last = new WeakMap();
+    gl.uniform4fv = function (loc, data, off, len) {
+      if (loc && data && off === undefined && len === undefined && data.length > 4) {
+        const p = last.get(loc), n = data.length;
+        if (p && p.length === n) { let i = 0; while (i < n && p[i] === data[i]) i++; if (i === n) { U4.held++; return; } p.set(data); }
+        else last.set(loc, Float32Array.from(data));
+        U4.sent++;
+      }
+      return send.call(gl, loc, data, off, len);
+    };
+    if (renderer.domElement && renderer.domElement.addEventListener) renderer.domElement.addEventListener('webglcontextrestored', () => { last = new WeakMap(); });
+  })(renderer.getContext ? renderer.getContext() : null);
   if (window.SHADOW_NEAR && SHADOW_NEAR.hook) SHADOW_NEAR.hook(renderer);   // G1125: the shadow pass wrapped - what the near map's viewports and the far map hide for their walks is shown again as it ends (shadow_near.js)
   // THE RESOLVE PASS (G144) takes the main render off the default framebuffer
   // so it can have eight MSAA samples instead of the four `antialias: true`
