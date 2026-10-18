@@ -295,7 +295,7 @@ console.log('\n3. THE LAWS');
       { const M = W.mirror, mp2 = w.slice(w.indexOf('function mirrorRender('), w.indexOf('function obliqueClip('));
         verdict(!W.proto.ring && M.ringD0 === 1000 && M.ringD1 === 1300 && M.ringH0 === 300 && M.ringH1 === 400 && M.ringD1 > M.ringD0 && M.ringH1 > M.ringH0,
           `the ring: full to ${M.ringD0} m from land and ${M.ringH0} m up, gone by ${M.ringD1} / ${M.ringH1} m (the fades outside the user's numbers); off without ?wrefl=ring`);
-        verdict(/if \(opts\.sky && !PROTO\.ring\)/.test(mp2) && /if \(opts\.clouds && !PROTO\.ring\)/.test(mp2) && /ringW = \(1 - sstep\(MIR\.ringH0, MIR\.ringH1, eyeAgl\)\) \* \(1 - sstep\(MIR\.ringD0, MIR\.ringD1, ld\)\);/.test(mp2),
+        verdict(/if \(opts\.sky && !PROTO\.ring\)/.test(mp2) && /if \(opts\.clouds && !PROTO\.ring\)/.test(mp2) && /ringW = \(1 - sstep\(MIR\.ringH0, MIR\.ringH1, eyeAgl\)\) \* \(1 - sstep\(MIR\.ringD0, MIR\.ringD1, ld\)\) \* \(1 - sstep\(0, MIR\.ringIn, MIR\.waterD\)\);/.test(mp2) && W.mirror.ringIn > 0,
           'under the ring the capture holds no sky and no clouds (alpha 0: the probe sky for both models), weighted by height x distance to land'); }
       verdict(/if \(WATER\.proto && WATER\.proto\.seaOff && Number\.isFinite\(wl\) && Math\.abs\(wl\) < 0\.05\) wl = null;/.test(app) && /WATER\.proto && WATER\.proto\.hull && WATER\.hullRender/.test(app) && /if \(WSH && WSH\.proto && WSH\.proto\.shadow\) water\.receiveShadow = true;/.test(rw),
         "the switch: the sea's mirror off (lakes kept), the hull capture under b, the sea receiving the shadow under c");

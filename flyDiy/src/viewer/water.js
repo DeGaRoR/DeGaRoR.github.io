@@ -965,7 +965,9 @@ const WATER = (() => {
     // (round 2, 19 Oct: the capture is GEOMETRY-bound - 4.6-5.9 ms GPU at any resolution, ~11 M triangles): ringOffset narrows the mirror
     // camera's FRUSTUM to the rows under the water's horizon (setViewOffset: culling drops what no water pixel reads, not just the fill);
     // ringFar caps the capture's far plane
-    ringOffset: false, ringFar: 4000 };
+    ringOffset: false, ringFar: 4000,
+    // (round 2, A0 19 Oct: 'a ring near the shore' - HOME must pay nothing) over land the ring fades by the eye's distance to WATER, gone by ringIn m inland
+    ringIn: 150, waterD: 0 };
   const mirrorTmp = {};
   // mirrorPlane(under, eye, dt): the plane the capture mirrors about (G2830). `under` is the drawn water's level under the
   // eye (else under the CG), null over land. The plane is ADOPTED from it only while the eye is low over that water,
@@ -1025,7 +1027,12 @@ const WATER = (() => {
     if (isLand(eye.x, eye.z)) best = 0;
     else for (let k = 0; k < 32; k++) { const a = k / 32 * 2 * Math.PI, dx = Math.sin(a), dz = Math.cos(a);
       for (let r = 25; r <= MIR.ringD1 && r < best; r += 25) if (isLand(eye.x + dx * r, eye.z + dz * r)) { best = r; break; } }
-    ringTmp.at = [eye.x, eye.z]; ringTmp.t = now; MIR.landD = best;
+    // (round 2) and inland: the distance to the nearest water, out to MIR.ringIn (Infinity past it) - 0 over the water
+    let wd = 0;
+    if (best === 0) { wd = Infinity;
+      for (let k = 0; k < 32 && wd > 0; k++) { const a = k / 32 * 2 * Math.PI, dx = Math.sin(a), dz = Math.cos(a);
+        for (let r = 10; r <= MIR.ringIn && r < wd; r += 10) if (!isLand(eye.x + dx * r, eye.z + dz * r)) { wd = r; break; } } }
+    ringTmp.at = [eye.x, eye.z]; ringTmp.t = now; MIR.landD = best; MIR.waterD = wd;
     return best;
   }
   // ringHorizon(THREE, camera, pos, waterY): the NDC y of the water plane's horizon across the frame (left / centre / right), Infinity
@@ -1074,7 +1081,7 @@ const WATER = (() => {
     // it moves with the aeroplane, never a frame's switch) - no capture at all where it is 0
     let ringW = 1;
     if (PROTO.ring) { const ld = ringLandDist(camera.position, opts.isLand || MIR.landAt, now);
-      ringW = (1 - sstep(MIR.ringH0, MIR.ringH1, eyeAgl)) * (1 - sstep(MIR.ringD0, MIR.ringD1, ld)); MIR.ringW = ringW; }
+      ringW = (1 - sstep(MIR.ringH0, MIR.ringH1, eyeAgl)) * (1 - sstep(MIR.ringD0, MIR.ringD1, ld)) * (1 - sstep(0, MIR.ringIn, MIR.waterD)); MIR.ringW = ringW; }   // (round 2: x the inland fade)
     MIR.w = mirW * ringW;
     if (!U || MIR.w <= 0.001) { if (MIR.on && U) { MIR.on = false; U.uWMirror4.value.x = 0; } return false; }
     if (PROTO.ring && MIR.nth > 1 && MIR.last && (++MIR.frameN % MIR.nth) !== 0) { U.uWMirror4.value.x = MIR.w; return false; }   // (the guard: every nth frame - the weight still follows every frame)
