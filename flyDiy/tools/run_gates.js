@@ -921,6 +921,10 @@ const GATES = [
   // ...and session 2: the fit as a list — catalogues, tiers, the resolver,
   // the ledger billing exactly its rows, the aerials reading the radios
   { id: 'PANEL', file: '_panel_check.js', tier: 'core' },
+  // G3340 DASH-REDESIGN: the arch dash - a saved build keeps its box byte for byte, a new build gets the arch; open
+  // under the plate, one vertical forward edge, no further through the skin than the box, the real tanks clear of it
+  // (the box's count > 0: not vacuous), the joined card's mass and CG the same with either dash. ~35 s.
+  { id: 'DASH', file: '_dash_check.js', tier: 'core' },
   // ...and session 4: the bus — a battery that drains, an alternator that
   // cuts in, a starter that asks, loads that sum
   { id: 'ELEC', file: '_elec_check.js', tier: 'core' },

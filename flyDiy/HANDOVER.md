@@ -95044,3 +95044,67 @@ Strict light gate: 16 better; 2 RED already accepted (metal fuseWidth slider; fl
 ## Landing L18b (A0, 18 Oct 14:30)
 Landed: ED-1's placer animals (a tile drops a herd, a scatter makes a hotspot), the ALMA as one tile, packs' loose parts hidden, zone pills for every category (G2893).
 Strict light gate: 16 better; only the accepted metal fuseWidth slider row red. Gates: CLOCK, CLOUD (lamps), FRAMECOST (master's restore row), KTX2 (accepted characters), TOUR shard 0 (the Cub's prop strike in 02/20's pond at w2, the user's kept pond; identical on master per Pilot 18 Oct).
+
+## G3340-G3341 - DASH-REDESIGN: THE ARCH DASH (open below, a straight vertical forward edge, cheeks meeting the post) + THE FLEXIBLE DIAL LAYOUT (2026-10-18, DASH-REDESIGN for A0, cloud - node + a software raster of the bench's headless scene; branch claude/dash-redesign off claude/dash-redesign-brief, ready as claude/ready/dash-redesign)
+
+**The ask (the user, 18 Oct):** "the whole top and front parts are OK, the sides and bottom are not, and being able to fit fuel tanks without collisions in there feels imperative". The design direction: one mesh like an arch, plus the flat front panel. Review items 11 and 12.
+
+**References (public, short):**
+- J-3 Cub: the 12 gal tank sits in the nose ahead of the windscreen, the panel is aft of it, and the space under it is the pilot's legs.
+- Cessna 172: a flat structural "stationary" panel riveted to the fuselage, with a shock-mounted instrument sub-panel and a separate padded glareshield over it. The volume below and behind is open legroom.
+- Jodel: a flat ply panel under a small coaming, with the tanks variant-dependent.
+- The rule all of them share, and the one the arch follows: a flat plate under a coaming, closed at the sides by the cabin's own walls and posts, and nothing underneath.
+
+**What was built (`_cage_gen.js` dash pass, `dashStyle 1`):**
+- **Kept:** the top and the face, verbatim. That is the glareshield sealed on the traced base line, the roll, the lip, the crown and the flat `dashFace` plate.
+- **Cheeks:** they take a VERTICAL forward edge at `zFront` (no `zPillA` slant). zFront is the forward face of the near-vertical frame members at the wall around the base corner, plus 4 mm, or the base corner itself where there are none. Cub: 4.8 cm ahead of the corner, covering the front tube. Each edge point is held inside the wall at its own station (`frontX`).
+- **Bottom:** NO bottom ladder.
+- **Plate:** runs down to the box's bottom line (`yPlate = yB`). With no black border under it, the panel never has less room than on the box.
+- **Legs (`dashLegs`: 0 the plate, 1 a side rail (default), 2 the floor):**
+  - They follow the wall where the section turns in, and stop before standing in the footwell.
+  - Below the plate they start at a doorway's forward jamb. Where that leaves less than two lips of leg, they end at the plate.
+  - On the Cub, Jodel and Cessna, and on every doored card, the door opening runs ahead of the panel face, so the arch ends at the plate. The doorless Rufus and Chinook get legs to their floor rail.
+  - **DECISION for the user:** should a leg stand in the doorway's forward strip on doored cabins? Today it does not.
+- **Corners and contour:** the feet and the edge's top are pinned through both CC levels (`sm.VW`). The leg-top inset point merges into the corner's, so the lip and the plate cannot fold. The legs inset straight inboard.
+- **Published:** `m.dashArch` {yPlate, yB, yFoot, zFront, zP, zAftLow, yEdge}, in cage units.
+- **The crew:** `_cage_crew.js` reads `dashLip` as the box-equivalent yB on the arch (its lowest vertex is now a foot), and sets `A.flexLayout`.
+
+**Saved builds keep their dash:**
+- `CAGE_PARAMS.dashStyle` defaults to 1 for new builds and births (designBake states it).
+- `cageFromSpec`'s migration (5) gives a file without the row 0, the box.
+- Each saved build's sheet hashes identical to the base branch, byte for byte (Cub, Jodel, Cessna and Rufus measured; GATE DASH asserts it).
+- Rows: `dash style` (box / arch) and `arch legs`, in `_cage_page5.js` and `_cage_ui.js`, and in the cockpit part of `_cage_parts.js`.
+
+**The flexible layout (`_panel_gen.js`):**
+- `layout()` runs the standard rule first, and that result stands whenever it places everything.
+- On `A.flexLayout` and an overflow, `layoutCore(..., flexRow)` lays every dial on ONE row from the pilot's centre out. The order is AI, then ASI (+x), then the altimeter (-x), as the T reads. Nothing is reserved under the dials.
+- The switch row then takes the LOWEST height where a clear run holds it at a 30 mm pitch: under the dials where they leave room, beside them where they do not. Fewer dials off wins; a tie keeps the standard result.
+- GATE PANEL (+9 checks): a short wide plate the standard rule empties gets every dial, one row, the T's order and switches under no dial; a plate the standard rule fills is laid out byte-identically.
+
+**Numbers:** the energy layer's own fit, with the builds' REAL tanks. Points are dash samples inside the tank's solid.
+
+| build | tank | box | arch |
+|---|---|---|---|
+| Cub | nose 26 L | 46 | 0 |
+| Jodel | nose 45 L | 194 | 0 |
+| Rufus | nose 16 L | 95 | 0 |
+| Cessna | wing 212 L | 0 | 0 |
+
+- **The cause was the box's slanted bottom:** every hit was on it, none on the glareshield or the cheeks.
+- **Skin:** the Jodel's box stood 58 vertices / 25.7 mm through its skin; the arch reads 0. Cub and Cessna read 0. Rufus reads 3 / 4.3 mm both ways (the unchanged glareshield).
+- **Dials on the plate (arch, new-build look):** Cub 11 -> 12, Jodel 9 -> 12, Cessna 16 -> 16, Rufus 8 -> 8.
+- **Mass and CG:** unchanged. The dash is not in the physics; GATE DASH flies the joined Cub and C172 cards both ways.
+
+**Proof:**
+- **Stills:** `futureDesigns/dash/stills/` (README there), before / after / overlay for Cub, Jodel, Cessna and Rufus in side, front and 3/4 views.
+- **Why a raster:** the bench's WebGL pane draws only the sky under the cloud's SwiftShader (G1320). The stills are `tools/dash_stills.js`, a software raster of `_scene_headless.js` (crew, panel and energy layers): true geometry, flat shading. `tools/dash_stills_compose.py` makes the strips.
+- **New gate: GATE DASH** (`_dash_check.js`, core, ~35-95 s), 53 checks. Saved builds keep the box byte for byte; the arch is open under the plate; one vertical forward edge from the foot; the plate unfolded and the box's or a lip more; no further through the skin than the box; real tanks clear of the arch, with the box's count > 0; mass and CG equal. It covers Cub, Jodel, Cessna and the Chinook birth (legs below the plate).
+
+**Gates (--only, --no-build, 18 Oct):** CAGEFIT, CABIN, PANEL, PARTS, ENERGY, JOIN, DASH, TANKMOUNT, SAVE, SHOULDER and DESIGN all PASS. Generated files were not rebuilt (A0 builds the train).
+
+**Coupling: EDITOR-UX-A's nose-tank slider (CG-safe split):**
+- No tank range or default station was touched.
+- On the arch the dash no longer caps the nose bay, so `tools/tank_bay_probe.js`'s "the dash less 20 mm" ceiling rises on new builds. The deck-form capacities there grow, and a nose tank may now be sized larger without meeting the dash.
+- The crew and skin verdicts are unchanged: the Cub's and Jodel's nose tanks still fail those, as before.
+
+**TRAP (measured):** the FIRST `BJ.bakeJoined` in a process reads the Cub card 41 g lighter than every later bake (476.471 vs 476.512 kg), whatever the dash: layer module state, TANKMOUNT's carry-over. GATE DASH warms up before comparing.
