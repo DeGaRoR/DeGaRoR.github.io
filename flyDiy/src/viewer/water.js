@@ -961,7 +961,11 @@ const WATER = (() => {
     // G2836 (?wrefl=ring): full to ringD0 m from land and ringH0 m over the water, gone by ringD1 / ringH1 (the fades OUTSIDE the
     // user's 1 km / 300 m - A0); the cost's dials: nth (a capture every nth frame), ringSkip (no grass / cover / route helpers in
     // the capture), scissor (only the rows under the water's horizon rasterised), ringSamples (no clouds in it: no MSAA needed)
-    ringD0: 1000, ringD1: 1300, ringH0: 300, ringH1: 400, nth: 1, ringSkip: true, scissor: true, ringSamples: 0, ringW: 0, landD: Infinity, landAt: null, frameN: 0 };
+    ringD0: 1000, ringD1: 1300, ringH0: 300, ringH1: 400, nth: 1, ringSkip: true, scissor: true, ringSamples: 0, ringW: 0, landD: Infinity, landAt: null, frameN: 0,
+    // (round 2, 19 Oct: the capture is GEOMETRY-bound - 4.6-5.9 ms GPU at any resolution, ~11 M triangles): ringOffset narrows the mirror
+    // camera's FRUSTUM to the rows under the water's horizon (setViewOffset: culling drops what no water pixel reads, not just the fill);
+    // ringFar caps the capture's far plane
+    ringOffset: false, ringFar: 4000 };
   const mirrorTmp = {};
   // mirrorPlane(under, eye, dt): the plane the capture mirrors about (G2830). `under` is the drawn water's level under the
   // eye (else under the CG), null over land. The plane is ADOPTED from it only while the eye is low over that water,
@@ -1023,6 +1027,19 @@ const WATER = (() => {
       for (let r = 25; r <= MIR.ringD1 && r < best; r += 25) if (isLand(eye.x + dx * r, eye.z + dz * r)) { best = r; break; } }
     ringTmp.at = [eye.x, eye.z]; ringTmp.t = now; MIR.landD = best;
     return best;
+  }
+  // ringHorizon(THREE, camera, pos, waterY): the NDC y of the water plane's horizon across the frame (left / centre / right), Infinity
+  // when the view looks straight down (no horizon in frame)
+  function ringHorizon(THREE, camera, pos, waterY) {
+    const hp = mirrorTmp.hp || (mirrorTmp.hp = new THREE.Vector3()), dir = mirrorTmp.hd || (mirrorTmp.hd = new THREE.Vector3());
+    let yTop = -Infinity;
+    for (const sx of [-1, 0, 1]) {
+      dir.set(sx * Math.tan(Math.PI / 360 * camera.fov) * camera.aspect, 0, -1).applyQuaternion(camera.quaternion); dir.y = 0;
+      if (dir.lengthSq() < 1e-8) return Infinity;
+      dir.normalize(); hp.set(pos.x + dir.x * 2e4, waterY, pos.z + dir.z * 2e4).project(camera);
+      if (hp.z < 1) yTop = Math.max(yTop, hp.y);
+    }
+    return yTop;
   }
   const sstep = (e0, e1, x) => { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
   function mirrorRender(THREE, renderer, scene, camera, under, opts) {
@@ -1119,6 +1136,7 @@ const WATER = (() => {
     fwd.y = -fwd.y; up.y = -up.y;
     tgt.copy(mc.position).add(fwd); mc.up.copy(up); mc.lookAt(tgt);
     const tv = Math.tan(Math.PI / 360 * camera.fov), th = tv * camera.aspect;
+    if (mc.view && mc.view.enabled) mc.clearViewOffset();   // (round 2: the offset is set below, per capture)
     mc.fov = 360 / Math.PI * Math.atan(tv * G); mc.aspect = camera.aspect; mc.near = camera.near; mc.far = camera.far;
     const margin = Math.min(Math.atan(tv * G) - Math.atan(tv), Math.atan(th * G) - Math.atan(th));
     mc.updateProjectionMatrix(); mc.updateMatrixWorld(true);
@@ -1163,7 +1181,14 @@ const WATER = (() => {
     if (opts.clouds && !PROTO.ring) { try { opts.clouds(renderer, mc, MIR.rt); } catch (e) {} }
     if (skyPar) { const sky = opts.sky; sky.position.set(0, 0, 0); skyPar.add(sky); }
     // the scene's own far CAPPED (the capture's cost is its draw calls; the decor past it is the sky's in the reflection)
-    mc.far = Math.min(camera.far, MIR.far); mc.updateProjectionMatrix();
+    mc.far = Math.min(camera.far, PROTO.ring ? MIR.ringFar : MIR.far); mc.updateProjectionMatrix();
+    // (round 2) THE FRUSTUM OFFSET: only the rows under the water's horizon (+ the walk's margin) are read - the camera's frustum is
+    // narrowed to them, so three's culling drops everything above (the target keeps its size: the projection maps the rows over it)
+    if (PROTO.ring && MIR.ringOffset) {
+      const yTop = ringHorizon(THREE, camera, pos, waterY);
+      if (Number.isFinite(yTop)) { const yC = Math.min(1, (yTop + 0.12) / G), frac = Math.max(0.05, (yC + 1) / 2);
+        if (frac < 0.98) { const off = Math.round((1 - frac) * h); mc.setViewOffset(w, h, 0, off, w, h - off); MIR.rows = frac; } }
+    }
     // the oblique near plane (Lengyel; three's Reflector): the clip plane y = waterY in the mirror camera's view
     obliqueClip(THREE, mc, waterY, RZ);
     const bg = scene.background; scene.background = null;
@@ -1177,15 +1202,8 @@ const WATER = (() => {
     // so only the rows under the water's horizon (+ a margin for the slope's walk and the edge fade) are ever read - the rest is not
     // rasterised. The horizon: the plane's far points along the view's left / centre / right headings, through the MAIN camera
     let sc = false;
-    if (PROTO.ring && MIR.scissor) {
-      const hp = mirrorTmp.hp || (mirrorTmp.hp = new THREE.Vector3()), dir = mirrorTmp.hd || (mirrorTmp.hd = new THREE.Vector3());
-      let yTop = -Infinity;
-      for (const sx of [-1, 0, 1]) {
-        dir.set(sx * Math.tan(Math.PI / 360 * camera.fov) * camera.aspect, 0, -1).applyQuaternion(camera.quaternion); dir.y = 0;
-        if (dir.lengthSq() < 1e-8) { yTop = Infinity; break; }
-        dir.normalize(); hp.set(pos.x + dir.x * 2e4, waterY, pos.z + dir.z * 2e4).project(camera);
-        if (hp.z < 1) yTop = Math.max(yTop, hp.y);
-      }
+    if (PROTO.ring && MIR.scissor && !MIR.ringOffset) {
+      const yTop = ringHorizon(THREE, camera, pos, waterY);
       if (Number.isFinite(yTop)) {
         const yC = Math.min(1, (yTop + 0.12) / G);   // the capture's NDC is the frame's / G (the guard band)
         const rows = Math.max(1, Math.min(h, Math.ceil((yC + 1) / 2 * h)));
