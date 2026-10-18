@@ -285,7 +285,11 @@ function gameHost(C, W, def, from, to, g) {
   // app.js applyRoute: the stand walked out of the player's shed (playerShedDims of the default player, at HOME)
   const shedD = st && C.playerShedDims && C.playerDefault ? C.playerShedDims(C.playerDefault(), 'HOME', st) : null;
   const stand = st ? (shedD && C.standFor ? C.standFor(st, shedD, (x, z) => W.terrainH(x, z)) : st.stand) : null;
-  const H = SH.makeSimHost(C, { spec, place: { from: from.id, to: to.id, stand: stand ? JSON.parse(JSON.stringify(stand)) : false, seat: true },
+  // G3302 (AP-ADAPT): THE SKIP TO LINE-UP, the page's way (sim_link begin: place.lineup with the walked stand; keepSim: the
+  // worker keeps the sim the taxi flew when the page flies the same sim object again - `g.keepSim` a prior host's
+  // { def, sim }). Absent, the placement as it was
+  const H = SH.makeSimHost(C, { spec, place: { from: from.id, to: to.id, stand: stand ? JSON.parse(JSON.stringify(stand)) : false, seat: true, lineup: !!(g.lineup && stand) },
+    keepSim: g.keepSim || null, out: g.keepSim && g.keepSim.sim.out ? JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(g.keepSim.sim.out).filter(([k]) => k !== 'hydro')))) : undefined,
     pilot: { kind: 'auto', shakedown: shake, nav: g.nav !== false, profile: g.profile || undefined }, withV: false, day: day || null,
     damage: g.damage !== undefined ? !!g.damage : !!(def.params && def.params.damage) }, W);
   if (!day) H.dayTick = () => {};

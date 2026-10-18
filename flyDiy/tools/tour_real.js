@@ -56,6 +56,12 @@ const CAST_NTH = +opt('cast-nth', 5);
 const LEGS = +opt('legs', 99);
 const SHAKEDOWN = +opt('shakedown', 0);
 const DEADLINE = opt('deadline', null);
+// G3302 (AP-ADAPT, the user's path 18 Oct: "roll out and don't do anything, maybe just skip to line up"): --skip-after S
+// presses the page's own SKIP TO LINE-UP (#bSkip) S s of sim into the taxi; --after-lift S ends the run S s of sim after
+// the lift-off (a take-off study); --no-route leaves the player's route pref as a fresh profile has it (no To set)
+const SKIP_AFTER = opt('skip-after', null) != null ? +opt('skip-after') : null;
+const AFTER_LIFT = opt('after-lift', null) != null ? +opt('after-lift') : null;
+const NO_ROUTE = flag('no-route');
 const HEADLESS = flag('headless');           // the mock's plumbing check only (never the game: G586's rig clock)
 let URL = opt('url', null);
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '');
@@ -97,7 +103,7 @@ function preScript() {
   L.push('try{localStorage.removeItem("flydiy.gfx")}catch(e){}');
   L.push('try{for(const k of Object.keys(localStorage))if(/^flydiy\\.(fl([A-Z]|$)|route$|world$)/.test(k))localStorage.removeItem(k)}catch(e){}');
   // the shed's To picker's pref (G1945 v2): the roll-out departs the base's stand for the first To
-  L.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: ORDER[1] })) + ');localStorage.setItem("flydiy.flManual","0")}catch(e){}');
+  if (!NO_ROUTE) L.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: ORDER[1] })) + ');localStorage.setItem("flydiy.flManual","0")}catch(e){}');
   L.push('try{localStorage.removeItem("flydiy.premises.game.jolene")}catch(e){}');
   return L.join('\n');
 }
@@ -123,7 +129,10 @@ const INSTALL = `(() => {
           const r2 = q => Math.round(q * 100) / 100;
           R.rows.push([r2(t), r2(cg[0]), r2(cg[1]), r2(cg[2]), r2(cg[1] - W.terrainH(cg[0], cg[2])), ph, r2(Math.hypot(v[0], v[2])),
             +Math.atan2(-xA[2] / nl, -xA[0] / nl).toFixed(4), s.wheelsOnGround(), R.leg, Math.round(performance.now()),
-            w && w.live ? +w.dil.toFixed(3) : null, r2(FLIGHT_PROBE.agl()), s.fuel && s.fuel.litres != null ? r2(s.fuel.litres) : null]);
+            w && w.live ? +w.dil.toFixed(3) : null, r2(FLIGHT_PROBE.agl()), s.fuel && s.fuel.litres != null ? r2(s.fuel.litres) : null,
+            // G3302: what the user's flight log cannot say - the surfaces, the throttle, the airspeed, the slip, the tail, the wind at the CG
+            ...(() => { const c = s.ctl || {}, m = ap._m || {}, D = ap.dbg || {}; let wv = null; try { wv = W.wind ? W.wind(cg[0], cg[1], cg[2], t) : null; } catch (e) { wv = null; }
+              return [r2(c.dr), r2(c.da), r2(c.de), r2(c.thr), r2(m.ias), r2(m.beta != null ? m.beta * 57.2958 : null), D.tailUp ? 1 : 0, wv ? r2(wv[0]) : null, wv ? r2(wv[1]) : null, wv ? r2(wv[2]) : null]; })()]);
         }
       }
     } catch (e) { R.err = String(e && e.stack || e).slice(0, 400); }
@@ -155,7 +164,7 @@ const STATE = `JSON.stringify((() => {
     let root = null;
     for (let i = 0; i < 40 && root === null; i++) { await sleep(250); if (serverExit !== null) break; root = await portAnswer(); }
     if (root === null || path.resolve(root).toLowerCase() !== ROOT.toLowerCase()) { log('*** the server on ' + SPORT + ' is not ours (root ' + root + ')'); process.exit(4); }
-    URL = 'http://localhost:' + SPORT + '/flyDiy/index.html?damage=' + DAMAGE;
+    URL = 'http://localhost:' + SPORT + '/flyDiy/index.html' + (DAMAGE === 'none' ? '' : '?damage=' + DAMAGE);   // G3302: --damage none = no ?param, the page as a player opens it
     try { const V = await getJSON('http://127.0.0.1:' + SPORT + '/flyDiy/version.json'); log('  version.json ' + JSON.stringify(V)); } catch (e) {}
   }
   const DPORT = 9600 + (process.pid % 300);
@@ -229,6 +238,7 @@ const STATE = `JSON.stringify((() => {
     + " return { route: FLYDIY_ROUTE.get(), where: FLYDIY_ROUTE.where ? FLYDIY_ROUTE.where() : null, span: d.params.gen ? d.params.gen.span : null, damage: d.params.damage, dmgPage: window.FLYDIY_DAMAGE, substeps: d.params.substeps, mass: Math.round(s.totalM || 0),"
     + " cg: cg.map(v => +v.toFixed(1)), phase: ap.phase, apRoute: ap.route, manual: FLIGHT_PROBE.manual(), simw: !!(window.FLYDIY_SIMW && FLYDIY_SIMW.perf && FLYDIY_SIMW.perf().live), t: s.t,"
     + " timeOrigin: performance.timeOrigin, weather: JSON.parse(JSON.stringify(W.weather || null)), day: W.day && W.day.spec ? JSON.parse(JSON.stringify(W.day.spec())) : null,"
+    + " persona: window.FLYDIY_PERSONA ? FLYDIY_PERSONA.get() : null, build: window.FLYDIY_BUILD || null, core: window.FLYDIY_CORE_SHA || null, apKeys: d.params.ap ? { VTailUp: d.params.ap.VTailUp, rollP: d.params.ap.rollP, pitchP: d.params.ap.pitchP, VRot: d.params.ap.VRot } : null,"
     + " woodSolid: W.woodSolid, obstacles: W.obstacles ? W.obstacles.count : null, treeHits: W.treeHits ? (W.treeHits.n != null ? W.treeHits.n : W.treeHits.count != null ? W.treeHits.count : 'set') : null }; })())"));
   log('  start ' + JSON.stringify(start));
   const AERO = JSON.parse(await ev("JSON.stringify(FLIGHT_PROBE.world().aerodromes.map(a => ({ id: a.id, x: a.x, z: a.z, hdg: a.hdg, len: a.len, wid: a.wid, elev: a.elev, water: !!a.water || a.kind === 'water', name: a.name })))"));
@@ -328,7 +338,18 @@ const STATE = `JSON.stringify((() => {
         if (!M.uturn && Math.abs(turned) >= Math.PI / 2) await take('uturn', 200);
       }
       if (st.ph === 'ROLL' && !sawRoll) { sawRoll = true; await take('roll', 220); }
-      if ((st.ph === 'LIFTOFF' || (sawRoll && st.onG === 0 && st.agl > 1)) && !sawLift) { sawLift = true; await take('liftoff', 300); }
+      if ((st.ph === 'LIFTOFF' || (sawRoll && st.onG === 0 && st.agl > 1)) && !sawLift) { sawLift = true; L.liftT = st.t; await take('liftoff', 300); }
+      // G3302: the user's SKIP TO LINE-UP, the button pressed (the page's own handler: app.js skipToLineup)
+      if (SKIP_AFTER != null && !L.skip && GROUND_PRE.has(st.ph) && legT >= SKIP_AFTER) {
+        L.skip = JSON.parse(await ev("JSON.stringify((() => { const b = document.getElementById('bSkip'); const r = { t: FLIGHT_PROBE.sim().t, ph: FLIGHT_PROBE.ap().phase, hidden: b ? b.hidden : null, disabled: b ? b.disabled : null };"
+          + " if (b && !b.disabled && !b.hidden) b.click(); r.after = FLIGHT_PROBE.ap().phase; return r; })())"));
+        log('  SKIP TO LINE-UP pressed: ' + JSON.stringify(L.skip));
+        // the skip is a fresh start (sim.reset: the clock may restart): the stall watch, the leg clock and the sampler follow it
+        await sleep(500); await ev('window.__TR && (window.__TR.nextT = -1), 1');
+        try { st = JSON.parse(await ev(STATE, 15000)); } catch (e) {}
+        lastT = -Infinity; lastTWall = Date.now(); L.tStart = st.t; L.skip.tAfter = st.t;
+      }
+      if (AFTER_LIFT != null && L.liftT != null && st.t - L.liftT > AFTER_LIFT) { end = 'after-lift ' + AFTER_LIFT + ' s'; await take('afterlift', 300); break; }
       if (sawLift && st.agl > 15) air = true;
       if (air && st.ph === 'FINAL') {
         const d = dThr(b, st);
@@ -385,7 +406,7 @@ const STATE = `JSON.stringify((() => {
   try { log('  flight log: ' + await ev('window.FLIGHT_REC && FLIGHT_REC.save ? FLIGHT_REC.save().then(r => JSON.stringify(r)) : "none"', 120000)); } catch (e) { log('  flight log: ' + e.message); }
   for (let i = 0; i < 60; i++) { const nw = fs.readdirSync(OUT).filter(f => !before.has(f) && /flightlog.*\.json$/.test(f)); if (nw.length) { log('  flight log saved: ' + nw.join(', ')); break; } await sleep(1000); }
   const fin = JSON.parse(await ev("JSON.stringify({ damage: (() => { try { return FLIGHT_PROBE.damage(); } catch (e) { return null; } })(), fuel: FLIGHT_PROBE.sim().fuel || null, rec: window.__TR ? { frames: __TR.frames, err: __TR.err } : null, simw: window.FLYDIY_SIMW && FLYDIY_SIMW.state ? FLYDIY_SIMW.state() : null })").catch(e => JSON.stringify({ err: e.message })));
-  fs.writeFileSync(path.join(OUT, 'samples.json'), JSON.stringify({ kind: 'page', cols: ['t', 'x', 'y', 'z', 'agl', 'phase', 'Vg', 'nose', 'onG', 'leg', 'wallMs', 'dil', 'hudAgl', 'fuelL'], rows, ev: phaseEv }));
+  fs.writeFileSync(path.join(OUT, 'samples.json'), JSON.stringify({ kind: 'page', cols: ['t', 'x', 'y', 'z', 'agl', 'phase', 'Vg', 'nose', 'onG', 'leg', 'wallMs', 'dil', 'hudAgl', 'fuelL', 'dr', 'da', 'de', 'thr', 'ias', 'betaDeg', 'tailUp', 'windX', 'windY', 'windZ'], rows, ev: phaseEv }));
   fs.writeFileSync(path.join(OUT, 'legs.json'), JSON.stringify({ kind: 'page', root: ROOT, build: BUILD, order: ORDER, damage: DAMAGE, rate: RATE, url: URL, env, start, aerodromes: AERO, end, legs, stills, rateLog, exceptions: exc, fin,
     cast: { nth: CAST_NTH, frames: cast, blanks }, wall: { start: t00, flight: flightStartWall, end: Date.now() } }, null, 1));
   log('  wrote samples.json (' + rows.length + ' rows), legs.json (' + legs.length + ' legs, ' + stills.length + ' stills), cast ' + cast.length + ' frames');
