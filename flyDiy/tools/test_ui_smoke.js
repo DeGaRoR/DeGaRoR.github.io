@@ -787,6 +787,24 @@ try {
     frames(30);
     console.log(`one To: taxiing ${how1}, on a leg ${how2}, stopped ${how3} from ${where.kind} ${where.id} (the From derived), the aeroplane never moved`);
   }
+  // ---- G3078 FLOATS-FIX: THE PLAYER'S TO SURVIVES A FIT ----
+  // A To this build may not fly (a water lane, on wheels) is FITTED to the circuit for the flight, but the player's choice
+  // (`want`) is kept through every refit and saved, so the floats build gets Metlakatla back (the user's route to mk_sea
+  // came out as the circuit: the boot's fit on the bench's wheeled build overwrote it)
+  {
+    const P = sandbox.window.FLIGHT_PROBE, R = sandbox.window.FLYDIY_ROUTE, W = P.world();
+    const lane = W.aerodromes.find(a => a.kind === 'water' || a.water || +a.surface === 4);
+    if (!lane) console.log('the To of the player kept through a fit: no water lane in the smoke world - not judged');
+    else {
+      if (!('want' in R.get())) throw new Error('FLYDIY_ROUTE.get() carries no `want` (G3078)');
+      R.to(lane.id); R.sync(); R.sync();
+      const g = R.get();
+      if (g.want !== lane.id) throw new Error(`the player's To was overwritten by the fit: want ${g.want} (wanted ${lane.id}, G3078)`);
+      if (g.to !== 'CIRCUIT') throw new Error(`a wheeled build was sent to the water lane ${lane.id}: to ${g.to} (the fit must give CIRCUIT)`);
+      R.to('CIRCUIT'); frames(10);
+      console.log(`the player's To kept through a fit: ${lane.id} wanted, the wheels fly the circuit (G3078)`);
+    }
+  }
   // ---- G2650 SIM-CLOCK: THE ROUTE ROW'S CLOCK + WAIT IT OUT ----
   // Both route rows (the shed's, the roll-out screen's) carry the clock line ("16:00 · 21 Jun") and a "wait until…"
   // select of the named hours and the whole hours. A wait is on the ground only (the page's guard: in the garage or on
