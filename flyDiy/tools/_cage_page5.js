@@ -440,7 +440,11 @@ window.CAGE_PAGE = {
         // (wsRun / wsTopOff are the windscreen frame's waist / top fore-aft)
         ['wsBaseBow', 'base bow',       0.00, 1.20, 0.01],
         ['wsCeilBow', 'ceiling bow',    0.00, 0.60, 0.005],
-        ['bubble',    'bubble glass',   0, 1, 1],
+        // G2770 (the user: "the bubble glass option is misleading. It's more
+        // like an additional adjourning, that should be hidden in real canopy
+        // bubble mode"): the row hides under a bubble canopy (its value kept)
+        ['bubble',    'bubble glass',   0, 1, 1,
+         { when: P => Math.round(+P.canopy || 0) !== 3 }],
         // T2.2: the glazing MATERIAL, one for the whole aeroplane (the look
         // and the ledger read it; the join carries it as cabin.glazingMat)
         ['glazeMat',  'glazing material', 0, 2, 1, ['acrylic', 'polycarbonate', 'glass']],
@@ -515,7 +519,9 @@ window.CAGE_PAGE = {
         // reveal's depth when that pass is on)
         ['doorDepth', 'door recess',    0, 0.06, 0.001,
          { when: P => +P.doorOn, dim: 'len' }],
-        ['doorDeep',  'deep jamb',      0, 1, 1, { when: P => +P.doorOn }],
+        // G2770: the label says what it does (it was 'deep jamb' - the user
+        // asked what that is): the door cut on down through the floor band
+        ['doorDeep',  'door reaches the floor', 0, 1, 1, { when: P => +P.doorOn }],
         // define the door, then take it away: the open doorway stays,
         // jambs and structure built as if it were hung
         ['doorGone',  'door removed',   0, 1, 1,

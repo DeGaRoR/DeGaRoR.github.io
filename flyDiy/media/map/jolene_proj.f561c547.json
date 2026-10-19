@@ -198,6 +198,23 @@
    "altiport": false
   },
   {
+   "id": "w4",
+   "name": "strip 9",
+   "kind": "strip",
+   "x": -1403.58,
+   "z": -17698.62,
+   "hdg": -2.2895,
+   "len": 216.4,
+   "wid": 8,
+   "surface": {
+    "key": "gravel",
+    "word": "gravel",
+    "cls": "hard"
+   },
+   "elev": 537,
+   "altiport": true
+  },
+  {
    "id": "w8",
    "name": "strip 13",
    "kind": "strip",
@@ -213,9 +230,37 @@
    },
    "elev": 207,
    "altiport": false
+  },
+  {
+   "id": "w1",
+   "name": "Cabin Strip",
+   "kind": "strip",
+   "x": 2645.52,
+   "z": -16039.66,
+   "hdg": 1.1525,
+   "len": 383.3,
+   "wid": 18,
+   "surface": {
+    "key": "gravel",
+    "word": "gravel",
+    "cls": "hard"
+   },
+   "elev": 179,
+   "altiport": false
   }
  ],
  "plots": [
+  {
+   "id": "w1",
+   "aero": "w1",
+   "x": 2670,
+   "z": -15908.3,
+   "shells": [
+    "field"
+   ],
+   "water": false,
+   "derelict": false
+  },
   {
    "id": "HOME",
    "aero": "HOME",
@@ -2712,9 +2757,9 @@
   }
  },
  "credit": "Jolene Island: Annette Island, Southeast Alaska, renamed (USGS 3DEP IFSAR, ESA WorldCover; flyDiy/CREDITS.md)",
- "img": "media/map/jolene_map.d978f01e.png",
- "imgBytes": 714615,
- "imgHash": "d978f01e",
+ "img": "media/map/jolene_map.87e4a4df.png",
+ "imgBytes": 714707,
+ "imgHash": "87e4a4df",
  "art": {
   "img": "media/map/jolene_art.1b6f317e.jpg",
   "bytes": 936836,

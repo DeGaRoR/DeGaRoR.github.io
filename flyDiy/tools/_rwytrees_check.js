@@ -119,7 +119,8 @@ console.log('GATE RWYTREES - the trees by the runways (' + (FULL ? 'core + full'
   // (G3014: the user's rev 26 shipped strips 10 and 11 (w5, w6): two more strip boxes, 6 -> 8)
   // (G3020 rev 28: + w4, w8 - 11 boxes; the user removed the fans x_fan13_1, x_fan02_1, x_fan3_1 and A0 dropped the ship-only
   //  shoulders y_sh13_0/1, y_sh02_0/1 + the fan x_fan02_0 (the 40 m tree cut at HOME) - 5 fans, no shoulder)
-  check(by('fan').length === 5 && by('box').length === 11 && by('shoulder').join() === '',
+  // (G3097: + w1 the Cabin Strip - 12 boxes)
+  check(by('fan').length === 5 && by('box').length === 12 && by('shoulder').join() === '',
     '1 Jolene\'s runway clearances are named', 'fans ' + by('fan').join(' ') + ' | boxes ' + by('box').length + ' | shoulders ' + by('shoulder').join(' '));
   for (const v of VARIANTS) {
     const O = worlds[v].premises.overlay, off = O.rwyClearances().filter(c => c.off), kinds = [...new Set(off.map(c => c.kind))].sort().join('+') || 'none';

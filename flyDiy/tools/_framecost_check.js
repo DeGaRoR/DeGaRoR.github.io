@@ -442,7 +442,10 @@ const ALLOW = [
   // G3023 (RWYTREES-MAP, train 56 e21d9c7fc): 'mapx' the default - the woods to the strip's edge, the user's fans and own clears
   // standing: the taxi's shadow pass carries the new tree line (A0's FRAMECOST on master); upTo = measured + 5 %
   { key: 'taxi/tris.shadow', build: 'cub', upTo: 3848164, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (1782437 -> 3664917.5)', g: 'G3023' },
-  { key: 'taxi/gl.bindBuffer', build: 'cub', upTo: 10, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (2 -> 7)', g: 'G3023' }
+  { key: 'taxi/gl.bindBuffer', build: 'cub', upTo: 10, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (2 -> 7)', g: 'G3023' },
+  // G3097 (CABIN STRIP, L19b): the fixture's new plots shift the stream queue's virtual-clock schedule - at --warm 6 other HOME
+  // objects are built by the taxi frame; at --warm 300 before and after are identical (HWCOV's bisect, 19 Oct: 3 564 622 at the gate)
+  { key: 'taxi/tris.shadow', build: 'cessna', upTo: 3600000, why: 'G3097 fixture shifts the stream schedule; equal at --warm 300 (HWCOV 19 Oct)', g: 'G3097' }
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
