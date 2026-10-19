@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: d4a09ce927a58493
+// body-sha256: 0f2f2d902f04b839
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -8863,18 +8863,25 @@ function unwrap(txt) {
 // village, tw_ the tramway, af_ the airfield). dropPlaces returns a COPY without them and what it cut, by layer;
 // restorePlaces puts the cut back into a record that was edited without them (an entry the edit re-used the id
 // of is the edit's) - so a save made with the place off never deletes it.
-const placeOf = (e, prefixes) => !!(e && typeof e.id === 'string' && prefixes.some(p => e.id.startsWith(p)));
-function dropPlaces(rec, prefixes) {
+// `keep` (METLA-WRAPUP, the user 18 Oct: Metlakatla behind its flag, the seaplane base standing): ids that stay although
+// their prefix is dropped - TOWN_OFF below, the page's switch (world_boot.js) and the cook's 'default' variant (premises_cook.js)
+const placeOf = (e, prefixes, keep) => !!(e && typeof e.id === 'string' && prefixes.some(p => e.id.startsWith(p)) && !(keep && keep.includes(e.id)));
+function dropPlaces(rec, prefixes, keep) {
   const out = Object.assign({}, rec, { layers: Object.assign({}, rec.layers) }), cut = {};
   let n = 0;
   for (const k of Object.keys(out.layers)) {
     const a = out.layers[k]; if (!Array.isArray(a)) continue;
-    const keep = [], gone = [];
-    for (const e of a) (placeOf(e, prefixes) ? gone : keep).push(e);
-    if (gone.length) { out.layers[k] = keep; cut[k] = gone; n += gone.length; }
+    const keep_ = [], gone = [];
+    for (const e of a) (placeOf(e, prefixes, keep) ? gone : keep_).push(e);
+    if (gone.length) { out.layers[k] = keep_; cut[k] = gone; n += gone.length; }
   }
   return { rec: out, cut, n };
 }
+// THE TOWN SWITCHED OFF (G590; METLA-WRAPUP 18 Oct): Metlakatla's every entry (mk_) but its SEAPLANE BASE - the water lane
+// (runway mk_sea, its player plot with it) and the dock it is flown to (the trestle and the float) - which the career's
+// minedock arc, the generated jobs and the floats' routes name (72_contract_data CONTRACT_FIELDS): a standalone site, the
+// town's houses, roads and plots behind the flag. ONE definition: the page's switch and the cook's 'default' variant read it.
+const TOWN_OFF = Object.freeze({ drop: Object.freeze(['mk_']), keep: Object.freeze(['mk_sea', 'mk_mp_air', 'mk_mf_air']) });
 function restorePlaces(rec, cut) {
   if (!cut) return rec;
   const out = Object.assign({}, rec, { layers: Object.assign({}, rec.layers) });
@@ -9705,19 +9712,44 @@ function plotWorld(p, F) {
 // point in the premises frame: { id, key: 'hangar' | 'stand', d } of the nearest one under it (the hangar: inside its
 // footprint, HANGAR_DIMS round its door's heading, either way about - HW / HD are half sizes; the stand: within 5 m),
 // or null. The editor selects that strip and starts that handle's drag; scripts and the gates read it too.
-function runwayGrab(rec, lx, lz) {
+function runwayGrab(rec, lx, lz, dims) {   // (G3096: `dims` the drawn shed's half sizes {HW, HD}, the page's)
   let best = null;
   for (const r of (rec && rec.layers && rec.layers.runways) || []) {
     const h = r.hangar;
     if (h && isFinite(+h.x) && isFinite(+h.z)) {
       const a0 = +h.hdg || 0, dx = lx - h.x, dz = lz - h.z, a = dx * Math.cos(a0) + dz * Math.sin(a0), b = -dx * Math.sin(a0) + dz * Math.cos(a0);
-      const W = HANGAR_DIMS.HW, D = HANGAR_DIMS.HD;
+      const W = dims && +dims.HW > 0 ? +dims.HW : HANGAR_DIMS.HW, D = dims && +dims.HD > 0 ? +dims.HD : HANGAR_DIMS.HD;
       if ((Math.abs(a) <= D && Math.abs(b) <= W) || (Math.abs(a) <= W && Math.abs(b) <= D)) { const d = Math.hypot(dx, dz); if (!best || d < best.d) best = { id: r.id, key: 'hangar', d }; }
     }
     const st = r.stand;
     if (st && isFinite(+st.x) && isFinite(+st.z)) { const d = Math.hypot(lx - st.x, lz - st.z); if (d <= 5 && (!best || d < best.d)) best = { id: r.id, key: 'stand', d }; }
   }
   return best;
+}
+// G3096 HANGAR-FIX: A HANGAR SQUARE TO THE BUILDINGS - the heading (the record's, radians) that turns a strip's hangar shell onto
+// the axes of the nearest site building (within 250 m), its door toward `toward` (the stand); the shell is drawn at rotation.y
+// = pi - (hdg - F.yaw) (runwaySite), a site item at at.yaw + pi + item.yaw (placeSite): the shell's turn made congruent to the
+// building's modulo 90 deg, of the four the one whose door (along hdg) points most toward `toward`. No building near: null
+function hangarSquare(rec, r, toward, fyaw) {
+  const h = r && r.hangar; if (!h || !isFinite(+h.x) || !isFinite(+h.z)) return null;
+  let best = null;
+  for (const s of (rec && rec.layers && rec.layers.sites) || []) {
+    const a = s && s.at; if (!a || !isFinite(+a.x) || !isFinite(+a.z)) continue;
+    for (const it of s.items || []) {
+      const c = Math.cos(+a.yaw || 0), sn = Math.sin(+a.yaw || 0), x = +a.x + (+it.x || 0) * c + (+it.z || 0) * sn, z = +a.z - (+it.x || 0) * sn + (+it.z || 0) * c;
+      const d = Math.hypot(x - h.x, z - h.z); if (d > 250 || d < 1) continue;
+      if (!best || d < best.d) best = { d, ry: (+a.yaw || 0) + Math.PI + (+it.yaw || 0) };
+    }
+  }
+  if (!best) return null;
+  const F = +fyaw || 0, t = toward && isFinite(+toward.x) ? [+toward.x - h.x, +toward.z - h.z] : null;
+  let out = null, score = -Infinity;
+  for (let k = 0; k < 4; k++) {
+    const hh = Math.PI - (best.ry + k * Math.PI / 2), hdg = Math.atan2(Math.sin(hh + F), Math.cos(hh + F));
+    const sc = t ? (Math.cos(hh) * t[0] + Math.sin(hh) * t[1]) : -Math.abs(hdg - (+h.hdg || 0));
+    if (sc > score) { score = sc; out = +hdg.toFixed(4); }
+  }
+  return out;
 }
 // HOW FAR FROM A PLACED OBJECT A CLICK STILL PICKS IT (G2891 c3): 2.5 m x its scale, as the pick cycle had it - but a
 // parked AEROPLANE spans 9-12 m, and a click on its wing missed it; its built size (`built`, the drawn group's bounding
@@ -9726,6 +9758,29 @@ function objectPickR(ob, built) {
   const s = Math.max(1, +(ob && ob.s) || 1);
   if (ob && ob.kind === 'aircraft') return Math.max(2.5 * s, isFinite(+built) && +built > 0 ? 0.85 * +built : 6 * s);
   return 2.5 * s;
+}
+// G3092 TAXI-ALL: A WAY OUT THAT FOLLOWS A ROAD. The road's points (the composition's straight line of it, in the premises
+// frame), the end nearer the stand first; its last point taken onto the strip's centreline (within the strip's half width + 1 m
+// of it: replaced by its foot there; farther: the foot appended), clamped to the strip's length
+function wayFrom(r, st, rd) {
+  const P = rd.pts.map(q => [+q[0], +q[1]]), d2 = q => (q[0] - st.x) * (q[0] - st.x) + (q[1] - st.z) * (q[1] - st.z);
+  if (d2(P[P.length - 1]) < d2(P[0])) P.reverse();
+  const E = runwayEnds(r), last = P[P.length - 1];
+  const along = (last[0] - r.c[0]) * E.d[0] + (last[1] - r.c[1]) * E.d[1], off = Math.abs(-(last[0] - r.c[0]) * E.d[1] + (last[1] - r.c[1]) * E.d[0]);
+  const a = Math.max(-r.len / 2, Math.min(r.len / 2, along)), entry = [r.c[0] + E.d[0] * a, r.c[1] + E.d[1] * a];
+  if (off <= r.wid / 2 + 1) P[P.length - 1] = entry; else P.push(entry);
+  // a point ON the stand (a road that starts there) is no leg: the stand faces its first taxi point, which must be away from it
+  while (P.length > 1 && d2(P[0]) < 4) P.shift();
+  return P.map(q => [+q[0].toFixed(2), +q[1].toFixed(2)]);
+}
+// the composed copy of a strip with its ways that follow a road built from it (a way whose road is not there keeps its own points)
+function waysVia(r, byId) {
+  const ok = id => typeof id === 'string' && byId.has(id) && byId.get(id).pts && byId.get(id).pts.length >= 2;
+  if (r.stand && ok(r.taxiOutVia)) r.taxiOut = wayFrom(r, r.stand, byId.get(r.taxiOutVia));
+  if (r.stand && ok(r.taxiOut1Via)) r.taxiOut1 = wayFrom(r, r.stand, byId.get(r.taxiOut1Via));
+  if (Array.isArray(r.plots) && r.plots.some(q => q && q.stand && ok(q.taxiOutVia)))
+    r.plots = r.plots.map(q => (q && q.stand && ok(q.taxiOutVia)) ? Object.assign({}, q, { taxiOut: wayFrom(r, q.stand, byId.get(q.taxiOutVia)) }) : q);
+  return r;
 }
 function runwaySite(r, F) {
   const W = q => F.toWorld(q[0], q[1]);
@@ -10122,7 +10177,10 @@ function roadHandles(pts, tan) {
   return pts.map((q, i) => (T[i] ? T[i] : i < n - 1 ? [S.Dout[i][0] * S.h[i] / 3, S.Dout[i][1] * S.h[i] / 3] : [S.Din[i][0] * S.h[i - 1] / 3, S.Din[i][1] * S.h[i - 1] / 3]));
 }
 // a placed prop's scale (v1.36 `s`, the model placer's) on its composed record - only when it is not 1 (G3001)
-const objScale = ob => (+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3 ? { s: +ob.s } : {});
+// a placed prop's own extras on its composed record: its scale (G2914), and (G2893) `with` - an ASSEMBLY's other parts, stood
+// at the same pose (the placer's one record for the ALMA's base, fork and dish); a record with neither composes as before
+const objScale = ob => Object.assign(+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3 ? { s: +ob.s } : {},
+  Array.isArray(ob.with) && ob.with.length ? { with: ob.with.filter(k => typeof k === 'string' && k) } : {});
 // THE ROADS' BUILD KEYS (G3002 PLACER-FAST; the user: "adding assets in the editor is a bit of a pain, really, really
 // long to move, update, rotate" - every edit's rebuild made EVERY road's pavement, its poles and its rails again, the
 // island road's 25 km among them). A road's drawn things (its pavement row, its power line, its guardrail) are a
@@ -10676,6 +10734,7 @@ function compose(rec0, world, opts) {
   // (elev = T1 at the centre), a DERIVED surface strip of the record's class,
   // a DERIVED tree exclude 30 m round the box, and the aerodrome record
   const runways = rec.layers.runways.filter(r => r.c && r.len > 0 && r.wid > 0).map(r => Object.assign({}, RUNWAY_DEF, r));
+  { const byId = new Map(roads.map(q => [q.id, q])); for (const r of runways) waysVia(r, byId); }   // (G3092: a way out that follows a road)
   const aerodromes = [];
   for (const r of runways) {
     const E = runwayEnds(r);
@@ -12104,6 +12163,9 @@ function issues(rec0) {
     if (r.hangar && !(isFinite(+r.hangar.x) && isFinite(+r.hangar.z))) out.push('runway ' + r.id + ': the hangar needs x and z');
     // G2310 (v1.34): the plots - an array of { id, x, z, hdg?, stand?, taxiOut? }, every id unique in the record (a plot
     // id is a hangar id), a stand finite, a way out a list of points, and the first plot (the hangar's) written once
+    // (G3092) a way out that follows a road names one the record has
+    for (const [h, k, who] of [[r, 'taxiOutVia', ''], [r, 'taxiOut1Via', '']].concat((Array.isArray(r.plots) ? r.plots : []).filter(q => q).map(q => [q, 'taxiOutVia', 'plot ' + q.id + ': '])))
+      if (h[k] != null && !(rec.layers.roads || []).some(q => q && q.id === h[k])) out.push('runway ' + r.id + ': ' + who + 'its way out follows road ' + h[k] + ', which is not there');
     if (r.plots != null) {
       if (!Array.isArray(r.plots)) out.push('runway ' + r.id + ': plots is a list of { id, x, z, hdg }');
       else for (const p of r.plots) {
@@ -12351,8 +12413,8 @@ function collect(globals) {
 const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
-  makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
+  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
   frameOf, zoneWaterY: zoneWaterYOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
@@ -23072,7 +23134,7 @@ function makePilot(sim, def, world, opts) {
   let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false, vxHeld = false, vxSaid = false;
   let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
   // G399.7: the speed the ELEVATOR can hold — raised while it sits on its nose-up stop
-  let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false;
+  let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false, tVOkT = 0;   // tVOkT: G3081, the time the elevator has had margin (floats)
   // G2500 (CESSNA-VREF): the speed the elevator was found to hold kept past a go-around (ap.vHeld), re-seeded on the
   // next final (heldSeed); the landing that speed makes judged once a final (heldJudged: 'normal' -> 'short' -> refused)
   let heldSeed = false, heldJudged = null, heldTail = null;
@@ -24224,9 +24286,18 @@ function makePilot(sim, def, world, opts) {
       // 0.24 of elevator, the throttle on its floor - and went around twice
       // for the terrain. The integrator on its clamp with the attitude short
       // of the command is the same "cannot hold this speed"
-      const eSat = (SV.aDe > 0.30 || (SV.Ith >= SV.IthMax - 1e-3 && SV.thCA - th > 0.03)) && V > (o.ias || A.VAppr) + 0.5;
+      // G3081 (FLOAT-AP, 18 Oct): ON FLOATS a cap still RAMPING (SV.IthMax < its target, IthMaxRate 0.10 /s) is not the
+      // elevator's limit. The user's float Cessna (bugReports/cessnaFloatsWOrks.json, the game's flight, 8 kt) slowed from the
+      // circuit's 52 m/s onto the final while the cap opened 0.15 -> 0.30: the integrator rode the moving clamp, 1.5 s read as
+      // 'cannot hold', +25 % kept for the flight (34.4 -> 38 m/s on 0.21 of elevator against its 0.35 stop), the touch at
+      // 1.56 Vs and six skips, the bank growing at each (the wing that catches in the game). And the raise RELAXES on floats
+      // once the elevator has margin again (no saturation for 3 s, under 0.25 of its travel). Land aeroplanes as before
+      // (CESSNA-VREF G2500 judges the metal Cessna on its raise - a generic change is train 66's)
+      const capRamp = !!sim.hydro && SV.IthMax < SV.IthMaxT - 0.01;
+      const eSat = (SV.aDe > 0.30 || (!capRamp && SV.Ith >= SV.IthMax - 1e-3 && SV.thCA - th > 0.03)) && V > (o.ias || A.VAppr) + 0.5;
       tDeSatT = eSat ? tDeSatT + dt : Math.max(0, tDeSatT - dt);
       if (tDeSatT > 1.5) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
+      if (sim.hydro && !eSat) { tVOkT += dt; if (tVOkT > 3 && SV.aDe < 0.25) tVAdapt = Math.max(0, tVAdapt - 0.25 * dt); } else tVOkT = 0;
       if (tVAdapt > 0.5 && !tVAdaptSaid) { tVAdaptSaid = true; say('vref-raised', 'the elevator cannot hold ' + (o.ias || A.VAppr).toFixed(1) + ' m/s at this power — flying the approach faster'); }
       // G2500 (CESSNA-VREF): THE SPEED THE ELEVATOR HOLDS IS THIS AEROPLANE'S, NOT THIS FINAL'S - kept for the flight (a
       // go-around zeroes tVAdapt; the next final starts at it, stabilised from its first metre) and on the record
@@ -41934,6 +42005,47 @@ function genDesignCheck(def, sh, simIn, opts) {
           limit: 'full up elevator must still pitch the nose up at 1.2 Vs with the CG at its forward limit (fail < 0, warn < 0.02)',
           why: 'pitch moment left with full up elevator at ' + r2(Va * 3.6) + ' km/h, CG at the forward corner',
           fix: lvl === 'pass' ? '' : 'the elevator cannot flare it: a bigger elevator chord, a bigger stabiliser, or the CG further aft' });
+  }
+  // THE FLARE, POWER OFF (G3271, RUFUS-CERT): the row above asks for nose-up
+  // moment at 1.2 Vs, and the user's Rufus (CG 12 % of the chord, a 915 on the
+  // nose) passed it at 0.099 - yet flown power off with the stick on its stop
+  // it settles at 1.16 Vs and never stalls, so it can never be flared to a slow
+  // landing (every touchdown 1.33 Vs, 210 m of roll). So the question is asked
+  // at the stall: full up elevator, engine idle (the dead tunnel), CG at the
+  // forward corner, alpha swept from the 1.2 Vs attitude up to the wing's stall
+  // angle; where the nose-down moment wins, that lift against the wing's best
+  // is the slowest speed the elevator can hold (FAR 23.201 lets an elevator on
+  // its stop define the stall - which is this number, the speed a pilot can
+  // flare to). Free air: ground effect's lost downwash is not modelled here.
+  {
+    const env = sh && sh.envelope, fwdX = env && env.fwd ? env.fwd.cgX : (sh ? sh.cgX : null);
+    const W = D.W, aS = def.params.polarWing.aStall;
+    const a1 = genAlphaForLift(sim, 1.2 * Vs, W, 0.85 * aS);
+    sim.ctl.de = 1; const pU = sim.probe(genDcVel(Vs, a1, 0)).pitchUp;
+    sim.ctl.de = -1; const pD = sim.probe(genDcVel(Vs, a1, 0)).pitchUp;
+    sim.ctl.de = pU > pD ? 1 : -1;
+    const N = 16, pts = [];
+    for (let k = 0; k <= N; k++) {
+      const a = a1 + (aS - a1) * k / N, r = sim.probe(genDcVel(Vs, a, 0));
+      const dx = fwdX != null ? fwdX - r.cg[0] : 0;
+      pts.push({ a, Fy: r.Fy, M: r.pitchUp + dx * r.Fy });
+    }
+    sim.ctl.de = 0;
+    const FyMax = pts.reduce((m, p) => Math.max(m, p.Fy), 0);
+    let FyHold = FyMax, held = true;
+    for (let k = 1; k <= N; k++) if (pts[k].M < 0) {
+      const p = pts[k - 1], c = pts[k], u = p.M > 0 ? p.M / (p.M - c.M) : 0;
+      FyHold = Math.min(FyMax, p.Fy + (c.Fy - p.Fy) * u); held = false; break;
+    }
+    const ratio = Math.sqrt(FyMax / Math.max(1e-6, FyHold));
+    const last = pts[N], cgAft = last.Fy > 0 ? -last.M / last.Fy : 0;
+    const lvl = ratio > 1.30 ? 'fail' : ratio > 1.05 ? 'warn' : 'pass';
+    row({ id: 'ctl.flare', group: 'control', label: 'Flare, power off: full up elevator reaches the stall',
+          value: r2(ratio), unit: 'x Vs', level: lvl,
+          limit: 'engine idle, CG at its forward limit, the stick on its stop: the slowest speed held must be the stall (pass <= 1.05 Vs; warn to 1.30 Vs - it lands fast; fail above: it cannot be slowed to an approach speed)',
+          why: held ? 'full up elevator takes the wing to its stall angle with the engine idle'
+                    : 'full up elevator, engine idle, CG at the forward corner: the nose stops rising at ' + r2(ratio * Vs * 3.6) + ' km/h (the stall is ' + r2(Vs * 3.6) + ' km/h)',
+          fix: lvl === 'pass' ? '' : 'it is nose-heavy for its elevator: the CG ' + r2(cgAft) + ' m further aft (a lighter engine, or the wing moved forward by about that) - near the stall a bigger elevator barely helps' });
   }
   // ---- YAW AND ROLL -------------------------------------------------------
   if (t && geom && t.Sv > 0) {

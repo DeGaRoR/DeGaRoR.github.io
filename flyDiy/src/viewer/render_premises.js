@@ -2841,8 +2841,9 @@ function make(THREE, scene, world, rec0, opts) {
       const put = (lp, key, mid) => { const w = F.toWorld(lp[0], lp[1]); const m = new THREE.Mesh(discGeo, mid ? discMatMid : discMat); m.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.05, w[1]); m.renderOrder = 9; m.userData.handle = { id: selectedId, key, mid: !!mid }; G.handles.add(m); HANDLES.push(m); };
       put(E.end0, 'e0'); put(E.end1, 'e1'); put(f.entry.c, 'c', true);
       // THE STAND and its way out: the stand's disc and one per taxi point (the last stays on the centreline)
-      if (f.entry.stand && f.entry.taxiOut) { put([f.entry.stand.x, f.entry.stand.z], 'stand'); f.entry.taxiOut.forEach((q, i) => put(q, 'tx' + i, true));
-        (f.entry.taxiOut1 || []).forEach((q, i) => put(q, 'ty' + i, true)); }   // G772: the way out toward end1
+      // (G3093: a way that FOLLOWS A ROAD has no discs of its own - the road's are its handles)
+      if (f.entry.stand && f.entry.taxiOut) { put([f.entry.stand.x, f.entry.stand.z], 'stand'); if (!f.entry.taxiOutVia) f.entry.taxiOut.forEach((q, i) => put(q, 'tx' + i, true));
+        if (!f.entry.taxiOut1Via) (f.entry.taxiOut1 || []).forEach((q, i) => put(q, 'ty' + i, true)); }   // G772: the way out toward end1
       // THE CLUB HANGAR (G434): its disc moves the garage's shell; the inspector turns it
       if (f.entry.hangar) put([f.entry.hangar.x, f.entry.hangar.z], 'hangar');
       // (G3091, objective 1) THE BASE PLOTS: a disc each (it moves the plot with its stand and way out), a small one for its stand
@@ -3396,9 +3397,20 @@ function make(THREE, scene, world, rec0, opts) {
       if (ob.on === 'ground') tiltToGround(g, (x, z) => O.terrainAt(x, z), w[0], w[1], yaw);
       G.houses.add(g);
       hitAdd(g, 'prop', 0.5);
-      if (g.userData.propInst) return { grp: g, tris: (PR.props[ob.key] && PR.props[ob.key].nt) || 0, house: ob };   // no meshes of its own: the full level's count
-      let tris = 0; g.traverse(m => { if (m.isMesh && m.geometry) { const q = m.geometry; tris += (q.index ? q.index.count : (q.attributes.position ? q.attributes.position.count : 0)) / 3; } });
-      return { grp: g, tris: Math.round(tris), house: ob };
+      // G2893: AN ASSEMBLY's other parts (`with`: the ALMA's fork and dish with its base) - baked in ONE frame, so each stands
+      // at the head's own pose; they come and go with it (the entry's `extra`)
+      const extra = [], placed = [];
+      for (const k of Array.isArray(ob.with) ? ob.with : []) {
+        if (!PR.props[k]) continue;
+        const g2 = pp(THREE, k, w[0], w[1], yaw, obY, true);
+        if (+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3) g2.scale.setScalar(+ob.s);
+        if (ob.on === 'ground') tiltToGround(g2, (x, z) => O.terrainAt(x, z), w[0], w[1], yaw);
+        G.houses.add(g2); hitAdd(g2, 'prop', 0.5); extra.push(g2); placed.push(k);
+      }
+      const ntOf = k => (PR.props[k] && PR.props[k].nt) || 0;
+      if (g.userData.propInst) return { grp: g, extra, tris: placed.reduce((a, k) => a + ntOf(k), ntOf(ob.key)), house: ob };   // no meshes of its own: the full level's count
+      let tris = 0; for (const G0 of [g].concat(extra)) G0.traverse(m => { if (m.isMesh && m.geometry) { const q = m.geometry; tris += (q.index ? q.index.count : (q.attributes.position ? q.attributes.position.count : 0)) / 3; } });
+      return { grp: g, extra, tris: Math.round(tris), house: ob };
     }
     // A PARKED AEROPLANE (G411): src/viewer/parked.js stands the build the key names - captured
     // through the editor at the boot's `parked` step (or now, once that step ran) - as a THREE.LOD
@@ -3429,7 +3441,7 @@ function make(THREE, scene, world, rec0, opts) {
     }
     return null;
   }
-  const objectSeed = ob => PG.hash32(PG.fnv(String(ob.id)), PG.fnv(JSON.stringify([ob.kind, ob.key, ob.x, ob.z, ob.yaw, ob.y, ob.w, ob.on].concat(ob.s ? [ob.s] : []))));   // (G3001: a scale is the object's too)
+  const objectSeed = ob => PG.hash32(PG.fnv(String(ob.id)), PG.fnv(JSON.stringify([ob.kind, ob.key, ob.x, ob.z, ob.yaw, ob.y, ob.w, ob.on].concat(ob.s ? [ob.s] : [], ob.with ? [ob.with] : []))));   // (G3001: a scale is the object's too)
   // a site's item (G830: its generation - the build and the synthetic plot's dressing plan - is premises_build.js
   // genItem, inline or the house worker's R; the placement is here)
   function buildItem(it, R) {
@@ -4345,7 +4357,7 @@ function make(THREE, scene, world, rec0, opts) {
     return PG.objectPickR(ob, g ? g.userData.pickR : undefined);
   }
   // G2891 (c1): what a press at a WORLD point grabs of a strip's own things (the club hangar, the stand): { id, key } or null
-  function grabAt(x, z) { if (!PG.runwayGrab) return null; const L = O.frame.toLocal(x, z); return PG.runwayGrab(rec, L[0], L[1]); }
+  function grabAt(x, z) { if (!PG.runwayGrab) return null; const L = O.frame.toLocal(x, z); return PG.runwayGrab(rec, L[0], L[1], o.shedDims ? o.shedDims() : null); }   // (G3096: the shed as drawn)
   // (v1.36) a composed entry's feature in the record: itself, or the AREA it expanded from (its id, or '<area>~d' and the like)
   function featOf(id) {
     const f = PG.findById(rec, id); if (f) return { id, layer: f.layer, entry: f.entry };

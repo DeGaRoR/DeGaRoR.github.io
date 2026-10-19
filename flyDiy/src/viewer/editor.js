@@ -568,9 +568,13 @@ function editorInit(api) {
   // choice is the definition of the thing that part exists to hold, and they
   // were the two loudest examples of a decision about the WHOLE aeroplane
   // filed under one part of it.
+  // G2770 (the user's slider review: "under fuselage, the configuration
+  // section is obsolete. Starter does not matter and should go"): the
+  // seating STARTER is no longer placed - it stays parked in its accordion
+  // group in the nursery (the seat arrangement and the passenger bays are
+  // tiles of their own); the engine group injects nothing any more
   const DERIVED = {
     '2 · engine': ['design', 'configuration'],
-    '4 · cabin/dimensions': ['design', 'configuration'],
   };
   const extraRows = new Map();             // 'partKey/group' -> [row, …]
   function collectDerived() {
