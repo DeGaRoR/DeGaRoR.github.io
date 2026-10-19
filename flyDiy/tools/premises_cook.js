@@ -36,7 +36,11 @@ const crypto = require('crypto');
 const ROOT = path.join(__dirname, '..');
 const TOOLS = __dirname;
 const OUT = path.join(ROOT, 'src', 'core', 'premises_packs.json');
-const VARIANTS = [{ name: 'default', drop: ['mk_'] }, { name: 'town', drop: [] }];   // app.js TOWN.off
+const VARIANTS = [{ name: 'default', drop: ['mk_'], town: 'off' }, { name: 'town', drop: [] }];   // world_boot.js TOWN (off: PREMISES_GEN.TOWN_OFF)
+// a variant's record: the fixture's with its places dropped - 'default' as the page's switch drops them, the seaplane base kept
+// (METLA-WRAPUP, 27_premises.js TOWN_OFF)
+const keepOf = (PG, V) => (V.town === 'off' && PG.TOWN_OFF ? PG.TOWN_OFF.keep : null);
+const dropOf = (PG, rec, V) => (V.drop.length ? PG.dropPlaces(rec, V.drop, keepOf(PG, V)).rec : rec);
 const CELL = 256;          // render_premises.js LIVE_CELL, and the raster's cell (16 tiles of 16 m)
 const LEVEL = 9;
 
@@ -102,7 +106,7 @@ function islandWorld(id, variant, fixtureText) {
   if (variant) {
     const txt = fixtureText !== undefined ? fixtureText : fs.readFileSync(fixturePath(id), 'utf8');
     let rec = PG.unwrap(txt).rec;
-    if (variant.drop.length) rec = PG.dropPlaces(rec, variant.drop).rec;
+    rec = dropOf(PG, rec, variant);
     prem = PG.envelope(null, rec);
     key = id + '|' + variant.name + '|' + crypto.createHash('sha256').update(txt).digest('hex');
   }
@@ -118,7 +122,7 @@ function composeVariant(id, variant, fixtureText) {
   const { PG, GENS, CAT } = headless();
   const W = islandWorld(id, variant, fixtureText);
   let rec = PG.unwrap(fixtureText !== undefined ? fixtureText : fs.readFileSync(fixturePath(id), 'utf8')).rec;
-  if (variant.drop.length) rec = PG.dropPlaces(rec, variant.drop).rec;
+  rec = dropOf(PG, rec, variant);
   const O = W.premises.set(rec, { catalogue: CAT, globals: GENS, build: r => (GENS[r.gen] ? GENS[r.gen].build(r.P, 0) : null), pool: [], raster: true });
   return { W, O, rec };
 }
@@ -486,7 +490,7 @@ function cook(id, opt) {
       if (opt.measureLots) log('           (not cooked: ' + Pl.lots.n + ' lot patches, ' + (Pl.lots.bytes / 1e6).toFixed(1) + ' MB of mesh arrays - C2c re-makes them from the plans)');
     }
     placeSets.push({ name: V.name, P: Pl });
-    variants.push({ name: V.name, drop: V.drop, record: recH, mods: O.n, places: Pl ? { things: Pl.things, cells: Pl.cells.length, hash: Pl.hash, failed: Pl.failed.length } : null,
+    variants.push({ name: V.name, drop: V.drop, keep: keepOf(headless().PG, V) || undefined, record: recH, mods: O.n, places: Pl ? { things: Pl.things, cells: Pl.cells.length, hash: Pl.hash, failed: Pl.failed.length } : null,
       raster: { tiles: R.tiles, cells: R.cells.length, nodes: R.nodes, raw: R.raw, worstMm: +(R.worst * 1000).toFixed(4) } });
     log('  ' + V.name.padEnd(8) + ' compose ' + tc + ' ms, ' + O.n + ' modifiers; raster ' + R.tiles + ' tiles (' + R.nodes + ' nodes) in ' + R.cells.length + ' cells within reach of ' + R.anchors.join(' '));
     log('           baked ' + R.bakeMs + ' ms, ' + (R.raw / 1e6).toFixed(2) + ' MB raw, worst |cooked - baked| ' + (R.worst * 1000).toFixed(4) + ' mm at 600 m');
@@ -593,5 +597,5 @@ function main() {
   console.log('\nnext: node tools/_premcook_check.js && node tools/_media_check.js');
 }
 
-module.exports = { VARIANTS, CELL, REACH, headless, cookPlaces, liftPage, pageHash, shapeOfBuilt, clean, islandWorld, composeVariant, cookRaster, encodeCell, cellError, cook, manifestIsland, cellStem, fixturePath, OUT };
+module.exports = { VARIANTS, dropOf, CELL, REACH, headless, cookPlaces, liftPage, pageHash, shapeOfBuilt, clean, islandWorld, composeVariant, cookRaster, encodeCell, cellError, cook, manifestIsland, cellStem, fixturePath, OUT };
 if (require.main === module) main();
