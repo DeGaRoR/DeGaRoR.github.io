@@ -7709,7 +7709,19 @@
   // from the live ctl so nothing jumps, and carries the AP's elevator as
   // trim. The test pilot's watchdog budget is pushed out past the time the
   // hand took, or it says 'gave-up' on the very next frame.
-  function setManual(on) {
+  // G3325 (AP-TOGGLE, the user 19 Oct): A PERMANENT TOGGLE - #bAP in the flight's actions, always in sight in flight:
+  // the autopilot by default (G3120: every flight starts on it), a hand on a flight control takes the aeroplane (the
+  // takeover, below: INP.flown), a press of the toggle gives it back. Tim (the story): you can take control yourself, you
+  // never have to - every normal mission flies on the autopilot. The state is published for the story's cards (they
+  // hide while the player flies): window.FLYDIY_AP { manual(), autopilot(), set(onAutopilot) } and the window event
+  // 'flydiy:manual' { manual, by: 'button' | 'key' | 'takeover' | 'api' } on every change
+  function apToggleSync() {
+    const b = $('bAP'); if (!b) return;
+    b.textContent = manual ? 'You fly · autopilot off' : 'Autopilot on';
+    try { b.classList.toggle('on', !manual); b.setAttribute('aria-pressed', manual ? 'false' : 'true'); } catch (e) {}
+    b.title = manual ? 'You have the controls - press to hand the aeroplane back to the autopilot' : 'The autopilot flies it - press, or move the stick, the pedals or the throttle, to fly it yourself';
+  }
+  function setManual(on, by) {
     on = !!on;
     if (!INP || on === manual) return;
     manual = on;
@@ -7724,6 +7736,8 @@
     }
     flRender();
     if (flShown.has('controls')) flyOpenSet(flyOpen);
+    apToggleSync();
+    try { window.dispatchEvent(new CustomEvent('flydiy:manual', { detail: { manual, by: by || 'api' } })); } catch (e) {}   // G3325
   }
   const GROUND_PHASES = ['DEPART', 'TAXI', 'LINEUP', 'HOLD', 'STOP', 'ROLL',
                          'LIFTOFF', 'ROLLOUT', 'STOPPED', 'ABORT', 'PUTDOWN'];
@@ -12155,6 +12169,9 @@
     railPhase = ''; setRail(null);
   }
   $('bReset').onclick = fullReset;
+  // G3325: the toggle hands the aeroplane over, either way (the key's apToggle the same); the state for the story's cards
+  if ($('bAP')) $('bAP').onclick = () => setManual(!manual, 'button');
+  window.FLYDIY_AP = { manual: () => manual, autopilot: () => !manual, set: onAutopilot => setManual(!onAutopilot, 'api') };
   // selecting the Garage build puts you IN the garage. Since G35 the garage's
   // editor is the CAGE EDITOR overlay — it opens with the garage, and closing
   // it leaves you at the stand (builds bar, env buttons, Roll out & fly).
@@ -15548,6 +15565,8 @@
       $('bGo').textContent = stopped ? 'Fly on' : 'Fly the circuit';
       $('bGo').classList.remove('warn');
     }
+    // G3325: the autopilot toggle - always in sight once the flight has started (the stand, the roll, the air, stopped)
+    if ($('bAP')) { $('bAP').hidden = inGarage || !started; apToggleSync(); }
     $('bPause').hidden = !flying;
     $('bReset').hidden = !flying;
     syncSkip();                 // G771: the skip, from the stand (at roll-out) until the hold
@@ -16234,12 +16253,16 @@
     // and in the air — the toggle and the view keys work under the AP, and
     // a stand with a real hand on it shows THAT instead of the sweep below.
     inpEv = INP ? INP.update(fdt) : null;
+    // G3325 (AP-TOGGLE): THE TAKEOVER - a hand on a flight control (the stick, the pedals, the lever, the brakes: INP.flown,
+    // never a view key or a trim) while the autopilot flies takes the aeroplane, as a pilot's hand on the yoke does; the
+    // toggle says so, a press gives it back
+    if (!manual && INP && INP.flown && INP.flown() && !inGarage && started && FL.ready) setManual(true, 'takeover');
     // THE DAY ADVANCES WITH PLAY (SKY S1, ruling aj): one clock, shed and world; a game pause pauses it
     // (G586: in the shed on the frame's own time; in flight it ticks after the solver, on the sim's)
     if (typeof DAY_CLOCK !== 'undefined' && inGarage) DAY_CLOCK.tick(fdt);
     if ((frame & 63) === 0) clockRowsSync(false);   // G2650: the route rows' clock line, to the minute (a string compare)
     if (inpEv && !inGarage && FL.ready && inpEv.fired.length) {
-      if (inpEv.fired.indexOf('apToggle') >= 0) setManual(!manual);
+      if (inpEv.fired.indexOf('apToggle') >= 0) setManual(!manual, 'key');
       if (inpEv.fired.indexOf('viewNext') >= 0) flCamNext();
       // G442.3: the dash's bindable steps go to the cockpit, as a click would
       if (CK && CK.dashAction) for (const id of inpEv.fired) CK.dashAction(id);
