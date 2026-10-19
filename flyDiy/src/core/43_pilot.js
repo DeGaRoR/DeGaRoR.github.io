@@ -748,6 +748,12 @@ function makePilot(sim, def, world, opts) {
     const wet = !!sim.hydro && (onG > 0 || ap.t - humWetT < HUM_WET);
     const rx = wet ? 0 : (onG > 0 || ap.phase === 'FLARE') ? Math.min(PRF.reaction, HUM_GCAP) : PRF.reaction;
     const g = wet ? 1 : humGain(rx, onG);
+    // G3323 (2) (AP-ADAPT, 19 Oct): THE HELD PART FOLLOWS THE COMMAND WHILE THE PERSON IS WHOLE. HUM.ref (the command's 1 s
+    // mean the eased gain is applied about) was written only while the gain was eased: through every whole-gain spell (the
+    // wheels, the water and its wet window, the flare) it froze, and the next eased step pulled the surfaces toward that
+    // stale command - a kick after every skip, bounce or touch-and-go (with G3323's wet window the Wipline C172's student
+    // seed 2 gave up and the ham-fists went round once or twice more). While whole, it follows the command
+    if (g === 1 && HUM.ref) { HUM.ref[0] = c.de; HUM.ref[1] = c.da; HUM.ref[2] = c.dr; }
     if (g !== 1) {
       const a = Math.min(1, dt / HUM_REF);
       if (!HUM.ref) HUM.ref = [c.de, c.da, c.dr];
