@@ -31,7 +31,7 @@ const r2 = v => v == null || !isFinite(v) ? null : Math.round(v * 100) / 100;
 function defOf() { const d = TR.defOf(C, PT, key); d.params = Object.assign({}, d.params, { damage: false }); return d; }
 function fly(H, label) {
   const sim = H.sim, rows = [];
-  let psi0 = null, tLift = null, tRoll = null, tTail = null, maxAfter = 0, maxRoll = 0, aglMin = null, k = 0;
+  let psi0 = null, tLift = null, tRoll = null, tTail = null, maxAfter = 0, maxRoll = 0, maxTU = 0, aglMin = null, k = 0;
   for (; k < 60 * 300; k++) {
     H.step();
     const ap = H.ap, m = ap._m || {}, D = ap.dbg || {}, ph = ap.phase, t = k / 60;
@@ -41,7 +41,7 @@ function fly(H, label) {
     if (D.tailUp && tTail == null) tTail = t;
     if (tLift == null && onG === 0 && t - tRoll > 1) tLift = t;
     const dpsi = wrap(m.hdg - psi0);
-    if (tLift == null) maxRoll = Math.max(maxRoll, Math.abs(dpsi));
+    if (tLift == null) { maxRoll = Math.max(maxRoll, Math.abs(dpsi)); if (tTail != null) maxTU = Math.max(maxTU, Math.abs(dpsi)); }   // (G3306: from tail-up to the lift-off - the user's complaint)
     else { maxAfter = Math.max(maxAfter, Math.abs(dpsi)); aglMin = aglMin == null ? m.agl : Math.min(aglMin, m.agl); }
     if (k % 6 === 0) rows.push([r2(t - tRoll), ph, onG, D.tailUp ? 1 : 0, r2(dpsi), r2(m.ias), r2(m.gs), r2(m.agl), r2((m.bank || 0) * 57.3), r2((m.pitch || 0) * 57.3),
                                 r2(sim.ctl.dr), r2(sim.ctl.da), r2(sim.ctl.de), r2(sim.ctl.thr), r2((m.beta || 0) * 57.3)]);
@@ -49,7 +49,7 @@ function fly(H, label) {
     if (t - tRoll > 60) break;
   }
   const L = { way: label, tRoll: r2(tRoll), tailUpAfter: r2(tTail != null ? tTail - tRoll : null), liftAfter: r2(tLift != null ? tLift - tRoll : null),
-              hdgMaxRoll: r2(maxRoll), hdgMaxAfterLift: r2(maxAfter), aglMinAfterLift: r2(aglMin), phase: H.ap.phase,
+              hdgMaxRoll: r2(maxRoll), hdgMaxTailUp: r2(maxTU), hdgMaxAfterLift: r2(maxAfter), aglMinAfterLift: r2(aglMin), phase: H.ap.phase,
               trunk: sim.trunkHits ? sim.trunkHits() : null, kept: !!H.keptSim, lineup: H.lineup ? { x: r2(H.lineup.x), z: r2(H.lineup.z) } : null };
   return { L, rows };
 }

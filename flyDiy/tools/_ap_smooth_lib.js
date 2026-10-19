@@ -56,6 +56,8 @@ function flyAndMeasure(H, o) {
       if (Math.abs(dh) < 0.3) { lvl.push(m.alt - hP); lvlVs.push(m.vs); lvlN++; maxBankLvl = Math.max(maxBankLvl, Math.abs(m.bank || 0)); }
     }
     hP0 = hP;
+    // G3305: the speed the energy loop asks (TECS Vc: iasF + the adaptations), the air's velocity at the CG (sim.out)
+    const extra = () => { const tc = D.tecs || {}, so = sim.out || {}; return [r2(tc.Vc), r2(so.windX), r2(so.windZ)]; };
     if (k % 6 === 0) {
       // G3304: where, and (o.terrain: the world) the highest ground 1500 m ahead along the leg flown (43 legAlt's own look:
       // seven samples, the leg's direction A->B) - the floor the circuit legs' height is raised to
@@ -65,8 +67,8 @@ function flyAndMeasure(H, o) {
         let h = -1e9; for (let q = 0; q <= 6; q++) { const d = 1500 * q / 6; h = Math.max(h, o.terrain(m.x + ux * d, m.z + uz * d)); }
         fl = r2(h);
         const rem = (L.B[0] - m.x) * ux + (L.B[1] - m.z) * uz;
-        rows.push([r2(t), ph, onG ? 1 : 0, D.tailUp ? 1 : 0, r2(m.hdg), r2(m.ias), r2(m.alt), r2(hP), r2(m.agl), r2((m.pitch || 0) * 57.3), r2((m.bank || 0) * 57.3), r2(m.vs), r2(sim.ctl.da), r2(sim.ctl.de), r2(sim.ctl.dr), r2(sim.ctl.thr), r2(m.x), r2(m.z), fl, r2(rem)]);
-      } else rows.push([r2(t), ph, onG ? 1 : 0, D.tailUp ? 1 : 0, r2(m.hdg), r2(m.ias), r2(m.alt), r2(hP), r2(m.agl), r2((m.pitch || 0) * 57.3), r2((m.bank || 0) * 57.3), r2(m.vs), r2(sim.ctl.da), r2(sim.ctl.de), r2(sim.ctl.dr), r2(sim.ctl.thr), r2(m.x), r2(m.z), null, null]);
+        rows.push([r2(t), ph, onG ? 1 : 0, D.tailUp ? 1 : 0, r2(m.hdg), r2(m.ias), r2(m.alt), r2(hP), r2(m.agl), r2((m.pitch || 0) * 57.3), r2((m.bank || 0) * 57.3), r2(m.vs), r2(sim.ctl.da), r2(sim.ctl.de), r2(sim.ctl.dr), r2(sim.ctl.thr), r2(m.x), r2(m.z), fl, r2(rem), ...extra()]);
+      } else rows.push([r2(t), ph, onG ? 1 : 0, D.tailUp ? 1 : 0, r2(m.hdg), r2(m.ias), r2(m.alt), r2(hP), r2(m.agl), r2((m.pitch || 0) * 57.3), r2((m.bank || 0) * 57.3), r2(m.vs), r2(sim.ctl.da), r2(sim.ctl.de), r2(sim.ctl.dr), r2(sim.ctl.thr), r2(m.x), r2(m.z), null, null, ...extra()]);
     }
     if (ph === 'STOPPED' && liftT != null) { stopped = true; break; }
   }
@@ -82,7 +84,9 @@ function flyAndMeasure(H, o) {
     land: L ? JSON.parse(JSON.stringify(L)) : null,
     verdicts: (ap.report && ap.report.verdicts || []).map(v => v.code),
     verdictNotes: (ap.report && ap.report.verdicts || []).map(v => Math.round(v.t || 0) + ' ' + v.code + ': ' + (v.note || '')),   // (G3305: the go-arounds' reasons)
-    rows, cols: 't,ph,onG,tailUp,hdg,V,alt,hP,agl,pitch,bank,vs,da,de,dr,thr,x,z,ground1500,legRem',
+    rows, cols: 't,ph,onG,tailUp,hdg,V,alt,hP,agl,pitch,bank,vs,da,de,dr,thr,x,z,ground1500,legRem,Vc,windX,windZ',
+    appr: ap.report && ap.report.appr ? JSON.parse(JSON.stringify(ap.report.appr)) : null, stab: ap.report && ap.report.stab ? JSON.parse(JSON.stringify(ap.report.stab)) : null,
+    gsDef: H.def && H.def.params && H.def.params.ap ? H.def.params.ap.gs : null,
   };
 }
 module.exports = { flyAndMeasure };
