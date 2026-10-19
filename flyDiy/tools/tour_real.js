@@ -100,7 +100,9 @@ function preScript() {
   const L = [];
   const txt = fs.readFileSync(path.resolve(ROOT, 'flyDiy', BUILD), 'utf8');
   L.push('try{localStorage.setItem("flydiy.wip",' + JSON.stringify(txt) + ')}catch(e){}');
-  L.push('try{localStorage.removeItem("flydiy.gfx")}catch(e){}');
+  // G3302: --gfx <file.json> - a player's saved graphics (a flight log's header.gfx) in place of the first run's choice
+  if (opt('gfx', null)) L.push('try{localStorage.setItem("flydiy.gfx",' + JSON.stringify(fs.readFileSync(opt('gfx'), 'utf8')) + ')}catch(e){}');
+  else L.push('try{localStorage.removeItem("flydiy.gfx")}catch(e){}');
   L.push('try{for(const k of Object.keys(localStorage))if(/^flydiy\\.(fl([A-Z]|$)|route$|world$)/.test(k))localStorage.removeItem(k)}catch(e){}');
   // the shed's To picker's pref (G1945 v2): the roll-out departs the base's stand for the first To
   if (!NO_ROUTE) L.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: ORDER[1] })) + ');localStorage.setItem("flydiy.flManual","0")}catch(e){}');
@@ -211,7 +213,21 @@ const STATE = `JSON.stringify((() => {
   await cmd('Page.navigate', { url: URL });
   log('  -> ' + URL);
   await sleep(2000);
-  const boot = await ev("(() => Promise.race([(window.BOOT && BOOT.whenReady) ? BOOT.whenReady().then(() => 'ready') : new Promise(r => setTimeout(() => r('no BOOT'), 30000)), new Promise(r => setTimeout(() => r('boot timeout'), 300000))]))()", 310000);
+  // G3302: the boot screen may WAIT for the player ('waiting': "press Fly when you are ready", boot.js B._hold - master's
+  // first boot); whenReady resolves only on hide, so the rig presses Fly as a player does (#bootFly), then waits for it
+  let boot = 'boot timeout';
+  for (let i = 0; i < 600; i++) {
+    const bst = await ev("window.BOOT ? BOOT.state : 'none'", 20000).catch(() => 'eval');
+    // the live page's FIRST RUN, a player's way: the Welcome card's suggested preset ("Use gamer", button.wplay), then the
+    // start screen shown at every start (New career / Sandbox / Garage only): the highlighted Sandbox (.wmode.wgo)
+    const fr = await ev("(()=>{const v=b=>b&&b.offsetParent;const w=[...document.querySelectorAll('button.wplay')].find(v);if(w){w.click();return 'welcome: '+w.textContent.trim();}"
+      + "const m=[...document.querySelectorAll('.wmode.wgo')].find(v);if(m){m.click();return 'mode: '+m.textContent.trim().slice(0,30);}return '';})()").catch(() => '');
+    if (fr) log('  first run: ' + fr);
+    if (bst === 'waiting') { await ev("(()=>{const f=document.getElementById('bootFly');if(f&&!f.disabled)f.click();return 1;})()"); log('  boot waiting: pressed Fly'); }
+    if (bst === 'gone' || bst === 'ready') { boot = 'ready (' + bst + ')'; break; }
+    if (bst === 'none' && i > 60) { boot = 'no BOOT'; break; }
+    await sleep(500);
+  }
   log('  garage: ' + boot + ' after ' + ((Date.now() - tNav) / 1000).toFixed(1) + ' s');
   const KEEP = "(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()";
   for (let i = 0; i < 10; i++) { const n = await ev(KEEP); await sleep(400); if (!n && i > 3) break; }
@@ -219,6 +235,8 @@ const STATE = `JSON.stringify((() => {
   const env = JSON.parse(await ev("JSON.stringify({ gpu: (()=>{const c=document.createElement('canvas').getContext('webgl2');const d=c&&c.getExtension('WEBGL_debug_renderer_info');return d?c.getParameter(d.UNMASKED_RENDERER_WEBGL):'?';})(), gfx: window.GFX ? GFX.get() : null, build: window.FLYDIY_BUILD || null, route: window.FLYDIY_ROUTE ? FLYDIY_ROUTE.get() : null, ua: navigator.userAgent, webdriver: navigator.webdriver })"));
   log('  env ' + JSON.stringify(env));
   if (env.gfx && env.gfx.preset && env.gfx.preset !== 'gamer') log('  !!! the preset is ' + env.gfx.preset + ', not gamer');
+  // G3302: --persona <key> - the pilot's personality picked in the page's own menu (#selPersona, its change event), as a player does
+  if (opt('persona', null)) log('  persona: ' + await ev("(()=>{const s=document.getElementById('selPersona');if(!s)return 'no #selPersona';s.value=" + JSON.stringify(opt('persona')) + ";s.dispatchEvent(new Event('change',{bubbles:true}));return s.value+' -> '+JSON.stringify(window.FLYDIY_PERSONA?FLYDIY_PERSONA.get():null);})()"));
   // ROLL OUT: one press (rollout_perf G1117)
   await ev("(()=>{const g=document.getElementById('bGo');const l=[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)&&b.offsetParent);const b=g&&g.offsetParent&&/roll out/i.test(g.textContent)?g:l[0];if(b)b.click();return l.length;})()");
   const tRoll = Date.now();
