@@ -95117,3 +95117,8 @@ landing (every node touchdown 1.28-1.34 Vs, 200-210 m of roll). The report: flyd
   0.08 m too far forward for its elevator: it flares to 85 km/h against an 80 km/h stall), Cessna floats 1.03 pass, twin
   floats pass, mosquito 2/3 pass, Rufus as built 1.09 warn, Rufus B pass. No validated build red; the Cessna's new WARN is
   the user's call (A0). GATE DESIGNCHECK 27/27 PASS.
+
+## A0 - landing L19a (19 Oct 2026, gates 04:00-04:58, pushed ~08:20)
+Cargo (rolling, every claude/ready/* except dash-redesign): editor-ux-b-g2770, float-ap (G3081 + ROUTE-SEA), ground-1px (G2610), hangar-fix + taxi-all (G3092-G3097), metla-wrapup (Metlakatla behind the town flag, mk_sea kept), perf-1, rufus-cert (builds/rufus_2026-10-18_certified.json + LIVERY gate), rufus-flare (G3271 ctl.flare; the metal Cessna WARN accepted by the user).
+Battery: only master's known reds (CLOCK lamps row, CLOUD lamps row, KTX2 row 10, FRAMECOST cessna garage:restore).
+Strict light gate: 2 RED. 'metal fuseWidth busy' = a cost the user accepted by name (15 Oct). 'floats world -> garage 0.23 -> 5.47 s' = PRE-EXISTING: HWCOV's bisect (19 Oct 05:00 + 07:45) shows master 05cc2acc0 at 3.1-3.8 s in the same rig; a 2-4 s program link on the floats' way back after the Cub legs. The 12 Oct baseline is stale for this row; a separate ticket (which program re-links; hybrid_trips.js).
