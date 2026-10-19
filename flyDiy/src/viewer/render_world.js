@@ -7836,13 +7836,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
     ringReady: (cg, reach, loose) => fillApi ? fillApi.ringReady(cg, reach, loose) : true,   // (B9: the reach passed through - it was dropped here)
     ringStat: () => fillApi ? fillApi.ringStat() : null,
-    // REVEAL-HITCH (19 Oct): the grass field's and the cover ring's cells round each eye [x, y, z], planted now (cover_ring
-    // plantNear) - app.js hands it the reveal's eyes round the stand. `ms` for the whole call; { built, done }
+    // REVEAL-HITCH (19 Oct): the grass field's and the cover ring's cells round each eye [x, y, z, rad], planted now (cover_ring
+    // plantNear; rad in metres, or 'reach': the ring's whole) - app.js hands it the reveal's eyes. `ms` for the call; { built, done }
     coverPlant: (eyes, ms) => {
       const t0 = performance.now(); let built = 0;
-      for (const e of eyes || []) for (const [R, rad] of [[grassField, 10], [coverRing, 12]]) {
+      const TF = typeof window !== 'undefined' ? window.TREE_FILL : null;   // (the fill block's handle on its rings - this object's own closure does not reach them)
+      const rings = [TF && TF.grass ? TF.grass() : null, TF && TF.cover ? TF.cover() : null];
+      for (const e of eyes || []) for (const R of rings) {
         if (!R || !R.plantNear) continue;
         const left = ms - (performance.now() - t0); if (left <= 0) return { built, done: false };
+        const g = R.get(), rad = e[3] === 'reach' ? g.reach + g.cell : (+e[3] || 10);   // (an eye's own radius; 'reach': the ring's whole)
         const r = R.plantNear(e[0], e[1], e[2], rad, left); built += r.built; if (!r.done) return { built, done: false };
       }
       return { built, done: true, ms: Math.round(performance.now() - t0) };

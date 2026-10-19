@@ -82,6 +82,8 @@ const nowUs = () => Number(process.hrtime.bigint() / 1000n);
     console.log('  inclusive:\n    ' + top(incl, TOP + 8).join('\n    '));
     out.heavy.push({ i, ms: r.ms, self: top(self, TOP), incl: top(incl, TOP + 8) });
   }
+  const errs = (P.errors || []).filter(e => /^(script |timer: |frame: )/.test(e));
+  console.log('\npage errors: ' + errs.length + (errs.length ? '\n  ' + errs.slice(0, 6).join('\n  ') : ''));
   if (JSON_OUT) fs.writeFileSync(JSON_OUT, JSON.stringify(out, null, 1));
   try { P.close(); } catch (e) {}
   process.exit(0);
