@@ -44,9 +44,9 @@ for (const f of process.argv.slice(2)) {
   };
   // G3303: THE STEER LINE - the generator's own numbers (62 genPlant / genSteerWD / genSteerYawK) as the def carries them:
   // the tail-up rate loop's crossover at VRot, the reference, the factor the build flies
-  const pl = def.params.gen && def.params.gen.plant;
-  if (pl && C.genSteerWD) out.steer = { NdrPerIzz: r3(pl.Ndr / pl.Izz), Izz: r3(pl.Izz), M: r3(pl.M), VRot: A.VRot, wD: r3(C.genSteerWD(pl, A, Vs)),
-    ref: C.GEN_STEER_WD_REF, steerYawK: A.steerYawK != null ? A.steerYawK : 1 };
+  const yp = C.genYawPlant ? C.genYawPlant(def.nodes, def.strips, def.params) : null;
+  if (yp) out.steer = { nPerQ: +yp.nPerQ.toPrecision(4), Izz: r3(yp.Izz), Mdesign: r3(yp.M), Mflight: r3(sim.totalM), VRot: A.VRot,
+    wD: r3(C.genSteerWD(yp, A, Vs)), wDflight: r3(C.genSteerWD(yp, A, Vs, sim.totalM)), ref: C.GEN_STEER_WD_REF, steerYawK: A.steerYawK != null ? A.steerYawK : 1 };
   console.log(JSON.stringify(out));
-  if (out.steer) console.error('STEER ' + out.build.padEnd(40) + ' wD ' + String(out.steer.wD).padStart(7) + ' rad/s  N_dr/Izz ' + out.steer.NdrPerIzz + '  steerYawK ' + out.steer.steerYawK);
+  if (out.steer) console.error('STEER ' + out.build.padEnd(40) + ' wD ' + String(out.steer.wD).padStart(7) + ' rad/s (design ' + out.steer.Mdesign + ' kg) ' + String(out.steer.wDflight).padStart(7) + ' (flight ' + out.steer.Mflight + ' kg)  N_dr/q/Izz ' + out.steer.nPerQ + '  steerYawK ' + out.steer.steerYawK);
 }

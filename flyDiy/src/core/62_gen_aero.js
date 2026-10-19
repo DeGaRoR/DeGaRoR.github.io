@@ -648,7 +648,7 @@ function genTuneAP(def) {
   g.plant = pl;
   // G3303 (AP-ADAPT): THE TAIL-UP STEER, SCALED BY THE BUILD'S OWN RUDDER (genSteerYawK below) - written only when it
   // eases (< 1), so a validated build's def is the same object, key for key
-  { const k = genSteerYawK(pl, A, def.params.gen && def.params.gen.Vs, def.nodes); if (k < 1) A.steerYawK = k; }
+  { const k = genSteerYawK(genYawPlant(def.nodes, def.strips, def.params), A, g && g.Vs); if (k < 1) A.steerYawK = k; }
   // the two loops' natural frequencies, which set every servo rate below
   const wRoll = Math.sqrt(Math.max(1e-9, pl.Lda * A.rollP / pl.Ixx));
   const wPitch = Math.sqrt(Math.max(1e-9, pl.Mde * A.pitchP / pl.Iyy));
@@ -1158,10 +1158,10 @@ function genPlant(nodes, strips, P, V) {
   let M = 0, cx = 0, cy = 0, cz = 0;
   for (const n of nodes) { M += n.m; cx += n.p[0]*n.m; cy += n.p[1]*n.m; cz += n.p[2]*n.m; }
   cx /= M; cy /= M; cz /= M;
-  let Ixx = 0, Iyy = 0, Izz = 0;
+  let Ixx = 0, Iyy = 0;
   for (const n of nodes) {
     const dx = n.p[0]-cx, dy = n.p[1]-cy, dz = n.p[2]-cz;
-    Ixx += n.m * (dy*dy + dz*dz); Iyy += n.m * (dx*dx + dy*dy); Izz += n.m * (dx*dx + dz*dz);
+    Ixx += n.m * (dy*dy + dz*dz); Iyy += n.m * (dx*dx + dy*dy);
   }
   const aW = P.polarWing.a3d, aT = P.polarTail.a3d;
   // ShC and ShD are the SAME area on a conventional tail and different on a V.
@@ -1169,7 +1169,7 @@ function genPlant(nodes, strips, P, V) {
   // force needs projecting: one cos. A pitch RATE reaches the panel through its
   // tilted normal and the force is projected again: two. Using one number for
   // both would over-damp a V-tail by cos G and mis-tune its pitch loop.
-  let Lda = 0, Lp = 0, ShC = 0, ShD = 0, arm = 0, Sv = 0;
+  let Lda = 0, Lp = 0, ShC = 0, ShD = 0, arm = 0;
   const px = ws => { let x = 0; for (const [i, w] of ws) x += nodes[i].p[0] * w; return x; };
   // G185: a second plane's strips carry ITS slope, as a ratio to plane 0's so
   // the monoplane sums are the same numbers they always were
@@ -1186,8 +1186,7 @@ function genPlant(nodes, strips, P, V) {
       const c = st.cosV;
       ShC += st.area * c; ShD += st.area * c * c;
       arm += st.area * c * c * (px(st.w) - cx);
-      Sv += st.area * Math.sqrt(Math.max(0, 1 - c * c)) * (px(st.w) - cx);   // G3303: the ruddervator's side share
-    } else if (st.kind === 'fin') Sv += st.area * (px(st.w) - cx);             // G3303: the fin's area x its arm aft of the CG
+    }
   }
   Lda *= q * aW * P.ailTau;                          // roll moment per unit da
   // G185: a build with NO aileron strips (every plane's aileron span 0) has
@@ -1196,13 +1195,30 @@ function genPlant(nodes, strips, P, V) {
   Lda = Math.max(1e-6, Lda);
   Lp = -(q * aW / V) * Lp;                           // negative: it damps
   const lh = arm / Math.max(1e-6, ShD);
-  // G3303 (AP-ADAPT): THE YAW PLANT - the rudder's yaw moment per unit pedal (the fin's own slope when the def has
-  // one, the solver's 'fin' branch; rudTau the generator's), and the yaw inertia; free air at q, no slipstream
-  const aF = (P.polarFin && P.polarFin.a3d) || aT;
-  return { M, V0: V, Ixx, Iyy, Izz, Lda, Lp, lh,
+  return { M, Ixx, Iyy, Lda, Lp, lh,
            Mde: q * ShC * aT * P.elevTau * lh,       // pitch moment per unit de
-           Mq: -(q * aT * ShD * lh * lh) / V,
-           Ndr: q * aF * (P.rudTau != null ? P.rudTau : 0.5) * Math.abs(Sv) };
+           Mq: -(q * aT * ShD * lh * lh) / V };
+}
+
+// G3303 (AP-ADAPT): THE YAW PLANT, for the tail-up steer only (genSteerYawK) - kept OUT of genPlant / def.params.gen.plant
+// so a validated build's def stays key for key what it was. Per unit dynamic pressure: the rudder's yaw moment per unit
+// pedal over the yaw inertia (the fin's own slope when the def has one - the solver's 'fin' branch -, rudTau the
+// generator's; a ruddervator's side share), free air, no slipstream; and the mass the steer's kM reads at design
+function genYawPlant(nodes, strips, P) {
+  let M = 0, cx = 0, cz = 0;
+  for (const n of nodes) { M += n.m; cx += n.p[0]*n.m; cz += n.p[2]*n.m; }
+  cx /= M; cz /= M;
+  let Izz = 0;
+  for (const n of nodes) { const dx = n.p[0]-cx, dz = n.p[2]-cz; Izz += n.m * (dx*dx + dz*dz); }
+  const px = ws => { let x = 0; for (const [i, w] of ws) x += nodes[i].p[0] * w; return x; };
+  let Sv = 0;
+  for (const st of strips) {
+    if (st.kind === 'fin') Sv += st.area * (px(st.w) - cx);
+    else if (st.kind === 'vtail') Sv += st.area * Math.sqrt(Math.max(0, 1 - st.cosV * st.cosV)) * (px(st.w) - cx);
+  }
+  const aF = (P.polarFin && P.polarFin.a3d) || P.polarTail.a3d;
+  const NdrQ = aF * (P.rudTau != null ? P.rudTau : 0.5) * Math.abs(Sv);   // N.m per unit pedal per Pa
+  return { M, Izz, NdrQ, nPerQ: NdrQ / Math.max(1e-9, Izz) };
 }
 
 // G3303 (AP-ADAPT, the user 18 Oct: "the autopilot can't keep [Rufus B] straight as soon as the tail lifts up when
@@ -1217,18 +1233,18 @@ function genPlant(nodes, strips, P, V) {
 // on floats, twin on floats - the floats' step flies the same tail-up gains x waterStepK, 39b groundSteer), so each
 // of them reads exactly 1 and flies as it did; only a build with more rudder per inertia than any of them is eased.
 // The table (tools/ap_plant_probe.js, wD rad/s at VRot): see GEN_STEER_WD_REF.
-function genSteerYawK(pl, A, Vs, nodes) {
-  if (!pl || !(pl.Ndr > 0) || !(pl.Izz > 0) || !A) return 1;
-  const wD = genSteerWD(pl, A, Vs);
+function genSteerYawK(yp, A, Vs) {
+  if (!yp || !(yp.nPerQ > 0) || !A) return 1;
+  const wD = genSteerWD(yp, A, Vs);
   return wD > GEN_STEER_WD_REF ? Math.round(GEN_STEER_WD_REF / wD * 1000) / 1000 : 1;
 }
-// the tail-up rate loop's crossover at the rotation speed (39b's own law): steerTailUpD x kM x N_dr(VRot) / Izz
-function genSteerWD(pl, A, Vs) {
-  const V0 = pl.V0 || 1, Vr = A.VRot || (Vs || 15);
-  const nPerQ = pl.Ndr / (0.5 * RHO * V0 * V0) / pl.Izz;
-  const kM = Math.sqrt(Math.max(SERVO_GAINS.steerMassMin, pl.M) / SERVO_GAINS.steerMassRef);
+// the tail-up rate loop's crossover at the rotation speed (39b's own law): steerTailUpD x kM x N_dr(VRot) / Izz; `mass`
+// the kM the flight reads (sim.totalM, with its fuel) when given, else the design's
+function genSteerWD(yp, A, Vs, mass) {
+  const Vr = A.VRot || (Vs || 15);
+  const kM = Math.sqrt(Math.max(SERVO_GAINS.steerMassMin, mass || yp.M) / SERVO_GAINS.steerMassRef);
   const kD = (A.steerTailUpD != null ? A.steerTailUpD : SERVO_GAINS.steerTailUpD) * kM;
-  return kD * nPerQ * 0.5 * RHO * Vr * Vr;
+  return kD * yp.nPerQ * 0.5 * RHO * Vr * Vr;
 }
 // PLACEHOLDER until the validated table is measured (Infinity: every build 1, nothing moves)
 const GEN_STEER_WD_REF = Infinity;
