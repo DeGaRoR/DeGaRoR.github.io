@@ -8475,8 +8475,13 @@
   // a pilot is made (mkPilot: the shed's, the roll-out's fullReset, a Fly on) and LATCHED with it - the worker's per-frame
   // read (SIM_LINK's get) takes the latch, so a flight's pilot never changes under it (and its end logs who flew it)
   var crProf;
+  // G2746 (the user, 19 Oct: "the player is supposed the expert"): in the story / career the PLAYER'S OWN flights are
+  // always the expert autopilot - the companion a new career hires (pilotsCompanion) and any pilot hired later fly
+  // their ROUTES only (ROUTES), never the player's flight; the pick row leaves the player's UI (personas: DEV)
+  var CAREER_PLAYER_EXPERT = true;   // (var, not const: personaProfile may ask before this line runs - no TDZ)
   function careerCrewProfile() {
     if (!CAREER_DEV || typeof pilotsProfileOf !== 'function') return undefined;
+    if (CAREER_PLAYER_EXPERT !== false) { crFlyer = 'me'; careerCrewBody(); return (crProf = undefined); }   // undefined = the expert
     try {
       const c = careerCrewCheck();
       crFlyer = (c.id !== 'me' && c.ok) ? c.id : 'me';
@@ -8508,6 +8513,7 @@
   // whether that pilot will fly this leg; under it the pick's refusal, and the boat home when it brings them
   function careerCrewRow(host, where) {
     if (!CAREER_DEV || !host || typeof pilotsHired !== 'function') return;
+    if (CAREER_PLAYER_EXPERT !== false) return;   // G2746: no pilot pick for the player's own flight - the expert flies it
     const d = playerLoad();
     const lab = document.createElement('label'); lab.className = 'crewPick';
     const sp = document.createElement('span'); sp.textContent = 'pilot'; lab.appendChild(sp);
