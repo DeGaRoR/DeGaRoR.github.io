@@ -701,7 +701,7 @@ function makePilot(sim, def, world, opts) {
   let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false, vxHeld = false, vxSaid = false;
   let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
   // G399.7: the speed the ELEVATOR can hold — raised while it sits on its nose-up stop
-  let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false;
+  let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false, tVOkT = 0;   // tVOkT: G3081, the time the elevator has had margin (floats)
   // G2500 (CESSNA-VREF): the speed the elevator was found to hold kept past a go-around (ap.vHeld), re-seeded on the
   // next final (heldSeed); the landing that speed makes judged once a final (heldJudged: 'normal' -> 'short' -> refused)
   let heldSeed = false, heldJudged = null, heldTail = null;
@@ -1853,9 +1853,18 @@ function makePilot(sim, def, world, opts) {
       // 0.24 of elevator, the throttle on its floor - and went around twice
       // for the terrain. The integrator on its clamp with the attitude short
       // of the command is the same "cannot hold this speed"
-      const eSat = (SV.aDe > 0.30 || (SV.Ith >= SV.IthMax - 1e-3 && SV.thCA - th > 0.03)) && V > (o.ias || A.VAppr) + 0.5;
+      // G3081 (FLOAT-AP, 18 Oct): ON FLOATS a cap still RAMPING (SV.IthMax < its target, IthMaxRate 0.10 /s) is not the
+      // elevator's limit. The user's float Cessna (bugReports/cessnaFloatsWOrks.json, the game's flight, 8 kt) slowed from the
+      // circuit's 52 m/s onto the final while the cap opened 0.15 -> 0.30: the integrator rode the moving clamp, 1.5 s read as
+      // 'cannot hold', +25 % kept for the flight (34.4 -> 38 m/s on 0.21 of elevator against its 0.35 stop), the touch at
+      // 1.56 Vs and six skips, the bank growing at each (the wing that catches in the game). And the raise RELAXES on floats
+      // once the elevator has margin again (no saturation for 3 s, under 0.25 of its travel). Land aeroplanes as before
+      // (CESSNA-VREF G2500 judges the metal Cessna on its raise - a generic change is train 66's)
+      const capRamp = !!sim.hydro && SV.IthMax < SV.IthMaxT - 0.01;
+      const eSat = (SV.aDe > 0.30 || (!capRamp && SV.Ith >= SV.IthMax - 1e-3 && SV.thCA - th > 0.03)) && V > (o.ias || A.VAppr) + 0.5;
       tDeSatT = eSat ? tDeSatT + dt : Math.max(0, tDeSatT - dt);
       if (tDeSatT > 1.5) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
+      if (sim.hydro && !eSat) { tVOkT += dt; if (tVOkT > 3 && SV.aDe < 0.25) tVAdapt = Math.max(0, tVAdapt - 0.25 * dt); } else tVOkT = 0;
       if (tVAdapt > 0.5 && !tVAdaptSaid) { tVAdaptSaid = true; say('vref-raised', 'the elevator cannot hold ' + (o.ias || A.VAppr).toFixed(1) + ' m/s at this power — flying the approach faster'); }
       // G2500 (CESSNA-VREF): THE SPEED THE ELEVATOR HOLDS IS THIS AEROPLANE'S, NOT THIS FINAL'S - kept for the flight (a
       // go-around zeroes tVAdapt; the next final starts at it, stabilised from its first metre) and on the record

@@ -32,7 +32,7 @@
 //   flightlog      the game's own flight recorder (FLIGHT_REC.save, downloaded into --out) at the end
 //   run.log        everything printed
 // Usage: node tools/tour_real.js --root D:/Dev/wt-tour [--build builds/cub_2026-09-20_corrected.json]
-//          [--order HOME,w3,tw_ski,mn_strip,w2,HOME] [--damage 0] [--rate 2] [--port 8771] [--size 1600x900]
+//          [--order HOME,w3,tw_ski,mn_strip,w2,HOME] [--q town=1] [--damage 0] [--rate 2] [--port 8771] [--size 1600x900]
 //          [--out <dir>] [--deadline 09:58] [--fallback D:/Dev/DeGaRoR.github.io] [--cast-nth 5] [--legs N]
 //          [--shakedown <s>] (stop <s> wall seconds after the flight starts: the rig's own check)
 //          [--url <page url>] (a page served elsewhere - the mock in tools/tour_real_mock.html; no server, no build)
@@ -96,8 +96,8 @@ function preScript() {
   L.push('try{localStorage.setItem("flydiy.wip",' + JSON.stringify(txt) + ')}catch(e){}');
   L.push('try{localStorage.removeItem("flydiy.gfx")}catch(e){}');
   L.push('try{for(const k of Object.keys(localStorage))if(/^flydiy\\.(fl([A-Z]|$)|route$|world$)/.test(k))localStorage.removeItem(k)}catch(e){}');
-  // the shed's To picker's pref (G1945 v2): the roll-out departs the base's stand for the first To
-  L.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: ORDER[1] })) + ');localStorage.setItem("flydiy.flManual","0")}catch(e){}');
+  // the shed's To picker's pref (G1945 v2): the roll-out departs the base's stand (the order's first, G3081: SEA for floats) for the first To
+  L.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: ORDER[0], to: ORDER[1] })) + ');localStorage.setItem("flydiy.flManual","0")}catch(e){}');
   L.push('try{localStorage.removeItem("flydiy.premises.game.jolene")}catch(e){}');
   return L.join('\n');
 }
@@ -155,7 +155,7 @@ const STATE = `JSON.stringify((() => {
     let root = null;
     for (let i = 0; i < 40 && root === null; i++) { await sleep(250); if (serverExit !== null) break; root = await portAnswer(); }
     if (root === null || path.resolve(root).toLowerCase() !== ROOT.toLowerCase()) { log('*** the server on ' + SPORT + ' is not ours (root ' + root + ')'); process.exit(4); }
-    URL = 'http://localhost:' + SPORT + '/flyDiy/index.html?damage=' + DAMAGE;
+    URL = 'http://localhost:' + SPORT + '/flyDiy/index.html?damage=' + DAMAGE + (opt('q', null) ? '&' + opt('q') : '');   // --q town=1: Metlakatla's mk_ fields (mk_sea) exist only with the town ON (world_boot.js TOWN)
     try { const V = await getJSON('http://127.0.0.1:' + SPORT + '/flyDiy/version.json'); log('  version.json ' + JSON.stringify(V)); } catch (e) {}
   }
   const DPORT = 9600 + (process.pid % 300);
