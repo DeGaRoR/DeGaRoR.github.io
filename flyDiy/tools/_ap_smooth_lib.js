@@ -79,8 +79,9 @@ function flyAndMeasure(H, o) {
     roll: { hdgMax: r2(rollMax), hdgMaxTailUp: r2(rollMaxTU), tailUpT: r2(tailUpT), liftT: r2(liftT) },
     level: { s: Math.round(lvlN / 60), hRms: r2(rms(lvl)), hStd: r2(rms(lvl.map(v => v - mean))), hPeak: r2(lvl.reduce((s, v) => Math.max(s, Math.abs(v)), 0)), vsRms: r2(rms(lvlVs)), bankMax: r2(maxBankLvl * 57.3) },
     active: actOut,
-    land: L ? { VoverVs: L.VoverVs, sink: L.sink, V: L.V } : null,
+    land: L ? JSON.parse(JSON.stringify(L)) : null,
     verdicts: (ap.report && ap.report.verdicts || []).map(v => v.code),
+    verdictNotes: (ap.report && ap.report.verdicts || []).map(v => Math.round(v.t || 0) + ' ' + v.code + ': ' + (v.note || '')),   // (G3305: the go-arounds' reasons)
     rows, cols: 't,ph,onG,tailUp,hdg,V,alt,hP,agl,pitch,bank,vs,da,de,dr,thr,x,z,ground1500,legRem',
   };
 }
