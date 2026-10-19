@@ -7836,6 +7836,17 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
     ringReady: (cg, reach, loose) => fillApi ? fillApi.ringReady(cg, reach, loose) : true,   // (B9: the reach passed through - it was dropped here)
     ringStat: () => fillApi ? fillApi.ringStat() : null,
+    // REVEAL-HITCH (19 Oct): the grass field's and the cover ring's cells round each eye [x, y, z], planted now (cover_ring
+    // plantNear) - app.js hands it the reveal's eyes round the stand. `ms` for the whole call; { built, done }
+    coverPlant: (eyes, ms) => {
+      const t0 = performance.now(); let built = 0;
+      for (const e of eyes || []) for (const [R, rad] of [[grassField, 10], [coverRing, 12]]) {
+        if (!R || !R.plantNear) continue;
+        const left = ms - (performance.now() - t0); if (left <= 0) return { built, done: false };
+        const r = R.plantNear(e[0], e[1], e[2], rad, left); built += r.built; if (!r.done) return { built, done: false };
+      }
+      return { built, done: true, ms: Math.round(performance.now() - t0) };
+    },
     treeState: () => fillApi ? fillApi.treeState() : 'fallback',
     rungWarm: () => fillApi && fillApi.rungWarm ? fillApi.rungWarm() : null,   // G730: the parked rungs' stand-ins (app.js rungPrelink)
     treeSettled: () => (treeSettleOf ? treeSettleOf() : Promise.resolve()).catch(() => null),

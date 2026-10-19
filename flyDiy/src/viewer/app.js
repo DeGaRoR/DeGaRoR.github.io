@@ -11242,6 +11242,7 @@
         handover: !!handover, audioPose: window.AUDIO && AUDIO.space ? AUDIO.space.shotPose : null,   // G1715: the start, the space
         onDone: hh => { raBusy = false; placeIndicators(); done(cage, hh); } });   // (hh: the handle - a skip calls this before play returns)
       placeIndicators();                 // (G1115: the CG marks off for the shot - placeIndicators reads ROLLANIM.busy)
+      revealPlant(6, 30, () => raBusy && inGarage);   // REVEAL-HITCH: the stand's grass, a cell a slice while the shot plays
     } catch (e) { console.warn('rollanim:', e && e.message); raBusy = false; done(cage, null); }
     return h;
   }
@@ -11824,6 +11825,39 @@
   // G1137 (LOAD-COMPILE): ...A VIEW A TASK. The six in one task were the 'frames' step's 1.0-1.6 s task (train 17's metal
   // Cessna: 1581 ms - the draws, their uniforms, ~16 ms of first-draw per program new to a view); a view per task keeps
   // each well under the second, and every link is done before the first of them (programsReady), as before
+  // REVEAL-HITCH (19 Oct, Game-ON polish): THE GRASS ROUND THE REVEAL'S EYE, PLANTED AHEAD. The shed's loop never runs the
+  // world's update, so the first flight frame after every roll-out planted the stand's grass itself - the cell under the
+  // reveal's eye whole (the field's near tier), ~0.2 s of the frame the strict gate's every leg showed at 0.7 s. The
+  // reveal's eye is the chase's start (flRevealStart: 1.7 x viewDist out, 0.16 up, swung off astern) easing to the chase
+  // (1 x viewDist) - its heading is the stand's, so the eyes are taken on twelve headings at both distances round the
+  // roll-out's stand; the world plants each eye's cells (render_world coverPlant -> cover_ring plantNear: the tier its own
+  // update would give them). Under the boot's overlay after the warm draw, and a slice a task during the roll-out shot
+  // (every roll-out: a flight that ended far away left the stand's cells dropped). ?revealplant=0: off (the A/B)
+  const REVEAL_PLANT_OFF = /[?&]revealplant=0(&|$)/.test(location.search || '');
+  function revealEyes() {
+    const a = standAnchor(); if (!a) return null;
+    const D = (def && def.params && def.params.viewDist) || 12, eyes = [];
+    for (const [k, el] of [[1.7, 0.16], [1, 0.25]]) for (let i = 0; i < 12; i++) { const h = i * Math.PI / 6;
+      eyes.push([a[0] + D * k * Math.cos(el) * Math.cos(h), a[1] + 1.5 + D * k * Math.sin(el), a[2] + D * k * Math.cos(el) * Math.sin(h)]); }
+    return eyes;
+  }
+  // a slice of `sliceMs` a task (`gapMs` between) until every eye's cells stand, or `alive()` says stop
+  function revealPlant(sliceMs, gapMs, alive) {
+    if (REVEAL_PLANT_OFF || !WF || !WF.coverPlant) return Promise.resolve(null);
+    const eyes = revealEyes(); if (!eyes) return Promise.resolve(null);
+    const t00 = performance.now(); let built = 0, tasks = 0;
+    return new Promise(res => {
+      const tick = () => {
+        if (alive && !alive()) return res({ built, done: false });
+        let r; try { r = WF.coverPlant(eyes, sliceMs); } catch (e) { console.warn('reveal plant:', e && e.message); return res(null); }
+        built += r.built; tasks++;
+        if (r.done) { window.FLYDIY_REVEAL_PLANT = { built, tasks, ms: Math.round(performance.now() - t00) }; return res(window.FLYDIY_REVEAL_PLANT); }
+        setTimeout(tick, gapMs || 0);
+      };
+      tick();
+    });
+  }
+  window.FLYDIY_REVEAL_PLANT_NOW = () => revealPlant(1e9);   // (tools/perf/reveal_probe.js: the harness's boot takes the synchronous path)
   function worldWarmDraw() {
     const a = standAnchor(); if (!a || !WF) return;
     const cam = camera.clone(), D = (def && def.params && def.params.viewDist) || 12;
@@ -12091,7 +12125,7 @@
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
         .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
         .then(() => shaderProgress(programsReady(30000), 'world', 60000))
-        .then(() => { if (inGarage) return worldWarmDraw(); holdRender = false; return framesRendered(2); }));
+        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(() => revealPlant(120, 0, () => inGarage)); holdRender = false; return framesRendered(2); }));   // (REVEAL-HITCH: the stand's grass)
     } },
   ];
   const TRIP_BY = {}; for (const s of TRIP_STEPS) TRIP_BY[s.id] = s;
