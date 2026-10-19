@@ -170,8 +170,8 @@ module.exports = function mapSmoke(html, phone) {
     need(A.includes('At ' + escH(p.name)) && /data-act="atx"/.test(A), 'the "At ' + p.name + ' ✕" row');
   }
   need(!MM.atHTML(M, st) && /No contract involves/.test(MM.listHTML({ ...M, contracts: [] }, { at: 'nv_strip' })), 'the filter row without a place, or the empty place');
-  need(M.places.map(p => p.name).join() === 'Jolene AFB,Tamgas Hill Strip,Annette Dock,Metlakatla Seaplane Base,Jumbo Mine Street,East Point Clearing,Skyline Altiport,strip 10,strip 11,strip 12,strip 13' &&
-       M.places.map(p => p.kind).join() === 'airfield,strip,seaplane,seaplane,mine,clearing,altiport,strip,strip,strip,strip',   // + the user's strips 10-12 (w5-w7, SCENERY-SHIP rev27); strip 13 (w8) appended (G3020 rev28; strip 9 held back, train 53)
+  need(M.places.map(p => p.name).join() === 'Jolene AFB,Tamgas Hill Strip,Annette Dock,Metlakatla Seaplane Base,Jumbo Mine Street,East Point Clearing,Skyline Altiport,strip 10,strip 11,strip 12,strip 9,strip 13,Cabin Strip' &&
+       M.places.map(p => p.kind).join() === 'airfield,strip,seaplane,seaplane,mine,clearing,altiport,strip,strip,strip,altiport,strip,strip',   // + the user's strips 10-12 (w5-w7, SCENERY-SHIP rev27); strip 9 (w4, an altiport) + strip 13 (w8) appended (G3020 rev28); the Cabin Strip (w1, G3097)
        'the places and their kinds: ' + M.places.map(p => p.name + ' (' + p.kind + ')').join(', '));
   say('the place filter: ' + M.places.length + ' places (' + M.places.map(p => p.name + ' ' + MM.rowsOf(M, { at: p.id }).length).join(', ') + '), each listing exactly the contracts involving it, under "At <place> ✕"');
   // Track: accept and track are one gesture, a second tap untracks

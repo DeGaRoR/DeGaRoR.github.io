@@ -32,7 +32,7 @@
 //   flightlog      the game's own flight recorder (FLIGHT_REC.save, downloaded into --out) at the end
 //   run.log        everything printed
 // Usage: node tools/tour_real.js --root D:/Dev/wt-tour [--build builds/cub_2026-09-20_corrected.json]
-//          [--order HOME,w3,tw_ski,mn_strip,w2,HOME] [--damage 0] [--rate 2] [--port 8771] [--size 1600x900]
+//          [--order HOME,w3,tw_ski,mn_strip,w2,HOME] [--q town=1] [--damage 0] [--rate 2] [--port 8771] [--size 1600x900]
 //          [--out <dir>] [--deadline 09:58] [--fallback D:/Dev/DeGaRoR.github.io] [--cast-nth 5] [--legs N]
 //          [--shakedown <s>] (stop <s> wall seconds after the flight starts: the rig's own check)
 //          [--url <page url>] (a page served elsewhere - the mock in tools/tour_real_mock.html; no server, no build)
@@ -104,7 +104,8 @@ function preScript() {
   if (opt('gfx', null)) L.push('try{localStorage.setItem("flydiy.gfx",' + JSON.stringify(fs.readFileSync(opt('gfx'), 'utf8')) + ')}catch(e){}');
   else L.push('try{localStorage.removeItem("flydiy.gfx")}catch(e){}');
   L.push('try{for(const k of Object.keys(localStorage))if(/^flydiy\\.(fl([A-Z]|$)|route$|world$)/.test(k))localStorage.removeItem(k)}catch(e){}');
-  // the shed's To picker's pref (G1945 v2): the roll-out departs the base's stand for the first To
+  // the shed's To picker's pref (G1945 v2): the roll-out departs the base's stand (the order's first, G3081: SEA for floats) for the first To
+  // (G3302: --no-route leaves the player's pref as a fresh profile has it)
   if (!NO_ROUTE) L.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: ORDER[0], to: ORDER[1] })) + ');localStorage.setItem("flydiy.flManual","0")}catch(e){}');
   L.push('try{localStorage.removeItem("flydiy.premises.game.jolene")}catch(e){}');
   return L.join('\n');
@@ -166,7 +167,8 @@ const STATE = `JSON.stringify((() => {
     let root = null;
     for (let i = 0; i < 40 && root === null; i++) { await sleep(250); if (serverExit !== null) break; root = await portAnswer(); }
     if (root === null || path.resolve(root).toLowerCase() !== ROOT.toLowerCase()) { log('*** the server on ' + SPORT + ' is not ours (root ' + root + ')'); process.exit(4); }
-    URL = 'http://localhost:' + SPORT + '/flyDiy/index.html' + (DAMAGE === 'none' ? '' : '?damage=' + DAMAGE);   // G3302: --damage none = no ?param, the page as a player opens it
+    // G3302: --damage none = no ?damage (the page as a player opens it); --q town=1: Metlakatla's mk_ fields (mk_sea) exist only with the town ON (world_boot.js TOWN)
+    { const qs = [DAMAGE === 'none' ? null : 'damage=' + DAMAGE, opt('q', null)].filter(Boolean).join('&'); URL = 'http://localhost:' + SPORT + '/flyDiy/index.html' + (qs ? '?' + qs : ''); }
     try { const V = await getJSON('http://127.0.0.1:' + SPORT + '/flyDiy/version.json'); log('  version.json ' + JSON.stringify(V)); } catch (e) {}
   }
   const DPORT = 9600 + (process.pid % 300);
@@ -235,8 +237,10 @@ const STATE = `JSON.stringify((() => {
   const env = JSON.parse(await ev("JSON.stringify({ gpu: (()=>{const c=document.createElement('canvas').getContext('webgl2');const d=c&&c.getExtension('WEBGL_debug_renderer_info');return d?c.getParameter(d.UNMASKED_RENDERER_WEBGL):'?';})(), gfx: window.GFX ? GFX.get() : null, build: window.FLYDIY_BUILD || null, route: window.FLYDIY_ROUTE ? FLYDIY_ROUTE.get() : null, ua: navigator.userAgent, webdriver: navigator.webdriver })"));
   log('  env ' + JSON.stringify(env));
   if (env.gfx && env.gfx.preset && env.gfx.preset !== 'gamer') log('  !!! the preset is ' + env.gfx.preset + ', not gamer');
-  // G3302: --persona <key> - the pilot's personality picked in the page's own menu (#selPersona, its change event), as a player does
-  if (opt('persona', null)) log('  persona: ' + await ev("(()=>{const s=document.getElementById('selPersona');if(!s)return 'no #selPersona';s.value=" + JSON.stringify(opt('persona')) + ";s.dispatchEvent(new Event('change',{bubbles:true}));return s.value+' -> '+JSON.stringify(window.FLYDIY_PERSONA?FLYDIY_PERSONA.get():null);})()"));
+  // G3320 (PILOTPAGE): THE PERSONA THE PLAYER FLIES (--persona student|club|expert|bush|hamfist): the shed's #selPersona set
+  // and its change fired, as the player does - the Rufus B swing of 18 Oct showed only under the student (our rigs flew the
+  // default expert); read back through FLYDIY_PERSONA
+  if (opt('persona', null)) log('  persona: ' + await ev("(()=>{const s=document.getElementById('selPersona');if(!s)return 'no #selPersona';s.value=" + JSON.stringify(opt('persona')) + ";s.dispatchEvent(new Event('change',{bubbles:true}));return window.FLYDIY_PERSONA?JSON.stringify(FLYDIY_PERSONA.get().profile):s.value;})()"));
   // ROLL OUT: one press (rollout_perf G1117)
   await ev("(()=>{const g=document.getElementById('bGo');const l=[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)&&b.offsetParent);const b=g&&g.offsetParent&&/roll out/i.test(g.textContent)?g:l[0];if(b)b.click();return l.length;})()");
   const tRoll = Date.now();

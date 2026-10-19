@@ -5836,12 +5836,154 @@ function cageInterior(m, S) {
       for (let j = 1; j < NS; j++) out.push([bt, y0 + (by - y0) * j / NS]);
       return out.map(p => [p[0], p[1], (p[1] - yB) / Math.max(1e-9, by - yB)]);
     };
-    const SL = sideChain(bLT[0], bL[1]), SR = sideChain(bRT[0], bR[1]);
+    // THE ARCH (G3340, DASH-REDESIGN; the user, 18 Oct: "1 mesh for the
+    // dash/black part, including the lip, but basically like an arch, and
+    // the flat front panel"). `dashStyle 1` keeps the top and the face —
+    // the glareshield sealed on the glass line, the roll, the lip, the flat
+    // plate — and rebuilds the SIDES and the BOTTOM the way a light
+    // aeroplane's panel is hung: two cheeks down the cabin walls with a
+    // STRAIGHT VERTICAL forward edge, set just past the cabin's front post
+    // so no gap shows beside it, and NO BOTTOM — the volume under and
+    // behind the plate is open, so a nose tank stands there. The legs
+    // reach a side rail, the floor or only the plate's bottom
+    // (`dashLegs`), follow the wall where the section turns in, and stop
+    // short of a doorway rather than cover it. `dashStyle 0` is the box
+    // every build saved before it carries (cageFromSpec's migration).
+    const ARCH = Math.round(+I.dashStyle || 0) === 1;
+    // the plate's bottom: the box's own bottom line (with no box floor there
+    // is no black border under it, so the plate takes that lip - the panel
+    // never has less room on the arch than it had on the box)
+    const yPlate = yB;
+    let zFront = 0, yFoot = yPlate, zAftLow = zP;
+    const xLeg = [null, null];                // per side (0 left, 1 right): y -> |x| of the cheek
+    let frontX = p => p[0];                   // the forward edge's x at a point (the arch: inside the wall there)
+    const sideSign = si => Math.sign(si ? bRT[0] : bLT[0]) || (si ? -1 : 1);
+    if (ARCH) {
+      const bLz = Math.max(bL[2], bR[2]);
+      const xW = Math.min(Math.abs(bLT[0]), Math.abs(bRT[0]));
+      const MB = MEMB || [];
+      // the front post: the near-vertical members at the wall around the
+      // base corner's station — the cheek's forward edge stands just past
+      // their forward face (a frame with none: the base corner itself)
+      let zPil = -Infinity;
+      for (const mb of MB) {
+        const a = mb.a, b = mb.b, r = mb.r || 0;
+        if (Math.abs(a[0]) < xW - 0.12 || Math.abs(b[0]) < xW - 0.12) continue;
+        const dx = Math.abs(b[0] - a[0]), dy = Math.abs(b[1] - a[1]), dz = Math.abs(b[2] - a[2]);
+        if (!(dy > 1.5 * Math.max(dx, dz))) continue;
+        if (Math.max(a[1], b[1]) < yB - 0.5 || Math.min(a[1], b[1]) > bL[1]) continue;
+        for (const p of [a, b]) if (p[2] >= zP && p[2] <= bLz + 0.25) zPil = Math.max(zPil, p[2] + r);
+      }
+      zFront = Math.min(bLz + 0.25, Math.max(bLz, zPil + 0.004));
+      // the wall: the outermost skin at (y, z), per side — the faces near
+      // the cheek, cut by the plane z and the line y
+      const nearF = [];
+      for (const f of F) {
+        if (!f.v || f.v.length < 3) continue;
+        let zl = 1e9, zh = -1e9, xo = 0;
+        for (const vi of f.v) { const q = V[vi]; zl = Math.min(zl, q[2]); zh = Math.max(zh, q[2]); xo = Math.max(xo, Math.abs(q[0])); }
+        if (zh < zP - 0.1 || zl > zFront + 0.1 || xo < 0.4 * xW) continue;
+        nearF.push(f);
+      }
+      const wallAt = (s, y, z) => {
+        let xb = -Infinity;
+        for (const f of nearF) for (let i = 1; i + 1 < f.v.length; i++) {
+          const T3 = [V[f.v[0]], V[f.v[i]], V[f.v[i + 1]]], seg = [];
+          for (let e = 0; e < 3; e++) {
+            const p = T3[e], q = T3[(e + 1) % 3];
+            if ((p[2] - z) * (q[2] - z) < 0) { const t = (z - p[2]) / (q[2] - p[2]); seg.push([p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])]); }
+          }
+          if (seg.length !== 2 || (seg[0][1] - y) * (seg[1][1] - y) > 0 || seg[0][1] === seg[1][1]) continue;
+          const t = (y - seg[0][1]) / (seg[1][1] - seg[0][1]), x = s * (seg[0][0] + t * (seg[1][0] - seg[0][0]));
+          if (x > xb) xb = x;
+        }
+        return xb;
+      };
+      const zSpan = () => [zAftLow, (zAftLow + zFront) / 2, zFront];
+      // (sides by the base corners' own signs: base[0], the chain's first
+      // side, is +x on these cages, and nothing here should assume it)
+      const legX = (si, y) => {
+        const s = sideSign(si), x0 = Math.abs(si ? bRT[0] : bLT[0]);
+        let w = Infinity;
+        for (const z of zSpan()) { const xw = wallAt(s, y, z); if (isFinite(xw)) w = Math.min(w, xw - TUCK); }
+        return Math.min(x0, w);
+      };
+      // where the legs end: a side rail (the highest longitudinal member at
+      // the wall at or below the plate), the floor (the lowest such member,
+      // else the cabin's floor line), or the plate's own bottom
+      const legs = I.dashLegs == null ? 1 : Math.round(+I.dashLegs);
+      const rails = [];
+      for (const mb of MB) {
+        const a = mb.a, b = mb.b, r = mb.r || 0;
+        if (Math.abs(a[0]) < xW - 0.2 || Math.abs(b[0]) < xW - 0.2) continue;
+        const dx = Math.abs(b[0] - a[0]), dy = Math.abs(b[1] - a[1]), dz = Math.abs(b[2] - a[2]);
+        if (!(dz > 2 * Math.max(dx, dy))) continue;
+        if (Math.max(a[2], b[2]) < zP || Math.min(a[2], b[2]) > zFront) continue;
+        const top = Math.max(a[1], b[1]) + r;
+        if (top <= yPlate + 0.02) rails.push(top);
+      }
+      const yFloor = rails.length ? Math.min(...rails)
+        : (S.cabin && isFinite(S.cabin.floorY) ? S.cabin.floorY : yPlate);
+      yFoot = legs === 0 ? yPlate
+        : legs === 2 ? yFloor
+        : (rails.length ? Math.max(...rails) : yFloor);
+      yFoot = Math.min(yFoot, yPlate);
+      // a doorway ahead of the plate: the legs below it start at its jamb
+      // (the cheek above the plate is the box's, as it always was) — and
+      // where that leaves no real leg, the arch ends at the plate
+      if (yFoot < yPlate - 1e-6) {
+        let zD = -Infinity;
+        for (const f of F) {
+          if (!f.door) continue;
+          for (const vi of f.v) { const q = V[vi]; if (q[1] >= yFoot && q[1] <= yPlate) zD = Math.max(zD, q[2]); }
+        }
+        if (zD > zP) zAftLow = zD + 0.008;
+        if (zFront - zAftLow < 2 * lip) { yFoot = yPlate; zAftLow = zP; }
+      }
+      // ...and where the wall turns in under the cheek (a rounded belly),
+      // the leg stops before it would stand in the footwell
+      if (yFoot < yPlate - 1e-6) {
+        const st = Math.max(0.01, (yPlate - yFoot) / 24);
+        for (let y = yPlate - st; y > yFoot; y -= st)
+          if (Math.min(legX(0, y), legX(1, y)) < 0.85 * xW) { yFoot = Math.min(yPlate, y + st); break; }
+      }
+      // the forward edge stands ahead of the base corner, where the deck
+      // and the flank may already be turning in: each of its points is
+      // held inside the wall at its own height and station
+      frontX = (p) => {
+        const s = Math.sign(p[0]) || 1, xw = wallAt(s, p[1], zFront);
+        return isFinite(xw) ? s * Math.min(Math.abs(p[0]), xw - TUCK) : p[0];
+      };
+      xLeg[0] = y => y >= yPlate - 1e-9 ? Math.abs(bLT[0]) : legX(0, y);
+      xLeg[1] = y => y >= yPlate - 1e-9 ? Math.abs(bRT[0]) : legX(1, y);
+    }
+    // the arch's side chain, bottom -> top, the base corner excluded:
+    // [x, y, t, zAft]. A vertex AT the plate's bottom (the plate's chord
+    // starts there), NS steps up to just under the corner — the last one a
+    // hair below it, so the forward edge runs straight to the glareshield.
+    let nBelow = 0;
+    const archChain = (si, by) => {
+      const s = sideSign(si), out = [];
+      const eps = Math.min(0.3 * lip, 0.25 * (by - yPlate) / NS);
+      const hUp = (by - eps - yPlate) / NS;
+      nBelow = yFoot < yPlate - 1e-6 ? Math.max(1, Math.round((yPlate - yFoot) / Math.max(1e-6, hUp))) : 0;
+      for (let j = 0; j < nBelow; j++) {
+        const y = yFoot + (yPlate - yFoot) * j / nBelow;
+        out.push([s * xLeg[si](y), y, 0, zAftLow]);
+      }
+      for (let j = 0; j <= NS; j++) {
+        const y = yPlate + hUp * j;
+        out.push([s * xLeg[si](y), y, 0, zP]);
+      }
+      return out;
+    };
+    const SL = ARCH ? archChain(0, bL[1]) : sideChain(bLT[0], bL[1]);
+    const SR = ARCH ? archChain(1, bR[1]) : sideChain(bRT[0], bR[1]);
     const NSL = SL.length;                    // the left chain's length (the crown indexes past it)
     const O = [];
-    for (const p of SL) O.push([p[0], p[1], zP]);
+    for (const p of SL) O.push([p[0], p[1], p[3] != null ? p[3] : zP]);
     for (let i = 0; i < NL; i++) O.push([baseT[i][0], baseT[i][1], zP]);
-    for (let k = SR.length - 1; k >= 0; k--) O.push([SR[k][0], SR[k][1], zP]);
+    for (let k = SR.length - 1; k >= 0; k--) O.push([SR[k][0], SR[k][1], SR[k][3] != null ? SR[k][3] : zP]);
     // DASH CROWN (G26.4, user: real panels RISE from the windshield
     // line in the middle — the face reads as a circle segment, not a
     // horizontal extrusion). The OUTLINE's top arc lifts by an eased
@@ -5866,9 +6008,25 @@ function cageInterior(m, S) {
       const l = Math.hypot(nx, ny) || 1;
       nx /= l; ny /= l;
       if (nx * (cen[0] - p[0]) + ny * (cen[1] - p[1]) < 0) { nx = -nx; ny = -ny; }
-      return [p[0] + nx * lip, p[1] + ny * lip, zP];
+      return [p[0] + nx * lip, p[1] + ny * lip, p[2]];
     });
-    const O2 = O1.map(p => [p[0], p[1], zF]);       // forward lip
+    // (the arch's leg-top sample sits a hair under the glareshield's corner,
+    // so the forward edge runs straight up to it; the inset contour there is
+    // the corner's own - the leg top's inset would land past it and fold the
+    // lip and the plate - so the two inset points are one, and the strips
+    // between them close to triangles)
+    // ...and down the legs the inset is straight inboard, so a leg that
+    // leans in with a turning wall below the plate cannot tilt the plate's
+    // bottom chord off the height the box had it at
+    if (ARCH) {
+      for (let i = 0; i < NSL - 1; i++) {
+        const sl = Math.sign(O[i][0]) || 1, sr = Math.sign(O[NX - 1 - i][0]) || -1;
+        O1[i] = [O[i][0] - sl * lip, O[i][1], O[i][2]];
+        O1[NX - 1 - i] = [O[NX - 1 - i][0] - sr * lip, O[NX - 1 - i][1], O[NX - 1 - i][2]];
+      }
+      O1[NSL - 1] = O1[NSL].slice(); O1[NSL + NL] = O1[NSL + NL - 1].slice();
+    }
+    const O2 = O1.map(p => [p[0], p[1], ARCH ? p[2] + lip : zF]);   // forward lip
     // CLOSED SOLID as CONSISTENT GRIDS (user diagnosis: the old side
     // topology anchored every side column to ONE repeated base vertex —
     // a triangle fan — and filled the side panel by laddering a 4-point
@@ -5894,9 +6052,10 @@ function cageInterior(m, S) {
                                     yB + (b[1] - yB) * t,
                                     zPillA + (b[2] - zPillA) * t];
     const anchor = [];
-    for (const p of SL) anchor.push(anchorAt(bLT, bL, p[2]));
+    // (the arch's forward edge: every side point straight out at zFront)
+    for (const p of SL) anchor.push(ARCH ? [frontX(p), p[1], zFront] : anchorAt(bLT, bL, p[2]));
     for (let i = 0; i < NL; i++) anchor.push(base[i]);
-    for (let k = SR.length - 1; k >= 0; k--) anchor.push(anchorAt(bRT, bR, SR[k][2]));
+    for (let k = SR.length - 1; k >= 0; k--) anchor.push(ARCH ? [frontX(SR[k]), SR[k][1], zFront] : anchorAt(bRT, bR, SR[k][2]));
     const aid = anchor.map(pid);
     const oid = O.map(pid), o1id = O1.map(pid), o2id = O2.map(pid);
     // the back-bottom edge is FLAT (user ruling): one straight
@@ -5906,7 +6065,7 @@ function cageInterior(m, S) {
     // pulled toward the nose past the window pillar (user spec: the
     // back face must cross the pillar so no gap shows beside it)
     const zPill = (bL[2] + bR[2]) / 2 + 0.15;
-    const R5 = base.map((p, i) => pid([baseT[i][0], yB, zPill]));
+    const R5 = ARCH ? [] : base.map((p, i) => pid([baseT[i][0], yB, zPill]));
     const dashStart = add.length;
     // TWO MATERIALS ON ONE DASHBOARD (2026-09-04, the user: "the dashboard
     // ... 1 for the flat face facing the pilot, and one for the rest,
@@ -5951,14 +6110,19 @@ function cageInterior(m, S) {
     // the crown — the final rung is the flat bottom chord
     let iC = 0;
     O2.forEach((p, i) => { if (p[1] > O2[iC][1]) iC = i; });
+    // (the arch's plate stops at its own bottom chord: the legs' lips run
+    // on below it, and between them there is nothing)
+    const iBL = ARCH ? nBelow : 0, iBR = NX - 1 - iBL;
     const cA = [], cB = [];
-    for (let i = iC; i >= 0; i--) cA.push(o2id[i]);
-    for (let i = iC; i < NX; i++) cB.push(o2id[i]);
+    for (let i = iC; i >= iBL; i--) cA.push(o2id[i]);
+    for (let i = iC; i <= iBR; i++) cB.push(o2id[i]);
     mat = 'dashFace'; ladder(cA, cB); mat = 'dash';
     // bottom: ladder between the aft chain (outer corner -> roll corner ->
-    // lip corner -> chord -> mirrored) and the under-base line
-    ladder([oid[0], o1id[0], o2id[0], o2id[NX - 1], o1id[NX - 1],
-            oid[NX - 1]], R5);
+    // lip corner -> chord -> mirrored) and the under-base line — the BOX's
+    // only; the arch is open underneath
+    if (!ARCH)
+      ladder([oid[0], o1id[0], o2id[0], o2id[NX - 1], o1id[NX - 1],
+              oid[NX - 1]], R5);
     // THE FRONT RETURN IS GONE (user ruling, option reserved at
     // e933ae5): the morph face joining the straight back-bottom line
     // to the curved base arc does not exist on a real dashboard and no
@@ -6005,6 +6169,23 @@ function cageInterior(m, S) {
     // polyline at every displayed level): the base line, the under-base
     // return, the outer outline. The lip pair keeps the adjustable
     // dashCrease rounding.
+    if (ARCH) {
+      // THE ARCH'S EDGES: the base line, the outer outline (the legs' aft
+      // edges with it), the two straight forward edges, the legs' open
+      // feet, the lips' open forward edge under the plate and the plate's
+      // bottom chord all hold their lines at max crease; the roll and the
+      // lip keep the adjustable rounding, as on the box
+      tagPath(aid.slice(NSL, NSL + NL), 3);
+      tagPath(oid, 3);
+      tagPath(o1id, dc); tagPath(o2id, dc);
+      tagPath(aid.slice(0, NSL + 1), 3);
+      tagPath(aid.slice(NSL + NL - 1), 3);
+      tagPath([aid[0], oid[0], o1id[0], o2id[0]], 3);
+      tagPath([aid[NX - 1], oid[NX - 1], o1id[NX - 1], o2id[NX - 1]], 3);
+      tagPath(o2id.slice(0, iBL + 1), 3);
+      tagPath(o2id.slice(iBR), 3);
+      tagPath([o2id[iBL], o2id[iBR]], 3);
+    } else {
     tagPath(aid.slice(NS, NS + NL), 3);   // the base line (arc anchors)
     tagPath(R5, 3); tagPath(oid, 3);
     tagPath(o1id, dc); tagPath(o2id, dc);
@@ -6019,11 +6200,26 @@ function cageInterior(m, S) {
     tagPath(rc, 3);                                // right front corner
     tagPath([oid[0], R5[0]], 3);                   // bottom-side edges
     tagPath([oid[NX - 1], R5[NL - 1]], 3);
+    }
     let sm = { V: sv, F: faces, E: E2 };
+    // the arch's feet are true corners: the forward edge and the lip's
+    // open edge each meet the foot with no third edge to crease, so they
+    // are pinned by vertex weight through both levels (G21 §5's knob)
+    if (ARCH) {
+      // (and the forward edge's top, under the glareshield's corner: the
+      // edge stays one straight line right up to it)
+      const pins = [aid[0], aid[NX - 1], o2id[0], o2id[NX - 1], aid[NSL - 1], aid[NSL + NL]]
+        .map(i => used.get(i)).filter(i => i != null);
+      if (pins.length) sm.VW = new Map(pins.map(i => [i, 3]));
+    }
     sm = cageSubdivide(cageSubdivide(sm));
     const off = V.length;
     for (const p of sm.V) V.push(p);
     for (const f of sm.F) add.push({ v: f.v.map(i => i + off), m: f.m });
+    // the arch, published (cage units) for what hangs off the dash: the
+    // plate's bottom is the band's bottom (the box's `dashLip`), not the
+    // legs' feet
+    m.dashArch = ARCH ? { yPlate, yB, yFoot, zFront, zP, zAftLow, yEdge: SL[NSL - 1][1] } : null;
   })();
 
   // ---- firewall ------------------------------------------------------------
@@ -7095,6 +7291,12 @@ const CAGE_PARAMS = {
   // above the windshield base line — the rounded instrument panel of
   // real cockpits. 0 = the historic horizontal extrusion.
   dashCrown: 0,
+  // THE ARCH (G3340, DASH-REDESIGN): 1 = the glareshield, its lip and two
+  // cheeks with a straight vertical forward edge, open underneath (the new
+  // default); 0 = the closed box with the slanted bottom, which every build
+  // saved before the row exists keeps (cageFromSpec). `dashLegs`: where the
+  // arch's legs end — 0 the plate's bottom, 1 a side rail, 2 the floor.
+  dashStyle: 1, dashLegs: 1,
   // THE SHOULDER (G325): the sill trim — an L-section sheet swept along the
   // window transition of each flank, W inboard then H down, from the dash
   // aft to the cabin pillar (run 0) or through the passenger bays (run 1).
@@ -7495,6 +7697,10 @@ function cageFromSpec(spec) {
   // ring editor's offsets, the lean and the taper width — lifted here into
   // the frames' absolute rows, and the retired keys dropped, so a save
   // never carries two homes (cageSpec lifts too, for any other door)
+  // (5) THE DASH (G3340): a file saved before the arch existed keeps the
+  // box it was drawn with — the arch is the default for NEW builds only
+  // (the user, item 11: "the new default only"). A null cage is the template.
+  if (c && typeof c === 'object' && !Array.isArray(c) && c.dashStyle == null) P.dashStyle = 0;
   if (cageHasLegacy(P)) return cageLiftLegacy(P);
   return P;
 }
@@ -7972,7 +8178,9 @@ function cageSpec(P) {
                  dashBack: P.dashBack,
                  dashLip: P.dashLip != null ? P.dashLip : P.dashInset,
                  dashDepth: P.dashDepth, dashCrease: P.dashCrease,
-                 dashCrown: Math.max(0, P.dashCrown || 0) };
+                 dashCrown: Math.max(0, P.dashCrown || 0),
+                 dashStyle: Math.round(+P.dashStyle || 0),
+                 dashLegs: P.dashLegs == null ? 1 : Math.round(+P.dashLegs) };
   // (S5: the pod interior is LIVE — the pairs loop sweeps belly chines
   // per bay in pod bubble, wsBase filters to the front screen, and the
   // boom machinery idles without its stations. Known v1 gaps in

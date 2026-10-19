@@ -843,10 +843,10 @@ function makePilot(sim, def, world, opts) {
   // filleted geometry planned once, followed by one lateral law (L1) with
   // the arc's curvature fed forward; `path: false` keeps the pursuit + arc
   let holdOutLate = false;   // G2450 (ENROUTE's escape, below)
-  let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false, vxHeld = false, vxSaid = false;
+  let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false, tightSaid = false, vxHeld = false, vxSaid = false;
   let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
   // G399.7: the speed the ELEVATOR can hold — raised while it sits on its nose-up stop
-  let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false;
+  let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false, tVOkT = 0;   // tVOkT: G3081, the time the elevator has had margin (floats)
   // G2500 (CESSNA-VREF): the speed the elevator was found to hold kept past a go-around (ap.vHeld), re-seeded on the
   // next final (heldSeed); the landing that speed makes judged once a final (heldJudged: 'normal' -> 'short' -> refused)
   let heldSeed = false, heldJudged = null, heldTail = null;
@@ -2046,10 +2046,19 @@ function makePilot(sim, def, world, opts) {
       // ...and only on the final (the approach this rule was written for: the Caravan-alike at idle): the servo winds up
       // behind a person's eased grip at any speed, and the climb-out's 'cannot hold 34.6 m/s' (73-75 s, three seeds of
       // four) raised every later speed of the flight
-      const eSat = (deHeld() > 0.30 || (SV.Ith >= SV.IthMax - 1e-3 && (PRA ? thShortH : SV.thCA - th) > 0.03)) && V > (o.ias || A.VAppr) + 0.5
+      // G3081 (FLOAT-AP, 18 Oct): ON FLOATS a cap still RAMPING (SV.IthMax < its target, IthMaxRate 0.10 /s) is not the
+      // elevator's limit. The user's float Cessna (bugReports/cessnaFloatsWOrks.json, the game's flight, 8 kt) slowed from the
+      // circuit's 52 m/s onto the final while the cap opened 0.15 -> 0.30: the integrator rode the moving clamp, 1.5 s read as
+      // 'cannot hold', +25 % kept for the flight (34.4 -> 38 m/s on 0.21 of elevator against its 0.35 stop), the touch at
+      // 1.56 Vs and six skips, the bank growing at each (the wing that catches in the game). And the raise RELAXES on floats
+      // once the elevator has margin again (no saturation for 3 s, under 0.25 of its travel). Land aeroplanes as before
+      // (CESSNA-VREF G2500 judges the metal Cessna on its raise - a generic change is train 66's)
+      const capRamp = !!sim.hydro && SV.IthMax < SV.IthMaxT - 0.01;
+      const eSat = (deHeld() > 0.30 || (!capRamp && SV.Ith >= SV.IthMax - 1e-3 && (PRA ? thShortH : SV.thCA - th) > 0.03)) && V > (o.ias || A.VAppr) + 0.5
                    && (!PRA || ap.phase === 'FINAL');
       tDeSatT = eSat ? tDeSatT + dt : Math.max(0, tDeSatT - dt);
       if (tDeSatT > 1.5) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
+      if (sim.hydro && !eSat) { tVOkT += dt; if (tVOkT > 3 && SV.aDe < 0.25) tVAdapt = Math.max(0, tVAdapt - 0.25 * dt); } else tVOkT = 0;
       if (tVAdapt > 0.5 && !tVAdaptSaid) { tVAdaptSaid = true; say('vref-raised', 'the elevator cannot hold ' + (o.ias || A.VAppr).toFixed(1) + ' m/s at this power — flying the approach faster'); }
       // G2500 (CESSNA-VREF): THE SPEED THE ELEVATOR HOLDS IS THIS AEROPLANE'S, NOT THIS FINAL'S - kept for the flight (a
       // go-around zeroes tVAdapt; the next final starts at it, stabilised from its first metre) and on the record
@@ -3639,7 +3648,16 @@ function makePilot(sim, def, world, opts) {
         const climbDirNow = [F.ux * ap.dirX, F.uz * ap.dirX];
         const terrainTurn = agl > A.hSafe + 10 && gradAhead(cg[0], cg[2], climbDirNow[0], climbDirNow[1], 1500, cg[1], 30) > gammaGA();
         if (terrainTurn && !terrainTurnSaid) { terrainTurnSaid = true; say('terrain-turn', 'the ground ahead climbs faster than the aeroplane — turning at ' + Math.round(agl) + ' m'); }
-        if (agl >= hTurn || stalled || marginal || terrainTurn) {
+        // G3321 CABIN-CIRCUIT (the user, 18 Oct: "the circuit should ensure to pass the tight zone before manoeuvring"): a strip
+        // whose record draws its climb-out (fly.dep - 27_premises hands it in world metres, its last point the tight zone
+        // passed) is climbed out straight on the runway line until the aeroplane is past that point: no crosswind turn, no
+        // terrain-turn, no ceiling's early circuit before it. A strip without fly.dep: as before, to the bit
+        const depFly = ap.route && ap.route.from && ap.route.from.fly, depE = depFly && depFly.dep && depFly.dep.length ? depFly.dep[depFly.dep.length - 1] : null;
+        const tightLeft = depE ? (depE[0] - cg[0]) * climbDirNow[0] + (depE[1] - cg[2]) * climbDirNow[1] : 0;
+        if (tightLeft > 0 && !tightSaid) { tightSaid = true; say('tight-zone', 'climbing straight out until past the tight zone, ' + tightLeft.toFixed(0) + ' m ahead'); }
+        // (the Cabin Strip's is 3.4 km: an ultralight is at its circuit height long before - it levels there on the line)
+        if (tightLeft > 0 && agl >= ap.hCruise - 8) engage('LOC', 'TECS', 'TECS', { alt: ap.refAlt + ap.hCruise, vs: null, gs: null, vsUp: null, vsDn: null, ias: ap.VClimb, bank: bankLim });
+        if (tightLeft <= 0 && (agl >= hTurn || stalled || marginal || terrainTurn)) {
           const first = routeArmed ? routeStart() : planFromHere();
           go(first); climbMode = !(stalled || marginal); ceilT = 0;
           if (!climbMode) { SV.thrC = A.thrCruise; SV.thcI = 0.04; }
@@ -4011,7 +4029,10 @@ function makePilot(sim, def, world, opts) {
         // flies again, the same slope over the same ground. The clearance on the slope is the runway
         // model's to plan (its cone, the canopy included); the pilot goes around when it is under 15 m
         // AND more than a third below what the slope leaves over the ground here
-        if (world && d > 400 && canGA && aglT < Math.min(15, 0.67 * (hGS - terrainNow))) { goAround('terrain under the approach'); break; }
+        // G3321 CABIN-CIRCUIT: a strip whose record vouches for its approach (fly.terrainOk - the user's Cabin Strip, through a
+        // mountain gap and over a lake: "you may need to ignore ground proximity warnings") is not gone around from for the
+        // ground under it - the designer's clearance, per strip; every other strip as before
+        if (world && d > 400 && canGA && !(ap.route.to.fly && ap.route.to.fly.terrainOk) && aglT < Math.min(15, 0.67 * (hGS - terrainNow))) { goAround('terrain under the approach'); break; }
         if (d <= -150 && agl > A.flareAgl * 3) {
           if (canGA) { goAround('past the aim at ' + Math.round(agl) + ' m'); break; }
           if (!committed) { committed = true; say('committed-landing', 'past the aim at ' + Math.round(agl) + ' m agl — landing it'); }

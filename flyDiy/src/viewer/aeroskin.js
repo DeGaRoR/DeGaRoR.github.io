@@ -965,6 +965,10 @@ const AERO_SEC = {
   // pinned composite, because an ATD is an ATD whatever it wears.
   seatTrim: { parent: null,     fin: 'hide',      label: 'the seats',    // G332: the user's scan
               layer: 'crew' },
+  // G2795 (the user's garage review, 18 Oct: "the floor's material
+  // editable"): the cabin floor's boards, plywood until picked
+  cabFloor: { parent: null,     fin: 'ply',       label: 'the cabin floor',
+              layer: 'crew' },
   dummy1:   { parent: null,     fin: 'composite', label: 'the pilot',
               layer: 'crew' },
   dummy2:   { parent: 'dummy1', fin: 'composite', label: 'the pilot',

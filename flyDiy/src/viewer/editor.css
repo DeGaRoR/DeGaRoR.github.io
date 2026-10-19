@@ -28,8 +28,9 @@
    only place it has to be added.
    G2445 (MAP-STYLE): the game's map screen (#mapScreen, map_menu.js, a body-level root outside both) reads the SAME
    block - one look, the garage's, and still one place a token is declared.
-   G2690 (HANGAR-STORAGE): the storage panel (#hsStore, storage_ui.js, body-level like the map) reads it too. */
-:is(#wsUI, #edView, #mapScreen, #hsStore) {
+   G2690 (HANGAR-STORAGE): the storage panel (#hsStore, storage_ui.js, body-level like the map) reads it too.
+   G2742 (STORY-PAGE): and the story's beat card (#stCard, app.js, body-level, the career's only). */
+:is(#wsUI, #edView, #mapScreen, #hsStore, #stCard) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
   --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
@@ -1786,3 +1787,30 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
    EDITOR_PICK), so a colour on screen is never an unreachable one */
 #edWrap .secFlash { animation: edSecFlash 1.5s ease-out; }
 @keyframes edSecFlash { 0%, 35% { box-shadow: inset 0 0 0 2px var(--ed-acc); } 100% { box-shadow: inset 0 0 0 2px transparent; } }
+/* G2742 (STORY-PAGE): THE STORY'S BEAT CARD - small, in the top-left corner, never centred (the user's rule: no card in
+   the middle of the view, a crash's least of all); the garage's look: the --ed-* tokens, IBM Plex Sans upright, no serif,
+   no italics. Its head folds it to one line (the step and the beat's title), kept folded for that beat. In the garage at
+   1280 px it stands over the bench column's head (every edge of the garage carries a column there). */
+#stCard { position:fixed; left:12px; top:72px; z-index:40; width:min(296px, calc(100vw - 24px)); max-height:calc(100vh - 160px); overflow:auto; box-sizing:border-box;
+  background:var(--ed-plate); border:1px solid var(--ed-border); border-radius:10px; padding:8px 12px 10px;
+  font:400 12px/1.4 'IBM Plex Sans', sans-serif; font-style:normal; color:var(--ed-ink); box-shadow:0 6px 18px rgba(0,0,0,.35); }
+#stCard[hidden] { display:none; }
+#stCard * { font-style:normal; font-family:'IBM Plex Sans', sans-serif; box-sizing:border-box; }
+#stCard .stHead { all:unset; display:flex; align-items:baseline; gap:8px; width:100%; cursor:pointer; flex-wrap:wrap; }
+#stCard .stStep { font:500 10px/1.3 'IBM Plex Sans', sans-serif; letter-spacing:.08em; text-transform:uppercase; color:var(--ed-faint); width:100%; }
+#stCard .stTitle { font:600 13.5px/1.3 'IBM Plex Sans', sans-serif; color:var(--ed-ink); flex:1; }
+#stCard .stN { font:500 11px/1.3 'IBM Plex Sans', sans-serif; color:var(--ed-dim); }
+#stCard .stBrief { margin:6px 0 0; color:var(--ed-dim); }
+#stCard .stRows { list-style:none; margin:8px 0 0; padding:0; display:grid; gap:3px; }
+#stCard .stRows li { display:flex; gap:7px; align-items:baseline; color:var(--ed-dim); }
+#stCard .stRows li.ok { color:var(--ed-ink); }
+#stCard .stTick { flex:0 0 13px; height:13px; border:1px solid var(--ed-btn-bd); border-radius:3px; font:600 10px/12px 'IBM Plex Sans', sans-serif;
+  text-align:center; color:var(--ed-acc-ink); position:relative; top:2px; }
+#stCard .stRows li.ok .stTick { background:var(--ed-acc); border-color:var(--ed-acc); }
+#stCard .stNote { margin:8px 0 0; color:var(--ed-warn); font-size:11.5px; }
+#stCard .stLine { margin:8px 0 0; color:var(--ed-ink); }
+#stCard .stBtns { display:flex; justify-content:flex-end; margin-top:8px; }
+#stCard .stOk { min-width:64px; min-height:32px; padding:0 14px; border-radius:16px; border:1px solid var(--ed-acc); background:var(--ed-acc);
+  color:var(--ed-acc-ink); font:600 12px/1 'IBM Plex Sans', sans-serif; letter-spacing:.06em; cursor:pointer; }
+#stCard.min .stBody { display:none; }
+:root.phone #stCard .stOk { min-height:48px; }

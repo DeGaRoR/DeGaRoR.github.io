@@ -11,14 +11,19 @@
 //     the rest), the GPU time of the frame (EXT_disjoint_timer_query_webgl2, when the browser has it and no
 //     other module's timer is running), the draw calls and triangles (renderer.info, every render of the
 //     frame summed), where the aeroplane is (position, height above the ground, speed, climb), the
-//     autopilot's phase, the camera, the frame cap, the JS heap.
+//     autopilot's phase, the camera, the frame cap, the JS heap - and (G3322, format v2) the flight itself: the
+//     nose's heading, pitch, bank, sideslip, the airspeed, the controls (aileron, elevator, rudder, throttle, brake,
+//     differential brake, flap), the pilot's profile and the wind at the aeroplane. 49 columns of 4 bytes: the
+//     ring is 12.8 MB (v1's 34: 8.9 MB).
 //   - EVENTS beside the rows: long tasks (PerformanceObserver 'longtask', and 'long-animation-frame' with the
 //     scripts it names where Chrome has it), shader links and the time the driver held the page for them,
 //     the premises built by the stream, the graphics settings changed, the frame cap's switches, the boot's
 //     states (the loading screens; `reveal` = the roll-out screen gone), heap drops (GC-ish), page errors,
 //     the page hidden/shown, and the player's own MARKS (a click on the meter).
 //   - A HEADER: the build, the browser, the GPU (WEBGL_debug_renderer_info), the screen, the canvas, the
-//     DPR, the graphics settings, the aeroplane, and the recorder's own cost as measured on this machine.
+//     DPR, the graphics settings, the aeroplane, and the recorder's own cost as measured on this machine; G3322: the
+//     flight (route, pilot, day and wind, damage, the build's name and spec hash - also an event 'flight' at each
+//     flight's start, and 'wind' when the day's wind changes) and the build's spec itself (tools/log_replay.js).
 //   - SAVED to IndexedDB as it goes (a chunk of 1 024 frames when it fills, the partial chunk every 5 s and
 //     on pagehide), so a page that froze or was killed still has its log at the next load; the GRAPHICS
 //     flyout's `flight log` row downloads this session or the one before as JSON (tools/analyze_log.js reads
@@ -60,7 +65,23 @@
     ['gpu', 'calls', 'tris', 'x', 'y', 'z', 'agl', 'spd', 'vs', 'phase', 'cam', 'flags', 'cap', 'heap',
      // G820 (C1c): THE PHYSICS WORKER'S (?simw): its step's cost (ms, eased), its dilation (sim s over wall s, the last
      // second) and the steps the picture moved on this frame - NaN when the flight is the page's own (inline)
-     'wms', 'wdil', 'wran']);
+     'wms', 'wdil', 'wran',
+     // G3322 (FLIGHTREC-DETAIL, the user: "I greenlight more detail in the logging"): THE FLIGHT ITSELF, NOT ONLY ITS
+     // FRAMES. The user's 18 Oct log (the pilot veering at lift-off, three times over) had where the aeroplane was and
+     // how fast, and nothing of WHY: no heading, no bank, no hands on the controls, no wind. So, a frame, as the page
+     // already holds them (sim.out and sim.ctl - under the physics worker the snapshot's own copy, sim_link.js mirrors
+     // both every frame; nothing new crosses the thread): the nose's heading (deg, grid: 0 = north = -z, 90 = east =
+     // +x), the pitch and the bank (deg; bank > 0 = right wing down), the sideslip (deg; > 0 = the air from the right),
+     // the indicated (equivalent) airspeed (m/s), the controls as the solver flies them (ail > 0 roll right, elev > 0
+     // nose up, rud > 0 nose LEFT - 39b_servos' signs -, thr 0..1, brake 0..1, brd the differential brake, flap), the
+     // pilot's profile (a code, as the phase: header.codes.pilot), and the wind at the aeroplane (m/s and the grid
+     // bearing it blows FROM; the gusts in it). The header's `units` says so too. NaN in the shed / with no flight.
+     'hdg', 'pitch', 'bank', 'beta', 'ias', 'ail', 'elev', 'rud', 'thr', 'brake', 'brd', 'flap', 'pilot', 'wspd', 'wdir']);
+  // G3322: what the flight's columns are in (a log reads itself; tools/analyze_log.js prints from it)
+  const UNITS = { hdg: 'deg, grid (0 = north = -z, 90 = east = +x), the nose', pitch: 'deg, nose up +', bank: 'deg, right wing down +',
+    beta: 'deg, sideslip (the air from the right +)', ias: 'm/s, equivalent airspeed (out.Veas)', ail: 'ctl.da, roll right +', elev: 'ctl.de, nose up +',
+    rud: 'ctl.dr, nose LEFT +', thr: 'ctl.thr 0..1', brake: 'ctl.brake 0..1', brd: 'ctl.brakeD, the differential brake', flap: 'ctl.flap',
+    pilot: 'code: header.codes.pilot (the pilot profile, 43 ap.profile)', wspd: 'm/s, the wind at the aeroplane (gusts in)', wdir: 'deg, grid, the wind FROM' };
   const C = {}; COLS.forEach((k, i) => { C[k] = i; });
   const NC = COLS.length, C_SLOT0 = C.script;
   // flags: what the frame was
@@ -78,8 +99,9 @@
     const stT = new Float64Array(8), stChild = new Float64Array(8), stSlot = new Int32Array(8);
     // THE CLOCK'S STATE IS IN A Float64Array, not in closure variables: V8 boxes a double stored into a closure's
     // context (a fresh heap number a store), and the frame's path must allocate nothing (GATE FLIGHTREC counts it)
-    const V = new Float64Array(14), LAST = 0, T0 = 1, NESTED = 2, LASTTS = 3, HIDDEN = 4, HEAP = 5, HEAPPREV = 6, SELF_US = 7, SELF_MAX = 8, SAMP = 9, SAMP_MAX = 10, SAMP_SUM = 11, SAMP_GL = 12, SAMP_GL_SUM = 13;
-    V[HEAP] = NaN; V[HEAPPREV] = NaN; V[HIDDEN] = -1;
+    const V = new Float64Array(17), LAST = 0, T0 = 1, NESTED = 2, LASTTS = 3, HIDDEN = 4, HEAP = 5, HEAPPREV = 6, SELF_US = 7, SELF_MAX = 8, SAMP = 9, SAMP_MAX = 10, SAMP_SUM = 11, SAMP_GL = 12, SAMP_GL_SUM = 13,
+          WKTS = 14, WDIR = 15, WGUST = 16;   // G3322: the day's declared wind as last logged (a 'wind' event when it changes)
+    V[HEAP] = NaN; V[HEAPPREV] = NaN; V[HIDDEN] = -1; V[WKTS] = -1;
     // THE RECORDER TIMES ITSELF, every 17th frame (`samp`; 17 so the samples fall on every phase of the periodic reads
     // - the GPU results every 4th frame, the cap every 16th, the heap every 64th - and the mean is unbiased): each hook adds its own entry-to-exit time to V[SAMP] - the
     // whole cost of a frame's recording, measured live on the player's machine (the header's overhead.frameUsMean) -
@@ -118,8 +140,15 @@
       NP.last.set(name, key);
       if (NP.list.length < 12) NP.list.push((name || '(unnamed)') + ' ' + why); else NP.more++;
     }
-    const probeOut = { garage: false, running: false, held: false, manual: false, phase: '', cam: '', spd: NaN, vs: NaN, agl: NaN, wms: NaN, wdil: NaN, wran: NaN };
-    const names = { phase: [''], cam: [''] }, codes = { phase: new Map([['', 0]]), cam: new Map([['', 0]]) };
+    // G3322: the flight's numbers (NaN until a probe says; every one a double from the start, so a store never re-shapes
+    // the object), the pilot's profile (a code), the day's declared wind (a REFERENCE, read every 64th frame) and the
+    // probe's word that a new flight began (the 'flight' event: its route, pilot, day, damage and build at its start)
+    const probeOut = { garage: false, running: false, held: false, manual: false, phase: '', cam: '', spd: NaN, vs: NaN, agl: NaN, wms: NaN, wdil: NaN, wran: NaN,
+      hdg: NaN, pitch: NaN, bank: NaN, beta: NaN, ias: NaN, ail: NaN, elev: NaN, rud: NaN, thr: NaN, brake: NaN, brd: NaN, flap: NaN, pilot: '', wspd: NaN, wdir: NaN,
+      windSpec: null, newFlight: false };
+    const names = { phase: [''], cam: [''], pilot: [''] }, codes = { phase: new Map([['', 0]]), cam: new Map([['', 0]]), pilot: new Map([['', 0]]) };
+    // G3322: the flights of this session, each as it began (the header's `flight` is the last one's)
+    let flightN = 0, lastFlight = null;
     const codeOf = (k, s) => { if (typeof s !== 'string') return 0; let c = codes[k].get(s); if (c === undefined) { c = names[k].length; names[k].push(s); codes[k].set(s, c); } return c; };
     // events: [t, kind, ms, detail]; the rare path, so plain arrays (capped)
     const EV_CAP = opt.eventCap || 40000;
@@ -128,7 +157,7 @@
     if (W.document && W.document.addEventListener) W.document.addEventListener('visibilitychange', () => { if (W.document.hidden) V[HIDDEN] = clock(); });
     const rec = {
       sid: opt.sid || (new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '') + '-' + Math.floor(Math.random() * 1e6).toString(36)),
-      started: new Date().toISOString(), probe: null, info: null, renderer: null,
+      started: new Date().toISOString(), probe: null, info: null, renderer: null, flight: null, spec: null,
       gpu: { ext: null, gl: null, pool: [], pend: [], pendF: [], active: null, activeF: -1, spoiled: false, foreignF: -1e9, ok: 0, bad: 0, foreign: 0,
              share: 4, req: 0, subF: 0, open: 0, nest: 0, rogue: 0, rogueF: -1e9 },   // PERF-1 P1: the arbitration (gpuMay, below)
     };
@@ -214,6 +243,14 @@
       ringF[j + C.agl] = P.agl; ringF[j + C.spd] = P.spd; ringF[j + C.vs] = P.vs;
       ringF[j + C.wms] = P.wms; ringF[j + C.wdil] = P.wdil; ringF[j + C.wran] = P.wran;
       ringF[j + C.phase] = codeOf('phase', P.phase); ringF[j + C.cam] = codeOf('cam', P.cam);
+      // G3322: the flight's own columns - fifteen stores of numbers the probe already holds (no read of the GPU, no
+      // message, nothing allocated); the rare paths (a flight begun, the day's wind changed) are events
+      ringF[j + C.hdg] = P.hdg; ringF[j + C.pitch] = P.pitch; ringF[j + C.bank] = P.bank; ringF[j + C.beta] = P.beta; ringF[j + C.ias] = P.ias;
+      ringF[j + C.ail] = P.ail; ringF[j + C.elev] = P.elev; ringF[j + C.rud] = P.rud; ringF[j + C.thr] = P.thr;
+      ringF[j + C.brake] = P.brake; ringF[j + C.brd] = P.brd; ringF[j + C.flap] = P.flap;
+      ringF[j + C.pilot] = codeOf('pilot', P.pilot); ringF[j + C.wspd] = P.wspd; ringF[j + C.wdir] = P.wdir;
+      if (P.newFlight) { P.newFlight = false; flightBegun(t); }
+      if ((fi & 63) === 32) windCheck(P.windSpec, t);
       // the boot's screen: a state change is an event; the roll-out screen gone is THE REVEAL
       const B = W.BOOT;
       if (B && B.state !== lastBoot) {
@@ -250,6 +287,31 @@
       const mb = m.usedJSHeapSize / 1048576;
       if (V[HEAPPREV] === V[HEAPPREV] && V[HEAPPREV] - mb > 8) event('gc', t, null, (V[HEAPPREV] - mb).toFixed(0) + ' MB freed');
       V[HEAPPREV] = mb; V[HEAP] = mb;
+    }
+    // G3322: A FLIGHT BEGUN (the probe's word: a new pilot flying, out of the shed) - what it is, as it begins: the route
+    // (from, to, base), who flies (the style, the profile, the persona; the career's crew), the day's spec (its wind),
+    // damage on / off and why, the build (its name and the hash of its spec as loaded). The probe's own `flight()`
+    // (app.js) says it; the rare path, so a plain object. tools/log_replay.js turns it back into a run's command line.
+    function flightBegun(t) {
+      flightN++;
+      let d = null;
+      try { d = rec.flight ? rec.flight() : null; } catch (e) { d = { err: String((e && e.message) || e).slice(0, 200) }; }
+      if (d && typeof d === 'object') d.n = flightN;
+      lastFlight = d;
+      event('flight', t, null, d);
+    }
+    // G3322: THE DAY'S DECLARED WIND (the weather card's, the day's spec: kts / mps, dirDeg FROM, gust), every 64th frame:
+    // an event when it changed (the first one too: the wind the session starts on). Three numbers compared - nothing
+    // allocated unless it changed. The wind AT the aeroplane (gusts and the shear in it) is the frame's wspd / wdir.
+    function windCheck(w, t) {
+      let k = 0, d = 0, g = 0;
+      if (w) { k = typeof w.kts === 'number' ? w.kts : typeof w.mps === 'number' ? w.mps * 1.943844 : 0;
+               d = typeof w.dirDeg === 'number' ? w.dirDeg : 0; g = typeof w.gust === 'number' ? w.gust : 0; }
+      if (k === V[WKTS] && d === V[WDIR] && g === V[WGUST]) return;
+      const first = V[WKTS] < 0;
+      V[WKTS] = k; V[WDIR] = d; V[WGUST] = g;
+      let spec = null; try { spec = w ? JSON.parse(JSON.stringify(w)) : null; } catch (e) {}
+      event('wind', t, null, { first, kts: +k.toFixed(2), dirDeg: d, gust: g, spec });
     }
 
     // ---- the GPU's time (EXT_disjoint_timer_query_webgl2) ------------------------------------------------------
@@ -310,7 +372,8 @@
 
     // ---- the renderer's wrappers: the same calls, counted and timed ------------------------------------------
     function attach(renderer, probe) {
-      if (probe) { rec.probe = probe.frame || null; rec.info = probe.info || null; }
+      if (probe) { rec.probe = probe.frame || null; rec.info = probe.info || null;
+                   rec.flight = probe.flight || null; rec.spec = probe.spec || null; }   // G3322: the flight's description, the build's spec
       if (!renderer || rec.renderer) return api;
       rec.renderer = renderer;
       try {
@@ -397,7 +460,9 @@
     // ---- the log: rows and events out --------------------------------------------------------------------------
     function header() {
       const H = {
-        format: 'flydiy-flightlog', v: 1, sid: rec.sid, started: rec.started, saved: new Date().toISOString(),
+        // G3322: v2 = the flight's columns (hdg ... wdir, `units`), the 'flight' and 'wind' events, the header's flight and
+        // build spec. A reader takes a v1 log as it always did: every column is read BY NAME off `cols`, a missing one is NaN
+        format: 'flydiy-flightlog', v: 2, sid: rec.sid, started: rec.started, saved: new Date().toISOString(),
         timeOrigin: perf.timeOrigin || null,
         build: W.FLYDIY_BUILD || null, core: W.FLYDIY_CORE_SHA || null,
         server: (W.STORAGE && W.STORAGE.S && W.STORAGE.S.server) || null, version: REC_VERSION,
@@ -406,7 +471,7 @@
         cores: (W.navigator && W.navigator.hardwareConcurrency) || null, memGB: (W.navigator && W.navigator.deviceMemory) || null,
         screen: W.screen ? { w: W.screen.width, h: W.screen.height, availW: W.screen.availWidth, availH: W.screen.availHeight } : null,
         window: { w: W.innerWidth, h: W.innerHeight }, dpr: W.devicePixelRatio || 1,
-        cols: COLS, slots: SLOTS, flags: F, freezeMs: FREEZE_MS, codes: names,
+        cols: COLS, slots: SLOTS, flags: F, freezeMs: FREEZE_MS, codes: names, units: UNITS,
         frames: fi, ring: N, events: events.length, eventsDropped: evDropped, revealAt,
         overhead: { frameUsMean: sampN ? +(V[SAMP_SUM] / sampN * 1000).toFixed(1) : null, frameUsMax: +(V[SAMP_MAX] * 1000).toFixed(1), sampled: sampN,
           gpuTimerUsMean: sampN ? +(V[SAMP_GL_SUM] / sampN * 1000).toFixed(1) : null,
@@ -430,6 +495,14 @@
       try { if (W.FLYDIY_AA && W.FLYDIY_AA.tier) H.aa = W.FLYDIY_AA.tier(); } catch (e) {}
       try { if (W.POST_FX && W.POST_FX.catcher) H.catcher = W.POST_FX.catcher.summary(); } catch (e) {}   // G1357: the frame catcher's count and its own cost
       try { if (rec.info) H.aircraft = rec.info(); } catch (e) {}
+      // G3322: THE FLIGHT (the last one begun, as it began; else the page's state now) and how many this session flew -
+      // the route, the pilot, the day and its wind, damage, the build's identity (tools/log_replay.js reads it) - and the
+      // BUILD'S SPEC as flown, so a user's log is a test case even for an aeroplane that lives only in their browser
+      // (~20 kB; a spec over 256 kB is left out and the hash still names it). The header is written every 30 s at most
+      // (the store's head()) and on a save: none of this is on the frame's path.
+      H.flights = flightN;
+      try { H.flight = lastFlight || (rec.flight ? rec.flight() : null); } catch (e) {}
+      try { if (rec.spec) { const s = rec.spec(); if (s && JSON.stringify(s).length < 262144) H.buildSpec = s; } } catch (e) {}
       if (W.BOOT) H.boot = { t0: W.BOOT.t0, state: W.BOOT.state, log: W.BOOT.log };
       return H;
     }

@@ -46,7 +46,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // taxi at 12-15 fps, so it is OFF unless the GRAPHICS 'town' row says 'all' or the URL ?town=1 - dropped at load,
   // code and data kept; the editor's autosave puts the cut back (below), so a save made with it off keeps it
   const TOWN = (() => {
-    const T = { all: false, off: ['mk_'], cut: null, n: 0 };
+    // (METLA-WRAPUP: the seaplane base stands with the town off - PREMISES_GEN.TOWN_OFF, the cook's 'default' variant's)
+    const TO = typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.TOWN_OFF;
+    const T = { all: false, off: TO ? TO.drop.slice() : ['mk_'], keep: TO ? TO.keep.slice() : [], cut: null, n: 0 };
     try { const q = new URLSearchParams(location.search).get('town'); const g = window.GFX && window.GFX.get ? window.GFX.get() : null;
       // G1526 (POTATO-DEEP): the row under the build budget's cap - potato / laptop / the software rung never build Metlakatla
       T.all = q !== null ? (q === '1' || q === 'all') : (window.GFX && window.GFX.townAll ? window.GFX.townAll() : !!(g && g.town === 'all')); } catch (e) {}
@@ -54,7 +56,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   })();
   let premisesPlaced = (() => {
     if (TOWN.all || !premisesAtBoot || typeof PREMISES_GEN === 'undefined') return premisesAtBoot;
-    try { const U = PREMISES_GEN.unwrap(premisesAtBoot), D = PREMISES_GEN.dropPlaces(U.rec, TOWN.off);
+    try { const U = PREMISES_GEN.unwrap(premisesAtBoot), D = PREMISES_GEN.dropPlaces(U.rec, TOWN.off, TOWN.keep);
       if (!D.n) return premisesAtBoot;
       TOWN.cut = D.cut; TOWN.n = D.n;
       return PREMISES_GEN.envelope(U.name, D.rec, U.plaque, U.log); } catch (e) { return premisesAtBoot; }

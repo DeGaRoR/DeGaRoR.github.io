@@ -145,15 +145,25 @@ const defaults = { lightOn: 1, lightSw: 1,
   li_reflect: 1 };
 for (const k of EXT) defaults['li_' + k] = 0;
 for (const k of INT) defaults['li_' + k] = 0;
+// G2796 (the user's garage review, 18 Oct: "lights installable individually,
+// not all on/off"): one FITTED row per light, every one fitted by default (the
+// set `lightOn` has always fitted). Unfitted, a light has no lamp, no real
+// light, no panel switch and no load on the flight's bus. The wing bay's cut
+// stays on the master (A0's ruling): the flown wing is unchanged.
+for (const k of EXT.concat(INT)) defaults['li_' + k + 'Fit'] = 1;
+const fitted = (P, k) => P['li_' + k + 'Fit'] == null || !!+P['li_' + k + 'Fit'];
 PAGE.defaults = Object.assign(defaults, PAGE.defaults || {});
 
 const items = [
   ['lightOn', 'lights', 0, 1, 1],
   ['lightSw', 'draw the switches', 0, 1, 1, { when: P => +P.lightOn }],
-  ['outside', EXT.map(k => ['li_' + k, LIGHTS[k].name, 0, 1, 1]),
+  ['fitted, one by one', EXT.concat(INT.filter(k => !LIGHTS[k].later))
+    .map(k => ['li_' + k + 'Fit', LIGHTS[k].name, 0, 1, 1]),
+   { when: P => +P.lightOn }],
+  ['outside', EXT.map(k => ['li_' + k, LIGHTS[k].name, 0, 1, 1, { when: P => fitted(P, k) }]),
    { when: P => +P.lightOn }],
   ['inside (dimmers)', INT.filter(k => !LIGHTS[k].later)
-    .map(k => ['li_' + k, LIGHTS[k].name, 0, 1, 0.05]),
+    .map(k => ['li_' + k, LIGHTS[k].name, 0, 1, 0.05, { when: P => fitted(P, k) }]),
    { when: P => +P.lightOn }],
   ['the wing bay', [
     ['li_plane', 'tip lights on which wing', 0, 1, 1, ['first', 'second'],
@@ -1371,7 +1381,7 @@ function applyDrive() {
   }
 }
 const level = (P, k) => {
-  if (!+P.lightOn) return 0;
+  if (!+P.lightOn || !fitted(P, k)) return 0;
   const v = +P['li_' + k];
   return isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
 };
@@ -1578,18 +1588,21 @@ PAGE.post = (ctx) => {
   };
 
   // ---- OUTSIDE ------------------------------------------------------------
-  if (S.navR) { lamp('nav', S.navR, S.navR.col); lamp('nav', S.navL, S.navL.col); }
-  if (S.navT) lamp('nav', S.navT, S.navT.col);       // G295: the tail's white
-  if (S.beacon) lamp('beacon', S.beacon);
-  if (S.beacon2) lamp('beacon', S.beacon2);         // G267: the other fin's
+  // (G2796: each one only when it is FITTED - a light the builder took off has
+  // no lamp, no real light and no switch)
+  const fit = k => fitted(P, k);
+  if (S.navR && fit('nav')) { lamp('nav', S.navR, S.navR.col); lamp('nav', S.navL, S.navL.col); }
+  if (S.navT && fit('nav')) lamp('nav', S.navT, S.navT.col);       // G295: the tail's white
+  if (S.beacon && fit('beacon')) lamp('beacon', S.beacon);
+  if (S.beacon2 && fit('beacon')) lamp('beacon', S.beacon2);         // G267: the other fin's
   if (S.wingLampR) {
-    lamp('taxi', S.wingLampL);
-    lamp('land', S.wingLampR);
+    if (fit('taxi')) lamp('taxi', S.wingLampL);
+    if (fit('land')) lamp('land', S.wingLampR);
   }
   // ---- INSIDE -------------------------------------------------------------
-  if (S.flood) lamp('flood', S.flood);
-  if (S.pedal) lamp('pedal', S.pedal);
-  for (const s of (S.pax || [])) lamp('pax', s);
+  if (S.flood && fit('flood')) lamp('flood', S.flood);
+  if (S.pedal && fit('pedal')) lamp('pedal', S.pedal);
+  if (fit('pax')) for (const s of (S.pax || [])) lamp('pax', s);
 
   armRotors();       // the beacon starts turning as soon as it is built
 
@@ -1615,7 +1628,7 @@ PAGE.post = (ctx) => {
   // the room compiled with the new lights dressed in, a task at a time) and SHOWN when that resolves - the lamp's lens
   // glows at once, its light follows. With every dimmer at 0 the count is the pre-G2782 count, boot included.
   const lit = [];
-  if (S.wingLampR) {
+  if (S.wingLampR && fit('land')) {
     const l = new THREE.SpotLight(LIGHTS.land.col, level(P, 'land') * LIGHTS.land.thr,
       70, LIGHTS.land.beam, 0.5, 1.2);
     l.position.set(...S.wingLampR.p);
@@ -1623,7 +1636,7 @@ PAGE.post = (ctx) => {
     l.castShadow = false;
     group.add(l); group.add(l.target); lit.push(['land', l]);
   }
-  if (S.flood) {
+  if (S.flood && fit('flood')) {
     const l = new THREE.PointLight(LIGHTS.flood.col, level(P, 'flood') * 0.9, 2.4, 1.6);
     l.position.set(...S.flood.p);
     l.castShadow = false;
@@ -1632,7 +1645,7 @@ PAGE.post = (ctx) => {
   // ...and the pedalier (G308): the flight has had it since G296; the shed
   // is where the user tests the switches from the seat, so it lights the
   // footwell here too — the same numbers as cockpit.js's
-  if (S.pedal) {
+  if (S.pedal && fit('pedal')) {
     const l = new THREE.PointLight(LIGHTS.pedal.col, level(P, 'pedal') * 0.35, 1.2, 1.6);
     l.position.set(...S.pedal.p);
     l.castShadow = false;

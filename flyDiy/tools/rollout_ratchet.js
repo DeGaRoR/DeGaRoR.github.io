@@ -80,6 +80,16 @@ function metrics(j) {
     loop: taxi.workMed != null ? taxi.workMed : null, render: taxi.renderMed != null ? taxi.renderMed : null, solver: taxi.physMed != null ? taxi.physMed : null,
     // PERF-1 P1: the taxi's loop / render tail (p90: what rollout_perf's phases carry) - the fixed reference's cumulative budget reads loopP90
     loopP90: taxi.workP90 != null ? taxi.workP90 : null, renderP90: taxi.renderP90 != null ? taxi.renderP90 : null,
+    // GATE-ANCHOR (the user, 18 Oct: "frame evenness is the big issue"): EVERY frame after the reveal, whatever the phase - the
+    // share of intervals over 34 ms (a missed 30 fps presentation), the worst interval, the loop's median and p90 over the
+    // whole run (a floatplane's run has no 'taxi' phase: its take-off is these rows), and the longest stretch under 30 fps -
+    // intervals over 34 ms in a row (rollout_perf's below30run counts every interval over 33.33 ms: at the cap a frame of
+    // 33.4 ms is on time, so it reads the cap's jitter)
+    slow34s: all.length ? (() => { let run = 0, w = 0; for (const r of all) { if (r[1] > 34) { run += r[1]; if (run > w) w = run; } else run = 0; } return +(w / 1000).toFixed(3); })() : null,
+    over34: all.length ? all.filter(r => r[1] > 34).length / all.length : null,
+    worst: all.length ? Math.max(...all.map(r => r[1])) : null,
+    loopAll: all.length ? med(all.map(r => r[2])) : null,
+    loopAllP90: all.length ? (s => s[Math.min(s.length - 1, Math.floor(s.length * 0.9))])(all.map(r => r[2]).filter(x => x != null && isFinite(x)).sort((a, b) => a - b)) : null,
     over100: g.over100ms ? g.over100ms.n : null, below30s: g.below30run ? g.below30run.sec : null,
     tasks1s: lt.filter(x => x > 1000).length, tasks200: lt.filter(x => x > 200).length, taskWorst: lt.length ? Math.max(...lt) : 0,
     slice: j.worldSlices ? j.worldSlices.worst : null,
@@ -113,6 +123,12 @@ const RULES = {
   loop:     { up: false, rel: 0.10, abs: 0.8,  unit: 'ms' },
   render:   { up: false, rel: 0.10, abs: 0.6,  unit: 'ms' },
   loopP90:  { up: false, rel: 0.10, abs: 1.0,  unit: 'ms' },   // PERF-1 P1: the taxi's loop and render at p90
+  // GATE-ANCHOR: the evenness rows (every frame after the reveal) and the whole run's loop
+  over34:   { up: false, rel: 0.25, abs: 0.01, unit: '' },     // the share of frames over 34 ms
+  worst:    { up: false, rel: 0.15, abs: 34,   unit: 'ms' },   // the worst interval (two frames' slack: at a 30 cap it moves by 16.7 ms steps)
+  slow34s:  { up: false, rel: 0.25, abs: 0.5,  unit: 's' },    // the longest stretch of intervals over 34 ms in a row (under 30 fps)
+  loopAll:  { up: false, rel: 0.10, abs: 0.8,  unit: 'ms' },
+  loopAllP90: { up: false, rel: 0.10, abs: 1.0, unit: 'ms' },
   renderP90:{ up: false, rel: 0.10, abs: 0.8,  unit: 'ms' },
   solver:   { up: false, rel: 0.15, abs: 0.6,  unit: 'ms' },
   over100:  { up: false, rel: 0,    abs: 1,    unit: '' },

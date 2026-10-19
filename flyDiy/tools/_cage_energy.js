@@ -439,12 +439,21 @@ function placeAll(ctx, inv) {
         const len = Math.hypot(ax[0], ax[1], ax[2]) || 1e-6;
         const u = ax.map(q => q / len);
         const c = [s.pin[0] + ax[0] * t0, s.pin[1] + ax[1] * t0, s.pin[2] + ax[2] * t0];
-        pods.push({ sign: k === 'L' ? -1 : 1, c, axis: u, L: dims.L, D: dims.W, len, t: t0 });
+        // G2793 (the user's garage review, 18 Oct: "strut-mounted tanks: the
+        // ogive's long axis along the line of flight, not along the strut"):
+        // the pod is hung on the strut at `along`, its axis fore-aft (+z).
+        // Its centre stays ON the strut, so the frame's billing on the
+        // strut's end nodes (61_gen_frame.js, the `along` lever) is still
+        // where the pod is drawn.
+        pods.push({ sign: k === 'L' ? -1 : 1, c, axis: [0, 0, 1], L: dims.L, D: dims.W, len, t: t0,
+                    yFoot: s.pin[1], yTop: s.tip[1] });
       }
       if (!pods.length) why.push('no lift strut to hang it on');
+      // the clearances, now across the pod's girth: its round body must clear
+      // the body at the strut's foot and the wing at its top by a hand
       for (const pd of pods) {
-        if (pd.t * pd.len - pd.L / 2 < 0.05) { why.push('into the body at the foot'); break; }
-        if ((1 - pd.t) * pd.len - pd.L / 2 < 0.05) { why.push('into the wing at the top'); break; }
+        if (pd.c[1] - pd.D / 2 - pd.yFoot < 0.05) { why.push('into the body at the foot'); break; }
+        if (pd.yTop - (pd.c[1] + pd.D / 2) < 0.05) { why.push('into the wing at the top'); break; }
       }
       pl = { on: 'strut', ok: !why.length, why, pods, along: t0 };
     } else if (bay.on === 'wing') {
@@ -1369,7 +1378,7 @@ function drawResults(group, ctx, results) {
         if (mf && bad) mf.userData.edUnfit = 1;
       }
     } else if (r.on === 'strut' && r.pods && window.THREE) {
-      // G477: the ogive pod, a lathe on the strut's axis — r = R (1 - (2u-1)^2)^0.65
+      // G477: the ogive pod, a lathe on its axis (fore-aft since G2793) — r = R (1 - (2u-1)^2)^0.65
       const T3 = window.THREE;
       for (const pd of r.pods) {
         const NP = 18, pts = [];
@@ -2235,7 +2244,7 @@ function renderPanel() {
       const podRow = (label, key, lo, hi, title) => range(box, label, title, lo, hi, 0.01, cur()[key], fmtM,
         x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; relayout(); syncCap(); },
         x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; commitSoon(); });
-      podRow('length', 'L', 0.3, 2.0, 'along the strut');
+      podRow('length', 'L', 0.3, 2.0, 'along the line of flight');
       podRow('diameter', 'W', 0.1, 0.6, 'the pod: its girth');
       range(box, 'up the strut', 'where the pod sits, as a fraction of the strut from its foot on the body (0) to the wing (1)',
         bay.span[0], bay.span[1], 0.01, v.along != null ? v.along : 0.5 * (bay.span[0] + bay.span[1]), fmtF,

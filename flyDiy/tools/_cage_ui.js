@@ -156,6 +156,11 @@ const BASE_GROUPS = [
      { when: P => +P.intOn && +P.intDash }],
     ['dashCrease','dash crease',   0, 3, 0.05,
      { when: P => +P.intOn && +P.intDash }],
+    // G3340: the arch (new builds) or the box (every build saved before it)
+    ['dashStyle', 'dash style',    0, 1, 1, ['box', 'arch'],
+     { when: P => +P.intOn && +P.intDash }],
+    ['dashLegs',  'arch legs',     0, 2, 1, ['to the panel', 'to a rail', 'to the floor'],
+     { when: P => +P.intOn && +P.intDash && +P.dashStyle === 1 }],
   ]],
   ['window joints', [
     ['rimW',      'rim size',     0.00, 0.04, 0.001],

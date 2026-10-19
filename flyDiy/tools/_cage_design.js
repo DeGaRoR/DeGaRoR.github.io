@@ -769,6 +769,15 @@ function designPresetIndex(name) {
 // outline, a few strokes, the renderer's stroke style — each a picture of
 // the choice and not of a whole aeroplane.
 //
+// THE NOSE FRONT (G2770), the body's front end in side view: a flat
+// firewall face (an engine bolts to it) or a faired, domed nose
+function iconNoseFront(aero) {
+  const body = aero ? 'M60 12 L22 12 Q6 13 5 20 Q6 27 22 28 L60 28'
+                    : 'M60 12 L12 12 L12 28 L60 28';
+  const paths = [{ d: body }];
+  if (!aero) paths.push({ d: 'M12 12 L12 28', w: 2.6 });
+  return { vb: '0 0 64 40', paths };
+}
 // THE CUT, on the fin in side view or the stab in plan view (the stab IS
 // the fin laid flat, so it is the same drawing mirrored about its root):
 // uncut is one sheet, hinge only is the sheet split on a straight line,
@@ -1618,6 +1627,18 @@ const DESIGN_ROWS = [
   // value — so the tile IS the row, drawn bigger. `slot: true` keeps them out
   // of the Custom-build grid (they are a part's detail, not a birth choice);
   // the editor draws each one where its row was, and the row is not drawn.
+  // G2770 (the user: "The main option is nose front; either firewall or
+  // aerodynamic. this should definitely be one of the main options"): the
+  // nose part's TYPE, as tiles in its row's slot
+  { key: 'noseFrontT', label: 'Nose front', kind: 'discriminator',
+    group: 'structure', status: 'live', slot: true, twin: ['noseFinish'],
+    read: P => Math.round(P.noseFinish || 0),
+    options: [
+      { value: 0, label: 'Firewall', icon: iconNoseFront(false),
+        note: 'a flat face for an engine on the nose', writes: { cage: { noseFinish: 0 } } },
+      { value: 1, label: 'Aerodynamic', icon: iconNoseFront(true),
+        note: 'a faired, domed nose: nothing is bolted to it', writes: { cage: { noseFinish: 1 } } },
+    ] },
   { key: 'finCutT', label: 'Fin / rudder', kind: 'discriminator',
     group: 'tail', status: 'live', slot: true, twin: ['finCut'],
     read: P => Math.round(P.finCut || 0),

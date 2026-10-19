@@ -135,6 +135,17 @@
       wo.addEventListener('click', ev => { ev.stopPropagation(); move(name, { kind: 'floor' }); });
       b.appendChild(wo);
     }
+      // G2744 SEND TO: a plain select of the other hangars you hold (the garage's own select look); free and instant
+      const T = A.sendTargets ? A.sendTargets(name) : [];
+      if (T.length) {
+        const se = mk('select', 'hsSend'); se.setAttribute('aria-label', 'send ' + name + ' to');
+        const o0 = mk('option', null, 'send to…'); o0.value = ''; se.appendChild(o0);
+        for (const t of T) { const o = mk('option', null, (t.main ? 'the main hangar' : 'the hangar') + ' at ' + t.base); o.value = t.id; se.appendChild(o); }
+        se.addEventListener('click', ev => ev.stopPropagation());
+        se.addEventListener('change', () => { if (!se.value) return; const r = A.sendTo(name, se.value);
+          if (!r.ok) { se.value = ''; b.appendChild(mk('small', 'hsWhy', r.why)); } });
+        b.appendChild(se);
+      }
     if (kind !== 'long') {
       const fl = mk('button', 'hsPill go hsFly', 'fly'); fl.type = 'button';
       const can = A.canFly ? A.canFly() : true;

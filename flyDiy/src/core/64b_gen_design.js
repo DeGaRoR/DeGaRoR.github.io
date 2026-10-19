@@ -296,6 +296,47 @@ function genDesignCheck(def, sh, simIn, opts) {
           why: 'pitch moment left with full up elevator at ' + r2(Va * 3.6) + ' km/h, CG at the forward corner',
           fix: lvl === 'pass' ? '' : 'the elevator cannot flare it: a bigger elevator chord, a bigger stabiliser, or the CG further aft' });
   }
+  // THE FLARE, POWER OFF (G3271, RUFUS-CERT): the row above asks for nose-up
+  // moment at 1.2 Vs, and the user's Rufus (CG 12 % of the chord, a 915 on the
+  // nose) passed it at 0.099 - yet flown power off with the stick on its stop
+  // it settles at 1.16 Vs and never stalls, so it can never be flared to a slow
+  // landing (every touchdown 1.33 Vs, 210 m of roll). So the question is asked
+  // at the stall: full up elevator, engine idle (the dead tunnel), CG at the
+  // forward corner, alpha swept from the 1.2 Vs attitude up to the wing's stall
+  // angle; where the nose-down moment wins, that lift against the wing's best
+  // is the slowest speed the elevator can hold (FAR 23.201 lets an elevator on
+  // its stop define the stall - which is this number, the speed a pilot can
+  // flare to). Free air: ground effect's lost downwash is not modelled here.
+  {
+    const env = sh && sh.envelope, fwdX = env && env.fwd ? env.fwd.cgX : (sh ? sh.cgX : null);
+    const W = D.W, aS = def.params.polarWing.aStall;
+    const a1 = genAlphaForLift(sim, 1.2 * Vs, W, 0.85 * aS);
+    sim.ctl.de = 1; const pU = sim.probe(genDcVel(Vs, a1, 0)).pitchUp;
+    sim.ctl.de = -1; const pD = sim.probe(genDcVel(Vs, a1, 0)).pitchUp;
+    sim.ctl.de = pU > pD ? 1 : -1;
+    const N = 16, pts = [];
+    for (let k = 0; k <= N; k++) {
+      const a = a1 + (aS - a1) * k / N, r = sim.probe(genDcVel(Vs, a, 0));
+      const dx = fwdX != null ? fwdX - r.cg[0] : 0;
+      pts.push({ a, Fy: r.Fy, M: r.pitchUp + dx * r.Fy });
+    }
+    sim.ctl.de = 0;
+    const FyMax = pts.reduce((m, p) => Math.max(m, p.Fy), 0);
+    let FyHold = FyMax, held = true;
+    for (let k = 1; k <= N; k++) if (pts[k].M < 0) {
+      const p = pts[k - 1], c = pts[k], u = p.M > 0 ? p.M / (p.M - c.M) : 0;
+      FyHold = Math.min(FyMax, p.Fy + (c.Fy - p.Fy) * u); held = false; break;
+    }
+    const ratio = Math.sqrt(FyMax / Math.max(1e-6, FyHold));
+    const last = pts[N], cgAft = last.Fy > 0 ? -last.M / last.Fy : 0;
+    const lvl = ratio > 1.30 ? 'fail' : ratio > 1.05 ? 'warn' : 'pass';
+    row({ id: 'ctl.flare', group: 'control', label: 'Flare, power off: full up elevator reaches the stall',
+          value: r2(ratio), unit: 'x Vs', level: lvl,
+          limit: 'engine idle, CG at its forward limit, the stick on its stop: the slowest speed held must be the stall (pass <= 1.05 Vs; warn to 1.30 Vs - it lands fast; fail above: it cannot be slowed to an approach speed)',
+          why: held ? 'full up elevator takes the wing to its stall angle with the engine idle'
+                    : 'full up elevator, engine idle, CG at the forward corner: the nose stops rising at ' + r2(ratio * Vs * 3.6) + ' km/h (the stall is ' + r2(Vs * 3.6) + ' km/h)',
+          fix: lvl === 'pass' ? '' : 'it is nose-heavy for its elevator: the CG ' + r2(cgAft) + ' m further aft (a lighter engine, or the wing moved forward by about that) - near the stall a bigger elevator barely helps' });
+  }
   // ---- YAW AND ROLL -------------------------------------------------------
   if (t && geom && t.Sv > 0) {
     const Vv = t.Sv * t.lv / (geom.Sw * (geom.span || 1));

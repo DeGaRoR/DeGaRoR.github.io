@@ -6872,7 +6872,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // G909: a generator the record names may still be loading (build.js MANIFEST.lazy, asked for by world_boot.js)
       for (let n = 0; window.FLYDIY_LAZY && window.FLYDIY_LAZY.pending && window.FLYDIY_LAZY.pending() && n < 2000; n++) yield 'premises: the generators';
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
-        game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN),
+        game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN), shedDims: () => shedDims,   // (G3096: the main hangar grabbed as drawn)
         // G831: where the town step will build from (app.js's stand, the one loading's) and how far: the house worker is
         // given that same dispatch at the rebuild, to generate while the rest of the world is laid out
         anchor: () => (window.FLYDIY_TOWN_AT ? window.FLYDIY_TOWN_AT() : null), prefetchReach: PREM_BOOT,
@@ -7849,7 +7849,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // G591: the roll-out's share of the premises, round the aircraft, in slices (app.js 'town' step)
     premisesPrewarm: (cg, o) => (premisesR && premisesR.prewarm && premisesR.stats.queued ? premisesR.prewarm(cg[0], cg[2], (o && o.reach) || PREM_BOOT, (o && o.budgetMs) || 40) : { done: true, built: 0, near: 0, queued: premisesR ? premisesR.stats.queued : 0 }),
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
-      premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN),
+      premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN), shedDims: () => shedDims,
         ...patchGrounds(),
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath }, eye: () => camera.position, renderer: premRenderer, camera: premCamera,
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)) });

@@ -405,13 +405,20 @@ function run(SRC) {
       // the colour a section WEARS: its own resolved tint, or for the cage's `body` its override or its finish's base
       const worn = s => { const q = A.aeroSecResolve(s, O, { cons });
                           return q.tint != null ? q.tint : (A.AERO_FINISH[q.fin] || {}).base; };
+      // G3273 (RUFUS-CERT, L18d): a build that PAINTS a strut itself (finish.sections.<strut>.tint - the user's
+      // Rufus wears red struts on a cream body, a deliberate livery) is held to ITS paint, not the parent's: the
+      // resolver must honour it and the material must show it; an unpainted strut still wears its parent's colour.
+      // 'Painted itself' is the editor's OWN override on that very section (SEC_OVER.tint, as finishFromSpec seeds it:
+      // the stock Cub's and Jodel's stored #ffffff is the neutral no-paint and never reaches it)
+      const own = (O && O.tint) || {};
       for (const s of STRUTS) {
-        const row = A.AERO_SEC[s], q = A.aeroSecResolve(s, O, { cons }), want = worn(row.parent);
+        const row = A.AERO_SEC[s], q = A.aeroSecResolve(s, O, { cons });
+        const mine = own[s] != null && own[s] !== '' ? own[s] : null, want = mine != null ? mine : worn(row.parent);
         const m = pg.ED.secMat(s, { surf: 0, fieldM: 1, tint0: 0xe6e2d8 });
         const ref = A.aeroMaterial(THREE, { finish: row.fin, tint: want, surf: 0, fieldM: 1 });
         const hx = v => v == null ? 'none' : '#' + (v >>> 0).toString(16).padStart(6, '0');
         check(q.fin === row.fin && !BARE.has(q.fin), tag + ': `' + s + '` resolves to its painted pin ' + row.fin, 'got ' + q.fin);
-        check(q.tint != null && (q.tint >>> 0) === (want >>> 0), tag + ': `' + s + '` wears what ' + row.parent + ' wears ' + hx(want), 'got ' + hx(q.tint));
+        check(q.tint != null && (q.tint >>> 0) === (want >>> 0), tag + ': `' + s + '` wears ' + (mine != null ? 'its own paint ' : 'what ' + row.parent + ' wears ') + hx(want), 'got ' + hx(q.tint));
         check(!!m && m.userData.aeroFinish === row.fin && m.color.getHexString() === ref.color.getHexString(),
               tag + ': `' + s + '`\'s material is that paint', m ? m.userData.aeroFinish + ' #' + m.color.getHexString() + ' vs #' + ref.color.getHexString() : 'none');
         n5++;

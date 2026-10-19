@@ -533,6 +533,12 @@ function checkExistence(P) {
     try { sawFalse = !p.when(off); } catch (e) {}
     try { sawTrue = !!p.when(on); } catch (e) {}
     try { sawTrue = sawTrue || !!p.when(hi); } catch (e) {}
+    // G2770: ...or the other way round - a part that exists EXCEPT at an
+    // enum's top end (the pilot door, gone under a bubble canopy = canopy 3)
+    // is true at 0 and false at the row's maximum. Still a `when` that
+    // changes; a constant one is caught exactly as before.
+    try { sawTrue = sawTrue || !!p.when(off); } catch (e) {}
+    try { sawFalse = sawFalse || !p.when(hi); } catch (e) {}
     ok = check(sawTrue && sawFalse,
       'part `when` does not discriminate (always on, or always off)',
       `${p.key} on=${sawTrue} off=${sawFalse}`) && ok;

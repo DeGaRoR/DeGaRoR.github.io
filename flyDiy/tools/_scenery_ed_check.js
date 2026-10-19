@@ -216,7 +216,7 @@ if (plots.length) {
   ed.cmd('removeProp', { id: gid2, prop: 'draw' });
   notes.length = 0; ed.select(null); ed.select(gid2);
   check(!A().props.draw && notes.some(t => /draws NOTHING/.test(t)), '6 a gravel area without a draw says it draws nothing (the user\'s gravel band)');
-  check(ed.cmd('addProp', { id: gid2, prop: 'draw' }) && A().props.draw && A().props.draw.look === 'concrete' && A().props.wheels.surface === PG.SURFACE.GRAVEL, '6 + add a property: the draw (its wheels kept)');
+  check(ed.cmd('addProp', { id: gid2, prop: 'draw' }) && A().props.draw && A().props.draw.look === 'gravel' && A().props.wheels.surface === PG.SURFACE.GRAVEL, '6 + add a property: the draw (its wheels kept, drawn as they feel: ONE SURFACE, 18 Oct)', JSON.stringify(A().props));
   ed.cmd('addProp', { id: gid2, prop: 'marks' });
   check(A().props.marks && A().props.marks.kind === 'parking' && isFinite(A().props.draw.yaw), '6 + marks: parking, the pavement turned to its long side');
   ed.cmd('setProp', { id: gid2, prop: 'marks', patch: { kind: 'hatch' } });
@@ -1071,6 +1071,162 @@ if (plots.length) {
   const K0 = PG.roadBuildKeys(O30), r30b = JSON.parse(JSON.stringify(r30)); r30b.layers.roads[2].rail = 'off';
   const K1 = PG.roadBuildKeys(PG.compose(r30b, synth));
   check(K0.get('rc') !== K1.get('rc') && K0.get('ra') === K1.get('ra'), '30 a guardrail row changed: that road drawn again, the others kept');
+}
+
+// 26 ANIMALS IN THE MODEL PLACER (G2893; the user: "I did not succeed placing animals"): the ASSETS tab's bank lists every
+//    species as an 'animals' tile; a place drops a herd record (the OBJECTS tool's own defaults), a scatter ONE hotspot of
+//    that many within that radius - and the OBJECTS tool still writes the same record
+// 27 THE PARTS HIDDEN, THE ASSEMBLY WHOLE (G2893): a prop its pack flags `part`, the groups that are a kit's pieces and an
+//    assembly's parts are not tiles; the assembly is ONE tile, and its drop ONE record, its head part's key and the rest in
+//    `with` - composed with it (the objects' record carries `with`), so the renderer stands every part at that pose
+// 28 THE ZONE DRAWS FROM EVERY CATEGORY (G2893): its 'draws from' pills are the theme's and every category the catalogue carries
+{
+  const PRs = { groups: [['landmark', 'landmark buildings'], ['knob', 'knobs'], ['vessel', 'drums & bins']], order: ['ant_base', 'ant_fork', 'ant_dish', 'drum', 'knob_a', 'stray', 'bear_l1'],
+    props: { ant_base: { key: 'ant_base', group: 'landmark', label: 'antenna base', asm: 'ant', nt: 10 }, ant_fork: { key: 'ant_fork', group: 'landmark', asm: 'ant', asmParent: 'base', nt: 20 },
+             ant_dish: { key: 'ant_dish', group: 'landmark', asm: 'ant', asmParent: 'fork', nt: 30 }, drum: { key: 'drum', group: 'vessel', label: 'drum' }, knob_a: { key: 'knob_a', group: 'knob' },
+             stray: { key: 'stray', group: 'vessel', part: true }, bear_l1: { key: 'bear_l1', group: 'animal', lodOf: 'bear', lodDist: 40 } }, texs: {} };
+  win.PROP_REG = PRs;
+  win.ANIMALS = { list: k => [{ key: 'bear', kind: 'land', label: 'bear', length: 2.2, nt: 9000, clips: [] }, { key: 'doe', kind: 'land', label: 'doe', length: 1.6, nt: 5000, clips: [] }].filter(a => !k || a.kind === k),
+                  reg: k => ({ bear: { key: 'bear', kind: 'land', label: 'bear', length: 2.2, nt: 9000, clips: [] }, doe: { key: 'doe', kind: 'land', label: 'doe', length: 1.6, nt: 5000, clips: [] } })[k] || null };
+  const CATZ = new Map([['house/cottage', { key: 'house/cottage', cat: 'residential' }], ['hangar/field shed', { key: 'hangar/field shed', cat: 'airport xs' }]]);
+  const rowsZ = Object.assign({}, rows);
+  const stripZ = new El('div');
+  const edz = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rowsZ, els: { chk: null, plaque: null, strip: stripZ }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop,
+    catalogue: { entries: CATZ, keys: () => Array.from(CATZ.keys()), byCat: c => Array.from(CATZ.values()).filter(e => e.cat === c), byTag: () => [] } });
+  const bank = edz.cmd('bank', {}), K = bank.map(t => t.k);
+  check(K.indexOf('animal:bear') >= 0 && K.indexOf('animal:doe') >= 0 && bank.find(t => t.k === 'animal:bear').group === 'animals', '26 the placer\'s bank lists every species as an animals tile', K.join(','));
+  edz.setSection('assets'); edz.cmd('tool', { name: 'place' }); edz.cmd('pick', { key: 'animal:doe' });
+  edz.cmd('click', { x: 200, z: 200 });
+  const objs = () => edz.record().layers.objects, herd = objs().find(o => o.kind === 'animal');
+  check(herd && herd.key === 'doe' && herd.n === 4 && herd.r === 120, '26 a place drops a herd record with the species\' defaults', JSON.stringify(herd));
+  edz.cmd('tool', { name: 'scatter' }); edz.cmd('pick', { key: 'animal:bear' });
+  edz.cmd('click', { x: 300, z: 300 });
+  const bears = objs().filter(o => o.kind === 'animal' && o.key === 'bear');
+  check(bears.length === 1 && bears[0].n >= 2 && bears[0].r >= 2, '26 a scatter of an animal is ONE hotspot of that many within that radius', JSON.stringify(bears));
+  edz.setSection('objects'); edz.cmd('tool', { name: 'animal' }); edz.cmd('click', { x: 400, z: 400 });
+  check(objs().filter(o => o.kind === 'animal').length === 3, '26 the OBJECTS tool still writes a herd');
+  check(K.indexOf('ant_fork') < 0 && K.indexOf('ant_dish') < 0 && K.indexOf('ant_base') < 0 && K.indexOf('knob_a') < 0 && K.indexOf('stray') < 0 && K.indexOf('bear_l1') < 0 && K.indexOf('drum') >= 0,
+    '27 parts, flagged pieces, a kit\'s groups and the LOD cuts are no tiles; a whole model is', K.join(','));
+  const asm = bank.find(t => t.k === 'asm:ant');
+  check(asm && asm.key === 'ant_base' && JSON.stringify(asm.with) === '["ant_fork","ant_dish"]', '27 the assembly is ONE tile: its head part and the others with it', JSON.stringify(asm));
+  edz.setSection('assets'); edz.cmd('tool', { name: 'place' }); edz.cmd('pick', { key: 'asm:ant' }); edz.cmd('click', { x: 500, z: 500 });
+  const ant = objs().find(o => o.kind === 'prop' && o.key === 'ant_base');
+  check(ant && JSON.stringify(ant.with) === '["ant_fork","ant_dish"]', '27 the assembly\'s drop is ONE record, its parts in `with`', JSON.stringify(ant));
+  const Oz = PG.compose(edz.record(), synth), cr = (Oz.records.objects || []).find(o => o.id === ant.id);
+  check(cr && JSON.stringify(cr.with) === '["ant_fork","ant_dish"]' && PG.objScale({ s: 1 }).with === undefined, '27 the composed record carries `with` (and a record without it composes as before)');
+  check(PG.unwrap(PG.envelope('z', edz.record())).rec.layers.objects.find(o => o.id === ant.id).with.length === 2, '27 `with` round-trips through the store');
+  const RPs27 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check(/for \(const k of Array\.isArray\(ob\.with\) \? ob\.with : \[\]\)/.test(RPs27) && /ob\.with \? \[ob\.with\] : \[\]/.test(RPs27), '27 the renderer stands the `with` parts and a changed `with` builds the object again');
+  edz.close(); delete win.PROP_REG; delete win.ANIMALS;
+}
+{
+  // 28 (the source): the zone's pills read zoneCats - the theme's then the catalogue's others
+  const UIs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_ui.js'), 'utf8');
+  check(/for \(const c of zoneCats\(TH\)\)/.test(UIs) && /function zoneCats\(TH\)/.test(UIs), '28 the zone\'s draws-from pills cover every category the catalogue carries');
+}
+// 32 TAXI-ALL (G3092-G3095; the user, 18 Oct: taxiway editing must "work properly for all airstrips, not just home, it is
+//    currently a broken promise"): a way out FOLLOWS A ROAD - the composed site's way (what the pilot reads: the site's
+//    taxiOut) is the road's points from the stand's end, its last on the centreline; the road moved, the pilot's way moves with
+//    it; a way that follows none is its own points; a via to a missing road is an issue. The editor: a strip without a stand
+//    gets one and a way out following the road that meets it; 'follows road' unlinks and links; a plot's own way out is given
+//    and takes the same rows
+{
+  const mk = (via, pts) => PG.normalise({ layers: { roads: [{ id: 'tv', pts: pts || [[6010, 6085], [6030, 6050], [6020, 6005]], w: 8, cls: 'paved' }],
+    runways: [Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'rw32', name: 'r32', c: [6000, 6000], hdg: 0, len: 600, wid: 20,
+      stand: { x: 6000, z: 6080, hdg: null }, taxiOut: [[6000, 6040], [6000, 6000]] }, via ? { taxiOutVia: via } : {})] } });
+  const wayOf = r => { const O = PG.compose(r, synth), q = (O.runways || []).find(z => z.id === 'rw32');
+    return q && q.site && q.site.taxiOut ? JSON.stringify(q.site.taxiOut.map(w => O.frame.toLocal(w[0], w[1]).map(v => +v.toFixed(1)))) : null; };
+  check(wayOf(mk('tv')) === '[[6010,6085],[6030,6050],[6020,6000]]', '32 a way that follows a road is the road\'s points from the stand\'s end, its last on the centreline (what the pilot reads)', wayOf(mk('tv')));
+  check(wayOf(mk('tv', [[6010, 6085], [6060, 6050], [6020, 6005]])) === '[[6010,6085],[6060,6050],[6020,6000]]', '32 the road moved: the pilot\'s way moves with it', wayOf(mk('tv', [[6010, 6085], [6060, 6050], [6020, 6005]])));
+  check(wayOf(mk(null)) === '[[6000,6040],[6000,6000]]', '32 a way that follows none is its own points', wayOf(mk(null)));
+  check(PG.issues(mk('nope')).some(t => /follows road nope, which is not there/.test(t)) && !PG.issues(mk('tv')).some(t => /follows road/.test(t)), '32 a via to a missing road is an issue (a present one is not)');
+  const nums = new Map(), btns = new Map(), sels = new Map();
+  const rows32 = Object.assign({}, rows, { number: (h, label, get, set) => { nums.set(label, set); }, button: (h, label, fn) => { btns.set(label, fn); }, select: (h, label, opts, get, set) => { sels.set(label, { opts, get, set }); } });
+  const ed32 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows32, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  const tw = ed32.cmd('add', { layer: 'roads', entry: { pts: [[7050, 7008], [7050, 7090]], w: 8, cls: 'paved' } });
+  const rs = ed32.cmd('add', { layer: 'runways', entry: Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { name: 'no stand', c: [7000, 7000], hdg: 0, len: 600, wid: 20,
+    plots: [{ id: 'ns.2', x: 7100, z: 7060, hdg: 0, stand: { x: 7100, z: 7040, hdg: null } }] }) });
+  const S = () => PG.findById(ed32.record(), rs).entry, re = () => { ed32.select(null); ed32.select(rs); };
+  re();
+  btns.get('give it a stand and a way out')(); re();
+  check(S().stand && S().stand.x === 7050 && S().stand.z === 7090 && S().taxiOutVia === tw && JSON.stringify(S().taxiOut) === '[[7050,7000]]', '32 a strip without a stand gets one and a way out, following the road that meets it (no point on the stand itself)', JSON.stringify([S().stand, S().taxiOutVia, S().taxiOut]));
+  sels.get('follows road').set(''); re();
+  check(S().taxiOutVia === undefined, '32 \'follows road: none\' unlinks the way');
+  sels.get('follows road').set(tw); re();
+  check(S().taxiOutVia === tw, '32 ...and a road picked links it again');
+  btns.get('ns.2: give it its own way out')(); re();
+  const pw = () => S().plots.find(q => q.id === 'ns.2').taxiOut;
+  check(Array.isArray(pw()) && pw().length === 2 && pw()[1][1] === 7000, '32 a plot given its own way out (its entry on the centreline)', JSON.stringify(pw()));
+  btns.get('ns.2 add a point after point 1')(); re();
+  check(pw().length === 3, '32 ...and its rows are the way\'s own (a point added)', JSON.stringify(pw()));
+  ed32.close();
+}
+// 33 THE MAIN HANGAR EDITABLE AS DRAWN (G3096 HANGAR-FIX; the user, 18 Oct: "Your placement of the main hangar is very wrong. You
+//    need to let me edit it"): a press grabs it over its DRAWN size (the page's shed dims, not 30 x 25); 'square to the buildings'
+//    turns it onto the nearest site building's axes (the drawing's own rotation.y convention), its door toward the stand
+{
+  const r33 = PG.normalise({ layers: { runways: [Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'h33', name: 'h33', c: [8000, 8000], hdg: 0, len: 600, wid: 20,
+      stand: { x: 8000, z: 8060, hdg: null }, taxiOut: [[8000, 8000]], hangar: { x: 8000, z: 8110, hdg: 0.7 } })],
+    sites: [{ id: 's33', at: { x: 8060, z: 8110, yaw: Math.PI }, items: [{ id: 'b', key: 'hangar/club hangar, long', x: 0, z: 0, yaw: 2.426 }] }] } });
+  check(!PG.runwayGrab(r33, 8000 + 21, 8110) && (PG.runwayGrab(r33, 8000 + 21, 8110, { HW: 22.5, HD: 22.5 }) || {}).key === 'hangar', '33 a press 21 m off the hangar\'s centre grabs it at a 45 m drawn shed (missed at 30 x 25)');
+  const sq = PG.hangarSquare(r33, r33.layers.runways[0], r33.layers.runways[0].stand, 0), ryS = Math.PI - sq, ryB = Math.PI + Math.PI + 2.426;
+  const m90 = a => ((a % (Math.PI / 2)) + Math.PI / 2) % (Math.PI / 2), dd = Math.min(Math.abs(m90(ryS) - m90(ryB)), Math.PI / 2 - Math.abs(m90(ryS) - m90(ryB)));
+  const door = [Math.cos(sq), Math.sin(sq)], toSt = [8000 - 8000, 8060 - 8110];
+  check(sq !== null && dd < 1e-3 && door[0] * toSt[0] + door[1] * toSt[1] > 0, '33 square to the buildings: the shell\'s axes on the building\'s (mod 90 deg), its door toward the stand', 'hdg ' + sq + ', off ' + (dd * 180 / Math.PI).toFixed(3) + ' deg');
+  const RP33 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8'), RW33 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8');
+  // the shipped HOME (the user: "no plane can take off"): the main shed, at the default and at a 45 x 40 m drawn size, stands on
+  // neither its stand nor any leg of its two ways out (sampled every 5 %), and its heading is the square rule's already
+  { const J = PG.expandAreas(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec), H = J.layers.runways.find(r => r.id === 'HOME'), h = H.hangar;
+    const box = (HW, HD) => { const c = Math.cos(h.hdg), sn = Math.sin(h.hdg); return [[HD, HW], [HD, -HW], [-HD, -HW], [-HD, HW]].map(([u, v]) => [h.x + u * c - v * sn, h.z + u * sn + v * c]); };
+    const hits = [];
+    for (const [nm, HW, HD] of [['30 x 25', 15, 12.5], ['45 x 40', 22.5, 20]]) { const B = box(HW, HD);
+      if (PG.inPoly(B, H.stand.x, H.stand.z)) hits.push(nm + ' the stand');
+      for (const k of ['taxiOut', 'taxiOut1']) { const W = [[H.stand.x, H.stand.z]].concat(H[k] || []);
+        for (let i = 1; i < W.length; i++) for (let t = 0; t <= 1.0001; t += 0.05) if (PG.inPoly(B, W[i - 1][0] + (W[i][0] - W[i - 1][0]) * t, W[i - 1][1] + (W[i][1] - W[i - 1][1]) * t)) { hits.push(nm + ' ' + k + ' leg ' + i); break; } } }
+    const sqH = PG.hangarSquare(J, H, H.stand, 0), off = Math.abs(Math.atan2(Math.sin(sqH - h.hdg), Math.cos(sqH - h.hdg)));
+    check(!hits.length && off < 0.01, '33 the shipped HOME: its main shed clears the stand and both ways out (30 x 25 and 45 x 40), square to the buildings', hits.join('; ') + ' | square off ' + (off * 180 / Math.PI).toFixed(2) + ' deg'); }
+  check(/PG\.runwayGrab\(rec, L\[0\], L\[1\], o\.shedDims \? o\.shedDims\(\) : null\)/.test(RP33) && (RW33.match(/shedDims: \(\) => shedDims/g) || []).length === 2, '33 the page hands the premises its shed dims (both builds)');
+}
+
+{
+  // 34 ONE SURFACE (the user, 18 Oct: "remove all options allowing to separately set the surface and wheel feel. That's actually
+  // clutter at all levels"): a strip's look, an area's DRAW surface and a road's class are each THE choice - drawn and felt; no
+  // row sets the feel alone; an old file's other feel is kept (nothing it rolls on changes) and the inspector says so
+  const UIs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_ui.js'), 'utf8');
+  check(!/rows\.select\(insp, '(the )?wheels feel'/.test(UIs) && !/rows\.select\(insp, 'surface', SURF_OPTS/.test(UIs), '34 no inspector row sets the wheels feel alone (strip, area, old surface entry)');
+  check(/k !== 'roadside' && k !== 'wheels'\)/.test(UIs) && /if \(k === 'draw' && !x\.props\.wheels\) \{ const L = PG\.RUNWAY_LOOKS\[x\.props\.draw\.look\]/.test(UIs) && /if \(k === 'draw'\) \{   \/\/ \(ONE SURFACE: an area that feels already is drawn as it feels/.test(UIs), '34 the wheels are no property of their own to add: DRAW brings them (its look\'s feel), or is drawn as the wheels already there feel');
+  check(/x\.props\.wheels = Object\.assign\(\{\}, x\.props\.wheels \|\| \{\}, \{ surface: \+L\.surface \}\); \}, 'surface'\)\);/.test(UIs), '34 picking DRAW\'s surface sets the wheels (the apron flag kept)');
+  check(/PG\.lookFeelsAs\(k, feel\)/.test(UIs) && /if \(x\.look && !PG\.lookFeelsAs\(x\.look, PG\.roadFeel\(x\)\)\) x\.look = null;/.test(UIs), '34 a road\'s look offers only the variants that feel as its class; a new class drops a look that feels otherwise');
+  check(PG.roadFeel({ cls: 'paved' }) === PG.SURFACE.PAVED && PG.roadFeel({ cls: 'track' }) === PG.SURFACE.GRASS && PG.roadFeel({}) === PG.SURFACE.GRAVEL && PG.roadFeel({ cls: 'paved', surface: 6 }) === 6 &&
+        PG.lookFeelsAs('worn', PG.SURFACE.PAVED) && !PG.lookFeelsAs('concrete', PG.SURFACE.GRAVEL) && PG.lookFeelsAs('dirt', PG.SURFACE.GRAVEL) && PG.lookFeelsAs('none', PG.SURFACE.GRASS),
+        '34 roadFeel is the composer\'s rule (its surface, else its class), lookFeelsAs the looks\' table');
+  // the user's Jolene: its old look-and-feel splits stay as they were (no feel moved) - and each is one the inspector names
+  const J = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json'), 'utf8')), JR = PG.normalise(J.layers ? J : (J.rec || J.premises));
+  const splitA = JR.layers.areas.filter(a => a.props && a.props.wheels && a.props.draw && a.props.draw.look && !PG.lookFeelsAs(a.props.draw.look, +a.props.wheels.surface)).map(a => a.id);
+  const splitR = JR.layers.roads.filter(r => r.look && !PG.lookFeelsAs(r.look, PG.roadFeel(r))).map(r => r.id);
+  check(splitA.length >= 1 && /an old file\\'s: drawn ' \+ L\.name \+ ', the wheels feel ' \+ nm/.test(UIs) && /an old file\\'s: drawn ' \+ \(PG\.RUNWAY_LOOKS\[e\.look\]/.test(UIs),
+        '34 Jolene\'s old splits kept and named (areas ' + splitA.join(' ') + '; roads ' + splitR.join(' ') + ')');
+}
+// 35 THE CABIN STRIP (G3097 / G3098; the user, 18 Oct: "we need to place the little hangar atop the flat bit of the new strip ...
+//    our second owned hangar ... a storage zone too ... the circuit should ensure to pass the tight zone before manoeuvring"):
+//    the shipped w1 is the story's cabin (its name), its top end flat; its base plot 'w1' (the field hangar's place), its stand
+//    and its way out's first point stand on the apron; the outside storage carries two painted stands within the fleet's reach
+//    of the stand; its drawn flight reaches the pilot in the world (aerodrome.fly), the approach straight in; no issue names it
+{
+  const J = PG.expandAreas(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec), w = J.layers.runways.find(r => r.id === 'w1');
+  check(!!w && /\bcabin\b/i.test(w.name || '') && JSON.stringify(w.profile[w.profile.length - 1]) === '[1,15.16]' && w.profile[w.profile.length - 2][1] === 15.16, '35 w1 is the story\'s cabin strip (its name), its top end flat', w && JSON.stringify([w.name, w.profile]));
+  const ap = (J.layers.terrain || []).concat(J.layers.surface || []).find(e => e.id === 'cab_apron' || /^cab_apron/.test(e.id || ''));
+  const P = w && (w.plots || []).find(q => q.id === 'w1');
+  check(!!ap && !!P && !!w.stand && PG.inPoly(ap.poly, P.x, P.z) && PG.inPoly(ap.poly, w.stand.x, w.stand.z) && PG.inPoly(ap.poly, w.taxiOut[0][0], w.taxiOut[0][1]),
+    '35 the base plot w1, the stand and the way out\'s first point stand on the apron', JSON.stringify([P, w && w.stand]));
+  const st = (J.layers.material || []).find(e => /^cab_store/.test(e.id || '') && e.stands);
+  const cs = st ? PG.polyCentroid(st.poly) : null;
+  check(!!st && st.stands.n >= 2 && Math.hypot(cs[0] - w.stand.x, cs[1] - w.stand.z) <= 150, '35 the outside storage: two painted stands within the fleet\'s reach of the stand', st && JSON.stringify(st.stands));
+  const O = PG.compose(J, synth), A = (O.aerodromes || []).find(a => a.id === 'w1');
+  check(!!A && A.fly && Array.isArray(A.fly.dep) && A.fly.dep.length >= 2 && Array.isArray(A.fly.appr) && A.fly.appr.length >= 2 && A.fly.terrainOk === true && w.circuit && w.circuit.join === 'straight',
+    '35 its drawn flight reaches the pilot (aerodrome.fly: dep, appr, terrainOk) and its circuit joins straight in', A && JSON.stringify(A.fly).slice(0, 160));
+  const iss = PG.issues(J).filter(t => /runway w1\b/.test(t));
+  check(!iss.length, '35 no issue names w1', iss.join(' / '));
 }
 
 // 5 NAMES
