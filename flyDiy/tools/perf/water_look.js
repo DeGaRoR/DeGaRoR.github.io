@@ -28,6 +28,26 @@ const WAIT = +opt('wait', 3500), BOOT_CAP = +opt('boot-cap', 150000);
 const LABEL = { ref: 'today (AUTO mirror)', b: 'b - the hull reflection', c: 'c - transparency + shadow', bc: 'b + c', ring: 'ring - the full mirror near land + the hull + the shadow (one sky)' };
 // --dials '<js>' (G2836): run after the boot of every variant (the ring's fades, its guards), e.g. "WATER.mirror.ringD0=700"
 const DIALS = opt('dials', null);
+// --probe-dump v1,v2 (G2839 P1, the diagnosis): at those views, after the still - the sky probe's six faces BEFORE the PMREM (the old
+// scene's cube, the marched one) as strips, the atlas the water reads under each, their numbers (the up face's luminance spread: the
+// clouds' contrast), the bake's own ms, and the SAME view re-shot under ATMO.PROBE_MARCH (<view>_<variant>_p1.png)
+const PDUMP = (opt('probe-dump', '') || '').split(',').filter(Boolean);
+const PD_JS = `(() => { if (window.__P1) return 1;
+  const R = (window.WORLD && WORLD.renderer) || (window.GARAGE_ENV && GARAGE_ENV._debug().renderer);
+  const h2f = h => { const s = (h & 0x8000) ? -1 : 1, e = (h >> 10) & 31, f = h & 1023; return e === 0 ? s * f / 16777216 : e === 31 ? 0 : s * Math.pow(2, e - 15) * (1 + f / 1024); };
+  const lum = (u, i) => 0.2126 * h2f(u[i]) + 0.7152 * h2f(u[i + 1]) + 0.0722 * h2f(u[i + 2]);
+  // one PNG of W x H half-float rgba (GL rows bottom-up), Reinhard at exposure k, sRGB
+  const png = (list, W, H, k) => { const c = document.createElement('canvas'); c.width = W * list.length; c.height = H; const x = c.getContext('2d'), im = x.createImageData(c.width, H);
+    list.forEach((u, f) => { for (let y = 0; y < H; y++) for (let q = 0; q < W; q++) { const i = ((H - 1 - y) * W + q) * 4, o = (y * c.width + f * W + q) * 4;
+      for (let ch = 0; ch < 3; ch++) { let v = Math.max(0, h2f(u[i + ch]) * k); v = v / (1 + v); v = v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055; im.data[o + ch] = Math.round(Math.min(1, v) * 255); } im.data[o + 3] = 255; } });
+    x.putImageData(im, 0, 0); return c.toDataURL('image/png').split(',')[1]; };
+  // the up face's (index 2, +Y) luminance: mean and spread (the clouds' contrast); the median over the upper four faces' rows (the exposure)
+  const stats = F => { const u = F.faces[2], n = F.N * F.N; let m = 0, m2 = 0; for (let i = 0; i < n; i++) { const l = lum(u, i * 4); m += l; m2 += l * l; } m /= n;
+    const side = []; for (const f of [0, 1, 4, 5]) for (let i = (F.N >> 1) * F.N; i < n; i += 7) side.push(lum(F.faces[f], i * 4)); side.sort((a, b) => a - b);
+    return { upMean: m, upStd: Math.sqrt(Math.max(0, m2 / n - m * m)), upCv: Math.sqrt(Math.max(0, m2 / n - m * m)) / Math.max(1e-9, m), sideMed: side[side.length >> 1] }; };
+  const atlas = () => { const P = WORLD_RIG.skyProbe(), t = P && P.target; if (!t) return null; const u = new Uint16Array(t.width * t.height * 4); R.readRenderTargetPixels(t, 0, 0, t.width, t.height, u); return { W: t.width, H: t.height, u }; };
+  const bakeMs = n => { const gl = R.getContext(), t = []; for (let i = 0; i < n; i++) { gl.finish(); const a = performance.now(); WORLD_RIG.skyProbeBake(); gl.finish(); t.push(performance.now() - a); } t.sort((a, b) => a - b); return +t[t.length >> 1].toFixed(2); };
+  window.__P1 = { R, png, stats, atlas, bakeMs }; return 1; })()`;
 const WP = require('./water_places.js');
 const NOTE = {
   dock: 'the floatplane afloat at the water aerodrome nearest a shore, eye 4 m up, the shore behind it',
@@ -154,6 +174,30 @@ async function runVariant(variant, views, idx) {
       rec.shots[v] = { file: path.basename(file), eye: [ex, ey, ez].map(t => +t.toFixed(1)), at: [S.P.x, S.y, S.P.z].map(t => +t.toFixed(1)),
         state: JSON.parse(await ev('JSON.stringify({ mirror: WATER.mirror.on, mirrorW: +(WATER.mirror.w || 0).toFixed(3), ringW: WATER.mirror.ringW, landD: WATER.mirror.landD, hull: WATER.hull ? { on: WATER.hull.on, w: +WATER.hull.w.toFixed(2), calls: WATER.hull.calls, ms: +WATER.hull.ms.toFixed(2) } : null })')) };
       console.log(`  ${variant.padEnd(3)} ${v.padEnd(8)} -> ${file}  ${JSON.stringify(rec.shots[v].state)}`);
+      if (PDUMP.includes(v)) {
+        await ev(PD_JS);
+        const d = JSON.parse(await ev(`(() => { const P1 = window.__P1, P = WORLD_RIG.skyProbe(), M = ATMO.PROBE_MARCH, was = M.on;
+          if (!P || !P.faces) return JSON.stringify({ error: 'no probe faces (the P1 build?)' });
+          M.on = false; const oldMs = P1.bakeMs(5); const old = P.faces('old'), A0 = P1.atlas();
+          const mar = P.faces('march'); M.on = true; const marMs = P1.bakeMs(5), mcpu = +M.ms.toFixed(2); const A1 = P1.atlas();
+          const so = P1.stats(old), sm = mar ? P1.stats(mar) : null, k = 0.18 / Math.max(1e-6, so.sideMed);
+          const out = { N: old.N, k, old: so, march: sm, bakeMs: { old: oldMs, march: marMs, marchCpu: mcpu }, marching: P.marching,
+            png: { old: P1.png(old.faces, old.N, old.N, k), march: mar ? P1.png(mar.faces, mar.N, mar.N, k) : null, atlasOld: A0 ? P1.png([A0.u], A0.W, A0.H, k) : null, atlasMarch: A1 ? P1.png([A1.u], A1.W, A1.H, k) : null } };
+          M.on = was; if (!was) WORLD_RIG.skyProbeBake(); return JSON.stringify(out); })()`));
+        if (d.error) { console.log('  probe dump: ' + d.error); rec.shots[v].probe = d; }
+        else {
+          for (const [k2, b64] of Object.entries(d.png)) if (b64) fs.writeFileSync(path.join(OUT, `probe_${v}_${variant}_${k2}.png`), Buffer.from(b64, 'base64'));
+          delete d.png; rec.shots[v].probe = d;
+          console.log(`  probe ${v} ${variant}: up face mean ${d.old.upMean.toPrecision(3)} cv ${d.old.upCv.toFixed(3)} (old) / ${d.march ? d.march.upMean.toPrecision(3) + ' cv ' + d.march.upCv.toFixed(3) : '-'} (march); bake ${d.bakeMs.old} / ${d.bakeMs.march} ms (gl.finish wall), march cpu ${d.bakeMs.marchCpu} ms`);
+          // the same view, the probe marched (a cut bake; the eye where it was)
+          await ev('(()=>{ATMO.PROBE_MARCH.on=true;WORLD_RIG.skyProbeBake();return 1;})()');
+          await sleep(WAIT);
+          const s1 = await cmd('Page.captureScreenshot', { format: 'png' });
+          const f1 = path.join(OUT, v + '_' + variant + '_p1.png'); fs.writeFileSync(f1, Buffer.from(s1.result.data, 'base64'));
+          rec.shots[v].p1 = path.basename(f1); console.log(`  ${variant.padEnd(3)} ${v.padEnd(8)} P1 -> ${f1}`);
+          await ev('(()=>{ATMO.PROBE_MARCH.on=false;WORLD_RIG.skyProbeBake();return 1;})()');
+        }
+      }
     }
     ws.close();
   } catch (e) { rec.error = String(e.message || e); console.error('  ' + variant + ': ' + rec.error); }
@@ -169,7 +213,7 @@ async function runVariant(variant, views, idx) {
   // the page: one row a view, the variants side by side (the stills next to it, relative paths)
   const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const rows = VIEWS.map(v => `<section><h2>${esc(v)}</h2><p>${esc(NOTE[v] || '')}</p><div class="g">` +
-    VARIANTS.map(x => { const r = recs.find(q => q.variant === x), s = r && r.shots[v]; return `<figure>${s ? `<img src="${esc(s.file)}" alt="${esc(v + ' ' + x)}">` : '<div class="miss">not shot</div>'}<figcaption>${esc(LABEL[x] || x)}</figcaption></figure>`; }).join('') + '</div></section>').join('\n');
+    VARIANTS.map(x => { const r = recs.find(q => q.variant === x), s = r && r.shots[v]; return `<figure>${s ? `<img src="${esc(s.file)}" alt="${esc(v + ' ' + x)}">` : '<div class="miss">not shot</div>'}<figcaption>${esc(LABEL[x] || x)}</figcaption></figure>` + (s && s.p1 ? `<figure><img src="${esc(s.p1)}" alt="${esc(v + ' ' + x + ' P1')}"><figcaption>${esc((LABEL[x] || x) + ' - the probe with the frame\'s clouds (P1)')}</figcaption></figure>` : ''); }).join('') + '</div></section>').join('\n');
   fs.writeFileSync(path.join(OUT, 'index.html'), `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Water look</title>
 <style>:root{--bg:#f6f6f4;--fg:#1b1b1b;--mut:#666}@media (prefers-color-scheme:dark){:root{--bg:#141414;--fg:#e8e8e8;--mut:#9a9a9a}}
 body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,sans-serif}h1{font-size:20px}h2{font-size:16px;margin:24px 0 2px}p{color:var(--mut);margin:0 0 8px}

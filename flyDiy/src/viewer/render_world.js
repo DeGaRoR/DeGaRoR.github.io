@@ -821,7 +821,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // re-baked as the clouds drift past the eye
       decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null,
       dirty: typeof CLOUDS !== 'undefined' && CLOUDS.probeDirty ? () => CLOUDS.probeDirty() : null,
-      baked: typeof CLOUDS !== 'undefined' && CLOUDS.probeBaked ? () => CLOUDS.probeBaked() : null });
+      baked: typeof CLOUDS !== 'undefined' && CLOUDS.probeBaked ? () => CLOUDS.probeBaked() : null,
+      // G2839 P1 (ATMO.PROBE_MARCH, ?psky=march): the cube marched from the eye with the frame's own clouds
+      march: typeof CLOUDS !== 'undefined' && CLOUDS.drawInto ? (r, cam, rt) => CLOUDS.drawInto(r, cam, rt) : null, eye: () => camera.position });
     if (probe) probe.bake(world.day);
     // THE CABIN'S PROBE (A6, 2026-09-20 - the playtest: "a green tint on the dash and all light in
     // interior view. Maybe the reflection of a skydome with a lot of grass?"): yes - the world probe's
@@ -7784,6 +7786,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // cap there - `WORLD_RIG.groundUnderPin(WORLD_RIG.groundUnder().table.GRASS)` is what the old
     // fixed cap did everywhere - and null hands it back to the ground. The instrument, not a setting.
     groundUnderPin: a => { GU.pin = a ? a.slice(0, 3) : null; if (probe) probe.bake(world.day); return GU.pin; },
+    // (G2839 P1) the world's sky probe, and a cut re-bake now (the rigs' A/B of ATMO.PROBE_MARCH from one boot)
+    skyProbe: () => probe, skyProbeBake: () => (probe ? (probe.bake(world.day, true), probe.bakes) : 0),
   };
   if (typeof window !== 'undefined') window.WORLD_RIG = worldRig;
 

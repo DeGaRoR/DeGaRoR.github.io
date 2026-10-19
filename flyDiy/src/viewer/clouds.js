@@ -953,6 +953,20 @@ var CLOUDS = (function () {
   // pass at the cloud's depth - see COMP_FRAG. composite(r) is kept as a no-op for the old post hook.
   let marched = false;
   function compositeMesh() { return compMesh; }
+  // drawInto(r, camera, target) (G2839 P1): the march AND its composite into a target of its own - the sky probe's cube faces. The
+  // composite quad is the world scene's: borrowed into a scratch scene for the one draw, handed back (hidden: the frame's draw shows it)
+  let intoScene = null;
+  function drawInto(r, camera, target) {
+    if (!compMesh || !target) return false;
+    draw(r, camera, target);
+    if (!compMesh.visible) return false;
+    intoScene = intoScene || new THREE.Scene();
+    const par = compMesh.parent, ac = r.autoClear;
+    intoScene.add(compMesh);
+    try { r.autoClear = false; r.setRenderTarget(target); r.render(intoScene, camera); }
+    finally { r.autoClear = ac; if (par) par.add(compMesh); else intoScene.remove(compMesh); compMesh.visible = false; }
+    return true;
+  }
   function composite() {}
   // sunT(x, y, z): the layer's transmittance toward the sun from a world point (the CPU column, the flare's dimmer)
   function sunT(x, y, z) {
@@ -1020,7 +1034,7 @@ var CLOUDS = (function () {
   // frame (0.5-1.4 s at the Jolene reveal, found by rollout_perf's program census). Its key reads no map and no cover.
   // B9 (G1020): and the probe's (tileStat / tileMean read the shadow tile through it: it linked on the first flight frames)
   function warmList() { if (!ready || S.mode === 'off') return []; skyMats(); probeMats(); return [bakeMat, skyMat, shadowMat, marchMat, probeMat].filter(Boolean).map(m => ({ m, to: 'rt' })); }
-  const API = { S, init, install, inject, update, draw, composite, warmList, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; }, get shadowOn() { return cloudScalars[3]; } };
+  const API = { S, init, install, inject, update, draw, drawInto, composite, warmList, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; }, get shadowOn() { return cloudScalars[3]; } };
   if (typeof window !== 'undefined') { window.CLOUDS = API; API.install(); }   // BEFORE any program compiles, like ATMO.install
   return API;
 })();

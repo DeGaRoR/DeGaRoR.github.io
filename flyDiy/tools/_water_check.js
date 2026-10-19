@@ -297,6 +297,15 @@ console.log('\n3. THE LAWS');
           `the ring: full to ${M.ringD0} m from land and ${M.ringH0} m up, gone by ${M.ringD1} / ${M.ringH1} m (the fades outside the user's numbers); off without ?wrefl=ring`);
         verdict(/if \(opts\.sky && !PROTO\.ring\)/.test(mp2) && /if \(opts\.clouds && !PROTO\.ring\)/.test(mp2) && /ringW = \(1 - sstep\(MIR\.ringH0, MIR\.ringH1, eyeAgl\)\) \* \(1 - sstep\(MIR\.ringD0, MIR\.ringD1, ld\)\) \* \(1 - sstep\(0, MIR\.ringIn, MIR\.waterD\)\);/.test(mp2) && W.mirror.ringIn > 0,
           'under the ring the capture holds no sky and no clouds (alpha 0: the probe sky for both models), weighted by height x distance to land'); }
+      // P1 (G2839 - the ring's ONE SKY is the probe, so the probe carries the frame's own clouds): ATMO.PROBE_MARCH, off without
+      // ?psky=march; the world's probe gets the march (CLOUDS.drawInto: the march and its composite into a face target) and the eye;
+      // the bake falls back to the old scene's fromScene on any failure, and the domeMesh clouds hide under the march
+      { const at = src('src/viewer/atmo.js'), cl = src('src/viewer/clouds.js');
+        verdict(/const PROBE_MARCH = \{ on: false, size: 256,/.test(at) && /\[\?&\]psky=march\(\?:&\|\$\)/.test(at) && /PROBE_FADE, PROBE_MARCH,/.test(at)
+          && /if \(marchOK\(\)\) \{ try \{ const t1 = nowMs\(\); next = pmrem\.fromCubemap\(marchCube\(\)\.texture\);/.test(at) && /if \(!next\) next = pmrem\.fromScene\(es, 0\.035, 1, 100\);/.test(at)
+          && /decor\.forEach\(m => \{ m\.visible = false; \}\);/.test(at) && /function drawInto\(r, camera, target\)/.test(cl) && /draw, drawInto, composite,/.test(cl)
+          && /march: typeof CLOUDS !== 'undefined' && CLOUDS\.drawInto \? \(r, cam, rt\) => CLOUDS\.drawInto\(r, cam, rt\) : null, eye: \(\) => camera\.position/.test(rw),
+          "P1: the probe marches the frame's clouds from the eye under ?psky=march (off by default; the old cube on any failure)"); }
       verdict(/if \(WATER\.proto && WATER\.proto\.seaOff && Number\.isFinite\(wl\) && Math\.abs\(wl\) < 0\.05\) wl = null;/.test(app) && /WATER\.proto && WATER\.proto\.hull && WATER\.hullRender/.test(app) && /if \(WSH && WSH\.proto && WSH\.proto\.shadow\) water\.receiveShadow = true;/.test(rw),
         "the switch: the sea's mirror off (lakes kept), the hull capture under b, the sea receiving the shadow under c");
       // perspBounds with a view offset is the frustum PerspectiveCamera.updateProjectionMatrix makes (the hull's oblique clip bends THAT one)

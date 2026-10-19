@@ -1080,10 +1080,19 @@ ${MIST_GLSL}
   // nothing after. A bake asked for by maybe() during a fade waits for it to end; a direct bake() (the boot, a pin, the
   // shed) is a cut. PROBE_FADE.s 0 is the old swap. Cost: one more 768 x 1024 half-float target per probe (6.3 MB).
   const PROBE_FADE = { s: 2.0 };
+  // G2839 P1 THE PROBE MARCHES THE FRAME'S CLOUDS (WATER-STEADY; the ring's ONE SKY needs it - the water under one sky reflects only
+  // the probe, and the probe's clouds were the 24-step domeMesh at 2 deg of pre-blur: a flat navy sky on calm water, 19 Oct). With
+  // PROBE_MARCH.on (?psky=march) a host that passes o.march (render_world: CLOUDS.drawInto) and o.eye bakes the cube itself: six
+  // faces from the EYE (a CubeCamera there, the dome and the cap moved with it), each face's sky drawn, then the frame's own cloud
+  // march and composite into a size x size face target (0 MSAA, its depth a texture: G1532), copied into the cube's face, then
+  // pmrem.fromCubemap - no sigma (the sky, sharp: calm water reads the top level). The domeMesh clouds hide during it. The rest -
+  // the crossfade, the schedule, onSwap - is the probe's own. far: the faces' far (the composite's log depth reads it; 0 = 40 km).
+  const PROBE_MARCH = { on: false, size: 256, far: 0, moveM: 400, ms: 0, bakes: 0 };
+  try { if (typeof location !== 'undefined' && /[?&]psky=march(?:&|$)/.test(location.search)) PROBE_MARCH.on = true; } catch (e) {}
   const FADE_VERT = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
   const FADE_FRAG = 'uniform sampler2D tA, tB; uniform float uK; varying vec2 vUv; void main() { gl_FragColor = mix(texture2D(tA, vUv), texture2D(tB, vUv), uK); }';
   let fadeScene = null, fadeCam = null, fadeMat = null;
-  function fadeBlit(renderer, a, b, k, to) {
+  function fadeBlit(renderer, a, b, k, to, face) {
     if (!fadeScene) {
       fadeScene = new THREE.Scene(); fadeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
       // (made in the material library, the one place a material is made - AS4a, GATE ASSETS)
@@ -1093,7 +1102,7 @@ ${MIST_GLSL}
     }
     fadeMat.uniforms.tA.value = a.texture; fadeMat.uniforms.tB.value = b.texture; fadeMat.uniforms.uK.value = k;
     const prev = renderer.getRenderTarget(), ac = renderer.autoClear;
-    renderer.autoClear = false; renderer.setRenderTarget(to); renderer.render(fadeScene, fadeCam);
+    renderer.autoClear = false; renderer.setRenderTarget(to, face || 0); renderer.render(fadeScene, fadeCam);
     renderer.setRenderTarget(prev); renderer.autoClear = ac;
   }
   function fadeTarget(like) {   // a target the renderer reads exactly as PMREMGenerator's own (CubeUV, half float, linear)
@@ -1123,21 +1132,81 @@ ${MIST_GLSL}
     const capBaked = [0, 0, 0];
     const capMoved = () => { const c = capNow(); return Math.abs(c.r - capBaked[0]) > 0.01 || Math.abs(c.g - capBaked[1]) > 0.01 || Math.abs(c.b - capBaked[2]) > 0.01; };
     es.add(new THREE.Mesh(new THREE.SphereGeometry(19.5, 24, 12, 0, 6.2832, Math.PI / 2, Math.PI / 2), capMat));
+    const deco0 = es.children.length;
     if (o.decorate) o.decorate(es);          // CLOUDS C3: the layer's sphere over the dome (the water reflects the clouds)
+    const decor = es.children.slice(deco0);  // (G2839: hidden while the cube marches the frame's clouds instead)
     let rt = null, bakedSun = null, bakedVer = -1, bakes = 0, lastMs = 0, lastBake = -1e9;
     let shown = null, prevRt = null, fadeK = 1, fadeLast = 0;   // G1351: what the materials read; the bake it fades from; how far
     const nowMs = () => (typeof performance !== 'undefined') ? performance.now() : 0;
     const canFade = () => !!(THREE.WebGLRenderTarget && THREE.ShaderMaterial && THREE.CubeUVReflectionMapping && typeof MATLIB !== 'undefined' && MATLIB.make);
+    // G2839 P1: the marched cube - the CubeCamera at the eye, its faces drawn through a 2D face target (the clouds' composite needs a
+    // depth TEXTURE) and copied in. CubeCamera.update keeps the faces' order and orientation: its render is borrowed per face.
+    let mcube = null; const mEye = [NaN, NaN, NaN];   // (where the marched cube was shot from)
+    const marchOK = () => !!(PROBE_MARCH.on && o.march && o.eye && THREE.CubeCamera && THREE.WebGLCubeRenderTarget && THREE.DepthTexture && canFade());
+    function marchCube() {
+      const N = (PROBE_MARCH.size | 0) || 256, far = PROBE_MARCH.far || 40000;
+      if (!mcube || mcube.N !== N) {
+        if (mcube) { mcube.cube.dispose(); mcube.face.dispose(); }
+        const cube = new THREE.WebGLCubeRenderTarget(N, { type: THREE.HalfFloatType, generateMipmaps: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+        const rz = renderer.capabilities && renderer.capabilities.reversedDepthBuffer;
+        const face = new THREE.WebGLRenderTarget(N, N, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false,
+          depthBuffer: true, stencilBuffer: true, samples: 0, depthTexture: new THREE.DepthTexture(N, N, rz ? THREE.FloatType : THREE.UnsignedInt248Type) });   // (the mirror's own recipe)
+        cube.texture.name = 'probeMarchCube'; face.texture.name = 'probeMarchFace';
+        mcube = { N, cube, face, cam: new THREE.CubeCamera(0.5, far, cube) };
+      }
+      const cam = mcube.cam, face = mcube.face, eye = o.eye(); mEye[0] = eye.x; mEye[1] = eye.y; mEye[2] = eye.z;
+      for (const c of cam.children) if (c.far !== far) { c.far = far; c.updateProjectionMatrix(); }
+      cam.position.set(eye.x, eye.y, eye.z); cam.updateMatrixWorld(true);
+      es.position.copy(cam.position); es.updateMatrixWorld(true);
+      const dv = decor.map(m => m.visible); decor.forEach(m => { m.visible = false; });
+      const cc = renderer.getClearColor(new THREE.Color()), ca = renderer.getClearAlpha(), ac = renderer.autoClear;
+      const rr = renderer.render;
+      const faceDraw = function (sc, c) {
+        if (sc !== es) return rr.apply(this, arguments);
+        const tgt = this.getRenderTarget(), fi = this.getActiveCubeFace(), mip = this.getActiveMipmapLevel();
+        this.render = rr;   // (the march and the copy draw through the real render)
+        try {
+          this.setRenderTarget(face); this.setClearColor(0x000000, 0); this.autoClear = false; this.clear();
+          rr.call(this, es, c);                 // the dome and the cap
+          o.march(this, c, face);               // the frame's clouds: the march and its composite (CLOUDS.drawInto)
+          fadeBlit(this, face, face, 0, tgt, fi);   // the face into the cube (mix(a, a) = a)
+          this.setRenderTarget(tgt, fi, mip);
+        } finally { this.render = faceDraw; }
+      };
+      try { renderer.render = faceDraw; cam.update(renderer, es); }
+      finally {
+        renderer.render = rr;
+        decor.forEach((m, i) => { m.visible = dv[i]; });
+        es.position.set(0, 0, 0); es.updateMatrixWorld(true);
+        renderer.setClearColor(cc, ca); renderer.autoClear = ac;
+      }
+      return mcube.cube;
+    }
     const probe = {
       get texture() { return shown ? shown.texture : (rt ? rt.texture : null); },
       get fading() { return !!prevRt; }, get fade() { return fadeK; },
       get bakes() { return bakes; }, get lastMs() { return lastMs; },
       get cap() { return capBaked.slice(); },   // the cap the current cube was shot over (linear rgb, before gb and the day)
+      get target() { return shown || rt; },      // (G2839) the atlas every material reads (CubeUV, half float)
+      get marching() { return marchOK(); },
+      // (G2839 P1, the rig's diagnosis) faces(kind): the six faces BEFORE the PMREM as half-float rgba - 'old' the probe's scene
+      // shot at the origin as fromScene shoots it (the domeMesh clouds), 'march' the marched cube from the eye
+      faces(kind) {
+        let cube = null, tmp = null;
+        if (kind === 'march') { if (!o.march || !o.eye) return null; const was = PROBE_MARCH.on; PROBE_MARCH.on = true; try { cube = marchCube(); } finally { PROBE_MARCH.on = was; } }
+        else { tmp = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType, generateMipmaps: false }); new THREE.CubeCamera(1, 100, tmp).update(renderer, es); cube = tmp; }
+        const N = cube.width, out = [];
+        for (let i = 0; i < 6; i++) { const px = new Uint16Array(N * N * 4); renderer.readRenderTargetPixels(cube, 0, 0, N, N, px, i); out.push(px); }
+        if (tmp) tmp.dispose();
+        return { N, faces: out };
+      },
       bake(day, cut) {
         const c = capNow(); capBaked[0] = c.r; capBaked[1] = c.g; capBaked[2] = c.b;
         capMat.color.copy(c).multiplyScalar(gb).multiplyScalar(groundIrradiance(day));
         const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
-        const next = pmrem.fromScene(es, 0.035, 1, 100);
+        let next = null;
+        if (marchOK()) { try { const t1 = nowMs(); next = pmrem.fromCubemap(marchCube().texture); PROBE_MARCH.ms = nowMs() - t1; PROBE_MARCH.bakes++; } catch (e) { console.warn('probe march: ' + e.message); next = null; } }
+        if (!next) next = pmrem.fromScene(es, 0.035, 1, 100);
         lastMs = (typeof performance !== 'undefined') ? performance.now() - t0 : 0;
         const old = rt; rt = next; bakes++;
         if (!canFade()) {
@@ -1181,7 +1250,9 @@ ${MIST_GLSL}
         const moved = Math.acos(cosA) * 180 / Math.PI > (thresholdDeg || 1.5);
         if (moved || day.version !== bakedVer) return probe.bake(day);
         const now = (typeof performance !== 'undefined') ? performance.now() : 0;
+        const eyeMoved = () => { if (!marchOK()) return false; const e = o.eye(); return !(Math.hypot(e.x - mEye[0], e.y - mEye[1], e.z - mEye[2]) <= PROBE_MARCH.moveM); };   // (G2839: NaN - never marched - is moved)
         if (now - lastBake > (o.minGapMs || 4000) && ((o.dirty && o.dirty()) || (o.cap && capMoved()))) return probe.bake(day);
+        if (now - lastBake > (o.minGapMs || 4000) && eyeMoved()) return probe.bake(day);   // (G2839: GATE CLOUD reads the line above as it is)
         return null;
       },
     };
@@ -1197,7 +1268,7 @@ ${MIST_GLSL}
     // `cameraPosition`, but the dome's mist takes `uEyeY`, which is the MAIN eye's. A capture that
     // wants it exact brackets itself with this (the water session's ask, 2026-09-22).
     setEyeY(y) { U.eyeY.value = y; }, getEyeY() { return U.eyeY.value; },
-    PROBE_FADE, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX, TILE: AP_TILE, TILE_Y: AP_TILE_Y, ATLAS_H: AP_ATLAS_H },
+    PROBE_FADE, PROBE_MARCH, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX, TILE: AP_TILE, TILE_Y: AP_TILE_Y, ATLAS_H: AP_ATLAS_H },
     MIST, apUniforms, GLSL: { MIST: MIST_GLSL, AP: AP_SAMPLE_GLSL },   // the clouds' pass shares the splice's samplers and functions
   };
 })();
