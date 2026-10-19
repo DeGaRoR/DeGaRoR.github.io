@@ -95045,6 +95045,159 @@ Strict light gate: 16 better; 2 RED already accepted (metal fuseWidth slider; fl
 Landed: ED-1's placer animals (a tile drops a herd, a scatter makes a hotspot), the ALMA as one tile, packs' loose parts hidden, zone pills for every category (G2893).
 Strict light gate: 16 better; only the accepted metal fuseWidth slider row red. Gates: CLOCK, CLOUD (lamps), FRAMECOST (master's restore row), KTX2 (accepted characters), TOUR shard 0 (the Cub's prop strike in 02/20's pond at w2, the user's kept pond; identical on master per Pilot 18 Oct).
 
+## G2741 - STORY-CORE: THE TUTORIAL'S BEATS T0-T7 ON THE CAREER DOCUMENT, PURE; THE STORY'S PLACES BY ROLE (THE CABIN STRIP AS THE USER NAMES IT); GATE STORY (2026-10-18, the GAME COORDINATOR; futureDesigns/game/GAME-PLAN-2026-10-15.md §3, §R; branch claude/ready/story-core off origin/master 05cc2acc0)
+
+- **src/core/79_story.js** (career-lazy, in MANIFEST.career: LAZY now counts ten modules).
+  - `career.story` rides the career block. careerNormalise keeps it. A career without one (every career before this,
+    the dev career) has no rails.
+  - The beats are data, in STORY_BEATS: T0 the cabin (mask 'finish'), T1 the move to HOME, T2 the client's plane (the
+    checklist: engine, flaps, fat tyres, lights = an electrical system, panel, paint; cost cap 9000), T3 delivery at
+    the owner's strip, T4 the gift, T5 three jobs, T6 the water job on floats, T7 the three occasions, then open.
+  - `storyStep(doc, ev, {aeros})` is pure. Events: ack / bind / stop / certified / jobDone. It returns the EFFECTS the
+    page must apply: hangar, clientPlane, giftPlane, routeOffer (ROUTES G3260), occasions, open.
+- **The places by role**, in `storySite(role, aeros)`: a `role` tag on the aerodrome record, else its NAME (the cabin:
+  `/\bcabin\b/i`), else fallback ids. A role nothing plays is null, and the beat is refused with the reason, never a
+  guess. **The cabin is the user's to name** (18 Oct). Name the strip with "Cabin" in it, and the story finds it. With none
+  named yet it falls back to a REMOTE strip, East Point Clearing then Tamgas Hill, never HOME (the user: "the middle of
+  nowhere"; HOME is the hub you fly to in T1). Today
+  the gate prints `cabin = none yet, home = HOME, client = w6, water = SEA`.
+- **Q1**: `storyJobsOpen(doc)` is false until T7 is read, so the page holds the generated job list. `storyMask(doc)`
+  feeds TECH-MASK's tutorial mode (G3230).
+- **GATE STORY** (tools/_story_check.js): the roles, the whole run, every refusal, the save round trip, the sandbox,
+  plus a --selftest of 4 breaks. Result: PASS, selftest PASS, LAZY PASS, BUILD PASS (18 Oct 15:55, box lock UNTIMED).
+- **Next (STORY-PAGE, G2742+):** app.js wiring.
+  - New career = storyStart with the user's ultralight at the cabin.
+  - The beat card at the edge (garage look).
+  - The effects applied: the client's Cub from a hand-authored file, the gift, the route offer through ROUTES, the
+    occasions from hand-authored listings.
+  - The events sent: the stop at a flight's end, certified at the garage's certificate, jobDone at a delivery.
+- **READY** for the rolling landing.
+
+### G2743 - TWO OWNED HANGARS: THE CABIN GRANTED AT THE START, HOME LOCKED UNTIL T1, "SEND TO" (2026-10-18, the GAME COORDINATOR; the user via A0: "test all these mechanics", "the start owns ONLY the cabin", "keep it simple: a 'send to' pick")
+- **BASE_OFFERS.w1**: the Cabin Strip's base plot 'w1' (SCENERY-ED-2: runway w1 'Cabin Strip' of the user's save 17, plot
+  'w1' at the flat top end, on claude/ready/cabin-strip). Shells field + club; kits park, bench, comfort.
+- **storyStart(doc, slot, { cabin: { aero, plot } })** grants the cabin's FIELD shed free (`story: true`, price 0), sets
+  `here` to the cabin and LOCKS HOME (`sheds.HOME.locked = 'story'`). With no plot on offer, it keeps HOME open and
+  returns the reason.
+- **T1 done** lifts the lock: the WWII field's hangar is ours.
+- **71_ playerShedLocked / playerShedsOpen**. A locked shed is not `here` (playerGoTo refuses it), not a bring-home
+  destination and not a send-to. "Bring it home" goes to the hangar the plane left, else HOME, else any open hangar.
+- **71_ playerSendTo(doc, name, hangarId)**: free and instant (GQ5). Inside when the door and a slot take it, else that
+  field's apron, else long-term. Refused for a hangar not held or still locked.
+- Note for the user: "the cozy preset" in our code is a layout of the 40 m WORKS shell. The cabin gets the smallest
+  FIELD shed with the comfort kit (stove, rug, lamps), per GAME-PLAN §3 "the smallest shed". Say if you want another.
+- GATE STORY rows added (two hangars). node --check only: the box is reserved 18:05-21:59, so the landing runs STORY,
+  PLAYER, STORAGE, GAMEPREM, SITE. Expect GAMEPREM / SITE to want the w1 plot on the island, which comes with
+  claude/ready/cabin-strip in the same landing.
+
+## G2742-G2749 - STORY-PAGE: THE STORY ON THE PAGE - A NEW CAREER AT THE CABIN WITH THE USER'S RUFUS, THE BEAT CARD IN THE CORNER, THE EVENTS INTO storyStep, THE EFFECTS APPLIED, Q1 ON THE MAP, THE THREE OCCASIONS (2026-10-18, the GAME COORDINATOR; branch claude/ready/story-page off origin/claude/ready/story-core 0ebd4254, STORY-CORE G2741 not on master yet)
+
+- **Where it runs.** `STORY_PAGE = CAREER_DEV && CAREER_ID === 'main'`: the welcome's career only.
+  - The dev career (?career=1) keeps NO story, so every gate's fixture career stays rail-free.
+  - The sandbox runs none of it (GATE UISMOKE's new scan: every call into the story outside its page half is behind
+    CAREER_DEV; the half's doors are behind STORY_PAGE).
+  - A career made before this (Continue) has no story: no card, nothing held.
+- **New career** (`playerLoad`: `careerNew`, then `storyNewCareer`, before the fleet lift; 79_story.js, pure).
+  - The starter is the user's Rufus. Its slot is named `Rufus`, or `Rufus 2` when a saved build already holds that name
+    (never overwritten). The page fetches the first file of `STORY_FILES.starter` that loads:
+    `builds/rufus_2026-10-18.json`, `builds/rufus_2026-10-18_corrected.json`, `builds/rufus.json`, then the archived
+    candidate `futureDesigns/game/aircraft-candidates/rufus-starter_2026-10-18.json`.
+    **RUFUS-CERT (G3270): name the certified file one of those three builds/ names** (or add yours to STORY_FILES.starter).
+  - It stands at the CABIN: `storySite('cabin', world.aerodromes)`. The cabin gets the smallest shed, a `field` shell
+    (the plot's own id, dims and kits when BASE_OFFERS has one there; else the aerodrome's id, 18 x 20 x 4 m so the
+    Rufus's 10.9 m passes the door). The garage opens there (`here`). HOME's hangar carries `locked: 'story'` until T1.
+  - **No cabin on the island (today: GATE STORY prints `cabin = none yet`)**: the story starts at HOME. The beat card
+    says why (`STORY_NO_CABIN`); no strip is guessed.
+  - Once the user names the strip "Cabin..." (18 Oct), a NEW career starts there. The shed is drawn in the world only where
+    the premises record places a plot (`siteOf(aero).plots`): the room itself opens either way.
+- **The beat card** (`#stCard`, app.js + editor.css).
+  - Top-left corner (left 12 px, top 72 px), 300 px wide, never centred. It folds on its head.
+  - The garage's look: the `--ed-*` tokens (`#stCard` joined editor.css's token root), IBM Plex Sans upright, no serif,
+    no italics.
+  - It shows the step (`n of 8`), the title, the brief, and the goal's state: the stop's place and plane; T2's checklist
+    ticked off the build on the stand (or its slot), the budget and the certificate; T5's "n of 3 jobs" and the three
+    jobs. An ack beat has **OK**, which sends `{ k: 'ack' }`. The effects' lines show under it, and on the arrival card.
+- **The events** (`storyEvent` -> `storyStep`, `{ aeros: world.aerodromes }`).
+  - `stop`, at every flight's end, right after `careerStopApply` (`storyOnFlightEnd`).
+  - `jobDone`, for each `done` event that stop delivered.
+  - `certified`: bench.js calls `window.BENCH_CERTIFIED` when the airworthiness certificate lands (the last gating test).
+    It carries the slot on the stand, the spec as a Save would write it, and the cost: dm11's edit bill against the Cub
+    as it arrived (`procureEditBill` x `procureEcon('edit')`).
+  - `bind`, after the page writes a story plane's slot: the starter, and the client's Cub with its arrival spec.
+- **The effects** (`storyApply`, pure; the page fetches a plane's file first).
+  - `hangar`: HOME's lock lifted, a ledger line at 0.
+  - `clientPlane`: `storyClientSpec(builds/cub_2026-09-20.json)`: flaps off, `systems.fit 'minimal'` (no battery, so no
+    lights), paint `bare`, the same engine. It goes in slot `Client Cub`, stationed in the HOME hangar, its airframe row
+    marked as the client's, then bound.
+  - `giftPlane`: the client's mark lifted, a `gift` ledger line at 0.
+  - `routeOffer`: **ROUTES (G3260) is on no branch yet**, so the offer is recorded as a stub (`story.offers`, `stub: true`).
+    When ROUTES lands, its record goes in `o.route` from the page.
+  - `occasions`: the three authored listings (`STORY_OCCASIONS`) go on the used market (`procureMarketOf` lists them
+    first). They are one-time: a purchase sells them for good.
+  - `open`: the rails end.
+- **Q1 on the map.** While `storyJobsOpen` is false:
+  - the record (`storyRecord`) marks every generated row `held`; map_menu draws them greyed, tagged "after the move-in",
+    with Track off, and `careerAct` refuses them;
+  - the story's own goal heads the contracts list (`.mmStory`);
+  - at T5 the story's three jobs are offered: `STORY_JOBS` = the authored openers `clients.01` (a pickup), `survey.01`
+    and `resort.01` (a small load).
+- **The tech mask.** `storyMask(doc)` is handed to `window.TECH_MASK.tutorial(m)` when TECH-MASK (G3230) is present
+  (it is on no branch yet). It is also sent as a `flydiy-story` window event, and readable as
+  `window.FLYDIY_STORY.mask()`.
+- **The market in the player's career.** `PROCURE_PAGE` also opens under CAREER_DEV. The welcome's career has a map with
+  a Market tab, but before this it had no buy doors (only ?map=1 / ?career=1 did); the occasions are bought there.
+- **A recalibration, for the user to confirm.** T2's `costCap` was 9000 (G2741). No finish could meet it: the edit bill
+  for the cheapest complete checklist (on the Rotax 582) is 24 248. The cap is now **40 000**, measured:
+  - the Jabiru 2200 finish: 35 114 (passes);
+  - the Rotax 912 finish: 38 089 (passes);
+  - the O-200 finish: 44 355 (over);
+  - the O-320 finish: 48 745 (over).
+- **PLACEHOLDERS THE USER MUST AUTHOR** (the user's rule: a missing plane is authored by hand, never generated):
+  1. **The fabric 4-seater** (T7's first occasion, `occ:fabric4`). It stands as the validated metal Cessna (`meridian`).
+  2. **The Jodel-class one** (`occ:jodel`). It stands as the validated Jodel (`pinson`).
+  3. The third occasion is the validated Cub (`scout`, `occ:cub`): not a placeholder.
+  4. The beats' words are still G2741's placeholders, for the narrative pack.
+  5. So are T5's three jobs (the arc openers).
+- **Not found in the repo:** `futureDesigns/game/GAME-PLAN-2026-10-15.md` is on no branch. This session worked from the
+  G2741 section and 79_story.js.
+- **GATE STORY** now has a page half. It slices app.js's own story half and runs it headless in node over the core, with
+  a minimal DOM and the build files read off the disk. It checks:
+  - no cabin -> HOME, with the reason on the card;
+  - a New career at a "Cabin Strip": the field shed, the garage there, HOME held;
+  - the starter fetched builds/-first and stood at the cabin;
+  - the card at T0 and its OK -> T1;
+  - Q1: the map's rows held and drawn greyed;
+  - a stop at HOME -> the hangar ours, the client's Cub in the HOME hangar as it arrives, bound, the story's line on the
+    arrival card;
+  - the T2 card's checklist ticked off the stand;
+  - the bench's certificate (the Jabiru finish) -> T3;
+  - the occasions authored, flyable where they stand, one-time; the used market of a career without a story unchanged;
+  - T5 and open;
+  - the source: the guards, the card's corner and look, the bench hook.
+- **Gates (18 Oct, through run_gates):**
+  - PASS: STORY (+ --selftest), UISMOKE, UISMOKE-PHONE, DESTTO (3 shards), CONTRACTS, PLAYER, SAVE, STORAGE, LAZY (its
+    Chromium boots), BUILD, GFX, MEDIA, PROCURE, ECON.
+  - UISMOKE first failed on map_menu's `.title =` (the NOHOVER scan). f851e450 fixed it; UISMOKE, UISMOKE-PHONE, STORY
+    and LAZY were re-run on the final source: PASS.
+  - A one-off headless Chromium boot of `?mode=career` (a scratch check, not a gate) gave:
+    - no page error;
+    - the story at T0 with the no-cabin note, Rufus fetched from the candidate and on the stand at HOME;
+    - OK -> T1;
+    - the map's 20 rows held;
+    - the card at (12, 72), 296 px wide, IBM Plex Sans, upright.
+- **READY** @ f851e450 (the work: e2aaea74 + f851e450) for the rolling landing.
+
+### G2744 - THE OPENING READS REMOTE + SEND TO (2026-10-18, the GAME COORDINATOR, on claude/story-core after the STORY-PAGE merge)
+- **The map** opens 3x the fit, centred on the strip the story runs from, while the rails hold and `here` is not HOME
+  (app.js storyRecord `at`, map_menu.js storyFocus). A hangar still LOCKED by the story (HOME before T1) is not listed
+  as the player's.
+- **Send to**: a plain select on every storage card (inside, outside and long-term): "send to... the hangar at <field>".
+  It lists the held, unlocked hangars other than the one the plane is in (FLYDIY_STORE.sendTargets / sendTo ->
+  71_ playerSendTo). Free and instant; a refusal shows its reason. 71_ playerBringHome now moves a plane INSIDE one
+  hangar to ANOTHER on a send-to (bring-home still leaves an inside plane be). GATE STORY row added.
+- node --check only (the box reserved 18:05-21:59). Land with STORY, UISMOKE, UISMOKE-PHONE, STORAGE, PLAYER, GAMEPREM,
+  SITE, LAZY, BUILD, together with claude/ready/cabin-strip.
+
 ## G2770-G2779 - EDITOR-UX-B: THE SLIDER REVIEW'S FUSELAGE / NOSE / CANOPY / DOOR / BOOM / UNDER-FUSELAGE HALF (2026-10-17, EDITOR-UX-B for A0, local; branch claude/editor-ux-b-g2770 off master 05cc2acc0)
 
 The second half of the user's slider review of 10 Oct (D:/Dev/flydiy-notes/SLIDER-REVIEW-2026-10-10.md). The frames

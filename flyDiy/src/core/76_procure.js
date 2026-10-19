@@ -662,10 +662,12 @@ function procureMarket(seed, done, sold) {
   return out;
 }
 const procureUsedById = (seed, id) => { const m = /^used:(\d+):(\d+)$/.exec(id || ''); return m ? procureUsedListing(seed, +m[1], +m[2]) : null; };
-// the market of a document: the career's seed and completed count; the sandbox's own seed ('sandbox', epoch 0)
+// the market of a document: the career's seed and completed count; the sandbox's own seed ('sandbox', epoch 0).
+// (G2742 STORY-PAGE) A story's occasions first (79_story.js storyOccasionListings: authored, one-time; none without a story)
 function procureMarketOf(doc) {
   const c = doc && doc.career;
-  return procureMarket(c ? c.seed : 'sandbox', c ? c.contracts.done.length : 0, procureSold(doc));
+  const occ = (c && c.story && typeof storyOccasionListings === 'function') ? storyOccasionListings(doc) : [];
+  return occ.concat(procureMarket(c ? c.seed : 'sandbox', c ? c.contracts.done.length : 0, procureSold(doc)));
 }
 function procureSold(doc) {
   const m = doc && ((doc.career && doc.career.market) || doc.market);
