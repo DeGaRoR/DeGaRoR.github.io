@@ -520,6 +520,9 @@
   const CAREER_DEV = (CAREER_DEVFLAG || (typeof window !== 'undefined' && window.FLYDIY_MODE === 'career')) && typeof careerNew === 'function';
   const CAREER_ID = CAREER_DEVFLAG ? 'dev' : 'main';
   const PLAYER_KEY = CAREER_DEV ? careerKey(CAREER_ID) : 'flydiy.player';
+  // G2742 (STORY-PAGE): THE STORY rides the player's career alone (a New career from the welcome: 'main'); the dev career
+  // (?career=1) keeps none, so every gate's fixture career stays rail-free; the sandbox: never (its page half below)
+  const STORY_PAGE = CAREER_DEV && CAREER_ID === 'main' && typeof storyNewCareer === 'function';
   // a New career over a saved one (welcome.js sets flydiy.career.fresh): the old document is kept under <key>.prev, once
   if (CAREER_DEV && CAREER_ID === 'main') try {
     if (localStorage.getItem('flydiy.career.fresh') === '1') {
@@ -541,7 +544,8 @@
     { const txt = prefGet(PLAYER_KEY, null); doc = jsonReadFinite(txt, 'the player document');
       if (txt != null && doc == null && txt !== 'null') prefSet(PLAYER_KEY + '.corrupt', txt); }
     const dev = CAREER_ID === 'dev', birth = { id: CAREER_ID, seed: dev ? 'dev' : 'c' + Date.now().toString(36), name: dev ? 'the dev career' : 'your career', started: new Date().toISOString().slice(0, 10) };
-    if (!doc && CAREER_DEV) doc = careerNew(birth);
+    let born = false;
+    if (!doc && CAREER_DEV) { doc = careerNew(birth); born = true; }
     else if (!doc) {                         // the one-time lift
       let dims = null, parts = null;
       try { dims = JSON.parse(prefGet('flydiy.hangarDims', 'null')); } catch (e) {}
@@ -549,6 +553,15 @@
       doc = playerLift(dims, parts);
     }
     player = CAREER_DEV ? careerNormalise(doc) : playerNormalise(playerMigrate(doc));
+    // G2742 (STORY-PAGE): A NEW CAREER IS THE STORY'S - the starter (the user's Rufus: its slot named here, never over a
+    // saved build of that name; the page's story half fetches its file) at the cabin strip, the smallest shed there, the
+    // WWII field's hangar held for the move (79_story.js storyNewCareer). Before the lift, so the shelf stands at the cabin
+    if (CAREER_DEV && born && STORY_PAGE) try {
+      const taken = new Set(playerSlotNames());
+      let slot = STORY_SLOTS.starter, i = 2; while (taken.has(slot)) slot = STORY_SLOTS.starter + ' ' + i++;
+      const r = CAREER_DEV ? storyNewCareer(player, { aeros: (world && world.aerodromes) || [], starter: slot }) : { ok: false, why: 'not a career' };
+      if (r.ok) player = r.doc; else console.warn('flyDiy (story): the story did not start - ' + r.why);
+    } catch (e) { console.warn('flyDiy (story): the story did not start -', e && e.message); }
     // PREM-S2 (G2230): THE LIFT AT LOAD. Every saved build (a flydiy.build.* slot) is an airframe that stands somewhere
     // (71_player_bases.js playerFleetReconcile, pure: handed the slot names this page reads): a slot the ledger lacks is
     // lifted to the garage's base - inside while a slot is free and the floor packs it, outside after; a row whose slot
@@ -7959,6 +7972,8 @@
       if (CAREER_DEV && d.career && world && world.day && typeof careerDaySet === 'function') { const r = careerDaySet(d, { date: world.day.date, utc: world.day.utc }); if (r.ok) d = careerCoverNote(r.doc); }
       // G2320 (CAREER-WIRE): ...and the career meets the stop (careerOnStop: every accepted contract, the tracked first)
       if (CAREER_DEV && d.career) { const c = careerStopApply(d, how, W, wrecked); d = c.doc; out.career = c; }
+      // G2742 (STORY-PAGE): ...and the story meets it (the stop, each contract it delivered), its effects applied
+      if (CAREER_DEV && STORY_PAGE && d.career && out.career) d = storyOnFlightEnd(d, out);
       // G2705 (CAREER-DAMAGE, §R.4): a crash in the career - back at the place the flight departed from, repaired, free
       // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
       const cz = (CAREER_DEV && d.career && wrecked) ? careerCrashReset(d, flSlot, fromAero) : null;
@@ -8092,6 +8107,14 @@
     fly: n => storeFly(n),
     card: n => storeCard(n),
     canFly: () => !GARAGE_ONLY && inGarage,
+    // G2744 SEND TO (the user via A0: "keep it simple: a 'send to' pick between the owned hangars"): the held, unlocked
+    // hangars other than the one it is in (71_ playerShedsOpen), and the free, instant move there (71_ playerSendTo)
+    sendTargets: n => { if (typeof playerShedsOpen !== 'function') return [];
+      const d = playerLoad(), W = playerWhere(d, n);
+      return playerShedsOpen(d).filter(id => !(W.kind === 'in' && W.hangar === id)).map(id => ({ id, base: d.sheds[id].base, main: id === 'HOME' })); },
+    sendTo: (n, id) => { try { const r = playerSendTo(playerLoad(), n, id, { foots: storeFoots(n) });
+      if (r.ok && r.doc !== playerLoad()) { player = r.doc; playerSave(); storeChanged(); }
+      return { ok: !!r.ok, why: r.why || '' }; } catch (e) { return { ok: false, why: String((e && e.message) || e) }; } },
     onStand: () => slotOnStand(),
     start: () => storeStartNow(),
     onChange: null,
@@ -8235,11 +8258,13 @@
     }
     return out;
   }
-  const careerRecord = () => careerMapRecord(playerLoad(), world, { certs: careerCerts() });
+  const careerRecord = () => { const R = careerMapRecord(playerLoad(), world, { certs: careerCerts() }); return CAREER_DEV && STORY_PAGE ? storyRecord(R) : R; };
   // the map's Accept / Track: careerAccept / careerTrack on the document (Track on a contract not yet accepted accepts
   // it first; Track on the tracked one untracks; Accept on an accepted one keeps it - abandoning is not this button's)
   function careerAct(id, what) {
     let d = playerLoad();
+    // G2742 (STORY-PAGE, Q1): the generated list is held while the story runs - its rows stand greyed, Track refused
+    if (CAREER_DEV && STORY_PAGE && storyJobHeld(d, id)) { console.info('flyDiy (story): ' + id + ' comes after the move-in'); return careerRecord(); }
     const C = d.career.contracts;
     let r = null;
     if (what === 'accept') r = C.accepted.includes(id) ? null : careerAccept(d, id);
@@ -8512,6 +8537,212 @@
     act: careerCrewAct, check: id => careerCrewCheck(id), flyer: () => crFlyer,
     card: id => pilotsCard(playerLoad(), id, world), offers: () => pilotsOffers(playerLoad()), hired: () => pilotsHired(playerLoad()),
   };
+  // ---- G2742-G2749 (STORY-PAGE): THE STORY'S PAGE HALF (every function below runs only under STORY_PAGE: the player's
+  // career; 79_story.js is the model, pure) -------------------------------------------------------------------------------
+  // The events into storyStep: the stop at every flight's end and each contract it delivered (storyOnFlightEnd, where the
+  // career meets the stop), the certificate the garage's bench awards (window.BENCH_CERTIFIED), the OK on a beat that
+  // waits to be read, the bind after the page makes a story plane. The effects it hands back are applied here (storyApply;
+  // a plane's file fetched first). The beat card stands in the top-left corner (never centred), the garage's look.
+  const stFiles = {};
+  let stCardEl = null, stLine = '', stQueue = [], stBusy = false, stMemo = { fp: null, fb: null, L0: null, cost: null, next: null }, stMaskWas;
+  const stLive = () => (STORY_PAGE ? storyOf(playerLoad()) : null);
+  // the first of a story plane's files that loads (the starter: builds/ first, then the archived candidate)
+  function storyFile(role) {
+    if (!stFiles[role]) {
+      const L = STORY_FILES[role] || [];
+      const next = i => i >= L.length ? Promise.reject(new Error('no file of ' + L.join(', ') + ' loaded'))
+        : fetch(encodeURI(L[i])).then(r => (r.ok ? r.json() : next(i + 1)), () => next(i + 1));
+      stFiles[role] = next(0).then(j => { if (!j || !j.spec) throw new Error('the ' + role + "'s file holds no spec"); return j; });
+      stFiles[role].catch(() => { delete stFiles[role]; });
+    }
+    return stFiles[role];
+  }
+  const stEnvelope = (slot, file) => ({ what: 'flydiy-build', v: file.v != null ? file.v : (typeof GEN_SPEC_V === 'number' ? GEN_SPEC_V : null), name: slot,
+    spec: file.spec, plaque: file.plaque || null, log: Object.assign({ built: null, tests: [], flights: [] }, file.log || {}, { story: true }) });
+  const stHasSlot = n => !!n && prefGet('flydiy.build.' + n, null) != null;
+  // one event into the story: the document advanced, the effects applied (the synchronous ones now, a plane's after its
+  // file), the beat card redrawn -> storyStep's result
+  function storyEvent(ev, dIn) {
+    const d0 = dIn || playerLoad();
+    const r = storyStep(d0, ev, { aeros: world.aerodromes });
+    if (!r.ok) { if (!dIn) storyCardSync(); return r; }
+    const d = storyEffects(r.doc, r.effects);
+    if (!dIn) { player = d; playerSave(); storyCardSync(); storyFlush(); }
+    r.doc = d;
+    return r;
+  }
+  // the effects with nothing to fetch, applied on the document; a story plane's queued for storyFlush
+  function storyEffects(d, effects) {
+    for (const e of effects || []) {
+      if (e.k === 'clientPlane') { stQueue.push(e); continue; }
+      const a = storyApply(d, e, { aeros: world.aerodromes });
+      if (a.ok) { d = a.doc; if (a.line) stLine = a.line; } else console.warn('flyDiy (story): ' + e.k + ' - ' + a.why);
+    }
+    return d;
+  }
+  // THE PLANES THE STORY MAKES: the starter's slot (a new career), the client's Cub (T2) - the file fetched, the slot written
+  // (never over a saved build), the document's row, the lift, then the bind
+  function storyFlush() {
+    if (stBusy || !STORY_PAGE) return;
+    const s = stLive();
+    if (!s) return;
+    const starter = s.planes.starter && !stHasSlot(s.planes.starter) ? s.planes.starter : null;
+    const e = stQueue[0];
+    if (!starter && !e) return;
+    stBusy = true;
+    const role = starter ? 'starter' : 'client';
+    storyFile(role).then(file => {
+      stBusy = false;
+      if (starter) {
+        prefSet('flydiy.build.' + starter, JSON.stringify(stEnvelope(starter, file)));
+        player = playerFleetReconcile(playerLoad(), playerSlotNames()).doc; playerSave();
+        storyEvent({ k: 'bind', role: 'starter', slot: starter, spec: file.spec });
+        storyStand(starter);
+      } else {
+        stQueue.shift();
+        const taken = new Set(playerSlotNames().concat(Object.keys(playerLoad().fleet || {})));
+        let slot = STORY_SLOTS.client, i = 2; while (taken.has(slot)) slot = STORY_SLOTS.client + ' ' + i++;
+        const spec = storyClientSpec(file.spec);
+        prefSet('flydiy.build.' + slot, JSON.stringify(stEnvelope(slot, { v: file.v, spec, plaque: null, log: null })));
+        const a = storyApply(playerLoad(), e, { slot });
+        if (a.ok) { player = playerFleetReconcile(a.doc, playerSlotNames()).doc; playerSave(); if (a.line) stLine = a.line; }
+        storyEvent({ k: 'bind', role: 'client', slot, spec });
+      }
+      try { if (window.GARAGE_SPEC && window.GARAGE_SPEC.syncShelf) window.GARAGE_SPEC.syncShelf(); } catch (err) {}
+      try { if (window.FLYDIY_PLAYER && window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (err) {}
+      storyCardSync();
+      storyFlush();
+    }, err => { stBusy = false; stLine = 'The ' + role + "'s aeroplane did not load: " + err.message; storyCardSync(); console.warn('flyDiy (story): ' + err.message); });
+  }
+  // the starter onto the stand once the garage is up (a new career's first aeroplane), a few tries while the garage boots
+  function storyStand(slot, n) {
+    const G = window.GARAGE_SPEC;
+    if (G && G.open) { try { if (slotOnStand() !== slot) G.open(slot); } catch (e) {} return; }
+    if ((n || 0) < 40) setTimeout(() => storyStand(slot, (n || 0) + 1), 500);
+  }
+  // THE FLIGHT'S END (playerFlightEnd, after careerStopApply): the stop, then each contract delivered; the lines for the
+  // arrival card -> the document
+  function storyOnFlightEnd(d, out) {
+    try {
+      const C = out.career, stop = C.stop;
+      stLine = '';
+      let r = storyEvent({ k: 'stop', stop, slot: out.slot, gear: stop && stop.gear }, d);
+      if (r.ok) d = r.doc;
+      for (const ev of (C.events || []).filter(x => x && x.k === 'done')) { r = storyEvent({ k: 'jobDone', id: ev.id }, d); if (r.ok) d = r.doc; }
+      if (stLine) C.lines.push({ k: 'story', ok: true, text: stLine });
+      setTimeout(() => { storyCardSync(); storyFlush(); }, 0);
+    } catch (e) { console.warn('flyDiy (story): the stop -', e && e.message); }
+    return d;
+  }
+  // THE GARAGE'S CERTIFICATE (bench.js: the last gating test awarded): the build on the stand, as a Save would write it,
+  // and its edit bill against the client's Cub as it arrived (dm11's: every ledger line the work rebuilt, at build price)
+  function storyLiveSpec() {
+    try { return window.GARAGE_SPEC.preview(JSON.parse(JSON.stringify(window.CAGE_JOIN.export()))); } catch (e) {}
+    try { return window.GARAGE_SPEC.get(); } catch (e) { return null; }
+  }
+  // (lazy: the card's refresh - the ledger is measured only once the build held still for one tick, never mid-edit)
+  function storyCost(spec, lazy) {
+    const s = stLive(), base = s && s.base.client;
+    if (!spec || !base) return null;
+    const fp = procureFp(spec), fb = procureFp(base);
+    if (stMemo.fp === fp && stMemo.fb === fb) return stMemo.cost;
+    if (lazy && stMemo.next !== fp) { stMemo.next = fp; return null; }
+    const L0 = stMemo.fb === fb ? stMemo.L0 : procureLedger(base), L1 = procureLedger(spec);
+    const cost = L0 && L1 ? procureEcon('edit', { cost: procureEditBill(procureLedgerOf(L0), procureLedgerOf(L1)).cost }) : null;
+    stMemo = { fp, fb, L0, cost, next: fp };
+    return cost;
+  }
+  function storyCertified() {
+    try {
+      const s = stLive();
+      if (!s || s.open) return;
+      const slot = slotOnStand(), spec = storyLiveSpec();
+      storyEvent({ k: 'certified', slot, spec, cost: storyCost(spec) });
+    } catch (e) { console.warn('flyDiy (story): the certificate -', e && e.message); }
+  }
+  if (STORY_PAGE) window.BENCH_CERTIFIED = storyCertified;
+  // Q1 ON THE MAP: the generated rows held (greyed, "after the move-in"), the story's own goal at the head of the list
+  function storyRecord(R) {
+    if (!STORY_PAGE || !R) return R;
+    const d = playerLoad();
+    if (storyJobsOpen(d)) return R;
+    for (const c of R.contracts || []) c.held = storyJobHeld(d, c.id);
+    const K = storyCardNow();
+    // G2744 (the user: "the middle of nowhere"): while the story runs from the cabin, the map opens on it (`at`)
+    const hereB = d.sheds && d.sheds[d.here] ? d.sheds[d.here].base : null;
+    R.story = K ? { title: K.title, brief: K.brief, rows: K.rows.slice(), step: K.step, of: K.of, held: 'after the move-in',
+                    at: hereB && hereB !== 'HOME' ? hereB : null } : null;
+    return R;
+  }
+  // THE BEAT CARD
+  function storyCardNow() {
+    const d = playerLoad(), s = storyOf(d);
+    if (!s) return null;
+    const o = { aeros: world.aerodromes, jobs: {} };
+    for (const id of STORY_JOBS) { try { const c = careerContract(d, id); if (c) o.jobs[id] = contractText(c.title, contractVars(c)); } catch (e) {} }
+    if (s.beat === 'T2' && s.planes.client) {
+      let spec = null;
+      if (slotOnStand() === s.planes.client) spec = storyLiveSpec();
+      if (!spec) { try { const env = JSON.parse(prefGet('flydiy.build.' + s.planes.client, 'null')); spec = env && env.spec; } catch (e) {} }
+      if (spec) { o.spec = spec; try { const c = storyCost(spec, true); if (c != null) o.cost = c; } catch (e) {} }
+    }
+    return storyCard(d, o);
+  }
+  const stEsc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  function storyCardSync() {
+    if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
+    let K = null;
+    try { K = storyCardNow(); } catch (e) { console.warn('flyDiy (story): the card -', e && e.message); }
+    storyMaskNote();
+    if (!K && !stLine) { if (stCardEl) stCardEl.hidden = true; return; }
+    if (!stCardEl) {
+      stCardEl = document.createElement('aside');
+      stCardEl.id = 'stCard'; stCardEl.setAttribute('role', 'status'); stCardEl.setAttribute('aria-label', 'the story');
+      stCardEl.addEventListener('click', ev => {
+        const b = ev.target && ev.target.closest ? ev.target.closest('[data-st]') : null;
+        if (!b) return;
+        // folded on its title: kept for this beat (this browser's pref), open again on the next beat
+        if (b.dataset.st === 'fold') { stCardEl.classList.toggle('min'); prefSet('flydiy.story.fold', stCardEl.classList.contains('min') ? (stCardEl.dataset.beat || '') : ''); return; }
+        if (b.dataset.st === 'ok') { stLine = ''; storyEvent({ k: 'ack' }); }
+        if (b.dataset.st === 'close') { stLine = ''; storyCardSync(); }
+      });
+      document.body.appendChild(stCardEl);
+    }
+    stCardEl.hidden = false;
+    if (!K) {
+      stCardEl.innerHTML = '<div class="stHead"><span class="stStep">The story</span></div><p class="stLine">' + stEsc(stLine) + '</p>' +
+        '<div class="stBtns"><button type="button" class="stOk" data-st="close">OK</button></div>';
+      return;
+    }
+    const rows = K.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '"><span class="stTick" aria-hidden="true">' + (r.ok ? '✓' : '') + '</span>' + stEsc(r.words) + '</li>').join('');
+    const met = K.rows.filter(r => r.ok).length;
+    const html = '<button type="button" class="stHead" data-st="fold" aria-label="fold the story card"><span class="stStep">The story · ' + K.step + ' of ' + K.of + '</span>' +
+        '<b class="stTitle">' + stEsc(K.title) + '</b>' + (K.rows.length ? '<span class="stN">' + met + '/' + K.rows.length + '</span>' : '') + '</button>' +
+      '<div class="stBody"><p class="stBrief">' + stEsc(K.brief) + '</p>' + (rows ? '<ul class="stRows">' + rows + '</ul>' : '') +
+        (K.note ? '<p class="stNote">' + stEsc(K.note) + '</p>' : '') + (stLine ? '<p class="stLine">' + stEsc(stLine) + '</p>' : '') +
+        (K.ack ? '<div class="stBtns"><button type="button" class="stOk" data-st="ok">OK</button></div>' : '') + '</div>';
+    if (stCardEl.dataset.html !== html) { stCardEl.innerHTML = html; stCardEl.dataset.html = html; }
+    if (stCardEl.dataset.beat !== K.beat) { stCardEl.dataset.beat = K.beat; if (stCardEl.classList.contains('min') !== (prefGet('flydiy.story.fold', '') === K.beat)) stCardEl.classList.toggle('min'); }
+  }
+  // the tech mask's tutorial mode (TECH-MASK G3230 reads it here, or listens for the event, once it lands)
+  function storyMaskNote() {
+    const m = storyMask(playerLoad());
+    if (m === stMaskWas) return;
+    stMaskWas = m;
+    try { if (window.TECH_MASK && typeof window.TECH_MASK.tutorial === 'function') window.TECH_MASK.tutorial(m); } catch (e) {}
+    try { window.dispatchEvent(new CustomEvent('flydiy-story', { detail: { mask: m } })); } catch (e) {}
+  }
+  if (STORY_PAGE) {
+    try { storyCardSync(); storyFlush(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
+    // T2's checklist follows the build on the stand (its ledger memoised on the spec's fingerprint)
+    setInterval(() => { try { const s = stLive(); if (s && !s.open && s.beat === 'T2') storyCardSync(); } catch (e) {} }, 3000);
+    window.FLYDIY_STORY = {
+      story: () => { const s = stLive(); return s ? JSON.parse(JSON.stringify(s)) : null; },
+      mask: () => storyMask(playerLoad()), jobsOpen: () => storyJobsOpen(playerLoad()), card: () => storyCardNow(),
+      event: ev => { const r = storyEvent(ev); return { ok: r.ok, why: r.why, advanced: r.advanced, effects: r.effects }; },
+      certified: storyCertified, flush: storyFlush, pending: () => stBusy || stQueue.length > 0, line: () => stLine,
+    };
+  }
   window.FLYDIY_PLAYER = {
     doc: () => JSON.parse(JSON.stringify(playerLoad())),
     // the gates' and the rigs' door: a whole document in, normalised and lifted like a load (then saved)
@@ -8528,7 +8759,9 @@
   // page. Buy (the career: paid) / Take (the sandbox: free) - the design's build file fetched once (CONTRACT_DESIGNS'
   // path), the customised or used spec measured (buildGen's ledger: dm11's reference), the slot written as garage.js
   // writes one (the envelope; its log carries the factory record), the document replaced, the shelf's lift re-run.
-  const PROCURE_PAGE = (() => { try { return /[?&](map|career)=1(&|$)/.test(window.location.search || ''); } catch (e) { return false; } })()
+  // (G2742 STORY-PAGE) ...and in the player's career (the welcome's: CAREER_DEV), whose map carries the Market: the story's
+  // three occasions are bought there
+  const PROCURE_PAGE = ((() => { try { return /[?&](map|career)=1(&|$)/.test(window.location.search || ''); } catch (e) { return false; } })() || CAREER_DEV)
     && typeof procureBuyModel === 'function';
   const prFiles = {};
   function procureFile(design) {
