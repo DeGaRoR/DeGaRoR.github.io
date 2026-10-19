@@ -19,7 +19,7 @@ const PT = require(path.join(T, 'pilot_trace.js')); PT.loadPanel();
 const C = require(process.env.PILOT_CORE || path.join(T, 'flight_core.js'));
 const IN = require(path.join(T, 'island_node.js'));
 const TR = require(path.join(T, '_tour_lib.js'));
-const key = path.resolve(opt('build'));
+const key = /.json$/i.test(opt('build')) ? path.resolve(opt('build')) : opt('build');   // (an archetype key as it is: 'floatplane')
 const TW = TR.tourWorld(C, IN, fs);
 const W = TW.W, A = id => W.aerodromes.find(q => q.id === id);
 const a = A(opt('from', 'HOME')), b = A(opt('to', 'w3'));
