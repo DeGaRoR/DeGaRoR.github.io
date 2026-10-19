@@ -1124,6 +1124,70 @@ if (plots.length) {
   const UIs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_ui.js'), 'utf8');
   check(/for \(const c of zoneCats\(TH\)\)/.test(UIs) && /function zoneCats\(TH\)/.test(UIs), '28 the zone\'s draws-from pills cover every category the catalogue carries');
 }
+// 32 TAXI-ALL (G3092-G3095; the user, 18 Oct: taxiway editing must "work properly for all airstrips, not just home, it is
+//    currently a broken promise"): a way out FOLLOWS A ROAD - the composed site's way (what the pilot reads: the site's
+//    taxiOut) is the road's points from the stand's end, its last on the centreline; the road moved, the pilot's way moves with
+//    it; a way that follows none is its own points; a via to a missing road is an issue. The editor: a strip without a stand
+//    gets one and a way out following the road that meets it; 'follows road' unlinks and links; a plot's own way out is given
+//    and takes the same rows
+{
+  const mk = (via, pts) => PG.normalise({ layers: { roads: [{ id: 'tv', pts: pts || [[6010, 6085], [6030, 6050], [6020, 6005]], w: 8, cls: 'paved' }],
+    runways: [Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'rw32', name: 'r32', c: [6000, 6000], hdg: 0, len: 600, wid: 20,
+      stand: { x: 6000, z: 6080, hdg: null }, taxiOut: [[6000, 6040], [6000, 6000]] }, via ? { taxiOutVia: via } : {})] } });
+  const wayOf = r => { const O = PG.compose(r, synth), q = (O.runways || []).find(z => z.id === 'rw32');
+    return q && q.site && q.site.taxiOut ? JSON.stringify(q.site.taxiOut.map(w => O.frame.toLocal(w[0], w[1]).map(v => +v.toFixed(1)))) : null; };
+  check(wayOf(mk('tv')) === '[[6010,6085],[6030,6050],[6020,6000]]', '32 a way that follows a road is the road\'s points from the stand\'s end, its last on the centreline (what the pilot reads)', wayOf(mk('tv')));
+  check(wayOf(mk('tv', [[6010, 6085], [6060, 6050], [6020, 6005]])) === '[[6010,6085],[6060,6050],[6020,6000]]', '32 the road moved: the pilot\'s way moves with it', wayOf(mk('tv', [[6010, 6085], [6060, 6050], [6020, 6005]])));
+  check(wayOf(mk(null)) === '[[6000,6040],[6000,6000]]', '32 a way that follows none is its own points', wayOf(mk(null)));
+  check(PG.issues(mk('nope')).some(t => /follows road nope, which is not there/.test(t)) && !PG.issues(mk('tv')).some(t => /follows road/.test(t)), '32 a via to a missing road is an issue (a present one is not)');
+  const nums = new Map(), btns = new Map(), sels = new Map();
+  const rows32 = Object.assign({}, rows, { number: (h, label, get, set) => { nums.set(label, set); }, button: (h, label, fn) => { btns.set(label, fn); }, select: (h, label, opts, get, set) => { sels.set(label, { opts, get, set }); } });
+  const ed32 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows32, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  const tw = ed32.cmd('add', { layer: 'roads', entry: { pts: [[7050, 7008], [7050, 7090]], w: 8, cls: 'paved' } });
+  const rs = ed32.cmd('add', { layer: 'runways', entry: Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { name: 'no stand', c: [7000, 7000], hdg: 0, len: 600, wid: 20,
+    plots: [{ id: 'ns.2', x: 7100, z: 7060, hdg: 0, stand: { x: 7100, z: 7040, hdg: null } }] }) });
+  const S = () => PG.findById(ed32.record(), rs).entry, re = () => { ed32.select(null); ed32.select(rs); };
+  re();
+  btns.get('give it a stand and a way out')(); re();
+  check(S().stand && S().stand.x === 7050 && S().stand.z === 7090 && S().taxiOutVia === tw && JSON.stringify(S().taxiOut) === '[[7050,7000]]', '32 a strip without a stand gets one and a way out, following the road that meets it (no point on the stand itself)', JSON.stringify([S().stand, S().taxiOutVia, S().taxiOut]));
+  sels.get('follows road').set(''); re();
+  check(S().taxiOutVia === undefined, '32 \'follows road: none\' unlinks the way');
+  sels.get('follows road').set(tw); re();
+  check(S().taxiOutVia === tw, '32 ...and a road picked links it again');
+  btns.get('ns.2: give it its own way out')(); re();
+  const pw = () => S().plots.find(q => q.id === 'ns.2').taxiOut;
+  check(Array.isArray(pw()) && pw().length === 2 && pw()[1][1] === 7000, '32 a plot given its own way out (its entry on the centreline)', JSON.stringify(pw()));
+  btns.get('ns.2 add a point after point 1')(); re();
+  check(pw().length === 3, '32 ...and its rows are the way\'s own (a point added)', JSON.stringify(pw()));
+  ed32.close();
+}
+// 33 THE MAIN HANGAR EDITABLE AS DRAWN (G3096 HANGAR-FIX; the user, 18 Oct: "Your placement of the main hangar is very wrong. You
+//    need to let me edit it"): a press grabs it over its DRAWN size (the page's shed dims, not 30 x 25); 'square to the buildings'
+//    turns it onto the nearest site building's axes (the drawing's own rotation.y convention), its door toward the stand
+{
+  const r33 = PG.normalise({ layers: { runways: [Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'h33', name: 'h33', c: [8000, 8000], hdg: 0, len: 600, wid: 20,
+      stand: { x: 8000, z: 8060, hdg: null }, taxiOut: [[8000, 8000]], hangar: { x: 8000, z: 8110, hdg: 0.7 } })],
+    sites: [{ id: 's33', at: { x: 8060, z: 8110, yaw: Math.PI }, items: [{ id: 'b', key: 'hangar/club hangar, long', x: 0, z: 0, yaw: 2.426 }] }] } });
+  check(!PG.runwayGrab(r33, 8000 + 21, 8110) && (PG.runwayGrab(r33, 8000 + 21, 8110, { HW: 22.5, HD: 22.5 }) || {}).key === 'hangar', '33 a press 21 m off the hangar\'s centre grabs it at a 45 m drawn shed (missed at 30 x 25)');
+  const sq = PG.hangarSquare(r33, r33.layers.runways[0], r33.layers.runways[0].stand, 0), ryS = Math.PI - sq, ryB = Math.PI + Math.PI + 2.426;
+  const m90 = a => ((a % (Math.PI / 2)) + Math.PI / 2) % (Math.PI / 2), dd = Math.min(Math.abs(m90(ryS) - m90(ryB)), Math.PI / 2 - Math.abs(m90(ryS) - m90(ryB)));
+  const door = [Math.cos(sq), Math.sin(sq)], toSt = [8000 - 8000, 8060 - 8110];
+  check(sq !== null && dd < 1e-3 && door[0] * toSt[0] + door[1] * toSt[1] > 0, '33 square to the buildings: the shell\'s axes on the building\'s (mod 90 deg), its door toward the stand', 'hdg ' + sq + ', off ' + (dd * 180 / Math.PI).toFixed(3) + ' deg');
+  const RP33 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8'), RW33 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8');
+  // the shipped HOME (the user: "no plane can take off"): the main shed, at the default and at a 45 x 40 m drawn size, stands on
+  // neither its stand nor any leg of its two ways out (sampled every 5 %), and its heading is the square rule's already
+  { const J = PG.expandAreas(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec), H = J.layers.runways.find(r => r.id === 'HOME'), h = H.hangar;
+    const box = (HW, HD) => { const c = Math.cos(h.hdg), sn = Math.sin(h.hdg); return [[HD, HW], [HD, -HW], [-HD, -HW], [-HD, HW]].map(([u, v]) => [h.x + u * c - v * sn, h.z + u * sn + v * c]); };
+    const hits = [];
+    for (const [nm, HW, HD] of [['30 x 25', 15, 12.5], ['45 x 40', 22.5, 20]]) { const B = box(HW, HD);
+      if (PG.inPoly(B, H.stand.x, H.stand.z)) hits.push(nm + ' the stand');
+      for (const k of ['taxiOut', 'taxiOut1']) { const W = [[H.stand.x, H.stand.z]].concat(H[k] || []);
+        for (let i = 1; i < W.length; i++) for (let t = 0; t <= 1.0001; t += 0.05) if (PG.inPoly(B, W[i - 1][0] + (W[i][0] - W[i - 1][0]) * t, W[i - 1][1] + (W[i][1] - W[i - 1][1]) * t)) { hits.push(nm + ' ' + k + ' leg ' + i); break; } } }
+    const sqH = PG.hangarSquare(J, H, H.stand, 0), off = Math.abs(Math.atan2(Math.sin(sqH - h.hdg), Math.cos(sqH - h.hdg)));
+    check(!hits.length && off < 0.01, '33 the shipped HOME: its main shed clears the stand and both ways out (30 x 25 and 45 x 40), square to the buildings', hits.join('; ') + ' | square off ' + (off * 180 / Math.PI).toFixed(2) + ' deg'); }
+  check(/PG\.runwayGrab\(rec, L\[0\], L\[1\], o\.shedDims \? o\.shedDims\(\) : null\)/.test(RP33) && (RW33.match(/shedDims: \(\) => shedDims/g) || []).length === 2, '33 the page hands the premises its shed dims (both builds)');
+}
+
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');

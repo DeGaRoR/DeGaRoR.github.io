@@ -3,19 +3,24 @@
   {
    "id": "jolene",
    "fixture": "tools/fixtures/island_jolene.json",
-   "cooked": "2026-10-18",
+   "cooked": "2026-10-19",
    "variants": [
     {
      "name": "default",
      "drop": [
       "mk_"
      ],
-     "record": "805ea76d5c957383",
+     "keep": [
+      "mk_sea",
+      "mk_mp_air",
+      "mk_mf_air"
+     ],
+     "record": "bce2b583f99a78ca",
      "mods": 96,
      "places": {
-      "things": 274,
-      "cells": 34,
-      "hash": "f2a79ac798fbb135",
+      "things": 276,
+      "cells": 35,
+      "hash": "d25f340c5e9a180a",
       "failed": 0
      },
      "raster": {
@@ -9179,8 +9184,8 @@
     "page": "f51aee779917c29c",
     "variants": {
      "default": {
-      "hash": "f2a79ac798fbb135",
-      "things": 274,
+      "hash": "d25f340c5e9a180a",
+      "things": 276,
       "cells": [
        {
         "c": [
@@ -9221,6 +9226,16 @@
         "src": "media/world/jolene/premises/p_m11_m31.1795eece.bin",
         "raw": 6506,
         "n": 4
+       },
+       {
+        "c": [
+         -14,
+         -36
+        ],
+        "sig": "p1-ca172ebc143b9f11",
+        "src": "media/world/jolene/premises/p_m14_m36.c4cb86df.bin",
+        "raw": 19461,
+        "n": 2
        },
        {
         "c": [
@@ -9524,13 +9539,13 @@
        }
       ],
       "bytes": {
-       "raw": 1493296,
-       "ship": 217600
+       "raw": 1512757,
+       "ship": 219373
       },
       "tallies": {
-       "src": "media/world/jolene/premises/t_default.f80c5401.bin",
-       "n": 274,
-       "hash": "e97bcaedadbbca3d"
+       "src": "media/world/jolene/premises/t_default.349840e6.bin",
+       "n": 276,
+       "hash": "59c18bf9e04fab55"
       }
      },
      "town": {
@@ -10193,9 +10208,9 @@
        "ship": 1007901
       },
       "tallies": {
-       "src": "media/world/jolene/premises/t_town.88624f10.bin",
+       "src": "media/world/jolene/premises/t_town.cb471fb7.bin",
        "n": 759,
-       "hash": "bfa84ae79e7a9e9a"
+       "hash": "c655a541e59bbf19"
       }
      }
     }

@@ -155,7 +155,7 @@ function main() {
   check(!law.length, '1 the record\'s stages obey the sandbox\'s law (a band through the max is open) and issues() is empty', law[0] || '');
   const VD = VARIANTS.find(v => v.name === 'default');
   const W = K.islandWorld('jolene', VD, txt);
-  const recD = PG.dropPlaces(whole, VD.drop).rec;
+  const recD = K.dropOf(PG, whole, VD);
   const O0 = sb.default.O, rec0 = O0.rec;
   const plotsOf = (O, z) => JSON.stringify(O.records.plots.filter(p => p.zone === z).map(p => [p.id, p.poly, p.pick]));
   const aeroOf = O => JSON.stringify(O.aerodromes.map(a => [a.id, a.x, a.z, a.len, a.wid, a.elev, a.surface, a.sock, a.ties]));
@@ -253,7 +253,7 @@ function selftest() {
   must(R.kits({ build: { fence: true, props: [['scaffold_tower', 0, 0, 0]] } }).length > 0, '6 a kit prop that does not exist (a scaffold to download) is caught');
   must(R.kits({ build: { fence: false, props: [], frame: { gen: 'CRANE_GEN', preset: 'tower', P: {}, at: [0, 0, 0] } } }).length > 0, '6 a frame no generator makes is caught');
   // 3: a kit on HOME's stand -> the census
-  { const VD = VARIANTS.find(v => v.name === 'default'), W = K.islandWorld('jolene', VD, txt), recD = PG.dropPlaces(whole, VD.drop).rec;
+  { const VD = VARIANTS.find(v => v.name === 'default'), W = K.islandWorld('jolene', VD, txt), recD = K.dropOf(PG, whole, VD);
     const r = JSON.parse(JSON.stringify(recD)); const k = r.layers.objects.find(o => o.id === 'sg_k_hangar'); const st = C.siteOf('HOME').stand; k.x = st.x + 12; k.z = st.z + 6;
     const t = Object.assign({}, MAX, { field: 1 }), SV = PG.stageView(r, t); compose(W, r, t);
     const PT = require(path.join(T, 'pilot_trace.js')); PT.loadPanel();

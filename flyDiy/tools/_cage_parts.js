@@ -279,8 +279,15 @@ const CAGE_PARTS = [
   { key: 'nose', name: 'Nose · deck', parent: 'fuselage', layer: 'cage',
     sections: ['pillarFront'],
     zone: 'nose',
-    place: { up: 'noseDroop', wide: 'noseW', high: 'noseH',
-             at: 'forward of the windscreen' },
+    // G2770 (the user's slider review: "for the nose, the length parameter
+    // needs to be promoted out of frame and put back into the size. The main
+    // option is nose front; either firewall or aerodynamic. this should
+    // definitely be one of the main options"): noseLen is the trunk's length,
+    // noseFinish its type (a tile, _cage_design.js `noseFrontT`). The engine
+    // mount tiles already write it with the mount (a pusher or a wing engine
+    // fairs the nose, a nose engine puts the firewall back).
+    place: { type: 'noseFinish', up: 'noseDroop', len: 'noseLen',
+             wide: 'noseW', high: 'noseH', at: 'forward of the windscreen' },
     groups: [
       // (noseLen is the nose FRAME's deck fore/aft since T2.1)
       // G1321 (the user: "map these sections to their respective parts in
@@ -358,9 +365,12 @@ const CAGE_PARTS = [
       // (the windscreen frame is the CABIN's again - G1321.2)
       ['shape', ['wsBaseBow', 'wsCeilBow']],
       // the bubble canopy IS the screen's own continuation (2026-09-04)
-      ['bubble canopy', ['bubble', 'arcFit', 'bubH', 'bubAt', 'bubW',
+      ['bubble canopy', ['bubble', 'bubH', 'bubAt', 'bubW',
                          'canLoops', '_viewLoops', 'bubH2', 'bubAt2', 'bubW2', 'bubH3',
                          'bubAt3', 'bubW3']],
+      // G2770 (the user: "Arceau fit should always be on, the option should
+      // disappear"): the default is on; a saved build keeps its own value
+      ['always fitted', ['arcFit'], HIDDEN],
       // (the screen base pair's bottom and width = the windscreen FRAME's)
       ['A-pillars', ['apilW', 'apilPerp'], EXPERT],
     ] },
@@ -397,17 +407,25 @@ const CAGE_PARTS = [
     ] },
 
   // the door is CABIN FIT's (2026-09-04, the user)
+  // G2770 (the user: "pilot door has no effect in bubble canopy mode. It's
+  // good, but then it should be hidden"; "what is deep jamb, and do we need
+  // that?"): the part does not exist under a bubble (the canopy is the
+  // design part's row, so the way back never leaves the tree), and the deep
+  // jamb - the door cut down through the floor band as well as the window
+  // bands (_cage_gen.js, `doors.deep`), on by default - is an expert row
   { key: 'pilotDoor', name: 'pilot door', parent: 'fit', layer: 'cage',
+    when: P => Math.round(+P.canopy || 0) !== 3,
     sections: ['doorSeal'],                 // G214: the door's own rubber seal
-    place: { on: 'doorOn', type: ['doorGone', 'doorDeep'], up: 'doorSill',
+    place: { on: 'doorOn', type: ['doorGone'], up: 'doorSill',
              at: 'cut from the cabin side' },
     // THE GAP BELONGS TO THE DOOR, the seal's gauge to the joints. Both were
     // `rimW` before, filed under `joints` — so the one control over how
     // visible a door is did not appear when you selected a door, which is
     // exactly what the user reported as "the door gap is too small".
     groups: [
-      ['door', ['doorOn', 'doorSill', 'doorGone', 'doorDeep']],
+      ['door', ['doorOn', 'doorSill', 'doorGone']],
       ['the gap', ['doorRim', 'rimDoor', 'doorDepth']],
+      ['door depth', ['doorDeep'], EXPERT],
     ] },
 
   { key: 'joints', name: 'window joints', parent: 'glazing', layer: 'cage',
@@ -523,7 +541,9 @@ const CAGE_PARTS = [
       ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch']],
     ] },
 
-  { key: 'tailcone', name: 'Tail cone', parent: 'fuselage', layer: 'cage',
+  // G2770 (the user: "The tail cone ... I think it should be a section of
+  // the boom"): a child of the Boom in the tree, its own rows and zone kept
+  { key: 'tailcone', name: 'Tail cone', parent: 'boom', layer: 'cage',
     sections: ['pillarTail'],
     zone: 'tail',
     place: { len: 'tailLen', at: 'the aft extremity' },
@@ -957,11 +977,14 @@ const CAGE_PARTS = [
       ['fitted', ['propOn']],
       ['nose cone', ['cw_noseOff', 'cw_spinR', 'cw_spinLen',
                      'cw_spinRound', 'cw_bladeStation', 'spinMat']],
+      // G2770 (the user: "For the nose cone, put blades and design point
+      // under expert"): the trunk keeps the blade count, the diameter and
+      // the material; the blade's shape and the design point are expert
       ['blades', ['cw_bladeN', 'cw_propD', 'cw_material', 'cw_rootChord',
                   'cw_tipChord', 'cw_chordBulge', 'cw_sweep',
                   'cw_thickRoot', 'cw_thickTip', 'cw_camb', 'cw_tipRound',
-                  'cw_cuff', 'cw_shankR']],
-      ['design point', ['cw_rpm', 'cw_tas', 'cw_power', 'cw_slip']],
+                  'cw_cuff', 'cw_shankR'], EXPERT],
+      ['design point', ['cw_rpm', 'cw_tas', 'cw_power', 'cw_slip'], EXPERT],
     ] },
 
   // THE TANKS AND THE PACKS (2026-09-05, the user: "I expect a fuel item in

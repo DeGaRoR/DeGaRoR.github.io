@@ -95197,3 +95197,81 @@ Strict light gate: 16 better; only the accepted metal fuseWidth slider row red. 
   hangar to ANOTHER on a send-to (bring-home still leaves an inside plane be). GATE STORY row added.
 - node --check only (the box reserved 18:05-21:59). Land with STORY, UISMOKE, UISMOKE-PHONE, STORAGE, PLAYER, GAMEPREM,
   SITE, LAZY, BUILD, together with claude/ready/cabin-strip.
+
+## G2770-G2779 - EDITOR-UX-B: THE SLIDER REVIEW'S FUSELAGE / NOSE / CANOPY / DOOR / BOOM / UNDER-FUSELAGE HALF (2026-10-17, EDITOR-UX-B for A0, local; branch claude/editor-ux-b-g2770 off master 05cc2acc0)
+
+The second half of the user's slider review of 10 Oct (D:/Dev/flydiy-notes/SLIDER-REVIEW-2026-10-10.md). The frames
+and the fuselage's roundness landed with G2760. This half reuses G2760's mechanisms: `twin`/`slot` tiles, part
+`order`, HIDDEN groups. UI only: no key, no default, no generator changed; a saved build is the same build.
+
+- **Nose:** "the length parameter needs to be promoted out of frame and put back into the size" - `noseLen` is the
+  nose trunk's length. "The main option is nose front; either firewall or aerodynamic" - `noseFinish` is the trunk's
+  type, drawn as two tiles in its row's slot (`noseFrontT`). It already follows the engine configuration: the engine
+  mount tiles (G2760 made them the mount row's only control) write it with the mount. A nose engine sets the
+  firewall; a pusher or a wing engine sets the faired nose.
+- **Propeller ("nose cone"):** "put blades and design point under expert" - the blades' shape and the design point
+  are EXPERT groups. The trunk keeps the blade count, the diameter and the material.
+- **Canopy:** "the bubble glass option is misleading ... should be hidden in real canopy bubble mode" - the row hides
+  under canopy 3 (its value is kept). "Arceau fit should always be on, the option should disappear" - HIDDEN (the
+  default is 1).
+- **Pilot door:** "no effect in bubble canopy mode ... it should be hidden" - the part's `when` is canopy != 3 (the
+  canopy is the design part's row, so the way back never leaves the tree). "What is deep jamb, and do we need that?"
+  - it cuts the door on down through the floor band as well as the window bands (_cage_gen.js `doors.deep`, on by
+  default; off gives a door that stops at the waist). Relabelled 'door reaches the floor' and moved to expert.
+- **Boom:** "the tail cone ... should be a section of the boom" - Tail cone is a child of the Boom (its rows, zone
+  and sections unchanged).
+- **Under the fuselage:** "the configuration section is obsolete. Starter does not matter and should go" - the
+  seating starter (the derived select) is no longer placed; it stays parked in its accordion group. "This section
+  seems to have a lot of duplicated controls ... to be unified" - the Design & construction column no longer opens on
+  the whole Custom-build grid (every tile has its own part or its row's slot; the grid is NEW > Custom build's).
+  Construction and the turtledeck were already big buttons in their slots (G2760).
+
+- **GATE PARTS 5 (EXISTENCE)**: the probe also accepts a part that exists EXCEPT at an enum's top end (true at 0,
+  false at the row's maximum): the pilot door's `when` (canopy != 3) failed the 'off at 0, on at default/max' probe.
+  A constant `when` still fails (selftest caught).
+- **Gates** (A0's CPU slot 18 Oct 17:30-17:37, beside ASSETSOCT's UNTIMED lock, on 22de0706b): 27 of 29 PASS (INPUT
+  DEFAULT UISMOKE UISMOKE-PHONE CABIN UILAYER SKINMAT EDBUGS CAGEFIT FRAMES KNIFE FIN COWL JOIN SPECFIX STARTER SAVE GEAR
+  BAY SHOULDER DESIGN VIEW REF HONESTY HITBOX ENERGY PANEL), DESIGN selftest PASS. CLOUD 1/239 = master's lamps-pool
+  row (not this branch). PARTS red on the pilot door's `when` -> fixed in the gate, PARTS + its selftest PASS at 17:37.
+
+**Not done (Monday, if wanted):**
+- **The design point from the engine** ("ensure that you fill it according to the engine selection, these
+  parameters can be deduced from the engine"). It is logic, not UI: cw_rpm / cw_power from the engine, cw_tas from
+  the airframe. Done on a load it would change saved props. It wants a one-click "from the engine" tile, or a rule on
+  an engine change only, and a gate.
+- **"Boom style does not seem to change anything, obsolete?"** - kept, not checked. The row is the Fuselage style
+  tile's twin (lofted skin vs rod & pod; the rod brings the taper section on). Why it looked inert on the user's
+  build was not looked at in this pass: a look at their build first, then a word with the user, rather than a
+  deletion.
+
+**What to watch for:**
+- a bubble build no longer shows the pilot door in the tree (by design); a saved bubble build with doorOn 1 keeps it
+  in the save, unchanged;
+- the Design & construction column is short now: its own rows (construction, fuselage style, body & deck, canopy,
+  wing position / bracing / second wing, what it has). A builder who used it as the "all tiles" page finds them under
+  their parts, or in NEW > Custom build;
+- the tree: Tail cone is under Boom; the Boom's column shows the cone's rows after its own;
+- the nose column opens: fitted, type (nose front tiles), position (droop), size (length, width, height).
+## G3271 - RUFUS-CERT: THE FLARE ROW (power off, judged at the stall) (2026-10-18, for A0 / Game's ULTRALIGHT-CERT G3270-G3279; branch claude/rufus-flare-g3271)
+
+The user's Rufus (ul1, a Rotax 915 on the nose, CG 12 % of the chord) passed the design check's `ctl.elevator` (0.099 Cm at
+1.2 Vs) but, flown power off with the stick on its stop, settles at 1.16 Vs and never stalls: it cannot be flared to a slow
+landing (every node touchdown 1.28-1.34 Vs, 200-210 m of roll). The report: flydiy-notes/RUFUS-CERT-2026-10.md.
+- 64b_gen_design.js: a 13th row `ctl.flare` - full up elevator, the dead tunnel (engine idle), CG at the forward corner,
+  alpha swept from the 1.2 Vs attitude to polarWing.aStall; where the moment turns nose-down, sqrt(best lift / that lift) is
+  the slowest speed the elevator holds (FAR 23.201's "elevator on its stop" stall). pass <= 1.05 Vs, warn to 1.30, fail above.
+  The fix is sized: the CG shift that brings the moment at the stall angle to zero. Free air (ground effect not modelled).
+- GATE DESIGNCHECK: the row count >= 13; a doctored Cub with its wing 0.4 m aft of the CG must FAIL ctl.flare (1.35 Vs);
+  THE GAP: the Cub with its engine 0.8 m forward keeps ctl.elevator's pass (0.088) while ctl.flare warns (1.17 Vs); the
+  user's Rufus (tools/fixtures/repro/rufus_2026-10-18.json, a copy of their inbox file) must not pass it, within 0.08 of
+  the flown 1.16 (reads 1.09). An elevator cut to 25 % of its chord is NOT a case: near the stall the Cub's moment barely
+  moves with it (1.01) - so the fix names the CG, not the elevator.
+- MEASURED 18 Oct 23:16 (A0's UNTIMED window), the flare row: cub 1.00 pass, jodel pass, metal Cessna 1.07 WARN (the CG
+  0.08 m too far forward for its elevator: it flares to 85 km/h against an 80 km/h stall), Cessna floats 1.03 pass, twin
+  floats pass, mosquito 2/3 pass, Rufus as built 1.09 warn, Rufus B pass. No validated build red; the Cessna's new WARN is
+  the user's call (A0). GATE DESIGNCHECK 27/27 PASS.
+
+## A0 - landing L19a (19 Oct 2026, gates 04:00-04:58, pushed ~08:20)
+Cargo (rolling, every claude/ready/* except dash-redesign): editor-ux-b-g2770, float-ap (G3081 + ROUTE-SEA), ground-1px (G2610), hangar-fix + taxi-all (G3092-G3097), metla-wrapup (Metlakatla behind the town flag, mk_sea kept), perf-1, rufus-cert (builds/rufus_2026-10-18_certified.json + LIVERY gate), rufus-flare (G3271 ctl.flare; the metal Cessna WARN accepted by the user).
+Battery: only master's known reds (CLOCK lamps row, CLOUD lamps row, KTX2 row 10, FRAMECOST cessna garage:restore).
+Strict light gate: 2 RED. 'metal fuseWidth busy' = a cost the user accepted by name (15 Oct). 'floats world -> garage 0.23 -> 5.47 s' = PRE-EXISTING: HWCOV's bisect (19 Oct 05:00 + 07:45) shows master 05cc2acc0 at 3.1-3.8 s in the same rig; a 2-4 s program link on the floats' way back after the Cub legs. The 12 Oct baseline is stale for this row; a separate ticket (which program re-links; hybrid_trips.js).
