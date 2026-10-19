@@ -1200,12 +1200,30 @@ if (plots.length) {
   check(PG.roadFeel({ cls: 'paved' }) === PG.SURFACE.PAVED && PG.roadFeel({ cls: 'track' }) === PG.SURFACE.GRASS && PG.roadFeel({}) === PG.SURFACE.GRAVEL && PG.roadFeel({ cls: 'paved', surface: 6 }) === 6 &&
         PG.lookFeelsAs('worn', PG.SURFACE.PAVED) && !PG.lookFeelsAs('concrete', PG.SURFACE.GRAVEL) && PG.lookFeelsAs('dirt', PG.SURFACE.GRAVEL) && PG.lookFeelsAs('none', PG.SURFACE.GRASS),
         '34 roadFeel is the composer\'s rule (its surface, else its class), lookFeelsAs the looks\' table');
-  // the user's Jolene: its old look-and-feel splits stay as they were (no feel moved) - and each is one the inspector names
+  // FEEL FOLLOWS THE LOOK (the user, 19 Oct: "we retire that, feel follows looks"): a split converts where it is read - the
+  // shipped Jolene carries none, an old file's (Jolene before the change: a11 a15 a18 a19 a28, two tracks drawn dirt, a gravel
+  // road drawn concrete) loads as its looks feel; a look with no feel, a texture, wheels drawing nothing keep theirs; the
+  // inspector names no split any more
   const J = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json'), 'utf8')), JR = PG.normalise(J.layers ? J : (J.rec || J.premises));
-  const splitA = JR.layers.areas.filter(a => a.props && a.props.wheels && a.props.draw && a.props.draw.look && !PG.lookFeelsAs(a.props.draw.look, +a.props.wheels.surface)).map(a => a.id);
-  const splitR = JR.layers.roads.filter(r => r.look && !PG.lookFeelsAs(r.look, PG.roadFeel(r))).map(r => r.id);
-  check(splitA.length >= 1 && /an old file\\'s: drawn ' \+ L\.name \+ ', the wheels feel ' \+ nm/.test(UIs) && /an old file\\'s: drawn ' \+ \(PG\.RUNWAY_LOOKS\[e\.look\]/.test(UIs),
-        '34 Jolene\'s old splits kept and named (areas ' + splitA.join(' ') + '; roads ' + splitR.join(' ') + ')');
+  const splits = R0 => R0.layers.areas.filter(a => a.props && a.props.wheels && a.props.draw && a.props.draw.look && !PG.lookFeelsAs(a.props.draw.look, +a.props.wheels.surface)).map(a => a.id)
+    .concat(R0.layers.roads.filter(r => r.look && !PG.lookFeelsAs(r.look, PG.roadFeel(r))).map(r => r.id))
+    .concat(R0.layers.runways.filter(r => r.look && +r.surface !== PG.SURFACE.WATER && !PG.lookFeelsAs(r.look, r.surface === undefined ? PG.SURFACE.GRASS : +r.surface)).map(r => r.id));
+  const rawSplits = J.layers.areas.filter(a => a.props && a.props.wheels && a.props.draw && a.props.draw.look && !PG.lookFeelsAs(a.props.draw.look, +a.props.wheels.surface)).length;
+  check(splits(JR).length === 0 && rawSplits === 0, '34 the shipped Jolene: no look-and-feel split, as shipped and as loaded', splits(JR).join(' '));
+  const old = PG.normalise({ layers: {
+    areas: [{ id: 'oa', poly: [[0, 0], [20, 0], [20, 20]], props: { wheels: { surface: PG.SURFACE.PAVED, apron: true }, draw: { look: 'grass', z: 0 } } },
+            { id: 'ob', poly: [[0, 0], [20, 0], [20, 20]], props: { wheels: { surface: PG.SURFACE.GRAVEL } } },
+            { id: 'oc', poly: [[0, 0], [20, 0], [20, 20]], props: { wheels: { surface: PG.SURFACE.PAVED }, draw: { set: 'cracked' } } }],
+    roads: [{ id: 'ra', pts: [[0, 0], [50, 0]], w: 4, cls: 'track', look: 'dirt' }, { id: 'rb', pts: [[0, 9], [50, 9]], w: 4, cls: 'gravel', look: 'concrete' }, { id: 'rc', pts: [[0, 19], [50, 19]], w: 4, cls: 'gravel', look: 'sand' }],
+    runways: [Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'wa', c: [0, 300], len: 400, wid: 20, look: 'concrete', surface: PG.SURFACE.GRASS }),
+              Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'wb', c: [0, 600], len: 400, wid: 20, look: 'none', surface: PG.SURFACE.GRAVEL })] } });
+  const ar = id => old.layers.areas.find(a => a.id === id).props.wheels, rd = id => old.layers.roads.find(r => r.id === id), rw = id => old.layers.runways.find(r => r.id === id);
+  check(+ar('oa').surface === PG.SURFACE.GRASS && ar('oa').apron === true && +ar('ob').surface === PG.SURFACE.GRAVEL && +ar('oc').surface === PG.SURFACE.PAVED &&
+        rd('ra').cls === 'gravel' && rd('rb').cls === 'paved' && +rd('rc').surface === PG.SURFACE.SAND && rd('rc').cls === 'gravel' &&
+        +rw('wa').surface === PG.SURFACE.PAVED && +rw('wb').surface === PG.SURFACE.GRAVEL && splits(old).length === 0,
+        '34 an old file\'s splits load as their looks feel (area, track drawn dirt, gravel drawn concrete, a strip); no feel of its own, a texture, wheels alone: kept');
+  check(JSON.stringify(PG.normalise(JSON.parse(JSON.stringify(old)))) === JSON.stringify(old), '34 ...and a converted record converts to itself (the store round-trips)');
+  check(!/an old file\\'s: drawn/.test(UIs), '34 the inspector names no split any more (none survives a load)');
 }
 // 35 THE CABIN STRIP (G3097 / G3098; the user, 18 Oct: "we need to place the little hangar atop the flat bit of the new strip ...
 //    our second owned hangar ... a storage zone too ... the circuit should ensure to pass the tight zone before manoeuvring"):

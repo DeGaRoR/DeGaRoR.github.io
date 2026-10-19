@@ -7806,7 +7806,7 @@
      ]
     ],
     "w": 2.2,
-    "cls": "track",
+    "cls": "gravel",
     "look": "dirt",
     "graded": false,
     "poles": "off",
@@ -7840,7 +7840,7 @@
      ]
     ],
     "w": 2.2,
-    "cls": "track",
+    "cls": "gravel",
     "look": "dirt",
     "graded": false,
     "poles": "off",
@@ -10992,7 +10992,7 @@
      ]
     ],
     "w": 5.6,
-    "cls": "gravel",
+    "cls": "paved",
     "graded": true,
     "falloff": 6,
     "curve": "spline",
@@ -22763,7 +22763,7 @@
     ],
     "props": {
      "wheels": {
-      "surface": 5
+      "surface": 0
      },
      "draw": {
       "look": "grass",
@@ -23133,7 +23133,7 @@
     },
     "props": {
      "wheels": {
-      "surface": 6
+      "surface": 5
      },
      "draw": {
       "look": "concrete",
@@ -23521,7 +23521,7 @@
     ],
     "props": {
      "wheels": {
-      "surface": 5
+      "surface": 6
      },
      "draw": {
       "look": "gravel",
@@ -23580,7 +23580,7 @@
     ],
     "props": {
      "wheels": {
-      "surface": 5
+      "surface": 6
      },
      "draw": {
       "look": "gravel",
@@ -24350,7 +24350,7 @@
     ],
     "props": {
      "wheels": {
-      "surface": 5
+      "surface": 6
      },
      "draw": {
       "look": "gravel",

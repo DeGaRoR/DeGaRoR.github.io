@@ -1390,8 +1390,7 @@ function mount(host, ctx) {
         v => ed(x => { x.cls = v; if (x.look && !PG.lookFeelsAs(x.look, PG.roadFeel(x))) x.look = null; }, 'class of ' + id));
       // THE LOOK (v1.16): the pavement drawn - only the variants that feel as the class (paved: asphalt, concrete, old concrete)
       { const feel = PG.roadFeel(e), alts = Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].cls && PG.lookFeelsAs(k, feel));
-        if (alts.length > 1) rows.select(insp, 'look', [['', 'by class (' + PG.roadLook(e).key + ')']].concat(alts.map(k => [k, PG.RUNWAY_LOOKS[k].name])), () => (e.look && alts.indexOf(e.look) >= 0 ? e.look : ''), v => ed(x => { x.look = v || null; }, 'look of ' + id));
-        if (e.look && !PG.lookFeelsAs(e.look, feel)) rows.note(insp, 'an old file\'s: drawn ' + (PG.RUNWAY_LOOKS[e.look] ? PG.RUNWAY_LOOKS[e.look].name : e.look) + ', the wheels feel ' + (PG.SURFACE_NAMES[feel] || '?').toLowerCase() + ' - kept as it was; pick a surface to set both'); }
+        if (alts.length > 1) rows.select(insp, 'look', [['', 'by class (' + PG.roadLook(e).key + ')']].concat(alts.map(k => [k, PG.RUNWAY_LOOKS[k].name])), () => (e.look && alts.indexOf(e.look) >= 0 ? e.look : ''), v => ed(x => { x.look = v || null; }, 'look of ' + id)); }
       pavRows(e, id, 'roads', ed, PG.roadLook(e).row);
       rows.check(insp, 'graded (flat across)', () => e.graded !== false, v => ed(x => { x.graded = v; }, 'grading of ' + id));
       rows.slider(insp, 'terraformed to (m)', 1, 30, 1, () => e.falloff || 6, v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
@@ -1539,8 +1538,6 @@ function mount(host, ctx) {
           if (wasW) x.papi = [true, true];
         }, 'look of ' + id));
       if (WATER) rows.note(insp, 'a floats lane: on the water\'s own level - nothing graded, painted or lit; the floats land on it, the slips (its plots) stand on the shore');
-      { const L = PG.RUNWAY_LOOKS[e.look || 'grass'], s = e.surface === undefined ? 0 : +e.surface;
-        if (L && L.surface !== null && L.surface !== undefined && +L.surface !== s) rows.note(insp, 'an old file\'s: drawn ' + L.name + ', the wheels feel ' + (PG.SURFACE_NAMES[s] || '?').toLowerCase() + ' - kept as it was; pick a surface to set both'); }
       if (PG.RUNWAY_LOOKS[e.look || 'grass'] && PG.RUNWAY_LOOKS[e.look || 'grass'].cls) pavRows(e, id, 'runways', ed, PG.RUNWAY_LOOKS[e.look || 'grass']);
       // THE ONE-WAY STRIP (v9): which end the landing comes over in calm air; a ridge at one end wants the other
       rows.pills(insp, 'approach', [['', 'either end', 'the pilot picks the runway direction nearest its inbound track'], ['0', 'over end 0', 'land toward end 1, depart the other way'], ['1', 'over end 1', 'land toward end 0']], () => (e.approach === 0 || e.approach === 1) ? String(e.approach) : '',
@@ -1847,10 +1844,10 @@ function mount(host, ctx) {
     if (P.wheels) {
       const w = P.wheels, edW = (mut, label, key) => edP('wheels', mut, label, key);
       sec('wheels', (PG.SURFACE_NAMES[+w.surface] || '?').toLowerCase());
-      // ONE SURFACE (18 Oct): the wheels feel what DRAW's surface is - set there; an old file's other feel is kept and said
+      // ONE SURFACE (18 Oct): the wheels feel what DRAW's surface is - set there (an old file's other feel is converted on load:
+      // FEEL FOLLOWS THE LOOK, 27_premises normalise)
       { const L = lookCls(P.draw) ? PG.RUNWAY_LOOKS[P.draw.look] : null, nm = (PG.SURFACE_NAMES[+w.surface] || '?').toLowerCase();
         if (!P.draw) rows.note(insp, 'an old file\'s: the wheels feel ' + nm + ' and nothing is drawn - kept as it was; add a DRAW to set both');
-        else if (L && L.surface !== null && L.surface !== undefined && +L.surface !== +w.surface) rows.note(insp, 'an old file\'s: drawn ' + L.name + ', the wheels feel ' + nm + ' - kept as it was; pick DRAW\'s surface to set both');
         else rows.note(insp, L ? 'the wheels feel the drawn surface (DRAW sets both)' : 'the wheels feel ' + nm + ' under the texture'); }
       rows.check(insp, 'an apron (the pilot lists it)', () => !!w.apron, v => edW(q => { if (v) q.apron = true; else delete q.apron; }, 'apron'));
       rows.slider(insp, 'priority', -5, 5, 1, () => +w.z || 0, v => edW(q => { if (v) q.z = v; else delete q.z; }, 'priority', 'wz'), v => v.toFixed(0) + (v > 0 ? ' (over)' : v < 0 ? ' (under)' : ''));
