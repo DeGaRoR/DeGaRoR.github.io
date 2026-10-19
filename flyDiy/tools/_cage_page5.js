@@ -728,8 +728,9 @@ window.CAGE_PAGE = {
       // billed where the seat is; `dum2On` (every seat filled or none) is
       // retired and migrated in cageFromSpec.
       ['aboard', [
-        // G2794: the PILOT, not the dummy it was before the characters
-        ['dumOn',     'pilot',          0, 1, 1],
+        // G2794: the PILOT, not the dummy it was before the characters ('aboard':
+        // the next row, the pilot choice, is labelled 'pilot' already)
+        ['dumOn',     'pilot aboard',   0, 1, 1],
         // WHO FLIES (G204/G204.1): the pilot and the co-pilot each pick from
         // the same list — mixed crew (the characters rotate through every
         // seat aboard, the passengers included), the ATD-01, or one declared

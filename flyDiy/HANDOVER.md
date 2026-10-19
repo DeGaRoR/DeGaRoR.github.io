@@ -95143,7 +95143,7 @@ behaviour, so a saved build loads and flies as before.
 - **7** The original dummy's leftovers:
   - the eye point draws only with expert rows on, and a saved build keeps its `dumMarkers`;
   - the ATD's suit colours show in FINISH only while an ATD is aboard (still taken, never 'unclaimed');
-  - 'pilot dummy' is 'pilot'.
+  - 'pilot dummy' is 'pilot aboard' (the pilot choice beside it is 'pilot').
   - The ATD shell itself stays: it is a pilot choice and the loading fallback. Its skeleton is every character's IK.
 - **4** The floor's own livery section `cabFloor` (plywood until picked; AERO_SEC + the controls part's sections +
   CAGE_SECMAT in buildFloor). Its top and bottom caps take the keel's slope as their normal (the extrusion was
@@ -95157,6 +95157,20 @@ behaviour, so a saved build loads and flies as before.
   - each hand's fist and grip; the rig's curl entries know their hand;
   - the grip solve picks the palm by the chain's side (the same function the flown pilot runs);
   - the live record, the join and app.js carry the two hands only when they are apart.
+
+**The look** (A0's GPU slot, Mon 19 Oct 10:35-10:37, gpu UXA, read off the page, no stills):
+- every new row is in its part: parking brake, fuel selector, lights one by one, each hand its own, the nose
+  front tiles and 'length';
+- `A.zFire` 2.63 sits ahead of the dash (2.20);
+- unfitting the landing light takes its 3 lamp objects away ('6 fitted') and refitting restores them (27);
+- `parkZ` moves the brake knob and 0 puts it back;
+- hands apart: left index 9.7 deg against right 98, and 54.7 / 53 both back when off;
+- 'cabFloor' is in the materials panel;
+- the Chinook's strut pods lie on (0, 0, 1) and fit;
+- no JS error (the same 3 resource 404s as G2760's look).
+- One label fixed there: two 'pilot' rows under 'aboard' -> 'pilot aboard'.
+- Gates: the 27 above, PASS on the pre-rebase 48e6cea62 (19 Oct 06:35, cpu UXA); rebased onto L19a e276fe9fe, node
+  --check clean.
 
 **Not done:**
 - **2 (Monday/Tuesday): the tank ranges.** The Cub's and Jodel's nose tanks are saved with `along: null`, so they sit
