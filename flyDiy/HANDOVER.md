@@ -95099,3 +95099,21 @@ and the fuselage's roundness landed with G2760. This half reuses G2760's mechani
   their parts, or in NEW > Custom build;
 - the tree: Tail cone is under Boom; the Boom's column shows the cone's rows after its own;
 - the nose column opens: fitted, type (nose front tiles), position (droop), size (length, width, height).
+## G3271 - RUFUS-CERT: THE FLARE ROW (power off, judged at the stall) (2026-10-18, for A0 / Game's ULTRALIGHT-CERT G3270-G3279; branch claude/rufus-flare-g3271)
+
+The user's Rufus (ul1, a Rotax 915 on the nose, CG 12 % of the chord) passed the design check's `ctl.elevator` (0.099 Cm at
+1.2 Vs) but, flown power off with the stick on its stop, settles at 1.16 Vs and never stalls: it cannot be flared to a slow
+landing (every node touchdown 1.28-1.34 Vs, 200-210 m of roll). The report: flydiy-notes/RUFUS-CERT-2026-10.md.
+- 64b_gen_design.js: a 13th row `ctl.flare` - full up elevator, the dead tunnel (engine idle), CG at the forward corner,
+  alpha swept from the 1.2 Vs attitude to polarWing.aStall; where the moment turns nose-down, sqrt(best lift / that lift) is
+  the slowest speed the elevator holds (FAR 23.201's "elevator on its stop" stall). pass <= 1.05 Vs, warn to 1.30, fail above.
+  The fix is sized: the CG shift that brings the moment at the stall angle to zero. Free air (ground effect not modelled).
+- GATE DESIGNCHECK: the row count >= 13; a doctored Cub with its wing 0.4 m aft of the CG must FAIL ctl.flare (1.35 Vs);
+  THE GAP: the Cub with its engine 0.8 m forward keeps ctl.elevator's pass (0.088) while ctl.flare warns (1.17 Vs); the
+  user's Rufus (tools/fixtures/repro/rufus_2026-10-18.json, a copy of their inbox file) must not pass it, within 0.08 of
+  the flown 1.16 (reads 1.09). An elevator cut to 25 % of its chord is NOT a case: near the stall the Cub's moment barely
+  moves with it (1.01) - so the fix names the CG, not the elevator.
+- MEASURED 18 Oct 23:16 (A0's UNTIMED window), the flare row: cub 1.00 pass, jodel pass, metal Cessna 1.07 WARN (the CG
+  0.08 m too far forward for its elevator: it flares to 85 km/h against an 80 km/h stall), Cessna floats 1.03 pass, twin
+  floats pass, mosquito 2/3 pass, Rufus as built 1.09 warn, Rufus B pass. No validated build red; the Cessna's new WARN is
+  the user's call (A0). GATE DESIGNCHECK 27/27 PASS.
