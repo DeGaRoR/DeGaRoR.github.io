@@ -8760,6 +8760,9 @@
     stIntroEl.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:60;background:#000';
     document.body.appendChild(stIntroEl);
     if (window.FLYDIY_LAZY) window.FLYDIY_LAZY('story_intro');   // fetched while the boot runs
+    // a New career rolls out from the cabin: a spawn remembered from the sandbox's route (another field) would settle the
+    // boot's world there, not round the cabin the opening looks at (this runs before the boot's world steps)
+    if (typeof spawnId !== 'undefined') spawnId = null;
     return true;
   }
   // no opening after all (the module, the strip or the world missing): the curtain off, the garage as a New career had it
