@@ -96839,3 +96839,16 @@ Cargo (rolling; L19b's held set + Train A): altiport-w4 (strip 9 back, profile l
 Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10 characters; FRAMECOST cessna garage:restore).
 Strict light gate: 5 RED, none new. over100 0->2 on the 4 legs = the pre-existing ~700 ms reveal hitch after the roll-out screen (HWCOV's 19 Oct 13:00 profiles: present on L19a too; ticket REVEAL-HITCH, perf week). metal fuseWidth busy = the cost the user accepted by name on 15 Oct.
 Landing tooling, 19 Oct: land_light now cleans flyDiy/media before merging and stops on a merge that fails without conflicts (untracked cook outputs had silently dropped cabin-strip); land_ready checks merges cumulatively and honours land_exclude.txt.
+
+## G2798 - THE PILOT'S IDLE MOTION AT 1 BY DEFAULT (2026-10-19, EDITOR-UX-A for A0; branch claude/idle-default on Train A)
+
+The user's garage review, item 5: "put the movement at 1 by default, and it's fine". `dumIdle` (the pilot's idle
+motion, the sitting-idle clip's amplitude) went 0.5 -> 1 in the page's defaults (_cage_page5.js; designFull's birth
+base reads them) and in the four presets that state it. The crew's fallback for a build with no value is 1 too.
+A build that SAVED its own value keeps it (every builds/*.json says 0.5, the Rufus files 1); an older save with no
+`dumIdle` at all now animates at 1. The passengers' `paxIdle` was already 1. Animation only: no spec, no physics.
+
+## A0 - landing L19d (19 Oct 2026, gates 22:00-23:06, pushed ~23:10)
+Cargo (rolling): cabin-approach (G3097 the trees-only fan x_fan_w1_0 over Cabin Strip's end 0 + 27_premises on CORE_MATH + the re-cook), career-expert (the player's own career flights always fly the Expert; the career's pilot-pick row is gone), idle-default (pilot idle motion 1 by default), story-fix (the story loads the CERTIFIED Rufus; GAME-PLAN §R2 with the shed rules), water-spray (G2837 side arches + G2838 heavy drops; the user OK'd the look). torque-retune-66 HELD (the user's word on the float Cessna's mk_sea go-arounds is pending).
+Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
+Strict light gate: 12 RED, none new by cause. over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV, fix in progress); taskWorst / tasks1s = the boot/settle and roll-out tasks around 1 s (HWCOV 19 Oct: 982-1099 ms on L19a too, +-0.5 s run to run); floats world->garage 2.4 s = the pre-existing program re-link (FLOATS-RELINK); metal fuseWidth busy = the cost the user accepted by name (15 Oct). The gate's profile now lives in C: temp and is deleted after.

@@ -6323,7 +6323,7 @@
     craft.add(pts2);
     // THE CHINE SHEETS (G460.10): two per float, the spray-root line along the wet chine flaring out and aft
     let sheets = null;
-    if (spray && SPRAY.makeSheets) { sheets = SPRAY.makeSheets(THREE, nF * 2, 8, 6); craft.add(sheets.mesh); }
+    if (spray && SPRAY.makeSheets) { sheets = SPRAY.makeSheets(THREE, nF * 2, 24, 14);   /* G2837: the refined sheets (24 x 14 a layer, three layers) */ craft.add(sheets.mesh); }
     const drops = { p: new Float32Array(NP * 3), v: new Float32Array(NP * 3), age: new Float32Array(NP).fill(9), life: new Float32Array(NP).fill(1),
       size: new Float32Array(NP), seed: new Float32Array(NP), kind: new Uint8Array(NP), next: 0, spray, sheets, live: 0 };
     // H7 (G460.8): the wake RIBBONS retired - the water's interaction field (water.js) carries the wake
@@ -6335,7 +6335,11 @@
   // inside the kind's range, a seed for its sprite's tear); the ring buffer's oldest slot goes first
   function sprayEmit(D, kind, x, y, z, vx, vy, vz) {
     const q = D.next; D.next = (D.next + 1) % D.age.length;
-    const K = window.SPRAY ? (kind ? SPRAY.KIND.puff : SPRAY.KIND.droplet) : { life: [0.9, 0.9], size: [0.1, 0.1] };
+    const K = window.SPRAY ? (kind === 2 ? SPRAY.KIND.mist : kind ? SPRAY.KIND.puff : SPRAY.KIND.droplet) : { life: [0.9, 0.9], size: [0.1, 0.1] };
+    // G2838: THE HEAVY DROP (kind 1, the old puff's emitters): thrown harder (K.throw) and lifted (K.lift) - water, not smoke -
+    // and a quarter of them leave a faint mist where they started (kind 2)
+    if (kind === 1 && K.throw) { if (K.mistShare && Math.random() < K.mistShare) sprayEmit(D, 2, x, y, z, vx * 0.3, vy * 0.3, vz * 0.3);
+      vx *= K.throw; vz *= K.throw; vy = vy * K.throw * 0.6 + K.lift * (0.7 + 0.6 * Math.random()); }
     D.p[q * 3] = x; D.p[q * 3 + 1] = y; D.p[q * 3 + 2] = z; D.v[q * 3] = vx; D.v[q * 3 + 1] = vy; D.v[q * 3 + 2] = vz;
     D.age[q] = 0; D.life[q] = K.life[0] + (K.life[1] - K.life[0]) * Math.random();
     D.size[q] = K.size[0] + (K.size[1] - K.size[0]) * Math.random(); D.seed[q] = Math.random(); D.kind[q] = kind;
@@ -6580,13 +6584,15 @@
     // integrate the particles: a droplet is ballistic with a little air drag and dies where it meets the water
     // (a foam speck is the field's, not a particle's); a puff is near-weightless mist under drag, sinking slowly
     const S = D.spray, sp = S ? null : waterFx.pts.geometry.attributes.position.array;
-    const KD = window.SPRAY ? SPRAY.KIND.droplet : { drag: 0, gravity: 1, grow: 1 }, KP = window.SPRAY ? SPRAY.KIND.puff : KD;
+    const KD = window.SPRAY ? SPRAY.KIND.droplet : { drag: 0, gravity: 1, grow: 1 }, KP = window.SPRAY ? SPRAY.KIND.puff : KD, KM = window.SPRAY && SPRAY.KIND.mist ? SPRAY.KIND.mist : KP;
+    // (G2838) a heavy drop meeting the water leaves a small ring in the field - a few a frame at most
+    const WTi = window.WATER && WATER.field && WATER.field.on ? WATER : null; let rings = 4;
     const wH = (x, z) => { const h = world.waterH ? world.waterH(x, z) : 0; return Number.isFinite(h) ? h : -1e9; };
     let live = 0;
     for (let q = 0; q < D.age.length; q++) {
       if (D.age[q] >= D.life[q]) { if (S) S.hide(q); else { sp[q * 3] = 0; sp[q * 3 + 1] = -1e4; sp[q * 3 + 2] = 0; } continue; }
       live++;
-      const K = D.kind[q] ? KP : KD;
+      const K = D.kind[q] === 2 ? KM : D.kind[q] ? KP : KD;
       D.age[q] += dt;
       // THE DRAG RELAXES TOWARD THE AIR, not toward nothing (CLIMATE K4). A
       // droplet or a puff slows down relative to the AIR it is in, and the air
@@ -6599,7 +6605,9 @@
       D.v[q * 3 + 2] = az + (D.v[q * 3 + 2] - az) * dr;
       D.v[q * 3 + 1] = D.v[q * 3 + 1] * dr - G * K.gravity * dt;
       D.p[q * 3] += D.v[q * 3] * dt; D.p[q * 3 + 1] += D.v[q * 3 + 1] * dt; D.p[q * 3 + 2] += D.v[q * 3 + 2] * dt;
-      if (!D.kind[q] && D.age[q] > 0.1 && D.p[q * 3 + 1] < wH(D.p[q * 3], D.p[q * 3 + 2]) - 0.02) { D.age[q] = D.life[q]; if (S) S.hide(q); continue; }
+      if (D.kind[q] !== 2 && D.age[q] > 0.1 && D.p[q * 3 + 1] < wH(D.p[q * 3], D.p[q * 3 + 2]) - 0.02) {
+        if (D.kind[q] === 1 && WTi && rings > 0) { WTi.stamp(D.p[q * 3], D.p[q * 3 + 2], 0.2 + 3 * D.size[q], -0.01, 0.5, 'ring'); rings--; }   // (G2838: where a heavy drop lands)
+        D.age[q] = D.life[q]; if (S) S.hide(q); continue; }
       if (S) { const a01 = D.age[q] / D.life[q]; S.set(q, [D.p[q * 3], D.p[q * 3 + 1], D.p[q * 3 + 2]], [D.v[q * 3], D.v[q * 3 + 1], D.v[q * 3 + 2]], a01, D.size[q] * (1 + (K.grow - 1) * a01), D.seed[q], D.kind[q]); }
       else { sp[q * 3] = D.p[q * 3]; sp[q * 3 + 1] = D.p[q * 3 + 1]; sp[q * 3 + 2] = D.p[q * 3 + 2]; }
     }
@@ -8482,8 +8490,13 @@
   // a pilot is made (mkPilot: the shed's, the roll-out's fullReset, a Fly on) and LATCHED with it - the worker's per-frame
   // read (SIM_LINK's get) takes the latch, so a flight's pilot never changes under it (and its end logs who flew it)
   var crProf;
+  // G2746 (the user, 19 Oct: "the player is supposed the expert"): in the story / career the PLAYER'S OWN flights are
+  // always the expert autopilot - the companion a new career hires (pilotsCompanion) and any pilot hired later fly
+  // their ROUTES only (ROUTES), never the player's flight; the pick row leaves the player's UI (personas: DEV)
+  var CAREER_PLAYER_EXPERT = true;   // (var, not const: personaProfile may ask before this line runs - no TDZ)
   function careerCrewProfile() {
     if (!CAREER_DEV || typeof pilotsProfileOf !== 'function') return undefined;
+    if (CAREER_PLAYER_EXPERT !== false) { crFlyer = 'me'; careerCrewBody(); return (crProf = undefined); }   // undefined = the expert
     try {
       const c = careerCrewCheck();
       crFlyer = (c.id !== 'me' && c.ok) ? c.id : 'me';
@@ -8515,6 +8528,7 @@
   // whether that pilot will fly this leg; under it the pick's refusal, and the boat home when it brings them
   function careerCrewRow(host, where) {
     if (!CAREER_DEV || !host || typeof pilotsHired !== 'function') return;
+    if (CAREER_PLAYER_EXPERT !== false) return;   // G2746: no pilot pick for the player's own flight - the expert flies it
     const d = playerLoad();
     const lab = document.createElement('label'); lab.className = 'crewPick';
     const sp = document.createElement('span'); sp.textContent = 'pilot'; lab.appendChild(sp);
