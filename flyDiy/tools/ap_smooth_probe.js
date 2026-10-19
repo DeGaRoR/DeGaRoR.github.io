@@ -2,7 +2,7 @@
 // worker's host and placement, DAY_CLOCK's day ticked - the 8 kt breeze and its gusts -, the page's pilot with the
 // shakedown, the load door's aeroplane). Writes the samples (--json) and prints the smoothness line.
 //   node tools/ap_smooth_probe.js --build <file.json|cub|c172> [--order HOME,w3] [--calm] [--damage 0|1] [--profile club|student|..]
-//        [--json out.json] [--max 900]
+//        [--json out.json] [--max 900] [--terrain]
 // --damage: 0 by default, the game's (GEN_DAMAGE_DEFAULT false; the page's ?damage=1 turns it on). --profile: the pilot's
 // persona (43 PILOT_PROFILES; the career's hired pilot is one), the expert by default
 'use strict';
@@ -24,7 +24,7 @@ const W = TW.W, A = id => W.aerodromes.find(q => q.id === id);
 const a = A(order[0]), b = A(order[1]);
 const H = TR.gameHost(C, W, def, a, b, { day: argv.includes('--calm') ? null : undefined, damage: def.params.damage, profile: opt('profile') });   // (G3300: gameHost hands the persona to sim_host's pilot.profile, as the page's mkPilot does)
 const SM = require(path.join(T, '_ap_smooth_lib.js'));
-const R = SM.flyAndMeasure(H, { max: +opt('max', 900) });
+const R = SM.flyAndMeasure(H, { max: +opt('max', 900), terrain: argv.includes('--terrain') ? (x, z) => W.terrainH(x, z) : null });   // (G3304: --terrain, legAlt's look recomputed)
 R.build = path.basename(B.key); R.damage = def.params.damage; R.profile = opt('profile', 'expert'); R.order = order.join(','); R.day = argv.includes('--calm') ? 'calm' : 'game';
 if (opt('json')) fs.writeFileSync(opt('json'), JSON.stringify(R));
 delete R.rows;

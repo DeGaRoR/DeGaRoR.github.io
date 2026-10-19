@@ -56,7 +56,18 @@ function flyAndMeasure(H, o) {
       if (Math.abs(dh) < 0.3) { lvl.push(m.alt - hP); lvlVs.push(m.vs); lvlN++; maxBankLvl = Math.max(maxBankLvl, Math.abs(m.bank || 0)); }
     }
     hP0 = hP;
-    if (k % 6 === 0) rows.push([r2(t), ph, onG ? 1 : 0, D.tailUp ? 1 : 0, r2(m.hdg), r2(m.ias), r2(m.alt), r2(hP), r2(m.agl), r2((m.pitch || 0) * 57.3), r2((m.bank || 0) * 57.3), r2(m.vs), r2(sim.ctl.da), r2(sim.ctl.de), r2(sim.ctl.dr), r2(sim.ctl.thr)]);
+    if (k % 6 === 0) {
+      // G3304: where, and (o.terrain: the world) the highest ground 1500 m ahead along the leg flown (43 legAlt's own look:
+      // seven samples, the leg's direction A->B) - the floor the circuit legs' height is raised to
+      let fl = null;
+      if (o && o.terrain && /^(CROSSWIND|DOWNWIND|BASE)$/.test(ph) && ap.legs && ap.legs[ap.legI] && ap.legs[ap.legI].A) {
+        const L = ap.legs[ap.legI], dx = L.B[0] - L.A[0], dz = L.B[1] - L.A[1], ln = Math.hypot(dx, dz) || 1e-9, ux = dx / ln, uz = dz / ln;
+        let h = -1e9; for (let q = 0; q <= 6; q++) { const d = 1500 * q / 6; h = Math.max(h, o.terrain(m.x + ux * d, m.z + uz * d)); }
+        fl = r2(h);
+        const rem = (L.B[0] - m.x) * ux + (L.B[1] - m.z) * uz;
+        rows.push([r2(t), ph, onG ? 1 : 0, D.tailUp ? 1 : 0, r2(m.hdg), r2(m.ias), r2(m.alt), r2(hP), r2(m.agl), r2((m.pitch || 0) * 57.3), r2((m.bank || 0) * 57.3), r2(m.vs), r2(sim.ctl.da), r2(sim.ctl.de), r2(sim.ctl.dr), r2(sim.ctl.thr), r2(m.x), r2(m.z), fl, r2(rem)]);
+      } else rows.push([r2(t), ph, onG ? 1 : 0, D.tailUp ? 1 : 0, r2(m.hdg), r2(m.ias), r2(m.alt), r2(hP), r2(m.agl), r2((m.pitch || 0) * 57.3), r2((m.bank || 0) * 57.3), r2(m.vs), r2(sim.ctl.da), r2(sim.ctl.de), r2(sim.ctl.dr), r2(sim.ctl.thr), r2(m.x), r2(m.z), null, null]);
+    }
     if (ph === 'STOPPED' && liftT != null) { stopped = true; break; }
   }
   const ap = H.ap, L = ap.report && ap.report.landing;
@@ -70,7 +81,7 @@ function flyAndMeasure(H, o) {
     active: actOut,
     land: L ? { VoverVs: L.VoverVs, sink: L.sink, V: L.V } : null,
     verdicts: (ap.report && ap.report.verdicts || []).map(v => v.code),
-    rows, cols: 't,ph,onG,tailUp,hdg,V,alt,hP,agl,pitch,bank,vs,da,de,dr,thr',
+    rows, cols: 't,ph,onG,tailUp,hdg,V,alt,hP,agl,pitch,bank,vs,da,de,dr,thr,x,z,ground1500,legRem',
   };
 }
 module.exports = { flyAndMeasure };

@@ -2285,10 +2285,18 @@ function makePilot(sim, def, world, opts) {
         }
       } else ceilT = 0;
     };
+    // G3304 (AP-ADAPT, the user 18 Oct on the Mosquito: "it struggles a lot maintaining altitude"): THE LOOK STOPS PAST THE
+    // LEG'S END BY ONE TURN. The circuit legs' floor read the ground 1500 m ahead along the leg whatever was left of it; on
+    // the Mosquito's 41 m/s circuit at w3 the downwind's last kilometre looked past the base turn onto ground it never
+    // flies over - the target climbed 178 -> 505 m, snapped back at BASE, and the final began 70 m high (a go-around, the
+    // leg never finished). The look is the leg's remainder plus the turn radius onto the next one, never more than the
+    // 1500 it was: every look that stayed inside the leg is the same seven samples
     const legAlt = (L) => {
       const g = legGeom(L);
       const base = ap.altRef + (L.h != null ? L.h : ap.hCruise);
-      const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, 1500) + Math.max(2 * A.hSafe, 40);
+      const rem = (L.B[0] - cg[0]) * g.ux + (L.B[1] - cg[2]) * g.uz;
+      const look = Math.min(1500, Math.max(0, rem) + Rturn);
+      const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, look) + Math.max(2 * A.hSafe, 40);
       return Math.max(base, floor);
     };
     const legSpeed = (L) => L.V === 'turn' ? VTurnLeg() : L.V === 'climb' ? ap.VClimb : ap.VCruise;
