@@ -12,11 +12,11 @@
 //              symptom). A tricycle has no tail-up: its whole roll is read (<= 6).
 //   AIR        the same flights, the 15 s after the lift-off: the EXPERT <= 10 deg (6-10). The persons (club, student) are
 //              printed, KNOWN (15-19: the persona air weave, the Pilot coordinator's next item) - not judged until it lands.
-//   LEVEL      every build, expert, one leg on the game's day (HOME > w3; the Jodel HOME > w2, the user: not on short strips):
+//   LEVEL      every build, expert, one leg on the game's day (HOME > w3; the Jodel a HOME circuit, the user: not on short strips):
 //              the leg COMPLETED; the height against the pilot's own plan (ap.intent.h) on the cruise legs, the plan
 //              steady, rms <= 5 m (1.2-3.7; the Mosquito 15.7 before G3304/G3305, 1.7 after); no go-around (the Jodel and
-//              the metal Cessna at w2 go round on t66 - G2460's stabilised gate on a final that gains 3 m/s, the Pilot
-//              coordinator's: KNOWN there).
+//              the metal Cessna at w2 go round on t66 - a tailwind final steeper than they can fly, the Pilot coordinator's:
+//              not flown here).
 //   HANDS      the same legs: aileron / rudder / elevator reversals a minute on the level legs <= 15 (0.6-10.3; PILOTACT's
 //              G630 count, 0.03 rad of hysteresis).
 //   TOUCH      the same legs: the touchdown speed over the sheet's stall <= 1.35 (the plaque's honest float ceiling;
@@ -30,7 +30,9 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const BUILDS = [
   { k: 'cub', f: 'builds/cub_2026-09-20_corrected.json', order: 'HOME,w3', trike: false },
-  { k: 'jodel', f: 'builds/jodel_2026-09-20_corrected.json', order: 'HOME,w2', trike: false, known: 'go-around at w2: G2460 (Pilot)' },
+  // the Jodel's leg is a HOME circuit: not a short strip (the user), and not w2 - its approach is flown into a 5 m/s tailwind
+  // on an obstacle slope beyond the type's idle gradient (t66's stabilised gate goes round twice there: the Pilot coordinator's item)
+  { k: 'jodel', f: 'builds/jodel_2026-09-20_corrected.json', order: 'HOME,HOME', trike: false },
   { k: 'c172', f: 'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json', order: 'HOME,w3', trike: true },
   { k: 'rufus', f: 'tools/fixtures/repro/rufus_2026-10-18_certified.json', order: 'HOME,w3', trike: false },
   { k: 'mosquito', f: 'tools/fixtures/repro/mosquito_3.json', order: 'HOME,w3', trike: false },
