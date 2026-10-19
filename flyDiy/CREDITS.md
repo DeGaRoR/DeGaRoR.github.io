@@ -1336,6 +1336,14 @@ The music that ships (57 tracks):
 
 <!-- MUSIC:END -->
 
+The story's opening (G3380 STORY-INTRO, the user's pick of 19 Oct; not on the radio - played once, by a New career's
+cinematic, named by `src/viewer/story_intro.js`):
+
+- "Sunset Plains" by Yoiyami — CC0 (licence read on its page on 2026-10-19:
+  http://creativecommons.org/publicdomain/zero/1.0/) — https://opengameart.org/content/sunset-plains
+  (`media/audio/music/yoiyami_sunset_plains_intro.cfae36cd.ogg`: the first 40 s of the 330 s WAV, a 3 s fade-out at its
+  end, Ogg Vorbis 48 kHz stereo ~96 kbps, 480 KB)
+
 The candidates the user picks from (the listening board): all from the **Free Music Archive**, each album's licence line read on its page on 2026-10-04 and each
 track's re-checked at download:
 

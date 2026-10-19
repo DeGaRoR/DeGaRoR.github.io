@@ -618,7 +618,9 @@ var AUDIO_MUSIC = (function () {
 
   // ---- THE FRAME ---------------------------------------------------------------------------------------------
   // the context the settings and the place ask for now (G1723: the frame's head, and the settings' own event)
-  const wantNow = au => (station === 'off' ? C_NONE : contextOf(au.welcome, PS[S_PHOTO] > 0, au.inGarage, au.get('musicGarage'), au.get('musicFlight'), 1, au.get('musicLoading')));
+  // G3380 (STORY-INTRO): a New career's opening plays its own track - the radio is held (its track fades out and keeps its
+  // place, as on leaving any context) while window.FLYDIY_MUSIC_HOLD is set
+  const wantNow = au => (station === 'off' || G.FLYDIY_MUSIC_HOLD ? C_NONE : contextOf(au.welcome, PS[S_PHOTO] > 0, au.inGarage, au.get('musicGarage'), au.get('musicFlight'), 1, au.get('musicLoading')));
   function update(P, dt, au) {
     if (!ctx) return;
     const s = P.s, I = P.I, garage = au.inGarage;

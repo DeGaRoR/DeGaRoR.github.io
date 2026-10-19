@@ -374,6 +374,9 @@ const MANIFEST = {
          ['src/viewer', 'world_rail.js'], ['vendor/ktx2', 'ktx2_loader.js'],
          ['src/viewer', 'townkit.js'], ['src/viewer', 'kit_lot.js'],
          ['src/viewer', 'diag.js'],
+         // G3380 (STORY-INTRO): a New career's opening (the cinematic over the cabin strip and its music) - asked for by the
+         // story's page half (app.js storyIntroCurtain) when a New career arms it; never by the sandbox, Continue or the phone
+         ['src/viewer', 'story_intro.js'],
          // G2252 (MAP-MENU): THE MAP SCREEN - its projection (map_pack.js, tools/map_bake.js writes it) and the screen; fetched
          // when the MAP entry is pressed, never before (the entry itself exists only with ?map=1 or in the career mode)
          ['src/viewer', 'map_pack.js'], ['src/viewer', 'map_menu.js'],
