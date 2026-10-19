@@ -6,7 +6,7 @@
 //          (one line per build: the mismatch reads across the lines)
 //   pitch  Cm_de x q Sw c / Iyy (elevator per pitch inertia) and Cmq's damping per Iyy at VCruise - the altitude loop's plant
 //   roll   Cl_da x q Sw b / Ixx and Clp per Ixx at VCruise
-//   node tools/ap_plant_probe.js <build.json> [<build.json> ...]
+//   node tools/ap_plant_probe.js <build.json | archetype key> [...]   (the STEER lines on stderr: one a build)
 'use strict';
 const path = require('path'), fs = require('fs');
 const T = __dirname;
@@ -42,5 +42,11 @@ for (const f of process.argv.slice(2)) {
     roll: { ClDa: r3(Dc.da.Cl), lDa: r3(Dc.da.Cl * Dc.q * Dc.Sw * Dc.b / Dc.Ixx), lP: r3(Dc.Clp * Dc.q * Dc.Sw * Dc.b * Dc.b / (2 * Dc.V) / Dc.Ixx),
             rollP: g('rollP'), rollD: g('rollD') },
   };
+  // G3303: THE STEER LINE - the generator's own numbers (62 genPlant / genSteerWD / genSteerYawK) as the def carries them:
+  // the tail-up rate loop's crossover at VRot, the reference, the factor the build flies
+  const pl = def.params.gen && def.params.gen.plant;
+  if (pl && C.genSteerWD) out.steer = { NdrPerIzz: r3(pl.Ndr / pl.Izz), Izz: r3(pl.Izz), M: r3(pl.M), VRot: A.VRot, wD: r3(C.genSteerWD(pl, A, Vs)),
+    ref: C.GEN_STEER_WD_REF, steerYawK: A.steerYawK != null ? A.steerYawK : 1 };
   console.log(JSON.stringify(out));
+  if (out.steer) console.error('STEER ' + out.build.padEnd(40) + ' wD ' + String(out.steer.wD).padStart(7) + ' rad/s  N_dr/Izz ' + out.steer.NdrPerIzz + '  steerYawK ' + out.steer.steerYawK);
 }
