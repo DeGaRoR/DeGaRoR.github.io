@@ -95442,3 +95442,8 @@ motion, the sitting-idle clip's amplitude) went 0.5 -> 1 in the page's defaults 
 base reads them) and in the four presets that state it. The crew's fallback for a build with no value is 1 too.
 A build that SAVED its own value keeps it (every builds/*.json says 0.5, the Rufus files 1); an older save with no
 `dumIdle` at all now animates at 1. The passengers' `paxIdle` was already 1. Animation only: no spec, no physics.
+
+## A0 - landing L19d (19 Oct 2026, gates 22:00-23:06, pushed ~23:10)
+Cargo (rolling): cabin-approach (G3097 the trees-only fan x_fan_w1_0 over Cabin Strip's end 0 + 27_premises on CORE_MATH + the re-cook), career-expert (the player's own career flights always fly the Expert; the career's pilot-pick row is gone), idle-default (pilot idle motion 1 by default), story-fix (the story loads the CERTIFIED Rufus; GAME-PLAN §R2 with the shed rules), water-spray (G2837 side arches + G2838 heavy drops; the user OK'd the look). torque-retune-66 HELD (the user's word on the float Cessna's mk_sea go-arounds is pending).
+Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
+Strict light gate: 12 RED, none new by cause. over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV, fix in progress); taskWorst / tasks1s = the boot/settle and roll-out tasks around 1 s (HWCOV 19 Oct: 982-1099 ms on L19a too, +-0.5 s run to run); floats world->garage 2.4 s = the pre-existing program re-link (FLOATS-RELINK); metal fuseWidth busy = the cost the user accepted by name (15 Oct). The gate's profile now lives in C: temp and is deleted after.
