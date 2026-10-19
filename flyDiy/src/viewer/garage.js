@@ -1045,13 +1045,7 @@ function garageInit(api) {
     // and this popup was declared the home of the NOUNS the day it was cut;
     // filing them here put a verb inside a verb, two clicks deep, which is
     // exactly the misfiling the ribbon exists to end.
-    // a build dropped on the open rack lands the same as one dropped on the
-    // ribbon — same two handlers, second surface
-    fleetEl.addEventListener('dragover', e => { e.preventDefault(); });
-    fleetEl.addEventListener('drop', e => {
-      e.preventDefault(); closeFleet();
-      readFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
-    });
+    // (a build dropped on the open rack: the window's drop below, G2799)
     document.body.appendChild(fleetEl);
   }
   function openFleet() { buildFleet(); renderFleet(); fleetEl.hidden = false; }
@@ -1288,12 +1282,56 @@ function garageInit(api) {
   }
   menuOpen(false);
 
-  // drop a build anywhere on the name plate
-  host.addEventListener('dragover', e => { e.preventDefault(); });
-  host.addEventListener('drop', e => {
-    e.preventDefault();
-    readFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
-  });
+  // DROP-JSON (G2799, the user, 18 Oct: a .json dragged ANYWHERE onto the
+  // garage imports; ED-1 did the scenery side). It was the name plate and the
+  // open rack only. Now the whole window, with 'drop to import' over the
+  // workshop while a file is dragged, and the drop goes through readFile, the
+  // ribbon's own import door. Window, BUBBLE phase: the scenery editor's
+  // capture-phase listeners stop a drag meant for it before it gets here; the
+  // garage takes it only while the workshop is on screen (its plate shown) and
+  // the scenery editor does not have the page. Anything not a .json is refused
+  // and said - and never left to the browser, which would open the file in
+  // place of the game.
+  if (typeof window !== 'undefined' && window.addEventListener && document.createElement) {
+    let depth = 0, dropEl = null;
+    const fileDrag = e => !!(e.dataTransfer &&
+      Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0);
+    const bodyHas = c => !!(document.body && document.body.classList && document.body.classList.contains(c));
+    const ours = e => fileDrag(e) && !!(host.getClientRects && host.getClientRects().length) &&
+      !bodyHas('premOpen') && !bodyHas('sceneryMode');
+    const show = on => {
+      if (on && !dropEl && document.body) {
+        dropEl = document.createElement('div');
+        dropEl.id = 'gDrop';
+        dropEl.innerHTML = '<b>drop to import</b><span>a flyDiy build (.json)</span>';
+        document.body.appendChild(dropEl);
+      }
+      if (dropEl) dropEl.classList.toggle('on', !!on);
+    };
+    window.addEventListener('dragenter', e => { if (!ours(e)) return; depth++; show(true); e.preventDefault(); });
+    window.addEventListener('dragover', e => {
+      if (!ours(e)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    });
+    window.addEventListener('dragleave', e => {
+      if (!fileDrag(e)) return;
+      depth = Math.max(0, depth - 1);
+      if (!depth) show(false);
+    });
+    window.addEventListener('drop', e => {
+      depth = 0; show(false);
+      if (!ours(e)) return;
+      e.preventDefault();
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!f) return;
+      if (!/\.json$/i.test(f.name || '') && !/json/.test(f.type || '')) {
+        alert('Import refused: ' + f.name + ' is not a .json'); return;
+      }
+      closeFleet();
+      readFile(f);
+    });
+  }
   syncRibbon();
   renderLog();
 

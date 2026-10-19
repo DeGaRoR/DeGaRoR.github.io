@@ -289,6 +289,24 @@ function bayCache(mesh, FS, bay, wall, zFw, reach) {
   }
   return { T, prof, ext, wallU, s0, s1, axisMin, axisMax };
 }
+// THE HAND'S RANGE (G2799, the user's review of 18 Oct: "tank sliders much
+// wider, especially fore/aft in the nose"). The bay's RULE limits [x0, x1]
+// stay exactly what they were - the default spot, the level a new tank
+// settles to, the litres, the cache keys and the core's billing all read
+// them, so no saved or stock tank moves. Only the player's fore/aft slider
+// and the 'past the bay' readout read this envelope: HAND_REACH metres past
+// each rule limit, and never past what the swept field describes (the cache
+// sweeps 0.7 m past the limits, so a placement out there is measured, not
+// extrapolated). In the nose that is forward to the firewall face and aft
+// under the panel. No sweep, no field: the rule's limits.
+const HAND_REACH = 0.6;
+function handRange(bay, cache) {
+  if (!bay || bay.on !== 'body' || !cache) return bay && bay.on === 'body' ? [bay.x0, bay.x1] : null;
+  let lo = bay.x0 - HAND_REACH, hi = bay.x1 + HAND_REACH;
+  if (cache.axisMin != null) lo = Math.max(lo, Math.min(bay.x0, cache.axisMin + 0.01));
+  if (cache.axisMax != null) hi = Math.min(hi, Math.max(bay.x1, cache.axisMax - 0.01));
+  return [lo, hi];
+}
 // the inner extents at an axis station, for callers that think in metres
 function bayExtAt(cache, FS, zFw, along) {
   if (!cache) return null;
@@ -414,12 +432,17 @@ function bodyPlace(mesh, FS, bay, v, dims, wall, zFw, cache) {
   // inside its BAY: every sample's station within [x0, x1], and its height
   // within the band (the band is where the bay is, the skin is where the body is)
   // the bay's limits are AXIS metres, like the ledger's
-  let outBay = 0;
+  // G2799: `outsideBay` is against the RULE's limits (the level a new tank
+  // settles to reads it, so a default lands where it always did); the readout
+  // and `ok` are against the HAND's range (handRange), where the player may go
+  const hx0 = bay.hx0 != null ? bay.hx0 : bay.x0, hx1 = bay.hx1 != null ? bay.hx1 : bay.x1;
+  let outBay = 0, outHand = 0;
   for (const p of pts) {
     const sm = zFw != null ? (zFw - p[2] / FS) * FS : null;
     const sf = sm != null ? sm : null;
     const s = sf != null ? sf : (sLc - (p[2] / FS - zc)) * FS;
     if (s < bay.x0 - 1e-6 || s > bay.x1 + 1e-6) outBay++;
+    if (s < hx0 - 1e-6 || s > hx1 + 1e-6) outHand++;
   }
   const yTop = c[1] + e[1], yBot = c[1] - e[1];
   const bandOK = yBot >= bandLo * FS - 1e-6 && yTop <= bandHi * FS + 1e-6;
@@ -433,12 +456,13 @@ function bodyPlace(mesh, FS, bay, v, dims, wall, zFw, cache) {
   out.clearAt = fit.at ? [fit.at[0] * FS, fit.at[1] * FS, fit.at[2] * FS] : null;
   out.outsideSkin = fit.outside;
   out.outsideBay = outBay;
+  out.outsideHand = outHand;
   out.inBand = bandOK;
   out.fitsSkin = fit.fits;
-  out.ok = fit.fits && outBay === 0 && bandOK;
+  out.ok = fit.fits && outHand === 0 && bandOK;
   if (!fit.fits) out.why.push(fit.outside ? 'runs out of the body' :
     'through the skin by ' + (-fit.worst * FS * 1000).toFixed(0) + ' mm');
-  if (outBay) out.why.push(outBay + ' corner' + (outBay > 1 ? 's' : '') + ' past the bay');
+  if (outHand) out.why.push(outHand + ' corner' + (outHand > 1 ? 's' : '') + ' past the bay');
   if (!bandOK) out.why.push('outside the bay’s band');
   return out;
 }
@@ -637,7 +661,7 @@ function pointInBox(p, place, margin) {
   return Math.abs(lx) <= e[0] + m && Math.abs(dy) <= e[1] + m && Math.abs(lz) <= e[2] + m;
 }
 
-const API = { SHAPES, vesselDims, installedFromDims, bayFitDims, bayExtAt, defaultSpot, settleLv, specFromCage,
+const API = { SHAPES, vesselDims, installedFromDims, bayFitDims, bayExtAt, handRange, defaultSpot, settleLv, specFromCage,
               firewallZ, bodyPlace, wingPlace, wingRibs, bayCache, analyticSlice, pointInBox,
               sLTable, sLOfZ };
 if (typeof window !== 'undefined') window.VESSEL_GEN = API;

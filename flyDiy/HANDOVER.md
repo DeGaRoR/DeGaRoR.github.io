@@ -95434,3 +95434,47 @@ Cargo (rolling; L19b's held set + Train A): altiport-w4 (strip 9 back, profile l
 Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10 characters; FRAMECOST cessna garage:restore).
 Strict light gate: 5 RED, none new. over100 0->2 on the 4 legs = the pre-existing ~700 ms reveal hitch after the roll-out screen (HWCOV's 19 Oct 13:00 profiles: present on L19a too; ticket REVEAL-HITCH, perf week). metal fuseWidth busy = the cost the user accepted by name on 15 Oct.
 Landing tooling, 19 Oct: land_light now cleans flyDiy/media before merging and stops on a merge that fails without conflicts (untracked cook outputs had silently dropped cabin-strip); land_ready checks merges cumulatively and honours land_exclude.txt.
+
+## G2799 - EDITOR-REVIEW TRAIN B: THE CARBON SEAT'S SUPPORT, THE TANKS' WIDER RANGE, DROP-JSON IN THE GARAGE (2026-10-19, EDITOR-UX-A for A0, local; branch claude/editor-review-b)
+
+Items 13 and 2 of D:/Dev/flydiy-notes/EDITOR-REVIEW-2026-10-18-PLAN.md, plus A0's DROP-JSON (the garage side; ED-1 did
+the scenery's). Items 11 and 12 (the dash) were DASH-REDESIGN's and landed in L19c. No core file changes: a saved
+build loads and flies bit-identically.
+
+- **13 The composite shell seat stands on the floor** (`_cage_crew.js` seatShell). Two moulded carbon ribs under the
+  pan, their top edge on the shell's outer face from the front of the pan to the lower back, each on a fore-aft alloy
+  floor rail (the airliner seat's idiom). Drawing only: the shell, the hinge and every number the crew laces to are
+  unchanged.
+- **2 The tanks' fore/aft slider is much wider, without moving a tank.** The bay's RULE limits stay exactly what they
+  were, because the default spot, the level a new tank settles to, the litres, the cache keys and the core's billing
+  read them. That is how the Cub's and Jodel's `along: null` nose tanks stay put.
+  - New: `VESSEL_GEN.handRange(bay, cache)`, the HAND's range, 0.6 m past each rule limit. It never goes past what the
+    swept field describes (the cache sweeps 0.7 m past), so a placement out there is measured, not extrapolated. In
+    the nose that runs forward to the firewall face and aft under the panel.
+  - Only three things read it: the fore/aft slider (and the box's length row), the 'past the bay' readout and `ok`
+    (bodyPlace's new `outsideHand`), and the stale-station reset (a station inside the hand's range is the player's).
+  - `outsideBay` stays against the rule, so `settleLv`, and with it every default, lands as before.
+  - The sweep for a bay that holds a vessel moved from the layout to measureBays (the same sweep, the same key,
+    read back in placeAll), so the panel drawn before the layout shows the wide range. The firewall datum is now read
+    once per measure, not once per body bay.
+  - The `cowlDeck` unit bug (60c_gen_energy.js:352, a fraction read as metres) is LEFT: fixing it moves every
+    `along: null` nose tank.
+- **DROP-JSON** (`garage.js`, `editor.css #gDrop`): a .json dragged anywhere onto the garage imports through readFile,
+  the ribbon's import door, with 'drop to import' over the workshop while the file is dragged.
+  - The window's listeners are BUBBLE phase, so the scenery editor's capture-phase ones (ED-1, 0cad23553) win while
+    it is open. They also stand down under body.premOpen / sceneryMode and whenever the plate (#edFleet) is not on
+    screen.
+  - A non-.json is refused and said, and never left to the browser, which would open it in place of the game.
+  - The name plate's and the open rack's own drop handlers are gone: they would have imported twice.
+- **GATE ENERGY** has 4 new 'hand:' rows:
+  - the nose range holds the bay and reaches 0.3 m aft of it;
+  - a tank on the bay's aft limit is past the rule but inside the hand's range, and is not called 'past the bay';
+  - the default spot and the settled level are the same with and without the hand's range;
+  - with no field, the range is the rule's.
+
+**What to watch for:**
+- The seat's ribs are crew vertices. The tank-vs-crew tests now see them, so a cabin/underFloor tank with no saved
+  station in a build with the composite seat could settle differently. Saved stations are untouched.
+- A placement inside the hand's range but outside the rule is green by the box and the skin. The crew and layer hits
+  still apply.
+- The drop overlay sits at z 70, over the fleet popup (60).
