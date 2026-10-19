@@ -431,15 +431,10 @@ function makeServos(sim, def, opts) {
     const kS = trike ? clamp((g('VSteer') / Math.max(V, 5)) ** 2, g('steerMin'), 1.0)
              : clamp((g('VTailUp') / Math.max(V, 5)) ** 2, g('steerMin'), 1.0);
     const kM = FT.groundP1D ? Math.sqrt(Math.max(G.steerMassMin, sim.totalM || G.steerMassRef) / G.steerMassRef) : 1;
-    // G3303 (AP-ADAPT): THE TAIL-UP GAINS x THE BUILD'S OWN RUDDER (genTuneAP's steerYawK, 62_gen_aero genSteerYawK):
-    // 1 - absent - on every validated build (the reference is their maximum), < 1 where the rudder per yaw inertia is
-    // stronger than any of theirs (Rufus B: the student's +-20 deg from tail-up on the live page). The water's step
-    // flies these too (x waterStepK, groundSteer below)
-    const kY = tailUp ? (g('steerYawK') ?? 1) : 1;
     const kP = (tailUp
-      ? G.steerP * G.steerTailUpK * clamp((g('VTailUp') / Math.max(V, 5)) ** 2, G.steerTailUpMin, G.steerTailUpMax) * kY
+      ? G.steerP * G.steerTailUpK * clamp((g('VTailUp') / Math.max(V, 5)) ** 2, G.steerTailUpMin, G.steerTailUpMax)
       : G.steerP * kS) / kM;
-    const kD = (tailUp ? G.steerTailUpD * kY : G.steerD * (trike ? Math.sqrt(kS) : kS)) * kM;
+    const kD = (tailUp ? G.steerTailUpD : G.steerD * (trike ? Math.sqrt(kS) : kS)) * kM;
     if (tailUp || !trike) return [kP, kD];
     const kPb = Math.min(kP, g('steerBW') * TW.Lwb / (Math.max(Vg, 3) * TW.steer));
     return [kPb, kD * g('trikeSteerD') * (1 - clamp((c.brake || 0) / 0.1, 0, 1))];
