@@ -1140,6 +1140,7 @@ const CAGE_PARTS = [
 
   { key: 'controls', name: 'Controls', parent: 'fit', layer: 'crew',
     when: P => +P.crewOn,
+    sections: ['cabFloor'],                 // G2795: the floor's boards (its rows are here)
     groups: [
       ['pitch & roll', ['ctlStick', 'stickX', 'stickY', 'stickZ', 'yokeGap', 'stickLen', 'stickCrank']],
       ['throttle', ['ctlThr', 'thrX', 'thrY', 'thrZ', 'thrLen']],
@@ -1147,6 +1148,8 @@ const CAGE_PARTS = [
       ['console', ['consoleOn']],
       ['flaps', ['flapCtl', 'flapX', 'flapZ']],            // G335, T2.3 (18)
       ['trim wheel', ['trimX', 'trimY', 'trimZ']],         // G331
+      ['parking brake', ['parkX', 'parkY', 'parkZ']],      // G2791
+      ['fuel selector', ['fselX', 'fselY', 'fselZ']],      // G2791
       ['floor', ['floorOn', 'floorLift']],                 // G331
     ] },
 
@@ -1159,7 +1162,7 @@ const CAGE_PARTS = [
              high: 'dashLip', at: 'off the windscreen base' },
     groups: [
       ['dashboard', ['intDash', 'dashBack', 'dashLip', 'dashDepth',
-                     'dashCrown']],
+                     'dashCrown', 'dashStyle', 'dashLegs']],
       ['crease', ['dashCrease'], EXPERT],
     ] },
 
@@ -1194,9 +1197,10 @@ const CAGE_PARTS = [
       ['aboard', ['dumOn', 'pilotWho', 'cabOcc', 'copWho']],
       ['pilot pose', ['dumSize', 'dumElbows', 'dumKnees', 'dumRecline',
                       'dumHandGrip', 'dumFist', 'dumIdle']],
+      ['hands', ['dumHandsApart', 'dumFistL', 'dumFistR', 'dumGripL', 'dumGripR']],   // G2797
       ['passenger pose', ['paxSize', 'paxRecline', 'paxFeetOn', 'paxFeetZ',
                           'paxFeetY', 'paxFeetX', 'paxIdle']],
-      ['markers', ['dumMarkers']],
+      ['markers', ['dumMarkers'], EXPERT],                  // G2794: an expert's instrument
     ] },
 
   // LIGHTS ARE A CABIN FITTING and not a fuselage one, because the thing you
@@ -1208,6 +1212,9 @@ const CAGE_PARTS = [
     when: P => +P.lightOn, gate: 'lightOn',
     groups: [
       ['fitted', ['lightOn', 'lightSw']],
+      // G2796: each light on its own
+      ['fitted, one by one', ['li_navFit', 'li_beaconFit', 'li_taxiFit', 'li_landFit',
+                              'li_floodFit', 'li_instrFit', 'li_pedalFit', 'li_paxFit']],
       ['outside (switches)', ['li_taxi', 'li_beacon', 'li_land', 'li_nav']],
       ['inside (dimmers)', ['li_flood', 'li_instr', 'li_pedal', 'li_pax']],
       // the wing bay is the lights' own geometry: where it is cut, how big it

@@ -96450,6 +96450,159 @@ mill, the float Cessna's Metlakatla return leg, a HOME taxi in the metal Cessna.
 Landed: ED-1's placer animals (a tile drops a herd, a scatter makes a hotspot), the ALMA as one tile, packs' loose parts hidden, zone pills for every category (G2893).
 Strict light gate: 16 better; only the accepted metal fuseWidth slider row red. Gates: CLOCK, CLOUD (lamps), FRAMECOST (master's restore row), KTX2 (accepted characters), TOUR shard 0 (the Cub's prop strike in 02/20's pond at w2, the user's kept pond; identical on master per Pilot 18 Oct).
 
+## G2741 - STORY-CORE: THE TUTORIAL'S BEATS T0-T7 ON THE CAREER DOCUMENT, PURE; THE STORY'S PLACES BY ROLE (THE CABIN STRIP AS THE USER NAMES IT); GATE STORY (2026-10-18, the GAME COORDINATOR; futureDesigns/game/GAME-PLAN-2026-10-15.md §3, §R; branch claude/ready/story-core off origin/master 05cc2acc0)
+
+- **src/core/79_story.js** (career-lazy, in MANIFEST.career: LAZY now counts ten modules).
+  - `career.story` rides the career block. careerNormalise keeps it. A career without one (every career before this,
+    the dev career) has no rails.
+  - The beats are data, in STORY_BEATS: T0 the cabin (mask 'finish'), T1 the move to HOME, T2 the client's plane (the
+    checklist: engine, flaps, fat tyres, lights = an electrical system, panel, paint; cost cap 9000), T3 delivery at
+    the owner's strip, T4 the gift, T5 three jobs, T6 the water job on floats, T7 the three occasions, then open.
+  - `storyStep(doc, ev, {aeros})` is pure. Events: ack / bind / stop / certified / jobDone. It returns the EFFECTS the
+    page must apply: hangar, clientPlane, giftPlane, routeOffer (ROUTES G3260), occasions, open.
+- **The places by role**, in `storySite(role, aeros)`: a `role` tag on the aerodrome record, else its NAME (the cabin:
+  `/\bcabin\b/i`), else fallback ids. A role nothing plays is null, and the beat is refused with the reason, never a
+  guess. **The cabin is the user's to name** (18 Oct). Name the strip with "Cabin" in it, and the story finds it. With none
+  named yet it falls back to a REMOTE strip, East Point Clearing then Tamgas Hill, never HOME (the user: "the middle of
+  nowhere"; HOME is the hub you fly to in T1). Today
+  the gate prints `cabin = none yet, home = HOME, client = w6, water = SEA`.
+- **Q1**: `storyJobsOpen(doc)` is false until T7 is read, so the page holds the generated job list. `storyMask(doc)`
+  feeds TECH-MASK's tutorial mode (G3230).
+- **GATE STORY** (tools/_story_check.js): the roles, the whole run, every refusal, the save round trip, the sandbox,
+  plus a --selftest of 4 breaks. Result: PASS, selftest PASS, LAZY PASS, BUILD PASS (18 Oct 15:55, box lock UNTIMED).
+- **Next (STORY-PAGE, G2742+):** app.js wiring.
+  - New career = storyStart with the user's ultralight at the cabin.
+  - The beat card at the edge (garage look).
+  - The effects applied: the client's Cub from a hand-authored file, the gift, the route offer through ROUTES, the
+    occasions from hand-authored listings.
+  - The events sent: the stop at a flight's end, certified at the garage's certificate, jobDone at a delivery.
+- **READY** for the rolling landing.
+
+### G2743 - TWO OWNED HANGARS: THE CABIN GRANTED AT THE START, HOME LOCKED UNTIL T1, "SEND TO" (2026-10-18, the GAME COORDINATOR; the user via A0: "test all these mechanics", "the start owns ONLY the cabin", "keep it simple: a 'send to' pick")
+- **BASE_OFFERS.w1**: the Cabin Strip's base plot 'w1' (SCENERY-ED-2: runway w1 'Cabin Strip' of the user's save 17, plot
+  'w1' at the flat top end, on claude/ready/cabin-strip). Shells field + club; kits park, bench, comfort.
+- **storyStart(doc, slot, { cabin: { aero, plot } })** grants the cabin's FIELD shed free (`story: true`, price 0), sets
+  `here` to the cabin and LOCKS HOME (`sheds.HOME.locked = 'story'`). With no plot on offer, it keeps HOME open and
+  returns the reason.
+- **T1 done** lifts the lock: the WWII field's hangar is ours.
+- **71_ playerShedLocked / playerShedsOpen**. A locked shed is not `here` (playerGoTo refuses it), not a bring-home
+  destination and not a send-to. "Bring it home" goes to the hangar the plane left, else HOME, else any open hangar.
+- **71_ playerSendTo(doc, name, hangarId)**: free and instant (GQ5). Inside when the door and a slot take it, else that
+  field's apron, else long-term. Refused for a hangar not held or still locked.
+- Note for the user: "the cozy preset" in our code is a layout of the 40 m WORKS shell. The cabin gets the smallest
+  FIELD shed with the comfort kit (stove, rug, lamps), per GAME-PLAN §3 "the smallest shed". Say if you want another.
+- GATE STORY rows added (two hangars). node --check only: the box is reserved 18:05-21:59, so the landing runs STORY,
+  PLAYER, STORAGE, GAMEPREM, SITE. Expect GAMEPREM / SITE to want the w1 plot on the island, which comes with
+  claude/ready/cabin-strip in the same landing.
+
+## G2742-G2749 - STORY-PAGE: THE STORY ON THE PAGE - A NEW CAREER AT THE CABIN WITH THE USER'S RUFUS, THE BEAT CARD IN THE CORNER, THE EVENTS INTO storyStep, THE EFFECTS APPLIED, Q1 ON THE MAP, THE THREE OCCASIONS (2026-10-18, the GAME COORDINATOR; branch claude/ready/story-page off origin/claude/ready/story-core 0ebd4254, STORY-CORE G2741 not on master yet)
+
+- **Where it runs.** `STORY_PAGE = CAREER_DEV && CAREER_ID === 'main'`: the welcome's career only.
+  - The dev career (?career=1) keeps NO story, so every gate's fixture career stays rail-free.
+  - The sandbox runs none of it (GATE UISMOKE's new scan: every call into the story outside its page half is behind
+    CAREER_DEV; the half's doors are behind STORY_PAGE).
+  - A career made before this (Continue) has no story: no card, nothing held.
+- **New career** (`playerLoad`: `careerNew`, then `storyNewCareer`, before the fleet lift; 79_story.js, pure).
+  - The starter is the user's Rufus. Its slot is named `Rufus`, or `Rufus 2` when a saved build already holds that name
+    (never overwritten). The page fetches the first file of `STORY_FILES.starter` that loads:
+    `builds/rufus_2026-10-18.json`, `builds/rufus_2026-10-18_corrected.json`, `builds/rufus.json`, then the archived
+    candidate `futureDesigns/game/aircraft-candidates/rufus-starter_2026-10-18.json`.
+    **RUFUS-CERT (G3270): name the certified file one of those three builds/ names** (or add yours to STORY_FILES.starter).
+  - It stands at the CABIN: `storySite('cabin', world.aerodromes)`. The cabin gets the smallest shed, a `field` shell
+    (the plot's own id, dims and kits when BASE_OFFERS has one there; else the aerodrome's id, 18 x 20 x 4 m so the
+    Rufus's 10.9 m passes the door). The garage opens there (`here`). HOME's hangar carries `locked: 'story'` until T1.
+  - **No cabin on the island (today: GATE STORY prints `cabin = none yet`)**: the story starts at HOME. The beat card
+    says why (`STORY_NO_CABIN`); no strip is guessed.
+  - Once the user names the strip "Cabin..." (18 Oct), a NEW career starts there. The shed is drawn in the world only where
+    the premises record places a plot (`siteOf(aero).plots`): the room itself opens either way.
+- **The beat card** (`#stCard`, app.js + editor.css).
+  - Top-left corner (left 12 px, top 72 px), 300 px wide, never centred. It folds on its head.
+  - The garage's look: the `--ed-*` tokens (`#stCard` joined editor.css's token root), IBM Plex Sans upright, no serif,
+    no italics.
+  - It shows the step (`n of 8`), the title, the brief, and the goal's state: the stop's place and plane; T2's checklist
+    ticked off the build on the stand (or its slot), the budget and the certificate; T5's "n of 3 jobs" and the three
+    jobs. An ack beat has **OK**, which sends `{ k: 'ack' }`. The effects' lines show under it, and on the arrival card.
+- **The events** (`storyEvent` -> `storyStep`, `{ aeros: world.aerodromes }`).
+  - `stop`, at every flight's end, right after `careerStopApply` (`storyOnFlightEnd`).
+  - `jobDone`, for each `done` event that stop delivered.
+  - `certified`: bench.js calls `window.BENCH_CERTIFIED` when the airworthiness certificate lands (the last gating test).
+    It carries the slot on the stand, the spec as a Save would write it, and the cost: dm11's edit bill against the Cub
+    as it arrived (`procureEditBill` x `procureEcon('edit')`).
+  - `bind`, after the page writes a story plane's slot: the starter, and the client's Cub with its arrival spec.
+- **The effects** (`storyApply`, pure; the page fetches a plane's file first).
+  - `hangar`: HOME's lock lifted, a ledger line at 0.
+  - `clientPlane`: `storyClientSpec(builds/cub_2026-09-20.json)`: flaps off, `systems.fit 'minimal'` (no battery, so no
+    lights), paint `bare`, the same engine. It goes in slot `Client Cub`, stationed in the HOME hangar, its airframe row
+    marked as the client's, then bound.
+  - `giftPlane`: the client's mark lifted, a `gift` ledger line at 0.
+  - `routeOffer`: **ROUTES (G3260) is on no branch yet**, so the offer is recorded as a stub (`story.offers`, `stub: true`).
+    When ROUTES lands, its record goes in `o.route` from the page.
+  - `occasions`: the three authored listings (`STORY_OCCASIONS`) go on the used market (`procureMarketOf` lists them
+    first). They are one-time: a purchase sells them for good.
+  - `open`: the rails end.
+- **Q1 on the map.** While `storyJobsOpen` is false:
+  - the record (`storyRecord`) marks every generated row `held`; map_menu draws them greyed, tagged "after the move-in",
+    with Track off, and `careerAct` refuses them;
+  - the story's own goal heads the contracts list (`.mmStory`);
+  - at T5 the story's three jobs are offered: `STORY_JOBS` = the authored openers `clients.01` (a pickup), `survey.01`
+    and `resort.01` (a small load).
+- **The tech mask.** `storyMask(doc)` is handed to `window.TECH_MASK.tutorial(m)` when TECH-MASK (G3230) is present
+  (it is on no branch yet). It is also sent as a `flydiy-story` window event, and readable as
+  `window.FLYDIY_STORY.mask()`.
+- **The market in the player's career.** `PROCURE_PAGE` also opens under CAREER_DEV. The welcome's career has a map with
+  a Market tab, but before this it had no buy doors (only ?map=1 / ?career=1 did); the occasions are bought there.
+- **A recalibration, for the user to confirm.** T2's `costCap` was 9000 (G2741). No finish could meet it: the edit bill
+  for the cheapest complete checklist (on the Rotax 582) is 24 248. The cap is now **40 000**, measured:
+  - the Jabiru 2200 finish: 35 114 (passes);
+  - the Rotax 912 finish: 38 089 (passes);
+  - the O-200 finish: 44 355 (over);
+  - the O-320 finish: 48 745 (over).
+- **PLACEHOLDERS THE USER MUST AUTHOR** (the user's rule: a missing plane is authored by hand, never generated):
+  1. **The fabric 4-seater** (T7's first occasion, `occ:fabric4`). It stands as the validated metal Cessna (`meridian`).
+  2. **The Jodel-class one** (`occ:jodel`). It stands as the validated Jodel (`pinson`).
+  3. The third occasion is the validated Cub (`scout`, `occ:cub`): not a placeholder.
+  4. The beats' words are still G2741's placeholders, for the narrative pack.
+  5. So are T5's three jobs (the arc openers).
+- **Not found in the repo:** `futureDesigns/game/GAME-PLAN-2026-10-15.md` is on no branch. This session worked from the
+  G2741 section and 79_story.js.
+- **GATE STORY** now has a page half. It slices app.js's own story half and runs it headless in node over the core, with
+  a minimal DOM and the build files read off the disk. It checks:
+  - no cabin -> HOME, with the reason on the card;
+  - a New career at a "Cabin Strip": the field shed, the garage there, HOME held;
+  - the starter fetched builds/-first and stood at the cabin;
+  - the card at T0 and its OK -> T1;
+  - Q1: the map's rows held and drawn greyed;
+  - a stop at HOME -> the hangar ours, the client's Cub in the HOME hangar as it arrives, bound, the story's line on the
+    arrival card;
+  - the T2 card's checklist ticked off the stand;
+  - the bench's certificate (the Jabiru finish) -> T3;
+  - the occasions authored, flyable where they stand, one-time; the used market of a career without a story unchanged;
+  - T5 and open;
+  - the source: the guards, the card's corner and look, the bench hook.
+- **Gates (18 Oct, through run_gates):**
+  - PASS: STORY (+ --selftest), UISMOKE, UISMOKE-PHONE, DESTTO (3 shards), CONTRACTS, PLAYER, SAVE, STORAGE, LAZY (its
+    Chromium boots), BUILD, GFX, MEDIA, PROCURE, ECON.
+  - UISMOKE first failed on map_menu's `.title =` (the NOHOVER scan). f851e450 fixed it; UISMOKE, UISMOKE-PHONE, STORY
+    and LAZY were re-run on the final source: PASS.
+  - A one-off headless Chromium boot of `?mode=career` (a scratch check, not a gate) gave:
+    - no page error;
+    - the story at T0 with the no-cabin note, Rufus fetched from the candidate and on the stand at HOME;
+    - OK -> T1;
+    - the map's 20 rows held;
+    - the card at (12, 72), 296 px wide, IBM Plex Sans, upright.
+- **READY** @ f851e450 (the work: e2aaea74 + f851e450) for the rolling landing.
+
+### G2744 - THE OPENING READS REMOTE + SEND TO (2026-10-18, the GAME COORDINATOR, on claude/story-core after the STORY-PAGE merge)
+- **The map** opens 3x the fit, centred on the strip the story runs from, while the rails hold and `here` is not HOME
+  (app.js storyRecord `at`, map_menu.js storyFocus). A hangar still LOCKED by the story (HOME before T1) is not listed
+  as the player's.
+- **Send to**: a plain select on every storage card (inside, outside and long-term): "send to... the hangar at <field>".
+  It lists the held, unlocked hangars other than the one the plane is in (FLYDIY_STORE.sendTargets / sendTo ->
+  71_ playerSendTo). Free and instant; a refusal shows its reason. 71_ playerBringHome now moves a plane INSIDE one
+  hangar to ANOTHER on a send-to (bring-home still leaves an inside plane be). GATE STORY row added.
+- node --check only (the box reserved 18:05-21:59). Land with STORY, UISMOKE, UISMOKE-PHONE, STORAGE, PLAYER, GAMEPREM,
+  SITE, LAZY, BUILD, together with claude/ready/cabin-strip.
+
 ## G2770-G2779 - EDITOR-UX-B: THE SLIDER REVIEW'S FUSELAGE / NOSE / CANOPY / DOOR / BOOM / UNDER-FUSELAGE HALF (2026-10-17, EDITOR-UX-B for A0, local; branch claude/editor-ux-b-g2770 off master 05cc2acc0)
 
 The second half of the user's slider review of 10 Oct (D:/Dev/flydiy-notes/SLIDER-REVIEW-2026-10-10.md). The frames
@@ -96527,3 +96680,162 @@ landing (every node touchdown 1.28-1.34 Vs, 200-210 m of roll). The report: flyd
 Cargo (rolling, every claude/ready/* except dash-redesign): editor-ux-b-g2770, float-ap (G3081 + ROUTE-SEA), ground-1px (G2610), hangar-fix + taxi-all (G3092-G3097), metla-wrapup (Metlakatla behind the town flag, mk_sea kept), perf-1, rufus-cert (builds/rufus_2026-10-18_certified.json + LIVERY gate), rufus-flare (G3271 ctl.flare; the metal Cessna WARN accepted by the user).
 Battery: only master's known reds (CLOCK lamps row, CLOUD lamps row, KTX2 row 10, FRAMECOST cessna garage:restore).
 Strict light gate: 2 RED. 'metal fuseWidth busy' = a cost the user accepted by name (15 Oct). 'floats world -> garage 0.23 -> 5.47 s' = PRE-EXISTING: HWCOV's bisect (19 Oct 05:00 + 07:45) shows master 05cc2acc0 at 3.1-3.8 s in the same rig; a 2-4 s program link on the floats' way back after the Cub legs. The 12 Oct baseline is stale for this row; a separate ticket (which program re-links; hybrid_trips.js).
+
+
+## G2790-G2799 - EDITOR-REVIEW TRAIN A: THE USER'S GARAGE-EDITOR REVIEW OF 18 OCT, THE QUICK FIXES (2026-10-18, EDITOR-UX-A for A0, local; branch claude/editor-review-a)
+
+The plan, with all 13 items, is D:/Dev/flydiy-notes/EDITOR-REVIEW-2026-10-18-PLAN.md. A0's interim rulings: (7) my
+proposal; (9) the wing-bay cut stays on the master; (11, Train B) new default only. Every new row defaults to today's
+behaviour, so a saved build loads and flies as before.
+
+- **8** The nose's size row is 'length' (it read 'deck fore/aft (nose length)'; it has been the trunk's length since
+  G2770).
+- **1** The parking brake and the fuel selector get their own place: `parkX/Y/Z` and `fselX/Y/Z`, offsets from
+  today's seats (the trim wheel's `ctlShift` idiom). The dash switch row stays the layout's (Train B, item 12).
+- **10** The pedal cables run to a fairlead on the FIREWALL: the crew anchors publish `A.zFire`, the aft-most vertex
+  of the firewall faces (the floor's own scan). With no firewall ahead of the pedals (an aero nose), the old 24 cm
+  run stays.
+- **3** Strut tanks: the ogive's long axis is along the line of flight. Its centre stays ON the strut, so the frame's
+  billing on the strut's end nodes (the `along` lever) is still where the pod is drawn. The fit test is the pod's
+  girth against the body at the foot and the wing at the top.
+- **7** The original dummy's leftovers:
+  - the eye point draws only with expert rows on, and a saved build keeps its `dumMarkers`;
+  - the ATD's suit colours show in FINISH only while an ATD is aboard (still taken, never 'unclaimed');
+  - 'pilot dummy' is 'pilot aboard' (the pilot choice beside it is 'pilot').
+  - The ATD shell itself stays: it is a pilot choice and the loading fallback. Its skeleton is every character's IK.
+- **4** The floor's own livery section `cabFloor` (plywood until picked; AERO_SEC + the controls part's sections +
+  CAGE_SECMAT in buildFloor). Its top and bottom caps take the keel's slope as their normal (the extrusion was
+  flat-shaded in bands); the edges stay crisp. Shadow receiving on the floor was NOT added: it is a program variant in
+  the garage (strict garage rows).
+- **9** Lights fitted one by one:
+  - `li_<k>Fit` per light, all 1 by default.
+  - Unfitted means no lamp, no shed light, no panel switch, no backlight, no bus load in flight.
+  - The join writes `lights.unfit` ONLY when one is off.
+- **6** Hands apart (`dumHandsApart`, default 0):
+  - each hand's fist and grip; the rig's curl entries know their hand;
+  - the grip solve picks the palm by the chain's side (the same function the flown pilot runs);
+  - the live record, the join and app.js carry the two hands only when they are apart.
+
+**The look** (A0's GPU slot, Mon 19 Oct 10:35-10:37, gpu UXA, read off the page, no stills):
+- every new row is in its part: parking brake, fuel selector, lights one by one, each hand its own, the nose
+  front tiles and 'length';
+- `A.zFire` 2.63 sits ahead of the dash (2.20);
+- unfitting the landing light takes its 3 lamp objects away ('6 fitted') and refitting restores them (27);
+- `parkZ` moves the brake knob and 0 puts it back;
+- hands apart: left index 9.7 deg against right 98, and 54.7 / 53 both back when off;
+- 'cabFloor' is in the materials panel;
+- the Chinook's strut pods lie on (0, 0, 1) and fit;
+- no JS error (the same 3 resource 404s as G2760's look).
+- One label fixed there: two 'pilot' rows under 'aboard' -> 'pilot aboard'.
+- Gates: the 27 above, PASS on the pre-rebase 48e6cea62 (19 Oct 06:35, cpu UXA); rebased onto L19a e276fe9fe, node
+  --check clean.
+
+**Not done:**
+- **2 (Monday/Tuesday): the tank ranges.** The Cub's and Jodel's nose tanks are saved with `along: null`, so they sit
+  at the DEFAULT spot from the bay range. Widening that range, or fixing the `cowlDeck` unit bug (60c_gen_energy.js:352
+  reads a fraction of cabin height as metres), would move their CG. The fix splits the default's bounds (kept) from the
+  hand's slider envelope (wider) across the field cache, the out-of-bay test and the reset rule, with a gate on the
+  stock stations.
+- **5:** idle motion is already ON (dumIdle 0.5 in every preset and saved build); this waits for the user to say where
+  they see none.
+
+**What to watch for:**
+- the brake knob or fuel selector moved far from its seat floats (no clamp to the dash or the wall, by design: the
+  user's place);
+- the cable now crosses the footwell to the firewall: check the floor's cut and the belly lift on a short nose;
+- a strut pod on a steep strut: the girth test may now pass a pod the strut runs through (it is drawn ON the strut);
+- a floor with an override shows it in the livery as 'the cabin floor';
+- unfitting the landing lamp leaves the wing bay cut (A0's ruling);
+- per-hand values ride flight only when 'each hand its own' is on.
+
+**For DASH-REDESIGN (G3340-G3349, the cloud session that took Train B's dash items 11 + 12):** the energy layer
+tests every tank against the cage's `dash` and `dashFace` faces (_cage_energy.js ~672, 881-893: 'through the dash' =
+unfit, red, does not fly). It never moves the tank or its mass. A reshaped dash, or a bottom opened for reservoirs,
+can therefore flip a saved tank's FIT without moving it. The nose-tank range (Train B item 2, EDITOR-UX-A) is not the
+dash's: say in HANDOVER if the dash's new tank space needs the nose bay to reach under it.
+
+## G3340-G3341 - DASH-REDESIGN: THE ARCH DASH (open below, a straight vertical forward edge, cheeks meeting the post) + THE FLEXIBLE DIAL LAYOUT (2026-10-18, DASH-REDESIGN for A0, cloud - node + a software raster of the bench's headless scene; branch claude/dash-redesign off claude/dash-redesign-brief, ready as claude/ready/dash-redesign)
+
+**The ask (the user, 18 Oct):** "the whole top and front parts are OK, the sides and bottom are not, and being able to fit fuel tanks without collisions in there feels imperative". The design direction: one mesh like an arch, plus the flat front panel. Review items 11 and 12.
+
+**References (public, short):**
+- J-3 Cub: the 12 gal tank sits in the nose ahead of the windscreen, the panel is aft of it, and the space under it is the pilot's legs.
+- Cessna 172: a flat structural "stationary" panel riveted to the fuselage, with a shock-mounted instrument sub-panel and a separate padded glareshield over it. The volume below and behind is open legroom.
+- Jodel: a flat ply panel under a small coaming, with the tanks variant-dependent.
+- The rule all of them share, and the one the arch follows: a flat plate under a coaming, closed at the sides by the cabin's own walls and posts, and nothing underneath.
+
+**What was built (`_cage_gen.js` dash pass, `dashStyle 1`):**
+- **Kept:** the top and the face, verbatim. That is the glareshield sealed on the traced base line, the roll, the lip, the crown and the flat `dashFace` plate.
+- **Cheeks:** they take a VERTICAL forward edge at `zFront` (no `zPillA` slant). zFront is the forward face of the near-vertical frame members at the wall around the base corner, plus 4 mm, or the base corner itself where there are none. Cub: 4.8 cm ahead of the corner, covering the front tube. Each edge point is held inside the wall at its own station (`frontX`).
+- **Bottom:** NO bottom ladder.
+- **Plate:** runs down to the box's bottom line (`yPlate = yB`). With no black border under it, the panel never has less room than on the box.
+- **Legs (`dashLegs`: 0 the plate, 1 a side rail (default), 2 the floor):**
+  - They follow the wall where the section turns in, and stop before standing in the footwell.
+  - Below the plate they start at a doorway's forward jamb. Where that leaves less than two lips of leg, they end at the plate.
+  - On the Cub, Jodel and Cessna, and on every doored card, the door opening runs ahead of the panel face, so the arch ends at the plate. The doorless Rufus and Chinook get legs to their floor rail.
+  - **DECISION for the user:** should a leg stand in the doorway's forward strip on doored cabins? Today it does not.
+- **Corners and contour:** the feet and the edge's top are pinned through both CC levels (`sm.VW`). The leg-top inset point merges into the corner's, so the lip and the plate cannot fold. The legs inset straight inboard.
+- **Published:** `m.dashArch` {yPlate, yB, yFoot, zFront, zP, zAftLow, yEdge}, in cage units.
+- **The crew:** `_cage_crew.js` reads `dashLip` as the box-equivalent yB on the arch (its lowest vertex is now a foot), and sets `A.flexLayout`.
+
+**Saved builds keep their dash:**
+- `CAGE_PARAMS.dashStyle` defaults to 1 for new builds and births (designBake states it).
+- `cageFromSpec`'s migration (5) gives a file without the row 0, the box.
+- Each saved build's sheet hashes identical to the base branch, byte for byte (Cub, Jodel, Cessna and Rufus measured; GATE DASH asserts it).
+- Rows: `dash style` (box / arch) and `arch legs`, in `_cage_page5.js` and `_cage_ui.js`, and in the cockpit part of `_cage_parts.js`.
+
+**The flexible layout (`_panel_gen.js`):**
+- `layout()` runs the standard rule first, and that result stands whenever it places everything.
+- On `A.flexLayout` and an overflow, `layoutCore(..., flexRow)` lays every dial on ONE row from the pilot's centre out. The order is AI, then ASI (+x), then the altimeter (-x), as the T reads. Nothing is reserved under the dials.
+- The switch row then takes the LOWEST height where a clear run holds it at a 30 mm pitch: under the dials where they leave room, beside them where they do not. Fewer dials off wins; a tie keeps the standard result.
+- GATE PANEL (+9 checks): a short wide plate the standard rule empties gets every dial, one row, the T's order and switches under no dial; a plate the standard rule fills is laid out byte-identically.
+
+**Numbers:** the energy layer's own fit, with the builds' REAL tanks. Points are dash samples inside the tank's solid.
+
+| build | tank | box | arch |
+|---|---|---|---|
+| Cub | nose 26 L | 46 | 0 |
+| Jodel | nose 45 L | 194 | 0 |
+| Rufus | nose 16 L | 95 | 0 |
+| Cessna | wing 212 L | 0 | 0 |
+
+- **The cause was the box's slanted bottom:** every hit was on it, none on the glareshield or the cheeks.
+- **Skin:** the Jodel's box stood 58 vertices / 25.7 mm through its skin; the arch reads 0. Cub and Cessna read 0. Rufus reads 3 / 4.3 mm both ways (the unchanged glareshield).
+- **Dials on the plate (arch, new-build look):** Cub 11 -> 12, Jodel 9 -> 12, Cessna 16 -> 16, Rufus 8 -> 8.
+- **Mass and CG:** unchanged. The dash is not in the physics; GATE DASH flies the joined Cub and C172 cards both ways.
+
+**Proof:**
+- **Stills:** `futureDesigns/dash/stills/` (README there), before / after / overlay for Cub, Jodel, Cessna and Rufus in side, front and 3/4 views.
+- **Why a raster:** the bench's WebGL pane draws only the sky under the cloud's SwiftShader (G1320). The stills are `tools/dash_stills.js`, a software raster of `_scene_headless.js` (crew, panel and energy layers): true geometry, flat shading. `tools/dash_stills_compose.py` makes the strips.
+- **New gate: GATE DASH** (`_dash_check.js`, core, ~35-95 s), 53 checks. Saved builds keep the box byte for byte; the arch is open under the plate; one vertical forward edge from the foot; the plate unfolded and the box's or a lip more; no further through the skin than the box; real tanks clear of the arch, with the box's count > 0; mass and CG equal. It covers Cub, Jodel, Cessna and the Chinook birth (legs below the plate).
+
+**Gates (--only, --no-build, 18 Oct):** CAGEFIT, CABIN, PANEL, PARTS, ENERGY, JOIN, DASH, TANKMOUNT, SAVE, SHOULDER and DESIGN all PASS. Generated files were not rebuilt (A0 builds the train).
+
+**Coupling: EDITOR-UX-A's nose-tank slider (CG-safe split):**
+- No tank range or default station was touched.
+- On the arch the dash no longer caps the nose bay, so `tools/tank_bay_probe.js`'s "the dash less 20 mm" ceiling rises on new builds. The deck-form capacities there grow, and a nose tank may now be sized larger without meeting the dash.
+- The crew and skin verdicts are unchanged: the Cub's and Jodel's nose tanks still fail those, as before.
+
+**TRAP (measured):** the FIRST `BJ.bakeJoined` in a process reads the Cub card 41 g lighter than every later bake (476.471 vs 476.512 kg), whatever the dash: layer module state, TANKMOUNT's carry-over. GATE DASH warms up before comparing.
+## PERF-1 (18 Oct, parked for the perf week: the user, "it's not now yet - objectives 1, 2 and 4")
+Done and landed (L18a / L18d): FRAMECOST_UNIFORMS (who sends the uniforms), parked aeroplanes cast their next LOD rung
+(counts only: stand shadow tris -378 k; neutral on the box, for the weak GPUs), the fixed reference in train_gate.js
+(identity refusal, cumulative budgets, tools/perf/perf_ledger.json; inert until A0 runs --reference-take), one owner for
+the GPU timer (the recorder times 3 frames in 4; the clouds / post / water / AA timers ask FLIGHT_REC.gpuMay).
+Found: the taxi's "uniform4fv x8 at 52ab" (626 -> 5176) never existed - a stale parked cook in the 14 Oct split trees;
+master sends 524-530. The taxi's triangles flip ~12 M <-> ~18 M between and within runs whatever the arm (on the board
+for PKG3/PKG5: the mirror's AUTO capture or a herd coming in reach - not named yet).
+GATE-ANCHOR (claude/perf-1-anchor -> claude/ready/perf-1 after its Mon 06:10 check): evenness rows first (over34, worst,
+slow34s, loopAll), the floatplane's take-off leg from SEA, the Cub + the metal Cessna + the Cessna 172 by file, every
+rollout run --set mirror=off. The first gate with it takes --update for the new rows.
+PARKED, coded, NOT measured: claude/perf-1-u4 (c4e33c3b1) - app.js sends a vec4 ARRAY uniform only when its floats
+changed for that location (uMist[] / uCloudP[]: 380 of the taxi's 530 uniform4fv); ?u4cache=0 = the old path;
+tools/_fake_gl.js lets a page-assigned context method shadow the recording one. To land: FRAMECOST (census with and
+without ?u4cache=0, the gate) and a GPU ABBA (the Cub, HOME chase, mirror off) - the slot script is drafted in PERF-1's
+session (perf1_gpu_1019.sh, never armed), with the first fixed-reference capture on master after the anchor lands.
+
+## A0 - landing L19c (19 Oct 2026, gates 16:01-17:20, pushed ~17:25)
+Cargo (rolling; L19b's held set + Train A): altiport-w4 (strip 9 back, profile limits -> warnings), cabin-strip = story-core (Cabin Strip w1 + field shed + cab_apron/cab_store + fly/circuit; STORY-CORE + STORY-PAGE: Rufus start at the cabin, two owned hangars, the remote opening, send-to), one-surface, car-glass (normals on 112 props + glass), dash-redesign-green (G3340-41 arch dash + flexible dials), editor-review-a (garage review Train A), flightrec-detail (G3322), perf-1 anchor (GATE-ANCHOR). Excluded: dash-redesign (superseded), water-lane-ed (-> L20a with feel-follows-look).
+Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10 characters; FRAMECOST cessna garage:restore).
+Strict light gate: 5 RED, none new. over100 0->2 on the 4 legs = the pre-existing ~700 ms reveal hitch after the roll-out screen (HWCOV's 19 Oct 13:00 profiles: present on L19a too; ticket REVEAL-HITCH, perf week). metal fuseWidth busy = the cost the user accepted by name on 15 Oct.
+Landing tooling, 19 Oct: land_light now cleans flyDiy/media before merging and stops on a merge that fails without conflicts (untracked cook outputs had silently dropped cabin-strip); land_ready checks merges cumulatively and honours land_exclude.txt.

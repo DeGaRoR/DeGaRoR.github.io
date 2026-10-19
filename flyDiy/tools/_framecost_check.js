@@ -76,6 +76,12 @@ const TOL = { rel: 0.01, abs: 2 };
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
+  // G3340-G3341 (DASH-REDESIGN, the user validated it 18 Oct): the arch dash and the flexible dial layout - the Cub's
+  // garage seed walks +704 matrix updates (17652 -> 18356, +4 %) and its restore +28 (778 -> 806): the dash's new pieces
+  // and the dials that now fit the plate instead of overflowing (this branch is master + the dash alone; the
+  // Cessna's restore 2269 -> 4553 is master's own, not admitted here)
+  { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cub', rise: 900, why: 'the arch dash and the dials that now fit (G3341 flexible layout)', g: 'G3340' },
+  { key: 'boot/garage:restore/', build: 'cub', rise: 40, why: 'the arch dash and the dials that now fit (G3341 flexible layout)', g: 'G3340' },
   // G1975.2 (DEADWOOD-BRIGHT, the user's call 2026-10-07): the snags dealt by the MIXES' own dead share (TREE_MIX.mixDead ON;
   // pine_georgeous was 53 % dead off its collection's share): the living trees that replace the snags carry 2-4x their
   // triangles - the Cub's stand +84 141 tris (+0.48 % of the frame) against the same code with ?mixdead=0 (census pair,
@@ -442,7 +448,10 @@ const ALLOW = [
   // G3023 (RWYTREES-MAP, train 56 e21d9c7fc): 'mapx' the default - the woods to the strip's edge, the user's fans and own clears
   // standing: the taxi's shadow pass carries the new tree line (A0's FRAMECOST on master); upTo = measured + 5 %
   { key: 'taxi/tris.shadow', build: 'cub', upTo: 3848164, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (1782437 -> 3664917.5)', g: 'G3023' },
-  { key: 'taxi/gl.bindBuffer', build: 'cub', upTo: 10, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (2 -> 7)', g: 'G3023' }
+  { key: 'taxi/gl.bindBuffer', build: 'cub', upTo: 10, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (2 -> 7)', g: 'G3023' },
+  // G3097 (CABIN STRIP, L19b): the fixture's new plots shift the stream queue's virtual-clock schedule - at --warm 6 other HOME
+  // objects are built by the taxi frame; at --warm 300 before and after are identical (HWCOV's bisect, 19 Oct: 3 564 622 at the gate)
+  { key: 'taxi/tris.shadow', build: 'cessna', upTo: 3600000, why: 'G3097 fixture shifts the stream schedule; equal at --warm 300 (HWCOV 19 Oct)', g: 'G3097' }
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------

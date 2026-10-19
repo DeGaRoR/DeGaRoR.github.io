@@ -667,12 +667,15 @@ const SIM_LINK = (() => {
       return new Promise(res => { placeWait.set(id, res); post({ cmd: 'place', id, at: o.at || null, by: o.by || null, zeroV: !!o.zeroV, dv: o.dv || null }); });
     }
     // the worker's readings for the recorder and rollout_perf (one object, rewritten: nothing allocated a frame)
-    const P = { live: false, stepMs: NaN, dil: NaN, droppedS: NaN, late: NaN, step: 0, maxMs: NaN };
+    // G3322 (FLIGHTREC-DETAIL): `ctl` - the page sim's OWN ctl object (the one this link mirrors the worker's published ctl
+    // into every frame), a reference: the recorder's probe reads the controls off it, not through sim.ctl's proxy (a trap
+    // a field, a frame). Null when no worker flight is live (then sim.ctl is the real object anyway)
+    const P = { live: false, stepMs: NaN, dil: NaN, droppedS: NaN, late: NaN, step: 0, maxMs: NaN, ctl: null };
     function perf() {
       const F = flight, f = F && F.live && F.view ? F.view.snapshot() : null;
       P.live = !!f;
-      if (f) { const S = F.ready.slots; P.stepMs = f[S.STEPMS]; P.dil = f[S.DIL]; P.droppedS = f[S.DROPPED]; P.late = f[S.LATE]; P.step = f[S.STEP]; P.maxMs = f[S.MAXMS]; }
-      else { P.stepMs = P.dil = P.droppedS = P.late = P.maxMs = NaN; P.step = 0; }
+      if (f) { const S = F.ready.slots; P.stepMs = f[S.STEPMS]; P.dil = f[S.DIL]; P.droppedS = f[S.DROPPED]; P.late = f[S.LATE]; P.step = f[S.STEP]; P.maxMs = f[S.MAXMS]; P.ctl = F.realCtl || null; }
+      else { P.stepMs = P.dil = P.droppedS = P.late = P.maxMs = NaN; P.step = 0; P.ctl = null; }
       return P;
     }
     const api = {

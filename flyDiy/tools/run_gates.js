@@ -867,6 +867,9 @@ const GATES = [
   // in flight (the queue + the page's source); every arc unlock mapped; the kits existing props; the editor's save
   // restores the whole record. ~70 s. `--selftest`: 18 doctored rules, each red (~15 s)
   { id: 'STAGES', file: '_stages_check.js', tier: 'core', wall: 70 },
+  // G2741 STORY-CORE: the tutorial's beats, pure; G2742 STORY-PAGE: + the page half (app.js's story half run headless over
+  // the core: a New career at the cabin, the card, an ack, a stop at HOME -> the client's Cub in the hangar; Q1; the occasions)
+  { id: 'STORY', file: '_story_check.js', tier: 'core', wall: 20 },
   // G2260 (ECONOMY): one price book, the career wallet's rules, the calibration bands, az through physical gates (~26 s)
   { id: 'ECON', file: '_econ_check.js', tier: 'core' },
   // PROCUREMENT (G2280 PROCURE, GAME-2026-10-06.md §5, §R GQ2): the makers' catalogues over the validated builds only,
@@ -927,6 +930,10 @@ const GATES = [
   // ...and session 2: the fit as a list — catalogues, tiers, the resolver,
   // the ledger billing exactly its rows, the aerials reading the radios
   { id: 'PANEL', file: '_panel_check.js', tier: 'core' },
+  // G3340 DASH-REDESIGN: the arch dash - a saved build keeps its box byte for byte, a new build gets the arch; open
+  // under the plate, one vertical forward edge, no further through the skin than the box, the real tanks clear of it
+  // (the box's count > 0: not vacuous), the joined card's mass and CG the same with either dash. ~35 s.
+  { id: 'DASH', file: '_dash_check.js', tier: 'core' },
   // ...and session 4: the bus — a battery that drains, an alternator that
   // cuts in, a starter that asks, loads that sum
   { id: 'ELEC', file: '_elec_check.js', tier: 'core' },

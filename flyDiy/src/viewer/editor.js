@@ -1075,12 +1075,20 @@ function editorInit(api) {
     // glass-owning part shown, never duplicated.
     const GLASSSEC = (window.AEROSKIN && window.AEROSKIN.AERO_GLASS) || new Set();
     let glazeDone = false;
+    // G2794 (the user: "remove the leftovers of the original pilot dummy"):
+    // the ATD-01's suit colours are shown only while an ATD is aboard -
+    // under a dressed character its shells are invisible click proxies and
+    // the rows coloured nothing. Still TAKEN, so they never fall into the
+    // root's 'unclaimed' bucket either.
+    const atdAboard = Math.round(+CU.P.pilotWho) === 1 || Math.round(+CU.P.copWho) === 1;
+    const DUMMY_SEC = new Set(['dummy1', 'dummy2']);
     for (const p of shown) {
       const els = [];
       for (const s of (p.sections || [])) {
         const r = bySec.get(s);
         if (!r || taken.has(s)) continue;
         taken.add(s);
+        if (DUMMY_SEC.has(s) && !atdAboard) continue;
         for (const el of r) els.push(el);
       }
       emitEls(p, nameOf(p), els, '', true);

@@ -23,11 +23,19 @@
 //      same clock calls done bare).
 //   7. THE WIRING: the hooks where the loop needs them (app.js, render_world.js), the module in the build before
 //      app.js, the graphics rows, the F8 panel's and the flyout's frame rates reading rendered frames.
+//   G3322 (FLIGHTREC-DETAIL, format v2): the flight's columns land in the row as the probe gave them (1); the header
+//      says v2 with its units (4); a scripted take-off with a 'flight' event reads back through the analyzer - the
+//      roll's reference heading, the rudder's reversals, the tail coming up, the lift-off, the veer after it, the
+//      cross wind - and the same log stripped to v1 still reads, off the track (5b); the cost and allocation runs
+//      (6) fill every new field.
 //   node tools/_flightrec_check.js         -> "GATE FLIGHTREC: PASS|FAIL"
 'use strict';
 const fs = require('fs'), path = require('path'), v8 = require('v8');
 const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, 'src', 'viewer', 'flight_recorder.js');
+// G3322: the flight's fields as a probe fills them (app.js: sim.out / sim.ctl / ap.profile) - every number exact in a Float32
+const FLIGHT_FIELDS = { hdg: 271.5, pitch: 11.25, bank: -3.5, beta: 1.5, ias: 22.5, ail: 0.25, elev: -0.125, rud: -0.375, thr: 1, brake: 0, brd: 0.5, flap: 0.25, pilot: 'club', wspd: 4.5, wdir: 250 };
+function flightFields(P) { P.hdg = 271.5; P.pitch = 11.25; P.bank = -3.5; P.beta = 1.5; P.ias = 22.5; P.ail = 0.25; P.elev = -0.125; P.rud = -0.375; P.thr = 1; P.brake = 0; P.brd = 0.5; P.flap = 0.25; P.pilot = 'club'; P.wspd = 4.5; P.wdir = 250; }
 
 // ---- the child: the allocation measurement ------------------------------------------------------------------------
 if (process.argv.includes('--alloc')) {
@@ -40,7 +48,7 @@ if (process.argv.includes('--alloc')) {
   let CI = 1000, TI = 1000;
   const R = FR.make({ frames: 65536, now: () => (CI += 13) });
   const rend = fakeRenderer(null, { nolog: true }).renderer;
-  R.attach(rend, { frame(P, cg) { P.garage = false; P.running = true; P.held = false; P.manual = false; P.cam = 'chase'; P.phase = 'CLIMB'; P.spd = 40.5; P.vs = 2.5; P.agl = 120.5; } });
+  R.attach(rend, { frame(P, cg) { P.garage = false; P.running = true; P.held = false; P.manual = false; P.cam = 'chase'; P.phase = 'CLIMB'; P.spd = 40.5; P.vs = 2.5; P.agl = 120.5; flightFields(P); } });
   const cg = [1.5, 2.5, 3.5], pc = { steps: 2 };
   const frameRec = () => { TI += 33; hookFrame(R, rend, TI, pc, cg); };
   const newUsed = () => v8.getHeapSpaceStatistics().find(s => s.space_name === 'new_space').space_used_size;
@@ -129,7 +137,7 @@ const S = FR.rec.S, SL = FR.SLOTS;
   const R = FR.make({ now: () => clock.t, frames: 1024, chunk: 256 });
   const { gl, S: G } = fakeGL(clock);
   const { renderer, log } = fakeRenderer(clock, { renderMs: 3, shadowMs: 1.5, calls: 9, tris: 2500, gl });
-  const probe = { frame(P, cg) { P.garage = false; P.running = true; P.held = false; P.manual = false; P.cam = 'chase'; P.phase = 'CLIMB'; P.spd = 41; P.vs = 2.5; P.agl = cg ? cg[1] - 10 : NaN; } };
+  const probe = { frame(P, cg) { P.garage = false; P.running = true; P.held = false; P.manual = false; P.cam = 'chase'; P.phase = 'CLIMB'; P.spd = 41; P.vs = 2.5; P.agl = cg ? cg[1] - 10 : NaN; flightFields(P); } };
   R.attach(renderer, probe);
   const adv = ms => { clock.t += ms; };
   let ts = 5000;
@@ -155,6 +163,10 @@ const S = FR.rec.S, SL = FR.SLOTS;
   verdict(r.calls === 9 && r.tris === 2500, `  draws ${r.calls} and triangles ${r.tris} (renderer.info after each render, summed)`);
   verdict(near(r.agl, 100, 1e-4) && near(r.spd, 41, 1e-4) && near(r.x, 3) && FR.rec.S && R.names.phase[r.phase] === 'CLIMB' && R.names.cam[r.cam] === 'chase' && (r.flags & FR.F.running),
     `  the probe: agl ${r.agl}, speed ${r.spd}, phase ${R.names.phase[r.phase]}, camera ${R.names.cam[r.cam]}, flags ${r.flags}`);
+  // G3322: the flight's columns, as the probe gave them (every value exact in a Float32), the pilot a code
+  { const want = FLIGHT_FIELDS, bad = Object.keys(want).filter(k => k !== 'pilot' && r[k] !== want[k]);
+    verdict(!bad.length && R.names.pilot[r.pilot] === want.pilot && FR.COLS.length === 49,
+      `  G3322 the flight's columns: hdg ${r.hdg}, pitch ${r.pitch}, bank ${r.bank}, beta ${r.beta}, ias ${r.ias}, ail ${r.ail} elev ${r.elev} rud ${r.rud} thr ${r.thr} brake ${r.brake} brd ${r.brd} flap ${r.flap}, pilot ${R.names.pilot[r.pilot]}, wind ${r.wspd} m/s from ${r.wdir}; ${FR.COLS.length} columns` + (bad.length ? ' - wrong: ' + bad.join(', ') : '')); }
   // a shader link inside the render: its time is the shader slot's, an event, and the page held by the first status read
   oneFrame(1, () => { const p = { id: 7 }; const a = gl.linkProgram(p); const lg = gl.getProgramInfoLog(p); const st = gl.getProgramParameter(p, gl.LINK_STATUS); const o2 = gl.getProgramParameter(p, 35); oneFrame.ret = [a, lg, st, o2]; });
   const r2 = R.row(R.frame - 1);
@@ -241,6 +253,8 @@ const S = FR.rec.S, SL = FR.SLOTS;
   const L = JSON.parse(R.logParts().join(''));
   verdict(L.frames.n === 1024 && L.frames.first === 3000 - 1024 && L.frames.x[0] === 1976 && L.frames.x[1023] === 2999 && L.header.format === 'flydiy-flightlog' && L.header.cols.length === NC,
     `  the log's JSON parses: the ring's last ${L.frames.n} frames (x ${L.frames.x[0]}..${L.frames.x[1023]}), the header's ${L.header.cols.length} columns`);
+  verdict(L.header.v === 2 && L.header.units && Object.keys(FLIGHT_FIELDS).every(k => L.header.cols.indexOf(k) >= 0 && L.header.units[k]) && L.header.codes.pilot[0] === '' && L.header.flights === 0,
+    `  G3322 the header: format v${L.header.v}, the flight's ${Object.keys(FLIGHT_FIELDS).length} columns with their units, the pilot's codes, ${L.header.flights} flights`);
 }
 
 // ---- 5. the reader on two scripted sessions ------------------------------------------------------------------------------
@@ -320,11 +334,57 @@ function session(script) {
   verdict(/THE ROLLOUT TARGETS/.test(txt) && /ROLLOUT: FAIL/.test(txt) && /THE WORST/.test(txt), '  the report prints (' + txt.split('\n').length + ' lines)');
 }
 
+// ---- 5b. G3322: a take-off, read back --------------------------------------------------------------------------------------
+// The user's 18 Oct log (the pilot veering at lift-off) is what the flight's columns are for: a scripted HOLD -> ROLL ->
+// LIFTOFF -> CLIMB heading east (+x) in a wind from the north, the rudder +0.3 / -0.3 / +0.3 on the roll (two reversals),
+// the nose drifting 1 deg a second (5.7 off the roll's first 0.5 s at the LIFTOFF), the tail up at 3 s (the pitch
+// 12 -> 8), the LIFTOFF at 6 s, then a veer of 10 deg a second for 3 s. The analyzer must read all of it back - and the
+// same log stripped to v1 must still find the take-off (off the track)
+{
+  const R = FR.make({ now: () => clock.t, frames: 65536 });
+  const st = { garage: false, running: true, held: false, manual: false, phase: 'HOLD', cam: 'chase', spd: 0, vs: 0, agl: 1.2,
+    hdg: 90, pitch: 12, bank: 0, beta: 0, ias: 0, ail: 0, elev: 0, rud: 0, thr: 0, brake: 0, brd: 0, flap: 0, pilot: 'club', wspd: 4, wdir: 0, newFlight: false };
+  let asked = 0;
+  R.attach(null, { frame(P) { Object.assign(P, st); },
+    flight: () => { asked++; return { route: { from: 'HOME', to: 'w3', base: 'HOME' }, pilot: { style: 'normal', profile: 'club', persona: 'club' },
+      damage: { on: true, param: null, url: true, dflt: false }, build: { name: 'T', hash: '0badf00d', chars: 9 },
+      day: { date: '2026-06-21', utc: 3600, wind: { kts: 8, dirDeg: 0, gust: 0.15 } }, world: 'jolene' }; } });
+  W.BOOT.state = 'gone';
+  let ts = 0;
+  const pos = [0, 1.2, 0];
+  const run = (secs, set, each) => { Object.assign(st, set || {}); const n = Math.round(secs * 60);
+    for (let i = 0; i < n; i++) { if (each) each(i / 60, i); ts += 1000 / 60; clock.t = ts; pos[0] += st.spd / 60; R.begin(ts, { steps: 1 }); clock.t += 2; R.lap(S.world); R.end(true, pos); } };
+  run(1, { phase: 'HOLD' }, (t, i) => { st.newFlight = i === 0; });
+  run(6, { phase: 'ROLL', thr: 1 }, t => { st.spd = 2.5 * t; st.ias = 2.5 * t; st.hdg = 90 + t; st.rud = t < 2 ? 0.3 : t < 4 ? -0.3 : 0.3; st.pitch = t < 3 ? 12 : 8; });
+  run(3, { phase: 'LIFTOFF', spd: 16, ias: 16, rud: -0.5 }, t => { st.agl = 1.2 + 3 * t; st.hdg = 96 + 10 * t; st.bank = 5 * t; });
+  run(2, { phase: 'CLIMB', agl: 20 });
+  const log = JSON.parse(R.logParts().join(''));
+  const A = An.analyze(log), o = A.takeoffs[0] || null;
+  verdict(asked === 1 && A.flight.flights.length === 1 && A.flight.flights[0].route.to === 'w3' && A.flight.flights[0].n === 1 && log.header.flight && log.header.flight.route.from === 'HOME' && log.header.flights === 1,
+    `5b G3322 one 'flight' event at the flight's start (asked ${asked}x): ${A.flight.flights.map(f => f.route.from + ' > ' + f.route.to + ', ' + f.pilot.profile + ', damage ' + f.damage.on).join('; ')}; the header's flight is it`);
+  verdict(A.takeoffs.length === 1 && o.from === 'HOLD' && near(o.ref, 90.25, 0.3) && o.haveHdg && o.roll.ctl.rud && o.roll.ctl.rud.rev === 2 && near(o.roll.ctl.rud.min, -0.3, 1e-4) && near(o.roll.dh.v, 5.74, 0.05),
+    `  the take-off: from ${o && o.from}, the reference heading ${o && o.ref.toFixed(2)} (the nose), the roll's rudder ${o && o.roll.ctl.rud ? o.roll.ctl.rud.min.toFixed(2) + '..' + o.roll.ctl.rud.max.toFixed(2) + ' with ' + o.roll.ctl.rud.rev + ' reversals' : '-'}, its heading most off ${o && o.roll.dh ? o.roll.dh.v.toFixed(1) : '-'} deg`);
+  verdict(o && o.tail && !o.tail.level && o.tail.up && near(o.tail.up.T, 3, 0.05) && o.liftoffPilot && near(o.liftoffPilot.T, 6, 0.05) && o.wheelsOff && o.air && o.air.dh.v > 30 && o.air.ctl.rud.min === -0.5 && o.end.after === 'CLIMB',
+    `  the tail up at ${o && o.tail && o.tail.up ? o.tail.up.T.toFixed(2) : '-'} s, the LIFTOFF at ${o && o.liftoffPilot ? o.liftoffPilot.T.toFixed(2) : '-'} s, the veer after it ${o && o.air ? o.air.dh.v.toFixed(1) : '-'} deg, then ${o && o.end.after}`);
+  verdict(o && o.wind && near(o.wind.cross, -4, 0.05) && near(o.wind.head, 0, 0.1), `  the wind at the start: ${o && o.wind ? o.wind.spd + ' m/s from ' + o.wind.dir.toFixed(0) + ', cross ' + o.wind.cross.toFixed(2) + ' (from the left), head ' + o.wind.head.toFixed(2) : '-'}`);
+  const txt = An.report(A, { takeoff: 1 });
+  verdict(/THE TAKE-OFFS: 1/.test(txt) && /the tail: up at 3\.0 s/.test(txt) && /frame by frame/.test(txt) && /flight 1 at/.test(txt), '  the report prints the flight and the take-off (' + txt.split('\n').length + ' lines)');
+  // the same log as a v1 log: no flight columns, no flight / wind events
+  const v1 = JSON.parse(JSON.stringify(log)), NEWC = Object.keys(FLIGHT_FIELDS);
+  for (const k of NEWC) delete v1.frames[k];
+  v1.header.cols = v1.header.cols.filter(c => NEWC.indexOf(c) < 0); v1.header.v = 1; delete v1.header.units; delete v1.header.flight; delete v1.header.flights; delete v1.header.codes.pilot;
+  v1.events = v1.events.filter(e => e[1] !== 'flight' && e[1] !== 'wind');
+  const A1 = An.analyze(v1), o1 = A1.takeoffs[0] || null;
+  let t1 = ''; try { t1 = An.report(A1, { takeoff: 1 }); } catch (e) { t1 = 'THREW ' + e.message; }
+  verdict(A1.takeoffs.length === 1 && near(o1.ref, 90, 1e-3) && !o1.haveHdg && o1.tail === null && o1.roll.ctl.rud === null && o1.liftoffPilot && near(o1.liftoffPilot.T, 6, 0.05) && /no flight record/.test(t1) && /THE TAKE-OFFS: 1/.test(t1),
+    `  the same log as v1: the take-off found off the track (reference ${o1 && o1.ref != null ? o1.ref.toFixed(1) : '-'}, ${o1 && o1.refHow}), no tail, no controls, the report prints`);
+}
+
 // ---- 6. the cost ----------------------------------------------------------------------------------------------------------
 {
   const R = FR.make({ frames: 65536 });
   const rend = fakeRenderer(null, { nolog: true }).renderer;
-  R.attach(rend, { frame(P, cg) { P.garage = false; P.running = true; P.held = false; P.manual = false; P.cam = 'chase'; P.phase = 'CLIMB'; P.spd = 40; P.vs = 2; P.agl = 120; } });
+  R.attach(rend, { frame(P, cg) { P.garage = false; P.running = true; P.held = false; P.manual = false; P.cam = 'chase'; P.phase = 'CLIMB'; P.spd = 40; P.vs = 2; P.agl = 120; flightFields(P); } });
   const cg = [1, 2, 3], pc = { steps: 2 };
   let ts = 1000;
   for (let i = 0; i < 30000; i++) { ts += 33.3; hookFrame(R, rend, ts, pc, cg); }   // warm

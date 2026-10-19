@@ -114,6 +114,21 @@ if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<
   if (!/if \(api\.canSave\) \{ const why = api\.canSave\(name, !lsGet\(SLOT \+ name\)\); if \(why\) return void alert\(why\); \}/.test(gar)) throw new Error('garage.js: the save does not ask the page first');
   console.log('the wallet in app.js: ' + outside.length + ' calls into the economy outside its page half, every one behind CAREER_DEV; the save asks first (the sandbox: never)');
 }
+// G2742 (STORY-PAGE): THE STORY ONLY IN THE PLAYER'S CAREER - in app.js every call into the story (79_story.js) outside its
+// page half is behind CAREER_DEV; the half itself is STORY_PAGE = CAREER_DEV && CAREER_ID 'main' (the dev career ?career=1
+// keeps none: every gate's fixture career stays rail-free), its doors (window.FLYDIY_STORY, the bench's hook) behind it
+{
+  const app = pick('function setAircraft', 'app');
+  const i0 = app.indexOf("G2742-G2749 (STORY-PAGE): THE STORY'S PAGE HALF"), i1 = app.indexOf('window.FLYDIY_PLAYER = {', i0);
+  if (i0 < 0 || i1 < 0) throw new Error("app.js: the story's page half is not where this gate reads it");
+  const outside = (app.slice(0, i0) + app.slice(i1)).split('\n').filter(l => /\bstory[A-Z]\w*\(/.test(l.replace(/\/\/.*$/, '')));
+  const loose = outside.filter(l => !/CAREER_DEV/.test(l));
+  if (loose.length) throw new Error('app.js calls the story outside the CAREER_DEV guard: ' + loose.map(l => l.trim().slice(0, 90)).join(' | '));
+  if (!/const STORY_PAGE = CAREER_DEV && CAREER_ID === 'main' && typeof storyNewCareer === 'function';/.test(app)) throw new Error("app.js: the story is not the player's career's alone (STORY_PAGE)");
+  const half = app.slice(i0, i1);
+  if (!/  if \(STORY_PAGE\) window\.BENCH_CERTIFIED = storyCertified;/.test(half) || !/  if \(STORY_PAGE\) \{\n/.test(half)) throw new Error("app.js: the story's doors are not behind STORY_PAGE");
+  console.log('the story in app.js: ' + outside.length + ' calls into the story outside its page half, every one behind CAREER_DEV; the half behind STORY_PAGE (the player\'s career; ?career=1 keeps none)');
+}
 // G2345 (FREIGHT-LOAD): THE LOADING VIEW ONLY UNDER ITS FLAGS - its page half is FREIGHT_PAGE = (CAREER_DEV || FREIGHT_DEV),
 // FREIGHT_DEV ?freight=1 alone; its door, its entry's timer and the lazy view behind it; the stop record reads the
 // accepted load inside the career's half; the view itself is a lazy file (never in the page's static tags)

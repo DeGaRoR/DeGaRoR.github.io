@@ -1,6 +1,6 @@
 {
- "recordedAt": "2026-09-21T23:40:52.288Z",
- "head": "94bd49ec",
+ "recordedAt": "2026-10-19T04:42:25.244Z",
+ "head": "63b1757ff",
  "items": {
   "file:builds/cessna172_2026-09-20.json": {
    "nV": 58241,
@@ -96,6 +96,53 @@
    ],
    "hash": "55e56375074b7ddd0251ea02cac21fd9d82651a4"
   },
+  "file:bugReports/cessnaMetal (1).json": {
+   "nV": 58319,
+   "nF": 33860,
+   "loops": [
+    {
+     "n": 64,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.691106508,
+      0.692770617,
+      0.568291
+     ]
+    },
+    {
+     "n": 64,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.703365641,
+      0.694637811,
+      0.601799034
+     ]
+    },
+    {
+     "n": 54,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.75458702,
+      0.690384089,
+      1.284671381
+     ]
+    },
+    {
+     "n": 54,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.786038824,
+      0.407837437,
+      1.24
+     ]
+    }
+   ],
+   "hash": "b08b8894429c41d687dfe46eb013c2e082627e86"
+  },
   "file:bugReports/flydiy-build (3).json": {
    "nV": 16205,
    "nF": 14212,
@@ -150,9 +197,56 @@
    ],
    "hash": "721dc8ab675d3110be527c7c29e578fa65df1a09"
   },
+  "file:tools/fixtures/build_v10_cessnaMetal_2026-09-26.json": {
+   "nV": 58319,
+   "nF": 33860,
+   "loops": [
+    {
+     "n": 64,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.691106508,
+      0.692770617,
+      0.568291
+     ]
+    },
+    {
+     "n": 64,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.703365641,
+      0.694637811,
+      0.601799034
+     ]
+    },
+    {
+     "n": 54,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.75458702,
+      0.690384089,
+      1.284671381
+     ]
+    },
+    {
+     "n": 54,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.786038824,
+      0.407837437,
+      1.24
+     ]
+    }
+   ],
+   "hash": "b08b8894429c41d687dfe46eb013c2e082627e86"
+  },
   "preset:cessna 172": {
-   "nV": 58001,
-   "nF": 33606,
+   "nV": 57444,
+   "nF": 33098,
    "loops": [
     {
      "n": 68,
@@ -195,7 +289,7 @@
      ]
     }
    ],
-   "hash": "cef96dd419c484592fbd9fbf6f4879fccf63e99d"
+   "hash": "3b10f19b2f161630c060a95d2d12f621eaf6d150"
   }
  }
 }

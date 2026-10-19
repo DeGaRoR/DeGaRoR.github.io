@@ -49,7 +49,7 @@
 //      class answers inside its width, no forest tree stands within 30 m of
 //      its box, its aerodrome record is in W.aerodromes' shape (siteRunway
 //      derives it, sitePaintStrip paints it) and sitePattern's pattern for it
-//      has no issue; a strip under 150 m or over 5 % is refused.
+//      has no issue; a strip under 150 m is refused, one over 5 % WARNS and ships (18 Oct: no filtering).
 //  11  EXCLUDE: an exclude polygon answers true inside, false outside; a
 //      forest zone plants no tree in an exclude, a clear zone or a plot, and
 //      a hand-placed tree is planted where it was put.
@@ -363,7 +363,7 @@ for (const fx of fixtures) {
       const bad = JSON.parse(JSON.stringify(rec)); bad.layers.runways[0].len = 120;
       check(PG.issues(bad).length > 0, '10 a strip under 150 m is refused');
       const steep = JSON.parse(JSON.stringify(rec)); steep.layers.runways[0].slope = 0.08; delete steep.layers.runways[0].profile;   // a profile outranks the slope (v8)
-      check(PG.issues(steep).length > 0, '10 a strip over 5 % is refused');
+      check(PG.issues(steep).length === 0 && PG.warnings(steep).some(i => /over 5 %/.test(i)), '10 a strip over 5 % warns and ships (no issue)', PG.issues(steep)[0]);
     }
   }
   // 12 baked vs live
@@ -600,9 +600,11 @@ for (const fx of fixtures) {
     check(worst < 0.05, '10c the centreline is on its profile (5 cm)', worst.toFixed(3) + ' m');
     check(over === 0 && Math.abs(pr.at(300) - 5) < 1e-9, '10c the spline is monotone: no overshoot past the hump\'s point', String(over));
     check(PG.issues(rec).length === 0, '10c a 5 m hump over 600 m passes the pilot\'s limits', PG.issues(rec)[0]);
-    check(PG.issues(mk([[0, 0], [0.5, 12], [1, 0]])).some(i => /over 5 %/.test(i)), '10c a 12 m hump is over 5 % and refused');
-    check(PG.issues(mk([[0, 0], [0.1, 3], [1, 0]])).some(i => /touchdown zone/.test(i)), '10c a hump in the touchdown zone is refused');
-    check(PG.issues(mk([[0, 0], [0.45, 4], [0.5, 4.2], [0.55, 1], [1, 0]])).some(i => /crest/.test(i)), '10c a sharp crest is refused');
+    // (18 Oct, the user: the slope rules relaxed - each limit WARNS, none refuses: the strip ships, the player finds out)
+    const warnOnly = (r, re) => PG.issues(r).length === 0 && PG.warnings(r).some(i => re.test(i)) && PG.profileIssues(Object.assign({}, PG.RUNWAY_DEF, r.layers.runways[0])).some(i => re.test(i));
+    check(warnOnly(mk([[0, 0], [0.5, 12], [1, 0]]), /over 5 %/), '10c a 12 m hump is over 5 %: it warns (editor and PG.warnings) and ships');
+    check(warnOnly(mk([[0, 0], [0.1, 3], [1, 0]]), /touchdown zone/), '10c a hump in the touchdown zone warns and ships');
+    check(warnOnly(mk([[0, 0], [0.45, 4], [0.5, 4.2], [0.55, 1], [1, 0]]), /crest/), '10c a sharp crest warns and ships');
     // the old linear slope still reads as a two-point profile
     const lin = PG.compose(PG.normalise({ seed: 1, layers: { runways: [{ id: 'w', c: [0, 0], hdg: 0, len: 600, wid: 24, slope: 0.02 }] } }), synth, { noPlace: true });
     check(Math.abs(lin.localH(300, 0) - lin.localH(-300, 0) - 12) < 0.05, '10c a linear slope is a two-point profile', (lin.localH(300, 0) - lin.localH(-300, 0)).toFixed(2));
