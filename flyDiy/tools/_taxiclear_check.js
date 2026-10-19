@@ -248,7 +248,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
   foots.default = { half: C.GP_PARKED_DEFAULT[0], fwd: C.GP_PARKED_DEFAULT[1], aft: C.GP_PARKED_DEFAULT[2] };
   const t0 = Date.now(), SC = L.spotCensus(C, WI, IX, VB, foots);
   // (G3014: the user's rev 26 shipped strips 10 and 11 (w5, w6) - ten runways; the count is the shipped record's)
-  const NRW = 13;   // (rev 27: w7, the North East strip; rev 28: w4 strip 9, w8 strip 13)
+  const NRW = 14;   // (rev 27: w7, the North East strip; rev 28: w4 strip 9, w8 strip 13; G3097: w1 the Cabin Strip)
   check(WI.aerodromes.length === NRW && SC.per.length === NRW, '10 Jolene\'s ' + NRW + ' runways', SC.per.map(p => p.id).join(' '));
   for (const p of SC.per) {
     // a field with no room stands no spot (never a bad one): every candidate it had was refused by a rule

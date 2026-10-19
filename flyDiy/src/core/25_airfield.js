@@ -1103,7 +1103,18 @@ function fleetSpots(aero, site, opts) {
   // the site's hangar (the garage's shed), as the circle round its box: whatever way it is turned
   const hang = site && site.hangar && site.hangar.HW ? site.hangar : null;
   const hangarD = (x, z) => (hang ? Math.hypot(x - hang.x, z - hang.z) - Math.hypot(hang.HW, hang.HD) : Infinity);
-  const why = { field: 0, runway: 0, solid: 0, route: 0, flat: 0, water: 0, overlap: 0 };
+  // G3097 (the Cabin Strip, L19b): THE SITE'S PLOTS - a building's place (the shed you may buy there) keeps the spots `gap` off
+  // its footprint (the offer's widest shell, GATE TAXICLEAR 12's box); a plot without an offer is not held
+  const plotBoxes = [];
+  if (site && Array.isArray(site.plots) && typeof BASE_OFFERS !== 'undefined' && BASE_OFFERS[aero.id] && typeof SHELLS !== 'undefined')
+    for (const p of site.plots) {
+      const P = !p.main && BASE_OFFERS[aero.id].plots[p.id]; if (!P) continue;
+      let HW = 0, HD = 0; for (const sh of P.shells) { const d = (P.dims && P.dims[sh]) || (SHELLS[sh] && SHELLS[sh].dims); if (d) { HW = Math.max(HW, d.HW); HD = Math.max(HD, d.HD); } }
+      if (HW > 0 && HD > 0) plotBoxes.push({ x: p.x, z: p.z, c: CORE_MATH.cos(p.hdg || 0), s: CORE_MATH.sin(p.hdg || 0), HW, HD });
+    }
+  const plotD = (x, z) => { let m = Infinity; for (const b of plotBoxes) { const dx = x - b.x, dz = z - b.z, u = dx * b.c + dz * b.s, v = -dx * b.s + dz * b.c;
+    m = Math.min(m, Math.hypot(Math.max(Math.abs(u) - b.HD, 0), Math.max(Math.abs(v) - b.HW, 0))); } return m; };
+  const why = { field: 0, runway: 0, solid: 0, route: 0, flat: 0, water: 0, overlap: 0, plot: 0 };
   const no = (sp, w, d) => { why[w]++; if (o.trace) o.trace.push({ id: sp.id, why: w, d: d === undefined ? null : +(+d).toFixed(2) }); return false; };
   // the runway's keep-out: a paved runway's strip (rwyClr past its edge); a narrow strip's own edge + rwyNarrow (an 11 m span
   // rolling on its centreline clears a spot there by its half-span and more); on water, off the lane's centreline
@@ -1119,6 +1130,7 @@ function fleetSpots(aero, site, opts) {
     if (o.ground && !water) { const h = C.concat([[sp.x, sp.z]]).map(q => o.ground(q[0], q[1])); const d = Math.max(...h) - Math.min(...h); if (d > F.flatTol) return no(sp, 'flat', d); }
     const pts = fleetSpotPts(sp, F.step, true);
     for (const q of pts) { const d = Math.min(hangarD(q[0], q[1]), solid ? solid(q[0], q[1], margin + 1) : Infinity); if (d < margin) return no(sp, 'solid', d); }
+    if (plotBoxes.length) for (const q of pts) { const d = plotD(q[0], q[1]); if (d < F.gap + 0.05) return no(sp, 'plot', d); }
     const rr = Math.max(sp.half, sp.fwd, sp.aft) + need + 2;
     for (const q of routes) if (Math.abs(q.x - sp.x) < rr && Math.abs(q.z - sp.z) < rr) { const d = fleetSpotDist(sp, q.x, q.z); if (d < need) return no(sp, 'route', d); }
     for (const b of ok) {
