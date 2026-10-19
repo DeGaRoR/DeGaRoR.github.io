@@ -258,6 +258,37 @@ function checkShader(G, splice, quiet) {
   say(/struct Smp \{ vec4 c; vec4 n; \};/.test(glsl), 'the one struct Smp { c, n }');
   say(/gSRough = mix\(clamp\(max\(nrm\.a, min\(1\.0, uSFilt\.y \* sqrt\(gSPixM\)\)\), 0\.05, 1\.0\), 1\.0, mw\);/.test(glsl) && /roughnessFactor = 1\.0 - \(1\.0 - gSRough\) \* uSNrm\.y;/.test(splice.glslRough), 'the sets\' roughness reaches roughnessFactor (the Standard ring), faded to matte at the macro range, the sheen knob its lever, widened by the pixel\'s footprint (the specular AA, 2026-09-24)');
   say(!/`/.test(glsl), 'no backtick in the spliced GLSL (a backtick in a GLSL comment closes the JS template)');
+  // G2610 (GROUND-LOOK) THE HEX FETCHES KEEP THEIR CORNER (pavement.js's G1030 on every ground set): a CPU twin of sTile's hand-out
+  // in the skewed lattice. Two points a hair apart astride an edge (a 2 x 2 quad on it) - every fetch worth a weight must read the
+  // SAME corner on both sides, or the quad's implicit derivative spans two corners' offsets (a 1-2 px wrong-mip line). The twin
+  // runs the old order too: it must fail there, or the row proves nothing.
+  {
+    const corners = (sx, sy, colour) => {
+      const bx = Math.floor(sx), by = Math.floor(sy), tx = sx - bx, ty = sy - by, tz = 1 - tx - ty, s = tz < 0 ? 1 : 0, s2 = 2 * s - 1;
+      let v = [[bx + s, by + s], [bx + s, by + 1 - s], [bx + 1 - s, by + s]], w = [-tz * s2, s - ty * s2, s - tx * s2];
+      if (colour) {
+        let cb = bx - by; cb -= 3 * Math.floor((cb + 0.5) / 3); let c2 = cb + s2; c2 -= 3 * Math.floor((c2 + 0.5) / 3);
+        const cc = [cb, c2, 3 - cb - c2], pick = k => cc.findIndex(c => Math.abs(c - k) < 0.5);
+        v = [0, 1, 2].map(k => v[pick(k)]); w = [0, 1, 2].map(k => w[pick(k)]);
+      }
+      const h = w.map(x => x * x * x), sum = h[0] + h[1] + h[2];   // (the height blend's sharpness, as PAVEMENT's twin)
+      return { v, w: h.map(x => x / sum) };
+    };
+    const astride = colour => {
+      let bad = 0, n = 0, rnd = 12345; const r = () => (rnd = (rnd * 16807) % 2147483647) / 2147483647;
+      for (let i = 0; i < 20000; i++) {
+        const x = (r() - 0.5) * 400, y = (r() - 0.5) * 400, a = r() * Math.PI, e = 0.004;
+        const A = corners(x, y, colour), B = corners(x + e * Math.cos(a), y + e * Math.sin(a), colour);
+        if (A.v.every((c, k) => c[0] === B.v[k][0] && c[1] === B.v[k][1])) continue;
+        n++;
+        for (let k = 0; k < 3; k++) if ((A.v[k][0] !== B.v[k][0] || A.v[k][1] !== B.v[k][1]) && Math.max(A.w[k], B.w[k]) > 1e-3) { bad++; break; }
+      }
+      return { bad, n };
+    };
+    const now = astride(true), old = astride(false), cut = /float cb = base\.x - base\.y; cb -= 3\.0 \* floor\(\(cb \+ 0\.5\) \/ 3\.0\);[\s\S]{0,900}v1 = q0; v2 = q1; v3 = q2;\s*\}\s*vec2 r1 = sHash2\(v1\);/;
+    say(now.n > 100 && now.bad === 0 && old.bad > old.n * 0.5 && cut.test(glsl) && cut.test(lean),
+      `the hex fetches keep their corner across an edge, full and lean (G2610): ${now.bad} of ${now.n} straddling pairs change a weighted corner (the old order: ${old.bad} of ${old.n})`);
+  }
   // THE STANDARD RING'S HOOK (render_world.js, 2026-09-21): the IBL's irradiance cut (the hemisphere is the
   // one ambient) and BOTH specular lobes faded out by roughness 0.9 (GGX at 1 on a dark ground measured
   // +40 % linear - a haze the world never had); the patch's twin a Lambert (15 units, not 17)
