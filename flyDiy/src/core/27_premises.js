@@ -781,12 +781,16 @@ function migrate(rec) {
 // look: its `surface`; an area that draws a pavement and carries wheels: wheels.surface; a road whose look feels otherwise than
 // its class: the class the look feels as (paved, gravel, track), or its own `surface` when it says one (sand has no road class).
 // A look with no feel of its own (markings only), a texture draw, wheels with nothing drawn and a water lane are left as they are.
-// Idempotent: a converted record converts to itself (the store's round-trip holds).
+// An area that felt HARD (paved / gravel / sand: no tree, no plot) and now feels soft keeps them out - its exclude gains trees and
+// plots (A0 for the user: the feel follows the look, no new trees grow in). Idempotent: a converted record converts to itself.
+const FEEL_HARD = [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND];
 const FEEL_CLS = { [SURFACE.PAVED]: 'paved', [SURFACE.GRAVEL]: 'gravel', [SURFACE.GRASS]: 'track' };
 function feelFollowsLook(r) {
   const feelOf = k => { const L = k && RUNWAY_LOOKS[k]; return L && L.surface !== null && L.surface !== undefined ? +L.surface : null; };
   for (const w of r.layers.runways) if (w && w.look && +w.surface !== SURFACE.WATER) { const f = feelOf(w.look); if (f !== null && (w.surface === undefined || w.surface === null ? SURFACE.GRASS : +w.surface) !== f) w.surface = f; }
-  for (const a of r.layers.areas) { const P = a && a.props; if (!P || !P.wheels || !P.draw) continue; const f = feelOf(P.draw.look); if (f !== null && +P.wheels.surface !== f) P.wheels = Object.assign({}, P.wheels, { surface: f }); }
+  for (const a of r.layers.areas) { const P = a && a.props; if (!P || !P.wheels || !P.draw) continue; const f = feelOf(P.draw.look); if (f === null || +P.wheels.surface === f) continue;
+    if (FEEL_HARD.indexOf(+P.wheels.surface) >= 0 && FEEL_HARD.indexOf(f) < 0) { const w = P.exclude && Array.isArray(P.exclude.what) ? P.exclude.what.slice() : []; for (const k of ['trees', 'plots']) if (w.indexOf(k) < 0) w.push(k); P.exclude = Object.assign({}, P.exclude || {}, { what: w }); }
+    P.wheels = Object.assign({}, P.wheels, { surface: f }); }
   for (const rd of r.layers.roads) { if (!rd || !rd.look) continue; const f = feelOf(rd.look); if (f === null || roadFeel(rd) === f) continue;
     if ((rd.surface === undefined || rd.surface === null) && FEEL_CLS[f]) rd.cls = FEEL_CLS[f]; else rd.surface = f; }
 }

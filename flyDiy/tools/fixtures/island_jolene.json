@@ -22769,6 +22769,12 @@
       "look": "grass",
       "z": 0,
       "band": 3
+     },
+     "exclude": {
+      "what": [
+       "trees",
+       "plots"
+      ]
      }
     }
    },

@@ -1223,6 +1223,12 @@ if (plots.length) {
         +rw('wa').surface === PG.SURFACE.PAVED && +rw('wb').surface === PG.SURFACE.GRAVEL && splits(old).length === 0,
         '34 an old file\'s splits load as their looks feel (area, track drawn dirt, gravel drawn concrete, a strip); no feel of its own, a texture, wheels alone: kept');
   check(JSON.stringify(PG.normalise(JSON.parse(JSON.stringify(old)))) === JSON.stringify(old), '34 ...and a converted record converts to itself (the store round-trips)');
+  // the feel follows the look, no new trees grow in: an area that felt hard keeps trees and plots out (its exclude); one that
+  // felt soft gains nothing; the shipped a11 (paved, drawn grass) keeps them out too, composed
+  const oaP = old.layers.areas.find(a => a.id === 'oa').props;
+  check(oaP.exclude && JSON.stringify(oaP.exclude.what) === '["trees","plots"]' && !old.layers.areas.find(a => a.id === 'ob').props.exclude, '34 a hard area converted soft keeps trees and plots out (its exclude)', JSON.stringify(oaP.exclude));
+  const a11 = JR.layers.areas.find(a => a.id === 'a11'), OJ = PG.compose(PG.expandAreas(JR), synth), pc = PG.polyCentroid ? PG.polyCentroid(a11.poly) : a11.poly.reduce((s, q) => [s[0] + q[0] / a11.poly.length, s[1] + q[1] / a11.poly.length], [0, 0]), wc = OJ.frame.toWorld(pc[0], pc[1]);
+  check(+a11.props.wheels.surface === PG.SURFACE.GRASS && OJ.excludeAt(wc[0], wc[1], 'trees') && OJ.excludeAt(wc[0], wc[1], 'plots'), '34 Jolene\'s a11: drawn grass, felt grass - and no tree or plot inside, as when it was paved');
   check(!/an old file\\'s: drawn/.test(UIs), '34 the inspector names no split any more (none survives a load)');
 }
 // 35 THE CABIN STRIP (G3097 / G3098; the user, 18 Oct: "we need to place the little hangar atop the flat bit of the new strip ...
