@@ -95259,3 +95259,11 @@ dash's: say in HANDOVER if the dash's new tank space needs the nose bay to reach
 - The crew and skin verdicts are unchanged: the Cub's and Jodel's nose tanks still fail those, as before.
 
 **TRAP (measured):** the FIRST `BJ.bakeJoined` in a process reads the Cub card 41 g lighter than every later bake (476.471 vs 476.512 kg), whatever the dash: layer module state, TANKMOUNT's carry-over. GATE DASH warms up before comparing.
+
+## G2798 - THE PILOT'S IDLE MOTION AT 1 BY DEFAULT (2026-10-19, EDITOR-UX-A for A0; branch claude/idle-default on Train A)
+
+The user's garage review, item 5: "put the movement at 1 by default, and it's fine". `dumIdle` (the pilot's idle
+motion, the sitting-idle clip's amplitude) went 0.5 -> 1 in the page's defaults (_cage_page5.js; designFull's birth
+base reads them) and in the four presets that state it. The crew's fallback for a build with no value is 1 too.
+A build that SAVED its own value keeps it (every builds/*.json says 0.5, the Rufus files 1); an older save with no
+`dumIdle` at all now animates at 1. The passengers' `paxIdle` was already 1. Animation only: no spec, no physics.

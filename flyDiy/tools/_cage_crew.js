@@ -3554,7 +3554,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
         // seat so a cabin never moves in unison.
         const pax = role === 'pax';
         const amp = pax ? (P.paxIdle == null ? 1 : +P.paxIdle)
-                        : (P.dumIdle == null ? 0.5 : +P.dumIdle);
+                        : (P.dumIdle == null ? 1 : +P.dumIdle);   // G2798: 1 when unset, as the defaults
         // the clip spec is kept on the dummy: a LIVE occupant wears the same
         // one in flight, stepped by the game loop instead of the ticker
         dum.animSpec = { key: 'sitidle', mode: pax ? 'body' : 'head', amp,
