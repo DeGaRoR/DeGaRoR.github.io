@@ -759,7 +759,12 @@ function makePilot(sim, def, world, opts) {
       // flares met the surface at 2.48, 2.91 and 3.32 m/s (the Wipline C172, three seeds of four, a skip on each; the
       // 2.91 off a final the stabilised-approach rule had passed); halved in the flare: 0.72-1.55 on the four. The
       // roll-out: below (G2466)
-      const K = PRF.hamFist * 1.12 * ((ap.phase === 'FLARE' || ap.phase === 'ROLLOUT') ? 0.5 : 1);   // the lag's rms loss (sqrt(1 + 0.12 / 0.5)) given back
+      // G3077 (TORQUE-RETUNE-66): ...AND ON THE WATER, THE HULL WET - a planing hull at the hump is flown with the same attention as
+      // a flare. Whole, the student's hand (with their slower hands, smooth 0.7) water-looped the Wipline C172 on the step on one
+      // seed of four (seed 1: the bank 12.7 -> -58 -> -142 deg at 15-17 m/s, 'rejected-takeoff' - pilot_persona's one FINDING;
+      // with the pre-G1885 damper, or the propeller's effects off, it flew); halved: the student and the ham-fist off the water
+      // once on all four seeds
+      const K = PRF.hamFist * 1.12 * ((ap.phase === 'FLARE' || ap.phase === 'ROLLOUT' || (sim.hydro && onG > 0)) ? 0.5 : 1);   // the lag's rms loss (sqrt(1 + 0.12 / 0.5)) given back
       // G2466 (PERSONA-2): A STICK HELD AGAINST ITS STOP IS NOT WANDERED - the taildragger's roll-out holds the stick
       // full back (0.35, the stop) and the ham-fist's wander there worked the tailwheel's load: the Cub's roll-out swung
       // to 28.9 deg at 0.3 Hz, the rudder on +-0.9 (GATE PILOTMATRIX's cub:HOME:calm:hamfist, baseline 2.8; the base tree
