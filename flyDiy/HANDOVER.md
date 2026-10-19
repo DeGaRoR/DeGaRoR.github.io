@@ -95428,3 +95428,9 @@ changed for that location (uMist[] / uCloudP[]: 380 of the taxi's 530 uniform4fv
 tools/_fake_gl.js lets a page-assigned context method shadow the recording one. To land: FRAMECOST (census with and
 without ?u4cache=0, the gate) and a GPU ABBA (the Cub, HOME chase, mirror off) - the slot script is drafted in PERF-1's
 session (perf1_gpu_1019.sh, never armed), with the first fixed-reference capture on master after the anchor lands.
+
+## A0 - landing L19c (19 Oct 2026, gates 16:01-17:20, pushed ~17:25)
+Cargo (rolling; L19b's held set + Train A): altiport-w4 (strip 9 back, profile limits -> warnings), cabin-strip = story-core (Cabin Strip w1 + field shed + cab_apron/cab_store + fly/circuit; STORY-CORE + STORY-PAGE: Rufus start at the cabin, two owned hangars, the remote opening, send-to), one-surface, car-glass (normals on 112 props + glass), dash-redesign-green (G3340-41 arch dash + flexible dials), editor-review-a (garage review Train A), flightrec-detail (G3322), perf-1 anchor (GATE-ANCHOR). Excluded: dash-redesign (superseded), water-lane-ed (-> L20a with feel-follows-look).
+Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10 characters; FRAMECOST cessna garage:restore).
+Strict light gate: 5 RED, none new. over100 0->2 on the 4 legs = the pre-existing ~700 ms reveal hitch after the roll-out screen (HWCOV's 19 Oct 13:00 profiles: present on L19a too; ticket REVEAL-HITCH, perf week). metal fuseWidth busy = the cost the user accepted by name on 15 Oct.
+Landing tooling, 19 Oct: land_light now cleans flyDiy/media before merging and stops on a merge that fails without conflicts (untracked cook outputs had silently dropped cabin-strip); land_ready checks merges cumulatively and honours land_exclude.txt.
