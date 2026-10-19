@@ -76,6 +76,12 @@ const TOL = { rel: 0.01, abs: 2 };
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
+  // G3340-G3341 (DASH-REDESIGN, the user validated it 18 Oct): the arch dash and the flexible dial layout - the Cub's
+  // garage seed walks +704 matrix updates (17652 -> 18356, +4 %) and its restore +28 (778 -> 806): the dash's new pieces
+  // and the dials that now fit the plate instead of overflowing (this branch is master + the dash alone; the
+  // Cessna's restore 2269 -> 4553 is master's own, not admitted here)
+  { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cub', rise: 900, why: 'the arch dash and the dials that now fit (G3341 flexible layout)', g: 'G3340' },
+  { key: 'boot/garage:restore/', build: 'cub', rise: 40, why: 'the arch dash and the dials that now fit (G3341 flexible layout)', g: 'G3340' },
   // G1975.2 (DEADWOOD-BRIGHT, the user's call 2026-10-07): the snags dealt by the MIXES' own dead share (TREE_MIX.mixDead ON;
   // pine_georgeous was 53 % dead off its collection's share): the living trees that replace the snags carry 2-4x their
   // triangles - the Cub's stand +84 141 tris (+0.48 % of the frame) against the same code with ?mixdead=0 (census pair,

@@ -2846,6 +2846,11 @@ function anchors(spec, P, mesh) {
       }
     }
     if (lo < 1e8) { dashLip = lo; dashTop = hi; dashAftZ = za; }
+    // THE ARCH (G3340): its legs run down the walls to a rail or the floor,
+    // so the lowest dash vertex is a foot, not the band's bottom. The cage
+    // publishes the box-equivalent bottom (the plate's less its lip, where
+    // the box's floor sat), so the panel's band is the one the box had.
+    if (lo < 1e8 && mesh.dashArch && isFinite(mesh.dashArch.yB)) dashLip = mesh.dashArch.yB * k;
   }
   // THE FACE PLATE ITSELF (the panel arc, session 4b, the user: "get really
   // clear on the flat area available to you. It's the one with the metal
@@ -3081,7 +3086,9 @@ function anchors(spec, P, mesh) {
     if (a && c && c[0] > a[0]) return a[1] + (c[1] - a[1]) * (z - a[0]) / (c[0] - a[0]);
     return (a || c)[1];
   };
-  return { k, dashLip, dashTop, dashAftZ, face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
+  // (flexLayout, G3341: the arch dash is the new builds' — their panel takes
+  // the flexible dial layout when the standard one leaves a dial off)
+  return { k, dashLip, dashTop, dashAftZ, flexLayout: !!(mesh && mesh.dashArch), face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0,
            // G180: the resolved rings, so a passenger bay's seat row can be
