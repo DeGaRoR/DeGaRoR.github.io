@@ -2890,6 +2890,11 @@ function anchors(spec, P, mesh) {
       }
     }
     if (lo < 1e8) { dashLip = lo; dashTop = hi; dashAftZ = za; }
+    // THE ARCH (G3340): its legs run down the walls to a rail or the floor,
+    // so the lowest dash vertex is a foot, not the band's bottom. The cage
+    // publishes the box-equivalent bottom (the plate's less its lip, where
+    // the box's floor sat), so the panel's band is the one the box had.
+    if (lo < 1e8 && mesh.dashArch && isFinite(mesh.dashArch.yB)) dashLip = mesh.dashArch.yB * k;
   }
   // THE FACE PLATE ITSELF (the panel arc, session 4b, the user: "get really
   // clear on the flat area available to you. It's the one with the metal
@@ -3129,7 +3134,9 @@ function anchors(spec, P, mesh) {
   // the floor's run ends there and the pedal cables are anchored on it
   let zFire = -Infinity;
   if (mesh && mesh.F) for (const f of mesh.F) if (f.m === 'firewall') for (const vi of f.v) zFire = Math.max(zFire, mesh.V[vi][2] * k);
-  return { k, dashLip, dashTop, dashAftZ, face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
+  // (flexLayout, G3341: the arch dash is the new builds' — their panel takes
+  // the flexible dial layout when the standard one leaves a dial off)
+  return { k, dashLip, dashTop, dashAftZ, flexLayout: !!(mesh && mesh.dashArch), face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
            zFire: isFinite(zFire) ? zFire : null,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0,

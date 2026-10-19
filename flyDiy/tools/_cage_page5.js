@@ -542,6 +542,13 @@ window.CAGE_PAGE = {
          { when: P => +P.intOn && +P.intDash, dim: 'len' }],
         ['dashCrown', 'dash crown',     0, 0.30, 0.005,
          { when: P => +P.intOn && +P.intDash }],
+        // G3340 THE ARCH: the glareshield, its lip and two cheeks with a
+        // straight forward edge, open underneath (the default for new
+        // builds); 'box' is the closed dash every older build keeps
+        ['dashStyle', 'dash style',     0, 1, 1, ['box', 'arch'],
+         { when: P => +P.intOn && +P.intDash }],
+        ['dashLegs',  'arch legs',      0, 2, 1, ['to the panel', 'to a rail', 'to the floor'],
+         { when: P => +P.intOn && +P.intDash && +P.dashStyle === 1 }],
       ]],
       // THE SHOULDER (G325): the sill trim — an L-section sheet from the
       // window transition W inboard and H down, from the dash aft. On for

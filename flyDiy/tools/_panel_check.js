@@ -329,6 +329,31 @@ function run() {
       const L8 = G.layout(A8, { items: ['asi', 'alt', 'tacho', 'compass', 'fuel'], side: 'pilot', pilotX: 0, radios: [], elec: { hasBus: false } });
       check(L8.dials.filter(d => !d.coaming).every(d => d.cx + d.r <= 0.14 + 1e-9), 'keep-out: no dial under the shadow either (the tacho took a hole)', L8.dials.map(d => d.k + '@' + d.cx.toFixed(2)).join());
     }
+    // G3341 THE FLEXIBLE LAYOUT (the garage review's item 12), on the arch
+    // dash's record (`flexLayout`): a short WIDE plate the standard rule
+    // empties (38 mm reserved under every dial, the T two deep) takes every
+    // dial on one row, the T's order kept, the switches beside them; a plate
+    // the standard rule fills is laid out exactly as before
+    {
+      const fx = (top, lip, halfW, flex) => ({ dashTop: top, dashLip: lip, dashAftZ: 2, zDash: 2, halfW, floorAt: () => 0, flexLayout: flex });
+      const its = ['asi', 'alt', 'vsi', 'aiE', 'turn', 'dg', 'compass', 'clock', 'tacho', 'oilP', 'oilT', 'fuel', 'volts'];
+      const lo = { items: its, side: 'pilot', pilotX: 0.2, radios: ['com'], elec: { hasBus: true, altA: 20 },
+                   extLights: ['taxi', 'beacon', 'land', 'nav'], intLights: ['flood', 'instr'] };
+      const Ls = G.layout(fx(0.215, 0.10, 0.80, false), lo), Lf = G.layout(fx(0.215, 0.10, 0.80, true), lo);
+      check(Ls.overflow.length >= 10, 'flex: the standard rule empties a short wide plate (the case item 12 is about)', Ls.overflow.length);
+      check(Lf.overflow.length === 0, 'flex: every dial on the short wide plate', Lf.overflow.join());
+      const Df = Lf.dials.filter(d => !d.coaming), byf = {}; for (const d of Df) byf[d.k] = d;
+      check(Math.max(...Df.map(d => d.cy)) - Math.min(...Df.map(d => d.cy)) < 0.03, 'flex: one row', Df.map(d => d.cy.toFixed(3)).join());
+      check(byf.asi.cx > byf.aiE.cx && byf.aiE.cx > byf.alt.cx, 'flex: the T\'s order along the row - ASI, AI, altimeter');
+      let ov = null;
+      for (let i = 0; i < Df.length; i++) for (let j = i + 1; j < Df.length; j++) if (Math.hypot(Df[i].cx - Df[j].cx, Df[i].cy - Df[j].cy) < Df[i].r + Df[j].r - 1e-6) ov = Df[i].k + '/' + Df[j].k;
+      check(!ov, 'flex: no two dials overlap', ov);
+      const hit = Lf.switches.find(s => Df.some(d => Math.abs(s.x - d.cx) < d.r + 0.008 && s.y > d.cy - d.r - 0.028 + 1e-9 && s.y < d.cy + d.r));
+      check(Lf.switches.length === 10 && !hit, 'flex: the switch row beside the dials, under none of them', hit && hit.k);
+      check(Lf.switches.every(s => Math.abs(s.x) <= Lf.xLim), 'flex: the switches on the plate');
+      const Lt0 = G.layout(fx(0.86, 0.52, 0.55, false), lo), Lt1 = G.layout(fx(0.86, 0.52, 0.55, true), lo);
+      check(Lt0.overflow.length === 0 && JSON.stringify(Lt0) === JSON.stringify(Lt1), 'flex: a plate the standard rule fills is laid out as before');
+    }
     // the layout: the standard T on three cabins, nothing overlapping, all
     // inside, the compass on the coaming, the switches along the bottom
     const A = (halfW, top, lip) => ({ dashTop: top, dashLip: lip, dashAftZ: 2.0, zDash: 2.0, halfW, floorAt: () => 0 });
