@@ -1732,7 +1732,10 @@ function mount(host, ctx) {
     const P = a.props || {}, poly = a.poly || [];
     if (k === 'terraform') { const lv = medianLevel(poly); return { kind: 'flatten', level: lv, falloff: bankFor(poly, lv, 10), abs: false, order: 0 }; }
     if (k === 'wheels') { const L = P.draw && P.draw.look && PG.RUNWAY_LOOKS[P.draw.look]; return { surface: L && L.surface !== null && L.surface !== undefined ? +L.surface : PG.SURFACE.GRAVEL }; }
-    if (k === 'draw') return { look: 'concrete', z: 0 };
+    if (k === 'draw') {   // (ONE SURFACE: an area that feels already is drawn as it feels - gravel wheels draw gravel; concrete else)
+      const s = P.wheels ? +P.wheels.surface : null, k2 = s === null ? null : ['concrete', 'gravel', 'grass', 'sand'].concat(Object.keys(PG.RUNWAY_LOOKS)).find(q => PG.RUNWAY_LOOKS[q] && PG.RUNWAY_LOOKS[q].cls && +PG.RUNWAY_LOOKS[q].surface === s);
+      return { look: k2 || 'concrete', z: 0 };
+    }
     if (k === 'marks') return { kind: 'parking' };
     if (k === 'exclude') return { what: ['trees'] };
     if (k === 'cover') { const bs = biomeNames(); return { code: null, veg: bs.length ? { mode: 'biome', mix: bs[0] } : { mode: 'none' } }; }
@@ -1745,7 +1748,7 @@ function mount(host, ctx) {
       x.props = Object.assign({}, x.props);
       x.props[k] = propDefault(x, k);
       // the defaults follow the draw: a pavement wheels its class, marks want a pavement (concrete) turned to the long side
-      if (k === 'draw') { const L = PG.RUNWAY_LOOKS[x.props.draw.look]; if (L && L.surface !== null && L.surface !== undefined) x.props.wheels = Object.assign({}, x.props.wheels || {}, { surface: +L.surface }); }   // (ONE SURFACE: the wheels follow the draw)
+      if (k === 'draw' && !x.props.wheels) { const L = PG.RUNWAY_LOOKS[x.props.draw.look]; if (L && L.surface !== null && L.surface !== undefined) x.props.wheels = { surface: +L.surface }; }   // (ONE SURFACE: a new draw brings the wheels it implies; wheels already there are kept - the draw was picked to feel as they do)
       if (k === 'marks') {
         if (!lookCls(x.props.draw)) { x.props.draw = Object.assign({ z: 0 }, x.props.draw || {}, { look: 'concrete' }); delete x.props.draw.set; if (!x.props.wheels) x.props.wheels = { surface: PG.SURFACE.PAVED }; }
         if (x.props.draw.yaw === undefined) { const ed0 = PG.rectOk(x.rect) ? null : longestEdge(x.poly); x.props.draw.yaw = PG.rectOk(x.rect) ? +((x.rect.yaw || 0) + (x.rect.hw >= x.rect.hd ? 0 : Math.PI / 2)).toFixed(4) : ed0 ? +Math.atan2(ed0[1][1] - ed0[0][1], ed0[1][0] - ed0[0][0]).toFixed(4) : 0; }
