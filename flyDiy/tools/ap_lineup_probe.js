@@ -7,7 +7,8 @@
 //           flew), as the page does when the button is pressed mid-taxi
 // Each: 0.1 s rows from the roll until --after s past the lift-off; the heading off the roll's, the rudder, the tail.
 //   node tools/ap_lineup_probe.js --build <file.json> [--ways taxi,lineup,kept] [--taxi-s 23] [--after 12] [--calm]
-//        [--profile p] [--wind kts,dirDeg[,gust[,breeze]]] [--json out.json]
+//        [--profile p] [--wind kts,dirDeg[,gust[,breeze]]] [--from HOME] [--to w3] [--hum-lift B] [--json out.json]
+// (a float aeroplane: --from SEA --to mk_sea --ways taxi - the water's departure)
 'use strict';
 const path = require('path'), fs = require('fs');
 const T = __dirname;
@@ -21,7 +22,9 @@ const TR = require(path.join(T, '_tour_lib.js'));
 const key = path.resolve(opt('build'));
 const TW = TR.tourWorld(C, IN, fs);
 const W = TW.W, A = id => W.aerodromes.find(q => q.id === id);
-const a = A('HOME'), b = A(opt('to', 'w3'));
+const a = A(opt('from', 'HOME')), b = A(opt('to', 'w3'));
+// G3307: --hum-lift B - the persona's lift-off comparison (43 humanise; a measurement's switch, never a setting)
+if (opt('hum-lift')) globalThis.FLYDIY_HUM_LIFT = opt('hum-lift');
 // --wind kts,dirDeg[,gust[,breeze]]: the game's day with its wind replaced (the day card's own spec fields), the rest the game's
 let day = argv.includes('--calm') ? null : undefined;
 if (opt('wind')) { const [k, d, g, b] = opt('wind').split(',').map(Number); day = TR.gameDay(C); day.wind = Object.assign({}, day.wind, { kts: k, dirDeg: d }, isFinite(g) ? { gust: g } : {}, isFinite(b) ? { breeze: b } : {}); }
