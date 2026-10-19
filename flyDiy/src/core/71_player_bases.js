@@ -96,10 +96,10 @@ const BASE_OFFERS = {
   // story's start GRANTS it (79_story.js storyStart): the smallest shed, made comfortable. "The middle of nowhere."
   w1: {
     words: 'the Cabin Strip · gravel up a lake valley',
-    // (G2745) the Field shed only (the smallest shed; its footprint fits the strip's flat top), Tamgas Hill's size so a
+    // (G2745) the Field shed only (the smallest shed; its footprint fits the strip's flat top), 18 x 20 m (ED-2 places the plot for it) so a
     // Cub stands inside with its kits (GATE GAMEPREM: "the field as offered takes a cub")
     plots: { w1: { shells: ['field'], kits: ['park', 'bench', 'comfort'], pf: 0.6,
-                   dims: { field: { HW: 8.5, HD: 9, EAVE: 3.6 } } } },
+                   dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } } },
   },
   HOME: {
     words: 'Jolene AFB · the WWII field',
@@ -177,7 +177,7 @@ const PREM_STORE = {
   shells: { club: { inside: 2, outside: 6 }, works: { inside: 4, outside: 6 }, field: { inside: 0, outside: 2 } },
   outsideMax: 6,
   // w5-w8: the field club's and SHIP-2's contract fields, cooked since train 52 / 53 (GATE STORAGE caught the pack ahead of this table)
-  spots: { w2: 12, HOME: 12, w3: 12, SEA: 12, mk_sea: 12, nv_strip: 5, mn_strip: 0, tw_ski: 0, w5: 7, w6: 12, w7: 12, w8: 12, w1: 12 },
+  spots: { w2: 12, HOME: 12, w3: 12, SEA: 12, mk_sea: 12, nv_strip: 5, mn_strip: 0, tw_ski: 0, w5: 7, w6: 12, w7: 12, w8: 12 },
   kinds: ['floor', 'inside', 'outside', 'long', 'away'],
 };
 // THE OUTSIDE WEAR (GQ7): visible chalking and streaks after ~10 flown hours
