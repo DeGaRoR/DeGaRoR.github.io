@@ -5,9 +5,10 @@
 //   node tools/perf/spray_look.js --before http://localhost:8584/flyDiy/dev.html?world=jolene&gfx=gamer
 //        --after http://localhost:8583/flyDiy/dev.html?world=jolene&gfx=gamer [--build bugReports/cessnaFloats.json]
 //        [--speed 14] [--out screenshots/spray_look] [--wait 2500]
-// One headless boot a side: the Cessna on floats rolled out, PAUSED, set afloat 800 m from land (tools/perf/water_places.js),
-// a 5 m/s sea; then MANUAL, full throttle (the Home key, a real key event), run until the hull makes --speed m/s (the sheets
-// exist only under dynamic pressure), PAUSED again - the sheets and the droplets hold where they are - and four eyes around
+// One headless boot a side: the Cessna on floats rolled out - the game puts a float build on the SEA lane and its pilot runs the
+// take-off from the lane's spawn (rollout_perf's G790 notes) - a 5 m/s sea; the run left to the pilot until the hull makes --speed
+// m/s (the sheets exist only under dynamic pressure), then PAUSED - the sheets and the droplets hold where they are - and four eyes
+// around (19 Oct: the first cut paused, moved the aircraft and went MANUAL at idle - it never moved: 0.5 m/s after 30 s)
 // it: side, rear quarter, front quarter (low), close side. Stills only after the overlay is gone + 2 s; HUD hidden.
 // A LOOK for a booked UNTIMED GPU slot (the caller takes the lock). Writes <out>/<view>_<side>.png, look.json, index.html.
 'use strict';
@@ -50,7 +51,8 @@ async function runSide(name, url, idx) {
       if (!d || d.exceptionDetails) throw new Error('page: ' + (d && d.exceptionDetails ? (d.exceptionDetails.exception && d.exceptionDetails.exception.description || d.exceptionDetails.text) : JSON.stringify(r))); return d.result.value; };
     await cmd('Page.enable'); await cmd('Runtime.enable');
     const wip = fs.readFileSync(path.resolve(__dirname, '..', '..', BUILD), 'utf8');
-    await cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'try{localStorage.setItem("flydiy.wip",' + JSON.stringify(wip) + ');localStorage.removeItem("flydiy.gfx")}catch(e){}' });
+    await cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'try{localStorage.setItem("flydiy.wip",' + JSON.stringify(wip) + ');localStorage.removeItem("flydiy.gfx");'
+      + 'for(const k of Object.keys(localStorage))if(/^flydiy\.(fl([A-Z]|$)|route$|world$)/.test(k))localStorage.removeItem(k);localStorage.setItem("flydiy.flManualRig","0")}catch(e){}' });   // (the pilot flies: no manual left over)
     await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
     await cmd('Page.navigate', { url });
     await sleep(1500);
@@ -69,20 +71,13 @@ async function runSide(name, url, idx) {
     await sleep(2000);
     const PAUSE = "(()=>{const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent)){b.click();return 'paused';}return 'was paused';})()";
     const RESUME = "(()=>{const b=document.getElementById('bPause');if(b&&!/pause/i.test(b.textContent)){b.click();return 'resumed';}return 'was running';})()";
-    await ev(PAUSE);
     rec.places = await ev(WP.FIND);
-    // afloat 800 m from land: room to run
-    rec.at = JSON.parse(await ev(WP.placeJS('coast', 800, 0)));
     await ev("(()=>{FLIGHT_PROBE.world().setSea({A:0.09,L:10,dir:0.4});WATER.setWind(5,0.4);return 1;})()");
-    await sleep(1500);
-    // manual, full throttle (a real key event: the Home key is the throttle's max), run to planing speed
+    // the pilot's own take-off run from the SEA lane: never paused, never manual
     await ev(RESUME);
-    await ev('(()=>{FLIGHT_PROBE.setManual(true);return 1;})()');
-    await sleep(500);
-    const key = async type => cmd('Input.dispatchKeyEvent', { type, key: 'Home', code: 'Home', windowsVirtualKeyCode: 36, nativeVirtualKeyCode: 36 });
-    await key('rawKeyDown'); await sleep(120); await key('keyUp');
+    await ev('(()=>{if(FLIGHT_PROBE.manual&&FLIGHT_PROBE.manual())FLIGHT_PROBE.setManual(false);return 1;})()');
     const t0 = Date.now(); let V = 0;
-    while (Date.now() - t0 < 30000) {
+    while (Date.now() - t0 < 75000) {
       V = await ev('(()=>{const v=FLIGHT_PROBE.sim().cgVel?FLIGHT_PROBE.sim().cgVel():[0,0,0];return Math.hypot(v[0],v[2]);})()');
       if (V >= SPEED) break;
       await sleep(250);
