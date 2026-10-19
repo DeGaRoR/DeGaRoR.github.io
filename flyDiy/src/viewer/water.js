@@ -142,7 +142,7 @@ const WATER = (() => {
     #ifdef W_HULL
     uniform sampler2D uWHull; uniform mat4 uWHullVP; uniform vec4 uWHull4;   // G2831: the hull-only capture (x weight, y walk cap, z lod per roughness, w plane)
     #endif
-    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
+    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
     uniform vec4 uWFoam;       // x: the fold's RMS Q sqrt(sum (A k)^2 / 2), y: the whitecap cover (Monahan, of the wind), z: the swell's A (m), w: 0
     uniform int uWDbg;
@@ -380,7 +380,11 @@ const WATER = (() => {
           vec3 rr2 = normalize(rr + wUpV * faceDirection * (want - ry));               // lifted along up
           // a normal that reflects the view into rr2: the half vector of (V, rr2)
           vec3 nn = normalize(geometryViewDir + rr2);
-          iblRadiance = getIBLRadiance( geometryViewDir, nn, material.roughness );
+          // G2839 ONE SKY (the ring study, 20 Oct): the probe HAS the clouds (its cube and its atlas, dumped) - the water lost
+          // them in the lookup: the GGX lobe of the Cox-Munk roughness (~0.4 at 5 m/s) is ~10x wider than the mirror's own
+          // blur (a mip of roughness x lod on its capture), so where the capture is sky (alpha 0) the probe's clouds were
+          // smeared flat beside a sharp mirrored shore. Under the mirror's weight the lobe is scaled by uWSky.x (MIR.skyK)
+          iblRadiance = getIBLRadiance( geometryViewDir, nn, material.roughness * mix(1.0, uWSky.x, uWMirror4.x) );
           // BRUNETON'S MEAN FRESNEL (2010, eq. for a rough sea): a prefiltered lookup has no masking - a rough sea at
           // grazing reflects a third of the mirror's sky, its facets shadowing each other and turning the eye toward
           // the higher, darker sky. meanFresnel = (1 - c)^(5 e^(-2.69 s)) / (1 + 22.7 s^1.5) against Schlick's (1 - c)^5:
@@ -605,6 +609,7 @@ const WATER = (() => {
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
       uWHull: { value: null }, uWHullVP: { value: new THREE.Matrix4() }, uWHull4: { value: v4() },   // G2831 (prototype b)
+      uWSky: { value: v4(1) },   // G2839 x: the probe lookup's lobe scale under the mirror's weight (MIR.skyK; 1 = the GGX lobe of the roughness)
       uWNear: { value: v4() }, uWDbg: { value: 0 }, uWLook: { value: v4(S.reflKeep, S.slant, S.lap, S.wet) },
     };
     applyPresets();
@@ -965,7 +970,7 @@ const WATER = (() => {
     // (round 2, 19 Oct: the capture is GEOMETRY-bound - 4.6-5.9 ms GPU at any resolution, ~11 M triangles): ringOffset narrows the mirror
     // camera's FRUSTUM to the rows under the water's horizon (setViewOffset: culling drops what no water pixel reads, not just the fill);
     // ringFar caps the capture's far plane
-    ringOffset: false, ringFar: 4000,
+    ringOffset: false, ringFar: 4000, skyK: 1,
     // (round 2, A0 19 Oct: 'a ring near the shore' - HOME must pay nothing) over land the ring fades by the eye's distance to WATER, gone by ringIn m inland
     ringIn: 150, waterD: 0 };
   const mirrorTmp = {};
@@ -1051,6 +1056,7 @@ const WATER = (() => {
   const sstep = (e0, e1, x) => { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
   function mirrorRender(THREE, renderer, scene, camera, under, opts) {
     opts = opts || {};
+    if (U) U.uWSky.value.x = MIR.skyK;   // (G2839: the probe's lobe under the mirror's weight)
     if (PROTO.ring && MIR.mode !== 'live') { MIR.mode = 'live'; mirrorOff(); }   // (the study's mirror is the never-switching one, weighted by the ring)
     if (MIR.mode === 'off') { if (MIR.on && U) { MIR.on = false; U.uWMirror4.value.x = 0; } MIR.w = 0; return false; }
     const auto = MIR.mode === 'auto', hasUnder = under !== null && under !== undefined && Number.isFinite(under);
