@@ -321,7 +321,10 @@ var SHADOW_NEAR = (function () {
     const P = typeof THREE !== 'undefined' && THREE.LOD && THREE.LOD.prototype;
     if (!P || P.__parkSh) return;
     const up = P.update; P.__parkSh = true;
-    P.update = function (camera) { up.call(this, camera); if (S.parkShadow && this.userData.parked !== undefined) PARKSH.live.add(this); };
+    // (by the NAME parked.js gives its LODs, 'parked:<key>': an animal's LOD carries a userData.parked of its own - animal_run's
+    // out-of-reach flag - and its far rung is a prop mesh with no matrix walk: the 18 Oct GPU A/B drew ~5 M more triangles a
+    // frame at the taxi when the swap took animals too)
+    P.update = function (camera) { up.call(this, camera); if (S.parkShadow && this.name.startsWith('parked:')) PARKSH.live.add(this); };
   })();
   function parkIn() {
     if (!PARKSH.live.size) return;
