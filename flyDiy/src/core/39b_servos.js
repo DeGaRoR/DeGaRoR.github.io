@@ -81,6 +81,8 @@ const SERVO_GAINS = {
   // Cessna's standing error on P-D alone was 4.1 deg = 0.07 rad)
   steerIBand: 0.10,
   drTailDown: 0.45, drTailUp: 0.95, drWater: 0.9,
+  // G3077: the toe brake past the rudder's stop (groundSteer): brake per unit of rudder demand past the stop, its cap
+  brakeDK: 1.0, brakeDMax: 0.3,
   // G1937 (PILOT-ONE, for DMG-DAMP): the water-step entry - kP x waterStepK on the water with the hull on the step
   // (tail up); 1 today (no change), DAMP's only pilot gain (0.6 once the solver's rigid-rotation damper is gone)
   waterStepK: 1,
@@ -93,8 +95,19 @@ const SERVO_GAINS = {
   // stock / c172 / metal Cessna 20.5 / 24.8 / 16.3 reversals a minute against the limit's 20 (master 14.6 / 16 /
   // 16.3). Measured: 0.25 s -> 16 / 18.9 / 19.2; 0.35 s -> 16 / 20.4 / 20.7; 0.5 s -> 17.3 / 17.4 / 20.7 (the lag
   // overshoots the heavy metal Cessna's turns). A rate term (the error's or the yaw rate's) was worse at every gain
-  taxiRudTau: 0.25,
-  taxiBrakeDb: 0.8, taxiBrakeK: 0.3, taxiBrakeMax: 0.6, taxiHdgTau: 0.4, taxiHdgForgetS: 0.5,
+  // G3077 (TORQUE-RETUNE-66): ...BUT NOT ON A NOSEWHEEL. On the honest solver (DMG-DAMP G1885: no rigid-yaw damper) the lag is
+  // a lag in a nosewheel's heading loop - master's own taxi law with it read the C172 / metal Cessna 17.5 / 16.2 -> 26.2 / 23.6
+  // reversals a minute (GATE PILOTACT, limit 20): a tricycle steers its heading with the nosewheel, directly, and flies
+  // taxiRudTauTrike 0 (with 43 taxiCap and taxiHdgTauTrike: 16.8 / 17.2). A tailwheel steers through the rudder and the tail
+  // and keeps G2080's 0.25 s: without it the user's twin's rod boom twisted 2.64-3.04 deg against the mains on the taxi (GATE
+  // TAKEOFF's 2.5; 2.13-2.42 with it); the stock build 16.1 a minute with it
+  taxiRudTau: 0.25, taxiRudTauTrike: 0,
+  taxiBrakeDb: 0.8, taxiBrakeK: 0.3, taxiBrakeMax: 0.6, taxiHdgForgetS: 0.5,
+  // G3077 (TORQUE-RETUNE-66): a tricycle's look-ahead heading filtered 0.8 s (taxiHdgTauTrike) - the target STEPS as the
+  // look-ahead passes each sample of a bend, and with the swirl's standing boot every step was a pedal reversal (with taxiCap:
+  // the metal Cessna 20.2 -> 17.2, the C172 19.2 -> 16.3 a minute at HOME); a tailwheel keeps 0.4 (at 0.6-0.8 the twin's
+  // boom twisted 2.6-3.0 deg on the taxi, GATE TAKEOFF)
+  taxiHdgTau: 0.4, taxiHdgTauTrike: 0.8,
   // the crosswind decrab
   decrabAgl: 3.5, decrabK: 2.2, decrabD: 0.6, decrabI: 1.0, decrabIMax: 0.2, decrabMax: 0.35,
   decrabBank: 0.12, xwArm: 0.5,
@@ -162,7 +175,7 @@ function makeServos(sim, def, opts) {
     // the servos' memory a phase may set
     thCA: 0, phCA: 0, vsF: 0, thcI: 0.06, Ith: 0, It: 0, thrC: 0.6,
     IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0, oscK: 1, oscScore: 0,
-    eTrim: 0, drTrim: 0, gI: 0, gIT: -1e9, aDe: 0, aDa: 0, aDr: 0, tailUp: false, thrCap: 1,
+    eTrim: 0, drTrim: 0, betaIK: 1, gI: 0, gIT: -1e9, bdOn: false, aDe: 0, aDa: 0, aDr: 0, tailUp: false, thrCap: 1,
     dcI: 0, dcT: -1, taxiI: 0, taxiLastT: -1e9, taxiHdgF: null, taxiHdgT: -1e9,
   };
   let init = false, thF = 0, phF = 0, thP = 0, phP = 0, eP = 0, eAP = 0;
@@ -317,7 +330,7 @@ function makeServos(sim, def, opts) {
     c.da = clamp(g('rollP') * (S.phCA - S.ph) - g('rollD') * S.p, -G.daMax, G.daMax);
     // G2080: the slip's integral is the rudder trim (the beta term alone left the climb at full power 4.8 deg
     // crossed on the Cub: a P loop against a standing yaw keeps a standing error)
-    S.drTrim = clamp(S.drTrim - g('betaI') * S.beta * S.dt, -g('drTrimMax'), g('drTrimMax'));
+    S.drTrim = clamp(S.drTrim - g('betaI') * S.betaIK * S.beta * S.dt, -g('drTrimMax'), g('drTrimMax'));
     c.dr = clamp(S.drTrim - g('betaK') * S.beta - g('yawDampK') * (S.eAR - S.eARslow)
                  - g('ariK') * c.da, -G.drAirMax, G.drAirMax);
   };
@@ -543,6 +556,18 @@ function makeServos(sim, def, opts) {
     else S.gI -= S.gI * Math.min(1, S.dt / 1.0);
     S.drTrim = clamp(-S.gI, -g('drTrimMax'), g('drTrimMax'));
     c.dr = clamp(-kP * e - kD * S.eR - S.gI, -drMax, drMax);
+    // G3077 (TORQUE-RETUNE-66): THE TOE BRAKE WHEN THE RUDDER RUNS OUT (FAA-H-8083-3: differential braking where the rudder
+    // alone cannot hold the direction). Under power on the wheels, the heading demand past the rudder's stop goes to the
+    // brake on the side the nose must turn to (G1938's brakeD: > 0 yaws as dr > 0 does), brakeDK per unit of rudder
+    // past the stop, brakeDMax at most, released the moment the rudder holds again. The user's twin (GATE TAKEOFF's crosswind
+    // ladder, 4 m/s from +z): the tail up at 10 m/s, the rudder on its 0.95 stop from 11 m/s, the nose swung 40 deg (ENGINE-
+    // TORQUE's reaction torque; off: 15 deg) and the wheels left 34.6 deg off - past the plaque's 30; with the toe brake 18.6
+    // deg, the limit 3.5 -> 4.0 m/s. Not on the water (no brakes) nor at idle (a roll-out's own law)
+    if (FT.groundP1D && !onWater && onG > 0 && (c.thr || 0) > 0.5) {
+      const over = Math.abs(-kP * e - kD * S.eR - S.gI) - drMax;
+      if (over > 0) { c.brakeD = clamp(Math.sign(-kP * e - kD * S.eR - S.gI) * g('brakeDK') * over, -g('brakeDMax'), g('brakeDMax')); S.bdOn = true; }
+      else if (S.bdOn) { c.brakeD = 0; S.bdOn = false; }
+    } else if (S.bdOn) { c.brakeD = 0; S.bdOn = false; }
     if (FT.xwBank && F) {
       // AILERON INTO THE WIND (2026-09-08, 43): a bank bias the level-wing
       // loop flies; P1.D: on the wheels within xwBankGround
@@ -581,7 +606,7 @@ function makeServos(sim, def, opts) {
   S.taxiHeading = (hT) => {
     const t = now();
     if (S.taxiHdgF == null || t - S.taxiHdgT > G.taxiHdgForgetS) S.taxiHdgF = hT;
-    else S.taxiHdgF = servoWrapPi(S.taxiHdgF + servoWrapPi(hT - S.taxiHdgF) * Math.min(1, S.dt / G.taxiHdgTau));
+    else S.taxiHdgF = servoWrapPi(S.taxiHdgF + servoWrapPi(hT - S.taxiHdgF) * Math.min(1, S.dt / (trike ? G.taxiHdgTauTrike : G.taxiHdgTau)));
     S.taxiHdgT = t;
     return S.taxiHdgF;
   };
@@ -590,7 +615,7 @@ function makeServos(sim, def, opts) {
   let taxiDrF = null, taxiDrT = -1e9;
   S.taxiRudder = (ff, lim) => {
     const u = clamp(ff ? -S.steerK(false)[0] * S.e + ff : -S.steerK(false)[0] * S.e, -lim, lim);
-    const tau = g('taxiRudTau'), t = now();
+    const tau = trike ? g('taxiRudTauTrike') : g('taxiRudTau'), t = now();
     if (!(tau > 0)) return u;
     if (taxiDrF == null || t - taxiDrT > 0.1) taxiDrF = u;
     else taxiDrF += (u - taxiDrF) * Math.min(1, S.dt / tau);

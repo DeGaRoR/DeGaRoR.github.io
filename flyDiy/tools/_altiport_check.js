@@ -83,6 +83,7 @@ function flyWatched(key, o) {
   sim.step = dt => {
     step0(dt);
     const ap = H.ap, ph = ap.phase;
+    if (o.committed && ph === 'FINAL') ap.gaN = Math.max(ap.gaN || 0, 2);   // G3077: the arrival's go-arounds spent (job 3)
     if (ph !== last) {
       const cg = sim.cgPos();
       if (ph === 'FINAL' && !finalAt) finalAt = { h: r1(cg[1]), d: r1(Math.hypot(cg[0] - b.x, cg[2] - b.z) - b.len / 2), hC: ap.report.circuit ? ap.report.circuit.hC : null };
@@ -102,7 +103,10 @@ function flyWatched(key, o) {
 }
 
 // 1 / 2 the two validated taildraggers, HOME > tw_ski
-const JOBS = [{ name: "the user's Jodel", key: JODEL, n: 1 }, { name: "the user's Cub", key: TR.BUILDS.cub.key, n: 2, capacity: 29, knownRoll: true }];
+// G3077 (TORQUE-RETUNE-66): THE CUB IS THE REFERENCE FOR SHORT STRIPS (the user, 14 Oct: "Stop testing the Jodel, the cub is
+// the reference for short strips"; G3071: a gate row flying the Jodel on a short strip goes, check-only, when the gate is next
+// touched) - the Jodel's row 1 HOME > tw_ski is dropped; the Cub's row 2 stands
+const JOBS = [{ name: "the user's Cub", key: TR.BUILDS.cub.key, n: 2, capacity: 29, knownRoll: true }];
 for (const J of JOBS) {
   if (!SHD.take()) continue;
   const t0 = Date.now();
@@ -130,32 +134,26 @@ for (const J of JOBS) {
 }
 
 // 3 the flare guard's own row: the doctored arrival
+// G3077 (TORQUE-RETUNE-66, the owed G3076): AN ARRIVAL THE GO-AROUND DOES NOT CATCH. PERSONA-2 G2460's stabilised approach took
+// the doctored final round before G2520's flare guard was ever reached (the Jodel: 'unstabilised approach at -133 m: low 242 m
+// on the slope', twice, then the divert - printed KNOWN, G3074) - so the row could not see the guard. The guard is for the
+// arrival nothing else stops: the go-arounds spent (the pilot's gaN at two from the final's start, as on a third arrival -
+// 43 canGA false: the stabilised approach says 'committed-unstable' and flies on), the field still believed 250 m low. And
+// the Cub flies it (the user, 14 Oct: the Cub is the reference for short strips) - judged as before G2540: the guard said
+// with the final begun under the strip, no flare armed under it or over FLARE_ARM_MAX above it, the airframe whole for 900 s
 if (SHD.take()) {
   const t0 = Date.now();
-  const R = flyWatched(JODEL, { doctor: 250, tMax: 900 });
-  const L = R.L, id = '3 the doctored arrival (tw_ski\'s record 250 m low), the Jodel';
+  const R = flyWatched(TR.BUILDS.cub.key, { doctor: 250, tMax: 900, capacity: 29, committed: true });
+  const L = R.L, id = '3 the doctored arrival (tw_ski\'s record 250 m low, the go-arounds spent), the Cub';
   console.log('  doctored: ' + TR.fmtLeg(L).trim() + ' (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
   if (SHOW) console.log('    verdicts ' + R.says.join(' | ') + '\n    flares ' + JSON.stringify(R.flares) + '\n    final ' + JSON.stringify(R.finalAt));
-  // G3074: THE KNOWN RED (G2540 #2 / G3072; the user, 13 Oct, BY NAME: accepted for landing, "the 2 other seem to deserve
-  // follow-up" - OWED, the coordinator's backlog G3076): PERSONA-2 G2460's stabilised-approach go-around now takes the doctored
-  // arrival round BEFORE G2520's flare guard is reached, and the Jodel diverts (w3) - so this calibration cannot read the guard.
-  // Known ONLY while it is exactly that (a go-around said, the guard never said, no flare armed at tw_ski); anything else is
-  // judged as before
-  const wentRound = R.says.some(s => /^go-around/.test(s)), guardSaid = R.says.some(s => /^flare-guard/.test(s));
-  const atAlti = R.flares.filter(f => f.over > -50);   // a flare armed near tw_ski's own height (the divert's are hundreds of m under it)
-  if (wentRound && !guardSaid && !atAlti.length) {
-    console.log('  KNOWN ' + id + ': the PERSONA-2 go-around pre-empts the flare guard (G2540 #2, OWED G3076, accepted by the user 13 Oct) - '
-      + R.says.filter(s => /^(go-around|diverted|vref)/.test(s)).join(' | ') + '; damage ' + JSON.stringify(R.damage ? { yields: R.damage.yields, breaks: R.damage.breaks, over: !!R.damage.over } : null));
-  } else {
-    const guard = R.says.filter(s => /^flare-guard/.test(s));
-    check(guard.length > 0 && R.finalAt && R.finalAt.h < R.SG.lo, id + ': the arrival came in under the strip and the arming law was met there - the guard caught it (calibration)',
-      (R.finalAt ? 'FINAL at ' + R.finalAt.h + ' m MSL (the strip ' + Math.round(R.SG.lo) + '..' + Math.round(R.SG.hi) + ' m); ' : '') + (guard.join(' | ') || 'no flare-guard said'));
-    const under = R.flares.filter(f => f.over < 0), high = R.flares.filter(f => f.low - R.SG.hi > ARM_MAX);
-    check(!under.length && !high.length, id + ': no flare armed under the strip or over ' + ARM_MAX + ' m above it', R.flares.map(f => f.over + ' m over the strip ' + f.d + ' m out at ' + f.t + ' s').join('; ') || 'no flare');
-    const D = R.damage;
-    check(!!D && !D.over && !D.breaks, id + ': the airframe whole (no crash, no member broken)', D ? JSON.stringify({ yields: D.yields, breaks: D.breaks, over: !!D.over, reason: D.reason || null }) : '-');
-
-  }
+  const guard = R.says.filter(s => /^flare-guard/.test(s));
+  check(guard.length > 0 && R.finalAt && R.finalAt.h < R.SG.lo, id + ': the arrival came in under the strip and the arming law was met there - the guard caught it (calibration)',
+    (R.finalAt ? 'FINAL at ' + R.finalAt.h + ' m MSL (the strip ' + Math.round(R.SG.lo) + '..' + Math.round(R.SG.hi) + ' m); ' : '') + (guard.join(' | ') || 'no flare-guard said') + ' | ' + R.says.filter(s => /^(go-around|committed|divert)/.test(s)).join(' | '));
+  const under = R.flares.filter(f => f.over < 0), high = R.flares.filter(f => f.low - R.SG.hi > ARM_MAX);
+  check(!under.length && !high.length, id + ': no flare armed under the strip or over ' + ARM_MAX + ' m above it', R.flares.map(f => f.over + ' m over the strip ' + f.d + ' m out at ' + f.t + ' s').join('; ') || 'no flare');
+  const D = R.damage;
+  check(!!D && !D.over && !D.breaks, id + ': the airframe whole (no crash, no member broken)', D ? JSON.stringify({ yields: D.yields, breaks: D.breaks, over: !!D.over, reason: D.reason || null }) : '-');
 }
 // 4 THE METAL CESSNA (G2530, PILOT-44-REDS) - the user's metal Cessna as the load door makes it (bugReports/cessnaMetal
 //   (1).json: 887 kg, the engine at its drawn station - CESSNA-VREF G2500), HOME > tw_ski, the game's flight, damage ON.

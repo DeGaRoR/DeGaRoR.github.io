@@ -208,7 +208,11 @@ function knownCubRoll(b, L2) {
 }
 function knownRed(b, L2, R) {
   { const kc = knownCubRoll(b, L2); if (kc) return kc; }
-  if (b === 'c172' && L2.to === 'w2') {
+  // G3077 (TORQUE-RETUNE-66): ...AND THE USER'S CUB, THE SAME WATER. With its roll-out straight on 02/20 again (G3075's loop gone:
+  // 131 m, 0.1 m off the centreline) the Cub stops on the strip, and its propeller meets the same cover-grid water on the old
+  // concrete in the last metres (t 1024 of the leg flown alone, 3060 in the tour) - ISLAND-TOUR G1971's, the C172's finding:
+  // known on the same terms (no ISLAND-TOUR, the strike the water's, the leg's only fault, landed and stopped on w2)
+  if ((b === 'c172' || b === 'cub') && L2.to === 'w2') {
     const pa = L2.damage && L2.damage.propAt, ld = L2.arr && L2.arr.landing;
     if (ISLAND || !pa || pa.what !== 'water' || !L2.faults.every(f => f.k === 'prop-strike') || L2.landedOn !== 'w2' || L2.arr.stopS == null) return null;
     return 'the water on 02/20\'s concrete (ISLAND-TOUR G1971, not on this tree) - the propeller struck water at t ' + pa.t + ' s on the roll-out; the touch ' + (ld ? ld.V + ' m/s, sink ' + ld.sink + ' m/s, run ' + ld.run + ' m' : '-') + '; no other fault';
