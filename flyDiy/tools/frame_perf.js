@@ -238,6 +238,9 @@ const PLACE_AT = s => { const [x, z, agl] = s.split(':').slice(1).map(Number); r
 
 const med = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x - y); return f[f.length >> 1]; };
 const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x - y); return f[Math.floor(f.length * 0.9)]; };
+// (G2836 round 2: the user's lake ask - the tail and the share of frames over 34 ms, i.e. under 30 fps)
+const p99 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x - y); return f[Math.min(f.length - 1, Math.floor(f.length * 0.99))]; };
+const over = (a, ms) => a.length ? a.filter(x => x > ms).length / a.length : 0;
 
 (async () => {
   let tgt = null;
@@ -326,14 +329,14 @@ const p90 = a => { if (!a.length) return 0; const f = a.slice().sort((x, y) => x
         const shv = Sh.acc.map(a => (a && a['shadow:maps']) || 0);   // (a frame the shadow maps skipped - SHADOW_RATE, every 2nd - is a hole: null)
         tags['shadow:maps'] = { median: +med(shv).toFixed(2), p90: +p90(shv).toFixed(2), calls: +((Sh.calls['shadow:maps'] || 0) / Sh.frames.length).toFixed(1) };
         const sum = Object.keys(tags).filter(k => k !== 'shadow:maps').reduce((s, k) => s + tags[k].median, 0);
-        const row = { place, probe: probe.name, tier, where: JSON.parse(where === 'garage' ? '{"at":"garage"}' : where), frame: { median: +med(Raw.frames).toFixed(1), p90: +p90(Raw.frames).toFixed(1), timed: +med(P.frames).toFixed(1) },
+        const row = { place, probe: probe.name, tier, where: JSON.parse(where === 'garage' ? '{"at":"garage"}' : where), frame: { median: +med(Raw.frames).toFixed(1), p90: +p90(Raw.frames).toFixed(1), p99: +p99(Raw.frames).toFixed(1), over34: +over(Raw.frames, 34).toFixed(3), timed: +med(P.frames).toFixed(1) },
                       gpuSum: +sum.toFixed(2), cpuWorld: +P.cpuWorld.toFixed(2), calls: P.calls1, tris: P.tris, gpuUtilBefore: util, tags };
         try { row.post = JSON.parse(await ev('JSON.stringify(window.POST_FX && POST_FX.stats ? POST_FX.stats : null)')); } catch (e) { row.post = null; }
         // --after '<js>' (C3b, G857): an expression read after each row (a module's own counters over the row's frames), in the JSON
         if (opt('after', null)) { try { row.after = JSON.parse(await ev('(async () => JSON.stringify(await (' + opt('after') + '\n)))()')); } catch (e) { row.after = String(e.message || e); } }
         rows.push(row);
         const order = Object.keys(tags).sort((a, b) => tags[b].median - tags[a].median);
-        console.log(`  ${place.padEnd(7)} ${probe.name.padEnd(10)} ${tier.padEnd(5)} frame ${String(row.frame.median).padStart(6)} ms (p90 ${row.frame.p90}; ${row.frame.timed} under the timer) · gpu passes ${row.gpuSum} ms · cpu world ${row.cpuWorld} ms · ${row.calls} calls · ${(row.tris / 1e6).toFixed(1)} Mtris` + (util > 15 ? ` · GPU WAS ${util} % BUSY BEFORE` : ''));
+        console.log(`  ${place.padEnd(7)} ${probe.name.padEnd(10)} ${tier.padEnd(5)} frame ${String(row.frame.median).padStart(6)} ms (p90 ${row.frame.p90}, p99 ${row.frame.p99}, >34 ms ${(row.frame.over34 * 100).toFixed(1)} %; ${row.frame.timed} under the timer) · gpu passes ${row.gpuSum} ms · cpu world ${row.cpuWorld} ms · ${row.calls} calls · ${(row.tris / 1e6).toFixed(1)} Mtris` + (util > 15 ? ` · GPU WAS ${util} % BUSY BEFORE` : ''));
         console.log('      ' + order.map(k => `${k} ${tags[k].median}` + (tags[k].calls !== 1 ? `×${tags[k].calls}` : '')).join(' · '));
         if (row.after !== undefined) console.log('      after -> ' + JSON.stringify(row.after));
       }
