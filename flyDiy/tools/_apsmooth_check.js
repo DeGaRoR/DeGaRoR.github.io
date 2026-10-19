@@ -38,6 +38,9 @@ const BUILDS = [
   { k: 'mosquito', f: 'tools/fixtures/repro/mosquito_3.json', order: 'HOME,w3', trike: false },
 ].filter(b => !opt('only') || opt('only').split(',').includes(b.k));
 const PERSONS = ['expert', 'club', 'student'];
+// INFO rows: printed, never judged - the Jodel into w2 (the user-accepted t66 behaviour: a tailwind final steeper than it can
+// fly, two go-arounds; AP-ADAPT's 'slope the type can't fly' item will show its effect here)
+const INFO = [{ k: 'jodel', f: 'builds/jodel_2026-09-20_corrected.json', order: 'HOME,w2', note: 'w2 into the tailwind' }].filter(b => !opt('only') || opt('only').split(',').includes(b.k));
 const LIM = { roll: 6, airExpert: 10, hRms: 5, rev: 15, VoverVs: 1.35 };
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'apsmooth_'));
 const jobs = [];
@@ -45,6 +48,8 @@ for (const b of BUILDS) for (const p of PERSONS) jobs.push({ kind: 'roll', b, p,
   args: [path.join(T, 'ap_lineup_probe.js'), '--build', b.f, '--ways', 'lineup', '--after', '15', '--profile', p, '--json', path.join(TMP, 'roll_' + b.k + '_' + p + '.json')] });
 for (const b of BUILDS) jobs.push({ kind: 'level', b, out: path.join(TMP, 'level_' + b.k + '.json'),
   args: [path.join(T, 'ap_smooth_probe.js'), '--build', b.f, '--order', b.order, '--damage', '0', '--max', '1200', '--json', path.join(TMP, 'level_' + b.k + '.json')] });
+for (const b of INFO) jobs.push({ kind: 'info', b, out: path.join(TMP, 'info_' + b.k + '.json'),
+  args: [path.join(T, 'ap_smooth_probe.js'), '--build', b.f, '--order', b.order, '--damage', '0', '--max', '1200', '--json', path.join(TMP, 'info_' + b.k + '.json')] });
 const N = +opt('jobs', 4);
 let next = 0, running = 0;
 const done = new Promise(res => {
@@ -89,6 +94,13 @@ done.then(() => {
     console.log('  ' + (bad.length ? 'FAIL' : 'ok  ') + ' ' + (b.k + ' level').padEnd(18) + ' ' + b.order + ': ' + (R.stopped ? 'completed' : 'NOT completed') + ', h rms ' + R.level.hRms + ' m (peak ' + R.level.hPeak +
       '), hands da/dr/de ' + (lv.da || 0) + '/' + (lv.dr || 0) + '/' + (lv.de || 0) + ' /min, touch ' + (vv != null ? vv + ' Vs' : '-') + ', go-arounds ' + ga + (ga && b.known ? ' (KNOWN: ' + b.known + ')' : ''));
     for (const x of bad) fails.push(b.k + ' level: ' + x);
+  }
+  for (const b of INFO) {
+    const j = jobs.find(q => q.kind === 'info' && q.b === b); let R = null; try { R = JSON.parse(fs.readFileSync(j.out, 'utf8')); } catch (e) {}
+    if (!R) { console.log('  INFO ' + (b.k + ' ' + b.order).padEnd(18) + ' no result (' + j.code + ')'); continue; }
+    const lv = R.active && R.active.level || {}, ga = (R.verdicts || []).filter(v => v === 'go-around').length;
+    console.log('  INFO ' + (b.k + ' ' + b.order).padEnd(18) + ' (' + b.note + '): ' + (R.stopped ? 'completed' : 'NOT completed') + ', h rms ' + R.level.hRms + ' m, hands da/dr/de ' + (lv.da || 0) + '/' + (lv.dr || 0) + '/' + (lv.de || 0) +
+      ' /min, go-arounds ' + ga + ', touch ' + (R.land && R.land.VoverVs != null ? R.land.VoverVs + ' Vs' : '-') + ' (never judged)');
   }
   try { fs.rmSync(TMP, { recursive: true, force: true }); } catch (e) {}
   if (fails.length) { console.log('  failures:\n    ' + fails.join('\n    ')); console.log('GATE APSMOOTH: FAIL'); process.exit(1); }
