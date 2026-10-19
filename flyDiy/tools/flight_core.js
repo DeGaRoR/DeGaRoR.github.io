@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: e571fc7a42ac9ac3
+// body-sha256: ba89ada195a6f66c
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -9738,7 +9738,7 @@ function runwayGrab(rec, lx, lz, dims) {   // (G3096: `dims` the drawn shed's ha
   for (const r of (rec && rec.layers && rec.layers.runways) || []) {
     const h = r.hangar;
     if (h && isFinite(+h.x) && isFinite(+h.z)) {
-      const a0 = +h.hdg || 0, dx = lx - h.x, dz = lz - h.z, a = dx * Math.cos(a0) + dz * Math.sin(a0), b = -dx * Math.sin(a0) + dz * Math.cos(a0);
+      const a0 = +h.hdg || 0, dx = lx - h.x, dz = lz - h.z, a = dx * CORE_MATH.cos(a0) + dz * CORE_MATH.sin(a0), b = -dx * CORE_MATH.sin(a0) + dz * CORE_MATH.cos(a0);
       const W = dims && +dims.HW > 0 ? +dims.HW : HANGAR_DIMS.HW, D = dims && +dims.HD > 0 ? +dims.HD : HANGAR_DIMS.HD;
       if ((Math.abs(a) <= D && Math.abs(b) <= W) || (Math.abs(a) <= W && Math.abs(b) <= D)) { const d = Math.hypot(dx, dz); if (!best || d < best.d) best = { id: r.id, key: 'hangar', d }; }
     }
@@ -9757,7 +9757,7 @@ function hangarSquare(rec, r, toward, fyaw) {
   for (const s of (rec && rec.layers && rec.layers.sites) || []) {
     const a = s && s.at; if (!a || !isFinite(+a.x) || !isFinite(+a.z)) continue;
     for (const it of s.items || []) {
-      const c = Math.cos(+a.yaw || 0), sn = Math.sin(+a.yaw || 0), x = +a.x + (+it.x || 0) * c + (+it.z || 0) * sn, z = +a.z - (+it.x || 0) * sn + (+it.z || 0) * c;
+      const c = CORE_MATH.cos(+a.yaw || 0), sn = CORE_MATH.sin(+a.yaw || 0), x = +a.x + (+it.x || 0) * c + (+it.z || 0) * sn, z = +a.z - (+it.x || 0) * sn + (+it.z || 0) * c;
       const d = Math.hypot(x - h.x, z - h.z); if (d > 250 || d < 1) continue;
       if (!best || d < best.d) best = { d, ry: (+a.yaw || 0) + Math.PI + (+it.yaw || 0) };
     }
@@ -9766,8 +9766,8 @@ function hangarSquare(rec, r, toward, fyaw) {
   const F = +fyaw || 0, t = toward && isFinite(+toward.x) ? [+toward.x - h.x, +toward.z - h.z] : null;
   let out = null, score = -Infinity;
   for (let k = 0; k < 4; k++) {
-    const hh = Math.PI - (best.ry + k * Math.PI / 2), hdg = Math.atan2(Math.sin(hh + F), Math.cos(hh + F));
-    const sc = t ? (Math.cos(hh) * t[0] + Math.sin(hh) * t[1]) : -Math.abs(hdg - (+h.hdg || 0));
+    const hh = Math.PI - (best.ry + k * Math.PI / 2), hdg = Math.atan2(CORE_MATH.sin(hh + F), CORE_MATH.cos(hh + F));
+    const sc = t ? (CORE_MATH.cos(hh) * t[0] + CORE_MATH.sin(hh) * t[1]) : -Math.abs(hdg - (+h.hdg || 0));
     if (sc > score) { score = sc; out = +hdg.toFixed(4); }
   }
   return out;
@@ -51660,7 +51660,7 @@ function storyStep(doc, ev, ctx) {
 // THE STORY'S PLANES' FILES (fetched by the page, relative to the game's folder). The starter is the user's Rufus (18 Oct):
 // RUFUS-CERT (G3270) moves its certified file into builds/ - the page asks builds/ first, then the archived candidate.
 const STORY_FILES = {
-  starter: ['builds/rufus_2026-10-18.json', 'builds/rufus_2026-10-18_corrected.json', 'builds/rufus.json',
+  starter: ['builds/rufus_2026-10-18_certified.json', 'builds/rufus_2026-10-18.json', 'builds/rufus_2026-10-18_corrected.json', 'builds/rufus.json',
             'futureDesigns/game/aircraft-candidates/rufus-starter_2026-10-18.json'],
   client: ['builds/cub_2026-09-20.json'],          // the validated Cub, unfinished by storyClientSpec
 };
