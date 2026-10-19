@@ -96267,3 +96267,182 @@ Run: node tools/prop_lod.js --base && node tools/prop_lod.js (the pier kit is th
 ## Landing L18a (A0, 18 Oct 06:10)
 Landed: EDITOR-PERF ground fixes (G3100 ring normals, G3101 paved merges + pavement cache), METLA-ON lever 2 (G3212: kit plots stream only near + no far kit shadow; ON-OFF loop +5.85 -> +4.75 ms, >34 ms frames 9.85 -> 4.16 %), damage impact v3 (break events budgeted) + the DMGUPLOAD Cub fix, the asset cut (pier people ~8 k each, boat 370 k -> 30 k), the float spray/wake fix (G2834/G2835), the floats route + water flare (G3078/G3079), PERF-1 (fixed reference tooling, census, parked shadows, 28 dead ALLOWs dropped).
 Strict light gate: 16 better; 2 RED already accepted (metal fuseWidth slider; floats world -> garage, also in train 57). Gates: CLOCK, CLOUD (lamps), FRAMECOST (master's restore row), KTX2 (the 9 character files: accepted, see accepted-4). DMGUPLOAD and TOUR PASS.
+
+## G3077 - TORQUE-RETUNE-66: THE TORQUE BUNDLE RE-TUNED ON 41b'S HONEST PHYSICS (2026-10-18/19, TORQUE-RETUNE-66 for the PILOT COORDINATOR, cloud - node only; branch claude/torque-retune-66 off origin/claude/pilot-45 a69f31fd, origin/master 8a04876e merged first)
+
+IN PLAIN WORDS: the torque bundle (ENGINE-TORQUE, JODEL-PITCH, PERSONA-2, HAND-CONTROLS, EAST-POINT-DEPART, TORQUE-STEER) had
+been tuned while the solver still damped the aeroplane's rotation artificially. Without that damping (DMG-DAMP, train 41) the
+box saw eight gates red. Each red was bisected (the old damper `defDampMean`, the propeller's four effects one by one, master's
+tree with one bundle file at a time) and fixed where it starts - mostly the pilot doing what a pilot does: the water rudders
+down in a strong crosswind, half power in a taxi turn and on the water, full back stick when a nosewheel will not lift, a toe
+brake when the rudder runs out, a person trimming the rudder as slowly as they fly. Three were the gates' own (a 20 s window
+judging a dive, a const out of scope, a backspace in a regex), one is master's (PROFILE 2 - printed KNOWN with its owner), and
+the owed G3076 / G3075 / G2550 are closed. No bound was loosened; the user's two by-name calibrations stand as they were.
+
+### MERGE FIRST
+origin/master 8a04876e (L18a: METLA-ON, editor ground fixes, damage v3, the asset cut, FLOATS-FIX G3078/G3079, PERF-1) into
+pilot-45 a69f31fd: conflicts in 43_pilot.js and 90_node_exports.js (the union + PILOT_STAB); HANDOVER by union.
+FLOATS-FIX HAD LANDED (G3079 = PERSONA-2 G2462's water flare ported alone): ONE water flare kept (the same law, G3079's comment
+naming both), ONE `let flThr0, flWI` (both sides declared it), ONE water roll-out hold (G3079's, ahead of both roll-out laws;
+G2462's inner copy inside the taildragger branch removed - unreachable behind it). CORE_MATH: every src/core file's raw
+Math.sin / cos / pow count equals master's (checked after every commit).
+
+### EACH RED - THE CAUSE (BISECTED), THE FIX, BEFORE / AFTER
+Instruments (scratch, never committed): G3077_DM (params.defDampMean, the pre-G1885 damper), G3077_TC (tyreCoulomb),
+G3077_PFX (PAR.propFx per effect), G3077_SG (SERVO_GAINS overrides), hybrid cores (master's src/core + one bundle file).
+
+1. SEAPLANE - the twin on floats' crosswind run (5 m/s across, 0.30 Vs0). Swept 4.6-5.4 m/s: MASTER 1 of 5 (5.0 alone, 11.9
+   deg; the others 36-58), THE BUNDLE 0 of 5 (64.7 at 5.0), defDampMean 5 of 5 (12-20), the propeller's effects off still red
+   (a weathercock, not the torque). Cause: the water rudders come up at take-off power from 7.2 m/s (32_hydro), the air rudder
+   is on its stop from 10.7 m/s, the hull skips off at 0.9 Vs and touches again 30-60 deg crabbed. FIX (43 ROLL): past the
+   type's demonstrated crosswind (FAR 23.233: 0.2 Vs0) the water rudders stay down through the hump (32_hydro G451's own note:
+   "a crosswind seaplane keeps its water rudders down until it is nearly on the step"), and come up for good the moment the
+   run's acceleration falls under 0.1 g (their drag: a labouring hull cannot spare it). AFTER: the twin 7 of 7 winds 3.3-6 m/s
+   (swing 4.0-15.4 deg, 0.4-0.9 m off the lane; the gate's 5.0: 13.8 deg, 0.7 m, 1 skip); the Cessna on floats 3/5/7/8 m/s
+   pass (swing 1.5-4.5 deg, lift-off 21.9-24.1 s as before). Rejected, measured: held the whole run (the Cessna never got off
+   the water), until humpPast alone (the Cessna stuck on the hump), lowered when the rudder saturates (late, worse: 1 of 7),
+   DECRAB in the skip, porpLever / waterStepK / xwBankGround (no change). Below 0.2 Vs0 untouched: the first cut held them in
+   the game's 8 kt day too and the load door's float Cessna heeled 4 -> 20 deg in the plough and capsized (TOUR SEA > mk_sea,
+   prop strike at 9.7 s) - that is why the rule is the demonstrated crosswind's.
+2. GEN rule 11 - the birdman pusher. No pilot in it: full throttle and the stick at 0.30 for 20 s. Bundle V 7.4 m/s (it circles
+   at ~90 deg/s: a taildragger whose fin sits in the propeller's swirl, the rudder held at 0); defDampMean 23.6; swirl off 26.0;
+   master 23.5. With the pilot's feet on the heading (the ground steer's P-D) it rolls to 28.6 m/s - and a -10.7 deg 'nose-
+   over': the fixed stick lifts it off at ~12 s, stalls it and dives it back into the ground at 19.5 s (master's same flight
+   lands just after 20 s). FIX (the gate's scenario, bounds unchanged): the feet hold the heading and the roll is judged to the
+   lift-off. AFTER: 23.6 m/s, 0.0 deg on the wheels, the heading within 3.9 deg (master 23.5 / 0.2 deg).
+3. PILOTACT - the taxi rudder (stock / C172 / metal Cessna, reversals a minute, limit 20): master 17.5 / 17.5 / 16.2; bundle
+   23.4 / 29 / 23.6; defDampMean 17.4 / 26.1 / 23.6; master's physics + the bundle's 39b alone 15.9 / 26.2 / 23.6, and with
+   taxiRudTau 0 master's numbers to the decimal; the bundle with taxiRudTau 0 and the four effects off: master's. Cause: G2080's
+   0.25 s pedal lag is a lag in a nosewheel's heading loop on the honest solver, and the swirl at breakaway power turned the
+   metal Cessna out of its stand at 38 deg/s, 10 deg past its way. FIX: (43) in a turn (more than 0.10 rad off the way) the taxi
+   power is held to 0.5 (never under the rolling share + 0.15); (39b) a tricycle steers with no lag and its look-ahead heading
+   filtered 0.8 s; a tailwheel keeps G2080's 0.25 s / 0.4 s (without them the twin's rod boom twisted 2.64-3.04 deg against the
+   mains on GATE TAKEOFF's taxi, bound 2.5). AFTER: 16.1 / 16.8 / 17.2; TAKEOFF's stand twist 2.12-2.42 deg. Rejected: a rate
+   term (0.3: 26 / 23 / 24; 0.8: 91 / 102 / 109), an integral on the taxi rudder (worse), lags 0.1 / 0.12 / 0.4 alone.
+4. TAKEOFF - (a) the stand twist above (run 1: 2.56 deg at +z); (b) the crosswind knob 'a 100 m band with a 4 m/s cap reads
+   "> 4"': the twin's 4 m/s rung lifted off 34.6 deg off the strip (the plaque's heading bound 30) - master 23.6, defDampMean
+   11.4, the reaction torque off 15.2 (gyro off 38.7, P-factor off 40.1, swirl off 34.6): the tail comes up at 10 m/s, the
+   rudder is on its 0.95 stop from 11 m/s and the nose swings 40 deg. FIX (39b groundSteer): THE TOE BRAKE WHEN THE RUDDER RUNS
+   OUT (FAA-H-8083-3) - under power on the wheels, the heading demand past the rudder's stop goes to the brake on the side the
+   nose must turn to (G1938's brakeD), 1.0 per unit past the stop, 0.3 at most, released when the rudder holds again. AFTER: 18.6
+   deg at 4 m/s; the plaque 3.5 -> 4.0 m/s; every technique row as before (twinf 1.65 Vs, the user's by-name bound).
+5. TAXICLEAR 9 - the metal Cessna from the mill: 'committed-takeoff', then 'rejected-takeoff: ran off the end at V=30.0 still on
+   the wheels' into cement_bags6 (house7). Not the damper (defDampMean the same); master takes off at 86 s; the four effects off
+   (together) take off at 88 s, none alone does. The servo's elevator top on the wheels is 0.35: held from 24 to 30 m/s, the
+   nose stayed at -0.1 deg. FIX (43 ROLL): a nosewheel that will not lift past Vr - a second on the 0.35 top with the attitude
+   within 2 deg of rest - is pulled to the stick's full travel (deRotateFull, the water's 0.70) until the wheels leave ('rotate-
+   pull' said). AFTER: 'rotate-pull at 27.2 m/s', airborne at 89 s, the wing 2.10 m off house4.
+   AND THE GATE'S OWN TWO BUGS (G3074): `wingNeed` was declared inside sections 1-10's block, so shards 1-3 threw a
+   ReferenceError at 11c's wing row (run 1 printed no TAXICLEAR verdict at all), and its regex held a backspace character where
+   \b was meant - the user's 1.45 m at house3 / house4 never applied. Both fixed (hoisted; \b).
+   11c (Jumbo Mine's street, the metal Cessna touching / the Cub not airborne): clean with the fixes above (both airborne, 0
+   contacts). The Jodel's 11c rows dropped (the user's rule).
+6. TOUR - (a) the float Cessna SEA > mk_sea: run 1's prop strike at 9.7 s was SEAPLANE's first cut (above), gone. (b) THE FLOAT
+   CESSNA AT METLAKATLA, mk_sea > SEA (G3072 saw it at t 680, 'same on the un-merged bundle'): taxiing out for the return leg the
+   taxi governor went to its 0.85 cap, the hull climbed to 5-7 m/s - the plough - and the reaction torque heeled it 4.6 -> 17 ->
+   44 -> 130 deg: capsized, the propeller in the water (t 672.6). Master reaches that leg and passes it (G3079's KNOWN). FIX (43
+   taxiCap): ON THE WATER THE TAXI POWER IS 0.5 (FAA-H-8083-23: the displacement taxi; never near the hump manoeuvring). AFTER:
+   the whole water tour flown (the return leg: U-turn, lift-off 174 m, the touch at SEA 0.63 m/s, 35.1 m/s). The same cause made
+   GATE DESTTO's ltd:floats red standalone (3 checks) - green with it. (c) THE USER'S CUB, nv_strip > w2 (the owed G3075): the
+   roll-out loop is GONE - it lands, rolls out straight (131 m, 0.1 m off the centreline) and stops; in the last metres its
+   propeller meets the cover grid's water on 02/20's old concrete (t 1024 alone, 3060 in the tour) - ISLAND-TOUR G1971's finding,
+   the aluminium C172's KNOWN: the Cub is printed KNOWN on the same terms (no ISLAND-TOUR, the strike the water's, the leg's only
+   fault, landed and stopped on w2). Run 1's break-up at East Point (mn_strip > nv_strip) is gone with the fixes above.
+7. PILOTMATRIX - cub:HOME:calm:student gave up (420 s, 'go-around: off the centreline by 15 m on short final'). defDampMean:
+   completed; betaI 0: completed 0.4 m off; steerI 0: still red; the effects off: completed 13.3 m off. The final was a lateral
+   limit cycle - bank +-22 deg, heading +-35 deg, a 6 s period - ENGINE-TORQUE's slip trim (rollTo's betaI 0.6 /s integral)
+   closing a loop behind the student's 0.35 s delay. FIX (43 / 39b): a person trims the ball at their own grip (betaI x
+   humGain in the air; the student 0.30); the expert's whole (bit-identical). AFTER: landed, sink 0.59, 0.0 m off (seed 1: 0.7 m).
+8. PROFILE 2 - the metal Cessna HOME > Jumbo Mine 'gave-up'. MASTER'S OWN RED (master 8a04876e fails GATE PROFILE the same).
+   Bisected on master's trains: 39570350 / a6d0ac05 / ddb9c693 complete (a divert to strip 12 and a landing, 912 s);
+   92a9ebbf - the t56-mapx merge (RWYTREES-MAP G3023, 'mapx' the default: the trees to the strip's edge) - and everything after
+   give up. The metal Cessna cannot hold Vref at Jumbo Mine ('vref-raised'), refuses the street and diverts to strip 12 (1020 m);
+   with the trees to that strip's edge its final is the obstacles' (gs 0.134, the aim 188 m in), flown flapless at 36-38 m/s
+   (Vref 28.8) it arrives 9-10 m high and PERSONA-2 sends it round twice; the 1100 s clock ends it. A forward slip armed there
+   (scratch) only changes the reason ('sinking 5.1 m/s'). PRINTED KNOWN (the gate), by name, only while exactly that.
+9. DMGCERTCOST - '1797 frames stepped (budget 1796)': the stored reference recomputes on PHYSICS_V (ENGINE-TORQUE's v5) - A0's
+   --write-ref at the train; not written here.
+10. DMGDETERMINISM - one check of 47 red (run 3, 1472 s; the per-gate re-run hit the runner's 1800 s cap under load): THE CENSUS,
+   '15 STRAY on the builtin' - master's own sites, the same 15 on master 8a04876e (tools/_core_math_sites.js: 383 on CORE_MATH,
+   21 kept, 15 stray on both trees): 64b_gen_design.js genDcVel / genDesignDerivs / genDcRoots / r2 (G2640 DESIGN-TRUST),
+   30_solver.js:1204 (fd094fcc, G2640 on train 43), 27_premises.js:1662 runwayGrab (SCENERY-ED-1 G2891). Every determinism case
+   (the three tiers, the page against node) passes. Not converted here: the brief's CORE_MATH rule is that every src/core
+   file's raw count equals master's. OWNERS: G2640 (Deform / DESIGN-TRUST) and SCENERY-ED-1 - `_core_math_sites.js --apply`.
+11. RWYTREES - the runner's 1800 s cap under load (every check it reached ok; G1887: ~31 min alone); run 3 PASS (1615 s) and
+   the direct run below.
+12. THE PERSONA SWEEP'S ONE FINDING (below) - the student on the Wipline C172, seed 1: on the step at 15-17 m/s the bank went 12.7
+   -> -58 -> -142 deg, 'rejected-takeoff' (defDampMean, or the propeller's effects off: flew; the hand off, or the student's hands
+   whole-speed: flew). FIX (43 humanise): the person's hand halved on the water with the hull wet, as in the flare and the roll-
+   out (PERSONA-2 G2465). AFTER: the student and the ham-fist off the water once on all four seeds. The expert never enters the
+   person's loop: every gate's flight is bit-identical by construction.
+
+### THE PERSONA TABLE (tools/pilot_persona.js --seeds 1935,1,2,3; the four aeroplanes x the five people, calm; 18-19 Oct)
+`PILOT PERSONA` - 68 flights, **68 completed, no crash, no divergence, no FINDING** (the C172 floats rows re-flown after fix
+12: 17 / 17 completed, `SAFE`). The student's reaction stays G2510's 0.35 s (the Cub student 4 / 4 completed, sink 0.83-1.04).
+| aeroplane | person | sink m/s (4 seeds) | V/Vs | GA | hands fin da / dr | out of band |
+|---|---|---|---|---|---|---|
+| Cub | expert / club / student / bush / hamfist | 1.40 / 0.97-1.24 / 0.83-1.04 / 1.23-1.33 / 1.24-1.44 | 1.03-1.09 | 0 | 16/1.4, 11-15/1.3, 35-38/29-30, 1.5-2.4/1.9, 76-81/79-87 | - (hamfist s2 '+T': sinking 2.8 m/s at 35 m) |
+| Jodel | expert / club / student / bush / hamfist | 1.00 / 1.04-1.10 / 0.86-1.11 / 1.09-1.19 / 0.96-1.36 | 1.14-1.20 | 0 | 3/1.1, 6-12/2-4, 39-41/31-35, 3/0.8, 85-87/78-87 | club lifts 2 (all), bush lifts 2 (3 seeds), student lifts 3 (s1935) - as G2540's sweep |
+| C172 | expert / club / student / bush / hamfist | 1.15 / 1.19-1.31 / 1.16-1.30 / 1.20-1.22 / 0.95-1.34 | 1.06-1.17 | 0 | 1/1, 5-7/1-2, 28-34/29-33, 1.5/2, 75-86/76-89 | - |
+| C172 floats | expert / club / student / bush / hamfist | 0.31 / 0.27-0.35 / 0.34-0.43 / 0.27-0.34 / 0.24-0.76 | 1.53-1.61 | hamfist s2 / s3 1 | 2/7, 6-9/5-7, 40-42/28-37, 5/4, 85-90/80-85 | vRms 6.7-10.3 every person (the expert's xtRms 79.9) - MASTER'S: the Wipline 'vref-raised: the elevator cannot hold 34.8 m/s' (CESSNA-VREF / JOIN-PARITY's load door); master's own expert GIVES UP that flight (624 s, sink 3.2 m/s, 1.74 Vs) - this branch lands it at 0.31 |
+
+### FOLDED IN (OWED)
+- G3076 ALTIPORT 3 - CLOSED: the doctored arrival flown with the go-arounds spent (43 gaN 2 from the final: PERSONA-2 says
+  'committed-unstable' and flies on), so the arrival is one the go-around does not catch; G2520's guard is reached and judged
+  ('not flaring 97 m under the strip of Skyline Altiport, 1070 m before the aim - climbing to the circuit'); the Cub flies it,
+  whole for 900 s. The KNOWN print is gone; the Jodel's row 1 HOME > tw_ski dropped with it (the user's rule).
+- G3075 TOUR 5, the Cub's 02/20 roll-out loop - CLOSED: straight (131 m, 0.1 m off); its last metres meet ISLAND-TOUR's water
+  (KNOWN on the C172's terms, item 6).
+- G2550 the Cub's tw_ski roll-out (ALTIPORT 2's KNOWN) - CLOSED: no ground loop, no off-strip, no KNOWN printed (td 13.3 m/s,
+  run 63-64 m, 0.8 m off - ALTIPORT 2 and TOUR's w3 > tw_ski alike). ALTIPORT-ROLLOUT's stalled session is not needed.
+- THE USER'S RULE (14 Oct): TAXICLEAR 11c's Jodel rows and ALTIPORT's Jodel rows dropped, check-only. TOUR flies no Jodel (its
+  'East Point' is the Cub's; the metal Cessna's refusal of it stands).
+
+### THE TAKE-OFF CLIMB'S Vy (only the numbers - not moved)
+genAP's Vy is 1.38 Vs (44_vprofile climbSpeeds only floors it); the POH's ~1.54 Vs. genClimbAt on the validated land builds
+(sea level, flap 0) - rate m/s and gradient % at 1.38 / 1.54 Vs: the Cub 3.13 / 3.28 (14.1 / 13.3 %), the Jodel 2.55 / 2.70
+(9.7 / 9.2 %), the metal Cessna 6.92 / 7.48 (22.3 / 21.6 %); the model's best rate at 1.62 / 1.62 / >= 1.70 Vs. Moving Vy to
+1.54 Vs buys +5-8 % of rate for -0.5..-0.8 points of gradient: every climb-out over obstacles (PROFILE 3's trees, TAXICLEAR 9 /
+11c's mill houses, RWYTREES, ALTIPORT's climb hold, TOUR's ridges, CESSNAVREF) climbs shallower and needs re-measuring;
+PILOTMATRIX's climb columns move. Not moved - for the coordinator / the user with these numbers.
+
+### EVERY GATE'S VERDICT (this tree; run 3 18 Oct 17:44-20:40 on the fixes but the last three; run 4 + the per-gate run r5
+18-19 Oct on fba710f9 / the final source but the persona's water hand, which no gate's flight enters)
+PASS: PILOT (3 shards) PILOTMATRIX ('no cell worse than pilot_baseline.json; 4 known bad, 1 warn' - not re-written) TAKEOFF
+LINEUP TAXICLEAR (4 shards) PILOTACT (taxi rudder 16.1 / 16.8 / 17.2) PLAN NAV ROUTE (3) PROFILE (2's KNOWN printed) ALTIPORT
+(4) CESSNAVREF (2) TOUR (4; KNOWN printed: the Cub's and the C172's 02/20 water, the float Cessna's outbound vref-raised touch)
+RWYTREES (direct, no cap: the runner's 1800 s cap under load; run 3 PASS in 1615 s) SOAR HOTHIGH INPUT PLAYER UISMOKE
+UISMOKE-PHONE SIMWORKER SEAPLANE (13.8 deg, 0.7 m) FLOATS WIPLINE ENGTORQUE HEADING GEN (4) JOIN RPM STRIPSURF DESTTO (3; shard 2
+standalone after the water taxi) DMGFLOATTO DMGHULL DMGPLOUGH.
+RED, NAMED (neither is this branch's): DMGCERTCOST ('1797 frames stepped (budget 1796)': its reference recomputes on PHYSICS_V -
+A0's --write-ref at the train, not written here); DMGDETERMINISM (46 / 47: the census's 15 stray builtin sites are master's
+own, identical on master 8a04876e - item 10; every determinism case passes).
+
+### KNOWN, BY NAME, WITH THEIR NUMBERS AND OWNERS
+- PROFILE 2, the metal Cessna HOME > Jumbo Mine: refused (vref-raised 26.6 m/s), diverted to strip 12, twice round high 9-10 m
+  on the trees' slope (gs 0.134) - master's since train 56 (RWYTREES-MAP G3023 'mapx') - owners A0 / G3023 x CESSNA-VREF G2500.
+- TOUR 5, the user's Cub nv_strip > w2 and the aluminium C172 > w2: the propeller in the cover grid's water on 02/20's concrete -
+  ISLAND-TOUR G1971 (not on this tree) - owner ISLAND-TOUR.
+- TOUR 5, the float Cessna SEA > mk_sea: JOIN-PARITY's load-door float Cessna, 'vref-raised 31.8 m/s', the touch 43 m/s (sink
+  0.45) - owner Deform / JOIN-PARITY (G1970.4), as on master.
+- DMGDETERMINISM's census (above) - owners G2640 DESIGN-TRUST (64b, 30_solver:1204) and SCENERY-ED-1 G2891 (27_premises
+  runwayGrab): `node tools/_core_math_sites.js --apply` on master, then every tree.
+- DMGCERTCOST's reference - A0 (--write-ref at train 66).
+
+### FILES
+src/core/43_pilot.js (the water rudders through the hump; taxiCap: half in a turn and on the water; rotate-pull; the person's
+trim at their grip, their hand halved on wet water; the merge's ONE water flare / hold); src/core/39b_servos.js (the taxi rudder
+by the gear - taxiRudTauTrike / taxiHdgTauTrike; the toe brake past the rudder's stop - brakeDK / brakeDMax; betaIK);
+tools/test_gen.js (rule 11), tools/_taxiclear_check.js (wingNeed hoisted, its \b; 11c without the Jodel),
+tools/_altiport_check.js (row 3 committed, the Cub; row 1 dropped), tools/_profile_check.js (2's KNOWN), tools/_tour_check.js
+(the Cub's 02/20 water KNOWN). No bound moved; no baseline written; DMGCERTCOST's reference not written.
+Instruments used (scratch, never committed): G3077_DM (defDampMean), G3077_TC (tyreCoulomb), G3077_PFX (PAR.propFx per effect),
+G3077_SG (SERVO_GAINS overrides), hybrid cores (master's src/core + one bundle file), the seaplane wind sweep on the gate's
+twinFloats, the mill / tour / taxi-reversal tracers.
+
+### FOR THE COORDINATOR'S GAME FLY-THROUGH (Tuesday night)
+What a player sees change: on the water in a crosswind past 0.2 Vs0 the water rudders stay down until the hull is on the step;
+the water taxi never goes past half power; in a taxi turn the throttle comes back to half; on a tricycle take-off whose nose
+will not lift the pilot pulls through ('rotate-pull' said); a crosswind take-off whose rudder is on the stop gets a dab of toe
+brake (brakeD, the HAND-CONTROLS split). Worth flying: the twin on floats off SEA in the 8 kt day, the metal Cessna out of the
+mill, the float Cessna's Metlakatla return leg, a HOME taxi in the metal Cessna.
