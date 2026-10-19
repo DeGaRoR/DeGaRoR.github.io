@@ -16119,6 +16119,9 @@
   // G620: THE FLIGHT RECORDER (flight_recorder.js). The loop times its sections into it (FR.lap / push / pop, one
   // line each below; a hook changes nothing the frame does) and, once a frame, this says what the frame was OF -
   // the loop's own state read where it lives, nothing allocated. null under ?rec=0 and where the module is absent.
+  // G3322 (FLIGHTREC-DETAIL): the pilot the recorder last saw begin a flight (a new one = the 'flight' event)
+  let frAp = null;
+  const FR_R2D = 180 / Math.PI;
   const FR = (window.FLIGHT_REC && window.FLIGHT_REC.attach) ? window.FLIGHT_REC.attach(renderer, {
     frame(R, cg) {
       R.garage = inGarage; R.running = running; R.held = holdRender; R.manual = manual;
@@ -16129,7 +16132,49 @@
       // G820 (C1c): the physics worker's step ms, dilation and the steps this frame showed (NaN: the page flies it)
       const wp = SIMW ? SIMW.perf() : null;
       if (wp && wp.live && simwRan >= 0) { R.wms = wp.stepMs; R.wdil = wp.dil; R.wran = simwRan; } else { R.wms = NaN; R.wdil = NaN; R.wran = NaN; }
+      // G3322 (FLIGHTREC-DETAIL): THE FLIGHT ITSELF - the attitude, the airspeed, the hands and the wind, read where the
+      // page already has them: sim.out (30_solver.js: hdg in the NAV's convention, 0 = +x toward +z - +90 makes it a
+      // grid bearing, north = -z; pitch, roll, beta in rad; Veas; the wind at the CG, windX / windZ) and the controls
+      // the solver flies (under the worker the page sim's own ctl, which sim_link mirrors the worker's into every frame:
+      // wp.ctl, past sim.ctl's proxy). Under the worker every one of them came in the snapshot's meta already - no new
+      // field crosses the thread. `+x` keeps a missing field a NaN (never an undefined stored into a double field)
+      if (o && !inGarage) {
+        R.hdg = (+o.hdg * FR_R2D + 450) % 360; R.pitch = +o.pitch * FR_R2D; R.bank = +o.roll * FR_R2D; R.beta = +o.beta * FR_R2D; R.ias = +o.Veas;
+        const wx = +o.windX, wz = +o.windZ, ws = Math.sqrt(wx * wx + wz * wz);
+        R.wspd = ws; R.wdir = ws > 0.05 ? (Math.atan2(wx, -wz) * FR_R2D + 540) % 360 : NaN;   // FROM (the vector blows TOWARD atan2(x, -z))
+        const c = (wp && wp.live && wp.ctl) || sim.ctl;
+        if (c) { R.ail = +c.da; R.elev = +c.de; R.rud = +c.dr; R.thr = +c.thr; R.brake = +c.brake; R.brd = +c.brakeD; R.flap = +c.flap; }
+        else { R.ail = R.elev = R.rud = R.thr = R.brake = R.brd = R.flap = NaN; }
+      } else { R.hdg = R.pitch = R.bank = R.beta = R.ias = R.wspd = R.wdir = R.ail = R.elev = R.rud = R.thr = R.brake = R.brd = R.flap = NaN; }
+      R.pilot = ap && typeof ap.profile === 'string' ? ap.profile : '';
+      R.windSpec = (world && world.day) ? world.day.wind : null;   // the day's declared wind (a reference; the recorder compares it every 64th frame)
+      if (ap && ap !== frAp && running && !inGarage) { frAp = ap; R.newFlight = true; }   // a new pilot flying: the 'flight' event
     },
+    // G3322: THE FLIGHT, AS IT BEGINS (the recorder's 'flight' event and its header; tools/log_replay.js turns it into a
+    // run): the build's identity (the spec's name and an FNV-1a hash of it as loaded - tools/log_replay.js hashes the
+    // files in builds/ and bugReports/ the same way), damage and why (the build's params.damage, else the page's ?damage
+    // = FLYDIY_DAMAGE, else GEN_DAMAGE_DEFAULT - 30_solver.js's own order), who flies, the route, the day (its wind) and
+    // the world. The rare path: called at a flight's start and when the header is written.
+    flight: () => {
+      const p = (def && def.params) || {}, A = ap || {}, r = A.route || null, rid = x => (x && typeof x === 'object' ? x.id : x) || null;
+      const dUrl = typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE : null, dDef = typeof GEN_DAMAGE_DEFAULT !== 'undefined' ? GEN_DAMAGE_DEFAULT === true : null;
+      const dPar = typeof p.damage === 'boolean' ? p.damage : null;
+      let hash = null, chars = 0;
+      try { const j = genSpec ? JSON.stringify(genSpec) : ''; chars = j.length; let h = 0x811c9dc5; for (let i = 0; i < j.length; i++) h = Math.imul(h ^ j.charCodeAt(i), 16777619) >>> 0; hash = j ? ('0000000' + h.toString(16)).slice(-8) : null; } catch (e) {}
+      const meta = (genSpec && genSpec.meta) || {};
+      let day = null; try { day = world && world.day && world.day.spec ? world.day.spec() : null; } catch (e) {}
+      return {
+        t: sim ? +(+sim.t).toFixed(2) : null,
+        build: { key: curKey || null, name: meta.name || p.name || null, reg: meta.reg || null, v: genSpec ? (genSpec.v != null ? genSpec.v : null) : null, hash, chars,
+                 stock: !genSpec },
+        damage: { on: (dPar != null ? dPar : dUrl != null ? dUrl : dDef) === true, param: dPar, url: dUrl, dflt: dDef },
+        pilot: { style: A.style || pilotChoice, profile: A.profile || null, persona: personaChoice,
+                 custom: personaChoice === 'custom' ? JSON.parse(JSON.stringify(personaCustom)) : undefined, career: !!CAREER_DEV, manual },
+        route: { from: fromId || null, to: destId || null, base: baseId || null, spawn: spawnId || null, ap: r ? { from: rid(r.from), to: rid(r.to) } : null },
+        day, world: window.FLYDIY_WORLD || null, simw: !!(SIMW && SIMW.live && SIMW.live()),
+      };
+    },
+    spec: () => genSpec,   // G3322: the build's spec as flown, for the header (the log is a test case)
     info: () => {   // the aeroplane, for the log's header: the build's own scalar parameters
       const p = (def && def.params) || {}, out = { key: curKey || null, name: p.name || null, nodes: sim ? sim.n : null, massKg: sim ? Math.round(sim.totalM) : null };
       let n = 0;
