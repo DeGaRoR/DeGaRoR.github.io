@@ -69,6 +69,22 @@ function runPage(L) {
   return { dir, legs, timedOut: !!(r.error && r.error.code === 'ETIMEDOUT'), tail: txt.split('\n').filter(Boolean).slice(-3).join(' | ') };
 }
 
+// a CIRCUIT leg (circuit: true - the story's start, Rufus off the Cabin Strip): tools/rollout_perf.js --from <the order's
+// first> --dest CIRCUIT, the pilot's own report read at the end (tour_real flies legs between two aerodromes)
+function runCircuit(L) {
+  const from = L.order.split(',')[0];
+  const a = [path.join(T, 'rollout_perf.js'), '--build', L.build, '--from', from, '--dest', 'CIRCUIT', '--cam', 'chase', '--secs', String(L.secs || 540),
+    '--eval', 'JSON.stringify((() => { const ap = FLIGHT_PROBE.ap(); return { phase: ap.phase, t: ap.t, report: ap.report || null, gaN: ap.gaN || 0 }; })())',
+    '--label', 'pilotpage_' + L.id, '--out', path.join(OUT, L.id + '.json'), '--quiet'];
+  if (L.persona) a.push('--persona', L.persona);
+  if (L.q) a.push('--q', L.q);
+  const r = spawnSync(node, a, { encoding: 'utf8', timeout: (L.timeoutMin || 12) * 60_000, maxBuffer: 64 << 20 });
+  const txt = (r.stdout || '') + (r.stderr || '');
+  let ev = null; const m = txt.match(/eval: ("(?:[^"\\]|\\.)*")\s*$/m);
+  try { ev = m ? JSON.parse(JSON.parse(m[1])) : null; } catch (e) {}
+  return { ev, timedOut: !!(r.error && r.error.code === 'ETIMEDOUT'), tail: txt.split('\n').filter(Boolean).slice(-2).join(' | ') };
+}
+
 function compare(L, pageDir, nodeJson) {
   const out = path.join(OUT, L.id + '_cmp');
   spawnSync(node, [path.join(T, 'tour_real_report.js'), '--root', ROOT, '--page', pageDir, '--node', nodeJson, '--out', out, '--no-media'],
@@ -87,7 +103,26 @@ function compare(L, pageDir, nodeJson) {
   }
   let red = 0;
   for (const L of LEGS) {
-    const t0 = Date.now(), P = runPage(L);
+    const t0 = Date.now();
+    if (L.circuit) {
+      const R = runCircuit(L), rp = R.ev && R.ev.report, ld = rp && rp.landing, why = [];
+      if (R.timedOut) why.push('the page rig timed out');
+      if (!R.ev) why.push('no report read (' + R.tail + ')');
+      else {
+        if (R.ev.phase !== 'STOPPED') why.push('ended in ' + R.ev.phase);
+        if (!rp || rp.outcome !== 'completed') why.push("the pilot's outcome " + (rp ? rp.outcome : 'none'));
+        if (ld && ld.onStrip === false) why.push('landed off the strip (' + ld.tdIn + ' m in, ' + ld.offCentre + ' m off the centreline, ' + ld.stopLeft + ' m left)');
+        if (R.ev.gaN) why.push(R.ev.gaN + ' go-around(s)');
+      }
+      const land = ld ? ' · touch ' + ld.V + ' m/s, sink ' + ld.sink + ', ' + ld.tdIn + ' m in, ' + ld.stopLeft + ' m left' : '';
+      const verd = rp && rp.verdicts ? ' · said ' + [...new Set(rp.verdicts.map(v => v.code))].join(',') : '';
+      const head = L.id + ' (' + L.order.split(',')[0] + ' circuit, ' + (L.persona || 'expert') + ', ' + ((Date.now() - t0) / 60000).toFixed(1) + ' min)';
+      if (L.kind === 'info') log('INFO ' + head + (why.length ? ': ' + why.join('; ') : ': clean') + land + verd);
+      else if (why.length) { red++; log('FAIL ' + head + ': ' + why.join('; ') + land + verd); }
+      else log('PASS ' + head + land + verd);
+      continue;
+    }
+    const P = runPage(L);
     const G = P.legs && P.legs.legs && P.legs.legs[0];
     const rep = G && G.report && G.report.report;
     const why = [];
