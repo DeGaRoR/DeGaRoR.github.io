@@ -1526,8 +1526,19 @@ function mount(host, ctx) {
       rows.slider(insp, 'heading (°)', -180, 180, 1, () => e.hdg * 180 / Math.PI, v => ed(x => { x.hdg = v * Math.PI / 180; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
       // THE SURFACE (v9; ONE SURFACE, 18 Oct): what the strip is drawn as IS what the wheels feel - the look sets both
       // ('markings only' keeps the feel it had: the ground under the paint)
-      rows.pills(insp, 'surface', Object.keys(PG.RUNWAY_LOOKS).map(k => [k, PG.RUNWAY_LOOKS[k].name]), () => e.look || 'grass',
-        v => ed(x => { x.look = v; const L = PG.RUNWAY_LOOKS[v]; if (L && L.surface !== null && L.surface !== undefined) x.surface = L.surface; }, 'look of ' + id));
+      // WATER-LANE-ED (the user, 18 Oct: their OWN water runways): 'water' is a surface like the others - a floats lane on the
+      // water's own level (SURFACE.WATER, look 'none': the composer grades, paints and excludes nothing, the sandbox flies a
+      // float plane to it); its land rows (altiport, profile, shoulder, lights) are not shown. Back to a land surface: the
+      // strip's lights come back
+      const WATER = PG.runwayIsWater(Object.assign({}, PG.RUNWAY_DEF, e));
+      rows.pills(insp, 'surface', Object.keys(PG.RUNWAY_LOOKS).map(k => [k, PG.RUNWAY_LOOKS[k].name]).concat([['water', 'water (floats)', 'a floats lane on the water: nothing graded, painted or lit']]), () => (WATER ? 'water' : e.look || 'grass'),
+        v => ed(x => {
+          if (v === 'water') { x.surface = PG.SURFACE.WATER; x.look = 'none'; x.papi = [false, false]; x.profile = null; x.slope = 0; x.crossfall = 0; x.falloff = null; delete x.altiport; return; }
+          const wasW = +x.surface === PG.SURFACE.WATER; x.look = v; const L = PG.RUNWAY_LOOKS[v];
+          if (L && L.surface !== null && L.surface !== undefined) x.surface = L.surface; else if (wasW) x.surface = PG.SURFACE.GRASS;
+          if (wasW) x.papi = [true, true];
+        }, 'look of ' + id));
+      if (WATER) rows.note(insp, 'a floats lane: on the water\'s own level - nothing graded, painted or lit; the floats land on it, the slips (its plots) stand on the shore');
       { const L = PG.RUNWAY_LOOKS[e.look || 'grass'], s = e.surface === undefined ? 0 : +e.surface;
         if (L && L.surface !== null && L.surface !== undefined && +L.surface !== s) rows.note(insp, 'an old file\'s: drawn ' + L.name + ', the wheels feel ' + (PG.SURFACE_NAMES[s] || '?').toLowerCase() + ' - kept as it was; pick a surface to set both'); }
       if (PG.RUNWAY_LOOKS[e.look || 'grass'] && PG.RUNWAY_LOOKS[e.look || 'grass'].cls) pavRows(e, id, 'runways', ed, PG.RUNWAY_LOOKS[e.look || 'grass']);
@@ -1536,7 +1547,7 @@ function mount(host, ctx) {
         v => ed(x => { x.approach = v === '' ? null : +v; }, 'approach of ' + id));
       // THE ALTIPORT (GTRAM): a mountain strip landed uphill and left downhill, the slope up to 20 %; switched on
       // with no approach named, it names the LOWER end (the profile's) - the one an altiport is landed over
-      rows.check(insp, 'altiport: land uphill (warns past 20 %)', () => !!e.altiport, v => ed(x => {
+      if (!WATER) rows.check(insp, 'altiport: land uphill (warns past 20 %)', () => !!e.altiport, v => ed(x => {
         x.altiport = v;
         if (v && x.approach !== 0 && x.approach !== 1) { const pr = PG.runwayProfile(Object.assign({}, PG.RUNWAY_DEF, x)); x.approach = pr.at(0) <= pr.at(x.len) ? 0 : 1; }
       }, 'altiport of ' + id));
@@ -1556,14 +1567,14 @@ function mount(host, ctx) {
       }
       // THE PROFILE (v8): the centreline's height along the length, as control points on a graph - drag a
       // point, double-click the curve to add one, the ✕ removes the selected one; the ends stay at 0 and 1
-      profileGraph(insp, e, ed);
+      if (!WATER) profileGraph(insp, e, ed);
       // THE SHOULDER (v9): the strip's radius of terraforming - the grade's falloff either side of the
       // box, the band the composed ground takes to come back to the terrain; outlined when selected
-      rows.slider(insp, 'terraformed to (m)', 10, 200, 5, () => PG.runwayShoulder(e), v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
-      rows.note(insp, 'how far the ground is terraformed either side of the strip and past its ends: the box is graded to the profile, then the bank back to the terrain (a 3:1 bank at the steepest). The drawn band above is a different thing. Aprons and flats beside it are flatten polygons of their own.');
+      if (!WATER) rows.slider(insp, 'terraformed to (m)', 10, 200, 5, () => PG.runwayShoulder(e), v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
+      if (!WATER) rows.note(insp, 'how far the ground is terraformed either side of the strip and past its ends: the box is graded to the profile, then the bank back to the terrain (a 3:1 bank at the steepest). The drawn band above is a different thing. Aprons and flats beside it are flatten polygons of their own.');
       // THE GLIDESLOPE LIGHTS (G434): a PAPI (four units), a two-bar VASI or none at each end; both are set
       // to the approach's own slope (the lights show the glideslope the pilot flies)
-      for (const k of [0, 1]) rows.pills(insp, 'lights at end ' + k, [['papi', 'PAPI', 'four units abeam the aim, two white two red on the slope'], ['vasi', 'VASI', 'two bars 210 m apart: red over white on the slope'], ['none', 'none', 'no lights at this end']],
+      if (!WATER) for (const k of [0, 1]) rows.pills(insp, 'lights at end ' + k, [['papi', 'PAPI', 'four units abeam the aim, two white two red on the slope'], ['vasi', 'VASI', 'two bars 210 m apart: red over white on the slope'], ['none', 'none', 'no lights at this end']],
         () => { const v = (e.papi || [true, true])[k]; return v === 'vasi' ? 'vasi' : v ? 'papi' : 'none'; },
         v => ed(x => { const p = (x.papi || [true, true]).slice(); p[k] = v === 'vasi' ? 'vasi' : v === 'papi'; x.papi = p; }, 'lights of ' + id));
       const A = (R.aerodromes ? R.aerodromes() : []).find(a => a.id === id);
@@ -2473,6 +2484,41 @@ function mount(host, ctx) {
 
   // ---- wire up ---------------------------------------------------------------------
   const view = ctx.viewEl;
+  // DROP-JSON (the user, 18 Oct): a .json dragged ANYWHERE onto the scenery editor imports - a scenery record or envelope
+  // (load: the paste's own path) or a world look ({ flydiy_world_look }: the world rail's import, applied and kept); 'drop to
+  // import' covers the page while a file is dragged. Capture phase, stopped there: the garage's own drop (UX-A) never sees a
+  // drop meant for the scenery editor while it is open
+  function importText(txt, name) {
+    let J = null;
+    try { J = JSON.parse(txt); } catch (e) { strip.status('import refused: ' + name + ' is not JSON'); return false; }
+    if (J && J.flydiy_world_look) {
+      const WR = typeof window !== 'undefined' ? window.WORLD_RAIL : null;
+      if (WR && WR.importLook) { WR.importLook(J); strip.status('world look imported: ' + name); return true; }
+      strip.status('import refused: no world rail on this page'); return false;
+    }
+    try { load(txt); return true; } catch (e) { strip.status('import refused: ' + e.message); return false; }
+  }
+  let dropDepth = 0, dropEl = null;
+  const fileDrag = ev => !!(ev.dataTransfer && Array.prototype.indexOf.call(ev.dataTransfer.types || [], 'Files') >= 0);
+  const dropShow = on => {
+    if (on && !dropEl && typeof document !== 'undefined') {
+      dropEl = document.createElement('div'); dropEl.className = 'pr-drop';
+      dropEl.innerHTML = '<b>drop to import</b><span>a scenery .json (the record or its envelope) or a world look</span>';
+      (document.getElementById('ui') || document.body).appendChild(dropEl);
+    }
+    if (dropEl) dropEl.style.display = on ? 'flex' : 'none';
+  };
+  addEventListener('dragenter', ev => { if (!active || !fileDrag(ev)) return; dropDepth++; dropShow(true); ev.preventDefault(); ev.stopImmediatePropagation(); }, true);
+  addEventListener('dragover', ev => { if (!active || !fileDrag(ev)) return; ev.preventDefault(); ev.stopImmediatePropagation(); if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'copy'; }, true);
+  addEventListener('dragleave', ev => { if (!active || !fileDrag(ev)) return; ev.stopImmediatePropagation(); dropDepth = Math.max(0, dropDepth - 1); if (!dropDepth) dropShow(false); }, true);
+  addEventListener('drop', ev => {
+    if (!active || !fileDrag(ev)) return;
+    ev.preventDefault(); ev.stopImmediatePropagation(); dropDepth = 0; dropShow(false);
+    const f = ev.dataTransfer.files && ev.dataTransfer.files[0]; if (!f) return;
+    if (!/\.json$/i.test(f.name || '') && !/json/.test(f.type || '')) { strip.status('import refused: ' + f.name + ' is not a .json'); return; }
+    f.text().then(t => importText(t, f.name));
+  }, true);
+
   let downAt = null, swallowClick = false;
   view.addEventListener('mousedown', ev => { if (!active) return; if (ev.button === 0) { downAt = [ev.clientX, ev.clientY]; if (onDown(ev)) ev.stopPropagation(); } });
   addEventListener('mousemove', ev => { if (active) onMove(ev); });
@@ -2543,6 +2589,7 @@ function mount(host, ctx) {
       if (name === 'plotFence') { return togglePlotFence(args.zone, [args.x, args.z]); }   // (G3007)
       // G2910-G2914: an area's properties, the placer, the fold - scriptable (GATE SCENERYED)
       if (name === 'addProp') { return addProp(args.id || selected, args.prop); }
+      if (name === 'importText') { return importText(String(args.text || ''), args.name || 'the drop'); }   // (DROP-JSON: a dropped file's text, headless)
       if (name === 'removeProp') { return removeProp(args.id || selected, args.prop); }
       if (name === 'setProp') { const id = args.id || selected; edit(id, 'areas', x => { x.props = Object.assign({}, x.props); x.props[args.prop] = Object.assign({}, x.props[args.prop] || {}, args.patch); }, args.prop + ' of ' + id); return true; }
       if (name === 'pick') { ASSET.key = args.key; if (args.yaw !== undefined) ASSET.yaw = args.yaw; if (args.s !== undefined) ASSET.s = args.s; if (args.level !== undefined) ASSET.level = !!args.level; return ASSET.key; }

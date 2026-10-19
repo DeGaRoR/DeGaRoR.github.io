@@ -1229,6 +1229,50 @@ if (plots.length) {
   check(!iss.length, '35 no issue names w1', iss.join(' / '));
 }
 
+// 36 WATER-LANE-ED (the user, 18 Oct: their OWN water runways): 'water' is one of the strip's surface pills - a floats lane
+//    (SURFACE.WATER, look 'none', no lights, no profile, no shoulder), composed on the water's level as SEA's; its land rows
+//    (altiport, profile, shoulder, lights) not shown; back to grass, the strip's lights back. SEA / mk_sea compose as before
+{
+  const pills = new Map(), labels = [];
+  const rows35 = Object.assign({}, rows, { pills: (h, label, opts, get, set) => { pills.set(label, { opts, get, set }); labels.push(label); }, check: (h, label) => { labels.push(label); },
+    slider: (h, label) => { labels.push(label); } });
+  const ed35 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows35, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  const rid = ed35.cmd('add', { layer: 'runways', entry: Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { name: 'my lane', c: [9000, 9000], hdg: 0, len: 900, wid: 120 }) });
+  const R35 = () => PG.findById(ed35.record(), rid).entry, re = () => { pills.clear(); labels.length = 0; ed35.select(null); ed35.select(rid); };
+  re();
+  const sp = pills.get('surface');
+  check(sp && sp.opts.some(o => o[0] === 'water') && sp.get() === 'grass' && labels.indexOf('altiport: land uphill (warns past 20 %)') >= 0, '36 a new strip is grass, and water is one of its surface pills');
+  sp.set('water'); re();
+  const w = R35();
+  check(+w.surface === PG.SURFACE.WATER && w.look === 'none' && JSON.stringify(w.papi) === '[false,false]' && w.profile === null && !w.altiport && pills.get('surface').get() === 'water', '36 water: a floats lane (surface 4, look none, no lights, no profile)', JSON.stringify({ s: w.surface, look: w.look, papi: w.papi }));
+  check(labels.indexOf('altiport: land uphill (warns past 20 %)') < 0 && labels.indexOf('terraformed to (m)') < 0 && !labels.some(l => /^lights at end/.test(l)), '36 ...its land rows not shown (altiport, shoulder, lights)', labels.join(' | '));
+  const O35 = PG.compose(ed35.record(), synth), A35 = O35.aerodromes.find(q => q.id === rid);
+  check(A35 && A35.kind === 'water' && PG.issues(ed35.record()).filter(t => t.indexOf(rid) >= 0).length === 0, '36 it composes as a water aerodrome (as SEA), no issue', A35 && A35.kind);
+  pills.get('surface').set('grass'); re();
+  check(+R35().surface === PG.SURFACE.GRASS && R35().look === 'grass' && JSON.stringify(R35().papi) === '[true,true]' && labels.some(l => /^lights at end/.test(l)), '36 back to grass: a land strip, its lights back');
+  ed35.close();
+  const J = PG.expandAreas(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec), OJ = PG.compose(J, synth);
+  check(['SEA', 'mk_sea'].every(id => { const a = OJ.aerodromes.find(q => q.id === id); return a && a.kind === 'water'; }), '36 SEA and mk_sea compose as water aerodromes, as before');
+}
+// 37 DROP-JSON (the user, 18 Oct; the scenery side - UX-A has the garage's): a .json dropped anywhere onto the scenery editor
+//    imports - a scenery envelope / bare record loads (the paste's path), a world look goes to the world rail's importLook,
+//    anything else is refused and said; 'drop to import' while dragging; capture phase, stopped (the garage's drop never sees it)
+{
+  const st = new El('div'), st36 = { s: '' };
+  const ed36 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows, els: { chk: null, plaque: null, strip: st }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  const recIn = PG.normalise({ name: 'dropped', layers: { runways: [Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'dz', name: 'dropped strip', c: [100, 100], hdg: 0, len: 400, wid: 20 })] } });
+  check(ed36.cmd('importText', { text: PG.envelope('dropped', recIn), name: 'dropped.json' }) === true && !!PG.findById(ed36.record(), 'dz'), '37 a dropped scenery envelope loads (its strip there)');
+  check(ed36.cmd('importText', { text: JSON.stringify(recIn), name: 'bare.json' }) === true && !!PG.findById(ed36.record(), 'dz'), '37 ...and a bare record');
+  let got = null; win.WORLD_RAIL = { importLook: o => { got = o; } };
+  check(ed36.cmd('importText', { text: JSON.stringify({ flydiy_world_look: 1, world: 'jolene', changes: {} }), name: 'look.json' }) === true && got && got.flydiy_world_look === 1, '37 a dropped world look goes to the world rail\'s importLook');
+  delete win.WORLD_RAIL;
+  const before = JSON.stringify(ed36.record());
+  check(ed36.cmd('importText', { text: 'not json {', name: 'x.json' }) === false && JSON.stringify(ed36.record()) === before, '37 a file that is not JSON is refused, the record untouched');
+  ed36.close();
+  const UIs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_ui.js'), 'utf8'), WRs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'world_rail.js'), 'utf8');
+  check(['dragenter', 'dragover', 'dragleave', 'drop'].every(k => new RegExp("addEventListener\\('" + k + "', ev => \\{ ?\\n? *if \\(!active \\|\\| !fileDrag\\(ev\\)\\) return;").test(UIs)) && (UIs.match(/stopImmediatePropagation\(\)/g) || []).length >= 4 && /\}, true\);/.test(UIs) &&
+        /dropEl\.innerHTML = '<b>drop to import<\/b>/.test(UIs) && /importLook: o => \{ applyLook\(o, true\); saveLook\(\); \}/.test(WRs), '37 the page: capture-phase drag listeners while the editor is open (stopped there), the overlay, the world rail\'s importLook');
+}
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
