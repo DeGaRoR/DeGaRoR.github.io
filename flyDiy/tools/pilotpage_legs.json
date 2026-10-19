@@ -1,0 +1,12 @@
+{
+  "_note": "GATE PILOTPAGE (G3320) - the browser-flown pilot legs, ONE list (A0, 18 Oct: the build paths from one list). kind 'judge': PASS/FAIL; 'info': printed, never red. node: true flies the same leg in node (tour_real_node --game, the default pilot) and holds the page to it. persona: the shed's #selPersona (the user flies the student). q: extra page query (town=1: mk_ fields need the town until metla-wrapup's standalone mk_sea). damage: the game's default 0. known: a named, accepted fault class for that leg.",
+  "legs": [
+    { "id": "cub_expert",     "kind": "judge", "build": "builds/cub_2026-09-20_corrected.json", "order": "HOME,w3",    "persona": "expert",  "node": true },
+    { "id": "cub_student",    "kind": "judge", "build": "builds/cub_2026-09-20_corrected.json", "order": "HOME,w3",    "persona": "student" },
+    { "id": "rufus_student",  "kind": "judge", "build": "builds/rufus_2026-10-18_certified.json", "order": "HOME,w3",  "persona": "student" },
+    { "id": "metal_student",  "kind": "judge", "build": "bugReports/cessnaMetal (1).json",       "order": "HOME,w2",    "persona": "student", "known": "go-around: the user accepted t66's two w2 go-arounds (19 Oct)" },
+    { "id": "floats_expert",  "kind": "judge", "build": "bugReports/cessnaFloatsWOrks.json",     "order": "SEA,mk_sea", "persona": "expert",  "q": "town=1", "node": true },
+    { "id": "floats_student", "kind": "info",  "build": "bugReports/cessnaFloatsWOrks.json",     "order": "SEA,mk_sea", "persona": "student", "q": "town=1", "known": "capsize on the water lift-off - master's too (19 Oct); G3323 floats-person is the fix" }
+  ],
+  "bar": { "tdDeltaM": 60, "stretchM": 50 }
+}

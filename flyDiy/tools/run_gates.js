@@ -643,6 +643,11 @@ const GATES = [
   // the eye wind stay finite and lit, the card's Fly flies again, every saved record reads finite, the next load lit
   { id: 'SIMDIVERGE', file: '_simdiverge_check.js', tier: 'full', timeout: 2 * 3600_000, weight: 2, wall: 900 },
   { id: 'SIMWORKER-PAGE', file: '_simworker_page_check.js', tier: 'full', timeout: 3 * 3600_000, weight: 2, wall: 1100 },
+  // G3320 (PILOTPAGE, the user 18 Oct: "some actual browser-based flying ... in case the numerical simulations would not be
+  // fully representative"): the validated builds' legs flown BY THE PAGE (tools/pilotpage_legs.json: the persona the user
+  // flies, the student, beside the expert), the expert legs held to node's track; a GPU job on a quiet box, run when the
+  // pilot, the servos, the nav or the core change
+  { id: 'PILOTPAGE', file: '_pilotpage_check.js', tier: 'full', timeout: 2 * 3600_000, weight: 2, wall: 2400 },
   // G821 (C1c): EVERY EDGE through the worker - one scripted session per build and mode (dev.html?simw=0 against
   // ?simw=1, lockstep): the pause, the hand on and off (taxiing and in the air), the world editor's edit (the worker's
   // world probed against the page's), Fly on, the skip to line-up, the scenery mode, Restart, the shed and its control
