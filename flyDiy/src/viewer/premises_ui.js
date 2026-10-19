@@ -897,6 +897,7 @@ function mount(host, ctx) {
   // strip's own fields, moved by its discs once the strip is selected - the building itself took no click. A press on one
   // (R.grabAt: PG.runwayGrab, the hangar's footprint, the stand within 5 m) selects its strip and starts that handle's drag,
   // unless a placed object (a parked aeroplane on the stand) is under the press - the object is picked as before
+  let GRAB_KEY = null;
   function grabStrip(g, alt) {
     if (!R.grabAt) return false;
     const gb = R.grabAt(g[0], g[2]); if (!gb) return false;
@@ -904,6 +905,7 @@ function mount(host, ctx) {
     if (top && top.kind === 'object') return false;
     if (selected !== gb.id) select(gb.id);
     if (!startDrag({ id: gb.id, key: gb.key, index: 0 }, alt)) return false;
+    GRAB_KEY = gb.key;   // (G3096: R turns a grabbed hangar)
     strip.status((gb.key === 'hangar' ? 'the club hangar' : 'the stand') + ' of ' + gb.id + ' - drag it (the door\'s heading is a row of the strip\'s inspector)');
     return true;
   }
@@ -1222,6 +1224,9 @@ function mount(host, ctx) {
     else if (ev.key === 'Tab') { ctx.cameras && ctx.cameras.toggle(); ev.preventDefault(); }
     else if (ev.key >= '1' && ev.key <= String(Math.min(9, SECTIONS.length))) setSection(SECTIONS[+ev.key - 1].k);
     // R turns 15 degrees: the placer's ghost, a selected site or model / object
+    else if ((ev.key === 'r' || ev.key === 'R') && tool === 'select' && GRAB_KEY === 'hangar' && selected && (PG.findById(rec, selected) || {}).layer === 'runways' && PG.findById(rec, selected).entry.hangar) {
+      // (G3096) the grabbed hangar turned 15 deg (shift: the other way)
+      const k = ev.shiftKey ? -1 : 1; edit(selected, 'runways', x => { const a = (+x.hangar.hdg || 0) + k * Math.PI / 12; x.hangar.hdg = +Math.atan2(Math.sin(a), Math.cos(a)).toFixed(4); }, 'hangar of ' + selected, 'hangarHdg'); ev.preventDefault(); }
     else if (ev.key === 'r' && (tool === 'place' || tool === 'scatter')) { ASSET.yaw = (ASSET.yaw + (ev.shiftKey ? -1 : 1) * Math.PI / 12) % (Math.PI * 2); armGhost(); palette.refresh(); }
     else if (ev.key === 'r' && selected) { const f = PG.findById(rec, selected); if (f && f.entry.at) edit(selected, 'sites', x => { x.at.yaw = ((x.at.yaw || 0) + Math.PI / 12); }, 'turn ' + selected, 'yaw');   /* (G3005: a run of R presses, one rebuild when they stop) */ else if (f && f.layer === 'objects' && isFinite(+f.entry.x)) edit(selected, 'objects', x => { x.yaw = +(((+x.yaw || 0) + (ev.shiftKey ? -1 : 1) * Math.PI / 12)).toFixed(4); }, 'turn ' + selected, 'yaw'); }
     else if (ev.key === 'f' && tool === 'select' && ctx.cameras && ctx.cameras.frame) { const f = selected && PG.findById(rec, selected); if (f) ctx.cameras.frame(bboxOf(f.entry)); }
@@ -1573,13 +1578,19 @@ function mount(host, ctx) {
         wayRows(insp, e, 'taxiOut', 'the way out toward end 0', id, ed);
         if (e.taxiOut1) wayRows(insp, e, 'taxiOut1', 'the way out toward end 1', id, ed);
         else rows.button(insp, 'add a way out toward end 1', () => ed(x => { x.taxiOut1 = wayToward(x, x.stand, 1); }, 'way out of ' + id));
-        rows.button(insp, 'remove the stand', () => ed(x => { x.stand = null; x.taxiOut = null; x.taxiOut1 = null; }, 'stand of ' + id));
-      } else rows.note(insp, 'no stand: the aeroplane starts 35 m in from end 0 (the stand tool puts one beside the strip)');
+        rows.button(insp, 'remove the stand', () => ed(x => { x.stand = null; x.taxiOut = null; x.taxiOut1 = null; delete x.taxiOutVia; delete x.taxiOut1Via; }, 'stand of ' + id));
+      } else {
+        rows.button(insp, 'give it a stand and a way out', () => ed(x => { standUp(x); }, 'stand of ' + id));   // (G3094 TAXI-ALL)
+        rows.note(insp, 'no stand: the aeroplane starts 35 m in from end 0 (the stand tool puts one beside the strip)');
+      }
       // THE CLUB HANGAR (G434): the garage's own shell stood at the field - the building the aeroplane rolls
       // out of (the reveal shot keeps out of it); placed behind the stand facing it, then dragged by its disc
       // and turned here. Its size is the player's (the sliders in the shed), never the record's.
       if (e.hangar) {
-        rows.note(insp, 'THE CLUB HANGAR: the garage\'s shell stands here, its door facing ' + ((+e.hangar.hdg || 0) * 180 / Math.PI).toFixed(0) + '°; drag its disc to move it');
+        rows.note(insp, 'THE MAIN HANGAR (the club hangar: your career\'s main shed, drawn at your shed\'s own size): its door facing ' + ((+e.hangar.hdg || 0) * 180 / Math.PI).toFixed(0) + '°; press on it to drag it, R / shift-R turn it 15°');
+        if (PG.hangarSquare) { const sq = PG.hangarSquare(rec, e, e.stand, R.overlay && R.overlay.frame ? R.overlay.frame.yaw : 0);
+          if (sq !== null && Math.abs(Math.atan2(Math.sin(sq - (+e.hangar.hdg || 0)), Math.cos(sq - (+e.hangar.hdg || 0)))) > 0.01)
+            rows.button(insp, 'square to the buildings, door toward the stand', () => ed(x => { x.hangar.hdg = sq; }, 'hangar of ' + id)); }
         rows.slider(insp, 'door faces (°)', -180, 180, 1, () => (+e.hangar.hdg || 0) * 180 / Math.PI, v => ed(x => { x.hangar.hdg = v * Math.PI / 180; }, 'hangar of ' + id, 'hangarHdg'), v => v.toFixed(0) + '°');
         numRow(insp, 'hangar x (m)', () => e.hangar.x, v => ed(x => { x.hangar.x = +v.toFixed(2); }, 'hangar of ' + id, 'hx'), metres);   // (G3091)
         numRow(insp, 'hangar z (m)', () => e.hangar.z, v => ed(x => { x.hangar.z = +v.toFixed(2); }, 'hangar of ' + id, 'hz'), metres);
@@ -2281,17 +2292,47 @@ function mount(host, ctx) {
   // A WAY OUT's points, typed; the last is the entry, on the centreline (a typed entry is taken to its nearest centreline point,
   // as its drag is); a point added after any but the entry (half way to the next), removed (never the entry)
   const onLine = (x, q) => { const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, x)), along = (q[0] - x.c[0]) * E.d[0] + (q[1] - x.c[1]) * E.d[1]; return [+(x.c[0] + E.d[0] * along).toFixed(2), +(x.c[1] + E.d[1] * along).toFixed(2)]; };
-  function wayRows(p, e, key, label, id, ed) {
+  // (G3093 TAXI-ALL) `pick` takes the way's holder out of the strip being edited (the strip itself, or one of its plots), `pre`
+  // names a plot's rows apart; FOLLOWS ROAD: a road near the stand (80 m) the composition builds the way from (27_premises
+  // wayFrom) - the drawn taxiway and the pilot's route one thing; the points below stay the way's own, used when it follows none
+  function wayRows(p, e, key, label, id, ed, pick, pre) {
+    pick = pick || (x => x); pre = pre || '';
     const W = e[key]; if (!Array.isArray(W) || !W.length) return;
     rows.note(p, label.toUpperCase() + ': ' + W.length + ' point' + (W.length > 1 ? 's' : '') + ' (the last is the entry on the centreline)');
+    const vk = key + 'Via', near = e.stand ? (rec.layers.roads || []).filter(q => q && q.pts && q.pts.length >= 2 && PG.roadDist(q, e.stand.x, e.stand.z) < 80) : [];
+    if (near.length || e[vk]) {
+      rows.select(p, pre + 'follows road', [['', 'none (its own points)']].concat(near.map(q => [q.id, (q.name || q.id) + ' (' + q.id + ')'])).concat(e[vk] && !near.some(q => q.id === e[vk]) ? [[e[vk], e[vk] + ' (far)']] : []),
+        () => e[vk] || '', v => ed(x => { const H = pick(x); if (v) H[vk] = v; else delete H[vk]; }, 'way out of ' + id));
+      if (e[vk]) rows.note(p, 'follows road ' + e[vk] + ': edit the road - the pilot follows it; the points below are this way\'s own, used again when it follows none');
+    }
     W.forEach((q, i) => {
-      const last = i === W.length - 1, set = (k, v) => ed(x => { const T = x[key], P = T[i].slice(); P[k] = +v.toFixed(2); T[i] = last ? onLine(x, P) : P; }, 'way out of ' + id, key + i + k);
-      numRow(p, (last ? 'entry' : 'point ' + (i + 1)) + ' x (m)', () => W[i][0], v => set(0, v), metres);
-      numRow(p, (last ? 'entry' : 'point ' + (i + 1)) + ' z (m)', () => W[i][1], v => set(1, v), metres);
-      if (!last) rows.button(p, 'add a point after point ' + (i + 1), () => ed(x => { const T = x[key], a = T[i], b = T[i + 1]; T.splice(i + 1, 0, [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]); }, 'way out of ' + id));
-      if (!last && W.length > 1) rows.button(p, 'remove point ' + (i + 1), () => ed(x => { x[key].splice(i, 1); }, 'way out of ' + id));
+      const last = i === W.length - 1, set = (k, v) => ed(x => { const T = pick(x)[key], P = T[i].slice(); P[k] = +v.toFixed(2); T[i] = last ? onLine(x, P) : P; }, 'way out of ' + id, pre + key + i + k);
+      numRow(p, pre + (last ? 'entry' : 'point ' + (i + 1)) + ' x (m)', () => W[i][0], v => set(0, v), metres);
+      numRow(p, pre + (last ? 'entry' : 'point ' + (i + 1)) + ' z (m)', () => W[i][1], v => set(1, v), metres);
+      if (!last) rows.button(p, pre + 'add a point after point ' + (i + 1), () => ed(x => { const T = pick(x)[key], a = T[i], b = T[i + 1]; T.splice(i + 1, 0, [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]); }, 'way out of ' + id));
+      if (!last && W.length > 1) rows.button(p, pre + 'remove point ' + (i + 1), () => ed(x => { pick(x)[key].splice(i, 1); }, 'way out of ' + id));
     });
-    if (key === 'taxiOut1') rows.button(p, 'remove the way out toward end 1', () => ed(x => { x.taxiOut1 = null; }, 'way out of ' + id));
+    if (key === 'taxiOut1' && !pre) rows.button(p, 'remove the way out toward end 1', () => ed(x => { x.taxiOut1 = null; delete x.taxiOut1Via; }, 'way out of ' + id));
+  }
+  // (G3094 TAXI-ALL) A STAND AND A WAY OUT for a strip that has none: when a road MEETS the strip (an end within its half width +
+  // 20 m of the centreline, inside its length, the other end out past half width + 10 m) the stand at the road's far end and the
+  // way following it; else the stand 40 m off the side at the middle and a straight way to the centreline
+  function standUp(x) {
+    const R0 = Object.assign({}, PG.RUNWAY_DEF, x), E = PG.runwayEnds(R0), hw = R0.wid / 2;
+    const al = q => (q[0] - x.c[0]) * E.d[0] + (q[1] - x.c[1]) * E.d[1], of = q => Math.abs(-(q[0] - x.c[0]) * E.d[1] + (q[1] - x.c[1]) * E.d[0]);
+    let best = null;
+    for (const q of rec.layers.roads || []) {
+      if (!q || !q.pts || q.pts.length < 2) continue;
+      const A = q.pts[0], B = q.pts[q.pts.length - 1];
+      for (const [a, b] of [[A, B], [B, A]]) if (Math.abs(al(a)) <= R0.len / 2 && of(a) <= hw + 20 && of(b) > hw + 10 && (!best || of(a) < best.d)) best = { q, far: b, d: of(a) };
+    }
+    if (best) {
+      x.stand = { x: +best.far[0].toFixed(2), z: +best.far[1].toFixed(2), hdg: null };
+      x.taxiOut = PG.wayFrom(R0, x.stand, best.q); x.taxiOutVia = best.q.id; return best.q.id;
+    }
+    x.stand = { x: +(x.c[0] + E.n[0] * (hw + 40)).toFixed(2), z: +(x.c[1] + E.n[1] * (hw + 40)).toFixed(2), hdg: null };
+    x.taxiOut = [[+(x.c[0] + E.n[0] * (hw + 15)).toFixed(2), +(x.c[1] + E.n[1] * (hw + 15)).toFixed(2)], [+x.c[0].toFixed(2), +x.c[1].toFixed(2)]];
+    return null;
   }
   // a new way out toward end k (0 / 1): half way from the stand to the centreline, then the entry 60 m along toward that end
   function wayToward(x, st, k) {
@@ -2315,7 +2356,10 @@ function mount(host, ctx) {
         numRow(p, pid + ' stand x (m)', () => q.stand.x, v => upd(o => { o.stand.x = +v.toFixed(2); }, 'sx'), metres);
         numRow(p, pid + ' stand z (m)', () => q.stand.z, v => upd(o => { o.stand.z = +v.toFixed(2); }, 'sz'), metres);
         standHeading(p, q.stand, q.taxiOut, f => upd(o => f(o.stand), 'sh'), pid + ' ');
-        rows.button(p, pid + ': no stand of its own (the field\'s serves it)', () => upd(o => { delete o.stand; delete o.taxiOut; delete o.taxiOut1; }));
+        // (G3095 TAXI-ALL) its own way out: the same rows as the strip's (typed, added, removed, following a road), or one given
+        if (Array.isArray(q.taxiOut) && q.taxiOut.length) wayRows(p, q, 'taxiOut', pid + ' way out', id, ed, x => x.plots[i], pid + ' ');
+        else rows.button(p, pid + ': give it its own way out', () => ed(x => { const o = x.plots[i]; o.taxiOut = wayToward(x, o.stand, 0); }, 'plot ' + pid + ' of ' + id));
+        rows.button(p, pid + ': no stand of its own (the field\'s serves it)', () => upd(o => { delete o.stand; delete o.taxiOut; delete o.taxiOut1; delete o.taxiOutVia; }));
       } else rows.button(p, pid + ': give it a stand of its own', () => upd(o => { const h = +o.hdg || 0; o.stand = { x: +(o.x + 20 * Math.cos(h)).toFixed(2), z: +(o.z + 20 * Math.sin(h)).toFixed(2), hdg: null }; }));
       rows.button(p, 'remove plot ' + pid, () => ed(x => { x.plots.splice(i, 1); if (!x.plots.length) x.plots = null; }, 'plot ' + pid + ' of ' + id));
     });
