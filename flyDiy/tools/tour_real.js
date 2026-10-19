@@ -210,6 +210,10 @@ const STATE = `JSON.stringify((() => {
   const env = JSON.parse(await ev("JSON.stringify({ gpu: (()=>{const c=document.createElement('canvas').getContext('webgl2');const d=c&&c.getExtension('WEBGL_debug_renderer_info');return d?c.getParameter(d.UNMASKED_RENDERER_WEBGL):'?';})(), gfx: window.GFX ? GFX.get() : null, build: window.FLYDIY_BUILD || null, route: window.FLYDIY_ROUTE ? FLYDIY_ROUTE.get() : null, ua: navigator.userAgent, webdriver: navigator.webdriver })"));
   log('  env ' + JSON.stringify(env));
   if (env.gfx && env.gfx.preset && env.gfx.preset !== 'gamer') log('  !!! the preset is ' + env.gfx.preset + ', not gamer');
+  // G3320 (PILOTPAGE): THE PERSONA THE PLAYER FLIES (--persona student|club|expert|bush|hamfist): the shed's #selPersona set
+  // and its change fired, as the player does - the Rufus B swing of 18 Oct showed only under the student (our rigs flew the
+  // default expert); read back through FLYDIY_PERSONA
+  if (opt('persona', null)) log('  persona: ' + await ev("(()=>{const s=document.getElementById('selPersona');if(!s)return 'no #selPersona';s.value=" + JSON.stringify(opt('persona')) + ";s.dispatchEvent(new Event('change',{bubbles:true}));return window.FLYDIY_PERSONA?JSON.stringify(FLYDIY_PERSONA.get().profile):s.value;})()"));
   // ROLL OUT: one press (rollout_perf G1117)
   await ev("(()=>{const g=document.getElementById('bGo');const l=[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)&&b.offsetParent);const b=g&&g.offsetParent&&/roll out/i.test(g.textContent)?g:l[0];if(b)b.click();return l.length;})()");
   const tRoll = Date.now();
