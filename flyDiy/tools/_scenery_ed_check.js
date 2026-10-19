@@ -1188,6 +1188,47 @@ if (plots.length) {
   check(/PG\.runwayGrab\(rec, L\[0\], L\[1\], o\.shedDims \? o\.shedDims\(\) : null\)/.test(RP33) && (RW33.match(/shedDims: \(\) => shedDims/g) || []).length === 2, '33 the page hands the premises its shed dims (both builds)');
 }
 
+{
+  // 34 ONE SURFACE (the user, 18 Oct: "remove all options allowing to separately set the surface and wheel feel. That's actually
+  // clutter at all levels"): a strip's look, an area's DRAW surface and a road's class are each THE choice - drawn and felt; no
+  // row sets the feel alone; an old file's other feel is kept (nothing it rolls on changes) and the inspector says so
+  const UIs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_ui.js'), 'utf8');
+  check(!/rows\.select\(insp, '(the )?wheels feel'/.test(UIs) && !/rows\.select\(insp, 'surface', SURF_OPTS/.test(UIs), '34 no inspector row sets the wheels feel alone (strip, area, old surface entry)');
+  check(/k !== 'roadside' && k !== 'wheels'\)/.test(UIs) && /if \(k === 'draw'\) \{ const L = PG\.RUNWAY_LOOKS\[x\.props\.draw\.look\]/.test(UIs), '34 the wheels are no property of their own to add: DRAW brings them, its look\'s feel');
+  check(/x\.props\.wheels = Object\.assign\(\{\}, x\.props\.wheels \|\| \{\}, \{ surface: \+L\.surface \}\); \}, 'surface'\)\);/.test(UIs), '34 picking DRAW\'s surface sets the wheels (the apron flag kept)');
+  check(/PG\.lookFeelsAs\(k, feel\)/.test(UIs) && /if \(x\.look && !PG\.lookFeelsAs\(x\.look, PG\.roadFeel\(x\)\)\) x\.look = null;/.test(UIs), '34 a road\'s look offers only the variants that feel as its class; a new class drops a look that feels otherwise');
+  check(PG.roadFeel({ cls: 'paved' }) === PG.SURFACE.PAVED && PG.roadFeel({ cls: 'track' }) === PG.SURFACE.GRASS && PG.roadFeel({}) === PG.SURFACE.GRAVEL && PG.roadFeel({ cls: 'paved', surface: 6 }) === 6 &&
+        PG.lookFeelsAs('worn', PG.SURFACE.PAVED) && !PG.lookFeelsAs('concrete', PG.SURFACE.GRAVEL) && PG.lookFeelsAs('dirt', PG.SURFACE.GRAVEL) && PG.lookFeelsAs('none', PG.SURFACE.GRASS),
+        '34 roadFeel is the composer\'s rule (its surface, else its class), lookFeelsAs the looks\' table');
+  // the user's Jolene: its old look-and-feel splits stay as they were (no feel moved) - and each is one the inspector names
+  const J = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json'), 'utf8')), JR = PG.normalise(J.layers ? J : (J.rec || J.premises));
+  const splitA = JR.layers.areas.filter(a => a.props && a.props.wheels && a.props.draw && a.props.draw.look && !PG.lookFeelsAs(a.props.draw.look, +a.props.wheels.surface)).map(a => a.id);
+  const splitR = JR.layers.roads.filter(r => r.look && !PG.lookFeelsAs(r.look, PG.roadFeel(r))).map(r => r.id);
+  check(splitA.length >= 1 && /an old file\\'s: drawn ' \+ L\.name \+ ', the wheels feel ' \+ nm/.test(UIs) && /an old file\\'s: drawn ' \+ \(PG\.RUNWAY_LOOKS\[e\.look\]/.test(UIs),
+        '34 Jolene\'s old splits kept and named (areas ' + splitA.join(' ') + '; roads ' + splitR.join(' ') + ')');
+}
+// 35 THE CABIN STRIP (G3097 / G3098; the user, 18 Oct: "we need to place the little hangar atop the flat bit of the new strip ...
+//    our second owned hangar ... a storage zone too ... the circuit should ensure to pass the tight zone before manoeuvring"):
+//    the shipped w1 is the story's cabin (its name), its top end flat; its base plot 'w1' (the field hangar's place), its stand
+//    and its way out's first point stand on the apron; the outside storage carries two painted stands within the fleet's reach
+//    of the stand; its drawn flight reaches the pilot in the world (aerodrome.fly), the approach straight in; no issue names it
+{
+  const J = PG.expandAreas(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec), w = J.layers.runways.find(r => r.id === 'w1');
+  check(!!w && /\bcabin\b/i.test(w.name || '') && JSON.stringify(w.profile[w.profile.length - 1]) === '[1,15.16]' && w.profile[w.profile.length - 2][1] === 15.16, '35 w1 is the story\'s cabin strip (its name), its top end flat', w && JSON.stringify([w.name, w.profile]));
+  const ap = (J.layers.terrain || []).concat(J.layers.surface || []).find(e => e.id === 'cab_apron' || /^cab_apron/.test(e.id || ''));
+  const P = w && (w.plots || []).find(q => q.id === 'w1');
+  check(!!ap && !!P && !!w.stand && PG.inPoly(ap.poly, P.x, P.z) && PG.inPoly(ap.poly, w.stand.x, w.stand.z) && PG.inPoly(ap.poly, w.taxiOut[0][0], w.taxiOut[0][1]),
+    '35 the base plot w1, the stand and the way out\'s first point stand on the apron', JSON.stringify([P, w && w.stand]));
+  const st = (J.layers.material || []).find(e => /^cab_store/.test(e.id || '') && e.stands);
+  const cs = st ? PG.polyCentroid(st.poly) : null;
+  check(!!st && st.stands.n >= 2 && Math.hypot(cs[0] - w.stand.x, cs[1] - w.stand.z) <= 150, '35 the outside storage: two painted stands within the fleet\'s reach of the stand', st && JSON.stringify(st.stands));
+  const O = PG.compose(J, synth), A = (O.aerodromes || []).find(a => a.id === 'w1');
+  check(!!A && A.fly && Array.isArray(A.fly.dep) && A.fly.dep.length >= 2 && Array.isArray(A.fly.appr) && A.fly.appr.length >= 2 && A.fly.terrainOk === true && w.circuit && w.circuit.join === 'straight',
+    '35 its drawn flight reaches the pilot (aerodrome.fly: dep, appr, terrainOk) and its circuit joins straight in', A && JSON.stringify(A.fly).slice(0, 160));
+  const iss = PG.issues(J).filter(t => /runway w1\b/.test(t));
+  check(!iss.length, '35 no issue names w1', iss.join(' / '));
+}
+
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');

@@ -3,9 +3,7 @@
  "save": "scenery_user_jolene_rev28.json",
  "source": "D:/Dev/flydiy-notes/inbox/jolene_rev28_2026-10-13_0050.json (\"Jolene AFB (16)\", 13 Oct 00:50)",
  "sha256": "c54089c97eaac97a624444c01f4b63552dd1fe3d2259159d9a633d0ecf6ce658",
- "except": [
-  "w4"
- ],
+ "except": [],
  "remove": [
   "r_airport",
   "r_strip",
@@ -37,7 +35,7 @@
  },
  "plotMovesWhy": "the user 12 Oct (via A0): keep the cannery s2; the career base plot SEA moved 13.5 m west (760.5 -> 747.0), the smallest move that keeps its largest shell 3 m off the cannery (GATE TAXICLEAR 12); applied after the ship - a re-ship must apply it again",
  "kept": "ship-only entries no save carries and the user never removed: the VOR site s_vor_ann and its clear s_vor_ann_clear; the staged sg_ entries (kept by the ship)",
- "altiport": "rev 28: the user fixed the altiports themselves - w1 'strip 8' deleted in the save, w4 'strip 9' reshaped (216 m, a 4-point profile 28 -> -17.6 m, own clear 0 / 20); train 53 (13 Oct) found it over the altiport law (33.7 % somewhere, over 20 %; a crest of 14.2 % over 30 m, over 5 %) - HELD BACK again until the profile tool (A0 / the user, option A); its objects, roads and areas ship",
+ "altiport": "rev 28: the user fixed the altiports themselves - w1 'strip 8' deleted in the save, w4 'strip 9' kept and reshaped (216 m, 4-point profile 28 -> -17.6 m, own clear 0 / 20) and shipped; nothing held back. 18 Oct (the user: 'strip 9 stays, the slope rules ... relaxed'): its 33.7 % and 14.2 % crest are WARNINGS (PG.warnings), no longer refusals",
  "fieldPatches": {
   "HOME": {
    "hangar": {

@@ -238,9 +238,9 @@ function run(mut) {
 
   // ==== THE WORLD ============================================================
   const FW = M.contractFieldsOf(RUNWAYS);
-  ok(eq(Object.keys(F).sort(), Object.keys(FW).sort()) && Object.keys(FW).every(k => eq(F[k], FW[k])), 'CONTRACT_FIELDS is Jolene\'s record (12 runways through contractFieldsOf)');
+  ok(eq(Object.keys(F).sort(), Object.keys(FW).sort()) && Object.keys(FW).every(k => eq(F[k], FW[k])), 'CONTRACT_FIELDS is Jolene\'s record (13 runways through contractFieldsOf)');
   // (G3014: the user's rev 26 strips 10 and 11, w5 + w6, added to the career's fields at their word - 8 -> 10)
-  ok(Object.keys(F).length === 12, 'the 12 runways');   // (rev 27: w7; rev 28: w8 strip 13 - w4 strip 9 held back, train 53)
+  ok(Object.keys(F).length === 13, 'the 13 runways');   // (rev 27: w7; rev 28: w4 strip 9, w8 strip 13)
   for (const rw of RUNWAYS) for (const g of ['wheels', 'floats', 'amphibian', 'skis'])
     ok(M.contractGearOk(g, F[rw.id]) === CORE.stripAllows(g, rw).ok, 'the gear rule is stripAllows: ' + g + ' at ' + rw.id);
   for (const k of Object.keys(DS)) {

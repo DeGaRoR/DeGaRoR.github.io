@@ -393,10 +393,11 @@ function mount(host, ctx) {
   function checks() {
     const t0 = PERF.now();
     const lines = PG.checks(rec, world, { overlay: R.overlay, site: ctx.site || null });
-    const iss = PG.issues(rec);
+    const iss = PG.issues(rec), wrn = PG.warnings ? PG.warnings(rec) : [];   // (18 Oct: a strip's slope past the limits warns, it ships)
     if (PERF.now() - t0 >= 8) logEdit(PERF.now() - t0, 'checks');
     if (els.chk) els.chk.innerHTML = lines.map(l => '<span class="' + (l.ok ? 'ok' : 'bad') + '">' + (l.ok ? '✓ ' : '✗ ') + l.label + '</span>').join('<br>') +
-      (iss.length ? '<br><span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '');
+      (iss.length ? '<br><span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '') +
+      (wrn.length ? '<br><span class="warn">⚠ ' + wrn.length + ' warning' + (wrn.length > 1 ? 's' : '') + ' (it ships): ' + wrn.join(' · ') + '</span>' : '');
     return lines;
   }
   function plaque() {
@@ -1364,7 +1365,9 @@ function mount(host, ctx) {
       }
       rows.slider(insp, 'falloff (m)', 1, 120, 1, () => e.falloff, v => ed(x => { x.falloff = v; }, 'falloff of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
     } else if (layer === 'surface') {
-      rows.select(insp, 'surface', SURF_OPTS, () => String(e.surface), v => ed(x => { x.surface = +v; }, 'surface of ' + id));
+      // ONE SURFACE (the user, 18 Oct: "remove all options allowing to separately set the surface and wheel feel"): an old
+      // file's surface entry - a feel drawn nowhere - is kept as it is and said, never offered (an AREA draws and feels as one)
+      rows.note(insp, 'an old file\'s surface: the wheels feel ' + (PG.SURFACE_NAMES[+e.surface] || '?').toLowerCase() + ' here, nothing drawn - kept as it was');
       rows.slider(insp, 'priority', -5, 5, 1, () => e.z || 0, v => ed(x => { x.z = v; }, 'priority of ' + id, 'z'), v => v.toFixed(0) + (v > 0 ? ' (over)' : v < 0 ? ' (under)' : ''));
     } else if (layer === 'material') {
       const sets = materialSets();
@@ -1382,9 +1385,13 @@ function mount(host, ctx) {
     else if (layer === 'exclude') rows.check(insp, 'no trees', () => e.what.indexOf('trees') >= 0, v => ed(x => { x.what = v ? ['trees'] : []; }, 'exclude of ' + id));
     else if (layer === 'roads') {
       rows.slider(insp, 'width (m)', 2, 30, 0.2, () => e.w, v => ed(x => { x.w = v; }, 'width of ' + id, 'w'), v => v.toFixed(1) + ' m');   // (G434: to 30 - a taxiway is a road)
-      rows.select(insp, 'class', [['gravel', 'gravel'], ['paved', 'paved'], ['track', 'track (grass)']], () => e.cls || 'gravel', v => ed(x => { x.cls = v; }, 'class of ' + id));
-      // THE LOOK (v1.16): the pavement drawn - derived from the class when not said
-      rows.select(insp, 'look', [['', 'by class (' + PG.roadLook(e).key + ')']].concat(Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].cls).map(k => [k, PG.RUNWAY_LOOKS[k].name])), () => e.look || '', v => ed(x => { x.look = v || null; }, 'look of ' + id));
+      // ONE SURFACE (18 Oct): the class is what the road is - drawn and felt; picking one drops a look that feels otherwise
+      rows.select(insp, 'surface', [['gravel', 'gravel'], ['paved', 'paved'], ['track', 'track (grass)']], () => e.cls || 'gravel',
+        v => ed(x => { x.cls = v; if (x.look && !PG.lookFeelsAs(x.look, PG.roadFeel(x))) x.look = null; }, 'class of ' + id));
+      // THE LOOK (v1.16): the pavement drawn - only the variants that feel as the class (paved: asphalt, concrete, old concrete)
+      { const feel = PG.roadFeel(e), alts = Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].cls && PG.lookFeelsAs(k, feel));
+        if (alts.length > 1) rows.select(insp, 'look', [['', 'by class (' + PG.roadLook(e).key + ')']].concat(alts.map(k => [k, PG.RUNWAY_LOOKS[k].name])), () => (e.look && alts.indexOf(e.look) >= 0 ? e.look : ''), v => ed(x => { x.look = v || null; }, 'look of ' + id));
+        if (e.look && !PG.lookFeelsAs(e.look, feel)) rows.note(insp, 'an old file\'s: drawn ' + (PG.RUNWAY_LOOKS[e.look] ? PG.RUNWAY_LOOKS[e.look].name : e.look) + ', the wheels feel ' + (PG.SURFACE_NAMES[feel] || '?').toLowerCase() + ' - kept as it was; pick a surface to set both'); }
       pavRows(e, id, 'roads', ed, PG.roadLook(e).row);
       rows.check(insp, 'graded (flat across)', () => e.graded !== false, v => ed(x => { x.graded = v; }, 'grading of ' + id));
       rows.slider(insp, 'terraformed to (m)', 1, 30, 1, () => e.falloff || 6, v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
@@ -1517,18 +1524,19 @@ function mount(host, ctx) {
       rows.slider(insp, 'width (m)', 8, 300, 1, () => e.wid,   // (G3019 (2): a water lane is 200 m wide)
         v => ed(x => { x.wid = v; }, 'width of ' + id, 'wid'), v => v.toFixed(0) + ' m');
       rows.slider(insp, 'heading (°)', -180, 180, 1, () => e.hdg * 180 / Math.PI, v => ed(x => { x.hdg = v * Math.PI / 180; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
-      // THE LOOK (v9): what the strip is drawn as; picking one proposes the class the wheels feel, which
-      // the surface row below may still overrule (a paved look on a grass class is a painted strip)
-      rows.pills(insp, 'look', Object.keys(PG.RUNWAY_LOOKS).map(k => [k, PG.RUNWAY_LOOKS[k].name]), () => e.look || 'grass',
+      // THE SURFACE (v9; ONE SURFACE, 18 Oct): what the strip is drawn as IS what the wheels feel - the look sets both
+      // ('markings only' keeps the feel it had: the ground under the paint)
+      rows.pills(insp, 'surface', Object.keys(PG.RUNWAY_LOOKS).map(k => [k, PG.RUNWAY_LOOKS[k].name]), () => e.look || 'grass',
         v => ed(x => { x.look = v; const L = PG.RUNWAY_LOOKS[v]; if (L && L.surface !== null && L.surface !== undefined) x.surface = L.surface; }, 'look of ' + id));
-      rows.select(insp, 'wheels feel', [['0', 'grass'], ['6', 'gravel'], ['5', 'paved'], ['7', 'sand']], () => String(e.surface === undefined ? 0 : e.surface), v => ed(x => { x.surface = +v; }, 'surface of ' + id));
+      { const L = PG.RUNWAY_LOOKS[e.look || 'grass'], s = e.surface === undefined ? 0 : +e.surface;
+        if (L && L.surface !== null && L.surface !== undefined && +L.surface !== s) rows.note(insp, 'an old file\'s: drawn ' + L.name + ', the wheels feel ' + (PG.SURFACE_NAMES[s] || '?').toLowerCase() + ' - kept as it was; pick a surface to set both'); }
       if (PG.RUNWAY_LOOKS[e.look || 'grass'] && PG.RUNWAY_LOOKS[e.look || 'grass'].cls) pavRows(e, id, 'runways', ed, PG.RUNWAY_LOOKS[e.look || 'grass']);
       // THE ONE-WAY STRIP (v9): which end the landing comes over in calm air; a ridge at one end wants the other
       rows.pills(insp, 'approach', [['', 'either end', 'the pilot picks the runway direction nearest its inbound track'], ['0', 'over end 0', 'land toward end 1, depart the other way'], ['1', 'over end 1', 'land toward end 0']], () => (e.approach === 0 || e.approach === 1) ? String(e.approach) : '',
         v => ed(x => { x.approach = v === '' ? null : +v; }, 'approach of ' + id));
       // THE ALTIPORT (GTRAM): a mountain strip landed uphill and left downhill, the slope up to 20 %; switched on
       // with no approach named, it names the LOWER end (the profile's) - the one an altiport is landed over
-      rows.check(insp, 'altiport: land uphill (up to 20 %)', () => !!e.altiport, v => ed(x => {
+      rows.check(insp, 'altiport: land uphill (warns past 20 %)', () => !!e.altiport, v => ed(x => {
         x.altiport = v;
         if (v && x.approach !== 0 && x.approach !== 1) { const pr = PG.runwayProfile(Object.assign({}, PG.RUNWAY_DEF, x)); x.approach = pr.at(0) <= pr.at(x.len) ? 0 : 1; }
       }, 'altiport of ' + id));
@@ -1738,7 +1746,7 @@ function mount(host, ctx) {
       x.props = Object.assign({}, x.props);
       x.props[k] = propDefault(x, k);
       // the defaults follow the draw: a pavement wheels its class, marks want a pavement (concrete) turned to the long side
-      if (k === 'draw' && !x.props.wheels) x.props.wheels = { surface: PG.SURFACE.PAVED };
+      if (k === 'draw') { const L = PG.RUNWAY_LOOKS[x.props.draw.look]; if (L && L.surface !== null && L.surface !== undefined) x.props.wheels = Object.assign({}, x.props.wheels || {}, { surface: +L.surface }); }   // (ONE SURFACE: the wheels follow the draw)
       if (k === 'marks') {
         if (!lookCls(x.props.draw)) { x.props.draw = Object.assign({ z: 0 }, x.props.draw || {}, { look: 'concrete' }); delete x.props.draw.set; if (!x.props.wheels) x.props.wheels = { surface: PG.SURFACE.PAVED }; }
         if (x.props.draw.yaw === undefined) { const ed0 = PG.rectOk(x.rect) ? null : longestEdge(x.poly); x.props.draw.yaw = PG.rectOk(x.rect) ? +((x.rect.yaw || 0) + (x.rect.hw >= x.rect.hd ? 0 : Math.PI / 2)).toFixed(4) : ed0 ? +Math.atan2(ed0[1][1] - ed0[0][1], ed0[1][0] - ed0[0][0]).toFixed(4) : 0; }
@@ -1825,7 +1833,11 @@ function mount(host, ctx) {
     if (P.wheels) {
       const w = P.wheels, edW = (mut, label, key) => edP('wheels', mut, label, key);
       sec('wheels', (PG.SURFACE_NAMES[+w.surface] || '?').toLowerCase());
-      rows.select(insp, 'the wheels feel', [['0', 'grass'], ['6', 'gravel'], ['5', 'paved'], ['7', 'sand'], ['1', 'rock'], ['2', 'scree'], ['3', 'forest floor']], () => String(+w.surface), v => edW(q => { q.surface = +v; }, 'wheels'));
+      // ONE SURFACE (18 Oct): the wheels feel what DRAW's surface is - set there; an old file's other feel is kept and said
+      { const L = lookCls(P.draw) ? PG.RUNWAY_LOOKS[P.draw.look] : null, nm = (PG.SURFACE_NAMES[+w.surface] || '?').toLowerCase();
+        if (!P.draw) rows.note(insp, 'an old file\'s: the wheels feel ' + nm + ' and nothing is drawn - kept as it was; add a DRAW to set both');
+        else if (L && L.surface !== null && L.surface !== undefined && +L.surface !== +w.surface) rows.note(insp, 'an old file\'s: drawn ' + L.name + ', the wheels feel ' + nm + ' - kept as it was; pick DRAW\'s surface to set both');
+        else rows.note(insp, L ? 'the wheels feel the drawn surface (DRAW sets both)' : 'the wheels feel ' + nm + ' under the texture'); }
       rows.check(insp, 'an apron (the pilot lists it)', () => !!w.apron, v => edW(q => { if (v) q.apron = true; else delete q.apron; }, 'apron'));
       rows.slider(insp, 'priority', -5, 5, 1, () => +w.z || 0, v => edW(q => { if (v) q.z = v; else delete q.z; }, 'priority', 'wz'), v => v.toFixed(0) + (v > 0 ? ' (over)' : v < 0 ? ' (under)' : ''));
       if (HARD.indexOf(+w.surface) >= 0) rows.note(insp, 'a hard surface: no tree grows and no plot is sown inside (always so - shown in WHAT IT DOES)');
@@ -1838,7 +1850,7 @@ function mount(host, ctx) {
         v => edD(q => { if (v === 'pave') { q.look = q.look && PG.RUNWAY_LOOKS[q.look] && PG.RUNWAY_LOOKS[q.look].cls ? q.look : 'concrete'; } else { delete q.look; q.set = q.set || (materialSets()[0] || ['cracked'])[0]; if (q.fade === undefined) q.fade = 4; } }, 'draw'));
       if (pave) {
         rows.select(insp, 'surface', Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].cls).map(k => [k, PG.RUNWAY_LOOKS[k].name]), () => d.look,
-          v => edD((q, x) => { q.look = v; const L = PG.RUNWAY_LOOKS[v]; if (!x.props.wheels && L && L.surface !== null && L.surface !== undefined) x.props.wheels = { surface: +L.surface }; }, 'surface'));
+          v => edD((q, x) => { q.look = v; const L = PG.RUNWAY_LOOKS[v]; if (L && L.surface !== null && L.surface !== undefined) x.props.wheels = Object.assign({}, x.props.wheels || {}, { surface: +L.surface }); }, 'surface'));   // (ONE SURFACE: the wheels follow, the apron flag kept)
         rows.slider(insp, 'lanes turned (°)', -180, 180, 1, () => (+d.yaw || 0) * 180 / Math.PI, v => edD(q => { q.yaw = v * Math.PI / 180; }, 'yaw', 'yaw'), v => v.toFixed(0) + '°');
         rows.button(insp, 'turn the lanes along its longest side', () => { const e0 = longestEdge(poly); if (e0) edD(q => { q.yaw = +Math.atan2(e0[1][1] - e0[0][1], e0[1][0] - e0[0][0]).toFixed(4); }, 'yaw'); });
         // (the band, the wear and the paint's age - the pavement's rows, on this draw)
@@ -1910,7 +1922,7 @@ function mount(host, ctx) {
       rm('cover');
     }
     // + ADD A PROPERTY
-    const missing = PG.AREA_PROPS.filter(k => !P[k] && k !== 'roadside');   // (a roadside apron is made from its road's waypoint)
+    const missing = PG.AREA_PROPS.filter(k => !P[k] && k !== 'roadside' && k !== 'wheels');   // (a roadside apron is made from its road's waypoint; ONE SURFACE: the wheels come with DRAW)
     if (missing.length) rows.select(insp, '+ add a property', missing.map(k => [k, PROP_TITLE[k].toLowerCase() + ' - ' + PROP_WHY[k]]), () => '', v => { if (v) addProp(id, v); });
   }
 
