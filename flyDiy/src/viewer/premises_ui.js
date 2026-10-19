@@ -393,10 +393,11 @@ function mount(host, ctx) {
   function checks() {
     const t0 = PERF.now();
     const lines = PG.checks(rec, world, { overlay: R.overlay, site: ctx.site || null });
-    const iss = PG.issues(rec);
+    const iss = PG.issues(rec), wrn = PG.warnings ? PG.warnings(rec) : [];   // (18 Oct: a strip's slope past the limits warns, it ships)
     if (PERF.now() - t0 >= 8) logEdit(PERF.now() - t0, 'checks');
     if (els.chk) els.chk.innerHTML = lines.map(l => '<span class="' + (l.ok ? 'ok' : 'bad') + '">' + (l.ok ? '✓ ' : '✗ ') + l.label + '</span>').join('<br>') +
-      (iss.length ? '<br><span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '');
+      (iss.length ? '<br><span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '') +
+      (wrn.length ? '<br><span class="warn">⚠ ' + wrn.length + ' warning' + (wrn.length > 1 ? 's' : '') + ' (it ships): ' + wrn.join(' · ') + '</span>' : '');
     return lines;
   }
   function plaque() {
@@ -1528,7 +1529,7 @@ function mount(host, ctx) {
         v => ed(x => { x.approach = v === '' ? null : +v; }, 'approach of ' + id));
       // THE ALTIPORT (GTRAM): a mountain strip landed uphill and left downhill, the slope up to 20 %; switched on
       // with no approach named, it names the LOWER end (the profile's) - the one an altiport is landed over
-      rows.check(insp, 'altiport: land uphill (up to 20 %)', () => !!e.altiport, v => ed(x => {
+      rows.check(insp, 'altiport: land uphill (warns past 20 %)', () => !!e.altiport, v => ed(x => {
         x.altiport = v;
         if (v && x.approach !== 0 && x.approach !== 1) { const pr = PG.runwayProfile(Object.assign({}, PG.RUNWAY_DEF, x)); x.approach = pr.at(0) <= pr.at(x.len) ? 0 : 1; }
       }, 'altiport of ' + id));

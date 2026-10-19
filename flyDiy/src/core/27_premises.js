@@ -1051,7 +1051,7 @@ function stageIssues(rec0, maxes) {
         if (kind === 'runway' && e && q) {
           const r = Object.assign({}, RUNWAY_DEF, e, q); delete r.stage; delete r.show;
           if (!(r.len >= 150) || !(r.wid >= 8)) out.push(what + ' vary[' + i + ']: a strip is at least 150 m by 8 m');
-          else for (const pi of profileIssues(r)) out.push(what + ' vary[' + i + ']: ' + pi);
+          else for (const pi of profileCheck(r).refuse) out.push(what + ' vary[' + i + ']: ' + pi);
         }
       });
     }
@@ -1584,9 +1584,14 @@ function runwayProfile(r) {
 // under 20 %, no touchdown-zone rule (the touchdown IS on the slope), a crest under 5 % of slope change
 // over 30 m (the ease into the flat top the aeroplane stops on), an `approach` named, and the far end
 // higher than the threshold it lands over
+// THE LIMITS WARN, NEVER REFUSE (the user, 18 Oct: "strip 9 stays, the slope rules ... were to be relaxed" - no
+// filtering, the player finds out): every limit below is a WARNING (profileCheck's `warn`: the editor's profile
+// note and checks panel, PG.warnings); only an altiport without its approach is refused (`refuse`: PG.issues).
+// profileIssues is both, the editor's note.
 const ALTIPORT = { slopeMax: 0.20, crestMax: 0.05 };
-function profileIssues(r) {
-  const out = [], pr = runwayProfile(r), L = r.len, alti = !!r.altiport;
+function profileIssues(r) { const c = profileCheck(r); return c.refuse.concat(c.warn); }
+function profileCheck(r) {
+  const out = [], refuse = [], pr = runwayProfile(r), L = r.len, alti = !!r.altiport;
   let worst = 0, tdz = 0, crest = 0;
   for (let a = 0; a <= L; a += 3) {
     const sl = Math.abs(pr.slopeAt(a)); worst = Math.max(worst, sl);
@@ -1596,14 +1601,14 @@ function profileIssues(r) {
   if (alti) {
     if (worst > ALTIPORT.slopeMax) out.push('runway ' + r.id + ': the altiport is ' + (worst * 100).toFixed(1) + ' % somewhere, over ' + ALTIPORT.slopeMax * 100 + ' %');
     if (crest > ALTIPORT.crestMax) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over ' + ALTIPORT.crestMax * 100 + ' on an altiport');
-    if (r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': an altiport names its approach (the end it is landed over)');
+    if (r.approach !== 0 && r.approach !== 1) refuse.push('runway ' + r.id + ': an altiport names its approach (the end it is landed over)');
     else if (!((r.approach === 0 ? pr.at(L) - pr.at(0) : pr.at(0) - pr.at(L)) > 0)) out.push('runway ' + r.id + ': an altiport is landed uphill - the far end must be higher than end ' + r.approach);
-    return out;
+    return { refuse, warn: out };
   }
   if (worst > 0.05) out.push('runway ' + r.id + ': the profile is ' + (worst * 100).toFixed(1) + ' % somewhere, over 5 %');
   if (tdz > 0.025) out.push('runway ' + r.id + ': the touchdown zone slopes ' + (tdz * 100).toFixed(1) + ' %, over 2.5');
   if (crest > 0.015) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over 1.5');
-  return out;
+  return { refuse, warn: out };
 }
 // THE SHOULDER (v9): the strip's radius of terraforming - how far past the box (either side and past the
 // ends) the grade's falloff runs before the ground is the terrain's again; authored (falloff) or a
@@ -4096,7 +4101,7 @@ function issues(rec0) {
   for (const r of rec.layers.runways) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
-    else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
+    else for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).refuse) out.push(i);
     if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
     if (r.approach !== undefined && r.approach !== null && r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': approach is 0, 1 or null');
     if (r.circuit != null) {
@@ -4217,6 +4222,13 @@ function curvTol(O, F, lx, lz, c, world) {
 }
 
 // the check lines: [{ ok, label }] — the panel draws them, the gate counts them
+// THE WARNINGS (18 Oct): what the editor tells and nothing refuses - a strip's profile past the pilot's or the altiport's
+// limits (profileCheck's `warn`). The ship, the gates and the loaders read issues(); a warning ships.
+function warnings(rec0) {
+  const rec = expandAreas(normalise(rec0)), out = [];
+  for (const r of rec.layers.runways) if (r.c && r.len >= 150 && r.wid >= 8) for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).warn) out.push(i);
+  return out;
+}
 function checks(rec0, world, opts) {
   const recA = normalise(rec0), rec = expandAreas(recA), o = opts || {};
   const lines = [];
@@ -4362,11 +4374,11 @@ function collect(globals) {
 const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
-  frameOf, zoneWaterY: zoneWaterYOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
+  frameOf, zoneWaterY: zoneWaterYOf, compose, issues, warnings, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
 // standalone in node (GATE PREMISES requires this file) the API is the module; inside the core
 // bundle 90_node_exports.js assigns module.exports after this line and carries PREMISES_GEN itself
