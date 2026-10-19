@@ -1034,7 +1034,12 @@ function buildPedals(g, A, P, sx) {
     // line (ahead of the cabin the smooth skin runs above the control
     // cage's keel; the block sat 7 mm under the aeroplane, the cable
     // through the skin - item 20 again, the second cause)
-    const zC = zA + 0.24;
+    // G2792 (the user's garage review, 18 Oct: "the pedal wires and their
+    // little dark boxes: anchored on the firewall, not a fixed length"): the
+    // fairlead stands on the firewall's aft face when the aeroplane has one
+    // ahead of the pedals; with none (an aero nose), the old 24 cm run
+    const onFire = A.zFire != null && A.zFire > zA + 0.08;
+    const zC = onFire ? A.zFire - 0.008 : zA + 0.24;
     const belly = A.bellyAt ? A.bellyAt(xp, zC) : null;
     // 18 mm over the belly: the block's own half-height and the skin's
     // liner (the cabin's inner face is ~4 mm inside the outer skin)
@@ -1053,8 +1058,14 @@ function buildPedals(g, A, P, sx) {
     }
     legs.push(e1);
     for (let i = 0; i < legs.length - 1; i++) K.tube(cb, legs[i], legs[i + 1], 0.0015, 6);
-    K.boxIn(fl, [xp, yC + 0.007, zC], [0.011, 0.007, 0.012], X, Y, Z);
-    K.bolt(pl0, [xp, yC + 0.014, zC - 0.015], [0, -1, 0], 0.0025, 0.008);
+    if (onFire) {
+      // the fairlead bolted to the firewall: a block standing on its face
+      K.boxIn(fl, [xp, yC + 0.012, zC], [0.011, 0.012, 0.007], X, Y, Z);
+      K.bolt(pl0, [xp, yC + 0.012, zC - 0.008], [0, 0, 1], 0.0025, 0.008);
+    } else {
+      K.boxIn(fl, [xp, yC + 0.007, zC], [0.011, 0.007, 0.012], X, Y, Z);
+      K.bolt(pl0, [xp, yC + 0.014, zC - 0.015], [0, -1, 0], 0.0025, 0.008);
+    }
     cb.mesh(g, M.frame); fl.mesh(g, M.cast);
   }
   pl0.mesh(g, M.plated);
@@ -1419,9 +1430,12 @@ function buildFlapLever(g0, A, P, sx, seat, sbs) {
 }
 // THE BRAKE: a pull knob under the dash on the pilot's left — a bracket
 // hanging off the box, a bushing, the rod and a T handle; it slides aft.
-function buildBrakeKnob(g0, A, P, sx) {
+function buildBrakeKnob(gRoot, A, P, sx) {
   const K = window.GEAR_KIT;
   if (!K || A.dashLip == null || A.dashAftZ == null) return null;
+  // G2791: its own place, an offset from the dash seat below (the trim
+  // wheel's idiom; 0 = where it has always been)
+  const g0 = ctlShift(gRoot, P, 'parkX', 'parkY', 'parkZ');
   // G373: 9 cm to the pilot's RIGHT (cage −x) of the pedalier lamp's station
   // (the pilot's x), not 19 cm outboard — the dash's centre on a single seat
   const x = sx - 0.09, zB = A.dashAftZ + 0.030;
@@ -1534,9 +1548,11 @@ function buildShoulderFurniture(g0, A, P, mesh, pilot) {
 // THE FUEL SELECTOR: a round plate on the left wall ahead of the seat, four
 // positions round it, a flat pointer handle on a hub — OFF aft, then R, L,
 // BOTH forward, the order the user's tape reads.
-function buildFuelSelector(g0, A, P, sx, seat) {
+function buildFuelSelector(gRoot, A, P, sx, seat) {
   const K = window.GEAR_KIT;
   if (!K) return null;
+  // G2791: its own place, an offset from the wall seat below
+  const g0 = ctlShift(gRoot, P, 'fselX', 'fselY', 'fselZ');
   const sd = Math.sign(sx || 1), inb = -sd;
   let z = (seat ? seat.zBack : A.zBack) + 0.62, y = A.floorAt(z) + 0.26;
   // ...aft of the door's jamb (the plate and its tape want 8 cm), and
@@ -2309,8 +2325,26 @@ function buildFloor(g, A, P, mesh, seats, scene) {
     // floor height (local y is -z, local z is up)
     { const pa = geo.attributes.position;
       for (let i = 0; i < pa.count; i++) pa.setZ(i, pa.getZ(i) + yAt(-pa.getY(i)) - yTop);
-      pa.needsUpdate = true; geo.computeVertexNormals(); }
-    const board = new THREE.Mesh(geo, M.board);
+      pa.needsUpdate = true; geo.computeVertexNormals();
+      // G2795 (the user: "plus soft shading on it"): the faces are flat-shaded
+      // (an extrusion is unindexed), and on a board bent along the keel the
+      // top showed as bands of facets. The top and bottom caps take the
+      // keel's own slope as their normal; the board's edges stay crisp.
+      const na = geo.attributes.normal, e = 0.02;
+      for (let i = 0; i < na.count; i++) {
+        const nz = na.getZ(i);
+        if (Math.abs(nz) < 0.7) continue;                 // a side face
+        const y = pa.getY(i);
+        const sl = (yAt(-(y + e)) - yAt(-(y - e))) / (2 * e);
+        const sg = nz > 0 ? 1 : -1, l = Math.hypot(sl, 1);
+        na.setXYZ(i, 0, -sg * sl / l, sg / l);
+      }
+      na.needsUpdate = true; }
+    // G2795: the floor's own livery section (plywood by default; the FINISH
+    // view's 'the cabin floor' row picks another), the seats' idiom
+    const flMat = (window.CAGE_SECMAT && window.CAGE_SECMAT('cabFloor',
+      { surf: 0, fieldM: 1, side: THREE.FrontSide, tint0: 0x9a7b4e })) || M.board;
+    const board = new THREE.Mesh(geo, flMat);
     board.rotation.x = -Math.PI / 2;            // shape (x, -z) -> (x, z); extruded +local z = up
     board.position.y = yTop - FLOOR_T;          // the top face at the floor's height
     fg.add(board);
@@ -2653,6 +2687,13 @@ function anchorWorld(o) {
 // poleFig (a frozen pole in the fig's frame, or null: derive it from the
 // current bend as the editor does) }. Returns the reach gap.
 const _pole = new THREE.Vector3();
+// G2797: the fist options a dress() takes off P - one fist, or one per hand
+function fistOpts(P) {
+  const f = P.dumFist == null ? 0.5 : +P.dumFist;
+  if (!+P.dumHandsApart) return { fist: f };
+  return { fist: f, fistL: P.dumFistL == null ? f : +P.dumFistL,
+           fistR: P.dumFistR == null ? f : +P.dumFistR };
+}
 function solveGripJob(dum, j, ctx) {
   const c = CHAINS[j.chain], s = ctx.s;
   const pole = _pole;
@@ -2689,7 +2730,10 @@ function solveGripJob(dum, j, ctx) {
     // hand's own axis (its -y) by the palm offset, scaled with
     // stature so a small dummy does not over-reach.
     _hv.set(0, -1, 0).applyQuaternion(alignQ);
-    aw.p.addScaledVector(_hv, -ctx.palm);
+    // G2797: each hand's own palm when the hands are set apart
+    const palm = /L$/.test(c.end) ? (ctx.palmL != null ? ctx.palmL : ctx.palm)
+                                  : (ctx.palmR != null ? ctx.palmR : ctx.palm);
+    aw.p.addScaledVector(_hv, -palm);
     // THE FIST CLOSES ON THE GRIP (G279): `fixH` is where the dressed rig's
     // fist actually closed relative to the grip, in the hand's own frame,
     // measured by fitFists() below and carried into flight by the join —
@@ -3086,9 +3130,14 @@ function anchors(spec, P, mesh) {
     if (a && c && c[0] > a[0]) return a[1] + (c[1] - a[1]) * (z - a[0]) / (c[0] - a[0]);
     return (a || c)[1];
   };
+  // G2792: THE FIREWALL'S STATION (the aft-most vertex of its faces, metres) -
+  // the floor's run ends there and the pedal cables are anchored on it
+  let zFire = -Infinity;
+  if (mesh && mesh.F) for (const f of mesh.F) if (f.m === 'firewall') for (const vi of f.v) zFire = Math.max(zFire, mesh.V[vi][2] * k);
   // (flexLayout, G3341: the arch dash is the new builds' — their panel takes
   // the flexible dial layout when the standard one leaves a dial off)
   return { k, dashLip, dashTop, dashAftZ, flexLayout: !!(mesh && mesh.dashArch), face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
+           zFire: isFinite(zFire) ? zFire : null,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0,
            // G180: the resolved rings, so a passenger bay's seat row can be
@@ -3497,7 +3546,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       const inst = window.CAGE_CHAR.instance(CH.key);
       if (inst) {
         window.CAGE_CHAR.dress(inst, dum,
-          { fist: P.dumFist == null ? 0.5 : +P.dumFist });
+          fistOpts(P));
         dum.char = inst;
         // THE IDLE (G205): a passenger wears the sitting-idle clip on the
         // upper body (seat, recline and feet stay ours); a pilot only its
@@ -3556,7 +3605,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       }
       if (!moved) break;
       window.CAGE_CHAR.dress(dum.char, dum,
-        { fist: P.dumFist == null ? 0.5 : +P.dumFist });
+        fistOpts(P));
     }
   };
   // THE SOLES ON THE PEDALS (G468, item 25): fitFists' twin for the legs. A
@@ -3592,7 +3641,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       }
       if (!moved) break;
       window.CAGE_CHAR.dress(dum.char, dum,
-        { fist: P.dumFist == null ? 0.5 : +P.dumFist });
+        fistOpts(P));
     }
   };
   const markLive = (dum, CH, role, idx, s, jobs, ctx) => {
@@ -3603,6 +3652,12 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
                  fist: P.dumFist == null ? 0.5 : +P.dumFist,
                  anim: dum.animSpec || null,
                  jobs: jobs.filter(j => j.ctl) };
+    // G2797: the two hands, only when set apart (one hand = the record as ever)
+    if (+P.dumHandsApart) {
+      const fo = fistOpts(P);
+      Object.assign(dum.live, { fistL: fo.fistL, fistR: fo.fistR,
+                                palmL: ctx.palmL, palmR: ctx.palmR });
+    }
     LIVE_CREW.push(dum);
     return dum;
   };
@@ -3701,6 +3756,11 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     const ctx = { s, palm: (P.dumHandGrip != null ? P.dumHandGrip : 0.075) * s,
                   elbows: +P.dumElbows || 0, knees: +P.dumKnees || 0,
                   base, notes, poleFig: null };
+    // G2797: each hand on its grip by its own amount when the hands are apart
+    if (+P.dumHandsApart) {
+      ctx.palmL = (P.dumGripL != null ? +P.dumGripL : ctx.palm / s) * s;
+      ctx.palmR = (P.dumGripR != null ? +P.dumGripR : ctx.palm / s) * s;
+    }
     const solveJob = j => {
       // WHICH MOVING PART HOLDS THE ANCHOR (live crew): the grip is authored
       // inside the control's own moving group (G240), so the first ancestor
@@ -3822,7 +3882,12 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
                                heads: dums.flatMap((d, i) => d.char
                                  ? (i === 0 ? d.char.meshes : [])
                                  : [d.bones.head]) };
-    if (P.dumMarkers) {
+    // G2794 (the user's garage review, 18 Oct: "remove the leftovers of the
+    // original pilot dummy"): the eye point and its sight line are an
+    // expert's instrument now - drawn only with expert rows on; a saved
+    // build's `dumMarkers` keeps its value
+    const UIx = (typeof window !== 'undefined') && window.CAGE_UI;
+    if (P.dumMarkers && UIx && UIx.EXPERT && UIx.EXPERT.on) {
       const eye = group.worldToLocal(eyeW.clone());
       // THE MARKERS ARE NOT CLICKABLE (G210.1, the user: 'the area which
       // triggers a crew selection seems wider than the visual silhouette').

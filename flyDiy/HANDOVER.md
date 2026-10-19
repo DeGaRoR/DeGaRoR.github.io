@@ -95275,6 +95275,80 @@ landing (every node touchdown 1.28-1.34 Vs, 200-210 m of roll). The report: flyd
 Cargo (rolling, every claude/ready/* except dash-redesign): editor-ux-b-g2770, float-ap (G3081 + ROUTE-SEA), ground-1px (G2610), hangar-fix + taxi-all (G3092-G3097), metla-wrapup (Metlakatla behind the town flag, mk_sea kept), perf-1, rufus-cert (builds/rufus_2026-10-18_certified.json + LIVERY gate), rufus-flare (G3271 ctl.flare; the metal Cessna WARN accepted by the user).
 Battery: only master's known reds (CLOCK lamps row, CLOUD lamps row, KTX2 row 10, FRAMECOST cessna garage:restore).
 Strict light gate: 2 RED. 'metal fuseWidth busy' = a cost the user accepted by name (15 Oct). 'floats world -> garage 0.23 -> 5.47 s' = PRE-EXISTING: HWCOV's bisect (19 Oct 05:00 + 07:45) shows master 05cc2acc0 at 3.1-3.8 s in the same rig; a 2-4 s program link on the floats' way back after the Cub legs. The 12 Oct baseline is stale for this row; a separate ticket (which program re-links; hybrid_trips.js).
+
+
+## G2790-G2799 - EDITOR-REVIEW TRAIN A: THE USER'S GARAGE-EDITOR REVIEW OF 18 OCT, THE QUICK FIXES (2026-10-18, EDITOR-UX-A for A0, local; branch claude/editor-review-a)
+
+The plan, with all 13 items, is D:/Dev/flydiy-notes/EDITOR-REVIEW-2026-10-18-PLAN.md. A0's interim rulings: (7) my
+proposal; (9) the wing-bay cut stays on the master; (11, Train B) new default only. Every new row defaults to today's
+behaviour, so a saved build loads and flies as before.
+
+- **8** The nose's size row is 'length' (it read 'deck fore/aft (nose length)'; it has been the trunk's length since
+  G2770).
+- **1** The parking brake and the fuel selector get their own place: `parkX/Y/Z` and `fselX/Y/Z`, offsets from
+  today's seats (the trim wheel's `ctlShift` idiom). The dash switch row stays the layout's (Train B, item 12).
+- **10** The pedal cables run to a fairlead on the FIREWALL: the crew anchors publish `A.zFire`, the aft-most vertex
+  of the firewall faces (the floor's own scan). With no firewall ahead of the pedals (an aero nose), the old 24 cm
+  run stays.
+- **3** Strut tanks: the ogive's long axis is along the line of flight. Its centre stays ON the strut, so the frame's
+  billing on the strut's end nodes (the `along` lever) is still where the pod is drawn. The fit test is the pod's
+  girth against the body at the foot and the wing at the top.
+- **7** The original dummy's leftovers:
+  - the eye point draws only with expert rows on, and a saved build keeps its `dumMarkers`;
+  - the ATD's suit colours show in FINISH only while an ATD is aboard (still taken, never 'unclaimed');
+  - 'pilot dummy' is 'pilot aboard' (the pilot choice beside it is 'pilot').
+  - The ATD shell itself stays: it is a pilot choice and the loading fallback. Its skeleton is every character's IK.
+- **4** The floor's own livery section `cabFloor` (plywood until picked; AERO_SEC + the controls part's sections +
+  CAGE_SECMAT in buildFloor). Its top and bottom caps take the keel's slope as their normal (the extrusion was
+  flat-shaded in bands); the edges stay crisp. Shadow receiving on the floor was NOT added: it is a program variant in
+  the garage (strict garage rows).
+- **9** Lights fitted one by one:
+  - `li_<k>Fit` per light, all 1 by default.
+  - Unfitted means no lamp, no shed light, no panel switch, no backlight, no bus load in flight.
+  - The join writes `lights.unfit` ONLY when one is off.
+- **6** Hands apart (`dumHandsApart`, default 0):
+  - each hand's fist and grip; the rig's curl entries know their hand;
+  - the grip solve picks the palm by the chain's side (the same function the flown pilot runs);
+  - the live record, the join and app.js carry the two hands only when they are apart.
+
+**The look** (A0's GPU slot, Mon 19 Oct 10:35-10:37, gpu UXA, read off the page, no stills):
+- every new row is in its part: parking brake, fuel selector, lights one by one, each hand its own, the nose
+  front tiles and 'length';
+- `A.zFire` 2.63 sits ahead of the dash (2.20);
+- unfitting the landing light takes its 3 lamp objects away ('6 fitted') and refitting restores them (27);
+- `parkZ` moves the brake knob and 0 puts it back;
+- hands apart: left index 9.7 deg against right 98, and 54.7 / 53 both back when off;
+- 'cabFloor' is in the materials panel;
+- the Chinook's strut pods lie on (0, 0, 1) and fit;
+- no JS error (the same 3 resource 404s as G2760's look).
+- One label fixed there: two 'pilot' rows under 'aboard' -> 'pilot aboard'.
+- Gates: the 27 above, PASS on the pre-rebase 48e6cea62 (19 Oct 06:35, cpu UXA); rebased onto L19a e276fe9fe, node
+  --check clean.
+
+**Not done:**
+- **2 (Monday/Tuesday): the tank ranges.** The Cub's and Jodel's nose tanks are saved with `along: null`, so they sit
+  at the DEFAULT spot from the bay range. Widening that range, or fixing the `cowlDeck` unit bug (60c_gen_energy.js:352
+  reads a fraction of cabin height as metres), would move their CG. The fix splits the default's bounds (kept) from the
+  hand's slider envelope (wider) across the field cache, the out-of-bay test and the reset rule, with a gate on the
+  stock stations.
+- **5:** idle motion is already ON (dumIdle 0.5 in every preset and saved build); this waits for the user to say where
+  they see none.
+
+**What to watch for:**
+- the brake knob or fuel selector moved far from its seat floats (no clamp to the dash or the wall, by design: the
+  user's place);
+- the cable now crosses the footwell to the firewall: check the floor's cut and the belly lift on a short nose;
+- a strut pod on a steep strut: the girth test may now pass a pod the strut runs through (it is drawn ON the strut);
+- a floor with an override shows it in the livery as 'the cabin floor';
+- unfitting the landing lamp leaves the wing bay cut (A0's ruling);
+- per-hand values ride flight only when 'each hand its own' is on.
+
+**For DASH-REDESIGN (G3340-G3349, the cloud session that took Train B's dash items 11 + 12):** the energy layer
+tests every tank against the cage's `dash` and `dashFace` faces (_cage_energy.js ~672, 881-893: 'through the dash' =
+unfit, red, does not fly). It never moves the tank or its mass. A reshaped dash, or a bottom opened for reservoirs,
+can therefore flip a saved tank's FIT without moving it. The nose-tank range (Train B item 2, EDITOR-UX-A) is not the
+dash's: say in HANDOVER if the dash's new tank space needs the nose bay to reach under it.
+
 ## G3340-G3341 - DASH-REDESIGN: THE ARCH DASH (open below, a straight vertical forward edge, cheeks meeting the post) + THE FLEXIBLE DIAL LAYOUT (2026-10-18, DASH-REDESIGN for A0, cloud - node + a software raster of the bench's headless scene; branch claude/dash-redesign off claude/dash-redesign-brief, ready as claude/ready/dash-redesign)
 
 **The ask (the user, 18 Oct):** "the whole top and front parts are OK, the sides and bottom are not, and being able to fit fuel tanks without collisions in there feels imperative". The design direction: one mesh like an arch, plus the flat front panel. Review items 11 and 12.

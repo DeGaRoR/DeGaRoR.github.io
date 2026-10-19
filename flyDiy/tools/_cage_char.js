@@ -120,7 +120,7 @@ function rig(key) {
     const sign = thumb ? 1 : (m[1] === 'Left' ? -1 : 1);
     const axisW = thumb ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 0, 1);
     const axis = axisW.applyQuaternion(restQ[i].clone().invert()).normalize();
-    curl.push({ i, axis, ang: ang * sign });
+    curl.push({ i, axis, ang: ang * sign, left: m[1] === 'Left' });   // G2797: which hand
   });
   hangArm(t, 'Left'); hangArm(t, 'Right');
   const wp = {};
@@ -436,10 +436,12 @@ function dress(inst, dum, opts) {
   // about its own curl axis by its share of a closed fist times `fist`; the
   // next phalanx is a child, so the chain closes on itself for free.
   const fist = opts.fist == null ? 0.5 : opts.fist;
+  // G2797: a hand of its own when asked (`fistL` / `fistR`), else the one fist
+  const fL = opts.fistL == null ? fist : opts.fistL, fR = opts.fistR == null ? fist : opts.fistR;
   for (const cu of R.curl) {
     const o = t.objs[cu.i];
     o.quaternion.copy(R.restLocal[cu.i])
-      .multiply(_q.setFromAxisAngle(cu.axis, cu.ang * fist));
+      .multiply(_q.setFromAxisAngle(cu.axis, cu.ang * (cu.left ? fL : fR)));
   }
   t.root.updateMatrixWorld(true);
   // the POSED locals: what the animator moves around (G205)

@@ -152,6 +152,8 @@ window.CAGE_PAGE = {
     ctlThr: 0, ctlPed: 1, consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0, yokeGap: 0.16,
     floorOn: 1, floorLift: 0,                    // G331: the floor, over the door sill
     trimX: 0, trimY: 0, trimZ: 0,                // G331: the trim wheel's place
+    parkX: 0, parkY: 0, parkZ: 0,                // G2791: the parking brake's place (offsets; 0 = its dash seat)
+    fselX: 0, fselY: 0, fselZ: 0,                // G2791: the fuel selector's place (offsets; 0 = its wall seat)
     flapCtl: 1,                                  // G335: the flaps' control — a floor lever or a dash switch (G442.3: the switch by default, the user's "initialize the flaps as a dash switch"; a saved build keeps its own)
     stickLen: 0.44, stickCrank: 0, thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9,
     pedalH: 0.18, pedalSpread: 0.10, pedalAngle: 25, dumOn: 1,
@@ -160,6 +162,8 @@ window.CAGE_PAGE = {
     swMaster: 0, swAlt: 0, swAvionics: 0,      // G311/G318: the shed's button states (off, unlit)
     paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
     dumHandGrip: 0.075,
+    // G2797: the hands apart (0 = one setting for both, as always)
+    dumHandsApart: 0, dumFistL: 0.5, dumFistR: 0.5, dumGripL: 0.075, dumGripR: 0.075,
     // G180 — WHO IS ABOARD, per section, and the passengers' own seat and
     // pose. THE PILOT ALONE by default (2026-09-07, the user: 'by default,
     // there is only the pilot'); it was full — what `dum2On 1` (retired,
@@ -197,7 +201,9 @@ window.CAGE_PAGE = {
         ['frNoseBotY', 'bottom height',   -1.60, 1.80, 0.005, { dim: 'len', follow: 'nose.botY' }],
         ['frNoseTopW', 'deck half-width',  0.00, 1.20, 0.005, { dim: 'len', follow: 'nose.topW' }],
         ['frNoseBotW', 'bottom half-width', 0.00, 1.20, 0.005, { dim: 'len', follow: 'nose.botW' }],
-        ['noseLen',    'deck fore/aft (nose length)', 0.20, 2.50, 0.01, { dim: 'len' }],
+        // G2790 (the user's garage review, 18 Oct: "the slider 'deck fore/aft'
+        // is really the section's LENGTH"): the nose's size row, labelled so
+        ['noseLen',    'length', 0.20, 2.50, 0.01, { dim: 'len' }],
         ['frNoseBotZ', 'bottom fore/aft', -0.60, 0.60, 0.005, { dim: 'len' }],
       ], 'open'],
       ['windscreen frame', [
@@ -706,6 +712,16 @@ window.CAGE_PAGE = {
         ['trimX',     'trim wheel left', -0.30, 0.30, 0.005],
         ['trimY',     'trim wheel up',   -0.30, 0.30, 0.005],
         ['trimZ',     'trim wheel fwd',  -0.45, 0.45, 0.005],
+        // G2791 (the user's garage review, 18 Oct: "controls for the parking
+        // brake's location, and for any other dashboard control"): the two
+        // that had no place of their own, as offsets from where they are
+        // drawn today (+x the pilot's left, +y up, +z forward)
+        ['parkX',     'parking brake left', -0.30, 0.30, 0.005, { when: P => +P.crewOn }],
+        ['parkY',     'parking brake up',   -0.20, 0.20, 0.005, { when: P => +P.crewOn }],
+        ['parkZ',     'parking brake fwd',  -0.20, 0.30, 0.005, { when: P => +P.crewOn }],
+        ['fselX',     'fuel selector left', -0.30, 0.30, 0.005, { when: P => +P.crewOn }],
+        ['fselY',     'fuel selector up',   -0.30, 0.30, 0.005, { when: P => +P.crewOn }],
+        ['fselZ',     'fuel selector fwd',  -0.60, 0.60, 0.005, { when: P => +P.crewOn }],
         ['consoleOn', 'centre console', 0, 1, 1],
         // G331: THE FLOOR — cut from the cabin at the sill's height (+ the
         // lift); every seat, pedal and console stands on it
@@ -719,7 +735,9 @@ window.CAGE_PAGE = {
       // billed where the seat is; `dum2On` (every seat filled or none) is
       // retired and migrated in cageFromSpec.
       ['aboard', [
-        ['dumOn',     'pilot dummy',    0, 1, 1],
+        // G2794: the PILOT, not the dummy it was before the characters ('aboard':
+        // the next row, the pilot choice, is labelled 'pilot' already)
+        ['dumOn',     'pilot aboard',   0, 1, 1],
         // WHO FLIES (G204/G204.1): the pilot and the co-pilot each pick from
         // the same list — mixed crew (the characters rotate through every
         // seat aboard, the passengers included), the ATD-01, or one declared
@@ -738,11 +756,21 @@ window.CAGE_PAGE = {
         ['dumElbows', 'elbows in/out', -0.25, 0.25, 0.005],
         ['dumKnees',  'knees in/out',  -0.25, 0.25, 0.005],
         ['dumRecline','recline offset',-15, 25, 0.5],
-        ['dumHandGrip','hand on grip',  0, 0.16, 0.005],
+        ['dumHandGrip','hand on grip',  0, 0.16, 0.005,
+         { when: P => !+P.dumHandsApart }],
         // G205: how far the fingers close (0 flat, 1 a fist; a character
         // only), and the pilot's breathing/glancing amplitude off the
         // sitting-idle clip (0 = a statue)
-        ['dumFist',   'fist closed',    0, 1, 0.05],
+        ['dumFist',   'fist closed',    0, 1, 0.05,
+         { when: P => !+P.dumHandsApart }],
+        // G2797 (the user's garage review, 18 Oct: "hand controls applied per
+        // hand"): the two hands set apart - each one's fist and its place on
+        // the grip; off, both follow the two rows above
+        ['dumHandsApart', 'each hand its own', 0, 1, 1],
+        ['dumFistL',  'left fist closed',  0, 1, 0.05, { when: P => !!+P.dumHandsApart }],
+        ['dumFistR',  'right fist closed', 0, 1, 0.05, { when: P => !!+P.dumHandsApart }],
+        ['dumGripL',  'left hand on grip',  0, 0.16, 0.005, { when: P => !!+P.dumHandsApart }],
+        ['dumGripR',  'right hand on grip', 0, 0.16, 0.005, { when: P => !!+P.dumHandsApart }],
         ['dumIdle',   'idle motion',    0, 1, 0.05],
         ['dumMarkers','eye point',      0, 1, 1],
       ], 'open', { when: P => +P.crewOn }],
