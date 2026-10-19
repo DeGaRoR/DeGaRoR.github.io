@@ -1217,10 +1217,10 @@ try {
       if (bAP.hidden) throw new Error('#bAP is hidden in flight (G3325: always in sight)');
       AP.set(false);
       if (!AP.manual()) throw new Error('FLYDIY_AP.set(false) did not hand the aeroplane over');
-      if (!/autopilot off/i.test(bAP.textContent)) throw new Error('#bAP says ' + JSON.stringify(bAP.textContent) + ' by hand');
+      if (!/^Manual/.test(bAP.textContent)) throw new Error('#bAP says ' + JSON.stringify(bAP.textContent) + ' by hand');
       AP.set(true);
       if (!AP.autopilot()) throw new Error('FLYDIY_AP.set(true) did not give the aeroplane back');
-      if (!/autopilot on/i.test(bAP.textContent)) throw new Error('#bAP says ' + JSON.stringify(bAP.textContent) + ' on the autopilot');
+      if (!/^Autopilot: ON/.test(bAP.textContent)) throw new Error('#bAP says ' + JSON.stringify(bAP.textContent) + ' on the autopilot');
       console.log('the autopilot toggle (G3325): in sight, on by default, handed over and back');
     }
   }

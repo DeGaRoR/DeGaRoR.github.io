@@ -7717,7 +7717,8 @@
   // 'flydiy:manual' { manual, by: 'button' | 'key' | 'takeover' | 'api' } on every change
   function apToggleSync() {
     const b = $('bAP'); if (!b) return;
-    b.textContent = manual ? 'You fly · autopilot off' : 'Autopilot on';
+    // (GAME's words, 19 Oct: a plain visible label and the key - R17, nothing hover-only; Tim says the rest at T1)
+    b.textContent = (manual ? 'Manual' : 'Autopilot: ON') + '  ·  A';
     try { b.classList.toggle('on', !manual); b.setAttribute('aria-pressed', manual ? 'false' : 'true'); } catch (e) {}
     b.title = manual ? 'You have the controls - press to hand the aeroplane back to the autopilot' : 'The autopilot flies it - press, or move the stick, the pedals or the throttle, to fly it yourself';
   }
