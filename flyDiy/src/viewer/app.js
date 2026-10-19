@@ -6185,8 +6185,16 @@
     try { for (const s of document.querySelectorAll('#selPersona, .routePick select.persona')) s.value = personaChoice; } catch (e) {}
   }
   // what makePilot is handed: a name, or the custom person as an object (pilotProfile clamps it)
+  // G3324 (the user, 19 Oct: "when the player is playing but chooses the autopilot, it should ALWAYS be the expert. The
+  // player is supposed the expert. Only later, with the routes, will we have autopilots with various characteristics. So it
+  // should stop being an option, maybe it can go to the dev section"): THE PLAYER'S AUTOPILOT IS THE EXPERT. A person flies
+  // only with DEV on (G760's flydiy.flDev - read off the pref here: personaProfile runs before the rail's block); the
+  // player document's pilot.profile is kept, not rewritten - DEV picks it up again. The career's side: careerCrewProfile
+  // (GAME's CAREER_PLAYER_EXPERT, career-expert)
+  const personaDev = () => prefGet('flydiy.flDev', '') === '1';
   function personaProfile() {
     if (CAREER_DEV) return careerCrewProfile() || 'expert';   // G2290 (PILOTS): the career's roster pick; "I fly" the expert
+    if (!personaDev()) return 'expert';   // G3324: the player's own flights, outside DEV
     personaLoad();
     if (personaChoice === 'custom') return Object.assign({ name: 'custom', active: true }, JSON.parse(JSON.stringify(personaCustom)));
     return (typeof PILOT_PROFILES !== 'undefined' && PILOT_PROFILES[personaChoice]) ? personaChoice : 'expert';
@@ -12765,7 +12773,7 @@
       clockRowBuild(host, where);
       // G2290 (PILOTS): in the career, who flies it is the roster pick (its own row); the sandbox keeps the persona row
       if (CAREER_DEV) careerCrewRow(host, where);
-      else {
+      else if (personaDev()) {   // G3324: who flies it is DEV's - the player's autopilot is the expert
         // G2085 (PILOT-PERSONA): WHO FLIES IT, beside where it goes - the personality on the route row (the shed's flight
         // setup beside ROLL OUT, the roll-out screen's), a mirror of the one keeper #selPersona (personaSync keeps every
         // mirror on it); each option's hover is that person's one line. In the shed it decides who flies the roll-out;
@@ -13597,6 +13605,8 @@
       }
     }
     if (flyOpen === 'dev' && !(flDevOn || scen)) flyOpenSet(null);
+    // G3324: the shed's persona keeper (#selPersona) is DEV's too
+    { const sp = $('selPersona'); if (sp) sp.hidden = !flDevOn; }
   }
   function flDevSet(on) {
     flDevOn = !!on; prefSet('flydiy.flDev', flDevOn ? '1' : '0');
@@ -14054,6 +14064,7 @@
   // it flies from the next start. 'start from' copies a personality into the knobs (the downgrade the user asked for:
   // the full model, tuned down to a person).
   function flPersona(body) {
+    if (CAREER_DEV || !personaDev()) return;   // G3324: the persona is DEV's (the player flies the expert)
     if (CAREER_DEV) return;   // G2290 (PILOTS): the career's pilot is the roster's - the persona pills are the sandbox's only
     const sel = $('selPersona');
     if (!sel || typeof PILOT_PROFILES === 'undefined') return;
