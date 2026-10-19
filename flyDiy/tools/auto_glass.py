@@ -126,6 +126,8 @@ def car_maps(packs):
         for k, r in p['props'].items():
             if r.get('group') not in ('auto',) and not (r.get('lodOf') or '').startswith('auto_'):
                 continue
+            if not SHARED & set(r.get('mats', {})):
+                continue      # a low-poly car (no shared wheel atlas): its flat white is BODY paint, its glass geometry
             for name, m in r.get('mats', {}).items():
                 mid = m.get('map')
                 if name in SHARED or not isinstance(mid, str):
@@ -153,6 +155,8 @@ def car_arms(packs):
         for r in p['props'].values():
             if r.get('group') != 'auto' and not (r.get('lodOf') or '').startswith('auto_'):
                 continue
+            if not SHARED & set(r.get('mats', {})):
+                continue      # a low-poly car: not glazed, its ARM left as delivered
             for name, m in r.get('mats', {}).items():
                 if name in SHARED or not isinstance(m.get('map'), str) or not isinstance(m.get('arm'), str):
                     continue
@@ -398,9 +402,9 @@ def main(argv):
         return 0
     rewrite(packs, remap, 'map')
     packs = {f: read_pack(f) for f in pack_files()}
-    rim_remap = rims_pass(packs)
-    rewrite(packs, rim_remap, 'map')
-    packs = {f: read_pack(f) for f in pack_files()}
+    # (the RIMS pass is NOT run: on 19 Oct it found the glass tint in the small cars' own dark paint and blotched their
+    # white bodies - kept below for a later, window-only take)
+    rim_remap = {}
     arm_remap, _ = arm_pass(packs, False)
     rewrite(packs, arm_remap, 'arm')
     print('---\n%d car props\' normals flipped, %d car maps glazed (%d windows), %d rims painted, %d glass ARMs smoothed; '
