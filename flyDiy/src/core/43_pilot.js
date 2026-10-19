@@ -721,9 +721,6 @@ function makePilot(sim, def, world, opts) {
   // aeroplane asks, not the hand's swing; over HUM_REF's 1 s the ham-fist's flap still came in on one seed of four and
   // the climb-out's speed was raised on three); the expert on the elevator, as before
   let deDem = null, thShortH = 0;
-  // G3323 (the PILOT COORDINATOR, 19 Oct): the last time the hull was wet (the water's no-delay window outlasts a skip)
-  let humWetT = -1e9;
-  const HUM_WET = 2.0;
   const deHeld = () => PRA ? (deDem ?? SV.aDe) : SV.aDe;
   const humanise = (dt, onG) => {
     const c = sim.ctl;   // (the update's own `c` is not in scope here)
@@ -738,16 +735,8 @@ function makePilot(sim, def, world, opts) {
     // the take-off group's rudder reversals / min): 0.05 s lifted every person off once but dithered the rudder (bush
     // 286, ham-fist 391); none: student 19, club 6, bush 6, ham-fist 147 (his hand) - the person's gain, hands and
     // unsteadiness still fly the water, their delay does not
-    // G3323 (19 Oct, AP-ADAPT's grid on t66: the user's float Cessna + the STUDENT capsized on the water take-off, the expert and
-    // the ham-fist did not): THE WATER'S WINDOW OUTLASTS A SKIP. At the lift-off the hull skips (onG 0/2/1/0/1/2 for 4 s) and
-    // each touch flipped the person between the water's hands (no delay, the gain whole) and the air's (0.35 s, the gain 0.30):
-    // the delay line re-filled with the moment's command at every switch, the gain jumped x3 - the bank -39 deg on the skips,
-    // then a float caught and it rolled over. The hull counts as wet for HUM_WET (2 s) after its last touch: a skipping
-    // lift-off is flown as the water run it still is, and the air's person begins once the floats have stayed clear
-    if (sim.hydro && onG > 0) humWetT = ap.t;
-    const wet = !!sim.hydro && (onG > 0 || ap.t - humWetT < HUM_WET);
-    const rx = wet ? 0 : (onG > 0 || ap.phase === 'FLARE') ? Math.min(PRF.reaction, HUM_GCAP) : PRF.reaction;
-    const g = wet ? 1 : humGain(rx, onG);
+    const rx = (!!sim.hydro && onG > 0) ? 0 : (onG > 0 || ap.phase === 'FLARE') ? Math.min(PRF.reaction, HUM_GCAP) : PRF.reaction;
+    const g = humGain(rx, onG);
     if (g !== 1) {
       const a = Math.min(1, dt / HUM_REF);
       if (!HUM.ref) HUM.ref = [c.de, c.da, c.dr];
@@ -775,7 +764,7 @@ function makePilot(sim, def, world, opts) {
       // seed of four (seed 1: the bank 12.7 -> -58 -> -142 deg at 15-17 m/s, 'rejected-takeoff' - pilot_persona's one FINDING;
       // with the pre-G1885 damper, or the propeller's effects off, it flew); halved: the student and the ham-fist off the water
       // once on all four seeds
-      const K = PRF.hamFist * 1.12 * ((ap.phase === 'FLARE' || ap.phase === 'ROLLOUT' || wet) ? 0.5 : 1);   // the lag's rms loss (sqrt(1 + 0.12 / 0.5)) given back
+      const K = PRF.hamFist * 1.12 * ((ap.phase === 'FLARE' || ap.phase === 'ROLLOUT' || (sim.hydro && onG > 0)) ? 0.5 : 1);   // the lag's rms loss (sqrt(1 + 0.12 / 0.5)) given back
       // G2466 (PERSONA-2): A STICK HELD AGAINST ITS STOP IS NOT WANDERED - the taildragger's roll-out holds the stick
       // full back (0.35, the stop) and the ham-fist's wander there worked the tailwheel's load: the Cub's roll-out swung
       // to 28.9 deg at 0.3 Hz, the rudder on +-0.9 (GATE PILOTMATRIX's cub:HOME:calm:hamfist, baseline 2.8; the base tree
