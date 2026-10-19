@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 0f2f2d902f04b839
+// body-sha256: e571fc7a42ac9ac3
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -6886,7 +6886,18 @@ function fleetSpots(aero, site, opts) {
   // the site's hangar (the garage's shed), as the circle round its box: whatever way it is turned
   const hang = site && site.hangar && site.hangar.HW ? site.hangar : null;
   const hangarD = (x, z) => (hang ? Math.hypot(x - hang.x, z - hang.z) - Math.hypot(hang.HW, hang.HD) : Infinity);
-  const why = { field: 0, runway: 0, solid: 0, route: 0, flat: 0, water: 0, overlap: 0 };
+  // G3097 (the Cabin Strip, L19b): THE SITE'S PLOTS - a building's place (the shed you may buy there) keeps the spots `gap` off
+  // its footprint (the offer's widest shell, GATE TAXICLEAR 12's box); a plot without an offer is not held
+  const plotBoxes = [];
+  if (site && Array.isArray(site.plots) && typeof BASE_OFFERS !== 'undefined' && BASE_OFFERS[aero.id] && typeof SHELLS !== 'undefined')
+    for (const p of site.plots) {
+      const P = !p.main && BASE_OFFERS[aero.id].plots[p.id]; if (!P) continue;
+      let HW = 0, HD = 0; for (const sh of P.shells) { const d = (P.dims && P.dims[sh]) || (SHELLS[sh] && SHELLS[sh].dims); if (d) { HW = Math.max(HW, d.HW); HD = Math.max(HD, d.HD); } }
+      if (HW > 0 && HD > 0) plotBoxes.push({ x: p.x, z: p.z, c: CORE_MATH.cos(p.hdg || 0), s: CORE_MATH.sin(p.hdg || 0), HW, HD });
+    }
+  const plotD = (x, z) => { let m = Infinity; for (const b of plotBoxes) { const dx = x - b.x, dz = z - b.z, u = dx * b.c + dz * b.s, v = -dx * b.s + dz * b.c;
+    m = Math.min(m, Math.hypot(Math.max(Math.abs(u) - b.HD, 0), Math.max(Math.abs(v) - b.HW, 0))); } return m; };
+  const why = { field: 0, runway: 0, solid: 0, route: 0, flat: 0, water: 0, overlap: 0, plot: 0 };
   const no = (sp, w, d) => { why[w]++; if (o.trace) o.trace.push({ id: sp.id, why: w, d: d === undefined ? null : +(+d).toFixed(2) }); return false; };
   // the runway's keep-out: a paved runway's strip (rwyClr past its edge); a narrow strip's own edge + rwyNarrow (an 11 m span
   // rolling on its centreline clears a spot there by its half-span and more); on water, off the lane's centreline
@@ -6902,6 +6913,7 @@ function fleetSpots(aero, site, opts) {
     if (o.ground && !water) { const h = C.concat([[sp.x, sp.z]]).map(q => o.ground(q[0], q[1])); const d = Math.max(...h) - Math.min(...h); if (d > F.flatTol) return no(sp, 'flat', d); }
     const pts = fleetSpotPts(sp, F.step, true);
     for (const q of pts) { const d = Math.min(hangarD(q[0], q[1]), solid ? solid(q[0], q[1], margin + 1) : Infinity); if (d < margin) return no(sp, 'solid', d); }
+    if (plotBoxes.length) for (const q of pts) { const d = plotD(q[0], q[1]); if (d < F.gap + 0.05) return no(sp, 'plot', d); }
     const rr = Math.max(sp.half, sp.fwd, sp.aft) + need + 2;
     for (const q of routes) if (Math.abs(q.x - sp.x) < rr && Math.abs(q.z - sp.z) < rr) { const d = fleetSpotDist(sp, q.x, q.z); if (d < need) return no(sp, 'route', d); }
     for (const b of ok) {
@@ -9102,7 +9114,7 @@ function stageIssues(rec0, maxes) {
         if (kind === 'runway' && e && q) {
           const r = Object.assign({}, RUNWAY_DEF, e, q); delete r.stage; delete r.show;
           if (!(r.len >= 150) || !(r.wid >= 8)) out.push(what + ' vary[' + i + ']: a strip is at least 150 m by 8 m');
-          else for (const pi of profileIssues(r)) out.push(what + ' vary[' + i + ']: ' + pi);
+          else for (const pi of profileCheck(r).refuse) out.push(what + ' vary[' + i + ']: ' + pi);
         }
       });
     }
@@ -9566,6 +9578,10 @@ const ZONE_GRASS = { residential: { kind: 'lawn', h: 0.12, density: 1 }, commerc
   industrial: { kind: 'none' }, harbour: { kind: 'none' }, airfield: { kind: 'meadow' }, forest: { kind: 'meadow' }, clear: { kind: 'meadow' } };
 function zoneGrass(zone) { return Object.assign({}, ZONE_GRASS[zone && zone.kind] || { kind: 'meadow' }, (zone && zone.rules && zone.rules.grass) || {}); }
 // a road's look: its own, else its class's; the pavement's row for it (or null for 'none')
+// ONE SURFACE (the user, 18 Oct): what a road's wheels feel (its own `surface`, else its class's - the composer's rule) and
+// whether a look feels as a class does (a look with no feel of its own - markings only - feels as anything)
+function roadFeel(r) { return r.surface !== undefined && r.surface !== null ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL); }
+function lookFeelsAs(look, feel) { const L = RUNWAY_LOOKS[look]; return !L || L.surface === null || L.surface === undefined || +L.surface === +feel; }
 function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD_LOOK[r.cls] || 'gravel'); return { key: k, row: RUNWAY_LOOKS[k] }; }
 // THE ONE-WAY STRIP (v9, contract v1.11): `approach` names the end the landing comes over (0 or 1) when
 // the air is calm - a strip with a ridge at one end lands from the other and departs toward it; null
@@ -9635,9 +9651,14 @@ function runwayProfile(r) {
 // under 20 %, no touchdown-zone rule (the touchdown IS on the slope), a crest under 5 % of slope change
 // over 30 m (the ease into the flat top the aeroplane stops on), an `approach` named, and the far end
 // higher than the threshold it lands over
+// THE LIMITS WARN, NEVER REFUSE (the user, 18 Oct: "strip 9 stays, the slope rules ... were to be relaxed" - no
+// filtering, the player finds out): every limit below is a WARNING (profileCheck's `warn`: the editor's profile
+// note and checks panel, PG.warnings); only an altiport without its approach is refused (`refuse`: PG.issues).
+// profileIssues is both, the editor's note.
 const ALTIPORT = { slopeMax: 0.20, crestMax: 0.05 };
-function profileIssues(r) {
-  const out = [], pr = runwayProfile(r), L = r.len, alti = !!r.altiport;
+function profileIssues(r) { const c = profileCheck(r); return c.refuse.concat(c.warn); }
+function profileCheck(r) {
+  const out = [], refuse = [], pr = runwayProfile(r), L = r.len, alti = !!r.altiport;
   let worst = 0, tdz = 0, crest = 0;
   for (let a = 0; a <= L; a += 3) {
     const sl = Math.abs(pr.slopeAt(a)); worst = Math.max(worst, sl);
@@ -9647,14 +9668,14 @@ function profileIssues(r) {
   if (alti) {
     if (worst > ALTIPORT.slopeMax) out.push('runway ' + r.id + ': the altiport is ' + (worst * 100).toFixed(1) + ' % somewhere, over ' + ALTIPORT.slopeMax * 100 + ' %');
     if (crest > ALTIPORT.crestMax) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over ' + ALTIPORT.crestMax * 100 + ' on an altiport');
-    if (r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': an altiport names its approach (the end it is landed over)');
+    if (r.approach !== 0 && r.approach !== 1) refuse.push('runway ' + r.id + ': an altiport names its approach (the end it is landed over)');
     else if (!((r.approach === 0 ? pr.at(L) - pr.at(0) : pr.at(0) - pr.at(L)) > 0)) out.push('runway ' + r.id + ': an altiport is landed uphill - the far end must be higher than end ' + r.approach);
-    return out;
+    return { refuse, warn: out };
   }
   if (worst > 0.05) out.push('runway ' + r.id + ': the profile is ' + (worst * 100).toFixed(1) + ' % somewhere, over 5 %');
   if (tdz > 0.025) out.push('runway ' + r.id + ': the touchdown zone slopes ' + (tdz * 100).toFixed(1) + ' %, over 2.5');
   if (crest > 0.015) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over 1.5');
-  return out;
+  return { refuse, warn: out };
 }
 // THE SHOULDER (v9): the strip's radius of terraforming - how far past the box (either side and past the
 // ends) the grade's falloff runs before the ground is the terrain's again; authored (falloff) or a
@@ -9810,6 +9831,18 @@ function runwaySite(r, F) {
 // (v1.33) a stage's `sock: false` / `ties: false` onto the aerodrome (render_world's windsock, 25_airfield fleetSpots);
 // absent - the record never says it - the aerodrome is untouched
 function stageAero(a, r) { if (r.sock === false) a.sock = false; if (r.ties === false) a.ties = false; return a; }
+// G3098 (the Cabin Strip): A STRIP'S DRAWN FLIGHT - `fly` { dep, appr, circuit?, side?, terrainOk? } in the premises frame (the
+// pilot's: dep from the lift-off end, its last point where the tight zone is passed, no turn before it; appr outermost first,
+// ending at the threshold; a point [x, z] or [x, z, metres above the strip's top end]), handed to the pilot in the world
+function flyWorld(f, F) {
+  if (!f || typeof f !== 'object') return null;
+  const W = L => Array.isArray(L) ? L.filter(q => Array.isArray(q) && isFinite(+q[0]) && isFinite(+q[1])).map(q => { const w = F.toWorld(+q[0], +q[1]); return q.length > 2 && isFinite(+q[2]) ? [+w[0].toFixed(2), +w[1].toFixed(2), +q[2]] : [+w[0].toFixed(2), +w[1].toFixed(2)]; }) : null;
+  const o = { dep: W(f.dep), appr: W(f.appr) };
+  if (Array.isArray(f.circuit)) o.circuit = W(f.circuit);
+  if (f.side === 1 || f.side === -1) o.side = f.side;
+  if (f.terrainOk === true) o.terrainOk = true;
+  return o;
+}
 function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   const E = runwayEnds(r);
   const c = F.toWorld(r.c[0], r.c[1]);
@@ -9856,7 +9889,7 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
            // (0|1); without it a one-way strip is left the way it is landed. East Point is landed over the sea and left
            // back out over it - the trees close in at the other end
            takeoffHdg: r.departure === 1 ? hdg : r.departure === 0 ? hdg + Math.PI : null,
-           slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null };
+           slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null, ...(r.fly ? { fly: flyWorld(r.fly, F) } : {}) };
 }
 
 // ---------------------------------------------------------------------------
@@ -12147,9 +12180,12 @@ function issues(rec0) {
   for (const r of rec.layers.runways) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
-    else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
+    else for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).refuse) out.push(i);
     if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
     if (r.approach !== undefined && r.approach !== null && r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': approach is 0, 1 or null');
+    // (G3098) a drawn flight: dep / appr lists of points, side +-1
+    if (r.fly != null) { const f = r.fly, pts = L => L == null || (Array.isArray(L) && L.every(q => Array.isArray(q) && q.length >= 2 && isFinite(+q[0]) && isFinite(+q[1])));
+      if (typeof f !== 'object' || !pts(f.dep) || !pts(f.appr) || !pts(f.circuit) || (f.side != null && f.side !== 1 && f.side !== -1)) out.push('runway ' + r.id + ': fly is { dep, appr, circuit? (lists of [x, z]), side? +1 / -1, terrainOk? }'); }
     if (r.circuit != null) {
       const c = r.circuit;
       if (typeof c !== 'object') out.push('runway ' + r.id + ': circuit is an object { hand, height, join } or null');
@@ -12268,6 +12304,13 @@ function curvTol(O, F, lx, lz, c, world) {
 }
 
 // the check lines: [{ ok, label }] — the panel draws them, the gate counts them
+// THE WARNINGS (18 Oct): what the editor tells and nothing refuses - a strip's profile past the pilot's or the altiport's
+// limits (profileCheck's `warn`). The ship, the gates and the loaders read issues(); a warning ships.
+function warnings(rec0) {
+  const rec = expandAreas(normalise(rec0)), out = [];
+  for (const r of rec.layers.runways) if (r.c && r.len >= 150 && r.wid >= 8) for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).warn) out.push(i);
+  return out;
+}
 function checks(rec0, world, opts) {
   const recA = normalise(rec0), rec = expandAreas(recA), o = opts || {};
   const lines = [];
@@ -12413,11 +12456,11 @@ function collect(globals) {
 const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, lookFeelsAs,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
-  frameOf, zoneWaterY: zoneWaterYOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
+  frameOf, zoneWaterY: zoneWaterYOf, compose, issues, warnings, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
 // standalone in node (GATE PREMISES requires this file) the API is the module; inside the core
 // bundle 90_node_exports.js assigns module.exports after this line and carries PREMISES_GEN itself
@@ -44151,6 +44194,16 @@ function playerShedDims(doc, id, site) {
 // PLACE in the world (x, z, door heading) is the premises record's —
 // session 3 (GAME-PREMISES §5); HOME's is the club hangar G434 stood.
 const BASE_OFFERS = {
+  // G2743 (STORY, the user 18 Oct): THE CABIN STRIP - runway w1 'Cabin Strip' of the user's save 17 (gravel 383 m, an S up
+  // a lake valley, one approach through a mountain gap); its base plot 'w1' at the flat top end (SCENERY-ED-2). The
+  // story's start GRANTS it (79_story.js storyStart): the smallest shed, made comfortable. "The middle of nowhere."
+  w1: {
+    words: 'the Cabin Strip · gravel up a lake valley',
+    // (G2745) the Field shed only (the smallest shed; its footprint fits the strip's flat top), 18 x 20 m (ED-2 places the plot for it) so a
+    // Cub stands inside with its kits (GATE GAMEPREM: "the field as offered takes a cub")
+    plots: { w1: { shells: ['field'], kits: ['park', 'bench', 'comfort'], pf: 0.6,
+                   dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } } },
+  },
   HOME: {
     words: 'Jolene AFB · the WWII field',
     plots: {
@@ -44226,8 +44279,9 @@ const PREM_SLOTS = { bay: 1, main: 2, mainClub: 1, side: 1, sideClub: 2 };
 const PREM_STORE = {
   shells: { club: { inside: 2, outside: 6 }, works: { inside: 4, outside: 6 }, field: { inside: 0, outside: 2 } },
   outsideMax: 6,
-  // w5-w8: the field club's and SHIP-2's contract fields, cooked since train 52 / 53 (GATE STORAGE caught the pack ahead of this table)
-  spots: { w2: 12, HOME: 12, w3: 12, SEA: 12, mk_sea: 12, nv_strip: 5, mn_strip: 0, tw_ski: 0, w5: 7, w6: 12, w7: 12, w8: 12 },
+  // w5-w8: the field club's and SHIP-2's contract fields, cooked since train 52 / 53 (GATE STORAGE caught the pack ahead of this table);
+  // w4 strip 9 + w1 the Cabin Strip (G3097, SCENERY-ED-2's cook)
+  spots: { w2: 12, HOME: 12, w3: 12, SEA: 12, mk_sea: 12, nv_strip: 5, mn_strip: 0, tw_ski: 0, w5: 7, w6: 12, w7: 12, w8: 12, w4: 0, w1: 11 },
   kinds: ['floor', 'inside', 'outside', 'long', 'away'],
 };
 // THE OUTSIDE WEAR (GQ7): visible chalking and streaks after ~10 flown hours
@@ -44844,22 +44898,35 @@ function playerRecover(doc, name, opts) {
 // a wreck), back into the hangar it last left, else the main hangar - a slot
 // free and the floor for it, as any arrival - else stationed outside at
 // HOME. Free and instant in both modes; the recovery line is written at 0.
+// G2743 (STORY): a held shed may be LOCKED - the story's HOME before beat T1 (the user: the start owns ONLY the cabin; the
+// WWII field is the hub you fly to). A locked shed stays in the document (HOME is the main hangar everywhere) but is never a
+// destination: not here, not home, not a send-to, not a move's target. The beat that grants it clears the lock.
+const playerShedLocked = (doc, id) => !!(doc && doc.sheds && doc.sheds[id] && doc.sheds[id].locked);
+// the held, unlocked sheds, the main hangar first (the order "bring it home" falls back through)
+const playerShedsOpen = doc => Object.keys(doc.sheds || {}).filter(id => doc.sheds[id] && typeof doc.sheds[id] === 'object' && !doc.sheds[id].locked)
+  .sort((a, b) => (a === PREM_MAIN ? -1 : b === PREM_MAIN ? 1 : 0));
 function playerBringHome(doc, name, opts) {
   opts = opts || {};
   const e = doc.fleet[name];
   if (!e) return pbNo(doc, name + ' is not in the fleet');
   const W = playerWhere(doc, name);
   const order = [];
-  for (const id of [e.left, PREM_MAIN]) if (id && doc.sheds[id] && !order.includes(id)) order.push(id);
+  // (G2743) a SEND-TO names the one hangar; else the one it left, then the main hangar, then any other open one
+  const cand = opts.to ? [opts.to] : [e.left, PREM_MAIN].concat(playerShedsOpen(doc));
+  for (const id of cand) if (id && doc.sheds[id] && !doc.sheds[id].locked && !order.includes(id)) order.push(id);
+  if (opts.to && !order.length) return pbNo(doc, playerShedLocked(doc, opts.to) ? opts.to + ' is not yours yet' : 'no hangar ' + opts.to);
   // inside a hangar of yours already: it is home (a resident is never shuffled by this door)
-  if (W.kind === 'in') return { ok: true, doc, kind: 'in', hangar: W.hangar, why: 'already inside ' + W.hangar };
+  // (G2744) a send-to another hangar moves it even from inside one (or long-term in one); bring-home leaves it be
+  if (W.kind === 'in' && (!opts.to || W.hangar === opts.to)) return { ok: true, doc, kind: 'in', hangar: W.hangar, why: 'already inside ' + W.hangar };
   const d = pbClone(doc);
   let at = null;
   for (const id of order) {
     if (hangarDoorWhy(d.sheds[id], playerFootOf(d, name, opts.foots))) continue;
     if (playerFits(d, id, playerResidents(d, id).concat([name]), opts.foots, opts).ok) { at = id; break; }
   }
-  const homeAero = d.sheds[PREM_MAIN] ? d.sheds[PREM_MAIN].base : PREM_MAIN;
+  // the apron it falls back to: the named hangar's (send-to), else the main hangar's, else the first open hangar's
+  const fall = order[0] && (opts.to || !d.sheds[PREM_MAIN] || d.sheds[PREM_MAIN].locked) ? order[0] : PREM_MAIN;
+  const homeAero = d.sheds[fall] ? d.sheds[fall].base : PREM_MAIN;
   // G2690: no room inside -> the home apron (its own slot kept when it stands there already), else long-term at home
   const SW = playerStoreWhere(d, name);
   const got = at ? pbIn(d, name, at)
@@ -45182,8 +45249,15 @@ function playerUpgrade(doc, hangarId, change, opts) {
 // ---- THE GARAGE'S DOOR, THE CLOCK, THE LABOUR ------------------------------------
 // which hangar the garage opens in (the premises screen's "go there"):
 // instant — the pilot travels with the aeroplanes (GAME-PREMISES Q7)
+// G2743 (STORY, the user 18 Oct: "keep it simple: a 'send to' pick between the owned hangars"): an aeroplane of yours to
+// the named hangar, free and instant like "bring it home" (GQ5) - inside when its door and a slot take it, else that
+// field's apron, else long-term there. Refused: a hangar you do not hold, or one still locked by the story.
+function playerSendTo(doc, name, hangarId, opts) {
+  return playerBringHome(doc, name, Object.assign({}, opts || {}, { to: hangarId }));
+}
 function playerGoTo(doc, hangarId) {
   if (!doc.sheds[hangarId]) return pbNo(doc, 'no hangar ' + hangarId);
+  if (doc.sheds[hangarId].locked) return pbNo(doc, hangarId + ' is not yours yet');
   const d = pbClone(doc);
   d.here = hangarId;
   return { ok: true, doc: d, why: '' };
@@ -45882,7 +45956,7 @@ function acceptPlaqueLeg(legs, fp) {
 // 74_career.js at call time.
 // ===========================================================================
 
-// ---- THE FIELDS (the 12 runways of Jolene; GATE CONTRACTS holds every row to the record) -------------------
+// ---- THE FIELDS (the 13 runways of Jolene; GATE CONTRACTS holds every row to the record) -------------------
 //   x, z     the strip's centre (the record's `c`, metres) — distances are centre to centre
 //   len      the strip's length (m); surf the vocabulary word (25_airfield.js stripSurface)
 //   alti     an altiport (the record's `altiport`): sloped, high, a surface bonus
@@ -45903,8 +45977,10 @@ const CONTRACT_FIELDS = {
   w6:       { id: 'w6',       name: 'strip 11',                 x: -4172, z: -22110, len: 312,  surf: 'gravel', lit: true },
   w7:       { id: 'w7',       name: 'strip 12',                 x: -3554, z: -23721, len: 1020, surf: 'dirt', lit: true },   // (rev 27: the user's North East strip)
   // (G3020, rev 28: 'I have fixed the altiports ... I have added a few runways; they need integrating in the trunk')
-  // (w4 'strip 9' held back until the profile tool - over the altiport law, train 53)
+  w4:       { id: 'w4',       name: 'strip 9',                  x: -1404, z: -17699, len: 216,  surf: 'gravel', alti: true, lit: true, glide: 'papi' },
   w8:       { id: 'w8',       name: 'strip 13',                 x: 4361,  z: -16251, len: 392,  surf: 'sand', lit: true },
+  // (G2745, the user's save 17, 18 Oct: the Cabin Strip - the story's start, an S of gravel up a lake valley)
+  w1:       { id: 'w1',       name: 'Cabin Strip',              x: 2646,  z: -16040, len: 383,  surf: 'gravel', lit: true, glide: 'papi' },
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
@@ -49579,10 +49655,12 @@ function procureMarket(seed, done, sold) {
   return out;
 }
 const procureUsedById = (seed, id) => { const m = /^used:(\d+):(\d+)$/.exec(id || ''); return m ? procureUsedListing(seed, +m[1], +m[2]) : null; };
-// the market of a document: the career's seed and completed count; the sandbox's own seed ('sandbox', epoch 0)
+// the market of a document: the career's seed and completed count; the sandbox's own seed ('sandbox', epoch 0).
+// (G2742 STORY-PAGE) A story's occasions first (79_story.js storyOccasionListings: authored, one-time; none without a story)
 function procureMarketOf(doc) {
   const c = doc && doc.career;
-  return procureMarket(c ? c.seed : 'sandbox', c ? c.contracts.done.length : 0, procureSold(doc));
+  const occ = (c && c.story && typeof storyOccasionListings === 'function') ? storyOccasionListings(doc) : [];
+  return occ.concat(procureMarket(c ? c.seed : 'sandbox', c ? c.contracts.done.length : 0, procureSold(doc)));
 }
 function procureSold(doc) {
   const m = doc && ((doc.career && doc.career.market) || doc.market);
@@ -51352,8 +51430,413 @@ function freightStrapNext(doc, slot, card) {
   if (!r.ok) return { doc, rec: null, how: 'none', why: r.why };
   return { doc: r.doc, rec: r.rec, how: 'proposed', why: '' };
 }
+// ===========================================================================
+// THE STORY (G2741 STORY-CORE) — the career's tutorial on rails, then open:
+// the beats T0-T7 as data, the story's state in the career document, one
+// pure step per event, and the story's places found by ROLE.
+// futureDesigns/game/GAME-PLAN-2026-10-15.md §3 (the beats), §R (the user's
+// rulings of 15 Oct), §10 Q1 (the job list held until the three occasions).
+// ===========================================================================
+// THE SHAPE: `career.story` rides the career block (74_career.js); careerNormalise leaves it as it finds it, so a
+// career WITHOUT a story (every career made before this, the dev career) has no rails and nothing here applies to it.
+//   story: { v: STORY_V, beat: 'T0'..'T7' | 'open', done: ['T0', ...], planes: { starter, client, gift }: fleet slots,
+//            base: { client: <spec snapshot as it arrived> }, jobs: <tutorial jobs delivered>, open: false }
+// THE STEP: storyStep(doc, ev, ctx) -> { ok, doc, advanced: [beat ids], effects: [...], why }. Pure, on a clone; a
+// refusal hands back the very document it was given. EFFECTS are what the page must do to the world (a plane appears,
+// a hangar is ours, a route is offered, the occasions are listed); the core only records that the beat moved on.
+// The page answers a plane's arrival with a 'bind' event: { k: 'bind', role: 'client', slot }.
+// ===========================================================================
+const STORY_V = 1;
+
+// ---- THE STORY'S PLACES, BY ROLE ------------------------------------------------------------------------------------
+// The user names the cabin strip in the scenery editor (18 Oct): any aerodrome whose record says `role: 'cabin'` (or
+// lists it in `roles`), else whose NAME matches, else the first of the fallback ids present on the island. A role that
+// resolves to nothing returns null and the beat that needs it is refused with its reason (never a guess).
+const STORY_ROLES = {
+  // the user, 18 Oct: "the start of the game should really feel like you're in the middle of nowhere" - with no strip named
+  // Cabin yet, the story starts at a REMOTE strip (East Point Clearing, 150 m gravel; Rufus B needs 62 m), else Tamgas
+  // Hill; never HOME (the hub you fly to later)
+  cabin:  { name: /\bcabin\b/i, ids: ['nv_strip', 'w3'], words: 'the cabin strip' },
+  home:   { name: null, ids: ['HOME'], words: 'the WWII field' },
+  client: { name: /\bowner\b/i, ids: ['w6', 'w7', 'w5'], words: "the owner's strip" },        // long and easy (§3 T3)
+  water:  { name: null, kinds: ['water'], ids: ['SEA', 'mk_sea'], words: 'the seaplane base' },
+};
+function storySite(role, aeros) {
+  const R = STORY_ROLES[role], L = Array.isArray(aeros) ? aeros.filter(a => a && typeof a.id === 'string') : [];
+  if (!R) return null;
+  const tagged = L.find(a => a.role === role || (Array.isArray(a.roles) && a.roles.includes(role)));
+  if (tagged) return tagged.id;
+  if (R.name) { const n = L.find(a => typeof a.name === 'string' && R.name.test(a.name)); if (n) return n.id; }
+  for (const id of R.ids) if (L.some(a => a.id === id && (!R.kinds || R.kinds.includes(a.kind)))) return id;
+  if (R.kinds) { const k = L.find(a => R.kinds.includes(a.kind)); if (k) return k.id; }
+  return null;
+}
+
+// ---- THE CLIENT'S CHECKLIST (T2: the friends turn the client's wishes into clear objectives) -------------------------
+// Each item compares the delivered design with the plane as it ARRIVED (story.base.client), so "upgrade" means changed
+// from the arrival, never an absolute spec - performance contracts keep their rule; these are §R's special requests.
+const storyFitRank = S => { const f = S && S.systems && S.systems.fit; return f === 'minimal' ? 0 : f === 'basic' ? 1 : f === 'ifr' ? 2 : f === 'custom' ? 1.5 : 1; };
+const storyBattery = S => { try { return genSystemsResolve(S).elec.battery !== 'none'; } catch (e) { return storyFitRank(S) >= 1; } };
+const STORY_CHECKS = {
+  engine: { words: 'a stronger engine', ok: (S, B) => !!(S.engines && S.engines[0] && B.engines && B.engines[0] && S.engines[0].type !== B.engines[0].type) },
+  flaps:  { words: 'flaps fitted', ok: (S, B) => !!(S.controls && S.controls.flap && S.controls.flap.type && S.controls.flap.type !== 'none') &&
+                                                  !(B.controls && B.controls.flap && B.controls.flap.type && B.controls.flap.type !== 'none') },
+  tyres:  { words: 'fat tyres (a quarter bigger)', ok: (S, B) => !!(S.gear && B.gear && +S.gear.wheelR >= 1.25 * +B.gear.wheelR) },
+  // the aeroplane's lights hang on its electrics (the game draws nav / landing lights where a battery feeds them):
+  // "lights" = an electrical system where the plane arrived with none
+  lights: { words: 'lights (an electrical system)', ok: (S, B) => storyBattery(S) && !storyBattery(B) },
+  panel:  { words: 'a better panel', ok: (S, B) => storyFitRank(S) > storyFitRank(B) },
+  paint:  { words: 'a fresh paint job', ok: (S, B) => { const p = S.paint || {}, q = B.paint || {};
+                                                       return p.job !== 'bare' && (p.job !== q.job || p.base !== q.base || p.trim !== q.trim); } },
+};
+function storyChecklist(spec, base, items) {
+  const S = spec || {}, B = base || {};
+  return (items || []).map(k => { const C = STORY_CHECKS[k];
+    let ok = false; try { ok = !!(C && C.ok(S, B)); } catch (e) { ok = false; }
+    return { k, words: C ? C.words : k, ok }; });
+}
+
+// ---- THE BEATS (§3; the words are placeholders for the narrative pack, keyed by id) ---------------------------------
+// goal: what moves the beat on. enter / done: the effects handed to the page on entering / completing it. mask: the
+// tutorial mode of the tech mask (TECH-MASK G3230) while the beat stands - 'finish' = the finish only.
+const STORY_BEATS = [
+  { id: 'T0', title: 'The cabin', mask: 'finish',
+    brief: 'Your ultralight waits in the shed. Make it yours - a colour, a name - then come and read the letter.',
+    goal: { k: 'ack' } },
+  { id: 'T1', title: 'The move', brief: 'The proposal was accepted: the old WWII field is ours. Fly the ultralight there.',
+    goal: { k: 'stop', at: 'home', plane: 'starter' },
+    done: [{ k: 'hangar', at: 'home', shell: 'club' }] },
+  { id: 'T2', title: "The client's plane", mask: 'checklist',
+    brief: 'A client brings an unfinished Cub. The checklist is on the bench; keep it on budget.',
+    enter: [{ k: 'clientPlane', at: 'home' }],
+    // costCap (G2742 STORY-PAGE, measured): the page's cost is dm11's edit bill (every ledger line the work rebuilt, at build
+    // price) against the Cub as it arrived. G2741's 9000 could not be met by any finish (the cheapest complete one, on the
+    // Rotax 582, bills 24 248); finished on the Jabiru 2200 35 114, the Rotax 912 38 089, the O-200 44 355, the O-320 48 745
+    goal: { k: 'certified', plane: 'client', checklist: ['engine', 'flaps', 'tyres', 'lights', 'panel', 'paint'], costCap: 40000 } },
+  { id: 'T3', title: 'The delivery', brief: "Certified. Fly it to its owner's strip.",
+    goal: { k: 'stop', at: 'client', plane: 'client' } },
+  { id: 'T4', title: 'The gift', brief: '"I can’t pay you. Keep it." The Cub is yours.',
+    enter: [{ k: 'giftPlane', plane: 'client' }], goal: { k: 'ack' } },
+  { id: 'T5', title: 'Cub work', brief: 'A pickup, a survey, a small load: quick, easy jobs.',
+    goal: { k: 'jobs', n: 3 } },
+  { id: 'T6', title: 'The water job', brief: 'A job you promised: fit floats to the Cub and land it at the seaplane base.',
+    goal: { k: 'stop', at: 'water', plane: 'gift', gear: 'floats' },
+    done: [{ k: 'routeOffer', plane: 'gift', a: 'water', b: 'home' }] },
+  { id: 'T7', title: 'The three occasions', brief: 'Back to the ultralight alone - and three planes on offer, once only.',
+    enter: [{ k: 'occasions', n: 3 }], goal: { k: 'ack' },
+    done: [{ k: 'open' }] },
+];
+const STORY_IDS = STORY_BEATS.map(b => b.id);
+const storyBeatOf = id => STORY_BEATS.find(b => b.id === id) || null;
+
+// ---- THE STATE --------------------------------------------------------------------------------------------------------
+function storyNew() {
+  return { v: STORY_V, beat: 'T0', done: [], planes: { starter: null, client: null, gift: null }, base: {}, jobs: 0, open: false };
+}
+function storyNormalise(s) {
+  const d = storyNew();
+  if (!s || typeof s !== 'object') return d;
+  const beat = (s.beat === 'open' || STORY_IDS.includes(s.beat)) ? s.beat : 'T0';
+  const done = Array.isArray(s.done) ? STORY_IDS.filter(id => s.done.includes(id)) : [];
+  const planes = {};
+  for (const k of Object.keys(d.planes)) planes[k] = (s.planes && typeof s.planes[k] === 'string') ? s.planes[k] : null;
+  const base = (s.base && typeof s.base === 'object' && !Array.isArray(s.base)) ? s.base : {};
+  const jobs = (typeof s.jobs === 'number' && isFinite(s.jobs) && s.jobs > 0) ? Math.floor(s.jobs) : 0;
+  const out = { v: STORY_V, beat, done, planes, base, jobs, open: beat === 'open' || !!s.open };
+  // (G2742 STORY-PAGE) what the page recorded, carried when present: where the story began (`cabin`: the strip and the
+  // shed, or null with `note` - no cabin on the island yet), the offers it recorded (`offers`: the route stub), the
+  // occasions listed (`occasions`: the authored listings' ids) - absent on a story that has none
+  if (s.cabin === null || (s.cabin && typeof s.cabin === 'object' && typeof s.cabin.aero === 'string')) out.cabin = s.cabin ? { aero: s.cabin.aero, hangar: typeof s.cabin.hangar === 'string' ? s.cabin.hangar : null } : null;
+  if (typeof s.note === 'string' && s.note) out.note = s.note;
+  if (Array.isArray(s.offers)) out.offers = s.offers.filter(o => o && typeof o === 'object').map(o => JSON.parse(JSON.stringify(o)));
+  if (Array.isArray(s.occasions)) out.occasions = s.occasions.filter(id => typeof id === 'string');
+  return out;
+}
+// the story of a career document, or null (the sandbox, a career without one)
+const storyOf = doc => (doc && doc.mode === 'career' && doc.career && doc.career.story) ? storyNormalise(doc.career.story) : null;
+// G2743 THE CABIN, GRANTED: the shed on the cabin's plot (BASE_OFFERS[aero].plots[plot]) is the player's, free - the
+// story's gift, no ledger charge - and HOME's shed is LOCKED until T1 (71_ playerShedLocked: the start owns ONLY the
+// cabin, the user 18 Oct). `here` is the cabin. A cabin with no plot on offer -> refused with the reason (the start
+// stays at HOME's garage and the page says why; never a guess).
+function storyGrantCabin(d, aero, plot) {
+  const O = typeof BASE_OFFERS !== 'undefined' && BASE_OFFERS[aero], P = O && O.plots[plot || aero];
+  if (!P) return 'no shed to hold at ' + aero + ' (BASE_OFFERS has no plot there)';
+  const id = plot || aero, shell = P.shells[0];
+  if (!d.sheds[id]) d.sheds[id] = { shell, kits: (P.kits || []).slice(), base: aero, tenure: 'own',
+    dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}), price: 0, since: 0, story: true };
+  if (d.sheds[PREM_MAIN] && id !== PREM_MAIN) d.sheds[PREM_MAIN].locked = 'story';
+  d.here = id;
+  return null;
+}
+// a new career WITH the story (STORY-PAGE calls this once, at New career): the starter plane's slot is bound by the page;
+// o.cabin = { aero, plot } (storySite('cabin') and its base plot) grants the cabin and locks HOME until T1
+function storyStart(doc, starterSlot, o) {
+  if (!doc || doc.mode !== 'career' || !doc.career) return { ok: false, doc, why: 'not a career' };
+  if (doc.career.story) return { ok: false, doc, why: 'the story has already started' };
+  const d = JSON.parse(JSON.stringify(doc)), s = storyNew();
+  if (typeof starterSlot === 'string') s.planes.starter = starterSlot;
+  let note = null;
+  if (o && o.cabin && o.cabin.aero) note = storyGrantCabin(d, o.cabin.aero, o.cabin.plot);
+  d.career.story = s;
+  return { ok: true, doc: d, effects: storyEnterEffects('T0'), why: note };
+}
+// Q1 (§10, accepted): the generated job list is held until the three occasions; the story's own jobs are offered
+const storyJobsOpen = doc => { const s = storyOf(doc); return !s || s.open; };
+const storyMask = doc => { const s = storyOf(doc); const B = s && !s.open ? storyBeatOf(s.beat) : null; return (B && B.mask) || null; };
+function storyEnterEffects(id) { const B = storyBeatOf(id); return B && B.enter ? B.enter.map(e => Object.assign({ beat: id }, e)) : []; }
+
+// ---- THE STEP ---------------------------------------------------------------------------------------------------------
+// ev: { k: 'ack' } | { k: 'bind', role, slot, spec? } | { k: 'stop', stop (careerStopRecord), slot, gear? }
+//     | { k: 'certified', slot, spec, cost } | { k: 'jobDone', id }
+// ctx: { aeros: world.aerodromes } (the roles' places)
+function storyStep(doc, ev, ctx) {
+  const no = why => ({ ok: false, doc, advanced: [], effects: [], why });
+  const s0 = storyOf(doc);
+  if (!s0) return no('no story in this document');
+  if (s0.open) return no('the story is open: nothing on rails');
+  if (!ev || typeof ev.k !== 'string') return no('no event');
+  const d = JSON.parse(JSON.stringify(doc)), s = storyNormalise(d.career.story);
+  const B = storyBeatOf(s.beat), G = B.goal, aeros = (ctx && ctx.aeros) || [];
+  // a plane the page put in the world for the story: its slot, and (the client's) the spec it arrived with
+  if (ev.k === 'bind') {
+    if (!(ev.role in s.planes) || typeof ev.slot !== 'string') return no('bind: an unknown role or no slot');
+    s.planes[ev.role] = ev.slot;
+    if (ev.role === 'client' && ev.spec && typeof ev.spec === 'object') s.base.client = JSON.parse(JSON.stringify(ev.spec));
+    d.career.story = s;
+    return { ok: true, doc: d, advanced: [], effects: [], why: null };
+  }
+  let met = false, why = null;
+  if (G.k === 'ack') { met = ev.k === 'ack'; why = met ? null : 'this beat waits for the player to read it'; }
+  else if (G.k === 'stop') {
+    if (ev.k !== 'stop' || !ev.stop) why = 'this beat waits for a landing';
+    else {
+      const at = storySite(G.at, aeros), plane = G.plane === 'gift' ? s.planes.gift : s.planes[G.plane];
+      if (!at) why = 'no aerodrome plays ' + STORY_ROLES[G.at].words + ' on this island yet';
+      else if (ev.stop.wrecked || ev.stop.how !== 'stopped') why = 'the flight did not end stopped and whole';
+      else if (ev.stop.aero !== at) why = 'not at ' + STORY_ROLES[G.at].words;
+      else if (plane && ev.slot !== plane) why = 'not with the story’s plane';
+      else if (G.gear && ev.gear !== G.gear && (ev.stop.gear || null) !== G.gear) why = 'not on ' + G.gear;
+      else met = true;
+    }
+  }
+  else if (G.k === 'certified') {
+    if (ev.k !== 'certified') why = 'this beat waits for the certified build';
+    else if (s.planes.client && ev.slot !== s.planes.client) why = 'not the client’s plane';
+    else {
+      const list = storyChecklist(ev.spec, s.base.client, G.checklist), miss = list.filter(r => !r.ok);
+      if (miss.length) why = 'the checklist: ' + miss.map(r => r.words).join(', ');
+      else if (typeof ev.cost === 'number' && ev.cost > G.costCap) why = 'over budget (' + Math.round(ev.cost) + ' > ' + G.costCap + ')';
+      else met = true;
+    }
+  }
+  else if (G.k === 'jobs') {
+    if (ev.k !== 'jobDone') why = 'this beat waits for delivered jobs';
+    else { s.jobs++; met = s.jobs >= G.n; if (!met) why = s.jobs + ' of ' + G.n + ' jobs'; }
+  }
+  if (!met) {
+    // a counted job is progress even when the beat is not met yet
+    if (G.k === 'jobs' && ev.k === 'jobDone') { d.career.story = s; return { ok: true, doc: d, advanced: [], effects: [], why }; }
+    return no(why);
+  }
+  // the beat is done: its done-effects, the next beat and its enter-effects
+  const effects = (B.done || []).map(e => Object.assign({ beat: B.id }, e));
+  s.done.push(B.id);
+  if (B.id === 'T4' && s.planes.client) s.planes.gift = s.planes.client;          // the gift: the client's Cub is ours
+  // G2743: T1's reward - the WWII field's hangar is ours: HOME's lock (storyStart) is lifted
+  if (B.id === 'T1' && d.sheds && d.sheds[PREM_MAIN] && d.sheds[PREM_MAIN].locked) delete d.sheds[PREM_MAIN].locked;
+  const i = STORY_IDS.indexOf(B.id), next = STORY_IDS[i + 1] || null;
+  if (effects.some(e => e.k === 'open') || !next) { s.beat = 'open'; s.open = true; }
+  else { s.beat = next; for (const e of storyEnterEffects(next)) effects.push(e); }
+  d.career.story = s;
+  return { ok: true, doc: d, advanced: [B.id], effects, why: null };
+}
+
+// ===========================================================================
+// THE PAGE'S HALF, PURE (G2742-G2749 STORY-PAGE): what app.js does to the document for the story - the new career at the
+// cabin, the client's Cub as it arrives, each effect applied, the occasions listed, the beat card's words, the job list
+// held. The page owns the fetches, the slots and the DOM; everything that decides lives here, so GATE STORY's page half
+// asks it in node. Every function works on a clone and returns { ok, doc, why, ... }; a refusal hands the document back.
+// ===========================================================================
+// THE STORY'S PLANES' FILES (fetched by the page, relative to the game's folder). The starter is the user's Rufus (18 Oct):
+// RUFUS-CERT (G3270) moves its certified file into builds/ - the page asks builds/ first, then the archived candidate.
+const STORY_FILES = {
+  starter: ['builds/rufus_2026-10-18.json', 'builds/rufus_2026-10-18_corrected.json', 'builds/rufus.json',
+            'futureDesigns/game/aircraft-candidates/rufus-starter_2026-10-18.json'],
+  client: ['builds/cub_2026-09-20.json'],          // the validated Cub, unfinished by storyClientSpec
+};
+const STORY_SLOTS = { starter: 'Rufus', client: 'Client Cub' };
+// THE CABIN'S SHED: the smallest shell (the field's), sized as HOME's own field option so the Rufus's 10.9 m passes its
+// door; a plot the cabin's aerodrome offers (BASE_OFFERS) gives its own id, kits and dims instead
+const STORY_CABIN_SHED = { shell: 'field', dims: { HW: 9, HD: 10, EAVE: 4.0 }, kits: ['park', 'bench'] };
+const STORY_NO_CABIN = 'No strip on the island is the cabin yet (name one "Cabin…" in the scenery editor): the story starts at HOME.';
+// T5 (Q1: the generated list is held, the story's own goals shown instead): the story's three quick jobs are the authored
+// openers of three contractors - a pickup, a survey, a small load (72_contract_data.js; the narrative pack may re-author)
+const STORY_JOBS = ['clients.01', 'survey.01', 'resort.01'];
+// T7: THE THREE OCCASIONS - one-time listings in the used market, AUTHORED BY HAND (the user's rule: a missing plane is
+// authored, never generated). PLACEHOLDERS until the user authors the two planes the story names (HANDOVER G2742): the
+// fabric 4-seater stands as the validated metal Cessna (meridian), the Jodel-class one as the validated Jodel (pinson);
+// the Cub is the story's own. `price` is the occasion's factor on the maker's catalogue (well under a used listing's).
+const STORY_OCCASIONS = [
+  { id: 'occ:fabric4', model: 'meridian', opts: { avionics: 'basic', finish: 'white', reg: 'N4OCC' }, hours: 2400, repair: 'skin',
+    seller: 'used.seller.3', aero: 'HOME', price: 0.30, placeholder: 'the fabric 4-seater (stands as the metal Cessna until authored)' },
+  { id: 'occ:jodel', model: 'pinson', opts: { engine: 'a65', finish: 'red', reg: 'N2OCC' }, hours: 1150, repair: 'none',
+    seller: 'used.seller.0', aero: 'HOME', price: 0.35, placeholder: 'the Jodel-class one (stands as the validated Jodel until authored)' },
+  { id: 'occ:cub', model: 'scout', opts: { engine: 'a65', avionics: 'minimal', finish: 'green', reg: 'N3OCC' }, hours: 1800, repair: 'gear',
+    seller: 'used.seller.2', aero: 'HOME', price: 0.35, placeholder: null },
+];
+const stClone = o => JSON.parse(JSON.stringify(o));
+const stNo = (doc, why) => ({ ok: false, doc, why });
+// an aerodrome's name in words, its runway's numbers off ('Jolene AFB 13/31' -> 'Jolene AFB', as the map's cwBase)
+const storyAeroName = (id, aeros) => { const a = (aeros || []).find(x => x && x.id === id);
+  const n = (a && a.name) || (typeof CONTRACT_FIELDS !== 'undefined' && CONTRACT_FIELDS[id] && CONTRACT_FIELDS[id].name) || id;
+  return String(n).replace(/\s+\d{2}[LRC]?\/\d{2}[LRC]?$/, ''); };
+
+// the cabin's shed: the plot its aerodrome offers a field shell on (its id, dims and kits), else the aerodrome's own id
+function storyCabinShed(aero, clock) {
+  const O = (typeof BASE_OFFERS !== 'undefined' && BASE_OFFERS[aero]) || null;
+  const plot = O ? Object.keys(O.plots).find(k => O.plots[k].shells.includes('field')) : null;
+  const P = plot ? O.plots[plot] : null;
+  const S = (typeof SHELLS !== 'undefined' && SHELLS.field) ? SHELLS.field.dims : {};
+  return { id: plot || aero, shed: { shell: 'field', kits: ((P && P.kits) || STORY_CABIN_SHED.kits).slice(), base: aero, tenure: 'own',
+    dims: Object.assign({}, S, STORY_CABIN_SHED.dims, (P && P.dims && P.dims.field) || {}), since: Math.round(clock || 0), story: 'cabin' } };
+}
+// A NEW CAREER WITH THE STORY (the welcome's New career, the player's career 'main' only): storyStart with the starter's
+// slot, then the cabin - the strip that plays the cabin (storySite, never a guess) gets the smallest shed, the garage opens
+// in it, and the WWII field's hangar is held for the move (`locked`: T1's 'hangar' effect hands it over). No cabin on the
+// island yet: the story starts at HOME, the reason recorded for the beat card. The starter's airframe row is written here;
+// its slot (the envelope) is the page's, and the page's lift stands it in the cabin's shed once the slot exists.
+// o: { aeros: world.aerodromes, starter? } -> { ok, doc, effects, cabin, why }
+function storyNewCareer(doc, o) {
+  o = o || {};
+  const slot = o.starter || STORY_SLOTS.starter;
+  const r = storyStart(doc, slot);
+  if (!r.ok) return r;
+  const d = r.doc, s = storyNormalise(d.career.story), cabin = storySite('cabin', o.aeros);
+  if (cabin && cabin !== 'HOME') {
+    const C = storyCabinShed(cabin, d.clock);
+    d.sheds[C.id] = C.shed;
+    d.here = C.id;
+    if (d.sheds.HOME) d.sheds.HOME.locked = 'story';
+    s.cabin = { aero: cabin, hangar: C.id };
+  } else { s.cabin = null; s.note = STORY_NO_CABIN; }
+  d.career.story = s;
+  d.career.airframes[slot] = { from: 'story', story: 'starter', factory: false, modified: false, paid: 0, at: Math.round(d.clock || 0) };
+  return { ok: true, doc: d, effects: r.effects, cabin: s.cabin, why: null };
+}
+// THE CLIENT'S CUB AS IT ARRIVES (T2): the validated Cub unfinished - its flaps off, the minimal panel (no battery, so no
+// lights), bare metal - on the same engine. Every item of T2's checklist is open on it (GATE STORY holds that).
+function storyClientSpec(cub) {
+  const s = stClone(cub || {});
+  s.controls = Object.assign({}, s.controls || {}, { flap: { type: 'none', span: 0, chord: 0 } });
+  s.systems = { fit: 'minimal' };
+  s.paint = Object.assign({}, s.paint || {}, { job: 'bare' });
+  s.meta = Object.assign({}, s.meta || {}, { name: STORY_SLOTS.client });
+  return s;
+}
+// EACH EFFECT, APPLIED (storyStep hands them; the page fetches what a plane needs first and passes it in o):
+//   hangar      the WWII field's hangar is ours: the lock lifted, a ledger line at 0
+//   clientPlane the client's Cub in the HOME hangar (o.slot: its slot, already written): stationed there, its airframe row
+//               the client's; the page then binds it ({ k: 'bind', role: 'client', slot, spec })
+//   giftPlane   the Cub is ours: the client's mark lifted, a ledger line at 0 (no money)
+//   routeOffer  ROUTES (G3260) absent: the offer recorded as a stub on the story (o.route: ROUTES' own record when present)
+//   occasions   the three authored listings on the used market (one-time: a sale removes it for good)
+//   open        the rails end (nothing to the world)
+// -> { ok, doc, why, line } (line: the words for the beat card / the arrival card, or null)
+function storyApply(doc, e, o) {
+  o = o || {};
+  if (!storyOf(doc)) return stNo(doc, 'no story in this document');
+  if (!e || typeof e.k !== 'string') return stNo(doc, 'no effect');
+  const d = stClone(doc), s = storyNormalise(d.career.story), clock = Math.round(d.clock || 0);
+  let line = null;
+  if (e.k === 'hangar') {
+    const id = PREM_MAIN;
+    if (!d.sheds[id]) return stNo(doc, 'no hangar at HOME');
+    delete d.sheds[id].locked;
+    playerLedger(d, 'story', 0, id);
+    line = 'The WWII field’s hangar is yours.';
+  } else if (e.k === 'clientPlane') {
+    const slot = o.slot || STORY_SLOTS.client;
+    if (d.fleet[slot] && s.planes.client === slot) return { ok: true, doc, why: 'the client’s plane is here already', line: null };
+    d.fleet[slot] = { hangar: null, aero: PREM_MAIN };
+    if (o.foot) d.fleet[slot].foot = parkFoot(o.foot);
+    const r = playerArrive(d, slot, PREM_MAIN, { prefer: PREM_MAIN, foots: o.foot ? { [slot]: o.foot } : null });
+    const D = r.ok ? r.doc : d;
+    D.career.airframes[slot] = { from: 'story', story: 'client', owner: 'client', factory: false, modified: false, paid: 0, at: clock };
+    D.career.story = s;
+    return { ok: true, doc: D, why: '', line: 'The client’s Cub is in the hangar at HOME.', where: r.ok ? (r.hangar || r.kind) : null };
+  } else if (e.k === 'giftPlane') {
+    const slot = s.planes.gift || s.planes.client;
+    if (!slot || !d.career.airframes[slot]) return stNo(doc, 'no client plane to give');
+    delete d.career.airframes[slot].owner;
+    d.career.airframes[slot].gift = true;
+    playerLedger(d, 'gift', 0, slot);
+    line = 'The Cub is yours.';
+  } else if (e.k === 'routeOffer') {
+    const offer = Object.assign({ k: 'route', plane: s.planes.gift || null, a: storySite(e.a, o.aeros) || e.a, b: storySite(e.b, o.aeros) || e.b,
+                                  at: clock, stub: !o.route }, o.route ? { route: stClone(o.route) } : {});
+    s.offers = (s.offers || []).filter(x => x.k !== 'route').concat([offer]);
+    line = o.route ? 'A route is offered, with a hired pilot.' : 'A route is offered (the routes come later: the offer is kept).';
+  } else if (e.k === 'occasions') {
+    s.occasions = STORY_OCCASIONS.slice(0, e.n || STORY_OCCASIONS.length).map(L => L.id);
+    line = 'Three aeroplanes on offer, once only: see the Market.';
+  } else if (e.k === 'open') {
+    line = 'The island is open: every contractor’s work is on the map.';
+  } else return stNo(doc, 'an unknown effect ' + e.k);
+  d.career.story = s;
+  return { ok: true, doc: d, why: '', line };
+}
+// THE OCCASIONS ON OFFER (procureMarketOf lists them before the generated ones): the authored listings the story listed,
+// minus the sold, in the used market's shape (76_procure.js procureUsedListing's), priced at the occasion's factor
+function storyOccasionListings(doc) {
+  const s = storyOf(doc);
+  if (!s || !s.occasions || !s.occasions.length || typeof procureDefaults !== 'function') return [];
+  const sold = typeof procureSold === 'function' ? procureSold(doc) : [];
+  const out = [];
+  for (const A of STORY_OCCASIONS) {
+    if (!s.occasions.includes(A.id) || sold.includes(A.id) || !PROCURE_MODELS[A.model]) continue;
+    const o = Object.assign(procureDefaults(A.model), A.opts);
+    const design = procureDesignOf(A.model, o);
+    if (!procureValidated(design)) continue;
+    const cat = procurePrice(A.model, o).total;
+    out.push({ id: A.id, model: A.model, design, opts: o, hours: A.hours, repair: A.repair, older: false, kg: 0, seller: A.seller,
+               condition: A.price, aero: A.aero, catalogue: cat, price: Math.round(cat * A.price / 100) * 100, occasion: true,
+               placeholder: A.placeholder || null });
+  }
+  return out;
+}
+// Q1: THE JOB LIST HELD - the story's own jobs (T5's) are the only ones offered while the rails run
+const storyJobIds = doc => { const s = storyOf(doc); return s && !s.open && s.beat === 'T5' ? STORY_JOBS.filter(id => !doc.career.contracts.done.some(x => x.id === id)) : []; };
+const storyJobHeld = (doc, id) => !storyJobsOpen(doc) && !storyJobIds(doc).includes(id);
+// THE BEAT CARD'S WORDS: the beat's title and brief, its goal's state, the button. o: { aeros, spec (the client plane's
+// spec as it stands now, T2), cost (its edit bill), jobs: { id: title } } -> null (no story, or open) | { beat, title,
+// brief, rows: [{ words, ok }], ack (an OK sends { k: 'ack' }), note }
+function storyCard(doc, o) {
+  o = o || {};
+  const s = storyOf(doc);
+  if (!s || s.open) return null;
+  const B = storyBeatOf(s.beat), G = B.goal, rows = [];
+  const plane = k => s.planes[k] || (k === 'gift' ? s.planes.client : null);
+  if (G.k === 'stop') {
+    const at = storySite(G.at, o.aeros), P = plane(G.plane);
+    rows.push({ words: at ? 'Land at ' + storyAeroName(at, o.aeros) + (P ? ' with ' + P : '') + (G.gear ? ', on ' + G.gear : '') + ', stopped and whole'
+                          : 'No aerodrome plays ' + STORY_ROLES[G.at].words + ' on this island yet', ok: false });
+  } else if (G.k === 'certified') {
+    for (const r of storyChecklist(o.spec || s.base.client, s.base.client, G.checklist)) rows.push({ words: r.words, ok: r.ok });
+    rows.push({ words: 'on budget: ' + (typeof o.cost === 'number' ? Math.round(o.cost) + ' of ' : 'at most ') + G.costCap, ok: typeof o.cost === 'number' && o.cost <= G.costCap });
+    rows.push({ words: 'certified in the garage (the bench)', ok: false });
+  } else if (G.k === 'jobs') {
+    rows.push({ words: s.jobs + ' of ' + G.n + ' jobs', ok: s.jobs >= G.n });
+    const T = o.jobs || {};
+    for (const id of STORY_JOBS) rows.push({ words: T[id] || id, ok: doc.career.contracts.done.some(x => x.id === id) });
+  }
+  const notes = [];
+  if (s.note) notes.push(s.note);
+  if (B.id === 'T0' && doc.sheds && doc.sheds.HOME && doc.sheds.HOME.locked) notes.push('The WWII field’s hangar is not yours yet.');
+  return { beat: B.id, title: B.title, brief: B.brief, rows, ack: G.k === 'ack', note: notes.join(' ') || null,
+           step: STORY_IDS.indexOf(B.id) + 1, of: STORY_IDS.length };
+}
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptBenchXwind, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptBenchXwind, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh
