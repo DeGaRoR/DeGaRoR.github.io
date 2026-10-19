@@ -216,7 +216,7 @@ if (plots.length) {
   ed.cmd('removeProp', { id: gid2, prop: 'draw' });
   notes.length = 0; ed.select(null); ed.select(gid2);
   check(!A().props.draw && notes.some(t => /draws NOTHING/.test(t)), '6 a gravel area without a draw says it draws nothing (the user\'s gravel band)');
-  check(ed.cmd('addProp', { id: gid2, prop: 'draw' }) && A().props.draw && A().props.draw.look === 'concrete' && A().props.wheels.surface === PG.SURFACE.GRAVEL, '6 + add a property: the draw (its wheels kept)');
+  check(ed.cmd('addProp', { id: gid2, prop: 'draw' }) && A().props.draw && A().props.draw.look === 'gravel' && A().props.wheels.surface === PG.SURFACE.GRAVEL, '6 + add a property: the draw (its wheels kept, drawn as they feel: ONE SURFACE, 18 Oct)', JSON.stringify(A().props));
   ed.cmd('addProp', { id: gid2, prop: 'marks' });
   check(A().props.marks && A().props.marks.kind === 'parking' && isFinite(A().props.draw.yaw), '6 + marks: parking, the pavement turned to its long side');
   ed.cmd('setProp', { id: gid2, prop: 'marks', patch: { kind: 'hatch' } });
@@ -1194,7 +1194,7 @@ if (plots.length) {
   // row sets the feel alone; an old file's other feel is kept (nothing it rolls on changes) and the inspector says so
   const UIs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_ui.js'), 'utf8');
   check(!/rows\.select\(insp, '(the )?wheels feel'/.test(UIs) && !/rows\.select\(insp, 'surface', SURF_OPTS/.test(UIs), '34 no inspector row sets the wheels feel alone (strip, area, old surface entry)');
-  check(/k !== 'roadside' && k !== 'wheels'\)/.test(UIs) && /if \(k === 'draw'\) \{ const L = PG\.RUNWAY_LOOKS\[x\.props\.draw\.look\]/.test(UIs), '34 the wheels are no property of their own to add: DRAW brings them, its look\'s feel');
+  check(/k !== 'roadside' && k !== 'wheels'\)/.test(UIs) && /if \(k === 'draw' && !x\.props\.wheels\) \{ const L = PG\.RUNWAY_LOOKS\[x\.props\.draw\.look\]/.test(UIs) && /if \(k === 'draw'\) \{   \/\/ \(ONE SURFACE: an area that feels already is drawn as it feels/.test(UIs), '34 the wheels are no property of their own to add: DRAW brings them (its look\'s feel), or is drawn as the wheels already there feel');
   check(/x\.props\.wheels = Object\.assign\(\{\}, x\.props\.wheels \|\| \{\}, \{ surface: \+L\.surface \}\); \}, 'surface'\)\);/.test(UIs), '34 picking DRAW\'s surface sets the wheels (the apron flag kept)');
   check(/PG\.lookFeelsAs\(k, feel\)/.test(UIs) && /if \(x\.look && !PG\.lookFeelsAs\(x\.look, PG\.roadFeel\(x\)\)\) x\.look = null;/.test(UIs), '34 a road\'s look offers only the variants that feel as its class; a new class drops a look that feels otherwise');
   check(PG.roadFeel({ cls: 'paved' }) === PG.SURFACE.PAVED && PG.roadFeel({ cls: 'track' }) === PG.SURFACE.GRASS && PG.roadFeel({}) === PG.SURFACE.GRAVEL && PG.roadFeel({ cls: 'paved', surface: 6 }) === 6 &&
