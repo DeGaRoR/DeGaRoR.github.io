@@ -432,5 +432,5 @@ const STATE = `JSON.stringify((() => {
   await sleep(1500);
   killAll();
   LOG.end();
-  process.exit(end && !/shakedown/.test(end) ? 1 : 0);
+  process.exit(end && !/shakedown|after-lift/.test(end) ? 1 : 0);   // (G3302: --after-lift is a planned end, as --shakedown)
 })().catch(e => { log('*** ' + (e && e.stack || e)); killAll(); process.exit(3); });
