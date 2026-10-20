@@ -91,7 +91,19 @@ var STORY_INTRO = (() => {
       const s = shots[i];
       s.t0 = t; s.t1 = t + SHOT_S[i]; t = s.t1;
       const fl = new Float64Array(N_SAMP + 1);
-      for (let j = 0; j <= N_SAMP; j++) { const q = eyeXZ(s, j / N_SAMP); fl[j] = H(q[0], q[1]) + s.clr; }
+      for (let j = 0; j <= N_SAMP; j++) {
+        const k = j / N_SAMP, q = eyeXZ(s, k);
+        fl[j] = H(q[0], q[1]) + s.clr;
+        // THE SIGHTLINE (the third look, 21 Oct: 30 m off the door at 3.5 m, a rise between hid the shed but its roof): in
+        // the near shots (the target within 400 m) the eye rises until its line to the target clears the ground by 0.8 m
+        // along the way - at most 40 m over its own ground
+        const L = lerp3(s.l0, s.l1, smooth(k)), dx = L[0] - q[0], dz = L[2] - q[1];
+        if (Math.hypot(dx, dz) < 400) {
+          let need = -Infinity;
+          for (let f = 0.08; f <= 0.9; f += 0.04) need = Math.max(need, (H(q[0] + dx * f, q[1] + dz * f) + 0.8 - L[1] * f) / (1 - f));
+          fl[j] = Math.max(fl[j], Math.min(need, H(q[0], q[1]) + 40));
+        }
+      }
       const fm = new Float64Array(N_SAMP + 1);
       for (let j = 0; j <= N_SAMP; j++) { let m = -Infinity; for (let k = Math.max(0, j - 2); k <= Math.min(N_SAMP, j + 2); k++) m = Math.max(m, fl[k]); fm[j] = m; }
       s.floor = fm;

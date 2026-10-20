@@ -361,6 +361,17 @@ async function introRun() {
   ok(low >= 1.0, 'the eye stays over the ground the whole way (a rough terrain)', 'lowest ' + low.toFixed(1) + ' m at ' + at.toFixed(1) + ' s');
   ok(dEnd > 24 && dEnd < 36 && end.p[1] - terr(end.p[0], end.p[2]) < 6 && end.fov <= 36 && Math.hypot(end.l[0] - plot.x, end.l[2] - plot.z) < 1 && end.black > 0.99,
      'it ends zoomed on the shed (30 m off its door, 3.5 m over the ground, the lens closed) at black', dEnd.toFixed(1) + ' m, ' + (end.p[1] - terr(end.p[0], end.p[2])).toFixed(1) + ' m up, fov ' + end.fov.toFixed(0) + ' (shed ground ' + shedG.toFixed(0) + ')');
+  // THE SIGHTLINE (the third look, 21 Oct: a rise between the eye and the shed hid it): the near shots see their target -
+  // on the rough terrain, and with a 6 m rise put between the last eye and the shed
+  const seen = (Pl, T) => { let worst = Infinity, at = null;
+    for (let t = Pl.shots[1].t0 + 0.6; t < Pl.T - 0.2; t += 0.1) { const o = I.pose(Pl, t);
+      for (let f = 0.1; f <= 0.85; f += 0.05) { const x = o.p[0] + (o.l[0] - o.p[0]) * f, z = o.p[2] + (o.l[2] - o.p[2]) * f, y = o.p[1] + (o.l[1] - o.p[1]) * f, g = y - T(x, z); if (g < worst) { worst = g; at = t; } } }
+    return { worst, at }; };
+  const mid = [(end.p[0] + plot.x) / 2, (end.p[2] + plot.z) / 2];
+  const terr2 = (x, z) => terr(x, z) + 6 * Math.max(0, 1 - Math.hypot(x - mid[0], z - mid[1]) / 9);
+  const PL2 = I.plan({ aero, plot, terrainH: terr2 }), s1 = seen(PL, terr), s2 = seen(PL2, terr2);
+  ok(s1.worst > 0.2 && s2.worst > 0.2, 'the near shots see the shed: the sightline clears the ground (a 6 m rise between the last eye and the shed too)',
+     s1.worst.toFixed(1) + ' m at ' + s1.at.toFixed(1) + ' s; with the rise ' + s2.worst.toFixed(1) + ' m at ' + s2.at.toFixed(1) + ' s');
   ok(I.pose(PL, 0).black === 1 && I.pose(PL, 6).black === 0 && I.pose(PL, PL.shots[1].t0).black > 0.99, 'out of black, a dip at each cut', '');
   ok(PL.anchor && Math.hypot(PL.anchor[0] - plot.x, PL.anchor[2] - plot.z) < 1, "the world's streams keyed on the cabin, never on the eye");
   // ---- the page half: a New career, its opening played; another, skipped; a Continue; the phone
