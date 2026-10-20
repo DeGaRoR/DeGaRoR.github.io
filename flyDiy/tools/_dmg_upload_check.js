@@ -98,7 +98,7 @@ async function child() {
   const storage = { 'flydiy.wip': fs.readFileSync(path.join(ROOT, BUILDS[key]), 'utf8') };
   const SG = shadowGL(), S = SG.S;
   const fake = arg('fakebake', '1') !== '0';   // (G2350: --fakebake=0 the gate as D4b left it - no fold in the node page)
-  const P = await openPage({ quiet: true, storage, query: dmg ? 'simw=1&damage=1' : 'simw=1&damage=0',   /* (the OFF arm says so: the default is ON since 20 Oct) */ workers: /sim_host\.js/, glWrap: SG.wrapGL, fakeBake: fake });
+  const P = await openPage({ quiet: true, storage, query: (dmg ? 'simw=1&damage=1' : 'simw=1&damage=0') + (arg('relayout', '0') === '1' ? '&relayout=1' : ''),   /* (the OFF arm says so: the default is ON since 20 Oct) */ workers: /sim_host\.js/, glWrap: SG.wrapGL, fakeBake: fake });
   R.fakeBake = fake;
   const W = P.win;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
@@ -162,7 +162,9 @@ async function child() {
     const tA = sim.t; let br = 0;
     for (let f = 0; f < SECS * 60 + 600 && sim.t - tA < SECS; f++) { await P.frames(1); const DS = W.FLYDIY_DMG_STATE ? W.FLYDIY_DMG_STATE() : null; br = Math.max(br, DS && DS.br ? DS.br.length : 0); }
     world.treeHits.drop ? world.treeHits.drop('fill:upload') : world.treeHits.delete && world.treeHits.delete('fill:upload');
-    R.crash = { br, wreck: W.FLYDIY_WRECK_STATS ? (W.FLYDIY_WRECK_STATS().bodies || []).length : null, stage: { V: SV, agl: SAGL, tr: STR, D: SD, off: SOFF } }; }
+    R.crash = { br, wreck: W.FLYDIY_WRECK_STATS ? (W.FLYDIY_WRECK_STATS().bodies || []).length : null, stage: { V: SV, agl: SAGL, tr: STR, D: SD, off: SOFF },
+      // (G3028: the drawers' census through the crash - whole layouts and appends)
+      lay: W.SKIN_GPU ? { layouts: W.SKIN_GPU.G.stats.layouts || 0, appends: W.SKIN_GPU.G.stats.appends || 0, grows: W.SKIN_GPU.G.stats.grows || 0, drawers: W.SKIN_GPU.G.stats.drawers || 0 } : null }; }
   if (PROBE) { fs.writeFileSync(out, JSON.stringify(R)); P.close(); process.exit(0); }
   if (arg('path', '') === 'retry') {   // (the card's Fly again after the crash: the game's own reset, no shed)
     R.idxAtCrash = idxCensus();

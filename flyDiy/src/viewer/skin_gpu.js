@@ -82,6 +82,7 @@
     const gl = renderer && renderer.getContext && renderer.getContext();
     if (!gl || typeof WebGL2RenderingContext === 'undefined' || !(gl instanceof WebGL2RenderingContext)) { G.ok = false; G.err = 'no WebGL2'; return; }
     G.gl = gl; G.ext = gl.getExtension('KHR_parallel_shader_compile'); G.t0 = performance.now();
+    try { G.relayout = /[?&]relayout=1(&|$)/.test((typeof location !== 'undefined' && location.search) || ''); } catch (e) { G.relayout = false; }   // (G3028's A/B)
     // a lost context ends the GPU's riding for the page (its program and buffers went with it): the CPU rides from then on
     try { gl.canvas.addEventListener('webglcontextlost', () => { G.ok = false; G.err = 'the WebGL context was lost'; G.lostAt = G.stats.frames; }); } catch (e) {}
     const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
@@ -133,41 +134,108 @@
   }
   // the drawer's riding ranges changed (a record joined): its inputs made again. recs: [{ R, vo (the record's first
   // vertex in the drawer), pa (its position attribute), nB (its rest normals) }] - skin_break.js placesOf has run on each R
+  // G3028 (DMG-RELAYOUT): A RECORD JOINS ITS DRAWER WITHOUT THE OTHERS BEING LAID OUT AGAIN. The records of a wreck are made
+  // over frames (REC_BUDGET) and as the breaks spread, and each join laid the whole drawer out again: its buffers and place
+  // textures made anew, every record on it packed and sent again - 52 layouts in the metal Cessna's first-break second on
+  // the box (20 Oct census: 445k of the 560k places packed in it were a layout's), the GPU process behind and the main
+  // thread waiting on it (the 600 ms freeze). Now a layout makes the drawer's INPUTS for all it can ever hold - a record
+  // rides the drawer's own attribute's vertices, so they are never more than its count (D.nV; the room allocated, only
+  // what is there sent) - and its PLACES with room (twice what it holds; they cost 80 bytes each on both sides), GROWN by
+  // doubling when a join outgrows them (growPlaces: new textures, the rows there sent again - a few times a drawer at
+  // most, never the inputs or a re-pack); a later join APPENDS: the new records at the end of the inputs and of the places (their slices sent by bufferSubData,
+  // only their places packed - dvUp); a join past the headroom lays the drawer out whole, with new headroom. The drawing
+  // is the same: a record's vertices read their places wherever they lie (inPl), the runs of a draw merge what is
+  // contiguous in both. ?relayout=1 lays out whole at every join (the A/B: as before)
   function layout(D, recs) {
+    const S = G.stats;
+    if (D.vao && D.capIn && !G.relayout) {
+      const had = new Set(D.recs);
+      if (D.recs.every(r => recs.indexOf(r) >= 0)) {
+        const add = recs.filter(r => !had.has(r));
+        let nv = 0, npl = 0; for (const r of add) { nv += r.R.nv; npl += r.R.pl.length; }
+        if (!add.length) return;
+        if (D.nIn + nv <= D.capIn) { if (D.np + npl > D.capNp) growPlaces(D, D.np + npl); appendRecs(D, add, nv); S.appends = (S.appends || 0) + 1; return; }
+      }
+    }
+    S.layouts = (S.layouts || 0) + 1;
     const gl = G.gl;
     D.recs = recs.slice().sort((a, b) => a.vo - b.vo);
     D.riding = new Set(D.recs.map(r => r.pa));
     let nIn = 0, np = 0;
     for (const r of D.recs) { r.ci = nIn; r.p0 = np; nIn += r.R.nv; np += r.R.pl.length; }
+    const capIn = G.relayout ? nIn : Math.max(nIn, D.nV || 0), capNp = G.relayout ? np : Math.max(2 * np, 2 * PW_W);
     const inPl = new Uint32Array(nIn), inN = new Float32Array(nIn * 3);
     for (const r of D.recs) { const nv = r.R.nv, pf = r.R.plOf;
       for (let v = 0; v < nv; v++) inPl[r.ci + v] = r.p0 + pf[v];
       if (r.nB) inN.set(r.nB.subarray(0, nv * 3), r.ci * 3); }
     free(D, true);
-    const buf = arr => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW); return b; };
-    D.inPl = buf(inPl); D.inN = buf(inN);
+    const buf = arr => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW); return b; };
+    // (the room allocated, what is there sent)
+    const room = (arr, bytes) => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, Math.max(4, bytes), gl.DYNAMIC_DRAW);
+      if (arr.length) gl.bufferSubData(gl.ARRAY_BUFFER, 0, arr); return b; };
+    D.inPl = room(inPl, capIn * 4); D.inN = room(inN, capIn * 12);
     D.vao = gl.createVertexArray(); gl.bindVertexArray(D.vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, D.inPl); gl.enableVertexAttribArray(0); gl.vertexAttribIPointer(0, 1, gl.UNSIGNED_INT, 0, 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, D.inN); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
     // THE PLACES MODE's inputs (the tear's world positions): every place once, in order; the normal unread (no array)
-    const ids = new Uint32Array(np); for (let j = 0; j < np; j++) ids[j] = j;
+    // (G3028: the identity to the headroom - an appended place's id is already there)
+    const ids = new Uint32Array(capNp); for (let j = 0; j < capNp; j++) ids[j] = j;
     D.inId = buf(ids);
     D.vaoW = gl.createVertexArray(); gl.bindVertexArray(D.vaoW);
     gl.bindBuffer(gl.ARRAY_BUFFER, D.inId); gl.enableVertexAttribArray(0); gl.vertexAttribIPointer(0, 1, gl.UNSIGNED_INT, 0, 0);
     gl.bindVertexArray(null);
     // (wBuf takes the feedback; the read buffer - G.rAll, shared by the drawers (G3022), never bound for it - is copied from it
     // on the GPU and read: WebGL refuses to map a buffer bound for transform feedback, and Chrome lost the whole context over it on the box)
-    D.wBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, D.wBuf); gl.bufferData(gl.ARRAY_BUFFER, Math.max(1, np) * 12, gl.STREAM_COPY);
-    D.wSink = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, D.wSink); gl.bufferData(gl.ARRAY_BUFFER, Math.max(1, np) * 12, gl.STREAM_COPY);
+    D.wBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, D.wBuf); gl.bufferData(gl.ARRAY_BUFFER, Math.max(1, capNp) * 12, gl.STREAM_COPY);
+    D.wSink = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, D.wSink); gl.bufferData(gl.ARRAY_BUFFER, Math.max(1, capNp) * 12, gl.STREAM_COPY);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     D.Wp = new Float32Array(np * 3); D.wSeq = 0; D.wantW = false;
-    D.np = np; D.rows = Math.max(1, Math.ceil(np / PW_W));
+    D.np = np; D.nIn = nIn; D.capIn = capIn; D.capNp = capNp; D.rows = Math.max(1, Math.ceil(capNp / PW_W));
     D.cpu = SB_placeArrays(D.rows);
     D.tex = TXK.map(() => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F, PW_W, D.rows); return t; });
     gl.bindTexture(gl.TEXTURE_2D, null);
     for (const r of D.recs) r.R.dvUp = -1;               // every record packed and sent again
+    D.key = D.recs.map(r => r.vo).join(',');
+  }
+  // (G3028: the places' room doubled - new textures, the CPU's rows copied into larger arrays and the rows there sent
+  // again; the places pass's buffers made to the new room)
+  function growPlaces(D, need) {
+    const gl = G.gl, used = Math.ceil(D.np / PW_W), cap = Math.max(need, D.capNp * 2), rows = Math.max(1, Math.ceil(cap / PW_W));
+    const cpu = SB_placeArrays(rows); for (const k of TXK) cpu[k].set(D.cpu[k].subarray(0, used * PW_W * 4));
+    for (const t of D.tex) gl.deleteTexture(t);
+    D.cpu = cpu; D.rows = rows; D.capNp = rows * PW_W;
+    D.tex = TXK.map(() => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F, PW_W, D.rows); return t; });
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    if (used) upRows(D, 0, used);
+    const ids = new Uint32Array(D.capNp); for (let j = 0; j < D.capNp; j++) ids[j] = j;
+    if (D.inId) gl.deleteBuffer(D.inId); if (D.vaoW) gl.deleteVertexArray(D.vaoW);
+    if (D.wBuf) gl.deleteBuffer(D.wBuf); if (D.wSink) gl.deleteBuffer(D.wSink);
+    D.inId = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, D.inId); gl.bufferData(gl.ARRAY_BUFFER, ids, gl.DYNAMIC_DRAW);
+    D.vaoW = gl.createVertexArray(); gl.bindVertexArray(D.vaoW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, D.inId); gl.enableVertexAttribArray(0); gl.vertexAttribIPointer(0, 1, gl.UNSIGNED_INT, 0, 0);
+    gl.bindVertexArray(null);
+    D.wBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, D.wBuf); gl.bufferData(gl.ARRAY_BUFFER, D.capNp * 12, gl.STREAM_COPY);
+    D.wSink = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, D.wSink); gl.bufferData(gl.ARRAY_BUFFER, D.capNp * 12, gl.STREAM_COPY);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    G.stats.grows = (G.stats.grows || 0) + 1;
+  }
+  // (G3028: the joining records at the end - their inputs' slices sent, their places packed by packStale: dvUp)
+  function appendRecs(D, add, nv) {
+    const gl = G.gl, inPl = new Uint32Array(nv), inN = new Float32Array(nv * 3);
+    let ci = D.nIn, np = D.np;
+    for (const r of add) { const n = r.R.nv, pf = r.R.plOf; r.ci = ci; r.p0 = np;
+      for (let v = 0; v < n; v++) inPl[ci - D.nIn + v] = np + pf[v];
+      if (r.nB) inN.set(r.nB.subarray(0, n * 3), (ci - D.nIn) * 3);
+      ci += n; np += r.R.pl.length; r.R.dvUp = -1; D.riding.add(r.pa); }
+    gl.bindBuffer(gl.ARRAY_BUFFER, D.inPl); gl.bufferSubData(gl.ARRAY_BUFFER, D.nIn * 4, inPl);
+    gl.bindBuffer(gl.ARRAY_BUFFER, D.inN); gl.bufferSubData(gl.ARRAY_BUFFER, D.nIn * 12, inN);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    D.recs = D.recs.concat(add); D.nIn = ci; D.np = np;
+    if (D.Wp.length < np * 3) { const W = new Float32Array(np * 3); W.set(D.Wp); D.Wp = W; }
     D.key = D.recs.map(r => r.vo).join(',');
   }
   // THE STALE PLACES PACKED into D.cpu: a record whose data moved since it last went up (R.dv: an event) whole, else the
