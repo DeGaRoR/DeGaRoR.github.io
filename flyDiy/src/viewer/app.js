@@ -8871,6 +8871,8 @@
   if (STORY_PAGE) {
     try { storyCardSync(); storyFlush(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
     try { storyIntroCurtain(); } catch (e) { console.warn('flyDiy (story): the opening -', e && e.message); }
+    // G3384: a story with its starter - the design flow's "New aeroplane" door stays shut (design_flow.js maybeAutoOpen)
+    try { const s = stLive(); if (s && s.planes && s.planes.starter) window.FLYDIY_STORY_STARTER = s.planes.starter; } catch (e) {}
     // T2's checklist follows the build on the stand (its ledger memoised on the spec's fingerprint)
     setInterval(() => { try { const s = stLive(); if (s && !s.open && s.beat === 'T2') storyCardSync(); } catch (e) {} }, 3000);
     window.FLYDIY_STORY = {
