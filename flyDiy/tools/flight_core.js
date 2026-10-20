@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: ba89ada195a6f66c
+// body-sha256: cf50d5aa25feda57
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -8839,6 +8839,23 @@ function migrate(rec) {
   }
   return r;
 }
+// FEEL FOLLOWS THE LOOK (the user, 19 Oct: "we retire that, feel follows looks" - ONE SURFACE's last step): an old file's split,
+// drawn one way and felt another, is converted where it is read - what the wheels feel is the look's class. A strip that says its
+// look: its `surface`; an area that draws a pavement and carries wheels: wheels.surface; a road whose look feels otherwise than
+// its class: its own `surface` (the composer reads it first) - its CLASS stays, what the user drew (a track is a dashed path:
+// a track drawn dirt rolls on dirt's gravel friction and stays a track).
+// A look with no feel of its own (markings only), a texture draw, wheels with nothing drawn and a water lane are left as they are.
+// An area that felt HARD (paved / gravel / sand: no tree, no plot) and now feels soft keeps them out - its exclude gains trees and
+// plots (A0 for the user: the feel follows the look, no new trees grow in). Idempotent: a converted record converts to itself.
+const FEEL_HARD = [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND];
+function feelFollowsLook(r) {
+  const feelOf = k => { const L = k && RUNWAY_LOOKS[k]; return L && L.surface !== null && L.surface !== undefined ? +L.surface : null; };
+  for (const w of r.layers.runways) if (w && w.look && +w.surface !== SURFACE.WATER) { const f = feelOf(w.look); if (f !== null && (w.surface === undefined || w.surface === null ? SURFACE.GRASS : +w.surface) !== f) w.surface = f; }
+  for (const a of r.layers.areas) { const P = a && a.props; if (!P || !P.wheels || !P.draw) continue; const f = feelOf(P.draw.look); if (f === null || +P.wheels.surface === f) continue;
+    if (FEEL_HARD.indexOf(+P.wheels.surface) >= 0 && FEEL_HARD.indexOf(f) < 0) { const w = P.exclude && Array.isArray(P.exclude.what) ? P.exclude.what.slice() : []; for (const k of ['trees', 'plots']) if (w.indexOf(k) < 0) w.push(k); P.exclude = Object.assign({}, P.exclude || {}, { what: w }); }
+    P.wheels = Object.assign({}, P.wheels, { surface: f }); }
+  for (const rd of r.layers.roads) { if (!rd || !rd.look) continue; const f = feelOf(rd.look); if (f !== null && roadFeel(rd) !== f) rd.surface = f; }
+}
 function normalise(rec) {
   const d = DEF();
   const r = Object.assign(d, rec || {});
@@ -8855,6 +8872,7 @@ function normalise(rec) {
   for (const rd of r.layers.roads) if (rd && Array.isArray(rd.tan) && Array.isArray(rd.pts)) { while (rd.tan.length < rd.pts.length) rd.tan.push(null); rd.tan.length = rd.pts.length; }
   // v1.37: a road's junction ids run beside its points too, one slot each (a hand edit's short list padded with null)
   for (const rd of r.layers.roads) if (rd && Array.isArray(rd.nodes) && Array.isArray(rd.pts)) { while (rd.nodes.length < rd.pts.length) rd.nodes.push(null); rd.nodes.length = rd.pts.length; }
+  feelFollowsLook(r);
   r.budget =Object.assign({}, d.budget, r.budget || {});
   if (typeof r.seed !== 'number') r.seed = 1;
   if (!THEMES[r.theme]) r.theme = THEME_DEF;
@@ -15064,7 +15082,7 @@ function makeSim(def, world) {
       return { L: hi - lo, M }; };
     const W = ext(C.idx0), Pp = ext(piece);
     if (!(Pp.L > 0.05) || !(Pp.M > 0) || !(W.L > Pp.L)) return om0;
-    return om0 * Math.sqrt(Math.min(9, Math.pow(W.L / Pp.L, 3) * (W.M / Pp.M)));
+    return om0 * Math.sqrt(Math.min(9, CORE_MATH.pow(W.L / Pp.L, 3) * (W.M / Pp.M)));
   }
   function clApply() {
     for (const k of clQ) {
@@ -16828,6 +16846,37 @@ function makeSim(def, world) {
   // bit), the ground rig follows its mass (setNodeMass's rule) and totalM is summed afresh in node order (reset's sum).
   // Nothing then and nothing now writes nothing at all. Deterministic: the page's sim and the worker's apply the same
   // list in the same order (sim_link / sim_host 'freight') and stay bit-equal (GATE SIMWORKER's load row).
+  // G3026 (with DAMAGE ON): A LOAD CHANGED MID-FLIGHT LEFT THE RIGID CLUSTERS' REST AT THE OLD MASSES. clusterRest keeps a
+  // cluster's rest shape as offsets from its MASS-weighted centroid, and twistRest each bay's rest twist as the phase between
+  // its rings' mass-weighted centroids - both taken at the reset, with the load aboard. A delivery (setFreight) changed the
+  // masses and not those: the shape projection then pulled the cluster to its rest shape about the wrong point, and the bay's
+  // twist read the mass change as a twist - the metal Cessna's cabin bay broke at a stop (GATE SIMWORKER 2c, 19 Oct: 10
+  // members in the step the mail came off; a 60-step ramp broke 20). Here both are moved by what the mass change alone makes
+  // of them ON THE AS-BUILT GEOMETRY (the def's positions, as the reset took them): the offsets by the centroid's shift, the
+  // rest twist by the phase's - so a plastic set the cluster carries is kept - and the bay's inertias are the new masses'
+  function freightRest(mOld, chg) {
+    if (!clusters.length) return;
+    const hit = clusters.filter(C => C.q && C.idx.some(i => chg[i]));
+    if (!hit.length) return;
+    const P0 = Float64Array.from(p), mNew = Float64Array.from(m);
+    for (let i = 0; i < n; i++) { const q = def.nodes[i].p; p[i*3] = q[0]; p[i*3+1] = q[1]; p[i*3+2] = q[2]; }
+    const cen = (C, M) => { let x = 0, y = 0, z = 0, W = 0; for (const i of C.idx) { x += p[i*3] * M[i]; y += p[i*3+1] * M[i]; z += p[i*3+2] * M[i]; W += M[i]; } return [x / W, y / W, z / W]; };
+    for (const C of hit) {
+      const c0 = cen(C, mOld), c1 = cen(C, mNew), dx = c0[0] - c1[0], dy = c0[1] - c1[1], dz = c0[2] - c1[2];
+      for (let k = 0; k < C.idx.length; k++) { C.q[k*3] += dx; C.q[k*3+1] += dy; C.q[k*3+2] += dz; }
+      if (C.twist) for (let k = 0; k + 1 < C.rings.length; k++) {
+        const T = C.twist[k]; if (!T) continue;
+        m.set(mOld); const g0 = twistGeom(C.rings[k], C.rings[k + 1]);
+        m.set(mNew); const g1 = twistGeom(C.rings[k], C.rings[k + 1]);
+        if (!g0 || !g1) continue;
+        let d = g1.theta - g0.theta; if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI;
+        T.rest += d; T.I0 = g1.I0; T.I1 = g1.I1;
+        const kth = C.gj / Math.max(0.05, g1.L), Ired = (g1.I0 * g1.I1) / Math.max(1e-9, g1.I0 + g1.I1);
+        T.w = Math.sqrt(kth / Math.max(1e-6, Ired));
+      }
+    }
+    m.set(mNew); p.set(P0);
+  }
   function setFreight(list) {
     const want = Array.isArray(list) && list.length ? list : null;
     if (!want && !FRX) return 0;
@@ -16839,6 +16888,7 @@ function makeSim(def, world) {
     }
     FRX = nx;
     FRL = want ? want.map(a => [a[0] | 0, +a[1]]) : null;
+    const mOld = Float64Array.from(m), chg = new Uint8Array(n);   // (G3026: the masses as they stood, the nodes changed)
     for (let i = 0; i < n; i++) {
       const a = old ? old[i] : 0, b = nx ? nx[i] : 0;
       if (a === b) continue;
@@ -16847,7 +16897,9 @@ function makeSim(def, world) {
       const base = (k >= 0 && fuel.frac !== 1) ? DRY0[k] + FUEL0[k] * fuel.frac : def.nodes[i].m;
       m[i] = b !== 0 ? Math.max(0.5, base + b) : base;
       rigGround(i, m[i]);
+      if (m[i] !== mOld[i]) chg[i] = 1;
     }
+    freightRest(mOld, chg);
     totalM = 0;
     for (let i = 0; i < n; i++) totalM += m[i];
     return FRL ? FRL.length : 0;
@@ -23084,6 +23136,7 @@ function makePilot(sim, def, world, opts) {
   const wrapPi = servoWrapPi;
   let pendReEng = false;
   let rollS0 = null, rollN = 0, thrRollW = 0, humpStuckT = 0;
+  let capsized = false;   // G3328: the aeroplane has been on its back (the report's outcome says so, whatever came before)
   let humpR = 0, humpPk = 0, humpPast = false;   // G790: the hull's resistance / weight on the water run, filtered; its peak; past it
   let climbMode = true, ceilT = 0, ceilingSaid = false;
   // G2125 PILOT-PROFILE: the lift-off's level acceleration done; the height held in it; the climb-out corridor's tops
@@ -24126,6 +24179,16 @@ function makePilot(sim, def, world, opts) {
     if (ap.budget && ap.t > ap.budget && !ap.report.outcome && ap.phase !== 'STOPPED') {
       ap.report.outcome = 'gave-up';
       say('gave-up', 'still in ' + ap.phase + ' at t=' + Math.round(ap.t) + ' s — out of patience, not out of sky');
+    }
+    // G3328 (CAPSIZE-VERDICT, 20 Oct - AP-ADAPT's water sweep: the float aeroplanes rolled over in the water roll-out after
+    // a landing the report had already called 'completed', 9-12 times in 86 flights, and every gate that reads the outcome
+    // passed them): ON ITS BACK IS NO ARRIVAL. Past 90 deg of bank, at any phase, on the water or the ground or in the air,
+    // the outcome is 'capsized' - over 'completed' or any other - said once with where and when; the gates read it as a red
+    if (!capsized && Math.abs(phRaw) > Math.PI / 2) {
+      capsized = true;
+      ap.report.capsized = { t: Math.round(ap.t * 10) / 10, phase: ap.phase, bank: Math.round(phRaw * 180 / Math.PI), V: Math.round(V * 10) / 10, onG, was: ap.report.outcome || null };
+      ap.report.outcome = 'capsized';
+      say('capsized', 'on its back in ' + ap.phase + ' at ' + V.toFixed(1) + ' m/s (bank ' + Math.round(phRaw * 180 / Math.PI) + ' deg)' + (ap.report.capsized.was ? ' - after "' + ap.report.capsized.was + '"' : ''));
     }
 
     // ---- THE SERVOS: one module, 39b_servos.js (G1570) ---------------------------
@@ -28310,7 +28373,9 @@ const GEN_CRASH_TUBE_DT = 30;
 // G1898 (DEFORM COORDINATOR): THE DAMAGE LAYER'S DEFAULT - ONE CONSTANT. A build's params.damage (true / false) wins;
 // else the page's ?damage=1|0 (FLYDIY_DAMAGE, the worker's from its init); else this. Off until DMG-D2 anchors the
 // limits on the certificate (DEFORM-AND-BREAK §11.4: train 35 flips it); params.damage === false stays master's bits.
-const GEN_DAMAGE_DEFAULT = false;
+// DAMAGE ON (19 Oct 2026, the user: "if it does not have an impact on normal flight, we should go for it, and not chase
+// milliseconds for now" - the crash's own stalls accepted as they are; ?damage=0 turns it off for a page)
+const GEN_DAMAGE_DEFAULT = true;
 // G1894 (DMG-TUNE): WHEN A BREAK GROUP LETS GO (DEFORM §4.4; the solver's beamBreak). A group is a part's attachment:
 // the members joining it to the rest (D1a's fittings - in the lattice the bolt and the tube end are one member) - an
 // engine mount's 10-12 tubes and bolts, a stab's 32, a wing root's 8-10. D1a let a group go WHOLE on ANY ONE member's
@@ -41790,7 +41855,7 @@ function genDensityAlt(def) {
 // the probe's velocity for an attitude: alpha (wind from below, +), beta
 // (the aeroplane moving to its right: wind from the right, +)
 function genDcVel(V, a, b) {
-  return [-V * Math.cos(a) * Math.cos(b), -V * Math.sin(a) * Math.cos(b), -V * Math.sin(b)];
+  return [-V * CORE_MATH.cos(a) * CORE_MATH.cos(b), -V * CORE_MATH.sin(a) * CORE_MATH.cos(b), -V * CORE_MATH.sin(b)];
 }
 
 // the derivatives, standard signs (Y right, L right-wing-down, N nose-right,
@@ -41813,7 +41878,7 @@ function genDesignDerivs(def, sim, V, opts) {
   // model is written in. Measured in BODY axes, the roll damping (the biggest
   // derivative) leaks into the yaw-roll cross terms at the trim alpha: the
   // Cub's Clr read 0.15 for 0.11, and its spiral twice as divergent as it flies.
-  const ca = Math.cos(a0), sa = Math.sin(a0);
+  const ca = CORE_MATH.cos(a0), sa = CORE_MATH.sin(a0);
   const fwd = [-ca, -sa, 0], up = [-sa, ca, 0];          // in the sim's axes (x aft, y up, z left)
   const P = (a, bt, w) => {
     const r = sim.probe(genDcVel(V, a, bt), live, w || null);
@@ -41875,7 +41940,7 @@ function genDesignDerivs(def, sim, V, opts) {
 function genDcRoots(co) {
   const n = co.length - 1, a = co.map(v => v / co[0]);
   const R = [];
-  for (let k = 0; k < n; k++) { const t = 2 * Math.PI * k / n + 0.4; R.push([0.9 * Math.cos(t), 0.9 * Math.sin(t)]); }
+  for (let k = 0; k < n; k++) { const t = 2 * Math.PI * k / n + 0.4; R.push([0.9 * CORE_MATH.cos(t), 0.9 * CORE_MATH.sin(t)]); }
   const mul = (x, y) => [x[0] * y[0] - x[1] * y[1], x[0] * y[1] + x[1] * y[0]];
   const div = (x, y) => { const d = y[0] * y[0] + y[1] * y[1] || 1e-300; return [(x[0] * y[0] + x[1] * y[1]) / d, (x[1] * y[0] - x[0] * y[1]) / d]; };
   // scale: start the guesses on the roots' own size (Cauchy bound)
@@ -42166,7 +42231,7 @@ function genDesignCheck(def, sh, simIn, opts) {
   {
     // the steady sideslip full rudder holds, and the crosswind that is at the approach
     const bMax = Math.abs(D.dr.Cn) / Math.max(1e-6, D.Cnb);
-    const Va = 1.3 * Vs, xw = Va * Math.sin(Math.min(0.6, bMax));
+    const Va = 1.3 * Vs, xw = Va * CORE_MATH.sin(Math.min(0.6, bMax));
     const need = 0.2 * Vs;                                     // FAR 23.233: 0.2 Vso demonstrated
     const lvl = D.Cnb <= 0 ? 'fail' : xw >= need ? 'pass' : xw >= 0.5 * need ? 'warn' : 'fail';
     row({ id: 'ctl.rudder', group: 'control', label: 'Rudder: crosswind it can hold', value: r2(xw * 1.944), unit: 'kt', level: lvl,
