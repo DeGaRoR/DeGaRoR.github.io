@@ -95537,3 +95537,8 @@ JOINPARITY was red on master cbe3f9972, 7 rows.
 **What to watch for:** a re-capture blesses whatever the game flies today. Every load-chain change since 08 Oct is now
 the baseline; nothing here judged whether those moves were right. A new tool that names a validated build must take a
 door (or load through tools/_load_build.js), or check 5 goes red again.
+
+## A0 - landing L20c (20 Oct 2026, gates 16:00-16:57, pushed ~17:00)
+Cargo (rolling): joinparity (G2799: the editor's join parity, the page re-captured by join_parity_page.js). HANDOVER conflict unioned.
+Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
+Strict light gate: 8 RED, none new by cause: over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV; its fix is checked Tue 19:30 for L20d); metal chase tasks1s / taskWorst = the ~1 s boot/settle tasks (+-0.5 s run to run); floats world->garage 2.1 s = the pre-existing program re-link; metal fuseWidth busy = the cost the user accepted by name (15 Oct).
