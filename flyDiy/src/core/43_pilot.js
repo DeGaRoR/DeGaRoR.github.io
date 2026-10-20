@@ -4215,7 +4215,14 @@ function makePilot(sim, def, world, opts) {
         // the floats touched threw the Wipline C172 to +16 deg and off the water for 3 s; held to 0.7 Vs0, then the laws below.
         // On a float Cessna whose sheet rolls out as a trike too (the de-rotation's 2 deg nose-down pinned the bows in)
         const VsW = sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99;
-        if (sim.hydro && V > 0.7 * VsW) engage('RWY', 'PITCH', 'SET', { thr: 0, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
+        // G3330 (WATER-SKIP, 20 Oct - the float Cessna on the game's 8 kt leg, t66: a touch at 1.46 Vs skipped six times, the hull
+        // a metre clear, the bank 4 -> 32 deg, a float caught and it rolled over; the same touch skipping under 0.45 m survives):
+        // IN A SKIP THE AEROPLANE IS FLYING. Off the water after the touch (no float wet, still over 0.7 Vs0) the wings are flown
+        // LEVEL by the air's roll law (the roll-out's ground law steers a hull, not a wing), the touch attitude held, and a
+        // little power (0.15) cushions the next contact instead of a closed throttle dropping it on a float (FAA-H-8083-23:
+        // a skip is not landed again off its top - the attitude held, power to soften, then idle once settled)
+        if (sim.hydro && onG === 0 && V > 0.7 * VsW) engage('LOC', 'PITCH', 'SET', { thr: A.waterSkipThr ?? 0.15, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap), bank: 0.05 });
+        else if (sim.hydro && V > 0.7 * VsW) engage('RWY', 'PITCH', 'SET', { thr: 0, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
         else if (trike) {
           // P1.B soft: the nosewheel stays off to 0.7 Vs, then full up
           const soft = ap.appr && ap.appr.technique === 'soft';
