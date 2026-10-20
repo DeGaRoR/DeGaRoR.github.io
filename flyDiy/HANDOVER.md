@@ -95534,3 +95534,32 @@ Known, owned, not blocking: G3027 (a Chinook-alike archetype rejects its takeoff
   its plaque and the file must be re-committed. A certificate is never faked.
 - GATE STORY rows: Tim has every beat's lines; T0 / T1's content; the editor lock (source); the bench rule; Tim's
   band steps aside on manual.
+
+## G2799 - GATE JOINPARITY GREEN AGAIN: THE CENSUS'S DOORS AND THE PAGE RE-CAPTURED (2026-10-20, EDITOR-UX-A for A0; claude/joinparity)
+
+JOINPARITY was red on master cbe3f9972, 7 rows.
+- **Check 1: the page capture was stale.** It was taken on 08 Oct. Since then the load chain has moved what the game
+  flies, by work meant to move it: the Cub 460.555 -> 460.703 kg, the Jodel, the metal Cessna, the floats; the twin
+  floatplane went from 127 to 123 nodes.
+- **Check 5: 16 tools named a validated build without a declared door.** Each is now declared by how it really loads
+  one:
+  - page: tour_real, storage_shot, _clockbake_check;
+  - via pilot_trace: altiport_trace, _altiport_check, floats_probe, tour_real_node, _profile_check;
+  - via _treecrash_lib: _route_check;
+  - spec: _wingrows_check, _sheetworker_check;
+  - join: _designcheck_check, _geoparity_check, _naclag_check;
+  - and a new door, `scene`, for DASH-REDESIGN's drawing tools dash_stills and _dash_check: they seed the editor's
+    layers headless and judge the drawing.
+- **Re-captured** with `node tools/join_parity_page.js --jobs 2` (A0's GPU slot, Tue 20 Oct 10:10-10:19, gpu UXA,
+  SwiftShader; the profiles were in C: temp and deleted). The new numbers are cub 460.703, jodel 464.183, metal 888.772,
+  floats 952.449 kg, twin floats n 123 / nb 500.
+- GATE JOINPARITY: PASS on it (10:20).
+
+**What to watch for:** a re-capture blesses whatever the game flies today. Every load-chain change since 08 Oct is now
+the baseline; nothing here judged whether those moves were right. A new tool that names a validated build must take a
+door (or load through tools/_load_build.js), or check 5 goes red again.
+
+## A0 - landing L20c (20 Oct 2026, gates 16:00-16:57, pushed ~17:00)
+Cargo (rolling): joinparity (G2799: the editor's join parity, the page re-captured by join_parity_page.js). HANDOVER conflict unioned.
+Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
+Strict light gate: 8 RED, none new by cause: over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV; its fix is checked Tue 19:30 for L20d); metal chase tasks1s / taskWorst = the ~1 s boot/settle tasks (+-0.5 s run to run); floats world->garage 2.1 s = the pre-existing program re-link; metal fuseWidth busy = the cost the user accepted by name (15 Oct).
