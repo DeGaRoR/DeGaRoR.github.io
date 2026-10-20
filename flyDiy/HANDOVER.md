@@ -95478,3 +95478,20 @@ build loads and flies bit-identically.
 - A placement inside the hand's range but outside the rule is green by the box and the skin. The crew and layer hits
   still apply.
 - The drop overlay sits at z 70, over the fleet popup (60).
+
+**The look** (A0's GPU slot, Tue 20 Oct 08:44-08:47, gpu UXA, read off the page, no stills):
+- **The user's Cub:** the nose's fore/aft slider runs -0.23 to +0.60 m. Before it ran -0.23 to 0; -0.23 m is the
+  firewall face, where the swept field ends. The tank is unmoved (along -0.117, lv 0.464, 27 L).
+- **The composite seat, both tandem seats:** the ribs run from the rails up into the shell's underside (front seat:
+  rails at y 0.673, shell bottom 0.813, rib top 1.04).
+- **A synthetic file drop:**
+  - dragenter shows #gDrop, and the drop hides it and imports the Jodel (45 L nose tank);
+  - a .txt is refused and said;
+  - every handler takes the default, so the browser never opens the file.
+- **Fixed there:** #gDrop is body-level, so it is now in editor.css's token scope `:is(...)`, beside #hsStore and
+  #stCard. Without it the border's `--ed-acc` was unset.
+- No JS error: the same 3 resource 404s as before.
+- **Gates** (Tue 05:30, beside APADAPT, on 43b50a4de): ENERGY ENERGYBASE TANKMOUNT BAY CABIN CAGEFIT PANEL JOIN SAVE
+  SPECFIX DEFAULT PARTS KNIFE UISMOKE UISMOKE-PHONE CARDS all PASS.
+  - JOINPARITY's 7 FAILs are master's (identical on cbe3f9972); A0 gave me that fix (claude/joinparity).
+  - FRAMECOST was not run: the parked cook is not '(same)'.
