@@ -397,6 +397,21 @@
     gl.__flyShadow = S;
     return S;
   }
+  // (G3029, the gates' cross-check: the shadow against the context's own answers - a synchronous round of queries, for a
+  // test only. Null: no shadow on this page; else the keys that differ, [] when it is true)
+  function shadowCheck() {
+    const gl = G.gl, S = gl && gl.__flyShadow; if (!S) return null;
+    const bad = [], eq = (k, a, b) => { if (a !== b) bad.push(k); };
+    eq('prog', S.prog, gl.getParameter(gl.CURRENT_PROGRAM)); eq('vao', S.vao, gl.getParameter(gl.VERTEX_ARRAY_BINDING));
+    eq('unit', S.unit, gl.getParameter(gl.ACTIVE_TEXTURE)); eq('ab', S.ab, gl.getParameter(gl.ARRAY_BUFFER_BINDING));
+    eq('pub', S.pub, gl.getParameter(gl.PIXEL_UNPACK_BUFFER_BINDING)); eq('tfb', S.tfb, gl.getParameter(gl.TRANSFORM_FEEDBACK_BINDING));
+    eq('disc', S.disc, gl.isEnabled(gl.RASTERIZER_DISCARD));
+    for (const k of PX) { const v = gl.getParameter(k); eq('px' + k, S.px.get(k), typeof S.px.get(k) === 'boolean' ? !!v : v); }
+    const u0 = gl.getParameter(gl.ACTIVE_TEXTURE);
+    for (let k = 0; k < UNITS; k++) { gl.activeTexture(gl.TEXTURE0 + k); eq('tex' + k, S.tex.has(gl.TEXTURE0 + k) ? S.tex.get(gl.TEXTURE0 + k) : null, gl.getParameter(gl.TEXTURE_BINDING_2D)); }
+    gl.activeTexture(u0);
+    return bad;
+  }
   function saveGL() {
     const gl = G.gl, S = !G.glq && G.shadow;
     if (S) return { prog: S.prog, vao: S.vao, unit: S.unit, ab: S.ab, pub: S.pub, tfb: S.tfb, disc: S.disc,
@@ -454,7 +469,7 @@
   }
 
   const API = { RIDE_VS, RIDE_FS, PW_W, TXK, G, packStale, prepare, ready, drawer: kept(drawer), layout: kept(layout),
-                frame: kept(frame), poll, readBack: kept(readBack), release: kept(release) };   // (poll binds only COPY_READ_BUFFER, which three never caches: unwrapped - wrapped, its 39 calls a frame were ~800 getParameter, ~5 ms a frame on the box)
+                frame: kept(frame), poll, shadowCheck, readBack: kept(readBack), release: kept(release) };   // (poll binds only COPY_READ_BUFFER, which three never caches: unwrapped - wrapped, its 39 calls a frame were ~800 getParameter, ~5 ms a frame on the box)
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (W) W.SKIN_GPU = API;
 })();

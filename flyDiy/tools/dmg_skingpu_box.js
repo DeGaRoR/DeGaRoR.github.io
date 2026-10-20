@@ -95,7 +95,10 @@ async function pageFlown(o) {
       rec: M.lastT === sim.t ? +(M.lastRec || 0).toFixed(2) : 0, ev: M.lastT === sim.t ? +(M.lastEv || 0).toFixed(2) : 0, fr: M.lastT === sim.t ? +(M.lastFrames || 0).toFixed(2) : 0, pose: M.lastT === sim.t ? +(M.lastPose || 0).toFixed(2) : 0 });
   }
   const SB3 = window.FLYDIY_SKINBREAK_STATS();
-  return { first, trace, reason: P.damage && P.damage() ? P.damage().reason : null, broken: trace.length ? trace[trace.length - 1].broken : 0, progs: [progs0, R3.info.programs.length],
+  // (G3029: the GL shadow against the context's own answers after the crash's frames - three's resets included; null: no
+  // shadow on this page (?glq=1, damage off), [] true, else the keys that differ)
+  const shadow = window.SKIN_GPU && SKIN_GPU.shadowCheck ? SKIN_GPU.shadowCheck() : null;
+  return { first, trace, shadow, reason: P.damage && P.damage() ? P.damage().reason : null, broken: trace.length ? trace[trace.length - 1].broken : 0, progs: [progs0, R3.info.programs.length],
     check: null, skin: SB3 };
 }
 // the GPU's readback on the wreck held (the worker's: its clock stopped by the player's Pause): the riding re-posed on the
@@ -140,7 +143,7 @@ const summary = st => {
   const win = T.filter(r => r.t >= t0 && r.t < t0 + 1 && i0 < T.length), q = a => { const b = a.slice().sort((x, y) => x - y); return b.length ? { med: b[b.length >> 1], p95: b[Math.floor(b.length * 0.95)], max: b[b.length - 1] } : null; };
   const sum = k => +win.reduce((a, r) => a + (r[k] || 0), 0).toFixed(1);
   const ev = T.slice(i0).filter(r => r.brkEv > 1), fb = i0 < T.length ? T[i0] : null;
-  return { reason: st.reason, broken: st.broken, frames: T.length, crash: q(T.slice(i0).map(r => r.ms)), worst: T.filter(r => !isStage(r)).reduce((a, r) => (r.ms > a.ms ? r : a), { ms: 0 }), stageMax: +stageMax.toFixed(1),
+  return { reason: st.reason, broken: st.broken, frames: T.length, shadow: st.shadow, crash: q(T.slice(i0).map(r => r.ms)), worst: T.filter(r => !isStage(r)).reduce((a, r) => (r.ms > a.ms ? r : a), { ms: 0 }), stageMax: +stageMax.toFixed(1),
     impactQ: q(win.map(r => r.ms)), firstBreak: fb && { ms: fb.ms, brk: fb.brk, rec: fb.brkRec, ev: fb.brkEv, pose: fb.brkPose, scene: fb.scene },
     events: { n: ev.length, ev: q(ev.map(r => r.brkEv)), frame: q(ev.map(r => r.ms)) }, lose: st.lose,
     impactMean: win.length ? +(win.reduce((a, r) => a + r.ms, 0) / win.length).toFixed(1) : null, impactFrames: win.length,

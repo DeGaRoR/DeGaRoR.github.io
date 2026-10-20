@@ -186,6 +186,10 @@ async function child() {
   for (let i = 0; i < 20; i++) await P.frames(1);
   R.idxRollout = idxDiff(R.idx0, idxCensus()); delete R.idx0; R.visRollout = visMis();   // (the rolled-out model against the fresh one: nothing removed)
   R.after = staleOf(W, S);
+  // (G3029: the GL shadow - put on with damage on only (a roll-out with damage off wraps nothing). Its TRUTH against the
+  // context's answers is the box rig's row (tools/dmg_skingpu_box.js, real Chrome): the node page's GL answers constants)
+  try { const gl = W.FLYDIY_RENDERER && W.FLYDIY_RENDERER.getContext ? W.FLYDIY_RENDERER.getContext() : null;
+    R.shadow = { on: !!(gl && gl.__flyShadow), bad: W.SKIN_GPU && W.SKIN_GPU.shadowCheck ? W.SKIN_GPU.shadowCheck() : null }; } catch (e) { R.shadow = { err: String(e && e.message) }; }
   // (G2350: read, never forPayload - that call resets the folds' list)
   try { const FB = W.FLOWN_BAKE, L = FB && FB.FB.last, F = FB && FB.folds ? FB.folds() : [];
     R.bake = { module: !!FB, hit: L ? L.hit : null, cm: L ? L.cm : null, hybrid: !!(FB && FB.FB.hybrid), hyT: FB ? FB.FB.hyT : null, folds: F.length,
@@ -241,6 +245,10 @@ function judge(R, say) {
   if (R.damage !== false && R.shot1 && R.shot1.shot && R.shot1.worst > 0.3) bad('THE ROLL-OUT SHOT POSED THE WRECK after the crash: its nodes ' + R.shot1.worst + ' m off the aeroplane as built (fresh ' + (R.shot0 && R.shot0.worst) + ' m)');
   if (R.damage !== false && !(R.shot1 && R.shot1.shot)) say('  ' + R.key + ' (note: no roll-out shot frames seen after the crash - the shot row tests nothing)');
   if (st(R.fresh).length) bad('a fresh roll-out already holds stale buffers: ' + JSON.stringify(st(R.fresh).slice(0, 4)));
+  // G3029: the GL shadow's rows
+  if (R.shadow && R.damage === false && R.shadow.on) bad('damage OFF: the GL shadow is on (the bind calls wrapped with the damage layer off)');
+  if (R.shadow && R.damage !== false && !R.shadow.on) bad('damage ON: no GL shadow after the roll-out (saveGL would query the GPU)');
+  say('  ' + R.key + ' GL shadow: ' + JSON.stringify(R.shadow));
   if (R.damage === false) {   // DAMAGE OFF: the same path, no break - and the heal's upload marking never fires (no extra upload)
     say('  ' + R.key + ' DAMAGE OFF: the heal upload marking fired ' + R.healUploads + ' times; ' + st(R.after).length + ' stale');
     if (R.healUploads) bad('damage OFF: the heal marked folds for upload ' + R.healUploads + ' times (an extra upload with damage off)');
