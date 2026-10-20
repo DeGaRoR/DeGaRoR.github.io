@@ -95447,3 +95447,27 @@ A build that SAVED its own value keeps it (every builds/*.json says 0.5, the Ruf
 Cargo (rolling): cabin-approach (G3097 the trees-only fan x_fan_w1_0 over Cabin Strip's end 0 + 27_premises on CORE_MATH + the re-cook), career-expert (the player's own career flights always fly the Expert; the career's pilot-pick row is gone), idle-default (pilot idle motion 1 by default), story-fix (the story loads the CERTIFIED Rufus; GAME-PLAN §R2 with the shed rules), water-spray (G2837 side arches + G2838 heavy drops; the user OK'd the look). torque-retune-66 HELD (the user's word on the float Cessna's mk_sea go-arounds is pending).
 Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
 Strict light gate: 12 RED, none new by cause. over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV, fix in progress); taskWorst / tasks1s = the boot/settle and roll-out tasks around 1 s (HWCOV 19 Oct: 982-1099 ms on L19a too, +-0.5 s run to run); floats world->garage 2.4 s = the pre-existing program re-link (FLOATS-RELINK); metal fuseWidth busy = the cost the user accepted by name (15 Oct). The gate's profile now lives in C: temp and is deleted after.
+
+## G2799 - GATE JOINPARITY GREEN AGAIN: THE CENSUS'S DOORS AND THE PAGE RE-CAPTURED (2026-10-20, EDITOR-UX-A for A0; claude/joinparity)
+
+JOINPARITY was red on master cbe3f9972, 7 rows.
+- **Check 1: the page capture was stale.** It was taken on 08 Oct. Since then the load chain has moved what the game
+  flies, by work meant to move it: the Cub 460.555 -> 460.703 kg, the Jodel, the metal Cessna, the floats; the twin
+  floatplane went from 127 to 123 nodes.
+- **Check 5: 16 tools named a validated build without a declared door.** Each is now declared by how it really loads
+  one:
+  - page: tour_real, storage_shot, _clockbake_check;
+  - via pilot_trace: altiport_trace, _altiport_check, floats_probe, tour_real_node, _profile_check;
+  - via _treecrash_lib: _route_check;
+  - spec: _wingrows_check, _sheetworker_check;
+  - join: _designcheck_check, _geoparity_check, _naclag_check;
+  - and a new door, `scene`, for DASH-REDESIGN's drawing tools dash_stills and _dash_check: they seed the editor's
+    layers headless and judge the drawing.
+- **Re-captured** with `node tools/join_parity_page.js --jobs 2` (A0's GPU slot, Tue 20 Oct 10:10-10:19, gpu UXA,
+  SwiftShader; the profiles were in C: temp and deleted). The new numbers are cub 460.703, jodel 464.183, metal 888.772,
+  floats 952.449 kg, twin floats n 123 / nb 500.
+- GATE JOINPARITY: PASS on it (10:20).
+
+**What to watch for:** a re-capture blesses whatever the game flies today. Every load-chain change since 08 Oct is now
+the baseline; nothing here judged whether those moves were right. A new tool that names a validated build must take a
+door (or load through tools/_load_build.js), or check 5 goes red again.
