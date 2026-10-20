@@ -386,6 +386,12 @@ const WATER = (() => {
           // blur (a mip of roughness x lod on its capture), so where the capture is sky (alpha 0) the probe's clouds were
           // smeared flat beside a sharp mirrored shore. Under the mirror's weight the lobe is scaled by uWSky.x (MIR.skyK)
           iblRadiance = getIBLRadiance( geometryViewDir, nn, material.roughness * mix(1.0, uWSky.x, uWMirror4.x) );
+          // G2839 ONE SKY'S LEVEL (20 Oct 03:10, skyK changed nothing): the world's scene.environmentIntensity (0.5, the
+          // aeroplane's skin's number) overrides every envMap-less material's intensity - the water's too - so the probe's
+          // sky reached the water at HALF the radiance the mirror's capture draws it at: at a 2 % Fresnel its clouds sank
+          // into the body colour (the flat navy). Under the mirror's weight the probe is lifted by uWSky.y (MIR.skyGain:
+          // 1 / the scene's intensity under the ring, 1 elsewhere) - the two halves of one sky at one level
+          iblRadiance *= mix(1.0, uWSky.y, uWMirror4.x);
           wIblP = iblRadiance;
           // BRUNETON'S MEAN FRESNEL (2010, eq. for a rough sea): a prefiltered lookup has no masking - a rough sea at
           // grazing reflects a third of the mirror's sky, its facets shadowing each other and turning the eye toward
@@ -973,7 +979,7 @@ const WATER = (() => {
     // (round 2, 19 Oct: the capture is GEOMETRY-bound - 4.6-5.9 ms GPU at any resolution, ~11 M triangles): ringOffset narrows the mirror
     // camera's FRUSTUM to the rows under the water's horizon (setViewOffset: culling drops what no water pixel reads, not just the fill);
     // ringFar caps the capture's far plane
-    ringOffset: false, ringFar: 4000, skyK: 1,
+    ringOffset: false, ringFar: 4000, skyK: 1, skyGain: 0,
     // (round 2, A0 19 Oct: 'a ring near the shore' - HOME must pay nothing) over land the ring fades by the eye's distance to WATER, gone by ringIn m inland
     ringIn: 150, waterD: 0 };
   const mirrorTmp = {};
@@ -1059,7 +1065,8 @@ const WATER = (() => {
   const sstep = (e0, e1, x) => { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
   function mirrorRender(THREE, renderer, scene, camera, under, opts) {
     opts = opts || {};
-    if (U) U.uWSky.value.x = MIR.skyK;   // (G2839: the probe's lobe under the mirror's weight)
+    if (U) { U.uWSky.value.x = MIR.skyK;   // (G2839: the probe's lobe and level under the mirror's weight; skyGain 0 = 1 / the scene's
+      U.uWSky.value.y = MIR.skyGain > 0 ? MIR.skyGain : PROTO.ring ? 1 / Math.max(0.05, (scene && scene.environmentIntensity) || 1) : 1; }   // intensity under the ring, 1 elsewhere)
     if (PROTO.ring && MIR.mode !== 'live') { MIR.mode = 'live'; mirrorOff(); }   // (the study's mirror is the never-switching one, weighted by the ring)
     if (MIR.mode === 'off') { if (MIR.on && U) { MIR.on = false; U.uWMirror4.value.x = 0; } MIR.w = 0; return false; }
     const auto = MIR.mode === 'auto', hasUnder = under !== null && under !== undefined && Number.isFinite(under);
