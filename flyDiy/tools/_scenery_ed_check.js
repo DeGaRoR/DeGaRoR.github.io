@@ -1219,9 +1219,9 @@ if (plots.length) {
               Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'wb', c: [0, 600], len: 400, wid: 20, look: 'none', surface: PG.SURFACE.GRAVEL })] } });
   const ar = id => old.layers.areas.find(a => a.id === id).props.wheels, rd = id => old.layers.roads.find(r => r.id === id), rw = id => old.layers.runways.find(r => r.id === id);
   check(+ar('oa').surface === PG.SURFACE.GRASS && ar('oa').apron === true && +ar('ob').surface === PG.SURFACE.GRAVEL && +ar('oc').surface === PG.SURFACE.PAVED &&
-        rd('ra').cls === 'gravel' && rd('rb').cls === 'paved' && +rd('rc').surface === PG.SURFACE.SAND && rd('rc').cls === 'gravel' &&
+        rd('ra').cls === 'track' && +rd('ra').surface === PG.SURFACE.GRAVEL && rd('rb').cls === 'gravel' && +rd('rb').surface === PG.SURFACE.PAVED && +rd('rc').surface === PG.SURFACE.SAND && rd('rc').cls === 'gravel' &&
         +rw('wa').surface === PG.SURFACE.PAVED && +rw('wb').surface === PG.SURFACE.GRAVEL && splits(old).length === 0,
-        '34 an old file\'s splits load as their looks feel (area, track drawn dirt, gravel drawn concrete, a strip); no feel of its own, a texture, wheels alone: kept');
+        '34 an old file\'s splits load as their looks feel (area, track drawn dirt, gravel drawn concrete, a strip) - a road keeps its class (a track stays a dashed path); no feel of its own, a texture, wheels alone: kept');
   check(JSON.stringify(PG.normalise(JSON.parse(JSON.stringify(old)))) === JSON.stringify(old), '34 ...and a converted record converts to itself (the store round-trips)');
   // the feel follows the look, no new trees grow in: an area that felt hard keeps trees and plots out (its exclude); one that
   // felt soft gains nothing; the shipped a11 (paved, drawn grass) keeps them out too, composed

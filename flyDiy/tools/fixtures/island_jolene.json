@@ -7806,14 +7806,15 @@
      ]
     ],
     "w": 2.2,
-    "cls": "gravel",
+    "cls": "track",
     "look": "dirt",
     "graded": false,
     "poles": "off",
     "rail": "off",
     "pav": {
      "marks": "none"
-    }
+    },
+    "surface": 6
    },
    {
     "id": "nv_path_beach",
@@ -7840,14 +7841,15 @@
      ]
     ],
     "w": 2.2,
-    "cls": "gravel",
+    "cls": "track",
     "look": "dirt",
     "graded": false,
     "poles": "off",
     "rail": "off",
     "pav": {
      "marks": "none"
-    }
+    },
+    "surface": 6
    },
    {
     "id": "tw_r_access",
@@ -10992,7 +10994,7 @@
      ]
     ],
     "w": 5.6,
-    "cls": "paved",
+    "cls": "gravel",
     "graded": true,
     "falloff": 6,
     "curve": "spline",
@@ -11013,7 +11015,8 @@
       -29.48
      ]
     ],
-    "look": "concrete"
+    "look": "concrete",
+    "surface": 5
    },
    {
     "id": "r25",

@@ -1387,7 +1387,7 @@ function mount(host, ctx) {
       rows.slider(insp, 'width (m)', 2, 30, 0.2, () => e.w, v => ed(x => { x.w = v; }, 'width of ' + id, 'w'), v => v.toFixed(1) + ' m');   // (G434: to 30 - a taxiway is a road)
       // ONE SURFACE (18 Oct): the class is what the road is - drawn and felt; picking one drops a look that feels otherwise
       rows.select(insp, 'surface', [['gravel', 'gravel'], ['paved', 'paved'], ['track', 'track (grass)']], () => e.cls || 'gravel',
-        v => ed(x => { x.cls = v; if (x.look && !PG.lookFeelsAs(x.look, PG.roadFeel(x))) x.look = null; }, 'class of ' + id));
+        v => ed(x => { x.cls = v; delete x.surface; if (x.look && !PG.lookFeelsAs(x.look, PG.roadFeel(x))) x.look = null; }, 'class of ' + id));
       // THE LOOK (v1.16): the pavement drawn - only the variants that feel as the class (paved: asphalt, concrete, old concrete)
       { const feel = PG.roadFeel(e), alts = Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].cls && PG.lookFeelsAs(k, feel));
         if (alts.length > 1) rows.select(insp, 'look', [['', 'by class (' + PG.roadLook(e).key + ')']].concat(alts.map(k => [k, PG.RUNWAY_LOOKS[k].name])), () => (e.look && alts.indexOf(e.look) >= 0 ? e.look : ''), v => ed(x => { x.look = v || null; }, 'look of ' + id)); }
