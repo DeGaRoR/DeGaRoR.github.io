@@ -48,7 +48,7 @@ function runNodeTwin(L) {
   return new Promise(res => {
     const out = path.join(OUT, L.id + '_node.json');
     const p = spawn(node, ['--max-old-space-size=2048', path.join(T, 'tour_real_node.js'), '--root', ROOT, '--game', '--build', L.build,
-      '--order', L.order, '--damage', String(L.damage || 0), '--out', out], { stdio: ['ignore', 'pipe', 'pipe'] });
+      '--order', L.order, '--damage', String(L.damage ?? 1), '--out', out], { stdio: ['ignore', 'pipe', 'pipe'] });
     let err = '';
     p.stderr.on('data', d => { err += d; });
     p.on('close', code => res({ code, out, err: err.slice(-400) }));
@@ -57,7 +57,7 @@ function runNodeTwin(L) {
 
 function runPage(L) {
   const dir = path.join(OUT, L.id);
-  const a = [path.join(T, 'tour_real.js'), '--root', ROOT, '--build', L.build, '--order', L.order, '--damage', String(L.damage || 0),
+  const a = [path.join(T, 'tour_real.js'), '--root', ROOT, '--build', L.build, '--order', L.order, '--damage', String(L.damage ?? 1),
     '--rate', '2', '--cast-nth', '60', '--out', dir];
   if (L.persona) a.push('--persona', L.persona);
   if (L.q) a.push('--q', L.q);
