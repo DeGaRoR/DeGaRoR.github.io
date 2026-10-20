@@ -95542,3 +95542,150 @@ door (or load through tools/_load_build.js), or check 5 goes red again.
 Cargo (rolling): joinparity (G2799: the editor's join parity, the page re-captured by join_parity_page.js). HANDOVER conflict unioned.
 Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
 Strict light gate: 8 RED, none new by cause: over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV; its fix is checked Tue 19:30 for L20d); metal chase tasks1s / taskWorst = the ~1 s boot/settle tasks (+-0.5 s run to run); floats world->garage 2.1 s = the pre-existing program re-link; metal fuseWidth busy = the cost the user accepted by name (15 Oct).
+
+## G3440-G3443 - HYDRO-TRIM: THE STOCK 172R GETS OFF WIPAIRE'S EXACT FLOAT - THE WAKE BEHIND THE STEP IS THE MEASURED ONE (THE AFTERBODY HOLDS THE TRIM), THE TRANSOM READS THE WATER IT SITS IN, A SHEDDING CHINE'S SIDE CARRIES NO SKIN FRICTION, THE FINE PROP'S STATIC FIGURE OF MERIT 0.39 -> 0.50; GATE HYDROTRIM (2026-10-20, HYDRO-TRIM for A0, cloud - node only; branch claude/hydro-trim off claude/hydro-trim-rig 8698ddb47 on master c7c163805; G3444-G3449 unused)
+
+The bug (G3390, the user: "taking the validated C172 and putting the exact Wipaire floats on it should work out of the
+box, otherwise we have another issue with realism"): the corrected 172R on catalogue-exact Wipline 2350s, at
+Wipaire's STC gross 1,157 kg with the STC float prop (McCauley 82 x 43), never left the water - 0 of 10 runs; it sat at
+6-7 m/s, R/W 0.18-0.23, the trim 8-15 deg and RISING with the thrust. Fixed the physics, never the plane: no build,
+no float preset, no airframe number moved.
+
+**MEASURED FIRST (scratch rigs; the tank and the term dumps are in the evidence README).**
+1. At the stuck state the water's drag was Delta tan(trim) + friction (0.172 + 0.04 at 9.8 deg) - Savitsky's law at
+   that trim, so the TRIM the aircraft settled at decided it. More thrust made it worse: x1.15 thrust sat at 7.1 m/s,
+   11.5 deg; x1.30 at 8.4 m/s, 15.1 deg (the held-back elevator in a stronger wash). Full forward stick brought the trim
+   to 5.6 deg but the stalled tail in the 29 m/s wash cost 0.06 W of drag: no way out by the stick.
+2. THE HULL'S OWN PITCH BALANCE RAN AWAY: GATE HYDRODYN's free-to-trim tows read 19.8 deg (the seaplane) and 23.5 deg
+   (the lone float) at the hump, with the afterbody DRYING as the trim rose. The wake law behind the step was a
+   ballistic streamline continuing the forebody keel, sagging under gravity, recovering over kWake V^2/g: the higher
+   the trim, the deeper the hollow, the drier the afterbody - nothing held the bow down. A real float's afterbody is
+   what limits its hump trim (Parkinson, NACA TN 563, 1936: free to trim the hump trims were "excessive"; the hull with
+   the lower afterbody keel angle ran ~3 deg lower and 15 % less hump resistance; a NACA float series: afterbody keel
+   4 -> 9 deg raised the free-to-trim hump resistance ~25 %).
+3. In the tank (the 172R's own 2350 hull, 578 kg, trim held) the forebody's excess over Savitsky's prismatic R
+   (0.202 vs 0.130 W at 6.5 m/s, 6 deg) is the BOW ROCKER: the leading-edge planing pressure on panels sloped 15-25 deg.
+   Checked against 2D+t momentum theory (Wagner / Zarnick) on the same pose: 2D+t gives D/L 0.29-0.51 for the dynamic
+   force on that rocker, the sim 0.20-0.24 - NOT overstated, left alone.
+4. The transom at the hump stayed unventilated (base suction 0.03-0.04 W) and the afterbody deck under water (0.02 W of
+   download): the transom read its air off the STILL level while the afterbody around it sat in the wake.
+5. The 82 x 43's static thrust 2,587 N (T/W 0.228) is ~20 % under what the measurements give (below, G3443).
+
+**WHAT LANDED.**
+- G3440 `src/core/32_hydro.js` THE WAKE AS MEASURED (`P.wakeSM`, default 1; 0 = the H0 wake). Behind a ventilated
+  step the surface stands H over the forebody keel line extended aft, Savitsky & Morabito's tank fit (2010):
+  H/b = 0.17 (A + 0.03 L_K tau^1.5) sin((pi/C_V)(X/3)^1.5), A 1.5 on the centreline, 2 at the quarter beam (held to
+  the chine), b the chine beam at the step, L_K the wetted keel length in beams (the forebody's keel stations walked
+  from the step), tau the forebody trim (deg), held at its crest past the first quarter wave, never above the
+  undisturbed surface, blended by the step's air as before. It rises with trim and loading: a trimmed-up hull meets
+  its own wake on the afterbody. CORE_MATH.sin / pow (census clean).
+- G3440 THE TRANSOM READS THE WATER IT SITS IN: its depths (keel, deck edge) from the wake-modified surface, and its
+  air also comes up a side whose chine sheds the flow (sigma_chine < 1: G451.1's step rule, now the transom's too).
+- G3440 (`P.sideShed`, default 1) A SIDE ABOVE A CHINE THAT SHEDS THE FLOW CARRIES NO SKIN FRICTION (the same cavity
+  law per side panel, on its chine depth): Savitsky's planing hull is wetted on its bottom only; the clipper's "wet"
+  side is the still level the spray was thrown off (the spray-root rise stays an H0 cut). Friction only: the side's
+  pressure terms (the keel's grip in a slip) are as they were.
+- G3443 `src/core/60_gen_spec.js` GEN_PROP_PITCH.climb.fm 0.530 -> 0.630. `fm` is FM^(2/3) (genPropSynth multiplies
+  momentum theory's (2 rho A)^(1/3) P^(2/3) by it), so 'climb' was a figure of merit of 0.386 - under every prop
+  measured absorbing full power standing: Flight Resource's static tests for STC SA02245CH (C170B, O-360-A1A 180 hp,
+  1000 ft, 75 F): Hartzell 2-blade 76 in 672 lbf (FM 0.49), MT 2-blade 80 in 785 lbf (FM 0.59), MT 3-blade 78 in 775 lbf;
+  the sim's 'climb' gave the same discs and power 13 % and 23 % less. 'climb' is now FM 0.50. A fine prop is the one
+  that reaches rated rpm standing (the 172R's IO-360-L2A is rated at 2,400 rpm). 'standard' (the A-65 + Sensenich
+  anchor, FM 0.33 at rated power: a prop that cannot turn its engine to rated standing) and 'cruise' are untouched.
+  The 82 x 43 on 118 kW: 2,587 -> 3,075 N (692 lbf; the same report as transcribed lists a McCauley 2-blade at 750 lbf,
+  2,450 rpm, 180 hp). V0 falls with it (propV0K P / Tstatic): the thrust is the old one's at ~40 m/s, 12 % under at 55
+  - a fine prop runs out of pitch. WHO MOVES: builds on 'climb' - the 3-blade carbon tile ("the STOL pick": the
+  Caravan-alike archetype) and the G3390 STC build; 'auto' tries 'climb' first, and its lower V0 can send an auto build
+  to 'standard' (2 stored builds are 'auto'). None of the user's validated aeroplanes is on 'climb'.
+- G3441 `tools/hydro_trim_table.js` (the table below, any core: `--core <path>`) and `tools/sea_to_g3390.js` gains the
+  Cessna floatplane supplement's technique beside GATE FLOATS' ('poh': flaps 20, the same stick through the hump and
+  onto the step, the stick back at 50 KIAS), and its lift-off is now 2 s of both floats dry (G3390's 8 kt rows
+  "lifted" at 16 m/s of water speed - a porpoise's skip, below the stall).
+- G3442 GATE HYDROTRIM (`tools/_hydrotrim_check.js`, full tier, ~2 min): the 2350 hull in the tank at 8.5 m/s (the
+  afterbody's share rises with the trim 1 -> 13 -> 27 %; the H0 wake left it 0-2 %), the 172R STC at gross (hump R/W
+  0.12-0.21 at C_V 2.2-4.5, trim there <= 11.5, falling past it; airborne 18-36 s / 250-500 m on the supplement's
+  technique, <= 60 s on G3390's).
+
+**BEFORE / AFTER - the validated floatplanes** (`node tools/hydro_trim_table.js`, sea south of HOME, calm, damage on;
+before = the branch-start core 8698ddb47 built, after = this tree; "G3390" = the rig's technique: stick back, the step
+attitude from 9 m/s, no flap, no rotation; "POH" = flaps 20, the same stick, back stick at 0.97 Vs clean; lift-off =
+both floats dry 2 s; reports/evidence/G3440/hydro_trim_table.json):
+
+| build (as loaded) | technique | hump R/W @ trim, before -> after | lift-off before | lift-off after |
+|---|---|---|---|---|
+| 172R + 2350, STC 82x43, 1157 kg | G3390 | 0.205 @ 9.8 -> 0.192 @ 8.6 | never (90 s) | 38.8 s, 687 m |
+| same | POH | 0.198 @ 9.8 -> 0.186 @ 10.6 | never | **30.7 s, 442 m** (26.4 m/s) |
+| 172R + 2350, land prop 1.905 m, 1157 kg | G3390 / POH | 0.176 -> 0.170 | never | never (T/W 0.194) |
+| Cessna floats, cessnaFloatsWOrks, as built 1018 kg | G3390 | 0.353 @ 16.5 -> 0.219 @ 8.7 | 35.7 s, 571 m | 29.9 s, 524 m |
+| same | POH | 0.348 @ 16.4 -> 0.200 @ 8.5 | 28.7 s, 366 m | 23.0 s, 320 m |
+| Wipline fixture (v10, 172 on 2350s), 965 kg | G3390 | 0.252 @ 14.2 -> 0.195 @ 8.3 | 26.3 s, 432 m | 23.5 s, 408 m |
+| same | POH | 0.241 @ 14.2 -> 0.183 @ 8.3 | 20.7 s, 267 m | 17.9 s, 244 m |
+| twin on floats (GATE FLOATS'), 475 kg | G3390 | 0.257 -> 0.240 | 8.8 s, 122 m | 8.6 s, 120 m |
+| same | POH | - | pitch-poles (-76 deg) | the same: 20 deg of flap is not this aeroplane's technique, both cores |
+
+The Cub on floats: no such build in the tree (none validated). The brief's "Cessna floats today ~27 s" is the G3390
+README's 952 kg loading; as built (1018 kg) it read 35.7 s on this rig - named, not chased. Every validated number
+moved the right way: the hump trims from 14-16 deg to 8-9, the take-offs 0.2-6 s shorter; none is on 'climb', so the
+prop change moves none of them. Under THE PILOT (the game's): the float Cessna lifts at 22.3 s (DMGPLOUGH, before 24.5).
+
+**THE G3390 RIG** (`node tools/sea_to_g3390.js`, now both techniques; evidence sea_to_runs_after.log), STC prop:
+gross calm POH **30.2 s, 428 m, 25.9 m/s** (G3390 technique 38.7 s, 687 m, lifting at the step attitude at 34 m/s);
+gross 8 kt 23.4 / 31.7 s; half calm 20.7 / 26.0 s; half 8 kt 16.3 / 21.5 s - 8 of 8 airborne (0 of 8 before). Land
+prop: half 69 / 81 s, gross never - its T/W 0.194 is under the hump.
+
+**GATES** (`run_gates --only=HYDRO,HYDRODYN,HYDROTRIM,SEAPLANE,FLOATS,WIPLINE,DMGFLOATTO,DMGHULL,DMGPLOUGH,PROPS,TOUR,
+PILOTMATRIX --no-build`; "PROP" in the brief is PROPS; HYDRODYN added, the hull law moved): PASS HYDRO, HYDRODYN,
+HYDROTRIM, SEAPLANE, FLOATS, WIPLINE, PROPS, PILOTMATRIX. FAIL, the same four run on the branch-start core:
+- TOUR FAIL on both cores, the same two shards, the same lines (the user's Cub mn_strip > w2: a prop strike in water;
+  the float Cessna mk_sea > SEA: a prop strike landing at SEA, t 369 -> 352 s) - pre-existing, not this change.
+- DMGFLOATTO FAIL on both: the twin in 4.5 m/s across swings 34.3 deg before, 30.6 after (bar 30; G1847-G1849 open).
+- **DMGHULL FAIL - THIS CHANGE.** "twin on floats hump: the side term is U w x m(TE) to 0.00 % at the 1 slip angles
+  whose wetted keel is the small-slip one" (needs >= 3). The law holds (0.00 %); at the twin's hump pose (7.1 m/s,
+  6.3 deg) the afterbody now sits at the wake's edge and re-wets from 10 deg of slip (10 -> 11 keel stations), so one
+  angle is left at the small-slip keel (before: 8 of them, the afterbody dry to 45 deg). The next line - every
+  departure comes with the wetted keel changing - passes.
+- **DMGPLOUGH FAIL - THIS CHANGE.** "Cessna on floats: keel trim at the hump 5.4 deg inside 6-12": under the game's
+  pilot, whose stick is NEUTRAL through the hump (G396.4: back stick "buried the sterns" under the H0 wake), the
+  float Cessna now rides 5.4 deg at its hump (C_V 4.0, R/W 0.108; highest over C_V 1.5-4 5.5-6.1) - before 7.2 at
+  C_V 2.6 (12.7 the highest). The afterbody in the wake holds a neutral-stick hull lower; with the stick back (the
+  G3390 rig, the POH) the same aeroplane humps at 8.5-9.0 deg. Tried: the measured profile's own sine past its crest
+  (no hold): 5.4 / 6.1 deg, the 172R 30.9 s - no material difference, not kept.
+
+**REFERENCES.** Savitsky, D. & Morabito, M., "Surface wave contours associated with the forebody wake of stepped
+planing hulls", Marine Technology 47(1), 2010, pp. 1-16 (doi 10.5957/mtsn.2010.47.1.1) - the centreline and quarter-
+beam profiles; the form used is the one reproduced in the stepped-hull literature (Gray-Stephens et al. 2020,
+Strathclyde, test them against CFD); the paper itself could not be opened from the cloud box (no NTRS / journal
+access) - A0, check the constants (0.17, 1.5 / 2, 0.03, the /3 and the 1.5 power) against it. Parkinson, J. B., NACA
+TN 563, "Tank tests of models of floats for seaplanes - first series", 1936 (free-to-trim hump trims excessive; the
+lower afterbody keel angle ~3 deg lower and 15 % less hump resistance). Locke, F. W. S., NACA ARR 4B19, "General
+resistance tests on flying-boat hull models", 1944 (the free-to-trim displacement range). NACA TN 1524 (take-off
+calculation at a fixed 6 deg past the hump, near the least-resistance trim). Savitsky, D., "Hydrodynamic design of
+planing hulls", Marine Technology 1(1), 1964 (the prismatic lift, drag and centre of pressure the tank compared;
+chines-wet planing wets the bottom only). Wagner (1932) / Zarnick (1978) 2D+t, the rocker cross-check. Flight Resource
+LLC, "Cessna 170, 172 & 175 MT Propeller Performance Test Results, STC SA02245CH" (McFarlane Aviation's copy): static
+thrust at 2700 rpm, 1000 ft, 75 F, C170B O-360-A1A; the McCauley 750 lbf at 2450 rpm row is from a forum transcription
+of a version of that report (Van's Air Force, "Static thrust testing"), not seen in the primary - unverified. Cessna
+172R: IO-360-L2A, 160 hp at 2,400 rpm. Wipaire's Wipline 2350 page (the 172R/S row, 2,550 lb, McCauley 1A200/WFA8243)
+as G3390. The floatplane technique (flaps 20, lift-off ~50 KIAS) is the Cessna floatplane supplement's as recalled -
+A0, confirm against the Wipaire / Cessna supplement.
+
+**ASKS FOR THE USER.**
+1. THE PROP (G3443): 'climb' fm 0.53 -> 0.63 (FM 0.39 -> 0.50) - accept? Without it the hull fix alone gets the 172R
+   STC off in 70-74 s / 1,100-1,230 m (T/W 0.228); with it 30 s / 430-440 m. It moves the 3-blade carbon tile's
+   builds (the Caravan-alike: PILOTMATRIX green) and any 'auto' build that now falls back to 'standard'.
+2. DMGPLOUGH's hump floor (6 deg) vs THE PILOT's neutral stick: either the pilot holds the stick back through the hump
+   as the floatplane supplement does (an autopilot change: a browser-flown check, below), or the floor reads 5 deg for
+   a neutral-stick hump, or the hull wants another look. The physics session's lean: the pilot's G396.4 rule was a
+   cure for the H0 wake's buried sterns, which the measured wake no longer makes.
+3. DMGHULL's population (>= 3 slip angles at the small-slip keel): ask the law per wetted-keel group (each group its
+   own m(TE) to 1 %) - the law as G2030 meant it - or keep it and look at the twin's pose.
+4. The 172R on 2350s with the LAND prop stays on the water at the STC gross (T/W 0.194): Wipaire's STC specifies the
+   float prop; is that the answer you expect?
+5. The G3390 rig now flies both techniques; the 'G3390' one never rotates (it lifts at 34 m/s): keep it as the
+   regression technique, or retire it for the supplement's?
+
+**A0 - THE BROWSER-FLOWN LOOK** (the pilot is not changed here, so not a gate; the eye's confirmation that the water
+run looks right): from flyDiy/, `node tools/rollout_perf.js --build builds/c172r_wipline2350_stcprop_2026-10-20.json
+--world none --secs 120 --label hydrotrim_stc --shot-phase all` and `node tools/rollout_perf.js --build
+bugReports/cessnaFloatsWOrks.json --world none --secs 120 --label hydrotrim_floats --shot-phase all` (the analytic
+world's SEA lane; a float build is put there by applyRoute; the phases to-displace / to-step / climb in the summary).
