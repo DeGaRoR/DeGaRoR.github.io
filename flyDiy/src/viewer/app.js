@@ -7722,10 +7722,12 @@
     try { b.classList.toggle('on', !manual); b.setAttribute('aria-pressed', manual ? 'false' : 'true'); } catch (e) {}
     b.title = manual ? 'You have the controls - press to hand the aeroplane back to the autopilot' : 'The autopilot flies it - press, or move the stick, the pedals or the throttle, to fly it yourself';
   }
+  let apTakeArmed = true;   // G3325: the takeover armed (cleared by a hand-back until the controls are let go)
   function setManual(on, by) {
     on = !!on;
     if (!INP || on === manual) return;
     manual = on;
+    if (!on) apTakeArmed = false;   // G3325
     prefSet('flydiy.flManual', on ? '1' : '0');
     // G2480: in the air the pilot's rudder and aileron become the hand's trims (the elevator always did); on the
     // ground they start centred. Hand -> pilot: what only the hand writes leaves with it (sim_host handOff, the same)
@@ -16257,7 +16259,12 @@
     // G3325 (AP-TOGGLE): THE TAKEOVER - a hand on a flight control (the stick, the pedals, the lever, the brakes: INP.flown,
     // never a view key or a trim) while the autopilot flies takes the aeroplane, as a pilot's hand on the yoke does; the
     // toggle says so, a press gives it back
-    if (!manual && INP && INP.flown && INP.flown() && !inGarage && started && FL.ready) setManual(true, 'takeover');
+    // (after a hand-back the takeover is re-armed only once the controls have been let go - a key or a stick still held
+    // as the aeroplane is handed back does not take it again: GATE UISMOKE's toe brake, released after setManual(false))
+    if (INP && INP.flown) {
+      if (!INP.flown()) apTakeArmed = true;
+      else if (!manual && apTakeArmed && !inGarage && started && FL.ready) setManual(true, 'takeover');
+    }
     // THE DAY ADVANCES WITH PLAY (SKY S1, ruling aj): one clock, shed and world; a game pause pauses it
     // (G586: in the shed on the frame's own time; in flight it ticks after the solver, on the sim's)
     if (typeof DAY_CLOCK !== 'undefined' && inGarage) DAY_CLOCK.tick(fdt);
