@@ -15,6 +15,10 @@
 // half fuel. The winds: m/s along +x (the run is towards -x, so + is a HEADWIND; 4.12 = 8 kt).
 // The technique is GATE FLOATS': full throttle, stick back (de 0.45), the step attitude (--step-trim, deg) held by a PD
 // on the elevator once the water speed passes --step-v (m/s); 90 s on the clock.
+// G3441 (HYDRO-TRIM): and, beside it, the Cessna 172 FLOATPLANE SUPPLEMENT's ('poh'): wing flaps 20 deg, the same stick
+// through the hump and onto the step, and the lift-off MADE - the stick back at 50 KIAS (--vr, m/s of airspeed). The
+// lift-off is now the first instant both floats stay dry for 2 s (a porpoise's skip read as 'airborne' before: the
+// 8 kt rows lifted at 16 m/s of water speed, below the stall). --tech g3390,poh (default both).
 //
 //   node tools/build.js                       (the core must be fresh: _core_fresh refuses a stale one)
 //   node tools/sea_to_g3390.js                the 8 runs (2 builds x gross/half x calm/8 kt) -> reports/evidence/G3390/sea_to_result.json
@@ -31,6 +35,7 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[
 const BUILDS = opt('builds', 'builds/c172r_wipline2350_landprop_2026-10-20.json,builds/c172r_wipline2350_stcprop_2026-10-20.json').split(',');
 const KINDS = opt('kinds', 'gross,half').split(','), WINDS = opt('winds', '0,4.12').split(',').map(Number);
 const STEP_V = +opt('step-v', 9), STEP_TRIM = +opt('step-trim', 6), MAXS = +opt('max', 90);
+const TECHS = opt('tech', 'g3390,poh').split(','), VR = +opt('vr', 25.7);   // 50 KIAS: the 172 floatplane POH's lift-off
 const OUT = path.resolve(FLY, opt('out', 'reports/evidence/G3390')), TAG = opt('tag', ''), AIRSPD = argv.includes('--airspeed');
 const STC_GROSS = 1157;   // kg: 2,550 lb, Wipaire's Wipline 2350 table for the 172R / 172S
 const f = (v, d = 3) => (v == null || !isFinite(v)) ? '-' : (+v).toFixed(d);
@@ -57,7 +62,8 @@ for (const b of BUILDS) {
   const env = JSON.parse(fs.readFileSync(path.join(FLY, b), 'utf8')), spec = env.spec || env;
   const fl = spec.gear && spec.gear.floats || {};
   console.log(b + ': floats L ' + f(fl.L, 2) + ' B ' + f(fl.B, 2) + ' step ' + f(fl.xs, 2) + ' m (' + f(fl.xs / fl.L, 3) + ' L) hs ' + f(fl.hs, 3) + '; prop D ' + spec.prop.D + ' ' + spec.prop.pitch);
-  for (const kind of KINDS) for (const wind of WINDS) {
+  for (const tech of TECHS) for (const kind of KINDS) for (const wind of WINDS) {
+    const poh = tech === 'poh';
     const { def, M, fuelL, cargo } = load(spec, kind);
     def.params.damage = true;
     world.setWind({ base: [wind, 0, 0], gust: 0, refH: 10 });
@@ -77,28 +83,31 @@ for (const b of BUILDS) {
     };
     const x0 = st().x, ser = [];
     sim.ctl.thr = 1; sim.ctl.de = 0.45;
-    let tP = null, Tm = 0, air = null, hump = { R: 0, V: 0, Th: 0 }, prevV = 0, crashed = false;
+    // 20 deg of flap as a fraction of the build's own travel
+    if (poh) { const fl = spec.controls && spec.controls.flap; sim.ctl.flap = fl && fl.type && fl.type !== 'none' ? Math.min(1, 20 * Math.PI / 180 / C.genTravel('flap', fl.type)) : 0; }
+    let tP = null, Tm = 0, air = null, dry = null, rot = false, hump = { R: 0, V: 0, Th: 0 }, prevV = 0, crashed = false;
     for (let s = 0; s < MAXS * 60; s++) {
       sim.step(1 / 60); Tm += 1 / 60;
       const r = st();
       if (!isFinite(r.V)) { crashed = 'non-finite'; break; }
       const tq = tP == null ? 0 : (r.trim - tP) * 60; tP = r.trim;
-      sim.ctl.de = r.V > STEP_V ? Math.max(-0.2, Math.min(0.45, 0.2 + 0.04 * (STEP_TRIM - r.trim) - 0.01 * tq)) : 0.45;
+      if (poh && (sim.out.V || 0) >= VR) rot = true;
+      sim.ctl.de = rot ? 0.45 : r.V > STEP_V ? Math.max(-0.2, Math.min(0.45, 0.2 + 0.04 * (STEP_TRIM - r.trim) - 0.01 * tq)) : 0.45;
       const a = (r.V - prevV) * 60 / 9.81; prevV = r.V;
       if (r.wet > 0 && r.V < 14 && r.R > hump.R) hump = { R: r.R, V: r.V, Th: r.Th, trim: r.trim };
       if (s % 60 === 59) {
         if (AIRSPD) console.log('   t' + Math.round(Tm) + ' V(water) ' + r.V.toFixed(1) + ' ias ' + JSON.stringify(sim.out.ias ?? null));
         ser.push({ t: Math.round(Tm), V: +r.V.toFixed(2), trim: +r.trim.toFixed(2), T: +r.Th.toFixed(4), R: +r.R.toFixed(4), D: +(r.Th - r.R - a).toFixed(4), vent: +r.vent.toFixed(3), wet: +r.wet.toFixed(2) });
       }
-      if (air == null && r.wet === 0 && r.Fy === 0 && s > 60) air = { t: +Tm.toFixed(1), V: +r.V.toFixed(1), dist: Math.round(Math.abs(r.x - x0)) };
-      if (air != null && Tm > air.t + 2) break;
+      if (r.wet === 0 && r.Fy === 0 && s > 60) { if (!dry) dry = { t: +Tm.toFixed(1), V: +r.V.toFixed(1), dist: Math.round(Math.abs(r.x - x0)) }; else if (Tm >= dry.t + 2) { air = dry; break; } }
+      else dry = null;
       if (sim.out.dmg && sim.out.dmg.crashed) { crashed = 'damage: crashed'; break; }
     }
-    const row = { build: b, kind, windMs: wind, mass: Math.round(M), fuelL: Math.round(fuelL), cargo: Math.round(cargo), stepV: STEP_V, stepTrim: STEP_TRIM,
+    const row = { build: b, tech, flap: sim.ctl.flap, kind, windMs: wind, mass: Math.round(M), fuelL: Math.round(fuelL), cargo: Math.round(cargo), stepV: STEP_V, stepTrim: STEP_TRIM,
       T1: ser[0] ? ser[0].T : null, hump: { R: +hump.R.toFixed(3), V: +hump.V.toFixed(2), T: +hump.Th.toFixed(3), trim: hump.trim != null ? +hump.trim.toFixed(1) : null },
       airborne: air, crashed, series: ser };
     out.push(row);
-    console.log('  ' + kind.padEnd(5) + ' wind ' + wind + ' m/s | ' + row.mass + ' kg (fuel ' + row.fuelL + ' L, baggage ' + row.cargo + ' kg) | T/W at 1 s ' + f(row.T1) +
+    console.log('  ' + tech.padEnd(5) + ' ' + kind.padEnd(5) + ' wind ' + wind + ' m/s | ' + row.mass + ' kg (fuel ' + row.fuelL + ' L, baggage ' + row.cargo + ' kg) | T/W at 1 s ' + f(row.T1) +
       ' | hump R/W ' + f(row.hump.R) + ' at ' + f(row.hump.V, 1) + ' m/s (T/W ' + f(row.hump.T) + ', trim ' + row.hump.trim + ') | ' +
       (air ? 'AIRBORNE ' + air.t + ' s, ' + air.V + ' m/s, run ' + air.dist + ' m' : 'NOT airborne in ' + MAXS + ' s') + (crashed ? ' | ' + crashed : ''));
   }
