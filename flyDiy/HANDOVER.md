@@ -95465,7 +95465,8 @@ music. It zooms on the cabin, then we fade into the garage."
   - **Licence: CC0, confirmed on its page 19 Oct.** Only this track was downloaded (the user's OK via A0).
   - The first 40 s of the 330 s WAV (its own 6 s swell out of silence is the fade up), with a 3 s fade-out at the end.
   - Ogg Vorbis, 48 kHz stereo, ~96 kbps: `media/audio/music/yoiyami_sunset_plains_intro.cfae36cd.ogg`, **468 KB** (479 530 B).
-  - **MEDIA: the OGG's size, for the user to accept by name** (a media file, not page bytes: the sandbox never fetches it).
+  - **MEDIA: ACCEPTED BY NAME** (the user, 20 Oct ~16:30, via the Game coordinator: "Sunset plains is good"): GATE MEDIA's
+    MEDIA_ACCEPTED holds the file to its 479 530 B (a media file, not page bytes: the sandbox never fetches it).
   - It plays through an HTMLAudioElement at master x music, and fades out with the fade (0.45 s on a skip). The New
     career's click is the page's gesture.
   - In CREDITS.md (outside the radio's generated block: it is not a radio track). GATE MEDIA now reads `.ogg` references,

@@ -486,6 +486,17 @@ for (const f of files)
 const refs = collectRefs(files.filter(f => fs.existsSync(f)));
 const present = walkMedia(MEDIA);
 checkStore(refs, present);
+// MEDIA ACCEPTED BY NAME (a media file the user accepted by its size; the gate holds it to that size - a re-encode that
+// grows it is a new ask, not a silent pass)
+const MEDIA_ACCEPTED = [
+  { file: 'media/audio/music/yoiyami_sunset_plains_intro.cfae36cd.ogg', upToBytes: 479530,
+    name: "G3380 STORY-INTRO: the opening's music, 'Sunset Plains' by Yoiyami (CC0), 40 s Ogg Vorbis, 468 KB - the user via the Game coordinator, 20 Oct ~16:30: \"Sunset plains is good\"" },
+];
+for (const a of MEDIA_ACCEPTED) {
+  const f = path.join(ROOT, ...a.file.split('/'));
+  check(fs.existsSync(f) && fs.statSync(f).size <= a.upToBytes, `${a.file}: accepted by name up to ${a.upToBytes} B (${a.name}) - ` +
+    (fs.existsSync(f) ? fs.statSync(f).size + ' B now' : 'not on disk'));
+}
 checkNoCreep(files.filter(f => fs.existsSync(f)));
 const art = checkArtifact();
 
