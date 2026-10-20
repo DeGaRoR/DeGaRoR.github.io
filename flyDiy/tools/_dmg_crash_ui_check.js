@@ -23,7 +23,8 @@ async function child() {
   const { openPage } = require('./_page_node.js');
   const R = { mode, damage: dmg, errors: [] };
   const storage = { 'flydiy.wip': fs.readFileSync(path.join(ROOT, BUILD), 'utf8') };
-  const q = (mode === 'inline' ? 'simw=0' : 'simw=1') + (dmg ? '&damage=1' : '');
+  // (damage ON by default since 20 Oct: the OFF arm says so - ?damage=0 - or it would fly the default, on)
+  const q = (mode === 'inline' ? 'simw=0' : 'simw=1') + (dmg ? '&damage=1' : '&damage=0');
   const P = await openPage({ quiet: true, storage, query: q, workers: mode === 'inline' ? undefined : /sim_host\.js/ });
   const W = P.win, doc = W.document;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);

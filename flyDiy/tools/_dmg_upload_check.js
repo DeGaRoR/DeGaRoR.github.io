@@ -98,7 +98,7 @@ async function child() {
   const storage = { 'flydiy.wip': fs.readFileSync(path.join(ROOT, BUILDS[key]), 'utf8') };
   const SG = shadowGL(), S = SG.S;
   const fake = arg('fakebake', '1') !== '0';   // (G2350: --fakebake=0 the gate as D4b left it - no fold in the node page)
-  const P = await openPage({ quiet: true, storage, query: dmg ? 'simw=1&damage=1' : 'simw=1', workers: /sim_host\.js/, glWrap: SG.wrapGL, fakeBake: fake });
+  const P = await openPage({ quiet: true, storage, query: dmg ? 'simw=1&damage=1' : 'simw=1&damage=0',   /* (the OFF arm says so: the default is ON since 20 Oct) */ workers: /sim_host\.js/, glWrap: SG.wrapGL, fakeBake: fake });
   R.fakeBake = fake;
   const W = P.win;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
