@@ -2452,6 +2452,10 @@ function makePilot(sim, def, world, opts) {
           startLegs([{ name: 'ENROUTE', A: aheadD, B: outP, h: P.hC, V: 'cruise', enroute: true, designed: true },
                      { name: 'BASE', A: outP, B: iaf, h: P.hC, V: 'turn', designed: true },
                      { name: 'FINAL', A: iaf, B: wp(FL, P.sAim, 0) }]);
+          // (the flight's budget given the drawn approach's own length - at the approach speed, 1.6x, plus the roll: the probe's
+          // game-day flight landed well on the first final and was called 'gave-up' in it at 600 s)
+          { const lenD = Math.hypot(outP[0] - aheadD[0], outP[1] - aheadD[1]) + Math.hypot(iaf[0] - outP[0], iaf[1] - outP[1]) + (P.sAim - P.sIaf);
+            ap.budget = Math.max(ap.budget || 0, ap.t + 1.6 * lenD / Math.max(10, ap.VAppr || A.VAppr || 20) + 120); }
           if (!ap.designedSaid) { ap.designedSaid = true; say('designed-approach', 'flying the approach drawn for ' + (to.name || to.id) + ': the slope from ' + Math.round(dFaf) + ' m out at ' + Math.round(P.hC) + ' m, turning in on the ' + (sideD > 0 ? 'left' : 'right')); }
           if (tlD > 3) pathFrom = [cg[0], cg[2]];
           ap.holdDir = climbDir;
