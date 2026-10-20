@@ -44,7 +44,7 @@ var STORY_INTRO = (() => {
   // up the valley), the valley (the way the approach comes in: the record's `fly.appr`, else straight off end 0), the gap
   // (the approach's far point), the shed (the base plot, else the stand / spawn).
   // Three shots: THE VALLEY (from the low end, out over the lake valley to the mountain gap, rising), THE STRIP (in from
-  // over the valley, low up the gravel toward the shed), THE CABIN (an arc round the shed, closing from 60 m to the door,
+  // over the valley, low up the gravel toward the shed), THE CABIN (an arc round the shed, closing from 75 m to 30 m off its door,
   // the lens narrowing: the zoom) - the last fades to black as it closes.
   function plan(ctx) {
     const A = ctx.aero, H = (x, z) => {
@@ -77,12 +77,12 @@ var STORY_INTRO = (() => {
     const s2b = [c[0] + u[0] * hl * 0.25 - n[0] * sd * 40, c[1] + u[1] * hl * 0.25 - n[1] * sd * 40];
     shots.push({ id: 'strip', e0: P(s2a[0], s2a[1], 50), e1: P(s2b[0], s2b[1], 16),
       l0: [c[0], H(c[0], c[1]) + 4, c[1]], l1: [shed[0], hS + 3, shed[1]], fov0: FOV0 - 2, fov1: FOV0 - 4, clr: 8 });
-    // 3. THE CABIN: an arc round the shed from 60 m (40 deg off the door's line, high) to the door (14 m, eye height), the
+    // 3. THE CABIN: an arc round the shed from 75 m (40 deg off the door's line, high) to 30 m off its door, 3.5 m over its ground (the look, 20 Oct: 14 m from the plot put the eye 4 m off the wall - an 18 x 20 m shed), the
     // lens closing in (the zoom)
     const a1 = Math.atan2(door[1], door[0]), a0 = a1 + sd * 0.75;
-    const arc = k => { const a = lerp(a0, a1, k), r = lerp(60, 14, k); return [shed[0] + Math.cos(a) * r, shed[1] + Math.sin(a) * r]; };
-    const s3 = { id: 'cabin', arc, base: hS, y0: 24, y1: 2.6, l0: [shed[0], hS + 4, shed[1]], l1: [shed[0], hS + 2.4, shed[1]], fov0: FOV0 - 4, fov1: 34, clr: 2.2 };
-    s3.e0 = [arc(0)[0], hS + s3.y0, arc(0)[1]]; s3.e1 = [arc(1)[0], hS + s3.y1, arc(1)[1]];
+    const arc = k => { const a = lerp(a0, a1, k), r = lerp(75, 30, k); return [shed[0] + Math.cos(a) * r, shed[1] + Math.sin(a) * r]; };
+    const s3 = { id: 'cabin', arc, ya: hS + 26, yb: H(...arc(1)) + 3.5, l0: [shed[0], hS + 4, shed[1]], l1: [shed[0], hS + 2.6, shed[1]], fov0: FOV0 - 4, fov1: 34, clr: 2.2 };
+    s3.e0 = [arc(0)[0], s3.ya, arc(0)[1]]; s3.e1 = [arc(1)[0], s3.yb, arc(1)[1]];
     shots.push(s3);
     // the clock, and the floor under each eye path (the terrain + the shot's clearance, a running max so a ridge is lifted
     // over smoothly, never stepped)
@@ -116,7 +116,7 @@ var STORY_INTRO = (() => {
     k = clamp01(k);
     const d = drift(k), q = eyeXZ(s, k);
     const j = k * N_SAMP, j0 = Math.min(N_SAMP, Math.floor(j)), j1 = Math.min(N_SAMP, j0 + 1), f = s.floor[j0] + (s.floor[j1] - s.floor[j0]) * (j - j0);
-    const y0 = s.arc ? s.base + lerp(s.y0, s.y1, smooth(k)) : lerp(s.e0[1], s.e1[1], d);
+    const y0 = s.arc ? lerp(s.ya, s.yb, smooth(k)) : lerp(s.e0[1], s.e1[1], d);
     return { p: [q[0], Math.max(y0, isFinite(f) ? f : y0), q[1]], l: lerp3(s.l0, s.l1, smooth(k)), fov: lerp(s.fov0, s.fov1, smooth(k)), shot: s.id };
   }
   // t: seconds into the shots (< 0: before the fade up). black: the curtain's opacity - the fade up, a dip round each cut,

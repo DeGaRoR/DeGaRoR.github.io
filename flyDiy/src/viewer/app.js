@@ -8789,7 +8789,9 @@
   // a New career's alone (registered only while the curtain is up, below 'craft'): per view, the eye placed there and the
   // world's update run (what that view makes: the cover ring's cells, the plots near the eye - every 10th update), the scene
   // compiled on the driver's threads with its depth variants, every link waited for, then one draw - the boot's own
-  // 'frames' step, from the opening's eyes. The garage's eye is put back after each view (the loop draws the shed meanwhile)
+  // 'frames' step, from the opening's eyes. The garage's eye is put back after each view (the loop draws the shed meanwhile).
+  // A COMPILE PER SHOT, not per view (the re-look, 20 Oct 15:45: a pass per view made the step 11-17 s): the shot's three
+  // views' updates first, then one compile of the scene and its links, then the three draws
   function storyIntroPrepare() {
     if (!stIntroEl || !WF || typeof renderer.compileAsync !== 'function') return;
     const L = window.FLYDIY_LAZY ? window.FLYDIY_LAZY('story_intro') : Promise.resolve([!!window.STORY_INTRO]);
@@ -8797,19 +8799,19 @@
       const P = storyIntroPlan();
       if (typeof P === 'string') return;
       const at = (o, keep) => { camera.position.set(o.p[0], o.p[1], o.p[2]); camera.lookAt(o.l[0], o.l[1], o.l[2]); camera.updateMatrixWorld(); return keep; };
-      const view = o => new Promise(res => {
-        const keep = { p: camera.position.clone(), q: camera.quaternion.clone() }, back = () => { camera.position.copy(keep.p); camera.quaternion.copy(keep.q); camera.updateMatrixWorld(); };
-        try { at(o); for (let k = 0; k < 12; k++) WF.worldUpdate(P.anchor); } catch (e) { console.warn('story intro: the view', e && e.message); }
-        back();
-        res();
-      }).then(() => compileSliced(scene, aa && aa.target ? aa.target() : null)).then(() => compileDepthVariants(scene, true))
-        .then(() => programsReady(30000))
-        .then(() => { const keep = { p: camera.position.clone(), q: camera.quaternion.clone() };
-          try { at(o); WF.worldUpdate(P.anchor); if (aa) aa.render(scene, camera); else renderer.render(scene, camera); } catch (e) { console.warn('story intro: the warm draw', e && e.message); }
-          camera.position.copy(keep.p); camera.quaternion.copy(keep.q); camera.updateMatrixWorld(); })
-        .then(() => new Promise(r => setTimeout(r, 0)));
+      const task = () => new Promise(r => setTimeout(r, 0));
+      const eye = (o, f) => { const keep = { p: camera.position.clone(), q: camera.quaternion.clone() };
+        try { at(o); f(); } catch (e) { console.warn('story intro: the view', e && e.message); }
+        camera.position.copy(keep.p); camera.quaternion.copy(keep.q); camera.updateMatrixWorld(); };
+      const shot = V => {
+        let p = Promise.resolve();
+        for (const o of V) p = p.then(() => eye(o, () => { for (let k = 0; k < 12; k++) WF.worldUpdate(P.anchor); })).then(task);
+        return p.then(() => compileSliced(scene, aa && aa.target ? aa.target() : null)).then(() => compileDepthVariants(scene, true))
+          .then(() => programsReady(30000))
+          .then(() => { let q = Promise.resolve(); for (const o of V) q = q.then(() => eye(o, () => { WF.worldUpdate(P.anchor); if (aa) aa.render(scene, camera); else renderer.render(scene, camera); })).then(task); return q; });
+      };
       let p = Promise.resolve();
-      for (const o of P.warm) p = p.then(() => (stIntroEl ? view(o) : null));
+      for (let i = 0; i < P.warm.length; i += 3) { const V = P.warm.slice(i, i + 3); p = p.then(() => (stIntroEl ? shot(V) : null)); }
       return p;
     }).catch(e => console.warn('story intro: the prepare', e && e.message));
   }

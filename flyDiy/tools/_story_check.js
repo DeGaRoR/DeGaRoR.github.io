@@ -359,8 +359,8 @@ async function introRun() {
   const end = I.pose(PL, PL.T), shedG = terr(plot.x, plot.z), dEnd = Math.hypot(end.p[0] - plot.x, end.p[2] - plot.z);
   ok(PL.shots.length === 3 && PL.T >= 25 && PL.T <= 40, 'three shots (the valley, the strip, the cabin), 25-40 s', PL.shots.map(s => s.id + ' ' + (s.t1 - s.t0) + ' s').join(', ') + ' = ' + PL.T + ' s');
   ok(low >= 1.0, 'the eye stays over the ground the whole way (a rough terrain)', 'lowest ' + low.toFixed(1) + ' m at ' + at.toFixed(1) + ' s');
-  ok(dEnd < 20 && end.p[1] - shedG < 6 && end.fov <= 36 && Math.hypot(end.l[0] - plot.x, end.l[2] - plot.z) < 1 && end.black > 0.99,
-     'it ends zoomed on the shed (eye height, the lens closed) at black', dEnd.toFixed(1) + ' m, ' + (end.p[1] - shedG).toFixed(1) + ' m up, fov ' + end.fov.toFixed(0));
+  ok(dEnd > 24 && dEnd < 36 && end.p[1] - terr(end.p[0], end.p[2]) < 6 && end.fov <= 36 && Math.hypot(end.l[0] - plot.x, end.l[2] - plot.z) < 1 && end.black > 0.99,
+     'it ends zoomed on the shed (30 m off its door, 3.5 m over the ground, the lens closed) at black', dEnd.toFixed(1) + ' m, ' + (end.p[1] - terr(end.p[0], end.p[2])).toFixed(1) + ' m up, fov ' + end.fov.toFixed(0) + ' (shed ground ' + shedG.toFixed(0) + ')');
   ok(I.pose(PL, 0).black === 1 && I.pose(PL, 6).black === 0 && I.pose(PL, PL.shots[1].t0).black > 0.99, 'out of black, a dip at each cut', '');
   ok(PL.anchor && Math.hypot(PL.anchor[0] - plot.x, PL.anchor[2] - plot.z) < 1, "the world's streams keyed on the cabin, never on the eye");
   // ---- the page half: a New career, its opening played; another, skipped; a Continue; the phone
@@ -399,7 +399,7 @@ async function introRun() {
   let r = await play(null);
   ok(r.up, 'a New career: the black curtain up under the loading screen (z 60 < the boot\'s 70), story_intro.js asked for');
   ok(r.during, "while it plays: the world's exposure, the room's air off, the radio held, the beat card hidden; the arm spent (once)");
-  ok(r.last && r.last.how === 'played' && r.worldF / 30 >= PL.T && r.worldF / 30 <= PL.T + 1.5 && r.near < 20,
+  ok(r.last && r.last.how === 'played' && r.worldF / 30 >= PL.T && r.worldF / 30 <= PL.T + 1.5 && r.near < 36,
      'played to its end: the world drawn from the shed for the whole cinematic, the last frame at the shed', (r.worldF / 30).toFixed(1) + ' s of world, ' + (r.near || 0).toFixed(1) + ' m from the shed');
   ok(after(r.X), 'then the garage: its exposure, its air and its lens back, the radio free, the story at T0 on its card');
   r = await play(3);
