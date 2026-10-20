@@ -1437,5 +1437,6 @@ body.premOpen #ui #wrRail, body.premOpen #ui #wrFly { display:none !important; }
 #ui #wrFly .wr-ta { width:100%; min-height:80px; box-sizing:border-box; background:rgba(0,0,0,.25); color:var(--ed-ink); border:1px solid var(--ed-btn-bd); border-radius:5px; font:10px ui-monospace, monospace; }
 @media (max-width: 900px) { #ui #wrFly, #ui #wrFly.wide { width:auto; left:12px; right:84px; } #ui #wrRail { right:8px; } }
 `;
-  W.WORLD_RAIL = { open: k => { show(true); open(k || UI.sec || 'cover'); }, close, show, export: exportAll, apply: applyLook, look: lookNow };
+  // importLook (DROP-JSON, 18 Oct): a world look dropped on the scenery editor - applied whole and kept, as the file row's own import
+  W.WORLD_RAIL = { open: k => { show(true); open(k || UI.sec || 'cover'); }, close, show, export: exportAll, apply: applyLook, importLook: o => { applyLook(o, true); saveLook(); }, look: lookNow };
 })();

@@ -755,7 +755,7 @@ for (const fx of fixtures) {
   rw.layers.runways[0].look = 'asphalt';
   check(!PG.issues(rw).some(t => /look/.test(t)), '16 a known look is not');
   const O = PG.compose(rw, synth);
-  check(O.aerodromes.length === 1 && O.aerodromes[0].look === 'asphalt' && O.aerodromes[0].surface === PG.SURFACE.GRASS, '16 the aerodrome record carries the look; the class stays the record\'s own');
+  check(O.aerodromes.length === 1 && O.aerodromes[0].look === 'asphalt' && O.aerodromes[0].surface === PG.SURFACE.PAVED, '16 the aerodrome record carries the look, and feels as it (FEEL FOLLOWS THE LOOK, the user 19 Oct: the class is the look\'s)');
 }
 
 // 17 THE STAGES (v1.33, G2300 STAGES): an entry, a site's item or a zone may carry `stage: { track, show, vary }` and
@@ -1504,7 +1504,7 @@ if (SELFTEST) {
               { id: 'a3', round: { c: [300, 0], r: 15 }, props: { draw: { look: 'concrete', z: 0 } } }] } });
     const O = PG.compose(r, synth), at = (x, z) => { const w = O.frame.toWorld(x, z); return O.surfaceAt(w[0], w[1]); };
     check(at(0, 0) === PG.SURFACE.PAVED && at(40, 0) === PG.SURFACE.GRAVEL, '20e a new area composes after the v1 entries (paved over the gravel at the same priority)');
-    check(at(200, 0) === PG.SURFACE.GRAVEL && at(300, 0) === PG.SURFACE.PAVED, '20e a round draw\'s wheels are its look\'s unless the area says its own');
+    check(at(200, 0) === PG.SURFACE.PAVED && at(300, 0) === PG.SURFACE.PAVED, '20e a round draw\'s wheels are its look\'s - an area\'s own other feel converts to it (FEEL FOLLOWS THE LOOK, the user 19 Oct)');
     check(O.rec.layers.surface.map(e => e.id).join() === 'y1,a1~w,a2~w' && O.rec.layers.material.map(e => e.id).join() === 'a2~d,a3~d' && O.rec.layers.material[1].round && !O.rec.layers.material[0].round, '20e the v1 entries an area expands into: ids <area>~w / ~d, the round kept only where it says the wheels', O.rec.layers.material.map(e => e.id + (e.round ? '(r)' : '')).join());
   }
   // 20f the shapes and the ids

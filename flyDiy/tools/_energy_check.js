@@ -560,6 +560,33 @@ if (SHOW) for (const s of seen)
     const pX = place(45, { along: bay.x1, lv: null, rot: 0 });
     check(pX.outsideBay > 0 && !pX.ok,
       'place: a tank centred on the bay\u2019s aft limit hangs out of it, and says so');
+    // G2799: THE HAND'S RANGE (the user: "tank sliders much wider, especially
+    // fore/aft in the nose"). The slider and the readout get a wider envelope;
+    // the rule - the default spot, the settled level - reads the bay as before,
+    // so no stock or saved tank moves
+    {
+      const h = VG.handRange(bay, cacheNose);
+      check(!!h && h[0] <= bay.x0 + 1e-9 && h[1] >= bay.x1 + 0.3,
+        'hand: the nose\u2019s fore/aft range holds the bay and reaches at least 0.3 m aft of it' +
+        (h ? ' (' + h[0].toFixed(2) + ' to ' + h[1].toFixed(2) + ' m, the bay ' +
+             bay.x0.toFixed(2) + ' to ' + bay.x1.toFixed(2) + ')' : ''));
+      if (h) {
+        const bayH = Object.assign({}, bay, { hx0: h[0], hx1: h[1] });
+        const d45 = dims(45);
+        const pH = VG.bodyPlace(b.mesh, b.FS, bayH, { along: bay.x1, lv: null, rot: 0 }, d45, WALL_M, S._zFw, cacheNose);
+        check(pH.outsideBay > 0 && pH.outsideHand === 0 && !pH.why.some(w => /past the bay/.test(w)),
+          'hand: a tank on the bay\u2019s aft limit is past the RULE but inside the hand\u2019s range, ' +
+          'and the readout does not call it past the bay', pH.why.join('; '));
+        const n0 = VG.defaultSpot(bay, d45), n1 = VG.defaultSpot(bayH, d45);
+        const s0 = VG.settleLv(b.mesh, b.FS, bay, n0, d45, WALL_M, S._zFw, cacheNose, 'down');
+        const s1 = VG.settleLv(b.mesh, b.FS, bayH, n1, d45, WALL_M, S._zFw, cacheNose, 'down');
+        check(JSON.stringify(n0) === JSON.stringify(n1) && s0.lv === s1.lv && s0.settled === s1.settled,
+          'hand: the default spot and the settled level are the same with the hand\u2019s range on the bay ' +
+          '(along ' + n0.along.toFixed(3) + ', lv ' + s0.lv.toFixed(3) + ')');
+        check(JSON.stringify(VG.handRange(bay, null)) === JSON.stringify([bay.x0, bay.x1]),
+          'hand: with no swept field the range is the rule\u2019s own');
+      }
+    }
     // THE USER'S PLACEMENT RULE, in the keeper: nose against the firewall and
     // high; everything else on the floor against the aft bulkhead
     {

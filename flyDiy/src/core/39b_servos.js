@@ -575,7 +575,10 @@ function makeServos(sim, def, opts) {
       // swapping 0.03 / 0.45 W); with the thrust couple below that was the porpoise that grew into the skip. Afloat
       // the bank is the floats' business, as on the wheels: the same bound
       if (onWater ? onG > 0 : onG >= (trike ? 3 : 1)) phW = clamp(phW, -g('xwBankGround'), g('xwBankGround'));
-      c.da = S.groundAil(phW, G.gAilRoll);
+      // G3331 (WATER-HEEL, 20 Oct - the float Cessna on the game's 8 kt leg, t66: on the step at 17-25 m/s the hull heeled 9 -> 35 deg
+      // with the aileron on the roll-out's 0.30 stop, then over): ON THE WATER A HEEL PAST 8 DEG IS ANSWERED WITH THE WHOLE STICK - the
+      // low float is the capsize, and a seaplane pilot holds full aileron to lift it (FAA-H-8083-23); under 8 deg, the 0.30 as before
+      c.da = S.groundAil(phW, onWater && Math.abs(S.ph) > 0.14 ? 1.0 : G.gAilRoll);
     } else c.da = S.groundAil(0, G.gAilTaxi);
     S.tailUp = tailUp;
     return tailUp;

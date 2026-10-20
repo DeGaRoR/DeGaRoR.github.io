@@ -6189,8 +6189,18 @@
     try { for (const s of document.querySelectorAll('#selPersona, .routePick select.persona')) s.value = personaChoice; } catch (e) {}
   }
   // what makePilot is handed: a name, or the custom person as an object (pilotProfile clamps it)
+  // G3324 (the user, 19 Oct: "when the player is playing but chooses the autopilot, it should ALWAYS be the expert. The
+  // player is supposed the expert. Only later, with the routes, will we have autopilots with various characteristics. So it
+  // should stop being an option, maybe it can go to the dev section"): THE PLAYER'S AUTOPILOT IS THE EXPERT. A person flies
+  // only with DEV on (G760's flydiy.flDev - read off the pref here: personaProfile runs before the rail's block); the
+  // player document's pilot.profile is kept, not rewritten - DEV picks it up again. The career's side: careerCrewProfile
+  // (GAME's CAREER_PLAYER_EXPERT, career-expert)
+  // (the rail's own flag once its block has run - a census or a rig turns DEV on through FLYDIY_RAIL.dev, and the pref may not
+  // be kept (GATE UISMOKE's stub store); before the rail's block, the pref - flDevOn is still in its TDZ there)
+  const personaDev = () => { try { return !!flDevOn; } catch (e) { return prefGet('flydiy.flDev', '') === '1'; } };
   function personaProfile() {
     if (CAREER_DEV) return careerCrewProfile() || 'expert';   // G2290 (PILOTS): the career's roster pick; "I fly" the expert
+    if (!personaDev()) return 'expert';   // G3324: the player's own flights, outside DEV
     personaLoad();
     if (personaChoice === 'custom') return Object.assign({ name: 'custom', active: true }, JSON.parse(JSON.stringify(personaCustom)));
     return (typeof PILOT_PROFILES !== 'undefined' && PILOT_PROFILES[personaChoice]) ? personaChoice : 'expert';
@@ -7717,10 +7727,25 @@
   // from the live ctl so nothing jumps, and carries the AP's elevator as
   // trim. The test pilot's watchdog budget is pushed out past the time the
   // hand took, or it says 'gave-up' on the very next frame.
-  function setManual(on) {
+  // G3325 (AP-TOGGLE, the user 19 Oct): A PERMANENT TOGGLE - #bAP in the flight's actions, always in sight in flight:
+  // the autopilot by default (G3120: every flight starts on it), a hand on a flight control takes the aeroplane (the
+  // takeover, below: INP.flown), a press of the toggle gives it back. Tim (the story): you can take control yourself, you
+  // never have to - every normal mission flies on the autopilot. The state is published for the story's cards (they
+  // hide while the player flies): window.FLYDIY_AP { manual(), autopilot(), set(onAutopilot) } and the window event
+  // 'flydiy:manual' { manual, by: 'button' | 'key' | 'takeover' | 'api' } on every change
+  function apToggleSync() {
+    const b = $('bAP'); if (!b) return;
+    // (GAME's words, 19 Oct: a plain visible label and the key - R17, nothing hover-only; Tim says the rest at T1)
+    b.textContent = (manual ? 'Manual' : 'Autopilot: ON') + '  ·  A';
+    try { b.classList.toggle('on', !manual); b.setAttribute('aria-pressed', manual ? 'false' : 'true'); } catch (e) {}
+    b.title = manual ? 'You have the controls - press to hand the aeroplane back to the autopilot' : 'The autopilot flies it - press, or move the stick, the pedals or the throttle, to fly it yourself';
+  }
+  let apTakeArmed = true;   // G3325: the takeover armed (cleared by a hand-back until the controls are let go)
+  function setManual(on, by) {
     on = !!on;
     if (!INP || on === manual) return;
     manual = on;
+    if (!on) apTakeArmed = false;   // G3325
     prefSet('flydiy.flManual', on ? '1' : '0');
     // G2480: in the air the pilot's rudder and aileron become the hand's trims (the elevator always did); on the
     // ground they start centred. Hand -> pilot: what only the hand writes leaves with it (sim_host handOff, the same)
@@ -7732,6 +7757,8 @@
     }
     flRender();
     if (flShown.has('controls')) flyOpenSet(flyOpen);
+    apToggleSync();
+    try { window.dispatchEvent(new CustomEvent('flydiy:manual', { detail: { manual, by: by || 'api' } })); } catch (e) {}   // G3325
   }
   const GROUND_PHASES = ['DEPART', 'TAXI', 'LINEUP', 'HOLD', 'STOP', 'ROLL',
                          'LIFTOFF', 'ROLLOUT', 'STOPPED', 'ABORT', 'PUTDOWN'];
@@ -12169,6 +12196,9 @@
     railPhase = ''; setRail(null);
   }
   $('bReset').onclick = fullReset;
+  // G3325: the toggle hands the aeroplane over, either way (the key's apToggle the same); the state for the story's cards
+  if ($('bAP')) $('bAP').onclick = () => setManual(!manual, 'button');
+  window.FLYDIY_AP = { manual: () => manual, autopilot: () => !manual, set: onAutopilot => setManual(!onAutopilot, 'api') };
   // selecting the Garage build puts you IN the garage. Since G35 the garage's
   // editor is the CAGE EDITOR overlay — it opens with the garage, and closing
   // it leaves you at the stand (builds bar, env buttons, Roll out & fly).
@@ -12780,7 +12810,7 @@
       clockRowBuild(host, where);
       // G2290 (PILOTS): in the career, who flies it is the roster pick (its own row); the sandbox keeps the persona row
       if (CAREER_DEV) careerCrewRow(host, where);
-      else {
+      else if (personaDev()) {   // G3324: who flies it is DEV's - the player's autopilot is the expert
         // G2085 (PILOT-PERSONA): WHO FLIES IT, beside where it goes - the personality on the route row (the shed's flight
         // setup beside ROLL OUT, the roll-out screen's), a mirror of the one keeper #selPersona (personaSync keeps every
         // mirror on it); each option's hover is that person's one line. In the shed it decides who flies the roll-out;
@@ -13612,6 +13642,8 @@
       }
     }
     if (flyOpen === 'dev' && !(flDevOn || scen)) flyOpenSet(null);
+    // G3324: the shed's persona keeper (#selPersona) is DEV's too
+    { const sp = $('selPersona'); if (sp) sp.hidden = !flDevOn; }
   }
   function flDevSet(on) {
     flDevOn = !!on; prefSet('flydiy.flDev', flDevOn ? '1' : '0');
@@ -14069,6 +14101,7 @@
   // it flies from the next start. 'start from' copies a personality into the knobs (the downgrade the user asked for:
   // the full model, tuned down to a person).
   function flPersona(body) {
+    if (CAREER_DEV || !personaDev()) return;   // G3324: the persona is DEV's (the player flies the expert)
     if (CAREER_DEV) return;   // G2290 (PILOTS): the career's pilot is the roster's - the persona pills are the sandbox's only
     const sel = $('selPersona');
     if (!sel || typeof PILOT_PROFILES === 'undefined') return;
@@ -15562,6 +15595,8 @@
       $('bGo').textContent = stopped ? 'Fly on' : 'Fly the circuit';
       $('bGo').classList.remove('warn');
     }
+    // G3325: the autopilot toggle - always in sight once the flight has started (the stand, the roll, the air, stopped)
+    if ($('bAP')) { $('bAP').hidden = inGarage || !started; apToggleSync(); }
     $('bPause').hidden = !flying;
     $('bReset').hidden = !flying;
     syncSkip();                 // G771: the skip, from the stand (at roll-out) until the hold
@@ -16248,12 +16283,21 @@
     // and in the air — the toggle and the view keys work under the AP, and
     // a stand with a real hand on it shows THAT instead of the sweep below.
     inpEv = INP ? INP.update(fdt) : null;
+    // G3325 (AP-TOGGLE): THE TAKEOVER - a hand on a flight control (the stick, the pedals, the lever, the brakes: INP.flown,
+    // never a view key or a trim) while the autopilot flies takes the aeroplane, as a pilot's hand on the yoke does; the
+    // toggle says so, a press gives it back
+    // (after a hand-back the takeover is re-armed only once the controls have been let go - a key or a stick still held
+    // as the aeroplane is handed back does not take it again: GATE UISMOKE's toe brake, released after setManual(false))
+    if (INP && INP.flown) {
+      if (!INP.flown()) apTakeArmed = true;
+      else if (!manual && apTakeArmed && !inGarage && started && FL.ready) setManual(true, 'takeover');
+    }
     // THE DAY ADVANCES WITH PLAY (SKY S1, ruling aj): one clock, shed and world; a game pause pauses it
     // (G586: in the shed on the frame's own time; in flight it ticks after the solver, on the sim's)
     if (typeof DAY_CLOCK !== 'undefined' && inGarage) DAY_CLOCK.tick(fdt);
     if ((frame & 63) === 0) clockRowsSync(false);   // G2650: the route rows' clock line, to the minute (a string compare)
     if (inpEv && !inGarage && FL.ready && inpEv.fired.length) {
-      if (inpEv.fired.indexOf('apToggle') >= 0) setManual(!manual);
+      if (inpEv.fired.indexOf('apToggle') >= 0) setManual(!manual, 'key');
       if (inpEv.fired.indexOf('viewNext') >= 0) flCamNext();
       // G442.3: the dash's bindable steps go to the cockpit, as a click would
       if (CK && CK.dashAction) for (const id of inpEv.fired) CK.dashAction(id);
