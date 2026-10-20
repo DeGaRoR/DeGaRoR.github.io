@@ -98030,3 +98030,32 @@ Rolling set (1): cabin-lamp ad3165a48 (GAME G3353-G3355 + RUFUS-CERT G3449 claud
 - Gates (Game 09:05, the gated tree + a STORY-only gate-file fix re-gated): HANGAR GAMEPREM PREMISES STORAGE SITE TAXICLEAR x4 UISMOKE LIGHT BEACON BAY ACCEPT STARTER SAVE STORY PASS.
 Battery: master's standing reds only (CLOCK 1/777, CLOUD 1/239, KTX2 the characters' budget, FRAMECOST restore row).
 Strict light gate RED (6), the known classes: cub chase tasks1s 0 -> 2 / taskWorst 1922, cub cockpit taskWorst 2189 (the boot ~1 s task class, judged against 1 s as ruled); cub chase compile 5924 / metal chase compile 5560 (the same compile spread L22a showed at 5814; the reports' boot compile steps are unchanged - 1311 / 1701 ms, 377 / 378 programs vs L22d's 1058 / 1652, 383 / 378: the lamp adds no program); floats water taxi @SEA p99 66.6 (= master's own N23 overnight value, before this branch).
+Strict light gate: 12 RED, none new by cause. over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV, fix in progress); taskWorst / tasks1s = the boot/settle and roll-out tasks around 1 s (HWCOV 19 Oct: 982-1099 ms on L19a too, +-0.5 s run to run); floats world->garage 2.4 s = the pre-existing program re-link (FLOATS-RELINK); metal fuseWidth busy = the cost the user accepted by name (15 Oct). The gate's profile now lives in C: temp and is deleted after.
+
+## G2831-G2839 - WATER-STEADY: THE REDESIGN STUDY (the ring, the hull's reflection, the shadow, one sky) - NOT LANDED, prototypes behind ?wrefl (2026-10-13/20, WATER-STEADY for A0, local GPU; branch claude/water-hull-g2831)
+The user's rulings: drop the coastal band and the transparency; give the aircraft its own reflection and shadow on all water; a full mirror within 1 km of land and below 300 m with a smooth fade and one sky (18 Oct); **LAKES: "keep full mirror for them" (20 Oct ~16:30). Lakes stay on today's full mirror (AUTO): the ring does not apply to lakes, and 19f690eab (MIR.ringSky) does not ship for lakes.**
+- **The prototypes (`?wrefl=b|c|bc|ring`, nothing in the page without the switch):**
+  - `hullRender`: a hull-only capture under `#ifdef W_HULL`, 0.1-0.2 ms GPU.
+  - The sea receives the shadow (c).
+  - The ring: weight = height (300 -> 400 m) x distance to land (1.0 -> 1.3 km) x distance to water inland (0 -> 150 m). Its land test reads the drawn water's level (881c1c989: a 38 m lake had read as land).
+  - `MIR.ringSky` (19f690eab): the ring keeps the sky in its capture.
+  - `MIR.skyK` / `MIR.skyGain` (the probe's lookup lobe and level under the mirror's weight) and debug view 14 (the probe lookup).
+- **Measured** (RTX 3080, gamer, the study doc has the tables):
+  - The open sea 3 km out: the ring costs 0 (8.9 ms GPU against master's 14.9).
+  - HOME's stand: unchanged (the over-land factor).
+  - The coast: the ring's capture costs 6.3 ms against master's 6.9.
+  - The lake (round 3, master 8f5e18457): today 21.3 ms, ring 20.0-20.5, no mirror 15.5.
+  - The capture is geometry-bound: resolution, scissor, frustum offset and a 2 km far cap don't reduce it; every-2nd-frame worsens pacing. All dropped.
+- **One sky: not solved.**
+  - The probe HAS the clouds (P1's dumps). P1, marching the frame's clouds into the probe (claude/water-p1-g2839), is PARKED.
+  - The water's probe lookup is heavily blurred (debug 14), and `skyK` was inert. Why is the queued debug, after L20d.
+  - `scene.environmentIntensity = 0.5` (app.js WORLD_ENV) halves the water's probe as well (MIR.skyGain lifts it under the ring).
+- **The lake's grey-white wash** is the sun's glint: Cox-Munk roughness ~0.41 at the rigs' pinned 5 m/s wind, with no lake term (water.js:282). It's on the board under 'Lakes fetch-limited wind'.
+- **Stills** (each looked at; the worktree's reports/evidence/): WATER-LOOK (P0), WATER-RING (ring_grid, ring_lake, ring2_*, sky_lobe, ring3_*), WATER-P1.
+- **Rigs:** `tools/perf/water_places.js` (coast / lake / open places from the terrain), `water_look.js` (--dials, h/o grids, --probe-dump on the P1 branch), frame_perf p99 and the over-34 ms share, mirror_census lake30 / lake150.
+- **Gates:** WATER PASS on f6d20fc02 (six rows the ring and hull edits had drifted, fixed in 175c078ce). CLOUD 7b was the old base's own and is gone after the rebase onto 8f5e18457. Gates have not been re-run since 8f6706f81.
+- **What to watch for (if the ring ships, for the coast and sea only):**
+  - lakes must keep today's mirror;
+  - the 1.0-1.3 km and 300-400 m fades must be dissolves;
+  - HOME's stand must pay nothing;
+  - the ring's sky must carry the clouds (ringSky) until the probe lookup is fixed.
