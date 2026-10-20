@@ -144,6 +144,7 @@ const WATER = (() => {
     #endif
     uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
     vec3 wIblP;   // (G2839, debug view 14: the probe lookup itself, before the mirror's mix)
+    float wIblR, wIblR0;   // (G2839, debug views 15 / 17: the lookup's roughness, the material's)
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
     uniform vec4 uWFoam;       // x: the fold's RMS Q sqrt(sum (A k)^2 / 2), y: the whitecap cover (Monahan, of the wind), z: the swell's A (m), w: 0
     uniform int uWDbg;
@@ -386,6 +387,7 @@ const WATER = (() => {
           // blur (a mip of roughness x lod on its capture), so where the capture is sky (alpha 0) the probe's clouds were
           // smeared flat beside a sharp mirrored shore. Under the mirror's weight the lobe is scaled by uWSky.x (MIR.skyK)
           iblRadiance = getIBLRadiance( geometryViewDir, nn, material.roughness * mix(1.0, uWSky.x, uWMirror4.x) );
+          wIblR = material.roughness * mix(1.0, uWSky.x, uWMirror4.x); wIblR0 = material.roughness;
           // G2839 ONE SKY'S LEVEL (20 Oct 03:10, skyK changed nothing): the world's scene.environmentIntensity (0.5, the
           // aeroplane's skin's number) overrides every envMap-less material's intensity - the water's too - so the probe's
           // sky reached the water at HALF the radiance the mirror's capture draws it at: at a 2 % Fresnel its clouds sank
@@ -512,6 +514,11 @@ const WATER = (() => {
         if (uWDbg == 1) gl_FragColor = vec4(wNw * 0.5 + 0.5, 1.0);
         else if (uWDbg == 2) gl_FragColor = vec4(vec3(roughnessFactor), 1.0);
         else if (uWDbg == 14) gl_FragColor = vec4(wIblP / (1.0 + wIblP), 1.0);   // (G2839) the probe's lookup, Reinhard
+        // (G2839, why skyK is inert) BANDS, not levels - they survive the tone map and the post: 15 the lookup's roughness and 17 the
+        // material's (r > 0.1 / 0.2 / 0.3 in r / g / b); 16 the uniforms as the shader sees them (skyK > 0.5, the mirror's weight > 0.5, skyGain > 1.5)
+        else if (uWDbg == 15) gl_FragColor = vec4(step(0.1, wIblR), step(0.2, wIblR), step(0.3, wIblR), 1.0);
+        else if (uWDbg == 16) gl_FragColor = vec4(step(0.5, uWSky.x), step(0.5, uWMirror4.x), step(1.5, uWSky.y), 1.0);
+        else if (uWDbg == 17) gl_FragColor = vec4(step(0.1, wIblR0), step(0.2, wIblR0), step(0.3, wIblR0), 1.0);
         else if (uWDbg == 3) gl_FragColor = vec4(vec3(wSig * 8.0), 1.0);
         else if (uWDbg == 4) gl_FragColor = vec4(vec3(wD / 20.0), 1.0);
         else if (uWDbg == 5) gl_FragColor = vec4(vec3(wFoam), 1.0);
