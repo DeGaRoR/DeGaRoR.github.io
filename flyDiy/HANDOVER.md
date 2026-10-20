@@ -95513,3 +95513,116 @@ Cargo (rolling; L20a's held set + more): damage-on (DAMAGE ON BY DEFAULT: GEN_DA
 Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore). DMGDETERMINISM census now clean (L19d's 27_premises + this flare-coremath).
 Strict light gate: 5 RED, none new: over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV, fix in progress); metal fuseWidth busy = the cost the user accepted by name (15 Oct).
 Known, owned, not blocking: G3027 (a Chinook-alike archetype rejects its takeoff with damage on; non-validated; Deform).
+
+## G3415-G3422 - CITY-B RUNTIME: THE TOWN METER, THE NEAR RING, THE TOWN HOST FROM ITS PACK, GATE CITYHOST (2026-10-20, CITY-B for A0, cloud; branch claude/city-b off origin/claude/city-brief 6ce69e02)
+The requirement (CITY-2.0-PLAN, METLA-2.0-HANDOVER §0 / §4): an idle far town costs ~0 ms of CPU a frame and allocates
+nothing; no per-house Object3D far away; per-frame town JS is O(near ring), never O(town). Built in the plan's order. CITY-A's
+v1 format (`futureDesigns/CITY-PACK-FORMAT.md`, claude/city-a 15a8332f) landed mid-session: the host reads it as written, and
+GATE CITYHOST runs on CITY-A's real Metlakatla pack (13 cells, 435 kit rows, 3 695 props) as well as on its own fixture.
+
+**What changed:**
+- **G3415 THE METER** ("town ms"):
+  - `flight_recorder.js`: three columns, `town` (ms), `townN` (items visited), `townKB` (?townalloc=1, else NaN); 49 -> 52
+    columns (GATE FLIGHTREC's count updated). `FLIGHT_REC.town(ms, n, kb)`, allocation-free.
+  - `render_world.js` worldUpdate times every town-owned call as one: the premises stream, the patch / roads (geoTick), the
+    lots' cut, the premises' tick. `?townalloc=1`: Chrome's heap counter round them (its own read's cost calibrated off;
+    run Chrome with `--enable-precise-memory-info`). `premises.townFrame` = [ms, items, KB] of the last frame.
+  - `render_premises.js` TM: the parts (detail, hlod, kt - the kit / city host -, settle, life, trams, traffic, anim, rise,
+    freeze, far, pwr, hit, lots), their run sums, the items its walks visited; `townMeter()` once a frame.
+  - `tools/rollout_perf.js`: a TOWN line (ms med / p90 / p99 / max, frames over 2 / 5 ms, items, the parts, KB), the town's
+    share of every frame over 100 ms, `townFrames` in the JSON, `--town-alloc`.
+  - `tools/perf/town_meter.js` (the JSONs side by side), `tools/perf/town_meter_eval.js` (an `--eval` expression: the same
+    from the recorder, for a rig whose rollout_perf has none of the above).
+- **G3416 THE NEAR RING** (`src/viewer/town_ring.js`, new, in the world pack before render_premises): a list of what stands
+  within its own farthest switch of the eye, rebuilt only when the eye has moved 40 m (numeric cell keys, no string, no
+  allocation); an item leaving is put to its far state once. On TODAY's town (no pack needed):
+  - the detail walk (castShadow, props, the two detail cuts) walks the ring, not every house (houses join as they freeze);
+  - the far town's cells (hlodTick) walk a ring of cells; its 30-frame rescan of every house is by generation now;
+  - the kit host's tick (`TOWNKIT.host`) walks a ring of its houses - the same rungs as the full walk (GATE CITYHOST B,
+    house by house along a flight, band and hard switch);
+  - the lots' cells (lotsNear) ring, no key slicing; the settle walk visits the unsettled houses only;
+  - a road out of reach WAITS (its cars caught up on return) instead of sorting its cars every frame; trafficCount builds
+    no string a frame;
+  - scenery_life: its cells on a ring; an empty instance batch is no longer re-uploaded every frame; only the slots shown
+    last time are hidden (it hid every slot, every draw).
+  - `?townring=0` / `?kitring=0`: the walks of before (the A/B).
+- **G3417-G3420 THE TOWN HOST** (`TOWNKIT.decodeCityCell` / `cityOf` / `town`, in townkit.js):
+  - far cells = the cook's merged mesh, one static Mesh a cell (matrices composed once, off the walk), 2 draws (shell +
+    lots: the roads bucket is left to the town's own roads, which already draw everywhere), no shadow, the far town's own
+    material (lodMat 'hard') at lod.farGain;
+  - near cells (lod.nearIn / nearOut of the cell's box) = the instanced kit (the house host, 3 BatchedMeshes for the town),
+    the near cells' rows on their rungs; the cell keeps its lots' ground as the stand-in under the lots;
+  - props within lod.propFar of a cell: one InstancedMesh a key part (cast / flat by the cook's flag), written on change;
+  - the kit row's flag 8 honoured (a no-cast row: 0.25 in its data, the shadow pass drops it); a hidden row (an edited
+    plot) dropped near;
+  - zero allocation per tick, far and near (two V8 traps found and fixed: a double passed to a call that is not inlined -
+    Math.hypot included - is boxed; a closure inside a hot function makes it allocate its context on every call).
+- **In the game** (`render_premises.js` CITY): only with the town on AND `?cityhost=1` (default OFF; Metlakatla stays
+  behind the town flag). It loads `src/core/city_packs.json` and every cell (refused unless v1, frame 'world' and the
+  committed kit pack's sha - then the town is on the kit as before). A pack plot builds NOTHING (an unparented entry in
+  HOUSES, never sent to the worker); a pack object builds nothing (the pack's props draw it); the landmarks, a unique plot
+  and an edited plot keep the PROCEDURAL path - built from 400 m before their cell comes near, drawn while it is near,
+  never in the far town's bake; the near cells' obstacles rasterised 1.5 ms a frame. The mk_sea base is not in the pack
+  (CITY-A §9): with the town OFF nothing here runs, so it stays standalone.
+- **G3421 GATE CITYHOST** (`tools/_cityhost_check.js`, core, ~17 s, registered; `tools/_cityhost_fixture.js`: a v1 pack
+  from the committed kit, so the gate stands without CITY-A's pack).
+- **G3422 evidence**: `tools/evidence/CITY-B-host.js` - the host in headless Chromium: three views, three's shader checks on,
+  the tick timed in Chrome's V8, today's kit host beside it.
+- **The spec**: `futureDesigns/CITY-PACK-FORMAT.CITY-B.md` - what the host reads and, §3, the proposals for CITY-A's §13
+  (drop the far roads bucket or bucket the town's roads; a near lots section for the fences / patches; per-plot ranges in
+  the far mesh; one bundle per town).
+- **Not touched**: matlib.js, the LIFTS (GATE PREMCOOK PASS), the premises fixture rev, the village / editor premises /
+  piers / waterfronts (their builds are as they were), CITY-A's files.
+
+**Numbers** (cloud; the frame's real cost needs the box):
+| | |
+| --- | --- |
+| GATE CITYHOST on CITY-A's pack | census 116 Object3Ds for the whole town (13 cells + the kit's batches + ~98 prop meshes, hidden far) - today's ON: 279 house objects + their children; far-only frames (4-6.4 km, idle and on the circuit): 0 cells, 0 rows, 0 props visited; 0.12 bytes a tick far, 0.08 near (noise floor) |
+| the tick in Chrome's V8 (cloud CPU, SwiftShader page) | the town host idle far 0.69 us, on the circuit 0.60 us, idle near (435 rows on rungs) 8.5 us; TODAY's kit host from afar: the full walk 12.3 us -> the ring 0.86 us |
+| draws | far: 23 for the whole town (27.6 k triangles); near over the fullest cell: 151 (the props' meshes are most of it) |
+| kit ring vs full walk | identical rungs, 5 886 frames x 522 houses |
+
+**Gates** (`node tools/run_gates.js --only=CITYHOST,PREMISES,PREMCOOK,TARR,KITHOST,TOWNKIT,PAVEMENT,BUILD,FLIGHTREC,METKIT,HOUSEWORKER,WORLDRENDER,LIFE,ASSETS,GFX,HWCOV,SCENERYED,CONTACT,MEDIA --no-build`):
+- PASS: CITYHOST, PREMISES, PREMCOOK (the LIFTS byte-identical), TARR, TOWNKIT, PAVEMENT, BUILD, FLIGHTREC, HOUSEWORKER,
+  WORLDRENDER, LIFE, ASSETS, GFX, HWCOV, CONTACT, MEDIA.
+- RED, and identical on the untouched base (a clean worktree of origin/claude/city-brief 6ce69e02, run here):
+  - KITHOST G "every visible instance draws its house's (archetype, mirror, rung) - 2 of 537" and the instanced arm 535 vs
+    537; METKIT A "369 of 380" and B "7 rows off": the stale kit table (CITY-A's entry, ask 2);
+  - SCENERYED 20b "Metlakatla put back under 2500 ms" (3 353 ms here, 3 615 ms on the base): this cloud box's CPU, the
+    composer is not touched.
+- GATE CITYHOST with CITY-A's pack in the tree (its 13 cells and manifest copied in, not committed): 73 checks PASS - the
+  lines above marked "on CITY-A's pack" come from that run.
+
+**Asks for the user:**
+1. **Near Metlakatla from the pack lacks its fences and yard dressing** (a kit plot builds nothing; the pack's props bring
+   the cars, boats, people, lamps and pier modules; the lots' flat ground stands in). Land the host for the A/B as it is,
+   or wait for CITY-A's near lots section (proposal 2)?
+2. **The far roads**: the host leaves the pack's road ribbons undrawn (the town's own roads already draw at every distance).
+   Keep that (default), or have the coarse far ribbon (G3214's look) - which needs the town's roads bucketed apart first?
+3. **The look of the near / far switch at ~1 km** on the box stills (A0's step 2): the far shell is the far town's material
+   at the cook's gain (0.2).
+
+**For A0, on the box** (cloud cannot judge a frame):
+1. Land claude/city-a and claude/city-b together (B reads A's pack; both append to HANDOVER - keep both entries). Then
+   `node tools/run_gates.js --only=CITYHOST,CITYCOOK,PREMISES,PREMCOOK,TARR,KITHOST,TOWNKIT,PAVEMENT,BUILD,FLIGHTREC,LIFE,METKIT,MEDIA --no-build`
+   (CITYHOST then runs on the real pack too: its line names `the pack metlakatla`).
+2. `node tools/evidence/CITY-B-host.js` -> `reports/evidence/CITY-B/town_{far,mid,near}.png` on the GPU and a `CITYB {...}`
+   line (the tick in us, the draws). The scene is a rig's (a flat plane, stand-in boxes for the props, a plain sun), not
+   the game's light. The committed stills are the cloud's (SwiftShader, CITY-A's pack): the kit near on its rungs with
+   the house stack's own textures and shadows, the lots' ground under them; far, the shells at the cook's gain.
+3. **The A/B** - METLA-2.0-HANDOVER §5's rig (D:/pl/tools), the floats circuit, the same route and summary. Four arms:
+   | arm | URL | what it is |
+   | --- | --- | --- |
+   | O | `--variant nomet-sea` | the town OFF |
+   | M | `--q "town=1&townring=0&kitring=0"` | ON, master's walks |
+   | K | `--q town=1` | ON, the kit with the near ring (G3415-G3416 alone) |
+   | P | `--q "town=1&cityhost=1"` | ON, the town from its pack (G3417+) |
+   Order P K M O O M K P, each at `--dest CIRCUIT` (4-6 km) and at `--dest mk_sea` (the close visit), every run with
+   `--build bugReports/cessnaFloatsWOrks.json --gfx-set mirror=off --eval @tools/perf/town_meter_eval.js --label ab_<arm><n>_<dest>`.
+   Summaries: `node tools/perf/metla_ab3.js <dir> --prefix ab` (evenness, loop: the enable rule) and the `eval` field of
+   each JSON (the town ms / items / parts / the town's share of each >100 ms frame); with this branch's rollout_perf also
+   `node tools/perf/town_meter.js <dir> --prefix ab`.
+   One allocation run per arm K and P: add `--q "...&townalloc=1" --chrome-flag --enable-precise-memory-info` (this
+   branch's rollout_perf: `--town-alloc`).
+   Accept on the enable rule (ON <= +3 ms of loop at 4 km, frames > 34 ms within ~1 pt of OFF) and the close visit (p99
+   <= ~50 ms). On any frame over 100 ms: `--profile-live <s - 1>,3` (the eval's over100 list names the second).
