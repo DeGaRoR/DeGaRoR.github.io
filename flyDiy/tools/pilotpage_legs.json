@@ -8,7 +8,9 @@
       "order": "w1,w1",
       "persona": "expert",
       "circuit": true,
-      "note": "the story's start: Rufus off the Cabin Strip, the circuit (tools/rollout_perf.js --from w1 --dest CIRCUIT)"
+      "note": "the story's start: Rufus off the Cabin Strip, the circuit (tools/rollout_perf.js --from w1 --dest CIRCUIT) - the drawn approach lands at ~650-690 s (node): 1000 s of flight",
+      "secs": 1000,
+      "timeoutMin": 22
     },
     {
       "id": "cub_expert",
