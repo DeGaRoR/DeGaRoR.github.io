@@ -1201,7 +1201,7 @@ function makeSim(def, world) {
       return { L: hi - lo, M }; };
     const W = ext(C.idx0), Pp = ext(piece);
     if (!(Pp.L > 0.05) || !(Pp.M > 0) || !(W.L > Pp.L)) return om0;
-    return om0 * Math.sqrt(Math.min(9, Math.pow(W.L / Pp.L, 3) * (W.M / Pp.M)));
+    return om0 * Math.sqrt(Math.min(9, CORE_MATH.pow(W.L / Pp.L, 3) * (W.M / Pp.M)));
   }
   function clApply() {
     for (const k of clQ) {

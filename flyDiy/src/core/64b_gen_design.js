@@ -37,7 +37,7 @@
 // the probe's velocity for an attitude: alpha (wind from below, +), beta
 // (the aeroplane moving to its right: wind from the right, +)
 function genDcVel(V, a, b) {
-  return [-V * Math.cos(a) * Math.cos(b), -V * Math.sin(a) * Math.cos(b), -V * Math.sin(b)];
+  return [-V * CORE_MATH.cos(a) * CORE_MATH.cos(b), -V * CORE_MATH.sin(a) * CORE_MATH.cos(b), -V * CORE_MATH.sin(b)];
 }
 
 // the derivatives, standard signs (Y right, L right-wing-down, N nose-right,
@@ -60,7 +60,7 @@ function genDesignDerivs(def, sim, V, opts) {
   // model is written in. Measured in BODY axes, the roll damping (the biggest
   // derivative) leaks into the yaw-roll cross terms at the trim alpha: the
   // Cub's Clr read 0.15 for 0.11, and its spiral twice as divergent as it flies.
-  const ca = Math.cos(a0), sa = Math.sin(a0);
+  const ca = CORE_MATH.cos(a0), sa = CORE_MATH.sin(a0);
   const fwd = [-ca, -sa, 0], up = [-sa, ca, 0];          // in the sim's axes (x aft, y up, z left)
   const P = (a, bt, w) => {
     const r = sim.probe(genDcVel(V, a, bt), live, w || null);
@@ -122,7 +122,7 @@ function genDesignDerivs(def, sim, V, opts) {
 function genDcRoots(co) {
   const n = co.length - 1, a = co.map(v => v / co[0]);
   const R = [];
-  for (let k = 0; k < n; k++) { const t = 2 * Math.PI * k / n + 0.4; R.push([0.9 * Math.cos(t), 0.9 * Math.sin(t)]); }
+  for (let k = 0; k < n; k++) { const t = 2 * Math.PI * k / n + 0.4; R.push([0.9 * CORE_MATH.cos(t), 0.9 * CORE_MATH.sin(t)]); }
   const mul = (x, y) => [x[0] * y[0] - x[1] * y[1], x[0] * y[1] + x[1] * y[0]];
   const div = (x, y) => { const d = y[0] * y[0] + y[1] * y[1] || 1e-300; return [(x[0] * y[0] + x[1] * y[1]) / d, (x[1] * y[0] - x[0] * y[1]) / d]; };
   // scale: start the guesses on the roots' own size (Cauchy bound)
@@ -413,7 +413,7 @@ function genDesignCheck(def, sh, simIn, opts) {
   {
     // the steady sideslip full rudder holds, and the crosswind that is at the approach
     const bMax = Math.abs(D.dr.Cn) / Math.max(1e-6, D.Cnb);
-    const Va = 1.3 * Vs, xw = Va * Math.sin(Math.min(0.6, bMax));
+    const Va = 1.3 * Vs, xw = Va * CORE_MATH.sin(Math.min(0.6, bMax));
     const need = 0.2 * Vs;                                     // FAR 23.233: 0.2 Vso demonstrated
     const lvl = D.Cnb <= 0 ? 'fail' : xw >= need ? 'pass' : xw >= 0.5 * need ? 'warn' : 'fail';
     row({ id: 'ctl.rudder', group: 'control', label: 'Rudder: crosswind it can hold', value: r2(xw * 1.944), unit: 'kt', level: lvl,
