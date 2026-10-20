@@ -399,8 +399,9 @@
    G2445 (MAP-STYLE): the game's map screen (#mapScreen, map_menu.js, a body-level root outside both) reads the SAME
    block - one look, the garage's, and still one place a token is declared.
    G2690 (HANGAR-STORAGE): the storage panel (#hsStore, storage_ui.js, body-level like the map) reads it too.
-   G2742 (STORY-PAGE): and the story's beat card (#stCard, app.js, body-level, the career's only). */
-:is(#wsUI, #edView, #mapScreen, #hsStore, #stCard) {
+   G2742 (STORY-PAGE): and the story's beat card (#stCard, app.js, body-level, the career's only).
+   G2799 (DROP-JSON): and the garage's 'drop to import' overlay (#gDrop, garage.js, body-level). */
+:is(#wsUI, #edView, #mapScreen, #hsStore, #stCard, #gDrop) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
   --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
@@ -1238,6 +1239,18 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
   background:rgba(12,11,10,.78); display:flex; align-items:center;
   justify-content:center; }
 #gFleet[hidden] { display:none; }
+
+/* DROP-JSON (G2799, the user 18 Oct): 'drop to import' over the workshop
+   while a file is dragged onto it - the scenery editor's .pr-drop, the
+   garage's tokens */
+#gDrop { position:fixed; inset:12px; z-index:70; display:none;
+  flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  border:2px dashed var(--ed-acc); border-radius:10px;
+  background:color-mix(in srgb, var(--ed-panel) 82%, transparent);
+  color:var(--ed-ink); pointer-events:none; }
+#gDrop.on { display:flex; }
+#gDrop b { font:600 15px/1 'IBM Plex Sans'; letter-spacing:.06em; }
+#gDrop span { font:400 12px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
 
 .gfBox { width:min(560px, 94vw); max-height:82vh; overflow:auto;
   background:var(--ed-panel); border:1px solid var(--ed-hair);
@@ -3220,6 +3233,11 @@ body.premOpen #flFly { display:none; }
   font:400 11px/1.3 'IBM Plex Sans'; color:var(--ed-ink); background:var(--ed-btn-bg);
   border:1px solid var(--ed-btn-bd); border-radius:5px; cursor:text; }
 #ui .pr-insp .pr-paste { resize:vertical; min-height:56px; }
+/* DROP-JSON (18 Oct): 'drop to import' over the page while a file is dragged onto the scenery editor */
+#ui .pr-drop { position:fixed; inset:12px; z-index:60; display:none; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  border:2px dashed var(--ed-acc); border-radius:10px; background:color-mix(in srgb, var(--ed-panel) 82%, transparent); color:var(--ed-ink); pointer-events:none; }
+#ui .pr-drop b { font:600 15px/1 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; letter-spacing:.06em; }
+#ui .pr-drop span { font:400 12px/1.3 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; color:var(--ed-dim); }
 #ui .pr-insp .pr-name::placeholder, #ui .pr-insp .pr-paste::placeholder { color:var(--ed-faint); }
 /* the inspector's head (G2910): what is selected, on the plate's own band; ✕ lets it go */
 #ui .pr-insp .pr-selhd { position:sticky; top:-4px; z-index:2; display:flex; align-items:center; gap:8px;
@@ -3971,7 +3989,7 @@ html.phone #bRun, html.phone #bAward, html.phone body.mode-fly #bAward {
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='16321fe72a49';window.FLYDIY_BUILD_DATE='2026-10-19T20:00:09.855Z';</script>
+<script>window.FLYDIY_BUILD='ad7d4f3cbef0';window.FLYDIY_BUILD_DATE='2026-10-20T08:04:03.144Z';</script>
 <script>
 // boot_cards.js - THE LOADING SCREEN'S CARDS (G640, 2026-09-26)
 //
@@ -19401,6 +19419,23 @@ function migrate(rec) {
   }
   return r;
 }
+// FEEL FOLLOWS THE LOOK (the user, 19 Oct: "we retire that, feel follows looks" - ONE SURFACE's last step): an old file's split,
+// drawn one way and felt another, is converted where it is read - what the wheels feel is the look's class. A strip that says its
+// look: its `surface`; an area that draws a pavement and carries wheels: wheels.surface; a road whose look feels otherwise than
+// its class: its own `surface` (the composer reads it first) - its CLASS stays, what the user drew (a track is a dashed path:
+// a track drawn dirt rolls on dirt's gravel friction and stays a track).
+// A look with no feel of its own (markings only), a texture draw, wheels with nothing drawn and a water lane are left as they are.
+// An area that felt HARD (paved / gravel / sand: no tree, no plot) and now feels soft keeps them out - its exclude gains trees and
+// plots (A0 for the user: the feel follows the look, no new trees grow in). Idempotent: a converted record converts to itself.
+const FEEL_HARD = [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND];
+function feelFollowsLook(r) {
+  const feelOf = k => { const L = k && RUNWAY_LOOKS[k]; return L && L.surface !== null && L.surface !== undefined ? +L.surface : null; };
+  for (const w of r.layers.runways) if (w && w.look && +w.surface !== SURFACE.WATER) { const f = feelOf(w.look); if (f !== null && (w.surface === undefined || w.surface === null ? SURFACE.GRASS : +w.surface) !== f) w.surface = f; }
+  for (const a of r.layers.areas) { const P = a && a.props; if (!P || !P.wheels || !P.draw) continue; const f = feelOf(P.draw.look); if (f === null || +P.wheels.surface === f) continue;
+    if (FEEL_HARD.indexOf(+P.wheels.surface) >= 0 && FEEL_HARD.indexOf(f) < 0) { const w = P.exclude && Array.isArray(P.exclude.what) ? P.exclude.what.slice() : []; for (const k of ['trees', 'plots']) if (w.indexOf(k) < 0) w.push(k); P.exclude = Object.assign({}, P.exclude || {}, { what: w }); }
+    P.wheels = Object.assign({}, P.wheels, { surface: f }); }
+  for (const rd of r.layers.roads) { if (!rd || !rd.look) continue; const f = feelOf(rd.look); if (f !== null && roadFeel(rd) !== f) rd.surface = f; }
+}
 function normalise(rec) {
   const d = DEF();
   const r = Object.assign(d, rec || {});
@@ -19417,6 +19452,7 @@ function normalise(rec) {
   for (const rd of r.layers.roads) if (rd && Array.isArray(rd.tan) && Array.isArray(rd.pts)) { while (rd.tan.length < rd.pts.length) rd.tan.push(null); rd.tan.length = rd.pts.length; }
   // v1.37: a road's junction ids run beside its points too, one slot each (a hand edit's short list padded with null)
   for (const rd of r.layers.roads) if (rd && Array.isArray(rd.nodes) && Array.isArray(rd.pts)) { while (rd.nodes.length < rd.pts.length) rd.nodes.push(null); rd.nodes.length = rd.pts.length; }
+  feelFollowsLook(r);
   r.budget =Object.assign({}, d.budget, r.budget || {});
   if (typeof r.seed !== 'number') r.seed = 1;
   if (!THEMES[r.theme]) r.theme = THEME_DEF;
@@ -25626,7 +25662,7 @@ function makeSim(def, world) {
       return { L: hi - lo, M }; };
     const W = ext(C.idx0), Pp = ext(piece);
     if (!(Pp.L > 0.05) || !(Pp.M > 0) || !(W.L > Pp.L)) return om0;
-    return om0 * Math.sqrt(Math.min(9, Math.pow(W.L / Pp.L, 3) * (W.M / Pp.M)));
+    return om0 * Math.sqrt(Math.min(9, CORE_MATH.pow(W.L / Pp.L, 3) * (W.M / Pp.M)));
   }
   function clApply() {
     for (const k of clQ) {
@@ -27390,6 +27426,37 @@ function makeSim(def, world) {
   // bit), the ground rig follows its mass (setNodeMass's rule) and totalM is summed afresh in node order (reset's sum).
   // Nothing then and nothing now writes nothing at all. Deterministic: the page's sim and the worker's apply the same
   // list in the same order (sim_link / sim_host 'freight') and stay bit-equal (GATE SIMWORKER's load row).
+  // G3026 (with DAMAGE ON): A LOAD CHANGED MID-FLIGHT LEFT THE RIGID CLUSTERS' REST AT THE OLD MASSES. clusterRest keeps a
+  // cluster's rest shape as offsets from its MASS-weighted centroid, and twistRest each bay's rest twist as the phase between
+  // its rings' mass-weighted centroids - both taken at the reset, with the load aboard. A delivery (setFreight) changed the
+  // masses and not those: the shape projection then pulled the cluster to its rest shape about the wrong point, and the bay's
+  // twist read the mass change as a twist - the metal Cessna's cabin bay broke at a stop (GATE SIMWORKER 2c, 19 Oct: 10
+  // members in the step the mail came off; a 60-step ramp broke 20). Here both are moved by what the mass change alone makes
+  // of them ON THE AS-BUILT GEOMETRY (the def's positions, as the reset took them): the offsets by the centroid's shift, the
+  // rest twist by the phase's - so a plastic set the cluster carries is kept - and the bay's inertias are the new masses'
+  function freightRest(mOld, chg) {
+    if (!clusters.length) return;
+    const hit = clusters.filter(C => C.q && C.idx.some(i => chg[i]));
+    if (!hit.length) return;
+    const P0 = Float64Array.from(p), mNew = Float64Array.from(m);
+    for (let i = 0; i < n; i++) { const q = def.nodes[i].p; p[i*3] = q[0]; p[i*3+1] = q[1]; p[i*3+2] = q[2]; }
+    const cen = (C, M) => { let x = 0, y = 0, z = 0, W = 0; for (const i of C.idx) { x += p[i*3] * M[i]; y += p[i*3+1] * M[i]; z += p[i*3+2] * M[i]; W += M[i]; } return [x / W, y / W, z / W]; };
+    for (const C of hit) {
+      const c0 = cen(C, mOld), c1 = cen(C, mNew), dx = c0[0] - c1[0], dy = c0[1] - c1[1], dz = c0[2] - c1[2];
+      for (let k = 0; k < C.idx.length; k++) { C.q[k*3] += dx; C.q[k*3+1] += dy; C.q[k*3+2] += dz; }
+      if (C.twist) for (let k = 0; k + 1 < C.rings.length; k++) {
+        const T = C.twist[k]; if (!T) continue;
+        m.set(mOld); const g0 = twistGeom(C.rings[k], C.rings[k + 1]);
+        m.set(mNew); const g1 = twistGeom(C.rings[k], C.rings[k + 1]);
+        if (!g0 || !g1) continue;
+        let d = g1.theta - g0.theta; if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI;
+        T.rest += d; T.I0 = g1.I0; T.I1 = g1.I1;
+        const kth = C.gj / Math.max(0.05, g1.L), Ired = (g1.I0 * g1.I1) / Math.max(1e-9, g1.I0 + g1.I1);
+        T.w = Math.sqrt(kth / Math.max(1e-6, Ired));
+      }
+    }
+    m.set(mNew); p.set(P0);
+  }
   function setFreight(list) {
     const want = Array.isArray(list) && list.length ? list : null;
     if (!want && !FRX) return 0;
@@ -27401,6 +27468,7 @@ function makeSim(def, world) {
     }
     FRX = nx;
     FRL = want ? want.map(a => [a[0] | 0, +a[1]]) : null;
+    const mOld = Float64Array.from(m), chg = new Uint8Array(n);   // (G3026: the masses as they stood, the nodes changed)
     for (let i = 0; i < n; i++) {
       const a = old ? old[i] : 0, b = nx ? nx[i] : 0;
       if (a === b) continue;
@@ -27409,7 +27477,9 @@ function makeSim(def, world) {
       const base = (k >= 0 && fuel.frac !== 1) ? DRY0[k] + FUEL0[k] * fuel.frac : def.nodes[i].m;
       m[i] = b !== 0 ? Math.max(0.5, base + b) : base;
       rigGround(i, m[i]);
+      if (m[i] !== mOld[i]) chg[i] = 1;
     }
+    freightRest(mOld, chg);
     totalM = 0;
     for (let i = 0; i < n; i++) totalM += m[i];
     return FRL ? FRL.length : 0;
@@ -33646,6 +33716,7 @@ function makePilot(sim, def, world, opts) {
   const wrapPi = servoWrapPi;
   let pendReEng = false;
   let rollS0 = null, rollN = 0, thrRollW = 0, humpStuckT = 0;
+  let capsized = false;   // G3328: the aeroplane has been on its back (the report's outcome says so, whatever came before)
   let humpR = 0, humpPk = 0, humpPast = false;   // G790: the hull's resistance / weight on the water run, filtered; its peak; past it
   let climbMode = true, ceilT = 0, ceilingSaid = false;
   // G2125 PILOT-PROFILE: the lift-off's level acceleration done; the height held in it; the climb-out corridor's tops
@@ -34688,6 +34759,16 @@ function makePilot(sim, def, world, opts) {
     if (ap.budget && ap.t > ap.budget && !ap.report.outcome && ap.phase !== 'STOPPED') {
       ap.report.outcome = 'gave-up';
       say('gave-up', 'still in ' + ap.phase + ' at t=' + Math.round(ap.t) + ' s — out of patience, not out of sky');
+    }
+    // G3328 (CAPSIZE-VERDICT, 20 Oct - AP-ADAPT's water sweep: the float aeroplanes rolled over in the water roll-out after
+    // a landing the report had already called 'completed', 9-12 times in 86 flights, and every gate that reads the outcome
+    // passed them): ON ITS BACK IS NO ARRIVAL. Past 90 deg of bank, at any phase, on the water or the ground or in the air,
+    // the outcome is 'capsized' - over 'completed' or any other - said once with where and when; the gates read it as a red
+    if (!capsized && Math.abs(phRaw) > Math.PI / 2) {
+      capsized = true;
+      ap.report.capsized = { t: Math.round(ap.t * 10) / 10, phase: ap.phase, bank: Math.round(phRaw * 180 / Math.PI), V: Math.round(V * 10) / 10, onG, was: ap.report.outcome || null };
+      ap.report.outcome = 'capsized';
+      say('capsized', 'on its back in ' + ap.phase + ' at ' + V.toFixed(1) + ' m/s (bank ' + Math.round(phRaw * 180 / Math.PI) + ' deg)' + (ap.report.capsized.was ? ' - after "' + ap.report.capsized.was + '"' : ''));
     }
 
     // ---- THE SERVOS: one module, 39b_servos.js (G1570) ---------------------------
@@ -38872,7 +38953,9 @@ const GEN_CRASH_TUBE_DT = 30;
 // G1898 (DEFORM COORDINATOR): THE DAMAGE LAYER'S DEFAULT - ONE CONSTANT. A build's params.damage (true / false) wins;
 // else the page's ?damage=1|0 (FLYDIY_DAMAGE, the worker's from its init); else this. Off until DMG-D2 anchors the
 // limits on the certificate (DEFORM-AND-BREAK §11.4: train 35 flips it); params.damage === false stays master's bits.
-const GEN_DAMAGE_DEFAULT = false;
+// DAMAGE ON (19 Oct 2026, the user: "if it does not have an impact on normal flight, we should go for it, and not chase
+// milliseconds for now" - the crash's own stalls accepted as they are; ?damage=0 turns it off for a page)
+const GEN_DAMAGE_DEFAULT = true;
 // G1894 (DMG-TUNE): WHEN A BREAK GROUP LETS GO (DEFORM §4.4; the solver's beamBreak). A group is a part's attachment:
 // the members joining it to the rest (D1a's fittings - in the lattice the bolt and the tube end are one member) - an
 // engine mount's 10-12 tubes and bolts, a stab's 32, a wing root's 8-10. D1a let a group go WHOLE on ANY ONE member's
@@ -52352,7 +52435,7 @@ function genDensityAlt(def) {
 // the probe's velocity for an attitude: alpha (wind from below, +), beta
 // (the aeroplane moving to its right: wind from the right, +)
 function genDcVel(V, a, b) {
-  return [-V * Math.cos(a) * Math.cos(b), -V * Math.sin(a) * Math.cos(b), -V * Math.sin(b)];
+  return [-V * CORE_MATH.cos(a) * CORE_MATH.cos(b), -V * CORE_MATH.sin(a) * CORE_MATH.cos(b), -V * CORE_MATH.sin(b)];
 }
 
 // the derivatives, standard signs (Y right, L right-wing-down, N nose-right,
@@ -52375,7 +52458,7 @@ function genDesignDerivs(def, sim, V, opts) {
   // model is written in. Measured in BODY axes, the roll damping (the biggest
   // derivative) leaks into the yaw-roll cross terms at the trim alpha: the
   // Cub's Clr read 0.15 for 0.11, and its spiral twice as divergent as it flies.
-  const ca = Math.cos(a0), sa = Math.sin(a0);
+  const ca = CORE_MATH.cos(a0), sa = CORE_MATH.sin(a0);
   const fwd = [-ca, -sa, 0], up = [-sa, ca, 0];          // in the sim's axes (x aft, y up, z left)
   const P = (a, bt, w) => {
     const r = sim.probe(genDcVel(V, a, bt), live, w || null);
@@ -52437,7 +52520,7 @@ function genDesignDerivs(def, sim, V, opts) {
 function genDcRoots(co) {
   const n = co.length - 1, a = co.map(v => v / co[0]);
   const R = [];
-  for (let k = 0; k < n; k++) { const t = 2 * Math.PI * k / n + 0.4; R.push([0.9 * Math.cos(t), 0.9 * Math.sin(t)]); }
+  for (let k = 0; k < n; k++) { const t = 2 * Math.PI * k / n + 0.4; R.push([0.9 * CORE_MATH.cos(t), 0.9 * CORE_MATH.sin(t)]); }
   const mul = (x, y) => [x[0] * y[0] - x[1] * y[1], x[0] * y[1] + x[1] * y[0]];
   const div = (x, y) => { const d = y[0] * y[0] + y[1] * y[1] || 1e-300; return [(x[0] * y[0] + x[1] * y[1]) / d, (x[1] * y[0] - x[0] * y[1]) / d]; };
   // scale: start the guesses on the roots' own size (Cauchy bound)
@@ -52728,7 +52811,7 @@ function genDesignCheck(def, sh, simIn, opts) {
   {
     // the steady sideslip full rudder holds, and the crosswind that is at the approach
     const bMax = Math.abs(D.dr.Cn) / Math.max(1e-6, D.Cnb);
-    const Va = 1.3 * Vs, xw = Va * Math.sin(Math.min(0.6, bMax));
+    const Va = 1.3 * Vs, xw = Va * CORE_MATH.sin(Math.min(0.6, bMax));
     const need = 0.2 * Vs;                                     // FAR 23.233: 0.2 Vso demonstrated
     const lvl = D.Cnb <= 0 ? 'fail' : xw >= need ? 'pass' : xw >= 0.5 * need ? 'warn' : 'fail';
     row({ id: 'ctl.rudder', group: 'control', label: 'Rudder: crosswind it can hold', value: r2(xw * 1.944), unit: 'kt', level: lvl,
@@ -57033,7 +57116,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='ba89ada195a6';window.FLYDIY_BUILD='16321fe72a49';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=b77b48a0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='cf50d5aa25fe';window.FLYDIY_BUILD='ad7d4f3cbef0';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=b77b48a0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -57080,7 +57163,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 <script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script type="text/x-flydiy">
 (function () {
-  var SRC = {"_sport_gen":"tools/_sport_gen.js?v=4e7d9a83","_marine_gen":"tools/_marine_gen.js?v=7e5624cd","_navaid_gen":"tools/_navaid_gen.js?v=591dc503","scenery_landmark":"src/scenery/scenery_landmark.js?v=bfc3ff4b","scenery_vessel":"src/scenery/scenery_vessel.js?v=e743cbf2","scenery_wreck":"src/scenery/scenery_wreck.js?v=f02332a8","scenery_crowd":"src/scenery/scenery_crowd.js?v=7912e4ef","scenery_lods":"src/scenery/scenery_lods.js?v=4d103a39","camp_camp":"src/camp/camp_camp.js?v=1f4ae79d","camp_lods":"src/camp/camp_lods.js?v=15cbff06","infra_pylon":"src/infra/infra_pylon.js?v=552fef8f","premises_host":"src/viewer/premises_host.js?v=f48ddf2c","premises_ui":"src/viewer/premises_ui.js?v=bc9bb7c8","world_rail":"src/viewer/world_rail.js?v=fff76d23","ktx2_loader":"vendor/ktx2/ktx2_loader.js?v=841b4114","townkit":"src/viewer/townkit.js?v=70511cce","kit_lot":"src/viewer/kit_lot.js?v=57d263e0","diag":"src/viewer/diag.js?v=b61f6912","map_pack":"src/viewer/map_pack.js?v=963b95ab","map_menu":"src/viewer/map_menu.js?v=251a326e","freight_load":"src/viewer/freight_load.js?v=5693912b","freight_strap":"src/viewer/freight_strap.js?v=57b4d0e1","crowd":"src/viewer/crowd.js?v=0153cf17"}, got = {}, busy = 0;
+  var SRC = {"_sport_gen":"tools/_sport_gen.js?v=4e7d9a83","_marine_gen":"tools/_marine_gen.js?v=7e5624cd","_navaid_gen":"tools/_navaid_gen.js?v=591dc503","scenery_landmark":"src/scenery/scenery_landmark.js?v=bfc3ff4b","scenery_vessel":"src/scenery/scenery_vessel.js?v=e743cbf2","scenery_wreck":"src/scenery/scenery_wreck.js?v=f02332a8","scenery_crowd":"src/scenery/scenery_crowd.js?v=7912e4ef","scenery_lods":"src/scenery/scenery_lods.js?v=4d103a39","camp_camp":"src/camp/camp_camp.js?v=1f4ae79d","camp_lods":"src/camp/camp_lods.js?v=15cbff06","infra_pylon":"src/infra/infra_pylon.js?v=552fef8f","premises_host":"src/viewer/premises_host.js?v=f48ddf2c","premises_ui":"src/viewer/premises_ui.js?v=4077f852","world_rail":"src/viewer/world_rail.js?v=2bef29f2","ktx2_loader":"vendor/ktx2/ktx2_loader.js?v=841b4114","townkit":"src/viewer/townkit.js?v=70511cce","kit_lot":"src/viewer/kit_lot.js?v=57d263e0","diag":"src/viewer/diag.js?v=b61f6912","map_pack":"src/viewer/map_pack.js?v=963b95ab","map_menu":"src/viewer/map_menu.js?v=251a326e","freight_load":"src/viewer/freight_load.js?v=5693912b","freight_strap":"src/viewer/freight_strap.js?v=57b4d0e1","crowd":"src/viewer/crowd.js?v=0153cf17"}, got = {}, busy = 0;
   window.FLYDIY_LAZY_SRC = SRC;
   var lazy = window.FLYDIY_LAZY = function (names) {
     return Promise.all([].concat(names).map(function (n) {
@@ -78604,6 +78687,50 @@ function seatShell(parent, A, P, g) {
       pad.quad(PO[i][j], PO[i + 1][j], PO[i + 1][j + 1], PO[i][j + 1]);
     }
   pad.mesh(parent);
+  // THE FLOOR SUPPORT (G2799, the user's review of 18 Oct: "the carbon seat
+  // floats about 8 cm over the floor"). Two moulded pedestal ribs under the
+  // pan, their top edge following the shell's outer face from the front of
+  // the pan to the lower back, standing on two fore-aft floor rails - the
+  // airliner seat's pedestal idiom. Drawing only: the shell, the hinge and
+  // every number the crew laces to are unchanged.
+  const rh = hw * 0.45, RT = 0.006, RAIL = 0.012;
+  let ia = 0, ib = NU - 1;
+  while (ia < NU - 1 && C[ia][2] > F[1] + 1e-6) ia++;
+  while (ib > ia && C[ib][1] > H[0] + 0.10) ib--;
+  if (ib - ia >= 1) {
+    const rib = Bag(M.shellC), alu = Bag(M.seatAlu);
+    for (const s2 of [-1, 1]) {
+      const xr = sx + s2 * rh, top = [], bot = [];
+      for (let i = ia; i <= ib; i++) {
+        const p = pt(i, s2 * rh / W[i], -TH);
+        const yB = A.floorAt(p[2]) + 2 * RAIL;
+        top.push([p[1], p[2]]);
+        bot.push([Math.min(yB, p[1] - 0.006), p[2]]);
+      }
+      // a slab RT*2 thick: each face its own vertices, so the shading is flat
+      const n = top.length;
+      for (const xs of [xr - RT, xr + RT]) {
+        const T = top.map(q => rib.v(xs, q[0], q[1]));
+        const Bt = bot.map(q => rib.v(xs, q[0], q[1]));
+        for (let i = 0; i < n - 1; i++)
+          if (xs < xr) rib.quad(T[i], T[i + 1], Bt[i + 1], Bt[i]);
+          else rib.quad(T[i], Bt[i], Bt[i + 1], T[i + 1]);
+      }
+      for (const edge of [top, bot]) {
+        const L = edge.map(q => rib.v(xr - RT, q[0], q[1]));
+        const R = edge.map(q => rib.v(xr + RT, q[0], q[1]));
+        for (let i = 0; i < n - 1; i++) rib.quad(L[i], R[i], R[i + 1], L[i + 1]);
+      }
+      for (const i of [0, n - 1])
+        rib.quad(rib.v(xr - RT, top[i][0], top[i][1]), rib.v(xr + RT, top[i][0], top[i][1]),
+                 rib.v(xr + RT, bot[i][0], bot[i][1]), rib.v(xr - RT, bot[i][0], bot[i][1]));
+      // the rail, a little longer than the rib at both ends
+      const zf = top[0][1] + 0.03, zr = top[n - 1][1] - 0.03;
+      tubeRun(alu, [[xr, A.floorAt(zf) + RAIL, zf], [xr, A.floorAt(zr) + RAIL, zr]], RAIL, 12);
+    }
+    rib.mesh(parent);
+    alu.mesh(parent);
+  }
 }
 
 // ---- 2. THE AIRLINER SEAT -------------------------------------------------
@@ -108031,6 +108158,24 @@ function bayCache(mesh, FS, bay, wall, zFw, reach) {
   }
   return { T, prof, ext, wallU, s0, s1, axisMin, axisMax };
 }
+// THE HAND'S RANGE (G2799, the user's review of 18 Oct: "tank sliders much
+// wider, especially fore/aft in the nose"). The bay's RULE limits [x0, x1]
+// stay exactly what they were - the default spot, the level a new tank
+// settles to, the litres, the cache keys and the core's billing all read
+// them, so no saved or stock tank moves. Only the player's fore/aft slider
+// and the 'past the bay' readout read this envelope: HAND_REACH metres past
+// each rule limit, and never past what the swept field describes (the cache
+// sweeps 0.7 m past the limits, so a placement out there is measured, not
+// extrapolated). In the nose that is forward to the firewall face and aft
+// under the panel. No sweep, no field: the rule's limits.
+const HAND_REACH = 0.6;
+function handRange(bay, cache) {
+  if (!bay || bay.on !== 'body' || !cache) return bay && bay.on === 'body' ? [bay.x0, bay.x1] : null;
+  let lo = bay.x0 - HAND_REACH, hi = bay.x1 + HAND_REACH;
+  if (cache.axisMin != null) lo = Math.max(lo, Math.min(bay.x0, cache.axisMin + 0.01));
+  if (cache.axisMax != null) hi = Math.min(hi, Math.max(bay.x1, cache.axisMax - 0.01));
+  return [lo, hi];
+}
 // the inner extents at an axis station, for callers that think in metres
 function bayExtAt(cache, FS, zFw, along) {
   if (!cache) return null;
@@ -108156,12 +108301,17 @@ function bodyPlace(mesh, FS, bay, v, dims, wall, zFw, cache) {
   // inside its BAY: every sample's station within [x0, x1], and its height
   // within the band (the band is where the bay is, the skin is where the body is)
   // the bay's limits are AXIS metres, like the ledger's
-  let outBay = 0;
+  // G2799: `outsideBay` is against the RULE's limits (the level a new tank
+  // settles to reads it, so a default lands where it always did); the readout
+  // and `ok` are against the HAND's range (handRange), where the player may go
+  const hx0 = bay.hx0 != null ? bay.hx0 : bay.x0, hx1 = bay.hx1 != null ? bay.hx1 : bay.x1;
+  let outBay = 0, outHand = 0;
   for (const p of pts) {
     const sm = zFw != null ? (zFw - p[2] / FS) * FS : null;
     const sf = sm != null ? sm : null;
     const s = sf != null ? sf : (sLc - (p[2] / FS - zc)) * FS;
     if (s < bay.x0 - 1e-6 || s > bay.x1 + 1e-6) outBay++;
+    if (s < hx0 - 1e-6 || s > hx1 + 1e-6) outHand++;
   }
   const yTop = c[1] + e[1], yBot = c[1] - e[1];
   const bandOK = yBot >= bandLo * FS - 1e-6 && yTop <= bandHi * FS + 1e-6;
@@ -108175,12 +108325,13 @@ function bodyPlace(mesh, FS, bay, v, dims, wall, zFw, cache) {
   out.clearAt = fit.at ? [fit.at[0] * FS, fit.at[1] * FS, fit.at[2] * FS] : null;
   out.outsideSkin = fit.outside;
   out.outsideBay = outBay;
+  out.outsideHand = outHand;
   out.inBand = bandOK;
   out.fitsSkin = fit.fits;
-  out.ok = fit.fits && outBay === 0 && bandOK;
+  out.ok = fit.fits && outHand === 0 && bandOK;
   if (!fit.fits) out.why.push(fit.outside ? 'runs out of the body' :
     'through the skin by ' + (-fit.worst * FS * 1000).toFixed(0) + ' mm');
-  if (outBay) out.why.push(outBay + ' corner' + (outBay > 1 ? 's' : '') + ' past the bay');
+  if (outHand) out.why.push(outHand + ' corner' + (outHand > 1 ? 's' : '') + ' past the bay');
   if (!bandOK) out.why.push('outside the bay’s band');
   return out;
 }
@@ -108379,7 +108530,7 @@ function pointInBox(p, place, margin) {
   return Math.abs(lx) <= e[0] + m && Math.abs(dy) <= e[1] + m && Math.abs(lz) <= e[2] + m;
 }
 
-const API = { SHAPES, vesselDims, installedFromDims, bayFitDims, bayExtAt, defaultSpot, settleLv, specFromCage,
+const API = { SHAPES, vesselDims, installedFromDims, bayFitDims, bayExtAt, handRange, defaultSpot, settleLv, specFromCage,
               firewallZ, bodyPlace, wingPlace, wingRibs, bayCache, analyticSlice, pointInBox,
               sLTable, sLOfZ };
 if (typeof window !== 'undefined') window.VESSEL_GEN = API;
@@ -109580,6 +109731,10 @@ function measureBays(S, ctx) {
   const out = [];
   if (!C.BAYS || !C.bayResolve || !S) return out;
   const FS = fsOf(ctx);
+  // the datum, read once for every body bay (G2799: it was read per bay)
+  let zFwM;
+  const zFwOf = () => zFwM !== undefined ? zFwM
+    : (zFwM = VG() && VG().firewallZ ? VG().firewallZ(ctx.spec, CG2()) : null);
   for (const k in C.BAYS) {
     const B = C.BAYS[k];
     if (B.on === 'wing' && !(S.wing && window.CAGE_WING)) continue;
@@ -109592,7 +109747,7 @@ function measureBays(S, ctx) {
     try { r = C.bayResolve(S, k, null); } catch (e) { r = null; }
     if (!r) continue;
     if (r.on === 'body' && ctx.mesh && BAY()) {
-      const zFw = VG() && VG().firewallZ ? VG().firewallZ(ctx.spec, CG2()) : null;
+      const zFw = zFwOf();
       const key = bayKey(r, zFw);
       if (key in FIELD_L) { r.litresField = FIELD_L[key]; }
       else try {
@@ -109611,6 +109766,11 @@ function measureBays(S, ctx) {
       if (!(key in FIELD_L)) FIELD_L[key] = r.litresField;
     }
     r.roomL = r.litresField != null ? r.litresField : r.litres;
+    // G2799: a bay that holds a vessel is swept now rather than in the layout
+    // (the same sweep, read back there), so the panel drawn before the layout
+    // shows its fore/aft slider over the hand's range
+    if (r.on === 'body' && ctx.mesh && VG() && EN.vessels.some(v => v.bay === k))
+      bayCacheOf(ctx, r, zFwOf());
     out.push(r);
   }
   return out;
@@ -109734,6 +109894,34 @@ function wingSlicer(ctx, inv, plane) {
 // picture showed the bulkhead: one tank, one place. A grid search that walked
 // the bay for a crew-clear cell lived here for an afternoon; the user's call
 // was that it was too picky, and that the player places the tank themselves.
+// ONE SWEEP PER BAY PER BODY (placeAll's, hoisted for G2799: measureBays asks
+// it first for every bay that holds a vessel, so the panel drawn before the
+// layout already shows the clamped bay and the hand's range; the sweep is the
+// same one, under the same key, so placeAll reads it back and sweeps nothing)
+function bayCacheOf(ctx, bay, zFw) {
+  const G = VG(), FS = fsOf(ctx);
+  if (bay.on !== 'body') return null;
+  // the key is the RULE's limits, taken once per bay object: the clamp
+  // below rewrites x0/x1, and a second vessel in the same bay must not
+  // read a different key off the clamped numbers and sweep again
+  if (!bay._ck) bay._ck = bayKey(bay, zFw);
+  if (!(bay._ck in BAY_CACHES))
+    BAY_CACHES[bay._ck] = G.bayCache ? G.bayCache(ctx.mesh, FS, bay, 0.035, zFw, 0.7) : null;
+  const c = BAY_CACHES[bay._ck];
+  // THE BAY IS CLAMPED TO THE BODY THE FIELD DESCRIBES. The rule's front
+  // limit is a measured deck length; where the field stops describing
+  // the deck (the firewall face) the bay stops too, so a default and a
+  // slider both start at a station a tank can actually be at. Every
+  // call, not only the sweeping one: BAYS is measured afresh each build
+  // and the clamp lives on the bay object, not in the cache.
+  if (c && c.axisMin != null && c.axisMin > bay.x0) bay.x0 = c.axisMin + 0.01;
+  if (c && c.axisMax != null && c.axisMax < bay.x1) bay.x1 = c.axisMax - 0.01;
+  // G2799: the HAND's range, wider than the rule's (VESSEL_GEN.handRange):
+  // the fore/aft slider and the readout read it, the defaults never do
+  const h = G.handRange ? G.handRange(bay, c) : null;
+  if (h) { bay.hx0 = h[0]; bay.hx1 = h[1]; }
+  return c;
+}
 function placeAll(ctx, inv) {
   const C = core(), G = VG();
   const results = [];
@@ -109745,25 +109933,7 @@ function placeAll(ctx, inv) {
   // the layout, a few ms with it hoisted — and then 1.3 s per tick again
   // once every build emptied the map. PAGE.post empties it when the BODY
   // SIGNATURE changes, which is the only time the body changes.
-  const cacheOf = bay => {
-    if (bay.on !== 'body') return null;
-    // the key is the RULE's limits, taken once per bay object: the clamp
-    // below rewrites x0/x1, and a second vessel in the same bay must not
-    // read a different key off the clamped numbers and sweep again
-    if (!bay._ck) bay._ck = bayKey(bay, zFw);
-    if (!(bay._ck in BAY_CACHES))
-      BAY_CACHES[bay._ck] = G.bayCache ? G.bayCache(ctx.mesh, FS, bay, 0.035, zFw, 0.7) : null;
-    const c = BAY_CACHES[bay._ck];
-    // THE BAY IS CLAMPED TO THE BODY THE FIELD DESCRIBES. The rule's front
-    // limit is a measured deck length; where the field stops describing
-    // the deck (the firewall face) the bay stops too, so a default and a
-    // slider both start at a station a tank can actually be at. Every
-    // call, not only the sweeping one: BAYS is measured afresh each build
-    // and the clamp lives on the bay object, not in the cache.
-    if (c && c.axisMin != null && c.axisMin > bay.x0) bay.x0 = c.axisMin + 0.01;
-    if (c && c.axisMax != null && c.axisMax < bay.x1) bay.x1 = c.axisMax - 0.01;
-    return c;
-  };
+  const cacheOf = bay => bayCacheOf(ctx, bay, zFw);
   const FS = fsOf(ctx);
   const W = window.CAGE_WING;
   const semi = W ? (W.semi || (W.def && W.def.spec && W.def.spec.geom && W.def.spec.geom.semi) || 0) : 0;
@@ -109887,7 +110057,10 @@ function placeAll(ctx, inv) {
       // before a bay rule moved (the bench kept a nose tank at 1.08 m after
       // the nose bay became the cowl deck) would be reported as "past the
       // body" forever; it takes the rule again instead, like a new vessel.
-      if (v.along != null && (v.along < bay.x0 - dims.L || v.along > bay.x1 + dims.L)) {
+      // (G2799: past the HAND's range, which holds the rule's, so a station
+      // the player put out there is theirs)
+      if (v.along != null && (v.along < Math.min(bay.x0, bay.hx0 != null ? bay.hx0 : bay.x0) - dims.L ||
+                              v.along > Math.max(bay.x1, bay.hx1 != null ? bay.hx1 : bay.x1) + dims.L)) {
         v.along = null; v.lv = null;
       }
       // THE CATALOGUE SHAPE CANNOT FIT THIS BAY EITHER WAY ROUND: give the
@@ -111643,7 +111816,7 @@ function renderPanel() {
                commitSoon(); });
       const secW = LAST.results[i] && LAST.results[i].section
         ? Math.max(0.3, LAST.results[i].section.xHi - LAST.results[i].section.xLo) : 1.2;
-      sizeRow('length', 'L', Math.max(0.4, bay.x1 - bay.x0), 'along the body');
+      sizeRow('length', 'L', Math.max(0.4, (bay.hx1 != null ? bay.hx1 : bay.x1) - (bay.hx0 != null ? bay.hx0 : bay.x0)), 'along the body');
       sizeRow('width', 'W', secW, 'across the body');
       sizeRow('height', 'H', 1.0, 'up');
     }
@@ -111661,8 +111834,12 @@ function renderPanel() {
         x => { v.along = x; relayout(); }, x => { v.along = x; commitSoon(); });
     } else if (bay) {
       const dflt = 0.5 * (bay.x0 + bay.x1);
+      // G2799: the slider spans the HAND's range (the rule's, plus a reach
+      // the swept field still measures); a new tank still starts in the bay
+      const hx0 = bay.hx0 != null ? bay.hx0 : bay.x0, hx1 = bay.hx1 != null ? bay.hx1 : bay.x1;
       range(box, 'fore / aft', 'metres aft of the firewall — the bay runs ' +
-        bay.x0.toFixed(2) + ' to ' + bay.x1.toFixed(2) + ' m', bay.x0, bay.x1,
+        bay.x0.toFixed(2) + ' to ' + bay.x1.toFixed(2) + ' m, the tank can go ' +
+        hx0.toFixed(2) + ' to ' + hx1.toFixed(2) + ' m', hx0, hx1,
         0.01, v.along != null ? v.along : dflt, fmtM,
         x => { v.along = x; relayout(); }, x => { v.along = x; commitSoon(); });
       const lvB = bay.lv || [0, 1];
@@ -159687,13 +159864,7 @@ function garageInit(api) {
     // and this popup was declared the home of the NOUNS the day it was cut;
     // filing them here put a verb inside a verb, two clicks deep, which is
     // exactly the misfiling the ribbon exists to end.
-    // a build dropped on the open rack lands the same as one dropped on the
-    // ribbon — same two handlers, second surface
-    fleetEl.addEventListener('dragover', e => { e.preventDefault(); });
-    fleetEl.addEventListener('drop', e => {
-      e.preventDefault(); closeFleet();
-      readFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
-    });
+    // (a build dropped on the open rack: the window's drop below, G2799)
     document.body.appendChild(fleetEl);
   }
   function openFleet() { buildFleet(); renderFleet(); fleetEl.hidden = false; }
@@ -159930,12 +160101,56 @@ function garageInit(api) {
   }
   menuOpen(false);
 
-  // drop a build anywhere on the name plate
-  host.addEventListener('dragover', e => { e.preventDefault(); });
-  host.addEventListener('drop', e => {
-    e.preventDefault();
-    readFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
-  });
+  // DROP-JSON (G2799, the user, 18 Oct: a .json dragged ANYWHERE onto the
+  // garage imports; ED-1 did the scenery side). It was the name plate and the
+  // open rack only. Now the whole window, with 'drop to import' over the
+  // workshop while a file is dragged, and the drop goes through readFile, the
+  // ribbon's own import door. Window, BUBBLE phase: the scenery editor's
+  // capture-phase listeners stop a drag meant for it before it gets here; the
+  // garage takes it only while the workshop is on screen (its plate shown) and
+  // the scenery editor does not have the page. Anything not a .json is refused
+  // and said - and never left to the browser, which would open the file in
+  // place of the game.
+  if (typeof window !== 'undefined' && window.addEventListener && document.createElement) {
+    let depth = 0, dropEl = null;
+    const fileDrag = e => !!(e.dataTransfer &&
+      Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0);
+    const bodyHas = c => !!(document.body && document.body.classList && document.body.classList.contains(c));
+    const ours = e => fileDrag(e) && !!(host.getClientRects && host.getClientRects().length) &&
+      !bodyHas('premOpen') && !bodyHas('sceneryMode');
+    const show = on => {
+      if (on && !dropEl && document.body) {
+        dropEl = document.createElement('div');
+        dropEl.id = 'gDrop';
+        dropEl.innerHTML = '<b>drop to import</b><span>a flyDiy build (.json)</span>';
+        document.body.appendChild(dropEl);
+      }
+      if (dropEl) dropEl.classList.toggle('on', !!on);
+    };
+    window.addEventListener('dragenter', e => { if (!ours(e)) return; depth++; show(true); e.preventDefault(); });
+    window.addEventListener('dragover', e => {
+      if (!ours(e)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    });
+    window.addEventListener('dragleave', e => {
+      if (!fileDrag(e)) return;
+      depth = Math.max(0, depth - 1);
+      if (!depth) show(false);
+    });
+    window.addEventListener('drop', e => {
+      depth = 0; show(false);
+      if (!ours(e)) return;
+      e.preventDefault();
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!f) return;
+      if (!/\.json$/i.test(f.name || '') && !/json/.test(f.type || '')) {
+        alert('Import refused: ' + f.name + ' is not a .json'); return;
+      }
+      closeFleet();
+      readFile(f);
+    });
+  }
   syncRibbon();
   renderLog();
 
@@ -188759,7 +188974,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
 <script type="text/x-flydiy" src="src/viewer/powerline.js?v=7d3258d9"></script>
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=498d11a8"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=6e672c23"></script>
-<script type="text/x-flydiy" src="src/viewer/fleet_spots_pack.js?v=da0c0a93"></script>
+<script type="text/x-flydiy" src="src/viewer/fleet_spots_pack.js?v=5acdc1e1"></script>
 <script type="text/x-flydiy" src="src/viewer/fleet_stand.js?v=b930f29e"></script>
 <script type="text/x-flydiy" src="src/viewer/flown_bake.js?v=3d18dcba"></script>
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=c5f3beda"></script>
@@ -194954,8 +195169,18 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     try { for (const s of document.querySelectorAll('#selPersona, .routePick select.persona')) s.value = personaChoice; } catch (e) {}
   }
   // what makePilot is handed: a name, or the custom person as an object (pilotProfile clamps it)
+  // G3324 (the user, 19 Oct: "when the player is playing but chooses the autopilot, it should ALWAYS be the expert. The
+  // player is supposed the expert. Only later, with the routes, will we have autopilots with various characteristics. So it
+  // should stop being an option, maybe it can go to the dev section"): THE PLAYER'S AUTOPILOT IS THE EXPERT. A person flies
+  // only with DEV on (G760's flydiy.flDev - read off the pref here: personaProfile runs before the rail's block); the
+  // player document's pilot.profile is kept, not rewritten - DEV picks it up again. The career's side: careerCrewProfile
+  // (GAME's CAREER_PLAYER_EXPERT, career-expert)
+  // (the rail's own flag once its block has run - a census or a rig turns DEV on through FLYDIY_RAIL.dev, and the pref may not
+  // be kept (GATE UISMOKE's stub store); before the rail's block, the pref - flDevOn is still in its TDZ there)
+  const personaDev = () => { try { return !!flDevOn; } catch (e) { return prefGet('flydiy.flDev', '') === '1'; } };
   function personaProfile() {
     if (CAREER_DEV) return careerCrewProfile() || 'expert';   // G2290 (PILOTS): the career's roster pick; "I fly" the expert
+    if (!personaDev()) return 'expert';   // G3324: the player's own flights, outside DEV
     personaLoad();
     if (personaChoice === 'custom') return Object.assign({ name: 'custom', active: true }, JSON.parse(JSON.stringify(personaCustom)));
     return (typeof PILOT_PROFILES !== 'undefined' && PILOT_PROFILES[personaChoice]) ? personaChoice : 'expert';
@@ -201542,7 +201767,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       clockRowBuild(host, where);
       // G2290 (PILOTS): in the career, who flies it is the roster pick (its own row); the sandbox keeps the persona row
       if (CAREER_DEV) careerCrewRow(host, where);
-      else {
+      else if (personaDev()) {   // G3324: who flies it is DEV's - the player's autopilot is the expert
         // G2085 (PILOT-PERSONA): WHO FLIES IT, beside where it goes - the personality on the route row (the shed's flight
         // setup beside ROLL OUT, the roll-out screen's), a mirror of the one keeper #selPersona (personaSync keeps every
         // mirror on it); each option's hover is that person's one line. In the shed it decides who flies the roll-out;
@@ -202374,6 +202599,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       }
     }
     if (flyOpen === 'dev' && !(flDevOn || scen)) flyOpenSet(null);
+    // G3324: the shed's persona keeper (#selPersona) is DEV's too
+    { const sp = $('selPersona'); if (sp) sp.hidden = !flDevOn; }
   }
   function flDevSet(on) {
     flDevOn = !!on; prefSet('flydiy.flDev', flDevOn ? '1' : '0');
@@ -202831,6 +203058,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // it flies from the next start. 'start from' copies a personality into the knobs (the downgrade the user asked for:
   // the full model, tuned down to a person).
   function flPersona(body) {
+    if (CAREER_DEV || !personaDev()) return;   // G3324: the persona is DEV's (the player flies the expert)
     if (CAREER_DEV) return;   // G2290 (PILOTS): the career's pilot is the roster's - the persona pills are the sandbox's only
     const sel = $('selPersona');
     if (!sel || typeof PILOT_PROFILES === 'undefined') return;
