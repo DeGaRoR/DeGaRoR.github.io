@@ -518,20 +518,20 @@
   // (every career guard reads it): it means "a career is on". The sandbox: neither, today's page byte for byte.
   const CAREER_DEVFLAG = (() => { try { return /[?&]career=1(&|$)/.test(window.location.search || ''); } catch (e) { return false; } })();
   const CAREER_DEV = (CAREER_DEVFLAG || (typeof window !== 'undefined' && window.FLYDIY_MODE === 'career')) && typeof careerNew === 'function';
-  const CAREER_ID = CAREER_DEVFLAG ? 'dev' : 'main';
+  // G3360 (CAREERS): THE PLAYER'S CAREER IS THE ONE THE WELCOME CHOSE - window.FLYDIY_CAREER_ID, written by welcome.js
+  // before this script runs (like FLYDIY_MODE): 'main' (G2740's slot, kept on its key) or a 'c' + base36 id, each its own
+  // document flydiy.career.<id> (the index flydiy.careers is welcome.js's). None given (a rig's ?mode=career with no
+  // storage): 'main', as G2740. ?career=1 stays 'dev'. A New career is a NEW id, so nothing is overwritten (the fresh flag
+  // and the .prev backup retire)
+  const CAREER_PICK = (() => { try { const v = window.FLYDIY_CAREER_ID; return typeof v === 'string' && /^(main|c[0-9a-z]{1,16})$/.test(v) ? v : 'main'; } catch (e) { return 'main'; } })();
+  const CAREER_ID = CAREER_DEVFLAG ? 'dev' : CAREER_PICK;
   const PLAYER_KEY = CAREER_DEV ? careerKey(CAREER_ID) : 'flydiy.player';
-  // G2742 (STORY-PAGE): THE STORY rides the player's career alone (a New career from the welcome: 'main'); the dev career
-  // (?career=1) keeps none, so every gate's fixture career stays rail-free; the sandbox: never (its page half below)
-  const STORY_PAGE = CAREER_DEV && CAREER_ID === 'main' && typeof storyNewCareer === 'function';
-  // a New career over a saved one (welcome.js sets flydiy.career.fresh): the old document is kept under <key>.prev, once
-  if (CAREER_DEV && CAREER_ID === 'main') try {
-    if (localStorage.getItem('flydiy.career.fresh') === '1') {
-      const old = localStorage.getItem(PLAYER_KEY);
-      if (old) localStorage.setItem(PLAYER_KEY + '.prev', old);
-      localStorage.removeItem(PLAYER_KEY);
-      localStorage.removeItem('flydiy.career.fresh');
-    }
-  } catch (e) {}
+  // a New career's name (welcome.js: "your career", "your career 2", ...; renamed in its Careers list)
+  const CAREER_BIRTH_NAME = (() => { try { const v = window.FLYDIY_CAREER_NAME; return typeof v === 'string' && v.trim() ? v.trim().slice(0, 40) : 'your career'; } catch (e) { return 'your career'; } })();
+  // G2742 (STORY-PAGE): THE STORY rides the player's careers (G3360: every listed one - each New career its own story,
+  // its start, Tim, the opening once); the dev career (?career=1) keeps none, so every gate's fixture career stays
+  // rail-free; the sandbox: never (its page half below)
+  const STORY_PAGE = CAREER_DEV && CAREER_ID !== 'dev' && typeof storyNewCareer === 'function';
   let ecWalletEl = null, ecNote = '';      // G2260 (ECONOMY): the garage's wallet line (career only; its page half below)
   // G2315 (GARAGE-RESIDENTS): the career's airframes stand in its garage as fleet props, so the career turns the fleet on
   // (FLEET-PROPS A's bake on save, decode at the stand) unless the page said otherwise; the sandbox is untouched
@@ -543,7 +543,7 @@
     // G2630: a document that does not parse is SET ASIDE under <key>.corrupt (never silently lifted over and lost)
     { const txt = prefGet(PLAYER_KEY, null); doc = jsonReadFinite(txt, 'the player document');
       if (txt != null && doc == null && txt !== 'null') prefSet(PLAYER_KEY + '.corrupt', txt); }
-    const dev = CAREER_ID === 'dev', birth = { id: CAREER_ID, seed: dev ? 'dev' : 'c' + Date.now().toString(36), name: dev ? 'the dev career' : 'your career', started: new Date().toISOString().slice(0, 10) };
+    const dev = CAREER_ID === 'dev', birth = { id: CAREER_ID, seed: dev ? 'dev' : 'c' + Date.now().toString(36), name: dev ? 'the dev career' : CAREER_BIRTH_NAME, started: new Date().toISOString().slice(0, 10) };
     let born = false;
     if (!doc && CAREER_DEV) { doc = careerNew(birth); born = true; }
     else if (!doc) {                         // the one-time lift

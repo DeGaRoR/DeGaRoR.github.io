@@ -30,8 +30,9 @@
    block - one look, the garage's, and still one place a token is declared.
    G2690 (HANGAR-STORAGE): the storage panel (#hsStore, storage_ui.js, body-level like the map) reads it too.
    G2742 (STORY-PAGE): and the story's beat card (#stCard, app.js, body-level, the career's only).
-   G2799 (DROP-JSON): and the garage's 'drop to import' overlay (#gDrop, garage.js, body-level). */
-:is(#wsUI, #edView, #mapScreen, #hsStore, #stCard, #gDrop) {
+   G2799 (DROP-JSON): and the garage's 'drop to import' overlay (#gDrop, garage.js, body-level).
+   G3360 (CAREERS): and the welcome's menu (#welcome, welcome.js, body-level: Continue / New career / the careers list). */
+:is(#wsUI, #edView, #mapScreen, #hsStore, #stCard, #gDrop, #welcome) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
   --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
