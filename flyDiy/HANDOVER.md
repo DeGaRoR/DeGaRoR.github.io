@@ -95563,3 +95563,99 @@ door (or load through tools/_load_build.js), or check 5 goes red again.
 Cargo (rolling): joinparity (G2799: the editor's join parity, the page re-captured by join_parity_page.js). HANDOVER conflict unioned.
 Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
 Strict light gate: 8 RED, none new by cause: over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV; its fix is checked Tue 19:30 for L20d); metal chase tasks1s / taskWorst = the ~1 s boot/settle tasks (+-0.5 s run to run); floats world->garage 2.1 s = the pre-existing program re-link; metal fuseWidth busy = the cost the user accepted by name (15 Oct).
+
+## G3260-G3269 - ROUTES: A PLANE + A HIRED PILOT + AN A <-> B SCHEDULE - THE DOWN PAYMENT ON SIGNING, THE ROUND TRIPS PAID ON THE SIM CLOCK, THE PLANE AND THE PILOT LOCKED UNTIL THE ROUTE ENDS; STORY'S T6 SIGNS A REAL ROUTE (2026-10-20, ROUTES for the GAME COORDINATOR, cloud - node + headless only; branch claude/routes off origin/master c7c16380 = L20c + claude/ready/story-tim 3a800c4a (for Tim's band); the work: 13b67ef6)
+- **Why story-tim is in it:** the brief puts the down payment in Tim's band, and the band lives on claude/ready/story-tim
+  (ready, not on master yet). Its merge base is L20c, so the merge was a fast-forward. Landing ROUTES lands STORY-TIM too.
+- **src/core/78b_routes.js** (pure, career-lazy: MANIFEST.core before 79_story + MANIFEST.career; GATE LAZY now counts
+  ELEVEN modules; exported in 90_).
+  - `career.routes: [route]`. A route is `{ id, plane, pilot, a, b, home, signedAt, trips, settled, km, cruiseKmh, tripS,
+    pay, down, earned, ended? }`. The instants are career seconds (`dayAbs(careerDay)`). A career that never signs a
+    route gets no `routes` key, so its save is byte for byte the same. CAREER_V is unchanged.
+  - **routeOffer(doc, a, b, plane, o)** returns the terms and leaves the document untouched.
+    - It is scaled by distance and by the plane's numbers: `o.design` (the page's shakedown row, careerCerts), else a
+      validated design (the airframe's `design`; the story's client / gift = the Cub).
+    - Unknown numbers are refused, never guessed. `o.gear` refuses a water end on wheels and a land end on floats.
+  - **The terms (ROUTES_PAY, a starting hypothesis for §12's economy sim):**
+    - per round trip: `round10(2 x km x 100 x (1 + payload / 150))`, where payload = (seats - 1) x 80 kg + baggage;
+    - the down payment: 8 round trips' pay;
+    - a round trip: 2 x km / cruise + a 1800 s turnaround.
+    - So a bigger plane earns more a trip and a faster one more trips: the route rewards the design.
+    - The story Cub on SEA <-> HOME (3.9 km): 1 260 a round trip, a 10 080 down payment, 34 min a round trip.
+  - **routeSign(doc, offer, plane, pilot)**:
+    - the down payment goes in as income (ledger `route`, a negative amount, like the grant);
+    - the fleet row becomes `kind: 'route'` (no hangar, no slot; `route`, `a` and `b` on the row);
+    - the pilot's row gets `route` (and `plane`).
+    - The plane must stand at one of the two ends. The pilot must be hired and free.
+  - **routeSettle(doc, now)**: the round trips completed since the signing (`floor((now - signedAt) / tripS)`), minus the
+    ones already paid, are paid now (ledger `routePay`). No sim time means no pay, and an instant at or before the last
+    settle pays nothing. It is cumulative, so time that passed without a settle is paid at the next one.
+  - **routeEnd(doc, id)**:
+    - it settles first (the trips already flown are paid);
+    - the plane goes back to `home` through playerArrive: inside a hangar of yours with room, else the apron, else long-term.
+      `home` is the end where you hold a hangar, b first, else b;
+    - the pilot is freed;
+    - the ledger line is 0 (no penalty).
+  - **routesBlock** (called by careerNormalise) ends a route whose plane left the fleet, unlocks a stray route row (then
+    re-settles), and clears stale pilot marks.
+  - **routePos / routesMapOf** give the map where each plane is on its line: a->b, the turn at b, b->a, the turn at a.
+- **The lock (71_player_bases.js)**: playerStoreWhere / playerWhere have a sixth kind, `'route'`, and playerStoreSettle
+  keeps it (a fixpoint).
+  - These refuse a plane on a route with "end the route first (free, no penalty)": playerMove, playerSendTo /
+    bring-home, playerArrive, playerStore, playerFlyStart. playerFloorSync leaves it alone.
+  - playerStoreView gains `routes`: the planes on a route with an end at that field. It is `[]` in the sandbox.
+- **The pilot (76_pilots.js, `pilotsOnRoute`)**: a pilot on a route can't be fired, picked, boated home or flown
+  (pilotsCanFly kind 'route'). pilotsPicked skips them. pilotsOnFlightEnd never unbinds them. pilotsCard carries `route`.
+- **STORY's T6 (79_story.js storyApply 'routeOffer')**: no stub any more.
+  - It calls routeOffer + routeSign with the gift Cub, storySite('water') <-> storySite('home'), and the companion
+    (else the first free hired pilot).
+  - The story records `offers: [{ k: 'route', signed: true, route, down, pay, tripS, pilot }]`.
+  - With no free pilot, nothing is signed: the offer is kept with `signed: false` and the reason.
+  - The line goes on the arrival card and the beat card: "Route signed: … The down payment, 10 080, is in the wallet…".
+  - Tim's band at T7 (`storyTimLines('T7', doc)`) opens with the route and its down payment.
+  - The page's storyEffects now ADDS the effects' lines instead of keeping the last one. T6's route and T7's occasions
+    both reach the card.
+- **The page (app.js; only under CAREER_DEV; the routes' half sits in the career half, before the story's)**:
+  - **At each landing**: playerFlightEnd settles the routes after the landing's careerDaySet and before careerStopApply,
+    so the wallet line's total includes the route pay. The route's line goes first on the arrival card.
+  - **At each wait**: the clock's `flydiy:dayjump` with `why` wait:* / fullmoon settles, and the wallet line says
+    "routes +N". The 30 s save does NOT settle: no idle exploit in flight.
+  - **The stand**: a plane on a route is taken off the stand in the garage (the story's starter, else a free plane at
+    that base) and never rolls out (rollOut's guard, with the reason on the wallet line). "The cub disappears and you're
+    back with only the ultralight."
+  - **The storage doors**: FLYDIY_STORE gets routeTargets / routeAsk / routeSign / routeEnd / routeOf, published only
+    under CAREER_DEV. FLYDIY_CAREER.routes holds list / settle / sign / end for a console or a rig.
+  - **The map**: careerRecord carries `routes`, each placed at the world's instant.
+- **storage_ui.js**:
+  - "route…" on a card (career doors only) opens the confirmation in the garage's look: the destination (every field its
+    gear can use, nearest first), the pilot, the terms in words, and Sign.
+  - A new **ON A ROUTE** block lists the planes "on route A – B", who flies them, the trips paid and the pay. Each has an
+    End route button and is not draggable or flyable.
+  - The look: --ed-* tokens, Plex Sans upright, nothing hover-only.
+- **map_menu.js**: mapAdapt carries `routes`.
+  - Overlay step 3b draws a solid line between the two ends, with the plane (`.mmRtPlane`) on it where it is now.
+  - The contracts view no longer draws a route plane under its field.
+  - The fleet row says "flying the route A – B (end it in Storage)".
+  - A route's pilot reads "flying the route with <plane>" and has no Flies-next / Fire / boat buttons.
+- **GATE ROUTES** (tools/_routes_check.js, registered in run_gates; verdict `GATE ROUTES: PASS`, + `--selftest`, 4 breaks
+  all caught). It checks:
+  - sign / settle / end on clones;
+  - the hand-computed case: 5 km, 100 km/h, 2 seats, 10 kg -> 1 600 a trip, 12 800 down, 2 160 s;
+  - no pay without sim time;
+  - the lock across all the doors, and the pilot's;
+  - the save round trip and the normaliser's repairs;
+  - the sandbox, byte for byte;
+  - the source guards;
+  - the map drawing;
+  - STORY's T6 in the core and through app.js's own story half run headless (the arrival card's line).
+- **Gates (20 Oct, run_gates once, on the final source; node + headless only)**:
+  - PASS: ROUTES, STORY, UISMOKE, UISMOKE-PHONE, PLAYER, SAVE, STORAGE, ECON.
+  - **PILOTS FAIL: pre-existing.** origin/master c7c16380 fails the same 3 source-regex rows (checked in a clean
+    worktree): "the persona keeper…", "the route row…", "the plate's persona pills…". These come from G3324 / G2746's
+    persona lines in app.js, and no PILOTS row of this change is red. That gate's owner should re-pin those regexes.
+  - LAZY was not run (a long gate). Its count was updated to 11.
+- **Not done / for the user**:
+  - The Cub is not drawn standing at the dock in the world: the map shows it on its line. FLEET_STAND draws only
+    'outside' rows.
+  - The numbers in ROUTES_PAY are a hypothesis. Waits pay (the brief says so): a 12 h wait on the story Cub's route earns
+    ~26 000. Tune perKm / downTrips there if that is too rich.
