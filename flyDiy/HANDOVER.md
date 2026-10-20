@@ -95519,11 +95519,24 @@ music. It zooms on the cabin, then we fade into the garage."
     lens closing 46 -> 34 deg. NOT re-looked.
   - After the fade a fresh profile's garage shows the design flow's "New aeroplane" chooser over the stand (design_flow.js,
     a fresh profile's rule, not this opening's). For the Game coordinator: should a New career skip it (Rufus is the plane)?
+- **THE THIRD LOOK** (A0's slot Tue 20 Oct 23:55-00:01, gpu INTRO, on 8f83a30e0 = G3383 + G3384; three New careers, a fresh
+  C: temp profile, deleted). The Game coordinator's bar: tasks up to ~150 ms accepted in the cinematic, >= 200 ms red.
+  - **The boot step: 16.7 s cold, 15.2 / 11.0 s warm. A New career loads in 90.9 s cold (73-78 before the opening) and
+    78-82 s warm (61-65): about +15 s.** G3383's compile per shot changed nothing: the cost is the links themselves.
+    For the user (the Game coordinator puts it; the default is accepted, a New career happens once).
+  - **The shots: worst frame 150 ms, long tasks 101-150 ms, none >= 200 ms: GREEN by the new bar.** 27.2-27.5 fps.
+  - **The fade into the garage:** the timed run and the skip run worst 100 / 117 ms, no task >= 200 ms. The stills run
+    (its times INFO: Page.captureScreenshot reads the frame back) had one 703 ms task at 33.9 s, as the fade closed.
+  - Under black, before the shots: one 364 ms task in the skip run (0.6 s of warm draws; never seen).
+  - **The "New aeroplane" chooser: not shown** after the fade in all three (G3384). The garage opens on Rufus, T0's card up.
+  - **The framing: RED, fixed in G3385 (e8202b764), NOT looked at.** 30 m off the door at 3.5 m, a rise between the eye
+    and the shed hid it (only its roof's edge showed). The near shots now lift the eye until its line to the target clears
+    the ground by 0.8 m (at most 40 m up). GATE STORY's row puts a 6 m rise between the last eye and the shed: it is seen.
 - **Owed (superseded by the re-look above, kept for the record):** a ~15 min re-look (A0's slot) of 03d175994: no black wait or long task in the warm views, the boot's added
   seconds, the cabin's arc stills, the whole-window canvas. If the 101-132 ms tasks in the arc persist, find what plants
   there (the cover ring round the eye near the shed, or the plots near the eye).
 - **Branch:** claude/story-intro (82c1dba4e the opening, 65625a928 the spawn + the rig, 03d175994 the look's fixes, 171299df6
   the rig's boot-step read, 11167711d the re-look's fixes). Gates on 11167711d: STORY (+ --selftest), UISMOKE, UISMOKE-PHONE,
   MEDIA PASS (battery PASS, 20 Oct ~16:05).
-- **Next:** a third short look of 11167711d (the arc's new end, the boot step's cost) with a CPU profile of the shots' 100-150 ms
-  tasks; then ready, if the Game coordinator and the user accept the boot's added seconds.
+- **Next:** ready, the Game coordinator's call on e8202b764 (gates STORY, UISMOKE, UISMOKE-PHONE, MEDIA: battery PASS 21 Oct). Owed:
+  stills of the cabin's arc with G3385's sightline (a 5 min look, or the landing train's own).
