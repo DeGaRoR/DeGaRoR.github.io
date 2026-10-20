@@ -2309,6 +2309,8 @@ function makePilot(sim, def, world, opts) {
     const legAlt = (L) => {
       const g = legGeom(L);
       const base = ap.altRef + (L.h != null ? L.h : ap.hCruise);
+      // G3326: a designed approach's legs (fly.terrainOk) fly the designer's heights - the record vouches for the corridor
+      if (L.designed && ap.route.to && ap.route.to.fly && ap.route.to.fly.terrainOk) return base;
       const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, 1500) + Math.max(2 * A.hSafe, 40);
       return Math.max(base, floor);
     };
@@ -2438,6 +2440,40 @@ function makePilot(sim, def, world, opts) {
       const P = planArrival(to, u, from);
       const FL = P.F;
       const sNow = alongOf(FL, cg), cNow = leftOf(FL, cg);
+      // G3326 (CABIN-ARRIVAL, 20 Oct - the cabin probe: Rufus off the Cabin Strip planned a 512 m circuit on the side the
+      // terrain chose, over the valley's ridges, and an 8.7 km final the 240 s rule went round from twice, then diverted):
+      // A DESIGNED APPROACH IS FLOWN AS DESIGNED. A strip whose record draws its approach (fly.appr, ED-2's format: world
+      // metres, outermost first, the last point the threshold) is joined at the drawing's first point: the slope begins
+      // there (the FAF), the level run before it on the extended centreline, and the turn onto it a teardrop on the
+      // record's side (fly.side) one turn-diameter beyond - the aeroplane leaving the tight zone is already on that line,
+      // outbound. Every leg's height is the slope's at the FAF; with fly.terrainOk the legs' terrain floor is the
+      // designer's (legAlt below). A strip without fly.appr: as before, to the bit
+      const DA = !ap.xc && !replanning && to.fly && Array.isArray(to.fly.appr) && to.fly.appr.length >= 2 ? to.fly : null;
+      if (DA) {
+        const a0 = DA.appr[0], sFafD = alongOf(FL, [a0[0], 0, a0[1]]), dFaf = P.sAim - sFafD;
+        if (dFaf > 500) {
+          const sideD = DA.side === -1 ? -1 : DA.side === 1 ? 1 : P.side;
+          P.side = sideD; P.sideForced = true; P.designed = true;
+          P.sFaf = sFafD;
+          P.hC = Math.max(A.hSafe + 10, aimAlt() + ap.gs * dFaf - ap.altRef);
+          P.sIaf = P.sFaf - Math.max(400, 10 * VTurn);
+          const R2 = 2 * Rturn, tlD = Math.hypot(vcg[0], vcg[2]);
+          const RcD = 2 * (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bankLim));
+          const aheadD = tlD > 3 ? [cg[0] + vcg[0] / tlD * RcD, cg[2] + vcg[2] / tlD * RcD] : [cg[0], cg[2]];
+          const outP = wp(FL, P.sIaf - R2, sideD * R2), iaf = wp(FL, P.sIaf, 0);
+          startLegs([{ name: 'ENROUTE', A: aheadD, B: outP, h: P.hC, V: 'cruise', enroute: true, designed: true },
+                     { name: 'BASE', A: outP, B: iaf, h: P.hC, V: 'turn', designed: true },
+                     { name: 'FINAL', A: iaf, B: wp(FL, P.sAim, 0) }]);
+          // (the flight's budget given the drawn approach's own length - at the approach speed, 1.6x, plus the roll: the probe's
+          // game-day flight landed well on the first final and was called 'gave-up' in it at 600 s)
+          { const lenD = Math.hypot(outP[0] - aheadD[0], outP[1] - aheadD[1]) + Math.hypot(iaf[0] - outP[0], iaf[1] - outP[1]) + (P.sAim - P.sIaf);
+            ap.budget = Math.max(ap.budget || 0, ap.t + 1.6 * lenD / Math.max(10, ap.VAppr || A.VAppr || 20) + 120); }
+          if (!ap.designedSaid) { ap.designedSaid = true; say('designed-approach', 'flying the approach drawn for ' + (to.name || to.id) + ': the slope from ' + Math.round(dFaf) + ' m out at ' + Math.round(P.hC) + ' m, turning in on the ' + (sideD > 0 ? 'left' : 'right')); }
+          if (tlD > 3) pathFrom = [cg[0], cg[2]];
+          ap.holdDir = climbDir;
+          return ap.legs[0].name;
+        }
+      }
       // P1: the crosswind form is the CLIMB-OUT's — the aeroplane near the
       // extended centreline; resumed anywhere else (the AP box handed back
       // over the next valley) the arrival is joined the cross-country way
@@ -3992,7 +4028,9 @@ function makePilot(sim, def, world, opts) {
           if (canGA) { goAround('past the aim at ' + Math.round(agl) + ' m'); break; }
           if (!committed) { committed = true; say('committed-landing', 'past the aim at ' + Math.round(agl) + ' m agl — landing it'); }
         }
-        if (ap.t - finalT0 > 240 && canGA) { goAround('final took ' + Math.round(ap.t - finalT0) + ' s'); break; }
+        // G3326: a designed approach's long final (the Cabin Strip's 5-6 km) is given the time its length asks
+        const finalMax = ap.plan && ap.plan.designed ? Math.max(240, 1.6 * (ap.plan.sAim - ap.plan.sIaf) / Math.max(10, iasF)) : 240;
+        if (ap.t - finalT0 > finalMax && canGA) { goAround('final took ' + Math.round(ap.t - finalT0) + ' s'); break; }
         // G1936: A SHORT FINAL IS STABILIZED OR FLOWN AGAIN - 5 m/s over Vref under 20 m is a float the strip has no
         // room for (the Cub's 25 m/s at the flare touched 213 m into 150 m)
         // (G2500: against the speed the elevator holds - a raised reference is the approach's, not a fast one)
@@ -4194,7 +4232,11 @@ function makePilot(sim, def, world, opts) {
           const dRem = (flatRoll.x - cg[0]) * flatRoll.ux + (flatRoll.z - cg[2]) * flatRoll.uz;
           engage('RWY', 'DE', 'TAXI', { de: A.taxiDe ?? 0.30, gsp: Math.min(0.6 * taxiV, Math.sqrt(2 * 0.5 * Math.max(0, dRem - 1.5))) });
           setStatus('rolling on to the level part of the strip', [cond('to the level part', Math.round(Math.max(0, dRem)), 2, dRem < 2, 'm')]);
-          if (dRem < 2 || (dRem < 6 && Vg < 0.3) || ap.t - flatRoll.t0 > 90) {
+          // G3327: ...and a grade the taxi cannot climb (Vg under 0.3 m/s for 6 s, once the roll has had 5 s to start) is
+          // parked on, the brakes on - a pilot does not sit with the throttle open on a hill the aeroplane will not climb
+          flatRoll.stuckT = (Vg < 0.3 && ap.t - flatRoll.t0 > 5) ? (flatRoll.stuckT || 0) + dt : 0;
+          if (flatRoll.stuckT > 6 && dRem >= 6) { say('slope-parked', 'the grade is too steep to taxi up - parked on the brakes ' + Math.round(dRem) + ' m short of the level part'); c.brake = 1; }
+          if (dRem < 2 || (dRem < 6 && Vg < 0.3) || flatRoll.stuckT > 6 || ap.t - flatRoll.t0 > 90) {
             ap.report.outcome = ap.report.outcome || 'completed';
             go('STOPPED');
           }
@@ -4307,7 +4349,10 @@ function makePilot(sim, def, world, opts) {
           // it stops where it is, as before; the landing is judged at the
           // first stop either way.
           if (!flatRoll && phaseT <= 120) flatRoll = flatAhead();
-          if (flatRoll) { say('slope', 'stopped on a ' + (Math.abs(gGrade) * 100).toFixed(1) + ' % grade — rolling ' + Math.round(flatRoll.d) + ' m on to the level part'); break; }
+          // G3327 (GRADE-ROLLOUT, 19 Oct: Rufus at the Cabin Strip landed well, 244 m left, then 'gave-up, still in ROLLOUT' -
+          // the flight's budget ran out on the slow roll up the 7.7 % grade): the landing is MADE here - the roll to the level
+          // part is a taxi, given its own time (120 s) past the flight's budget
+          if (flatRoll) { ap.budget = Math.max(ap.budget || 0, ap.t + 120); say('slope', 'stopped on a ' + (Math.abs(gGrade) * 100).toFixed(1) + ' % grade — rolling ' + Math.round(flatRoll.d) + ' m on to the level part'); break; }
           ap.report.outcome = ap.report.outcome || 'completed';
           go('STOPPED');
         }
