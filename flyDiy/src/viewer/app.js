@@ -11833,7 +11833,7 @@
   // roll-out's stand; the world plants each eye's cells (render_world coverPlant -> cover_ring plantNear: the tier its own
   // update would give them). Under the boot's overlay after the warm draw, and a slice a task during the roll-out shot
   // (every roll-out: a flight that ended far away left the stand's cells dropped). ?revealplant=0: off (the A/B)
-  const REVEAL_PLANT_OFF = /[?&]revealplant=0(&|$)/.test(location.search || '');
+  const REVEAL_PLANT_OFF = /[?&]revealplant=0(&|$)/.test((typeof location !== 'undefined' && location.search) || '');   // (the gates' node vm has no location)
   // the roll-out stand's heading (its site's stand.hdg: the nose's - the tail, flRevealStart's hdg, is it + pi; checked on
   // the metal Cessna and the Cub at HOME: -1.8656 / 1.2760), null where there is none (the water, a spawn)
   function standHdg() {

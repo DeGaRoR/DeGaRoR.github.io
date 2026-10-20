@@ -7841,7 +7841,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     coverPlant: (eyes, ms) => {
       const t0 = performance.now(); let built = 0;
       const TF = typeof window !== 'undefined' ? window.TREE_FILL : null;   // (the fill block's handle on its rings - this object's own closure does not reach them)
-      const rings = [TF && TF.grass ? TF.grass() : null, TF && TF.cover ? TF.cover() : null];
+      // the GRASS FIELD only (L20d's strict gate: a first-ring cell - 32 m, its shrubs, rocks and debris - inside a 6 ms slice was a
+      // 490 ms task on the Cub's round trip 2; the reveal frame's own cost was the field's cell - the first ring was planted by then)
+      const rings = [TF && TF.grass ? TF.grass() : null];
       for (const e of eyes || []) for (const R of rings) {
         if (!R || !R.plantNear) continue;
         const left = ms - (performance.now() - t0); if (left <= 0) return { built, done: false };
