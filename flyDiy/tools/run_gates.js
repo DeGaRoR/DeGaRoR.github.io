@@ -764,6 +764,10 @@ const GATES = [
   // house exactly where the kit's sowing did, keeps no house geometry (the pier's piles and the jetty alone), plans as
   // the lod-0 build; the zone's tide; the worker's wire; the outbuildings; the kit houses solid; the page's wiring (~55 s)
   { id: 'METKIT', file: '_metkit_check.js', tier: 'core' },
+  // THE COOKED TOWN (CITY-A, G3400-G3414; futureDesigns/CITY-PACK-FORMAT.md): tools/city_cook.js's pack - deterministic, fresh
+  // against the committed cells, every plot of the town record in exactly one 512 m cell (its anchor's), 2 far draws a cell,
+  // the kit rows through townkit.js's own decoder with valid archetypes, TOWN_OFF's variant untouched, negative controls (~20 s)
+  { id: 'CITYCOOK', file: '_citycook_check.js', tier: 'core', wall: 25 },
   // THE PARKED AEROPLANES (G411): builds as props, headless on a synthetic
   // snapshot - the record, the stance off the wheels, the hitbox by identity,
   // the ladder's membership, the cut (one bucket per triangle), the far rungs

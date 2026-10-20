@@ -313,6 +313,8 @@ function manifestFiles() {
   if (fs.existsSync(path.join(ROOT, 'src', 'core', 'premises_packs.json'))) worlds.push(path.join(ROOT, 'src', 'core', 'premises_packs.json'));
   // the parked aeroplanes' cook (G805): tools/parked_cook.js owns media/parked (one gzip stream per arch: / stock: key)
   if (fs.existsSync(path.join(ROOT, 'src', 'core', 'parked_packs.json'))) worlds.push(path.join(ROOT, 'src', 'core', 'parked_packs.json'));
+  // the cooked towns (CITY-A, G3400): tools/city_cook.js owns media/city/<island>/<town> and names every cell here
+  if (fs.existsSync(path.join(ROOT, 'src', 'core', 'city_packs.json'))) worlds.push(path.join(ROOT, 'src', 'core', 'city_packs.json'));
   // the town kit (G850): the archetype pack and the instance tables, baked by tools/town_kit.js --media (not
   // shipped yet - the manifest appears with the first bake the user approves)
   const townkit = fs.existsSync(path.join(ROOT, 'src', 'core', 'townkit_pack.json'))

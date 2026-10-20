@@ -21,6 +21,8 @@ Nothing in the pack is per plot at run time. A plot is a row, never an Object3D.
 | file | what |
 | --- | --- |
 | `tools/city_cook.js` | the cook. `node tools/city_cook.js --island jolene [--report]` |
+| `tools/city_cook.js` exports | the reference decoders `decodeCell(raw)` and `decodeProps(buf)`; the kit section is read by `TOWNKIT.decodeInstances` |
+| `tools/evidence/CITY-A-far.js` | the evidence: a node software raster of the committed pack (the far town; one cell far vs its kit rows at lod 1) |
 | `src/core/city_packs.json` | the manifest (generated, do not edit): towns, their inputs, their cells, the prop keys |
 | `media/city/<island>/<town>/c_<i>_<j>.<h8>.bin` | one cell: ONE gzip stream (level 9, mtime 0). `<h8>` = the first 8 hex of the sha256 of the gzip bytes (`_media_lib.writeMedia`) |
 
@@ -92,6 +94,7 @@ The header:
                       { "mat": "ground", "first": c0 + c1, "count": c2 + c3 } ] }, // roads + lots: one draw
   "plots": [ [ "<plot id>", seed, house row | -1, outbuilding row | -1, flags ] ],  // every plot of this cell
   "uniques": [ [ "<item id>", "<gen>", x, y, z, yaw ] ],                            // the landmarks: the unique path near
+  "objects": [ [ "<object id>", "<prop key>" ] ],                                   // the record's objects (drawn as props)
   "kit":   { "rows": n, "stride": 32 },
   "props": { "rows": n, "stride": 20 },
   "sec": { "vb": [off, len], "ib": [off, len], "kit": [off, len], "props": [off, len] } }
@@ -101,7 +104,10 @@ The header:
   - 1: a kit plot (its house is a kit row);
   - 2: a unique plot (no kit row fits it, or its seed is not the table's; the unique path builds it near, and the far
     shell still has its box);
-  - 4: a water plot.
+  - 4: a water plot;
+  - 8: the house row was assigned by the city cook (`town_kit.js assign` on the places cook's house), because the kit
+    table was not sown from this plot. The fixture has moved on since the table was cooked: 11 plots on the roads r1
+    and r3 today. At run time today these 11 build unique; in the pack they are kit rows like the rest.
 
   A plot's index in this array is its **plot index**, which the prop rows use. The editor and the life systems use the
   id.
@@ -155,7 +161,8 @@ The header:
   `w` on the composed ground (`O.terrainAt`) plus the lift. The colour is the road's surface mean (gravel, asphalt).
   Roads are cut to the cell by their segments' midpoints.
 - **The lots:** each plot's polygon, ear-clipped, draped at its vertices plus the lift. The colour is the lot's ground
-  mean (gravel or yard). It is drawn far.
+  mean (gravel or yard). It is drawn far. The ground buckets carry one normal, straight up, so their vertices are
+  shared and the draped colour does not facet.
 
   Near, the lots are the existing lot cells (G3210 lots near-only). The host may also draw this bucket near, as a
   flat stand-in under them.
@@ -191,7 +198,8 @@ The header:
 - **x, z and yaw are WORLD** (`frame: 'world'`). The cook applied `O.frame.toWorld` and `+ O.frame.yaw`, so the host
   adds nothing.
 - **The flags byte (23)** keeps 1 = outbuilding, 2 = water plot, 4 = named preset, and adds **8 = may cast a shadow**.
-  The cook sets 8 on every house and every outbuilding of 3 m or more in height.
+  The cook sets 8 on every house and on every outbuilding whose far-shell ridge is 3 m or higher (the storage shed, the
+  outhouse and the garage all are today).
 
 **The transform** is the kit host's: `compose((x, y, z), rotY(yaw), (scale, 1, 1))`, on the mirrored copy of the
 archetype when `arch & 128`. `y` is the ground under the high corner. The four i16 corner offsets stretch the stance
@@ -216,14 +224,15 @@ weight.
 | 0-11 | f32 x, y, z (WORLD; y is the prop's base, as placed) |
 | 12-13 | u16 yaw (2 pi / 65536) |
 | 14-15 | u16 key: an index into the manifest town's `propKeys` |
-| 16-17 | u16 owner: the cell's plot index; 65535 = a unique item's or a record object's prop (`owner2` below) |
+| 16-17 | u16 owner: an index into the cell header's `plots` (kinds 0, 1, 2, 5), `uniques` (kind 4) or `objects` (kind 3) |
 | 18 | u8 flags: 1 stands on the ground (`on: 'ground'`), 2 may cast a shadow, 4 on the water (a boat, a float) |
 | 19 | u8 kind: 0 lot dressing (yard, people, lamp, pier module), 1 car, 2 boat, 3 record object, 4 a unique item's prop, 5 an outbuilding's prop |
 
 - **The source** is the places cook's own placements (`premises_cook.js` `props`, `plot.car`, `plot.boat`,
   `plot.out.props`, the items' `props`, the record objects). They are taken from the house frame to the world by the
   owner's `at`, exactly as `placeBuilt` stands them.
-- **The order:** by owner (plot index, then uniques, then objects), then in the source's order.
+- **The order:** as the cook meets the owners (the cell's things in id order), each owner's props in the source's
+  order.
 - **For a kit plot, the props are the unique plan's props:** the people, the yard, the pier and the lamps that the lot
   plans around a kit house of the same cluster (C3c's rule).
 
@@ -281,6 +290,19 @@ A re-cook gives byte-identical raw cells. The gzip bytes are kept as shipped whe
    - `PREMISES_GEN.TOWN_OFF` is as recorded;
    - the kept ids are absent from the pack.
 
-## 12. Changes proposed by CITY-B
+## 12. Metlakatla v1, as cooked (20 Oct, fixture f7e79ba3, kit pack 2e8c3968)
+
+| | |
+| --- | --- |
+| cells | 13 of 512 m (the town spans about 3.1 x 1.4 km); 26 far draws for the whole town |
+| plots | 380, all kit rows (369 from the kit table, 11 assigned by the cook); 0 unique plots |
+| kit rows | 435 (380 houses + 55 outbuildings: 51 the table's, 4 placed from the places cook's plan) |
+| uniques | 63 landmarks (site items); 40 record objects |
+| props | 3 695 rows, 99 keys |
+| far mesh | 34 108 triangles, 33 800 vertices; at most 8 866 triangles a cell |
+| bytes | 747 KB raw, 473 KB gzip, over the 13 cells (fetched by a town-ON page alone) |
+| cook | about 16 s (15 s of it is the compose); GATE CITYCOOK about 16 s |
+
+## 13. Changes proposed by CITY-B
 
 (CITY-B: add your proposals here, on your branch. A0 merges them.)
