@@ -1224,9 +1224,8 @@ try {
     const WANT = {
       fly: ['from', 'to', 'taxi out', 'draw on the map',   // G3070: FLY > drawn route, through route_lazy.js's door
             'taxi graph', 'glide slopes', 'engine', 'lever', 'thrust', 'sync levers', 'the pilot', 'map the controls…',
-            // G2085 (PILOT-PERSONA): the personality row, every person, and the custom person's knobs (the census opens the fold)
-            'personality', 'Expert', 'Club', 'Student', 'Bush', 'Ham-fist', 'Custom', 'custom pilot', 'start from', 'reaction', 'hands', 'grip',
-            'unsteadiness', 'over-rotation', 'flare height', 'bank', 'comfort g', 'field technique', 'slips', 'step hold'],
+            // G3324: the personality row moved to DEV (PERSONA_ROWS below - the player's autopilot is the expert)
+            ],
       view: ['field of view', 'level horizon', 'lead the turn', 'free', 'small', 'show', 'large', 'north up', 'the three', 'frame rate', 'fps meter', 'screenshot'],
       sky: ['outside air', 'density altitude', 'wind', 'gusts', 'time of day', 'world'],
       graphics: ['preset'].concat(G.OPTIONS.map(o => o.label)),
@@ -1236,6 +1235,10 @@ try {
     // the covering's pills show while #bSkin does (applySkinVis hides it with no model on the stand - this stub's case)
     const skinShown = els['bSkin'] && els['bSkin'].style.display !== 'none';
     if (skinShown) WANT.dev.push('the covering', 'covered', 'frame', 'overlay');
+    // G2085 (PILOT-PERSONA) -> G3324 (the user, 19 Oct: the player's autopilot is ALWAYS the expert, the persona DEV's): the
+    // personality row, every person, and the custom person's knobs (the census opens the fold) - reached with DEV on only
+    const PERSONA_ROWS = ['personality', 'Expert', 'Club', 'Student', 'Bush', 'Ham-fist', 'Custom', 'custom pilot', 'start from', 'reaction', 'hands', 'grip',
+                          'unsteadiness', 'over-rotation', 'flare height', 'bank', 'comfort g', 'field technique', 'slips', 'step hold'];
     const reached = { rows: [], pills: [] };
     for (const it of items) {
       const c = R.census(it.k);
@@ -1248,6 +1251,21 @@ try {
       reached.rows.push(...c.rows); reached.pills.push(...c.pills);
       console.log('rail ' + it.k + (it.dev ? ' (behind the dev toggle)' : '') + ': ' + c.sections.join(' / ') + ' - ' + c.rows.length + ' rows, ' + c.pills.length + ' pills' +
                   (it.k === 'dev' && !skinShown ? ' (the covering hidden with #bSkin: no model on the stand here)' : ''));
+    }
+    // G3324: with DEV off the player's FLY has no personality row and the autopilot handed is the expert; with DEV on the
+    // whole person is there (every person and the custom person's knobs)
+    {
+      const c0 = R.census('fly'), h0 = new Set(c0.rows.concat(c0.pills));
+      if (h0.has('personality')) throw new Error('the personality row is in the player FLY with DEV off (G3324: the player flies the expert)');
+      const P = sandbox.window.FLYDIY_PERSONA;
+      if (P && P.get().profile !== 'expert') throw new Error('DEV off: the autopilot handed is ' + JSON.stringify(P.get().profile) + ', not the expert (G3324)');
+      R.dev(true);
+      const c1 = R.census('fly'), h1 = new Set(c1.rows.concat(c1.pills));
+      R.dev(false);
+      const miss = PERSONA_ROWS.filter(x => !h1.has(x));
+      if (miss.length) throw new Error('DEV on: FLY does not reach the persona: ' + miss.join(', '));
+      reached.rows.push(...c1.rows); reached.pills.push(...c1.pills);
+      console.log('the persona (G3324): DEV off - none, the expert flies; DEV on - ' + PERSONA_ROWS.length + ' rows and pills');
     }
     if (R.current() !== null) throw new Error('the census left a flyout open (' + R.current() + ')');
     // G3070 (ROUTE-LAZY): FLY > drawn route unfolded (the census opens every fold) is the drawing's first demand: its file
