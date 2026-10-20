@@ -95507,3 +95507,9 @@ build loads and flies bit-identically.
   SPECFIX DEFAULT PARTS KNIFE UISMOKE UISMOKE-PHONE CARDS all PASS.
   - JOINPARITY's 7 FAILs are master's (identical on cbe3f9972); A0 gave me that fix (claude/joinparity).
   - FRAMECOST was not run: the parked cook is not '(same)'.
+
+## A0 - landing L20b (20 Oct 2026, gates 10:00-11:23, pushed ~11:30)
+Cargo (rolling; L20a's held set + more): damage-on (DAMAGE ON BY DEFAULT: GEN_DAMAGE_DEFAULT=true, ?damage=0 turns it off; G3026 setFreight moves the clusters' rests, so a delivery no longer breaks the frame; DMGCRASHUI/DMGUPLOAD OFF arms pass ?damage=0), capsize-verdict (G3328: a bank past 90 deg = 'capsized' in every gate), editor-review-b (garage review Train B: seat ribs/rails, the CG-safe tank range, garage drag-import), feel-follows-look (the wheel feel follows the look; road classes kept; a11's exclude), flare-coremath (64b + 30_solver on CORE_MATH), persona-dev (the player's autopilot is the Expert; persona UI behind DEV), water-lane-ed (water runways in the editor + the scenery drag-import).
+Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore). DMGDETERMINISM census now clean (L19d's 27_premises + this flare-coremath).
+Strict light gate: 5 RED, none new: over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV, fix in progress); metal fuseWidth busy = the cost the user accepted by name (15 Oct).
+Known, owned, not blocking: G3027 (a Chinook-alike archetype rejects its takeoff with damage on; non-validated; Deform).
