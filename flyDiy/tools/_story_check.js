@@ -170,7 +170,7 @@ async function page() {
   if (!(i0 > 0 && i1 > i0)) return fails;
   const half = app.slice(app.lastIndexOf('\n', i0) + 1, i1);
   // ---- the source
-  ok(/const STORY_PAGE = CAREER_DEV && CAREER_ID === 'main' && typeof storyNewCareer === 'function';/.test(app), "the story rides the player's career alone (the dev career ?career=1 keeps none)");
+  ok(/const STORY_PAGE = CAREER_DEV && CAREER_ID !== 'dev' && typeof storyNewCareer === 'function';/.test(app), "the story rides the player's careers, every one (G3360), and the dev career ?career=1 keeps none");
   const outside = (app.slice(0, i0) + app.slice(i1)).split('\n').filter(l => /\bstory[A-Z]\w*\(/.test(l.replace(/\/\/.*$/, '')));
   const loose = outside.filter(l => !/CAREER_DEV/.test(l));
   ok(outside.length >= 4 && !loose.length, 'every call into the story outside its half is behind CAREER_DEV', outside.length + ' calls' + (loose.length ? '; loose: ' + loose.map(l => l.trim().slice(0, 60)).join(' | ') : ''));
@@ -226,6 +226,33 @@ async function pageRun() {
     const r = M.storyNewCareer(M.careerNormalise(M.careerNew({ id: 'main', seed: 'gate' })), { aeros: noCab.length ? noCab : [{ id: 'HOME', name: 'Jolene AFB 13/31' }] });
     const K = M.storyCard(r.doc, { aeros: noCab });
     ok(r.ok && r.doc.here === 'HOME' && M.storyOf(r.doc).cabin === null && !r.doc.sheds.HOME.locked && K && K.note === M.STORY_NO_CABIN, 'no cabin on the island: the story starts at HOME, the reason on the beat card (never a guessed strip)', K && K.note);
+  }
+  // ---- G3360 (CAREERS): A SECOND CAREER GETS ITS OWN STORY. The page's own reading (app.js, CAREER_DEVFLAG .. STORY_PAGE,
+  // run in a vm): the welcome's chosen id is the document's key and carries the story; ?career=1 none; no id = 'main'
+  {
+    const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+    const j0 = app.indexOf('  const CAREER_DEVFLAG = '), j1 = app.indexOf('\n', app.indexOf('  const STORY_PAGE = ', j0));
+    const pageKeys = (search, id) => { const w = { location: { search }, FLYDIY_MODE: search ? null : 'career', FLYDIY_CAREER_ID: id, FLYDIY_CAREER_NAME: id ? 'your career 2' : undefined };
+      return vm.runInNewContext('(function () {\n' + app.slice(j0, j1) + '\nreturn { CAREER_ID, PLAYER_KEY, STORY_PAGE, CAREER_BIRTH_NAME }; })()',
+        { window: w, careerNew: M.careerNew, careerKey: M.careerKey, storyNewCareer: M.storyNewCareer }); };
+    const k2 = pageKeys('', 'cmgz0a1'), kd = pageKeys('?career=1', 'cmgz0a1'), km = pageKeys('', undefined), kx = pageKeys('', 'dev');
+    ok(j0 > 0 && k2.CAREER_ID === 'cmgz0a1' && k2.PLAYER_KEY === 'flydiy.career.cmgz0a1' && k2.STORY_PAGE === true && k2.CAREER_BIRTH_NAME === 'your career 2' &&
+       kd.CAREER_ID === 'dev' && kd.STORY_PAGE === false && km.CAREER_ID === 'main' && km.STORY_PAGE === true && kx.CAREER_ID === 'main',
+       "the page: the welcome's career id is its key (flydiy.career.<id>) and carries the story; ?career=1 the dev career, none; no id (or 'dev') = 'main'",
+       [k2.PLAYER_KEY, kd.PLAYER_KEY, km.PLAYER_KEY, kx.PLAYER_KEY].join(', '));
+    // two New careers, as playerLoad makes them (careerNew under their ids, then storyNewCareer): each its own story at the
+    // cabin; the first's beat moved on leaves the second at T0, and each document round-trips alone
+    const born = (id, starter) => M.storyNewCareer(M.careerNormalise(M.careerNew({ id, seed: id, name: id })), { aeros: aerosCabin, starter });
+    const A = born('cmgz0a1', 'Rufus'), B = born('cmgz0b2', 'Rufus 2');
+    const A1 = M.storyStep(A.doc, { k: 'ack' }, { aeros: aerosCabin });
+    const a = A1 && A1.doc ? M.careerNormalise(JSON.parse(JSON.stringify(A1.doc))) : null, b = M.careerNormalise(JSON.parse(JSON.stringify(B.doc)));
+    ok(A.ok && B.ok && a && M.storyOf(a).beat === 'T1' && M.storyOf(b).beat === 'T0' && a.career.id === 'cmgz0a1' && b.career.id === 'cmgz0b2' &&
+       M.storyOf(b).planes.starter === 'Rufus 2' && b.here === 'w9' && b.sheds.HOME.locked === 'story' && M.careerKey(b.career.id) === 'flydiy.career.cmgz0b2',
+       'a second career gets its own story: its own start at the cabin, its own starter slot, at T0 while the first is at T1', M.storyOf(a).beat + ' / ' + M.storyOf(b).beat);
+    // the welcome's Continue line ("the story · n of 8") counts the beats the core has
+    const ww = { navigator: {} }; ww.window = ww;
+    vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'welcome.js'), 'utf8'), Object.assign({ window: ww }, ww));
+    ok(ww.WELCOME.careers.STORY_OF === M.STORY_BEATS.length, "the welcome's Continue line counts the story's beats (" + ww.WELCOME.careers.STORY_OF + ' of ' + M.STORY_BEATS.length + ')');
   }
   // ---- a New career at the cabin: playerLoad's own step (careerNew -> storyNewCareer), then the page half boots
   let d = M.careerNormalise(M.careerNew({ id: 'main', seed: 'gate' }));

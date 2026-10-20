@@ -95659,3 +95659,49 @@ Strict light gate: 8 RED, none new by cause: over100 x4 = the pre-existing revea
     'outside' rows.
   - The numbers in ROUTES_PAY are a hypothesis. Waits pay (the brief says so): a 12 h wait on the story Cub's route earns
     ~26 000. Tune perKm / downTrips there if that is too rich.
+
+## G3360-G3369 - CAREERS: SEVERAL CAREERS, EACH ITS OWN DOCUMENT; THE INDEX flydiy.careers; CONTINUE = THE LAST PLAYED, NEW CAREER = A NEW ID (NEVER OVER ONE), CAREERS... = THE LIST (CONTINUE / RENAME / DELETE, CONFIRMED IN THE MENU); EVERY PLAYER CAREER ITS OWN STORY (2026-10-20, the GAME COORDINATOR; cloud - node + the gates' vms, no browser; branch claude/careers off origin/master c7c16380; work @ 2024aaaa; G3361-G3369 unused)
+
+- **The index** (welcome.js, read before the core loads): `flydiy.careers = { ids: [...], last: id }`.
+  - Each career is its own document `flydiy.career.<id>`. A new id is `'c' + base36 time` (bumped past any id in use).
+  - **'main' is migrated in place** as the first entry: its key is kept, so no save moves. 'dev' (?career=1) is never listed.
+  - A document that does not parse (or is no career) is **skipped**, kept on its key, never a crash. An id whose document
+    never came (a New career closed before app.js wrote it) leaves the index.
+  - The pure half is `WELCOME.careers` (read / list / last / row / create / pick / rename / remove) for the gates and the console.
+- **The menu** (welcome.js; the garage's look: the menu now reads the `--ed-*` tokens - editor.css's one token root names
+  `#welcome` - IBM Plex Sans upright, no serif, no italics; rows min 56 px; nothing hover-only):
+  - **Continue** = the last played: its name and a line (`the story · n of 8`, `the story done`, else `started <date>`).
+  - **New career** = a NEW id beside the others, named "your career", "your career 2", ... It never overwrites one:
+    **G2740's fresh flag and `.prev` backup retire** (a stale `flydiy.career.fresh` is cleared; an existing
+    `flydiy.career.main.prev` stays on its key, unlisted).
+  - **Careers...** (once there is one) = the list. Each row: Continue, Rename (an inline field: Enter / Save keeps it, Escape /
+    Cancel leaves it; empty refused; 40 chars), Delete (asked inside the row - "Delete "x"? Its contracts, money and fleet go
+    for good. The saved builds stay." - then the document and its index entry go; the last moves to the newest left). Back = the menu.
+  - `?mode=career` (no menu) plays the last career, or a new one when there is none.
+- **The page** (app.js): `window.FLYDIY_CAREER_ID` (+ `FLYDIY_CAREER_NAME` for a new one) is written by welcome.js alone
+  before app.js runs, like FLYDIY_MODE. `CAREER_ID` = that id (`/^(main|c[0-9a-z]{1,16})$/`, else 'main' as G2740);
+  ?career=1 stays 'dev'. `STORY_PAGE = CAREER_DEV && CAREER_ID !== 'dev'`: every New career gets its own story (storyNewCareer,
+  the cabin start, Tim on STORY-TIM, the opening once on STORY-INTRO - both arm on a born career, so nothing more is needed
+  there). world_boot.js stands the chosen career's stage tracks (a new one: every track 0).
+- **GATES** (20 Oct, `node tools/run_gates.js --only=GFX,UISMOKE,UISMOKE-PHONE,PLAYER,SAVE,STORY,CONTRACTS`): UISMOKE PASS (218.6 s), UISMOKE-PHONE PASS, GFX PASS, SAVE PASS, PLAYER PASS (+ --selftest PASS), CONTRACTS PASS, STORY PASS (+ --selftest PASS); BATTERY: PASS.
+  - GFX: the welcome's rows - no career, New career (a new id, listed, the last), 'main' migrated in place, New over a saved one
+    (a NEW id, "your career 2", the old one byte for byte), Continue = the last with its story step, the list (broken skipped,
+    dev never, a missing id gone), rename (inline, Escape, empty refused, the rest of the document untouched), delete (asked,
+    "Keep it", confirmed), the list's Continue, back, ?mode=career, ids never shared, the --ed look, FLYDIY_CAREER_ID's one writer.
+  - UISMOKE / UISMOKE-PHONE: the flag table (?mode=career chooses a career id, ?career=1 none) and the app.js scans (CAREER_PICK /
+    CAREER_ID / STORY_PAGE; the fresh flag and .prev gone).
+  - PLAYER: a career under a new id round-trips (id, name, key); a renamed one loads with its name, nothing else moved.
+  - STORY: the page's own key reading run in a vm (a 'c' id is its key and carries the story; dev none; no id = main); a second
+    career gets its own story (its own start and starter slot, T0 while the first is at T1); the welcome's "n of 8" = STORY_BEATS.
+    Also ported STORY-TIM's look-row fix (`:is(... #stCard ...)`; it was red on master since DROP-JSON's #gDrop) - the same line.
+  - DESTTO: its app.js regex updated to `CAREER_ID = CAREER_DEVFLAG ? 'dev' : CAREER_PICK` (checked by evaluating the regex on
+    app.js; the gate itself is long and was not run, per the user's process).
+- **For the landing (A0):**
+  - editor.css's token root line: STORY-TIM adds `#stTim`, this adds `#welcome` on the SAME line - the merge is both
+    (`..., #gDrop, #stTim, #welcome)`). `_story_check.js`'s look row is the same change on both branches.
+  - No generated file committed (index.html, dev.html, tools/flight_core.js, sw.js, version.json).
+- **Open / notes:**
+  - The saved builds (`flydiy.build.*`) are ONE shelf shared by every career (as before: the sandbox's builds were lifted into
+    G2740's career too). Each New career lifts the shelf into its fleet; its starter is "Rufus 2", "Rufus 3", ... when "Rufus"
+    is taken. Per-career shelves would be a separate chantier.
+  - No "restore the old .prev" door (G2740's backlog item): a .prev from before stays in storage, unlisted.

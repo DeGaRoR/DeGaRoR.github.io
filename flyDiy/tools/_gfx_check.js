@@ -508,23 +508,97 @@ const modes = async () => {
     w.mode('sandbox').onclick(); await tick(); await tick();
     ok(w.FLYDIY_MODE === 'sandbox' && w.screen() === 'none' && got === null && !w.WELCOME.pick, 'Sandbox: the menu gone, FLYDIY_MODE sandbox, no preset forced (the saved one stands)');
   }
-  // G2740 (CAREER-ON): New career with nothing saved -> the career, no fresh flag; a saved career -> Continue (first, focused)
+  // G3360 (CAREERS): every career its own document flydiy.career.<id>, the index flydiy.careers = { ids, last }; 'main'
+  // migrated in place; Continue = the last played; New career = a NEW id (never over one); the list: Continue / Rename /
+  // Delete (asked inside the menu); a broken document skipped; 'dev' never listed
+  const doc = (name, extra) => JSON.stringify(Object.assign({ mode: 'career', v: 3, sheds: {}, career: Object.assign({ id: 'x', name, started: '2026-10-13' }, extra || {}) }));
+  const IX = st => { try { return JSON.parse(st['flydiy.careers']); } catch (e) { return null; } };
   { const w = await pg('', PAGES, Object.assign({}, seen));
+    ok(!w.mode('continue') && !w.mode('careers'), 'no career saved: no Continue, no Careers... row');
     w.mode('career').onclick(); await tick(); await tick();
-    ok(w.FLYDIY_MODE === 'career' && w.screen() === 'none' && !('flydiy.career.fresh' in w.store), 'New career (none saved): FLYDIY_MODE career, nothing to back up');
+    const X = IX(w.store), id = w.FLYDIY_CAREER_ID;
+    ok(w.FLYDIY_MODE === 'career' && w.screen() === 'none' && /^c[0-9a-z]+$/.test(id) && w.FLYDIY_CAREER_NAME === 'your career' && X && X.ids.join() === id && X.last === id && !('flydiy.career.fresh' in w.store),
+       'New career (none saved): FLYDIY_MODE career, a new id ' + id + ' named "your career", listed and the last; no fresh flag');
   }
-  { const saved = { 'flydiy.career.main': JSON.stringify({ mode: 'career', career: { name: 'your career' } }) };
+  { const main = doc('your career'), saved = { 'flydiy.career.main': main, 'flydiy.career.fresh': '1' };
     const w = await pg('', PAGES, Object.assign({}, seen, saved));
-    ok(!!w.mode('continue') && /your career/.test(w.mode('continue').textContent) && /backup/.test(w.mode('career').textContent),
-       'a saved career: Continue naming it; New career says the current one is kept as a backup');
+    const X = IX(w.store);
+    ok(!!w.mode('continue') && /“your career” · started 2026-10-13/.test(w.mode('continue').textContent) && !!w.mode('careers') && X && X.ids.join() === 'main' && X.last === 'main' && w.store['flydiy.career.main'] === main,
+       "G2740's career migrated in place: the index's first entry 'main', its key and bytes kept; Continue names it with a line");
+    ok(!('flydiy.career.fresh' in w.store) && !Object.keys(w.store).some(k => /\.prev$/.test(k)), 'the fresh flag retired (cleared), no .prev backup made');
     w.mode('continue').onclick(); await tick(); await tick();
-    ok(w.FLYDIY_MODE === 'career' && !('flydiy.career.fresh' in w.store), 'Continue: the career, the save untouched (no fresh flag)');
-    const w2 = await pg('', PAGES, Object.assign({}, seen, saved));
+    ok(w.FLYDIY_MODE === 'career' && w.FLYDIY_CAREER_ID === 'main' && w.store['flydiy.career.main'] === main, "Continue: the career 'main', its document untouched");
+    const w2 = await pg('', PAGES, Object.assign({}, seen, { 'flydiy.career.main': main }));
+    ok(/beside your other one/.test(w2.mode('career').textContent), 'New career says it starts beside the others (no backup, nothing replaced)');
     w2.mode('career').onclick(); await tick(); await tick();
-    ok(w2.FLYDIY_MODE === 'career' && w2.store['flydiy.career.fresh'] === '1', 'New career over a saved one: the fresh flag (app.js moves the old one to .prev)');
+    const X2 = IX(w2.store), id = w2.FLYDIY_CAREER_ID;
+    ok(id !== 'main' && /^c[0-9a-z]+$/.test(id) && w2.FLYDIY_CAREER_NAME === 'your career 2' && X2.ids.join() === 'main,' + id && X2.last === id && w2.store['flydiy.career.main'] === main && !(('flydiy.career.' + id) in w2.store),
+       'New career over a saved one: a NEW id (' + id + '), "your career 2", the old document byte for byte (app.js writes the new one)');
+  }
+  // the last played, the list, a broken document, the dev career, the story's step
+  const many = () => Object.assign({}, seen, {
+    'flydiy.career.main': doc('your career'),
+    'flydiy.career.c1': doc('the floats one', { story: { beat: 'T2', open: false } }),
+    'flydiy.career.c2': '{broken',
+    'flydiy.career.c3': doc('your career 3', { story: { beat: 'open', open: true } }),
+    'flydiy.career.dev': doc('the dev career'),
+    'flydiy.careers': JSON.stringify({ ids: ['main', 'c1', 'c2', 'dev', 'c3', 'c9'], last: 'c1' }) });
+  { const w = await pg('', PAGES, many());
+    ok(/“the floats one” · the story · 3 of 8/.test(w.mode('continue').textContent), 'Continue = the last played (c1), its name and its story step (T2: 3 of 8)');
+    const X = IX(w.store);
+    ok(X.ids.join() === 'main,c1,c2,c3' && X.last === 'c1' && w.store['flydiy.career.c2'] === '{broken', "the index: 'dev' never listed, an id with no document (c9) gone, the broken c2 kept on its key");
+    const said = w.mode('careers').textContent;
+    w.mode('careers').onclick();
+    const ids = w.$(x => x.className === 'wcar').map(x => x.dataset.id);
+    ok(ids.join() === 'main,c1,c3' && /3 careers: continue, rename or delete/.test(said), 'Careers...: one row per career (main, c1, c3): the broken c2 skipped, never a crash; dev not shown', ids.join());
+    const row = id => w.$(x => x.className === 'wcar' && x.dataset.id === id)[0];
+    const act = (id, a) => { const r = row(id); const f = []; const walk = x => { f.push(x); (x.children || []).forEach(walk); }; walk(r); return f.find(x => x.dataset && x.dataset.act === a); };
+    ok(['continue', 'rename', 'delete'].every(a => !!act('c1', a)) && w.$(x => x.className === 'wcar').every(r => r.getAttribute('title') === null), "each row: Continue, Rename and Delete written on it (nothing hover-only)");
+    // rename, inline
+    const before = JSON.parse(w.store['flydiy.career.c3']);
+    act('c3', 'rename').onclick();
+    const inp = w.$(x => x.className === 'wname')[0];
+    ok(inp && inp.value === 'your career 3' && !act('c3', 'delete'), 'Rename: an inline field holding the name');
+    inp.value = '   '; act('c3', 'save').onclick();
+    ok(JSON.parse(w.store['flydiy.career.c3']).career.name === 'your career 3', 'an empty name is refused (the name kept)');
+    act('c3', 'rename').onclick(); w.$(x => x.className === 'wname')[0].value = 'Jolene Air'; w.$(x => x.className === 'wname')[0].onkeydown({ key: 'Escape' });
+    ok(JSON.parse(w.store['flydiy.career.c3']).career.name === 'your career 3' && !w.$(x => x.className === 'wname').length, 'Escape leaves it as it was');
+    act('c3', 'rename').onclick(); w.$(x => x.className === 'wname')[0].value = '  Jolene   Air '; w.$(x => x.className === 'wname')[0].onkeydown({ key: 'Enter' });
+    const after = JSON.parse(w.store['flydiy.career.c3']);
+    ok(after.career.name === 'Jolene Air' && JSON.stringify(Object.assign({}, after, { career: Object.assign({}, after.career, { name: before.career.name }) })) === JSON.stringify(before) && /Jolene Air/.test(row('c3').textContent),
+       'Enter keeps the name (the document\'s career.name, the rest untouched), the row says it');
+    // delete, asked inside the menu
+    act('c1', 'delete').onclick();
+    ok(/Delete “the floats one”\?/.test(row('c1').textContent) && !!act('c1', 'confirm') && 'flydiy.career.c1' in w.store, 'Delete asks inside the row (no confirm()): nothing gone yet');
+    act('c1', 'keep').onclick();
+    ok('flydiy.career.c1' in w.store && !!act('c1', 'delete'), '"Keep it": nothing deleted');
+    act('c1', 'delete').onclick(); act('c1', 'confirm').onclick();
+    const X2 = IX(w.store);
+    ok(!('flydiy.career.c1' in w.store) && X2.ids.join() === 'main,c2,c3' && X2.last === 'c3' && !row('c1') && w.store['flydiy.career.main'] && w.store['flydiy.career.dev'],
+       'confirmed: the document and its index entry gone, the last moved to the newest left (c3); the others and the dev career untouched');
+    act('main', 'continue').onclick(); await tick(); await tick();
+    ok(w.FLYDIY_MODE === 'career' && w.FLYDIY_CAREER_ID === 'main' && IX(w.store).last === 'main' && w.screen() === 'none', "the list's Continue: that career, made the last played");
+  }
+  { const w = await pg('', PAGES, many());
+    w.mode('careers').onclick();
+    w.$(x => x.className === 'wlink' && x.textContent === 'back')[0].onclick(); await tick(); await tick();
+    ok(w.screen() === 'menu' && !!w.mode('continue') && w.FLYDIY_CAREER_ID === undefined, 'the list\'s back: the menu again, nothing chosen');
   }
   { const w = await pg('', PAGES, Object.assign({}, seen, { 'flydiy.career.main': '{broken' }));
-    ok(!w.mode('continue') && !w.mode('career').disabled, 'a broken career save: no Continue, the menu still opens');
+    ok(!w.mode('continue') && !w.mode('careers') && !w.mode('career').disabled && w.store['flydiy.career.main'] === '{broken', 'a broken career save: no Continue, the menu still opens, the document kept on its key');
+  }
+  // ?mode=career (no menu): the last played; none -> a new one
+  { const w = await pg('?mode=career', PAGES, many());
+    ok(w.FLYDIY_MODE === 'career' && w.FLYDIY_CAREER_ID === 'c1' && w.screen() === 'none', '?mode=career: the last played career (c1), no menu');
+    const w2 = await pg('?mode=career', PAGES, Object.assign({}, seen));
+    ok(/^c[0-9a-z]+$/.test(w2.FLYDIY_CAREER_ID || '') && IX(w2.store).last === w2.FLYDIY_CAREER_ID, '?mode=career with none saved: a new career');
+    const w3 = await pg('?career=1', PAGES, many());
+    ok(w3.FLYDIY_MODE === 'career' && w3.FLYDIY_CAREER_ID === undefined, '?career=1 (the dev career): nothing chosen here (app.js: flydiy.career.dev)');
+  }
+  // the pure half: two New careers in the same millisecond never share an id
+  { const st = {}, S = { getItem: k => (k in st ? st[k] : null), setItem: (k, v) => { st[k] = String(v); }, removeItem: k => { delete st[k]; } };
+    const a = WL.careers.create(S, 1000), b = WL.careers.create(S, 1000);
+    ok(a.id !== b.id && WL.careers.idOk(a.id) && WL.careers.idOk(b.id) && !WL.careers.idOk('dev') && !WL.careers.idOk('main.prev'), 'two New careers at the same instant: two ids (' + a.id + ', ' + b.id + '); dev and main.prev are no ids');
   }
   // a first visit: the card, then the menu; the card's pick is today's
   { const w = await pg('', PAGES, {});
@@ -564,13 +638,23 @@ const modes = async () => {
   const css = (/const CSS = `([\s\S]*?)`;/.exec(wsrc) || [])[1] || '';
   const mh = /#welcome \.wmode \{[^}]*min-height:(\d+)px/.exec(css);
   ok(mh && +mh[1] >= 48 && /#welcome \.wmodes \{[^}]*gap:(\d+)px/.exec(css)[1] >= 8, 'the rows: min-height ' + (mh && mh[1]) + ' px, 8 px apart (MOBILE-GARAGE R1/R3)');
-  ok(/--w-ink:[^;]+; --w-mid:[^;]+; --w-dim:[^;]+; --w-acc:[^;]+;/.test(css) && /\.wmode \{[^}]*'IBM Plex Sans'/.test(css), 'the menu: three greys and one accent, IBM Plex Sans');
+  // G3360 (CAREERS): the garage's look - the menu reads the --ed-* tokens (editor.css's one token root names #welcome), IBM
+  // Plex Sans upright, no serif, no italics; the careers list's rows 56 px
+  const edcss = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'editor.css'), 'utf8');
+  const menuCss = css.slice(css.indexOf('G2210 THE MODE MENU'));
+  ok(/:is\([^)]*#welcome[^)]*\) \{\s*--ed-panel/.test(edcss) && /\.wmode \{[^}]*var\(--ed-ink\)/.test(css) && /\.wcar \{[^}]*var\(--ed-btn-bg\)/.test(css) && !/--w-[a-z]+/.test(css) &&
+     /\.wmode \{[^}]*'IBM Plex Sans'/.test(css) && !/italic|serif['";,\s]*[;}]|Georgia|Times/.test(menuCss.replace(/sans-serif/g, '')),
+     "the menu: the garage's --ed-* tokens (editor.css's token root names #welcome), IBM Plex Sans upright, no serif, no italics");
+  const ch = /#welcome \.wcar \{[^}]*min-height:(\d+)px/.exec(css);
+  ok(ch && +ch[1] >= 56 && +mh[1] >= 56, 'the menu and the careers list: rows min-height 56 px (' + (mh && mh[1]) + ', ' + (ch && ch[1]) + ')');
   // ONE GLOBAL, ONE WRITER; NO NEW DEVICE TESTS (MOBILE-GARAGE §6: code asks the mode or the profile, never the device)
   const SRC = path.join(__dirname, '..', 'src');
   const files = []; const walk = d => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f); if (fs.statSync(p).isDirectory()) walk(p); else if (/\.js$/.test(f)) files.push(p); } };
   walk(SRC); files.push(path.join(__dirname, 'build.js'));
   const writes = files.filter(f => /FLYDIY_MODE\s*=[^=]/.test(fs.readFileSync(f, 'utf8'))).map(f => path.relative(path.join(__dirname, '..'), f).split(path.sep).join('/'));   // G2203: posix separators (Windows printed srciewer\...)
   ok(writes.join() === 'src/viewer/welcome.js', 'FLYDIY_MODE is written by welcome.js alone (' + writes.join(', ') + ')');
+  const cw = files.filter(f => /FLYDIY_CAREER_(ID|NAME)\s*=[^=]/.test(fs.readFileSync(f, 'utf8'))).map(f => path.relative(path.join(__dirname, '..'), f).split(path.sep).join('/'));
+  ok(cw.join() === 'src/viewer/welcome.js', 'G3360: FLYDIY_CAREER_ID / _NAME are written by welcome.js alone (' + cw.join(', ') + ')');
   // the device tests outside welcome.js, as they stood on 6 Oct: the three rig tests (app.js PACE, update_now.js, gfx_settings.js:
   // the same G528 test) and the two records that only report the browser (flight_recorder.js, diag.js). A new one fails here
   // G2203 (game integration over train 38): gfx_settings.js 2 = the G528 rig test + HW-COVERAGE's localhost skip of the runtime
