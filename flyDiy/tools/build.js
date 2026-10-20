@@ -211,6 +211,10 @@ const MANIFEST = {
     // Accept into the career's record and freightAccepted(doc) for FREIGHT-STRAP; pure, GATE FREIGHT.
     '77_freight_load.js',
     '78_freight_strap.js',          // G2400 (FREIGHT-STRAP): the accepted load as point masses + the straps' geometry
+    // THE ROUTES (G3260 ROUTES): a plane + a hired pilot + an A <-> B schedule - the down payment on signing, the round
+    // trips paid on the sim clock at the player's landings and waits, the plane and the pilot locked until the route
+    // ends; pure, GATE ROUTES. GAME-PLAN-2026-10-15 §R, §3 T6, §5.3.
+    '78b_routes.js',
     // THE STORY (G2741 STORY-CORE): the tutorial's beats T0-T7 as data, the story in the career document, one pure step
     // per event, the story's places by ROLE (the cabin strip as the user names it); GATE STORY. GAME-PLAN-2026-10-15 §3.
     '79_story.js',
@@ -236,7 +240,7 @@ const MANIFEST = {
   // page's pilot and the worker's fly them) and stays inline.
   routeDraw: 'route_draw.js',
   career: ['72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js', '76_economy.js',
-    '76_procure.js', '76_pilots.js', '76_freight.js', '77_freight_load.js', '79_story.js'],
+    '76_procure.js', '76_pilots.js', '76_freight.js', '77_freight_load.js', '78b_routes.js', '79_story.js'],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172
   // when they were flyable, tools/ref_prep.py the rest — all REFERENCE
   // planes since the fleet retired 2026-09-05; data, not core):

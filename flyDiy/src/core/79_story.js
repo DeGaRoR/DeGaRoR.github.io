@@ -113,7 +113,11 @@ const STORY_TIM = {
   T6: ['We promised this one: floats on the Cub, and land it at the seaplane base.'],
   T7: ['The Cub is flying a route now. But look: three planes for sale, once only.'],
 };
-const storyTimLines = id => (STORY_TIM[id] || []).slice();
+// (G3260 ROUTES: at T7, with the story's route signed, Tim names it and its down payment first)
+const storyTimLines = (id, doc) => { const L = (STORY_TIM[id] || []).slice(), r = id === 'T7' && doc ? storyRoute(doc) : null;
+  if (r) L.unshift((typeof pilotsName === 'function' ? pilotsName(r.pilot) : r.pilot) + ' flies the Cub on ' + routeWords(r) + ' now. The client paid ' +
+    routeMoney(r.down) + ' down, and every round trip pays ' + routeMoney(r.pay) + ' when you land or wait.');
+  return L; };
 const storyBeatOf = id => STORY_BEATS.find(b => b.id === id) || null;
 
 // ---- THE STATE --------------------------------------------------------------------------------------------------------
@@ -325,7 +329,10 @@ function storyClientSpec(cub) {
 //   clientPlane the client's Cub in the HOME hangar (o.slot: its slot, already written): stationed there, its airframe row
 //               the client's; the page then binds it ({ k: 'bind', role: 'client', slot, spec })
 //   giftPlane   the Cub is ours: the client's mark lifted, a ledger line at 0 (no money)
-//   routeOffer  ROUTES (G3260) absent: the offer recorded as a stub on the story (o.route: ROUTES' own record when present)
+//   routeOffer  G3260 (ROUTES): the route SIGNED - routeOffer + routeSign (78b_routes.js) with the gift Cub on the seaplane
+//               base <-> HOME and the career's companion (else the first free hired pilot): the down payment paid, the Cub
+//               and the pilot locked on the route; recorded on the story (`offers`: the route's id, the down payment).
+//               o.design: the Cub's own numbers (the page's shakedown row), else the validated Cub's
 //   occasions   the three authored listings on the used market (one-time: a sale removes it for good)
 //   open        the rails end (nothing to the world)
 // -> { ok, doc, why, line } (line: the words for the beat card / the arrival card, or null)
@@ -359,10 +366,24 @@ function storyApply(doc, e, o) {
     playerLedger(d, 'gift', 0, slot);
     line = 'The Cub is yours.';
   } else if (e.k === 'routeOffer') {
-    const offer = Object.assign({ k: 'route', plane: s.planes.gift || null, a: storySite(e.a, o.aeros) || e.a, b: storySite(e.b, o.aeros) || e.b,
-                                  at: clock, stub: !o.route }, o.route ? { route: stClone(o.route) } : {});
+    // G3260 (ROUTES): "the cub disappears and you're back with only the ultralight" (the user) - the route signed now
+    const plane = s.planes.gift || s.planes.client || null, a = storySite(e.a, o.aeros) || e.a, b = storySite(e.b, o.aeros) || e.b;
+    const pilot = storyRoutePilot(d);
+    const O = routeOffer(d, a, b, plane, { design: o.design });
+    const R = !O.ok ? O : !pilot ? { ok: false, why: 'no free hired pilot to fly it' } : routeSign(d, O.offer, plane, pilot, { now: o.now });
+    const offer = { k: 'route', plane, a, b, at: clock, pilot: pilot || null, signed: !!R.ok };
+    if (!R.ok) {
+      // (never a guess: the offer is kept with its reason; the beat has moved on)
+      offer.why = R.why;
+      s.offers = (s.offers || []).filter(x => x.k !== 'route').concat([offer]);
+      d.career.story = s;
+      return { ok: true, doc: d, why: R.why, line: 'The route could not be signed: ' + R.why + '.' };
+    }
+    const D = R.doc;
+    Object.assign(offer, { route: R.route.id, down: R.route.down, pay: R.route.pay, tripS: R.route.tripS });
     s.offers = (s.offers || []).filter(x => x.k !== 'route').concat([offer]);
-    line = o.route ? 'A route is offered, with a hired pilot.' : 'A route is offered (the routes come later: the offer is kept).';
+    D.career.story = s;
+    return { ok: true, doc: D, why: '', route: R.route, line: storyRouteLine(R.route, o.aeros) };
   } else if (e.k === 'occasions') {
     s.occasions = STORY_OCCASIONS.slice(0, e.n || STORY_OCCASIONS.length).map(L => L.id);
     line = 'Three aeroplanes on offer, once only: see the Market.';
@@ -371,6 +392,21 @@ function storyApply(doc, e, o) {
   } else return stNo(doc, 'an unknown effect ' + e.k);
   d.career.story = s;
   return { ok: true, doc: d, why: '', line };
+}
+// G3260 (ROUTES): T6's pilot - the career's companion while free on the roster, else the first free hired pilot (or null)
+function storyRoutePilot(doc) {
+  const free = (typeof pilotsHired === 'function' ? pilotsHired(doc) : []).filter(id => !routeOfPilot(doc, id));
+  return free.includes(PILOTS_COMPANION) ? PILOTS_COMPANION : (free[0] || null);
+}
+// T6's words for the arrival card, the beat card and Tim: the route, its pilot, the down payment in the wallet
+function storyRouteLine(r, aeros) {
+  return 'Route signed: ' + r.plane + ' flies ' + routeWords(r, aeros) + ' with ' + (typeof pilotsName === 'function' ? pilotsName(r.pilot) : r.pilot) +
+    '. The down payment, ' + routeMoney(r.down) + ', is in the wallet; then ' + routeMoney(r.pay) + ' a round trip, paid at your landings and waits.';
+}
+// the route the story signed (T6), as its record stands now, or null
+function storyRoute(doc) {
+  const s = storyOf(doc), o = s && (s.offers || []).find(x => x.k === 'route' && x.signed && x.route);
+  return o ? (routesList(doc).find(r => r.id === o.route) || null) : null;
 }
 // THE OCCASIONS ON OFFER (procureMarketOf lists them before the generated ones): the authored listings the story listed,
 // minus the sold, in the used market's shape (76_procure.js procureUsedListing's), priced at the occasion's factor

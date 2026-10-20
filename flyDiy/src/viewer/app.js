@@ -7988,10 +7988,13 @@
       // G2665 (NIGHT-OPS): the career's day (and the sky it saw) is the stop's BEFORE the stop meets the contracts, so a
       // new epoch's offers are drawn under the night the aeroplane landed in (SIM-CLOCK saved it after; same instant)
       if (CAREER_DEV && d.career && world && world.day && typeof careerDaySet === 'function') { const r = careerDaySet(d, { date: world.day.date, utc: world.day.utc }); if (r.ok) d = careerCoverNote(r.doc); }
+      // G3260 (ROUTES): the routes' round trips flown up to this landing, paid now (before the stop's wallet line)
+      const rtSettled = CAREER_DEV && d.career ? routesSettleNow(d) : null; if (CAREER_DEV && rtSettled) d = rtSettled.doc;
       // G2320 (CAREER-WIRE): ...and the career meets the stop (careerOnStop: every accepted contract, the tracked first)
       if (CAREER_DEV && d.career) { const c = careerStopApply(d, how, W, wrecked); d = c.doc; out.career = c; }
       // G2742 (STORY-PAGE): ...and the story meets it (the stop, each contract it delivered), its effects applied
       if (CAREER_DEV && STORY_PAGE && d.career && out.career) d = storyOnFlightEnd(d, out);
+      if (CAREER_DEV && out.career && rtSettled && rtSettled.lines.length) out.career.lines.unshift(...rtSettled.lines);   // (G3260: the routes' line)
       // G2705 (CAREER-DAMAGE, §R.4): a crash in the career - back at the place the flight departed from, repaired, free
       // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
       const cz = (CAREER_DEV && d.career && wrecked) ? careerCrashReset(d, flSlot, fromAero) : null;
@@ -8276,7 +8279,10 @@
     }
     return out;
   }
-  const careerRecord = () => { const R = careerMapRecord(playerLoad(), world, { certs: careerCerts() }); return CAREER_DEV && STORY_PAGE ? storyRecord(R) : R; };
+  const careerRecord = () => { const R = careerMapRecord(playerLoad(), world, { certs: careerCerts() });
+    // G3260 (ROUTES): the map's lines and planes, each where it is on its route at the world's instant
+    R.routes = routesMapOf(playerLoad(), world && world.day ? { date: world.day.date, utc: world.day.utc } : null, world && world.aerodromes);
+    return CAREER_DEV && STORY_PAGE ? storyRecord(R) : R; };
   // the map's Accept / Track: careerAccept / careerTrack on the document (Track on a contract not yet accepted accepts
   // it first; Track on the tracked one untracks; Accept on an accepted one keeps it - abandoning is not this button's)
   function careerAct(id, what) {
@@ -8561,6 +8567,117 @@
     act: careerCrewAct, check: id => careerCrewCheck(id), flyer: () => crFlyer,
     card: id => pilotsCard(playerLoad(), id, world), offers: () => pilotsOffers(playerLoad()), hired: () => pilotsHired(playerLoad()),
   };
+  // ---- G3260-G3269 (ROUTES): THE ROUTES' PAGE HALF (every function below runs only under CAREER_DEV; 78b_routes.js is the
+  // model, pure) ---------------------------------------------------------------------------------------------------------
+  // The settle at every landing (playerFlightEnd: the round trips flown since, paid, a line on the arrival card) and every
+  // wait (the clock's 'flydiy:dayjump' of a wait: the wallet line says what came in); "Assign to a route" and "End route"
+  // on the storage cards (FLYDIY_STORE.route*); the map's line and plane (careerRecord's `routes`); and the stand: a plane
+  // on a route never stays on the stand, never rolls out.
+  // the plane's own numbers when this browser holds its shakedown (careerCerts: the map's certificate facts), else null
+  function routesDesignNow(slot) { try { return (CAREER_DEV && careerCerts()[slot]) || null; } catch (e) { return null; } }
+  // the settle on a document -> { doc, lines (the arrival card's), paid }
+  function routesSettleNow(d, now) {
+    if (!CAREER_DEV || !d || !d.career || !routesActive(d).length) return { doc: d, lines: [], paid: 0 };
+    const r = routeSettle(d, now);
+    return r.ok ? { doc: r.doc, lines: routeSettleLines(r, world && world.aerodromes), paid: r.paid } : { doc: d, lines: [], paid: 0 };
+  }
+  // a WAIT moved the clock (day_clock.js: 'wait:*' / 'fullmoon'): the round trips flown in it paid now, said on the wallet line
+  function routesOnWait(J) {
+    if (!J || !/^(wait|fullmoon)/.test(J.why || '') || !J.to) return;
+    const r = routesSettleNow(playerLoad(), J.to);
+    if (!r.paid) return;
+    player = r.doc; playerSave();
+    ecNote = 'routes +' + ecFmt(r.paid); econWalletSync();
+    storeChanged();
+  }
+  // the plane's gear and seats off its saved envelope (the storage card's)
+  const routesGear = n => { try { return storeCard(n).gear || null; } catch (e) { return null; } };
+  const routesFreePilots = d => pilotsHired(d).filter(id => !routeOfPilot(d, id));
+  // "ASSIGN TO A ROUTE": from where the plane stands to any aerodrome its gear can use, a free hired pilot to fly it
+  // -> { ok, why, a, aName, ends: [{ id, name, km }], pilots: [{ id, name }] }
+  function routesTargets(name) {
+    const d = playerLoad(), W = playerStoreWhere(d, name);
+    const no = why => ({ ok: false, why, a: W.aero || null, ends: [], pilots: [] });
+    if (W.kind === 'route') return no(name + ' flies a route already');
+    if (!W.aero || W.kind === 'none') return no(name + ' stands nowhere yet');
+    const pilots = routesFreePilots(d).map(id => ({ id, name: pilotsName(id) }));
+    const gear = routesGear(name), design = routesDesignNow(name), ends = [];
+    for (const id of Object.keys(CONTRACT_FIELDS)) {
+      if (id === W.aero) continue;
+      const O = routeOffer(d, W.aero, id, name, { gear, design });
+      if (O.ok) ends.push({ id, name: routeAeroName(id, world && world.aerodromes), km: O.offer.km });
+      else if (/numbers are not read/.test(O.why)) return no(O.why);
+    }
+    ends.sort((x, y) => x.km - y.km);
+    if (!pilots.length) return Object.assign(no('no free pilot: hire one on the map\'s Pilots list (a route needs a hired pilot)'), { ends });
+    return { ok: true, why: '', a: W.aero, aName: routeAeroName(W.aero, world && world.aerodromes), ends, pilots };
+  }
+  // the terms, in words, before signing -> { ok, why, offer, words }
+  function routesAsk(name, b, pilot) {
+    const d = playerLoad(), W = playerStoreWhere(d, name);
+    const O = routeOffer(d, W.aero, b, name, { gear: routesGear(name), design: routesDesignNow(name) });
+    if (!O.ok) return { ok: false, why: O.why };
+    return { ok: true, why: '', offer: O.offer, words: routeOfferWords(O.offer, world && world.aerodromes, pilot) };
+  }
+  function routesSignNow(name, b, pilot) {
+    try {
+      const A = routesAsk(name, b, pilot);
+      if (!A.ok) return A;
+      const r = routeSign(playerLoad(), A.offer, name, pilot);
+      if (!r.ok) return { ok: false, why: r.why };
+      player = r.doc; playerSave();
+      ecNote = 'route signed +' + ecFmt(r.route.down); econWalletSync();
+      storeChanged(); routesStandRule();
+      return { ok: true, why: '', route: r.route };
+    } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
+  }
+  function routesEndNow(name) {
+    try {
+      const R = routeOfPlane(playerLoad(), name);
+      if (!R) return { ok: false, why: name + ' flies no route' };
+      const r = routeEnd(playerLoad(), R.id);
+      if (!r.ok) return { ok: false, why: r.why };
+      player = r.doc; playerSave();
+      if (r.paid) { ecNote = 'routes +' + ecFmt(r.paid); econWalletSync(); }
+      storeChanged();
+      return { ok: true, why: '', where: r.where };
+    } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
+  }
+  // a storage card's route words -> null | { words, pilot, trips, pay }
+  function routesCardOf(name) {
+    const R = routeOfPlane(playerLoad(), name);
+    return R ? { id: R.id, words: routeWords(R, world && world.aerodromes), pilot: pilotsName(R.pilot), trips: R.trips, pay: R.pay } : null;
+  }
+  // THE STAND: a plane on a route is not on it - in the garage, the stand takes the story's starter, else the first plane
+  // of the garage's base that flies no route (none: it stays, and the roll-out refuses it)
+  function routesStandRule() {
+    if (!CAREER_DEV || !inGarage) return;
+    const d = playerLoad(), n = slotOnStand();
+    if (!n || !routeOfPlane(d, n) || !window.GARAGE_SPEC || !window.GARAGE_SPEC.open) return;
+    const base = d.sheds[d.here] ? d.sheds[d.here].base : null, s = CAREER_DEV && STORY_PAGE ? storyOf(d) : null;
+    const free = Object.keys(d.fleet).filter(k => !routeOfPlane(d, k));
+    const pick = (s && s.planes.starter && free.includes(s.planes.starter) ? s.planes.starter : null) ||
+      free.find(k => playerStoreWhere(d, k).aero === base) || null;
+    if (pick) try { window.GARAGE_SPEC.open(pick); } catch (e) {}
+  }
+  // the roll-out's refusal: the build on the stand flies a route (said on the wallet line)
+  function routesRollRefused() {
+    const n = slotOnStand(), R = n ? routeOfPlane(playerLoad(), n) : null;
+    if (!R) return false;
+    ecNote = n + ' flies the route ' + routeWords(R, world && world.aerodromes) + ': end it in Storage first'; econWalletSync();
+    routesStandRule();
+    return true;
+  }
+  if (CAREER_DEV) {
+    try { window.addEventListener('flydiy:dayjump', ev => { try { routesOnWait(ev && ev.detail); } catch (e) {} }); } catch (e) {}
+    setInterval(() => { try { routesStandRule(); } catch (e) {} }, 1500);
+    Object.assign(window.FLYDIY_STORE, {
+      routeTargets: n => routesTargets(n), routeAsk: (n, b, p) => routesAsk(n, b, p), routeSign: (n, b, p) => routesSignNow(n, b, p),
+      routeEnd: n => routesEndNow(n), routeOf: n => routesCardOf(n),
+    });
+    window.FLYDIY_CAREER.routes = { list: () => routesMapOf(playerLoad(), null, world && world.aerodromes), settle: (now) => { const r = routesSettleNow(playerLoad(), now); if (r.paid) { player = r.doc; playerSave(); } return r; },
+      sign: routesSignNow, end: routesEndNow, targets: routesTargets, ask: routesAsk };
+  }
   // ---- G2742-G2749 (STORY-PAGE): THE STORY'S PAGE HALF (every function below runs only under STORY_PAGE: the player's
   // career; 79_story.js is the model, pure) -------------------------------------------------------------------------------
   // The events into storyStep: the stop at every flight's end and each contract it delivered (storyOnFlightEnd, where the
@@ -8599,8 +8716,11 @@
   function storyEffects(d, effects) {
     for (const e of effects || []) {
       if (e.k === 'clientPlane') { stQueue.push(e); continue; }
-      const a = storyApply(d, e, { aeros: world.aerodromes });
-      if (a.ok) { d = a.doc; if (a.line) stLine = a.line; } else console.warn('flyDiy (story): ' + e.k + ' - ' + a.why);
+      // (G3260 ROUTES: T6's route signed with the Cub's own numbers when this browser holds them - the routes' half)
+      const s0 = e.k === 'routeOffer' ? storyOf(d) : null, slot = s0 ? s0.planes.gift || s0.planes.client : null;
+      const a = storyApply(d, e, { aeros: world.aerodromes, design: slot && typeof routesDesignNow === 'function' ? routesDesignNow(slot) : null });
+      // (the lines add up: T6's route and T7's occasions both reach the arrival card)
+      if (a.ok) { d = a.doc; if (a.line) stLine = stLine ? stLine + ' ' + a.line : a.line; } else console.warn('flyDiy (story): ' + e.k + ' - ' + a.why);
     }
     return d;
   }
@@ -8766,7 +8886,7 @@
   let stTimEl = null, stTimBeat = null, stTimI = 0, stTimShut = false;
   function storyTimSync() {
     if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
-    const s = stLive(), id = s && !s.open ? s.beat : null, L = id ? storyTimLines(id) : [];
+    const s = stLive(), id = s && !s.open ? s.beat : null, L = id ? storyTimLines(id, playerLoad()) : [];
     if (id !== stTimBeat) { stTimBeat = id; stTimI = 0; stTimShut = false; }
     if (!L.length || stTimShut || (window.FLYDIY_AP && typeof window.FLYDIY_AP.manual === 'function' && window.FLYDIY_AP.manual() && !inGarage)) { if (stTimEl) stTimEl.hidden = true; return; }
     if (!stTimEl) {
@@ -11191,6 +11311,7 @@
     stamped: !!(sim && typeof sim.cert === 'function' && sim.cert()) });
   function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
     if (GARAGE_ONLY) return;           // G2100: the phone garage has no world to roll out into
+    if (CAREER_DEV && routesRollRefused()) return;   // G3260 (ROUTES): a plane on a route never rolls out
     certKick();                        // G1831: the certificate's thread starts with the roll-out
     const reveal = () => { flRevealStart(); if (after) after(); };
     rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
