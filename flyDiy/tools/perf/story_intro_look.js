@@ -133,10 +133,11 @@ const show = r => log('   ' + r.scene.padEnd(30) + (r.frames ? r.fps + ' fps, p5
       log('   long tasks > 100 ms in the opening: ' + (A.long.length ? A.long.map(x => x.ms + ' ms at ' + x.at + ' s').join(', ') : 'none') + (run.exc.length ? ' · exceptions: ' + run.exc.join(' | ') : ''));
       return run;
     };
+    if (flag('stillsonly')) { await one('2 played stills', { stills: true }); throw null; }   // (--stillsonly: the arc's stills alone, one New career)
     await one('1 cold New career', {});
     if (!flag('nostills')) await one('2 played stills', { stills: !!STILLS, fresh: true });
     if (!flag('only1')) { if (flag('profile')) await one('3 profiled (timing INFO)', { profile: true, fresh: true }); else await one('3 skipped', { skipAt: 5, fresh: true }); }
-  } catch (e) { R.error = String(e && e.stack || e); log('ERROR ' + R.error); }
+  } catch (e) { if (e !== null) { R.error = String(e && e.stack || e); log('ERROR ' + R.error); } }
   finally {
     if (b) await b.close();
     kill();
