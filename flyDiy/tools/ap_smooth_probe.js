@@ -15,7 +15,7 @@ const PT = require(path.join(T, 'pilot_trace.js')); PT.loadPanel();
 const C = require(process.env.PILOT_CORE || path.join(T, 'flight_core.js'));
 const IN = require(path.join(T, 'island_node.js'));
 const TR = require(path.join(T, '_tour_lib.js'));
-const B = TR.BUILDS[opt('build', 'cub')] || { key: path.resolve(opt('build')) };
+const B = TR.BUILDS[opt('build', 'cub')] || { key: /\.json$/i.test(opt('build')) ? path.resolve(opt('build')) : opt('build') };   // (an archetype key as it is: 'floatplane')
 const order = opt('order', 'HOME,w3').split(',');
 const def = TR.defOf(C, PT, B.key);
 def.params = Object.assign({}, def.params, { damage: opt('damage', '0') === '1' });
