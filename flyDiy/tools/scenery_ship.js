@@ -24,7 +24,7 @@ const path = require('path');
 const PG = require(path.join(__dirname, '..', 'src', 'core', '27_premises.js'));
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const SAVE = process.argv[2], FIX = arg('--fixture', path.join(__dirname, 'fixtures', 'island_jolene.json'));
-const EXCEPT = new Set(String(arg('--except', '')).split(',').filter(Boolean)), CUTP = ['mk_'];
+const EXCEPT = new Set(String(arg('--except', '')).split(',').filter(Boolean)), CUTP = PG.TOWN_OFF.drop, KEEP = PG.TOWN_OFF.keep;   // (METLA-WRAPUP: the town's cut, its seaplane base kept - a town-off save holds it)
 // --remove a,b: the removals the user confirmed (every other entry the save has no more stays shipped)
 const REMOVE = new Set(String(arg('--remove', '')).split(',').filter(Boolean));
 // --record pavement,theme,life: the record's own settings the user confirmed
@@ -37,7 +37,7 @@ const rawSave = JSON.parse(fs.readFileSync(SAVE, 'utf8')), RS = (rawSave.premise
 const B = PG.unwrap(fs.readFileSync(SAVE, 'utf8')).rec;
 const rawFix = JSON.parse(fs.readFileSync(FIX, 'utf8')), RF = (rawFix.premises || rawFix).layers;
 const N = e => JSON.stringify(e);
-const cutId = id => CUTP.some(p => String(id || '').startsWith(p));
+const cutId = id => CUTP.some(p => String(id || '').startsWith(p)) && !KEEP.includes(String(id || ''));
 const normEntry = (layer, e) => { const r = PG.DEF(); r.layers[layer] = [JSON.parse(JSON.stringify(e))]; return N(PG.normalise(r).layers[layer][0]); };
 // an entry without its stages (its own and its items'): what the sandbox's view of it is
 const unstage = e => { const c = JSON.parse(JSON.stringify(e)); delete c.stage; if (Array.isArray(c.items)) for (const it of c.items) if (it) delete it.stage; return c; };
@@ -47,7 +47,7 @@ const restage = (saved, fx) => { const c = JSON.parse(JSON.stringify(saved)); if
 const staged = e => !!(e && (e.stage || (Array.isArray(e.items) && e.items.some(it => it && it.stage)) || /^sg_/.test(String(e.id || ''))));
 
 function verify() {
-  const A = PG.dropPlaces(PG.unwrap(fs.readFileSync(FIX, 'utf8')).rec, CUTP).rec, bad = [];
+  const A = PG.dropPlaces(PG.unwrap(fs.readFileSync(FIX, 'utf8')).rec, CUTP, KEEP).rec, bad = [];
   for (const L of PG.LAYERS) {
     const a = new Map((A.layers[L] || []).map(e => [e.id, e])), b = new Map((B.layers[L] || []).filter(e => !EXCEPT.has(e.id)).map(e => [e.id, e]));
     for (const [id, e] of b) if (!a.has(id)) bad.push(L + ' ' + id + ': not shipped'); else if (N(unstage(a.get(id))) !== N(unstage(e))) bad.push(L + ' ' + id + ': differs');

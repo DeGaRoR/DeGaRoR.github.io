@@ -78,6 +78,8 @@ function make(THREE) {
     opts = opts || {};
     const L = (data && data.lights) || {};
     CK.lightOn = L.on !== false;
+    // G2796: the lights the builder did not fit (the join names them): no load
+    CK.unfit = new Set(Array.isArray(L.unfit) ? L.unfit : []);
     for (const k of Object.keys(LIGHT_AMPS)) CK.sw['sw_' + k] = L[k] != null ? +L[k] : 0;
     CK.sw.sw_master = 1; CK.sw.sw_alt = 1; CK.key = 'both'; CK.sw.key = 3;
     // G318: the avionics master on, the fuel selector on BOTH, the brake off
@@ -218,7 +220,7 @@ function make(THREE) {
       // G318: the avionics master gates the radios' loads
       bus.on.com = !!CK.sw.sw_avionics; bus.on.xpdr = !!CK.sw.sw_avionics;
       for (const k of Object.keys(LIGHT_AMPS)) {
-        const v = CK.lightOn ? +CK.sw['sw_' + k] || 0 : 0;
+        const v = (CK.lightOn && !(CK.unfit && CK.unfit.has(k))) ? +CK.sw['sw_' + k] || 0 : 0;
         bus.setLoad('sw_' + k, LIGHT_AMPS[k] * (k === 'beacon' ? 0.5 : 1) * (v > 0 ? (v > 1 ? 1 : v) : 0));
       }
       const rpmProp = (o.rpm && o.rpm[0]) || 0;

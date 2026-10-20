@@ -58,6 +58,13 @@ const L = [{ id: 'rollout|cub chase|loop', add: 0.5, owner: 'test', train: 't99'
   const C = TG.compareRef(G, Ref, []); ok(C.red.some(r => r.id === 'rollout|cub chase|render'), 'render +1.9 ms is RED under the frozen 1.31 ms slack, whatever today\'s rule says'); }
 // the box/gamer targets: p99 over 50 listed, not red
 { const G = gate(18.9); G.rows[2].value = 66.7; const C = TG.compareRef(G, Ref, []); ok(C.targets.length === 1 && !C.red.length, 'p99 66.7 ms is listed against the 50 ms target (inside its frozen 17 ms slack: not red)'); }
+// GATE-ANCHOR: the per-train compare skips a rollout GROUP the run did not run (the metal Cessna's legs, replaced by the
+// Cessna 172), and still reds a row lost from a group it ran
+{ const B = gate(18.9); B.rows.push({ id: 'rollout|metal chase|loop', part: 'rollout', what: 'metal chase loop', value: 19.0, rule: { up: false, rel: 0.10, abs: 0.8, unit: 'ms' } });
+  const G = gate(18.9); G.meta.groups = ['cub chase'];
+  const C = TG.compare(G, B); ok(!C.red.length && C.skipped === 1, 'a baseline row of a group not run (metal chase) is skipped (' + C.skipped + '), not MISSING');
+  const G2 = gate(18.9); G2.meta.groups = ['cub chase']; G2.rows = G2.rows.filter(r => !/\|render$/.test(r.id));
+  ok(TG.compare(G2, B).red.some(r => /render/.test(r.id)), 'a row lost from a group the run ran is still MISSING'); }
 fs.rmSync(DIR, { recursive: true, force: true });
 console.log(bad ? '\nTRAIN GATE REFERENCE CHECK: ' + bad + ' FAILED' : '\nTRAIN GATE REFERENCE CHECK: PASS');
 process.exit(bad ? 1 : 0);

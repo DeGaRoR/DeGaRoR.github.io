@@ -114,6 +114,21 @@ if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<
   if (!/if \(api\.canSave\) \{ const why = api\.canSave\(name, !lsGet\(SLOT \+ name\)\); if \(why\) return void alert\(why\); \}/.test(gar)) throw new Error('garage.js: the save does not ask the page first');
   console.log('the wallet in app.js: ' + outside.length + ' calls into the economy outside its page half, every one behind CAREER_DEV; the save asks first (the sandbox: never)');
 }
+// G2742 (STORY-PAGE): THE STORY ONLY IN THE PLAYER'S CAREER - in app.js every call into the story (79_story.js) outside its
+// page half is behind CAREER_DEV; the half itself is STORY_PAGE = CAREER_DEV && CAREER_ID 'main' (the dev career ?career=1
+// keeps none: every gate's fixture career stays rail-free), its doors (window.FLYDIY_STORY, the bench's hook) behind it
+{
+  const app = pick('function setAircraft', 'app');
+  const i0 = app.indexOf("G2742-G2749 (STORY-PAGE): THE STORY'S PAGE HALF"), i1 = app.indexOf('window.FLYDIY_PLAYER = {', i0);
+  if (i0 < 0 || i1 < 0) throw new Error("app.js: the story's page half is not where this gate reads it");
+  const outside = (app.slice(0, i0) + app.slice(i1)).split('\n').filter(l => /\bstory[A-Z]\w*\(/.test(l.replace(/\/\/.*$/, '')));
+  const loose = outside.filter(l => !/CAREER_DEV/.test(l));
+  if (loose.length) throw new Error('app.js calls the story outside the CAREER_DEV guard: ' + loose.map(l => l.trim().slice(0, 90)).join(' | '));
+  if (!/const STORY_PAGE = CAREER_DEV && CAREER_ID === 'main' && typeof storyNewCareer === 'function';/.test(app)) throw new Error("app.js: the story is not the player's career's alone (STORY_PAGE)");
+  const half = app.slice(i0, i1);
+  if (!/  if \(STORY_PAGE\) window\.BENCH_CERTIFIED = storyCertified;/.test(half) || !/  if \(STORY_PAGE\) \{\n/.test(half)) throw new Error("app.js: the story's doors are not behind STORY_PAGE");
+  console.log('the story in app.js: ' + outside.length + ' calls into the story outside its page half, every one behind CAREER_DEV; the half behind STORY_PAGE (the player\'s career; ?career=1 keeps none)');
+}
 // G2345 (FREIGHT-LOAD): THE LOADING VIEW ONLY UNDER ITS FLAGS - its page half is FREIGHT_PAGE = (CAREER_DEV || FREIGHT_DEV),
 // FREIGHT_DEV ?freight=1 alone; its door, its entry's timer and the lazy view behind it; the stop record reads the
 // accepted load inside the career's half; the view itself is a lazy file (never in the page's static tags)
@@ -1209,9 +1224,8 @@ try {
     const WANT = {
       fly: ['from', 'to', 'taxi out', 'draw on the map',   // G3070: FLY > drawn route, through route_lazy.js's door
             'taxi graph', 'glide slopes', 'engine', 'lever', 'thrust', 'sync levers', 'the pilot', 'map the controls…',
-            // G2085 (PILOT-PERSONA): the personality row, every person, and the custom person's knobs (the census opens the fold)
-            'personality', 'Expert', 'Club', 'Student', 'Bush', 'Ham-fist', 'Custom', 'custom pilot', 'start from', 'reaction', 'hands', 'grip',
-            'unsteadiness', 'over-rotation', 'flare height', 'bank', 'comfort g', 'field technique', 'slips', 'step hold'],
+            // G3324: the personality row moved to DEV (PERSONA_ROWS below - the player's autopilot is the expert)
+            ],
       view: ['field of view', 'level horizon', 'lead the turn', 'free', 'small', 'show', 'large', 'north up', 'the three', 'frame rate', 'fps meter', 'screenshot'],
       sky: ['outside air', 'density altitude', 'wind', 'gusts', 'time of day', 'world'],
       graphics: ['preset'].concat(G.OPTIONS.map(o => o.label)),
@@ -1221,6 +1235,10 @@ try {
     // the covering's pills show while #bSkin does (applySkinVis hides it with no model on the stand - this stub's case)
     const skinShown = els['bSkin'] && els['bSkin'].style.display !== 'none';
     if (skinShown) WANT.dev.push('the covering', 'covered', 'frame', 'overlay');
+    // G2085 (PILOT-PERSONA) -> G3324 (the user, 19 Oct: the player's autopilot is ALWAYS the expert, the persona DEV's): the
+    // personality row, every person, and the custom person's knobs (the census opens the fold) - reached with DEV on only
+    const PERSONA_ROWS = ['personality', 'Expert', 'Club', 'Student', 'Bush', 'Ham-fist', 'Custom', 'custom pilot', 'start from', 'reaction', 'hands', 'grip',
+                          'unsteadiness', 'over-rotation', 'flare height', 'bank', 'comfort g', 'field technique', 'slips', 'step hold'];
     const reached = { rows: [], pills: [] };
     for (const it of items) {
       const c = R.census(it.k);
@@ -1233,6 +1251,21 @@ try {
       reached.rows.push(...c.rows); reached.pills.push(...c.pills);
       console.log('rail ' + it.k + (it.dev ? ' (behind the dev toggle)' : '') + ': ' + c.sections.join(' / ') + ' - ' + c.rows.length + ' rows, ' + c.pills.length + ' pills' +
                   (it.k === 'dev' && !skinShown ? ' (the covering hidden with #bSkin: no model on the stand here)' : ''));
+    }
+    // G3324: with DEV off the player's FLY has no personality row and the autopilot handed is the expert; with DEV on the
+    // whole person is there (every person and the custom person's knobs)
+    {
+      const c0 = R.census('fly'), h0 = new Set(c0.rows.concat(c0.pills));
+      if (h0.has('personality')) throw new Error('the personality row is in the player FLY with DEV off (G3324: the player flies the expert)');
+      const P = sandbox.window.FLYDIY_PERSONA;
+      if (P && P.get().profile !== 'expert') throw new Error('DEV off: the autopilot handed is ' + JSON.stringify(P.get().profile) + ', not the expert (G3324)');
+      R.dev(true);
+      const c1 = R.census('fly'), h1 = new Set(c1.rows.concat(c1.pills));
+      R.dev(false);
+      const miss = PERSONA_ROWS.filter(x => !h1.has(x));
+      if (miss.length) throw new Error('DEV on: FLY does not reach the persona: ' + miss.join(', '));
+      reached.rows.push(...c1.rows); reached.pills.push(...c1.pills);
+      console.log('the persona (G3324): DEV off - none, the expert flies; DEV on - ' + PERSONA_ROWS.length + ' rows and pills');
     }
     if (R.current() !== null) throw new Error('the census left a flyout open (' + R.current() + ')');
     // G3070 (ROUTE-LAZY): FLY > drawn route unfolded (the census opens every fold) is the drawing's first demand: its file

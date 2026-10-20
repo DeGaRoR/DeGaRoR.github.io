@@ -2889,8 +2889,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                       // G468: where this rig's sole sits, in the anchor's frame
                       fixF: j.fixF ? j.fixF.toArray() : null });
         }
-        people.push({ key: L.key, role: L.role, idx: L.idx, s: L.s, palm: L.palm,
-                      fist: L.fist, anim: L.anim, figM, bones, jobs });
+        people.push(Object.assign({ key: L.key, role: L.role, idx: L.idx, s: L.s, palm: L.palm,
+                      fist: L.fist, anim: L.anim, figM, bones, jobs },
+                    // G2797: each hand's own fist and grip, when the hands are set apart
+                    L.fistL != null ? { fistL: L.fistL, fistR: L.fistR,
+                                        palmL: L.palmL, palmR: L.palmR } : {}));
       }
     } catch (e) { console.warn('live crew:', e); }
     // the panel arc (session 4): the positions the light switches were
@@ -2900,8 +2903,16 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const Pl = window.CAGE_UI && window.CAGE_UI.P;
       if (Pl) {
         lights.on = !!+Pl.lightOn;
-        for (const k of ['taxi', 'beacon', 'land', 'nav', 'flood', 'instr', 'pedal', 'pax'])
-          lights[k] = +Pl['li_' + k] || 0;
+        // G2796: a light the builder took off is OFF and named, so the flight
+        // puts no load for it on the bus; a build with every light fitted
+        // exports exactly what it always did (no `unfit` at all)
+        const unfit = [];
+        for (const k of ['taxi', 'beacon', 'land', 'nav', 'flood', 'instr', 'pedal', 'pax']) {
+          const f = Pl['li_' + k + 'Fit'] == null || !!+Pl['li_' + k + 'Fit'];
+          lights[k] = f ? (+Pl['li_' + k] || 0) : 0;
+          if (!f) unfit.push(k);
+        }
+        if (unfit.length) lights.unfit = unfit;
       }
     } catch (e) {}
     // G266.1: THE DRAWN TAIL, in the frame every baked vertex is in

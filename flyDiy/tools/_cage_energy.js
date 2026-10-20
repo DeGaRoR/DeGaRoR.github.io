@@ -198,6 +198,10 @@ function measureBays(S, ctx) {
   const out = [];
   if (!C.BAYS || !C.bayResolve || !S) return out;
   const FS = fsOf(ctx);
+  // the datum, read once for every body bay (G2799: it was read per bay)
+  let zFwM;
+  const zFwOf = () => zFwM !== undefined ? zFwM
+    : (zFwM = VG() && VG().firewallZ ? VG().firewallZ(ctx.spec, CG2()) : null);
   for (const k in C.BAYS) {
     const B = C.BAYS[k];
     if (B.on === 'wing' && !(S.wing && window.CAGE_WING)) continue;
@@ -210,7 +214,7 @@ function measureBays(S, ctx) {
     try { r = C.bayResolve(S, k, null); } catch (e) { r = null; }
     if (!r) continue;
     if (r.on === 'body' && ctx.mesh && BAY()) {
-      const zFw = VG() && VG().firewallZ ? VG().firewallZ(ctx.spec, CG2()) : null;
+      const zFw = zFwOf();
       const key = bayKey(r, zFw);
       if (key in FIELD_L) { r.litresField = FIELD_L[key]; }
       else try {
@@ -229,6 +233,11 @@ function measureBays(S, ctx) {
       if (!(key in FIELD_L)) FIELD_L[key] = r.litresField;
     }
     r.roomL = r.litresField != null ? r.litresField : r.litres;
+    // G2799: a bay that holds a vessel is swept now rather than in the layout
+    // (the same sweep, read back there), so the panel drawn before the layout
+    // shows its fore/aft slider over the hand's range
+    if (r.on === 'body' && ctx.mesh && VG() && EN.vessels.some(v => v.bay === k))
+      bayCacheOf(ctx, r, zFwOf());
     out.push(r);
   }
   return out;
@@ -352,6 +361,34 @@ function wingSlicer(ctx, inv, plane) {
 // picture showed the bulkhead: one tank, one place. A grid search that walked
 // the bay for a crew-clear cell lived here for an afternoon; the user's call
 // was that it was too picky, and that the player places the tank themselves.
+// ONE SWEEP PER BAY PER BODY (placeAll's, hoisted for G2799: measureBays asks
+// it first for every bay that holds a vessel, so the panel drawn before the
+// layout already shows the clamped bay and the hand's range; the sweep is the
+// same one, under the same key, so placeAll reads it back and sweeps nothing)
+function bayCacheOf(ctx, bay, zFw) {
+  const G = VG(), FS = fsOf(ctx);
+  if (bay.on !== 'body') return null;
+  // the key is the RULE's limits, taken once per bay object: the clamp
+  // below rewrites x0/x1, and a second vessel in the same bay must not
+  // read a different key off the clamped numbers and sweep again
+  if (!bay._ck) bay._ck = bayKey(bay, zFw);
+  if (!(bay._ck in BAY_CACHES))
+    BAY_CACHES[bay._ck] = G.bayCache ? G.bayCache(ctx.mesh, FS, bay, 0.035, zFw, 0.7) : null;
+  const c = BAY_CACHES[bay._ck];
+  // THE BAY IS CLAMPED TO THE BODY THE FIELD DESCRIBES. The rule's front
+  // limit is a measured deck length; where the field stops describing
+  // the deck (the firewall face) the bay stops too, so a default and a
+  // slider both start at a station a tank can actually be at. Every
+  // call, not only the sweeping one: BAYS is measured afresh each build
+  // and the clamp lives on the bay object, not in the cache.
+  if (c && c.axisMin != null && c.axisMin > bay.x0) bay.x0 = c.axisMin + 0.01;
+  if (c && c.axisMax != null && c.axisMax < bay.x1) bay.x1 = c.axisMax - 0.01;
+  // G2799: the HAND's range, wider than the rule's (VESSEL_GEN.handRange):
+  // the fore/aft slider and the readout read it, the defaults never do
+  const h = G.handRange ? G.handRange(bay, c) : null;
+  if (h) { bay.hx0 = h[0]; bay.hx1 = h[1]; }
+  return c;
+}
 function placeAll(ctx, inv) {
   const C = core(), G = VG();
   const results = [];
@@ -363,25 +400,7 @@ function placeAll(ctx, inv) {
   // the layout, a few ms with it hoisted — and then 1.3 s per tick again
   // once every build emptied the map. PAGE.post empties it when the BODY
   // SIGNATURE changes, which is the only time the body changes.
-  const cacheOf = bay => {
-    if (bay.on !== 'body') return null;
-    // the key is the RULE's limits, taken once per bay object: the clamp
-    // below rewrites x0/x1, and a second vessel in the same bay must not
-    // read a different key off the clamped numbers and sweep again
-    if (!bay._ck) bay._ck = bayKey(bay, zFw);
-    if (!(bay._ck in BAY_CACHES))
-      BAY_CACHES[bay._ck] = G.bayCache ? G.bayCache(ctx.mesh, FS, bay, 0.035, zFw, 0.7) : null;
-    const c = BAY_CACHES[bay._ck];
-    // THE BAY IS CLAMPED TO THE BODY THE FIELD DESCRIBES. The rule's front
-    // limit is a measured deck length; where the field stops describing
-    // the deck (the firewall face) the bay stops too, so a default and a
-    // slider both start at a station a tank can actually be at. Every
-    // call, not only the sweeping one: BAYS is measured afresh each build
-    // and the clamp lives on the bay object, not in the cache.
-    if (c && c.axisMin != null && c.axisMin > bay.x0) bay.x0 = c.axisMin + 0.01;
-    if (c && c.axisMax != null && c.axisMax < bay.x1) bay.x1 = c.axisMax - 0.01;
-    return c;
-  };
+  const cacheOf = bay => bayCacheOf(ctx, bay, zFw);
   const FS = fsOf(ctx);
   const W = window.CAGE_WING;
   const semi = W ? (W.semi || (W.def && W.def.spec && W.def.spec.geom && W.def.spec.geom.semi) || 0) : 0;
@@ -439,12 +458,21 @@ function placeAll(ctx, inv) {
         const len = Math.hypot(ax[0], ax[1], ax[2]) || 1e-6;
         const u = ax.map(q => q / len);
         const c = [s.pin[0] + ax[0] * t0, s.pin[1] + ax[1] * t0, s.pin[2] + ax[2] * t0];
-        pods.push({ sign: k === 'L' ? -1 : 1, c, axis: u, L: dims.L, D: dims.W, len, t: t0 });
+        // G2793 (the user's garage review, 18 Oct: "strut-mounted tanks: the
+        // ogive's long axis along the line of flight, not along the strut"):
+        // the pod is hung on the strut at `along`, its axis fore-aft (+z).
+        // Its centre stays ON the strut, so the frame's billing on the
+        // strut's end nodes (61_gen_frame.js, the `along` lever) is still
+        // where the pod is drawn.
+        pods.push({ sign: k === 'L' ? -1 : 1, c, axis: [0, 0, 1], L: dims.L, D: dims.W, len, t: t0,
+                    yFoot: s.pin[1], yTop: s.tip[1] });
       }
       if (!pods.length) why.push('no lift strut to hang it on');
+      // the clearances, now across the pod's girth: its round body must clear
+      // the body at the strut's foot and the wing at its top by a hand
       for (const pd of pods) {
-        if (pd.t * pd.len - pd.L / 2 < 0.05) { why.push('into the body at the foot'); break; }
-        if ((1 - pd.t) * pd.len - pd.L / 2 < 0.05) { why.push('into the wing at the top'); break; }
+        if (pd.c[1] - pd.D / 2 - pd.yFoot < 0.05) { why.push('into the body at the foot'); break; }
+        if (pd.yTop - (pd.c[1] + pd.D / 2) < 0.05) { why.push('into the wing at the top'); break; }
       }
       pl = { on: 'strut', ok: !why.length, why, pods, along: t0 };
     } else if (bay.on === 'wing') {
@@ -496,7 +524,10 @@ function placeAll(ctx, inv) {
       // before a bay rule moved (the bench kept a nose tank at 1.08 m after
       // the nose bay became the cowl deck) would be reported as "past the
       // body" forever; it takes the rule again instead, like a new vessel.
-      if (v.along != null && (v.along < bay.x0 - dims.L || v.along > bay.x1 + dims.L)) {
+      // (G2799: past the HAND's range, which holds the rule's, so a station
+      // the player put out there is theirs)
+      if (v.along != null && (v.along < Math.min(bay.x0, bay.hx0 != null ? bay.hx0 : bay.x0) - dims.L ||
+                              v.along > Math.max(bay.x1, bay.hx1 != null ? bay.hx1 : bay.x1) + dims.L)) {
         v.along = null; v.lv = null;
       }
       // THE CATALOGUE SHAPE CANNOT FIT THIS BAY EITHER WAY ROUND: give the
@@ -1369,7 +1400,7 @@ function drawResults(group, ctx, results) {
         if (mf && bad) mf.userData.edUnfit = 1;
       }
     } else if (r.on === 'strut' && r.pods && window.THREE) {
-      // G477: the ogive pod, a lathe on the strut's axis — r = R (1 - (2u-1)^2)^0.65
+      // G477: the ogive pod, a lathe on its axis (fore-aft since G2793) — r = R (1 - (2u-1)^2)^0.65
       const T3 = window.THREE;
       for (const pd of r.pods) {
         const NP = 18, pts = [];
@@ -2235,7 +2266,7 @@ function renderPanel() {
       const podRow = (label, key, lo, hi, title) => range(box, label, title, lo, hi, 0.01, cur()[key], fmtM,
         x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; relayout(); syncCap(); },
         x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; commitSoon(); });
-      podRow('length', 'L', 0.3, 2.0, 'along the strut');
+      podRow('length', 'L', 0.3, 2.0, 'along the line of flight');
       podRow('diameter', 'W', 0.1, 0.6, 'the pod: its girth');
       range(box, 'up the strut', 'where the pod sits, as a fraction of the strut from its foot on the body (0) to the wing (1)',
         bay.span[0], bay.span[1], 0.01, v.along != null ? v.along : 0.5 * (bay.span[0] + bay.span[1]), fmtF,
@@ -2252,7 +2283,7 @@ function renderPanel() {
                commitSoon(); });
       const secW = LAST.results[i] && LAST.results[i].section
         ? Math.max(0.3, LAST.results[i].section.xHi - LAST.results[i].section.xLo) : 1.2;
-      sizeRow('length', 'L', Math.max(0.4, bay.x1 - bay.x0), 'along the body');
+      sizeRow('length', 'L', Math.max(0.4, (bay.hx1 != null ? bay.hx1 : bay.x1) - (bay.hx0 != null ? bay.hx0 : bay.x0)), 'along the body');
       sizeRow('width', 'W', secW, 'across the body');
       sizeRow('height', 'H', 1.0, 'up');
     }
@@ -2270,8 +2301,12 @@ function renderPanel() {
         x => { v.along = x; relayout(); }, x => { v.along = x; commitSoon(); });
     } else if (bay) {
       const dflt = 0.5 * (bay.x0 + bay.x1);
+      // G2799: the slider spans the HAND's range (the rule's, plus a reach
+      // the swept field still measures); a new tank still starts in the bay
+      const hx0 = bay.hx0 != null ? bay.hx0 : bay.x0, hx1 = bay.hx1 != null ? bay.hx1 : bay.x1;
       range(box, 'fore / aft', 'metres aft of the firewall — the bay runs ' +
-        bay.x0.toFixed(2) + ' to ' + bay.x1.toFixed(2) + ' m', bay.x0, bay.x1,
+        bay.x0.toFixed(2) + ' to ' + bay.x1.toFixed(2) + ' m, the tank can go ' +
+        hx0.toFixed(2) + ' to ' + hx1.toFixed(2) + ' m', hx0, hx1,
         0.01, v.along != null ? v.along : dflt, fmtM,
         x => { v.along = x; relayout(); }, x => { v.along = x; commitSoon(); });
       const lvB = bay.lv || [0, 1];

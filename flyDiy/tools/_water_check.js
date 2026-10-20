@@ -394,7 +394,10 @@ console.log('\n6. THE SPRAY');
 {
   const SP = require('../src/viewer/spray.js'); const app = src('src/viewer/app.js'), b = src('tools/build.js');
   verdict(typeof SP.make === 'function' && SP.KIND && SP.KIND.droplet && SP.KIND.puff, 'spray.js loads headless: make + the two kinds');
-  for (const k of ['droplet', 'puff']) { const K = SP.KIND[k];
+  // G2838: kind 1 ('puff') is the HEAVY DROP - ballistic, never growing - and a faint mist (kind 2) rides with a quarter of them
+  verdict(SP.KIND.puff.gravity === 1 && SP.KIND.puff.grow === 1 && SP.KIND.puff.drag < 1 && SP.KIND.puff.size[1] < 0.1 && SP.KIND.mist && SP.KIND.mist.id === 2 && /kind < 1\.5/.test(SP.GLSL.frag) && /iA\.w < 1\.5/.test(SP.GLSL.vert) && /WTi\.stamp\(D\.p\[q \* 3\], D\.p\[q \* 3 \+ 2\], 0\.2 \+ 3 \* D\.size\[q\], -0\.01, 0\.5, 'ring'\)/.test(app),
+    `the puff is a heavy drop (gravity ${SP.KIND.puff.gravity}, grow ${SP.KIND.puff.grow}, ${SP.KIND.puff.size.join('-')} m), streaked, ringing the water where it lands; a faint mist beside`);
+  for (const k of ['droplet', 'puff', 'mist']) { const K = SP.KIND[k];
     verdict(K.life[0] > 0 && K.life[1] >= K.life[0] && K.size[0] > 0 && K.size[1] >= K.size[0] && K.grow >= 1 && K.drag >= 0 && K.gravity >= 0 && K.gravity <= 1, `${k}: life ${K.life.join('-')} s, size ${K.size.join('-')} m, grow ${K.grow}, drag ${K.drag}, gravity ${K.gravity}`); }
   // the log-depth chunks: the renderer runs a logarithmic depth buffer and a ShaderMaterial without them fails every depth test (h7t: nothing drew)
   verdict(/#include <logdepthbuf_pars_vertex>/.test(SP.GLSL.vert) && /#include <logdepthbuf_vertex>/.test(SP.GLSL.vert) && /#include <logdepthbuf_pars_fragment>/.test(SP.GLSL.frag) && /#include <logdepthbuf_fragment>/.test(SP.GLSL.frag), 'the sprite shader splices the log-depth chunks (both stages)');
@@ -406,7 +409,12 @@ console.log('\n6. THE SPRAY');
   verdict(/F\.sta\[0\]\.K/.test(app) && /'press'\); \}/.test(app), 'the bow wave: a press ahead of the stem while under way');
   // THE CHINE SHEETS (G460.10): a parametric surface per chine off the spray-root stations, the droplets off its edge
   verdict(typeof SP.makeSheets === 'function' && /#include <logdepthbuf_vertex>/.test(SP.GLSL.sheetVert) && /#include <logdepthbuf_fragment>/.test(SP.GLSL.sheetFrag) && /#include <tonemapping_fragment>/.test(SP.GLSL.sheetFrag), 'spray.js makes the chine sheets (log-depth + tone-mapping chunks)');
-  verdict(/SPRAY\.makeSheets\(THREE, nF \* 2, 8, 6\)/.test(app) && /F\._chineSta/.test(app) && /SH\.set\(si, roots, \[ox, 0, oz\], \[0, 1, 0\], uo, uu, strength\)/.test(app) && /D\.sheets\.commit\(waterFx\.t\)/.test(app), 'app.js builds two sheets per float off the wet chine stations and commits them each frame');
+  // THE SHEETS REFINED (G2837, the user 18 Oct: "too low poly model, too flat, not transparent enough"): three layers, a smooth
+  // resample of the roots, a thin film's alpha (clear face-on, denser at grazing), soft at the waterline, the translucent sun
+  { const S2 = require('../src/viewer/spray.js'), fr = S2.GLSL.sheetFrag, vt = S2.GLSL.sheetVert;
+    verdict(/attribute float aL;/.test(vt) && /varying vec3 vVP;/.test(vt) && /float graze = pow\(1\.0 - abs\(dot\(N, Vd\)\), 1\.3\);/.test(fr) && /float root = smoothstep\(0\.0, 0\.07, v\);/.test(fr) && /float through = pow\(max\(0\.0, dot\(-Vd, uSunV\)\), 5\.0\);/.test(fr) && /float speck = /.test(fr),
+      'the chine sheets: three layers, a thin film (clear face-on, dense at grazing), soft at the waterline, torn into speckle, the sun through them'); }
+  verdict(/SPRAY\.makeSheets\(THREE, nF \* 2, 24, 14\)/.test(app) && /F\._chineSta/.test(app) && /SH\.set\(si, roots, \[ox, 0, oz\], \[0, 1, 0\], uo, uu, strength\)/.test(app) && /D\.sheets\.commit\(waterFx\.t\)/.test(app), 'app.js builds two sheets per float off the wet chine stations and commits them each frame');
   verdict(/uu - 9\.81 \* t \+ 0\.3 \* Math\.random\(\)/.test(app), "the droplets peel off the sheet's far edge with its velocity");
   // THE FLOAT TRUSS REACHES THE GAME (G460.10, the user: "the cessna does not draw its float support structure")
   const join = src('tools/_cage_join.js');

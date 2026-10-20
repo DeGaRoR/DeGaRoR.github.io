@@ -24,7 +24,7 @@
 //     logarithmic depth buffer and a ShaderMaterial without them writes a linear depth into it
 //     - every sprite failed the test against the water and nothing drew), no depth write, fading in over the first tenth of its life and
 //     out over the last 40 %, growing with age (a droplet cloud expands as it falls).
-//   Two kinds: DROPLETS (kind 0: 1-4 cm radius, 0.6-1.0 s, ballistic, streaked) and PUFFS (kind 1:
+//   (G2838: kind 1 is now the HEAVY DROP and kind 2 a faint MIST - see KIND.) Two kinds: DROPLETS (kind 0: 1-4 cm radius, 0.6-1.0 s, ballistic, streaked) and PUFFS (kind 1:
 //   0.2-0.5 m, 1.2-2.0 s, drag-damped, near-weightless mist that hangs where the splash was;
 //   few - a first cut at 0.9 m and one per 7 droplets buried the floats in a cloud, h7v/run6).
 // The emitters and the integration stay in app.js (syncWaterFx - the hydro's own numbers);
@@ -50,7 +50,7 @@
       vec2 ax = sp > 0.05 ? vv.xy / sp : vec2(1.0, 0.0);
       vec2 ay = vec2(-ax.y, ax.x);
       float s = iA.y;
-      float len = s + min(0.35, sp * uStretch) * (iA.w < 0.5 ? 1.0 : 0.15);
+      float len = s + min(0.35, sp * uStretch) * (iA.w < 1.5 ? 1.0 : 0.15);   // (G2838: the heavy drop streaks like a droplet; the mist barely)
       vec2 c = (uv - 0.5);
       vp.xy += ax * c.x * len * 2.0 + ay * c.y * s * 2.0;
       gl_Position = projectionMatrix * vp;
@@ -72,12 +72,13 @@
       if (d2 > 1.0) discard;
       float age = vA.x, seed = vA.z, kind = vA.w;
       // the sprite: a soft disc torn by noise - more torn for a puff, and the tear drifts with age
-      vec2 np = vUv * (kind < 0.5 ? 3.0 : 4.5) + seed * 37.0 + age * 0.8;
+      bool drop = kind < 1.5;   // (G2838: kinds 0 and 1 are water drops; kind 2 the faint mist)
+      vec2 np = vUv * (drop ? 3.0 : 4.5) + seed * 37.0 + age * 0.8;
       float n = 0.65 * vnoise(np) + 0.35 * vnoise(np * 2.3 + 11.0);
-      float tear = kind < 0.5 ? smoothstep(0.15, 0.9, n) : smoothstep(0.18, 0.75, n * (1.0 - 0.35 * d2));
-      float disc = smoothstep(1.0, kind < 0.5 ? 0.25 : 0.05, d2);
-      float fade = smoothstep(0.0, 0.1, age) * (1.0 - smoothstep(0.6, 1.0, age));
-      float a = disc * tear * fade * uOpacity * (kind < 0.5 ? 0.45 : 0.24) * (0.6 + 0.4 * hash(vec2(seed, 3.1)));   // every particle its own density
+      float tear = drop ? smoothstep(kind < 0.5 ? 0.15 : 0.1, 0.9, n) : smoothstep(0.18, 0.75, n * (1.0 - 0.35 * d2));
+      float disc = smoothstep(1.0, drop ? (kind < 0.5 ? 0.25 : 0.35) : 0.05, d2);
+      float fade = smoothstep(0.0, 0.1, age) * (1.0 - smoothstep(drop ? 0.75 : 0.6, 1.0, age));
+      float a = disc * tear * fade * uOpacity * (kind < 0.5 ? 0.45 : kind < 1.5 ? 0.6 : 0.07) * (0.6 + 0.4 * hash(vec2(seed, 3.1)));   // every particle its own density
       if (a < 0.004) discard;
       // lit as white water: a sphere normal on the sprite, the sun wrapped, the sky's hemisphere,
       // and a forward-scatter lobe when the sun is behind it
@@ -86,7 +87,7 @@
       vec3 V = vec3(0.0, 0.0, 1.0);
       float back = pow(max(0.0, dot(-uSunV, V)), 6.0);
       vec3 col = 0.9 * (uSunCol * 0.65 * (0.25 + 0.75 * ndl * ndl) + uSkyCol * 0.9) / 3.14159265;   // thin water: two thirds of the foam's sun
-      col += uSunCol * back * 0.12 * (1.0 - disc * 0.5);
+      col += uSunCol * back * (kind > 0.5 && kind < 1.5 ? 0.4 : 0.12) * (1.0 - disc * 0.5);   // (G2838: a heavy drop backlit glows - bright, not a grey cloud)
       gl_FragColor = vec4(col, a);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -136,17 +137,30 @@
   // material of the sprites' family: procedural streaks along v torn by noise, thinning toward the edge
   // and the root's ends, lit as white water, alpha-blended, log-depth. The droplets peel off the sheet's
   // far edge (app.js emits them at v = 1 with the sheet's velocity); the puffs stay under it.
-  //   SPRAY.makeSheets(THREE, n, NU, NV) -> { mesh, n, NU, NV, set(i, rootPts, out, up, uo, uu, strength), hide(i), commit(), light(...), dispose() }
+  // THE CHINE SHEETS, REFINED (G2837, the user 18 Oct: "the side splash, the one doing like arches on the sides at high
+  // speed ... looks cheap, too low poly model, too flat, not transparent enough. Just like a first draft"). What changed:
+  //   - SHAPE: 24 x 16 vertices a layer (was 8 x 6: the arch read as facets); the throw FLARES aft along the chine (the aft
+  //     stations' water leaves faster and wider, as the step's does) and rises highest mid-chine, so the curtain is curved
+  //     both ways, not a bent card;
+  //   - VOLUME: three layers a sheet - the speeds spread (0.82 / 1.0 / 1.15 outward, 1.12 / 1.0 / 0.85 up) and the roots offset
+  //     outward a few cm - a curtain with depth: the eye sees the layers part toward the tip, where the water breaks up;
+  //   - TRANSPARENCY: a thin film - nearly clear seen face-on, denser at grazing (the path through the film), soft at the
+  //     waterline (no hard seam on the sea), the tip and the ends; each layer at a third of the old alpha (three overlap);
+  //   - BREAKUP: domain-warped streaks running with the flow, tearing into droplet speckle toward the edge;
+  //   - LIGHT: the white-water Lambert under the sky as before, plus TRANSLUCENCY - the sun behind the sheet glows through it.
+  //   SPRAY.makeSheets(THREE, n, NU, NV) -> { mesh, n, NU, NV, NL, set(i, rootPts, out, up, uo, uu, strength), hide(i), commit(), light(...), dispose() }
   const SHEET_VERT = `
     precision highp float;
     #include <common>
     #include <logdepthbuf_pars_vertex>
     attribute vec3 aQ;             // u, v, strength
-    varying vec3 vQ; varying vec3 vN;
+    attribute float aL;            // the layer (0, 0.5, 1): the noise's seed and its share of the alpha
+    varying vec3 vQ; varying vec3 vN; varying vec3 vVP; varying float vL;
     void main() {
-      vQ = aQ;
+      vQ = aQ; vL = aL;
       vN = normalize(normalMatrix * normal);
       vec4 vp = modelViewMatrix * vec4(position, 1.0);
+      vVP = vp.xyz;
       gl_Position = projectionMatrix * vp;
       #include <logdepthbuf_vertex>
     }`;
@@ -154,75 +168,101 @@
     precision highp float;
     #include <common>
     #include <logdepthbuf_pars_fragment>
-    varying vec3 vQ; varying vec3 vN;
+    varying vec3 vQ; varying vec3 vN; varying vec3 vVP; varying float vL;
     uniform vec3 uSunV; uniform vec3 uSunCol; uniform vec3 uSkyCol; uniform float uOpacity; uniform float uTime;
     float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
     float vnoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
       return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
+    float fbm(vec2 p) { return 0.5 * vnoise(p) + 0.3 * vnoise(p * 2.03 + 5.2) + 0.2 * vnoise(p * 4.11 + 1.7); }
     void main() {
       #include <logdepthbuf_fragment>
       float u = vQ.x, v = vQ.y, s = vQ.z;
-      // the sheet: solid near the root, streaking and tearing toward its edge; the streaks run with the flow
-      vec2 np = vec2(u * 14.0, v * 2.5 - uTime * 2.0);
-      float streak = 0.55 * vnoise(np) + 0.3 * vnoise(np * vec2(2.0, 1.3) + 7.0) + 0.15 * vnoise(np * vec2(4.0, 1.0) + 3.0);
-      float body = 1.0 - smoothstep(0.35, 1.0, v);                     // thins along the flight
-      float tear = smoothstep(0.25 + 0.55 * v, 0.9, streak);             // torn more the farther out
-      float ends = smoothstep(0.0, 0.12, u) * smoothstep(1.0, 0.85, u); // the root line's ends feather
-      float a = (0.25 + 0.75 * body) * mix(1.0, tear, smoothstep(0.1, 0.6, v)) * ends * s * uOpacity * 0.85;
-      if (a < 0.004) discard;
-      vec3 N = gl_FrontFacing ? vN : -vN;
+      // the streaks run with the flow (v), warped so they wander and part; each layer its own field
+      vec2 np = vec2(u * 26.0 + vL * 17.0, v * 3.2 - uTime * 2.4);
+      vec2 wp = vec2(fbm(np * 0.45 + vec2(3.1, uTime * 0.7)), fbm(np * 0.45 + vec2(8.7, -uTime * 0.5)));
+      float streak = fbm(np + 1.6 * (wp - 0.5));
+      float body = 1.0 - smoothstep(0.3, 1.0, v);                                   // thins along its flight
+      float tear = smoothstep(0.30 + 0.45 * v, 0.80 + 0.12 * v, streak);           // torn more the farther out
+      float film = mix(1.0, tear, smoothstep(0.08, 0.55, v));
+      // the droplets the torn edge breaks into: a fine speckle past mid-flight, moving faster than the sheet
+      float speck = smoothstep(0.72, 0.9, vnoise(vec2(u * 140.0 + vL * 31.0, v * 55.0 - uTime * 7.0))) * smoothstep(0.45, 0.8, v) * (1.0 - smoothstep(0.92, 1.0, v));
+      float ends = smoothstep(0.0, 0.14, u) * smoothstep(1.0, 0.82, u);           // the root line's ends feather
+      float root = smoothstep(0.0, 0.07, v);                                        // soft at the waterline (no seam on the sea)
+      float tip = 1.0 - smoothstep(0.86, 1.0, v);
+      // a thin film: nearly clear seen face-on, denser at grazing (the path length through it)
+      vec3 N = normalize(gl_FrontFacing ? vN : -vN), Vd = normalize(-vVP);
+      float graze = pow(1.0 - abs(dot(N, Vd)), 1.3);
+      float thick = mix(0.30, 1.0, graze);
+      float a = ((0.12 + 0.38 * body) * film * thick + 0.35 * speck) * ends * root * tip * s * uOpacity * mix(0.45, 0.32, vL);
+      if (a < 0.003) discard;
+      // white water under the sky: a wrapped Lambert from the sun, the sky's hemisphere, and the sun THROUGH the film
+      // (translucency: the sun behind the sheet, toward the eye - the backlit fan that glows on a real run)
       float ndl = dot(N, uSunV) * 0.5 + 0.5;
-      float back = pow(max(0.0, dot(-uSunV, vec3(0.0, 0.0, 1.0))), 6.0);
-      vec3 col = 0.9 * (uSunCol * 0.65 * (0.3 + 0.7 * ndl) + uSkyCol * 0.9) / 3.14159265 + uSunCol * back * 0.1;
+      float through = pow(max(0.0, dot(-Vd, uSunV)), 5.0);
+      vec3 col = 0.9 * (uSunCol * 0.6 * (0.25 + 0.75 * ndl) + uSkyCol * 0.95) / 3.14159265 + uSunCol * through * (0.18 + 0.25 * (1.0 - film));
       gl_FragColor = vec4(col, a);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }`;
+  // the layers: their outward and upward speeds' factors and the roots' outward offset (m) - a curtain with depth
+  const SHEET_LAYERS = [{ so: 1.0, su: 1.0, off: 0.0 }, { so: 0.82, su: 1.12, off: 0.05 }, { so: 1.15, su: 0.85, off: 0.11 }];
   function makeSheets(THREE, n, NU, NV) {
-    NU = NU || 8; NV = NV || 6;
-    const per = NU * NV, g = new THREE.BufferGeometry();
-    const pos = new Float32Array(n * per * 3), nrm = new Float32Array(n * per * 3), q = new Float32Array(n * per * 3);
-    for (let i = 0; i < n * per; i++) pos[i * 3 + 1] = -1e4;
+    NU = NU || 24; NV = NV || 16;
+    const NL = SHEET_LAYERS.length, per = NU * NV, perS = per * NL, g = new THREE.BufferGeometry();
+    const pos = new Float32Array(n * perS * 3), nrm = new Float32Array(n * perS * 3), q = new Float32Array(n * perS * 3), lay = new Float32Array(n * perS);
+    for (let i = 0; i < n * perS; i++) pos[i * 3 + 1] = -1e4;
     const idx = [];
-    for (let s = 0; s < n; s++) for (let iu = 0; iu + 1 < NU; iu++) for (let iv = 0; iv + 1 < NV; iv++) {
-      const a = s * per + iu * NV + iv, b = a + NV;
+    for (let s = 0; s < n; s++) for (let l = 0; l < NL; l++) for (let iu = 0; iu + 1 < NU; iu++) for (let iv = 0; iv + 1 < NV; iv++) {
+      const a = s * perS + l * per + iu * NV + iv, b = a + NV;
       idx.push(a, b, a + 1, b, b + 1, a + 1);
     }
+    for (let s = 0; s < n; s++) for (let l = 0; l < NL; l++) lay.fill(l / Math.max(1, NL - 1), s * perS + l * per, s * perS + (l + 1) * per);
     g.setIndex(idx);
     const aP = new THREE.BufferAttribute(pos, 3), aN = new THREE.BufferAttribute(nrm, 3), aQ = new THREE.BufferAttribute(q, 3);
     aP.setUsage(THREE.DynamicDrawUsage); aN.setUsage(THREE.DynamicDrawUsage); aQ.setUsage(THREE.DynamicDrawUsage);
-    g.setAttribute('position', aP); g.setAttribute('normal', aN); g.setAttribute('aQ', aQ);
+    g.setAttribute('position', aP); g.setAttribute('normal', aN); g.setAttribute('aQ', aQ); g.setAttribute('aL', new THREE.BufferAttribute(lay, 1));
     const mat = new THREE.ShaderMaterial({ vertexShader: SHEET_VERT, fragmentShader: SHEET_FRAG, transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide,
       uniforms: { uSunV: { value: new THREE.Vector3(0, 0, 1) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uSkyCol: { value: new THREE.Color(0.5, 0.6, 0.7) }, uOpacity: { value: 1 }, uTime: { value: 0 } } });
     mat.toneMapped = true;
     const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.renderOrder = 3;
     const sunW = new THREE.Vector3(), G = 9.81;
-    const tmpA = [0, 0, 0], tmpB = [0, 0, 0];
+    const tmpA = [0, 0, 0], tmpB = [0, 0, 0], rr = [];
+    // the roots resampled to NU points along the chine (Catmull-Rom through the given ones: any count >= 2)
+    const rootAt = (R, f, o) => { const m = R.length - 1, x = Math.max(0, Math.min(m, f * m)), i = Math.min(m - 1, Math.floor(x)), t = x - i;
+      const p0 = R[Math.max(0, i - 1)], p1 = R[i], p2 = R[Math.min(m, i + 1)], p3 = R[Math.min(m, i + 2)], t2 = t * t, t3 = t2 * t;
+      for (let c = 0; c < 3; c++) o[c] = 0.5 * (2 * p1[c] + (-p0[c] + p2[c]) * t + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * t2 + (-p0[c] + 3 * p1[c] - 3 * p2[c] + p3[c]) * t3);
+      return o; };
     const api = {
-      mesh, n, NU, NV,
-      // set(i, roots, out, up, uo, uu, strength): roots = NU points [x, y, z] along the chine (fore to aft),
+      mesh, n, NU, NV, NL,
+      // set(i, roots, out, up, uo, uu, strength): roots = points [x, y, z] along the chine (fore to aft, any count >= 2),
       // out/up unit vectors, uo/uu the sheet's outward and upward speeds (m/s), strength 0..1 (the pressure's)
       set(i, roots, out, up, uo, uu, strength) {
-        const T = Math.max(0.05, 2 * uu / G), o = i * per;
-        for (let iu = 0; iu < NU; iu++) {
-          const r = roots[iu];
-          for (let iv = 0; iv < NV; iv++) {
-            const v = iv / (NV - 1), t = v * T, k = o + iu * NV + iv;
-            const ho = uo * t, hv = uu * t - 0.5 * G * t * t;
-            pos[k * 3] = r[0] + out[0] * ho + up[0] * hv; pos[k * 3 + 1] = r[1] + out[1] * ho + up[1] * hv; pos[k * 3 + 2] = r[2] + out[2] * ho + up[2] * hv;
-            q[k * 3] = iu / (NU - 1); q[k * 3 + 1] = v; q[k * 3 + 2] = strength;
+        if (!roots || roots.length < 2) { api.hide(i); return; }
+        for (let iu = 0; iu < NU; iu++) rr[iu] = rootAt(roots, iu / (NU - 1), rr[iu] || [0, 0, 0]);
+        for (let l = 0; l < NL; l++) {
+          const L = SHEET_LAYERS[l], o = i * perS + l * per;
+          for (let iu = 0; iu < NU; iu++) {
+            const u = iu / (NU - 1), r = rr[iu];
+            const uoU = uo * L.so * (0.8 + 0.4 * u), uuU = uu * L.su * (0.85 + 0.3 * Math.sin(Math.PI * u));   // aft flares, mid rises
+            const T = Math.max(0.05, 2 * uuU / G);
+            for (let iv = 0; iv < NV; iv++) {
+              const v = iv / (NV - 1), t = v * T, k = o + iu * NV + iv;
+              const ho = uoU * t + L.off, hv = uuU * t - 0.5 * G * t * t;
+              pos[k * 3] = r[0] + out[0] * ho + up[0] * hv; pos[k * 3 + 1] = r[1] + out[1] * ho + up[1] * hv; pos[k * 3 + 2] = r[2] + out[2] * ho + up[2] * hv;
+              q[k * 3] = u; q[k * 3 + 1] = v; q[k * 3 + 2] = strength;
+            }
+          }
+          // the normal: the sheet's tangents crossed (along u by the roots, along v by the flight)
+          for (let iu = 0; iu < NU; iu++) for (let iv = 0; iv < NV; iv++) {
+            const k = o + iu * NV + iv, ku = o + Math.min(NU - 1, iu + 1) * NV + iv, ku0 = o + Math.max(0, iu - 1) * NV + iv, kv = o + iu * NV + Math.min(NV - 1, iv + 1), kv0 = o + iu * NV + Math.max(0, iv - 1);
+            tmpA[0] = pos[ku * 3] - pos[ku0 * 3]; tmpA[1] = pos[ku * 3 + 1] - pos[ku0 * 3 + 1]; tmpA[2] = pos[ku * 3 + 2] - pos[ku0 * 3 + 2];
+            tmpB[0] = pos[kv * 3] - pos[kv0 * 3]; tmpB[1] = pos[kv * 3 + 1] - pos[kv0 * 3 + 1]; tmpB[2] = pos[kv * 3 + 2] - pos[kv0 * 3 + 2];
+            let nx = tmpA[1] * tmpB[2] - tmpA[2] * tmpB[1], ny = tmpA[2] * tmpB[0] - tmpA[0] * tmpB[2], nz = tmpA[0] * tmpB[1] - tmpA[1] * tmpB[0];
+            const Ln = Math.hypot(nx, ny, nz) || 1; nrm[k * 3] = nx / Ln; nrm[k * 3 + 1] = ny / Ln; nrm[k * 3 + 2] = nz / Ln;
           }
         }
-        // the normal: the sheet's tangents crossed (along u by the roots, along v by the flight)
-        for (let iu = 0; iu < NU; iu++) for (let iv = 0; iv < NV; iv++) {
-          const k = o + iu * NV + iv, ku = o + Math.min(NU - 1, iu + 1) * NV + iv, ku0 = o + Math.max(0, iu - 1) * NV + iv, kv = o + iu * NV + Math.min(NV - 1, iv + 1), kv0 = o + iu * NV + Math.max(0, iv - 1);
-          tmpA[0] = pos[ku * 3] - pos[ku0 * 3]; tmpA[1] = pos[ku * 3 + 1] - pos[ku0 * 3 + 1]; tmpA[2] = pos[ku * 3 + 2] - pos[ku0 * 3 + 2];
-          tmpB[0] = pos[kv * 3] - pos[kv0 * 3]; tmpB[1] = pos[kv * 3 + 1] - pos[kv0 * 3 + 1]; tmpB[2] = pos[kv * 3 + 2] - pos[kv0 * 3 + 2];
-          let nx = tmpA[1] * tmpB[2] - tmpA[2] * tmpB[1], ny = tmpA[2] * tmpB[0] - tmpA[0] * tmpB[2], nz = tmpA[0] * tmpB[1] - tmpA[1] * tmpB[0];
-          const L = Math.hypot(nx, ny, nz) || 1; nrm[k * 3] = nx / L; nrm[k * 3 + 1] = ny / L; nrm[k * 3 + 2] = nz / L;
-        }
       },
-      hide(i) { const o = i * per; for (let k = 0; k < per; k++) { pos[(o + k) * 3 + 1] = -1e4; q[(o + k) * 3 + 2] = 0; } },
+      hide(i) { const o = i * perS; for (let k = 0; k < perS; k++) { pos[(o + k) * 3 + 1] = -1e4; q[(o + k) * 3 + 2] = 0; } },
       commit(t) { aP.needsUpdate = true; aN.needsUpdate = true; aQ.needsUpdate = true; if (t != null) mat.uniforms.uTime.value = t; },
       light(sunDir, sunCol, skyCol, camera) {
         sunW.set(sunDir[0], sunDir[1], sunDir[2]).normalize();
@@ -239,7 +279,12 @@
   // the two kinds' laws, read by app.js's emitters and integration (one keeper)
   const KIND = {
     droplet: { id: 0, life: [0.6, 1.0], size: [0.012, 0.04], grow: 1.6, drag: 0.25, gravity: 1.0 },   // size = the sprite's RADIUS, m
-    puff:    { id: 1, life: [1.2, 2.0], size: [0.2, 0.5], grow: 2.0, drag: 2.2, gravity: 0.12 },
+    // G2838 (the user, 18 Oct: the misty puffs "look more like dust clouds, they're not convincing. These should probably be bigger,
+    // heavier droplets, behaving differently"): kind 1 is now the HEAVY DROP - 3.5-7.5 cm, ballistic (full gravity, little drag),
+    // thrown harder than the old puff (throw / lift: the emitter's speed scaled and lifted), never growing, falling back onto the
+    // water where it dies with a small ring; a faint MIST (kind 2) rides along with a quarter of them - the old haze, much fainter
+    puff:    { id: 1, life: [0.7, 1.3], size: [0.035, 0.075], grow: 1.0, drag: 0.35, gravity: 1.0, throw: 2.2, lift: 1.4, mistShare: 0.25 },
+    mist:    { id: 2, life: [1.0, 1.6], size: [0.25, 0.45], grow: 1.3, drag: 2.2, gravity: 0.1 },
   };
   const SPRAY = { make, makeSheets, KIND, GLSL: { vert: VERT, frag: FRAG, sheetVert: SHEET_VERT, sheetFrag: SHEET_FRAG } };
   if (typeof window !== 'undefined') window.SPRAY = SPRAY;

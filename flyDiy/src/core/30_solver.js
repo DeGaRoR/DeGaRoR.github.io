@@ -1201,7 +1201,7 @@ function makeSim(def, world) {
       return { L: hi - lo, M }; };
     const W = ext(C.idx0), Pp = ext(piece);
     if (!(Pp.L > 0.05) || !(Pp.M > 0) || !(W.L > Pp.L)) return om0;
-    return om0 * Math.sqrt(Math.min(9, Math.pow(W.L / Pp.L, 3) * (W.M / Pp.M)));
+    return om0 * Math.sqrt(Math.min(9, CORE_MATH.pow(W.L / Pp.L, 3) * (W.M / Pp.M)));
   }
   function clApply() {
     for (const k of clQ) {
@@ -2965,6 +2965,37 @@ function makeSim(def, world) {
   // bit), the ground rig follows its mass (setNodeMass's rule) and totalM is summed afresh in node order (reset's sum).
   // Nothing then and nothing now writes nothing at all. Deterministic: the page's sim and the worker's apply the same
   // list in the same order (sim_link / sim_host 'freight') and stay bit-equal (GATE SIMWORKER's load row).
+  // G3026 (with DAMAGE ON): A LOAD CHANGED MID-FLIGHT LEFT THE RIGID CLUSTERS' REST AT THE OLD MASSES. clusterRest keeps a
+  // cluster's rest shape as offsets from its MASS-weighted centroid, and twistRest each bay's rest twist as the phase between
+  // its rings' mass-weighted centroids - both taken at the reset, with the load aboard. A delivery (setFreight) changed the
+  // masses and not those: the shape projection then pulled the cluster to its rest shape about the wrong point, and the bay's
+  // twist read the mass change as a twist - the metal Cessna's cabin bay broke at a stop (GATE SIMWORKER 2c, 19 Oct: 10
+  // members in the step the mail came off; a 60-step ramp broke 20). Here both are moved by what the mass change alone makes
+  // of them ON THE AS-BUILT GEOMETRY (the def's positions, as the reset took them): the offsets by the centroid's shift, the
+  // rest twist by the phase's - so a plastic set the cluster carries is kept - and the bay's inertias are the new masses'
+  function freightRest(mOld, chg) {
+    if (!clusters.length) return;
+    const hit = clusters.filter(C => C.q && C.idx.some(i => chg[i]));
+    if (!hit.length) return;
+    const P0 = Float64Array.from(p), mNew = Float64Array.from(m);
+    for (let i = 0; i < n; i++) { const q = def.nodes[i].p; p[i*3] = q[0]; p[i*3+1] = q[1]; p[i*3+2] = q[2]; }
+    const cen = (C, M) => { let x = 0, y = 0, z = 0, W = 0; for (const i of C.idx) { x += p[i*3] * M[i]; y += p[i*3+1] * M[i]; z += p[i*3+2] * M[i]; W += M[i]; } return [x / W, y / W, z / W]; };
+    for (const C of hit) {
+      const c0 = cen(C, mOld), c1 = cen(C, mNew), dx = c0[0] - c1[0], dy = c0[1] - c1[1], dz = c0[2] - c1[2];
+      for (let k = 0; k < C.idx.length; k++) { C.q[k*3] += dx; C.q[k*3+1] += dy; C.q[k*3+2] += dz; }
+      if (C.twist) for (let k = 0; k + 1 < C.rings.length; k++) {
+        const T = C.twist[k]; if (!T) continue;
+        m.set(mOld); const g0 = twistGeom(C.rings[k], C.rings[k + 1]);
+        m.set(mNew); const g1 = twistGeom(C.rings[k], C.rings[k + 1]);
+        if (!g0 || !g1) continue;
+        let d = g1.theta - g0.theta; if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI;
+        T.rest += d; T.I0 = g1.I0; T.I1 = g1.I1;
+        const kth = C.gj / Math.max(0.05, g1.L), Ired = (g1.I0 * g1.I1) / Math.max(1e-9, g1.I0 + g1.I1);
+        T.w = Math.sqrt(kth / Math.max(1e-6, Ired));
+      }
+    }
+    m.set(mNew); p.set(P0);
+  }
   function setFreight(list) {
     const want = Array.isArray(list) && list.length ? list : null;
     if (!want && !FRX) return 0;
@@ -2976,6 +3007,7 @@ function makeSim(def, world) {
     }
     FRX = nx;
     FRL = want ? want.map(a => [a[0] | 0, +a[1]]) : null;
+    const mOld = Float64Array.from(m), chg = new Uint8Array(n);   // (G3026: the masses as they stood, the nodes changed)
     for (let i = 0; i < n; i++) {
       const a = old ? old[i] : 0, b = nx ? nx[i] : 0;
       if (a === b) continue;
@@ -2984,7 +3016,9 @@ function makeSim(def, world) {
       const base = (k >= 0 && fuel.frac !== 1) ? DRY0[k] + FUEL0[k] * fuel.frac : def.nodes[i].m;
       m[i] = b !== 0 ? Math.max(0.5, base + b) : base;
       rigGround(i, m[i]);
+      if (m[i] !== mOld[i]) chg[i] = 1;
     }
+    freightRest(mOld, chg);
     totalM = 0;
     for (let i = 0; i < n; i++) totalM += m[i];
     return FRL ? FRL.length : 0;

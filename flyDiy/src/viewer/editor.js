@@ -568,9 +568,13 @@ function editorInit(api) {
   // choice is the definition of the thing that part exists to hold, and they
   // were the two loudest examples of a decision about the WHOLE aeroplane
   // filed under one part of it.
+  // G2770 (the user's slider review: "under fuselage, the configuration
+  // section is obsolete. Starter does not matter and should go"): the
+  // seating STARTER is no longer placed - it stays parked in its accordion
+  // group in the nursery (the seat arrangement and the passenger bays are
+  // tiles of their own); the engine group injects nothing any more
   const DERIVED = {
     '2 · engine': ['design', 'configuration'],
-    '4 · cabin/dimensions': ['design', 'configuration'],
   };
   const extraRows = new Map();             // 'partKey/group' -> [row, …]
   function collectDerived() {
@@ -1071,12 +1075,20 @@ function editorInit(api) {
     // glass-owning part shown, never duplicated.
     const GLASSSEC = (window.AEROSKIN && window.AEROSKIN.AERO_GLASS) || new Set();
     let glazeDone = false;
+    // G2794 (the user: "remove the leftovers of the original pilot dummy"):
+    // the ATD-01's suit colours are shown only while an ATD is aboard -
+    // under a dressed character its shells are invisible click proxies and
+    // the rows coloured nothing. Still TAKEN, so they never fall into the
+    // root's 'unclaimed' bucket either.
+    const atdAboard = Math.round(+CU.P.pilotWho) === 1 || Math.round(+CU.P.copWho) === 1;
+    const DUMMY_SEC = new Set(['dummy1', 'dummy2']);
     for (const p of shown) {
       const els = [];
       for (const s of (p.sections || [])) {
         const r = bySec.get(s);
         if (!r || taken.has(s)) continue;
         taken.add(s);
+        if (DUMMY_SEC.has(s) && !atdAboard) continue;
         for (const el of r) els.push(el);
       }
       emitEls(p, nameOf(p), els, '', true);

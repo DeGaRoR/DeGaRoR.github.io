@@ -776,6 +776,23 @@ function migrate(rec) {
   }
   return r;
 }
+// FEEL FOLLOWS THE LOOK (the user, 19 Oct: "we retire that, feel follows looks" - ONE SURFACE's last step): an old file's split,
+// drawn one way and felt another, is converted where it is read - what the wheels feel is the look's class. A strip that says its
+// look: its `surface`; an area that draws a pavement and carries wheels: wheels.surface; a road whose look feels otherwise than
+// its class: its own `surface` (the composer reads it first) - its CLASS stays, what the user drew (a track is a dashed path:
+// a track drawn dirt rolls on dirt's gravel friction and stays a track).
+// A look with no feel of its own (markings only), a texture draw, wheels with nothing drawn and a water lane are left as they are.
+// An area that felt HARD (paved / gravel / sand: no tree, no plot) and now feels soft keeps them out - its exclude gains trees and
+// plots (A0 for the user: the feel follows the look, no new trees grow in). Idempotent: a converted record converts to itself.
+const FEEL_HARD = [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND];
+function feelFollowsLook(r) {
+  const feelOf = k => { const L = k && RUNWAY_LOOKS[k]; return L && L.surface !== null && L.surface !== undefined ? +L.surface : null; };
+  for (const w of r.layers.runways) if (w && w.look && +w.surface !== SURFACE.WATER) { const f = feelOf(w.look); if (f !== null && (w.surface === undefined || w.surface === null ? SURFACE.GRASS : +w.surface) !== f) w.surface = f; }
+  for (const a of r.layers.areas) { const P = a && a.props; if (!P || !P.wheels || !P.draw) continue; const f = feelOf(P.draw.look); if (f === null || +P.wheels.surface === f) continue;
+    if (FEEL_HARD.indexOf(+P.wheels.surface) >= 0 && FEEL_HARD.indexOf(f) < 0) { const w = P.exclude && Array.isArray(P.exclude.what) ? P.exclude.what.slice() : []; for (const k of ['trees', 'plots']) if (w.indexOf(k) < 0) w.push(k); P.exclude = Object.assign({}, P.exclude || {}, { what: w }); }
+    P.wheels = Object.assign({}, P.wheels, { surface: f }); }
+  for (const rd of r.layers.roads) { if (!rd || !rd.look) continue; const f = feelOf(rd.look); if (f !== null && roadFeel(rd) !== f) rd.surface = f; }
+}
 function normalise(rec) {
   const d = DEF();
   const r = Object.assign(d, rec || {});
@@ -792,6 +809,7 @@ function normalise(rec) {
   for (const rd of r.layers.roads) if (rd && Array.isArray(rd.tan) && Array.isArray(rd.pts)) { while (rd.tan.length < rd.pts.length) rd.tan.push(null); rd.tan.length = rd.pts.length; }
   // v1.37: a road's junction ids run beside its points too, one slot each (a hand edit's short list padded with null)
   for (const rd of r.layers.roads) if (rd && Array.isArray(rd.nodes) && Array.isArray(rd.pts)) { while (rd.nodes.length < rd.pts.length) rd.nodes.push(null); rd.nodes.length = rd.pts.length; }
+  feelFollowsLook(r);
   r.budget =Object.assign({}, d.budget, r.budget || {});
   if (typeof r.seed !== 'number') r.seed = 1;
   if (!THEMES[r.theme]) r.theme = THEME_DEF;
@@ -812,18 +830,25 @@ function unwrap(txt) {
 // village, tw_ the tramway, af_ the airfield). dropPlaces returns a COPY without them and what it cut, by layer;
 // restorePlaces puts the cut back into a record that was edited without them (an entry the edit re-used the id
 // of is the edit's) - so a save made with the place off never deletes it.
-const placeOf = (e, prefixes) => !!(e && typeof e.id === 'string' && prefixes.some(p => e.id.startsWith(p)));
-function dropPlaces(rec, prefixes) {
+// `keep` (METLA-WRAPUP, the user 18 Oct: Metlakatla behind its flag, the seaplane base standing): ids that stay although
+// their prefix is dropped - TOWN_OFF below, the page's switch (world_boot.js) and the cook's 'default' variant (premises_cook.js)
+const placeOf = (e, prefixes, keep) => !!(e && typeof e.id === 'string' && prefixes.some(p => e.id.startsWith(p)) && !(keep && keep.includes(e.id)));
+function dropPlaces(rec, prefixes, keep) {
   const out = Object.assign({}, rec, { layers: Object.assign({}, rec.layers) }), cut = {};
   let n = 0;
   for (const k of Object.keys(out.layers)) {
     const a = out.layers[k]; if (!Array.isArray(a)) continue;
-    const keep = [], gone = [];
-    for (const e of a) (placeOf(e, prefixes) ? gone : keep).push(e);
-    if (gone.length) { out.layers[k] = keep; cut[k] = gone; n += gone.length; }
+    const keep_ = [], gone = [];
+    for (const e of a) (placeOf(e, prefixes, keep) ? gone : keep_).push(e);
+    if (gone.length) { out.layers[k] = keep_; cut[k] = gone; n += gone.length; }
   }
   return { rec: out, cut, n };
 }
+// THE TOWN SWITCHED OFF (G590; METLA-WRAPUP 18 Oct): Metlakatla's every entry (mk_) but its SEAPLANE BASE - the water lane
+// (runway mk_sea, its player plot with it) and the dock it is flown to (the trestle and the float) - which the career's
+// minedock arc, the generated jobs and the floats' routes name (72_contract_data CONTRACT_FIELDS): a standalone site, the
+// town's houses, roads and plots behind the flag. ONE definition: the page's switch and the cook's 'default' variant read it.
+const TOWN_OFF = Object.freeze({ drop: Object.freeze(['mk_']), keep: Object.freeze(['mk_sea', 'mk_mp_air', 'mk_mf_air']) });
 function restorePlaces(rec, cut) {
   if (!cut) return rec;
   const out = Object.assign({}, rec, { layers: Object.assign({}, rec.layers) });
@@ -1044,7 +1069,7 @@ function stageIssues(rec0, maxes) {
         if (kind === 'runway' && e && q) {
           const r = Object.assign({}, RUNWAY_DEF, e, q); delete r.stage; delete r.show;
           if (!(r.len >= 150) || !(r.wid >= 8)) out.push(what + ' vary[' + i + ']: a strip is at least 150 m by 8 m');
-          else for (const pi of profileIssues(r)) out.push(what + ' vary[' + i + ']: ' + pi);
+          else for (const pi of profileCheck(r).refuse) out.push(what + ' vary[' + i + ']: ' + pi);
         }
       });
     }
@@ -1508,6 +1533,10 @@ const ZONE_GRASS = { residential: { kind: 'lawn', h: 0.12, density: 1 }, commerc
   industrial: { kind: 'none' }, harbour: { kind: 'none' }, airfield: { kind: 'meadow' }, forest: { kind: 'meadow' }, clear: { kind: 'meadow' } };
 function zoneGrass(zone) { return Object.assign({}, ZONE_GRASS[zone && zone.kind] || { kind: 'meadow' }, (zone && zone.rules && zone.rules.grass) || {}); }
 // a road's look: its own, else its class's; the pavement's row for it (or null for 'none')
+// ONE SURFACE (the user, 18 Oct): what a road's wheels feel (its own `surface`, else its class's - the composer's rule) and
+// whether a look feels as a class does (a look with no feel of its own - markings only - feels as anything)
+function roadFeel(r) { return r.surface !== undefined && r.surface !== null ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL); }
+function lookFeelsAs(look, feel) { const L = RUNWAY_LOOKS[look]; return !L || L.surface === null || L.surface === undefined || +L.surface === +feel; }
 function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD_LOOK[r.cls] || 'gravel'); return { key: k, row: RUNWAY_LOOKS[k] }; }
 // THE ONE-WAY STRIP (v9, contract v1.11): `approach` names the end the landing comes over (0 or 1) when
 // the air is calm - a strip with a ridge at one end lands from the other and departs toward it; null
@@ -1577,9 +1606,14 @@ function runwayProfile(r) {
 // under 20 %, no touchdown-zone rule (the touchdown IS on the slope), a crest under 5 % of slope change
 // over 30 m (the ease into the flat top the aeroplane stops on), an `approach` named, and the far end
 // higher than the threshold it lands over
+// THE LIMITS WARN, NEVER REFUSE (the user, 18 Oct: "strip 9 stays, the slope rules ... were to be relaxed" - no
+// filtering, the player finds out): every limit below is a WARNING (profileCheck's `warn`: the editor's profile
+// note and checks panel, PG.warnings); only an altiport without its approach is refused (`refuse`: PG.issues).
+// profileIssues is both, the editor's note.
 const ALTIPORT = { slopeMax: 0.20, crestMax: 0.05 };
-function profileIssues(r) {
-  const out = [], pr = runwayProfile(r), L = r.len, alti = !!r.altiport;
+function profileIssues(r) { const c = profileCheck(r); return c.refuse.concat(c.warn); }
+function profileCheck(r) {
+  const out = [], refuse = [], pr = runwayProfile(r), L = r.len, alti = !!r.altiport;
   let worst = 0, tdz = 0, crest = 0;
   for (let a = 0; a <= L; a += 3) {
     const sl = Math.abs(pr.slopeAt(a)); worst = Math.max(worst, sl);
@@ -1589,14 +1623,14 @@ function profileIssues(r) {
   if (alti) {
     if (worst > ALTIPORT.slopeMax) out.push('runway ' + r.id + ': the altiport is ' + (worst * 100).toFixed(1) + ' % somewhere, over ' + ALTIPORT.slopeMax * 100 + ' %');
     if (crest > ALTIPORT.crestMax) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over ' + ALTIPORT.crestMax * 100 + ' on an altiport');
-    if (r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': an altiport names its approach (the end it is landed over)');
+    if (r.approach !== 0 && r.approach !== 1) refuse.push('runway ' + r.id + ': an altiport names its approach (the end it is landed over)');
     else if (!((r.approach === 0 ? pr.at(L) - pr.at(0) : pr.at(0) - pr.at(L)) > 0)) out.push('runway ' + r.id + ': an altiport is landed uphill - the far end must be higher than end ' + r.approach);
-    return out;
+    return { refuse, warn: out };
   }
   if (worst > 0.05) out.push('runway ' + r.id + ': the profile is ' + (worst * 100).toFixed(1) + ' % somewhere, over 5 %');
   if (tdz > 0.025) out.push('runway ' + r.id + ': the touchdown zone slopes ' + (tdz * 100).toFixed(1) + ' %, over 2.5');
   if (crest > 0.015) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over 1.5');
-  return out;
+  return { refuse, warn: out };
 }
 // THE SHOULDER (v9): the strip's radius of terraforming - how far past the box (either side and past the
 // ends) the grade's falloff runs before the ground is the terrain's again; authored (falloff) or a
@@ -1654,19 +1688,44 @@ function plotWorld(p, F) {
 // point in the premises frame: { id, key: 'hangar' | 'stand', d } of the nearest one under it (the hangar: inside its
 // footprint, HANGAR_DIMS round its door's heading, either way about - HW / HD are half sizes; the stand: within 5 m),
 // or null. The editor selects that strip and starts that handle's drag; scripts and the gates read it too.
-function runwayGrab(rec, lx, lz) {
+function runwayGrab(rec, lx, lz, dims) {   // (G3096: `dims` the drawn shed's half sizes {HW, HD}, the page's)
   let best = null;
   for (const r of (rec && rec.layers && rec.layers.runways) || []) {
     const h = r.hangar;
     if (h && isFinite(+h.x) && isFinite(+h.z)) {
-      const a0 = +h.hdg || 0, dx = lx - h.x, dz = lz - h.z, a = dx * Math.cos(a0) + dz * Math.sin(a0), b = -dx * Math.sin(a0) + dz * Math.cos(a0);
-      const W = HANGAR_DIMS.HW, D = HANGAR_DIMS.HD;
+      const a0 = +h.hdg || 0, dx = lx - h.x, dz = lz - h.z, a = dx * CORE_MATH.cos(a0) + dz * CORE_MATH.sin(a0), b = -dx * CORE_MATH.sin(a0) + dz * CORE_MATH.cos(a0);
+      const W = dims && +dims.HW > 0 ? +dims.HW : HANGAR_DIMS.HW, D = dims && +dims.HD > 0 ? +dims.HD : HANGAR_DIMS.HD;
       if ((Math.abs(a) <= D && Math.abs(b) <= W) || (Math.abs(a) <= W && Math.abs(b) <= D)) { const d = Math.hypot(dx, dz); if (!best || d < best.d) best = { id: r.id, key: 'hangar', d }; }
     }
     const st = r.stand;
     if (st && isFinite(+st.x) && isFinite(+st.z)) { const d = Math.hypot(lx - st.x, lz - st.z); if (d <= 5 && (!best || d < best.d)) best = { id: r.id, key: 'stand', d }; }
   }
   return best;
+}
+// G3096 HANGAR-FIX: A HANGAR SQUARE TO THE BUILDINGS - the heading (the record's, radians) that turns a strip's hangar shell onto
+// the axes of the nearest site building (within 250 m), its door toward `toward` (the stand); the shell is drawn at rotation.y
+// = pi - (hdg - F.yaw) (runwaySite), a site item at at.yaw + pi + item.yaw (placeSite): the shell's turn made congruent to the
+// building's modulo 90 deg, of the four the one whose door (along hdg) points most toward `toward`. No building near: null
+function hangarSquare(rec, r, toward, fyaw) {
+  const h = r && r.hangar; if (!h || !isFinite(+h.x) || !isFinite(+h.z)) return null;
+  let best = null;
+  for (const s of (rec && rec.layers && rec.layers.sites) || []) {
+    const a = s && s.at; if (!a || !isFinite(+a.x) || !isFinite(+a.z)) continue;
+    for (const it of s.items || []) {
+      const c = CORE_MATH.cos(+a.yaw || 0), sn = CORE_MATH.sin(+a.yaw || 0), x = +a.x + (+it.x || 0) * c + (+it.z || 0) * sn, z = +a.z - (+it.x || 0) * sn + (+it.z || 0) * c;
+      const d = Math.hypot(x - h.x, z - h.z); if (d > 250 || d < 1) continue;
+      if (!best || d < best.d) best = { d, ry: (+a.yaw || 0) + Math.PI + (+it.yaw || 0) };
+    }
+  }
+  if (!best) return null;
+  const F = +fyaw || 0, t = toward && isFinite(+toward.x) ? [+toward.x - h.x, +toward.z - h.z] : null;
+  let out = null, score = -Infinity;
+  for (let k = 0; k < 4; k++) {
+    const hh = Math.PI - (best.ry + k * Math.PI / 2), hdg = Math.atan2(CORE_MATH.sin(hh + F), CORE_MATH.cos(hh + F));
+    const sc = t ? (CORE_MATH.cos(hh) * t[0] + CORE_MATH.sin(hh) * t[1]) : -Math.abs(hdg - (+h.hdg || 0));
+    if (sc > score) { score = sc; out = +hdg.toFixed(4); }
+  }
+  return out;
 }
 // HOW FAR FROM A PLACED OBJECT A CLICK STILL PICKS IT (G2891 c3): 2.5 m x its scale, as the pick cycle had it - but a
 // parked AEROPLANE spans 9-12 m, and a click on its wing missed it; its built size (`built`, the drawn group's bounding
@@ -1675,6 +1734,29 @@ function objectPickR(ob, built) {
   const s = Math.max(1, +(ob && ob.s) || 1);
   if (ob && ob.kind === 'aircraft') return Math.max(2.5 * s, isFinite(+built) && +built > 0 ? 0.85 * +built : 6 * s);
   return 2.5 * s;
+}
+// G3092 TAXI-ALL: A WAY OUT THAT FOLLOWS A ROAD. The road's points (the composition's straight line of it, in the premises
+// frame), the end nearer the stand first; its last point taken onto the strip's centreline (within the strip's half width + 1 m
+// of it: replaced by its foot there; farther: the foot appended), clamped to the strip's length
+function wayFrom(r, st, rd) {
+  const P = rd.pts.map(q => [+q[0], +q[1]]), d2 = q => (q[0] - st.x) * (q[0] - st.x) + (q[1] - st.z) * (q[1] - st.z);
+  if (d2(P[P.length - 1]) < d2(P[0])) P.reverse();
+  const E = runwayEnds(r), last = P[P.length - 1];
+  const along = (last[0] - r.c[0]) * E.d[0] + (last[1] - r.c[1]) * E.d[1], off = Math.abs(-(last[0] - r.c[0]) * E.d[1] + (last[1] - r.c[1]) * E.d[0]);
+  const a = Math.max(-r.len / 2, Math.min(r.len / 2, along)), entry = [r.c[0] + E.d[0] * a, r.c[1] + E.d[1] * a];
+  if (off <= r.wid / 2 + 1) P[P.length - 1] = entry; else P.push(entry);
+  // a point ON the stand (a road that starts there) is no leg: the stand faces its first taxi point, which must be away from it
+  while (P.length > 1 && d2(P[0]) < 4) P.shift();
+  return P.map(q => [+q[0].toFixed(2), +q[1].toFixed(2)]);
+}
+// the composed copy of a strip with its ways that follow a road built from it (a way whose road is not there keeps its own points)
+function waysVia(r, byId) {
+  const ok = id => typeof id === 'string' && byId.has(id) && byId.get(id).pts && byId.get(id).pts.length >= 2;
+  if (r.stand && ok(r.taxiOutVia)) r.taxiOut = wayFrom(r, r.stand, byId.get(r.taxiOutVia));
+  if (r.stand && ok(r.taxiOut1Via)) r.taxiOut1 = wayFrom(r, r.stand, byId.get(r.taxiOut1Via));
+  if (Array.isArray(r.plots) && r.plots.some(q => q && q.stand && ok(q.taxiOutVia)))
+    r.plots = r.plots.map(q => (q && q.stand && ok(q.taxiOutVia)) ? Object.assign({}, q, { taxiOut: wayFrom(r, q.stand, byId.get(q.taxiOutVia)) }) : q);
+  return r;
 }
 function runwaySite(r, F) {
   const W = q => F.toWorld(q[0], q[1]);
@@ -1704,6 +1786,18 @@ function runwaySite(r, F) {
 // (v1.33) a stage's `sock: false` / `ties: false` onto the aerodrome (render_world's windsock, 25_airfield fleetSpots);
 // absent - the record never says it - the aerodrome is untouched
 function stageAero(a, r) { if (r.sock === false) a.sock = false; if (r.ties === false) a.ties = false; return a; }
+// G3098 (the Cabin Strip): A STRIP'S DRAWN FLIGHT - `fly` { dep, appr, circuit?, side?, terrainOk? } in the premises frame (the
+// pilot's: dep from the lift-off end, its last point where the tight zone is passed, no turn before it; appr outermost first,
+// ending at the threshold; a point [x, z] or [x, z, metres above the strip's top end]), handed to the pilot in the world
+function flyWorld(f, F) {
+  if (!f || typeof f !== 'object') return null;
+  const W = L => Array.isArray(L) ? L.filter(q => Array.isArray(q) && isFinite(+q[0]) && isFinite(+q[1])).map(q => { const w = F.toWorld(+q[0], +q[1]); return q.length > 2 && isFinite(+q[2]) ? [+w[0].toFixed(2), +w[1].toFixed(2), +q[2]] : [+w[0].toFixed(2), +w[1].toFixed(2)]; }) : null;
+  const o = { dep: W(f.dep), appr: W(f.appr) };
+  if (Array.isArray(f.circuit)) o.circuit = W(f.circuit);
+  if (f.side === 1 || f.side === -1) o.side = f.side;
+  if (f.terrainOk === true) o.terrainOk = true;
+  return o;
+}
 function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   const E = runwayEnds(r);
   const c = F.toWorld(r.c[0], r.c[1]);
@@ -1750,7 +1844,7 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
            // (0|1); without it a one-way strip is left the way it is landed. East Point is landed over the sea and left
            // back out over it - the trees close in at the other end
            takeoffHdg: r.departure === 1 ? hdg : r.departure === 0 ? hdg + Math.PI : null,
-           slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null };
+           slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null, ...(r.fly ? { fly: flyWorld(r.fly, F) } : {}) };
 }
 
 // ---------------------------------------------------------------------------
@@ -2628,6 +2722,7 @@ function compose(rec0, world, opts) {
   // (elev = T1 at the centre), a DERIVED surface strip of the record's class,
   // a DERIVED tree exclude 30 m round the box, and the aerodrome record
   const runways = rec.layers.runways.filter(r => r.c && r.len > 0 && r.wid > 0).map(r => Object.assign({}, RUNWAY_DEF, r));
+  { const byId = new Map(roads.map(q => [q.id, q])); for (const r of runways) waysVia(r, byId); }   // (G3092: a way out that follows a road)
   const aerodromes = [];
   for (const r of runways) {
     const E = runwayEnds(r);
@@ -4040,9 +4135,12 @@ function issues(rec0) {
   for (const r of rec.layers.runways) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
-    else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
+    else for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).refuse) out.push(i);
     if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
     if (r.approach !== undefined && r.approach !== null && r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': approach is 0, 1 or null');
+    // (G3098) a drawn flight: dep / appr lists of points, side +-1
+    if (r.fly != null) { const f = r.fly, pts = L => L == null || (Array.isArray(L) && L.every(q => Array.isArray(q) && q.length >= 2 && isFinite(+q[0]) && isFinite(+q[1])));
+      if (typeof f !== 'object' || !pts(f.dep) || !pts(f.appr) || !pts(f.circuit) || (f.side != null && f.side !== 1 && f.side !== -1)) out.push('runway ' + r.id + ': fly is { dep, appr, circuit? (lists of [x, z]), side? +1 / -1, terrainOk? }'); }
     if (r.circuit != null) {
       const c = r.circuit;
       if (typeof c !== 'object') out.push('runway ' + r.id + ': circuit is an object { hand, height, join } or null');
@@ -4056,6 +4154,9 @@ function issues(rec0) {
     if (r.hangar && !(isFinite(+r.hangar.x) && isFinite(+r.hangar.z))) out.push('runway ' + r.id + ': the hangar needs x and z');
     // G2310 (v1.34): the plots - an array of { id, x, z, hdg?, stand?, taxiOut? }, every id unique in the record (a plot
     // id is a hangar id), a stand finite, a way out a list of points, and the first plot (the hangar's) written once
+    // (G3092) a way out that follows a road names one the record has
+    for (const [h, k, who] of [[r, 'taxiOutVia', ''], [r, 'taxiOut1Via', '']].concat((Array.isArray(r.plots) ? r.plots : []).filter(q => q).map(q => [q, 'taxiOutVia', 'plot ' + q.id + ': '])))
+      if (h[k] != null && !(rec.layers.roads || []).some(q => q && q.id === h[k])) out.push('runway ' + r.id + ': ' + who + 'its way out follows road ' + h[k] + ', which is not there');
     if (r.plots != null) {
       if (!Array.isArray(r.plots)) out.push('runway ' + r.id + ': plots is a list of { id, x, z, hdg }');
       else for (const p of r.plots) {
@@ -4158,6 +4259,13 @@ function curvTol(O, F, lx, lz, c, world) {
 }
 
 // the check lines: [{ ok, label }] — the panel draws them, the gate counts them
+// THE WARNINGS (18 Oct): what the editor tells and nothing refuses - a strip's profile past the pilot's or the altiport's
+// limits (profileCheck's `warn`). The ship, the gates and the loaders read issues(); a warning ships.
+function warnings(rec0) {
+  const rec = expandAreas(normalise(rec0)), out = [];
+  for (const r of rec.layers.runways) if (r.c && r.len >= 150 && r.wid >= 8) for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).warn) out.push(i);
+  return out;
+}
 function checks(rec0, world, opts) {
   const recA = normalise(rec0), rec = expandAreas(recA), o = opts || {};
   const lines = [];
@@ -4303,11 +4411,11 @@ function collect(globals) {
 const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
-  makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
+  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, lookFeelsAs,
+  makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
-  frameOf, zoneWaterY: zoneWaterYOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
+  frameOf, zoneWaterY: zoneWaterYOf, compose, issues, warnings, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
 // standalone in node (GATE PREMISES requires this file) the API is the module; inside the core
 // bundle 90_node_exports.js assigns module.exports after this line and carries PREMISES_GEN itself

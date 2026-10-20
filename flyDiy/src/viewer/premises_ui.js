@@ -393,10 +393,11 @@ function mount(host, ctx) {
   function checks() {
     const t0 = PERF.now();
     const lines = PG.checks(rec, world, { overlay: R.overlay, site: ctx.site || null });
-    const iss = PG.issues(rec);
+    const iss = PG.issues(rec), wrn = PG.warnings ? PG.warnings(rec) : [];   // (18 Oct: a strip's slope past the limits warns, it ships)
     if (PERF.now() - t0 >= 8) logEdit(PERF.now() - t0, 'checks');
     if (els.chk) els.chk.innerHTML = lines.map(l => '<span class="' + (l.ok ? 'ok' : 'bad') + '">' + (l.ok ? '✓ ' : '✗ ') + l.label + '</span>').join('<br>') +
-      (iss.length ? '<br><span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '');
+      (iss.length ? '<br><span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '') +
+      (wrn.length ? '<br><span class="warn">⚠ ' + wrn.length + ' warning' + (wrn.length > 1 ? 's' : '') + ' (it ships): ' + wrn.join(' · ') + '</span>' : '');
     return lines;
   }
   function plaque() {
@@ -897,6 +898,7 @@ function mount(host, ctx) {
   // strip's own fields, moved by its discs once the strip is selected - the building itself took no click. A press on one
   // (R.grabAt: PG.runwayGrab, the hangar's footprint, the stand within 5 m) selects its strip and starts that handle's drag,
   // unless a placed object (a parked aeroplane on the stand) is under the press - the object is picked as before
+  let GRAB_KEY = null;
   function grabStrip(g, alt) {
     if (!R.grabAt) return false;
     const gb = R.grabAt(g[0], g[2]); if (!gb) return false;
@@ -904,6 +906,7 @@ function mount(host, ctx) {
     if (top && top.kind === 'object') return false;
     if (selected !== gb.id) select(gb.id);
     if (!startDrag({ id: gb.id, key: gb.key, index: 0 }, alt)) return false;
+    GRAB_KEY = gb.key;   // (G3096: R turns a grabbed hangar)
     strip.status((gb.key === 'hangar' ? 'the club hangar' : 'the stand') + ' of ' + gb.id + ' - drag it (the door\'s heading is a row of the strip\'s inspector)');
     return true;
   }
@@ -1222,6 +1225,9 @@ function mount(host, ctx) {
     else if (ev.key === 'Tab') { ctx.cameras && ctx.cameras.toggle(); ev.preventDefault(); }
     else if (ev.key >= '1' && ev.key <= String(Math.min(9, SECTIONS.length))) setSection(SECTIONS[+ev.key - 1].k);
     // R turns 15 degrees: the placer's ghost, a selected site or model / object
+    else if ((ev.key === 'r' || ev.key === 'R') && tool === 'select' && GRAB_KEY === 'hangar' && selected && (PG.findById(rec, selected) || {}).layer === 'runways' && PG.findById(rec, selected).entry.hangar) {
+      // (G3096) the grabbed hangar turned 15 deg (shift: the other way)
+      const k = ev.shiftKey ? -1 : 1; edit(selected, 'runways', x => { const a = (+x.hangar.hdg || 0) + k * Math.PI / 12; x.hangar.hdg = +Math.atan2(Math.sin(a), Math.cos(a)).toFixed(4); }, 'hangar of ' + selected, 'hangarHdg'); ev.preventDefault(); }
     else if (ev.key === 'r' && (tool === 'place' || tool === 'scatter')) { ASSET.yaw = (ASSET.yaw + (ev.shiftKey ? -1 : 1) * Math.PI / 12) % (Math.PI * 2); armGhost(); palette.refresh(); }
     else if (ev.key === 'r' && selected) { const f = PG.findById(rec, selected); if (f && f.entry.at) edit(selected, 'sites', x => { x.at.yaw = ((x.at.yaw || 0) + Math.PI / 12); }, 'turn ' + selected, 'yaw');   /* (G3005: a run of R presses, one rebuild when they stop) */ else if (f && f.layer === 'objects' && isFinite(+f.entry.x)) edit(selected, 'objects', x => { x.yaw = +(((+x.yaw || 0) + (ev.shiftKey ? -1 : 1) * Math.PI / 12)).toFixed(4); }, 'turn ' + selected, 'yaw'); }
     else if (ev.key === 'f' && tool === 'select' && ctx.cameras && ctx.cameras.frame) { const f = selected && PG.findById(rec, selected); if (f) ctx.cameras.frame(bboxOf(f.entry)); }
@@ -1359,7 +1365,9 @@ function mount(host, ctx) {
       }
       rows.slider(insp, 'falloff (m)', 1, 120, 1, () => e.falloff, v => ed(x => { x.falloff = v; }, 'falloff of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
     } else if (layer === 'surface') {
-      rows.select(insp, 'surface', SURF_OPTS, () => String(e.surface), v => ed(x => { x.surface = +v; }, 'surface of ' + id));
+      // ONE SURFACE (the user, 18 Oct: "remove all options allowing to separately set the surface and wheel feel"): an old
+      // file's surface entry - a feel drawn nowhere - is kept as it is and said, never offered (an AREA draws and feels as one)
+      rows.note(insp, 'an old file\'s surface: the wheels feel ' + (PG.SURFACE_NAMES[+e.surface] || '?').toLowerCase() + ' here, nothing drawn - kept as it was');
       rows.slider(insp, 'priority', -5, 5, 1, () => e.z || 0, v => ed(x => { x.z = v; }, 'priority of ' + id, 'z'), v => v.toFixed(0) + (v > 0 ? ' (over)' : v < 0 ? ' (under)' : ''));
     } else if (layer === 'material') {
       const sets = materialSets();
@@ -1377,9 +1385,12 @@ function mount(host, ctx) {
     else if (layer === 'exclude') rows.check(insp, 'no trees', () => e.what.indexOf('trees') >= 0, v => ed(x => { x.what = v ? ['trees'] : []; }, 'exclude of ' + id));
     else if (layer === 'roads') {
       rows.slider(insp, 'width (m)', 2, 30, 0.2, () => e.w, v => ed(x => { x.w = v; }, 'width of ' + id, 'w'), v => v.toFixed(1) + ' m');   // (G434: to 30 - a taxiway is a road)
-      rows.select(insp, 'class', [['gravel', 'gravel'], ['paved', 'paved'], ['track', 'track (grass)']], () => e.cls || 'gravel', v => ed(x => { x.cls = v; }, 'class of ' + id));
-      // THE LOOK (v1.16): the pavement drawn - derived from the class when not said
-      rows.select(insp, 'look', [['', 'by class (' + PG.roadLook(e).key + ')']].concat(Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].cls).map(k => [k, PG.RUNWAY_LOOKS[k].name])), () => e.look || '', v => ed(x => { x.look = v || null; }, 'look of ' + id));
+      // ONE SURFACE (18 Oct): the class is what the road is - drawn and felt; picking one drops a look that feels otherwise
+      rows.select(insp, 'surface', [['gravel', 'gravel'], ['paved', 'paved'], ['track', 'track (grass)']], () => e.cls || 'gravel',
+        v => ed(x => { x.cls = v; delete x.surface; if (x.look && !PG.lookFeelsAs(x.look, PG.roadFeel(x))) x.look = null; }, 'class of ' + id));
+      // THE LOOK (v1.16): the pavement drawn - only the variants that feel as the class (paved: asphalt, concrete, old concrete)
+      { const feel = PG.roadFeel(e), alts = Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].cls && PG.lookFeelsAs(k, feel));
+        if (alts.length > 1) rows.select(insp, 'look', [['', 'by class (' + PG.roadLook(e).key + ')']].concat(alts.map(k => [k, PG.RUNWAY_LOOKS[k].name])), () => (e.look && alts.indexOf(e.look) >= 0 ? e.look : ''), v => ed(x => { x.look = v || null; }, 'look of ' + id)); }
       pavRows(e, id, 'roads', ed, PG.roadLook(e).row);
       rows.check(insp, 'graded (flat across)', () => e.graded !== false, v => ed(x => { x.graded = v; }, 'grading of ' + id));
       rows.slider(insp, 'terraformed to (m)', 1, 30, 1, () => e.falloff || 6, v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
@@ -1512,18 +1523,28 @@ function mount(host, ctx) {
       rows.slider(insp, 'width (m)', 8, 300, 1, () => e.wid,   // (G3019 (2): a water lane is 200 m wide)
         v => ed(x => { x.wid = v; }, 'width of ' + id, 'wid'), v => v.toFixed(0) + ' m');
       rows.slider(insp, 'heading (°)', -180, 180, 1, () => e.hdg * 180 / Math.PI, v => ed(x => { x.hdg = v * Math.PI / 180; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
-      // THE LOOK (v9): what the strip is drawn as; picking one proposes the class the wheels feel, which
-      // the surface row below may still overrule (a paved look on a grass class is a painted strip)
-      rows.pills(insp, 'look', Object.keys(PG.RUNWAY_LOOKS).map(k => [k, PG.RUNWAY_LOOKS[k].name]), () => e.look || 'grass',
-        v => ed(x => { x.look = v; const L = PG.RUNWAY_LOOKS[v]; if (L && L.surface !== null && L.surface !== undefined) x.surface = L.surface; }, 'look of ' + id));
-      rows.select(insp, 'wheels feel', [['0', 'grass'], ['6', 'gravel'], ['5', 'paved'], ['7', 'sand']], () => String(e.surface === undefined ? 0 : e.surface), v => ed(x => { x.surface = +v; }, 'surface of ' + id));
+      // THE SURFACE (v9; ONE SURFACE, 18 Oct): what the strip is drawn as IS what the wheels feel - the look sets both
+      // ('markings only' keeps the feel it had: the ground under the paint)
+      // WATER-LANE-ED (the user, 18 Oct: their OWN water runways): 'water' is a surface like the others - a floats lane on the
+      // water's own level (SURFACE.WATER, look 'none': the composer grades, paints and excludes nothing, the sandbox flies a
+      // float plane to it); its land rows (altiport, profile, shoulder, lights) are not shown. Back to a land surface: the
+      // strip's lights come back
+      const WATER = PG.runwayIsWater(Object.assign({}, PG.RUNWAY_DEF, e));
+      rows.pills(insp, 'surface', Object.keys(PG.RUNWAY_LOOKS).map(k => [k, PG.RUNWAY_LOOKS[k].name]).concat([['water', 'water (floats)', 'a floats lane on the water: nothing graded, painted or lit']]), () => (WATER ? 'water' : e.look || 'grass'),
+        v => ed(x => {
+          if (v === 'water') { x.surface = PG.SURFACE.WATER; x.look = 'none'; x.papi = [false, false]; x.profile = null; x.slope = 0; x.crossfall = 0; x.falloff = null; delete x.altiport; return; }
+          const wasW = +x.surface === PG.SURFACE.WATER; x.look = v; const L = PG.RUNWAY_LOOKS[v];
+          if (L && L.surface !== null && L.surface !== undefined) x.surface = L.surface; else if (wasW) x.surface = PG.SURFACE.GRASS;
+          if (wasW) x.papi = [true, true];
+        }, 'look of ' + id));
+      if (WATER) rows.note(insp, 'a floats lane: on the water\'s own level - nothing graded, painted or lit; the floats land on it, the slips (its plots) stand on the shore');
       if (PG.RUNWAY_LOOKS[e.look || 'grass'] && PG.RUNWAY_LOOKS[e.look || 'grass'].cls) pavRows(e, id, 'runways', ed, PG.RUNWAY_LOOKS[e.look || 'grass']);
       // THE ONE-WAY STRIP (v9): which end the landing comes over in calm air; a ridge at one end wants the other
       rows.pills(insp, 'approach', [['', 'either end', 'the pilot picks the runway direction nearest its inbound track'], ['0', 'over end 0', 'land toward end 1, depart the other way'], ['1', 'over end 1', 'land toward end 0']], () => (e.approach === 0 || e.approach === 1) ? String(e.approach) : '',
         v => ed(x => { x.approach = v === '' ? null : +v; }, 'approach of ' + id));
       // THE ALTIPORT (GTRAM): a mountain strip landed uphill and left downhill, the slope up to 20 %; switched on
       // with no approach named, it names the LOWER end (the profile's) - the one an altiport is landed over
-      rows.check(insp, 'altiport: land uphill (up to 20 %)', () => !!e.altiport, v => ed(x => {
+      if (!WATER) rows.check(insp, 'altiport: land uphill (warns past 20 %)', () => !!e.altiport, v => ed(x => {
         x.altiport = v;
         if (v && x.approach !== 0 && x.approach !== 1) { const pr = PG.runwayProfile(Object.assign({}, PG.RUNWAY_DEF, x)); x.approach = pr.at(0) <= pr.at(x.len) ? 0 : 1; }
       }, 'altiport of ' + id));
@@ -1543,14 +1564,14 @@ function mount(host, ctx) {
       }
       // THE PROFILE (v8): the centreline's height along the length, as control points on a graph - drag a
       // point, double-click the curve to add one, the ✕ removes the selected one; the ends stay at 0 and 1
-      profileGraph(insp, e, ed);
+      if (!WATER) profileGraph(insp, e, ed);
       // THE SHOULDER (v9): the strip's radius of terraforming - the grade's falloff either side of the
       // box, the band the composed ground takes to come back to the terrain; outlined when selected
-      rows.slider(insp, 'terraformed to (m)', 10, 200, 5, () => PG.runwayShoulder(e), v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
-      rows.note(insp, 'how far the ground is terraformed either side of the strip and past its ends: the box is graded to the profile, then the bank back to the terrain (a 3:1 bank at the steepest). The drawn band above is a different thing. Aprons and flats beside it are flatten polygons of their own.');
+      if (!WATER) rows.slider(insp, 'terraformed to (m)', 10, 200, 5, () => PG.runwayShoulder(e), v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
+      if (!WATER) rows.note(insp, 'how far the ground is terraformed either side of the strip and past its ends: the box is graded to the profile, then the bank back to the terrain (a 3:1 bank at the steepest). The drawn band above is a different thing. Aprons and flats beside it are flatten polygons of their own.');
       // THE GLIDESLOPE LIGHTS (G434): a PAPI (four units), a two-bar VASI or none at each end; both are set
       // to the approach's own slope (the lights show the glideslope the pilot flies)
-      for (const k of [0, 1]) rows.pills(insp, 'lights at end ' + k, [['papi', 'PAPI', 'four units abeam the aim, two white two red on the slope'], ['vasi', 'VASI', 'two bars 210 m apart: red over white on the slope'], ['none', 'none', 'no lights at this end']],
+      if (!WATER) for (const k of [0, 1]) rows.pills(insp, 'lights at end ' + k, [['papi', 'PAPI', 'four units abeam the aim, two white two red on the slope'], ['vasi', 'VASI', 'two bars 210 m apart: red over white on the slope'], ['none', 'none', 'no lights at this end']],
         () => { const v = (e.papi || [true, true])[k]; return v === 'vasi' ? 'vasi' : v ? 'papi' : 'none'; },
         v => ed(x => { const p = (x.papi || [true, true]).slice(); p[k] = v === 'vasi' ? 'vasi' : v === 'papi'; x.papi = p; }, 'lights of ' + id));
       const A = (R.aerodromes ? R.aerodromes() : []).find(a => a.id === id);
@@ -1573,13 +1594,19 @@ function mount(host, ctx) {
         wayRows(insp, e, 'taxiOut', 'the way out toward end 0', id, ed);
         if (e.taxiOut1) wayRows(insp, e, 'taxiOut1', 'the way out toward end 1', id, ed);
         else rows.button(insp, 'add a way out toward end 1', () => ed(x => { x.taxiOut1 = wayToward(x, x.stand, 1); }, 'way out of ' + id));
-        rows.button(insp, 'remove the stand', () => ed(x => { x.stand = null; x.taxiOut = null; x.taxiOut1 = null; }, 'stand of ' + id));
-      } else rows.note(insp, 'no stand: the aeroplane starts 35 m in from end 0 (the stand tool puts one beside the strip)');
+        rows.button(insp, 'remove the stand', () => ed(x => { x.stand = null; x.taxiOut = null; x.taxiOut1 = null; delete x.taxiOutVia; delete x.taxiOut1Via; }, 'stand of ' + id));
+      } else {
+        rows.button(insp, 'give it a stand and a way out', () => ed(x => { standUp(x); }, 'stand of ' + id));   // (G3094 TAXI-ALL)
+        rows.note(insp, 'no stand: the aeroplane starts 35 m in from end 0 (the stand tool puts one beside the strip)');
+      }
       // THE CLUB HANGAR (G434): the garage's own shell stood at the field - the building the aeroplane rolls
       // out of (the reveal shot keeps out of it); placed behind the stand facing it, then dragged by its disc
       // and turned here. Its size is the player's (the sliders in the shed), never the record's.
       if (e.hangar) {
-        rows.note(insp, 'THE CLUB HANGAR: the garage\'s shell stands here, its door facing ' + ((+e.hangar.hdg || 0) * 180 / Math.PI).toFixed(0) + '°; drag its disc to move it');
+        rows.note(insp, 'THE MAIN HANGAR (the club hangar: your career\'s main shed, drawn at your shed\'s own size): its door facing ' + ((+e.hangar.hdg || 0) * 180 / Math.PI).toFixed(0) + '°; press on it to drag it, R / shift-R turn it 15°');
+        if (PG.hangarSquare) { const sq = PG.hangarSquare(rec, e, e.stand, R.overlay && R.overlay.frame ? R.overlay.frame.yaw : 0);
+          if (sq !== null && Math.abs(Math.atan2(Math.sin(sq - (+e.hangar.hdg || 0)), Math.cos(sq - (+e.hangar.hdg || 0)))) > 0.01)
+            rows.button(insp, 'square to the buildings, door toward the stand', () => ed(x => { x.hangar.hdg = sq; }, 'hangar of ' + id)); }
         rows.slider(insp, 'door faces (°)', -180, 180, 1, () => (+e.hangar.hdg || 0) * 180 / Math.PI, v => ed(x => { x.hangar.hdg = v * Math.PI / 180; }, 'hangar of ' + id, 'hangarHdg'), v => v.toFixed(0) + '°');
         numRow(insp, 'hangar x (m)', () => e.hangar.x, v => ed(x => { x.hangar.x = +v.toFixed(2); }, 'hangar of ' + id, 'hx'), metres);   // (G3091)
         numRow(insp, 'hangar z (m)', () => e.hangar.z, v => ed(x => { x.hangar.z = +v.toFixed(2); }, 'hangar of ' + id, 'hz'), metres);
@@ -1714,7 +1741,10 @@ function mount(host, ctx) {
     const P = a.props || {}, poly = a.poly || [];
     if (k === 'terraform') { const lv = medianLevel(poly); return { kind: 'flatten', level: lv, falloff: bankFor(poly, lv, 10), abs: false, order: 0 }; }
     if (k === 'wheels') { const L = P.draw && P.draw.look && PG.RUNWAY_LOOKS[P.draw.look]; return { surface: L && L.surface !== null && L.surface !== undefined ? +L.surface : PG.SURFACE.GRAVEL }; }
-    if (k === 'draw') return { look: 'concrete', z: 0 };
+    if (k === 'draw') {   // (ONE SURFACE: an area that feels already is drawn as it feels - gravel wheels draw gravel; concrete else)
+      const s = P.wheels ? +P.wheels.surface : null, k2 = s === null ? null : ['concrete', 'gravel', 'grass', 'sand'].concat(Object.keys(PG.RUNWAY_LOOKS)).find(q => PG.RUNWAY_LOOKS[q] && PG.RUNWAY_LOOKS[q].cls && +PG.RUNWAY_LOOKS[q].surface === s);
+      return { look: k2 || 'concrete', z: 0 };
+    }
     if (k === 'marks') return { kind: 'parking' };
     if (k === 'exclude') return { what: ['trees'] };
     if (k === 'cover') { const bs = biomeNames(); return { code: null, veg: bs.length ? { mode: 'biome', mix: bs[0] } : { mode: 'none' } }; }
@@ -1727,7 +1757,7 @@ function mount(host, ctx) {
       x.props = Object.assign({}, x.props);
       x.props[k] = propDefault(x, k);
       // the defaults follow the draw: a pavement wheels its class, marks want a pavement (concrete) turned to the long side
-      if (k === 'draw' && !x.props.wheels) x.props.wheels = { surface: PG.SURFACE.PAVED };
+      if (k === 'draw' && !x.props.wheels) { const L = PG.RUNWAY_LOOKS[x.props.draw.look]; if (L && L.surface !== null && L.surface !== undefined) x.props.wheels = { surface: +L.surface }; }   // (ONE SURFACE: a new draw brings the wheels it implies; wheels already there are kept - the draw was picked to feel as they do)
       if (k === 'marks') {
         if (!lookCls(x.props.draw)) { x.props.draw = Object.assign({ z: 0 }, x.props.draw || {}, { look: 'concrete' }); delete x.props.draw.set; if (!x.props.wheels) x.props.wheels = { surface: PG.SURFACE.PAVED }; }
         if (x.props.draw.yaw === undefined) { const ed0 = PG.rectOk(x.rect) ? null : longestEdge(x.poly); x.props.draw.yaw = PG.rectOk(x.rect) ? +((x.rect.yaw || 0) + (x.rect.hw >= x.rect.hd ? 0 : Math.PI / 2)).toFixed(4) : ed0 ? +Math.atan2(ed0[1][1] - ed0[0][1], ed0[1][0] - ed0[0][0]).toFixed(4) : 0; }
@@ -1814,7 +1844,11 @@ function mount(host, ctx) {
     if (P.wheels) {
       const w = P.wheels, edW = (mut, label, key) => edP('wheels', mut, label, key);
       sec('wheels', (PG.SURFACE_NAMES[+w.surface] || '?').toLowerCase());
-      rows.select(insp, 'the wheels feel', [['0', 'grass'], ['6', 'gravel'], ['5', 'paved'], ['7', 'sand'], ['1', 'rock'], ['2', 'scree'], ['3', 'forest floor']], () => String(+w.surface), v => edW(q => { q.surface = +v; }, 'wheels'));
+      // ONE SURFACE (18 Oct): the wheels feel what DRAW's surface is - set there (an old file's other feel is converted on load:
+      // FEEL FOLLOWS THE LOOK, 27_premises normalise)
+      { const L = lookCls(P.draw) ? PG.RUNWAY_LOOKS[P.draw.look] : null, nm = (PG.SURFACE_NAMES[+w.surface] || '?').toLowerCase();
+        if (!P.draw) rows.note(insp, 'an old file\'s: the wheels feel ' + nm + ' and nothing is drawn - kept as it was; add a DRAW to set both');
+        else rows.note(insp, L ? 'the wheels feel the drawn surface (DRAW sets both)' : 'the wheels feel ' + nm + ' under the texture'); }
       rows.check(insp, 'an apron (the pilot lists it)', () => !!w.apron, v => edW(q => { if (v) q.apron = true; else delete q.apron; }, 'apron'));
       rows.slider(insp, 'priority', -5, 5, 1, () => +w.z || 0, v => edW(q => { if (v) q.z = v; else delete q.z; }, 'priority', 'wz'), v => v.toFixed(0) + (v > 0 ? ' (over)' : v < 0 ? ' (under)' : ''));
       if (HARD.indexOf(+w.surface) >= 0) rows.note(insp, 'a hard surface: no tree grows and no plot is sown inside (always so - shown in WHAT IT DOES)');
@@ -1827,7 +1861,7 @@ function mount(host, ctx) {
         v => edD(q => { if (v === 'pave') { q.look = q.look && PG.RUNWAY_LOOKS[q.look] && PG.RUNWAY_LOOKS[q.look].cls ? q.look : 'concrete'; } else { delete q.look; q.set = q.set || (materialSets()[0] || ['cracked'])[0]; if (q.fade === undefined) q.fade = 4; } }, 'draw'));
       if (pave) {
         rows.select(insp, 'surface', Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].cls).map(k => [k, PG.RUNWAY_LOOKS[k].name]), () => d.look,
-          v => edD((q, x) => { q.look = v; const L = PG.RUNWAY_LOOKS[v]; if (!x.props.wheels && L && L.surface !== null && L.surface !== undefined) x.props.wheels = { surface: +L.surface }; }, 'surface'));
+          v => edD((q, x) => { q.look = v; const L = PG.RUNWAY_LOOKS[v]; if (L && L.surface !== null && L.surface !== undefined) x.props.wheels = Object.assign({}, x.props.wheels || {}, { surface: +L.surface }); }, 'surface'));   // (ONE SURFACE: the wheels follow, the apron flag kept)
         rows.slider(insp, 'lanes turned (°)', -180, 180, 1, () => (+d.yaw || 0) * 180 / Math.PI, v => edD(q => { q.yaw = v * Math.PI / 180; }, 'yaw', 'yaw'), v => v.toFixed(0) + '°');
         rows.button(insp, 'turn the lanes along its longest side', () => { const e0 = longestEdge(poly); if (e0) edD(q => { q.yaw = +Math.atan2(e0[1][1] - e0[0][1], e0[1][0] - e0[0][0]).toFixed(4); }, 'yaw'); });
         // (the band, the wear and the paint's age - the pavement's rows, on this draw)
@@ -1899,7 +1933,7 @@ function mount(host, ctx) {
       rm('cover');
     }
     // + ADD A PROPERTY
-    const missing = PG.AREA_PROPS.filter(k => !P[k] && k !== 'roadside');   // (a roadside apron is made from its road's waypoint)
+    const missing = PG.AREA_PROPS.filter(k => !P[k] && k !== 'roadside' && k !== 'wheels');   // (a roadside apron is made from its road's waypoint; ONE SURFACE: the wheels come with DRAW)
     if (missing.length) rows.select(insp, '+ add a property', missing.map(k => [k, PROP_TITLE[k].toLowerCase() + ' - ' + PROP_WHY[k]]), () => '', v => { if (v) addProp(id, v); });
   }
 
@@ -2281,17 +2315,47 @@ function mount(host, ctx) {
   // A WAY OUT's points, typed; the last is the entry, on the centreline (a typed entry is taken to its nearest centreline point,
   // as its drag is); a point added after any but the entry (half way to the next), removed (never the entry)
   const onLine = (x, q) => { const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, x)), along = (q[0] - x.c[0]) * E.d[0] + (q[1] - x.c[1]) * E.d[1]; return [+(x.c[0] + E.d[0] * along).toFixed(2), +(x.c[1] + E.d[1] * along).toFixed(2)]; };
-  function wayRows(p, e, key, label, id, ed) {
+  // (G3093 TAXI-ALL) `pick` takes the way's holder out of the strip being edited (the strip itself, or one of its plots), `pre`
+  // names a plot's rows apart; FOLLOWS ROAD: a road near the stand (80 m) the composition builds the way from (27_premises
+  // wayFrom) - the drawn taxiway and the pilot's route one thing; the points below stay the way's own, used when it follows none
+  function wayRows(p, e, key, label, id, ed, pick, pre) {
+    pick = pick || (x => x); pre = pre || '';
     const W = e[key]; if (!Array.isArray(W) || !W.length) return;
     rows.note(p, label.toUpperCase() + ': ' + W.length + ' point' + (W.length > 1 ? 's' : '') + ' (the last is the entry on the centreline)');
+    const vk = key + 'Via', near = e.stand ? (rec.layers.roads || []).filter(q => q && q.pts && q.pts.length >= 2 && PG.roadDist(q, e.stand.x, e.stand.z) < 80) : [];
+    if (near.length || e[vk]) {
+      rows.select(p, pre + 'follows road', [['', 'none (its own points)']].concat(near.map(q => [q.id, (q.name || q.id) + ' (' + q.id + ')'])).concat(e[vk] && !near.some(q => q.id === e[vk]) ? [[e[vk], e[vk] + ' (far)']] : []),
+        () => e[vk] || '', v => ed(x => { const H = pick(x); if (v) H[vk] = v; else delete H[vk]; }, 'way out of ' + id));
+      if (e[vk]) rows.note(p, 'follows road ' + e[vk] + ': edit the road - the pilot follows it; the points below are this way\'s own, used again when it follows none');
+    }
     W.forEach((q, i) => {
-      const last = i === W.length - 1, set = (k, v) => ed(x => { const T = x[key], P = T[i].slice(); P[k] = +v.toFixed(2); T[i] = last ? onLine(x, P) : P; }, 'way out of ' + id, key + i + k);
-      numRow(p, (last ? 'entry' : 'point ' + (i + 1)) + ' x (m)', () => W[i][0], v => set(0, v), metres);
-      numRow(p, (last ? 'entry' : 'point ' + (i + 1)) + ' z (m)', () => W[i][1], v => set(1, v), metres);
-      if (!last) rows.button(p, 'add a point after point ' + (i + 1), () => ed(x => { const T = x[key], a = T[i], b = T[i + 1]; T.splice(i + 1, 0, [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]); }, 'way out of ' + id));
-      if (!last && W.length > 1) rows.button(p, 'remove point ' + (i + 1), () => ed(x => { x[key].splice(i, 1); }, 'way out of ' + id));
+      const last = i === W.length - 1, set = (k, v) => ed(x => { const T = pick(x)[key], P = T[i].slice(); P[k] = +v.toFixed(2); T[i] = last ? onLine(x, P) : P; }, 'way out of ' + id, pre + key + i + k);
+      numRow(p, pre + (last ? 'entry' : 'point ' + (i + 1)) + ' x (m)', () => W[i][0], v => set(0, v), metres);
+      numRow(p, pre + (last ? 'entry' : 'point ' + (i + 1)) + ' z (m)', () => W[i][1], v => set(1, v), metres);
+      if (!last) rows.button(p, pre + 'add a point after point ' + (i + 1), () => ed(x => { const T = pick(x)[key], a = T[i], b = T[i + 1]; T.splice(i + 1, 0, [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]); }, 'way out of ' + id));
+      if (!last && W.length > 1) rows.button(p, pre + 'remove point ' + (i + 1), () => ed(x => { pick(x)[key].splice(i, 1); }, 'way out of ' + id));
     });
-    if (key === 'taxiOut1') rows.button(p, 'remove the way out toward end 1', () => ed(x => { x.taxiOut1 = null; }, 'way out of ' + id));
+    if (key === 'taxiOut1' && !pre) rows.button(p, 'remove the way out toward end 1', () => ed(x => { x.taxiOut1 = null; delete x.taxiOut1Via; }, 'way out of ' + id));
+  }
+  // (G3094 TAXI-ALL) A STAND AND A WAY OUT for a strip that has none: when a road MEETS the strip (an end within its half width +
+  // 20 m of the centreline, inside its length, the other end out past half width + 10 m) the stand at the road's far end and the
+  // way following it; else the stand 40 m off the side at the middle and a straight way to the centreline
+  function standUp(x) {
+    const R0 = Object.assign({}, PG.RUNWAY_DEF, x), E = PG.runwayEnds(R0), hw = R0.wid / 2;
+    const al = q => (q[0] - x.c[0]) * E.d[0] + (q[1] - x.c[1]) * E.d[1], of = q => Math.abs(-(q[0] - x.c[0]) * E.d[1] + (q[1] - x.c[1]) * E.d[0]);
+    let best = null;
+    for (const q of rec.layers.roads || []) {
+      if (!q || !q.pts || q.pts.length < 2) continue;
+      const A = q.pts[0], B = q.pts[q.pts.length - 1];
+      for (const [a, b] of [[A, B], [B, A]]) if (Math.abs(al(a)) <= R0.len / 2 && of(a) <= hw + 20 && of(b) > hw + 10 && (!best || of(a) < best.d)) best = { q, far: b, d: of(a) };
+    }
+    if (best) {
+      x.stand = { x: +best.far[0].toFixed(2), z: +best.far[1].toFixed(2), hdg: null };
+      x.taxiOut = PG.wayFrom(R0, x.stand, best.q); x.taxiOutVia = best.q.id; return best.q.id;
+    }
+    x.stand = { x: +(x.c[0] + E.n[0] * (hw + 40)).toFixed(2), z: +(x.c[1] + E.n[1] * (hw + 40)).toFixed(2), hdg: null };
+    x.taxiOut = [[+(x.c[0] + E.n[0] * (hw + 15)).toFixed(2), +(x.c[1] + E.n[1] * (hw + 15)).toFixed(2)], [+x.c[0].toFixed(2), +x.c[1].toFixed(2)]];
+    return null;
   }
   // a new way out toward end k (0 / 1): half way from the stand to the centreline, then the entry 60 m along toward that end
   function wayToward(x, st, k) {
@@ -2315,7 +2379,10 @@ function mount(host, ctx) {
         numRow(p, pid + ' stand x (m)', () => q.stand.x, v => upd(o => { o.stand.x = +v.toFixed(2); }, 'sx'), metres);
         numRow(p, pid + ' stand z (m)', () => q.stand.z, v => upd(o => { o.stand.z = +v.toFixed(2); }, 'sz'), metres);
         standHeading(p, q.stand, q.taxiOut, f => upd(o => f(o.stand), 'sh'), pid + ' ');
-        rows.button(p, pid + ': no stand of its own (the field\'s serves it)', () => upd(o => { delete o.stand; delete o.taxiOut; delete o.taxiOut1; }));
+        // (G3095 TAXI-ALL) its own way out: the same rows as the strip's (typed, added, removed, following a road), or one given
+        if (Array.isArray(q.taxiOut) && q.taxiOut.length) wayRows(p, q, 'taxiOut', pid + ' way out', id, ed, x => x.plots[i], pid + ' ');
+        else rows.button(p, pid + ': give it its own way out', () => ed(x => { const o = x.plots[i]; o.taxiOut = wayToward(x, o.stand, 0); }, 'plot ' + pid + ' of ' + id));
+        rows.button(p, pid + ': no stand of its own (the field\'s serves it)', () => upd(o => { delete o.stand; delete o.taxiOut; delete o.taxiOut1; delete o.taxiOutVia; }));
       } else rows.button(p, pid + ': give it a stand of its own', () => upd(o => { const h = +o.hdg || 0; o.stand = { x: +(o.x + 20 * Math.cos(h)).toFixed(2), z: +(o.z + 20 * Math.sin(h)).toFixed(2), hdg: null }; }));
       rows.button(p, 'remove plot ' + pid, () => ed(x => { x.plots.splice(i, 1); if (!x.plots.length) x.plots = null; }, 'plot ' + pid + ' of ' + id));
     });
@@ -2417,6 +2484,41 @@ function mount(host, ctx) {
 
   // ---- wire up ---------------------------------------------------------------------
   const view = ctx.viewEl;
+  // DROP-JSON (the user, 18 Oct): a .json dragged ANYWHERE onto the scenery editor imports - a scenery record or envelope
+  // (load: the paste's own path) or a world look ({ flydiy_world_look }: the world rail's import, applied and kept); 'drop to
+  // import' covers the page while a file is dragged. Capture phase, stopped there: the garage's own drop (UX-A) never sees a
+  // drop meant for the scenery editor while it is open
+  function importText(txt, name) {
+    let J = null;
+    try { J = JSON.parse(txt); } catch (e) { strip.status('import refused: ' + name + ' is not JSON'); return false; }
+    if (J && J.flydiy_world_look) {
+      const WR = typeof window !== 'undefined' ? window.WORLD_RAIL : null;
+      if (WR && WR.importLook) { WR.importLook(J); strip.status('world look imported: ' + name); return true; }
+      strip.status('import refused: no world rail on this page'); return false;
+    }
+    try { load(txt); return true; } catch (e) { strip.status('import refused: ' + e.message); return false; }
+  }
+  let dropDepth = 0, dropEl = null;
+  const fileDrag = ev => !!(ev.dataTransfer && Array.prototype.indexOf.call(ev.dataTransfer.types || [], 'Files') >= 0);
+  const dropShow = on => {
+    if (on && !dropEl && typeof document !== 'undefined') {
+      dropEl = document.createElement('div'); dropEl.className = 'pr-drop';
+      dropEl.innerHTML = '<b>drop to import</b><span>a scenery .json (the record or its envelope) or a world look</span>';
+      (document.getElementById('ui') || document.body).appendChild(dropEl);
+    }
+    if (dropEl) dropEl.style.display = on ? 'flex' : 'none';
+  };
+  addEventListener('dragenter', ev => { if (!active || !fileDrag(ev)) return; dropDepth++; dropShow(true); ev.preventDefault(); ev.stopImmediatePropagation(); }, true);
+  addEventListener('dragover', ev => { if (!active || !fileDrag(ev)) return; ev.preventDefault(); ev.stopImmediatePropagation(); if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'copy'; }, true);
+  addEventListener('dragleave', ev => { if (!active || !fileDrag(ev)) return; ev.stopImmediatePropagation(); dropDepth = Math.max(0, dropDepth - 1); if (!dropDepth) dropShow(false); }, true);
+  addEventListener('drop', ev => {
+    if (!active || !fileDrag(ev)) return;
+    ev.preventDefault(); ev.stopImmediatePropagation(); dropDepth = 0; dropShow(false);
+    const f = ev.dataTransfer.files && ev.dataTransfer.files[0]; if (!f) return;
+    if (!/\.json$/i.test(f.name || '') && !/json/.test(f.type || '')) { strip.status('import refused: ' + f.name + ' is not a .json'); return; }
+    f.text().then(t => importText(t, f.name));
+  }, true);
+
   let downAt = null, swallowClick = false;
   view.addEventListener('mousedown', ev => { if (!active) return; if (ev.button === 0) { downAt = [ev.clientX, ev.clientY]; if (onDown(ev)) ev.stopPropagation(); } });
   addEventListener('mousemove', ev => { if (active) onMove(ev); });
@@ -2487,6 +2589,7 @@ function mount(host, ctx) {
       if (name === 'plotFence') { return togglePlotFence(args.zone, [args.x, args.z]); }   // (G3007)
       // G2910-G2914: an area's properties, the placer, the fold - scriptable (GATE SCENERYED)
       if (name === 'addProp') { return addProp(args.id || selected, args.prop); }
+      if (name === 'importText') { return importText(String(args.text || ''), args.name || 'the drop'); }   // (DROP-JSON: a dropped file's text, headless)
       if (name === 'removeProp') { return removeProp(args.id || selected, args.prop); }
       if (name === 'setProp') { const id = args.id || selected; edit(id, 'areas', x => { x.props = Object.assign({}, x.props); x.props[args.prop] = Object.assign({}, x.props[args.prop] || {}, args.patch); }, args.prop + ' of ' + id); return true; }
       if (name === 'pick') { ASSET.key = args.key; if (args.yaw !== undefined) ASSET.yaw = args.yaw; if (args.s !== undefined) ASSET.s = args.s; if (args.level !== undefined) ASSET.level = !!args.level; return ASSET.key; }

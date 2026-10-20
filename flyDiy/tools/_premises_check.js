@@ -49,7 +49,7 @@
 //      class answers inside its width, no forest tree stands within 30 m of
 //      its box, its aerodrome record is in W.aerodromes' shape (siteRunway
 //      derives it, sitePaintStrip paints it) and sitePattern's pattern for it
-//      has no issue; a strip under 150 m or over 5 % is refused.
+//      has no issue; a strip under 150 m is refused, one over 5 % WARNS and ships (18 Oct: no filtering).
 //  11  EXCLUDE: an exclude polygon answers true inside, false outside; a
 //      forest zone plants no tree in an exclude, a clear zone or a plot, and
 //      a hand-placed tree is planted where it was put.
@@ -363,7 +363,7 @@ for (const fx of fixtures) {
       const bad = JSON.parse(JSON.stringify(rec)); bad.layers.runways[0].len = 120;
       check(PG.issues(bad).length > 0, '10 a strip under 150 m is refused');
       const steep = JSON.parse(JSON.stringify(rec)); steep.layers.runways[0].slope = 0.08; delete steep.layers.runways[0].profile;   // a profile outranks the slope (v8)
-      check(PG.issues(steep).length > 0, '10 a strip over 5 % is refused');
+      check(PG.issues(steep).length === 0 && PG.warnings(steep).some(i => /over 5 %/.test(i)), '10 a strip over 5 % warns and ships (no issue)', PG.issues(steep)[0]);
     }
   }
   // 12 baked vs live
@@ -600,9 +600,11 @@ for (const fx of fixtures) {
     check(worst < 0.05, '10c the centreline is on its profile (5 cm)', worst.toFixed(3) + ' m');
     check(over === 0 && Math.abs(pr.at(300) - 5) < 1e-9, '10c the spline is monotone: no overshoot past the hump\'s point', String(over));
     check(PG.issues(rec).length === 0, '10c a 5 m hump over 600 m passes the pilot\'s limits', PG.issues(rec)[0]);
-    check(PG.issues(mk([[0, 0], [0.5, 12], [1, 0]])).some(i => /over 5 %/.test(i)), '10c a 12 m hump is over 5 % and refused');
-    check(PG.issues(mk([[0, 0], [0.1, 3], [1, 0]])).some(i => /touchdown zone/.test(i)), '10c a hump in the touchdown zone is refused');
-    check(PG.issues(mk([[0, 0], [0.45, 4], [0.5, 4.2], [0.55, 1], [1, 0]])).some(i => /crest/.test(i)), '10c a sharp crest is refused');
+    // (18 Oct, the user: the slope rules relaxed - each limit WARNS, none refuses: the strip ships, the player finds out)
+    const warnOnly = (r, re) => PG.issues(r).length === 0 && PG.warnings(r).some(i => re.test(i)) && PG.profileIssues(Object.assign({}, PG.RUNWAY_DEF, r.layers.runways[0])).some(i => re.test(i));
+    check(warnOnly(mk([[0, 0], [0.5, 12], [1, 0]]), /over 5 %/), '10c a 12 m hump is over 5 %: it warns (editor and PG.warnings) and ships');
+    check(warnOnly(mk([[0, 0], [0.1, 3], [1, 0]]), /touchdown zone/), '10c a hump in the touchdown zone warns and ships');
+    check(warnOnly(mk([[0, 0], [0.45, 4], [0.5, 4.2], [0.55, 1], [1, 0]]), /crest/), '10c a sharp crest warns and ships');
     // the old linear slope still reads as a two-point profile
     const lin = PG.compose(PG.normalise({ seed: 1, layers: { runways: [{ id: 'w', c: [0, 0], hdg: 0, len: 600, wid: 24, slope: 0.02 }] } }), synth, { noPlace: true });
     check(Math.abs(lin.localH(300, 0) - lin.localH(-300, 0) - 12) < 0.05, '10c a linear slope is a two-point profile', (lin.localH(300, 0) - lin.localH(-300, 0)).toFixed(2));
@@ -753,7 +755,7 @@ for (const fx of fixtures) {
   rw.layers.runways[0].look = 'asphalt';
   check(!PG.issues(rw).some(t => /look/.test(t)), '16 a known look is not');
   const O = PG.compose(rw, synth);
-  check(O.aerodromes.length === 1 && O.aerodromes[0].look === 'asphalt' && O.aerodromes[0].surface === PG.SURFACE.GRASS, '16 the aerodrome record carries the look; the class stays the record\'s own');
+  check(O.aerodromes.length === 1 && O.aerodromes[0].look === 'asphalt' && O.aerodromes[0].surface === PG.SURFACE.PAVED, '16 the aerodrome record carries the look, and feels as it (FEEL FOLLOWS THE LOOK, the user 19 Oct: the class is the look\'s)');
 }
 
 // 17 THE STAGES (v1.33, G2300 STAGES): an entry, a site's item or a zone may carry `stage: { track, show, vary }` and
@@ -1172,8 +1174,19 @@ if (SELFTEST) {
       check(same && back.layers.objects.some(e => e.id === 'o_g590') && (!mv || back.layers.sites.find(s => s.id === mv.id).at.x === mv.at.x),
             '14q restorePlaces puts every cut entry back and keeps the edit');
       const AP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'app.js'), 'utf8') + fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'world_boot.js'), 'utf8');   // G999: the load's composition is world_boot.js's
-      check(/off: \['mk_'\]/.test(AP) && /PREMISES_GEN\.dropPlaces\(U\.rec, TOWN\.off\)/.test(AP) && /makeWorld\(0, \{ premises: premisesPlaced/.test(AP) && /restorePlaces\(U\.rec, TOWN\.cut\)/.test(AP),
+      check(/off: TO \? TO\.drop\.slice\(\) : \['mk_'\]/.test(AP) && /PREMISES_GEN\.dropPlaces\(U\.rec, TOWN\.off, TOWN\.keep\)/.test(AP) && /makeWorld\(0, \{ premises: premisesPlaced/.test(AP) && /restorePlaces\(U\.rec, TOWN\.cut\)/.test(AP),
             '14q app.js drops the town at load by default and restores it in every editor save');
+      // 14q (METLA-WRAPUP, the user 18 Oct: Metlakatla behind its flag): the page's switch (PREMISES_GEN.TOWN_OFF) keeps the
+      // SEAPLANE BASE - the lane, its player plot, the trestle and the float - which the career's contracts fly to
+      const TO = PG.TOWN_OFF, K = PG.dropPlaces(rec, TO.drop, TO.keep);
+      const kept = Object.keys(K.rec.layers).reduce((a, k) => a.concat(Array.isArray(K.rec.layers[k]) ? K.rec.layers[k].filter(isMk).map(e => e.id) : []), []).sort();
+      check(JSON.stringify(kept) === JSON.stringify(TO.keep.slice().sort()) && K.n === D.n - TO.keep.length, '14q the switch keeps the seaplane base, and only it', kept.join(',') + ' kept, ' + K.n + ' cut');
+      check(PG.issues(K.rec).length === 0, '14q ...with no issue', PG.issues(K.rec).slice(0, 3).join(' / '));
+      const OK = PG.compose(K.rec, IW, { catalogue: CAT, globals: GENS }), kid = OK.aerodromes.map(a => a.id);
+      check(kid.includes('mk_sea') && ['HOME', 'SEA', 'mn_strip', 'nv_strip', 'tw_ski'].every(id => kid.includes(id)),
+            '14q mk_sea stays a destination (the minedock arc, the jobs, the floats\' routes)', kid.join(','));
+      check(OK.records.items.some(r => r.site === 'mk_mp_air') && OK.records.items.some(r => r.site === 'mk_mf_air') && OK.records.trees.filter(t => /^mk_/.test(String(t.zone || ''))).length === 0,
+            '14q the trestle and the float are placed, no town tree');
     }
 
     // 14r THE AUTHORS ARE DETERMINISTIC, held by a source scan rather than by
@@ -1491,7 +1504,7 @@ if (SELFTEST) {
               { id: 'a3', round: { c: [300, 0], r: 15 }, props: { draw: { look: 'concrete', z: 0 } } }] } });
     const O = PG.compose(r, synth), at = (x, z) => { const w = O.frame.toWorld(x, z); return O.surfaceAt(w[0], w[1]); };
     check(at(0, 0) === PG.SURFACE.PAVED && at(40, 0) === PG.SURFACE.GRAVEL, '20e a new area composes after the v1 entries (paved over the gravel at the same priority)');
-    check(at(200, 0) === PG.SURFACE.GRAVEL && at(300, 0) === PG.SURFACE.PAVED, '20e a round draw\'s wheels are its look\'s unless the area says its own');
+    check(at(200, 0) === PG.SURFACE.PAVED && at(300, 0) === PG.SURFACE.PAVED, '20e a round draw\'s wheels are its look\'s - an area\'s own other feel converts to it (FEEL FOLLOWS THE LOOK, the user 19 Oct)');
     check(O.rec.layers.surface.map(e => e.id).join() === 'y1,a1~w,a2~w' && O.rec.layers.material.map(e => e.id).join() === 'a2~d,a3~d' && O.rec.layers.material[1].round && !O.rec.layers.material[0].round, '20e the v1 entries an area expands into: ids <area>~w / ~d, the round kept only where it says the wheels', O.rec.layers.material.map(e => e.id + (e.round ? '(r)' : '')).join());
   }
   // 20f the shapes and the ids

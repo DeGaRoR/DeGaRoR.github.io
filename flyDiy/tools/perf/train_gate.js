@@ -4,8 +4,13 @@
 // the other, reads their reports into ONE JSON of rows, and compares every row with a stored baseline within its slack:
 // a row past its slack is RED, named, and the train does not land (exit 1).
 //
-//   1. ROLLOUT  tools/rollout_perf.js at HOME (the route HOME / CIRCUIT), the CHASE view and the COCKPIT view, the Cub
-//               (--build default) and the metal Cessna (bugReports/cessnaMetal (1).json); --reps runs per group, the
+//   1. ROLLOUT  tools/rollout_perf.js at HOME (the route HOME / CIRCUIT), the CHASE view and the COCKPIT view, the user's Cub
+//               (builds/cub_2026-09-20_corrected.json), the metal Cessna (bugReports/cessnaMetal (1).json) and the Cessna 172
+//               (builds/cessna172_2026-09-20_corrected.json) - GATE-ANCHOR (A0 for the user, 18 Oct): every build pinned BY
+//               FILE, never the OLD STOCK default (metal + 172 both until the user names the right Cessna file); and the
+//               floatplane's TAKE-OFF from the SEA lane (bugReports/cessnaFloatsWOrks.json,
+//               the chase view, --float-secs; the user: "the water take off is extremely uneven"); every run with the water
+//               mirror PINNED (--mirror, default off: AUTO's switching over the shore is noise in a timed run); --reps runs per group, the
 //               medians gated through rollout_ratchet.js's own metrics() and RULES (fps, p99 taxi / all, the share over
 //               1.5x the cap, frames over 100 ms, tasks, loop / render / solver, the world's slice, the loads and the
 //               compile); p99.9, over 3x, over 1 s and the uneven share are INFO rows (printed, never red).
@@ -49,15 +54,19 @@ const ROOT = path.join(__dirname, '..', '..'), REPO = path.resolve(ROOT, '..');
 const rel = p => path.relative(ROOT, p).replace(/\\/g, '/');
 const MODE = flag('light') ? 'light' : 'full';
 const M = {
-  light: { reps: 1, secs: 20, glReps: 2, cold: false, taxi: 10, water: 20, garage: 6 },
-  full:  { reps: 2, secs: 25, glReps: 3, cold: true,  taxi: 15, water: 25, garage: 6 },
+  light: { reps: 1, secs: 20, glReps: 2, cold: false, taxi: 10, water: 20, garage: 6, floatSecs: 60 },
+  full:  { reps: 2, secs: 25, glReps: 3, cold: true,  taxi: 15, water: 25, garage: 6, floatSecs: 75 },
 }[MODE];
 if (opt('reps', null)) M.reps = +opt('reps');
 if (opt('secs', null)) M.secs = +opt('secs');
+if (opt('float-secs', null)) M.floatSecs = +opt('float-secs');   // (0: no float leg)
 const ONLY = new Set(opt('only', 'rollout,garage,bench').split(','));
 const REMOTE = opt('remote', 'mn_strip');
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json' };
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', c172: 'builds/cessna172_2026-09-20_corrected.json' };
+const NAMES = { cub: 'the Cub', metal: 'the metal Cessna', c172: 'the Cessna 172', floats: 'the Cessna on floats' };
+const FLOATS = 'bugReports/cessnaFloatsWOrks.json';
 const VIEWS = ['chase', 'cockpit'];
+const MIRROR = opt('mirror', 'off');   // GATE-ANCHOR: the water mirror pinned for every rollout run (off / auto / on)
 const BASELINE = path.resolve(opt('baseline', path.join(__dirname, 'train_gate_baseline_' + MODE + '.json')));
 
 // ---- the steps: [id, part, what, args, expected seconds] -----------------------------------------------------------------
@@ -70,15 +79,23 @@ function steps(dir, port, udd) {
   if (ONLY.has('rollout')) {
     // the metal's own programs warmed once (the bench's discarded load warms the Cub's; without the bench, the Cub too):
     // a short cockpit run each, discarded
-    for (const b of ONLY.has('bench') ? ['metal'] : ['cub', 'metal'])
-      S.push({ id: 'warm_' + b, part: 'warmup', what: (b === 'cub' ? 'the Cub' : 'the metal Cessna') + ', a short cockpit run on the fresh profile (discarded)',
-        args: ['tools/rollout_perf.js', '--build', BUILDS[b], '--cam', 'cockpit', '--secs', '3', '--port', P(0), '--udd', path.join(udd, 'p'), '--label', 'tg_warm_' + b, '--out', path.join(dir, 'warm_' + b + '.json')],
+    // (GATE-ANCHOR: the float leg's water programs are warmed by the bench's water taxi - without the bench, a short float run)
+    for (const b of ONLY.has('bench') ? ['metal', 'c172'] : ['cub', 'metal', 'c172'].concat(M.floatSecs ? ['floats'] : []))
+      S.push({ id: 'warm_' + b, part: 'warmup', what: NAMES[b] + ', a short ' + (b === 'floats' ? 'chase' : 'cockpit') + ' run on the fresh profile (discarded)',
+        args: ['tools/rollout_perf.js', '--build', b === 'floats' ? FLOATS : BUILDS[b], '--cam', b === 'floats' ? 'chase' : 'cockpit', '--secs', '3', '--set', 'mirror=' + MIRROR, '--port', P(0), '--udd', path.join(udd, 'p'), '--label', 'tg_warm_' + b, '--out', path.join(dir, 'warm_' + b + '.json')],
         sec: EST.chrome + EST.warmLoad + EST.rollout + 3 });
     for (let r = 1; r <= M.reps; r++) for (const b of Object.keys(BUILDS)) for (const v of VIEWS) {
-      S.push({ id: 'rp_' + b + '_' + v + '_' + r, part: 'rollout', group: b + ' ' + v, what: (b === 'cub' ? 'the Cub' : 'the metal Cessna') + ', HOME, ' + v + ', run ' + r,
-        args: ['tools/rollout_perf.js', '--build', BUILDS[b], '--cam', v, '--secs', String(M.secs), '--port', P(0), '--udd', path.join(udd, 'p'), '--label', 'tg_' + b + '_' + v + '_' + r, '--out', path.join(dir, 'rp_' + b + '_' + v + '_' + r + '.json')],
+      S.push({ id: 'rp_' + b + '_' + v + '_' + r, part: 'rollout', group: b + ' ' + v, what: NAMES[b] + ', HOME, ' + v + ', run ' + r,
+        args: ['tools/rollout_perf.js', '--build', BUILDS[b], '--cam', v, '--secs', String(M.secs), '--set', 'mirror=' + MIRROR, '--port', P(0), '--udd', path.join(udd, 'p'), '--label', 'tg_' + b + '_' + v + '_' + r, '--out', path.join(dir, 'rp_' + b + '_' + v + '_' + r + '.json')],
         sec: EST.chrome + EST.warmLoad + EST.rollout + M.secs });
     }
+    // GATE-ANCHOR: the floatplane's TAKE-OFF - the game stands a float build on the SEA lane whatever the route's pick (app.js
+    // applyRoute) and its pilot runs from there: afloat, the displacement run, the step, the climb. Its rows are the run's
+    // evenness and loop over every frame (rollout_ratchet over34 / worst / slow34s / p99all / loopAll): it has no 'taxi' phase
+    if (M.floatSecs) for (let r = 1; r <= M.reps; r++)
+      S.push({ id: 'rp_floats_takeoff_' + r, part: 'rollout', group: 'floats takeoff', what: NAMES.floats + ', the SEA lane, the take-off, chase, run ' + r,
+        args: ['tools/rollout_perf.js', '--build', FLOATS, '--cam', 'chase', '--secs', String(M.floatSecs), '--set', 'mirror=' + MIRROR, '--port', P(0), '--udd', path.join(udd, 'p'), '--label', 'tg_floats_takeoff_' + r, '--out', path.join(dir, 'rp_floats_takeoff_' + r + '.json')],
+        sec: EST.chrome + EST.warmLoad + EST.rollout + M.floatSecs });
   }
   // G2920 (GARAGE-SHEET): --clearshake - the performance sheet's store (localStorage flydiy.shake, per core sha) lives in
   // the rig's profile and garage_lag sets the same values every run, so a profile that ran before read its sheets from
@@ -134,7 +151,7 @@ function rowsRollout(files) {
       rows.push({ id: 'rollout|' + g + '|' + n, part: 'rollout', what: g + ' ' + n, value: r4(RT.med(ms.map(m => m[n]))), runs: ms.length, rule: { up: !!R.up, rel: R.rel, abs: R.abs, unit: R.unit, info: !!R.info } });
     }
   }
-  return { rows, gpu, size, env };
+  return { rows, gpu, size, env, groups: Object.keys(groups).sort() };
 }
 function rowsGarage(j) {
   const rows = [];
@@ -180,8 +197,11 @@ function compare(G, B) {
   if (B.meta.size && G.meta.size && B.meta.size !== G.meta.size) return { refuse: 'the baseline viewport is ' + B.meta.size + ', this run ' + G.meta.size };
   if (B.meta.mode !== G.meta.mode) return { refuse: 'the baseline is a ' + B.meta.mode + ' gate, this run ' + G.meta.mode + ' - compare with the ' + G.meta.mode + ' baseline' };
   const now = new Map(G.rows.map(r => [r.id, r])), ran = new Set(G.meta.parts || []);
+  // GATE-ANCHOR: a rollout GROUP this run did not run (a build taken out of BUILDS, or --only) is skipped and
+  // counted, not MISSING - a run that ran the group and lost a row still is
+  const groups = G.meta.groups ? new Set(G.meta.groups) : null, groupOf = id => String(id).split('|')[1];
   for (const b of B.rows) {
-    if (!ran.has(b.part)) { out.skipped++; continue; }
+    if (!ran.has(b.part) || (groups && b.part === 'rollout' && !groups.has(groupOf(b.id)))) { out.skipped++; continue; }
     // the rule from TODAY's tables where the row's kind is known (a widened slack applies to an older baseline too -
     // A0, 2026-10-03: --update copied the old slacks with the values); the stored rule otherwise
     const n = now.get(b.id), R = ruleNow(b) || b.rule || {};
@@ -245,7 +265,13 @@ const BUDGETS = [
 const TARGETS = [
   { re: /^rollout\|.*\|p99all$/, max: 50, what: 'p99 <= 50 ms' }, { re: /^rollout\|.*\|p999$/, max: 66.7, what: 'p99.9 <= 66.7 ms' },
   { re: /^rollout\|.*\|over100$/, max: 0, what: 'no frame > 100 ms' }, { re: /\|tasks1s$/, max: 0, what: 'no task > 1 s' },
-  { re: /^rollout\|.*\|uneven$/, max: 0.15, what: 'uneven <= 15 %' } ];
+  { re: /^rollout\|.*\|uneven$/, max: 0.15, what: 'uneven <= 15 %' },
+  // GATE-ANCHOR: the evenness headline (the study's section 7: the headroom warning past 2 % of frames over 34-35 ms; R1, R2)
+  { re: /^rollout\|.*\|over34$/, max: 0.02, what: '<= 2 % of frames over 34 ms' }, { re: /^rollout\|.*\|worst$/, max: 100, what: 'the worst frame <= 100 ms' },
+  { re: /^rollout\|.*\|slow34s$/, max: 3, what: 'under 30 fps < 3 s in a row' } ];
+// GATE-ANCHOR (the user, 18 Oct: "frame evenness is the big issue"): the reference prints these first, per rollout group -
+// evenness, then the loop
+const HEADLINE = [['p99all', 'p99 frame'], ['over34', '% > 34 ms'], ['worst', 'worst frame'], ['slow34s', 'longest < 30 fps'], ['loop', 'loop (taxi)'], ['loopAll', 'loop (run)']];
 const sha = f => { try { return require('crypto').createHash('sha256').update(fs.readFileSync(path.join(ROOT, f))).digest('hex').slice(0, 12); } catch (e) { return null; } };
 const git = a => { try { return require('child_process').execSync('git ' + a, { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch (e) { return null; } };
 const rulesHash = () => require('crypto').createHash('sha256').update(JSON.stringify([RT.RULES, R_LOAD, R_SCENE, R_GARAGE])).digest('hex').slice(0, 12);
@@ -260,7 +286,8 @@ function identity(ro, code) {
   return {
     env: { gpu: ro.gpu || null, size: ro.size || null, ua: e.ua || null, dpr: e.dpr || null, settings: e.settings || null, flags: e.flags || null, cap: e.cap || null,
       mode: MODE, secs: M.secs, reps: M.reps, glReps: M.glReps, cold: M.cold, remote: REMOTE, parts: [...ONLY].sort().join(','), rules: rulesHash(),
-      aircraft: Object.values(BUILDS).concat(['bugReports/cessnaFloatsWOrks.json']).map(f => sha(f) || 'missing').join(',') },
+      aircraft: Object.values(BUILDS).concat(M.floatSecs ? [FLOATS] : []).map(f => f + '@' + (sha(f) || 'missing')).join(','),
+      mirror: MIRROR, floatSecs: M.floatSecs, groups: (ro.groups || []).join(',') },
     code: code || codeId(),
   };
 }
@@ -301,6 +328,14 @@ function printRef(G) {
   if (C.refuse) { console.log(head + ': NOT COMPARED - ' + C.refuse.join('; ')); return 2; }
   const f = x => x == null ? '-' : String(x);
   console.log(head + ': ' + C.ok + ' rows within · ' + C.better.length + ' better · ' + C.ledger.length + ' over budget by the ledger · ' + C.red.length + ' RED');
+  { // GATE-ANCHOR: the headline - evenness first, the loop second; each cell the reference -> this run
+    const was = new Map(Ref.rows.map(r => [r.id, r.value])), now = new Map(G.rows.map(r => [r.id, r.value]));
+    const gs = [...new Set(G.rows.filter(r => r.part === 'rollout').map(r => r.id.split('|')[1]))];
+    const cell = (g, k) => { const a = was.get('rollout|' + g + '|' + k), b = now.get('rollout|' + g + '|' + k), q = x => x == null ? '-' : k === 'over34' ? (100 * x).toFixed(1) + '%' : String(+(+x).toFixed(2));
+      return (q(a) + ' -> ' + q(b)).padEnd(19); };
+    console.log('\n  EVENNESS FIRST (the reference -> this run)\n    ' + ''.padEnd(18) + HEADLINE.map(h => h[1].padEnd(19)).join(''));
+    for (const g of gs) console.log('    ' + g.padEnd(18) + HEADLINE.map(h => cell(g, h[0])).join(''));
+  }
   if (C.budget.length) { console.log('\n  CUMULATIVE BUDGETS (the growth since the reference, all trains together)');
     for (const r of C.budget) console.log('    ' + r.what.padEnd(48) + f(r.was).padStart(9) + ' -> ' + f(r.now).padEnd(9) + ' grew ' + f(r.grew).padStart(7) + ' of ' + r.slack + ' ' + r.unit); }
   if (C.ledger.length) { console.log('\n  OVER BUDGET, ADMITTED BY THE LEDGER (repay)'); for (const r of C.ledger) console.log('    ' + r.what.padEnd(48) + ' grew ' + r.grew + ' ' + r.unit + ' - ' + r.by); }
@@ -378,7 +413,7 @@ if (require.main === module) (async () => {
   const ro = rowsRollout(S.filter(s => s.part === 'rollout').map(s => ({ path: s.args[s.args.indexOf('--out') + 1], group: s.group })));
   const rows = [].concat(ro.rows, rowsGarage(readJSON(path.join(DIR, 'garage_lag.json'))), rowsBench(readJSON(path.join(DIR, 'master_bench.json'))));
   const G = { meta: { date: new Date().toISOString(), commit, build, mode: MODE, parts, gpu: ro.gpu, size: ro.size, label: LABEL, remote: REMOTE, m: M, minutes: +((Date.now() - T0) / 60000).toFixed(1),
-    steps: ran, reports: rel(DIR), identity: identity(ro, code0) }, rows };
+    steps: ran, reports: rel(DIR), groups: ro.groups, mirror: MIRROR, identity: identity(ro, code0) }, rows };
   const OUT = path.resolve(opt('out', path.join(__dirname, 'train_gate_' + LABEL + '.json')));
   fs.writeFileSync(OUT, JSON.stringify(G, null, 1) + '\n');
   const failed = ran.filter(r => r.code !== 0 && r.part !== 'warmup');

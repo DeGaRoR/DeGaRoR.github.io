@@ -80,7 +80,7 @@ for (const v of F.variants) {
 // ---- 3. the raster, loaded ---------------------------------------------------------------------------------------
 console.log('3. the raster, loaded');
 const fixture = fs.readFileSync(K.fixturePath(ID), 'utf8');
-const recOf = drop => { let r = PG.unwrap(fixture).rec; if (drop.length) r = PG.dropPlaces(r, drop).rec; return r; };
+const recOf = V => K.dropOf(PG, PG.unwrap(fixture).rec, V);   // (METLA-WRAPUP: the variant's own drop, the seaplane base kept)
 const build = r => (GENS[r.gen] ? GENS[r.gen].build(r.P, 0) : null);
 // G995: made with THE VARIANT'S OWN RECORD, as the page's is (app.js makeWorld(0, { premises: premisesPlaced, island })):
 // a world made with PG.DEF() has another base ground under 32 of the 92 cells, and a gate composing there passed a
@@ -90,7 +90,7 @@ function cookWorld(rec) {
   boot.premCook = IN.premCook(ID);
   return C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: PG.envelope(null, rec), catalogue: CAT });
 }
-const VD = K.VARIANTS[0], rec0 = recOf(VD.drop);
+const VD = K.VARIANTS[0], rec0 = recOf(VD);
 const WC = cookWorld(rec0);
 let tq = Date.now(); const OC = WC.premises.set(rec0, { catalogue: CAT, globals: GENS, build, pool: [], raster: true }); const tCook = Date.now() - tq;
 const WL = K.islandWorld(ID, VD);

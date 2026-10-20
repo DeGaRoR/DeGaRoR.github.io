@@ -38,6 +38,7 @@
 //          [--chrome-flag '--gpu-program-cache-size-kb=262144'] (G680: an extra Chrome switch, e.g. G584's cache-size test)
 //          [--profile-boot] (G680: a CPU profile of the garage boot, <label>_boot.cpuprofile)
 //          [--trips] (B9 G1023: the round trips timed - the garage's fps fresh and after, a slider's latency, each trip)
+//          [--set mirror=off[,k=v]] (GATE-ANCHOR: graphics options pinned in the garage before the roll-out)
 // THE SETTINGS PROBE (G680, A4-FREEZE: "no freezing ever ... This includes possible setting changes"): after the
 // recording window, each change of the list is made the way a pick in the GRAPHICS menu makes it (gfx_settings.js
 // pick: GFX.set, then FLYDIY_SETTLE - the settings screen), one at a time, each waited out (the screen gone, its
@@ -76,6 +77,10 @@ const SECS = +opt('secs', 150);
 const BUILD = opt('build', null);
 const VARIANT = opt('variant', 'base');
 const GFX = opt('gfx', null);
+// --set k=v[,k=v] (GATE-ANCHOR): graphics options PINNED in the garage before the roll-out, the way the GRAPHICS menu sets them
+// (GFX.set, then the settle screen waited out) - e.g. --set mirror=off: AUTO's switching over the shore adds noise to a timed
+// run. The run's gfx0 is read after, so it records the pin (train_gate's identity takes it from there)
+const PIN = (opt('set', '') || '').split(',').filter(Boolean).map(x => { const i = x.indexOf('='); return [x.slice(0, i), x.slice(i + 1)]; });
 const WORLDN = opt('world', null);
 const PAGE = opt('page', 'index.html');
 // --cam cockpit|chase|... (G1162): the view the flight is measured in - set through FLIGHT_PROBE.camMode once the flight
@@ -407,6 +412,16 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   for (let i = 0; i < 10; i++) { const n = await ev(KEEP); await sleep(400); if (!n && i > 3) break; }
   await sleep(1500);
   const gpu = await ev("(()=>{const c=document.createElement('canvas').getContext('webgl2');const d=c&&c.getExtension('WEBGL_debug_renderer_info');return d?c.getParameter(d.UNMASKED_RENDERER_WEBGL):'?';})()");
+  for (const [k, v] of PIN) {
+    const vv = /^-?[0-9.]+$/.test(v) ? v : JSON.stringify(v);
+    const was = await ev('JSON.stringify(window.GFX ? GFX.get()[' + JSON.stringify(k) + '] : null)');
+    if (was === JSON.stringify(/^-?[0-9.]+$/.test(v) ? +v : v)) { console.log('  pinned ' + k + '=' + v + ' (already)'); continue; }
+    await ev('(() => { GFX.set(' + JSON.stringify(k) + ', ' + vv + '); if (typeof FLYDIY_SETTLE === \'function\') FLYDIY_SETTLE(' + JSON.stringify(k) + '); return 1; })()', 60000);
+    const tEnd = Date.now() + 120000; let quiet = 0;
+    while (Date.now() < tEnd) { await sleep(250); const st = JSON.parse(await ev("JSON.stringify({ s: window.BOOT ? BOOT.state : 'none', b: window.BOOT && BOOT.busy ? BOOT.busy() : false })", 30000));
+      if (st.s === 'gone' && !st.b) { if (++quiet >= 8) break; } else quiet = 0; }
+    console.log('  pinned ' + k + '=' + v + ' (was ' + was + ')');
+  }
   const gfx0 = await ev('JSON.stringify(window.GFX ? GFX.get() : null)');
   // PERF-1 P1: the browser and the pixel ratio, for train_gate's fixed reference (its identity: a run on another Chrome or DPR does not compare)
   const ua = await ev('navigator.userAgent'), dpr = await ev('window.devicePixelRatio');
