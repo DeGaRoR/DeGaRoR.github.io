@@ -2794,29 +2794,33 @@ function make(THREE, scene, world, rec0, opts) {
   //   ?cityhost=1   the town from its pack
   const CITY = { want: !!(KT.want && typeof location !== 'undefined' && /[?&]cityhost=1\b/.test(location.search || '')), on: false, status: 'off', err: null, man: null, town: null, city: null, host: null,
                  O: null, plots: new Map(), bound: new Map(), objects: new Set(), boundBy: [], stubs: 0, hits: new Map(), hitQ: [], hitN: 0, hitMs: 0, loadMs: 0, props: new Set(), farMats: null };
-  // THE SWITCH (G3423, the user 20 Oct: "at 1 km - a dial; 2 km the fallback"): ?citynear=<m> (0 / absent: the cook's 1 km);
-  // live: WORLD.premises.city.host.setSwitch(m)
-  const CITY_NEAR = (m => (m ? +m[1] : 0))(typeof location !== 'undefined' && /[?&]citynear=([0-9.]+)/.exec(location.search || ''));
+  // THE SWITCH (G3423, the user 20 Oct: "at 1 km - a dial; 2 km the fallback"; the pack's lod.far): ?cityfar=<m> (absent: the
+  // cook's 1 km), in at m - 50, out at m + 50; live: WORLD.premises.city.host.setSwitch(m)
+  const CITY_FAR = (m => (m ? +m[1] : 0))(typeof location !== 'undefined' && /[?&]cityfar=([0-9.]+)/.exec(location.search || ''));
   function cityLoad() {
     const t0 = performance.now();
     CITY.status = 'loading';
     return fetch(kitBase() + 'src/core/city_packs.json').then(r => { if (!r.ok) throw new Error('no src/core/city_packs.json'); return r.json(); })
       .then(man => {
         CITY.man = man;
-        if (man.v !== 1) throw new Error('city_packs.json v' + man.v + ' (this host reads v1)');
+        if (man.v !== 2) throw new Error('city_packs.json v' + man.v + ' (this host reads v2)');
         const T = (man.towns || []).find(t => t.island === KT.island && (t.variant || 'town') === 'town');
         if (!T) throw new Error('no city pack for the island ' + KT.island);
         if (T.frame !== 'world') throw new Error('the city pack is not in the world frame');
         // the pack's kit rows index THIS kit pack's archetypes, or nothing (CITY-PACK-FORMAT §10)
         if (T.inputs && KT.man && KT.man.pack && T.inputs.kitPack !== KT.man.pack.sha256) throw new Error('the city pack was cooked on another kit pack');
         CITY.town = T;
-        return Promise.all(T.cells.map(c => fetch(kitBase() + c.src).then(ktGunz)));
+        // the cells and the town's lot kit (v2 §9.2: the fence's pieces the lot rows instance)
+        return Promise.all(T.cells.map(c => fetch(kitBase() + c.src).then(ktGunz)).concat([T.lotKit ? fetch(kitBase() + T.lotKit.src).then(ktGunz) : Promise.resolve(null)]));
       })
       .then(bufs => {
-        const TK = window.TOWNKIT, cells = bufs.map(b => TK.decodeCityCell(b)), C = TK.cityOf(CITY.town, cells);
+        const TK = window.TOWNKIT, lk = bufs.pop(), LK = lk ? TK.decodeLotKit(lk) : null;
+        if (LK && CITY.town.lotKit.pieces && LK.pieces.length !== CITY.town.lotKit.pieces.length) throw new Error('the lot kit is not the manifest\'s');
+        const cells = bufs.map(b => TK.decodeCityCell(b)), C = TK.cityOf(CITY.town, cells, LK);
+        if (cells.some(c => c.v !== 2)) throw new Error('a city cell is not v2');
         // a plot of the pack: its cell, its seed, its rows (global), its flags; the landmarks and the objects by id
         C.cells.forEach(c => {
-          for (const q of c.plots) { const rowsOf = [q[2], q[3]].filter(x => x >= 0).map(x => c.rows[0] + x); CITY.plots.set(String(q[0]), { ci: c.ci, seed: q[1], rows: rowsOf, flags: q[4] }); }
+          c.plots.forEach((q, k) => { const rowsOf = [q[2], q[3]].filter(x => x >= 0).map(x => c.rows[0] + x); CITY.plots.set(String(q[0]), { ci: c.ci, k, seed: q[1], rows: rowsOf, flags: q[4] }); });
           for (const u of c.uniques) CITY.bound.set(String(u[0]), c.ci);
           for (const ob of c.objects) CITY.objects.add('ob:' + ob[0]);
           CITY.boundBy[c.ci] = [];
@@ -2849,6 +2853,25 @@ function make(THREE, scene, world, rec0, opts) {
     const ci = cityCellOf(p); if (ci === undefined || !h) return;
     const near = !!(CITY.host && CITY.host.cellNear(ci));
     for (const g of [h.grp].concat(h.extra || [])) { if (!g) continue; g.userData.cityBound = 1; g.visible = near; CITY.boundBy[ci].push(g); }
+  }
+  // THE NEAR LOTS' MATERIALS (G3424): the fence finish's post and deck (the village's own fence, render_premises fenceFinish), as
+  // their instanced siblings; the worn ground by its lot texture set (lot_tex's LOT_TEX_SETS), transparent, under the props
+  function cityLotMats() {
+    const F = fenceFinish(), v = m => (typeof MATLIB !== 'undefined' && MATLIB.variant ? MATLIB.variant(THREE, m, 'inst') : m);
+    return [v(F.MAT.post), v(F.MAT.deck)];
+  }
+  const CITY_GROUND = new Map();
+  function cityLotGround(tex) {
+    let m = CITY_GROUND.get(tex);
+    if (m) return m;
+    const sets = (typeof LOT_TEX_SETS !== 'undefined' && LOT_TEX_SETS) || null, S = sets && (sets[tex] || sets.dirt);
+    const tx = (img, srgb) => { if (!img) return null; const t = new THREE.Texture(img); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+      if (img.complete && img.naturalWidth) t.needsUpdate = true; else img.addEventListener('load', () => { t.needsUpdate = true; }); return t; };
+    m = MATLIB.make(THREE, 'std', { color: 0xffffff, roughness: 0.98, metalness: 0, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+                                     map: S ? tx(S.diff, true) : null, normalMap: S ? tx(S.nor, false) : null });
+    m.name = 'city:lot:' + tex; m.userData.lotTile = S && S.tile ? S.tile : 2;
+    CITY_GROUND.set(tex, m);
+    return m;
   }
   // a near prop's draw: props.js's parts of the key (its first level) once it has landed; asked again as they land
   function cityPropGeo(key) {
@@ -2891,13 +2914,15 @@ function make(THREE, scene, world, rec0, opts) {
       shell.color.setScalar(CITY.city.lod.farGain); shell.name = 'city:shell';
       CITY.farMats = { shell };
       try {
-        CITY.host = window.TOWNKIT.town(THREE, { pack: KT.pack, city: CITY.city, tarr: T, HG, farMats: CITY.farMats, propGeo: cityPropGeo, onCell: cityCell, near: CITY_NEAR,
+        CITY.host = window.TOWNKIT.town(THREE, { pack: KT.pack, city: CITY.city, tarr: T, HG, farMats: CITY.farMats, propGeo: cityPropGeo, onCell: cityCell, far: CITY_FAR,
+                                                lotMats: cityLotMats(), lotGround: cityLotGround,
                                                 band: { W0: HLOD.fadeW || 40, W1: 120 } });
       } catch (e) { CITY.status = 'error'; CITY.err = String((e && e.message) || e); console.warn('city host: the host', e); return; }
       root.add(CITY.host.group); CITY.host.freeze(); stats.town = 1;
     }
-    // THIS composition: a pack plot it sows with another seed (an edit) has its kit rows hidden - it builds unique
-    for (const p of O.records.plots) { const E = CITY.plots.get(String(p.id)); if (E) for (const h of E.rows) CITY.host.kit.setHidden(h, E.seed !== p.seed); }
+    // THIS composition: a pack plot it sows with another seed (an edit) is left out of the pack's draw - its kit rows, its props,
+    // its lot rows, its far shell's range (v2 §5.1) - and builds unique
+    for (const p of O.records.plots) { const E = CITY.plots.get(String(p.id)); if (E) CITY.host.setPlotHidden(E.ci, E.k, E.seed !== p.seed); }
     CITY.O = O;
   }
   function cityTick(e) {
@@ -4110,7 +4135,7 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function buildOne0(p, R) {
     if (!R && TALLY_ON && !(p.isPark || p.isObject)) BLD.atRank(p._tr);   // G841: generated here, on the cook's tallies for its rank
-    try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? (cityOwn(p) ? cityBuildOne(p, R) : buildItem(p.rec, R)) : p.isObject ? (cityOwn(p) ? cityBuildOne(p, R) : buildObject(p.rec)) : p.isFence ? buildSiteFences(p.rec, R) : cityOwn(p) ? cityBuildOne(p, R) : kitOf(p) >= 0 ? buildKitLot(p, R) : buildHouse(p, R); if (h && CITY.on) cityBoundBuilt(p, h); if (h && METLA_BARE && isMetla(p.zone || (p.rec && p.rec.id) || p.id)) bareMetla(h, p); if (h && o.game) houseThrift(h.grp, !!(p.isPark || p.isItem || p.isObject || p.isFence)); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
+    try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? (cityOwn(p) ? cityBuildOne(p, R) : buildItem(p.rec, R)) : p.isObject ? (cityOwn(p) ? cityBuildOne(p, R) : buildObject(p.rec)) : p.isFence ? buildSiteFences(p.rec, R) : cityOwn(p) ? cityBuildOne(p, R) : kitOf(p) >= 0 ? buildKitLot(p, R) : buildHouse(p, R); if (h && CITY.on) cityBoundBuilt(p, h); if (h && METLA_BARE && isMetla(p.zone || (p.rec && p.rec.id) || p.id) && !(CITY.on && cityOwn(p) === 2)) bareMetla(h, p);   /* (G3425: a pack's unique keeps its fence: it is built near only) */ if (h && o.game) houseThrift(h.grp, !!(p.isPark || p.isItem || p.isObject || p.isFence)); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
     catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
   }
   // what a batch of builds owes once (not once an item)

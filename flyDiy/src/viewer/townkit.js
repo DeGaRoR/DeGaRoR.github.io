@@ -215,6 +215,46 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
     sh.fragmentShader = f;
     return sh;
   }
+  // THE WORN GROUND OF A LOT (G3426, the city pack v2 §9.1): an instanced unit grid (x 0..1 along, z -0.5..0.5 across) made the
+  // row's rectangle [0, L] x [-w/2, w/2], draped bilinearly on its four corners (aLotC: (0,-w/2) (L,-w/2) (L,+w/2) (0,+w/2),
+  // relative to the row's y) + 4 cm; the map in world metres (uLotTile a repeat); its alpha faded over aLotS.w metres from each
+  // edge, the fade broken by a value noise on the row's seed, so a strip never reads as a ruled band
+  const LOTG_V = `
+attribute vec4 aLotC;
+attribute vec4 aLotS;
+varying vec4 vLotE;
+uniform float uLotTile;
+`;
+  const LOTG_F = `
+varying vec4 vLotE;
+float lotHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float lotNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(lotHash(i), lotHash(i + vec2(1.0, 0.0)), f.x), mix(lotHash(i + vec2(0.0, 1.0)), lotHash(i + vec2(1.0, 1.0)), f.x), f.y); }
+`;
+  function editLotGround(sh) {
+    const miss = [];
+    sh.uniforms.uLotTile = sh.uniforms.uLotTile || { value: 2.0 };
+    let v = sh.vertexShader;
+    v = rep(v, '#include <common>', '#include <common>\n' + LOTG_V, miss);
+    v = rep(v, '#include <begin_vertex>', `#include <begin_vertex>
+  { float lu = position.x, lv = position.z + 0.5;
+    transformed = vec3(lu * aLotS.x, mix(mix(aLotC.x, aLotC.y, lu), mix(aLotC.w, aLotC.z, lu), lv) + 0.04, position.z * aLotS.y);
+    vLotE = vec4(min(transformed.x, aLotS.x - transformed.x), 0.5 * aLotS.y - abs(transformed.z), aLotS.z, aLotS.w);
+    #ifdef USE_MAP
+    vMapUv = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xz / uLotTile;
+    #endif
+  }`, miss);
+    sh.vertexShader = v;
+    let f = sh.fragmentShader;
+    f = rep(f, '#include <common>', '#include <common>\n' + LOTG_F, miss);
+    f = rep(f, '#include <alphamap_fragment>', `#include <alphamap_fragment>
+  { float fd = max(vLotE.w, 0.05), e = min(vLotE.x, vLotE.y);
+    float nz = lotNoise(vec2(vLotE.x * 1.7 + vLotE.z, vLotE.y * 1.7 - vLotE.z * 0.37));
+    diffuseColor.a *= smoothstep(0.0, fd, e - (nz - 0.35) * 0.6 * fd); }`, miss);
+    sh.fragmentShader = f;
+    if (miss.length) console.warn('townkit: the lot ground edits missed', miss);
+    return miss;
+  }
   // the shadow pass: the same stretch, the band from the EYE (not the light), no caster past castFar
   function editDepth(sh, miss) {
     let v = sh.vertexShader;
@@ -585,7 +625,7 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
   //   - FAR CELLS: one static merged Mesh a cell (the cook's far mesh: its SHELL - walls and roofs - alone, G3423: the lots'
   //     ground is not drawn, the terrain shows; the roads' bucket is left to the town's own roads, which draw at every
   //     distance), its matrix composed once (matrixAutoUpdate and matrixWorldAutoUpdate off), one draw, no shadow;
-  //   - NEAR CELLS (the eye within the switch of the cell's box: o.near, 1 km by the cook, a dial - setSwitch): the instanced
+  //   - NEAR CELLS (the eye within the switch of the cell's box: o.far, the cook's lod.far 1 km, a dial - setSwitch): the instanced
   //     kit (the house host above, BatchedMesh: three objects for the whole town), each near cell's kit rows on their rungs;
   //     the cell's far mesh hidden;
   //   - the near props (within lod.propFar of a cell's box): one InstancedMesh a prop key's part (cast / flat apart),
@@ -597,16 +637,20 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
   //   TOWNKIT.cityOf(townEntry, cells)       -> the town as one city: rows and props concatenated in cell order, ranges a cell
   //   TOWNKIT.town(THREE, opts)              -> T
   //     opts: { pack (decodePack), city (cityOf), tarr, HG, farMats { shell }, propGeo(key) -> [{ geometry, material }]
-  //             | null (not landed yet: T.propsAgain() when it has), onCell(ci, near), lod (city.lod), near (m), band, now }
+  //             | null (not landed yet: T.propsAgain() when it has), onCell(ci, near), lod (city.lod), far (m), lotMats [post, deck],
+  //             lotGround(tex) -> material, band, now }
   //     T.group, T.tick(eye), T.freeze() (once the group stands in the scene), T.stats, T.kit (the house host), T.cellNear(ci),
   //     T.census(), T.propsAgain(), T.dispose()
-  const CITY_MAGIC = 0x59544943, CITY_V = 1, CITY_VSTRIDE = 12, CITY_PSTRIDE = 20;
+  // v2 (G3405, CITY-A): far = the shells alone with their owners' ranges, the lots section, the town's lot kit. v1 is still read
+  // (a v1 cell has no lots); render_premises asks for v2 (the format's own rule: the host refuses what it does not draw)
+  const CITY_MAGIC = 0x59544943, CITY_V = 2, CITY_VS = [1, 2], CITY_VSTRIDE = 12, CITY_PSTRIDE = 20, CITY_LSTRIDE = 32;
+  const LOTKIT_MAGIC = 0x544b544c, LOTKIT_VSTRIDE = 16;
   const SRGB_LIN = new Float32Array(256);
   for (let i = 0; i < 256; i++) { const c = i / 255; SRGB_LIN[i] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
   function decodeCityCell(b0) {
     const b = u8(b0), dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
     if (dv.getUint32(0, true) !== CITY_MAGIC) throw new Error('townkit: not a city cell');
-    const v = dv.getUint32(4, true); if (v !== CITY_V) throw new Error('townkit: city cell v' + v + ' (this host reads v' + CITY_V + ')');
+    const v = dv.getUint32(4, true); if (CITY_VS.indexOf(v) < 0) throw new Error('townkit: city cell v' + v + ' (this host reads v' + CITY_VS.join(' / v') + ')');
     const hl = dv.getUint32(8, true), head = JSON.parse(utf8(b.subarray(12, 12 + hl)));
     const base = 12 + hl + ((4 - ((12 + hl) & 3)) & 3);
     const sec = k => { const s = head.sec[k]; return s ? b.subarray(base + s[0], base + s[0] + s[1]) : b.subarray(0, 0); };
@@ -629,24 +673,73 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
     for (let i = 0; i < np; i++) { const o = i * CITY_PSTRIDE;
       props.x[i] = pd.getFloat32(o, true); props.y[i] = pd.getFloat32(o + 4, true); props.z[i] = pd.getFloat32(o + 8, true); props.yaw[i] = pd.getUint16(o + 12, true) / 65536 * 2 * Math.PI;
       props.key[i] = pd.getUint16(o + 14, true); props.owner[i] = pd.getUint16(o + 16, true); props.flags[i] = ps[o + 18]; props.kind[i] = ps[o + 19]; }
-    return { head, i: head.cell[0], j: head.cell[1], box: B, far: { n, tris: F.tris, pos, nrm, col, idx, buckets: F.buckets || [], draws: F.draws || [] }, kit, props };
+    // the lots (v2, CITY-PACK-FORMAT §9.1): 32 B rows - origin, yaw, length and width (cm), the piece, the flags, the owner,
+    // the seed, the ground at the four corners (cm, relative to y)
+    const ls = sec('lots'), ld = new DataView(ls.buffer, ls.byteOffset, ls.byteLength), nl = Math.floor(ls.byteLength / CITY_LSTRIDE);
+    const lots = { n: nl, x: new Float32Array(nl), y: new Float32Array(nl), z: new Float32Array(nl), yaw: new Float32Array(nl), len: new Float32Array(nl), wid: new Float32Array(nl),
+                   piece: new Uint8Array(nl), flags: new Uint8Array(nl), owner: new Uint16Array(nl), seed: new Uint16Array(nl), g: new Float32Array(nl * 4) };
+    for (let i = 0; i < nl; i++) { const o = i * CITY_LSTRIDE;
+      lots.x[i] = ld.getFloat32(o, true); lots.y[i] = ld.getFloat32(o + 4, true); lots.z[i] = ld.getFloat32(o + 8, true); lots.yaw[i] = ld.getUint16(o + 12, true) / 65536 * 2 * Math.PI;
+      lots.len[i] = ld.getUint16(o + 14, true) / 100; lots.wid[i] = ld.getUint16(o + 16, true) / 100; lots.piece[i] = ls[o + 18]; lots.flags[i] = ls[o + 19];
+      lots.owner[i] = ld.getUint16(o + 20, true); lots.seed[i] = ld.getUint16(o + 22, true);
+      for (let k = 0; k < 4; k++) lots.g[i * 4 + k] = ld.getInt16(o + 24 + k * 2, true) / 100; }
+    return { v, head, i: head.cell[0], j: head.cell[1], box: B, far: { n, tris: F.tris, pos, nrm, col, idx, buckets: F.buckets || [], draws: F.draws || [], owners: F.owners || [] }, kit, props, lots };
+  }
+  // THE TOWN'S LOT KIT (v2, §9.2): the fence's pieces cooked once - a piece's mesh split by its role (0 post, 1 deck: the fence
+  // finish's two materials), in the piece's own frame (metres; uv in metres); a 'ground' or an 'old' piece has no mesh
+  function decodeLotKit(b0) {
+    const b = u8(b0), dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    if (dv.getUint32(0, true) !== LOTKIT_MAGIC) throw new Error('townkit: not a lot kit');
+    const hl = dv.getUint32(8, true), head = JSON.parse(utf8(b.subarray(12, 12 + hl)));
+    const base = 12 + hl + ((4 - ((12 + hl) & 3)) & 3);
+    const pieces = head.pieces.map(P => {
+      const out = Object.assign({}, P, { parts: [] });
+      if (!P.verts || !P.vb || !P.ib) return out;
+      const vb = b.subarray(base + P.vb[0], base + P.vb[0] + P.vb[1]), vd = new DataView(vb.buffer, vb.byteOffset, vb.byteLength);
+      const ib = b.slice(base + P.ib[0], base + P.ib[0] + P.ib[1]), idx = new Uint16Array(ib.buffer, 0, ib.byteLength >> 1);
+      const n = P.verts, X = P.box, U = P.uv || [0, 0, 1, 1], role = new Uint8Array(n);
+      const pos = new Float32Array(n * 3), nrm = new Int8Array(n * 4), uv = new Float32Array(n * 2), ao = new Float32Array(n);
+      for (let i = 0; i < n; i++) { const o = i * LOTKIT_VSTRIDE;
+        for (let a = 0; a < 3; a++) pos[i * 3 + a] = X[a] + vd.getUint16(o + a * 2, true) / 65535 * (X[3 + a] - X[a]);
+        const nn = octDec(vd.getInt8(o + 6), vd.getInt8(o + 7)); for (let a = 0; a < 3; a++) nrm[i * 4 + a] = Math.round(nn[a] * 127);
+        uv[i * 2] = U[0] + vd.getUint16(o + 8, true) / 65535 * (U[2] - U[0]); uv[i * 2 + 1] = U[1] + vd.getUint16(o + 10, true) / 65535 * (U[3] - U[1]);
+        ao[i] = vb[o + 12] / 255; role[i] = vb[o + 13]; }
+      // a triangle is one role's (its first vertex's), re-indexed into its role's own arrays
+      for (let r = 0; r < 2; r++) {
+        const map = new Int32Array(n).fill(-1), I = []; let m = 0;
+        for (let t = 0; t < idx.length; t += 3) { if (role[idx[t]] !== r) continue; for (let q = 0; q < 3; q++) { const v = idx[t + q]; if (map[v] < 0) map[v] = m++; I.push(map[v]); } }
+        if (!I.length) continue;
+        const Pp = new Float32Array(m * 3), Nn = new Int8Array(m * 4), Uv = new Float32Array(m * 2), Ao = new Float32Array(m);
+        for (let v = 0; v < n; v++) { const k = map[v]; if (k < 0) continue; Pp.set(pos.subarray(v * 3, v * 3 + 3), k * 3); Nn.set(nrm.subarray(v * 4, v * 4 + 4), k * 4); Uv.set(uv.subarray(v * 2, v * 2 + 2), k * 2); Ao[k] = ao[v]; }
+        out.parts.push({ role: r, n: m, pos: Pp, nrm: Nn, uv: Uv, ao: Ao, idx: Uint16Array.from(I) });
+      }
+      return out;
+    });
+    return { head, pieces };
   }
   // the town as one city: the cells in the manifest's order, their kit rows and props concatenated (a cell a range)
-  function cityOf(town, cells) {
+  function cityOf(town, cells, lotKit) {
     const rows = [], out = [];
     let np = 0; for (const c of cells) np += c.props.n;
-    const P = { n: np, x: new Float32Array(np), y: new Float32Array(np), z: new Float32Array(np), yaw: new Float32Array(np), key: new Uint16Array(np), flags: new Uint8Array(np), kind: new Uint8Array(np) };
-    let po = 0;
+    const P = { n: np, x: new Float32Array(np), y: new Float32Array(np), z: new Float32Array(np), yaw: new Float32Array(np), key: new Uint16Array(np), flags: new Uint8Array(np), kind: new Uint8Array(np), owner: new Uint16Array(np) };
+    let nl = 0; for (const c of cells) nl += c.lots ? c.lots.n : 0;
+    const LT = { n: nl, x: new Float32Array(nl), y: new Float32Array(nl), z: new Float32Array(nl), yaw: new Float32Array(nl), len: new Float32Array(nl), wid: new Float32Array(nl),
+                 piece: new Uint8Array(nl), flags: new Uint8Array(nl), owner: new Uint16Array(nl), seed: new Uint16Array(nl), g: new Float32Array(nl * 4) };
+    let po = 0, lo = 0;
     cells.forEach((c, ci) => {
       const r0 = rows.length;
       for (const r of c.kit.rows) rows.push(Object.assign(r, { i: rows.length, cell: ci }));
-      for (const k of ['x', 'y', 'z', 'yaw', 'key', 'flags', 'kind']) P[k].set(c.props[k], po);
+      for (const k of ['x', 'y', 'z', 'yaw', 'key', 'flags', 'kind', 'owner']) P[k].set(c.props[k], po);
+      const cl = c.lots || { n: 0 };
+      if (cl.n) for (const k of ['x', 'y', 'z', 'yaw', 'len', 'wid', 'piece', 'flags', 'owner', 'seed', 'g']) LT[k].set(cl[k], k === 'g' ? lo * 4 : lo);
       const B = c.box;
-      out.push({ ci, i: c.i, j: c.j, key: c.i + ',' + c.j, box: [B[0], B[2], B[3], B[5]], o: [B[0], B[1], B[2]], rows: [r0, c.kit.rows.length], props: [po, c.props.n],
-                 far: c.far, plots: c.head.plots || [], uniques: c.head.uniques || [], objects: c.head.objects || [] });
-      po += c.props.n;
+      out.push({ ci, i: c.i, j: c.j, key: c.i + ',' + c.j, box: [B[0], B[2], B[3], B[5]], o: [B[0], B[1], B[2]], rows: [r0, c.kit.rows.length], props: [po, c.props.n], lots: [lo, cl.n],
+                 far: c.far, plots: c.head.plots || [], uniques: c.head.uniques || [], objects: c.head.objects || [], v: c.v });
+      po += c.props.n; lo += cl.n;
     });
-    return { town, lod: Object.assign({ nearIn: 950, nearOut: 1050, kitE0: 150, kitE1: 1200, propFar: 600, castFar: 600, farGain: 0.2 }, town && town.lod), keys: (town && town.propKeys) || [], cells: out, rows, props: P };
+    // (v2: lod.far is the switch, nearIn / nearOut = far -/+ 50; a v1 pack has nearIn / nearOut alone)
+    const lod = Object.assign({ far: 1000, nearIn: 950, nearOut: 1050, kitE0: 150, kitE1: 1200, propFar: 600, lotFar: 400, castFar: 600, farGain: 0.2 }, town && town.lod);
+    return { town, lod, keys: (town && town.propKeys) || [], cells: out, rows, props: P, lots: LT, lotKit: lotKit || null };
   }
   function town(THREE, opts) {
     const o = Object.assign({ move: 40 }, opts || {});
@@ -661,7 +754,7 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
     const group = new THREE.Group(); group.name = 'premises:town'; group.userData.batch = true;
     K.group.name = 'town:kit'; group.add(K.group);
     const ST = { cells: NCELL, houses: NH, near: 0, nearHouses: 0, propCells: 0, visits: 0, cellVisits: 0, switches: 0, tickMs: 0, tickSum: 0, ticks: 0, buildMs: 0,
-                 farDraws: 0, farTris: 0, propsNear: 0, castOn: false, census: 0 };
+                 farDraws: 0, farTris: 0, propsNear: 0, lotCells: 0, lotsNear: 0, castOn: false, census: 0 };
     // ---- the far cells: one static Mesh a cell, its SHELL alone (walls and roofs, one draw); hidden while the cell is near.
     // (G3423, the user 20 Oct: "no flat lot squares" - the cook's lots bucket is not drawn, near or far: the terrain's texture
     // shows; the roads bucket neither - the town's own roads draw at every distance)
@@ -686,12 +779,13 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
       m.updateMatrix(); m.matrixAutoUpdate = false;
       group.add(m); FAR[c.ci] = m; ST.farDraws += GF[c.ci].length; ST.farTris += F.tris;
     }
-    // ---- A NEAR INSTANCE TABLE (the props, G3420; the near lots, G3424): rows (x, y, z, yaw, a scale x / y / z or none, a key,
-    // a cast bit) a cell a range; one InstancedMesh a key's part, cast and flat apart (o.geo(key) null while the asset loads:
+    // ---- A NEAR INSTANCE TABLE (the props, G3420; the near lots, G3424): rows (x, y, z, yaw, a scale x / y / z or none, a
+    // shear k - y += x k, the lot pieces' rise - or none, a key, a cast bit, a hide bit) a cell a range; one InstancedMesh a key's part, cast and flat apart (o.geo(key) null while the asset loads:
     // make() again when it has); the rows of the cells switched on are written in place (no Matrix4) when that set changes
     let frozen = false;
     function instTable(D) {
       const R = D.rows, KN = D.keys.length, SL = new Array(KN * 2).fill(null), cnt = new Int32Array(KN * 2);
+      if (!R.hide) R.hide = new Uint8Array(R.n);
       for (let i = 0; i < R.n; i++) cnt[R.key[i] * 2 + R.cast[i]]++;
       function make() {
         let made = 0;
@@ -703,13 +797,13 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
           for (let cs = 0; cs < 2; cs++) {
             const slot = k * 2 + cs; if (!cnt[slot] || SL[slot]) continue;
             const parts = G.map((g, i) => {
-              const im = new THREE.InstancedMesh(g.geometry, g.material, cnt[slot]);
+              const im = new THREE.InstancedMesh(D.perMesh ? D.perMesh(g.geometry, cnt[slot]) : g.geometry, g.material, cnt[slot]);
               im.name = 'town:' + D.name + ':' + D.keys[k] + (cs ? ':cast' : '') + (i ? '#' + i : ''); im.count = 0; im.visible = false; im.castShadow = !!cs; im.receiveShadow = true; im.frustumCulled = false;
               im.userData.batch = true; im.userData.sharedGeo = true; im.matrixAutoUpdate = false;
               group.add(im); if (frozen) { im.updateMatrixWorld(true); im.matrixWorldAutoUpdate = false; }   // (a frozen town: posed by hand)
               return im;
             });
-            SL[slot] = { parts, cap: cnt[slot], n: 0 }; made++;
+            SL[slot] = { parts, cap: cnt[slot], n: 0, rows: new Int32Array(cnt[slot]) }; made++;   // (rows: which row each instance is - the gate's, the census')
           }
         }
         return made;
@@ -719,18 +813,21 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
       function write(on) {
         let pc = 0, pn = 0;
         for (let k = 0; k < SL.length; k++) if (SL[k]) SL[k].n = 0;
-        const RLst = RG.list, rn = RG.n, S3 = !!R.sx;
+        const RLst = RG.list, rn = RG.n, S3 = !!R.sx, SK = !!R.k, H = R.hide;
         for (let q = 0; q < rn; q++) {
           const ci = RLst[q]; if (!on[ci]) continue;
           pc++;
           const rg = D.range(ci), p0 = rg[0], n = rg[1];
           for (let i = p0; i < p0 + n; i++) {
+            if (H[i]) continue;
             const P = SL[R.key[i] * 2 + R.cast[i]]; if (!P) continue;
             const a = P.parts[0].instanceMatrix.array, j = P.n * 16, cy = Math.cos(R.yaw[i]), sy = Math.sin(R.yaw[i]);
             const kx = S3 ? R.sx[i] : 1, ky = S3 ? R.sy[i] : 1, kz = S3 ? R.sz[i] : 1;
-            a[j] = cy * kx; a[j + 1] = 0; a[j + 2] = -sy * kx; a[j + 3] = 0; a[j + 4] = 0; a[j + 5] = ky; a[j + 6] = 0; a[j + 7] = 0;
+            // rotY(yaw) x [[kx, 0, 0], [k, ky, 0], [0, 0, kz]]: the x column carries the shear (y rises with the piece's x)
+            a[j] = cy * kx; a[j + 1] = SK ? R.k[i] : 0; a[j + 2] = -sy * kx; a[j + 3] = 0; a[j + 4] = 0; a[j + 5] = ky; a[j + 6] = 0; a[j + 7] = 0;
             a[j + 8] = sy * kz; a[j + 9] = 0; a[j + 10] = cy * kz; a[j + 11] = 0; a[j + 12] = R.x[i]; a[j + 13] = R.y[i]; a[j + 14] = R.z[i]; a[j + 15] = 1;
-            P.n++;
+            if (D.extra) D.extra(P, i);   // (the worn ground: its own per-instance channels)
+            P.rows[P.n] = i; P.n++;
           }
         }
         for (let k = 0; k < SL.length; k++) {
@@ -738,7 +835,7 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
           for (let q = 0; q < P.parts.length; q++) {
             const im = P.parts[q];
             if (q && P.n) im.instanceMatrix.array.set(P.parts[0].instanceMatrix.array.subarray(0, P.n * 16));
-            if (im.count !== P.n || P.n) { im.count = P.n; im.visible = P.n > 0; im.instanceMatrix.needsUpdate = true; }
+            if (im.count !== P.n || P.n) { im.count = P.n; im.visible = P.n > 0; im.instanceMatrix.needsUpdate = true; if (D.extraDirty) D.extraDirty(im); }
           }
           pn += P.n;
         }
@@ -746,18 +843,91 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
         return res;
       }
       function each(fn) { for (const P of SL) if (P) for (const im of P.parts) fn(im); }
-      return { slots: SL, make, write, each, count: cnt };
+      return { slots: SL, make, write, each, count: cnt, rowsHide: () => R.hide };
     }
     // ---- the near props: within lod.propFar of a cell's box, cast by the cook's flag 2
     const PR = city.props;
     const propCast = new Uint8Array(PR.n); for (let i = 0; i < PR.n; i++) propCast[i] = (PR.flags[i] & 2) ? 1 : 0;
-    const PT = instTable({ name: 'prop', rows: { n: PR.n, x: PR.x, y: PR.y, z: PR.z, yaw: PR.yaw, sx: null, key: PR.key, cast: propCast }, keys: city.keys, range: ci => cells[ci].props, geo: o.propGeo });
+    // the rows the pack does not draw (G3424): a landmark's props (kind 4) and a unique plot's (flag 2) - the unique path builds
+    // them with their owner; an edited plot's (setPlotHidden) - it builds unique too
+    const plotFlag = (ci, k) => { const q = cells[ci].plots[k]; return q ? q[4] : 0; };
+    const propHide = new Uint8Array(PR.n);
+    cells.forEach((c, ci) => { for (let i = c.props[0]; i < c.props[0] + c.props[1]; i++) if (PR.kind[i] === 4 || (PR.kind[i] !== 3 && (plotFlag(ci, PR.owner[i]) & 2))) propHide[i] = 1; });
+    const PT = instTable({ name: 'prop', rows: { n: PR.n, x: PR.x, y: PR.y, z: PR.z, yaw: PR.yaw, sx: null, key: PR.key, cast: propCast, hide: propHide }, keys: city.keys, range: ci => cells[ci].props, geo: o.propGeo });
     const PROPS = PT.slots;
     PT.make();
+    // ---- THE NEAR LOTS (G3424-G3426, v2 §9): within lod.lotFar of a cell's box, near only; three tables over the lot rows -
+    //   MESH pieces (post, bay, gate, gatepost): the lot kit's piece by role (0 post, 1 deck: o.lotMats, the fence finish),
+    //     scaled length / piece.len along x and SHEARED (y += x / piece.len x the rise from corner 0 to corner 1); flag 1 casts;
+    //   OLD fences (flag 4): the prop `propKeys[piece.prop]` scaled length / piece.len along x, on the ground under its middle;
+    //   GROUND pieces (flag 2): the worn ground (o.lotGround(tex): the page's material), a unit grid draped on the row's four
+    //     corners + 4 cm in the vertex shader (editLotGround), its alpha faded over piece.fade from each edge, broken by noise
+    //     on the row's seed; no shadow.
+    // No lawn, no lot square: the cook writes none (the user, 20 Oct).
+    const LR = city.lots, KITL = city.lotKit, LK = KITL ? KITL.pieces : [];
+    const LOT_IN = L.lotFar, LOT_OUT = L.lotFar * 1.1;
+    const lnear = new Uint8Array(NCELL);
+    let lotDirty = false;
+    const lotHide = new Uint8Array(LR.n), isMesh = new Uint8Array(LR.n), isOld = new Uint8Array(LR.n), isGround = new Uint8Array(LR.n);
+    const lotY = new Float32Array(LR.n), lotSx = new Float32Array(LR.n), lotK = new Float32Array(LR.n), ones = new Float32Array(LR.n).fill(1), lotCast = new Uint8Array(LR.n);
+    const oldKey = new Uint16Array(LR.n);
+    cells.forEach((c, ci) => { for (let i = c.lots[0]; i < c.lots[0] + c.lots[1]; i++) {
+      const P = LK[LR.piece[i]], f = LR.flags[i], g0 = LR.g[i * 4], g1 = LR.g[i * 4 + 1], pl = P && P.len > 0 ? P.len : 1;
+      if (plotFlag(ci, LR.owner[i]) & 2) lotHide[i] = 1;
+      if (!P) { lotHide[i] = 1; continue; }
+      lotCast[i] = f & 1 ? 1 : 0;
+      if (f & 2) isGround[i] = 1;
+      else if (f & 4) { isOld[i] = 1; oldKey[i] = P.prop || 0; lotSx[i] = LR.len[i] / pl; lotY[i] = LR.y[i] + 0.25 * (g0 + g1 + LR.g[i * 4 + 2] + LR.g[i * 4 + 3]); }
+      else { isMesh[i] = 1; lotSx[i] = LR.len[i] > 0 ? LR.len[i] / pl : 1; lotK[i] = (g1 - g0) / pl; lotY[i] = LR.y[i] + g0; }
+    } });
+    // the three tables share the lot rows; each hides the others' (a row is one kind)
+    const hideBut = flag => { const h = new Uint8Array(LR.n); for (let i = 0; i < LR.n; i++) h[i] = lotHide[i] || !flag[i] ? 1 : 0; return h; };
+    const lotRange = ci => cells[ci].lots;
+    const pieceKeys = LK.map(P => P.name || String(P.id));
+    const PIECE_GEO = new Map();
+    const pieceGeo = name => {
+      const P = LK[pieceKeys.indexOf(name)]; if (!P || !P.parts.length || !o.lotMats) return null;
+      let G = PIECE_GEO.get(name);
+      if (!G) { G = P.parts.map(q => { const g = new THREE.BufferGeometry();
+          g.setAttribute('position', new THREE.BufferAttribute(q.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(q.nrm, 4, true));
+          g.setAttribute('uv', new THREE.BufferAttribute(q.uv, 2)); g.setAttribute('aHouseAO', new THREE.BufferAttribute(q.ao, 1));
+          g.setIndex(new THREE.BufferAttribute(q.idx, 1)); g.computeBoundingSphere();
+          return { geometry: g, material: o.lotMats[q.role] || o.lotMats[0] }; });
+        PIECE_GEO.set(name, G); }
+      return G;
+    };
+    const LT_MESH = instTable({ name: 'lot', rows: { n: LR.n, x: LR.x, y: lotY, z: LR.z, yaw: LR.yaw, sx: lotSx, sy: ones, sz: ones, k: lotK, key: LR.piece, cast: lotCast, hide: hideBut(isMesh) },
+                                keys: pieceKeys, range: lotRange, geo: pieceGeo });
+    const LT_OLD = instTable({ name: 'lot:old', rows: { n: LR.n, x: LR.x, y: lotY, z: LR.z, yaw: LR.yaw, sx: lotSx, sy: ones, sz: ones, key: oldKey, cast: lotCast, hide: hideBut(isOld) },
+                               keys: city.keys, range: lotRange, geo: o.propGeo });
+    // the worn ground: one InstancedMesh a texture set; each mesh its own unit grid (its per-instance channels ride the geometry)
+    const texKeys = [...new Set(LK.filter(P => P.kind === 'ground').map(P => P.tex || 'dirt'))].sort();
+    const groundKey = new Uint16Array(LR.n); for (let i = 0; i < LR.n; i++) if (isGround[i]) groundKey[i] = Math.max(0, texKeys.indexOf(LK[LR.piece[i]].tex || 'dirt'));
+    const zeroCast = new Uint8Array(LR.n);
+    const GRID = (() => { const N = 4, pos = [], nrm = [], idx = [];   // x in [0, 1] (along), z in [-0.5, 0.5] (across)
+      for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) { pos.push(i / N, 0, j / N - 0.5); nrm.push(0, 1, 0); }
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const a = j * (N + 1) + i; idx.push(a, a + N + 1, a + 1, a + 1, a + N + 1, a + N + 2); }
+      return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), idx: new Uint16Array(idx) }; })();
+    const groundGeo = k => { if (!o.lotGround) return null; const mt = o.lotGround(k); if (!mt) return null;
+      if (!mt.userData.lotGround) { const pb = mt.onBeforeCompile; mt.onBeforeCompile = function (sh, r) { if (pb) pb.call(this, sh, r); editLotGround(sh); sh.uniforms.uLotTile.value = mt.userData.lotTile || 2; }; mt.userData.lotGround = 1;
+        const ck = mt.customProgramCacheKey ? mt.customProgramCacheKey.bind(mt) : () => ''; mt.customProgramCacheKey = () => ck() + '|lotGround'; }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(GRID.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(GRID.nrm, 3));
+      g.setIndex(new THREE.BufferAttribute(GRID.idx, 1)); g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
+      return [{ geometry: g, material: mt }]; };
+    const LT_GROUND = instTable({ name: 'lot:ground', rows: { n: LR.n, x: LR.x, y: LR.y, z: LR.z, yaw: LR.yaw, sx: null, key: groundKey, cast: zeroCast, hide: hideBut(isGround) },
+      keys: texKeys, range: lotRange, geo: groundGeo,
+      // a mesh its own geometry (the instanced channels are the geometry's): aLotC the four corners, aLotS (length, width, seed, fade)
+      perMesh: (g, n) => { const q = g.clone(); q.setAttribute('aLotC', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4)); q.setAttribute('aLotS', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4)); return q; },
+      extra: (P, i) => { const g = P.parts[0].geometry, C = g.attributes.aLotC.array, Sx = g.attributes.aLotS.array, j = P.n * 4, Pc = LK[LR.piece[i]];
+        C[j] = LR.g[i * 4]; C[j + 1] = LR.g[i * 4 + 1]; C[j + 2] = LR.g[i * 4 + 2]; C[j + 3] = LR.g[i * 4 + 3];
+        Sx[j] = LR.len[i]; Sx[j + 1] = LR.wid[i]; Sx[j + 2] = LR.seed[i]; Sx[j + 3] = Pc && Pc.fade > 0 ? Pc.fade : 0.6; },
+      extraDirty: im => { im.geometry.attributes.aLotC.needsUpdate = true; im.geometry.attributes.aLotS.needsUpdate = true; } });
+    const LOT_TABLES = [LT_MESH, LT_OLD, LT_GROUND];
+    for (const T of LOT_TABLES) T.make();
     // ---- the cell ring: a cell at its box's centre, its reach the farthest switch (nearOut, propFar, castFar) + its half-diagonal
-    // THE SWITCH (G3423, the user 20 Oct: "at 1 km, a dial; 2 km the fallback"): o.near (m) puts it there, in at x 0.95, out at
-    // x 1.05; without it the cook's own (lod.nearIn / nearOut: 950 / 1 050). T.setSwitch(m) moves it live.
-    let NEAR_IN = o.near > 0 ? o.near * 0.95 : L.nearIn, NEAR_OUT = o.near > 0 ? o.near * 1.05 : L.nearOut;
+    // THE SWITCH (G3423, the user 20 Oct: "at 1 km, a dial; 2 km the fallback"; v2 §3: lod.far, in at far - 50, out at far + 50):
+    // o.far (m) puts it there; without it the cook's own (lod.nearIn / nearOut: 950 / 1 050). T.setSwitch(m) moves it live.
+    let NEAR_IN = o.far > 0 ? o.far - 50 : L.nearIn, NEAR_OUT = o.far > 0 ? o.far + 50 : L.nearOut;
     const PROP_IN = L.propFar, PROP_OUT = L.propFar * 1.1;
     const near = new Uint8Array(NCELL), pnear = new Uint8Array(NCELL), BX = new Float64Array(NCELL * 4);
     const ids = new Int32Array(Math.max(1, NH));   // the near cells' rows, contiguous (rebuilt when the near set changes)
@@ -777,14 +947,14 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
       if (o.onCell) o.onCell(ci, true);
     }
     const RL = ringLib(); if (!RL) throw new Error('townkit.town: no TOWN_RING (town_ring.js)');
-    const RG = RL.make({ cell: 256, move: o.move, onLeave: ci => { if (near[ci]) setFar(ci); if (pnear[ci]) { pnear[ci] = 0; propDirty = true; } } });
+    const RG = RL.make({ cell: 256, move: o.move, onLeave: ci => { if (near[ci]) setFar(ci); if (pnear[ci]) { pnear[ci] = 0; propDirty = true; } if (lnear[ci]) { lnear[ci] = 0; lotDirty = true; } } });
     const ringAdd = () => cells.forEach((c, ci) => {
       const b = c.box; BX[ci * 4] = b[0]; BX[ci * 4 + 1] = b[1]; BX[ci * 4 + 2] = b[2]; BX[ci * 4 + 3] = b[3];
       RG.add(ci, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2, Math.max(NEAR_OUT, PROP_OUT, L.castFar * 1.1) + 0.5 * Math.hypot(b[2] - b[0], b[3] - b[1]) + 1);
     });
     ringAdd();
     // the dial: the switch at m (the cells re-reached; each cell re-decides at the next tick)
-    function setSwitch(m) { if (!(m > 0)) return; NEAR_IN = m * 0.95; NEAR_OUT = m * 1.05; ringAdd(); RG.reMax(); }
+    function setSwitch(m) { if (!(m > 100)) return; NEAR_IN = m - 50; NEAR_OUT = m + 50; ringAdd(); RG.reMax(); }
     const boxD = (ci, x, z) => { const q = ci * 4, dx = Math.max(BX[q] - x, 0, x - BX[q + 2]), dz = Math.max(BX[q + 1] - z, 0, z - BX[q + 3]); return Math.sqrt(dx * dx + dz * dz); };
     // the near set changed: the rows' list
     function nearRebuild() {
@@ -797,6 +967,12 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
         for (let h = r0; h < r0 + n; h++) ids[nIds++] = h;
       }
       ST.near = nc; ST.nearHouses = nIds;
+    }
+    // the lots' cells changed: their rows into the three tables
+    function lotRebuild() {
+      lotDirty = false; let n = 0, c = 0;
+      for (let t = 0; t < LOT_TABLES.length; t++) { const r = LOT_TABLES[t].write(lnear); c = r[0]; n += r[1]; }
+      ST.lotCells = c; ST.lotsNear = n; ST.visits += n;
     }
     // the props' cells changed: their rows into the instances
     function propRebuild() {
@@ -820,10 +996,13 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
         else if (d < NEAR_IN) setNear(ci);
         if (pnear[ci]) { if (d > PROP_OUT) { pnear[ci] = 0; propDirty = true; } }
         else if (d < PROP_IN) { pnear[ci] = 1; propDirty = true; }
+        if (lnear[ci]) { if (d > LOT_OUT) { lnear[ci] = 0; lotDirty = true; } }
+        else if (d < LOT_IN) { lnear[ci] = 1; lotDirty = true; }
         if (near[ci] && d < cf) cast = true;
       }
       if (nearDirty) nearRebuild();
       if (propDirty) propRebuild();
+      if (lotDirty) lotRebuild();
       if (nIds) { K.tickSome(eye, ids, 0, nIds); ST.visits += K.stats.visits; }
       // shadows near only: the kit's batches cast while a near cell is within castFar (the depth pass culls each caster past it)
       if (cast !== castOn) castSet(cast);
@@ -837,12 +1016,40 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
       group.updateMatrixWorld(true);
       for (const m of FAR) if (m) m.matrixWorldAutoUpdate = false;
       PT.each(im => { im.matrixWorldAutoUpdate = false; });
+      for (const T of LOT_TABLES) T.each(im => { im.matrixWorldAutoUpdate = false; });
       frozen = true;
     }
     // every Object3D the town puts in the scene graph (the walk's and the cull's count)
     function census() { let n = 0; group.traverse(() => { n++; }); ST.census = n; return n; }
     // a prop's asset landed: its meshes made, the near cells' rows into them at the next tick
-    function propsAgain() { if (PT.make()) propDirty = true; }
+    function propsAgain() { if (PT.make()) propDirty = true; if (LT_OLD.make() + LT_GROUND.make() + LT_MESH.make()) lotDirty = true; }
+    // AN EDITED PLOT (its seed is not the pack's: it builds unique - one build path): its kit rows, its props and lot rows go,
+    // and its far cell draws its shell AROUND it (the owners' ranges, v2 §5.1: up to 2 more draws while the edit stands)
+    const plotHidden = new Set();
+    function setPlotHidden(ci, k, v) {
+      const key = ci * 65536 + k; if (v === plotHidden.has(key)) return;
+      if (v) plotHidden.add(key); else plotHidden.delete(key);
+      const c = cells[ci], q = c.plots[k]; if (!q) return;
+      for (const r of [q[2], q[3]]) if (r >= 0) K.setHidden(c.rows[0] + r, v);
+      for (let i = c.props[0]; i < c.props[0] + c.props[1]; i++) if (PR.kind[i] !== 3 && PR.kind[i] !== 4 && PR.owner[i] === k) PR_HIDE[i] = v || (plotFlag(ci, k) & 2) ? 1 : 0;
+      for (let i = c.lots[0]; i < c.lots[0] + c.lots[1]; i++) if (LR.owner[i] === k) { lotHide[i] = v || (plotFlag(ci, k) & 2) ? 1 : 0;
+        LT_MESH_H[i] = lotHide[i] || !isMesh[i] ? 1 : 0; LT_OLD_H[i] = lotHide[i] || !isOld[i] ? 1 : 0; LT_GROUND_H[i] = lotHide[i] || !isGround[i] ? 1 : 0; }
+      shellGroups(ci);
+      propDirty = true; lotDirty = true; nearDirty = true;
+    }
+    const PR_HIDE = propHide, LT_MESH_H = LT_MESH.rowsHide(), LT_OLD_H = LT_OLD.rowsHide(), LT_GROUND_H = LT_GROUND.rowsHide();
+    // the shell's groups for a cell: its walls and roofs, less its hidden plots' ranges
+    function shellGroups(ci) {
+      const m = FAR[ci]; if (!m) return;
+      const c = cells[ci], own = c.far.owners || [];
+      const cut = []; for (const w of own) if (w[0] === 0 && plotHidden.has(ci * 65536 + w[1])) cut.push([w[3], w[3] + w[4]]);
+      cut.sort((a, b) => a[0] - b[0]);
+      const out = [];
+      for (const g of GF[ci]) { let s0 = g.start; const e0 = g.start + g.count;
+        for (const [a, b] of cut) { if (b <= s0 || a >= e0) continue; if (a > s0) out.push({ start: s0, count: a - s0, materialIndex: 0 }); s0 = Math.max(s0, b); }
+        if (e0 > s0) out.push({ start: s0, count: e0 - s0, materialIndex: 0 }); }
+      m.geometry.groups = out;
+    }
     // start: every cell far (its far mesh drawn; the kit's rows hidden until a cell comes near)
     for (let h = 0; h < NH; h++) K.farOne(h);
     K.group.traverse(m => { if (m.isMesh) m.castShadow = false; });
@@ -852,15 +1059,18 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
       K.dispose();
       for (const m of FAR) if (m) m.geometry.dispose();
       PT.each(im => im.dispose());
+      for (const T of LOT_TABLES) T.each(im => im.dispose());
+      for (const G of PIECE_GEO.values()) for (const q of G) q.geometry.dispose();
       if (group.parent) group.parent.remove(group);
     }
-    return { group, tick, freeze, census, dispose, propsAgain, stats: ST, kit: K, ring: RG, cells, rows, far: FAR, props: PROPS, lod: L,
+    return { group, tick, freeze, census, dispose, propsAgain, setPlotHidden, stats: ST, kit: K, ring: RG, cells, rows, far: FAR, props: PROPS, lod: L,
+             lots: { mesh: LT_MESH, old: LT_OLD, ground: LT_GROUND, near: ci => !!lnear[ci], lotIn: LOT_IN, lotOut: LOT_OUT, isMesh, isOld, isGround, hide: lotHide, texKeys }, propHide,
              cellNear: ci => !!near[ci], propNear: ci => !!pnear[ci], nearIds: () => ids.subarray(0, nIds), propIn: PROP_IN, propOut: PROP_OUT, boxDist: boxD,
              farGroups: ci => GF[ci], setSwitch, get nearIn() { return NEAR_IN; }, get nearOut() { return NEAR_OUT; },
              get visible() { return group.visible; }, set visible(v) { group.visible = !!v; } };
   }
 
-  const api = { decodePack, decodeInstances, decodeLod, mirrorOf, octDec, editKit, editDepth, host, dials, VDECL, VMAIN, FINISH_KEYS, decodeCityCell, cityOf, town, readRow, CITY_MAGIC, CITY_V };
+  const api = { decodePack, decodeInstances, decodeLod, mirrorOf, octDec, editKit, editDepth, host, dials, VDECL, VMAIN, FINISH_KEYS, decodeCityCell, decodeLotKit, cityOf, town, readRow, editLotGround, CITY_MAGIC, CITY_V, LOTKIT_MAGIC };
   if (typeof window !== 'undefined') window.TOWNKIT = api;
   return api;
 })();

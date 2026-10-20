@@ -14,9 +14,12 @@
 //     against them TODAY's kit host (TOWNKIT.host on the kit table: its near ring, and the full walk of before ?kitring=0);
 //   3 COUNTS what the town puts in the scene (Object3Ds, draws, triangles a view).
 //
-//   node tools/evidence/CITY-B-host.js [--fallback <dir>] [--out reports/evidence/CITY-B] [--size 1280x720]
+//   node tools/evidence/CITY-B-host.js [--fallback <dir>] [--fixture] [--out reports/evidence/CITY-B] [--size 1280x720]
 //     --fallback: a root holding flyDiy/src/core/city_packs.json and flyDiy/media/city/ when the tree has not got them
 //                 (tools/_serve.js --fallback)
+//     --fixture:  GATE CITYHOST's v2 fixture (tools/_cityhost_fixture.js: the kit table's rows with fences, gates, old stretches
+//                 and worn ground) cooked to a temporary root and served in place of the pack - the near lots on a page
+//                 before CITY-A's v2 pack exists (its look is the fixture's boxes, not the village's fence)
 // Prints one JSON summary line (CITYB {...}) and the PNG paths. On A0's box it renders on the GPU: the stills are the look.
 'use strict';
 const path = require('path');
@@ -30,7 +33,23 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[
 const REPO = path.resolve(__dirname, '..', '..', '..');
 const OUT = path.resolve(opt('out', path.join(__dirname, '..', '..', 'reports', 'evidence', 'CITY-B')));
 const [SW, SH] = (opt('size', '1280x720')).split('x').map(Number);
-const FB = opt('fallback', null);
+let FB = opt('fallback', null);
+const FIXTURE = argv.includes('--fixture');
+// --fixture: the v2 fixture written as a pack under a temporary root (flyDiy/src/core/city_packs.json, flyDiy/media/city/fixture/)
+function writeFixture() {
+  const os = require('os'), zlib = require('zlib');
+  const KIT = require('../../src/viewer/townkit.js'), FX = require('../_cityhost_fixture.js');
+  const man = JSON.parse(fs.readFileSync(path.join(REPO, 'flyDiy', 'src', 'core', 'townkit_pack.json'), 'utf8'));
+  const it = man.instances.find(i => i.id === 'jolene') || man.instances[0];
+  const C = FX.cookCity({ KIT, pack: new Uint8Array(FX.gunzip(fs.readFileSync(path.join(REPO, 'flyDiy', man.pack.src)))), inst: new Uint8Array(FX.gunzip(fs.readFileSync(path.join(REPO, 'flyDiy', it.src)))) });
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cityb_fx_')), dir = path.join(root, 'flyDiy', 'media', 'city', 'fixture');
+  fs.mkdirSync(dir, { recursive: true }); fs.mkdirSync(path.join(root, 'flyDiy', 'src', 'core'), { recursive: true });
+  C.town.cells.forEach((c, k) => { const f = 'c_' + k + '.bin'; fs.writeFileSync(path.join(dir, f), zlib.gzipSync(C.raws[k])); c.src = 'media/city/fixture/' + f; });
+  fs.writeFileSync(path.join(dir, 'lotkit.bin'), zlib.gzipSync(C.lotKit)); C.town.lotKit.src = 'media/city/fixture/lotkit.bin';
+  C.town.inputs = { kitPack: man.pack.sha256 };
+  fs.writeFileSync(path.join(root, 'flyDiy', 'src', 'core', 'city_packs.json'), JSON.stringify({ v: 2, towns: [C.town] }));
+  return root;
+}
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 function findPlaywright() { for (const p of ['playwright', '/opt/node-tools/node_modules/playwright', 'playwright-core']) { try { return require(p); } catch (e) {} } throw new Error('no playwright'); }
 const freePort = () => new Promise((res, rej) => { const s = net.createServer(); s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => res(p)); }); s.on('error', rej); });
@@ -47,7 +66,8 @@ async function inPage({ W, H }) {
   const town = CM.towns.find(t => t.island === 'jolene' && t.variant === 'town');
   const cells = [];
   for (const c of town.cells) cells.push(TK.decodeCityCell(new Uint8Array(await gunz(await fetch(c.src)))));
-  const city = TK.cityOf(town, cells);
+  const LK = town.lotKit && town.lotKit.src ? TK.decodeLotKit(new Uint8Array(await gunz(await fetch(town.lotKit.src)))) : null;
+  const city = TK.cityOf(town, cells, LK);
   const errs = [];
   const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H; document.body.appendChild(canvas);
   const R = new T.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true });
@@ -63,7 +83,11 @@ async function inPage({ W, H }) {
   const PS = { car: sb(1.8, 1.45, 4.3, 0x6a7f99), boat: sb(2.2, 1.2, 6.5, 0xd8d4c8), person: sb(0.5, 1.75, 0.35, 0x704030), other: sb(0.9, 0.9, 0.9, 0x8a6a4a) };
   const propOf = k => [/^auto_|truck|bus|van/.test(k) ? PS.car : /boat|skiff|seiner|canoe/.test(k) ? PS.boat : /person|people|man_|woman|kid/.test(k) ? PS.person : PS.other];
   const t0 = performance.now();
-  const TW = TK.town(T, { pack: P, city, tarr: TA, HG, farMats: { shell }, propGeo: propOf });
+  // the near lots: the fence finish stood in by two plain woods (the page has no HOUSE_GEN fence finish here), the worn ground
+  // a plain dirt tone through the town host's own drape and fade (editLotGround)
+  const lotMats = [new T.MeshStandardMaterial({ color: 0x5c4a38, roughness: 0.9 }), new T.MeshStandardMaterial({ color: 0x7d6650, roughness: 0.9 })];
+  const LG = new Map(), lotGround = k => { if (!LG.has(k)) LG.set(k, new T.MeshStandardMaterial({ color: k === 'dry' ? 0x8f8160 : 0x75664c, roughness: 1, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); return LG.get(k); };
+  const TW = TK.town(T, { pack: P, city, tarr: TA, HG, farMats: { shell }, propGeo: propOf, lotMats, lotGround });
   const buildMs = performance.now() - t0;
   scene.add(TW.group); TW.freeze();
   // the ground under the town: a plane at its lowest floor
@@ -79,7 +103,7 @@ async function inPage({ W, H }) {
     g.setIndex(new T.BufferAttribute(F.idx, 1)); g.addGroup(Rb.first, Rb.count, 0); g.computeBoundingSphere();
     const m = new T.Mesh(g, [roadMat]); m.position.set(c.o[0], c.o[1], c.o[2]); m.receiveShadow = true; scene.add(m); }
   // THE STREET: the road point of the fullest cell nearest its middle, looking along the road there (its points within 40 m)
-  const street = (() => {
+  let street = (() => {
     const F = big.far, Rb = F.buckets.find(q => q.name === 'roads'); if (!Rb || !Rb.count) return null;
     const P3 = v => [F.pos[v * 3] + big.o[0], F.pos[v * 3 + 1] + big.o[1], F.pos[v * 3 + 2] + big.o[2]];
     let best = null, bd = Infinity;
@@ -93,6 +117,12 @@ async function inPage({ W, H }) {
   const cam = new T.PerspectiveCamera(50, W / H, 0.3, 30000);
   const views = { far: [[x1 + 6000, y0 + 400, cz], [cx, y0, cz]], mid: [[x1 + 1300, y0 + 250, cz], [cx, y0, cz]], near: [[bx + 300, y0 + 80, bz + 120], [bx, y0 + 5, bz]] };
   if (street) { const [p, d] = [street.p, street.dir]; views.street = [[p[0], p[1] + 2, p[2]], [p[0] + d[0] * 120, p[1] + 1.2, p[2] + d[1] * 120]]; }
+  else {   // (a pack with no road ribbons - the fixture: a lot's worn path, 12 m back out from its start, looking along it at the house)
+    const LR = city.lots; let i0 = -1;
+    for (let i = big.lots[0]; i < big.lots[0] + big.lots[1] && i0 < 0; i++) if ((LR.flags[i] & 2) && !TW.lots.hide[i]) i0 = i;
+    if (i0 >= 0) { const c = Math.cos(LR.yaw[i0]), sn = -Math.sin(LR.yaw[i0]), x = LR.x[i0] - c * 12, z = LR.z[i0] - sn * 12;
+      street = { p: [x, LR.y[i0], z], dir: [c, sn], lot: true }; views.street = [[x, LR.y[i0] + 2, z], [x + c * 120, LR.y[i0] + 1.2, z + sn * 120]]; }
+  }
   const shots = {}, stat = {};
   for (const [k, [e, at]] of Object.entries(views)) {
     gp.position.y = k === 'street' ? street.p[1] - 1.5 : y0 - 0.5;   // (the plane at the street's own height under the street view)
@@ -101,7 +131,7 @@ async function inPage({ W, H }) {
     sun.position.set(cam.position.x + 600, cam.position.y + 900, cam.position.z + 300); sun.target.position.set(at[0], at[1], at[2]);
     for (let i = 0; i < 40; i++) { TW.tick(cam.position); if (TW.kit.waiting) TW.kit.relook(); }
     R.info.reset(); R.info.autoReset = false; R.render(scene, cam);
-    stat[k] = { eye: e.map(v => Math.round(v)), calls: R.info.render.calls, tris: R.info.render.triangles, near: TW.stats.near, nearRows: TW.stats.nearHouses, propsNear: TW.stats.propsNear, castOn: TW.stats.castOn, rungs: TW.kit.rungs() };
+    stat[k] = { eye: e.map(v => Math.round(v)), lotsNear: TW.stats.lotsNear, calls: R.info.render.calls, tris: R.info.render.triangles, near: TW.stats.near, nearRows: TW.stats.nearHouses, propsNear: TW.stats.propsNear, castOn: TW.stats.castOn, rungs: TW.kit.rungs() };
     shots[k] = canvas.toDataURL('image/png');
   }
   // the tick in this V8: idle far, idle near, the circuit 5 km out
@@ -115,11 +145,14 @@ async function inPage({ W, H }) {
   KR.tick(farE); KF.tick(farE);
   const kitRingFar = time(200000, () => KR.tick(farE)), kitFullFar = time(20000, () => KF.tick(farE));
   let census = 0; TW.group.traverse(() => { census++; });
-  return { shots, stat, buildMs, usFar, usNear, usCirc, kitRingFar, kitFullFar, census, cells: city.cells.length, rows: city.rows.length, props: city.props.n, kitRows: I.rows.length,
+  // a lot rebuild's cost here (the near set changes as a cell crosses lotFar): the whole near set re-written, timed
+  let lotMs = null; if (city.lots.n) { const tL = performance.now(); for (let i = 0; i < 20; i++) { TW.tick(farE); TW.tick(nearE); } lotMs = (performance.now() - tL) / 20; }
+  return { shots, stat, buildMs, lotMs, lots: city.lots.n, usFar, usNear, usCirc, kitRingFar, kitFullFar, census, cells: city.cells.length, rows: city.rows.length, props: city.props.n, kitRows: I.rows.length,
            programs: R.info.programs ? R.info.programs.length : null, gpu: (() => { const gl = R.getContext(), d = gl.getExtension('WEBGL_debug_renderer_info'); return d ? gl.getParameter(d.UNMASKED_RENDERER_WEBGL) : '?'; })(), errs };
 }
 
 (async () => {
+  if (FIXTURE) FB = writeFixture();
   const port = await freePort();
   const sargs = [path.join(__dirname, '..', '_serve.js'), String(port), REPO].concat(FB ? ['--fallback', path.resolve(FB)] : []);
   const server = spawn(process.execPath, sargs, { stdio: 'ignore' });

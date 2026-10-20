@@ -63,22 +63,26 @@ function world() {
   const P = KIT.decodePack(pack), I = KIT.decodeInstances(inst);
   const T = TARR.make(THREE, { HG });
   const propGeo = () => [{ geometry: new THREE.BoxGeometry(1, 1, 1), material: new THREE.MeshBasicMaterial() }];
+  const lotMats = [new THREE.MeshStandardMaterial({ color: 0x5a4632 }), new THREE.MeshStandardMaterial({ color: 0x7a6248 })];
+  const lotGround = () => new THREE.MeshStandardMaterial({ color: 0x8a7a5a, transparent: true, depthWrite: false });
   const farMats = { shell: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }) };
   const boxOf = city => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const c of city.cells) { x0 = Math.min(x0, c.box[0]); z0 = Math.min(z0, c.box[1]); x1 = Math.max(x1, c.box[2]); z1 = Math.max(z1, c.box[3]); } return [x0, z0, x1, z1]; };
   const cities = [];
   const FXC = FX.cookCity({ KIT, pack, inst });
-  { const city = KIT.cityOf(FXC.town, FXC.raws.map(r => KIT.decodeCityCell(new Uint8Array(r.buffer, r.byteOffset, r.byteLength))));
+  const u8b = r => new Uint8Array(r.buffer, r.byteOffset, r.byteLength);
+  { const city = KIT.cityOf(FXC.town, FXC.raws.map(r => KIT.decodeCityCell(u8b(r))), KIT.decodeLotKit(u8b(FXC.lotKit)));
     cities.push({ name: 'the fixture', city, box: boxOf(city), bytes: FXC.raws.reduce((a, r) => a + r.length, 0) }); }
   const CP = path.join(ROOT, 'src', 'core', 'city_packs.json');
   if (fs.existsSync(CP)) {
     const M = JSON.parse(fs.readFileSync(CP, 'utf8'));
     for (const town of M.towns || []) {
       const raws = town.cells.map(c => FX.gunzip(fs.readFileSync(path.join(ROOT, c.src))));
-      const city = KIT.cityOf(town, raws.map(r => KIT.decodeCityCell(new Uint8Array(r.buffer, r.byteOffset, r.byteLength))));
-      cities.push({ name: 'the pack ' + town.id, city, box: boxOf(city), bytes: raws.reduce((a, r) => a + r.length, 0), real: true, kitPack: town.inputs && town.inputs.kitPack, packSha: man.pack.sha256 });
+      const LKr = town.lotKit && town.lotKit.src ? KIT.decodeLotKit(u8b(FX.gunzip(fs.readFileSync(path.join(ROOT, town.lotKit.src))))) : null;
+      const city = KIT.cityOf(town, raws.map(r => KIT.decodeCityCell(u8b(r))), LKr);
+      cities.push({ name: 'the pack ' + town.id + ' v' + M.v, city, box: boxOf(city), bytes: raws.reduce((a, r) => a + r.length, 0), real: true, kitPack: town.inputs && town.inputs.kitPack, packSha: man.pack.sha256, v: M.v });
     }
   }
-  return { HG, P, I, T, propGeo, farMats, cities };
+  return { HG, P, I, T, propGeo, farMats, lotMats, lotGround, cities };
 }
 
 // ==================================================================================================================
@@ -94,7 +98,7 @@ if (process.argv.includes('--alloc')) {
   const measure = fn => { for (let i = 0; i < 300000; i++) fn(); const M = 20000, per = []; for (let rep = 0; rep < 5; rep++) { global.gc(); const a = newUsed(); for (let i = 0; i < M; i++) fn(); per.push((newUsed() - a) / M); } return Math.min(...per); };
   const out = { cities: [] };
   for (const C of Wd.cities) {
-    const TW = KIT.town(THREE, { pack: Wd.P, city: C.city, tarr: Wd.T, HG: Wd.HG, propGeo: Wd.propGeo, farMats: Wd.farMats, now });
+    const TW = KIT.town(THREE, { pack: Wd.P, city: C.city, tarr: Wd.T, HG: Wd.HG, propGeo: Wd.propGeo, farMats: Wd.farMats, lotMats: Wd.lotMats, lotGround: Wd.lotGround, now });
     const [x0, z0, x1, z1] = C.box, cz = (z0 + z1) / 2;
     const big = C.city.cells.reduce((a, c) => (c.rows[1] > a.rows[1] ? c : a));   // near: the middle of the fullest cell
     const far = new THREE.Vector3(x1 + 6400, 120, cz), nearE = new THREE.Vector3((big.box[0] + big.box[2]) / 2, 60, (big.box[1] + big.box[3]) / 2);
@@ -161,7 +165,7 @@ const t0 = Date.now();
 
 // ---- the world ----------------------------------------------------------------------------------------------------------
 const Wd = world();
-const { P, I, HG, T, propGeo, farMats } = Wd;
+const { P, I, HG, T, propGeo, farMats, lotMats, lotGround } = Wd;
 say('the world: ' + P.header.archetypes.length + ' archetypes, ' + I.rows.length + ' kit table records; the cities: ' + Wd.cities.map(C => C.name + ' (' + C.city.cells.length + ' cells, '
   + C.city.rows.length + ' kit rows, ' + C.city.props.n + ' props, ' + (C.bytes / 1024).toFixed(0) + ' KB raw, ' + ((C.box[2] - C.box[0]) / 1000).toFixed(2) + ' x ' + ((C.box[3] - C.box[1]) / 1000).toFixed(2) + ' km)').join('; ')
   + ' (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s)');
@@ -208,12 +212,13 @@ for (const CT of Wd.cities) {
   const city = CT.city, box = CT.box, tag = ' [' + CT.name + ']';
   const fc = city.cells.reduce((a, c) => (c.rows[1] > a.rows[1] ? c : a)), PATH = flight(box, [(fc.box[0] + fc.box[2]) / 2, (fc.box[1] + fc.box[3]) / 2]);
   if (CT.real) check(CT.kitPack === CT.packSha && city.rows.every(r => r.arch < P.header.archetypes.length), 'C the pack names the committed kit pack and its archetypes' + tag, CT.kitPack + ' / ' + CT.packSha);
-  const TW = KIT.town(THREE, { pack: P, city, tarr: T, HG, propGeo, farMats });
+  const TW = KIT.town(THREE, { pack: P, city, tarr: T, HG, propGeo, farMats, lotMats, lotGround });
   const scene = new THREE.Scene(); scene.add(TW.group); TW.freeze();
   {
     const nCells = city.cells.length, nArch = P.header.archetypes.length, nProps = city.keys.length * 2;   // (a prop key: a cast and a flat mesh)
-    const census = TW.census(), bound = nCells + nArch + nProps + 8;
-    check(census <= bound, 'C the town\'s Object3D census is <= cells + archetypes + 2 x prop keys + 8' + tag, census + ' > ' + bound);
+    const nLot = city.lotKit ? city.lotKit.pieces.length * 4 + 4 : 0;   // (a lot piece: 2 roles x cast / flat; the worn grounds' sets)
+    const census = TW.census(), bound = nCells + nArch + nProps + nLot + 8;
+    check(census <= bound, 'C the town\'s Object3D census is <= cells + archetypes + 2 x prop keys + 4 x lot pieces + 8' + tag, census + ' > ' + bound);
     check(census < city.rows.length / 2 + 16, 'C ... nothing a plot (' + city.rows.length + ' kit rows)' + tag, census);
     let stat = 0, cast = 0, draws = 0, nFar = 0, cellless = 0;
     // G3423 (the user: "no flat lot squares"): the shell alone - one group over the walls and roofs buckets, never the roads' or lots'
@@ -267,7 +272,7 @@ for (const CT of Wd.cities) {
           if (!near[ci]) { if (r[0] !== -1 || r[1] !== -1) badFarHouse++; }
           else { const q = REF.rungOf(h); if (r[0] !== q[0] || r[1] !== q[1]) badNearHouse++; }
         }
-        if (pnear[ci]) wantProps += c.props[1];
+        if (pnear[ci]) for (let i = c.props[0]; i < c.props[0] + c.props[1]; i++) if (!TW.propHide[i]) wantProps++;
       }
       let have = 0; for (const Pq of TW.props) if (Pq) have += Pq.parts[0].count;
       if (have !== wantProps) badProps++;
@@ -277,20 +282,20 @@ for (const CT of Wd.cities) {
     check(!badMesh, 'F a far cell draws its shell, a near one nothing of its far mesh' + tag, badMesh);
     check(!badFarHouse, 'F a far cell\'s kit rows on no rung (its mesh draws them)' + tag, badFarHouse);
     check(!badNearHouse, 'F a near cell\'s kit rows on the rungs the full walk gives' + tag, badNearHouse);
-    check(!badProps, 'F the props drawn are exactly the props-near cells\'' + tag, badProps);
-    check(sw2 > 10 && switches - sw2 > 10 && TW.nearIn === 1900 && TW.nearOut === 2100, 'F the flight crossed the switch at 1 km and at the dial\'s 2 km' + tag, sw2 + ' / ' + (switches - sw2) + ' switches, ' + TW.nearIn + ' / ' + TW.nearOut);
-    say('F the switch' + tag + ': ' + frames + ' frames, ' + switches + ' cell switches, up to ' + nearMax + ' near cells and ' + visMax + ' rows + props visited in a frame (in / out 950 / 1050 m, then the dial 1900 / 2100 m; props ' + TW.propIn + ' m)');
+    check(!badProps, 'F the props drawn are exactly the props-near cells\' (less a landmark\'s and a unique plot\'s: the unique path\'s)' + tag, badProps);
+    check(sw2 > 10 && switches - sw2 > 10 && TW.nearIn === 1950 && TW.nearOut === 2050, 'F the flight crossed the switch at 1 km and at the dial\'s 2 km' + tag, sw2 + ' / ' + (switches - sw2) + ' switches, ' + TW.nearIn + ' / ' + TW.nearOut);
+    say('F the switch' + tag + ': ' + frames + ' frames, ' + switches + ' cell switches, up to ' + nearMax + ' near cells and ' + visMax + ' rows + props visited in a frame (in / out 950 / 1050 m, then the dial 1950 / 2050 m; props ' + TW.propIn + ' m)');
     REF.dispose();
   }
   // F2 the late props (a prop's asset lands after the town is up) and a hidden row (its plot edited: it builds unique)
   {
     let ready = false;
-    const T2 = KIT.town(THREE, { pack: P, city, tarr: T, HG, farMats, propGeo: k => (ready ? [propGeo(k)[0], propGeo(k)[0]] : null) });
+    const T2 = KIT.town(THREE, { pack: P, city, tarr: T, HG, farMats, lotMats, lotGround, propGeo: k => (ready ? [propGeo(k)[0], propGeo(k)[0]] : null) });
     const big = city.cells.reduce((a, c) => (c.rows[1] > a.rows[1] ? c : a)), e = new THREE.Vector3((big.box[0] + big.box[2]) / 2, 80, (big.box[1] + big.box[3]) / 2);
     T2.tick(e);
     const none = T2.props.every(q => !q);
     ready = true; T2.propsAgain(); T2.tick(e);
-    let want = 0; for (let ci = 0; ci < city.cells.length; ci++) if (T2.propNear(ci)) want += city.cells[ci].props[1];
+    let want = 0; for (let ci = 0; ci < city.cells.length; ci++) if (T2.propNear(ci)) { const c = city.cells[ci]; for (let i = c.props[0]; i < c.props[0] + c.props[1]; i++) if (!T2.propHide[i]) want++; }
     const parts = T2.props.filter(Boolean), have = parts.reduce((a, q) => a + q.parts[0].count, 0), same = parts.every(q => q.parts.length === 2 && q.parts[1].count === q.parts[0].count);
     check(none && want > 0 && have === want && same, 'F2 a prop whose asset lands late is drawn at the next tick, every part of it' + tag, none + ' / ' + have + ' of ' + want);
     const h = big.rows[0];
@@ -303,6 +308,70 @@ for (const CT of Wd.cities) {
     check(!flagged, 'F2 a row casts as the cook\'s flag 8 says (' + noCast + ' of ' + city.rows.length + ' cast none)' + tag, flagged);
     T2.dispose();
   }
+  // ---- L THE NEAR LOTS (G3424-G3426; v2 §9): near only (lotFar of a cell's box), instanced, the rows as the format draws them
+  if (city.lots.n) {
+    const LR = city.lots, LK = city.lotKit.pieces, LT = TW.lots, NC = city.cells.length, lnear = new Uint8Array(NC);
+    // L1 the lot kit
+    const meshP = LK.filter(q => q.verts > 0), badKit = meshP.filter(q => !q.parts.length || q.parts.some(pt => pt.role > 1 || !pt.idx.length)).length;
+    check(meshP.length && !badKit, 'L the lot kit decodes: every mesh piece split by its role (post / deck)' + tag, meshP.length + ' mesh pieces, ' + badKit + ' bad');
+    const wantOf = (flag, on) => { let n = 0; for (let ci = 0; ci < NC; ci++) if (on[ci]) { const c = city.cells[ci]; for (let i = c.lots[0]; i < c.lots[0] + c.lots[1]; i++) if (!LT.hide[i] && flag[i]) n++; } return n; };
+    const haveOf = T => { let n = 0; for (const q of T.slots) if (q) n += q.parts[0].count; return n; };
+    let badN = 0, badFar = 0, badCell = 0, frames = 0, maxN = 0, castBad = 0;
+    for (const e of PATH) {
+      TW.tick(e); frames++;
+      let any = false;
+      for (let ci = 0; ci < NC; ci++) { const d = TW.boxDist(ci, e.x, e.z); lnear[ci] = lnear[ci] ? (d > LT.lotOut ? 0 : 1) : (d < LT.lotIn ? 1 : 0); if (lnear[ci]) any = true; if (!!lnear[ci] !== LT.near(ci)) badCell++; }
+      const hm = haveOf(LT.mesh), ho = haveOf(LT.old), hg = haveOf(LT.ground);
+      if (hm !== wantOf(LT.isMesh, lnear) || ho !== wantOf(LT.isOld, lnear) || hg !== wantOf(LT.isGround, lnear)) badN++;
+      if (!any && hm + ho + hg) badFar++;
+      maxN = Math.max(maxN, hm + ho + hg);
+    }
+    check(!badCell && !badN, 'L the lot rows drawn are exactly the lot-near cells\' (each kind in its table, a unique plot\'s left to the unique path)' + tag, badCell + ' cells, ' + badN + ' frames off over ' + frames);
+    check(!badFar && maxN > 0, 'L near only: no lot row drawn while no cell is within lotFar (' + LT.lotIn + ' m)' + tag, badFar + ' frames; up to ' + maxN + ' rows near');
+    // at the fullest cell: every instance is its row, as the format draws it
+    const big = city.cells.reduce((a, c) => (c.rows[1] > a.rows[1] ? c : a)), e = new THREE.Vector3((big.box[0] + big.box[2]) / 2, 60, (big.box[1] + big.box[3]) / 2);
+    TW.tick(e); TW.tick(e);
+    const M4 = new THREE.Matrix4(), v0 = new THREE.Vector3(), v1 = new THREE.Vector3();
+    let shear = 0, nShear = 0, rises = 0, oldBad = 0, nOld = 0, gBad = 0, nG = 0;
+    for (const q of LT.mesh.slots) if (q) { const im = q.parts[0];
+      if (im.castShadow !== q.parts.every(x => x.castShadow)) castBad++;
+      for (let j = 0; j < q.n; j++) { const i = q.rows[j], P = LK[LR.piece[i]]; M4.fromArray(im.instanceMatrix.array, j * 16);
+        v0.set(0, 0, 0).applyMatrix4(M4); v1.set(P.len, 0, 0).applyMatrix4(M4); nShear++;
+        const len = LR.len[i] > 0 ? LR.len[i] : P.len, rise = LR.g[i * 4 + 1] - LR.g[i * 4];
+        if (Math.abs(rise) > 0.01) rises++;
+        const ex = LR.x[i] + Math.cos(LR.yaw[i]) * len, ez = LR.z[i] - Math.sin(LR.yaw[i]) * len;
+        if (Math.hypot(v0.x - LR.x[i], v0.z - LR.z[i]) > 1e-3 || Math.abs(v0.y - (LR.y[i] + LR.g[i * 4])) > 1e-3 || Math.hypot(v1.x - ex, v1.z - ez) > 1e-3 || Math.abs(v1.y - v0.y - rise) > 1e-3) shear++; } }
+    check(nShear > 0 && !shear, 'L a fence piece stands as the row says: its origin on corner 0, its far end length along its yaw and up by the rise (the shear)' + tag, shear + ' of ' + nShear + ' (' + rises + ' on a rise)');
+    for (const q of LT.old.slots) if (q) for (let j = 0; j < q.n; j++) { const i = q.rows[j], P = LK[LR.piece[i]], a = q.parts[0].instanceMatrix.array, sx = Math.hypot(a[j * 16], a[j * 16 + 1], a[j * 16 + 2]); nOld++;
+      if (Math.abs(sx - LR.len[i] / P.len) > 1e-4) oldBad++; }
+    check(!oldBad, 'L an old-fence row is its prop scaled length / piece.len along x' + tag, oldBad + ' of ' + nOld);
+    for (const q of LT.ground.slots) if (q) { const g = q.parts[0].geometry, C = g.attributes.aLotC.array, S = g.attributes.aLotS.array;
+      if (q.parts[0].castShadow) castBad++;
+      for (let j = 0; j < q.n; j++) { const i = q.rows[j]; nG++;
+        for (let k = 0; k < 4; k++) if (Math.abs(C[j * 4 + k] - LR.g[i * 4 + k]) > 1e-4) { gBad++; break; }
+        if (Math.abs(S[j * 4] - LR.len[i]) > 1e-4 || Math.abs(S[j * 4 + 1] - LR.wid[i]) > 1e-4 || S[j * 4 + 2] !== LR.seed[i]) gBad++; } }
+    check(nG > 0 && !gBad, 'L a worn ground piece carries its row: the four corners, the length, the width, the seed' + tag, gBad + ' of ' + nG);
+    for (const q of LT.mesh.slots.concat(LT.old.slots)) if (q) for (let j = 0; j < q.n; j++) if (q.parts[0].castShadow !== !!(LR.flags[q.rows[j]] & 1)) castBad++;
+    check(!castBad && LT.lotIn <= TW.lod.castFar, 'L shadows near only: a lot row casts by its flag 1, within lotFar (' + LT.lotIn + ' m <= castFar); the worn ground never' + tag, castBad);
+    // L hidden: a unique plot's rows never; an edited plot's rows, props, kit rows and far range leave the draw, and come back
+    let uniq = 0; for (const q of LT.mesh.slots.concat(LT.old.slots, LT.ground.slots)) if (q) for (let j = 0; j < q.n; j++) { const i = q.rows[j], ci = city.rows.length ? (() => { for (const c of city.cells) if (i >= c.lots[0] && i < c.lots[0] + c.lots[1]) return c.ci; return -1; })() : -1; if (ci >= 0 && (city.cells[ci].plots[LR.owner[i]] || [])[4] & 2) uniq++; }
+    check(!uniq, 'L a unique plot\'s lot rows are never the pack\'s (the unique path builds its fence)' + tag, uniq);
+    const ck = big, kPlot = ck.plots.findIndex(q => (q[4] & 1) && q[2] >= 0 && (ck.far.owners || []).some(w => w[0] === 0 && w[1] === ck.plots.indexOf(q)));
+    if (kPlot >= 0) {
+      const own = ck.far.owners.filter(w => w[0] === 0 && w[1] === kPlot), lotsOf = () => { let n = 0; for (const T of [LT.mesh, LT.old, LT.ground]) for (const q of T.slots) if (q) for (let j = 0; j < q.n; j++) { const i = q.rows[j]; if (i >= ck.lots[0] && i < ck.lots[0] + ck.lots[1] && LR.owner[i] === kPlot) n++; } return n; };
+      const before = lotsOf(), h = ck.rows[0] + ck.plots[kPlot][2];
+      TW.setPlotHidden(ck.ci, kPlot, true); TW.tick(e);
+      const gone = lotsOf(), kr = TW.kit.rungOf(h), G = TW.far[ck.ci] ? TW.far[ck.ci].geometry.groups : [];
+      const cut = own.every(w => G.every(g => g.start >= w[3] + w[4] || g.start + g.count <= w[3])), drawn = G.reduce((a, g) => a + g.count, 0);
+      TW.setPlotHidden(ck.ci, kPlot, false); TW.tick(e);
+      const back = lotsOf(), G2 = TW.far[ck.ci] ? TW.far[ck.ci].geometry.groups : [];
+      check(before > 0 && gone === 0 && kr[0] === -1 && cut && drawn + own.reduce((a, w) => a + w[4], 0) === TW.farGroups(ck.ci).reduce((a, g) => a + g.count, 0) && back === before && G2.reduce((a, g) => a + g.count, 0) === drawn + own.reduce((a, w) => a + w[4], 0),
+        'L an edited plot leaves the pack\'s draw - its lot rows, its kit rows, its far shell\'s range (the cell draws around it) - and comes back' + tag, [before, gone, back, kr.join('/'), cut, G.length].join(' '));
+    }
+    let lotMeshes = 0; for (const T of [LT.mesh, LT.old, LT.ground]) T.each(() => { lotMeshes++; });
+    say('L the near lots' + tag + ': ' + LR.n + ' rows (' + LT.isMesh.reduce((a, b) => a + b, 0) + ' fence pieces, ' + LT.isOld.reduce((a, b) => a + b, 0) + ' old stretches, ' + LT.isGround.reduce((a, b) => a + b, 0) + ' worn grounds), '
+      + lotMeshes + ' instanced meshes, up to ' + maxN + ' rows drawn near (lotFar ' + LT.lotIn + ' m), 0 far');
+  } else if (CT.real) say('L the near lots' + tag + ': this pack has no lots section (v' + (CT.v || 1) + '; CITY-A\'s v2 brings it) - checked on the fixture');
   TW.dispose();
 }
 {
@@ -384,8 +453,10 @@ for (const CT of Wd.cities) {
     'H a pack entry builds nothing (an unparented entry in HOUSES), is never sent to the worker');
   check(/: cityOwn\(p\) \? cityBuildOne\(p, R\) : kitOf\(p\) >= 0 \? buildKitLot\(p, R\) : buildHouse\(p, R\); if \(h && CITY\.on\) cityBoundBuilt\(p, h\);/.test(RP), 'H the dispatch: the pack\'s first, then the kit lot / the unique house as before');
   check(/if \(CITY\.on\) \{ cityBuild\(\); return null; \}/.test(RP) && /if \(CITY\.on\) \{ cityTick\(e\); return; \}/.test(RP) && /root\.add\(CITY\.host\.group\); CITY\.host\.freeze\(\)/.test(RP), 'H the city host replaces the kit host (built, frozen by hand once in the scene, ticked)');
-  check(/T\.inputs\.kitPack !== KT\.man\.pack\.sha256\) throw/.test(RP) && /man\.v !== 1\) throw/.test(RP) && /T\.frame !== 'world'\) throw/.test(RP), 'H a pack of another kit, version or frame is refused (the town on the kit as before)');
-  check(/CITY\.host\.kit\.setHidden\(h, E\.seed !== p\.seed\)/.test(RP), 'H an edited pack plot (another seed) hides its kit rows and builds unique (one build path, the editor\'s and the flight\'s)');
+  check(/T\.inputs\.kitPack !== KT\.man\.pack\.sha256\) throw/.test(RP) && /man\.v !== 2\) throw/.test(RP) && /cells\.some\(c => c\.v !== 2\)\) throw/.test(RP) && /T\.frame !== 'world'\) throw/.test(RP), 'H a pack of another kit, version or frame is refused (the town on the kit as before)');
+  check(/CITY\.host\.setPlotHidden\(E\.ci, E\.k, E\.seed !== p\.seed\)/.test(RP), 'H an edited pack plot (another seed) leaves the pack\'s draw - kit rows, props, lot rows, its far shell\'s range - and builds unique (one build path)');
+  check(/&& !\(CITY\.on && cityOwn\(p\) === 2\)\) bareMetla\(h, p\);/.test(RP), 'H a pack\'s unique plot keeps its fence (built near only, the town bare elsewhere as before)');
+  check(/far: CITY_FAR,/.test(RP) && /\[\?&\]cityfar=\(\[0-9\.\]\+\)/.test(RP) && /lotMats: cityLotMats\(\), lotGround: cityLotGround/.test(RP), 'H the switch\'s dial ?cityfar=, the near lots\' materials (the fence finish, the worn ground)');
   check(/g\.userData\.cityBound = 1; g\.visible = near;/.test(RP) && /if \(g\.userData\.cityBound\) continue;/.test(RP) && /cityBoxD\(ci, cx, cz\) : d\) > CITY\.city\.lod\.nearOut \+ 400/.test(RP),
     'H a pack\'s unique (a landmark, a unique or edited plot) builds 400 m before its cell comes near, draws while it is near, never in the far town\'s bake');
 }

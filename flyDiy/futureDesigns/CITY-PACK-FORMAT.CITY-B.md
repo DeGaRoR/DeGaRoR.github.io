@@ -84,3 +84,43 @@ switch).
 6. **The shadow flag and the props' cast flag are honoured as written.** No change asked.
 7. **Keep `v` strict.** The host refuses any `v` but 1, any frame but `'world'` and any other kit pack. Bump `v` on any layout
    change.
+
+## 4. v2 (CITY-A G3405, 71f3e389): what the host reads and does (CITY-B G3423-G3427)
+
+The user's ruling, 20 Oct: the far town is OK; the switch is at 1 km, as a dial with 2 km as the fallback; no flat lot
+squares anywhere; the town keeps its own roads; and the fences and yard dressing come back before the measurement.
+
+**Read as written:**
+- **The version:** render_premises asks for `v` 2 and refuses any other, in the manifest or in a cell. The decoder still reads
+  v1, which has no lots, so GATE CITYHOST can run on an older pack.
+- **The far mesh:** the shell alone (walls + roofs), 1 draw a cell, no shadow, hidden while the cell is near. The cook's
+  lots and roads buckets are never drawn: the terrain and the town's own roads show.
+- **The switch:** `lod.far` (1 km), in at `far` - 50 and out at `far` + 50. Override it with `?cityfar=<m>`, or live with
+  `WORLD.premises.city.host.setSwitch(m)`.
+- **`far.owners` (§5.1):** an edited plot, whose seed is not the pack's, leaves the pack's draw entirely. That means its kit
+  rows, its props, its lot rows, and its range of the far shell: the cell draws its shell around it, at most 2 more draws.
+  The plot itself builds unique.
+- **The lots (§9)**, within `lod.lotFar` (400 m) of a cell's box, near only, through three instanced tables written in place
+  when that set changes (zero allocation a tick):
+  - **fence pieces:** the lot kit's piece by role (0 the fence finish's post, 1 its deck), scaled `length / piece.len` along
+    x and sheared by the rise from corner 0 to corner 1 in the instance matrix. A row with flag 1 casts.
+  - **old stretches** (flag 4): the prop `propKeys[piece.prop]`, scaled `length / piece.len` along x.
+  - **worn ground** (flag 2): an instanced unit grid draped on the row's four corners + 4 cm in the vertex shader, its map in
+    world metres (lot_tex's `piece.tex` set), its alpha faded over `piece.fade` from each edge, broken by noise on the seed.
+    Polygon offset (-2, -2); it casts nothing.
+- **Rows the pack does not draw**, because the unique path builds them with their owner: a landmark's props (kind 4), and a
+  unique plot's props and lot rows (plot flag 2). A pack's unique plot keeps its own fence (Metlakatla-bare skips it): it is
+  built near only.
+
+## 5. CITY-B's proposals on v2 (for CITY-A's section 14)
+
+1. **`piece.tex` names a lot_tex set:** `dirt`, `dry`, `pebble`, `grass` or `lush` (`LOT_TEX_SETS`). The host falls back to
+   `dirt` for any other name.
+2. **An old-fence row's height:** the host stands the prop at `y` + the mean of the four corners ("on the ground under its
+   middle"). If the cook already writes `y` as that ground, write the corners as 0.
+3. **A post's or a gate's row length:** write 100 (cm), so that `length / piece.len` = 1. The host reads 0 as `piece.len`.
+4. **Kind 4 props and a unique plot's props and lots:** confirm they are the unique path's. The host leaves them to it, so
+   nothing is drawn twice.
+5. **The cost of a near-set change** (the measured number): the host re-writes every near cell's lot rows when a cell crosses
+   `lotFar`. On the fixture (13 608 near rows) that is about 1.3 ms in Chrome's V8, once per crossing, not per frame. No
+   change asked; for scale, the real pack's count goes in §13.
