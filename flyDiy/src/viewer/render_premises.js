@@ -2794,6 +2794,9 @@ function make(THREE, scene, world, rec0, opts) {
   //   ?cityhost=1   the town from its pack
   const CITY = { want: !!(KT.want && typeof location !== 'undefined' && /[?&]cityhost=1\b/.test(location.search || '')), on: false, status: 'off', err: null, man: null, town: null, city: null, host: null,
                  O: null, plots: new Map(), bound: new Map(), objects: new Set(), boundBy: [], stubs: 0, hits: new Map(), hitQ: [], hitN: 0, hitMs: 0, loadMs: 0, props: new Set(), farMats: null };
+  // THE SWITCH (G3423, the user 20 Oct: "at 1 km - a dial; 2 km the fallback"): ?citynear=<m> (0 / absent: the cook's 1 km);
+  // live: WORLD.premises.city.host.setSwitch(m)
+  const CITY_NEAR = (m => (m ? +m[1] : 0))(typeof location !== 'undefined' && /[?&]citynear=([0-9.]+)/.exec(location.search || ''));
   function cityLoad() {
     const t0 = performance.now();
     CITY.status = 'loading';
@@ -2884,12 +2887,11 @@ function make(THREE, scene, world, rec0, opts) {
     if (!T || !HG || !KT.pack) return;
     if (!CITY.host) {
       // the far town's materials: the far bake's own plain vertex-colour one (lodMat 'hard', G559), the shell at the cook's gain
-      const base = lodMat('hard'), shell = base.clone(), ground = base.clone();
+      const shell = lodMat('hard').clone();
       shell.color.setScalar(CITY.city.lod.farGain); shell.name = 'city:shell';
-      ground.name = 'city:ground'; ground.polygonOffset = true; ground.polygonOffsetFactor = -1; ground.polygonOffsetUnits = -1;
-      CITY.farMats = { shell, ground };
+      CITY.farMats = { shell };
       try {
-        CITY.host = window.TOWNKIT.town(THREE, { pack: KT.pack, city: CITY.city, tarr: T, HG, farMats: CITY.farMats, propGeo: cityPropGeo, onCell: cityCell,
+        CITY.host = window.TOWNKIT.town(THREE, { pack: KT.pack, city: CITY.city, tarr: T, HG, farMats: CITY.farMats, propGeo: cityPropGeo, onCell: cityCell, near: CITY_NEAR,
                                                 band: { W0: HLOD.fadeW || 40, W1: 120 } });
       } catch (e) { CITY.status = 'error'; CITY.err = String((e && e.message) || e); console.warn('city host: the host', e); return; }
       root.add(CITY.host.group); CITY.host.freeze(); stats.town = 1;

@@ -582,12 +582,12 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
   // THE TOWN HOST (G3417-G3420, CITY-B; futureDesigns/CITY-2.0-PLAN-2026-10-20.md, METLA-2.0-HANDOVER.md §4). A SOWN town
   // drawn ONLY from its cooked pack - CITY-A's format v1 (futureDesigns/CITY-PACK-FORMAT.md; tools/city_cook.js writes it,
   // src/core/city_packs.json + media/city/<island>/<town>/c_<i>_<j>.<h8>.bin):
-  //   - FAR CELLS: one static merged Mesh a cell (the cook's far mesh: the shell - walls and roofs - and the lots' ground;
-  //     the roads' bucket is left to the town's own roads, which draw at every distance), its matrix composed once
-  //     (matrixAutoUpdate and matrixWorldAutoUpdate off), one draw per bucket group (2), no shadow;
-  //   - NEAR CELLS (the eye within lod.nearIn of the cell's box, out at lod.nearOut): the instanced kit (the house host
-  //     above, BatchedMesh: three objects for the whole town), each near cell's kit rows on their rungs; the cell's mesh
-  //     keeps its lots' ground only (the flat stand-in under the lots: the kit plots build nothing);
+  //   - FAR CELLS: one static merged Mesh a cell (the cook's far mesh: its SHELL - walls and roofs - alone, G3423: the lots'
+  //     ground is not drawn, the terrain shows; the roads' bucket is left to the town's own roads, which draw at every
+  //     distance), its matrix composed once (matrixAutoUpdate and matrixWorldAutoUpdate off), one draw, no shadow;
+  //   - NEAR CELLS (the eye within the switch of the cell's box: o.near, 1 km by the cook, a dial - setSwitch): the instanced
+  //     kit (the house host above, BatchedMesh: three objects for the whole town), each near cell's kit rows on their rungs;
+  //     the cell's far mesh hidden;
   //   - the near props (within lod.propFar of a cell's box): one InstancedMesh a prop key's part (cast / flat apart),
   //     filled with those cells' rows when that set changes.
   // NO PER-PLOT Object3D: the census is the cells + the kit's three batches + the props' meshes, whatever the town holds.
@@ -596,8 +596,8 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
   //   TOWNKIT.decodeCityCell(bytes)          -> one cell (gunzipped): its header, far mesh (decoded), kit rows, props
   //   TOWNKIT.cityOf(townEntry, cells)       -> the town as one city: rows and props concatenated in cell order, ranges a cell
   //   TOWNKIT.town(THREE, opts)              -> T
-  //     opts: { pack (decodePack), city (cityOf), tarr, HG, farMats { shell, ground }, propGeo(key) -> [{ geometry, material }]
-  //             | null (not landed yet: T.propsAgain() when it has), onCell(ci, near), lod (city.lod), band, now }
+  //     opts: { pack (decodePack), city (cityOf), tarr, HG, farMats { shell }, propGeo(key) -> [{ geometry, material }]
+  //             | null (not landed yet: T.propsAgain() when it has), onCell(ci, near), lod (city.lod), near (m), band, now }
   //     T.group, T.tick(eye), T.freeze() (once the group stands in the scene), T.stats, T.kit (the house host), T.cellNear(ci),
   //     T.census(), T.propsAgain(), T.dispose()
   const CITY_MAGIC = 0x59544943, CITY_V = 1, CITY_VSTRIDE = 12, CITY_PSTRIDE = 20;
@@ -654,7 +654,7 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
     const band = Object.assign({ E0: L.kitE0, W0: 40, E1: L.kitE1, W1: 120 }, o.band || {});
     const now = o.now || (() => performance.now());
     const t0 = now();
-    if (!o.farMats || !o.farMats.shell) throw new Error('townkit.town: o.farMats { shell, ground } (the far town\'s materials, the page\'s)');
+    if (!o.farMats || !o.farMats.shell) throw new Error('townkit.town: o.farMats { shell } (the far town\'s material, the page\'s)');
     // the near kit: the house host, driven per near cell (o.select: no ring of its own); a far cell's rows draw nothing
     const K = o.kit || host(THREE, { pack: o.pack, rows, tarr: o.tarr, HG: o.HG, mode: 'batch', band, castFar: L.castFar, select: true, farRung: -1, now });
     for (let h = 0; h < NH; h++) if (!(rows[h].flags & 8)) K.setCast(h, false);   // (the cook's flag 8: this row may cast)
@@ -662,65 +662,109 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
     K.group.name = 'town:kit'; group.add(K.group);
     const ST = { cells: NCELL, houses: NH, near: 0, nearHouses: 0, propCells: 0, visits: 0, cellVisits: 0, switches: 0, tickMs: 0, tickSum: 0, ticks: 0, buildMs: 0,
                  farDraws: 0, farTris: 0, propsNear: 0, castOn: false, census: 0 };
-    // ---- the far cells: one static Mesh a cell; FAR its shell and its lots, NEAR its lots alone (the geometry's groups swapped)
-    const mats = [o.farMats.shell, o.farMats.ground || o.farMats.shell];
-    const FAR = new Array(NCELL).fill(null), GF = new Array(NCELL), GN = new Array(NCELL);
+    // ---- the far cells: one static Mesh a cell, its SHELL alone (walls and roofs, one draw); hidden while the cell is near.
+    // (G3423, the user 20 Oct: "no flat lot squares" - the cook's lots bucket is not drawn, near or far: the terrain's texture
+    // shows; the roads bucket neither - the town's own roads draw at every distance)
+    const mats = [o.farMats.shell];
+    const FAR = new Array(NCELL).fill(null), GF = new Array(NCELL);
     for (const c of cells) {
       const F = c.far; if (!F || !F.n) continue;
-      const bk = name => F.buckets.find(q => q.name === name) || null, W = bk('walls'), R = bk('roofs'), Lt = bk('lots');
-      const shell = [], lots = [];
+      const bk = name => F.buckets.find(q => q.name === name) || null, W = bk('walls'), R = bk('roofs');
+      const shell = [];
       if (W && R && W.first + W.count === R.first) shell.push({ start: W.first, count: W.count + R.count, materialIndex: 0 });
       else for (const q of [W, R]) if (q && q.count) shell.push({ start: q.first, count: q.count, materialIndex: 0 });
-      if (Lt && Lt.count) lots.push({ start: Lt.first, count: Lt.count, materialIndex: 1 });
+      if (!shell.length) continue;
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(F.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(F.nrm, 4, true));
       g.setAttribute('color', new THREE.BufferAttribute(F.col, 3)); g.setIndex(new THREE.BufferAttribute(F.idx, 1));
       g.computeBoundingBox(); g.computeBoundingSphere();
-      GF[c.ci] = shell.concat(lots); GN[c.ci] = lots;
-      g.groups = GF[c.ci];
+      GF[c.ci] = shell;
+      g.groups = shell;
       const m = new THREE.Mesh(g, mats);
       m.name = 'town:far:' + c.key; m.position.set(c.o[0], c.o[1], c.o[2]);
       m.castShadow = false; m.receiveShadow = true; m.userData.batch = true; m.userData.townCell = c.ci;
       m.updateMatrix(); m.matrixAutoUpdate = false;
       group.add(m); FAR[c.ci] = m; ST.farDraws += GF[c.ci].length; ST.farTris += F.tris;
     }
-    // ---- the near props: one InstancedMesh a key's part, cast (the cook's flag 2) and flat apart; o.propGeo(key) null while
-    // the prop's asset loads (propsAgain() when it has)
-    const PR = city.props, PK = city.keys.length;
-    const PROPS = new Array(PK * 2).fill(null);   // key x 2 + cast -> { parts: [InstancedMesh], cap, n }
-    const pcnt = new Int32Array(PK * 2); for (let i = 0; i < PR.n; i++) pcnt[PR.key[i] * 2 + ((PR.flags[i] & 2) ? 1 : 0)]++;
+    // ---- A NEAR INSTANCE TABLE (the props, G3420; the near lots, G3424): rows (x, y, z, yaw, a scale x / y / z or none, a key,
+    // a cast bit) a cell a range; one InstancedMesh a key's part, cast and flat apart (o.geo(key) null while the asset loads:
+    // make() again when it has); the rows of the cells switched on are written in place (no Matrix4) when that set changes
     let frozen = false;
-    function propsMake() {
-      let made = 0;
-      if (!PR.n || !o.propGeo) return 0;
-      for (let k = 0; k < PK; k++) {
-        if (!pcnt[k * 2] && !pcnt[k * 2 + 1]) continue;
-        if ((PROPS[k * 2] || !pcnt[k * 2]) && (PROPS[k * 2 + 1] || !pcnt[k * 2 + 1])) continue;
-        let G = o.propGeo(city.keys[k]); if (!G) continue;
-        if (!Array.isArray(G)) G = [G];
-        for (let cs = 0; cs < 2; cs++) {
-          const slot = k * 2 + cs; if (!pcnt[slot] || PROPS[slot]) continue;
-          const parts = G.map((g, i) => {
-            const im = new THREE.InstancedMesh(g.geometry, g.material, pcnt[slot]);
-            im.name = 'town:prop:' + city.keys[k] + (cs ? ':cast' : '') + (i ? '#' + i : ''); im.count = 0; im.visible = false; im.castShadow = !!cs; im.receiveShadow = true; im.frustumCulled = false;
-            im.userData.batch = true; im.userData.sharedGeo = true; im.matrixAutoUpdate = false;
-            group.add(im); if (frozen) { im.updateMatrixWorld(true); im.matrixWorldAutoUpdate = false; }   // (a frozen town: posed by hand)
-            return im;
-          });
-          PROPS[slot] = { parts, cap: pcnt[slot], n: 0 }; made++;
+    function instTable(D) {
+      const R = D.rows, KN = D.keys.length, SL = new Array(KN * 2).fill(null), cnt = new Int32Array(KN * 2);
+      for (let i = 0; i < R.n; i++) cnt[R.key[i] * 2 + R.cast[i]]++;
+      function make() {
+        let made = 0;
+        if (!R.n || !D.geo) return 0;
+        for (let k = 0; k < KN; k++) {
+          if ((SL[k * 2] || !cnt[k * 2]) && (SL[k * 2 + 1] || !cnt[k * 2 + 1])) continue;
+          let G = D.geo(D.keys[k]); if (!G) continue;
+          if (!Array.isArray(G)) G = [G];
+          for (let cs = 0; cs < 2; cs++) {
+            const slot = k * 2 + cs; if (!cnt[slot] || SL[slot]) continue;
+            const parts = G.map((g, i) => {
+              const im = new THREE.InstancedMesh(g.geometry, g.material, cnt[slot]);
+              im.name = 'town:' + D.name + ':' + D.keys[k] + (cs ? ':cast' : '') + (i ? '#' + i : ''); im.count = 0; im.visible = false; im.castShadow = !!cs; im.receiveShadow = true; im.frustumCulled = false;
+              im.userData.batch = true; im.userData.sharedGeo = true; im.matrixAutoUpdate = false;
+              group.add(im); if (frozen) { im.updateMatrixWorld(true); im.matrixWorldAutoUpdate = false; }   // (a frozen town: posed by hand)
+              return im;
+            });
+            SL[slot] = { parts, cap: cnt[slot], n: 0 }; made++;
+          }
         }
+        return made;
       }
-      return made;
+      // the rows of the ring's cells whose `on` is set; answers [cells on, rows written]
+      const res = new Int32Array(2);
+      function write(on) {
+        let pc = 0, pn = 0;
+        for (let k = 0; k < SL.length; k++) if (SL[k]) SL[k].n = 0;
+        const RLst = RG.list, rn = RG.n, S3 = !!R.sx;
+        for (let q = 0; q < rn; q++) {
+          const ci = RLst[q]; if (!on[ci]) continue;
+          pc++;
+          const rg = D.range(ci), p0 = rg[0], n = rg[1];
+          for (let i = p0; i < p0 + n; i++) {
+            const P = SL[R.key[i] * 2 + R.cast[i]]; if (!P) continue;
+            const a = P.parts[0].instanceMatrix.array, j = P.n * 16, cy = Math.cos(R.yaw[i]), sy = Math.sin(R.yaw[i]);
+            const kx = S3 ? R.sx[i] : 1, ky = S3 ? R.sy[i] : 1, kz = S3 ? R.sz[i] : 1;
+            a[j] = cy * kx; a[j + 1] = 0; a[j + 2] = -sy * kx; a[j + 3] = 0; a[j + 4] = 0; a[j + 5] = ky; a[j + 6] = 0; a[j + 7] = 0;
+            a[j + 8] = sy * kz; a[j + 9] = 0; a[j + 10] = cy * kz; a[j + 11] = 0; a[j + 12] = R.x[i]; a[j + 13] = R.y[i]; a[j + 14] = R.z[i]; a[j + 15] = 1;
+            P.n++;
+          }
+        }
+        for (let k = 0; k < SL.length; k++) {
+          const P = SL[k]; if (!P) continue;
+          for (let q = 0; q < P.parts.length; q++) {
+            const im = P.parts[q];
+            if (q && P.n) im.instanceMatrix.array.set(P.parts[0].instanceMatrix.array.subarray(0, P.n * 16));
+            if (im.count !== P.n || P.n) { im.count = P.n; im.visible = P.n > 0; im.instanceMatrix.needsUpdate = true; }
+          }
+          pn += P.n;
+        }
+        res[0] = pc; res[1] = pn;
+        return res;
+      }
+      function each(fn) { for (const P of SL) if (P) for (const im of P.parts) fn(im); }
+      return { slots: SL, make, write, each, count: cnt };
     }
-    propsMake();
+    // ---- the near props: within lod.propFar of a cell's box, cast by the cook's flag 2
+    const PR = city.props;
+    const propCast = new Uint8Array(PR.n); for (let i = 0; i < PR.n; i++) propCast[i] = (PR.flags[i] & 2) ? 1 : 0;
+    const PT = instTable({ name: 'prop', rows: { n: PR.n, x: PR.x, y: PR.y, z: PR.z, yaw: PR.yaw, sx: null, key: PR.key, cast: propCast }, keys: city.keys, range: ci => cells[ci].props, geo: o.propGeo });
+    const PROPS = PT.slots;
+    PT.make();
     // ---- the cell ring: a cell at its box's centre, its reach the farthest switch (nearOut, propFar, castFar) + its half-diagonal
-    const NEAR_IN = L.nearIn, NEAR_OUT = L.nearOut, PROP_IN = L.propFar, PROP_OUT = L.propFar * 1.1;
+    // THE SWITCH (G3423, the user 20 Oct: "at 1 km, a dial; 2 km the fallback"): o.near (m) puts it there, in at x 0.95, out at
+    // x 1.05; without it the cook's own (lod.nearIn / nearOut: 950 / 1 050). T.setSwitch(m) moves it live.
+    let NEAR_IN = o.near > 0 ? o.near * 0.95 : L.nearIn, NEAR_OUT = o.near > 0 ? o.near * 1.05 : L.nearOut;
+    const PROP_IN = L.propFar, PROP_OUT = L.propFar * 1.1;
     const near = new Uint8Array(NCELL), pnear = new Uint8Array(NCELL), BX = new Float64Array(NCELL * 4);
     const ids = new Int32Array(Math.max(1, NH));   // the near cells' rows, contiguous (rebuilt when the near set changes)
     let nIds = 0, nearDirty = false, propDirty = false, castOn = false;
     function setFar(ci) {
       near[ci] = 0; ST.switches++;
-      const m = FAR[ci]; if (m) m.geometry.groups = GF[ci];
+      const m = FAR[ci]; if (m) m.visible = true;
       const c = cells[ci], r0 = c.rows[0], rn = c.rows[1];
       for (let h = r0; h < r0 + rn; h++) K.farOne(h);
       nearDirty = true;
@@ -728,16 +772,19 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
     }
     function setNear(ci) {
       near[ci] = 1; ST.switches++;
-      const m = FAR[ci]; if (m) m.geometry.groups = GN[ci];
+      const m = FAR[ci]; if (m) m.visible = false;
       nearDirty = true;
       if (o.onCell) o.onCell(ci, true);
     }
     const RL = ringLib(); if (!RL) throw new Error('townkit.town: no TOWN_RING (town_ring.js)');
     const RG = RL.make({ cell: 256, move: o.move, onLeave: ci => { if (near[ci]) setFar(ci); if (pnear[ci]) { pnear[ci] = 0; propDirty = true; } } });
-    cells.forEach((c, ci) => {
+    const ringAdd = () => cells.forEach((c, ci) => {
       const b = c.box; BX[ci * 4] = b[0]; BX[ci * 4 + 1] = b[1]; BX[ci * 4 + 2] = b[2]; BX[ci * 4 + 3] = b[3];
       RG.add(ci, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2, Math.max(NEAR_OUT, PROP_OUT, L.castFar * 1.1) + 0.5 * Math.hypot(b[2] - b[0], b[3] - b[1]) + 1);
     });
+    ringAdd();
+    // the dial: the switch at m (the cells re-reached; each cell re-decides at the next tick)
+    function setSwitch(m) { if (!(m > 0)) return; NEAR_IN = m * 0.95; NEAR_OUT = m * 1.05; ringAdd(); RG.reMax(); }
     const boxD = (ci, x, z) => { const q = ci * 4, dx = Math.max(BX[q] - x, 0, x - BX[q + 2]), dz = Math.max(BX[q + 1] - z, 0, z - BX[q + 3]); return Math.sqrt(dx * dx + dz * dz); };
     // the near set changed: the rows' list
     function nearRebuild() {
@@ -751,34 +798,11 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
       }
       ST.near = nc; ST.nearHouses = nIds;
     }
-    // the props' cells changed: their rows into the instances (written in place, no Matrix4)
+    // the props' cells changed: their rows into the instances
     function propRebuild() {
-      propDirty = false; let pc = 0;
-      for (let k = 0; k < PROPS.length; k++) if (PROPS[k]) PROPS[k].n = 0;
-      const RLst = RG.list, rn = RG.n;
-      for (let q = 0; q < rn; q++) {
-        const ci = RLst[q]; if (!pnear[ci]) continue;
-        pc++;
-        const c = cells[ci], p0 = c.props[0], pn = c.props[1];
-        for (let i = p0; i < p0 + pn; i++) {
-          const P = PROPS[PR.key[i] * 2 + ((PR.flags[i] & 2) ? 1 : 0)]; if (!P) continue;
-          const a = P.parts[0].instanceMatrix.array, j = P.n * 16, cy = Math.cos(PR.yaw[i]), sy = Math.sin(PR.yaw[i]);
-          a[j] = cy; a[j + 1] = 0; a[j + 2] = -sy; a[j + 3] = 0; a[j + 4] = 0; a[j + 5] = 1; a[j + 6] = 0; a[j + 7] = 0;
-          a[j + 8] = sy; a[j + 9] = 0; a[j + 10] = cy; a[j + 11] = 0; a[j + 12] = PR.x[i]; a[j + 13] = PR.y[i]; a[j + 14] = PR.z[i]; a[j + 15] = 1;
-          P.n++; ST.visits++;
-        }
-      }
-      let pn = 0;
-      for (let k = 0; k < PROPS.length; k++) {
-        const P = PROPS[k]; if (!P) continue;
-        for (let q = 0; q < P.parts.length; q++) {
-          const im = P.parts[q];
-          if (q && P.n) im.instanceMatrix.array.set(P.parts[0].instanceMatrix.array.subarray(0, P.n * 16));
-          if (im.count !== P.n || P.n) { im.count = P.n; im.visible = P.n > 0; im.instanceMatrix.needsUpdate = true; }
-        }
-        pn += P.n;
-      }
-      ST.propCells = pc; ST.propsNear = pn;
+      propDirty = false;
+      const r = PT.write(pnear);
+      ST.propCells = r[0]; ST.propsNear = r[1]; ST.visits += r[1];
     }
     // THE TICK: the cell ring, each ring cell's two switches (the kit, the props), the near rows on their rungs, the shadow's switch
     function tick(eye) {
@@ -812,13 +836,13 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
     function freeze() {
       group.updateMatrixWorld(true);
       for (const m of FAR) if (m) m.matrixWorldAutoUpdate = false;
-      for (const P of PROPS) if (P) for (const im of P.parts) im.matrixWorldAutoUpdate = false;
+      PT.each(im => { im.matrixWorldAutoUpdate = false; });
       frozen = true;
     }
     // every Object3D the town puts in the scene graph (the walk's and the cull's count)
     function census() { let n = 0; group.traverse(() => { n++; }); ST.census = n; return n; }
     // a prop's asset landed: its meshes made, the near cells' rows into them at the next tick
-    function propsAgain() { if (propsMake()) propDirty = true; }
+    function propsAgain() { if (PT.make()) propDirty = true; }
     // start: every cell far (its far mesh drawn; the kit's rows hidden until a cell comes near)
     for (let h = 0; h < NH; h++) K.farOne(h);
     K.group.traverse(m => { if (m.isMesh) m.castShadow = false; });
@@ -827,12 +851,12 @@ float kitHash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 4.
     function dispose() {
       K.dispose();
       for (const m of FAR) if (m) m.geometry.dispose();
-      for (const P of PROPS) if (P) for (const im of P.parts) im.dispose();
+      PT.each(im => im.dispose());
       if (group.parent) group.parent.remove(group);
     }
     return { group, tick, freeze, census, dispose, propsAgain, stats: ST, kit: K, ring: RG, cells, rows, far: FAR, props: PROPS, lod: L,
-             cellNear: ci => !!near[ci], propNear: ci => !!pnear[ci], nearIds: () => ids.subarray(0, nIds), nearIn: NEAR_IN, nearOut: NEAR_OUT, propIn: PROP_IN, propOut: PROP_OUT, boxDist: boxD,
-             farGroups: ci => GF[ci], nearGroups: ci => GN[ci],
+             cellNear: ci => !!near[ci], propNear: ci => !!pnear[ci], nearIds: () => ids.subarray(0, nIds), propIn: PROP_IN, propOut: PROP_OUT, boxDist: boxD,
+             farGroups: ci => GF[ci], setSwitch, get nearIn() { return NEAR_IN; }, get nearOut() { return NEAR_OUT; },
              get visible() { return group.visible; }, set visible(v) { group.visible = !!v; } };
   }
 

@@ -63,7 +63,7 @@ function world() {
   const P = KIT.decodePack(pack), I = KIT.decodeInstances(inst);
   const T = TARR.make(THREE, { HG });
   const propGeo = () => [{ geometry: new THREE.BoxGeometry(1, 1, 1), material: new THREE.MeshBasicMaterial() }];
-  const farMats = { shell: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }), ground: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }) };
+  const farMats = { shell: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }) };
   const boxOf = city => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const c of city.cells) { x0 = Math.min(x0, c.box[0]); z0 = Math.min(z0, c.box[1]); x1 = Math.max(x1, c.box[2]); z1 = Math.max(z1, c.box[3]); } return [x0, z0, x1, z1]; };
   const cities = [];
   const FXC = FX.cookCity({ KIT, pack, inst });
@@ -216,9 +216,14 @@ for (const CT of Wd.cities) {
     check(census <= bound, 'C the town\'s Object3D census is <= cells + archetypes + 2 x prop keys + 8' + tag, census + ' > ' + bound);
     check(census < city.rows.length / 2 + 16, 'C ... nothing a plot (' + city.rows.length + ' kit rows)' + tag, census);
     let stat = 0, cast = 0, draws = 0, nFar = 0, cellless = 0;
-    for (const m of TW.far) if (m) { nFar++; if (m.matrixAutoUpdate || m.matrixWorldAutoUpdate) stat++; if (m.castShadow) cast++; draws += m.geometry.groups.length; if (m.geometry.groups.length > 2) stat++; }
-    for (const c of city.cells) if (c.far.n && !TW.far[c.ci]) cellless++;
-    check(!cellless && !stat, 'C every far cell is one static Mesh (matrixAutoUpdate and matrixWorldAutoUpdate off), at most 2 draws' + tag, stat + ' of ' + nFar + ', ' + cellless + ' without');
+    // G3423 (the user: "no flat lot squares"): the shell alone - one group over the walls and roofs buckets, never the roads' or lots'
+    let notShell = 0;
+    for (const m of TW.far) if (m) { nFar++; if (m.matrixAutoUpdate || m.matrixWorldAutoUpdate) stat++; if (m.castShadow) cast++; draws += m.geometry.groups.length; if (m.geometry.groups.length !== 1) stat++;
+      const c = city.cells[m.userData.townCell], bk = n => c.far.buckets.find(q => q.name === n) || { first: 0, count: 0 }, W = bk('walls'), R = bk('roofs'), g0 = m.geometry.groups[0];
+      if (!g0 || g0.start !== W.first || g0.count !== W.count + R.count || W.first + W.count !== R.first) notShell++; }
+    for (const c of city.cells) { const W = c.far.buckets.find(q => q.name === 'walls'); if (c.far.n && W && W.count && !TW.far[c.ci]) cellless++; }
+    check(!cellless && !stat, 'C every far cell is one static Mesh (matrixAutoUpdate and matrixWorldAutoUpdate off), one draw' + tag, stat + ' of ' + nFar + ', ' + cellless + ' without');
+    check(!notShell, 'C ... its walls and roofs alone: no lots\' ground, no road ribbon (the terrain and the town\'s own roads show)' + tag, notShell);
     check(!cast, 'C no far cell casts a shadow' + tag, cast);
     // the far mesh stands where the cell's kit rows stand: each row's centre has far-mesh vertices within its radius
     let lost = 0, rowsN = 0;
@@ -241,8 +246,12 @@ for (const CT of Wd.cities) {
     // the reference: a full-walk host over the same rows (the rungs a near cell's rows must take)
     const REF = KIT.host(THREE, { pack: P, rows: city.rows, tarr: T, HG, mode: 'batch', ring: false, band: Object.assign({}, TW.kit.band) });
     const NC = city.cells.length, near = new Uint8Array(NC), pnear = new Uint8Array(NC);
-    let badCell = 0, badMesh = 0, badFarHouse = 0, badNearHouse = 0, badProps = 0, frames = 0, switches = 0, nearMax = 0, visMax = 0;
-    for (const e of PATH) {
+    let badCell = 0, badMesh = 0, badFarHouse = 0, badNearHouse = 0, badProps = 0, frames = 0, switches = 0, nearMax = 0, visMax = 0, sw2 = 0;
+    // the flight twice: the switch at the cook's 1 km, then the dial at 2 km (the user's fallback) - the same rules at its edges
+    const NP = PATH.length;
+    for (let fi = 0; fi < 2 * NP; fi++) {
+      if (fi === NP) { TW.setSwitch(2000); sw2 = switches; }
+      const e = PATH[fi % NP];
       TW.tick(e); REF.tick(e); frames++;
       let wantProps = 0;
       for (let ci = 0; ci < NC; ci++) {
@@ -251,7 +260,7 @@ for (const CT of Wd.cities) {
         pnear[ci] = pnear[ci] ? (d > TW.propOut ? 0 : 1) : (d < TW.propIn ? 1 : 0);
         if (near[ci] !== was) switches++;
         if (!!near[ci] !== TW.cellNear(ci) || !!pnear[ci] !== TW.propNear(ci)) badCell++;
-        const m = TW.far[ci]; if (m && m.geometry.groups !== (near[ci] ? TW.nearGroups(ci) : TW.farGroups(ci))) badMesh++;
+        const m = TW.far[ci]; if (m && m.visible !== !near[ci]) badMesh++;
         const c = city.cells[ci];
         for (let h = c.rows[0]; h < c.rows[0] + c.rows[1]; h++) {
           const r = TW.kit.rungOf(h);
@@ -265,12 +274,12 @@ for (const CT of Wd.cities) {
       nearMax = Math.max(nearMax, TW.stats.near); visMax = Math.max(visMax, TW.stats.visits);
     }
     check(!badCell, 'F each cell near / far as its box distance says (in at nearIn, out at nearOut; its props at propFar)' + tag, badCell + ' over ' + frames + ' frames, ' + switches + ' switches');
-    check(!badMesh, 'F a far cell draws its shell and lots, a near one its lots alone' + tag, badMesh);
+    check(!badMesh, 'F a far cell draws its shell, a near one nothing of its far mesh' + tag, badMesh);
     check(!badFarHouse, 'F a far cell\'s kit rows on no rung (its mesh draws them)' + tag, badFarHouse);
     check(!badNearHouse, 'F a near cell\'s kit rows on the rungs the full walk gives' + tag, badNearHouse);
     check(!badProps, 'F the props drawn are exactly the props-near cells\'' + tag, badProps);
-    check(switches > 10, 'F the flight crossed the switch' + tag, switches);
-    say('F the switch' + tag + ': ' + frames + ' frames, ' + switches + ' cell switches, up to ' + nearMax + ' near cells and ' + visMax + ' rows + props visited in a frame (in ' + TW.nearIn + ' m, out ' + TW.nearOut + ' m, props ' + TW.propIn + ' m)');
+    check(sw2 > 10 && switches - sw2 > 10 && TW.nearIn === 1900 && TW.nearOut === 2100, 'F the flight crossed the switch at 1 km and at the dial\'s 2 km' + tag, sw2 + ' / ' + (switches - sw2) + ' switches, ' + TW.nearIn + ' / ' + TW.nearOut);
+    say('F the switch' + tag + ': ' + frames + ' frames, ' + switches + ' cell switches, up to ' + nearMax + ' near cells and ' + visMax + ' rows + props visited in a frame (in / out 950 / 1050 m, then the dial 1900 / 2100 m; props ' + TW.propIn + ' m)');
     REF.dispose();
   }
   // F2 the late props (a prop's asset lands after the town is up) and a hidden row (its plot edited: it builds unique)
