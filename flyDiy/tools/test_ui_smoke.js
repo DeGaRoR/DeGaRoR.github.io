@@ -1207,6 +1207,22 @@ try {
     if (P.sim().wheelsOnGround() < 2) throw new Error('the skip left the aeroplane off its wheels');
     if (!b.disabled) throw new Error('#bSkip still offered at the hold');
     console.log('skip to line-up: ' + Math.hypot(cg[0] - c0[0], cg[2] - c0[2]).toFixed(0) + ' m from the taxi to the hold, pilot in ' + ph + ', the button stands down');
+    // G3325 (AP-TOGGLE): the permanent toggle - in sight in flight, the autopilot by default, handed over and back through
+    // the published state (the story's cards read it), the button's words following
+    {
+      const AP = sandbox.window.FLYDIY_AP, bAP = els['bAP'];
+      if (!AP) throw new Error('FLYDIY_AP is not published (G3325)');
+      if (!bAP) throw new Error('#bAP, the autopilot toggle, is missing (G3325)');
+      if (!AP.autopilot()) throw new Error('the flight did not start on the autopilot (G3120 / G3325)');
+      if (bAP.hidden) throw new Error('#bAP is hidden in flight (G3325: always in sight)');
+      AP.set(false);
+      if (!AP.manual()) throw new Error('FLYDIY_AP.set(false) did not hand the aeroplane over');
+      if (!/^Manual/.test(bAP.textContent)) throw new Error('#bAP says ' + JSON.stringify(bAP.textContent) + ' by hand');
+      AP.set(true);
+      if (!AP.autopilot()) throw new Error('FLYDIY_AP.set(true) did not give the aeroplane back');
+      if (!/^Autopilot: ON/.test(bAP.textContent)) throw new Error('#bAP says ' + JSON.stringify(bAP.textContent) + ' on the autopilot');
+      console.log('the autopilot toggle (G3325): in sight, on by default, handed over and back');
+    }
   }
 
   // ---- THE RAILS (G760, the Jolene playtest §3): five items, folds, DEV behind a toggle, nothing lost --------

@@ -394,6 +394,7 @@
     const repeatAt = {};           // action id → next repeat time
     let t = 0;                     // input time, advanced by update(dt)
     let touchedAt = -1e9;
+    let flownAt = -1e9;            // G3325: the last time a FLIGHT CONTROL (an action with a ctl) was moved - the takeover's signal
     let listening = null;
     let onChange = null;
 
@@ -675,6 +676,9 @@
             }
           }
           s.moved = padMoved;
+          // G3325 (AP-TOGGLE): a hand on the stick, the pedals or the lever takes the aeroplane - a centring axis past 0.12 of
+          // its travel (a pad's rest noise is not a hand), a lever moved, a key held; never a view or a trim
+          if (a.ctl && (kbTouch || (padMoved && (a.shape !== 'centre' || Math.abs(padVal) > 0.12)))) flownAt = t;
           if (padMoved) { s.owner = padDev; s.out = padVal; touchedAt = t; anyPad = true; }
           else if (kbTouch) { s.owner = 'keyboard'; s.out = s.kb; touchedAt = t; }
           else if (padOwn !== null) s.out = padOwn;
@@ -701,6 +705,7 @@
             s.ramp = digital ? Math.min(1, s.ramp + ramp.on * dt) : Math.max(0, s.ramp - ramp.off * dt);
             const out = Math.max(s.ramp, analog);
             if (digital || analog > 0.05) touchedAt = t;
+            if (a.ctl && (digital || analog > 0.05)) flownAt = t;   // G3325: the brakes are flying it too
             s.out = out;
           } else {
             const was = s.fired;
@@ -801,6 +806,7 @@
       unbind, setBinding, bound, isBound, profile: () => JSON.parse(JSON.stringify(profile)),
       setProfile, resetDefaults, exportJSON, importJSON,
       devices, state, active: () => t - touchedAt < ACTIVE_FOR,
+      flown: () => t - flownAt < 0.3,   // G3325: a flight control moved in the last 0.3 s (the takeover)
       trim: () => trim, setTrim: v => { trim = clamp(fin(v, 0), -TRIM_MAX, TRIM_MAX); },
       // G2480: the rudder's and the aileron's trims (+ = right), the water rudders' handle, the options, the park
       trims: () => ({ e: trim, r: trimR, a: trimA }),
