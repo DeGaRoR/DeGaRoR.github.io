@@ -39,7 +39,7 @@ const WATCH = `(() => { if (window.__SI) return 'on'; const S = window.__SI = { 
   setInterval(() => { const I = window.FLYDIY_INTRO, s = I && I.state ? I.state() : null, L = window.FLYDIY_INTRO_LAST;
     const k = s ? s.st : (L ? 'done:' + L.how : (document.getElementById('stIntro') ? 'curtain' : 'none'));
     if (k !== last) { S.st.push([Math.round(performance.now()), k, s ? +s.t.toFixed(2) : null]); last = k; } }, 25); return 'set'; })()`;
-const READ = `JSON.stringify({ st: (window.__SI || {}).st || [], fr: __MB.fr.slice(-20000), lt: __MB.lt, sc: __MB.sc || [],
+const READ = `JSON.stringify({ ln: (__MB.ln || []).map(e => [Math.round(e[0]), Math.round(e[1])]), prog: (window.FLYDIY_RENDERER && FLYDIY_RENDERER.info && FLYDIY_RENDERER.info.programs) ? FLYDIY_RENDERER.info.programs.length : null, st: (window.__SI || {}).st || [], fr: __MB.fr.slice(-20000), lt: __MB.lt, sc: __MB.sc || [],
   story: window.FLYDIY_STORY ? window.FLYDIY_STORY.story() : null, last: window.FLYDIY_INTRO_LAST || null,
   plan: window.FLYDIY_INTRO && window.FLYDIY_INTRO.plan ? (p => ({ T: p.T, shed: p.shed, gap: p.gap, side: p.side, anchor: p.anchor })) (window.FLYDIY_INTRO.plan()) : null,
   here: (() => { try { return window.FLYDIY_PLAYER.doc().here; } catch (e) { return null; } })(),
@@ -56,7 +56,8 @@ function rows(d, label) {
   const W = windows(d), R = [];
   const add = (name, t0, t1) => { if (t0 == null || t1 == null || t1 <= t0) return; const s = MB.stat(d.fr, d.lt, t0, t1, d.sc); R.push(Object.assign({ row: label, scene: name, sec: +((t1 - t0) / 1000).toFixed(1) }, s || { frames: 0 })); };
   add('warm views (black)', W.warm, W.shots || W.out);
-  add('the shots', W.shots, W.out || W.garage);
+  const tLast = d.fr.length ? d.fr[d.fr.length - 1][0] : null;
+  add('the shots', W.shots, W.out || W.garage || tLast);
   if (W.out) add('the skip fade', W.out, W.garage);
   add('round the swap (-1 s, +3 s)', (W.garage || 0) - 1000, (W.garage || 0) + 3000);
   add('the garage after (+1..+5 s)', (W.garage || 0) + 1000, (W.garage || 0) + 5000);
@@ -82,14 +83,14 @@ const show = r => log('   ' + r.scene.padEnd(30) + (r.frames ? r.fps + ' fps, p5
     // (the bench's route pref is a sandbox flight's from HOME: a New career has none)
     const pre = MB.preScript('default', null) + '\ntry{localStorage.removeItem("flydiy.route")}catch(e){}\n' + `(function(){ var w = function(){ if (window.FLYDIY_PACE) { try { (0, eval)(${JSON.stringify(WATCH)}); } catch (e) {} } else setTimeout(w, 20); }; w(); })();`;
     const one = async (label, opts) => {
-      const l = await b.load(url, pre);
+      const l = await b.load(url, opts.fresh ? pre + ";" + FRESH + ";" : pre);
       log(label + ': boot ' + l.sec + ' s (' + l.state + ')');
       await b.ev(WATCH);
-      const tEnd = Date.now() + 60000, shots = [];
+      const tEnd = Date.now() + 150000, shots = [];
       let si = 0, pressed = false;
       while (Date.now() < tEnd) {
         const s = JSON.parse(await b.ev("JSON.stringify((window.FLYDIY_INTRO && FLYDIY_INTRO.state && FLYDIY_INTRO.state()) || { st: window.FLYDIY_INTRO_LAST ? 'done' : 'none', t: 0 })"));
-        if (s.st === 'done' || (s.st === 'none' && Date.now() > tEnd - 50000)) break;
+        if (s.st === 'done' || (s.st === 'none' && Date.now() > tEnd - 140000)) break;
         if (opts.skipAt != null && !pressed && s.st === 'shots' && s.t >= opts.skipAt) {
           await b.cmd('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
           await b.cmd('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
@@ -111,7 +112,7 @@ const show = r => log('   ' + r.scene.padEnd(30) + (r.frames ? r.fps + ' fps, p5
       }
       const d = JSON.parse(await b.ev(READ, 30000));
       const A = rows(d, label);
-      const run = { label, boot: l, states: d.st, plan: d.plan, last: d.last, here: d.here, beat: d.story ? d.story.beat : null, hold: d.hold, curtain: d.curtain,
+      const run = { ln: d.ln, label, boot: l, states: d.st, plan: d.plan, last: d.last, here: d.here, beat: d.story ? d.story.beat : null, hold: d.hold, curtain: d.curtain,
         bodyIntro: d.bodyIntro, card: d.card, rows: A.rows, long: A.long, exc: b.exc.splice(0), stills: shots };
       R.runs.push(run);
       log(label + ': ' + (d.last ? d.last.how : 'NO OPENING') + ', here ' + d.here + ', beat ' + run.beat + ', radio held ' + d.hold + ', curtain left ' + d.curtain + ', card ' + JSON.stringify(d.card));
@@ -120,10 +121,8 @@ const show = r => log('   ' + r.scene.padEnd(30) + (r.frames ? r.fps + ' fps, p5
       return run;
     };
     await one('1 cold New career', {});
-    await b.ev(FRESH);
-    await one('2 played stills', { stills: !!STILLS });
-    await b.ev(FRESH);
-    await one('3 skipped', { skipAt: 5 });
+    if (!flag('nostills')) await one('2 played stills', { stills: !!STILLS, fresh: true });
+    if (!flag('only1')) await one('3 skipped', { skipAt: 5, fresh: true });
   } catch (e) { R.error = String(e && e.stack || e); log('ERROR ' + R.error); }
   finally {
     if (b) await b.close();

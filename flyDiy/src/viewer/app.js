@@ -8549,7 +8549,7 @@
   let stCardEl = null, stLine = '', stQueue = [], stBusy = false, stMemo = { fp: null, fb: null, L0: null, cost: null, next: null }, stMaskWas;
   const stLive = () => (STORY_PAGE ? storyOf(playerLoad()) : null);
   // G3380 (STORY-INTRO): the opening's player, its curtain, this frame's pose, what it set aside, the world's point (below)
-  let stIntro = null, stIntroEl = null, stIntroPose = null, stIntroWas = null, stIntroAt = null;
+  let stIntro = null, stIntroEl = null, stIntroPose = null, stIntroWas = null, stIntroAt = null, stIntroPlan = null;
   // the first of a story plane's files that loads (the starter: builds/ first, then the archived candidate)
   function storyFile(role) {
     if (!stFiles[role]) {
@@ -8772,19 +8772,56 @@
     stIntroEl = null;
     if (why) console.warn('flyDiy (story): no opening - ' + why);
   }
+  // the plan from the cabin's record (story_intro.js), once -> the plan, or a string: why there is none
+  function storyIntroPlan() {
+    if (stIntroPlan) return stIntroPlan;
+    const I = window.STORY_INTRO;
+    if (!I) return 'story_intro.js did not load';
+    if (!WF || !world) return 'no world to draw';
+    const id = roomBase(), A = (world.aerodromes || []).find(a => a.id === id);
+    if (!A || A.kind === 'water' || !isFinite(A.hdg)) return 'no strip at ' + id;
+    const st = typeof siteOf === 'function' ? siteOf(id) : null;
+    const pl = st && Array.isArray(st.plots) ? (st.plots.find(p => p.id === roomId()) || st.plots[0]) : null;
+    return (stIntroPlan = I.plan({ aero: A, plot: pl, terrainH: (x, z) => world.terrainH(x, z), waterH: typeof world.waterH === 'function' ? (x, z) => world.waterH(x, z) : null }));
+  }
+  // THE OPENING'S VIEWS, LINKED UNDER THE LOADING SCREEN (the timed look, 20 Oct 03:45: drawn cold under the curtain, its
+  // warm views linked 42 programs the boot had not - three blocks on each first draw: a 14 s task in black). A boot step of
+  // a New career's alone (registered only while the curtain is up, below 'craft'): per view, the eye placed there and the
+  // world's update run (what that view makes: the cover ring's cells, the plots near the eye - every 10th update), the scene
+  // compiled on the driver's threads with its depth variants, every link waited for, then one draw - the boot's own
+  // 'frames' step, from the opening's eyes. The garage's eye is put back after each view (the loop draws the shed meanwhile)
+  function storyIntroPrepare() {
+    if (!stIntroEl || !WF || typeof renderer.compileAsync !== 'function') return;
+    const L = window.FLYDIY_LAZY ? window.FLYDIY_LAZY('story_intro') : Promise.resolve([!!window.STORY_INTRO]);
+    return L.then(() => {
+      const P = storyIntroPlan();
+      if (typeof P === 'string') return;
+      const at = (o, keep) => { camera.position.set(o.p[0], o.p[1], o.p[2]); camera.lookAt(o.l[0], o.l[1], o.l[2]); camera.updateMatrixWorld(); return keep; };
+      const view = o => new Promise(res => {
+        const keep = { p: camera.position.clone(), q: camera.quaternion.clone() }, back = () => { camera.position.copy(keep.p); camera.quaternion.copy(keep.q); camera.updateMatrixWorld(); };
+        try { at(o); for (let k = 0; k < 12; k++) WF.worldUpdate(P.anchor); } catch (e) { console.warn('story intro: the view', e && e.message); }
+        back();
+        res();
+      }).then(() => compileSliced(scene, aa && aa.target ? aa.target() : null)).then(() => compileDepthVariants(scene, true))
+        .then(() => programsReady(30000))
+        .then(() => { const keep = { p: camera.position.clone(), q: camera.quaternion.clone() };
+          try { at(o); WF.worldUpdate(P.anchor); if (aa) aa.render(scene, camera); else renderer.render(scene, camera); } catch (e) { console.warn('story intro: the warm draw', e && e.message); }
+          camera.position.copy(keep.p); camera.quaternion.copy(keep.q); camera.updateMatrixWorld(); })
+        .then(() => new Promise(r => setTimeout(r, 0)));
+      let p = Promise.resolve();
+      for (const o of P.warm) p = p.then(() => (stIntroEl ? view(o) : null));
+      return p;
+    }).catch(e => console.warn('story intro: the prepare', e && e.message));
+  }
   function storyIntroBoot() {
     if (!stIntroEl || stIntro) return;
     stIntroArm = false;                    // once
     const L = window.FLYDIY_LAZY ? window.FLYDIY_LAZY('story_intro') : Promise.resolve([!!window.STORY_INTRO]);
     return L.then(() => {
       const I = window.STORY_INTRO;
-      if (!I) return storyIntroOff('story_intro.js did not load');
-      if (!WF || !world || !inGarage) return storyIntroOff('no world to draw');
-      const id = roomBase(), A = (world.aerodromes || []).find(a => a.id === id);
-      if (!A || A.kind === 'water' || !isFinite(A.hdg)) return storyIntroOff('no strip at ' + id);
-      const st = typeof siteOf === 'function' ? siteOf(id) : null;
-      const pl = st && Array.isArray(st.plots) ? (st.plots.find(p => p.id === roomId()) || st.plots[0]) : null;
-      const plan = I.plan({ aero: A, plot: pl, terrainH: (x, z) => world.terrainH(x, z), waterH: typeof world.waterH === 'function' ? (x, z) => world.waterH(x, z) : null });
+      if (!inGarage) return storyIntroOff('not in the shed');
+      const plan = storyIntroPlan();
+      if (typeof plan === 'string') return storyIntroOff(plan);
       let vol = 0.6;
       try { if (window.AUDIO && window.AUDIO.enabled && window.AUDIO.get) vol = Math.min(1, 1.4 * window.AUDIO.get('master') * window.AUDIO.get('music')); } catch (e) {}
       stIntroWas = { exp: typeof GFX !== 'undefined' && GFX && GFX.exposureBase ? GFX.exposureBase() : renderer.toneMappingExposure,
@@ -17322,6 +17359,8 @@
   // rebuilt once more, ~0.5 s after the batch let go - seen in GATE ROUNDTRIP's trace at 'firstFrame'); compiled
   // before that, the first roll-out compiled the rebuilt model again
   if (!GARAGE_ONLY) bootTripStep('craft');   // G2100: the flown model's programs in the world's light: a roll-out's
+  // G3380 (STORY-INTRO): a New career's opening - its views linked under this screen (registered only while its curtain is up)
+  if (!GARAGE_ONLY && CAREER_DEV && STORY_PAGE && stIntroEl) bootStep('intro', 'the opening', 4, () => (CAREER_DEV ? storyIntroPrepare() : null));
   // THE AEROPLANE, AS IT SETTLED (B9): a commit feeds back into the editor - the flown spec's CG re-derives the tail's
   // sizing, the energy layer re-places the tanks - and the export moves a hair after it (the metal Cessna's tail stabH
   // 0.04729 -> 0.04720, converged after one more sync). The loading re-plans the aircraft's keyed steps once at its end

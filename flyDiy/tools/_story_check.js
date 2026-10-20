@@ -328,6 +328,9 @@ async function introRun() {
      'the opening is armed by a New career alone (careerNew -> storyNewCareer in playerLoad); a Continue loads its saved document and never arms it');
   ok(/if \(CAREER_DEV && STORY_PAGE\) storyIntroBoot\(\);/.test(app) && /const introAt = CAREER_DEV && STORY_PAGE && inGarage \? storyIntroFrame\(fdt\) : null;/.test(app) && /if \(introAt && WF\) WF\.worldUpdate\(introAt\);/.test(app),
      "it plays as the boot's screen lifts; the loop draws the world from the shed on the cabin's point (no second world)");
+  ok(/if \(!GARAGE_ONLY && CAREER_DEV && STORY_PAGE && stIntroEl\) bootStep\('intro', 'the opening', \d+, \(\) => \(CAREER_DEV \? storyIntroPrepare\(\) : null\)\);/.test(app) &&
+     /compileSliced\(scene, aa && aa\.target \? aa\.target\(\) : null\)\)\.then\(\(\) => compileDepthVariants\(scene, true\)\)\s*\.then\(\(\) => programsReady\(/.test(app),
+     "its views linked UNDER THE LOADING SCREEN (a boot step a New career's curtain alone registers: compiled async, every link waited for, then drawn)");
   ok(/\['src\/viewer', 'story_intro\.js'\]/.test(build), "lazy: in build.js's MANIFEST.lazy (FLYDIY_LAZY('story_intro'))");
   const pages = ['index.html', 'dev.html'].map(f => path.join(ROOT, f)).filter(f => fs.existsSync(f)).map(f => fs.readFileSync(f, 'utf8'));
   ok(pages.length && pages.every(h => !/<script[^>]*story_intro/.test(h) && !/var STORY_INTRO = /.test(h) && /"story_intro":"src\/viewer\/story_intro\.js/.test(h)),
@@ -335,7 +338,7 @@ async function introRun() {
   // ---- the look: the Skip at the bottom edge, the garage's tokens and type, nothing centred
   const I = vm.runInNewContext(src + '\n;STORY_INTRO', { console, Math, Float64Array, isFinite, String, Object, Array, Promise });
   ok(/#stIntro \.siSkip \{[^}]*right:16px; bottom:16px;/.test(I.CSS) && !/translate|left:50%|top:50%|margin:auto/.test(I.CSS) && /IBM Plex Sans/.test(I.CSS) && /font-style:normal/.test(I.CSS) &&
-     !/italic|Georgia|Times/.test(I.CSS) && /var\(--ed-plate\)/.test(I.CSS) && /:is\([^)]*#stIntro[^)]*\) \{/.test(css),
+     !/italic|Georgia|Times/.test(I.CSS) && /var\(--ed-plate\)/.test(I.CSS) && /body\.stIntro #c \{ margin-left:0 !important; width:100% !important;/.test(I.CSS) && /:is\([^)]*#stIntro[^)]*\) \{/.test(css),
      "the Skip: the bottom edge (never centred), the garage's look (--ed-* tokens, IBM Plex Sans upright)");
   const ogg = path.join(ROOT, I.MUSIC), ob = fs.existsSync(ogg) ? fs.readFileSync(ogg) : null;
   ok(ob && ob.slice(0, 4).toString() === 'OggS' && ob.indexOf('vorbis') > 0 && ob.length < 600 * 1024 && /^media\/audio\/music\/yoiyami_sunset_plains_intro\.[0-9a-f]{8}\.ogg$/.test(I.MUSIC) && I.CREDIT.licence === 'CC0' &&

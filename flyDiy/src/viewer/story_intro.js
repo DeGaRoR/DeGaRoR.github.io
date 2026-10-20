@@ -144,7 +144,9 @@ var STORY_INTRO = (() => {
     '#stIntro .siSkip:hover, #stIntro .siSkip:focus-visible { border-color:var(--ed-acc); outline:none; }\n' +
     '#stIntro .siSkip kbd { font:500 10.5px/1 \'IBM Plex Sans\', sans-serif; color:var(--ed-faint); margin-left:8px; }\n' +
     '#stIntro.out { pointer-events:none; cursor:auto; }\n#stIntro.out .siSkip { display:none; }\n' +
-    'body.stIntro > *:not(#c):not(#stIntro):not(#boot):not(#raDissolve) { visibility:hidden !important; }\n';
+    'body.stIntro > *:not(#c):not(#stIntro):not(#boot):not(#raDissolve) { visibility:hidden !important; }\n' +
+    // the whole window (the garage's canvas stands between its panels: body.mode-ws #c), as the stills' body.shot does
+    'body.stIntro #c { margin-left:0 !important; width:100% !important; transition:none !important; }\n';
   function play(host) {
     const P = host.plan, D = typeof document !== 'undefined' ? document : null;
     let st = 'warm', t = -WARM_S, wi = 0, tw = 0, black = 1, out = null, gIn = 0, how = 'played';
