@@ -95499,8 +95499,30 @@ music. It zooms on the cabin, then we fade into the garage."
     middle of the window. `body.stIntro #c` now takes the whole window while it plays (as the stills' body.shot does).
   - The stills (mine, never shown): the valley out to the gap and the run up the gravel to the shed read well. The cabin's
     arc was not captured (the rig's watch ran out); it is owed to the re-look.
-- **Owed:** a ~15 min re-look (A0's slot) of 03d175994: no black wait or long task in the warm views, the boot's added
+- **THE RE-LOOK** (A0's slot Tue 20 Oct 15:45-15:51, gpu INTRO, 171299df6 = 03d175994's code; three New careers, a fresh
+  C: temp profile, deleted):
+  - **The black wait is gone.** The warm views run ~0.6 s under black: worst frame 133-267 ms, no task >= 200 ms but one
+    267 ms task in the skip run. No 14 s task; no program linked in the shots.
+  - **The shots: 27.3-27.5 fps, p50 33.4 ms, p99 100-117, worst 117-150 ms**, 2-11 frames over 100 ms. 15-20 long tasks
+    of 101-152 ms (none >= 200 ms), most in the cabin's arc (24-33 s), some near the cuts (11 s, 12.7 s, 17-18 s).
+    **Still over the brief's "no long task over 100 ms": RED by 50 ms.** What runs in them is not measured yet (the cover
+    ring planting round the eye near the shed, or the plots near the eye are the suspects): a profile is owed.
+  - **The fade into the garage: clean.** -1..+3 s: 29.5-30 fps, worst 50-84 ms, no task over 100 ms. The garage after:
+    30 fps, worst 33.5 ms.
+  - **Skip** (Esc at 5.1 s): the garage at T0, the radio free, the card back. The whole-window canvas is OK.
+  - **The boot step's cost:** 'intro' took 16.3 / 17.1 / 11.4 s. Boot to the screen lifting: 89.6 s cold (was 73-78),
+    84.4 and 78.2 s on the warm profile (was 61-65). **A New career loads ~12-20 s longer.** Halved in G3383 (one compile
+    per shot, not per view; NOT re-looked).
+  - **The cabin's arc ended 4 m off the shed's wall** (14 m from the plot centre on an 18 x 20 m shed: the wall filled
+    the frame, the hill behind, no horizon). G3383 (11167711d) ends it 30 m off the door, 3.5 m over the ground, the
+    lens closing 46 -> 34 deg. NOT re-looked.
+  - After the fade a fresh profile's garage shows the design flow's "New aeroplane" chooser over the stand (design_flow.js,
+    a fresh profile's rule, not this opening's). For the Game coordinator: should a New career skip it (Rufus is the plane)?
+- **Owed (superseded by the re-look above, kept for the record):** a ~15 min re-look (A0's slot) of 03d175994: no black wait or long task in the warm views, the boot's added
   seconds, the cabin's arc stills, the whole-window canvas. If the 101-132 ms tasks in the arc persist, find what plants
   there (the cover ring round the eye near the shed, or the plots near the eye).
-- **Branch:** claude/story-intro @ 03d175994 (82c1dba4e the opening, 65625a928 the spawn + the rig, 03d175994 the look's
-  fixes). Gates on 03d175994: STORY (+ --selftest), UISMOKE, UISMOKE-PHONE, MEDIA PASS.
+- **Branch:** claude/story-intro (82c1dba4e the opening, 65625a928 the spawn + the rig, 03d175994 the look's fixes, 171299df6
+  the rig's boot-step read, 11167711d the re-look's fixes). Gates on 11167711d: STORY (+ --selftest), UISMOKE, UISMOKE-PHONE,
+  MEDIA PASS (battery PASS, 20 Oct ~16:05).
+- **Next:** a third short look of 11167711d (the arc's new end, the boot step's cost) with a CPU profile of the shots' 100-150 ms
+  tasks; then ready, if the Game coordinator and the user accept the boot's added seconds.
