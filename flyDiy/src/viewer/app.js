@@ -6187,8 +6187,18 @@
     try { for (const s of document.querySelectorAll('#selPersona, .routePick select.persona')) s.value = personaChoice; } catch (e) {}
   }
   // what makePilot is handed: a name, or the custom person as an object (pilotProfile clamps it)
+  // G3324 (the user, 19 Oct: "when the player is playing but chooses the autopilot, it should ALWAYS be the expert. The
+  // player is supposed the expert. Only later, with the routes, will we have autopilots with various characteristics. So it
+  // should stop being an option, maybe it can go to the dev section"): THE PLAYER'S AUTOPILOT IS THE EXPERT. A person flies
+  // only with DEV on (G760's flydiy.flDev - read off the pref here: personaProfile runs before the rail's block); the
+  // player document's pilot.profile is kept, not rewritten - DEV picks it up again. The career's side: careerCrewProfile
+  // (GAME's CAREER_PLAYER_EXPERT, career-expert)
+  // (the rail's own flag once its block has run - a census or a rig turns DEV on through FLYDIY_RAIL.dev, and the pref may not
+  // be kept (GATE UISMOKE's stub store); before the rail's block, the pref - flDevOn is still in its TDZ there)
+  const personaDev = () => { try { return !!flDevOn; } catch (e) { return prefGet('flydiy.flDev', '') === '1'; } };
   function personaProfile() {
     if (CAREER_DEV) return careerCrewProfile() || 'expert';   // G2290 (PILOTS): the career's roster pick; "I fly" the expert
+    if (!personaDev()) return 'expert';   // G3324: the player's own flights, outside DEV
     personaLoad();
     if (personaChoice === 'custom') return Object.assign({ name: 'custom', active: true }, JSON.parse(JSON.stringify(personaCustom)));
     return (typeof PILOT_PROFILES !== 'undefined' && PILOT_PROFILES[personaChoice]) ? personaChoice : 'expert';
@@ -6321,7 +6331,7 @@
     craft.add(pts2);
     // THE CHINE SHEETS (G460.10): two per float, the spray-root line along the wet chine flaring out and aft
     let sheets = null;
-    if (spray && SPRAY.makeSheets) { sheets = SPRAY.makeSheets(THREE, nF * 2, 8, 6); craft.add(sheets.mesh); }
+    if (spray && SPRAY.makeSheets) { sheets = SPRAY.makeSheets(THREE, nF * 2, 24, 14);   /* G2837: the refined sheets (24 x 14 a layer, three layers) */ craft.add(sheets.mesh); }
     const drops = { p: new Float32Array(NP * 3), v: new Float32Array(NP * 3), age: new Float32Array(NP).fill(9), life: new Float32Array(NP).fill(1),
       size: new Float32Array(NP), seed: new Float32Array(NP), kind: new Uint8Array(NP), next: 0, spray, sheets, live: 0 };
     // H7 (G460.8): the wake RIBBONS retired - the water's interaction field (water.js) carries the wake
@@ -6333,7 +6343,11 @@
   // inside the kind's range, a seed for its sprite's tear); the ring buffer's oldest slot goes first
   function sprayEmit(D, kind, x, y, z, vx, vy, vz) {
     const q = D.next; D.next = (D.next + 1) % D.age.length;
-    const K = window.SPRAY ? (kind ? SPRAY.KIND.puff : SPRAY.KIND.droplet) : { life: [0.9, 0.9], size: [0.1, 0.1] };
+    const K = window.SPRAY ? (kind === 2 ? SPRAY.KIND.mist : kind ? SPRAY.KIND.puff : SPRAY.KIND.droplet) : { life: [0.9, 0.9], size: [0.1, 0.1] };
+    // G2838: THE HEAVY DROP (kind 1, the old puff's emitters): thrown harder (K.throw) and lifted (K.lift) - water, not smoke -
+    // and a quarter of them leave a faint mist where they started (kind 2)
+    if (kind === 1 && K.throw) { if (K.mistShare && Math.random() < K.mistShare) sprayEmit(D, 2, x, y, z, vx * 0.3, vy * 0.3, vz * 0.3);
+      vx *= K.throw; vz *= K.throw; vy = vy * K.throw * 0.6 + K.lift * (0.7 + 0.6 * Math.random()); }
     D.p[q * 3] = x; D.p[q * 3 + 1] = y; D.p[q * 3 + 2] = z; D.v[q * 3] = vx; D.v[q * 3 + 1] = vy; D.v[q * 3 + 2] = vz;
     D.age[q] = 0; D.life[q] = K.life[0] + (K.life[1] - K.life[0]) * Math.random();
     D.size[q] = K.size[0] + (K.size[1] - K.size[0]) * Math.random(); D.seed[q] = Math.random(); D.kind[q] = kind;
@@ -6578,13 +6592,15 @@
     // integrate the particles: a droplet is ballistic with a little air drag and dies where it meets the water
     // (a foam speck is the field's, not a particle's); a puff is near-weightless mist under drag, sinking slowly
     const S = D.spray, sp = S ? null : waterFx.pts.geometry.attributes.position.array;
-    const KD = window.SPRAY ? SPRAY.KIND.droplet : { drag: 0, gravity: 1, grow: 1 }, KP = window.SPRAY ? SPRAY.KIND.puff : KD;
+    const KD = window.SPRAY ? SPRAY.KIND.droplet : { drag: 0, gravity: 1, grow: 1 }, KP = window.SPRAY ? SPRAY.KIND.puff : KD, KM = window.SPRAY && SPRAY.KIND.mist ? SPRAY.KIND.mist : KP;
+    // (G2838) a heavy drop meeting the water leaves a small ring in the field - a few a frame at most
+    const WTi = window.WATER && WATER.field && WATER.field.on ? WATER : null; let rings = 4;
     const wH = (x, z) => { const h = world.waterH ? world.waterH(x, z) : 0; return Number.isFinite(h) ? h : -1e9; };
     let live = 0;
     for (let q = 0; q < D.age.length; q++) {
       if (D.age[q] >= D.life[q]) { if (S) S.hide(q); else { sp[q * 3] = 0; sp[q * 3 + 1] = -1e4; sp[q * 3 + 2] = 0; } continue; }
       live++;
-      const K = D.kind[q] ? KP : KD;
+      const K = D.kind[q] === 2 ? KM : D.kind[q] ? KP : KD;
       D.age[q] += dt;
       // THE DRAG RELAXES TOWARD THE AIR, not toward nothing (CLIMATE K4). A
       // droplet or a puff slows down relative to the AIR it is in, and the air
@@ -6597,7 +6613,9 @@
       D.v[q * 3 + 2] = az + (D.v[q * 3 + 2] - az) * dr;
       D.v[q * 3 + 1] = D.v[q * 3 + 1] * dr - G * K.gravity * dt;
       D.p[q * 3] += D.v[q * 3] * dt; D.p[q * 3 + 1] += D.v[q * 3 + 1] * dt; D.p[q * 3 + 2] += D.v[q * 3 + 2] * dt;
-      if (!D.kind[q] && D.age[q] > 0.1 && D.p[q * 3 + 1] < wH(D.p[q * 3], D.p[q * 3 + 2]) - 0.02) { D.age[q] = D.life[q]; if (S) S.hide(q); continue; }
+      if (D.kind[q] !== 2 && D.age[q] > 0.1 && D.p[q * 3 + 1] < wH(D.p[q * 3], D.p[q * 3 + 2]) - 0.02) {
+        if (D.kind[q] === 1 && WTi && rings > 0) { WTi.stamp(D.p[q * 3], D.p[q * 3 + 2], 0.2 + 3 * D.size[q], -0.01, 0.5, 'ring'); rings--; }   // (G2838: where a heavy drop lands)
+        D.age[q] = D.life[q]; if (S) S.hide(q); continue; }
       if (S) { const a01 = D.age[q] / D.life[q]; S.set(q, [D.p[q * 3], D.p[q * 3 + 1], D.p[q * 3 + 2]], [D.v[q * 3], D.v[q * 3 + 1], D.v[q * 3 + 2]], a01, D.size[q] * (1 + (K.grow - 1) * a01), D.seed[q], D.kind[q]); }
       else { sp[q * 3] = D.p[q * 3]; sp[q * 3 + 1] = D.p[q * 3 + 1]; sp[q * 3 + 2] = D.p[q * 3 + 2]; }
     }
@@ -8477,8 +8495,13 @@
   // a pilot is made (mkPilot: the shed's, the roll-out's fullReset, a Fly on) and LATCHED with it - the worker's per-frame
   // read (SIM_LINK's get) takes the latch, so a flight's pilot never changes under it (and its end logs who flew it)
   var crProf;
+  // G2746 (the user, 19 Oct: "the player is supposed the expert"): in the story / career the PLAYER'S OWN flights are
+  // always the expert autopilot - the companion a new career hires (pilotsCompanion) and any pilot hired later fly
+  // their ROUTES only (ROUTES), never the player's flight; the pick row leaves the player's UI (personas: DEV)
+  var CAREER_PLAYER_EXPERT = true;   // (var, not const: personaProfile may ask before this line runs - no TDZ)
   function careerCrewProfile() {
     if (!CAREER_DEV || typeof pilotsProfileOf !== 'function') return undefined;
+    if (CAREER_PLAYER_EXPERT !== false) { crFlyer = 'me'; careerCrewBody(); return (crProf = undefined); }   // undefined = the expert
     try {
       const c = careerCrewCheck();
       crFlyer = (c.id !== 'me' && c.ok) ? c.id : 'me';
@@ -8510,6 +8533,7 @@
   // whether that pilot will fly this leg; under it the pick's refusal, and the boat home when it brings them
   function careerCrewRow(host, where) {
     if (!CAREER_DEV || !host || typeof pilotsHired !== 'function') return;
+    if (CAREER_PLAYER_EXPERT !== false) return;   // G2746: no pilot pick for the player's own flight - the expert flies it
     const d = playerLoad();
     const lab = document.createElement('label'); lab.className = 'crewPick';
     const sp = document.createElement('span'); sp.textContent = 'pilot'; lab.appendChild(sp);
@@ -8734,6 +8758,9 @@
     if (m === stMaskWas) return;
     stMaskWas = m;
     try { if (window.TECH_MASK && typeof window.TECH_MASK.tutorial === 'function') window.TECH_MASK.tutorial(m); } catch (e) {}
+    // G3350: the story's structure lock is the editor's own (finish view only) until TECH-MASK lands - a STORY STAGE,
+    // lifted when the beat's mask is (the user: "the small shed will have structure enabled later on")
+    try { if (window.EDITOR_LOCK) window.EDITOR_LOCK.finishOnly(m === 'finish' ? 'Tim: the structure comes later in the story - paint, liveries and colours for now.' : null); } catch (e) {}
     try { window.dispatchEvent(new CustomEvent('flydiy-story', { detail: { mask: m } })); } catch (e) {}
   }
   // ---- G3380-G3389 (STORY-INTRO): THE OPENING - a New career's cinematic over the cabin strip, its music, then the fade
@@ -8868,8 +8895,52 @@
     camera.lookAt(o.l[0], o.l[1], o.l[2]);
     camera.updateMatrixWorld();
   }
+  // ---- G3350 (STORY-TIM): TIM'S BAND - the story's voice at the bottom of the screen (the user, 19 Oct: "a pop-up kind of
+  // thing at the bottom of the screen, with a placeholder vignette portrait"). A line at a time (Next), closed on the last
+  // (OK); shown again on each new beat. Never centred, never over the middle; the garage's look (editor.css #stTim).
+  // The portrait is a PLACEHOLDER silhouette (no image, no real person).
+  let stTimEl = null, stTimBeat = null, stTimI = 0, stTimShut = false;
+  function storyTimSync() {
+    if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
+    const s = stLive(), id = s && !s.open ? s.beat : null, L = id ? storyTimLines(id) : [];
+    if (id !== stTimBeat) { stTimBeat = id; stTimI = 0; stTimShut = false; }
+    if (!L.length || stTimShut || (window.FLYDIY_AP && typeof window.FLYDIY_AP.manual === 'function' && window.FLYDIY_AP.manual() && !inGarage)) { if (stTimEl) stTimEl.hidden = true; return; }
+    if (!stTimEl) {
+      stTimEl = document.createElement('aside');
+      stTimEl.id = 'stTim'; stTimEl.setAttribute('role', 'dialog'); stTimEl.setAttribute('aria-label', STORY_TIM.name + ', ' + STORY_TIM.role);
+      stTimEl.addEventListener('click', ev => {
+        const b = ev.target && ev.target.closest ? ev.target.closest('[data-tim]') : null;
+        if (!b) return;
+        if (b.dataset.tim === 'next') stTimI++; else stTimShut = true;
+        storyTimSync();
+      });
+      document.body.appendChild(stTimEl);
+    }
+    const i = Math.min(stTimI, L.length - 1), last = i >= L.length - 1;
+    const face = '<svg class="stTimFace" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="23"/><circle class="h" cx="24" cy="19" r="8"/><path class="h" d="M9 41c2-9 8-13 15-13s13 4 15 13"/></svg>';
+    stTimEl.innerHTML = face + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(L[i]) + '</p></div>' +
+      '<button type="button" class="stTimBtn" data-tim="' + (last ? 'ok' : 'next') + '">' + (last ? 'OK' : 'Next (' + (i + 1) + '/' + L.length + ')') + '</button>';
+    stTimEl.hidden = false;
+  }
+  // THE BENCH NEVER STANDS IN THE SMALL SHED (the user, 19 Oct: "will never get the bench"): a property of the SHED - the
+  // story's cabin shed (`story` on the shed record, G2743 / STORY-PAGE) - at every beat; the garage shows the design pane
+  function storyBenchRule() {
+    if (!STORY_PAGE) return;
+    let small = false;
+    try { const d = playerLoad(), sh = d.sheds && d.sheds[d.here]; small = !!(sh && sh.story); } catch (e) {}
+    const tb = typeof document !== 'undefined' ? document.getElementById('tabBench') : null;
+    if (!tb) return;
+    if (tb.hidden !== small) tb.hidden = small;
+    if (small) { const bn = document.getElementById('edBench'), td = document.getElementById('tabDesign');
+      if (bn && !bn.hidden && td && td.onclick) td.onclick(); }
+    let n = document.getElementById('stNoBench');
+    if (small && !n && tb.parentNode) { n = document.createElement('span'); n.id = 'stNoBench'; n.textContent = 'no bench in this shed'; tb.parentNode.appendChild(n); }
+    if (n) n.hidden = !small;
+  }
   if (STORY_PAGE) {
-    try { storyCardSync(); storyFlush(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
+    try { storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
+    setInterval(() => { try { storyTimSync(); storyBenchRule(); } catch (e) {} }, 1500);
+    try { window.addEventListener('flydiy:manual', () => { try { storyTimSync(); } catch (e) {} }); } catch (e) {}
     try { storyIntroCurtain(); } catch (e) { console.warn('flyDiy (story): the opening -', e && e.message); }
     // G3384: a story with its starter - the design flow's "New aeroplane" door stays shut (design_flow.js maybeAutoOpen)
     try { const s = stLive(); if (s && s.planes && s.planes.starter) window.FLYDIY_STORY_STARTER = s.planes.starter; } catch (e) {}
@@ -12898,7 +12969,7 @@
       clockRowBuild(host, where);
       // G2290 (PILOTS): in the career, who flies it is the roster pick (its own row); the sandbox keeps the persona row
       if (CAREER_DEV) careerCrewRow(host, where);
-      else {
+      else if (personaDev()) {   // G3324: who flies it is DEV's - the player's autopilot is the expert
         // G2085 (PILOT-PERSONA): WHO FLIES IT, beside where it goes - the personality on the route row (the shed's flight
         // setup beside ROLL OUT, the roll-out screen's), a mirror of the one keeper #selPersona (personaSync keeps every
         // mirror on it); each option's hover is that person's one line. In the shed it decides who flies the roll-out;
@@ -13730,6 +13801,8 @@
       }
     }
     if (flyOpen === 'dev' && !(flDevOn || scen)) flyOpenSet(null);
+    // G3324: the shed's persona keeper (#selPersona) is DEV's too
+    { const sp = $('selPersona'); if (sp) sp.hidden = !flDevOn; }
   }
   function flDevSet(on) {
     flDevOn = !!on; prefSet('flydiy.flDev', flDevOn ? '1' : '0');
@@ -14187,6 +14260,7 @@
   // it flies from the next start. 'start from' copies a personality into the knobs (the downgrade the user asked for:
   // the full model, tuned down to a person).
   function flPersona(body) {
+    if (CAREER_DEV || !personaDev()) return;   // G3324: the persona is DEV's (the player flies the expert)
     if (CAREER_DEV) return;   // G2290 (PILOTS): the career's pilot is the roster's - the persona pills are the sandbox's only
     const sel = $('selPersona');
     if (!sel || typeof PILOT_PROFILES === 'undefined') return;

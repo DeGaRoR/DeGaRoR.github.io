@@ -95543,3 +95543,139 @@ music. It zooms on the cabin, then we fade into the garage."
   MEDIA PASS (battery PASS, 20 Oct ~16:05).
 - **Next:** ready, the Game coordinator's call on e8202b764 (gates STORY, UISMOKE, UISMOKE-PHONE, MEDIA: battery PASS 21 Oct). Owed:
   stills of the cabin's arc with G3385's sightline (a 5 min look, or the landing train's own).
+
+## G2798 - THE PILOT'S IDLE MOTION AT 1 BY DEFAULT (2026-10-19, EDITOR-UX-A for A0; branch claude/idle-default on Train A)
+
+The user's garage review, item 5: "put the movement at 1 by default, and it's fine". `dumIdle` (the pilot's idle
+motion, the sitting-idle clip's amplitude) went 0.5 -> 1 in the page's defaults (_cage_page5.js; designFull's birth
+base reads them) and in the four presets that state it. The crew's fallback for a build with no value is 1 too.
+A build that SAVED its own value keeps it (every builds/*.json says 0.5, the Rufus files 1); an older save with no
+`dumIdle` at all now animates at 1. The passengers' `paxIdle` was already 1. Animation only: no spec, no physics.
+
+## A0 - landing L19d (19 Oct 2026, gates 22:00-23:06, pushed ~23:10)
+Cargo (rolling): cabin-approach (G3097 the trees-only fan x_fan_w1_0 over Cabin Strip's end 0 + 27_premises on CORE_MATH + the re-cook), career-expert (the player's own career flights always fly the Expert; the career's pilot-pick row is gone), idle-default (pilot idle motion 1 by default), story-fix (the story loads the CERTIFIED Rufus; GAME-PLAN §R2 with the shed rules), water-spray (G2837 side arches + G2838 heavy drops; the user OK'd the look). torque-retune-66 HELD (the user's word on the float Cessna's mk_sea go-arounds is pending).
+Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
+Strict light gate: 12 RED, none new by cause. over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV, fix in progress); taskWorst / tasks1s = the boot/settle and roll-out tasks around 1 s (HWCOV 19 Oct: 982-1099 ms on L19a too, +-0.5 s run to run); floats world->garage 2.4 s = the pre-existing program re-link (FLOATS-RELINK); metal fuseWidth busy = the cost the user accepted by name (15 Oct). The gate's profile now lives in C: temp and is deleted after.
+## G2799 - EDITOR-REVIEW TRAIN B: THE CARBON SEAT'S SUPPORT, THE TANKS' WIDER RANGE, DROP-JSON IN THE GARAGE (2026-10-19, EDITOR-UX-A for A0, local; branch claude/editor-review-b)
+
+Items 13 and 2 of D:/Dev/flydiy-notes/EDITOR-REVIEW-2026-10-18-PLAN.md, plus A0's DROP-JSON (the garage side; ED-1 did
+the scenery's). Items 11 and 12 (the dash) were DASH-REDESIGN's and landed in L19c. No core file changes: a saved
+build loads and flies bit-identically.
+
+- **13 The composite shell seat stands on the floor** (`_cage_crew.js` seatShell). Two moulded carbon ribs under the
+  pan, their top edge on the shell's outer face from the front of the pan to the lower back, each on a fore-aft alloy
+  floor rail (the airliner seat's idiom). Drawing only: the shell, the hinge and every number the crew laces to are
+  unchanged.
+- **2 The tanks' fore/aft slider is much wider, without moving a tank.** The bay's RULE limits stay exactly what they
+  were, because the default spot, the level a new tank settles to, the litres, the cache keys and the core's billing
+  read them. That is how the Cub's and Jodel's `along: null` nose tanks stay put.
+  - New: `VESSEL_GEN.handRange(bay, cache)`, the HAND's range, 0.6 m past each rule limit. It never goes past what the
+    swept field describes (the cache sweeps 0.7 m past), so a placement out there is measured, not extrapolated. In
+    the nose that runs forward to the firewall face and aft under the panel.
+  - Only three things read it: the fore/aft slider (and the box's length row), the 'past the bay' readout and `ok`
+    (bodyPlace's new `outsideHand`), and the stale-station reset (a station inside the hand's range is the player's).
+  - `outsideBay` stays against the rule, so `settleLv`, and with it every default, lands as before.
+  - The sweep for a bay that holds a vessel moved from the layout to measureBays (the same sweep, the same key,
+    read back in placeAll), so the panel drawn before the layout shows the wide range. The firewall datum is now read
+    once per measure, not once per body bay.
+  - The `cowlDeck` unit bug (60c_gen_energy.js:352, a fraction read as metres) is LEFT: fixing it moves every
+    `along: null` nose tank.
+- **DROP-JSON** (`garage.js`, `editor.css #gDrop`): a .json dragged anywhere onto the garage imports through readFile,
+  the ribbon's import door, with 'drop to import' over the workshop while the file is dragged.
+  - The window's listeners are BUBBLE phase, so the scenery editor's capture-phase ones (ED-1, 0cad23553) win while
+    it is open. They also stand down under body.premOpen / sceneryMode and whenever the plate (#edFleet) is not on
+    screen.
+  - A non-.json is refused and said, and never left to the browser, which would open it in place of the game.
+  - The name plate's and the open rack's own drop handlers are gone: they would have imported twice.
+- **GATE ENERGY** has 4 new 'hand:' rows:
+  - the nose range holds the bay and reaches 0.3 m aft of it;
+  - a tank on the bay's aft limit is past the rule but inside the hand's range, and is not called 'past the bay';
+  - the default spot and the settled level are the same with and without the hand's range;
+  - with no field, the range is the rule's.
+
+**What to watch for:**
+- The seat's ribs are crew vertices. The tank-vs-crew tests now see them, so a cabin/underFloor tank with no saved
+  station in a build with the composite seat could settle differently. Saved stations are untouched.
+- A placement inside the hand's range but outside the rule is green by the box and the skin. The crew and layer hits
+  still apply.
+- The drop overlay sits at z 70, over the fleet popup (60).
+
+**The look** (A0's GPU slot, Tue 20 Oct 08:44-08:47, gpu UXA, read off the page, no stills):
+- **The user's Cub:** the nose's fore/aft slider runs -0.23 to +0.60 m. Before it ran -0.23 to 0; -0.23 m is the
+  firewall face, where the swept field ends. The tank is unmoved (along -0.117, lv 0.464, 27 L).
+- **The composite seat, both tandem seats:** the ribs run from the rails up into the shell's underside (front seat:
+  rails at y 0.673, shell bottom 0.813, rib top 1.04).
+- **A synthetic file drop:**
+  - dragenter shows #gDrop, and the drop hides it and imports the Jodel (45 L nose tank);
+  - a .txt is refused and said;
+  - every handler takes the default, so the browser never opens the file.
+- **Fixed there:** #gDrop is body-level, so it is now in editor.css's token scope `:is(...)`, beside #hsStore and
+  #stCard. Without it the border's `--ed-acc` was unset.
+- No JS error: the same 3 resource 404s as before.
+- **Gates** (Tue 05:30, beside APADAPT, on 43b50a4de): ENERGY ENERGYBASE TANKMOUNT BAY CABIN CAGEFIT PANEL JOIN SAVE
+  SPECFIX DEFAULT PARTS KNIFE UISMOKE UISMOKE-PHONE CARDS all PASS.
+  - JOINPARITY's 7 FAILs are master's (identical on cbe3f9972); A0 gave me that fix (claude/joinparity).
+  - FRAMECOST was not run: the parked cook is not '(same)'.
+
+## A0 - landing L20b (20 Oct 2026, gates 10:00-11:23, pushed ~11:30)
+Cargo (rolling; L20a's held set + more): damage-on (DAMAGE ON BY DEFAULT: GEN_DAMAGE_DEFAULT=true, ?damage=0 turns it off; G3026 setFreight moves the clusters' rests, so a delivery no longer breaks the frame; DMGCRASHUI/DMGUPLOAD OFF arms pass ?damage=0), capsize-verdict (G3328: a bank past 90 deg = 'capsized' in every gate), editor-review-b (garage review Train B: seat ribs/rails, the CG-safe tank range, garage drag-import), feel-follows-look (the wheel feel follows the look; road classes kept; a11's exclude), flare-coremath (64b + 30_solver on CORE_MATH), persona-dev (the player's autopilot is the Expert; persona UI behind DEV), water-lane-ed (water runways in the editor + the scenery drag-import).
+Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore). DMGDETERMINISM census now clean (L19d's 27_premises + this flare-coremath).
+Strict light gate: 5 RED, none new: over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV, fix in progress); metal fuseWidth busy = the cost the user accepted by name (15 Oct).
+Known, owned, not blocking: G3027 (a Chinook-alike archetype rejects its takeoff with damage on; non-validated; Deform).
+
+## G3350-G3359 - STORY-TIM: TIM'S BAND AT THE BOTTOM, THE PAINT-ONLY T0 (THE EDITOR'S STORY LOCK), THE BENCH NEVER IN THE SMALL SHED (2026-10-20, the GAME COORDINATOR in the fast lane; GAME-PLAN §R2; branch claude/story-tim off origin/master da1c8c75a)
+- **Tim** (79_story.js STORY_TIM, draft English keyed by beat, for the narrative pack to rewrite). He speaks each beat in
+  **#stTim**, a band at the bottom of the screen (transparent ground, never centred).
+  - It shows a PLACEHOLDER silhouette portrait (inline SVG: no image, no real person), "Tim · your friend and business
+    partner", and one line at a time (Next n/m, then OK). It shows again on each new beat.
+  - In flight it steps aside once the player takes manual control (FLYDIY_AP.manual(), Pilot's AP-TOGGLE G3325).
+  - The corner card (#stCard) stays the OBJECTIVE.
+  - T0's lines: dust it off; paint, liveries, a registration, the structure for later; click once, twice or three
+    times to the top of the tree for the global colour, liveries and per-piece colour; pre-certified, no bench in this
+    shed. T1's: join me at the WWII airport; the autopilot line.
+- **The structure lock is a STORY STAGE** (editor.js `window.EDITOR_LOCK.finishOnly(reason)`). While the story's mask
+  is 'finish' (T0), the editor holds the FINISH view: Shape and Design are disabled, with the reason written under the
+  tabs. It lifts with the mask. app.js storyMaskNote hands it over; TECH-MASK, when it lands, can take over.
+- **The bench never stands in the small shed** (a property of the SHED: `sheds[here].story`). `storyBenchRule` hides
+  #tabBench there at every beat, says "no bench in this shed", and closes the bench pane if it was open.
+- **OWED (RUFUS-CERT):** the certified Rufus file's plaque is still "withdrawn: run the bench in the game". Rufus rolls
+  out regardless (the roll-out is never locked), but for "pre-certified" to READ true, one in-game bench run must stamp
+  its plaque and the file must be re-committed. A certificate is never faked.
+- GATE STORY rows: Tim has every beat's lines; T0 / T1's content; the editor lock (source); the bench rule; Tim's
+  band steps aside on manual.
+
+## G2799 - GATE JOINPARITY GREEN AGAIN: THE CENSUS'S DOORS AND THE PAGE RE-CAPTURED (2026-10-20, EDITOR-UX-A for A0; claude/joinparity)
+
+JOINPARITY was red on master cbe3f9972, 7 rows.
+- **Check 1: the page capture was stale.** It was taken on 08 Oct. Since then the load chain has moved what the game
+  flies, by work meant to move it: the Cub 460.555 -> 460.703 kg, the Jodel, the metal Cessna, the floats; the twin
+  floatplane went from 127 to 123 nodes.
+- **Check 5: 16 tools named a validated build without a declared door.** Each is now declared by how it really loads
+  one:
+  - page: tour_real, storage_shot, _clockbake_check;
+  - via pilot_trace: altiport_trace, _altiport_check, floats_probe, tour_real_node, _profile_check;
+  - via _treecrash_lib: _route_check;
+  - spec: _wingrows_check, _sheetworker_check;
+  - join: _designcheck_check, _geoparity_check, _naclag_check;
+  - and a new door, `scene`, for DASH-REDESIGN's drawing tools dash_stills and _dash_check: they seed the editor's
+    layers headless and judge the drawing.
+- **Re-captured** with `node tools/join_parity_page.js --jobs 2` (A0's GPU slot, Tue 20 Oct 10:10-10:19, gpu UXA,
+  SwiftShader; the profiles were in C: temp and deleted). The new numbers are cub 460.703, jodel 464.183, metal 888.772,
+  floats 952.449 kg, twin floats n 123 / nb 500.
+- GATE JOINPARITY: PASS on it (10:20).
+
+**What to watch for:** a re-capture blesses whatever the game flies today. Every load-chain change since 08 Oct is now
+the baseline; nothing here judged whether those moves were right. A new tool that names a validated build must take a
+door (or load through tools/_load_build.js), or check 5 goes red again.
+
+## A0 - landing L20c (20 Oct 2026, gates 16:00-16:57, pushed ~17:00)
+Cargo (rolling): joinparity (G2799: the editor's join parity, the page re-captured by join_parity_page.js). HANDOVER conflict unioned.
+Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
+Strict light gate: 8 RED, none new by cause: over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV; its fix is checked Tue 19:30 for L20d); metal chase tasks1s / taskWorst = the ~1 s boot/settle tasks (+-0.5 s run to run); floats world->garage 2.1 s = the pre-existing program re-link; metal fuseWidth busy = the cost the user accepted by name (15 Oct).
+
+## A0 - landing L20d (20 Oct 2026, gates 22:00-23:05, pushed ~23:20): STORY-TIM ALONE
+The rolling set was reveal-hitch + story-tim (ready/torque-retune-66 reached origin after the 22:00 pick-up -> L21a, as the user asked).
+- The battery on the pair: UISMOKE and UISMOKE-PHONE RED, NEW, from reveal-hitch. app.js:11692 `REVEAL_PLANT_OFF = /.../.test(location.search)` reads `location` at the top level, which the gates' node vm has no global for. The other reds are master's known ones (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
+- The strict light gate on the pair: 7 RED. over100 x4 are UNCHANGED, so the gate rig still sees the reveal hitch with the pre-plant in. NEW: cub round trip 2 garage -> world worst task 490 ms (slack 150), likely the pre-plant's own cost on the world entry. Also metal fuseWidth busy (accepted) and floats world->garage 2.15 s (the known re-link).
+- So reveal-hitch is HELD back to HWCOV: guard `location`; bisect over100 with the gate's own sequence; measure the pre-plant's garage->world cost.
+- Landed: claude/ready/story-tim 3a800c4af ALONE (= master c7c163805 + STORY-TIM). That exact tree passed STORY / UISMOKE / UISMOKE-PHONE on the box at 17:03 (Game, fast lane), and is fresh-cooked here (parked cook for its build id). Tim's band, the paint-only T0 (EDITOR_LOCK.finishOnly), no bench in the small shed.

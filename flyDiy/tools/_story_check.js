@@ -140,6 +140,18 @@ function run(M) {
   ok(!M.playerSendTo(x.doc, 'ul', 'w5').ok, 'send-to a hangar we do not hold: refused');
   const back2 = M.playerSendTo(st.doc, 'ul', 'w1');
   ok(back2.ok && M.playerWhere(back2.doc, 'ul').hangar === 'w1', 'send-to from INSIDE HOME back to the cabin: moved (not "already inside")', JSON.stringify(M.playerWhere(back2.doc, 'ul')));
+  // ---- G3350 STORY-TIM: Tim's lines for every beat; the editor's story lock; the bench never in the small shed
+  ok(M.STORY_TIM && M.STORY_TIM.name === 'Tim' && M.STORY_BEATS.every(B => M.storyTimLines(B.id).length >= 1 && M.storyTimLines(B.id).every(l => typeof l === 'string' && l.length > 8)),
+     'Tim has a line for every beat (T0-T7)');
+  ok(/structure stays as it is/.test(M.storyTimLines('T0').join(' ')) && /once, twice or three times/.test(M.storyTimLines('T0').join(' ')) && /no bench/.test(M.storyTimLines('T0').join(' ')),
+     'T0: Tim says the structure waits, the click-depth to the top of the tree, and no bench in the shed');
+  ok(/WWII airport/.test(M.storyTimLines('T1').join(' ')) && /never have to/.test(M.storyTimLines('T1').join(' ')), 'T1: Tim calls you to the WWII airport, and the autopilot line');
+  { const ED = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.js'), 'utf8'), APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+    ok(/window\.EDITOR_LOCK = \{/.test(ED) && /if \(lockWhy && v !== 'finish'\) \{ lockSync\(\); return; \}/.test(ED), 'the editor holds the finish view while the story locks it (Shape / Design refused)');
+    ok(/EDITOR_LOCK\.finishOnly\(m === 'finish' \?/.test(APP), 'the story hands its mask to the editor lock (a story stage: lifted with the mask)');
+    ok(/function storyBenchRule\(\)/.test(APP) && /small = !!\(sh && sh\.story\)/.test(APP), 'the bench is hidden in the small story shed, at every beat (a property of the shed)');
+    ok(/id = 'stTim'/.test(APP) && /FLYDIY_AP\.manual\(\) && !inGarage/.test(APP), 'Tim band at the bottom; it steps aside in flight when the player takes manual control');
+  }
   // the save
   const back = M.careerNormalise(JSON.parse(JSON.stringify(d)));
   ok(JSON.stringify(M.storyOf(back)) === JSON.stringify(M.storyOf(d)) && JSON.stringify(M.storyNormalise(JSON.parse(JSON.stringify(back.career.story)))) === JSON.stringify(back.career.story), 'saved and reloaded: the story unchanged (careerNormalise keeps it)');
@@ -176,7 +188,7 @@ async function page() {
   ok(/if \(STORY_PAGE\) window\.BENCH_CERTIFIED = storyCertified;/.test(half) && /typeof window\.BENCH_CERTIFIED === 'function'\) \{ try \{ window\.BENCH_CERTIFIED\(\); \}/.test(bench), "the bench's airworthiness certificate reaches the story (its hook set only under STORY_PAGE)");
   const card = (css.match(/#stCard \{[^}]*\}/) || [''])[0], all = (css.match(/#stCard[^{]*\{[^}]*\}/g) || []).join('\n');
   ok(/position:fixed/.test(card) && /left:12px/.test(card) && /top:72px/.test(card) && !/translate|left:50%|top:50%|inset:0/.test(all), 'the beat card stands in the top-left corner (never centred)');
-  ok(!/italic|serif['";,\s]*[;}]|Georgia|Times/.test(all.replace(/sans-serif/g, '')) && /font-style:normal/.test(card) && /IBM Plex Sans/.test(card) && /var\(--ed-plate\)/.test(card) && /#stCard\) \{/.test(css), "the garage's look: --ed-* tokens, IBM Plex Sans upright, no serif, no italics");
+  ok(!/italic|serif['";,\s]*[;}]|Georgia|Times/.test(all.replace(/sans-serif/g, '')) && /font-style:normal/.test(card) && /IBM Plex Sans/.test(card) && /var\(--ed-plate\)/.test(card) && /:is\([^)]*#stCard[^)]*\) \{/.test(css), "the garage's look: --ed-* tokens, IBM Plex Sans upright, no serif, no italics");
   // ---- the half, run: the core's globals, a minimal DOM, the files off the disk
   const prefs = new Map();
   const els = [];

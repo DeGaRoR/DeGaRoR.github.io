@@ -3246,6 +3246,30 @@
     "what": [
      "trees"
     ]
+   },
+   {
+    "id": "x_fan_w1_0",
+    "poly": [
+     [
+      2512.84,
+      -16190.41
+     ],
+     [
+      2354.43,
+      -16448.3
+     ],
+     [
+      2537.19,
+      -16529.54
+     ],
+     [
+      2622.5,
+      -16239.16
+     ]
+    ],
+    "what": [
+     "trees"
+    ]
    }
   ],
   "roads": [
@@ -7813,7 +7837,8 @@
     "rail": "off",
     "pav": {
      "marks": "none"
-    }
+    },
+    "surface": 6
    },
    {
     "id": "nv_path_beach",
@@ -7847,7 +7872,8 @@
     "rail": "off",
     "pav": {
      "marks": "none"
-    }
+    },
+    "surface": 6
    },
    {
     "id": "tw_r_access",
@@ -11013,7 +11039,8 @@
       -29.48
      ]
     ],
-    "look": "concrete"
+    "look": "concrete",
+    "surface": 5
    },
    {
     "id": "r25",
@@ -22763,12 +22790,18 @@
     ],
     "props": {
      "wheels": {
-      "surface": 5
+      "surface": 0
      },
      "draw": {
       "look": "grass",
       "z": 0,
       "band": 3
+     },
+     "exclude": {
+      "what": [
+       "trees",
+       "plots"
+      ]
      }
     }
    },
@@ -23133,7 +23166,7 @@
     },
     "props": {
      "wheels": {
-      "surface": 6
+      "surface": 5
      },
      "draw": {
       "look": "concrete",
@@ -23521,7 +23554,7 @@
     ],
     "props": {
      "wheels": {
-      "surface": 5
+      "surface": 6
      },
      "draw": {
       "look": "gravel",
@@ -23580,7 +23613,7 @@
     ],
     "props": {
      "wheels": {
-      "surface": 5
+      "surface": 6
      },
      "draw": {
       "look": "gravel",
@@ -24350,7 +24383,7 @@
     ],
     "props": {
      "wheels": {
-      "surface": 5
+      "surface": 6
      },
      "draw": {
       "look": "gravel",

@@ -5075,6 +5075,25 @@ const STORY_BEATS = [
     done: [{ k: 'open' }] },
 ];
 const STORY_IDS = STORY_BEATS.map(b => b.id);
+// G3350 (STORY-TIM, the user 19 Oct): TIM - "your friend and business partner" - speaks each beat in the band at the
+// bottom of the screen (app.js #stTim), a line at a time. Draft English, keyed by beat: the narrative pack rewrites
+// them. The corner card stays the OBJECTIVE; Tim is the voice.
+const STORY_TIM = {
+  name: 'Tim', role: 'your friend and business partner',
+  T0: ['Morning! The ultralight has sat in this shed all winter. Let\u2019s dust it off.',
+       'Give it a fresh coat and a registration of your own. The structure stays as it is for now: paint, liveries and colours only.',
+       'Click the plane once, twice or three times to climb to the top of its tree. Up there you change the global colour, add liveries, or recolour any single piece.',
+       'It\u2019s pre-certified, so no bench needed here (this shed has none anyway). When it looks right, tap OK on the card.'],
+  T1: ['Good news: we got the old WWII airport. It\u2019s our base of operations now. Come and join me there.',
+       'You can take the controls yourself whenever you like, but you never have to. The autopilot flies every normal mission just as well.'],
+  T2: ['Our first client! Their Cub is in the hangar, unfinished. The list of what they want is on the card. Keep it on budget.'],
+  T3: ['Certified? Then fly it over to its owner.'],
+  T4: ['He can\u2019t pay us... so he\u2019s giving us the Cub. Not a bad trade.'],
+  T5: ['A few quick jobs with the Cub. Nothing fancy, just get them done.'],
+  T6: ['We promised this one: floats on the Cub, and land it at the seaplane base.'],
+  T7: ['The Cub is flying a route now. But look: three planes for sale, once only.'],
+};
+const storyTimLines = id => (STORY_TIM[id] || []).slice();
 const storyBeatOf = id => STORY_BEATS.find(b => b.id === id) || null;
 
 // ---- THE STATE --------------------------------------------------------------------------------------------------------
@@ -5208,7 +5227,7 @@ function storyStep(doc, ev, ctx) {
 // THE STORY'S PLANES' FILES (fetched by the page, relative to the game's folder). The starter is the user's Rufus (18 Oct):
 // RUFUS-CERT (G3270) moves its certified file into builds/ - the page asks builds/ first, then the archived candidate.
 const STORY_FILES = {
-  starter: ['builds/rufus_2026-10-18.json', 'builds/rufus_2026-10-18_corrected.json', 'builds/rufus.json',
+  starter: ['builds/rufus_2026-10-18_certified.json', 'builds/rufus_2026-10-18.json', 'builds/rufus_2026-10-18_corrected.json', 'builds/rufus.json',
             'futureDesigns/game/aircraft-candidates/rufus-starter_2026-10-18.json'],
   client: ['builds/cub_2026-09-20.json'],          // the validated Cub, unfinished by storyClientSpec
 };
