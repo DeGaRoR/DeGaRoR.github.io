@@ -163,14 +163,14 @@ console.log('\n3. THE LAWS');
     verdict(/mat\.visible = false/.test(mp) && /renderer\.shadowMap\.autoUpdate = false/.test(mp) && /renderer\.setRenderTarget\(prevT\)/.test(mp) && /scene\.background = null/.test(mp), 'the capture hides the water, reuses the shadow maps, restores the target and the background');
     // THE SKY IS IN THE CAPTURE (G460.11.3): without it the clear sky was alpha 0 and the water took the PROBE's sky
     // there - the reflection changed source at every cloud's edge, a hard line across the water
-    verdict(/if \(opts\.sky(?: && !PROTO\.ring)?\) \{/.test(mp) && /MIR\.skyScene\.add\(sky\);/.test(mp) && /sky\.position\.copy\(mc\.position\);/.test(mp) && /skyPar\.add\(sky\);/.test(mp), 'the capture draws the sky dome at the mirrored eye first (and hands it back to its parent)');
+    verdict(/if \(opts\.sky(?: && \(!PROTO\.ring \|\| MIR\.ringSky\))?\) \{/.test(mp) && /MIR\.skyScene\.add\(sky\);/.test(mp) && /sky\.position\.copy\(mc\.position\);/.test(mp) && /skyPar\.add\(sky\);/.test(mp), 'the capture draws the sky dome at the mirrored eye first (and hands it back to its parent)');
     verdict(/sky: WF\.skyDome/.test(src('src/viewer/app.js')), "app.js hands the world's sky dome to the capture");
     // AND IT IS VISIBLE WHILE IT IS DRAWN (G460.11.8): the dome is in opts.hide (it must be out of the SCENE
     // draw, where it rides the main camera) and the hide loop runs FIRST - so for six landings the sky pass
     // rendered an invisible dome, the capture's clear sky stayed alpha 0 and the water read the probe there:
     // one sky in the cloudy parts of the reflection and another in the clear ones, which is what the user saw
     // ("the cloud reflections look really strange ... my brain does not reconcile it as being the mirrored sky")
-    { const sk = mp.slice(mp.search(/if \(opts\.sky(?: && !PROTO\.ring)?\) \{/), mp.search(/if \(opts\.clouds(?: && !PROTO\.ring)?\)/));
+    { const sk = mp.slice(mp.search(/if \(opts\.sky(?: && \(!PROTO\.ring \|\| MIR\.ringSky\))?\) \{/), mp.search(/if \(opts\.clouds(?: && \(!PROTO\.ring \|\| MIR\.ringSky\))?\)/));
       verdict(/const skyVis = sky\.visible;\s*\n\s*sky\.visible = true;/.test(sk) && sk.indexOf('sky.visible = true;') < sk.indexOf('renderer.render(MIR.skyScene, mc);') && /sky\.visible = skyVis;/.test(sk),
         'the sky pass makes the dome VISIBLE for its own draw (opts.hide had already silenced it) and puts it back'); }
     // the mean Fresnel rides the MIRROR too: with the sky in the capture the mirror supplies the whole
@@ -295,8 +295,8 @@ console.log('\n3. THE LAWS');
       { const M = W.mirror, mp2 = w.slice(w.indexOf('function mirrorRender('), w.indexOf('function obliqueClip('));
         verdict(!W.proto.ring && M.ringD0 === 1000 && M.ringD1 === 1300 && M.ringH0 === 300 && M.ringH1 === 400 && M.ringD1 > M.ringD0 && M.ringH1 > M.ringH0,
           `the ring: full to ${M.ringD0} m from land and ${M.ringH0} m up, gone by ${M.ringD1} / ${M.ringH1} m (the fades outside the user's numbers); off without ?wrefl=ring`);
-        verdict(/if \(opts\.sky && !PROTO\.ring\)/.test(mp2) && /if \(opts\.clouds && !PROTO\.ring\)/.test(mp2) && /ringW = \(1 - sstep\(MIR\.ringH0, MIR\.ringH1, eyeAgl\)\) \* \(1 - sstep\(MIR\.ringD0, MIR\.ringD1, ld\)\) \* \(1 - sstep\(0, MIR\.ringIn, MIR\.waterD\)\);/.test(mp2) && W.mirror.ringIn > 0,
-          'under the ring the capture holds no sky and no clouds (alpha 0: the probe sky for both models), weighted by height x distance to land'); }
+        verdict(W.mirror.ringSky === true && /if \(opts\.sky && \(!PROTO\.ring \|\| MIR\.ringSky\)\)/.test(mp2) && /if \(opts\.clouds && \(!PROTO\.ring \|\| MIR\.ringSky\)\)/.test(mp2) && /ringW = \(1 - sstep\(MIR\.ringH0, MIR\.ringH1, eyeAgl\)\) \* \(1 - sstep\(MIR\.ringD0, MIR\.ringD1, ld\)\) \* \(1 - sstep\(0, MIR\.ringIn, MIR\.waterD\)\);/.test(mp2) && W.mirror.ringIn > 0,
+          'the ring keeps the sky and the clouds in its capture (MIR.ringSky, G2839 (b): one sky within the ring; false = the probe through alpha 0), weighted by height x distance to land'); }
       // G2839 ONE SKY: the probe's lookup lobe scaled under the mirror's weight (MIR.skyK, 1 = today's lobe: nothing changes without it)
       verdict(W.mirror.skyK === 1 && /uniform vec4 uWSky;/.test(W.GLSL.frag) && /getIBLRadiance\( geometryViewDir, nn, material\.roughness \* mix\(1\.0, uWSky\.x, uWMirror4\.x\) \)/.test(w) && /if \(U\) \{ U\.uWSky\.value\.x = MIR\.skyK;/.test(w) && /iblRadiance \*= mix\(1\.0, uWSky\.y, uWMirror4\.x\);/.test(w) && W.mirror.skyGain === 0 && /U\.uWSky\.value\.y = MIR\.skyGain > 0 \? MIR\.skyGain : PROTO\.ring \? 1 \/ Math\.max\(0\.05, \(scene && scene\.environmentIntensity\) \|\| 1\) : 1;/.test(w),
         `one sky: under the mirror's weight the probe's lobe scales by MIR.skyK (${W.mirror.skyK}: today's lobe by default) and its level rises to the capture's (1 / the scene's environmentIntensity under the ring; 1 elsewhere)`);

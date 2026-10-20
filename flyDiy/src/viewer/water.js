@@ -979,7 +979,7 @@ const WATER = (() => {
     // (round 2, 19 Oct: the capture is GEOMETRY-bound - 4.6-5.9 ms GPU at any resolution, ~11 M triangles): ringOffset narrows the mirror
     // camera's FRUSTUM to the rows under the water's horizon (setViewOffset: culling drops what no water pixel reads, not just the fill);
     // ringFar caps the capture's far plane
-    ringOffset: false, ringFar: 4000, skyK: 1, skyGain: 0,
+    ringOffset: false, ringFar: 4000, skyK: 1, skyGain: 0, ringSky: true,
     // (round 2, A0 19 Oct: 'a ring near the shore' - HOME must pay nothing) over land the ring fades by the eye's distance to WATER, gone by ringIn m inland
     ringIn: 150, waterD: 0 };
   const mirrorTmp = {};
@@ -1185,7 +1185,8 @@ const WATER = (() => {
     // for its own draw and hidden again before the scene's. The user: "the cloud reflections look really
     // strange ... my brain does not reconcile it as being the mirrored sky")
     let skyPar = null;
-    if (opts.sky && !PROTO.ring) {   // (G2836: under the ring no sky in the capture - alpha 0, the probe's sky through it: ONE sky)
+    if (opts.sky && (!PROTO.ring || MIR.ringSky)) {   // (G2836: MIR.ringSky false = no sky in the ring's capture, the probe's through it; G2839 (b), 20 Oct: the probe's lookup
+      // loses the clouds (round 3, debug 14) - the ring keeps today's sky IN its capture, one sky within the ring, the probe's out past its fade)
       const sky = opts.sky;
       MIR.skyScene = MIR.skyScene || new THREE.Scene();
       skyPar = sky.parent;
@@ -1201,7 +1202,7 @@ const WATER = (() => {
     // for the mirrored eye into this capture (opts.clouds = CLOUDS.draw), composited by the scene's cloud quad -
     // with the FRAME's far (the composite writes its depth against log2(far + 1): a cloud 10 km out under the
     // capture's capped far read as depth > 1 and was clipped - no cloud in the mirror, G460.11.1)
-    if (opts.clouds && !PROTO.ring) { try { opts.clouds(renderer, mc, MIR.rt); } catch (e) {} }
+    if (opts.clouds && (!PROTO.ring || MIR.ringSky)) { try { opts.clouds(renderer, mc, MIR.rt); } catch (e) {} }
     if (skyPar) { const sky = opts.sky; sky.position.set(0, 0, 0); skyPar.add(sky); }
     // the scene's own far CAPPED (the capture's cost is its draw calls; the decor past it is the sky's in the reflection)
     mc.far = Math.min(camera.far, PROTO.ring ? MIR.ringFar : MIR.far); mc.updateProjectionMatrix();
