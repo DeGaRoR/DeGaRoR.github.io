@@ -129,12 +129,18 @@ async function pageDiff([pa, pb]) {
   const jpg = im => { const c = document.createElement('canvas'); c.width = W / 2; c.height = H / 2; c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.85).slice(23); };
   return { gpu: jpg(A), cpu: jpg(B), diff, lit, px: W * H, share: +(diff / (W * H)).toFixed(5) };
 }
+// (21 Oct, A0: the STAGING - the place under the worker, the trunk set - is a 0.5-1 s frame of the rig's own in the trace's
+// first frames, 4 runs out of 4 with nothing broken: those frames (the first 0.5 s of sim time, nothing broken) are the
+// rig's, named 'staging' - out of `worst`, said apart as stageMax)
+const STAGE_S = 0.5;
 const summary = st => {
-  const T = st.trace || [], i0 = st.first >= 0 ? st.first : T.length, t0 = i0 < T.length ? T[i0].t : 0;
+  const T0 = st.trace || [], tS = T0.length ? T0[0].t + STAGE_S : 0, isStage = r => r.t < tS && !(r.broken > 0);
+  const stageMax = T0.filter(isStage).reduce((a, r) => Math.max(a, r.ms), 0);
+  const T = T0, i0 = st.first >= 0 ? st.first : T.length, t0 = i0 < T.length ? T[i0].t : 0;
   const win = T.filter(r => r.t >= t0 && r.t < t0 + 1 && i0 < T.length), q = a => { const b = a.slice().sort((x, y) => x - y); return b.length ? { med: b[b.length >> 1], p95: b[Math.floor(b.length * 0.95)], max: b[b.length - 1] } : null; };
   const sum = k => +win.reduce((a, r) => a + (r[k] || 0), 0).toFixed(1);
   const ev = T.slice(i0).filter(r => r.brkEv > 1), fb = i0 < T.length ? T[i0] : null;
-  return { reason: st.reason, broken: st.broken, frames: T.length, crash: q(T.slice(i0).map(r => r.ms)), worst: T.reduce((a, r) => (r.ms > a.ms ? r : a), { ms: 0 }),
+  return { reason: st.reason, broken: st.broken, frames: T.length, crash: q(T.slice(i0).map(r => r.ms)), worst: T.filter(r => !isStage(r)).reduce((a, r) => (r.ms > a.ms ? r : a), { ms: 0 }), stageMax: +stageMax.toFixed(1),
     impactQ: q(win.map(r => r.ms)), firstBreak: fb && { ms: fb.ms, brk: fb.brk, rec: fb.brkRec, ev: fb.brkEv, pose: fb.brkPose, scene: fb.scene },
     events: { n: ev.length, ev: q(ev.map(r => r.brkEv)), frame: q(ev.map(r => r.ms)) }, lose: st.lose,
     impactMean: win.length ? +(win.reduce((a, r) => a + r.ms, 0) / win.length).toFixed(1) : null, impactFrames: win.length,

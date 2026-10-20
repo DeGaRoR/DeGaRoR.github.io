@@ -11192,6 +11192,9 @@
   function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
     if (GARAGE_ONLY) return;           // G2100: the phone garage has no world to roll out into
     certKick();                        // G1831: the certificate's thread starts with the roll-out
+    // G3029: the GPU riding made ready at the roll-out with damage on - its program linked (parallel) and its GL state's
+    // shadow put on - not at the first break, where the link and the shadow's one round of queries were a stall of their own
+    try { if (window.SKIN_GPU && window.FLYDIY_SKINGPU !== false && scarPageOn() && typeof renderer !== 'undefined' && renderer) SKIN_GPU.prepare(renderer); } catch (e) {}
     const reveal = () => { flRevealStart(); if (after) after(); };
     rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
     if (!screenCan()) {

@@ -82,6 +82,8 @@
     const gl = renderer && renderer.getContext && renderer.getContext();
     if (!gl || typeof WebGL2RenderingContext === 'undefined' || !(gl instanceof WebGL2RenderingContext)) { G.ok = false; G.err = 'no WebGL2'; return; }
     G.gl = gl; G.ext = gl.getExtension('KHR_parallel_shader_compile'); G.t0 = performance.now();
+    try { G.glq = /[?&]glq=1(&|$)/.test((typeof location !== 'undefined' && location.search) || ''); } catch (e) { G.glq = false; }
+    if (!G.glq) try { G.shadow = shadowGL(gl); } catch (e) { G.shadow = null; }   // (G3029)
     // a lost context ends the GPU's riding for the page (its program and buffers went with it): the CPU rides from then on
     try { gl.canvas.addEventListener('webglcontextlost', () => { G.ok = false; G.err = 'the WebGL context was lost'; G.lostAt = G.stats.frames; }); } catch (e) {}
     const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
@@ -361,8 +363,45 @@
   // and the aeroplane from every frame after the first riding one (re-asserting it re-cleared the depth wrong: a grey
   // frame). getParameter on these is served from the client's cache (no GPU round trip)
   const UNITS = 6;
+  // G3029 (DMG-IMPACT-LAG, PKG5): THE STATE SAVED WITHOUT ASKING THE GPU. saveGL's getParameter is a synchronous query: in a
+  // crash the main thread sat in it 21-63 ms a frame (and 315-735 ms at the worst), waiting for the GPU process to work
+  // through the break's new GL objects (the box's ensemble, 21 Oct). The context's binding calls are wrapped once instead
+  // (shadowGL): a JS shadow of exactly what saveGL keeps - the program, the vertex array, the active unit and the units'
+  // 2D textures, the array / unpack buffers, the feedback, the rasterizer discard, the unpack settings - kept by every
+  // call the page makes on that context (three's, this module's, any), a delete unbinding as WebGL does. Seeded by ONE
+  // round of queries when it is put on (at a roll-out with damage on - app.js - not at a break). ?glq=1: the queries as before
+  const PX = [0x0CF5, 0x9240, 0x9241, 0x0CF2, 0x0CF3, 0x0CF4, 0x806E];   // UNPACK_ALIGNMENT, _FLIP_Y_WEBGL, _PREMULTIPLY_ALPHA_WEBGL, _ROW_LENGTH, _SKIP_ROWS, _SKIP_PIXELS, _IMAGE_HEIGHT
+  function shadowGL(gl) {
+    if (gl.__flyShadow) return gl.__flyShadow;
+    const S = { prog: gl.getParameter(gl.CURRENT_PROGRAM), vao: gl.getParameter(gl.VERTEX_ARRAY_BINDING), unit: gl.getParameter(gl.ACTIVE_TEXTURE),
+      ab: gl.getParameter(gl.ARRAY_BUFFER_BINDING), pub: gl.getParameter(gl.PIXEL_UNPACK_BUFFER_BINDING), tfb: gl.getParameter(gl.TRANSFORM_FEEDBACK_BINDING),
+      disc: gl.isEnabled(gl.RASTERIZER_DISCARD), tex: new Map(), px: new Map() };
+    for (let k = 0; k < UNITS; k++) { gl.activeTexture(gl.TEXTURE0 + k); S.tex.set(gl.TEXTURE0 + k, gl.getParameter(gl.TEXTURE_BINDING_2D)); }
+    gl.activeTexture(S.unit);
+    for (const k of PX) S.px.set(k, gl.getParameter(k));
+    const wrap = (name, fn) => { const o = gl[name]; if (typeof o !== 'function') return; gl[name] = function () { fn.apply(null, arguments); return o.apply(this, arguments); }; };
+    wrap('useProgram', p => { S.prog = p; });
+    wrap('bindVertexArray', v => { S.vao = v; });
+    wrap('activeTexture', u => { S.unit = u; });
+    wrap('bindTexture', (t, x) => { if (t === gl.TEXTURE_2D) S.tex.set(S.unit, x); });
+    wrap('bindBuffer', (t, b) => { if (t === gl.ARRAY_BUFFER) S.ab = b; else if (t === gl.PIXEL_UNPACK_BUFFER) S.pub = b; });
+    wrap('bindTransformFeedback', (t, f) => { S.tfb = f; });
+    wrap('enable', c => { if (c === gl.RASTERIZER_DISCARD) S.disc = true; });
+    wrap('disable', c => { if (c === gl.RASTERIZER_DISCARD) S.disc = false; });
+    wrap('pixelStorei', (k, v) => { if (S.px.has(k)) S.px.set(k, k === gl.UNPACK_FLIP_Y_WEBGL || k === gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL ? !!v : v); });
+    // (WebGL: a deleted object bound in this context is unbound - a program in use stays current, as getParameter says)
+    wrap('deleteVertexArray', v => { if (v && S.vao === v) S.vao = null; });
+    wrap('deleteBuffer', b => { if (b && S.ab === b) S.ab = null; if (b && S.pub === b) S.pub = null; });
+    wrap('deleteTexture', t => { if (t) for (const [u, x] of S.tex) if (x === t) S.tex.set(u, null); });
+    wrap('deleteTransformFeedback', f => { if (f && S.tfb === f) S.tfb = null; });
+    gl.__flyShadow = S;
+    return S;
+  }
   function saveGL() {
-    const gl = G.gl, st = { prog: gl.getParameter(gl.CURRENT_PROGRAM), vao: gl.getParameter(gl.VERTEX_ARRAY_BINDING), unit: gl.getParameter(gl.ACTIVE_TEXTURE),
+    const gl = G.gl, S = !G.glq && G.shadow;
+    if (S) return { prog: S.prog, vao: S.vao, unit: S.unit, ab: S.ab, pub: S.pub, tfb: S.tfb, disc: S.disc,
+      tex: Array.from({ length: UNITS }, (_, k) => (S.tex.has(gl.TEXTURE0 + k) ? S.tex.get(gl.TEXTURE0 + k) : null)), px: PX.map(k => [k, S.px.get(k)]) };
+    const st = { prog: gl.getParameter(gl.CURRENT_PROGRAM), vao: gl.getParameter(gl.VERTEX_ARRAY_BINDING), unit: gl.getParameter(gl.ACTIVE_TEXTURE),
       ab: gl.getParameter(gl.ARRAY_BUFFER_BINDING), pub: gl.getParameter(gl.PIXEL_UNPACK_BUFFER_BINDING), tfb: gl.getParameter(gl.TRANSFORM_FEEDBACK_BINDING),
       disc: gl.isEnabled(gl.RASTERIZER_DISCARD), tex: [],
       px: [gl.UNPACK_ALIGNMENT, gl.UNPACK_FLIP_Y_WEBGL, gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, gl.UNPACK_ROW_LENGTH, gl.UNPACK_SKIP_ROWS, gl.UNPACK_SKIP_PIXELS, gl.UNPACK_IMAGE_HEIGHT].map(k => [k, gl.getParameter(k)]) };
