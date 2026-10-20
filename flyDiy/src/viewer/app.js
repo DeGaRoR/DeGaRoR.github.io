@@ -6191,7 +6191,9 @@
   // only with DEV on (G760's flydiy.flDev - read off the pref here: personaProfile runs before the rail's block); the
   // player document's pilot.profile is kept, not rewritten - DEV picks it up again. The career's side: careerCrewProfile
   // (GAME's CAREER_PLAYER_EXPERT, career-expert)
-  const personaDev = () => prefGet('flydiy.flDev', '') === '1';
+  // (the rail's own flag once its block has run - a census or a rig turns DEV on through FLYDIY_RAIL.dev, and the pref may not
+  // be kept (GATE UISMOKE's stub store); before the rail's block, the pref - flDevOn is still in its TDZ there)
+  const personaDev = () => { try { return !!flDevOn; } catch (e) { return prefGet('flydiy.flDev', '') === '1'; } };
   function personaProfile() {
     if (CAREER_DEV) return careerCrewProfile() || 'expert';   // G2290 (PILOTS): the career's roster pick; "I fly" the expert
     if (!personaDev()) return 'expert';   // G3324: the player's own flights, outside DEV
