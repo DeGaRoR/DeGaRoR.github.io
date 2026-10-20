@@ -31,7 +31,7 @@
    G2690 (HANGAR-STORAGE): the storage panel (#hsStore, storage_ui.js, body-level like the map) reads it too.
    G2742 (STORY-PAGE): and the story's beat card (#stCard, app.js, body-level, the career's only).
    G2799 (DROP-JSON): and the garage's 'drop to import' overlay (#gDrop, garage.js, body-level). */
-:is(#wsUI, #edView, #mapScreen, #hsStore, #stCard, #gDrop) {
+:is(#wsUI, #edView, #mapScreen, #hsStore, #stCard, #gDrop, #stTim) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
   --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
@@ -1831,8 +1831,8 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 /* G3350 (STORY-TIM): Tim's band at the bottom (never centred, never over the middle) and the editor's story lock */
 #stTim { position: fixed; left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); max-width: 720px;
   display: flex; align-items: center; gap: 12px; padding: 10px 12px; z-index: 40;
-  background: color-mix(in srgb, var(--ed-bg, #1d1f22) 72%, transparent); color: var(--ed-fg, #e8e6e1);
-  border: 1px solid var(--ed-line, rgba(255,255,255,.14)); border-radius: 10px;
+  background: var(--ed-plate); color: var(--ed-ink);
+  border: 1px solid var(--ed-border); border-radius: 10px;
   font-family: 'IBM Plex Sans', system-ui, sans-serif; font-style: normal; font-size: 14px; line-height: 1.4; }
 #stTim[hidden] { display: none; }
 #stTim .stTimFace { width: 48px; height: 48px; flex: none; }

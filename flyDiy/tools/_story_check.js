@@ -179,7 +179,7 @@ async function page() {
   ok(/if \(STORY_PAGE\) window\.BENCH_CERTIFIED = storyCertified;/.test(half) && /typeof window\.BENCH_CERTIFIED === 'function'\) \{ try \{ window\.BENCH_CERTIFIED\(\); \}/.test(bench), "the bench's airworthiness certificate reaches the story (its hook set only under STORY_PAGE)");
   const card = (css.match(/#stCard \{[^}]*\}/) || [''])[0], all = (css.match(/#stCard[^{]*\{[^}]*\}/g) || []).join('\n');
   ok(/position:fixed/.test(card) && /left:12px/.test(card) && /top:72px/.test(card) && !/translate|left:50%|top:50%|inset:0/.test(all), 'the beat card stands in the top-left corner (never centred)');
-  ok(!/italic|serif['";,\s]*[;}]|Georgia|Times/.test(all.replace(/sans-serif/g, '')) && /font-style:normal/.test(card) && /IBM Plex Sans/.test(card) && /var\(--ed-plate\)/.test(card) && /#stCard\) \{/.test(css), "the garage's look: --ed-* tokens, IBM Plex Sans upright, no serif, no italics");
+  ok(!/italic|serif['";,\s]*[;}]|Georgia|Times/.test(all.replace(/sans-serif/g, '')) && /font-style:normal/.test(card) && /IBM Plex Sans/.test(card) && /var\(--ed-plate\)/.test(card) && /:is\([^)]*#stCard[^)]*\) \{/.test(css), "the garage's look: --ed-* tokens, IBM Plex Sans upright, no serif, no italics");
   // ---- the half, run: the core's globals, a minimal DOM, the files off the disk
   const prefs = new Map();
   const els = [];
