@@ -143,6 +143,7 @@ const WATER = (() => {
     uniform sampler2D uWHull; uniform mat4 uWHullVP; uniform vec4 uWHull4;   // G2831: the hull-only capture (x weight, y walk cap, z lod per roughness, w plane)
     #endif
     uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
+    vec3 wIblP;   // (G2839, debug view 14: the probe lookup itself, before the mirror's mix)
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
     uniform vec4 uWFoam;       // x: the fold's RMS Q sqrt(sum (A k)^2 / 2), y: the whitecap cover (Monahan, of the wind), z: the swell's A (m), w: 0
     uniform int uWDbg;
@@ -385,6 +386,7 @@ const WATER = (() => {
           // blur (a mip of roughness x lod on its capture), so where the capture is sky (alpha 0) the probe's clouds were
           // smeared flat beside a sharp mirrored shore. Under the mirror's weight the lobe is scaled by uWSky.x (MIR.skyK)
           iblRadiance = getIBLRadiance( geometryViewDir, nn, material.roughness * mix(1.0, uWSky.x, uWMirror4.x) );
+          wIblP = iblRadiance;
           // BRUNETON'S MEAN FRESNEL (2010, eq. for a rough sea): a prefiltered lookup has no masking - a rough sea at
           // grazing reflects a third of the mirror's sky, its facets shadowing each other and turning the eye toward
           // the higher, darker sky. meanFresnel = (1 - c)^(5 e^(-2.69 s)) / (1 + 22.7 s^1.5) against Schlick's (1 - c)^5:
@@ -503,6 +505,7 @@ const WATER = (() => {
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
         if (uWDbg == 1) gl_FragColor = vec4(wNw * 0.5 + 0.5, 1.0);
         else if (uWDbg == 2) gl_FragColor = vec4(vec3(roughnessFactor), 1.0);
+        else if (uWDbg == 14) gl_FragColor = vec4(wIblP / (1.0 + wIblP), 1.0);   // (G2839) the probe's lookup, Reinhard
         else if (uWDbg == 3) gl_FragColor = vec4(vec3(wSig * 8.0), 1.0);
         else if (uWDbg == 4) gl_FragColor = vec4(vec3(wD / 20.0), 1.0);
         else if (uWDbg == 5) gl_FragColor = vec4(vec3(wFoam), 1.0);
