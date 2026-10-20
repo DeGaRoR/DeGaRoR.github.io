@@ -524,6 +524,50 @@ function seatShell(parent, A, P, g) {
       pad.quad(PO[i][j], PO[i + 1][j], PO[i + 1][j + 1], PO[i][j + 1]);
     }
   pad.mesh(parent);
+  // THE FLOOR SUPPORT (G2799, the user's review of 18 Oct: "the carbon seat
+  // floats about 8 cm over the floor"). Two moulded pedestal ribs under the
+  // pan, their top edge following the shell's outer face from the front of
+  // the pan to the lower back, standing on two fore-aft floor rails - the
+  // airliner seat's pedestal idiom. Drawing only: the shell, the hinge and
+  // every number the crew laces to are unchanged.
+  const rh = hw * 0.45, RT = 0.006, RAIL = 0.012;
+  let ia = 0, ib = NU - 1;
+  while (ia < NU - 1 && C[ia][2] > F[1] + 1e-6) ia++;
+  while (ib > ia && C[ib][1] > H[0] + 0.10) ib--;
+  if (ib - ia >= 1) {
+    const rib = Bag(M.shellC), alu = Bag(M.seatAlu);
+    for (const s2 of [-1, 1]) {
+      const xr = sx + s2 * rh, top = [], bot = [];
+      for (let i = ia; i <= ib; i++) {
+        const p = pt(i, s2 * rh / W[i], -TH);
+        const yB = A.floorAt(p[2]) + 2 * RAIL;
+        top.push([p[1], p[2]]);
+        bot.push([Math.min(yB, p[1] - 0.006), p[2]]);
+      }
+      // a slab RT*2 thick: each face its own vertices, so the shading is flat
+      const n = top.length;
+      for (const xs of [xr - RT, xr + RT]) {
+        const T = top.map(q => rib.v(xs, q[0], q[1]));
+        const Bt = bot.map(q => rib.v(xs, q[0], q[1]));
+        for (let i = 0; i < n - 1; i++)
+          if (xs < xr) rib.quad(T[i], T[i + 1], Bt[i + 1], Bt[i]);
+          else rib.quad(T[i], Bt[i], Bt[i + 1], T[i + 1]);
+      }
+      for (const edge of [top, bot]) {
+        const L = edge.map(q => rib.v(xr - RT, q[0], q[1]));
+        const R = edge.map(q => rib.v(xr + RT, q[0], q[1]));
+        for (let i = 0; i < n - 1; i++) rib.quad(L[i], R[i], R[i + 1], L[i + 1]);
+      }
+      for (const i of [0, n - 1])
+        rib.quad(rib.v(xr - RT, top[i][0], top[i][1]), rib.v(xr + RT, top[i][0], top[i][1]),
+                 rib.v(xr + RT, bot[i][0], bot[i][1]), rib.v(xr - RT, bot[i][0], bot[i][1]));
+      // the rail, a little longer than the rib at both ends
+      const zf = top[0][1] + 0.03, zr = top[n - 1][1] - 0.03;
+      tubeRun(alu, [[xr, A.floorAt(zf) + RAIL, zf], [xr, A.floorAt(zr) + RAIL, zr]], RAIL, 12);
+    }
+    rib.mesh(parent);
+    alu.mesh(parent);
+  }
 }
 
 // ---- 2. THE AIRLINER SEAT -------------------------------------------------
