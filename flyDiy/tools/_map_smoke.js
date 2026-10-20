@@ -217,11 +217,14 @@ module.exports = function mapSmoke(html, phone) {
   const i1 = inf(1), i2 = inf(2), i3 = inf(3), i8 = inf(8);
   need(i1.n.zones === IF.zones.length && i1.n.roads === mainN && i1.n.main === mainN && i1.n.links === 1 && i1.n.stations === 2 && !i1.n.houses && !i1.n.sites && i1.n.band === 0,
     'at the fit: the settlements, the main roads only and the tramway (' + JSON.stringify(i1.n) + ')');
-  need(i2.n.roads === IF.roads.length && i2.n.tracks > 0 && !i2.n.houses && !i2.n.sites && i2.n.band === 1, 'from the middle zoom: every road, no buildings yet (' + JSON.stringify(i2.n) + ')');
+  // (FEEL FOLLOWS THE LOOK, the user 19 Oct: Jolene's two tracks drawn dirt are gravel roads now - the dashed tracks are as many as
+  //  the projection's track roads, none today; a track drawn as a track still dashes)
+  const nTrack = IF.roads.filter(r => r.cls === 'track').length;
+  need(i2.n.roads === IF.roads.length && i2.n.tracks === nTrack && !i2.n.houses && !i2.n.sites && i2.n.band === 1, 'from the middle zoom: every road (' + nTrack + ' tracks dashed), no buildings yet (' + JSON.stringify(i2.n) + ')');
   need(i3.n.houses === nH && i3.n.sites === IF.sites.length, 'closer: every house and site footprint (' + JSON.stringify(i3.n) + ')');
   need(i8.n.band === 2 && i8.svg.length > i3.svg.length * 0.8, 'close up: the finest band');
   for (const [k, F] of [[1, i1], [2, i2], [3, i3], [8, i8]]) need(!/data-place|data-act|role=|onclick|tabindex|<a |pointer-events="(auto|all|visible)/.test(F.svg), 'the infrastructure at ' + k + 'x carries a tap target');
-  need(/<polygon class="mmInfZ residential" [^>]*fill="url\(#mmHz-residential\)"/.test(i1.svg) && /stroke-dasharray/.test(i2.svg.split('class="mmInfR"')[1] || '') && /class="mmInfL"/.test(i1.svg), 'the settlements hatched, the tracks dashed, the cable drawn');
+  need(/<polygon class="mmInfZ residential" [^>]*fill="url\(#mmHz-residential\)"/.test(i1.svg) && /stroke-dasharray/.test((nTrack ? i2 : MM.infraOf(Object.assign({}, pack, { infra: Object.assign({}, IF, { roads: IF.roads.map((r, k) => k ? r : Object.assign({}, r, { cls: 'track' })) }) }), { s: fit * 2, fit })).svg.split('class="mmInfR"')[1] || '') && /class="mmInfL"/.test(i1.svg), 'the settlements hatched, the tracks dashed (none on the island: a road made a track, dashed), the cable drawn');
   const lo = k => ov(k, st, { x: -2500, z: -8300 });
   const l15 = lo(1.5), l2 = lo(2), l3 = lo(3);
   need(l15.n.labels === 0 && l2.n.labels + l2.n.held === IF.labels.length && l2.n.labels > 0 && l3.n.labels >= 3, 'the labels from the middle zoom (1.5x ' + l15.n.labels + ', 2x ' + l2.n.labels + ' + ' + l2.n.held + ' held, 3x ' + l3.n.labels + ')');
