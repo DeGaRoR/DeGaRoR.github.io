@@ -95513,3 +95513,27 @@ Cargo (rolling; L20a's held set + more): damage-on (DAMAGE ON BY DEFAULT: GEN_DA
 Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore). DMGDETERMINISM census now clean (L19d's 27_premises + this flare-coremath).
 Strict light gate: 5 RED, none new: over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV, fix in progress); metal fuseWidth busy = the cost the user accepted by name (15 Oct).
 Known, owned, not blocking: G3027 (a Chinook-alike archetype rejects its takeoff with damage on; non-validated; Deform).
+
+## G2799 - GATE JOINPARITY GREEN AGAIN: THE CENSUS'S DOORS AND THE PAGE RE-CAPTURED (2026-10-20, EDITOR-UX-A for A0; claude/joinparity)
+
+JOINPARITY was red on master cbe3f9972, 7 rows.
+- **Check 1: the page capture was stale.** It was taken on 08 Oct. Since then the load chain has moved what the game
+  flies, by work meant to move it: the Cub 460.555 -> 460.703 kg, the Jodel, the metal Cessna, the floats; the twin
+  floatplane went from 127 to 123 nodes.
+- **Check 5: 16 tools named a validated build without a declared door.** Each is now declared by how it really loads
+  one:
+  - page: tour_real, storage_shot, _clockbake_check;
+  - via pilot_trace: altiport_trace, _altiport_check, floats_probe, tour_real_node, _profile_check;
+  - via _treecrash_lib: _route_check;
+  - spec: _wingrows_check, _sheetworker_check;
+  - join: _designcheck_check, _geoparity_check, _naclag_check;
+  - and a new door, `scene`, for DASH-REDESIGN's drawing tools dash_stills and _dash_check: they seed the editor's
+    layers headless and judge the drawing.
+- **Re-captured** with `node tools/join_parity_page.js --jobs 2` (A0's GPU slot, Tue 20 Oct 10:10-10:19, gpu UXA,
+  SwiftShader; the profiles were in C: temp and deleted). The new numbers are cub 460.703, jodel 464.183, metal 888.772,
+  floats 952.449 kg, twin floats n 123 / nb 500.
+- GATE JOINPARITY: PASS on it (10:20).
+
+**What to watch for:** a re-capture blesses whatever the game flies today. Every load-chain change since 08 Oct is now
+the baseline; nothing here judged whether those moves were right. A new tool that names a validated build must take a
+door (or load through tools/_load_build.js), or check 5 goes red again.
