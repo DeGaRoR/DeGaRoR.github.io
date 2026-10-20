@@ -95528,6 +95528,9 @@ music. It zooms on the cabin, then we fade into the garage."
   - **The fade into the garage:** the timed run and the skip run worst 100 / 117 ms, no task >= 200 ms. The stills run
     (its times INFO: Page.captureScreenshot reads the frame back) had one 703 ms task at 33.9 s, as the fade closed.
   - Under black, before the shots: one 364 ms task in the skip run (0.6 s of warm draws; never seen).
+  - **ACCEPTED by the Game coordinator (21 Oct):** the 364 ms task under black (unseen) and the stills run's 703 ms (the
+    frame read-back: a measuring artifact). The +11-17 s New-career boot goes to the user via A0 (default: accepted; named in
+    the READY text). The framing gets its look before ready (A0's UNTIMED GPU, Wed 21 Oct 03:40-03:50, the arc's stills).
   - **The "New aeroplane" chooser: not shown** after the fade in all three (G3384). The garage opens on Rufus, T0's card up.
   - **The framing: RED, fixed in G3385 (e8202b764), NOT looked at.** 30 m off the door at 3.5 m, a rise between the eye
     and the shed hid it (only its roof's edge showed). The near shots now lift the eye until its line to the target clears
