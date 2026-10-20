@@ -144,6 +144,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (k === 'roads' && !c.userData.batch && o.game) roads = true;
       if (k === 'lots' && o.game) c.traverse(m => { if (m.isMesh) m.castShadow = false; });   // the yards' fences, patches and cars cast none (G557)
       if (k === 'houses' && c.userData.thrift) houseThrift(c);   // a late prop rung (G557)
+      if (k === 'houses') { HFROZE.n++; houseRing(c); }          // (G3416: posed and frozen - its centre is final: into the near ring)
     }
     // merged per cell as each cell goes live (G592: batchGroup leaves `pending` for a cell still streaming, and the
     // tick's walk comes back to it) - the boot's square of G554 stays gone: a step re-merges only the cells it touched
@@ -159,6 +160,7 @@ function make(THREE, scene, world, rec0, opts) {
   // the window and the splat channels ride along), the sources hidden (they stay for picking and for the next
   // merge). A prop (its LOD, its shared geometry) is never merged. Re-merged whenever the set of sources changes.
   const BATCH = { cell: 256, group: null, sig: '', pending: false };
+  const BATCH_L0 = BATCH;   // (G3416: batchGroup's own BATCH is its argument - the lots' is this one)
   // G3210 (METLA-ON, the user 14 Oct: "the house plots ... should never ever impact anything 4 km away. We could drop the plots
   // and the barriers in that town too"). METLA-ONOFF (G3205) measured Metlakatla ON from 3.9 km: the lots 0.8 -> 8.9 M triangles,
   // 53 -> 549 MB of geometry, ~1 % of it in view; the frame 16.5 -> 28.6 ms, 13.8 % of frames over 34 ms.
@@ -181,8 +183,15 @@ function make(THREE, scene, world, rec0, opts) {
     });
     return h;
   }
+  // G3416 (CITY-B): THE LOTS' CELLS IN A RING. The walk went over every lot cell of the map every 10 frames and cut two strings
+  // out of each cell's key (and spread every cell into an array when one changed): a far town paid it all. The cells live in
+  // a near ring (town_ring.js) - a cell leaving it is hidden once, a cell made far away is hidden as it is made - and the walk
+  // visits the ring's cells only. ?townring=0: the walk of before.
+  const LOTR = { ring: null, fresh: [], hidden: 0 };
+  const lotSet = (cell, v) => { for (const m of cell.meshes) if (m.visible !== v) { m.visible = v; LOTR.hidden += v ? -1 : 1; } };
   function lotsNear(ex, ez) {
     if (!(LOT_NEAR > 0) || !BATCH.cells) return 0;
+    if (RING_ON) return lotsRing(ex, ez);
     let n = 0; const C = BATCH.cell, R = LOT_NEAR + C * 0.71;   // (the cell's half-diagonal: a cell touching the radius stays)
     for (const [ck, cell] of BATCH.cells) {
       const i = ck.indexOf(','), cx = (+ck.slice(0, i) + 0.5) * C, cz = (+ck.slice(i + 1) + 0.5) * C;
@@ -191,6 +200,24 @@ function make(THREE, scene, world, rec0, opts) {
     }
     if (n) stats.lotsHidden = [...BATCH.cells.values()].reduce((a, c) => a + c.meshes.filter(m => !m.visible).length, 0);
     return n;
+  }
+  function lotsRing(ex, ez) {
+    const t = tmNow(), C = BATCH.cell, R = LOT_NEAR + C * 0.71;
+    if (!LOTR.ring) LOTR.ring = window.TOWN_RING.make({ cell: 256, move: 40, onLeave: cell => lotSet(cell, false), alive: cell => !!BATCH.cells && BATCH.cells.get(cell.ck) === cell });
+    // the cells made since: into the ring, hidden at once if far (the merge makes them visible)
+    for (let k = 0; k < LOTR.fresh.length; k++) {
+      const cell = LOTR.fresh[k]; if (!BATCH.cells || BATCH.cells.get(cell.ck) !== cell) continue;
+      LOTR.ring.add(cell, cell.cx, cell.cz, R);
+      for (const m of cell.meshes) if (!m.visible) LOTR.hidden++;
+      if (Math.hypot(cell.cx - ex, cell.cz - ez) >= R) lotSet(cell, false);
+    }
+    LOTR.fresh.length = 0;
+    LOTR.ring.update(ex, ez); LOTR.ring.sweep(4);
+    const L = LOTR.ring.list, h0 = LOTR.hidden;
+    for (let k = 0; k < LOTR.ring.n; k++) { const cell = L[k]; lotSet(cell, Math.hypot(cell.cx - ex, cell.cz - ez) < R); }
+    TM.visits += LOTR.ring.n; TM.ms[TMI.lots] += tmNow() - t;
+    stats.lotsHidden = LOTR.hidden;
+    return Math.abs(LOTR.hidden - h0);
   }
   function mergeInto(list) {
     const g0 = list[0].geometry, names = Object.keys(g0.attributes);
@@ -266,7 +293,8 @@ function make(THREE, scene, world, rec0, opts) {
           '|' + Object.keys(m.geometry.attributes).sort().map(k => k + ':' + m.geometry.attributes[k].itemSize + ':' + m.geometry.attributes[k].array.constructor.name).join(',');
         let b = buckets.get(key); if (!b) buckets.set(key, b = []); b.push(m);
       }
-      const cell = { sig, meshes: [], src: [] };
+      const cell = { sig, meshes: [], src: [], ck };
+      if (BATCH === BATCH_L0) { const i = ck.indexOf(','); cell.cx = (+ck.slice(0, i) + 0.5) * BATCH.cell; cell.cz = (+ck.slice(i + 1) + 0.5) * BATCH.cell; }
       for (const bl of buckets.values()) {
         if (bl.length < 2) { bl[0].visible = true; continue; }
         const mesh = new THREE.Mesh(mergeInto(bl), bl[0].material);
@@ -276,6 +304,7 @@ function make(THREE, scene, world, rec0, opts) {
         for (const m of bl) { m.visible = false; cell.src.push(m); }
       }
       if (list.length) CELLS.set(ck, cell); else CELLS.delete(ck);
+      if (BATCH === BATCH_L0 && RING_ON) { if (was && LOTR.ring) { for (const m of was.meshes) if (!m.visible) LOTR.hidden--; LOTR.ring.remove(was); } if (list.length) LOTR.fresh.push(cell); }   // (G3416: the lots' ring)
       n += cell.meshes.length; made++;
     }
     BATCH.pending = pend;
@@ -1765,12 +1794,13 @@ function make(THREE, scene, world, rec0, opts) {
   // eye comes within reach. eye null (the build's first placing, a host with no eye): posed, as before
   // (G2917, A0: "one recorder-visible counter") the cars POSED this frame (near the eye) of the cars running: stats.trafficPosed,
   // and the flight log's 'traffic' event when it changes (at most every 10 s) - the user's next log says what the cars cost
-  let TRC = { t: -1e9, last: '' };
+  let TRC = { t: -1e9, last: '', posed: -1, all: -1 };
   function trafficCount() {
     let posed = 0, all = 0; for (const [, t] of TRAFFIC) { all += t.cars.length; if (t.shown) for (const c of t.cars) if (!c.far) posed++; }
-    stats.trafficPosed = posed;
+    stats.trafficPosed = posed; TM.visits += posed;
+    if (posed === TRC.posed && all === TRC.all) return;   // (G3416: the count last logged - no string a frame)
     const W = typeof window !== 'undefined' ? window : null, now = typeof performance !== 'undefined' ? performance.now() : 0, k = posed + '/' + all;
-    if (W && W.FLIGHT_REC && W.FLIGHT_REC.event && k !== TRC.last && now - TRC.t > 10000) { TRC.t = now; TRC.last = k; W.FLIGHT_REC.event('traffic', null, posed + ' cars posed of ' + all + ' on ' + TRAFFIC.size + ' road' + (TRAFFIC.size === 1 ? '' : 's')); }
+    if (W && W.FLIGHT_REC && W.FLIGHT_REC.event && k !== TRC.last && now - TRC.t > 10000) { TRC.t = now; TRC.last = k; TRC.posed = posed; TRC.all = all; W.FLIGHT_REC.event('traffic', null, posed + ' cars posed of ' + all + ' on ' + TRAFFIC.size + ' road' + (TRAFFIC.size === 1 ? '' : 's')); }
   }
   // THE CARS' DRAW REACH (G3087 HOME-FRAME; A0, 13 Oct: SCENERY-SHIP's rev 27 cost ~+2 ms a frame at HOME). A car's reach
   // was its prop's own cull distance (props.js propCullDist: 730 x its diagonal - ~3.6 km for a car, 1-2 px there), so
@@ -1786,6 +1816,11 @@ function make(THREE, scene, world, rec0, opts) {
     // re-composed by updateMatrixWorld and its LOD updated by the render's projectObject every frame, for a car that
     // draws nothing there (its last level is empty at the reach). Hidden and its matrices held until the eye comes back
     if (pose !== t.shown) { t.shown = pose; for (const c of t.cars) { c.grp.visible = pose; c.grp.matrixWorldAutoUpdate = pose; } }
+    // G3416 (CITY-B): A ROAD OUT OF REACH WAITS. Its cars were advanced every frame (the one-ahead sort, a Map and two arrays a
+    // road a frame) for a road nothing of which is drawn. Its time is kept and paid when the eye comes back: each car runs on
+    // at its own speed for the time it waited, round the road's ends as it would have (the following law resumes there).
+    if (!pose && RING_ON) { t.lag = (t.lag || 0) + dt; return; }
+    if (t.lag) { const lag = t.lag; t.lag = 0; trafficCatch(t, lag); }
     // (G2917) THE ONE AHEAD by order, not by a scan of every car for every car: the cars of a direction sorted along the
     // road, each one's next in its direction (the island road's 274 cars were 75 000 pairs a frame); the same gap
     const ahead = new Map();
@@ -1812,6 +1847,16 @@ function make(THREE, scene, world, rec0, opts) {
       c.grp.position.set(w[0], gy, w[1]);
       tiltToGround(c.grp, heightAt, w[0], w[1], ry);
       if (c.hit) { const R = OBS(); if (R) R.move(c.hit, w[0], w[1], ry, gy); }
+    }
+  }
+  // a road's cars on for `lag` s at their own speed: a car's place on the there-and-back is a phase on 2 L
+  function trafficCatch(t, lag) {
+    const L = t.L, P = 2 * L; if (!(L > 0)) return;
+    for (const c of t.cars) {
+      c.v = c.v0;
+      let p = (c.dir > 0 ? c.s : P - c.s) + c.v0 * lag;
+      p = ((p % P) + P) % P;
+      if (p <= L) { c.s = p; c.dir = 1; } else { c.s = P - p; c.dir = -1; }
     }
   }
   // G1663 (SND-AMB-2) WHAT MOVES AND WHAT FLOATS, FOR THE SOUND - READ-ONLY and allocation-free (audio/emitters.js asks
@@ -2115,6 +2160,7 @@ function make(THREE, scene, world, rec0, opts) {
     const byCell = new Map();
     for (const g of G.houses.children) {
       if (!g.userData.thrift || !g.userData.frozen || g.userData.batch || g.userData.kitAB) continue;   // (C3b: the look review's houses stay whole)
+      if (g.userData.cityBound) continue;   // (G3417: a city pack's unique - its far is the pack's shell)
       const D = detailOf(g); if (!D.keep.length) continue;
       const k = Math.floor(D.c.x / HLOD.cell) + ',' + Math.floor(D.c.z / HLOD.cell);
       let L = byCell.get(k); if (!L) byCell.set(k, L = []); L.push(g);
@@ -2365,7 +2411,7 @@ function make(THREE, scene, world, rec0, opts) {
     stats.farTris = ft; stats.lod1Houses = l1;   // G800: the far town's triangles, the houses it took at lod 1
     if (TARR) Object.assign(stats, { tarrDraws: td, tarrMerged: tm, tarrSlots: TARR.stats.slots, tarrLayers: TARR.stats.layers + '+' + TARR.stats.nrLayers, tarrMB: TARR.stats.mb });
   }
-  let hlodFrame = 0, hlodHouses = -1;
+  let hlodFrame = 0, hlodHouses = -1, hlodFroze = -1;
   function hlodTick(e) {
     if (!HLOD.on || !o.game || (o.editing && o.editing())) {
       if (HLOD.cellMap.size) { hlodDropAll(); HLOD.sig = ''; hlodStats(); }   // whole houses; rebaked on the way back
@@ -2383,13 +2429,15 @@ function make(THREE, scene, world, rec0, opts) {
       if (HLOD.proj && HLOD.near > 0 && cam && cam.isPerspectiveCamera) { const h = Math.min(HLOD.hMax, (cv && cv.height > 1) ? cv.height : 1080); F = 0.5 * h / Math.tan(cam.getEffectiveFOV() * Math.PI / 360); }
       LOD_U.uLodS.value = F > 0 ? F / HLOD.swapPx : 0; LOD_U.uLodSB.value = F > 0 ? F / HLOD.detailPx : 0; }
     // the cells whose houses changed - re-read when a house came or went, and every 30 frames: ONE live cell a frame
-    if (HOUSES.size !== hlodHouses || ++hlodFrame % 30 === 0) {
-      hlodHouses = HOUSES.size;
+    // (G3416: when a house came, went or froze - HFROZE, freezeStatic - and every 1 800 frames as a net: the 30-frame scan
+    // walked every house of the town and joined every cell's ids, twice a second, wherever the eye was)
+    if (HOUSES.size !== hlodHouses || HFROZE.n !== hlodFroze || ++hlodFrame % (RING_ON ? 1800 : 30) === 0) {
+      hlodHouses = HOUSES.size; hlodFroze = HFROZE.n;
       const byCell = hlodScan();
       HLOD.todo = [];
       for (const [k, list] of byCell) { const cl = HLOD.cellMap.get(k); if (!cl || cl.sig !== list.map(g => g.id).join(',')) HLOD.todo.push([k, list]); }
       for (const [k, cl] of HLOD.cellMap) if (!byCell.has(k)) { hlodCellDrop(cl); HLOD.cellMap.delete(k); }
-      HLOD.cells = [...HLOD.cellMap.values()];
+      HLOD.cells = [...HLOD.cellMap.values()]; hlodRingSync(e, hw);
     }
     for (let i = 0; i < HLOD.todo.length && !sliceSpent(); i++) {   // (G1075: a cell's merge is a slice's worth)
       const [k, list] = HLOD.todo[i];
@@ -2398,12 +2446,22 @@ function make(THREE, scene, world, rec0, opts) {
       if (!boxLive(x0 - 60, z0 - 60, x1 + 60, z1 + 60)) continue;   // still streaming there: its houses stay whole
       HLOD.todo.splice(i, 1);
       const old = HLOD.cellMap.get(k); if (old) hlodCellDrop(old);
-      HLOD.cellMap.set(k, hlodCell(k, list)); HLOD.cells = [...HLOD.cellMap.values()];
+      HLOD.cellMap.set(k, hlodCell(k, list)); HLOD.cells = [...HLOD.cellMap.values()]; hlodRingSync(e, hw);
       hlodStats(); hlodWarm();
       break;
     }
-    for (const cl of HLOD.cells) {
-      if (!cl.mesh && !cl.meshH && !cl.tmid) continue;
+    // G3416 THE NEAR RING: the cells within their farthest switch of the eye only (a cell leaving is put to its far state)
+    if (RING_ON) {
+      if (HRC.ring && !hlodReachSame()) hlodRingSync(e, hw, true);
+      if (HRC.ring) { HRC.ring.update(e.x, e.z); const L = HRC.ring.list, n = HRC.ring.n; for (let k = 0; k < n; k++) hlodCellTick(L[k], e, hw); TM.visits += n; }
+      return;
+    }
+    for (const cl of HLOD.cells) hlodCellTick(cl, e, hw);
+  }
+  // one cell's rungs from the eye (G3416: the loop's body, unchanged; the ring's far state is this at a far eye)
+  function hlodCellTick(cl, e, hw) {
+    {
+      if (!cl.mesh && !cl.meshH && !cl.tmid) return;
       const dx = Math.max(cl.x0 - e.x, 0, e.x - cl.x1), dz = Math.max(cl.z0 - e.z, 0, e.z - cl.z1), d = Math.hypot(dx, dz, e.y - cl.y);   // 3D (G563): from 300 m up the houses below are far
       // the houses' own bags (glass, lamps, smoke: what no bake took) and their per-house cuts switch per cell with
       // hysteresis, at the band's far side when there is a band (G801) - the cell's largest house's (G1395). A cell of
@@ -2434,6 +2492,24 @@ function make(THREE, scene, world, rec0, opts) {
       if (cl.casters && cl.casters.length) { const on = d < HOUSE_CAST_FAR * (cl.castOn ? 1.1 : 0.9); if (on !== cl.castOn) { cl.castOn = on; for (const m of cl.casters) m.castShadow = on; } }
     }
   }
+  // the far town's cells in their ring: re-made when the cells change (a bake, a drop) or a dial moved every reach; a cell
+  // new to the ring takes its rungs from the eye at once (the ring will not visit it if it is far)
+  const HRC = { ring: null, sig: new Float64Array(4) };
+  const HFAR_E = { x: 1e7, y: 0, z: 1e7 };
+  const hlodReachSame = () => HRC.sig[0] === HLOD.far2 && HRC.sig[1] === HLOD.near && HRC.sig[2] === HLOD.fadeW && HRC.sig[3] === LOD_E[1];   // (numbers: no string a frame)
+  function hlodReach(cl) {
+    const eMax = Math.max(LOD_E[1], HLOD.near), hMax = 0.5 * (HLOD.fadeW || 0) * Math.max(1, eMax / Math.max(HLOD.near, 1));
+    return 1.15 * Math.max(HLOD.far2, HOUSE_CAST_FAR, eMax + hMax) + 0.5 * Math.hypot(cl.x1 - cl.x0, cl.z1 - cl.z0) + 20;
+  }
+  function hlodRingSync(e, hw, all) {
+    if (!RING_ON) return;
+    const fresh = !HRC.ring || all;
+    if (fresh) HRC.ring = window.TOWN_RING.make({ cell: 256, move: 40, onLeave: cl => hlodCellTick(cl, HFAR_E, HLOD.fadeW > 0 ? HLOD.fadeW / 2 : 0) });
+    HRC.sig[0] = HLOD.far2; HRC.sig[1] = HLOD.near; HRC.sig[2] = HLOD.fadeW; HRC.sig[3] = LOD_E[1];
+    const live = new Set(HLOD.cells);
+    if (!fresh) HRC.ring.all(cl => { if (!live.has(cl)) HRC.ring.remove(cl); });
+    for (const cl of HLOD.cells) { if (!fresh && cl.ringed) continue; cl.ringed = true; HRC.ring.add(cl, (cl.x0 + cl.x1) / 2, (cl.z0 + cl.z1) / 2, hlodReach(cl)); hlodCellTick(cl, e || HFAR_E, hw); }
+  }
   function hlodSet(cl, far) {
     cl.far = far; cl.far2 = false;   // (the rungs' own visibility: hlodTick, G801)
     for (const g of cl.houses) {
@@ -2453,13 +2529,18 @@ function make(THREE, scene, world, rec0, opts) {
   let settleAt = 0;
   function settleTick() {
     if (!o.game || (o.editing && o.editing()) || ++settleAt % 30) return;
-    for (const g of G.houses.children) {
-      if (!g.userData.thrift || !g.userData.frozen || g.userData.skipWalk || g.userData.batch) continue;
+    // (G3416: the houses not settled yet, not the town - a settled house never comes back here)
+    if (HR.ring) { for (const g of HR.unsettled) { if (g.parent !== G.houses || g.userData.skipWalk) { HR.unsettled.delete(g); continue; } settleOne(g); if (g.userData.skipWalk) HR.unsettled.delete(g); } return; }
+    for (const g of G.houses.children) settleOne(g);
+  }
+  function settleOne(g) {
+    {
+      if (!g.userData.thrift || !g.userData.frozen || g.userData.skipWalk || g.userData.batch) return;
       // per cell (G592): a house settles once nothing is queued round it - it waited for the WHOLE queue
-      if (queue.length) { const D = detailOf(g); if (!boxLive(D.c.x - 60, D.c.z - 60, D.c.x + 60, D.c.z + 60)) continue; }
+      if (queue.length) { const D = detailOf(g); if (!boxLive(D.c.x - 60, D.c.z - 60, D.c.x + 60, D.c.z + 60)) return; }
       let pending = false, fresh = false;
       g.traverse(x => { if (x.userData && x.userData.propPending) pending = true; if (x.matrixAutoUpdate) fresh = true; });
-      if (pending || fresh) continue;
+      if (pending || fresh) return;
       g.updateMatrixWorld = SKIP_UMW; g.userData.skipWalk = true;
     }
   }
@@ -2592,6 +2673,7 @@ function make(THREE, scene, world, rec0, opts) {
         BLD.C.world = world;          // (the zone's water: KIT_LOT.zoneWater)
         KT.status = 'decoded';
       })
+      .then(() => (CITY.want ? cityLoad() : null))   // G3417: the city pack, when asked (its failure leaves the kit as it is)
       .catch(fail);
   }
   // still loading: what the town step waits on (null once decided, either way)
@@ -2610,6 +2692,7 @@ function make(THREE, scene, world, rec0, opts) {
   // THE HOST: every kit plot's house and its outbuilding, as THIS composition has them (re-made when the record is
   // recomposed - an edit in the editor; the lots already placed keep their obstacles and their outbuilding decision)
   function ktBuild() {
+    if (CITY.on) { cityBuild(); return null; }   // G3417: the town from its pack (the kit host is not made)
     if (!KT.want || KT.status !== 'decoded' || (KT.host && KT.O === O)) return KT.host;
     const T = tarr(), HG = window.HOUSE_GEN;
     // (the stack and the generator come with the game's page: without them the town stays unique - decided here, before
@@ -2629,7 +2712,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (r.out) outOf.set(r.plot, h);
     });
     try {
-      KT.host = window.TOWNKIT.host(THREE, { pack: KT.pack, rows, tarr: T, HG, mode: 'batch',
+      KT.host = window.TOWNKIT.host(THREE, { pack: KT.pack, rows, tarr: T, HG, mode: 'batch', ring: KIT_RING,
                                             band: { E0: HLOD.near > 0 ? HLOD.near : 150, W0: HLOD.fadeW || 40, E1: HLOD.far2, W1: 120 } });
     } catch (e) { KT.status = 'error'; KT.err = String((e && e.message) || e); console.warn('town kit: the host', e); return null; }
     KT.host.group.name = 'premises:townkit';
@@ -2687,11 +2770,147 @@ function make(THREE, scene, world, rec0, opts) {
     return { grp, tris: built.stats.tris + Dp.tris, house, built, extra: Dp.groups, lights: litOf(built) + Dp.lights };
   }
   function ktTick(e) {
+    if (CITY.on) { cityTick(e); return; }
     if (!KT.want || KT.status !== 'decoded') return;
     if (!KT.host || KT.O !== O) ktBuild();
-    if (KT.host) KT.host.tick(e);
+    if (KT.host) { KT.host.tick(e); TM.visits += KT.host.stats.visits || 0; }
     if (KT.host && KIT_SHADOW > 0 && e) ktShadow(e);
   }
+  // G3416: the kit host's tick walks its near ring (townkit.js host: the houses within their band's reach); ?kitring=0 every house
+  const KIT_RING = !(typeof location !== 'undefined' && /[?&]kitring=0\b/.test(location.search || ''));
+  // ---- G3417-G3420 (CITY-B) THE TOWN HOST: A SOWN TOWN DRAWN ONLY FROM ITS COOKED PACK -------------------------------------
+  // futureDesigns/CITY-2.0-PLAN-2026-10-20.md; the format is CITY-A's (futureDesigns/CITY-PACK-FORMAT.md v1: tools/city_cook.js
+  // writes src/core/city_packs.json and media/city/<island>/<town>/c_<i>_<j>.<h8>.bin). With the town on and ?cityhost=1 the
+  // town's plots are the pack's - townkit.js TOWNKIT.town: far cells as static merged meshes, near cells as the instanced kit,
+  // the near props, the near cells' obstacles:
+  //   - a PACK PLOT (its cell's plots list says kit row, and the composition sows it with that seed) builds NOTHING: an
+  //     unparented entry stands for it in HOUSES, so the stream and the editor's sync see it built; never sent to the worker;
+  //   - a pack OBJECT (the record's objects the pack draws as props) builds nothing either;
+  //   - a UNIQUE plot of the pack (flag 2), an EDITED one (its seed is not the pack's: its kit row is hidden near) and every
+  //     LANDMARK (the cell's uniques) build on the unique path - the procedural one, as every editor premises, the village
+  //     and the piers do - only while their cell is near (the stream defers them past nearOut + 400 m), drawn only while
+  //     it is near (the far cell's shell holds their box), never in the far town's bake.
+  // Off (the default), or with no pack / a pack of another kit, nothing here runs: the town is on the kit as before.
+  //   ?cityhost=1   the town from its pack
+  const CITY = { want: !!(KT.want && typeof location !== 'undefined' && /[?&]cityhost=1\b/.test(location.search || '')), on: false, status: 'off', err: null, man: null, town: null, city: null, host: null,
+                 O: null, plots: new Map(), bound: new Map(), objects: new Set(), boundBy: [], stubs: 0, hits: new Map(), hitQ: [], hitN: 0, hitMs: 0, loadMs: 0, props: new Set(), farMats: null };
+  function cityLoad() {
+    const t0 = performance.now();
+    CITY.status = 'loading';
+    return fetch(kitBase() + 'src/core/city_packs.json').then(r => { if (!r.ok) throw new Error('no src/core/city_packs.json'); return r.json(); })
+      .then(man => {
+        CITY.man = man;
+        if (man.v !== 1) throw new Error('city_packs.json v' + man.v + ' (this host reads v1)');
+        const T = (man.towns || []).find(t => t.island === KT.island && (t.variant || 'town') === 'town');
+        if (!T) throw new Error('no city pack for the island ' + KT.island);
+        if (T.frame !== 'world') throw new Error('the city pack is not in the world frame');
+        // the pack's kit rows index THIS kit pack's archetypes, or nothing (CITY-PACK-FORMAT §10)
+        if (T.inputs && KT.man && KT.man.pack && T.inputs.kitPack !== KT.man.pack.sha256) throw new Error('the city pack was cooked on another kit pack');
+        CITY.town = T;
+        return Promise.all(T.cells.map(c => fetch(kitBase() + c.src).then(ktGunz)));
+      })
+      .then(bufs => {
+        const TK = window.TOWNKIT, cells = bufs.map(b => TK.decodeCityCell(b)), C = TK.cityOf(CITY.town, cells);
+        // a plot of the pack: its cell, its seed, its rows (global), its flags; the landmarks and the objects by id
+        C.cells.forEach(c => {
+          for (const q of c.plots) { const rowsOf = [q[2], q[3]].filter(x => x >= 0).map(x => c.rows[0] + x); CITY.plots.set(String(q[0]), { ci: c.ci, seed: q[1], rows: rowsOf, flags: q[4] }); }
+          for (const u of c.uniques) CITY.bound.set(String(u[0]), c.ci);
+          for (const ob of c.objects) CITY.objects.add('ob:' + ob[0]);
+          CITY.boundBy[c.ci] = [];
+        });
+        CITY.city = C; CITY.status = 'decoded'; CITY.on = true; CITY.loadMs = Math.round(performance.now() - t0);
+      })
+      .catch(e => { CITY.status = 'error'; CITY.err = String((e && e.message) || e); CITY.on = false; console.warn('city host: ' + CITY.err + ' - the town on the kit as before'); });
+  }
+  // the pack's word on an entry: 1 the pack draws it (build nothing), 2 the unique path, bound to its cell (near only), 0 not the
+  // pack's (as before)
+  function cityOwn(p) {
+    if (!CITY.on) return 0;
+    if (p.isObject) return CITY.objects.has(p.id) ? 1 : 0;
+    if (p.isItem) return CITY.bound.has(p.id) ? 2 : 0;
+    if (p.isPark || p.isFence) return 0;
+    const E = CITY.plots.get(String(p.id));
+    if (!E) return kitOf(p) >= 0 ? 2 : 0;   // (a kit-table plot the pack does not hold: unique, never the old kit lot - the kit host is not made)
+    return (E.flags & 1) && E.seed === p.seed ? 1 : 2;
+  }
+  // a cell's box distance from (x, z) (the host's own rule; also before the host is made)
+  const cityBoxD = (ci, x, z) => { const b = CITY.city.cells[ci].box; return Math.hypot(Math.max(b[0] - x, 0, x - b[2]), Math.max(b[1] - z, 0, z - b[3])); };
+  const cityCellOf = p => { if (p.isItem) return CITY.bound.get(p.id); const E = CITY.plots.get(String(p.id)); return E ? E.ci : undefined; };
+  // a pack entry built: nothing (1); a unique one (2) built on the unique path, drawn while its cell is near
+  function cityBuildOne(p, R) {
+    if (cityOwn(p) === 1) { CITY.stubs++; return { grp: new THREE.Group(), tris: 0, extra: [], lights: 0 }; }
+    return p.isItem ? buildItem(p.rec, R) : buildHouse(p, R);
+  }
+  function cityBoundBuilt(p, h) {
+    if (cityOwn(p) !== 2) return;
+    const ci = cityCellOf(p); if (ci === undefined || !h) return;
+    const near = !!(CITY.host && CITY.host.cellNear(ci));
+    for (const g of [h.grp].concat(h.extra || [])) { if (!g) continue; g.userData.cityBound = 1; g.visible = near; CITY.boundBy[ci].push(g); }
+  }
+  // a near prop's draw: props.js's parts of the key (its first level) once it has landed; asked again as they land
+  function cityPropGeo(key) {
+    if (typeof propReady !== 'function' || typeof propBuild !== 'function') return null;
+    if (!propReady(key)) { if (!CITY.props.has(key) && typeof propWarm === 'function') { CITY.props.add(key); propWarm(key).then(() => { if (CITY.host) CITY.host.propsAgain(); }).catch(() => {}); } return null; }
+    const b = propBuild(THREE, key), G = b.dgeos || b.geos, M = b.dmats || b.mats;
+    return G.map((g, i) => ({ geometry: g, material: typeof MATLIB !== 'undefined' ? MATLIB.variant(THREE, M[i], 'inst') : M[i] }));
+  }
+  // a cell near: its uniques shown, its rows' obstacles queued (rasterised a slice a frame); a cell far: hidden, dropped
+  function cityCell(ci, near) {
+    const L = CITY.boundBy[ci] || [];
+    for (let k = L.length - 1; k >= 0; k--) { const g = L[k]; if (!g.parent) { L.splice(k, 1); continue; } g.visible = near; }
+    const R = OBS(); if (!R) return;
+    const c = CITY.city.cells[ci];
+    if (near) { for (let h = c.rows[0]; h < c.rows[0] + c.rows[1]; h++) CITY.hitQ.push(h); return; }
+    const ids = CITY.hits.get(ci); if (ids) { for (const id of ids) { R.remove(id); OBST_IDS.delete(id); } CITY.hits.delete(ci); }
+    CITY.hitQ = CITY.hitQ.filter(h => h < c.rows[0] || h >= c.rows[0] + c.rows[1]);
+  }
+  function cityHitStep() {
+    const R = OBS(); if (!R || !CITY.hitQ.length || typeof OBSTACLES === 'undefined') return;
+    const t0 = performance.now(), H = CITY.host.kit;
+    while (CITY.hitQ.length && performance.now() - t0 < 1.5) {
+      const h = CITY.hitQ.pop(); if (H.isHidden(h)) continue;
+      const m = H.hitMesh(h, 1); if (!m || !m.idx.length) continue;
+      try {
+        const shape = OBSTACLES.rasterise(m.pos, m.idx, 1.0); if (!shape) continue;
+        const r = CITY.city.rows[h], id = R.add({ x: r.x, z: r.z, yaw: r.yaw, y0: r.y, shape, tag: r.out ? 'outbuilding' : 'house' });
+        (CITY.hits.get(r.cell) || CITY.hits.set(r.cell, []).get(r.cell)).push(id); OBST_IDS.add(id); CITY.hitN++;
+      } catch (e) { console.warn('city host: obstacle', h, e && e.message); }
+    }
+    CITY.hitMs += performance.now() - t0;
+  }
+  function cityBuild() {
+    if (CITY.host && CITY.O === O) return;
+    const T = tarr(), HG = window.HOUSE_GEN;
+    if (!T || !HG || !KT.pack) return;
+    if (!CITY.host) {
+      // the far town's materials: the far bake's own plain vertex-colour one (lodMat 'hard', G559), the shell at the cook's gain
+      const base = lodMat('hard'), shell = base.clone(), ground = base.clone();
+      shell.color.setScalar(CITY.city.lod.farGain); shell.name = 'city:shell';
+      ground.name = 'city:ground'; ground.polygonOffset = true; ground.polygonOffsetFactor = -1; ground.polygonOffsetUnits = -1;
+      CITY.farMats = { shell, ground };
+      try {
+        CITY.host = window.TOWNKIT.town(THREE, { pack: KT.pack, city: CITY.city, tarr: T, HG, farMats: CITY.farMats, propGeo: cityPropGeo, onCell: cityCell,
+                                                band: { W0: HLOD.fadeW || 40, W1: 120 } });
+      } catch (e) { CITY.status = 'error'; CITY.err = String((e && e.message) || e); console.warn('city host: the host', e); return; }
+      root.add(CITY.host.group); CITY.host.freeze(); stats.town = 1;
+    }
+    // THIS composition: a pack plot it sows with another seed (an edit) has its kit rows hidden - it builds unique
+    for (const p of O.records.plots) { const E = CITY.plots.get(String(p.id)); if (E) for (const h of E.rows) CITY.host.kit.setHidden(h, E.seed !== p.seed); }
+    CITY.O = O;
+  }
+  function cityTick(e) {
+    if (!CITY.host || CITY.O !== O) cityBuild();
+    if (!CITY.host) return;
+    CITY.host.tick(e); TM.visits += CITY.host.stats.visits + CITY.host.stats.cellVisits;
+    if (CITY.hitQ.length) cityHitStep();
+  }
+  function cityStats() {
+    const H = CITY.host;
+    return { want: CITY.want, on: CITY.on, status: CITY.status, err: CITY.err, stubs: CITY.stubs, plots: CITY.plots.size, bound: CITY.bound.size, objects: CITY.objects.size, loadMs: CITY.loadMs,
+             hits: CITY.hitN, hitMs: Math.round(CITY.hitMs), hitQ: CITY.hitQ.length,
+             host: H ? Object.assign({}, H.stats, { census: H.census(), kit: Object.assign({}, H.kit.stats, { rungs: H.kit.rungs(), draws: H.kit.drawsNow() }) }) : null };
+  }
+
   // G3212 (METLA-ON): THE KIT CASTS NO SHADOW FROM AFAR. Its batched houses were 644 k shadow-casting triangles from 3.9 km, none
   // of them in view (the census of 14 Oct): past KIT_SHADOW m of the town's footprint the host's meshes cast none (the town's
   // shadows are invisible there; the near shadow cascade covers what is close). ?kitshadow=0 keeps them, as before.
@@ -2717,15 +2936,76 @@ function make(THREE, scene, world, rec0, opts) {
              tableMs: KT.tableMs, packMs: KT.packMs, hostMs: KT.hostMs, pack: KT.man ? { src: KT.man.pack.src, bytes: KT.man.pack.bytes } : null,
              host: H ? Object.assign({}, H.stats, { draws: H.drawsNow(), rungs: H.rungs(), lookCount: H.lookCount() }) : null };
   }
+  // ---- THE TOWN METER AND THE NEAR RING (G3415-G3416, CITY-B; futureDesigns/CITY-2.0-PLAN-2026-10-20.md) ---------------
+  // The user, 18 Oct: "Even when the town is only a few boxes, it impacts frame evenness like crazy." At 6.4 km Metlakatla ON
+  // was +16 draws and +4 ms of loop: per-object CPU, the town's ticks over every plot. THE METER: every town-owned tick of
+  // this file timed into TM (ms by part, the items its walks visited, this frame), read and reset by the frame's owner
+  // (render_world: the recorder's 'town' / 'townN' columns, rollout_perf's town row) - R.townMeter.
+  // THE RING (town_ring.js): the per-frame walks - the detail cut, the far town's cells, the lots' cells - visit what is near
+  // the eye only; an item leaving the ring is put to its far state once, never visited again until the eye comes back.
+  //   ?townring=0   the full walks of before (the A/B)
+  const TM_PARTS = ['detail', 'hlod', 'kt', 'settle', 'life', 'trams', 'traffic', 'anim', 'rise', 'freeze', 'far', 'pwr', 'hit', 'lots'];
+  const TM = { parts: TM_PARTS, ms: new Float64Array(TM_PARTS.length), lastParts: new Float64Array(TM_PARTS.length), sumParts: new Float64Array(TM_PARTS.length), frames: 0, visits: 0, last: 0, lastVisits: 0 };
+  const TMI = {}; TM_PARTS.forEach((k, i) => { TMI[k] = i; });
+  const tmNow = () => performance.now();
+  const RING_ON = !!(o.game && typeof window !== 'undefined' && window.TOWN_RING) && !(typeof location !== 'undefined' && /[?&]townring=0\b/.test(location.search || ''));
+  const HFROZE = { n: 0 };   // houses frozen since the boot (the far town's scan reads it: a house that froze may join a cell)
+  // the houses' ring: a house is near while the eye is within its farthest switch - its shadow (HOUSE_CAST_FAR), its props
+  // (HOUSE_PROP_GONE), its detail cuts (its projected size at the focal length, with headroom: a zoom past it re-reaches)
+  const HR = { ring: null, K: 0, unsettled: new Set() };
+  function houseReach(g) {
+    const D = detailOf(g);
+    const dReach = DETAIL.px > 0 ? 2 * D.R * HR.K / (DETAIL.px * (1 - DETAIL.hyst)) : 0;
+    return Math.max(HOUSE_CAST_FAR * 1.1, DETAIL.props ? HOUSE_PROP_GONE * 1.35 : 0, dReach) + 2 * D.R;
+  }
+  // a house's FAR STATE: what the walk below makes of it at any distance past its reach
+  function houseFar(g) {
+    if (g.parent !== G.houses) return;
+    const D = detailOf(g);
+    if (g.userData.thrift) {
+      if (g.userData.castOn) { g.userData.castOn = false; for (const m of g.userData.casters) m.castShadow = false; }
+      if (DETAIL.props && g.userData.propsOn) { g.userData.propsOn = false; for (const x of g.userData.props) x.visible = false; if (typeof propInstTouch === 'function') propInstTouch(); }
+    }
+    if (g.userData.far || g.userData.kitHide) return;
+    if (D.on && D.list.length) { D.on = false; for (const m of D.list) if (!m.userData.merged) m.visible = false; }
+    if (DETAIL.px2 > 0 && D.on2 && D.list2.length) { D.on2 = false; for (const m of D.list2) if (!m.userData.merged) m.visible = false; }
+  }
+  function houseRing(g) {   // (freezeStatic: a house posed and frozen - its centre is final)
+    if (!RING_ON || g.userData.batch) return;
+    if (!HR.ring) { HR.ring = window.TOWN_RING.make({ cell: 256, move: 40, onLeave: houseFar, alive: g => g.parent === G.houses }); HR.K = Math.max(1, (o.focalPx ? o.focalPx() : 1000) * 1.25); }
+    const D = detailOf(g);
+    HR.ring.add(g, D.c.x, D.c.z, houseReach(g));
+    if (g.userData.thrift && !g.userData.skipWalk) HR.unsettled.add(g);
+  }
   function detailTick() {
     const e = o.eye && o.eye(); if (!e || !o.focalPx) return;
     const K = o.focalPx();
+    let t = tmNow(), t1;
     hlodTick(e);
-    kitTick(e);
-    ktTick(e);
+    kitTick(e);   // (the look review's: dev only - metered with the far town)
+    t1 = tmNow(); TM.ms[TMI.hlod] += t1 - t; t = t1;
+    ktTick(e); t1 = tmNow(); TM.ms[TMI.kt] += t1 - t; t = t1;
     if (HLOD.skip !== false) settleTick();
-    for (const g of G.houses.children) {
-      if (!g.userData.frozen || g.userData.batch) continue;   // posed (its matrixWorld is final) before its centre is read
+    t1 = tmNow(); TM.ms[TMI.settle] += t1 - t; t = t1;
+    if (HR.ring) {
+      // a zoom past the reaches' headroom: every house re-reached (rare: the focal length moves with the FOV only)
+      if (K > HR.K) { HR.K = K * 1.25; HR.ring.all(g => { if (g.parent === G.houses) { const D = detailOf(g); HR.ring.add(g, D.c.x, D.c.z, houseReach(g)); } }); HR.ring.dirty(); }
+      HR.ring.update(e.x, e.z);
+      HR.ring.sweep(4);   // (a house torn down far away - an edit, a rebuild - leaves the ring within size / 4 frames)
+      const L = HR.ring.list;
+      for (let k = HR.ring.n - 1; k >= 0; k--) {   // (backwards: a house gone from the town leaves the ring here)
+        const g = L[k];
+        if (g.parent !== G.houses) { HR.ring.remove(g); continue; }
+        detailOne(g, e, K);
+      }
+      TM.visits += HR.ring.n;
+    } else for (const g of G.houses.children) detailOne(g, e, K);
+    TM.ms[TMI.detail] += tmNow() - t;
+  }
+  // one house's cuts from the eye (the walk's body, unchanged)
+  function detailOne(g, e, K) {
+    {
+      if (!g.userData.frozen || g.userData.batch) return;   // posed (its matrixWorld is final) before its centre is read
       const D = detailOf(g);
       if (g.userData.thrift) {
         const d = e.distanceTo(D.c), on = d < HOUSE_CAST_FAR * (g.userData.castOn ? 1.1 : 0.9);
@@ -2733,7 +3013,7 @@ function make(THREE, scene, world, rec0, opts) {
         const pOn = !DETAIL.props || d < HOUSE_PROP_GONE * (g.userData.propsOn ? 1.35 : 1.15);
         if (pOn !== g.userData.propsOn) { g.userData.propsOn = pOn; for (const x of g.userData.props) x.visible = pOn; if (typeof propInstTouch === 'function') propInstTouch(); }
       }
-      if (g.userData.far || g.userData.kitHide || (!D.list.length && !D.list2.length)) continue;
+      if (g.userData.far || g.userData.kitHide || (!D.list.length && !D.list2.length)) return;
       const px = 2 * D.R * K / Math.max(1, e.distanceTo(D.c)), on = px >= DETAIL.px * (D.on ? 1 - DETAIL.hyst : 1 + DETAIL.hyst);
       if (on !== D.on) { D.on = on; for (const m of D.list) if (!m.userData.merged) m.visible = on; }
       const on2 = !(DETAIL.px2 > 0) || px >= DETAIL.px2 * (D.on2 ? 1 - DETAIL.hyst : 1 + DETAIL.hyst);
@@ -2741,7 +3021,41 @@ function make(THREE, scene, world, rec0, opts) {
     }
   }
   // (G2955) every 20 frames the power lines' cable chunks past their reach from the eye are not drawn
-  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); if (freezeTick % 10 === 5 && FAR.cells.size && o.eye) farTick(o.eye());   /* (G3088) */ if (PWR && PWR.cull && freezeTick % 20 === 0 && o.eye) { const e = o.eye(); if (e) stats.cables = PWR.cull(e); } detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) { t.run.tick(dt).apply(); if (CABIN_FAR > 0 && t.cabs) cabinCut(t.cabs); } if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); trafficCount(); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
+  // (G3415) each part timed into the town meter (tickPre: the rise, the freeze walk, the far patches, the power lines; tickPost:
+  // the obstacles, the trams, the traffic, the herds - the life between them, in this line: GATE LIFE reads it here)
+  function tick(dt) { tickPre(); detailTick(); const t = tmNow(); if (LIFE) LIFE.tick(); TM.ms[TMI.life] += tmNow() - t; return tickPost(dt); }
+  function tickPre() {
+    let t = tmNow(), t1;
+    if (RISE.list.length) riseTick();
+    t1 = tmNow(); TM.ms[TMI.rise] += t1 - t; t = t1;
+    if (++freezeTick % 60 === 0) freezeStatic(true);
+    if (freezeTick % 10 === 5 && FAR.cells.size && o.eye) farTick(o.eye());   /* (G3088) */
+    t1 = tmNow(); TM.ms[TMI.freeze] += t1 - t; t = t1;
+    if (PWR && PWR.cull && freezeTick % 20 === 0 && o.eye) { const e = o.eye(); if (e) stats.cables = PWR.cull(e); }
+    TM.ms[TMI.pwr] += tmNow() - t;
+  }
+  function tickPost(dt) {
+    let t = tmNow(), t1;
+    hitPendingStep();
+    t1 = tmNow(); TM.ms[TMI.hit] += t1 - t; t = t1;
+    if (TRAMS.size) for (const [, tr] of TRAMS) { tr.run.tick(dt).apply(); if (CABIN_FAR > 0 && tr.cabs) cabinCut(tr.cabs); }
+    t1 = tmNow(); TM.ms[TMI.trams] += t1 - t; t = t1;
+    if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, tr] of TRAFFIC) moveTraffic(tr, dt, e); trafficCount(); }
+    t1 = tmNow(); TM.ms[TMI.traffic] += t1 - t; t = t1;
+    if (ANIM) stats.animalsShown = ANIM.tick(dt);
+    TM.ms[TMI.anim] += tmNow() - t;
+    return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0);
+  }
+  // the meter's read, once a frame (render_world): the items the town's walks visited this frame (returned), the parts' ms
+  // into TM.lastParts (TM_PARTS' order; TM.last their sum), reset for the next frame. Allocates nothing.
+  function townMeter() {
+    let sum = 0;
+    for (let i = 0; i < TM_PARTS.length; i++) { sum += TM.ms[i]; TM.lastParts[i] = TM.ms[i]; TM.sumParts[i] += TM.ms[i]; TM.ms[i] = 0; }
+    TM.frames++;   // (sumParts / frames: the parts' means over a run - tools/perf/town_meter_eval.js)
+    const n = TM.visits;
+    TM.last = sum; TM.lastVisits = n; TM.visits = 0;
+    return n;
+  }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
@@ -3676,7 +3990,10 @@ function make(THREE, scene, world, rec0, opts) {
   function sortFrom(cx, cz) {
     let kd = 0;
     for (const p of queue) { const w = qPos(p); let d = w ? Math.hypot(w[0] - cx, w[1] - cz) : 0;
-      if (KIT_NEAR > 0 && d > KIT_NEAR && kitOf(p) >= 0) { d += KIT_FAR; kd++; }
+      const co = cityOwn(p);
+      if (co === 1) d = 0;   // (G3417: a pack entry builds nothing - first, from anywhere: its cell goes live at once)
+      else if (co === 2) { const ci = cityCellOf(p); if ((ci !== undefined ? cityBoxD(ci, cx, cz) : d) > CITY.city.lod.nearOut + 400) { d += KIT_FAR; kd++; } }   // (a pack's unique: built from 400 m before its cell comes near)
+      else if (KIT_NEAR > 0 && d > KIT_NEAR && kitOf(p) >= 0) { d += KIT_FAR; kd++; }
       p._d = d; }
     queue.sort((a, b) => a._d - b._d);
     stats.kitDeferred = kd;
@@ -3791,7 +4108,7 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function buildOne0(p, R) {
     if (!R && TALLY_ON && !(p.isPark || p.isObject)) BLD.atRank(p._tr);   // G841: generated here, on the cook's tallies for its rank
-    try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec, R) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec, R) : kitOf(p) >= 0 ? buildKitLot(p, R) : buildHouse(p, R); if (h && METLA_BARE && isMetla(p.zone || (p.rec && p.rec.id) || p.id)) bareMetla(h, p); if (h && o.game) houseThrift(h.grp, !!(p.isPark || p.isItem || p.isObject || p.isFence)); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
+    try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? (cityOwn(p) ? cityBuildOne(p, R) : buildItem(p.rec, R)) : p.isObject ? (cityOwn(p) ? cityBuildOne(p, R) : buildObject(p.rec)) : p.isFence ? buildSiteFences(p.rec, R) : cityOwn(p) ? cityBuildOne(p, R) : kitOf(p) >= 0 ? buildKitLot(p, R) : buildHouse(p, R); if (h && CITY.on) cityBoundBuilt(p, h); if (h && METLA_BARE && isMetla(p.zone || (p.rec && p.rec.id) || p.id)) bareMetla(h, p); if (h && o.game) houseThrift(h.grp, !!(p.isPark || p.isItem || p.isObject || p.isFence)); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, built: h.built || null, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
     catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
   }
   // what a batch of builds owes once (not once an item)
@@ -3842,7 +4159,7 @@ function make(THREE, scene, world, rec0, opts) {
                 dispatched: 0, placed: 0, local: 0, errors: 0 };
   // (G842: the editor's edits are the worker's too - step() below; not while an edit's composition is still due)
   const hwOn = () => !!(HWK && !HWQ.dead && HWQ.epoch >= 0 && HWK.ok() && !HWQ.composeDue);
-  const hwKind = p => (p.isPark || p.isObject ? null : p.isFence ? 'fence' : p.isItem ? 'item' : kitOf(p) >= 0 ? 'kit' : 'house');   // (C3c: 'kit', a kit plot's lot)
+  const hwKind = p => (p.isPark || p.isObject ? null : p.isFence ? 'fence' : cityOwn(p) === 1 ? null : p.isItem ? 'item' : cityOwn(p) === 2 ? 'house' : kitOf(p) >= 0 ? 'kit' : 'house');   // (C3c: 'kit', a kit plot's lot; G3417: a pack plot builds nothing, here; a pack's unique the unique path)
   const hwMainOnly = p => !!(p.isItem && p.rec.gen === 'HANGAR_GEN' && !(p.rec.P && p.rec.P.restated) && typeof document !== 'undefined' && typeof genHangarBuild === 'function');
   // THE EDITOR'S LIVE PATH (G842, C2c; ARCH-2026-09-27 §3.3): an edit recomposes the page at once (the outlines, the
   // ground, the queue: syncHouses) and the worker a beat after the LAST edit - its composition is ~1.2 s, and a drag
@@ -4392,6 +4709,8 @@ function make(THREE, scene, world, rec0, opts) {
   const R = {
     root, groups: G, stats,
     lotsNear,   // G3210: the lots' cells drawn near the eye only (render_world, every 10 frames)
+    townMeter, townFrame: new Float64Array(3), town: TM,   // G3415: the town meter (render_world reads it once a frame; [ms, items, KB] of the last frame; TM.parts / TM.lastParts by part)
+    ring: () => ({ houses: HR.ring ? Object.assign({}, HR.ring.stats) : null, cells: HRC.ring ? Object.assign({}, HRC.ring.stats) : null, lots: LOTR.ring ? Object.assign({}, LOTR.ring.stats) : null, unsettled: HR.unsettled.size, on: RING_ON }),   // G3416: the near rings
     rebuild, rebuildSteps, preview, previewEnd, editEnd, step, dispose, ghost, ghostModel, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
     objectEdit, hitAll, grabAt,
     trafficReach: m => { if (m !== undefined) TRAFFIC_REACH.m = Math.max(0, +m || 0); return TRAFFIC_REACH.m; },   // (G3087)
@@ -4424,7 +4743,8 @@ function make(THREE, scene, world, rec0, opts) {
     drainNear, stream, prewarm, streamState: STREAM, cellLive, hwWait, hw: HWQ,   // G830: the house worker's pending answer (a promise, or null); its queue's state   // G591/G592: the aircraft-centred stream, its dials and state; a cell with nothing queued
     detail: DETAIL, hlod: HLOD,   // the distant houses' detail cull: px (0 = off), area, hyst (PERF 2026-09-23)
     kit: KIT, kitSet,             // C3b: the town kit's look review (?kitab=...): .host (.stats, .rungs(), .setBand), kitSet('kit' | 'unique' | toggle)
-    kitTown: KT, kitTownStats: ktStats, kitOf,   // C3c: Metlakatla on the kit (the town on): its state, its census, a plot's table row (-1: unique)
+    kitTown: KT, kitTownStats: ktStats, kitOf, city: CITY, cityStats,   // G3417: the town host from its pack (?cityhost=1)
+      // C3c: Metlakatla on the kit (the town on): its state, its census, a plot's table row (-1: unique)
     materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
     get game() { return !!o.game; },
     get record() { return rec; },

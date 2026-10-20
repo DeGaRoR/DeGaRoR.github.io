@@ -344,6 +344,8 @@ const MANIFEST = {
     ['src/viewer', 'premises_build.js'],
     // THE TOWN ON TEXTURE ARRAYS (G574): the stack, the slot table and the town materials the near bake draws with
     ['src/viewer', 'house_tarr.js'],
+    // THE NEAR RING (G3416, CITY-B): the list the town's per-frame walks visit (render_premises, scenery_life, townkit.js)
+    ['src/viewer', 'town_ring.js'],
     ['src/viewer', 'render_premises.js'],
   ].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // LOADED ON DEMAND (AS1, G909): ~290 KB of the world pack that a flight on the default map never runs - the scenery

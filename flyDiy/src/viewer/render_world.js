@@ -7351,12 +7351,25 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     finally { if (FRw) FRw.pop(); }
   }
   let premTramLast = 0, premStreamTick = 0, lotsNearTick = 0;
+  // G3415 (CITY-B) THE TOWN METER: the town's ticks of this update (the stream, the patch and roads, the lots' cut, the premises'
+  // tick) timed as one into the recorder's 'town' column, with the items they visited (render_premises townMeter) and - with
+  // ?townalloc=1 - the KB they allocated (Chrome's heap counter round them: run Chrome with --enable-precise-memory-info, its
+  // own read's cost measured off at the first frames). premisesR.townFrame holds the last frame's [ms, items, KB] for a rig.
+  const TOWN_ALLOC = typeof location !== 'undefined' && /[?&]townalloc=1\b/.test(location.search || '') && typeof performance !== 'undefined' && !!performance.memory;
+  const townHeap = { bias: NaN, cal: [] };
+  const heapNow = () => performance.memory.usedJSHeapSize;
+  function townAllocKB(h0) {
+    const d = heapNow() - h0;
+    if (!(townHeap.bias === townHeap.bias)) { const b0 = heapNow(); townHeap.cal.push(heapNow() - b0); if (townHeap.cal.length >= 16) { townHeap.cal.sort((a, b) => a - b); townHeap.bias = townHeap.cal[8]; } return NaN; }
+    return d < 0 ? NaN : Math.max(0, d - townHeap.bias) / 1024;   // (a GC inside the window: no sample)
+  }
   function worldUpdate(cg) {
     // a live edit's builds one a frame; the premises streamed by the AIRCRAFT's position (G591: it was one item every
     // third frame from anywhere, parked or not - 18-29 ms a frame of the taxi)
     // G620: the flight recorder's pushes (flight_recorder.js; each a no-op outside the game's frame) - the premises' step,
     // the cover ring and the fill timed apart from the rest of this update, and each premises build an event
     const FRw = (typeof window !== 'undefined' && window.FLIGHT_REC) || null;
+    const tTown = premisesR ? performance.now() : 0, hTown = premisesR && TOWN_ALLOC ? heapNow() : 0;
     if (premisesR && premisesR.stats.queued) {
       const tP = FRw ? performance.now() : 0, q0 = premisesR.stats.queued;
       if (FRw) FRw.push(FRw.S.prem);
@@ -7366,7 +7379,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (premisesR && !(typeof window !== 'undefined' && window.PREMISES_HOST_OPEN)) geoTick(cg);   // G2063: the town's patch and roads, near it
     if (premisesR && premisesR.lotsNear && ++lotsNearTick % 10 === 0) premisesR.lotsNear(camera.position.x, camera.position.z);   // G3210: the plots near the eye only
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
-    if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast && !(typeof window !== 'undefined' && window.FLYDIY_HELD) ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // (G650: not while the player has paused)   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
+    if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.town || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast && !(typeof window !== 'undefined' && window.FLYDIY_HELD) ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // (G650: not while the player has paused)   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)   // .town: the city host (G3417)
+    if (premisesR) {   // G3415: the town's share of this update, into the frame's row
+      const kb = TOWN_ALLOC ? townAllocKB(hTown) : NaN, ms = performance.now() - tTown, n = premisesR.townMeter ? premisesR.townMeter() : 0;
+      const TF = premisesR.townFrame; if (TF) { TF[0] = ms; TF[1] = n; TF[2] = kb; }
+      if (FRw && FRw.town) FRw.town(ms, n, kb);
+    }
     // G586: the frame's own dt (app.js FLYDIY_PACE; 1/60 where there is no clock - a rig, a harness)
     // G650: paused in flight (app.js FLYDIY_HELD) the frame lasts nothing for the sea and the sway
     const fdt = (typeof window !== 'undefined' && window.FLYDIY_HELD) ? 0 : (typeof window !== 'undefined' && window.FLYDIY_PACE) ? window.FLYDIY_PACE.dt : 1 / 60;
