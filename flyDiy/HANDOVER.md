@@ -95563,3 +95563,10 @@ door (or load through tools/_load_build.js), or check 5 goes red again.
 Cargo (rolling): joinparity (G2799: the editor's join parity, the page re-captured by join_parity_page.js). HANDOVER conflict unioned.
 Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
 Strict light gate: 8 RED, none new by cause: over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV; its fix is checked Tue 19:30 for L20d); metal chase tasks1s / taskWorst = the ~1 s boot/settle tasks (+-0.5 s run to run); floats world->garage 2.1 s = the pre-existing program re-link; metal fuseWidth busy = the cost the user accepted by name (15 Oct).
+
+## A0 - landing L20d (20 Oct 2026, gates 22:00-23:05, pushed ~23:20): STORY-TIM ALONE
+The rolling set was reveal-hitch + story-tim (ready/torque-retune-66 reached origin after the 22:00 pick-up -> L21a, as the user asked).
+- The battery on the pair: UISMOKE and UISMOKE-PHONE RED, NEW, from reveal-hitch. app.js:11692 `REVEAL_PLANT_OFF = /.../.test(location.search)` reads `location` at the top level, which the gates' node vm has no global for. The other reds are master's known ones (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
+- The strict light gate on the pair: 7 RED. over100 x4 are UNCHANGED, so the gate rig still sees the reveal hitch with the pre-plant in. NEW: cub round trip 2 garage -> world worst task 490 ms (slack 150), likely the pre-plant's own cost on the world entry. Also metal fuseWidth busy (accepted) and floats world->garage 2.15 s (the known re-link).
+- So reveal-hitch is HELD back to HWCOV: guard `location`; bisect over100 with the gate's own sequence; measure the pre-plant's garage->world cost.
+- Landed: claude/ready/story-tim 3a800c4af ALONE (= master c7c163805 + STORY-TIM). That exact tree passed STORY / UISMOKE / UISMOKE-PHONE on the box at 17:03 (Game, fast lane), and is fresh-cooked here (parked cook for its build id). Tim's band, the paint-only T0 (EDITOR_LOCK.finishOnly), no bench in the small shed.
