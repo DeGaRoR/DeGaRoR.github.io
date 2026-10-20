@@ -3,11 +3,14 @@
 // futureDesigns/CITY-PACK-FORMAT.md). A sibling of premises_cook.js and town_kit.js, downstream of both: it reads their
 // COMMITTED outputs (the town variant's places cook, the kit pack and its instance table) and the composed record, and
 // writes one pack per sown town, cut in 512 m cells of the world:
-//   FAR   one static merged mesh a cell, built here (walls + roofs: the kit archetypes' far shells and the uniques' boxes;
-//         roads: the town's ribbons; lots: the plots' ground) - 12 B a vertex, quantized in the cell's box, vertex colour
-//         = the finish's albedo mean (the G559 rule, the gain the runtime's), two draws a cell
+//   FAR   one static merged mesh a cell, built here (walls + roofs: the kit archetypes' far shells and the uniques' boxes)
+//         - 12 B a vertex, quantized in the cell's box, vertex colour = the finish's albedo mean (the G559 rule, the gain
+//         the runtime's), ONE draw a cell, each owner's index range named (far.owners). No roads (the pavement draws them
+//         at every distance), no flat lot squares anywhere (the user, 20 Oct: the terrain's own texture is the lot)
 //   NEAR  the kit rows (a TKIN instance file, WORLD frame, townkit.js decodeInstances reads it as is), the props (20 B a
-//         row: the places cook's own placements), the uniques (the landmarks: the unique path near)
+//         row: the places cook's own placements), the LOTS (v2, 32 B a row: every plot's fence posts, bays, gates and its
+//         worn ground - what G3210's Metlakatla bare took down - instanced from the town's LOT KIT, cooked here from
+//         VILLAGE_GEN's own fence), the uniques (the landmarks: the unique path near)
 // A page with the town OFF (PREMISES_GEN.TOWN_OFF) fetches none of it; nothing the town-OFF record keeps is in it.
 //
 //   node tools/city_cook.js --island jolene --report     # cook in memory, measure, write nothing
@@ -26,22 +29,20 @@ const ROOT = path.join(__dirname, '..');
 const OUT = path.join(ROOT, 'src', 'core', 'city_packs.json');
 const PACKS = path.join(ROOT, 'src', 'core', 'premises_packs.json');
 const KIT_MAN = path.join(ROOT, 'src', 'core', 'townkit_pack.json');
-const V = 1;
+const V = 2;
 const MAGIC = 0x59544943;            // 'CITY'
 const S = 512;                       // the city cell, world metres (2 x 2 stream cells of render_premises LIVE_CELL)
-const VSTRIDE = 12, PSTRIDE = 20, INST = 32;
+const VSTRIDE = 12, PSTRIDE = 20, INST = 32, LSTRIDE = 32;
 // the distances the cook assumed - the host reads them from the manifest (CITY-PACK-FORMAT §6)
-const LOD = { nearIn: 950, nearOut: 1050, kitE0: 150, kitE1: 1200, propFar: 600, castFar: 600, farGain: 0.2 };
-const LIFT = { roads: 0.15, lots: 0.08 };
-const ROAD_STEP = 8, LOT_EDGE = 8;
-const BUCKETS = ['walls', 'roofs', 'roads', 'lots'];
-const UP = [0, 1, 0];               // the ground buckets' normal: draped, flat-coloured, shared vertices (no facets)
+// `far` is THE DIAL (the user, 20 Oct: the far shells from 1 km; 2 km the fallback): nearIn / nearOut = far -/+ 50
+const LOD = { far: 1000, nearIn: 950, nearOut: 1050, kitE0: 150, kitE1: 1200, propFar: 600, lotFar: 400, lotE1: 120, castFar: 600, farGain: 0.2 };
+const BUCKETS = ['walls', 'roofs'];
 // the sown towns: a record prefix on Jolene's zones, cooked from the variant that composes them
 const TOWNS = [{ id: 'metlakatla', island: 'jolene', prefix: 'mk_', variant: 'town', base: 'default' }];
 
 // THE MEANS: each scanned set's albedo mean, the 4 x 4 box mean of its shipped _diff map in sRGB bytes (what
 // render_premises meanOf draws its canvas to), measured once (PIL, BOX filter) - keyed by the FILE so a re-shot texture
-// shows as stale (GATE CITYCOOK: every file named here exists). 'g:' = a ground map (media/tex/ground).
+// shows as stale (GATE CITYCOOK: every file named here exists).
 const MEANS = {
   bark: ['bark_diff_256.5ca7f47f.jpg', 139, 121, 79], board: ['board_diff_512.3ce5558b.jpg', 88, 47, 12],
   boxprof: ['boxprof_diff_1k.5fcf796f.jpg', 106, 38, 23], brownwood: ['brownwood_diff_512.1525f1ad.jpg', 144, 121, 95],
@@ -59,17 +60,11 @@ const MEANS = {
   veneer: ['veneer_diff_256.863751b2.jpg', 227, 212, 185], veneerdark: ['veneerdark_diff_256.64d891e6.jpg', 137, 126, 114],
   veneerpale: ['veneerpale_diff_256.99593336.jpg', 194, 156, 110], veneerwarm: ['veneerwarm_diff_256.89ae0dc3.jpg', 169, 137, 114],
   wornwood: ['wornwood_diff_512.9a8f5894.jpg', 96, 75, 57],
-  'g:asphalt': ['asphalt_diff_512.97b52f47.jpg', 90, 90, 85], 'g:concreteA': ['concreteA_diff_512.46078ce4.jpg', 73, 59, 46],
-  'g:dirtG': ['dirtG_diff_512.b598cc70.jpg', 99, 82, 63], 'g:grassG': ['grassG_diff_512.1188e448.jpg', 110, 96, 62],
-  'g:gravelG': ['gravelG_diff_512.520a980c.jpg', 146, 131, 104], 'g:sandC': ['sandC_diff_512.c491fcd1.jpg', 94, 84, 64],
 };
-const meanFile = k => (k.startsWith('g:') ? 'media/tex/ground/' : 'media/tex/house/') + MEANS[k][0];
+const meanFile = k => 'media/tex/house/' + MEANS[k][0];
 // the sets whose map is a pale base under the house's paint (house_tex.js: a `paint` map) - the palette names the colour
 // you GET (_house_gen.js paintHex), so a painted face's far colour is the palette's
 const PAINTABLE = new Set(['boxprof', 'paintwood', 'greenwood', 'board', 'darkwood', 'veneer', 'veneerdark', 'veneerwarm', 'veneerpale', 'render']);
-// a road's surface (27_premises SURFACE) -> its ground map; a lot's ground (a yard: half gravel, half grass) -> the mean of two
-const ROAD_MAP = { 5: 'g:asphalt', 6: 'g:gravelG', 7: 'g:sandC' };
-const LOT_MAPS = ['g:dirtG', 'g:grassG'];
 const NEUTRAL = { wall: [128, 120, 108], roof: [84, 84, 82] };
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -93,7 +88,6 @@ function colsHex() {
 }
 const hexRGB = h => [(h >> 16) & 255, (h >> 8) & 255, h & 255];
 const meanRGB = k => (MEANS[k] ? MEANS[k].slice(1, 4) : null);
-const mix = (a, b) => [Math.round((a[0] + b[0]) / 2), Math.round((a[1] + b[1]) / 2), Math.round((a[2] + b[2]) / 2)];
 // a face's far colour: the palette where the set takes paint and the house is painted, else the set's mean
 function faceRGB(set, col, COLS, dflt) {
   if (col > 0 && col < COLS.length && (!set || PAINTABLE.has(set))) return hexRGB(COLS[col]);
@@ -156,13 +150,9 @@ function composedOf(T) {
   const PC = require(path.join(ROOT, 'tools', 'premises_cook.js'));
   const Vv = PC.VARIANTS.find(v => v.name === T.variant);
   const fixtureText = fs.readFileSync(PC.fixturePath(T.island), 'utf8');
-  const { O, rec } = PC.composeVariant(T.island, Vv, fixtureText);
-  const PG = PC.headless().PG;
-  // the base variant's record (the town OFF): its roads are not the town's
-  const Vb = PC.VARIANTS.find(v => v.name === T.base);
-  const baseRec = PC.dropOf(PG, PG.unwrap(fixtureText).rec, Vb);
-  const baseRoads = new Set(((baseRec.layers && baseRec.layers.roads) || []).map(r => String(r.id)));
-  const C = { O, rec, PG, fixture: sha16(fixtureText), record: sha16(JSON.stringify(O.rec)), baseRoads, TOWN_OFF: PG.TOWN_OFF };
+  const { W, O, rec } = PC.composeVariant(T.island, Vv, fixtureText);
+  const H = PC.headless();
+  const C = { W, O, rec, PG: H.PG, GENS: H.GENS, fixture: sha16(fixtureText), record: sha16(JSON.stringify(O.rec)), TOWN_OFF: H.PG.TOWN_OFF };
   COMPOSED.set(k, C);
   return C;
 }
@@ -235,7 +225,8 @@ function shellFaces(sh) {
 // THE CELL BUILDER: buckets of world triangles, then quantized
 // ---------------------------------------------------------------------------------------------------------------
 function newCell(i, j) {
-  return { i, j, key: keyOf(i, j), tri: [[], [], [], []], plots: [], uniques: [], objects: [], kit: [], kitPlots: [], props: [] };
+  // `own`: the owner the next triangles belong to ([kind, index]: 0 a plot, 1 a unique) - far.owners' ranges
+  return { i, j, key: keyOf(i, j), tri: [[], []], own: [0, 0], plots: [], uniques: [], objects: [], kit: [], kitPlots: [], props: [], lots: [] };
 }
 // a convex polygon of world points (CCW from outside) into a bucket: its own flat normal unless one is given
 function pushPoly(cell, b, pts, rgb, nrm) {
@@ -247,7 +238,7 @@ function pushPoly(cell, b, pts, rgb, nrm) {
   }
   const l = Math.hypot(n[0], n[1], n[2]); if (!(l > 1e-12)) return;
   n = [n[0] / l, n[1] / l, n[2] / l];
-  for (let k = 1; k + 1 < pts.length; k++) cell.tri[b].push([pts[0], pts[k], pts[k + 1], n, rgb]);
+  for (let k = 1; k + 1 < pts.length; k++) cell.tri[b].push([pts[0], pts[k], pts[k + 1], n, rgb, cell.own]);
 }
 // orient a polygon so its winding faces `out` (a world direction): CCW seen from there
 function facing(pts, out) {
@@ -258,7 +249,7 @@ function facing(pts, out) {
 }
 function encodeFar(cell) {
   const tris = [].concat(...cell.tri);
-  if (!tris.length) return { box: null, vb: Buffer.alloc(0), ib: Buffer.alloc(0), verts: 0, tris: 0, index: 16, buckets: BUCKETS.map((name, id) => ({ name, id, first: 0, count: 0 })), draws: [] };
+  if (!tris.length) return { box: null, vb: Buffer.alloc(0), ib: Buffer.alloc(0), verts: 0, tris: 0, index: 16, buckets: BUCKETS.map((name, id) => ({ name, id, first: 0, count: 0 })), draws: [], owners: [] };
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (const t of tris) for (let k = 0; k < 3; k++) for (let a = 0; a < 3; a++) { const v = t[k][a]; if (v < lo[a]) lo[a] = v; if (v > hi[a]) hi[a] = v; }
   const box = [Math.floor(lo[0] * 100) / 100, Math.floor(lo[1] * 100) / 100, Math.floor(lo[2] * 100) / 100,
@@ -266,10 +257,14 @@ function encodeFar(cell) {
   for (let a = 0; a < 3; a++) if (box[a + 3] - box[a] < 0.01) box[a + 3] = r3(box[a] + 0.01);
   const q = (v, a) => Math.max(0, Math.min(65535, Math.round((v - box[a]) / (box[a + 3] - box[a]) * 65535)));
   // vertices shared within a bucket where position, normal and colour quantize alike
-  const verts = [], vmap = new Map(), idx = [], buckets = [];
-  for (let b = 0; b < 4; b++) {
+  const verts = [], vmap = new Map(), idx = [], buckets = [], owners = [];
+  for (let b = 0; b < BUCKETS.length; b++) {
     const first = idx.length;
     for (const t of cell.tri[b]) {
+      // each owner's triangles are contiguous in a bucket (the cook pushes one owner at a time): a run per owner
+      const o = owners[owners.length - 1];
+      if (!o || o[2] !== b || o[0] !== t[5][0] || o[1] !== t[5][1]) owners.push([t[5][0], t[5][1], b, idx.length, 0]);
+      owners[owners.length - 1][4] += 3;
       const on = octEnc(t[3][0], t[3][1], t[3][2]);
       for (let k = 0; k < 3; k++) {
         const p = t[k], rec = [q(p[0], 0), q(p[1], 1), q(p[2], 2), on[0], on[1], t[4][0], t[4][1], t[4][2], b];
@@ -290,11 +285,9 @@ function encodeFar(cell) {
   });
   const wide = verts.length > 65535, ib = Buffer.alloc(idx.length * (wide ? 4 : 2));
   idx.forEach((v, n) => (wide ? ib.writeUInt32LE(v, n * 4) : ib.writeUInt16LE(v, n * 2)));
-  const draws = [];
-  const shell = buckets[0].count + buckets[1].count, ground = buckets[2].count + buckets[3].count;
-  if (shell) draws.push({ mat: 'shell', first: 0, count: shell });
-  if (ground) draws.push({ mat: 'ground', first: shell, count: ground });
-  return { box, vb, ib, verts: verts.length, tris: idx.length / 3, index: wide ? 32 : 16, buckets, draws };
+  const shell = buckets[0].count + buckets[1].count;
+  const draws = shell ? [{ mat: 'shell', first: 0, count: shell }] : [];
+  return { box, vb, ib, verts: verts.length, tris: idx.length / 3, index: wide ? 32 : 16, buckets, draws, owners };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -341,69 +334,223 @@ function addBox(cell, at, shape, O, wallRGB, roofRGB) {
   pushPoly(cell, 1, facing(up, [0, 1, 0]), roofRGB);
   return true;
 }
-// ear clipping on a simple 2-D polygon (x, z): triangles as index triples, CCW in (x, z)
-function earClip(P) {
-  const n = P.length; if (n < 3) return [];
-  let A = 0; for (let k = 0; k < n; k++) { const a = P[k], b = P[(k + 1) % n]; A += a[0] * b[1] - b[0] * a[1]; }
-  const V = []; for (let k = 0; k < n; k++) V.push(A > 0 ? k : n - 1 - k);
-  const cr = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
-  const inside = (p, a, b, c) => cr(a, b, p) >= 0 && cr(b, c, p) >= 0 && cr(c, a, p) >= 0;
-  const out = [];
-  let guard = 0;
-  while (V.length > 3 && guard++ < 4 * n * n) {
-    let cut = false;
-    for (let k = 0; k < V.length; k++) {
-      const ia = V[(k + V.length - 1) % V.length], ib = V[k], ic = V[(k + 1) % V.length];
-      const a = P[ia], b = P[ib], c = P[ic];
-      if (cr(a, b, c) <= 1e-12) continue;
-      let ear = true;
-      for (const m of V) { if (m === ia || m === ib || m === ic) continue; if (inside(P[m], a, b, c)) { ear = false; break; } }
-      if (!ear) continue;
-      out.push([ia, ib, ic]); V.splice(k, 1); cut = true; break;
-    }
-    if (!cut) break;
+// ---------------------------------------------------------------------------------------------------------------
+// THE LOTS (v2, CITY-PACK-FORMAT §9): what G3210's Metlakatla bare took down, as instanced near-only rows. The fence is
+// the village's own (VILLAGE_GEN.buildFence / gateLeaf, premises_build.js genFence's rules), cooked ONCE into the town's
+// LOT KIT - a post, a 2.4 m bay, a gate leaf, a gate post, per style, the posts and bays in four hands - and every
+// stretch of every plot becomes rows of those pieces, cut exactly as buildFence cuts it (a post every 2.4 m, the gate
+// its own bay, its leaf swung by buildFence's own noise). The ground is drawn only where it is WORN (lotGround's
+// paths, drive, pad, slab and the dry ground at the house's foot): strips and rectangles with a soft edge, at most
+// 8 m a piece. lotGround's lawn tone over the whole lot is not drawn - the user's "no flat lot squares": the terrain is.
+// ---------------------------------------------------------------------------------------------------------------
+const LOTKIT_MAGIC = 0x544b544c;     // 'LTKT'
+const FENCE_HAND = 0.6;              // premises_build.js FENCE_HAND
+const BAY = 2.4, GATE_W = 1.0, LOT_VARIANTS = 4, PIECE_MAX = 8;
+const FENCE_H = { rail: 1.15, picket: 1.05 };
+// the worn ground (lotGround's channels): the full width drawn (the fade included) and the fade, metres; the lot_tex set
+const GROUND = {
+  path: { tex: 'dirt', fade: 0.55, width: 0.7 + 2 * 0.55 },     // dirtAt: full within 0.35 m of the walk, gone at 0.9
+  drive: { tex: 'dirt', fade: 0.6 },                             // the drive's half width + 0.6
+  pad: { tex: 'pebble', fade: 0.5 },                             // padAt: the pad + 0.5
+  slab: { tex: 'cracked', fade: 0.05 },                          // the commercial slab (slabMesh's set), a hard edge
+  dry: { tex: 'dry', fade: 1.2 },                                // dryAt: the house's (and the outbuilding's) rect + 1.2
+};
+// the lot kit's normals: three's computeVertexNormals, then the bag's own overrides (town_kit.js normalsOf)
+function normalsOf(raw) {
+  const p = raw.pos, n = new Float32Array(p.length);
+  for (let t = 0; t < raw.idx.length; t += 3) {
+    const a = raw.idx[t] * 3, b = raw.idx[t + 1] * 3, c = raw.idx[t + 2] * 3;
+    const cbx = p[c] - p[b], cby = p[c + 1] - p[b + 1], cbz = p[c + 2] - p[b + 2];
+    const abx = p[a] - p[b], aby = p[a + 1] - p[b + 1], abz = p[a + 2] - p[b + 2];
+    const x = cby * abz - cbz * aby, y = cbz * abx - cbx * abz, z = cbx * aby - cby * abx;
+    for (const v of [a, b, c]) { n[v] += x; n[v + 1] += y; n[v + 2] += z; }
   }
-  if (V.length === 3) out.push([V[0], V[1], V[2]]);
-  return out;
+  for (let i = 0; i < n.length; i += 3) { const l = Math.hypot(n[i], n[i + 1], n[i + 2]) || 1; n[i] /= l; n[i + 1] /= l; n[i + 2] /= l; }
+  (raw.nOv || []).forEach((v, i) => { if (!v) return; const l = Math.hypot(v[0], v[1], v[2]) || 1; n[i * 3] = v[0] / l; n[i * 3 + 1] = v[1] / l; n[i * 3 + 2] = v[2] / l; });
+  return n;
 }
-// a lot: the plot's polygon, ear-clipped, each triangle split so no edge passes LOT_EDGE, draped on the ground + the lift.
-// (x, z) CCW in the plane is clockwise seen from +y (z runs south): the triangles are wound to face up
-function addLot(cell, poly, O, rgb) {
-  const T = earClip(poly);
-  const at = (x, z) => [x, O.terrainAt(x, z) + LIFT.lots, z];
-  for (const t of T) {
-    const [a, b, c] = t.map(k => poly[k]);
-    const e = Math.max(Math.hypot(b[0] - a[0], b[1] - a[1]), Math.hypot(c[0] - b[0], c[1] - b[1]), Math.hypot(a[0] - c[0], a[1] - c[1]));
-    const n = Math.max(1, Math.min(8, Math.ceil(e / LOT_EDGE)));
-    const P = (u, v) => at(a[0] + (b[0] - a[0]) * u / n + (c[0] - a[0]) * v / n, a[1] + (b[1] - a[1]) * u / n + (c[1] - a[1]) * v / n);
-    for (let u = 0; u < n; u++) for (let v = 0; u + v < n; v++) {
-      pushPoly(cell, 3, facing([P(u, v), P(u + 1, v), P(u, v + 1)], [0, 1, 0]), rgb, UP);
-      if (u + v + 1 < n) pushPoly(cell, 3, facing([P(u + 1, v), P(u + 1, v + 1), P(u, v + 1)], [0, 1, 0]), rgb, UP);
-    }
+// a bag's triangles whose centroid passes `keep`, as a town_kit.js LOD (role: 0 post, 1 deck)
+function lodOfBag(bag, role, keep) {
+  const raw = bag.raw(), nr = normalsOf(raw), L = { pos: [], nrm: [], uv: [], ao: [], role: [], stance: [], lit: [], win: [], idx: [] }, map = new Map();
+  const vert = i => {
+    let m = map.get(i); if (m !== undefined) return m;
+    m = L.role.length; map.set(i, m);
+    L.pos.push(raw.pos[i * 3], raw.pos[i * 3 + 1], raw.pos[i * 3 + 2]); L.nrm.push(nr[i * 3], nr[i * 3 + 1], nr[i * 3 + 2]);
+    L.uv.push(raw.uv[i * 2], raw.uv[i * 2 + 1]); L.ao.push(raw.ao[i] === undefined ? 1 : raw.ao[i]); L.role.push(role); L.stance.push(0); L.lit.push(0); L.win.push(0, 0, 0);
+    return m;
+  };
+  for (let t = 0; t < raw.idx.length; t += 3) {
+    const a = raw.idx[t], b = raw.idx[t + 1], c = raw.idx[t + 2];
+    const cx = (raw.pos[a * 3] + raw.pos[b * 3] + raw.pos[c * 3]) / 3;
+    const span = Math.max(raw.pos[a * 3], raw.pos[b * 3], raw.pos[c * 3]) - Math.min(raw.pos[a * 3], raw.pos[b * 3], raw.pos[c * 3]);
+    if (keep && !keep(cx, span)) continue;
+    L.idx.push(vert(a), vert(b), vert(c));
   }
+  return L;
 }
-// a road: resampled every ROAD_STEP along its polyline, a ribbon of its width; each quad to the cell of its midpoint
-function roadQuads(road, O) {
-  const pts = road.pts.map(p => O.frame.toWorld(p[0], p[1]));
-  const S0 = [];
-  for (let k = 0; k + 1 < pts.length; k++) {
-    const a = pts[k], b = pts[k + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    const n = Math.max(1, Math.ceil(L / ROAD_STEP));
-    for (let m = k ? 1 : 0; m <= n; m++) S0.push([a[0] + (b[0] - a[0]) * m / n, a[1] + (b[1] - a[1]) * m / n]);
+// buildFence's own noise (j), on the stretch's start and its seed: the gate's swing and a picket's top
+const jOf = (a, k0) => (i, k) => { const h = Math.sin((a[0] + i * 3.7) * 12.9898 + (a[1] + k) * 78.233 + k0) * 43758.5453; return (h - Math.floor(h)) * 2 - 1; };
+let LOTKIT = null;
+function lotKitOf(C) {
+  if (LOTKIT) return LOTKIT;
+  const VG = C.GENS.VILLAGE_GEN, HK = C.GENS.HOUSE_KIT, HG = C.GENS.HOUSE_GEN;
+  const TKA = require(path.join(ROOT, 'tools', 'town_kit.js'));
+  const flat = { h: () => 0, waterY: -1e9, size: 1e4 };
+  const pieces = [], blobs = [], byName = new Map();
+  let off = 0;
+  const put = b => { const at = off; blobs.push(b); const pad = (4 - (b.length & 3)) & 3; if (pad) blobs.push(Buffer.alloc(pad)); off += b.length + pad; return [at, b.length]; };
+  const mesh = (name, kind, style, variant, len, L) => {
+    const e = TKA.encodeLod(L), m = e.meta;
+    if (m.index !== 16) throw new Error('city_cook: a lot piece past 65 535 vertices');
+    const P = { id: pieces.length, name, kind, style, variant, len, tris: m.tris, verts: m.verts, box: m.pos.min.concat(m.pos.max), uv: m.uv.min.concat(m.uv.max), vb: put(e.blobs[0]), ib: put(e.blobs[1]) };
+    pieces.push(P); byName.set(name, P.id); return P;
+  };
+  const bagsOf = () => ({ post: HK.Bag('post'), deck: HK.Bag('deck') });
+  for (const style of ['rail', 'picket']) {
+    for (let v = 0; v < LOT_VARIANTS; v++) {
+      // one bay between two posts, on flat ground, in the village's hand at a seed of its own
+      const bags = bagsOf();
+      VG.buildFence(bags, flat, { a: [0, 0], b: [BAY, 0], kind: 'side', style, gap: null }, FENCE_HAND, 1009 + 7919 * v);
+      HK.bakeAO([bags.post, bags.deck], { strength: 0.85, range: 0.5, ground: flat.h });
+      mesh('post:' + style + ':' + v, 'post', style, v, 1, lodOfBag(bags.post, 0, cx => cx < BAY / 2));
+      mesh('bay:' + style + ':' + v, 'bay', style, v, BAY, lodOfBag(bags.deck, 1, null));
+      // THE BAY'S LOD 1 (a picket bay is ~450 triangles, ~60 past lod.lotE1): its rails (the triangles that run along the
+      // bay, and their end caps) and the pickets as ONE panel, both faces, where they stand
+      if (style === 'picket' && v === 0) {
+        const L1 = lodOfBag(bags.deck, 1, (cx, span) => span > 0.5 || cx < 0.03 || cx > BAY - 0.03);
+        const pk = lodOfBag(bags.deck, 1, (cx, span) => !(span > 0.5 || cx < 0.03 || cx > BAY - 0.03));
+        let zs = 0, y0 = Infinity, y1 = -Infinity; const nv = pk.pos.length / 3;
+        for (let i = 0; i < nv; i++) { zs += pk.pos[i * 3 + 2]; y0 = Math.min(y0, pk.pos[i * 3 + 1]); y1 = Math.max(y1, pk.pos[i * 3 + 1]); }
+        const z = zs / Math.max(1, nv);
+        for (const sd of [1, -1]) {
+          const b = L1.role.length, q = [[0, y0], [BAY, y0], [BAY, y1], [0, y1]];
+          for (const [x, y] of q) { L1.pos.push(x, y, z + sd * 0.004); L1.nrm.push(0, 0, sd); L1.uv.push(x, y); L1.ao.push(0.9); L1.role.push(1); L1.stance.push(0); L1.lit.push(0); L1.win.push(0, 0, 0); }
+          if (sd > 0) L1.idx.push(b, b + 1, b + 2, b, b + 2, b + 3); else L1.idx.push(b, b + 2, b + 1, b, b + 3, b + 2);
+        }
+        mesh('bay1:picket', 'bay1', style, 0, BAY, L1);
+      }
+    }
+    // the gate: its leaf hung on the post at x 0, CLOSED (the row's yaw carries the swing), and its two taller posts
+    const bags = bagsOf(), j0 = jOf([0, 0], 4111);
+    VG.gateLeaf(bags, flat, [0, 0], [1, 0], 0, GATE_W + 0.10, FENCE_H[style], FENCE_HAND, (i, k) => (k === 9 ? -1.5 : j0(i, k)), style);
+    HK.bakeAO([bags.post, bags.deck], { strength: 0.85, range: 0.5, ground: flat.h });
+    mesh('gate:' + style, 'gate', style, 0, GATE_W, lodOfBag(bags.deck, 1, null));
+    mesh('gatepost:' + style, 'gatepost', style, 0, 1, lodOfBag(bags.post, 0, cx => cx < 0.5));
   }
-  const hw = (road.w || 4) / 2, side = [];
-  for (let k = 0; k < S0.length; k++) {
-    const p = S0[Math.max(0, k - 1)], q = S0[Math.min(S0.length - 1, k + 1)];
-    let tx = q[0] - p[0], tz = q[1] - p[1]; const l = Math.hypot(tx, tz) || 1; tx /= l; tz /= l;
-    const L = [S0[k][0] - tz * hw, S0[k][1] + tx * hw], R = [S0[k][0] + tz * hw, S0[k][1] - tx * hw];
-    side.push([[L[0], O.terrainAt(L[0], L[1]) + LIFT.roads, L[1]], [R[0], O.terrainAt(R[0], R[1]) + LIFT.roads, R[1]]]);
+  // each bay names its lod 1 (a rail bay is its own: ~56 triangles)
+  for (const P of pieces) if (P.kind === 'bay') P.lod1 = P.style === 'picket' ? byName.get('bay1:picket') : P.id;
+  const oldW = HG.YARD_KIT && HG.YARD_KIT.fence_old ? HG.YARD_KIT.fence_old.W : 4.597;
+  const P0 = { id: pieces.length, name: 'old', kind: 'old', style: 'old', variant: 0, len: oldW, prop: 'fence_old' };
+  pieces.push(P0); byName.set('old', P0.id);
+  for (const g of Object.keys(GROUND)) { const P = { id: pieces.length, name: 'ground:' + g, kind: 'ground', style: g, variant: 0, len: 1, tex: GROUND[g].tex, fade: GROUND[g].fade }; pieces.push(P); byName.set(P.name, P.id); }
+  LOTKIT = { pieces, blobs, byName, oldW };
+  return LOTKIT;
+}
+// the lot kit file (CITY-PACK-FORMAT §9.2): the piece table names the old fence's prop by its index in the town's keys
+function lotKitFile(LK, kidx) {
+  const pieces = LK.pieces.map(p => (p.prop ? Object.assign({}, p, { prop: kidx.get(p.prop) }) : p));
+  const hb = Buffer.from(JSON.stringify({ magic: 'LTKT', v: 1, roles: ['post', 'deck'], vstride: 16, pieces }), 'utf8');
+  const pre = Buffer.alloc(12); pre.writeUInt32LE(LOTKIT_MAGIC, 0); pre.writeUInt32LE(1, 4); pre.writeUInt32LE(hb.length, 8);
+  return { raw: Buffer.concat([pre, hb, Buffer.alloc((4 - ((12 + hb.length) & 3)) & 3)].concat(LK.blobs)), pieces };
+}
+const h16 = str => { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619) >>> 0; return h; };
+const yawOf = (tx, tz) => Math.atan2(-tz, tx);          // rotY's yaw whose +x is the world direction (tx, tz)
+// one plan's lot rows: its fences (cut as buildFence cuts them) and its worn ground
+//   plan   the dressed plot (finishPlot's: fences, path, outPath, drive, lot) - the places cook's, premises frame
+//   house  { x, z, yaw, P } the house the plan was made round (the dry ground at its foot); out: the outbuilding's
+//   T      { h, waterY, size } the composed ground in the premises frame, the zone's water (clipToLand's dry test)
+function lotRows(C, LK, plan, house, T, owner, ownerFlag, seedKey) {
+  const VG = C.GENS.VILLAGE_GEN, PG = C.PG, O = C.O, rows = [], fenced = { want: 0, got: 0 };
+  const P = (x, z) => { const w = O.frame.toWorld(x, z); return [w[0], w[1]]; };
+  const dyaw = O.frame.yaw || 0;
+  const row = (piece, x, z, yaw, len, width, flags, corners, y) => {
+    const w = P(x, z), y0 = y !== undefined ? y : T.h(x, z);
+    rows.push({ x: w[0], y: y0, z: w[1], yaw: yaw + dyaw, len, width, piece, flags: flags | ownerFlag, owner, seed: h16(seedKey + '|' + rows.length) & 65535,
+                g: corners ? corners.map(v => v - y0) : [0, 0, 0, 0] });
+  };
+  const k0 = (PG.fnv(String(plan.id)) % 1000) * 7 + 1;      // premises_build.js genDress's fence seed
+  (plan.fences || []).forEach((seg0, si) => {
+    const seg = VG.clipToLand(T, seg0);
+    if (!seg) return;
+    const a = seg.a, b = seg.b, L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const tg = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], yaw = yawOf(tg[0], tg[1]);
+    const at = t => [a[0] + tg[0] * t, a[1] + tg[1] * t];
+    const style = seg.style === 'old' ? 'old' : seg.style === 'picket' ? 'picket' : 'rail';
+    const gate = (g0, g1, open, gstyle) => {
+      // the leaf on the post at g0, swung `open` into the plot (gateLeaf: toward [-tg1, tg0]); the two taller posts
+      const c = Math.cos(open), s = Math.sin(open), d = [tg[0] * c - tg[1] * s, tg[1] * c + tg[0] * s];
+      const p0 = at(g0), y0 = T.h(p0[0], p0[1]);
+      row(LK.byName.get('gate:' + gstyle), p0[0], p0[1], yawOf(d[0], d[1]), g1 - g0 - 0.10, 0, 1, [y0, y0, y0, y0], y0);
+      for (const t of [g0, g1]) { const q = at(t); row(LK.byName.get('gatepost:' + gstyle), q[0], q[1], yaw, 1, 0, 1); }
+    };
+    if (style === 'old') {
+      // the scanned stretch (genFence: one prop width at a time, on the ground under its middle, the gate's bay left out)
+      if (L < 1e-6) return;
+      const ry = Math.atan2(tg[0], tg[1]) - Math.PI / 2;
+      const parts = seg.gap ? [[0, Math.max(0, seg.gap[0])], [Math.min(L, seg.gap[1]), L]] : [[0, L]];
+      fenced.want += L - (seg.gap ? Math.min(L, seg.gap[1]) - Math.max(0, seg.gap[0]) : 0);
+      for (const [u0, u1] of parts) {
+        if (u1 - u0 < 0.8) continue;
+        const ns = Math.max(1, Math.round((u1 - u0) / LK.oldW)), pw = (u1 - u0) / ns;
+        for (let i = 0; i < ns; i++) { const q = at(u0 + pw * (i + 0.5)); row(LK.byName.get('old'), q[0], q[1], ry, pw, 0, 4 | 1, null, T.h(q[0], q[1]) - 0.03); fenced.got += pw; }
+      }
+      if (seg.gap) gate(Math.max(0.3, seg.gap[0]), Math.min(L - 0.3, seg.gap[1]), 0.45 + 0.3 * 0.3, 'rail');
+      return;
+    }
+    if (L < 1.0) return;
+    // THE POSTS every 2.4 m along each stretch, the gate its own bay (buildFence, line for line)
+    const gap = seg.gap && seg.gap[1] > 0.3 && seg.gap[0] < L - 0.3 ? [Math.max(0.3, seg.gap[0]), Math.min(L - 0.3, seg.gap[1])] : null;
+    const ts = [];
+    const stretch = (u0, u1) => { const nb = Math.max(1, Math.round((u1 - u0) / 2.4)); for (let i = 0; i <= nb; i++) ts.push(u0 + (u1 - u0) * i / nb); };
+    if (gap) { stretch(0, gap[0]); stretch(gap[1], L); } else stretch(0, L);
+    fenced.want += L - (gap ? gap[1] - gap[0] : 0);
+    const ys = ts.map(t => { const q = at(t); return T.h(q[0], q[1]); });
+    ts.forEach((t, i) => { const q = at(t); row(LK.byName.get('post:' + style + ':' + (h16(seedKey + '|p' + si + '|' + i) & 3)), q[0], q[1], yaw, 1, 0, 1, null, ys[i]); });
+    for (let i = 0; i + 1 < ts.length; i++) {
+      const t0 = ts[i], t1 = ts[i + 1];
+      if (gap && Math.abs(t0 - gap[0]) < 1e-6 && Math.abs(t1 - gap[1]) < 1e-6) continue;
+      const q = at(t0);
+      row(LK.byName.get('bay:' + style + ':' + (h16(seedKey + '|b' + si + '|' + i) & 3)), q[0], q[1], yaw, t1 - t0, 0, 1, [ys[i], ys[i + 1], ys[i + 1], ys[i]], ys[i]);
+      fenced.got += t1 - t0;
+    }
+    if (gap) gate(gap[0], gap[1], 0.45 + 0.3 * jOf(a, k0)(gap[0], 9), style);
+  });
+  // THE WORN GROUND: a strip or a rectangle from its -x edge's middle `o` along `tg`, cut in pieces of at most 8 m, the
+  // fade only on the outer edges (flags 8 x = 0, 16 x = L, 32 z = -w/2, 64 z = +w/2)
+  const ground = (kind, o, tg, len, width) => {
+    if (!(len > 0.05) || !(width > 0.05)) return;
+    const nz = [-tg[1], tg[0]], yaw = yawOf(tg[0], tg[1]);
+    const n = Math.ceil(len / PIECE_MAX), m = Math.ceil(width / PIECE_MAX), pl = len / n, pw = width / m;
+    for (let i = 0; i < n; i++) for (let k = 0; k < m; k++) {
+      const zc = -width / 2 + pw * (k + 0.5), ox = o[0] + tg[0] * pl * i + nz[0] * zc, oz = o[1] + tg[1] * pl * i + nz[1] * zc;
+      const cor = [[0, -pw / 2], [pl, -pw / 2], [pl, pw / 2], [0, pw / 2]].map(([u, v]) => T.h(ox + tg[0] * u + nz[0] * v, oz + tg[1] * u + nz[1] * v));
+      const edges = (i === 0 ? 8 : 0) | (i === n - 1 ? 16 : 0) | (k === 0 ? 32 : 0) | (k === m - 1 ? 64 : 0);
+      row(LK.byName.get('ground:' + kind), ox, oz, yaw, pl, pw, 2 | edges, cor);
+    }
+  };
+  const strip = (kind, p0, p1, width) => { const L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]); if (L < 0.05) return; ground(kind, p0, [(p1[0] - p0[0]) / L, (p1[1] - p0[1]) / L], L, width); };
+  // a rectangle in a frame (x, z, yaw: the house frame, rotY's), x in [x0, x1], z in [z0, z1]
+  const rect = (kind, f, x0, x1, z0, z1) => {
+    const c = Math.cos(f.yaw), s = Math.sin(f.yaw), W = (lx, lz) => [f.x + lx * c + lz * s, f.z - lx * s + lz * c];
+    ground(kind, W(x0, (z0 + z1) / 2), [c, -s], x1 - x0, z1 - z0);
+  };
+  for (const sg of (plan.path || []).concat(plan.outPath || [])) strip('path', sg[0], sg[1], GROUND.path.width);
+  if (plan.drive && plan.drive.segs) for (const sg of plan.drive.segs) strip('drive', sg[0], sg[1], plan.drive.width + 2 * GROUND.drive.fade);
+  const pd = plan.drive && plan.drive.pad;
+  if (pd) { const f = GROUND.pad.fade; ground('pad', [pd.c[0] - pd.tg[0] * (pd.w / 2 + f), pd.c[1] - pd.tg[1] * (pd.w / 2 + f)], pd.tg, pd.w + 2 * f, pd.d + 2 * f); }
+  if (plan.lot && plan.lot.kind === 'concrete' && plan.lot.poly && plan.lot.poly.length === 4) {
+    const [a, b, , d] = plan.lot.poly, ex = [b[0] - a[0], b[1] - a[1]], ez = [d[0] - a[0], d[1] - a[1]], L = Math.hypot(ex[0], ex[1]);
+    if (L > 0.05) ground('slab', [a[0] + ez[0] / 2, a[1] + ez[1] / 2], [ex[0] / L, ex[1] / L], L, Math.hypot(ez[0], ez[1]));
   }
-  const quads = [];
-  for (let k = 0; k + 1 < side.length; k++) {
-    const m = [(S0[k][0] + S0[k + 1][0]) / 2, (S0[k][1] + S0[k + 1][1]) / 2];
-    quads.push({ mid: m, pts: [side[k][0], side[k][1], side[k + 1][1], side[k + 1][0]] });
+  // the dry ground at the house's foot and the outbuilding's (lotGround's rects, + its 1.2 m ramp)
+  if (house && house.P) {
+    const Hp = house.P, f = GROUND.dry.fade, big = Hp.big ? 1 : 0;
+    const hx = Hp.L / 2 + (big ? 3 : 0), hz0 = -Hp.w / 2 - (big ? 2 : 0), hz1 = Hp.w / 2 + (Hp.porch ? Hp.porchD || 0 : 0) + (big ? (Hp.dock ? Hp.dockD || 0 : 0) + 9 : 0);
+    rect('dry', house, -hx - f, hx + f, hz0 - f, hz1 + f);
   }
-  return quads;
+  const po = plan.out;
+  if (po && po.P && isFinite(po.x)) { const f = GROUND.dry.fade; rect('dry', po, -po.P.L / 2 - f, po.P.L / 2 + f, -po.P.w / 2 - f, po.P.w / 2 + f); }
+  return { rows, fenced };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -427,9 +574,22 @@ function cookTown(T, opt) {
   const kitHouse = new Map(), kitOut = new Map();
   TB.rows.forEach(r => { if (r.plot === null) return; (r.out ? kitOut : kitHouse).set(String(r.plot), r); });
   const cells = new Map(), cellAt = (x, z) => { const [i, j] = cellOf(x, z), k = keyOf(i, j); let c = cells.get(k); if (!c) cells.set(k, c = newCell(i, j)); return c; };
-  const stats = { plots: 0, kitPlots: 0, assigned: 0, uniquePlots: 0, outsKit: 0, outsPlaced: 0, outsDropped: 0, items: 0, objects: 0, props: 0, roads: 0, unshaped: 0, missingPlots: [] };
-  const lotRGB = mix(meanRGB(LOT_MAPS[0]), meanRGB(LOT_MAPS[1]));
-  const propKeys = new Set();
+  const stats = { plots: 0, kitPlots: 0, assigned: 0, uniquePlots: 0, outsKit: 0, outsPlaced: 0, outsDropped: 0, items: 0, objects: 0, props: 0, unshaped: 0, missingPlots: [],
+                  lots: 0, fenceWant: 0, fenceGot: 0, lotsBy: {} };
+  const propKeys = new Set(['fence_old']);   // (the lot kit's old fence names its prop by index: always a key)
+  // THE LOTS: the lot kit, and the ground each plan stands on (the premises frame; clipToLand's water: the zone's)
+  const LK = lotKitOf(C), TKA0 = require(path.join(ROOT, 'tools', 'town_kit.js'));
+  const zoneRec = new Map(((C.rec.layers && C.rec.layers.zones) || []).map(z => [z.id, z]));
+  const waterOf = new Map();
+  const Tof = zone => {
+    if (!waterOf.has(zone)) waterOf.set(zone, zoneRec.has(zone) ? TKA0.zoneWater(C.PG, C.W, O.frame, zoneRec.get(zone)) : TKA0.SEA);
+    return { h: (x, z) => { const w = O.frame.toWorld(x, z); return O.terrainAt(w[0], w[1]); }, waterY: waterOf.get(zone), size: 20000 };
+  };
+  const addLots = (cell, plan, house, T, owner, ownerFlag, key) => {
+    const L = lotRows(C, LK, plan, house, T, owner, ownerFlag, key);
+    for (const r of L.rows) { cell.lots.push(r); const k = LK.pieces[r.piece].kind; stats.lotsBy[k] = (stats.lotsBy[k] || 0) + 1; }
+    stats.lots += L.rows.length; stats.fenceWant += L.fenced.want; stats.fenceGot += L.fenced.got;
+  };
   const propRow = (cell, w, key, owner, flags, kind) => { propKeys.add(key); cell.props.push({ x: w[0], y: w[1], z: w[2], yaw: w[3], key, owner, flags, kind }); };
   const toW = r => { const w = O.frame.toWorld(r.x, r.z); return Object.assign({}, r, { x: w[0], z: w[1], yaw: r.yaw + (O.frame.yaw || 0) }); };
   // the corners' ground under a kit archetype stood at (x, z, yaw) - town_kit.js assign's rule on the composed ground
@@ -465,6 +625,7 @@ function cookTown(T, opt) {
       const anchor = t.at ? [t.at[0], t.at[2]] : (() => { const q = t.plot.poly; let x = 0, z = 0; for (const v of q) { x += v[0]; z += v[1]; } return [x / q.length, z / q.length]; })();
       const cell = cellAt(anchor[0], anchor[1]);
       const pi = cell.plots.length;
+      cell.own = [0, pi];
       const kr = kitHouse.get(id), water = t.plot.side === 'water';
       // the table's row (C3c's rule: its plot and its seed); a plot the table was not sown from (the record moved on since:
       // a new road's plots) gets its row here, by the kit's own rule (town_kit.js assign) on the places cook's house
@@ -511,21 +672,26 @@ function cookTown(T, opt) {
         addBox(cell, po.at, po.shape, O, faceRGB(roleSet('wall', (po.P || {}).wallSet), (po.P || {}).wallCol, COLS, NEUTRAL.wall), NEUTRAL.roof);
       } else if (isKit && kitOut.has(id)) stats.outsDropped++;
       cell.plots.push([id, p.seed, hRow, oRow, (isKit ? 1 : 2) | (water ? 4 : 0) | (assigned ? 8 : 0)]);
-      // the lot's ground (a water plot's lot is its pier: none)
-      if (!water && t.plot.poly && t.plot.poly.length >= 3) addLot(cell, t.plot.poly.map(v => [v[0], v[1]]), O, lotRGB);
+      // THE LOT: its fence, its gate, its worn ground (v2, §9) - round the house the plan was made round
+      addLots(cell, t.plot, t.house ? { x: t.house.x, z: t.house.z, yaw: t.house.yaw, P: t.house.P } : null, Tof(p.zone), pi, 0, id);
       // the props: the house's own (its frame), the car, the boat
       if (t.at) for (const q of t.props || []) propRow(cell, toWorldAt(t.at, q), q.k, pi, (q.on === 'ground' ? 1 : 0) | (WATER_KEY.test(q.k) ? 4 : 0), WATER_KEY.test(q.k) ? 2 : 0);
       if (t.plot.car && t.plot.car.key) propRow(cell, [t.plot.car.x, t.plot.car.y, t.plot.car.z, t.plot.car.ry || 0], t.plot.car.key, pi, 1 | 2, 1);
+      // a commercial lot's parked cars (placeDress: plot.lot.cars, on the ground)
+      for (const c of (t.plot.lot && t.plot.lot.cars) || []) if (c && c.key) propRow(cell, [c.x, typeof c.y === 'number' ? c.y : O.terrainAt(...O.frame.toWorld(c.x, c.z)), c.z, c.ry || 0], c.key, pi, 1 | 2, 1);
       if (t.plot.boat && t.plot.boat.key) propRow(cell, [t.plot.boat.x, t.plot.boat.y, t.plot.boat.z, t.plot.boat.ry || 0], t.plot.boat.key, pi, 2 | 4, 2);
       stats.plots++;
     } else if (t.kind === 'item') {
       if (!t.at) continue;
       const cell = cellAt(t.at[0], t.at[2]), ui = cell.uniques.length, P = (t.item && t.item.P) || {};
+      cell.own = [1, ui];
       cell.uniques.push([String(t.id), String((t.item && t.item.gen) || ''), r3(t.at[0]), r3(t.at[1]), r3(t.at[2]), +t.at[3].toFixed(5)]);
       const wall = typeof P.wallTint === 'number' && P.wallTint > 0 ? hexRGB(P.wallTint) : NEUTRAL.wall;
       if (!addBox(cell, t.at, t.shape, O, wall, NEUTRAL.roof)) stats.unshaped++;
       for (const q of t.props || []) propRow(cell, toWorldAt(t.at, q), q.k, ui, q.on === 'ground' ? 1 : 0, 4);
       if (t.plan && t.plan.out && t.plan.out.at) addBox(cell, t.plan.out.at, t.plan.out.shape, O, wall, NEUTRAL.roof);
+      // the site's lot (its synthetic plot: buildItem dresses it as a plot) - the owner a unique (lot flag 128)
+      if (t.plan) addLots(cell, t.plan, t.item ? { x: t.item.x, z: t.item.z, yaw: t.item.yaw, P: Object.assign({ big: 1 }, t.item.P, { L: (t.item.size || P).L, w: (t.item.size || P).w }) } : null, Tof(null), ui, 128, String(t.id));
       stats.items++;
     } else if (t.kind === 'object') {
       if (!t.at || !t.ob || !t.ob.key) continue;
@@ -534,13 +700,6 @@ function cookTown(T, opt) {
       propRow(cell, t.at, String(t.ob.key), oi, (t.ob.on === 'ground' ? 1 : 0) | 2, 3);
       stats.objects++;
     }
-  }
-  // THE ROADS: the composed roads of the town (its prefix, not the town-OFF record's), quad by quad
-  const roads = O.roads.filter(r => pre.test(String(r.id)) && !C.baseRoads.has(String(r.id)) && r.pts && r.pts.length >= 2).sort((a, b) => byId(a.id, b.id));
-  for (const rd of roads) {
-    const rgb = meanRGB(ROAD_MAP[rd.surface] || 'g:dirtG');
-    for (const q of roadQuads(rd, O)) pushPoly(cellAt(q.mid[0], q.mid[1]), 2, facing(q.pts, [0, 1, 0]), rgb, UP);
-    stats.roads++;
   }
   // the prop keys, sorted: a prop row's u16 indexes this list
   const keys = Array.from(propKeys).sort(byId), kidx = new Map(keys.map((k, n) => [k, n]));
@@ -573,31 +732,42 @@ function cookTown(T, opt) {
       pb.writeUInt16LE(kidx.get(q.key), o + 14); pb.writeUInt16LE(Math.min(65535, q.owner), o + 16);
       pb[o + 18] = q.flags & 255; pb[o + 19] = q.kind & 255;
     });
+    // the lots: 32 B a row (CITY-PACK-FORMAT §9.1)
+    const lb = Buffer.alloc(cell.lots.length * LSTRIDE);
+    cell.lots.forEach((r, n) => {
+      const o = n * LSTRIDE, yaw = ((r.yaw % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI), cm = v => Math.max(0, Math.min(65535, Math.round(v * 100)));
+      lb.writeFloatLE(r.x, o); lb.writeFloatLE(r.y, o + 4); lb.writeFloatLE(r.z, o + 8);
+      lb.writeUInt16LE(Math.round(yaw / (2 * Math.PI) * 65536) & 65535, o + 12);
+      lb.writeUInt16LE(cm(r.len), o + 14); lb.writeUInt16LE(cm(r.width), o + 16);
+      lb[o + 18] = r.piece; lb[o + 19] = r.flags & 255; lb.writeUInt16LE(r.owner, o + 20); lb.writeUInt16LE(r.seed, o + 22);
+      for (let k = 0; k < 4; k++) lb.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(r.g[k] * 100))), o + 24 + k * 2);
+    });
     // the blobs, each 4-aligned
     const blobs = [], sec = {};
     let off = 0;
-    for (const [k, b] of [['vb', far.vb], ['ib', far.ib], ['kit', kit], ['props', pb]]) {
+    for (const [k, b] of [['vb', far.vb], ['ib', far.ib], ['kit', kit], ['props', pb], ['lots', lb]]) {
       sec[k] = [off, b.length]; blobs.push(b);
       const pad = (4 - (b.length & 3)) & 3; if (pad) blobs.push(Buffer.alloc(pad)); off += b.length + pad;
     }
     const header = { magic: 'CITY', v: V, town: T.id, cell: [cell.i, cell.j], size: S, box: far.box,
-      far: { verts: far.verts, tris: far.tris, stride: VSTRIDE, index: far.index, buckets: far.buckets, draws: far.draws },
+      far: { verts: far.verts, tris: far.tris, stride: VSTRIDE, index: far.index, buckets: far.buckets, draws: far.draws, owners: far.owners },
       plots: cell.plots, uniques: cell.uniques, objects: cell.objects,
-      kit: { rows: cell.kit.length, stride: INST }, props: { rows: cell.props.length, stride: PSTRIDE }, sec };
+      kit: { rows: cell.kit.length, stride: INST }, props: { rows: cell.props.length, stride: PSTRIDE }, lots: { rows: cell.lots.length, stride: LSTRIDE }, sec };
     const hb = Buffer.from(JSON.stringify(header), 'utf8');
     const pre4 = Buffer.alloc(12); pre4.writeUInt32LE(MAGIC, 0); pre4.writeUInt32LE(V, 4); pre4.writeUInt32LE(hb.length, 8);
     const raw = Buffer.concat([pre4, hb, Buffer.alloc((4 - ((12 + hb.length) & 3)) & 3)].concat(blobs));
     out.push({ i: cell.i, j: cell.j, key: cell.key, raw, header,
-      n: { plots: cell.plots.length, kitRows: cell.kit.length, props: cell.props.length, uniques: cell.uniques.length, objects: cell.objects.length, farTris: far.tris, farVerts: far.verts, draws: far.draws.length } });
+      n: { plots: cell.plots.length, kitRows: cell.kit.length, props: cell.props.length, lots: cell.lots.length, uniques: cell.uniques.length, objects: cell.objects.length, farTris: far.tris, farVerts: far.verts, draws: far.draws.length } });
   }
   const hash = crypto.createHash('sha256'); for (const c of out) hash.update(c.key + ':').update(c.raw);
   const sum = k => out.reduce((a, c) => a + c.n[k], 0);
+  const lotKit = lotKitFile(LK, kidx);
   return {
     town: T, cells: out, hash: hash.digest('hex').slice(0, 16), propKeys: keys, stats, recPlots: Array.from(recPlots.keys()).sort(byId), baseIds,
     inputs: { fixture: C.fixture, record: C.record, places: PL.hash, kitPack: K.man.pack.sha256, kitTable: TB.hash, cook: sha16(fs.readFileSync(__filename)),
-              means: sha16(JSON.stringify(MEANS)) },
-    counts: { cells: out.length, plots: sum('plots'), kitRows: sum('kitRows'), props: sum('props'), uniques: sum('uniques'), objects: sum('objects'), farTris: sum('farTris'), farVerts: sum('farVerts') },
-    archetypes: archN,
+              means: sha16(JSON.stringify(MEANS)), lotKit: sha16(lotKit.raw) },
+    counts: { cells: out.length, plots: sum('plots'), kitRows: sum('kitRows'), props: sum('props'), lots: sum('lots'), uniques: sum('uniques'), objects: sum('objects'), farTris: sum('farTris'), farVerts: sum('farVerts') },
+    archetypes: archN, lotKit,
   };
 }
 
@@ -610,7 +780,25 @@ function decodeCell(raw) {
   const head = JSON.parse(raw.slice(12, 12 + hl).toString('utf8'));
   const base = 12 + hl + ((4 - ((12 + hl) & 3)) & 3);
   const at = k => raw.slice(base + head.sec[k][0], base + head.sec[k][0] + head.sec[k][1]);
-  return { v, head, vb: at('vb'), ib: at('ib'), kit: at('kit'), props: at('props') };
+  return { v, head, vb: at('vb'), ib: at('ib'), kit: at('kit'), props: at('props'), lots: head.sec.lots ? at('lots') : Buffer.alloc(0) };
+}
+function decodeLots(b) {
+  const out = [];
+  for (let o = 0; o + LSTRIDE <= b.length; o += LSTRIDE)
+    out.push({ x: b.readFloatLE(o), y: b.readFloatLE(o + 4), z: b.readFloatLE(o + 8), yaw: b.readUInt16LE(o + 12) / 65536 * 2 * Math.PI,
+               len: b.readUInt16LE(o + 14) / 100, width: b.readUInt16LE(o + 16) / 100, piece: b[o + 18], flags: b[o + 19], owner: b.readUInt16LE(o + 20),
+               seed: b.readUInt16LE(o + 22), g: [0, 1, 2, 3].map(k => b.readInt16LE(o + 24 + k * 2) / 100) });
+  return out;
+}
+// the lot kit file (§9.2): its header, and each mesh piece's LOD decoded by town_kit.js's own decodeLod
+function decodeLotKit(raw) {
+  if (raw.readUInt32LE(0) !== LOTKIT_MAGIC) throw new Error('city_cook: not a lot kit');
+  const hl = raw.readUInt32LE(8), head = JSON.parse(raw.slice(12, 12 + hl).toString('utf8')), base = 12 + hl + ((4 - ((12 + hl) & 3)) & 3);
+  const TKA = require(path.join(ROOT, 'tools', 'town_kit.js'));
+  const at = r => raw.slice(base + r[0], base + r[0] + r[1]);
+  const meshes = head.pieces.map(p => (p.vb ? TKA.decodeLod({ verts: p.verts, tris: p.tris, index: 16, pos: { min: p.box.slice(0, 3), max: p.box.slice(3) }, uv: { min: p.uv.slice(0, 2), max: p.uv.slice(2) }, win: 0 },
+    at(p.vb), at(p.ib), Buffer.alloc(0), ['post', 'deck']) : null));
+  return { head, meshes };
 }
 function decodeProps(b) {
   const out = [];
@@ -626,8 +814,8 @@ function decodeProps(b) {
 const subOf = T => 'city/' + T.island + '/' + T.id;
 function gzOf(raw) { return zlib.gzipSync(raw, { level: 9, mtime: 0 }); }
 // a cell whose raw bytes are what was shipped keeps the shipped gzip (premises_cook keepShipped's rule)
-function shippedGz(T, c) {
-  const dir = path.join(ROOT, 'media', ...subOf(T).split('/')), stem = stemOf(c.i, c.j);
+function shippedGz(T, c, stem0) {
+  const dir = path.join(ROOT, 'media', ...subOf(T).split('/')), stem = stem0 || stemOf(c.i, c.j);
   if (!fs.existsSync(dir)) return null;
   for (const f of fs.readdirSync(dir).sort()) {
     if (!f.startsWith(stem + '.')) continue;
@@ -636,10 +824,11 @@ function shippedGz(T, c) {
   }
   return null;
 }
-function manifestTown(R, srcOf) {
+function manifestTown(R, srcOf, kitSrc) {
   return {
     id: R.town.id, island: R.town.island, prefix: R.town.prefix, variant: R.town.variant, cell: S, frame: 'world', lod: LOD,
-    inputs: R.inputs, propKeys: R.propKeys, archetypes: R.archetypes, hash: R.hash, counts: R.counts,
+    inputs: R.inputs, propKeys: R.propKeys, archetypes: R.archetypes,
+    lotKit: { src: kitSrc, raw: R.lotKit.raw.length, gz: R.lotKit.gz.length, pieces: R.lotKit.pieces }, hash: R.hash, counts: R.counts,
     cells: R.cells.map(c => Object.assign({ c: [c.i, c.j], src: srcOf(c), raw: c.raw.length, gz: c.gz.length, box: c.header.box }, c.n)),
   };
 }
@@ -648,6 +837,7 @@ function cook(island, opt) {
   return TOWNS.filter(T => T.island === island).map(T => {
     const R = cookTown(T, opt);
     for (const c of R.cells) c.gz = shippedGz(T, c) || gzOf(c.raw);
+    R.lotKit.gz = shippedGz(T, R.lotKit, 'lotkit') || gzOf(R.lotKit.raw);
     return R;
   });
 }
@@ -672,12 +862,15 @@ function main() {
       if (report) return 'media/' + sub + '/' + stemOf(c.i, c.j) + '.' + crypto.createHash('sha256').update(c.gz).digest('hex').slice(0, 8) + '.bin';
       const rel = writeMedia(sub, stemOf(c.i, c.j), 'bin', c.gz); keep.push(rel); return rel;
     };
-    const M = manifestTown(R, srcOf);
+    const kitSrc = report ? 'media/' + sub + '/lotkit.' + crypto.createHash('sha256').update(R.lotKit.gz).digest('hex').slice(0, 8) + '.bin'
+                          : (() => { const rel = writeMedia(sub, 'lotkit', 'bin', R.lotKit.gz); keep.push(rel); return rel; })();
+    const M = manifestTown(R, srcOf, kitSrc);
     towns.push(M);
     const st = R.stats, n = M.counts;
     let gz = 0, raw = 0, maxTris = 0; for (const c of M.cells) { gz += c.gz; raw += c.raw; maxTris = Math.max(maxTris, c.farTris); }
-    console.log('  ' + R.town.id + ': ' + n.cells + ' cells of ' + S + ' m, ' + n.plots + ' plots (' + st.kitPlots + ' kit (' + st.assigned + ' assigned here), ' + st.uniquePlots + ' unique), ' + n.kitRows + ' kit rows (outbuildings: ' + st.outsKit + ' the table\'s, ' + st.outsPlaced + ' placed, ' + st.outsDropped + ' table rows not planned), ' + n.uniques + ' uniques, ' + n.objects + ' objects, ' + n.props + ' props (' + R.propKeys.length + ' keys), ' + st.roads + ' roads');
-    console.log('    far: ' + n.farTris + ' tris / ' + n.farVerts + ' verts, at most ' + maxTris + ' tris a cell, 2 draws a cell; ' + (raw / 1e3).toFixed(1) + ' KB raw -> ' + (gz / 1e3).toFixed(1) + ' KB gz; hash ' + R.hash);
+    console.log('  ' + R.town.id + ': ' + n.cells + ' cells of ' + S + ' m, ' + n.plots + ' plots (' + st.kitPlots + ' kit (' + st.assigned + ' assigned here), ' + st.uniquePlots + ' unique), ' + n.kitRows + ' kit rows (outbuildings: ' + st.outsKit + ' the table\'s, ' + st.outsPlaced + ' placed, ' + st.outsDropped + ' table rows not planned), ' + n.uniques + ' uniques, ' + n.objects + ' objects, ' + n.props + ' props (' + R.propKeys.length + ' keys)');
+    console.log('    far: ' + n.farTris + ' tris / ' + n.farVerts + ' verts, at most ' + maxTris + ' tris a cell, 1 draw a cell; ' + (raw / 1e3).toFixed(1) + ' KB raw -> ' + (gz / 1e3).toFixed(1) + ' KB gz; hash ' + R.hash);
+    console.log('    lots: ' + n.lots + ' rows (' + Object.entries(st.lotsBy).map(e => e[0] + ' ' + e[1]).join(', ') + '); fences ' + st.fenceGot.toFixed(0) + ' of ' + st.fenceWant.toFixed(0) + ' m; the lot kit ' + R.lotKit.pieces.length + ' pieces, ' + (R.lotKit.raw.length / 1e3).toFixed(1) + ' KB raw -> ' + (R.lotKit.gz.length / 1e3).toFixed(1) + ' KB gz');
     if (st.missingPlots.length) console.log('    WARNING: ' + st.missingPlots.length + ' things not in the composed record: ' + st.missingPlots.slice(0, 4).join(' '));
     if (st.unshaped) console.log('    note: ' + st.unshaped + ' uniques without an obstacle shape (no far box)');
     if (!report) { const gone = pruneMedia(sub, keep); if (gone.length) console.log('    pruned ' + gone.length + ': ' + gone.slice(0, 6).join(', ')); }
@@ -691,6 +884,6 @@ function main() {
   console.log('  manifest: src/core/city_packs.json\n\nnext: node tools/run_gates.js --only=CITYCOOK,MEDIA --no-build');
 }
 
-module.exports = { V, MAGIC, S, LOD, LIFT, BUCKETS, TOWNS, MEANS, PAINTABLE, VSTRIDE, PSTRIDE, INST, OUT, meanFile, cook, cookTown, decodeCell, decodeProps,
-  shellOf, shellFaces, earClip, octEnc, stemOf, subOf, cellOf, keyOf, manifestTown, placesOf, kitOf, tableOf, composedOf };
+module.exports = { V, MAGIC, LOTKIT_MAGIC, S, LOD, BUCKETS, GROUND, TOWNS, MEANS, PAINTABLE, VSTRIDE, PSTRIDE, INST, LSTRIDE, PIECE_MAX, OUT, meanFile, cook, cookTown,
+  decodeCell, decodeProps, decodeLots, decodeLotKit, lotKitOf, lotRows, shellOf, shellFaces, octEnc, stemOf, subOf, cellOf, keyOf, manifestTown, placesOf, kitOf, tableOf, composedOf };
 if (require.main === module) main();

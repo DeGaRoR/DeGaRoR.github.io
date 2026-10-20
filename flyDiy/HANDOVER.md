@@ -95623,3 +95623,125 @@ Nothing is per plot at run time.
    - accept on the enable rule (at most +3 ms of loop at 4 km, >34 ms frames within ~1 pt of OFF) and on the close-visit
      p99 of ~50 ms or less;
    - `--profile-live <at>,<secs>` on any >100 ms frame.
+
+## G3405-G3414 - CITY-A COOK v2: THE USER'S RULING (far shells at 1 km, no lot squares, the near LOTS: fences, gates, worn ground), THE KIT TABLE RE-SOWN, CITY-B'S PROPOSALS (2026-10-20, CITY-A for A0, cloud; branch claude/city-a, on G3400-G3404)
+**The user's ruling of 20 Oct, relayed by A0:**
+- the far town look is OK;
+- the far shells start at 1 km, kept as a dial (2 km is the fallback);
+- no flat lot squares anywhere;
+- the near lots: fences, gates, yard dressing and patches, as instanced near-only rows;
+- commit the media;
+- re-bake the kit table and drop the cook-assigned rows;
+- take CITY-B's proposals.
+
+The format is **v2** (`futureDesigns/CITY-PACK-FORMAT.md`), pushed first (71f3e389). Its section 0 lists what changed.
+
+**What changed:**
+- **G3405, the format v2:**
+  - the far mesh is the shells only (walls, roofs): **1 draw a cell**, with `far.owners` (per plot and per unique, its
+    index range: CITY-B's proposal 3);
+  - **no roads** (CITY-B's proposal 1: the pavement draws them at every distance) and **no lot ground**, far or near:
+    the terrain's texture is the lot;
+  - `lod.far` = 1000 m is THE DIAL. `nearIn` / `nearOut` = `far` -/+ 50, so the host may override it (`?cityfar=2000`)
+    with no re-cook;
+  - `lotFar` 400 m, `lotE1` 120 m;
+  - the **`lots` section** (32 B rows) and the town's **lot kit** file (§9);
+  - the lot cars are in the props;
+  - `v` stays strict (CITY-B's proposal 7). Proposal 4 (one bundle per town) is not taken; it is optional.
+- **G3406, the kit table re-sown, the approved archetypes kept:**
+  - `node tools/town_kit.js --table` (new) re-sows the table against the COMMITTED pack 2e8c3968 (the 30 + 3 approved
+    archetypes). `--media` would have re-clustered them: I ran it, saw a different set of medoids (the village has
+    46 plots now, 84 on 27 Sep), and reverted it.
+  - The table: `media/townkit/townkit_jolene_54528c50dfc7.bin`, 495 rows, 0 unplaced.
+  - **The sowing now stands on the page's ground:** `town_kit.js sow` composes on premises_cook's world, the one the
+    page uses, not a bare island_node world. The two differed by **2.45 m** under `mk_z_town:r3:2`, one of the new
+    plots. The table would have floated that house, while kit_lot (the page) put it on the ground. METKIT B caught it.
+- **G3407, the lot kit:** 27 pieces cooked from VILLAGE_GEN's own `buildFence` / `gateLeaf` at FENCE_HAND 0.6:
+  - posts and 2.4 m bays, rail and picket, each in 4 hands;
+  - the picket bay's lod 1 (rails + one panel, 60 triangles instead of ~450);
+  - a closed gate leaf and the taller gate posts, per style;
+  - the old stretch (the `fence_old` prop, stretched as `placeFence` does);
+  - 5 worn-ground kinds: path, drive, pad, slab, dry.
+
+  The vertex is the kit pack's 16 B; role post / deck = render_premises `fenceFinish`'s two materials.
+- **G3408, the lot rows:**
+  - every stretch of every plan is cut exactly as `buildFence` cuts it: clipped to the land, a post every 2.4 m, the
+    gate its own bay, the leaf swung by `buildFence`'s own noise. Bays are sheared to the ground between their posts;
+  - the worn ground is lotGround's own channels (paths, drive, pad, a commercial lot's slab, the dry ground at the
+    house's and the outbuilding's foot): strips and rectangles with a soft, noise-broken edge, at most 8 m a piece,
+    the inner seams unfaded;
+  - **lotGround's lawn tone over the whole lot is NOT drawn** (the user's "no flat lot squares");
+  - the 25 sites with fences carry their lots too (flag 128).
+- **G3409, GATE CITYCOOK v2:**
+  - 1 draw a cell, the owners tiling each bucket;
+  - every plot a row of the kit TABLE (0 assigned);
+  - the lot rows' pieces and owners;
+  - **the lots:** every bay between two posts; each owner's fences cover its plan's fenced edges clipped to the land
+    (41 024 of 41 017 m); every fence row on its plan's edge (5 cm); every corner on the composed ground (worst
+    0.84 cm); no ground piece past 8 m, and no lawn;
+  - 6 negative controls: + a lot row on a missing piece, + a bay taken out.
+- **G3410, the evidence:** `tools/evidence/CITY-A-far.js` writes `reports/evidence/CITY-A/`:
+  - `town_far.png`: shells only;
+  - `cell_near.png`: far vs kit + lot rows;
+  - `lots_close.png`: a 70 m street-level close-up of the fences, posts, gates and worn paths.
+
+**Numbers (Metlakatla v2):**
+
+| | |
+| --- | --- |
+| cells | 13 |
+| far draws for the whole town | **13** (v1: 26) |
+| far triangles | 6 388 (v1: 34 108) |
+| kit rows | 435, all the table's own (55 outbuildings) |
+| props | 3 743 |
+| lot rows | **35 892**: 14 878 posts, 13 374 bays, 378 gates + 756 gate posts, 2 032 old stretches, 4 474 worn pieces |
+| fence | 41.0 km |
+| bytes | 702 KB gz in the cells, + 35 KB gz the lot kit |
+| cook | ~17 s; GATE CITYCOOK ~25 s |
+
+**The near triangle budget, for CITY-B:**
+- the densest cell holds 10 167 lot rows, about 731 k triangles at lod 0;
+- `lotE1` 120 m (the picket lod 1) and `lotFar` 400 m are what bound a frame;
+- the shadow pass takes only flag-1 rows within min(`lotFar`, `castFar`).
+
+**Gates** (`--only=CITYCOOK,PREMISES,PREMCOOK,TARR,KITHOST,TOWNKIT,METKIT,BUILD,MEDIA --no-build`):
+- **PASS:** CITYCOOK, PREMISES, PREMCOOK (the LIFTS untouched), TARR, TOWNKIT, METKIT, BUILD, MEDIA.
+- **FAIL:** KITHOST, below.
+- METKIT is green now: 380 of 380 kit plots, each placed where the kit sowed it.
+- **KITHOST stays RED, and the table does not cause it.** It builds a fresh kit itself (`TK.run`). Its two FAIL lines
+  (G "2 of 537" and the instanced arm 535 vs 537) are a bug in `src/viewer/townkit.js` (CITY-B's file, so I did not
+  edit it): **`setBand` resets `rung` / `partner` to -1 without hiding the instances already drawn.**
+  - A partner slot that was visible before the reset stays visible. The next tick sees `pq === partner[h] === -1`
+    and never hides it.
+  - It shows on two village houses (z_village:r9:14/15) at the gate's eye.
+  - The same code is on claude/city-b.
+  - **The fix (one line, for CITY-B or A0), in `setBand` after `partner.fill(-1);`:**
+    `if (o.mode === 'batch') { for (const k in B) for (let id = 0; id < 2 * N; id++) B[k].bm.setVisibleAt(id, false); } else instDirty = true;`
+  - **Proven here:** with that line applied, GATE KITHOST PASSES. The edit was then reverted: the file is CITY-B's.
+
+**Asks for the user:**
+1. **The near lots' look:** `lots_close.png` (flat-shaded, no textures).
+   - The fences, posts and gates are the village's own, sheared to the ground.
+   - The worn ground is drawn only as the paths, the drive, the pad, the slab and the dry ground round the house. The
+     lawn tone over the whole plot (the old "square" patch) is gone.
+
+   Is the dry ground round the house a "flat lot square" to you? It is the house's footprint plus 1.2 m with a soft edge.
+   If yes, the cook drops that one kind and keeps the paths.
+2. **The kit table:** I re-sowed the TABLE only, on the approved archetypes (`--table`), not `--media`. `--media`
+   would re-cluster the 30 + 3 shapes, because the record has moved since 27 Sep. Confirm that is what you meant.
+
+**For A0, on the box:**
+1. `node tools/run_gates.js --only=CITYCOOK,MEDIA,PREMCOOK,TOWNKIT,METKIT --no-build`.
+2. `node tools/evidence/CITY-A-far.js`; look at `reports/evidence/CITY-A/{town_far,cell_near,lots_close}.png`.
+3. **The re-cook order** when the fixture moves:
+   - `node tools/premises_cook.js --island jolene`
+   - then `node tools/town_kit.js --table`
+   - then `node tools/city_cook.js --island jolene`
+   - commit `media/world/jolene/premises`, `media/townkit`, `media/city/jolene/metlakatla` and the three manifests.
+
+   GATE CITYCOOK names the input that moved (`inputs`) and fails if any plot needs a cook-assigned row.
+4. **The perf A/B** needs CITY-B's host on v2: the host must accept `v 2`, read the `lots` section and the lot kit, and
+   draw no ground stand-in. Then run the METLA-2.0 §5 rig as given in G3400-G3404.
+   - Add the near arm at the street level: the floats into `mk_sea`, then a taxi or a low pass over
+     `mk_z_town` (-3836, -8437).
+   - That is where the 731 k-triangle cell is.

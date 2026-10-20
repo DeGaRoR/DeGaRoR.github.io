@@ -76,7 +76,7 @@ anything under `media/world/` or `media/townkit/`.
     "id": "metlakatla", "island": "jolene", "prefix": "mk_", "variant": "town",
     "cell": 512, "frame": "world",
     "lod": { "far": 1000, "nearIn": 950, "nearOut": 1050, "kitE0": 150, "kitE1": 1200,
-             "propFar": 600, "lotFar": 400, "castFar": 600, "farGain": 0.2 },
+             "propFar": 600, "lotFar": 400, "lotE1": 120, "castFar": 600, "farGain": 0.2 },
     "inputs": { "fixture": "<sha16>", "record": "<sha16 of the town record>", "places": "<premises_packs town places hash>",
                 "kitPack": "<townkit pack sha256>", "kitTable": "<sha16 of the gunzipped instance file>",
                 "cook": "<sha16 of tools/city_cook.js>", "means": "<sha16 of the finish mean table>",
@@ -201,7 +201,7 @@ shell as the ranges around it: at most 2 extra draws for that cell while the edi
 - **A NEAR cell** draws:
   - its kit rows in the kit host (the rung band `kitE0` / `kitE1`: lod 0 / lod 1 / box);
   - its props within `propFar`;
-  - its lot rows within `lotFar` (section 9), per cell or per row;
+  - its lot rows within `lotFar` (section 9), per cell or per row; a bay past `lotE1` draws its piece's `lod1`;
   - its uniques on the unique path.
 
   Its `shell` draw is off. **No ground stand-in is drawn** at any distance: the terrain's own texture is the lot.
@@ -290,8 +290,8 @@ plots.
 | 14-15 | u16 length, cm, along +x (a bay: post to post; a gate: the leaf; a ground piece: its length) |
 | 16-17 | u16 width, cm, across (+z), centred on the axis (a ground piece); 0 for a fence piece |
 | 18 | u8 piece: an index into the lot kit's `pieces` (9.2) |
-| 19 | u8 flags: 1 may cast a shadow (near only), 2 a ground piece (draped, no shadow), 4 an old-fence prop row (the piece names a prop key) |
-| 20-21 | u16 owner: the cell's plot index |
+| 19 | u8 flags: 1 may cast a shadow (near only); 2 a ground piece (draped, no shadow); 4 an old-fence prop row (the piece names a prop key); a ground piece's FADING edges: 8 x = 0, 16 x = L, 32 z = -w/2, 64 z = +w/2 (an edge without its bit is a seam inside a split piece: no fade); 128 the owner is a unique (a site's synthetic plot), not a plot |
+| 20-21 | u16 owner: the cell's plot index, or its unique index with flag 128 |
 | 22-23 | u16 seed: the row's own variation (a ground piece's edge noise, a hand-picked tint) |
 | 24-31 | i16 x 4, cm: the ground under the piece's four corners, relative to y, in its own frame, in the order (0, -w/2), (L, -w/2), (L, +w/2), (0, +w/2). A fence piece (w = 0) has corners 0 = 3 and 1 = 2 |
 
@@ -307,14 +307,17 @@ plots.
   stands on the ground under its middle.
 - **A ground piece** (flag 2) is a rectangle `[0, L] x [-w/2, +w/2]`, draped bilinearly on its four corners, + 0.04 m.
   - It uses a polygon offset (-2, -2) and is textured with the lot's worn ground (lot_tex's `piece.tex`).
-  - Its alpha fades over `piece.fade` metres from each edge, the fade broken by noise on `seed`, so a strip never reads
-    as a ruled band.
+  - Its alpha fades over `piece.fade` metres from each edge whose flag bit is set (8 / 16 / 32 / 64), the fade broken
+    by noise on `seed`, so a strip never reads as a ruled band. The edges inside a split piece do not fade.
   - It casts nothing.
 - **The cook keeps each ground piece at most 8 m long and 8 m wide** (splitting a long path or a large slab), so the
   bilinear drape stays within a few centimetres of the composed ground.
 
-**The order of the rows:** by owner (the cell's plots in order). Inside a plot: its fence stretches in the plan's
-order, each stretch's posts, bays and gate, then its ground pieces.
+**The order of the rows:** by owner, in the cell's order of things (its plots and its uniques by id). Inside an owner:
+its fence stretches in the plan's order, each stretch's posts, bays and gate, then its ground pieces.
+
+**The sites' lots.** A landmark's synthetic plot (buildItem dresses it as a plot) carries its fences and worn ground
+too: 25 of Metlakatla's 63 sites have fences. Their rows have flag 128, and their owner is the unique.
 
 ### 9.2 The lot kit (`lotkit.<h8>.bin`, one per town; its piece table also in the manifest)
 
@@ -331,11 +334,13 @@ order, each stretch's posts, bays and gate, then its ground pieces.
 { "id": n, "name": "bay:picket:2", "kind": "post" | "bay" | "gate" | "gatepost" | "old" | "ground",
   "style": "rail" | "picket" | "old" | <ground kind>, "variant": 0..3, "len": metres (the unscaled length along x),
   "tris": n, "verts": n, "box": [x0, y0, z0, x1, y1, z1], "uv": [u0, v0, u1, v1], "vb": [off, len], "ib": [off, len],
+  "lod1": <piece id> (kind "bay": what to draw past lod.lotE1; a rail bay names itself),
   "prop": <propKeys index> (kind "old"), "tex": "<lot_tex set>", "fade": metres (kind "ground") }
 ```
 - **The kinds:**
   - `post`: a fence post, its foot at the origin; rail 1.15 m, picket 1.05 m;
   - `bay`: the rails (and the pickets, picket style) from x = 0 to `len` = 2.4 m, no posts;
+  - `bay1`: a picket bay's lod 1: its rails and the pickets as one two-sided panel (60 triangles against ~450);
   - `gate`: a leaf hung at the origin along +x, closed, `len` = 1. The row's yaw already carries its swing (the
     village's 0.45-0.75 rad into the plot, as `gateLeaf` draws it);
   - `gatepost`: the taller hinge and latch posts;
@@ -422,9 +427,21 @@ A re-cook gives byte-identical raw cells. The gzip bytes are kept as shipped whe
 8. **Negative controls:** each of these is caught: a plot moved, a plot dropped, an archetype id past the pack, a
    second draw, a lot row on a missing piece, a fence bay taken out.
 
-## 13. Metlakatla, as cooked
+## 13. Metlakatla v2, as cooked (20 Oct, fixture f7e79ba3, kit pack 2e8c3968, kit table re-sown: 54528c50dfc7)
 
-(Filled in by the v2 cook; v1's numbers: 13 cells, 380 plots, 435 kit rows, 3 695 props, 34 108 far triangles.)
+| | |
+| --- | --- |
+| cells | 13 of 512 m; **13 far draws** for the whole town (v1: 26) |
+| plots | 380, all rows of the kit table (0 assigned by the cook); 0 unique plots |
+| kit rows | 435 (380 houses + 55 outbuildings, all 55 the table's own) |
+| uniques | 63 landmarks (site items); 40 record objects |
+| props | 3 743 rows (the 48 lot cars added), 104 keys |
+| far mesh | 6 388 triangles, 12 176 vertices (v1: 34 108 with the roads and the lot squares); at most 1 770 triangles a cell |
+| lots | 35 892 rows: 14 878 posts, 13 374 bays, 378 gates + 756 gate posts, 2 032 old stretches, 4 474 worn ground pieces; 41.0 km of fence, all of the plans' fenced edges clipped to the land |
+| lot kit | 27 pieces (posts and bays in 4 hands per style, the picket bay's lod 1, gates, gate posts, the old stretch, 5 ground kinds), 107 KB raw, 35 KB gzip |
+| near triangles | the densest cell (-8, -17): 10 167 lot rows, 731 k triangles at lod 0 (a picket bay is ~450); the lod 1 past `lotE1` and `lotFar` bound what a frame draws |
+| bytes | 1 484 KB raw, 702 KB gzip over the 13 cells, + the lot kit (fetched by a town-ON page alone) |
+| cook | about 17 s (15 s of it is the compose); GATE CITYCOOK about 25 s |
 
 ## 14. Changes proposed by CITY-B
 

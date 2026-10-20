@@ -7,9 +7,11 @@
 //
 // Writes:
 //   town_far.png     the whole town, far cells only (walls, roofs, roads, lots), an oblique view from the south-east
-//   cell_near.png    the busiest cell, two panes on one camera: LEFT its far mesh (the 2 draws), RIGHT its kit rows at lod 1
+//   cell_near.png    the busiest cell, two panes on one camera: LEFT its far mesh (the 1 draw), RIGHT its kit rows at lod 1
 //                    (the archetypes off the kit pack, the row's transform, mirror, stretch and stance as townkit.js draws
-//                    them) on the same ground bucket - the far shells must sit where the houses do
+//                    them) and its LOT rows (v2: the lot kit's posts, bays and gates, sheared to the ground; the worn
+//                    ground pieces draped on their corners) - the far shells must sit where the houses do
+//   lots_close.png   a street-level close-up of the same cell's lots (the fences the user wants to land among)
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -64,6 +66,37 @@ function kitTris(C) {
       const col = roof.has(role) ? roofC : wallR.has(role) ? wallC : glass.has(role) ? [60, 70, 80] : [150, 145, 135];
       out.push({ p: [P(L.idx[t]), P(L.idx[t + 1]), P(L.idx[t + 2])], c: col, k: 0 });
     }
+  }
+  return out;
+}
+// the lot rows, as CITY-PACK-FORMAT §9.1 says to draw them
+const LKD = CC.decodeLotKit(zlib.gunzipSync(fs.readFileSync(path.join(ROOT, town.lotKit.src))));
+const GROUND_C = { path: [120, 96, 70], drive: [112, 90, 66], pad: [140, 134, 120], slab: [168, 164, 156], dry: [134, 116, 88] };
+function lotTris(C) {
+  const out = [];
+  for (const r of CC.decodeLots(C.lots)) {
+    const P = LKD.head.pieces[r.piece], c = Math.cos(r.yaw), s = Math.sin(r.yaw);
+    const W = (lx, y, lz) => [r.x + lx * c + lz * s, r.y + y, r.z - lx * s + lz * c];
+    if (P.kind === 'ground') {
+      // a 4 x 4 grid draped bilinearly on its corners (0 (0,-w/2) 1 (L,-w/2) 2 (L,+w/2) 3 (0,+w/2)), + 0.04 m
+      const g = r.g, n = 4, col = GROUND_C[P.style] || [120, 100, 80];
+      const at = (u, v) => W(u * r.len, (g[0] * (1 - u) + g[1] * u) * (1 - v) + (g[3] * (1 - u) + g[2] * u) * v + 0.04, (v - 0.5) * r.width);
+      for (let i = 0; i < n; i++) for (let k = 0; k < n; k++) {
+        const a = at(i / n, k / n), b = at((i + 1) / n, k / n), d = at((i + 1) / n, (k + 1) / n), e = at(i / n, (k + 1) / n);
+        out.push({ p: [a, b, d], c: col, k: 2 }, { p: [a, d, e], c: col, k: 2 });
+      }
+      continue;
+    }
+    if (P.kind === 'old') {   // the scanned stretch: a 1.44 m board fence, its prop's box, stretched
+      const L = r.len / 2, H = 1.44, t = 0.1, col = [118, 104, 86];
+      const q = [[-L, -t], [L, -t], [L, t], [-L, t]];
+      for (let k = 0; k < 4; k++) { const a = q[k], b = q[(k + 1) % 4]; out.push({ p: [W(a[0], 0, a[1]), W(b[0], 0, b[1]), W(b[0], H, b[1])], c: col, k: 0 }, { p: [W(a[0], 0, a[1]), W(b[0], H, b[1]), W(a[0], H, a[1])], c: col, k: 0 }); }
+      continue;
+    }
+    const M = LKD.meshes[r.piece], sx = r.len / P.len, rise = r.g[1] - r.g[0];
+    const col = role => (role === 0 ? [112, 92, 70] : P.style === 'picket' ? [214, 208, 196] : [150, 132, 106]);
+    const V = i => { const lx = M.pos[i * 3]; return W(lx * sx, M.pos[i * 3 + 1] + (lx / P.len) * rise, M.pos[i * 3 + 2]); };
+    for (let t = 0; t < M.idx.length; t += 3) out.push({ p: [V(M.idx[t]), V(M.idx[t + 1]), V(M.idx[t + 2])], c: col(M.role[M.idx[t]]), k: 0 });
   }
   return out;
 }
@@ -128,7 +161,7 @@ fs.mkdirSync(OUTDIR, { recursive: true });
 }
 {
   const C = cells.slice().sort((a, b) => b.head.kit.rows - a.head.kit.rows)[0];
-  const far = farTris(C), ground = farTris(C, ['roads', 'lots']), kit = kitTris(C).concat(ground);
+  const far = farTris(C), lots = lotTris(C), kit = kitTris(C).concat(lots);
   // the camera: the cell's busiest 200 m round its rows' mean
   const T = K.TK.decodeInstances(C.kit);
   let mx = 0, mz = 0, my = 0; for (const r of T.rows) { mx += r.x; mz += r.z; my += r.y; } mx /= T.rows.length; mz /= T.rows.length; my /= T.rows.length;
@@ -137,6 +170,12 @@ fs.mkdirSync(OUTDIR, { recursive: true });
   raster(W, H, far.filter(near), viewOf(mx, my, mz, -25, 40, sc, W / 2, H / 2), img, zb, 0);
   raster(W, H, kit.filter(near), viewOf(mx, my, mz, -25, 40, sc, W + W / 2, H / 2), img, zb, W);
   fs.writeFileSync(path.join(OUTDIR, 'cell_near.png'), png(img));
-  console.log('cell_near.png  cell ' + C.head.cell.join(',') + ': far ' + far.length + ' tris in ' + C.head.far.draws.length + ' draws | near ' + T.rows.length + ' kit rows, ' + (kit.length - ground.length) + ' lod-1 tris');
+  console.log('cell_near.png  cell ' + C.head.cell.join(',') + ': far ' + far.length + ' tris in ' + C.head.far.draws.length + ' draw | near ' + T.rows.length + ' kit rows (' + (kit.length - lots.length) + ' lod-1 tris), ' + C.head.lots.rows + ' lot rows (' + lots.length + ' tris)');
+  // THE CLOSE-UP: 70 m across, from 20 degrees down, at the rows' densest plot
+  const W2 = 1600, H2 = 1000, img2 = canvas(W2, H2), zb2 = new Float32Array(W2 * H2).fill(-Infinity), sc2 = W2 / 70;
+  const near2 = t => t.p.some(p => Math.abs(p[0] - mx) < 60 && Math.abs(p[2] - mz) < 60);
+  raster(W2, H2, kit.filter(near2), viewOf(mx, my, mz, -25, 20, sc2, W2 / 2, H2 / 2), img2, zb2, 0);
+  fs.writeFileSync(path.join(OUTDIR, 'lots_close.png'), png(img2));
+  console.log('lots_close.png  70 m round ' + mx.toFixed(0) + ', ' + mz.toFixed(0));
 }
 console.log('wrote ' + path.relative(process.cwd(), OUTDIR));
