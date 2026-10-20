@@ -8,6 +8,7 @@
 //                      set times of the shots (Page.captureScreenshot - they disturb the frames, so this row's times are
 //                      INFO), written to --stills (outside the repo: never shown to the user)
 //   3 SKIPPED          the career removed again: Esc at 5 s - the garage, the story at T0, the frames round the swap
+//     (--profile: run 3 is a played New career under a CPU profile instead - self time by function through the shots)
 // The profile is under the system temp dir (C:), deleted at the end. GPU lock first (the caller): it is timed.
 // Usage: node tools/perf/story_intro_look.js --port 8791 [--stills <dir>] [--out <json>] [--size 2216x1023] [--plan]
 //   (no --help: an unknown flag is ignored)
@@ -48,6 +49,14 @@ const READ = `JSON.stringify({ bootLog: ((window.BOOT && BOOT.log) || []).filter
 // a career removed, so the next load is a New career
 const FRESH = `(() => { try { localStorage.removeItem('flydiy.career.main'); localStorage.removeItem('flydiy.career.main.prev'); for (const k of Object.keys(localStorage)) if (k.indexOf('flydiy.build.') === 0) localStorage.removeItem(k); } catch (e) {} return 'ok'; })()`;
 
+// a CPU profile -> self time per function (name, file:line), largest first
+function top(P) {
+  if (!P || !P.nodes) return [];
+  const byId = new Map(P.nodes.map(n => [n.id, n])), self = new Map();
+  for (let i = 0; i < P.samples.length; i++) { const dt = (P.timeDeltas[i + 1] || P.timeDeltas[i] || 0) / 1000; const n = byId.get(P.samples[i]); if (!n) continue;
+    const cf = n.callFrame, k = (cf.functionName || '(anon)') + ' ' + String(cf.url || '').split('/').pop().split('?')[0] + ':' + (cf.lineNumber + 1); self.set(k, (self.get(k) || 0) + dt); }
+  return [...self].map(([fn, ms]) => ({ fn, ms: Math.round(ms) })).sort((a, b) => b.ms - a.ms).slice(0, 40);
+}
 function windows(d) {
   const at = k => { const r = d.st.find(x => x[1] === k || (k === 'done' && /^done:/.test(x[1]))); return r ? r[0] : null; };
   return { warm: at('warm'), shots: at('shots'), out: at('out'), garage: at('garage'), done: at('done') };
@@ -87,10 +96,11 @@ const show = r => log('   ' + r.scene.padEnd(30) + (r.frames ? r.fps + ' fps, p5
       log(label + ': boot ' + l.sec + ' s (' + l.state + ')');
       await b.ev(WATCH);
       const tEnd = Date.now() + 150000, shots = [];
-      let si = 0, pressed = false;
+      let si = 0, pressed = false, profOn = false;
       while (Date.now() < tEnd) {
         const s = JSON.parse(await b.ev("JSON.stringify((window.FLYDIY_INTRO && FLYDIY_INTRO.state && FLYDIY_INTRO.state()) || { st: window.FLYDIY_INTRO_LAST ? 'done' : 'none', t: 0 })"));
         if (s.st === 'done' || (s.st === 'none' && Date.now() > tEnd - 140000)) break;
+        if (opts.profile && !profOn && s.st === 'shots') { await b.cmd('Profiler.enable'); await b.cmd('Profiler.setSamplingInterval', { interval: 250 }); await b.cmd('Profiler.start'); profOn = true; log('   profiling the shots'); }
         if (opts.skipAt != null && !pressed && s.st === 'shots' && s.t >= opts.skipAt) {
           await b.cmd('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
           await b.cmd('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
@@ -105,6 +115,8 @@ const show = r => log('   ' + r.scene.padEnd(30) + (r.frames ? r.fps + ' fps, p5
         }
         await sleep(opts.stills ? 30 : 100);
       }
+      let prof = null;
+      if (profOn) { const pr = await b.cmd('Profiler.stop'); prof = top(pr.result && pr.result.profile); log('   the shots, self time by function (top 15):'); for (const x of prof.slice(0, 15)) log('     ' + String(x.ms).padStart(7) + ' ms  ' + x.fn); }
       await sleep(5500);   // the garage's first seconds
       if (opts.stills && STILLS) {   // the garage after the fade (+2 s past the curtain)
         const img = await b.cmd('Page.captureScreenshot', { format: 'jpeg', quality: 72 });
@@ -113,7 +125,7 @@ const show = r => log('   ' + r.scene.padEnd(30) + (r.frames ? r.fps + ' fps, p5
       const d = JSON.parse(await b.ev(READ, 30000));
       const A = rows(d, label);
       const bl = d.bootLog || [], ii = bl.findIndex(e => e[0] === 'step' && e[1] === 'intro'), introMs = ii >= 0 && bl[ii + 1] ? bl[ii + 1][2] - bl[ii][2] : null, readyT = (bl.find(e => e[0] === 'ready') || [])[2];
-      const run = { introStepMs: introMs, bootReadyMs: readyT, bootLog: bl, ln: d.ln, label, boot: l, states: d.st, plan: d.plan, last: d.last, here: d.here, beat: d.story ? d.story.beat : null, hold: d.hold, curtain: d.curtain,
+      const run = { profile: prof, introStepMs: introMs, bootReadyMs: readyT, bootLog: bl, ln: d.ln, label, boot: l, states: d.st, plan: d.plan, last: d.last, here: d.here, beat: d.story ? d.story.beat : null, hold: d.hold, curtain: d.curtain,
         bodyIntro: d.bodyIntro, card: d.card, rows: A.rows, long: A.long, exc: b.exc.splice(0), stills: shots };
       R.runs.push(run);
       log(label + ': the boot step intro ' + introMs + ' ms (boot ready at ' + readyT + ' ms)'); log(label + ': ' + (d.last ? d.last.how : 'NO OPENING') + ', here ' + d.here + ', beat ' + run.beat + ', radio held ' + d.hold + ', curtain left ' + d.curtain + ', card ' + JSON.stringify(d.card));
@@ -123,7 +135,7 @@ const show = r => log('   ' + r.scene.padEnd(30) + (r.frames ? r.fps + ' fps, p5
     };
     await one('1 cold New career', {});
     if (!flag('nostills')) await one('2 played stills', { stills: !!STILLS, fresh: true });
-    if (!flag('only1')) await one('3 skipped', { skipAt: 5, fresh: true });
+    if (!flag('only1')) { if (flag('profile')) await one('3 profiled (timing INFO)', { profile: true, fresh: true }); else await one('3 skipped', { skipAt: 5, fresh: true }); }
   } catch (e) { R.error = String(e && e.stack || e); log('ERROR ' + R.error); }
   finally {
     if (b) await b.close();
