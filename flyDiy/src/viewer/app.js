@@ -8754,10 +8754,57 @@
     if (m === stMaskWas) return;
     stMaskWas = m;
     try { if (window.TECH_MASK && typeof window.TECH_MASK.tutorial === 'function') window.TECH_MASK.tutorial(m); } catch (e) {}
+    // G3350: the story's structure lock is the editor's own (finish view only) until TECH-MASK lands - a STORY STAGE,
+    // lifted when the beat's mask is (the user: "the small shed will have structure enabled later on")
+    try { if (window.EDITOR_LOCK) window.EDITOR_LOCK.finishOnly(m === 'finish' ? 'Tim: the structure comes later in the story - paint, liveries and colours for now.' : null); } catch (e) {}
     try { window.dispatchEvent(new CustomEvent('flydiy-story', { detail: { mask: m } })); } catch (e) {}
   }
+  // ---- G3350 (STORY-TIM): TIM'S BAND - the story's voice at the bottom of the screen (the user, 19 Oct: "a pop-up kind of
+  // thing at the bottom of the screen, with a placeholder vignette portrait"). A line at a time (Next), closed on the last
+  // (OK); shown again on each new beat. Never centred, never over the middle; the garage's look (editor.css #stTim).
+  // The portrait is a PLACEHOLDER silhouette (no image, no real person).
+  let stTimEl = null, stTimBeat = null, stTimI = 0, stTimShut = false;
+  function storyTimSync() {
+    if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
+    const s = stLive(), id = s && !s.open ? s.beat : null, L = id ? storyTimLines(id) : [];
+    if (id !== stTimBeat) { stTimBeat = id; stTimI = 0; stTimShut = false; }
+    if (!L.length || stTimShut || (window.FLYDIY_AP && typeof window.FLYDIY_AP.manual === 'function' && window.FLYDIY_AP.manual() && !inGarage)) { if (stTimEl) stTimEl.hidden = true; return; }
+    if (!stTimEl) {
+      stTimEl = document.createElement('aside');
+      stTimEl.id = 'stTim'; stTimEl.setAttribute('role', 'dialog'); stTimEl.setAttribute('aria-label', STORY_TIM.name + ', ' + STORY_TIM.role);
+      stTimEl.addEventListener('click', ev => {
+        const b = ev.target && ev.target.closest ? ev.target.closest('[data-tim]') : null;
+        if (!b) return;
+        if (b.dataset.tim === 'next') stTimI++; else stTimShut = true;
+        storyTimSync();
+      });
+      document.body.appendChild(stTimEl);
+    }
+    const i = Math.min(stTimI, L.length - 1), last = i >= L.length - 1;
+    const face = '<svg class="stTimFace" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="23"/><circle class="h" cx="24" cy="19" r="8"/><path class="h" d="M9 41c2-9 8-13 15-13s13 4 15 13"/></svg>';
+    stTimEl.innerHTML = face + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(L[i]) + '</p></div>' +
+      '<button type="button" class="stTimBtn" data-tim="' + (last ? 'ok' : 'next') + '">' + (last ? 'OK' : 'Next (' + (i + 1) + '/' + L.length + ')') + '</button>';
+    stTimEl.hidden = false;
+  }
+  // THE BENCH NEVER STANDS IN THE SMALL SHED (the user, 19 Oct: "will never get the bench"): a property of the SHED - the
+  // story's cabin shed (`story` on the shed record, G2743 / STORY-PAGE) - at every beat; the garage shows the design pane
+  function storyBenchRule() {
+    if (!STORY_PAGE) return;
+    let small = false;
+    try { const d = playerLoad(), sh = d.sheds && d.sheds[d.here]; small = !!(sh && sh.story); } catch (e) {}
+    const tb = typeof document !== 'undefined' ? document.getElementById('tabBench') : null;
+    if (!tb) return;
+    if (tb.hidden !== small) tb.hidden = small;
+    if (small) { const bn = document.getElementById('edBench'), td = document.getElementById('tabDesign');
+      if (bn && !bn.hidden && td && td.onclick) td.onclick(); }
+    let n = document.getElementById('stNoBench');
+    if (small && !n && tb.parentNode) { n = document.createElement('span'); n.id = 'stNoBench'; n.textContent = 'no bench in this shed'; tb.parentNode.appendChild(n); }
+    if (n) n.hidden = !small;
+  }
   if (STORY_PAGE) {
-    try { storyCardSync(); storyFlush(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
+    try { storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
+    setInterval(() => { try { storyTimSync(); storyBenchRule(); } catch (e) {} }, 1500);
+    try { window.addEventListener('flydiy:manual', () => { try { storyTimSync(); } catch (e) {} }); } catch (e) {}
     // T2's checklist follows the build on the stand (its ledger memoised on the spec's fingerprint)
     setInterval(() => { try { const s = stLive(); if (s && !s.open && s.beat === 'T2') storyCardSync(); } catch (e) {} }, 3000);
     window.FLYDIY_STORY = {

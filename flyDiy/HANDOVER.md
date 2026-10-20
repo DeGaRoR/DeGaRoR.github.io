@@ -95513,3 +95513,24 @@ Cargo (rolling; L20a's held set + more): damage-on (DAMAGE ON BY DEFAULT: GEN_DA
 Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore). DMGDETERMINISM census now clean (L19d's 27_premises + this flare-coremath).
 Strict light gate: 5 RED, none new: over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV, fix in progress); metal fuseWidth busy = the cost the user accepted by name (15 Oct).
 Known, owned, not blocking: G3027 (a Chinook-alike archetype rejects its takeoff with damage on; non-validated; Deform).
+
+## G3350-G3359 - STORY-TIM: TIM'S BAND AT THE BOTTOM, THE PAINT-ONLY T0 (THE EDITOR'S STORY LOCK), THE BENCH NEVER IN THE SMALL SHED (2026-10-20, the GAME COORDINATOR in the fast lane; GAME-PLAN §R2; branch claude/story-tim off origin/master da1c8c75a)
+- **Tim** (79_story.js STORY_TIM, draft English keyed by beat, for the narrative pack to rewrite). He speaks each beat in
+  **#stTim**, a band at the bottom of the screen (transparent ground, never centred).
+  - It shows a PLACEHOLDER silhouette portrait (inline SVG: no image, no real person), "Tim · your friend and business
+    partner", and one line at a time (Next n/m, then OK). It shows again on each new beat.
+  - In flight it steps aside once the player takes manual control (FLYDIY_AP.manual(), Pilot's AP-TOGGLE G3325).
+  - The corner card (#stCard) stays the OBJECTIVE.
+  - T0's lines: dust it off; paint, liveries, a registration, the structure for later; click once, twice or three
+    times to the top of the tree for the global colour, liveries and per-piece colour; pre-certified, no bench in this
+    shed. T1's: join me at the WWII airport; the autopilot line.
+- **The structure lock is a STORY STAGE** (editor.js `window.EDITOR_LOCK.finishOnly(reason)`). While the story's mask
+  is 'finish' (T0), the editor holds the FINISH view: Shape and Design are disabled, with the reason written under the
+  tabs. It lifts with the mask. app.js storyMaskNote hands it over; TECH-MASK, when it lands, can take over.
+- **The bench never stands in the small shed** (a property of the SHED: `sheds[here].story`). `storyBenchRule` hides
+  #tabBench there at every beat, says "no bench in this shed", and closes the bench pane if it was open.
+- **OWED (RUFUS-CERT):** the certified Rufus file's plaque is still "withdrawn: run the bench in the game". Rufus rolls
+  out regardless (the roll-out is never locked), but for "pre-certified" to READ true, one in-game bench run must stamp
+  its plaque and the file must be re-committed. A certificate is never faked.
+- GATE STORY rows: Tim has every beat's lines; T0 / T1's content; the editor lock (source); the bench rule; Tim's
+  band steps aside on manual.
