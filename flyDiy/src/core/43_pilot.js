@@ -454,11 +454,12 @@ function makePilot(sim, def, world, opts) {
   let phaseT = 0;
   // G3077 (TORQUE-RETUNE-66): the water rudders held down through a crosswind run's hump (ROLL, below) - the handle given
   // back to the rule the moment the phase changes; wrUp: raised for good this run (the hull labours)
-  let wrHold = false, wrUp = false;
+  let wrHold = false, wrUp = false, wrLanded = false;   // wrLanded: G3329, the blades lowered on this landing run
   const go = (ph) => {
     if (ph !== ap.phase) ap.report.phases.push({ t: Math.round(ap.t * 10) / 10, phase: ph });
     ap.phase = ph; phaseT = 0;
     if (wrHold) { sim.ctl.wr = null; wrHold = false; }
+    if (ph === 'ROLLOUT') wrLanded = false;
     piv = null;                                  // G1938: a pivot belongs to the phase that began it
     { const S_ = ap.afcs.sel; S_.wK = S_.vFloor = S_.toCap = S_.thrFull = S_.flc = S_.thMin = null; if (flcOn) { flcOn = false; SV.IthGain = null; SV.pitchK = 1; } }   // G2125: the climb law's selections are the phase's that set them
   };
@@ -4198,6 +4199,16 @@ function makePilot(sim, def, world, opts) {
             go('STOPPED');
           }
           break;
+        }
+        // G3329 (AP-ADAPT, t66 capsize): THE PEDALS ARE CENTRED BEFORE THE WATER RUDDERS COME DOWN (the seaplane handbook).
+        // The rule drops the blades the instant the water speed falls under WR_UP_V, at whatever the pedal holds: the float
+        // Cessna's 8 kt roll-out (t66-int) sat on -0.95 of air rudder against the weathercock from 15 to 10 m/s, the blades
+        // bit at full travel, the nose swung 29 deg in 0.9 s and it rolled over. Under WR_UP_V they stay up until the pedal
+        // is inside 0.3 (or the boat walks, 0.25 WR_UP_V), then come down for good; go() gives the handle back to the rule
+        if (sim.hydro) {
+          const wrV = typeof WR_UP_V === 'number' ? WR_UP_V : 12;
+          if (!wrLanded && Vg < wrV && (Math.abs(c.dr || 0) < 0.3 || Vg < 0.25 * wrV)) wrLanded = true;
+          if (!wrLanded) { c.wr = 0; wrHold = true; } else if (wrHold) { c.wr = null; wrHold = false; }
         }
         // G3079 (FLOATS-FIX; PERSONA-2 G2462's): ON THE WATER THE ATTITUDE IS HELD WHILE THE HULL PLANES (FAA-H-8083-23: after
         // the touchdown the back pressure comes in gradually as the seaplane slows off the step) - full back stick the instant
