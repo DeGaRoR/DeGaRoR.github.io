@@ -95434,3 +95434,73 @@ Cargo (rolling; L19b's held set + Train A): altiport-w4 (strip 9 back, profile l
 Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10 characters; FRAMECOST cessna garage:restore).
 Strict light gate: 5 RED, none new. over100 0->2 on the 4 legs = the pre-existing ~700 ms reveal hitch after the roll-out screen (HWCOV's 19 Oct 13:00 profiles: present on L19a too; ticket REVEAL-HITCH, perf week). metal fuseWidth busy = the cost the user accepted by name on 15 Oct.
 Landing tooling, 19 Oct: land_light now cleans flyDiy/media before merging and stops on a merge that fails without conflicts (untracked cook outputs had silently dropped cabin-strip); land_ready checks merges cumulatively and honours land_exclude.txt.
+
+## G3380-G3389 - STORY-INTRO: A NEW CAREER OPENS ON A CINEMATIC OVER THE CABIN STRIP, WITH 'SUNSET PLAINS' (YOIYAMI, CC0), AND FADES INTO THE CABIN'S SHED AT T0 (2026-10-19, for the GAME COORDINATOR, local GPU; branch claude/story-intro off origin/master cbe3f9972; NOT on claude/ready/ - the coordinator reviews first)
+
+The user, 19 Oct (GAME-PLAN §R2): "Some cinematic views of the cabin, with the camera moving to open the story mode, and a
+music. It zooms on the cabin, then we fade into the garage."
+
+- **Where it runs.** Only a NEW career with the story (STORY_PAGE), ONCE: playerLoad's story start sets `stIntroArm`. Continue
+  loads a saved document and never sets it; a reload of the new career is a Continue. Never on the sandbox, the dev career
+  (?career=1), the phone / garage-only boot (no world there: no cinematic, no music), or with `?intro=0`.
+- **No second world.** `src/viewer/story_intro.js` is LAZY (MANIFEST.lazy, `FLYDIY_LAZY('story_intro')`): the pages carry only
+  its name in the lazy map. The boot's own world, settled round the cabin's stand, is drawn FROM THE SHED, the way the boot's
+  warm draw already does (worldWarmDraw).
+  - The loop asks `storyIntroFrame(dt)` for this frame's eye. The world's update runs on the CABIN's point (the plan's
+    anchor), never the eye's, so nothing streams far away. The world's scene is drawn (`inShed` false).
+  - It runs with the world's exposure and the room's air off (ATMO.MIST.room), and the radio is held
+    (music.js `FLYDIY_MUSIC_HOLD`: its track fades out and keeps its place).
+  - The garage stays booted under it, so the fade back is a switch of the scene drawn (`storyIntroSwap`). Nothing is compiled
+    or baked: exposure, air and lens come back, the beat card shows T0.
+  - A New career's curtain also clears a sandbox route's spawn, so the boot's world settles round the cabin.
+- **The plan** (pure, from the cabin's aerodrome record: x, z, hdg, len, `fly.appr`, and the base plot): 34 s.
+  - THE VALLEY (11 s): from beside the low end (end 0), out over the lake valley toward the approach's gap, rising.
+  - THE STRIP (10.5 s): in from over the valley, low up the gravel on the far side, the shed ahead.
+  - THE CABIN (12.5 s): an arc round the shed from 60 m to its door (14 m, eye height 2.6 m); the lens closes 46 -> 34 deg.
+  - Out of black (2.6 s), a 0.45 s dip at each cut, a 1.8 s fade to black over the zoom, then the garage comes up out of
+    black (1.1 s). Under black first, the warm views (each shot's start / middle / end, a frame each, 0.6 s): their buffers
+    and residue links go up there.
+  - The eye is lifted over the terrain (and water) sampled along each path (a running max: a ridge is climbed smoothly).
+- **The music.** "Sunset Plains" by Yoiyami (OpenGameArt, https://opengameart.org/content/sunset-plains).
+  - **Licence: CC0, confirmed on its page 19 Oct.** Only this track was downloaded (the user's OK via A0).
+  - The first 40 s of the 330 s WAV (its own 6 s swell out of silence is the fade up), with a 3 s fade-out at the end.
+  - Ogg Vorbis, 48 kHz stereo, ~96 kbps: `media/audio/music/yoiyami_sunset_plains_intro.cfae36cd.ogg`, **468 KB** (479 530 B).
+  - **MEDIA: the OGG's size, for the user to accept by name** (a media file, not page bytes: the sandbox never fetches it).
+  - It plays through an HTMLAudioElement at master x music, and fades out with the fade (0.45 s on a skip). The New
+    career's click is the page's gesture.
+  - In CREDITS.md (outside the radio's generated block: it is not a radio track). GATE MEDIA now reads `.ogg` references,
+    and `story_intro.js` is a manifest for it.
+- **Skip.** A "Skip  Esc" pill at the bottom-right edge (never centred, the garage's look: `#stIntro` joined editor.css's
+  token root, IBM Plex Sans upright). Esc or a click anywhere also skips. Straight to the garage, a 0.45 s fade; the story
+  stays at T0 (the opening never sends the story an event). While it plays, every page element but the canvas is hidden
+  (body.stIntro).
+- **GATE STORY**, the opening's rows (29), all run headless over the half and the module:
+  - armed by a New career alone, once; Continue, phone, garage-only and ?intro=0 get none;
+  - the curtain under the loading screen; the world state set and put back;
+  - the plan on the Cabin Strip's fixture record: three shots, 34 s, the eye over a rough terrain (lowest 2.4 m), ending
+    14 m from the shed at eye height, fov 34, at black;
+  - played to its end, and skipped (13 frames), both -> the garage at T0;
+  - lazy, the Skip's look, and the track on disk and in CREDITS.
+- **Gates (19 Oct, UNTIMED cpu lock):** STORY PASS (+ --selftest PASS), UISMOKE PASS, UISMOKE-PHONE PASS, MEDIA PASS.
+- **The timed look** (A0's GPU slot Tue 20 Oct 03:31-03:58, gpu INTRO; `tools/perf/story_intro_look.js`, headed Chrome
+  2216x1023 on the box, a fresh C: temp profile, deleted). Three passes on 65625a928:
+  - **The shots (34 s): 27.9 fps, p50 33.4 ms, p90 33.5, p99 100, worst 100.2-116.8 ms**, 3-8 frames at ~100 ms. Long
+    tasks of 101-132 ms through the shots, more in the cabin's arc (23-33 s): just over the 100 ms line, no task >= 200 ms.
+  - **The fade into the garage: no hitch.** -1..+3 s round the swap: 30 fps, worst 50 ms (skip run 83 ms), no task over
+    100 ms. The garage's first seconds after: 30 fps, worst 33.5 ms. No program linked in the shots or at the swap.
+  - **Skip** (Esc at 5.15 s): the garage, the story at T0, the radio free, the card back.
+  - Boot to the screen lifting: 73-78 s cold, 61-65 s warm (a New career; the career's own boot, unchanged).
+  - **RED, fixed after the look (G3382, 03d175994, NOT yet re-looked):** the warm views under black linked **42 programs**
+    the boot had not (254 s of links in parallel). three blocks on each first draw: one 14 s task and a 20-31 s black wait
+    before the shots. Now a New career's boot step ('intro', registered only while its curtain is up, below 'craft') does
+    it under the loading screen, the way the boot's own 'frames' step does. Per view: the eye placed, the world's update
+    run there, compileSliced + depth variants, programsReady, one draw.
+  - **Also fixed (G3382):** the garage's canvas stands between its panels (body.mode-ws #c), so the opening drew in the
+    middle of the window. `body.stIntro #c` now takes the whole window while it plays (as the stills' body.shot does).
+  - The stills (mine, never shown): the valley out to the gap and the run up the gravel to the shed read well. The cabin's
+    arc was not captured (the rig's watch ran out); it is owed to the re-look.
+- **Owed:** a ~15 min re-look (A0's slot) of 03d175994: no black wait or long task in the warm views, the boot's added
+  seconds, the cabin's arc stills, the whole-window canvas. If the 101-132 ms tasks in the arc persist, find what plants
+  there (the cover ring round the eye near the shed, or the plots near the eye).
+- **Branch:** claude/story-intro @ 03d175994 (82c1dba4e the opening, 65625a928 the spawn + the rig, 03d175994 the look's
+  fixes). Gates on 03d175994: STORY (+ --selftest), UISMOKE, UISMOKE-PHONE, MEDIA PASS.
