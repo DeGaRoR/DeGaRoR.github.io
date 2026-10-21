@@ -50,6 +50,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   let fineRing = null;                // TERRAIN FOLLOW-UP 2: the disc of fine tiles round the eye (its update, its clear)
   let ringLod = null;                // PERF 2026-09-23: the inner ring drawn in chunks by distance (its update, its rebuild, its stats)
   let farLod = null;                  // PERF 2026-09-23: the island's far terrain, cut to the eye (its update, its dials, its stats)
+  // G3100's ground box, HERE (CABIN-PAD, 21 Oct): declared further down it sat in its TDZ when the premises block - inline in this
+  // build - ran 'premises ground': refreshGroundSteps threw at its first line on every boot since 13 Oct, the catch printed "the
+  // record did not render", and the ring's sink under the patch, the fine ring's clear, the ring's rebuild and the far tier's
+  // resink never ran (the far tier kept the raw DEM over every remote cut: the cabin's field shed buried to the eaves). G570's trap
+  const GBOX = { on: !(typeof location !== 'undefined' && /[?&]groundbox=0(&|$)/.test(location.search || '')), adj: new WeakMap(), last: null };   // ?groundbox=0: the whole ring's normals, as before
   let farSinkOn = false;              // G527: the far terrain sinks under a premises' patch once the patch stands (farLod.resink; premisesR is not declared yet when the first cut is built)
   let rockMap = null, groundU = null; // the rocks' far tier (rock_map.js); the island ground uniforms, hoisted for it
   let cliffs = null;                  // the photoscanned cliff faces (cliffs.js)
@@ -7284,7 +7289,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     return aff.size;
   }
   // ---- GROUND BOX (G3100) END ------------------------------------------------------------------------------------------
-  const GBOX = { on: !(typeof location !== 'undefined' && /[?&]groundbox=0(&|$)/.test(location.search || '')), adj: new WeakMap(), last: null };   // ?groundbox=0: the whole ring's normals, as before
+  // (GBOX is declared at the top of the build - CABIN-PAD: refreshGroundSteps reads it inside the premises block's 'premises ground' step)
   function refreshGround(bb) { const g = refreshGroundSteps(bb); while (!g.next().done); }
   // G995 (A5-LOAD): the same in steps (the roll-out's world build: 2.0-2.4 s in one task at 'premises ground' - the
   // ring's heights under the patch from the raster, then the far tier's re-cut): a yield every 8 k vertices tested
