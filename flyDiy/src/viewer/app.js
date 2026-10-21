@@ -4729,6 +4729,18 @@
       const Dr = SKIN_GPU.drawer({ THREE, A, AN, views: at.views, geos: [...geos], defer: true });
       Dr.F = at.F; GS.drawers.set(A, Dr);
     }
+    // (the members that are no fold's - the rigs' own meshes, drawn by their own attribute: most of a wreck's drawers, the
+    // smoke's census, 21 Oct: 7 of 42 were folds' - made for every group a break can ride, as of() would make them)
+    const rigsW = (model.wreckBuild && model.wreckBuild.rigsAll) ? model.wreckBuild.rigsAll : (model.rigs || []);
+    for (const r of [].concat(rigsW, model.surfParts || [], model.strutRigs || [], model.anchorRigs || [])) {
+      const pa = r && r.posAttr; if (!pa || GS.map.has(pa)) continue;
+      const A = pa; if (GS.drawers.has(A)) continue;
+      let geo = null; for (const m of GS.drawn) if (m.geometry && m.geometry.attributes.position === A) { geo = m.geometry; break; }
+      const AN = geo && geo.attributes.normal; if (!AN || AN.count !== A.count) continue;
+      const geos = new Set(); for (const m of GS.meshes) if (m.geometry && m.geometry.attributes.position === A) geos.add(m.geometry);
+      const Dr = SKIN_GPU.drawer({ THREE, A, AN, views: null, geos: [...geos], defer: true });
+      Dr.F = null; GS.drawers.set(A, Dr);
+    }
     const S = SKIN_GPU.G.stats; S.preMs = +(performance.now() - t0).toFixed(1); S.preDrawers = GS.drawers.size;
   }
   function brkGpuMake() {
@@ -4768,7 +4780,10 @@
                 Dr = SKIN_GPU.drawer({ THREE, A, AN, views: at ? at.views : null, geos: [...geos] });
                 Dr.F = at ? at.F : null; GS.drawers.set(A, Dr);
               }
-              if (!Dr.attached) SKIN_GPU.attach(Dr);   // (G3030: a drawer made at the roll-out, attached at its first record)
+              // (G3030: a drawer made at the roll-out, attached at its first record - with the record's own geometry, as the
+              // drawer made here takes it, should the roll-out not have seen it among the meshes)
+              if (!Dr.attached && geo && geo.attributes.position === A && Dr.geos.indexOf(geo) < 0) { Dr.geos.push(geo); Dr.saved.push([geo, geo.attributes.position, geo.attributes.normal]); }
+              if (!Dr.attached) SKIN_GPU.attach(Dr);
               SKIN_BREAK.placesOf(R);
               e = { R, pa, vo: at ? at.o / 3 : 0, nB: R.nB, D: Dr, px: [0, 0, 0], cpu: false };
               (Dr.join || (Dr.join = [])).push(e);   // (laid out with the frame's others: once a drawer a frame - frame())
