@@ -96954,6 +96954,16 @@ music. It zooms on the cabin, then we fade into the garage."
   - **SCENERY, not the camera (for the Game coordinator):** the shed's WALLS are below the drawn ground on every side
     (the 75 m still shows the same): plot w1's pad (what world.terrainH reports) is lower than the terrain the renderer
     draws there. The cabin reads as a roof on the hill. That is the Cabin Strip's cook / the ground fields, not this opening.
+- **HELD FROM L21b, RE-READY for L21c** (21 Oct 15:10): GATE AUDIO had not been in the set (it reads app.js's loop and music.js).
+  - Wiring row: the loop's render line reads "renderer.render(inGarage" again (the opening's view: "&& !introAt").
+  - Selftest anchors: music.js's wantNow line and its call "const want = wantNow(au);" are verbatim again; the opening's
+    hold sits in wantNow's arguments (every switch contextOf reads is off while FLYDIY_MUSIC_HOLD is set).
+  - **Lesson: a change to app.js's loop or music.js runs GATE AUDIO too.**
+  - The 265 ms "cub round trip 2: garage -> world" strict row: A/B in A0's slot (master_bench --builds cub --only loads
+    --no-cold --places HOME; A = master c0fe15905 in D:/Dev/wt-t42, B = this branch; A B B A): worst task **0 / 0 / 0 / 0 ms**,
+    the trip 10.9-11.0 s in all four. Not reproduced, and the branch equals master: no intro path runs in the sandbox.
+  - Gates: AUDIO PASS (selftest 356/356) + STORY PASS on e710af74a; UISMOKE, UISMOKE-PHONE, MEDIA PASS on 29a8f02ba (the only
+    diff since: music.js's wantNow line). Master c0fe15905 (L21b) merged.
 - **READY** (21 Oct 07:30, claude/ready/story-intro, on master 1622c35bb = L21a, merged: STORY_PAGE is every listed career
   but dev, stIntroArm on it; the :is() root's union). Gates on 083c1cf21 (UNTIMED 07:25, A0's slot): STORY (+ --selftest),
   UISMOKE, UISMOKE-PHONE, MEDIA (+ --selftest) PASS, battery PASS. **A New career loads ~15 s longer** (the opening's link
