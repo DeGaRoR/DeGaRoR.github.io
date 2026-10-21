@@ -7,6 +7,7 @@
 //            started when BOOT.current is 'intro', stopped when it moves on): self time by function, inclusive time by
 //            function; the step's own ledger (window.FLYDIY_INTRO_PREP: per shot the phases, the lights, the new programs and
 //            how their keys differ); then a second profile from the shots' last 2 s to the garage + 4 s (the swap's tasks)
+//   3 HIGH   the same with G3386's high ending (introend=high): is the swap's long task the eye-level end's?
 // Usage: node tools/perf/story_intro_prof.js --port 8793 [--out <json>] [--reps 1]   (GPU lock first; no --help)
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -67,13 +68,14 @@ async function one(label, q, prof) {
       while (Date.now() < tEnd) {
         const s = JSON.parse(await b.ev("JSON.stringify((window.FLYDIY_INTRO && FLYDIY_INTRO.state && FLYDIY_INTRO.state()) || { st: window.FLYDIY_INTRO_LAST ? 'done' : 'none', t: 0 })"));
         if (!started && s.st === 'shots' && s.t >= 32) { await b.cmd('Profiler.enable'); await b.cmd('Profiler.setSamplingInterval', { interval: 500 }); await b.cmd('Profiler.start'); started = true; }
-        if (s.st === 'done' || s.st === 'garage') break;
+        if (s.st === 'done' || s.st === 'garage') { row.swapPage = Math.round(await b.ev('performance.now()')); break; }
         await sleep(100);
       }
       await sleep(4000);
       if (started) { const r = await b.cmd('Profiler.stop'); row.swapProfile = digest(r.result && r.result.profile, 25); }
       row.prep = await b.ev('JSON.stringify(window.FLYDIY_INTRO_PREP || null)').then(JSON.parse);
       row.long = JSON.parse(await b.ev('JSON.stringify(__MB.lt.filter(x => x[1] > 150))'));
+      log('   long tasks > 150 ms (s from the swap): ' + row.long.map(x => x[1] + ' ms at ' + (row.swapPage != null ? ((x[0] - row.swapPage) / 1000).toFixed(2) : x[0])).join(', '));
       if (row.prep) for (const sh of row.prep.shots) log('   shot ' + sh.n + ': updates ' + sh.updates + ' ms (lights ' + sh.lights0 + ' -> ' + sh.lights1 + ', objects ' + sh.objs0 + ' -> ' + sh.objs1 + '), compile ' + sh.compile + ' (' + sh.newProgs + ' new), depth ' + sh.depth + ', links ' + sh.links + ', draws ' + sh.draws + '; key diffs ' + JSON.stringify(sh.keyDiff));
       const show = (k, P) => { if (!P) return; log('   ' + k + ' (' + P.ms + ' ms sampled) - self: ' + P.self.slice(0, 10).map(x => x.ms + ' ' + x.fn).join(' | ')); log('     inclusive: ' + P.incl.slice(0, 14).map(x => x.ms + ' ' + x.fn).join(' | ')); };
       show('the intro step', row.stepProfile); show('the swap', row.swapProfile);
@@ -92,6 +94,7 @@ async function one(label, q, prof) {
     for (let r = 1; r <= REPS; r++) {
       R.rows.push(await one('base' + r, 'intro=0', false));
       R.rows.push(await one('intro' + r, '', true));
+      R.rows.push(await one('high' + r, 'introend=high', true));   // the swap's task: the eye end's, or the high end's too?
     }
   } finally { try { srv.kill(); if (process.platform === 'win32') require('child_process').execSync('taskkill /PID ' + srv.pid + ' /T /F', { stdio: 'ignore' }); } catch (e) {} }
   const base = R.rows.filter(x => /^base/.test(x.label)).map(x => x.readyMs), intro = R.rows.filter(x => /^intro/.test(x.label)).map(x => x.readyMs);
