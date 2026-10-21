@@ -95541,6 +95541,14 @@ music. It zooms on the cabin, then we fade into the garage."
 - **Branch:** claude/story-intro (82c1dba4e the opening, 65625a928 the spawn + the rig, 03d175994 the look's fixes, 171299df6
   the rig's boot-step read, 11167711d the re-look's fixes). Gates on 11167711d: STORY (+ --selftest), UISMOKE, UISMOKE-PHONE,
   MEDIA PASS (battery PASS, 20 Oct ~16:05).
+- **THE ARC'S STILLS** (A0's UNTIMED GPU, Wed 21 Oct 03:40-03:49, three stills runs, each one New career; the profile deleted):
+  - G3385's sightline did nothing: world.terrainH and the DRAWN ground disagree at the crest before the shed, so the
+    still at 30 m / 3.5 m was the same as before (the shed behind the rise).
+  - G3386: the arc ends 45 m off the door, 18 m over the shed's ground, looking down (~20 deg). The whole roof now shows,
+    framed by the clearing and the forest. Shots worst 150 ms, no task >= 200 ms; swap worst 117 ms; the chooser shut.
+  - **SCENERY, not the camera (for the Game coordinator):** the shed's WALLS are below the drawn ground on every side
+    (the 75 m still shows the same): plot w1's pad (what world.terrainH reports) is lower than the terrain the renderer
+    draws there. The cabin reads as a roof on the hill. That is the Cabin Strip's cook / the ground fields, not this opening.
 - **Next:** ready, the Game coordinator's call on e8202b764 (gates STORY, UISMOKE, UISMOKE-PHONE, MEDIA: battery PASS 21 Oct). Owed:
   stills of the cabin's arc with G3385's sightline (a 5 min look, or the landing train's own).
 

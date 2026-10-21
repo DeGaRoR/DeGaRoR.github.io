@@ -77,11 +77,11 @@ var STORY_INTRO = (() => {
     const s2b = [c[0] + u[0] * hl * 0.25 - n[0] * sd * 40, c[1] + u[1] * hl * 0.25 - n[1] * sd * 40];
     shots.push({ id: 'strip', e0: P(s2a[0], s2a[1], 50), e1: P(s2b[0], s2b[1], 16),
       l0: [c[0], H(c[0], c[1]) + 4, c[1]], l1: [shed[0], hS + 3, shed[1]], fov0: FOV0 - 2, fov1: FOV0 - 4, clr: 8 });
-    // 3. THE CABIN: an arc round the shed from 75 m (40 deg off the door's line, high) to 30 m off its door, 3.5 m over its ground (the look, 20 Oct: 14 m from the plot put the eye 4 m off the wall - an 18 x 20 m shed), the
+    // 3. THE CABIN: an arc round the shed from 75 m (40 deg off the door's line, high) to 45 m off its door, 18 m over the SHED's ground (the looks: 14 m from the plot put the eye 4 m off the wall of an 18 x 20 m shed; 30 m at 3.5 m over the eye's own ground, a crest the terrain sampler does not see hid it - world.terrainH and the drawn ground differ there - so the end looks down on it; at 11 m the crest still hid its walls: 18 m), the
     // lens closing in (the zoom)
     const a1 = Math.atan2(door[1], door[0]), a0 = a1 + sd * 0.75;
-    const arc = k => { const a = lerp(a0, a1, k), r = lerp(75, 30, k); return [shed[0] + Math.cos(a) * r, shed[1] + Math.sin(a) * r]; };
-    const s3 = { id: 'cabin', arc, ya: hS + 26, yb: H(...arc(1)) + 3.5, l0: [shed[0], hS + 4, shed[1]], l1: [shed[0], hS + 2.6, shed[1]], fov0: FOV0 - 4, fov1: 34, clr: 2.2 };
+    const arc = k => { const a = lerp(a0, a1, k), r = lerp(78, 45, k); return [shed[0] + Math.cos(a) * r, shed[1] + Math.sin(a) * r]; };
+    const s3 = { id: 'cabin', arc, ya: hS + 26, yb: Math.max(hS + 18, H(...arc(1)) + 3.5), l0: [shed[0], hS + 4, shed[1]], l1: [shed[0], hS + 2.6, shed[1]], fov0: FOV0 - 4, fov1: 34, clr: 2.2 };
     s3.e0 = [arc(0)[0], s3.ya, arc(0)[1]]; s3.e1 = [arc(1)[0], s3.yb, arc(1)[1]];
     shots.push(s3);
     // the clock, and the floor under each eye path (the terrain + the shot's clearance, a running max so a ridge is lifted

@@ -371,8 +371,8 @@ async function introRun() {
   const end = I.pose(PL, PL.T), shedG = terr(plot.x, plot.z), dEnd = Math.hypot(end.p[0] - plot.x, end.p[2] - plot.z);
   ok(PL.shots.length === 3 && PL.T >= 25 && PL.T <= 40, 'three shots (the valley, the strip, the cabin), 25-40 s', PL.shots.map(s => s.id + ' ' + (s.t1 - s.t0) + ' s').join(', ') + ' = ' + PL.T + ' s');
   ok(low >= 1.0, 'the eye stays over the ground the whole way (a rough terrain)', 'lowest ' + low.toFixed(1) + ' m at ' + at.toFixed(1) + ' s');
-  ok(dEnd > 24 && dEnd < 36 && end.p[1] - terr(end.p[0], end.p[2]) < 6 && end.fov <= 36 && Math.hypot(end.l[0] - plot.x, end.l[2] - plot.z) < 1 && end.black > 0.99,
-     'it ends zoomed on the shed (30 m off its door, 3.5 m over the ground, the lens closed) at black', dEnd.toFixed(1) + ' m, ' + (end.p[1] - terr(end.p[0], end.p[2])).toFixed(1) + ' m up, fov ' + end.fov.toFixed(0) + ' (shed ground ' + shedG.toFixed(0) + ')');
+  ok(dEnd > 38 && dEnd < 52 && end.p[1] - shedG >= 15 && end.p[1] - shedG <= 22 && end.fov <= 36 && Math.hypot(end.l[0] - plot.x, end.l[2] - plot.z) < 1 && end.black > 0.99,
+     'it ends zoomed on the shed (45 m off its door, looking down from 18 m over the shed ground, the lens closed) at black', dEnd.toFixed(1) + ' m, ' + (end.p[1] - shedG).toFixed(1) + ' m over the shed, fov ' + end.fov.toFixed(0));
   // THE SIGHTLINE (the third look, 21 Oct: a rise between the eye and the shed hid it): the near shots see their target -
   // on the rough terrain, and with a 6 m rise put between the last eye and the shed
   const seen = (Pl, T) => { let worst = Infinity, at = null;
@@ -422,7 +422,7 @@ async function introRun() {
   let r = await play(null);
   ok(r.up, 'a New career: the black curtain up under the loading screen (z 60 < the boot\'s 70), story_intro.js asked for');
   ok(r.during, "while it plays: the world's exposure, the room's air off, the radio held, the beat card hidden; the arm spent (once)");
-  ok(r.last && r.last.how === 'played' && r.worldF / 30 >= PL.T && r.worldF / 30 <= PL.T + 1.5 && r.near < 36,
+  ok(r.last && r.last.how === 'played' && r.worldF / 30 >= PL.T && r.worldF / 30 <= PL.T + 1.5 && r.near < 52,
      'played to its end: the world drawn from the shed for the whole cinematic, the last frame at the shed', (r.worldF / 30).toFixed(1) + ' s of world, ' + (r.near || 0).toFixed(1) + ' m from the shed');
   const df = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'design_flow.js'), 'utf8');
   ok(H.FLYDIY_STORY_STARTER === 'Rufus' && df.includes('setTimeout(() => { if (!window.FLYDIY_STORY_STARTER) openBirth(); }, 400)'),
