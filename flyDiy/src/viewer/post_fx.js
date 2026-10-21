@@ -607,6 +607,11 @@ const POST_FX = (() => {
   // tap(renderer, camera, rt): aa_resolve's tap, once a frame after the post chain (app.js installs it when the recorder is on)
   function tap(r, camera, rt) {
     if (!cat.on || !ready || !rt || !rt.texture) return;
+    // REVEAL-FLASH (A0 21 Oct): A FRAME ON SCREEN ONLY. The boot's offscreen draws (the warm draw's six views round the stand at
+    // 0.35 x viewDist up, the first light) go through aa_resolve too and were judged as frames - two cameras alternating (4 m and
+    // 36 m up) read as a 'bright spike' every boot, logged as a flash at the reveal that no player ever saw (all before the
+    // recorder's reveal mark; the caught picture: the apron from 4 m). While the boot's screen is up, nothing is judged
+    { const B = typeof window !== 'undefined' ? window.BOOT : null; if (B && B.state && B.state !== 'gone') return; }
     const gl = renderer.getContext && renderer.getContext();
     if (!gl || typeof gl.createQuery !== 'function') return;
     const t0 = perfNow();

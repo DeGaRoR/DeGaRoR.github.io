@@ -536,6 +536,8 @@
   // its start, Tim, the opening once); the dev career (?career=1) keeps none, so every gate's fixture career stays
   // rail-free; the sandbox: never (its page half below)
   const STORY_PAGE = CAREER_DEV && CAREER_ID !== 'dev' && typeof storyNewCareer === 'function';
+  // G3380 (STORY-INTRO): the opening's arm - set by a NEW career's story start (playerLoad), once; Continue never sets it
+  let stIntroArm = false;
   let ecWalletEl = null, ecNote = '';      // G2260 (ECONOMY): the garage's wallet line (career only; its page half below)
   // G2315 (GARAGE-RESIDENTS): the career's airframes stand in its garage as fleet props, so the career turns the fleet on
   // (FLEET-PROPS A's bake on save, decode at the stand) unless the page said otherwise; the sandbox is untouched
@@ -564,7 +566,7 @@
       const taken = new Set(playerSlotNames());
       let slot = STORY_SLOTS.starter, i = 2; while (taken.has(slot)) slot = STORY_SLOTS.starter + ' ' + i++;
       const r = CAREER_DEV ? storyNewCareer(player, { aeros: (world && world.aerodromes) || [], starter: slot }) : { ok: false, why: 'not a career' };
-      if (r.ok) player = r.doc; else console.warn('flyDiy (story): the story did not start - ' + r.why);
+      if (r.ok) { player = r.doc; stIntroArm = true; } else console.warn('flyDiy (story): the story did not start - ' + r.why);
     } catch (e) { console.warn('flyDiy (story): the story did not start -', e && e.message); }
     // PREM-S2 (G2230): THE LIFT AT LOAD. Every saved build (a flydiy.build.* slot) is an airframe that stands somewhere
     // (71_player_bases.js playerFleetReconcile, pure: handed the slot names this page reads): a slot the ledger lacks is
@@ -8711,6 +8713,8 @@
   const stFiles = {};
   let stCardEl = null, stLine = '', stQueue = [], stBusy = false, stMemo = { fp: null, fb: null, L0: null, cost: null, next: null }, stMaskWas;
   const stLive = () => (STORY_PAGE ? storyOf(playerLoad()) : null);
+  // G3380 (STORY-INTRO): the opening's player, its curtain, this frame's pose, what it set aside, the world's point (below)
+  let stIntro = null, stIntroEl = null, stIntroPose = null, stIntroWas = null, stIntroAt = null, stIntroPlan = null;
   // the first of a story plane's files that loads (the starter: builds/ first, then the archived candidate)
   function storyFile(role) {
     if (!stFiles[role]) {
@@ -8862,7 +8866,7 @@
     let K = null;
     try { K = storyCardNow(); } catch (e) { console.warn('flyDiy (story): the card -', e && e.message); }
     storyMaskNote();
-    if (!K && !stLine) { if (stCardEl) stCardEl.hidden = true; return; }
+    if ((!K && !stLine) || stIntroWas) { if (stCardEl) stCardEl.hidden = true; return; }
     if (!stCardEl) {
       stCardEl = document.createElement('aside');
       stCardEl.id = 'stCard'; stCardEl.setAttribute('role', 'status'); stCardEl.setAttribute('aria-label', 'the story');
@@ -8902,6 +8906,138 @@
     // lifted when the beat's mask is (the user: "the small shed will have structure enabled later on")
     try { if (window.EDITOR_LOCK) window.EDITOR_LOCK.finishOnly(m === 'finish' ? 'Tim: the structure comes later in the story - paint, liveries and colours for now.' : null); } catch (e) {}
     try { window.dispatchEvent(new CustomEvent('flydiy-story', { detail: { mask: m } })); } catch (e) {}
+  }
+  // ---- G3380-G3389 (STORY-INTRO): THE OPENING - a New career's cinematic over the cabin strip, its music, then the fade
+  // into the garage (the user, 19 Oct: "It zooms on the cabin, then we fade into the garage"; GAME-PLAN §R2). story_intro.js
+  // (lazy: FLYDIY_LAZY('story_intro'), never fetched by the sandbox, Continue or the phone garage) plans the camera from the
+  // cabin's record and plays it. The page's half: ARMED ONCE by a New career (playerLoad's stIntroArm; a reload is a
+  // Continue), never on the phone garage (no world) or with ?intro=0; a black curtain up under the loading screen
+  // (storyIntroCurtain), the cinematic when the boot lifts (bootOpts.done -> storyIntroBoot). NO SECOND WORLD: the boot's
+  // world, settled round the cabin's stand, is drawn FROM THE SHED - the loop asks storyIntroFrame for the eye (the
+  // world's update on the cabin's point, never the eye's: nothing streams far away) and draws the world's scene; the world's
+  // exposure, the room's air off, the radio held (music.js FLYDIY_MUSIC_HOLD). The garage stays booted under it: the fade
+  // back is a switch of the scene drawn (storyIntroSwap), nothing compiled or baked. Skip / Esc / a click: straight to the
+  // garage, the story at T0 (the opening never sends the story an event).
+  function storyIntroWanted() {
+    if (!STORY_PAGE || !stIntroArm) return false;
+    try { if (window.PROFILE && ((window.PROFILE.is && window.PROFILE.is('boot', 'garage')) || window.PROFILE.name === 'phone')) return false; } catch (e) {}
+    try { if (/[?&]intro=0(&|$)/.test(window.location.search || '')) return false; } catch (e) {}
+    return true;
+  }
+  // the curtain, black, under the loading screen (z 60 < the boot's 70): the garage never shows before the opening
+  function storyIntroCurtain() {
+    if (stIntroEl || !storyIntroWanted() || typeof document === 'undefined' || !document.body) return false;
+    stIntroEl = document.createElement('div'); stIntroEl.id = 'stIntro';
+    stIntroEl.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:60;background:#000';
+    document.body.appendChild(stIntroEl);
+    if (window.FLYDIY_LAZY) window.FLYDIY_LAZY('story_intro');   // fetched while the boot runs
+    // a New career rolls out from the cabin: a spawn remembered from the sandbox's route (another field) would settle the
+    // boot's world there, not round the cabin the opening looks at (this runs before the boot's world steps)
+    if (typeof spawnId !== 'undefined') spawnId = null;
+    return true;
+  }
+  // no opening after all (the module, the strip or the world missing): the curtain off, the garage as a New career had it
+  function storyIntroOff(why) {
+    stIntroArm = false;
+    if (stIntroEl && stIntroEl.parentNode) stIntroEl.parentNode.removeChild(stIntroEl);
+    stIntroEl = null;
+    if (why) console.warn('flyDiy (story): no opening - ' + why);
+  }
+  // the plan from the cabin's record (story_intro.js), once -> the plan, or a string: why there is none
+  function storyIntroPlan() {
+    if (stIntroPlan) return stIntroPlan;
+    const I = window.STORY_INTRO;
+    if (!I) return 'story_intro.js did not load';
+    if (!WF || !world) return 'no world to draw';
+    const id = roomBase(), A = (world.aerodromes || []).find(a => a.id === id);
+    if (!A || A.kind === 'water' || !isFinite(A.hdg)) return 'no strip at ' + id;
+    const st = typeof siteOf === 'function' ? siteOf(id) : null;
+    const pl = st && Array.isArray(st.plots) ? (st.plots.find(p => p.id === roomId()) || st.plots[0]) : null;
+    return (stIntroPlan = I.plan({ aero: A, plot: pl, terrainH: (x, z) => world.terrainH(x, z), waterH: typeof world.waterH === 'function' ? (x, z) => world.waterH(x, z) : null }));
+  }
+  // THE OPENING'S VIEWS, LINKED UNDER THE LOADING SCREEN (the timed look, 20 Oct 03:45: drawn cold under the curtain, its
+  // warm views linked 42 programs the boot had not - three blocks on each first draw: a 14 s task in black). A boot step of
+  // a New career's alone (registered only while the curtain is up, below 'craft'): per view, the eye placed there and the
+  // world's update run (what that view makes: the cover ring's cells, the plots near the eye - every 10th update), the scene
+  // compiled on the driver's threads with its depth variants, every link waited for, then one draw - the boot's own
+  // 'frames' step, from the opening's eyes. The garage's eye is put back after each view (the loop draws the shed meanwhile).
+  // A COMPILE PER SHOT, not per view (the re-look, 20 Oct 15:45: a pass per view made the step 11-17 s): the shot's three
+  // views' updates first, then one compile of the scene and its links, then the three draws
+  function storyIntroPrepare() {
+    if (!stIntroEl || !WF || typeof renderer.compileAsync !== 'function') return;
+    const L = window.FLYDIY_LAZY ? window.FLYDIY_LAZY('story_intro') : Promise.resolve([!!window.STORY_INTRO]);
+    return L.then(() => {
+      const P = storyIntroPlan();
+      if (typeof P === 'string') return;
+      const at = (o, keep) => { camera.position.set(o.p[0], o.p[1], o.p[2]); camera.lookAt(o.l[0], o.l[1], o.l[2]); camera.updateMatrixWorld(); return keep; };
+      const task = () => new Promise(r => setTimeout(r, 0));
+      const eye = (o, f) => { const keep = { p: camera.position.clone(), q: camera.quaternion.clone() };
+        try { at(o); f(); } catch (e) { console.warn('story intro: the view', e && e.message); }
+        camera.position.copy(keep.p); camera.quaternion.copy(keep.q); camera.updateMatrixWorld(); };
+      const shot = V => {
+        let p = Promise.resolve();
+        for (const o of V) p = p.then(() => eye(o, () => { for (let k = 0; k < 12; k++) WF.worldUpdate(P.anchor); })).then(task);
+        return p.then(() => compileSliced(scene, aa && aa.target ? aa.target() : null)).then(() => compileDepthVariants(scene, true))
+          .then(() => programsReady(30000))
+          .then(() => { let q = Promise.resolve(); for (const o of V) q = q.then(() => eye(o, () => { WF.worldUpdate(P.anchor); if (aa) aa.render(scene, camera); else renderer.render(scene, camera); })).then(task); return q; });
+      };
+      let p = Promise.resolve();
+      for (let i = 0; i < P.warm.length; i += 3) { const V = P.warm.slice(i, i + 3); p = p.then(() => (stIntroEl ? shot(V) : null)); }
+      return p;
+    }).catch(e => console.warn('story intro: the prepare', e && e.message));
+  }
+  function storyIntroBoot() {
+    if (!stIntroEl || stIntro) return;
+    stIntroArm = false;                    // once
+    const L = window.FLYDIY_LAZY ? window.FLYDIY_LAZY('story_intro') : Promise.resolve([!!window.STORY_INTRO]);
+    return L.then(() => {
+      const I = window.STORY_INTRO;
+      if (!inGarage) return storyIntroOff('not in the shed');
+      const plan = storyIntroPlan();
+      if (typeof plan === 'string') return storyIntroOff(plan);
+      let vol = 0.6;
+      try { if (window.AUDIO && window.AUDIO.enabled && window.AUDIO.get) vol = Math.min(1, 1.4 * window.AUDIO.get('master') * window.AUDIO.get('music')); } catch (e) {}
+      stIntroWas = { exp: typeof GFX !== 'undefined' && GFX && GFX.exposureBase ? GFX.exposureBase() : renderer.toneMappingExposure,
+                     mist: typeof ATMO !== 'undefined' && ATMO.MIST ? ATMO.MIST.room : null, fov: camera.fov };
+      setExp(WORLD_EXPOSURE);
+      if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
+      window.FLYDIY_MUSIC_HOLD = true;
+      stIntroAt = plan.anchor;
+      if (stCardEl) stCardEl.hidden = true;
+      stIntro = I.play({ plan, el: stIntroEl, music: vol, swap: storyIntroSwap,
+        done: how => { stIntro = null; stIntroEl = null; window.FLYDIY_INTRO_LAST = { how, T: plan.T }; } });
+      window.FLYDIY_INTRO = { state: () => (stIntro ? stIntro.state() : null), skip: () => { if (stIntro) stIntro.skip(); }, plan: () => plan };
+    }).catch(e => storyIntroOff(e && e.message));
+  }
+  // the garage back on screen (at black): its exposure, its air, its lens; the radio free; the beat card at T0
+  function storyIntroSwap() {
+    const W = stIntroWas;
+    stIntroPose = null; stIntroWas = null; stIntroAt = null;
+    if (W) {
+      setExp(W.exp);
+      if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = W.mist;
+      camera.fov = W.fov; camera.updateProjectionMatrix();
+    }
+    window.FLYDIY_MUSIC_HOLD = false;
+    storyCardSync();
+  }
+  // THE LOOP'S DOORS: this frame's eye placed on the camera -> the world's point (the cabin), or null (the garage is drawn)
+  function storyIntroFrame(dt) {
+    if (!stIntro) return null;
+    const o = stIntro.frame(dt);
+    stIntroPose = o;
+    if (!o) return null;
+    storyIntroPlace();
+    return stIntroAt;
+  }
+  // (again after the orbit's placeCamera, which writes the shed's eye every frame)
+  function storyIntroPlace() {
+    const o = stIntroPose;
+    if (!o) return;
+    camera.position.set(o.p[0], o.p[1], o.p[2]);
+    if (camera.fov !== o.fov) { camera.fov = o.fov; camera.updateProjectionMatrix(); }
+    camera.lookAt(o.l[0], o.l[1], o.l[2]);
+    camera.updateMatrixWorld();
   }
   // ---- G3350 (STORY-TIM): TIM'S BAND - the story's voice at the bottom of the screen (the user, 19 Oct: "a pop-up kind of
   // thing at the bottom of the screen, with a placeholder vignette portrait"). A line at a time (Next), closed on the last
@@ -8949,6 +9085,9 @@
     try { storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
     setInterval(() => { try { storyTimSync(); storyBenchRule(); } catch (e) {} }, 1500);
     try { window.addEventListener('flydiy:manual', () => { try { storyTimSync(); } catch (e) {} }); } catch (e) {}
+    try { storyIntroCurtain(); } catch (e) { console.warn('flyDiy (story): the opening -', e && e.message); }
+    // G3384: a story with its starter - the design flow's "New aeroplane" door stays shut (design_flow.js maybeAutoOpen)
+    try { const s = stLive(); if (s && s.planes && s.planes.starter) window.FLYDIY_STORY_STARTER = s.planes.starter; } catch (e) {}
     // T2's checklist follows the build on the stand (its ledger memoised on the spec's fingerprint)
     setInterval(() => { try { const s = stLive(); if (s && !s.open && s.beat === 'T2') storyCardSync(); } catch (e) {} }, 3000);
     window.FLYDIY_STORY = {
@@ -11242,6 +11381,7 @@
         handover: !!handover, audioPose: window.AUDIO && AUDIO.space ? AUDIO.space.shotPose : null,   // G1715: the start, the space
         onDone: hh => { raBusy = false; placeIndicators(); done(cage, hh); } });   // (hh: the handle - a skip calls this before play returns)
       placeIndicators();                 // (G1115: the CG marks off for the shot - placeIndicators reads ROLLANIM.busy)
+      revealPlant(6, 30, () => raBusy && inGarage);   // REVEAL-HITCH: the stand's grass, a cell a slice while the shot plays
     } catch (e) { console.warn('rollanim:', e && e.message); raBusy = false; done(cage, null); }
     return h;
   }
@@ -11824,6 +11964,60 @@
   // G1137 (LOAD-COMPILE): ...A VIEW A TASK. The six in one task were the 'frames' step's 1.0-1.6 s task (train 17's metal
   // Cessna: 1581 ms - the draws, their uniforms, ~16 ms of first-draw per program new to a view); a view per task keeps
   // each well under the second, and every link is done before the first of them (programsReady), as before
+  // REVEAL-HITCH (19 Oct, Game-ON polish): THE GRASS ROUND THE REVEAL'S EYE, PLANTED AHEAD. The shed's loop never runs the
+  // world's update, so the first flight frame after every roll-out planted the stand's grass itself - the cell under the
+  // reveal's eye whole (the field's near tier), ~0.2 s of the frame the strict gate's every leg showed at 0.7 s. The
+  // reveal's eye is the chase's start (flRevealStart: 1.7 x viewDist out, 0.16 up, swung off astern) easing to the chase
+  // (1 x viewDist) - its heading is the stand's, so the eyes are taken on twelve headings at both distances round the
+  // roll-out's stand; the world plants each eye's cells (render_world coverPlant -> cover_ring plantNear: the tier its own
+  // update would give them). Under the boot's overlay after the warm draw, and a slice a task during the roll-out shot
+  // (every roll-out: a flight that ended far away left the stand's cells dropped). ?revealplant=0: off (the A/B)
+  const REVEAL_PLANT_OFF = /[?&]revealplant=0(&|$)/.test((typeof location !== 'undefined' && location.search) || '');   // (the gates' node vm has no location)
+  // the roll-out stand's heading (its site's stand.hdg: the nose's - the tail, flRevealStart's hdg, is it + pi; checked on
+  // the metal Cessna and the Cub at HOME: -1.8656 / 1.2760), null where there is none (the water, a spawn)
+  function standHdg() {
+    try {
+      if (sim && sim.hydro) return null;
+      const from = aeroById(inGarage ? rollFromId() : fromId); if (!from) return null;
+      const st = (typeof siteOf === 'function') ? siteOf(from.id) : null, shedD = shedDimsAt(from.id, st);
+      const stand = st ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, null) : st.stand) : null;
+      return stand && flStartTaxi() && Number.isFinite(+stand.hdg) ? +stand.hdg : null;
+    } catch (e) { return null; }
+  }
+  // [x, y, z, rad]: rad 'reach' = the ring's whole reach (what the first flight frame's update would queue), else metres
+  function revealEyes() {
+    const a = standAnchor(); if (!a) return null;
+    const D = (def && def.params && def.params.viewDist) || 12, eyes = [], h = standHdg();
+    const P = h !== null && cam.mode !== 'cockpit' && cam.mode !== 'tower' ? revealPoseOf([a[0], a[1] + 1.2, a[2]], h + Math.PI, 0, worldShedBox()) : null;
+    if (P) {
+      const cg = [a[0], a[1] + 1.2, a[2]], at = (az, el, d, rad) => [cg[0] + d * Math.cos(el) * Math.cos(az), cg[1] + d * Math.sin(el), cg[2] + d * Math.cos(el) * Math.sin(az), rad];
+      eyes.push(at(P.az, P.el, P.dist, 'reach'));   // the first frame's eye: everything its update would plant
+      for (let k = 1; k <= 4; k++) { const f = k / 4; eyes.push(at(P.az + (P.tgt - P.az) * f, P.el, P.dist + (P.D - P.dist) * f, 10)); }   // the ease toward the chase
+      { const Q = revealPoseOf(cg, h + Math.PI, -P.s, worldShedBox()); eyes.push(at(Q.az, Q.el, Q.dist, 10)); }   // the other side's start (the shot's side may differ)
+      return eyes;
+    }
+    for (const [k, el] of [[1.7, 0.16], [1, 0.25]]) for (let i = 0; i < 12; i++) { const hh = i * Math.PI / 6;
+      eyes.push([a[0] + D * k * Math.cos(el) * Math.cos(hh), a[1] + 1.5 + D * k * Math.sin(el), a[2] + D * k * Math.cos(el) * Math.sin(hh), 10]); }
+    return eyes;
+  }
+  // a slice of `sliceMs` a task (`gapMs` between) until every eye's cells stand, or `alive()` says stop
+  function revealPlant(sliceMs, gapMs, alive) {
+    if (REVEAL_PLANT_OFF || !WF || !WF.coverPlant) return Promise.resolve(null);
+    const eyes = revealEyes(); if (!eyes) return Promise.resolve(null);
+    const t00 = performance.now(); let built = 0, tasks = 0;
+    return new Promise(res => {
+      const tick = () => {
+        if (alive && !alive()) return res({ built, done: false });
+        let r; try { r = WF.coverPlant(eyes, sliceMs); } catch (e) { console.warn('reveal plant:', e && e.message); return res(null); }
+        built += r.built; tasks++;
+        if (r.done) { window.FLYDIY_REVEAL_PLANT = { built, tasks, ms: Math.round(performance.now() - t00) }; return res(window.FLYDIY_REVEAL_PLANT); }
+        setTimeout(tick, gapMs || 0);
+      };
+      tick();
+    });
+  }
+  window.FLYDIY_REVEAL_PLANT_NOW = () => revealPlant(1e9);
+  window.FLYDIY_REVEAL_EYES = () => revealEyes();   // (the probe's view of them)   // (tools/perf/reveal_probe.js: the harness's boot takes the synchronous path)
   function worldWarmDraw() {
     const a = standAnchor(); if (!a || !WF) return;
     const cam = camera.clone(), D = (def && def.params && def.params.viewDist) || 12;
@@ -12091,7 +12285,7 @@
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
         .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
         .then(() => shaderProgress(programsReady(30000), 'world', 60000))
-        .then(() => { if (inGarage) return worldWarmDraw(); holdRender = false; return framesRendered(2); }));
+        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(() => revealPlant(120, 0, () => inGarage)); holdRender = false; return framesRendered(2); }));   // (REVEAL-HITCH: the stand's grass)
     } },
   ];
   const TRIP_BY = {}; for (const s of TRIP_STEPS) TRIP_BY[s.id] = s;
@@ -15460,6 +15654,22 @@
   // that keeps moving under a hand is the G39 judder with a reason.
   let flReveal = 0;
   const FL_REVEAL_K = 0.022, FL_REVEAL_FRAMES = 360;
+  // THE REVEAL'S POSE (flRevealStart's, REVEAL-HITCH 19 Oct: the pre-plant asks it ahead, from the stand): the eye starts at
+  // az / el / dist round the CG and eases to the target azimuth `tgt` (orbit: the 0.55 swing off astern, chase: astern, wing:
+  // abeam); `s` the side - the eye standing further from the shed's centre, unless the roll-out shot's side is given
+  function revealPoseOf(cg, hdg, side, shed) {
+    const D = def.params.viewDist || 12;
+    const astern = hdg;                        // the eye at hdg is behind
+    const far = a => {
+      if (!shed) return 0;
+      const ex = cg[0] + D * Math.cos(a), ez = cg[2] + D * Math.sin(a);
+      return Math.hypot(ex - (shed.x0 + shed.x1) / 2, ez - (shed.z0 + shed.z1) / 2);
+    };
+    const s = side ? side : far(astern + 0.55) >= far(astern - 0.55) ? 1 : -1;
+    const tgt = cam.mode === 'wing' ? hdg - Math.PI / 2
+              : astern + (cam.mode === 'orbit' ? s * 0.55 : 0);
+    return { D, s, tgt, az: tgt + s * 0.45, el: 0.16, dist: D * 1.7 };
+  }
   function flRevealStart() {
     rollShotUi(false);                   // G1370: the verbs come back as the reveal hands over
     if (window.FLIGHT_REC && window.FLIGHT_REC.reveal) window.FLIGHT_REC.reveal('the flight');   // G1996: marked with or without a screen
@@ -15472,23 +15682,12 @@
     if (cam.mode === 'tower') return;
     const xA = sim.axes()[0], cg = sim.cgPos();
     const hdg = Math.atan2(xA[2], xA[0]);     // xAft: the tail's direction
-    const D = def.params.viewDist || 12;
-    const astern = hdg;                        // the eye at hdg is behind
-    // which side: the eye that stands further from the shed's centre
-    const far = a => {
-      if (!flShedBox) return 0;
-      const ex = cg[0] + D * Math.cos(a), ez = cg[2] + D * Math.sin(a);
-      return Math.hypot(ex - (flShedBox.x0 + flShedBox.x1) / 2,
-                        ez - (flShedBox.z0 + flShedBox.z1) / 2);
-    };
     // B10: after the roll-out shot the side is the shot's (it ended on this very frame), read once
-    const s = raSide ? raSide : far(astern + 0.55) >= far(astern - 0.55) ? 1 : -1;
+    const P = revealPoseOf(cg, hdg, raSide, flShedBox), D = P.D, tgt = P.tgt;
     raSide = 0;
-    const tgt = cam.mode === 'wing' ? hdg - Math.PI / 2
-              : astern + (cam.mode === 'orbit' ? s * 0.55 : 0);
     if (cam.mode === 'orbit') { azT = tgt; elT = 0.09; distT = D * 1.05; }
     else azT = tgt;                    // flCamera overwrites next frame, same base
-    az = tgt + s * 0.45; el = 0.16; dist = D * 1.7;
+    az = P.az; el = P.el; dist = P.dist;
     flHdg0 = hdg; flYawRate = 0;       // no phantom yaw-rate lead on frame one
     flReveal = FL_REVEAL_FRAMES;
     // G2300 (STAGES): A NEW BUILDING'S REVEAL - the roll-out after a stage advanced opens on it (its camera target, its
@@ -16596,7 +16795,12 @@
     if (running) userPaused = false;
     if (typeof window !== 'undefined') window.FLYDIY_HELD = !inGarage && !running && userPaused;
     if (WF && WF.setLampsPrep && !lampsPrepSet) { lampsPrepSet = true; WF.setLampsPrep(lampsPrep); }   // G1340
-    if (!inGarage && WF) WF.worldUpdate((DEVCAM_ACTIVE || PREM.open)
+    // G3380 (STORY-INTRO): a New career's opening draws the WORLD from the shed - its eye this frame, the world's update on
+    // the cabin's point (null: no opening, the shed as always)
+    const introAt = CAREER_DEV && STORY_PAGE && inGarage ? storyIntroFrame(fdt) : null;
+    const inShed = inGarage && !introAt;
+    if (introAt && WF) WF.worldUpdate(introAt);
+    else if (!inGarage && WF) WF.worldUpdate((DEVCAM_ACTIVE || PREM.open)
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
     if (FR) FR.lap(FR.S.world);        // G620: the world's update (its premises, cover ring and fill pushed apart)
@@ -16659,6 +16863,7 @@
     if (Math.abs(distT - dist) < 1e-3) dist = distT;
     placeCamera();
     if (typeof ROLLANIM !== 'undefined') ROLLANIM.camera();   // B10: the shot's eye over the orbit's
+    if (CAREER_DEV && introAt) storyIntroPlace();             // G3380: the opening's eye over the orbit's
     // (The part callout used to be re-projected here every other frame. It is
     // gone — it sat on the one thing it was naming — and the frame loop got
     // its projection back.)
@@ -16714,7 +16919,7 @@
     // mirror's own hide and restore, which is why it brackets that whole block from outside.
     // Everything earlier in the frame - the probes, the far shadow cascade, the parked captures
     // in worldUpdate - renders from other eyes entirely and sees the world whole.
-    if (!inGarage && WF && WF.vis) WF.vis.apply(camera);
+    if (!inShed && WF && WF.vis) WF.vis.apply(camera);
     if (window.WATER && WATER.mirrorRender && !inGarage && WF) {
       // THE MIRROR'S PLANE IS THE DRAWN SURFACE (G460.11.4), not the physics' waterH: a procedural lake can sit
       // 0.6 m over the DEM lake the renderer draws, and a plane mirror 0.6 m off stretches the reflection (the
@@ -16733,26 +16938,26 @@
     let framePresented = true;
     // G2070 (GARAGE-LAPTOP): the shed's shadow maps from their cached static depth + the casters that move (shed_shadow.js);
     // out of the shed its static depths are let go
-    const shedSh = inGarage && window.SHED_SHADOW ? SHED_SHADOW.pre(renderer, garageScene(), camera, hangar) : false;
+    const shedSh = inShed && window.SHED_SHADOW ? SHED_SHADOW.pre(renderer, garageScene(), camera, hangar) : false;
     if (!inGarage && window.SHED_SHADOW && SHED_SHADOW.held()) SHED_SHADOW.release();
-    if (aa) framePresented = aa.render(inGarage ? garageScene() : scene, camera) !== 'held';
-    else renderer.render(inGarage ? garageScene() : scene, camera);
+    if (aa) framePresented = aa.render(inGarage && !introAt ? garageScene() : scene, camera) !== 'held';
+    else renderer.render(inGarage && !introAt ? garageScene() : scene, camera);
     if (shedSh) SHED_SHADOW.post();
     if (FR) FR.lap(FR.S.render);       // G620: the submit (the shadow passes and the shader links pushed apart)
-    if (drawGuard && !inGarage) drawGuard.flush(camera);   // G1340: the held draws' programs, compiled after the frame
+    if (drawGuard && !inShed) drawGuard.flush(camera);   // G1340: the held draws' programs, compiled after the frame
     // F1: the contract comes OFF here, after the main render and the mirror capture it covers
-    if (!inGarage && WF && WF.vis) WF.vis.release();
+    if (!inShed && WF && WF.vis) WF.vis.release();
     // THE SUN'S GLARE (SKY S7): additive quads over the resolved frame, gated on occlusion rays
     if (framePresented && typeof SKY_GLARE !== 'undefined' && world.day && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.last) {   // (G1340: a held frame draws nothing on the canvas)
       const L = SKY_LIGHT.last;
-      const d = inGarage ? (hangar && hangar.dayDir ? hangar.dayDir() : null) : (WF ? [WF.SUN_SKY.x, WF.SUN_SKY.y, WF.SUN_SKY.z] : null);
+      const d = inShed ? (hangar && hangar.dayDir ? hangar.dayDir() : null) : (WF ? [WF.SUN_SKY.x, WF.SUN_SKY.y, WF.SUN_SKY.z] : null);
       if (d) {
         glareDir.set(d[0], d[1], d[2]);
-        SKY_GLARE.setOccluders(() => inGarage ? [garageScene()] : [craft]);
-        SKY_GLARE.setTerrain(inGarage ? null : (x, z) => world.terrainH(x, z));
+        SKY_GLARE.setOccluders(() => inShed ? [garageScene()] : [craft]);
+        SKY_GLARE.setTerrain(inShed ? null : (x, z) => world.terrainH(x, z));
         const mT = Math.max(L.T[0], L.T[1], L.T[2], 1e-6);
         // the clouds between the eye and the sun dim the flare (C2: the CPU column, the same field the shadow bakes)
-        const cT = (!inGarage && typeof CLOUDS !== 'undefined' && CLOUDS.sunT && !L.isMoon) ? CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z) : 1;
+        const cT = (!inShed && typeof CLOUDS !== 'undefined' && CLOUDS.sunT && !L.isMoon) ? CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z) : 1;
         SKY_GLARE.update(camera, glareDir, { lum: (0.2126 * L.T[0] + 0.7152 * L.T[1] + 0.0722 * L.T[2]) * cT, isMoon: L.isMoon, phase: L.phase,
                                              aspect: renderer.domElement.width / Math.max(1, renderer.domElement.height), tint: [L.T[0] / mT, L.T[1] / mT, L.T[2] / mT] });
         SKY_GLARE.render(renderer);
@@ -17452,6 +17657,8 @@
   // rebuilt once more, ~0.5 s after the batch let go - seen in GATE ROUNDTRIP's trace at 'firstFrame'); compiled
   // before that, the first roll-out compiled the rebuilt model again
   if (!GARAGE_ONLY) bootTripStep('craft');   // G2100: the flown model's programs in the world's light: a roll-out's
+  // G3380 (STORY-INTRO): a New career's opening - its views linked under this screen (registered only while its curtain is up)
+  if (!GARAGE_ONLY && CAREER_DEV && STORY_PAGE && stIntroEl) bootStep('intro', 'the opening', 4, () => (CAREER_DEV ? storyIntroPrepare() : null));
   // THE AEROPLANE, AS IT SETTLED (B9): a commit feeds back into the editor - the flown spec's CG re-derives the tail's
   // sizing, the energy layer re-places the tanks - and the export moves a hair after it (the metal Cessna's tail stabH
   // 0.04729 -> 0.04720, converged after one more sync). The loading re-plans the aircraft's keyed steps once at its end
@@ -17501,7 +17708,8 @@
   if (typeof window !== 'undefined') window.SCENERY = SCENERY;
   const bootOpts = { set: 'garage', landingLabel: 'the last pieces landing',
     done: () => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0);
-      if (SIMW) SIMW.prewarm(); startLoop(); },   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
+      if (SIMW) SIMW.prewarm(); startLoop();
+      if (CAREER_DEV && STORY_PAGE) storyIntroBoot(); },   // G3380 (STORY-INTRO): a New career's opening, as the screen lifts   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
     require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
     // the program count rides on every step's log entry: what each step compiled
     probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) };
