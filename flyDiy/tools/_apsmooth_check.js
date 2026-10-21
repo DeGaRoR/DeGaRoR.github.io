@@ -14,7 +14,12 @@
 //              printed, KNOWN (15-19: the persona air weave, the Pilot coordinator's next item) - not judged until it lands.
 //   LEVEL      every build, expert, one leg on the game's day (HOME > w3; the Jodel a HOME circuit, the user: not on short strips):
 //              the leg COMPLETED; the height against the pilot's own plan (ap.intent.h) on the cruise legs, the plan
-//              steady, rms <= 5 m (1.2-3.7; the Mosquito 15.7 before G3304/G3305, 1.7 after); no go-around (the Jodel and
+//              steady, rms <= 5 m (1.2-3.7; the Mosquito 15.7 before G3304/G3305, 1.7 after), each leg FROM ITS FIRST CAPTURE
+//              of the plan (within 5 m; a leg that never captures is judged whole - the Jodel's HOME circuit, 20 Oct: the
+//              crosswind leg is the climb to circuit height, 24 m rms, its downwind 0.44 m); the part before the capture
+//              must CLOSE (its seconds <= the start gap / 1 m/s + 30 s; the gap never growing 10 m past its smallest) and
+//              the overshoot past the plan after it <= 10 m (the Pilot coordinator's review: a slow or ballooning capture
+//              is red, not hidden); no go-around (the Jodel and
 //              the metal Cessna at w2 go round on t66 - a tailwind final steeper than they can fly, the Pilot coordinator's:
 //              not flown here).
 //   HANDS      the same legs: aileron / rudder / elevator reversals a minute on the level legs <= 15 (0.6-10.3; PILOTACT's
@@ -41,7 +46,7 @@ const PERSONS = ['expert', 'club', 'student'];
 // INFO rows: printed, never judged - the Jodel into w2 (the user-accepted t66 behaviour: a tailwind final steeper than it can
 // fly, two go-arounds; AP-ADAPT's 'slope the type can't fly' item will show its effect here)
 const INFO = [{ k: 'jodel', f: 'builds/jodel_2026-09-20_corrected.json', order: 'HOME,w2', note: 'w2 into the tailwind' }].filter(b => !opt('only') || opt('only').split(',').includes(b.k));
-const LIM = { roll: 6, airExpert: 10, hRms: 5, rev: 15, VoverVs: 1.35 };
+const LIM = { roll: 6, airExpert: 10, hRms: 5, rev: 15, VoverVs: 1.35, overshoot: 10 };
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'apsmooth_'));
 const jobs = [];
 for (const b of BUILDS) for (const p of PERSONS) jobs.push({ kind: 'roll', b, p, out: path.join(TMP, 'roll_' + b.k + '_' + p + '.json'),
@@ -66,7 +71,7 @@ const done = new Promise(res => {
 done.then(() => {
   const fails = [], r1 = v => v == null ? '-' : (+v).toFixed(1);
   console.log('APSMOOTH - the game\'s flight, the game\'s day; thresholds: roll <= ' + LIM.roll + ' deg (tail-up to lift-off), air (expert) <= ' + LIM.airExpert +
-    ' deg, level h rms <= ' + LIM.hRms + ' m, hands <= ' + LIM.rev + ' /min, touch <= ' + LIM.VoverVs + ' Vs');
+    ' deg, level h rms <= ' + LIM.hRms + ' m (from the capture; past the plan <= ' + LIM.overshoot + ' m), hands <= ' + LIM.rev + ' /min, touch <= ' + LIM.VoverVs + ' Vs');
   for (const b of BUILDS) {
     for (const p of PERSONS) {
       const j = jobs.find(q => q.kind === 'roll' && q.b === b && q.p === p);
@@ -89,10 +94,13 @@ done.then(() => {
     if (!(R.level.hRms <= LIM.hRms)) bad.push('h rms ' + R.level.hRms);
     if (rev > LIM.rev) bad.push('hands ' + rev + '/min');
     if (vv != null && vv > LIM.VoverVs) bad.push('touch ' + vv + ' Vs');
+    if (R.level.overshoot != null && R.level.overshoot > LIM.overshoot) bad.push('past the plan ' + R.level.overshoot + ' m after the capture');
+    for (const x of (R.level.capBreach || [])) bad.push('capture: ' + x);
     const gaBad = ga > 0 && !b.known;
     if (gaBad) bad.push(ga + ' go-around');
     console.log('  ' + (bad.length ? 'FAIL' : 'ok  ') + ' ' + (b.k + ' level').padEnd(18) + ' ' + b.order + ': ' + (R.stopped ? 'completed' : 'NOT completed') + ', h rms ' + R.level.hRms + ' m (peak ' + R.level.hPeak +
-      '), hands da/dr/de ' + (lv.da || 0) + '/' + (lv.dr || 0) + '/' + (lv.de || 0) + ' /min, touch ' + (vv != null ? vv + ' Vs' : '-') + ', go-arounds ' + ga + (ga && b.known ? ' (KNOWN: ' + b.known + ')' : ''));
+      '), hands da/dr/de ' + (lv.da || 0) + '/' + (lv.dr || 0) + '/' + (lv.de || 0) + ' /min, touch ' + (vv != null ? vv + ' Vs' : '-') + ', go-arounds ' + ga + (ga && b.known ? ' (KNOWN: ' + b.known + ')' : '') +
+      ' | before the capture ' + (R.level.preS ?? '-') + ' s (worst ' + (R.level.preMax ?? '-') + ' m; closing judged), past the plan ' + (R.level.overshoot ?? '-') + ' m (<= ' + LIM.overshoot + ')' + (R.level.uncapS ? ', ' + R.level.uncapS + ' s never captured (judged)' : ''));
     for (const x of bad) fails.push(b.k + ' level: ' + x);
   }
   for (const b of INFO) {

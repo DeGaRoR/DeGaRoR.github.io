@@ -30,6 +30,26 @@ function flyAndMeasure(H, o) {
   };
   let t = 0, psi0 = null, tailUpT = null, liftT = null, rollMax = 0, rollMaxTU = 0, ph0 = null, phases = [];
   let hP0 = null, lvl = [], lvlVs = [], lvlN = 0, stopped = false, maxBankLvl = 0;
+  // G3306 (APSMOOTH's first HOME circuit, 20 Oct): each level leg is judged FROM ITS FIRST CAPTURE of the plan (within
+  // CAP_M). The Jodel's crosswind leg is still the climb to circuit height (-36.8 -> -1.3 m at 3 m/s: 24 m rms) while its
+  // downwind holds 0.44 m. A leg that never captures is judged whole (a hold that never arrives is not hidden). The part
+  // before the capture (its seconds and worst gap) and the overshoot past the plan after it are kept as INFO
+  // JUDGED too (the Pilot coordinator's review): the approach to the capture must CLOSE - its seconds <= the gap at its
+  // start / CAP_CLOSE + CAP_SLACK, the gap never growing more than CAP_GROW past its smallest - and the overshoot past the
+  // plan after the capture (the side away from where it came from; either side when it started captured) <= the gate's
+  const CAP_M = 5, CAP_CLOSE = 1.0, CAP_SLACK = 30, CAP_GROW = 10;
+  let legPh = null, legCap = false, legPre = [], legSide = 0, preS = 0, preMax = 0, overshoot = 0, uncapS = 0;
+  const capBreach = [];
+  const closeLeg = () => {
+    if (legPre.length) {
+      const g0 = Math.abs(legPre[0].e), sec = legPre.length / 60;
+      let gMin = Infinity, grow = 0; for (const q of legPre) { const g = Math.abs(q.e); gMin = Math.min(gMin, g); grow = Math.max(grow, g - gMin); }
+      if (legCap && sec > g0 / CAP_CLOSE + CAP_SLACK) capBreach.push(legPh + ': ' + r2(sec) + ' s to capture a ' + r2(g0) + ' m gap (allowed ' + r2(g0 / CAP_CLOSE + CAP_SLACK) + ' s)');
+      if (grow > CAP_GROW) capBreach.push(legPh + ': the gap grew ' + r2(grow) + ' m before the capture (allowed ' + CAP_GROW + ')');
+    }
+    if (!legCap && legPre.length) { for (const q of legPre) { lvl.push(q.e); lvlVs.push(q.vs); lvlN++; maxBankLvl = Math.max(maxBankLvl, q.b); } uncapS += legPre.length / 60; }
+    else if (legCap) { preS += legPre.length / 60; for (const q of legPre) preMax = Math.max(preMax, Math.abs(q.e)); }
+    legPre = []; legCap = false; legSide = 0; };
   for (let k = 0; k < 60 * max; k++) {
     H.step(); t += 1 / 60;
     const ap = H.ap, ph = ap.phase, m = ap._m || {}, D = ap.dbg || {};
@@ -51,9 +71,15 @@ function flyAndMeasure(H, o) {
       }
     }
     const hP = ap.intent && ap.intent.h;
+    if (ph !== legPh) { closeLeg(); legPh = ph; }
     if (LEVEL.has(ph) && !onG && m.agl > 40 && hP != null && isFinite(hP)) {
       const dh = hP0 == null ? 0 : (hP - hP0) * 60;
-      if (Math.abs(dh) < 0.3) { lvl.push(m.alt - hP); lvlVs.push(m.vs); lvlN++; maxBankLvl = Math.max(maxBankLvl, Math.abs(m.bank || 0)); }
+      if (Math.abs(dh) < 0.3) {
+        const e = m.alt - hP;
+        if (!legCap && Math.abs(e) < CAP_M) { legCap = true; legSide = legPre.length ? Math.sign(legPre[0].e) : 0; }
+        if (legCap) { lvl.push(e); lvlVs.push(m.vs); lvlN++; maxBankLvl = Math.max(maxBankLvl, Math.abs(m.bank || 0)); overshoot = Math.max(overshoot, legSide ? -legSide * e : Math.abs(e)); }
+        else legPre.push({ e, vs: m.vs, b: Math.abs(m.bank || 0) });
+      } else closeLeg();   // the plan stepped (a new height asked - the crosswind's first row still carries the climb's): a new capture
     }
     hP0 = hP;
     // G3305: the speed the energy loop asks (TECS Vc: iasF + the adaptations), the air's velocity at the CG (sim.out)
@@ -72,6 +98,7 @@ function flyAndMeasure(H, o) {
     }
     if (ph === 'STOPPED' && liftT != null) { stopped = true; break; }
   }
+  closeLeg();
   const ap = H.ap, L = ap.report && ap.report.landing;
   const actOut = {};
   for (const [g, G] of Object.entries(act)) { if (!G) continue; const mins = Math.max(0.5, G.n / 3600); actOut[g] = { s: Math.round(G.n / 60), da: r2(G.da.r / mins), dr: r2(G.dr.r / mins), de: r2(G.de.r / mins) }; }
@@ -79,7 +106,8 @@ function flyAndMeasure(H, o) {
   return {
     stopped, t: r2(t), phases,
     roll: { hdgMax: r2(rollMax), hdgMaxTailUp: r2(rollMaxTU), tailUpT: r2(tailUpT), liftT: r2(liftT) },
-    level: { s: Math.round(lvlN / 60), hRms: r2(rms(lvl)), hStd: r2(rms(lvl.map(v => v - mean))), hPeak: r2(lvl.reduce((s, v) => Math.max(s, Math.abs(v)), 0)), vsRms: r2(rms(lvlVs)), bankMax: r2(maxBankLvl * 57.3) },
+    level: { s: Math.round(lvlN / 60), hRms: r2(rms(lvl)), hStd: r2(rms(lvl.map(v => v - mean))), hPeak: r2(lvl.reduce((s, v) => Math.max(s, Math.abs(v)), 0)), vsRms: r2(rms(lvlVs)), bankMax: r2(maxBankLvl * 57.3),
+             preS: r2(preS), preMax: r2(preMax), overshoot: r2(overshoot), uncapS: r2(uncapS), capBreach },   // (G3306: before the capture, past the plan after it, legs never captured; capBreach judged)
     active: actOut,
     // (VoverVs: pilot_trace's own - the landing flap's stall when the flaps land, else the clean one)
     land: L ? Object.assign(JSON.parse(JSON.stringify(L)), (() => { const d = H.def, G = d && d.params && d.params.gen, FS = d && d.params.flaps;
