@@ -480,12 +480,14 @@ function run(mut) {
   ok(/window\.CAGE_CREW_PILOT = key =>/.test(CREW) && /const pilotWho = crewIdx >= 0 \? crewIdx \+ 2 : P\.pilotWho;/.test(CREW) && (CREW.match(/FLYDIY_CREW_PILOT\s*=/g) || []).length === 1,
      'the crew: the pilot seat takes the career\'s body only through CAGE_CREW_PILOT; else the spec\'s pilotWho');
   // the persona select: PILOT-PERSONA's own (when it is in the tree), untouched by this session
+  // (G3324 PERSONA-DEV, train L20b: the persona is DEV's - personaProfile / the route row / the plate's pills gained a
+  // personaDev() guard; the rows below accept it, their intent unchanged: the career first, the persona the sandbox's)
   const hasPersona = /id="selPersona"/.test(BODY);
   if (hasPersona) {
     ok(/const PERSONA_ORDER = \['expert', 'club', 'student', 'bush', 'hamfist'\];/.test(APP), 'the sandbox persona select: PERSONA_ORDER is PILOT-PERSONA\'s five');
-    ok(/function personaProfile\(\) \{\s*if \(CAREER_DEV\) return careerCrewProfile\(\) \|\| 'expert';[^\n]*\n\s*personaLoad\(\);/.test(APP), 'the persona keeper answers the career first, behind CAREER_DEV, then the persona as before');
-    ok(/if \(CAREER_DEV\) careerCrewRow\(host, where\);[^\n]*\n\s*else \{\s*\n\s*\/\/ G2085 \(PILOT-PERSONA\): WHO FLIES IT/.test(APP), 'the route row: the career\'s roster pick, else PILOT-PERSONA\'s persona row untouched');
-    ok(/function flPersona\(body\) \{\s*if \(CAREER_DEV\) return;/.test(APP), 'the plate\'s persona pills: the sandbox\'s only');
+    ok(/function personaProfile\(\) \{\s*if \(CAREER_DEV\) return careerCrewProfile\(\) \|\| 'expert';[^\n]*\n\s*(if \(!personaDev\(\)\) return 'expert';[^\n]*\n\s*)?personaLoad\(\);/.test(APP), 'the persona keeper answers the career first, behind CAREER_DEV, then the persona as before');
+    ok(/if \(CAREER_DEV\) careerCrewRow\(host, where\);[^\n]*\n\s*else (if \(personaDev\(\)\) )?\{[^\n]*\n\s*\/\/ G2085 \(PILOT-PERSONA\): WHO FLIES IT/.test(APP), 'the route row: the career\'s roster pick, else PILOT-PERSONA\'s persona row untouched');
+    ok(/function flPersona\(body\) \{\s*if \(CAREER_DEV( \|\| !personaDev\(\))?\) return;/.test(APP), 'the plate\'s persona pills: the sandbox\'s only');
   }
   lines.push('the sandbox: the career doors inert without ?career=1 (careerCrewProfile undefined; the row, the logbook, the flight\'s end, the crew body under CAREER_DEV); ' +
     (hasPersona ? 'the persona select PILOT-PERSONA\'s own' : 'no persona select in this tree yet (PILOT-PERSONA lands with train 40): makePilot\'s sandbox profile is unchanged'));

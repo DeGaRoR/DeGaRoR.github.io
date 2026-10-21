@@ -15,10 +15,13 @@
 // FLY: each shown card (floor / inside / outside) - a small confirmation in the garage's look, then the existing roll-out
 // (FLYDIY_STORE.fly: inside -> lined up on the runway by the wind, outside -> the apron's stand, the floor -> today's).
 // Nothing here touches the world, its input path or a bake: the drawn residents / apron props follow the document.
+// G3260 (ROUTES, the career only: the doors exist when app.js published FLYDIY_STORE.route*): "assign to a route" on a
+// card (where it stands -> an aerodrome its gear can use, a free hired pilot; the terms said before signing), and ON A
+// ROUTE - the planes flying a route from this field, "on route A – B", not movable, with End route (free, no penalty).
 (function () {
   'use strict';
   const W = window;
-  const ST = { el: null, sel: null, msg: '', confirm: null, drag: null, renders: 0 };
+  const ST = { el: null, sel: null, msg: '', confirm: null, drag: null, renders: 0, rt: null };
   const API = () => W.FLYDIY_STORE || null;
   const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const WORDS = {
@@ -78,6 +81,13 @@
 #hsStore .hsAskBox p { margin:0 0 6px; font:400 12px/1.45 'IBM Plex Sans'; color:var(--ed-dim); }
 #hsStore .hsAskBox p b { color:var(--ed-ink); font-weight:600; }
 #hsStore .hsAskBtns { display:flex; justify-content:flex-end; gap:6px; margin-top:12px; }
+#hsStore .hsRoutes { margin-top:12px; background:var(--ed-board); border:1px solid var(--ed-hair); border-radius:8px; padding:8px;
+  display:flex; flex-direction:column; gap:6px; }
+#hsStore .hsRtCard { cursor:default; }
+#hsStore .hsAskBox label { display:flex; flex-direction:column; gap:4px; margin:8px 0 0; font:500 10px/1.2 'IBM Plex Sans';
+  letter-spacing:.08em; text-transform:uppercase; color:var(--ed-dim); }
+#hsStore .hsAskBox select { font:400 12px/1.3 'IBM Plex Sans'; color:var(--ed-ink); background:var(--ed-btn-bg);
+  border:1px solid var(--ed-btn-bd); border-radius:6px; padding:6px 8px; min-height:32px; }
 @media (max-width: 760px), (pointer: coarse) {
   #hsStore .hsBox { width:100vw; max-height:100vh; height:100%; border-radius:0; padding:14px 12px; }
   #hsStore .hsCols { grid-template-columns:1fr; }
@@ -85,6 +95,7 @@
   #hsStore .hsCard { min-height:52px; }
   #hsStore .hsPill, #hsStore .dfPill { min-height:48px; min-width:48px; padding:0 14px; }
   #hsStore .hsColH { min-height:48px; align-items:center; }
+  #hsStore .hsAskBox select { min-height:48px; }
 }`;
   function style() {
     if (document.getElementById('hsStoreCss')) return;
@@ -146,6 +157,13 @@
           if (!r.ok) { se.value = ''; b.appendChild(mk('small', 'hsWhy', r.why)); } });
         b.appendChild(se);
       }
+    // G3260 (ROUTES): assign it to a route (the career's door; the terms asked first)
+    if (A.routeTargets) {
+      const ra = mk('button', 'hsPill hsRoute', 'route…'); ra.type = 'button';
+      ra.setAttribute('aria-label', 'assign ' + name + ' to a route');
+      ra.addEventListener('click', ev => { ev.stopPropagation(); routeAsk(name); });
+      b.appendChild(ra);
+    }
     if (kind !== 'long') {
       const fl = mk('button', 'hsPill go hsFly', 'fly'); fl.type = 'button';
       const can = A.canFly ? A.canFly() : true;
@@ -218,6 +236,63 @@
     if (!r || !r.ok) { ST.msg = (r && r.why) || 'it could not roll out'; render(); return; }
     close();
   }
+  // ---- G3260 (ROUTES) -------------------------------------------------------------------------------------------------
+  // the confirmation in the garage's look: the destination and the pilot picked, the terms in words, then Sign
+  function routeAsk(name) {
+    const A = API(); if (!A || !A.routeTargets) return;
+    const T = A.routeTargets(name);
+    if (!T.ok || !T.ends.length) { ST.msg = T.why || ('no aerodrome ' + name + ' can fly a route to from here'); render(); return; }
+    ST.rt = { name, T, b: T.ends[0].id, pilot: T.pilots[0].id }; ST.confirm = null; ST.msg = '';
+    render();
+  }
+  function routeSign() {
+    const A = API(), R = ST.rt; if (!A || !R) return;
+    const r = A.routeSign(R.name, R.b, R.pilot);
+    ST.rt = null;
+    ST.msg = r && r.ok ? '✓ ' + R.name + ' is on its route: the down payment is in the wallet' : ((r && r.why) || 'the route was not signed');
+    render();
+  }
+  function routeEnd(name) {
+    const A = API(); if (!A || !A.routeEnd) return;
+    const r = A.routeEnd(name);
+    ST.msg = r && r.ok ? '✓ ' + name + ' is back ' + (r.where ? WORDS[r.where.kind] || r.where.kind : '') + ' (the route ended, free)' : ((r && r.why) || 'the route did not end');
+    render();
+  }
+  // a card on a route: where it flies, who flies it, what it earns; End route (not movable, no Fly, until it ends)
+  function routeCard(name) {
+    const A = API(), c = (A && A.card(name)) || { name, gear: 'wheels', seats: 0 }, R = A && A.routeOf ? A.routeOf(name) : null;
+    const el = mk('div', 'hsCard hsRtCard'); el.dataset.name = name; el.dataset.kind = 'route';
+    el.appendChild(thumb(c));
+    const t = mk('div', 'hsTxt'), nm = mk('div', 'hsName', name);
+    nm.appendChild(mk('span', 'hsTag', 'on route ' + (R ? R.words : '')));
+    t.appendChild(nm);
+    t.appendChild(mk('div', 'hsMeta', R ? R.pilot + ' flies it · ' + R.trips + ' round trip' + (R.trips === 1 ? '' : 's') + ' paid · ' + Math.round(R.pay) + ' a round trip' : 'on a route'));
+    el.appendChild(t);
+    const b = mk('div', 'hsBtns'), e = mk('button', 'hsPill hsEndRoute', 'end route'); e.type = 'button';
+    e.setAttribute('aria-label', 'end the route of ' + name + ': it comes back free, no penalty');
+    e.addEventListener('click', ev => { ev.stopPropagation(); routeEnd(name); });
+    b.appendChild(e); el.appendChild(b);
+    return el;
+  }
+  function routeAskBox() {
+    const A = API(), R = ST.rt, b = mk('div', 'hsAskBox');
+    const p1 = mk('p'); p1.appendChild(document.createTextNode('Assign ')); p1.appendChild(mk('b', null, R.name)); p1.appendChild(document.createTextNode(' to a route from ' + (R.T.aName || R.T.a) + '?'));
+    b.appendChild(p1);
+    const pick = (label, cls, opts, val, on) => {
+      const l = mk('label', null, label), se = mk('select', cls);
+      for (const o of opts) { const op = mk('option', null, o[1]); op.value = o[0]; se.appendChild(op); }
+      se.value = val; se.addEventListener('change', () => on(se.value)); l.appendChild(se); b.appendChild(l);
+    };
+    pick('to', 'hsRtTo', R.T.ends.map(e => [e.id, e.name + ' · ' + e.km.toFixed(1) + ' km']), R.b, v => { R.b = v; render(); });
+    pick('flown by', 'hsRtPilot', R.T.pilots.map(p => [p.id, p.name]), R.pilot, v => { R.pilot = v; render(); });
+    const Q = A.routeAsk(R.name, R.b, R.pilot);
+    b.appendChild(mk('p', 'hsRtTerms', Q.ok ? Q.words + '. The plane and the pilot stay on it until you end it (free, no penalty).' : Q.why));
+    const bt = mk('div', 'hsAskBtns');
+    const no = mk('button', 'hsPill hsNo', 'cancel'); no.type = 'button'; no.addEventListener('click', () => { ST.rt = null; render(); });
+    const go = mk('button', 'hsPill go hsRtSign', 'sign'); go.type = 'button'; go.disabled = !Q.ok; go.addEventListener('click', routeSign);
+    bt.appendChild(no); bt.appendChild(go); b.appendChild(bt);
+    return b;
+  }
   function render() {
     const A = API(), el = ST.el;
     if (!el || el.hidden) return;
@@ -271,8 +346,16 @@
     cols.appendChild(lc);
     box.appendChild(cols);
     if (V.others && V.others.length) box.appendChild(mk('div', 'hsSub', 'in another building here: ' + V.others.join(', ')));
+    // G3260 (ROUTES): the planes on a route with an end here
+    if (V.routes && V.routes.length) {
+      const rc = mk('div', 'hsRoutes'), h = mk('div', 'hsColH');
+      h.appendChild(mk('span', null, 'on a route')); h.appendChild(mk('b', null, String(V.routes.length))); rc.appendChild(h);
+      for (const nm of V.routes) { const s = mk('div', 'hsSlot'); s.appendChild(routeCard(nm)); rc.appendChild(s); }
+      box.appendChild(rc);
+    }
     // the confirmation
-    const ak = mk('div', 'hsAsk'); ak.hidden = !ST.confirm;
+    const ak = mk('div', 'hsAsk'); ak.hidden = !ST.confirm && !ST.rt;
+    if (ST.rt && !ST.confirm) ak.appendChild(routeAskBox());
     if (ST.confirm) {
       const c = ST.confirm, b = mk('div', 'hsAskBox');
       const p1 = mk('p'); p1.appendChild(document.createTextNode('Fly ')); p1.appendChild(mk('b', null, c.name)); p1.appendChild(document.createTextNode(' from ' + WORDS[c.kind] + '?'));
@@ -292,16 +375,16 @@
     el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'storage');
     el.appendChild(mk('div', 'hsBox'));
     el.addEventListener('click', ev => { if (ev.target === el) close(); });
-    el.addEventListener('keydown', ev => { if (ev.key === 'Escape') { if (ST.confirm) { ST.confirm = null; render(); } else close(); } });
+    el.addEventListener('keydown', ev => { if (ev.key === 'Escape') { if (ST.confirm || ST.rt) { ST.confirm = null; ST.rt = null; render(); } else close(); } });
     document.body.appendChild(el);
     return el;
   }
   function open() {
-    build(); ST.el.hidden = false; ST.sel = null; ST.msg = ''; ST.confirm = null; render();
+    build(); ST.el.hidden = false; ST.sel = null; ST.msg = ''; ST.confirm = null; ST.rt = null; render();
     try { const sh = document.getElementById('edShelf'); if (sh) sh.hidden = true; } catch (e) {}
     return ST.el;
   }
-  function close() { if (ST.el) ST.el.hidden = true; ST.sel = null; ST.confirm = null; }
+  function close() { if (ST.el) ST.el.hidden = true; ST.sel = null; ST.confirm = null; ST.rt = null; }
   function wire() {
     const b = document.getElementById('gStore');
     if (b && !b.dataset.hsWired) { b.dataset.hsWired = '1'; b.addEventListener('click', open); }
@@ -310,5 +393,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
   // app.js may publish FLYDIY_STORE after this file ran: the redraw hook is set again on open
   const open0 = open;
-  W.STORAGE_UI = { open: () => { wire(); return open0(); }, close, render, move, ask, fly, state: ST };
+  W.STORAGE_UI = { open: () => { wire(); return open0(); }, close, render, move, ask, fly, routeAsk, routeSign, routeEnd, state: ST };
 })();
