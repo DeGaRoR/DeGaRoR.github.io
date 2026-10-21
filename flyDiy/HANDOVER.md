@@ -98059,3 +98059,8 @@ The user's rulings: drop the coastal band and the transparency; give the aircraf
   - the 1.0-1.3 km and 300-400 m fades must be dissolves;
   - HOME's stand must pay nothing;
   - the ring's sky must carry the clouds (ringSky) until the probe lookup is fixed.
+- **PARKED (21 Oct, A0, by the user's 20 Oct order: performance comes LAST, after the game test, Metlakatla 2.0, story/content, packaging and the public launch):** the coast/sea ring with `MIR.ringSky` is the ready-to-try lever for the perf phase. Ring for the coast and the sea ONLY (excluding lakes is its first code item); lakes stay on today's full mirror.
+  - Gain: about 6 ms GPU at the open sea; about 0.6 ms at the coast.
+  - Cost: about +1 ms where the ring is on (its sky in the capture).
+  - The probe path to one sky is CLOSED (21 Oct debug: the probe's clouds are too faint against its sky).
+  - Next step when resumed: rebase onto master, exclude lakes, GATE WATER, then the coast/sea stills for the user.
