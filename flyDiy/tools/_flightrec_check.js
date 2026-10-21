@@ -165,7 +165,7 @@ const S = FR.rec.S, SL = FR.SLOTS;
     `  the probe: agl ${r.agl}, speed ${r.spd}, phase ${R.names.phase[r.phase]}, camera ${R.names.cam[r.cam]}, flags ${r.flags}`);
   // G3322: the flight's columns, as the probe gave them (every value exact in a Float32), the pilot a code
   { const want = FLIGHT_FIELDS, bad = Object.keys(want).filter(k => k !== 'pilot' && r[k] !== want[k]);
-    verdict(!bad.length && R.names.pilot[r.pilot] === want.pilot && FR.COLS.length === 49,
+    verdict(!bad.length && R.names.pilot[r.pilot] === want.pilot && FR.COLS.length === 52,
       `  G3322 the flight's columns: hdg ${r.hdg}, pitch ${r.pitch}, bank ${r.bank}, beta ${r.beta}, ias ${r.ias}, ail ${r.ail} elev ${r.elev} rud ${r.rud} thr ${r.thr} brake ${r.brake} brd ${r.brd} flap ${r.flap}, pilot ${R.names.pilot[r.pilot]}, wind ${r.wspd} m/s from ${r.wdir}; ${FR.COLS.length} columns` + (bad.length ? ' - wrong: ' + bad.join(', ') : '')); }
   // a shader link inside the render: its time is the shader slot's, an event, and the page held by the first status read
   oneFrame(1, () => { const p = { id: 7 }; const a = gl.linkProgram(p); const lg = gl.getProgramInfoLog(p); const st = gl.getProgramParameter(p, gl.LINK_STATUS); const o2 = gl.getProgramParameter(p, 35); oneFrame.ret = [a, lg, st, o2]; });

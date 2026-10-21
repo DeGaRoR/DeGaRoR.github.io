@@ -13,7 +13,8 @@
 // far away; the cover ring (220 m round the eye) plants on its budget as everywhere.
 //
 //   STORY_INTRO.plan(ctx) -> plan       PURE. ctx = { aero: the cabin's aerodrome record (x, z, hdg, len, elev, fly?),
-//                                        plot: { x, z, hdg } the shed (the base plot) | null, terrainH(x, z), waterH?(x, z) }
+//                                        plot: { x, z, hdg } the shed (the base plot) | null, terrainH(x, z), waterH?(x, z),
+//                                        end?: 'eye' (default) | 'high' (G3386's ending) }
 //   STORY_INTRO.pose(plan, t) -> pose    PURE. { p: [x, y, z], l: [x, y, z], fov, black: 0..1, shot } at t seconds of the shots
 //   STORY_INTRO.play(host) -> ctl        the player: host = { plan, el (the curtain app.js put up), music: volume 0..1,
 //                                        swap() (the garage back on screen), done(how) }; ctl = { frame(dt) -> pose | null,
@@ -77,11 +78,18 @@ var STORY_INTRO = (() => {
     const s2b = [c[0] + u[0] * hl * 0.25 - n[0] * sd * 40, c[1] + u[1] * hl * 0.25 - n[1] * sd * 40];
     shots.push({ id: 'strip', e0: P(s2a[0], s2a[1], 50), e1: P(s2b[0], s2b[1], 16),
       l0: [c[0], H(c[0], c[1]) + 4, c[1]], l1: [shed[0], hS + 3, shed[1]], fov0: FOV0 - 2, fov1: FOV0 - 4, clr: 8 });
-    // 3. THE CABIN: an arc round the shed from 75 m (40 deg off the door's line, high) to 45 m off its door, 18 m over the SHED's ground (the looks: 14 m from the plot put the eye 4 m off the wall of an 18 x 20 m shed; 30 m at 3.5 m over the eye's own ground, a crest the terrain sampler does not see hid it - world.terrainH and the drawn ground differ there - so the end looks down on it; at 11 m the crest still hid its walls: 18 m), the
-    // lens closing in (the zoom)
+    // 3. THE CABIN: an arc round the shed from 75 m (40 deg off the door's line, high) down to its door, the lens closing in
+    // (the zoom). TWO ENDINGS (ctx.end):
+    //   'eye' (G3387, the default): 35 m off the door, 3 m over the eye's own ground, the lens 38 deg - the shed at eye level,
+    //     the horizon in (the Game coordinator, 21 Oct: the trailer's and the story's first image). It needs the shed
+    //     standing on its ground: ED-2's cabin-pad fix (L21c) made the drawn ground meet the pad world.terrainH reports.
+    //   'high' (G3386, the fallback): 45 m off the door, 18 m over the SHED's ground, looking down - from before that fix,
+    //     when the drawn ground stood over the pad and buried the shed's walls (the looks of 20-21 Oct).
+    const high = ctx.end === 'high';
     const a1 = Math.atan2(door[1], door[0]), a0 = a1 + sd * 0.75;
-    const arc = k => { const a = lerp(a0, a1, k), r = lerp(78, 45, k); return [shed[0] + Math.cos(a) * r, shed[1] + Math.sin(a) * r]; };
-    const s3 = { id: 'cabin', arc, ya: hS + 26, yb: Math.max(hS + 18, H(...arc(1)) + 3.5), l0: [shed[0], hS + 4, shed[1]], l1: [shed[0], hS + 2.6, shed[1]], fov0: FOV0 - 4, fov1: 34, clr: 2.2 };
+    const arc = k => { const a = lerp(a0, a1, k), r = lerp(78, high ? 45 : 35, k); return [shed[0] + Math.cos(a) * r, shed[1] + Math.sin(a) * r]; };
+    const s3 = { id: 'cabin', arc, ya: hS + 26, yb: high ? Math.max(hS + 18, H(...arc(1)) + 3.5) : H(...arc(1)) + 3,
+                 l0: [shed[0], hS + 4, shed[1]], l1: [shed[0], hS + (high ? 2.6 : 3), shed[1]], fov0: FOV0 - 4, fov1: high ? 34 : 38, clr: 2.2 };
     s3.e0 = [arc(0)[0], s3.ya, arc(0)[1]]; s3.e1 = [arc(1)[0], s3.yb, arc(1)[1]];
     shots.push(s3);
     // the clock, and the floor under each eye path (the terrain + the shot's clearance, a running max so a ridge is lifted
@@ -108,7 +116,7 @@ var STORY_INTRO = (() => {
       for (let j = 0; j <= N_SAMP; j++) { let m = -Infinity; for (let k = Math.max(0, j - 2); k <= Math.min(N_SAMP, j + 2); k++) m = Math.max(m, fl[k]); fm[j] = m; }
       s.floor = fm;
     }
-    return { v: 1, T: t, shots, shed: [shed[0], hS, shed[1]], gap: [gap[0], gapY, gap[1]], valley: v, side: sd,
+    return { v: 1, end: high ? 'high' : 'eye', T: t, shots, shed: [shed[0], hS, shed[1]], gap: [gap[0], gapY, gap[1]], valley: v, side: sd,
              anchor: [shed[0], hS + 1.5, shed[1]],   // the world's point for its streams (app.js): the cabin, never the eye
              warm: warmViews(shots) };
   }
