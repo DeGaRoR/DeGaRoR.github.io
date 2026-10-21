@@ -95549,27 +95549,11 @@ music. It zooms on the cabin, then we fade into the garage."
   - **SCENERY, not the camera (for the Game coordinator):** the shed's WALLS are below the drawn ground on every side
     (the 75 m still shows the same): plot w1's pad (what world.terrainH reports) is lower than the terrain the renderer
     draws there. The cabin reads as a roof on the hill. That is the Cabin Strip's cook / the ground fields, not this opening.
-- **Next:** ready, the Game coordinator's call on e8202b764 (gates STORY, UISMOKE, UISMOKE-PHONE, MEDIA: battery PASS 21 Oct). Owed:
-  stills of the cabin's arc with G3385's sightline (a 5 min look, or the landing train's own).
-
-## G2798 - THE PILOT'S IDLE MOTION AT 1 BY DEFAULT (2026-10-19, EDITOR-UX-A for A0; branch claude/idle-default on Train A)
-
-The user's garage review, item 5: "put the movement at 1 by default, and it's fine". `dumIdle` (the pilot's idle
-motion, the sitting-idle clip's amplitude) went 0.5 -> 1 in the page's defaults (_cage_page5.js; designFull's birth
-base reads them) and in the four presets that state it. The crew's fallback for a build with no value is 1 too.
-A build that SAVED its own value keeps it (every builds/*.json says 0.5, the Rufus files 1); an older save with no
-`dumIdle` at all now animates at 1. The passengers' `paxIdle` was already 1. Animation only: no spec, no physics.
-
-## A0 - landing L19d (19 Oct 2026, gates 22:00-23:06, pushed ~23:10)
-Cargo (rolling): cabin-approach (G3097 the trees-only fan x_fan_w1_0 over Cabin Strip's end 0 + 27_premises on CORE_MATH + the re-cook), career-expert (the player's own career flights always fly the Expert; the career's pilot-pick row is gone), idle-default (pilot idle motion 1 by default), story-fix (the story loads the CERTIFIED Rufus; GAME-PLAN §R2 with the shed rules), water-spray (G2837 side arches + G2838 heavy drops; the user OK'd the look). torque-retune-66 HELD (the user's word on the float Cessna's mk_sea go-arounds is pending).
-Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
-Strict light gate: 12 RED, none new by cause. over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV, fix in progress); taskWorst / tasks1s = the boot/settle and roll-out tasks around 1 s (HWCOV 19 Oct: 982-1099 ms on L19a too, +-0.5 s run to run); floats world->garage 2.4 s = the pre-existing program re-link (FLOATS-RELINK); metal fuseWidth busy = the cost the user accepted by name (15 Oct). The gate's profile now lives in C: temp and is deleted after.
-## G2799 - EDITOR-REVIEW TRAIN B: THE CARBON SEAT'S SUPPORT, THE TANKS' WIDER RANGE, DROP-JSON IN THE GARAGE (2026-10-19, EDITOR-UX-A for A0, local; branch claude/editor-review-b)
-
-Items 13 and 2 of D:/Dev/flydiy-notes/EDITOR-REVIEW-2026-10-18-PLAN.md, plus A0's DROP-JSON (the garage side; ED-1 did
-the scenery's). Items 11 and 12 (the dash) were DASH-REDESIGN's and landed in L19c. No core file changes: a saved
-build loads and flies bit-identically.
-
+- **READY** (21 Oct 07:30, claude/ready/story-intro, on master 1622c35bb = L21a, merged: STORY_PAGE is every listed career
+  but dev, stIntroArm on it; the :is() root's union). Gates on 083c1cf21 (UNTIMED 07:25, A0's slot): STORY (+ --selftest),
+  UISMOKE, UISMOKE-PHONE, MEDIA (+ --selftest) PASS, battery PASS. **A New career loads ~15 s longer** (the opening's link
+  step, 11-17 s): named for the user; the Game coordinator's default: accepted (once per new career). Owed elsewhere: the
+  cabin shed's walls below the drawn ground (scenery, plot w1).
 - **13 The composite shell seat stands on the floor** (`_cage_crew.js` seatShell). Two moulded carbon ribs under the
   pan, their top edge on the shell's outer face from the front of the pan to the lower back, each on a fore-aft alloy
   floor rail (the airliner seat's idiom). Drawing only: the shell, the hinge and every number the crew laces to are
