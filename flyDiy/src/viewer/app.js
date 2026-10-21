@@ -8956,6 +8956,29 @@
     let end = null; try { const q = /[?&]introend=(eye|high)(&|$)/.exec(window.location.search || ''); if (q) end = q[1]; } catch (e) {}   // G3387: the ending, for a look
     return (stIntroPlan = I.plan({ aero: A, plot: pl, terrainH: (x, z) => world.terrainH(x, z), waterH: typeof world.waterH === 'function' ? (x, z) => world.waterH(x, z) : null, end }));
   }
+  // G3388 (THE BOOT COST, the user 21 Oct: "15 seconds for a moving camera? Whyyyy?"): THE WORLD WEARS THE AEROPLANE'S LIGHT
+  // SIGNATURE WHILE THE OPENING DRAWS IT. Every lit program's key counts the lights: the boot keys the whole world with the
+  // aeroplane in it (craftInWorldNow: its nav / landing lamps, 2 point + 1 spot on the Cub), because a flight always has
+  // them; the opening draws the world from the shed with the aeroplane in the shed - no lamps - so every lit material
+  // needed a variant the boot never made (the profile, 21 Oct 21:00: 81 programs keyed point 2 -> 0, spot 1 -> 0, a
+  // 12 s compile in the boot's 'intro' step; before that step, the first look's 42 links under black). Stand-ins of the
+  // same signature (intensity 0, no shadow: craftLightsGuess's) stand in the world while the opening plays and while its
+  // step compiles: the opening draws with the boot's own programs
+  let stIntroLampGrp = null;
+  function storyIntroLamps(on) {
+    if (!on) { if (stIntroLampGrp && stIntroLampGrp.parent) stIntroLampGrp.parent.remove(stIntroLampGrp); return; }
+    let sg = craftLightSig();
+    if (!sg || sg === '0,0') { sg = '2,1'; try { sg = localStorage.getItem(CRAFT_LIGHTS) || sg; } catch (e) {} }
+    if (!stIntroLampGrp || stIntroLampGrp.userData.sig !== sg) {
+      const [np, ns] = sg.split(',').map(Number), g = new THREE.Group();
+      for (let i = 0; i < (np || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));
+      for (let i = 0; i < (ns || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }
+      g.userData.sig = sg; g.name = 'storyIntroLamps'; stIntroLampGrp = g;
+    }
+    if (stIntroLampGrp.children.length && stIntroLampGrp.parent !== scene) scene.add(stIntroLampGrp);
+  }
+  // (a compile's dress: the lamps on for the call, off after)
+  const storyIntroDress = f => { try { storyIntroLamps(true); return f(); } finally { storyIntroLamps(false); } };
   // THE OPENING'S VIEWS, LINKED UNDER THE LOADING SCREEN (the timed look, 20 Oct 03:45: drawn cold under the curtain, its
   // warm views linked 42 programs the boot had not - three blocks on each first draw: a 14 s task in black). A boot step of
   // a New career's alone (registered only while the curtain is up, below 'craft'): per view, the eye placed there and the
@@ -8993,11 +9016,11 @@
         const R = { n: LG.shots.length, objs0: objs(), lights0: lights() }, P0 = new Set(progs());
         let p = Promise.resolve(), t = performance.now();
         const lap = k => () => { const n = performance.now(); R[k] = Math.round(n - t); t = n; };
-        for (const o of V) p = p.then(() => eye(o, () => { for (let k = 0; k < 12; k++) WF.worldUpdate(P.anchor); })).then(task);
-        return p.then(lap('updates')).then(() => { R.objs1 = objs(); R.lights1 = lights(); return compileSliced(scene, aa && aa.target ? aa.target() : null); }).then(lap('compile'))
-          .then(() => compileDepthVariants(scene, true)).then(lap('depth'))
+        for (const o of V) p = p.then(() => eye(o, () => { for (let k = 0; k < 4; k++) WF.worldUpdate(P.anchor); })).then(task);
+        return p.then(lap('updates')).then(() => { R.objs1 = objs(); R.lights1 = storyIntroDress(lights); return compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, storyIntroDress); }).then(lap('compile'))
+          .then(() => compileDepthVariants(scene, true, storyIntroDress)).then(lap('depth'))
           .then(() => { const nw = progs().filter(x => !P0.has(x)); R.newProgs = nw.length; R.names = nw.map(x => x.name || '?').slice(0, 40); try { R.keyDiff = keyDiff(nw, [...P0]); } catch (e) { R.keyDiff = { error: e.message }; } return programsReady(30000); }).then(lap('links'))
-          .then(() => { let q = Promise.resolve(); for (const o of V) q = q.then(() => eye(o, () => { WF.worldUpdate(P.anchor); if (aa) aa.render(scene, camera); else renderer.render(scene, camera); })).then(task); return q; })
+          .then(() => { let q = Promise.resolve(); for (const o of V) q = q.then(() => eye(o, () => storyIntroDress(() => { WF.worldUpdate(P.anchor); if (aa) aa.render(scene, camera); else renderer.render(scene, camera); }))).then(task); return q; })
           .then(lap('draws')).then(() => { R.progsAfterDraw = progs().filter(x => !P0.has(x)).length - R.newProgs; LG.shots.push(R); LG.ms = Math.round(performance.now() - LG.t0); });
       };
       let p = Promise.resolve();
@@ -9022,6 +9045,7 @@
       if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
       window.FLYDIY_MUSIC_HOLD = true;
       stIntroAt = plan.anchor;
+      try { storyIntroLamps(true); } catch (e) { console.warn('story intro: the lamps', e && e.message); }   // G3388
       if (stCardEl) stCardEl.hidden = true;
       stIntro = I.play({ plan, el: stIntroEl, music: vol, swap: storyIntroSwap,
         done: how => { stIntro = null; stIntroEl = null; window.FLYDIY_INTRO_LAST = { how, T: plan.T }; } });
@@ -9032,6 +9056,7 @@
   function storyIntroSwap() {
     const W = stIntroWas;
     stIntroPose = null; stIntroWas = null; stIntroAt = null;
+    try { storyIntroLamps(false); } catch (e) {}   // G3388: the world's lights as the flight will find them
     if (W) {
       setExp(W.exp);
       if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = W.mist;

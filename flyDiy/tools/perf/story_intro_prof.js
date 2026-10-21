@@ -92,9 +92,9 @@ async function one(label, q, prof) {
   const R = { meta: { date: new Date().toISOString(), root: await MB.serveRoot(PORT) }, rows: [] };
   try {
     for (let r = 1; r <= REPS; r++) {
-      R.rows.push(await one('base' + r, 'intro=0', false));
+      if (!argv.includes('--onlyintro')) R.rows.push(await one('base' + r, 'intro=0', false));
       R.rows.push(await one('intro' + r, '', true));
-      R.rows.push(await one('high' + r, 'introend=high', true));   // the swap's task: the eye end's, or the high end's too?
+      if (!argv.includes('--onlyintro')) R.rows.push(await one('high' + r, 'introend=high', true));   // the swap's task: the eye end's, or the high end's too?
     }
   } finally { try { srv.kill(); if (process.platform === 'win32') require('child_process').execSync('taskkill /PID ' + srv.pid + ' /T /F', { stdio: 'ignore' }); } catch (e) {} }
   const base = R.rows.filter(x => /^base/.test(x.label)).map(x => x.readyMs), intro = R.rows.filter(x => /^intro/.test(x.label)).map(x => x.readyMs);

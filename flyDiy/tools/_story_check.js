@@ -368,8 +368,10 @@ async function introRun() {
   ok(/if \(CAREER_DEV && STORY_PAGE\) storyIntroBoot\(\);/.test(app) && /const introAt = CAREER_DEV && STORY_PAGE && inGarage \? storyIntroFrame\(fdt\) : null;/.test(app) && /if \(introAt && WF\) WF\.worldUpdate\(introAt\);/.test(app),
      "it plays as the boot's screen lifts; the loop draws the world from the shed on the cabin's point (no second world)");
   ok(/if \(!GARAGE_ONLY && CAREER_DEV && STORY_PAGE && stIntroEl\) bootStep\('intro', 'the opening', \d+, \(\) => \(CAREER_DEV \? storyIntroPrepare\(\) : null\)\);/.test(app) &&
-     /return compileSliced\(scene, aa && aa\.target \? aa\.target\(\) : null\); \}\)\.then\(lap\('compile'\)\)\s*\.then\(\(\) => compileDepthVariants\(scene, true\)\)\.then\(lap\('depth'\)\)[\s\S]{0,500}return programsReady\(30000\); \}\)\.then\(lap\('links'\)\)/.test(app),
+     /return compileSliced\(scene, aa && aa\.target \? aa\.target\(\) : null, null, false, storyIntroDress\); \}\)\.then\(lap\('compile'\)\)\s*\.then\(\(\) => compileDepthVariants\(scene, true, storyIntroDress\)\)\.then\(lap\('depth'\)\)[\s\S]{0,500}return programsReady\(30000\); \}\)\.then\(lap\('links'\)\)/.test(app),
      "its views linked UNDER THE LOADING SCREEN (a boot step a New career's curtain alone registers: compiled async, every link waited for, then drawn)");
+  ok(/try \{ storyIntroLamps\(true\); \}/.test(app) && /try \{ storyIntroLamps\(false\); \} catch \(e\) \{\}/.test(app) && /function storyIntroLamps\(on\) \{[\s\S]{0,900}new THREE\.PointLight\(0xffffff, 0, 2, 1\.6\)/.test(app),
+     "G3388: the world wears the aeroplane's light signature (zero-intensity stand-ins) while the opening draws it and while its step compiles - the boot's own programs; off at the swap");
   ok(/\['src\/viewer', 'story_intro\.js'\]/.test(build), "lazy: in build.js's MANIFEST.lazy (FLYDIY_LAZY('story_intro'))");
   const pages = ['index.html', 'dev.html'].map(f => path.join(ROOT, f)).filter(f => fs.existsSync(f)).map(f => fs.readFileSync(f, 'utf8'));
   ok(pages.length && pages.every(h => !/<script[^>]*story_intro/.test(h) && !/var STORY_INTRO = /.test(h) && /"story_intro":"src\/viewer\/story_intro\.js/.test(h)),
