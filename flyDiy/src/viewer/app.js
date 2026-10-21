@@ -11242,6 +11242,7 @@
         handover: !!handover, audioPose: window.AUDIO && AUDIO.space ? AUDIO.space.shotPose : null,   // G1715: the start, the space
         onDone: hh => { raBusy = false; placeIndicators(); done(cage, hh); } });   // (hh: the handle - a skip calls this before play returns)
       placeIndicators();                 // (G1115: the CG marks off for the shot - placeIndicators reads ROLLANIM.busy)
+      revealPlant(6, 30, () => raBusy && inGarage);   // REVEAL-HITCH: the stand's grass, a cell a slice while the shot plays
     } catch (e) { console.warn('rollanim:', e && e.message); raBusy = false; done(cage, null); }
     return h;
   }
@@ -11824,6 +11825,60 @@
   // G1137 (LOAD-COMPILE): ...A VIEW A TASK. The six in one task were the 'frames' step's 1.0-1.6 s task (train 17's metal
   // Cessna: 1581 ms - the draws, their uniforms, ~16 ms of first-draw per program new to a view); a view per task keeps
   // each well under the second, and every link is done before the first of them (programsReady), as before
+  // REVEAL-HITCH (19 Oct, Game-ON polish): THE GRASS ROUND THE REVEAL'S EYE, PLANTED AHEAD. The shed's loop never runs the
+  // world's update, so the first flight frame after every roll-out planted the stand's grass itself - the cell under the
+  // reveal's eye whole (the field's near tier), ~0.2 s of the frame the strict gate's every leg showed at 0.7 s. The
+  // reveal's eye is the chase's start (flRevealStart: 1.7 x viewDist out, 0.16 up, swung off astern) easing to the chase
+  // (1 x viewDist) - its heading is the stand's, so the eyes are taken on twelve headings at both distances round the
+  // roll-out's stand; the world plants each eye's cells (render_world coverPlant -> cover_ring plantNear: the tier its own
+  // update would give them). Under the boot's overlay after the warm draw, and a slice a task during the roll-out shot
+  // (every roll-out: a flight that ended far away left the stand's cells dropped). ?revealplant=0: off (the A/B)
+  const REVEAL_PLANT_OFF = /[?&]revealplant=0(&|$)/.test((typeof location !== 'undefined' && location.search) || '');   // (the gates' node vm has no location)
+  // the roll-out stand's heading (its site's stand.hdg: the nose's - the tail, flRevealStart's hdg, is it + pi; checked on
+  // the metal Cessna and the Cub at HOME: -1.8656 / 1.2760), null where there is none (the water, a spawn)
+  function standHdg() {
+    try {
+      if (sim && sim.hydro) return null;
+      const from = aeroById(inGarage ? rollFromId() : fromId); if (!from) return null;
+      const st = (typeof siteOf === 'function') ? siteOf(from.id) : null, shedD = shedDimsAt(from.id, st);
+      const stand = st ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, null) : st.stand) : null;
+      return stand && flStartTaxi() && Number.isFinite(+stand.hdg) ? +stand.hdg : null;
+    } catch (e) { return null; }
+  }
+  // [x, y, z, rad]: rad 'reach' = the ring's whole reach (what the first flight frame's update would queue), else metres
+  function revealEyes() {
+    const a = standAnchor(); if (!a) return null;
+    const D = (def && def.params && def.params.viewDist) || 12, eyes = [], h = standHdg();
+    const P = h !== null && cam.mode !== 'cockpit' && cam.mode !== 'tower' ? revealPoseOf([a[0], a[1] + 1.2, a[2]], h + Math.PI, 0, worldShedBox()) : null;
+    if (P) {
+      const cg = [a[0], a[1] + 1.2, a[2]], at = (az, el, d, rad) => [cg[0] + d * Math.cos(el) * Math.cos(az), cg[1] + d * Math.sin(el), cg[2] + d * Math.cos(el) * Math.sin(az), rad];
+      eyes.push(at(P.az, P.el, P.dist, 'reach'));   // the first frame's eye: everything its update would plant
+      for (let k = 1; k <= 4; k++) { const f = k / 4; eyes.push(at(P.az + (P.tgt - P.az) * f, P.el, P.dist + (P.D - P.dist) * f, 10)); }   // the ease toward the chase
+      { const Q = revealPoseOf(cg, h + Math.PI, -P.s, worldShedBox()); eyes.push(at(Q.az, Q.el, Q.dist, 10)); }   // the other side's start (the shot's side may differ)
+      return eyes;
+    }
+    for (const [k, el] of [[1.7, 0.16], [1, 0.25]]) for (let i = 0; i < 12; i++) { const hh = i * Math.PI / 6;
+      eyes.push([a[0] + D * k * Math.cos(el) * Math.cos(hh), a[1] + 1.5 + D * k * Math.sin(el), a[2] + D * k * Math.cos(el) * Math.sin(hh), 10]); }
+    return eyes;
+  }
+  // a slice of `sliceMs` a task (`gapMs` between) until every eye's cells stand, or `alive()` says stop
+  function revealPlant(sliceMs, gapMs, alive) {
+    if (REVEAL_PLANT_OFF || !WF || !WF.coverPlant) return Promise.resolve(null);
+    const eyes = revealEyes(); if (!eyes) return Promise.resolve(null);
+    const t00 = performance.now(); let built = 0, tasks = 0;
+    return new Promise(res => {
+      const tick = () => {
+        if (alive && !alive()) return res({ built, done: false });
+        let r; try { r = WF.coverPlant(eyes, sliceMs); } catch (e) { console.warn('reveal plant:', e && e.message); return res(null); }
+        built += r.built; tasks++;
+        if (r.done) { window.FLYDIY_REVEAL_PLANT = { built, tasks, ms: Math.round(performance.now() - t00) }; return res(window.FLYDIY_REVEAL_PLANT); }
+        setTimeout(tick, gapMs || 0);
+      };
+      tick();
+    });
+  }
+  window.FLYDIY_REVEAL_PLANT_NOW = () => revealPlant(1e9);
+  window.FLYDIY_REVEAL_EYES = () => revealEyes();   // (the probe's view of them)   // (tools/perf/reveal_probe.js: the harness's boot takes the synchronous path)
   function worldWarmDraw() {
     const a = standAnchor(); if (!a || !WF) return;
     const cam = camera.clone(), D = (def && def.params && def.params.viewDist) || 12;
@@ -12091,7 +12146,7 @@
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
         .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
         .then(() => shaderProgress(programsReady(30000), 'world', 60000))
-        .then(() => { if (inGarage) return worldWarmDraw(); holdRender = false; return framesRendered(2); }));
+        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(() => revealPlant(120, 0, () => inGarage)); holdRender = false; return framesRendered(2); }));   // (REVEAL-HITCH: the stand's grass)
     } },
   ];
   const TRIP_BY = {}; for (const s of TRIP_STEPS) TRIP_BY[s.id] = s;
@@ -15460,6 +15515,22 @@
   // that keeps moving under a hand is the G39 judder with a reason.
   let flReveal = 0;
   const FL_REVEAL_K = 0.022, FL_REVEAL_FRAMES = 360;
+  // THE REVEAL'S POSE (flRevealStart's, REVEAL-HITCH 19 Oct: the pre-plant asks it ahead, from the stand): the eye starts at
+  // az / el / dist round the CG and eases to the target azimuth `tgt` (orbit: the 0.55 swing off astern, chase: astern, wing:
+  // abeam); `s` the side - the eye standing further from the shed's centre, unless the roll-out shot's side is given
+  function revealPoseOf(cg, hdg, side, shed) {
+    const D = def.params.viewDist || 12;
+    const astern = hdg;                        // the eye at hdg is behind
+    const far = a => {
+      if (!shed) return 0;
+      const ex = cg[0] + D * Math.cos(a), ez = cg[2] + D * Math.sin(a);
+      return Math.hypot(ex - (shed.x0 + shed.x1) / 2, ez - (shed.z0 + shed.z1) / 2);
+    };
+    const s = side ? side : far(astern + 0.55) >= far(astern - 0.55) ? 1 : -1;
+    const tgt = cam.mode === 'wing' ? hdg - Math.PI / 2
+              : astern + (cam.mode === 'orbit' ? s * 0.55 : 0);
+    return { D, s, tgt, az: tgt + s * 0.45, el: 0.16, dist: D * 1.7 };
+  }
   function flRevealStart() {
     rollShotUi(false);                   // G1370: the verbs come back as the reveal hands over
     if (window.FLIGHT_REC && window.FLIGHT_REC.reveal) window.FLIGHT_REC.reveal('the flight');   // G1996: marked with or without a screen
@@ -15472,23 +15543,12 @@
     if (cam.mode === 'tower') return;
     const xA = sim.axes()[0], cg = sim.cgPos();
     const hdg = Math.atan2(xA[2], xA[0]);     // xAft: the tail's direction
-    const D = def.params.viewDist || 12;
-    const astern = hdg;                        // the eye at hdg is behind
-    // which side: the eye that stands further from the shed's centre
-    const far = a => {
-      if (!flShedBox) return 0;
-      const ex = cg[0] + D * Math.cos(a), ez = cg[2] + D * Math.sin(a);
-      return Math.hypot(ex - (flShedBox.x0 + flShedBox.x1) / 2,
-                        ez - (flShedBox.z0 + flShedBox.z1) / 2);
-    };
     // B10: after the roll-out shot the side is the shot's (it ended on this very frame), read once
-    const s = raSide ? raSide : far(astern + 0.55) >= far(astern - 0.55) ? 1 : -1;
+    const P = revealPoseOf(cg, hdg, raSide, flShedBox), D = P.D, tgt = P.tgt;
     raSide = 0;
-    const tgt = cam.mode === 'wing' ? hdg - Math.PI / 2
-              : astern + (cam.mode === 'orbit' ? s * 0.55 : 0);
     if (cam.mode === 'orbit') { azT = tgt; elT = 0.09; distT = D * 1.05; }
     else azT = tgt;                    // flCamera overwrites next frame, same base
-    az = tgt + s * 0.45; el = 0.16; dist = D * 1.7;
+    az = P.az; el = P.el; dist = P.dist;
     flHdg0 = hdg; flYawRate = 0;       // no phantom yaw-rate lead on frame one
     flReveal = FL_REVEAL_FRAMES;
     // G2300 (STAGES): A NEW BUILDING'S REVEAL - the roll-out after a stage advanced opens on it (its camera target, its

@@ -124,6 +124,10 @@ const catchRun = async shots => {
     const levels = [0.3, 0.3, 0.3, 0.62, 0.3, 0.3, 0.3, 0.55, 0.55, 0.55, 0.55, 0.55];   // a one-frame spike at 3, a lasting step at 7
     for (let i = 0; i < levels.length; i++) { win.FLIGHT_REC.rec.frame = 100 + i; rt.texture.level = levels[i]; P.catcher.tap(renderer, { far: 9000, near: 0.5, position: { y: 120 } }, rt); await tick(); }
     P.catcher.tap(renderer, null, rt); await tick(); await tick();
+    // REVEAL-FLASH: under the boot's screen (BOOT.state not 'gone') a draw is not a frame - no tap counted
+    const tapsBefore = P.catcher.summary().taps; win.BOOT = { state: 'run' };
+    for (let i = 0; i < 4; i++) { rt.texture.level = i % 2 ? 0.6 : 0.2; P.catcher.tap(renderer, { far: 9000, near: 0.5, position: { y: 4 } }, rt); await tick(); }
+    out.bootTaps = P.catcher.summary().taps - tapsBefore; delete win.BOOT;
     const sm = P.catcher.summary();
     out.events = sent.filter(e => e[0] === 'catch').map(e => e[1]); out.queries = sm.queries; out.trips = sm.trips;
     // the eye: on, rendered 40 frames back to back - its reads are throttled to EYE_READ_MS
@@ -190,6 +194,7 @@ const checks = {
   'NO READ A FRAME: the catcher read once in the whole run - for its one catch (G1357 v2)': C.reads === 1,
   'BY DEFAULT NO READ AT ALL: the same spike caught once, its state kept, no read and no picture (DEPART-HITCH)':
     C.def.ok && C.def.events.length === 1 && C.def.events[0].f === 103 && /no read/.test(C.def.events[0].why) && C.def.events[0].jpeg === null && C.def.reads === 0 && C.def.trips === 1,
+  "the boot's offscreen draws are not frames: no tap while BOOT is up (REVEAL-FLASH)": C.bootTaps === 0 && C.def.bootTaps === 0,
   'a catch carries the state it was drawn with (far, eye, the cloud flag, the post rows) (G1357)':
     C.events.length === 1 && C.events[0].far === 9000 && 'eyeK' in C.events[0] && 'cloudShadow' in C.events[0] && !!C.events[0].post && 'jpeg' in C.events[0],
   "the eye reads at most every EYE_READ_MS, one in flight, issued from the frame (G1357, EVEN-30's long tasks)": C.eyeReads >= 1 && C.eyeReads <= Math.ceil(C.eyeMs / 250) + 1 && C.eyeReads < 10 && /EYE_READ_MS = 250/.test(code),
