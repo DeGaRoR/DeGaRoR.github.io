@@ -14510,7 +14510,7 @@
                 { who: () => (inGarage ? 'in the shed' : manual ? 'you are flying' : 'the autopilot is flying') }); });
       flNote(body, 'A controller appears once you press a button on it. On the ' +
                    'keyboard: arrows fly it, PageUp/PageDown the throttle, F/G ' +
-                   'the flaps, B the brakes, [ and ] the left and right toe brakes, ' +
+                   'the flaps, B the brakes, ; and \' the left and right toe brakes, ' +
                    'numpad 1/7 the trim, numpad 0/enter the rudder trim, 4/6 the aileron ' +
                    'trim, A hands it over either way, C walks the views.');
     },

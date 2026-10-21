@@ -721,7 +721,8 @@ function run() {
       const INP = require(path.join(__dirname, '..', 'src', 'viewer', 'input.js'));
       const A = (INP.ACTIONS || (INP.make && INP.make({ win: {} }).ACTIONS) || []);
       const dash = A.filter(a => a.group === 'dash');
-      check(dash.length === 11 && dash.every(a => a.kind === 'step' && a.keys && a.keys.key), 'input.js: eleven dash steps, each with a default key', dash.length);
+      // G2480 (HAND-CONTROLS, TORQUE-RETUNE-66): + the alternator (E), the avionics master (X) and the pedal light (Y) - 11 -> 14
+      check(dash.length === 14 && dash.every(a => a.kind === 'step' && a.keys && a.keys.key), 'input.js: fourteen dash steps, each with a default key', dash.length);
       const used = new Set(['KeyZ', 'KeyW', 'KeyS', 'KeyQ', 'KeyD', 'KeyR', 'KeyF', 'KeyG', 'KeyB', 'KeyA', 'KeyC']);
       check(dash.every(a => !used.has(a.keys.key)), 'input.js: no dash key collides with the head or the flying set');
     }

@@ -736,12 +736,12 @@ try {
     frames(30);
     // G2480 (HAND-CONTROLS): the LEFT toe brake reaches sim.ctl as the solver's differential brake (brakeD > 0: the
     // +z main, the left), and handing back takes it off the aeroplane
-    P.input().press('BracketLeft', true);
+    P.input().press('Semicolon', true);
     frames(30);
     if (!(P.sim().ctl.brakeD > 0.3))
       throw new Error('a held [ (the left toe brake) did not reach sim.ctl.brakeD under manual (' + P.sim().ctl.brakeD + ')');
     P.setManual(false);
-    P.input().press('BracketLeft', false);
+    P.input().press('Semicolon', false);
     if (P.sim().ctl.brakeD !== 0 || P.sim().ctl.wr !== null)
       throw new Error('setManual(false) left the hand\'s brakeD / wr on the aeroplane (' + P.sim().ctl.brakeD + ', ' + P.sim().ctl.wr + ')');
     frames(60);
