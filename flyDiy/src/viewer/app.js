@@ -16880,8 +16880,8 @@
     // out of the shed its static depths are let go
     const shedSh = inShed && window.SHED_SHADOW ? SHED_SHADOW.pre(renderer, garageScene(), camera, hangar) : false;
     if (!inGarage && window.SHED_SHADOW && SHED_SHADOW.held()) SHED_SHADOW.release();
-    if (aa) framePresented = aa.render(inShed ? garageScene() : scene, camera) !== 'held';
-    else renderer.render(inShed ? garageScene() : scene, camera);
+    if (aa) framePresented = aa.render(inGarage && !introAt ? garageScene() : scene, camera) !== 'held';
+    else renderer.render(inGarage && !introAt ? garageScene() : scene, camera);
     if (shedSh) SHED_SHADOW.post();
     if (FR) FR.lap(FR.S.render);       // G620: the submit (the shadow passes and the shader links pushed apart)
     if (drawGuard && !inShed) drawGuard.flush(camera);   // G1340: the held draws' programs, compiled after the frame
