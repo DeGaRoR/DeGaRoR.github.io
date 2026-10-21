@@ -97721,3 +97721,27 @@ and worn ground from a street.
    still is the view a pilot gets landing in a Metlakatla street. Before CITY-A's v2 pack: add `--fixture` for the lots.
 3. The A/B is unchanged from the G3415-G3422 entry above: arms O / M / K / P, P = `--q "town=1&cityhost=1"`, at CIRCUIT and
    mk_sea. Add one P arm with `&cityfar=2000` if the 1 km switch shows on the box.
+
+### G3387-G3388 - STORY-INTRO: THE EYE-LEVEL ENDING, AND THE OPENING'S BOOT COST FROM 15 s TO ~0 (2026-10-21, for the GAME COORDINATOR; claude/story-intro on L21c's master 825d72b41)
+- **G3387, the eye-level ending** (ED-2's cabin-pad fix, L21c, stands the shed on its ground): the arc ends 35 m off the
+  door, 3 m over the ground, lens 38 deg, the horizon in. G3386's high ending stays as the fallback (ctx.end 'high',
+  `?introend=high`). Look 21 Oct 17:35 (A0's slot): the shed whole on its ground, its door to the camera, the forest behind,
+  the sky in the corner (stills with A0 for the user).
+- **G3388, the boot cost** (the user, 21 Oct: "15 seconds for a moving camera? Whyyyy? It's basically the same world..."):
+  - **Found** (the step's own ledger, window.FLYDIY_INTRO_PREP, and a CPU profile, 21:00): of the 'intro' step's 16-17 s,
+    ~12 s was ONE compile making 81 programs the boot never made. Their keys differed from their siblings' in the lights:
+    point 2 -> 0, spot 1 -> 0. The boot keys the whole world with the AEROPLANE in it (craftInWorldNow: its nav / landing
+    lamps), because a flight always has them; the opening draws the world from the shed with the aeroplane in the shed.
+    So every lit material needed a lamp-less variant. Neither streaming nor the world's own lights nor the room's air.
+  - **Fix:** while the opening plays, and while its step compiles and draws, the world wears zero-intensity stand-ins of
+    the aeroplane's light signature (craftLightsGuess's: point + spot, no shadow; storyIntroLamps). The opening draws
+    with the boot's own programs. Off at the swap (before any flight). The step's world updates are 4 a view, not 12.
+  - **Measured** (A0's slot 21:08): the 'intro' step **16.1-18.2 s -> 3.4 s, 0 new programs**. A New career's boot to the
+    screen lifting: **74.0 s** against **73.8 s** without the opening (`?intro=0`), and 88.5 s before the fix. So
+    ~0.2 s (one run each). No task over 150 ms in the shots or at the swap; one 607 ms under the black curtain before them.
+- **The 2.07 s task after the swap** (one eye-end stills run, 17:35): NOT reproduced in the two profiled eye-end runs
+  (21:00, 21:08), nor the high run. A 703 ms one had shown once on an older ending's stills run (20 Oct). Intermittent,
+  not the eye end's.
+- Gates on f1d987d4f (21:14, A0's slot): AUDIO, STORY, UISMOKE, UISMOKE-PHONE, MEDIA PASS, battery PASS.
+- Rigs: tools/perf/story_intro_prof.js (base / eye / high rows: the step's and the swap's CPU profiles, --onlyintro),
+  tools/perf/story_intro_look.js (--stillsonly, --q).

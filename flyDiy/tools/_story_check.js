@@ -368,8 +368,10 @@ async function introRun() {
   ok(/if \(CAREER_DEV && STORY_PAGE\) storyIntroBoot\(\);/.test(app) && /const introAt = CAREER_DEV && STORY_PAGE && inGarage \? storyIntroFrame\(fdt\) : null;/.test(app) && /if \(introAt && WF\) WF\.worldUpdate\(introAt\);/.test(app),
      "it plays as the boot's screen lifts; the loop draws the world from the shed on the cabin's point (no second world)");
   ok(/if \(!GARAGE_ONLY && CAREER_DEV && STORY_PAGE && stIntroEl\) bootStep\('intro', 'the opening', \d+, \(\) => \(CAREER_DEV \? storyIntroPrepare\(\) : null\)\);/.test(app) &&
-     /compileSliced\(scene, aa && aa\.target \? aa\.target\(\) : null\)\)\.then\(\(\) => compileDepthVariants\(scene, true\)\)\s*\.then\(\(\) => programsReady\(/.test(app),
+     /return compileSliced\(scene, aa && aa\.target \? aa\.target\(\) : null, null, false, storyIntroDress\); \}\)\.then\(lap\('compile'\)\)\s*\.then\(\(\) => compileDepthVariants\(scene, true, storyIntroDress\)\)\.then\(lap\('depth'\)\)[\s\S]{0,500}return programsReady\(30000\); \}\)\.then\(lap\('links'\)\)/.test(app),
      "its views linked UNDER THE LOADING SCREEN (a boot step a New career's curtain alone registers: compiled async, every link waited for, then drawn)");
+  ok(/try \{ storyIntroLamps\(true\); \}/.test(app) && /try \{ storyIntroLamps\(false\); \} catch \(e\) \{\}/.test(app) && /function storyIntroLamps\(on\) \{[\s\S]{0,900}new THREE\.PointLight\(0xffffff, 0, 2, 1\.6\)/.test(app),
+     "G3388: the world wears the aeroplane's light signature (zero-intensity stand-ins) while the opening draws it and while its step compiles - the boot's own programs; off at the swap");
   ok(/\['src\/viewer', 'story_intro\.js'\]/.test(build), "lazy: in build.js's MANIFEST.lazy (FLYDIY_LAZY('story_intro'))");
   const pages = ['index.html', 'dev.html'].map(f => path.join(ROOT, f)).filter(f => fs.existsSync(f)).map(f => fs.readFileSync(f, 'utf8'));
   ok(pages.length && pages.every(h => !/<script[^>]*story_intro/.test(h) && !/var STORY_INTRO = /.test(h) && /"story_intro":"src\/viewer\/story_intro\.js/.test(h)),
@@ -398,8 +400,11 @@ async function introRun() {
   const end = I.pose(PL, PL.T), shedG = terr(plot.x, plot.z), dEnd = Math.hypot(end.p[0] - plot.x, end.p[2] - plot.z);
   ok(PL.shots.length === 3 && PL.T >= 25 && PL.T <= 40, 'three shots (the valley, the strip, the cabin), 25-40 s', PL.shots.map(s => s.id + ' ' + (s.t1 - s.t0) + ' s').join(', ') + ' = ' + PL.T + ' s');
   ok(low >= 1.0, 'the eye stays over the ground the whole way (a rough terrain)', 'lowest ' + low.toFixed(1) + ' m at ' + at.toFixed(1) + ' s');
-  ok(dEnd > 38 && dEnd < 52 && end.p[1] - shedG >= 15 && end.p[1] - shedG <= 22 && end.fov <= 36 && Math.hypot(end.l[0] - plot.x, end.l[2] - plot.z) < 1 && end.black > 0.99,
-     'it ends zoomed on the shed (45 m off its door, looking down from 18 m over the shed ground, the lens closed) at black', dEnd.toFixed(1) + ' m, ' + (end.p[1] - shedG).toFixed(1) + ' m over the shed, fov ' + end.fov.toFixed(0));
+  ok(PL.end === 'eye' && dEnd > 30 && dEnd < 40 && end.p[1] - terr(end.p[0], end.p[2]) >= 2 && end.p[1] - terr(end.p[0], end.p[2]) < 6 && end.fov <= 40 && Math.hypot(end.l[0] - plot.x, end.l[2] - plot.z) < 1 && end.black > 0.99,
+     'it ends zoomed on the shed at EYE LEVEL (35 m off its door, 3 m over the ground, the horizon in; G3387) at black', dEnd.toFixed(1) + ' m, ' + (end.p[1] - terr(end.p[0], end.p[2])).toFixed(1) + ' m up, fov ' + end.fov.toFixed(0));
+  { const PH = I.plan({ aero, plot, terrainH: terr, end: 'high' }), eh = I.pose(PH, PH.T), dh = Math.hypot(eh.p[0] - plot.x, eh.p[2] - plot.z);
+    ok(PH.end === 'high' && dh > 38 && dh < 52 && eh.p[1] - shedG >= 15 && eh.p[1] - shedG <= 22 && eh.fov <= 36 && /\[\?&\]introend=\(eye\|high\)/.test(app),
+       "G3386's high ending kept as the fallback (ctx.end 'high', ?introend=high)", dh.toFixed(1) + ' m, ' + (eh.p[1] - shedG).toFixed(1) + ' m over the shed'); }
   // THE SIGHTLINE (the third look, 21 Oct: a rise between the eye and the shed hid it): the near shots see their target -
   // on the rough terrain, and with a 6 m rise put between the last eye and the shed
   const seen = (Pl, T) => { let worst = Infinity, at = null;
@@ -449,7 +454,7 @@ async function introRun() {
   let r = await play(null);
   ok(r.up, 'a New career: the black curtain up under the loading screen (z 60 < the boot\'s 70), story_intro.js asked for');
   ok(r.during, "while it plays: the world's exposure, the room's air off, the radio held, the beat card hidden; the arm spent (once)");
-  ok(r.last && r.last.how === 'played' && r.worldF / 30 >= PL.T && r.worldF / 30 <= PL.T + 1.5 && r.near < 52,
+  ok(r.last && r.last.how === 'played' && r.worldF / 30 >= PL.T && r.worldF / 30 <= PL.T + 1.5 && r.near < 40,
      'played to its end: the world drawn from the shed for the whole cinematic, the last frame at the shed', (r.worldF / 30).toFixed(1) + ' s of world, ' + (r.near || 0).toFixed(1) + ' m from the shed');
   const df = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'design_flow.js'), 'utf8');
   ok(H.FLYDIY_STORY_STARTER === 'Rufus' && df.includes('setTimeout(() => { if (!window.FLYDIY_STORY_STARTER) openBirth(); }, 400)'),
