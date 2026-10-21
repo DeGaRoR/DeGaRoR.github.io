@@ -1141,7 +1141,23 @@ function editorInit(api) {
     }
   }
 
+  // G3350 (STORY-TIM, the user 19 Oct: "at this stage, the structure is not available to edit"): THE STORY'S LOCK.
+  // window.EDITOR_LOCK.finishOnly(reason) holds the editor in the FINISH view (paint, liveries, per-part colour, the
+  // registration); Shape and Design are refused IN PLACE - disabled, the reason written under the tabs (nothing
+  // hover-only). finishOnly(null) lifts it. The story sets it from its mask (app.js storyMaskNote); the sandbox never does.
+  let lockWhy = null;
+  function lockSync() {
+    for (const id of ['edTabShape', 'edTabDesign']) { const t = $(id); if (t) { t.disabled = !!lockWhy; t.classList.toggle('locked', !!lockWhy); } }
+    let n = $('edLockNote');
+    if (lockWhy && !n) { const tabs = $('edTabShape') && $('edTabShape').parentNode; if (tabs) { n = document.createElement('div'); n.id = 'edLockNote'; tabs.parentNode.insertBefore(n, tabs.nextSibling); } }
+    if (n) { n.hidden = !lockWhy; n.textContent = lockWhy || ''; }
+  }
+  window.EDITOR_LOCK = {
+    finishOnly(why) { lockWhy = why ? String(why) : null; lockSync(); if (lockWhy && view !== 'finish') setView('finish'); },
+    locked: () => lockWhy,
+  };
   function setView(v) {
+    if (lockWhy && v !== 'finish') { lockSync(); return; }   // G3350: the story's lock holds the finish view
     view = ['finish', 'design'].includes(v) ? v : 'shape';
     pref(LS_VIEW, view);
     wrap.classList.toggle('fin', view === 'finish');

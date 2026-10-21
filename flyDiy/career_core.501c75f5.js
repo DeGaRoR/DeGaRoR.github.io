@@ -1947,6 +1947,8 @@ function careerNormalise(r) {
   if (!c.market || typeof c.market !== 'object') c.market = def.market;
   // G2290 (PILOTS): the roster's rows (76_pilots.js pilotsBlock: unknown ids dropped, a hired pilot always has a row)
   if (typeof pilotsBlock === 'function') pilotsBlock(d);
+  // G3260 (ROUTES): the routes kept well-formed, the fleet's and the pilots' route marks agreeing with them (78b_routes.js)
+  if (typeof routesBlock === 'function') routesBlock(d);
   return d;
 }
 
@@ -4502,6 +4504,9 @@ function pilotsCompanion(doc) {
   return doc;
 }
 const pilotsHired = doc => (doc && doc.career && Array.isArray(doc.career.roster)) ? doc.career.roster.filter(id => PILOTS_ROSTER[id]) : [];
+// G3260 (ROUTES): a pilot on a route (78b_routes.js routeSign marks the row `route`): flies it alone - never picked, fired
+// or boated home until the route ends (routeEnd frees them)
+const pilotsOnRoute = (doc, id) => !!(doc && doc.career && doc.career.pilots && doc.career.pilots[id] && doc.career.pilots[id].route);
 
 // ---- THE MARKET: 2-3 recruitables at a time, refreshed with the job market (contractEpoch) --------------------------
 function pilotsOffers(doc) {
@@ -4537,6 +4542,7 @@ function pilotsHire(doc, id) {
 function pilotsFire(doc, id) {
   if (!doc || !doc.career) return plNo(doc, 'not a career');
   if (!pilotsHired(doc).includes(id)) return plNo(doc, (PILOTS_ROSTER[id] ? pilotsName(id) : id) + ' is not on the roster');
+  if (pilotsOnRoute(doc, id)) return plNo(doc, pilotsName(id) + ' flies a route: end it first');
   const d = pilotsBlock(plClone(doc)), c = d.career;
   c.roster = c.roster.filter(x => x !== id);
   c.pilots[id].hired = null; c.pilots[id].plane = null;
@@ -4546,6 +4552,7 @@ function pilotsFire(doc, id) {
 function pilotsPick(doc, id) {
   if (!doc || !doc.career) return plNo(doc, 'not a career');
   if (id !== 'me' && !pilotsHired(doc).includes(id)) return plNo(doc, id + ' is not on the roster');
+  if (id !== 'me' && pilotsOnRoute(doc, id)) return plNo(doc, pilotsName(id) + ' flies a route');
   const d = plClone(doc);
   d.career.pilotPick = id;
   return { ok: true, doc: d, why: '' };
@@ -4553,7 +4560,8 @@ function pilotsPick(doc, id) {
 const pilotsPicked = doc => {
   const c = doc && doc.career;
   if (!c) return 'me';
-  return c.pilotPick === 'me' ? 'me' : (pilotsHired(doc).includes(c.pilotPick) ? c.pilotPick : (pilotsHired(doc)[0] || 'me'));
+  const free = pilotsHired(doc).filter(id => !pilotsOnRoute(doc, id));     // (G3260: a route's pilot flies it alone)
+  return c.pilotPick === 'me' ? 'me' : (free.includes(c.pilotPick) ? c.pilotPick : (free[0] || 'me'));
 };
 
 // ---- PILOTS ARE PHYSICAL (GQ14) ------------------------------------------------------------------------------------
@@ -4568,6 +4576,7 @@ function pilotsPlace(doc, id) {
 // "TAKES THE BOAT HOME": free, to HOME, between flights (never while flying: the page offers it on the ground only)
 function pilotsBoatHome(doc, id) {
   if (!pilotsHired(doc).includes(id)) return plNo(doc, id + ' is not on the roster');
+  if (pilotsOnRoute(doc, id)) return plNo(doc, pilotsName(id) + ' flies a route: end it first');
   const home = plHome(doc);
   if (pilotsPlace(doc, id) === home) return plNo(doc, pilotsName(id) + ' is already at ' + home);
   const d = plClone(doc), P = d.career.pilots[id];
@@ -4624,6 +4633,7 @@ function pilotsRefusal(id, leg) {
 function pilotsCanFly(doc, id, at, leg) {
   if (id === 'me') return { ok: true, why: '' };
   if (!pilotsHired(doc).includes(id)) return { ok: false, kind: 'roster', why: id + ' is not on the roster' };
+  if (pilotsOnRoute(doc, id)) return { ok: false, kind: 'route', why: pilotsName(id) + ' flies a route' };
   const r = pilotsRefusal(id, leg);
   if (r) return { ok: false, kind: r.kind, trait: r.trait, key: r.key, vars: r.vars, why: r.why };
   const here = pilotsPlace(doc, id);
@@ -4649,7 +4659,7 @@ function pilotsOnFlightEnd(doc, f) {
   const fromAero = f.from || null;
   if (f.slot) for (const id of c.roster) {
     const P = c.pilots[id];
-    if (id !== who && P.plane === f.slot) { P.aero = fromAero || pilotsPlace(doc, id); P.plane = null; }
+    if (id !== who && P.plane === f.slot && !P.route) { P.aero = fromAero || pilotsPlace(doc, id); P.plane = null; }   // (G3260: a route's pilot stays bound)
   }
   if (!who) return { ok: true, doc: d, why: '', logged: null };
   const P = c.pilots[who];
@@ -4701,7 +4711,7 @@ function pilotsCard(doc, id, world) {
     traits: R.traits.map(t => ({ id: t, label: pilotsText('pilot.trait.' + t), how: PILOTS_TEXT['pilot.trait.' + t + '.how'] ? pilotsText('pilot.trait.' + t + '.how') : '' })),
     signOn: pilotsSignOn(id), hired, onOffer: !hired && pilotsOffers(doc).includes(id),
     at, atName: atRow ? (atRow.name || at) : null, atXZ: atRow ? [atRow.c ? atRow.c[0] : atRow.x, atRow.c ? atRow.c[1] : atRow.z] : null,
-    plane: rec && hired ? rec.plane || null : null,
+    plane: rec && hired ? rec.plane || null : null, route: rec && hired ? rec.route || null : null,
     flights: rec ? rec.log.length : 0, landings, grown: Math.round(G.f * 100), ceiling: R.grow ? R.grow.ceiling : null,
     picked: pilotsPicked(doc) === id,
   };
@@ -4979,6 +4989,254 @@ function freightLoadSettle(doc) {
   return d;
 }
 // ===========================================================================
+// THE ROUTES (G3260-G3269 ROUTES) - a plane + a hired pilot + an A <-> B schedule, paid on the sim clock.
+// futureDesigns/game/GAME-PLAN-2026-10-15.md §R (the user: "pay per trip or round trip, with a first down payment"),
+// §3 T6 (the water job: "assign this plane to a route?" with a pilot and a big commitment fee; the Cub leaves for its
+// route, "the cub disappears and you're back with only the ultralight"), §5.3 (the mechanism).
+// ===========================================================================
+// THE SHAPE: `career.routes: [route]` rides the career block (74_career.js careerNormalise calls routesBlock; CAREER_V
+// unchanged: a field added, an older game carries it untouched). A route:
+//   { id: 'rt<n>', plane: <fleet slot>, pilot: <hired id>, a, b: <aerodrome ids>, home: <the end the plane comes back
+//     to>, signedAt: <career instant, s (dayAbs of careerDay)>, trips: <round trips paid>, settled: <instant last
+//     settled, s>, km, cruiseKmh, tripS (one round trip, s), pay (per round trip), down (the down payment), earned,
+//     ended: <instant> | absent }
+// THE LOCK: signing moves the plane's fleet row to kind 'route' (71_player_bases.js: playerStoreWhere's sixth kind -
+// no hangar, no slot, `a` / `b` / `route` on the row; playerMove, playerSendTo, bring-home, an arrival and a flight
+// refuse it) and the pilot's row gets `route` (76_pilots.js: not picked, not fired, not boated, never unbound by a
+// flight's end). The ROUTE only pays as the sim clock moves: routeSettle at the player's landings and waits counts the
+// round trips completed since the signing (each 2 x the distance at the plane's cruise + a 30 min turnaround) and pays
+// the ones not paid yet - no sim time, no pay. routeEnd frees both, free, no penalty: the plane back at the route's
+// home field (inside when there is room, as any arrival), the pilot with it.
+// Pure: every operation works on a clone and returns { ok, doc, why, ... }; a refusal hands back the very document it
+// was given, untouched (74_career.js's contract). No DOM, no storage, no wall clock, no random.
+// ===========================================================================
+const ROUTES_V = 1;
+// THE TERMS (a starting hypothesis for the economy simulation, §12): per round trip, the distance both ways at perKm,
+// x (1 + the plane's payload / kgUnit) - a bigger plane earns more per trip, a faster one more trips a day: the route
+// rewards the design. The down payment is downTrips round trips' pay, paid on signing. turnS: the turnaround at the
+// ends, per round trip (§5.3 "plus a turnaround"). minKm: a route shorter than this pays as this.
+const ROUTES_PAY = { perKm: 100, kgUnit: 150, turnS: 1800, downTrips: 8, minKm: 1, round: 10 };
+const rtClone = o => JSON.parse(JSON.stringify(o));
+const rtNo = (doc, why, extra) => Object.assign({ ok: false, doc, why }, extra || {});
+const rtRound = v => Math.round(v / ROUTES_PAY.round) * ROUTES_PAY.round;
+const routesList = doc => (doc && doc.career && Array.isArray(doc.career.routes)) ? doc.career.routes : [];
+const routesActive = doc => routesList(doc).filter(r => r && !r.ended);
+const routeOfPlane = (doc, slot) => routesActive(doc).find(r => r.plane === slot) || null;
+const routeOfPilot = (doc, id) => routesActive(doc).find(r => r.pilot === id) || null;
+// the career's instant in seconds: a number as given, a { date, utc } day, else the career's own day (74_ careerDay)
+function routeNow(doc, now) {
+  if (typeof now === 'number' && isFinite(now)) return now;
+  if (now && typeof now === 'object' && typeof now.utc === 'number') return dayAbs(now);
+  return dayAbs(careerDay(doc));
+}
+// the plane's numbers: the page's own (o.design: a CONTRACT_DESIGNS-shaped row, e.g. 75_ careerDesignOfShake of its
+// shakedown), else a validated design by id (o.designId, else its airframe row's `design`, else the story's Cub for the
+// story's client / gift plane) -> the row, or null (not known yet: open it in the garage)
+function routeDesignOf(doc, plane, o) {
+  o = o || {};
+  const D = typeof CONTRACT_DESIGNS !== 'undefined' ? CONTRACT_DESIGNS : {};
+  if (o.design && typeof o.design === 'object' && o.design.cruiseKmh > 0) return o.design;
+  if (o.designId && D[o.designId]) return D[o.designId];
+  const A = doc && doc.career && doc.career.airframes && doc.career.airframes[plane];
+  if (A && A.design && D[A.design]) return D[A.design];
+  if (A && A.from === 'story' && (A.story === 'client' || A.gift) && D.cub) return D.cub;
+  return null;
+}
+// the terms of a route of `km` (one way) flown by design row D -> { km, cruiseKmh, seats, payloadKg, tripS, pay, down }
+function routeTerms(km, D) {
+  const P = ROUTES_PAY, seats = Math.max(1, D.seats | 0);
+  const payloadKg = Math.max(0, seats - 1) * CONTRACT_FIT.occKg + (+D.bagKg || 0);
+  const tripS = Math.round(2 * km / D.cruiseKmh * 3600 + P.turnS);
+  const pay = rtRound(2 * Math.max(P.minKm, km) * P.perKm * (1 + payloadKg / P.kgUnit));
+  return { km: Math.round(km * 100) / 100, cruiseKmh: Math.round(D.cruiseKmh), seats, payloadKg, tripS, pay, down: pay * P.downTrips };
+}
+// the end the plane comes back to: the end where a hangar of yours stands (b first, the story's HOME), else b
+function routeHomeOf(doc, a, b) {
+  const held = id => typeof playerHangarsAt === 'function' && playerHangarsAt(doc, id).some(h => !doc.sheds[h].locked);
+  return held(b) ? b : held(a) ? a : b;
+}
+// THE OFFER: the terms for `plane` on a <-> b (nothing changes in the document). o: { design | designId (the plane's
+// numbers), gear (the plane's: stripGear's word - a water end refuses wheels, a land end floats), fields (a world's
+// CONTRACT_FIELDS) } -> { ok, doc, offer, why }
+function routeOffer(doc, a, b, plane, o) {
+  o = o || {};
+  if (!doc || doc.mode !== 'career' || !doc.career) return rtNo(doc, 'routes are a career\'s');
+  if (!doc.fleet || !doc.fleet[plane]) return rtNo(doc, (plane || 'no plane') + ' is not in the fleet');
+  if (routeOfPlane(doc, plane)) return rtNo(doc, plane + ' flies a route already');
+  if (!a || !b || a === b) return rtNo(doc, 'a route joins two different aerodromes');
+  const F = o.fields || CONTRACT_FIELDS;
+  const km = contractKm(a, b, F);
+  if (!isFinite(km)) return rtNo(doc, 'no route between ' + a + ' and ' + b + ' (an aerodrome unknown)');
+  if (o.gear) {
+    const wet = id => !!(F[id] && F[id].surf === 'water');
+    for (const id of [a, b]) {
+      if (wet(id) && (o.gear === 'wheels' || o.gear === 'skis')) return rtNo(doc, (F[id].name || id) + ' is water: ' + plane + ' is on ' + o.gear);
+      if (!wet(id) && o.gear === 'floats') return rtNo(doc, (F[id].name || id) + ' is a land strip: ' + plane + ' is on floats');
+    }
+  }
+  const D = routeDesignOf(doc, plane, o);
+  if (!D) return rtNo(doc, plane + '\'s numbers are not read yet: open it in the garage (its certificate)');
+  const T = routeTerms(km, D);
+  const offer = Object.assign({ k: 'routeOffer', plane, a, b, home: routeHomeOf(doc, a, b), design: D.id || D.label || null }, T);
+  return { ok: true, doc, offer, why: '' };
+}
+// THE SIGNATURE: the down payment paid (an income line in the ledger), the plane and the pilot LOCKED on the route.
+// The plane must stand at one of its ends (its aerodrome: a flight brings it there); the pilot must be hired and free.
+// o: { now (the career instant: a number or a day; default careerDay) } -> { ok, doc, route, why }
+function routeSign(doc, offer, plane, pilot, o) {
+  o = o || {};
+  if (!doc || doc.mode !== 'career' || !doc.career) return rtNo(doc, 'routes are a career\'s');
+  if (!offer || offer.k !== 'routeOffer' || !(offer.tripS > 0) || !(offer.pay >= 0)) return rtNo(doc, 'no route offer to sign');
+  plane = plane || offer.plane;
+  if (offer.plane && plane !== offer.plane) return rtNo(doc, 'the offer is for ' + offer.plane + ', not ' + plane);
+  if (!doc.fleet || !doc.fleet[plane]) return rtNo(doc, (plane || 'no plane') + ' is not in the fleet');
+  if (routeOfPlane(doc, plane)) return rtNo(doc, plane + ' flies a route already');
+  const hired = typeof pilotsHired === 'function' ? pilotsHired(doc) : [];
+  if (!hired.includes(pilot)) return rtNo(doc, (pilot || 'nobody') + ' is not on the roster: a route needs a hired pilot');
+  if (routeOfPilot(doc, pilot)) return rtNo(doc, (typeof pilotsName === 'function' ? pilotsName(pilot) : pilot) + ' flies a route already');
+  const W = playerStoreWhere(doc, plane);
+  if (W.kind === 'none') return rtNo(doc, plane + ' stands nowhere yet');
+  if (W.aero !== offer.a && W.aero !== offer.b) return rtNo(doc, plane + ' is at ' + W.aero + ': it starts the route from ' + offer.a + ' or ' + offer.b);
+  const now = routeNow(doc, o.now), d = rtClone(doc), c = d.career;
+  if (!Array.isArray(c.routes)) c.routes = [];
+  c.routeN = (typeof c.routeN === 'number' && isFinite(c.routeN) ? c.routeN : c.routes.length) + 1;
+  const route = { id: 'rt' + c.routeN, plane, pilot, a: offer.a, b: offer.b, home: offer.home || routeHomeOf(d, offer.a, offer.b),
+                  signedAt: Math.round(now), trips: 0, settled: Math.round(now), km: offer.km, cruiseKmh: offer.cruiseKmh,
+                  tripS: offer.tripS, pay: offer.pay, down: offer.down, earned: offer.down };
+  c.routes.push(route);
+  // the plane: on the route, standing nowhere of yours (its wear runs as outside: it flies)
+  const e = d.fleet[plane];
+  if (e.hangar || typeof e.outSince !== 'number') e.outSince = Math.round(d.clock || 0);
+  if (e.hangar) e.left = e.hangar;
+  e.hangar = null; e.aero = W.aero; e.kind = 'route'; e.route = route.id; e.a = route.a; e.b = route.b;
+  delete e.slot;
+  // the pilot: with the plane, on the route
+  const P = c.pilots && c.pilots[pilot];
+  if (P) { P.route = route.id; P.plane = plane; P.aero = W.aero; }
+  playerCharge(d, -route.down, 'route', route.id);
+  return { ok: true, doc: d, route: rtClone(route), why: '' };
+}
+// THE SETTLE (at the player's landings and waits): every route's round trips completed by `now` since its signing,
+// the ones not paid yet paid now (a ledger line each route). Time only moves forward: an instant before the last
+// settle pays nothing. -> { ok, doc, paid, trips, lines: [{ id, plane, a, b, trips, amt }], why }
+function routeSettle(doc, now) {
+  if (!doc || !doc.career) return rtNo(doc, 'not a career', { paid: 0, trips: 0, lines: [] });
+  const live = routesActive(doc);
+  if (!live.length) return { ok: true, doc, paid: 0, trips: 0, lines: [], why: '' };
+  const t = routeNow(doc, now);
+  const d = rtClone(doc), lines = [];
+  let paid = 0, trips = 0;
+  for (const r of d.career.routes) {
+    if (!r || r.ended || !(r.tripS > 0)) continue;
+    if (t <= r.settled) continue;
+    const n = Math.max(0, Math.floor((t - r.signedAt) / r.tripS)), add = n - (r.trips | 0);
+    r.settled = Math.round(t);
+    if (add <= 0) continue;
+    const amt = add * r.pay;
+    r.trips = n; r.earned = (+r.earned || 0) + amt;
+    playerCharge(d, -amt, 'routePay', r.id);
+    paid += amt; trips += add;
+    lines.push({ id: r.id, plane: r.plane, a: r.a, b: r.b, trips: add, amt });
+  }
+  return { ok: true, doc: d, paid, trips, lines, why: '' };
+}
+// THE END: the round trips flown so far paid (a settle), the plane back at the route's home field - free, instant,
+// inside a hangar of yours there when one has room (71_ playerArrive), else its apron, else kept long-term - and the
+// pilot freed with it. No penalty: only the income stops. o: { now } -> { ok, doc, route, where, why }
+function routeEnd(doc, id, o) {
+  o = o || {};
+  const R = routesActive(doc).find(r => r.id === id);
+  if (!R) return rtNo(doc, 'no route ' + id + ' running');
+  const s = routeSettle(doc, o.now);
+  const d = s.ok ? s.doc : rtClone(doc), now = routeNow(d, o.now);
+  const r = d.career.routes.find(x => x.id === id);
+  r.ended = Math.round(now);
+  let D = d;
+  const e = D.fleet[r.plane];
+  if (e) {
+    delete e.kind; delete e.route; delete e.a; delete e.b; delete e.slot;
+    e.hangar = null; e.aero = r.home;
+    const A = playerArrive(D, r.plane, r.home, {});
+    if (A.ok) D = A.doc;
+  }
+  const P = D.career.pilots && D.career.pilots[r.pilot];
+  if (P) { delete P.route; P.aero = r.home; P.plane = null; }
+  playerLedger(D, 'routeEnd', 0, id);
+  return { ok: true, doc: D, route: rtClone(r), where: e ? playerStoreWhere(D, r.plane) : null, paid: s.paid || 0, why: '' };
+}
+// THE NORMALISER (careerNormalise): the routes kept well-formed; a route whose plane left the fleet ended; the fleet's
+// route rows and the pilots' marks made to agree with the running routes (an unlocked row is placed again by the
+// settle). Mutates `doc` (careerNormalise's way) and returns it.
+function routesBlock(doc) {
+  const c = doc && doc.career;
+  if (!c) return doc;
+  // (a career that never signed one has no `routes`: nothing is added, so its save is byte for byte what it was)
+  if ('routes' in c && !Array.isArray(c.routes)) delete c.routes;
+  if (Array.isArray(c.routes)) c.routes = c.routes.filter(r => r && typeof r === 'object' && typeof r.id === 'string' && typeof r.plane === 'string' &&
+    typeof r.a === 'string' && typeof r.b === 'string' && r.tripS > 0 && isFinite(r.signedAt));
+  const L = c.routes || [];
+  const F = doc.fleet || {};
+  for (const r of L) {
+    if (r.ended) continue;
+    if (!F[r.plane]) { r.ended = Math.round(+r.settled || +r.signedAt || 0); continue; }
+    if (typeof r.home !== 'string' || !r.home) r.home = r.b;
+    if (!Number.isInteger(r.trips) || r.trips < 0) r.trips = 0;
+    if (!isFinite(r.settled)) r.settled = r.signedAt;
+    const e = F[r.plane];
+    if (e.kind !== 'route' || e.route !== r.id) { e.hangar = null; e.kind = 'route'; e.route = r.id; e.a = r.a; e.b = r.b; delete e.slot;
+      if (typeof e.aero !== 'string' || (e.aero !== r.a && e.aero !== r.b)) e.aero = r.a; }
+  }
+  const live = new Set(L.filter(r => !r.ended).map(r => r.id));
+  let loose = false;
+  for (const n of Object.keys(F)) {
+    const e = F[n];
+    if (e && e.kind === 'route' && !live.has(e.route)) { delete e.kind; delete e.route; delete e.a; delete e.b; loose = true; }
+  }
+  if (loose && typeof playerStoreSettle === 'function') playerStoreSettle(doc);
+  for (const id of Object.keys(c.pilots || {})) {
+    const P = c.pilots[id];
+    if (P && P.route && !live.has(P.route)) delete P.route;
+  }
+  return doc;
+}
+// WHERE THE PLANE IS ON ITS ROUTE at `now`: the cycle a -> b, the turnaround at b, b -> a, the turnaround at a (each
+// turnaround half of turnS) -> { leg: 'out' | 'atB' | 'back' | 'atA', f: 0..1 along a -> b }
+function routePos(r, now) {
+  const turn = ROUTES_PAY.turnS / 2, fly = Math.max(1, (r.tripS - ROUTES_PAY.turnS) / 2);
+  const t = ((Math.max(0, (now == null ? r.settled : now) - r.signedAt) % r.tripS) + r.tripS) % r.tripS;
+  if (t < fly) return { leg: 'out', f: t / fly };
+  if (t < fly + turn) return { leg: 'atB', f: 1 };
+  if (t < 2 * fly + turn) return { leg: 'back', f: 1 - (t - fly - turn) / fly };
+  return { leg: 'atA', f: 0 };
+}
+// an aerodrome's name in words (its runway's numbers off, as the map's): the world's aerodromes, else CONTRACT_FIELDS
+const routeAeroName = (id, aeros) => { const a = (aeros || []).find(x => x && x.id === id);
+  const n = (a && a.name) || (typeof CONTRACT_FIELDS !== 'undefined' && CONTRACT_FIELDS[id] && CONTRACT_FIELDS[id].name) || id;
+  return String(n).replace(/\s+\d{2}[LRC]?\/\d{2}[LRC]?$/, ''); };
+const routeWords = (r, aeros) => routeAeroName(r.a, aeros) + ' – ' + routeAeroName(r.b, aeros);
+const routeMoney = n => Math.round(n).toLocaleString('en-GB').replace(/,/g, ' ');
+// THE ARRIVAL CARD'S LINES of a settle -> [{ k: 'route', ok, text }]
+function routeSettleLines(res, aeros) {
+  return ((res && res.lines) || []).map(l => ({ k: 'route', ok: true,
+    text: 'Route ' + routeWords(l, aeros) + ' (' + l.plane + '): ' + l.trips + ' round trip' + (l.trips === 1 ? '' : 's') + ', +' + routeMoney(l.amt) }));
+}
+// THE MAP'S ROWS: every running route, the plane where it is on it now -> [{ id, plane, pilot, pilotName, a, b, home,
+// leg, f, trips, pay, tripS, down, words }]
+function routesMapOf(doc, now, aeros) {
+  const t = routeNow(doc, now);
+  return routesActive(doc).map(r => Object.assign({ id: r.id, plane: r.plane, pilot: r.pilot,
+    pilotName: typeof pilotsName === 'function' ? pilotsName(r.pilot) : r.pilot, a: r.a, b: r.b, home: r.home,
+    trips: r.trips, pay: r.pay, tripS: r.tripS, down: r.down, words: routeWords(r, aeros) }, routePos(r, t)));
+}
+// THE WORDS OF AN OFFER (the page's confirmation, the story's line)
+function routeOfferWords(offer, aeros, pilot) {
+  const h = Math.floor(offer.tripS / 3600), m = Math.round((offer.tripS % 3600) / 60);
+  return routeAeroName(offer.a, aeros) + ' – ' + routeAeroName(offer.b, aeros) + ' (' + offer.km.toFixed(1) + ' km)' +
+    (pilot ? ', flown by ' + (typeof pilotsName === 'function' ? pilotsName(pilot) : pilot) : '') +
+    ': a down payment of ' + routeMoney(offer.down) + ' on signing, then ' + routeMoney(offer.pay) + ' a round trip (' +
+    (h ? h + ' h ' : '') + m + ' min each, the turnaround included), paid at your landings and waits';
+}
+// ===========================================================================
 // THE STORY (G2741 STORY-CORE) — the career's tutorial on rails, then open:
 // the beats T0-T7 as data, the story's state in the career document, one
 // pure step per event, and the story's places found by ROLE.
@@ -5075,6 +5333,29 @@ const STORY_BEATS = [
     done: [{ k: 'open' }] },
 ];
 const STORY_IDS = STORY_BEATS.map(b => b.id);
+// G3350 (STORY-TIM, the user 19 Oct): TIM - "your friend and business partner" - speaks each beat in the band at the
+// bottom of the screen (app.js #stTim), a line at a time. Draft English, keyed by beat: the narrative pack rewrites
+// them. The corner card stays the OBJECTIVE; Tim is the voice.
+const STORY_TIM = {
+  name: 'Tim', role: 'your friend and business partner',
+  T0: ['Morning! The ultralight has sat in this shed all winter. Let\u2019s dust it off.',
+       'Give it a fresh coat and a registration of your own. The structure stays as it is for now: paint, liveries and colours only.',
+       'Click the plane once, twice or three times to climb to the top of its tree. Up there you change the global colour, add liveries, or recolour any single piece.',
+       'It\u2019s pre-certified, so no bench needed here (this shed has none anyway). When it looks right, tap OK on the card.'],
+  T1: ['Good news: we got the old WWII airport. It\u2019s our base of operations now. Come and join me there.',
+       'You can take the controls yourself whenever you like, but you never have to. The autopilot flies every normal mission just as well.'],
+  T2: ['Our first client! Their Cub is in the hangar, unfinished. The list of what they want is on the card. Keep it on budget.'],
+  T3: ['Certified? Then fly it over to its owner.'],
+  T4: ['He can\u2019t pay us... so he\u2019s giving us the Cub. Not a bad trade.'],
+  T5: ['A few quick jobs with the Cub. Nothing fancy, just get them done.'],
+  T6: ['We promised this one: floats on the Cub, and land it at the seaplane base.'],
+  T7: ['The Cub is flying a route now. But look: three planes for sale, once only.'],
+};
+// (G3260 ROUTES: at T7, with the story's route signed, Tim names it and its down payment first)
+const storyTimLines = (id, doc) => { const L = (STORY_TIM[id] || []).slice(), r = id === 'T7' && doc ? storyRoute(doc) : null;
+  if (r) L.unshift((typeof pilotsName === 'function' ? pilotsName(r.pilot) : r.pilot) + ' flies the Cub on ' + routeWords(r) + ' now. The client paid ' +
+    routeMoney(r.down) + ' down, and every round trip pays ' + routeMoney(r.pay) + ' when you land or wait.');
+  return L; };
 const storyBeatOf = id => STORY_BEATS.find(b => b.id === id) || null;
 
 // ---- THE STATE --------------------------------------------------------------------------------------------------------
@@ -5286,7 +5567,10 @@ function storyClientSpec(cub) {
 //   clientPlane the client's Cub in the HOME hangar (o.slot: its slot, already written): stationed there, its airframe row
 //               the client's; the page then binds it ({ k: 'bind', role: 'client', slot, spec })
 //   giftPlane   the Cub is ours: the client's mark lifted, a ledger line at 0 (no money)
-//   routeOffer  ROUTES (G3260) absent: the offer recorded as a stub on the story (o.route: ROUTES' own record when present)
+//   routeOffer  G3260 (ROUTES): the route SIGNED - routeOffer + routeSign (78b_routes.js) with the gift Cub on the seaplane
+//               base <-> HOME and the career's companion (else the first free hired pilot): the down payment paid, the Cub
+//               and the pilot locked on the route; recorded on the story (`offers`: the route's id, the down payment).
+//               o.design: the Cub's own numbers (the page's shakedown row), else the validated Cub's
 //   occasions   the three authored listings on the used market (one-time: a sale removes it for good)
 //   open        the rails end (nothing to the world)
 // -> { ok, doc, why, line } (line: the words for the beat card / the arrival card, or null)
@@ -5320,10 +5604,24 @@ function storyApply(doc, e, o) {
     playerLedger(d, 'gift', 0, slot);
     line = 'The Cub is yours.';
   } else if (e.k === 'routeOffer') {
-    const offer = Object.assign({ k: 'route', plane: s.planes.gift || null, a: storySite(e.a, o.aeros) || e.a, b: storySite(e.b, o.aeros) || e.b,
-                                  at: clock, stub: !o.route }, o.route ? { route: stClone(o.route) } : {});
+    // G3260 (ROUTES): "the cub disappears and you're back with only the ultralight" (the user) - the route signed now
+    const plane = s.planes.gift || s.planes.client || null, a = storySite(e.a, o.aeros) || e.a, b = storySite(e.b, o.aeros) || e.b;
+    const pilot = storyRoutePilot(d);
+    const O = routeOffer(d, a, b, plane, { design: o.design });
+    const R = !O.ok ? O : !pilot ? { ok: false, why: 'no free hired pilot to fly it' } : routeSign(d, O.offer, plane, pilot, { now: o.now });
+    const offer = { k: 'route', plane, a, b, at: clock, pilot: pilot || null, signed: !!R.ok };
+    if (!R.ok) {
+      // (never a guess: the offer is kept with its reason; the beat has moved on)
+      offer.why = R.why;
+      s.offers = (s.offers || []).filter(x => x.k !== 'route').concat([offer]);
+      d.career.story = s;
+      return { ok: true, doc: d, why: R.why, line: 'The route could not be signed: ' + R.why + '.' };
+    }
+    const D = R.doc;
+    Object.assign(offer, { route: R.route.id, down: R.route.down, pay: R.route.pay, tripS: R.route.tripS });
     s.offers = (s.offers || []).filter(x => x.k !== 'route').concat([offer]);
-    line = o.route ? 'A route is offered, with a hired pilot.' : 'A route is offered (the routes come later: the offer is kept).';
+    D.career.story = s;
+    return { ok: true, doc: D, why: '', route: R.route, line: storyRouteLine(R.route, o.aeros) };
   } else if (e.k === 'occasions') {
     s.occasions = STORY_OCCASIONS.slice(0, e.n || STORY_OCCASIONS.length).map(L => L.id);
     line = 'Three aeroplanes on offer, once only: see the Market.';
@@ -5332,6 +5630,21 @@ function storyApply(doc, e, o) {
   } else return stNo(doc, 'an unknown effect ' + e.k);
   d.career.story = s;
   return { ok: true, doc: d, why: '', line };
+}
+// G3260 (ROUTES): T6's pilot - the career's companion while free on the roster, else the first free hired pilot (or null)
+function storyRoutePilot(doc) {
+  const free = (typeof pilotsHired === 'function' ? pilotsHired(doc) : []).filter(id => !routeOfPilot(doc, id));
+  return free.includes(PILOTS_COMPANION) ? PILOTS_COMPANION : (free[0] || null);
+}
+// T6's words for the arrival card, the beat card and Tim: the route, its pilot, the down payment in the wallet
+function storyRouteLine(r, aeros) {
+  return 'Route signed: ' + r.plane + ' flies ' + routeWords(r, aeros) + ' with ' + (typeof pilotsName === 'function' ? pilotsName(r.pilot) : r.pilot) +
+    '. The down payment, ' + routeMoney(r.down) + ', is in the wallet; then ' + routeMoney(r.pay) + ' a round trip, paid at your landings and waits.';
+}
+// the route the story signed (T6), as its record stands now, or null
+function storyRoute(doc) {
+  const s = storyOf(doc), o = s && (s.offers || []).find(x => x.k === 'route' && x.signed && x.route);
+  return o ? (routesList(doc).find(r => r.id === o.route) || null) : null;
 }
 // THE OCCASIONS ON OFFER (procureMarketOf lists them before the generated ones): the authored listings the story listed,
 // minus the sold, in the used market's shape (76_procure.js procureUsedListing's), priced at the occasion's factor

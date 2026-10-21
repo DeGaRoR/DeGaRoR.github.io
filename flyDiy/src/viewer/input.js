@@ -95,10 +95,10 @@
       keys: { key: 'KeyB' } },
     { id: 'brakeL', kind: 'button', ctl: 'brakeD', side: 1, analog: true, label: 'left toe brake', group: 'ground',
       hint: 'the left main; a pedal\u2019s toe axis binds here', ramp: { on: 4, off: 6 },
-      keys: { key: 'BracketLeft' } },
+      keys: { key: 'Semicolon' } },  // ; and ' - the brackets [ ] are the radio's station keys (G1880 RADIO_PICKER), AUDIO's 'keys over a binding'
     { id: 'brakeR', kind: 'button', ctl: 'brakeD', side: -1, analog: true, label: 'right toe brake', group: 'ground',
       hint: 'the right main', ramp: { on: 4, off: 6 },
-      keys: { key: 'BracketRight' } },
+      keys: { key: 'Quote' } },
     // the floats' water rudders (32_hydro waterRudder): steered by the pedals, raised and lowered by THE RULE (down
     // below 12 m/s, up at take-off power) unless the hand says - the handle's three places
     { id: 'waterRudder', kind: 'step', ctl: 'wr', label: 'water rudders', group: 'ground',

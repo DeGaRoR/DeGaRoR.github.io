@@ -50,7 +50,7 @@ function pivot(key, mode, side, thrFrames) {
   const cg0 = sim.cgPos().slice(), h0 = hdgOf(sim);
   let hPrev = h0, turned = 0, t = 0, maxEx = 0, path = 0, last = cg0.slice(), done = null, brakeDmax = 0;
   I.press(pedal, true);
-  if (mode === 'toe') I.press(side > 0 ? 'BracketRight' : 'BracketLeft', true);
+  if (mode === 'toe') I.press(side > 0 ? 'Quote' : 'Semicolon', true);
   // 'toe50': the inside toe brake HALF down on a pedal's toe AXIS (a fixture through mapBinding: rest -1, half 0)
   const ped = { id: 'T-Rudder (Vendor: 044f Product: b679)', axes: [-1], buttons: [] };
   const snap = mode === 'toe50' ? [ped] : undefined;
@@ -155,9 +155,9 @@ function worker() {
   run('cub: toe brakes through the worker', specOf('builds/cub_2026-09-20_corrected.json'), { from: 'HOME', to: 'CIRCUIT', stand: true }, (k, I, H) => {
     if (k === 5) return { start: true, hand: false };
     if (k === 10) return { manual: true };
-    if (k === 20) I.press('BracketLeft', true);
-    if (k === 80) { I.press('BracketLeft', false); I.press('BracketRight', true); }
-    if (k === 140) I.press('BracketRight', false);
+    if (k === 20) I.press('Semicolon', true);
+    if (k === 80) { I.press('Semicolon', false); I.press('Quote', true); }
+    if (k === 140) I.press('Quote', false);
     if (k === 150) { I.press('KeyV', true); }
     if (k === 152) { I.press('KeyV', false); }
     if (k === 170) return { manual: false, hand: false };
