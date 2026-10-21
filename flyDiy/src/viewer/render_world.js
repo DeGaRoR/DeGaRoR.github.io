@@ -50,7 +50,6 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   let fineRing = null;                // TERRAIN FOLLOW-UP 2: the disc of fine tiles round the eye (its update, its clear)
   let ringLod = null;                // PERF 2026-09-23: the inner ring drawn in chunks by distance (its update, its rebuild, its stats)
   let farLod = null;                  // PERF 2026-09-23: the island's far terrain, cut to the eye (its update, its dials, its stats)
-  let farResink = null;              // CABIN-PAD: the far tier's sink run in slices from worldUpdate when the boot's never reached it
   let farSinkOn = false;              // G527: the far terrain sinks under a premises' patch once the patch stands (farLod.resink; premisesR is not declared yet when the first cut is built)
   let rockMap = null, groundU = null; // the rocks' far tier (rock_map.js); the island ground uniforms, hoisted for it
   let cliffs = null;                  // the photoscanned cliff faces (cliffs.js)
@@ -7384,15 +7383,6 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (ringLod) ringLod.update();
     if (typeof propInstUpdate === 'function') propInstUpdate(camera);   // the instanced props: their levels from the eye (props.js G515)   // the ring's chunks, their level from the eye (PERF 2026-09-23)
     if (farLod) farLod.update();     // the far terrain's cut follows the eye (a quadrant or two a frame when it changes)
-    // CABIN-PAD (the cabin shed buried, 21 Oct): THE FAR TIER UNDER THE PREMISES, WHATEVER THE BOOT DID. The boot's
-    // 'premises ground' step re-sinks the far tier (refreshGroundSteps -> resinkSteps); on the garage boot it never reached
-    // it - farSinkOn stayed false and every far patch past the inner ring kept the RAW DEM over the premises' cuts (w1's
-    // 6 m apron: the field shed buried to the eaves from 18 m up; a resink in the page dropped 2349 patches and stood it
-    // whole). Once the patch stands and the tier is not sunk, the resink runs here, 4 ms a frame, once
-    if (farLod && farLod.resinkSteps && premisesR && premisesR.patchBounds && (farResink || !farSinkOn)) {
-      if (!farResink) { const pb = premisesR.patchBounds(); if (pb) farResink = farLod.resinkSteps(pb); }
-      if (farResink) { const t0 = performance.now(); do { if (farResink.next().done) { farResink = null; break; } } while (performance.now() - t0 < 4); }
-    }
     uCG.value.set(cg[0], cg[1], cg[2]);
     groundUnderUpdate(cg);           // the probe's cap follows the ground the craft is over (before the day's pass re-bakes it)
     // THE CLIMATE, ONCE A FRAME (K4). Before dayApply, because the clouds read
