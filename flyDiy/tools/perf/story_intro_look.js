@@ -40,7 +40,7 @@ const WATCH = `(() => { if (window.__SI) return 'on'; const S = window.__SI = { 
   setInterval(() => { const I = window.FLYDIY_INTRO, s = I && I.state ? I.state() : null, L = window.FLYDIY_INTRO_LAST;
     const k = s ? s.st : (L ? 'done:' + L.how : (document.getElementById('stIntro') ? 'curtain' : 'none'));
     if (k !== last) { S.st.push([Math.round(performance.now()), k, s ? +s.t.toFixed(2) : null]); last = k; } }, 25); return 'set'; })()`;
-const READ = `JSON.stringify({ birth: (() => { const e = document.getElementById('dfBirth'); return !!(e && !e.hidden); })(), bootLog: ((window.BOOT && BOOT.log) || []).filter(e => e.k === 'step' || e.k === 'landing' || e.k === 'ready').map(e => [e.k, e.id || '', e.t]), ln: (__MB.ln || []).map(e => [Math.round(e[0]), Math.round(e[1])]), prog: (window.FLYDIY_RENDERER && FLYDIY_RENDERER.info && FLYDIY_RENDERER.info.programs) ? FLYDIY_RENDERER.info.programs.length : null, st: (window.__SI || {}).st || [], fr: __MB.fr.slice(-20000), lt: __MB.lt, sc: __MB.sc || [],
+const READ = `JSON.stringify({ prep: window.FLYDIY_INTRO_PREP || null, birth: (() => { const e = document.getElementById('dfBirth'); return !!(e && !e.hidden); })(), bootLog: ((window.BOOT && BOOT.log) || []).filter(e => e.k === 'step' || e.k === 'landing' || e.k === 'ready').map(e => [e.k, e.id || '', e.t]), ln: (__MB.ln || []).map(e => [Math.round(e[0]), Math.round(e[1])]), prog: (window.FLYDIY_RENDERER && FLYDIY_RENDERER.info && FLYDIY_RENDERER.info.programs) ? FLYDIY_RENDERER.info.programs.length : null, st: (window.__SI || {}).st || [], fr: __MB.fr.slice(-20000), lt: __MB.lt, sc: __MB.sc || [],
   story: window.FLYDIY_STORY ? window.FLYDIY_STORY.story() : null, last: window.FLYDIY_INTRO_LAST || null,
   plan: window.FLYDIY_INTRO && window.FLYDIY_INTRO.plan ? (p => ({ T: p.T, shed: p.shed, gap: p.gap, side: p.side, anchor: p.anchor })) (window.FLYDIY_INTRO.plan()) : null,
   here: (() => { try { return window.FLYDIY_PLAYER.doc().here; } catch (e) { return null; } })(),
@@ -125,9 +125,10 @@ const show = r => log('   ' + r.scene.padEnd(30) + (r.frames ? r.fps + ' fps, p5
       const d = JSON.parse(await b.ev(READ, 30000));
       const A = rows(d, label);
       const bl = d.bootLog || [], ii = bl.findIndex(e => e[0] === 'step' && e[1] === 'intro'), introMs = ii >= 0 && bl[ii + 1] ? bl[ii + 1][2] - bl[ii][2] : null, readyT = (bl.find(e => e[0] === 'ready') || [])[2];
-      const run = { birth: d.birth, profile: prof, introStepMs: introMs, bootReadyMs: readyT, bootLog: bl, ln: d.ln, label, boot: l, states: d.st, plan: d.plan, last: d.last, here: d.here, beat: d.story ? d.story.beat : null, hold: d.hold, curtain: d.curtain,
+      const run = { prep: d.prep, birth: d.birth, profile: prof, introStepMs: introMs, bootReadyMs: readyT, bootLog: bl, ln: d.ln, label, boot: l, states: d.st, plan: d.plan, last: d.last, here: d.here, beat: d.story ? d.story.beat : null, hold: d.hold, curtain: d.curtain,
         bodyIntro: d.bodyIntro, card: d.card, rows: A.rows, long: A.long, exc: b.exc.splice(0), stills: shots };
       R.runs.push(run);
+      if (d.prep) { log(label + ': the step, by shot (ms): ' + d.prep.shots.map(x => '#' + x.n + ' updates ' + x.updates + ' (objects ' + x.objs0 + ' -> ' + x.objs1 + '), compile ' + x.compile + ', depth ' + x.depth + ', links ' + x.links + ' (' + x.newProgs + ' new: ' + (x.names || []).join(' ') + '), draws ' + x.draws + ' (+' + x.progsAfterDraw + ' linked in the draw)').join(' | ') + ' = ' + d.prep.ms); }
       log(label + ': the boot step intro ' + introMs + ' ms (boot ready at ' + readyT + ' ms); the New aeroplane chooser ' + (d.birth ? 'SHOWN' : 'not shown')); log(label + ': ' + (d.last ? d.last.how : 'NO OPENING') + ', here ' + d.here + ', beat ' + run.beat + ', radio held ' + d.hold + ', curtain left ' + d.curtain + ', card ' + JSON.stringify(d.card));
       for (const r of A.rows) show(r);
       log('   long tasks > 100 ms in the opening: ' + (A.long.length ? A.long.map(x => x.ms + ' ms at ' + x.at + ' s').join(', ') : 'none') + (run.exc.length ? ' · exceptions: ' + run.exc.join(' | ') : ''));

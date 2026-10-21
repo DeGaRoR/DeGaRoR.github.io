@@ -8975,12 +8975,21 @@
       const eye = (o, f) => { const keep = { p: camera.position.clone(), q: camera.quaternion.clone() };
         try { at(o); f(); } catch (e) { console.warn('story intro: the view', e && e.message); }
         camera.position.copy(keep.p); camera.quaternion.copy(keep.q); camera.updateMatrixWorld(); };
+      // THE STEP'S OWN LEDGER (the user, 21 Oct: "15 seconds for a moving camera?"): per shot, each phase's wall time, the
+      // world's objects and three's programs before and after, the new programs' names - window.FLYDIY_INTRO_PREP (a rig reads it)
+      const LG = window.FLYDIY_INTRO_PREP = { t0: performance.now(), shots: [], ms: null };
+      const progs = () => (renderer.info && renderer.info.programs ? renderer.info.programs.slice() : []);
+      const objs = () => { let n = 0; scene.traverse(() => { n++; }); return n; };
       const shot = V => {
-        let p = Promise.resolve();
+        const R = { n: LG.shots.length, objs0: objs() }, P0 = new Set(progs());
+        let p = Promise.resolve(), t = performance.now();
+        const lap = k => () => { const n = performance.now(); R[k] = Math.round(n - t); t = n; };
         for (const o of V) p = p.then(() => eye(o, () => { for (let k = 0; k < 12; k++) WF.worldUpdate(P.anchor); })).then(task);
-        return p.then(() => compileSliced(scene, aa && aa.target ? aa.target() : null)).then(() => compileDepthVariants(scene, true))
-          .then(() => programsReady(30000))
-          .then(() => { let q = Promise.resolve(); for (const o of V) q = q.then(() => eye(o, () => { WF.worldUpdate(P.anchor); if (aa) aa.render(scene, camera); else renderer.render(scene, camera); })).then(task); return q; });
+        return p.then(lap('updates')).then(() => { R.objs1 = objs(); return compileSliced(scene, aa && aa.target ? aa.target() : null); }).then(lap('compile'))
+          .then(() => compileDepthVariants(scene, true)).then(lap('depth'))
+          .then(() => { const nw = progs().filter(x => !P0.has(x)); R.newProgs = nw.length; R.names = nw.map(x => x.name || '?').slice(0, 40); return programsReady(30000); }).then(lap('links'))
+          .then(() => { let q = Promise.resolve(); for (const o of V) q = q.then(() => eye(o, () => { WF.worldUpdate(P.anchor); if (aa) aa.render(scene, camera); else renderer.render(scene, camera); })).then(task); return q; })
+          .then(lap('draws')).then(() => { R.progsAfterDraw = progs().filter(x => !P0.has(x)).length - R.newProgs; LG.shots.push(R); LG.ms = Math.round(performance.now() - LG.t0); });
       };
       let p = Promise.resolve();
       for (let i = 0; i < P.warm.length; i += 3) { const V = P.warm.slice(i, i + 3); p = p.then(() => (stIntroEl ? shot(V) : null)); }

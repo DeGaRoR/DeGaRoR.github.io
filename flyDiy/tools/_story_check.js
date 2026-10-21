@@ -368,7 +368,7 @@ async function introRun() {
   ok(/if \(CAREER_DEV && STORY_PAGE\) storyIntroBoot\(\);/.test(app) && /const introAt = CAREER_DEV && STORY_PAGE && inGarage \? storyIntroFrame\(fdt\) : null;/.test(app) && /if \(introAt && WF\) WF\.worldUpdate\(introAt\);/.test(app),
      "it plays as the boot's screen lifts; the loop draws the world from the shed on the cabin's point (no second world)");
   ok(/if \(!GARAGE_ONLY && CAREER_DEV && STORY_PAGE && stIntroEl\) bootStep\('intro', 'the opening', \d+, \(\) => \(CAREER_DEV \? storyIntroPrepare\(\) : null\)\);/.test(app) &&
-     /compileSliced\(scene, aa && aa\.target \? aa\.target\(\) : null\)\)\.then\(\(\) => compileDepthVariants\(scene, true\)\)\s*\.then\(\(\) => programsReady\(/.test(app),
+     /return compileSliced\(scene, aa && aa\.target \? aa\.target\(\) : null\); \}\)\.then\(lap\('compile'\)\)\s*\.then\(\(\) => compileDepthVariants\(scene, true\)\)\.then\(lap\('depth'\)\)[\s\S]{0,200}return programsReady\(30000\); \}\)\.then\(lap\('links'\)\)/.test(app),
      "its views linked UNDER THE LOADING SCREEN (a boot step a New career's curtain alone registers: compiled async, every link waited for, then drawn)");
   ok(/\['src\/viewer', 'story_intro\.js'\]/.test(build), "lazy: in build.js's MANIFEST.lazy (FLYDIY_LAZY('story_intro'))");
   const pages = ['index.html', 'dev.html'].map(f => path.join(ROOT, f)).filter(f => fs.existsSync(f)).map(f => fs.readFileSync(f, 'utf8'));
