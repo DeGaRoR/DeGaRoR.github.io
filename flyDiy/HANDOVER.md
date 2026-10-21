@@ -97244,3 +97244,52 @@ Rolling set: depart-hitch (HWCOV: post_fx's frame catcher no longer reads the fr
 - The battery on the three: AUDIO RED, NEW, from story-intro (master + depart-hitch alone: AUDIO PASS; + story-intro: red). WIRING: "app.js: AUDIO.update is not in loop() between the render and PACE.end" and the self-test anchor "the radio off still plays" missing in music.js. story-intro's own gate set had no AUDIO. Otherwise master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
 - The strict light gate on the three: over100 x4 STILL (cub/metal chase/cockpit 0->2): the departure hitch is NOT (only) the frame catcher; back to HWCOV. NEW: cub round trip 2 garage -> world worst task 265 ms (it wasn't in L21a with t66; suspect story-intro's warm work on the world entry). metal fuseWidth busy (accepted).
 - Landed: 257323256 = master 1622c35bb + depart-hitch + torque-retune-66, re-cooked; AUDIO PANEL POSTFX UISMOKE INPUT DMGCERTCOST PASS on that exact tree (11:06-11:13). story-intro goes back to Game: AUDIO wiring + the garage->world task.
+
+
+## DMG IMPACT LAG - CLOSED at the user's 'moderate' bar (21 Oct 2026, Deform)
+**Status.** Damage is ON by default (L20b). A crash costs about one second at 10-15 fps on impact. The worst single frames are 100-150 ms, and they are vsync-quantised: the main thread waits. Normal flight is untouched (ABBA, damage on vs off: loop within 0.3 ms, frames over 34 ms 0-0.8 % both ways). The user's objective 4 says "if the impact is moderate, it's probably acceptable"; A0 closed the item there on 21 Oct.
+
+**WATCH item.** The metal Cessna sometimes freezes for 300-750 ms at its first wing break (the 2.5 m trunk), all of it in brkCage's 'pose'. Sightings so far:
+- 14 Oct master: 735 ms.
+- 18 Oct L18a: 735 ms.
+- 20 Oct 07:45 master: 624 ms.
+- 21 Oct 01:10 G3028 arm: 371 ms.
+- None in the 12 crash runs of 21 Oct after that.
+Record every sighting with its build and ms.
+
+**What it is (measured, not guessed).** The 21 Oct ensemble profiled the metal's 2.5 m trunk x4. The long crash frames are the main thread BLOCKED in a synchronous GL call while the GPU process works through the break's new GL objects:
+- saveGL's getParameter: 21-63 ms a frame;
+- the tear's getBufferSubData: ~10-20 ms a call, whatever its size (0.4-0.8 MB);
+- three's own render: 22-35 ms.
+The freeze is that wait at its worst.
+
+**Landed (master).**
+- v1 (t56): the tear's reads batched into one, squared-length tear.
+- v2 (L17a): the motion clock + the GPU tear every 0.15 s (the user approved the look change).
+- v3 (L18a): break events budgeted 8 ms a frame (events were 20-52 ms in the worst frames, now 12 ms or less).
+- G3026 (L20b): a load change keeps the rigid clusters' mass-weighted rest. Before it, a freight drop broke the metal's cabin bay.
+
+**TRIED AND FAILED - do not retry blind** (each an A/B in one build, the box rig dmg_skingpu_box --flown gpu, trunk-0 / trunk-2.5, Cub + metal):
+
+| Change | What it did | Worst frame, old -> new (ms) | Why it failed | Branch |
+|---|---|---|---|---|
+| G3023 | the tear in a WORKER, no read-back | 120/108/129/114 -> 130/120/133/541 | The read's 1.7 s just moved to the next sync call: saveGL's getParameter, 2.2 s | claude/dmg-tear-worker-g3023 007797373, held |
+| G3024 | upload only changed places; drop three uncached queries | 110/102/143/97 -> 133/110/143/102 | Upload volume did not fall: re-LAYOUTS dominated (52 a crash) | claude/dmg-upload-cut-g3024 68be29bde, held |
+| G3028 | NO RE-LAYOUT: inputs sized to the attribute, places grown by doubling, a join appends | 111/118/135/116 -> 128/116/129/371 | Re-layouts 57 -> 40 (= the drawers), upload not lower, the worst frame unchanged | claude/dmg-relayout-g3028 d1ce035e7, held |
+| G3029 | saveGL with NO GL QUERIES: a JS shadow of the binding state from wrapped bind calls, seeded at the roll-out; SKIN_GPU.shadowCheck for the truth | 115/121/137/103 -> 107/123/149/98 | Correct: getParameter 5219 -> 275 a crash, shadow true x4, normal flight unchanged. The wait moved again | claude/dmg-saveglfree-g3029 34be62dba, held |
+| G3030 | every drawer's GL objects made at the damage-ON roll-out (~10 ms there), attached at the first break | 107/107/154/97 -> 138/100/140/109 | No gain, and normal flight REGRESSED (loop 9 -> 23-25 ms stand, 14 -> 30-32 taxi) | claude/dmg-predraw-g3030 f1d18d02b, dropped |
+
+G3030's regression was a bug: brkState frees the drawers on every unbroken frame, and the flag reset made them be made again every frame. It's a one-line fix if the idea is ever revived.
+
+**The lesson.** In this page a WebGL query or read-back is a synchronous stall. Removing one only moves the wait to the next one, because the GPU process's own break-time work is the floor. Only work off the main thread can lift it.
+
+**The rig.**
+- dmg_skingpu_box now names its STAGING frames: the first 0.5 s after the place, nothing broken. They are kept out of 'worst' and reported as stageMax (45-80 ms; 0.5-1 s in some runs).
+- The 0.5-1 s pre-break frame seen before was the staging (shown 4/4 with damage off), never damage.
+
+**Next, if ever (the perf phase, last in the user's order).** Move the skin's riding off the main thread: an OffscreenCanvas / worker-owned GL path, or the riding on the CPU in a worker with the drawn buffers handed back.
+
+## A0 - landing L21c (21 Oct 2026, gates 16:00-17:10, pushed ~17:15): THE BOOT-STEP REGRESSION FIX + THE CABIN SHED, THE STORY INTRO, THE REVEAL GRASS PRE-PLANT
+Rolling set: cabin-pad (ED-2: GBOX declared above the premises block - the 'premises ground' boot step had thrown on EVERY boot since G3100, 13 Oct, so the near-ring sink, fine-ring clear, ring LOD rebuild and far-tier resink never ran; GATE WORLDRENDER now runs the step and fails on any premises warning; held side sheds wear their shell skin), dmg-impact-lag-handover (doc: impact lag closed at the 'moderate' bar, five angles tried and failed, the WATCH item), reveal-hitch (the reveal's grass pre-plant, grass only; the location guard; the frame catcher skips while BOOT is up), story-intro (G3380-G3386, the cabin cinematic + 'Sunset Plains' CC0; AUDIO wiring fixed; +~15 s on a New career's first load, under investigation).
+Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
+Strict light gate: 5 RED, none new by cause. over100 now x3 (cub chase gone; cub cockpit, metal chase/cockpit 0->2) = the reveal's first world frame (HWCOV); metal cockpit taskWorst 1416 ms = the ~1 s boot/settle task class (seen 1087-1591 since L19d; the restored boot step adds ~0.5 s of yields before the reveal); metal fuseWidth busy = accepted. The baseline (ee466b792, 12 Oct) predates G3100, i.e. it was taken with the boot step alive.
