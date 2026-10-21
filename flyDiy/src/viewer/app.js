@@ -4490,6 +4490,7 @@
         poseRigid(c.obj);                             // G357: in the true frame
       }
     }
+    brkGpuPre();   // G3030: once a flight, on its first frames with the folds made
     brkCage(xA, yU, cg, [O[0] + oR[0], O[1] + oR[1], oR[2]], skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0], still);   // G1851
     wreckFrame();                                                    // G1860-G1863 (DMG-D4b): nothing damaged, one test
   }
@@ -4685,6 +4686,7 @@
   try { if (/[?&]skingpu=0(&|$)/.test(location.search || '')) window.FLYDIY_SKINGPU = false; } catch (e) {}
   function brkGpuFree() {
     const GS = BRK.gpu;
+    BRK.pre = null;                      // (G3030: the next flight's drawers made again at its roll-out)
     if (!GS) return;
     BRK.gpu = null; BRK.posed = false;   // (the CPU poses the next frame: its arrays were not the drawn ones)
     for (const D of GS.drawers.values()) try { SKIN_GPU.release(D, renderer); } catch (e) { console.warn('SKIN_GPU release', e); }
@@ -4695,7 +4697,42 @@
     if (!SKIN_GPU.ready()) { if (BRK.gpu && SKIN_GPU.G.ok === false) brkGpuFree(); return null; }   // (not linked yet; or the context lost: the CPU rides)
     let GS = BRK.gpu;
     if (GS && GS.model !== model) { brkGpuFree(); GS = null; }
-    if (!GS) {
+    // (G3030: drawers made at the roll-out are this break's only if the folds are still the ones they were made on - a
+    // re-fold since (a setting changed) made new meshes: they are let go and made here, as before)
+    if (GS && GS.pre) { const FBF = window.FLOWN_BAKE && FLOWN_BAKE.folds ? FLOWN_BAKE.folds() : [];
+      if (FBF.length !== GS.pre.length || FBF.some((f, i) => f !== GS.pre[i])) { brkGpuFree(); GS = null; } else GS.pre = null; }
+    if (!GS) GS = BRK.gpu = brkGpuMake();
+    return brkGpuApi(GS, K);
+  }
+  // G3030 (DMG-IMPACT-LAG): THE DRAWERS MADE AT THE ROLL-OUT. A drawer's GL objects - its position and normal buffers, a copy
+  // of the whole fold (24 bytes a vertex), sent up whole - were made at the first break, every fold's at once, beside the
+  // records, the layouts and the debris: the GPU process behind, the main thread waiting on it (the freeze, 21 Oct's
+  // ensemble). With damage on, the first frames after a roll-out (once the folds are made and the riding's program
+  // linked) make them all, deferred: the meshes keep drawing the CPU's arrays until the first break attaches them (a
+  // member moved since is sent by its version, as frame() always did). Its cost is G.stats.preMs, on the roll-out's frames.
+  // ?predraw=0 (window.FLYDIY_PREDRAW = false): made at the first break, as before
+  try { if (/[?&]predraw=0(&|$)/.test(location.search || '')) window.FLYDIY_PREDRAW = false; } catch (e) {}
+  function brkGpuPre() {
+    if (BRK.pre === model || !model || model.gen) return;
+    if (window.FLYDIY_PREDRAW === false || window.FLYDIY_SKINGPU === false || !window.SKIN_GPU || typeof renderer === 'undefined' || !renderer || !scarPageOn()) return;
+    const FBF = window.FLOWN_BAKE && FLOWN_BAKE.folds ? FLOWN_BAKE.folds() : [];
+    if (!FBF.length) return;             // (the folds not made yet: asked again next frame)
+    SKIN_GPU.prepare(renderer);
+    if (!SKIN_GPU.ready()) return;       // (the program linking, in parallel: next frame)
+    BRK.pre = model;
+    if (BRK.gpu && BRK.gpu.model === model) return;
+    const t0 = performance.now(), GS = BRK.gpu = brkGpuMake();
+    GS.pre = FBF.slice();
+    for (const at of GS.map.values()) {
+      const A = at.A, AN = at.AN; if (!A || !AN || AN.count !== A.count || GS.drawers.has(A)) continue;
+      const geos = new Set(); for (const m of GS.meshes) if (m.geometry && m.geometry.attributes.position === A) geos.add(m.geometry);
+      const Dr = SKIN_GPU.drawer({ THREE, A, AN, views: at.views, geos: [...geos], defer: true });
+      Dr.F = at.F; GS.drawers.set(A, Dr);
+    }
+    const S = SKIN_GPU.G.stats; S.preMs = +(performance.now() - t0).toFixed(1); S.preDrawers = GS.drawers.size;
+  }
+  function brkGpuMake() {
+    {
       // where each member's arrays live: the folds' views, found on the fold meshes (in the graph, or parked by the hybrid)
       const map = new Map(), seen = new Set(), meshes = [];
       const take = m => { if (m && m.isMesh && !seen.has(m)) { seen.add(m); meshes.push(m); } };
@@ -4707,8 +4744,10 @@
       for (const m of meshes) { const fm = m.userData && m.userData.flownMerge; if (!fm || !fm.views) continue;
         const g = m.geometry, F = FBF.find(f => f.meshes && f.meshes.indexOf(m) >= 0) || null;
         for (const v of fm.views) map.set(v.pa, { A: g.attributes.position, AN: g.attributes.normal, views: fm.views, o: v.o, F }); }
-      GS = BRK.gpu = { model, map, meshes, drawn, drawers: new Map(), ents: new Map() };
+      return { model, map, meshes, drawn, drawers: new Map(), ents: new Map() };
     }
+  }
+  function brkGpuApi(GS, K) {
     return {
       // the record's entry on its drawer (made, and the drawer laid out again, when it first rides); null: the CPU rides it
       of(R, pa, off, o) {
@@ -4729,6 +4768,7 @@
                 Dr = SKIN_GPU.drawer({ THREE, A, AN, views: at ? at.views : null, geos: [...geos] });
                 Dr.F = at ? at.F : null; GS.drawers.set(A, Dr);
               }
+              if (!Dr.attached) SKIN_GPU.attach(Dr);   // (G3030: a drawer made at the roll-out, attached at its first record)
               SKIN_BREAK.placesOf(R);
               e = { R, pa, vo: at ? at.o / 3 : 0, nB: R.nB, D: Dr, px: [0, 0, 0], cpu: false };
               (Dr.join || (Dr.join = [])).push(e);   // (laid out with the frame's others: once a drawer a frame - frame())

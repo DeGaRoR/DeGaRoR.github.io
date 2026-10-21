@@ -126,10 +126,17 @@
       ga.getComponent = (i, c) => a.array[i * 3 + c]; }
     for (const g of D.geos) if (!g.boundingSphere) g.computeBoundingSphere();
     D.saved = D.geos.map(g => [g, g.attributes.position, g.attributes.normal]);
-    for (const g of D.geos) { g.attributes.position = D.glA; if (AN && g.attributes.normal === AN) g.attributes.normal = D.glN; }
+    // (G3030: o.defer - the GL objects made, the meshes still drawing the CPU's arrays until attach(D), at the first break)
+    if (!o.defer) attach(D);
     // the members that do not ride: their attribute versions, as last sent up (the fold's own range test, kept apart)
     if (D.views) D.ver = D.views.map(v => [v.pa.version, v.na ? v.na.version : -1]);
     return D;
+  }
+  // G3030: the meshes draw the drawer's buffers from now (the swap drawer() made at once before G3030)
+  function attach(D) {
+    if (D.attached) return;
+    for (const g of D.geos) { g.attributes.position = D.glA; if (D.AN && g.attributes.normal === D.AN) g.attributes.normal = D.glN; }
+    D.attached = true;
   }
   // the drawer's riding ranges changed (a record joined): its inputs made again. recs: [{ R, vo (the record's first
   // vertex in the drawer), pa (its position attribute), nB (its rest normals) }] - skin_break.js placesOf has run on each R
@@ -415,7 +422,7 @@
   }
 
   const API = { RIDE_VS, RIDE_FS, PW_W, TXK, G, packStale, prepare, ready, drawer: kept(drawer), layout: kept(layout),
-                frame: kept(frame), poll, readBack: kept(readBack), release: kept(release) };   // (poll binds only COPY_READ_BUFFER, which three never caches: unwrapped - wrapped, its 39 calls a frame were ~800 getParameter, ~5 ms a frame on the box)
+                frame: kept(frame), poll, attach, readBack: kept(readBack), release: kept(release) };   // (poll binds only COPY_READ_BUFFER, which three never caches: unwrapped - wrapped, its 39 calls a frame were ~800 getParameter, ~5 ms a frame on the box)
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (W) W.SKIN_GPU = API;
 })();
