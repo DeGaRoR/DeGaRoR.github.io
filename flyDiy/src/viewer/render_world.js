@@ -6509,7 +6509,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const had = sideSheds.get(id);
         if (had && had.key === key) continue;
         if (had) dropShed(had.node);
-        const node = shedNodeAt({ x: +q.x, z: +q.z, ry: +q.ry || 0, y: q.y }, q.dims, q.dress || null);
+        // (CABIN-PAD, the cabin's grey roof, 21 Oct: a held side shed without parts drew the builder's plain material - the
+        // dress was laid only when the player had parts. A held shed always wears its shell's skin (HOME's stays undressed)
+        const node = shedNodeAt({ x: +q.x, z: +q.z, ry: +q.ry || 0, y: q.y }, q.dims, q.dress || {});
         node.name = 'shed:' + id; node.userData.premPlot = id;
         sideSheds.set(id, { key, node });
       }
