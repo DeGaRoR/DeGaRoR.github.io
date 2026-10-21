@@ -95712,3 +95712,13 @@ The rolling set was reveal-hitch + story-tim (ready/torque-retune-66 reached ori
 - The strict light gate on the pair: 7 RED. over100 x4 are UNCHANGED, so the gate rig still sees the reveal hitch with the pre-plant in. NEW: cub round trip 2 garage -> world worst task 490 ms (slack 150), likely the pre-plant's own cost on the world entry. Also metal fuseWidth busy (accepted) and floats world->garage 2.15 s (the known re-link).
 - So reveal-hitch is HELD back to HWCOV: guard `location`; bisect over100 with the gate's own sequence; measure the pre-plant's garage->world cost.
 - Landed: claude/ready/story-tim 3a800c4af ALONE (= master c7c163805 + STORY-TIM). That exact tree passed STORY / UISMOKE / UISMOKE-PHONE on the box at 17:03 (Game, fast lane), and is fresh-cooked here (parked cook for its build id). Tim's band, the paint-only T0 (EDITOR_LOCK.finishOnly), no bench in the small shed.
+
+## A0 - landing L21a (21 Oct 2026, gates 04:00-05:00, pushed ~05:20): CAREERS + ROUTES, RUFUS PLAQUE, REVEAL COPY FIXES; t66 HELD
+Rolling set: game-cr (CAREERS G3360 + ROUTES G3260-G3269, the story's T6 signs a real route), reveal-copyfix (pavement groundColor memo, splat knobsLive, poolAt), rufus-plaque (G3270: the certified Rufus's plaque stamped by the game's own bench, 21 Oct 00:21), torque-retune-66 (t66 + water-skip + cabin-fixes + ap-toggle).
+- The battery on the four: 3 NEW reds, all from t66 (the same three gates PASS on the tree without it, 8c0edd51f, re-run 05:05):
+  - PANEL: "input.js: eleven dash steps, each with a default key - 14". t66 carries G2480 HAND-CONTROLS (toe brakes, rudder/aileron trims, flap lever...).
+  - AUDIO RADIO_PICKER: 1 failure (keys over a binding?).
+  - DMGCERTCOST: 1797 frames stepped, budget 1796.
+  Otherwise only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
+- The strict light gate on the four: over100 x4 = DEPART-HITCH (~8.3 s into flight; NOT the reveal, HWCOV 21 Oct; was mis-blamed since L19d), metal fuseWidth busy (accepted).
+- Landed: 8c0edd51f = master 263b341d2 + game-cr + reveal-copyfix + rufus-plaque, re-cooked for its build id. t66 goes back to Pilot for the three rows -> L21b.
