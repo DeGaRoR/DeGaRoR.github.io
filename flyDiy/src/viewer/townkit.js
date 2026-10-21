@@ -607,7 +607,7 @@ float lotNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0
       setCast(h, v) { noCast[h] = v ? 0 : 1; flagOut(h); }, mayCast: h => !noCast[h],   // (G3418: the city pack's flag 8 - an outbuilding too small to cast)
       get waiting() { return waiting; },
       get band() { return o.band; },
-      setBand(b) { Object.assign(o.band, b || {}); U.uKitBand.value.set(o.band.E0, o.band.W0, o.band.E1, o.band.W1); U.uKitBandOn.value = o.band.W0 > 0 ? 1 : 0; rung.fill(-1); partner.fill(-1);
+      setBand(b) { Object.assign(o.band, b || {}); U.uKitBand.value.set(o.band.E0, o.band.W0, o.band.E1, o.band.W1); U.uKitBandOn.value = o.band.W0 > 0 ? 1 : 0; rung.fill(-1); partner.fill(-1); if (o.mode === 'batch') { for (const k in B) for (let id = 0; id < 2 * N; id++) B[k].bm.setVisibleAt(id, false); } else instDirty = true;
         if (RG) { for (let h = 0; h < N; h++) RG.add(h, C[h].x, C[h].z, reachOf(h)); RG.reMax(); farAll = true; } },
       tickSome, farOne, reachOf, ring: () => RG,   // (G3416: the town host drives the rungs of its near cells' houses)
       get visible() { return group.visible; }, set visible(v) { group.visible = !!v; },
