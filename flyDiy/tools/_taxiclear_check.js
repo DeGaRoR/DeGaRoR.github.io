@@ -68,6 +68,13 @@ const check = (ok, what, detail) => {
 const FX = path.join(T, 'fixtures', 'island_jolene.json');
 const METAL = path.join(T, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json');
 const BUILDS = [{ key: 'stock', name: 'stock build' }, { key: METAL, name: 'aluminium C172' }];
+// G3074: THE METAL CESSNA BY THE MILL'S HOUSES (house3 / house4) - its rotation swings 2.9 deg right as the nosewheel unloads
+// since JODEL-PITCH G2470 measured the Munk body couple along the body: the wing reads 1.49 m off (the base's 1.5+ was a
+// fictitious couple's margin). The user, 13 Oct, BY NAME: "the 2 first issues are simple margins to recalibrate" - 1.45 m
+// for that aeroplane at those two houses only; every other build and footprint keeps 1.5
+// (G3077: declared at the top - inside sections 1-10's block shards 1-3 never had it and threw at 11c's wing row; and its
+// regex held a backspace character where \b was meant, so the 1.45 m never applied)
+const wingNeed = (B, at) => (B.key === METAL && /house[34]\b/.test(at || '')) ? 1.45 : 1.5;
 // G2490 (ALTIPORT-TAXI): THE GATE IN SHARDS (run_gates `shards: 3`). Sections 1-10 are ONE heavy job (tools/_shard.js take:
 // shard 0); 11's plans and flights are jobs of their own, dealt round-robin. Unsharded, everything runs here, as before
 const SHD = require(path.join(T, '_shard.js'));
@@ -232,7 +239,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
     const F = L.flyOut(C, WI, IX, B.def, a, s);
     check(F.air, '9 ' + B.name + ' taxied from the mill and took off', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
     check(F.contacts === 0 && F.trunkHits === 0 && !F.crashed, '9 ' + B.name + ' touched nothing', F.contacts + ' node contacts' + (F.cWhat ? ' (' + F.cWhat + ')' : '') + ', ' + F.trunkHits + ' trunk hits, crashed ' + F.crashed);
-    check(F.minWing >= 1.5, '9 ' + B.name + ' wing kept 1.5 m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
+    check(F.minWing >= wingNeed(B, F.at), '9 ' + B.name + ' wing kept ' + wingNeed(B, F.at) + ' m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
     console.log('  ' + B.name.padEnd(15) + ' span ' + F.span.toFixed(1) + ' m from the mill: ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off the nearest footprint (' + F.at + ')' + (Number.isFinite(F.overMin) ? '; flew over a footprint ' + F.overMin.toFixed(1) + ' m above its top (' + F.overAt + ')' : '') + ', ' + F.contacts + ' contacts, ' + F.trunkHits + ' trunk hits');
   }
 }
@@ -351,16 +358,29 @@ for (const seed of [0, 1, 6, 12, 42]) {
   // c: flown (a job a flight)
   const flights = [{ a: tw, b: nv, pose: POSE, what: 'the altiport apron after the slope roll-on' }];
   { const ux = Math.cos(mn.hdg), uz = Math.sin(mn.hdg), s = -(mn.len / 2 - 45); flights.push({ a: mn, b: WI.aerodromes.find(q => q.id === 'w2'), pose: { x: mn.x + ux * s, z: mn.z + uz * s, hdg: Math.atan2(-uz, -ux) }, what: 'Jumbo Mine\'s street 45 m from its south end' }); }
-  for (const Fl of flights) for (const B of LB) {
+  // G3077 (TORQUE-RETUNE-66): THE CUB IS THE REFERENCE FOR SHORT STRIPS (the user, 14 Oct: "Stop testing the Jodel, the cub is
+  // the reference for short strips") - 11c's two flights are short strips' (the altiport's apron to East Point's 150 m,
+  // Jumbo Mine's 250 m street): the Jodel's rows are dropped, check-only (it is still planned in 11a, as every land build)
+  const LBc = LB.filter(B => B.name !== 'the Jodel');
+  for (const Fl of flights) for (const B of LBc) {
     if (!SHD.take()) continue;
-    const F = L.flyTurn(C, WI, IX, B.def, Fl.a, Fl.b, Fl.pose, { tMax: 150 });
+    let F = L.flyTurn(C, WI, IX, B.def, Fl.a, Fl.b, Fl.pose, { tMax: 150 });
     const tag = '11c ' + B.name + ' from ' + Fl.what;
+    // G2540 (TORQUE-BUNDLE-45, with G2450 EAST-POINT-DEPART): East Point (150 m) is no destination for an aeroplane whose
+    // sheet landing run is longer (the Jodel 183 m, the metal Cessna 249 m) - the pilot says so and does not go. The
+    // refusal is held (said, with the reason) and the turn-around is flown to the next strip of the island's order, 02/20
+    if (Fl.a === tw && !F.air && F.verdicts.some(v => /^strip-too-short/.test(v))) {
+      const why = F.verdicts.find(v => /^strip-too-short/.test(v));
+      check(/not going there/.test(why) && !F.phases.includes('ROLL'), tag + ': East Point refused before going, the reason said', why);
+      F = L.flyTurn(C, WI, IX, B.def, Fl.a, WI.aerodromes.find(q => q.id === 'w2'), Fl.pose, { tMax: 150 });
+      console.log('  11c ' + B.name.padEnd(16) + ' declines East Point (' + why + ') - flown to 02/20');
+    }
     // the altiport's 380 m is left by every one; Jumbo Mine's 250 m is held to its taxi (the roll begun) - the take-off
     // there is the roll's own call (G531: a short field's reserve), printed
     if (Fl.a === tw) check(F.air, tag + ': airborne', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
     else check(F.phases.includes('ROLL'), tag + ': taxied to the take-off run', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>') + (F.air ? ', airborne' : ', ' + (F.verdicts.find(v => /reject|abort|declin/i.test(v)) || 'not airborne')));
     check(F.contacts === 0 && F.trunkHits === 0 && !F.crashed, tag + ': touched nothing', F.contacts + ' node contacts' + (F.cWhat ? ' (' + F.cWhat + ')' : '') + ', ' + F.trunkHits + ' trunk hits, crashed ' + F.crashed);
-    check(F.minWing >= 1.5, tag + ': the wing 1.5 m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
+    check(F.minWing >= wingNeed(B, F.at), tag + ': the wing ' + wingNeed(B, F.at) + ' m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
     console.log('  11c ' + B.name.padEnd(16) + ' from ' + Fl.what + ': ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off (' + F.at + ')' + (Number.isFinite(F.overMin) ? '; flew over a footprint ' + F.overMin.toFixed(1) + ' m above its top (' + F.overAt + ')' : '') + ', ' + F.contacts + ' contacts | ' + F.verdicts.filter(v => /pivot|taxi-clearance/.test(v)).join('; '));
   }
   if (SHD.take()) {

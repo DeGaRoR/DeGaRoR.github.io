@@ -36,6 +36,10 @@
     pitch: 'pull the stick BACK (nose up)', roll: 'move the stick RIGHT',
     yaw: 'push the RIGHT pedal', throttle: 'push the lever to FULL',
     brake: 'press the button, or press the toe brake',
+    // G2480
+    brakeL: 'press the LEFT toe brake (or a button)', brakeR: 'press the RIGHT toe brake (or a button)',
+    flapLever: 'push the flap lever to FULL', trimPitch: 'roll the trim wheel NOSE UP',
+    trimYaw: 'turn the rudder trim RIGHT', trimRoll: 'turn the aileron trim RIGHT',
   };
   const promptFor = (a, want, slot) => {
     if (want === 'key') {
@@ -44,7 +48,7 @@
                   max: 'the key for FULL', min: 'the key for IDLE' };
       return 'press ' + (a.kind === 'axis' ? (s[slot || 'pos']) : 'a key') + ' — Esc cancels';
     }
-    if (a.kind === 'axis') return (ACT_PROMPT[a.id] || 'move the axis the positive way') + ' — Esc cancels';
+    if (a.kind === 'axis' || a.analog) return (ACT_PROMPT[a.id] || 'move the axis the positive way') + ' — Esc cancels';
     return 'press a button, or push the hat — Esc cancels';
   };
 
@@ -117,7 +121,24 @@
   }
 
   // ---- rows ---------------------------------------------------------------
-  const GROUPS = [['flying', 'Flying'], ['flight', 'The flight'], ['dash', 'The dash'], ['engines', 'Engines'], ['head', 'Head (a tracker as a gamepad)']];
+  const GROUPS = [['flying', 'Flying'], ['ground', 'Brakes · on the ground and the water'], ['trim', 'Trim'],
+                  ['flight', 'The flight'], ['dash', 'The dash'], ['engines', 'Engines'], ['head', 'Head (a tracker as a gamepad)']];
+  // G2480: what a group's header says live (the trims the hand holds, the brake on each main) and its options
+  const fmt = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(2);
+  const LIVE = {
+    trim: st => 'elevator ' + fmt(st.trim || 0) + ' · rudder ' + fmt(st.trimR || 0) + ' · aileron ' + fmt(st.trimA || 0) + '  (+ nose up / right)',
+    ground: st => { const A = st.actions, sym = A.brake ? A.brake.value : 0, L = A.brakeL ? A.brakeL.value : 0, R = A.brakeR ? A.brakeR.value : 0;
+                    return 'pair ' + sym.toFixed(2) + ' · left toe ' + L.toFixed(2) + ' · right toe ' + R.toFixed(2) +
+                           ' · water rudders ' + (st.wr === 0 ? 'UP' : st.wr === 1 ? 'DOWN' : 'AUTO'); },
+  };
+  function optRow(g) {
+    if (g !== 'ground' || typeof inp.opt !== 'function') return null;
+    const w = el('label', 'opt'); const c = el('input', null); c.type = 'checkbox'; c.checked = !!inp.opt('brakeSteer');
+    c.onchange = () => { inp.setOpt('brakeSteer', c.checked); c.blur(); };
+    w.appendChild(c);
+    w.appendChild(el('span', null, 'brake steer: the brake key with the rudder held brakes the inside main more (full pedal: that main alone)'));
+    return w;
+  }
   function renderRows() {
     const body = $('ctlBody');
     if (!body || !inp) return;
@@ -127,6 +148,8 @@
       const acts = inp.ACTIONS.filter(a => a.group === g);
       if (!acts.length) continue;
       body.appendChild(el('h3', null, title));
+      if (LIVE[g]) { const lv = el('div', 'live'); lv.dataset.g = g; lv.textContent = LIVE[g](inp.state()); body.appendChild(lv); }
+      const o = optRow(g); if (o) body.appendChild(o);
       for (const a of acts) body.appendChild(row(a, L));
     }
   }
@@ -218,6 +241,7 @@
       i.onchange = () => on(+i.value);
       w.appendChild(i); w.appendChild(v); return w;
     };
+    const lever = a.shape === 'latch' || a.kind === 'button';   // G2480: a toe brake's axis reads like a lever
     const sel = (label, get, on) => {
       const w = el('label', null); w.appendChild(el('span', null, label));
       const s = el('select', null);
@@ -229,10 +253,10 @@
     t.appendChild(rng('expo', 0, 1, 0.05, () => b.expo, v => set({ expo: v }), v => v.toFixed(2)));
     // G209: SENSITIVITY — full stick = this much of the control's travel. A
     // lever has no use for it (its travel IS the reading), so a latch skips it.
-    if (a.shape !== 'latch')
+    if (!lever)
       t.appendChild(rng('sensitivity', 0.1, 1.5, 0.05, () => (b.gain == null ? 1 : b.gain), v => set({ gain: v }), v => (v * 100).toFixed(0) + ' %'));
-    t.appendChild(sel(a.shape === 'latch' ? 'idle reads' : 'span from', () => b.lo, v => set({ lo: v })));
-    t.appendChild(sel(a.shape === 'latch' ? 'full reads' : 'to', () => b.hi, v => set({ hi: v })));
+    t.appendChild(sel(lever ? 'idle reads' : 'span from', () => b.lo, v => set({ lo: v })));
+    t.appendChild(sel(lever ? 'full reads' : 'to', () => b.hi, v => set({ hi: v })));
     return t;
   }
 
@@ -261,6 +285,7 @@
         r.style.left = '0'; r.style.width = st.actions[a.id] && st.actions[a.id].fired ? '100%' : '0';
       }
     }
+    for (const g in LIVE) { const lv = host.querySelector('.live[data-g="' + g + '"]'); if (lv) lv.textContent = LIVE[g](st); }
     for (const dev in st.raw) {
       const m = host.querySelector('.dev[data-dev="' + dev.replace(/"/g, '\\"') + '"] .meter');
       if (!m) continue;

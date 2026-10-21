@@ -28,8 +28,8 @@
 // THE TOURS (one heavy job each - shards: 4; 6 East Point the fourth, G1970):
 //   5 (G1970: THE GAME'S FLIGHT - _tour_lib gameHost: the worker's host and placement, the page's pilot with the garage's
 //     shakedown, DAY_CLOCK's day ticked, the load door's aeroplane) the user's Cub (builds/cub_2026-09-20_corrected.json): HOME > Tamgas Hill > the altiport > Jumbo Mine > 02/20 >
-//     HOME; the aluminium C172: HOME > Tamgas Hill > the altiport > 02/20 > HOME (G531: its reserve refuses the mine's
-//     250 m); East Point (150 m) fits no validated land build (the Cub's roll alone is ~145 m - _tour_lib ORDERS); the
+//     HOME (G2450: > East Point between Jumbo Mine and 02/20); the aluminium C172: HOME > Tamgas Hill > the altiport > 02/20 > HOME (G531: its reserve refuses the mine's
+//     250 m); East Point (150 m) is the Cub's alone (G2450: the Jodel and the C172 decline it - their landing runs 183 / 249 m); the
 //     float Cessna (bugReports/cessnaFloatsWOrks.json): Annette Dock > Metlakatla > Annette Dock. The damage ON. Each leg: stopped at its To, no member yielded or broken, no dent, no
 //     prop strike, no node inside an obstacle, no trunk hit, no ground loop (30 deg off the runway at > 5 m/s on the
 //     roll or the roll-out), no off-strip excursion (the CG off the strip's box at > 5 m/s), the final's lowest node
@@ -196,8 +196,23 @@ if (SHD.first) {
 //   and the metal Cessna's propeller, on the roll-out at ~31 m/s, strikes it ('water'). The same on fa4e2409 and here
 //   (reports/evidence/PILOT-44-REDS w2strike_*). Known only while ISLAND-TOUR is absent, the strike is the water's, it is
 //   the leg's only fault, and the aeroplane landed and stopped on w2
+//   THE USER'S CUB ON 02/20 AFTER EAST POINT - THE ROLL-OUT LOOP (G2540 #3 / G3072; the user, 13 Oct, BY NAME: accepted for
+//   landing, "the 2 other seem to deserve follow-up" - OWED, the coordinator's backlog G3075): on the nv_strip > w2 leg the
+//   landing roll weaves and loops (~30 deg at ~11.6 m/s) - the same class as GATE ALTIPORT's KNOWN tw_ski roll-out. Known only
+//   while it is exactly that: the faults ground-loop / off-strip and nothing else, landed on w2, no break, no crash
+function knownCubRoll(b, L2) {
+  if (b !== 'cub' || L2.from !== 'nv_strip' || L2.to !== 'w2') return null;
+  const D = L2.damage || {}, ks = L2.faults.map(f => f.k);
+  if (!ks.length || !ks.every(k => k === 'ground-loop' || k === 'off-strip') || D.breaks || D.crashed || L2.landedOn !== 'w2') return null;
+  return "the user's Cub's roll-out on 02/20 after East Point (G2540 #3, OWED G3075, accepted by the user 13 Oct): " + L2.faults.map(f => f.k + ': ' + f.note).join('; ');
+}
 function knownRed(b, L2, R) {
-  if (b === 'c172' && L2.to === 'w2') {
+  { const kc = knownCubRoll(b, L2); if (kc) return kc; }
+  // G3077 (TORQUE-RETUNE-66): ...AND THE USER'S CUB, THE SAME WATER. With its roll-out straight on 02/20 again (G3075's loop gone:
+  // 131 m, 0.1 m off the centreline) the Cub stops on the strip, and its propeller meets the same cover-grid water on the old
+  // concrete in the last metres (t 1024 of the leg flown alone, 3060 in the tour) - ISLAND-TOUR G1971's, the C172's finding:
+  // known on the same terms (no ISLAND-TOUR, the strike the water's, the leg's only fault, landed and stopped on w2)
+  if ((b === 'c172' || b === 'cub') && L2.to === 'w2') {
     const pa = L2.damage && L2.damage.propAt, ld = L2.arr && L2.arr.landing;
     if (ISLAND || !pa || pa.what !== 'water' || !L2.faults.every(f => f.k === 'prop-strike') || L2.landedOn !== 'w2' || L2.arr.stopS == null) return null;
     return 'the water on 02/20\'s concrete (ISLAND-TOUR G1971, not on this tree) - the propeller struck water at t ' + pa.t + ' s on the roll-out; the touch ' + (ld ? ld.V + ' m/s, sink ' + ld.sink + ' m/s, run ' + ld.run + ' m' : '-') + '; no other fault';
@@ -279,6 +294,8 @@ if (!STRIPS) {
   // game's flight here reproduces both to the metre (reports/evidence/ISLAND-TOUR-2). The landing is held; the take-off
   // is PILOT-ONE-2's owed fix (TOUR-REAL's routed item 1: the roll from the strip's end, the wind weighed, an abort that
   // stops on the strip) - printed, not gated, until it lands; then fold East Point into ORDERS.land
+  // G2450 (EAST-POINT-DEPART): it lands (the named way out had been refused by the runway model's crude climb-out cone
+  // and the Cub rolled the closed way, downwind, from 37 m in): gated below, and East Point is in ORDERS.land
   if (SHD.take()) {
     const B = TR.BUILDS.cub, order = ['HOME', 'nv_strip', 'mn_strip'];
     const def = TR.defOf(C, PT, B.key);
@@ -288,7 +305,13 @@ if (!STRIPS) {
     const L1 = R.legs[0], L2 = R.legs[1];
     console.log('  ' + B.name + ': ' + order.join(' > ') + ' (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
     check(L1 && L1.ok && L1.landedOn === 'nv_strip', '6 ' + B.name + ' HOME > nv_strip: lands at East Point and stops on it, no fault', L1 ? (L1.faults.map(f => f.k + ': ' + f.note).join('; ') || 'td ' + JSON.stringify(L1.arr.landing)) : '-');
-    console.log('  INFO 6 East Point > Jumbo Mine (PILOT-ONE-2, owed): ' + (L2 ? (L2.ok ? 'TAKES OFF - fold East Point into ORDERS.land' : L2.faults.map(f => f.k).join(', ') + ' - ' + L2.verdicts.filter(v => /reject|abort|off-the-strip/.test(v)).join('; ')) : 'not flown'));
+    // G2450 (EAST-POINT-DEPART): the arrival over the ridge 3.9 km out is planned to come down (the circuit joined when the
+    // straight-in cannot), so the first approach lands - TOUR-REAL's and ISLAND-TOUR-2's went round 'high on the slope'
+    check(L1 && !L1.warnings.some(w => /go-around/.test(w)), '6 ' + B.name + ' HOME > nv_strip: the first approach lands (no go-around)', L1 ? (L1.warnings.join('; ') || 'final ' + JSON.stringify(L1.arr.final)) : '-');
+    // G2450: THE DEPARTURE, GATED (it was printed until it took off): from the strip's very end (within 15 m - the turn's
+    // spot is the half-span + 1.5 m in), the named way out, and on to Jumbo Mine with no fault
+    check(L2 && L2.ok && L2.landedOn === 'mn_strip', '6 ' + B.name + ' nv_strip > mn_strip: takes off from East Point and lands at Jumbo Mine, no fault', L2 ? (L2.faults.map(f => f.k + ': ' + f.note).join('; ') || L2.verdicts.filter(v => /reject|abort|declin/.test(v)).join('; ') || 'ok') : 'not flown');
+    check(L2 && L2.dep.rollFromEnd != null && L2.dep.rollFromEnd <= 15, '6 ' + B.name + ' nv_strip > mn_strip: the roll began at the strip\'s end (<= 15 m in)', L2 ? L2.dep.rollFromEnd + ' m in' : '-');
   }
 }
 // (the verdict line is run_gates.js's contract, `^GATE <ID>: PASS$` - a shard's tag in it never matched: G2520)

@@ -1,0 +1,52 @@
+PIVOT Cub           thr 0.7 right steer     : 180 deg in 8.7 s, r 9.5 m, CG out 18.9 m, path 29.2 m, |brakeD| 0, turned right
+PIVOT Cub           thr 0.7 right toe       : 180 deg in 9.3 s, r 1.3 m, CG out 2.7 m, path 4.2 m, |brakeD| 0.5, turned right
+PIVOT Cub           thr 0.7 right brakeSteer: 180 deg in 9.3 s, r 1.3 m, CG out 2.7 m, path 4.2 m, |brakeD| 0.5, turned right
+PIVOT Cub           thr 0.7 left  steer     : 180 deg in 8.9 s, r 9.4 m, CG out 18.7 m, path 28.7 m, |brakeD| 0, turned left
+PIVOT Cub           thr 0.7 left  toe       : 180 deg in 8.3 s, r 1.3 m, CG out 2.5 m, path 4 m, |brakeD| 0.5, turned left
+PIVOT Cub           thr 0.7 left  brakeSteer: 180 deg in 8.3 s, r 1.3 m, CG out 2.5 m, path 4 m, |brakeD| 0.5, turned left
+PIVOT metal Cessna  thr 0.7 right steer     : 180 deg in 5.3 s, r 5.1 m, CG out 10.2 m, path 15.8 m, |brakeD| 0, turned right
+PIVOT metal Cessna  thr 0.7 right toe       : 180 deg in 6.2 s, r 5 m, CG out 10 m, path 15.4 m, |brakeD| 0.5, turned right
+PIVOT metal Cessna  thr 0.7 right toe50     : 180 deg in 5.7 s, r 5 m, CG out 10.1 m, path 15.7 m, |brakeD| 0.25, turned right
+PIVOT metal Cessna  thr 0.7 right brakeSteer: 180 deg in 6.2 s, r 5 m, CG out 10 m, path 15.4 m, |brakeD| 0.5, turned right
+PIVOT metal Cessna  thr 0.7 left  steer     : 180 deg in 5.1 s, r 5 m, CG out 10 m, path 14.7 m, |brakeD| 0, turned left
+PIVOT metal Cessna  thr 0.7 left  toe       : 180 deg in 5.8 s, r 4.5 m, CG out 9.1 m, path 12.9 m, |brakeD| 0.5, turned left
+PIVOT metal Cessna  thr 0.7 left  toe50     : 180 deg in 5.5 s, r 4.9 m, CG out 9.7 m, path 14.3 m, |brakeD| 0.25, turned left
+PIVOT metal Cessna  thr 0.7 left  brakeSteer: 180 deg in 5.8 s, r 4.5 m, CG out 9.1 m, path 12.9 m, |brakeD| 0.5, turned left
+PIVOT metal Cessna  thr 0.35 right steer     : 180 deg in 8 s, r 5 m, CG out 10.1 m, path 15.7 m, |brakeD| 0, turned right
+PIVOT metal Cessna  thr 0.35 right toe       : 180 deg in never (164 deg in 40 s), r null m, CG out 7.3 m, path 10.5 m, |brakeD| 0.5, turned null
+PIVOT metal Cessna  thr 0.35 right toe50     : 180 deg in 11.8 s, r 4.9 m, CG out 9.7 m, path 15.2 m, |brakeD| 0.25, turned right
+PIVOT metal Cessna  thr 0.35 right brakeSteer: 180 deg in never (164 deg in 40 s), r null m, CG out 7.3 m, path 10.5 m, |brakeD| 0.5, turned null
+PIVOT metal Cessna  thr 0.35 left  steer     : 180 deg in 7.7 s, r 5 m, CG out 9.9 m, path 15.5 m, |brakeD| 0, turned left
+PIVOT metal Cessna  thr 0.35 left  toe       : 180 deg in 35.8 s, r 3.3 m, CG out 6.5 m, path 10.2 m, |brakeD| 0.5, turned left
+PIVOT metal Cessna  thr 0.35 left  toe50     : 180 deg in 11.1 s, r 4.7 m, CG out 9.5 m, path 14.6 m, |brakeD| 0.25, turned left
+PIVOT metal Cessna  thr 0.35 left  brakeSteer: 180 deg in 35.8 s, r 3.3 m, CG out 6.5 m, path 10.2 m, |brakeD| 0.5, turned left
+PIVOT metal Cessna  thr 0.2 right steer     : 180 deg in 15.4 s, r 5 m, CG out 10 m, path 15.6 m, |brakeD| 0, turned right
+PIVOT metal Cessna  thr 0.2 right toe       : 180 deg in never (78 deg in 40 s), r null m, CG out 4.5 m, path 4.8 m, |brakeD| 0.5, turned null
+PIVOT metal Cessna  thr 0.2 right toe50     : 180 deg in never (94 deg in 40 s), r null m, CG out 5.8 m, path 6.5 m, |brakeD| 0.25, turned null
+PIVOT metal Cessna  thr 0.2 right brakeSteer: 180 deg in never (78 deg in 40 s), r null m, CG out 4.5 m, path 4.8 m, |brakeD| 0.5, turned null
+PIVOT metal Cessna  thr 0.2 left  steer     : 180 deg in 14 s, r 4.9 m, CG out 9.8 m, path 15.3 m, |brakeD| 0, turned left
+PIVOT metal Cessna  thr 0.2 left  toe       : 180 deg in never (-97 deg in 40 s), r null m, CG out 4.6 m, path 5.2 m, |brakeD| 0.5, turned null
+PIVOT metal Cessna  thr 0.2 left  toe50     : 180 deg in never (-115 deg in 40 s), r null m, CG out 6 m, path 7.1 m, |brakeD| 0.25, turned null
+PIVOT metal Cessna  thr 0.2 left  brakeSteer: 180 deg in never (-96 deg in 40 s), r null m, CG out 4.6 m, path 5.2 m, |brakeD| 0.5, turned null
+PIVOT Jodel         thr 0.7 right steer     : 180 deg in 8.4 s, r 7.7 m, CG out 15.5 m, path 24.3 m, |brakeD| 0, turned right
+PIVOT Jodel         thr 0.7 right toe       : 180 deg in 10.7 s, r 1.4 m, CG out 2.8 m, path 4.5 m, |brakeD| 0.5, turned right
+PIVOT Jodel         thr 0.7 right brakeSteer: 180 deg in 10.7 s, r 1.4 m, CG out 2.8 m, path 4.5 m, |brakeD| 0.5, turned right
+PIVOT Jodel         thr 0.7 left  steer     : 180 deg in 8.5 s, r 7.7 m, CG out 15.5 m, path 24.2 m, |brakeD| 0, turned left
+PIVOT Jodel         thr 0.7 left  toe       : 180 deg in 7.7 s, r 1.3 m, CG out 2.5 m, path 4 m, |brakeD| 0.5, turned left
+PIVOT Jodel         thr 0.7 left  brakeSteer: 180 deg in 7.7 s, r 1.3 m, CG out 2.5 m, path 4 m, |brakeD| 0.5, turned left
+TAKEOFF Cub, rudder trim 0 (0 presses): airborne 13 s, 5.09 m off the line on the roll (feet on: dr mean -0.125); FEET OFF 30 s of climb: dr 0, beta 7.01 deg, bank -0.5 deg, heading -11.2 deg (-0.37 deg/s), vs 2.63 m/s at 21.2 m/s
+TAKEOFF Cub, rudder trim 0.07 (7 presses): airborne 13.1 s, 2.96 m off the line on the roll (feet on: dr mean -0.132); FEET OFF 30 s of climb: dr -0.07, beta 3.75 deg, bank -0.3 deg, heading -7 deg (-0.23 deg/s), vs 2.67 m/s at 21.1 m/s
+TAKEOFF Cub, rudder trim 0.14 (14 presses): airborne 13.1 s, 0.82 m off the line on the roll (feet on: dr mean -0.138); FEET OFF 30 s of climb: dr -0.14, beta 0.47 deg, bank -0.2 deg, heading -2.8 deg (-0.09 deg/s), vs 2.69 m/s at 21.1 m/s
+TAKEOFF Cub, rudder trim 0.2 (20 presses): airborne 13.1 s, 1.02 m off the line on the roll (feet on: dr mean -0.144); FEET OFF 30 s of climb: dr -0.2, beta -2.35 deg, bank 0 deg, heading 0.8 deg (0.03 deg/s), vs 2.69 m/s at 21.2 m/s
+WORKER sim_link.js hand packet keys: de, da, dr, thr, brake, brakeD, wr, flap; sim_host HAND_KEYS: de, da, dr, thr, brake, brakeD, flap
+WORKER cub: toe brakes through the worker
+   {"k":79,"phase":"TAXI","manual":true,"hostBrake":0.5,"hostBrakeD":0.5,"hostWr":null,"handBrakeD":0.5}
+   {"k":139,"phase":"TAXI","manual":true,"hostBrake":0.5,"hostBrakeD":-0.5,"hostWr":null,"handBrakeD":-0.5}
+   {"k":160,"phase":"TAXI","manual":true,"hostBrake":0,"hostBrakeD":0,"hostWr":0,"handBrakeD":0}
+   {"k":175,"phase":"TAXI","manual":false,"hostBrake":0,"hostBrakeD":0,"hostWr":null,"handBrakeD":0}
+WORKER floats: the water rudders' handle through the worker
+   {"k":199,"hostWr":null,"wrDown":[1,1],"V":1.91}
+   {"k":399,"hostWr":0,"wrDown":[0,0],"V":3.34}
+   {"k":599,"hostWr":1,"wrDown":[1,1],"V":3.74}
+   {"k":799,"hostWr":null,"wrDown":[1,1],"V":3.82}
+tree 9546d2ee31 + working changes -> reports/evidence/hand_controls_g2480.json
