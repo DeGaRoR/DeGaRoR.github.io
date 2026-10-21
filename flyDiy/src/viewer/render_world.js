@@ -5622,7 +5622,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // height, so the lakes' test never saw one. The same function, in JS, with the splat's live knobs.
           const poolAt = (x, z) => {
             const GF = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null; if (!GF || !GF.poolAt) return 0;
-            const sp = groundApi.splat ? groundApi.splat() : null; const K = (sp && sp.knobs) ? sp.knobs() : GF.RECIPE.knobs;   // the splat's live knobs (the terrain block's), else the recipe's
+            const sp = groundApi.splat ? groundApi.splat() : null; const K = (sp && sp.knobsLive) ? sp.knobsLive() : (sp && sp.knobs) ? sp.knobs() : GF.RECIPE.knobs;   // the splat's live knobs (the terrain block's), else the recipe's (REVEAL-HITCH: read, never copied - a call a sample)
             if (!(K.pudCover > 0)) return 0;
             let m = GF.poolAt((x + K.pudCell) * K.pudSlope, (z + K.pudCell) * K.pudSlope, K.pudCover, K.pudEdge);
             // A PUDDLE NEEDS A LEVEL PLACE (2026-09-23): the same ramp the shader runs (splat_ground sMat,

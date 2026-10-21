@@ -400,8 +400,10 @@
    block - one look, the garage's, and still one place a token is declared.
    G2690 (HANGAR-STORAGE): the storage panel (#hsStore, storage_ui.js, body-level like the map) reads it too.
    G2742 (STORY-PAGE): and the story's beat card (#stCard, app.js, body-level, the career's only).
-   G2799 (DROP-JSON): and the garage's 'drop to import' overlay (#gDrop, garage.js, body-level). */
-:is(#wsUI, #edView, #mapScreen, #hsStore, #stCard, #gDrop, #stTim) {
+   G2799 (DROP-JSON): and the garage's 'drop to import' overlay (#gDrop, garage.js, body-level).
+   G3350 (STORY-TIM): and Tim's band (#stTim, app.js, body-level).
+   G3360 (CAREERS): and the welcome's menu (#welcome, welcome.js, body-level: Continue / New career / the careers list). */
+:is(#wsUI, #edView, #mapScreen, #hsStore, #stCard, #gDrop, #stTim, #welcome) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
   --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
@@ -4008,7 +4010,7 @@ html.phone #bRun, html.phone #bAward, html.phone body.mode-fly #bAward {
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='5bafc976ec11';window.FLYDIY_BUILD_DATE='2026-10-20T21:06:34.446Z';</script>
+<script>window.FLYDIY_BUILD='21e685820b9a';window.FLYDIY_BUILD_DATE='2026-10-21T03:01:24.119Z';</script>
 <script>
 // boot_cards.js - THE LOADING SCREEN'S CARDS (G640, 2026-09-26)
 //
@@ -5174,6 +5176,12 @@ html.updNowUp #bootPanel { bottom:84px; }
 //   console); the rigs and localhost skip it as they skip the card (implicitly the sandbox); ?welcome=1 / ?devgate=1
 //   force it there. THE CHOSEN MODE IS ONE PAGE GLOBAL, window.FLYDIY_MODE ('sandbox' | 'career' | 'garage'; null while
 //   the menu is up), written here alone. The sandbox reads nothing of it: it is today's page.
+// - THE CAREERS (G3360, CAREERS): every career its own document flydiy.career.<id>, an index flydiy.careers = { ids, last }.
+//   'main' (G2740's one slot) is migrated in place as the first entry (its key kept: no save moves); new ids are 'c' +
+//   base36 time; the dev career (?career=1, flydiy.career.dev) is never listed. Continue = the last played; New career = a
+//   NEW id, never over another; Careers... = the list (Continue / Rename inline / Delete, confirmed inside the menu). A
+//   broken document is skipped, never a crash. THE CAREER CHOSEN IS window.FLYDIY_CAREER_ID (+ FLYDIY_CAREER_NAME for a
+//   new one), written here alone before app.js runs, like FLYDIY_MODE.
 //
 // The pick reaches the graphics menu as WELCOME.pick: gfx_settings.js takes it the way it takes ?gfx= (the preset's
 // options, saved), so a later choice in the menu still wins. GATE GFX tests the pure half (gpuClass, memClass, mobile,
@@ -5360,29 +5368,48 @@ html.updNowUp #bootPanel { bottom:84px; }
 #welcome button { transition:none; backdrop-filter:none; -webkit-backdrop-filter:none; }
 /* G2210 THE MODE MENU: IBM Plex Sans, three greys (ink, mid, dim) and the one accent; every row a 56 px target, 8 px
    apart (MOBILE-GARAGE R1/R3), and what a row would say on hover is written on it (R17: nothing hover-only) */
-#welcome { --w-ink:#f4efe6; --w-mid:#a59d8f; --w-dim:#7d766a; --w-acc:#e6a15a; }
+/* G3360 (CAREERS): the menu wears the garage's look - the --ed-* tokens (editor.css's one token root names #welcome) */
 #welcome .wcard.wmenu { width:min(440px, 100%); }
 #welcome .wmodes { display:flex; flex-direction:column; gap:8px; margin:14px 0 4px; }
 #welcome .wmode { display:grid; grid-template-columns:28px 1fr auto; align-items:center; column-gap:12px; min-height:56px; width:100%;
-  padding:9px 14px; border-radius:8px; text-align:left; cursor:pointer; color:var(--w-ink); background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.12); font:500 15px/1.25 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  padding:9px 14px; border-radius:8px; text-align:left; cursor:pointer; color:var(--ed-ink); background:var(--ed-btn-bg);
+  border:1px solid var(--ed-btn-bd); font:500 15px/1.25 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; font-style:normal;
   letter-spacing:normal; text-transform:none; }   /* the page's buttons are small capitals (style.css): a menu row is a sentence */
-#welcome .wmode:hover:not([disabled]) { background:rgba(255,255,255,.08); }
+#welcome .wmode:hover:not([disabled]) { background:var(--ed-acc-soft); }
 #welcome .wmode:active { transform:none; }
-#welcome .wmode .wico { font-size:17px; line-height:1; text-align:center; color:var(--w-mid); }
-#welcome .wmode small { display:block; margin-top:2px; font:400 12px/1.35 'IBM Plex Sans', sans-serif; color:var(--w-mid); }
-#welcome .wmode .wtag { font:600 10px/1 'IBM Plex Sans', sans-serif; letter-spacing:.16em; text-transform:uppercase; color:var(--w-dim);
+#welcome .wmode .wico { font-size:17px; line-height:1; text-align:center; color:var(--ed-dim); }
+#welcome .wmode small { display:block; margin-top:2px; font:400 12px/1.35 'IBM Plex Sans', sans-serif; color:var(--ed-dim); }
+#welcome .wmode .wtag { font:600 10px/1 'IBM Plex Sans', sans-serif; letter-spacing:.16em; text-transform:uppercase; color:var(--ed-faint);
   border:1px solid currentColor; border-radius:10px; padding:4px 8px; }
-#welcome .wmode.wgo { border-color:var(--w-acc); background:rgba(230,161,90,.10); }
-#welcome .wmode.wgo .wico { color:var(--w-acc); }
-#welcome .wmode:focus-visible { outline:2px solid var(--w-acc); outline-offset:2px; }
-#welcome .wmode[disabled] { cursor:default; color:var(--w-dim); background:transparent; border-style:dashed; border-color:rgba(255,255,255,.10); }
-#welcome .wmode[disabled] .wico, #welcome .wmode[disabled] small { color:var(--w-dim); }
-#welcome .wmenu .wnote { color:var(--w-dim); }
+#welcome .wmode.wgo { border-color:var(--ed-acc); background:var(--ed-acc-soft); }
+#welcome .wmode.wgo .wico { color:var(--ed-acc); }
+#welcome .wmode:focus-visible { outline:2px solid var(--ed-acc); outline-offset:2px; }
+#welcome .wmode[disabled] { cursor:default; color:var(--ed-faint); background:transparent; border-style:dashed; border-color:var(--ed-hair); }
+#welcome .wmode[disabled] .wico, #welcome .wmode[disabled] small { color:var(--ed-faint); }
+#welcome .wmenu .wnote { color:var(--ed-faint); }
+#welcome .wmenu h1 { font:500 18px/1.3 'IBM Plex Sans', sans-serif; color:var(--ed-ink); }
+/* G3360 THE CAREERS LIST: a row per career (min 56 px), its three verbs written on it (nothing hover-only), the rename an
+   inline field, the delete asked inside the row */
+#welcome .wcars { display:flex; flex-direction:column; gap:8px; margin:14px 0 4px; }
+#welcome .wcar { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; min-height:56px; padding:8px 10px 8px 14px; border-radius:8px;
+  box-sizing:border-box; color:var(--ed-ink); background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); }
+#welcome .wcar .wcn { flex:1 1 160px; min-width:0; font:500 15px/1.25 'IBM Plex Sans', sans-serif; overflow-wrap:anywhere; }
+#welcome .wcar .wcn small { display:block; margin-top:2px; font:400 12px/1.35 'IBM Plex Sans', sans-serif; color:var(--ed-dim); }
+#welcome .wcar .wca { display:flex; flex-wrap:wrap; gap:6px; }
+#welcome .wbtn { min-height:40px; padding:0 12px; border-radius:6px; cursor:pointer; font:500 13px/1 'IBM Plex Sans', sans-serif; font-style:normal;
+  letter-spacing:normal; text-transform:none; color:var(--ed-ink); background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); }
+#welcome .wbtn.wpri { color:var(--ed-acc-ink); background:var(--ed-acc); border-color:var(--ed-acc); }
+#welcome .wbtn.wbad { color:var(--ed-acc-ink); background:var(--ed-bad); border-color:var(--ed-bad); }
+#welcome .wbtn:focus-visible, #welcome .wname:focus-visible { outline:2px solid var(--ed-acc); outline-offset:2px; }
+#welcome .wname { flex:1 1 160px; min-width:0; min-height:40px; padding:0 10px; box-sizing:border-box; border-radius:6px; font:400 14px/1 'IBM Plex Sans', sans-serif;
+  font-style:normal; color:var(--ed-ink); background:var(--ed-track); border:1px solid var(--ed-border); }
+#welcome .wask { flex:1 1 100%; color:var(--ed-warn); font-size:13px; }
+#welcome .wmenu .wlink { color:var(--ed-dim); }
 /* the graphics card's own targets on a touch screen (R1/R3); a mouse sees the card as it was */
 @media (pointer: coarse) {
   #welcome .wpills { gap:8px; } #welcome .pill { min-height:48px; padding:0 14px; }
   #welcome .wplay { min-height:48px; } #welcome .wlink { min-height:48px; padding:0 4px; }
+  #welcome .wbtn, #welcome .wname { min-height:48px; }
 }
 `;
   const el = (tag, cls, text) => { const e = W.document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -5494,13 +5521,85 @@ html.updNowUp #bootPanel { bottom:84px; }
   const MODES = ['sandbox', 'career', 'garage'];
   // G2740 (CAREER-ON, the user 13 Oct: "Let's push career tonight"): the career is READY - New career and Continue are live
   const READY = { sandbox: true, career: true, garage: false };
-  // the saved career a "Continue" resumes: the player document under flydiy.career.main (74_career.js careerKey('main')),
-  // read here before the core loads (the key is the core's CAREER_KEY + 'main'); null when there is none or it doesn't parse
-  const CAREER_MAIN_KEY = 'flydiy.career.main', CAREER_FRESH_KEY = 'flydiy.career.fresh';
-  const career = store => {
-    try { const d = JSON.parse(read(store, CAREER_MAIN_KEY) || 'null'); return d && d.mode === 'career' ? { name: (d.career && d.career.name) || 'your career' } : null; }
+  // ---- THE CAREERS (G3360, CAREERS): the index and the documents, read here before the core loads ---------------------
+  // A career is a player document under flydiy.career.<id> (74_career.js careerKey: the core's CAREER_KEY + id). The index
+  // flydiy.careers = { ids: [...], last: id } lists the player's; 'main' (G2740's one slot) is migrated in place as the first
+  // entry (its key kept: no save moves); a new id is 'c' + base36 time; 'dev' (?career=1) is never listed. A document that
+  // does not parse (or is no career) is skipped, kept on its key; an id whose document never came (a New career closed
+  // before app.js wrote it) leaves the index. G2740's fresh flag and .prev backup retire: a New career never overwrites one.
+  const CAREERS_KEY = 'flydiy.careers', CAREER_PRE = 'flydiy.career.', CAREER_FRESH_KEY = 'flydiy.career.fresh';
+  const CAREER_NAME = 'your career', CAREER_NAME_MAX = 40;
+  const STORY_OF = 8;                      // the story's beats T0-T7 (79_story.js STORY_BEATS; GATE STORY holds the count)
+  const careerIdOk = id => typeof id === 'string' && /^(main|c[0-9a-z]{1,16})$/.test(id);
+  const write = (store, k, v) => { try { store.setItem(k, v); return true; } catch (e) { return false; } };
+  const drop = (store, k) => { try { store.removeItem(k); } catch (e) {} };
+  const careerDoc = (store, id) => {
+    try { const d = JSON.parse(read(store, CAREER_PRE + id) || 'null'); return d && typeof d === 'object' && d.mode === 'career' && d.career && typeof d.career === 'object' ? d : null; }
     catch (e) { return null; }
   };
+  // one career as the menu shows it -> { id, name, line } or null (a broken document: skipped)
+  const careerRow = (store, id) => {
+    const d = careerIdOk(id) ? careerDoc(store, id) : null;
+    if (!d) return null;
+    const c = d.career, s = c.story && typeof c.story === 'object' ? c.story : null, m = s && /^T(\d)$/.exec(s.beat || '');
+    const line = s && (s.open || s.beat === 'open') ? 'the story done, the island open'
+      : m ? 'the story · ' + (+m[1] + 1) + ' of ' + STORY_OF
+      : c.started ? 'started ' + c.started : 'a career';
+    return { id, name: (typeof c.name === 'string' && c.name.trim()) || CAREER_NAME, line };
+  };
+  const careersWrite = (store, X) => write(store, CAREERS_KEY, JSON.stringify({ ids: X.ids.slice(), last: X.last }));
+  // the index as it stands, migrated: { ids, last } (written back when the read changed it)
+  const careersRead = store => {
+    let x = null; try { x = JSON.parse(read(store, CAREERS_KEY) || 'null'); } catch (e) {}
+    const was = x && Array.isArray(x.ids) ? x.ids : [], ids = [];
+    for (const id of was) if (careerIdOk(id) && ids.indexOf(id) < 0 && read(store, CAREER_PRE + id) != null) ids.push(id);
+    if (ids.indexOf('main') < 0 && careerDoc(store, 'main')) ids.unshift('main');
+    const live = ids.filter(id => careerRow(store, id));
+    const last = x && live.indexOf(x.last) >= 0 ? x.last : (live.length ? live[live.length - 1] : null);
+    const X = { ids, last };
+    if (!x || JSON.stringify(was) !== JSON.stringify(ids) || x.last !== last) careersWrite(store, X);
+    if (read(store, CAREER_FRESH_KEY) != null) drop(store, CAREER_FRESH_KEY);
+    return X;
+  };
+  // the careers the menu lists, in the index's order (broken documents skipped)
+  const careersList = store => careersRead(store).ids.map(id => careerRow(store, id)).filter(Boolean);
+  const careersLast = store => { const X = careersRead(store); return X.last ? careerRow(store, X.last) : null; };
+  // A NEW CAREER: a new id beside the others (never one in use), its default name ("your career", "your career 2", ...);
+  // listed and made the last at once - app.js writes its document (careerNew) under that id
+  const careersNew = (store, now) => {
+    let raw = [];                            // the ids as written (one not started yet is no id to take either)
+    try { const x = JSON.parse(read(store, CAREERS_KEY) || 'null'); if (x && Array.isArray(x.ids)) raw = x.ids; } catch (e) {}
+    const X = careersRead(store);
+    let t = Math.max(1, Math.floor(+now || 0)), id;
+    do { id = 'c' + (t++).toString(36); } while (X.ids.indexOf(id) >= 0 || raw.indexOf(id) >= 0 || read(store, CAREER_PRE + id) != null);
+    const names = X.ids.map(i => careerRow(store, i)).filter(Boolean).map(r => r.name);
+    let name = CAREER_NAME, n = 2;
+    while (names.indexOf(name) >= 0) name = CAREER_NAME + ' ' + n++;
+    X.ids.push(id); X.last = id; careersWrite(store, X);
+    return { id, name };
+  };
+  const careersPick = (store, id) => { const X = careersRead(store); if (!careerRow(store, id)) return false; X.last = id; careersWrite(store, X); return true; };
+  // RENAME: the document's own career.name (the rest of it untouched) -> the name kept, or null (refused: empty, broken)
+  const careersRename = (store, id, name) => {
+    const nm = String(name == null ? '' : name).replace(/\s+/g, ' ').trim().slice(0, CAREER_NAME_MAX);
+    const d = careerIdOk(id) ? careerDoc(store, id) : null;
+    if (!nm || !d) return null;
+    d.career.name = nm;
+    return write(store, CAREER_PRE + id, JSON.stringify(d)) ? nm : null;
+  };
+  // DELETE (confirmed by the menu first): the document and its index entry; the last moves to the newest left
+  const careersDelete = (store, id) => {
+    if (!careerIdOk(id)) return false;
+    const X = careersRead(store);
+    drop(store, CAREER_PRE + id);
+    X.ids = X.ids.filter(i => i !== id);
+    const live = X.ids.filter(i => careerRow(store, i));
+    if (X.last === id || live.indexOf(X.last) < 0) X.last = live.length ? live[live.length - 1] : null;
+    careersWrite(store, X);
+    return read(store, CAREER_PRE + id) == null;
+  };
+  // the career a load plays: the page globals app.js reads (welcome.js writes them alone, like FLYDIY_MODE)
+  const careerChoose = (id, name) => { W.FLYDIY_CAREER_ID = id; W.FLYDIY_CAREER_NAME = name || null; };
   // (query, navigator, host) -> { mode: a MODES entry, or null for the menu; why; asked: what ?mode= said }. Pure, GATE GFX
   const decideMode = (q, nav, host) => {
     const m = /[?&]mode=([a-z]+)/.exec(q || ''), asked = m ? m[1] : null;
@@ -5523,6 +5622,56 @@ html.updNowUp #bootPanel { bottom:84px; }
     try { const r = JSON.parse(read(store, KEY) || 'null'); if (r && LABEL[r.preset]) return r.preset; } catch (e) {}   // the card's, before a load saved it
     return '';
   };
+  // THE CAREERS LIST (G3360): resolves 'career' (a career continued: FLYDIY_CAREER_ID set) or null (back to the menu).
+  // Each row: Continue, Rename (an inline field: Enter or Save keeps it, Escape or Cancel leaves it), Delete (asked inside
+  // the row - the page cannot show a confirm() - then the document and its index entry go)
+  const showCareers = store => new Promise(res => {
+    const { o, card } = open();
+    card.classList.add('wmenu');
+    card.appendChild(el('h1', null, 'Careers'));
+    const list = el('div', 'wcars'); list.setAttribute('role', 'list');
+    card.appendChild(list);
+    const btn = (label, act, cls, on) => { const b = el('button', 'wbtn' + (cls ? ' ' + cls : ''), label); b.type = 'button'; b.dataset.act = act; b.onclick = on; return b; };
+    let edit = null, ask = null;                    // the row being renamed / asked about
+    const paint = () => {
+      list.textContent = '';
+      let rows = [];
+      try { rows = careersList(store); } catch (e) { rows = []; }
+      if (!rows.length) list.appendChild(el('div', 'wnote', 'No career saved. New career, in the menu, starts one.'));
+      for (const r of rows) {
+        const it = el('div', 'wcar'); it.dataset.id = r.id; it.setAttribute('role', 'listitem');
+        const acts = el('div', 'wca');
+        if (edit === r.id) {
+          const inp = el('input', 'wname'); inp.type = 'text'; inp.value = r.name; inp.maxLength = CAREER_NAME_MAX;
+          inp.setAttribute('aria-label', 'the career’s name');
+          const keep = () => { careersRename(store, r.id, inp.value); edit = null; paint(); };
+          inp.onkeydown = e => { if (e && e.key === 'Enter') keep(); else if (e && e.key === 'Escape') { edit = null; paint(); } };
+          it.appendChild(inp);
+          acts.appendChild(btn('Save', 'save', 'wpri', keep));
+          acts.appendChild(btn('Cancel', 'cancel', '', () => { edit = null; paint(); }));
+          it.appendChild(acts); list.appendChild(it);
+          try { inp.focus(); } catch (e) {}
+          continue;
+        }
+        const nm = el('span', 'wcn', r.name); nm.appendChild(el('small', null, r.line)); it.appendChild(nm);
+        if (ask === r.id) {
+          it.appendChild(el('span', 'wask', 'Delete “' + r.name + '”? Its contracts, money and fleet go for good. The saved builds stay.'));
+          acts.appendChild(btn('Delete', 'confirm', 'wbad', () => { careersDelete(store, r.id); ask = null; paint(); }));
+          acts.appendChild(btn('Keep it', 'keep', '', () => { ask = null; paint(); }));
+        } else {
+          acts.appendChild(btn('Continue', 'continue', 'wpri', () => { careersPick(store, r.id); careerChoose(r.id); o.remove(); res('career'); }));
+          acts.appendChild(btn('Rename', 'rename', '', () => { edit = r.id; ask = null; paint(); }));
+          acts.appendChild(btn('Delete', 'delete', '', () => { ask = r.id; edit = null; paint(); }));
+        }
+        it.appendChild(acts); list.appendChild(it);
+      }
+    };
+    paint();
+    const foot = el('div', 'wfoot');
+    const back = el('button', 'wlink', 'back'); back.type = 'button'; back.onclick = () => { o.remove(); res(null); };
+    foot.appendChild(back); card.appendChild(foot);
+    stampFoot(card);
+  });
   // THE MENU: resolves with the mode chosen. Settings opens the graphics card in place and comes back here
   const showMenu = (env, d, store) => new Promise(res => {
     const { o, card } = open();
@@ -5538,11 +5687,17 @@ html.updNowUp #bootPanel { bottom:84px; }
       return b;
     };
     const done = m => { o.remove(); res(m); };
-    const c = career(store);
-    const cont = c ? row('continue', '▶', 'Continue', 'Career “' + (c.name || '') + '”', '', () => done('career')) : null;
-    // G2740: a New career over a saved one starts afresh - app.js keeps the old document under flydiy.career.main.prev
-    row('career', '✚', 'New career', c ? 'start again (your current career is kept as a backup)' : 'contracts, money, your own fleet', READY.career ? '' : 'coming',
-      READY.career ? () => { if (c) { try { store.setItem(CAREER_FRESH_KEY, '1'); } catch (e) {} } done('career'); } : null);
+    // G3360 (CAREERS): Continue = the last played (its name and a line); New career = a NEW id beside the others;
+    // Careers... = the list (shown once there is one)
+    let all = [], c = null;
+    try { all = careersList(store); c = careersLast(store); } catch (e) { all = []; c = null; }
+    const cont = c ? row('continue', '▶', 'Continue', '“' + c.name + '” · ' + c.line, '', () => { careersPick(store, c.id); careerChoose(c.id); done('career'); }) : null;
+    row('career', '✚', 'New career', all.length ? 'a new career beside your ' + (all.length === 1 ? 'other one' : all.length + ' others') : 'contracts, money, your own fleet', READY.career ? '' : 'coming',
+      READY.career ? () => { const n = careersNew(store, Date.now()); careerChoose(n.id, n.name); done('career'); } : null);
+    if (all.length) row('careers', '☰', 'Careers…', all.length + (all.length === 1 ? ' career' : ' careers') + ': continue, rename or delete', '', () => {
+      o.remove();
+      showCareers(store).then(m => (m ? res(m) : showMenu(env, d, store).then(res)));
+    });
     const go = row('sandbox', '◇', 'Sandbox', 'everything free: the garage, the island, every aeroplane', '', () => done('sandbox'));
     go.classList.add('wgo');
     row('garage', '✎', 'Garage only', READY.garage ? 'build without loading the island' : 'build without loading the island: not built yet', READY.garage ? '' : 'coming',
@@ -5587,6 +5742,9 @@ html.updNowUp #bootPanel { bottom:84px; }
   const API = W.WELCOME = {
     ORDER, LABEL, KEY, cleanGpu, gpuClass, isSoftware, memClass, mobileWhy, decide, isRig, probe,
     MODES, READY, decideMode, mode: null,   // G2210: mode = decideMode's answer for this load
+    // G3360 (CAREERS): the index's pure half (a store with getItem / setItem / removeItem), for the gates and the console
+    careers: { KEY: CAREERS_KEY, STORY_OF, idOk: careerIdOk, read: careersRead, list: careersList, last: careersLast, row: careerRow,
+               create: careersNew, pick: careersPick, rename: careersRename, remove: careersDelete },
     RIG: isRig(nav), SOFT: false, pick: null, decision: null, env: null,   // SOFT (G1460): the probe's card is a software renderer
     // the graphics menu's "re-check my computer": the welcome again, in place; resolves with the preset picked
     recheck: () => {
@@ -5607,6 +5765,12 @@ html.updNowUp #bootPanel { bottom:84px; }
   let md;
   try { md = API.mode = decideMode(search(), nav, host); } catch (e) { md = API.mode = { mode: 'sandbox', why: 'the decision failed' }; }
   W.FLYDIY_MODE = md.mode;
+  // G3360 (CAREERS): ?mode=career (no menu) plays the last career, or a new one when there is none; ?career=1 is the dev
+  // career (app.js: flydiy.career.dev, never listed) and chooses nothing here
+  if (md.mode === 'career' && !md.dev) {
+    try { const st = W.localStorage, c = careersLast(st); if (c) careerChoose(c.id); else { const n = careersNew(st, Date.now()); careerChoose(n.id, n.name); } }
+    catch (e) { /* no storage: app.js plays G2740's 'main' */ }
+  }
   if (md.asked && MODES.indexOf(md.asked) >= 0 && md.mode !== md.asked) { try { console.warn('flyDiy: ?mode=' + md.asked + ' is not built yet - the sandbox boots'); } catch (e) {} }
   if (!W.document || !W.document.createElement) { if (!W.FLYDIY_MODE) W.FLYDIY_MODE = 'sandbox'; return; }
   let d;
@@ -10569,7 +10733,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
 <script>
 (function () {
   window.FLYDIY_CAREER_WANT = function () { return /[?&](career|map|freight)=1(&|$)/.test(location.search || '') || window.FLYDIY_MODE === 'career'; };
-  var SRC = window.FLYDIY_CAREER_SRC = "career_core.d15fd4b7.js";
+  var SRC = window.FLYDIY_CAREER_SRC = "career_core.501c75f5.js";
   var mode = window.FLYDIY_WELCOME ? Promise.resolve(window.FLYDIY_WELCOME).then(null, function () {}) : Promise.resolve();
   var load = window.FLYDIY_CAREER_LOAD = mode.then(function () {
     if (!window.FLYDIY_CAREER_WANT()) return false;
@@ -55124,6 +55288,9 @@ function hangarRoomFor(shed, foot, residents, opts) {
 // ---- THE DOCUMENT -----------------------------------------------------------
 const pbClone = o => JSON.parse(JSON.stringify(o));
 const pbNo = (doc, why) => ({ ok: false, doc, why });
+// G3260 (ROUTES): the refusal every door gives an aeroplane locked on a route (78b_routes.js routeSign; routeEnd frees it)
+const pbOnRoute = (doc, name) => { const e = doc.fleet[name] || {};
+  return name + ' flies the route ' + (e.a || '?') + '-' + (e.b || '?') + ': end the route first (free, no penalty)'; };
 // the hangars held at an aerodrome, sorted (the order a choice is made in)
 function playerHangarsAt(doc, aero) {
   const S = (doc && doc.sheds) || {};
@@ -55149,6 +55316,8 @@ function playerFootOf(doc, name, foots) {
 function playerWhere(doc, name) {
   const e = doc && doc.fleet && doc.fleet[name];
   if (!e) return { kind: 'none', hangar: null, aero: null };
+  // G3260 (ROUTES): an aeroplane on a route stands nowhere of yours: 'route' (78b_routes.js locks it there)
+  if (e.kind === 'route') return { kind: 'route', hangar: null, aero: e.aero || null };
   if (e.hangar && doc.sheds[e.hangar]) return { kind: 'in', hangar: e.hangar, aero: doc.sheds[e.hangar].base };
   const aero = e.aero || null;
   return { kind: aero && playerHangarsAt(doc, aero).length ? 'out' : 'away', hangar: null, aero };
@@ -55247,6 +55416,8 @@ function playerStoreWhere(doc, name) {
   const e = doc && doc.fleet && doc.fleet[name];
   const S = (doc && doc.sheds) || {};
   if (!e) return { kind: 'none', hangar: null, aero: null, slot: null };
+  // G3260 (ROUTES): ON A ROUTE - the sixth place: no building, no slot; the route's two ends on the row (78b_routes.js)
+  if (e.kind === 'route') return { kind: 'route', hangar: null, aero: e.aero || null, slot: null, route: e.route || null, a: e.a || null, b: e.b || null };
   const int = v => Number.isInteger(v) ? v : null;
   if (e.hangar && S[e.hangar]) {
     const k = (e.kind === 'floor' || e.kind === 'inside' || e.kind === 'long') ? e.kind : 'inside';
@@ -55272,6 +55443,7 @@ function playerStoreSettle(d) {
   const set = (m, k) => (m[k] || (m[k] = new Set()));
   for (const n of names) {
     const e = F[n];
+    if (e.kind === 'route') { e.hangar = null; delete e.slot; continue; }               // G3260: on a route, kept there
     if (e.hangar && !(S[e.hangar] && typeof S[e.hangar] === 'object')) e.hangar = null;   // a hangar gone: where it stood
     if (e.hangar) {
       if (typeof e.aero !== 'string' || e.aero !== S[e.hangar].base) e.aero = S[e.hangar].base;
@@ -55438,7 +55610,8 @@ function playerPlace(doc, name, world) {
   const L = (world && world.aerodromes) || [];
   const a = L.find(x => x.id === W.aero);
   const nm = W.kind === 'away' ? ((a && a.name) || W.aero) : W.aero;
-  const text = W.kind === 'in' ? 'in ' + W.hangar : (W.kind === 'out' ? 'out at ' : 'away at ') + nm;
+  const text = W.kind === 'in' ? 'in ' + W.hangar : W.kind === 'route' ? 'on route ' + (doc.fleet[name].a || '') + '-' + (doc.fleet[name].b || '')
+    : (W.kind === 'out' ? 'out at ' : 'away at ') + nm;
   const hereBase = doc.sheds[doc.here] ? doc.sheds[doc.here].base : PREM_MAIN;
   return { kind: W.kind, aero: W.aero, hangar: W.hangar, text, here: W.aero === hereBase, wear: playerWearNow(doc, name),
            store: playerStoreWhere(doc, name).kind };     // G2690: floor | inside | outside | long | away
@@ -55490,6 +55663,7 @@ function playerStore(doc, name, hangarId, foots, opts) {
   if (!e) return pbNo(doc, name + ' is not in the fleet');
   if (!shed) return pbNo(doc, 'no hangar ' + hangarId);
   const W = playerWhere(doc, name);
+  if (W.kind === 'route') return pbNo(doc, pbOnRoute(doc, name));
   if (W.aero !== shed.base) return pbNo(doc, name + ' is at ' + W.aero + ': fly it to ' + shed.base + ' first');
   if (e.hangar === hangarId && e.kind !== 'long') return { ok: true, doc, why: 'already inside' };   // (G2690: long-term comes back in)
   const why = hangarDoorWhy(shed, playerFootOf(doc, name, foots));
@@ -55523,6 +55697,7 @@ function playerArrive(doc, name, aero, opts) {
   if (!e) return pbNo(doc, name + ' is not in the fleet');
   if (!aero) return pbNo(doc, 'no aerodrome: an aeroplane stopped off-field is recovered, not arrived');
   const W = playerWhere(doc, name);
+  if (W.kind === 'route') return pbNo(doc, pbOnRoute(doc, name));
   if (W.aero === aero && W.kind === 'in') return { ok: true, doc, kind: 'in', hangar: W.hangar, why: 'back where it left' };
   // G2690: back on the apron it left, it is back in its own apron slot (nothing moves while it flies)
   const SW = playerStoreWhere(doc, name);
@@ -55574,6 +55749,7 @@ function playerBringHome(doc, name, opts) {
   const e = doc.fleet[name];
   if (!e) return pbNo(doc, name + ' is not in the fleet');
   const W = playerWhere(doc, name);
+  if (W.kind === 'route') return pbNo(doc, pbOnRoute(doc, name));
   const order = [];
   // (G2743) a SEND-TO names the one hangar; else the one it left, then the main hangar, then any other open one
   const cand = opts.to ? [opts.to] : [e.left, PREM_MAIN].concat(playerShedsOpen(doc));
@@ -55623,6 +55799,7 @@ function playerMove(doc, name, to, opts) {
   if (!e) return pbNo(doc, name + ' is not in the fleet');
   if (!PREM_STORE.kinds.includes(to.kind) || to.kind === 'away') return pbNo(doc, 'no such place: ' + to.kind);
   const W = playerStoreWhere(doc, name);
+  if (W.kind === 'route') return pbNo(doc, pbOnRoute(doc, name));
   if (W.kind === 'away') return pbNo(doc, name + ' is away at ' + W.aero + ': fly it to a base of yours, or bring it home');
   if (W.kind === 'none') return pbNo(doc, name + ' stands nowhere yet');
   const base = W.aero, ids = playerHangarsAt(doc, base);
@@ -55698,6 +55875,7 @@ function playerFloorSync(doc, name, opts) {
   const h = doc && doc.sheds && doc.sheds[doc.here];
   if (!e || !h) return { ok: true, doc, why: 'not in the fleet', where: null, swapped: null };
   const W = playerStoreWhere(doc, name);
+  if (W.kind === 'route') return { ok: true, doc, why: 'on a route', where: W, swapped: null };
   if (W.aero !== h.base || W.kind === 'away' || W.kind === 'none') return { ok: true, doc, why: 'at another base', where: W, swapped: null };
   return playerMove(doc, name, { kind: 'floor', hangar: doc.here }, opts);
 }
@@ -55713,21 +55891,23 @@ function playerFlyStart(doc, name) {
   const r = (start, why) => ({ ok: !!start, why: why || '', kind: W.kind, start: start || null, aero: W.aero, hangar: W.hangar });
   if (W.kind === 'none') return r(null, name + ' is not in the fleet');
   if (W.kind === 'long') return r(null, name + ' is kept long-term: load it first (a free slot, or the floor)');
+  if (W.kind === 'route') return r(null, pbOnRoute(doc, name));
   return r(W.kind === 'floor' ? 'door' : W.kind === 'inside' ? 'lineup' : 'stand');
 }
 // THE STORAGE SCREEN'S VIEW of a base (the garage's: `here`'s building and its aerodrome): -> { aero, hangar, shell,
 // floor, inside: { N, slots: [name | null] }, outside: { M, slots: [name | null] }, long: [names], others: [names in
-// another building here] }
+// another building here], routes: [names on a route with an end here (G3260: not movable until the route ends)] }
 function playerStoreView(doc, hangarId) {
   const id = hangarId || (doc && doc.here);
   const shed = doc && doc.sheds && doc.sheds[id];
   if (!shed) return null;
   const aero = shed.base, F = doc.fleet || {};
   const N = playerStoreSlots(doc, id).inside, M = playerBaseOutside(doc, aero);
-  const ins = new Array(N).fill(null), outs = new Array(M).fill(null), long = [], others = [];
+  const ins = new Array(N).fill(null), outs = new Array(M).fill(null), long = [], others = [], routes = [];
   let floor = null;
   for (const n of Object.keys(F).sort()) {
     const W = playerStoreWhere(doc, n);
+    if (W.kind === 'route') { if (W.a === aero || W.b === aero) routes.push(n); continue; }   // G3260: on a route from here
     if (W.aero !== aero) continue;
     if (W.kind === 'outside') { if (Number.isInteger(W.slot) && W.slot < M && !outs[W.slot]) outs[W.slot] = n; else long.push(n); continue; }
     if (W.kind === 'long') { long.push(n); continue; }
@@ -55735,7 +55915,7 @@ function playerStoreView(doc, hangarId) {
     if (W.kind === 'floor') { if (!floor) floor = n; else long.push(n); continue; }
     if (W.kind === 'inside' && Number.isInteger(W.slot) && W.slot < N && !ins[W.slot]) ins[W.slot] = n; else others.push(n);
   }
-  return { aero, hangar: id, shell: shed.shell || 'club', floor, inside: { N, slots: ins }, outside: { M, slots: outs }, long, others };
+  return { aero, hangar: id, shell: shed.shell || 'club', floor, inside: { N, slots: ins }, outside: { M, slots: outs }, long, others, routes };
 }
 
 // THE DRAWN RESIDENTS of a building (the garage's L2 props beside the stand, WORKS-COZY): its INSIDE slots in slot
@@ -57118,7 +57298,7 @@ function freightStrapNext(doc, slot, card) {
   return { doc: r.doc, rec: r.rec, how: 'proposed', why: '' };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptBenchXwind, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_TIM, storyTimLines, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptBenchXwind, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_TIM, storyTimLines, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh
@@ -57135,7 +57315,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='7db8b31f81d0';window.FLYDIY_BUILD='5bafc976ec11';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=b77b48a0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='ad8140adeb7c';window.FLYDIY_BUILD='21e685820b9a';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=b77b48a0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -57182,7 +57362,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 <script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script type="text/x-flydiy">
 (function () {
-  var SRC = {"_sport_gen":"tools/_sport_gen.js?v=4e7d9a83","_marine_gen":"tools/_marine_gen.js?v=7e5624cd","_navaid_gen":"tools/_navaid_gen.js?v=591dc503","scenery_landmark":"src/scenery/scenery_landmark.js?v=bfc3ff4b","scenery_vessel":"src/scenery/scenery_vessel.js?v=e743cbf2","scenery_wreck":"src/scenery/scenery_wreck.js?v=f02332a8","scenery_crowd":"src/scenery/scenery_crowd.js?v=7912e4ef","scenery_lods":"src/scenery/scenery_lods.js?v=4d103a39","camp_camp":"src/camp/camp_camp.js?v=1f4ae79d","camp_lods":"src/camp/camp_lods.js?v=15cbff06","infra_pylon":"src/infra/infra_pylon.js?v=552fef8f","premises_host":"src/viewer/premises_host.js?v=f48ddf2c","premises_ui":"src/viewer/premises_ui.js?v=4077f852","world_rail":"src/viewer/world_rail.js?v=2bef29f2","ktx2_loader":"vendor/ktx2/ktx2_loader.js?v=841b4114","townkit":"src/viewer/townkit.js?v=70511cce","kit_lot":"src/viewer/kit_lot.js?v=57d263e0","diag":"src/viewer/diag.js?v=b61f6912","map_pack":"src/viewer/map_pack.js?v=963b95ab","map_menu":"src/viewer/map_menu.js?v=251a326e","freight_load":"src/viewer/freight_load.js?v=5693912b","freight_strap":"src/viewer/freight_strap.js?v=57b4d0e1","crowd":"src/viewer/crowd.js?v=0153cf17"}, got = {}, busy = 0;
+  var SRC = {"_sport_gen":"tools/_sport_gen.js?v=4e7d9a83","_marine_gen":"tools/_marine_gen.js?v=7e5624cd","_navaid_gen":"tools/_navaid_gen.js?v=591dc503","scenery_landmark":"src/scenery/scenery_landmark.js?v=bfc3ff4b","scenery_vessel":"src/scenery/scenery_vessel.js?v=e743cbf2","scenery_wreck":"src/scenery/scenery_wreck.js?v=f02332a8","scenery_crowd":"src/scenery/scenery_crowd.js?v=7912e4ef","scenery_lods":"src/scenery/scenery_lods.js?v=4d103a39","camp_camp":"src/camp/camp_camp.js?v=1f4ae79d","camp_lods":"src/camp/camp_lods.js?v=15cbff06","infra_pylon":"src/infra/infra_pylon.js?v=552fef8f","premises_host":"src/viewer/premises_host.js?v=f48ddf2c","premises_ui":"src/viewer/premises_ui.js?v=4077f852","world_rail":"src/viewer/world_rail.js?v=2bef29f2","ktx2_loader":"vendor/ktx2/ktx2_loader.js?v=841b4114","townkit":"src/viewer/townkit.js?v=70511cce","kit_lot":"src/viewer/kit_lot.js?v=57d263e0","diag":"src/viewer/diag.js?v=b61f6912","map_pack":"src/viewer/map_pack.js?v=963b95ab","map_menu":"src/viewer/map_menu.js?v=f45ff616","freight_load":"src/viewer/freight_load.js?v=5693912b","freight_strap":"src/viewer/freight_strap.js?v=57b4d0e1","crowd":"src/viewer/crowd.js?v=0153cf17"}, got = {}, busy = 0;
   window.FLYDIY_LAZY_SRC = SRC;
   var lazy = window.FLYDIY_LAZY = function (names) {
     return Promise.all([].concat(names).map(function (n) {
@@ -132829,6 +133009,7 @@ const SPLAT_GROUND = (() => {
       reach: () => grow(),         // re-read the grid's codes (a premises re-stamp); true when the arrays grow
       names: () => Object.assign({}, G.RECIPE.names),
       knobs: () => Object.assign({}, R.knobs),
+      knobsLive: () => R.knobs,   // REVEAL-HITCH: the live knobs, read only - a per-sample reader (render_world poolAt) copied them every call
       norm: () => Object.assign({}, R.norm || {}),   // the per-set gains the imagery asked for (see normGains)
       albedoMean: () => (R.albedoMean ? R.albedoMean.slice() : null),   // the world's mean LAND albedo, linear rgb (the hemisphere's ground half reads it)
       meanAt: (x, z, code, slopeDeg) => meanAt(x, z, code, slopeDeg),   // GRASS-DENSE G2562: the ground's colour as drawn, less its texture (below)
@@ -133473,12 +133654,12 @@ const PAVEMENT = (() => {
       if (TAB.mat && SHARED === L) { const U = TAB.mat.uniforms; U.uPavA.value = L.texA; U.uPavN.value = L.texN; U.uPavOn.value = 1; }   // G925: the one material
       if (old && old.texA && old !== L) { old.texA.dispose(); old.texN.dispose(); }
       for (const w of L.waiters || []) w(L); if (L.waiters) L.waiters.length = 0;   // (headless the library calls back at once, before `waiters`)
-      if (onReady) onReady(L);
+      GC_V++; if (onReady) onReady(L);
     }, old && old.ready ? old : null);   // G911: the old arrays lend the layers they hold (a grow fetches only the new sets)
     lib.waiters = lib.waiters || [];
     // until the new arrays decode, the materials keep the old ones (their layers still valid there)
     if (old && old.ready) { lib.texA = old.texA; lib.texN = old.texN; lib.readyOld = true; }
-    SHARED = lib;
+    SHARED = lib; GC_V++;
     if (lib.ready && TAB.mat) { const U = TAB.mat.uniforms; U.uPavA.value = lib.texA; U.uPavN.value = lib.texN; U.uPavOn.value = 1; }   // (headless: ready at once)
     return lib;
   }
@@ -134196,7 +134377,21 @@ float pvTread(float u, float x, float w, float seed) {
   // groundColor(cls, recipe): the drawn ground's linear colour beside a pavement of this class - its
   // BAND set (the cleared earth, the crushed stone) graded by the recipe (the premises' over the
   // module's); a tuft standing there takes it (the cover ring, v1.17)
+  // REVEAL-HITCH (19 Oct): MEMOISED. The cover ring asks it for every tuft of a cell beside a pavement (render_world coverAt),
+  // and each call deep-copied the whole module recipe (JSON parse + stringify): the first world frame after the roll-out
+  // planted the stand's grass cells at ~100 ms of it, and ~50 ms of the garbage it left. The answer depends on the class, the
+  // recipe given (a premises' pavement: the editor replaces it, never edits it in place - one answer per object), the
+  // module's R, the look overlay LIVE and the shared library's means: GC_V moves whenever one of the last three does.
+  let GC_V = 0;
+  const GC_MEMO = new WeakMap(), GC_NONE = { v: -1, m: new Map() };
   function groundColor(cls, recipe) {
+    let e = recipe && typeof recipe === 'object' ? GC_MEMO.get(recipe) : GC_NONE;
+    if (!e) { e = { v: GC_V, m: new Map() }; GC_MEMO.set(recipe, e); }
+    if (e.v !== GC_V) { e.v = GC_V; e.m.clear(); }
+    if (e.m.has(cls)) return e.m.get(cls);
+    const c = groundColor0(cls, recipe); e.m.set(cls, c); return c;
+  }
+  function groundColor0(cls, recipe) {
     const row = CLASS_DEF[cls]; if (!row) return null;
     const r = recipe ? Object.assign(JSON.parse(JSON.stringify(RECIPE)), recipe, { grade: Object.assign({}, RECIPE.grade, recipe.grade || {}) }) : R;
     const c = gradedMean(row.shoulder, r, SHARED), lk = lookOf(cls, r);
@@ -134229,6 +134424,7 @@ float pvTread(float u, float x, float w, float seed) {
   // look(THREE, o): the live overlay - an object of LOOK_KEYS (a key at undefined/null leaves it), null clears it;
   // returns the overlay. Every pavement in the page is re-applied (a row repack each: no rebuild)
   function look(THREE, o) {
+    GC_V++;
     if (o === null) LIVE = null;
     else if (o && typeof o === 'object') {
       const n = Object.assign({}, LIVE);
@@ -134596,8 +134792,8 @@ float pvTread(float u, float x, float w, float seed) {
   }
   // the mesh's shoulder for a band: the band, the fade past it, a metre of grass creep
   const shoulderFor = (band, recipe) => Math.max(1, band + (recipe || R).fadeW + 1);
-  function set(THREE, o) { for (const k in o) { if (k === 'grade') Object.assign(R.grade, o.grade); else R[k] = o[k]; } applyAll(THREE); }
-  function reset(THREE) { R = JSON.parse(JSON.stringify(RECIPE)); applyAll(THREE); }
+  function set(THREE, o) { for (const k in o) { if (k === 'grade') Object.assign(R.grade, o.grade); else R[k] = o[k]; } GC_V++; applyAll(THREE); }
+  function reset(THREE) { R = JSON.parse(JSON.stringify(RECIPE)); GC_V++; applyAll(THREE); }
   function debug(v) { DBG.value = v; }
   // ---- THE A/B (G928): `?pave=old` or `?pave=new` at load, PAVE_AB('old' | 'new') live, or a click on the box -----
   // The box (top centre, under PAVTEST's) names what is drawn. Live, each builder that registered a rebuild
@@ -145318,7 +145514,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // height, so the lakes' test never saw one. The same function, in JS, with the splat's live knobs.
           const poolAt = (x, z) => {
             const GF = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null; if (!GF || !GF.poolAt) return 0;
-            const sp = groundApi.splat ? groundApi.splat() : null; const K = (sp && sp.knobs) ? sp.knobs() : GF.RECIPE.knobs;   // the splat's live knobs (the terrain block's), else the recipe's
+            const sp = groundApi.splat ? groundApi.splat() : null; const K = (sp && sp.knobsLive) ? sp.knobsLive() : (sp && sp.knobs) ? sp.knobs() : GF.RECIPE.knobs;   // the splat's live knobs (the terrain block's), else the recipe's (REVEAL-HITCH: read, never copied - a call a sample)
             if (!(K.pudCover > 0)) return 0;
             let m = GF.poolAt((x + K.pudCell) * K.pudSlope, (z + K.pudCell) * K.pudSlope, K.pudCover, K.pudEdge);
             // A PUDDLE NEEDS A LEVEL PLACE (2026-09-23): the same ramp the shader runs (splat_ground sMat,
@@ -160305,10 +160501,13 @@ function garageInit(api) {
 // FLY: each shown card (floor / inside / outside) - a small confirmation in the garage's look, then the existing roll-out
 // (FLYDIY_STORE.fly: inside -> lined up on the runway by the wind, outside -> the apron's stand, the floor -> today's).
 // Nothing here touches the world, its input path or a bake: the drawn residents / apron props follow the document.
+// G3260 (ROUTES, the career only: the doors exist when app.js published FLYDIY_STORE.route*): "assign to a route" on a
+// card (where it stands -> an aerodrome its gear can use, a free hired pilot; the terms said before signing), and ON A
+// ROUTE - the planes flying a route from this field, "on route A – B", not movable, with End route (free, no penalty).
 (function () {
   'use strict';
   const W = window;
-  const ST = { el: null, sel: null, msg: '', confirm: null, drag: null, renders: 0 };
+  const ST = { el: null, sel: null, msg: '', confirm: null, drag: null, renders: 0, rt: null };
   const API = () => W.FLYDIY_STORE || null;
   const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const WORDS = {
@@ -160368,6 +160567,13 @@ function garageInit(api) {
 #hsStore .hsAskBox p { margin:0 0 6px; font:400 12px/1.45 'IBM Plex Sans'; color:var(--ed-dim); }
 #hsStore .hsAskBox p b { color:var(--ed-ink); font-weight:600; }
 #hsStore .hsAskBtns { display:flex; justify-content:flex-end; gap:6px; margin-top:12px; }
+#hsStore .hsRoutes { margin-top:12px; background:var(--ed-board); border:1px solid var(--ed-hair); border-radius:8px; padding:8px;
+  display:flex; flex-direction:column; gap:6px; }
+#hsStore .hsRtCard { cursor:default; }
+#hsStore .hsAskBox label { display:flex; flex-direction:column; gap:4px; margin:8px 0 0; font:500 10px/1.2 'IBM Plex Sans';
+  letter-spacing:.08em; text-transform:uppercase; color:var(--ed-dim); }
+#hsStore .hsAskBox select { font:400 12px/1.3 'IBM Plex Sans'; color:var(--ed-ink); background:var(--ed-btn-bg);
+  border:1px solid var(--ed-btn-bd); border-radius:6px; padding:6px 8px; min-height:32px; }
 @media (max-width: 760px), (pointer: coarse) {
   #hsStore .hsBox { width:100vw; max-height:100vh; height:100%; border-radius:0; padding:14px 12px; }
   #hsStore .hsCols { grid-template-columns:1fr; }
@@ -160375,6 +160581,7 @@ function garageInit(api) {
   #hsStore .hsCard { min-height:52px; }
   #hsStore .hsPill, #hsStore .dfPill { min-height:48px; min-width:48px; padding:0 14px; }
   #hsStore .hsColH { min-height:48px; align-items:center; }
+  #hsStore .hsAskBox select { min-height:48px; }
 }`;
   function style() {
     if (document.getElementById('hsStoreCss')) return;
@@ -160436,6 +160643,13 @@ function garageInit(api) {
           if (!r.ok) { se.value = ''; b.appendChild(mk('small', 'hsWhy', r.why)); } });
         b.appendChild(se);
       }
+    // G3260 (ROUTES): assign it to a route (the career's door; the terms asked first)
+    if (A.routeTargets) {
+      const ra = mk('button', 'hsPill hsRoute', 'route…'); ra.type = 'button';
+      ra.setAttribute('aria-label', 'assign ' + name + ' to a route');
+      ra.addEventListener('click', ev => { ev.stopPropagation(); routeAsk(name); });
+      b.appendChild(ra);
+    }
     if (kind !== 'long') {
       const fl = mk('button', 'hsPill go hsFly', 'fly'); fl.type = 'button';
       const can = A.canFly ? A.canFly() : true;
@@ -160508,6 +160722,63 @@ function garageInit(api) {
     if (!r || !r.ok) { ST.msg = (r && r.why) || 'it could not roll out'; render(); return; }
     close();
   }
+  // ---- G3260 (ROUTES) -------------------------------------------------------------------------------------------------
+  // the confirmation in the garage's look: the destination and the pilot picked, the terms in words, then Sign
+  function routeAsk(name) {
+    const A = API(); if (!A || !A.routeTargets) return;
+    const T = A.routeTargets(name);
+    if (!T.ok || !T.ends.length) { ST.msg = T.why || ('no aerodrome ' + name + ' can fly a route to from here'); render(); return; }
+    ST.rt = { name, T, b: T.ends[0].id, pilot: T.pilots[0].id }; ST.confirm = null; ST.msg = '';
+    render();
+  }
+  function routeSign() {
+    const A = API(), R = ST.rt; if (!A || !R) return;
+    const r = A.routeSign(R.name, R.b, R.pilot);
+    ST.rt = null;
+    ST.msg = r && r.ok ? '✓ ' + R.name + ' is on its route: the down payment is in the wallet' : ((r && r.why) || 'the route was not signed');
+    render();
+  }
+  function routeEnd(name) {
+    const A = API(); if (!A || !A.routeEnd) return;
+    const r = A.routeEnd(name);
+    ST.msg = r && r.ok ? '✓ ' + name + ' is back ' + (r.where ? WORDS[r.where.kind] || r.where.kind : '') + ' (the route ended, free)' : ((r && r.why) || 'the route did not end');
+    render();
+  }
+  // a card on a route: where it flies, who flies it, what it earns; End route (not movable, no Fly, until it ends)
+  function routeCard(name) {
+    const A = API(), c = (A && A.card(name)) || { name, gear: 'wheels', seats: 0 }, R = A && A.routeOf ? A.routeOf(name) : null;
+    const el = mk('div', 'hsCard hsRtCard'); el.dataset.name = name; el.dataset.kind = 'route';
+    el.appendChild(thumb(c));
+    const t = mk('div', 'hsTxt'), nm = mk('div', 'hsName', name);
+    nm.appendChild(mk('span', 'hsTag', 'on route ' + (R ? R.words : '')));
+    t.appendChild(nm);
+    t.appendChild(mk('div', 'hsMeta', R ? R.pilot + ' flies it · ' + R.trips + ' round trip' + (R.trips === 1 ? '' : 's') + ' paid · ' + Math.round(R.pay) + ' a round trip' : 'on a route'));
+    el.appendChild(t);
+    const b = mk('div', 'hsBtns'), e = mk('button', 'hsPill hsEndRoute', 'end route'); e.type = 'button';
+    e.setAttribute('aria-label', 'end the route of ' + name + ': it comes back free, no penalty');
+    e.addEventListener('click', ev => { ev.stopPropagation(); routeEnd(name); });
+    b.appendChild(e); el.appendChild(b);
+    return el;
+  }
+  function routeAskBox() {
+    const A = API(), R = ST.rt, b = mk('div', 'hsAskBox');
+    const p1 = mk('p'); p1.appendChild(document.createTextNode('Assign ')); p1.appendChild(mk('b', null, R.name)); p1.appendChild(document.createTextNode(' to a route from ' + (R.T.aName || R.T.a) + '?'));
+    b.appendChild(p1);
+    const pick = (label, cls, opts, val, on) => {
+      const l = mk('label', null, label), se = mk('select', cls);
+      for (const o of opts) { const op = mk('option', null, o[1]); op.value = o[0]; se.appendChild(op); }
+      se.value = val; se.addEventListener('change', () => on(se.value)); l.appendChild(se); b.appendChild(l);
+    };
+    pick('to', 'hsRtTo', R.T.ends.map(e => [e.id, e.name + ' · ' + e.km.toFixed(1) + ' km']), R.b, v => { R.b = v; render(); });
+    pick('flown by', 'hsRtPilot', R.T.pilots.map(p => [p.id, p.name]), R.pilot, v => { R.pilot = v; render(); });
+    const Q = A.routeAsk(R.name, R.b, R.pilot);
+    b.appendChild(mk('p', 'hsRtTerms', Q.ok ? Q.words + '. The plane and the pilot stay on it until you end it (free, no penalty).' : Q.why));
+    const bt = mk('div', 'hsAskBtns');
+    const no = mk('button', 'hsPill hsNo', 'cancel'); no.type = 'button'; no.addEventListener('click', () => { ST.rt = null; render(); });
+    const go = mk('button', 'hsPill go hsRtSign', 'sign'); go.type = 'button'; go.disabled = !Q.ok; go.addEventListener('click', routeSign);
+    bt.appendChild(no); bt.appendChild(go); b.appendChild(bt);
+    return b;
+  }
   function render() {
     const A = API(), el = ST.el;
     if (!el || el.hidden) return;
@@ -160561,8 +160832,16 @@ function garageInit(api) {
     cols.appendChild(lc);
     box.appendChild(cols);
     if (V.others && V.others.length) box.appendChild(mk('div', 'hsSub', 'in another building here: ' + V.others.join(', ')));
+    // G3260 (ROUTES): the planes on a route with an end here
+    if (V.routes && V.routes.length) {
+      const rc = mk('div', 'hsRoutes'), h = mk('div', 'hsColH');
+      h.appendChild(mk('span', null, 'on a route')); h.appendChild(mk('b', null, String(V.routes.length))); rc.appendChild(h);
+      for (const nm of V.routes) { const s = mk('div', 'hsSlot'); s.appendChild(routeCard(nm)); rc.appendChild(s); }
+      box.appendChild(rc);
+    }
     // the confirmation
-    const ak = mk('div', 'hsAsk'); ak.hidden = !ST.confirm;
+    const ak = mk('div', 'hsAsk'); ak.hidden = !ST.confirm && !ST.rt;
+    if (ST.rt && !ST.confirm) ak.appendChild(routeAskBox());
     if (ST.confirm) {
       const c = ST.confirm, b = mk('div', 'hsAskBox');
       const p1 = mk('p'); p1.appendChild(document.createTextNode('Fly ')); p1.appendChild(mk('b', null, c.name)); p1.appendChild(document.createTextNode(' from ' + WORDS[c.kind] + '?'));
@@ -160582,16 +160861,16 @@ function garageInit(api) {
     el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'storage');
     el.appendChild(mk('div', 'hsBox'));
     el.addEventListener('click', ev => { if (ev.target === el) close(); });
-    el.addEventListener('keydown', ev => { if (ev.key === 'Escape') { if (ST.confirm) { ST.confirm = null; render(); } else close(); } });
+    el.addEventListener('keydown', ev => { if (ev.key === 'Escape') { if (ST.confirm || ST.rt) { ST.confirm = null; ST.rt = null; render(); } else close(); } });
     document.body.appendChild(el);
     return el;
   }
   function open() {
-    build(); ST.el.hidden = false; ST.sel = null; ST.msg = ''; ST.confirm = null; render();
+    build(); ST.el.hidden = false; ST.sel = null; ST.msg = ''; ST.confirm = null; ST.rt = null; render();
     try { const sh = document.getElementById('edShelf'); if (sh) sh.hidden = true; } catch (e) {}
     return ST.el;
   }
-  function close() { if (ST.el) ST.el.hidden = true; ST.sel = null; ST.confirm = null; }
+  function close() { if (ST.el) ST.el.hidden = true; ST.sel = null; ST.confirm = null; ST.rt = null; }
   function wire() {
     const b = document.getElementById('gStore');
     if (b && !b.dataset.hsWired) { b.dataset.hsWired = '1'; b.addEventListener('click', open); }
@@ -160600,7 +160879,7 @@ function garageInit(api) {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
   // app.js may publish FLYDIY_STORE after this file ran: the redraw hook is set again on open
   const open0 = open;
-  W.STORAGE_UI = { open: () => { wire(); return open0(); }, close, render, move, ask, fly, state: ST };
+  W.STORAGE_UI = { open: () => { wire(); return open0(); }, close, render, move, ask, fly, routeAsk, routeSign, routeEnd, state: ST };
 })();
 </script>
 <script type="text/x-flydiy">
@@ -188909,11 +189188,13 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     const S = { tracks: null, key: 'sandbox', view: null, text: null };
     try {
       if (!premisesPlaced || typeof PREMISES_GEN === 'undefined' || !PREMISES_GEN.stageView || typeof stageKey !== 'function') return S;
-      // G2740 (CAREER-ON): the player's career (the welcome's choice, FLYDIY_MODE 'career') stands ITS tracks, off
-      // flydiy.career.main - none while a New career's fresh flag waits (app.js backs the old one up and starts at 0)
+      // G2740 (CAREER-ON): the player's career (the welcome's choice, FLYDIY_MODE 'career') stands ITS tracks, off its own
+      // document - G3360 (CAREERS): the one welcome.js chose (FLYDIY_CAREER_ID, app.js's same reading; 'main' without one);
+      // a New career has no document yet: every track at 0
       const devC = /[?&]career=1(&|$)/.test(location.search || ''), mainC = !devC && typeof window !== 'undefined' && window.FLYDIY_MODE === 'career';
       if ((devC || mainC) && typeof careerKey === 'function' && typeof stageTracksOf === 'function') {
-        let doc = null; try { doc = mainC && localStorage.getItem('flydiy.career.fresh') === '1' ? null : JSON.parse(localStorage.getItem(careerKey(devC ? 'dev' : 'main')) || 'null'); } catch (e) {}
+        const pick = (v => (typeof v === 'string' && /^(main|c[0-9a-z]{1,16})$/.test(v) ? v : 'main'))(typeof window !== 'undefined' ? window.FLYDIY_CAREER_ID : null);
+        let doc = null; try { doc = JSON.parse(localStorage.getItem(careerKey(devC ? 'dev' : pick)) || 'null'); } catch (e) {}
         S.tracks = stageTracksOf(doc) || stageTracksOf({ career: { tracks: {} } });
         // the stills' door (tools/stages_shot.js): ?stages=field:1,minedock:3 composes those values over the document's,
         // for this load only (nothing is written; with ?career=1 alone)
@@ -189537,20 +189818,20 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // (every career guard reads it): it means "a career is on". The sandbox: neither, today's page byte for byte.
   const CAREER_DEVFLAG = (() => { try { return /[?&]career=1(&|$)/.test(window.location.search || ''); } catch (e) { return false; } })();
   const CAREER_DEV = (CAREER_DEVFLAG || (typeof window !== 'undefined' && window.FLYDIY_MODE === 'career')) && typeof careerNew === 'function';
-  const CAREER_ID = CAREER_DEVFLAG ? 'dev' : 'main';
+  // G3360 (CAREERS): THE PLAYER'S CAREER IS THE ONE THE WELCOME CHOSE - window.FLYDIY_CAREER_ID, written by welcome.js
+  // before this script runs (like FLYDIY_MODE): 'main' (G2740's slot, kept on its key) or a 'c' + base36 id, each its own
+  // document flydiy.career.<id> (the index flydiy.careers is welcome.js's). None given (a rig's ?mode=career with no
+  // storage): 'main', as G2740. ?career=1 stays 'dev'. A New career is a NEW id, so nothing is overwritten (the fresh flag
+  // and the .prev backup retire)
+  const CAREER_PICK = (() => { try { const v = window.FLYDIY_CAREER_ID; return typeof v === 'string' && /^(main|c[0-9a-z]{1,16})$/.test(v) ? v : 'main'; } catch (e) { return 'main'; } })();
+  const CAREER_ID = CAREER_DEVFLAG ? 'dev' : CAREER_PICK;
   const PLAYER_KEY = CAREER_DEV ? careerKey(CAREER_ID) : 'flydiy.player';
-  // G2742 (STORY-PAGE): THE STORY rides the player's career alone (a New career from the welcome: 'main'); the dev career
-  // (?career=1) keeps none, so every gate's fixture career stays rail-free; the sandbox: never (its page half below)
-  const STORY_PAGE = CAREER_DEV && CAREER_ID === 'main' && typeof storyNewCareer === 'function';
-  // a New career over a saved one (welcome.js sets flydiy.career.fresh): the old document is kept under <key>.prev, once
-  if (CAREER_DEV && CAREER_ID === 'main') try {
-    if (localStorage.getItem('flydiy.career.fresh') === '1') {
-      const old = localStorage.getItem(PLAYER_KEY);
-      if (old) localStorage.setItem(PLAYER_KEY + '.prev', old);
-      localStorage.removeItem(PLAYER_KEY);
-      localStorage.removeItem('flydiy.career.fresh');
-    }
-  } catch (e) {}
+  // a New career's name (welcome.js: "your career", "your career 2", ...; renamed in its Careers list)
+  const CAREER_BIRTH_NAME = (() => { try { const v = window.FLYDIY_CAREER_NAME; return typeof v === 'string' && v.trim() ? v.trim().slice(0, 40) : 'your career'; } catch (e) { return 'your career'; } })();
+  // G2742 (STORY-PAGE): THE STORY rides the player's careers (G3360: every listed one - each New career its own story,
+  // its start, Tim, the opening once); the dev career (?career=1) keeps none, so every gate's fixture career stays
+  // rail-free; the sandbox: never (its page half below)
+  const STORY_PAGE = CAREER_DEV && CAREER_ID !== 'dev' && typeof storyNewCareer === 'function';
   let ecWalletEl = null, ecNote = '';      // G2260 (ECONOMY): the garage's wallet line (career only; its page half below)
   // G2315 (GARAGE-RESIDENTS): the career's airframes stand in its garage as fleet props, so the career turns the fleet on
   // (FLEET-PROPS A's bake on save, decode at the stand) unless the page said otherwise; the sandbox is untouched
@@ -189562,7 +189843,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // G2630: a document that does not parse is SET ASIDE under <key>.corrupt (never silently lifted over and lost)
     { const txt = prefGet(PLAYER_KEY, null); doc = jsonReadFinite(txt, 'the player document');
       if (txt != null && doc == null && txt !== 'null') prefSet(PLAYER_KEY + '.corrupt', txt); }
-    const dev = CAREER_ID === 'dev', birth = { id: CAREER_ID, seed: dev ? 'dev' : 'c' + Date.now().toString(36), name: dev ? 'the dev career' : 'your career', started: new Date().toISOString().slice(0, 10) };
+    const dev = CAREER_ID === 'dev', birth = { id: CAREER_ID, seed: dev ? 'dev' : 'c' + Date.now().toString(36), name: dev ? 'the dev career' : CAREER_BIRTH_NAME, started: new Date().toISOString().slice(0, 10) };
     let born = false;
     if (!doc && CAREER_DEV) { doc = careerNew(birth); born = true; }
     else if (!doc) {                         // the one-time lift
@@ -197007,10 +197288,13 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       // G2665 (NIGHT-OPS): the career's day (and the sky it saw) is the stop's BEFORE the stop meets the contracts, so a
       // new epoch's offers are drawn under the night the aeroplane landed in (SIM-CLOCK saved it after; same instant)
       if (CAREER_DEV && d.career && world && world.day && typeof careerDaySet === 'function') { const r = careerDaySet(d, { date: world.day.date, utc: world.day.utc }); if (r.ok) d = careerCoverNote(r.doc); }
+      // G3260 (ROUTES): the routes' round trips flown up to this landing, paid now (before the stop's wallet line)
+      const rtSettled = CAREER_DEV && d.career ? routesSettleNow(d) : null; if (CAREER_DEV && rtSettled) d = rtSettled.doc;
       // G2320 (CAREER-WIRE): ...and the career meets the stop (careerOnStop: every accepted contract, the tracked first)
       if (CAREER_DEV && d.career) { const c = careerStopApply(d, how, W, wrecked); d = c.doc; out.career = c; }
       // G2742 (STORY-PAGE): ...and the story meets it (the stop, each contract it delivered), its effects applied
       if (CAREER_DEV && STORY_PAGE && d.career && out.career) d = storyOnFlightEnd(d, out);
+      if (CAREER_DEV && out.career && rtSettled && rtSettled.lines.length) out.career.lines.unshift(...rtSettled.lines);   // (G3260: the routes' line)
       // G2705 (CAREER-DAMAGE, §R.4): a crash in the career - back at the place the flight departed from, repaired, free
       // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
       const cz = (CAREER_DEV && d.career && wrecked) ? careerCrashReset(d, flSlot, fromAero) : null;
@@ -197295,7 +197579,10 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     }
     return out;
   }
-  const careerRecord = () => { const R = careerMapRecord(playerLoad(), world, { certs: careerCerts() }); return CAREER_DEV && STORY_PAGE ? storyRecord(R) : R; };
+  const careerRecord = () => { const R = careerMapRecord(playerLoad(), world, { certs: careerCerts() });
+    // G3260 (ROUTES): the map's lines and planes, each where it is on its route at the world's instant
+    R.routes = routesMapOf(playerLoad(), world && world.day ? { date: world.day.date, utc: world.day.utc } : null, world && world.aerodromes);
+    return CAREER_DEV && STORY_PAGE ? storyRecord(R) : R; };
   // the map's Accept / Track: careerAccept / careerTrack on the document (Track on a contract not yet accepted accepts
   // it first; Track on the tracked one untracks; Accept on an accepted one keeps it - abandoning is not this button's)
   function careerAct(id, what) {
@@ -197580,6 +197867,117 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     act: careerCrewAct, check: id => careerCrewCheck(id), flyer: () => crFlyer,
     card: id => pilotsCard(playerLoad(), id, world), offers: () => pilotsOffers(playerLoad()), hired: () => pilotsHired(playerLoad()),
   };
+  // ---- G3260-G3269 (ROUTES): THE ROUTES' PAGE HALF (every function below runs only under CAREER_DEV; 78b_routes.js is the
+  // model, pure) ---------------------------------------------------------------------------------------------------------
+  // The settle at every landing (playerFlightEnd: the round trips flown since, paid, a line on the arrival card) and every
+  // wait (the clock's 'flydiy:dayjump' of a wait: the wallet line says what came in); "Assign to a route" and "End route"
+  // on the storage cards (FLYDIY_STORE.route*); the map's line and plane (careerRecord's `routes`); and the stand: a plane
+  // on a route never stays on the stand, never rolls out.
+  // the plane's own numbers when this browser holds its shakedown (careerCerts: the map's certificate facts), else null
+  function routesDesignNow(slot) { try { return (CAREER_DEV && careerCerts()[slot]) || null; } catch (e) { return null; } }
+  // the settle on a document -> { doc, lines (the arrival card's), paid }
+  function routesSettleNow(d, now) {
+    if (!CAREER_DEV || !d || !d.career || !routesActive(d).length) return { doc: d, lines: [], paid: 0 };
+    const r = routeSettle(d, now);
+    return r.ok ? { doc: r.doc, lines: routeSettleLines(r, world && world.aerodromes), paid: r.paid } : { doc: d, lines: [], paid: 0 };
+  }
+  // a WAIT moved the clock (day_clock.js: 'wait:*' / 'fullmoon'): the round trips flown in it paid now, said on the wallet line
+  function routesOnWait(J) {
+    if (!J || !/^(wait|fullmoon)/.test(J.why || '') || !J.to) return;
+    const r = routesSettleNow(playerLoad(), J.to);
+    if (!r.paid) return;
+    player = r.doc; playerSave();
+    ecNote = 'routes +' + ecFmt(r.paid); econWalletSync();
+    storeChanged();
+  }
+  // the plane's gear and seats off its saved envelope (the storage card's)
+  const routesGear = n => { try { return storeCard(n).gear || null; } catch (e) { return null; } };
+  const routesFreePilots = d => pilotsHired(d).filter(id => !routeOfPilot(d, id));
+  // "ASSIGN TO A ROUTE": from where the plane stands to any aerodrome its gear can use, a free hired pilot to fly it
+  // -> { ok, why, a, aName, ends: [{ id, name, km }], pilots: [{ id, name }] }
+  function routesTargets(name) {
+    const d = playerLoad(), W = playerStoreWhere(d, name);
+    const no = why => ({ ok: false, why, a: W.aero || null, ends: [], pilots: [] });
+    if (W.kind === 'route') return no(name + ' flies a route already');
+    if (!W.aero || W.kind === 'none') return no(name + ' stands nowhere yet');
+    const pilots = routesFreePilots(d).map(id => ({ id, name: pilotsName(id) }));
+    const gear = routesGear(name), design = routesDesignNow(name), ends = [];
+    for (const id of Object.keys(CONTRACT_FIELDS)) {
+      if (id === W.aero) continue;
+      const O = routeOffer(d, W.aero, id, name, { gear, design });
+      if (O.ok) ends.push({ id, name: routeAeroName(id, world && world.aerodromes), km: O.offer.km });
+      else if (/numbers are not read/.test(O.why)) return no(O.why);
+    }
+    ends.sort((x, y) => x.km - y.km);
+    if (!pilots.length) return Object.assign(no('no free pilot: hire one on the map\'s Pilots list (a route needs a hired pilot)'), { ends });
+    return { ok: true, why: '', a: W.aero, aName: routeAeroName(W.aero, world && world.aerodromes), ends, pilots };
+  }
+  // the terms, in words, before signing -> { ok, why, offer, words }
+  function routesAsk(name, b, pilot) {
+    const d = playerLoad(), W = playerStoreWhere(d, name);
+    const O = routeOffer(d, W.aero, b, name, { gear: routesGear(name), design: routesDesignNow(name) });
+    if (!O.ok) return { ok: false, why: O.why };
+    return { ok: true, why: '', offer: O.offer, words: routeOfferWords(O.offer, world && world.aerodromes, pilot) };
+  }
+  function routesSignNow(name, b, pilot) {
+    try {
+      const A = routesAsk(name, b, pilot);
+      if (!A.ok) return A;
+      const r = routeSign(playerLoad(), A.offer, name, pilot);
+      if (!r.ok) return { ok: false, why: r.why };
+      player = r.doc; playerSave();
+      ecNote = 'route signed +' + ecFmt(r.route.down); econWalletSync();
+      storeChanged(); routesStandRule();
+      return { ok: true, why: '', route: r.route };
+    } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
+  }
+  function routesEndNow(name) {
+    try {
+      const R = routeOfPlane(playerLoad(), name);
+      if (!R) return { ok: false, why: name + ' flies no route' };
+      const r = routeEnd(playerLoad(), R.id);
+      if (!r.ok) return { ok: false, why: r.why };
+      player = r.doc; playerSave();
+      if (r.paid) { ecNote = 'routes +' + ecFmt(r.paid); econWalletSync(); }
+      storeChanged();
+      return { ok: true, why: '', where: r.where };
+    } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
+  }
+  // a storage card's route words -> null | { words, pilot, trips, pay }
+  function routesCardOf(name) {
+    const R = routeOfPlane(playerLoad(), name);
+    return R ? { id: R.id, words: routeWords(R, world && world.aerodromes), pilot: pilotsName(R.pilot), trips: R.trips, pay: R.pay } : null;
+  }
+  // THE STAND: a plane on a route is not on it - in the garage, the stand takes the story's starter, else the first plane
+  // of the garage's base that flies no route (none: it stays, and the roll-out refuses it)
+  function routesStandRule() {
+    if (!CAREER_DEV || !inGarage) return;
+    const d = playerLoad(), n = slotOnStand();
+    if (!n || !routeOfPlane(d, n) || !window.GARAGE_SPEC || !window.GARAGE_SPEC.open) return;
+    const base = d.sheds[d.here] ? d.sheds[d.here].base : null, s = CAREER_DEV && STORY_PAGE ? storyOf(d) : null;
+    const free = Object.keys(d.fleet).filter(k => !routeOfPlane(d, k));
+    const pick = (s && s.planes.starter && free.includes(s.planes.starter) ? s.planes.starter : null) ||
+      free.find(k => playerStoreWhere(d, k).aero === base) || null;
+    if (pick) try { window.GARAGE_SPEC.open(pick); } catch (e) {}
+  }
+  // the roll-out's refusal: the build on the stand flies a route (said on the wallet line)
+  function routesRollRefused() {
+    const n = slotOnStand(), R = n ? routeOfPlane(playerLoad(), n) : null;
+    if (!R) return false;
+    ecNote = n + ' flies the route ' + routeWords(R, world && world.aerodromes) + ': end it in Storage first'; econWalletSync();
+    routesStandRule();
+    return true;
+  }
+  if (CAREER_DEV) {
+    try { window.addEventListener('flydiy:dayjump', ev => { try { routesOnWait(ev && ev.detail); } catch (e) {} }); } catch (e) {}
+    setInterval(() => { try { routesStandRule(); } catch (e) {} }, 1500);
+    Object.assign(window.FLYDIY_STORE, {
+      routeTargets: n => routesTargets(n), routeAsk: (n, b, p) => routesAsk(n, b, p), routeSign: (n, b, p) => routesSignNow(n, b, p),
+      routeEnd: n => routesEndNow(n), routeOf: n => routesCardOf(n),
+    });
+    window.FLYDIY_CAREER.routes = { list: () => routesMapOf(playerLoad(), null, world && world.aerodromes), settle: (now) => { const r = routesSettleNow(playerLoad(), now); if (r.paid) { player = r.doc; playerSave(); } return r; },
+      sign: routesSignNow, end: routesEndNow, targets: routesTargets, ask: routesAsk };
+  }
   // ---- G2742-G2749 (STORY-PAGE): THE STORY'S PAGE HALF (every function below runs only under STORY_PAGE: the player's
   // career; 79_story.js is the model, pure) -------------------------------------------------------------------------------
   // The events into storyStep: the stop at every flight's end and each contract it delivered (storyOnFlightEnd, where the
@@ -197618,8 +198016,11 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   function storyEffects(d, effects) {
     for (const e of effects || []) {
       if (e.k === 'clientPlane') { stQueue.push(e); continue; }
-      const a = storyApply(d, e, { aeros: world.aerodromes });
-      if (a.ok) { d = a.doc; if (a.line) stLine = a.line; } else console.warn('flyDiy (story): ' + e.k + ' - ' + a.why);
+      // (G3260 ROUTES: T6's route signed with the Cub's own numbers when this browser holds them - the routes' half)
+      const s0 = e.k === 'routeOffer' ? storyOf(d) : null, slot = s0 ? s0.planes.gift || s0.planes.client : null;
+      const a = storyApply(d, e, { aeros: world.aerodromes, design: slot && typeof routesDesignNow === 'function' ? routesDesignNow(slot) : null });
+      // (the lines add up: T6's route and T7's occasions both reach the arrival card)
+      if (a.ok) { d = a.doc; if (a.line) stLine = stLine ? stLine + ' ' + a.line : a.line; } else console.warn('flyDiy (story): ' + e.k + ' - ' + a.why);
     }
     return d;
   }
@@ -197785,7 +198186,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   let stTimEl = null, stTimBeat = null, stTimI = 0, stTimShut = false;
   function storyTimSync() {
     if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
-    const s = stLive(), id = s && !s.open ? s.beat : null, L = id ? storyTimLines(id) : [];
+    const s = stLive(), id = s && !s.open ? s.beat : null, L = id ? storyTimLines(id, playerLoad()) : [];
     if (id !== stTimBeat) { stTimBeat = id; stTimI = 0; stTimShut = false; }
     if (!L.length || stTimShut || (window.FLYDIY_AP && typeof window.FLYDIY_AP.manual === 'function' && window.FLYDIY_AP.manual() && !inGarage)) { if (stTimEl) stTimEl.hidden = true; return; }
     if (!stTimEl) {
@@ -200210,6 +200611,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     stamped: !!(sim && typeof sim.cert === 'function' && sim.cert()) });
   function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
     if (GARAGE_ONLY) return;           // G2100: the phone garage has no world to roll out into
+    if (CAREER_DEV && routesRollRefused()) return;   // G3260 (ROUTES): a plane on a route never rolls out
     certKick();                        // G1831: the certificate's thread starts with the roll-out
     const reveal = () => { flRevealStart(); if (after) after(); };
     rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
