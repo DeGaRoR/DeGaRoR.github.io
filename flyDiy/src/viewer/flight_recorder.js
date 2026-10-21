@@ -13,8 +13,8 @@
 //     frame summed), where the aeroplane is (position, height above the ground, speed, climb), the
 //     autopilot's phase, the camera, the frame cap, the JS heap - and (G3322, format v2) the flight itself: the
 //     nose's heading, pitch, bank, sideslip, the airspeed, the controls (aileron, elevator, rudder, throttle, brake,
-//     differential brake, flap), the pilot's profile and the wind at the aeroplane. 49 columns of 4 bytes: the
-//     ring is 12.8 MB (v1's 34: 8.9 MB).
+//     differential brake, flap), the pilot's profile and the wind at the aeroplane; G3415 the town meter (the town's ticks'
+//     ms, the items they visited, the KB they allocated). 52 columns of 4 bytes: the ring is 13.6 MB (v1's 34: 8.9 MB).
 //   - EVENTS beside the rows: long tasks (PerformanceObserver 'longtask', and 'long-animation-frame' with the
 //     scripts it names where Chrome has it), shader links and the time the driver held the page for them,
 //     the premises built by the stream, the graphics settings changed, the frame cap's switches, the boot's
@@ -76,12 +76,20 @@
      // nose up, rud > 0 nose LEFT - 39b_servos' signs -, thr 0..1, brake 0..1, brd the differential brake, flap), the
      // pilot's profile (a code, as the phase: header.codes.pilot), and the wind at the aeroplane (m/s and the grid
      // bearing it blows FROM; the gusts in it). The header's `units` says so too. NaN in the shed / with no flight.
-     'hdg', 'pitch', 'bank', 'beta', 'ias', 'ail', 'elev', 'rud', 'thr', 'brake', 'brd', 'flap', 'pilot', 'wspd', 'wdir']);
+     'hdg', 'pitch', 'bank', 'beta', 'ias', 'ail', 'elev', 'rud', 'thr', 'brake', 'brd', 'flap', 'pilot', 'wspd', 'wdir',
+     // G3415 (CITY-B, THE TOWN METER; the user, 18 Oct: "even when the town is only a few boxes, it impacts frame evenness like
+     // crazy"): every town-owned tick of the frame summed - the premises' stream step, the town's patch and roads, the lots'
+     // near cut, the premises' tick (the detail cut, the far town, the kit, the life, the trams, the traffic, the herds) -
+     // ms, OVERLAPPING the slots above (it is the town's share of world / prem, not a slot of its own); the items those ticks
+     // visited (the near ring's houses, cells, cars); and the bytes they allocated (KB, ?townalloc=1 only - Chrome's heap
+     // counter round the town's calls, run with --enable-precise-memory-info; NaN otherwise)
+     'town', 'townN', 'townKB']);
   // G3322: what the flight's columns are in (a log reads itself; tools/analyze_log.js prints from it)
   const UNITS = { hdg: 'deg, grid (0 = north = -z, 90 = east = +x), the nose', pitch: 'deg, nose up +', bank: 'deg, right wing down +',
     beta: 'deg, sideslip (the air from the right +)', ias: 'm/s, equivalent airspeed (out.Veas)', ail: 'ctl.da, roll right +', elev: 'ctl.de, nose up +',
     rud: 'ctl.dr, nose LEFT +', thr: 'ctl.thr 0..1', brake: 'ctl.brake 0..1', brd: 'ctl.brakeD, the differential brake', flap: 'ctl.flap',
-    pilot: 'code: header.codes.pilot (the pilot profile, 43 ap.profile)', wspd: 'm/s, the wind at the aeroplane (gusts in)', wdir: 'deg, grid, the wind FROM' };
+    pilot: 'code: header.codes.pilot (the pilot profile, 43 ap.profile)', wspd: 'm/s, the wind at the aeroplane (gusts in)', wdir: 'deg, grid, the wind FROM',
+    town: 'ms, the town\'s ticks this frame (G3415; inside world / prem)', townN: 'items the town\'s ticks visited', townKB: 'KB the town\'s ticks allocated (?townalloc=1; NaN otherwise)' };
   const C = {}; COLS.forEach((k, i) => { C[k] = i; });
   const NC = COLS.length, C_SLOT0 = C.script;
   // flags: what the frame was
@@ -99,9 +107,10 @@
     const stT = new Float64Array(8), stChild = new Float64Array(8), stSlot = new Int32Array(8);
     // THE CLOCK'S STATE IS IN A Float64Array, not in closure variables: V8 boxes a double stored into a closure's
     // context (a fresh heap number a store), and the frame's path must allocate nothing (GATE FLIGHTREC counts it)
-    const V = new Float64Array(17), LAST = 0, T0 = 1, NESTED = 2, LASTTS = 3, HIDDEN = 4, HEAP = 5, HEAPPREV = 6, SELF_US = 7, SELF_MAX = 8, SAMP = 9, SAMP_MAX = 10, SAMP_SUM = 11, SAMP_GL = 12, SAMP_GL_SUM = 13,
-          WKTS = 14, WDIR = 15, WGUST = 16;   // G3322: the day's declared wind as last logged (a 'wind' event when it changes)
-    V[HEAP] = NaN; V[HEAPPREV] = NaN; V[HIDDEN] = -1; V[WKTS] = -1;
+    const V = new Float64Array(20), LAST = 0, T0 = 1, NESTED = 2, LASTTS = 3, HIDDEN = 4, HEAP = 5, HEAPPREV = 6, SELF_US = 7, SELF_MAX = 8, SAMP = 9, SAMP_MAX = 10, SAMP_SUM = 11, SAMP_GL = 12, SAMP_GL_SUM = 13,
+          WKTS = 14, WDIR = 15, WGUST = 16,   // G3322: the day's declared wind as last logged (a 'wind' event when it changes)
+          TOWN = 17, TOWNN = 18, TOWNKB = 19;   // G3415: the frame's town meter (town())
+    V[HEAP] = NaN; V[HEAPPREV] = NaN; V[HIDDEN] = -1; V[WKTS] = -1; V[TOWNKB] = NaN;
     // THE RECORDER TIMES ITSELF, every 17th frame (`samp`; 17 so the samples fall on every phase of the periodic reads
     // - the GPU results every 4th frame, the cap every 16th, the heap every 64th - and the mean is unbiased): each hook adds its own entry-to-exit time to V[SAMP] - the
     // whole cost of a frame's recording, measured live on the player's machine (the header's overhead.frameUsMean) -
@@ -184,6 +193,12 @@
       if (depth > 0) stChild[depth - 1] += d; else V[NESTED] += d;
       if (samp) V[SAMP] += clock() - tp;
     }
+    // G3415: the town's ticks, added to the frame's town meter (ms, items visited, KB allocated or NaN) - any number of calls
+    function town(ms, n, kb) {
+      if (!open) return;
+      V[TOWN] += ms; V[TOWNN] += n;
+      if (kb === kb) V[TOWNKB] = V[TOWNKB] === V[TOWNKB] ? V[TOWNKB] + kb : kb;
+    }
     function lap(s) {
       if (!open) return;
       const t = clock();
@@ -195,6 +210,7 @@
       if (open) close(false, null, true);           // the last frame never reached its end (a throw in the loop)
       const t = clock();
       open = true; V[T0] = t; V[LAST] = t; V[NESTED] = 0; depth = 0; taken = 0; calls = 0; tris = 0;
+      V[TOWN] = 0; V[TOWNN] = 0; V[TOWNKB] = NaN;
       samp = fi % 17 === 3; if (samp) { V[SAMP] = 0; V[SAMP_GL] = 0; }
       for (let i = 0; i < NS; i++) acc[i] = 0;
       owed = pc && typeof pc.steps === 'number' ? pc.steps : 0;
@@ -249,6 +265,7 @@
       ringF[j + C.ail] = P.ail; ringF[j + C.elev] = P.elev; ringF[j + C.rud] = P.rud; ringF[j + C.thr] = P.thr;
       ringF[j + C.brake] = P.brake; ringF[j + C.brd] = P.brd; ringF[j + C.flap] = P.flap;
       ringF[j + C.pilot] = codeOf('pilot', P.pilot); ringF[j + C.wspd] = P.wspd; ringF[j + C.wdir] = P.wdir;
+      ringF[j + C.town] = V[TOWN]; ringF[j + C.townN] = V[TOWNN]; ringF[j + C.townKB] = V[TOWNKB];   // G3415
       if (P.newFlight) { P.newFlight = false; flightBegun(t); }
       if ((fi & 63) === 32) windCheck(P.windSpec, t);
       // the boot's screen: a state change is an event; the roll-out screen gone is THE REVEAL
@@ -540,7 +557,7 @@
 
     const api = {
       SLOTS, S, COLS, C, F, N, CHUNK, rec,
-      attach, begin, end, lap, push, pop, event, stats, header, logParts, chunkRec, eventsSince, reveal, gpuMay,
+      attach, begin, end, lap, push, pop, event, stats, header, logParts, chunkRec, eventsSince, reveal, gpuMay, town,
       codeOf, names,
       get frame() { return fi; }, get open() { return open; }, get events() { return events; },
       set chunkSink(fn) { chunkSink = fn; },
@@ -570,7 +587,7 @@
   const API = {
     make, SLOTS, COLS, S: REC.S, F: REC.F,
     attach: (renderer, probe) => OFF ? null : REC.attach(renderer, probe),
-    begin: REC.begin, end: REC.end, lap: REC.lap, push: REC.push, pop: REC.pop,
+    begin: REC.begin, end: REC.end, lap: REC.lap, push: REC.push, pop: REC.pop, town: REC.town,   // G3415: the town meter
     event: (kind, ms, detail) => REC.event(kind, null, ms, detail),
     reveal: how => REC.reveal(how),
     gpuMay: () => OFF || REC.gpuMay(),   // PERF-1 P1: may a subsystem open its GPU timer this frame? (the recorder's arbitration)
@@ -582,7 +599,7 @@
     mount: (body, H) => mount(body, H),
     mountMeter: (body, H) => mountMeter(body, H), mountLog: (body, H) => mountLog(body, H),   // G760
   };
-  if (OFF) { API.begin = API.end = API.lap = API.push = API.pop = NOOP; }
+  if (OFF) { API.begin = API.end = API.lap = API.push = API.pop = API.town = NOOP; }
 
   // ---- the page's events ------------------------------------------------------------------------------------------
   const ev = (k, t, ms, d) => REC.event(k, t, ms, d);
