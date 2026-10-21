@@ -97745,3 +97745,9 @@ and worn ground from a street.
 - Gates on f1d987d4f (21:14, A0's slot): AUDIO, STORY, UISMOKE, UISMOKE-PHONE, MEDIA PASS, battery PASS.
 - Rigs: tools/perf/story_intro_prof.js (base / eye / high rows: the step's and the swap's CPU profiles, --onlyintro),
   tools/perf/story_intro_look.js (--stillsonly, --q).
+
+## A0 - landing L21d (21 Oct 2026, gates 22:00-23:07, pushed ~23:25): NEW METLAKATLA v2 BEHIND ITS SWITCH, THE STORY INTRO'S EYE-LEVEL END + THE 15 s BOOT FIX
+Rolling set: city-v2 (A0's integration of claude/city-a G3400-G3414 + claude/city-b G3415-G3427 + the townkit setBand fix CITY-A specified for KITHOST; only with ?town=1&cityhost=1, the default game unchanged; 14 CITY / PREMISES / KIT gates PASS on the real v2 pack), story-intro (G3387 the eye-level end, ?introend=high the fallback; G3388 the boot cost: the opening wore no aircraft lights so 81 lit programs re-keyed - zero-intensity stand-ins: the 'intro' step 16-17 s -> 3.4 s, a New career +0.2 s). ap-adapt EXCLUDED (the user's explicit word on the DEV ham-fist persona line is pending).
+- The battery: master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore) + WORLDRENDER "impostor instances 60709 != canopy instances 59723" ONCE. It did not reproduce in 4 re-runs on the same tree (alone, after the premises / fleet / map cooks, twice): a load-dependent flake under the 8-job battery, owned by the world-render owner as a watch item.
+- The strict light gate: over100 x4 = the reveal's first world frame (HWCOV, named Thu 02:05); cub chase/cockpit tasks1s / taskWorst 1056 / 1292 ms = the boot ~1 s task class (now with the restored GBOX boot step; HWCOV found 364-488 ms settle slices ignoring G1075's 40 ms slicing -> ED-2). metal fuseWidth busy did not trip this time.
+- In-game v2 stills (ED-2, 19:10): 2-3x today's triangles in every view (+31 M at 1.2 km) - the 00:30 A/B decides; the far switch is suspected.
