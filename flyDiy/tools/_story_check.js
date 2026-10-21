@@ -19,6 +19,15 @@
 //     in the HOME hangar, bound with its arrival spec, the checklist on the card, the story's line on the arrival card;
 //   - the garage's certificate -> T3; Q1 the map's rows held (greyed) and Track refused; the occasions authored, one-time;
 //   - the source: every call into the story behind CAREER_DEV, the dev career keeps none, the bench's hook.
+// G3380-G3389 (STORY-INTRO) THE OPENING, headless: the story half's opening doors run over story_intro.js (the lazy module,
+// loaded into the same context) -
+//   - armed by a New career alone (playerLoad's stIntroArm, set once), ONCE; never by a Continue, the phone, ?intro=0;
+//   - the black curtain under the loading screen and the module asked for; the world's exposure, the room's air off and
+//     the radio held while it plays; all of it put back at the swap;
+//   - the plan on the Cabin Strip's own record (the island fixture): three shots, 25-40 s, the eye over the ground on a
+//     rough terrain, ending on the shed at eye height with the lens closed (the zoom), black at the end;
+//   - played to its end -> the garage, the story at T0; Skip -> the garage within the skip's fade, the story at T0;
+//   - lazy (no static tag; FLYDIY_LAZY's map names it), the Skip at the bottom edge in the garage's look, the track on disk.
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
@@ -183,7 +192,7 @@ async function page() {
   // ---- the half, run: the core's globals, a minimal DOM, the files off the disk
   const prefs = new Map();
   const els = [];
-  const mkEl = tag => { const e = { tag, id: '', hidden: false, dataset: {}, innerHTML: '', _cls: new Set(), attrs: {}, listeners: {},
+  const mkEl = tag => { const e = { tag, id: '', hidden: false, dataset: {}, innerHTML: '', style: {}, _cls: new Set(), attrs: {}, listeners: {},
     classList: { toggle(c) { if (e._cls.has(c)) e._cls.delete(c); else e._cls.add(c); }, contains: c => e._cls.has(c) },
     setAttribute(k, v) { e.attrs[k] = v; }, addEventListener(t, f) { e.listeners[t] = f; } }; els.push(e); return e; };
   const document = { body: { appendChild: e => e }, createElement: mkEl, getElementById: id => els.find(e => e.id === id) || null };
@@ -192,7 +201,7 @@ async function page() {
   const world = { aerodromes: aerosCabin };
   let player = null, stand = null, liveSpec = null, fetched = [];
   const H = Object.assign(Object.create(null), M, {
-    STORY_PAGE: true, CAREER_DEV: true, world, document, console: { log() {}, info() {}, warn() {}, error: console.error },
+    STORY_PAGE: true, CAREER_DEV: true, world, document, console: { log() {}, info() {}, warn() {}, error: console.error }, stIntroArm: false, location: { search: '' },
     CustomEvent: function (t, o) { this.type = t; this.detail = o && o.detail; }, JSON, Math, Date, Object, Array, String, Number, Set, Map, Promise, Error, isFinite, encodeURI,
     setTimeout, setInterval: () => 0,
     fetch: url => { fetched.push(url); const f = path.join(ROOT, decodeURI(url));
@@ -344,12 +353,134 @@ async function pageRun() {
   return fails;
 }
 
+// ---- THE OPENING (G3380-G3389 STORY-INTRO) ---------------------------------------------------------------------------
+async function introRun() {
+  const P = await page();
+  const { fails, ok, H, M, els } = P;
+  if (fails.length) return fails;
+  const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+  const build = fs.readFileSync(path.join(ROOT, 'tools', 'build.js'), 'utf8');
+  const css = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'story_intro.js'), 'utf8');
+  // ---- the source
+  ok((app.match(/stIntroArm = true/g) || []).length === 1 && /if \(CAREER_DEV && born && STORY_PAGE\)[\s\S]{0,600}if \(r\.ok\) \{ player = r\.doc; stIntroArm = true; \}/.test(app),
+     'the opening is armed by a New career alone (careerNew -> storyNewCareer in playerLoad); a Continue loads its saved document and never arms it');
+  ok(/if \(CAREER_DEV && STORY_PAGE\) storyIntroBoot\(\);/.test(app) && /const introAt = CAREER_DEV && STORY_PAGE && inGarage \? storyIntroFrame\(fdt\) : null;/.test(app) && /if \(introAt && WF\) WF\.worldUpdate\(introAt\);/.test(app),
+     "it plays as the boot's screen lifts; the loop draws the world from the shed on the cabin's point (no second world)");
+  ok(/if \(!GARAGE_ONLY && CAREER_DEV && STORY_PAGE && stIntroEl\) bootStep\('intro', 'the opening', \d+, \(\) => \(CAREER_DEV \? storyIntroPrepare\(\) : null\)\);/.test(app) &&
+     /compileSliced\(scene, aa && aa\.target \? aa\.target\(\) : null\)\)\.then\(\(\) => compileDepthVariants\(scene, true\)\)\s*\.then\(\(\) => programsReady\(/.test(app),
+     "its views linked UNDER THE LOADING SCREEN (a boot step a New career's curtain alone registers: compiled async, every link waited for, then drawn)");
+  ok(/\['src\/viewer', 'story_intro\.js'\]/.test(build), "lazy: in build.js's MANIFEST.lazy (FLYDIY_LAZY('story_intro'))");
+  const pages = ['index.html', 'dev.html'].map(f => path.join(ROOT, f)).filter(f => fs.existsSync(f)).map(f => fs.readFileSync(f, 'utf8'));
+  ok(pages.length && pages.every(h => !/<script[^>]*story_intro/.test(h) && !/var STORY_INTRO = /.test(h) && /"story_intro":"src\/viewer\/story_intro\.js/.test(h)),
+     'the pages carry no byte of it but its name in the lazy map (the sandbox never loads it)');
+  // ---- the look: the Skip at the bottom edge, the garage's tokens and type, nothing centred
+  const I = vm.runInNewContext(src + '\n;STORY_INTRO', { console, Math, Float64Array, isFinite, String, Object, Array, Promise });
+  ok(/#stIntro \.siSkip \{[^}]*right:16px; bottom:16px;/.test(I.CSS) && !/translate|left:50%|top:50%|margin:auto/.test(I.CSS) && /IBM Plex Sans/.test(I.CSS) && /font-style:normal/.test(I.CSS) &&
+     !/italic|Georgia|Times/.test(I.CSS) && /var\(--ed-plate\)/.test(I.CSS) && /body\.stIntro #c \{ margin-left:0 !important; width:100% !important;/.test(I.CSS) && /:is\([^)]*#stIntro[^)]*\) \{/.test(css),
+     "the Skip: the bottom edge (never centred), the garage's look (--ed-* tokens, IBM Plex Sans upright)");
+  const ogg = path.join(ROOT, I.MUSIC), ob = fs.existsSync(ogg) ? fs.readFileSync(ogg) : null;
+  ok(ob && ob.slice(0, 4).toString() === 'OggS' && ob.indexOf('vorbis') > 0 && ob.length < 600 * 1024 && /^media\/audio\/music\/yoiyami_sunset_plains_intro\.[0-9a-f]{8}\.ogg$/.test(I.MUSIC) && I.CREDIT.licence === 'CC0' &&
+     fs.readFileSync(path.join(ROOT, 'CREDITS.md'), 'utf8').includes(I.MUSIC),
+     "the music: 'Sunset Plains' by Yoiyami (CC0), Ogg Vorbis under 600 KB, in CREDITS.md", ob && (ob.length / 1024).toFixed(0) + ' KB');
+  // ---- the plan on the Cabin Strip's own record (the island fixture's runway w1), over a rough terrain
+  const isl = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json'), 'utf8'));
+  const rwys = []; (function walk(o) { if (Array.isArray(o)) o.forEach(walk); else if (o && typeof o === 'object') { if (o.id === 'w1' && o.name === 'Cabin Strip' && o.c) rwys.push(o); else Object.values(o).forEach(walk); } })(isl);
+  const R = rwys[0];
+  ok(!!R, 'the Cabin Strip in the island fixture (runway w1)');
+  if (!R) return fails;
+  const plot = (R.plots || [])[0] || null;
+  const terr = (x, z) => 100 + 30 * Math.sin(x / 140) * Math.cos(z / 170) + 0.04 * Math.hypot(x - R.c[0], z - R.c[1]);
+  const aero = { id: 'w9', x: R.c[0], z: R.c[1], hdg: R.hdg, len: R.len, elev: terr(R.c[0], R.c[1]), kind: 'strip', fly: R.fly || null };
+  const PL = I.plan({ aero, plot, terrainH: terr });
+  let low = Infinity, at = null;
+  for (let t = 0; t <= PL.T; t += 0.05) { const o = I.pose(PL, t), g = o.p[1] - terr(o.p[0], o.p[2]); if (g < low) { low = g; at = t; } }
+  const end = I.pose(PL, PL.T), shedG = terr(plot.x, plot.z), dEnd = Math.hypot(end.p[0] - plot.x, end.p[2] - plot.z);
+  ok(PL.shots.length === 3 && PL.T >= 25 && PL.T <= 40, 'three shots (the valley, the strip, the cabin), 25-40 s', PL.shots.map(s => s.id + ' ' + (s.t1 - s.t0) + ' s').join(', ') + ' = ' + PL.T + ' s');
+  ok(low >= 1.0, 'the eye stays over the ground the whole way (a rough terrain)', 'lowest ' + low.toFixed(1) + ' m at ' + at.toFixed(1) + ' s');
+  ok(dEnd > 38 && dEnd < 52 && end.p[1] - shedG >= 15 && end.p[1] - shedG <= 22 && end.fov <= 36 && Math.hypot(end.l[0] - plot.x, end.l[2] - plot.z) < 1 && end.black > 0.99,
+     'it ends zoomed on the shed (45 m off its door, looking down from 18 m over the shed ground, the lens closed) at black', dEnd.toFixed(1) + ' m, ' + (end.p[1] - shedG).toFixed(1) + ' m over the shed, fov ' + end.fov.toFixed(0));
+  // THE SIGHTLINE (the third look, 21 Oct: a rise between the eye and the shed hid it): the near shots see their target -
+  // on the rough terrain, and with a 6 m rise put between the last eye and the shed
+  const seen = (Pl, T) => { let worst = Infinity, at = null;
+    for (let t = Pl.shots[1].t0 + 0.6; t < Pl.T - 0.2; t += 0.1) { const o = I.pose(Pl, t);
+      for (let f = 0.1; f <= 0.85; f += 0.05) { const x = o.p[0] + (o.l[0] - o.p[0]) * f, z = o.p[2] + (o.l[2] - o.p[2]) * f, y = o.p[1] + (o.l[1] - o.p[1]) * f, g = y - T(x, z); if (g < worst) { worst = g; at = t; } } }
+    return { worst, at }; };
+  const mid = [(end.p[0] + plot.x) / 2, (end.p[2] + plot.z) / 2];
+  const terr2 = (x, z) => terr(x, z) + 6 * Math.max(0, 1 - Math.hypot(x - mid[0], z - mid[1]) / 9);
+  const PL2 = I.plan({ aero, plot, terrainH: terr2 }), s1 = seen(PL, terr), s2 = seen(PL2, terr2);
+  ok(s1.worst > 0.2 && s2.worst > 0.2, 'the near shots see the shed: the sightline clears the ground (a 6 m rise between the last eye and the shed too)',
+     s1.worst.toFixed(1) + ' m at ' + s1.at.toFixed(1) + ' s; with the rise ' + s2.worst.toFixed(1) + ' m at ' + s2.at.toFixed(1) + ' s');
+  ok(I.pose(PL, 0).black === 1 && I.pose(PL, 6).black === 0 && I.pose(PL, PL.shots[1].t0).black > 0.99, 'out of black, a dip at each cut', '');
+  ok(PL.anchor && Math.hypot(PL.anchor[0] - plot.x, PL.anchor[2] - plot.z) < 1, "the world's streams keyed on the cabin, never on the eye");
+  // ---- the page half: a New career, its opening played; another, skipped; a Continue; the phone
+  Object.assign(P.aerosCabin.find(a => a.id === 'w9'), aero);
+  H.world.terrainH = terr;
+  vm.runInContext(src, H);
+  const lazy = [];
+  let exp = 1.1;
+  Object.assign(H, { WF: {}, inGarage: true, roomBase: () => 'w9', roomId: () => 'w9', siteOf: () => ({ plots: [plot] }), WORLD_EXPOSURE: 0.9,
+    renderer: { get toneMappingExposure() { return exp; } }, setExp: v => { exp = v; }, ATMO: { MIST: { room: 'the room' } },
+    FLYDIY_LAZY: n => { lazy.push(n); return Promise.resolve([true]); },
+    camera: { fov: 46, position: { x: 0, y: 0, z: 0, set(x, y, z) { this.x = x; this.y = y; this.z = z; } }, lookAt() {}, updateProjectionMatrix() {}, updateMatrixWorld() {} } });
+  const settle = async () => { for (let i = 0; i < 400; i++) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY || !H.window.FLYDIY_STORY.pending()) return; } };
+  const career = () => { const r = M.storyNewCareer(M.careerNormalise(M.careerNew({ id: 'main', seed: 'gate' })), { aeros: P.aerosCabin }); P.set(r.doc); return r.doc; };
+  const half = () => vm.runInContext('(function () {\n' + P.half + '\nreturn { storyIntroWanted, storyIntroCurtain, storyIntroBoot, storyIntroFrame, el: () => stCardEl }; })', H)();
+  const curtains = () => els.filter(e => e.id === 'stIntro').length;
+  const play = async (skipAt) => {
+    career(); H.stIntroArm = true; H.FLYDIY_INTRO_LAST = null; lazy.length = 0;
+    const c0 = curtains(), X = half();
+    await settle();
+    const cur = els.filter(e => e.id === 'stIntro').slice(-1)[0];
+    const up = curtains() === c0 + 1 && /z-index:60/.test(cur.style.cssText) && /background:#000/.test(cur.style.cssText) && lazy.includes('story_intro');
+    await X.storyIntroBoot();
+    const during = H.FLYDIY_MUSIC_HOLD === true && exp === 0.9 && H.ATMO.MIST.room === null && (!X.el() || X.el().hidden) && X.storyIntroWanted() === false;
+    let n = 0, worldF = 0, skipF = -1, near = null;
+    while (n < 3000 && !H.FLYDIY_INTRO_LAST) {
+      if (skipAt != null && n === Math.round(skipAt * 30)) { H.FLYDIY_INTRO.skip(); skipF = n; }
+      const a = X.storyIntroFrame(1 / 30);
+      if (a) { worldF++; near = Math.hypot(H.camera.position.x - plot.x, H.camera.position.z - plot.z); }
+      n++;
+    }
+    return { up, during, worldF, n, skipF, near, X, last: H.FLYDIY_INTRO_LAST };
+  };
+  const after = X => exp === 1.1 && H.ATMO.MIST.room === 'the room' && H.camera.fov === 46 && H.FLYDIY_MUSIC_HOLD === false &&
+    M.storyOf(P.get()).beat === 'T0' && X.el() && !X.el().hidden && /The cabin/.test(X.el().innerHTML);
+  let r = await play(null);
+  ok(r.up, 'a New career: the black curtain up under the loading screen (z 60 < the boot\'s 70), story_intro.js asked for');
+  ok(r.during, "while it plays: the world's exposure, the room's air off, the radio held, the beat card hidden; the arm spent (once)");
+  ok(r.last && r.last.how === 'played' && r.worldF / 30 >= PL.T && r.worldF / 30 <= PL.T + 1.5 && r.near < 52,
+     'played to its end: the world drawn from the shed for the whole cinematic, the last frame at the shed', (r.worldF / 30).toFixed(1) + ' s of world, ' + (r.near || 0).toFixed(1) + ' m from the shed');
+  const df = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'design_flow.js'), 'utf8');
+  ok(H.FLYDIY_STORY_STARTER === 'Rufus' && df.includes('setTimeout(() => { if (!window.FLYDIY_STORY_STARTER) openBirth(); }, 400)'),
+     'the design flow\'s "New aeroplane" door stays shut on a New career with the story (its starter on the stand; the Game coordinator, 20 Oct)', H.FLYDIY_STORY_STARTER);
+  ok(after(r.X), 'then the garage: its exposure, its air and its lens back, the radio free, the story at T0 on its card');
+  r = await play(3);
+  const outF = r.worldF - r.skipF;
+  ok(r.last && r.last.how === 'skipped' && outF >= 1 && outF / 30 <= I.SKIP_OUT_S + 0.1 && after(r.X),
+     'Skip (the button, Esc, a click): straight to the garage (a ' + I.SKIP_OUT_S + ' s fade), the story at T0', outF + ' frames after the press');
+  // a Continue: the saved document - nothing arms it
+  H.stIntroArm = false;
+  let c0 = curtains(), X = half(); await settle();
+  ok(!X.storyIntroWanted() && curtains() === c0, 'a Continue: no curtain, no opening');
+  H.stIntroArm = true; H.PROFILE = { name: 'phone', is: () => false };
+  ok(!X.storyIntroWanted(), 'on the phone: no opening (no world; no music)');
+  H.PROFILE = { name: 'desktop', is: (a, b) => a === 'boot' && b === 'garage' };
+  ok(!X.storyIntroWanted(), 'the garage-only boot: no opening');
+  delete H.PROFILE; H.location.search = '?intro=0';
+  ok(!X.storyIntroWanted(), '?intro=0: no opening');
+  H.location.search = ''; H.stIntroArm = false;
+  return fails;
+}
+
 if (!SELF) {
   (async () => {
     const f = run();
     console.log('  -- the page half (G2742-G2749 STORY-PAGE)');
     let g = [];
     try { g = await pageRun(); } catch (e) { g = ['the page half threw: ' + (e && e.stack || e)]; console.log('  FAIL ' + g[0]); }
+    console.log('  -- the opening (G3380-G3389 STORY-INTRO)');
+    try { g = g.concat(await introRun()); } catch (e) { g.push('the opening threw: ' + (e && e.stack || e)); console.log('  FAIL ' + g[g.length - 1]); }
     const all = f.concat(g);
     console.log(all.length ? all.length + ' failing' : 'all story rows hold');
     console.log('GATE STORY: ' + (all.length ? 'FAIL' : 'PASS'));
