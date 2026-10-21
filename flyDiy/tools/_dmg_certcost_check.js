@@ -39,9 +39,11 @@ const BW_PATH = path.join(__dirname, '..', 'src', 'viewer', 'bench_worker.js');
 // G2640 (DESIGN-TRUST): on top - the stressed-skin boom on the shell cluster moves the Jodel's settle +4 (1792 -> 1796,
 // its envelope equal to the uncut certificate's to the bit); the Cessnas' moved -2 on the files as written (1797 -> 1795,
 // 1763 -> 1761), inside the budgets above
+// G2470 (JODEL-PITCH, TORQUE-RETUNE-66): the Munk body couple's arm measured along the body (PHYSICS_V 6) - the Jodel's
+// flown cases that turn off x settle a frame later, 1796 -> 1797; the other four unchanged
 const BUDGET = {
   cub:        { frames: 1809, s: 18 },
-  jodel:      { frames: 1796, s: 32 },
+  jodel:      { frames: 1797, s: 32 },
   metal:      { frames: 1831, s: 30 },
   floats:     { frames: 1795, s: 42 },
   twinFloats: { frames: 1791, s: 48 },

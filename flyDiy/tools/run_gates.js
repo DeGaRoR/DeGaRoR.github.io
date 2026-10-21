@@ -926,6 +926,12 @@ const GATES = [
   // — the shaft speed against the J-3's real numbers, the burn against the
   // thermo sheet, nz at rest and in free fall, the key and the starter
   { id: 'RPM', file: '_rpm_check.js', tier: 'core' },
+  // G2080 ENGINE-TORQUE: the propeller's reaction torque, gyroscopic couple, P-factor and swirl - each effect's sign
+  // off a physical response on the user's Cub (both hands mirrored), the couples force-free, the twin's hands
+  { id: 'ENGTORQUE', file: '_engtorque_check.js', tier: 'core', wall: 90 },
+  // G2470 JODEL-PITCH: the air has no preferred heading - the same open-loop 3 s on eight headings, the five validated
+  // builds, flown the same to round-off (the Munk couple's arm was measured in the world's x-y plane); --selftest
+  { id: 'HEADING', file: '_heading_check.js', tier: 'core', wall: 60 },
   // ...and session 2: the fit as a list — catalogues, tiers, the resolver,
   // the ledger billing exactly its rows, the aerials reading the radios
   { id: 'PANEL', file: '_panel_check.js', tier: 'core' },

@@ -734,7 +734,16 @@ try {
       throw new Error('a held ArrowDown did not reach sim.ctl.de under manual (' + P.sim().ctl.de + ')');
     P.input().press('ArrowDown', false);
     frames(30);
+    // G2480 (HAND-CONTROLS): the LEFT toe brake reaches sim.ctl as the solver's differential brake (brakeD > 0: the
+    // +z main, the left), and handing back takes it off the aeroplane
+    P.input().press('Semicolon', true);
+    frames(30);
+    if (!(P.sim().ctl.brakeD > 0.3))
+      throw new Error('a held [ (the left toe brake) did not reach sim.ctl.brakeD under manual (' + P.sim().ctl.brakeD + ')');
     P.setManual(false);
+    P.input().press('Semicolon', false);
+    if (P.sim().ctl.brakeD !== 0 || P.sim().ctl.wr !== null)
+      throw new Error('setManual(false) left the hand\'s brakeD / wr on the aeroplane (' + P.sim().ctl.brakeD + ', ' + P.sim().ctl.wr + ')');
     frames(60);
     if (P.manual()) throw new Error('setManual(false) did not take');
     if (typeof P.ap().phase !== 'string') throw new Error('the AP came back with no phase');
@@ -1209,6 +1218,22 @@ try {
     if (P.sim().wheelsOnGround() < 2) throw new Error('the skip left the aeroplane off its wheels');
     if (!b.disabled) throw new Error('#bSkip still offered at the hold');
     console.log('skip to line-up: ' + Math.hypot(cg[0] - c0[0], cg[2] - c0[2]).toFixed(0) + ' m from the taxi to the hold, pilot in ' + ph + ', the button stands down');
+    // G3325 (AP-TOGGLE): the permanent toggle - in sight in flight, the autopilot by default, handed over and back through
+    // the published state (the story's cards read it), the button's words following
+    {
+      const AP = sandbox.window.FLYDIY_AP, bAP = els['bAP'];
+      if (!AP) throw new Error('FLYDIY_AP is not published (G3325)');
+      if (!bAP) throw new Error('#bAP, the autopilot toggle, is missing (G3325)');
+      if (!AP.autopilot()) throw new Error('the flight did not start on the autopilot (G3120 / G3325)');
+      if (bAP.hidden) throw new Error('#bAP is hidden in flight (G3325: always in sight)');
+      AP.set(false);
+      if (!AP.manual()) throw new Error('FLYDIY_AP.set(false) did not hand the aeroplane over');
+      if (!/^Manual/.test(bAP.textContent)) throw new Error('#bAP says ' + JSON.stringify(bAP.textContent) + ' by hand');
+      AP.set(true);
+      if (!AP.autopilot()) throw new Error('FLYDIY_AP.set(true) did not give the aeroplane back');
+      if (!/^Autopilot: ON/.test(bAP.textContent)) throw new Error('#bAP says ' + JSON.stringify(bAP.textContent) + ' on the autopilot');
+      console.log('the autopilot toggle (G3325): in sight, on by default, handed over and back');
+    }
   }
 
   // ---- THE RAILS (G760, the Jolene playtest §3): five items, folds, DEV behind a toggle, nothing lost --------
@@ -1249,7 +1274,7 @@ try {
     // G2085 (PILOT-PERSONA) -> G3324 (the user, 19 Oct: the player's autopilot is ALWAYS the expert, the persona DEV's): the
     // personality row, every person, and the custom person's knobs (the census opens the fold) - reached with DEV on only
     const PERSONA_ROWS = ['personality', 'Expert', 'Club', 'Student', 'Bush', 'Ham-fist', 'Custom', 'custom pilot', 'start from', 'reaction', 'hands', 'grip',
-                          'unsteadiness', 'over-rotation', 'flare height', 'bank', 'comfort g', 'field technique', 'slips', 'step hold'];
+                          'unsteadiness', 'over-rotation', 'flare height', 'decisions', 'bank', 'comfort g', 'field technique', 'slips', 'step hold'];   // G2460 (t66): + decisions
     const reached = { rows: [], pills: [] };
     for (const it of items) {
       const c = R.census(it.k);
