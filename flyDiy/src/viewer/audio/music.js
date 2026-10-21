@@ -619,15 +619,14 @@ var AUDIO_MUSIC = (function () {
   // ---- THE FRAME ---------------------------------------------------------------------------------------------
   // the context the settings and the place ask for now (G1723: the frame's head, and the settings' own event)
   // G3380 (STORY-INTRO): a New career's opening plays its own track - the radio is held (its track fades out and keeps its
-  // place, as on leaving any context) while window.FLYDIY_MUSIC_HOLD is set (wantNowHeld, on wantNow)
-  const wantNow = au => (station === 'off' ? C_NONE : contextOf(au.welcome, PS[S_PHOTO] > 0, au.inGarage, au.get('musicGarage'), au.get('musicFlight'), 1, au.get('musicLoading')));
-  const wantNowHeld = au => (G.FLYDIY_MUSIC_HOLD ? C_NONE : wantNow(au));   // G3380: the opening's hold, over the context
+  // place, as on leaving any context) while window.FLYDIY_MUSIC_HOLD is set: every switch contextOf reads is off, so it answers C_NONE
+  const wantNow = au => (station === 'off' ? C_NONE : contextOf(au.welcome, !G.FLYDIY_MUSIC_HOLD && PS[S_PHOTO] > 0, au.inGarage, !G.FLYDIY_MUSIC_HOLD && au.get('musicGarage'), !G.FLYDIY_MUSIC_HOLD && au.get('musicFlight'), 1, !G.FLYDIY_MUSIC_HOLD && au.get('musicLoading')));
   function update(P, dt, au) {
     if (!ctx) return;
     const s = P.s, I = P.I, garage = au.inGarage;
     const fin = garage || au.welcome ? (FINAL_ST[0] = 0) : finalStep(FINAL_ST, s[I.onGround], s[I.agl], s[I.vs], s[I.flap]);
     if (fin !== PS[S_FIN]) finalDip(fin);
-    const want = wantNowHeld(au);
+    const want = wantNow(au);
     if (want !== PS[S_CUR]) switchTo(want);
     if (panner) { PS[S_PANT] -= dt; if (PS[S_PANT] <= 0) { PS[S_PANT] = PAN_EVERY_S; lean(au); } }   // G1714 (4 Hz)
     if (au.state === 'suspended') return;   // the timers wait with the sound
@@ -812,7 +811,7 @@ var AUDIO_MUSIC = (function () {
     loadScript();
     // G1723: a music switch (music in flight, in the garage, while loading) answers on its own event - at 3-4 fps the next
     // frame is 0.3 s away, and under a held render (a place change) there is none
-    offs = [au.onEvent('settings', d => { if (ctx && d && /^music/.test(d.k)) { const w = wantNowHeld(au); if (w !== PS[S_CUR]) switchTo(w); } }),
+    offs = [au.onEvent('settings', d => { if (ctx && d && /^music/.test(d.k)) { const w = wantNow(au); if (w !== PS[S_CUR]) switchTo(w); } }),
       au.onEvent('engine', onDuck), au.onEvent('stall', onDuck), au.onEvent('duck', onDuck),
       au.onEvent('photo', on => setPhoto(on)),
       au.onEvent('suspend', () => { cancelTalk(); for (let k = 0; k < 2; k++) if (DK[k * K_N + K_STATE] >= ST_PLAYING) { DK[k * K_N + K_PAUSED] = 1; try { decks[k].el.pause(); } catch (e) {} } }),
