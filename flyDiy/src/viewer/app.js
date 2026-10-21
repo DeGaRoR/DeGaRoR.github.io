@@ -8980,14 +8980,23 @@
       const LG = window.FLYDIY_INTRO_PREP = { t0: performance.now(), shots: [], ms: null };
       const progs = () => (renderer.info && renderer.info.programs ? renderer.info.programs.slice() : []);
       const objs = () => { let n = 0; scene.traverse(() => { n++; }); return n; };
+      // (the lights a lit program is keyed on: per kind, the visible ones and those casting a shadow)
+      const lights = () => { const c = {}; scene.traverse(o => { if (!o.isLight || !o.visible) return; const k = o.type.replace('Light', ''); c[k] = (c[k] || 0) + 1; if (o.castShadow) c[k + 'Sh'] = (c[k + 'Sh'] || 0) + 1; });
+        return Object.keys(c).sort().map(k => k + c[k]).join(' '); };
+      // (a new program's key against the old program of the same name whose key differs least: the differing fields)
+      const keyDiff = (nw, old) => { const out = {}; for (const p of nw.slice(0, 30)) { const a = String(p.cacheKey || '').split(','); let best = null, bd = 1e9;
+          for (const q of old) { if (q.name !== p.name) continue; const b = String(q.cacheKey || '').split(','); if (b.length !== a.length) continue; let d = 0; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++; if (d < bd) { bd = d; best = b; } }
+          if (!best) { out['(no sibling)'] = (out['(no sibling)'] || 0) + 1; continue; }
+          for (let i = 0; i < a.length; i++) if (a[i] !== best[i]) { const k = '#' + i + ' ' + String(best[i]).slice(0, 24) + ' -> ' + String(a[i]).slice(0, 24); out[k] = (out[k] || 0) + 1; } }
+        return out; };
       const shot = V => {
-        const R = { n: LG.shots.length, objs0: objs() }, P0 = new Set(progs());
+        const R = { n: LG.shots.length, objs0: objs(), lights0: lights() }, P0 = new Set(progs());
         let p = Promise.resolve(), t = performance.now();
         const lap = k => () => { const n = performance.now(); R[k] = Math.round(n - t); t = n; };
         for (const o of V) p = p.then(() => eye(o, () => { for (let k = 0; k < 12; k++) WF.worldUpdate(P.anchor); })).then(task);
-        return p.then(lap('updates')).then(() => { R.objs1 = objs(); return compileSliced(scene, aa && aa.target ? aa.target() : null); }).then(lap('compile'))
+        return p.then(lap('updates')).then(() => { R.objs1 = objs(); R.lights1 = lights(); return compileSliced(scene, aa && aa.target ? aa.target() : null); }).then(lap('compile'))
           .then(() => compileDepthVariants(scene, true)).then(lap('depth'))
-          .then(() => { const nw = progs().filter(x => !P0.has(x)); R.newProgs = nw.length; R.names = nw.map(x => x.name || '?').slice(0, 40); return programsReady(30000); }).then(lap('links'))
+          .then(() => { const nw = progs().filter(x => !P0.has(x)); R.newProgs = nw.length; R.names = nw.map(x => x.name || '?').slice(0, 40); try { R.keyDiff = keyDiff(nw, [...P0]); } catch (e) { R.keyDiff = { error: e.message }; } return programsReady(30000); }).then(lap('links'))
           .then(() => { let q = Promise.resolve(); for (const o of V) q = q.then(() => eye(o, () => { WF.worldUpdate(P.anchor); if (aa) aa.render(scene, camera); else renderer.render(scene, camera); })).then(task); return q; })
           .then(lap('draws')).then(() => { R.progsAfterDraw = progs().filter(x => !P0.has(x)).length - R.newProgs; LG.shots.push(R); LG.ms = Math.round(performance.now() - LG.t0); });
       };
