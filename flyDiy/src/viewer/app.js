@@ -8953,7 +8953,8 @@
     if (!A || A.kind === 'water' || !isFinite(A.hdg)) return 'no strip at ' + id;
     const st = typeof siteOf === 'function' ? siteOf(id) : null;
     const pl = st && Array.isArray(st.plots) ? (st.plots.find(p => p.id === roomId()) || st.plots[0]) : null;
-    return (stIntroPlan = I.plan({ aero: A, plot: pl, terrainH: (x, z) => world.terrainH(x, z), waterH: typeof world.waterH === 'function' ? (x, z) => world.waterH(x, z) : null }));
+    let end = null; try { const q = /[?&]introend=(eye|high)(&|$)/.exec(window.location.search || ''); if (q) end = q[1]; } catch (e) {}   // G3387: the ending, for a look
+    return (stIntroPlan = I.plan({ aero: A, plot: pl, terrainH: (x, z) => world.terrainH(x, z), waterH: typeof world.waterH === 'function' ? (x, z) => world.waterH(x, z) : null, end }));
   }
   // THE OPENING'S VIEWS, LINKED UNDER THE LOADING SCREEN (the timed look, 20 Oct 03:45: drawn cold under the curtain, its
   // warm views linked 42 programs the boot had not - three blocks on each first draw: a 14 s task in black). A boot step of

@@ -82,7 +82,7 @@ const show = r => log('   ' + r.scene.padEnd(30) + (r.frames ? r.fps + ' fps, p5
   const srv = MB.serve(PORT); await sleep(800);
   const root = await MB.serveRoot(PORT);
   const R = { meta: { date: new Date().toISOString(), root, udd: UDD }, runs: [] };
-  const url = 'http://localhost:' + PORT + '/flyDiy/index.html?mode=career';
+  const url = 'http://localhost:' + PORT + '/flyDiy/index.html?mode=career' + (opt('q', null) ? '&' + opt('q') : '');   // --q: e.g. introend=high
   let b = null;
   const kill = () => { try { srv.kill(); if (process.platform === 'win32') require('child_process').execSync('taskkill /PID ' + srv.pid + ' /T /F', { stdio: 'ignore' }); } catch (e) {} };
   try {
