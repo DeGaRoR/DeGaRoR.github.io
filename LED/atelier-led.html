@@ -56,7 +56,7 @@ ol{margin:0;padding-left:20px}li{margin:4px 0}
 <details class="card" id="setup">
 <summary>⚙️ Montage <span class="sumnote" id="setupsum"></span></summary>
 <div class="grid">
-<label>Nombre de LEDs<input id="nleds" type="number" min="3" max="300" value="30"></label>
+<label>Nombre de LEDs<input id="nleds" type="number" min="3" max="300" value="10"></label>
 <label>Broche données LED<select id="pdata"></select></label>
 <label>Potar lumière<select id="ppot1"></select></label>
 <label>Bouton<select id="pbtn"></select></label>
@@ -427,7 +427,7 @@ const S=saved.cfg||{};
 
 function cfg(){
  const [chip,order]=$('ltype').value.split(',');
- return {N:Math.min(300,Math.max(3,parseInt($('nleds').value)||30)),data:+$('pdata').value,pot1:+$('ppot1').value,btn:+$('pbtn').value,chip,order,maxma:Math.min(10000,Math.max(100,parseInt($('maxma').value)||500))};
+ return {N:Math.min(300,Math.max(3,parseInt($('nleds').value)||10)),data:+$('pdata').value,pot1:+$('ppot1').value,btn:+$('pbtn').value,chip,order,maxma:Math.min(10000,Math.max(100,parseInt($('maxma').value)||500))};
 }
 
 function render(){
