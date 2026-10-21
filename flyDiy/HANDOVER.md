@@ -95705,3 +95705,10 @@ Strict light gate: 8 RED, none new by cause: over100 x4 = the pre-existing revea
     G2740's career too). Each New career lifts the shelf into its fleet; its starter is "Rufus 2", "Rufus 3", ... when "Rufus"
     is taken. Per-career shelves would be a separate chantier.
   - No "restore the old .prev" door (G2740's backlog item): a .prev from before stays in storage, unlisted.
+
+## A0 - landing L20d (20 Oct 2026, gates 22:00-23:05, pushed ~23:20): STORY-TIM ALONE
+The rolling set was reveal-hitch + story-tim (ready/torque-retune-66 reached origin after the 22:00 pick-up -> L21a, as the user asked).
+- The battery on the pair: UISMOKE and UISMOKE-PHONE RED, NEW, from reveal-hitch. app.js:11692 `REVEAL_PLANT_OFF = /.../.test(location.search)` reads `location` at the top level, which the gates' node vm has no global for. The other reds are master's known ones (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
+- The strict light gate on the pair: 7 RED. over100 x4 are UNCHANGED, so the gate rig still sees the reveal hitch with the pre-plant in. NEW: cub round trip 2 garage -> world worst task 490 ms (slack 150), likely the pre-plant's own cost on the world entry. Also metal fuseWidth busy (accepted) and floats world->garage 2.15 s (the known re-link).
+- So reveal-hitch is HELD back to HWCOV: guard `location`; bisect over100 with the gate's own sequence; measure the pre-plant's garage->world cost.
+- Landed: claude/ready/story-tim 3a800c4af ALONE (= master c7c163805 + STORY-TIM). That exact tree passed STORY / UISMOKE / UISMOKE-PHONE on the box at 17:03 (Game, fast lane), and is fresh-cooked here (parked cook for its build id). Tim's band, the paint-only T0 (EDITOR_LOCK.finishOnly), no bench in the small shed.
