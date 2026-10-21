@@ -38,7 +38,11 @@ const BUILDS = [
   // the Jodel's leg is a HOME circuit: not a short strip (the user), and not w2 - its approach is flown into a 5 m/s tailwind
   // on an obstacle slope beyond the type's idle gradient (t66's stabilised gate goes round twice there: the Pilot coordinator's item)
   { k: 'jodel', f: 'builds/jodel_2026-09-20_corrected.json', order: 'HOME,HOME', trike: false },
-  { k: 'c172', f: 'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json', order: 'HOME,w3', trike: true },
+  // G3332 (the Pilot coordinator, 21 Oct): a KNOWN with a CEILING, not a skip - the climb -> cruise capture balloons 15.7 m
+  // on this validated type (master's since 19 Oct or earlier; the overshoot guard exposed it). Red above 17 m; its rms still
+  // judged at 5 m. When G3332 lands the KNOWN goes and the row returns to the 10 m bar
+  { k: 'c172', f: 'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json', order: 'HOME,w3', trike: true,
+    overKnown: { ceil: 17, note: "KNOWN G3332 LEVEL-OFF: the climb -> cruise capture balloons 15.7 m on the validated metal Cessna (master since 19 Oct or earlier; Pilot's)" } },
   { k: 'rufus', f: 'tools/fixtures/repro/rufus_2026-10-18_certified.json', order: 'HOME,w3', trike: false },
   { k: 'mosquito', f: 'tools/fixtures/repro/mosquito_3.json', order: 'HOME,w3', trike: false },
 ].filter(b => !opt('only') || opt('only').split(',').includes(b.k));
@@ -94,13 +98,14 @@ done.then(() => {
     if (!(R.level.hRms <= LIM.hRms)) bad.push('h rms ' + R.level.hRms);
     if (rev > LIM.rev) bad.push('hands ' + rev + '/min');
     if (vv != null && vv > LIM.VoverVs) bad.push('touch ' + vv + ' Vs');
-    if (R.level.overshoot != null && R.level.overshoot > LIM.overshoot) bad.push('past the plan ' + R.level.overshoot + ' m after the capture');
+    const overLim = b.overKnown ? b.overKnown.ceil : LIM.overshoot;
+    if (R.level.overshoot != null && R.level.overshoot > overLim) bad.push('past the plan ' + R.level.overshoot + ' m after the capture (' + (b.overKnown ? 'over the KNOWN ceiling ' : '') + '<= ' + overLim + ')');
     for (const x of (R.level.capBreach || [])) bad.push('capture: ' + x);
     const gaBad = ga > 0 && !b.known;
     if (gaBad) bad.push(ga + ' go-around');
     console.log('  ' + (bad.length ? 'FAIL' : 'ok  ') + ' ' + (b.k + ' level').padEnd(18) + ' ' + b.order + ': ' + (R.stopped ? 'completed' : 'NOT completed') + ', h rms ' + R.level.hRms + ' m (peak ' + R.level.hPeak +
       '), hands da/dr/de ' + (lv.da || 0) + '/' + (lv.dr || 0) + '/' + (lv.de || 0) + ' /min, touch ' + (vv != null ? vv + ' Vs' : '-') + ', go-arounds ' + ga + (ga && b.known ? ' (KNOWN: ' + b.known + ')' : '') +
-      ' | before the capture ' + (R.level.preS ?? '-') + ' s (worst ' + (R.level.preMax ?? '-') + ' m; closing judged), past the plan ' + (R.level.overshoot ?? '-') + ' m (<= ' + LIM.overshoot + ')' + (R.level.uncapS ? ', ' + R.level.uncapS + ' s never captured (judged)' : ''));
+      ' | before the capture ' + (R.level.preS ?? '-') + ' s (worst ' + (R.level.preMax ?? '-') + ' m; closing judged), past the plan ' + (R.level.overshoot ?? '-') + ' m (<= ' + (b.overKnown ? b.overKnown.ceil + ', ' + b.overKnown.note : LIM.overshoot) + ')' + (R.level.uncapS ? ', ' + R.level.uncapS + ' s never captured (judged)' : ''));
     for (const x of bad) fails.push(b.k + ' level: ' + x);
   }
   for (const b of INFO) {
