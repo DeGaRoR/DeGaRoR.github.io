@@ -245,8 +245,8 @@ function careerW3(W, sim, def, check, secs, overflew) {
   // G2740 (CAREER-ON): the career is ?career=1 (the dev career, flydiy.career.dev) OR the welcome's choice (FLYDIY_MODE
   // 'career': the player's career, flydiy.career.main) - CAREER_DEV is either; the sandbox keeps flydiy.player
   check(/if \(CAREER_DEV && d\.career\) \{ const c = careerStopApply\(d, how, W, wrecked\);/.test(app) &&
-        /const CAREER_ID = CAREER_DEVFLAG \? 'dev' : 'main';/.test(app) && /const PLAYER_KEY = CAREER_DEV \? careerKey\(CAREER_ID\) : 'flydiy\.player';/.test(app),
-        tag + 'the page reaches careerOnStop only in the career (app.js playerFlightEnd, CAREER_DEV: ?career=1 -> flydiy.career.dev, the welcome career -> flydiy.career.main); the sandbox keeps flydiy.player');
+        /const CAREER_ID = CAREER_DEVFLAG \? 'dev' : CAREER_PICK;/.test(app) && /const PLAYER_KEY = CAREER_DEV \? careerKey\(CAREER_ID\) : 'flydiy\.player';/.test(app),
+        tag + 'the page reaches careerOnStop only in the career (app.js playerFlightEnd, CAREER_DEV: ?career=1 -> flydiy.career.dev, the welcome career -> flydiy.career.<its id>, G3360); the sandbox keeps flydiy.player');
   check(/const cz = \(CAREER_DEV && d\.career && wrecked\) \? careerCrashReset\(d, flSlot, fromAero\) : null;/.test(app) && /wrecked, structural: careerStructural\(\), slot: flSlot,/.test(app)
         && /const D = sim\.damage \? sim\.damage\(\) : null;\n\s*const S = \(D && D\.structural\)/.test(app),
         tag + 'G2705: a crash in the career resets to the departure (careerCrashReset, career only); the stop record reads Deform\'s structural off sim.damage() itself');

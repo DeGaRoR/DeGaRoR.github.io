@@ -155,6 +155,8 @@ function careerNormalise(r) {
   if (!c.market || typeof c.market !== 'object') c.market = def.market;
   // G2290 (PILOTS): the roster's rows (76_pilots.js pilotsBlock: unknown ids dropped, a hired pilot always has a row)
   if (typeof pilotsBlock === 'function') pilotsBlock(d);
+  // G3260 (ROUTES): the routes kept well-formed, the fleet's and the pilots' route marks agreeing with them (78b_routes.js)
+  if (typeof routesBlock === 'function') routesBlock(d);
   return d;
 }
 

@@ -96919,6 +96919,27 @@ Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECO
 Strict light gate: 5 RED, none new: over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV, fix in progress); metal fuseWidth busy = the cost the user accepted by name (15 Oct).
 Known, owned, not blocking: G3027 (a Chinook-alike archetype rejects its takeoff with damage on; non-validated; Deform).
 
+## G3350-G3359 - STORY-TIM: TIM'S BAND AT THE BOTTOM, THE PAINT-ONLY T0 (THE EDITOR'S STORY LOCK), THE BENCH NEVER IN THE SMALL SHED (2026-10-20, the GAME COORDINATOR in the fast lane; GAME-PLAN §R2; branch claude/story-tim off origin/master da1c8c75a)
+- **Tim** (79_story.js STORY_TIM, draft English keyed by beat, for the narrative pack to rewrite). He speaks each beat in
+  **#stTim**, a band at the bottom of the screen (transparent ground, never centred).
+  - It shows a PLACEHOLDER silhouette portrait (inline SVG: no image, no real person), "Tim · your friend and business
+    partner", and one line at a time (Next n/m, then OK). It shows again on each new beat.
+  - In flight it steps aside once the player takes manual control (FLYDIY_AP.manual(), Pilot's AP-TOGGLE G3325).
+  - The corner card (#stCard) stays the OBJECTIVE.
+  - T0's lines: dust it off; paint, liveries, a registration, the structure for later; click once, twice or three
+    times to the top of the tree for the global colour, liveries and per-piece colour; pre-certified, no bench in this
+    shed. T1's: join me at the WWII airport; the autopilot line.
+- **The structure lock is a STORY STAGE** (editor.js `window.EDITOR_LOCK.finishOnly(reason)`). While the story's mask
+  is 'finish' (T0), the editor holds the FINISH view: Shape and Design are disabled, with the reason written under the
+  tabs. It lifts with the mask. app.js storyMaskNote hands it over; TECH-MASK, when it lands, can take over.
+- **The bench never stands in the small shed** (a property of the SHED: `sheds[here].story`). `storyBenchRule` hides
+  #tabBench there at every beat, says "no bench in this shed", and closes the bench pane if it was open.
+- **OWED (RUFUS-CERT):** the certified Rufus file's plaque is still "withdrawn: run the bench in the game". Rufus rolls
+  out regardless (the roll-out is never locked), but for "pre-certified" to READ true, one in-game bench run must stamp
+  its plaque and the file must be re-committed. A certificate is never faked.
+- GATE STORY rows: Tim has every beat's lines; T0 / T1's content; the editor lock (source); the bench rule; Tim's
+  band steps aside on manual.
+
 ## G2799 - GATE JOINPARITY GREEN AGAIN: THE CENSUS'S DOORS AND THE PAGE RE-CAPTURED (2026-10-20, EDITOR-UX-A for A0; claude/joinparity)
 
 JOINPARITY was red on master cbe3f9972, 7 rows.
@@ -96947,3 +96968,152 @@ door (or load through tools/_load_build.js), or check 5 goes red again.
 Cargo (rolling): joinparity (G2799: the editor's join parity, the page re-captured by join_parity_page.js). HANDOVER conflict unioned.
 Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
 Strict light gate: 8 RED, none new by cause: over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV; its fix is checked Tue 19:30 for L20d); metal chase tasks1s / taskWorst = the ~1 s boot/settle tasks (+-0.5 s run to run); floats world->garage 2.1 s = the pre-existing program re-link; metal fuseWidth busy = the cost the user accepted by name (15 Oct).
+
+## G3260-G3269 - ROUTES: A PLANE + A HIRED PILOT + AN A <-> B SCHEDULE - THE DOWN PAYMENT ON SIGNING, THE ROUND TRIPS PAID ON THE SIM CLOCK, THE PLANE AND THE PILOT LOCKED UNTIL THE ROUTE ENDS; STORY'S T6 SIGNS A REAL ROUTE (2026-10-20, ROUTES for the GAME COORDINATOR, cloud - node + headless only; branch claude/routes off origin/master c7c16380 = L20c + claude/ready/story-tim 3a800c4a (for Tim's band); the work: 13b67ef6)
+- **Why story-tim is in it:** the brief puts the down payment in Tim's band, and the band lives on claude/ready/story-tim
+  (ready, not on master yet). Its merge base is L20c, so the merge was a fast-forward. Landing ROUTES lands STORY-TIM too.
+- **src/core/78b_routes.js** (pure, career-lazy: MANIFEST.core before 79_story + MANIFEST.career; GATE LAZY now counts
+  ELEVEN modules; exported in 90_).
+  - `career.routes: [route]`. A route is `{ id, plane, pilot, a, b, home, signedAt, trips, settled, km, cruiseKmh, tripS,
+    pay, down, earned, ended? }`. The instants are career seconds (`dayAbs(careerDay)`). A career that never signs a
+    route gets no `routes` key, so its save is byte for byte the same. CAREER_V is unchanged.
+  - **routeOffer(doc, a, b, plane, o)** returns the terms and leaves the document untouched.
+    - It is scaled by distance and by the plane's numbers: `o.design` (the page's shakedown row, careerCerts), else a
+      validated design (the airframe's `design`; the story's client / gift = the Cub).
+    - Unknown numbers are refused, never guessed. `o.gear` refuses a water end on wheels and a land end on floats.
+  - **The terms (ROUTES_PAY, a starting hypothesis for §12's economy sim):**
+    - per round trip: `round10(2 x km x 100 x (1 + payload / 150))`, where payload = (seats - 1) x 80 kg + baggage;
+    - the down payment: 8 round trips' pay;
+    - a round trip: 2 x km / cruise + a 1800 s turnaround.
+    - So a bigger plane earns more a trip and a faster one more trips: the route rewards the design.
+    - The story Cub on SEA <-> HOME (3.9 km): 1 260 a round trip, a 10 080 down payment, 34 min a round trip.
+  - **routeSign(doc, offer, plane, pilot)**:
+    - the down payment goes in as income (ledger `route`, a negative amount, like the grant);
+    - the fleet row becomes `kind: 'route'` (no hangar, no slot; `route`, `a` and `b` on the row);
+    - the pilot's row gets `route` (and `plane`).
+    - The plane must stand at one of the two ends. The pilot must be hired and free.
+  - **routeSettle(doc, now)**: the round trips completed since the signing (`floor((now - signedAt) / tripS)`), minus the
+    ones already paid, are paid now (ledger `routePay`). No sim time means no pay, and an instant at or before the last
+    settle pays nothing. It is cumulative, so time that passed without a settle is paid at the next one.
+  - **routeEnd(doc, id)**:
+    - it settles first (the trips already flown are paid);
+    - the plane goes back to `home` through playerArrive: inside a hangar of yours with room, else the apron, else long-term.
+      `home` is the end where you hold a hangar, b first, else b;
+    - the pilot is freed;
+    - the ledger line is 0 (no penalty).
+  - **routesBlock** (called by careerNormalise) ends a route whose plane left the fleet, unlocks a stray route row (then
+    re-settles), and clears stale pilot marks.
+  - **routePos / routesMapOf** give the map where each plane is on its line: a->b, the turn at b, b->a, the turn at a.
+- **The lock (71_player_bases.js)**: playerStoreWhere / playerWhere have a sixth kind, `'route'`, and playerStoreSettle
+  keeps it (a fixpoint).
+  - These refuse a plane on a route with "end the route first (free, no penalty)": playerMove, playerSendTo /
+    bring-home, playerArrive, playerStore, playerFlyStart. playerFloorSync leaves it alone.
+  - playerStoreView gains `routes`: the planes on a route with an end at that field. It is `[]` in the sandbox.
+- **The pilot (76_pilots.js, `pilotsOnRoute`)**: a pilot on a route can't be fired, picked, boated home or flown
+  (pilotsCanFly kind 'route'). pilotsPicked skips them. pilotsOnFlightEnd never unbinds them. pilotsCard carries `route`.
+- **STORY's T6 (79_story.js storyApply 'routeOffer')**: no stub any more.
+  - It calls routeOffer + routeSign with the gift Cub, storySite('water') <-> storySite('home'), and the companion
+    (else the first free hired pilot).
+  - The story records `offers: [{ k: 'route', signed: true, route, down, pay, tripS, pilot }]`.
+  - With no free pilot, nothing is signed: the offer is kept with `signed: false` and the reason.
+  - The line goes on the arrival card and the beat card: "Route signed: … The down payment, 10 080, is in the wallet…".
+  - Tim's band at T7 (`storyTimLines('T7', doc)`) opens with the route and its down payment.
+  - The page's storyEffects now ADDS the effects' lines instead of keeping the last one. T6's route and T7's occasions
+    both reach the card.
+- **The page (app.js; only under CAREER_DEV; the routes' half sits in the career half, before the story's)**:
+  - **At each landing**: playerFlightEnd settles the routes after the landing's careerDaySet and before careerStopApply,
+    so the wallet line's total includes the route pay. The route's line goes first on the arrival card.
+  - **At each wait**: the clock's `flydiy:dayjump` with `why` wait:* / fullmoon settles, and the wallet line says
+    "routes +N". The 30 s save does NOT settle: no idle exploit in flight.
+  - **The stand**: a plane on a route is taken off the stand in the garage (the story's starter, else a free plane at
+    that base) and never rolls out (rollOut's guard, with the reason on the wallet line). "The cub disappears and you're
+    back with only the ultralight."
+  - **The storage doors**: FLYDIY_STORE gets routeTargets / routeAsk / routeSign / routeEnd / routeOf, published only
+    under CAREER_DEV. FLYDIY_CAREER.routes holds list / settle / sign / end for a console or a rig.
+  - **The map**: careerRecord carries `routes`, each placed at the world's instant.
+- **storage_ui.js**:
+  - "route…" on a card (career doors only) opens the confirmation in the garage's look: the destination (every field its
+    gear can use, nearest first), the pilot, the terms in words, and Sign.
+  - A new **ON A ROUTE** block lists the planes "on route A – B", who flies them, the trips paid and the pay. Each has an
+    End route button and is not draggable or flyable.
+  - The look: --ed-* tokens, Plex Sans upright, nothing hover-only.
+- **map_menu.js**: mapAdapt carries `routes`.
+  - Overlay step 3b draws a solid line between the two ends, with the plane (`.mmRtPlane`) on it where it is now.
+  - The contracts view no longer draws a route plane under its field.
+  - The fleet row says "flying the route A – B (end it in Storage)".
+  - A route's pilot reads "flying the route with <plane>" and has no Flies-next / Fire / boat buttons.
+- **GATE ROUTES** (tools/_routes_check.js, registered in run_gates; verdict `GATE ROUTES: PASS`, + `--selftest`, 4 breaks
+  all caught). It checks:
+  - sign / settle / end on clones;
+  - the hand-computed case: 5 km, 100 km/h, 2 seats, 10 kg -> 1 600 a trip, 12 800 down, 2 160 s;
+  - no pay without sim time;
+  - the lock across all the doors, and the pilot's;
+  - the save round trip and the normaliser's repairs;
+  - the sandbox, byte for byte;
+  - the source guards;
+  - the map drawing;
+  - STORY's T6 in the core and through app.js's own story half run headless (the arrival card's line).
+- **Gates (20 Oct, run_gates once, on the final source; node + headless only)**:
+  - PASS: ROUTES, STORY, UISMOKE, UISMOKE-PHONE, PLAYER, SAVE, STORAGE, ECON.
+  - **PILOTS FAIL: pre-existing.** origin/master c7c16380 fails the same 3 source-regex rows (checked in a clean
+    worktree): "the persona keeper…", "the route row…", "the plate's persona pills…". These come from G3324 / G2746's
+    persona lines in app.js, and no PILOTS row of this change is red. That gate's owner should re-pin those regexes.
+  - LAZY was not run (a long gate). Its count was updated to 11.
+- **Not done / for the user**:
+  - The Cub is not drawn standing at the dock in the world: the map shows it on its line. FLEET_STAND draws only
+    'outside' rows.
+  - The numbers in ROUTES_PAY are a hypothesis. Waits pay (the brief says so): a 12 h wait on the story Cub's route earns
+    ~26 000. Tune perKm / downTrips there if that is too rich.
+
+## G3360-G3369 - CAREERS: SEVERAL CAREERS, EACH ITS OWN DOCUMENT; THE INDEX flydiy.careers; CONTINUE = THE LAST PLAYED, NEW CAREER = A NEW ID (NEVER OVER ONE), CAREERS... = THE LIST (CONTINUE / RENAME / DELETE, CONFIRMED IN THE MENU); EVERY PLAYER CAREER ITS OWN STORY (2026-10-20, the GAME COORDINATOR; cloud - node + the gates' vms, no browser; branch claude/careers off origin/master c7c16380; work @ 2024aaaa; G3361-G3369 unused)
+
+- **The index** (welcome.js, read before the core loads): `flydiy.careers = { ids: [...], last: id }`.
+  - Each career is its own document `flydiy.career.<id>`. A new id is `'c' + base36 time` (bumped past any id in use).
+  - **'main' is migrated in place** as the first entry: its key is kept, so no save moves. 'dev' (?career=1) is never listed.
+  - A document that does not parse (or is no career) is **skipped**, kept on its key, never a crash. An id whose document
+    never came (a New career closed before app.js wrote it) leaves the index.
+  - The pure half is `WELCOME.careers` (read / list / last / row / create / pick / rename / remove) for the gates and the console.
+- **The menu** (welcome.js; the garage's look: the menu now reads the `--ed-*` tokens - editor.css's one token root names
+  `#welcome` - IBM Plex Sans upright, no serif, no italics; rows min 56 px; nothing hover-only):
+  - **Continue** = the last played: its name and a line (`the story · n of 8`, `the story done`, else `started <date>`).
+  - **New career** = a NEW id beside the others, named "your career", "your career 2", ... It never overwrites one:
+    **G2740's fresh flag and `.prev` backup retire** (a stale `flydiy.career.fresh` is cleared; an existing
+    `flydiy.career.main.prev` stays on its key, unlisted).
+  - **Careers...** (once there is one) = the list. Each row: Continue, Rename (an inline field: Enter / Save keeps it, Escape /
+    Cancel leaves it; empty refused; 40 chars), Delete (asked inside the row - "Delete "x"? Its contracts, money and fleet go
+    for good. The saved builds stay." - then the document and its index entry go; the last moves to the newest left). Back = the menu.
+  - `?mode=career` (no menu) plays the last career, or a new one when there is none.
+- **The page** (app.js): `window.FLYDIY_CAREER_ID` (+ `FLYDIY_CAREER_NAME` for a new one) is written by welcome.js alone
+  before app.js runs, like FLYDIY_MODE. `CAREER_ID` = that id (`/^(main|c[0-9a-z]{1,16})$/`, else 'main' as G2740);
+  ?career=1 stays 'dev'. `STORY_PAGE = CAREER_DEV && CAREER_ID !== 'dev'`: every New career gets its own story (storyNewCareer,
+  the cabin start, Tim on STORY-TIM, the opening once on STORY-INTRO - both arm on a born career, so nothing more is needed
+  there). world_boot.js stands the chosen career's stage tracks (a new one: every track 0).
+- **GATES** (20 Oct, `node tools/run_gates.js --only=GFX,UISMOKE,UISMOKE-PHONE,PLAYER,SAVE,STORY,CONTRACTS`): UISMOKE PASS (218.6 s), UISMOKE-PHONE PASS, GFX PASS, SAVE PASS, PLAYER PASS (+ --selftest PASS), CONTRACTS PASS, STORY PASS (+ --selftest PASS); BATTERY: PASS.
+  - GFX: the welcome's rows - no career, New career (a new id, listed, the last), 'main' migrated in place, New over a saved one
+    (a NEW id, "your career 2", the old one byte for byte), Continue = the last with its story step, the list (broken skipped,
+    dev never, a missing id gone), rename (inline, Escape, empty refused, the rest of the document untouched), delete (asked,
+    "Keep it", confirmed), the list's Continue, back, ?mode=career, ids never shared, the --ed look, FLYDIY_CAREER_ID's one writer.
+  - UISMOKE / UISMOKE-PHONE: the flag table (?mode=career chooses a career id, ?career=1 none) and the app.js scans (CAREER_PICK /
+    CAREER_ID / STORY_PAGE; the fresh flag and .prev gone).
+  - PLAYER: a career under a new id round-trips (id, name, key); a renamed one loads with its name, nothing else moved.
+  - STORY: the page's own key reading run in a vm (a 'c' id is its key and carries the story; dev none; no id = main); a second
+    career gets its own story (its own start and starter slot, T0 while the first is at T1); the welcome's "n of 8" = STORY_BEATS.
+    Also ported STORY-TIM's look-row fix (`:is(... #stCard ...)`; it was red on master since DROP-JSON's #gDrop) - the same line.
+  - DESTTO: its app.js regex updated to `CAREER_ID = CAREER_DEVFLAG ? 'dev' : CAREER_PICK` (checked by evaluating the regex on
+    app.js; the gate itself is long and was not run, per the user's process).
+- **For the landing (A0):**
+  - editor.css's token root line: STORY-TIM adds `#stTim`, this adds `#welcome` on the SAME line - the merge is both
+    (`..., #gDrop, #stTim, #welcome)`). `_story_check.js`'s look row is the same change on both branches.
+  - No generated file committed (index.html, dev.html, tools/flight_core.js, sw.js, version.json).
+- **Open / notes:**
+  - The saved builds (`flydiy.build.*`) are ONE shelf shared by every career (as before: the sandbox's builds were lifted into
+    G2740's career too). Each New career lifts the shelf into its fleet; its starter is "Rufus 2", "Rufus 3", ... when "Rufus"
+    is taken. Per-career shelves would be a separate chantier.
+  - No "restore the old .prev" door (G2740's backlog item): a .prev from before stays in storage, unlisted.
+
+## A0 - landing L20d (20 Oct 2026, gates 22:00-23:05, pushed ~23:20): STORY-TIM ALONE
+The rolling set was reveal-hitch + story-tim (ready/torque-retune-66 reached origin after the 22:00 pick-up -> L21a, as the user asked).
+- The battery on the pair: UISMOKE and UISMOKE-PHONE RED, NEW, from reveal-hitch. app.js:11692 `REVEAL_PLANT_OFF = /.../.test(location.search)` reads `location` at the top level, which the gates' node vm has no global for. The other reds are master's known ones (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
+- The strict light gate on the pair: 7 RED. over100 x4 are UNCHANGED, so the gate rig still sees the reveal hitch with the pre-plant in. NEW: cub round trip 2 garage -> world worst task 490 ms (slack 150), likely the pre-plant's own cost on the world entry. Also metal fuseWidth busy (accepted) and floats world->garage 2.15 s (the known re-link).
+- So reveal-hitch is HELD back to HWCOV: guard `location`; bisect over100 with the gate's own sequence; measure the pre-plant's garage->world cost.
+- Landed: claude/ready/story-tim 3a800c4af ALONE (= master c7c163805 + STORY-TIM). That exact tree passed STORY / UISMOKE / UISMOKE-PHONE on the box at 17:03 (Game, fast lane), and is fresh-cooked here (parked cook for its build id). Tim's band, the paint-only T0 (EDITOR_LOCK.finishOnly), no bench in the small shed.

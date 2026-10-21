@@ -30,8 +30,10 @@
    block - one look, the garage's, and still one place a token is declared.
    G2690 (HANGAR-STORAGE): the storage panel (#hsStore, storage_ui.js, body-level like the map) reads it too.
    G2742 (STORY-PAGE): and the story's beat card (#stCard, app.js, body-level, the career's only).
-   G2799 (DROP-JSON): and the garage's 'drop to import' overlay (#gDrop, garage.js, body-level). */
-:is(#wsUI, #edView, #mapScreen, #hsStore, #stCard, #gDrop) {
+   G2799 (DROP-JSON): and the garage's 'drop to import' overlay (#gDrop, garage.js, body-level).
+   G3350 (STORY-TIM): and Tim's band (#stTim, app.js, body-level).
+   G3360 (CAREERS): and the welcome's menu (#welcome, welcome.js, body-level: Continue / New career / the careers list). */
+:is(#wsUI, #edView, #mapScreen, #hsStore, #stCard, #gDrop, #stTim, #welcome) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
   --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
@@ -1827,3 +1829,22 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   color:var(--ed-acc-ink); font:600 12px/1 'IBM Plex Sans', sans-serif; letter-spacing:.06em; cursor:pointer; }
 #stCard.min .stBody { display:none; }
 :root.phone #stCard .stOk { min-height:48px; }
+
+/* G3350 (STORY-TIM): Tim's band at the bottom (never centred, never over the middle) and the editor's story lock */
+#stTim { position: fixed; left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); max-width: 720px;
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; z-index: 40;
+  background: var(--ed-plate); color: var(--ed-ink);
+  border: 1px solid var(--ed-border); border-radius: 10px;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif; font-style: normal; font-size: 14px; line-height: 1.4; }
+#stTim[hidden] { display: none; }
+#stTim .stTimFace { width: 48px; height: 48px; flex: none; }
+#stTim .stTimFace circle:first-child { fill: var(--ed-btn-bg, #2a2d31); stroke: var(--ed-acc, #d9a441); stroke-width: 1.5; }
+#stTim .stTimFace .h { fill: var(--ed-dim, #8a8d91); }
+#stTim .stTimTxt { flex: 1; min-width: 0; }
+#stTim .stTimTxt small { color: var(--ed-dim, #8a8d91); }
+#stTim .stTimTxt p { margin: 2px 0 0; }
+#stTim .stTimBtn { flex: none; min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--ed-acc, #d9a441);
+  background: var(--ed-acc-soft, rgba(217,164,65,.15)); color: inherit; font: inherit; cursor: pointer; }
+.edTab.locked { opacity: .45; cursor: not-allowed; }
+#edLockNote { font-size: 12px; color: var(--ed-dim, #8a8d91); padding: 2px 8px 6px; }
+#stNoBench { font-size: 12px; color: var(--ed-dim, #8a8d91); margin-left: 8px; }

@@ -147,12 +147,17 @@
     const story = raw.story && raw.story.title ? { title: String(raw.story.title), brief: raw.story.brief || '', held: raw.story.held || '',
       at: typeof raw.story.at === 'string' ? raw.story.at : null,
       step: raw.story.step || null, of: raw.story.of || null, rows: (raw.story.rows || []).map(r => ({ words: String(r.words), ok: !!r.ok })) } : null;
-    return { providers, prov, contracts, career, fleet, voucher, pilots, story, aeros, places, placeOf, hotspots: (pack && pack.hotspots) || [], pois: (pack && pack.pois) || [], source: raw.source || 'fixture' };
+    // G3260 (ROUTES): the routes your planes fly (78b_routes.js routesMapOf, app.js careerRecord): the two ends, the plane
+    // where it is on the line now (f: 0 at a, 1 at b), its pilot
+    const routes = (raw.routes || []).filter(r => r && aeros[r.a] && aeros[r.b]).map(r => ({ id: String(r.id), plane: String(r.plane), pilot: r.pilot || null,
+      pilotName: r.pilotName || r.pilot || '', a: r.a, b: r.b, f: Math.max(0, Math.min(1, +r.f || 0)), leg: r.leg || 'out', trips: r.trips | 0, pay: +r.pay || 0 }));
+    return { providers, prov, contracts, career, fleet, voucher, pilots, story, routes, aeros, places, placeOf, hotspots: (pack && pack.hotspots) || [], pois: (pack && pack.pois) || [], source: raw.source || 'fixture' };
   }
   // 71_player_bases.js playerWhere's three kinds, read off the v2 document (the same rule; that file is the core's)
   function whereOf(doc, n) {
     const e = doc.fleet[n];
     if (!e) return { kind: 'none', aero: null, hangar: null };
+    if (e.kind === 'route') return { kind: 'route', hangar: null, aero: e.aero || null, a: e.a || null, b: e.b || null };   // (G3260: on a route)
     if (e.hangar && doc.sheds && doc.sheds[e.hangar]) return { kind: 'in', hangar: e.hangar, aero: doc.sheds[e.hangar].base };
     const aero = e.aero || null, held = aero && doc.sheds && Object.keys(doc.sheds).some(k => doc.sheds[k] && doc.sheds[k].base === aero);
     return { kind: held ? 'out' : 'away', hangar: null, aero };
@@ -497,6 +502,7 @@
   // ---- FLEET: your aeroplanes where they stand (71_player_bases.js playerWhere's kinds) ------------------------------
   function whereWord(M, w) {
     if (!w || w.kind === 'none') return 'nowhere yet';
+    if (w.kind === 'route') return 'flying the route ' + aeroName(M, w.a) + ' – ' + aeroName(M, w.b) + ' (end it in Storage)';
     if (w.kind === 'in') return 'in the ' + w.hangar + ' hangar' + (w.aero && w.aero !== w.hangar ? ' at ' + aeroName(M, w.aero) : '');
     return (w.kind === 'out' ? 'tied down at ' : 'away at ') + aeroName(M, w.aero);
   }
@@ -516,7 +522,8 @@
   // ---- PILOTS (G2290; GAME-2026-10-06.md §9): your pilots, then the 2-3 looking for work. Every word comes off the
   // record (76_pilots.js pilotsCard); nothing here decides - the career does (FLYDIY_CAREER.pilots.act) --------------
   const PILOT_COLOUR = '#8fb5d6';
-  const pilotWhere = (M, p) => p.hired ? (p.at ? 'at ' + (p.atName || aeroName(M, p.at)) + (p.plane ? ', with ' + p.plane : '') : 'not placed yet') : 'looking for work';
+  const pilotWhere = (M, p) => p.hired ? (p.route ? 'flying the route with ' + (p.plane || 'a plane') :
+    p.at ? 'at ' + (p.atName || aeroName(M, p.at)) + (p.plane ? ', with ' + p.plane : '') : 'not placed yet') : 'looking for work';
   const pilotsLive = M => !!(M.source === 'career' && W && W.FLYDIY_CAREER && W.FLYDIY_CAREER.pilots);
   const pilotRows = (M, st) => (M.pilots || []).filter(p => !st.at || (p.hired && placeOfAero(M, p.at) === st.at));
   // the paragraph: the line, how they fly, the traits, where they are; then at most two buttons - Hire; or Flies next
@@ -526,6 +533,7 @@
     const live = pilotsLive(M), b = [];
     const btn = (what, word, sec) => actHTML(word, 'data-act="pilot" data-pa="' + what + '" data-pid="' + esc(p.id) + '"', sec, !live);
     if (!p.hired) b.push(btn('hire', 'Hire · ' + fmt(p.signOn)));
+    else if (p.route) { /* (G3260) on a route: they fly it alone until it ends */ }
     else {
       if (!p.picked) b.push(btn('pick', 'Flies next'));
       else if (p.at && p.at !== 'HOME') b.push(btn('boat', 'Takes the boat home'));
@@ -671,7 +679,7 @@
     const s = view.s, zr = s / view.fit, mpp = pack.mpp, near = s / mpp;   // screen px per metre
     const X = x => view.tx + ((x - pack.x0) / mpp) * s, Y = z => view.ty + ((z - pack.z0) / mpp) * s;
     const bs = Math.round(clamp(10 + 9 * zr, 16, 34)), hs = Math.round(clamp(6 + 7 * zr, 14, 26));
-    const n = { badges: 0, names: 0, facts: 0, pois: 0, hot: 0, rings: 0, counts: 0, runways: 0, desig: 0, routes: 0, planes: 0, marks: 0, labels: 0, held: 0, dim: 0 };   // marks (G2440), labels / held (G2435), dim (G2710)
+    const n = { badges: 0, names: 0, facts: 0, pois: 0, hot: 0, rings: 0, counts: 0, runways: 0, desig: 0, routes: 0, planes: 0, marks: 0, labels: 0, held: 0, dim: 0, rlines: 0, rplanes: 0 };   // marks (G2440), labels / held (G2435), dim (G2710), rlines / rplanes (G3260)
     const contractsOn = listOf(st) === 'contracts';   // (G2440) the other lists keep the tracked contract, not an open one
     let html = '', svg = '';
     // the open and the tracked contracts' places -> their type colour (the badge takes a ring)
@@ -744,6 +752,15 @@
         n.routes++;
       }
     }
+    // 3b. (G3260 ROUTES) the routes your planes fly: a solid line between the two ends, the plane on it where it is now
+    for (const r of M.routes || []) {
+      const a = M.aeros[r.a], b = M.aeros[r.b];
+      svg += '<line class="mmRtLine" x1="' + n1(X(a.x)) + '" y1="' + n1(Y(a.z)) + '" x2="' + n1(X(b.x)) + '" y2="' + n1(Y(b.z)) + '" stroke="#1f5f7a" stroke-width="3" stroke-linecap="round" opacity=".85"/>';
+      const px = X(a.x + (b.x - a.x) * r.f), py = Y(a.z + (b.z - a.z) * r.f);
+      boxes.push([px - 13, py - 11, px + 13, py + 11]);
+      html += '<span class="mmRtPlane" style="left:' + n1(px) + 'px;top:' + n1(py) + 'px" role="img" aria-label="' + esc(r.plane + ' on its route ' + baseName(a.name) + ' – ' + baseName(b.name) + ', flown by ' + r.pilotName) + '">✈</span>';
+      n.rlines++; n.rplanes++;
+    }
     // 4. the places of interest (mid zoom)
     // (a place of interest beside a site's badge - the lodge at the altiport, the town at its float - stands below it)
     // (G2435: a place of interest the infrastructure names - the town, the cannery - is named once, by its label below)
@@ -781,7 +798,8 @@
     }
     // 6. your planes, where they stand (the contracts list); the other lists draw their own markers instead (7.)
     const fan = {};
-    if (contractsOn) for (const f of M.fleet) { const a = M.aeros[f.where && f.where.aero], pid = a && M.placeOf[a.id]; if (!pid || !at[pid]) continue; const k = fan[pid] = (fan[pid] || 0) + 1;
+    if (contractsOn) for (const f of M.fleet) { if (f.where && f.where.kind === 'route') continue;   // (G3260: drawn on its route, 3b)
+      const a = M.aeros[f.where && f.where.aero], pid = a && M.placeOf[a.id]; if (!pid || !at[pid]) continue; const k = fan[pid] = (fan[pid] || 0) + 1;
       const px = at[pid][0] + (k - 1) * 24 - 12, py = at[pid][1] + bs / 2 + 14; boxes.push([px - 13, py - 11, px + 13, py + 11]);
       html += '<span class="mmPlane" style="left:' + n1(px) + 'px;top:' + n1(py) + 'px" role="img" aria-label="' + esc('your ' + f.name + ', at ' + a.name) + '">✈</span>'; n.planes++; }
     // 7. (G2440) THE LIST'S MARKERS - the places' badge style, sized to the zoom, under their place's badge side by side;
@@ -1121,6 +1139,7 @@
 #mapScreen .mmHotN.l{transform:translate(calc(-100% - var(--hs,22px) / 2 - 4px),-50%)}
 #mapScreen .mmHotN.b{transform:translate(-50%,calc(var(--hs,22px) / 2 + 2px))}
 #mapScreen .mmZone{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:1.5px dashed rgba(232,243,223,.7);pointer-events:none}
+#mapScreen .mmRtPlane{position:absolute;transform:translate(-50%,-50%);font-size:14px;line-height:20px;padding:0 4px;border-radius:5px;background:#1f5f7a;color:#f4efe6;border:1px solid #0e2f3d;pointer-events:none}
 #mapScreen .mmPlane{position:absolute;transform:translate(-50%,-50%);font-size:14px;line-height:20px;padding:0 4px;border-radius:5px;background:var(--ed-acc);color:var(--ed-acc-ink);border:1px solid var(--ed-acc-ink);pointer-events:none}
 #mapScreen .mmCtl{position:absolute;right:14px;bottom:14px;display:grid;gap:8px}
 #mapScreen .mmCtl button{font:500 18px/1 'IBM Plex Sans';color:var(--ed-ink);background:var(--ed-plate);border:1px solid var(--ed-border);border-radius:8px;min-width:48px;min-height:48px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.35)}
