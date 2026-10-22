@@ -17350,6 +17350,18 @@
       .then(() => compileDepthVariants(scene, true, dress))
       .then(() => { if (typeof console !== 'undefined') console.info('lamps: the pool ' + (want ? 'armed' : 'disarmed') + ' after its programs linked (' + Math.round(performance.now() - t0) + ' ms)'); });
   }
+  // APPROACH (A0 22 Oct; HWCOV): A GROUP MADE AFTER THE WORLD'S COMPILE LINKS ITS DEPTH PROGRAMS IN THE BACKGROUND. The town kit
+  // (render_premises kitHost) casts only near (castFar); its depth programs linked in the frame its shadow came on - 0.5-2 s
+  // on the approach to mk_sea, downwind at ~2.5 km (the program watch: one 'depth' program made in that frame). Its meshes
+  // carry userData.mayCast (shader_warm keys them though they cast nothing yet); this compiles them, a group a task
+  function depthPrelinkGroup(grp) {
+    if (!grp || !WF || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || tripKeys.worldCompile === undefined) return null;   // (before the world's compile: it meets them)
+    const kinds = { depth: false, distance: false };
+    scene.traverse(o => { if (o.isLight && o.castShadow && o.shadow) { if (o.isPointLight) kinds.distance = true; else kinds.depth = true; } });
+    const { helper, n } = PROG_WARM.depthVariants(THREE, renderer, [grp], { kinds });
+    return n ? compileSliced(helper, PLAIN_RT(), scene, true).catch(e => console.warn('depth prelink:', e && e.message)) : null;
+  }
+  if (typeof window !== 'undefined') window.FLYDIY_DEPTH_PRELINK = depthPrelinkGroup;
   function compileDepthVariants(sc, sliced, dress) {
     sc = sc || scene;
     const D = dress || (f => f());
