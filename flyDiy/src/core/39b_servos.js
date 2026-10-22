@@ -530,7 +530,12 @@ function makeServos(sim, def, opts) {
     // SEAPLANE's run, traced). 0.6: 11.5 deg there; 0.5 and 0.6 measured alike over 2.5-3.75 m/s. The rate term is
     // unchanged (x1.5 and x2 of it did not damp the weave). Water only: a wheeled roll is bit-identical.
     const [kP0, kD] = S.steerK(tailUp);
-    const kP = (onWater && tailUp) ? kP0 * g('waterStepK') : kP0;   // G1937: DAMP's water-step entry (1 = unchanged)
+    // FLOAT-FAST-WATER (22 Oct): THE LANDING ROLL ON THE WATER IS NOT THE TAKE-OFF'S STEP. G1888's 0.6 was sized against a
+    // weave on the step at take-off power; a landing roll is at idle, slowing from a fast skipping touch (the float Cessna:
+    // 36-40 m/s on float-kit's hull) with the water rudders up to 12 m/s, and the 0.6 left it to swing 33.8 deg at 18.6 m/s
+    // (GATE TOUR, mk_sea > SEA). The pilot may hand its own [kP, kD] factors for the water roll (FT.waterRoll); none: as before
+    const wRoll = onWater && FT.waterRoll ? FT.waterRoll() : null;
+    const kP = (onWater && tailUp) ? kP0 * (wRoll && wRoll[0] != null ? wRoll[0] : g('waterStepK')) : kP0;   // G1937: DAMP's water-step entry (1 = unchanged)
     // G2080: THE GROUND'S RUDDER TRIM - the heading error's integral (the propeller's swirl and P-factor are a standing
     // yaw on the roll; P-D alone held it with a standing error: the metal Cessna rotated 4.1 deg off its heading),
     // forgotten when the steer was not flown a step ago, and handed to the air's slip trim so the lift-off is bumpless
@@ -550,7 +555,7 @@ function makeServos(sim, def, opts) {
     if ((c.thr || 0) > 0.3) { if (!hold) S.gI = clamp(S.gI + g('steerI') * e * S.dt, -g('steerIMax'), g('steerIMax')); }
     else S.gI -= S.gI * Math.min(1, S.dt / 1.0);
     S.drTrim = clamp(-S.gI, -g('drTrimMax'), g('drTrimMax'));
-    c.dr = clamp(-kP * e - kD * S.eR - S.gI, -drMax, drMax);
+    c.dr = clamp(-kP * e - kD * (wRoll && wRoll[1] != null ? wRoll[1] : 1) * S.eR - S.gI, -drMax, drMax);
     // G3077 (TORQUE-RETUNE-66): THE TOE BRAKE WHEN THE RUDDER RUNS OUT (FAA-H-8083-3: differential braking where the rudder
     // alone cannot hold the direction). Under power on the wheels, the heading demand past the rudder's stop goes to the
     // brake on the side the nose must turn to (G1938's brakeD: > 0 yaws as dr > 0 does), brakeDK per unit of rudder

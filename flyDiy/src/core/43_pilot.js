@@ -347,6 +347,8 @@ function makePilot(sim, def, world, opts) {
   let rotPull = false, rotStuckT = 0;
   const SV = makeServos(sim, def, { pilot: 'pilot', now: () => ap.t, trike, rotateTD, TW, features: {
     trimCalm: true, groundP1D: true, xwBank: true, water: true, porpoise: true,
+    // FLOAT-FAST-WATER: the landing roll's heading gains on the water (39b groundSteer) - [kP x, kD x]; the take-off keeps G1888's
+    waterRoll: () => ap.phase === 'ROLLOUT' ? [A.waterRollKP ?? null, A.waterRollKD ?? null] : null,
     // G396.2 / G970: on the step the stick comes all the way back, through LIFTOFF
     deTop: (onG) => (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : (rotPull && ap.phase === 'ROLL') ? (A.deRotateFull ?? 0.70) : 0.35 } });
   const taxiFF = (() => {
