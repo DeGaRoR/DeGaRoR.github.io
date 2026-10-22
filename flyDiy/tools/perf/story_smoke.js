@@ -33,7 +33,7 @@ let b = null, srv = null;
 
 // one probe of the page's story state, as JSON
 const PROBE = `JSON.stringify((() => { const S = window.FLYDIY_STORY, s = S && S.story ? S.story() : null; let d = null; try { d = window.FLYDIY_PLAYER.doc(); } catch (e) {}
-  const el = id => { const e = document.getElementById(id); return e ? { shown: !e.hidden && e.offsetParent !== null, text: (e.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 140) } : null; };
+  const el = id => { const e = document.getElementById(id); return e ? { shown: !e.hidden && e.getClientRects().length > 0 && getComputedStyle(e).display !== 'none' && getComputedStyle(e).visibility !== 'hidden', text: (e.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 140) } : null; };
   const tab = id => { const e = document.getElementById(id); return e ? { disabled: !!e.disabled, hidden: !!e.hidden } : null; };
   return { beat: s ? s.beat : null, open: s ? !!s.open : null, planes: s ? s.planes : null, here: d ? d.here : null,
     hereBase: d && d.sheds && d.sheds[d.here] ? d.sheds[d.here].base : null, wallet: d ? Math.round(d.wallet) : null,
@@ -42,7 +42,7 @@ const PROBE = `JSON.stringify((() => { const S = window.FLYDIY_STORY, s = S && S
     ladder: S && S.ladder ? S.ladder() : null, ap: window.FLYDIY_AP ? { manual: window.FLYDIY_AP.manual() } : null,
     tim: el('stTim'), card: el('stCard'), skip: el('stSkip'), shape: tab('edTabShape'), design: tab('edTabDesign'), bench: tab('tabBench'),
     lock: window.EDITOR_LOCK && window.EDITOR_LOCK.locked ? window.EDITOR_LOCK.locked() : null,
-    intro: window.FLYDIY_INTRO_LAST || null, careers: (() => { try { return JSON.parse(localStorage.getItem('flydiy.careers') || 'null'); } catch (e) { return null; } })() }; })())`;
+    intro: window.FLYDIY_INTRO_LAST || null, shed: d && d.sheds ? d.sheds[d.here] : null, edLock: typeof window.EDITOR_LOCK, benchHiddenAttr: (() => { const e = document.getElementById('tabBench'); return e ? { hidden: e.hidden, disp: getComputedStyle(e).display, inDom: document.body.contains(e) } : null; })(), careers: (() => { try { return JSON.parse(localStorage.getItem('flydiy.careers') || 'null'); } catch (e) { return null; } })() }; })())`;
 const probe = async () => JSON.parse(await b.ev(PROBE, 30000));
 async function still(name) {
   if (!STILLS) return null;
@@ -62,6 +62,10 @@ async function beat(name, checks) {
 }
 const waitFor = async (js, ms) => { const t = Date.now() + ms; while (Date.now() < t) { try { if (await b.ev(js, 10000) === true) return true; } catch (e) {} await sleep(500); } return false; };
 const ev = async (o) => JSON.parse(await b.ev('JSON.stringify(window.FLYDIY_STORY.event(' + JSON.stringify(o) + '))', 30000));
+// a fresh profile meets the welcome's first-visit graphics card ("Play on <preset>") before any mode, as a real first
+// player does: the pre-script presses it (once per page) so the boot goes on; the menu (a returning player) is left alone
+const PRE = `(function(){ var n = 0, t = setInterval(function(){ var p = document.querySelector('#welcome .wplay');
+  if (p && !document.querySelector('#welcome .wmode')) { p.click(); clearInterval(t); } if (++n > 600) clearInterval(t); }, 500); })();`;
 const evJs = async (js) => JSON.parse(await b.ev('JSON.stringify((() => { ' + js + ' })())', 30000));
 
 (async () => {
@@ -74,7 +78,7 @@ const evJs = async (js) => JSON.parse(await b.ev('JSON.stringify((() => { ' + js
     b = await MB.browser(UDD);
 
     // ---- A: a New career, the opening played through, the cabin at T0
-    const l = await b.load(base + '?mode=career', '');
+    const l = await b.load(base + '?mode=career', PRE);
     log('A boot ' + l.sec + ' s (' + l.state + ')');
     await waitFor('!!window.FLYDIY_INTRO_LAST || (!!window.FLYDIY_STORY && !document.getElementById("stIntro"))', 180000);
     await sleep(3000);
@@ -124,7 +128,7 @@ const evJs = async (js) => JSON.parse(await b.ev('JSON.stringify((() => { ' + js
       return window.FLYDIY_STORY.event({ k: 'certified', slot, spec: t, cost: 30000 });`);
     await sleep(1500);
     await beat('C1 T2 the checklist met (a certified event) -> T3', P => [[cert.ok, 'the certified event was refused: ' + cert.why], [P.beat === 'T3', 'not at T3 (' + P.beat + ')']]);
-    const stopAt = (role, who, extra) => evJs(`const s = window.FLYDIY_STORY.story(), slot = s.planes[${JSON.stringify(who)}], a = storySite(${JSON.stringify(role)}, world.aerodromes);
+    const stopAt = (role, who, extra) => evJs(`const s = window.FLYDIY_STORY.story(), slot = s.planes[${JSON.stringify(who)}], a = storySite(${JSON.stringify(role)}, (window.MAP_PACK && window.MAP_PACK.aerodromes) || []);
       return window.FLYDIY_STORY.event(Object.assign({ k: 'stop', slot, stop: careerStopRecord({ how: 'stopped', aero: a, slot, row: { from: 'HOME', to: a, t: 600 } }) }, ${JSON.stringify(extra || {})}));`);
     r = await stopAt('client', 'client'); await sleep(1500);
     await beat("C2 T3 delivered at the owner's strip -> T4", P => [[r.ok, 'the delivery stop was refused: ' + r.why], [P.beat === 'T4', 'not at T4 (' + P.beat + ')']]);
@@ -142,7 +146,7 @@ const evJs = async (js) => JSON.parse(await b.ev('JSON.stringify((() => { ' + js
       [P.open && P.jobsOpen, 'the rails did not open (open ' + P.open + ', jobs ' + P.jobsOpen + ')']]);
 
     // ---- D: Careers - the welcome's menu on the same profile, Continue and a second New career
-    await b.load(base, '');
+    await b.load(base, PRE);
     await waitFor('!!document.querySelector("#welcome .wmode, #welcome .wplay")', 120000);
     await evJs('const p = document.querySelector("#welcome .wplay"); if (p && !document.querySelector("#welcome .wmode")) p.click(); return true;');
     await waitFor('!!document.querySelector("#welcome .wmode[data-mode=continue]")', 30000);
