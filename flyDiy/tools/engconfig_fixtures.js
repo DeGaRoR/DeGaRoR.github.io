@@ -6,10 +6,11 @@
 //   pushpull  the Engines row's Push-pull (the Skymaster's layout): two IO-360s, the tail on twin booms outboard of the
 //             rear disc; the wing 0.45 m aft and the stab 1.40 x span / 1.25 x chord (the pusher's 144 kg behind the
 //             cabin: the card's own wing station left a static margin of -0.16 as drawn)
-//   trimotor  Three (nose + wings): three Rotax 912s, a MID cantilever wing (on the card's high wing the nacelles'
+//   trimotor  Three (nose + wings): three Rotax 912s, a MID strut-braced wing (on the card's high wing the nacelles'
 //             thrust line stands 1.5 m up and full power tips the aeroplane over its nosewheel; on a low wing the
-//             nacelle discs clear the grass by 2 cm), the round section, the wing 0.15 m aft
-//   four      Four (wings): four Rotax 912s, inner and outer nacelles, the mid wing, 0.2 m aft
+//             nacelle discs clear the grass by 2 cm; a cantilever mid wing let go at its root on the bench's 5.7 g),
+//             the round section, the wing 0.15 m aft
+//   four      Four (wings): four Rotax 912s, inner and outer nacelles, the mid strut-braced wing, 0.2 m aft
 //   node tools/engconfig_fixtures.js            rebake and compare with the saved files (exit 1 on a difference)
 //   node tools/engconfig_fixtures.js --write    rebake and write tools/fixtures/build_v10_engcfg_*_2026-10-22.json
 'use strict';
@@ -22,9 +23,9 @@ const C172 = D.ARCHETYPES.find(a => a.key === 'c172');
 const FIX = {
   pushpull: { name: 'Push-pull (Skymaster layout)', sel: { engCount: 'pushPull', engModel: 'lycoming IO-360' },
               cage: { wgDx: -0.45, stSpan: 1.4, stChord: 1.25 } },
-  trimotor: { name: 'Trimotor (three Rotax 912)', sel: { engCount: 3, engModel: 'rotax 912 (flat)', finArch: 'straight', section: 3, wgPos: 1, wgBrace: 1 },
+  trimotor: { name: 'Trimotor (three Rotax 912)', sel: { engCount: 3, engModel: 'rotax 912 (flat)', finArch: 'straight', section: 3, wgPos: 1, wgBrace: 0 },
               cage: { wgDx: -0.15 } },
-  four:     { name: 'Four (wing nacelles, four Rotax 912)', sel: { engCount: 4, engModel: 'rotax 912 (flat)', finArch: 'straight', wgPos: 1, wgBrace: 1 },
+  four:     { name: 'Four (wing nacelles, four Rotax 912)', sel: { engCount: 4, engModel: 'rotax 912 (flat)', finArch: 'straight', wgPos: 1, wgBrace: 0 },
               cage: { wgDx: -0.2 } },
 };
 const fileOf = k => path.join(T, 'fixtures', `build_v10_engcfg_${k}_2026-10-22.json`);
