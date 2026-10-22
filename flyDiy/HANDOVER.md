@@ -97820,3 +97820,106 @@ and get straight into the WWII hangar."
 Rolling set: ap-adapt (AP-ADAPT G3300-G3307: every certified build flown smoothly; the user accepted by name, 22 Oct ~08:45, "1 yes": the float Cessna Ham-fist DEV persona banks 18.5 deg after lift-off, was 10.9; the Student no longer capsizes there; APSMOOTH's c172 level-off row KNOWN under 17 m until G3332), level-off-g3332 (Pilot: the climb captures cruise by TECS's height law in its last 5 s; the metal Cessna's balloon 15.7 -> 5.3 m; floats untouched (sim.hydro skipped); the user accepted by name "2 yes": the Cub's cross-country hold +0.1 m worst / +0.2 m rms), pier-tris (ASSETS-OCT: GATE HOUSE's PIER_TRIS to the shipped G2905 people / boat counts), tuto-flight (G3370: the first flight's cards in Tim's band, off on manual; 'Skip the flight' completes T1 at HOME).
 Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore). The two 43 changes were gated together here (PILOT PILOTMATRIX TAKEOFF TOUR APSMOOTH PASS).
 Strict light gate: 9 RED, none new by cause: over100 x4 = the reveal frame (HWCOV: the gate pins mirror=off in the shed, which re-runs worldCompile after the shot; fix reveal-held tested today); metal chase/cockpit tasks1s / taskWorst 1481-1797 = the boot ~1 s task class; metal fuseWidth busy (accepted).
+
+## G3230-G3239 - TECH-MASK: THE MACHINE SHOP'S THREE SEGMENTS, ONE TABLE - THE EDITOR GREYS IN PLACE, THE MAKERS AND THE MARKET FILTER, A DESIGN'S STAGE COMPUTED (2026-10-22, for the GAME COORDINATOR, cloud - node + headless only; branch claude/tech-mask off origin/master 5f3f2c79; the work: 0e66868e; NOT on claude/ready/ - the coordinator reviews first)
+GAME-PLAN §R (binding: MACHINE-SHOP, no eras, "a segmented tech tree"), §4.1-§4.4. Three segments: **1 Wood and fabric**, **2 Sheets
+and bolts**, **3 Composite and electronics**. v1 = the three unlocks; `entries` is the finer key for later.
+- **src/core/79b_tech.js** (pure, career-lazy: MANIFEST.core after 79_story + MANIFEST.career; GATE LAZY now counts TWELVE
+  modules; exported in 90_).
+  - `TECH_TABLE`: every build option -> its segment, keyed `<group>:<option>` over the GEN tables' own lists (below).
+  - `techStageOfSpec(spec)` = the highest segment of any option the spec uses (`techKeysOfSpec`; the panel through
+    genSystemsResolve). Computed, never stored: nothing is written into a spec or a save.
+  - `career.tech = { seg: 1, entries: [] }`. A NEW story career gets it (79_story.js storyNewCareer). careerNormalise
+    normalises it when present (seg clamped 1-3, entries to the table's keys) and adds nothing to a career without one.
+  - `careerTechAllows(doc, key)`, `careerTechSeg`, `careerTechStageOk(doc, stage, occasion)` (an occasion may stand one above,
+    §4.4), `careerTechUnlock(doc, seg)` (the keystone landmark's effect: on a clone, never down; nothing calls it yet).
+  - **No machine shop = everything open**: the sandbox, the dev career (?career=1) and every career made before this (no
+    `tech` key). Say if older careers should start at segment 1 instead.
+- **The editor** (editor.js, the TECH-MASK block after the story's lock; editor.css `.r.tech` / `.rn.edTech` / `.dfTech`).
+  - `window.TECH_MASK.set({ seg, entries })` from app.js `techMaskSync` (behind CAREER_DEV: on the editor's open and at every
+    story card). The sandbox never sets it, and with nothing set the pass touches nothing.
+  - The rows' options above the segment are disabled IN PLACE: the reason in the option's own words ("aluminium · Machine
+    shop: Sheets and bolts") and a line under the row ("Machine shop: Sheets and bolts / Composite and electronics"). Nothing
+    hover-only. The rows: construction (fuselage, each wing, fin, stab), glazing material, canopy, fairing build, the engine
+    catalogue (through CAGE_JOIN_ENGINES), the powertrain, the nacelle (twin) mount, the blade material.
+  - The design tiles (design_flow.js tileGrid; the game draws construction, powertrain and engine count as tiles in their
+    rows' slots) are greyed with the reason inside the tile; the starting-values pill likewise. A tile's keys are the rows
+    it writes, its starting values included (so "Normal category" waits for segment 2: its IO-360 and aluminium).
+  - **The story's lock wins**: while EDITOR_LOCK.finishOnly holds (T0) the mask yields; it applies when the lock lifts.
+    `TECH_MASK.tutorial(mask)` takes the story's hand-over (app.js storyMaskNote already called it); the mode is kept
+    ('checklist' at T2 = the segment's own mask, nothing narrower in v1).
+  - A part ALREADY above the segment (an occasion's): its whole row is held, "Machine shop: Sheets and bolts: yours to fly as
+    it is, not to modify".
+- **The makers and the market** (76_procure.js; map_menu.js passes the document).
+  - `procureCatalogue(doc)`: the models whose stock stage is at or below the segment (segment 1: the Cub and the Jodel).
+  - `procureBuyModel` refuses a model + options above it, with the reason.
+  - `procureMarketOf(doc)`: the listings at or below the segment; an `occasion` listing one above. The story's three
+    occasions carry the flag, so all three stay listed at T7 (the fabric 4-seater still stands as the metal Cessna: 2).
+  - A maker's model is read without its file: `TECH_DESIGNS` (the validated builds' keys, a MEASURED table that GATE TECH
+    re-derives from every build file; `--emit` prints it) with the rows its options write swapped (`techKeysOfModel`,
+    exact against procureSpec for all 57 option combinations).
+- **The validated builds**: Cub 1, Jodel 1, metal Cessna 2 (alloy, O-540, the IFR electrics, tricycle), Cessna floats 2,
+  twin floatplane 2 (the twin). The story's Rufus 1, the client's Cub 1, T2's checklist finish 1.
+- **GATE TECH** (tools/_tech_check.js, core, ~2 s; `--selftest`: six breaks, each red). The table both ways over the GEN
+  tables; the join's vocabularies and the rows' option counts; the stages; the career; the sandbox unchanged; editor.js's
+  own block headless over the real cage rows and the real design table (EXACTLY the above-segment options greyed at segment
+  1 - 53 options over 12 rows -, none at 3, none with no state, none under the lock, the held row, an entry); the makers;
+  the used market; the occasions at T7.
+
+**THE SEGMENT TABLE, for the user to review** (79b_tech.js TECH_TABLE; the rules are in its header):
+
+| option | 1 Wood and fabric | 2 Sheets and bolts | 3 Composite and electronics |
+|---|---|---|---|
+| fuselage | tubeFabric, wood | alloy, aluTube | carbon, glass |
+| a surface's own (wing / fin / stab) | fabric, steel | alloy, aluFabric | carbon, glass |
+| engine | a65_sensenich74, vw2180_wood, rotax277_pusher, rotax503_wood, rotax582_ivo, jabiru2200_std, rotax912_warp, o200_eprops, mikron3_wood, gipsymajor1_wood, verner7u_wood, rotec3600_std, o320_mccauley | io360_mccauley, o540_hartzell, io550_hartzell3, io720_hartzell3, ranger440_wood, hirth508_wood, argus10c_wood, w670_hs2b, r755_hs2b, m14p_v530, r985_hs2b20, r1340_hs12d40, r1830_hs23e50 | rotax915_carbon, emrax268_carbon, emrax228_3blade, e811_velis, sp260d_class, eppg_direct_130, fes_folding_100, outrunner2212_9x47, outrunner3548_12x6, outrunner6374_18x10, pt6a114a_hartzell3, pt6a34_hartzell4, pt6a42_hartzell4, pt6a60a_hartzell4 |
+| configuration | - | twin | - |
+| prop blades | wood, maple, walnut, alu, carbon | - | - |
+| prop pitch | climb, standard, cruise | - | - |
+| panel tier | minimal, basic, custom | ifr | - |
+| electrics: battery | none, lead | - | lithium |
+| electrics: alternator | none, gen20 | alt60 | - |
+| electrics: starter | none, yes | - | - |
+| electrics: vac | none, venturi | pump | - |
+| avionics: com | none, compact | - | - |
+| avionics: xpdr | none | modeS | - |
+| avionics: nav | none | vor | - |
+| avionics: gps | none | - | portable, panel, glass |
+| gear | taildragger, floats | tricycle | - |
+| suspension | bungee, spring, oleo | - | - |
+| fairing layup | glass | alloy | carbon |
+| glazing material | acrylic, glass | polycarbonate | - |
+| canopy | screen | bubble | - |
+| fuel | avgas100LL, mogas | - | jetA |
+| battery cells | - | - | lifepo4, nmc, nca |
+| kit | - | - | stol |
+
+The rulings that are mine, to confirm or move (one line each in the table):
+1. **The propeller is segment 1 whatever its material.** Rufus flies a carbon prop on a wood-and-fabric airframe; carbon = 3
+   would have put the story's own starter above segment 1.
+2. **Suspension is all segment 1.** The validated Jodel has oleo legs.
+3. **Glassfibre fairings are segment 1** (a homebuilt's spats); alloy 2, carbon 3. The glassfibre FUSELAGE is 3.
+4. **A naturally aspirated piston up to 115 kW is 1** (the O-320, the Super Cub's, and the Rotec radial included); the
+   Rotax 915 iS (turbo) is 3, as §4.1's "economical engines".
+5. **GPS of any kind and a lithium battery are 3**; the IFR panel's alternator, pump, transponder and VOR are 2.
+6. **Not masked in v1** (not in §4.1's columns): flaps, seats, tips, the tail's type, booms, a custom fit's instrument items.
+   The twin is masked; twin booms, pod-and-rod and the V-tail ("the designs it favours") are not.
+7. **The STOL kit (G2820) is one key, `kit:stol` = 3.** The kit is on claude/stol-wing-g2820 only; the row reads
+   `wings[].stol` (through genStolOf when that lands) and nothing until then. Its tips (endplate / drooped) are not masked.
+
+**Known gaps (for review):**
+- The tricycle is greyed on the undercarriage tile; the third wheel's own sliders (s2Z) can still move a nose wheel forward
+  in the shape view. The stage then reads 2 (techStageOfSpec); nothing refuses the save.
+- Nothing refuses a SAVE above the segment yet (the editor greys the choices; a plane loaded from a file outside the career
+  is held row by row, not refused).
+
+**Gates** (22 Oct, cloud; the generated files built locally for the run, then put back - not committed):
+- PASS (34 gates through `node tools/run_gates.js --only=... --jobs=6`, once): TECH (+ `--selftest` PASS, 6 breaks), BUILD, LAZY (its
+  Chromium boot included), STORY, UISMOKE, UISMOKE-PHONE, PROCURE, GFX, CARDS, STORAGE, STOREDRAW, HONESTY, PARTS, PANEL, VIEW, UILAYER,
+  REF, MEDIA, ASSETS, ENERGY, SKINMAT, CLIMATE, INPUT, SHEETWORKER, ROUTES, CONTRACTS, ECON, PILOTS, PLAYER, HANGAR, FREIGHT.
+- RED, none mine: CLOCK (1 of 777) and BENCH ("the phase strip knows all 24 pilot phases - not ROUTE, LOITER") fail identically on
+  untouched origin/master 5f3f2c79 (re-run there); CLOUD's one row is the lamps row, master's known red.
+- Not run (the brief: no long or timed gates): DESTTO (3 shards, ~25 min; reads careerNormalise, which adds nothing to a career
+  without `tech` - GATE TECH holds that), ACCEPT (reads only the manifest order: 72_accept before 90_node_exports, unchanged),
+  NACLAG (a timed lag gate; reads design_flow.js's birth path, untouched).
+
