@@ -163,7 +163,7 @@ function run(M) {
     const CSS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8');
     ok(/document\.body\.classList\.toggle\('stNoBench', small\)/.test(APP) && /body\.stNoBench #edBench \{ display: none !important; \}/.test(CSS),
        'the bench TOOL (#edBench, the left panel) is hidden in the small shed by a body class editor.css reads');
-    ok(/function storyLockSync\(\)/.test(APP) && /setInterval\(\(\) => \{ try \{[^}]*storyLockSync\(\)/.test(APP) && /storyLockSync\(\); storySkipSync\(\); \} catch/.test(APP),
+    ok(/function storyLockSync\(\)/.test(APP) && /setInterval\(\(\) => \{ try \{[^}]*storyLockSync\(\)/.test(APP) && /storyLockSync\(\); storySkipSync\(\);( storyFloodOn\(\);)? \} catch/.test(APP),
        'the paint-only lock is held to the story mask at boot AND on every tick (a late editor.js still gets it)');
     { const K = M.BASE_OFFERS.w1.plots.w1.kits;
       ok(['wood', 'metal', 'wip', 'store', 'handling', 'comfort', 'curio', 'bench'].every(k => K.includes(k)) && !K.includes('office'),
