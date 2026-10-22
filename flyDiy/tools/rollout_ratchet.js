@@ -58,8 +58,10 @@ function metrics(j) {
     for (const r of fr) { const k = Math.max(1, Math.round(r[1] / REFRESH)); if (prev !== null) { n++; if (k !== prev) ch++; } prev = k; }
     uneven = n ? ch / n : null;
   }
-  // GATE-SCREEN (A0 22 Oct): a task under a loading screen (j.bootSpans, rollout_perf) is the screen's: it leaves the task rows
-  // and is held on its own (screenTaskWorst); a run with no spans (before GATE-SCREEN) reads as before
+  // GATE-SCREEN (A0 22 Oct): a task under a loading screen (j.bootSpans, rollout_perf) leaves the WORST task for its own row
+  // (screenTaskWorst); tasks1s / tasks200 count every task - batch A's rule, "no main-thread task over 1 s during any load or
+  // settings change", and the loads are the screens. A run with no spans (before GATE-SCREEN) reads as before
+  const ltAll = (j.longTasks || []).map(t => t[1]);
   const SP = (j.bootSpans || []).map(s => [s[0], s[1] == null ? Infinity : s[1]]), under = (a, b) => SP.some(s => a < s[1] && b > s[0]);
   const ltS = (j.longTasks || []).filter(t => under(t[0], t[0] + t[1])).map(t => t[1]);
   const lt = (j.longTasks || []).filter(t => !under(t[0], t[0] + t[1])).map(t => t[1]);
@@ -95,7 +97,7 @@ function metrics(j) {
     loopAll: all.length ? med(all.map(r => r[2])) : null,
     loopAllP90: all.length ? (s => s[Math.min(s.length - 1, Math.floor(s.length * 0.9))])(all.map(r => r[2]).filter(x => x != null && isFinite(x)).sort((a, b) => a - b)) : null,
     over100: g.over100ms ? g.over100ms.n : null, below30s: g.below30run ? g.below30run.sec : null,
-    tasks1s: lt.filter(x => x > 1000).length, tasks200: lt.filter(x => x > 200).length, taskWorst: lt.length ? Math.max(...lt) : 0,
+    tasks1s: ltAll.filter(x => x > 1000).length, tasks200: ltAll.filter(x => x > 200).length, taskWorst: lt.length ? Math.max(...lt) : 0,
     slice: j.worldSlices ? j.worldSlices.worst : null,
     // GATE-SCREEN: what the loading screens held after the reveal (a trip's roll-out screen) - frames over 100 ms, the worst
     // frame, the worst task (a run before GATE-SCREEN: null, no row)

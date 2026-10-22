@@ -428,12 +428,13 @@ function session(script) {
     const fr = [[1000, 33, 9, 0, 2, 0, 30, 'GARAGE'], [1133, 133, 42, 0, 2, 90, 30, 'HOLDING'], [1250, 117, 30, 0, 2, 21, 30, 'HOLDING'], [1283, 33, 20, 0, 2, 5, 30, 'HOLDING'], [1450, 167, 20, 0, 2, 140, 30, 'HOLDING']];
     const j = { frames: fr, longTasks: [[-2000, 1010], [1100, 60], [1300, 140]], bootSpans: [[1010, 1240]], gates: { over100ms: { n: 1 }, screen: { over100: 2, worst: 133 } } };
     const m = RT.metrics(j), m0 = RT.metrics(Object.assign({}, j, { bootSpans: undefined, gates: { over100ms: { n: 1 } } }));
-    verdict(m.taskWorst === 1010 && m.tasks1s === 1 && m.screenTaskWorst === 60 && m.screenOver100 === 2 && m.screenWorst === 133 && m0.screenTaskWorst === null && m0.taskWorst === 1010
+    const j2 = Object.assign({}, j, { longTasks: [[-2000, 300], [1100, 1060]] }), m2 = RT.metrics(j2);
+    verdict(m.taskWorst === 1010 && m.tasks1s === 1 && m2.tasks1s === 1 && m2.taskWorst === 300 && m2.screenTaskWorst === 1060 && m.screenTaskWorst === 60 && m.screenOver100 === 2 && m.screenWorst === 133 && m0.screenTaskWorst === null && m0.taskWorst === 1010
       && ['screenOver100', 'screenWorst', 'screenTaskWorst'].every(k => RT.RULES[k] && !RT.RULES[k].info),
-      '  the ratchet: a task under a screen span leaves taskWorst for screenTaskWorst (' + m.screenTaskWorst + '); the screen\'s rows gated on their own; a run without spans reads as before (GATE-SCREEN)');
-    verdict(/R\.bs = \[\]; var bsL = null;/.test(rp) && /const frScr = fr\.filter\(r => scr\(r\[0\] - r\[1\], r\[0\]\)\)/.test(rp) && /const over100 = frFree\.filter/.test(rp) && /const lt = ltAll\.filter\(x => !scr\(/.test(rp)
+      '  the ratchet: a task under a screen span leaves taskWorst for screenTaskWorst (' + m.screenTaskWorst + '), but a 1 s task under a screen still counts in tasks1s (batch A: no task over 1 s in any load); the screen\'s rows gated on their own; a run without spans reads as before (GATE-SCREEN)');
+    verdict(/R\.bs = \[\]; var bsL = null;/.test(rp) && /const frScr = fr\.filter\(r => scr\(r\[0\] - r\[1\], r\[0\]\)\)/.test(rp) && /const over100 = frFree\.filter/.test(rp) && /const lt = ltAll\.filter\(x => !scr\(/.test(rp) && /const lt1s = ltAll\.filter\(x => x\[1\] > 1000\)/.test(rp)
       && /screen: \{ frames: frScr\.length, over100: over100S\.length/.test(rp) && /bootSpans: SPANS\.map/.test(rp),
-      '  rollout_perf: BOOT.state from the first frame; a frame or a task overlapping a screen leaves over100 / the long tasks for gates.screen; the JSON carries the spans (GATE-SCREEN)'); }
+      '  rollout_perf: BOOT.state from the first frame; a frame overlapping a screen leaves over100, a task the worst task (the 1 s count keeps every task), for gates.screen; the JSON carries the spans (GATE-SCREEN)'); }
   verdict(/if \(FR\) FR\.push\(0\); script\(1 \/ 60\); if \(FR\) FR\.pop\(\);/.test(loop) && /if \(FR\) FR\.push\(1\); sim\.step\(1 \/ 60\); if \(FR\) FR\.pop\(\);/.test(loop) && FR.SLOTS[0] === 'script' && FR.SLOTS[1] === 'solver',
     '  app.js: the pilot\'s script and each solver step pushed (slots 0 and 1 are script and solver)');
   const laps = ['other', 'world', 'scene', 'hud', 'mirror', 'render'].filter(k => loop.indexOf('FR.lap(FR.S.' + k + ')') < 0);

@@ -787,7 +787,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   // GATE-SCREEN (A0 22 Oct): A FRAME OR A TASK UNDER A LOADING SCREEN IS THE SCREEN'S, NOT THE FLIGHT'S. A trip that runs steps
   // after the roll-out shot (a world setting changed in the shed - the gate's own --set pin) holds the draw under its screen:
   // its held frames folded into one 117-166 ms row read as the flight's over100. Those frames (their interval overlapping a
-  // span where BOOT.state is not 'gone') and those tasks leave over100 and the long-task rows, and are reported on their own
+  // span where BOOT.state is not 'gone') leave over100, those tasks the worst task (never the 1 s count), and are reported on their own
   // line (gates.screen: count, worst frame, worst task) with their own slack in the ratchet - a regression there still reds
   const SPANS = bootSpans(R.bs);
   const scr = (t0, t1) => underScreen(SPANS, t0, t1);
@@ -795,7 +795,9 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   const over100 = frFree.filter(r => r[1] > 100), over100S = frScr.filter(r => r[1] > 100);
   const ltAll = R.lt.filter(x => settingsT0 == null || x[0] < settingsT0), ltS = ltAll.filter(x => scr(x[0], x[0] + x[1]));
   const lt = ltAll.filter(x => !scr(x[0], x[0] + x[1])).sort((a, b) => b[1] - a[1]);
-  const lt1s = lt.filter(x => x[1] > 1000);   // a settings change reports on its own line
+  // (A0 22 Oct, batch A's rule: "no main-thread task over 1 s during any load or settings change" - the loads ARE the screens,
+  // so the 1 s judgment counts EVERY task, a screen's included; only the worst task and the frames split)
+  const lt1s = ltAll.filter(x => x[1] > 1000);   // a settings change reports on its own line
   const premEmptyAt = (() => { const r = fr.find(r => r[8] === 0); return r ? +((r[0] - revealAt) / 1000).toFixed(1) : null; })();
   const standTaxi = fr.filter(r => ['stand', 'taxi', 'to-afloat', 'to-displace', 'to-step'].includes(r.ph));
   const standTaxiFps = standTaxi.length ? 1000 / med(standTaxi.map(r => r[1])) : 0;
@@ -805,7 +807,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     below30run: { sec: +(worstRun / 1000).toFixed(2), pass: worstRun <= 3000 },
     standTaxiMedianFps: { fps: +standTaxiFps.toFixed(1), pass: standTaxiFps >= 50 },
     standTaxiDeliveredFps: { fps: standTaxiRow.fpsDelivered, doubled: standTaxiRow.doubled, dtP90: standTaxiRow.dtP90, dtP99: standTaxiRow.dtP99, pass: standTaxiRow.fpsDelivered >= 50 },   // G993: R3
-    longTask1s: { n: lt1s.length, worst: lt.length ? lt[0][1] : 0, pass: lt1s.length === 0 },
+    longTask1s: { n: lt1s.length, worst: ltAll.reduce((m, x) => Math.max(m, x[1]), 0), pass: lt1s.length === 0 },
     // (GATE-SCREEN: reported, not passed or failed here - the ratchet holds them to their baseline)
     screen: { frames: frScr.length, over100: over100S.length, worst: frScr.length ? Math.max(...frScr.map(r => r[1])) | 0 : 0, tasks: ltS.length, taskWorst: ltS.reduce((m, x) => Math.max(m, x[1]), 0), tasks1s: ltS.filter(x => x[1] > 1000).length },
   };
