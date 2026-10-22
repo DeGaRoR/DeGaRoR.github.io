@@ -961,6 +961,10 @@ const GATES = [
   // ...and session 4: the bus — a battery that drains, an alternator that
   // cuts in, a starter that asks, loads that sum
   { id: 'ELEC', file: '_elec_check.js', tier: 'core' },
+  // G2805 AVIONICS-GPS phase 2: the GPS on the panel and the power behind it - the breakers and the avionics bus, the
+  // cockpit's switches reaching them, the face's 4 Hz repaint (no readback, no allocation: a --expose-gc child), the
+  // unit and the breakers on the validated dashes, the bay's battery at the fit's size; --selftest. ~30 s.
+  { id: 'GPSFACE', file: '_gpsface_check.js', tier: 'core', wall: 40 },
   // world contract (appended: keeps the battery log prefix diffable)
   { id: 'WORLD', file: 'test_world.js', tier: 'core' },
   { id: 'HYDRO', file: 'test_hydro.js', tier: 'core' },

@@ -1468,9 +1468,11 @@ function gpsFace(R) {
 // the screen's material is the moving map's own (src/viewer/gps_face.js: FLYDIY_GPS.material(), one instance the
 // shed, the flight and a parked aeroplane share); a page without it (the bench) gets a dark glass in its place
 let gpsFallback = null;
-function gpsMaterial() {
+function gpsMaterial(aspect, kind) {
   const G = typeof window !== 'undefined' ? window.FLYDIY_GPS : null;
-  if (G && typeof G.material === 'function') { const m = G.material(); if (m) return m; }
+  // (the panel is built in the shed: the unit stands there off, its name on the glass - a flight's bind darkens
+  // it and the bus lights it)
+  if (G && typeof G.material === 'function') { const m = G.material(aspect, kind); if (m) { if (G.standby) G.standby(); return m; } }
   if (!gpsFallback) {
     gpsFallback = new THREE.MeshStandardMaterial({ color: 0x0b0d10, roughness: 0.25, metalness: 0, side: THREE.FrontSide });
     gpsFallback.userData.aeroskin = 1; gpsFallback.userData.panelSet = 'gps'; gpsFallback.userData.inside = 1;
@@ -1479,7 +1481,7 @@ function gpsMaterial() {
 }
 // the unit: a bevelled block 10 mm proud of the plate, its screen one quad 0.3 mm proud of that, and two knobs
 // where the face leaves a margin beside the screen (the pilot's right, -x)
-function gpsUnitAt(parent, S) {
+function gpsUnitAt(parent, S, kind) {
   const K = KIT();
   const bez = K.Bag();
   bevelBlockInto(bez, 0, 0, 0.0005, -0.010, S.w / 2, S.h / 2, 0.002);
@@ -1488,7 +1490,7 @@ function gpsUnitAt(parent, S) {
   const side = (S.w - S.sw) / 2;
   const knobs = side >= 0.016;
   const xs = knobs ? side * 0.35 : 0;
-  const sb = UVBag(gpsMaterial());
+  const sb = UVBag(gpsMaterial(S.sw / S.sh, kind));
   const hw = S.sw / 2, hh = S.sh / 2, z = -0.0103;
   sb.v([xs + hw, -hh, z], [0, 0]); sb.v([xs - hw, -hh, z], [1, 0]);   // u runs against x (the mirror rule)
   sb.v([xs - hw, hh, z], [1, 1]); sb.v([xs + hw, hh, z], [0, 1]);
@@ -1911,7 +1913,7 @@ function build(parent, A, P, pilotX) {
       foot.mesh(grp, matFor('plate'));
     } else sg = standOn(S.cx, S.cy, Math.min(S.w, S.h) * 0.4);
     sg.name = 'edGps';
-    gpsUnitAt(sg, S);
+    gpsUnitAt(sg, S, R.avionics.gps);
   }
   bowl.mesh(grp, matFor('bowl')); symC.mesh(grp, matFor('needle'));   // pale: the card is black now (G311)
   // THE REGISTRATION TAPE (G318): on the dash's roll above the plate, at

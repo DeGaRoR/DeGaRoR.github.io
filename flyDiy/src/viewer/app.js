@@ -2582,6 +2582,12 @@
       // painters wrote and its emissive is the instrument light's dimmer,
       // driven per frame by cockpit.js. Absent the layer (the smoke gate
       // never runs the editor block) it falls through to a flat colour.
+      // G2803: the GPS's screen is the GPS module's own material (gps_face.js, always in the page) - the editor
+      // block need not be loaded for the flown aeroplane's map to be alive
+      if (data.cage && m.panel === 'gps' && window.FLYDIY_GPS && window.FLYDIY_GPS.material) {
+        const gm = window.FLYDIY_GPS.material();
+        if (gm) return matCache[mn] = gm;
+      }
       if (data.cage && m.panel && window.CAGE_PANEL && window.CAGE_PANEL.material) {
         const pm = window.CAGE_PANEL.material(m.panel);
         if (pm) return matCache[mn] = pm;
@@ -6727,6 +6733,10 @@
         const pilot = ((model.data && model.data.people) || []).find(p => p.role === 'pilot');
         CK.bind(model, model.data || {}, sim, def.spec || genSpec,
                 { fieldElev: (fromA && fromA.elev) || 0, pilotKey: pilot && pilot.key });
+        // G2803 (AVIONICS-GPS phase 2): the GPS on the panel, when one is fitted - its screen is the map's own
+        // picture, the plan the pilot published and the field it is going to (gpsSource(): references, no copies)
+        if (window.FLYDIY_GPS && CK.gpsFit)
+          window.FLYDIY_GPS.bind({ kind: CK.fit.avionics.gps, units: CK.fit.units, src: gpsSource() });
       } catch (e) { console.warn('cockpit bind:', e); }
     }
     // THE MARKINGS REACH THE FLOWN AEROPLANE (G160). The user's report was
@@ -13624,6 +13634,27 @@
   // route / aerodromes / aircraft / wind. Redrawn on the HUD cadence.
   // Click the map to toggle small/large; click the top-right chip to
   // switch north-up (whole domain) <-> nose-up (6 km, aircraft-centred).
+  // G2803 (AVIONICS-GPS phase 2): THE GPS'S DOORS INTO THIS PAGE - the minimap's own baked picture and its box, the
+  // fields, the plan the pilot published (ap.intent: what drawPlanOnMap draws) and the destination field. Each door
+  // returns a reference (the destination is looked up once per destination), so the GPS's 4 Hz repaint copies
+  // nothing. A function declaration and a var: bound before this line has run, the doors are still there.
+  var GPS_SRC = null;
+  function gpsSource() {
+    if (GPS_SRC) return GPS_SRC;
+    const box0 = { x0: -12000, z0: -12000, size: 24000 };
+    let destFor, destRec = null;
+    return (GPS_SRC = {
+      map: () => (WF && WF.minimap) || null,
+      box: () => (WF && WF.minimapBox) || box0,
+      fields: () => (world && world.aerodromes) || null,
+      plan: () => (ap && ap.intent) || null,
+      dest: () => {
+        const id = destId === 'CIRCUIT' ? null : destId;
+        if (id !== destFor) { destFor = id; destRec = id && typeof aeroById === 'function' ? aeroById(id) : null; }
+        return destRec;
+      },
+    });
+  }
   let mapBig = false, mapNoseUp = false;
   let mapBaseCv = null, mapBaseFor = null;   // G130: cached north-up underlay
   const NOSE_RANGE = 6000;
@@ -16881,6 +16912,7 @@
       // the swap below says it again), so the hull and the wave under it move together and evenly
       if (window.WATER && WATER.setTime) WATER.setTime(sw && sw.drawnT != null ? sw.drawnT : sim.t);
       if (CK) CK.frame(simDt, sim, ap, { day: world.day, byHand: manual });   // the panel arc: the readings, the bus, the lamps; the day's clock and the pilot's lights (SKY)
+      if (CK && CK.gpsFit && window.FLYDIY_GPS) window.FLYDIY_GPS.tick(simDt, CK);   // G2803: the GPS screen (numbers every frame, a repaint at 4 Hz)
       // (G820: under the worker, its snapshot's flag too - read every frame)
       // G1801: ...or a node past the solver's velocity guard (150 m/s off the CG: a sim fault caught before NaN; the flag is
       // the solver's own, read every frame - the worker's is in its snapshot's F_DIVERGED)

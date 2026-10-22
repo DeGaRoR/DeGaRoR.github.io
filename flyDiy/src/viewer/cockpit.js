@@ -132,6 +132,7 @@ function make(THREE) {
     if (sim) sim.starterOk = () => !CK.bus || (fit && !fit.starter ? false : CK.bus.starterOk);
     for (const k of Object.keys(REST)) { raw[k] = REST[k]; CK.readings[k] = REST[k]; }
     raw.hdg = 0; CK.readings.hdg = 0;
+    CK.rawKeys = Object.keys(raw);
     CK.lamps = model && model.lamps ? model.lamps : [];
     CK.lampSw = CK.lamps.map(l => 'sw_' + l.key);      // per lamp, once (CK.glow runs every frame)
     CK.setupLights(model);
@@ -224,6 +225,7 @@ function make(THREE) {
     CK.t += dt;
     const o = sim.out || {}, F = sim.fuel || {}, E = (sim.eng && sim.eng[0]) || { running: true, key: 'both', crank: 0 };
     const cg = sim.cgPos();
+    CK.cg = cg;                                    // G2803: the GPS reads where the aeroplane is off this frame's own
     const bus = CK.bus;
     // THE PILOT'S LIGHTS (SKY chantier; G436.12 the rule moved here from 43_pilot.js so it runs
     // under a hand too - the pilot's update does not, and a night swapped in from the rail lit
@@ -315,7 +317,9 @@ function make(THREE) {
     CK.readings.clockS = tClock % 60;
     // the lags
     const R = CK.readings;
-    for (const k of Object.keys(raw)) {
+    const RK = CK.rawKeys || Object.keys(raw);      // (G2801: the key list made once, at bind - not every frame)
+    for (let ri = 0; ri < RK.length; ri++) {
+      const k = RK[ri];
       const tau = !gyroOk && (k === 'roll' || k === 'pitch') ? LAG_HANG : LAG[k];
       if (k === 'hdg') {
         // the shortest way round for a heading
