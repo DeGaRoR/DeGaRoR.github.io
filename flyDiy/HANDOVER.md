@@ -97891,6 +97891,19 @@ validated rudder holds, the crosswind flown on the bench again).
 Commits: a2b3fcb2 (code + gates); this section and the ACCEPT flights evidence on top.
 
 READY for the GAME COORDINATOR
+## G3351-G3352 - THE SMOKE RUN'S FIXES + THE COZY CABIN (2026-10-22, the GAME COORDINATOR; story_smoke.js on live L22b found them; the user on the cabin: "I liked it messy")
+- **G3351 the paint-only lock held.** The story's mask note fired on a CHANGE of mask. At a New career it fired before
+  editor.js defined EDITOR_LOCK, and the mask never changed again, so the lock never engaged (Shape stayed enabled at
+  T0). `storyLockSync` now holds EDITOR_LOCK to the mask at boot and on every 1.5 s tick.
+- **G3351 the bench TOOL hidden in the small shed.** #tabBench is no longer in the page; the bench's tests live in the
+  left panel's #edBench. `storyBenchRule` sets `body.stNoBench`, editor.css hides #edBench under it, and a note says
+  certification happens at the WWII field's hangar.
+- **G3352 the cozy cabin.** BASE_OFFERS.w1's kits are every kit but the office: the work bench (decor), wood and metal
+  machines, the plane and wing in build (wip), store, handling, comfort, curio. A New career's cabin gets them.
+- **READY - saves:** an EXISTING career's cabin shed whose kits are exactly the old thin set (park, bench, comfort) gains
+  the plot's other kits on load. That is decor only: nothing is removed, and its aeroplanes, slots and money are
+  untouched. A cabin the player furnished otherwise (any other kit list) is left alone.
+- GATE STORY rows: the lock held every tick, the bench tool hidden by the body class, the cabin's kits.
 
 ## A0 - landing L22c (22 Oct 2026, gates 16:00-17:06, pushed ~17:30): CABIN STRIP WITHOUT PAPI, THE TOWN'S LIFE INCREMENTAL, PILOTPAGE, APSMOOTH's KNOWN DROPPED; gate-screen + reveal-held HELD
 Rolling set (6): apsmooth-known-drop (Pilot: APSMOOTH's c172 level-off row back to the 10 m bar after G3332), gate-screen + reveal-held (HWCOV: frames under the roll-out screen split into their own rows; held frames counted), pilotpage (G3320: GATE PILOTPAGE, the validated legs flown in the page, 'full' tier), town200-life (HWCOV: scenery_life stands only the new houses' life, sliced; the town's 200 ms frames gone, circuit +2.52 ms), w1-papi (ED-2: the user's 'none' - Cabin Strip without PAPI; CONTRACT_FIELDS.w1 drops glide).
