@@ -1,0 +1,21 @@
+# G2352 in, the intermediate selftest (nomark / noowe): nomark ALONE is GREEN on this path (G2352 covers it), noowe red - why the final selftest's faults are aswas + noowe
+DMGUPLOAD selftest: each fix off must turn it red on a fold
+ nomark: the heal's upload marking off (the bug as it was)
+  cub: fresh - 366 drawn buffers checked, 0 stale; the crash {"br":210,"wreck":11}; after the shed and the roll-out (live true) - 366 checked, 0 STALE; uploads {"uploads":16895,"subs":33025,"contexts":3}; drawn meshes by class {"mesh":67,"fold":7}; the flown bake {"module":true,"hit":"fake","cm":0.54,"hybrid":true,"hyT":0,"folds":2,"foldMeshes":7,"views":126,"merge":{"ext":{"from":107,"to":3,"bones":33,"verts":530634,"skip":{}},"in":{"from":63,"to":4,"bones":20,"verts":273744,"skip":{}}}}
+  cub: fold buffers checked fresh 44, after 44 (by class {"mesh":322,"fold":44})
+  FAIL  nomark turned the stale-buffer row red
+  FAIL  a stale buffer is a FOLD's (0 fold buffers stale)
+  ok    the fake bake made the folds and they were drawn and checked
+ noowe: the fold's owed whole upload unguarded (G2352 off, D4b's mark on)
+  cub: fresh - 366 drawn buffers checked, 0 stale; the crash {"br":210,"wreck":11}; after the shed and the roll-out (live true) - 366 checked, 1 STALE; uploads {"uploads":16895,"subs":33029,"contexts":3}; drawn meshes by class {"mesh":67,"fold":7}; the flown bake {"module":true,"hit":"fake","cm":0.54,"hybrid":true,"hyT":0,"folds":2,"foldMeshes":7,"views":126,"merge":{"ext":{"from":107,"to":3,"bones":33,"verts":530634,"skip":{}},"in":{"from":63,"to":4,"bones":20,"verts":273744,"skip":{}}}}
+      stale: {"mesh":"flownBaked","cls":"fold","attr":"position","elements":202428,"of":585378,"first":382950,"version":714}
+  cub: fold buffers checked fresh 44, after 44 (by class {"mesh":322,"fold":44})
+  ok    noowe turned the stale-buffer row red: cub: STALE GPU BUFFERS after crash -> the shed -> roll-out (the CPU written without the upload): fold:flownBaked.position 202428
+  ok    a stale buffer is a FOLD's (1 fold buffers stale)
+  ok    the fake bake made the folds and they were drawn and checked
+GATE DMGUPLOAD-SELFTEST: FAIL
+
+real	16m20.389s
+user	19m8.389s
+sys	0m53.236s
+exit 1

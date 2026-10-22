@@ -1,0 +1,34 @@
+GATE DMGCRASHUI - a crash shows the wreck, not the crew, and awards nothing (dev.html, the user's Cub; worker and inline)
+  worker: the clean landing {"structural":{"damaged":false,"broken":0,"separated":[],"why":null},"arrival":{"arrived":true,"damaged":null,"structural":{"damaged":false,"broken":0,"separated":[],"why":null}}}
+  worker: the hard landing {"sink":6,"structural":{"damaged":true,"broken":8,"separated":[],"why":"the landing gear broke"},"structuralAfter":{"damaged":true,"broken":8,"separated":[],"why":"the landing gear broke"},"arrival":{"arrived":false,"damaged":"the landing gear broke","structural":{"damaged":true,"broken":8,"separated":[],"why":"the landing gear broke"}},"over":true,"card":{"hidden":false,"cls":"bad wreck","rows":"<div><span>outcome</span><b>crashed</b></div><div><span>certificate</span><b class=\"warn\">Not certified - the aeroplane was damaged: the landing gear broke</b></div><div><span>flight time</span><b>7 s</b></div><div><span>distance</span><b>0.0 km</b></div><div><span>peak strain</span><b class=\"warn\">2048.82 %</b></div>"},"award":null,"brokeUp":false}
+  worker: the crash {"structural":{"damaged":true,"broken":95,"separated":[],"why":"a wing broke"},"arrival":{"arrived":false,"damaged":"a wing broke","structural":{"damaged":true,"broken":95,"separated":[],"why":"a wing broke"}},"brokeUp":true,"eyeCut":null,"crewOff":true,"crew":[false,false,false,false,false,false],"wreck":true,"over":true,"card":{"hidden":false,"cls":"bad wreck"},"award":null,"crewEnd":[false,false,false,false,false,false]}
+  worker: Fly again {"crew":[true,true,true,true,true,true],"structural":{"damaged":false,"broken":0,"separated":[],"why":null},"wreck":false}
+  ok    worker: the clean landing: { damaged: false }
+  ok    worker: the clean landing arrives (certified as before)
+  ok    worker: the hard landing (6 m/s: the landing gear broke, 8 broken) is no arrival
+  ok    worker: the card names it: "Not certified - the aeroplane was damaged: the landing gear broke"
+  ok    worker: the crash: {"damaged":true,"broken":95,"separated":[],"why":"a wing broke"}
+  ok    worker: the crash is no arrival
+  ok    worker: no award card over the crash
+  ok    worker: after Fly again: { damaged: false }
+  ok    worker: after the break-up no crew mesh is drawn (6 hidden)
+  ok    worker: after Fly again the crew is drawn as before (6 meshes)
+  inline: the clean landing {"structural":{"damaged":false,"broken":0,"separated":[],"why":null},"arrival":{"arrived":true,"damaged":null,"structural":{"damaged":false,"broken":0,"separated":[],"why":null}}}
+  inline: the hard landing {"sink":6,"structural":{"damaged":true,"broken":8,"separated":[],"why":"the landing gear broke"},"structuralAfter":{"damaged":true,"broken":8,"separated":[],"why":"the landing gear broke"},"arrival":{"arrived":false,"damaged":"the landing gear broke","structural":{"damaged":true,"broken":8,"separated":[],"why":"the landing gear broke"}},"over":true,"card":{"hidden":false,"cls":"bad wreck","rows":"<div><span>outcome</span><b>crashed</b></div><div><span>certificate</span><b class=\"warn\">Not certified - the aeroplane was damaged: the landing gear broke</b></div><div><span>flight time</span><b>7 s</b></div><div><span>distance</span><b>0.0 km</b></div><div><span>peak strain</span><b class=\"warn\">2051.60 %</b></div>"},"award":null,"brokeUp":false}
+  inline: the crash {"structural":{"damaged":true,"broken":89,"separated":[],"why":"a wing broke"},"arrival":{"arrived":false,"damaged":"a wing broke","structural":{"damaged":true,"broken":89,"separated":[],"why":"a wing broke"}},"brokeUp":false,"eyeCut":null,"crewOff":true,"crew":[false,false,false,false,false,false],"wreck":true,"over":true,"card":{"hidden":false,"cls":"bad wreck"},"award":null,"crewEnd":[false,false,false,false,false,false]}
+  inline: Fly again {"crew":[true,true,true,true,true,true],"structural":{"damaged":false,"broken":0,"separated":[],"why":null},"wreck":false}
+  ok    inline: the clean landing: { damaged: false }
+  ok    inline: the clean landing arrives (certified as before)
+  ok    inline: the hard landing (6 m/s: the landing gear broke, 8 broken) is no arrival
+  ok    inline: the card names it: "Not certified - the aeroplane was damaged: the landing gear broke"
+  ok    inline: the crash: {"damaged":true,"broken":89,"separated":[],"why":"a wing broke"}
+  ok    inline: the crash is no arrival
+  ok    inline: no award card over the crash
+  ok    inline: after Fly again: { damaged: false }
+  ok    inline: after the break-up no crew mesh is drawn (6 hidden)
+  ok    inline: after Fly again the crew is drawn as before (6 meshes)
+  the crash, worker {"damaged":true,"broken":95,"separated":[],"why":"a wing broke"} / inline {"damaged":true,"broken":89,"separated":[],"why":"a wing broke"} (the broken count is reported: two runs of one crash are not one run)
+  ok    .structural.damaged equal inline and under the worker for the same crash (true; why "a wing broke" / "a wing broke")
+  the hard landing, worker {"damaged":true,"broken":8,"separated":[],"why":"the landing gear broke"} at 6 m/s / inline {"damaged":true,"broken":8,"separated":[],"why":"the landing gear broke"} at 6 m/s
+GATE DMGCRASHUI: PASS
+== exit 0 416 s

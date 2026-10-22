@@ -1,0 +1,6 @@
+# scripts/bench_pred.js / bench_ramp.js / bench_trace.js (the bench to destruction, the certificate)
+base:   floats BROKE AT 6.215 g, S1BL-WB fitting (Ft 36.68 kN by bench -> predicted 5.98 g); ramp x4 slower 6.209, x4 faster 6.238
+after:  floats BROKE AT 6.595 g, S1BR-WB (Ft 38.03 kN by dropDriftR, mirrored -> predicted 6.20 g)
+        metal  BROKE AT 6.017 g (predicted 5.98)
+trace (force / linear on the two parallel S1B?-WB fittings): floats 0.94 / 1.0 from 5.3 g (the one that breaks sheds),
+        metal 0.995 / 0.93 (the one that breaks keeps its share); first set 3.85 / 4.0 g

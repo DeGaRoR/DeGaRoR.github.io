@@ -1,0 +1,28 @@
+== 1. node's load path against the page's own spec (tools/fixtures/join_parity_page.json) ==
+PASS the page capture holds every validated build (cub, jodel, metal, floats, twinFloats)
+     (the load chain's files changed since the capture of 2026-10-07T08:20:58.437Z: a FAIL below means the game's aeroplane moved - re-capture with node tools/join_parity_page.js if that move is meant, and say so in the HANDOVER)
+PASS Cub              node = page: n 97/97 nb 404/404 mass 460.483/460.483 kg, worst 0.00e+0
+PASS Jodel            node = page: n 115/115 nb 502/502 mass 463.875/463.875 kg, worst 2.22e-16
+PASS metal Cessna     node = page: n 107/107 nb 452/452 mass 887.974/887.974 kg, worst 1.92e-16
+PASS Cessna floats    the float station (the page's CG handshake, declared): x 1.22316 / page 1.22316, y -1.09042 / page -1.09042 (within 5 mm)
+PASS Cessna floats    node = page: n 134/134 nb 543/543 mass 951.650/951.650 kg, worst 1.88e-16
+PASS twin floatplane  the float station (the page's CG handshake, declared): x 1.22065 / page 1.22023, y -0.45862 / page -0.45870 (within 5 mm)
+PASS twin floatplane  node = page: n 127/127 nb 519/519 mass 486.284/486.284 kg, worst 0.00e+0
+== 2. the file as written is NOT the game's aeroplane (the pre-G1985 loaders) ==
+PASS metal Cessna: the engine nodes as written at x -0.510 m, in the game at -1.162 (the join's engines[0].x = -1.1619)
+PASS Cub: the nose tank's nodes as written 0.924 m over the firewall's foot, in the game 0.000; 476.19 kg as written, 460.48 in the game (the tank 27 L)
+== 3. the chain is a pure function of its inputs ==
+PASS metal Cessna: two fresh computations and the cache agree to the byte
+PASS Cub: two fresh computations and the cache agree to the byte
+== 4. the game's spec saved and opened again (question 4) ==
+PASS Cub              save -> open: n 97/97 nb 404/404 mass 460.483/460.483 kg, worst 0.00e+0, engines[0].x -0.8920 carried
+PASS Jodel            save -> open: n 115/115 nb 502/502 mass 463.875/463.875 kg, worst 0.00e+0, engines[0].x -0.9855 carried
+PASS metal Cessna     save -> open: n 107/107 nb 452/452 mass 887.974/887.974 kg, worst 0.00e+0, engines[0].x -1.1619 carried
+PASS Cessna floats    save -> open: n 134/134 nb 543/543 mass 951.650/951.650 kg, worst 0.00e+0, engines[0].x -1.1619 carried
+PASS twin floatplane  save -> open: n 127/127 nb 519/519 mass 486.282/486.282 kg, worst 0.00e+0
+== 5. every loader of a validated build goes through tools/_load_build.js ==
+PASS tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is the metal Cessna's spec to the byte (so it is held like it)
+PASS no tool flies a validated build raw (32 declared doors)
+PASS pilot_trace.js loads saved builds through tools/_load_build.js
+PASS _treecrash_lib.js loads saved builds through tools/_load_build.js
+GATE JOINPARITY: PASS

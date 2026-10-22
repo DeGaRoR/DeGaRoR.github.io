@@ -38,6 +38,7 @@
 //   node tools/ground_tex_prep.js --report   say what it would write; write nothing
 // Needs python + Pillow for the cook (tools/media_lib.py, the importers' own dependency). Committed.
 'use strict';
+require('./_core_math_global.js');   // (T41b: CORE_MATH before a core file required alone - 00_registry's)
 const fs = require('fs');
 const path = require('path');
 const { writeMedia, flatConst, pruneMedia, BASE_DECL, mediaRel } = require('./_media_lib.js');

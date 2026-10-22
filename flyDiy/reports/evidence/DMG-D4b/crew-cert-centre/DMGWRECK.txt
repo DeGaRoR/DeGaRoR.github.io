@@ -1,0 +1,287 @@
+(106 s, 5 builds; CRUSH 6 cm, E_BEND 40 kJ, E_BREAK 150 kJ, the eye clear 10 cm)
+Cub:
+  a trunk at 30 m/s, the centreline: CRASHED (a fus member broke), 52 broken, 215 damage payloads
+    released: blade (strike, t 1.32 s), cowl (off, t 1.32 s), pane (crushed 9 cm, t 1.35 s); 5 parts stay on
+    prop strike (engine 0, trunk, a wood prop, t 1.32 s): 1053 rpm, the hub at 3.68 m/s - E 14.6 kJ (spin 11.5, impact 3.1): EVERY BLADE SNAPS (at 65 % / 100 % of the radius; the stubs stay), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (a4e7e4)
+    body blade (strike): at rest after 2.32 s, 1.17 m from the wreck, its lowest corner 0.0 cm over the ground, the deepest corner -194.2 cm in cabin bay 2
+    body cowl (off): at rest after 5.1 s, 20.42 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body pane (crushed): at rest after 3.36 s, 9.85 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0, 0.0, 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -194.2 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 3 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "separation" (engine 0): curl 0.00 / 0.00, cut 0.65 / 1.00
+    DMG-DRIVE nose: crush 43.7 cm on trunk (core), strike separation
+  ok    a trunk at 30 m/s strikes the prop on the trunk, drawn
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (trunk-0)
+    the cockpit (eye in bay 1, 29 cm clear at rest): CRUSHED - the eye -23 cm from the crushed cabin's wall: the chase view
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 13 broken, 29 damage payloads
+    released: nothing; 7 parts stay on
+    prop strike (engine 0, ground, a wood prop, t 2.67 s): 990 rpm, the hub at 25.91 m/s - E 164.7 kJ (spin 10.2, impact 154.5): the prop stops whole (a wooden one in the water, slow), the spinner dented 0.0 cm
+    prop strike (engine 0, ground, a wood prop, t 2.68 s): 991 rpm, the hub at 25.76 m/s - E 163.0 kJ (spin 10.2, impact 152.8): the prop stops whole (a wooden one in the water, slow), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (b18c18b0)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "bent" (engine 0): curl 0.92 / 0.81, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 0.00 / 0.00, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 35.5 cm on ground (prop), strike stoppage
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (trunk-2.5)
+    the cockpit (eye in bay 1, 29 cm clear at rest): clear (28 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a taxi into a trunk at 3 m/s, the throttle shut: no crash, 0 broken, 0 damage payloads
+    released: nothing; 7 parts stay on
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (ed2347d4)
+    DMG-DRIVE nose: crush 12.7 cm on trunk (spinner), strike none
+  ok    the 3 m/s taxi into a trunk crushes the nose / spinner on it (the DMG-DRIVE nose element)
+  ok    the taxi draws a strike only as DMG-DRIVE grades one (none graded: the prop drawn whole)
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (taxi)
+    the cockpit (eye in bay 1, 29 cm clear at rest): clear (29 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 27 broken, 25 damage payloads
+    released: cowl (crushed 29 cm, t 0.07 s); 6 parts stay on
+    prop strike (engine 0, ground, a wood prop, t 0.02 s): 0 rpm, the hub at 49.85 m/s - E 572.2 kJ (spin 0.0, impact 572.2): the prop stops whole (a wooden one in the water, slow), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (c393f19d)
+    body cowl (crushed): at rest after 4.58 s, 18.51 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -1016.0 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 1 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 0.00 / 0.00, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 43.7 cm on ground (bowl), strike stoppage
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (nosein-ground)
+    the cockpit (eye in bay 1, 29 cm clear at rest): CRUSHED - the eye -18 cm from the crushed cabin's wall: the chase view
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  ok    nothing broken (a FAR 23.473 drop, 0 yields): no payload, no release, no strike
+Jodel:
+  a trunk at 30 m/s, the centreline: CRASHED (a fus member broke), 56 broken, 15 damage payloads
+    released: blade (strike, t 1.28 s), cowl (off, t 1.3 s), pane (crushed 20 cm, t 1.33 s); 5 parts stay on
+    prop strike (engine 0, trunk, a wood prop, t 1.28 s): 994 rpm, the hub at 29.81 m/s - E 214.5 kJ (spin 8.5, impact 206.0): EVERY BLADE SNAPS (at 65 % / 100 % of the radius; the stubs stay), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (b26d99ec)
+    body blade (strike): at rest after 5.1 s, 57.35 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body cowl (off): at rest after 4.44 s, 46.12 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body pane (crushed): at rest after 2.23 s, 15.89 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0, 0.0, 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -1926.3 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 3 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "separation" (engine 0): curl 0.00 / 0.00, cut 0.65 / 1.00
+    DMG-DRIVE nose: crush 42.2 cm on trunk (core), strike separation
+  ok    a trunk at 30 m/s strikes the prop on the trunk, drawn
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (trunk-0)
+    the cockpit (eye in bay 1, 31 cm clear at rest): clear (31 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a tail member broke), 16 broken, 3 damage payloads
+    released: nothing; 7 parts stay on
+    prop strike (engine 0, ground, a wood prop, t 1.43 s): 925 rpm, the hub at 27.34 m/s - E 180.6 kJ (spin 7.3, impact 173.3): the prop stops whole (a wooden one in the water, slow), the spinner dented 0.0 cm
+    prop strike (engine 0, ground, a wood prop, t 1.45 s): 921 rpm, the hub at 25.39 m/s - E 156.7 kJ (spin 7.3, impact 149.5): the prop stops whole (a wooden one in the water, slow), the spinner dented 0.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (cd9ed61)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "brush" (engine 0): curl 0.05 / 0.06, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "bent" (engine 0): curl 0.57 / 0.57, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 0.0 cm on null, strike bent
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (trunk-2.5)
+    the cockpit (eye in bay 1, 31 cm clear at rest): clear (31 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a taxi into a trunk at 3 m/s, the throttle shut: no crash, 0 broken, 0 damage payloads
+    released: nothing; 7 parts stay on
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (ff19bb97)
+    DMG-DRIVE nose: crush 11.8 cm on trunk (spinner), strike none
+  ok    the 3 m/s taxi into a trunk crushes the nose / spinner on it (the DMG-DRIVE nose element)
+  ok    the taxi draws a strike only as DMG-DRIVE grades one (none graded: the prop drawn whole)
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (taxi)
+    the cockpit (eye in bay 1, 31 cm clear at rest): clear (31 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 30 broken, 4 damage payloads
+    released: cowl (crushed 26 cm, t 0.05 s); 6 parts stay on
+    prop strike (engine 0, ground, a wood prop, t 0.02 s): 0 rpm, the hub at 49.61 m/s - E 570.7 kJ (spin 0.0, impact 570.7): the prop stops whole (a wooden one in the water, slow), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (62f7aec2)
+    body cowl (crushed): at rest after 4.8 s, 16.33 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -1102.2 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 1 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 0.00 / 0.00, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 42.2 cm on ground (bowl), strike stoppage
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (nosein-ground)
+    the cockpit (eye in bay 1, 31 cm clear at rest): clear (31 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  ok    nothing broken (a FAR 23.473 drop, 0 yields): no payload, no release, no strike
+metal Cessna:
+  a trunk at 30 m/s, the centreline: CRASHED (a fus member broke), 54 broken, 53 damage payloads
+    released: cowl (crushed 34 cm, t 1.28 s), pane (crushed 7 cm, t 1.4 s); 5 parts stay on
+    prop strike (engine 0, trunk, a alu prop, t 1.28 s): 996 rpm, the hub at 36.26 m/s - E 598.2 kJ (spin 14.5, impact 583.8): the blades bend aft and against the rotation (0.76 / 1.03 rad), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (dc754d5a)
+    body cowl (crushed): at rest after 2.43 s, 6.35 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body pane (crushed): at rest after 1.7 s, 1.70 m from the wreck, its lowest corner 0.0 cm over the ground, the deepest corner -157.9 cm in cabin bay 0
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0, 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -157.9 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 2 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 0.76 / 1.03, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 46.5 cm on trunk (core), strike stoppage
+  ok    a trunk at 30 m/s strikes the prop on the trunk, drawn
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (trunk-0)
+    the cockpit (eye in bay 1, 45 cm clear at rest): clear (45 cm, the bay at 99 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 12 broken, 18 damage payloads
+    released: nothing; 7 parts stay on
+    prop strike (engine 0, ground, a alu prop, t 1.33 s): 998 rpm, the hub at 30.23 m/s - E 420.4 kJ (spin 14.6, impact 405.8): the blades bend aft and against the rotation (0.06 / 0.06 rad), the spinner dented 0.0 cm
+    prop strike (engine 0, ground, a alu prop, t 1.35 s): 989 rpm, the hub at 29.41 m/s - E 398.2 kJ (spin 14.3, impact 383.9): the blades bend aft and against the rotation (0.50 / 0.67 rad), the spinner dented 0.0 cm
+    prop strike (engine 0, ground, a alu prop, t 1.37 s): 981 rpm, the hub at 29.23 m/s - E 393.4 kJ (spin 14.1, impact 379.3): the blades bend aft and against the rotation (1.02 / 0.77 rad), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (3568b362)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "brush" (engine 0): curl 0.06 / 0.06, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "bent" (engine 0): curl 0.50 / 0.67, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 1.02 / 0.77, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 28.7 cm on ground (spinner), strike stoppage
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (trunk-2.5)
+    the cockpit (eye in bay 1, 45 cm clear at rest): clear (45 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a taxi into a trunk at 3 m/s, the throttle shut: no crash, 0 broken, 0 damage payloads
+    released: nothing; 7 parts stay on
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (6534dc77)
+    DMG-DRIVE nose: crush 21.2 cm on trunk (spinner), strike none
+  ok    the 3 m/s taxi into a trunk crushes the nose / spinner on it (the DMG-DRIVE nose element)
+  ok    the taxi draws a strike only as DMG-DRIVE grades one (none graded: the prop drawn whole)
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (taxi)
+    the cockpit (eye in bay 1, 45 cm clear at rest): clear (45 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 35 broken, 16 damage payloads
+    released: cowl (crushed 35 cm, t 0.07 s); 6 parts stay on
+    prop strike (engine 0, ground, a alu prop, t 0.02 s): 0 rpm, the hub at 50.44 m/s - E 1129.7 kJ (spin 0.0, impact 1129.7): the blades bend aft and against the rotation (1.08 / 0.98 rad), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (3f783ae5)
+    body cowl (crushed): at rest after 3.75 s, 3.43 m from the wreck, its lowest corner -0.0 cm over the ground, the deepest corner -8.1 cm in cabin bay 1
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: -0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -8.1 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 1 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 1.08 / 0.98, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 46.5 cm on ground (bowl), strike stoppage
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (nosein-ground)
+    the cockpit (eye in bay 1, 45 cm clear at rest): clear (45 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  ok    nothing broken (a FAR 23.473 drop, 0 yields): no payload, no release, no strike
+Cessna floats:
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 67 broken, 19 damage payloads
+    released: cowl (off, t 0.18 s); 3 parts stay on
+    prop strike (engine 0, water, a alu prop, t 0.13 s): 1015 rpm, the hub at 41.51 m/s - E 834.8 kJ (spin 15.1, impact 819.7): the blades bend aft and against the rotation (0.51 / 0.41 rad), the spinner dented 0.0 cm
+    prop strike (engine 0, water, a alu prop, t 0.15 s): 1024 rpm, the hub at 42.28 m/s - E 865.7 kJ (spin 15.3, impact 850.4): the blades bend aft and against the rotation (0.96 / 0.75 rad), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (7791fd6a)
+    body cowl (off): SUNK (out of sight) after 4.15 s, 19.86 m from the wreck, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: sunk cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -1306.8 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 1 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "bent" (engine 0): curl 0.51 / 0.41, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 0.96 / 0.75, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 46.5 cm on ground (bowl), strike stoppage
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (nosein-water)
+    the cockpit (eye in bay 1, 45 cm clear at rest): clear (45 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  the float nose-in (90 km/h, 5 m/s, 20 deg): no crash, 0 broken, 0 damage payloads
+    released: nothing; 4 parts stay on
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (b3000d01)
+    DMG-DRIVE nose: crush 0.0 cm on null, strike none
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (float-nosein)
+    the cockpit (eye in bay 1, 45 cm clear at rest): clear (45 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  ok    nothing broken (a FAR 23.473 drop, 0 yields): no payload, no release, no strike
+twin floatplane:
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (broke up: the fuselage parted (TPB off the core)), 31 broken, 30 damage payloads
+    released: pane (crushed 12 cm, t 0.28 s); 6 parts stay on
+    prop strike (engine 0, water, a carbon prop, t 0.15 s): 1101 rpm, the hub at 32.03 m/s - E 262.0 kJ (spin 12.6, impact 249.4): the prop stops whole (a wooden one in the water, slow), the spinner dented 6.0 cm
+    prop strike (engine 1, water, a carbon prop, t 0.15 s): 1101 rpm, the hub at 32.05 m/s - E 262.3 kJ (spin 12.6, impact 249.7): the prop stops whole (a wooden one in the water, slow), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (4723e635)
+    body pane (crushed): SUNK (out of sight) after 0 s, 18.04 m from the wreck, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: sunk cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -1543.9 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 1 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 1)
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 0.00 / 0.00, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "stoppage" (engine 1): curl 0.00 / 0.00, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 0.0 cm on null, strike stoppage
+    DMG-DRIVE nose: crush 0.0 cm on null, strike stoppage
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (nosein-water)
+    the cockpit (eye in bay 1, 29 cm clear at rest): clear (28 cm, the bay at 96 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  the float nose-in (90 km/h, 5 m/s, 20 deg): CRASHED (a fus member broke), 10 broken, 8 damage payloads
+    released: nothing; 7 parts stay on
+    prop strike (engine 0, water, a carbon prop, t 2.62 s): 709 rpm, the hub at 14.26 m/s - E 54.6 kJ (spin 5.2, impact 49.4): the prop stops whole (a wooden one in the water, slow), the spinner dented 0.0 cm
+    prop strike (engine 1, water, a carbon prop, t 2.62 s): 709 rpm, the hub at 14.26 m/s - E 54.7 kJ (spin 5.2, impact 49.4): the prop stops whole (a wooden one in the water, slow), the spinner dented 0.0 cm
+    prop strike (engine 0, water, a carbon prop, t 2.63 s): 709 rpm, the hub at 13.73 m/s - E 51.1 kJ (spin 5.2, impact 45.9): the prop stops whole (a wooden one in the water, slow), the spinner dented 6.0 cm
+    prop strike (engine 1, water, a carbon prop, t 2.63 s): 709 rpm, the hub at 13.78 m/s - E 51.4 kJ (spin 5.2, impact 46.2): the prop stops whole (a wooden one in the water, slow), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (514a0f64)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 1)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 1)
+    DMG-DRIVE graded the strike "bent" (engine 0): curl 0.59 / 0.47, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "bent" (engine 1): curl 0.58 / 0.66, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 0.00 / 0.00, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "stoppage" (engine 1): curl 0.00 / 0.00, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 0.0 cm on null, strike stoppage
+    DMG-DRIVE nose: crush 0.0 cm on null, strike stoppage
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (float-nosein)
+    the cockpit (eye in bay 1, 29 cm clear at rest): clear (29 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  ok    nothing broken (a FAR 23.473 drop, 0 yields): no payload, no release, no strike
+the drawn prop (synthetic, 2 blades of 0.95 m read off its vertices):
+  ok    the blade count read off the vertices: 2
+  ok    the curl keeps each blade's length (0.850 / 0.850 / 0.850 / 0.850 m)
+  ok    the tips curl aft (10.3 / 14.9 cm), the blades' inner 35 % untouched
+  ok    the spinner dented on the strike's side only (3.0 cm in; 0.00 cm behind)
+  ok    a wooden prop snaps on every blade at 25-45 % of its radius (44 / 32 %)
+  ok    an aluminium prop bends, none breaks (0.32 / 0.46 rad)
+  ok    in the water a slow wooden prop stops whole, an aluminium one bends less (0.14 / 0.17 rad)
+DMG-DRIVE's grade drawn (G1861.5):
+  ok    no strike graded: nothing drawn from DRIVE
+  ok    brush: the tips scuffed (0.06 / 0.06 rad), nothing lost, the spinner whole
+  ok    bent: curled back by the bite (biteR 0.06 -> k 0.18, 0.14 -> k 0.91)
+  ok    stoppage: a wooden prop stops whole below the separation tip speed, its tips splinter above it (91 / 89 %); an aluminium one fully curled; the spinner dented
+  ok    separation: ONE blade short by bladeLost (cut at 65 % of R), its piece a body
+  ok    seeded by the strike: the same grade at the same moment, the same picture
+  ok    under the physics worker the page's sim mirrors the breaks (dmgState) and DMG-DRIVE's grade (drv), saved and restored at detach; the prop reads the mirror first
+  ok    under the physics worker the wreck reads the worker's node velocities (vView) and engines (engView): released parts fly off, a seized prop stops
+  ok    app.js: the wreck path (debris, the strike's drawing, the cockpit rule) only through wreckFrame, returning at once unless the damage state holds damage or an engine has seized
+  155/155 checks
+GATE DMGWRECK: PASS
+== exit 0 107 s

@@ -1,0 +1,7 @@
+sim.step(1/60), damage off, flat ground (parked / taxiing at 8 m/s, rudder 0.1) or 300 m up (1.6 Vs); base = DMG-DAMP 8a22a4f9 core, now = this branch; alternating child processes, 600 steps each
+cub:ground    run 1   2.09 %   run 2  -0.72 %   POOLED (the median of 30 processes each): base 4.8367 ms, now 4.8346 ms, -0.04 %
+cub:taxi      run 1   1.90 %   run 2  -0.53 %   POOLED (the median of 30 processes each): base 5.0923 ms, now 5.0275 ms, -1.27 %
+cub:air       run 1   1.44 %   run 2   3.45 %   POOLED (the median of 30 processes each): base 4.6047 ms, now 4.6996 ms, 2.06 %
+metal:ground  run 1  -2.20 %   run 2   1.12 %   POOLED (the median of 30 processes each): base 8.4296 ms, now 8.3737 ms, -0.66 %
+metal:taxi    run 1  -2.96 %   run 2   0.31 %   POOLED (the median of 30 processes each): base 8.8673 ms, now 8.8187 ms, -0.55 %
+metal:air     run 1   1.13 %   run 2   0.82 %   POOLED (the median of 30 processes each): base 8.0163 ms, now 8.0776 ms, 0.77 %

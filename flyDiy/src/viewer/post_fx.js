@@ -60,7 +60,8 @@ const POST_FX = (() => {
 
   // ---- the GPU timer: one query round a pass, read back when it lands (clouds.js) ---------
   const timer = { ext: null, pending: [] };
-  function tBegin(tag) { if (!timer.ext) return null; const q = gl.createQuery(); gl.beginQuery(timer.ext.TIME_ELAPSED_EXT, q); return { q, tag }; }
+  // PERF-1 P1: on the frames the flight recorder gives the subsystems (FLIGHT_REC.gpuMay) - its whole-frame timer owns the rest
+  function tBegin(tag) { if (!timer.ext || !(typeof FLIGHT_REC === 'undefined' || !FLIGHT_REC.gpuMay || FLIGHT_REC.gpuMay())) return null; const q = gl.createQuery(); gl.beginQuery(timer.ext.TIME_ELAPSED_EXT, q); return { q, tag }; }
   function tEnd(h) { if (!h) return; gl.endQuery(timer.ext.TIME_ELAPSED_EXT); timer.pending.push(h); }
   function tPoll() {
     if (!timer.ext || !timer.pending.length) return;
@@ -496,7 +497,14 @@ const POST_FX = (() => {
   // first MAX_SHOTS of a session at least GAP_MS apart the frame's 64 x 36 picture as a JPEG data URL. The header
   // carries summary(): its counts and its own cost (tapUs). What a copy of the scene target cannot see: the bloom, the
   // rays and the glare, drawn onto the canvas after it. Off: localStorage flydiy.rec.catch = '0', or ?rec=0.
-  const CAT = { W: 64, H: 36, RING: 8, spike: 0.06, sky: 0.7, MAX_SHOTS: 6, GAP_MS: 5000, MAXQ: 6 };
+  // DEPART-HITCH (A0 21 Oct): THE PICTURE ONLY WHEN ASKED. A catch's read (readRenderTargetPixelsAsync: the fence's
+  // clientWaitSync and getBufferSubData, synchronous calls into the GPU process) and its JPEG were the strict gate's
+  // over100 x4 on every leg since L20 - ~8 s into the departure, the GPU busy, one read was a 550-800 ms task (the live
+  // profile: toDataURL < catJpeg < readRenderTargetPixelsAsync.then). A readback is a stall whatever its size, so by
+  // default a catch is the event and the frame's state alone - no read, no picture, no means; localStorage
+  // flydiy.rec.catch = 'shots' reads them as before (MAX_SHOTS a session), '0' turns the catcher off
+  const CAT_SHOTS = (() => { try { return typeof localStorage !== 'undefined' && localStorage.getItem('flydiy.rec.catch') === 'shots'; } catch (e) { return false; } })();
+  const CAT = { W: 64, H: 36, RING: 8, spike: 0.06, sky: 0.7, MAX_SHOTS: CAT_SHOTS ? 6 : 0, GAP_MS: 5000, MAXQ: 6 };
   const CAT_COPY = `${CURVE} uniform sampler2D tSrc; uniform vec2 uTexel; varying vec2 vUv;
     void main() {
       vec3 c = vec3(0.0);
@@ -578,7 +586,7 @@ const POST_FX = (() => {
     cat.st.caught++;
     const r4 = x => (x === x && x != null ? Math.round(x * 10000) / 10000 : null);
     const W = (typeof window !== 'undefined') ? window : {}, AA = W.FLYDIY_AA, C = W.CLOUDS;
-    const d = { why: !v ? 'caught (over the picture cap: no read)' : (Math.abs(v.mean - v.prev) > CAT.spike && Math.abs(v.mean - v.next) > CAT.spike ? (v.mean > v.prev ? 'bright spike' : 'dark spike') : 'pale sky'),
+    const d = { why: !v ? (CAT.MAX_SHOTS ? 'caught (over the picture cap: no read)' : 'caught (no read: flydiy.rec.catch=shots for the picture)') : (Math.abs(v.mean - v.prev) > CAT.spike && Math.abs(v.mean - v.next) > CAT.spike ? (v.mean > v.prev ? 'bright spike' : 'dark spike') : 'pale sky'),
       f: r4(m[0]), seq, mean: v ? r4(v.mean) : null, prev: v ? r4(v.prev) : null, next: v ? r4(v.next) : null, sky: v ? r4(v.sky) : null,
       exposureBase: r4(m[1]), eyeK: r4(m[2]), eyeLum: r4(m[3]), far: r4(m[4]), near: r4(m[5]), camY: r4(m[6]), cloudShadow: r4(m[7]), inCloudRho: r4(m[8]), visHidden: r4(m[9]),
       cloudsOn: C ? !!C.active : null, post: Object.assign({ passes: stats.passes, linear }, S), aa: AA && AA.tier ? AA.tier() : null, jpeg };
@@ -599,6 +607,11 @@ const POST_FX = (() => {
   // tap(renderer, camera, rt): aa_resolve's tap, once a frame after the post chain (app.js installs it when the recorder is on)
   function tap(r, camera, rt) {
     if (!cat.on || !ready || !rt || !rt.texture) return;
+    // REVEAL-FLASH (A0 21 Oct): A FRAME ON SCREEN ONLY. The boot's offscreen draws (the warm draw's six views round the stand at
+    // 0.35 x viewDist up, the first light) go through aa_resolve too and were judged as frames - two cameras alternating (4 m and
+    // 36 m up) read as a 'bright spike' every boot, logged as a flash at the reveal that no player ever saw (all before the
+    // recorder's reveal mark; the caught picture: the apron from 4 m). While the boot's screen is up, nothing is judged
+    { const B = typeof window !== 'undefined' ? window.BOOT : null; if (B && B.state && B.state !== 'gone') return; }
     const gl = renderer.getContext && renderer.getContext();
     if (!gl || typeof gl.createQuery !== 'function') return;
     const t0 = perfNow();

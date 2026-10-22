@@ -1,0 +1,81 @@
+LAW (the rigid bench: each build's own float at the hump and on the step of its calm take-off)
+   twin on floats hump: V 7.1 m/s, step keel 0.264 m deep, trim 7.0 deg; at 3 deg of slip the side force 284.8 N (the base's panels 90.0 N), centre -0.694 m from the step; slender body on the step keel 287.0 N
+   twin on floats step: V 12.0 m/s, step keel 0.145 m deep, trim 1.9 deg; at 3 deg of slip the side force 247.6 N (the base's panels 166.0 N), centre -1.042 m from the step; slender body on the step keel 247.8 N
+PASS twin on floats hump: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS twin on floats hump: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS twin on floats hump: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS twin on floats hump: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+PASS twin on floats hump: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS twin on floats hump: at 90 deg the side term is 0 N and the cross-flow carries 20530.2 N
+PASS twin on floats step: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS twin on floats step: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS twin on floats step: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS twin on floats step: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+PASS twin on floats step: 247.6 N against the slender body's (pi/2) rho T^2 U v = 247.8 N on T = 0.145 m (2 %)
+PASS twin on floats step: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS twin on floats step: at 90 deg the side term is 0 N and the cross-flow carries 9976.52 N
+PASS twin on floats step: the side force's centre -1.042 m from the step (ahead of it, on the forebody: -2.22..0)
+   Cessna on floats hump: V 10.7 m/s, step keel 0.343 m deep, trim 10.3 deg; at 3 deg of slip the side force 1099.1 N (the base's panels 440.1 N), centre -0.654 m from the step; slender body on the step keel 1117.1 N
+   Cessna on floats step: V 18.2 m/s, step keel 0.114 m deep, trim 7.9 deg; at 3 deg of slip the side force 349.1 N (the base's panels 198.0 N), centre -0.310 m from the step; slender body on the step keel 352.4 N
+PASS Cessna on floats hump: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS Cessna on floats hump: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS Cessna on floats hump: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS Cessna on floats hump: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+FAIL Cessna on floats hump: the side term peaks at 50 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS Cessna on floats hump: at 90 deg the side term is 0 N and the cross-flow carries 53382.68 N
+PASS Cessna on floats step: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS Cessna on floats step: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS Cessna on floats step: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS Cessna on floats step: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+PASS Cessna on floats step: 349.1 N against the slender body's (pi/2) rho T^2 U v = 352.4 N on T = 0.114 m (2 %)
+PASS Cessna on floats step: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS Cessna on floats step: at 90 deg the side term is 0 N and the cross-flow carries 19449.54 N
+PASS Cessna on floats step: the side force's centre -0.310 m from the step (ahead of it, on the forebody: -3.68..0)
+
+SWEEP (GATE SEAPLANE's crosswind take-off, THE PILOT, the SEA lane; swing from the roll's own heading)
+   twin on floats:  wind | lift-off s | swing deg | |x| m | lowest pitch deg | skips | class
+      0.0 |   10.2 |    0.0 |    0.0 |    0.0 | 0 | ok
+      0.5 |   10.2 |    1.3 |    0.9 |    0.0 | 0 | ok
+      1.0 |   10.3 |    2.8 |    1.7 |   -0.1 | 0 | ok
+      1.5 |   10.3 |    4.5 |    2.4 |   -1.0 | 0 | ok
+      2.0 |    9.5 |    5.7 |    3.0 |   -2.8 | 0 | ok
+      2.5 |    9.8 |    6.2 |    3.8 |   -2.0 | 1 | ok
+      3.0 |    9.4 |    7.9 |    4.8 |   -2.4 | 1 | ok
+      3.5 |    9.5 |    9.5 |    6.0 |   -0.5 | 0 | ok
+      4.0 |    9.3 |   21.1 |   10.8 |   -6.5 | 1 | ok
+      4.5 |   10.2 |   49.0 |   25.4 |   -4.2 | 2 | YAW WATER LOOP
+      5.0 |    -   |  180.0 |  171.3 |   -6.9 | 3 | YAW WATER LOOP
+PASS twin on floats: 0-1.5 m/s across clean (the base's clean band)
+OWED twin on floats: YAW swing past 30 deg at 4.5 m/s (49.0 deg), 5 m/s (180.0 deg) - the side force's centre is ahead of the CG on the step (HANDOVER G1847-G1849, open question 2)
+   Cessna on floats:  wind | lift-off s | swing deg | |x| m | lowest pitch deg | skips | class
+      0.0 |   24.1 |    0.0 |    0.0 |   -0.5 | 0 | ok
+      0.5 |   24.2 |    0.5 |    0.6 |   -0.5 | 0 | ok
+      1.0 |   24.3 |    1.0 |    1.1 |   -0.5 | 0 | ok
+      1.5 |   24.3 |    1.6 |    1.4 |   -0.5 | 0 | ok
+      2.0 |   24.3 |    2.2 |    1.8 |   -0.5 | 0 | ok
+      2.5 |   24.2 |    2.6 |    2.1 |   -0.5 | 0 | ok
+      3.0 |   23.0 |    7.9 |    2.7 |   -0.5 | 3 | ok
+      3.5 |   22.3 |   10.0 |    3.0 |   -0.5 | 1 | ok
+      4.0 |   23.7 |    6.3 |    3.4 |   -0.5 | 0 | ok
+      4.5 |   24.2 |    4.7 |    3.9 |   -0.5 | 2 | ok
+      5.0 |   24.3 |   18.5 |    5.6 |   -0.5 | 4 | ok
+PASS Cessna on floats: no yaw water loop at any crosswind 0-5 m/s
+PASS Cessna on floats: every take-off off the water, swing and lane under 30 (worst 18.5 deg, 5.6 m)
+
+KICK (0.3 rad/s of yaw rate on the water, kicked minus unkicked, controls frozen, rudder neutral)
+   twin on floats rest (V 0.0 m/s): after 1 / 2 / 6 s - before 0.143 / 0.078 / 0.009 rad/s (t1/2 0.93 s); after 0.235 / 0.197 / 0.120 rad/s (t1/2 3.97 s); now 0.223 / 0.181 / 0.103 rad/s (t1/2 3.08 s)
+PASS twin on floats at rest: the kick decays no slower than DMG-DAMP's after: 0.1026 against 0.1201 rad/s at 6 s
+   twin on floats hump (V 7.1 m/s): after 1 / 2 s - before 0.155 / 0.131 rad/s (t1/2 1.17 s); after 0.212 / 0.211 rad/s (t1/2 >2 s); now 0.234 / 0.300 rad/s (t1/2 >2 s)
+OWED twin on floats hump: 0.234 rad/s left after 1 s against 0.212 without the side force (LESS stable: the centre ahead of the CG)
+   twin on floats step (V 12.0 m/s): after 1 / 2 s - before 0.231 / 0.224 rad/s (t1/2 >2 s); after 0.237 / 0.124 rad/s (t1/2 1.85 s); now 0.349 / 0.538 rad/s (t1/2 >2 s)
+OWED twin on floats step: 0.349 rad/s left after 1 s against 0.237 without the side force (LESS stable: the centre ahead of the CG)
+   Cessna on floats rest (V 0.0 m/s): after 1 / 2 / 6 s - before 0.084 / 0.039 / 0.003 rad/s (t1/2 0.43 s); after 0.127 / 0.083 / 0.036 rad/s (t1/2 0.72 s); now 0.120 / 0.078 / 0.033 rad/s (t1/2 0.65 s)
+PASS Cessna on floats at rest: the kick decays no slower than DMG-DAMP's after: 0.0328 against 0.0359 rad/s at 6 s
+   Cessna on floats hump (V 10.7 m/s): after 1 / 2 s - before 0.071 / 0.012 rad/s (t1/2 0.50 s); after 0.110 / 0.026 rad/s (t1/2 0.77 s); now 0.119 / 0.043 rad/s (t1/2 0.78 s)
+OWED Cessna on floats hump: 0.119 rad/s left after 1 s against 0.110 without the side force (LESS stable: the centre ahead of the CG)
+   Cessna on floats step (V 18.2 m/s): after 1 / 2 s - before 0.080 / -0.047 rad/s (t1/2 0.47 s); after 0.117 / -0.085 rad/s (t1/2 0.62 s); now 0.155 / -0.092 rad/s (t1/2 1.05 s)
+OWED Cessna on floats step: 0.155 rad/s left after 1 s against 0.117 without the side force (LESS stable: the centre ahead of the CG)
+
+(42 runs in 969 s on 4 processes)
+GATE DMGHULL: FAIL (1)
+exit 1 secs 969

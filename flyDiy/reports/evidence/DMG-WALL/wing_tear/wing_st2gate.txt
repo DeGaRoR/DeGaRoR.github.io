@@ -1,0 +1,48 @@
+build cub: covering groups (pieces at rest, those under 40 triangles):
+  #4 c8b95a2 tris 4192 cover 4192 pieces 5 small 0 (0 tris) sizes [256,256,288,1696,1696]
+  #5 c3f8fc0 tris 150 cover 150 pieces 1 small 0 (0 tris) sizes [150]
+  #6 ca85fb0 tris 2222 cover 2222 pieces 2 small 0 (0 tris) sizes [1111,1111]
+  #7 c7d8792 tris 64 cover 64 pieces 1 small 0 (0 tris) sizes [64]
+  #8 c39c46a tris 480 cover 480 pieces 3 small 0 (0 tris) sizes [160,160,160]
+  #9 c9aa4b0 tris 80 cover 80 pieces 2 small 0 (0 tris) sizes [40,40]
+  #10 cffc95a tris 320 cover 320 pieces 2 small 0 (0 tris) sizes [160,160]
+  #17 ceilingLoop tris 448 cover 448 pieces 8 small 4 (128 tris) sizes [32,32,32,32,64,64,64,128]
+  #18 body tris 1408 cover 1408 pieces 20 small 6 (192 tris) sizes [32,32,64,128,128]
+  #19 waistband tris 448 cover 448 pieces 8 small 4 (128 tris) sizes [32,32,32,32,64,64,64,128]
+  #20 floorLoop tris 448 cover 448 pieces 9 small 6 (192 tris) sizes [32,32,32,32,32,32,64,64,128]
+  #21 pillarTail tris 448 cover 448 pieces 1 small 0 (0 tris) sizes [448]
+  #22 pillarPassenger tris 448 cover 448 pieces 1 small 0 (0 tris) sizes [448]
+  #24 pillarCabin tris 448 cover 448 pieces 1 small 0 (0 tris) sizes [448]
+  #26 pillarWindow tris 448 cover 448 pieces 1 small 0 (0 tris) sizes [448]
+  #28 pillarFront tris 256 cover 256 pieces 1 small 0 (0 tris) sizes [256]
+  #31 bulkhead tris 228 cover 228 pieces 1 small 0 (0 tris) sizes [228]
+  #37 firewall tris 192 cover 192 pieces 1 small 0 (0 tris) sizes [192]
+stepped 1500 gate true binding done at t 4.133
+noseover (6640 ms) first 62 broken 7 up 0.85: AXLEL-AXLER, S5BL-S6BR, S5BR-S6BL, S5BL-S6BL, S5BR-S6BR, HR-S6BL, HR-S6BR
+  removed covering by group / cause / its frame: {"c8b95a2 tear intact":234,"c8b95a2 tear broken":13,"c39c46a tear intact":81,"c39c46a tear broken":12,"c9aa4b0 tear intact":24,"c8b95a2 island intact":18,"c9aa4b0 island intact":56,"pillarTail tear intact":12,"pillarTail tear broken":10,"ceilingLoop tear intact":8,"body tear intact":2,"body island intact":48}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3392,"cause":"tear","strain":0,"stretch":2.206,"nodes":["S5TR","S5TL","VF","VF"],"zMid":0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3393,"cause":"tear","strain":0,"stretch":3.23,"nodes":["S5TR","VF","S5TL","VF"],"zMid":0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3394,"cause":"tear","strain":0,"stretch":3.23,"nodes":["S5TL","VF","S5TR","VF"],"zMid":-0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3395,"cause":"tear","strain":0,"stretch":2.312,"nodes":["S5TL","S5TR","VF","VF"],"zMid":-0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3396,"cause":"tear","strain":0,"stretch":1.98,"nodes":["S5TR","S5TL","VF","VX"],"zMid":0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3397,"cause":"tear","strain":0,"stretch":2.496,"nodes":["S5TR","S5TL","VF","VX"],"zMid":0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3398,"cause":"tear","strain":0,"stretch":1.683,"nodes":["S5TL","VF","S5TR","VX"],"zMid":-0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3399,"cause":"tear","strain":0,"stretch":2.496,"nodes":["S5TL","S5TR","VF","VX"],"zMid":-0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3400,"cause":"tear","strain":0,"stretch":2.456,"nodes":["VF","VX","VX","S5TR"],"zMid":0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3401,"cause":"tear","strain":0,"stretch":2.456,"nodes":["VF","VX","S5TR","VX"],"zMid":0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3402,"cause":"tear","strain":0,"stretch":2.219,"nodes":["VF","VX","S5TL","VX"],"zMid":-0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3403,"cause":"tear","strain":0,"stretch":2.351,"nodes":["VF","VX","VX","S5TL"],"zMid":-0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3404,"cause":"tear","strain":0,"stretch":3.23,"nodes":["VF","VX","S5TR","VF"],"zMid":0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3405,"cause":"tear","strain":0,"stretch":2.219,"nodes":["VF","VX","VX","S5TR"],"zMid":0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3406,"cause":"tear","strain":0,"stretch":3.23,"nodes":["VF","VX","VX","S5TL"],"zMid":-0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3407,"cause":"tear","strain":0,"stretch":1.246,"nodes":["VF","VX","VX","VF"],"zMid":-0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3408,"cause":"tear","strain":0,"stretch":2.163,"nodes":["S5TR","S5TL","VF","S4TR"],"zMid":0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3409,"cause":"tear","strain":0,"stretch":1.913,"nodes":["S5TR","S5TL","VF","S4TR"],"zMid":0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3410,"cause":"tear","strain":0,"stretch":2.163,"nodes":["S5TL","S5TR","VF","VX"],"zMid":-0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3411,"cause":"tear","strain":0,"stretch":1.861,"nodes":["S5TL","S5TR","VF","S4TL"],"zMid":-0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3412,"cause":"tear","strain":0,"stretch":4.28,"nodes":["VF","VX","S5TR","VX"],"zMid":0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3413,"cause":"tear","strain":0,"stretch":2.368,"nodes":["VF","S5TR","S5TL","VX"],"zMid":0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3414,"cause":"tear","strain":0,"stretch":2.581,"nodes":["VF","S5TL","S5TR","VX"],"zMid":-0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3415,"cause":"tear","strain":0,"stretch":4.28,"nodes":["VF","VX","S5TL","VX"],"zMid":-0.02}
+   {"t":4.133,"g":4,"sec":"c8b95a2","tri":3416,"cause":"tear","strain":0,"stretch":2.351,"nodes":["VF","S5TR","VX","S5TL"],"zMid":0.02}
+  nodes under intact-frame removals: [["S5TR",274],["S5TL",253],["VF",228],["HF",221],["VX",148],["S5BR",126],["S6TL",120],["S6TR",108],["S5BL",100],["TPT",66],["VR",55],["HB",35],["S4TR",24],["S4TL",20],["S4BR",16],["S3BR",16],["S3TR",16],["S4BL",16],["S3BL",16],["S3TL",16]]

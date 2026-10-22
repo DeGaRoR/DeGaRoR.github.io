@@ -58,13 +58,16 @@ var AUDIO = (function () {
   const query = (() => { try { return new URLSearchParams(W.location ? W.location.search : '').get('audio'); } catch (e) { return null; } })();
   const OFF = query === '0' || (query !== '1' && pref(PREF, '1') === '0');
 
-  // THE SETTINGS: [key, default, kind, label, line]
+  // THE SETTINGS: [key, default, kind, label, line, max (a volume's top, 1 when absent)]
   const SETTINGS = [
     ['master', 0.8, 'vol', 'master', 'everything'],
     // G1722 (SND-MIX, the user 2026-10-06: "a slider for the engine noise separately from the rest of the airplane"): the
     // engine and the propeller (every engine group's sources in space.js, outside and through the cabin and the headset; the
     // other aircraft's baked loops too); 'aircraft' (its stored key kept) is now the REST of the aeroplane - the airframe
-    ['engine', 1.0, 'vol', 'engine', 'the engine and the propeller'],
+    // G1728 (SND-MIX-2, the user 2026-10-13: "too faint... even at max"): the engine goes to 200 % (+6 dB) out of the shed
+    // - the limiter stays clean there (mix_render: the loudest state, the cockpit climb, peaks under -1 dBFS at 200 %); the
+    // garage holds it at 100 % (the shed stays as ruled)
+    ['engine', 1.0, 'vol', 'engine', 'the engine and the propeller', 2],
     ['aircraft', 1.0, 'vol', 'airframe', 'the wind, the gear, the touchdown, the stall warning'],
     ['environment', 0.8, 'vol', 'environment', 'the wind, the birds, the sea, the shed'],
     ['music', 0.6, 'vol', 'music', ''],
@@ -78,7 +81,7 @@ var AUDIO = (function () {
     ['headsetAnr', 0, 'bool', 'headset: noise cancelling', 'with the headset on: the active kind - the engine\'s drone goes first'],
     ['hrtf', 0, 'bool', '3D on headphones', 'the outside sounds placed for headphones (HRTF): heavier on the processor'],
   ];
-  const DEF = {}; for (const r of SETTINGS) DEF[r[0]] = r[1];
+  const DEF = {}, TOP = {}; for (const r of SETTINGS) { DEF[r[0]] = r[1]; TOP[r[0]] = r[5] > 0 ? r[5] : 1; }
   // G1722 A STORED 'aircraft' MUST NOT CHANGE WHAT A PLAYER HEARS: before the split it scaled the engine and the airframe
   // together. A player who set it and has no 'engine' yet gets the same value on BOTH (stored at once, so a later move of the
   // airframe row never drags the engine with it): the engine and the airframe stay exactly where they were.
@@ -88,7 +91,7 @@ var AUDIO = (function () {
   } catch (e) {}
   const readSetting = k => {
     const v = +pref(PREF + '.' + k, DEF[k]);
-    return v === v ? (SETTINGS.find(r => r[0] === k)[2] === 'bool' ? (v ? 1 : 0) : Math.max(0, Math.min(1, v))) : DEF[k];
+    return v === v ? (SETTINGS.find(r => r[0] === k)[2] === 'bool' ? (v ? 1 : 0) : Math.max(0, Math.min(TOP[k], v))) : DEF[k];
   };
 
   // the rows the menu draws (either rail's kit: row, range, toggle?, note)
@@ -108,7 +111,7 @@ var AUDIO = (function () {
     }
     note(api.stateLine());
     for (const [k, , kind, label] of SETTINGS) {
-      if (kind === 'vol') kit.range(body, label, 0, 100, 1, () => Math.round(api.get(k) * 100), v => api.set(k, v / 100), v => v + ' %');
+      if (kind === 'vol') kit.range(body, label, 0, 100 * TOP[k], 1, () => Math.round(api.get(k) * 100), v => api.set(k, v / 100), v => v + ' %');
       else toggle(label, () => !!api.get(k), on => api.set(k, on ? 1 : 0));
     }
     // G1672: the rows a source adds (music.js: skip track, now playing), each in its own try
@@ -138,14 +141,16 @@ var AUDIO = (function () {
   //   interior   the aeroplane heard from the cockpit (the viewpoint fader's interior side): the cabin's insulation stays
   //              the build's (ruling s5) - this is the game's listening level for the cockpit, so the cabin is not 9-12 dB
   //              under the chase view at the same throttle
-  //   airframe   the airframe group (the wind, the ground, the events): the wind a clear second, 10-12 dB under the engine
-  //              in the cockpit at cruise (the engine's own trim would otherwise leave it 16 dB under)
+  //   airframe   the airframe group (the wind, the ground, the events): 0 since G1726 (SND-MIX-2, the user 2026-10-13: "your
+  //              engine is quieter than a metal squeal") - was +4; the brakes, the chirp, the rollout tamed at their source
+  //              (airframe_worklet.js); the wind 16-20 dB under the engine in the cockpit at cruise, still the clear second
   //   ambience   the beds and the emitters in the world (a loading screen in the world included), and ambienceRun MORE
   //              while an engine of the flown aeroplane runs (a duck, ramped over ~3 s: an aeroplane parked with its engine
   //              off hears its world at the plain trim; one idling on the stand leads its airfield by ~9 dB)
-  //   music      the music bus in flight (music in flight on): under the engine, not over it; the welcome and the shed keep
+  //   music      the music bus in flight (music in flight on): -10 since G1726 (was -6: 6-8 LU under the engine in the
+  //              cockpit at cruise; now >= 10, GATE MIXLEAD), under the engine, not over it; the welcome and the shed keep
   //              their level. Radio Jolene's voice rides the same bus (it stays ~3 dB over its bed, as before)
-  const MIX = { engine: 8, interior: 6, airframe: 4, ambience: -6, ambienceRun: -10, music: -6 };
+  const MIX = { engine: 8, interior: 6, airframe: 0, ambience: -6, ambienceRun: -10, music: -10 };
   const dBk = d => Math.pow(10, d / 20);
   const MIXK = { engine: dBk(MIX.engine), interior: dBk(MIX.interior), airframe: dBk(MIX.airframe), ambience: dBk(MIX.ambience),
                  ambienceRun: dBk(MIX.ambienceRun), music: dBk(MIX.music) };
@@ -212,7 +217,7 @@ var AUDIO = (function () {
     set(k, v) {
       if (!(k in set)) return;
       const kind = SETTINGS.find(r => r[0] === k)[2];
-      set[k] = kind === 'bool' ? (v ? 1 : 0) : Math.max(0, Math.min(1, +v || 0));
+      set[k] = kind === 'bool' ? (v ? 1 : 0) : Math.max(0, Math.min(TOP[k], +v || 0));
       prefSet(PREF + '.' + k, set[k]);
       applyGains(); silence(); emit('settings', { k, v: set[k] });
     },
@@ -381,7 +386,8 @@ var AUDIO = (function () {
     // G1722: with the space the volumes are its groups' (engine: every engine group, airframe: the airframe group and its
     // interior-only layers) and the aircraft bus is unity; without it (no space.js) 'aircraft' stays the group's master
     const world = garage ? 0 : 1, lv = api.levels;
-    lv[0] = set.engine * (world ? MIXK.engine : 1); lv[1] = set.aircraft * (world ? MIXK.airframe : 1); lv[2] = MIX_TAU;
+    lv[0] = world ? set.engine * MIXK.engine : Math.min(1, set.engine);   // G1728: the shed never above 100 %
+    lv[1] = set.aircraft * (world ? MIXK.airframe : 1); lv[2] = MIX_TAU;
     ramp(0, N.master, set.master, GAIN_TAU);
     ramp(1, N.aircraft, (sp ? 1 : set.aircraft) * hs, GAIN_TAU);
     xfade(interior);

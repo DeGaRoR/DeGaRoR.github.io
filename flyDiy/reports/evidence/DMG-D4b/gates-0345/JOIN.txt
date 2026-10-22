@@ -1,0 +1,247 @@
+  ok     span passes verbatim
+  ok     chord tip -> taper
+  ok     camber 4 / thick 12 -> NACA 4412
+  ok     position + centre map by name
+  ok     tip maps by name
+  ok     tip seat passes; sweep never written (G140)
+  ok     crank fields null while the crank is off
+  ok     crank chord + seat pass when the crank is on
+  ok     bracing maps
+  ok     G185: the default cabane (N, stated) and a null cabane height off a high wing
+  ok     G185: parasol position + cabane height
+  ok     G185: cabane style rides with the parasol
+  ok     G185: ailerons off -> span 0
+  ok     G185: one plane and the truss rows at their defaults (stated) with w2On off
+  ok     G185: the second plane carries its own rows
+  ok     G185: the truss keys map (I strut at 0.55, flying wires only)
+  ok     fairing switch -> gear.fairing (G121.1)
+  ok     third-wheel switch -> gear.twFairing (G121.2)
+  ok     leg-fairing switches -> gear.legFair / twLegFair (G133)
+  ok     droplet sliders -> gear.fairTail / twFairTail (G133)
+  ok     fairing build row -> gear.fairMat (G133)
+  ok     drawn shock -> gear.suspension (G132)
+  ok     drawn blade -> prop D / blades / material (G132)
+  ok     pitch stays the design tile's alone — the join claims no twist
+  ok     prop material map total over the 8 finishes, every entry a real row
+  ok     every drawn shock kind is a real GEN_SUSPENSION row
+  ok     control surfaces pass
+  ok     preset -> registry key
+  ok     registry row exists
+  ok     registry row for "continental A-65"
+  ok     registry row for "continental O-200"
+  ok     registry row for "lycoming IO-360"
+  ok     registry row for "jabiru 2200"
+  ok     registry row for "VW 2180"
+  ok     registry row for "flat twin"
+  ok     registry row for "flat six"
+  ok     registry row for "rotax 912 (flat)"
+  ok     registry row for "rotax 277"
+  ok     registry row for "rotax 582"
+  ok     registry row for "Verner Scarlett 7U"
+  ok     registry row for "Rotec R3600"
+  ok     registry row for "P&W R-985"
+  ok     registry row for "P&W R-1830"
+  ok     registry row for "Walter Mikron III"
+  ok     registry row for "DH Gipsy Major"
+  ok     registry row for "Hirth HM 508D"
+  ok     registry row for "Argus As 10C"
+  ok     registry row for "lycoming O-320"
+  ok     registry row for "lycoming O-540"
+  ok     registry row for "continental IO-550"
+  ok     registry row for "lycoming IO-720"
+  ok     registry row for "rotax 915 iS"
+  ok     registry row for "Ranger L-440"
+  ok     registry row for "Continental W-670"
+  ok     registry row for "Jacobs R-755"
+  ok     registry row for "Vedeneyev M-14P"
+  ok     registry row for "P&W R-1340"
+  ok     registry row for "rotax 503"
+  ok     registry row for "EMRAX 268"
+  ok     registry row for "P&W PT6A-42"
+  ok     registry row for "P&W PT6A-60A"
+  ok     registry row for "RC 2212 outrunner"
+  ok     registry row for "RC 6374 outrunner"
+  ok     registry row for "e-PPG 12 kW"
+  ok     registry row for "FES sustainer"
+  ok     registry row for "EMRAX 228"
+  ok     registry row for "pipistrel E-811"
+  ok     registry row for "SP260D-class"
+  ok     registry row for "P&W PT6A-114A"
+  ok     registry row for "P&W PT6A-34"
+  ok     gear measurements pass (wheelR, not contactR)
+  ok     measured third wheel passes (G51)
+  ok     cabin envelope passes
+  ok     tail arm passes
+  ok     tail-end section passes (G49)
+  ok     cowl deck passes (G49)
+  ok     pillar proportions pass (G52)
+  ok     wing station passes (G52)
+  ok     mains station passes (G52)
+  ok     ride height passes (G53)
+  ok     shape family passes (G54)
+  ok     boom profile passes (G54.1)
+  ok     tail surfaces pass (G54.3)
+  ok     P1: the areas, the mean chords, the dorsal and the control chords pass
+  ok     P4: the measured tapers pass
+  ok     seating + pilots pass (sectioned)
+  ok     capacity + occupancy pass (G180: seats 4, occupied 1,1,0,0, pax 0)
+  ok     spec.cage rides along
+  ok     resolveSpec + genFrame -> finite CG, mass 563 kg
+  ok     engine survives normalisation
+  ok     RESOLVED cab halfW = measured 0.52, not auto
+  ok     RESOLVED cab h = measured 1.21, not auto
+  ok     RESOLVED tail arm = measured 5.1, not auto
+  ok     RESOLVED tail-end section = measured (tailY 0)
+  ok     RESOLVED cowl deck = measured 0.66, not auto
+  ok     RESOLVED pillar proportions = measured, len not auto
+  ok     RESOLVED fairing = spat, through the clamp
+  ok     RESOLVED third-wheel fairing = full, through the clamp
+  ok     RESOLVED fairing state 0 -> none
+  ok     RESOLVED fairing state 2 -> full
+  ok     RESOLVED fairing instruments = drawn, through the clamp
+  ok     RESOLVED out-of-range droplet clamps to 1.60, unknown layup -> glass
+  ok     RESOLVED suspension = drawn oleo, through the clamp
+  ok     RESOLVED suspension state 0 -> spring
+  ok     RESOLVED suspension state 1 -> bungee
+  ok     RESOLVED suspension from leg kind 0 -> spring
+  ok     RESOLVED suspension from leg kind 2 -> oleo
+  ok     RESOLVED prop = drawn 3-blade carbon 2.10 m
+  ok     RESOLVED prop name derived from the drawn blade: 3-blade carbon 2.10 m
+  ok     RESOLVED post gap = measured 0.42
+  ok     RESOLVED wing LE station = measured 0.55, not auto
+  ok     RESOLVED mains station = measured 0.82
+  ok     RESOLVED seating side2, crew 2
+  ok     RESOLVED capacity 4 off cabin.seats (not the table's 2), two aboard off the list (G180)
+  ok     RESOLVED gear track + wheelR = measured
+  ok     RESOLVED ride height = measured -0.31, not auto (G53)
+  ok     RESOLVED shape family = measured boom
+  ok     RESOLVED boom profile = measured rows, clamped envelope
+  ok     RESOLVED tail surfaces = measured, stations not auto
+  ok     P1 RESOLVED: Sh 2.1 / Sv 0.99 stand (not auto), mean chords, dorsal 0.12, control chords 0.38 / 0.31
+  ok     P1 FRAME: the stab strips sum to Sh 2.1 and the fin strip is Sv 0.99 (2.1000 / 0.9900)
+  ok     P1 FRAME: the measured (smaller) control chords reach the tau (0.489 < 0.500, 0.483 < 0.550)
+  ok     P4 FRAME: the tail has spar nodes (HF 6, HR 6, VF 3, VR 3) and one tip a side
+  ok     P4 FRAME: the tip nodes and the apex are made before their spars (the first-tagged rule)
+  ok     P4 FRAME: 156 tail-class members, none of the tail on the fuselage class
+  ok     P4 FRAME: every stab and fin strip names its four spar nodes
+  ok     P4 FRAME: the trusses stand on the measured tapers (0.6 / 0.7)
+  ok     P4 FRAME: the front spar carries through (HF0L–HF0R)
+  ok     P4: the strips keep their kind
+  ok     FRAME mid-boom floor follows the measured profile (0.280 vs 0.280)
+  ok     RESOLVED tailwheel station/height/radius = measured
+  ok     RESOLVED contactR derives from the measured wheelR
+  ok     measurement-less export still builds
+  ok     a P without skinOn writes no covering
+  ok     skinOn 1 -> fuselage.covering skin (stated)
+  ok     glazeOn 1 / 0 -> cabin.glazing glass / none (both stated)
+  ok     wgCons 0 / 1 -> wings[0].material null / carbon (both stated)
+  ok     finCons / stCons 0 -> the tail materials null (stated)
+  ok     skinOn 0 -> fuselage.covering open
+  ok     RESOLVED covering = open
+  ok     an open frame is lighter than the covered one (562.7 -> 549.8 kg)
+  ok     an open frame is draggier (fusCdA 0.510 -> 0.958 m2)
+  ok     a nonsense covering clamps to skin
+  ok     a P without the tile writes no material; with it, the tile's (undefined)
+  ok     intCons 0 -> fuselage.material carbon
+  ok     RESOLVED material = carbon
+  ok     intCons 1 -> fuselage.material tubeFabric
+  ok     RESOLVED material = tubeFabric
+  ok     intCons 2 -> fuselage.material wood
+  ok     RESOLVED material = wood
+  ok     intCons 3 -> fuselage.material alloy
+  ok     RESOLVED material = alloy
+  ok     intCons 4 -> fuselage.material aluTube
+  ok     RESOLVED material = aluTube
+  ok     an alloy fuselage is heavier than the tube one (45.7 -> 80.7 kg)
+  ok     an out-of-range tile clamps to the last row (aluTube since G466)
+  ok     default mount: nose, no station written
+  ok     engMount 1 -> pusher at the drawn station
+  ok     RESOLVED engAt = the drawn pusher station
+  ok     pusher frame: two mount nodes at x 3.1 (13.0/13.0 kg of blades), the engine (65.5 kg) on its CG node 0.23 m ahead of the flange
+  ok     a pusher is one engine
+  ok     engMount 3 -> a wing pair, |z| 2.1
+  ok     wing pair: nEngines 2, mirrored nacelle nodes at |z| 2.1
+  ok     engRotate 1 -> port +1, starboard -1 (tops inward)
+  ok     RESOLVED: the pair keeps its hands and stays mirrored in everything else
+  ok     engAt carries side (-1 port, +1 starboard) and sense
+  ok     engRotate 2 -> tops outward
+  ok     refs.engineOf: node 0 (port, z < 0) is engine 0, node 1 is engine 1
+  ok     params.engines carries side and sense to the viewer
+  ok     levers null: two equal engines, thrust their sum (3132 N)
+  ok     starboard lever at 50 %: half the port thrust (1566 / 783 N)
+  ok     a cut engine makes no thrust, the other still does
+  ok     port thrust alone is a real yaw moment (3289 N m)
+  ok     the nose swings on one engine (-171.7 deg in 3 s)
+  ok     levers null again: even again
+  ok     engMount 2 -> over the wing, pylon 0.4, station derived
+  ok     RESOLVED over-the-wing engine sits a pylon above the deck (1.71 m)
+  ok     over-the-wing frame: mount nodes above the cabin
+  ok     boomX -> tail.type twinBoom
+  ok     RESOLVED Sv = two measured fins (1.440)
+  ok     P1: a measured twin Sv (the join doubled the drawn fin) stands over the twin rule
+  ok     a twin-boom spec builds
+  ok     the frame has two booms: the stab nodes at ±boomX, a fin node a boom
+  ok     default glazing writes nothing
+  ok     glazeOn 0 -> cabin.glazing none
+  ok     an open cockpit is lighter (562.7 -> 556.1 kg)
+  ok     a nonsense glazing clamps to glass
+  ok     a flat stab writes no tail.type
+  ok     cant 35 -> tail.type v, vAngle 35
+  ok     RESOLVED type v, vG = 35 deg
+  ok     RESOLVED V-tail keeps the measured projection 2.4 (2.400)
+  ok     RESOLVED V panel area = (span / cos) x chord
+  ok     P1: a measured V Svt 2.2 stands and its mean chord is Svt over the uncanted span
+  ok     V-tail frame builds, and has no FIN node
+  ok     a 10 deg dihedral stab is not a V
+  ok     engineFacts land as engines[0].custom
+  ok     the preset key survives as the fallback row
+  ok     RESOLVED pplant flies the custom facts under the honest name
+  ok     an unpriced custom row takes the market curve
+  ok     a custom-engined spec builds to a finite CG
+  ok     no facts -> no custom row (the registry preset flies)
+  ok     G199.3: unmeasured post rows are not written (the save's own stand)
+  ok     G199.3: unmeasured tail surface rows are not written
+  ok     G199.5: the cage's boom construction reaches the spec (rod / loft / twin)
+  ok     G199.5: ...and survives resolveSpec
+  ok     G199.5: the rod boom builds the same lattice (nodes and members)
+  ok     G199.5: every boom member carries ONE rodBoomK (1.000, the rule says computed) on k and its root on c, nothing else moved (77 boom, 284 other)
+  ok     G199.5: the stiffening weighs nothing
+  ok     G199.5: a cage without a boomStyle row declares a loft
+  ok     G199.5: turned to 4, every boom member is 4x (the switch works)
+  ok     G209: the PORT aileron (the cage's "ailR", at +z) goes DOWN for da > 0 (roll right)
+  ok     G209: the starboard aileron goes UP for da > 0
+  ok     G209: both flaps go DOWN for flap > 0
+  ok     G209: the elevator goes UP for de > 0 (nose up), no second drive on a flat stab
+  ok     G209: the rudder swings to PORT (+z) for dr > 0 (nose left)
+  ok     G209: a raked post hinges along its rake; the twin-boom's second rudder reads as a rudder
+  ok     G209: a cranked panel's aileron hinges along its own root, within 1 deg, either side
+  ok     G209: ...and still antisymmetric: port down, starboard up for da > 0
+  ok     G209: past 20 deg of cant both panels answer the rudder too, hinged along the canted root
+  ok     G209: V-tail de > 0: both panels UP
+  ok     G209: V-tail dr > 0 (nose left): port panel DOWN, starboard UP, both trailing edges to port
+  ok     G209: 10 deg of stab dihedral is not a V-tail
+  ok     P1: the vertex heuristic puts a horn-balanced rudder's pivot in the HORN (x -0.125)
+  ok     P1: the declared plane puts it on the post (x 0.000), axis up the post, drive and sign unchanged
+  ok     P1: a declared plane that catches no vertex falls back to the heuristic, and says so
+  ok     P1: the real horn-cut rudder (448 verts) pivots ON the declared plane (0.0025 m off), axis along the pitched post
+  ok     P1: ...where the vertex heuristic had put it 0.321 m forward, in the horn
+  ok     G209: the measured cant makes the spec a V-tail
+  ok     G209: V-tail dr > 0 yaws nose LEFT (1482)
+  ok     G209: V-tail de > 0 pitches nose UP (2147)
+  ok     G300: a partOf tag names the part, whatever the mesh is called
+  ok     G300: ...and on a single boom it still names it (the join finds no such part and keeps it static)
+  ok     G300: a boom fitting names its boom
+  ok     G300: the tail light names the rudder
+  ok     G267.2: the fin skin is a part on twin booms only
+  ok     G300: the root fillet belongs to the fin on twin booms
+  ok     the surfaces, links and the castor match by name as before
+  ok     the wheels and the prop match by name as before
+  ok     the struts and the engine units carry their members
+  ok     an unknown name, an unnamed group and a stab skin on a single boom keep walking (static)
+  ok     G1283: the wing envelope has its one home (GEN_WING_ENVELOPE.xLE)
+  ok     G1283: the station-cut row speaks exactly where the resolver cuts xLE (10/10 probes)
+  ok     G1283: a wing drawn 0.35 m ahead of the firewall flies at the envelope's -0.2 m and says so
+  ok     G1283: a station inside the envelope flies as measured, in silence
+  ok     G1283: no core loaded, no claim
+GATE JOIN: PASS
+== exit 0, 2 s

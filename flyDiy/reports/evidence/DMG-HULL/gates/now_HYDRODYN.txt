@@ -1,0 +1,136 @@
+float: L 4.6 m, beam 0.57 m, deadrise 22 deg, step 2.55 m aft of the bow / 0.075 m deep; 388 panels; mass 282 kg (W 2766 N), CG [-0.254, 1.054, 0.000], displacement to the deck 643 kg
+PASS hull closed: sum n*A = [-0.000000, 0.000000, 0.000000]
+
+1. ARCHIMEDES
+PASS level draft 0.12 m: clipper 580.4 N vs analytic sections 582.8 N (0.9958); fore-aft 0.00 N, side 0.00 N
+PASS level draft 0.2 m: clipper 1545.8 N vs analytic sections 1550.3 N (0.9971); fore-aft 0.00 N, side -0.00 N
+PASS level draft 0.3 m: clipper 3195.1 N vs analytic sections 3202.3 N (0.9978); fore-aft 0.00 N, side -0.00 N
+   drop from 5 cm: peak force 1.51 W (slam 1.36 W), settled draft at the step 0.296 m, trim 3.76 deg nose-up, |vy| peak 1-2 s 0.474 -> 6-7 s 0.077 m/s (zeta ~ 0.032)
+PASS settled: mean hydro force 2765.4 N over 8.5-10 s vs weight 2766.4 N (0.9996)
+PASS settled pose: Monte-Carlo submerged volume 0.2815 m3 = 2761.0 N vs the clipper's hydrostatic 2762.0 N at that instant (0.9996; vs weight 0.9981, 43859 wet of 200000)
+PASS freeboard: the deck stays dry (draft 0.296 m at the step, deck at 0.447)
+PASS the settle decays (the bob at 6-7 s is under half of 1-2 s)
+
+2. STABILITY (node share 3 kg; envelope: proven omega*dt 0.50 / c*dt 0.73, diverged 0.615 / 0.947)
+   sub 24 dt 6.94e-4: stiffest panel 0.0751 m2, k 737 N/m -> omega*dt 0.011
+        Vn 0.5 m/s: c_eff    168 N s/m, c*dt 0.039  uncapped stable (peak 43 N)  capped stable (peak 43 N)
+        Vn   1 m/s: c_eff    191 N s/m, c*dt 0.044  uncapped stable (peak 74 N)  capped stable (peak 74 N)
+        Vn   2 m/s: c_eff    299 N s/m, c*dt 0.069  uncapped stable (peak 219 N)  capped stable (peak 219 N)
+        Vn   3 m/s: c_eff    428 N s/m, c*dt 0.099  uncapped stable (peak 469 N)  capped stable (peak 469 N)
+        Vn   5 m/s: c_eff    698 N s/m, c*dt 0.162  uncapped stable (peak 1289 N)  capped stable (peak 1289 N)
+   sub 45 dt 3.70e-4: stiffest panel 0.0751 m2, k 737 N/m -> omega*dt 0.006
+        Vn 0.5 m/s: c_eff    168 N s/m, c*dt 0.021  uncapped stable (peak 43 N)  capped stable (peak 43 N)
+        Vn   1 m/s: c_eff    191 N s/m, c*dt 0.024  uncapped stable (peak 74 N)  capped stable (peak 74 N)
+        Vn   2 m/s: c_eff    299 N s/m, c*dt 0.037  uncapped stable (peak 217 N)  capped stable (peak 217 N)
+        Vn   3 m/s: c_eff    427 N s/m, c*dt 0.053  uncapped stable (peak 462 N)  capped stable (peak 462 N)
+        Vn   5 m/s: c_eff    694 N s/m, c*dt 0.086  uncapped stable (peak 1257 N)  capped stable (peak 1257 N)
+   sub 72 dt 2.31e-4: stiffest panel 0.0751 m2, k 737 N/m -> omega*dt 0.004
+        Vn 0.5 m/s: c_eff    168 N s/m, c*dt 0.013  uncapped stable (peak 43 N)  capped stable (peak 43 N)
+        Vn   1 m/s: c_eff    191 N s/m, c*dt 0.015  uncapped stable (peak 73 N)  capped stable (peak 73 N)
+        Vn   2 m/s: c_eff    299 N s/m, c*dt 0.023  uncapped stable (peak 216 N)  capped stable (peak 216 N)
+        Vn   3 m/s: c_eff    426 N s/m, c*dt 0.033  uncapped stable (peak 459 N)  capped stable (peak 459 N)
+        Vn   5 m/s: c_eff    693 N s/m, c*dt 0.053  uncapped stable (peak 1244 N)  capped stable (peak 1244 N)
+PASS buoyancy stiffness inside the envelope: omega*dt 0.011 at 24, 0.006 at 45 (bound 0.50)
+PASS the slam with the impulse cap never diverges (24/45/72 substeps, 0.5-5 m/s)
+PASS the slam's linearised c*dt up to 3 m/s at 45+ substeps 0.053 (bound 0.73)
+   uncapped divergences: none
+
+3. THE HUMP (tow, 0 -> 20 m/s at 0.6 m/s2)
+   (a) the seaplane: free trim, wing unloading to 20 m/s, tail at 6 deg
+      V    R/W   static planing   fric   suck |  Ls/W   Lp/W  load/W | trim  draft   rise  wetF  wetA  vent
+      0  0.000  -0.000   0.000  0.000  0.000 |  0.991  0.002   1.00 |  3.8  0.295  0.000  1.13  0.83  0.00
+      2  0.016   0.000   0.007  0.008  0.000 |  0.959  0.030   0.99 |  4.1  0.291  0.005  1.10  0.83  0.00
+      4  0.102   0.033   0.030  0.028  0.008 |  0.800  0.153   0.96 |  7.3  0.336 -0.033  1.01  0.83  0.50
+      6  0.223   0.048   0.115  0.040  0.015 |  0.369  0.526   0.91 | 13.2  0.377 -0.067  0.78  0.56  0.82
+      8  0.314   0.007   0.276  0.022  0.003 |  0.053  0.780   0.84 | 19.8  0.299  0.005  0.42  0.03  0.96
+     10  0.239  -0.002   0.215  0.022  0.000 |  0.013  0.724   0.75 | 16.4  0.205  0.103  0.31  0.00  0.99
+     12  0.160  -0.002   0.129  0.030  0.000 |  0.008  0.630   0.64 | 11.6  0.161  0.148  0.32  0.00  1.00
+     14  0.108  -0.001   0.073  0.035  0.000 |  0.003  0.500   0.51 |  8.3  0.123  0.183  0.29  0.00  1.00
+     16  0.072  -0.001   0.037  0.034  0.000 |  0.001  0.356   0.36 |  6.0  0.093  0.208  0.22  0.00  1.00
+     18  0.039  -0.000   0.016  0.023  0.000 |  0.000  0.189   0.19 |  4.7  0.061  0.237  0.12  0.00  1.00
+     20  0.009  -0.000   0.004  0.004  0.000 |  0.000  0.049   0.05 |  5.2  0.024  0.275  0.02  0.00  1.00
+   -> hump R/W 0.314 at 8 m/s (Cv 3.38, Fn_vol 3.15); after it R/W falls to 0.009 at 20 m/s; trim peaks 19.8 deg at 8 m/s; afterbody wet 0.83 m2 at rest -> 0.00 m2 at 20 m/s
+PASS a hump of R/W 0.314 (bound 0.10-0.40: tank floats at this loading read ~0.2-0.3)
+PASS the hump at Cv 3.38 (bound 2-4.5: tank floats ~2.5-3.5)
+PASS resistance falls 97 % past the hump (bound 50 %)
+PASS the trim peaks at or just past the hump (8 vs 8 m/s)
+PASS the afterbody unwets when planing (0 % of its rest area)
+PASS the tow stays finite
+   (b) the tank: trim held at 5 deg, wing unloading — H3 calibrates this against the NACA curves
+      V    R/W   static planing   fric   suck |  Ls/W   Lp/W  load/W | trim  draft   rise  wetF  wetA  vent
+      0  0.001  -0.000   0.000  0.000  0.000 |  0.995  0.002   1.00 |  5.0  0.298  0.000  1.07  0.83  0.00
+      2  0.016   0.000   0.006  0.008  0.000 |  0.957  0.029   0.99 |  5.0  0.292  0.006  1.06  0.83  0.00
+      4  0.108   0.037   0.034  0.027  0.007 |  0.811  0.145   0.96 |  5.0  0.331 -0.032  1.11  0.82  0.51
+      6  0.188   0.054   0.092  0.037  0.001 |  0.550  0.349   0.91 |  5.0  0.358 -0.060  1.15  0.01  0.85
+      8  0.202   0.028   0.116  0.056  0.001 |  0.317  0.512   0.84 |  5.0  0.318 -0.020  1.10  0.00  0.96
+     10  0.184   0.008   0.104  0.069  0.000 |  0.143  0.597   0.75 |  5.0  0.260  0.039  1.00  0.00  0.99
+     12  0.150   0.000   0.073  0.075  0.000 |  0.052  0.582   0.64 |  5.0  0.202  0.096  0.84  0.00  1.00
+     14  0.112  -0.001   0.047  0.066  0.000 |  0.013  0.491   0.51 |  5.0  0.146  0.153  0.58  0.00  1.00
+     16  0.076  -0.001   0.031  0.046  0.000 |  0.003  0.354   0.36 |  5.0  0.101  0.197  0.31  0.00  1.00
+     18  0.038  -0.000   0.017  0.022  0.000 |  0.000  0.189   0.19 |  5.0  0.060  0.238  0.11  0.00  1.00
+     20  0.009  -0.000   0.004  0.005  0.000 |  0.000  0.049   0.05 |  5.0  0.024  0.274  0.02  0.00  1.00
+   -> hump R/W 0.202 at 8 m/s (Cv 3.38, Fn_vol 3.15); after it R/W falls to 0.009 at 20 m/s; trim peaks 5.0 deg at 0 m/s; afterbody wet 0.83 m2 at rest -> 0.00 m2 at 20 m/s
+PASS held at 5 deg: hump R/W 0.202 at Cv 3.38, falling 96 % past it
+   (c) the lone float: free trim, the full load at every speed, no tail
+      V    R/W   static planing   fric   suck |  Ls/W   Lp/W  load/W | trim  draft   rise  wetF  wetA  vent
+      0  0.001  -0.000   0.000  0.000  0.000 |  0.997  0.002   1.00 |  3.8  0.295  0.000  1.12  0.83  0.00
+      2  0.016   0.000   0.007  0.008  0.000 |  0.967  0.031   1.00 |  4.1  0.292  0.004  1.11  0.83  0.00
+      4  0.105   0.034   0.031  0.029  0.008 |  0.835  0.158   1.00 |  7.3  0.342 -0.037  1.01  0.83  0.49
+      6  0.242   0.054   0.124  0.043  0.015 |  0.422  0.562   1.00 | 13.2  0.391 -0.080  0.81  0.62  0.81
+      8  0.368   0.013   0.314  0.027  0.008 |  0.077  0.910   1.00 | 19.6  0.329 -0.025  0.47  0.08  0.95
+     10  0.415  -0.002   0.391  0.020  0.000 |  0.013  0.983   1.00 | 21.6  0.228  0.071  0.28  0.00  0.99
+     12  0.343  -0.003   0.316  0.025  0.000 |  0.007  0.987   1.00 | 17.7  0.187  0.120  0.26  0.00  1.00
+     14  0.333  -0.002   0.299  0.032  0.000 |  0.006  0.988   1.00 | 16.7  0.155  0.150  0.25  0.00  1.00
+     16  0.434  -0.001   0.376  0.049  0.001 |  0.010  0.977   1.00 | 15.1  0.088  0.185  0.30  0.00  1.00
+   -> hump R/W 0.446 at 9 m/s (Cv 3.81, Fn_vol 3.55); after it R/W falls to 0.321 at 13 m/s; trim peaks 23.5 deg at 9 m/s; afterbody wet 0.83 m2 at rest -> 0.00 m2 at 16 m/s
+PASS the lone float gets over its hump (afterbody 0 % wet at 16 m/s; R/W 0.446 at Cv 3.81)
+
+4. THE GRADIENT (touchdown: 16 m/s, sinking 1.0 m/s, the wing carrying 85 %, trim 4 deg, free to decelerate)
+   first wet at 0.217 s (sink 1.32 m/s at the touch); drag frame by frame: 0.000 0.013 0.050 0.097 0.123 0.130 0.144 0.155 ... first peak 0.164 W after 11 frames, half of it after 3 frames; largest one-frame rise 0.048 W
+   vertical: peak 1.18 W (slam 0.66 W) — the sink arrested in 0.23 s; the float skips out at +0.57 s; at 12.0 s: V 2.9 m/s, trim 5.1 deg, draft 0.296 m, R/W 0.035
+PASS no step in the drag: the largest one-frame rise is 4.8 % of the weight (bound 8 %)
+PASS the drag climbs over 11 frames to its first peak (bound 3), 3 to half (bound 2)
+PASS the touchdown peaks at 1.18 W vertical (bound 2.5)
+PASS the float decelerates under its own drag (2.9 m/s at 12.0 s)
+PASS the landing stays finite
+
+Savitsky buoyant term vs the transom fade (flat plate; ratio = model/Savitsky, Archimedes/Savitsky):
+   tau 4 lambda 2 Cv 2: CL_sav 0.0357 model 0.0591 (1.65)  bare Archimedes 0.0698 (1.95)
+   tau 4 lambda 2 Cv 3: CL_sav 0.0159 model 0.0187 (1.18)  bare Archimedes 0.0310 (1.95)
+   tau 4 lambda 3 Cv 3: CL_sav 0.0438 model 0.0514 (1.17)  bare Archimedes 0.0698 (1.59)
+   tau 6 lambda 2 Cv 3: CL_sav 0.0248 model 0.0280 (1.13)  bare Archimedes 0.0465 (1.87)
+   tau 4 lambda 2 Cv 5: CL_sav 0.0057 model 0.0033 (0.57)  bare Archimedes 0.0112 (1.95)
+   tau 2 lambda 3 Cv 4: CL_sav 0.0115 model 0.0107 (0.93)  bare Archimedes 0.0196 (1.71)
+
+THE COST (the 172 on Wipline 2350s, sim.step(1/60), best of 12 windows of 10 steps)
+   water 9.99 ms/step (hydro every 20 of 24 substeps)  dry 9.76 ms/step  ratio 1.02 x  L/W at rest 0.9989 (every substep: 0.9991)
+PASS the water costs 1.02 x the dry step (bound 2.5)
+PASS the sub-rated pass carries the weight as the full-rate one does (L/W 0.9989 vs 0.9991)
+
+6. THE LAKE'S SURFACE IS THE DATA'S (a stub island: a bowl with no outlet)
+   the bowl: floor 10.00 m, the record says 10.50 m, the depression fill says 40.00 m (the rim)
+PASS the fill still answers the rim (40.00 m) - the fixture reproduces the defect it guards
+PASS waterH is the RECORD'S level (10.500 m), not the fill's (40.00 m)
+PASS the surface stands on its own bed (0.50 m of water, not 30.0)
+PASS the waterline is where the bed crosses the level: water at 140 m from the centre (10.50), dry at 260 m (ground 32.0 m)
+PASS the renderer's five samples all survive its 3 m guard (10.50 10.50 10.50 10.50 10.50) - the drawn quad IS the physics' surface
+   Jolene: 283 lakes answer their own level, 0 do not; 1 ponds have no basin left in the quadtree (their bed is over their own level)
+   182704 water points: 181335 at their level (99.25 %), 1212 answered the sea (a lagoon at the coast), 156 a neighbouring record, 1 ABOVE their level
+PASS every lake on Jolene answers its own declared level
+PASS 1 of 182704 water points stand above their own record, by at most 0.42 m (bound: 10 points and 0.5 m - overlapping boxes; the fill's rim was 6.09 m at Skaters Lake and 23.15 m at worst)
+PASS 99.25 % of the island's lake water is exactly its record's level (bound 97 %; the rest is the coast, where the sea answers)
+
+== G1381 a wheeled aeroplane in the water ==
+PASS the stock taildragger ditched at 80 km/h is under 10 km/h in 0.93 s (bound 3 s), finite
+PASS ...and noses over: 90 deg nose-down at worst (bound 45 - the tyres plough below the CG)
+PASS dry, the wheeled-water pass is not even built and changes nothing (5 s on the strip: body never built, out keys [], 0 node coordinates differ from the pass removed)
+PASS a float build carries no wheeled-water body (the floats' pass alone: the floatplanes unchanged)
+
+== G1384.1-.4 the slam, the air a build holds, the flooding, the wings ==
+PASS the stock fabric build: 7 hull slices holding air (0.85), 13 wing slabs
+PASS ...and it FLOODS as it sits: 5.9 % -> 8.4 % at 10 / 20 s
+PASS the bare frame (covering 'open') holds no hull air and floats lower: CG 0.83 m under the surface against 0.48 covered
+PASS an alloy hull floods slower than fabric: 0.4 % against 8.4 % at 20 s
+PASS a 5 m/s pancake slams (peak 555 kPa on the bottom) and holes 4 slice(s)
+
+GATE HYDRODYN: PASS

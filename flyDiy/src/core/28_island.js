@@ -276,9 +276,10 @@ var ISLAND_GEN = (function () {
       albedo: src.grid.albedo || null,
       tint: src.grid.tint || null, ori1: src.grid.ori1 || null, coastU8: coast, canopyU8: canopy,
       coverU8: cover, ndvi: src.grid.ndvi || null, lake: src.grid.lake || null, ttype: src.grid.ttype || null, lakes: src.grid.lakes || null,
-      // 'blend' (G413, the default): the map's lakes, the bake's rivers between them, narrowed;
-      // 'map': the map's lakes alone; 'proc': the analytic bake's lakes and rivers (G405, to compare)
-      hydro: src.hydro || 'blend',
+      // 'map' (the default since G2990, RIVERS-OFF): the map's lakes, no procedural rivers; 'blend' (G413, the default
+      // until then): the map's lakes, the bake's rivers between them, narrowed; 'proc': the analytic bake's lakes and
+      // rivers (G405). The two others stay as ?hydro= switches, to compare
+      hydro: src.hydro || 'map',
       // the far terrain's own tree (eps 4): the leaves the renderer merges into the far mesh
       farHeader: src.far ? src.far.header : null,
       farRoot: src.far ? TERRAIN_CODEC.decodeRaw(src.far.header, src.far.topo, src.far.payload) : null,

@@ -1,0 +1,45 @@
+PASS Cub standard (cN 8 /rad): zero slip, F/W = 2.4e-15 (<= 1e-6)
+PASS Cub standard (cN 8 /rad): linear, F/W = cN tan(beta) at 5 slips to 0.03 % (<= 2 %)
+PASS Cub standard (cN 8 /rad): saturated, F/W = mu 0.8 at 5 slips to 0.03 % (<= 1 %)
+PASS Cub standard (cN 8 /rad): monotone in the slip, never above mu
+PASS Cub standard (cN 8 /rad): at 2 deg, 5 / 10 / 20 m/s read F/W 0.2794 / 0.2794 / 0.2794 (the slip's, not the speed's: 0.00 %, <= 2 %)
+PASS Cub tundra (cN 4.5 /rad): zero slip, F/W = 5.4e-15 (<= 1e-6)
+PASS Cub tundra (cN 4.5 /rad): linear, F/W = cN tan(beta) at 7 slips to 0.02 % (<= 2 %)
+PASS Cub tundra (cN 4.5 /rad): saturated, F/W = mu 0.8 at 4 slips to 0.02 % (<= 1 %)
+PASS Cub tundra (cN 4.5 /rad): monotone in the slip, never above mu
+PASS Cub tundra (cN 4.5 /rad): at 2 deg, 5 / 10 / 20 m/s read F/W 0.1572 / 0.1572 / 0.1572 (the slip's, not the speed's: 0.00 %, <= 2 %)
+PASS Cub slim (cN 10 /rad): zero slip, F/W = 3.7e-15 (<= 1e-6)
+PASS Cub slim (cN 10 /rad): linear, F/W = cN tan(beta) at 4 slips to 0.03 % (<= 2 %)
+PASS Cub slim (cN 10 /rad): saturated, F/W = mu 0.8 at 6 slips to 0.03 % (<= 1 %)
+PASS Cub slim (cN 10 /rad): monotone in the slip, never above mu
+PASS Cub slim (cN 10 /rad): at 2 deg, 5 / 10 / 20 m/s read F/W 0.3493 / 0.3493 / 0.3493 (the slip's, not the speed's: 0.00 %, <= 2 %)
+PASS Cub tailwheel (cN 10 /rad): zero slip, F/W = 3.7e-15 (<= 1e-6)
+PASS Cub tailwheel (cN 10 /rad): linear, F/W = cN tan(beta) at 4 slips to 0.03 % (<= 2 %)
+PASS Cub tailwheel (cN 10 /rad): saturated, F/W = mu 0.8 at 6 slips to 0.03 % (<= 1 %)
+PASS Cub tailwheel (cN 10 /rad): monotone in the slip, never above mu
+PASS Cub tailwheel (cN 10 /rad): at 2 deg, 5 / 10 / 20 m/s read F/W 0.3493 / 0.3493 / 0.3493 (the slip's, not the speed's: 0.00 %, <= 2 %)
+PASS metal Cessna standard (cN 8 /rad): zero slip, F/W = 1.1e-14 (<= 1e-6)
+PASS metal Cessna standard (cN 8 /rad): linear, F/W = cN tan(beta) at 5 slips to 0.10 % (<= 2 %)
+PASS metal Cessna standard (cN 8 /rad): saturated, F/W = mu 0.8 at 5 slips to 0.10 % (<= 1 %)
+PASS metal Cessna standard (cN 8 /rad): monotone in the slip, never above mu
+PASS metal Cessna standard (cN 8 /rad): at 2 deg, 5 / 10 / 20 m/s read F/W 0.2791 / 0.2791 / 0.2791 (the slip's, not the speed's: 0.00 %, <= 2 %)
+PASS metal Cessna nosewheel (cN 8 /rad): zero slip, F/W = 1.1e-14 (<= 1e-6)
+PASS metal Cessna nosewheel (cN 8 /rad): linear, F/W = cN tan(beta) at 5 slips to 0.10 % (<= 2 %)
+PASS metal Cessna nosewheel (cN 8 /rad): saturated, F/W = mu 0.8 at 5 slips to 0.10 % (<= 1 %)
+PASS metal Cessna nosewheel (cN 8 /rad): monotone in the slip, never above mu
+PASS metal Cessna nosewheel (cN 8 /rad): at 2 deg, 5 / 10 / 20 m/s read F/W 0.2791 / 0.2791 / 0.2791 (the slip's, not the speed's: 0.00 %, <= 2 %)
+PASS CONTROL, the pre-G1844 law (Cub, 10 m/s): F/W 0.507 at 0.5 deg (>= 0.45 mu), 0.800 at 1 deg (= mu within 1 %)
+PASS Cub parked 30 s: the fastest node over the last 20 s 0.022 mm/s (<= 2), the CG drift 0.015 mm (<= 5); the old law 0.021 mm/s, 0.015 mm
+PASS Cub parked 30 s: the CG against the old law's 0.2355 mm (<= 1)
+PASS Jodel parked 30 s: the fastest node over the last 20 s 0.001 mm/s (<= 2), the CG drift 0.008 mm (<= 5); the old law 0.002 mm/s, 0.008 mm
+PASS Jodel parked 30 s: the CG against the old law's 0.0822 mm (<= 1)
+PASS metal Cessna parked 30 s: the fastest node over the last 20 s 0.019 mm/s (<= 2), the CG drift 0.026 mm (<= 5); the old law 0.019 mm/s, 0.026 mm
+PASS metal Cessna parked 30 s: the CG against the old law's 0.0000 mm (<= 1)
+PASS Jodel taxi turn, rudder 0.2: R 36.5 m at 2.89 m/s against the old law's 41.4 m (x0.883, 0.80-1.10; the kinematic bicycle 41.3 m)
+PASS Jodel taxi turn, rudder 0.4: R 18.1 m at 2.99 m/s against the old law's 20.5 m (x0.883, 0.80-1.10; the kinematic bicycle 20.4 m)
+PASS metal Cessna taxi turn, rudder 0.2: R 21.8 m at 2.99 m/s against the old law's 25.4 m (x0.858, 0.80-1.10; the kinematic bicycle 25.8 m)
+PASS metal Cessna taxi turn, rudder 0.4: R 11.9 m at 3.09 m/s against the old law's 12.8 m (x0.927, 0.80-1.10; the kinematic bicycle 12.8 m)
+PASS the Cub's crosswind roll-out at 3 m/s across: completed, the heading's largest error 8.5 deg (<= 15), 0 reversals (<= 3), touchdown 0.8 m off the centre line (<= 3) at 0.64 m/s, rudder peak 0.54
+PASS the Cub's crosswind roll-out at 4 m/s across: completed, the heading's largest error 11.1 deg (<= 15), 1 reversals (<= 3), touchdown 1 m off the centre line (<= 3) at 0.66 m/s, rudder peak 0.7
+PASS the Cub's crosswind roll-out at 5 m/s across: completed, the heading's largest error 13.1 deg (<= 15), 1 reversals (<= 3), touchdown 1.3 m off the centre line (<= 3) at 0.63 m/s, rudder peak 0.8
+GATE DMGTYRE: PASS

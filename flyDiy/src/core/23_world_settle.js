@@ -102,8 +102,8 @@ function bakeSettlements(D) {
     // cuts) — verify against the actual water query, centre + 60 m ring
     let qWet = false;
     for (let q = 0; q < 5; q++) {
-      const qx = x + (q ? 60 * Math.cos(q * Math.PI / 2) : 0);
-      const qz = z + (q ? 60 * Math.sin(q * Math.PI / 2) : 0);
+      const qx = x + (q ? 60 * CORE_MATH.cos(q * Math.PI / 2) : 0);
+      const qz = z + (q ? 60 * CORE_MATH.sin(q * Math.PI / 2) : 0);
       if (D.water(qx, qz) > D.terrain(qx, qz)) { qWet = true; break; }
     }
     if (qWet) continue;

@@ -87,8 +87,11 @@ const BUILDS = [
 ];
 const VALIDATED = ['cub', 'jodel', 'cessna', 'twin582'];
 const specs = {};
+// G2034 (DMG-RECAL, GATE JOINPARITY's census): every build AS THE GAME FLIES IT - the page's load chain
+// (tools/_load_build.js: the join, the energy layer's tanks), then the fixture's mutation; FLYDIY_RAW_BUILDS=1: the file
+const LB = require(path.join(__dirname, '_load_build.js'));
 function specOf(B) {
-  if (!specs[B.key]) { const raw = JSON.parse(fs.readFileSync(at(B.file), 'utf8')); const s = clone(raw.spec || raw); if (B.mutate) B.mutate(s); specs[B.key] = s; }
+  if (!specs[B.key]) { const raw = JSON.parse(fs.readFileSync(at(B.file), 'utf8')); const s = clone(process.env.FLYDIY_RAW_BUILDS === '1' ? (raw.spec || raw) : LB.loadBuild(at(B.file)).spec); if (B.mutate) B.mutate(s); specs[B.key] = s; }
   return clone(specs[B.key]);
 }
 // the shed as app.js stands it (_rollanim_check.js's garage(), the club shed), the props carrying engIdx

@@ -248,6 +248,9 @@
        flying something uncertified and finding out why is content, not error;
        it changes its WORDS, not its state. Pause and Restart never move. -->
   <div id="flActs">
+    <!-- G3325 (AP-TOGGLE, the user 19 Oct): WHO FLIES IT, always in sight - the autopilot by default; a hand on the controls
+         takes it (the toggle says so), a press gives it back. Tim: you can take control yourself, you never have to -->
+    <button id="bAP" class="verb ap" hidden aria-pressed="true">Autopilot</button>
     <button id="bPause" class="verb" hidden>Pause</button>
     <button id="bReset" class="verb" hidden>Restart</button>
     <!-- G771: SKIP TO LINE-UP - from the stand (at roll-out, or taxiing) straight to the runway hold, lined
@@ -539,6 +542,10 @@
                 title="Start a new aeroplane — pick an archetype">✚ new</button>
         <button id="gLoad"
                 title="Your saved aeroplanes and the stock designs">load</button>
+        <!-- G2690 (HANGAR-STORAGE): where your aeroplanes are kept - the floor, inside, outside, long-term; fly any
+             shown one from where it stands (storage_ui.js) -->
+        <button id="gStore"
+                title="Where your aeroplanes are kept: inside, outside, long-term - and fly one from where it stands">storage</button>
         <button id="gImport"
                 title="Open an aeroplane from a .json file">import</button>
         <button id="gExport"

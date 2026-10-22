@@ -1,0 +1,625 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1620" height="448" viewBox="0 0 1620 448" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="1620" height="448" fill="#fcfcfb"/>
+<text x="16" y="26" font-size="16" font-weight="600" fill="#0b0b0b">A steady wind 0-10 m/s from every direction: did the engine mount survive the 3 m/s trunk taxi?</text>
+<text x="16" y="80" font-size="13" font-weight="600" fill="#0b0b0b">THE PAGE'S STAGING (3 m/s, 6 m) - GATED</text>
+<text x="70" y="112" font-size="11" fill="#0b0b0b">Cub, before: 10/49 mount off</text>
+<text x="64" y="132" font-size="10" text-anchor="end" fill="#52514e">0 m/s</text>
+<rect x="70" y="120" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 0 m/s from 0 deg: mount held, 417 J, met at 2.20 m/s</title></rect>
+<text x="64" y="150" font-size="10" text-anchor="end" fill="#52514e">2.5 m/s</text>
+<rect x="70" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 2.5 m/s from 0 deg: mount held, 388 J, met at 2.13 m/s</title></rect>
+<rect x="90" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 2.5 m/s from 30 deg: mount held, 399 J, met at 2.15 m/s</title></rect>
+<rect x="110" y="138" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 2.5 m/s from 60 deg: MOUNT OFF (CGE-S0TR tension), 434 J, met at 2.17 m/s</title></rect>
+<rect x="130" y="138" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 2.5 m/s from 90 deg: MOUNT OFF (CGE-S0TR tension), 451 J, met at 2.20 m/s</title></rect>
+<rect x="150" y="138" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 2.5 m/s from 120 deg: MOUNT OFF (CGE-S0TR tension), 456 J, met at 2.22 m/s</title></rect>
+<rect x="170" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 2.5 m/s from 150 deg: mount held, 430 J, met at 2.22 m/s</title></rect>
+<rect x="190" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 2.5 m/s from 180 deg: mount held, 428 J, met at 2.22 m/s</title></rect>
+<rect x="210" y="138" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 2.5 m/s from 210 deg: MOUNT OFF (CGE-S0TR tension), 643 J, met at 2.22 m/s</title></rect>
+<rect x="230" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 2.5 m/s from 240 deg: mount held, 451 J, met at 2.22 m/s</title></rect>
+<rect x="250" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 2.5 m/s from 270 deg: mount held, 457 J, met at 2.20 m/s</title></rect>
+<rect x="270" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 2.5 m/s from 300 deg: mount held, 429 J, met at 2.17 m/s</title></rect>
+<rect x="290" y="138" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 2.5 m/s from 330 deg: MOUNT OFF (CGE-S0TR tension), 543 J, met at 2.15 m/s</title></rect>
+<text x="64" y="168" font-size="10" text-anchor="end" fill="#52514e">5 m/s</text>
+<rect x="70" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 5 m/s from 0 deg: mount held, 362 J, met at 2.02 m/s</title></rect>
+<rect x="90" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 5 m/s from 30 deg: mount held, 391 J, met at 2.06 m/s</title></rect>
+<rect x="110" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 5 m/s from 60 deg: mount held, 417 J, met at 2.13 m/s</title></rect>
+<rect x="130" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 5 m/s from 90 deg: mount held, 512 J, met at 2.20 m/s</title></rect>
+<rect x="150" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 5 m/s from 120 deg: mount held, 489 J, met at 2.22 m/s</title></rect>
+<rect x="170" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 5 m/s from 150 deg: mount held, 512 J, met at 2.24 m/s</title></rect>
+<rect x="190" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 5 m/s from 180 deg: mount held, 441 J, met at 2.26 m/s</title></rect>
+<rect x="210" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 5 m/s from 210 deg: mount held, 513 J, met at 2.24 m/s</title></rect>
+<rect x="230" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 5 m/s from 240 deg: mount held, 491 J, met at 2.22 m/s</title></rect>
+<rect x="250" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 5 m/s from 270 deg: mount held, 515 J, met at 2.20 m/s</title></rect>
+<rect x="270" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 5 m/s from 300 deg: mount held, 418 J, met at 2.13 m/s</title></rect>
+<rect x="290" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 5 m/s from 330 deg: mount held, 392 J, met at 2.06 m/s</title></rect>
+<text x="64" y="186" font-size="10" text-anchor="end" fill="#52514e">7.5 m/s</text>
+<rect x="70" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 7.5 m/s from 0 deg: mount held, 328 J, met at 1.84 m/s</title></rect>
+<rect x="90" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 7.5 m/s from 30 deg: mount held, 241 J, met at 1.92 m/s</title></rect>
+<rect x="110" y="174" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 7.5 m/s from 60 deg: MOUNT OFF (CGE-S0TL tension), 97 J, met at 2.03 m/s</title></rect>
+<rect x="130" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 7.5 m/s from 90 deg: mount held, 143 J, met at 2.14 m/s</title></rect>
+<rect x="150" y="174" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 7.5 m/s from 120 deg: MOUNT OFF (CGE-S0TL tension), 228 J, met at 2.19 m/s</title></rect>
+<rect x="170" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 7.5 m/s from 150 deg: mount held, 568 J, met at 2.28 m/s</title></rect>
+<rect x="190" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 7.5 m/s from 180 deg: mount held, 485 J, met at 2.34 m/s</title></rect>
+<rect x="210" y="174" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 7.5 m/s from 210 deg: MOUNT OFF (ENGL-S0TL kink), 534 J, met at 2.28 m/s</title></rect>
+<rect x="230" y="174" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 7.5 m/s from 240 deg: MOUNT OFF (CGE-S0TR tension), 223 J, met at 2.19 m/s</title></rect>
+<rect x="250" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 7.5 m/s from 270 deg: mount held, 143 J, met at 2.14 m/s</title></rect>
+<rect x="270" y="174" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 7.5 m/s from 300 deg: MOUNT OFF (CGE-S0TR tension), 94 J, met at 2.03 m/s</title></rect>
+<rect x="290" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 7.5 m/s from 330 deg: mount held, 241 J, met at 1.92 m/s</title></rect>
+<text x="64" y="204" font-size="10" text-anchor="end" fill="#52514e">10 m/s</text>
+<rect x="70" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 0 deg: mount held, 276 J, met at 1.59 m/s</title></rect>
+<rect x="90" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 30 deg: mount held, 0 J, met at 1.18 m/s</title></rect>
+<rect x="110" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 60 deg: mount held, 0 J, met at 1.48 m/s</title></rect>
+<rect x="130" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 90 deg: mount held, 0 J, met at 1.85 m/s</title></rect>
+<rect x="150" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 120 deg: mount held, 199 J, met at 1.95 m/s</title></rect>
+<rect x="170" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 150 deg: mount held, 203 J, met at 2.29 m/s</title></rect>
+<rect x="190" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 180 deg: mount held, 565 J, met at 2.47 m/s</title></rect>
+<rect x="210" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 210 deg: mount held, 202 J, met at 2.29 m/s</title></rect>
+<rect x="230" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 240 deg: mount held, 199 J, met at 1.95 m/s</title></rect>
+<rect x="250" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 270 deg: mount held, 0 J, met at 1.85 m/s</title></rect>
+<rect x="270" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 300 deg: mount held, 0 J, met at 1.48 m/s</title></rect>
+<rect x="290" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 330 deg: mount held, 0 J, met at 1.18 m/s</title></rect>
+<text x="79" y="222" font-size="9" text-anchor="middle" fill="#52514e">0</text>
+<text x="139" y="222" font-size="9" text-anchor="middle" fill="#52514e">90</text>
+<text x="199" y="222" font-size="9" text-anchor="middle" fill="#52514e">180</text>
+<text x="259" y="222" font-size="9" text-anchor="middle" fill="#52514e">270</text>
+<text x="325" y="112" font-size="11" fill="#0b0b0b">Cub, after: 1/49 mount off</text>
+<rect x="325" y="120" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 0 m/s from 0 deg: mount held, 220 J, met at 2.20 m/s</title></rect>
+<rect x="325" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 2.5 m/s from 0 deg: mount held, 177 J, met at 2.13 m/s</title></rect>
+<rect x="345" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 2.5 m/s from 30 deg: mount held, 219 J, met at 2.15 m/s</title></rect>
+<rect x="365" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 2.5 m/s from 60 deg: mount held, 256 J, met at 2.17 m/s</title></rect>
+<rect x="385" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 2.5 m/s from 90 deg: mount held, 276 J, met at 2.20 m/s</title></rect>
+<rect x="405" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 2.5 m/s from 120 deg: mount held, 278 J, met at 2.22 m/s</title></rect>
+<rect x="425" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 2.5 m/s from 150 deg: mount held, 250 J, met at 2.22 m/s</title></rect>
+<rect x="445" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 2.5 m/s from 180 deg: mount held, 253 J, met at 2.22 m/s</title></rect>
+<rect x="465" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 2.5 m/s from 210 deg: mount held, 250 J, met at 2.22 m/s</title></rect>
+<rect x="485" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 2.5 m/s from 240 deg: mount held, 278 J, met at 2.22 m/s</title></rect>
+<rect x="505" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 2.5 m/s from 270 deg: mount held, 276 J, met at 2.20 m/s</title></rect>
+<rect x="525" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 2.5 m/s from 300 deg: mount held, 256 J, met at 2.17 m/s</title></rect>
+<rect x="545" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 2.5 m/s from 330 deg: mount held, 219 J, met at 2.15 m/s</title></rect>
+<rect x="325" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 0 deg: mount held, 177 J, met at 2.02 m/s</title></rect>
+<rect x="345" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 30 deg: mount held, 259 J, met at 2.06 m/s</title></rect>
+<rect x="365" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 60 deg: mount held, 10 J, met at 2.13 m/s</title></rect>
+<rect x="385" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 90 deg: mount held, 1 J, met at 2.20 m/s</title></rect>
+<rect x="405" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 120 deg: mount held, 15 J, met at 2.22 m/s</title></rect>
+<rect x="425" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 150 deg: mount held, 332 J, met at 2.24 m/s</title></rect>
+<rect x="445" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 180 deg: mount held, 294 J, met at 2.26 m/s</title></rect>
+<rect x="465" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 210 deg: mount held, 332 J, met at 2.24 m/s</title></rect>
+<rect x="485" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 240 deg: mount held, 15 J, met at 2.22 m/s</title></rect>
+<rect x="505" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 270 deg: mount held, 1 J, met at 2.20 m/s</title></rect>
+<rect x="525" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 300 deg: mount held, 10 J, met at 2.13 m/s</title></rect>
+<rect x="545" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 330 deg: mount held, 259 J, met at 2.06 m/s</title></rect>
+<rect x="325" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 0 deg: mount held, 177 J, met at 1.84 m/s</title></rect>
+<rect x="345" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 30 deg: mount held, 9 J, met at 1.92 m/s</title></rect>
+<rect x="365" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 60 deg: mount held, 139 J, met at 2.03 m/s</title></rect>
+<rect x="385" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 90 deg: mount held, 164 J, met at 2.14 m/s</title></rect>
+<rect x="405" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 120 deg: mount held, 164 J, met at 2.19 m/s</title></rect>
+<rect x="425" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 150 deg: mount held, 19 J, met at 2.28 m/s</title></rect>
+<rect x="445" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 180 deg: mount held, 408 J, met at 2.34 m/s</title></rect>
+<rect x="465" y="174" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 7.5 m/s from 210 deg: MOUNT OFF (CGE-S0TR tension), 16 J, met at 2.28 m/s</title></rect>
+<rect x="485" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 240 deg: mount held, 163 J, met at 2.19 m/s</title></rect>
+<rect x="505" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 270 deg: mount held, 164 J, met at 2.14 m/s</title></rect>
+<rect x="525" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 300 deg: mount held, 139 J, met at 2.03 m/s</title></rect>
+<rect x="545" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 330 deg: mount held, 9 J, met at 1.92 m/s</title></rect>
+<rect x="325" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 0 deg: mount held, 177 J, met at 1.59 m/s</title></rect>
+<rect x="345" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 30 deg: mount held, 0 J, met at 1.18 m/s</title></rect>
+<rect x="365" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 60 deg: mount held, 0 J, met at 1.48 m/s</title></rect>
+<rect x="385" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 90 deg: mount held, 0 J, met at 1.85 m/s</title></rect>
+<rect x="405" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 120 deg: mount held, 186 J, met at 1.95 m/s</title></rect>
+<rect x="425" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 150 deg: mount held, 388 J, met at 2.29 m/s</title></rect>
+<rect x="445" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 180 deg: mount held, 568 J, met at 2.47 m/s</title></rect>
+<rect x="465" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 210 deg: mount held, 387 J, met at 2.29 m/s</title></rect>
+<rect x="485" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 240 deg: mount held, 186 J, met at 1.95 m/s</title></rect>
+<rect x="505" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 270 deg: mount held, 0 J, met at 1.85 m/s</title></rect>
+<rect x="525" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 300 deg: mount held, 0 J, met at 1.48 m/s</title></rect>
+<rect x="545" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 330 deg: mount held, 0 J, met at 1.18 m/s</title></rect>
+<text x="580" y="112" font-size="11" fill="#0b0b0b">Jodel, before: 10/49 mount off</text>
+<rect x="580" y="120" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 0 m/s from 0 deg: mount held, 717 J, met at 2.17 m/s</title></rect>
+<rect x="580" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 0 deg: mount held, 694 J, met at 2.13 m/s</title></rect>
+<rect x="600" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 30 deg: mount held, 716 J, met at 2.15 m/s</title></rect>
+<rect x="620" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 60 deg: mount held, 657 J, met at 2.17 m/s</title></rect>
+<rect x="640" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 90 deg: mount held, 609 J, met at 2.17 m/s</title></rect>
+<rect x="660" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 120 deg: mount held, 631 J, met at 2.18 m/s</title></rect>
+<rect x="680" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 150 deg: mount held, 719 J, met at 2.18 m/s</title></rect>
+<rect x="700" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 180 deg: mount held, 725 J, met at 2.18 m/s</title></rect>
+<rect x="720" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 210 deg: mount held, 719 J, met at 2.18 m/s</title></rect>
+<rect x="740" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 240 deg: mount held, 631 J, met at 2.18 m/s</title></rect>
+<rect x="760" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 270 deg: mount held, 609 J, met at 2.17 m/s</title></rect>
+<rect x="780" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 300 deg: mount held, 657 J, met at 2.17 m/s</title></rect>
+<rect x="800" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 330 deg: mount held, 716 J, met at 2.15 m/s</title></rect>
+<rect x="580" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 5 m/s from 0 deg: mount held, 674 J, met at 2.07 m/s</title></rect>
+<rect x="600" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 5 m/s from 30 deg: mount held, 266 J, met at 2.12 m/s</title></rect>
+<rect x="620" y="156" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 5 m/s from 60 deg: MOUNT OFF (ENGR-S0TR kink), 372 J, met at 2.14 m/s</title></rect>
+<rect x="640" y="156" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 5 m/s from 90 deg: MOUNT OFF (ENGR-S0TR kink), 375 J, met at 2.18 m/s</title></rect>
+<rect x="660" y="156" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 5 m/s from 120 deg: MOUNT OFF (ENGR-S0TR kink), 373 J, met at 2.18 m/s</title></rect>
+<rect x="680" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 5 m/s from 150 deg: mount held, 310 J, met at 2.19 m/s</title></rect>
+<rect x="700" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 5 m/s from 180 deg: mount held, 740 J, met at 2.20 m/s</title></rect>
+<rect x="720" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 5 m/s from 210 deg: mount held, 310 J, met at 2.19 m/s</title></rect>
+<rect x="740" y="156" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 5 m/s from 240 deg: MOUNT OFF (ENGL-S0TL kink), 373 J, met at 2.18 m/s</title></rect>
+<rect x="760" y="156" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 5 m/s from 270 deg: MOUNT OFF (ENGL-S0TL kink), 375 J, met at 2.18 m/s</title></rect>
+<rect x="780" y="156" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 5 m/s from 300 deg: MOUNT OFF (ENGL-S0TL kink), 372 J, met at 2.14 m/s</title></rect>
+<rect x="800" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 5 m/s from 330 deg: mount held, 266 J, met at 2.12 m/s</title></rect>
+<rect x="580" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 0 deg: mount held, 655 J, met at 1.99 m/s</title></rect>
+<rect x="600" y="174" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 7.5 m/s from 30 deg: MOUNT OFF (ENGR-S0TR kink), 375 J, met at 2.08 m/s</title></rect>
+<rect x="620" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 60 deg: mount held, 142 J, met at 1.99 m/s</title></rect>
+<rect x="640" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 90 deg: mount held, 97 J, met at 2.02 m/s</title></rect>
+<rect x="660" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 120 deg: mount held, 162 J, met at 2.07 m/s</title></rect>
+<rect x="680" y="174" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 7.5 m/s from 150 deg: MOUNT OFF (ENGR-S0TR kink), 393 J, met at 2.21 m/s</title></rect>
+<rect x="700" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 180 deg: mount held, 793 J, met at 2.26 m/s</title></rect>
+<rect x="720" y="174" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 7.5 m/s from 210 deg: MOUNT OFF (ENGL-S0TL kink), 393 J, met at 2.21 m/s</title></rect>
+<rect x="740" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 240 deg: mount held, 162 J, met at 2.07 m/s</title></rect>
+<rect x="760" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 270 deg: mount held, 97 J, met at 2.02 m/s</title></rect>
+<rect x="780" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 300 deg: mount held, 142 J, met at 1.99 m/s</title></rect>
+<rect x="800" y="174" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 7.5 m/s from 330 deg: MOUNT OFF (ENGL-S0TL kink), 375 J, met at 2.08 m/s</title></rect>
+<rect x="580" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 0 deg: mount held, 604 J, met at 1.86 m/s</title></rect>
+<rect x="600" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 30 deg: mount held, 28 J, met at 1.98 m/s</title></rect>
+<rect x="620" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 60 deg: mount held, 24 J, met at 1.66 m/s</title></rect>
+<rect x="640" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 90 deg: mount held, 0 J, met at 1.81 m/s</title></rect>
+<rect x="660" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 120 deg: mount held, 62 J, met at 1.84 m/s</title></rect>
+<rect x="680" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 150 deg: mount held, 45 J, met at 2.07 m/s</title></rect>
+<rect x="700" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 180 deg: mount held, 888 J, met at 2.36 m/s</title></rect>
+<rect x="720" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 210 deg: mount held, 45 J, met at 2.07 m/s</title></rect>
+<rect x="740" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 240 deg: mount held, 62 J, met at 1.84 m/s</title></rect>
+<rect x="760" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 270 deg: mount held, 0 J, met at 1.81 m/s</title></rect>
+<rect x="780" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 300 deg: mount held, 24 J, met at 1.66 m/s</title></rect>
+<rect x="800" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 330 deg: mount held, 28 J, met at 1.98 m/s</title></rect>
+<text x="835" y="112" font-size="11" fill="#0b0b0b">Jodel, after: 0/49 mount off</text>
+<rect x="835" y="120" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 0 m/s from 0 deg: mount held, 643 J, met at 2.17 m/s</title></rect>
+<rect x="835" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 0 deg: mount held, 641 J, met at 2.13 m/s</title></rect>
+<rect x="855" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 30 deg: mount held, 664 J, met at 2.15 m/s</title></rect>
+<rect x="875" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 60 deg: mount held, 689 J, met at 2.17 m/s</title></rect>
+<rect x="895" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 90 deg: mount held, 670 J, met at 2.17 m/s</title></rect>
+<rect x="915" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 120 deg: mount held, 690 J, met at 2.18 m/s</title></rect>
+<rect x="935" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 150 deg: mount held, 676 J, met at 2.18 m/s</title></rect>
+<rect x="955" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 180 deg: mount held, 644 J, met at 2.18 m/s</title></rect>
+<rect x="975" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 210 deg: mount held, 676 J, met at 2.18 m/s</title></rect>
+<rect x="995" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 240 deg: mount held, 690 J, met at 2.18 m/s</title></rect>
+<rect x="1015" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 270 deg: mount held, 670 J, met at 2.17 m/s</title></rect>
+<rect x="1035" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 300 deg: mount held, 689 J, met at 2.17 m/s</title></rect>
+<rect x="1055" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 330 deg: mount held, 664 J, met at 2.15 m/s</title></rect>
+<rect x="835" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 0 deg: mount held, 638 J, met at 2.07 m/s</title></rect>
+<rect x="855" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 30 deg: mount held, 524 J, met at 2.12 m/s</title></rect>
+<rect x="875" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 60 deg: mount held, 0 J, met at 2.14 m/s</title></rect>
+<rect x="895" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 90 deg: mount held, 0 J, met at 2.18 m/s</title></rect>
+<rect x="915" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 120 deg: mount held, 0 J, met at 2.18 m/s</title></rect>
+<rect x="935" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 150 deg: mount held, 352 J, met at 2.19 m/s</title></rect>
+<rect x="955" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 180 deg: mount held, 645 J, met at 2.20 m/s</title></rect>
+<rect x="975" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 210 deg: mount held, 352 J, met at 2.19 m/s</title></rect>
+<rect x="995" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 240 deg: mount held, 0 J, met at 2.18 m/s</title></rect>
+<rect x="1015" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 270 deg: mount held, 0 J, met at 2.18 m/s</title></rect>
+<rect x="1035" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 300 deg: mount held, 0 J, met at 2.14 m/s</title></rect>
+<rect x="1055" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 330 deg: mount held, 524 J, met at 2.12 m/s</title></rect>
+<rect x="835" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 0 deg: mount held, 633 J, met at 1.99 m/s</title></rect>
+<rect x="855" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 30 deg: mount held, 0 J, met at 2.08 m/s</title></rect>
+<rect x="875" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 60 deg: mount held, 153 J, met at 1.99 m/s</title></rect>
+<rect x="895" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 90 deg: mount held, 89 J, met at 2.02 m/s</title></rect>
+<rect x="915" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 120 deg: mount held, 153 J, met at 2.07 m/s</title></rect>
+<rect x="935" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 150 deg: mount held, 0 J, met at 2.21 m/s</title></rect>
+<rect x="955" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 180 deg: mount held, 649 J, met at 2.26 m/s</title></rect>
+<rect x="975" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 210 deg: mount held, 0 J, met at 2.21 m/s</title></rect>
+<rect x="995" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 240 deg: mount held, 153 J, met at 2.07 m/s</title></rect>
+<rect x="1015" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 270 deg: mount held, 89 J, met at 2.02 m/s</title></rect>
+<rect x="1035" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 300 deg: mount held, 153 J, met at 1.99 m/s</title></rect>
+<rect x="1055" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 330 deg: mount held, 0 J, met at 2.08 m/s</title></rect>
+<rect x="835" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 0 deg: mount held, 589 J, met at 1.86 m/s</title></rect>
+<rect x="855" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 30 deg: mount held, 216 J, met at 1.98 m/s</title></rect>
+<rect x="875" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 60 deg: mount held, 0 J, met at 1.66 m/s</title></rect>
+<rect x="895" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 90 deg: mount held, 0 J, met at 1.81 m/s</title></rect>
+<rect x="915" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 120 deg: mount held, 0 J, met at 1.84 m/s</title></rect>
+<rect x="935" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 150 deg: mount held, 12 J, met at 2.07 m/s</title></rect>
+<rect x="955" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 180 deg: mount held, 673 J, met at 2.36 m/s</title></rect>
+<rect x="975" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 210 deg: mount held, 12 J, met at 2.07 m/s</title></rect>
+<rect x="995" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 240 deg: mount held, 0 J, met at 1.84 m/s</title></rect>
+<rect x="1015" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 270 deg: mount held, 0 J, met at 1.81 m/s</title></rect>
+<rect x="1035" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 300 deg: mount held, 0 J, met at 1.66 m/s</title></rect>
+<rect x="1055" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 330 deg: mount held, 216 J, met at 1.98 m/s</title></rect>
+<text x="1090" y="112" font-size="11" fill="#0b0b0b">metal Cessna, before: 0/49 mount off</text>
+<rect x="1090" y="120" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 0 m/s from 0 deg: mount held, 684 J, met at 2.17 m/s</title></rect>
+<rect x="1090" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 0 deg: mount held, 678 J, met at 2.16 m/s</title></rect>
+<rect x="1110" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 30 deg: mount held, 679 J, met at 2.17 m/s</title></rect>
+<rect x="1130" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 60 deg: mount held, 679 J, met at 2.17 m/s</title></rect>
+<rect x="1150" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 90 deg: mount held, 681 J, met at 2.17 m/s</title></rect>
+<rect x="1170" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 120 deg: mount held, 684 J, met at 2.17 m/s</title></rect>
+<rect x="1190" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 150 deg: mount held, 686 J, met at 2.17 m/s</title></rect>
+<rect x="1210" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 180 deg: mount held, 686 J, met at 2.17 m/s</title></rect>
+<rect x="1230" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 210 deg: mount held, 686 J, met at 2.17 m/s</title></rect>
+<rect x="1250" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 240 deg: mount held, 684 J, met at 2.17 m/s</title></rect>
+<rect x="1270" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 270 deg: mount held, 681 J, met at 2.17 m/s</title></rect>
+<rect x="1290" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 300 deg: mount held, 679 J, met at 2.17 m/s</title></rect>
+<rect x="1310" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 330 deg: mount held, 679 J, met at 2.17 m/s</title></rect>
+<rect x="1090" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 0 deg: mount held, 667 J, met at 2.14 m/s</title></rect>
+<rect x="1110" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 30 deg: mount held, 727 J, met at 2.16 m/s</title></rect>
+<rect x="1130" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 60 deg: mount held, 819 J, met at 2.17 m/s</title></rect>
+<rect x="1150" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 90 deg: mount held, 841 J, met at 2.18 m/s</title></rect>
+<rect x="1170" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 120 deg: mount held, 792 J, met at 2.17 m/s</title></rect>
+<rect x="1190" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 150 deg: mount held, 694 J, met at 2.18 m/s</title></rect>
+<rect x="1210" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 180 deg: mount held, 690 J, met at 2.18 m/s</title></rect>
+<rect x="1230" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 210 deg: mount held, 694 J, met at 2.18 m/s</title></rect>
+<rect x="1250" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 240 deg: mount held, 794 J, met at 2.17 m/s</title></rect>
+<rect x="1270" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 270 deg: mount held, 843 J, met at 2.18 m/s</title></rect>
+<rect x="1290" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 300 deg: mount held, 821 J, met at 2.17 m/s</title></rect>
+<rect x="1310" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 330 deg: mount held, 727 J, met at 2.16 m/s</title></rect>
+<rect x="1090" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 0 deg: mount held, 651 J, met at 2.11 m/s</title></rect>
+<rect x="1110" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 30 deg: mount held, 859 J, met at 2.14 m/s</title></rect>
+<rect x="1130" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 60 deg: mount held, 819 J, met at 2.16 m/s</title></rect>
+<rect x="1150" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 90 deg: mount held, 795 J, met at 2.18 m/s</title></rect>
+<rect x="1170" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 120 deg: mount held, 889 J, met at 2.17 m/s</title></rect>
+<rect x="1190" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 150 deg: mount held, 863 J, met at 2.18 m/s</title></rect>
+<rect x="1210" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 180 deg: mount held, 699 J, met at 2.19 m/s</title></rect>
+<rect x="1230" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 210 deg: mount held, 866 J, met at 2.18 m/s</title></rect>
+<rect x="1250" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 240 deg: mount held, 889 J, met at 2.17 m/s</title></rect>
+<rect x="1270" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 270 deg: mount held, 798 J, met at 2.18 m/s</title></rect>
+<rect x="1290" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 300 deg: mount held, 820 J, met at 2.16 m/s</title></rect>
+<rect x="1310" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 330 deg: mount held, 860 J, met at 2.14 m/s</title></rect>
+<rect x="1090" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 0 deg: mount held, 631 J, met at 2.07 m/s</title></rect>
+<rect x="1110" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 30 deg: mount held, 720 J, met at 2.11 m/s</title></rect>
+<rect x="1130" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 60 deg: mount held, 568 J, met at 2.16 m/s</title></rect>
+<rect x="1150" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 90 deg: mount held, 588 J, met at 2.18 m/s</title></rect>
+<rect x="1170" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 120 deg: mount held, 598 J, met at 2.17 m/s</title></rect>
+<rect x="1190" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 150 deg: mount held, 893 J, met at 2.20 m/s</title></rect>
+<rect x="1210" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 180 deg: mount held, 714 J, met at 2.22 m/s</title></rect>
+<rect x="1230" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 210 deg: mount held, 894 J, met at 2.20 m/s</title></rect>
+<rect x="1250" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 240 deg: mount held, 605 J, met at 2.17 m/s</title></rect>
+<rect x="1270" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 270 deg: mount held, 602 J, met at 2.18 m/s</title></rect>
+<rect x="1290" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 300 deg: mount held, 582 J, met at 2.16 m/s</title></rect>
+<rect x="1310" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 330 deg: mount held, 723 J, met at 2.11 m/s</title></rect>
+<text x="1345" y="112" font-size="11" fill="#0b0b0b">metal Cessna, after: 0/49 mount off</text>
+<rect x="1345" y="120" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 0 m/s from 0 deg: mount held, 773 J, met at 2.17 m/s</title></rect>
+<rect x="1345" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 0 deg: mount held, 764 J, met at 2.16 m/s</title></rect>
+<rect x="1365" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 30 deg: mount held, 767 J, met at 2.17 m/s</title></rect>
+<rect x="1385" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 60 deg: mount held, 769 J, met at 2.17 m/s</title></rect>
+<rect x="1405" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 90 deg: mount held, 773 J, met at 2.17 m/s</title></rect>
+<rect x="1425" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 120 deg: mount held, 775 J, met at 2.17 m/s</title></rect>
+<rect x="1445" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 150 deg: mount held, 775 J, met at 2.17 m/s</title></rect>
+<rect x="1465" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 180 deg: mount held, 776 J, met at 2.17 m/s</title></rect>
+<rect x="1485" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 210 deg: mount held, 775 J, met at 2.17 m/s</title></rect>
+<rect x="1505" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 240 deg: mount held, 775 J, met at 2.17 m/s</title></rect>
+<rect x="1525" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 270 deg: mount held, 773 J, met at 2.17 m/s</title></rect>
+<rect x="1545" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 300 deg: mount held, 769 J, met at 2.17 m/s</title></rect>
+<rect x="1565" y="138" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 330 deg: mount held, 767 J, met at 2.17 m/s</title></rect>
+<rect x="1345" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 0 deg: mount held, 758 J, met at 2.14 m/s</title></rect>
+<rect x="1365" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 30 deg: mount held, 764 J, met at 2.16 m/s</title></rect>
+<rect x="1385" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 60 deg: mount held, 776 J, met at 2.17 m/s</title></rect>
+<rect x="1405" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 90 deg: mount held, 779 J, met at 2.18 m/s</title></rect>
+<rect x="1425" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 120 deg: mount held, 782 J, met at 2.17 m/s</title></rect>
+<rect x="1445" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 150 deg: mount held, 767 J, met at 2.18 m/s</title></rect>
+<rect x="1465" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 180 deg: mount held, 769 J, met at 2.18 m/s</title></rect>
+<rect x="1485" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 210 deg: mount held, 767 J, met at 2.18 m/s</title></rect>
+<rect x="1505" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 240 deg: mount held, 782 J, met at 2.17 m/s</title></rect>
+<rect x="1525" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 270 deg: mount held, 779 J, met at 2.18 m/s</title></rect>
+<rect x="1545" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 300 deg: mount held, 776 J, met at 2.17 m/s</title></rect>
+<rect x="1565" y="156" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 330 deg: mount held, 764 J, met at 2.16 m/s</title></rect>
+<rect x="1345" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 0 deg: mount held, 741 J, met at 2.11 m/s</title></rect>
+<rect x="1365" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 30 deg: mount held, 813 J, met at 2.14 m/s</title></rect>
+<rect x="1385" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 60 deg: mount held, 847 J, met at 2.16 m/s</title></rect>
+<rect x="1405" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 90 deg: mount held, 855 J, met at 2.18 m/s</title></rect>
+<rect x="1425" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 120 deg: mount held, 858 J, met at 2.17 m/s</title></rect>
+<rect x="1445" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 150 deg: mount held, 790 J, met at 2.18 m/s</title></rect>
+<rect x="1465" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 180 deg: mount held, 783 J, met at 2.19 m/s</title></rect>
+<rect x="1485" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 210 deg: mount held, 790 J, met at 2.18 m/s</title></rect>
+<rect x="1505" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 240 deg: mount held, 858 J, met at 2.17 m/s</title></rect>
+<rect x="1525" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 270 deg: mount held, 855 J, met at 2.18 m/s</title></rect>
+<rect x="1545" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 300 deg: mount held, 847 J, met at 2.16 m/s</title></rect>
+<rect x="1565" y="174" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 330 deg: mount held, 813 J, met at 2.14 m/s</title></rect>
+<rect x="1345" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 0 deg: mount held, 722 J, met at 2.07 m/s</title></rect>
+<rect x="1365" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 30 deg: mount held, 808 J, met at 2.11 m/s</title></rect>
+<rect x="1385" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 60 deg: mount held, 876 J, met at 2.16 m/s</title></rect>
+<rect x="1405" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 90 deg: mount held, 864 J, met at 2.18 m/s</title></rect>
+<rect x="1425" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 120 deg: mount held, 890 J, met at 2.17 m/s</title></rect>
+<rect x="1445" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 150 deg: mount held, 871 J, met at 2.20 m/s</title></rect>
+<rect x="1465" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 180 deg: mount held, 792 J, met at 2.22 m/s</title></rect>
+<rect x="1485" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 210 deg: mount held, 871 J, met at 2.20 m/s</title></rect>
+<rect x="1505" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 240 deg: mount held, 891 J, met at 2.17 m/s</title></rect>
+<rect x="1525" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 270 deg: mount held, 866 J, met at 2.18 m/s</title></rect>
+<rect x="1545" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 300 deg: mount held, 877 J, met at 2.16 m/s</title></rect>
+<rect x="1565" y="192" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 330 deg: mount held, 808 J, met at 2.11 m/s</title></rect>
+<text x="16" y="244" font-size="13" font-weight="600" fill="#0b0b0b">THE PAGE'S IMPACT SPEED (~3 m/s at the trunk) - REPORTED</text>
+<text x="70" y="276" font-size="11" fill="#0b0b0b">Cub, before: 24/49 mount off</text>
+<text x="64" y="296" font-size="10" text-anchor="end" fill="#52514e">0 m/s</text>
+<rect x="70" y="284" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 0 m/s from 0 deg: mount held, 1230 J, met at 2.95 m/s</title></rect>
+<text x="64" y="314" font-size="10" text-anchor="end" fill="#52514e">2.5 m/s</text>
+<rect x="70" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 2.5 m/s from 0 deg: mount held, 1149 J, met at 2.90 m/s</title></rect>
+<rect x="90" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 2.5 m/s from 30 deg: mount held, 1126 J, met at 2.91 m/s</title></rect>
+<rect x="110" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 2.5 m/s from 60 deg: mount held, 1075 J, met at 2.93 m/s</title></rect>
+<rect x="130" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 2.5 m/s from 90 deg: mount held, 1094 J, met at 2.95 m/s</title></rect>
+<rect x="150" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 2.5 m/s from 120 deg: mount held, 1146 J, met at 2.98 m/s</title></rect>
+<rect x="170" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 2.5 m/s from 150 deg: mount held, 1239 J, met at 2.98 m/s</title></rect>
+<rect x="190" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 2.5 m/s from 180 deg: mount held, 1278 J, met at 2.99 m/s</title></rect>
+<rect x="210" y="302" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 2.5 m/s from 210 deg: MOUNT OFF (CGE-S0TR tension), 1009 J, met at 2.98 m/s</title></rect>
+<rect x="230" y="302" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 2.5 m/s from 240 deg: MOUNT OFF (CGE-S0TR tension), 1285 J, met at 2.98 m/s</title></rect>
+<rect x="250" y="302" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 2.5 m/s from 270 deg: MOUNT OFF (CGE-S0TR tension), 1361 J, met at 2.95 m/s</title></rect>
+<rect x="270" y="302" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 2.5 m/s from 300 deg: MOUNT OFF (CGE-S0TR tension), 1296 J, met at 2.93 m/s</title></rect>
+<rect x="290" y="302" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 2.5 m/s from 330 deg: MOUNT OFF (CGE-S0TR tension), 951 J, met at 2.91 m/s</title></rect>
+<text x="64" y="332" font-size="10" text-anchor="end" fill="#52514e">5 m/s</text>
+<rect x="70" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 5 m/s from 0 deg: mount held, 996 J, met at 2.81 m/s</title></rect>
+<rect x="90" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 5 m/s from 30 deg: MOUNT OFF (ENGR-S0BL tension), 962 J, met at 2.84 m/s</title></rect>
+<rect x="110" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 5 m/s from 60 deg: MOUNT OFF (ENGR-S0TR kink), 838 J, met at 2.90 m/s</title></rect>
+<rect x="130" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 5 m/s from 90 deg: MOUNT OFF (ENGR-S0TR kink), 659 J, met at 2.95 m/s</title></rect>
+<rect x="150" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 5 m/s from 120 deg: MOUNT OFF (ENGR-S0TR kink), 825 J, met at 2.98 m/s</title></rect>
+<rect x="170" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 5 m/s from 150 deg: MOUNT OFF (ENGR-S0BL tension), 1287 J, met at 2.99 m/s</title></rect>
+<rect x="190" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 5 m/s from 180 deg: mount held, 1294 J, met at 3.00 m/s</title></rect>
+<rect x="210" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 5 m/s from 210 deg: MOUNT OFF (ENGL-S0BR tension), 1304 J, met at 2.99 m/s</title></rect>
+<rect x="230" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 5 m/s from 240 deg: MOUNT OFF (ENGL-S0TL kink), 870 J, met at 2.98 m/s</title></rect>
+<rect x="250" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 5 m/s from 270 deg: MOUNT OFF (ENGL-S0TL kink), 1652 J, met at 2.95 m/s</title></rect>
+<rect x="270" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 5 m/s from 300 deg: MOUNT OFF (ENGL-S0TL kink), 879 J, met at 2.90 m/s</title></rect>
+<rect x="290" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 5 m/s from 330 deg: MOUNT OFF (ENGL-S0BR tension), 958 J, met at 2.84 m/s</title></rect>
+<text x="64" y="350" font-size="10" text-anchor="end" fill="#52514e">7.5 m/s</text>
+<rect x="70" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 7.5 m/s from 0 deg: mount held, 784 J, met at 2.67 m/s</title></rect>
+<rect x="90" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 7.5 m/s from 30 deg: MOUNT OFF (ENGR-S0TR kink), 595 J, met at 2.74 m/s</title></rect>
+<rect x="110" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 7.5 m/s from 60 deg: MOUNT OFF (CGE-S0TR tension), 237 J, met at 2.81 m/s</title></rect>
+<rect x="130" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 7.5 m/s from 90 deg: mount held, 1050 J, met at 2.90 m/s</title></rect>
+<rect x="150" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 7.5 m/s from 120 deg: MOUNT OFF (CGE-S0TR tension), 323 J, met at 2.95 m/s</title></rect>
+<rect x="170" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 7.5 m/s from 150 deg: MOUNT OFF (ENGR-S0TR kink), 535 J, met at 3.01 m/s</title></rect>
+<rect x="190" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 7.5 m/s from 180 deg: mount held, 1378 J, met at 3.05 m/s</title></rect>
+<rect x="210" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 7.5 m/s from 210 deg: MOUNT OFF (ENGL-S0TL kink), 539 J, met at 3.01 m/s</title></rect>
+<rect x="230" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 7.5 m/s from 240 deg: MOUNT OFF (CGE-S0TL tension), 299 J, met at 2.95 m/s</title></rect>
+<rect x="250" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 7.5 m/s from 270 deg: MOUNT OFF (VSNL-S0TL kink), 1042 J, met at 2.90 m/s</title></rect>
+<rect x="270" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 7.5 m/s from 300 deg: MOUNT OFF (CGE-S0BL tension), 258 J, met at 2.81 m/s</title></rect>
+<rect x="290" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, before, 7.5 m/s from 330 deg: MOUNT OFF (ENGL-S0TL kink), 594 J, met at 2.74 m/s</title></rect>
+<text x="64" y="368" font-size="10" text-anchor="end" fill="#52514e">10 m/s</text>
+<rect x="70" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 0 deg: mount held, 573 J, met at 2.53 m/s</title></rect>
+<rect x="90" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 30 deg: mount held, 91 J, met at 2.17 m/s</title></rect>
+<rect x="110" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 60 deg: mount held, 437 J, met at 2.23 m/s</title></rect>
+<rect x="130" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 90 deg: mount held, 88 J, met at 2.67 m/s</title></rect>
+<rect x="150" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 120 deg: mount held, 367 J, met at 2.76 m/s</title></rect>
+<rect x="170" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 150 deg: mount held, 525 J, met at 3.00 m/s</title></rect>
+<rect x="190" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 180 deg: mount held, 1517 J, met at 3.14 m/s</title></rect>
+<rect x="210" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 210 deg: mount held, 525 J, met at 3.00 m/s</title></rect>
+<rect x="230" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 240 deg: mount held, 367 J, met at 2.76 m/s</title></rect>
+<rect x="250" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 270 deg: mount held, 88 J, met at 2.67 m/s</title></rect>
+<rect x="270" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 300 deg: mount held, 430 J, met at 2.23 m/s</title></rect>
+<rect x="290" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, before, 10 m/s from 330 deg: mount held, 91 J, met at 2.17 m/s</title></rect>
+<text x="79" y="386" font-size="9" text-anchor="middle" fill="#52514e">0</text>
+<text x="139" y="386" font-size="9" text-anchor="middle" fill="#52514e">90</text>
+<text x="199" y="386" font-size="9" text-anchor="middle" fill="#52514e">180</text>
+<text x="259" y="386" font-size="9" text-anchor="middle" fill="#52514e">270</text>
+<text x="325" y="276" font-size="11" fill="#0b0b0b">Cub, after: 17/49 mount off</text>
+<rect x="325" y="284" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 0 m/s from 0 deg: mount held, 1142 J, met at 2.95 m/s</title></rect>
+<rect x="325" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 2.5 m/s from 0 deg: mount held, 1005 J, met at 2.90 m/s</title></rect>
+<rect x="345" y="302" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 2.5 m/s from 30 deg: MOUNT OFF (CGE-ENGR fold), 1235 J, met at 2.91 m/s</title></rect>
+<rect x="365" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 2.5 m/s from 60 deg: mount held, 1118 J, met at 2.93 m/s</title></rect>
+<rect x="385" y="302" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 2.5 m/s from 90 deg: MOUNT OFF (CGE-ENGR fold), 1196 J, met at 2.95 m/s</title></rect>
+<rect x="405" y="302" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 2.5 m/s from 120 deg: MOUNT OFF (CGE-ENGR fold), 1326 J, met at 2.98 m/s</title></rect>
+<rect x="425" y="302" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 2.5 m/s from 150 deg: MOUNT OFF (CGE-ENGR fold), 1202 J, met at 2.98 m/s</title></rect>
+<rect x="445" y="302" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 2.5 m/s from 180 deg: MOUNT OFF (CGE-ENGL fold), 1219 J, met at 2.99 m/s</title></rect>
+<rect x="465" y="302" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 2.5 m/s from 210 deg: MOUNT OFF (CGE-ENGL fold), 1201 J, met at 2.98 m/s</title></rect>
+<rect x="485" y="302" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 2.5 m/s from 240 deg: MOUNT OFF (CGE-ENGL fold), 1327 J, met at 2.98 m/s</title></rect>
+<rect x="505" y="302" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 2.5 m/s from 270 deg: MOUNT OFF (CGE-ENGL fold), 1197 J, met at 2.95 m/s</title></rect>
+<rect x="525" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 2.5 m/s from 300 deg: mount held, 1118 J, met at 2.93 m/s</title></rect>
+<rect x="545" y="302" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 2.5 m/s from 330 deg: MOUNT OFF (CGE-ENGL fold), 1235 J, met at 2.91 m/s</title></rect>
+<rect x="325" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 0 deg: mount held, 910 J, met at 2.81 m/s</title></rect>
+<rect x="345" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 30 deg: mount held, 602 J, met at 2.84 m/s</title></rect>
+<rect x="365" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 60 deg: mount held, 337 J, met at 2.90 m/s</title></rect>
+<rect x="385" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 90 deg: mount held, 302 J, met at 2.95 m/s</title></rect>
+<rect x="405" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 120 deg: mount held, 421 J, met at 2.98 m/s</title></rect>
+<rect x="425" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 5 m/s from 150 deg: MOUNT OFF (CGE-S0TR tension), 696 J, met at 2.99 m/s</title></rect>
+<rect x="445" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 5 m/s from 180 deg: MOUNT OFF (CGE-ENGL fold), 1354 J, met at 3.00 m/s</title></rect>
+<rect x="465" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 210 deg: mount held, 721 J, met at 2.99 m/s</title></rect>
+<rect x="485" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 240 deg: mount held, 422 J, met at 2.98 m/s</title></rect>
+<rect x="505" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 270 deg: mount held, 302 J, met at 2.95 m/s</title></rect>
+<rect x="525" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 300 deg: mount held, 338 J, met at 2.90 m/s</title></rect>
+<rect x="545" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 5 m/s from 330 deg: mount held, 603 J, met at 2.84 m/s</title></rect>
+<rect x="325" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 0 deg: mount held, 764 J, met at 2.67 m/s</title></rect>
+<rect x="345" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 7.5 m/s from 30 deg: MOUNT OFF (CGE-S0TR tension), 58 J, met at 2.74 m/s</title></rect>
+<rect x="365" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 60 deg: mount held, 491 J, met at 2.81 m/s</title></rect>
+<rect x="385" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 90 deg: mount held, 566 J, met at 2.90 m/s</title></rect>
+<rect x="405" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 120 deg: mount held, 565 J, met at 2.95 m/s</title></rect>
+<rect x="425" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 7.5 m/s from 150 deg: MOUNT OFF (CGE-S0TR tension), 19 J, met at 3.01 m/s</title></rect>
+<rect x="445" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 7.5 m/s from 180 deg: MOUNT OFF (CGE-ENGL fold), 1238 J, met at 3.05 m/s</title></rect>
+<rect x="465" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 7.5 m/s from 210 deg: MOUNT OFF (CGE-S0BL tension), 85 J, met at 3.01 m/s</title></rect>
+<rect x="485" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 240 deg: mount held, 575 J, met at 2.95 m/s</title></rect>
+<rect x="505" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 270 deg: mount held, 567 J, met at 2.90 m/s</title></rect>
+<rect x="525" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 7.5 m/s from 300 deg: mount held, 493 J, met at 2.81 m/s</title></rect>
+<rect x="545" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 7.5 m/s from 330 deg: MOUNT OFF (CGE-S0BL tension), 84 J, met at 2.74 m/s</title></rect>
+<rect x="325" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 0 deg: mount held, 583 J, met at 2.53 m/s</title></rect>
+<rect x="345" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 30 deg: mount held, 34 J, met at 2.17 m/s</title></rect>
+<rect x="365" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 60 deg: mount held, 367 J, met at 2.23 m/s</title></rect>
+<rect x="385" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 90 deg: mount held, 0 J, met at 2.67 m/s</title></rect>
+<rect x="405" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 120 deg: mount held, 369 J, met at 2.76 m/s</title></rect>
+<rect x="425" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 150 deg: mount held, 795 J, met at 3.00 m/s</title></rect>
+<rect x="445" y="356" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Cub, after, 10 m/s from 180 deg: MOUNT OFF (CGE-ENGL fold), 1368 J, met at 3.14 m/s</title></rect>
+<rect x="465" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 210 deg: mount held, 798 J, met at 3.00 m/s</title></rect>
+<rect x="485" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 240 deg: mount held, 369 J, met at 2.76 m/s</title></rect>
+<rect x="505" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 270 deg: mount held, 0 J, met at 2.67 m/s</title></rect>
+<rect x="525" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 300 deg: mount held, 361 J, met at 2.23 m/s</title></rect>
+<rect x="545" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Cub, after, 10 m/s from 330 deg: mount held, 34 J, met at 2.17 m/s</title></rect>
+<text x="580" y="276" font-size="11" fill="#0b0b0b">Jodel, before: 12/49 mount off</text>
+<rect x="580" y="284" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 0 m/s from 0 deg: mount held, 1529 J, met at 2.94 m/s</title></rect>
+<rect x="580" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 0 deg: mount held, 1484 J, met at 2.90 m/s</title></rect>
+<rect x="600" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 30 deg: mount held, 1389 J, met at 2.92 m/s</title></rect>
+<rect x="620" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 60 deg: mount held, 1127 J, met at 2.94 m/s</title></rect>
+<rect x="640" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 90 deg: mount held, 1078 J, met at 2.94 m/s</title></rect>
+<rect x="660" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 120 deg: mount held, 1103 J, met at 2.95 m/s</title></rect>
+<rect x="680" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 150 deg: mount held, 1379 J, met at 2.95 m/s</title></rect>
+<rect x="700" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 180 deg: mount held, 1545 J, met at 2.95 m/s</title></rect>
+<rect x="720" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 210 deg: mount held, 1379 J, met at 2.95 m/s</title></rect>
+<rect x="740" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 240 deg: mount held, 1103 J, met at 2.95 m/s</title></rect>
+<rect x="760" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 270 deg: mount held, 1078 J, met at 2.94 m/s</title></rect>
+<rect x="780" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 300 deg: mount held, 1127 J, met at 2.94 m/s</title></rect>
+<rect x="800" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 2.5 m/s from 330 deg: mount held, 1389 J, met at 2.92 m/s</title></rect>
+<rect x="580" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 5 m/s from 0 deg: mount held, 1434 J, met at 2.86 m/s</title></rect>
+<rect x="600" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 5 m/s from 30 deg: mount held, 981 J, met at 2.90 m/s</title></rect>
+<rect x="620" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 5 m/s from 60 deg: MOUNT OFF (ENGR-S0TR kink), 502 J, met at 2.92 m/s</title></rect>
+<rect x="640" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 5 m/s from 90 deg: MOUNT OFF (ENGR-S0TR kink), 1167 J, met at 2.94 m/s</title></rect>
+<rect x="660" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 5 m/s from 120 deg: MOUNT OFF (ENGR-S0TR kink), 1028 J, met at 2.95 m/s</title></rect>
+<rect x="680" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 5 m/s from 150 deg: mount held, 1056 J, met at 2.95 m/s</title></rect>
+<rect x="700" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 5 m/s from 180 deg: mount held, 1559 J, met at 2.96 m/s</title></rect>
+<rect x="720" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 5 m/s from 210 deg: mount held, 1056 J, met at 2.95 m/s</title></rect>
+<rect x="740" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 5 m/s from 240 deg: MOUNT OFF (ENGL-S0TL kink), 1037 J, met at 2.95 m/s</title></rect>
+<rect x="760" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 5 m/s from 270 deg: MOUNT OFF (ENGL-S0TL kink), 1169 J, met at 2.94 m/s</title></rect>
+<rect x="780" y="320" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 5 m/s from 300 deg: MOUNT OFF (ENGL-S0TL kink), 503 J, met at 2.92 m/s</title></rect>
+<rect x="800" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 5 m/s from 330 deg: mount held, 982 J, met at 2.90 m/s</title></rect>
+<rect x="580" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 0 deg: mount held, 1341 J, met at 2.79 m/s</title></rect>
+<rect x="600" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 7.5 m/s from 30 deg: MOUNT OFF (ENGR-S0TR kink), 1275 J, met at 2.86 m/s</title></rect>
+<rect x="620" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 60 deg: mount held, 287 J, met at 2.81 m/s</title></rect>
+<rect x="640" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 90 deg: mount held, 319 J, met at 2.82 m/s</title></rect>
+<rect x="660" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 120 deg: mount held, 320 J, met at 2.86 m/s</title></rect>
+<rect x="680" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 7.5 m/s from 150 deg: MOUNT OFF (ENGR-S0TR kink), 470 J, met at 2.96 m/s</title></rect>
+<rect x="700" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 180 deg: mount held, 1624 J, met at 3.00 m/s</title></rect>
+<rect x="720" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 7.5 m/s from 210 deg: MOUNT OFF (ENGL-S0TL kink), 470 J, met at 2.96 m/s</title></rect>
+<rect x="740" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 240 deg: mount held, 329 J, met at 2.86 m/s</title></rect>
+<rect x="760" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 270 deg: mount held, 331 J, met at 2.82 m/s</title></rect>
+<rect x="780" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 7.5 m/s from 300 deg: mount held, 295 J, met at 2.81 m/s</title></rect>
+<rect x="800" y="338" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 7.5 m/s from 330 deg: MOUNT OFF (ENGL-S0TL kink), 1276 J, met at 2.86 m/s</title></rect>
+<rect x="580" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 0 deg: mount held, 1239 J, met at 2.70 m/s</title></rect>
+<rect x="600" y="356" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 10 m/s from 30 deg: MOUNT OFF (ENGR-S0BR tension), 155 J, met at 2.78 m/s</title></rect>
+<rect x="620" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 60 deg: mount held, 76 J, met at 2.54 m/s</title></rect>
+<rect x="640" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 90 deg: mount held, 0 J, met at 2.64 m/s</title></rect>
+<rect x="660" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 120 deg: mount held, 135 J, met at 2.65 m/s</title></rect>
+<rect x="680" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 150 deg: mount held, 146 J, met at 2.83 m/s</title></rect>
+<rect x="700" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 180 deg: mount held, 1721 J, met at 3.07 m/s</title></rect>
+<rect x="720" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 210 deg: mount held, 424 J, met at 2.83 m/s</title></rect>
+<rect x="740" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 240 deg: mount held, 135 J, met at 2.65 m/s</title></rect>
+<rect x="760" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 270 deg: mount held, 0 J, met at 2.64 m/s</title></rect>
+<rect x="780" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, before, 10 m/s from 300 deg: mount held, 76 J, met at 2.54 m/s</title></rect>
+<rect x="800" y="356" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>Jodel, before, 10 m/s from 330 deg: MOUNT OFF (ENGL-S0BL tension), 158 J, met at 2.78 m/s</title></rect>
+<text x="835" y="276" font-size="11" fill="#0b0b0b">Jodel, after: 0/49 mount off</text>
+<rect x="835" y="284" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 0 m/s from 0 deg: mount held, 1241 J, met at 2.94 m/s</title></rect>
+<rect x="835" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 0 deg: mount held, 1242 J, met at 2.90 m/s</title></rect>
+<rect x="855" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 30 deg: mount held, 1159 J, met at 2.92 m/s</title></rect>
+<rect x="875" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 60 deg: mount held, 1011 J, met at 2.94 m/s</title></rect>
+<rect x="895" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 90 deg: mount held, 1012 J, met at 2.94 m/s</title></rect>
+<rect x="915" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 120 deg: mount held, 1015 J, met at 2.95 m/s</title></rect>
+<rect x="935" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 150 deg: mount held, 1014 J, met at 2.95 m/s</title></rect>
+<rect x="955" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 180 deg: mount held, 1250 J, met at 2.95 m/s</title></rect>
+<rect x="975" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 210 deg: mount held, 1014 J, met at 2.95 m/s</title></rect>
+<rect x="995" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 240 deg: mount held, 1015 J, met at 2.95 m/s</title></rect>
+<rect x="1015" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 270 deg: mount held, 1012 J, met at 2.94 m/s</title></rect>
+<rect x="1035" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 300 deg: mount held, 1011 J, met at 2.94 m/s</title></rect>
+<rect x="1055" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 2.5 m/s from 330 deg: mount held, 1159 J, met at 2.92 m/s</title></rect>
+<rect x="835" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 0 deg: mount held, 1190 J, met at 2.86 m/s</title></rect>
+<rect x="855" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 30 deg: mount held, 1037 J, met at 2.90 m/s</title></rect>
+<rect x="875" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 60 deg: mount held, 425 J, met at 2.92 m/s</title></rect>
+<rect x="895" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 90 deg: mount held, 323 J, met at 2.94 m/s</title></rect>
+<rect x="915" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 120 deg: mount held, 319 J, met at 2.95 m/s</title></rect>
+<rect x="935" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 150 deg: mount held, 1072 J, met at 2.95 m/s</title></rect>
+<rect x="955" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 180 deg: mount held, 1282 J, met at 2.96 m/s</title></rect>
+<rect x="975" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 210 deg: mount held, 1072 J, met at 2.95 m/s</title></rect>
+<rect x="995" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 240 deg: mount held, 319 J, met at 2.95 m/s</title></rect>
+<rect x="1015" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 270 deg: mount held, 323 J, met at 2.94 m/s</title></rect>
+<rect x="1035" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 300 deg: mount held, 425 J, met at 2.92 m/s</title></rect>
+<rect x="1055" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 5 m/s from 330 deg: mount held, 1037 J, met at 2.90 m/s</title></rect>
+<rect x="835" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 0 deg: mount held, 1106 J, met at 2.79 m/s</title></rect>
+<rect x="855" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 30 deg: mount held, 286 J, met at 2.86 m/s</title></rect>
+<rect x="875" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 60 deg: mount held, 249 J, met at 2.81 m/s</title></rect>
+<rect x="895" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 90 deg: mount held, 129 J, met at 2.82 m/s</title></rect>
+<rect x="915" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 120 deg: mount held, 251 J, met at 2.86 m/s</title></rect>
+<rect x="935" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 150 deg: mount held, 12 J, met at 2.96 m/s</title></rect>
+<rect x="955" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 180 deg: mount held, 1323 J, met at 3.00 m/s</title></rect>
+<rect x="975" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 210 deg: mount held, 12 J, met at 2.96 m/s</title></rect>
+<rect x="995" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 240 deg: mount held, 251 J, met at 2.86 m/s</title></rect>
+<rect x="1015" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 270 deg: mount held, 138 J, met at 2.82 m/s</title></rect>
+<rect x="1035" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 300 deg: mount held, 249 J, met at 2.81 m/s</title></rect>
+<rect x="1055" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 7.5 m/s from 330 deg: mount held, 286 J, met at 2.86 m/s</title></rect>
+<rect x="835" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 0 deg: mount held, 968 J, met at 2.70 m/s</title></rect>
+<rect x="855" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 30 deg: mount held, 264 J, met at 2.78 m/s</title></rect>
+<rect x="875" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 60 deg: mount held, 0 J, met at 2.54 m/s</title></rect>
+<rect x="895" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 90 deg: mount held, 0 J, met at 2.64 m/s</title></rect>
+<rect x="915" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 120 deg: mount held, 0 J, met at 2.65 m/s</title></rect>
+<rect x="935" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 150 deg: mount held, 35 J, met at 2.83 m/s</title></rect>
+<rect x="955" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 180 deg: mount held, 1414 J, met at 3.07 m/s</title></rect>
+<rect x="975" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 210 deg: mount held, 35 J, met at 2.83 m/s</title></rect>
+<rect x="995" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 240 deg: mount held, 0 J, met at 2.65 m/s</title></rect>
+<rect x="1015" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 270 deg: mount held, 0 J, met at 2.64 m/s</title></rect>
+<rect x="1035" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 300 deg: mount held, 0 J, met at 2.54 m/s</title></rect>
+<rect x="1055" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>Jodel, after, 10 m/s from 330 deg: mount held, 264 J, met at 2.78 m/s</title></rect>
+<text x="1090" y="276" font-size="11" fill="#0b0b0b">metal Cessna, before: 4/49 mount off</text>
+<rect x="1090" y="284" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 0 m/s from 0 deg: mount held, 1422 J, met at 2.94 m/s</title></rect>
+<rect x="1090" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 0 deg: mount held, 1404 J, met at 2.93 m/s</title></rect>
+<rect x="1110" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 30 deg: mount held, 1412 J, met at 2.94 m/s</title></rect>
+<rect x="1130" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 60 deg: mount held, 1417 J, met at 2.94 m/s</title></rect>
+<rect x="1150" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 90 deg: mount held, 1425 J, met at 2.94 m/s</title></rect>
+<rect x="1170" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 120 deg: mount held, 1429 J, met at 2.95 m/s</title></rect>
+<rect x="1190" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 150 deg: mount held, 1431 J, met at 2.95 m/s</title></rect>
+<rect x="1210" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 180 deg: mount held, 1429 J, met at 2.95 m/s</title></rect>
+<rect x="1230" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 210 deg: mount held, 1430 J, met at 2.95 m/s</title></rect>
+<rect x="1250" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 240 deg: mount held, 1429 J, met at 2.95 m/s</title></rect>
+<rect x="1270" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 270 deg: mount held, 1425 J, met at 2.94 m/s</title></rect>
+<rect x="1290" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 300 deg: mount held, 1417 J, met at 2.94 m/s</title></rect>
+<rect x="1310" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 2.5 m/s from 330 deg: mount held, 1412 J, met at 2.94 m/s</title></rect>
+<rect x="1090" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 0 deg: mount held, 1389 J, met at 2.92 m/s</title></rect>
+<rect x="1110" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 30 deg: mount held, 1528 J, met at 2.93 m/s</title></rect>
+<rect x="1130" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 60 deg: mount held, 1639 J, met at 2.94 m/s</title></rect>
+<rect x="1150" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 90 deg: mount held, 1670 J, met at 2.95 m/s</title></rect>
+<rect x="1170" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 120 deg: mount held, 1611 J, met at 2.95 m/s</title></rect>
+<rect x="1190" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 150 deg: mount held, 1488 J, met at 2.95 m/s</title></rect>
+<rect x="1210" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 180 deg: mount held, 1433 J, met at 2.95 m/s</title></rect>
+<rect x="1230" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 210 deg: mount held, 1487 J, met at 2.95 m/s</title></rect>
+<rect x="1250" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 240 deg: mount held, 1611 J, met at 2.95 m/s</title></rect>
+<rect x="1270" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 270 deg: mount held, 1673 J, met at 2.95 m/s</title></rect>
+<rect x="1290" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 300 deg: mount held, 1642 J, met at 2.94 m/s</title></rect>
+<rect x="1310" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 5 m/s from 330 deg: mount held, 1528 J, met at 2.93 m/s</title></rect>
+<rect x="1090" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 0 deg: mount held, 1350 J, met at 2.90 m/s</title></rect>
+<rect x="1110" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 30 deg: mount held, 1712 J, met at 2.92 m/s</title></rect>
+<rect x="1130" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 60 deg: mount held, 1806 J, met at 2.93 m/s</title></rect>
+<rect x="1150" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 90 deg: mount held, 1798 J, met at 2.95 m/s</title></rect>
+<rect x="1170" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 120 deg: mount held, 1845 J, met at 2.95 m/s</title></rect>
+<rect x="1190" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 150 deg: mount held, 1685 J, met at 2.95 m/s</title></rect>
+<rect x="1210" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 180 deg: mount held, 1451 J, met at 2.96 m/s</title></rect>
+<rect x="1230" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 210 deg: mount held, 1688 J, met at 2.95 m/s</title></rect>
+<rect x="1250" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 240 deg: mount held, 1859 J, met at 2.95 m/s</title></rect>
+<rect x="1270" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 270 deg: mount held, 1823 J, met at 2.95 m/s</title></rect>
+<rect x="1290" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 300 deg: mount held, 1828 J, met at 2.93 m/s</title></rect>
+<rect x="1310" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 7.5 m/s from 330 deg: mount held, 1726 J, met at 2.92 m/s</title></rect>
+<rect x="1090" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 0 deg: mount held, 1304 J, met at 2.86 m/s</title></rect>
+<rect x="1110" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 30 deg: mount held, 1717 J, met at 2.91 m/s</title></rect>
+<rect x="1130" y="356" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>metal Cessna, before, 10 m/s from 60 deg: MOUNT OFF (CGE-S0BL tension), 2554 J, met at 2.93 m/s</title></rect>
+<rect x="1150" y="356" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>metal Cessna, before, 10 m/s from 90 deg: MOUNT OFF (CGE-S0BR tension), 1672 J, met at 2.95 m/s</title></rect>
+<rect x="1170" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 120 deg: mount held, 1584 J, met at 2.94 m/s</title></rect>
+<rect x="1190" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 150 deg: mount held, 1873 J, met at 2.96 m/s</title></rect>
+<rect x="1210" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 180 deg: mount held, 1481 J, met at 2.98 m/s</title></rect>
+<rect x="1230" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 210 deg: mount held, 1887 J, met at 2.96 m/s</title></rect>
+<rect x="1250" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 240 deg: mount held, 1614 J, met at 2.94 m/s</title></rect>
+<rect x="1270" y="356" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>metal Cessna, before, 10 m/s from 270 deg: MOUNT OFF (CGE-S0BL tension), 1498 J, met at 2.95 m/s</title></rect>
+<rect x="1290" y="356" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>metal Cessna, before, 10 m/s from 300 deg: MOUNT OFF (CGE-S0BR tension), 2562 J, met at 2.93 m/s</title></rect>
+<rect x="1310" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, before, 10 m/s from 330 deg: mount held, 1744 J, met at 2.91 m/s</title></rect>
+<text x="1345" y="276" font-size="11" fill="#0b0b0b">metal Cessna, after: 4/49 mount off</text>
+<rect x="1345" y="284" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 0 m/s from 0 deg: mount held, 1225 J, met at 2.94 m/s</title></rect>
+<rect x="1345" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 0 deg: mount held, 1208 J, met at 2.93 m/s</title></rect>
+<rect x="1365" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 30 deg: mount held, 1215 J, met at 2.94 m/s</title></rect>
+<rect x="1385" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 60 deg: mount held, 1219 J, met at 2.94 m/s</title></rect>
+<rect x="1405" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 90 deg: mount held, 1227 J, met at 2.94 m/s</title></rect>
+<rect x="1425" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 120 deg: mount held, 1231 J, met at 2.95 m/s</title></rect>
+<rect x="1445" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 150 deg: mount held, 1232 J, met at 2.95 m/s</title></rect>
+<rect x="1465" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 180 deg: mount held, 1231 J, met at 2.95 m/s</title></rect>
+<rect x="1485" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 210 deg: mount held, 1232 J, met at 2.95 m/s</title></rect>
+<rect x="1505" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 240 deg: mount held, 1231 J, met at 2.95 m/s</title></rect>
+<rect x="1525" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 270 deg: mount held, 1227 J, met at 2.94 m/s</title></rect>
+<rect x="1545" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 300 deg: mount held, 1219 J, met at 2.94 m/s</title></rect>
+<rect x="1565" y="302" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 2.5 m/s from 330 deg: mount held, 1215 J, met at 2.94 m/s</title></rect>
+<rect x="1345" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 0 deg: mount held, 1239 J, met at 2.92 m/s</title></rect>
+<rect x="1365" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 30 deg: mount held, 1209 J, met at 2.93 m/s</title></rect>
+<rect x="1385" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 60 deg: mount held, 1221 J, met at 2.94 m/s</title></rect>
+<rect x="1405" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 90 deg: mount held, 1273 J, met at 2.95 m/s</title></rect>
+<rect x="1425" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 120 deg: mount held, 1240 J, met at 2.95 m/s</title></rect>
+<rect x="1445" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 150 deg: mount held, 1234 J, met at 2.95 m/s</title></rect>
+<rect x="1465" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 180 deg: mount held, 1235 J, met at 2.95 m/s</title></rect>
+<rect x="1485" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 210 deg: mount held, 1236 J, met at 2.95 m/s</title></rect>
+<rect x="1505" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 240 deg: mount held, 1249 J, met at 2.95 m/s</title></rect>
+<rect x="1525" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 270 deg: mount held, 1277 J, met at 2.95 m/s</title></rect>
+<rect x="1545" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 300 deg: mount held, 1232 J, met at 2.94 m/s</title></rect>
+<rect x="1565" y="320" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 5 m/s from 330 deg: mount held, 1213 J, met at 2.93 m/s</title></rect>
+<rect x="1345" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 0 deg: mount held, 1207 J, met at 2.90 m/s</title></rect>
+<rect x="1365" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 30 deg: mount held, 1287 J, met at 2.92 m/s</title></rect>
+<rect x="1385" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 60 deg: mount held, 1322 J, met at 2.93 m/s</title></rect>
+<rect x="1405" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 90 deg: mount held, 1362 J, met at 2.95 m/s</title></rect>
+<rect x="1425" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 120 deg: mount held, 1357 J, met at 2.95 m/s</title></rect>
+<rect x="1445" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 150 deg: mount held, 1298 J, met at 2.95 m/s</title></rect>
+<rect x="1465" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 180 deg: mount held, 1250 J, met at 2.96 m/s</title></rect>
+<rect x="1485" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 210 deg: mount held, 1304 J, met at 2.95 m/s</title></rect>
+<rect x="1505" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 240 deg: mount held, 1379 J, met at 2.95 m/s</title></rect>
+<rect x="1525" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 270 deg: mount held, 1385 J, met at 2.95 m/s</title></rect>
+<rect x="1545" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 300 deg: mount held, 1344 J, met at 2.93 m/s</title></rect>
+<rect x="1565" y="338" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 7.5 m/s from 330 deg: mount held, 1300 J, met at 2.92 m/s</title></rect>
+<rect x="1345" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 0 deg: mount held, 1166 J, met at 2.86 m/s</title></rect>
+<rect x="1365" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 30 deg: mount held, 1340 J, met at 2.91 m/s</title></rect>
+<rect x="1385" y="356" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>metal Cessna, after, 10 m/s from 60 deg: MOUNT OFF (ENGL-ENGR fold), 2221 J, met at 2.93 m/s</title></rect>
+<rect x="1405" y="356" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>metal Cessna, after, 10 m/s from 90 deg: MOUNT OFF (ENGL-ENGR fold), 1527 J, met at 2.95 m/s</title></rect>
+<rect x="1425" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 120 deg: mount held, 1480 J, met at 2.94 m/s</title></rect>
+<rect x="1445" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 150 deg: mount held, 1387 J, met at 2.96 m/s</title></rect>
+<rect x="1465" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 180 deg: mount held, 1276 J, met at 2.98 m/s</title></rect>
+<rect x="1485" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 210 deg: mount held, 1410 J, met at 2.96 m/s</title></rect>
+<rect x="1505" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 240 deg: mount held, 1502 J, met at 2.94 m/s</title></rect>
+<rect x="1525" y="356" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>metal Cessna, after, 10 m/s from 270 deg: MOUNT OFF (ENGL-ENGR fold), 1604 J, met at 2.95 m/s</title></rect>
+<rect x="1545" y="356" width="18" height="16" rx="2" fill="#eb6834" stroke="none"><title>metal Cessna, after, 10 m/s from 300 deg: MOUNT OFF (ENGL-ENGR fold), 2274 J, met at 2.93 m/s</title></rect>
+<rect x="1565" y="356" width="18" height="16" rx="2" fill="#cfe0f5" stroke="none"><title>metal Cessna, after, 10 m/s from 330 deg: mount held, 1362 J, met at 2.91 m/s</title></rect>
+<rect x="70" y="402" width="14" height="12" rx="2" fill="#eb6834"/><text x="90" y="412" font-size="12" fill="#0b0b0b">the engine mount broke (its group let go)</text><rect x="370" y="402" width="14" height="12" rx="2" fill="#cfe0f5"/><text x="390" y="412" font-size="12" fill="#0b0b0b">the mount held</text><rect x="520" y="402" width="14" height="12" rx="2" fill="#fcfcfb" stroke="#8a8984"/><text x="540" y="412" font-size="12" fill="#0b0b0b">the wind turned it off the trunk</text><text x="70" y="432" font-size="11" fill="#52514e">rows: the wind's speed; columns: where it blows FROM, deg off the nose (0 ahead, 90 the right, 180 behind)</text>
+</svg>

@@ -1,0 +1,58 @@
+the welcome: a rig on localhost and ?mode=sandbox skip every screen, FLYDIY_MODE 'sandbox', nothing held
+the career flag: ?career=1 -> FLYDIY_MODE 'career' (a rig, localhost, a real host; no screen); ?career=10 / ?career=0 / ?mode=career -> the sandbox; the menu's New career row still "coming"
+the career flag in app.js: 17 calls into the career outside its page half, every one behind CAREER_DEV (?career=1 alone; flydiy.career.dev, the sandbox keeps flydiy.player)
+the wallet in app.js: 6 calls into the economy outside its page half, every one behind CAREER_DEV; the save asks first (the sandbox: never)
+the loading view in app.js: behind ?career=1 / ?freight=1 (FREIGHT_PAGE), the door and the entry with it; the stop carries the accepted items; freight_load.js lazy
+map: the map screen and its pack are lazy names only (no static tag, nothing inlined)
+map: the MAP entry: none in the sandbox (no flag, ?map=10, ?scenery=1); one with ?map=1 or in the career mode; nothing of the screen fetched before the press, then the pack and the screen
+map: the list is the whole interface (no right panel, no provider tabs; the switch Contracts · Fleet · Pilots · Market on top): 11 rows (type dot, title, pay, mark), the customers a select (2 + 3 + 2 + 2 + 2 = 11), coloured by type {"survey":2,"cargo":6,"pax":1,"build":2}
+map: every paragraph (11): who + what + the pay, the runways condensed ("Jumbo Mine Street 250 × 18 m gravel, 347 m up → Annette Dock 1 500 m water lane · 14 km"), the ✗'s reason, ONE button (Track); no per-plane table
+map: ✓ / ✗ only on surface vs gear against the fleet: parts ✗ "No one plane of yours lands on both water and land (Jumbo Mine Street, Annette Dock)."; payload / seats / runs never move a mark; an amphibian clears them; wheels-only ✗ water, floats-only ✗ land; builds unmarked
+map: the place filter: 7 places (Jolene AFB 8, Tamgas Hill Strip 2, Annette Dock 2, Metlakatla Seaplane Base 2, Jumbo Mine Street 4, East Point Clearing 1, Skyline Altiport 3), each listing exactly the contracts involving it, under "At <place> ✕"
+map: Track: one gesture accepts and tracks, a second tap untracks; the tracked row starred
+map: the map: a badge per place at the fit (19 px), names + 9 hotspots from the second step (24 px), rings + counts + places + runway facts closer (34 px), close up every runway at true scale (Jolene AFB 13/31 and 02/20 with their designators; the lane buoyed, the gravel edge-marked); the open contract ringed in its type colour
+map: the infrastructure: at the fit 15 settlements, 25 main roads, the tramway (2 stations); from 2x all 76 roads (3 tracks dashed); from 3x 459 houses + 117 site footprints; the bands 0 / 1 / 2 by zoom; the labels from the middle zoom clear of the badges (the town and the cannery named once); nothing of it a tap target, pointer-events none
+map: no auto-zoom: opening a row (any list), the switch, a marker or a place filter leaves the view as it was
+map: the gear rule equals 25_airfield.js stripAllows on the 8 strips x 4 gears
+map: ONE LOOK: the screen reads editor.css's 17 --ed-* tokens (15 used, none restated, no --mm-* left); IBM Plex Sans upright everywhere (18 font rules, no serif face / italic / IM Fell / Georgia); the verbs .verb.pri / .verb, the selects the rows', the switch the segmented control, the zoom and scale the plate; the labels by size and weight (town 700 16 px > village 14 > works 12.5)
+map: NOHOVER: no title= / hover in the map screen or its entry; R1: every target >= 48 px; R20: the map (none) and the list / sheet (pan-y) apart; no image drag or text selection; the picture is the user's AI map (media/map/jolene_art.1b6f317e.jpg)
+map: the real record (a new career, careerNew + careerMapRecord): 20 rows (4 + 4 + 4 + 4 + 4), every paragraph contractPay's pay, both ends, no unresolved key, ONE Track; the voucher's Cub (wheels) marks 3 water jobs ✗, the rest ✓
+map: the real fleet: the Cub judged by its certificate's gear, a kit not read yet left out; both drawn where they stand; the aerobatic box held out
+map: the Fleet: 2 rows (✈, the name, the payload), the paragraph "Tied down at Jolene AFB 13/31. 2 seats · 90 kg payload · on wheels · 376 km range · 113 km/h", no button; the place filter; a marker per aeroplane at its base, sized to the zoom (17 -> 31 px)
+map: the Pilots (real record): Kit (hired), Rafe (4000), Sky (7000); a row each (initials, the name, flights / the fee), the paragraph (the line, flies like, the traits, the place), Hire or Flies next + Fire; kit a marker at HOME; the fixture: with the career
+map: the Market: 4 models of 4 makers (validated builds only; seats, payload, gear, range, the price, the gear chosen here, ONE Buy / Take free in the sandbox; the voucher pays a stock Scout), 4 used listings (where they stand, the facts, the price, Buy where it stands), each a marker at its aerodrome; the drawing board rows
+the loading screen: 24 steps in order, lifted on frame 0
+the sandbox without the flag: no FLYDIY_CAREER, no career plate
+the sandbox without the flags: no FLYDIY_FREIGHT, no LOAD entry
+the sandbox without the flag: no FLYDIY_ECON, no wallet line
+the Fly button: no pulse untouched; touched, it pulses (an outline while it loads, lit when ready); reduced motion: a still ring
+manual controls: a key flew it, the AP took it back in TAXI
+honest readings: AGL 0.00 m standing, 40.00 m lifted 40 (the pilot's own datum read -0.05); IAS "13" at 18.6 km/h; fly on: a new leg in place (TAXI), not a reset
+one To: taxiing kept, on a leg replan, stopped leg from apron HOME (the From derived), the aeroplane never moved
+the clock: both route rows ("16:00 · 21 Jun", 32 hours to wait for); a wait in flight is refused, the clock unmoved
+PREM-S2: the sandbox's base line "Home base · the WWII hangar"; two hangars -> a select (HOME, A0), picking moves the garage; the popup: in HOME / out at A0 (greyed) / away -> brought home (in HOME); "fly from there?" moved the garage to A0
+STORAGE: the view (inside 1/2, outside 1/6, long-term 1), a refusal with its reason, tap-then-column and a drop moved the aeroplanes (✓ Jodel inside 2); Fly asked, then rolled out lined up (no roll-out screen in this harness)
+load test: HELD — limit 0.59% ultimate 0.88% of semispan
+bench check: FLIES A CIRCUIT — 459 kg, climb 3.38 m/s, take-off 214 m
+bench density altitude: DA 1614 m — 326 m take-off, 2.52 m/s climb on 83% power, service ceiling 5286 m
+bench crosswind limit: the plaque row reads 2.0 m/s · roll 10.1 m · 13° off, and "> 10 m/s" above the cap
+accept: the plaque has no proved-in-flight rows without a leg, prints the leg (127 km/h TAS, 163.6 min, 346 km), and withdraws it under another fingerprint
+bench wing loading: HELD — limit 0.59% ultimate 0.88% of semispan
+roll out reads the certificate, and is never locked
+mode: workshop in the garage
+editor panel bridge wired; width reaches the inset
+garage -> roll out -> TAXI, mode: flight
+skip to line-up: 120 m from the taxi to the hold, pilot in HOLD, the button stands down
+rail fly: route / start / patterns / engines / controls - 26 rows, 19 pills
+rail view: camera / instruments / map / trace / screen - 22 rows, 12 pills
+rail sky: night / weather / clouds / ground - 6 rows, 2 pills
+rail graphics: gfx.perf / gfx.light / gfx.terrain / gfx.water / gfx.sky / gfx.post / gfx.town - 33 rows, 106 pills
+rail audio: sound - 14 rows, 0 pills
+rail dev (behind the dev toggle): scenery / world / log / overlays - 4 rows, 3 pills (the covering hidden with #bSkin: no model on the stand here)
+graphics: 36 rows and 112 pills flat, every one reached through the rail (7 folds + the map, the meter, the log)
+the test mode: entered from DEV, the solver held 60 frames, its way out offered, left
+the shed rail: 8 items (camera display night explode controls graphics audio legend), the clouds a fold of night, the graphics in folds
+the seam holds: 22 flight ids, 20 workshop ids, 17 retired
+G1090 the top bar holds one size over 47 texts (29 phase labels): desktop 440 x 143, desktop small 372 x 76, phone screen x 132, phone small screen x 76; the pilot's area 35 px, two lines clamped + the plan line
+ran app block: raf x1897, handlers wired: _ce1027 _ce1033 _ce1047 _ce107 _ce1083 _ce1089 _ce1103 _ce1139 _ce1149 _ce1163 _ce1199 _ce1205 _ce1219 _ce1255 _ce1265 _ce1276 _ce1282 _ce1286 _ce1292 _ce1296 _ce1300 _ce1304 _ce1308 _ce1316 _ce1322 _ce1325 _ce1332 _ce1333 _ce1337 _ce1338 _ce1339 _ce1340 _ce1341 _ce1342 _ce1362 _ce1367 _ce1368 _ce1369 _ce1370 _ce1371 _ce1374 _ce1378 _ce1382 _ce1386 _ce1390 _ce1394 _ce1398 _ce1402 _ce1407 _ce1408 _ce1409 _ce1412 _ce1416 _ce1423 _ce1426 _ce143 _ce1431 _ce1432 _ce1434 _ce1435 _ce1436 _ce1439 _ce144 _ce1443 _ce1447 _ce145 _ce1451 _ce1457 _ce146 _ce1464 _ce1468 _ce147 _ce1472 _ce1476 _ce148 _ce1480 _ce1484 _ce1488 _ce149 _ce1492 _ce1496 _ce150 _ce1500 _ce1504 _ce151 _ce1510 _ce1514 _ce1518 _ce1521 _ce1527 _ce153 _ce1530 _ce1531 _ce1532 _ce1535 _ce1545 _ce1546 _ce1550 _ce1553 _ce1558 _ce156 _ce1580 _ce1586 _ce159 _ce1594 _ce1595 _ce1598 _ce1605 _ce1606 _ce1607 _ce1608 _ce1609 _ce1610 _ce1615 _ce1616 _ce1617 _ce1618 _ce162 _ce1622 _ce1623 _ce1624 _ce1625 _ce1626 _ce1627 _ce1631 _ce1632 _ce1633 _ce1634 _ce1638 _ce1639 _ce1642 _ce1649 _ce165 _ce1650 _ce1651 _ce1652 _ce1656 _ce1657 _ce1661 _ce1662 _ce1666 _ce1667 _ce1668 _ce1669 _ce1670 _ce1671 _ce1675 _ce1676 _ce1677 _ce1678 _ce1679 _ce168 _ce1680 _ce1684 _ce1685 _ce1689 _ce1690 _ce1692 _ce1699 _ce1700 _ce1701 _ce1702 _ce1706 _ce1707 _ce1708 _ce1709 _ce171 _ce1713 _ce1714 _ce1715 _ce1716 _ce1720 _ce1721 _ce1722 _ce1723 _ce1727 _ce1728 _ce1732 _ce1733 _ce1734 _ce1736 _ce174 _ce1743 _ce1744 _ce1748 _ce1749 _ce1751 _ce1758 _ce1759 _ce1760 _ce1764 _ce1765 _ce1766 _ce1767 _ce177 _ce1771 _ce1772 _ce1774 _ce1781 _ce1782 _ce1783 _ce1787 _ce1788 _ce1789 _ce1790 _ce1794 _ce1795 _ce1796 _ce180 _ce1800 _ce1801 _ce1805 _ce1806 _ce1810 _ce1811 _ce1813 _ce1820 _ce1821 _ce1825 _ce1826 _ce1827 _ce183 _ce1831 _ce1832 _ce1836 _ce1837 _ce1840 _ce1846 _ce1851 _ce1855 _ce1859 _ce1863 _ce1867 _ce1871 _ce1875 _ce1879 _ce1883 _ce1887 _ce1891 _ce1895 _ce1899 _ce1902 _ce191 _ce1910 _ce1913 _ce1922 _ce1930 _ce1931 _ce1934 _ce1943 _ce1948 _ce1952 _ce1958 _ce1962 _ce1967 _ce1968 _ce1970 _ce1971 _ce1972 _ce1975 _ce1979 _ce1983 _ce1987 _ce1991 _ce1995 _ce1999 _ce2003 _ce2014 _ce2018 _ce202 _ce2022 _ce2030 _ce2036 _ce2039 _ce2043 _ce2048 _ce206 _ce2070 _ce2076 _ce2080 _ce2088 _ce2091 _ce210 _ce2100 _ce2104 _ce2108 _ce2116 _ce2119 _ce2128 _ce2132 _ce2136 _ce2144 _ce2147 _ce2151 _ce216 _ce2160 _ce2164 _ce2168 _ce2176 _ce2179 _ce2183 _ce2192 _ce2200 _ce2201 _ce2204 _ce221 _ce2213 _ce222 _ce2221 _ce2224 _ce2228 _ce2237 _ce224 _ce2241 _ce2245 _ce225 _ce2253 _ce2256 _ce226 _ce2265 _ce2269 _ce229 _ce233 _ce237 _ce241 _ce245 _ce249 _ce253 _ce259 _ce264 _ce270 _ce277 _ce278 _ce279 _ce280 _ce281 _ce282 _ce287 _ce288 _ce289 _ce290 _ce294 _ce295 _ce296 _ce297 _ce298 _ce299 _ce303 _ce304 _ce305 _ce306 _ce310 _ce311 _ce314 _ce318 _ce322 _ce326 _ce330 _ce334 _ce341 _ce346 _ce351 _ce365 _ce37 _ce401 _ce404 _ce409 _ce423 _ce459 _ce462 _ce467 _ce481 _ce51 _ce517 _ce520 _ce525 _ce539 _ce575 _ce578 _ce583 _ce597 _ce633 _ce636 _ce641 _ce655 _ce691 _ce697 _ce711 _ce747 _ce753 _ce767 _ce803 _ce809 _ce823 _ce859 _ce865 _ce87 _ce879 _ce915 _ce921 _ce93 _ce935 _ce971 _ce977 _ce991 bBring bEdit bGo bHangar2 bLog bMood bPause bReset bSkin bSkip bWhy bootFly edClose flLine mm pfdFold selAc selCond selDest selPersona selPilot tabBench tabDesign
+GATE UISMOKE: PASS

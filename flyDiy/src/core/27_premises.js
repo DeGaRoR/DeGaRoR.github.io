@@ -61,7 +61,7 @@ const PREMISES_V = 2;   // v2 (contract v1.36, G2910): the polygon entries folde
 // NOT `cover`: `coverAt` on the overlay already means what the COVER RING may plant
 // at a point (the pavement's kill and boost, the plot's grass rule), and two unrelated
 // things sharing that word in one file is how a reader is misled.
-const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects', 'ttype', 'areas'];
+const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects', 'ttype', 'areas', 'junctions'];   // v1.37: junctions (G2950)
 const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7 };
 const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND'];
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
@@ -130,7 +130,7 @@ function mulberry32(seed) {
 }
 const seedOf = (seed, layer, id) => hash32(seed | 0, fnv(layer + ':' + id));
 // the village's value noise, for a forest's clearings
-function hash2(x, y, s) { const h = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return h - Math.floor(h); }
+function hash2(x, y, s) { const h = CORE_MATH.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return h - Math.floor(h); }
 function vnoise(x, y, s) {
   const ix = Math.floor(x), iy = Math.floor(y);
   let fx = x - ix, fy = y - iy;
@@ -257,15 +257,15 @@ function roadFillet(pts, w) {
     const half = inner / 2, tanHalf = Math.tan(half);
     let R = want;
     R = Math.min(R, 0.45 * Math.min(la, lc) * tanHalf);  // the legs: tangent = R / tan(inner/2)
-    const sag = 1 - Math.sin(half);                      // sagitta = R * (1/sin(half) - 1) * sin(half)
-    if (sag > 1e-6) R = Math.min(R, 0.35 * (+w || 4) * Math.sin(half) / sag);
+    const sag = 1 - CORE_MATH.sin(half);                      // sagitta = R * (1/sin(half) - 1) * sin(half)
+    if (sag > 1e-6) R = Math.min(R, 0.35 * (+w || 4) * CORE_MATH.sin(half) / sag);
     const tl = R / tanHalf;                              // how far back along each leg the arc starts
     if (!(R > 0.05) || !(tl > 0.05)) { out.push(B); continue; }
     const T0 = [B[0] + ua[0] * tl, B[1] + ua[1] * tl], T1 = [B[0] + uc[0] * tl, B[1] + uc[1] * tl];
     const bis = [ua[0] + uc[0], ua[1] + uc[1]];
     const lb = Math.hypot(bis[0], bis[1]);
     if (lb < 1e-6) { out.push(B); continue; }            // a straight-back hairpin: no centre to find
-    const d = R / Math.sin(half);                        // B to the arc's centre, along the bisector
+    const d = R / CORE_MATH.sin(half);                        // B to the arc's centre, along the bisector
     const O = [B[0] + bis[0] / lb * d, B[1] + bis[1] / lb * d];
     let a0 = Math.atan2(T0[1] - O[1], T0[0] - O[0]);
     const a1 = Math.atan2(T1[1] - O[1], T1[0] - O[0]);
@@ -273,7 +273,7 @@ function roadFillet(pts, w) {
     while (sweep > Math.PI) sweep -= 2 * Math.PI;
     while (sweep < -Math.PI) sweep += 2 * Math.PI;
     const n = Math.max(2, Math.ceil(Math.abs(sweep) / (8 * Math.PI / 180)));
-    for (let k = 0; k <= n; k++) { const ang = a0 + sweep * k / n; out.push([O[0] + Math.cos(ang) * R, O[1] + Math.sin(ang) * R]); }
+    for (let k = 0; k <= n; k++) { const ang = a0 + sweep * k / n; out.push([O[0] + CORE_MATH.cos(ang) * R, O[1] + CORE_MATH.sin(ang) * R]); }
   }
   out.push(P[P.length - 1]);
   return out;
@@ -309,7 +309,7 @@ function polyRoad(pts0, w) {
 // once per road object and line, a WeakMap - nothing is added to the object), and a query walks the rings of cells
 // round its own until no unvisited segment can be nearer: the SAME minimum over the same distPtSeg values, bit for
 // bit (GATE SCENERYED 9 against the walk). Far outside the grid, and for a short road, the walk as before.
-const SEG_MIN = 48, SEG_CELL = 16, SEG_RINGS = 24;
+const SEG_MIN = 48, SEG_CELL = 16, SEG_RINGS = 24, SEG_COARSE = 16;
 let SEG_IDX = typeof WeakMap === 'function' ? new WeakMap() : null;
 // (the bench's and the gate's switch: segIdx(false) is the walk everywhere, the before of an A/B; segIdx(true) back)
 function segIdx(on) { if (on === false) SEG_IDX = null; else if (on === true && !SEG_IDX && typeof WeakMap === 'function') SEG_IDX = new WeakMap(); return !!SEG_IDX; }
@@ -330,17 +330,44 @@ function roadSegIdx(road) {
     const j0 = Math.floor((Math.min(a[1], b[1]) - z0) / C), j1 = Math.floor((Math.max(a[1], b[1]) - z0) / C);
     for (let ci = i0; ci <= i1; ci++) for (let cj = j0; cj <= j1; cj++) { const k = ci * 65536 + cj; let l = cells.get(k); if (!l) cells.set(k, l = []); l.push(i); }
   }
-  I = { pts: P, n: P.length, sig, x0, z0, nx, nz, C, cells };
+  // (G3081 EDITOR-PERF) THE COARSE LEVEL: the same segments filed in cells SEG_COARSE times larger - a query far from the
+  // line (past the fine rings) walks the coarse rings instead of every segment
+  const CC = C * SEG_COARSE, ncx = Math.floor((x1 - x0) / CC) + 1, ncz = Math.floor((z1 - z0) / CC) + 1, coarse = new Map();
+  for (let i = 1; i < P.length; i++) {
+    const a = P[i - 1], b = P[i]; if (!fin2(a) || !fin2(b)) continue;
+    const i0 = Math.floor((Math.min(a[0], b[0]) - x0) / CC), i1 = Math.floor((Math.max(a[0], b[0]) - x0) / CC);
+    const j0 = Math.floor((Math.min(a[1], b[1]) - z0) / CC), j1 = Math.floor((Math.max(a[1], b[1]) - z0) / CC);
+    for (let ci = i0; ci <= i1; ci++) for (let cj = j0; cj <= j1; cj++) { const k = ci * 65536 + cj; let l = coarse.get(k); if (!l) coarse.set(k, l = []); l.push(i); }
+  }
+  I = { pts: P, n: P.length, sig, x0, z0, nx, nz, C, cells, CC, ncx, ncz, coarse };
   SEG_IDX.set(road, I);
   return I;
+}
+// the rings of a grid's cells round the query's own (ci, cj), from ring k0, until no unvisited cell can hold a segment
+// nearer than the best found (a cell of ring k+1 lies k cells clear of the query's): the same minimum as the walk
+function segRings(I, cells, C, nx, nz, x, z, ci, cj, k0, kMax, d) {
+  const P = I.pts;
+  for (let k = k0; k <= kMax; k++) {
+    for (let i = ci - k; i <= ci + k; i++) {
+      if (i < 0 || i >= nx) continue;
+      const edge = i === ci - k || i === ci + k;
+      for (let j = cj - k; j <= cj + k; j += (edge || k === 0) ? 1 : 2 * k) {
+        if (j < 0 || j >= nz) continue;
+        const l = cells.get(i * 65536 + j); if (!l) continue;
+        for (let m = 0; m < l.length; m++) { const s = l[m], e = distPtSeg(x, z, P[s - 1], P[s]); if (e < d) d = e; }
+      }
+    }
+    if (d <= k * C) return [d, true];
+  }
+  return [d, false];
 }
 function roadDist(road, x, z) {
   const I = roadSegIdx(road);
   if (I) {
     const ci = Math.floor((x - I.x0) / I.C), cj = Math.floor((z - I.z0) / I.C);
     if (ci >= -2 && cj >= -2 && ci <= I.nx + 1 && cj <= I.nz + 1) {
-      // (a query farther than SEG_RINGS cells from the line - a point across an island-long road's box - takes the walk:
-      // the rings would visit more cells than the walk tests segments)
+      // (a query farther than SEG_RINGS cells from the line - a point across an island-long road's box - goes on to the
+      // coarse rings, G3081: the fine ones would visit more cells than the walk tests segments)
       const P = I.pts, kMax = Math.min(SEG_RINGS, Math.max(I.nx, I.nz) + 3), all = kMax === Math.max(I.nx, I.nz) + 3;
       let d = Infinity;
       for (let k = 0; k <= kMax; k++) {
@@ -357,22 +384,89 @@ function roadDist(road, x, z) {
         if (d <= k * I.C) return d;
       }
       if (all) return d;
-    }
+      // (G3081 EDITOR-PERF; the user's island road r1: its box is the island, so every query of the town, the forests, the
+      // cover ring more than SEG_RINGS cells from it walked its ~2 500 segments - 3 of the 4 s of a composition with the
+      // town on) the coarse rings, from the best the fine ones found: the same minimum
+      const R = coarseDist(I, x, z, d); if (R !== null) return R;
+    } else { const R = coarseDist(I, x, z, Infinity); if (R !== null) return R; }
   }
   let d = Infinity;
   for (let i = 1; i < road.pts.length; i++) { const e = distPtSeg(x, z, road.pts[i - 1], road.pts[i]); if (e < d) d = e; }
   return d;
 }
+// (G3081 EDITOR-PERF) roadDist when it is within `lim`, else Infinity - the callers that only ask "nearer than lim?" (a plot's
+// corner by another road, a tree by a road): the segments of the cells within lim of the query, nothing farther. A segment
+// nearer than lim has its nearest point within lim, in a cell the square visits (it is filed in every cell its box meets):
+// so the minimum found, when it is within lim, is roadDist's to the bit, and when it is not, roadDist is over lim too
+function roadDistNear(road, x, z, lim) {
+  const I = roadSegIdx(road);
+  if (!I || !(isFinite(x) && isFinite(z)) || !(lim >= 0 && isFinite(lim))) return roadDist(road, x, z);
+  const C = I.C, K = Math.ceil(lim / C) + 1, ci = Math.floor((x - I.x0) / C), cj = Math.floor((z - I.z0) / C), P = I.pts;
+  let d = Infinity;
+  for (let i = Math.max(0, ci - K), i1 = Math.min(I.nx - 1, ci + K); i <= i1; i++)
+    for (let j = Math.max(0, cj - K), j1 = Math.min(I.nz - 1, cj + K); j <= j1; j++) {
+      const l = I.cells.get(i * 65536 + j); if (!l) continue;
+      for (let m = 0; m < l.length; m++) { const s = l[m], e = distPtSeg(x, z, P[s - 1], P[s]); if (e < d) d = e; }
+    }
+  return d <= lim ? d : Infinity;
+}
+// (G3081 EDITOR-PERF) roadInPoly(road, poly).length > 0 - a polyRoad has a 2 m sample inside the polygon - on the samples of
+// the segments whose cells meet the polygon's box only (a sample inside the polygon is in its box, on a segment filed
+// there): the island road's fillet was sampled whole for every candidate plot of the town
+function roadCrossesPoly(road, poly) {
+  const P = road.pts, S = road.s, n = P && P.length;
+  const I = Array.isArray(S) && S.length === n && n >= 2 && S[n - 1] === road.length && isFinite(road.length) ? roadSegIdx(road) : null;
+  if (!I) return roadInPoly(road, poly).length > 0;
+  let bx0 = Infinity, bz0 = Infinity, bx1 = -Infinity, bz1 = -Infinity;
+  for (const c of poly) { if (!(c[0] >= bx0)) bx0 = c[0]; if (!(c[0] <= bx1)) bx1 = c[0]; if (!(c[1] >= bz0)) bz0 = c[1]; if (!(c[1] <= bz1)) bz1 = c[1]; }
+  if (!(isFinite(bx0) && isFinite(bx1) && isFinite(bz0) && isFinite(bz1))) return roadInPoly(road, poly).length > 0;
+  const C = I.C, len = road.length, seen = new Set();
+  for (let i = Math.max(0, Math.floor((bx0 - 1e-3 - I.x0) / C)), i1 = Math.min(I.nx - 1, Math.floor((bx1 + 1e-3 - I.x0) / C)); i <= i1; i++)
+    for (let j = Math.max(0, Math.floor((bz0 - 1e-3 - I.z0) / C)), j1 = Math.min(I.nz - 1, Math.floor((bz1 + 1e-3 - I.z0) / C)); j <= j1; j++) {
+      const l = I.cells.get(i * 65536 + j); if (!l) continue;
+      for (let m = 0; m < l.length; m++) {
+        const g = l[m]; if (seen.has(g)) continue; seen.add(g);
+        // at()'s segment g holds the samples tt with S[g-1] < tt <= S[g] (and 0 for the first): the even metres, and the end
+        const lo = S[g - 1];
+        for (let t = g === 1 ? 0 : 2 * Math.floor(lo / 2) + 2; t <= S[g] && t < len; t += 2) { if (g > 1 && !(t > lo)) continue; const q = road.at(t).p; if (inPoly(poly, q[0], q[1])) return true; }
+        if (lo < len && len <= S[g]) { const q = road.at(len).p; if (inPoly(poly, q[0], q[1])) return true; }
+      }
+    }
+  return false;
+}
+// (G3081) roadDist's far half: the coarse rings over the whole grid (a query outside it starts at the ring that reaches it)
+function coarseDist(I, x, z, d) {
+  if (!I.coarse || !(isFinite(x) && isFinite(z))) return null;
+  const ci = Math.floor((x - I.x0) / I.CC), cj = Math.floor((z - I.z0) / I.CC);
+  const k0 = Math.max(0, -ci, ci - I.ncx + 1, -cj, cj - I.ncz + 1), kMax = Math.max(Math.abs(ci), Math.abs(ci - I.ncx + 1), Math.abs(cj), Math.abs(cj - I.ncz + 1));
+  // (rings under k0 hold no cell of the grid; the bound after them still holds - nothing was nearer there)
+  return segRings(I, I.coarse, I.CC, I.ncx, I.ncz, x, z, ci, cj, k0, kMax, d)[0];
+}
 // the arclength intervals of a road inside a polygon (sampled every 2 m)
+// (G3081 EDITOR-PERF) the same samples, the same answers - but a sample on a segment whose box misses the polygon's is
+// outside without asking (a point outside a polygon's box is outside it), and the samples left on that segment are
+// skipped: the island road's 12 000 samples were each walked for every plot of the town and every zone
 function roadInPoly(road, poly) {
   const out = [];
   let t0 = null;
+  const P = road.pts, S = road.s, n = P && P.length, fast = !!(SEG_IDX && Array.isArray(P) && Array.isArray(S) && S.length === n && n >= 2 && S[n - 1] === road.length && isFinite(road.length));
+  let bx0 = Infinity, bz0 = Infinity, bx1 = -Infinity, bz1 = -Infinity;
+  if (fast) for (const c of poly) { if (!(c[0] >= bx0)) bx0 = c[0]; if (!(c[0] <= bx1)) bx1 = c[0]; if (!(c[1] >= bz0)) bz0 = c[1]; if (!(c[1] <= bz1)) bz1 = c[1]; }   // (a NaN corner: a NaN box, never missed)
+  const EPS = 1e-6;
+  let i = 1;
   for (let t = 0; ; t += 2) {
     const tt = Math.min(t, road.length);
-    const p = road.at(tt).p, inside = inPoly(poly, p[0], p[1]);
+    let inside, skip = false;
+    if (fast) {
+      while (i < n - 1 && S[i] < tt) i++;   // at()'s segment: the first i >= 1 whose arclength reaches tt
+      const a = P[i - 1], b = P[i];
+      if (Math.max(a[0], b[0]) < bx0 - EPS || Math.min(a[0], b[0]) > bx1 + EPS || Math.max(a[1], b[1]) < bz0 - EPS || Math.min(a[1], b[1]) > bz1 + EPS) { inside = false; skip = true; }
+    }
+    if (!skip) { const p = road.at(tt).p; inside = inPoly(poly, p[0], p[1]); }
     if (inside && t0 === null) t0 = tt;
     if (!inside && t0 !== null) { out.push([t0, tt]); t0 = null; }
     if (tt >= road.length) break;
+    if (skip) t = Math.max(t, 2 * Math.floor(S[i] / 2));   // every sample up to S[i] lies on this segment, outside too
   }
   if (t0 !== null) out.push([t0, road.length]);
   return out;
@@ -433,7 +527,7 @@ function makeModifier0(m, y0) {
       // (degrees, 0 = +z, 90 = +x); the old `plane` [a, b, c] form still reads
       let pl;
       if (m.slope !== undefined && m.slope !== null && m.level !== undefined) {
-        const c = polyCentroid(poly), hd = (+m.hdg || 0) * Math.PI / 180, a = (+m.slope || 0) * Math.sin(hd), b = (+m.slope || 0) * Math.cos(hd);
+        const c = polyCentroid(poly), hd = (+m.hdg || 0) * Math.PI / 180, a = (+m.slope || 0) * CORE_MATH.sin(hd), b = (+m.slope || 0) * CORE_MATH.cos(hd);
         pl = [a, b, (+m.level || 0) - a * c[0] - b * c[1]];
       } else pl = m.plane || [0, 0, 0];
       target = (x, z) => y0 + pl[0] * x + pl[1] * z + (pl[2] || 0);
@@ -483,7 +577,7 @@ function makeModifier0(m, y0) {
   if (m.kind === 'shelf') {
     // THE SHELF (the village's withShelf, verbatim): a pad rect in the ITEM's frame (c, yaw), level
     // inside, the base beyond a front margin (front and sides) or a back margin, smoothstepped
-    const c = m.c, cy = Math.cos(m.yaw), sy = Math.sin(m.yaw), R = m.rect;
+    const c = m.c, cy = CORE_MATH.cos(m.yaw), sy = CORE_MATH.sin(m.yaw), R = m.rect;
     const mF = Math.max(0.5, +m.marginF || 6), mB = Math.max(0.5, +m.marginB || mF);
     const corners = [[R.x0 - mF, R.z0 - mB], [R.x1 + mF, R.z0 - mB], [R.x1 + mF, R.z1 + mF], [R.x0 - mF, R.z1 + mF]].map(q => [c[0] + q[0] * cy + q[1] * sy, c[1] - q[0] * sy + q[1] * cy]);
     const bbox = polyBBox(corners);
@@ -669,7 +763,7 @@ function rasterTileDecode(C, e) {
 function DEF() {
   return { v: PREMISES_V, id: 'premises', name: '', seed: 1, theme: THEME_DEF,
            frame: { kind: 'free', extent: null, anchors: {} },
-           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [], ttype: [], areas: [] },
+           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [], ttype: [], areas: [], junctions: [] },
            budget: { tris: 400000, lights: 24, smoke: 6, people: 40 } };
 }
 const PREMISES_MIGRATORS = {};
@@ -681,6 +775,23 @@ function migrate(rec) {
     r = m(r) || r; v++; r.v = v;
   }
   return r;
+}
+// FEEL FOLLOWS THE LOOK (the user, 19 Oct: "we retire that, feel follows looks" - ONE SURFACE's last step): an old file's split,
+// drawn one way and felt another, is converted where it is read - what the wheels feel is the look's class. A strip that says its
+// look: its `surface`; an area that draws a pavement and carries wheels: wheels.surface; a road whose look feels otherwise than
+// its class: its own `surface` (the composer reads it first) - its CLASS stays, what the user drew (a track is a dashed path:
+// a track drawn dirt rolls on dirt's gravel friction and stays a track).
+// A look with no feel of its own (markings only), a texture draw, wheels with nothing drawn and a water lane are left as they are.
+// An area that felt HARD (paved / gravel / sand: no tree, no plot) and now feels soft keeps them out - its exclude gains trees and
+// plots (A0 for the user: the feel follows the look, no new trees grow in). Idempotent: a converted record converts to itself.
+const FEEL_HARD = [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND];
+function feelFollowsLook(r) {
+  const feelOf = k => { const L = k && RUNWAY_LOOKS[k]; return L && L.surface !== null && L.surface !== undefined ? +L.surface : null; };
+  for (const w of r.layers.runways) if (w && w.look && +w.surface !== SURFACE.WATER) { const f = feelOf(w.look); if (f !== null && (w.surface === undefined || w.surface === null ? SURFACE.GRASS : +w.surface) !== f) w.surface = f; }
+  for (const a of r.layers.areas) { const P = a && a.props; if (!P || !P.wheels || !P.draw) continue; const f = feelOf(P.draw.look); if (f === null || +P.wheels.surface === f) continue;
+    if (FEEL_HARD.indexOf(+P.wheels.surface) >= 0 && FEEL_HARD.indexOf(f) < 0) { const w = P.exclude && Array.isArray(P.exclude.what) ? P.exclude.what.slice() : []; for (const k of ['trees', 'plots']) if (w.indexOf(k) < 0) w.push(k); P.exclude = Object.assign({}, P.exclude || {}, { what: w }); }
+    P.wheels = Object.assign({}, P.wheels, { surface: f }); }
+  for (const rd of r.layers.roads) { if (!rd || !rd.look) continue; const f = feelOf(rd.look); if (f !== null && roadFeel(rd) !== f) rd.surface = f; }
 }
 function normalise(rec) {
   const d = DEF();
@@ -696,6 +807,9 @@ function normalise(rec) {
   for (const a of r.layers.areas) if (a) { if (roundOk(a.round)) a.poly = roundPoly(a.round); else if (rectOk(a.rect)) a.poly = rectPoly(a.rect); if (!a.props || typeof a.props !== 'object') a.props = {}; }
   // v1.35: a spline road's handles run beside its points, one slot each
   for (const rd of r.layers.roads) if (rd && Array.isArray(rd.tan) && Array.isArray(rd.pts)) { while (rd.tan.length < rd.pts.length) rd.tan.push(null); rd.tan.length = rd.pts.length; }
+  // v1.37: a road's junction ids run beside its points too, one slot each (a hand edit's short list padded with null)
+  for (const rd of r.layers.roads) if (rd && Array.isArray(rd.nodes) && Array.isArray(rd.pts)) { while (rd.nodes.length < rd.pts.length) rd.nodes.push(null); rd.nodes.length = rd.pts.length; }
+  feelFollowsLook(r);
   r.budget =Object.assign({}, d.budget, r.budget || {});
   if (typeof r.seed !== 'number') r.seed = 1;
   if (!THEMES[r.theme]) r.theme = THEME_DEF;
@@ -716,18 +830,25 @@ function unwrap(txt) {
 // village, tw_ the tramway, af_ the airfield). dropPlaces returns a COPY without them and what it cut, by layer;
 // restorePlaces puts the cut back into a record that was edited without them (an entry the edit re-used the id
 // of is the edit's) - so a save made with the place off never deletes it.
-const placeOf = (e, prefixes) => !!(e && typeof e.id === 'string' && prefixes.some(p => e.id.startsWith(p)));
-function dropPlaces(rec, prefixes) {
+// `keep` (METLA-WRAPUP, the user 18 Oct: Metlakatla behind its flag, the seaplane base standing): ids that stay although
+// their prefix is dropped - TOWN_OFF below, the page's switch (world_boot.js) and the cook's 'default' variant (premises_cook.js)
+const placeOf = (e, prefixes, keep) => !!(e && typeof e.id === 'string' && prefixes.some(p => e.id.startsWith(p)) && !(keep && keep.includes(e.id)));
+function dropPlaces(rec, prefixes, keep) {
   const out = Object.assign({}, rec, { layers: Object.assign({}, rec.layers) }), cut = {};
   let n = 0;
   for (const k of Object.keys(out.layers)) {
     const a = out.layers[k]; if (!Array.isArray(a)) continue;
-    const keep = [], gone = [];
-    for (const e of a) (placeOf(e, prefixes) ? gone : keep).push(e);
-    if (gone.length) { out.layers[k] = keep; cut[k] = gone; n += gone.length; }
+    const keep_ = [], gone = [];
+    for (const e of a) (placeOf(e, prefixes, keep) ? gone : keep_).push(e);
+    if (gone.length) { out.layers[k] = keep_; cut[k] = gone; n += gone.length; }
   }
   return { rec: out, cut, n };
 }
+// THE TOWN SWITCHED OFF (G590; METLA-WRAPUP 18 Oct): Metlakatla's every entry (mk_) but its SEAPLANE BASE - the water lane
+// (runway mk_sea, its player plot with it) and the dock it is flown to (the trestle and the float) - which the career's
+// minedock arc, the generated jobs and the floats' routes name (72_contract_data CONTRACT_FIELDS): a standalone site, the
+// town's houses, roads and plots behind the flag. ONE definition: the page's switch and the cook's 'default' variant read it.
+const TOWN_OFF = Object.freeze({ drop: Object.freeze(['mk_']), keep: Object.freeze(['mk_sea', 'mk_mp_air', 'mk_mf_air']) });
 function restorePlaces(rec, cut) {
   if (!cut) return rec;
   const out = Object.assign({}, rec, { layers: Object.assign({}, rec.layers) });
@@ -781,7 +902,7 @@ function stageVaryOf(st, tracks) {
 // a kit's props and frame, in the record's frame, ids `<kit id>:<n>` (seeded per kit: the same record, the same kit)
 function stageKitObjects(k) {
   const K = STAGE_KITS[k.kit]; if (!K) return [];
-  const w = +k.w || 24, d = +k.d || 18, yaw = +k.yaw || 0, c = Math.cos(yaw), s = Math.sin(yaw);
+  const w = +k.w || 24, d = +k.d || 18, yaw = +k.yaw || 0, c = CORE_MATH.cos(yaw), s = CORE_MATH.sin(yaw);
   // local (u across w, v across d) -> the record's frame, the placement law of an item in its site (x = u c + v s, z = -u s + v c)
   const at = (u, v) => [+(+k.x + u * c + v * s).toFixed(3), +(+k.z - u * s + v * c).toFixed(3)];
   const rnd = mulberry32(hash32(7, fnv('kit:' + k.id))), out = [];
@@ -810,7 +931,7 @@ function stageKitObjects(k) {
 const stageFrameKey = f => (f.gen && GEN_NS[f.gen] ? GEN_NS[f.gen] + '/' + f.preset : f.key || null);
 // the kit's plot as a polygon (the tree exclude while it stands)
 function stageKitPoly(k) {
-  const w = (+k.w || 24) / 2 + 2, d = (+k.d || 18) / 2 + 2, yaw = +k.yaw || 0, c = Math.cos(yaw), s = Math.sin(yaw);
+  const w = (+k.w || 24) / 2 + 2, d = (+k.d || 18) / 2 + 2, yaw = +k.yaw || 0, c = CORE_MATH.cos(yaw), s = CORE_MATH.sin(yaw);
   return [[-w, -d], [w, -d], [w, d], [-w, d]].map(q => [+(+k.x + q[0] * c + q[1] * s).toFixed(3), +(+k.z - q[0] * s + q[1] * c).toFixed(3)]);
 }
 // a COPY of the record as it stands at `tracks` (null: the sandbox), and what was cut / changed, so an edit made on the
@@ -948,7 +1069,7 @@ function stageIssues(rec0, maxes) {
         if (kind === 'runway' && e && q) {
           const r = Object.assign({}, RUNWAY_DEF, e, q); delete r.stage; delete r.show;
           if (!(r.len >= 150) || !(r.wid >= 8)) out.push(what + ' vary[' + i + ']: a strip is at least 150 m by 8 m');
-          else for (const pi of profileIssues(r)) out.push(what + ' vary[' + i + ']: ' + pi);
+          else for (const pi of profileCheck(r).refuse) out.push(what + ' vary[' + i + ']: ' + pi);
         }
       });
     }
@@ -965,7 +1086,7 @@ function stageIssues(rec0, maxes) {
   for (const L of rec.layers.links || []) for (const end of [L.from, L.to]) if (end && stagedItems.has(end.site + '/' + end.item) && !L.stage) out.push('link ' + L.id + ': names the staged item ' + end.site + '/' + end.item + ' and carries no stage');
   return out;
 }
-const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k', areas: 'a' };
+const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k', areas: 'a', junctions: 'j' };
 function newId(rec, layer) {
   // (v1.36: every id of the record, an area's v1 ids too - a migrated area keeps its surface's 'y1', and a new
   // surface must not take it again)
@@ -993,12 +1114,43 @@ function zoneWaterYOf(world, F, z, fallback) {
 function frameOf(rec, world) {
   const wid = (world && world.id) || '*';
   const a = rec.frame.anchors[wid] || rec.frame.anchors['*'] || { x: 0, z: 0, yaw: 0 };
-  const c = Math.cos(a.yaw || 0), s = Math.sin(a.yaw || 0);
+  const c = CORE_MATH.cos(a.yaw || 0), s = CORE_MATH.sin(a.yaw || 0);
   const toWorld = (lx, lz) => [a.x + lx * c + lz * s, a.z - lx * s + lz * c];
   const toLocal = (x, z) => { const dx = x - a.x, dz = z - a.z; return [dx * c - dz * s, dx * s + dz * c]; };
   const y0 = world && world.terrainH ? world.terrainH(a.x, a.z) : 0;
   // c, s: toLocal's own rotation, for a reader that must not allocate (the height query, G611)
   return { anchor: a, toWorld, toLocal, y0, worldId: wid, yaw: a.yaw || 0, c, s };
+}
+
+// THE ZONES' MEMO (G2960 RUNWAY-ED-PERF; the user: "editing the runways is the worst lag"; the profile, 12 Oct: a strip moved
+// 2 m paid the island's plot sowing and forest planting again - 0.9 s of the 1.1 s - for zones it never came near). A zone's
+// plots (sowPlots) and its wood (planForest) are KEPT from the previous composition when an EXACT key matches: the zone and
+// every input the sower / planter reads that meets the zone's box (+ ZMEMO_M): the roads (id, points, width), the tree
+// excludes, the keep-outs, the plots (and trees) sown before it, the ground's modifiers in their apply order (source + base),
+// the water level, the seed, the planter's pool. Both are pure (their randomness seeded per zone and road), so a hit is the
+// same answer by construction. ONE MEMO A WORLD (a reload starts empty) AND A GENERATION: the seed, the theme, the catalogue,
+// the trees' mode and the raster flag in its signature - any change starts it over (A0). ?zonememo=0 / FLYDIY_ZONEMEMO =
+// false / env FLYDIY_ZONEMEMO=0 / opts.zoneMemo false: every zone sown as before. O.zoneMemo = { gen, hits, misses }.
+const ZMEMO = typeof WeakMap !== 'undefined' ? new WeakMap() : null, ZMEMO_M = 20;
+const zmClone = typeof structuredClone === 'function' ? v => structuredClone(v) : v => JSON.parse(JSON.stringify(v));
+function zoneMemoOf(world, o, sig) {
+  if (!ZMEMO || !world || typeof world !== 'object' || (o && o.zoneMemo === false)) return null;
+  if (typeof window !== 'undefined' && (window.FLYDIY_ZONEMEMO === false || /[?&]zonememo=0(&|$)/.test((window.location && window.location.search) || ''))) return null;
+  if (typeof process !== 'undefined' && process.env && process.env.FLYDIY_ZONEMEMO === '0') return null;
+  let M = ZMEMO.get(world);
+  if (!M || M.sig !== sig) { M = { sig, gen: M ? M.gen + 1 : 1, sow: new Map(), forest: new Map() }; ZMEMO.set(world, M); }
+  M.hits = 0; M.misses = 0; M.seen = new Set();
+  return M;
+}
+// the memo's answer for a zone (kind 'sow' | 'forest'): the kept output when the key matches, else run() and keep it
+function zoneMemoRun(M, kind, id, keyOf, run) {
+  if (!M) return run();
+  let key = null; try { key = keyOf(); } catch (e) { key = null; }   // (an input that will not serialise: no memo for it)
+  const T = M[kind], had = T.get(id); M.seen.add(kind + ':' + id);
+  if (key !== null && had && had.key === key) { M.hits++; return zmClone(had.out); }
+  const out = run(); M.misses++;
+  if (key !== null) T.set(id, { key, out: zmClone(out) }); else T.delete(id);
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -1050,8 +1202,8 @@ function sowPlots(zone, roads, ctx) {
       const rd = B.rd;
       if (rd.id === own) continue;
       if (qx1 < B.x0 || qx0 > B.x1 || qz1 < B.z0 || qz0 > B.z1) continue;
-      if (q.some(c => roadDist(rd, c[0], c[1]) < B.half)) return true;
-      if (roadInPoly(B.pr, q).length) return true;   // it runs THROUGH the plot
+      if (q.some(c => roadDistNear(rd, c[0], c[1], B.half + 1) < B.half)) return true;   // (G3081: the cells within reach only)
+      if (roadCrossesPoly(B.pr, q)) return true;   // it runs THROUGH the plot
     }
     return false;
   };
@@ -1171,7 +1323,7 @@ function planForest(zone, ctx) {
   // distance made the min NaN (no road near), a tree at NaN is never clear of
   const RB = ctx.roads.map(r => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of r.pts || []) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < z0) z0 = q[1]; if (q[1] > z1) z1 = q[1]; } return { r, hw: (r.w || 3.6) / 2, b: [x0, z0, x1, z1] }; });
   const farBox = (b, x, z, r) => Math.max(b[0] - x, x - b[2], b[1] - z, z - b[3]) > r + 1e-3;   // (NaN: never far)
-  const roadWithin = (x, z, r) => { let near = false; for (const R of RB) { if (farBox(R.b, x, z, R.hw + r)) continue; const d = roadDist(R.r, x, z) - R.hw; if (d !== d) return false; if (d < r) near = true; } return near; };
+  const roadWithin = (x, z, r) => { let near = false; for (const R of RB) { if (farBox(R.b, x, z, R.hw + r)) continue; const d = roadDistNear(R.r, x, z, R.hw + r + 1) - R.hw; if (d !== d) return false; if (d < r) near = true; } return near; };
   const PB = ctx.plots.map(p => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of p.poly) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < z0) z0 = q[1]; if (q[1] > z1) z1 = q[1]; } return { p, b: [x0, z0, x1, z1] }; });
   const plotWithin = (x, z, r) => PB.some(P => !farBox(P.b, x, z, r) && sdPoly(P.p.poly, x, z) < r);
   const trees = [];
@@ -1280,7 +1432,7 @@ const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge
 // `hard` (the user's call, default 0): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
 // shoulder polygons (y_sh*: 46 m beside 13/31 and 02/20) and the declared strip box's margin, drawn as the island's ground since
 // G660. 1 grows the cut grass there (the eye's WYSIWYG); the surface itself (friction) is not touched. Read by the viewer's okAt.
-const GRASS_SIDES_DEF = { law: 'sides', sideClear: PAVE_SIDE, softClear: 0.3, mowBand: 15, mowBlend: 4, roadMow: 2, stripGrass: 1, hard: 0 };
+const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 6, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 0 };   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
 const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
 function grassSides(o) {
   if (o && typeof o === 'object') for (const k in o) {
@@ -1302,7 +1454,11 @@ function rwyTreesMode(o) {
   // authored 'no trees' polygon (premises editor). GATE RWYTREES holds 'map' (the paths, the climb-out, the circuit flown)
   // (44.3, 11 Oct: back to 'today' as the default - 'map' moved HOME's calm-air taxi off its V's right arm, GATE LINEUP red with it
   // and green with FLYDIY_RWYTREES=today; 'map' returns with an authored clearing by HOME's taxiways. The ruling stands, the default waits)
-  return RWY_TREES.indexOf(v) >= 0 ? v : 'today';
+  // (G3023, 14 Oct - the user: trees cut only on the strip: 'mapx' the default. 'map' lifted the approach FANS too, and the user's
+  //  rev 28 KEEPS x_fan13_0 (they deleted three fans, kept the rest - their own polygons now); without it the trees filled 31's
+  //  climb-out, the pilot left by 13 and GATE LINEUP went red at HOME. 'mapx' lifts the generic 60 / 150 m boxes only: trees to
+  //  the strip's edge, the user's fans and own clears standing)
+  return RWY_TREES.indexOf(v) >= 0 ? v : 'mapx';
 }
 // THE STRIP'S TREE CLEARANCE (G1385 EDITOR-VEG, contract v1.31, the user: "I need to better control tree exclusion
 // zones around runways"): a strip's `clear` { side, beyond, taper, bushes } is the clearing the trees keep from it -
@@ -1377,6 +1533,10 @@ const ZONE_GRASS = { residential: { kind: 'lawn', h: 0.12, density: 1 }, commerc
   industrial: { kind: 'none' }, harbour: { kind: 'none' }, airfield: { kind: 'meadow' }, forest: { kind: 'meadow' }, clear: { kind: 'meadow' } };
 function zoneGrass(zone) { return Object.assign({}, ZONE_GRASS[zone && zone.kind] || { kind: 'meadow' }, (zone && zone.rules && zone.rules.grass) || {}); }
 // a road's look: its own, else its class's; the pavement's row for it (or null for 'none')
+// ONE SURFACE (the user, 18 Oct): what a road's wheels feel (its own `surface`, else its class's - the composer's rule) and
+// whether a look feels as a class does (a look with no feel of its own - markings only - feels as anything)
+function roadFeel(r) { return r.surface !== undefined && r.surface !== null ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL); }
+function lookFeelsAs(look, feel) { const L = RUNWAY_LOOKS[look]; return !L || L.surface === null || L.surface === undefined || +L.surface === +feel; }
 function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD_LOOK[r.cls] || 'gravel'); return { key: k, row: RUNWAY_LOOKS[k] }; }
 // THE ONE-WAY STRIP (v9, contract v1.11): `approach` names the end the landing comes over (0 or 1) when
 // the air is calm - a strip with a ridge at one end lands from the other and departs toward it; null
@@ -1446,9 +1606,14 @@ function runwayProfile(r) {
 // under 20 %, no touchdown-zone rule (the touchdown IS on the slope), a crest under 5 % of slope change
 // over 30 m (the ease into the flat top the aeroplane stops on), an `approach` named, and the far end
 // higher than the threshold it lands over
+// THE LIMITS WARN, NEVER REFUSE (the user, 18 Oct: "strip 9 stays, the slope rules ... were to be relaxed" - no
+// filtering, the player finds out): every limit below is a WARNING (profileCheck's `warn`: the editor's profile
+// note and checks panel, PG.warnings); only an altiport without its approach is refused (`refuse`: PG.issues).
+// profileIssues is both, the editor's note.
 const ALTIPORT = { slopeMax: 0.20, crestMax: 0.05 };
-function profileIssues(r) {
-  const out = [], pr = runwayProfile(r), L = r.len, alti = !!r.altiport;
+function profileIssues(r) { const c = profileCheck(r); return c.refuse.concat(c.warn); }
+function profileCheck(r) {
+  const out = [], refuse = [], pr = runwayProfile(r), L = r.len, alti = !!r.altiport;
   let worst = 0, tdz = 0, crest = 0;
   for (let a = 0; a <= L; a += 3) {
     const sl = Math.abs(pr.slopeAt(a)); worst = Math.max(worst, sl);
@@ -1458,21 +1623,21 @@ function profileIssues(r) {
   if (alti) {
     if (worst > ALTIPORT.slopeMax) out.push('runway ' + r.id + ': the altiport is ' + (worst * 100).toFixed(1) + ' % somewhere, over ' + ALTIPORT.slopeMax * 100 + ' %');
     if (crest > ALTIPORT.crestMax) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over ' + ALTIPORT.crestMax * 100 + ' on an altiport');
-    if (r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': an altiport names its approach (the end it is landed over)');
+    if (r.approach !== 0 && r.approach !== 1) refuse.push('runway ' + r.id + ': an altiport names its approach (the end it is landed over)');
     else if (!((r.approach === 0 ? pr.at(L) - pr.at(0) : pr.at(0) - pr.at(L)) > 0)) out.push('runway ' + r.id + ': an altiport is landed uphill - the far end must be higher than end ' + r.approach);
-    return out;
+    return { refuse, warn: out };
   }
   if (worst > 0.05) out.push('runway ' + r.id + ': the profile is ' + (worst * 100).toFixed(1) + ' % somewhere, over 5 %');
   if (tdz > 0.025) out.push('runway ' + r.id + ': the touchdown zone slopes ' + (tdz * 100).toFixed(1) + ' %, over 2.5');
   if (crest > 0.015) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over 1.5');
-  return out;
+  return { refuse, warn: out };
 }
 // THE SHOULDER (v9): the strip's radius of terraforming - how far past the box (either side and past the
 // ends) the grade's falloff runs before the ground is the terrain's again; authored (falloff) or a
 // length law: 40 m + 6 % of the length, at most 120 m
 function runwayShoulder(r) { return r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + (+r.len || 0) * 0.06); }
 function runwayEnds(r) {
-  const d = [Math.cos(r.hdg), Math.sin(r.hdg)], hl = r.len / 2;
+  const d = [CORE_MATH.cos(r.hdg), CORE_MATH.sin(r.hdg)], hl = r.len / 2;
   return { d, n: [-d[1], d[0]], end0: [r.c[0] - d[0] * hl, r.c[1] - d[1] * hl], end1: [r.c[0] + d[0] * hl, r.c[1] + d[1] * hl] };
 }
 // the strip's box, with a margin, as a polygon (for the exclude and the hit)
@@ -1517,6 +1682,82 @@ function plotWorld(p, F) {
   }
   return o;
 }
+// WHAT A CLICK ON A STRIP'S OWN THINGS GRABS (G2891 SCENERY-ED-1 c1; the user, 12 Oct, reworking HOME: "there is a lot I
+// can't displace"): the club hangar and the stand are fields of the runway record (`hangar`, `stand`), moved by the strip's
+// discs once the strip is selected - a click on the BUILDING itself picked nothing (it is no record of its own). Given a
+// point in the premises frame: { id, key: 'hangar' | 'stand', d } of the nearest one under it (the hangar: inside its
+// footprint, HANGAR_DIMS round its door's heading, either way about - HW / HD are half sizes; the stand: within 5 m),
+// or null. The editor selects that strip and starts that handle's drag; scripts and the gates read it too.
+function runwayGrab(rec, lx, lz, dims) {   // (G3096: `dims` the drawn shed's half sizes {HW, HD}, the page's)
+  let best = null;
+  for (const r of (rec && rec.layers && rec.layers.runways) || []) {
+    const h = r.hangar;
+    if (h && isFinite(+h.x) && isFinite(+h.z)) {
+      const a0 = +h.hdg || 0, dx = lx - h.x, dz = lz - h.z, a = dx * CORE_MATH.cos(a0) + dz * CORE_MATH.sin(a0), b = -dx * CORE_MATH.sin(a0) + dz * CORE_MATH.cos(a0);
+      const W = dims && +dims.HW > 0 ? +dims.HW : HANGAR_DIMS.HW, D = dims && +dims.HD > 0 ? +dims.HD : HANGAR_DIMS.HD;
+      if ((Math.abs(a) <= D && Math.abs(b) <= W) || (Math.abs(a) <= W && Math.abs(b) <= D)) { const d = Math.hypot(dx, dz); if (!best || d < best.d) best = { id: r.id, key: 'hangar', d }; }
+    }
+    const st = r.stand;
+    if (st && isFinite(+st.x) && isFinite(+st.z)) { const d = Math.hypot(lx - st.x, lz - st.z); if (d <= 5 && (!best || d < best.d)) best = { id: r.id, key: 'stand', d }; }
+  }
+  return best;
+}
+// G3096 HANGAR-FIX: A HANGAR SQUARE TO THE BUILDINGS - the heading (the record's, radians) that turns a strip's hangar shell onto
+// the axes of the nearest site building (within 250 m), its door toward `toward` (the stand); the shell is drawn at rotation.y
+// = pi - (hdg - F.yaw) (runwaySite), a site item at at.yaw + pi + item.yaw (placeSite): the shell's turn made congruent to the
+// building's modulo 90 deg, of the four the one whose door (along hdg) points most toward `toward`. No building near: null
+function hangarSquare(rec, r, toward, fyaw) {
+  const h = r && r.hangar; if (!h || !isFinite(+h.x) || !isFinite(+h.z)) return null;
+  let best = null;
+  for (const s of (rec && rec.layers && rec.layers.sites) || []) {
+    const a = s && s.at; if (!a || !isFinite(+a.x) || !isFinite(+a.z)) continue;
+    for (const it of s.items || []) {
+      const c = CORE_MATH.cos(+a.yaw || 0), sn = CORE_MATH.sin(+a.yaw || 0), x = +a.x + (+it.x || 0) * c + (+it.z || 0) * sn, z = +a.z - (+it.x || 0) * sn + (+it.z || 0) * c;
+      const d = Math.hypot(x - h.x, z - h.z); if (d > 250 || d < 1) continue;
+      if (!best || d < best.d) best = { d, ry: (+a.yaw || 0) + Math.PI + (+it.yaw || 0) };
+    }
+  }
+  if (!best) return null;
+  const F = +fyaw || 0, t = toward && isFinite(+toward.x) ? [+toward.x - h.x, +toward.z - h.z] : null;
+  let out = null, score = -Infinity;
+  for (let k = 0; k < 4; k++) {
+    const hh = Math.PI - (best.ry + k * Math.PI / 2), hdg = Math.atan2(CORE_MATH.sin(hh + F), CORE_MATH.cos(hh + F));
+    const sc = t ? (CORE_MATH.cos(hh) * t[0] + CORE_MATH.sin(hh) * t[1]) : -Math.abs(hdg - (+h.hdg || 0));
+    if (sc > score) { score = sc; out = +hdg.toFixed(4); }
+  }
+  return out;
+}
+// HOW FAR FROM A PLACED OBJECT A CLICK STILL PICKS IT (G2891 c3): 2.5 m x its scale, as the pick cycle had it - but a
+// parked AEROPLANE spans 9-12 m, and a click on its wing missed it; its built size (`built`, the drawn group's bounding
+// radius when the page has it) or 6 m x its scale for an aeroplane
+function objectPickR(ob, built) {
+  const s = Math.max(1, +(ob && ob.s) || 1);
+  if (ob && ob.kind === 'aircraft') return Math.max(2.5 * s, isFinite(+built) && +built > 0 ? 0.85 * +built : 6 * s);
+  return 2.5 * s;
+}
+// G3092 TAXI-ALL: A WAY OUT THAT FOLLOWS A ROAD. The road's points (the composition's straight line of it, in the premises
+// frame), the end nearer the stand first; its last point taken onto the strip's centreline (within the strip's half width + 1 m
+// of it: replaced by its foot there; farther: the foot appended), clamped to the strip's length
+function wayFrom(r, st, rd) {
+  const P = rd.pts.map(q => [+q[0], +q[1]]), d2 = q => (q[0] - st.x) * (q[0] - st.x) + (q[1] - st.z) * (q[1] - st.z);
+  if (d2(P[P.length - 1]) < d2(P[0])) P.reverse();
+  const E = runwayEnds(r), last = P[P.length - 1];
+  const along = (last[0] - r.c[0]) * E.d[0] + (last[1] - r.c[1]) * E.d[1], off = Math.abs(-(last[0] - r.c[0]) * E.d[1] + (last[1] - r.c[1]) * E.d[0]);
+  const a = Math.max(-r.len / 2, Math.min(r.len / 2, along)), entry = [r.c[0] + E.d[0] * a, r.c[1] + E.d[1] * a];
+  if (off <= r.wid / 2 + 1) P[P.length - 1] = entry; else P.push(entry);
+  // a point ON the stand (a road that starts there) is no leg: the stand faces its first taxi point, which must be away from it
+  while (P.length > 1 && d2(P[0]) < 4) P.shift();
+  return P.map(q => [+q[0].toFixed(2), +q[1].toFixed(2)]);
+}
+// the composed copy of a strip with its ways that follow a road built from it (a way whose road is not there keeps its own points)
+function waysVia(r, byId) {
+  const ok = id => typeof id === 'string' && byId.has(id) && byId.get(id).pts && byId.get(id).pts.length >= 2;
+  if (r.stand && ok(r.taxiOutVia)) r.taxiOut = wayFrom(r, r.stand, byId.get(r.taxiOutVia));
+  if (r.stand && ok(r.taxiOut1Via)) r.taxiOut1 = wayFrom(r, r.stand, byId.get(r.taxiOut1Via));
+  if (Array.isArray(r.plots) && r.plots.some(q => q && q.stand && ok(q.taxiOutVia)))
+    r.plots = r.plots.map(q => (q && q.stand && ok(q.taxiOutVia)) ? Object.assign({}, q, { taxiOut: wayFrom(r, q.stand, byId.get(q.taxiOutVia)) }) : q);
+  return r;
+}
 function runwaySite(r, F) {
   const W = q => F.toWorld(q[0], q[1]);
   const base = Object.assign({}, r.site || {});
@@ -1545,10 +1786,22 @@ function runwaySite(r, F) {
 // (v1.33) a stage's `sock: false` / `ties: false` onto the aerodrome (render_world's windsock, 25_airfield fleetSpots);
 // absent - the record never says it - the aerodrome is untouched
 function stageAero(a, r) { if (r.sock === false) a.sock = false; if (r.ties === false) a.ties = false; return a; }
+// G3098 (the Cabin Strip): A STRIP'S DRAWN FLIGHT - `fly` { dep, appr, circuit?, side?, terrainOk? } in the premises frame (the
+// pilot's: dep from the lift-off end, its last point where the tight zone is passed, no turn before it; appr outermost first,
+// ending at the threshold; a point [x, z] or [x, z, metres above the strip's top end]), handed to the pilot in the world
+function flyWorld(f, F) {
+  if (!f || typeof f !== 'object') return null;
+  const W = L => Array.isArray(L) ? L.filter(q => Array.isArray(q) && isFinite(+q[0]) && isFinite(+q[1])).map(q => { const w = F.toWorld(+q[0], +q[1]); return q.length > 2 && isFinite(+q[2]) ? [+w[0].toFixed(2), +w[1].toFixed(2), +q[2]] : [+w[0].toFixed(2), +w[1].toFixed(2)]; }) : null;
+  const o = { dep: W(f.dep), appr: W(f.appr) };
+  if (Array.isArray(f.circuit)) o.circuit = W(f.circuit);
+  if (f.side === 1 || f.side === -1) o.side = f.side;
+  if (f.terrainOk === true) o.terrainOk = true;
+  return o;
+}
 function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   const E = runwayEnds(r);
   const c = F.toWorld(r.c[0], r.c[1]);
-  const dw = [E.d[0] * Math.cos(F.yaw) + E.d[1] * Math.sin(F.yaw), -E.d[0] * Math.sin(F.yaw) + E.d[1] * Math.cos(F.yaw)];
+  const dw = [E.d[0] * CORE_MATH.cos(F.yaw) + E.d[1] * CORE_MATH.sin(F.yaw), -E.d[0] * CORE_MATH.sin(F.yaw) + E.d[1] * CORE_MATH.cos(F.yaw)];
   const hdg = Math.atan2(dw[1], dw[0]);
   const hl = r.len / 2, aimIn = (r.len - 10) / 4;
   // the pilot lands along -hdg over thr1 (5 m inside end1): the target sits a quarter in from that bar
@@ -1591,7 +1844,7 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
            // (0|1); without it a one-way strip is left the way it is landed. East Point is landed over the sea and left
            // back out over it - the trees close in at the other end
            takeoffHdg: r.departure === 1 ? hdg : r.departure === 0 ? hdg + Math.PI : null,
-           slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null };
+           slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null, ...(r.fly ? { fly: flyWorld(r.fly, F) } : {}) };
 }
 
 // ---------------------------------------------------------------------------
@@ -1602,7 +1855,7 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
 // world yaw is at.yaw + pi + item.yaw (placeSite: atan2(-up) + it.yaw)
 function siteFrame(site) {
   const a = site.at || { x: 0, z: 0, yaw: 0 };
-  const c = Math.cos(a.yaw || 0), sn = Math.sin(a.yaw || 0);
+  const c = CORE_MATH.cos(a.yaw || 0), sn = CORE_MATH.sin(a.yaw || 0);
   return { at: a, toLocal: (lx, lz) => [a.x + lx * c + lz * sn, a.z - lx * sn + lz * c] };
 }
 // a slot's place in a plan: the entry's slots map names a path ('plan.house'); the plan publishes it
@@ -1622,7 +1875,7 @@ function placeSite(site, cat, ctx) {
     if (!entry) { issues.push('site ' + site.id + ': no catalogue entry for ' + it.key); return; }
     const c = SF.toLocal(it.x || 0, it.z || 0);
     const yaw = (SF.at.yaw || 0) + Math.PI + (it.yaw || 0);
-    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const cy = CORE_MATH.cos(yaw), sy = CORE_MATH.sin(yaw);
     const toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
     const oy = ctx.T(c[0], c[1]);
     const ground = (lx, lz) => { const w = toWorld(lx, lz); return ctx.T(w[0], w[1]) - oy; };
@@ -1688,7 +1941,7 @@ function siteShelves(site, cat, T) {
     if (!entry || !entry.ground || entry.ground.need === 'none' || !entry.ground.need) return;
     const c = SF.toLocal(it.x || 0, it.z || 0);
     const yaw = (SF.at.yaw || 0) + Math.PI + (it.yaw || 0);
-    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const cy = CORE_MATH.cos(yaw), sy = CORE_MATH.sin(yaw);
     const toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
     const P = entry.params ? entry.params(Object.assign({ recvZ: it.z || 0 }, it.P || {})) : Object.assign({}, entry.P || {}, it.bottomOnRoad ? { recvZ: it.z || 0 } : {}, it.P || {});
     const id = site.id + '/' + (it.id || ('i' + k)) + ':ground';
@@ -1731,7 +1984,7 @@ const LINK_SOLVERS = {
   // the target in the mill's own frame, at the shed's eave
   conveyor: { needs: 'placed', band: { maxDx: 120, dyMin: -40, dyMax: 60 },
     solve(link, A, B) {
-      const c = Math.cos(A.yaw), sn = Math.sin(A.yaw);
+      const c = CORE_MATH.cos(A.yaw), sn = CORE_MATH.sin(A.yaw);
       const dx = B.x - A.x, dz = B.z - A.z;
       const ty = B.y + (B.P.floorY || 0) + (B.P.eaveH || 5) - A.y;
       const to = [dx * c - dz * sn, ty, dx * sn + dz * c];
@@ -1819,13 +2072,13 @@ function smoothPath(pts, radius) {
     const P0 = [p[0] + v0[0] * t, p[1] + v0[1] * t], P1 = [p[0] + v1[0] * t, p[1] + v1[1] * t];
     const bl = Math.hypot(v0[0] + v1[0], v0[1] + v1[1]) || 1;
     const bis = [(v0[0] + v1[0]) / bl, (v0[1] + v1[1]) / bl];
-    const C = [p[0] + bis[0] * R / Math.sin(ang / 2), p[1] + bis[1] * R / Math.sin(ang / 2)];
+    const C = [p[0] + bis[0] * R / CORE_MATH.sin(ang / 2), p[1] + bis[1] * R / CORE_MATH.sin(ang / 2)];
     const a0 = Math.atan2(P0[1] - C[1], P0[0] - C[0]);
     let da = Math.atan2(P1[1] - C[1], P1[0] - C[0]) - a0;
     while (da > Math.PI) da -= Math.PI * 2;
     while (da < -Math.PI) da += Math.PI * 2;
     const n = Math.max(2, Math.ceil(Math.abs(da) / 0.3));
-    for (let k = 0; k <= n; k++) { const th = a0 + da * k / n; out.push([C[0] + Math.cos(th) * R, C[1] + Math.sin(th) * R]); }
+    for (let k = 0; k <= n; k++) { const th = a0 + da * k / n; out.push([C[0] + CORE_MATH.cos(th) * R, C[1] + CORE_MATH.sin(th) * R]); }
   }
   out.push([pts[pts.length - 1][0], pts[pts.length - 1][1]]);
   return out;
@@ -1911,6 +2164,228 @@ function roadHandles(pts, tan) {
   const S = roadSplineD(pts.map(q => [+q[0], +q[1]]), T);
   return pts.map((q, i) => (T[i] ? T[i] : i < n - 1 ? [S.Dout[i][0] * S.h[i] / 3, S.Dout[i][1] * S.h[i] / 3] : [S.Din[i][0] * S.h[i - 1] / 3, S.Din[i][1] * S.h[i - 1] / 3]));
 }
+// a placed prop's scale (v1.36 `s`, the model placer's) on its composed record - only when it is not 1 (G3001)
+// a placed prop's own extras on its composed record: its scale (G2914), and (G2893) `with` - an ASSEMBLY's other parts, stood
+// at the same pose (the placer's one record for the ALMA's base, fork and dish); a record with neither composes as before
+const objScale = ob => Object.assign(+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3 ? { s: +ob.s } : {},
+  Array.isArray(ob.with) && ob.with.length ? { with: ob.with.filter(k => typeof k === 'string' && k) } : {});
+// THE ROADS' BUILD KEYS (G3002 PLACER-FAST; the user: "adding assets in the editor is a bit of a pain, really, really
+// long to move, update, rotate" - every edit's rebuild made EVERY road's pavement, its poles and its rails again, the
+// island road's 25 km among them). A road's drawn things (its pavement row, its power line, its guardrail) are a
+// function of: the road as composed (`rd`, every field) and as recorded, the record's pavement settings and theme, and
+// what its poles and rails keep clear of NEAR it - the other roads (each one's digest), the plots, the strips, the
+// paved polygons. roadBuildKeys(O) -> Map(id -> key): a road whose key is the same, and whose box no ground edit
+// touched (roadBoxTouch), is drawn as it was; anything else is built again.
+function roadBuildKeys(O) {
+  const out = new Map(), roads = (O && O.roads) || [], recRoads = new Map(((O && O.rec && O.rec.layers && O.rec.layers.roads) || []).map(r => [r.id, r]));
+  const dig = new Map(), bbs = new Map();
+  for (const q of roads) if (q && q.pts && q.pts.length > 1) { dig.set(q, fnv(JSON.stringify([q.id, q.pts, q.w]))); bbs.set(q, polyBBox(q.pts)); }
+  const plots = ((O && O.records && O.records.plots) || []).filter(p => p && p.poly && p.poly.length >= 3).map(p => [polyBBox(p.poly), fnv(JSON.stringify(p.poly))]);
+  // (G2960: a strip enters the key of the roads NEAR it only - its box grown by its shoulder - a strip's edit kept every
+  //  road of the island drawn again)
+  const strips = ((O && O.runways) || []).filter(r => r && r.c && r.len > 0).map(r => [polyBBox(runwayBox(Object.assign({}, RUNWAY_DEF, r), runwayShoulder(Object.assign({}, RUNWAY_DEF, r)) + 30)), fnv(JSON.stringify([r.id, r.c, r.len, r.wid, r.hdg, r.profile || null, r.slope || 0]))]);
+  const paved = ((O && O.pavePolys) || []).map(pp => [pp.bbox || polyBBox(pp.poly), fnv(JSON.stringify([pp.id, pp.poly, pp.look]))]);
+  const glob = JSON.stringify([(O && O.pavement) || null, (O && O.rec && O.rec.theme) || null]);
+  for (const rd of roads) {
+    if (!rd || !rd.pts || rd.pts.length < 2) continue;
+    const bb = bbs.get(rd), m = (+rd.w || 3.6) / 2 + 14;
+    const near = b => !(b.x1 < bb.x0 - m || b.x0 > bb.x1 + m || b.z1 < bb.z0 - m || b.z0 > bb.z1 + m);
+    const ctx = [];
+    for (const q of roads) if (q !== rd && dig.has(q) && near(bbs.get(q))) ctx.push(dig.get(q));
+    for (const [b, h] of plots) if (near(b)) ctx.push(h);
+    for (const [b, h] of paved) if (near(b)) ctx.push(h);
+    for (const [b, h] of strips) if (near(b)) ctx.push(h);
+    out.set(rd.id, fnv(JSON.stringify([rd, recRoads.get(rd.id) || null])).toString(36) + ':' + fnv(glob + '|' + ctx.join(',')).toString(36));
+  }
+  return out;
+}
+// THE LONE ROAD'S PATCH (G3013 SCENERY-SHIP; the user's ~66 km of graded road put the fine 2 m patch along all of it for
+// every player - 283 chunks of 64 m before the island road, 1 981 with the user's scenery). A road's chunks were every
+// chunk whose CENTRE lies within its half width + falloff + 6 m + half a chunk's diagonal of its line - a chunk the band
+// only grazes too. That margin is for where the road MEETS something (a junction, a plot's lot, a strip's shoulder, an
+// apron): there the patch must reach every chunk the ground is shaped in. A stretch with nothing of the record within
+// LONE_R of it is a LONE stretch: its chunks are those whose centre lies within the band itself (half width + falloff +
+// 6 m); the grazed ones are left to the island's ground ring, which samples the same composed ground more coarsely.
+// roadLoneSegs(rec, runways?) -> Map(road id -> Uint8Array, 1 a lone segment of its points); roadPatchChunks(rec, F,
+// PCH, bounds, opts) -> Set('i,j') the chunks the roads mark (the renderer's activeChunks reads it; opts.lone false =
+// the margin everywhere, as before; opts.skip(entry)).
+const LONE_R = 120, LONE_CELL = 128;
+function roadLoneSegs(rec, runways) {
+  const L = (rec && rec.layers) || {}, cells = new Map(), key = (i, j) => i + ',' + j;
+  const mark = (x0, z0, x1, z1, owner) => {
+    for (let i = Math.floor((x0 - LONE_R) / LONE_CELL); i <= Math.floor((x1 + LONE_R) / LONE_CELL); i++) for (let j = Math.floor((z0 - LONE_R) / LONE_CELL); j <= Math.floor((z1 + LONE_R) / LONE_CELL); j++) {
+      const k = key(i, j); let s = cells.get(k); if (!s) cells.set(k, s = new Set()); s.add(owner);
+    }
+  };
+  const polys = [];
+  for (const k of ['terrain', 'surface', 'material', 'exclude', 'zones', 'ttype', 'areas']) for (const e of L[k] || []) {
+    if (e && Array.isArray(e.poly) && e.poly.length >= 3) polys.push(e.poly);
+    else if (e && Array.isArray(e.pts) && e.pts.length >= 2) polys.push(e.pts);
+  }
+  for (const p of polys) { const b = polyBBox(p); mark(b.x0, b.z0, b.x1, b.z1, '*'); }
+  for (const r0 of runways || L.runways || []) { const r = Object.assign({}, RUNWAY_DEF, r0); if (!r.c || !(r.len > 0)) continue; const b = polyBBox(runwayBox(r, runwayShoulder(r) + 30)); mark(b.x0, b.z0, b.x1, b.z1, '*'); }
+  for (const st of L.sites || []) { const a = st.at || { x: 0, z: 0 }; mark(a.x - 80, a.z - 80, a.x + 80, a.z + 80, '*'); }
+  for (const ob of L.objects || []) if (isFinite(+ob.x) && isFinite(+ob.z)) mark(+ob.x - 30, +ob.z - 30, +ob.x + 30, +ob.z + 30, '*');
+  // every road's own line, its id the owner: another road near a stretch is a junction's or a parallel's - not lone
+  const step = 32;
+  for (const r of L.roads || []) if (r && Array.isArray(r.pts)) for (let s = 1; s < r.pts.length; s++) {
+    const a = r.pts[s - 1], b = r.pts[s], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
+    for (let k = 0; k <= n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, z = a[1] + (b[1] - a[1]) * k / n; mark(x, z, x, z, 'r:' + r.id); }
+  }
+  const out = new Map();
+  for (const r of L.roads || []) {
+    if (!r || !Array.isArray(r.pts) || r.pts.length < 2) continue;
+    const segs = new Uint8Array(r.pts.length - 1), own = 'r:' + r.id;
+    for (let s = 1; s < r.pts.length; s++) {
+      const a = r.pts[s - 1], b = r.pts[s], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
+      let lone = 1;
+      for (let k = 0; k <= n && lone; k++) { const x = a[0] + (b[0] - a[0]) * k / n, z = a[1] + (b[1] - a[1]) * k / n, c = cells.get(key(Math.floor(x / LONE_CELL), Math.floor(z / LONE_CELL)));
+        if (c) for (const o of c) if (o !== own) { lone = 0; break; } }
+      segs[s - 1] = lone;
+    }
+    out.set(r.id, segs);
+  }
+  return out;
+}
+function roadPatchChunks(rec, F, PCH, bounds, opts) {
+  const o = opts || {}, act = new Set(), HALFD = PCH * 0.7072, lone = o.lone === false ? null : roadLoneSegs(rec, o.runways);
+  const { i0, i1, j0, j1 } = bounds;
+  for (const r of ((rec && rec.layers && rec.layers.roads) || [])) {
+    if ((o.skip && o.skip(r)) || !r || !Array.isArray(r.pts) || r.pts.length < 2) continue;
+    const m = (+r.w || 3.6) / 2 + (+r.falloff || 6) + 6, ls = lone && lone.get(r.id);
+    for (let s = 1; s < r.pts.length; s++) {
+      const a = r.pts[s - 1], b = r.pts[s], reach = m + (ls && ls[s - 1] ? 0 : HALFD);
+      const c = [[Math.min(a[0], b[0]) - m, Math.min(a[1], b[1]) - m], [Math.max(a[0], b[0]) + m, Math.min(a[1], b[1]) - m], [Math.max(a[0], b[0]) + m, Math.max(a[1], b[1]) + m], [Math.min(a[0], b[0]) - m, Math.max(a[1], b[1]) + m]].map(q => F.toWorld(q[0], q[1]));
+      const x0 = Math.min(...c.map(q => q[0])), x1 = Math.max(...c.map(q => q[0])), z0 = Math.min(...c.map(q => q[1])), z1 = Math.max(...c.map(q => q[1]));
+      for (let i = Math.max(i0, Math.floor(x0 / PCH)); i <= Math.min(i1, Math.floor(x1 / PCH)); i++) for (let j = Math.max(j0, Math.floor(z0 / PCH)); j <= Math.min(j1, Math.floor(z1 / PCH)); j++) {
+        const k = i + ',' + j; if (act.has(k)) continue;
+        const lc = F.toLocal((i + 0.5) * PCH, (j + 0.5) * PCH);
+        if (distPtSeg(lc[0], lc[1], a, b) <= reach) act.add(k);
+      }
+    }
+  }
+  return act;
+}
+// A ROAD STOPPED AT A STRIP (G3014 SCENERY-SHIP; the user, of their road across their new strip: "You can stop it at the
+// strip indeed"): the road's waypoints up to where its line first meets the polygon (a strip's box) and that point, on
+// the side it comes from - the longer of the two outside parts when it crosses (the access, not the overrun). Its own
+// points and handles are kept to the cut (`tan`, `nodes` cut with them); the cut point is new (cm). null when it never
+// meets the polygon or lies inside it.
+function roadCutAtPoly(r, poly) {
+  const P = r && r.pts; if (!Array.isArray(P) || P.length < 2 || !Array.isArray(poly) || poly.length < 3) return null;
+  const hit = (a, b) => { let best = null; for (let k = 0; k < poly.length; k++) { const c = poly[k], d = poly[(k + 1) % poly.length];
+    const rx = b[0] - a[0], rz = b[1] - a[1], sx = d[0] - c[0], sz = d[1] - c[1], den = rx * sz - rz * sx; if (Math.abs(den) < 1e-12) continue;
+    const qx = c[0] - a[0], qz = c[1] - a[1], t = (qx * sz - qz * sx) / den, u = (qx * rz - qz * rx) / den; if (t >= 0 && t <= 1 && u >= 0 && u <= 1 && (!best || t < best.t)) best = { t, p: [a[0] + rx * t, a[1] + rz * t] }; } return best; };
+  const len = Q => { let s = 0; for (let i = 1; i < Q.length; i++) s += Math.hypot(Q[i][0] - Q[i - 1][0], Q[i][1] - Q[i - 1][1]); return s; };
+  const cm = p => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100];
+  let A = null, B = null;
+  if (!inPoly(poly, P[0][0], P[0][1])) for (let i = 0; i + 1 < P.length; i++) { const h = hit(P[i], P[i + 1]); if (h) { A = { n: i + 1, p: cm(h.p) }; break; } }
+  const L = P.length - 1;
+  if (!inPoly(poly, P[L][0], P[L][1])) for (let i = L; i > 0; i--) { const h = hit(P[i], P[i - 1]); if (h) { B = { n: i, p: cm(h.p) }; break; } }
+  if (!A && !B) return null;
+  const keep = (x, pts) => { const o = Object.assign({}, r, { pts });
+    for (const k of ['tan', 'nodes']) if (Array.isArray(r[k])) o[k] = x === 'A' ? r[k].slice(0, A.n).concat([null]) : [null].concat(r[k].slice(B.n)); return o; };
+  const pa = A ? P.slice(0, A.n).concat([A.p]) : null, pb = B ? [B.p].concat(P.slice(B.n)) : null;
+  if (pa && (!pb || len(pa) >= len(pb))) return keep('A', pa);
+  return keep('B', pb);
+}
+// a ground edit's box (premises frame) over a road: its points' box grown by its half width and `pad` (its banks)
+function roadBoxTouch(rd, box, pad) {
+  if (!rd || !rd.pts || rd.pts.length < 1 || !box) return false;
+  const bb = polyBBox(rd.pts), m = (+rd.w || 3.6) / 2 + (pad > 0 ? pad : 0);
+  return !(box.x1 < bb.x0 - m || box.x0 > bb.x1 + m || box.z1 < bb.z0 - m || box.z0 > bb.z1 + m);
+}
+// A ROAD'S BED (contract v1.37, G2952): `bed: true | { fill, grade, bank, shoulder }` - null when the road has none (today's)
+const BED_DEF = { fill: 0.15, grade: 0.12, bank: 10, shoulder: 0.5 };
+function bedOf(r) {
+  const b = r && r.bed;
+  if (!b) return null;
+  const o = Object.assign({}, BED_DEF, b === true ? {} : b);
+  if (o.on === false) return null;
+  return { fill: clamp(+o.fill || 0, 0, 2), grade: clamp(+o.grade || BED_DEF.grade, 0.01, 0.5), bank: clamp(+o.bank || +r.falloff || BED_DEF.bank, 1, 60), shoulder: clamp(isFinite(+o.shoulder) ? +o.shoulder : BED_DEF.shoulder, 0, 5) };
+}
+
+// ---------------------------------------------------------------------------
+// THE GRAPH (contract v1.37, G2950 ROAD-GRAPH): nodes + edges and the one router - the roads' graph (O.roadGraph), the
+// taxi pattern's ({ nodes, arcs }: graphOfPattern), a ground vehicle's route (GROUND-VEHICLE G2940) all go through it.
+//   nodes [{ id, x, z, ... }]   edges [{ id, a, b, len, pts?: [[x, z]...] (a -> b), ... }]   (undirected)
+//   -> { nodes, edges, node(id), edge(id), adj(id), path(a, b, weight?) -> { nodes, edges, len } | null (Dijkstra, a
+//        binary heap; weight(e) defaults to e.len, Infinity or NaN closes an edge), components() -> [[ids]],
+//        nodeAt(x, z, r) -> the nearest node within r, edgeAt(x, z, maxD) -> { edge, d } (by its pts, the segment grid) }
+function graphMake(nodes0, edges0) {
+  const nodes = new Map(), adj = new Map(), byE = new Map(), edges = [];
+  for (const n of nodes0 || []) if (n && n.id != null && !nodes.has(n.id)) { nodes.set(n.id, n); adj.set(n.id, []); }
+  for (const e of edges0 || []) { if (!e || !nodes.has(e.a) || !nodes.has(e.b) || byE.has(e.id)) continue; edges.push(e); byE.set(e.id, e); adj.get(e.a).push(e); if (e.b !== e.a) adj.get(e.b).push(e); }
+  const other = (e, id) => (e.a === id ? e.b : e.a);
+  function path(a, b, weight) {
+    if (!nodes.has(a) || !nodes.has(b)) return null;
+    const W = weight || (e => e.len), dist = new Map([[a, 0]]), prev = new Map(), done = new Set(), H = [];
+    const up = i => { while (i > 0) { const p = (i - 1) >> 1; if (H[p][0] <= H[i][0]) break; const t = H[p]; H[p] = H[i]; H[i] = t; i = p; } };
+    const down = i => { for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < H.length && H[l][0] < H[m][0]) m = l; if (r < H.length && H[r][0] < H[m][0]) m = r; if (m === i) return; const t = H[m]; H[m] = H[i]; H[i] = t; i = m; } };
+    const push = q => { H.push(q); up(H.length - 1); };
+    const pop = () => { const t = H[0], l = H.pop(); if (H.length) { H[0] = l; down(0); } return t; };
+    push([0, a]);
+    while (H.length) {
+      const [d, u] = pop(); if (done.has(u)) continue; done.add(u); if (u === b) break;
+      for (const e of adj.get(u)) { const w = +W(e); if (!(w >= 0) || !isFinite(w)) continue; const v = other(e, u), nd = d + w; if (nd < (dist.has(v) ? dist.get(v) : Infinity)) { dist.set(v, nd); prev.set(v, [u, e]); push([nd, v]); } }
+    }
+    if (!done.has(b)) return null;
+    const ns = [b], es = []; for (let c = b; c !== a;) { const [u, e] = prev.get(c); es.push(e.id); ns.push(u); c = u; }
+    return { nodes: ns.reverse(), edges: es.reverse(), len: dist.get(b) };
+  }
+  function components() {
+    const seen = new Set(), out = [];
+    for (const id of nodes.keys()) { if (seen.has(id)) continue; const c = [], st = [id]; seen.add(id); while (st.length) { const u = st.pop(); c.push(u); for (const e of adj.get(u)) { const v = other(e, u); if (!seen.has(v)) { seen.add(v); st.push(v); } } } out.push(c); }
+    return out.sort((p, q) => q.length - p.length);
+  }
+  function nodeAt(x, z, r) { let best = null, bd = r > 0 ? r : Infinity; for (const n of nodes.values()) { const d = Math.hypot(n.x - x, n.z - z); if (d <= bd) { bd = d; best = n; } } return best; }
+  function edgeAt(x, z, maxD) {
+    let best = null, bd = maxD > 0 ? maxD : Infinity;
+    for (const e of edges) { if (!e.pts || e.pts.length < 2) continue; const b = e.bb || (e.bb = polyBBox(e.pts)); if (x < b.x0 - bd || x > b.x1 + bd || z < b.z0 - bd || z > b.z1 + bd) continue; const d = roadDist(e, x, z); if (d < bd) { bd = d; best = e; } }
+    return best ? { edge: best, d: bd } : null;
+  }
+  return { nodes: Array.from(nodes.values()), edges, node: id => nodes.get(id) || null, edge: id => byE.get(id) || null, adj: id => adj.get(id) || [], path, components, nodeAt, edgeAt };
+}
+// the taxi pattern's graph (25_airfield.js sitePattern: nodes { id, x, z, kind }, arcs [idA, idB]) through the same router
+function graphOfPattern(P) {
+  const ns = ((P && P.nodes) || []).map(n => ({ id: n.id, x: +n.x, z: +n.z, kind: n.kind }));
+  const at = new Map(ns.map(n => [n.id, n]));
+  const es = ((P && P.arcs) || []).filter(a => at.has(a[0]) && at.has(a[1])).map((a, i) => { const p = at.get(a[0]), q = at.get(a[1]); return { id: 'arc' + i, a: a[0], b: a[1], len: Math.hypot(q.x - p.x, q.z - p.z), pts: [[p.x, p.z], [q.x, q.z]] }; });
+  return graphMake(ns, es);
+}
+// A ROAD'S JUNCTIONS (contract v1.37, G2950): `roads[].nodes` [id | null, ...] beside `pts` (one slot a point, as `tan`): a
+// waypoint carrying an id IS that junction - every road whose waypoint carries the same id meets there (one node of the
+// graph). The waypoints stay the user's: no step of the composer, the migrator or the graph ever writes `pts`; a junction
+// is drawn where its roads' waypoints are (the editor keeps them on one spot: a snap, a junction's drag). `junctions` [{ id,
+// name?, conn? }] names a junction and marks a CONNECTION POINT (a place's edge waypoint other roads are meant to join).
+function junctionIds(rec) {
+  const s = new Set();
+  for (const r of (rec.layers && rec.layers.roads) || []) for (const id of (r && Array.isArray(r.nodes) ? r.nodes : [])) if (id) s.add(id);
+  for (const j of (rec.layers && rec.layers.junctions) || []) if (j && j.id) s.add(j.id);
+  return s;
+}
+function newJunctionId(rec, prefix) {
+  const used = junctionIds(rec);
+  for (const k of LAYERS) for (const e of rec.layers[k] || []) if (e && e.id) used.add(e.id);
+  const p = prefix || 'j';
+  for (let i = 1; ; i++) if (!used.has(p + i)) return p + i;
+}
+// (G2950) A JUNCTION ON A STRAIGHT SPAN IS NO CORNER: a waypoint carrying a junction id that lies on the straight line
+// between its neighbours (within 1 cm - a crossing's waypoint inserted on both streets, cm-rounded) is read by the
+// composition as no point at all - the road's grade samples, its plots, its pavement are the road's before the junction
+// was made; `wp` keeps the waypoints (where the junctions are). A spline road keeps every point (each one shapes it).
+function straightOf(r) {
+  if (!Array.isArray(r.nodes) || r.curve === 'spline' || r.pts.length < 3) return r;
+  const P = r.pts, out = [P[0]];
+  for (let i = 1; i + 1 < P.length; i++) {
+    const a = out[out.length - 1], p = P[i], b = P[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz);
+    const t = L > 1e-9 ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / (L * L) : -1;
+    if (r.nodes[i] && t > 0 && t < 1 && Math.abs((p[0] - a[0]) * dz - (p[1] - a[1]) * dx) / L < 0.01 && !(p.length > 2 || a.length > 2 || b.length > 2)) continue;
+    out.push(p);
+  }
+  out.push(P[P.length - 1]);
+  return out.length === P.length ? r : Object.assign({}, r, { pts: out, wp: P });
+}
 // the line a road is drawn on: its spline, its fillet radius (v1.19) or its points
 const roadLine = r => (r.curve === 'spline' ? roadCurve(r.pts, r.tan) : r.smooth ? smoothPath(r.pts, r.smooth) : r.pts);
 
@@ -1920,7 +2395,7 @@ const roadLine = r => (r.curve === 'spline' ? roadCurve(r.pts, r.tan) : r.smooth
 function roundPoly(R) {
   const n = Math.max(12, Math.min(128, Math.round(+R.n || 48))), r = Math.max(1, +R.r || 10), c = R.c;
   const out = [];
-  for (let k = 0; k < n; k++) { const a = 2 * Math.PI * k / n; out.push([+(c[0] + Math.cos(a) * r).toFixed(3), +(c[1] + Math.sin(a) * r).toFixed(3)]); }
+  for (let k = 0; k < n; k++) { const a = 2 * Math.PI * k / n; out.push([+(c[0] + CORE_MATH.cos(a) * r).toFixed(3), +(c[1] + CORE_MATH.sin(a) * r).toFixed(3)]); }
   return out;   // counter-clockwise (+x toward +z)
 }
 const roundOk = R => !!(R && Array.isArray(R.c) && isFinite(+R.c[0]) && isFinite(+R.c[1]) && +R.r > 0);
@@ -1930,6 +2405,13 @@ const roadClearOf = r => (!r || r.clear === null || r.clear === undefined || r.c
 // A PLOT'S GROUND (contract v1.35, G2890; the user: "an option to disable plot ground drawing for the houses. The ones
 // on the shore draw grass up till the sea"): a zone's `rules.ground === false` takes the lot patch and the lawn off every
 // plot it sows, `rules.noGround` [plot ids] off those plots alone; a site item's `P.plotGround === false` off its own lot
+// A PLOT'S FENCE (G3007; the user: "we need an option to turn off the fencing around the plots too"): a zone's
+// `rules.fences === false` takes the fence off every plot it sows, `rules.noFence` [plot ids] off those plots alone (the
+// plot's boundary, its house and the rest of its lot as they were); absent - today's fences, every plot record the same
+function plotFenceOff(zone, plotId) {
+  const R = (zone && zone.rules) || {};
+  return R.fences === false || (Array.isArray(R.noFence) && R.noFence.indexOf(plotId) >= 0);
+}
 function plotGroundOff(zone, plotId) {
   const R = (zone && zone.rules) || {};
   return R.ground === false || (Array.isArray(R.noGround) && R.noGround.indexOf(plotId) >= 0);
@@ -1954,7 +2436,7 @@ function plotGroundOff(zone, plotId) {
 // came from (GATE PREMISES: every fixture and Jolene, sample for sample), and nothing past compose knows areas exist.
 // The v1 -> v2 migrator folds every polygon entry not on a stage, the same `poly` exactly into one area (one entry of a
 // layer an area); a terrain grade (a line), a zone that sows, a staged entry stay what they were.
-const AREA_PROPS = ['terraform', 'wheels', 'draw', 'marks', 'exclude', 'cover'];
+const AREA_PROPS = ['terraform', 'wheels', 'draw', 'marks', 'exclude', 'cover', 'roadside'];   // (v1.37: roadside - an apron's junction, G2953)
 const AREA_LAYERS = ['terrain', 'surface', 'material', 'exclude', 'ttype', 'zones'];
 const AREA_SLOT = { terrain: 'terraform', surface: 'wheels', material: 'draw', exclude: 'exclude', zones: 'exclude', ttype: 'cover' };
 const AREA_SUFFIX = { terrain: '~t', surface: '~w', material: '~d', exclude: '~x', zones: '~x', ttype: '~c' };
@@ -1967,12 +2449,12 @@ const MARK_DEF = { parking: { bay: 2.7, depth: 5.5, aisle: 6.5, inset: 1, line: 
 // a ROUNDED RECTANGLE (the shape of a parking lot, a dock's quay): its polygon, counter-clockwise like roundPoly's
 function rectPoly(Q) {
   const hw = Math.max(0.5, +Q.hw || 5), hd = Math.max(0.5, +Q.hd || 5), r = clamp(+Q.radius || 0, 0, Math.min(hw, hd) * 0.999);
-  const yaw = +Q.yaw || 0, cs = Math.cos(yaw), sn = Math.sin(yaw), c = Q.c, out = [];
+  const yaw = +Q.yaw || 0, cs = CORE_MATH.cos(yaw), sn = CORE_MATH.sin(yaw), c = Q.c, out = [];
   const put = (x, z) => out.push([+(c[0] + x * cs - z * sn).toFixed(3), +(c[1] + x * sn + z * cs).toFixed(3)]);
   const cen = [[hw - r, hd - r], [-(hw - r), hd - r], [-(hw - r), -(hd - r)], [hw - r, -(hd - r)]];
   for (let k = 0; k < 4; k++) {
     if (r <= 0.01) { put(k === 0 || k === 3 ? hw : -hw, k < 2 ? hd : -hd); continue; }
-    for (let i = 0; i <= 6; i++) { const a = (k + i / 6) * Math.PI / 2; put(cen[k][0] + Math.cos(a) * r, cen[k][1] + Math.sin(a) * r); }
+    for (let i = 0; i <= 6; i++) { const a = (k + i / 6) * Math.PI / 2; put(cen[k][0] + CORE_MATH.cos(a) * r, cen[k][1] + CORE_MATH.sin(a) * r); }
   }
   return out;
 }
@@ -2097,7 +2579,7 @@ function areaOfEntry(rec, id) {
 function areaMarks(poly, spec, frame, water) {
   const S = Object.assign({}, MARK_DEF[spec && spec.kind] || {}, spec || {}), out = { rects: [], segs: [], kind: S.kind, n: 0, issues: [] };
   if (!Array.isArray(poly) || poly.length < 3 || MARK_DEF[S.kind] === undefined) return out;
-  const yaw = +(frame && frame.yaw) || 0, c = Math.cos(yaw), sn = Math.sin(yaw);
+  const yaw = +(frame && frame.yaw) || 0, c = CORE_MATH.cos(yaw), sn = CORE_MATH.sin(yaw);
   const bb = polyBBox(poly), cx = frame && isFinite(frame.cx) ? frame.cx : (bb.x0 + bb.x1) / 2, cz = frame && isFinite(frame.cz) ? frame.cz : (bb.z0 + bb.z1) / 2;
   const P = poly.map(q => { const dx = q[0] - cx, dz = q[1] - cz; return [dx * c + dz * sn, -dx * sn + dz * c]; });
   const kind = S.colour === 'white' ? 0 : 1, ins = Math.max(0, +S.inset || 0);
@@ -2211,7 +2693,8 @@ function compose(rec0, world, opts) {
   // unstaged record is untouched, and a staged one composes exactly as its stageView would
   const SV = stageView(normalise(rec0), o.tracks);
   // (v1.36: the areas composed as the v1 entries they expand into - expandAreas; O.rec is that record)
-  const rec = expandAreas(SV.staged ? normalise(SV.rec) : normalise(rec0));
+  const recA = SV.staged ? normalise(SV.rec) : normalise(rec0), areasRaw = recA.layers.areas.slice();   // (G2953: the roadside aprons read the areas themselves)
+  const rec = expandAreas(recA);
   const F = frameOf(rec, world);
   const mods = [];
   for (const m of rec.layers.terrain) { const M = makeModifier(m, F.y0); if (M) mods.push(M); }
@@ -2222,17 +2705,24 @@ function compose(rec0, world, opts) {
   // rule: flat across, the profile smoothed along); a surface strip of its class
   // `smooth` (v1.19) is applied HERE, once, so every reader sees the same line
   // (v1.35: `curve: 'spline'` the same way - roadLine)
-  const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2)
-    .map(r => (r.curve === 'spline' || r.smooth ? Object.assign({}, r, { pts: roadLine(r) }) : r));
+  const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2).map(straightOf)
+    .map(r => (r.curve === 'spline' || r.smooth ? Object.assign({}, r, { pts: roadLine(r), wp: r.wp || r.pts }) : r));   // (G2950: `wp` its waypoints, where its junctions are)
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
   // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
   const roadObjs = roads.map(r => Object.assign({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
-    look: roadLook(r).key, band: r.band === undefined ? null : r.band, pav: r.pav || null }, roadClearOf(r) !== null ? { clear: roadClearOf(r) } : {}));   // (G2918: its own clearing) the pavement's (v1.16)
+    look: roadLook(r).key, band: r.band === undefined ? null : r.band, pav: r.pav || null }, roadClearOf(r) !== null ? { clear: roadClearOf(r) } : {},
+    // G2893 (SCENERY-ED-1; the user: "no effect of enabling/disabling power lines and guardrails on roads"): the guardrail and the
+    // power line read THIS object (render_premises buildRail / buildLine: rd.rail, rd.poles, rd.polesSide), which never carried
+    // them - every road 'auto' whatever the inspector wrote, since the port (G385). Carried when the record says one (a road
+    // without composes as before)
+    typeof r.rail === 'string' && r.rail ? { rail: r.rail } : {}, typeof r.poles === 'string' && r.poles ? { poles: r.poles } : {},
+    (+r.polesSide === 1 || +r.polesSide === -1) ? { polesSide: +r.polesSide } : {}));   // (G2918: its own clearing) the pavement's (v1.16)
   const nAuth = mods.length;
   // THE RUNWAYS (stage 2, BEFORE the roads - v1.2: a taxi road near a strip must sit on the strip's graded ground, so its nodes are read after the runway grades): a DERIVED grade along the centreline at elev + slope * s
   // (elev = T1 at the centre), a DERIVED surface strip of the record's class,
   // a DERIVED tree exclude 30 m round the box, and the aerodrome record
   const runways = rec.layers.runways.filter(r => r.c && r.len > 0 && r.wid > 0).map(r => Object.assign({}, RUNWAY_DEF, r));
+  { const byId = new Map(roads.map(q => [q.id, q])); for (const r of runways) waysVia(r, byId); }   // (G3092: a way out that follows a road)
   const aerodromes = [];
   for (const r of runways) {
     const E = runwayEnds(r);
@@ -2279,6 +2769,7 @@ function compose(rec0, world, opts) {
   }
   // THE ROADS (stage 3): a road's nodes sit on the ground AFTER the runways graded it
   const T1r = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
+  const JH = new Map();   // (G2950) a junction's height: the first road graded through it sets it
   for (const r of roads) {
     if (r.graded === false) continue;
     // THE ROAD FOLLOWS THE GROUND (v6): its grade is read every 6 m along the traced line, not only at
@@ -2288,7 +2779,29 @@ function compose(rec0, world, opts) {
     for (let i = 0; i + 1 < r.pts.length; i++) { const a = r.pts[i], b = r.pts[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(L / 6)); for (let k = 0; k < n; k++) { const u = k / n; dense.push([a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]); } }
     dense.push(r.pts[r.pts.length - 1]);
     let hs = dense.map(p => T1r(p[0], p[1]));
+    // THE ROAD BED (contract v1.37, G2952; the user, 11 Oct: "the road is sunk in many places. Maybe build a little bank or
+    // something, ensuring the paved surface is always visible"): a road with `bed` stands on its own bed - its surface is
+    // never under the ground ACROSS its paved width (the edges read too, plus `fill`), the dips are FILLED to its grade
+    // (an embankment, never a cut: a road over the ground stands over any coarse mesh of it), and its banks run `bank`
+    // metres back to the terrain. Without `bed` (every shipped road): today's road, to the bit.
+    const BED = bedOf(r);
+    let floor = null;
+    if (BED) {
+      const hw = (+r.w || 3.6) / 2;
+      floor = dense.map((p, i) => {
+        const a = dense[Math.max(0, i - 1)], b = dense[Math.min(dense.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l;
+        return Math.max(hs[i], T1r(p[0] + nx * hw, p[1] + nz * hw), T1r(p[0] - nx * hw, p[1] - nz * hw)) + BED.fill;
+      });
+      hs = floor.slice();
+    }
     for (let pass = 0; pass < 4; pass++) hs = hs.map((h, i) => (i === 0 || i === hs.length - 1) ? h : (hs[i - 1] + 2 * h + hs[i + 1]) / 4);
+    if (BED) {
+      // back over the ground where the smoothing took a crest under it, then the dips filled to the bed's grade both ways
+      const g = BED.grade, ds = i => Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]);
+      for (let i = 0; i < hs.length; i++) if (hs[i] < floor[i]) hs[i] = floor[i];
+      for (let i = 1; i < hs.length; i++) hs[i] = Math.max(hs[i], hs[i - 1] - g * ds(i));
+      for (let i = hs.length - 2; i >= 0; i--) hs[i] = Math.max(hs[i], hs[i + 1] - g * ds(i + 1));
+    }
     // THE GRADE LIMIT (G434, contract v1.14): `grade` is the steepest the road may run - the humps
     // are CUT to it and the dips FILLED (a lower then an upper envelope of that slope, both ways),
     // the ends held where they meet the ground; a taxiway across a 4 m mound had climbed 8 % and
@@ -2302,10 +2815,42 @@ function compose(rec0, world, opts) {
       for (let i = hs.length - 2; i >= 0; i--) hs[i] = Math.max(hs[i], hs[i + 1] - g * ds(i + 1));
       hs[0] = h0; hs[hs.length - 1] = h1;
     }
+    // THE JUNCTIONS' LEVEL (v1.37, G2950): the roads through a junction meet it at ONE height. A road that ENDS there (a
+    // spur) takes the height the junction has; a road that passes THROUGH it takes it from a road crossing it before (a
+    // crossing: the first graded sets it) but never from a spur's end - the through road is graded as it is, and sets the
+    // height for the roads after it. Held 7 m either side of the waypoint, eased back over 7 more. A road without junction
+    // ids: today's, to the bit.
+    let jAt = null;
+    if (Array.isArray(r.nodes) && r.nodes.some(Boolean)) {
+      const W = r.wp || r.pts, s = [0];
+      for (let k = 1; k < dense.length; k++) s.push(s[k - 1] + Math.hypot(dense[k][0] - dense[k - 1][0], dense[k][1] - dense[k - 1][1]));
+      jAt = [];
+      let k0 = 0;
+      for (let i = 0; i < W.length && i < r.nodes.length; i++) {
+        let best = k0, bd = Infinity; for (let k = k0; k < dense.length; k++) { const d = Math.hypot(dense[k][0] - W[i][0], dense[k][1] - W[i][1]); if (d < bd) { bd = d; best = k; } if (bd < 0.01 || (s[k] - s[k0] > 400 && bd < 30)) break; }
+        k0 = best;
+        const jid = r.nodes[i]; if (!jid) continue;
+        // the waypoint's own place along the line (its projection on the samples' segments either side: a junction on a
+        // straight span is no sample of its own - straightOf - and the height is read there, not at the nearest sample)
+        let sj = s[best], pd = bd;
+        for (const k of [best - 1, best]) { if (k < 0 || k + 1 >= dense.length) continue; const a = dense[k], b = dense[k + 1], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz; if (l2 < 1e-12) continue; const t = Math.max(0, Math.min(1, ((W[i][0] - a[0]) * dx + (W[i][1] - a[1]) * dz) / l2)), d = Math.hypot(a[0] + dx * t - W[i][0], a[1] + dz * t - W[i][1]); if (d < pd) { pd = d; sj = s[k] + t * (s[k + 1] - s[k]); } }
+        const isEnd = i === 0 || i === W.length - 1;
+        jAt.push([jid, sj, isEnd]);
+        if (!JH.has(jid) || (!isEnd && JH.get(jid).end)) continue;
+        const H = JH.get(jid).h;
+        for (let k = 0; k < dense.length; k++) { const d = Math.abs(s[k] - sj); if (d >= 14) continue; const u = d <= 7 ? 0 : (d - 7) / 7, w = u * u * (3 - 2 * u); hs[k] = H + (hs[k] - H) * w; }
+      }
+      jAt.s = s;
+    }
     // a level approach at both ends: a road that starts on another road (a spur off the shore road) must
     // not lift the first road's edge on its first metres - the height is held for 7 m from each end
     { let acc = 0; for (let i = 1; i < dense.length; i++) { acc += Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]); if (acc < 7) hs[i] = hs[0]; else break; } acc = 0; for (let i = dense.length - 2; i >= 0; i--) { acc += Math.hypot(dense[i][0] - dense[i + 1][0], dense[i][1] - dense[i + 1][1]); if (acc < 7) hs[i] = hs[dense.length - 1]; else break; } }
-    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: +r.w || 3.6, falloff: +r.falloff || 6, abs: true }, F.y0);
+    if (jAt) {
+      // the road's height AT each junction's place (between its samples) - what the roads after it meet
+      const s = jAt.s, hAtS = sj => { let k = 0; while (k + 2 < s.length && s[k + 1] < sj) k++; const L = s[k + 1] - s[k]; return L > 1e-9 ? hs[k] + (hs[k + 1] - hs[k]) * Math.max(0, Math.min(1, (sj - s[k]) / L)) : hs[k]; };
+      for (const [jid, sj, isEnd] of jAt) if (!JH.has(jid) || (!isEnd && JH.get(jid).end)) JH.set(jid, { h: hAtS(sj), end: isEnd });
+    }
+    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: (+r.w || 3.6) + (BED ? 2 * BED.shoulder : 0), falloff: BED ? BED.bank : (+r.falloff || 6), abs: true }, F.y0);
     if (M) mods.push(M);
   }
   // THE GROUND UNDER THE SITES (stage 5 -> T2): every item's shelf, from its entry, cut before anything is placed
@@ -2844,7 +3389,7 @@ function compose(rec0, world, opts) {
           // the nearest open ground beyond the reach: rings of 8 directions, 10 m apart, out to 120 m
           let code = -1;
           for (let r = g.cell; r <= 120 && code < 0; r += g.cell) for (let q = 0; q < 8 && code < 0; q++) {
-            const x = cx + Math.cos(q * Math.PI / 4) * r, z = cz + Math.sin(q * Math.PI / 4) * r, L2 = F.toLocal(x, z);
+            const x = cx + CORE_MATH.cos(q * Math.PI / 4) * r, z = cz + CORE_MATH.sin(q * Math.PI / 4) * r, L2 = F.toLocal(x, z);
             if (b.sd(L2[0], L2[1]) <= b.reach) continue;
             const c = codeAt(x, z); if (c >= 0 && BAND_SKIP.indexOf(c) < 0) code = c;
           }
@@ -3053,6 +3598,54 @@ function compose(rec0, world, opts) {
     inExtent(x, z) { const L = F.toLocal(x, z); return inBB(ext, L[0], L[1]); },
     records: { plots: [], trees: [], items: [], links: [], issues: [], excludes: excl.filter(e => !e.roadClear).map(e => e.poly) },   // (G2918: a road's clearing is the trees' and the grass's, not a plot's)
   };
+  // ---- THE ROAD GRAPH (contract v1.37, G2950 ROAD-GRAPH; the user: "a scenic tour of the island's roads, probably with a
+  // simple car ... it would be good that we have the premises of a graph then") - made on its first ask, kept with the
+  // composition. NODES: every junction (the waypoints sharing an id, one node), every road's two ends (`<road>:0`, `<road>:1`
+  // unless a junction is there), every roadside apron's node; EDGES: each road's spans between its nodes, on its DRAWN line
+  // (the spline, the junction extension) in world metres - len, w, cls, surface, look, grade (the steepest along, from the
+  // composed ground). A node carries `roads` (the roads through it), `name` / `conn` (the junctions layer: a CONNECTION
+  // POINT), `aprons` (a roadside apron: { area, use, poly, centre, r - the room to turn }). The API is graphMake's.
+  let RG = null;
+  O.roadGraph = () => {
+    if (RG) return RG;
+    const names = new Map(); for (const j of rec.layers.junctions || []) if (j && j.id) names.set(j.id, j);
+    const nodes = new Map(), edges = [];
+    const nodeFor = (id, lx, lz) => { let n = nodes.get(id); if (!n) { const w = F.toWorld(lx, lz); n = { id, x: w[0], z: w[1], lx, lz, roads: [], aprons: [] }; const J = names.get(id); if (J) { if (J.name) n.name = J.name; if (J.conn) n.conn = J.name || true; } nodes.set(id, n); } return n; };
+    const byId = new Map(roadObjs.filter(ro => !ro.runway).map(ro => [ro.id, ro]));
+    for (const r of rec.layers.roads) {
+      const ro = byId.get(r.id); if (!ro || !r.pts || r.pts.length < 2 || !ro.pts || ro.pts.length < 2) continue;
+      const P = r.pts, D = ro.pts, last = P.length - 1;
+      // each waypoint on the drawn line: the nearest drawn point, searched forward (a spline passes through its points)
+      const at = []; let k0 = 0;
+      for (let i = 0; i <= last; i++) {
+        let best = k0, bd = Infinity, run = 0, lim = (i < last ? Math.hypot(P[i + 1][0] - P[i][0], P[i + 1][1] - P[i][1]) : 0) * 3 + 60;
+        for (let k = k0; k < D.length; k++) { if (k > k0) run += Math.hypot(D[k][0] - D[k - 1][0], D[k][1] - D[k - 1][1]); const d = Math.hypot(D[k][0] - P[i][0], D[k][1] - P[i][1]); if (d < bd) { bd = d; best = k; } if (run > lim && bd < 50) break; }
+        at.push(best); k0 = best;
+      }
+      const ids = P.map((q, i) => (Array.isArray(r.nodes) && r.nodes[i]) || (i === 0 ? r.id + ':0' : i === last ? r.id + ':1' : null));
+      const split = []; ids.forEach((id, i) => { if (id) split.push(i); });
+      for (let s = 0; s + 1 < split.length; s++) {
+        const i0 = split[s], i1 = split[s + 1], d0 = s === 0 ? 0 : at[i0], d1 = s + 2 === split.length ? D.length - 1 : at[i1];
+        const A = nodeFor(ids[i0], P[i0][0], P[i0][1]), B = nodeFor(ids[i1], P[i1][0], P[i1][1]);
+        const pts = D.slice(Math.min(d0, d1), Math.max(d0, d1) + 1).map(q => F.toWorld(q[0], q[1]));
+        let len = 0; for (let q = 1; q < pts.length; q++) len += Math.hypot(pts[q][0] - pts[q - 1][0], pts[q][1] - pts[q - 1][1]);
+        edges.push({ id: r.id + '#' + s, road: r.id, a: A.id, b: B.id, pts, len, w: ro.w, cls: r.cls || null, surface: ro.surface, look: ro.look });
+        if (A.roads.indexOf(r.id) < 0) A.roads.push(r.id); if (B.roads.indexOf(r.id) < 0) B.roads.push(r.id);
+      }
+    }
+    // the roadside aprons: an area whose `roadside` names a junction - the node a vehicle turns or stops from
+    for (const a of areasRaw) {
+      const RS = a && a.props && a.props.roadside; if (!RS || !RS.node || !nodes.has(RS.node) || !a.poly || a.poly.length < 3) continue;
+      const poly = a.poly.map(q => F.toWorld(q[0], q[1])), c = polyCentroid(poly);
+      let r0 = Infinity; for (let i = 0; i < poly.length; i++) r0 = Math.min(r0, distPtSeg(c[0], c[1], poly[i], poly[(i + 1) % poly.length]));
+      nodes.get(RS.node).aprons.push({ area: a.id, use: Array.isArray(RS.use) ? RS.use.slice() : ['turn', 'stop'], poly, centre: c, r: +r0.toFixed(2) });
+    }
+    // each node's height and each edge's steepest grade, off the composed ground
+    for (const n of nodes.values()) n.y = O.terrainAt(n.x, n.z);
+    for (const e of edges) { let g = 0, hPrev = null, sPrev = 0, s = 0; for (let q = 0; q < e.pts.length; q++) { if (q) s += Math.hypot(e.pts[q][0] - e.pts[q - 1][0], e.pts[q][1] - e.pts[q - 1][1]); if (hPrev === null || s - sPrev >= 6 || q === e.pts.length - 1) { const h = O.terrainAt(e.pts[q][0], e.pts[q][1]); if (hPrev !== null && s > sPrev) g = Math.max(g, Math.abs(h - hPrev) / (s - sPrev)); hPrev = h; sPrev = s; } } e.grade = +g.toFixed(4); }
+    RG = graphMake(Array.from(nodes.values()), edges);
+    return RG;
+  };
   // ---- coverAt's index (v1.17): every pavement's reach and every plot, in 64 m cells ------------
   const CIDX = SpatialIndex(64);
   const covItems = [];
@@ -3145,7 +3738,7 @@ function compose(rec0, world, opts) {
       // a grass pavement is the world's grass with the wear drawn on it: thinned, not bare - except a STRIP's
       // surface, where no grass grows at all (G665, the user: "the runways should be able excluding the grass")
       if (it.cls === 'grass' && !(it.kind === 'strip' && d >= 0)) k *= 0.6;
-      const bump = out <= it.band ? 0 : (out < it.band + PAVE_FADE + 6 ? Math.sin(Math.PI * Math.min(1, (out - it.band) / (PAVE_FADE + 6))) : 0);
+      const bump = out <= it.band ? 0 : (out < it.band + PAVE_FADE + 6 ? CORE_MATH.sin(Math.PI * Math.min(1, (out - it.band) / (PAVE_FADE + 6))) : 0);
       // a soft road's own edge is where the grass creeps in: the bump reaches into its last metre
       const soft = it.soft && d > 0 && d < 1 ? 0.5 * (1 - d) : 0;
       if (k > kill) { kill = k; }
@@ -3203,7 +3796,7 @@ function compose(rec0, world, opts) {
         if (it.cls === 'grass') k *= 0.6;
         if (out > it.band) c = out <= mow ? 1 : Math.max(0, 1 - (out - mow) / blend);
       }
-      if (out > v0 && out < v0 + VERGE) boost = Math.max(boost, 0.7 * Math.sin(Math.PI * (out - v0) / VERGE));
+      if (out > v0 && out < v0 + VERGE) boost = Math.max(boost, 0.7 * CORE_MATH.sin(Math.PI * (out - v0) / VERGE));
       if (k > kill) kill = k;
       if (c > cut) cut = c;
     }
@@ -3291,7 +3884,7 @@ function compose(rec0, world, opts) {
         let best = -Infinity;
         for (let k = 0; k < n; k++) {
           const a = Math.PI * 2 * k / n;
-          const w = F.toWorld(lx + Math.cos(a) * r, lz + Math.sin(a) * r);
+          const w = F.toWorld(lx + CORE_MATH.cos(a) * r, lz + CORE_MATH.sin(a) * r);
           const v = world.waterH(w[0], w[1]);
           if (isFinite(v) && v > best) best = v;
         }
@@ -3302,6 +3895,23 @@ function compose(rec0, world, opts) {
     // (G2918: a road's clearing keeps the TREES and the grass out, never the plots a zone sows along it - the forest's planting
     // takes it below, the sower does not)
     const ctx = { T: O.localH, waterY, waterAt, seed: rec.seed, excludes: excl.filter(e => e.what.indexOf('trees') >= 0 && !e.roadClear).map(e => e.poly), plots: O.records.plots, keepOut: excl.filter(e => e.what.indexOf('plots') >= 0).map(e => e.poly) };
+    // (G2960) the zones' memo for this composition, and the key of a zone's inputs (see zoneMemoOf)
+    const ZM = zoneMemoOf(world, o, JSON.stringify([rec.seed, themeOf(rec), Object.keys(catS || {}).sort().join(), o.rwyTrees || null, !!o.raster, typeof STAGE_V !== 'undefined' ? STAGE_V : 0]));
+    const zmApart = (a, b) => a.x1 < b.x0 || b.x1 < a.x0 || a.z1 < b.z0 || b.z1 < a.z0;
+    const zmBoxOf = (pts, pad) => { const b = polyBBox(pts); return { x0: b.x0 - pad, z0: b.z0 - pad, x1: b.x1 + pad, z1: b.z1 + pad }; };
+    const zmKey = (z, c, rds, forest) => {
+      const B = zmBoxOf(z.poly, ZMEMO_M), meets = (pts, pad) => !!(pts && pts.length) && !zmApart(zmBoxOf(pts, pad || 0), B);
+      const G = [], seenM = new Set();
+      index.rect(B.x0, B.z0, B.x1, B.z1, M => { if (!seenM.has(M) && !zmApart(M.bbox, B)) { seenM.add(M); G.push(M); } });
+      G.sort((p, q) => p.ord - q.ord);
+      return JSON.stringify([z, c.waterY, c.seed,
+        rds.filter(r => r && meets(r.pts, (+r.w || 3.6) / 2 + 2)).map(r => [r.id, r.pts, r.w]),
+        (c.excludes || []).filter(p => meets(p)), (c.keepOut || []).filter(p => meets(p)),
+        (c.plots || []).filter(p => p && meets(p.poly)).map(p => [p.id, p.poly]),
+        forest ? (c.trees || []).filter(t => t && t.x >= B.x0 - 30 && t.x <= B.x1 + 30 && t.z >= B.z0 - 30 && t.z <= B.z1 + 30) : null,
+        forest ? c.pool : null,
+        G.map(M => [M.def, M.y0])]);   // (in their apply order - the sort - not their place in the whole list: a strip added far away moves every ord)
+    };
     // THE SITES (stage 5a): placed first; every item's foot + margin keeps the plots and the wood out
     const cat = catS;
     for (const st of rec.layers.sites) {
@@ -3324,7 +3934,8 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; O.records.plots.push(p); n++; }
+        { let n = 0; const zc = Object.assign({}, ctx, { waterY: zoneWaterY(z) });
+          for (const p of zoneMemoRun(ZM, 'sow', z.id, () => zmKey(z, zc, roads, null), () => sowPlots(z, roads, zc))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // (v1.33) a zone below its stage's band sowed to hold its land; its plots go now, their ground kept clear of trees
@@ -3391,7 +4002,7 @@ function compose(rec0, world, opts) {
           const front = plan.toWorld(0, plan.local.patch.z1 + 0.6);
           const sway = (prnd() < 0.5 ? -1 : 1) * (3 + prnd() * 3);
           const pts = [];
-          for (let i = 0; i <= 10; i++) { const u = i / 10, sw = Math.sin(u * Math.PI) * sway; pts.push([+(p0[0] + (front[0] - p0[0]) * u + tg[0] * sw).toFixed(3), +(p0[1] + (front[1] - p0[1]) * u + tg[1] * sw).toFixed(3)]); }
+          for (let i = 0; i <= 10; i++) { const u = i / 10, sw = CORE_MATH.sin(u * Math.PI) * sway; pts.push([+(p0[0] + (front[0] - p0[0]) * u + tg[0] * sw).toFixed(3), +(p0[1] + (front[1] - p0[1]) * u + tg[1] * sw).toFixed(3)]); }
           park.path = { pts, width: 1.4 };
           const q = p.poly;
           park.fences = [
@@ -3411,7 +4022,9 @@ function compose(rec0, world, opts) {
     const pool = (typeof o.pool === 'function' ? o.pool() : o.pool) || [];
     const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes.concat(excl.filter(e => e.roadClear).map(e => e.poly)), plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
     for (const z of rec.layers.zones) if (z.kind === 'forest' && z.poly && z.poly.length >= 3 && polySimple(z.poly))
-      for (const t of planForest(z, Object.assign({}, tctx, { waterY: zoneWaterY(z) }))) O.records.trees.push(t);
+      { const zc = Object.assign({}, tctx, { waterY: zoneWaterY(z) });
+        for (const t of zoneMemoRun(ZM, 'forest', z.id, () => zmKey(z, zc, roadObjs, zc), () => planForest(z, zc))) O.records.trees.push(t); }
+    O.zoneMemo = ZM ? { gen: ZM.gen, hits: ZM.hits, misses: ZM.misses } : null;   // (G2960)
     // THE GARDEN TREES ARE GONE (2026-09-23, the user: "I don't want them to be fixed
     // trees, I want to use the normal tree system, and just paint those zones ... never
     // any tree as fixture without its lod system, we take the normal ones, maybe alter
@@ -3433,7 +4046,7 @@ function compose(rec0, world, opts) {
     O.records.objects = [];
     for (const ob of rec.layers.objects) if (ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') {
       if (!ob.key) { O.records.issues.push(ob.kind + ' ' + ob.id + ': no key'); continue; }
-      O.records.objects.push({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' });
+      O.records.objects.push(Object.assign({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' }, objScale(ob)));   // (G3001: the placer's scale reaches the built prop - it was dropped here)
     }
     // THE ANIMALS (contract v1.17, 2026-09-22): a HOTSPOT, not an individual -
     // `n` animals of the species `key` living within `r` metres of (x, z). One
@@ -3489,6 +4102,7 @@ function issues(rec0) {
     if (P.marks && !(P.draw && P.draw.look && RUNWAY_LOOKS[P.draw.look] && RUNWAY_LOOKS[P.draw.look].cls)) out.push('area ' + a.id + ': marks are paint on a pavement - draw it as a pavement first');
     if (P.exclude && P.exclude.what && (!Array.isArray(P.exclude.what) || P.exclude.what.some(w => AREA_EXCLUDE.indexOf(w) < 0))) out.push('area ' + a.id + ': exclude is a list of ' + AREA_EXCLUDE.join(', '));
     if (P.draw && !P.draw.set && !P.draw.look) out.push('area ' + a.id + ': draw has neither a set nor a look');
+    if (P.roadside && (!P.roadside.node || !junctionIds(recA).has(P.roadside.node))) out.push('area ' + a.id + ': a roadside apron names a junction of a road (`roadside.node`)');
   }
   for (const k of ['terrain', 'surface', 'material', 'exclude', 'zones']) for (const e of rec.layers[k]) {
     if (e.kind === 'grade') { if (!e.pts || e.pts.length < 2) out.push(k + ' ' + e.id + ': a grade needs two points'); continue; }
@@ -3513,13 +4127,20 @@ function issues(rec0) {
     if (e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push(what + ': unknown look ' + e.look);
   }
   for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
+  // v1.37 (G2950): a junction's waypoints lie on one spot (the editor keeps them there; a hand edit may not), its id a string
+  { const J = new Map();
+    for (const r of rec.layers.roads) if (Array.isArray(r.nodes)) r.nodes.forEach((id, i) => { if (id === null || id === undefined) return; if (typeof id !== 'string' || !id) { out.push('road ' + r.id + ': its waypoint ' + (i + 1) + ' names a junction that is not a word'); return; } const q = r.pts && r.pts[i]; if (!q) return; let l = J.get(id); if (!l) J.set(id, l = []); l.push([r.id, q]); });
+    for (const [id, l] of J) { let d = 0; for (const [, q] of l) d = Math.max(d, Math.hypot(q[0] - l[0][1][0], q[1] - l[0][1][1])); if (d > 0.05) out.push('junction ' + id + ': its waypoints are ' + d.toFixed(2) + ' m apart (' + l.map(x => x[0]).join(', ') + ')'); } }
   const plotIds = new Set();   // G2310: plot ids are hangar ids - unique in the record
   for (const r of rec.layers.runways) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
-    else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
+    else for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).refuse) out.push(i);
     if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
     if (r.approach !== undefined && r.approach !== null && r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': approach is 0, 1 or null');
+    // (G3098) a drawn flight: dep / appr lists of points, side +-1
+    if (r.fly != null) { const f = r.fly, pts = L => L == null || (Array.isArray(L) && L.every(q => Array.isArray(q) && q.length >= 2 && isFinite(+q[0]) && isFinite(+q[1])));
+      if (typeof f !== 'object' || !pts(f.dep) || !pts(f.appr) || !pts(f.circuit) || (f.side != null && f.side !== 1 && f.side !== -1)) out.push('runway ' + r.id + ': fly is { dep, appr, circuit? (lists of [x, z]), side? +1 / -1, terrainOk? }'); }
     if (r.circuit != null) {
       const c = r.circuit;
       if (typeof c !== 'object') out.push('runway ' + r.id + ': circuit is an object { hand, height, join } or null');
@@ -3533,6 +4154,9 @@ function issues(rec0) {
     if (r.hangar && !(isFinite(+r.hangar.x) && isFinite(+r.hangar.z))) out.push('runway ' + r.id + ': the hangar needs x and z');
     // G2310 (v1.34): the plots - an array of { id, x, z, hdg?, stand?, taxiOut? }, every id unique in the record (a plot
     // id is a hangar id), a stand finite, a way out a list of points, and the first plot (the hangar's) written once
+    // (G3092) a way out that follows a road names one the record has
+    for (const [h, k, who] of [[r, 'taxiOutVia', ''], [r, 'taxiOut1Via', '']].concat((Array.isArray(r.plots) ? r.plots : []).filter(q => q).map(q => [q, 'taxiOutVia', 'plot ' + q.id + ': '])))
+      if (h[k] != null && !(rec.layers.roads || []).some(q => q && q.id === h[k])) out.push('runway ' + r.id + ': ' + who + 'its way out follows road ' + h[k] + ', which is not there');
     if (r.plots != null) {
       if (!Array.isArray(r.plots)) out.push('runway ' + r.id + ': plots is a list of { id, x, z, hdg }');
       else for (const p of r.plots) {
@@ -3557,7 +4181,12 @@ function issues(rec0) {
   for (const s of rec.layers.surface) if (!(s.surface >= 0 && s.surface <= 7)) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
   const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
-  for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0))) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
+  // (t53 OPTION C, 13 Oct: rev 28's 02/20 ENDS on 13/31 - a T, the user's geometry): a strip one of whose ends lies inside the
+  //  other's box while its other end lies outside, at more than 20 deg to it, meets it - not a stack (G3016: both ends
+  //  inside, or side by side, stays an issue)
+  const endsOn = (p, q) => { const E = runwayEnds(p), B = runwayBox(q, 0), i0 = inPoly(B, E.end0[0], E.end0[1]), i1 = inPoly(B, E.end1[0], E.end1[1]);
+    let dh = Math.abs(((p.hdg - q.hdg) % Math.PI + Math.PI) % Math.PI); dh = Math.min(dh, Math.PI - dh); return i0 !== i1 && dh > 20 * Math.PI / 180; };
+  for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0)) && !endsOn(rws[i], rws[j]) && !endsOn(rws[j], rws[i])) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
   for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key');
     if (ob.kind === 'animal') { if (!ob.key) out.push('animal ' + ob.id + ': no species'); if (ob.n !== undefined && (!(+ob.n >= 1) || +ob.n > 24)) out.push('animal ' + ob.id + ': ' + ob.n + ' of them (1 to 24)'); } }
   for (const st of rec.layers.sites) { if (!st.at) out.push('site ' + st.id + ': no anchor'); for (const it of st.items || []) if (!it.key) out.push('site ' + st.id + ': an item without a key'); }
@@ -3605,7 +4234,7 @@ function bake(overlay, world, extent, cell) {
 // a shelf's ground in the premises frame: the pad's rect grown by its larger margin, in the item's frame
 function shelfCovers(sh, lx, lz) {
   if (sh.kind !== 'shelf') return sh.poly ? inPoly(sh.poly, lx, lz) : false;
-  const dx = lx - sh.c[0], dz = lz - sh.c[1], cy = Math.cos(sh.yaw), sy = Math.sin(sh.yaw);
+  const dx = lx - sh.c[0], dz = lz - sh.c[1], cy = CORE_MATH.cos(sh.yaw), sy = CORE_MATH.sin(sh.yaw);
   const x = dx * cy - dz * sy, z = dx * sy + dz * cy, m = Math.max(+sh.marginF || 0, +sh.marginB || 0);
   return x >= sh.rect.x0 - m && x <= sh.rect.x1 + m && z >= sh.rect.z0 - m && z <= sh.rect.z1 + m;
 }
@@ -3630,6 +4259,13 @@ function curvTol(O, F, lx, lz, c, world) {
 }
 
 // the check lines: [{ ok, label }] — the panel draws them, the gate counts them
+// THE WARNINGS (18 Oct): what the editor tells and nothing refuses - a strip's profile past the pilot's or the altiport's
+// limits (profileCheck's `warn`). The ship, the gates and the loaders read issues(); a warning ships.
+function warnings(rec0) {
+  const rec = expandAreas(normalise(rec0)), out = [];
+  for (const r of rec.layers.runways) if (r.c && r.len >= 150 && r.wid >= 8) for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).warn) out.push(i);
+  return out;
+}
 function checks(rec0, world, opts) {
   const recA = normalise(rec0), rec = expandAreas(recA), o = opts || {};
   const lines = [];
@@ -3738,8 +4374,8 @@ function checks(rec0, world, opts) {
 // the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
-const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
-const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', MARINE_GEN: 'marine' };
+const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN', 'NAVAID_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
+const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', NAVAID_GEN: 'navaid', MARINE_GEN: 'marine' };
 function collect(globals) {
   const entries = new Map(), aliases = {}, issuesOut = [];
   for (const g of GENERATORS) {
@@ -3772,14 +4408,14 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
-  fnv, hash32, mulberry32, seedOf, fbm,
+const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+  fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, segIdx, roadClearOf, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
-  makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces,
+  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, lookFeelsAs,
+  makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
-  frameOf, zoneWaterY: zoneWaterYOf, compose, issues, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
+  frameOf, zoneWaterY: zoneWaterYOf, compose, issues, warnings, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
 // standalone in node (GATE PREMISES requires this file) the API is the module; inside the core
 // bundle 90_node_exports.js assigns module.exports after this line and carries PREMISES_GEN itself

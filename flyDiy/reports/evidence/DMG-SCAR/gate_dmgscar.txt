@@ -1,0 +1,107 @@
+GATE DMGSCAR (381 s, 3 builds, the certificate stamped)
+the user's Cub:
+  ok    1 the layer off: no record, no scar, not one damage payload from the hop in a whole 30 m/s crash (the page's bytes)
+  ok    1 a circuit (completed): not one ground contact recorded, no scar
+  ok    1 the 3 m/s taxi into a trunk (only the wheels on the ground): not one contact recorded, no scar
+  ok    1 a drop onto the wheels at 10 ft/s (FAR 23.473 cap): only the wheels touch - nothing recorded, no scar
+  ok    2 a severe drop onto the wheels at 6 m/s: a crash (a gear member broke) - it scars (2 craters, 1 gouges incl. the prop's slot)
+  ok    3 a 3 m/s taxi into a trunk: the same bits with the record and without (b65d92b555b5)
+  ok    2 a nose-over at 4 m/s: the propeller's slot and the nose's crater (3 primitives)
+  ok    2 a nose-over at 4 m/s: 3 primitives (at most 64), every one on the ground under the contacts
+  ok    3 a nose-over at 4 m/s: the same bits with the record and without (af5689ba166f)
+  ok    2 30 m/s into a trunk, the centreline: a scar (16 craters, 5 gouges, 1 sweep; 30.8 m2 torn, 406.6 m2 with the sweep)
+  ok    2 30 m/s into a trunk, the centreline: 22 primitives (at most 64), every one on the ground under the contacts
+  ok    3 30 m/s into a trunk, the centreline: the same bits with the record and without (d0b8caed755b)
+  ok    2 30 m/s into a trunk, 2.5 m out: a scar (8 craters, 11 gouges, 1 sweep; 84.8 m2 torn, 242.7 m2 with the sweep)
+  ok    2 30 m/s into a trunk, 2.5 m out: 20 primitives (at most 64), every one on the ground under the contacts
+  ok    3 30 m/s into a trunk, 2.5 m out: the same bits with the record and without (52db32c1a6e2)
+  ok    3 a drop onto the wheels at 10 ft/s (FAR 23.473 cap): the same bits with the record and without (fc9880d79b52)
+  ok    2 a severe drop onto the wheels at 6 m/s: 3 primitives (at most 64), every one on the ground under the contacts
+  ok    3 a severe drop onto the wheels at 6 m/s: the same bits with the record and without (8ca0cb1fd615)
+  ok    4 the hop: the page's scar is the sim's at every frame, the worker's hop (its window, v8) and the inline one - 2 scar payload(s) (one a sealed event), 3812 B of scar in 55 damage payloads (73389 B in all)
+  ok    5 reset: the scar empty under a new version (v3), sent once, the page's scar empty
+  REPORT  a 3 m/s taxi into a trunk: v0, 0 primitives (0 craters, 0 gouges, 0 sweep), 0.00 m2 (0.00 with the sweep), 0 B; record 0 contacts, 0 frames, 0 seal(s), 0 ms sealing; prop stoppage
+  REPORT  a nose-over at 4 m/s: v1, 3 primitives (1 craters, 1 gouges incl. 1 prop slot, 1 sweep), 1.26 m2 (12.05 with the sweep), 192 B; 73 % of 2831 contact samples in it; record 210984 contacts, 477 frames, 1 seal(s), 0.66 ms sealing; crashed (a fus member broke); prop stoppage
+  REPORT  30 m/s into a trunk, the centreline: v2, 22 primitives (16 craters, 5 gouges, 1 sweep), 30.83 m2 (406.62 with the sweep), 1586 B; 85 % of 11373 contact samples in it; record 787767 contacts, 383 frames, 2 seal(s), 1.208 ms sealing; crashed (broke up: the fuselage parted (TPB off the core)); prop stoppage
+  REPORT  30 m/s into a trunk, 2.5 m out: v2, 20 primitives (8 craters, 11 gouges incl. 1 prop slot, 1 sweep), 84.83 m2 (242.70 with the sweep), 1943 B; 82 % of 4760 contact samples in it; record 338150 contacts, 336 frames, 2 seal(s), 1.576 ms sealing; crashed (a wing member broke); prop stoppage
+  REPORT  a drop onto the wheels at 10 ft/s (FAR 23.473 cap): v0, 0 primitives (0 craters, 0 gouges, 0 sweep), 0.00 m2 (0.00 with the sweep), 0 B; record 0 contacts, 0 frames, 0 seal(s), 0 ms sealing
+  REPORT  a severe drop onto the wheels at 6 m/s: v1, 3 primitives (2 craters, 1 gouges incl. 1 prop slot, 0 sweep), 1.22 m2 (1.22 with the sweep), 199 B; 49 % of 1095 contact samples in it; record 79490 contacts, 293 frames, 1 seal(s), 0.129 ms sealing; crashed (a gear member broke); prop stoppage
+  REPORT  the step with the record / without, the 2.5 m crash (median of 3 alternated): 7.962 / 8.18 ms a frame
+the Jodel:
+  ok    1 the layer off: no record, no scar, not one damage payload from the hop in a whole 30 m/s crash (the page's bytes)
+  ok    1 a circuit (null): not one ground contact recorded, no scar
+  ok    1 the 3 m/s taxi into a trunk (only the wheels on the ground): not one contact recorded, no scar
+  ok    1 a drop onto the wheels at 10 ft/s (FAR 23.473 cap): only the wheels touch - nothing recorded, no scar
+  ok    1 a severe drop onto the wheels at 6 m/s: only the wheels touch - nothing recorded, no scar
+  ok    3 a 3 m/s taxi into a trunk: the same bits with the record and without (6d6cfa99b49b)
+  ok    2 a nose-over at 4 m/s: the propeller's slot and the nose's crater (2 primitives)
+  ok    2 a nose-over at 4 m/s: 2 primitives (at most 64), every one on the ground under the contacts
+  ok    3 a nose-over at 4 m/s: the same bits with the record and without (3126e0cb0e7a)
+  ok    2 30 m/s into a trunk, the centreline: a scar (13 craters, 8 gouges, 1 sweep; 49.1 m2 torn, 197.0 m2 with the sweep)
+  ok    2 30 m/s into a trunk, the centreline: 22 primitives (at most 64), every one on the ground under the contacts
+  ok    3 30 m/s into a trunk, the centreline: the same bits with the record and without (a4c59ef3c002)
+  ok    2 30 m/s into a trunk, 2.5 m out: a scar (4 craters, 8 gouges, 1 sweep; 51.7 m2 torn, 1707.0 m2 with the sweep)
+  ok    2 30 m/s into a trunk, 2.5 m out: 13 primitives (at most 64), every one on the ground under the contacts
+  ok    3 30 m/s into a trunk, 2.5 m out: the same bits with the record and without (372d40ee1d22)
+  ok    3 a drop onto the wheels at 10 ft/s (FAR 23.473 cap): the same bits with the record and without (504acefd9e7b)
+  ok    3 a severe drop onto the wheels at 6 m/s: the same bits with the record and without (d5baa866d1c6)
+  ok    4 the hop: the page's scar is the sim's at every frame, the worker's hop (its window, v8) and the inline one - 1 scar payload(s) (one a sealed event), 1494 B of scar in 46 damage payloads (48588 B in all)
+  ok    5 reset: the scar empty under a new version (v2), sent once, the page's scar empty
+  REPORT  a 3 m/s taxi into a trunk: v0, 0 primitives (0 craters, 0 gouges, 0 sweep), 0.00 m2 (0.00 with the sweep), 0 B; record 0 contacts, 0 frames, 0 seal(s), 0 ms sealing; prop stoppage
+  REPORT  a nose-over at 4 m/s: v1, 2 primitives (1 craters, 1 gouges incl. 1 prop slot, 0 sweep), 1.12 m2 (1.12 with the sweep), 138 B; 0 % of 499 contact samples in it; record 88697 contacts, 456 frames, 1 seal(s), 0.65 ms sealing; crashed (a fus member broke); prop stoppage
+  REPORT  30 m/s into a trunk, the centreline: v3, 22 primitives (13 craters, 8 gouges, 1 sweep), 49.11 m2 (197.00 with the sweep), 1578 B; 76 % of 9463 contact samples in it; record 1006532 contacts, 395 frames, 3 seal(s), 2.056 ms sealing; crashed (broke up: the fuselage parted (TPB off the core)); prop stoppage
+  REPORT  30 m/s into a trunk, 2.5 m out: v1, 13 primitives (4 craters, 8 gouges incl. 1 prop slot, 1 sweep), 51.72 m2 (1707.02 with the sweep), 1494 B; 86 % of 4528 contact samples in it; record 517436 contacts, 395 frames, 1 seal(s), 0.596 ms sealing; crashed (a wing member broke); prop stoppage
+  REPORT  a drop onto the wheels at 10 ft/s (FAR 23.473 cap): v0, 0 primitives (0 craters, 0 gouges, 0 sweep), 0.00 m2 (0.00 with the sweep), 0 B; record 0 contacts, 0 frames, 0 seal(s), 0 ms sealing
+  REPORT  a severe drop onto the wheels at 6 m/s: v0, 0 primitives (0 craters, 0 gouges, 0 sweep), 0.00 m2 (0.00 with the sweep), 0 B; record 0 contacts, 0 frames, 0 seal(s), 0 ms sealing
+  REPORT  the step with the record / without, the 2.5 m crash (median of 3 alternated): 14.38 / 13.985 ms a frame
+the metal Cessna:
+  ok    1 the layer off: no record, no scar, not one damage payload from the hop in a whole 30 m/s crash (the page's bytes)
+  ok    1 a circuit (completed): not one ground contact recorded, no scar
+  ok    1 the 3 m/s taxi into a trunk (only the wheels on the ground): not one contact recorded, no scar
+  ok    1 a drop onto the wheels at 10 ft/s (FAR 23.473 cap): only the wheels touch - nothing recorded, no scar
+  ok    2 a severe drop onto the wheels at 6 m/s: a crash (a gear member broke) - it scars (2 craters, 1 gouges incl. the prop's slot)
+  ok    3 a 3 m/s taxi into a trunk: the same bits with the record and without (9f33b898e2e3)
+  ok    2 a nose-over at 4 m/s: the propeller's slot (1 primitives)
+  ok    2 a nose-over at 4 m/s: 1 primitives (at most 64), every one on the ground under the contacts
+  ok    3 a nose-over at 4 m/s: the same bits with the record and without (5961b847ee22)
+  ok    2 30 m/s into a trunk, the centreline: a scar (16 craters, 12 gouges, 1 sweep; 44.2 m2 torn, 597.8 m2 with the sweep)
+  ok    2 30 m/s into a trunk, the centreline: 29 primitives (at most 64), every one on the ground under the contacts
+  ok    3 30 m/s into a trunk, the centreline: the same bits with the record and without (42acccd544ec)
+  ok    2 30 m/s into a trunk, 2.5 m out: a scar (6 craters, 12 gouges, 1 sweep; 209.4 m2 torn, 1244.8 m2 with the sweep)
+  ok    2 30 m/s into a trunk, 2.5 m out: 19 primitives (at most 64), every one on the ground under the contacts
+  ok    3 30 m/s into a trunk, 2.5 m out: the same bits with the record and without (3ed3fa6fac3d)
+  ok    3 a drop onto the wheels at 10 ft/s (FAR 23.473 cap): the same bits with the record and without (e7014170726e)
+  ok    2 a severe drop onto the wheels at 6 m/s: 3 primitives (at most 64), every one on the ground under the contacts
+  ok    3 a severe drop onto the wheels at 6 m/s: the same bits with the record and without (aa511cba222d)
+  ok    4 the hop: the page's scar is the sim's at every frame, the worker's hop (its window, v8) and the inline one - 1 scar payload(s) (one a sealed event), 1813 B of scar in 24 damage payloads (18739 B in all)
+  ok    5 reset: the scar empty under a new version (v2), sent once, the page's scar empty
+  REPORT  a 3 m/s taxi into a trunk: v0, 0 primitives (0 craters, 0 gouges, 0 sweep), 0.00 m2 (0.00 with the sweep), 0 B; record 0 contacts, 0 frames, 0 seal(s), 0 ms sealing; prop stoppage
+  REPORT  a nose-over at 4 m/s: v1, 1 primitives (0 craters, 1 gouges incl. 1 prop slot, 0 sweep), 0.91 m2 (0.91 with the sweep), 78 B; record 0 contacts, 62 frames, 1 seal(s), 0.494 ms sealing; prop stoppage
+  REPORT  30 m/s into a trunk, the centreline: v2, 29 primitives (16 craters, 12 gouges, 1 sweep), 44.17 m2 (597.81 with the sweep), 2061 B; 100 % of 17336 contact samples in it; record 1846670 contacts, 398 frames, 2 seal(s), 2.178 ms sealing; crashed (broke up: the fuselage parted (TPB off the core)); prop stoppage
+  REPORT  30 m/s into a trunk, 2.5 m out: v1, 19 primitives (6 craters, 12 gouges incl. 1 prop slot, 1 sweep), 209.38 m2 (1244.83 with the sweep), 1813 B; 100 % of 2517 contact samples in it; record 283465 contacts, 396 frames, 1 seal(s), 1.449 ms sealing; crashed (a wing member broke); prop stoppage
+  REPORT  a drop onto the wheels at 10 ft/s (FAR 23.473 cap): v0, 0 primitives (0 craters, 0 gouges, 0 sweep), 0.00 m2 (0.00 with the sweep), 0 B; record 0 contacts, 0 frames, 0 seal(s), 0 ms sealing; prop bent
+  REPORT  a severe drop onto the wheels at 6 m/s: v1, 3 primitives (2 craters, 1 gouges incl. 1 prop slot, 0 sweep), 1.29 m2 (1.29 with the sweep), 203 B; 49 % of 504 contact samples in it; record 58490 contacts, 298 frames, 1 seal(s), 0.17 ms sealing; crashed (a gear member broke); prop stoppage
+  REPORT  the step with the record / without, the 2.5 m crash (median of 3 alternated): 12.59 / 13.263 ms a frame
+the page (the cover ring and the decal on the real three, a fake WebGL2):
+  ok    6 the grass cull is exactly the footprint: 75 tufts gone of 188736, 68 shrubs and 20 debris (the sweep too); none outside, none left inside, the rocks all kept (2 cells, 15.4 ms)
+  ok    6 cells planted after the event plant none in it: the same instances as the cull left
+  ok    7 no program links in a crash: the decal parked and compiled with the scene, the scar laid and drawn, the cull done - links 7 -> 7, program keys 7 -> 7 (the same)
+  ok    7 every decal vertex on the ground (terrainH + 0.03 m on a hilly ground, worst 0.001 mm) and inside the footprint
+  REPORT  the decal: 19 primitives -> 7136 triangles, 4145 vertices, 236.1 KB of buffers, built in 26.48 ms; the first frame after the event uploads 104 buffers / textures (the decal's and the rebuilt blocks'), the next 16 (a steady frame before the crash: 16)
+  ok    7 a frame after the event uploads nothing more than a frame before the crash (16: the batches' own) - the decal's buffers and the rebuilt blocks went once (88)
+  ok    5 reset restores: the decal's buffers freed and the mesh parked; the ring's cells under the scar planted again - the very instances before the crash (267072); no link
+  REPORT  the user's Cub, a nose-over at 4 m/s: culls 3 tufts, 0 shrubs, 0 debris (1 cells, 0.62 ms); the decal 334 triangles, 10.9 KB, 0.9 ms
+  REPORT  the user's Cub, 30 m/s into a trunk, the centreline: culls 21 tufts, 92 shrubs, 33 debris (4 cells, 4.91 ms); the decal 5200 triangles, 165.4 KB, 8.8 ms
+  REPORT  the user's Cub, 30 m/s into a trunk, 2.5 m out: culls 75 tufts, 68 shrubs, 20 debris (2 cells, 4.26 ms); the decal 7136 triangles, 236.1 KB, 10.61 ms
+  REPORT  the user's Cub, a severe drop onto the wheels at 6 m/s: culls 2 tufts, 0 shrubs, 0 debris (1 cells, 0.63 ms); the decal 620 triangles, 19.8 KB, 1.17 ms
+  REPORT  the Jodel, a nose-over at 4 m/s: culls 1 tufts, 0 shrubs, 0 debris (1 cells, 0.71 ms); the decal 334 triangles, 10.9 KB, 0.76 ms
+  REPORT  the Jodel, 30 m/s into a trunk, the centreline: culls 51 tufts, 24 shrubs, 25 debris (2 cells, 12.9 ms); the decal 5182 triangles, 167.5 KB, 8.27 ms
+  REPORT  the Jodel, 30 m/s into a trunk, 2.5 m out: culls 52 tufts, 378 shrubs, 200 debris (5 cells, 26.7 ms); the decal 3928 triangles, 130.8 KB, 9.1 ms
+  REPORT  the metal Cessna, a nose-over at 4 m/s: culls 0 tufts, 0 shrubs, 0 debris (0 cells, 0.18 ms); the decal 60 triangles, 2.3 KB, 0.33 ms
+  REPORT  the metal Cessna, 30 m/s into a trunk, the centreline: culls 42 tufts, 120 shrubs, 56 debris (4 cells, 20.18 ms); the decal 6400 triangles, 207.6 KB, 25.86 ms
+  REPORT  the metal Cessna, 30 m/s into a trunk, 2.5 m out: culls 204 tufts, 306 shrubs, 156 debris (5 cells, 14.82 ms); the decal 6600 triangles, 219.8 KB, 11.94 ms
+  REPORT  the metal Cessna, a severe drop onto the wheels at 6 m/s: culls 1 tufts, 0 shrubs, 0 debris (1 cells, 0.4 ms); the decal 632 triangles, 20.2 KB, 1.21 ms
+  ok    2 water: a slide from dry ground into the water - its scar stops at the shore (5 primitives, none over the water)
+  66/66 checks
+GATE DMGSCAR: PASS
+exit 0

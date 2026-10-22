@@ -27,7 +27,11 @@ const f = (v, n = 3) => (typeof v === 'number' && Number.isFinite(v)) ? +v.toFix
 const out = {};
 for (const key of want) {
   const B = BUILDS[key]; if (!B) continue;
-  const j = JSON.parse(fs.readFileSync(B.file, 'utf8')), spec = j.spec || j;
+  // G2034 (DMG-RECAL, GATE JOINPARITY's census): the validated floatplanes AS THE GAME FLIES THEM (tools/_load_build.js);
+  // the Wipline fixture as written (not a validated build); FLYDIY_RAW_BUILDS=1: every file as written
+  const LB = require(path.join(T, '_load_build.js')), raw = process.env.FLYDIY_RAW_BUILDS === '1';
+  const j = JSON.parse(fs.readFileSync(B.file, 'utf8'));
+  const spec = !raw && key === 'cessnaWorks' ? LB.loadValidated('floats').spec : !raw && key === 'twin' ? LB.loadValidated('twinFloats').spec : (j.spec || j);
   if (B.floats) spec.gear.type = 'floats';
   const def = C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(spec))));
   const fl = def.parts.floats, P = fl[0].P;

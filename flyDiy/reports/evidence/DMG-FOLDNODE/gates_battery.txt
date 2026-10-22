@@ -1,0 +1,25 @@
+# DMG-FOLDNODE - the targeted gates, each run on its own (node tools/<file>, cwd tools/, after node tools/build.js exit 0; build 22321372b7c2): the texts in gates/
+# (run_gates --only was started first and lost with a container restart: it buffers its output to the end; the gates were then run one by one so a text survives)
+BUILD: exit 0, 3 s GATE BUILD: PASS
+DMGCERT: exit 0, 309 s GATE DMGCERT: PASS
+DMGCERTCOST: exit 0, 62 s GATE DMGCERTCOST: PASS
+DMGCLUSTERS: exit 0, 391 s GATE DMGCLUSTERS: PASS
+DMGDRIVE: exit 0, 541 s GATE DMGDRIVE: PASS
+DMGFPS: exit 0, 147 s GATE DMGFPS: PASS
+DMGGEAR: exit 0, 793 s GATE DMGGEAR: PASS
+DMGINST: exit 1, 163 s GATE DMGINST: FAIL
+DMGINST_base:  GATE DMGINST: FAIL
+DMGINTEGRITY: exit 0, 62 s GATE DMGINTEGRITY: PASS
+DMGMEMBERS: exit 0, 49 s GATE DMGMEMBERS: PASS
+DMGSKIN: exit 0, 121 s GATE DMGSKIN: PASS
+DMGWALL: exit 0, 162 s GATE DMGWALL: PASS
+DMGWIND: exit 0, 750 s GATE DMGWIND: PASS
+DMGWRECK: exit 0, 201 s GATE DMGWRECK: PASS
+FLOWNBAKE: exit 0, 0 s GATE FLOWNBAKE: PASS
+JOIN: exit 0, 5 s GATE JOIN: PASS
+LOAD: exit 0, 195 s GATE LOAD: PASS
+TREECRASH: exit 0, 463 s GATE TREECRASH: PASS
+TREEHIT: exit 0, 323 s GATE TREEHIT: PASS
+UISMOKE: exit 0, 108 s GATE UISMOKE: PASS
+DMGUPLOAD: gate_dmgupload_after.txt GATE DMGUPLOAD: PASS
+DMGUPLOAD-SELFTEST: gate_dmgupload_selftest_after.txt GATE DMGUPLOAD-SELFTEST: PASS

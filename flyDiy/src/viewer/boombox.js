@@ -192,9 +192,9 @@ var BOOMBOX = (function () {
     r.appendChild(c); r.classList.add('tog');
     return c;
   }
-  function range(host, label, get, set) {
+  function range(host, label, get, set, top) {
     const r = row(host, label), i = el('input'), v = el('span', 'v');
-    i.type = 'range'; i.min = 0; i.max = 100; i.step = 1; i.value = Math.round(get() * 100);
+    i.type = 'range'; i.min = 0; i.max = 100 * (top || 1); i.step = 1; i.value = Math.round(get() * 100);
     v.textContent = i.value + ' %';
     i.oninput = () => { set(+i.value / 100); v.textContent = i.value + ' %'; };
     r.appendChild(i); r.appendChild(v);
@@ -245,7 +245,7 @@ var BOOMBOX = (function () {
     refs.master = range(body, 'master', () => A.get('master'), v => A.set('master', v));
     // G1722 (SND-MIX): the engine's own volume, the same setting as the sound rails' row (the music against the engine is
     // what a player balances here)
-    refs.engine = A.get('engine') != null ? range(body, 'engine', () => A.get('engine'), v => A.set('engine', v)) : null;
+    refs.engine = A.get('engine') != null ? range(body, 'engine', () => A.get('engine'), v => A.set('engine', v), 2) : null;
     const ctl = el('div', 'bbBtns');
     refs.skip = pill(ctl, 'skip track', () => M.skip(), 'The next track now');
     body.appendChild(ctl);

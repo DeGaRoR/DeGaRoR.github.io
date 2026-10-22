@@ -1,0 +1,33 @@
+
+SWEEP (GATE SEAPLANE's crosswind take-off, THE PILOT, the SEA lane; swing from the roll's own heading)
+   twin on floats:  wind | lift-off s | swing deg | |x| m | lowest pitch deg | skips | class
+      0.0 |    8.3 |    0.0 |    0.0 |   -7.7 | 0 | ok
+      0.5 |    8.3 |    1.4 |    1.2 |   -7.7 | 0 | ok
+      1.0 |    8.1 |    2.3 |    2.6 |   -7.6 | 0 | ok
+      1.5 |    7.6 |    5.2 |    2.7 |   -8.6 | 0 | ok
+      2.0 |    -   |  180.0 |  313.2 |  -83.0 | 0 | NOSE-OVER at the plough (pitch -83 deg)
+      2.5 |    8.0 |    7.8 |    5.3 |   -8.6 | 1 | ok
+      3.0 |    7.7 |   10.1 |    6.6 |   -8.3 | 1 | ok
+      3.5 |    7.1 |   11.5 |    4.6 |   -7.7 | 0 | ok
+      4.0 |    -   |  180.0 |  108.7 |  -85.6 | 0 | NOSE-OVER at the plough (pitch -86 deg)
+      4.5 |    -   |  179.9 | 1144.0 |  -76.8 | 0 | NOSE-OVER at the plough (pitch -77 deg)
+      5.0 |    -   |  179.9 | 1149.8 |  -71.1 | 0 | NOSE-OVER at the plough (pitch -71 deg)
+PASS twin on floats: 0-1.5 m/s across clean (the base's clean band)
+OWED twin on floats: NOSE-OVER at the plough at 2, 4, 4.5, 5 m/s across (the bows bury at 6-7 m/s, the pitch past -30 deg; not a yaw loop - HANDOVER G1847-G1849, open question 1)
+   Cessna on floats:  wind | lift-off s | swing deg | |x| m | lowest pitch deg | skips | class
+      0.0 |   30.5 |    0.0 |    0.0 |   -0.5 | 0 | ok
+      0.5 |   30.6 |    0.3 |    0.6 |   -0.5 | 0 | ok
+      1.0 |   30.3 |    0.9 |    1.4 |   -0.5 | 0 | ok
+      1.5 |   30.3 |    0.8 |    2.3 |   -0.5 | 0 | ok
+      2.0 |   29.7 |    5.1 |    2.8 |   -0.5 | 0 | ok
+      2.5 |   31.3 |    1.2 |    4.1 |   -0.5 | 0 | ok
+      3.0 |   30.5 |    9.7 |    4.6 |   -0.5 | 4 | ok
+      3.5 |   30.0 |    2.1 |    4.9 |   -0.5 | 1 | ok
+      4.0 |   30.9 |    2.6 |    6.3 |   -0.5 | 3 | ok
+      4.5 |   31.6 |    2.6 |    7.1 |   -0.5 | 2 | ok
+      5.0 |   31.8 |   16.4 |    8.1 |   -0.5 | 3 | ok
+PASS Cessna on floats: no yaw water loop at any crosswind 0-5 m/s
+PASS Cessna on floats: every take-off off the water, swing and lane under 30 (worst 16.4 deg, 8.1 m)
+
+(22 runs in 307 s on 4 processes)
+GATE DMGHULL: PASS

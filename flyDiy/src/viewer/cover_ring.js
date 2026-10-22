@@ -38,6 +38,8 @@
 //     ring.get() / ring.set(o) the dials (F8): on, reach, near, taper, aglFull,
 //                              aglOff, density, budgetMs, cell
 //     ring.stat()              cells live / queued, instances, the last build's ms
+//     ring.scar(prims)         G2358 (DMG-SCAR): a crash's scar culls the grass (and the shrubs, the debris) under it;
+//                              ring.scar(null) plants it back
 //     ring.dispose()
 // ============================================================================
 'use strict';
@@ -138,6 +140,9 @@ var COVER_RING = (() => {
   // clump field's cell / amplitude (neighbours share a length). A mix row of the reed may carry its own h / sigma / dens (the
   // biome's grass card, TYPES > biome) - the row wins. A mix not named is the meadow's.
   const FIELD_SPECIES = ['grass_reed'];
+  // THE ROOT GRADIENT (G2571, trees.js ROOT_FS): one uniform for the reed's material, whichever ring plants it - the field's
+  // `root` / `rootH` write it each frame (x strength, y the height share, z the tufts' top in the model's units); 0 = today's
+  const ROOT_U = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(0, 0.4, 100, 0) : { x: 0, y: 0.4, z: 100, w: 0, set() {} } };
   const FIELD_ON = true;   // the grass field's default (train 43: off; train 44: on - its cost under today's on every view, G2567)
   // (the size fade's ceiling is the field's `sizeMax`: a tuft taller than the reference reaches at most sizeMax x the reach - trees.js FADE_VS uFadeSizeMax)
   const FIELD_TYPES = {
@@ -217,7 +222,9 @@ var COVER_RING = (() => {
           aglPre: 150, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 60,
           // (G2567, the box 11 Oct 11:03 TIMED, cost3/: 2 tuft shapes + the size fade capped at 1.0 + 70 tufts / m2 - the forest view
           // 2.57 -> 2.23 ms, app10 4.21 -> 2.07, app30 3.85 -> 1.03 on gamer, every view under train 43's; draws +6..+9)
-          tufts: 70, cards: 3, variants: 2, block: 2, sizeFade: 1, sizeMax: 1, hRef: 0.3, blotch: 0.3, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
+          root: 0, rootH: 0.4,   // G2571: the root gradient's strength (0 = none) and the share of the tuft's height it fades out by
+          lakeMargin: 0.03,      // G2572: how far ABOVE a lake's water the ground must stand for a tuft (m; render_world okAt; the sea keeps 0.3)
+          tufts: 70, cards: 3, variants: 2, block: 2, sizeFade: 1, sizeMax: 1, hRef: 0.3, blotch: 0.05, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
           colour: 1, match: 1, vary: 0.05, cutH: 0.08, cutSigma: 0.1, cutDens: 1.2, stripH: 0.07, stripDens: 1 }
       : { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, batch: true,
           aglPre: 260, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 140, trunc: 1 };   // G670/G671: the grow, the pre-grow and the lead (update)   // density 2 (2026-09-22, the user: "the grass is really too sparse")
@@ -230,7 +237,7 @@ var COVER_RING = (() => {
     // string each, and split every live cell's key back into numbers to test its reach
     const cellKey = (cx, cz) => (cx + 32768) * 65536 + (cz + 32768);
     const protos = new Map();           // species key -> [{ key, w, parts:[{geo, mat}], h, kind }]
-    const STAT = { built: 0, lastMs: 0, maxMs: 0, live: 0, queued: 0, instances: 0, agl: 0, mixAt: null, by: {} };
+    const STAT = { built: 0, lastMs: 0, maxMs: 0, live: 0, queued: 0, instances: 0, agl: 0, mixAt: null, by: {}, scarSkip: 0 };
     let flowerTex = new Map();
     const root = new THREE.Group(); root.name = 'coverRing'; scene.add(root);
 
@@ -347,6 +354,7 @@ var COVER_RING = (() => {
               // (G1385: trees.js retint now applies it - COVER_BASE, the same numbers - and the grass's own master on top,
               // so a master or a species tint moved later keeps it; asked again here for a material hooked before)
               if (c.kind === 'cover' && mat.userData.uLight && LEAF.retint) LEAF.retint(mat);
+              if (c.kind === 'cover' && FIELD_SPECIES.includes(c.name)) mat.userData.uRoot = ROOT_U;   // G2571: the reed's root gradient (trees.js fadeInject)
               if (c.kind === 'cover' && mat.userData.uFlat) { mat.userData.uFlat.value = place.contrast === undefined ? 1 : place.contrast; measureMean(mat);
                 if (mat.map && !(mat.map.image && mat.map.image.width)) { const t0 = mat.map; const poll = () => { if (t0.image && t0.image.width) measureMean(mat); else setTimeout(poll, 500); }; setTimeout(poll, 500); } }
             }
@@ -423,7 +431,14 @@ var COVER_RING = (() => {
       const cut = new Float32Array(N * N), surf = new Uint8Array(N * N);   // G2565: the premises' cut grass (the 'sides' law)
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
         const x = x0 + i * SG, z = z0 + j * SG, k = j * N + i, r = hsh(Math.round(x * 3.7), Math.round(z * 5.3));
-        const cd = ctx.codeAt ? ctx.codeAt(x, z, r) : -1;
+        let cd = ctx.codeAt ? ctx.codeAt(x, z, r) : -1;
+        // THE LAKE'S 10 m CELLS (G2572): the island's type grid marks a cell LAKE (1) though its edge is dry bank - no mix, no grass
+        // to a cell's width from the water. Dry land (the land test passes) under a lake code takes the nearest land code round it
+        // (6 then 12 m, eight ways); the sea (0) keeps its own. The grass field's alone (the first ring's flowers, bushes and
+        // stones on a lake's bank are another call - A0)
+        if (FIELD && cd === 1 && ctx.codeAt && ctx.okAt(x, z)) {
+          find: for (const rr of [6, 12]) for (let a = 0; a < 8; a++) { const c2 = ctx.codeAt(x + Math.cos(a * 0.7854) * rr, z + Math.sin(a * 0.7854) * rr, r); if (c2 >= 2) { cd = c2; break find; } }
+        }
         code[k] = cd; mix[k] = BIO.mixHere ? BIO.mixHere(cd, x, z) : (cd < 0 ? null : BIO.mixAt(cd)); bush[k] = bushOff && bushOff(x, z) ? 1 : 0; ok[k] = (ctx.okAt(x, z) && !(ctx.poolAt && (cd === 3 || cd === 7) && ctx.poolAt(x, z) > 0.5)) ? 1 : 0;   // no tuft in a puddle (the shader's pools, in JS)
         let cv = null; try { cv = ctx.coverAt ? ctx.coverAt(x, z) : null; } catch (e) { cv = null; }
         if (cv) { kill[k] = cv.kill || 0; boost[k] = cv.boost || 0; kind[k] = KIND[cv.kind] || 0; cls[k] = cv.cls ? 1 : 0; cut[k] = cv.cut || 0; surf[k] = cv.surf ? 1 : 0;
@@ -755,7 +770,8 @@ var COVER_RING = (() => {
       const blotchAt = (x, z, seed) => (GF && GF.blotch) ? GF.blotch(x, z, seed) : 1 - blotch * vnoise(x, z, blotchM, seed % 1000);
       const items = new Map();   // proto -> { pos: [], col: [] | null }
       // the instance record: x y z s yaw tx tz - tx/tz the ground's slope under a rock that `tilt`s to it (0 0 = upright)
-      const push = (p, x, y, z, s, yaw, col, tx, tz) => { let it = items.get(p); if (!it) { it = { p, xs: [], col: col ? [] : null }; items.set(p, it); } it.xs.push(x, y, z, s, yaw, tx || 0, tz || 0); if (col) it.col.push(col[0], col[1], col[2]); };
+      // (G2358: none where a crash scarred the ground - after the draws, so the cell's stream is the same either way)
+      const push = (p, x, y, z, s, yaw, col, tx, tz) => { if (SCR.n && scarCut(p.kind, x, z)) { STAT.scarSkip++; return; } let it = items.get(p); if (!it) { it = { p, xs: [], col: col ? [] : null }; items.set(p, it); } it.xs.push(x, y, z, s, yaw, tx || 0, tz || 0); if (col) it.col.push(col[0], col[1], col[2]); };
       // THE LAWN (a plot's, kind 1): the dry tuft short and dense - the height from the plot's rule (0.10-0.15 m),
       // LAWN_D tufts a m2 x the rule's density factor - on the lawn nodes alone, the biome's rows skip them
       if (G.lawn > 0) {
@@ -994,6 +1010,77 @@ var COVER_RING = (() => {
       }
     }
 
+    // ---- G2358 (DMG-SCAR): THE SCAR'S CULL ----------------------------------------------
+    // A crash's scar (34_scar.js primitives, sealed once an event: sim_view.js dmgS.scar) takes the grass out of its
+    // FOOTPRINT (the craters' discs, the gouges' strips) and the shrubs and the debris out of the footprint and the
+    // SWEEP (the band the wreck itself swept); the rocks stay. On the CPU, once, at the event: each live cell under it
+    // drops those instances from its arrays (its block rebuilt - the instances re-uploaded once, by the frames' own block
+    // budget) and the batched ones are deleted; a cell planted later skips them (push above). No shader, no uniform, no
+    // program key moves: the fade's program draws fewer instances. `scar(null)` lets it go: the cells it touched are
+    // dropped and plant again whole (the planting is hashed on the cell: the same cover as before the crash).
+    const SCR = { n: 0, prims: [], boxF: null, boxS: null };
+    const inBox = (b, x, z) => !!b && x >= b[0] && x <= b[2] && z >= b[1] && z <= b[3];
+    // (scarIn is the core's, 34_scar.js: the one footprint the page and the gate test)
+    function scarCut(kind, x, z) {
+      if (kind === 'cover') return inBox(SCR.boxF, x, z) && scarIn(SCR.prims, x, z, false);
+      if (kind === 'shrub' || kind === 'debris') return inBox(SCR.boxS, x, z) && scarIn(SCR.prims, x, z, true);
+      return false;
+    }
+    const cellIn = (cell, b) => !!b && (cell.cx + 1) * S.cell >= b[0] && cell.cx * S.cell <= b[2] && (cell.cz + 1) * S.cell >= b[1] && cell.cz * S.cell <= b[3];
+    function scarApply(prims) {
+      const t0 = performance.now();
+      const was = SCR.boxS;
+      SCR.prims = (prims && prims.length && typeof scarIn === 'function') ? prims.slice() : []; SCR.n = SCR.prims.length;
+      SCR.boxF = SCR.n ? scarBox(SCR.prims, false) : null; SCR.boxS = SCR.n ? scarBox(SCR.prims, true) : null;
+      let cut = 0, cells0 = 0, dropped = 0;
+      // the cells under the scar before: planted again whole (or under the new scar, by push)
+      if (was) for (const [k, cell] of [...cells]) if (cellIn(cell, was)) { dropCell(k); dropped++; }
+      if (SCR.n) for (const cell of cells.values()) {
+        if (!cellIn(cell, SCR.boxS)) continue;
+        let n0 = cut;
+        // the per-block instances (the tufts, the flowers; the shrubs on the A/B's instanced path): a prototype's parts
+        // share one record's arrays - compacted once
+        const done = new Map();
+        for (const [part, d] of cell.parts) {
+          if (d.kind !== 'cover' && d.kind !== 'shrub' && d.kind !== 'debris') continue;
+          let c = done.get(d.mats);
+          if (!c) {
+            const keep = [];
+            for (let i = 0; i < d.n; i++) if (!scarCut(d.kind, d.mats[i * 16 + 12], d.mats[i * 16 + 14])) keep.push(i);
+            c = { n: keep.length, cut: d.n - keep.length };
+            if (c.cut) {
+              c.mats = new Float32Array(c.n * 16); c.rand = new Float32Array(c.n); c.col = d.col ? new Float32Array(c.n * 3) : null;
+              keep.forEach((i, j) => { c.mats.set(d.mats.subarray(i * 16, i * 16 + 16), j * 16); c.rand[j] = d.rand[i]; if (c.col) { c.col[j * 3] = d.col[i * 3]; c.col[j * 3 + 1] = d.col[i * 3 + 1]; c.col[j * 3 + 2] = d.col[i * 3 + 2]; } });
+              cut += c.cut; cell.n -= c.cut;
+            }
+            done.set(d.mats, c);
+          }
+          if (c.cut) { d.n = c.n; d.mats = c.mats; d.rand = c.rand; d.col = c.col; }
+        }
+        // the batched shrubs and debris: their instances deleted (a block's reach switch no longer meets them)
+        let gone = null;
+        for (let k = 0; k < cell.inst.length; k += 2) {
+          const bm = cell.inst[k], id = cell.inst[k + 1], kind = bm.userData.coverKind;
+          if (kind !== 'shrub' && kind !== 'debris') continue;
+          bm.getMatrixAt(id, GM); const e = GM.elements;
+          if (!scarCut(kind, e[12], e[14])) continue;
+          batchVis(bm, id, false); bm.deleteInstance(id); cut++; cell.n--;
+          (gone || (gone = new Set())).add(k);
+        }
+        if (gone) {
+          const keep = []; for (let k = 0; k < cell.inst.length; k += 2) if (!gone.has(k)) keep.push(cell.inst[k], cell.inst[k + 1]);
+          // a cell still growing lets go of the deleted ids (growTick would write a deleted instance)
+          for (const G of growing) if (G[0] === cell) { const L = G[2], L2 = [];
+            for (let i = 0; i < L.length; i += 3) if (keep.some((x, j) => j % 2 === 0 && x === L[i] && keep[j + 1] === L[i + 1])) L2.push(L[i], L[i + 1], L[i + 2]);
+            G[2] = L2; }
+          cell.inst = keep;
+        }
+        if (cut > n0) { cells0++; markBlock(cell.cx, cell.cz); }
+      }
+      STAT.scarCut = cut; STAT.scarCells = cells0; STAT.scarDropped = dropped; STAT.scarMs = performance.now() - t0; STAT.scarPrims = SCR.n;
+      return { cut, cells: cells0, dropped, ms: STAT.scarMs };
+    }
+
     // ---- per frame ------------------------------------------------------------------
     let queue = [];
     const EYE = { x: NaN, z: NaN, t: 0, vx: 0, vz: 0 };   // the eye's ground velocity, smoothed (the lead)
@@ -1005,6 +1092,7 @@ var COVER_RING = (() => {
       const t = now();
       LEAF.fade(S.near, S.reach, S.taper, aglK, FSET);   // (the field: its own set, and its size fade; the first ring: the shared one)
       if (FIELD && LEAF.fadeSize) LEAF.fadeSize(S.sizeFade, S.hRef / Math.max(1e-6, fieldH0), FSET, S.sizeMax);
+      if (FIELD) ROOT_U.value.set(Math.max(0, Math.min(1, +S.root || 0)), Math.max(0.01, +S.rootH || 0.4), fieldH0, 0);   // G2571 (live: a uniform)
       if (LEAF.grow) LEAF.grow(t, null, S.grow);
       { const dt = t - EYE.t;
         if (dt > 0 && dt < 0.5 && isFinite(EYE.x)) { const a = Math.min(1, dt / 0.5); EYE.vx += ((ex - EYE.x) / dt - EYE.vx) * a; EYE.vz += ((ez - EYE.z) / dt - EYE.vz) * a; }
@@ -1083,21 +1171,62 @@ var COVER_RING = (() => {
       let ni = 0; for (const c of cells.values()) ni += c.n; STAT.instances = ni;
       STAT.mixAt = ctx.biomeAt(ex, ez, 0.5);
     }
+    // REVEAL-HITCH (19 Oct): THE CELLS ROUND AN EYE, PLANTED NOW. The shed's loop never runs the world's update, so the first
+    // flight frame after a roll-out found the stand's ring unplanted - or planted from the boot's settle eye, 6 m up and 22 m
+    // off, at a coarser tier - and built the cell under the reveal's eye whole, its full stream (the field's 'near' tier),
+    // in that frame: the ~0.2 s of the reveal's hitch. app.js plants the reveal's eyes ahead (under the boot's overlay, and
+    // a cell a slice during the roll-out shot): every cell whose square lies within `rad` m of (ex, ez), at the tier
+    // `update` gives it from that eye (the same rule, the same height term), nearest first; a cell already planted as fine
+    // or finer is left, a coarser one planted again (its birth kept). `ms`: the time it may take (checked before each
+    // cell). Returns { built, done }
+    function plantNear(ex, ey, ez, rad, ms) {
+      if (!S.on || S.off || !pack || !BIO) return { built: 0, done: true };
+      const C = S.cell, t0 = performance.now(), want = [];
+      const tierFor = d => (!FIELD || !S.tier || d <= S.near * 0.5) ? 0 : d * 0.6;
+      const n = Math.ceil(rad / C) + 1, cx0 = Math.floor(ex / C), cz0 = Math.floor(ez / C);
+      for (let dz = -n; dz <= n; dz++) for (let dx = -n; dx <= n; dx++) {
+        const cx = cx0 + dx, cz = cz0 + dz;
+        const gx = Math.max(0, Math.abs((cx + 0.5) * C - ex) - C / 2), gz = Math.max(0, Math.abs((cz + 0.5) * C - ez) - C / 2);
+        if (Math.hypot(gx, gz) > rad) continue;
+        const tier = FIELD ? tierFor(Math.hypot(gx, gz, Math.max(0, ey - world.terrainH((cx + 0.5) * C, (cz + 0.5) * C) - 4))) : 0;
+        const have = cells.get(cellKey(cx, cz));
+        if (have && !(have.dTier > tier)) continue;   // planted, as fine or finer (a first-ring cell has no tier: whole)
+        want.push([Math.hypot(gx, gz), cx, cz, tier, have]);
+      }
+      want.sort((a, b) => a[0] - b[0]);
+      let built = 0;
+      for (const [, cx, cz, tier, have] of want) {
+        if (performance.now() - t0 > ms) return { built, done: false };
+        if (!have && cells.size >= S.maxCells) break;
+        let born; if (have) { born = have.born; dropCell(cellKey(cx, cz)); }
+        buildCell(cx, cz, tier, born); built++;
+      }
+      return { built, done: true };
+    }
     const api = {
-      update, root,
+      update, root, plantNear,
       get: () => Object.assign({}, S),
       set: o => { const was = Object.assign({}, S); Object.assign(S, o || {});
         if (FIELD && (S.cards !== was.cards || S.variants !== was.variants)) protos.clear();   // the tufts are cut again
         if (FIELD && S.block !== was.block) { const nb = Math.max(1, S.block | 0); S.block = was.block; api.replant(); B = S.block = nb; }   // the old blocks emptied under the old grain, then the new one
         // what the planting reads (a replant); the fade's dials (near, reach, taper, AGL, the size fade's strength) are live
-        const PLANT = FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc']
+        const PLANT = FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'lakeMargin', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc']
                             : ['cell', 'density', 'shrubs', 'rocks', 'batch', 'castMinH', 'trunc'];
         if (PLANT.some(k => S[k] !== was[k])) api.replant(); return api.get(); },
       species: () => (FIELD ? FIELD_SPECIES.slice() : []),   // what the field plants (the first ring leaves it to it: ctx.owned)
       fadeSet: () => FSET,   // the field's own fade uniforms (null: the shared set) - GATE COVER reads them
+      lakeMargin: () => (FIELD ? Math.max(0, +S.lakeMargin || 0) : 0.3),   // G2572: render_world okAt reads it (both rings), no copy a call
       field: FIELD,
       replant: () => { for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); growing.length = 0; },
       rockPlan,                                                           // the rock map's read (above)
+      // G2358 (DMG-SCAR): a crash's scar (its primitives; null or [] lets it go) - the cull above, once; scarIn(x, z, kind):
+      // is an instance of that kind cut there (the gate's read)
+      scar: prims => scarApply(prims), scarNow: () => SCR.prims, scarCut: (kind, x, z) => SCR.n > 0 && scarCut(kind, x, z),
+      // every live instance by kind, with its position (the gate's census: [kind, x, z, ...]) - the batched ones read back
+      census: () => { const out = []; for (const cell of cells.values()) {
+        const seen = new Set(); for (const d of cell.parts.values()) { if (seen.has(d.mats)) continue; seen.add(d.mats); for (let i = 0; i < d.n; i++) out.push(d.kind, d.mats[i * 16 + 12], d.mats[i * 16 + 14]); }
+        for (let k = 0; k < cell.inst.length; k += 2) { cell.inst[k].getMatrixAt(cell.inst[k + 1], GM); out.push(cell.inst[k].userData.coverKind, GM.elements[12], GM.elements[14]); } }
+        return out; },
       // WHAT THE RING SEES AT A POINT (the instrument, 2026-09-22): the sub-grid node's own answers -
       // the mix, the pavement's kill and class, the land test - so a "why is there a log on the runway"
       // is one call instead of a guess

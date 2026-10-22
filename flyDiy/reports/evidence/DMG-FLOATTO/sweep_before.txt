@@ -1,0 +1,39 @@
+SWEEP (THE PILOT, the SEA lane, straight across; the whole run judged until CLIMB; no nose-over = pitch on the water >= -20 deg)
+   twin on floats:  wind | water run s | swing deg (any touch) | |x| m (any touch) | pitch on the water min..max deg | skips | balks | power held back s (lowest) | class
+      0.0 |      8.9 |   0.0 (  0.0) |   0.0 (  0.0) |   -1.3 ..   9.9 | 1 | 0 |   0.0 (  - ) | ok
+      0.5 |      8.9 |   1.1 (  1.1) |   0.7 (  0.7) |   -1.3 ..   9.9 | 1 | 0 |   0.0 (  - ) | ok
+      1.0 |      8.8 |   2.4 (  2.4) |   1.5 (  1.5) |   -2.3 ..   9.5 | 1 | 0 |   0.0 (  - ) | ok
+      1.5 |      8.8 |   3.9 (  3.9) |   2.2 (  2.2) |   -2.9 ..  10.8 | 1 | 0 |   0.0 (  - ) | ok
+      2.0 |     -    | 160.5 (160.5) |  78.8 ( 78.8) |  -75.7 ..  22.4 | 3 | 1 |   0.0 (  - ) | NOSE-OVER
+      2.5 |     -    | 159.2 (159.2) |  34.7 ( 34.7) |  -70.3 ..  21.5 | 3 | 1 |   0.0 (  - ) | NOSE-OVER
+      3.0 |     -    |  10.6 ( 49.5) |   4.6 ( 28.8) |  -28.9 ..  48.4 | 3 | 1 |   0.0 (  - ) | NOSE-OVER
+      3.5 |     -    |   7.5 (119.0) |   5.1 ( 66.0) |  -46.0 ..  33.8 | 4 | 1 |   0.0 (  - ) | NOSE-OVER
+      4.0 |     20.0 |  25.2 ( 34.7) |  14.3 ( 44.5) |  -18.7 ..  20.2 | 3 | 1 |   0.0 (  - ) | ok (a touch after the lift-off 35 deg off)
+      4.5 |     -    | 141.6 (141.6) |  38.4 ( 38.4) |  -58.9 ..  19.9 | 2 | 1 |   0.0 (  - ) | NOSE-OVER
+      5.0 |     -    | 168.5 (168.5) |  68.2 ( 68.2) |  -89.2 ..  22.6 | 4 | 1 |   0.0 (  - ) | NOSE-OVER
+FAIL twin on floats: no nose-over at any wind (lowest pitch on the water -89.2 deg, bar -20)
+FAIL twin on floats: every take-off completes (the pilot reaches CLIMB) - not at 2, 2.5, 3, 3.5, 4.5, 5
+FAIL twin on floats: the run's swing and lane under 30, GATE SEAPLANE's (worst 168.5 deg, 78.8 m)
+NOTE twin on floats: a float touched 161 deg / 79 m off at 2 m/s, 159 deg / 35 m off at 2.5 m/s, 49 deg / 29 m off at 3 m/s, 119 deg / 66 m off at 3.5 m/s, 35 deg / 45 m off at 4 m/s, 142 deg / 38 m off at 4.5 m/s, 168 deg / 68 m off at 5 m/s after the aeroplane had flown (a hop at the lift-off, crabbed into the wind; HANDOVER G1880-G1882, open)
+   Cessna on floats:  wind | water run s | swing deg (any touch) | |x| m (any touch) | pitch on the water min..max deg | skips | balks | power held back s (lowest) | class
+      0.0 |     24.1 |   0.0 (  0.0) |   0.0 (  0.0) |   -0.5 ..  12.9 | 1 | 0 |   0.0 (  - ) | ok
+      0.5 |     24.2 |   0.5 (  0.5) |   0.6 (  0.6) |   -0.5 ..  13.0 | 1 | 0 |   0.0 (  - ) | ok
+      1.0 |     24.5 |   1.0 (  1.0) |   1.2 (  1.2) |   -0.5 ..  13.6 | 1 | 0 |   0.0 (  - ) | ok
+      1.5 |     29.3 |   4.3 (  4.3) |   4.0 (  4.0) |   -3.4 ..  17.0 | 3 | 0 |   0.0 (  - ) | ok
+      2.0 |     24.3 |   4.8 (  4.8) |   2.4 (  2.4) |   -0.5 ..  16.7 | 1 | 0 |   0.0 (  - ) | ok
+      2.5 |     25.1 |   7.8 (  7.8) |   3.9 (  3.9) |   -0.5 ..  18.2 | 3 | 0 |   0.0 (  - ) | ok
+      3.0 |     27.0 |   8.5 ( 12.6) |   3.2 ( 12.2) |   -0.5 ..  16.9 | 6 | 0 |   0.0 (  - ) | ok
+      3.5 |     27.0 |  11.3 ( 11.3) |   4.7 (  5.4) |   -3.3 ..  16.9 | 4 | 0 |   0.0 (  - ) | ok
+      4.0 |     25.3 |  12.1 ( 12.1) |   5.5 (  5.5) |   -0.5 ..  17.1 | 1 | 0 |   0.0 (  - ) | ok
+      4.5 |     25.7 |  12.3 ( 12.3) |   5.8 (  5.8) |   -0.5 ..  20.9 | 1 | 0 |   0.0 (  - ) | ok
+      5.0 |     29.5 |  19.0 ( 21.8) |   7.2 ( 30.0) |   -0.5 ..  21.7 | 5 | 0 |   0.0 (  - ) | ok
+PASS Cessna on floats: no nose-over at any wind (lowest pitch on the water -3.4 deg, bar -20)
+PASS Cessna on floats: every take-off completes (the pilot reaches CLIMB)
+PASS Cessna on floats: the run's swing and lane under 30, GATE SEAPLANE's (worst 19.0 deg, 7.2 m)
+
+LAND (a wheeled take-off: the technique never arms)
+PASS the user's Cub: off the ground (LIFTOFF at 11.2 s), the power held back on 0 frames
+PASS the metal Cessna: off the ground (LIFTOFF at 11.5 s), the power held back on 0 frames
+
+(24 runs in 166 s on 4 processes, core /tmp/claude-0/-home-user-DeGaRoR-github-io/2fb7b6c2-75f4-50e2-b6b7-9d6440191365/scratchpad/core_base.js)
+GATE DMGFLOATTO: FAIL (3)

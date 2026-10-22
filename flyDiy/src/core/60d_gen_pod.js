@@ -216,7 +216,7 @@ function genPodClearance(def, mass) {
   const rows = [];
   const lowest = (th, x0, y0) => {           // rotate tail-down by th (rad) about (x0, y0); the lowest point
     let best = { h: 1e9, x: 0 };
-    const c = Math.cos(th), s = Math.sin(th);
+    const c = CORE_MATH.cos(th), s = CORE_MATH.sin(th);
     for (const [x, y] of pts) { const h = (y - y0) * c - (x - x0) * s; if (h < best.h) best = { h, x }; }
     return best;
   };
@@ -299,7 +299,7 @@ function genPodShell(R, nAround) {
   for (const s of R.sta) {
     for (let j = 0; j <= NA; j++) {
       const t = Math.PI * j / NA;                  // 0: the right side at the keel, pi/2: the floor, pi: the left side
-      const c = Math.cos(t), sn = Math.sin(t);
+      const c = CORE_MATH.cos(t), sn = CORE_MATH.sin(t);
       const ex = Math.sign(c) * Math.pow(Math.abs(c), 0.5), ey = Math.pow(Math.abs(sn), 0.5);
       pos.push(s.x, s.top - s.d * ey, s.hw * ex);
     }

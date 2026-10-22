@@ -47,7 +47,7 @@ function benchBoot(name, BENCH) {
   return { id: name, header: js(T + '.json'), topo: u8(T + '.topo'), payload: gz(T + '.bin'),
     grid: { meta: js(G + '.json'), cover: u8(G + '.u8'), canopy: u8(G + '.canopy.u8'), coast: u8(G + '.coast.u8'), albedo: u8(G + '.albedo.rgb'),
             tint: u8(G + '.tint.rgb'), ori1: u8(G + '.ori1.u8'), ndvi: u8(G + '.ndvi.u8'), lake: u8(G + '.lake.u8'), ttype: u8(G + '.ttype.u8'), lakes: js(G + '.lakes.json') },
-    far, hydro: 'blend' };
+    far, hydro: 'map' };
 }
 
 function worldPack() {
@@ -99,7 +99,7 @@ function islandBoot0(name) {
   if (process.env.FLYDIY_BENCH) return benchBoot(name, process.env.FLYDIY_BENCH);   // explicit: the un-baked bench
   const isl = (worldPack().islands || []).find(w => w.id === name);
   if (!isl) return null;
-  const boot = { id: name, grid: {}, far: {}, hydro: 'blend' };
+  const boot = { id: name, grid: {}, far: {}, hydro: 'map' };
   for (const k of Object.keys(isl.files)) {
     const r = isl.files[k];
     if ('json' in r) { set(boot, k, r.json); continue; }      // inlined in the manifest

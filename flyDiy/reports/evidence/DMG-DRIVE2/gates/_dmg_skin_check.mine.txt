@@ -1,0 +1,163 @@
+(192 s, 5 builds, damage on; TEAR 0.15)
+Cub:
+  the skin measured: 9 groups (genWing's and every member's tube), 11416 vertices, 21132 triangles; the wing fabric
+  a trunk at 30 m/s, the centreline: CRASHED (a fus member broke), 31 broken, 9 frames with a new break, the skin checked on 222 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 39 payloads over 300 snapshots, 32322 bytes (829 a payload), 2.863 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.00 mm from it ({"t":2.017,"mesh":"members","cage":false,"tri":2953}); the worst stretch of an edge of 2 cm or more 1.6016
+  ok    every skin position finite
+    the cost (node): the first break's binding 135.8 ms generated (whole), 58.4 ms cage (nearest nodes; 11416 vertices); 81 events, 3.56 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 2212, cage 2450; torn (stretched past TEAR): generated 1616, cage 1856; vertices on detached pieces up to 144; the drape's deepest sag 12.1 cm; the nodes' frames 0.651 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (702 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 17 broken, 8 frames with a new break, the skin checked on 219 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 14 payloads over 300 snapshots, 4833 bytes (345 a payload), 0.952 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.00 mm from it ({"t":3.333,"mesh":"skin","cage":false,"tri":3324}); the worst stretch of an edge of 2 cm or more 1.5473
+  ok    every skin position finite
+    the cost (node): the first break's binding 32.1 ms generated (whole), 4.0 ms cage (nearest nodes; 11416 vertices); 72 events, 0.84 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1091, cage 1685; torn (stretched past TEAR): generated 555, cage 1149; vertices on detached pieces up to 1072; the drape's deepest sag 17.9 cm; the nodes' frames 0.311 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (729 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 20 broken, 3 frames with a new break, the skin checked on 238 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 12 payloads over 240 snapshots, 6026 bytes (502 a payload), 0.794 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.08 mm from it ({"t":0.117,"mesh":"skin","cage":true,"tri":3853}); the worst stretch of an edge of 2 cm or more 1.3691
+  ok    every skin position finite
+    the cost (node): the first break's binding 22.8 ms generated (whole), 7.9 ms cage (nearest nodes; 11416 vertices); 27 events, 1.37 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 334, cage 468; torn (stretched past TEAR): generated 14, cage 148; vertices on detached pieces up to 144; the drape's deepest sag 0.0 cm; the nodes' frames 0.196 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (18 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2160 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.419 us a snapshot
+Jodel:
+  the skin measured: 8 groups (genWing's and every member's tube), 12148 vertices, 22174 triangles; the wing fabric
+  a trunk at 30 m/s, the centreline: CRASHED (a fus member broke), 67 broken, 6 frames with a new break, the skin checked on 223 frames; pieces up to 4
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 11 payloads over 300 snapshots, 7540 bytes (685 a payload), 15.7 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.01 mm from it ({"t":2.717,"mesh":"members","cage":false,"tri":2745}); the worst stretch of an edge of 2 cm or more 1.4723
+  ok    every skin position finite
+    the cost (node): the first break's binding 248.6 ms generated (whole), 68.4 ms cage (nearest nodes; 12148 vertices); 48 events, 7.01 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1684, cage 2734; torn (stretched past TEAR): generated 532, cage 1678; vertices on detached pieces up to 1170; the drape's deepest sag 5.7 cm; the nodes' frames 0.570 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (616 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2400 group poses)
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a tail member broke), 16 broken, 1 frames with a new break, the skin checked on 217 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 3 payloads over 300 snapshots, 597 bytes (199 a payload), 0.51 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.09 mm from it ({"t":1.467,"mesh":"members","cage":true,"tri":11744}); the worst stretch of an edge of 2 cm or more 1.4279
+  ok    every skin position finite
+    the cost (node): the first break's binding 16.4 ms generated (whole), 12.4 ms cage (nearest nodes; 12148 vertices); 8 events, 5.78 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 258, cage 572; torn (stretched past TEAR): generated 2, cage 316; vertices on detached pieces up to 1026; the drape's deepest sag 0.0 cm; the nodes' frames 0.315 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (664 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2400 group poses)
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 28 broken, 3 frames with a new break, the skin checked on 238 frames; pieces up to 4
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 4 payloads over 240 snapshots, 1585 bytes (396 a payload), 0.635 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.00 mm from it ({"t":1.133,"mesh":"skin","cage":true,"tri":2581}); the worst stretch of an edge of 2 cm or more 1.5303
+  ok    every skin position finite
+    the cost (node): the first break's binding 16.2 ms generated (whole), 4.0 ms cage (nearest nodes; 12148 vertices); 24 events, 1.22 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 485, cage 975; torn (stretched past TEAR): generated 37, cage 527; vertices on detached pieces up to 1170; the drape's deepest sag 0.0 cm; the nodes' frames 0.238 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (16 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (1920 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 1.314 us a snapshot
+metal Cessna:
+  the skin measured: 9 groups (genWing's and every member's tube), 11524 vertices, 21156 triangles; the wing not fabric
+  a trunk at 30 m/s, the centreline: CRASHED (a fus member broke), 85 broken, 9 frames with a new break, the skin checked on 223 frames; pieces up to 6
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 24 payloads over 300 snapshots, 23559 bytes (982 a payload), 2.767 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.01 mm from it ({"t":1.35,"mesh":"skin","cage":false,"tri":2470}); the worst stretch of an edge of 2 cm or more 1.6450
+  ok    every skin position finite
+    the cost (node): the first break's binding 123.3 ms generated (whole), 34.2 ms cage (nearest nodes; 11524 vertices); 81 events, 3.33 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 3970, cage 6375; torn (stretched past TEAR): generated 2251, cage 5215; vertices on detached pieces up to 4163; the drape's deepest sag 0.0 cm; the nodes' frames 0.600 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (693 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 27 broken, 5 frames with a new break, the skin checked on 221 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 7 payloads over 300 snapshots, 1878 bytes (268 a payload), 1.043 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.03 mm from it ({"t":2.583,"mesh":"skin","cage":false,"tri":2482}); the worst stretch of an edge of 2 cm or more 1.5353
+  ok    every skin position finite
+    the cost (node): the first break's binding 10.1 ms generated (whole), 4.2 ms cage (nearest nodes; 11524 vertices); 45 events, 0.91 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1278, cage 1483; torn (stretched past TEAR): generated 532, cage 737; vertices on detached pieces up to 2941; the drape's deepest sag 0.0 cm; the nodes' frames 0.253 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (711 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 67 broken, 9 frames with a new break, the skin checked on 236 frames; pieces up to 4
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 17 payloads over 240 snapshots, 10564 bytes (621 a payload), 8.161 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.00 mm from it ({"t":1.45,"mesh":"members","cage":false,"tri":10882}); the worst stretch of an edge of 2 cm or more 1.6402
+  ok    every skin position finite
+    the cost (node): the first break's binding 9.4 ms generated (whole), 3.7 ms cage (nearest nodes; 11524 vertices); 81 events, 1.17 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 5261, cage 5667; torn (stretched past TEAR): generated 4169, cage 4721; vertices on detached pieces up to 2538; the drape's deepest sag 0.0 cm; the nodes' frames 0.293 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (36 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2160 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.553 us a snapshot
+Cessna floats:
+  the skin measured: 10 groups (genWing's and every member's tube), 13128 vertices, 24036 triangles; the wing not fabric
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 62 broken, 6 frames with a new break, the skin checked on 231 frames; pieces up to 5
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 11 payloads over 240 snapshots, 5522 bytes (502 a payload), 10.927 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.01 mm from it ({"t":0.383,"mesh":"members","cage":false,"tri":16028}); the worst stretch of an edge of 2 cm or more 1.5663
+  ok    every skin position finite
+    the cost (node): the first break's binding 112.1 ms generated (whole), 49.1 ms cage (nearest nodes; 13128 vertices); 60 events, 3.03 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1387, cage 2186; torn (stretched past TEAR): generated 341, cage 1286; vertices on detached pieces up to 2628; the drape's deepest sag 0.0 cm; the nodes' frames 0.426 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (90 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2400 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.805 us a snapshot
+twin floatplane:
+  the skin measured: 9 groups (genWing's and every member's tube), 11998 vertices, 21796 triangles; the wing fabric
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (broke up: the fuselage parted (TPB off the core)), 38 broken, 4 frames with a new break, the skin checked on 236 frames; pieces up to 6
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 7 payloads over 240 snapshots, 3717 bytes (531 a payload), 2.548 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.00 mm from it ({"t":0.15,"mesh":"members","cage":false,"tri":14162}); the worst stretch of an edge of 2 cm or more 1.6218
+  ok    every skin position finite
+    the cost (node): the first break's binding 124.8 ms generated (whole), 39.0 ms cage (nearest nodes; 11998 vertices); 36 events, 5.47 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 5137, cage 5456; torn (stretched past TEAR): generated 4317, cage 4622; vertices on detached pieces up to 5284; the drape's deepest sag 8.9 cm; the nodes' frames 0.345 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (36 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2160 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.477 us a snapshot
+  ok    app.js: the skin's break path (13 calls) runs only through brkGen / brkCage, each returning at once unless the damage state holds a broken member
+  116/116 checks
+GATE DMGSKIN: PASS
+exit 0

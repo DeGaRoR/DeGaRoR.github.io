@@ -1,0 +1,3 @@
+# scripts/twin_t361.js (the certificate's torque361 case on the twin's mount members; kb = the multiple that breaks it)
+base:  1.468 ENGL-WR c 3082 N, fc0 4524 N (Euler, L 1.71 m), its certified Fc 8692 N (bow)
+after: ENGL-WR fc0 15743 N (no Euler: lumped); the worst 3.889 CGE-WF

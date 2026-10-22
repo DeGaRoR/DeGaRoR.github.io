@@ -1,0 +1,995 @@
+[run_gates] 0/13 jobs done · running DMGHULL 30 s
+[run_gates] 0/13 jobs done · running DMGHULL 60 s
+[run_gates] 0/13 jobs done · running DMGHULL 90 s
+[run_gates] 0/13 jobs done · running DMGHULL 120 s
+[run_gates] 0/13 jobs done · running DMGHULL 150 s
+[run_gates] 0/13 jobs done · running DMGHULL 180 s
+[run_gates] 0/13 jobs done · running DMGHULL 210 s
+[run_gates] 0/13 jobs done · running DMGHULL 240 s
+[run_gates] 0/13 jobs done · running DMGHULL 270 s
+[run_gates] 0/13 jobs done · running DMGHULL 300 s
+[run_gates] 0/13 jobs done · running DMGHULL 330 s
+[run_gates] 0/13 jobs done · running DMGHULL 360 s
+[run_gates] 0/13 jobs done · running DMGHULL 390 s
+[run_gates] 1/13 jobs done · running DMGPLOUGH 13 s
+[run_gates] 1/13 jobs done · running DMGPLOUGH 43 s
+[run_gates] 1/13 jobs done · running DMGPLOUGH 73 s
+[run_gates] 1/13 jobs done · running DMGPLOUGH 103 s
+[run_gates] 1/13 jobs done · running DMGPLOUGH 133 s
+[run_gates] 1/13 jobs done · running DMGPLOUGH 163 s
+[run_gates] 1/13 jobs done · running DMGPLOUGH 193 s
+[run_gates] 1/13 jobs done · running DMGPLOUGH 223 s
+[run_gates] 1/13 jobs done · running DMGPLOUGH 253 s
+[run_gates] 1/13 jobs done · running DMGPLOUGH 283 s
+[run_gates] 1/13 jobs done · running DMGPLOUGH 313 s
+[run_gates] 1/13 jobs done · running DMGPLOUGH 343 s
+[run_gates] 1/13 jobs done · running DMGPLOUGH 373 s
+[run_gates] 2/13 jobs done · running TREECRASH 27 s, SEAPLANE 27 s
+[run_gates] 2/13 jobs done · running TREECRASH 57 s, SEAPLANE 57 s
+[run_gates] 2/13 jobs done · running TREECRASH 87 s, SEAPLANE 87 s
+[run_gates] 2/13 jobs done · running TREECRASH 117 s, SEAPLANE 117 s
+[run_gates] 2/13 jobs done · running TREECRASH 147 s, SEAPLANE 147 s
+[run_gates] 2/13 jobs done · running TREECRASH 177 s, SEAPLANE 177 s
+[run_gates] 2/13 jobs done · running TREECRASH 207 s, SEAPLANE 207 s
+[run_gates] 3/13 jobs done · running TREECRASH 237 s, SOAR 7 s
+[run_gates] 3/13 jobs done · running TREECRASH 267 s, SOAR 37 s
+[run_gates] 3/13 jobs done · running TREECRASH 297 s, SOAR 67 s
+[run_gates] 3/13 jobs done · running TREECRASH 327 s, SOAR 97 s
+[run_gates] 3/13 jobs done · running TREECRASH 357 s, SOAR 127 s
+[run_gates] 3/13 jobs done · running TREECRASH 387 s, SOAR 157 s
+[run_gates] 3/13 jobs done · running TREECRASH 417 s, SOAR 187 s
+[run_gates] 3/13 jobs done · running TREECRASH 447 s, SOAR 217 s
+[run_gates] 3/13 jobs done · running TREECRASH 477 s, SOAR 247 s
+=== TREECRASH ===
+(496 s, 5 builds)
+Cub:
+1. the table
+  ok    394 members, every one with a section and a GEN_CRASH material (tubeFabric, wood)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test to 5.7 g: HELD, nothing yields; the worst member at 3.8 g 0.19 (wing, tension), at 5.7 g 0.28 (wing, tension)
+  ok    a flown pull from 42 m/s to 4.21 g (held 0.25 s over 3.7): nothing yields; the worst member 0.43 (fus, tension)
+  ok    a drop at 2.13 m/s (7.00 ft/s, FAR 23.473): 1.67 g, nothing yields; the worst member 0.13 (fus, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 1.93 g, nothing yields; the worst member 0.17 (fus, compression)
+  ok    a circuit with the pilot (completed, 335 s, 1.32 g at the most): nothing yields; the worst member 0.12 (fus, tension)
+3. a taxi into a trunk, a wingtip brush
+  ok    taxied at 3 m/s into a trunk: a dent (9 members set, 0 of the nose broken, 705 J), no crash; the prop struck, the engine stopped; back 1.26 m from where it stopped
+  ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (5082 contacts), 0 members set, no crash
+4. a flight into a trunk at 30 m/s
+  ok    the centreline: CRASHED (the airframe crushed (6.7 kJ of plastic work) at 1.32 s), 85 members broken (8 of the wing), 104.3 kJ of plastic work, 15.94 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.37 s), 8 members broken (8 of the wing), 10.6 kJ of plastic work, 6.36 g; finite; the kinetic energy at most 100.0 % of the impact's
+5. reset heals
+  ok    after a crash, reset() and the same taxi: the fresh sim's bits (2c5d798c3f1e / 2c5d798c3f1e)
+Jodel:
+1. the table
+  ok    492 members, every one with a section and a GEN_CRASH material (wood, tubeFabric)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test to 5.7 g: HELD, nothing yields; the worst member at 3.8 g 0.34 (wing, compression), at 5.7 g 0.50 (wing, compression)
+  ok    a flown pull from 49 m/s to 4.94 g (held 0.35 s over 3.7): nothing yields; the worst member 0.40 (wing, compression)
+  ok    a drop at 2.17 m/s (7.12 ft/s, FAR 23.473): 1.86 g, nothing yields; the worst member 0.16 (wing, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 2.21 g, nothing yields; the worst member 0.21 (wing, compression)
+  ok    a circuit with the pilot (null, 340 s, 1.68 g at the most): nothing yields; the worst member 0.10 (wing, compression)
+3. a taxi into a trunk, a wingtip brush
+  ok    taxied at 3 m/s into a trunk: a dent (9 members set, 1 of the nose broken, 1106 J), no crash; the prop struck, the engine stopped; back 0.19 m from where it stopped
+  ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (6987 contacts), 0 members set, no crash
+4. a flight into a trunk at 30 m/s
+  ok    the centreline: CRASHED (a fus member broke at 1.30 s), 63 members broken (14 of the wing), 117.8 kJ of plastic work, 20.00 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.35 s), 7 members broken (7 of the wing), 5.9 kJ of plastic work, 7.89 g; finite; the kinetic energy at most 100.0 % of the impact's
+5. reset heals
+  ok    after a crash, reset() and the same taxi: the fresh sim's bits (2b49485b0f42 / 2b49485b0f42)
+metal Cessna:
+1. the table
+  ok    442 members, every one with a section and a GEN_CRASH material (alloy, tubeFabric)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test to 5.7 g: HELD, nothing yields; the worst member at 3.8 g 0.45 (wing, tension), at 5.7 g 0.66 (wing, tension)
+  ok    a flown pull from 58 m/s to 5.34 g (held 0.32 s over 3.7): nothing yields; the worst member 0.57 (wing, tension)
+  ok    a drop at 2.38 m/s (7.79 ft/s, FAR 23.473): 2.12 g, nothing yields; the worst member 0.15 (wing, tension)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 2.43 g, nothing yields; the worst member 0.19 (wing, compression)
+  ok    a circuit with the pilot (completed, 271 s, 1.81 g at the most): nothing yields; the worst member 0.18 (tail, compression)
+3. a taxi into a trunk, a wingtip brush
+  ok    taxied at 3 m/s into a trunk: a dent (7 members set, 1 of the nose broken, 759 J), no crash; the prop struck, the engine stopped; back 1.43 m from where it stopped
+  ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (25251 contacts), 0 members set, no crash
+4. a flight into a trunk at 30 m/s
+  ok    the centreline: CRASHED (the airframe crushed (4.6 kJ of plastic work) at 1.30 s), 116 members broken (8 of the wing), 110.8 kJ of plastic work, 25.05 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 22 members broken (22 of the wing), 32.5 kJ of plastic work, 8.36 g; finite; the kinetic energy at most 100.0 % of the impact's
+5. reset heals
+  ok    after a crash, reset() and the same taxi: the fresh sim's bits (5d76ba2cc9da / 5d76ba2cc9da)
+Cessna floats:
+1. the table
+  ok    533 members, every one with a section and a GEN_CRASH material (alloy, tubeFabric)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test to 5.7 g: HELD, nothing yields; the worst member at 3.8 g 0.56 (wing, tension), at 5.7 g 0.82 (wing, tension)
+  ok    a flown pull from 67 m/s to 4.06 g (held 0.53 s over 3.7): nothing yields; the worst member 0.65 (wing, tension)
+  ok    a drop at 2.54 m/s (8.33 ft/s, FAR 23.473): 1.65 g, nothing yields; the worst member 0.16 (wing, tension)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 1.73 g, nothing yields; the worst member 0.22 (wing, tension)
+  ok    a circuit with the pilot (null, 340 s, 2.27 g at the most): nothing yields; the worst member 0.19 (wing, tension)
+   (a floatplane: the trunk runs are the land builds')
+twin floatplane:
+1. the table
+  ok    519 members, every one with a section and a GEN_CRASH material (tubeFabric, wood)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test to 5.7 g: HELD, nothing yields; the worst member at 3.8 g 0.19 (wing, tension), at 5.7 g 0.28 (wing, tension)
+  ok    a flown pull from 43 m/s to 5.02 g (held 0.33 s over 3.7): nothing yields; the worst member 0.54 (tail, compression)
+  ok    a drop at 2.13 m/s (7.00 ft/s, FAR 23.473): 1.49 g, nothing yields; the worst member 0.14 (fus, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 1.55 g, nothing yields; the worst member 0.21 (fus, compression)
+  ok    a circuit with the pilot (completed, 292 s, 1.73 g at the most): nothing yields; the worst member 0.18 (tail, compression)
+   (a floatplane: the trunk runs are the land builds')
+6. the water - Cub
+  ok    a 5 m/s level pancake: the worst member 0.49 (tail, compression); 0 set, 0 broken, the slam 522 kPa, 2 hull slice(s) holed, 6.05 g, dented, no crash; the damage follows the beams' own loads
+  ok    a 100 km/h nose-in ditch (4 m/s, 10 deg): the worst member 0.87 (fus, compression); 0 set, 0 broken, the slam 261 kPa, 1 hull slice(s) holed, 9.82 g, CRASHED (an impact of 10 g); the damage follows the beams' own loads
+  ok    SEVERE: 180 km/h, 10 m/s, 60 deg nose-in: the worst member 1.89 (fus, compression); 26 set {"fus":16,"wing":10}, 10 broken, the slam 365 kPa, 2 hull slice(s) holed, 37.89 g, CRASHED (an impact of 13 g) - must yield, break and crash; the damage follows the beams' own loads
+6. the water - twin floatplane
+  ok    a float nose-in (90 km/h, 5 m/s, 20 deg): the worst member 0.47 (tail, compression); 0 set, 0 broken, 5.61 g, no damage; the damage follows the beams' own loads
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst member 4.92 (tail, compression); 75 set {"fus":13,"wing":4,"tail":54,"wire":2,"gear":2}, 37 broken, 14.74 g, CRASHED (a tail member broke) - must yield, break and crash; the damage follows the beams' own loads
+  50/50 checks
+GATE TREECRASH: PASS
+[run_gates] 5/13 jobs done · running SOAR 277 s, DMGDAMP 12 s, LOAD 12 s, FLOATS 1 s
+[run_gates] 5/13 jobs done · running SOAR 307 s, DMGDAMP 42 s, LOAD 42 s, FLOATS 31 s
+[run_gates] 6/13 jobs done · running SOAR 337 s, DMGDAMP 72 s, LOAD 72 s, BENCH 5 s
+[run_gates] 6/13 jobs done · running SOAR 367 s, DMGDAMP 102 s, LOAD 102 s, BENCH 35 s
+[run_gates] 7/13 jobs done · running SOAR 397 s, DMGDAMP 132 s, LOAD 132 s, SIMWORKER 4 s
+[run_gates] 7/13 jobs done · running SOAR 427 s, DMGDAMP 162 s, LOAD 162 s, SIMWORKER 34 s
+[run_gates] 7/13 jobs done · running SOAR 457 s, DMGDAMP 192 s, LOAD 192 s, SIMWORKER 64 s
+=== DMGDAMP ===
+GATE DMGDAMP: PASS
+=== DMGHULL ===
+LAW (the rigid bench: each build's own float at the hump and on the step of its calm take-off)
+   twin on floats hump: V 7.1 m/s, step keel 0.272 m deep, trim 4.6 deg; at 3 deg of slip the side force 305.5 N (the base's panels 111.2 N), centre -0.953 m from the step; slender body on the step keel 306.5 N
+   twin on floats step: V 12.0 m/s, step keel 0.172 m deep, trim 4.8 deg; at 3 deg of slip the side force 346.1 N (the base's panels 150.8 N), centre -0.668 m from the step; slender body on the step keel 347.3 N
+PASS twin on floats hump: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS twin on floats hump: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS twin on floats hump: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS twin on floats hump: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+PASS twin on floats hump: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS twin on floats hump: at 90 deg the side term is 0 N and the cross-flow carries 23145.7 N
+PASS twin on floats step: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS twin on floats step: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS twin on floats step: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS twin on floats step: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+PASS twin on floats step: 346.1 N against the slender body's (pi/2) rho T^2 U v = 347.3 N on T = 0.172 m (2 %)
+PASS twin on floats step: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS twin on floats step: at 90 deg the side term is 0 N and the cross-flow carries 14417.32 N
+PASS twin on floats step: the side force's centre -0.668 m from the step (ahead of it, on the forebody: -2.22..0)
+   Cessna on floats hump: V 11.1 m/s, step keel 0.274 m deep, trim 10.5 deg; at 3 deg of slip the side force 747.3 N (the base's panels 325.4 N), centre -0.519 m from the step; slender body on the step keel 760.0 N
+   Cessna on floats step: V 18.8 m/s, step keel 0.087 m deep, trim 6.6 deg; at 3 deg of slip the side force 218.7 N (the base's panels 135.5 N), centre -0.292 m from the step; slender body on the step keel 220.1 N
+PASS Cessna on floats hump: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS Cessna on floats hump: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS Cessna on floats hump: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS Cessna on floats hump: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+PASS Cessna on floats hump: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS Cessna on floats hump: at 90 deg the side term is 0 N and the cross-flow carries 62645.39 N
+PASS Cessna on floats step: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS Cessna on floats step: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS Cessna on floats step: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS Cessna on floats step: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+PASS Cessna on floats step: 218.7 N against the slender body's (pi/2) rho T^2 U v = 220.1 N on T = 0.087 m (2 %)
+PASS Cessna on floats step: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS Cessna on floats step: at 90 deg the side term is 0 N and the cross-flow carries 2406.31 N
+PASS Cessna on floats step: the side force's centre -0.292 m from the step (ahead of it, on the forebody: -3.68..0)
+
+SWEEP (GATE SEAPLANE's crosswind take-off, THE PILOT, the SEA lane; swing from the roll's own heading)
+   twin on floats:  wind | lift-off s | swing deg | |x| m | lowest pitch deg | skips | class
+      0.0 |    8.3 |    0.0 |    0.0 |   -7.7 | 0 | ok
+      0.5 |    8.3 |    1.8 |    1.2 |   -7.7 | 0 | ok
+      1.0 |    8.2 |    2.9 |    2.4 |   -7.6 | 0 | ok
+      1.5 |    7.8 |    5.1 |    1.8 |   -8.6 | 0 | ok
+      2.0 |    -   |  177.7 |  215.8 |  -89.2 | 0 | NOSE-OVER at the plough (pitch -89 deg)
+      2.5 |    8.4 |    8.5 |    4.2 |   -8.7 | 1 | ok
+      3.0 |    7.8 |   10.3 |    5.3 |   -8.3 | 1 | ok
+      3.5 |    7.0 |   30.7 |    8.0 |   -7.7 | 0 | YAW WATER LOOP
+      4.0 |    -   |  180.0 |  127.3 |  -87.5 | 0 | NOSE-OVER at the plough (pitch -87 deg)
+      4.5 |    -   |  180.0 | 1142.0 |  -79.5 | 0 | NOSE-OVER at the plough (pitch -80 deg)
+      5.0 |    -   |  173.9 | 1131.0 |  -72.1 | 0 | NOSE-OVER at the plough (pitch -72 deg)
+PASS twin on floats: 0-1.5 m/s across clean (the base's clean band)
+OWED twin on floats: YAW swing past 30 deg at 3.5 m/s (30.7 deg) - the side force's centre is ahead of the CG on the step (HANDOVER G1847-G1849, open question 2)
+OWED twin on floats: NOSE-OVER at the plough at 2, 4, 4.5, 5 m/s across (the bows bury at 6-7 m/s, the pitch past -30 deg; not a yaw loop - HANDOVER G1847-G1849, open question 1)
+   Cessna on floats:  wind | lift-off s | swing deg | |x| m | lowest pitch deg | skips | class
+      0.0 |   30.5 |    0.0 |    0.0 |   -0.5 | 0 | ok
+      0.5 |   30.6 |    0.3 |    0.6 |   -0.5 | 0 | ok
+      1.0 |   30.3 |    1.0 |    1.4 |   -0.5 | 0 | ok
+      1.5 |   30.1 |    0.9 |    2.1 |   -0.5 | 0 | ok
+      2.0 |   28.7 |    4.7 |    2.6 |   -0.5 | 0 | ok
+      2.5 |   31.3 |    1.3 |    3.6 |   -0.5 | 0 | ok
+      3.0 |   30.2 |    7.7 |    3.8 |   -0.5 | 4 | ok
+      3.5 |   30.4 |    9.4 |    4.5 |   -0.5 | 3 | ok
+      4.0 |   29.6 |    5.1 |    4.8 |   -1.9 | 2 | ok
+      4.5 |   30.9 |   12.0 |    6.0 |   -0.5 | 1 | ok
+      5.0 |   33.2 |   14.0 |    7.7 |   -0.5 | 4 | ok
+PASS Cessna on floats: no yaw water loop at any crosswind 0-5 m/s
+PASS Cessna on floats: every take-off off the water, swing and lane under 30 (worst 14.0 deg, 7.7 m)
+
+KICK (0.3 rad/s of yaw rate on the water, kicked minus unkicked, controls frozen, rudder neutral)
+   twin on floats rest (V 0.0 m/s): after 1 / 2 / 6 s - before 0.143 / 0.078 / 0.009 rad/s (t1/2 0.93 s); after 0.235 / 0.197 / 0.120 rad/s (t1/2 3.97 s); now 0.223 / 0.181 / 0.103 rad/s (t1/2 3.08 s)
+PASS twin on floats at rest: the kick decays no slower than DMG-DAMP's after: 0.1026 against 0.1201 rad/s at 6 s
+   twin on floats hump (V 7.1 m/s): after 1 / 2 s - before 0.176 / 0.201 rad/s (t1/2 >2 s); after 0.229 / 0.361 rad/s (t1/2 >2 s); now 0.255 / 0.540 rad/s (t1/2 >2 s)
+OWED twin on floats hump: 0.255 rad/s left after 1 s against 0.229 without the side force (LESS stable: the centre ahead of the CG)
+   twin on floats step (V 12.0 m/s): after 1 / 2 s - before 0.278 / 0.230 rad/s (t1/2 >2 s); after 0.276 / 0.121 rad/s (t1/2 1.73 s); now 0.427 / 0.429 rad/s (t1/2 >2 s)
+OWED twin on floats step: 0.427 rad/s left after 1 s against 0.276 without the side force (LESS stable: the centre ahead of the CG)
+   Cessna on floats rest (V 0.0 m/s): after 1 / 2 / 6 s - before 0.088 / 0.042 / 0.003 rad/s (t1/2 0.45 s); after 0.133 / 0.090 / 0.041 rad/s (t1/2 0.78 s); now 0.127 / 0.084 / 0.037 rad/s (t1/2 0.72 s)
+PASS Cessna on floats at rest: the kick decays no slower than DMG-DAMP's after: 0.0367 against 0.0412 rad/s at 6 s
+   Cessna on floats hump (V 11.1 m/s): after 1 / 2 s - before 0.065 / -0.014 rad/s (t1/2 0.47 s); after 0.141 / -0.010 rad/s (t1/2 0.97 s); now 0.103 / -0.027 rad/s (t1/2 0.70 s)
+NOTE Cessna on floats hump: 0.103 rad/s left after 1 s against 0.141 without the side force (damped)
+   Cessna on floats step (V 18.8 m/s): after 1 / 2 s - before 0.060 / -0.042 rad/s (t1/2 0.58 s); after 0.081 / -0.063 rad/s (t1/2 0.82 s); now 0.106 / -0.014 rad/s (t1/2 0.87 s)
+OWED Cessna on floats step: 0.106 rad/s left after 1 s against 0.081 without the side force (LESS stable: the centre ahead of the CG)
+
+(42 runs in 407 s on 4 processes)
+GATE DMGHULL: PASS
+=== DMGPLOUGH ===
+LAW (the plough wave G1807 on the rigid bench, FORCED ON: each build's float, the keel 4 deg nose-up at its share of the weight)
+   twin on floats: float L 4.01 m, B 0.50 m; Fn | U m/s | amplitude m | env | tan(alpha_E) | the wave's lift N | its pitching moment N m (+ nose-down)
+      0.00 |  0.00 | 0.000 | 0.00 | 0.00 |      0 |      0
+      0.12 |  0.75 | 0.063 | 1.00 | 0.72 |    -10 |    -28
+      0.25 |  1.50 | 0.194 | 1.00 | 0.72 |   -187 |   -391
+      0.37 |  2.26 | 0.353 | 1.00 | 0.72 |   -482 |   -819
+      0.49 |  3.01 | 0.528 | 1.00 | 0.72 |     79 |  -2412
+      0.62 |  3.76 | 0.620 | 0.87 | 0.72 |   1362 |  -2134
+      0.74 |  4.51 | 0.478 | 0.53 | 0.72 |   1461 |  -1986
+      0.86 |  5.27 | 0.190 | 0.17 | 0.72 |   1444 |  -1867
+      0.99 |  6.02 | 0.002 | 0.00 | 0.72 |     18 |    -21
+      1.11 |  6.77 | 0.000 | 0.00 | 0.00 |      0 |      0
+      1.23 |  7.52 | 0.000 | 0.00 | 0.00 |      0 |      0
+      1.36 |  8.28 | 0.000 | 0.00 | 0.00 |      0 |      0
+      1.48 |  9.03 | 0.000 | 0.00 | 0.00 |      0 |      0
+PASS twin on floats the shipped default: DEF.kWave 0 (0: OFF)
+PASS twin on floats the generator's float carries kWave 0 (OFF)
+PASS twin on floats at rest (U 0): amplitude 0 m, the forces bit-identical to the wave off: true
+PASS twin on floats a metre over the water at 3 m/s: amplitude 0 m, 0 N
+PASS twin on floats the amplitude peaks at Fn 0.617 (0.62 m at 3.761 m/s): inside 0.5..0.8
+PASS twin on floats on the step (Fn >= 1: 16 speeds) the wave is 0 m, 0 N, 0 N m
+PASS twin on floats in the displacement regime (0 < Fn < 0.5) the amplitude is positive at every speed (16)
+   Cessna on floats: float L 6.95 m, B 0.68 m; Fn | U m/s | amplitude m | env | tan(alpha_E) | the wave's lift N | its pitching moment N m (+ nose-down)
+      0.00 |  0.00 | 0.000 | 0.00 | 0.00 |      0 |      0
+      0.13 |  0.99 | 0.082 | 1.00 | 0.57 |    110 |     81
+      0.25 |  1.98 | 0.246 | 1.00 | 0.57 |    757 |   -174
+      0.38 |  2.97 | 0.442 | 1.00 | 0.57 |    868 |  -5019
+      0.50 |  3.96 | 0.653 | 1.00 | 0.57 |   5869 | -15594
+      0.63 |  4.95 | 0.738 | 0.84 | 0.57 |   8619 | -17263
+      0.76 |  5.95 | 0.533 | 0.48 | 0.57 |   8506 | -18109
+      0.88 |  6.94 | 0.177 | 0.13 | 0.57 |   3417 |  -6950
+      1.01 |  7.93 | 0.000 | 0.00 | 0.00 |      0 |      0
+      1.13 |  8.92 | 0.000 | 0.00 | 0.00 |      0 |      0
+      1.26 |  9.91 | 0.000 | 0.00 | 0.00 |      0 |      0
+      1.38 | 10.90 | 0.000 | 0.00 | 0.00 |      0 |      0
+      1.51 | 11.89 | 0.000 | 0.00 | 0.00 |      0 |      0
+PASS Cessna on floats the shipped default: DEF.kWave 0 (0: OFF)
+PASS Cessna on floats the generator's float carries kWave 0 (OFF)
+PASS Cessna on floats at rest (U 0): amplitude 0 m, the forces bit-identical to the wave off: true
+PASS Cessna on floats a metre over the water at 3 m/s: amplitude 0 m, 0 N
+PASS Cessna on floats the amplitude peaks at Fn 0.598 (0.7435 m at 4.707 m/s): inside 0.5..0.8
+PASS Cessna on floats on the step (Fn >= 1: 17 speeds) the wave is 0 m, 0 N, 0 N m
+PASS Cessna on floats in the displacement regime (0 < Fn < 0.5) the amplitude is positive at every speed (15)
+
+HUMP (the calm take-off, THE PILOT, the SEA lane; the band 8-12 deg nose-up at the hump)
+   twin on floats (as built): hump at 4.7 m/s (C_V 2.15, Fn_L 0.76, R/W 0.318): keel trim -7.0 deg (pitch -6.6); lowest keel trim on the run -7.4 deg at 4.3 m/s; highest before the hump 2.0, over C_V 1.5-4 9.5; lift-off 8.3 s
+   twin on floats (INSTRUMENT: thrust at the nose frame, 0.17 m over the CG): hump at 8.8 m/s (C_V 3.99, Fn_L 1.41, R/W 0.052): keel trim 5.3 deg (pitch 6.0); lowest keel trim on the run 1.5 deg at 14.4 m/s; highest before the hump 14.8, over C_V 1.5-4 14.8; lift-off 6.4 s
+   twin on floats (the plough wave ON, kWave 1): hump at 4.6 m/s (C_V 2.07, Fn_L 0.73, R/W 0.782): keel trim -58.3 deg (pitch -57.9); lowest keel trim on the run -67.0 deg at 4.3 m/s; highest before the hump 1.9, over C_V 1.5-4 14.9; lift-off - - NOSE-OVER (pitch -88)
+   Cessna on floats (as built): hump at 6.1 m/s (C_V 2.34, Fn_L 0.73, R/W 0.081): keel trim 8.2 deg (pitch 7.2); lowest keel trim on the run 2.3 deg at 26.1 m/s; highest before the hump 8.2, over C_V 1.5-4 15.1; lift-off 30.5 s
+   Cessna on floats (the plough wave ON, kWave 1): hump at 3.0 m/s (C_V 1.14, Fn_L 0.36, R/W 0.109): keel trim 3.1 deg (pitch 2.0); lowest keel trim on the run 2.2 deg at 2.7 m/s; highest before the hump 3.1, over C_V 1.5-4 14.1; lift-off 31.7 s
+PASS Cessna on floats: keel trim at the hump 8.2 deg inside 8-12
+PASS Cessna on floats: never nose-down on the run (lowest keel trim 2.3 deg)
+PASS twin on floats with the thrust at the nose frame (INSTRUMENT): lowest keel trim 1.5 deg (> 0), at the hump 5.3 deg: the base's hydro carries the plough's bow-up trim
+OWED twin on floats (as built): keel trim at the hump -7.0 deg, lowest -7.4 deg at 4.3 m/s - its thrust couple (0.57 m over the CG) and the water drag (1.5 m under it) beat the floats' nose-down restoring once the afterbody unwets (HANDOVER G1807-G1809, open question 1)
+NOTE twin on floats with the plough wave ON: NOSES OVER in calm air (pitch -88 deg) - the wave's crest on the narrow bow, its trough on the wide forebody ahead of the CG: why it ships OFF
+
+SWEEP (GATE SEAPLANE's crosswind take-off, THE PILOT, the SEA lane; swing from the roll's own heading)
+   twin on floats:  wind | lift-off s | swing deg | |x| m | lowest pitch deg | lowest keel trim deg | skips | class
+      0.0 |    8.3 |    0.0 |    0.0 |   -7.7 |   -7.4 | 0 | ok
+      0.5 |    8.3 |    1.8 |    1.2 |   -7.7 |   -7.4 | 0 | ok
+      1.0 |    8.2 |    2.9 |    2.4 |   -7.6 |   -7.4 | 0 | ok
+      1.5 |    7.8 |    5.1 |    1.8 |   -8.6 |   -8.5 | 0 | ok
+      2.0 |    -   |  177.7 |  215.8 |  -89.2 |  -63.9 | 0 | NOSE-OVER at the plough
+      2.5 |    8.4 |    8.5 |    4.2 |   -8.7 |   -8.7 | 1 | ok
+      3.0 |    7.8 |   10.3 |    5.3 |   -8.3 |   -8.3 | 1 | ok
+      3.5 |    7.0 |   30.7 |    8.0 |   -7.7 |   -7.5 | 0 | YAW WATER LOOP
+      4.0 |    -   |  180.0 |  127.3 |  -87.5 |  -64.4 | 0 | NOSE-OVER at the plough
+      4.5 |    -   |  180.0 | 1142.0 |  -79.5 |  -63.3 | 0 | NOSE-OVER at the plough
+      5.0 |    -   |  173.9 | 1131.0 |  -72.1 |  -58.8 | 0 | NOSE-OVER at the plough
+PASS twin on floats: 0-1.5 m/s across clean (DMG-HULL's clean band)
+OWED twin on floats: NOSE-OVER at the plough at 2, 4, 4.5, 5 m/s across (HANDOVER G1807-G1809, open question 1: the thrust couple, not a missing wave)
+OWED twin on floats: YAW swing past 30 deg at 3.5 m/s (30.7 deg) (HANDOVER G1847-G1849, open question 2)
+   twin on floats (INSTRUMENT: thrust at the nose frame):  wind | lift-off s | swing deg | |x| m | lowest pitch deg | lowest keel trim deg | skips | class
+      0.0 |    6.4 |    0.0 |    0.0 |    0.0 |    1.5 | 0 | ok
+      0.5 |    6.4 |    1.9 |    0.7 |    0.0 |    1.5 | 0 | ok
+      1.0 |    6.4 |    2.1 |    1.5 |    0.0 |    1.8 | 0 | ok
+      1.5 |    5.6 |    2.8 |    1.1 |   -1.3 |    1.0 | 1 | ok
+      2.0 |    5.8 |    3.9 |    2.1 |    0.0 |    1.6 | 0 | ok
+      2.5 |    6.4 |    8.9 |    3.5 |    0.0 |    3.3 | 1 | ok
+      3.0 |    5.5 |    6.3 |    2.0 |    0.0 |    1.7 | 0 | ok
+      3.5 |    5.7 |    6.5 |    2.4 |   -1.1 |    2.4 | 1 | ok
+      4.0 |    6.1 |    9.4 |    3.6 |    0.0 |    1.3 | 1 | ok
+      4.5 |    6.5 |   16.1 |    5.8 |   -5.5 |    0.5 | 1 | ok
+      5.0 |    4.7 |   21.2 |    1.8 |   -4.4 |   -0.2 | 1 | ok
+NOTE twin on floats with the thrust at the nose frame: no nose-over at any wind; no yaw loop
+   Cessna on floats:  wind | lift-off s | swing deg | |x| m | lowest pitch deg | lowest keel trim deg | skips | class
+      0.0 |   30.5 |    0.0 |    0.0 |   -0.5 |    2.3 | 0 | ok
+      0.5 |   30.6 |    0.3 |    0.6 |   -0.5 |    2.3 | 0 | ok
+      1.0 |   30.3 |    1.0 |    1.4 |   -0.5 |    2.3 | 0 | ok
+      1.5 |   30.1 |    0.9 |    2.1 |   -0.5 |    2.4 | 0 | ok
+      2.0 |   28.7 |    4.7 |    2.6 |   -0.5 |    2.2 | 0 | ok
+      2.5 |   31.3 |    1.3 |    3.6 |   -0.5 |    2.3 | 0 | ok
+      3.0 |   30.2 |    7.7 |    3.8 |   -0.5 |    2.2 | 4 | ok
+      3.5 |   30.4 |    9.4 |    4.5 |   -0.5 |    2.3 | 3 | ok
+      4.0 |   29.6 |    5.1 |    4.8 |   -1.9 |    2.0 | 2 | ok
+      4.5 |   30.9 |   12.0 |    6.0 |   -0.5 |    2.1 | 1 | ok
+      5.0 |   33.2 |   14.0 |    7.7 |   -0.5 |    1.8 | 4 | ok
+PASS Cessna on floats: every take-off off the water, no nose-over, swing and lane under 30 (worst 14.0 deg, 7.7 m)
+
+(37 runs in 376 s on 4 processes)
+GATE DMGPLOUGH: PASS
+=== BENCH ===
+THE SHEET
+  ok   drawPlaque prints 48 literal rows
+  ok   every row has an explanation
+  ok   every section heading has its line
+  ok   the energy section's two headings are explained
+  ok   climb bound 0.5 m/s, red below it
+  ok   take-off run 500 / 1100 m
+  ok   static margin 0.05 / 0
+  ok   crosswind 4 / 2 m/s
+  ok   prop clearance 0.12 / 0.05 m
+  ok   the four loading corners left the plaque
+  ok   the bench check runs without the corners
+  ok   judge: climb
+  ok   judge: take-off run
+  ok   judge: static margin
+  ok   the band bar's marker stays on the bar and its zone is the judge's
+  ok   the marker moves monotonically with the value
+  ok   the sheet renders headings and rows
+  ok   a red row carries its fix in the hover text
+  ok   a judged row carries its band bar
+  ok   no row went unexplained
+THE WORD
+  ok   a new colour, a new finish and a new name keep the fingerprint
+  ok   a longer wing changes it
+  ok   a cage row changes it
+  ok   the hash is eight hex digits and stable
+  ok   FNV-1a reference values
+  ok   the cosmetic set is paint, finish, meta
+  ok   a tank hue, tint or finish keeps it
+  ok   the panel bezel keeps it
+  ok   the lights, who is aboard, a view toggle and a look row keep it
+  ok   a cage row added at its default keeps it
+  ok   the key order keeps it
+  ok   a float printed to the last digit keeps it
+  ok   a cage row moved off its default changes it
+  ok   a row put back to its default changes it (it was moved)
+  ok   a vessel capacity changes it
+  ok   the systems fit changes it
+  ok   without defaults every row counts (a core-only caller)
+  ok   the scheme is named in the tag
+  ok   canonical JSON sorts keys at every depth
+  ok   fpNow reads the default aeroplane garage.js publishes
+  ok   another PHYSICS_V is another fingerprint, the same one the same
+  ok   the versions are folded in (a bare context reads v0|p0)
+  ok   the dirty hook compares fingerprints
+  ok   the restore withdraws a changed, unstamped or old-scheme certificate instead of stamping the live fingerprint on it
+  ok   a withdrawn certificate is kept, struck through
+  ok   every settled result is dated
+  ok   BENCH_STATE carries the advised trim only from a live, accepted flight
+  ok   roll-out seeds the hand from the advised trim
+  ok   the pilot publishes the trim it held
+  ok   trim words in clicks of 0.02
+THE STRIP
+  ok   the phase strip knows all 19 pilot phases
+  ok   the crosswind leg is cruise, taxi and stopped map to their steps (A9: the ladder has its own card)
+  ok   all six roundels draw on a stub context
+  ok   the master roundel draws: AIRWORTHY, 250 mm, on page 7
+  ok   the master is dated by the last GATING certificate (a rating does not date it)
+  ok   a roundel is a disc with lettering round it
+  ok   one sticker per declared test, and every test has one (six: the crosswind's A9, the hydroplane's S1 G451.1)
+  ok   six 120 mm roundels in a 0.87 m strip
+  ok   no decal block = the rear fuselage under the registration
+  ok   the fin place (box side frame), fine-tuned, smaller, turned
+  ok   with a measured fin, the strip is centred on its chord 0.35 m under the top
+  ok   without a chord, hung short of the top's station
+  ok   no decal block = the master 250 mm, one roundel wide
+  ok   the master on the fin, fine-tuned, bigger, turned — on its own keys
+  ok   the master off hides the master and not the strip
+  ok   with a measured wing, the strip lies across the span on its chord station
+  ok   stickers shown off = no strip
+  ok   five named places, each with surfaces and a projection
+  ok   the sticker keys are decal defaults, so they ride finish.decals — and the default place is the fin
+  ok   the master keys are decal defaults too (the rear fuselage under the registration), with their panel rows
+  ok   the panel has a stickers block and the finish view a heading for it
+  ok   the strip lives on atlas page 6 (0 reg, 1-2 images, 3-5 the kit)
+  ok   the shader has the eighth decal slot (the strip and the master)
+  ok   aeroDecalsFor takes the stickers through the hook, with the decal block
+  ok   the manifest carries plaque.js, stickers.js, bench_worker.js, bench.js and bench.css
+  ok   the editor can be asked to rebuild its decal list
+THE THREAD
+  ok   the worker imports this module and the core bundle, and names the rig and the ladder
+  ok   the page backend steps under a frame's budget
+  ok   the rig's thread is killed at every way out (5 sites), with terminate()
+  ok   the certificate fails on a break-up or the tip cap, never on the yield proxy
+  ok   the proxy is reported as a warning, named for what it is
+  ok   the fix line names rows that exist (fixation, construction, span), not a deeper spar
+  ok   the advisor's levers are the wing page's rows; thickness and spar stations are not offered (measured useless / worse)
+  ok   a cantilever aluminium wing is offered struts, carbon and a metre off — not aluminium again
+  ok   a wing that follows an aluminium fuselage is not offered aluminium either (genSurfKey decides)
+  ok   the advisor runs after the verdict through the bridge, line by line
+  ok   a lever line names the row and the tip it buys
+  ok   the test flight is a flown card: it hands off to the game
+  ok   an arrival on the pilot awards, with the landing run and the trim
+  ok   a refusal is a failed test with its reason
+  ok   an arrival by hand awards, and carries no trim reading
+  ok   logFlight hands every flight to the bench; the offscreen circuit is gone
+  ok   the game pilot publishes the trim it held (the advisor reads the real flight now)
+  ok   the director cuts on the phases and a framing pick ends it
+  ok   2x steps twice a frame (twice what the real time owes, G586), refuses floats, drops itself
+  ok   the crosswind is its own advisory card
+  ok   the verdict names the limit and every rung
+  ok   under the plaque's bar it says why, with the first failed rung
+  ok   the probe publishes its rungs as they land (read-only)
+  ok   the plaque has the crosswind section, from the card's sheet
+  ok   the worker's run is the rig: same verdict, same tip (HELD, 1.022 %)
+THE FLIGHT
+  ok   the default garage build leaves LIFTOFF for CLIMB within 40 s of lifting off (10 s)
+  ok   it flies the whole circuit and stops: completed — ROLL LIFTOFF CLIMB CRUISE TURNBACK INBOUND APPROACH FLARE ROLLOUT STOPPED
+  ok   with a landing run (295 m)
+THE FIRST FLIGHT
+  ok   an unarmed arrival settles the flight certificate on the roll-out's fingerprint (161a1797)
+  ok   the award card shows on the first arrival and not again (1, then 0)
+  ok   the reload restores it valid, with its first day
+  ok   NEGATIVE: the pre-G700 arrival (fingerprinted out in the world) is lost on the reload (certified before fingerprints)
+  ok   app.js rollOut fingerprints the aeroplane before it closes the editor
+
+109/109 checks
+GATE BENCH: PASS
+=== SIMWORKER ===
+1 THE BLOB (simHostSource in a worker-like global)
+  ok   the Blob imports sim_host.js and the built core by URL next to the page, versioned (src/viewer/sim_host.js?v=B1, tools/flight_core.js?v=c0re)
+  ok   the Blob's host flies 120 steps of the analytic world to the page's bits
+1b THE STALL (the Blob's host on a fake clock: a 60 Hz page, a 60 s freeze, the page back)
+  at the freeze: step 359, 3.630 m/s (60 s of that is 218 m); held after 15 steps, 0.913 m on; the page back: 58 steps in its first second (at most 1 a turn), stalls 1, 59.767 s let go
+  ok   a 60 s page freeze: the host HOLDS 250 ms past the last beat (15 steps), the aeroplane 0.913 m from where the page last drew it (< 3; 218 m unheld)
+  ok   the page back: the flight goes on from where it held at real time (58 steps in the first second, at most 1 a turn) - the 59.767 s lost not owed, no teleport
+the page's world (the whole boot): 8041 ms
+2 LOCKSTEP (600 steps a build, Jolene + premises, HOME's stand)
+  the host: init 7625 ms, the trimmed boot 79.0 MiB
+  ok   stock: the host's aeroplane is the page's (93:9e392758, 93 nodes, 70 substeps)
+  ok   stock: every step's FNV(p, v) equal, 0..600 (final 45a69d5d, page 5182 ms)
+  ok   stock: the view's p at the newest snapshot is the page's, bit for bit
+  ok   stock: cgPos / cgVel / totalM are the solver's (-138.716, 31.594, 683.314; 496.38 kg)
+  ok   stock: axes and bodyOrigin are the solver's
+  ok   stock: wheels (3) and the strain are the solver's
+  ok   stock: out is the solver's (V 3.536 m/s, thrust 26.071 N)
+  ok   stock: fuel, eng and the levers are the solver's (fuel 32.386 kg, engine running)
+  ok   stock: the pilot's snapshot is the pilot's (TAXI, t 9.500 s)
+  ok   stock: the world-version counter moved with the day (0 -> 1), no command late, step index 600
+  ok   the view interpolates at T less its delay (1.50 steps) in its ring of 5: alpha 0.500 halfway between the two newest, 0.750 between the 4th and 3rd newest 2.25 steps back, clamped to the ring's oldest and the newest snapshot
+  ok   cessnaMetal: the host's aeroplane is the page's (103:9a3abdb3, 103 nodes, 120 substeps)
+  ok   cessnaMetal: every step's FNV(p, v) equal, 0..600 (final 5cf2e21e, page 7375 ms)
+  ok   cessnaMetal: the view's p at the newest snapshot is the page's, bit for bit
+  ok   cessnaMetal: cgPos / cgVel / totalM are the solver's (-137.488, 31.700, 678.942; 883.37 kg)
+  ok   cessnaMetal: axes and bodyOrigin are the solver's
+  ok   cessnaMetal: wheels (3) and the strain are the solver's
+  ok   cessnaMetal: out is the solver's (V 3.456 m/s, thrust 0.000 N)
+  ok   cessnaMetal: fuel, eng and the levers are the solver's (fuel 20.119 kg, engine running)
+  ok   cessnaMetal: the pilot's snapshot is the pilot's (TAXI, t 9.500 s)
+  ok   cessnaMetal: the world-version counter moved with the day (1 -> 2), no command late, step index 600
+3 REAL TIME (3.5 s on the host's own clock, a 60 Hz render loop busy 8 ms a frame)
+  the page frozen 1.5 s: 14 steps while it was (held), 30 in the half second after; 1 stall, 1.270 s let go
+  ok   the worker thread holds through a 1.5 s page freeze (14 steps, <= 21) and goes on after it (30 steps in 0.5 s, 1.270 s let go)
+  transport: a 4.6 KB snapshot buffer there and back (transferred) p50 0.048 / p99 3.814 ms
+  a snapshot's one-way latency (published -> taken; the render loop is busy 8 ms of each frame) p50 1.551 / p90 7.491 / max 17.171 ms
+  the pose age at the render (now less when the host held the drawn state; interpolated at T - 1 step) p50 42.368 / p90 59.820 ms
+  the render thread's physics: take 0.042 / max 6.162 ms a snapshot, frame 0.059 / max 5.138 ms a frame
+  the host: 250 steps in 3.5 s + the freeze, step 6.426 ms (eased), dilation 0.992, dropped 0.067 s (1 turns), 245 snapshots, buffers allocated 0 (0 after the first second), 238 frames drawn
+  ok   the host's clock ran (250 steps, 245 snapshots)
+  ok   every action applied once and logged with its step (start@14, impulse@56, manual@86, hand@86, manual@134, setDay@164)
+  ok   the view: no stray step, the same aeroplane, not diverged
+  ok   the host's log replayed inline reproduces all 245 published snapshots to the bit
+4 THE BOOT
+  ok   the page's fetch path (the manifest, gzip through DecompressionStream) gives island_node's bytes, key for key (1583 ms)
+  NB the page's own boot after its makeWorld: grid.ttype stamped in place (27_premises stampTtype) - never hand the host a boot a world was made on
+  ok   the trimmed boot: the height tree + cover / canopy / coast / lake / ttype, no albedo, tint, ori1, ndvi or far tree
+  decoded: trimmed 79.0 MiB of the whole boot's 180.9 MiB (ARCH §1.6 estimated 70-80 MB)
+5 THE BUILD
+  ok   tools/build.js MANIFEST.viewer.scripts carries sim_host.js and sim_view.js
+  ok   index.html publishes SIM_HOST (the starter, the Blob's source) and SIM_VIEW
+  ok   the host's thread raised nothing
+
+35 checks, 0 failed, 81.2 s
+GATE SIMWORKER: PASS
+[run_gates] 9/13 jobs done · running SOAR 487 s, LOAD 222 s, HYDRODYN 13 s, WATER 2 s
+[run_gates] 10/13 jobs done · running SOAR 517 s, LOAD 252 s, HYDRODYN 43 s
+[run_gates] 11/13 jobs done · running SOAR 547 s, HYDRODYN 73 s
+[run_gates] 11/13 jobs done · running SOAR 577 s, HYDRODYN 103 s
+[run_gates] 11/13 jobs done · running SOAR 607 s, HYDRODYN 133 s
+=== HYDRODYN ===
+float: L 4.6 m, beam 0.57 m, deadrise 22 deg, step 2.55 m aft of the bow / 0.075 m deep; 388 panels; mass 282 kg (W 2766 N), CG [-0.254, 1.054, 0.000], displacement to the deck 643 kg
+PASS hull closed: sum n*A = [-0.000000, 0.000000, 0.000000]
+
+1. ARCHIMEDES
+PASS level draft 0.12 m: clipper 580.4 N vs analytic sections 582.8 N (0.9958); fore-aft 0.00 N, side 0.00 N
+PASS level draft 0.2 m: clipper 1545.8 N vs analytic sections 1550.3 N (0.9971); fore-aft 0.00 N, side -0.00 N
+PASS level draft 0.3 m: clipper 3195.1 N vs analytic sections 3202.3 N (0.9978); fore-aft 0.00 N, side -0.00 N
+   drop from 5 cm: peak force 1.51 W (slam 1.36 W), settled draft at the step 0.296 m, trim 3.76 deg nose-up, |vy| peak 1-2 s 0.474 -> 6-7 s 0.077 m/s (zeta ~ 0.032)
+PASS settled: mean hydro force 2765.4 N over 8.5-10 s vs weight 2766.4 N (0.9996)
+PASS settled pose: Monte-Carlo submerged volume 0.2815 m3 = 2761.0 N vs the clipper's hydrostatic 2762.0 N at that instant (0.9996; vs weight 0.9981, 43859 wet of 200000)
+PASS freeboard: the deck stays dry (draft 0.296 m at the step, deck at 0.447)
+PASS the settle decays (the bob at 6-7 s is under half of 1-2 s)
+
+2. STABILITY (node share 3 kg; envelope: proven omega*dt 0.50 / c*dt 0.73, diverged 0.615 / 0.947)
+   sub 24 dt 6.94e-4: stiffest panel 0.0751 m2, k 737 N/m -> omega*dt 0.011
+        Vn 0.5 m/s: c_eff    168 N s/m, c*dt 0.039  uncapped stable (peak 43 N)  capped stable (peak 43 N)
+        Vn   1 m/s: c_eff    191 N s/m, c*dt 0.044  uncapped stable (peak 74 N)  capped stable (peak 74 N)
+        Vn   2 m/s: c_eff    299 N s/m, c*dt 0.069  uncapped stable (peak 219 N)  capped stable (peak 219 N)
+        Vn   3 m/s: c_eff    428 N s/m, c*dt 0.099  uncapped stable (peak 469 N)  capped stable (peak 469 N)
+        Vn   5 m/s: c_eff    698 N s/m, c*dt 0.162  uncapped stable (peak 1289 N)  capped stable (peak 1289 N)
+   sub 45 dt 3.70e-4: stiffest panel 0.0751 m2, k 737 N/m -> omega*dt 0.006
+        Vn 0.5 m/s: c_eff    168 N s/m, c*dt 0.021  uncapped stable (peak 43 N)  capped stable (peak 43 N)
+        Vn   1 m/s: c_eff    191 N s/m, c*dt 0.024  uncapped stable (peak 74 N)  capped stable (peak 74 N)
+        Vn   2 m/s: c_eff    299 N s/m, c*dt 0.037  uncapped stable (peak 217 N)  capped stable (peak 217 N)
+        Vn   3 m/s: c_eff    427 N s/m, c*dt 0.053  uncapped stable (peak 462 N)  capped stable (peak 462 N)
+        Vn   5 m/s: c_eff    694 N s/m, c*dt 0.086  uncapped stable (peak 1257 N)  capped stable (peak 1257 N)
+   sub 72 dt 2.31e-4: stiffest panel 0.0751 m2, k 737 N/m -> omega*dt 0.004
+        Vn 0.5 m/s: c_eff    168 N s/m, c*dt 0.013  uncapped stable (peak 43 N)  capped stable (peak 43 N)
+        Vn   1 m/s: c_eff    191 N s/m, c*dt 0.015  uncapped stable (peak 73 N)  capped stable (peak 73 N)
+        Vn   2 m/s: c_eff    299 N s/m, c*dt 0.023  uncapped stable (peak 216 N)  capped stable (peak 216 N)
+        Vn   3 m/s: c_eff    426 N s/m, c*dt 0.033  uncapped stable (peak 459 N)  capped stable (peak 459 N)
+        Vn   5 m/s: c_eff    693 N s/m, c*dt 0.053  uncapped stable (peak 1244 N)  capped stable (peak 1244 N)
+PASS buoyancy stiffness inside the envelope: omega*dt 0.011 at 24, 0.006 at 45 (bound 0.50)
+PASS the slam with the impulse cap never diverges (24/45/72 substeps, 0.5-5 m/s)
+PASS the slam's linearised c*dt up to 3 m/s at 45+ substeps 0.053 (bound 0.73)
+   uncapped divergences: none
+
+3. THE HUMP (tow, 0 -> 20 m/s at 0.6 m/s2)
+   (a) the seaplane: free trim, wing unloading to 20 m/s, tail at 6 deg
+      V    R/W   static planing   fric   suck |  Ls/W   Lp/W  load/W | trim  draft   rise  wetF  wetA  vent
+      0  0.000  -0.000   0.000  0.000  0.000 |  0.991  0.002   1.00 |  3.8  0.295  0.000  1.13  0.83  0.00
+      2  0.016   0.000   0.007  0.008  0.000 |  0.959  0.030   0.99 |  4.1  0.291  0.005  1.10  0.83  0.00
+      4  0.102   0.033   0.030  0.028  0.008 |  0.800  0.153   0.96 |  7.3  0.336 -0.033  1.01  0.83  0.50
+      6  0.223   0.048   0.115  0.040  0.015 |  0.369  0.526   0.91 | 13.2  0.377 -0.067  0.78  0.56  0.82
+      8  0.314   0.007   0.276  0.022  0.003 |  0.053  0.780   0.84 | 19.8  0.299  0.005  0.42  0.03  0.96
+     10  0.239  -0.002   0.215  0.022  0.000 |  0.013  0.724   0.75 | 16.4  0.205  0.103  0.31  0.00  0.99
+     12  0.160  -0.002   0.129  0.030  0.000 |  0.008  0.630   0.64 | 11.6  0.161  0.148  0.32  0.00  1.00
+     14  0.108  -0.001   0.073  0.035  0.000 |  0.003  0.500   0.51 |  8.3  0.123  0.183  0.29  0.00  1.00
+     16  0.072  -0.001   0.037  0.034  0.000 |  0.001  0.356   0.36 |  6.0  0.093  0.208  0.22  0.00  1.00
+     18  0.039  -0.000   0.016  0.023  0.000 |  0.000  0.189   0.19 |  4.7  0.061  0.237  0.12  0.00  1.00
+     20  0.009  -0.000   0.004  0.004  0.000 |  0.000  0.049   0.05 |  5.2  0.024  0.275  0.02  0.00  1.00
+   -> hump R/W 0.314 at 8 m/s (Cv 3.38, Fn_vol 3.15); after it R/W falls to 0.009 at 20 m/s; trim peaks 19.8 deg at 8 m/s; afterbody wet 0.83 m2 at rest -> 0.00 m2 at 20 m/s
+PASS a hump of R/W 0.314 (bound 0.10-0.40: tank floats at this loading read ~0.2-0.3)
+PASS the hump at Cv 3.38 (bound 2-4.5: tank floats ~2.5-3.5)
+PASS resistance falls 97 % past the hump (bound 50 %)
+PASS the trim peaks at or just past the hump (8 vs 8 m/s)
+PASS the afterbody unwets when planing (0 % of its rest area)
+PASS the tow stays finite
+   (b) the tank: trim held at 5 deg, wing unloading — H3 calibrates this against the NACA curves
+      V    R/W   static planing   fric   suck |  Ls/W   Lp/W  load/W | trim  draft   rise  wetF  wetA  vent
+      0  0.001  -0.000   0.000  0.000  0.000 |  0.995  0.002   1.00 |  5.0  0.298  0.000  1.07  0.83  0.00
+      2  0.016   0.000   0.006  0.008  0.000 |  0.957  0.029   0.99 |  5.0  0.292  0.006  1.06  0.83  0.00
+      4  0.108   0.037   0.034  0.027  0.007 |  0.811  0.145   0.96 |  5.0  0.331 -0.032  1.11  0.82  0.51
+      6  0.188   0.054   0.092  0.037  0.001 |  0.550  0.349   0.91 |  5.0  0.358 -0.060  1.15  0.01  0.85
+      8  0.202   0.028   0.116  0.056  0.001 |  0.317  0.512   0.84 |  5.0  0.318 -0.020  1.10  0.00  0.96
+     10  0.184   0.008   0.104  0.069  0.000 |  0.143  0.597   0.75 |  5.0  0.260  0.039  1.00  0.00  0.99
+     12  0.150   0.000   0.073  0.075  0.000 |  0.052  0.582   0.64 |  5.0  0.202  0.096  0.84  0.00  1.00
+     14  0.112  -0.001   0.047  0.066  0.000 |  0.013  0.491   0.51 |  5.0  0.146  0.153  0.58  0.00  1.00
+     16  0.076  -0.001   0.031  0.046  0.000 |  0.003  0.354   0.36 |  5.0  0.101  0.197  0.31  0.00  1.00
+     18  0.038  -0.000   0.017  0.022  0.000 |  0.000  0.189   0.19 |  5.0  0.060  0.238  0.11  0.00  1.00
+     20  0.009  -0.000   0.004  0.005  0.000 |  0.000  0.049   0.05 |  5.0  0.024  0.274  0.02  0.00  1.00
+   -> hump R/W 0.202 at 8 m/s (Cv 3.38, Fn_vol 3.15); after it R/W falls to 0.009 at 20 m/s; trim peaks 5.0 deg at 0 m/s; afterbody wet 0.83 m2 at rest -> 0.00 m2 at 20 m/s
+PASS held at 5 deg: hump R/W 0.202 at Cv 3.38, falling 96 % past it
+   (c) the lone float: free trim, the full load at every speed, no tail
+      V    R/W   static planing   fric   suck |  Ls/W   Lp/W  load/W | trim  draft   rise  wetF  wetA  vent
+      0  0.001  -0.000   0.000  0.000  0.000 |  0.997  0.002   1.00 |  3.8  0.295  0.000  1.12  0.83  0.00
+      2  0.016   0.000   0.007  0.008  0.000 |  0.967  0.031   1.00 |  4.1  0.292  0.004  1.11  0.83  0.00
+      4  0.105   0.034   0.031  0.029  0.008 |  0.835  0.158   1.00 |  7.3  0.342 -0.037  1.01  0.83  0.49
+      6  0.242   0.054   0.124  0.043  0.015 |  0.422  0.562   1.00 | 13.2  0.391 -0.080  0.81  0.62  0.81
+      8  0.368   0.013   0.314  0.027  0.008 |  0.077  0.910   1.00 | 19.6  0.329 -0.025  0.47  0.08  0.95
+     10  0.415  -0.002   0.391  0.020  0.000 |  0.013  0.983   1.00 | 21.6  0.228  0.071  0.28  0.00  0.99
+     12  0.343  -0.003   0.316  0.025  0.000 |  0.007  0.987   1.00 | 17.7  0.187  0.120  0.26  0.00  1.00
+     14  0.333  -0.002   0.299  0.032  0.000 |  0.006  0.988   1.00 | 16.7  0.155  0.150  0.25  0.00  1.00
+     16  0.434  -0.001   0.376  0.049  0.001 |  0.010  0.977   1.00 | 15.1  0.088  0.185  0.30  0.00  1.00
+   -> hump R/W 0.446 at 9 m/s (Cv 3.81, Fn_vol 3.55); after it R/W falls to 0.321 at 13 m/s; trim peaks 23.5 deg at 9 m/s; afterbody wet 0.83 m2 at rest -> 0.00 m2 at 16 m/s
+PASS the lone float gets over its hump (afterbody 0 % wet at 16 m/s; R/W 0.446 at Cv 3.81)
+
+4. THE GRADIENT (touchdown: 16 m/s, sinking 1.0 m/s, the wing carrying 85 %, trim 4 deg, free to decelerate)
+   first wet at 0.217 s (sink 1.32 m/s at the touch); drag frame by frame: 0.000 0.013 0.050 0.097 0.123 0.130 0.144 0.155 ... first peak 0.164 W after 11 frames, half of it after 3 frames; largest one-frame rise 0.048 W
+   vertical: peak 1.18 W (slam 0.66 W) — the sink arrested in 0.23 s; the float skips out at +0.57 s; at 12.0 s: V 2.9 m/s, trim 5.1 deg, draft 0.296 m, R/W 0.035
+PASS no step in the drag: the largest one-frame rise is 4.8 % of the weight (bound 8 %)
+PASS the drag climbs over 11 frames to its first peak (bound 3), 3 to half (bound 2)
+PASS the touchdown peaks at 1.18 W vertical (bound 2.5)
+PASS the float decelerates under its own drag (2.9 m/s at 12.0 s)
+PASS the landing stays finite
+
+Savitsky buoyant term vs the transom fade (flat plate; ratio = model/Savitsky, Archimedes/Savitsky):
+   tau 4 lambda 2 Cv 2: CL_sav 0.0357 model 0.0591 (1.65)  bare Archimedes 0.0698 (1.95)
+   tau 4 lambda 2 Cv 3: CL_sav 0.0159 model 0.0187 (1.18)  bare Archimedes 0.0310 (1.95)
+   tau 4 lambda 3 Cv 3: CL_sav 0.0438 model 0.0514 (1.17)  bare Archimedes 0.0698 (1.59)
+   tau 6 lambda 2 Cv 3: CL_sav 0.0248 model 0.0280 (1.13)  bare Archimedes 0.0465 (1.87)
+   tau 4 lambda 2 Cv 5: CL_sav 0.0057 model 0.0033 (0.57)  bare Archimedes 0.0112 (1.95)
+   tau 2 lambda 3 Cv 4: CL_sav 0.0115 model 0.0107 (0.93)  bare Archimedes 0.0196 (1.71)
+
+THE COST (the 172 on Wipline 2350s, sim.step(1/60), best of 12 windows of 10 steps)
+   water 8.38 ms/step (hydro every 20 of 24 substeps)  dry 6.16 ms/step  ratio 1.36 x  L/W at rest 0.9989 (every substep: 0.9991)
+PASS the water costs 1.36 x the dry step (bound 2.5)
+PASS the sub-rated pass carries the weight as the full-rate one does (L/W 0.9989 vs 0.9991)
+
+6. THE LAKE'S SURFACE IS THE DATA'S (a stub island: a bowl with no outlet)
+   the bowl: floor 10.00 m, the record says 10.50 m, the depression fill says 40.00 m (the rim)
+PASS the fill still answers the rim (40.00 m) - the fixture reproduces the defect it guards
+PASS waterH is the RECORD'S level (10.500 m), not the fill's (40.00 m)
+PASS the surface stands on its own bed (0.50 m of water, not 30.0)
+PASS the waterline is where the bed crosses the level: water at 140 m from the centre (10.50), dry at 260 m (ground 32.0 m)
+PASS the renderer's five samples all survive its 3 m guard (10.50 10.50 10.50 10.50 10.50) - the drawn quad IS the physics' surface
+   Jolene: 283 lakes answer their own level, 0 do not; 1 ponds have no basin left in the quadtree (their bed is over their own level)
+   182709 water points: 181340 at their level (99.25 %), 1212 answered the sea (a lagoon at the coast), 156 a neighbouring record, 1 ABOVE their level
+PASS every lake on Jolene answers its own declared level
+PASS 1 of 182709 water points stand above their own record, by at most 0.42 m (bound: 10 points and 0.5 m - overlapping boxes; the fill's rim was 6.09 m at Skaters Lake and 23.15 m at worst)
+PASS 99.25 % of the island's lake water is exactly its record's level (bound 97 %; the rest is the coast, where the sea answers)
+
+== G1381 a wheeled aeroplane in the water ==
+PASS the stock taildragger ditched at 80 km/h is under 10 km/h in 0.93 s (bound 3 s), finite
+PASS ...and noses over: 90 deg nose-down at worst (bound 45 - the tyres plough below the CG)
+PASS dry, the wheeled-water pass is not even built and changes nothing (5 s on the strip: body never built, out keys [], 0 node coordinates differ from the pass removed)
+PASS a float build carries no wheeled-water body (the floats' pass alone: the floatplanes unchanged)
+
+== G1384.1-.4 the slam, the air a build holds, the flooding, the wings ==
+PASS the stock fabric build: 7 hull slices holding air (0.7146432993596438), 13 wing slabs
+PASS ...and it FLOODS as it sits: 5.5 % -> 7.5 % at 10 / 20 s
+PASS the bare frame (covering 'open') holds no hull air and floats lower: CG 0.80 m under the surface against 0.50 covered
+PASS an alloy hull floods slower than fabric: 0.4 % against 7.5 % at 20 s
+PASS a 5 m/s pancake slams (peak 555 kPa on the bottom) and holes 4 slice(s)
+
+== G1385 the tanks float ==
+PASS the user's Cub: its 45 L nose tank is two tanks (22.5 L + 22.5 L), each at its own kilos, ahead of the firewall (no hull slice holds it)
+PASS ARCHIMEDES, fully under: the nose tank adds 441.45 N = rho g 45 L 441.45 N (its fuel displaces as its air does)
+PASS the wing-tank Cub: both tanks in their wing slabs, carved from the slabs' air - fully under, the build lifts 34241.2 N with them against 34241.2 N without (the same air, now sealed)
+PASS the burn raises the net lift: the Cub set down with its tanks empty floats 1.0 cm higher than full (CG 0.658 m under against 0.668)
+PASS SEALED: after 20 s in the water the tanks are wet (100 %, 100 % under) and hold all their air, while the fabric wing has flooded 4.1 %
+PASS an aft-cabin tank (hull slice 2) in a 5 m/s pancake: its slice slammed to 552 kPa (the tank's breach 400) - holed 2 of 2, flooding 9 %, 9 %
+
+GATE HYDRODYN: PASS
+=== WATER ===
+1. PARITY - the shipped GLSL against world.waterH
+PASS the world exports sea / setSea
+PASS setSea made 32 trains (the uniform array holds 32)
+PASS a sea point found on the analytic world
+PASS 3000 samples, t up to 1e5 s: max |waterH - gerstnerJS| = 1.09e-11 m (at t 78517)
+PASS the Gerstner GLSL stays inside the transpiler's subset
+PASS the GLSL is the reduced-phase form (cos(k d - phase), phase = mod(om t - ph, 2 pi))
+PASS one wGerstnerH in water.js, spliced into both stages from the one string
+PASS 30_solver.js publishes its clock (get t)
+PASS app.js hands the solver's clock to WATER.setTime after the step (sim.t, or the drawn pose's time: G1100)
+PASS no trains: 0
+PASS the felt band: 8 trains felt (the swell band, L >= 0.75 L), 24 drawn as slope only
+PASS waterH is the felt band, not the sum of all 32 (the two differ)
+PASS the two-train sea is felt whole
+PASS the golden: setWind([3,0,4]) draws 32 trains, A 0.0900 L 10.000, FNV 63eccad3 (pinned 63eccad3)
+
+2. THE RULES
+PASS one onBeforeCompile assignment in water.js (1)
+PASS ATMO.inject(sh) is the hook's first statement
+PASS nothing interpolated into the hook's GLSL (the cache key is the hook's source)
+PASS the uniform arrays hold 32 trains
+PASS seaFrom at 30 m/s: 32 trains <= 32
+PASS render_world.js lifts the patch on the GPU (the CPU loop is the no-shader path only)
+PASS the far plane is at the level on every tier (the stock tier steps under the wavy patch only while it is up)
+PASS the buoys and the patch read the shader's clock (the solver's)
+PASS the sea, the patch and the lakes take the one material with their body attribute
+PASS the coast and lake fields reach the water
+PASS the wind reaches the water (setWindVis)
+PASS build.js lists water.js before render_world.js
+PASS dev.html carries water.js
+PASS four samplers of its own: uWSdf, uWDetail, uWInter, uWMirror
+PASS the interaction slot (setInteraction) exists and the shader reads it
+
+3. THE LAWS
+PASS preset sea: abs 0.46/0.36/1.28 opa 2.17 sct 0.010/0.014/0.004 wave 1 detail 1 depth 14 m
+PASS preset lake: abs 0.55/0.72/2.70 opa 1.56 sct 0.001/0.001/0.000 wave 0 detail 0.55 depth 4 m
+PASS preset river: abs 0.40/0.34/1.11 opa 1.71 sct 0.009/0.011/0.004 wave 0 detail 0.35 depth 1.5 m
+PASS preset premises: abs 0.46/0.36/1.28 opa 2.17 sct 0.010/0.014/0.004 wave 0 detail 0.7 depth 6 m
+PASS clear water is blue (0.0010/0.0063/0.0303)
+PASS a muskeg lake is near-black (0.0011/0.0011/0.0005)
+PASS a bloom is green (0.0022/0.0080/0.0033)
+PASS a silted river is milky (0.0696/0.1409/0.0944)
+PASS the sea upwells under 2 %, green over blue - no lagoon (0.0105/0.0138/0.0042)
+PASS every body is three constituents (cdom, chl, sed)
+PASS the mirror replaces the IBL only where the capture has something, its colour un-premultiplied (alphaToCoverage resolves to a partial alpha)
+PASS the capture is multisampled (its depth texture a resolve: the clouds' composite samples it while drawing into it)
+PASS the capture hides the water, reuses the shadow maps, restores the target and the background
+PASS the capture draws the sky dome at the mirrored eye first (and hands it back to its parent)
+PASS app.js hands the world's sky dome to the capture
+PASS the sky pass makes the dome VISIBLE for its own draw (opts.hide had already silenced it) and puts it back
+PASS Bruneton's mean Fresnel is applied AFTER the mirror's mix (the probe and the capture dim alike)
+PASS the mirror API, 'periodic' by default, under 900 m over the water
+PASS the mirror's clock is real seconds (never a count of calls)
+PASS the mirror is projected from the undisplaced position (never the faceted one)
+PASS the slope walks the POINT on the water (the mirrored eye's reflected ray back to the plane), never the capture's uv
+PASS the mirror's plane rides uWMirror4.w (the walk needs it) and the walk is capped at 15 % of the view distance
+PASS the mirror fades out with altitude (full to 500 m, gone by 900 m) - never a cliff
+PASS the re-capture distance scales with the eye's height (3 m at the dock, 5 % of the altitude above it)
+PASS the walk over 2000 eyes: flat water gives back the point (0 misses), it stays on the plane (0), it never exceeds the cap (0)
+PASS the eye re-captures at 3 m / 3 deg, a jump (15 m / 12 deg) at once
+PASS GRAPHICS has the reflections row and hands it to the water
+PASS sigma^2 grows with the footprint
+PASS sigma^2 grows with the wind
+PASS sigma^2 inside Cox-Munk's total, roughness inside [0.05, 1]
+PASS at 7 m/s: the horizon's sigma^2 0.0388 (roughness 0.44), the dock's 0.00000 (roughness 0.06)
+
+4. THE TILE
+PASS deterministic (64x64, two bakes byte-equal), no NaN
+PASS periodic across the seam: mean step 5.56 at the wrap vs 6.32 inside
+PASS zero-mean slope (0.000, -0.000)
+
+5. THE FIELD
+PASS the field's API (stamp / fieldStep / fieldOn), 384^2 texels over 192 m
+PASS the kernel's response is never negative (min 0.0066 on the axis, 0.0260 on the diagonal)
+PASS the kernel sums to zero (-1.8e-9)
+PASS the response is |k| over the band: 0.50 |k| at lambda 31 texels, 1.00 at 12.6, 0.98 at 6.3
+PASS the fine level's highest mode: omega dt = 0.148 at the 1/30 s clamp (< 0.5)
+PASS two levels over 192 m (384 / 96: 0.50 / 2.0 m texels), viscosity 0.04
+PASS the derive pass sums both levels' slopes
+PASS damping per SECOND: a wave's e-fold 8 s, the foam's 2 s (never per frame)
+PASS a stamp displaces h and h_prev together (never a velocity)
+PASS the absorbing rim (0.04 of the box)
+PASS the derive pass writes the slot's encode (slope over [-2, 2]) and the shader decodes the same
+PASS the state is cleared to 0 on first use (not the scene's sky colour)
+PASS the slot is half float (a byte slot cannot hold a zero slope: 127.5 rounds to a tilt over the whole box)
+PASS fieldStep reads the caller's target before its clears and restores it after its passes
+PASS app.js stamps press / ring / foam from the hydro's own numbers
+PASS the wake ribbons are retired (the field carries the wake)
+PASS app.js steps the field at the CG (with its velocity) every frame while a floatplane is over water, on the frame's own dt (G586)
+PASS without hydro the field runs only when the dev panel forces it, or something ASKS for it
+PASS the ask EXPIRES (half a second) and is read off window.WATER (a bare WATER throws where the layer is absent - GATE UISMOKE caught exactly that)
+
+6. THE SPRAY
+PASS spray.js loads headless: make + the two kinds
+PASS droplet: life 0.6-1 s, size 0.012-0.04 m, grow 1.6, drag 0.25, gravity 1
+PASS puff: life 1.2-2 s, size 0.2-0.5 m, grow 2, drag 2.2, gravity 0.12
+PASS the sprite shader splices the log-depth chunks (both stages)
+PASS the sprite shader ends in three's tone-mapping and colour-space chunks
+PASS the sprite is stretched along its velocity
+PASS the sprite is lit by the sun and the sky, alpha-blended (never additive)
+PASS app.js draws the spray through spray.js (both kinds emitted, lit each frame)
+PASS build.js lists spray.js beside water.js
+PASS the bow wave: a press ahead of the stem while under way
+PASS spray.js makes the chine sheets (log-depth + tone-mapping chunks)
+PASS app.js builds two sheets per float off the wet chine stations and commits them each frame
+PASS the droplets peel off the sheet's far edge with its velocity
+PASS the join lists floatStrut among the truss kinds (its members exported for app.js's two-end follow)
+
+GATE WATER: PASS
+=== FLOATS ===
+BUILD
+   127 nodes, 519 beams, gross 475.4 kg; floats: L 4.01 m, beam 0.50 m, scale 0.871, 20.5 kg each, the pair displaces 849 kg to the deck (1.79 x gross); step at x 1.26, keel y -0.88, track 1.60 m; substeps 120
+PASS two floats, two rigid clusters of 15 nodes (five stations, G451)
+PASS the step keels are the mains' refs, no third wheel
+PASS the pair displaces 1.79 x the gross (bound 1.5; the rule is 1.8)
+PASS the sea at (0, 1600): level 0, bed -44.5 m
+
+SETTLE (dropped from 0.3 m, throttle 0)
+   at rest: L/W 1.006, draft at the step 0.291 m, trim 3.67 deg, roll 0.00 deg (max 0.01 through the drop), max beam strain 0.0026
+PASS the settle stays finite
+PASS the water carries the weight: L/W 1.006 (bound +-3 %)
+PASS draft at the step 0.291 m (bound 0.15-0.40)
+PASS trim 3.67 deg nose-up at rest (bound 0.5-10)
+PASS level in roll: 0.00 deg at rest, 0.01 max
+PASS the frame's max strain 0.0026 (bound 0.06)
+
+TAKEOFF (full throttle from rest, stick back, the planing attitude held from 9 m/s)
+   hump R/W 0.275 at 12.9 m/s; steps ventilated to 1.00 before lift-off; airborne at 8.9 s, 26.0 m/s; max roll 0.02 deg
+PASS the take-off stays finite
+PASS a hump of R/W 0.275 at 12.9 m/s (bound 0.10-0.45, under 14 m/s)
+PASS on the step: R/W 0.308 at most (at 15.9 m/s; bound 0.35), the trim between -0.1 and 7.5 deg (bound -1..12)
+PASS the steps ventilate before lift-off (1.00)
+PASS airborne inside 30 s (8.9 s)
+PASS roll under 5 deg through the run (0.02)
+
+LANDING (trimmed approach at 1.3 Vs, quarter throttle, 1 m/s down; throttle to idle at the touch)
+   Vs 16.4 -> approach 21.3 m/s; elevator 0.215 trims -1.05 m/s down
+   touch at 15.52 s, sinking 0.38 m/s; the water's lift frame by frame: 0.00 0.01 0.03 0.06 0.09 0.14 0.18 0.21 0.24 0.27 ... first peak 0.320 W after 14 frames; largest one-frame change 0.131 W; peak 1.080 W; 20 s on: V 3.0 m/s
+PASS the landing stays finite
+PASS the touch at 0.38 m/s down (bound 0.35-1.6)
+PASS the water's lift climbs over 14 frames to its first peak (bound 3)
+PASS no frame adds more than 0.131 W (bound 0.35)
+PASS the touchdown peaks at 1.080 W (bound 2)
+PASS an idle taxi 20 s after the touch: 3.0 m/s (bound 5)
+
+GATE FLOATS: PASS
+=== WIPLINE ===
+CATALOGUE
+PASS 15 catalogue rows (bound 14: the Wipline line 1450 to 13000)
+PASS every row lands on its four catalogue numbers (length, width, height, flotation) with a fineness inside [-0.7, 1]
+
+DRAWN
+PASS the drawn hull is closed and wound outward on every preset
+PASS the drawn hull's volume matches the physics loft within 1 %
+PASS the keel bar, the sister keelsons and the chine straps are closed strips
+PASS the water rudder blade is the hull's own area, its foot wrDepth under the stern keel
+PASS the paddle lies along the inboard flank of the forebody
+
+FIXTURE (the Cessna 172 on Wipline 2350s, joined)
+PASS the frame flies the spec's own Wipline record: Wipline 2350, L 5.97 m, 55.2 kg a hull (gross 969 kg)
+   at rest: L/W 0.999, draft at the step 0.320 m, trim 0.79 deg, roll 0.00 deg
+PASS the settle stays finite
+PASS the water carries the 172: L/W 0.999 (bound +-3 %)
+PASS draft at the step 0.320 m (bound 0.15-0.45)
+PASS trim 0.79 deg nose-up at rest (bound 0.5-10)
+PASS level in roll (0.00 deg)
+
+GATE WIPLINE: PASS
+=== SEAPLANE ===
+CIRCUIT (calm, the pilot, SEA -> SEA)
+   lift-off 8.3 s; touch 244.6 s at (0, 2612), water 94.2 m deep; stopped 291.4 s; max |x| on the water 0.0 m; phases: ROLL LIFTOFF CLIMB CROSSWIND DOWNWIND BASE FINAL FLARE ROLLOUT STOPPED
+PASS the circuit stays finite
+PASS off the water inside 25 s (8.3)
+PASS the touch is on the lane's deep water (94.2 m, 0 m off the centreline)
+PASS rolled out to STOPPED (291.4 s)
+PASS never more than 0.0 m off the centreline on the water (bound 30)
+
+CROSSWIND TAKE-OFF (3.3 m/s across the lane = 0.2 V_SO, FAR 23.233)
+   lift-off 7.0 s (airborne = dry 2 s; 1 skip before it); the run: max |x| 5.6 m, max heading swing 13.5 deg from the roll's -0; phases: ROLL LIFTOFF CLIMB
+PASS off the water inside 25 s (7.0)
+PASS 1 skip before the aeroplane is away (bound 2)
+PASS the run holds the lane: 5.6 m off (bound 30)
+PASS the heading swings 13.5 deg at most (bound 30)
+
+TAXI (5 m/s across, throttle held at idle, 60 s)
+   max |hdg| 13.4 deg, max |x| 1.5 m
+PASS the water rudder holds the heading within 13.4 deg (bound 20)
+PASS the track within 1.5 m (bound 10)
+
+GATE SEAPLANE: PASS
+[run_gates] 12/13 jobs done · running SOAR 637 s
+[run_gates] 12/13 jobs done · running SOAR 667 s
+[run_gates] 12/13 jobs done · running SOAR 697 s
+=== SOAR ===
+the motorglider: mass 284 kg, Vs 15.3, Vbg 20.6 m/s, L/D 15.1, sinkBg 1.36 m/s, sinkMin 1.20
+S1. still air
+  ok   the sim stays finite
+  ok   flown sink 1.37 m/s at 21.3 m/s vs the sheet's 1.36 (within 25 %)
+S2. the ridge
+  the face at (8700, -5900) slope 0.247, ground 91 m, the crest 400 m east at 290 m
+  the band at 80 m over the face: (8700, -6050) ground 86 m, 3.98 m/s in the 8 m/s ridge day; the beat flies it at 206 m (2.93 m/s there against 1.36 of sink)
+  ok   both runs stay finite
+  ok   on the ridge the energy height goes 233 -> 246 m over 230 s (13 m, mean vs 0.05, mean updraft 1.51)
+  ok   with the terrain term off it goes 190 -> 121 m (-69 m, mean vs -0.24) and is down at 119 m, the surface under it 119 m (water), on the face's own 86
+  ok   and it is still flying the face (225 m, the ground under it 86)
+S3. the thermal
+  the column at (-5868, -5942) tops at 2071 m, peaks 4.75 m/s; 5.72 m/s where the glider is put in, against 1.20 of sink at Vms
+  circling at 41° and 15.7 m/s: a 29 m radius inside a 128 m core
+  ok   both runs stay finite
+  ok   it stays on the column: never more than 155 m off its axis (the core is 128)
+  ok   in the thermal it climbs 1.09 m/s (the air under it averaging 3.20)
+  ok   with the thermals off the same circle sinks -1.95 m/s - a banked turn's own polar
+  ok   the column is worth 3.05 m/s of climb
+  ok   and it GAINS 163 m in 200 s (899 -> 1062) where the same circle without the columns loses 400
+  ok   the netto vario reads the AIR to -0.35 m/s of the field itself on the mean of 169 samples (the instantaneous spread 1.06: a turn's load factor is not on a wings-level polar)
+GATE SOAR: PASS
+=== LOAD ===
+LOAD — the sandbag test. FAR 23 normal category: LIMIT +3.8 g (no permanent
+set), ULTIMATE +5.7 g (no failure). Load laid out over the wing strips in
+proportion to their area, applied against the aeroplane's own inertia, and
+measured from the FREE-FALL jig shape. Deflection is % of semispan.
+
+Real light aircraft, for scale: ~0.3-1 % of semispan at 1 g, ~2-4 % at limit.
+
+airframe                     1.0 g    3.8 g LIMIT   5.7 g ULT    worst member @ult
+  GEN tubeFabric strut         0.18 %      0.68 %        1.02 %     37% of yield (wing)   ok
+  GEN tubeFabric cantilever    2.86 %     10.84 %       16.24 %    125% of yield (wing)   over yield
+  GEN wood strut               0.22 %      0.82 %        1.23 %     37% of yield (wing)   ok
+  GEN wood cantilever          2.11 %      7.90 %       11.73 %     99% of yield (wing)   ok
+  GEN alloy strut              0.08 %      0.29 %        0.44 %     29% of yield (wing)   ok
+  GEN alloy cantilever         1.01 %      3.81 %        5.70 %     82% of yield (wing)   ok
+  GEN carbon strut             0.05 %      0.18 %        0.27 %      4% of yield (wing)   ok
+  GEN carbon cantilever        0.61 %      2.33 %        3.49 %     13% of yield (wing)   ok
+  GEN aluTube strut            0.53 %      2.01 %        3.03 %     39% of yield (wing)   ok
+  GEN aluTube cantilever       6.92 %     25.38 %       36.82 %    113% of yield (wing)   over yield
+  GEN tubeFabric biplane       0.24 %      1.17 %        1.80 %    168% of yield (wire)   over yield
+  GEN wood biplane             0.20 %      1.02 %        1.58 %     16% of yield (wing)   ok
+
+OVER YIELD AT ULTIMATE — reported, deliberately NOT gated:
+    GEN tubeFabric cantilever — 125% of yield
+    GEN aluTube cantilever — 113% of yield
+    GEN tubeFabric biplane — 168% of yield
+  The load is right and the force is right (the root bending moment
+  checks out by hand), but the ALLOWABLE is coarse: `A = lin/rho` gives
+  ONE area for the whole wing class, and the worst member here is not a
+  spar cap — it is the 3.4 m LIFT STRUT, which a real aeroplane sizes
+  separately. The wood row is the loud case because it pairs a big
+  section (12.9 cm2) with a small allowable (39 MPa crushing), i.e. a
+  WOODEN lift strut, which nobody builds: wooden aeroplanes use steel
+  struts, and the Jodel is a cantilever precisely to avoid the joint.
+  Gating this would be gating the proxy, not the aeroplane. What it is
+  really saying is that strut sizing wants its own area, and that is a
+  materials-model change, not a load-test result.
+
+STOCK BUILD, right wing seen from the front, root -> tip.
+Full height = 1.02 % of semispan (5.1 cm at the tip).
+  5.7 g ULTIMATE   tip 1.02 % = 5.1 cm
+                         ===
+                     =======
+                  ==========
+               =============
+             ===============
+       =====================
+    ========================
+  3.8 g LIMIT   tip 0.68 % = 3.4 cm
+                            
+                            
+                        ====
+                   =========
+               =============
+         ===================
+    ========================
+  1.0 g level   tip 0.18 % = 0.9 cm
+                            
+                            
+                            
+                            
+                            
+                ============
+    ========================
+
+  spanwise profile (% of semispan), station z in metres:
+    z           0.36   1.91   3.45   5.00
+    1.0 g       0.00   0.04   0.12   0.18
+    3.8 g       0.00   0.15   0.47   0.68
+    5.7 g       0.00   0.23   0.71   1.02
+
+THE TAIL — the stab under bags, the fin on its side, on every material
+airframe                     surface   1.0 g    3.8 g LIMIT   5.7 g ULT    worst member @ult
+  GEN tubeFabric             stab     1.14 %      4.24 %        6.06 %     25% of yield (tail)   ok
+  GEN tubeFabric             fin     -0.21 %     -0.79 %       -1.18 %      9% of yield (wire)   ok
+  GEN wood                   stab     0.86 %      3.24 %        4.74 %     26% of yield (tail)   ok
+  GEN wood                   fin     -3.11 %    -11.66 %      -17.25 %     19% of yield (tail)   ok
+  GEN alloy                  stab     0.55 %      2.10 %        3.14 %     20% of yield (tail)   ok
+  GEN alloy                  fin     -0.75 %     -2.86 %       -4.28 %      5% of yield (tail)   ok
+  GEN carbon                 stab     0.34 %      1.28 %        1.92 %      3% of yield (tail)   ok
+  GEN carbon                 fin     -0.41 %     -1.54 %       -2.31 %      1% of yield (tail)   ok
+  GEN aluTube                stab     1.91 %      6.61 %        8.87 %     24% of yield (tail)   ok
+  GEN aluTube                fin     -0.54 %     -2.03 %       -3.05 %      2% of yield (tail)   ok
+  TWIN BOOM tubeFabric       stab    -2.12 %     -6.39 %       -8.28 %     37% of yield (tail)   ok
+  TWIN BOOM tubeFabric       fin     -0.50 %     -1.89 %       -2.83 %      4% of yield (tail)   ok
+  V-TAIL tubeFabric          stab   *** NOT MEASURABLE: no HF/HR spar stations (the stab has no tagged truss on this airframe) — OWED (REVIEW D4: no spar truss)
+  V-TAIL tubeFabric          fin    *** NOT MEASURABLE: no VF/VR spar stations (the fin has no tagged truss on this airframe) — OWED (REVIEW D4: no spar truss)
+
+THE FIN'S SIDE DEFLECTION IS REPORTED, NOT GATED — the lattice has two
+chords where the real fin has a skin (see the note in this file):
+    tubeFabric fin — -1 % of its height at ultimate
+    wood fin — -17 % of its height at ultimate
+    alloy fin — -4 % of its height at ultimate
+    carbon fin — -2 % of its height at ultimate
+    aluTube fin — -3 % of its height at ultimate
+    twin fin — -3 % of its height at ultimate
+  GEN carbon strut: under the 0.05 % floor at 1 g — too stiff to rate
+  GEN tubeFabric strut: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN tubeFabric cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN wood strut: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN wood cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN alloy strut: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN alloy cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN carbon cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN aluTube strut: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN aluTube cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN tubeFabric biplane: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN wood biplane: wire-braced, bilinear by construction — held to "grows", not to linear
+
+  ok    every airframe survived the ultimate load
+  ok    D4: the rig refuses the V-tail's stab and fin, naming the missing tag
+  ok    P4: every tail surface survived its ultimate case
+  ok    P4: the stab stays inside 10 % of its semispan at ultimate
+  ok    deflection grows with load on every airframe
+  ok    deflection scales with load (linear, +/-15%)
+  ok    every case was measured
+GATE LOAD: PASS
+
+──────── summary ────────
+TREECRASH PASS   495.6 s
+DMGDAMP   PASS   219.7 s
+DMGHULL   PASS   407.5 s
+DMGPLOUGH PASS   376.5 s
+BENCH     PASS    60.9 s
+SIMWORKER PASS    81.5 s
+HYDRODYN  PASS   133.1 s
+WATER     PASS     6.4 s
+FLOATS    PASS    56.0 s
+WIPLINE   PASS    10.6 s
+SEAPLANE  PASS   230.4 s
+SOAR      PASS   720.2 s
+LOAD      PASS   281.4 s
+total           3079.8 s
+wall            1734.6 s  (jobs 4)
+
+BATTERY: PASS

@@ -152,14 +152,18 @@ window.CAGE_PAGE = {
     ctlThr: 0, ctlPed: 1, consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0, yokeGap: 0.16,
     floorOn: 1, floorLift: 0,                    // G331: the floor, over the door sill
     trimX: 0, trimY: 0, trimZ: 0,                // G331: the trim wheel's place
+    parkX: 0, parkY: 0, parkZ: 0,                // G2791: the parking brake's place (offsets; 0 = its dash seat)
+    fselX: 0, fselY: 0, fselZ: 0,                // G2791: the fuel selector's place (offsets; 0 = its wall seat)
     flapCtl: 1,                                  // G335: the flaps' control — a floor lever or a dash switch (G442.3: the switch by default, the user's "initialize the flaps as a dash switch"; a saved build keeps its own)
     stickLen: 0.44, stickCrank: 0, thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9,
     pedalH: 0.18, pedalSpread: 0.10, pedalAngle: 25, dumOn: 1,
     dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0, dumMarkers: 1,
-    pilotWho: WHO_DEFAULT, copWho: 0, dumFist: 0.5, dumIdle: 0.5,
+    pilotWho: WHO_DEFAULT, copWho: 0, dumFist: 0.5, dumIdle: 1,
     swMaster: 0, swAlt: 0, swAvionics: 0,      // G311/G318: the shed's button states (off, unlit)
     paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
     dumHandGrip: 0.075,
+    // G2797: the hands apart (0 = one setting for both, as always)
+    dumHandsApart: 0, dumFistL: 0.5, dumFistR: 0.5, dumGripL: 0.075, dumGripR: 0.075,
     // G180 — WHO IS ABOARD, per section, and the passengers' own seat and
     // pose. THE PILOT ALONE by default (2026-09-07, the user: 'by default,
     // there is only the pilot'); it was full — what `dum2On 1` (retired,
@@ -197,7 +201,9 @@ window.CAGE_PAGE = {
         ['frNoseBotY', 'bottom height',   -1.60, 1.80, 0.005, { dim: 'len', follow: 'nose.botY' }],
         ['frNoseTopW', 'deck half-width',  0.00, 1.20, 0.005, { dim: 'len', follow: 'nose.topW' }],
         ['frNoseBotW', 'bottom half-width', 0.00, 1.20, 0.005, { dim: 'len', follow: 'nose.botW' }],
-        ['noseLen',    'deck fore/aft (nose length)', 0.20, 2.50, 0.01, { dim: 'len' }],
+        // G2790 (the user's garage review, 18 Oct: "the slider 'deck fore/aft'
+        // is really the section's LENGTH"): the nose's size row, labelled so
+        ['noseLen',    'length', 0.20, 2.50, 0.01, { dim: 'len' }],
         ['frNoseBotZ', 'bottom fore/aft', -0.60, 0.60, 0.005, { dim: 'len' }],
       ], 'open'],
       ['windscreen frame', [
@@ -342,8 +348,8 @@ window.CAGE_PAGE = {
         // they were unreachable here — and the piper-cub preset sets
         // intOn 0, which then could not be undone (user 2026-08-19).
         ['intOn',     'interior',        0, 1, 1],
-        ['intCons',   'construction',    0, 4, 1, ['composite', 'steel tube',
-                                                  'plywood', 'aluminium', 'aluminium tube']],
+        ['intCons',   'construction',    0, 5, 1, ['composite', 'steel tube',
+                                                  'plywood', 'aluminium', 'aluminium tube', 'glassfibre']],   // G2047
         // ZERO SKIN (G26.4): the fuselage family omitted outright —
         // beyond the alpha slider; glass and all structure stay
         ['skinOn',    'fuselage skin',   0, 1, 1],
@@ -440,7 +446,11 @@ window.CAGE_PAGE = {
         // (wsRun / wsTopOff are the windscreen frame's waist / top fore-aft)
         ['wsBaseBow', 'base bow',       0.00, 1.20, 0.01],
         ['wsCeilBow', 'ceiling bow',    0.00, 0.60, 0.005],
-        ['bubble',    'bubble glass',   0, 1, 1],
+        // G2770 (the user: "the bubble glass option is misleading. It's more
+        // like an additional adjourning, that should be hidden in real canopy
+        // bubble mode"): the row hides under a bubble canopy (its value kept)
+        ['bubble',    'bubble glass',   0, 1, 1,
+         { when: P => Math.round(+P.canopy || 0) !== 3 }],
         // T2.2: the glazing MATERIAL, one for the whole aeroplane (the look
         // and the ledger read it; the join carries it as cabin.glazingMat)
         ['glazeMat',  'glazing material', 0, 2, 1, ['acrylic', 'polycarbonate', 'glass']],
@@ -515,7 +525,9 @@ window.CAGE_PAGE = {
         // reveal's depth when that pass is on)
         ['doorDepth', 'door recess',    0, 0.06, 0.001,
          { when: P => +P.doorOn, dim: 'len' }],
-        ['doorDeep',  'deep jamb',      0, 1, 1, { when: P => +P.doorOn }],
+        // G2770: the label says what it does (it was 'deep jamb' - the user
+        // asked what that is): the door cut on down through the floor band
+        ['doorDeep',  'door reaches the floor', 0, 1, 1, { when: P => +P.doorOn }],
         // define the door, then take it away: the open doorway stays,
         // jambs and structure built as if it were hung
         ['doorGone',  'door removed',   0, 1, 1,
@@ -530,6 +542,13 @@ window.CAGE_PAGE = {
          { when: P => +P.intOn && +P.intDash, dim: 'len' }],
         ['dashCrown', 'dash crown',     0, 0.30, 0.005,
          { when: P => +P.intOn && +P.intDash }],
+        // G3340 THE ARCH: the glareshield, its lip and two cheeks with a
+        // straight forward edge, open underneath (the default for new
+        // builds); 'box' is the closed dash every older build keeps
+        ['dashStyle', 'dash style',     0, 1, 1, ['box', 'arch'],
+         { when: P => +P.intOn && +P.intDash }],
+        ['dashLegs',  'arch legs',      0, 2, 1, ['to the panel', 'to a rail', 'to the floor'],
+         { when: P => +P.intOn && +P.intDash && +P.dashStyle === 1 }],
       ]],
       // THE SHOULDER (G325): the sill trim — an L-section sheet from the
       // window transition W inboard and H down, from the dash aft. On for
@@ -693,6 +712,16 @@ window.CAGE_PAGE = {
         ['trimX',     'trim wheel left', -0.30, 0.30, 0.005],
         ['trimY',     'trim wheel up',   -0.30, 0.30, 0.005],
         ['trimZ',     'trim wheel fwd',  -0.45, 0.45, 0.005],
+        // G2791 (the user's garage review, 18 Oct: "controls for the parking
+        // brake's location, and for any other dashboard control"): the two
+        // that had no place of their own, as offsets from where they are
+        // drawn today (+x the pilot's left, +y up, +z forward)
+        ['parkX',     'parking brake left', -0.30, 0.30, 0.005, { when: P => +P.crewOn }],
+        ['parkY',     'parking brake up',   -0.20, 0.20, 0.005, { when: P => +P.crewOn }],
+        ['parkZ',     'parking brake fwd',  -0.20, 0.30, 0.005, { when: P => +P.crewOn }],
+        ['fselX',     'fuel selector left', -0.30, 0.30, 0.005, { when: P => +P.crewOn }],
+        ['fselY',     'fuel selector up',   -0.30, 0.30, 0.005, { when: P => +P.crewOn }],
+        ['fselZ',     'fuel selector fwd',  -0.60, 0.60, 0.005, { when: P => +P.crewOn }],
         ['consoleOn', 'centre console', 0, 1, 1],
         // G331: THE FLOOR — cut from the cabin at the sill's height (+ the
         // lift); every seat, pedal and console stands on it
@@ -706,7 +735,9 @@ window.CAGE_PAGE = {
       // billed where the seat is; `dum2On` (every seat filled or none) is
       // retired and migrated in cageFromSpec.
       ['aboard', [
-        ['dumOn',     'pilot dummy',    0, 1, 1],
+        // G2794: the PILOT, not the dummy it was before the characters ('aboard':
+        // the next row, the pilot choice, is labelled 'pilot' already)
+        ['dumOn',     'pilot aboard',   0, 1, 1],
         // WHO FLIES (G204/G204.1): the pilot and the co-pilot each pick from
         // the same list — mixed crew (the characters rotate through every
         // seat aboard, the passengers included), the ATD-01, or one declared
@@ -725,11 +756,24 @@ window.CAGE_PAGE = {
         ['dumElbows', 'elbows in/out', -0.25, 0.25, 0.005],
         ['dumKnees',  'knees in/out',  -0.25, 0.25, 0.005],
         ['dumRecline','recline offset',-15, 25, 0.5],
-        ['dumHandGrip','hand on grip',  0, 0.16, 0.005],
+        ['dumHandGrip','hand on grip',  0, 0.16, 0.005,
+         { when: P => !+P.dumHandsApart }],
         // G205: how far the fingers close (0 flat, 1 a fist; a character
         // only), and the pilot's breathing/glancing amplitude off the
         // sitting-idle clip (0 = a statue)
-        ['dumFist',   'fist closed',    0, 1, 0.05],
+        ['dumFist',   'fist closed',    0, 1, 0.05,
+         { when: P => !+P.dumHandsApart }],
+        // G2797 (the user's garage review, 18 Oct: "hand controls applied per
+        // hand"): the two hands set apart - each one's fist and its place on
+        // the grip; off, both follow the two rows above
+        ['dumHandsApart', 'each hand its own', 0, 1, 1],
+        ['dumFistL',  'left fist closed',  0, 1, 0.05, { when: P => !!+P.dumHandsApart }],
+        ['dumFistR',  'right fist closed', 0, 1, 0.05, { when: P => !!+P.dumHandsApart }],
+        ['dumGripL',  'left hand on grip',  0, 0.16, 0.005, { when: P => !!+P.dumHandsApart }],
+        ['dumGripR',  'right hand on grip', 0, 0.16, 0.005, { when: P => !!+P.dumHandsApart }],
+        // G2798 (the user, 19 Oct: "put the movement at 1 by default, and it's
+        // fine"): the pilot's idle motion is 1 in the defaults and every preset
+        // (it was 0.5); a build that saved its own value keeps it
         ['dumIdle',   'idle motion',    0, 1, 0.05],
         ['dumMarkers','eye point',      0, 1, 1],
       ], 'open', { when: P => +P.crewOn }],
@@ -1254,7 +1298,7 @@ window.CAGE_PAGE = {
       thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9, pedalH: 0.18,
       pedalSpread: 0.1, pedalAngle: 25, dumOn: 1, dumSize: 1, dumElbows: 0.08,
       dumKnees: 0, dumRecline: 0, dumMarkers: 1, pilotWho: 2, copWho: 5,
-      dumFist: 0.5, dumIdle: 0.5, swMaster: 0, swAlt: 0, swAvionics: 0,
+      dumFist: 0.5, dumIdle: 1, swMaster: 0, swAlt: 0, swAvionics: 0,
       paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
       dumHandGrip: 0.075, cabOcc: 1, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0,
       paxOcc4: 0, paxSeatZ: 0, paxSize: 1, paxRecline: 0, fltL: 6.95,
@@ -1484,7 +1528,7 @@ window.CAGE_PAGE = {
       thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.88, pedalH: 0.17,
       pedalSpread: 0.1, pedalAngle: 47, dumOn: 1, dumSize: 1, dumElbows: 0.01,
       dumKnees: 0, dumRecline: 0, dumMarkers: 1, pilotWho: 0, copWho: 0,
-      dumFist: 0.5, dumIdle: 0.5, swMaster: 0, swAlt: 0, swAvionics: 0,
+      dumFist: 0.5, dumIdle: 1, swMaster: 0, swAlt: 0, swAvionics: 0,
       paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
       dumHandGrip: 0.075, cabOcc: 0, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0,
       paxOcc4: 0, paxSeatZ: 0, paxSize: 1, paxRecline: 0, fltL: 4.3,
@@ -1706,7 +1750,7 @@ window.CAGE_PAGE = {
       thrX: 0.04, thrY: 0.14, thrZ: 0, thrLen: 0.16, pedalZ: 0.945,
       pedalH: 0.165, pedalSpread: 0.1, pedalAngle: 47, dumOn: 1, dumSize: 1,
       dumElbows: 0.01, dumKnees: 0, dumRecline: 0, dumMarkers: 1, pilotWho: 0,
-      copWho: 0, dumFist: 0.5, dumIdle: 0.5, swMaster: 0, swAlt: 0,
+      copWho: 0, dumFist: 0.5, dumIdle: 1, swMaster: 0, swAlt: 0,
       swAvionics: 0, paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0,
       paxFeetX: 0.14, paxIdle: 1, dumHandGrip: 0.075, cabOcc: 0, paxOcc1: 0,
       paxOcc2: 0, paxOcc3: 0, paxOcc4: 0, paxSeatZ: 0.045, paxSize: 1,
@@ -1921,7 +1965,7 @@ window.CAGE_PAGE = {
       flapCtl: 1, stickLen: 0.44, stickCrank: 0, thrX: 0, thrY: 0, thrZ: 0,
       thrLen: 0.16, pedalZ: 0.9, pedalH: 0.18, pedalSpread: 0.1, pedalAngle: 25,
       dumOn: 1, dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0,
-      dumMarkers: 1, pilotWho: 2, copWho: 0, dumFist: 0.75, dumIdle: 0.5,
+      dumMarkers: 1, pilotWho: 2, copWho: 0, dumFist: 0.75, dumIdle: 1,
       swMaster: 0, swAlt: 0, swAvionics: 0, paxFeetOn: 1, paxFeetZ: 0.67,
       paxFeetY: 0.18, paxFeetX: 0.14, paxIdle: 1, dumHandGrip: 0.045, cabOcc: 0,
       paxOcc1: 0, paxOcc2: 0, paxOcc3: 0, paxOcc4: 0, paxSeatZ: 0.185,

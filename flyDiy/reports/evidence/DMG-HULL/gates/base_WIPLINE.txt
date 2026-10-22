@@ -1,0 +1,21 @@
+CATALOGUE
+PASS 15 catalogue rows (bound 14: the Wipline line 1450 to 13000)
+PASS every row lands on its four catalogue numbers (length, width, height, flotation) with a fineness inside [-0.7, 1]
+
+DRAWN
+PASS the drawn hull is closed and wound outward on every preset
+PASS the drawn hull's volume matches the physics loft within 1 %
+PASS the keel bar, the sister keelsons and the chine straps are closed strips
+PASS the water rudder blade is the hull's own area, its foot wrDepth under the stern keel
+PASS the paddle lies along the inboard flank of the forebody
+
+FIXTURE (the Cessna 172 on Wipline 2350s, joined)
+PASS the frame flies the spec's own Wipline record: Wipline 2350, L 5.97 m, 55.2 kg a hull (gross 969 kg)
+   at rest: L/W 0.999, draft at the step 0.320 m, trim 0.79 deg, roll 0.00 deg
+PASS the settle stays finite
+PASS the water carries the 172: L/W 0.999 (bound +-3 %)
+PASS draft at the step 0.320 m (bound 0.15-0.45)
+PASS trim 0.79 deg nose-up at rest (bound 0.5-10)
+PASS level in roll (0.00 deg)
+
+GATE WIPLINE: PASS

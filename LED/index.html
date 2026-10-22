@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atelier LED ESP32</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e2ded6;--accent:#ff5a36;--code:#1e1e24;--codeink:#e8e6e3;--strip:#1a1a1f;--off:#2b2b33;--warn:#b5470b}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15151a;--card:#1f1f26;--ink:#f0eee9;--muted:#9a9aa3;--line:#33333d;--code:#0e0e12;--strip:#0b0b0e;--off:#202027;--warn:#ff9a5a}}
+:root[data-theme="dark"]{--bg:#15151a;--card:#1f1f26;--ink:#f0eee9;--muted:#9a9aa3;--line:#33333d;--code:#0e0e12;--strip:#0b0b0e;--off:#202027;--warn:#ff9a5a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:860px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:1.7rem;margin:0 0 4px}
+h2{font-size:1.15rem;margin:0 0 12px}
+.sub{color:var(--muted);margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+details.card>summary{cursor:pointer;font-weight:700;font-size:1.15rem;list-style:none}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::before{content:"▸ ";color:var(--accent)}
+details.card[open]>summary::before{content:"▾ "}
+details.card[open]>summary{margin-bottom:12px}
+.sumnote{font-weight:400;font-size:.85rem;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+label{display:block;font-size:.85rem;color:var(--muted)}
+input,select{width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;margin-top:4px}
+input[type=color]{padding:2px;height:40px;cursor:pointer}
+input[type=range]{padding:0;border:0;background:none;accent-color:var(--accent)}
+.prog{display:grid;grid-template-columns:34px 1fr 1.3fr auto auto;gap:8px;align-items:end;padding:10px 0;border-top:1px solid var(--line)}
+.prog:first-child{border-top:0}
+.num{font-weight:700;font-size:1.2rem;color:var(--accent);padding-bottom:8px;text-align:center}
+.hint{grid-column:2/-1;font-size:.82rem;color:var(--muted);margin-top:-2px}
+.cols{display:flex;gap:6px}.cols input{width:46px}
+button{font:inherit;border:0;border-radius:10px;padding:9px 14px;cursor:pointer;background:var(--accent);color:#fff;font-weight:600}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);padding:8px 10px}
+button:disabled{opacity:.4;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.warn{color:var(--warn);font-size:.85rem;margin-top:10px}
+pre{background:var(--code);color:var(--codeink);padding:14px;border-radius:10px;overflow:auto;max-height:420px;font-size:.8rem;margin:12px 0 0}
+ol{margin:0;padding-left:20px}li{margin:4px 0}
+#strip{display:flex;flex-wrap:wrap;gap:4px;background:var(--strip);padding:12px;border-radius:12px;justify-content:center}
+.led{width:14px;height:14px;border-radius:50%;background:var(--off)}
+.simctl{display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:end;margin-top:14px}
+#board svg,#parts svg{width:100%;max-width:420px;display:block;margin:0 auto;color:var(--ink)}
+.legend{list-style:none;padding:0;margin:12px 0 8px}.legend li{margin:6px 0;font-size:.92rem}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+#simname{font-weight:600;margin-top:10px;text-align:center}
+@media (max-width:600px){.prog{grid-template-columns:30px 1fr 1fr}.prog .cols,.prog .ctl{grid-column:2/-1}.simctl{grid-template-columns:1fr 1fr}.simctl button{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<main>
+<h1>💡 Atelier LED ESP32</h1>
+<p class="sub">Choisis tes programmes, essaie-les ici, copie le code, colle-le dans Arduino et envoie-le sur l'ESP32 !</p>
+
+<details class="card" id="setup">
+<summary>⚙️ Montage <span class="sumnote" id="setupsum"></span></summary>
+<div class="grid">
+<label>Nombre de LEDs<input id="nleds" type="number" min="3" max="300" value="30"></label>
+<label>Broche données LED<select id="pdata"></select></label>
+<label>Potar lumière<select id="ppot1"></select></label>
+<label>Potar réglage<select id="ppot2"></select></label>
+<label>Bouton<select id="pbtn"></select></label>
+<label>Type de ruban<select id="ltype"><option value="WS2812B,GRB">WS2812B (le plus courant)</option><option value="WS2811,RGB">WS2811</option><option value="SK6812,GRB">SK6812</option></select></label>
+<label>Courant max (mA)<input id="maxma" type="number" min="100" max="10000" value="500" step="100"></label>
+</div>
+<div class="warn" id="pinwarn"></div>
+</details>
+
+<details class="card" open>
+<summary>🔌 Branchements</summary>
+<div id="board"></div>
+<div id="parts" style="margin-top:12px"></div>
+<ul id="legend" class="legend"></ul>
+<p class="sumnote">Schéma pour la carte <b>ESP32 DevKit V1 (30 broches)</b>, vue de dessus, USB en bas. Sur une autre carte, les broches sont placées ailleurs : fie-toi aux noms imprimés sur la carte (D5, D34…).</p>
+</details>
+
+<div class="card">
+<h2>🎛️ Programmes <span id="count" style="color:var(--muted);font-weight:400"></span></h2>
+<div id="list"></div>
+<div class="row" style="margin-top:12px"><button id="add">+ Ajouter un programme</button></div>
+</div>
+
+<div class="card">
+<h2>👀 Essai virtuel</h2>
+<div id="strip"></div>
+<div id="simname"></div>
+<div class="simctl">
+<label>💡 Potar lumière<input type="range" id="slumi" min="0" max="255" value="180"></label>
+<label>🎚️ Potar réglage<input type="range" id="sreg" min="0" max="255" value="128"></label>
+<button id="sbtn">🔘 Bouton</button>
+</div>
+</div>
+
+<div class="card">
+<h2>📋 Le code</h2>
+<div class="row" style="margin-bottom:10px"><label style="max-width:260px">Version du code<select id="mode"><option value="simple">🟢 Simple (pour comprendre)</option><option value="full">🔵 Complète (plus fluide)</option></select></label></div>
+<div class="row"><button id="copy">Copier le code</button><button class="ghost" id="dl">Télécharger .ino</button><span id="msg" style="color:var(--muted)"></span></div>
+<pre id="out"></pre>
+</div>
+
+<details class="card">
+<summary>🚀 Envoyer sur l'ESP32</summary>
+<ol>
+<li>Ouvre Arduino IDE → <b>Fichier › Nouveau</b>, efface tout, colle le code.</li>
+<li>Carte : <b>ESP32 Dev Module</b>. Port : celui qui apparaît quand l'ESP32 est branché.</li>
+<li>Clique sur la flèche ➡️ <b>Téléverser</b>. Si ça bloque sur « Connecting… », maintiens le bouton <b>BOOT</b> de l'ESP32.</li>
+<li>Ruban : <b>DIN</b> sur la broche données, <b>GND</b> sur GND, <b>5V</b> sur VIN (5V).</li>
+<li>Bouton : une patte sur la broche, l'autre sur <b>GND</b>.</li>
+<li>Potars : pattes des côtés sur <b>3V3</b> et <b>GND</b>, patte du milieu sur la broche.</li>
+</ol>
+</details>
+</main>
+
+<script>
+/*GEN-START*/
+// ---------- Effets : code Arduino + simulation JS (mêmes formules) ----------
+const sc8=(c,s)=>(c*(1+s))>>8;
+const fade=(L,a)=>{for(const c of L){c[0]=sc8(c[0],255-a);c[1]=sc8(c[1],255-a);c[2]=sc8(c[2],255-a)}};
+const fill=(L,c)=>{for(const x of L){x[0]=c[0];x[1]=c[1];x[2]=c[2]}};
+const set=(L,i,c)=>{L[i][0]=c[0];L[i][1]=c[1];L[i][2]=c[2]};
+const r8=()=>Math.random()*256|0;
+const ech=(p,a,b)=>a+Math.trunc((b-a)*p/255);
+const bsin=(bpm,lo,hi,t)=>Math.round(lo+(hi-lo)*(Math.sin(2*Math.PI*bpm*t/60000)+1)/2);
+const hsv=h=>{h=((h%256)+256)%256/256*6;const i=Math.floor(h),f=h-i,q=Math.round(255*(1-f)),u=Math.round(255*f);return [[255,u,0],[q,255,0],[0,255,u],[0,q,255],[u,0,255],[255,0,q]][i%6]};
+const heat=t=>{const t2=sc8(t,191)+(t?1:0),r=(t2&63)<<2;return t2&128?[255,255,r]:t2&64?[255,r,0]:[r,0,0]};
+const BLACK=[0,0,0];
+
+const TYPES={
+ couleur:{label:'🎨 Couleur unie',pot:'Potar = la couleur',n:0,
+  code:()=>`fill_solid(leds, NUM_LEDS, CHSV(p, 255, 255));`,
+  sim:(s,p,A,B,L)=>fill(L,hsv(p))},
+ arcenciel:{label:'🌈 Arc-en-ciel',pot:'Potar = la vitesse',n:0,
+  code:(a,b,N)=>`static uint32_t pos = 0;\n  pos += 1 + p / 8;\n  fill_rainbow(leds, NUM_LEDS, (uint8_t)(pos / 4), ${Math.max(1,Math.floor(255/N))});`,
+  sim:(s,p,A,B,L,N)=>{s.pos=(s.pos||0)+1+(p>>3);const d=Math.max(1,Math.floor(255/N));L.forEach((c,i)=>set(L,i,hsv((s.pos>>2)+i*d)))}},
+ clignote:{label:'⚡ Clignotant',pot:'Potar = la vitesse',n:1,
+  code:a=>`uint32_t periode = echelle(p, 1000, 60);\n  bool allume = (millis() / periode) % 2;\n  fill_solid(leds, NUM_LEDS, allume ? ${a} : CRGB(CRGB::Black));`,
+  sim:(s,p,A,B,L,N,t)=>fill(L,Math.floor(t/ech(p,1000,60))%2?A:BLACK)},
+ respire:{label:'😮‍💨 Respiration',pot:'Potar = la vitesse',n:1,
+  code:a=>`uint8_t v = beatsin8((uint16_t)echelle(p, 6, 60), 10, 255);\n  CRGB c = ${a};\n  c.nscale8_video(v);\n  fill_solid(leds, NUM_LEDS, c);`,
+  sim:(s,p,A,B,L,N,t)=>{const v=bsin(ech(p,6,60),10,255,t);fill(L,A.map(x=>Math.round(x*v/255)))}},
+ comete:{label:'☄️ Comète',pot:'Potar = la vitesse',n:1,
+  code:a=>`static uint32_t pos = 0;\n  fadeToBlackBy(leds, NUM_LEDS, 40);\n  pos += 1 + p / 4;\n  leds[(pos / 64) % NUM_LEDS] = ${a};`,
+  sim:(s,p,A,B,L,N)=>{s.pos=(s.pos||0)+1+(p>>2);fade(L,40);set(L,(s.pos>>6)%N,A)}},
+ scanner:{label:'👀 Scanner K2000',pot:'Potar = la vitesse',n:1,
+  code:a=>`fadeToBlackBy(leds, NUM_LEDS, 60);\n  leds[beatsin16((uint16_t)echelle(p, 5, 60), 0, NUM_LEDS - 1)] = ${a};`,
+  sim:(s,p,A,B,L,N,t)=>{fade(L,60);set(L,bsin(ech(p,5,60),0,N-1,t),A)}},
+ etincelles:{label:'✨ Étincelles',pot:'Potar = la quantité',n:1,
+  code:a=>`fadeToBlackBy(leds, NUM_LEDS, 20);\n  if (random8() < p / 2 + 5) leds[random16(NUM_LEDS)] = ${a};`,
+  sim:(s,p,A,B,L,N)=>{fade(L,20);if(r8()<(p>>1)+5)set(L,Math.random()*N|0,A)}},
+ theatre:{label:'🎭 Chenillard',pot:'Potar = la vitesse',n:1,
+  code:a=>`uint32_t periode = echelle(p, 400, 40);\n  int decal = (millis() / periode) % 3;\n  for (int i = 0; i < NUM_LEDS; i++) leds[i] = (i % 3 == decal) ? ${a} : CRGB(CRGB::Black);`,
+  sim:(s,p,A,B,L,N,t)=>{const d=Math.floor(t/ech(p,400,40))%3;L.forEach((c,i)=>set(L,i,i%3==d?A:BLACK))}},
+ degrade:{label:'🌅 Dégradé',pot:'Potar = le mélange',n:2,
+  code:(a,b)=>`for (int i = 0; i < NUM_LEDS; i++) {\n    int x = i * 255 / (NUM_LEDS - 1) + p - 128;\n    if (x < 0) x = 0;\n    if (x > 255) x = 255;\n    leds[i] = blend(${a}, ${b}, (uint8_t)x);\n  }`,
+  sim:(s,p,A,B,L,N)=>L.forEach((c,i)=>{const x=Math.min(255,Math.max(0,Math.trunc(i*255/(N-1))+p-128));set(L,i,A.map((v,k)=>Math.round(v+(B[k]-v)*x/255)))})},
+ police:{label:'🚓 Police',pot:'Potar = la vitesse',n:0,
+  code:()=>`uint32_t periode = echelle(p, 600, 80);\n  bool a = (millis() / periode) % 2;\n  for (int i = 0; i < NUM_LEDS; i++) leds[i] = ((i < NUM_LEDS / 2) == a) ? CRGB(CRGB::Red) : CRGB(CRGB::Blue);`,
+  sim:(s,p,A,B,L,N,t)=>{const a=Math.floor(t/ech(p,600,80))%2;L.forEach((c,i)=>set(L,i,((i<(N>>1))==a)?[255,0,0]:[0,0,255]))}},
+ feu:{label:'🔥 Feu',pot:'Potar = la force du feu',n:0,
+  code:(a,b,N)=>`static uint8_t chaleur[NUM_LEDS];\n  for (int i = 0; i < NUM_LEDS; i++) chaleur[i] = qsub8(chaleur[i], random8(0, ${Math.floor(550/N)+2}));\n  for (int k = NUM_LEDS - 1; k >= 2; k--) chaleur[k] = (chaleur[k - 1] + 2 * chaleur[k - 2]) / 3;\n  if (random8() < p / 2 + 20) {\n    int y = random8(${Math.min(7,N)});\n    chaleur[y] = qadd8(chaleur[y], random8(160, 255));\n  }\n  for (int j = 0; j < NUM_LEDS; j++) leds[j] = HeatColor(chaleur[j]);`,
+  sim:(s,p,A,B,L,N)=>{if(!s.h||s.h.length!=N)s.h=new Array(N).fill(0);const h=s.h,cool=Math.floor(550/N)+2;
+   for(let i=0;i<N;i++)h[i]=Math.max(0,h[i]-(Math.random()*cool|0));
+   for(let k=N-1;k>=2;k--)h[k]=Math.floor((h[k-1]+2*h[k-2])/3);
+   if(r8()<(p>>1)+20){const y=Math.random()*Math.min(7,N)|0;h[y]=Math.min(255,h[y]+160+(Math.random()*95|0))}
+   L.forEach((c,j)=>set(L,j,heat(h[j])))}}
+};
+// ---------- Version simple : mêmes effets, int partout, commentés ligne par ligne ----------
+const SIMPLE={
+ couleur:()=>`  // CHSV(teinte, saturation, luminosite) : une couleur décrite par 3 nombres de 0 à 255.
+  //   teinte = la couleur sur le cercle des couleurs (0 rouge, 85 vert, 170 bleu)
+  //   saturation 255 = couleur bien vive, luminosite 255 = au maximum
+  // Ici, le potar choisit la teinte.
+  // fill_solid(ruban, nombre de LEDs, couleur) colorie tout le ruban d'une seule couleur.
+  fill_solid(leds, NUM_LEDS, CHSV(p, 255, 255));`,
+ arcenciel:(a,b,N)=>`  // "static" : la variable garde sa valeur d'un tour de loop() au suivant
+  // (sans "static", elle repartirait à 0 à chaque fois).
+  static int position = 0;
+  // A chaque tour, on avance : de 1 (potar à 0) à 32 (potar à fond).
+  position = position + 1 + p / 8;
+  // La couleur de la première LED, de 0 à 255 sur le cercle des couleurs.
+  // On divise par 4 pour ralentir. "% 256" revient à 0 après 255, comme une horloge.
+  int depart = (position / 4) % 256;
+  // fill_rainbow(ruban, nombre de LEDs, couleur de départ, écart de couleur entre 2 LEDs voisines)
+  // Un écart de ${Math.max(1,Math.floor(255/N))} étale tout l'arc-en-ciel sur les ${N} LEDs.
+  fill_rainbow(leds, NUM_LEDS, depart, ${Math.max(1,Math.floor(255/N))});`,
+ clignote:a=>`  CRGB couleur = ${a};   // la couleur : (rouge, vert, bleu), chacun de 0 à 255
+  // map(p, 0, 255, 1000, 60) transforme le potar (0 à 255) en durée (1000 à 60 millisecondes).
+  // Potar à 0 = clignote lentement, potar à fond = très vite.
+  int duree = map(p, 0, 255, 1000, 60);
+  // millis() = le temps depuis l'allumage, en millisecondes.
+  // millis() / duree = combien de durées sont passées. "% 2" donne 0 (pair) ou 1 (impair).
+  if ((millis() / duree) % 2 == 0) {
+    fill_solid(leds, NUM_LEDS, couleur);       // pair : allumé
+  } else {
+    fill_solid(leds, NUM_LEDS, CRGB::Black);   // impair : éteint (noir)
+  }`,
+ respire:a=>`  CRGB couleur = ${a};   // la couleur : (rouge, vert, bleu), chacun de 0 à 255
+  // Nombre de respirations par minute : de 6 (lent) à 60 (rapide).
+  int vitesse = map(p, 0, 255, 6, 60);
+  // beatsin8(vitesse, min, max) donne une valeur qui monte et descend en douceur
+  // entre min et max, comme une vague, "vitesse" fois par minute.
+  int force = beatsin8(vitesse, 10, 255);
+  fill_solid(leds, NUM_LEDS, couleur);           // tout le ruban dans la couleur...
+  // ...puis on assombrit : fadeToBlackBy(ruban, nombre, combien), 0 = rien, 255 = tout noir.
+  fadeToBlackBy(leds, NUM_LEDS, 255 - force);`,
+ comete:a=>`  CRGB couleur = ${a};   // la couleur : (rouge, vert, bleu), chacun de 0 à 255
+  static int position = 0;   // "static" : garde sa valeur d'un tour à l'autre
+  // On assombrit un peu toutes les LEDs : la comète laisse une traînée qui s'éteint.
+  fadeToBlackBy(leds, NUM_LEDS, 40);
+  // On avance de 1 (potar à 0, lent) à 64 (potar à fond, rapide) à chaque tour.
+  position = position + 1 + p / 4;
+  // position / 64 = numéro de la LED. "% NUM_LEDS" recommence au début du ruban.
+  int led = (position / 64) % NUM_LEDS;
+  leds[led] = couleur;   // on allume la tête de la comète`,
+ scanner:a=>`  CRGB couleur = ${a};   // la couleur : (rouge, vert, bleu), chacun de 0 à 255
+  fadeToBlackBy(leds, NUM_LEDS, 60);       // traînée qui s'éteint
+  int vitesse = map(p, 0, 255, 5, 60);     // allers-retours par minute
+  // beatsin16(vitesse, min, max) va de min à max puis revient, en douceur, comme une balançoire.
+  int led = beatsin16(vitesse, 0, NUM_LEDS - 1);
+  leds[led] = couleur;`,
+ etincelles:a=>`  CRGB couleur = ${a};   // la couleur : (rouge, vert, bleu), chacun de 0 à 255
+  fadeToBlackBy(leds, NUM_LEDS, 20);   // les étincelles s'éteignent doucement
+  // random(256) tire un nombre au hasard entre 0 et 255.
+  // Plus le potar est haut, plus il y a de chances de créer une étincelle.
+  if (random(256) < p / 2 + 5) {
+    int led = random(NUM_LEDS);   // une LED au hasard
+    leds[led] = couleur;          // on l'allume
+  }`,
+ theatre:a=>`  CRGB couleur = ${a};   // la couleur : (rouge, vert, bleu), chacun de 0 à 255
+  int duree = map(p, 0, 255, 400, 40);     // temps entre deux pas, en millisecondes
+  int decalage = (millis() / duree) % 3;   // vaut 0, 1, 2, 0, 1, 2... à chaque pas
+  // "for" répète pour chaque LED : i va de 0 jusqu'à la dernière LED.
+  for (int i = 0; i < NUM_LEDS; i++) {
+    // i % 3 = le reste de i divisé par 3 : on allume une LED sur trois.
+    if (i % 3 == decalage) {
+      leds[i] = couleur;
+    } else {
+      leds[i] = CRGB::Black;
+    }
+  }`,
+ degrade:(a,b)=>`  CRGB couleur1 = ${a};   // couleur du début : (rouge, vert, bleu)
+  CRGB couleur2 = ${b};   // couleur de la fin
+  for (int i = 0; i < NUM_LEDS; i++) {      // pour chaque LED...
+    int place = i * 255 / (NUM_LEDS - 1);   // où est la LED : 0 au début, 255 à la fin
+    int melange = place + p - 128;          // le potar décale le dégradé
+    if (melange < 0) melange = 0;           // pas en dessous de 0
+    if (melange > 255) melange = 255;       // pas au-dessus de 255
+    // blend(couleur1, couleur2, melange) : 0 = couleur1, 255 = couleur2, entre les deux = mélange
+    leds[i] = blend(couleur1, couleur2, melange);
+  }`,
+ police:()=>`  int duree = map(p, 0, 255, 600, 80);   // temps avant d'inverser les couleurs (ms)
+  int etape = (millis() / duree) % 2;     // vaut 0 puis 1 puis 0...
+  for (int i = 0; i < NUM_LEDS; i++) {    // pour chaque LED...
+    if (i < NUM_LEDS / 2) {               // première moitié du ruban
+      if (etape == 0) leds[i] = CRGB::Red;  else leds[i] = CRGB::Blue;
+    } else {                              // deuxième moitié : l'inverse
+      if (etape == 0) leds[i] = CRGB::Blue; else leds[i] = CRGB::Red;
+    }
+  }`,
+ feu:(a,b,N)=>`  // Chaque LED a une "chaleur" : 0 = froid (noir), 255 = très chaud (blanc).
+  static int chaleur[NUM_LEDS];
+  // 1) Refroidir : chaque LED perd un peu de chaleur, au hasard.
+  for (int i = 0; i < NUM_LEDS; i++) {
+    chaleur[i] = chaleur[i] - random(0, ${Math.floor(550/N)+2});
+    if (chaleur[i] < 0) chaleur[i] = 0;
+  }
+  // 2) Monter : la chaleur glisse vers le haut (mélange des 2 LEDs juste en dessous).
+  for (int k = NUM_LEDS - 1; k >= 2; k--) {
+    chaleur[k] = (chaleur[k - 1] + 2 * chaleur[k - 2]) / 3;
+  }
+  // 3) Nouvelle flamme en bas du ruban, de temps en temps (plus souvent si le potar est haut).
+  if (random(256) < p / 2 + 20) {
+    int led = random(${Math.min(7,N)});                 // une des premières LEDs
+    chaleur[led] = chaleur[led] + random(160, 255);
+    if (chaleur[led] > 255) chaleur[led] = 255;
+  }
+  // 4) Colorier : HeatColor change la chaleur en couleur de feu (noir, rouge, jaune, blanc).
+  for (int j = 0; j < NUM_LEDS; j++) {
+    leds[j] = HeatColor(chaleur[j]);
+  }`
+};
+const rgb=h=>`CRGB(${[1,3,5].map(k=>parseInt(h.substr(k,2),16)).join(', ')})`;
+
+const MAX=10;
+const PINS={data:[4,5,13,14,16,17,18,19,21,22,23,25,26,27,32,33],pot:[32,33,34,35,36,39],btn:[4,13,14,16,17,18,19,21,22,23,25,26,27,32,33]};
+const col=h=>`CRGB(0x${h.slice(1).toUpperCase()})`;
+const clean=s=>String(s).replace(/[\\\r\n]/g,' ').replace(/[^\x20-\x7EÀ-ſ]/g,'').slice(0,40).trim()||'sans nom';
+
+function buildCode(cfg,progs,simple){
+ const N=cfg.N;
+ const funcs=progs.map((p,i)=>`// Programme ${i+1} : ${clean(p.name)}  (${TYPES[p.type].pot})\nvoid prog${i}(uint8_t p) {\n  ${TYPES[p.type].code(col(p.c1),col(p.c2),N)}\n}`).join('\n\n');
+ const cases=progs.map((p,i)=>`    case ${i}: prog${i}(reglage); break;`).join('\n');
+ if(simple){
+ const sf=progs.map((p,i)=>`// ----- Programme ${i+1} : ${clean(p.name)}  (${TYPES[p.type].pot}) -----\nvoid prog${i}(int p) {\n${SIMPLE[p.type](rgb(p.c1),rgb(p.c2),N)}\n}`).join('\n\n');
+ const sc=progs.map((p,i)=>`    case ${i}: prog${i}(reglage); break;${i?'':'   // si prog vaut 0, on lance prog0 ("break" = on s\'arrête là)'}`).join('\n');
+ return `// Code généré par l'Atelier LED ESP32 (version simple)
+// Bibliothèque nécessaire : FastLED (Outils > Gérer les bibliothèques)
+// Carte : ESP32 Dev Module
+
+#include <FastLED.h>   // la bibliothèque qui sait parler au ruban de LEDs
+
+// #define donne un nom à un nombre : plus facile à lire et à changer
+#define NUM_LEDS    ${N}   // nombre de LEDs sur le ruban
+#define DATA_PIN    ${cfg.data}   // broche reliée au fil "données" (DIN) du ruban
+#define POT_LUMI    ${cfg.pot1}   // broche du potar de lumière
+#define POT_REGLAGE ${cfg.pot2}   // broche du potar de réglage
+#define BOUTON      ${cfg.btn}   // broche du bouton
+#define NB_PROGS    ${progs.length}   // nombre de programmes
+
+CRGB leds[NUM_LEDS];   // le ruban : un tableau avec une couleur par LED (leds[0] = la première)
+int prog = 0;          // numéro du programme en cours (0 = le premier)
+int reglage = 0;       // valeur du potar de réglage, de 0 à 255
+
+// Chaque programme est une fonction.
+// "void" = la fonction ne renvoie rien : elle colorie juste les LEDs.
+// "int p" = elle reçoit un nombre : la valeur du potar de réglage (0 à 255).
+
+${sf}
+
+// setup() s'exécute une seule fois, à l'allumage
+void setup() {
+  // dire à FastLED quel type de ruban est branché, sur quelle broche, et combien de LEDs
+  FastLED.addLeds<${cfg.chip}, DATA_PIN, ${cfg.order}>(leds, NUM_LEDS);
+  // limiter le courant pour protéger l'ESP32 et le port USB
+  FastLED.setMaxPowerInVoltsAndMilliamps(5, ${cfg.maxma});
+  // le bouton est une entrée ; avec PULLUP, on lit HIGH au repos et LOW quand on appuie
+  pinMode(BOUTON, INPUT_PULLUP);
+}
+
+// loop() se répète sans arrêt, environ 100 fois par seconde
+void loop() {
+  // analogRead lit un potar : de 0 à 4095. Les LEDs veulent 0 à 255, donc on divise par 16.
+  FastLED.setBrightness(analogRead(POT_LUMI) / 16);
+  reglage = analogRead(POT_REGLAGE) / 16;
+
+  // Bouton appuyé : programme suivant
+  if (digitalRead(BOUTON) == LOW) {
+    // on ajoute 1 ; "% NB_PROGS" fait revenir à 0 après le dernier programme
+    prog = (prog + 1) % NB_PROGS;
+    FastLED.clear();   // tout éteindre avant de changer
+    delay(300);        // attendre un peu pour ne pas sauter plusieurs programmes
+  }
+
+  // Selon le numéro du programme, on lance la bonne fonction
+  switch (prog) {
+${sc}
+  }
+
+  FastLED.show();   // envoyer les couleurs au ruban (rien ne s'allume avant ça !)
+  delay(10);        // petite pause de 10 millisecondes
+}
+`;}
+ return `// Code genere par l'Atelier LED ESP32
+// Bibliotheque necessaire : FastLED (Outils > Gerer les bibliotheques)
+// Carte : ESP32 Dev Module
+#include <FastLED.h>
+
+#define NUM_LEDS    ${N}
+#define DATA_PIN    ${cfg.data}
+#define POT_LUMI    ${cfg.pot1}
+#define POT_REGLAGE ${cfg.pot2}
+#define BOUTON      ${cfg.btn}
+#define NB_PROGS    ${progs.length}
+
+CRGB leds[NUM_LEDS];
+int prog = 0;              // programme en cours (0 = le premier)
+int lumiBrut = 2048;       // potar lumiere lisse (0-4095)
+int reglageBrut = 2048;    // potar reglage lisse (0-4095)
+uint8_t reglage = 128;     // reglage du programme (0-255)
+bool lectureAvant = HIGH;  // pour le bouton
+bool etatBouton = HIGH;
+unsigned long changement = 0;
+
+// Transforme le reglage (0-255) en une valeur entre a et b
+long echelle(uint8_t p, long a, long b) {
+  return a + (b - a) * p / 255;
+}
+
+${funcs}
+
+void setup() {
+  Serial.begin(115200);
+  FastLED.addLeds<${cfg.chip}, DATA_PIN, ${cfg.order}>(leds, NUM_LEDS);
+  FastLED.setMaxPowerInVoltsAndMilliamps(5, ${cfg.maxma});
+  pinMode(BOUTON, INPUT_PULLUP);
+  analogReadResolution(12);
+}
+
+void loop() {
+  // Lire les potentiometres (0-4095) avec un peu de lissage
+  lumiBrut    = (lumiBrut * 3    + analogRead(POT_LUMI)) / 4;
+  reglageBrut = (reglageBrut * 3 + analogRead(POT_REGLAGE)) / 4;
+  FastLED.setBrightness(lumiBrut / 16);   // 0-255
+  reglage = reglageBrut / 16;             // 0-255
+
+  // Bouton (anti-rebond) : passer au programme suivant
+  bool lecture = digitalRead(BOUTON);
+  if (lecture != lectureAvant) {
+    changement = millis();
+    lectureAvant = lecture;
+  }
+  if (millis() - changement > 30 && lecture != etatBouton) {
+    etatBouton = lecture;
+    if (etatBouton == LOW) {
+      prog = (prog + 1) % NB_PROGS;
+      FastLED.clear();
+      Serial.print("Programme ");
+      Serial.println(prog + 1);
+    }
+  }
+
+  switch (prog) {
+${cases}
+  }
+
+  FastLED.show();
+  delay(10);
+}
+`;
+}
+/*GEN-END*/
+
+// ---------- Interface ----------
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let progs,saved={};
+try{saved=JSON.parse(localStorage.getItem('ledatelier'))||{}}catch(e){}
+progs=Array.isArray(saved.progs)&&saved.progs.length?saved.progs.filter(p=>TYPES[p.type]).slice(0,MAX):[];
+if(!progs.length)progs=[
+ {name:'Ma couleur',type:'couleur',c1:'#ff0000',c2:'#0000ff'},
+ {name:'Arc-en-ciel',type:'arcenciel',c1:'#ff0000',c2:'#0000ff'},
+ {name:'Comète bleue',type:'comete',c1:'#00aaff',c2:'#0000ff'}];
+const fillSel=(id,list,def)=>{$(id).innerHTML=list.map(v=>`<option value="${v}">GPIO ${v}</option>`).join('');$(id).value=def};
+fillSel('pdata',PINS.data,5);fillSel('ppot1',PINS.pot,34);fillSel('ppot2',PINS.pot,35);fillSel('pbtn',PINS.btn,13);
+const S=saved.cfg||{};
+['nleds','pdata','ppot1','ppot2','pbtn','ltype','maxma','mode'].forEach(k=>{if(S[k]!=null){$(k).value=S[k];if($(k).value!=String(S[k]))$(k).selectedIndex=0}});
+
+function cfg(){
+ const [chip,order]=$('ltype').value.split(',');
+ return {N:Math.min(300,Math.max(3,parseInt($('nleds').value)||30)),data:+$('pdata').value,pot1:+$('ppot1').value,pot2:+$('ppot2').value,btn:+$('pbtn').value,chip,order,maxma:Math.min(10000,Math.max(100,parseInt($('maxma').value)||500))};
+}
+
+function render(){
+ $('list').innerHTML=progs.map((p,i)=>{
+  const t=TYPES[p.type];
+  return `<div class="prog">
+  <div class="num">${i+1}</div>
+  <label>Nom<input data-i="${i}" data-k="name" value="${esc(p.name)}" maxlength="40"></label>
+  <label>Effet<select data-i="${i}" data-k="type">${Object.entries(TYPES).map(([k,v])=>`<option value="${k}"${k===p.type?' selected':''}>${v.label}</option>`).join('')}</select></label>
+  <div class="cols">${t.n>=1?`<input type="color" data-i="${i}" data-k="c1" value="${p.c1}" title="Couleur 1">`:''}${t.n>=2?`<input type="color" data-i="${i}" data-k="c2" value="${p.c2}" title="Couleur 2">`:''}</div>
+  <div class="ctl row" style="gap:4px"><button class="ghost" data-up="${i}" ${i?'':'disabled'}>↑</button><button class="ghost" data-del="${i}" ${progs.length>1?'':'disabled'}>🗑</button></div>
+  <div class="hint">${t.pot} · l'autre potar règle la lumière</div></div>`}).join('');
+ $('count').textContent=`(${progs.length}/${MAX})`;
+ $('add').disabled=progs.length>=MAX;
+ if(simProg>=progs.length)simProg=0;
+ simState={};
+ gen();
+}
+
+function gen(){
+ const c=cfg();
+ const code=buildCode(c,progs,$('mode').value==='simple');
+ $('out').textContent=code;
+ $('setupsum').textContent=`· ${c.N} LEDs, données GPIO ${c.data}, bouton GPIO ${c.btn}`;
+ const used=[c.data,c.pot1,c.pot2,c.btn];
+ $('pinwarn').textContent=new Set(used).size<4?'⚠️ Deux éléments utilisent la même broche : choisis des broches différentes.':'';
+ buildStrip(c.N);
+ wiring(c);
+ try{localStorage.setItem('ledatelier',JSON.stringify({progs,cfg:{nleds:$('nleds').value,pdata:$('pdata').value,ppot1:$('ppot1').value,ppot2:$('ppot2').value,pbtn:$('pbtn').value,ltype:$('ltype').value,maxma:$('maxma').value,mode:$('mode').value}}))}catch(e){}
+ return code;
+}
+
+// ---------- Schéma de branchement (ESP32 DevKit V1, 30 broches) ----------
+const WC={data:'#ff7a1a',pot1:'#2a7de1',pot2:'#9b51e0',btn:'#1fa45a',vin:'#e0322f',gnd:'#8a8a8a',v33:'#d4a017'};
+function wiring(c){
+ const LEFT=[['EN'],[36,'VP'],[39,'VN'],[34],[35],[32],[33],[25],[26],[27],[14],[12],[13],['GND','GND','GNDL'],['VIN']];
+ const RIGHT=[[23],[22],[1,'TX0'],[3,'RX0'],[21],[19],[18],[5],[17,'TX2'],[16,'RX2'],[4],[2],[15],['GND'],['3V3']];
+ const roles={},add=(k,col,t)=>(roles[k]=roles[k]||[]).push([col,t]);
+ add(c.data,WC.data,'DIN du ruban');add(c.pot1,WC.pot1,'Potar lumière');add(c.pot2,WC.pot2,'Potar réglage');add(c.btn,WC.btn,'Bouton');
+ add('VIN',WC.vin,'+5V du ruban');add('GNDL',WC.gnd,'GND (tous)');add('3V3',WC.v33,'+ des potars');
+ const y0=58,st=26;let s=`<svg viewBox="0 0 380 455" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" role="img" aria-label="Schéma ESP32">
+ <rect x="135" y="18" width="110" height="420" rx="8" fill="#1b2a4a"/>
+ <rect x="150" y="22" width="80" height="22" rx="3" fill="#c9ccd3"/><text x="190" y="37" text-anchor="middle" font-size="10" font-weight="700" fill="#1b2a4a">ESP32</text>
+ <rect x="168" y="430" width="44" height="18" rx="3" fill="#c9ccd3"/><text x="190" y="443" text-anchor="middle" font-size="9" fill="#1b2a4a">USB</text>`;
+ const side=(list,left)=>list.forEach((p,i)=>{
+  const y=y0+i*st,px=left?145:235,num=typeof p[0]==='number';
+  const lab=num?(p[1]?`${p[1]} ${p[0]}`:`D${p[0]}`):p[0],key=num?p[0]:(p[2]||p[0]),r=roles[key];
+  s+=`<circle cx="${px}" cy="${y}" r="5" fill="${r?r[0][0]:'#c9ccd3'}" stroke="#fff" stroke-width="${r?1.5:0}"/>`;
+  s+=`<text x="${left?154:226}" y="${y+3.5}" text-anchor="${left?'start':'end'}" font-size="10" fill="#fff" font-weight="${r?700:400}">${lab}</text>`;
+  if(r){const x2=left?118:262;s+=`<line x1="${px+(left?-5:5)}" y1="${y}" x2="${x2}" y2="${y}" stroke="${r[0][0]}" stroke-width="2.5"/>`;
+   r.forEach((q,j)=>{s+=`<text x="${left?114:266}" y="${y+3.5+j*11}" text-anchor="${left?'end':'start'}" font-size="10.5" font-weight="600" fill="${q[0]}">${q[1]}</text>`})}
+ });
+ side(LEFT,true);side(RIGHT,false);
+ $('board').innerHTML=s+'</svg>';
+ // Composants
+ $('parts').innerHTML=`<svg viewBox="0 0 380 135" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" font-size="10" fill="currentColor">
+ <text x="70" y="12" text-anchor="middle" font-weight="700">Potar (×2)</text>
+ <circle cx="70" cy="42" r="22" fill="none" stroke="currentColor" stroke-width="2"/><line x1="70" y1="42" x2="82" y2="28" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+ <line x1="50" y1="60" x2="50" y2="88" stroke="${WC.gnd}" stroke-width="3"/><line x1="70" y1="64" x2="70" y2="88" stroke="${WC.pot1}" stroke-width="3"/><line x1="90" y1="60" x2="90" y2="88" stroke="${WC.v33}" stroke-width="3"/>
+ <text x="50" y="102" text-anchor="middle">GND</text><text x="70" y="115" text-anchor="middle" font-weight="700">milieu</text><text x="90" y="102" text-anchor="middle">3V3</text>
+ <text x="190" y="12" text-anchor="middle" font-weight="700">Bouton</text>
+ <rect x="168" y="24" width="44" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="190" cy="42" r="10" fill="${WC.btn}"/>
+ <line x1="176" y1="60" x2="176" y2="88" stroke="${WC.btn}" stroke-width="3"/><line x1="204" y1="60" x2="204" y2="88" stroke="${WC.gnd}" stroke-width="3"/>
+ <text x="176" y="102" text-anchor="middle">GPIO ${c.btn}</text><text x="204" y="115" text-anchor="middle">GND</text>
+ <text x="312" y="12" text-anchor="middle" font-weight="700">Ruban</text>
+ <rect x="262" y="30" width="110" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
+ ${[285,317,349].map(x=>`<rect x="${x-7}" y="35" width="14" height="14" rx="2" fill="#fff4c2" stroke="currentColor"/>`).join('')}
+ <text x="312" y="70" text-anchor="middle">sens des données ➜</text>
+ <line x1="262" y1="36" x2="248" y2="36" stroke="${WC.vin}" stroke-width="3"/><line x1="262" y1="42" x2="248" y2="42" stroke="${WC.data}" stroke-width="3"/><line x1="262" y1="48" x2="248" y2="48" stroke="${WC.gnd}" stroke-width="3"/>
+ <text x="262" y="88" fill="${WC.vin}" font-weight="600">+5V → VIN</text><text x="262" y="102" fill="${WC.data}" font-weight="600">DIN → GPIO ${c.data}</text><text x="262" y="116" fill="${WC.gnd}" font-weight="600">GND → GND</text>
+ </svg>`;
+ const dot=k=>`<span class="dot" style="background:${WC[k]}"></span>`;
+ $('legend').innerHTML=[
+  `${dot('data')}<b>Ruban</b> : fil données <b>DIN</b> → <b>GPIO ${c.data}</b>, <b>+5V</b> → <b>VIN</b>, <b>GND</b> → <b>GND</b>. Branche le bout du ruban où la flèche part (DIN, pas DOUT).`,
+  `${dot('pot1')}<b>Potar lumière</b> : patte du milieu → <b>GPIO ${c.pot1}</b>, une patte du côté → <b>3V3</b>, l'autre → <b>GND</b>.`,
+  `${dot('pot2')}<b>Potar réglage</b> : patte du milieu → <b>GPIO ${c.pot2}</b>, les côtés → <b>3V3</b> et <b>GND</b>.`,
+  `${dot('btn')}<b>Bouton</b> : une patte → <b>GPIO ${c.btn}</b>, l'autre → <b>GND</b>. Pas de résistance : l'ESP32 a la sienne (PULLUP).`,
+  `${dot('gnd')}<b>Tous les GND ensemble</b> : ESP32, ruban, potars et bouton.`,
+  `${dot('v33')}Potar qui tourne « à l'envers » ? Inverse ses deux pattes des côtés.`
+ ].map(x=>`<li>${x}</li>`).join('');
+}
+
+// ---------- Simulation ----------
+let simProg=0,simState={},L=[],dots=[],simT=0,last=performance.now();
+function buildStrip(N){
+ if(L.length===N)return;
+ L=Array.from({length:N},()=>[0,0,0]);simState={};
+ $('strip').innerHTML='';dots=[];
+ for(let i=0;i<N;i++){const d=document.createElement('div');d.className='led';$('strip').appendChild(d);dots.push(d)}
+}
+function hex(h){return [1,3,5].map(k=>parseInt(h.substr(k,2),16))}
+function frame(now){
+ let dt=Math.min(200,now-last);last=now;
+ const p=progs[simProg],N=L.length,reg=+$('sreg').value,lumi=+$('slumi').value;
+ if(p){
+  const t=TYPES[p.type],st=simState[simProg]||(simState[simProg]={}),A=hex(p.c1),B=hex(p.c2);
+  while(dt>=10){simT+=10;dt-=10;t.sim(st,reg,A,B,L,N,simT)}
+  last-=dt;
+  $('simname').textContent=`Programme ${simProg+1} : ${p.name} — ${t.label}`;
+ }
+ for(let i=0;i<N;i++){const c=L[i],k=lumi/255;const r=c[0]*k|0,g=c[1]*k|0,b=c[2]*k|0;
+  dots[i].style.background=(r|g|b)?`rgb(${r},${g},${b})`:'';dots[i].style.boxShadow=(r|g|b)?`0 0 8px rgb(${r},${g},${b})`:''}
+ requestAnimationFrame(frame);
+}
+$('sbtn').onclick=()=>{simProg=(simProg+1)%progs.length;L.forEach(c=>c.fill(0))};
+
+// ---------- Événements ----------
+$('list').addEventListener('input',e=>{const i=e.target.dataset.i,k=e.target.dataset.k;if(i==null)return;progs[i][k]=e.target.value;k==='type'?render():gen()});
+$('list').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const u=b.dataset.up,d=b.dataset.del;
+ if(u!=null&&u>0){[progs[u-1],progs[u]]=[progs[u],progs[u-1]];render()}
+ if(d!=null&&progs.length>1){progs.splice(d,1);render()}});
+$('add').onclick=()=>{if(progs.length<MAX){progs.push({name:'Programme '+(progs.length+1),type:'clignote',c1:'#ffcc00',c2:'#ff00aa'});render()}};
+document.querySelectorAll('#setup input,#setup select,#mode').forEach(el=>el.addEventListener('input',gen));
+$('copy').onclick=async()=>{const code=gen();try{await navigator.clipboard.writeText(code);$('msg').textContent='✅ Copié !'}catch(e){const r=document.createRange();r.selectNodeContents($('out'));getSelection().removeAllRanges();getSelection().addRange(r);$('msg').textContent='Sélectionné : fais Ctrl+C'}setTimeout(()=>$('msg').textContent='',2500)};
+$('dl').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([gen()],{type:'text/plain'}));a.download='mes_leds.ino';a.click()};
+render();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

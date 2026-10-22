@@ -1,0 +1,237 @@
+THERMO + PRICE over every registry row
+  ok     a65_sensenich74: family 'four' declared
+  ok     a65_sensenich74: cooling 'air' declared
+  ok     a65_sensenich74: coolKW finite (21.8)
+  ok     a65_sensenich74: piston burns (14.5 kg/h), draws nothing
+  ok     a65_sensenich74: price law 9324 inside the band of 9000 (x1.04)
+  ok     r1830_hs23e50: family 'four' declared
+  ok     r1830_hs23e50: cooling 'air' declared
+  ok     r1830_hs23e50: coolKW finite (402.8)
+  ok     r1830_hs23e50: piston burns (268.5 kg/h), draws nothing
+  ok     r1830_hs23e50: price law 65999 inside the band of 65000 (x1.02)
+  ok     io360_mccauley: family 'four' declared
+  ok     io360_mccauley: cooling 'air' declared
+  ok     io360_mccauley: coolKW finite (60.3)
+  ok     io360_mccauley: piston burns (40.2 kg/h), draws nothing
+  ok     io360_mccauley: price law 33953 inside the band of 38000 (x0.89)
+  ok     rotax277_pusher: family 'two' declared
+  ok     rotax277_pusher: cooling 'air' declared
+  ok     rotax277_pusher: coolKW finite (11.6)
+  ok     rotax277_pusher: piston burns (10.5 kg/h), draws nothing
+  ok     rotax277_pusher: price law 2984 inside the band of 3500 (x0.85)
+  ok     vw2180_wood: family 'four' declared
+  ok     vw2180_wood: cooling 'air' declared
+  ok     vw2180_wood: coolKW finite (19.8)
+  ok     vw2180_wood: piston burns (13.2 kg/h), draws nothing
+  ok     vw2180_wood: price law 8216 inside the band of 6000 (x1.37)
+  ok     rotax582_ivo: family 'two' declared
+  ok     rotax582_ivo: cooling 'liquid' declared
+  ok     rotax582_ivo: coolKW finite (24.0)
+  ok     rotax582_ivo: piston burns (24.0 kg/h), draws nothing
+  ok     rotax582_ivo: price law 7721 inside the band of 5500 (x1.40)
+  ok     jabiru2200_std: family 'four' declared
+  ok     jabiru2200_std: cooling 'air' declared
+  ok     jabiru2200_std: coolKW finite (28.4)
+  ok     jabiru2200_std: piston burns (18.9 kg/h), draws nothing
+  ok     jabiru2200_std: price law 13101 inside the band of 15000 (x0.87)
+  ok     rotax912_warp: family 'four' declared
+  ok     rotax912_warp: cooling 'liquid' declared
+  ok     rotax912_warp: coolKW finite (25.0)
+  ok     rotax912_warp: piston burns (17.9 kg/h), draws nothing
+  ok     rotax912_warp: price law 12189 inside the band of 18000 (x0.68)
+  ok     o200_eprops: family 'four' declared
+  ok     o200_eprops: cooling 'air' declared
+  ok     o200_eprops: coolKW finite (33.6)
+  ok     o200_eprops: piston burns (22.4 kg/h), draws nothing
+  ok     o200_eprops: price law 16320 inside the band of 24000 (x0.68)
+  ok     r985_hs2b20: family 'four' declared
+  ok     r985_hs2b20: cooling 'air' declared
+  ok     r985_hs2b20: coolKW finite (151.2)
+  ok     r985_hs2b20: piston burns (100.8 kg/h), draws nothing
+  ok     r985_hs2b20: price law 46840 inside the band of 48000 (x0.98)
+  ok     verner7u_wood: family 'four' declared
+  ok     verner7u_wood: cooling 'air' declared
+  ok     verner7u_wood: coolKW finite (35.1)
+  ok     verner7u_wood: piston burns (23.4 kg/h), draws nothing
+  ok     verner7u_wood: price law 17293 inside the band of 22000 (x0.79)
+  ok     rotec3600_std: family 'four' declared
+  ok     rotec3600_std: cooling 'air' declared
+  ok     rotec3600_std: coolKW finite (50.4)
+  ok     rotec3600_std: piston burns (33.6 kg/h), draws nothing
+  ok     rotec3600_std: price law 27678 inside the band of 30000 (x0.92)
+  ok     mikron3_wood: family 'four' declared
+  ok     mikron3_wood: cooling 'air' declared
+  ok     mikron3_wood: coolKW finite (21.6)
+  ok     mikron3_wood: piston burns (14.4 kg/h), draws nothing
+  ok     mikron3_wood: price law 9200 inside the band of 16000 (x0.57)
+  ok     gipsymajor1_wood: family 'four' declared
+  ok     gipsymajor1_wood: cooling 'air' declared
+  ok     gipsymajor1_wood: coolKW finite (43.6)
+  ok     gipsymajor1_wood: piston burns (29.1 kg/h), draws nothing
+  ok     gipsymajor1_wood: price law 22959 inside the band of 26000 (x0.88)
+  ok     hirth508_wood: family 'four' declared
+  ok     hirth508_wood: cooling 'air' declared
+  ok     hirth508_wood: coolKW finite (94.0)
+  ok     hirth508_wood: piston burns (62.7 kg/h), draws nothing
+  ok     hirth508_wood: price law 39669 inside the band of 40000 (x0.99)
+  ok     argus10c_wood: family 'four' declared
+  ok     argus10c_wood: cooling 'air' declared
+  ok     argus10c_wood: coolKW finite (79.2)
+  ok     argus10c_wood: piston burns (52.8 kg/h), draws nothing
+  ok     argus10c_wood: price law 37353 inside the band of 38000 (x0.98)
+  ok     o320_mccauley: family 'four' declared
+  ok     o320_mccauley: cooling 'air' declared
+  ok     o320_mccauley: coolKW finite (50.4)
+  ok     o320_mccauley: piston burns (33.6 kg/h), draws nothing
+  ok     o320_mccauley: price law 27678 inside the band of 28000 (x0.99)
+  ok     o540_hartzell: family 'four' declared
+  ok     o540_hartzell: cooling 'air' declared
+  ok     o540_hartzell: coolKW finite (78.8)
+  ok     o540_hartzell: piston burns (52.5 kg/h), draws nothing
+  ok     o540_hartzell: price law 37279 inside the band of 38000 (x0.98)
+  ok     io550_hartzell3: family 'four' declared
+  ok     io550_hartzell3: cooling 'air' declared
+  ok     io550_hartzell3: coolKW finite (104.0)
+  ok     io550_hartzell3: piston burns (69.3 kg/h), draws nothing
+  ok     io550_hartzell3: price law 41083 inside the band of 42000 (x0.98)
+  ok     io720_hartzell3: family 'four' declared
+  ok     io720_hartzell3: cooling 'air' declared
+  ok     io720_hartzell3: coolKW finite (134.1)
+  ok     io720_hartzell3: piston burns (89.4 kg/h), draws nothing
+  ok     io720_hartzell3: price law 44913 inside the band of 45000 (x1.00)
+  ok     rotax915_carbon: family 'four' declared
+  ok     rotax915_carbon: cooling 'liquid' declared
+  ok     rotax915_carbon: coolKW finite (44.1)
+  ok     rotax915_carbon: piston burns (31.5 kg/h), draws nothing
+  ok     rotax915_carbon: price law 25451 inside the band of 34000 (x0.75)
+  ok     ranger440_wood: family 'four' declared
+  ok     ranger440_wood: cooling 'air' declared
+  ok     ranger440_wood: coolKW finite (67.0)
+  ok     ranger440_wood: piston burns (44.7 kg/h), draws nothing
+  ok     ranger440_wood: price law 35238 inside the band of 35000 (x1.01)
+  ok     w670_hs2b: family 'four' declared
+  ok     w670_hs2b: cooling 'air' declared
+  ok     w670_hs2b: coolKW finite (73.8)
+  ok     w670_hs2b: piston burns (49.2 kg/h), draws nothing
+  ok     w670_hs2b: price law 36441 inside the band of 36000 (x1.01)
+  ok     r755_hs2b: family 'four' declared
+  ok     r755_hs2b: cooling 'air' declared
+  ok     r755_hs2b: coolKW finite (100.8)
+  ok     r755_hs2b: piston burns (67.2 kg/h), draws nothing
+  ok     r755_hs2b: price law 40643 inside the band of 41000 (x0.99)
+  ok     m14p_v530: family 'four' declared
+  ok     m14p_v530: cooling 'air' declared
+  ok     m14p_v530: coolKW finite (120.6)
+  ok     m14p_v530: piston burns (80.4 kg/h), draws nothing
+  ok     m14p_v530: price law 43276 inside the band of 43000 (x1.01)
+  ok     r1340_hs12d40: family 'four' declared
+  ok     r1340_hs12d40: cooling 'air' declared
+  ok     r1340_hs12d40: coolKW finite (201.2)
+  ok     r1340_hs12d40: piston burns (134.1 kg/h), draws nothing
+  ok     r1340_hs12d40: price law 51761 inside the band of 52000 (x1.00)
+  ok     rotax503_wood: family 'two' declared
+  ok     rotax503_wood: cooling 'air' declared
+  ok     rotax503_wood: coolKW finite (20.4)
+  ok     rotax503_wood: piston burns (18.5 kg/h), draws nothing
+  ok     rotax503_wood: price law 5724 inside the band of 4000 (x1.43)
+  ok     emrax268_carbon: family 'electric' declared
+  ok     emrax268_carbon: cooling 'air' declared
+  ok     emrax268_carbon: coolKW finite (11.8)
+  ok     emrax268_carbon: electric draws > shaft, burns nothing
+  ok     emrax268_carbon: price law 32100 inside the band of 32000 (x1.00)
+  ok     outrunner2212_9x47: family 'electric' declared
+  ok     outrunner2212_9x47: cooling 'air' declared
+  ok     outrunner2212_9x47: coolKW finite (0.0)
+  ok     outrunner2212_9x47: electric draws > shaft, burns nothing
+  ok     outrunner2212_9x47: price law 13 inside the band of 25 (x0.52)
+  ok     outrunner3548_12x6: family 'electric' declared
+  ok     outrunner3548_12x6: cooling 'air' declared
+  ok     outrunner3548_12x6: coolKW finite (0.1)
+  ok     outrunner3548_12x6: electric draws > shaft, burns nothing
+  ok     outrunner3548_12x6: price law 49 inside the band of 55 (x0.89)
+  ok     outrunner6374_18x10: family 'electric' declared
+  ok     outrunner6374_18x10: cooling 'air' declared
+  ok     outrunner6374_18x10: coolKW finite (0.2)
+  ok     outrunner6374_18x10: electric draws > shaft, burns nothing
+  ok     outrunner6374_18x10: price law 122 inside the band of 130 (x0.94)
+  ok     eppg_direct_130: family 'electric' declared
+  ok     eppg_direct_130: cooling 'air' declared
+  ok     eppg_direct_130: coolKW finite (1.3)
+  ok     eppg_direct_130: electric draws > shaft, burns nothing
+  ok     eppg_direct_130: price law 3600 inside the band of 3800 (x0.95)
+  ok     fes_folding_100: family 'electric' declared
+  ok     fes_folding_100: cooling 'air' declared
+  ok     fes_folding_100: coolKW finite (2.4)
+  ok     fes_folding_100: electric draws > shaft, burns nothing
+  ok     fes_folding_100: price law 6600 inside the band of 9500 (x0.69)
+  ok     emrax228_3blade: family 'electric' declared
+  ok     emrax228_3blade: cooling 'air' declared
+  ok     emrax228_3blade: coolKW finite (6.0)
+  ok     emrax228_3blade: electric draws > shaft, burns nothing
+  ok     emrax228_3blade: price law 16500 inside the band of 11000 (x1.50)
+  ok     e811_velis: family 'electric' declared
+  ok     e811_velis: cooling 'air' declared
+  ok     e811_velis: coolKW finite (6.3)
+  ok     e811_velis: electric draws > shaft, burns nothing
+  ok     sp260d_class: family 'electric' declared
+  ok     sp260d_class: cooling 'air' declared
+  ok     sp260d_class: coolKW finite (28.6)
+  ok     sp260d_class: electric draws > shaft, burns nothing
+  ok     sp260d_class: price law 78000 inside the band of 90000 (x0.87)
+  ok     pt6a114a_hartzell3: family 'turbine' declared
+  ok     pt6a114a_hartzell3: cooling 'air' declared
+  ok     pt6a114a_hartzell3: coolKW finite (25.2)
+  ok     pt6a114a_hartzell3: piston burns (176.0 kg/h), draws nothing
+  ok     pt6a114a_hartzell3: price law 234242 inside the band of 240000 (x0.98)
+  ok     pt6a34_hartzell4: family 'turbine' declared
+  ok     pt6a34_hartzell4: cooling 'air' declared
+  ok     pt6a34_hartzell4: coolKW finite (28.0)
+  ok     pt6a34_hartzell4: piston burns (196.0 kg/h), draws nothing
+  ok     pt6a34_hartzell4: price law 263601 inside the band of 265000 (x0.99)
+  ok     pt6a42_hartzell4: family 'turbine' declared
+  ok     pt6a42_hartzell4: cooling 'air' declared
+  ok     pt6a42_hartzell4: coolKW finite (31.7)
+  ok     pt6a42_hartzell4: piston burns (221.9 kg/h), draws nothing
+  ok     pt6a42_hartzell4: price law 302161 inside the band of 300000 (x1.01)
+  ok     pt6a60a_hartzell4: family 'turbine' declared
+  ok     pt6a60a_hartzell4: cooling 'air' declared
+  ok     pt6a60a_hartzell4: coolKW finite (39.2)
+  ok     pt6a60a_hartzell4: piston burns (274.0 kg/h), draws nothing
+  ok     pt6a60a_hartzell4: price law 381134 inside the band of 380000 (x1.00)
+  ok     legacy piston dict infers four/air
+  ok     legacy electric dict infers electric
+clampSpec: the custom row is bounded or dead
+  ok     garbage custom row dies at the door
+  ok     a smuggled giant is clamped to the envelope
+  ok     unknown enums fall back the legacy way
+  ok     an unpriced row takes the market curve
+  ok     the default spec carries no custom row
+  ok     no-custom resolve is deterministic
+  ok     engBox still sizes off the engine mass
+resolveSpec + genFrame: the custom engine flies
+  ok     resolveSpec flies the custom mass (S.pplant)
+  ok     Tstatic follows the custom watts on the P^(2/3) curve
+  ok     the engine's node moves by the installed delta (-20.34 kg = -20.34: dry -18 + install -2.34)
+  ok     frame mass moves by the installed delta and the gauge's follow (-23.2 kg in [-25.4, -20.3])
+  ok     a lighter nose moves the CG aft, never forward
+  ok     the def carries params.engine (solver + plaque read it)
+  ok     and it is the named custom engine
+  ok     an electric custom row keeps its aspiration into the def
+  ok     a turbocharged custom row keeps aspiration + critAlt into the def
+  ok     an NA row cannot smuggle a critAlt
+  ok     at 3 000 m the turbo still makes rated power (1), the NA one 71 %
+  ok     a turbine custom row keeps both keys through the clamp
+  ok     and its flat-rating margin and length ride with it
+  ok     the clamp put Jet-A in a turbine that asked for avgas
+  ok     the engine box has no cylinders and runs the declared length
+  ok     the def carries the turbine aspiration and its margin to the solver
+  ok     a piston cannot smuggle a flat-rating margin
+  ok     and the clamp took the kerosene out of it
+  ok     a registry PT6 flies as a turbine and burns Jet-A
+  ok     the turbine price curve sits on its own rows
+  ok     a custom cgAft survives the clamp and is the spec's reading
+  ok     a custom row without one reads the registry table's (912: 0.23)
+  ok     0.5 m more engine arm moves the CG aft by 7.8 cm (m_inst·0.5/M = 7.8, m_inst 67.8)
+  ok     the engine hangs on a CGE node when the row knows its CG
+  ok     and exactly the installed engine mass is on it (67.800 kg = 60 dry + 7.800 install; the blades stay on the flange, the locating members weigh nothing)
+GATE ENGINE: PASS

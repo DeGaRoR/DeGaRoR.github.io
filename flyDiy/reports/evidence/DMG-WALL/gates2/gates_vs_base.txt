@@ -1,0 +1,13 @@
+gate_dmgskin: IDENTICAL to the base (numbers masked)
+gate_test_ui_smoke: IDENTICAL to the base (numbers masked)
+gate_test_build: IDENTICAL to the base (numbers masked)
+gate__join_check: IDENTICAL to the base (numbers masked)
+gate__join_check.txt: GATE JOIN: PASS
+gate__join_check_base.txt: GATE JOIN: PASS
+gate_dmgskin.txt: GATE DMGSKIN: PASS
+gate_dmgskin_base.txt: GATE DMGSKIN: PASS
+gate_dmgwall.txt: GATE DMGWALL: PASS
+gate_test_build.txt: GATE BUILD: PASS
+gate_test_build_base.txt: GATE BUILD: PASS
+gate_test_ui_smoke.txt: GATE UISMOKE: PASS
+gate_test_ui_smoke_base.txt: GATE UISMOKE: PASS

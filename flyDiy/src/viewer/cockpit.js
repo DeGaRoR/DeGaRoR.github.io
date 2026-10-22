@@ -78,6 +78,8 @@ function make(THREE) {
     opts = opts || {};
     const L = (data && data.lights) || {};
     CK.lightOn = L.on !== false;
+    // G2796: the lights the builder did not fit (the join names them): no load
+    CK.unfit = new Set(Array.isArray(L.unfit) ? L.unfit : []);
     for (const k of Object.keys(LIGHT_AMPS)) CK.sw['sw_' + k] = L[k] != null ? +L[k] : 0;
     CK.sw.sw_master = 1; CK.sw.sw_alt = 1; CK.key = 'both'; CK.sw.key = 3;
     // G318: the avionics master on, the fuel selector on BOTH, the brake off
@@ -218,7 +220,7 @@ function make(THREE) {
       // G318: the avionics master gates the radios' loads
       bus.on.com = !!CK.sw.sw_avionics; bus.on.xpdr = !!CK.sw.sw_avionics;
       for (const k of Object.keys(LIGHT_AMPS)) {
-        const v = CK.lightOn ? +CK.sw['sw_' + k] || 0 : 0;
+        const v = (CK.lightOn && !(CK.unfit && CK.unfit.has(k))) ? +CK.sw['sw_' + k] || 0 : 0;
         bus.setLoad('sw_' + k, LIGHT_AMPS[k] * (k === 'beacon' ? 0.5 : 1) * (v > 0 ? (v > 1 ? 1 : v) : 0));
       }
       const rpmProp = (o.rpm && o.rpm[0]) || 0;
@@ -569,12 +571,15 @@ function make(THREE) {
   // mappings"): input.js's steps land here, and each does what the click on
   // that control does - the same writes, the same lamps answering at once.
   const DASH_LIGHT = { lightTaxi: 'taxi', lightLand: 'land', lightNav: 'nav', lightBeacon: 'beacon' };
-  const DASH_DIM = { dimInstr: 'instr', dimFlood: 'flood' };
+  const DASH_DIM = { dimInstr: 'instr', dimFlood: 'flood', dimPedal: 'pedal' };   // (G2480: the pedal light)
   CK.dashAction = id => {
     let did = false;
     if (DASH_LIGHT[id]) { const k = DASH_LIGHT[id]; CK.sw['sw_' + k] = +CK.sw['sw_' + k] > 0.5 ? 0 : 1; CK.handSw['sw_' + k] = true; did = true; }   // the hand's now (lightsRule)
     else if (DASH_DIM[id]) { const k = 'sw_' + DASH_DIM[id], v = +CK.sw[k] || 0; CK.sw[k] = v >= 1 ? 0 : Math.min(1, v + 0.25); CK.handSw[k] = true; did = true; }
     else if (id === 'master') { CK.sw.sw_master = +CK.sw.sw_master > 0.5 ? 0 : 1; did = true; }
+    // G2480 (HAND-CONTROLS): the alternator and the avionics master - the bus reads both every frame (CK.frame)
+    else if (id === 'alt') { CK.sw.sw_alt = +CK.sw.sw_alt > 0.5 ? 0 : 1; did = true; }
+    else if (id === 'avionics') { CK.sw.sw_avionics = +CK.sw.sw_avionics > 0.5 ? 0 : 1; did = true; }
     else if (id === 'keyNext' || id === 'keyPrev') {
       let i = clamp(Math.round(+CK.sw.key || 0), 0, 4);
       if (CK.energy && CK.energy.kind === 'battery') i = i > 0 ? 0 : 3;

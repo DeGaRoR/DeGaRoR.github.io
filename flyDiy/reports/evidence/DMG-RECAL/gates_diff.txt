@@ -1,0 +1,326 @@
+################ DMGCLUSTERS
+14c14
+<   ok    a circuit with the pilot: 0.007 (FIN root, bend; 0.01 of first yield)
+---
+>   ok    a circuit with the pilot: 0.008 (FIN root, bend; 0.01 of first yield)
+################ DMGDAMP
+################ DMGFLOATTO
+################ DMGGEAR
+5,6c5,6
+<   ok    a wheel's gear gives in compression past its limit (F_l,c x 1.18, where its steel sized for the ultimate yields) over its travel (0.04 of a member's length); limits 1.34-7.62 kN
+<   ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 1.78-6.54 kN
+---
+>   ok    a wheel's gear gives in compression past its limit (F_l,c x 1.18, where its steel sized for the ultimate yields) over its travel (0.04 of a member's length); limits 1.34-7.22 kN
+>   ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 1.78-6.32 kN
+9c9
+<   ok    NASA 172 Test 1 (7 m/s down, 18 m/s forward): it breaks, the gear first (TW-TPT, kink) - set 0 gear / 95 airframe, broken 15 / 65, the first group tw:gear, 2.10 g, a gear member broke
+---
+>   ok    NASA 172 Test 1 (7 m/s down, 18 m/s forward): it breaks, the gear first (TW-TPT, kink) - set 0 gear / 98 airframe, broken 15 / 63, the first group tw:gear, 2.15 g, a gear member broke
+11,13c11,13
+<   ok    a touchdown at the normal sink, 1.0 m/s: 0.31 (gear AXLEL-S0TL, compression)
+<   ok    a touchdown at a firm one, 1.5 m/s: 0.42 (gear AXLEL-S0TL, compression)
+<   ok    a touchdown at the build's FAR 23.473 limit sink, 2.13 m/s (the gear's own limit case): the airframe 0.37 (S0TL-S1BL), the gear 0.57 (AXLEL-S0TL)
+---
+>   ok    a touchdown at the normal sink, 1.0 m/s: 0.29 (gear AXLEL-S0TL, compression)
+>   ok    a touchdown at a firm one, 1.5 m/s: 0.38 (gear AXLEL-S0TL, compression)
+>   ok    a touchdown at the build's FAR 23.473 limit sink, 2.13 m/s (the gear's own limit case): the airframe 0.33 (S0BL-S0TL), the gear 0.52 (AXLEL-S0TL)
+17,18c17,18
+<   ok    the circuit (completed, T s, touchdown 1.37 m/s): 0.29 (fus S1BL-S1BR, tension, FINAL)
+<   ok    a crosswind circuit (2.69 m/s across, 0.2 V_S0) (completed, T s, touchdown 1.36 m/s): 0.59 (fus S5BR-S6BR, compression, ROLLOUT)
+---
+>   ok    the circuit (completed, T s, touchdown 0.60 m/s): 0.30 (fus S1BL-S1BR, tension, FINAL)
+>   ok    a crosswind circuit (3.21 m/s across, 0.2 V_S0) (completed, T s, touchdown 0.65 m/s): 0.30 (fus S1BL-S1BR, tension, FINAL)
+96c96
+<   Cub             td 1.0 0.31 | td 1.5 0.42 | td 23.473 0.37 | taxi on grass at 8 m/s 0.22 | taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s 0.30 | taxi on the rough field at 12 m/s 0.25 | circuit 0.29 | crosswind circuit 0.59
+---
+>   Cub             td 1.0 0.29 | td 1.5 0.38 | td 23.473 0.33 | taxi on grass at 8 m/s 0.22 | taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s 0.30 | taxi on the rough field at 12 m/s 0.25 | circuit 0.30 | crosswind circuit 0.30
+################ DMGHULL
+2,3c2,3
+<    twin on floats hump: V 7.1 m/s, step keel 0.264 m deep, trim 7.0 deg; at 3 deg of slip the side force 284.8 N (the base's panels 90.0 N), centre -0.694 m from the step; slender body on the step keel 287.0 N
+<    twin on floats step: V 12.0 m/s, step keel 0.145 m deep, trim 1.9 deg; at 3 deg of slip the side force 247.6 N (the base's panels 166.0 N), centre -1.042 m from the step; slender body on the step keel 247.8 N
+---
+>    twin on floats hump: V 7.2 m/s, step keel 0.262 m deep, trim 8.3 deg; at 3 deg of slip the side force 286.6 N (the base's panels 120.7 N), centre -0.597 m from the step; slender body on the step keel 289.7 N
+>    twin on floats step: V 12.1 m/s, step keel 0.174 m deep, trim 3.5 deg; at 3 deg of slip the side force 365.5 N (the base's panels 231.0 N), centre -0.832 m from the step; slender body on the step keel 366.2 N
+8,9c8,10
+< PASS twin on floats hump: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+< PASS twin on floats hump: at 90 deg the side term is 0 N and the cross-flow carries 20530.2 N
+---
+> PASS twin on floats hump: the side term is U w x 106.7 kg/m (the wetted keel's m(TE)) to 0.00 % at the 8 slip angles whose wetted keel is the small-slip one (6 stations; Jones' U w = V^2 sin b cos b, 1 %)
+> PASS twin on floats hump: the side term peaks at 55 deg of slip - the afterbody re-wets from 45 deg (6 -> 10 keel stations wet as U falls to 5.1 m/s), m(TE) up to x1.371; no departure from U w without it
+> PASS twin on floats hump: at 90 deg the side term is 0 N and the cross-flow carries 19320.08 N
+14,17c15,19
+< PASS twin on floats step: 247.6 N against the slender body's (pi/2) rho T^2 U v = 247.8 N on T = 0.145 m (2 %)
+< PASS twin on floats step: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+< PASS twin on floats step: at 90 deg the side term is 0 N and the cross-flow carries 9976.52 N
+< PASS twin on floats step: the side force's centre -1.042 m from the step (ahead of it, on the forebody: -2.22..0)
+---
+> PASS twin on floats step: 365.5 N against the slender body's (pi/2) rho T^2 U v = 366.2 N on T = 0.174 m (2 %)
+> PASS twin on floats step: the side term is U w x 47.5 kg/m (the wetted keel's m(TE)) to 0.00 % at the 15 slip angles whose wetted keel is the small-slip one (7 stations; Jones' U w = V^2 sin b cos b, 1 %)
+> PASS twin on floats step: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b, the wetted keel the same through 40-50 deg)
+> PASS twin on floats step: at 90 deg the side term is 0 N and the cross-flow carries 7601.04 N
+> PASS twin on floats step: the side force's centre -0.832 m from the step (ahead of it, on the forebody: -2.55..0)
+24c26,27
+< FAIL Cessna on floats hump: the side term peaks at 50 deg of slip (45: Jones' U w = V^2 sin b cos b)
+---
+> PASS Cessna on floats hump: the side term is U w x 182.2 kg/m (the wetted keel's m(TE)) to 0.00 % at the 8 slip angles whose wetted keel is the small-slip one (5 stations; Jones' U w = V^2 sin b cos b, 1 %)
+> PASS Cessna on floats hump: the side term peaks at 50 deg of slip - the afterbody re-wets from 45 deg (5 -> 6 keel stations wet as U falls to 7.6 m/s), m(TE) up to x1.128; no departure from U w without it
+31c34,35
+< PASS Cessna on floats step: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+---
+> PASS Cessna on floats step: the side term is U w x 20.1 kg/m (the wetted keel's m(TE)) to 0.00 % at the 14 slip angles whose wetted keel is the small-slip one (3 stations; Jones' U w = V^2 sin b cos b, 1 %)
+> PASS Cessna on floats step: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b, the wetted keel the same through 40-50 deg)
+37,47c41,51
+<       0.0 |   10.2 |    0.0 |    0.0 |    0.0 | 0 | ok
+<       0.5 |   10.2 |    1.3 |    0.9 |    0.0 | 0 | ok
+<       1.0 |   10.3 |    2.8 |    1.7 |   -0.1 | 0 | ok
+<       1.5 |   10.3 |    4.5 |    2.4 |   -1.0 | 0 | ok
+<       2.0 |    9.5 |    5.7 |    3.0 |   -2.8 | 0 | ok
+<       2.5 |    9.8 |    6.2 |    3.8 |   -2.0 | 1 | ok
+<       3.0 |    9.4 |    7.9 |    4.8 |   -2.4 | 1 | ok
+<       3.5 |    9.5 |    9.5 |    6.0 |   -0.5 | 0 | ok
+<       4.0 |    9.3 |   21.1 |   10.8 |   -6.5 | 1 | ok
+<       4.5 |   10.2 |   49.0 |   25.4 |   -4.2 | 2 | YAW WATER LOOP
+<       5.0 |    -   |  180.0 |  171.3 |   -6.9 | 3 | YAW WATER LOOP
+---
+>       0.0 |    9.3 |    0.0 |    0.0 |    0.0 | 0 | ok
+>       0.5 |    9.4 |    1.1 |    0.6 |    0.0 | 0 | ok
+>       1.0 |    9.1 |    2.3 |    1.3 |    0.0 | 0 | ok
+>       1.5 |    9.3 |    3.9 |    2.1 |   -4.3 | 2 | ok
+>       2.0 |    9.4 |    4.9 |    2.6 |   -6.1 | 1 | ok
+>       2.5 |    9.8 |    5.8 |    3.3 |   -1.1 | 0 | ok
+>       3.0 |    9.3 |    7.1 |    4.4 |   -4.7 | 1 | ok
+>       3.5 |    9.7 |    8.1 |    4.6 |   -0.2 | 0 | ok
+>       4.0 |    8.9 |    8.8 |    5.6 |   -4.8 | 1 | ok
+>       4.5 |    8.3 |   15.9 |    9.3 |   -5.4 | 1 | ok
+>       5.0 |    8.9 |   11.2 |    7.2 |   -3.7 | 0 | ok
+49d52
+< OWED twin on floats: YAW swing past 30 deg at 4.5 m/s (49.0 deg), 5 m/s (180.0 deg) - the side force's centre is ahead of the CG on the step (HANDOVER G1847-G1849, open question 2)
+66,71c69,74
+<    twin on floats rest (V 0.0 m/s): after 1 / 2 / T s - before 0.143 / 0.078 / 0.009 rad/s (t1/2 T s); after 0.235 / 0.197 / 0.120 rad/s (t1/2 T s); now 0.223 / 0.181 / 0.103 rad/s (t1/2 T s)
+< PASS twin on floats at rest: the kick decays no slower than DMG-DAMP's after: 0.1026 against 0.1201 rad/s at T s
+<    twin on floats hump (V 7.1 m/s): after 1 / T s - before 0.155 / 0.131 rad/s (t1/2 T s); after 0.212 / 0.211 rad/s (t1/2 >T s); now 0.234 / 0.300 rad/s (t1/2 >T s)
+< OWED twin on floats hump: 0.234 rad/s left after T s against 0.212 without the side force (LESS stable: the centre ahead of the CG)
+<    twin on floats step (V 12.0 m/s): after 1 / T s - before 0.231 / 0.224 rad/s (t1/2 >T s); after 0.237 / 0.124 rad/s (t1/2 T s); now 0.349 / 0.538 rad/s (t1/2 >T s)
+< OWED twin on floats step: 0.349 rad/s left after T s against 0.237 without the side force (LESS stable: the centre ahead of the CG)
+---
+>    twin on floats rest (V 0.0 m/s): after 1 / 2 / T s - before 0.140 / 0.075 / 0.008 rad/s (t1/2 T s); after 0.229 / 0.188 / 0.110 rad/s (t1/2 T s); now 0.218 / 0.173 / 0.095 rad/s (t1/2 T s)
+> PASS twin on floats at rest: the kick decays no slower than DMG-DAMP's after: 0.0951 against 0.1100 rad/s at T s
+>    twin on floats hump (V 7.2 m/s): after 1 / T s - before 0.168 / 0.169 rad/s (t1/2 T s); after 0.220 / 0.254 rad/s (t1/2 >T s); now 0.254 / 0.376 rad/s (t1/2 >T s)
+> OWED twin on floats hump: 0.254 rad/s left after T s against 0.220 without the side force (LESS stable: the centre ahead of the CG)
+>    twin on floats step (V 12.1 m/s): after 1 / T s - before 0.231 / 0.240 rad/s (t1/2 >T s); after 0.293 / 0.239 rad/s (t1/2 >T s); now 0.366 / 0.506 rad/s (t1/2 >T s)
+> OWED twin on floats step: 0.366 rad/s left after T s against 0.293 without the side force (LESS stable: the centre ahead of the CG)
+80c83
+< GATE DMGHULL: FAIL (1)
+---
+> GATE DMGHULL: PASS
+################ DMGMEMBERS
+################ DMGPLOUGH
+2c2
+<    twin on floats: float L 4.01 m, B 0.50 m; Fn | U m/s | amplitude m | env | tan(alpha_E) | the wave's lift N | its pitching moment N m (+ nose-down)
+---
+>    twin on floats: float L 4.60 m, B 0.64 m; Fn | U m/s | amplitude m | env | tan(alpha_E) | the wave's lift N | its pitching moment N m (+ nose-down)
+4,15c4,15
+<       0.12 |  0.75 | 0.063 | 1.00 | 0.72 |    -10 |    -28
+<       0.25 |  1.50 | 0.194 | 1.00 | 0.72 |   -187 |   -391
+<       0.37 |  2.26 | 0.353 | 1.00 | 0.72 |   -482 |   -819
+<       0.49 |  3.01 | 0.528 | 1.00 | 0.72 |     79 |  -2412
+<       0.62 |  3.76 | 0.620 | 0.87 | 0.72 |   1362 |  -2134
+<       0.74 |  4.51 | 0.478 | 0.53 | 0.72 |   1461 |  -1986
+<       0.86 |  5.27 | 0.190 | 0.17 | 0.72 |   1444 |  -1867
+<       0.99 |  6.02 | 0.002 | 0.00 | 0.72 |     18 |    -21
+<       1.11 |  6.77 | 0.000 | 0.00 | 0.00 |      0 |      0
+<       1.23 |  7.52 | 0.000 | 0.00 | 0.00 |      0 |      0
+<       1.36 |  8.28 | 0.000 | 0.00 | 0.00 |      0 |      0
+<       1.48 |  9.03 | 0.000 | 0.00 | 0.00 |      0 |      0
+---
+>       0.13 |  0.81 | 0.047 | 1.00 | 0.49 |     34 |    -12
+>       0.26 |  1.61 | 0.142 | 1.00 | 0.49 |    157 |    -68
+>       0.38 |  2.42 | 0.256 | 1.00 | 0.49 |    166 |  -1041
+>       0.51 |  3.22 | 0.379 | 1.00 | 0.49 |   1992 |  -4391
+>       0.64 |  4.03 | 0.420 | 0.83 | 0.49 |   3489 |  -4408
+>       0.76 |  4.84 | 0.292 | 0.46 | 0.49 |   3278 |  -4156
+>       0.89 |  5.64 | 0.087 | 0.11 | 0.49 |    968 |  -1165
+>       1.02 |  6.45 | 0.000 | 0.00 | 0.00 |      0 |      0
+>       1.15 |  7.25 | 0.000 | 0.00 | 0.00 |      0 |      0
+>       1.27 |  8.06 | 0.000 | 0.00 | 0.00 |      0 |      0
+>       1.40 |  8.87 | 0.000 | 0.00 | 0.00 |      0 |      0
+>       1.53 |  9.67 | 0.000 | 0.00 | 0.00 |      0 |      0
+20,22c20,22
+< PASS twin on floats the amplitude peaks at Fn 0.617 (0.62 m at 3.761 m/s): inside 0.5..0.8
+< PASS twin on floats on the step (Fn >= 1: 16 speeds) the wave is 0 m, 0 N, 0 N m
+< PASS twin on floats in the displacement regime (0 < Fn < 0.5) the amplitude is positive at every speed (16)
+---
+> PASS twin on floats the amplitude peaks at Fn 0.605 (0.426 m at 3.829 m/s): inside 0.5..0.8
+> PASS twin on floats on the step (Fn >= 1: 17 speeds) the wave is 0 m, 0 N, 0 N m
+> PASS twin on floats in the displacement regime (0 < Fn < 0.5) the amplitude is positive at every speed (15)
+46,48c46,48
+<    twin on floats (as built): hump at 8.5 m/s (C_V 3.87, Fn_L 1.36, R/W 0.100): keel trim 3.8 deg (pitch 4.3); lowest keel trim on the run -0.3 deg at 16.2 m/s; highest before the hump 9.0, over C_V 1.5-4 9.0; lift-off T s
+<    twin on floats (INSTRUMENT: thrust at the nose frame, 0.17 m over the CG): hump at 4.1 m/s (C_V 1.84, Fn_L 0.65, R/W 0.034): keel trim 4.9 deg (pitch 5.5); lowest keel trim on the run 1.3 deg at 1.4 m/s; highest before the hump 4.9, over C_V 1.5-4 11.7; lift-off T s
+<    twin on floats (the plough wave ON, kWave 1): hump at 3.1 m/s (C_V 1.40, Fn_L 0.49, R/W 0.730): keel trim -66.6 deg (pitch -66.2); lowest keel trim on the run -71.9 deg at 2.9 m/s; highest before the hump 0.9, over C_V 1.5-4 15.2; lift-off - - NOSE-OVER (pitch -90)
+---
+>    twin on floats (as built): hump at 8.6 m/s (C_V 3.45, Fn_L 1.29, R/W 0.081): keel trim 4.3 deg (pitch 4.8); lowest keel trim on the run 0.5 deg at 16.5 m/s; highest before the hump 8.9, over C_V 1.5-4 8.9; lift-off T s
+>    twin on floats (INSTRUMENT: thrust at the nose frame, 0.17 m over the CG): hump at 10.0 m/s (C_V 3.98, Fn_L 1.49, R/W 0.069): keel trim 4.2 deg (pitch 4.8); lowest keel trim on the run 1.7 deg at 1.2 m/s; highest before the hump 13.2, over C_V 1.5-4 13.2; lift-off T s
+>    twin on floats (the plough wave ON, kWave 1): hump at 2.5 m/s (C_V 0.99, Fn_L 0.37, R/W 0.101): keel trim 1.6 deg (pitch 2.0); lowest keel trim on the run 0.5 deg at 16.6 m/s; highest before the hump 1.6, over C_V 1.5-4 8.8; lift-off T s
+51c51,52
+< FAIL Cessna on floats: keel trim at the hump 7.4 deg inside 8-12
+---
+> PASS Cessna on floats: keel trim at the hump 7.4 deg inside 6-12 (bow-up past a planing hull's least-resistance 4-6 deg, Savitsky 1964; under the porpoising top)
+> NOTE Cessna on floats: the recalled tank band 8-12 deg (no load or CG with it): OUTSIDE (7.4 deg at C_V 2.60; the highest over C_V 1.5-4 13.7) - G2032
+53,55c54,56
+< PASS twin on floats with the thrust at the nose frame (INSTRUMENT): lowest keel trim 1.3 deg (> 0), at the hump 4.9 deg: the base's hydro carries the plough's bow-up trim
+< OWED twin on floats (as built): keel trim at the hump 3.8 deg, lowest -0.3 deg at 16.2 m/s - its thrust couple (0.57 m over the CG) and the water drag (1.5 m under it) beat the floats' nose-down restoring once the afterbody unwets (HANDOVER G1807-G1809, open question 1)
+< NOTE twin on floats with the plough wave ON: NOSES OVER in calm air (pitch -90 deg) - the wave's crest on the narrow bow, its trough on the wide forebody ahead of the CG: why it ships OFF
+---
+> PASS twin on floats with the thrust at the nose frame (INSTRUMENT): lowest keel trim 1.7 deg (> 0), at the hump 4.2 deg: the base's hydro carries the plough's bow-up trim
+> OWED twin on floats (as built): keel trim at the hump 4.3 deg, lowest 0.5 deg at 16.5 m/s - its thrust couple (0.57 m over the CG) and the water drag (1.5 m under it) beat the floats' nose-down restoring once the afterbody unwets (HANDOVER G1807-G1809, open question 1)
+> NOTE twin on floats with the plough wave ON: lowest keel trim 0.5 deg - the wave's crest on the narrow bow, its trough on the wide forebody ahead of the CG: why it ships OFF
+59,69c60,70
+<       0.0 |   10.2 |    0.0 |    0.0 |    0.0 |   -0.3 | 0 | ok
+<       0.5 |   10.2 |    1.3 |    0.9 |    0.0 |   -0.3 | 0 | ok
+<       1.0 |   10.3 |    2.8 |    1.7 |   -0.1 |   -0.2 | 0 | ok
+<       1.5 |   10.3 |    4.5 |    2.4 |   -1.0 |   -0.8 | 0 | ok
+<       2.0 |    9.5 |    5.7 |    3.0 |   -2.8 |   -1.7 | 0 | ok
+<       2.5 |    9.8 |    6.2 |    3.8 |   -2.0 |   -1.4 | 1 | ok
+<       3.0 |    9.4 |    7.9 |    4.8 |   -2.4 |   -1.9 | 1 | ok
+<       3.5 |    9.5 |    9.5 |    6.0 |   -0.5 |   -0.8 | 0 | ok
+<       4.0 |    9.3 |   21.1 |   10.8 |   -6.5 |   -2.7 | 1 | ok
+<       4.5 |   10.2 |   49.0 |   25.4 |   -4.2 |   -3.0 | 2 | YAW WATER LOOP
+<       5.0 |    -   |  180.0 |  171.3 |   -6.9 |   -3.9 | 3 | YAW WATER LOOP
+---
+>       0.0 |    9.3 |    0.0 |    0.0 |    0.0 |    0.5 | 0 | ok
+>       0.5 |    9.4 |    1.1 |    0.6 |    0.0 |    0.5 | 0 | ok
+>       1.0 |    9.1 |    2.3 |    1.3 |    0.0 |    0.6 | 0 | ok
+>       1.5 |    9.3 |    3.9 |    2.1 |   -4.3 |   -0.4 | 2 | ok
+>       2.0 |    9.4 |    4.9 |    2.6 |   -6.1 |   -1.2 | 1 | ok
+>       2.5 |    9.8 |    5.8 |    3.3 |   -1.1 |   -0.2 | 0 | ok
+>       3.0 |    9.3 |    7.1 |    4.4 |   -4.7 |   -1.5 | 1 | ok
+>       3.5 |    9.7 |    8.1 |    4.6 |   -0.2 |    0.1 | 0 | ok
+>       4.0 |    8.9 |    8.8 |    5.6 |   -4.8 |   -2.6 | 1 | ok
+>       4.5 |    8.3 |   15.9 |    9.3 |   -5.4 |   -1.3 | 1 | ok
+>       5.0 |    8.9 |   11.2 |    7.2 |   -3.7 |   -2.8 | 0 | ok
+71d71
+< OWED twin on floats: YAW swing past 30 deg at 4.5 m/s (49.0 deg), 5 m/s (180.0 deg) (HANDOVER G1847-G1849, open question 2)
+73,83c73,83
+<       0.0 |    8.2 |    0.0 |    0.0 |    0.0 |    1.3 | 0 | ok
+<       0.5 |    8.2 |    1.1 |    0.8 |    0.0 |    1.3 | 0 | ok
+<       1.0 |    8.1 |    2.1 |    1.4 |    0.0 |    1.3 | 0 | ok
+<       1.5 |    8.1 |    3.8 |    1.6 |    0.0 |    1.2 | 0 | ok
+<       2.0 |    8.0 |    5.5 |    2.2 |    0.0 |    1.2 | 1 | ok
+<       2.5 |    7.0 |    5.4 |    1.4 |    0.0 |    0.8 | 0 | ok
+<       3.0 |    7.5 |    6.0 |    2.5 |    0.0 |    1.0 | 0 | ok
+<       3.5 |    7.5 |    7.9 |    2.7 |   -0.1 |    1.6 | 1 | ok
+<       4.0 |    6.9 |    9.2 |    1.9 |    0.0 |    0.8 | 1 | ok
+<       4.5 |    8.6 |   22.5 |    7.5 |   -2.0 |   -1.1 | 1 | ok
+<       5.0 |    6.9 |   15.0 |    1.9 |   -2.5 |    0.1 | 1 | ok
+---
+>       0.0 |    7.3 |    0.0 |    0.0 |    0.0 |    1.7 | 0 | ok
+>       0.5 |    7.4 |    1.0 |    0.4 |    0.0 |    1.7 | 0 | ok
+>       1.0 |    8.6 |    4.4 |    1.5 |    0.0 |    1.7 | 1 | ok
+>       1.5 |    7.4 |    2.9 |    1.1 |    0.0 |    1.7 | 0 | ok
+>       2.0 |    7.8 |    4.0 |    2.1 |    0.0 |    1.8 | 1 | ok
+>       2.5 |    7.3 |    4.9 |    1.6 |   -0.7 |    1.4 | 1 | ok
+>       3.0 |    7.5 |    5.6 |    2.1 |    0.0 |    1.3 | 0 | ok
+>       3.5 |    7.5 |    6.8 |    2.6 |   -1.3 |    1.7 | 1 | ok
+>       4.0 |    7.2 |    7.1 |    2.5 |    0.0 |    0.9 | 1 | ok
+>       4.5 |    8.3 |   18.0 |    6.5 |   -0.8 |    1.2 | 1 | ok
+>       5.0 |    6.9 |   12.3 |    1.9 |   -2.3 |    1.0 | 1 | ok
+100c100
+< GATE DMGPLOUGH: FAIL (1)
+---
+> GATE DMGPLOUGH: PASS
+################ DMGTYRE
+1,3c1
+< FAIL the Cub's crosswind roll-out at 4 m/s across: completed, the heading's largest error 19.5 deg (<= 15), 0 reversals (<= 3), touchdown 1 m off the centre line (<= 3) at 1.44 m/s, rudder peak 0.95
+< FAIL the Cub's crosswind roll-out at 5 m/s across: completed, the heading's largest error 28.5 deg (<= 15), 0 reversals (<= 3), touchdown 1.1 m off the centre line (<= 3) at 1.54 m/s, rudder peak 0.95
+< GATE DMGTYRE: FAIL (2)
+---
+> GATE DMGTYRE: PASS
+################ DMGWIND
+34c34
+<   ok    gust 0.5, started at 3 m/s (met the trunk at 2.21): mount 0, broken 0, 36 J, the mount's worst 1.07
+---
+>   ok    gust 0.5, started at 3 m/s (met the trunk at 2.21): mount 0, broken 0, 37 J, the mount's worst 1.07
+42c42
+<   ok    the per-substep reader (sim.onSubstep, damagePush) changes nothing: ff6adb782e77 / ff6adb782e77 (13320 substeps read)
+---
+>   ok    the per-substep reader (sim.onSubstep, damagePush) changes nothing: 287bf2ddf7fb / 287bf2ddf7fb (13320 substeps read)
+44c44
+<   --    REPORT the user's Cub: 16 of 49 winds break the mount (met at 1.91-3.15 m/s): 2.5/60 CGE-S0TR tension (1115 J); 2.5/90 CGE-S0TR tension (999 J); 2.5/120 CGE-S0TR tension (1051 J); 2.5/150 CGE-ENGR fold (1215 J); 2.5/270 CGE-S0TL tension (999 J); 5/60 CGE-S0TR tension (80 J); 5/90 CGE-S0TR tension (20 J); 5/210 ENGL-ENGR fold (597 J); 5/270 CGE-S0BL tension (108 J); 5/300 CGE-S0TR tension (73 J); 7.5/150 CGE-S0TR tension (42 J); 7.5/210 CGE-S0BL tension (149 J); 7.5/330 CGE-S0TR tension (66 J); 10/120 AXLER-S1BR kink (247 J); 10/180 CGE-ENGL fold (1370 J); 10/240 AXLEL-S1BL kink (236 J)
+---
+>   --    REPORT the user's Cub: 16 of 49 winds break the mount (met at 1.91-3.15 m/s): 2.5/60 CGE-S0TR tension (1107 J); 2.5/90 CGE-S0TR tension (983 J); 2.5/120 CGE-S0TR tension (1054 J); 2.5/150 CGE-ENGR fold (1214 J); 2.5/270 CGE-S0TL tension (999 J); 5/60 CGE-S0TR tension (80 J); 5/90 CGE-S0TR tension (20 J); 5/210 ENGL-ENGR fold (597 J); 5/270 CGE-S0BL tension (108 J); 5/300 CGE-S0TR tension (75 J); 7.5/150 CGE-S0TR tension (42 J); 7.5/210 CGE-S0BL tension (149 J); 7.5/330 CGE-S0TR tension (66 J); 10/120 AXLER-S1BR kink (251 J); 10/180 CGE-ENGL fold (1370 J); 10/240 AXLEL-S1BL kink (238 J)
+48c48
+<   --    REPORT the Cub, no wind, started at 3.6 m/s, the trunk across the nose (-0.45..0.45 m): 11 of 19 break the mount: -0.35 m CGE-S0TR tension; -0.3 m CGE-S0TR tension; -0.25 m CGE-S0TR tension; -0.1 m CGE-S0TR tension; -0.05 m CGE-ENGR fold; 0.1 m CGE-S0TL tension; 0.15 m ENGL-ENGR fold; 0.25 m CGE-S0BL tension; 0.3 m CGE-S0BL tension; 0.35 m CGE-S0TR tension; 0.4 m CGE-S0TR tension
+---
+>   --    REPORT the Cub, no wind, started at 3.6 m/s, the trunk across the nose (-0.45..0.45 m): 11 of 19 break the mount: -0.35 m CGE-S0TR tension; -0.3 m CGE-S0TR tension; -0.25 m CGE-S0TR tension; -0.1 m CGE-S0TR tension; -0.05 m CGE-S0TR tension; 0.1 m CGE-S0TL tension; 0.15 m ENGL-ENGR fold; 0.25 m CGE-S0BL tension; 0.3 m CGE-S0BL tension; 0.35 m CGE-S0BL tension; 0.4 m CGE-S0TR tension
+################ FLOATS
+28c28,34
+<    touch at T s, sinking 0.95 m/s; the water's lift frame by frame: 0.01 0.09 0.24 0.38 0.54 0.67 0.77 0.85 0.90 0.90 ... first peak 0.899 W after 10 frames; largest one-frame change 1.656 W; peak 2.597 W; T s on: V 3.0 m/s
+---
+>    touch at T s, sinking 0.95 m/s; the water's lift frame by frame: 0.01 0.09 0.24 0.38 0.54 0.67 0.77 0.85 0.90 0.90 ... first peak 0.899 W after 10 frames; largest one-frame change 0.163 W; peak 0.899 W (the first contact); T s on: V 3.0 m/s
+>    skips after the touch (the stick held at the approach's, throttle 0.1): 4
+>      re-touch 1 at T s: 19.5 m/s, sinking 1.83 m/s, trim 3.4 deg; one-frame 0.788 W, peak 1.764 W
+>      re-touch 2 at T s: 17.3 m/s, sinking 2.24 m/s, trim 1.8 deg; one-frame 1.656 W, peak 2.597 W
+>      re-touch 3 at T s: 15.2 m/s, sinking 1.76 m/s, trim 1.8 deg; one-frame 1.021 W, peak 2.030 W
+>      re-touch 4 at T s: 13.3 m/s, sinking 0.95 m/s, trim 24.5 deg; one-frame 0.409 W, peak 1.686 W
+> OWED the hands-off arrival skips 4 time(s) and 4 re-touch(es) pass the touchdown's bounds (worst: 1.656 W in a frame, 2.597 W) - a fast (1.3 Vs) touch with no pilot: the landing is not flown after the touch (HANDOVER G2030-G2034, FLOATS)
+32,33c38,39
+< FAIL no frame adds more than 1.656 W (bound 0.35)
+< FAIL the touchdown peaks at 2.597 W (bound 2)
+---
+> PASS no frame adds more than 0.163 W (bound 0.35)
+> PASS the touchdown peaks at 0.899 W (bound 2)
+36c42
+< GATE FLOATS: FAIL (2)
+---
+> GATE FLOATS: PASS
+################ JOINPARITY
+3d2
+<      (the load chain's files changed since the capture of 2026-10-06T00:04:56.343Z: a FAIL below means the game's aeroplane moved - re-capture with node tools/join_parity_page.js if that move is meant, and say so in the HANDOVER)
+7,10c6,9
+< PASS Cessna floats    the float station (the page's CG handshake, declared): x 1.20730 / page 1.20736, y -1.09042 / page -1.09042 (within 5 mm)
+< FAIL Cessna floats    node = page: n 130/130 nb 533/533 mass 951.538/951.511 kg, worst 3.88e-2 - FIRST: node 0 (S0BL).m 48.153455861016184 vs 48.153428182831476
+< FAIL twin floatplane  the float station (the page's CG handshake, declared): x 1.22065 / page 1.20638, y -0.45862 / page -0.46113 (within 5 mm)
+< FAIL twin floatplane  node = page: n 127/127 nb 519/519 mass 486.333/489.276 kg, worst 2.97e-1 - FIRST: node 0 (S0BL).m 24.652206560247397 vs 24.65441585386519
+---
+> PASS Cessna floats    the float station (the page's CG handshake, declared): x 1.20730 / page 1.20730, y -1.09042 / page -1.09042 (within 5 mm)
+> PASS Cessna floats    node = page: n 130/130 nb 533/533 mass 951.538/951.538 kg, worst 1.88e-16
+> PASS twin floatplane  the float station (the page's CG handshake, declared): x 1.22065 / page 1.22023, y -0.45862 / page -0.45870 (within 5 mm)
+> PASS twin floatplane  node = page: n 127/127 nb 519/519 mass 486.284/486.284 kg, worst 0.00e+0
+25c24
+< FAIL no tool flies a validated build raw: _destto_check.js, _dmghull_check.js, _dmgplough_check.js, _dmgtyre_check.js, _rollsnd_check.js, _taxiclear_lib.js, dmg_wall_census.js, dmghull_evidence.js, dmgplough_bench.js, dmgplough_evidence.js, dmgplough_side.js, dmgplough_trace.js, dmgtyre_evidence.js, float_shape_numbers.js, pilot_one_trace.js
+---
+> PASS no tool flies a validated build raw (31 declared doors)
+28c27
+< GATE JOINPARITY: 4 FAIL
+---
+> GATE JOINPARITY: PASS
+################ PILOTACT
+################ PILOTMATRIX
+8d7
+<   ok cub:HOME:calm:up4           completed T s · sink 0.39 · 1.21 Vs · aim 6 · swing 0
+9a9
+>   ok cub:HOME:calm:up4           completed T s · sink 0.39 · 1.21 Vs · aim 6 · swing 0
+################ SEAPLANE
+################ TAKEOFF
+################ TREECRASH
+10c10
+<   ok    a circuit with the pilot (completed, T s, 1.64 g at the most): nothing yields; the worst member 0.29 (fus, tension)
+---
+>   ok    a circuit with the pilot (completed, T s, 1.29 g at the most): nothing yields; the worst member 0.30 (fus, tension)
+15,16c15,16
+<   ok    the centreline: CRASHED (broke up: the fuselage parted (TPB off the core) at T s), 173 members broken (36 of the wing), 22.8 kJ of plastic work, 22.42 g; finite; the kinetic energy at most 100.0 % of the impact's
+<   ok    the wing 2.5 m out: CRASHED (broke up: the fuselage parted (TPB off the core) at T s), 128 members broken (42 of the wing), 14.5 kJ of plastic work, 10.49 g; finite; the kinetic energy at most 100.0 % of the impact's
+---
+>   ok    the centreline: CRASHED (broke up: the fuselage parted (TPB off the core) at T s), 176 members broken (36 of the wing), 23.0 kJ of plastic work, 22.42 g; finite; the kinetic energy at most 100.0 % of the impact's
+>   ok    the wing 2.5 m out: CRASHED (broke up: the fuselage parted (TPB off the core) at T s), 129 members broken (42 of the wing), 14.5 kJ of plastic work, 10.50 g; finite; the kinetic energy at most 100.0 % of the impact's
+18c18
+<   ok    after a crash, reset() and the same taxi: the fresh sim's bits (483da7c6d396 / 483da7c6d396)
+---
+>   ok    after a crash, reset() and the same taxi: the fresh sim's bits (518bef854d24 / 518bef854d24)
+75,76c75,76
+<   ok    a 100 km/h nose-in ditch (4 m/s, 10 deg): the worst member 5.11 (fus, compression); 123 set {"fus":81,"wing":18,"tail":24}, 90 broken, the slam 274 kPa, 4 hull slice(s) holed, 10.73 g, CRASHED (a gear member broke); the damage follows the beams' own loads
+<   ok    SEVERE: 180 km/h, 10 m/s, 60 deg nose-in: the worst member 20.22 (fus, compression); 189 set {"fus":99,"wing":28,"tail":62}, 196 broken, the slam 1313 kPa, 7 hull slice(s) holed, 16.01 g, CRASHED (broke up: the fuselage parted (S0TL off the core)) - must yield, break and crash; the damage follows the beams' own loads
+---
+>   ok    a 100 km/h nose-in ditch (4 m/s, 10 deg): the worst member 5.11 (fus, compression); 131 set {"fus":70,"wing":13,"tail":48}, 95 broken, the slam 931 kPa, 4 hull slice(s) holed, 12.02 g, CRASHED (a gear member broke); the damage follows the beams' own loads
+>   ok    SEVERE: 180 km/h, 10 m/s, 60 deg nose-in: the worst member 20.22 (fus, compression); 198 set {"fus":110,"wing":26,"tail":61,"gear":1}, 200 broken, the slam 810 kPa, 7 hull slice(s) holed, 15.47 g, CRASHED (broke up: the fuselage parted (S0TL off the core)) - must yield, break and crash; the damage follows the beams' own loads
+################ TREEHIT

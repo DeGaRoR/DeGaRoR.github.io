@@ -1,0 +1,149 @@
+{
+ "date": "2026-10-10T21:30:15.170Z",
+ "tag": "fb",
+ "notes": [
+  {
+   "reg": "B-MOSQ",
+   "canopy": 3,
+   "w": {
+    "age": 0.7,
+    "flight": 0.15
+   }
+  },
+  "waistband: ok",
+  "composite: ok",
+  "joint: ok",
+  "shoulder: ok",
+  "pillarCabin: ok",
+  "dash: ok",
+  "body: ok",
+  [
+   "base colour",
+   "ink",
+   "outline",
+   "below the line",
+   "the line",
+   "",
+   "band",
+   "keyline",
+   "",
+   "band",
+   "keyline",
+   "",
+   "spiral colour",
+   "bodyauto (composite)doped fabricbirch pl",
+   "floorLoopauto (composite)doped fabricbir",
+   "waistbandauto (composite)doped fabricbir",
+   "nose frame bandauto (composite)walnutfig",
+   "cabin frame bandauto (composite)walnutfi",
+   "windshield",
+   "jointauto (bareAlu)doped fabricbirch ply",
+   "seatTrimauto (hide)doped fabricbirch ply",
+   "glareshield & shellauto (leatherDark)wal",
+   "instrument faciaauto (panelMetal)walnutf",
+   "shoulderauto (sillAlu)doped fabricbirch ",
+   "dummy1auto (composite)doped fabricbirch ",
+   "passenger frame bandauto (composite)waln",
+   "tail frame bandauto (composite)walnutfig",
+   "accPaintauto (trim)doped fabricbirch ply",
+   "bulkheadauto (composite)doped fabricbirc",
+   "firewallauto (composite)doped fabricbirc",
+   "fireProofauto (fireFoil)doped fabricbirc",
+   "fireSealauto (bareAlu)doped fabricbirch ",
+   "compositeauto (composite)doped fabricbir",
+   "wingSkinauto (composite)doped fabricbirc",
+   "wingTipauto (composite)doped fabricbirch",
+   "wingLongeronauto (alclad)doped fabricbir",
+   "wingAilauto (composite)doped fabricbirch",
+   "wingFlapauto (composite)doped fabricbirc",
+   "finSkinauto (composite)doped fabricbirch",
+   "finRudauto (composite)doped fabricbirch ",
+   "stabSkinauto (composite)doped fabricbirc",
+   "stabElevauto (composite)doped fabricbirc",
+   "ctlHingeauto (steelTube)doped fabricbirc",
+   "engBlockauto (castAlu)doped fabricbirch ",
+   "engJugauto (castAlu)doped fabricbirch pl",
+   "engCoverauto (castAlu)doped fabricbirch ",
+   "engMountauto (trim)doped fabricbirch ply",
+   "propauto (ply)doped fabricbirch ply2024 ",
+   "spinnerauto (ply)doped fabricbirch ply20",
+   "cowlSkinauto (alclad)doped fabricbirch p",
+   "tint",
+   "gearLegauto (steelTube)doped fabricbirch",
+   "spatauto (trim)doped fabricbirch ply2024"
+  ],
+  {
+   "clickBand": "no row flashed"
+  },
+  [
+   "body",
+   "waistband",
+   "ceilingLoop",
+   "pillarFront",
+   "pillarCabin",
+   "floorLoop",
+   "pillarWindow",
+   "dummy2",
+   "pillarPassenger",
+   "pillarTail",
+   "joint",
+   "wingTip",
+   "spinner",
+   "reveal"
+  ],
+  {
+   "age": 0.7,
+   "flight": 0.15,
+   "bush": 0,
+   "rain": 0
+  },
+  {
+   "garage": {
+    "mean": 16.74,
+    "p95": 31.3,
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "rest": {
+    "geos": 53,
+    "withRest": 0,
+    "moved": 0,
+    "maxD": 0
+   }
+  },
+  {
+   "taxi": {
+    "mean": 16.73,
+    "p95": 35.4,
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  "Overlay ×1",
+  {
+   "skinAfterGarage": "Overlay ×1"
+  },
+  {
+   "unchanged": [
+    "snapshot:skip same",
+    "bake:skip same",
+    "spec:skip same"
+   ]
+  },
+  {
+   "exportSameAfterReg": [
+    false,
+    "G-FIXD"
+   ]
+  },
+  {
+   "regOnly": [
+    "snapshot:ran",
+    "bake:ran",
+    "spec:ran"
+   ]
+  }
+ ]
+}

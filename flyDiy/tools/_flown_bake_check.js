@@ -371,6 +371,15 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   grp.visible = true; grp.updateMatrixWorld(true);
   check(hidRanges === 0 && sPos.version > vHid && sPos.updateRanges.length === 0 && sPos.array[0] === s2PA.array[0],
     '8 a fold not drawn piles up no upload ranges, and owes one whole upload when it shows again', 'ranges while hidden ' + hidRanges + ', after ' + sPos.updateRanges.length);
+  // G2352 (DMG-FOLDNODE): the owed whole upload stays whole until three makes it - a write before the fold is drawn adds no
+  // range (three would send the range alone: the rest of the buffer stale), and after the upload a write flags its range
+  { const vO = sPos.version; s2PA.array[0] += 0.01; s2PA.needsUpdate = true; grp.updateMatrixWorld(true);
+    const owedRanges = sPos.updateRanges.length, vO2 = sPos.version;
+    sPos.onUploadCallback();   // (what three's WebGLAttributes calls after the upload)
+    s2PA.array[0] += 0.01; s2PA.needsUpdate = true; grp.updateMatrixWorld(true);
+    const rg2 = sPos.updateRanges;
+    check(owedRanges === 0 && vO2 > vO && rg2.length === 1 && rg2[0].start === 0 && rg2[0].count === s2PA.array.length,
+      '8 (G2352) a write while the whole upload is owed adds no range (it stays whole); after the upload a write flags its range again', 'owed ' + owedRanges + ', after ' + JSON.stringify(rg2)); }
   // the bone: the part's transform in the model group's frame; a vertex lands where the part put it
   const at = (o, v) => { const q = new T.Vector3().fromArray(v); o.updateMatrix(); return q.applyMatrix4(o.matrix); };
   const skinned = i => bone.getVertexPosition(i, new T.Vector3());
@@ -463,7 +472,9 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   FB.FB.noRest = true; FB.rest(); const keptNoRest = o2.meshes[0].material !== inMat && FB.FB_FADE.value === 0.5; FB.FB.noRest = false;
   FB.rest();
   const atRest = o2.meshes[0].material === inMat && o2.meshes[0].visible && k1.parent === null && !k1.visible && k1.material === live && FB.FB_FADE.value === 0 && FB.FB.hyT === 0;
-  check(inBand && keptNoRest && atRest && /function enterGarage\(\) \{\s*parkedFlush\(\);[\s\S]{0,400}?FLOWN_BAKE\.rest\(\)/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8')) && FB.FB.hyA === 1.0 && FB.FB.hyB === 1.25,
+  // (train 52: G2970's crowdStop(false) now opens enterGarage - the rest is still early on the way back; what is held is
+  // that it comes after parkedFlush, a few statements in, not that parkedFlush is the very first line)
+  check(inBand && keptNoRest && atRest && /function enterGarage\(\) \{[^}]{0,240}?parkedFlush\(\);[\s\S]{0,400}?FLOWN_BAKE\.rest\(\)/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8')) && FB.FB.hyA === 1.0 && FB.FB.hyB === 1.25,
     '8 G1490 the way back (enterGarage) puts the flown model at rest: the folds on their own baked material, the live meshes parked, t 0 (?fbake=norest the A/B); the band 1.0-1.25 (G1325)',
     JSON.stringify({ inBand, keptNoRest, atRest, hyA: FB.FB.hyA, hyB: FB.FB.hyB }));
   // G1493: the live AEROSKIN / AEROGLASS programs on a SKINNED mesh (C4b's moving folds, the hybrid's views on them) take the
@@ -475,7 +486,8 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
     let fn = null; try { fn = m ? new Function('return ' + m[0])() : null; } catch (e) {}
     const vs = 'void main() {\n#include <begin_vertex>\n#include <skinning_vertex>\n#include <project_vertex>\n}';
     const sk = fn ? fn({ skinning: true }, vs) : '', pl = fn ? fn({ skinning: false }, vs) : '';
-    const iSk = sk.indexOf('vCraftPos = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;');
+    // (G2750: the craft place is the REST one, through the same bone - aRest, see aeroskin's AERO_MAIN_VS)
+    const iSk = sk.indexOf('vCraftPos = (uCraftInv * modelMatrix * vec4(aeroRestP, 1.0)).xyz;');
     check(!!fn && iSk > sk.indexOf('#include <skinning_vertex>') && iSk < sk.indexOf('#include <project_vertex>') && pl === vs &&
           (AS.match(/aeroSkinnedCraft\(shader, shader\.vertexShader/g) || []).length === 2,
       '8 G1493 a skinned AEROSKIN / AEROGLASS program takes vCraftPos after skinning_vertex (a moving part\'s decals where the skeleton put it); a plain program\'s text unchanged');

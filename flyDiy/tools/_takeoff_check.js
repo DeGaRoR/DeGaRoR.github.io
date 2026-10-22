@@ -49,7 +49,9 @@ const check = (ok, label, extra) => {
 };
 
 function fixture() {
-  const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
+  // G1985 (JOIN-PARITY): the fixture AS THE GAME FLIES IT - the page's load chain (tools/_load_build.js); the
+  // migration below is the chain's first step (genNormaliseSpec migrates), so this gate still proves it
+  const spec = process.env.FLYDIY_RAW_BUILDS === '1' ? JSON.parse(fs.readFileSync(FIX, 'utf8')).spec : require('./_load_build.js').loadBuild(FIX).spec;
   // G199.5 set `spec.fuselage.boom = 'rod'` here by hand: the file predates
   // the field and the game flies it with the row set. TAIL CHANTIER 2 P6
   // put that where it belongs — GEN_MIGRATORS[7] reads the cage's own
@@ -221,7 +223,10 @@ function judgeTech(R) {
   check(R.lifts === 1, tag + 'exactly one lift-off (no hop, no skip)', R.lifts + ' (the first at ' + f(R.hopV) + ' m/s)');
   check(R.touchAfter === 0, tag + 'no contact after the lift-off', String(R.touchAfter));
   check(R.hopV >= 0.95 * R.Vs, tag + 'no lift-off before Vr (0.95 Vs)', f(R.hopV) + ' of ' + f(0.95 * R.Vs));
-  const hi = R.float ? 1.6 : 1.35;
+  // G3074: THE TWIN ON FLOATS lifts off at 1.64 Vs since JODEL-PITCH G2470 measured the Munk body couple along the body (the
+  // base's 1.53 was a fictitious nose-up couple's margin; no stick, pull or throttle reaches it honestly) - the user, 13 Oct, BY
+  // NAME: "the 2 first issues are simple margins to recalibrate". Its band is 1.65; every other floatplane keeps 1.6
+  const hi = R.float ? (R.name === 'twinf' ? 1.65 : 1.6) : 1.35;
   check(R.Vlof / R.Vs >= 1.0 && R.Vlof / R.Vs <= hi, tag + 'the lift-off at 1.0-' + hi + ' Vs', f(R.Vlof / R.Vs, 2));
   check(Math.abs(R.qMax) <= 12, tag + 'the pitch rate bounded (12 deg/s) from the roll to 2 hSafe', f(R.qMax));
   const ref = TECH_REF[R.name];
@@ -305,12 +310,15 @@ if (!SELF) {
     check(xw.runs.every(r => r.ok ? r.w <= xw.limit + 1e-9 : r.w > xw.limit - 1e-9),
           tag + 'every passed rung at or under the limit, every failed rung above it',
           xw.runs.map(r => r.w + (r.ok ? ' ok' : ' x')).join(', '));
-    check(xw.runs.every(r => r.ok === (r.roll <= xw.band)),
-          tag + 'a pass is exactly a roll inside the band (the heading is reported, not judged)');
+    // G1845 (DMG-TYRE): the heading as the wheels leave is judged too (30 deg, 42_crosswind.js): with the tyre's
+    // cornering stiffness the fixture past its limit swung 58-99 deg ACROSS the strip inside the band (6-12 m/s),
+    // and the band alone read that ground loop as a pass - the ladder ran past its 10 m/s cap
+    check(xw.runs.every(r => r.ok === (r.roll <= xw.band && r.e <= 30 * Math.PI / 180)),
+          tag + 'a pass is exactly a roll inside the band with the heading within 30 deg as the wheels leave');
     check(typeof xw.e === 'number' && xw.e >= 0, tag + 'the lift-off heading rides beside the limit', (xw.e * 57.3).toFixed(1) + ' deg');
     check(xw.roll != null && xw.roll <= xw.band, tag + 'the roll at the limit is inside the band', xw.roll + ' m');
-    check(xw.failWhy === 'off the edge line' || xw.failWhy == null,
-          tag + 'past the limit it is the edge line that goes, not a rejection', String(xw.failWhy));
+    check(xw.failWhy === 'off the edge line' || xw.failWhy === 'swung off the heading' || xw.failWhy == null,
+          tag + 'past the limit it is the edge line or the heading that goes, not a rejection', String(xw.failWhy));
     check(cpu < 60, tag + 'measured inside a minute of CPU time', cpu.toFixed(1) + ' s CPU, ' + wall.toFixed(1) + ' s wall');
     // declared knobs move it as declared: a 1 m band cannot be held even in
     // calm air; a 4 m/s cap with a 100 m band reports "> cap"

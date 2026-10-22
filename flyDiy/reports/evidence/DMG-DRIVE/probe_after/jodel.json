@@ -1,0 +1,1109 @@
+{
+ "key": "jodel",
+ "label": "Jodel",
+ "engine": {
+  "rated": 2300,
+  "gear": 1,
+  "name": "Continental A-65"
+ },
+ "speeds": {
+  "VNE": 60.351,
+  "VD": 67.056
+ },
+ "thrCruise": 0.651,
+ "dive": [
+  {
+   "case": "VNE full",
+   "V": 60.351,
+   "thr": 1,
+   "reached": true,
+   "rpmProp": 2585,
+   "rpmEng": 2585,
+   "ratio": 1.124,
+   "tipMach": 0.77,
+   "nz": [
+    0.659,
+    1.709
+   ],
+   "running": [
+    true
+   ],
+   "seized": [
+    false
+   ],
+   "drive": [
+    {
+     "os": "inspect",
+     "osPeak": 1.1239957048854754,
+     "osSec": 17.400000000000293,
+     "osExc": 10.833333333333451,
+     "osDose": 0,
+     "osT": [
+      17.400000000000293,
+      10.833333333333451,
+      0
+     ],
+     "strike": null,
+     "strikeAt": null,
+     "bladeLost": 0,
+     "gearbox": null,
+     "failed": false,
+     "why": null,
+     "teardown": false,
+     "internal": false,
+     "thrustK": 1,
+     "vib": 0,
+     "tipMach": 0.7679327563482742,
+     "imbN": 0,
+     "rpmMax": 2300,
+     "gapMin": 2182.285349494272
+    }
+   ],
+   "yields": 7,
+   "breaks": 16,
+   "crashed": true,
+   "finite": true
+  },
+  {
+   "case": "1.1 VD full",
+   "V": 73.762,
+   "thr": 1,
+   "reached": true,
+   "rpmProp": 2892,
+   "rpmEng": 2892,
+   "ratio": 1.258,
+   "tipMach": 0.858,
+   "nz": [
+    0.691,
+    1.187
+   ],
+   "running": [
+    true
+   ],
+   "seized": [
+    false
+   ],
+   "drive": [
+    {
+     "os": "overhaul",
+     "osPeak": 1.2575869217520375,
+     "osSec": 23.33333333333329,
+     "osExc": 14.883333333333653,
+     "osDose": 0.005930928674513556,
+     "osT": [
+      23.33333333333329,
+      14.883333333333653,
+      8.733333333333347
+     ],
+     "strike": null,
+     "strikeAt": null,
+     "bladeLost": 0,
+     "gearbox": null,
+     "failed": false,
+     "why": null,
+     "teardown": true,
+     "internal": false,
+     "thrustK": 0.85,
+     "vib": 0.3,
+     "tipMach": 0.8553449871381867,
+     "imbN": 0,
+     "rpmMax": 2300,
+     "gapMin": 829.9229061336988
+    }
+   ],
+   "yields": 18001,
+   "breaks": 240,
+   "crashed": true,
+   "finite": true
+  },
+  {
+   "case": "VNE cruise",
+   "V": 60.351,
+   "thr": 0.651,
+   "reached": true,
+   "rpmProp": 2304,
+   "rpmEng": 2304,
+   "ratio": 1.002,
+   "tipMach": 0.691,
+   "nz": [
+    0.646,
+    1.625
+   ],
+   "running": [
+    true
+   ],
+   "seized": [
+    false
+   ],
+   "drive": [
+    {
+     "os": "logged",
+     "osPeak": 1.001845797164283,
+     "osSec": 2.9833333333333276,
+     "osExc": 0,
+     "osDose": 0,
+     "osT": [
+      2.9833333333333276,
+      0,
+      0
+     ],
+     "strike": null,
+     "strikeAt": null,
+     "bladeLost": 0,
+     "gearbox": null,
+     "failed": false,
+     "why": null,
+     "teardown": false,
+     "internal": false,
+     "thrustK": 1,
+     "vib": 0,
+     "tipMach": 0.6890498813560579,
+     "imbN": 0,
+     "rpmMax": 2300,
+     "gapMin": 2152.141525768732
+    }
+   ],
+   "yields": 7,
+   "breaks": 16,
+   "crashed": true,
+   "finite": true
+  },
+  {
+   "case": "VNE idle",
+   "V": 60.351,
+   "thr": 0,
+   "reached": true,
+   "rpmProp": 1667,
+   "rpmEng": 1667,
+   "ratio": 0.725,
+   "tipMach": 0.515,
+   "nz": [
+    0.593,
+    1.681
+   ],
+   "running": [
+    true
+   ],
+   "seized": [
+    false
+   ],
+   "drive": [
+    {
+     "os": null,
+     "osPeak": 0,
+     "osSec": 0,
+     "osExc": 0,
+     "osDose": 0,
+     "osT": [
+      0,
+      0,
+      0
+     ],
+     "strike": null,
+     "strikeAt": null,
+     "bladeLost": 0,
+     "gearbox": null,
+     "failed": false,
+     "why": null,
+     "teardown": false,
+     "internal": false,
+     "thrustK": 1,
+     "vib": 0,
+     "tipMach": 0.5107019619981523,
+     "imbN": 0,
+     "rpmMax": 2300,
+     "gapMin": 2069.403651169519
+    }
+   ],
+   "yields": 8,
+   "breaks": 16,
+   "crashed": true,
+   "finite": true
+  },
+  {
+   "case": "VNE off",
+   "V": 60.351,
+   "thr": 0,
+   "reached": true,
+   "rpmProp": 1543,
+   "rpmEng": 1543,
+   "ratio": 0.671,
+   "tipMach": 0.482,
+   "nz": [
+    0.589,
+    1.686
+   ],
+   "running": [
+    false
+   ],
+   "seized": [
+    false
+   ],
+   "drive": [
+    {
+     "os": null,
+     "osPeak": 0,
+     "osSec": 0,
+     "osExc": 0,
+     "osDose": 0,
+     "osT": [
+      0,
+      0,
+      0
+     ],
+     "strike": null,
+     "strikeAt": null,
+     "bladeLost": 0,
+     "gearbox": null,
+     "failed": false,
+     "why": null,
+     "teardown": false,
+     "internal": false,
+     "thrustK": 1,
+     "vib": 0,
+     "tipMach": 0.4768676959589674,
+     "imbN": 0,
+     "rpmMax": 2300,
+     "gapMin": 2069.3589865775834
+    }
+   ],
+   "yields": 8,
+   "breaks": 16,
+   "crashed": true,
+   "finite": true
+  }
+ ],
+ "nose": [
+  {
+   "V": 2,
+   "first": "disc",
+   "pitch0": -24,
+   "strikeT": 0.05,
+   "discT": 0.033,
+   "bite": 0.621,
+   "R": 0.915,
+   "rpm0": [
+    644
+   ],
+   "rpm": [
+    0
+   ],
+   "running": [
+    false
+   ],
+   "seized": [
+    true
+   ],
+   "propStrike": true,
+   "propAt": {
+    "eng": 0,
+    "what": "ground",
+    "t": 4.050000000000426
+   },
+   "drive": [
+    {
+     "os": null,
+     "osPeak": 0,
+     "osSec": 0,
+     "osExc": 0,
+     "osDose": 0,
+     "osT": [
+      0,
+      0,
+      0
+     ],
+     "strike": "stoppage",
+     "strikeAt": {
+      "t": 4.166666666666738,
+      "what": "ground",
+      "surf": "soft",
+      "bite": 0.1584743168513291,
+      "biteR": 0.1731959747009061,
+      "tip": 106.20363000555966,
+      "rpm": 1108.3824714549216
+     },
+     "bladeLost": 0,
+     "gearbox": null,
+     "failed": true,
+     "why": "stoppage",
+     "teardown": true,
+     "internal": true,
+     "thrustK": 0.6,
+     "vib": 0.6,
+     "tipMach": 0.0006822984653425039,
+     "imbN": 0,
+     "rpmMax": 2300,
+     "gapMin": -0.6211845379260901
+    }
+   ],
+   "yields": 698,
+   "breaks": 0,
+   "groups": [],
+   "crashed": false,
+   "reason": null,
+   "gPeak": 3.134,
+   "finite": true,
+   "tl": [
+    [
+     0.02,
+     0.002,
+     1108,
+     1
+    ],
+    [
+     0.12,
+     -0.138,
+     1108,
+     1
+    ],
+    [
+     0.22,
+     -0.26,
+     0,
+     0
+    ],
+    [
+     0.32,
+     -0.41,
+     0,
+     0
+    ],
+    [
+     0.42,
+     -0.536,
+     0,
+     0
+    ],
+    [
+     0.52,
+     -0.584,
+     0,
+     0
+    ],
+    [
+     0.62,
+     -0.506,
+     0,
+     0
+    ],
+    [
+     0.72,
+     -0.457,
+     0,
+     0
+    ],
+    [
+     0.82,
+     -0.496,
+     0,
+     0
+    ],
+    [
+     0.92,
+     -0.487,
+     0,
+     0
+    ],
+    [
+     1.02,
+     -0.51,
+     0,
+     0
+    ],
+    [
+     1.12,
+     -0.556,
+     0,
+     0
+    ],
+    [
+     1.22,
+     -0.611,
+     0,
+     0
+    ],
+    [
+     1.32,
+     -0.567,
+     0,
+     0
+    ],
+    [
+     1.42,
+     -0.499,
+     0,
+     0
+    ],
+    [
+     1.52,
+     -0.507,
+     0,
+     0
+    ],
+    [
+     1.62,
+     -0.557,
+     0,
+     0
+    ],
+    [
+     1.72,
+     -0.568,
+     0,
+     0
+    ],
+    [
+     1.82,
+     -0.586,
+     0,
+     0
+    ],
+    [
+     1.92,
+     -0.577,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "V": 4,
+   "first": "disc",
+   "pitch0": -24,
+   "strikeT": 0.033,
+   "discT": 0.017,
+   "bite": 0.618,
+   "R": 0.915,
+   "rpm0": [
+    644
+   ],
+   "rpm": [
+    0
+   ],
+   "running": [
+    false
+   ],
+   "seized": [
+    true
+   ],
+   "propStrike": true,
+   "propAt": {
+    "eng": 0,
+    "what": "ground",
+    "t": 4.03333333333381
+   },
+   "drive": [
+    {
+     "os": null,
+     "osPeak": 0,
+     "osSec": 0,
+     "osExc": 0,
+     "osDose": 0,
+     "osT": [
+      0,
+      0,
+      0
+     ],
+     "strike": "stoppage",
+     "strikeAt": {
+      "t": 4.066666666667042,
+      "what": "ground",
+      "surf": "soft",
+      "bite": 0.13902181842345152,
+      "biteR": 0.15193641357754264,
+      "tip": 106.3625325805462,
+      "rpm": 1110.0408406535537
+     },
+     "bladeLost": 0,
+     "gearbox": null,
+     "failed": true,
+     "why": "stoppage",
+     "teardown": true,
+     "internal": true,
+     "thrustK": 0.6,
+     "vib": 0.6,
+     "tipMach": 0.0021591699042799806,
+     "imbN": 0,
+     "rpmMax": 2300,
+     "gapMin": -0.6175939136155275
+    }
+   ],
+   "yields": 1809,
+   "breaks": 0,
+   "groups": [],
+   "crashed": false,
+   "reason": null,
+   "gPeak": 5.418,
+   "finite": true,
+   "tl": [
+    [
+     0.02,
+     -0.025,
+     1110,
+     1
+    ],
+    [
+     0.12,
+     -0.29,
+     0,
+     0
+    ],
+    [
+     0.22,
+     -0.502,
+     0,
+     0
+    ],
+    [
+     0.32,
+     -0.559,
+     0,
+     0
+    ],
+    [
+     0.42,
+     -0.401,
+     0,
+     0
+    ],
+    [
+     0.52,
+     -0.243,
+     0,
+     0
+    ],
+    [
+     0.62,
+     -0.212,
+     0,
+     0
+    ],
+    [
+     0.72,
+     -0.274,
+     0,
+     0
+    ],
+    [
+     0.82,
+     -0.34,
+     0,
+     0
+    ],
+    [
+     0.92,
+     -0.293,
+     0,
+     0
+    ],
+    [
+     1.02,
+     -0.267,
+     0,
+     0
+    ],
+    [
+     1.12,
+     -0.337,
+     0,
+     0
+    ],
+    [
+     1.22,
+     -0.424,
+     0,
+     0
+    ],
+    [
+     1.32,
+     -0.445,
+     0,
+     0
+    ],
+    [
+     1.42,
+     -0.508,
+     0,
+     0
+    ],
+    [
+     1.52,
+     -0.594,
+     0,
+     0
+    ],
+    [
+     1.62,
+     -0.581,
+     0,
+     0
+    ],
+    [
+     1.72,
+     -0.445,
+     0,
+     0
+    ],
+    [
+     1.82,
+     -0.404,
+     0,
+     0
+    ],
+    [
+     1.92,
+     -0.427,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "V": 8,
+   "first": "disc",
+   "pitch0": -24,
+   "strikeT": 0.017,
+   "discT": 0.017,
+   "bite": 0.916,
+   "R": 0.915,
+   "rpm0": [
+    644
+   ],
+   "rpm": [
+    0
+   ],
+   "running": [
+    false
+   ],
+   "seized": [
+    true
+   ],
+   "propStrike": true,
+   "propAt": {
+    "eng": 0,
+    "what": "ground",
+    "t": 4.016666666667194
+   },
+   "drive": [
+    {
+     "os": null,
+     "osPeak": 0,
+     "osSec": 0,
+     "osExc": 0,
+     "osDose": 0,
+     "osT": [
+      0,
+      0,
+      0
+     ],
+     "strike": "stoppage",
+     "strikeAt": {
+      "t": 4.03333333333381,
+      "what": "ground",
+      "surf": "soft",
+      "bite": 0.1406701169956439,
+      "biteR": 0.1537378327821245,
+      "tip": 107.01781275015713,
+      "rpm": 1116.8795998734668
+     },
+     "bladeLost": 0,
+     "gearbox": null,
+     "failed": true,
+     "why": "stoppage",
+     "teardown": true,
+     "internal": true,
+     "thrustK": 1,
+     "vib": 0.1,
+     "tipMach": 0.0014190275517675134,
+     "imbN": 0,
+     "rpmMax": 2300,
+     "gapMin": -0.9157542223179239
+    }
+   ],
+   "yields": 4434,
+   "breaks": 31,
+   "groups": [
+    "eng:mount",
+    "fin:attach"
+   ],
+   "crashed": true,
+   "reason": "a fus member broke",
+   "gPeak": 6.96,
+   "finite": true,
+   "tl": [
+    [
+     0.02,
+     -0.078,
+     1118,
+     1
+    ],
+    [
+     0.12,
+     -0.503,
+     0,
+     0
+    ],
+    [
+     0.22,
+     -0.306,
+     0,
+     0
+    ],
+    [
+     0.32,
+     0.032,
+     0,
+     0
+    ],
+    [
+     0.42,
+     -0.109,
+     0,
+     0
+    ],
+    [
+     0.52,
+     -0.436,
+     0,
+     0
+    ],
+    [
+     0.62,
+     -0.57,
+     0,
+     0
+    ],
+    [
+     0.72,
+     -0.709,
+     0,
+     0
+    ],
+    [
+     0.82,
+     -0.799,
+     0,
+     0
+    ],
+    [
+     0.92,
+     -0.857,
+     0,
+     0
+    ],
+    [
+     1.02,
+     -0.893,
+     0,
+     0
+    ],
+    [
+     1.12,
+     -0.912,
+     0,
+     0
+    ],
+    [
+     1.22,
+     -0.916,
+     0,
+     0
+    ],
+    [
+     1.32,
+     -0.913,
+     0,
+     0
+    ],
+    [
+     1.42,
+     -0.913,
+     0,
+     0
+    ],
+    [
+     1.52,
+     -0.915,
+     0,
+     0
+    ],
+    [
+     1.62,
+     -0.909,
+     0,
+     0
+    ],
+    [
+     1.72,
+     -0.901,
+     0,
+     0
+    ],
+    [
+     1.82,
+     -0.89,
+     0,
+     0
+    ],
+    [
+     1.92,
+     -0.875,
+     0,
+     0
+    ]
+   ]
+  }
+ ],
+ "trunk": [
+  {
+   "V": 3,
+   "flown": false,
+   "propStrike": true,
+   "propAt": {
+    "eng": 0,
+    "what": "trunk",
+    "t": 2.450000000000336
+   },
+   "running": [
+    false
+   ],
+   "seized": [
+    true
+   ],
+   "drive": [
+    {
+     "os": null,
+     "osPeak": 0,
+     "osSec": 0,
+     "osExc": 0,
+     "osDose": 0,
+     "osT": [
+      0,
+      0,
+      0
+     ],
+     "strike": "separation",
+     "strikeAt": {
+      "t": 2.450000000000336,
+      "what": "trunk",
+      "surf": "rigid",
+      "bite": 1.2150000119207234,
+      "biteR": 1.3278688654871293,
+      "tip": 122.44498063472021,
+      "rpm": 1277.883536052926
+     },
+     "bladeLost": 0.35,
+     "gearbox": null,
+     "failed": true,
+     "why": "separation",
+     "teardown": true,
+     "internal": true,
+     "thrustK": 1,
+     "vib": 1,
+     "tipMach": 0.000014887133744405074,
+     "imbN": 0,
+     "rpmMax": 2300,
+     "gapMin": 0.23666139128340546
+    }
+   ],
+   "groups": [],
+   "breaks": 1,
+   "crashed": false,
+   "reason": null,
+   "gPeak": 3.512,
+   "finite": true
+  },
+  {
+   "V": 10,
+   "flown": false,
+   "propStrike": true,
+   "propAt": {
+    "eng": 0,
+    "what": "trunk",
+    "t": 2.150000000000289
+   },
+   "running": [
+    false
+   ],
+   "seized": [
+    true
+   ],
+   "drive": [
+    {
+     "os": null,
+     "osPeak": 0,
+     "osSec": 0,
+     "osExc": 0,
+     "osDose": 0,
+     "osT": [
+      0,
+      0,
+      0
+     ],
+     "strike": "separation",
+     "strikeAt": {
+      "t": 2.150000000000289,
+      "what": "trunk",
+      "surf": "rigid",
+      "bite": 1.2150000119206796,
+      "biteR": 1.3278688654870816,
+      "tip": 124.53951578957317,
+      "rpm": 1299.7429211922438
+     },
+     "bladeLost": 0.35,
+     "gearbox": null,
+     "failed": true,
+     "why": "separation",
+     "teardown": true,
+     "internal": true,
+     "thrustK": 1,
+     "vib": 1,
+     "tipMach": 0.0001462342468585721,
+     "imbN": 0,
+     "rpmMax": 2300,
+     "gapMin": 0.23666139128340546
+    }
+   ],
+   "groups": [
+    "eng:mount",
+    "wing0R:root",
+    "wing0L:root",
+    "fin:attach",
+    "stab:attach",
+    "gearR:gear",
+    "gearL:gear"
+   ],
+   "breaks": 121,
+   "crashed": true,
+   "reason": "the airframe crushed (3.3 kJ of plastic work)",
+   "gPeak": 8.637,
+   "finite": true
+  },
+  {
+   "V": 30,
+   "flown": true,
+   "propStrike": true,
+   "propAt": {
+    "eng": 0,
+    "what": "trunk",
+    "t": 0.18333333333332832
+   },
+   "running": [
+    false
+   ],
+   "seized": [
+    true
+   ],
+   "drive": [
+    {
+     "os": null,
+     "osPeak": 0,
+     "osSec": 0,
+     "osExc": 0,
+     "osDose": 0,
+     "osT": [
+      0,
+      0,
+      0
+     ],
+     "strike": "separation",
+     "strikeAt": {
+      "t": 0.18333333333332832,
+      "what": "trunk",
+      "surf": "rigid",
+      "bite": 1.2150000119209279,
+      "biteR": 1.3278688654873527,
+      "tip": 215.2261451405735,
+      "rpm": 2246.183926671212
+     },
+     "bladeLost": 0.35,
+     "gearbox": null,
+     "failed": true,
+     "why": "separation",
+     "teardown": true,
+     "internal": true,
+     "thrustK": 1,
+     "vib": 1,
+     "tipMach": 0.0018595164614161209,
+     "imbN": 0,
+     "rpmMax": 2300,
+     "gapMin": 4.14982166678044
+    }
+   ],
+   "groups": [
+    "eng:mount",
+    "wing0R:root",
+    "wing0L:root",
+    "gearL:gear",
+    "gearR:gear",
+    "stab:attach",
+    "fin:attach",
+    "tw:gear"
+   ],
+   "breaks": 222,
+   "crashed": true,
+   "reason": "broke up: the fuselage parted (TPB off the core)",
+   "gPeak": 21.87,
+   "finite": true
+  }
+ ],
+ "mount": {
+  "fullPower": {
+   "max": 0.096,
+   "at": {
+    "tag": "ENGL-S0TL",
+    "s": "t",
+    "grp": "eng:mount"
+   },
+   "body": 0.006
+  },
+  "pull": {
+   "max": 0.298,
+   "at": {
+    "tag": "CGE-S0TR",
+    "s": "t",
+    "grp": "eng:mount"
+   },
+   "body": 0.014,
+   "nz": 4.421
+  },
+  "snap": {
+   "max": 0.543,
+   "at": {
+    "tag": "CGE-S0TR",
+    "s": "c",
+    "grp": "eng:mount"
+   },
+   "body": 0.016,
+   "wMax": [
+    2.811,
+    1.254,
+    2.538
+   ],
+   "nzMax": 1.045
+  },
+  "land473": {
+   "max": 0.258,
+   "at": {
+    "tag": "CGE-S0TR",
+    "s": "t",
+    "grp": "eng:mount"
+   },
+   "body": 0.009,
+   "nz": 1.858,
+   "sink": 2.171
+  },
+  "land473x15": {
+   "max": 0.381,
+   "at": {
+    "tag": "CGE-S0TL",
+    "s": "t",
+    "grp": "eng:mount"
+   },
+   "body": 0.013,
+   "nz": 2.292,
+   "sink": 3.257
+  }
+ },
+ "ms": 165217
+}

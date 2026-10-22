@@ -1,0 +1,467 @@
+== window open 23:14:02
+HEAD 1caa597db
+boxlock: CPU battery taken by UXA
+== build 23:14:07
+tools/flight_core.js (2868.0 KB), index.html (12209.8 KB), dev.html (112.5 KB), career_core.f36739eb.js (342.1 KB) — syntax OK, build 6cef33820bb0 (341 named inputs), 976 ms
+== gates 23:14:08
+[run_gates] 1/29 jobs done · running UISMOKE 30 s, HITBOX 30 s, INPUT 29 s, SPECFIX 29 s
+[run_gates] 2/29 jobs done · running UISMOKE 60 s, HITBOX 60 s, INPUT 59 s, UISMOKE-PHONE 8 s
+=== INPUT ===
+  club/keys: bank held 46° (ArrowRight → right), pitch +7.2° → re-engaged: peak |pitch| 12°, peak bank 29°, bank at 20-25 s 20.3°, alt loss 15 m, DOWNWIND OK
+90/90 checks
+GATE INPUT: PASS
+[run_gates] 6/29 jobs done · running UISMOKE 90 s, HITBOX 90 s, HONESTY 8 s, CLIMATE 5 s
+=== CLIMATE ===
+  ok   the sea can be re-applied without being redrawn, and walks after the wind
+  ok   the felt band is the draw’s, never re-decided
+GATE CLIMATE: PASS
+[run_gates] 18/29 jobs done · running UISMOKE 120 s, HITBOX 120 s, CLOUD 24 s, SAVE 0 s
+[run_gates] 26/29 jobs done · running HITBOX 150 s, CLOUD 54 s, ENERGY 19 s
+[run_gates] 27/29 jobs done · running HITBOX 180 s, CLOUD 84 s
+[run_gates] 28/29 jobs done · running CLOUD 114 s
+[run_gates] 28/29 jobs done · running CLOUD 144 s
+[run_gates] 28/29 jobs done · running CLOUD 174 s
+[run_gates] 28/29 jobs done · running CLOUD 204 s
+[run_gates] 28/29 jobs done · running CLOUD 234 s
+[run_gates] 28/29 jobs done · running CLOUD 264 s
+[run_gates] 28/29 jobs done · running CLOUD 294 s
+[run_gates] 28/29 jobs done · running CLOUD 324 s
+=== CLOUD ===
+1. the cover is the cover
+  ok   st cover 0.1: covered fraction 0.100
+  ok   st cover 0.1: coverage in [0,1], height in [0.7,1]
+  ok   st cover 0.3: covered fraction 0.300
+  ok   st cover 0.3: coverage in [0,1], height in [0.7,1]
+  ok   st cover 0.5: covered fraction 0.500
+  ok   st cover 0.5: coverage in [0,1], height in [0.7,1]
+  ok   st cover 0.7: covered fraction 0.700
+  ok   st cover 0.7: coverage in [0,1], height in [0.7,1]
+  ok   st cover 0.9: covered fraction 0.900
+  ok   st cover 0.9: coverage in [0,1], height in [0.7,1]
+  ok   sc cover 0.1: covered fraction 0.100
+  ok   sc cover 0.1: coverage in [0,1], height in [0.6,1]
+  ok   sc cover 0.3: covered fraction 0.300
+  ok   sc cover 0.3: coverage in [0,1], height in [0.6,1]
+  ok   sc cover 0.5: covered fraction 0.500
+  ok   sc cover 0.5: coverage in [0,1], height in [0.6,1]
+  ok   sc cover 0.7: covered fraction 0.700
+  ok   sc cover 0.7: coverage in [0,1], height in [0.6,1]
+  ok   sc cover 0.9: covered fraction 0.900
+  ok   sc cover 0.9: coverage in [0,1], height in [0.6,1]
+  ok   cuh cover 0.1: covered fraction 0.100
+  ok   cuh cover 0.1: coverage in [0,1], height in [0.55,1]
+  ok   cuh cover 0.3: covered fraction 0.300
+  ok   cuh cover 0.3: coverage in [0,1], height in [0.55,1]
+  ok   cuh cover 0.5: covered fraction 0.500
+  ok   cuh cover 0.5: coverage in [0,1], height in [0.55,1]
+  ok   cuh cover 0.7: covered fraction 0.700
+  ok   cuh cover 0.7: coverage in [0,1], height in [0.55,1]
+  ok   cuh cover 0.9: covered fraction 0.900
+  ok   cuh cover 0.9: coverage in [0,1], height in [0.55,1]
+  ok   cu cover 0.1: covered fraction 0.100
+  ok   cu cover 0.1: coverage in [0,1], height in [0.5,1]
+  ok   cu cover 0.3: covered fraction 0.300
+  ok   cu cover 0.3: coverage in [0,1], height in [0.5,1]
+  ok   cu cover 0.5: covered fraction 0.500
+  ok   cu cover 0.5: coverage in [0,1], height in [0.5,1]
+  ok   cu cover 0.7: covered fraction 0.700
+  ok   cu cover 0.7: coverage in [0,1], height in [0.5,1]
+  ok   cu cover 0.9: covered fraction 0.900
+  ok   cu cover 0.9: coverage in [0,1], height in [0.5,1]
+  ok   cb cover 0.1: covered fraction 0.100
+  ok   cb cover 0.1: coverage in [0,1], height in [0.6,1]
+  ok   cb cover 0.3: covered fraction 0.300
+  ok   cb cover 0.3: coverage in [0,1], height in [0.6,1]
+  ok   cb cover 0.5: covered fraction 0.500
+  ok   cb cover 0.5: coverage in [0,1], height in [0.6,1]
+  ok   cb cover 0.7: covered fraction 0.700
+  ok   cb cover 0.7: coverage in [0,1], height in [0.6,1]
+  ok   cb cover 0.9: covered fraction 0.900
+  ok   cb cover 0.9: coverage in [0,1], height in [0.6,1]
+  ok   ac cover 0.1: covered fraction 0.100
+  ok   ac cover 0.1: coverage in [0,1], height in [0.7,1]
+  ok   ac cover 0.3: covered fraction 0.300
+  ok   ac cover 0.3: coverage in [0,1], height in [0.7,1]
+  ok   ac cover 0.5: covered fraction 0.500
+  ok   ac cover 0.5: coverage in [0,1], height in [0.7,1]
+  ok   ac cover 0.7: covered fraction 0.700
+  ok   ac cover 0.7: coverage in [0,1], height in [0.7,1]
+  ok   ac cover 0.9: covered fraction 0.900
+  ok   ac cover 0.9: coverage in [0,1], height in [0.7,1]
+  ok   as cover 0.1: covered fraction 0.100
+  ok   as cover 0.1: coverage in [0,1], height in [0.7,1]
+  ok   as cover 0.3: covered fraction 0.300
+  ok   as cover 0.3: coverage in [0,1], height in [0.7,1]
+  ok   as cover 0.5: covered fraction 0.500
+  ok   as cover 0.5: coverage in [0,1], height in [0.7,1]
+  ok   as cover 0.7: covered fraction 0.700
+  ok   as cover 0.7: coverage in [0,1], height in [0.7,1]
+  ok   as cover 0.9: covered fraction 0.900
+  ok   as cover 0.9: coverage in [0,1], height in [0.7,1]
+  ok   cover 0: no cloud anywhere
+  ok   cover 1: cloud everywhere
+  ok   the mean coverage rises with the cover
+2. the profile
+  ok   st: the profile is 0 at the base and the top, in [0,1] between
+  ok   st: the profile fills the column somewhere (peak 1.00)
+  ok   st: a half-height column is nowhere fuller than a full one
+  ok   st: the mean fill is a sane constant (0.725)
+  ok   sc: the profile is 0 at the base and the top, in [0,1] between
+  ok   sc: the profile fills the column somewhere (peak 1.00)
+  ok   sc: a half-height column is nowhere fuller than a full one
+  ok   sc: the mean fill is a sane constant (0.820)
+  ok   cuh: the profile is 0 at the base and the top, in [0,1] between
+  ok   cuh: the profile fills the column somewhere (peak 1.00)
+  ok   cuh: a half-height column is nowhere fuller than a full one
+  ok   cuh: the mean fill is a sane constant (0.850)
+  ok   cu: the profile is 0 at the base and the top, in [0,1] between
+  ok   cu: the profile fills the column somewhere (peak 1.00)
+  ok   cu: a half-height column is nowhere fuller than a full one
+  ok   cu: the mean fill is a sane constant (0.870)
+  ok   cb: the profile is 0 at the base and the top, in [0,1] between
+  ok   cb: the profile fills the column somewhere (peak 1.00)
+  ok   cb: a half-height column is nowhere fuller than a full one
+  ok   cb: the mean fill is a sane constant (0.910)
+  ok   ac: the profile is 0 at the base and the top, in [0,1] between
+  ok   ac: the profile fills the column somewhere (peak 1.00)
+  ok   ac: a half-height column is nowhere fuller than a full one
+  ok   ac: the mean fill is a sane constant (0.775)
+  ok   as: the profile is 0 at the base and the top, in [0,1] between
+  ok   as: the profile fills the column somewhere (peak 1.00)
+  ok   as: a half-height column is nowhere fuller than a full one
+  ok   as: the mean fill is a sane constant (0.750)
+  ok   the types thicken st < sc < cu < cb
+3. the layer
+  ok   the day's base, the type's thickness
+  ok   the base is clamped to 120..5000 m
+  ok   an unknown type (or no day) is cumulus
+  ok   the overrides are honoured
+4. the column
+  ok   the summed column optical depth rises with the cover
+  ok   a clear map has no column
+  ok   the map tiles over the span
+  ok   a drift of one span is the same map
+  ok   a full column's optical depth is the profile's fill x the height x sigma (47.4)
+5. determinism
+  ok   the same seed, cover and type is the same map to the bit
+  ok   a different seed is a different map
+6. the splice rules
+  ok   clouds.js has no hook of its own (the shadow rides ATMO.inject)
+  ok   the shadow is spliced into exactly the two lights chunks, in install(): SC.lights_pars_begin SC.lights_fragment_begin
+  ok   the sun's colour is multiplied by the cloud transmittance under the CLOUD_SHADOW define
+  ok   the shadow tile is read from the aerial-perspective atlas - no sampler added to the world's programs
+  ok   the atlas carries the tile above the AP rows and publishes its geometry
+  ok   ATMO.inject hands the shadow its scalars; the AP pass writes only its own rows
+  ok   the trees' own leaf terms take the cloud shadow
+  ok   the resolve pass has the PRE hook (G436.7): the march runs before the scene, off the previous frame's depth, with THIS frame's camera (G650)
+  ok   app.js marches before the scene and dims the flare by the column
+  ok   the composite is a quad IN the world scene at the cloud's depth (reversed float or log, as the renderer runs - PERF 2026-09-23), last, tested per MSAA sample (the 1-px line round the aeroplane)
+  ok   the composite filters premultiplied (an empty texel must not darken its neighbour)
+  ok   the pass carries its own GPU timer
+  ok   one march text serves the fullscreen pass and the dome (the probe, the shed)
+  ok   the world's probe bakes the layer and re-bakes as it drifts (the water reflects the clouds)
+  ok   ATMO.makeProbe takes the decorator and the dirty test (with the live cap beside it - the ground under the craft, 2026-09-22)
+  ok   the hemisphere rises under the cloud at the eye and whitens (sky_light cloudT)
+  ok   the shed sees the layer on its backdrop, depth-tested behind its walls (G436.2), and its key takes the column (the dome keeps its scale)
+  ok   the clouds update every frame, before the sun-move gate (the drift, the eye, the shadow's scalars)
+  ok   the dome carries the cirrus veil
+  ok   the mist takes the in-cloud slab (the ONE copy of the mist GLSL)
+  ok   clouds.js writes the veil and the slab from the day (the slab: the deck the eye is in)
+  ok   ?cloud=<cover>[,<type>][;<cover>,<type>[,<base>]]* on the URL
+  ok   the clouds panel carries the low deck's cover and type
+  ok   the day slot no longer draws the cover itself; the day panel opens the clouds flyout
+  FAIL the WORLD editor carries the cover and the type
+  ok   the OVERCAST mood follows the day's cover (moodFor), it does not set it
+  ok   the march is GLSL3 (a sampler3D needs it)
+  ok   the composite is tone-mapped and encoded by three's own chunks (the target is display-space)
+  ok   the march takes the aerial perspective and the mist from ATMO (one splice, shared)
+  ok   and applies them at the cloud's own mean distance
+  ok   no wall clock: the drift is the day's seconds
+  ok   the pass samples the core's maps and layers (one field)
+  ok   the GLSL profile is the core's profile, verbatim (per deck)
+  ok   render_world retired the billboard puffs and hands the day to the clouds
+  ok   the GRAPHICS menu has the clouds row in every preset
+  ok   the resolve pass carries the depth texture and the overlay hook
+  ok   both files are in the build
+7. several decks (A6): the field
+  ok   layers(): the low deck first, the upper decks after, in order
+  ok   the first deck is layer(day): the dewpoint base, the day's cover
+  ok   an upper deck without a base takes its type's alt
+  ok   the decks never overlap: each base above the deck below plus the gap (a base of 100 m is lifted)
+  ok   at most MAX_LAYERS decks
+  ok   no cloudUpper: one deck, layer() itself
+  ok   a deck over a cumulonimbus rides above its 4 km top, under 12 km
+  ok   type st carries erode, period and alt
+  ok   type sc carries erode, period and alt
+  ok   type cuh carries erode, period and alt
+  ok   type cu carries erode, period and alt
+  ok   type cb carries erode, period and alt
+  ok   type ac carries erode, period and alt
+  ok   type as carries erode, period and alt
+  ok   the sheets erode less than the heaps (stratus < stratocumulus < cumulus)
+  ok   altocumulus and altostratus are types (the upper decks' own)
+  ok   upperWith() births a missing deck and patches the named one
+  ok   upperWith() on no decks
+  ok   the day publishes cloudUpper (sanitised, two at most) and cloudLayers
+7b. several decks + the look: the march (static)
+  ok   the weather maps are one 2D array texture, a slice a deck
+  ok   the per-deck numbers are arrays of MAXL
+  ok   density and weather take the deck
+  ok   the march walks the decks' segments in the order of their entry
+  ok   a deck stands in the softened shadow of the decks above it
+  ok   the shadow tile bakes every deck, an upper deck shifted along the sun to the first deck's middle
+  ok   the array sampler declares its precision (ESSL 3.00 has no default for it)
+  ok   the noise bake is stretched to the byte by its measured percentiles (the slab's cause)
+  ok   the worley fbm erodes by subtraction (the type's erode), never from lf - 1
+  ok   the cover fit: the map inflated until the sky's share (four hemispheres from the ground) is the deck's cover - one step a frame, the read asynchronous
+  ok   the fit waits 300 ms for a slider and runs even with the clock paused
+  ok   erode and period are the type's, scaled / overridden by the dials (G460.4: rounded to divide the span, so the shadow tile wraps without a seam)
+  ok   the deck noise and the detail noise tile over the span (no seam at the shadow tile's wrap)
+  ok   the ambient falls with the depth toward the sun (a core darker than a fringe)
+  ok   sunT sums the column over the decks above the point
+  ok   the probe reports the noise's percentiles (the instrument that found the slab)
+  ok   the clouds panel carries the upper decks (cover, type, base)
+  ok   the flight rail has the clouds item and mounts the panel with the day clock
+  ok   the panel: presets, the decks, the veil, the look, the motion, the render
+  ok   the look is saved as flydiy.clouds and applied at load; the weather is saved with the day
+  ok   clouds_ui.js is in the build
+  ok   the day panel: the conditions through #selCond, the presets ("set the clock", G2650), the hour, the date, the rate through the clock
+  ok   the flight rail's day slot mounts it, the plate refreshed, the clouds a flyout away
+  ok   the shed's night flyout mounts it, the clouds in a fold beside it, the borrowed light rows in their own (the tree's mood select not borrowed)
+  ok   the clouds and the day share the rail's row vocabulary (railRows)
+  ok   #selTime is gone: the presets are pills, DAY_CLOCK the one state
+  ok   the quick bar's time button presses the clock, not the mood
+  ok   day_ui.js is in the build
+  ok   a mood picked by hand moves the hour only - the weather stays the day's (no OVERCAST preset)
+  ok   the tree's OVERCAST mood is offered greyed - it follows the clouds (hangar.moodFor)
+  ok   the flight rail has NIGHT: the day panel, the aeroplane's switches, the world's sources
+  ok   the lights rule: nav, beacon and the panel at night, the landing light low and moving, the taxi light low and slow
+  ok   the rule runs by hand too; a switch the hand set is the hand's until the next sunset or sunrise
+  ok   the pilot no longer carries its own lights (one rule, the cockpit's)
+  ok   the light layer publishes drive(levels) and re-applies it after a rebuild
+  ok   the drive restores the DESIGN's level (recorded from the rows, not from a cached material the night may have driven); the dial faces keep their base
+  ok   the shed applies the pilot's rule (nav, beacon, the panel - no beam from a stand) at night and takes it off at sunrise
+  ok   every land strip stands its lights (standStrip) and the analytic HOME too
+  ok   white lenses down both edges every 60 m, six green ones across each threshold (the core's places, none on another strip or a pavement)
+  ok   the lights are declared on the world switchboard and honour its mute
+  ok   on from two degrees of sun down through the horizon, the level divided back through the exposure schedule, every frame before the sun-moved guard
+  ok   a light is a sharp core of the lens's angular size (1.5 px at least) whose brightness falls with the distance; the fixtures keep their true size and are frustum-culled
+  ok   one instanced fixture mesh and one glow layer a strip; a repainted strip takes both out of the drive
+  ok   a CONSTANT pool of eight point lights on the premises root, assigned within 500 m
+  ok   the pool is re-assigned every 30 frames to the nearest published lamps; the level is the bench's night divided by the live exposure base
+  ok   every built thing publishes its lamps, its finish's lit panes and its smoke to the pool
+  ok   declared on the world switchboard as lamps, driven each frame by the day (the runway lights' fade), reachable for the F8 dial
+  ok   the chimney smoke is a haze lit by the sky (an unlit column no more)
+  ok   a PAPI unit is a light (its reading the emissive, dark from behind) and the overlays keep their own colour through the exposure
+  ok   the PAPI's lenses take the runway lights' level from the flight loop
+  ok   props.js publishes propSetGlowOf: the author's intensity kept, the levels of detail with it, a prop built later takes the last k
+  ok   the pool drives the published fixtures' glow by the day (the lenses' law) and the mute takes it to nothing
+  FAIL the WORLD editor carries the upper decks
+  ok   F8 carries the upper decks, erode and the cover fit
+  ok   the rig that judges the sky (tools/cloud_shot.js) is there
+8. the drift is wrapped to the span before it is uploaded (G1050: the rims re-dealt every clock step)
+  ok   clouds.js defines wrapSpan (drift mod span)
+  ok   the uploaded drift is in [0, span) after a long day (secs 1e7, 3e7)
+  ok   the wrap moves the drift by whole spans only (the field the GPU draws is unchanged)
+  ok   the uploaded drift keeps under 1 cm of float32 (worst 1.19 mm; unwrapped it was 1-16 m)
+  ok   the wrap is ON by default (S.driftWrap 1; 0 = the old upload, an A/B dial)
+  ok   the decks' drift uniforms (uDriftA) are wrapped
+  ok   the shadow tile's drift (uCloudP) is wrapped
+  ok   the wrap's premise: the noise periods divide the span, the shadow tile wraps (fract)
+9. the composite never samples the depth it draws into (G1532: 'current' drew no cloud from train 25 to 38)
+  ok   clouds.js: the clouds' depth is depthFor(r, target), never the target's depth texture directly
+  ok   depthFor: the attachment only when multisampled (the resolve is what is read - the MSAA path unchanged); at zero samples a blitted copy (S.depthCopy 1 by default; 0 = the old read, an A/B dial)
+  ok   the feedback tracker: own depth at 0 samples 3/3 draws, at 4 samples 0, a blitted copy 0 ({"own0":3,"own4":0,"copy0":0})
+  ok   the shipped presets with clouds on, read from gfx_settings.js: current, gamer, ultra
+  ok   current: the clouds live, the composite drawn, no feedback draw (samples 0, composite 6 draws, feedbacks 0, 115 s)
+  ok   gamer: the clouds live, the composite drawn, no feedback draw (samples 8, composite 6 draws, feedbacks 0, 100 s)
+  ok   ultra: the clouds live, the composite drawn, no feedback draw (samples 8, composite 6 draws, feedbacks 0, 114 s)
+239 checks, 2 failed
+GATE CLOUD: FAIL (2 of 239)
+(exit code 1)
+=== DEFAULT ===
+GATE DEFAULT: PASS
+=== UISMOKE ===
+G1090 the top bar holds one size over 47 texts (29 phase labels): desktop 440 x 143, desktop small 372 x 76, phone screen x 132, phone small screen x 76; the pilot's area 35 px, two lines clamped + the plan line
+ran app block: raf x1887, handlers wired: _ce1003 _ce1010 _ce1014 _ce1018 _ce1022 _ce1026 _ce1030 _ce1034 _ce1038 _ce1042 _ce1046 _ce1050 _ce1056 _ce1060 _ce1064 _ce1067 _ce107 _ce1073 _ce1076 _ce1077 _ce1078 _ce1081 _ce1091 _ce1092 _ce1096 _ce1099 _ce1104 _ce1126 _ce1132 _ce1140 _ce1141 _ce1144 _ce1151 _ce1152 _ce1153 _ce1154 _ce1155 _ce1156 _ce1161 _ce1162 _ce1163 _ce1164 _ce1168 _ce1169 _ce1170 _ce1171 _ce1172 _ce1173 _ce1177 _ce1178 _ce1179 _ce1180 _ce1184 _ce1185 _ce1188 _ce1195 _ce1196 _ce1197 _ce1198 _ce1202 _ce1203 _ce1207 _ce1208 _ce1212 _ce1213 _ce1214 _ce1215 _ce1216 _ce1217 _ce1221 _ce1222 _ce1223 _ce1224 _ce1225 _ce1226 _ce1230 _ce1231 _ce1235 _ce1236 _ce1238 _ce1245 _ce1246 _ce1247 _ce1248 _ce1252 _ce1253 _ce1254 _ce1255 _ce1259 _ce1260 _ce1261 _ce1262 _ce1266 _ce1267 _ce1268 _ce1269 _ce1273 _ce1274 _ce1278 _ce1279 _ce1280 _ce1282 _ce1289 _ce1290 _ce1294 _ce1295 _ce1297 _ce1304 _ce1305 _ce1306 _ce1310 _ce1311 _ce1312 _ce1313 _ce1317 _ce1318 _ce1320 _ce1327 _ce1328 _ce1329 _ce1333 _ce1334 _ce1335 _ce1336 _ce1340 _ce1341 _ce1342 _ce1346 _ce1347 _ce1351 _ce1352 _ce1356 _ce1357 _ce1359 _ce1366 _ce1367 _ce1371 _ce1372 _ce1373 _ce1377 _ce1378 _ce1382 _ce1383 _ce1386 _ce1392 _ce1397 _ce1401 _ce1405 _ce1409 _ce1413 _ce1417 _ce1421 _ce1425 _ce1429 _ce143 _ce1433 _ce1437 _ce144 _ce1441 _ce1445 _ce1448 _ce145 _ce1456 _ce1459 _ce146 _ce147 _ce1470 _ce1478 _ce1479 _ce148 _ce1482 _ce149 _ce1491 _ce1496 _ce150 _ce1500 _ce1506 _ce151 _ce1510 _ce1515 _ce1516 _ce1518 _ce1519 _ce1520 _ce1523 _ce1527 _ce153 _ce1531 _ce1535 _ce1539 _ce1543 _ce1547 _ce1551 _ce156 _ce1562 _ce1566 _ce1570 _ce1578 _ce1584 _ce1587 _ce159 _ce1591 _ce1596 _ce1618 _ce162 _ce1624 _ce1628 _ce1636 _ce1639 _ce165 _ce1650 _ce1654 _ce1658 _ce1666 _ce1669 _ce168 _ce1680 _ce1684 _ce1688 _ce1696 _ce1699 _ce1703 _ce171 _ce1714 _ce1718 _ce1722 _ce1730 _ce1733 _ce1737 _ce174 _ce1748 _ce1756 _ce1757 _ce1760 _ce1769 _ce177 _ce1777 _ce1780 _ce1784 _ce1795 _ce1799 _ce180 _ce1803 _ce1811 _ce1814 _ce1825 _ce1829 _ce183 _ce191 _ce202 _ce206 _ce210 _ce216 _ce221 _ce222 _ce224 _ce225 _ce226 _ce229 _ce233 _ce237 _ce241 _ce245 _ce249 _ce253 _ce259 _ce264 _ce270 _ce277 _ce278 _ce279 _ce280 _ce281 _ce282 _ce287 _ce288 _ce289 _ce290 _ce294 _ce295 _ce296 _ce297 _ce298 _ce299 _ce303 _ce304 _ce305 _ce306 _ce310 _ce311 _ce314 _ce318 _ce322 _ce326 _ce330 _ce334 _ce341 _ce346 _ce351 _ce365 _ce37 _ce401 _ce404 _ce409 _ce423 _ce459 _ce462 _ce467 _ce481 _ce51 _ce517 _ce520 _ce525 _ce539 _ce575 _ce578 _ce583 _ce597 _ce633 _ce636 _ce641 _ce655 _ce691 _ce697 _ce711 _ce747 _ce753 _ce767 _ce803 _ce811 _ce822 _ce828 _ce832 _ce838 _ce842 _ce846 _ce850 _ce854 _ce862 _ce868 _ce87 _ce871 _ce878 _ce879 _ce883 _ce884 _ce885 _ce886 _ce887 _ce888 _ce908 _ce913 _ce914 _ce915 _ce916 _ce917 _ce920 _ce924 _ce928 _ce93 _ce932 _ce936 _ce940 _ce944 _ce948 _ce953 _ce954 _ce955 _ce958 _ce962 _ce969 _ce972 _ce977 _ce978 _ce980 _ce981 _ce982 _ce985 _ce989 _ce993 _ce997 bBring bEdit bGo bHangar2 bLog bMood bPause bReset bSkin bSkip bWhy bootFly edClose flLine mm pfdFold selAc selCond selDest selPersona selPilot tabBench tabDesign
+GATE UISMOKE: PASS
+=== UISMOKE-PHONE ===
+the phone garage: no sim worker, preset laptop, roll-out refused (still in the garage after 10 frames)
+phone.css: 98 selectors, every one under html.phone (or hiding a phone-only element)
+GATE UISMOKE-PHONE: PASS
+=== ROLLANIM ===
+  rolls 18.7-35.1 m, shots 5.98-6.00 s; the eye's worst plan: club 0, works 0, field 10 bad samples of 49 (clamped per frame)
+  806 checks
+GATE ROLLANIM: PASS
+=== UILAYER ===
+UILAYER: 32 ok, 0 failed
+GATE UILAYER: PASS
+=== MEDIA ===
+  3037 references from 82 manifests, 3037 files in media/ · index.html 11.94 MiB, 3.99 MiB gzipped (budget 4), +49.0 KB over HEAD (budget 307.2 KB), data: 118 KB (budget 400)
+  index.html 12519805 B (12226.4 KB, 4087.9 KB gzipped) · the career core career_core.f36739eb.js 342.2 KB (104.8 KB gzipped; budget 512 KB), fetched by a career / ?map=1 / ?freight=1 boot alone
+GATE MEDIA: PASS
+=== BUILD ===
+  ok     the clock, the date and the run all ride the save envelope
+
+GATE BUILD: PASS
+=== SKINMAT ===
+sections 37, finishes 32, constructions 4, hardware 104 names over 8 layers
+GATE SKINMAT: PASS
+=== FRAMES ===
+  ok     PROFILE page {"frPaxBulgeH":-0.2,"frPaxLoops":2}: bends 4 run rings only, cage closed
+  ok     PROFILE page: one bay — inert without loops, a former loop with them
+GATE FRAMES: PASS
+=== KNIFE ===
+  ok     GLAZING polycarbonate weighs what acrylic does
+  ok     GLAZING a measured area replaces the cabin-box estimate (459.02 -> 463.76 kg)
+GATE KNIFE: PASS
+=== FIN ===
+§9: rod root on the saddle plate (6 verts, lift 10.5 mm), loft root on the skin (14 verts)
+§10: folds counted in 10 sheets (jodel fin 224, jodel stab 192, cub fin 224, cub stab 192, cessna fin 288, cessna stab 192, cessna floats fin 288, cessna floats stab 192, twin fin 192, twin stab 192 faces)
+GATE FIN: PASS
+=== COWL ===
+  ok   a firewall too small for the engine is REPORTED, not drawn silently  radial cowl: the firewall is too small — 0.64 m across where this engine needs 1.75 m
+  ok   ...and the taper still stops at the row's own limit  1.15
+GATE COWL: PASS
+=== JOIN ===
+  ok     G1283: a station inside the envelope flies as measured, in silence
+  ok     G1283: no core loaded, no claim
+GATE JOIN: PASS
+=== SPECFIX ===
+  (joins: 45.9 s)
+
+GATE SPECFIX: PASS
+=== STARTER ===
+3 starters, 4 architectures, 3 doors
+GATE STARTER: PASS
+=== SAVE ===
+  ok     FREIGHT-STRAP: the strapped load writes nothing into the build the shelf saves (no genSpec, no GARAGE_SPEC, no seat / baggage row)
+  20 targeted rows, 937 panel rows moved and put back, the whole envelope as a fixed point, 3 persist doors
+GATE SAVE: PASS
+=== GEAR ===
+3 leg families, 10 declared bags, 37382 triangles measured
+GATE GEAR: PASS
+=== PARTS ===
+  ceilingLoop by zone: tail 192, boom 96, pax 16, taper 8
+  floorLoop by zone: tail 208, boom 120, pax 144, cabin 240, nose 240, taper 8, aftCabin 16, aftDeck 8
+GATE PARTS: PASS
+=== DESIGN ===
+45 rows, 189 options (3 declared with reasons), 27 archetypes (27 live)
+GATE DESIGN: PASS
+=== VIEW ===
+
+12 controls neutralised, 7 exempt, over 18 the editor shows
+GATE VIEW: PASS
+=== REF ===
+  pa28: 42 groups, 81561 verts, 89152 tris · span 10.546 m · length 7.154 m · height 2.726 m (measured, not checked) · minY -1.3983
+  13 presets, 12 with geometry, 7 spec doors held shut
+GATE REF: PASS
+=== HONESTY ===
+GARAGE: the overflow bar counts only rows it would show (pools: materials, decals; retired: dims box)
+58 checks, 0 failed
+GATE HONESTY: PASS
+=== HITBOX ===
+  ok   Cub d: 1 cm into arch:cub's drawn wing - contact  (7 node-steps)
+84/84 checks
+GATE HITBOX: PASS
+=== PROCURE ===
+3151 checks, 33 shakedowns (cached by content)
+GATE PROCURE: PASS
+=== ENERGY ===
+4 bodies swept, 88 sections measured, 87777 litres of interior
+GATE ENERGY: PASS
+=== PANEL ===
+GATE PANEL: PASS
+
+──────── summary ────────
+INPUT     PASS    61.9 s
+CLIMATE   PASS    12.7 s
+CLOUD     FAIL   329.6 s
+DEFAULT   PASS     2.0 s
+UISMOKE   PASS   145.3 s
+UISMOKE-PHONE PASS    29.9 s
+ROLLANIM  PASS    21.0 s
+UILAYER   PASS     1.2 s
+MEDIA     PASS     1.0 s
+BUILD     PASS     1.0 s
+SKINMAT   PASS     1.5 s
+FRAMES    PASS     3.5 s
+KNIFE     PASS     2.5 s
+FIN       PASS     7.3 s
+COWL      PASS     0.5 s
+JOIN      PASS     2.7 s
+SPECFIX   PASS    50.3 s
+STARTER   PASS     0.4 s
+SAVE      PASS     0.5 s
+GEAR      PASS     0.6 s
+PARTS     PASS     1.9 s
+DESIGN    PASS     7.5 s
+VIEW      PASS     0.3 s
+REF       PASS     0.7 s
+HONESTY   PASS    14.5 s
+HITBOX    PASS   197.3 s
+PROCURE   PASS     1.4 s
+ENERGY    PASS    25.3 s
+PANEL     PASS     0.8 s
+total            925.1 s
+wall             425.7 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.
+== gates rc=1 23:21:14
+== DESIGN selftest
+  selftest caught  duplicate row key
+  selftest caught  a row whose options come back empty
+  selftest caught  an option that writes nothing and says nothing
+  selftest caught  an inactive option that writes anyway
+  selftest caught  an option with no drawable icon
+  selftest caught  a cage write on a key that exists nowhere
+  selftest caught  a spec write on a path GEN_DEFAULT does not carry
+  selftest caught  a role target off the shakedown sheet
+  selftest caught  an engine preset name the panel does not carry
+  selftest caught  a live class promising a wing the clamp would bite
+  selftest caught  an archetype selecting a row that does not exist
+  selftest caught  an archetype selecting an option that does not exist
+  selftest caught  an archetype baked with another card's engine
+  selftest caught  a tile lighting the wrong state
+  selftest caught  a dual-channel row with no declared pair
+  selftest caught  a pair kept by nothing anyone defends
+  selftest caught  the span row stopping short of the envelope (the §9 14 m)
+  selftest caught  the chord row stopping short of the sail seed
+  selftest caught  the tip chord row silent when the taper floor moves it
+  selftest caught  a note that speaks all the time
+  selftest caught  the second plane's note reading the first plane
+  selftest caught  a tile standing in for a row the panel does not render
+  selftest caught  a slot tile that lost a value its drop-down offered
+  selftest caught  a slot tile writing beyond its row
+  selftest caught  a seed on a key that exists nowhere
+  45 rows, 189 options (3 declared with reasons), 27 archetypes (27 live)
+GATE DESIGN: PASS
+== PARTS selftest
+  selftest caught  orphan row
+  selftest caught  duplicate claim
+  selftest caught  phantom row
+  selftest caught  unowned section
+  selftest caught  section claimed twice
+  selftest caught  placement off the part
+  selftest caught  placement with no anchor
+  selftest caught  dangling parent
+  selftest caught  a `when` that never discriminates
+  selftest caught  a self-gated part with no way back
+  selftest caught  a `gate` that is not the switch
+  selftest caught  a switch parked on a part it hides
+  selftest caught  the panel with every part gate removed
+  selftest caught  an assembly heading nothing, with no rows either
+  selftest caught  a body zone no part claims
+  selftest caught  a body zone claimed by two parts
+  selftest caught  a part claiming a zone no build produces
+  selftest caught  a zoned section owned by one of the bays it divides into
+  selftest caught  the pick dividing a section whose material already names a part
+  8 assemblies, 46 parts, 954 rows, 74 sections over 15 shapes
+  body by zone: tail 608, boom 456, pax 408, cabin 688, nose 480, aftCabin 32, aftDeck 24
+  joint by zone: pax 25679, cabin 48049, nose 4804, aftCabin 731, aftDeck 411
+  waistband by zone: tail 192, boom 96, pax 144, cabin 240, nose 120, taper 8, aftCabin 16, aftDeck 8
+  ceilingLoop by zone: tail 192, boom 96, pax 16, taper 8
+  floorLoop by zone: tail 208, boom 120, pax 144, cabin 240, nose 240, taper 8, aftCabin 16, aftDeck 8
+GATE PARTS: PASS
+boxlock: CPU battery released by UXA
+== window closed 23:21:34

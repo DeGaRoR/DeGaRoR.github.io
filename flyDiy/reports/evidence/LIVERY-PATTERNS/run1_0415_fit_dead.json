@@ -1,0 +1,70 @@
+{
+ "date": "2026-10-13T02:15:16.660Z",
+ "tag": "g2870",
+ "steps": [
+  "fit",
+  "atlas",
+  "render",
+  "flight"
+ ],
+ "build": "ERR TypeError: AEROSKIN.aeroDecUniforms is not a function\n    at <anonymous>:1:135\n    at <anonymous>:2:4",
+ "before": {
+  "tail": "ERR TypeError: AEROSKIN.aeroDecUniforms is not a function\n    at <anonymous>:1:101\n    at <anonymous>:24:4",
+  "wing": "ERR TypeError: AEROSKIN.aeroDecUniforms is not a function\n    at <anonymous>:1:101\n    at <anonymous>:24:4",
+  "flank": "ERR TypeError: AEROSKIN.aeroDecUniforms is not a function\n    at <anonymous>:1:101\n    at <anonymous>:24:4"
+ },
+ "fitSun": [
+  {
+   "pat": "sunburst",
+   "tgt": 5,
+   "fit": 1
+  },
+  {
+   "pat": "sunburst",
+   "tgt": 4,
+   "fit": 1
+  },
+  {
+   "pat": "fade",
+   "mode": 1,
+   "fit": 1
+  }
+ ],
+ "atlas": "ERR TypeError: A.aeroDecalMerge is not a function\n    at <anonymous>:9:35\n    at <anonymous>:17:4",
+ "after": {
+  "tail": "ERR TypeError: AEROSKIN.aeroDecUniforms is not a function\n    at <anonymous>:1:101\n    at <anonymous>:24:4",
+  "wing": "ERR TypeError: AEROSKIN.aeroDecUniforms is not a function\n    at <anonymous>:1:101\n    at <anonymous>:24:4",
+  "flank": "ERR TypeError: AEROSKIN.aeroDecUniforms is not a function\n    at <anonymous>:1:101\n    at <anonymous>:24:4"
+ },
+ "repaint": {
+  "kitKept": [
+   1,
+   1,
+   1,
+   2
+  ],
+  "body": {
+   "tint": 3050302
+  }
+ },
+ "afterRepaint": {
+  "tail": "ERR TypeError: AEROSKIN.aeroDecUniforms is not a function\n    at <anonymous>:1:101\n    at <anonymous>:24:4",
+  "wing": "ERR TypeError: AEROSKIN.aeroDecUniforms is not a function\n    at <anonymous>:1:101\n    at <anonymous>:24:4",
+  "flank": "ERR TypeError: AEROSKIN.aeroDecUniforms is not a function\n    at <anonymous>:1:101\n    at <anonymous>:24:4"
+ },
+ "flight": {
+  "decN": "ERR TypeError: AEROSKIN.aeroDecUniforms is not a function\n    at <anonymous>:1:29\n    at <anonymous>:2:4",
+  "bake": {
+   "draws": 2,
+   "red": 0.0134,
+   "green": 0,
+   "yellow": 0.1323
+  },
+  "live": {
+   "draws": 4,
+   "red": 0.0137,
+   "green": 0,
+   "yellow": 0.1319
+  }
+ }
+}

@@ -1,0 +1,93 @@
+{
+ "date": "2026-10-13T02:19:46.866Z",
+ "tag": "g2870c",
+ "steps": [
+  "render",
+  "nofade"
+ ],
+ "build": {
+  "reg": "F-BCUB",
+  "kit": [
+   "cheat line",
+   "twin stripe",
+   "sweep",
+   "flash",
+   "chequer",
+   "fade",
+   "gradient",
+   "sunburst"
+  ],
+  "decN0": 2
+ },
+ "before": {
+  "tail": {
+   "calls": 4361,
+   "red": 0.0007,
+   "green": 0,
+   "yellow": 0.0706
+  },
+  "wing": {
+   "calls": 4434,
+   "red": 0.0006,
+   "green": 0,
+   "yellow": 0.1918
+  },
+  "flank": {
+   "calls": 5107,
+   "red": 0.0035,
+   "green": 0,
+   "yellow": 0.0914
+  }
+ },
+ "after": {
+  "tail": {
+   "calls": 4361,
+   "red": 0.0247,
+   "green": 0,
+   "yellow": 0.0445
+  },
+  "wing": {
+   "calls": 4434,
+   "red": 0.0765,
+   "green": 0,
+   "yellow": 0.1281
+  },
+  "flank": {
+   "calls": 5107,
+   "red": 0.0377,
+   "green": 0,
+   "yellow": 0.055
+  }
+ },
+ "repaint": {
+  "kitKept": [
+   1,
+   1,
+   null,
+   2
+  ],
+  "body": {
+   "tint": 3050302
+  }
+ },
+ "afterRepaint": {
+  "tail": {
+   "calls": 4361,
+   "red": 0.0244,
+   "green": 0.0099,
+   "yellow": 0.0002
+  },
+  "wing": {
+   "calls": 4434,
+   "red": 0.0782,
+   "green": 0.0868,
+   "yellow": 0
+  },
+  "flank": {
+   "calls": 5107,
+   "red": 0.0346,
+   "green": 0.0024,
+   "yellow": 0.0001
+  }
+ }
+}

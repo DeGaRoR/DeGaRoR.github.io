@@ -1,0 +1,56 @@
+=== BAY ===
+  ok    bayCage is present in _cage_wing.js
+  ok    bayCage lifted and callable
+  ok    square band, 4 stations: a cage was built (32 tris)
+  ok    square band, 4 stations: no degenerate triangles (0)
+  ok    square band, 4 stations: no coplanar triangle overlaps (0)
+  ok    square band, 4 stations: the aft wall spans every station and both ribs are filled
+  ok    square band, 4 stations: both ribs are present (26 triangles)
+  ok    square band, 4 stations: the ribs stand clear of the cut plane (3.0 mm)
+  ok    tapered band, 6 stations: a cage was built (48 tris)
+  ok    tapered band, 6 stations: no degenerate triangles (0)
+  ok    tapered band, 6 stations: no coplanar triangle overlaps (0)
+  ok    tapered band, 6 stations: the aft wall spans every station and both ribs are filled
+  ok    tapered band, 6 stations: both ribs are present (38 triangles)
+  ok    tapered band, 6 stations: the ribs stand clear of the cut plane (3.0 mm)
+  ok    coarse band, 3 stations: a cage was built (18 tris)
+  ok    coarse band, 3 stations: no degenerate triangles (0)
+  ok    coarse band, 3 stations: no coplanar triangle overlaps (0)
+  ok    coarse band, 3 stations: the aft wall spans every station and both ribs are filled
+  ok    coarse band, 3 stations: both ribs are present (14 triangles)
+  ok    coarse band, 3 stations: the ribs stand clear of the cut plane (3.0 mm)
+  ok    one cell with dihedral: a cage was built (22 tris)
+  ok    one cell with dihedral: no degenerate triangles (0)
+  ok    one cell with dihedral: no coplanar triangle overlaps (0)
+  ok    one cell with dihedral: the aft wall spans every station and both ribs are filled
+  ok    one cell with dihedral: both ribs are present (20 triangles)
+  ok    one cell with dihedral: the ribs stand clear of the cut plane (3.0 mm)
+  ok    section lifted from the wing layer
+  ok    lampFit lifted from the light layer
+  ok    one cell, dihedral 3 deg: the bay reports a section (2 stations)
+  ok    one cell, dihedral 3 deg: a lamp was fitted (r = 43.3 mm)
+  ok    one cell, dihedral 3 deg: the reflector is inside the aerofoil (worst -7.6 mm, negative is clear)
+  ok    one cell, dihedral 3 deg: and it stops short of the aft wall
+  ok    one cell, flat: the bay reports a section (2 stations)
+  ok    one cell, flat: a lamp was fitted (r = 44.3 mm)
+  ok    one cell, flat: the reflector is inside the aerofoil (worst -7.9 mm, negative is clear)
+  ok    one cell, flat: and it stops short of the aft wall
+  ok    one cell, strong taper: the bay reports a section (2 stations)
+  ok    one cell, strong taper: a lamp was fitted (r = 35.5 mm)
+  ok    one cell, strong taper: the reflector is inside the aerofoil (worst -7.6 mm, negative is clear)
+  ok    one cell, strong taper: and it stops short of the aft wall
+  ok    deep setback: the bay reports a section (2 stations)
+  ok    deep setback: a lamp was fitted (r = 26.4 mm)
+  ok    deep setback: the reflector is inside the aerofoil (worst -33.3 mm, negative is clear)
+  ok    deep setback: and it stops short of the aft wall
+  ok    shallow setback: the bay reports a section (2 stations)
+  ok    shallow setback: a lamp was fitted (r = 35.4 mm)
+  ok    shallow setback: the reflector is inside the aerofoil (worst -7.5 mm, negative is clear)
+  ok    shallow setback: and it stops short of the aft wall
+  ok    wide bay, 4 cells: the bay reports a section (5 stations)
+  ok    wide bay, 4 cells: a lamp was fitted (r = 39.6 mm)
+  ok    wide bay, 4 cells: the reflector is inside the aerofoil (worst -7.6 mm, negative is clear)
+  ok    wide bay, 4 cells: and it stops short of the aft wall
+GATE BAY: PASS
+
+[exit 0 0 s]

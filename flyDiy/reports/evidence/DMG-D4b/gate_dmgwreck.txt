@@ -1,0 +1,232 @@
+(89 s, 5 builds; CRUSH 6 cm, E_BEND 40 kJ, E_BREAK 150 kJ, the eye clear 10 cm)
+Cub:
+  a trunk at 30 m/s, the centreline: CRASHED (the airframe crushed (6.7 kJ of plastic work)), 82 broken, 91 damage payloads
+    released: blade (strike, t 1.3 s), cowl (crushed 40 cm, t 1.33 s), eng (loose, t 1.33 s), spinner (crushed 24 cm, t 1.33 s), pane (crushed 15 cm, t 1.35 s); 3 parts stay on
+    prop strike (engine 0, trunk, t 1.30 s): 1059 rpm, the hub at 28.51 m/s - E 205.2 kJ (spin 11.7, impact 193.5), p(break) 1.00: blade 1 BROKE OFF (curl 1.00 / 0.00 rad), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (b2ff26e0)
+    body blade (strike): at rest after 4.26 s, 38.81 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body cowl (crushed): at rest after 4.23 s, 27.18 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body eng (loose): at rest after 4.78 s, 49.87 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body spinner (crushed): at rest after 4.58 s, 36.95 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body pane (crushed): at rest after 3.2 s, 12.02 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0, 0.0, 0.0, 0.0, 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -1074.6 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 5 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the a trunk at 30 m/s, the centreline: a blade breaks off
+    the cockpit (eye in bay 1, 29 cm clear at rest): clear (28 cm, the bay at 116 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 17 broken, 26 damage payloads
+    released: blade (strike, t 2.62 s), pane (crushed 8 cm, t 2.62 s), cowl (crushed 12 cm, t 2.63 s); 5 parts stay on
+    prop strike (engine 0, ground, t 2.62 s): 1011 rpm, the hub at 22.71 m/s - E 133.4 kJ (spin 10.6, impact 122.8), p(break) 0.85: blade 1 BROKE OFF (curl 0.68 / 0.00 rad), the spinner dented 5.5 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (d0eee56)
+    body blade (strike): at rest after 4.68 s, 13.27 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body pane (crushed): at rest after 3.41 s, 2.90 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body cowl (crushed): at rest after 3.15 s, 2.32 m from the wreck, its lowest corner 0.0 cm over the ground, the deepest corner -134.3 cm in cabin bay 0
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0, 0.0, 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -134.3 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 3 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    the cockpit (eye in bay 1, 29 cm clear at rest): clear (28 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a taxi into a trunk at 3 m/s, the throttle shut: no crash, 0 broken, 7 damage payloads
+    released: nothing; 7 parts stay on
+    prop strike (engine 0, trunk, t 3.18 s): 647 rpm, the hub at 2.40 m/s - E 5.7 kJ (spin 4.4, impact 1.4), p(break) 0.00: the blades curl (curl 0.41 / 0.45 rad), the spinner dented 1.7 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (c63077ed)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the 3 m/s taxi into a trunk: the prop strikes and its blades curl, none breaks
+    the cockpit (eye in bay 1, 29 cm clear at rest): clear (29 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 29 broken, 22 damage payloads
+    released: blade (strike, t 0.03 s), cowl (crushed 21 cm, t 0.07 s); 6 parts stay on
+    prop strike (engine 0, ground, t 0.03 s): 1135 rpm, the hub at 48.41 m/s - E 571.3 kJ (spin 13.4, impact 557.9), p(break) 1.00: blade 0 BROKE OFF (curl 0.00 / 0.83 rad), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (fc2cccd7)
+    body blade (strike): at rest after 5.24 s, 31.34 m from the wreck, its lowest corner -0.0 cm over the ground, no cabin bay near
+    body cowl (crushed): at rest after 3.62 s, 5.61 m from the wreck, its lowest corner -0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: -0.0, -0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -283.5 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 2 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): a blade breaks off
+    the cockpit (eye in bay 1, 29 cm clear at rest): clear (28 cm, the bay at 81 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  ok    nothing broken (a FAR 23.473 drop, 0 yields): no payload, no release, no strike
+Jodel:
+  a trunk at 30 m/s, the centreline: CRASHED (a fus member broke), 103 broken, 23 damage payloads
+    released: blade (strike, t 1.28 s), eng (loose, t 1.3 s), cowl (crushed 56 cm, t 1.32 s), spinner (crushed 14 cm, t 1.32 s), pane (crushed 22 cm, t 1.33 s); 3 parts stay on
+    prop strike (engine 0, trunk, t 1.28 s): 995 rpm, the hub at 30.11 m/s - E 218.3 kJ (spin 8.5, impact 209.8), p(break) 1.00: blade 0 BROKE OFF (curl 0.00 / 0.90 rad), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (5535f8d9)
+    body blade (strike): at rest after 4.87 s, 46.50 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body eng (loose): at rest after 5.64 s, 58.76 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body cowl (crushed): at rest after 3.17 s, 20.17 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body spinner (crushed): at rest after 3.53 s, 28.52 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body pane (crushed): at rest after 2.52 s, 2.42 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0, 0.0, 0.0, 0.0, 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -523.6 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 5 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the a trunk at 30 m/s, the centreline: a blade breaks off
+    the cockpit (eye in bay 1, 31 cm clear at rest): clear (31 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 33 broken, 17 damage payloads
+    released: cowl (crushed 7 cm, t 4.17 s); 6 parts stay on
+    prop strike (engine 0, ground, t 4.08 s): 655 rpm, the hub at 8.33 m/s - E 19.7 kJ (spin 3.7, impact 16.1), p(break) 0.00: the blades curl (curl 0.37 / 0.47 rad), the spinner dented 2.1 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (61785757)
+    body cowl (crushed): at rest after 2.05 s, 0.72 m from the wreck, its lowest corner 0.0 cm over the ground, the deepest corner -32.7 cm in cabin bay 0
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -32.7 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 1 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    the cockpit (eye in bay 1, 31 cm clear at rest): clear (31 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a taxi into a trunk at 3 m/s, the throttle shut: no crash, 0 broken, 8 damage payloads
+    released: nothing; 7 parts stay on
+    prop strike (engine 0, trunk, t 3.27 s): 645 rpm, the hub at 2.38 m/s - E 4.9 kJ (spin 3.6, impact 1.3), p(break) 0.00: the blades curl (curl 0.40 / 0.43 rad), the spinner dented 1.6 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (7810fc73)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the 3 m/s taxi into a trunk: the prop strikes and its blades curl, none breaks
+    the cockpit (eye in bay 1, 31 cm clear at rest): clear (31 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 27 broken, 7 damage payloads
+    released: blade (strike, t 0.03 s), cowl (crushed 14 cm, t 0.05 s), pane (crushed 7 cm, t 0.12 s), spinner (crushed 13 cm, t 2 s); 4 parts stay on
+    prop strike (engine 0, ground, t 0.03 s): 1023 rpm, the hub at 47.61 m/s - E 533.6 kJ (spin 9.0, impact 524.6), p(break) 1.00: blade 0 BROKE OFF (curl 0.00 / 0.85 rad), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (2299b348)
+    body blade (strike): at rest after 6.6 s, 35.60 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body cowl (crushed): at rest after 4.22 s, 6.47 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body pane (crushed): at rest after 3.79 s, 3.82 m from the wreck, its lowest corner 0.0 cm over the ground, the deepest corner -74.8 cm in cabin bay 2
+    body spinner (crushed): at rest after 2.54 s, 16.69 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0, 0.0, 0.0, 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -74.8 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 4 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): a blade breaks off
+    the cockpit (eye in bay 1, 31 cm clear at rest): clear (31 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  ok    nothing broken (a FAR 23.473 drop, 0 yields): no payload, no release, no strike
+metal Cessna:
+  a trunk at 30 m/s, the centreline: CRASHED (the airframe crushed (3.4 kJ of plastic work)), 107 broken, 28 damage payloads
+    released: blade (strike, t 1.28 s), cowl (crushed 21 cm, t 1.32 s), pane (crushed 33 cm, t 1.33 s), spinner (crushed 17 cm, t 1.35 s); 4 parts stay on
+    prop strike (engine 0, trunk, t 1.28 s): 995 rpm, the hub at 30.34 m/s - E 421.2 kJ (spin 14.5, impact 406.7), p(break) 1.00: blade 0 BROKE OFF (curl 0.00 / 0.98 rad), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (85f8f630)
+    body blade (strike): at rest after 4.66 s, 40.86 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body cowl (crushed): at rest after 3.38 s, 17.40 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body pane (crushed): at rest after 2.12 s, 4.44 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body spinner (crushed): at rest after 3.43 s, 8.81 m from the wreck, its lowest corner -0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0, 0.0, 0.0, -0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -426.2 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 4 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the a trunk at 30 m/s, the centreline: a blade breaks off
+    the cockpit (eye in bay 1, 45 cm clear at rest): clear (47 cm, the bay at 96 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 20 broken, 4 damage payloads
+    released: nothing; 7 parts stay on
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (2053958d)
+    the cockpit (eye in bay 1, 45 cm clear at rest): clear (45 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a taxi into a trunk at 3 m/s, the throttle shut: no crash, 0 broken, 15 damage payloads
+    released: nothing; 7 parts stay on
+    prop strike (engine 0, trunk, t 3.28 s): 722 rpm, the hub at 2.37 m/s - E 10.1 kJ (spin 7.6, impact 2.5), p(break) 0.00: the blades curl (curl 0.44 / 0.37 rad), the spinner dented 1.8 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (79cd170)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the 3 m/s taxi into a trunk: the prop strikes and its blades curl, none breaks
+    the cockpit (eye in bay 1, 45 cm clear at rest): clear (45 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (the airframe crushed (3.0 kJ of plastic work)), 63 broken, 13 damage payloads
+    released: blade (strike, t 0.08 s), cowl (crushed 16 cm, t 0.1 s); 6 parts stay on
+    prop strike (engine 0, ground, t 0.08 s): 1047 rpm, the hub at 42.59 m/s - E 817.2 kJ (spin 16.0, impact 801.2), p(break) 1.00: blade 0 BROKE OFF (curl 0.00 / 0.85 rad), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (faa18b0b)
+    body blade (strike): at rest after 5.73 s, 6.87 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body cowl (crushed): at rest after 3.64 s, 33.48 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0, 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -399.3 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 2 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): a blade breaks off
+    the cockpit (eye in bay 1, 45 cm clear at rest): clear (45 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  ok    nothing broken (a FAR 23.473 drop, 0 yields): no payload, no release, no strike
+Cessna floats:
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 59 broken, 20 damage payloads
+    released: cowl (crushed 22 cm, t 0.18 s), blade (strike, t 1.03 s); 3 parts stay on
+    prop strike (engine 0, ground, t 1.03 s): 721 rpm, the hub at 33.17 m/s - E 567.6 kJ (spin 7.6, impact 560.0), p(break) 1.00: blade 1 BROKE OFF (curl 0.99 / 0.00 rad), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (7dd7e332)
+    body cowl (crushed): SUNK (out of sight) after 3.94 s, 19.43 m from the wreck, no cabin bay near
+    body blade (strike): at rest after 3 s, 11.65 m from the wreck, its lowest corner 0.0 cm over the water, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: sunk, 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -992.5 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 2 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    the cockpit (eye in bay 1, 45 cm clear at rest): clear (45 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  the float nose-in (90 km/h, 5 m/s, 20 deg): no crash, 0 broken, 0 damage payloads
+    released: nothing; 4 parts stay on
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (db446508)
+    the cockpit (eye in bay 1, 45 cm clear at rest): clear (45 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  ok    nothing broken (a FAR 23.473 drop, 0 yields): no payload, no release, no strike
+twin floatplane:
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (broke up: the fuselage parted (TPB off the core)), 38 broken, 14 damage payloads
+    released: cowl (crushed 10 cm, t 0.12 s), cowl (crushed 10 cm, t 0.12 s); 5 parts stay on
+    prop strike (engine 0, ground, t 0.98 s): 695 rpm, the hub at 16.33 m/s - E 68.4 kJ (spin 5.0, impact 63.4), p(break) 0.26: the blades curl (curl 0.63 / 0.50 rad), the spinner dented 3.6 cm
+    prop strike (engine 1, ground, t 0.98 s): 695 rpm, the hub at 18.69 m/s - E 88.0 kJ (spin 5.0, impact 83.0), p(break) 0.44: the blades curl (curl 0.61 / 0.76 rad), the spinner dented 4.1 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (a58028bf)
+    body cowl (crushed): SUNK (out of sight) after 4 s, 16.57 m from the wreck, no cabin bay near
+    body cowl (crushed): SUNK (out of sight) after 3.99 s, 16.58 m from the wreck, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: sunk, sunk cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -1008.5 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 2 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 1)
+    the cockpit (eye in bay 1, 29 cm clear at rest): clear (29 cm, the bay at 99 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  the float nose-in (90 km/h, 5 m/s, 20 deg): no crash, 0 broken, 0 damage payloads
+    released: nothing; 7 parts stay on
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (b7053bbf)
+    the cockpit (eye in bay 1, 29 cm clear at rest): clear (29 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  ok    nothing broken (a FAR 23.473 drop, 0 yields): no payload, no release, no strike
+the drawn prop (synthetic, 2 blades of 0.95 m read off its vertices):
+  ok    the blade count read off the vertices: 2
+  ok    the curl keeps each blade's length (0.850 / 0.850 / 0.850 / 0.850 m)
+  ok    the tips curl aft (12.1 / 17.5 cm), the blades' inner 35 % untouched
+  ok    the spinner dented on the strike's side only (3.0 cm in; 0.00 cm behind)
+  ok    app.js: the wreck path (debris, the strike's drawing, the cockpit rule) only through wreckFrame, returning at once unless the damage state holds damage or an engine has seized
+  131/131 checks
+GATE DMGWRECK: PASS

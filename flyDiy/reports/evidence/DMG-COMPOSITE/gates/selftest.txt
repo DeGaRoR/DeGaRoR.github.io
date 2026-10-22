@@ -1,0 +1,3 @@
+selftest: the real run clean; doctored red: 13 / 13; the glass row made ductile (etu 0.02, ecu 0.03, a fold): trunk0 30 set, noseover 3 set - caught
+(selftest, 295 s)
+GATE DMGCOMPOSITE: PASS

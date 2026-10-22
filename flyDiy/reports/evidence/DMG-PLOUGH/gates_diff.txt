@@ -1,0 +1,168 @@
+< (608 s, 5 builds)
+> (496 s, 5 builds)
+< (42 runs in 503 s on 4 processes)
+> (42 runs in 407 s on 4 processes)
+> LAW (the plough wave G1807 on the rigid bench, FORCED ON: each build's float, the keel 4 deg nose-up at its share of the weight)
+>    twin on floats: float L 4.01 m, B 0.50 m; Fn | U m/s | amplitude m | env | tan(alpha_E) | the wave's lift N | its pitching moment N m (+ nose-down)
+>       0.00 |  0.00 | 0.000 | 0.00 | 0.00 |      0 |      0
+>       0.12 |  0.75 | 0.063 | 1.00 | 0.72 |    -10 |    -28
+>       0.25 |  1.50 | 0.194 | 1.00 | 0.72 |   -187 |   -391
+>       0.37 |  2.26 | 0.353 | 1.00 | 0.72 |   -482 |   -819
+>       0.49 |  3.01 | 0.528 | 1.00 | 0.72 |     79 |  -2412
+>       0.62 |  3.76 | 0.620 | 0.87 | 0.72 |   1362 |  -2134
+>       0.74 |  4.51 | 0.478 | 0.53 | 0.72 |   1461 |  -1986
+>       0.86 |  5.27 | 0.190 | 0.17 | 0.72 |   1444 |  -1867
+>       0.99 |  6.02 | 0.002 | 0.00 | 0.72 |     18 |    -21
+>       1.11 |  6.77 | 0.000 | 0.00 | 0.00 |      0 |      0
+>       1.23 |  7.52 | 0.000 | 0.00 | 0.00 |      0 |      0
+>       1.36 |  8.28 | 0.000 | 0.00 | 0.00 |      0 |      0
+>       1.48 |  9.03 | 0.000 | 0.00 | 0.00 |      0 |      0
+> PASS twin on floats the shipped default: DEF.kWave 0 (0: OFF)
+> PASS twin on floats the generator's float carries kWave 0 (OFF)
+> PASS twin on floats at rest (U 0): amplitude 0 m, the forces bit-identical to the wave off: true
+> PASS twin on floats a metre over the water at 3 m/s: amplitude 0 m, 0 N
+> PASS twin on floats the amplitude peaks at Fn 0.617 (0.62 m at 3.761 m/s): inside 0.5..0.8
+> PASS twin on floats on the step (Fn >= 1: 16 speeds) the wave is 0 m, 0 N, 0 N m
+> PASS twin on floats in the displacement regime (0 < Fn < 0.5) the amplitude is positive at every speed (16)
+>    Cessna on floats: float L 6.95 m, B 0.68 m; Fn | U m/s | amplitude m | env | tan(alpha_E) | the wave's lift N | its pitching moment N m (+ nose-down)
+>       0.00 |  0.00 | 0.000 | 0.00 | 0.00 |      0 |      0
+>       0.13 |  0.99 | 0.082 | 1.00 | 0.57 |    110 |     81
+>       0.25 |  1.98 | 0.246 | 1.00 | 0.57 |    757 |   -174
+>       0.38 |  2.97 | 0.442 | 1.00 | 0.57 |    868 |  -5019
+>       0.50 |  3.96 | 0.653 | 1.00 | 0.57 |   5869 | -15594
+>       0.63 |  4.95 | 0.738 | 0.84 | 0.57 |   8619 | -17263
+>       0.76 |  5.95 | 0.533 | 0.48 | 0.57 |   8506 | -18109
+>       0.88 |  6.94 | 0.177 | 0.13 | 0.57 |   3417 |  -6950
+>       1.01 |  7.93 | 0.000 | 0.00 | 0.00 |      0 |      0
+>       1.13 |  8.92 | 0.000 | 0.00 | 0.00 |      0 |      0
+>       1.26 |  9.91 | 0.000 | 0.00 | 0.00 |      0 |      0
+>       1.38 | 10.90 | 0.000 | 0.00 | 0.00 |      0 |      0
+>       1.51 | 11.89 | 0.000 | 0.00 | 0.00 |      0 |      0
+> PASS Cessna on floats the shipped default: DEF.kWave 0 (0: OFF)
+> PASS Cessna on floats the generator's float carries kWave 0 (OFF)
+> PASS Cessna on floats at rest (U 0): amplitude 0 m, the forces bit-identical to the wave off: true
+> PASS Cessna on floats a metre over the water at 3 m/s: amplitude 0 m, 0 N
+> PASS Cessna on floats the amplitude peaks at Fn 0.598 (0.7435 m at 4.707 m/s): inside 0.5..0.8
+> PASS Cessna on floats on the step (Fn >= 1: 17 speeds) the wave is 0 m, 0 N, 0 N m
+> PASS Cessna on floats in the displacement regime (0 < Fn < 0.5) the amplitude is positive at every speed (15)
+> 
+> HUMP (the calm take-off, THE PILOT, the SEA lane; the band 8-12 deg nose-up at the hump)
+>    twin on floats (as built): hump at 4.7 m/s (C_V 2.15, Fn_L 0.76, R/W 0.318): keel trim -7.0 deg (pitch -6.6); lowest keel trim on the run -7.4 deg at 4.3 m/s; highest before the hump 2.0, over C_V 1.5-4 9.5; lift-off 8.3 s
+>    twin on floats (INSTRUMENT: thrust at the nose frame, 0.17 m over the CG): hump at 8.8 m/s (C_V 3.99, Fn_L 1.41, R/W 0.052): keel trim 5.3 deg (pitch 6.0); lowest keel trim on the run 1.5 deg at 14.4 m/s; highest before the hump 14.8, over C_V 1.5-4 14.8; lift-off 6.4 s
+>    twin on floats (the plough wave ON, kWave 1): hump at 4.6 m/s (C_V 2.07, Fn_L 0.73, R/W 0.782): keel trim -58.3 deg (pitch -57.9); lowest keel trim on the run -67.0 deg at 4.3 m/s; highest before the hump 1.9, over C_V 1.5-4 14.9; lift-off - - NOSE-OVER (pitch -88)
+>    Cessna on floats (as built): hump at 6.1 m/s (C_V 2.34, Fn_L 0.73, R/W 0.081): keel trim 8.2 deg (pitch 7.2); lowest keel trim on the run 2.3 deg at 26.1 m/s; highest before the hump 8.2, over C_V 1.5-4 15.1; lift-off 30.5 s
+>    Cessna on floats (the plough wave ON, kWave 1): hump at 3.0 m/s (C_V 1.14, Fn_L 0.36, R/W 0.109): keel trim 3.1 deg (pitch 2.0); lowest keel trim on the run 2.2 deg at 2.7 m/s; highest before the hump 3.1, over C_V 1.5-4 14.1; lift-off 31.7 s
+> PASS Cessna on floats: keel trim at the hump 8.2 deg inside 8-12
+> PASS Cessna on floats: never nose-down on the run (lowest keel trim 2.3 deg)
+> PASS twin on floats with the thrust at the nose frame (INSTRUMENT): lowest keel trim 1.5 deg (> 0), at the hump 5.3 deg: the base's hydro carries the plough's bow-up trim
+> OWED twin on floats (as built): keel trim at the hump -7.0 deg, lowest -7.4 deg at 4.3 m/s - its thrust couple (0.57 m over the CG) and the water drag (1.5 m under it) beat the floats' nose-down restoring once the afterbody unwets (HANDOVER G1807-G1809, open question 1)
+> NOTE twin on floats with the plough wave ON: NOSES OVER in calm air (pitch -88 deg) - the wave's crest on the narrow bow, its trough on the wide forebody ahead of the CG: why it ships OFF
+> 
+> SWEEP (GATE SEAPLANE's crosswind take-off, THE PILOT, the SEA lane; swing from the roll's own heading)
+>    twin on floats:  wind | lift-off s | swing deg | |x| m | lowest pitch deg | lowest keel trim deg | skips | class
+>       0.0 |    8.3 |    0.0 |    0.0 |   -7.7 |   -7.4 | 0 | ok
+>       0.5 |    8.3 |    1.8 |    1.2 |   -7.7 |   -7.4 | 0 | ok
+>       1.0 |    8.2 |    2.9 |    2.4 |   -7.6 |   -7.4 | 0 | ok
+>       1.5 |    7.8 |    5.1 |    1.8 |   -8.6 |   -8.5 | 0 | ok
+>       2.0 |    -   |  177.7 |  215.8 |  -89.2 |  -63.9 | 0 | NOSE-OVER at the plough
+>       2.5 |    8.4 |    8.5 |    4.2 |   -8.7 |   -8.7 | 1 | ok
+>       3.0 |    7.8 |   10.3 |    5.3 |   -8.3 |   -8.3 | 1 | ok
+>       3.5 |    7.0 |   30.7 |    8.0 |   -7.7 |   -7.5 | 0 | YAW WATER LOOP
+>       4.0 |    -   |  180.0 |  127.3 |  -87.5 |  -64.4 | 0 | NOSE-OVER at the plough
+>       4.5 |    -   |  180.0 | 1142.0 |  -79.5 |  -63.3 | 0 | NOSE-OVER at the plough
+>       5.0 |    -   |  173.9 | 1131.0 |  -72.1 |  -58.8 | 0 | NOSE-OVER at the plough
+> PASS twin on floats: 0-1.5 m/s across clean (DMG-HULL's clean band)
+> OWED twin on floats: NOSE-OVER at the plough at 2, 4, 4.5, 5 m/s across (HANDOVER G1807-G1809, open question 1: the thrust couple, not a missing wave)
+> OWED twin on floats: YAW swing past 30 deg at 3.5 m/s (30.7 deg) (HANDOVER G1847-G1849, open question 2)
+>    twin on floats (INSTRUMENT: thrust at the nose frame):  wind | lift-off s | swing deg | |x| m | lowest pitch deg | lowest keel trim deg | skips | class
+>       0.0 |    6.4 |    0.0 |    0.0 |    0.0 |    1.5 | 0 | ok
+>       0.5 |    6.4 |    1.9 |    0.7 |    0.0 |    1.5 | 0 | ok
+>       1.0 |    6.4 |    2.1 |    1.5 |    0.0 |    1.8 | 0 | ok
+>       1.5 |    5.6 |    2.8 |    1.1 |   -1.3 |    1.0 | 1 | ok
+>       2.0 |    5.8 |    3.9 |    2.1 |    0.0 |    1.6 | 0 | ok
+>       2.5 |    6.4 |    8.9 |    3.5 |    0.0 |    3.3 | 1 | ok
+>       3.0 |    5.5 |    6.3 |    2.0 |    0.0 |    1.7 | 0 | ok
+>       3.5 |    5.7 |    6.5 |    2.4 |   -1.1 |    2.4 | 1 | ok
+>       4.0 |    6.1 |    9.4 |    3.6 |    0.0 |    1.3 | 1 | ok
+>       4.5 |    6.5 |   16.1 |    5.8 |   -5.5 |    0.5 | 1 | ok
+>       5.0 |    4.7 |   21.2 |    1.8 |   -4.4 |   -0.2 | 1 | ok
+> NOTE twin on floats with the thrust at the nose frame: no nose-over at any wind; no yaw loop
+>    Cessna on floats:  wind | lift-off s | swing deg | |x| m | lowest pitch deg | lowest keel trim deg | skips | class
+>       0.0 |   30.5 |    0.0 |    0.0 |   -0.5 |    2.3 | 0 | ok
+>       0.5 |   30.6 |    0.3 |    0.6 |   -0.5 |    2.3 | 0 | ok
+>       1.0 |   30.3 |    1.0 |    1.4 |   -0.5 |    2.3 | 0 | ok
+>       1.5 |   30.1 |    0.9 |    2.1 |   -0.5 |    2.4 | 0 | ok
+>       2.0 |   28.7 |    4.7 |    2.6 |   -0.5 |    2.2 | 0 | ok
+>       2.5 |   31.3 |    1.3 |    3.6 |   -0.5 |    2.3 | 0 | ok
+>       3.0 |   30.2 |    7.7 |    3.8 |   -0.5 |    2.2 | 4 | ok
+>       3.5 |   30.4 |    9.4 |    4.5 |   -0.5 |    2.3 | 3 | ok
+>       4.0 |   29.6 |    5.1 |    4.8 |   -1.9 |    2.0 | 2 | ok
+>       4.5 |   30.9 |   12.0 |    6.0 |   -0.5 |    2.1 | 1 | ok
+>       5.0 |   33.2 |   14.0 |    7.7 |   -0.5 |    1.8 | 4 | ok
+> PASS Cessna on floats: every take-off off the water, no nose-over, swing and lane under 30 (worst 14.0 deg, 7.7 m)
+> 
+> (37 runs in 376 s on 4 processes)
+< the page's world (the whole boot): 8939 ms
+> the page's world (the whole boot): 8041 ms
+<   the host: init 8701 ms, the trimmed boot 79.0 MiB
+>   the host: init 7625 ms, the trimmed boot 79.0 MiB
+<   ok   stock: every step's FNV(p, v) equal, 0..600 (final 45a69d5d, page 5971 ms)
+>   ok   stock: every step's FNV(p, v) equal, 0..600 (final 45a69d5d, page 5182 ms)
+<   ok   cessnaMetal: every step's FNV(p, v) equal, 0..600 (final 5cf2e21e, page 9124 ms)
+>   ok   cessnaMetal: every step's FNV(p, v) equal, 0..600 (final 5cf2e21e, page 7375 ms)
+<   the page frozen 1.5 s: 19 steps while it was (held), 30 in the half second after; 1 stall, 1.262 s let go
+<   ok   the worker thread holds through a 1.5 s page freeze (19 steps, <= 21) and goes on after it (30 steps in 0.5 s, 1.262 s let go)
+<   transport: a 4.6 KB snapshot buffer there and back (transferred) p50 0.030 / p99 0.404 ms
+<   a snapshot's one-way latency (published -> taken; the render loop is busy 8 ms of each frame) p50 2.833 / p90 11.170 / max 39.349 ms
+<   the pose age at the render (now less when the host held the drawn state; interpolated at T - 1 step) p50 50.681 / p90 60.175 ms
+<   the render thread's physics: take 0.065 / max 5.602 ms a snapshot, frame 0.075 / max 3.286 ms a frame
+<   the host: 248 steps in 3.5 s + the freeze, step 7.862 ms (eased), dilation 0.994, dropped 0.167 s (3 turns), 204 snapshots, buffers allocated 0 (0 after the first second), 232 frames drawn
+<   ok   the host's clock ran (248 steps, 204 snapshots)
+<   ok   every action applied once and logged with its step (start@7, impulse@50, manual@78, hand@78, manual@128, setDay@158)
+>   the page frozen 1.5 s: 14 steps while it was (held), 30 in the half second after; 1 stall, 1.270 s let go
+>   ok   the worker thread holds through a 1.5 s page freeze (14 steps, <= 21) and goes on after it (30 steps in 0.5 s, 1.270 s let go)
+>   transport: a 4.6 KB snapshot buffer there and back (transferred) p50 0.048 / p99 3.814 ms
+>   a snapshot's one-way latency (published -> taken; the render loop is busy 8 ms of each frame) p50 1.551 / p90 7.491 / max 17.171 ms
+>   the pose age at the render (now less when the host held the drawn state; interpolated at T - 1 step) p50 42.368 / p90 59.820 ms
+>   the render thread's physics: take 0.042 / max 6.162 ms a snapshot, frame 0.059 / max 5.138 ms a frame
+>   the host: 250 steps in 3.5 s + the freeze, step 6.426 ms (eased), dilation 0.992, dropped 0.067 s (1 turns), 245 snapshots, buffers allocated 0 (0 after the first second), 238 frames drawn
+>   ok   the host's clock ran (250 steps, 245 snapshots)
+>   ok   every action applied once and logged with its step (start@14, impulse@56, manual@86, hand@86, manual@134, setDay@164)
+<   ok   the host's log replayed inline reproduces all 204 published snapshots to the bit
+>   ok   the host's log replayed inline reproduces all 245 published snapshots to the bit
+<   ok   the page's fetch path (the manifest, gzip through DecompressionStream) gives island_node's bytes, key for key (886 ms)
+>   ok   the page's fetch path (the manifest, gzip through DecompressionStream) gives island_node's bytes, key for key (1583 ms)
+< 35 checks, 0 failed, 100.3 s
+> 35 checks, 0 failed, 81.2 s
+<    water 8.54 ms/step (hydro every 20 of 24 substeps)  dry 6.55 ms/step  ratio 1.30 x  L/W at rest 0.9989 (every substep: 0.9991)
+< PASS the water costs 1.30 x the dry step (bound 2.5)
+>    water 8.38 ms/step (hydro every 20 of 24 substeps)  dry 6.16 ms/step  ratio 1.36 x  L/W at rest 0.9989 (every substep: 0.9991)
+> PASS the water costs 1.36 x the dry step (bound 2.5)
+< TREECRASH PASS   608.4 s
+< DMGDAMP   PASS   264.9 s
+< DMGHULL   PASS   503.4 s
+< BENCH     PASS    75.6 s
+< SIMWORKER PASS   100.6 s
+< HYDRODYN  PASS   159.8 s
+< WATER     PASS     8.3 s
+< FLOATS    PASS    67.1 s
+< WIPLINE   PASS    13.1 s
+< SEAPLANE  PASS   281.8 s
+< SOAR      PASS   863.5 s
+< LOAD      PASS   349.4 s
+< total           3295.9 s
+< wall            1648.7 s  (jobs 4)
+> TREECRASH PASS   495.6 s
+> DMGDAMP   PASS   219.7 s
+> DMGHULL   PASS   407.5 s
+> BENCH     PASS    60.9 s
+> SIMWORKER PASS    81.5 s
+> HYDRODYN  PASS   133.1 s
+> WATER     PASS     6.4 s
+> FLOATS    PASS    56.0 s
+> WIPLINE   PASS    10.6 s
+> SEAPLANE  PASS   230.4 s
+> SOAR      PASS   720.2 s
+> LOAD      PASS   281.4 s
+> total           3079.8 s
+> wall            1734.6 s  (jobs 4)

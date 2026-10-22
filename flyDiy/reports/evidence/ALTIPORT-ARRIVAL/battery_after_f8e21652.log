@@ -1,0 +1,186 @@
+=== PILOT ===
+--- shard 0/3 (337.0 s) ---
+  ok     box: NAV closes on the waypoint (2259 m nearer)
+  ok     box: the pilot resumes on disengage and lands
+GATE PILOT: PASS
+--- shard 1/3 (319.9 s) ---
+-- BOX: the modes as a device, over the pilot and over a hand --
+   (flown in another shard)
+GATE PILOT: PASS
+--- shard 2/3 (330.5 s) ---
+-- BOX: the modes as a device, over the pilot and over a hand --
+   (flown in another shard)
+GATE PILOT: PASS
+=== NAV ===
+  ok     units: 100 m = 328.1 ft
+  ok     units: degrees wrap and difference
+GATE NAV: PASS
+=== TAKEOFF ===
+THE TURN-AROUND (pilot_one_turnaround: the Cub at East Point, 150 x 12 m, stopped 20 m from the closed end)
+  roll at 21.5 s; max |cross| 2.7 m, past an end -18.7 m, off the surface 0.0 s; LIFTOFF (airborne); pivot,committed-takeoff
+GATE TAKEOFF: PASS
+=== PILOTACT ===
+  c172:HOME:calm:stand                                 taxi 0/16  takeoff 0/0  climb 0/0  legs 3.8/3.8  downwind 0/0  base 3.3/3.3  final 1.2/1.2  landing 0/0
+  fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:stand taxi 0/16.3  takeoff 0/0  climb 0/0  legs 4/4  downwind 0/0  base 3.4/3.4  final 5.1/1.3  landing 0/0
+GATE PILOTACT: PASS
+=== TAXICLEAR ===
+  the user's Cub  span 10.7 m from the mill: airborne at 85 s, the wing 2.97 m off the nearest footprint (item mn_s_mine/school at (7242.5, -15493.1) in ROLL, t 60 s); flew over a footprint 18.7 m above its top (item mn_s_mine/house6 in CLIMB), 0 contacts, 0 trunk hits
+  10 the fleet's spots: w2 12 (aaaaaaaaaaar), HOME 12 (saaaaaaaaaaa), w3 12 (aaaaaaaaaaaa), SEA 12 (rrrrrrrrrrrr), mk_sea 12 (rrrrrrrrrrrr), mn_strip 0 (), nv_strip 5 (aaaar), tw_ski 0 (); 12408 rows in 2.0 s
+GATE TAXICLEAR: PASS
+=== TOUR ===
+--- shard 0/4 (12.7 s) ---
+FAIL 1 w3 climb-out T1: nothing but the ground through the 1:15 surface, the ground <= 2.5 m  (+4.6 m, ground 75 m out)
+  FAIL 1 mn_strip climb-out T0: nothing but the ground through the 1:15 surface, the ground <= 2.5 m  (+148 m, ground 1475 m out)
+  FAIL 1 mn_strip climb-out T0: the 5.7 % final clears everything by 10 m  (-143.4 m (ground 1500 m out))
+  FAIL 1 nv_strip approach k0: nothing but the ground through the 1:15 surface, the ground <= 2.5 m  (+18.6 m, forest 50 m out)
+  FAIL 1 nv_strip approach k0: the 5.7 % final clears everything by 10 m  (-4.8 m (forest 50 m out))
+  FAIL 1 nv_strip climb-out T1: nothing but the ground through the 1:15 surface, the ground <= 2.5 m  (+18.6 m, forest 50 m out)
+  FAIL 1 nv_strip climb-out T1: the 5.7 % final clears everything by 10 m  (-4.8 m (forest 50 m out))
+  FAIL 2 calibration: Jumbo Mine left south has the ridge through its climb-out  (+1 m 25 m out)
+  FAIL 3a no water on a land strip, a turn pad or the mine's apron  (1826 wet samples, first w2 (825.5, -625.2))
+[stderr]
+SHARD 0/4: 0 of 0 heavy jobs
+/home/user/DeGaRoR.github.io/flyDiy/tools/_tour_check.js:114
+      const TP = C.turnPadNodes(a, k);
+                   ^
+
+TypeError: C.turnPadNodes is not a function
+    at Object.<anonymous> (/home/user/DeGaRoR.github.io/flyDiy/tools/_tour_check.js:114:20)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49
+
+Node.js v22.22.0
+(exit code 1)
+--- shard 1/4 (2485.6 s) ---
+the aluminium C172: HOME > w3 > tw_ski > w2 > HOME - DONE, 4 legs, fuel left 13.5 L (2471 s)
+[stderr]
+SHARD 1/4: 1 of 2 heavy jobs
+/home/user/DeGaRoR.github.io/flyDiy/tools/_load_build.js:89
+  if (!out || !out.spec) throw new Error('_load_build: the page chain failed (exit ' + r.status + '): ' +
+                         ^
+
+Error: _load_build: the page chain failed (exit 1): TypeError: W.CAGE2.cageGlazedM2 is not a function |     at buildAndJoin (/home/user/DeGaRoR.github.io/flyDiy/tools/_load_build.js:198:45) |     at /home/user/DeGaRoR.github.io/flyDiy/tools/_load_build.js:208:3 
+    at gameSpecFull (/home/user/DeGaRoR.github.io/flyDiy/tools/_load_build.js:89:32)
+    at Object.gameSpec (/home/user/DeGaRoR.github.io/flyDiy/tools/_load_build.js:95:33)
+    at Object.<anonymous> (/home/user/DeGaRoR.github.io/flyDiy/tools/_tour_check.js:185:57)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+
+Node.js v22.22.0
+(exit code 1)
+--- shard 2/4 (1566.4 s) ---
+the float Cessna: SEA > mk_sea > SEA - DONE, 2 legs, fuel left 16.7 L (1550 s)
+[stderr]
+SHARD 2/4: 1 of 3 heavy jobs
+/home/user/DeGaRoR.github.io/flyDiy/tools/_load_build.js:89
+  if (!out || !out.spec) throw new Error('_load_build: the page chain failed (exit ' + r.status + '): ' +
+                         ^
+
+Error: _load_build: the page chain failed (exit 1): TypeError: W.CAGE2.cageGlazedM2 is not a function |     at buildAndJoin (/home/user/DeGaRoR.github.io/flyDiy/tools/_load_build.js:198:45) |     at /home/user/DeGaRoR.github.io/flyDiy/tools/_load_build.js:208:3 
+    at gameSpecFull (/home/user/DeGaRoR.github.io/flyDiy/tools/_load_build.js:89:32)
+    at Object.gameSpec (/home/user/DeGaRoR.github.io/flyDiy/tools/_load_build.js:95:33)
+    at Object.<anonymous> (/home/user/DeGaRoR.github.io/flyDiy/tools/_tour_check.js:185:57)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+
+Node.js v22.22.0
+(exit code 1)
+--- shard 3/4 (860.9 s) ---
+the user's Cub: HOME > nv_strip > mn_strip (851 s)
+  INFO 6 East Point > Jumbo Mine (PILOT-ONE-2, owed): TAKES OFF - fold East Point into ORDERS.land
+GATE TOUR [shard 3/4]: PASS
+[stderr]
+SHARD 3/4: 1 of 4 heavy jobs
+(exit code 0)
+(shard partition disagrees: 0/0 1/2 1/3 1/4 — a heavy job was dropped or flown twice)
+=== ALTIPORT ===
+--- shard 0/3 (1449.0 s) ---
+the user's Jodel: ok   HOME > tw_ski          789 s | dep: turned 103.2 deg, roll 108.9 m in, lift-off 193.6 m | final 3558.3 m / 787.9 m, clear 14.5 m (ground) | td sink -1.14 m/s, 20.9 m/s, run 132 m, off 3.8 m | fuel 42.1 L (1449 s)
+GATE ALTIPORT [shard 0/3]: PASS
+[stderr]
+SHARD 0/3: 1 of 3 heavy jobs
+(exit code 0)
+--- shard 1/3 (570.8 s) ---
+the user's Cub: FAIL HOME > tw_ski          698 s | dep: turned 104.5 deg, roll 108.9 m in, lift-off 113.5 m | final 3319.4 m / 766.1 m, clear 13.9 m (ground) | td sink -0.48 m/s, 17.6 m/s, run 96 m, off 1 m | fuel 26.8 L | FAULTS off-strip (the landing roll left tw_ski's box); ground-loop (the nose 30.1 deg off the landing roll on tw_ski at 9.9 m/s) | phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>ROLLOUT>STOPPED (570 s)
+  KNOWN 2 the user's Cub HOME > tw_ski: the roll-out (pre-existing on pilot-42 and train 40, routed - HANDOVER G2520): off-strip: the landing roll left tw_ski's box; ground-loop: the nose 30.1 deg off the landing roll on tw_ski at 9.9 m/s
+GATE ALTIPORT [shard 1/3]: PASS
+[stderr]
+SHARD 1/3: 1 of 3 heavy jobs
+(exit code 0)
+--- shard 2/3 (1556.2 s) ---
+doctored: ok   HOME > tw_ski          873 s | dep: turned 103.2 deg, roll 108.9 m in, lift-off 193.6 m | final 2025.4 m / 495.3 m, clear 14.3 m (ground) | td sink -1.18 m/s, 20.7 m/s, run 126 m, off 1.4 m | fuel 41.7 L (1556 s)
+GATE ALTIPORT [shard 2/3]: PASS
+[stderr]
+SHARD 2/3: 1 of 3 heavy jobs
+(exit code 0)
+=== PLAN ===
+stock, HOME (analytic)       legs CROSSWIND 125 m / DOWNWIND 125 m / BASE 125 m / FINAL 0 m · downwind 0.3 m off the plan · terrain lift 0 m
+  aluminium C172, Jolene HOME  legs CROSSWIND 187 m / DOWNWIND 187 m / BASE 187 m / FINAL 29 m · downwind 0.2 m off the plan · terrain lift 0 m
+GATE PLAN: PASS
+=== LINEUP ===
+GATE LINEUP: PASS
+=== PROFILE ===
+  PASS  3 on final the lowest node >= 10 m over every tree top within 15 m of the track - 67.4 m (611 m before the threshold); the approach {"technique":"short","gs":0.105,"reqGs":0.17,"aimIn":-7,"displaced":null}
+(778 s)
+GATE PROFILE: PASS
+=== ROUTE ===
+--- shard 0/3 (793.7 s) ---
+  persona:club: ok (425 s) [shard 0/3]
+ROUTE: 0 failure(s), 793 s [shard 0/3]
+GATE ROUTE: PASS
+--- shard 1/3 (861.6 s) ---
+  persona:student: ok (387 s) [shard 1/3]
+ROUTE: 0 failure(s), 861 s [shard 1/3]
+GATE ROUTE: PASS
+--- shard 2/3 (707.1 s) ---
+  persona:hamfist: ok (357 s) [shard 2/3]
+ROUTE: 0 failure(s), 707 s [shard 2/3]
+GATE ROUTE: PASS
+=== PILOTMATRIX ===
+wall 1516 s
+  ratchet: no cell worse than pilot_baseline.json; 3 known bad, 2 warn
+GATE PILOTMATRIX: PASS
+=== HOTHIGH ===
+GATE HH-GEN: PASS
+flown and computed at 35 C / 1008.00 hPa; 0 checks failed, 0 circuit(s) failed
+GATE HOTHIGH: PASS
+=== SOAR ===
+  ok   and it GAINS 113 m in 200 s (899 -> 1013) where the same circle without the columns loses 417
+  ok   the netto vario reads the AIR to -0.32 m/s of the field itself on the mean of 169 samples (the instantaneous spread 0.98: a turn's load factor is not on a wings-level polar)
+GATE SOAR: PASS
+
+──────── summary ────────
+PILOT     PASS   337.0 s  [3 shards]
+NAV       PASS     0.2 s
+TAKEOFF   PASS   558.3 s
+PILOTACT  PASS   226.7 s
+TAXICLEAR PASS   351.4 s
+TOUR      FAIL  2485.6 s  [4 shards]
+ALTIPORT  FAIL  1556.2 s  [3 shards]
+PLAN      PASS   460.7 s
+LINEUP    PASS   270.4 s
+PROFILE   PASS   778.5 s
+ROUTE     PASS   861.6 s  [3 shards]
+PILOTMATRIX PASS  1515.8 s
+HOTHIGH   PASS   238.0 s
+SOAR      PASS  1077.2 s
+total           10717.6 s
+wall            6143.2 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.

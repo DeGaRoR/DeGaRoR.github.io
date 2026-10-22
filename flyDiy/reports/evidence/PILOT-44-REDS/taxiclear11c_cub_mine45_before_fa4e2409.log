@@ -1,0 +1,111 @@
+mn 7249.7 -15429.4 len 250 hdg -1.658 elev 346.8 pose {"x":7256.655424935609,"z":-15349.674683657271,"hdg":1.4834926535897934}
+t 0.0 phase TAXI cg 7256.6,348.0,-15350.5 agl 1.2
+t 61.9 phase STOP cg 7240.7,347.9,-15501.3 agl 1.1
+t 62.2 phase HOLD cg 7240.7,347.9,-15501.1 agl 1.1
+t 64.2 phase LINEUP cg 7240.8,347.9,-15501.1 agl 1.1
+t 64.2 phase STOP cg 7240.8,347.9,-15501.1 agl 1.1
+t 64.2 phase HOLD cg 7240.8,347.9,-15501.1 agl 1.1
+t 66.2 phase LINEUP cg 7240.8,347.9,-15501.0 agl 1.1
+t 66.2 phase STOP cg 7240.8,347.9,-15501.0 agl 1.1
+t 66.3 phase HOLD cg 7240.8,347.9,-15501.0 agl 1.1
+t 68.3 phase ROLL cg 7240.8,347.9,-15501.0 agl 1.1
+t 80.6 phase LIFTOFF cg 7253.8,348.0,-15382.6 agl 1.2
+t 89.7 phase CLIMB cg 7269.9,359.6,-15198.6 agl 15.2
+  t 94.2 CLIMB f -1.0 d 0.80 item mn_s_mine/house6 top 349.4 lowY 368.4 over 19.0 agl 25.9 cg 7278.8 -15096.2
+  t 94.2 CLIMB f -0.9 d 0.67 item mn_s_mine/house6 top 349.4 lowY 368.4 over 19.0 agl 25.9 cg 7278.8 -15096.2
+  t 94.2 CLIMB f -0.8 d 0.69 item mn_s_mine/house6 top 349.4 lowY 368.4 over 19.0 agl 25.9 cg 7278.8 -15096.2
+  t 94.2 CLIMB f -0.7 d 1.03 item mn_s_mine/house6 top 349.4 lowY 368.4 over 19.0 agl 25.9 cg 7278.8 -15096.2
+  t 94.2 CLIMB f -0.6 d 1.49 item mn_s_mine/house6 top 349.4 lowY 368.4 over 19.0 agl 25.9 cg 7278.8 -15096.2
+  t 94.3 CLIMB f -1.0 d -0.01 item mn_s_mine/house6 top 349.4 lowY 368.7 over 19.3 agl 26.3 cg 7279.0 -15094.0
+  t 94.3 CLIMB f -0.9 d -0.01 item mn_s_mine/house6 top 349.4 lowY 368.7 over 19.3 agl 26.3 cg 7279.0 -15094.0
+  t 94.3 CLIMB f -0.8 d -0.01 item mn_s_mine/house6 top 349.4 lowY 368.7 over 19.3 agl 26.3 cg 7279.0 -15094.0
+  t 94.3 CLIMB f -0.7 d 0.21 item mn_s_mine/house6 top 349.4 lowY 368.7 over 19.3 agl 26.3 cg 7279.0 -15094.0
+  t 94.3 CLIMB f -0.6 d 0.08 item mn_s_mine/house6 top 349.4 lowY 368.7 over 19.3 agl 26.3 cg 7279.0 -15094.0
+  t 94.3 CLIMB f -0.5 d 0.44 item mn_s_mine/house6 top 349.4 lowY 368.7 over 19.3 agl 26.3 cg 7279.0 -15094.0
+  t 94.3 CLIMB f -0.4 d 0.96 item mn_s_mine/house6 top 349.4 lowY 368.7 over 19.3 agl 26.3 cg 7279.0 -15094.0
+  t 94.3 CLIMB f -0.3 d 1.48 item mn_s_mine/house6 top 349.4 lowY 368.7 over 19.3 agl 26.3 cg 7279.0 -15094.0
+  t 94.4 CLIMB f -1.0 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.0 over 19.5 agl 26.8 cg 7279.2 -15091.7
+  t 94.4 CLIMB f -0.9 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.0 over 19.5 agl 26.8 cg 7279.2 -15091.7
+  t 94.4 CLIMB f -0.8 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.0 over 19.5 agl 26.8 cg 7279.2 -15091.7
+  t 94.4 CLIMB f -0.7 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.0 over 19.5 agl 26.8 cg 7279.2 -15091.7
+  t 94.4 CLIMB f -0.6 d 0.11 item mn_s_mine/house6 top 349.4 lowY 369.0 over 19.5 agl 26.8 cg 7279.2 -15091.7
+  t 94.4 CLIMB f -0.5 d 0.24 item mn_s_mine/house6 top 349.4 lowY 369.0 over 19.5 agl 26.8 cg 7279.2 -15091.7
+  t 94.4 CLIMB f -0.4 d 0.55 item mn_s_mine/house6 top 349.4 lowY 369.0 over 19.5 agl 26.8 cg 7279.2 -15091.7
+  t 94.4 CLIMB f -0.3 d 1.06 item mn_s_mine/house6 top 349.4 lowY 369.0 over 19.5 agl 26.8 cg 7279.2 -15091.7
+  t 94.5 CLIMB f -1.0 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.2 over 19.8 agl 27.2 cg 7279.4 -15089.5
+  t 94.5 CLIMB f -0.9 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.2 over 19.8 agl 27.2 cg 7279.4 -15089.5
+  t 94.5 CLIMB f -0.8 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.2 over 19.8 agl 27.2 cg 7279.4 -15089.5
+  t 94.5 CLIMB f -0.7 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.2 over 19.8 agl 27.2 cg 7279.4 -15089.5
+  t 94.5 CLIMB f -0.6 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.2 over 19.8 agl 27.2 cg 7279.4 -15089.5
+  t 94.5 CLIMB f -0.5 d 0.34 item mn_s_mine/house6 top 349.4 lowY 369.2 over 19.8 agl 27.2 cg 7279.4 -15089.5
+  t 94.5 CLIMB f -0.4 d 0.86 item mn_s_mine/house6 top 349.4 lowY 369.2 over 19.8 agl 27.2 cg 7279.4 -15089.5
+  t 94.5 CLIMB f -0.3 d 1.38 item mn_s_mine/house6 top 349.4 lowY 369.2 over 19.8 agl 27.2 cg 7279.4 -15089.5
+  t 94.6 CLIMB f -1.0 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.5 over 20.1 agl 27.6 cg 7279.6 -15087.2
+  t 94.6 CLIMB f -0.9 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.5 over 20.1 agl 27.6 cg 7279.6 -15087.2
+  t 94.6 CLIMB f -0.8 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.5 over 20.1 agl 27.6 cg 7279.6 -15087.2
+  t 94.6 CLIMB f -0.7 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.5 over 20.1 agl 27.6 cg 7279.6 -15087.2
+  t 94.6 CLIMB f -0.6 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.5 over 20.1 agl 27.6 cg 7279.6 -15087.2
+  t 94.6 CLIMB f -0.5 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.5 over 20.1 agl 27.6 cg 7279.6 -15087.2
+  t 94.6 CLIMB f -0.4 d 0.31 item mn_s_mine/house6 top 349.4 lowY 369.5 over 20.1 agl 27.6 cg 7279.6 -15087.2
+  t 94.6 CLIMB f -0.3 d 0.83 item mn_s_mine/house6 top 349.4 lowY 369.5 over 20.1 agl 27.6 cg 7279.6 -15087.2
+  t 94.6 CLIMB f -0.2 d 1.35 item mn_s_mine/house6 top 349.4 lowY 369.5 over 20.1 agl 27.6 cg 7279.6 -15087.2
+  t 94.7 CLIMB f -1.0 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.7 over 20.3 agl 28.0 cg 7279.8 -15085.0
+  t 94.7 CLIMB f -0.9 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.7 over 20.3 agl 28.0 cg 7279.8 -15085.0
+  t 94.7 CLIMB f -0.8 d -0.01 item mn_s_mine/house6 top 349.4 lowY 369.7 over 20.3 agl 28.0 cg 7279.8 -15085.0
+  t 94.7 CLIMB f -0.7 d 0.21 item mn_s_mine/house6 top 349.4 lowY 369.7 over 20.3 agl 28.0 cg 7279.8 -15085.0
+  t 94.7 CLIMB f -0.6 d 0.70 item mn_s_mine/house6 top 349.4 lowY 369.7 over 20.3 agl 28.0 cg 7279.8 -15085.0
+  t 94.7 CLIMB f -0.5 d 0.83 item mn_s_mine/house6 top 349.4 lowY 369.7 over 20.3 agl 28.0 cg 7279.8 -15085.0
+  t 94.7 CLIMB f -0.4 d 0.96 item mn_s_mine/house6 top 349.4 lowY 369.7 over 20.3 agl 28.0 cg 7279.8 -15085.0
+  t 94.7 CLIMB f -0.3 d 1.13 item mn_s_mine/house6 top 349.4 lowY 369.7 over 20.3 agl 28.0 cg 7279.8 -15085.0
+  t 94.7 CLIMB f -0.2 d 1.46 item mn_s_mine/house6 top 349.4 lowY 369.7 over 20.3 agl 28.0 cg 7279.8 -15085.0
+  t 94.8 CLIMB f -1.0 d 1.38 item mn_s_mine/house6 top 349.4 lowY 370.0 over 20.6 agl 28.4 cg 7280.0 -15082.7
+t 95.2 phase ENROUTE cg 7280.8,372.0,-15073.3 agl 29.3
+  t 95.6 ENROUTE f 0.1 d 1.45 item mn_s_mine/house7 top 348.8 lowY 372.0 over 23.2 agl 29.8 cg 7281.6 -15064.7
+  t 95.7 ENROUTE f -1.0 d 1.43 prop mn_s_mine/house7#cement_bags6 top 344.7 lowY 372.2 over 27.6 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f -0.9 d 1.44 prop mn_s_mine/house7#cement_bags6 top 344.7 lowY 372.2 over 27.6 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f -0.8 d 1.45 prop mn_s_mine/house7#cement_bags6 top 344.7 lowY 372.2 over 27.6 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f -0.7 d 1.35 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f -0.6 d 1.09 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f -0.5 d 0.84 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f -0.4 d 0.59 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f -0.3 d 0.34 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f -0.2 d 0.08 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f -0.1 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f -0.0 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f 0.1 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f 0.2 d 0.00 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f 0.3 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f 0.4 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f 0.5 d 0.32 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f 0.6 d 0.06 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f 0.7 d 0.36 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f 0.8 d 0.83 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.7 ENROUTE f 0.9 d 1.30 item mn_s_mine/house7 top 348.8 lowY 372.2 over 23.4 agl 29.9 cg 7281.8 -15062.4
+  t 95.8 ENROUTE f -1.0 d -0.19 prop mn_s_mine/house7#cement_bags6 top 344.7 lowY 372.5 over 27.8 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f -0.9 d -0.73 prop mn_s_mine/house7#cement_bags6 top 344.7 lowY 372.5 over 27.8 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f -0.8 d -0.71 prop mn_s_mine/house7#cement_bags6 top 344.7 lowY 372.5 over 27.8 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f -0.7 d -0.17 prop mn_s_mine/house7#cement_bags6 top 344.7 lowY 372.5 over 27.8 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f -0.6 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f -0.5 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f -0.4 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f -0.3 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f -0.2 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f -0.1 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f -0.0 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f 0.1 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f 0.2 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f 0.3 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f 0.4 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f 0.5 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f 0.6 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f 0.7 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f 0.8 d -0.01 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f 0.9 d 0.25 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+  t 95.8 ENROUTE f 1.0 d 0.72 item mn_s_mine/house7 top 348.8 lowY 372.5 over 23.7 agl 30.0 cg 7282.0 -15060.2
+airborne 30 m at t 95.8
+minW -0.73 prop mn_s_mine/house7#cement_bags6 t 96
+pivot: turning round 21 m on (then the route) - the route's swept wings 8 m into the 3 m margin of a solid thing at (7255, -15335), the turn clear by 0.5 m
+committed-takeoff: past the point of stopping at V=13.0 with 136 m left — Vr in 36 m, continuing
+vx-climb: ground ahead above the aeroplane — climbing at Vx 22.2 m/s until clear
+terrain-turn: the ground ahead climbs faster than the aeroplane — turning at 24 m
+terrain-react: the ground ahead stands within 40 m of the plan on ENROUTE - climbing to 643 m (planned 372)

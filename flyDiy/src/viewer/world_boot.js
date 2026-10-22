@@ -46,7 +46,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // taxi at 12-15 fps, so it is OFF unless the GRAPHICS 'town' row says 'all' or the URL ?town=1 - dropped at load,
   // code and data kept; the editor's autosave puts the cut back (below), so a save made with it off keeps it
   const TOWN = (() => {
-    const T = { all: false, off: ['mk_'], cut: null, n: 0 };
+    // (METLA-WRAPUP: the seaplane base stands with the town off - PREMISES_GEN.TOWN_OFF, the cook's 'default' variant's)
+    const TO = typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.TOWN_OFF;
+    const T = { all: false, off: TO ? TO.drop.slice() : ['mk_'], keep: TO ? TO.keep.slice() : [], cut: null, n: 0 };
     try { const q = new URLSearchParams(location.search).get('town'); const g = window.GFX && window.GFX.get ? window.GFX.get() : null;
       // G1526 (POTATO-DEEP): the row under the build budget's cap - potato / laptop / the software rung never build Metlakatla
       T.all = q !== null ? (q === '1' || q === 'all') : (window.GFX && window.GFX.townAll ? window.GFX.townAll() : !!(g && g.town === 'all')); } catch (e) {}
@@ -54,7 +56,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   })();
   let premisesPlaced = (() => {
     if (TOWN.all || !premisesAtBoot || typeof PREMISES_GEN === 'undefined') return premisesAtBoot;
-    try { const U = PREMISES_GEN.unwrap(premisesAtBoot), D = PREMISES_GEN.dropPlaces(U.rec, TOWN.off);
+    try { const U = PREMISES_GEN.unwrap(premisesAtBoot), D = PREMISES_GEN.dropPlaces(U.rec, TOWN.off, TOWN.keep);
       if (!D.n) return premisesAtBoot;
       TOWN.cut = D.cut; TOWN.n = D.n;
       return PREMISES_GEN.envelope(U.name, D.rec, U.plaque, U.log); } catch (e) { return premisesAtBoot; }
@@ -71,8 +73,13 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     const S = { tracks: null, key: 'sandbox', view: null, text: null };
     try {
       if (!premisesPlaced || typeof PREMISES_GEN === 'undefined' || !PREMISES_GEN.stageView || typeof stageKey !== 'function') return S;
-      if (/[?&]career=1(&|$)/.test(location.search || '') && typeof careerKey === 'function' && typeof stageTracksOf === 'function') {
-        let doc = null; try { doc = JSON.parse(localStorage.getItem(careerKey('dev')) || 'null'); } catch (e) {}
+      // G2740 (CAREER-ON): the player's career (the welcome's choice, FLYDIY_MODE 'career') stands ITS tracks, off its own
+      // document - G3360 (CAREERS): the one welcome.js chose (FLYDIY_CAREER_ID, app.js's same reading; 'main' without one);
+      // a New career has no document yet: every track at 0
+      const devC = /[?&]career=1(&|$)/.test(location.search || ''), mainC = !devC && typeof window !== 'undefined' && window.FLYDIY_MODE === 'career';
+      if ((devC || mainC) && typeof careerKey === 'function' && typeof stageTracksOf === 'function') {
+        const pick = (v => (typeof v === 'string' && /^(main|c[0-9a-z]{1,16})$/.test(v) ? v : 'main'))(typeof window !== 'undefined' ? window.FLYDIY_CAREER_ID : null);
+        let doc = null; try { doc = JSON.parse(localStorage.getItem(careerKey(devC ? 'dev' : pick)) || 'null'); } catch (e) {}
         S.tracks = stageTracksOf(doc) || stageTracksOf({ career: { tracks: {} } });
         // the stills' door (tools/stages_shot.js): ?stages=field:1,minedock:3 composes those values over the document's,
         // for this load only (nothing is written; with ?career=1 alone)
@@ -99,11 +106,19 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // first and threw ("Cannot destructure property 'clamp' of 'K'"). So they are asked for once HOUSE_KIT is in: at
   // once when it is (dev.html), else from the load event of the script that brings it (a script's load fires right
   // after it runs; the generators are then queued behind the pack's remaining tags, long before the roll-out)
-  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && /"(sport|marine)\//.test(premisesPlaced)) {
-    const gens = () => window.FLYDIY_LAZY(['_sport_gen', '_marine_gen']);
+  // (ASSETS-OCT G2909) the navaids' generator the same way: asked for when the record names a navaid/ key
+  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && /"(sport|marine|navaid|utility)\//.test(premisesPlaced)) {
+    const gens = () => window.FLYDIY_LAZY(['_sport_gen', '_marine_gen'].concat(/"(navaid|utility)\//.test(premisesPlaced) ? ['_navaid_gen'] : []));
     if (window.HOUSE_KIT) gens();
     else { const kit = () => { if (!window.HOUSE_KIT) return; document.removeEventListener('load', kit, true); gens(); };
       document.addEventListener('load', kit, true); }
+  } } catch (e) {}
+  // THE SCENERY KIT'S PACKS (ASSETS-OCT G2904): lazy (build.js MANIFEST.lazy, every scenery_* entry, the levels last) -
+  // asked for when the record holds prop objects (the user's placed models); the premises step waits for pending ones
+  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && window.FLYDIY_LAZY_SRC && /"kind":\s*"prop"/.test(premisesPlaced)) {
+    // (G3140-G3149: the camping kit's and the infrastructure kit's packs ride the same rule)
+    const sc = Object.keys(window.FLYDIY_LAZY_SRC).filter(n => /^scenery_/.test(n) || /^camp_/.test(n) || /^infra_/.test(n));
+    if (sc.length) window.FLYDIY_LAZY(sc);
   } } catch (e) {}
   // THE ISLAND (W2): the loader fetched the data world's files when ?world= named one
   // G999: the island loader's promote decoded it in a task of its own (window.ISLAND_MADE, build.js) - taken when it is
@@ -119,7 +134,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   const world = makeWorld(0, { premises: premisesPlaced, island: islandAtBoot });
   // THE HOUSES' OWN THREAD (G830, src/viewer/house_worker.js): it makes this same world from the same premises text and
   // the island's own files - its ~5 s beside the garage's boot - so the town step finds it ready to generate
-  try { if (window.HOUSE_WORKER && premisesPlaced && window.ISLAND_BOOT) window.HOUSE_WORKER.start({ premises: premisesPlaced, island: window.ISLAND_BOOT.id }); } catch (e) { console.warn('house worker:', e && e.message); }
+  try { if (window.HOUSE_WORKER && premisesPlaced && window.ISLAND_BOOT) window.HOUSE_WORKER.start({ premises: premisesPlaced, island: window.ISLAND_BOOT.id, hydro: window.ISLAND_BOOT.hydro }); } catch (e) { console.warn('house worker:', e && e.message); }
   // THE TREES THIS MAP CAN REACH (AS1, G908: trees.js treeReachOf): the composed world (the premises' ttype stamps
   // in, the town filter applied) says which species can stand; every tree fetch after this line (the garage's, the
   // roll-out's) asks for those alone. The analytic world answers null: the whole pack, as before

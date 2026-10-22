@@ -12,7 +12,7 @@
 function placeAtAerodrome(sim, a) {
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   const th = Math.PI - a.hdg;
-  const c = snap(Math.cos(th)), s = snap(Math.sin(th));
+  const c = snap(CORE_MATH.cos(th)), s = snap(CORE_MATH.sin(th));
   const sp = a.spawn || [0, 0];
   for (let i = 0; i < sim.n; i++) {
     const x = sim.p[i * 3], z = sim.p[i * 3 + 2];
@@ -67,7 +67,7 @@ function seatOnGround(sim, groundH, refs) {
       if (Math.abs(want) >= Rr) break;
       const th = Math.asin(want / Rr) - Math.atan2(hT, L);
       if (!(Math.abs(th) < 0.35) || Math.abs(th) < 1e-5) break;   // 20 deg: past that it is not a stand
-      const cs = Math.cos(th), sn = Math.sin(th);
+      const cs = CORE_MATH.cos(th), sn = CORE_MATH.sin(th);
       for (let i = 0; i < sim.n; i++) {
         const s = (P[i * 3] - ax) * ux + (P[i * 3 + 2] - az) * uz, h = P[i * 3 + 1] - ay;
         const s2 = s * cs - h * sn, h2 = s * sn + h * cs;

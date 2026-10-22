@@ -78,12 +78,12 @@ const GEN_N_BOX = 14;     // beyond this a 40-gon ring cannot tell it from a box
 // yUp / yDn are measured FROM THE WAIST (both positive). Returns [dy, dz]
 // relative to the waist plane. theta 0 = top, +pi/2 = +z side, pi = bottom.
 function genSect(theta, halfW, yUp, yDn, nTop, nBot) {
-  const cy = Math.cos(theta), cz = Math.sin(theta);
+  const cy = CORE_MATH.cos(theta), cz = CORE_MATH.sin(theta);
   const up = cy >= 0;
   const h = Math.max(1e-5, up ? yUp : yDn);
   const n = Math.max(1.2, Math.min(GEN_N_BOX, up ? nTop : nBot));
   const a = Math.abs(cy), b = Math.abs(cz);
-  const t = Math.pow(Math.pow(a, n) + Math.pow(b, n), -1 / n);
+  const t = CORE_MATH.pow(CORE_MATH.pow(a, n) + CORE_MATH.pow(b, n), -1 / n);
   return [h * t * cy, halfW * t * cz];
 }
 
@@ -91,7 +91,7 @@ function genSect(theta, halfW, yUp, yDn, nTop, nBot) {
 // the tail cone cap and the legacy genRing wrapper all want a shape that is the
 // same above and below; new work should prefer genSect.
 function genSuper(theta, halfW, halfD, nTop, nBot) {
-  const cy = Math.cos(theta), cz = Math.sin(theta);
+  const cy = CORE_MATH.cos(theta), cz = CORE_MATH.sin(theta);
   // THE EXPONENT IS BLENDED, NOT THE RADIUS, and it is blended with a smoothstep
   // rather than genRing's max(0, cy).
   //
@@ -106,7 +106,7 @@ function genSuper(theta, halfW, halfD, nTop, nBot) {
   const a = Math.abs(cy), b = Math.abs(cz);
   // t scales the unit direction onto the superellipse. Guarded because a is 0 at
   // the waterline and b is 0 at the crown, and 0^n underflows for large n.
-  const t = Math.pow(Math.pow(a, n) + Math.pow(b, n), -1 / n);
+  const t = CORE_MATH.pow(CORE_MATH.pow(a, n) + CORE_MATH.pow(b, n), -1 / n);
   return [halfD * t * cy, halfW * t * cz];
 }
 

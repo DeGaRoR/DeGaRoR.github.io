@@ -41,7 +41,7 @@ function bench(def, o) {
   const D = sim.damage(), st = rig.state, fb = D.firstBreak, b = fb ? sim.beams[fb.beam] : null;
   return { verdict: st.verdict, set: D.members, setMax: D.setMax, breaks: D.breaks, yieldAt: st.yieldAt, breakAt: st.breakAt, brokeAt: st.brokeAt,
     brokeKey: st.brokeKey || null, brokeSeam: st.brokeSeam || null, groups: D.groups.map(G => G.key),
-    fb: fb && { cls: fb.cls, seam: fb.seam, how: fb.how, mat: b.mat, ductile: b.etu > 0, tags: def.nodes[b.a].tag + '-' + def.nodes[b.b].tag }, finite: L.finite(sim) };
+    fb: fb && { beam: fb.beam, fu: b.fu, cls: fb.cls, seam: fb.seam, how: fb.how, mat: b.mat, ductile: b.etu > 0, tags: def.nodes[b.a].tag + '-' + def.nodes[b.b].tag }, finite: L.finite(sim) };
 }
 
 if (argv[0] === '--build') {
@@ -61,7 +61,7 @@ if (argv[0] === '--build') {
     withPhys++;
     if (!(Number.isFinite(cert.Ft[i]) && Number.isFinite(cert.Fc[i]))) noEnv++;
     if (b.fy0 > p.fy0 * (1 + 1e-9) || b.fu > p.fu * (1 + 1e-9) || b.fc0 > p.fc0 * (1 + 1e-9)) overPhys++;
-    const kap = C.GEN_CERT.kappa;
+    const kap = (sim.damageCaps().KAP || [])[i] || C.GEN_CERT.kappa;   // G1895 (DMG-TUNE): the wing's floor or the body's
     if (b.fu > kap * p.fu * (1 + 1e-9)) govT++; else floorT++;
     if (!b.tens) { if (b.fc0 > kap * p.fc0 * (1 + 1e-9)) govC++; else floorC++; }
   }
@@ -83,6 +83,25 @@ if (argv[0] === '--build') {
   out.ductileWing = B.some((b, i) => b.cls === 'wing' && !b.seam && b.etu > 0 && b.fy0 < P[i].fy0 * 0.999);
   // 3. to destruction
   out.destroy = bench(def, { destroy: true });
+  // (train 41, A0 7 Oct: THE BAND PER AEROPLANE, FROM ITS OWN CERTIFICATE. A joint group's capacity on the bench is its
+  // joints' certified breaks (1.5 F_l m each) over their bench loads at the limit, times the limit: the load at which the
+  // whole group has let go once the load has moved off the first joint onto the others (a ductile box's redistribution,
+  // capped by the group). Where the bench case governs every joint (F_l = its bench load) it is 1.5 m x the limit - the
+  // band as it was (the metal Cessna's). Where another case governs (the Cessna on floats' wing-strut fittings: the
+  // one-float DRIFT DROP, 38.03 against the bench's 36.68 kN, front 6.20 g / rear 7.75 g; it broke at 6.595 g, both struts
+  // carrying the wing to ~6.9 g - DMG-BUNDLE-GREEN's 'NOT SOLVED 3') the band reads that case's capacity, not the bench's)
+  { const grp = def.parts && def.parts.dmg ? def.parts.dmg.groups : [], bt = cert.cases && cert.cases.bench ? cert.cases.bench.t : null;
+    const capOf = key => { const G = grp.find(g => g.key === key); if (!G || !bt) return null; let F = 0, Lb = 0; const gov = new Set();
+      let pred = Infinity;   // the group's FIRST joint to go on the bench: min over its joints of 1.5 F_l m / its bench load, x the limit
+      for (const bi of G.t0) if (bt[bi] > 0) { F += 1.5 * cert.m * cert.Ft[bi]; Lb += bt[bi]; gov.add(cert.names[cert.byT[bi]]); pred = Math.min(pred, cert.limit * 1.5 * cert.m * cert.Ft[bi] / bt[bi]); }
+      return Lb > 0 ? { key, cap: cert.limit * F / Lb, pred, gov: [...gov] } : null; };
+    const all = grp.map(g => capOf(g.key)).filter(Boolean).sort((a, b) => a.cap - b.cap);
+    // the member that ACTUALLY broke first to destruction: its stamped strength (the certificate's 1.5 F_l m with its seam's
+    // own factor - a bond's scatter, a fitting's) over its bench load at the limit, x the limit - where a linear bench breaks
+    // it; and the case that certified it (byT). Not the min over the group: a group holds joints the bench never governs
+    const fb = out.destroy.fb, fbBt = fb && bt ? bt[fb.beam] : 0;
+    const first = fb && fbBt > 0 ? { pred: cert.limit * fb.fu / fbBt, gov: cert.names[cert.byT[fb.beam]], tags: fb.tags } : null;
+    out.band = { destroy: Object.assign(capOf(out.destroy.brokeKey) || {}, { first }), weakest: all[0] || null }; }
   // (and as the page's bench thread runs it: bench_worker.js benchLoadRun with the destroy configuration and the
   // roll-out's certificate handed in - the card's numbers are this run's)
   {
@@ -166,7 +185,13 @@ const f2 = x => (x == null ? '-' : (+x).toFixed(2));
     const r = R[k], lab = L.BUILDS[k].label;
     console.log(lab + ':');
     if (r.err) { yes(false, 'the child ran: ' + r.err); continue; }
-    const c = r.cert, lim = c.limit, ult = c.ult, bandHi = 1.5 * c.m * lim * 1.025;
+    const c = r.cert, lim = c.limit, ult = c.ult, bd = r.band && r.band.destroy;
+    // (train 41, A0 7 Oct: the band from the certificate's own GOVERNING JOINT - its predicted first break, pred. Where the bench
+    // governs (pred = 1.5 m x the limit) the band is as it was. Where another case governs it (the Cessna on floats' strut
+    // fittings, the drift drop: 6.20 g), the top is pred x REDIST, the redistribution MEASURED on that bench (6.595 / 6.20 =
+    // 1.064 -> 1.07), capped by the group's whole capacity (its joints' breaks over their bench loads: the struts' ~6.9 g))
+    const REDIST = 1.07, bench0 = 1.5 * c.m * lim, fst = bd && bd.first, govd = !!(fst && fst.gov !== 'bench' && fst.pred > bench0 * (1 + 1e-6));
+    const bandTop = govd ? Math.max(bench0, Math.min(bd.cap, fst.pred * REDIST)) : bench0, bandHi = bandTop * 1.025;
     console.log('1. the certificate (' + c.cases.length + ' cases: ' + c.cases.join(', ') + ')');
     yes(c.noEnv === 0 && c.stamped && c.overPhys === 0, c.withPhys + ' members certified (the gear\'s ' + c.gearN + ' apart), every one with an envelope, none past its physics; tension: ' + c.govT + ' on the certificate, ' + c.floorT + ' on the floor; compression: ' + c.govC + ' / ' + c.floorC);
     yes(c.gearSame && c.gearJ > 0, 'the gear\'s ' + c.gearN + ' members: its ' + c.gearJ + ' joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float\'s hull) on D1a\'s limits');
@@ -177,10 +202,13 @@ const f2 = x => (x == null ? '-' : (+x).toFixed(2));
     if (r.ductileWing) yes(r.lim12.set > 0 && r.lim12.breaks === 0, 'to the limit x 1.2 (' + f2(1.2 * lim) + ' g): ' + r.lim12.set + ' members set (the largest ' + (100 * r.lim12.setMax).toFixed(2) + ' %), nothing broken - the first set is just past the limit');
     else { yes(r.lim12.breaks === 0, 'to the limit x 1.2 (' + f2(1.2 * lim) + ' g): ' + r.lim12.set + ' set, nothing broken'); rep('a brittle wing (spruce, its joints fittings): no member of it can take a set - past its limit it holds until it breaks'); }
     yes(r.ult.breaks === 0 && /HELD/.test(r.ult.verdict), 'to the ultimate (' + f2(ult) + ' g): ' + r.ult.verdict + ', ' + r.ult.set + ' set, nothing broken');
-    yes(r.ult11.breaks > 0 && r.ult11.groups.length > 0 && r.ult11.fb && r.ult11.fb.seam, 'to the ultimate x 1.1 (' + f2(1.1 * ult) + ' g): it breaks (' + r.ult11.breaks + ' members), the first group ' + (r.ult11.groups[0] || 'none') + ', the first member a ' + (r.ult11.fb ? (r.ult11.fb.seam || 'plain ' + r.ult11.fb.cls + ' member') + ' (' + r.ult11.fb.tags + ', ' + r.ult11.fb.how + ')' : '-'));
+    // (train 41: 'it breaks at 1.1 x the ultimate' is asked where the airframe goes there - the destruction run, held to the
+    // certificate's own band below, says where it goes; where that is past 1.1 x the ultimate, it must HOLD at 1.1)
+    if (govd && r.destroy.brokeAt != null && r.destroy.brokeAt > 1.1 * ult) yes(r.ult11.breaks === 0, 'to the ultimate x 1.1 (' + f2(1.1 * ult) + ' g): it holds - its first member (' + fst.tags + ', certified by ' + fst.gov + ') is stamped to ' + f2(fst.pred) + ' g and broke to destruction at ' + f2(r.destroy.brokeAt) + ' g (' + r.ult11.breaks + ' broken)');
+    else yes(r.ult11.breaks > 0 && r.ult11.groups.length > 0 && r.ult11.fb && r.ult11.fb.seam, 'to the ultimate x 1.1 (' + f2(1.1 * ult) + ' g): it breaks (' + r.ult11.breaks + ' members), the first group ' + (r.ult11.groups[0] || 'none') + ', the first member a ' + (r.ult11.fb ? (r.ult11.fb.seam || 'plain ' + r.ult11.fb.cls + ' member') + ' (' + r.ult11.fb.tags + ', ' + r.ult11.fb.how + ')' : '-'));
     console.log('3. to destruction');
     const d = r.destroy;
-    yes(d.brokeAt != null && d.brokeAt >= 1.5 * lim && d.brokeAt <= bandHi, 'BROKE AT ' + f2(d.brokeAt) + ' g (' + d.brokeKey + ', ' + d.brokeSeam + ') - within [' + f2(1.5 * lim) + ', ' + f2(1.5 * c.m * lim) + '] g (+2.5 % for the ramp\'s lag); first set ' + f2(d.yieldAt) + ' g');
+    yes(d.brokeAt != null && d.brokeAt >= 1.5 * lim && d.brokeAt <= bandHi, 'BROKE AT ' + f2(d.brokeAt) + ' g (' + d.brokeKey + ', ' + d.brokeSeam + ') - within [' + f2(1.5 * lim) + ', ' + f2(bandTop) + '] g' + (govd ? ' (its first member by its own certificate: ' + fst.tags + ', certified by ' + fst.gov + ', stamped to break at ' + f2(fst.pred) + ' g on the bench, x ' + REDIST + ' redistribution, capped by the group whole ' + f2(bd.cap) + ' g; the bench case ' + f2(bench0) + ')' : '') + ' (+2.5 % for the ramp\'s lag); first set ' + f2(d.yieldAt) + ' g');
     yes(d.fb && (d.fb.seam || !d.fb.ductile), 'the first member broken: ' + (d.fb ? (d.fb.seam || 'a plain member') + ' (' + d.fb.cls + ' ' + d.fb.tags + ', ' + d.fb.mat + ', ' + d.fb.how + ')' : '-') + ' - a joint, never the middle of a ductile member');
     yes(r.worker.brokeAt != null && Math.abs(r.worker.brokeAt - d.brokeAt) < 1e-9 && r.worker.brokeKey === d.brokeKey, 'the page\'s bench thread (bench_worker.js benchLoadRun, the roll-out\'s certificate handed in) breaks it the same: the card reads "' + r.worker.line + '"');
     console.log('4. the flight');

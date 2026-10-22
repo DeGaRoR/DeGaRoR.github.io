@@ -108,7 +108,8 @@ function bakeJoined(spec0) {
   const errors = W.CAGE_JOIN.errors(), notes = W.CAGE_JOIN.notes();
   // the fragment over the birth spec, as GARAGE_SPEC.update merges it
   const joined = merge(spec, JSON.parse(JSON.stringify(J)));
-  return { spec0, spec: joined, J, errors, notes, sceneErrors: r.errors, ms: Date.now() - t0, W };
+  return { spec0, spec: joined, J, errors, notes, sceneErrors: r.errors, ms: Date.now() - t0, W,
+           scene: r.scene, stat: r.stat };
 }
 
 function bakeCard(key) {
@@ -119,4 +120,4 @@ function bakeCard(key) {
   return Object.assign({ key, name: a.name }, bakeJoined(spec0));
 }
 
-module.exports = { loadPanel, bakeJoined, bakeCard, merge };
+module.exports = { loadPanel, bakeJoined, bakeCard, merge, joinIn };

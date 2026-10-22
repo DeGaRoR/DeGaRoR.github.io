@@ -150,7 +150,9 @@ console.log('6. the splice rules');
   // 2026-09-20: the low deck's cover and type moved from the brief's day slot to the clouds panel (one keeper); the day panel keeps a door to it
   yes(/H\.range\(host, 'cover', 0, 1, 0\.05, \(\) => day\(\)\.cloudCover/.test(src('viewer/clouds_ui.js')) && /cf\.TYPE_ORDER\.map\(t => \(\{ label: cf\.TYPES\[t\]\.label, value: t \}\)\)/.test(src('viewer/clouds_ui.js')), 'the clouds panel carries the low deck\'s cover and type');
   yes(!/flRange\(body, 'cloud cover'/.test(src('viewer/app.js')) && /ctx\.open\('clouds'\)/.test(src('viewer/day_ui.js')), 'the day slot no longer draws the cover itself; the day panel opens the clouds flyout');
-  yes(/rows\.slider\(insp, 'cloud cover'/.test(src('viewer/premises_ui.js')) && /rows\.select\(insp, 'cloud type'/.test(src('viewer/premises_ui.js')), 'the WORLD editor carries the cover and the type');
+  // G2760: the inspector's host argument is the editor's own name (`insp`, `P` since the scenery editor's
+  // rework) - the gate holds the ROW and its label, not the variable it is built into
+  yes(/rows\.slider\(\w+, 'cloud cover'/.test(src('viewer/premises_ui.js')) && /rows\.select\(\w+, 'cloud type'/.test(src('viewer/premises_ui.js')), 'the WORLD editor carries the cover and the type');
   // (C4 held "the OVERCAST mood is a stratus deck" here - the mood select wrote the cover; G436.12 retired
   // that coupling: the OVERCAST row is what hangar.moodFor PICKS under nine tenths of cloud, held below)
   yes(/if \(day\.cloudCover > 0\.8 && MOODS\.length > 5\) return 5;/.test(src('viewer/hangar.js')), 'the OVERCAST mood follows the day\'s cover (moodFor), it does not set it');
@@ -268,7 +270,7 @@ console.log('7b. several decks + the look: the march (static)');
   { const PJ = src('viewer/props.js'), RP = src('viewer/render_premises.js');
     yes(/function propSetGlowOf\(key, k\)/.test(PJ) && /if \(m\.userData\.emis0 == null\) m\.userData\.emis0 = m\.emissiveIntensity;/.test(PJ) && /for \(const l of propLevels\(key\)\) \{ PROP_GLOW\.set\(l\.key, k\);/.test(PJ) && /const glow = PROP_GLOW\.get\(key\);\r?\n  if \(glow != null\) glowMaterials\(mats, glow\);/.test(PJ) && /propLevels, propSetGlowOf(, propInstFull, propInstTouch)? \};/.test(PJ), 'props.js publishes propSetGlowOf: the author\'s intensity kept, the levels of detail with it, a prop built later takes the last k');
     yes(/if \(L\.prop\) LAMPS\.glowKeys\.add\(L\.prop\);/.test(RP) && /for \(const key of LAMPS\.glowKeys\) propSetGlowOf\(key, kFix\);/.test(RP) && /on \* Math\.pow\(0\.92 \/ Math\.max\(0\.92, ex\), 0\.9\)/.test(RP) && /for \(const key of LAMPS\.glowKeys\) propSetGlowOf\(key, 0\);/.test(RP), 'the pool drives the published fixtures\' glow by the day (the lenses\' law) and the mute takes it to nothing'); }
-  yes(/rows\.slider\(insp, 'upper deck ' \+ \(di \+ 1\)/.test(P) && /rows\.slider\(insp, 'deck ' \+ \(di \+ 1\) \+ ' base'/.test(P), 'the WORLD editor carries the upper decks');
+  yes(/rows\.slider\(\w+, 'upper deck ' \+ \(di \+ 1\)/.test(P) && /rows\.slider\(\w+, 'deck ' \+ \(di \+ 1\) \+ ' base'/.test(P), 'the WORLD editor carries the upper decks');  // G2760: any host argument
   yes(/slider\('upper deck ' \+ \(di \+ 1\)/.test(DP) && /slider\('erode'/.test(DP) && /select\('cover fit'/.test(DP), 'F8 carries the upper decks, erode and the cover fit');
   yes(fs.existsSync(path.join(__dirname, 'cloud_shot.js')), 'the rig that judges the sky (tools/cloud_shot.js) is there');
 }

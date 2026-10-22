@@ -141,10 +141,10 @@ function patternPath(pattern, ids, ds, from) {
     const n = Math.max(2, Math.ceil(Math.abs(dA) * r / ds));
     for (let j = 1; j <= n; j++) {
       const a = a0 + dA * j / n;
-      const x = cx + r * Math.cos(a), z = cz + r * Math.sin(a);
+      const x = cx + r * CORE_MATH.cos(a), z = cz + r * CORE_MATH.sin(a);
       // the tangent turns with the arc: heading = radius angle +/- 90 deg
       const hdg = a + sg * Math.PI / 2;
-      push(x, z, Math.atan2(Math.sin(hdg), Math.cos(hdg)), sg / r);
+      push(x, z, Math.atan2(CORE_MATH.sin(hdg), CORE_MATH.cos(hdg)), sg / r);
     }
     cur = P2;
   }
@@ -180,7 +180,7 @@ function pathLocate(path, i0, x, z, full) {
     if (d < bd) { bd = d; best = i; }
   }
   const q = P[best];
-  const tx = Math.cos(q.hdg), tz = Math.sin(q.hdg);
+  const tx = CORE_MATH.cos(q.hdg), tz = CORE_MATH.sin(q.hdg);
   const dx = x - q.x, dz = z - q.z;
   const ey = tx * dz - tz * dx;
   return { i: best, ey, sRem: path.len - q.s, dist: Math.sqrt(bd) };

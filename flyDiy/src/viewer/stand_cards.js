@@ -16,21 +16,28 @@
 //     ctx: { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat,
 //            tintUniformsOf, ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN }
 //     S.update(cg)         once a frame: the wanted chunks around the CG, one built per call, the far dropped
-//     S.get() / S.set(o)   { on, far, near, spacing, cell, gain }
+//     S.get() / S.set(o)   { on, far, near, spacing, cell, gain, standIn, rowMs }
+//     S.has(x, z)          the chunk under a point is built (render_world's hole census, G2930)
 //     S.stat()             { chunks, instances, lastMs, maxMs, baked }
 //     S.root               the group (a visible toggle is the A/B)
 'use strict';
 const STAND_CARDS = (() => {
   function make(THREE, ctx) {
     const { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-            ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled } = ctx;
+            ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy, rdyMin, polyMix, polyGround, POLY_CAN, sheetMean, composeCardAtlas } = ctx;
     // THE WHOLE ISLAND (2026-09-22, the user: "extend the visibility range even beyond the 18 km ... just
     // filling all the parts of the island visible from the camera"): measured 171 k cards at 18 km,
     // 193 k at 26, 193.6 k at 40 - it SATURATES, because Jolene is 39 km across and there is no more
     // land to plant. 30 km covers the island's diagonal from any point on it, so `far` is the island's
     // own size now and nothing is left bare; the visible SIDE needs no test of its own - a chunk is
     // one InstancedMesh with a sphere and three culls it per frame.
-    const S = { on: true, far: 30000, near: 4000, spacing: 32, cell: 2048, gain: 6, block: 4, treeH: 12, mixKey: 'conifer_young' };
+    // STAND-IN (G2930, TREE-STREAM; the user: "far away, everything is OK, then there is a transition with nothing"): the
+    // cards are planted from the EYE out (not from `near`), and inside `near` a card draws wherever the fill's chunk under
+    // it is not built yet - render_world's readiness grid (ctx.rdy), read per instance in the impostor's vertex stage. A
+    // built chunk dissolves its cards; the fill never leaves a hole while it streams. standIn false: the old cut by
+    // distance alone (the A/B). rowMs: a chunk's rows in flight stop once this much of the frame is spent (they ran whole)
+    // compose (G3184): the card drawn from its species' own impostor sheets (false: the merged block's bake, levelled - the A/B)
+    const S = { on: true, far: 30000, near: 4000, spacing: 32, cell: 2048, gain: 6, block: 4, treeH: 12, mixKey: 'conifer_young', standIn: true, rowMs: 4, compose: true };
     const STAT = { chunks: 0, instances: 0, lastMs: 0, maxMs: 0, baked: false };
     const root = new THREE.Group(); root.name = 'standCards'; scene.add(root);
     const chunks = new Map();
@@ -74,7 +81,7 @@ const STAND_CARDS = (() => {
       const draw = r => { let acc = r * tot; for (const p of pool) { acc -= p.w; if (acc <= 0) return p; } return pool[pool.length - 1]; };
       // the block: n x n trees at the fill's spacing, the L1 rung (stick + full foliage), every tree at
       // treeH x a spread, merged per (species part) so each merged geometry keeps its own material
-      const byMat = new Map(); const n = S.block, sp = S.spacing / S.block; let seed = 7;
+      const byMat = new Map(), layout = []; const n = S.block, sp = S.spacing / S.block; let seed = 7;
       const R = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
       for (let iz = 0; iz < n; iz++) for (let ix = 0; ix < n; ix++) {
         const p = draw(R()); let b = null; try { b = treeBuild(THREE, p.key, 1, 'rungs'); } catch (e) { continue; }
@@ -82,20 +89,61 @@ const STAND_CARDS = (() => {
         const s = S.treeH * (0.8 + 0.4 * R()) / p.h, yaw = R() * Math.PI * 2;
         const x = (ix - (n - 1) / 2) * sp + (R() - 0.5) * sp * 0.6, z = (iz - (n - 1) / 2) * sp + (R() - 0.5) * sp * 0.6;
         const m = new THREE.Matrix4().makeRotationY(yaw).scale(new THREE.Vector3(s, s, s)).setPosition(x, 0, z);
+        layout.push({ x, z, s, key: p.key });   // G3184: the block's trees, for the card composed from their sheets
         for (const q of b.parts) { let L = byMat.get(q.mat); if (!L) byMat.set(q.mat, L = []); L.push({ geo: q.geo, mat: q.mat, m }); }
       }
       const parts = [];
       for (const [mt, L] of byMat) { const g = mergeParts(L); chunkBounds(g, 1024); parts.push({ geo: g, mat: mt, cutout: !!(mt.alphaTest && mt.alphaTest > 0) }); }
-      return parts.length ? { parts } : null;
+      // G3180: each pool species' own tint uniforms (its leaf part's, its bark's light), by reference - the card's tint is
+      // their weighted mean, live (tintNow below), not the first species' alone
+      const tintOf = key => { let b = null; try { b = treeBuild(THREE, key, 1, 'rungs'); } catch (e) { return null; } if (!b) return null;
+        const leaf = b.parts.find(q => q.mat.userData && q.mat.userData.uLeaf && q.mat.userData.uLeaf.value > 0.5), bark = b.parts.find(q => q.mat.userData && q.mat.userData.uLeaf && !(q.mat.userData.uLeaf.value > 0.5) && q.mat.userData.uLight);
+        const u = leaf && leaf.mat.userData; return u && u.uHue ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight, uLightB: bark ? bark.mat.userData.uLight : u.uLight } : null; };
+      const tints = pool.map(q => ({ w: q.w, key: q.key, u: tintOf(q.key) })).filter(q => q.u);
+      return parts.length ? { parts, pool, tints, layout } : null;
     }
-    let P0 = null, tries = 0;
+    let P0 = null, tries = 0, TINT = null, levelTries = 0, COMPOSED = false, LEVEL_MINE = false;
+    const tintNow = () => { if (!TINT || !P0 || !P0.tints) return; let w = 0, h = 0, sa = 0, li = 0, lb = 0;
+      for (const q of P0.tints) { w += q.w; h += q.w * q.u.uHue.value; sa += q.w * q.u.uSat.value; li += q.w * q.u.uLight.value; lb += q.w * q.u.uLightB.value; }
+      if (w > 0) { TINT.uHue.value = h / w; TINT.uSat.value = sa / w; TINT.uLight.value = li / w; TINT.uLightB.value = lb / w; } };
+    // THE LEVEL (G3180): the card's sheet, drawn, against its species' rungs sheets drawn at their own levels (G2591's
+    // IMP_LEVEL), weighted as the block was dealt - k = sum(w Y_s L_s) / sum(w) / Y_card, set as the card sheet's level
+    // (TREE_LOD.impLevel: the same live map the measured sheets use). A dense block of crowns baked as one picture is not
+    // its trees' mean picture; this is what makes it one. STAT.level / STAT.levelSrc say what it found.
+    const lum = v => 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+    const CARD_SCREEN_K = 0.74;   // G3183: 1 / 1.35, measured on screen under the default look (see matchLevel)
+    function matchLevel(P, atlas) {
+      const LOD = (typeof TREE_LOD !== 'undefined') ? TREE_LOD : null;
+      if (!sheetMean || !LOD || !LOD.impLevel || !atlas || !atlas.key) return;
+      const card = sheetMean(atlas.key, atlas.series || 'rungs'); if (!card || !(lum(card) > 1e-5)) { STAT.levelSrc = 'no card sheet'; return; }
+      let w = 0, y = 0, n = 0;
+      for (const q of P.pool) { const m = sheetMean(q.key, 'rungs'); if (!m) continue; w += q.w; y += q.w * lum(m) * LOD.impLevel(q.key + '|rungs'); n++; }
+      if (!n || !(w > 0)) { STAT.levelSrc = 'no species sheet'; return; }
+      // x CARD_SCREEN_K: the sheets match at 3.15 but ON SCREEN the card then drew 1.35x its impostors (cardmatch_probe, 13 Oct
+      // 02:50 + 03:07, the default look) - a block's baked normals face the sky more than a tree's: the light the sheet cannot see
+      const k = Math.max(0.25, Math.min(4, (y / w) / lum(card) * CARD_SCREEN_K));
+      LOD.impLevel(atlas.key + '|' + (atlas.series || 'rungs'), k); LEVEL_MINE = true;
+      STAT.level = +k.toFixed(3); STAT.levelSrc = n + ' species sheets, card luma ' + lum(card).toFixed(4) + ', theirs ' + (y / w).toFixed(4);
+    }
     function ensure() {
       if (proto || failed) return !!proto;
       const t0 = performance.now();
       if (!P0) P0 = buildProto(); const P = P0; if (!P) { failed = true; return false; }
-      const atlas = bakeImpostorAtlas(P.parts, { key: 'stand:' + S.mixKey, series: 'rungs' });
-      if (!atlas || !atlas.tex || atlas.refused) { if (++tries > 600) failed = true; return false; }   // refused = a map not decoded yet: again next frame (ten seconds of tries)
-      mat = impostorMat(atlas, S.far, 0, tintUniformsOf(P.parts), S.gain, U_NOTHIN, { value: S.near });
+      // G3184: THE CARD COMPOSED FROM ITS SPECIES' OWN SHEETS (render_world composeCardAtlas) - their texels, their normals: the
+      // same colour as the impostors by construction, no level to match. Until their sheets exist it waits (the fill bakes
+      // them); after ~10 s of tries the old bake of the merged block takes over, levelled (matchLevel, G3181-G3183)
+      let atlas = null; COMPOSED = false;
+      if (composeCardAtlas && S.compose && tries < 600) { atlas = composeCardAtlas(P.layout, { key: 'stand:' + S.mixKey, series: 'rungs' }); if (!atlas) { tries++; return false; } COMPOSED = true; }
+      if (!atlas) atlas = bakeImpostorAtlas(P.parts, { key: 'stand:' + S.mixKey, series: 'rungs' });
+      if (!atlas || !atlas.tex || atlas.refused) { if (++tries > 1200) failed = true; return false; }   // refused = a map not decoded yet: again next frame (ten seconds of tries)
+      // G3180 (CARD-MATCH): THE CARD'S OWN TINT, the proportion-weighted mean of its species' (tintNow, every update); and ITS
+      // LEVEL, matched to their sheets at this bake (matchLevel) - one source for the colour of both tiers
+      TINT = P.tints && P.tints.length ? { uHue: { value: 0 }, uSat: { value: 1 }, uLight: { value: 1 }, uLightB: { value: 1 }, bark: false } : null;
+      if (TINT) tintNow();
+      mat = impostorMat(atlas, S.far, 0, TINT || tintUniformsOf(P.parts), S.gain, U_NOTHIN, { value: S.near }, undefined, (S.standIn && rdy) ? rdy : null);
+      // (a composed card clears only a level matchLevel set - never one set from outside, e.g. GATE CARDMATCH's control: the 18:05 proof
+      // of 13 Oct read 1.12 at 'half level' because each rebuild cleared it)
+      if (!COMPOSED) matchLevel(P, atlas); else { if (LEVEL_MINE && typeof TREE_LOD !== 'undefined' && TREE_LOD.impLevel) TREE_LOD.impLevel(atlas.key + '|' + atlas.series, null); LEVEL_MINE = false; STAT.level = 1; STAT.levelSrc = 'composed from ' + P.layout.length + ' trees\' own sheets'; }
       quad = new THREE.PlaneGeometry(1, 1); chunkBounds(quad, S.cell / 2);
       proto = { parts: P.parts, atlas };
       STAT.baked = true; STAT.lastMs = performance.now() - t0;
@@ -109,6 +157,7 @@ const STAND_CARDS = (() => {
     // (app.js worldAtRest, FLYDIY_SLICE) the rows stop once the slice's 40 ms are spent and the next call goes on
     // from the row it stopped at. The same rows in the same order: the same cards.
     const sliceSpent = () => { const SL = typeof window !== 'undefined' && window.FLYDIY_SLICE; return !!(SL && performance.now() >= SL.until); };
+    const inSlice = () => !!(typeof window !== 'undefined' && window.FLYDIY_SLICE);
     const chunkJob = k => { const [cx, cz] = k.split(',').map(Number); return { k, cx, cz, iz: 0, xs: [], ms: 0 }; };
     function chunkRows(J) {   // -> true once every row is done
       const t0 = performance.now(), C = S.cell, sp = S.spacing, n = C / sp, cx = J.cx, cz = J.cz, x0 = cx * C, z0 = cz * C, xs = J.xs;
@@ -117,12 +166,15 @@ const STAND_CARDS = (() => {
         const gx = cx * n + ix, gz = cz * n + iz;
         const x = x0 + (ix + 0.5) * sp + (hsh(gx + 7, gz) - 0.5) * sp * 0.8, z = z0 + (iz + 0.5) * sp + (hsh(gx, gz + 7) - 0.5) * sp * 0.8;
         if (!ISLC || !ISLC.ttype) continue;
-        if (!forestHere(x, z) && !openHere(x, z)) continue;
-        const tt = ttypeAt(x, z); if (tt < 2) continue;
-        const mix = BIO.mixHere ? BIO.mixHere(codeAt(x, z, hsh(gx + 21, gz + 23)), x, z) : BIO.mixAt(codeAt(x, z, hsh(gx + 21, gz + 23))); if (!mix) continue;
+        // G2935 (BIOME-POLY): a premises polygon's own mix opens the gate and stands floored, as the fill's walk does
+        const pm = polyMix ? polyMix(x, z, BIO) : undefined;
+        if (!forestHere(x, z) && !openHere(x, z) && !(pm && polyGround && polyGround(x, z))) continue;
+        const tt = ttypeAt(x, z); if (tt < 2 && !pm) continue;
+        const mix = pm !== undefined ? pm : BIO.mixAt(codeAt(x, z, hsh(gx + 21, gz + 23))); if (!mix) continue;
         const MF = BIO.mixOf(mix).forest || {};
         let can = ISLC.canopyAt(x, z), floored = false;
-        if (tt === 3 || tt === 2) can = Math.min(can, 3.0);
+        if ((tt === 3 || tt === 2) && !pm) can = Math.min(can, 3.0);
+        if (pm) { floored = true; can = Math.max(can, MF.canopyFloor || 0, POLY_CAN || 12); }
         if (MF.canopyFloor > can) { can = MF.canopyFloor; floored = true; }
         if (MF.clump > 0 && vnoise(x, z, MF.clumpM || 30, 41) < MF.clump) continue;
         const kind = Math.min(1, BIO.density(mix) * spc * spc * FILL.island.biomeGain); if (kind <= 0) continue;
@@ -133,7 +185,7 @@ const STAND_CARDS = (() => {
         // the card's scale: the canopy over the block's tree height, the fill's rule and clamps
         const s = Math.max(FILL.island.min, Math.min(FILL.island.max, (can * FILL.island.gain) / S.treeH));
         xs.push(x, h, z, s);
-      } if (sliceSpent()) break; }
+      } if (sliceSpent() || (!inSlice() && performance.now() - t0 > S.rowMs)) break; }   // (G2930: in flight too - the same rows, the same cards)
       J.ms += performance.now() - t0;
       return J.iz >= n;
     }
@@ -164,34 +216,53 @@ const STAND_CARDS = (() => {
       if (!S.on || !ISLC || (treesSettled && !treesSettled())) return;   // the bytes AND the maps (the bake's rule)
       if (!proto && sliceSpent()) return;   // (the stand's bake is a slice's worth: at the head of one)
       if (!ensure()) return;
+      tintNow();   // G3180: the card's tint follows its species' every frame (a look's tint, a kind's master)
+      // ...and the level, once its species' sheets exist (the fill may bake them after this card): a try a second, a minute at most
+      if (STAT.level === undefined && proto && !COMPOSED && (tick % 30) === 0 && ++levelTries <= 60) matchLevel(P0, proto.atlas);
       if ((tick++ % 20) === 0) {
         const C = S.cell, R = Math.ceil(S.far / C) + 1, cx0 = Math.floor(cg[0] / C), cz0 = Math.floor(cg[2] / C);
         const B = world.bounds;   // no chunk outside the island's own square: the sea plants nothing
         const want = new Set();
         for (let dz = -R; dz <= R; dz++) for (let dx = -R; dx <= R; dx++) {
           const cx = cx0 + dx, cz = cz0 + dz, ex = (cx + 0.5) * C - cg[0], ez = (cz + 0.5) * C - cg[2], d = Math.hypot(ex, ez);
-          if (d > S.far + C * 0.71 || d < S.near - C * 0.71) continue;
+          if (d > S.far + C * 0.71 || (!(S.standIn && rdy) && d < S.near - C * 0.71)) continue;
           if (B && ((cx + 1) * C < B.x0 || cx * C > B.x1 || (cz + 1) * C < B.z0 || cz * C > B.z1)) continue;
           want.add(cx + ',' + cz);
         }
         for (const k of chunks.keys()) if (!want.has(k)) drop(k);
         if (job && !want.has(job.k)) job = null;
-        queue = [...want].filter(k => !chunks.has(k) && !(job && job.k === k)).sort((a, b) => {
+        queue = [...want].filter(k => (!chunks.has(k) || chunks.get(k).stale) && !(job && job.k === k)).sort((a, b) => {
           const A = a.split(',').map(Number), B = b.split(',').map(Number);
           return Math.hypot((A[0] + 0.5) * C - cg[0], (A[1] + 0.5) * C - cg[2]) - Math.hypot((B[0] + 0.5) * C - cg[0], (B[1] + 0.5) * C - cg[2]); });
       }
       if (!job && queue.length && !sliceSpent()) job = chunkJob(queue.shift());
-      if (job && !sliceSpent() && chunkRows(job)) { const mesh = chunkMesh(job); if (mesh) root.add(mesh); chunks.set(job.k, { mesh }); job = null; }
-      let ni = 0; for (const c of chunks.values()) if (c.mesh) ni += c.mesh.count; STAT.instances = ni; STAT.chunks = chunks.size;
+      if (job && !sliceSpent() && chunkRows(job)) { const mesh = chunkMesh(job); const old = chunks.get(job.k); if (old && old.mesh) { root.remove(old.mesh); old.mesh.dispose(); }   // a restaled chunk: the swap
+        if (mesh) root.add(mesh); chunks.set(job.k, { mesh }); job = null; }
+      // a chunk wholly inside the edge draws only while a fill cell under it is not fully ready (rdyMin < 1): the steady
+      // state submits what it did before G2930 (those chunks did not exist), a stand-in costs its draw only while it stands
+      let ni = 0, nh = 0;
+      for (const [k, c] of chunks) { if (!c.mesh) continue; ni += c.mesh.count;
+        if (S.standIn && rdy && rdyMin) { const C = S.cell, [cx, cz] = k.split(',').map(Number), d = Math.hypot((cx + 0.5) * C - cg[0], (cz + 0.5) * C - cg[2]);
+          c.mesh.visible = !(d < S.near - C * 0.71 && rdyMin(cx * C, cz * C, (cx + 1) * C, (cz + 1) * C) >= 1); if (!c.mesh.visible) nh++; } }
+      STAT.instances = ni; STAT.chunks = chunks.size; STAT.parked = nh;
     }
     const api = {
       update, root,
       get: () => Object.assign({}, S),
-      set: o => { const was = { far: S.far, near: S.near, spacing: S.spacing }; Object.assign(S, o || {});
-        if (S.far !== was.far || S.near !== was.near || S.spacing !== was.spacing) { for (const k of [...chunks.keys()]) drop(k); if (mat) { mat.dispose(); } proto = null; mat = null; job = null; }
+      set: o => { const was = { far: S.far, near: S.near, spacing: S.spacing, standIn: S.standIn, compose: S.compose }; Object.assign(S, o || {});
+        if (S.far !== was.far || S.near !== was.near || S.spacing !== was.spacing || S.standIn !== was.standIn || S.compose !== was.compose) { for (const k of [...chunks.keys()]) drop(k); if (mat) { mat.dispose(); } proto = null; mat = null; job = null; tries = 0; failed = false; delete STAT.level; levelTries = 0; }
         return api.get(); },
       replant: () => { for (const k of [...chunks.keys()]) drop(k); job = null; },
+      // G2935: the chunks under these world boxes (every chunk with null) are walked again; each keeps its cards drawn
+      // until its new mesh lands (a biome edit never blanks the far forest); returns how many
+      restale: boxes => { let n = 0; const C = S.cell;
+        for (const [k, c] of chunks) { const [cx, cz] = k.split(',').map(Number);
+          if (boxes && !boxes.some(b => b.x1 >= cx * C && b.x0 <= (cx + 1) * C && b.z1 >= cz * C && b.z0 <= (cz + 1) * C)) continue;
+          c.stale = true; n++; if (job && job.k === k) job = null; }
+        if (n) tick = 0;   // the want list at the next update
+        STAT.restaled = (STAT.restaled || 0) + n; return n; },
       stat: () => Object.assign({}, STAT),
+      has: (x, z) => !!chunks.get(Math.floor(x / S.cell) + ',' + Math.floor(z / S.cell)),
       atlas: () => proto && proto.atlas,
     };
     return api;

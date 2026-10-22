@@ -1,0 +1,299 @@
+{
+ "url": "http://localhost:8693/flyDiy/index.html?gfx=retro",
+ "size": [
+  1920,
+  1080
+ ],
+ "q": "gfx=retro",
+ "label": "branch",
+ "sha": "c38a5e99f",
+ "build": "503a32c63d21",
+ "parts": [
+  "picture"
+ ],
+ "rung": {
+  "cpu": 3,
+  "gpux": 6
+ },
+ "reps": 2,
+ "after": 180,
+ "errs": [],
+ "picture": {
+  "garage": {
+   "date": "2026-06-22",
+   "utc": 8,
+   "localH": 16.0021,
+   "sunEl": 42.697,
+   "version": 1,
+   "rate": 1,
+   "turbidity": 2.8,
+   "cloudCover": 0.25,
+   "label": "16:00 AKDT · sun 43° · day",
+   "jumps": 0,
+   "exposure": 0.92,
+   "programs": 375,
+   "le": {
+    "sunI": 9.00443,
+    "hemiI": 1.82132,
+    "ex": 0.92,
+    "applies": 1,
+    "writes": 1
+   },
+   "holds": {
+    "holdRender": false,
+    "rollHold": false,
+    "craftAway": 0,
+    "inGarage": true,
+    "running": true
+   },
+   "probe": {
+    "bakes": 3,
+    "fade": 1,
+    "fading": false
+   },
+   "lut": 1
+  },
+  "world": {
+   "date": "2026-06-22",
+   "utc": 26,
+   "localH": 16.0071,
+   "sunEl": 42.657,
+   "version": 1,
+   "rate": 1,
+   "turbidity": 2.8,
+   "cloudCover": 0.25,
+   "label": "16:00 AKDT · sun 43° · day",
+   "jumps": 0,
+   "exposure": 1.12,
+   "programs": 372,
+   "le": {
+    "sunI": 9.00296,
+    "hemiI": 1.82164,
+    "ex": 0.92,
+    "applies": 3,
+    "writes": 1
+   },
+   "holds": {
+    "holdRender": false,
+    "rollHold": false,
+    "craftAway": 0,
+    "inGarage": false,
+    "running": true
+   },
+   "probe": {
+    "bakes": 3,
+    "fade": 1,
+    "fading": false
+   },
+   "lut": 1
+  }
+ },
+ "stills": [
+  {
+   "name": "branch_default_garage",
+   "text": "branch c38a5e99f (build 503a32c63d21) · retro · sandbox · the garage · default boot, no clock set",
+   "state": {
+    "date": "2026-06-22",
+    "utc": 8,
+    "localH": 16.0021,
+    "sunEl": 42.697,
+    "version": 1,
+    "rate": 1,
+    "turbidity": 2.8,
+    "cloudCover": 0.25,
+    "label": "16:00 AKDT · sun 43° · day",
+    "jumps": 0,
+    "exposure": 0.92,
+    "programs": 375,
+    "le": {
+     "sunI": 9.00443,
+     "hemiI": 1.82132,
+     "ex": 0.92,
+     "applies": 1,
+     "writes": 1
+    },
+    "holds": {
+     "holdRender": false,
+     "rollHold": false,
+     "craftAway": 0,
+     "inGarage": true,
+     "running": true
+    },
+    "probe": {
+     "bakes": 3,
+     "fade": 1,
+     "fading": false
+    },
+    "lut": 1
+   },
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  },
+  {
+   "name": "branch_default_world",
+   "text": "branch c38a5e99f (build 503a32c63d21) · retro · sandbox · the stand · default boot, no clock set, rolled out (manual, idle)",
+   "state": {
+    "date": "2026-06-22",
+    "utc": 26,
+    "localH": 16.0071,
+    "sunEl": 42.657,
+    "version": 1,
+    "rate": 1,
+    "turbidity": 2.8,
+    "cloudCover": 0.25,
+    "label": "16:00 AKDT · sun 43° · day",
+    "jumps": 0,
+    "exposure": 1.12,
+    "programs": 372,
+    "le": {
+     "sunI": 9.00296,
+     "hemiI": 1.82164,
+     "ex": 0.92,
+     "applies": 3,
+     "writes": 1
+    },
+    "holds": {
+     "holdRender": false,
+     "rollHold": false,
+     "craftAway": 0,
+     "inGarage": false,
+     "running": true
+    },
+    "probe": {
+     "bakes": 3,
+     "fade": 1,
+     "fading": false
+    },
+    "lut": 1
+   },
+   "info": {
+    "calls": 1,
+    "tris": 2
+   }
+  }
+ ],
+ "discarded": [],
+ "baseline": {},
+ "jumps": [],
+ "log": [
+  "06:52:54 garage up in 49.1 s",
+  "06:52:54 boot state {\"date\":\"2026-06-22\",\"utc\":4,\"localH\":16.0011,\"sunEl\":42.705,\"version\":1,\"rate\":1,\"turbidity\":2.8,\"cloudCover\":0.25,\"label\":\"16:00 AKDT · sun 43° · day\",\"jumps\":0,\"exposure\":0.92,\"programs\":375,\"le\":{\"sunI\":9.00443,\"hemiI\":1.82132,\"ex\":0.92,\"applies\":1,\"writes\":1},\"holds\":{\"holdRender\":false,\"rollHold\":false,\"craftAway\":0,\"inGarage\":true,\"running\":true},\"probe\":{\"bakes\":3,\"fade\":1,\"fading\":false},\"lut\":1}",
+  "06:52:59 still branch_default_garage {\"date\":\"2026-06-22\",\"utc\":8,\"localH\":16.0021,\"sunEl\":42.697,\"version\":1,\"rate\":1,\"turbidity\":2.8,\"cloudCover\":0.25,\"label\":\"16:00 AKDT · sun 43° · day\",\"jumps\":0,\"exposure\":0.92,\"programs\":375,\"le\":{\"sunI\":9.00443,\"hemiI\":1.82132,\"ex\":0.92,\"applies\":1,\"writes\":1},\"holds\":{\"holdRender\":false,\"rollHold\":false,\"craftAway\":0,\"inGarage\":true,\"running\":true},\"probe\":{\"bakes\":3,\"fade\":1,\"fading\":false},\"lut\":1}",
+  "06:52:59 roll out: bGo",
+  "06:53:17 still branch_default_world {\"date\":\"2026-06-22\",\"utc\":26,\"localH\":16.0071,\"sunEl\":42.657,\"version\":1,\"rate\":1,\"turbidity\":2.8,\"cloudCover\":0.25,\"label\":\"16:00 AKDT · sun 43° · day\",\"jumps\":0,\"exposure\":1.12,\"programs\":372,\"le\":{\"sunI\":9.00296,\"hemiI\":1.82164,\"ex\":0.92,\"applies\":3,\"writes\":1},\"holds\":{\"holdRender\":false,\"rollHold\":false,\"craftAway\":0,\"inGarage\":false,\"running\":true},\"probe\":{\"bakes\":3,\"fade\":1,\"fading\":false},\"lut\":1}"
+ ],
+ "load": 49.068,
+ "gfx": {
+  "preset": "retro",
+  "build": "retro",
+  "pv": 8,
+  "fps": 30,
+  "fpsOwn": false,
+  "ground": "lean",
+  "scale": 0.85,
+  "cover": "lean",
+  "scenery": "lean",
+  "drawDist": "vis",
+  "terrain": 2,
+  "aa": "off",
+  "density": 100,
+  "bands": "near",
+  "shadows": "near",
+  "canopy": "off",
+  "rails": "on",
+  "poles": "off",
+  "glare": "on",
+  "sway": "off",
+  "mist": "on",
+  "clouds": "off",
+  "water": "simple",
+  "mirror": "off",
+  "lighting": "sunset",
+  "tone": "cineon",
+  "exposure": 1,
+  "colour": "managed",
+  "bloom": "off",
+  "look": "off",
+  "lens": "off",
+  "rays": "off",
+  "ao": "off",
+  "eye": "off",
+  "compositing": "linear",
+  "own": false,
+  "hw": null,
+  "town": "nearby"
+ },
+ "hasJump": true,
+ "boot": {
+  "date": "2026-06-22",
+  "utc": 4,
+  "localH": 16.0011,
+  "sunEl": 42.705,
+  "version": 1,
+  "rate": 1,
+  "turbidity": 2.8,
+  "cloudCover": 0.25,
+  "label": "16:00 AKDT · sun 43° · day",
+  "jumps": 0,
+  "exposure": 0.92,
+  "programs": 375,
+  "le": {
+   "sunI": 9.00443,
+   "hemiI": 1.82132,
+   "ex": 0.92,
+   "applies": 1,
+   "writes": 1
+  },
+  "holds": {
+   "holdRender": false,
+   "rollHold": false,
+   "craftAway": 0,
+   "inGarage": true,
+   "running": true
+  },
+  "probe": {
+   "bakes": 3,
+   "fade": 1,
+   "fading": false
+  },
+  "lut": 1
+ },
+ "end": {
+  "date": "2026-06-22",
+  "utc": 29,
+  "localH": 16.008,
+  "sunEl": 42.65,
+  "version": 1,
+  "rate": 1,
+  "turbidity": 2.8,
+  "cloudCover": 0.25,
+  "label": "16:00 AKDT · sun 43° · day",
+  "jumps": 0,
+  "exposure": 0.92,
+  "programs": 376,
+  "le": {
+   "sunI": 9.00296,
+   "hemiI": 1.82164,
+   "ex": 0.92,
+   "applies": 3,
+   "writes": 1
+  },
+  "holds": {
+   "holdRender": false,
+   "rollHold": false,
+   "craftAway": 0,
+   "inGarage": true,
+   "running": true
+  },
+  "probe": {
+   "bakes": 3,
+   "fade": 1,
+   "fading": false
+  },
+  "lut": 1
+ },
+ "errsN": 0,
+ "wall": 74.132
+}

@@ -1,0 +1,163 @@
+LATTICE: 95 nodes, 399 beams, 28 strips
+RIGIDITY: rank 279 / 279 required  (399 beams, 279 dof)
+SHAKEDOWN: 459 kg · S=15.5 m2 · w/l 29.7 kg/m2
+  Vs=17.4 VCruise=35.7 L/D=7.19 aCruise=2.83 deg
+  cg=0.743 np=1.144 staticMargin=25.0%
+  deck=8.9 deg · propClear=0.30 m · TORun=214 m · thrCruise=0.66
+  legs: mains 0.66 m (legDrop) · third 0.23 m · camber 0 deg
+  camber 20: contact 0.1879 m (R 0.2) legs 0.660 -> 0.660 m · deck twLeg .10/.23/.45 = 10.4/8.9/6.5 deg · trike auto 1.20 leg .95 9.25
+  cowl: 240 seating x engine cases, case covered in all, cylinders out in 94 · default 0.311 x 0.320/0.338 m, enclosed
+  prop: default 2-blade wood 1.88 m · T0 1202 N (registry 1202) · kV2 0.194 (registry 0.1941) · V0 283 km/h · 4.8 kg
+  prop knobs: D 3.0 -> T0 1641, fine pitch -> 1335, 4 blades -> 1334 N
+  gear members: inner 3 · leg 3 · tube 3 · wire 6
+LEDGER: 15 sections · 459.0 kg · 30453 cr
+SKIN: 2924 verts, 5686 tris in 6 groups (skin, pitot, liftstrut, wire, ailR, ailL)
+WING CAMBER: right 0.0159 · left 0.0159 (both must be > 0)
+ENGINES:
+  a65_sensenich74         65 hp     80 kg -> all-up   459 kg, nose-over  20.4°, gear   4%, stands
+  r1830_hs23e50         1200 hp    750 kg -> all-up  1405 kg, nose-over  33.7°, gear   4%, stands
+  io360_mccauley         180 hp    138 kg -> all-up   541 kg, nose-over  21.4°, gear   3%, stands
+  rotax277_pusher         28 hp     30 kg -> all-up   389 kg, nose-over  21.5°, gear   2%, stands
+  vw2180_wood             59 hp     66 kg -> all-up   439 kg, nose-over  20.0°, gear   5%, stands
+  rotax582_ivo            64 hp     43 kg -> all-up   408 kg, nose-over  21.4°, gear   2%, stands
+  jabiru2200_std          84 hp     60 kg -> all-up   432 kg, nose-over  19.8°, gear   5%, stands
+  rotax912_warp           80 hp     58 kg -> all-up   430 kg, nose-over  19.8°, gear   5%, stands
+  o200_eprops            100 hp     85 kg -> all-up   466 kg, nose-over  20.5°, gear   4%, stands
+  r985_hs2b20            451 hp    290 kg -> all-up   761 kg, nose-over  29.4°, gear   4%, stands
+  verner7u_wood          105 hp     78 kg -> all-up   458 kg, nose-over  20.5°, gear   4%, stands
+  rotec3600_std          150 hp    102 kg -> all-up   493 kg, nose-over  21.1°, gear   3%, stands
+  mikron3_wood            64 hp     74 kg -> all-up   450 kg, nose-over  20.0°, gear   5%, stands
+  gipsymajor1_wood       130 hp    139 kg -> all-up   540 kg, nose-over  21.1°, gear   3%, stands
+  hirth508_wood          280 hp    186 kg -> all-up   613 kg, nose-over  24.5°, gear   3%, stands
+  argus10c_wood          236 hp    213 kg -> all-up   647 kg, nose-over  25.7°, gear   3%, stands
+  o320_mccauley          150 hp    122 kg -> all-up   518 kg, nose-over  21.1°, gear   3%, stands
+  o540_hartzell          235 hp    176 kg -> all-up   595 kg, nose-over  22.7°, gear   3%, stands
+  io550_hartzell3        310 hp    195 kg -> all-up   621 kg, nose-over  21.9°, gear   3%, stands
+  io720_hartzell3        400 hp    257 kg -> all-up   706 kg, nose-over  22.4°, gear   3%, stands
+  rotax915_carbon        141 hp     84 kg -> all-up   468 kg, nose-over  20.5°, gear   4%, stands
+  ranger440_wood         200 hp    170 kg -> all-up   587 kg, nose-over  22.9°, gear   3%, stands
+  w670_hs2b              220 hp    211 kg -> all-up   647 kg, nose-over  28.3°, gear   3%, stands
+  r755_hs2b              300 hp    230 kg -> all-up   676 kg, nose-over  28.6°, gear   3%, stands
+  m14p_v530              359 hp    214 kg -> all-up   655 kg, nose-over  26.5°, gear   3%, stands
+  r1340_hs12d40          599 hp    400 kg -> all-up   914 kg, nose-over  27.6°, gear   3%, stands
+  rotax503_wood           50 hp     38 kg -> all-up   401 kg, nose-over  21.5°, gear   2%, stands
+  emrax268_carbon        143 hp   20.3 kg -> all-up   372 kg, nose-over  21.5°, gear   2%, stands
+  outrunner2212_9x47       0 hp    0.1 kg -> all-up   342 kg, nose-over  21.8°, gear   3%, stands
+  outrunner3548_12x6       1 hp   0.35 kg -> all-up   342 kg, nose-over  21.8°, gear   3%, stands
+  outrunner6374_18x10      3 hp   0.75 kg -> all-up   343 kg, nose-over  21.8°, gear   3%, stands
+  eppg_direct_130         16 hp      7 kg -> all-up   353 kg, nose-over  21.7°, gear   3%, stands
+  fes_folding_100         30 hp      9 kg -> all-up   354 kg, nose-over  21.7°, gear   3%, stands
+  emrax228_3blade         74 hp   19.5 kg -> all-up   370 kg, nose-over  21.6°, gear   2%, stands
+  e811_velis              77 hp     30 kg -> all-up   382 kg, nose-over  21.5°, gear   2%, stands
+  sp260d_class           349 hp     68 kg -> all-up   432 kg, nose-over  21.5°, gear   3%, stands
+  pt6a114a_hartzell3     675 hp    160 kg -> all-up   615 kg, nose-over  23.1°, gear   2%, stands
+  pt6a34_hartzell4       751 hp    150 kg -> all-up   601 kg, nose-over  21.6°, gear   2%, stands
+  pt6a42_hartzell4       850 hp    183 kg -> all-up   648 kg, nose-over  21.2°, gear   2%, stands
+  pt6a60a_hartzell4     1050 hp    218 kg -> all-up   708 kg, nose-over  22.9°, gear   2%, stands
+MATERIALS:
+  tubeFabric   substeps  76 | omega*dt 0.448 c*dt 0.355 | (flown in another shard)
+  wood         substeps  76 | omega*dt 0.448 c*dt 0.639 | (flown in another shard)
+  alloy        substeps 102 | omega*dt 0.450 c*dt 0.577 | (flown in another shard)
+  carbon       substeps 128 | omega*dt 0.447 c*dt 0.593 | flies to CROSSWIND
+  aluTube      substeps  70 | omega*dt 0.446 c*dt 0.306 | (flown in another shard)
+SURFACE MESHES:
+  wing surfaces  meshes 4 da[-0.018 0.018] flap[-0.080 -0.080]  ok
+AILERON EXTENT: reaches 4.20 m, bow joint at 4.20  ok
+LOFT CUTS: rows at 1.23/1.41 m with cuts 106/106 vertices, without 0/0  ok
+V-TAIL: (conventional reference dYaw/dr 6484 dPitch/de 12591)
+  25 deg  S 5.99 m2 (eff Sh 4.92 Sv 1.07) | dYaw/dr  16023 dPitch/de  31448 x-talk 0.5% | SM 46.0%
+  33 deg  S 3.61 m2 (eff Sh 2.54 Sv 1.07) | dYaw/dr  12947 dPitch/de  18323 x-talk 0.5% | SM 32.4%
+  40 deg  S 4.10 m2 (eff Sh 2.40 Sv 1.69) | dYaw/dr  17136 dPitch/de  18775 x-talk 0.6% | SM 30.2%
+  45 deg  S 4.81 m2 (eff Sh 2.40 Sv 2.40) | dYaw/dr  21954 dPitch/de  20194 x-talk 0.8% | SM 28.4% (flown in another shard)
+  55 deg  S 7.30 m2 (eff Sh 2.40 Sv 4.90) | dYaw/dr  37044 dPitch/de  23968 x-talk 1.3% | SM 21.6%
+TIPS: eAR 14.77 15.64 15.78 16.29 (ordered)
+PLANFORM:
+  crank z=2.68 | node at kink yes | dihedral breaks yes | WF y 1.10 1.18 1.22 1.41 1.80
+  drone deck=1.00 crew=0 mass=387 kg | no windscreen step
+  winglet      stands, SM 24.2% (the frame is stock; the circuit is the crank's)
+  jodel crank  (flown in another shard)
+  drone        flies a circuit
+SWEEP:
+  np aft: 0.57 0.84 1.14 1.46 1.79 2.17 2.49  (monotonic)
+  a3d:    4.125 4.201 4.231 4.201 4.110 3.958 3.802  (sweep costs slope, symmetric)
+  -15 deg  SM  -1.0% | (flown in another shard)
+   12 deg  SM  46.6% | (flown in another shard)
+   30 deg  (flown in another shard)
+FLAPS:
+  none     no device — clean Vs 62.8 km/h
+  plain    dCl0 0.95 dCm0 -0.237 | CLmax 1.53 -> 1.83 | Vs 62.8 -> 57.9 km/h (0.916)
+  slotted  dCl0 1.60 dCm0 -0.400 | CLmax 1.53 -> 2.09 | Vs 62.8 -> 54.1 km/h (0.856)
+  fowler   dCl0 2.05 dCm0 -0.512 | CLmax 1.53 -> 2.28 | Vs 62.8 -> 51.9 km/h (0.821) | flies a circuit
+SURFACES: elevTau 0.500 rudTau 0.550 ailTau 0.350 | anchored on the fleet | chord moves it
+SHAPES:
+  straight  half-widths 0.33 0.36 0.36 0.29 0.23 0.17 0.10 | tapers | distinct | (flown in another shard)
+  waisted   half-widths 0.33 0.36 0.36 0.34 0.29 0.21 0.10 | tapers | distinct | (flown in another shard)
+  boom      half-widths 0.33 0.36 0.36 0.22 0.17 0.13 0.10 | tapers | distinct | (flown in another shard)
+SUSPENSION: travel 25mm · 21mm · 16mm · 8mm | spring 2.70% · 2.24% · 1.76% · 0.85% | worst member 3.4% · 3.6% · 3.8% · 4.3% | all stand
+PLACEMENT:
+  wing back 0.4         rigid  | cg 0.86 margin   43% nose-over   21° stands
+  wing fwd 0.3          rigid  | cg 0.66 margin   11% nose-over   22° stands
+  wing up 0.25          rigid  | cg 0.74 margin   27% nose-over   21° stands
+  engine fwd 0.3        rigid  | cg 0.67 margin   30% nose-over   21° stands
+  engine back 0.3       rigid  | cg 0.82 margin   20% nose-over   20° stands
+  thrustline +0.3       rigid  | cg 0.74 margin   25% nose-over   21° stands
+  tail back 0.8         rigid  | cg 0.79 margin   23% nose-over   20° stands
+  tail fwd 0.8          rigid  | cg 0.76 margin   23% nose-over   20° stands
+  gear back 0.4         rigid  | cg 0.76 margin   24% nose-over  -44° RESTS ON AXLER
+  gear fwd 0.4          rigid  | cg 0.73 margin   26% nose-over   38° stands
+  track +0.8            rigid  | cg 0.74 margin   25% nose-over   18° stands
+  everything at once    rigid  | cg 0.99 margin   76% nose-over   26° stands
+DECOUPLING: 8 front-spar nodes, worst deviation from a clean 0.400 m shift = 0.0000 m
+RIDE-ALONG stock          derived xLE 0.380 -> nudged 0.780
+RIDE-ALONG chord 2.0      derived xLE 0.320 -> nudged 0.720
+RIDE-ALONG noseGap 0.95   derived xLE 0.710 -> nudged 1.110
+FEEDBACK: gear aft -> rests on ENGL (nose-over -45°) · wing fwd -> margin 5%
+CONFIGURATIONS (every build stands and is rigid; eleven fly the circuit):
+  stock              strut           n 95 sub 76 rigid stands | land sink 0.66 z -0.0
+  cargo bay + 60 kg  strut           n 99 sub 82 rigid stands | (stands + rigid is the check)
+  tricycle           strut           n 95 sub 76 rigid stands | (flown in another shard)
+  open frame         strut           n 95 sub 83 rigid stands | (stands + rigid is the check)
+  pusher             strut           n 91 sub 73 rigid stands | (flown in another shard)
+  over the wing      strut           n 91 sub 73 rigid stands | (flown in another shard)
+  wing twin          strut           n 94 sub 79 rigid stands | land sink 0.68 z 0.1
+  twin boom          strut           n121 sub 80 rigid stands | (flown in another shard)
+  tricycle + oleo    strut           n 95 sub 76 rigid stands | (stands + rigid is the check)
+  spring steel       strut           n 95 sub 76 rigid stands | (stands + rigid is the check)
+  oleo               strut           n 95 sub 76 rigid stands | (stands + rigid is the check)
+  high cantilever    cantilever box  n111 sub 77 rigid stands | (flown in another shard)
+  mid wing           cantilever box  n111 sub 77 rigid stands | (flown in another shard)
+  low wing           strut           n 95 sub 74 rigid stands | land sink 1.14 z -0.0
+  low cantilever     cantilever box  n111 sub 78 rigid stands | (flown in another shard)
+  low+trike+cargo    cantilever box  n115 sub 85 rigid stands | (flown in another shard)
+PAIRS (built, rigid, stands, the gear on the airframe) [shard 3/4]:
+  twinBoom+tricycle  n121 sub102 rigid stands gear on the airframe
+  pusher+twinBoom    n117 sub 80 rigid stands gear on the airframe
+  wingTop+gearFwd    n 91 sub 73 rigid stands gear on the airframe
+AP GAINS (fleet band: roll w*tau .49-.82 zeta 1.3-2.4 | pitch 1.11-1.88 zeta .95-2.9)
+  stock          rollP 1.91 rollD 0.42 pitchP 1.59 pitchD 0.98 | roll 0.62/1.70 pitch 1.30/1.90
+  span 13        rollP 4.04 rollD 0.76 pitchP 1.68 pitchD 0.99 | roll 0.62/1.70 pitch 1.30/1.90
+  span 7.5       rollP 1.09 rollD 0.32 pitchP 1.45 pitchD 1.01 | roll 0.62/1.70 pitch 1.30/1.90
+  chord 2.0      rollP 1.97 rollD 0.44 pitchP 2.37 pitchD 1.24 | roll 0.62/1.70 pitch 1.30/1.90
+  180 hp         rollP 1.82 rollD 0.35 pitchP 1.55 pitchD 0.84 | roll 0.62/1.70 pitch 1.30/1.90
+  750 kg radial  rollP 1.26 rollD 0.22 pitchP 1.16 pitchD 0.60 | roll 0.62/1.70 pitch 1.30/1.90
+  wing back 0.6  rollP 1.89 rollD 0.42 pitchP 1.67 pitchD 1.09 | roll 0.62/1.70 pitch 1.30/1.90
+  tail fwd 1.0   rollP 1.88 rollD 0.42 pitchP 0.92 pitchD 0.76 | roll 0.62/1.70 pitch 1.30/1.90
+CRUISE QUIET: (flown in another shard)
+PARKED (12 s, breeze): tail-rig dev 1.8% | minTpbAgl 0.31 m
+PARKED PUSHER (10 s, calm): crept 0.070 m at 0.000 m/s | full throttle 20 s: V 23.5 m/s, worst pitch on the wheels 0.0 deg
+t=   0.0 -> ROLL V=0.0 alt=1.2 x=1 z=1.0
+t=  15.3 -> LIFTOFF V=25.4 alt=1.3 x=-202 z=0.0
+t=  22.8 -> CLIMB V=28.5 alt=17.3 x=-410 z=0.0
+t=  39.5 -> CROSSWIND V=26.9 alt=76.2 x=-862 z=-0.0
+t=  62.3 -> DOWNWIND V=30.7 alt=126.4 x=-1076 z=-470.3
+t= 162.0 -> BASE V=35.7 alt=124.9 x=2374 z=-715.0
+t= 183.9 -> FINAL V=30.6 alt=127.1 x=2703 z=-243.2
+t= 309.1 -> FLARE V=22.7 alt=6.6 x=-21 z=-0.0
+t= 316.0 -> ROLLOUT V=21.5 alt=1.3 x=-171 z=-0.0
+t= 337.3 -> STOPPED V=0.4 alt=1.2 x=-415 z=0.0
+TOUCHDOWN: sink=0.66 m/s x=-475 z=-0.0 V=77 km/h
+STOP: x=-415 z=-0.0 rolloutPitchMin=8.8 strain ch=0.7% gr=7%
+WING (strut-braced, dihedral 3): flap 3.0..3.2 deg | chatter 0.0 deg/s
+QC: 76/76 checks
+GATE GEN: PASS
+SHARD 3/4: 7 of 28 heavy jobs

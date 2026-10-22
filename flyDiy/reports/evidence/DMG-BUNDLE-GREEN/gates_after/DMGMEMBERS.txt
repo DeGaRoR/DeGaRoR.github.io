@@ -1,0 +1,150 @@
+(82 s, 5 builds)
+the reference: 0.7 m of 1" x 0.035" 4130 buckles at 0.73 of its crush force
+  ok    Euler on the reference tube: 0.73 (DEFORM-AND-BREAK §4.0: ~0.7)
+Cub:
+1. the seams (G1810)
+  ok    404 members, each with its seam and group: 10 opening:fus, 12 fitting:fus, 8 bond:wing, 28 fitting:wing, 44 fitting:tail, 4 fitting:wire, 14 fitting:gear
+2. the break groups are closed sets (G1815)
+  ok    10 groups (eng:mount 12, wing0R:root 8+4, wing0R:strut 6, wing0L:root 8+4, wing0L:strut 6, stab:attach 32, fin:attach 16, gearL:gear 4+1, gearR:gear 4+1, tw:gear 6); the generator's assertion: clean
+  ok    one member of each group broken in the solver breaks exactly its group
+  ok    a pair's own link broken alone breaks nothing else (5 links)
+3. Euler (G1812): Fc / (cy A) by class (L range; the smallest, the median; members capped)
+        fus tubeFabric (tube)        141  L 0.10-1.72 m  0.13 / 0.69  capped 103
+        wing wood                     52  L 0.42-1.87 m  1.00 / 1.00  capped 0
+        wing tubeFabric               12  L 2.10-5.17 m  1.00 / 1.00  capped 0
+        tail tubeFabric              180  L 0.05-1.39 m  1.00 / 1.00  capped 0
+        gear tubeFabric               15  L 0.24-1.78 m  1.00 / 1.00  capped 0
+  ok    Euler caps the tube members only (the truss, the bearer, the cabane and interplane struts)
+4. the seam rules (G1811): Fu over the member's physics Fu
+  ok    fittings 1.15-1.15, brittle (no set)
+  ok    rivet lines -, travel 0.0 %
+  ok    glue lines 0.62-0.78 (seeded), brittle
+  ok    openings 0.50-0.62 (Kt 1.5-2)
+  ok    the scatter is the build's own: a second sim of it stamps the same limits
+5. spruce (G1814)
+  ok    28 spruce members: tension strength x 0.86-1.14, 16 break in 2 stages, 12 in 3
+  ok    on the bench to destruction 7 spruce members let go in 3/3/2/3/3/2/3 stages, crack to gone in 1.13-11.26 ms (median 1.35)
+7. parked 10 s (damage on)
+  ok    nothing yields, nothing breaks; once settled (2 s) no frame armed in 10 s
+8. the break order (G1816)
+  ok    the bench to destruction: first yield at 23.84 g; the first member broken at 28.93 g: wing tubeFabric fitting (tension) S1BR-WF; the first GROUP at 28.93 g: wing0R:strut; 32 broken, groups wing0R:strut, wing0L:strut, wing0L:root
+  ok    the centreline at 30 m/s: the first member fus tubeFabric (no seam) (kink); the first group eng:mount; 93 broken, groups eng:mount, stab:attach, gearR:gear, gearL:gear
+  ok      6. the kink floor: 20 kinked members, their ends at least 1.00 of their crushed length apart at the end
+  ok    the wing 2.5 m out at 30 m/s: the first member wing wood (no seam) (fold); the first group wing0L:strut; 24 broken, groups wing0L:strut, eng:mount
+  ok      6. the kink floor: 3 kinked members, their ends at least 1.37 of their crushed length apart at the end
+Jodel:
+1. the seams (G1810)
+  ok    502 members, each with its seam and group: 10 opening:fus, 14 bond:fus, 12 fitting:fus, 108 bond:wing, 20 fitting:wing, 44 fitting:tail, 43 bond:tail, 4 fitting:wire, 14 fitting:gear
+2. the break groups are closed sets (G1815)
+  ok    8 groups (eng:mount 12, wing0R:root 10+10, wing0L:root 10+10, stab:attach 32, fin:attach 16, gearL:gear 4+1, gearR:gear 4+1, tw:gear 6); the generator's assertion: clean
+  ok    one member of each group broken in the solver breaks exactly its group
+  ok    a pair's own link broken alone breaks nothing else (11 links)
+3. Euler (G1812): Fc / (cy A) by class (L range; the smallest, the median; members capped)
+        fus wood                     109  L 0.15-1.51 m  1.00 / 1.00  capped 0
+        fus tubeFabric (tube)         32  L 0.17-1.26 m  0.25 / 1.00  capped 15
+        wing wood                    186  L 0.14-1.58 m  1.00 / 1.00  capped 0
+        tail wood                    156  L 0.03-1.36 m  1.00 / 1.00  capped 0
+        gear wood                     15  L 0.24-1.96 m  1.00 / 1.00  capped 0
+  ok    Euler caps the tube members only (the truss, the bearer, the cabane and interplane struts)
+4. the seam rules (G1811): Fu over the member's physics Fu
+  ok    fittings 1.15-1.15, brittle (no set)
+  ok    rivet lines -, travel 0.0 %
+  ok    glue lines 0.60-0.80 (seeded), brittle
+  ok    openings 0.48-0.74 (Kt 1.5-2; spruce, its +-15 % on top)
+  ok    the scatter is the build's own: a second sim of it stamps the same limits
+5. spruce (G1814)
+  ok    213 spruce members: tension strength x 0.85-1.15, 87 break in 2 stages, 126 in 3
+  ok    on the bench to destruction 3 spruce members let go in 2/3/3 stages, crack to gone in 0.63-29.55 ms (median 0.81)
+7. parked 10 s (damage on)
+  ok    nothing yields, nothing breaks; once settled (2 s) no frame armed in 10 s
+8. the break order (G1816)
+  ok    the bench to destruction: first yield at 11.78 g; the first member broken at 18.19 g: wing wood (no seam) (ragged) WB-WB; the first GROUP at 18.33 g: wing0L:root; 37 broken, groups wing0L:root, wing0R:root
+  REPORT  the bench's first member is not a fitting or a seam: wing wood (no seam) (ragged) WB-WB at z -0.53 / -1.74 - brittle; the lattice's spar has one section root to tip (DMG-D2's per-member envelope)
+  ok    the centreline at 30 m/s: the first member fus tubeFabric (no seam) (kink); the first group eng:mount; 87 broken, groups eng:mount, fin:attach, stab:attach
+  ok      6. the kink floor: 7 kinked members, their ends at least 1.01 of their crushed length apart at the end
+  ok    the wing 2.5 m out at 30 m/s: the first member tail wood fitting (root-bend); the first group fin:attach; 16 broken, groups fin:attach
+metal Cessna:
+1. the seams (G1810)
+  ok    452 members, each with its seam and group: 10 opening:fus, 32 rivet:fus, 12 fitting:fus, 28 fitting:wing, 44 fitting:tail, 4 fitting:wire, 14 fitting:gear
+2. the break groups are closed sets (G1815)
+  ok    10 groups (eng:mount 12, wing0R:root 8+4, wing0R:strut 6, wing0L:root 8+4, wing0L:strut 6, stab:attach 32, fin:attach 16, gearL:gear 4+1, gearR:gear 4+1, tw:gear 6); the generator's assertion: clean
+  ok    one member of each group broken in the solver breaks exactly its group
+  ok    a pair's own link broken alone breaks nothing else (5 links)
+3. Euler (G1812): Fc / (cy A) by class (L range; the smallest, the median; members capped)
+        fus alloy                    109  L 0.18-1.92 m  1.00 / 1.00  capped 0
+        fus tubeFabric (tube)         32  L 0.15-1.57 m  0.16 / 1.00  capped 15
+        wing alloy                   136  L 0.15-2.60 m  1.00 / 1.00  capped 0
+        tail alloy                   156  L 0.06-1.33 m  1.00 / 1.00  capped 0
+        gear alloy                    15  L 0.74-2.54 m  1.00 / 1.00  capped 0
+  ok    Euler caps the tube members only (the truss, the bearer, the cabane and interplane struts)
+4. the seam rules (G1811): Fu over the member's physics Fu
+  ok    fittings 1.15-1.15, brittle (no set)
+  ok    rivet lines 0.70-0.70, travel 2.0 %
+  ok    glue lines - (seeded), brittle
+  ok    openings 0.53-0.67 (Kt 1.5-2)
+  ok    the scatter is the build's own: a second sim of it stamps the same limits
+5. spruce (G1814)
+  ok    0 spruce members: tension strength x -, 0 break in 2 stages, 0 in 3
+7. parked 10 s (damage on)
+  ok    nothing yields, nothing breaks; once settled (2 s) no frame armed in 10 s
+8. the break order (G1816)
+  ok    the bench to destruction: first yield at 14.20 g; the first member broken at 14.15 g: wing alloy fitting (tension) S1BR-WB; the first GROUP at 14.15 g: wing0R:strut; 12 broken, groups wing0R:strut, wing0L:strut
+  ok    the centreline at 30 m/s: the first member fus tubeFabric (no seam) (kink); the first group eng:mount; 105 broken, groups eng:mount, wing0L:root, wing0R:root, fin:attach, stab:attach, tw:gear
+  ok      6. the kink floor: 6 kinked members, their ends at least 1.11 of their crushed length apart at the end
+  ok    the wing 2.5 m out at 30 m/s: the first member wing alloy fitting (fold); the first group wing0L:strut; 23 broken, groups wing0L:strut, eng:mount
+  ok      6. the kink floor: 1 kinked members, their ends at least 1.58 of their crushed length apart at the end
+Cessna floats:
+1. the seams (G1810)
+  ok    543 members, each with its seam and group: 10 opening:fus, 32 rivet:fus, 12 fitting:fus, 28 fitting:wing, 44 fitting:tail, 4 fitting:wire, 16 fitting:gear
+2. the break groups are closed sets (G1815)
+  ok    9 groups (eng:mount 12, wing0R:root 8+4, wing0R:strut 6, wing0L:root 8+4, wing0L:strut 6, stab:attach 32, fin:attach 16, floatL:strut 8+4, floatR:strut 8+4); the generator's assertion: clean
+  ok    one member of each group broken in the solver breaks exactly its group
+  ok    a pair's own link broken alone breaks nothing else (8 links)
+3. Euler (G1812): Fc / (cy A) by class (L range; the smallest, the median; members capped)
+        fus alloy                    109  L 0.18-1.92 m  1.00 / 1.00  capped 0
+        fus tubeFabric (tube)         32  L 0.15-1.57 m  0.16 / 1.00  capped 15
+        wing alloy                   136  L 0.15-2.61 m  1.00 / 1.00  capped 0
+        tail alloy                   156  L 0.06-1.33 m  1.00 / 1.00  capped 0
+        gear alloy                   106  L 0.26-3.50 m  1.00 / 1.00  capped 0
+  ok    Euler caps the tube members only (the truss, the bearer, the cabane and interplane struts)
+4. the seam rules (G1811): Fu over the member's physics Fu
+  ok    fittings 1.15-1.15, brittle (no set)
+  ok    rivet lines 0.70-0.70, travel 2.0 %
+  ok    glue lines - (seeded), brittle
+  ok    openings 0.52-0.61 (Kt 1.5-2)
+  ok    the scatter is the build's own: a second sim of it stamps the same limits
+5. spruce (G1814)
+  ok    0 spruce members: tension strength x -, 0 break in 2 stages, 0 in 3
+7. parked 10 s (damage on)
+  ok    nothing yields, nothing breaks; once settled (2 s) no frame armed in 10 s (31 armed while it settled onto the water: the water's own arm, G1479)
+8. the break order (G1816)
+  ok    the bench to destruction: first yield at 11.83 g; the first member broken at 11.78 g: wing alloy fitting (tension) S1BR-WB; the first GROUP at 11.78 g: wing0R:strut; 12 broken, groups wing0R:strut, wing0L:strut
+twin floatplane:
+1. the seams (G1810)
+  ok    519 members, each with its seam and group: 8 bond:wing, 28 fitting:wing, 24 fitting:fus, 44 fitting:tail, 4 fitting:wire, 16 fitting:gear
+2. the break groups are closed sets (G1815)
+  ok    10 groups (wing0R:root 8+4, wing0R:strut 6, wing0L:root 8+4, wing0L:strut 6, engL:mount 12, engR:mount 12, stab:attach 32, fin:attach 16, floatL:strut 8+4, floatR:strut 8+4); the generator's assertion: clean
+  ok    one member of each group broken in the solver breaks exactly its group
+  ok    a pair's own link broken alone breaks nothing else (8 links)
+3. Euler (G1812): Fc / (cy A) by class (L range; the smallest, the median; members capped)
+        fus tubeFabric (tube)        146  L 0.07-1.71 m  0.15 / 0.67  capped 92
+        wing wood                     52  L 0.14-2.01 m  1.00 / 1.00  capped 0
+        wing tubeFabric               12  L 2.26-5.78 m  1.00 / 1.00  capped 0
+        tail tubeFabric              199  L 0.01-1.43 m  1.00 / 1.00  capped 0
+        gear tubeFabric              106  L 0.21-1.84 m  1.00 / 1.00  capped 0
+  ok    Euler caps the tube members only (the truss, the bearer, the cabane and interplane struts)
+4. the seam rules (G1811): Fu over the member's physics Fu
+  ok    fittings 1.15-1.15, brittle (no set)
+  ok    rivet lines -, travel 0.0 %
+  ok    glue lines 0.61-0.80 (seeded), brittle
+  ok    openings - (Kt 1.5-2)
+  ok    the scatter is the build's own: a second sim of it stamps the same limits
+5. spruce (G1814)
+  ok    28 spruce members: tension strength x 0.86-1.15, 15 break in 2 stages, 13 in 3
+  ok    on the bench to destruction 2 spruce members let go in 2/2 stages, crack to gone in 1.27-1.27 ms (median 1.27)
+7. parked 10 s (damage on)
+  ok    nothing yields, nothing breaks; once settled (2 s) no frame armed in 10 s (30 armed while it settled onto the water: the water's own arm, G1479)
+8. the break order (G1816)
+  ok    the bench to destruction: first yield at 21.47 g; the first member broken at 23.32 g: wing tubeFabric fitting (tension) S1BR-WF; the first GROUP at 23.32 g: wing0R:strut; 38 broken, groups wing0R:strut, wing0L:strut, engL:mount, engR:mount
+  80/80 checks
+GATE DMGMEMBERS: PASS

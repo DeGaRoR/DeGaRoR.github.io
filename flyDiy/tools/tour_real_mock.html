@@ -1,0 +1,81 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>tour_real mock</title>
+<!-- tour_real_mock.html - TOUR-REAL (G2065): the rig's own check, NOT the game. It replays a node tour's samples
+     (tools/tour_real_node.js --out, prepared by tools/tour_real_mock.js with the aerodromes) through the handles
+     tools/tour_real.js drives - BOOT, #bGo, #selDest, FLYDIY_PACE.end, FLIGHT_PROBE, FLYDIY_ROUTE, TEST_FLIGHT,
+     FLYDIY_SIMW, FLIGHT_REC, ROLLANIM, GFX - so the leg chain, the moments, the stills, the screencast and the flight
+     log's download can be checked without the GPU. ?data=<url of the prepared json>&speed=<sim s per wall s at rate 1>
+     A leg's rows end at its STOPPED; the replay holds there until the To picker names the next leg's To. -->
+<style>body{margin:0;background:#9bc;font:14px sans-serif}#c{width:100vw;height:100vh;display:block}#ui{position:fixed;top:8px;left:8px;background:#fffc;padding:6px}</style>
+</head><body>
+<canvas id="c"></canvas>
+<div id="ui"><button id="bGo">Roll out</button> <select id="selDest"></select> <span id="phName"></span></div>
+<script>
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const D = await (await fetch(q.get('data'))).json();
+  const SPEED = +(q.get('speed') || 20);
+  const cols = D.cols, ci = k => cols.indexOf(k);
+  const IT = ci('t'), IX = ci('x'), IY = ci('y'), IZ = ci('z'), IA = ci('agl'), IP = ci('phase'), IV = ci('Vg'), IN = ci('nose'), IG = ci('onG'), IL = ci('leg');
+  const byLeg = new Map();
+  for (const r of D.rows) { if (!byLeg.has(r[IL])) byLeg.set(r[IL], []); byLeg.get(r[IL]).push(r); }
+  const sel = document.getElementById('selDest');
+  for (const a of D.aerodromes) { const o = document.createElement('option'); o.value = a.id; o.textContent = a.id; sel.appendChild(o); }
+  sel.value = D.order[1];
+  let leg = 1, k = 0, simT = byLeg.get(1)[0][IT], rate = 1, running = false, held = false, legStartT = simT, legOff = 0, over = false;
+  let cur = byLeg.get(1)[0];
+  const ap = { phase: 'DEPART', route: { from: D.order[0], to: D.order[1] }, report: { verdicts: [], outcome: null, landing: null }, t: 0 };
+  window.FLYDIY_DEST_LAST = null;
+  sel.onchange = () => {
+    const to = sel.value;
+    if (held && ap.phase === 'STOPPED' && byLeg.has(leg + 1) && D.order[leg + 1] === to) {
+      leg++; k = 0; held = false; const r0 = byLeg.get(leg)[0]; legOff = simT - r0[IT]; ap.route = { from: D.order[leg - 1], to };
+      ap.report = { verdicts: [], outcome: null, landing: null }; ap.t = 0;
+      window.FLYDIY_DEST_LAST = { to, how: 'leg', phase: 'STOPPED' };
+    } else window.FLYDIY_DEST_LAST = { to, how: held ? 'mock-refused' : 'replan', phase: ap.phase };
+  };
+  const lerp = (a, b, u) => a + (b - a) * u;
+  const sim = {
+    get t() { return simT; }, totalM: 560, fuel: { litres: 40 },
+    cgPos: () => [cur[IX], cur[IY], cur[IZ]], cgVel: () => [cur[IV] * Math.cos(cur[IN]), 0, cur[IV] * Math.sin(cur[IN])],
+    axes: () => [[-Math.cos(cur[IN]), 0, -Math.sin(cur[IN])], [0, 1, 0], [0, 0, 1]], wheelsOnGround: () => cur[IG],
+  };
+  const world = { terrainH: () => 0, aerodromes: D.aerodromes, obstacles: { list: () => (D.obstacles || []).slice(0, 50) } };
+  let camM = 'chase', camS = { az: 0, el: 0.15, dist: 7 };
+  window.FLIGHT_PROBE = { sim: () => sim, ap: () => ap, world: () => world, def: () => ({ params: { gen: { span: 10.7 }, damage: false, substeps: 1 } }),
+    agl: () => cur[IA], over: () => over, manual: () => false, camMode: m => { camM = m; }, cam: () => Object.assign({}, camS), camSet: (a, e, d) => { camS = { az: a, el: e, dist: d }; },
+    camModeNow: () => camM, damage: () => null };
+  window.FLYDIY_ROUTE = { get: () => ({ from: ap.route.from, to: sel.value, base: 'HOME' }), where: () => ({ kind: 'mock' }) };
+  window.TEST_FLIGHT = { rate: r => { rate = r === 2 ? 2 : 1; return rate; } };
+  window.FLYDIY_SIMW = { perf: () => ({ live: true, dil: 1, droppedS: 0, stepMs: 0.5 }), state: () => ({ mock: true }) };
+  window.ROLLANIM = { busy: () => false };
+  window.GFX = { get: () => ({ preset: 'gamer' }) };
+  window.BOOT = { state: 'gone', whenReady: () => Promise.resolve() };
+  const marks = [];
+  window.FLIGHT_REC = { mark: n => marks.push(n), save: () => { const b = new Blob([JSON.stringify({ format: 'mock-flightlog', marks })], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'flydiy-flightlog-mock.json'; document.body.appendChild(a); a.click(); a.remove(); return Promise.resolve({ name: a.download, bytes: b.size }); } };
+  window.FLYDIY_PACE = { end() {} };
+  document.getElementById('bGo').onclick = () => { running = true; };
+  const cv = document.getElementById('c'), g = cv.getContext('2d');
+  let last = performance.now();
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.1, (ts - last) / 1000); last = ts;
+    if (running && !held) {
+      simT += dt * SPEED * rate;
+      const R = byLeg.get(leg);
+      while (k < R.length - 1 && R[k + 1][IT] + legOff <= simT) k++;
+      if (k >= R.length - 1) { cur = R[R.length - 1]; held = true; ap.phase = 'STOPPED'; }
+      else { const a = R[k], b = R[k + 1], u = (simT - legOff - a[IT]) / (b[IT] - a[IT]); cur = a.map((v, i) => (typeof v === 'number' && i !== IG && i !== IL && i !== IN) ? lerp(v, b[i], u) : v); ap.phase = a[IP] || ap.phase; }
+      ap.t = simT - legOff - R[0][IT];
+    } else if (running && held) simT += dt * SPEED * rate;   // the clock runs on at the stop, as the game's
+    document.getElementById('phName').textContent = 'leg ' + leg + ' ' + ap.phase + ' t ' + simT.toFixed(1) + ' ' + camM;
+    cv.width = innerWidth; cv.height = innerHeight;
+    g.fillStyle = camM === 'orbit' ? '#cdb' : '#9bc'; g.fillRect(0, 0, cv.width, cv.height);
+    g.fillStyle = '#000'; g.font = '40px sans-serif'; g.fillText(camM + ' · leg ' + leg + ' · ' + ap.phase + ' · ' + cur[IX].toFixed(0) + ', ' + cur[IZ].toFixed(0), 40, 200);
+    window.FLYDIY_PACE.end(1, 0, 1, ts, 1);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body></html>

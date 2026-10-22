@@ -1,0 +1,44 @@
+tools/flight_core.js (2868.0 KB), index.html (12165.7 KB), dev.html (112.5 KB), career_core.f36739eb.js (342.1 KB) — syntax OK, build 08fea49e4254 (341 named inputs), 974 ms
+[run_gates] 0/1 jobs done · running CLOCKBAKE 30 s
+[run_gates] 0/1 jobs done · running CLOCKBAKE 60 s
+=== CLOCKBAKE ===
+ok   the Cub boots into the garage
+  ok   the garage at rest draws  (933 draws a frame)
+  WAIT dusk (sliced): {"out":"wait:dusk","jobs":1,"slices":8,"oneShot":0,"requests":2,"swaps":[8],"worst":5169,"worstBy":{"main":867,"shadow":4033,"other":269},"other":"14 254 269 100 70 52 288 264 35 49 14 14 14 14 14 14","shadow":"52 3849 4033 263 263 263 263 263 263 263 3849 236 236 236 236 236"}
+  WAIT night (sliced): {"out":"wait:night","jobs":1,"slices":8,"oneShot":0,"requests":2,"swaps":[8],"worst":5169,"worstBy":{"main":867,"shadow":4033,"other":269},"other":"14 254 269 100 70 52 288 264 35 49 14 14 14 14 14 14","shadow":"52 3849 4033 263 263 263 263 263 263 263 3849 236 236 236 236 236"}
+  WAIT noon (sliced): {"out":"wait:noon","jobs":1,"slices":8,"oneShot":0,"requests":2,"swaps":[8],"worst":5169,"worstBy":{"main":867,"shadow":4033,"other":269},"other":"14 254 269 100 70 52 288 264 35 49 14 14 14 14 14 14","shadow":"52 3849 4033 263 263 263 263 263 263 263 3849 236 236 236 236 236"}
+  WAIT dusk (the old one-shot path): {"out":"wait:dusk","jobs":0,"slices":0,"oneShot":2,"requests":2,"swaps":[1],"worst":18020,"worstBy":{"main":867,"shadow":14869,"other":2284},"other":"14 2284 14 14 14 14 14 14 14 14 14 14 14 14 14 14","shadow":"52 14869 263 263 263 263 263 263 263 3849 236 236 236 236 236 236"}
+  WAIT night (the old one-shot path): {"out":"wait:night","jobs":0,"slices":0,"oneShot":2,"requests":2,"swaps":[1],"worst":18020,"worstBy":{"main":867,"shadow":14869,"other":2284},"other":"14 2284 14 14 14 14 14 14 14 14 14 14 14 14 14 14","shadow":"52 14869 263 263 263 263 263 263 263 3849 236 236 236 236 236 236"}
+  WAIT noon (the old one-shot path): {"out":"wait:noon","jobs":0,"slices":0,"oneShot":2,"requests":2,"swaps":[1],"worst":18020,"worstBy":{"main":867,"shadow":14869,"other":2284},"other":"14 2284 14 14 14 14 14 14 14 14 14 14 14 14 14 14","shadow":"52 14869 263 263 263 263 263 263 263 3849 236 236 236 236 236 236"}
+  ok   CONTROL: the old path counts two one-shots per mood-crossing wait (the rebake and the mood) and no job  (2/0 2/0 2/0)
+  ok   WAIT dusk (sliced): the wait is a jump on the ground  (wait:dusk)
+  ok   WAIT dusk (sliced): ONE sliced job, no one-shot bake from the clock  (jobs 1, one-shots 0, requests 2)
+  ok   WAIT dusk (sliced): eight slices (six faces, the room, the outdoors)  (8)
+  ok   WAIT dusk (sliced): the room's environment replaced ONCE, after its six faces (the old probe on screen until then)  (swapped at frame 8)
+  ok   WAIT dusk (sliced): the job ran over its eight frames and was done within eleven  (done at frame 9)
+  FAIL WAIT dusk (sliced): the six face frames add no shadow pass (their shadow draws = those of the garage at rest)  (faces 4033/263/263/263/263/263, rest 52)
+  ok   WAIT dusk (sliced): a whole bake left the jump frame (the old path's worst other-pass frame exceeds the fix's by >= 6 faces)  (old 2284 vs fixed 288, one face 100)
+  ok   WAIT night (sliced): the wait is a jump on the ground  (wait:night)
+  ok   WAIT night (sliced): ONE sliced job, no one-shot bake from the clock  (jobs 1, one-shots 0, requests 2)
+  ok   WAIT night (sliced): eight slices (six faces, the room, the outdoors)  (8)
+  ok   WAIT night (sliced): the room's environment replaced ONCE, after its six faces (the old probe on screen until then)  (swapped at frame 8)
+  ok   WAIT night (sliced): the job ran over its eight frames and was done within eleven  (done at frame 9)
+  FAIL WAIT night (sliced): the six face frames add no shadow pass (their shadow draws = those of the garage at rest)  (faces 4033/263/263/263/263/263, rest 52)
+  ok   WAIT night (sliced): a whole bake left the jump frame (the old path's worst other-pass frame exceeds the fix's by >= 6 faces)  (old 2284 vs fixed 288, one face 100)
+  ok   WAIT noon (sliced): the wait is a jump on the ground  (wait:noon)
+  ok   WAIT noon (sliced): ONE sliced job, no one-shot bake from the clock  (jobs 1, one-shots 0, requests 2)
+  ok   WAIT noon (sliced): eight slices (six faces, the room, the outdoors)  (8)
+  ok   WAIT noon (sliced): the room's environment replaced ONCE, after its six faces (the old probe on screen until then)  (swapped at frame 8)
+  ok   WAIT noon (sliced): the job ran over its eight frames and was done within eleven  (done at frame 9)
+  FAIL WAIT noon (sliced): the six face frames add no shadow pass (their shadow draws = those of the garage at rest)  (faces 4033/263/263/263/263/263, rest 52)
+  ok   WAIT noon (sliced): a whole bake left the jump frame (the old path's worst other-pass frame exceeds the fix's by >= 6 faces)  (old 2284 vs fixed 288, one face 100)
+  (page errors: impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0) | impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0) | impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0))
+GATE CLOCKBAKE: FAIL (3)
+(exit code 1)
+
+──────── summary ────────
+CLOCKBAKE FAIL    88.5 s
+total             88.5 s
+wall              88.5 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.

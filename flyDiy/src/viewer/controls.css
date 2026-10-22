@@ -76,6 +76,11 @@
 #ctlBody h3 { margin:14px 0 6px; font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.2em;
   text-transform:uppercase; color:var(--ed-faint); }
 #ctlBody h3:first-child { margin-top:8px; }
+/* G2480: a group's live line (the trims held, the brake on each main) and its options */
+#ctlBody .live { margin:-2px 0 6px; font:500 10.5px/1.4 'IBM Plex Mono', monospace; color:var(--ed-dim); }
+#ctlBody .opt { display:flex; align-items:flex-start; gap:8px; margin:0 0 6px; font:400 10.5px/1.4 'IBM Plex Sans';
+  color:var(--ed-dim); cursor:pointer; }
+#ctlBody .opt input { accent-color:var(--ed-acc); margin:1px 0 0; }
 .ctlRow { display:grid; grid-template-columns:150px 1fr; gap:4px 12px; align-items:center;
   padding:7px 0; border-top:1px solid var(--ed-hair); }
 .ctlRow.listening { background:var(--ed-acc-soft); margin:0 -8px; padding-left:8px; padding-right:8px;

@@ -1,0 +1,246 @@
+cub | tw_ski | end+ | 15 | TAXI | rMin 3.7/Rg 11.3 | centreline 9.0 (need 8.35) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+cub | tw_ski | end+ | 25 | TAXI | rMin 0.6/Rg 11.3 | centreline 9.0 (need 8.35) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+cub | tw_ski | end+ | 33 | TAXI | rMin 2.8/Rg 11.3 | centreline 9.0 (need 8.35) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+cub | tw_ski | end+ | 45 | TAXI | rMin 4.6/Rg 11.3 | centreline 9.0 (need 8.35) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+cub | tw_ski | end+ | 60 | TAXI | rMin 5.4/Rg 11.3 | centreline 9.0 (need 8.35) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+cub | tw_ski | end+ | 90 | TAXI | rMin 5.9/Rg 11.3 | centreline 9.0 (need 8.35) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+cub | tw_ski | end+ | 150 | TAXI | rMin 6.2/Rg 11.3 | centreline 9.0 (need 8.35) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+cub | tw_ski | end- | 15 | TAXI | rMin 5.2/Rg 11.3 | centreline 9.0 (need 8.35) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+cub | tw_ski | end- | 25 | TAXI | rMin 5.2/Rg 11.3 | centreline 9.0 (need 8.35) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+cub | tw_ski | end- | 33 | TAXI | rMin 5.2/Rg 11.3 | centreline 9.0 (need 8.35) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+cub | tw_ski | end- | 45 | TAXI | rMin 5.2/Rg 11.3 | centreline 9.0 (need 8.35) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+cub | tw_ski | end- | 60 | TAXI | rMin 5.2/Rg 11.3 | centreline 9.0 (need 8.35) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+cub | tw_ski | end- | 90 | TAXI | rMin 5.2/Rg 11.3 | centreline 9.0 (need 8.35) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+cub | tw_ski | end- | 150 | TAXI | rMin 5.2/Rg 11.3 | centreline 9.0 (need 8.35) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+cub | w3 | end+ | 15 | TAXI | rMin 5.2/Rg 11.3 | centreline inf (need 8.35)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+cub | w3 | end+ | 25 | TAXI | rMin 5.2/Rg 11.3 | centreline inf (need 8.35)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+cub | w3 | end+ | 33 | TAXI | rMin 5.2/Rg 11.3 | centreline inf (need 8.35)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+cub | w3 | end+ | 45 | TAXI | rMin 5.2/Rg 11.3 | centreline inf (need 8.35)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+cub | w3 | end+ | 60 | TAXI | rMin 5.2/Rg 11.3 | centreline inf (need 8.35)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+cub | w3 | end+ | 90 | TAXI | rMin 5.2/Rg 11.3 | centreline inf (need 8.35)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+cub | w3 | end+ | 150 | TAXI | rMin 5.2/Rg 11.3 | centreline inf (need 8.35)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+cub | w3 | end- | 15 | TAXI | rMin 3.7/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | w3 | end- | 25 | TAXI | rMin 0.6/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | w3 | end- | 33 | TAXI | rMin 2.8/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | w3 | end- | 45 | TAXI | rMin 4.6/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | w3 | end- | 60 | TAXI | rMin 5.4/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | w3 | end- | 90 | TAXI | rMin 5.9/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | w3 | end- | 150 | TAXI | rMin 6.2/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | mn_strip | end+ | 15 | LINEUP | rMin -/Rg 11.3 | centreline inf (need 8.35)  | - | 
+cub | mn_strip | end+ | 25 | LINEUP | rMin -/Rg 11.3 | centreline inf (need 8.35)  | - | 
+cub | mn_strip | end+ | 33 | LINEUP | rMin -/Rg 11.3 | centreline inf (need 8.35)  | - | 
+cub | mn_strip | end+ | 45 | LINEUP | rMin -/Rg 11.3 | centreline inf (need 8.35)  | - | 
+cub | mn_strip | end+ | 60 | LINEUP | rMin -/Rg 11.3 | centreline inf (need 8.35)  | - | 
+cub | mn_strip | end+ | 90 | TAXI | rMin 8.2/Rg 11.3 | centreline 9.5 (need 8.35) item mn_s_mine/store | @>c1>l1a>l1b>l1c>d1>hold1 | 
+cub | mn_strip | end+ | 150 | TAXI | rMin 8.2/Rg 11.3 | centreline 9.4 (need 8.35) item mn_s_mine/school | @>c1>l1a>l1b>l1c>d1>hold1 | 
+cub | mn_strip | end- | 15 | TAXI | rMin 5.2/Rg 11.3 | centreline 5.8 (need 8.35) item mn_s_mine/mill | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+cub | mn_strip | end- | 25 | TAXI | rMin 5.2/Rg 11.3 | centreline 5.6 (need 8.35) item mn_s_mine/mill | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+cub | mn_strip | end- | 33 | TAXI | rMin 5.2/Rg 11.3 | centreline 5.4 (need 8.35) item mn_s_mine/mill | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+cub | mn_strip | end- | 45 | TAXI | rMin 5.2/Rg 11.3 | centreline 4.9 (need 8.35) item mn_s_mine/mill | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+cub | mn_strip | end- | 60 | TAXI | rMin 5.2/Rg 11.3 | centreline 4.2 (need 8.35) item mn_s_mine/clinic | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+cub | mn_strip | end- | 90 | TAXI | rMin 5.2/Rg 11.3 | centreline 3.3 (need 8.35) item mn_s_mine/mill | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+cub | mn_strip | end- | 150 | TAXI | rMin 8.2/Rg 11.3 | centreline 9.4 (need 8.35) item mn_s_mine/school | @>c1>l1a>l1b>l1c>d1>hold1 | 
+cub | nv_strip | end+ | 15 | TAXI | rMin 3.1/Rg 11.3 | centreline inf (need 8.35)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+cub | nv_strip | end+ | 25 | TAXI | rMin 3.1/Rg 11.3 | centreline inf (need 8.35)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+cub | nv_strip | end+ | 33 | TAXI | rMin 3.1/Rg 11.3 | centreline inf (need 8.35)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+cub | nv_strip | end+ | 45 | TAXI | rMin 3.1/Rg 11.3 | centreline inf (need 8.35)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+cub | nv_strip | end+ | 60 | TAXI | rMin 3.1/Rg 11.3 | centreline inf (need 8.35)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+cub | nv_strip | end+ | 90 | TAXI | rMin 3.3/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | nv_strip | end- | 15 | LINEUP | rMin -/Rg 11.3 | centreline inf (need 8.35)  | - | 
+cub | nv_strip | end- | 25 | LINEUP | rMin -/Rg 11.3 | centreline inf (need 8.35)  | - | 
+cub | nv_strip | end- | 33 | LINEUP | rMin -/Rg 11.3 | centreline inf (need 8.35)  | - | 
+cub | nv_strip | end- | 45 | TAXI | rMin 3.2/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | nv_strip | end- | 60 | TAXI | rMin 3.3/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | nv_strip | end- | 90 | TAXI | rMin 3.4/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | HOME | end+ | 15 | TAXI | rMin 4.7/Rg 11.3 | centreline inf (need 8.35)  | @>l1a>l1b>l1c>d1>hold1 | 
+cub | HOME | end+ | 25 | TAXI | rMin 0.6/Rg 11.3 | centreline inf (need 8.35)  | @>l1a>l1b>l1c>d1>hold1 | 
+cub | HOME | end+ | 33 | TAXI | rMin 3.2/Rg 11.3 | centreline inf (need 8.35)  | @>l1a>l1b>l1c>d1>hold1 | 
+cub | HOME | end+ | 45 | TAXI | rMin 6.6/Rg 11.3 | centreline inf (need 8.35)  | @>l1a>l1b>l1c>d1>hold1 | 
+cub | HOME | end+ | 60 | TAXI | rMin 8.5/Rg 11.3 | centreline inf (need 8.35)  | @>l1a>l1b>l1c>d1>hold1 | 
+cub | HOME | end+ | 90 | TAXI | rMin 10.0/Rg 11.3 | centreline inf (need 8.35)  | @>l1a>l1b>l1c>d1>hold1 | 
+cub | HOME | end+ | 150 | TAXI | rMin 10.9/Rg 11.3 | centreline inf (need 8.35)  | @>l1a>l1b>l1c>d1>hold1 | 
+cub | HOME | end- | 15 | TAXI | rMin 4.7/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | HOME | end- | 25 | TAXI | rMin 0.6/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | HOME | end- | 33 | TAXI | rMin 3.2/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | HOME | end- | 45 | TAXI | rMin 6.6/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | HOME | end- | 60 | TAXI | rMin 8.5/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | HOME | end- | 90 | TAXI | rMin 10.0/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | HOME | end- | 150 | TAXI | rMin 10.9/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | w2 | end+ | 15 | TAXI | rMin 4.7/Rg 11.3 | centreline inf (need 8.35)  | @>l1a>l1b>l1c>d1>hold1 | 
+cub | w2 | end+ | 25 | TAXI | rMin 0.6/Rg 11.3 | centreline inf (need 8.35)  | @>l1a>l1b>l1c>d1>hold1 | 
+cub | w2 | end+ | 33 | TAXI | rMin 3.2/Rg 11.3 | centreline inf (need 8.35)  | @>l1a>l1b>l1c>d1>hold1 | 
+cub | w2 | end+ | 45 | TAXI | rMin 6.6/Rg 11.3 | centreline inf (need 8.35)  | @>l1a>l1b>l1c>d1>hold1 | 
+cub | w2 | end+ | 60 | TAXI | rMin 8.5/Rg 11.3 | centreline inf (need 8.35)  | @>l1a>l1b>l1c>d1>hold1 | 
+cub | w2 | end+ | 90 | TAXI | rMin 10.0/Rg 11.3 | centreline inf (need 8.35)  | @>l1a>l1b>l1c>d1>hold1 | 
+cub | w2 | end+ | 150 | TAXI | rMin 10.9/Rg 11.3 | centreline 40.0 (need 8.35) billboard ob:af_sign_02 | @>l1a>l1b>l1c>d1>hold1 | 
+cub | w2 | end- | 15 | TAXI | rMin 4.7/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | w2 | end- | 25 | TAXI | rMin 0.6/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | w2 | end- | 33 | TAXI | rMin 3.2/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | w2 | end- | 45 | TAXI | rMin 6.6/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | w2 | end- | 60 | TAXI | rMin 8.5/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | w2 | end- | 90 | TAXI | rMin 10.0/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+cub | w2 | end- | 150 | TAXI | rMin 10.9/Rg 11.3 | centreline inf (need 8.35)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | tw_ski | end+ | 15 | TAXI | rMin 3.8/Rg 9.2 | centreline 9.0 (need 7.15) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | tw_ski | end+ | 25 | TAXI | rMin 0.7/Rg 9.2 | centreline 9.0 (need 7.15) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | tw_ski | end+ | 33 | TAXI | rMin 2.7/Rg 9.2 | centreline 9.0 (need 7.15) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | tw_ski | end+ | 45 | TAXI | rMin 4.6/Rg 9.2 | centreline 9.0 (need 7.15) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | tw_ski | end+ | 60 | TAXI | rMin 5.4/Rg 9.2 | centreline 9.0 (need 7.15) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | tw_ski | end+ | 90 | TAXI | rMin 5.9/Rg 9.2 | centreline 9.0 (need 7.15) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | tw_ski | end+ | 150 | TAXI | rMin 6.2/Rg 9.2 | centreline 9.0 (need 7.15) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | tw_ski | end- | 15 | TAXI | rMin 5.2/Rg 9.2 | centreline 9.0 (need 7.15) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+jodel | tw_ski | end- | 25 | TAXI | rMin 5.2/Rg 9.2 | centreline 9.0 (need 7.15) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+jodel | tw_ski | end- | 33 | TAXI | rMin 5.2/Rg 9.2 | centreline 9.0 (need 7.15) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+jodel | tw_ski | end- | 45 | TAXI | rMin 5.2/Rg 9.2 | centreline 9.0 (need 7.15) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+jodel | tw_ski | end- | 60 | TAXI | rMin 5.2/Rg 9.2 | centreline 9.0 (need 7.15) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+jodel | tw_ski | end- | 90 | TAXI | rMin 5.2/Rg 9.2 | centreline 9.0 (need 7.15) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+jodel | tw_ski | end- | 150 | TAXI | rMin 5.2/Rg 9.2 | centreline 9.0 (need 7.15) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+jodel | w3 | end+ | 15 | TAXI | rMin 3.8/Rg 9.2 | centreline inf (need 7.15)  | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | w3 | end+ | 25 | TAXI | rMin 0.7/Rg 9.2 | centreline inf (need 7.15)  | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | w3 | end+ | 33 | TAXI | rMin 2.7/Rg 9.2 | centreline inf (need 7.15)  | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | w3 | end+ | 45 | TAXI | rMin 4.6/Rg 9.2 | centreline inf (need 7.15)  | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | w3 | end+ | 60 | TAXI | rMin 5.4/Rg 9.2 | centreline inf (need 7.15)  | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | w3 | end+ | 90 | TAXI | rMin 5.9/Rg 9.2 | centreline inf (need 7.15)  | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | w3 | end+ | 150 | TAXI | rMin 6.2/Rg 9.2 | centreline inf (need 7.15)  | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | w3 | end- | 15 | TAXI | rMin 5.2/Rg 9.2 | centreline inf (need 7.15)  | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+jodel | w3 | end- | 25 | TAXI | rMin 5.2/Rg 9.2 | centreline inf (need 7.15)  | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+jodel | w3 | end- | 33 | TAXI | rMin 5.2/Rg 9.2 | centreline inf (need 7.15)  | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+jodel | w3 | end- | 45 | TAXI | rMin 5.2/Rg 9.2 | centreline inf (need 7.15)  | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+jodel | w3 | end- | 60 | TAXI | rMin 5.2/Rg 9.2 | centreline inf (need 7.15)  | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+jodel | w3 | end- | 90 | TAXI | rMin 5.2/Rg 9.2 | centreline inf (need 7.15)  | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+jodel | w3 | end- | 150 | TAXI | rMin 5.2/Rg 9.2 | centreline inf (need 7.15)  | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+jodel | mn_strip | end+ | 15 | LINEUP | rMin -/Rg 9.2 | centreline inf (need 7.15)  | - | 
+jodel | mn_strip | end+ | 25 | LINEUP | rMin -/Rg 9.2 | centreline inf (need 7.15)  | - | 
+jodel | mn_strip | end+ | 33 | LINEUP | rMin -/Rg 9.2 | centreline inf (need 7.15)  | - | 
+jodel | mn_strip | end+ | 45 | LINEUP | rMin -/Rg 9.2 | centreline inf (need 7.15)  | - | 
+jodel | mn_strip | end+ | 60 | LINEUP | rMin -/Rg 9.2 | centreline inf (need 7.15)  | - | 
+jodel | mn_strip | end+ | 90 | TAXI | rMin 8.2/Rg 9.2 | centreline 9.5 (need 7.15) item mn_s_mine/store | @>c1>l1a>l1b>l1c>d1>hold1 | 
+jodel | mn_strip | end+ | 150 | TAXI | rMin 8.2/Rg 9.2 | centreline 9.4 (need 7.15) item mn_s_mine/school | @>c1>l1a>l1b>l1c>d1>hold1 | 
+jodel | mn_strip | end- | 15 | TAXI | rMin 5.2/Rg 9.2 | centreline 5.8 (need 7.15) item mn_s_mine/mill | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+jodel | mn_strip | end- | 25 | TAXI | rMin 5.2/Rg 9.2 | centreline 5.6 (need 7.15) item mn_s_mine/mill | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+jodel | mn_strip | end- | 33 | TAXI | rMin 5.2/Rg 9.2 | centreline 5.5 (need 7.15) item mn_s_mine/mill | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+jodel | mn_strip | end- | 45 | TAXI | rMin 5.2/Rg 9.2 | centreline 4.9 (need 7.15) item mn_s_mine/mill | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+jodel | mn_strip | end- | 60 | TAXI | rMin 5.2/Rg 9.2 | centreline 4.2 (need 7.15) item mn_s_mine/clinic | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+jodel | mn_strip | end- | 90 | TAXI | rMin 5.2/Rg 9.2 | centreline 3.3 (need 7.15) item mn_s_mine/mill | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+jodel | mn_strip | end- | 150 | TAXI | rMin 8.2/Rg 9.2 | centreline 9.4 (need 7.15) item mn_s_mine/school | @>c1>l1a>l1b>l1c>d1>hold1 | 
+jodel | nv_strip | end+ | 15 | TAXI | rMin 3.1/Rg 9.2 | centreline inf (need 7.15)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+jodel | nv_strip | end+ | 25 | TAXI | rMin 3.1/Rg 9.2 | centreline inf (need 7.15)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+jodel | nv_strip | end+ | 33 | TAXI | rMin 3.1/Rg 9.2 | centreline inf (need 7.15)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+jodel | nv_strip | end+ | 45 | TAXI | rMin 3.1/Rg 9.2 | centreline inf (need 7.15)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+jodel | nv_strip | end+ | 60 | TAXI | rMin 3.1/Rg 9.2 | centreline inf (need 7.15)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+jodel | nv_strip | end+ | 90 | TAXI | rMin 3.3/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | nv_strip | end- | 15 | LINEUP | rMin -/Rg 9.2 | centreline inf (need 7.15)  | - | 
+jodel | nv_strip | end- | 25 | LINEUP | rMin -/Rg 9.2 | centreline inf (need 7.15)  | - | 
+jodel | nv_strip | end- | 33 | LINEUP | rMin -/Rg 9.2 | centreline inf (need 7.15)  | - | 
+jodel | nv_strip | end- | 45 | TAXI | rMin 3.2/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | nv_strip | end- | 60 | TAXI | rMin 3.3/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | nv_strip | end- | 90 | TAXI | rMin 3.4/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | HOME | end+ | 15 | TAXI | rMin 4.8/Rg 9.2 | centreline inf (need 7.15)  | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | HOME | end+ | 25 | TAXI | rMin 0.7/Rg 9.2 | centreline inf (need 7.15)  | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | HOME | end+ | 33 | TAXI | rMin 3.1/Rg 9.2 | centreline inf (need 7.15)  | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | HOME | end+ | 45 | TAXI | rMin 6.5/Rg 9.2 | centreline inf (need 7.15)  | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | HOME | end+ | 60 | TAXI | rMin 8.5/Rg 9.2 | centreline inf (need 7.15)  | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | HOME | end+ | 90 | TAXI | rMin 9.9/Rg 9.2 | centreline inf (need 7.15)  | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | HOME | end+ | 150 | TAXI | rMin 10.9/Rg 9.2 | centreline inf (need 7.15)  | @>l1a>l1b>l1c>d1>hold1 | 
+jodel | HOME | end- | 15 | TAXI | rMin 4.8/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | HOME | end- | 25 | TAXI | rMin 0.7/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | HOME | end- | 33 | TAXI | rMin 3.1/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | HOME | end- | 45 | TAXI | rMin 6.5/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | HOME | end- | 60 | TAXI | rMin 8.5/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | HOME | end- | 90 | TAXI | rMin 9.9/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | HOME | end- | 150 | TAXI | rMin 10.9/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | w2 | end+ | 15 | TAXI | rMin 8.1/Rg 9.2 | centreline 37.5 (need 7.15) billboard ob:af_sign_02 | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+jodel | w2 | end+ | 25 | TAXI | rMin 8.1/Rg 9.2 | centreline 37.5 (need 7.15) billboard ob:af_sign_02 | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+jodel | w2 | end+ | 33 | TAXI | rMin 8.1/Rg 9.2 | centreline 37.5 (need 7.15) billboard ob:af_sign_02 | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+jodel | w2 | end+ | 45 | TAXI | rMin 8.1/Rg 9.2 | centreline 37.5 (need 7.15) billboard ob:af_sign_02 | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+jodel | w2 | end+ | 60 | TAXI | rMin 8.1/Rg 9.2 | centreline inf (need 7.15)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+jodel | w2 | end+ | 90 | TAXI | rMin 8.1/Rg 9.2 | centreline inf (need 7.15)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+jodel | w2 | end+ | 150 | TAXI | rMin 8.1/Rg 9.2 | centreline inf (need 7.15)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+jodel | w2 | end- | 15 | TAXI | rMin 4.8/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | w2 | end- | 25 | TAXI | rMin 0.7/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | w2 | end- | 33 | TAXI | rMin 3.1/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | w2 | end- | 45 | TAXI | rMin 6.5/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | w2 | end- | 60 | TAXI | rMin 8.5/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | w2 | end- | 90 | TAXI | rMin 9.9/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+jodel | w2 | end- | 150 | TAXI | rMin 10.9/Rg 9.2 | centreline inf (need 7.15)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | tw_ski | end+ | 15 | TAXI | rMin 3.7/Rg 5.9 | centreline 9.0 (need 8.50) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | tw_ski | end+ | 25 | TAXI | rMin 0.6/Rg 5.9 | centreline 9.0 (need 8.50) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | tw_ski | end+ | 33 | TAXI | rMin 2.8/Rg 5.9 | centreline 9.0 (need 8.50) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | tw_ski | end+ | 45 | TAXI | rMin 4.6/Rg 5.9 | centreline 9.0 (need 8.50) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | tw_ski | end+ | 60 | TAXI | rMin 5.4/Rg 5.9 | centreline 9.0 (need 8.50) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | tw_ski | end+ | 90 | TAXI | rMin 5.9/Rg 5.9 | centreline 9.0 (need 8.50) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | tw_ski | end+ | 150 | TAXI | rMin 6.2/Rg 5.9 | centreline 9.0 (need 8.50) prop ob:tw_o19 | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | tw_ski | end- | 15 | TAXI | rMin 5.2/Rg 5.9 | centreline 9.0 (need 8.50) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+c172m | tw_ski | end- | 25 | TAXI | rMin 5.2/Rg 5.9 | centreline 9.0 (need 8.50) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+c172m | tw_ski | end- | 33 | TAXI | rMin 5.2/Rg 5.9 | centreline 9.0 (need 8.50) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+c172m | tw_ski | end- | 45 | TAXI | rMin 5.2/Rg 5.9 | centreline 9.0 (need 8.50) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+c172m | tw_ski | end- | 60 | TAXI | rMin 5.2/Rg 5.9 | centreline 9.0 (need 8.50) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+c172m | tw_ski | end- | 90 | TAXI | rMin 5.2/Rg 5.9 | centreline 9.0 (need 8.50) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+c172m | tw_ski | end- | 150 | TAXI | rMin 5.2/Rg 5.9 | centreline 9.0 (need 8.50) prop ob:tw_o19 | @>@ua>@ub>@uc>l1a>l1b>l1c>d1>hold1 | 
+c172m | w3 | end+ | 15 | TAXI | rMin 5.2/Rg 5.9 | centreline inf (need 8.50)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+c172m | w3 | end+ | 25 | TAXI | rMin 5.2/Rg 5.9 | centreline inf (need 8.50)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+c172m | w3 | end+ | 33 | TAXI | rMin 5.2/Rg 5.9 | centreline inf (need 8.50)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+c172m | w3 | end+ | 45 | TAXI | rMin 5.2/Rg 5.9 | centreline inf (need 8.50)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+c172m | w3 | end+ | 60 | TAXI | rMin 5.2/Rg 5.9 | centreline inf (need 8.50)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+c172m | w3 | end+ | 90 | TAXI | rMin 5.2/Rg 5.9 | centreline inf (need 8.50)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+c172m | w3 | end+ | 150 | TAXI | rMin 5.2/Rg 5.9 | centreline inf (need 8.50)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+c172m | w3 | end- | 15 | TAXI | rMin 3.7/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | w3 | end- | 25 | TAXI | rMin 0.6/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | w3 | end- | 33 | TAXI | rMin 2.8/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | w3 | end- | 45 | TAXI | rMin 4.6/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | w3 | end- | 60 | TAXI | rMin 5.4/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | w3 | end- | 90 | TAXI | rMin 5.9/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | w3 | end- | 150 | TAXI | rMin 6.2/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | mn_strip | end+ | 15 | LINEUP | rMin -/Rg 5.9 | centreline inf (need 8.50)  | - | 
+c172m | mn_strip | end+ | 25 | LINEUP | rMin -/Rg 5.9 | centreline inf (need 8.50)  | - | 
+c172m | mn_strip | end+ | 33 | LINEUP | rMin -/Rg 5.9 | centreline inf (need 8.50)  | - | 
+c172m | mn_strip | end+ | 45 | LINEUP | rMin -/Rg 5.9 | centreline inf (need 8.50)  | - | 
+c172m | mn_strip | end+ | 60 | LINEUP | rMin -/Rg 5.9 | centreline inf (need 8.50)  | - | 
+c172m | mn_strip | end+ | 90 | TAXI | rMin 8.2/Rg 5.9 | centreline 9.5 (need 8.50) item mn_s_mine/store | @>c1>l1a>l1b>l1c>d1>hold1 | 
+c172m | mn_strip | end+ | 150 | TAXI | rMin 8.2/Rg 5.9 | centreline 9.4 (need 8.50) item mn_s_mine/school | @>c1>l1a>l1b>l1c>d1>hold1 | 
+c172m | mn_strip | end- | 15 | TAXI | rMin 5.2/Rg 5.9 | centreline 5.8 (need 8.50) item mn_s_mine/mill | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+c172m | mn_strip | end- | 25 | TAXI | rMin 5.2/Rg 5.9 | centreline 5.6 (need 8.50) item mn_s_mine/mill | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+c172m | mn_strip | end- | 33 | TAXI | rMin 5.2/Rg 5.9 | centreline 5.5 (need 8.50) item mn_s_mine/mill | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+c172m | mn_strip | end- | 45 | TAXI | rMin 5.2/Rg 5.9 | centreline 4.9 (need 8.50) item mn_s_mine/mill | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+c172m | mn_strip | end- | 60 | TAXI | rMin 5.2/Rg 5.9 | centreline 4.2 (need 8.50) item mn_s_mine/clinic | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+c172m | mn_strip | end- | 90 | TAXI | rMin 5.2/Rg 5.9 | centreline 3.3 (need 8.50) item mn_s_mine/mill | @>@ua>@ub>@uc>c1>l1a>l1b>l1c>d1>hold1 | 
+c172m | mn_strip | end- | 150 | TAXI | rMin 8.2/Rg 5.9 | centreline 9.4 (need 8.50) item mn_s_mine/school | @>c1>l1a>l1b>l1c>d1>hold1 | 
+c172m | nv_strip | end+ | 15 | TAXI | rMin 3.1/Rg 5.9 | centreline inf (need 8.50)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+c172m | nv_strip | end+ | 25 | TAXI | rMin 3.1/Rg 5.9 | centreline inf (need 8.50)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+c172m | nv_strip | end+ | 33 | TAXI | rMin 3.1/Rg 5.9 | centreline inf (need 8.50)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+c172m | nv_strip | end+ | 45 | TAXI | rMin 3.1/Rg 5.9 | centreline inf (need 8.50)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+c172m | nv_strip | end+ | 60 | TAXI | rMin 3.1/Rg 5.9 | centreline inf (need 8.50)  | @>@ua>@ub>@uc>l0a>l0b>l0c>d0>hold0 | 
+c172m | nv_strip | end+ | 90 | TAXI | rMin 3.3/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | nv_strip | end- | 15 | LINEUP | rMin -/Rg 5.9 | centreline inf (need 8.50)  | - | 
+c172m | nv_strip | end- | 25 | LINEUP | rMin -/Rg 5.9 | centreline inf (need 8.50)  | - | 
+c172m | nv_strip | end- | 33 | LINEUP | rMin -/Rg 5.9 | centreline inf (need 8.50)  | - | 
+c172m | nv_strip | end- | 45 | TAXI | rMin 3.2/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | nv_strip | end- | 60 | TAXI | rMin 3.3/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | nv_strip | end- | 90 | TAXI | rMin 3.4/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | HOME | end+ | 15 | TAXI | rMin 4.7/Rg 5.9 | centreline inf (need 8.50)  | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | HOME | end+ | 25 | TAXI | rMin 0.6/Rg 5.9 | centreline inf (need 8.50)  | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | HOME | end+ | 33 | TAXI | rMin 3.2/Rg 5.9 | centreline inf (need 8.50)  | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | HOME | end+ | 45 | TAXI | rMin 6.6/Rg 5.9 | centreline inf (need 8.50)  | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | HOME | end+ | 60 | TAXI | rMin 8.5/Rg 5.9 | centreline inf (need 8.50)  | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | HOME | end+ | 90 | TAXI | rMin 10.0/Rg 5.9 | centreline inf (need 8.50)  | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | HOME | end+ | 150 | TAXI | rMin 10.9/Rg 5.9 | centreline inf (need 8.50)  | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | HOME | end- | 15 | TAXI | rMin 4.7/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | HOME | end- | 25 | TAXI | rMin 0.6/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | HOME | end- | 33 | TAXI | rMin 3.2/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | HOME | end- | 45 | TAXI | rMin 6.6/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | HOME | end- | 60 | TAXI | rMin 8.5/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | HOME | end- | 90 | TAXI | rMin 10.0/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | HOME | end- | 150 | TAXI | rMin 10.9/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | w2 | end+ | 15 | TAXI | rMin 4.7/Rg 5.9 | centreline inf (need 8.50)  | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | w2 | end+ | 25 | TAXI | rMin 0.6/Rg 5.9 | centreline inf (need 8.50)  | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | w2 | end+ | 33 | TAXI | rMin 3.2/Rg 5.9 | centreline inf (need 8.50)  | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | w2 | end+ | 45 | TAXI | rMin 6.6/Rg 5.9 | centreline inf (need 8.50)  | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | w2 | end+ | 60 | TAXI | rMin 8.5/Rg 5.9 | centreline inf (need 8.50)  | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | w2 | end+ | 90 | TAXI | rMin 10.0/Rg 5.9 | centreline inf (need 8.50)  | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | w2 | end+ | 150 | TAXI | rMin 10.9/Rg 5.9 | centreline 40.0 (need 8.50) billboard ob:af_sign_02 | @>l1a>l1b>l1c>d1>hold1 | 
+c172m | w2 | end- | 15 | TAXI | rMin 4.7/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | w2 | end- | 25 | TAXI | rMin 0.6/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | w2 | end- | 33 | TAXI | rMin 3.2/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | w2 | end- | 45 | TAXI | rMin 6.6/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | w2 | end- | 60 | TAXI | rMin 8.5/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | w2 | end- | 90 | TAXI | rMin 10.0/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 
+c172m | w2 | end- | 150 | TAXI | rMin 10.9/Rg 5.9 | centreline inf (need 8.50)  | @>l0a>l0b>l0c>d0>hold0 | 

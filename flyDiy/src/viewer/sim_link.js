@@ -64,7 +64,7 @@ const SIM_LINK = (() => {
   'use strict';
   const WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setSea'];
   // the pilot's fields assigned whole (never merged into the page's objects: a site or a plan may be shared)
-  const AP_WHOLE = ['legs', 'path', 'plan', 'taxiOut', 'site', 'report'];
+  const AP_WHOLE = ['legs', 'path', 'plan', 'taxiOut', 'site', 'report', 'drawn'];   // G2120: the drawn route's state, whole
   const AP_SKIP = ['route', 'nav', 'sheet'];
 
   const isPlain = o => o !== null && typeof o === 'object' && !Array.isArray(o) && !ArrayBuffer.isView(o);
@@ -87,7 +87,7 @@ const SIM_LINK = (() => {
   // the page has, after three (they build with it at load), so its world composes the premises as the page's did
   const GEN_FILES = { HOUSE_GEN: ['tools/_house_kit.js', 'tools/_house_gen.js'], BIG_GEN: ['tools/_big_gen.js'], SHED_GEN: ['tools/_shed_gen.js'],
                       HANGAR_GEN: ['tools/_hangar_gen.js'], TOWER_GEN: ['tools/_tower_gen.js'], TRAM_GEN: ['tools/_tram_gen.js'],
-                      TOTEM_GEN: ['tools/_totem_gen.js'], SPORT_GEN: ['tools/_sport_gen.js'], MARINE_GEN: ['tools/_marine_gen.js'] };
+                      TOTEM_GEN: ['tools/_totem_gen.js'], SPORT_GEN: ['tools/_sport_gen.js'], MARINE_GEN: ['tools/_marine_gen.js'], NAVAID_GEN: ['tools/_navaid_gen.js'] };
   function catalogueScripts(W) {
     const out = [];
     for (const g of Object.keys(GEN_FILES)) if (W[g]) for (const f of GEN_FILES[g]) if (out.indexOf(f) < 0) out.push(f);
@@ -322,6 +322,9 @@ const SIM_LINK = (() => {
       { const frl = typeof S.sim.freight === 'function' ? S.sim.freight() : null; if (frl) { m.freight = frl; flight.freight = frl; } }
       if (cardNext && cardNext.ap === S.ap) m.pilot.card = cardNext.card;
       cardNext = null;
+      // G2120 ROUTE-DRAW: a route drawn before this flight was asked of the worker (armed on the page's pilot) is the worker
+      // pilot's too, from its first step
+      if (S.ap && S.ap.drawn && S.ap.drawn.state === 'armed' && S.ap.drawn.route) m.pilot.route = JSON.parse(JSON.stringify(S.ap.drawn.route));
       // G820 (C1c): ONE SIM PER BUILD, as the page's: the worker keeps the sim it flew last when the page flies the same
       // sim object again (a reset, the skip, the shed's round trip), and a sim it makes anew takes the page's sim.out
       // (a reset does not clear it; the pilot's first update reads it when the flight starts `started`)
@@ -376,7 +379,7 @@ const SIM_LINK = (() => {
     }
 
     // ---- THE MIRROR: the page's sim answers from the snapshot while the flight is live ----------------
-    let saved = null, ctlP = null;
+    let saved = null, ctlP = null, structSaved = null;
     const patch = { set: null, eng: [] };
     function ctlProxy(real) {
       const els = new WeakMap(), arrs = new WeakMap();
@@ -398,7 +401,7 @@ const SIM_LINK = (() => {
       const F = flight, sim = F.sim, V = F.view;
       const own = k => Object.getOwnPropertyDescriptor(sim, k);
       saved = {};
-      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp', 'wetFx', 'setFreight']) saved[k] = own(k);
+      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp', 'dmgState', 'wetFx', 'setFreight', 'drv', 'vView', 'engView']) saved[k] = own(k);
       const realCtl = sim.ctl, orig = { setEngine: sim.setEngine, reset: sim.reset, setFreight: sim.setFreight };
       F.realCtl = realCtl;
       ctlP = ctlProxy(realCtl);
@@ -410,9 +413,27 @@ const SIM_LINK = (() => {
       def('wheelsOnGround', { writable: true, value: () => V.wheelsOnGround() });
       def('wheelContacts', { writable: true, value: () => V.wheels || (saved.wheelContacts && saved.wheelContacts.value ? saved.wheelContacts.value() : null) });
       def('stats', { writable: true, value: () => V.stats() });
+      // G1818 (DMG-SKINGPU, found on the box): THE DAMAGE STATE TOO - the view's (G1850: the broken list and the pieces,
+      // sent on change). Without it the page's dmgNow asked the page's own sim, which the worker never steps: under the
+      // physics worker - the default - no break ever reached the page, so D4a's skin break, D4b's debris and the wreck's
+      // GPU riding never ran (the worker crashed; the page drew the aeroplane whole)
+      def('dmgState', { writable: true, value: () => V.dmgState() });
       // G2090 (WATER-LOOK): the worker's wet-body contacts (sim_view's newest); each slam peak handed to the page once
       def('wetFx', { writable: true, value: () => { const W = V.wet; if (!W) return null;
         const out = W.slice(); for (let i = 0; i < W[0]; i++) W[5 + i * 18 + 13] = 0; return out; } });
+      // G1861.5 (DMG-D4b): ...and DMG-DRIVE's per-engine state (the worker's meta.drv, sim_view's view.drv): the prop draws its grade
+      def('drv', { get: () => V.drv || null });
+      // (...and the worker's node velocities and engines, under their own names - the wreck's reads only: a released part
+      // leaves with its nodes' velocity, a seized prop stops; the page's own v / eng are never stepped under the worker)
+      def('vView', { get: () => V.v || null });
+      def('engView', { get: () => V.eng || null });
+      // DMG-D4b (train 41): THE AEROPLANE'S INTEGRITY (30_solver's DMG.structural) - the worker's (meta.struct), on the page's
+      // own damage object: the page's core is never stepped, its getter would say whole and the default mode would certify a
+      // wreck. Restored at detach
+      { const D0 = sim.damage && sim.damage();
+        if (D0) { structSaved = [D0, Object.getOwnPropertyDescriptor(D0, 'structural') || null];
+          Object.defineProperty(D0, 'structural', { configurable: true, enumerable: false,
+            get: () => V.struct || { damaged: false, broken: 0, separated: [], why: null } }); } }
       def('step', { writable: true, value: () => { st.strays++; } });
       def('setEngine', { writable: true, value: (i, p) => {
         const c = { cmd: 'setEngine', i, patch: Object.assign({}, p) };
@@ -446,6 +467,8 @@ const SIM_LINK = (() => {
       { const C0 = typeof sim.cert === 'function' ? sim.cert() : null; if (C0 && C0.Ft) V.send({ cmd: 'cert', Ft: C0.Ft, Fc: C0.Fc, k: 0 }); }
       if (destNext && destNext.ap === F.ap) V.send({ cmd: 'dest', to: destNext.to, k: 0 });   // G1945: a To picked before the worker took the flight
       destNext = null;
+      if (routeNext && routeNext.ap === F.ap) V.send({ cmd: 'route', route: routeNext.route, k: 0 });   // G2120: a route drawn while it was being taken
+      routeNext = null;
       // the convection the page's climate holds (its cache's exact inputs: the page's day met that key before the worker lived)
       if (world.climate && world.climate.convState) V.send({ cmd: 'conv', s: world.climate.convState(), k: 0 });
       windFrame = [];
@@ -456,6 +479,7 @@ const SIM_LINK = (() => {
       for (const k of Object.keys(saved)) {
         if (saved[k]) Object.defineProperty(sim, k, saved[k]); else delete sim[k];
       }
+      if (structSaved) { const [D0, d] = structSaved; if (d) Object.defineProperty(D0, 'structural', d); else delete D0.structural; structSaved = null; }
       saved = null; ctlP = null; flight.live = false;
     }
     const stamp = c => { if (st.mode === 'lockstep' && flight) c.k = flight.posted; return c; };
@@ -474,7 +498,7 @@ const SIM_LINK = (() => {
       if (sim.fuel && V.fuel) merge(sim.fuel, V.fuel, 3);
       if (sim.hydro && V.hydro) {
         const H = sim.hydro, h = V.hydro; H.wet = h.wet; H.tick = h.tick;
-        for (let i = 0; i < H.floats.length && i < h.floats.length; i++) { const a = H.floats[i], b = h.floats[i]; a.wet = b.wet; merge(a.out, b.out, 2); for (let j = 0; j < a.lam.length && j < b.lam.length; j++) a.lam[j] = b.lam[j];
+        for (let i = 0; i < H.floats.length && i < h.floats.length; i++) { const a = H.floats[i], b = h.floats[i]; a.wet = b.wet; if (Number.isFinite(b.h)) a.h = b.h; merge(a.out, b.out, 2);   /* G2834: the float's water level (the spray's y) */ for (let j = 0; j < a.lam.length && j < b.lam.length; j++) a.lam[j] = b.lam[j];
           // G1180: the world vertices from the nodes just mirrored (sim_host keeps its tables), the wet panels from the worker
           if (a.ctx && a.ctx.fill && a.out.W) a.ctx.fill(a.out.W);
           if (b.per && a.out.per) { for (const o of a.out.per) o.wet = 0;
@@ -522,7 +546,8 @@ const SIM_LINK = (() => {
         cmd({ cmd: 'over', on: !!S.over, outcome: S.over && F.ap.report ? F.ap.report.outcome || null : null }); F.sent.over = !!S.over;
       }
       if (S.manual && S.INP) {
-        const h = { de: null, da: null, dr: null, thr: null, brake: null, flap: null, eng: Array.isArray(F.realCtl.eng) ? F.realCtl.eng.map(() => ({})) : null };
+        // (G2480: the differential brake and the water rudders' handle ride with the rest - INP.write sets every field)
+        const h = { de: null, da: null, dr: null, thr: null, brake: null, brakeD: null, wr: null, flap: null, eng: Array.isArray(F.realCtl.eng) ? F.realCtl.eng.map(() => ({})) : null };
         S.INP.write(h);
         cmd({ cmd: 'hand', ctl: Object.assign({}, h, { eng: h.eng ? h.eng.map(e => (e.thr != null ? e.thr : null)) : null }) });
       }
@@ -599,7 +624,16 @@ const SIM_LINK = (() => {
     // G1945 DEST-TO: A NEW TO (app.js setTo -> the page pilot's ap.setDest): the worker's pilot is handed the same
     // destination at the same step boundary - no new pilot, no reset (43_pilot.js setDest decides: kept, re-planned
     // from here, or queued for the next leg). A flight not live yet takes it as its first command (k 0, attach)
-    let destNext = null;
+    let destNext = null, routeNext = null;
+    // G2120 ROUTE-DRAW: A DRAWN ROUTE (app.js routeFly -> the page pilot's ap.flyRoute): the worker's pilot is handed the
+    // same record at the same step boundary (43_pilot.js flyRoute decides: armed, now, queued; null leaves it)
+    function route(rec) {
+      const F = flight; if (!F || F.inline) return;
+      const r = rec ? JSON.parse(JSON.stringify(rec)) : null;
+      if (!F.live) { routeNext = { ap: F.ap, route: r }; return; }
+      const c = { cmd: 'route', route: r }; stamp(c); F.view.send(c);
+      st.routes = (st.routes || 0) + 1;
+    }
     function dest(to) {
       const F = flight; if (!F || F.inline) return;
       if (!F.live) { destNext = { ap: F.ap, to }; return; }
@@ -633,16 +667,19 @@ const SIM_LINK = (() => {
       return new Promise(res => { placeWait.set(id, res); post({ cmd: 'place', id, at: o.at || null, by: o.by || null, zeroV: !!o.zeroV, dv: o.dv || null }); });
     }
     // the worker's readings for the recorder and rollout_perf (one object, rewritten: nothing allocated a frame)
-    const P = { live: false, stepMs: NaN, dil: NaN, droppedS: NaN, late: NaN, step: 0, maxMs: NaN };
+    // G3322 (FLIGHTREC-DETAIL): `ctl` - the page sim's OWN ctl object (the one this link mirrors the worker's published ctl
+    // into every frame), a reference: the recorder's probe reads the controls off it, not through sim.ctl's proxy (a trap
+    // a field, a frame). Null when no worker flight is live (then sim.ctl is the real object anyway)
+    const P = { live: false, stepMs: NaN, dil: NaN, droppedS: NaN, late: NaN, step: 0, maxMs: NaN, ctl: null };
     function perf() {
       const F = flight, f = F && F.live && F.view ? F.view.snapshot() : null;
       P.live = !!f;
-      if (f) { const S = F.ready.slots; P.stepMs = f[S.STEPMS]; P.dil = f[S.DIL]; P.droppedS = f[S.DROPPED]; P.late = f[S.LATE]; P.step = f[S.STEP]; P.maxMs = f[S.MAXMS]; }
-      else { P.stepMs = P.dil = P.droppedS = P.late = P.maxMs = NaN; P.step = 0; }
+      if (f) { const S = F.ready.slots; P.stepMs = f[S.STEPMS]; P.dil = f[S.DIL]; P.droppedS = f[S.DROPPED]; P.late = f[S.LATE]; P.step = f[S.STEP]; P.maxMs = f[S.MAXMS]; P.ctl = F.realCtl || null; }
+      else { P.stepMs = P.dil = P.droppedS = P.late = P.maxMs = NaN; P.step = 0; P.ctl = null; }
       return P;
     }
     const api = {
-      frame, idle, warm, shed, prewarm, leg, dest, perf, card, place, accept,
+      frame, idle, warm, shed, prewarm, leg, dest, route, perf, card, place, accept,
       state: () => Object.assign({}, st, { dead, flight: flight ? { live: flight.live, inline: flight.inline, posted: flight.posted, frames: flight.frames, epoch: flight.epoch } : null,
                                            view: flight && flight.view ? flight.view.state() : null,
                                            ring: flight && flight.view && flight.view.delay ? flight.view.delay() : null }),   // G1100: the view's ring and delay

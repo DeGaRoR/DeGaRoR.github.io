@@ -202,6 +202,25 @@ function benchCertRun(CORE, job) {
   while (!r.done) r = g.next();
   return r.value;
 }
+// G2920 (GARAGE-SHEET): THE PERFORMANCE SHEET (genShakedown) OFF THE PAGE. The garage's readouts asked for it on the
+// page's thread after every change that put a new aeroplane on the stand (metal Cessna ~1.0-1.2 s, the Cub ~0.6 s of
+// the busy time a change). It is a function of the spec and the core alone (settled on a flat plane, no world), so
+// the worker builds the same aeroplane from the same spec and runs the same function: `job.spec` is the spec the
+// page's def was built from (app.js genSpec), `job.opts` the page's own options. What crosses back is the sheet
+// itself (a structured clone keeps NaN, -0 and shared objects as they are) and the def's signature (benchSheetSig):
+// the page compares it with its own def, and a worker whose core is not the page's is caught there, never believed.
+function benchSheetSig(def) {
+  let m = 0, x = 0, y = 0;
+  for (const n of def.nodes) { m += n.m; x += n.p[0] * n.m; y += n.p[1] * n.m; }
+  return { nn: def.nodes.length, nb: def.beams.length, m, x, y };
+}
+function benchSheetRun(CORE, job) {
+  const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const def = CORE.buildGen(job.spec);
+  const sheet = CORE.genShakedown(def, job.opts || { corners: false });
+  const ms = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0;
+  return { kind: 'sheet', seq: job.seq, key: job.key, sheet, sig: benchSheetSig(def), ms };
+}
 
 // G1891 (DMG-CERTCOST): THE CERTIFICATE KEPT, ACROSS PAGE LOADS. A build's certificate takes its worker 8-30 s (node:
 // HANDOVER G1890); kept by the page's memory cache it was computed again at every page load. It is kept here in
@@ -358,6 +377,9 @@ function benchWorkerBody(CORE, BW) {
         const st = run.rig.state;
         post({ kind: 'destroy', seq: job.seq, ok: run.ok, verdict: st.verdict, brokeAt: st.brokeAt, brokeKey: st.brokeKey, brokeSeam: st.brokeSeam,
                yieldAt: st.yieldAt, breakAt: st.breakAt, breakFirst: st.breakFirst, limit: run.rig.limit, ult: BW.GEN_LOAD_ULT_OF(CORE) });
+      } else if (job.kind === 'sheet') {
+        // G2920: one sheet, at once - the page aborts a superseded one by terminating this thread (sheet_link.js)
+        post(BW.benchSheetRun(CORE, job));
       } else if (job.kind === 'cert') {
         // G1831: one computation, no pacing - the answer and done (G1891: a case a turn)
         cur = { kind: 'cert', seq: job.seq, it: BW.benchCertSteps(CORE, job) };
@@ -374,13 +396,15 @@ function benchWorkerBody(CORE, BW) {
 }
 
 // the Blob's source: this file and the built core bundle, both by URL next
-// to the page (dev.html and index.html sit in flyDiy/), then the body
-function benchWorkerSource(base) {
+// to the page (dev.html and index.html sit in flyDiy/), then the body. `ver` / `coreVer` (G2920, the sheet's worker,
+// as sim_host.js's): FLYDIY_BUILD for this file, FLYDIY_CORE_SHA for the core, so a cached stale core is never asked
+function benchWorkerSource(base, ver, coreVer) {
+  const q = v => (v ? '?v=' + encodeURIComponent(v) : '');
   return 'self.module = { exports: {} };\n' +
-    'importScripts(' + JSON.stringify(base + 'src/viewer/bench_worker.js') + ');\n' +
+    'importScripts(' + JSON.stringify(base + 'src/viewer/bench_worker.js' + q(ver)) + ');\n' +
     'const BW = self.module.exports; self.module = { exports: {} };\n' +
-    'importScripts(' + JSON.stringify(base + 'tools/flight_core.js') + ');\n' +
-    'const CORE = { buildGen, makeSim, makeLoadTest, makeCrosswindProbe, makeWorld, genSurfKey, genCertify, genCertAttach, GEN_LOAD_ULT,\n' +
+    'importScripts(' + JSON.stringify(base + 'tools/flight_core.js' + q(coreVer)) + ');\n' +
+    'const CORE = { buildGen, makeSim, makeLoadTest, makeCrosswindProbe, makeWorld, genSurfKey, genCertify, genCertAttach, GEN_LOAD_ULT, genShakedown,\n' +
     '  genCertifySteps: typeof genCertifySteps === "function" ? genCertifySteps : null };\n' +
     '(' + benchWorkerBody.toString() + ')(CORE, BW);\n';
 }
@@ -388,12 +412,14 @@ function benchWorkerSource(base) {
 // ---- the page's side --------------------------------------------------------
 // One worker per test (a test owns its thread; abort terminates it). Null
 // when there is no worker to be had — the caller runs the job on the page.
-function benchWorkerStart(onMessage, onError) {
+// `opts.versioned` (G2920): the two files asked with the page's build and core hashes (the sheet's worker)
+function benchWorkerStart(onMessage, onError, opts) {
   try {
     if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' ||
         typeof location === 'undefined' || !/^https?:$/.test(location.protocol)) return null;
     const base = new URL('.', location.href).href;
-    const url = URL.createObjectURL(new Blob([benchWorkerSource(base)], { type: 'text/javascript' }));
+    const W = (opts && opts.versioned && typeof window !== 'undefined') ? window : {};
+    const url = URL.createObjectURL(new Blob([benchWorkerSource(base, W.FLYDIY_BUILD, W.FLYDIY_CORE_SHA)], { type: 'text/javascript' }));
     const w = new Worker(url);
     const kill = () => { try { w.terminate(); } catch (e) {} try { URL.revokeObjectURL(url); } catch (e) {} };
     w.onmessage = e => { try { onMessage(e.data); } catch (err) { console.warn('bench worker message:', err); } };
@@ -407,11 +433,12 @@ function benchWorkerStart(onMessage, onError) {
 
 if (typeof window !== 'undefined') {
   window.BENCH_WORKER = { start: benchWorkerStart, loadRun: benchLoadRun, loadVariants: benchLoadVariants, certRun: benchCertRun,
-                          certGet: certStoreGet, certPut: certStorePut, certSum, CERT_DB,
+                          certGet: certStoreGet, certPut: certStorePut, certSum, CERT_DB, sheetRun: benchSheetRun, sheetSig: benchSheetSig,
                           loadVariant: benchLoadVariant, xwindRun: benchXwindRun, loadCfg: benchLoadCfg,
                           LEVERS: BENCH_LOAD_LEVERS };
 }
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { benchLoadCfg, benchLoadRun, benchLoadVariants, benchLoadVariant, benchXwindRun, benchCertRun, benchCertSteps, GEN_LOAD_ULT_OF,
+                     benchSheetRun, benchSheetSig,
                      certStoreGet, certStorePut, certStoreBad, certSum, CERT_DB,
                      benchWorkerBody, benchWorkerSource, benchWorkerStart, BENCH_LOAD_LEVERS };

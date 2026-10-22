@@ -30,7 +30,7 @@
 var SOLAR = (function () {
   'use strict';
   const D2R = Math.PI / 180, R2D = 180 / Math.PI;
-  const sin = x => Math.sin(x * D2R), cos = x => Math.cos(x * D2R), tan = x => Math.tan(x * D2R);
+  const sin = x => CORE_MATH.sin(x * D2R), cos = x => CORE_MATH.cos(x * D2R), tan = x => Math.tan(x * D2R);
   const mod = (a, n) => ((a % n) + n) % n;
 
   // Julian day number of a civil date (Fliegel & Van Flandern), and back.

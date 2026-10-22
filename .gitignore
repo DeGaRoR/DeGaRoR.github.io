@@ -51,7 +51,13 @@ flyDiy/package-lock.json
 
 # flyDiy gate runner: the wall each gate took last time (run_gates.js --jobs ordering); rewritten every run
 flyDiy/tools/perf/gate_wall.json
+# G2450 (EAST-POINT-DEPART): tools/ep_depart.js's saved landings and traces (rebuildable)
+flyDiy/tools/.ep_*
+# G1985 (JOIN-PARITY): tools/_load_build.js's content-keyed cache of the page chain's answers (rebuildable)
+flyDiy/tools/.joincache/
 
 # flyDiy: make_probe.js --base outputs (the previous commit's viewer, regenerated on demand); the local copies had gone stale with the retired fleet
 flyDiy/tools/_base_*.js
 flyDiy/tools/_probe_base.html
+# G1985 JOIN-PARITY: tools/_load_build.js content-keyed cache (G2500 brought the loader onto pilot-42)
+flyDiy/tools/.joincache/

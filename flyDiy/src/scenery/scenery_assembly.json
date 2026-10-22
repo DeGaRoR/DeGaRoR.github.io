@@ -1,0 +1,97 @@
+{
+ "alma": {
+  "of": "alma",
+  "parts": [
+   {
+    "part": "base",
+    "row": "alma_base",
+    "file": "alma_base.glb",
+    "tris": 988
+   },
+   {
+    "part": "fork",
+    "row": "alma_fork",
+    "file": "alma_fork.glb",
+    "tris": 5368,
+    "pivot": [
+     0.4707,
+     1.8308,
+     0.0126
+    ],
+    "axis": [
+     0.0,
+     -1.0,
+     -0.0
+    ],
+    "parent": "base",
+    "rig_swept_deg": 72.82
+   },
+   {
+    "part": "dish",
+    "row": "alma_dish",
+    "file": "alma_dish.glb",
+    "tris": 17645,
+    "pivot": [
+     0.5347,
+     6.5575,
+     0.008
+    ],
+    "axis": [
+     0.0,
+     -0.0,
+     1.0
+    ],
+    "parent": "fork",
+    "rig_swept_deg": 44.24
+   }
+  ],
+  "lights": [
+   {
+    "kind": "obstruction",
+    "part": "fork",
+    "at": [
+     3.1909,
+     7.9327,
+     0.106
+    ],
+    "note": "steady red, the highest point that does not move with the dish"
+   },
+   {
+    "kind": "obstruction",
+    "part": "base",
+    "at": [
+     2.7917,
+     2.6571,
+     0.4958
+    ],
+    "note": "steady red, the platform rim"
+   },
+   {
+    "kind": "service",
+    "part": "base",
+    "at": [
+     4.7143,
+     2.8534,
+     -0.0523
+    ],
+    "note": "warm lamp over the electrical door (the DANGER plate)"
+   },
+   {
+    "kind": "service",
+    "part": "base",
+    "at": [
+     4.9643,
+     3.6034,
+     0.5727
+    ],
+    "note": "warm lamp at the top of the ladder"
+   }
+  ],
+  "motion": {
+   "kind": "track",
+   "driver": "sim clock",
+   "hour_angle_deg_per_sim_hour": 15,
+   "note": "the dish TRACKS a source: the fork turns in azimuth and the dish in elevation as the hour angle advances (15 deg an hour), a few re-points a night; never a visible spin; static (frame-1 pose) until the placer drives parts"
+  }
+ }
+}

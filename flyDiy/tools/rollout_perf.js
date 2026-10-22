@@ -38,6 +38,7 @@
 //          [--chrome-flag '--gpu-program-cache-size-kb=262144'] (G680: an extra Chrome switch, e.g. G584's cache-size test)
 //          [--profile-boot] (G680: a CPU profile of the garage boot, <label>_boot.cpuprofile)
 //          [--trips] (B9 G1023: the round trips timed - the garage's fps fresh and after, a slider's latency, each trip)
+//          [--set mirror=off[,k=v]] (GATE-ANCHOR: graphics options pinned in the garage before the roll-out)
 // THE SETTINGS PROBE (G680, A4-FREEZE: "no freezing ever ... This includes possible setting changes"): after the
 // recording window, each change of the list is made the way a pick in the GRAPHICS menu makes it (gfx_settings.js
 // pick: GFX.set, then FLYDIY_SETTLE - the settings screen), one at a time, each waited out (the screen gone, its
@@ -54,7 +55,7 @@
 // floats (wheelsOnGround: 3 displacing, 2 on the step), and a WATER PHASE label read in the page: to-afloat /
 // to-displace / to-step (the take-off run: the pilot has no water taxi, it runs from the lane's spawn) / climb /
 // circuit / flare / ldg-step / ldg-displace / ldg-afloat (the landing's run-out and the stop). --afloat <s> holds
-// the flight in the page's MANUAL mode at idle for s seconds from the reveal (the `flydiy.flManual` pref, then
+// the flight in the page's MANUAL mode at idle for s seconds from the reveal (the `flydiy.flManualRig` pref (G3120: the game's own choice is no longer remembered), then
 // FLIGHT_PROBE.setManual(false): the pilot takes it from there) - the aeroplane afloat at rest. --shot-phase
 // all|<label,...> captures a PNG 1.5 s into each listed phase; --water-gpu turns the water's own GPU timer on
 // (WATER.set({timer}): the sea's and the near sea's draws, EXT_disjoint_timer_query). The mirror's capture
@@ -76,6 +77,10 @@ const SECS = +opt('secs', 150);
 const BUILD = opt('build', null);
 const VARIANT = opt('variant', 'base');
 const GFX = opt('gfx', null);
+// --set k=v[,k=v] (GATE-ANCHOR): graphics options PINNED in the garage before the roll-out, the way the GRAPHICS menu sets them
+// (GFX.set, then the settle screen waited out) - e.g. --set mirror=off: AUTO's switching over the shore adds noise to a timed
+// run. The run's gfx0 is read after, so it records the pin (train_gate's identity takes it from there)
+const PIN = (opt('set', '') || '').split(',').filter(Boolean).map(x => { const i = x.indexOf('='); return [x.slice(0, i), x.slice(i + 1)]; });
 const WORLDN = opt('world', null);
 const PAGE = opt('page', 'index.html');
 // --cam cockpit|chase|... (G1162): the view the flight is measured in - set through FLIGHT_PROBE.camMode once the flight
@@ -203,6 +208,11 @@ const PROGSRC = flag('progsrc');
 const CPU_THROTTLE = +opt('cpu-throttle', 0) || 0;
 const GPUX = +opt('gpux', 0) || 0;
 const GPUX_AT = opt('gpux-at', null);
+// --town-alloc (G3415, CITY-B): the town meter's allocation probe - ?townalloc=1 (render_world reads Chrome's heap counter round
+// the town's ticks) with Chrome's precise counter (--enable-precise-memory-info); the town ms and the items visited are read
+// every run (render_premises' townFrame, the TOWN line below)
+const TOWN_ALLOC = flag('town-alloc');
+if (TOWN_ALLOC) { q.push('townalloc=1'); CHROME_FLAGS.push('--enable-precise-memory-info'); }
 if (q.length) URL += (URL.includes('?') ? '&' : '?') + q.join('&');
 
 // ---- what the page is given before its first script --------------------------
@@ -224,7 +234,7 @@ function preScript() {
   lines.push('try{for(const k of Object.keys(localStorage))if(/^flydiy\\.(fl([A-Z]|$)|route$|world$)/.test(k))localStorage.removeItem(k)}catch(e){}');
   // G790: the route and who flies, stated every run (a warm profile keeps both from the last one)
   // G1945 DEST-TO: the pref is v2 { base, to } - a --from that is not the base rides as the rigs' `spawn` (no picker has it)
-  lines.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: DEST, spawn: FROM !== 'HOME' ? FROM : undefined })) + ');localStorage.setItem("flydiy.flManual","' + (AFLOAT > 0 || LATENCY ? '1' : '0') + '")}catch(e){}');
+  lines.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: DEST, spawn: FROM !== 'HOME' ? FROM : undefined })) + ');localStorage.setItem("flydiy.flManualRig","' + (AFLOAT > 0 || LATENCY ? '1' : '0') + '")}catch(e){}');
   if (PROBE) lines.push(fs.readFileSync(path.join(__dirname, 'latency_probe_page.js'), 'utf8'));   // G1165: before the page's first script
   if (VARIANT === 'nomet') {
     const F = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));
@@ -265,7 +275,7 @@ function preScript() {
 const INSTALL = `(() => {
   const R = window.__RP; if (R.on) return 'have';
   const P = window.FLYDIY_PACE; if (!P) throw new Error('no FLYDIY_PACE');
-  R.fr = []; R.on = true; R.rev = 0;
+  R.fr = []; R.tw = []; R.on = true; R.rev = 0;
   const endW = P.end.bind(P);
   let wuMs = 0;
   const W = window.WORLD;
@@ -312,6 +322,10 @@ const INSTALL = `(() => {
       // G820 (C1c): THE PHYSICS WORKER'S readings (?simw): its step's cost (ms, eased), its dilation, its steps a turn at most (ms)
       .concat((() => { const SW = window.FLYDIY_SIMW; const w = SW && SW.perf ? SW.perf() : null; return w && w.live ? [+w.stepMs.toFixed(3), +w.dil.toFixed(4), +w.maxMs.toFixed(2)] : [null, null, null]; })()));
     R.wph = wph;
+    // G3415 THE TOWN METER of this frame (render_world filled premises.townFrame in this frame's worldUpdate): [town ms, items
+    // visited, KB allocated (null unless --town-alloc), then each part's ms in premises.town.parts' order]
+    { const PRx = W && W.premises, TF = PRx && PRx.townFrame, TP = PRx && PRx.town;
+      R.tw.push(TF ? [+TF[0].toFixed(3), TF[1], TF[2] === TF[2] ? +TF[2].toFixed(2) : null].concat(TP ? Array.from(TP.lastParts, v => +v.toFixed(3)) : []) : null); }
     lastNow = now; wuMs = 0; rMs = 0; shMs = 0; pmMs = 0; pmN = 0; mirMs = 0; mirN = 0; fldMs = 0;
     return endW(workMs, physMs, steps, now);
   };
@@ -407,7 +421,19 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   for (let i = 0; i < 10; i++) { const n = await ev(KEEP); await sleep(400); if (!n && i > 3) break; }
   await sleep(1500);
   const gpu = await ev("(()=>{const c=document.createElement('canvas').getContext('webgl2');const d=c&&c.getExtension('WEBGL_debug_renderer_info');return d?c.getParameter(d.UNMASKED_RENDERER_WEBGL):'?';})()");
+  for (const [k, v] of PIN) {
+    const vv = /^-?[0-9.]+$/.test(v) ? v : JSON.stringify(v);
+    const was = await ev('JSON.stringify(window.GFX ? GFX.get()[' + JSON.stringify(k) + '] : null)');
+    if (was === JSON.stringify(/^-?[0-9.]+$/.test(v) ? +v : v)) { console.log('  pinned ' + k + '=' + v + ' (already)'); continue; }
+    await ev('(() => { GFX.set(' + JSON.stringify(k) + ', ' + vv + '); if (typeof FLYDIY_SETTLE === \'function\') FLYDIY_SETTLE(' + JSON.stringify(k) + '); return 1; })()', 60000);
+    const tEnd = Date.now() + 120000; let quiet = 0;
+    while (Date.now() < tEnd) { await sleep(250); const st = JSON.parse(await ev("JSON.stringify({ s: window.BOOT ? BOOT.state : 'none', b: window.BOOT && BOOT.busy ? BOOT.busy() : false })", 30000));
+      if (st.s === 'gone' && !st.b) { if (++quiet >= 8) break; } else quiet = 0; }
+    console.log('  pinned ' + k + '=' + v + ' (was ' + was + ')');
+  }
   const gfx0 = await ev('JSON.stringify(window.GFX ? GFX.get() : null)');
+  // PERF-1 P1: the browser and the pixel ratio, for train_gate's fixed reference (its identity: a run on another Chrome or DPR does not compare)
+  const ua = await ev('navigator.userAgent'), dpr = await ev('window.devicePixelRatio');
   console.log('  ' + gpu + ' · gfx ' + gfx0);
   // --profile: a CPU profile of the roll-out screen (the click to the reveal), saved next to the JSON and summarised
   // by self and inclusive time per function (G591: where the roll-out's long tasks go)
@@ -436,6 +462,8 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     const loadLt = JSON.parse(await ev('JSON.stringify(__RP.lt)')).filter(x => x[0] <= a0);
     console.log('  LOAD ' + tGarage.toFixed(1) + ' s to the shed · long tasks >= 50 ms (a frame under 20 fps each): ' + loadLt.length + ', over 100 ms: ' + loadLt.filter(x => x[1] > 100).length + ', worst ' + loadLt.reduce((m, x) => Math.max(m, x[1]), 0) + ' ms');
     console.log('  GARAGE fresh ' + JSON.stringify(garageFresh)); }
+  // G3320 (PILOTPAGE): --persona <name> - the shed's #selPersona set and its change fired before the roll-out (as tools/tour_real.js)
+  if (opt('persona', null)) console.log('  persona: ' + await ev("(()=>{if(window.FLYDIY_RAIL&&FLYDIY_RAIL.dev)FLYDIY_RAIL.dev(true);const s=document.getElementById('selPersona');if(!s)return 'no #selPersona';s.value=" + JSON.stringify(opt('persona')) + ";s.dispatchEvent(new Event('change',{bubbles:true}));return window.FLYDIY_PERSONA?JSON.stringify(FLYDIY_PERSONA.get().profile):s.value;})()"));
   // ROLL OUT
   const tRoll = Date.now(), clickAt = await ev('performance.now()');
   // G1117: ONE press - the bar's (#bGo), else the first visible 'Roll out' (#edRoll, the editor's, says it too: clicking
@@ -676,7 +704,8 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     fs.mkdirSync(path.dirname(OUT), { recursive: true });
     fs.writeFileSync(OUT.replace(/\.json$/, '_live.cpuprofile'), JSON.stringify(prof));
   }
-  const R = JSON.parse(await ev('JSON.stringify({ fr: __RP.fr, lt: __RP.lt })', 60000));
+  const R = JSON.parse(await ev('JSON.stringify({ fr: __RP.fr, lt: __RP.lt, tw: __RP.tw, twParts: window.WORLD && WORLD.premises && WORLD.premises.town ? WORLD.premises.town.parts : null })', 60000));
+  R.fr.forEach((r, i) => { r.tw = R.tw ? R.tw[i] || null : null; });   // (G3415: the town meter rides its frame through the filters)
   // G680: the world step's slices (app.js buildWorldSliced) - how many, the longest, the step's wall
   const worldSlices = JSON.parse(await ev('JSON.stringify(window.__WORLD_SLICES || null)').catch(() => 'null'));
   if (worldSlices) console.log('  world step: ' + worldSlices.n + ' yields in ' + worldSlices.ms + ' ms, the longest slice ' + worldSlices.worst + ' ms');
@@ -774,12 +803,32 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (SETTINGS) { const w = settingsRuns.reduce((m, r) => Math.max(m, r.worst), 0), n = settingsRuns.reduce((m, r) => m + r.over1s, 0);
     gates.settingsLongTask1s = { n, worst: w, pass: n === 0 }; }
   for (const [k, g] of Object.entries(gates)) console.log('  ROLLOUT ' + k + ': ' + (g.pass ? 'PASS' : 'FAIL') + ' ' + JSON.stringify(g));
+  // G3415 (CITY-B) THE TOWN METER: the town's ticks a frame (render_world's sum round the stream, the patch, the lots' cut and the
+  // premises' tick), the items they visited, the parts (render_premises TM_PARTS), the KB with --town-alloc; and every frame over
+  // 100 ms with the town's share of it (a hitch the town caused has its ms here; one it did not, a small number)
+  const townMeter = (() => {
+    const tw = fr.filter(r => r.tw), ms = tw.map(r => r.tw[0]); if (!tw.length) return null;
+    const parts = R.twParts || [], pm = parts.map((k, i) => [k, +(tw.reduce((a, r) => a + (r.tw[3 + i] || 0), 0) / tw.length).toFixed(3)]).sort((a, b) => b[1] - a[1]);
+    const kb = tw.filter(r => r.tw[2] != null).map(r => r.tw[2]);
+    const o = { frames: tw.length, msMed: +med(ms).toFixed(3), msP90: +pct(ms, 0.9).toFixed(3), msP99: +pct(ms, 0.99).toFixed(3), msMax: +Math.max(...ms).toFixed(2),
+      msMean: +(ms.reduce((a, b) => a + b, 0) / ms.length).toFixed(3), over2: +(ms.filter(x => x > 2).length / ms.length).toFixed(4), over5: +(ms.filter(x => x > 5).length / ms.length).toFixed(4),
+      visitsMed: med(tw.map(r => r.tw[1])), visitsMax: Math.max(...tw.map(r => r.tw[1])), parts: pm,
+      kbMean: kb.length ? +(kb.reduce((a, b) => a + b, 0) / kb.length).toFixed(3) : null, kbP99: kb.length ? +pct(kb, 0.99).toFixed(2) : null, kbFrames: kb.length,
+      over100: fr.filter(r => r[1] > 100).map(r => [+((r[0] - revealAt) / 1000).toFixed(2), +r[1].toFixed(0), r.tw ? r.tw[0] : null]) };
+    o.byPhase = {}; for (const k of Object.keys(groups)) { const m = groups[k].filter(r => r.tw).map(r => r.tw[0]); if (m.length) o.byPhase[k] = { msMed: +med(m).toFixed(3), msP99: +pct(m, 0.99).toFixed(3), msMax: +Math.max(...m).toFixed(2) }; }
+    console.log('  TOWN ms/frame: med ' + o.msMed + ' p90 ' + o.msP90 + ' p99 ' + o.msP99 + ' max ' + o.msMax + ' mean ' + o.msMean + ' · over 2 ms ' + (o.over2 * 100).toFixed(2) + ' %, over 5 ms ' + (o.over5 * 100).toFixed(2) + ' % · items visited med ' + o.visitsMed + ' max ' + o.visitsMax
+      + (o.kbMean != null ? ' · KB/frame mean ' + o.kbMean + ' p99 ' + o.kbP99 + ' (' + o.kbFrames + ' frames)' : ''));
+    console.log('  TOWN parts (mean ms/frame): ' + pm.filter(x => x[1] > 0).map(x => x[0] + ' ' + x[1]).join(' · '));
+    if (o.over100.length) console.log('  TOWN share of the frames over 100 ms [s, ms, town ms]: ' + o.over100.slice(0, 30).map(x => x.join('/')).join(' '));
+    return o;
+  })();
   console.log('  long tasks > 200 ms: ' + R.lt.filter(x => x[1] > 200).length + ' · worst 8: ' + lt.slice(0, 8).map(x => x[1] + '@' + (x[0] / 1000).toFixed(0) + 's').join(' '));
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
-  const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
+  const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, ua, dpr, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
-    tGarage, tReveal, premEmptyAt, hwstep, gpuWin, cpuThrottle: CPU_THROTTLE, gpux: GPUX, gpuxAt: GPUX_AT, garage: garageFresh, shot: shotStat, phases, dist: distAll, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
-    frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])) };
+    tGarage, tReveal, premEmptyAt, hwstep, gpuWin, cpuThrottle: CPU_THROTTLE, gpux: GPUX, gpuxAt: GPUX_AT, garage: garageFresh, shot: shotStat, phases, dist: distAll, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, townMeter, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
+    frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])),
+    townParts: R.twParts || null, townFrames: fr.map(r => r.tw) };   // G3415: [town ms, items, KB | null, parts...] a frame (townParts' order), frame for frame with `frames`
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(result));
   console.log('  -> ' + OUT);

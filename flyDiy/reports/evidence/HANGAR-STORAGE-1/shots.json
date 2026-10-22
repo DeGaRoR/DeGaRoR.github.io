@@ -1,0 +1,479 @@
+{
+ "when": "2026-10-10T21:14:54.730Z",
+ "fails": [],
+ "errs": [],
+ "shots": [
+  {
+   "group": "desk",
+   "name": "desk_open",
+   "file": "storage_desk_open.jpg",
+   "note": "the panel from the shelf: the floor, INSIDE 2/2, OUTSIDE 2/6, LONG-TERM 2",
+   "how": "mouse",
+   "boot": "gone",
+   "open": true,
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 2,
+     "slots": [
+      "Jolene Cub",
+      "Jodel D9"
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      "Spare Cub",
+      "Club Cub",
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "long": [
+     "Metal Cessna",
+     "Old Jodel"
+    ],
+    "others": []
+   },
+   "msg": "",
+   "heads": [
+    "the floor · the stand",
+    "inside2/2",
+    "outside2/6",
+    "long-term2"
+   ],
+   "sel": null,
+   "font": "\"IBM Plex Sans\" / normal"
+  },
+  {
+   "group": "desk",
+   "name": "desk_selected",
+   "file": "storage_desk_selected.jpg",
+   "note": "a card tapped: the columns are targets",
+   "how": "mouse",
+   "boot": "gone",
+   "open": true,
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 2,
+     "slots": [
+      "Jolene Cub",
+      "Jodel D9"
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      "Spare Cub",
+      "Club Cub",
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "long": [
+     "Metal Cessna",
+     "Old Jodel"
+    ],
+    "others": []
+   },
+   "msg": "now tap a column or a slot for Spare Cub",
+   "heads": [
+    "the floor · the stand",
+    "inside2/2",
+    "outside2/6",
+    "long-term2"
+   ],
+   "sel": "Spare Cub",
+   "font": "\"IBM Plex Sans\" / normal"
+  },
+  {
+   "group": "desk",
+   "name": "desk_moved",
+   "file": "storage_desk_moved.jpg",
+   "note": "...then LONG-TERM tapped: moved",
+   "how": "mouse",
+   "boot": "gone",
+   "open": true,
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 2,
+     "slots": [
+      "Jolene Cub",
+      "Jodel D9"
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      null,
+      "Club Cub",
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "long": [
+     "Metal Cessna",
+     "Old Jodel",
+     "Spare Cub"
+    ],
+    "others": []
+   },
+   "msg": "✓ Spare Cub long-term",
+   "heads": [
+    "the floor · the stand",
+    "inside2/2",
+    "outside1/6",
+    "long-term3"
+   ],
+   "sel": null,
+   "font": "\"IBM Plex Sans\" / normal"
+  },
+  {
+   "group": "desk",
+   "name": "desk_dropped",
+   "file": "storage_desk_dropped.jpg",
+   "note": "the Metal Cessna dragged from LONG-TERM onto apron slot 3",
+   "how": "mouse",
+   "boot": "gone",
+   "open": true,
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 2,
+     "slots": [
+      "Jolene Cub",
+      "Jodel D9"
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      null,
+      "Club Cub",
+      "Metal Cessna",
+      null,
+      null,
+      null
+     ]
+    },
+    "long": [
+     "Old Jodel",
+     "Spare Cub"
+    ],
+    "others": []
+   },
+   "msg": "✓ Metal Cessna outside 3",
+   "heads": [
+    "the floor · the stand",
+    "inside2/2",
+    "outside2/6",
+    "long-term2"
+   ],
+   "sel": null,
+   "font": "\"IBM Plex Sans\" / normal"
+  },
+  {
+   "group": "desk",
+   "name": "desk_refused",
+   "file": "storage_desk_refused.jpg",
+   "note": "the Old Jodel dropped on a taken inside slot: refused, with the reason",
+   "how": "mouse",
+   "boot": "gone",
+   "open": true,
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 2,
+     "slots": [
+      "Jolene Cub",
+      "Jodel D9"
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      null,
+      "Club Cub",
+      "Metal Cessna",
+      null,
+      null,
+      null
+     ]
+    },
+    "long": [
+     "Old Jodel",
+     "Spare Cub"
+    ],
+    "others": []
+   },
+   "msg": "inside slot 1 of HOME is taken",
+   "heads": [
+    "the floor · the stand",
+    "inside2/2",
+    "outside2/6",
+    "long-term2"
+   ],
+   "sel": null,
+   "font": "\"IBM Plex Sans\" / normal"
+  },
+  {
+   "group": "desk",
+   "name": "desk_fly_ask",
+   "file": "storage_desk_fly_ask.jpg",
+   "note": "Fly on an inside card: the confirmation (lined up on the runway, into the wind)",
+   "how": "mouse",
+   "boot": "gone",
+   "open": true,
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 2,
+     "slots": [
+      "Jolene Cub",
+      "Jodel D9"
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      null,
+      "Club Cub",
+      "Metal Cessna",
+      null,
+      null,
+      null
+     ]
+    },
+    "long": [
+     "Old Jodel",
+     "Spare Cub"
+    ],
+    "others": []
+   },
+   "msg": "",
+   "heads": [
+    "the floor · the stand",
+    "inside2/2",
+    "outside2/6",
+    "long-term2"
+   ],
+   "sel": null,
+   "font": "\"IBM Plex Sans\" / normal"
+  },
+  {
+   "group": "phone",
+   "name": "phone_open",
+   "file": "storage_phone_open.jpg",
+   "note": "the phone: the columns stacked, Fly off (no world in the phone garage)",
+   "how": "tap",
+   "boot": "gone",
+   "open": true,
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 2,
+     "slots": [
+      "Jolene Cub",
+      "Jodel D9"
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      "Spare Cub",
+      "Club Cub",
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "long": [
+     "Metal Cessna",
+     "Old Jodel"
+    ],
+    "others": []
+   },
+   "msg": "",
+   "heads": [
+    "the floor · the stand",
+    "inside2/2",
+    "outside2/6",
+    "long-term2"
+   ],
+   "sel": null,
+   "font": "\"IBM Plex Sans\" / normal"
+  },
+  {
+   "group": "phone",
+   "name": "phone_selected",
+   "file": "storage_phone_selected.jpg",
+   "note": "a card tapped",
+   "how": "click (the touch tap stalled on the SwiftShader page)",
+   "boot": "gone",
+   "open": true,
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 2,
+     "slots": [
+      "Jolene Cub",
+      "Jodel D9"
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      "Spare Cub",
+      "Club Cub",
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "long": [
+     "Metal Cessna",
+     "Old Jodel"
+    ],
+    "others": []
+   },
+   "msg": "now tap a column or a slot for Club Cub",
+   "heads": [
+    "the floor · the stand",
+    "inside2/2",
+    "outside2/6",
+    "long-term2"
+   ],
+   "sel": "Club Cub",
+   "font": "\"IBM Plex Sans\" / normal"
+  },
+  {
+   "group": "phone",
+   "name": "phone_moved",
+   "file": "storage_phone_moved.jpg",
+   "note": "...then INSIDE tapped",
+   "how": "click (the touch tap stalled on the SwiftShader page)",
+   "boot": "gone",
+   "open": true,
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 2,
+     "slots": [
+      "Jolene Cub",
+      "Jodel D9"
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      "Spare Cub",
+      "Club Cub",
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "long": [
+     "Metal Cessna",
+     "Old Jodel"
+    ],
+    "others": []
+   },
+   "msg": "INSIDE HOME is full (2/2)",
+   "heads": [
+    "the floor · the stand",
+    "inside2/2",
+    "outside2/6",
+    "long-term2"
+   ],
+   "sel": null,
+   "font": "\"IBM Plex Sans\" / normal"
+  },
+  {
+   "group": "phone",
+   "name": "phone_long",
+   "file": "storage_phone_long.jpg",
+   "note": "tapped again, then LONG-TERM",
+   "how": "click (the touch tap stalled on the SwiftShader page)",
+   "boot": "gone",
+   "open": true,
+   "view": {
+    "aero": "HOME",
+    "hangar": "HOME",
+    "shell": "club",
+    "floor": null,
+    "inside": {
+     "N": 2,
+     "slots": [
+      "Jolene Cub",
+      "Jodel D9"
+     ]
+    },
+    "outside": {
+     "M": 6,
+     "slots": [
+      "Spare Cub",
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "long": [
+     "Club Cub",
+     "Metal Cessna",
+     "Old Jodel"
+    ],
+    "others": []
+   },
+   "msg": "✓ Club Cub long-term",
+   "heads": [
+    "the floor · the stand",
+    "inside2/2",
+    "outside1/6",
+    "long-term3"
+   ],
+   "sel": null,
+   "font": "\"IBM Plex Sans\" / normal"
+  }
+ ]
+}

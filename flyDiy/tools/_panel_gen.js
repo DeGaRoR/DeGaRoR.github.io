@@ -249,7 +249,25 @@ const D_BIG = 0.0794, D_SMALL = 0.0572, GAP = 0.012, PAN_INSET = 0.012;
 const SW_ROOM = 0.038;
 const SW_DROP = 0.028;             // the row's centre this far under the lowest dial
 const T_KEYS = { asi: [0, 0], ai: [1, 0], alt: [2, 0], turn: [0, 1], dg: [1, 1], vsi: [2, 1] };
+// THE FLEXIBLE LAYOUT (G3341, DASH-REDESIGN, the garage review's item 12:
+// "one row when the plate is wide enough; switches beside the dials when
+// they fit; room reserved below a dial only where its switches really go").
+// The rule above reserves SW_ROOM under EVERY dial and stacks the T two
+// deep, and on a short plate that is what sends dials to the overflow. With
+// `A.flexLayout` (the crew sets it on the arch dash: new builds) the
+// standard layout still runs first and stands whenever it places
+// everything; when it does not, the dials go on ONE row from the pilot's
+// centre out, nothing reserved under them, and the switch row takes the
+// LOWEST height at which a clear run holds it - under the dials where they
+// leave the room, beside them where they do not. The layout with fewer
+// dials left off wins; a tie keeps the standard one.
 function layout(A, o) {
+  const std = layoutCore(A, o, false);
+  if (!(A && A.flexLayout) || !std.overflow.length) return std;
+  const flex = layoutCore(A, o, true);
+  return flex.overflow.length < std.overflow.length ? flex : std;
+}
+function layoutCore(A, o, flexRow) {
   o = o || {};
   const items = o.items || [], side = o.side || 'pilot', pilotX = o.pilotX || 0;
   // THE PLATE (session 4b): when the crew measured the dash's face plate
@@ -273,7 +291,8 @@ function layout(A, o) {
     if (Math.abs(cx) + r > xLim + 1e-6) return false;
     if (kept(cx - r, cx + r, cy - r, cy + r)) return false;
     // the switch row lives along the bottom: a dial leaves it its 16 mm and a gap
-    if (cy + r > yTop + 1e-6 || cy - r < yBot + SW_ROOM - 1e-6) return false;
+    // (the flexible row reserves nothing: its switches find their own room)
+    if (cy + r > yTop + 1e-6 || cy - r < yBot + (flexRow ? 0 : SW_ROOM) - 1e-6) return false;
     if (!F) return true;
     for (const sN of [-1, -0.7, -0.35, 0, 0.35, 0.7, 1]) {
       const c = F.at(cx + sN * r);
@@ -340,7 +359,39 @@ function layout(A, o) {
   const compact = !has('ai') && !has('aiE') && !has('dg') && !has('turn');
   let gx0 = 0, dir = -1, groupW = 0;             // the engine group's edge, for the radios
   const aiKey = has('aiE') ? 'aiE' : (has('ai') ? 'ai' : null);
-  if (compact) {
+  const radioKeys = (o.radios || []).filter(k => k === 'com' || k === 'xpdr');
+  if (flexRow) {
+    // ONE ROW, from the pilot's centre out: the flight group first (the
+    // T's top row, then its bottom row), the engine, the small gauges, the
+    // radios last - each dial beside the last on the side it alternates to,
+    // as high as it fits under the crown, and the other side when it does
+    // not fit on its own
+    const BIG = new Set(['asi', 'ai', 'aiE', 'alt', 'dg', 'turn', 'vsi', 'tacho', 'gmeter']);
+    // (the T's order read along a row: the AI in the middle, the ASI to the
+    // pilot's left (+x), the altimeter to the right, the turn and the VSI
+    // outboard on their own columns' sides; without an AI the compact
+    // panel's: the ASI in the middle, the altimeter right, the tacho left)
+    const order = (aiKey ? [aiKey, 'asi', 'alt', 'turn', 'vsi', 'dg'] : ['asi', 'alt', 'tacho'])
+      .concat(['asi', 'alt', 'turn', 'vsi', 'dg', 'tacho', 'gmeter', 'fuel', 'clock', 'oilP', 'oilT', 'volts'])
+      .filter((k, i, a) => k && has(k) && a.indexOf(k) === i).concat(radioKeys);
+    const edge = [xC, xC];                        // the row's -x and +x edges so far
+    let first = true, side = aiKey ? 1 : 0;       // 0: -x (the pilot's right) next, 1: +x
+    for (const k of order) {
+      const r = BIG.has(k) ? D_BIG / 2 : D_SMALL / 2;
+      let placed = false;
+      for (const sd of first ? [0] : [side, 1 - side]) {
+        const cx = first ? clamp(xC, -xLim + r, xLim - r) : sd === 0 ? edge[0] - GAP - r : edge[1] + GAP + r;
+        const cy = topAt(cx, r);
+        if (cy == null) continue;
+        dials.push({ k, cx, cy, r });
+        if (first) { edge[0] = cx - r; edge[1] = cx + r; } else if (sd === 0) edge[0] = cx - r; else edge[1] = cx + r;
+        placed = true; break;
+      }
+      if (!placed) overflow.push(k);
+      else if (!first) side = 1 - side;
+      first = false;
+    }
+  } else if (compact) {
     const big = ['asi', 'alt', 'tacho', 'vsi', 'gmeter'].filter(has);
     const smalls = ['fuel', 'oilP', 'oilT', 'volts', 'clock'].filter(has);
     // offsets from the centre, alternating: 0, the pilot's right (-x), left (+x), ...
@@ -417,8 +468,9 @@ function layout(A, o) {
     }
   }
   }   // (the T)
-  // the radios: a column past the engine group, 57 mm controllers
-  const radios = (o.radios || []).filter(k => k === 'com' || k === 'xpdr');
+  // the radios: a column past the engine group, 57 mm controllers (the
+  // flexible row carried them along itself)
+  const radios = flexRow ? [] : radioKeys;
   if (radios.length) {
     // past whatever the group reached (a small gauge sent along the row)
     for (const d of dials) if (!d.coaming && d.k !== 'clock' && !(d.k in T_KEYS) && d.k !== 'aiE')
@@ -438,7 +490,7 @@ function layout(A, o) {
   // that has no gyro to scan there is no scan to keep, and the hole takes
   // the dial that had nowhere else - the T's first row first, big dials at
   // their size, small ones centred in the slot.
-  if (overflow.length && !compact) {
+  if (overflow.length && !compact && !flexRow) {
     const taken = (cx, cy) => dials.some(d => !d.coaming && Math.hypot(d.cx - cx, d.cy - cy) < d.r + 1e-6);
     for (const k of overflow.slice()) {
       const r = (k === 'tacho' || k === 'gmeter' || k in T_KEYS || k === 'aiE') ? D_BIG / 2 : D_SMALL / 2;
@@ -483,13 +535,39 @@ function layout(A, o) {
   for (const k of (o.extLights || [])) sw.push({ k, kind: o.swStyle === 'pushpull' ? 'pushpull' : 'toggle', light: true });   // G371
   for (const k of (o.intLights || [])) sw.push({ k, kind: 'knob', light: true });
   if (o.flapSwitch) sw.push({ k: 'flap', kind: 'flap' });     // G335: at the row's right end, a Cessna's
-  const ySw = Math.max(yBot + 0.010, (dials.filter(d => !d.coaming).reduce((m, d) => Math.min(m, d.cy - d.r), yTop)) - SW_DROP);
+  // the row's room at a height: the plate's width there less the keep-outs
+  // (G442.1) and, on the flexible row, less every dial whose own switch
+  // room or face covers that height - its free runs of switch centres
+  const runsAt = (y, withDials) => {
+    const xS = xLimAt(y), lo0 = -xS + 0.02, hi0 = xS - 0.02;
+    const cuts = KO.filter(k => k.y1 > y - 0.012 && k.y0 < y + 0.012).map(k => [k.x0 - 0.012, k.x1 + 0.012]);
+    if (withDials) for (const d of dials) if (!d.coaming && y > d.cy - d.r - SW_DROP - 1e-9 && y < d.cy + d.r + 0.012)
+      cuts.push([d.cx - d.r - 0.012, d.cx + d.r + 0.012]);
+    cuts.sort((a, b) => a[0] - b[0]);
+    const runs = []; let a = lo0;
+    for (const c of cuts) { if (c[0] > a) runs.push([a, Math.min(c[0], hi0)]); a = Math.max(a, c[1]); }
+    if (a < hi0) runs.push([a, hi0]);
+    return runs.filter(r => r[1] - r[0] > 0.02);
+  };
+  let ySw = Math.max(yBot + 0.010, (dials.filter(d => !d.coaming).reduce((m, d) => Math.min(m, d.cy - d.r), yTop)) - SW_DROP);
+  let flexRun = null;
+  if (flexRow) {
+    // the LOWEST height whose clear run holds the row at a 30 mm pitch
+    const need = 0.030 * Math.max(0, sw.length - 1);
+    for (let y = yBot + 0.010; y <= yTop - 0.010 + 1e-9 && !flexRun; y += 0.004) {
+      const ok = runsAt(y, true).filter(r => r[1] - r[0] >= need - 1e-9);
+      if (!ok.length) continue;
+      const holds = ok.filter(r => r[0] <= xC && xC <= r[1]);
+      flexRun = (holds.length ? holds : ok).reduce((m, r) => (r[1] - r[0] > m[1] - m[0] ? r : m));
+      ySw = y;
+    }
+  }
   const xSw = xLimAt(ySw);                     // the plate's own width down there
-  // the row's room: the plate's width at that height less the keep-outs
-  // (G442.1) - the longest free run, the one holding the pilot's centre
-  // when there is a choice; the pitch shrinks to fit before anything is lost
+  // the longest free run, the one holding the pilot's centre when there is
+  // a choice; the pitch shrinks to fit before anything is lost
   let lo = -xSw + 0.02, hi = xSw - 0.02;
-  {
+  if (flexRun) { lo = flexRun[0]; hi = flexRun[1]; }
+  else {
     const cuts = KO.filter(k => k.y1 > ySw - 0.012 && k.y0 < ySw + 0.012).sort((a, b) => a.x0 - b.x0);
     const runs = []; let a = lo;
     for (const k of cuts) { if (k.x0 - 0.012 > a) runs.push([a, Math.min(k.x0 - 0.012, hi)]); a = Math.max(a, k.x1 + 0.012); }   // a switch plate's own half width
