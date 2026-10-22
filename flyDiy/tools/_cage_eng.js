@@ -873,7 +873,8 @@ PAGE.post = ctx => {
   const EW = window.CAGE_WING_EARLY;
   if (EW) EW.place('eng', ctx, engPlace, () => {
     const NF = window.CAGE_NOSE, m = Math.round(+P.engMount || 0);
-    if (!+P.engOn || (m !== 2 && m !== 3) || !NF || !NF.engineFaces) return null;
+    // (ENGINE-CONFIGS-2: the three's and the four's nacelles stand on the wing too - mounts 5 and 6)
+    if (!+P.engOn || ![2, 3, 5, 6].includes(m) || !NF || !NF.engineFaces) return null;
     const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
     return JSON.stringify(NF.engineFaces(ctx.mesh, FS, P));
   });
@@ -1148,8 +1149,12 @@ function engPlace(ctx, prev) {
       const o = W.overAt(x, z), un = W.underAt(x, z);
       return !!(o && un && o.y - un.y > 0.005 && y > un.y - 0.02 && y < o.y + 0.02);
     };
-    const inBody = (x, y, z) => {
+    const inBody = (x, y, z, aft) => {
       if (!AF || !AF.surf) return false;
+      // ENGINE-CONFIGS-2: a disc on the aft bulkhead turns behind the pod's END when no rod carries on (the
+      // push-pull's twin booms): AF.surf holds the last section past AF.z0, which read the whole disc behind a
+      // blunt pod as inside it. A rod boom is part of AF (its z0 is the rod's end), so a pusher on a rod reads as before
+      if (aft && isFinite(AF.z0) && z < AF.z0 - 1e-3) return false;
       let lo, hi;
       try { lo = AF.surf(z, 0); hi = AF.surf(z, Math.PI); } catch (e) { return false; }
       if (!lo || !hi || !isFinite(lo[1]) || !isFinite(hi[1]) || hi[1] <= lo[1] + 0.01) return false;
@@ -1172,7 +1177,7 @@ function engPlace(ctx, prev) {
         // the body from 0.6 R out: the innermost ring sits inside the
         // spinner and the cowl's nose on every tractor by construction (the
         // stock Cub read 6 hits there, the 172 twelve, all at the hub)
-        else if (k >= 0.6 && inBody(x, y, z)) bodyHits++;
+        else if (k >= 0.6 && inBody(x, y, z, u.aft)) bodyHits++;
       }
       const why = [];
       if (wingHits) why.push('through the wing (' + wingHits + ' of ' + n + ' points)');

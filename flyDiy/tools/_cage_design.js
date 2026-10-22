@@ -2310,16 +2310,19 @@ const ARCHETYPES = [
                                                   wgDx: 0.08 }),
             spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0xc96f2a,
                                         m1B: 0x1b3a5c, m1D: 0xc96f2a } } } } },
-  // TWIN BOOMS (2026-09-04, spec §3): the 337's shape with its nose engine —
-  // the rear pusher is push-pull, the mixed-mount list the frame does not loop
-  // over yet — and a small P-38: two pullers on the booms' own stations.
+  // TWIN BOOMS (2026-09-04, spec §3): the 337's shape (its rear pusher since
+  // ENGINE-CONFIGS-2, below) and a small P-38: two pullers on the booms' own
+  // stations.
+  // ENGINE-CONFIGS-2 (G3493, 22 Oct): THE REAR PUSHER IS PAID - the Engines row's Push-pull tile (G2790): the nose engine
+  // and a second IO-360 pushing behind the cabin, its prop between the booms (boomX 1.25 is the rear disc's radius +
+  // 0.31 m), the two turning opposite ways
   { key: 'skymaster', kind: 'recreation', name: 'Skymaster-alike', note: 'twin ' +
-      'booms off a high wing, four seats, nose engine (the rear pusher is owed)',
+      'booms off a high wing, four seats, an engine in the nose and one pushing behind the cabin',
     sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 3,
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, booms: 'twin',
            section: 3,
            wgPos: 0, wgBrace: 1, wgTip: 1, wgFlapType: 1,
-           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
+           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose', engCount: 'pushPull',
            gearLayout: 'trike', suspension: 'oleo', s1Fair: 0,
            finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x1b3a5c },
     over: { cage: Object.assign({}, PLAN_TAPER, { boomX: 1.25, boomLen: 3.2,

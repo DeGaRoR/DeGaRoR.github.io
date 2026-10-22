@@ -1040,7 +1040,8 @@ function sectionFromFace(face) {
 // (CAGE_WING_EARLY, _cage_wing.js) and placed again, once, over the wing this
 // build publishes when that wing reads differently. A nose or a pusher face
 // never touches the wing and is placed once, as it always was.
-const onWing = P => { const m = Math.round(+(P && P.engMount) || 0); return m === 2 || m === 3; };
+// (ENGINE-CONFIGS-2: and the three's / the four's nacelles, mounts 5 and 6)
+const onWing = P => { const m = Math.round(+(P && P.engMount) || 0); return m === 2 || m === 3 || m === 5 || m === 6; };
 const facesSig = ctx => {
   const P = ctx.P;
   if (!+P.cowlOn || !onWing(P)) return null;

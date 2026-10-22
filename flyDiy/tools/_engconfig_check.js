@@ -25,6 +25,13 @@
 //   7 EDITOR     the join: engMount 4 / 5 / 6 -> the layouts, the drawn stations per entry; 0-3 the lists they were;
 //                the design tiles (Push-pull / Three / Four) write engMount 4 / 5 / 6 and the Skymaster's booms
 //                outboard of the rear disc; designBake's intent spec carries the layout
+//   8 PHYSICS    (ENGINE-CONFIGS-2, 22 Oct, on master's propeller moments, wash and damage) the push-pull's torques and
+//                angular momenta cancel, the three's and the four's add; every strip names the disc whose wake it flies
+//                in and the solver gives it that disc's (a dead disc's wake is gone); a break group per engine mount
+//   9 FIXTURES   the three example builds (tools/engconfig_fixtures.js): loaded as the game loads them they are the
+//                saved aeroplane, no join error, the design check without a FAIL row at the worst corner, a circuit
+//                flown with one engine cut, the certificate and the bench HELD
+//   (5 FLIGHT also flies the stock single's own power cut: the Trimotor's nose cut is held under it)
 // Run: node tools/_engconfig_check.js   (one final `GATE ENGCONFIG: PASS|FAIL`; the flights and the certificates in
 // parallel children, `--jobs=N` / GATES_JOBS, default 4)
 'use strict';
@@ -32,6 +39,7 @@ const fs = require('fs'), path = require('path'), crypto = require('crypto'), cp
 const T = __dirname, ROOT = path.join(T, '..');
 const argv = process.argv.slice(2);
 const C = require('./flight_core.js');
+const LB = require('./_load_build.js');
 const clone = o => JSON.parse(JSON.stringify(o));
 const readSpec = f => { const j = JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')); return clone(j.spec || j); };
 const D2R = Math.PI / 180, R2D = 180 / Math.PI;
@@ -52,7 +60,16 @@ const BUILDS = {
   tri: () => layout('tri'),
   quad: () => layout('quad'),
   twin: () => readSpec('tools/fixtures/build_v7_twin_2026-09-04.json'),
+  // ENGINE-CONFIGS-2: THE SINGLE'S OWN POWER CUT, the reference for a centreline engine stopping - its torque, its
+  // P-factor and its slipstream's swirl on the fin all go at once, and the fin's side force with them
+  single: () => clone(C.GEN_DEFAULT),
+  // ENGINE-CONFIGS-2 (G3493): the three example builds (tools/engconfig_fixtures.js bakes them), as the GAME loads them
+  fixPushpull: () => clone(LB.loadBuild(FIXF('pushpull')).spec),
+  fixTrimotor: () => clone(LB.loadBuild(FIXF('trimotor')).spec),
+  fixFour: () => clone(LB.loadBuild(FIXF('four')).spec),
 };
+function FIXF(k) { return `tools/fixtures/build_v10_engcfg_${k}_2026-10-22.json`; }
+const FIXES = [['fixPushpull', 'pushpull', 'pushPull', 1], ['fixTrimotor', 'trimotor', 'tri', 0], ['fixFour', 'four', 'quad', 2]];
 
 // ---- a child: one flight ---------------------------------------------------------------------------------------------
 // to a straight downwind, wings level 3 s; 4 s level with every engine; cut `cut` (none: -1); 10 s flown
@@ -170,6 +187,7 @@ function editorCase() {
 if (argv[0] === '--fly') { console.log(JSON.stringify(flyCase(argv[1], +argv[2]))); process.exit(0); }
 if (argv[0] === '--cert') { console.log(JSON.stringify(certCase(argv[1]))); process.exit(0); }
 if (argv[0] === '--editor') { console.log(JSON.stringify(editorCase())); process.exit(0); }
+const PINMODE = argv[0] === '--pin';
 
 // ---- the parent ------------------------------------------------------------------------------------------------------
 let ok = true; const why = [];
@@ -179,9 +197,11 @@ const jobs = Math.max(1, +((argv.find(a => a.startsWith('--jobs=')) || '').split
 const kids = [];
 const spawn = (args, label) => kids.push({ args, label });
 for (const k of ['skymaster', 'tri', 'quad']) spawn(['--cert', k], 'cert ' + k);
+for (const [k] of FIXES) spawn(['--cert', k], 'cert ' + k);
 spawn(['--editor'], 'editor');
 const FLIGHTS = [['skymaster', -1], ['skymaster', 0], ['skymaster', 1], ['tri', -1], ['tri', 0], ['tri', 1],
-                 ['quad', -1], ['quad', 0], ['quad', 2], ['twin', 0]];
+                 ['quad', -1], ['quad', 0], ['quad', 2], ['twin', 0], ['single', 0]];
+for (const [k, , , c] of FIXES) FLIGHTS.push([k, c]);
 for (const [k, c] of FLIGHTS) spawn(['--fly', k, String(c)], `fly ${k} cut ${c}`);
 const results = {};
 function runKids() {
@@ -205,26 +225,33 @@ function runKids() {
     pump();
   });
 }
-const kidsDone = runKids();
+const kidsDone = PINMODE ? null : runKids();
 
 // 1 IDENTITY ------------------------------------------------------------------------------------------------------------
-say('1 IDENTITY - the saved builds and the single mounts, digested against master (f353a0f8)');
+// ENGINE-CONFIGS-2 (G3492, 22 Oct): re-pinned on master 2c2a74459 (train L22c) - every row equal on the branch; the user's
+// validated aeroplanes (the Cub, the Jodel, the twin floatplane's and the metal Cessna's files, and their Rufus) are
+// digested as the GAME flies them (tools/_load_build.js: the page's load door, the join, the merge - GATE JOINPARITY's
+// one load path), every other fixture as written. `--pin` prints this table for the tree it runs in (run it on master).
+say('1 IDENTITY - the saved builds and the single mounts, digested against master (2c2a74459)');
+const VAL_FILES = new Set(Object.values(LB.VALIDATED).map(v => v.build).concat(['tools/fixtures/build_v10_cessnaMetal_2026-09-26.json',
+  'tools/fixtures/repro/rufus_2026-10-18_certified.json']));
 const PIN = {
-  'builds/cub_2026-09-20_corrected.json': 'bceea718d3b93e03 581288b715188838',
-  'builds/jodel_2026-09-20_corrected.json': '7179727665d36662 94081e870ca47920',
-  'builds/cessna172_2026-09-20_corrected.json': 'ce755d4ec1045357 c02764fa731c9cdc',
-  'builds/chinook_2026-09-21_corrected.json': 'd95f3bb698e2821c 0e4876f7e6bb8308',
-  'tools/fixtures/build_v7_ultralight_2026-09-05.json': '2fab0caa08d08fb8 6548e28a267b589e',
-  'tools/fixtures/build_v8_twin-boom_2026-09-11.json': '4b202a6d6f1bb076 94f8459a5fcba6c4',
-  'tools/fixtures/build_v7_twin_2026-09-04.json': 'f4532caa9e3d362d 74a1607fc5260851',
-  'tools/fixtures/build_v8_pusher_2026-09-11.json': 'b6f0c04805f0a918 1c43c050c4434587',
-  'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json': 'b6eaa8afde5d50fa 8906eca29ea0aaeb',
-  'stock nose': '6ba975c42afceca7 135b60c7f0b11097',
-  'stock pusher': '84ecfa3950b2473f 1900bdf98d4000ae',
-  'stock wingTop': 'd0cc3aad07f06d46 8b44d10dc3559a8c',
-  'stock wing': '8435d2bf854539cb 3edd34ddc085f56d',
-  'stock 2 nose (clamped to one)': '6ba975c42afceca7 135b60c7f0b11097',
-  'stock pusher+nose (clamped to one)': '84ecfa3950b2473f 1900bdf98d4000ae',
+  'builds/cub_2026-09-20_corrected.json': '2edac3d4580bbcb2 869eee72737d7526',
+  'builds/jodel_2026-09-20_corrected.json': '38e084604f47abe6 3fb1153b36c2c325',
+  'builds/cessna172_2026-09-20_corrected.json': '8ea6b7d05a8f54b5 c3124e0092d05851',
+  'builds/chinook_2026-09-21_corrected.json': '4facb98d84baeb0f f4dbe53bc257a050',
+  'tools/fixtures/build_v7_ultralight_2026-09-05.json': 'b3f8c01060020c33 e7942c80c42fb7f0',
+  'tools/fixtures/build_v8_twin-boom_2026-09-11.json': '954746f8316b9701 77b62ab7c4146aaa',
+  'tools/fixtures/build_v7_twin_2026-09-04.json': 'a5586891e6aec073 221d6c2405b15e1e',
+  'tools/fixtures/build_v8_pusher_2026-09-11.json': '268edc2070febf93 1e888903ddfb652c',
+  'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json': 'e4735c255b5f4c71 7e50d230440c0ad2',
+  'tools/fixtures/repro/rufus_2026-10-18_certified.json': 'e0f2ee3392db1461 bb817d87f0edc3eb',
+  'stock nose': 'c61ce520a6cc85e2 31cce33943cc578a',
+  'stock pusher': '04f30522a6a9ed04 5613f19c025bd3cf',
+  'stock wingTop': '88406c468a775d6e 53a5929a6f5191d4',
+  'stock wing': 'b09bdcdd70bc0f36 7f98742af70074a4',
+  'stock 2 nose (clamped to one)': 'c61ce520a6cc85e2 31cce33943cc578a',
+  'stock pusher+nose (clamped to one)': '04f30522a6a9ed04 5613f19c025bd3cf',
 };
 const H = o => crypto.createHash('sha1').update(JSON.stringify(o, (k, v) => typeof v === 'number' && !isFinite(v) ? String(v) : v)).digest('hex').slice(0, 16);
 const stockMount = (...ms) => () => { const s = clone(C.GEN_DEFAULT); s.engines = ms.map(m => ({ type: s.engines[0].type, mount: m })); return s; };
@@ -233,17 +260,25 @@ const IDS = {
   'stock wing': stockMount('wing'), 'stock 2 nose (clamped to one)': stockMount('nose', 'nose'),
   'stock pusher+nose (clamped to one)': stockMount('pusher', 'nose'),
 };
-for (const k of Object.keys(PIN)) {
+const ID_KEYS = ['builds/cub_2026-09-20_corrected.json', 'builds/jodel_2026-09-20_corrected.json',
+  'builds/cessna172_2026-09-20_corrected.json', 'builds/chinook_2026-09-21_corrected.json',
+  'tools/fixtures/build_v7_ultralight_2026-09-05.json', 'tools/fixtures/build_v8_twin-boom_2026-09-11.json',
+  'tools/fixtures/build_v7_twin_2026-09-04.json', 'tools/fixtures/build_v8_pusher_2026-09-11.json',
+  'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json', 'tools/fixtures/repro/rufus_2026-10-18_certified.json',
+  ...Object.keys(IDS)];
+for (const k of ID_KEYS) {
   let got;
   try {
-    const def = C.buildGen(IDS[k] ? IDS[k]() : readSpec(k));
+    const def = C.buildGen(IDS[k] ? IDS[k]() : VAL_FILES.has(k) ? clone(LB.loadBuild(k).spec) : readSpec(k));
     const sim = C.makeSim(def, C.makeWorld()); sim.reset(0);
     for (let i = 0; i < 120; i++) sim.step(1 / 60);
     got = H({ nodes: def.nodes, beams: def.beams, params: def.params, refs: def.refs, strips: def.strips }) + ' ' +
           H(Array.from(sim.p.slice(0, 60)).map(x => +x.toFixed(9)));
   } catch (e) { got = 'ERR ' + e.message; }
+  if (PINMODE) { console.log(`  '${k}': '${got}',`); continue; }
   chk(got === PIN[k], `${k.padEnd(52)} ${got}${got === PIN[k] ? '' : '  (master ' + PIN[k] + ')'}`);
 }
+if (PINMODE) process.exit(0);
 
 // 2 CLAMP ---------------------------------------------------------------------------------------------------------------
 say('2 CLAMP - the exact lists keep their engines; every other list clamps as before');
@@ -302,6 +337,67 @@ for (const k of ['skymaster', 'tri', 'quad']) {
   }
 }
 
+// 8 PHYSICS (ENGINE-CONFIGS-2, G3490-G3492: the layouts on master's propeller, wash and damage) ---------------------------
+//   TORQUE   the propeller's moments per engine (30_solver G2080, out.propFx): the push-pull's reaction torques and
+//            angular momenta equal and opposite (they cancel in pairs), the three's and the four's add
+//   WAKES    each strip names its disc (62_gen_aero genStripsLayout): the tail the nose's (a three) or the centreline in
+//            series (a push-pull), a wing strip the nose's or its own side's nacelle; a twin boom's fins out of a
+//            push-pull's wake; and the solver's discs (out.washE): a dead disc's wake is gone, the others' are not
+//   DAMAGE   every engine of a layout its own part and break group (eng, engAft, engL / engR, engL2 / engR2), no
+//            member left out of a group but the twin boom's own stab-boom joints (master's, the single's count)
+function physics() {
+  say('8 PHYSICS - the propeller\'s moments, the wakes, the break groups');
+  const ground = (key, cut) => {
+    const d0 = C.buildGen(BUILDS[key]()), d = Object.assign({}, d0, { params: Object.assign({}, d0.params, { damage: false }) });
+    const sim = C.makeSim(d, C.makeWorld()); sim.reset(0);
+    if (cut >= 0) sim.setEngine(cut, { key: 'off' });
+    sim.ctl.brake = 1; sim.ctl.thr = 1;
+    for (let i = 0; i < 60; i++) sim.step(1 / 60);
+    const P = sim.out.propFx, n = d.params.nEngines;
+    return { tq: Array.from({ length: n }, (_, k) => P.tq[k * 3]), H: Array.from(P.H), sense: d.params.engines.map(e => e.sense),
+             washE: sim.out.washE ? Array.from(sim.out.washE) : null, wash: sim.out.wash, thr: Array.from(sim.out.thrustPer) };
+  };
+  const f1 = x => x.toFixed(1);
+  { const g = ground('skymaster', -1), net = g.tq[0] + g.tq[1], Hn = g.sense[0] * g.H[0] + g.sense[1] * g.H[1];
+    chk(g.tq[0] > 0 && Math.abs(net) < 1e-9 * g.tq[0] && Math.abs(Hn) < 1e-9 * g.H[0],
+        `TORQUE skymaster: reaction ${g.tq.map(f1).join(' / ')} N.m, net ${net.toExponential(1)}; angular momentum ${g.H.map(f1).join(' / ')} (hands ${g.sense.join(',')}), net ${Hn.toExponential(1)} - they cancel in pairs`); }
+  for (const k of ['tri', 'quad']) {
+    const g = ground(k, -1), q0 = g.tq[0];
+    chk(q0 > 0 && g.tq.every(q => Math.abs(q - q0) < 1e-9 * q0) && g.sense.every(s => s === g.sense[0]),
+        `TORQUE ${k}: every engine's reaction ${f1(q0)} N.m the same hand - the sum ${f1(g.tq.reduce((a, b) => a + b, 0))} N.m, ${g.tq.length} x a single's`);
+  }
+  // the strips' discs
+  const own = k => C.buildGen(BUILDS[k]()).strips;
+  { const st = own('tri'), tail = st.filter(s => s.kind !== 'wing'), wing = st.filter(s => s.kind === 'wing' && s.wash > 0);
+    chk(tail.length && tail.every(s => s.washE === 0) && wing.every(s => s.washE >= 0 && s.washE <= 2) &&
+        wing.some(s => s.washE === 1) && wing.some(s => s.washE === 2) && wing.some(s => s.washE === 0),
+        `WAKES tri: the tail in the nose's wake (${tail.length} strips), the wing in the nose's or its nacelle's`); }
+  { const st = own('skymaster'), stab = st.filter(s => s.kind === 'stab'), fins = st.filter(s => s.kind === 'fin');
+    chk(stab.length && stab.every(s => s.washE === -2) && fins.length && fins.every(s => s.wash === 0) && st.filter(s => s.kind === 'wing').every(s => s.washE !== 1),
+        `WAKES skymaster: the stab in the centreline's series wake (${stab.length} strips), the boom fins out of it (${fins.length}), no wing strip blown by the pusher`); }
+  { const st = own('quad'), tail = st.filter(s => s.kind !== 'wing'), wing = st.filter(s => s.kind === 'wing' && s.wash > 0);
+    chk(tail.every(s => !(s.wash > 0)) && [0, 1, 2, 3].every(e => wing.some(s => s.washE === e)),
+        `WAKES quad: no tail wash (between the nacelles), each of the four discs blows its own wing strips`); }
+  { const a = ground('tri', -1), b = ground('tri', 0), c = ground('tri', 1);
+    chk(a.washE && a.washE[0] > 1 && b.washE[0] === 0 && b.wash > 1 && b.washE[1] > 1 && c.washE[1] === 0 && c.washE[0] > 1,
+        `WAKES tri in the solver: every disc ${a.washE.slice(0, 3).map(f1).join(' / ')} m/s; the nose off ${b.washE.slice(0, 3).map(f1).join(' / ')} (the mean disc would say ${f1(b.wash)} on the tail); a wing off ${c.washE.slice(0, 3).map(f1).join(' / ')}`); }
+  { const a = ground('skymaster', -1), b = ground('skymaster', 0);
+    chk(a.washE && a.washE[2] > a.washE[0] && b.washE[0] === 0 && b.washE[2] === b.washE[1] && b.washE[2] > 1,
+        `WAKES skymaster in the solver: the series wake ${f1(a.washE[2])} m/s over one disc's ${f1(a.washE[0])}; the nose off: the pusher's own ${f1(b.washE[2])}`); }
+  // the break groups
+  const WANT = { skymaster: ['eng', 'engAft'], tri: ['eng', 'engL', 'engR'], quad: ['engL', 'engR', 'engL2', 'engR2'] };
+  const tbIssues = (() => { const s = clone(C.GEN_DEFAULT); s.engines[0].mount = 'pusher'; s.tail.type = 'twinBoom'; s.tail.boomX = 1.24; s.tail.boomLen = 3.5; s.fuselage.boom = 'twin';
+    return C.buildGen(s).parts.dmg.issues.length; })();
+  for (const k of Object.keys(WANT)) {
+    const d = C.buildGen(BUILDS[k]()), dm = d.parts.dmg, mnt = dm.groups.filter(g => g.joint === 'mount').map(g => g.part).sort();
+    const engIss = dm.issues.filter(s => /eng/.test(s)), other = dm.issues.length - engIss.length;
+    const engParts = new Set(dm.part.filter(p => /^eng/.test(p)));
+    chk(JSON.stringify(mnt) === JSON.stringify(WANT[k].slice().sort()) && engParts.size === WANT[k].length && !engIss.length &&
+        other === (k === 'skymaster' ? tbIssues : 0),
+        `DAMAGE ${k}: a mount break group per engine (${mnt.join(', ')}), ${engIss.length} engine issues, ${other} other (the twin boom's own: ${k === 'skymaster' ? tbIssues : 0})`);
+  }
+}
+
 // 5 FLIGHT + 6 CERTIFY + 7 EDITOR (the children) ------------------------------------------------------------------------
 kidsDone.then(() => {
   say('5 FLIGHT - a straight downwind, wings level; every engine, then one cut (10 s)');
@@ -320,7 +416,13 @@ kidsDone.then(() => {
     const r = F('skymaster', c);
     chk(!r.err && r.beta < 0.5 && Math.abs(r.dHdg) < 1.5 && r.r < 1 && r.dAlt > -15, line('skymaster', c, r) + ' - centreline: small yaw');
   }
-  { const r = F('tri', 0); chk(!r.err && r.beta < 0.5 && Math.abs(r.dHdg) < 1.5 && r.dAlt > -15, line('tri', 0, r) + ' - the nose engine: no yaw'); }
+  // ENGINE-CONFIGS-2: the Trimotor's nose is a single's engine on the centreline - with the propeller's own moments on
+  // master (G2080: torque, P-factor, the swirl on the fin) its cut yaws as a single's power cut does, never more, and
+  // there is no thrust couple (12 Oct's 0.5 deg bound was written before those moments existed)
+  const sg = F('single', 0);
+  chk(!sg.err && sg.beta > 0.5, 'REFERENCE ' + line('single', 0, sg) + ' - a single\'s own power cut (its torque, P-factor and swirl go)');
+  { const r = F('tri', 0); chk(!r.err && !sg.err && r.beta <= sg.beta && Math.abs(r.dHdg) < 1.5 && r.dAlt > -15,
+      line('tri', 0, r) + ` - the nose engine: no thrust couple, a yaw under the single's power cut (${sg.err ? '?' : sg.beta.toFixed(2)} deg)`); }
   { const r = F('tri', 1); chk(!r.err && r.beta > 0.5 && (ctl.err || r.beta < ctl.beta) && r.dAlt > -15, line('tri', 1, r) + ' - a wing engine: a yaw, under the twin\'s'); }
   { const ri = F('quad', 0), ro = F('quad', 2);
     chk(!ri.err && ri.dAlt > -15 && ri.roll < 15, line('quad', 0, ri) + ' - an inner engine out flies');
@@ -337,6 +439,34 @@ kidsDone.then(() => {
   const E = results.editor || { err: 'not run' };
   if (E.err) chk(false, 'editor: ' + E.err);
   else for (const [c, m] of E.checks) chk(c, m);
+
+  physics();
+
+  // 9 FIXTURES ----------------------------------------------------------------------------------------------------------
+  say('9 FIXTURES - the example builds (tools/fixtures/build_v10_engcfg_*): loaded as the game loads them, design-checked, flown, certified');
+  for (const [k, f, lay] of FIXES) {
+    let ok9 = false, msg = '';
+    try {
+      const raw = JSON.parse(fs.readFileSync(path.join(ROOT, FIXF(f)), 'utf8'));
+      const L = LB.loadBuild(FIXF(f));
+      const dSaved = C.buildGen(clone(raw.spec)), dGame = C.buildGen(clone(L.spec));
+      const same = H({ n: dSaved.nodes, b: dSaved.beams, p: dSaved.params, s: dSaved.strips }) === H({ n: dGame.nodes, b: dGame.beams, p: dGame.params, s: dGame.strips });
+      const sh = C.genShakedown(dGame, { corners: true }), dc = sh.design, fails = dc.rows.filter(r => r.level === 'fail');
+      const errs = (L.errors || []).length;
+      ok9 = dGame.spec.engLayout === lay && same && !fails.length && !errs && sh.flyableCircuit;
+      msg = `${f.padEnd(9)} ${dGame.spec.engLayout}, ${dGame.params.nEngines} x ${dGame.spec.engine}, ${sh.mass.toFixed(0)} kg: the game's load is the saved aeroplane ${same}, ` +
+            `join errors ${errs}, design ${dc.verdict.toUpperCase()} (static margin ${sh.staticMargin.toFixed(3)} as drawn, ${dc.rows.find(r => r.id === 'pitch.sm').value} at the worst corner)` +
+            (fails.length ? ' FAIL ' + fails.map(r => r.id).join(',') : '');
+    } catch (e) { msg = `${f}: ${e.message}`; }
+    chk(ok9, msg);
+  }
+  for (const [k, f, , c] of FIXES) {
+    const r = F(k, c);
+    chk(!r.err && r.dAlt > -15 && r.roll < 15 && Math.abs(r.dHdg) < 5, line(f, c, r) + ' - flies the circuit, one engine cut');
+    const q = results['cert ' + k] || { err: 'not run' };
+    chk(!q.err && q.nonFinite === 0 && q.flownReached && q.verdict === 'HELD' && q.breaks === 0,
+        q.err ? `${f}: ${q.err}` : `${f.padEnd(9)} certificate: ${q.nb} members, flown pull reached ${q.flownReached}; bench to ${C.GEN_LOAD_ULT} g: ${q.verdict}, ${q.breaks} broken`);
+  }
 
   if (!ok) say('FAILED: ' + why.join('; '));
   say(ok ? 'GATE ENGCONFIG: PASS' : 'GATE ENGCONFIG: FAIL');
