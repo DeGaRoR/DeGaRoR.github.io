@@ -3,7 +3,9 @@
 // that built the pod cannot render: this is A0's script. A client of tools/live_driver.js (a headed Chrome on the box's
 // GPU, driven over 127.0.0.1:<cmd>), the real page with the damage layer on. TAKE THE GPU LOCK FIRST
 // (tools/perf/boxlock.sh take gpu <who>), drop it after.
-//   SPORT=8581 DPORT=9481 UDD=C:/pod2 Q='damage=1' node tools/live_driver.js <root> default dev.html 8582 &
+//   UDD="$(node -p "require('path').join(require('os').tmpdir(), 'pod2')")" SPORT=8581 DPORT=9481 Q='damage=1' \
+//     node tools/live_driver.js <root> default dev.html 8582 &
+// (the Chrome profile under the temp dir - a short path, its own localStorage, thrown away after - never C:/<name>)
 //   node tools/pod_box_evidence.js [--cmd 8582] [--out reports/evidence/POD3] [--only garage|belly]
 //
 // GARAGE (no damage needed): on each build, loaded with no pod, the tree's "Belly pod" node opened, fitted from the
