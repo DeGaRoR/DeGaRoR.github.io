@@ -163,6 +163,7 @@ const FX = v => v * HD / 13, FZ = v => v * HW / 18;
 // down the file and the mood code at the bottom has to be able to find it: a
 // light nothing holds a reference to is a light nothing can turn off.
 const STOVE = { light: null, cd0: (LAYIT && LAYIT.stove) ? LAYIT.stove.cd : 14 };
+const WORK = { light: null, cd: 0 };   // G3354: the story cabin's work lamp (hung below; up here: setMood can run before it)
 
 // THE GROUND, DECLARED. Every surface here is something the reflection probe
 // sees BELOW itself, and what a probe sees below itself is the single largest
@@ -3162,6 +3163,31 @@ if (LAYIT && LAYIT.pendants) for (const [lx, lz, ly] of LAYIT.pendants) {
   g.add(bulb);
   G.add(g);
 }
+// G3354 THE WORK LAMP (the story's cabin; the user 22 Oct: "We need light in the cabin, right now it's a dark hole"). The
+// ultralight's own cabin flood is a small lamp under a 9.8 m wing (RUFUS-CERT's stills): the shed hangs a work lamp low
+// ahead of the stand and to the side, its bulb lit, with a SpotLight aimed back under the wing into the cockpit. NO shadow
+// map (the texture-unit budget stays the five fittings'); constant like the stove, on the lamps' switch.
+// opts.workLamp: { cd, x, z, y, ax, ay, az } - the room's frame, the nose toward the door at -x
+if (opts && opts.workLamp && typeof opts.workLamp === 'object') {
+  const W = opts.workLamp, num = (v, d) => (typeof v === 'number' && isFinite(v) ? v : d);
+  const x = num(W.x, -2.8), z = num(W.z, 1.8), y = Math.min(num(W.y, 2.3), EAVE - 1.0), hook = 1.30;
+  const g = new THREE.Group(); g.position.set(x, y, z);
+  claim(prop('lamp_pendant', x, z, rr(-3, 3), y + hook), 'lamps');
+  const rodH = roofY(z) - (y + hook);
+  if (rodH > 0.05) g.add(cyl(0.012, 0.012, rodH, M.steelDark, 0, hook + rodH / 2, 0, 6));
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), M.bulb);
+  bulb.position.y = 0.12; bulb.castShadow = false;
+  g.add(bulb);
+  WORK.cd = num(W.cd, 40);
+  const L = new THREE.SpotLight(LAMP.rgb.getHex(), WORK.cd, 10, 0.62, 0.7, 2);
+  L.castShadow = false;
+  L.position.y = 0.12;
+  L.target.position.set(num(W.ax, -0.6), num(W.ay, 1.0), num(W.az, 0));
+  G.add(L.target);
+  g.add(L);
+  WORK.light = L;
+  G.add(g);
+}
 
 // ---- light shafts ---------------------------------------------------------
 // Cheap, and worth every triangle: a pair of crossed cards per opening, fading
@@ -3367,6 +3393,7 @@ function applyMutes(m) {
   if (muted.stove && STOVE.light) STOVE.light.intensity = 0;
   if (muted.lamps) {
     for (const L of lamps) L.intensity = 0;
+    if (WORK.light) WORK.light.intensity = 0;   // G3354
     M.bulb.emissiveIntensity = 0;
   }
   if (muted.panels) M.skyPanel.emissiveIntensity = 0;
@@ -3522,6 +3549,7 @@ const setMood = i => {
   // which is the opposite of what a night wants. It is a constant, set once
   // and reasserted here only so a mood change cannot leave it muted-then-lit.
   if (STOVE.light) STOVE.light.intensity = STOVE.cd0;
+  if (WORK.light) { WORK.light.intensity = WORK.cd; WORK.light.color.copy(LAMP.rgb); }   // G3354: the work lamp, constant
   // the environment is baked in ONE sky, so it has to be scaled with
   // everything else or the room stays lit by a sun that has gone. THIS LOOP
   // REACHES ONLY THE OUTDOOR LIST since W0.5a (r186): a material's own

@@ -109,7 +109,10 @@ const BASE_OFFERS = {
                    // (G3353, the user 22 Oct: "get rid of the large router (the largest of the woodworking machines). Keep
                    // only the 2 smaller ones (the drill and another)") the two smallest machines stay - the pillar drill and
                    // the thicknesser; the panel saw (4.4 x 3.6 m), the band saw and the surface planer are left out
-                   omit: ['panelsaw', 'bandsaw', 'jointer'] } },
+                   omit: ['panelsaw', 'bandsaw', 'jointer'],
+                   // (G3354, the user 22 Oct: "We need light in the cabin, right now it's a dark hole") a work lamp hung
+                   // ahead of the stand, aimed into the ultralight's cockpit (hangar.js opts.workLamp)
+                   workLamp: { cd: 40 } } },
   },
   HOME: {
     words: 'Jolene AFB · the WWII field',
