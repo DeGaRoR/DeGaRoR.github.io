@@ -184,8 +184,9 @@ function warmThenFrame(useOld) {
   pm.dispose(); const pm2 = new THREE.PMREMGenerator(R); pm2.fromCubemap(cube.texture); const n3 = B.links.length;
   ok(n1 > n0 && n2 === n1 && n3 > n2, '3 a kept PMREMGenerator bakes again on no link; a new one after a dispose links again (three\'s rule the kept one avoids)', (n1 - n0) + ' / ' + (n2 - n1) + ' / ' + (n3 - n2) + ' links');
   const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
-  const body = app.slice(app.indexOf('function bakeHangarEnv()'), app.indexOf('function bakeHangarEnv()') + 12000);
-  ok(!/new THREE\.PMREMGenerator/.test(body) && !/\bpm2?\.dispose\(\)/.test(body), '3 bakeHangarEnv keeps its generators (envGen), none made or disposed per bake');
+  // (G2662: the bake takes a slice argument now - anchored on the name, and the body must be found, or the scan goes quiet)
+  const at = app.indexOf('function bakeHangarEnv('), body = at < 0 ? '' : app.slice(at, at + 12000);
+  ok(body.length > 1000 && !/new THREE\.PMREMGenerator/.test(body) && !/\bpm2?\.dispose\(\)/.test(body), '3 bakeHangarEnv keeps its generators (envGen), none made or disposed per bake', at < 0 ? 'bakeHangarEnv NOT FOUND' : undefined);
 }
 
 // ---- 4. the passes outside the scene are listed and compiled -------------------------------------------

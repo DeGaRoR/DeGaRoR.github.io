@@ -1,0 +1,6 @@
+STAND: 14 placements (2 builds x every Jolene stand, HOME walked to HD 20 and 26): the lowest contact within 0.0 cm of 1 cm clear, settle <= 7.1 cm (the sag); the pre-G700 walked placement caught 4/4; TAS at rest in calm stock 0.00, cessnaMetal 0.00 km/h
+WIRING: applyRoute reads the walked stand's ground and seats the wheels
+DAY: the game's day blows 8 kt from 250 (the weather card's light breeze, the matrix's `breeze`)
+GARAGE: the overflow bar counts only rows it would show (pools: materials, decals; retired: dims box)
+58 checks, 0 failed
+GATE HONESTY: PASS

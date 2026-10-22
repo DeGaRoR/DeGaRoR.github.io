@@ -94,7 +94,7 @@ function stageElementsAt(rec, track, n) {
 // an element's point in the record's frame (the site's frame law: siteFrame)
 function stagePointOf(h) {
   const e = h.e;
-  if (h.layer === 'items') { const a = h.site.at || { x: 0, z: 0, yaw: 0 }, c = Math.cos(a.yaw || 0), s = Math.sin(a.yaw || 0); return [a.x + e.x * c + e.z * s, a.z - e.x * s + e.z * c]; }
+  if (h.layer === 'items') { const a = h.site.at || { x: 0, z: 0, yaw: 0 }, c = CORE_MATH.cos(a.yaw || 0), s = CORE_MATH.sin(a.yaw || 0); return [a.x + e.x * c + e.z * s, a.z - e.x * s + e.z * c]; }
   if (h.layer === 'sites') return e.at ? [e.at.x, e.at.z] : null;
   if (h.layer === 'runways') return e.c ? [e.c[0], e.c[1]] : null;
   if (e.poly && e.poly.length) { let x = 0, z = 0; for (const q of e.poly) { x += q[0] / e.poly.length; z += q[1] / e.poly.length; } return [x, z]; }

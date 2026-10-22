@@ -1,0 +1,8 @@
+ns per call, node 22, monomorphic loops of 2e6 arguments x 5 (/tmp bench2.js: three repeats; quiet machine; after the literal Math and the Math.abs fast paths)
+  Math.sin  |x| < 0.6     4.07 / 3.61 / 3.41      fsin   7.90 / 9.33 / 8.93   (random signs: fdlibm's branches mispredict; the sim's arguments are correlated)
+  Math.cos  |x| < 0.6     9.28 / 8.78 / 8.76      fcos  12.84 / 18.77 / 19.03
+  Math.sin  |x| < 24     22.05 / 23.10 / 23.12    fsin  47.53 / 45.07 / 45.23 (the reduction)
+  Math.pow  y^5.2559     50.10 / 49.94 / 47.93    fpow 129.21 / 130.57 / 115.40
+  the loop alone          1.84 / 1.75 / 1.60
+The step (tools/dmg_drive_perf.js, step_ab.txt) is inside the A/A noise floor (step_aa_noise.txt): the polar's stalled terms no longer
+run in attached flow (G2355), which took the sine out of the hot path.

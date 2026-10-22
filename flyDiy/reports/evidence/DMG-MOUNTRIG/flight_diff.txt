@@ -1,0 +1,20 @@
+== cub
+  parked    md5 2c3bd284c854 -> e531011784c4  cgY 1.0323 -> 1.0321 (-1.74e-4), pitchDeg -7.2282 -> -7.2281 (+1.33e-4)
+  land473   md5 e35cbcbe04eb -> 6442f268bee5  gMax 1.6664 -> 1.6666 (+2.34e-4)
+  circuit   md5 2eef5669397f -> 87c9e71e4237  outcome completed -> completed, t 321.4500 -> 321.4500 (+0.00e+0), nzMax 1.2851 -> 1.2853 (+1.32e-4), phases 10.0000 -> 10.0000 (+0.00e+0)
+== jodel
+  parked    md5 70c192aec9fc -> d6008e825e75  cgY 1.0195 -> 1.0193 (-2.17e-4), pitchDeg -9.5816 -> -9.5812 (+3.86e-4)
+  land473   md5 1fb257a0c979 -> cebcafecfee9  gMax 1.8575 -> 1.8585 (+9.92e-4)
+  circuit   md5 ede08f254387 -> 5fac4df3d832  outcome null -> null, t 340.0000 -> 340.0000 (+0.00e+0), nzMax 1.6653 -> 1.6630 (-2.32e-3), phases 9.0000 -> 9.0000 (+0.00e+0)
+== metal
+  parked    md5 754964d7501a -> 1bfe72ce6f04  cgY 1.0983 -> 1.0980 (-2.76e-4), pitchDeg 1.1185 -> 1.1173 (-1.25e-3)
+  land473   md5 a289fd17370f -> d95afc73abd5  gMax 2.1092 -> 2.1150 (+5.73e-3)
+  circuit   md5 ba2c13c01b5b -> 568eb13a2441  outcome null -> null, t 340.0000 -> 340.0000 (+0.00e+0), nzMax 2.2092 -> 2.1772 (-3.19e-2), phases 9.0000 -> 9.0000 (+0.00e+0)
+== floats
+  parked    md5 70680e7d5a0d -> 11b56dc8f809  cgY 1.2877 -> 1.2870 (-7.57e-4), pitchDeg -1.2396 -> -1.2266 (+1.29e-2)
+  land473   md5 f6d79949ca32 -> 54942f159e00  gMax 1.6536 -> 1.6559 (+2.25e-3)
+  circuit   md5 f0bde49200fa -> e58b46239811  outcome null -> null, t 340.0000 -> 340.0000 (+0.00e+0), nzMax 1.5797 -> 1.5805 (+8.19e-4), phases 10.0000 -> 10.0000 (+0.00e+0)
+== twinFloats
+  parked    md5 6adfdef68ffe -> 6adfdef68ffe (bit-identical)  cgY 0.8432 -> 0.8432 (+0.00e+0), pitchDeg -2.7854 -> -2.7854 (+0.00e+0)
+  land473   md5 fc68964dc522 -> fc68964dc522 (bit-identical)  gMax 1.6623 -> 1.6623 (+0.00e+0)
+  circuit   md5 021407129c72 -> 021407129c72 (bit-identical)  outcome completed -> completed, t 302.4833 -> 302.4833 (+0.00e+0), nzMax 1.8398 -> 1.8398 (+0.00e+0), phases 10.0000 -> 10.0000 (+0.00e+0)

@@ -1,0 +1,124 @@
+tools/flight_core.js (2785.9 KB), index.html (12089.6 KB), dev.html (112.8 KB), career_core.fcd16338.js (313.9 KB) — syntax OK, build d6aa54146012 (340 named inputs), 1522 ms
+[run_gates] 1/11 jobs done · running DESTTO/0 30 s, DESTTO/1 30 s, DESTTO/2 30 s, LAZY 30 s
+[run_gates] 1/11 jobs done · running DESTTO/0 60 s, DESTTO/1 60 s, DESTTO/2 60 s, LAZY 60 s
+[run_gates] 3/11 jobs done · running DESTTO/0 90 s, DESTTO/1 90 s, DESTTO/2 90 s, GAMEPREM 13 s
+[run_gates] 8/11 jobs done · running DESTTO/0 120 s, DESTTO/1 120 s, DESTTO/2 120 s
+[run_gates] 8/11 jobs done · running DESTTO/0 150 s, DESTTO/1 150 s, DESTTO/2 150 s
+[run_gates] 8/11 jobs done · running DESTTO/0 180 s, DESTTO/1 180 s, DESTTO/2 180 s
+[run_gates] 8/11 jobs done · running DESTTO/0 210 s, DESTTO/1 210 s, DESTTO/2 210 s
+[run_gates] 8/11 jobs done · running DESTTO/0 240 s, DESTTO/1 240 s, DESTTO/2 240 s
+[run_gates] 8/11 jobs done · running DESTTO/0 270 s, DESTTO/1 270 s, DESTTO/2 270 s
+[run_gates] 8/11 jobs done · running DESTTO/0 300 s, DESTTO/1 300 s, DESTTO/2 300 s
+[run_gates] 8/11 jobs done · running DESTTO/0 330 s, DESTTO/1 330 s, DESTTO/2 330 s
+[run_gates] 8/11 jobs done · running DESTTO/0 360 s, DESTTO/1 360 s, DESTTO/2 360 s
+[run_gates] 8/11 jobs done · running DESTTO/0 390 s, DESTTO/1 390 s, DESTTO/2 390 s
+[run_gates] 8/11 jobs done · running DESTTO/0 420 s, DESTTO/1 420 s, DESTTO/2 420 s
+[run_gates] 8/11 jobs done · running DESTTO/0 450 s, DESTTO/1 450 s, DESTTO/2 450 s
+[run_gates] 8/11 jobs done · running DESTTO/0 480 s, DESTTO/1 480 s, DESTTO/2 480 s
+[run_gates] 8/11 jobs done · running DESTTO/0 510 s, DESTTO/1 510 s, DESTTO/2 510 s
+[run_gates] 8/11 jobs done · running DESTTO/0 540 s, DESTTO/1 540 s, DESTTO/2 540 s
+[run_gates] 8/11 jobs done · running DESTTO/0 570 s, DESTTO/1 570 s, DESTTO/2 570 s
+[run_gates] 8/11 jobs done · running DESTTO/0 601 s, DESTTO/1 601 s, DESTTO/2 601 s
+[run_gates] 9/11 jobs done · running DESTTO/1 631 s, DESTTO/2 631 s
+[run_gates] 9/11 jobs done · running DESTTO/1 661 s, DESTTO/2 661 s
+[run_gates] 9/11 jobs done · running DESTTO/1 691 s, DESTTO/2 691 s
+[run_gates] 9/11 jobs done · running DESTTO/1 721 s, DESTTO/2 721 s
+[run_gates] 9/11 jobs done · running DESTTO/1 751 s, DESTTO/2 751 s
+[run_gates] 9/11 jobs done · running DESTTO/1 781 s, DESTTO/2 781 s
+[run_gates] 9/11 jobs done · running DESTTO/1 811 s, DESTTO/2 811 s
+[run_gates] 9/11 jobs done · running DESTTO/1 841 s, DESTTO/2 841 s
+[run_gates] 9/11 jobs done · running DESTTO/1 871 s, DESTTO/2 871 s
+[run_gates] 9/11 jobs done · running DESTTO/1 901 s, DESTTO/2 901 s
+[run_gates] 9/11 jobs done · running DESTTO/1 931 s, DESTTO/2 931 s
+[run_gates] 9/11 jobs done · running DESTTO/1 961 s, DESTTO/2 961 s
+[run_gates] 9/11 jobs done · running DESTTO/1 991 s, DESTTO/2 991 s
+[run_gates] 9/11 jobs done · running DESTTO/1 1021 s, DESTTO/2 1021 s
+=== DESTTO ===
+--- shard 0/3 (624.6 s) ---
+  air:metal: ok (171 s) [shard 0/3]
+DESTTO: 0 failure(s), 624 s [shard 0/3]
+GATE DESTTO: PASS
+--- shard 1/3 (1039.6 s) ---
+  store:cub: ok (153 s) [shard 1/3]
+DESTTO: 0 failure(s), 1039 s [shard 1/3]
+GATE DESTTO: PASS
+--- shard 2/3 (1038.3 s) ---
+  ltd:twinFloats: ok (428 s) [shard 2/3]
+DESTTO: 0 failure(s), 1038 s [shard 2/3]
+GATE DESTTO: PASS
+=== UISMOKE ===
+
+[stderr]
+/home/user/DeGaRoR.github.io/flyDiy/tools/test_ui_smoke.js:507
+  console.log('STORAGE: the view (inside 1/2, outside 1/6, long-term 1), a refusal with its reason, tap-then-column and a drop moved the aeroplanes (' + msg + '); Fly asked, then rolled out lined up (' + (W.FLYDIY_TRIPS || []).filter(t => t && t.kind === 'rollout').map(t => t.anim).pop() || 'no roll-out screen in this harness') + ')');
+                                                                                                                                                                                                                                                                                                                                               ^
+
+SyntaxError: Unexpected token ')'
+    at wrapSafe (node:internal/modules/cjs/loader:1638:18)
+    at Module._compile (node:internal/modules/cjs/loader:1680:20)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49
+
+Node.js v22.22.0
+(exit code 1)
+=== UISMOKE-PHONE ===
+
+[stderr]
+/home/user/DeGaRoR.github.io/flyDiy/tools/test_ui_smoke.js:507
+  console.log('STORAGE: the view (inside 1/2, outside 1/6, long-term 1), a refusal with its reason, tap-then-column and a drop moved the aeroplanes (' + msg + '); Fly asked, then rolled out lined up (' + (W.FLYDIY_TRIPS || []).filter(t => t && t.kind === 'rollout').map(t => t.anim).pop() || 'no roll-out screen in this harness') + ')');
+                                                                                                                                                                                                                                                                                                                                               ^
+
+SyntaxError: Unexpected token ')'
+    at wrapSafe (node:internal/modules/cjs/loader:1638:18)
+    at Module._compile (node:internal/modules/cjs/loader:1680:20)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49
+
+Node.js v22.22.0
+(exit code 1)
+=== BUILD ===
+  ok     the clock, the date and the run all ride the save envelope
+
+GATE BUILD: PASS
+=== SAVE ===
+  ok     PREM-S2: save as - both slots handed over
+  20 targeted rows, 937 panel rows moved and put back, the whole envelope as a fixed point, 3 persist doors
+GATE SAVE: PASS
+=== PLAYER ===
+51 checks
+GATE PLAYER: PASS
+=== GAMEPREM ===
+609 checks
+GATE GAMEPREM: PASS
+=== STORAGE ===
+82 checks
+GATE STORAGE: PASS
+=== LAZY ===
+  ok   ?freight=1: no page error
+  the request lists in 74 s
+GATE LAZY: PASS
+
+──────── summary ────────
+DESTTO    PASS  1039.6 s  [3 shards]
+UISMOKE   FAIL     0.0 s
+UISMOKE-PHONE FAIL     0.0 s
+BUILD     PASS     2.0 s
+SAVE      PASS     0.5 s
+PLAYER    PASS     0.2 s
+GAMEPREM  PASS    13.4 s
+STORAGE   PASS     2.6 s
+LAZY      PASS    77.0 s
+total           1135.3 s
+wall            1039.6 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.

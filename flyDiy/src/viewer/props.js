@@ -504,8 +504,9 @@ const PROP_INST_KEYS = /^(pole_a|pole_b|pole_c|fence_old)$/;
 // the way the poles did: one InstancedMesh per (level, part, caster) of the key. ONLY WHERE THE CALLER ASKS
 // (propPlace's `inst`: the premises' static dressing and objects) - the garage's shed stands its own drums, and a
 // traffic car moves every tick; neither is a proxy. Nothing lit (the day's hand dims a fixture per key) and nothing
-// that moves. `?propinst=poles` is the A/B (the poles and fences only, as before).
-const PROP_INST_REPEAT = /^(drum_steel|barrel_plastic|crate_wood_[abc]|tyre|work_trestle|handtruck|box_cardboard|compressor|jerrycan|jerrycan_green|oil_tin|bottle_propane|bottle_lpg|bin_metal|bin_metal_rust|stepladder|stove_barrel|pallets_stack|pallets_three|pallet_one|cinder_pallet|cement_bags|bags_stack|bags_lean|bags_flat|bags_stand|bag_compost|planter|stool_wood|stool_wood2|stool_fold|chair_wood|chair_plastic|table_wood|picnic_table|person_[a-z]+)$/;
+// that moves. `?propinst=poles` is the A/B (the poles and fences only, as before). G3140-G3149: the tents (a camp
+// site's dozen) and the pylons (a line's hundred) join it.
+const PROP_INST_REPEAT = /^(drum_steel|barrel_plastic|crate_wood_[abc]|tyre|work_trestle|handtruck|box_cardboard|compressor|jerrycan|jerrycan_green|oil_tin|bottle_propane|bottle_lpg|bin_metal|bin_metal_rust|stepladder|stove_barrel|pallets_stack|pallets_three|pallet_one|cinder_pallet|cement_bags|bags_stack|bags_lean|bags_flat|bags_stand|bag_compost|planter|stool_wood|stool_wood2|stool_fold|chair_wood|chair_plastic|table_wood|picnic_table|person_[a-z]+|tent_[a-z]+|pylon_[a-z]+)$/;
 const PROP_INST_POLES_ONLY = typeof location !== 'undefined' && /[?&]propinst=poles(&|$)/.test(location.search || '');
 const PROP_INST = { THREE: null, scene: null, root: null, on: true, proxies: [], pending: [], batches: new Map(),
                     eye: null, tick: 0, dirty: true, stats: { proxies: 0, drawn: 0, draws: 0 } };

@@ -113,7 +113,7 @@ function simHostProbe(world, pts, t, H, opts) {
 }
 // the core names the worker's Blob picks out of the imported bundle
 const SIM_HOST_CORE = ['ISLAND_GEN', 'makeWorld', 'buildGen', 'makeSim', 'makePilot', 'PILOT_STYLES',
-                       'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup',
+                       'navMake', 'NAV_FIXES', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup',
                        'stripSurface', 'stripGear'];
 const SIM_HOST_DT = 1 / 60;
 const SIM_HOST_CATCH = 4;          // steps owed per turn at most (G586's frame owed 4)
@@ -141,7 +141,7 @@ const simHostSet = (o, k, v) => { const p = k.split('.'); for (let i = 0; i < p.
 // arrays, not copies
 function simHostTrimBoot(boot) {
   if (!boot) return null;
-  const out = { id: boot.id, grid: {}, far: null, hydro: boot.hydro || 'blend' };
+  const out = { id: boot.id, grid: {}, far: null, hydro: boot.hydro || 'map' };
   if (boot.reclass != null) out.reclass = boot.reclass;
   for (const k of SIM_HOST_KEYS) { const v = simHostGet(boot, k); if (v != null) simHostSet(out, k, v); }
   return out;
@@ -170,7 +170,7 @@ function simHostFetchBoot(base, name, opts) {
   return F(base + 'src/core/world_packs.json').then(r => (r.ok ? r.json() : { islands: [] })).then(PACK => {
     const isl = (PACK.islands || []).find(w => w.id === name);
     if (!isl) return null;
-    const boot = { id: name, grid: {}, far: null, hydro: opts.hydro || 'blend' };
+    const boot = { id: name, grid: {}, far: null, hydro: opts.hydro || 'map' };
     return Promise.all(SIM_HOST_KEYS.map(k => {
       const r = isl.files[k];
       if (!r) return null;
@@ -243,10 +243,13 @@ function simHostPlain(o, depth, skip) {
 // The page applies it with sim_view.js simViewDmgApply; app.js's inline sim runs the same hop with no window.
 const SIM_DMG_SET_S = 0.1;
 const SIM_DMG_SET_MIN = 1e-4;
+// G2357 (DMG-SCAR): the third signature - the ground's scar (sim.damage().scar, 34_scar.js: { v, prims }, sealed per event:
+// the wreck at rest or its contacts quiet) - its version; 0 with no record or nothing ever sealed
 function simDmgSigs(sim) {
   const D = sim.damage && sim.damage();
   if (!D) return null;
-  return [D.breaks + ':' + (D.cl ? D.cl.length : 0), D.yields + ':' + D.dents];
+  // (G2040: a cover tie torn is a break event of the covering - its count joins the signature once one has been made)
+  return [D.breaks + ':' + (D.cl ? D.cl.length : 0) + (D.tieN ? ':' + D.tieT : ''), D.yields + ':' + D.dents, D.scar ? D.scar.v : 0];
 }
 // the pieces: DMG-D1b's own rule (30_solver.js pieces()), off the sim's public state - a payload's time, never a step's
 function simDmgPieces(sim, coreNode) {
@@ -260,6 +263,15 @@ function simDmgPieces(sim, coreNode) {
   for (let i = 0; i < n; i++) { const r = f(i); let k = id.get(r); if (k === undefined) { k = id.size; id.set(r, k); } lab[i] = k; }
   return id.size > 1 ? lab : null;
 }
+// G2040-G2043 (DMG-FABRIC): THE COVER TIES - the covering the physics still holds across a parting (30_solver.js tieEvent):
+//   ty   the LIVE ties' node pairs, flat [a, b, a, b, ...] - the skin keeps its covering over them (stretched, whole)
+//   tt   the TORN ties' pairs - the skin tears its covering there (where the physics tore it, not at its own stretch)
+// Only once a tie has been made (D.tieN): before, no key at all
+function simDmgTies(sim) {
+  const T = sim.coverTies(), ty = [], tt = [];
+  for (let q = 0; q < T.n; q++) (T.torn[q] >= 0 ? tt : ty).push(T.a[q], T.b[q]);
+  return { ty, tt };
+}
 function simDmgSets(sim) {
   const st = [];
   sim.beams.forEach((b, bi) => {
@@ -269,25 +281,45 @@ function simDmgSets(sim) {
   });
   return st;
 }
-// hop: { sB, sS, t } - what the page holds; `win` the set window (s; 0 inline). Returns a payload, or null
+// hop: { sB, sS, sC, t } - what the page holds; `win` the set window (s; 0 inline). Returns a payload, or null
 function simDmgHop(sim, hop, coreNode, win) {
   const sg = simDmgSigs(sim);
   if (!sg) return null;
   const clk = typeof performance !== 'undefined' ? performance : Date, t0 = clk.now();
   let out = null;
+  if (sg[2] !== hop.sC) {           // G2357: the scar alone (its own payload: the page's grass and decal, once an event)
+    hop.sC = sg[2];
+    out = { sC: sg[2], sc: sim.damage().scar.prims.slice() };
+  }
   if (sg[0] !== hop.sB) {
     hop.sB = sg[0]; hop.sS = sg[1]; hop.t = sim.t;
     const D = sim.damage(), pc = D.breaks ? simDmgPieces(sim, coreNode) : null;
-    out = { sB: sg[0], sS: sg[1], br: D.broken.slice(), pc: pc ? Array.from(pc) : null, st: simDmgSets(sim) };
+    out = Object.assign(out || {}, { sB: sg[0], sS: sg[1], br: D.broken.slice(), pc: pc ? Array.from(pc) : null, st: simDmgSets(sim) });
+    if (D.tieN) { const TY = simDmgTies(sim); out.ty = TY.ty; out.tt = TY.tt; }   // G2040 (DMG-FABRIC)
   } else if (sg[1] !== hop.sS && !(sim.t - hop.t < (win == null ? SIM_DMG_SET_S : win))) {
     hop.sS = sg[1]; hop.t = sim.t;
-    out = { sS: sg[1], st: simDmgSets(sim) };
-  } else return null;
+    out = Object.assign(out || {}, { sS: sg[1], st: simDmgSets(sim) });
+  } else if (!out) return null;
   hop.ms = clk.now() - t0;          // the payload's build (the union-find, the sets): GATE DMGSKIN reads it
   return out;
 }
 // the pristine hop (an intact airframe, as a new view holds it)
-const simDmgHop0 = () => ({ sB: '0:0', sS: '0:0', t: -Infinity });
+const simDmgHop0 = () => ({ sB: '0:0', sS: '0:0', sC: 0, t: -Infinity });
+// G1826 (DMG-DRIVE): THE DRIVETRAIN'S STATE, TO THE PAGE, while any engine has one (an overspeed band, a strike, the gearbox,
+// a failure: sim.damage().drive, 33_drive.js genDriveState) - every snapshot then (the vibration and the tip's Mach move;
+// one or two small objects), nothing at all before it (the layer off: no drive array; an untouched drivetrain: one loop
+// over the engines). D4b's look, D5's bill and the sound read `meta.drv` (HANDOVER G1826 names the fields)
+function simDrvOf(sim) {
+  const D = sim.damage && sim.damage(), R = D && D.drive;
+  if (!R) return null;
+  let any = false;
+  for (const x of R) if (x.os || x.strike || x.gearbox || x.failed || x.crush > 0) { any = true; break; }
+  if (!any) return null;
+  // (G2013, DMG-NOSE: `crush` - the nose's crush, m from the spinner's tip - and the layer it reached, for D4b's cowl debris)
+  return R.map(x => ({ os: x.os, osPeak: x.osPeak, osSec: x.osSec, osExc: x.osExc, strike: x.strike, strikeAt: x.strikeAt, bladeLost: x.bladeLost, gearbox: x.gearbox,
+    failed: x.failed, why: x.why, teardown: x.teardown, internal: x.internal, thrustK: x.thrustK, vib: x.vib, tipMach: x.tipMach, imbN: x.imbN,
+    crush: x.crush || 0, crushOf: x.crushOf || 0, crushLayer: x.crushLayer || null }));
+}
 
 // the pilot's fields that are big and change rarely: sent when the object
 // changes (by reference), the rest of the pilot every snapshot
@@ -380,7 +412,7 @@ function makeSimHost(CORE, init, keptWorld) {
       const p = CORE.makePilot(sim, def, world, { style: ST_[kind] ? kind : 'normal', profile: PK.profile || undefined, shakedown: () => sd });
       if (PK.nav !== false && typeof CORE.navMake === 'function') {
         // one nav for the page's life (app.js flNav, made once, kept across flights): one per world here (G815)
-        if (!world.__simNav) world.__simNav = CORE.navMake({ waypoints: world.aerodromes });
+        if (!world.__simNav) world.__simNav = CORE.navMake({ waypoints: world.aerodromes.concat(CORE.NAV_FIXES || []) });   // the page's own list (parity)
         H.nav = world.__simNav;
         p.setNav(H.nav);
       }
@@ -447,6 +479,8 @@ function makeSimHost(CORE, init, keptWorld) {
     place();
     // G820 (C1c): the bench's test card (app.js startTestFlight: ap.setCard after the placement, before the start)
     if (init.pilot && init.pilot.card && H.ap.setCard) H.ap.setCard(init.pilot.card);
+    // G2120 ROUTE-DRAW: the route the page's pilot had armed when the flight was asked (sim_link.js begin)
+    if (init.pilot && init.pilot.route && H.ap.flyRoute) H.ap.flyRoute(init.pilot.route);
     H.started = false; H.epoch++; H.apGen = (H.apGen || 0) + 1;
     H.end = { air: false, wasAir: false, still: 0, over: false };
   }
@@ -509,12 +543,21 @@ function makeSimHost(CORE, init, keptWorld) {
     }
   }
   // INP.write's door: the hand's axes every step it is on; an engine lever only where the aeroplane has one
+  // G2480 (HAND-CONTROLS): the toe brakes' brakeD and the water rudders' wr with them - before G2480 the hand's
+  // packet stopped at the flaps, and a differential brake the page set never reached the worker's sim. wr's null is a
+  // value (THE RULE), so it is written whenever the packet carries the field
+  const HAND_KEYS = ['de', 'da', 'dr', 'thr', 'brake', 'brakeD', 'flap'];
+  H.HAND_KEYS = HAND_KEYS;
   function writeHand(h) {
     const c = sim.ctl;
-    for (const k of ['de', 'da', 'dr', 'thr', 'brake', 'flap']) if (h[k] != null) c[k] = h[k];
+    for (const k of HAND_KEYS) if (h[k] != null) c[k] = h[k];
+    if ('wr' in h) c.wr = h.wr === 0 || h.wr === 1 ? h.wr : null;
     if (Array.isArray(h.eng) && Array.isArray(c.eng))
       for (let i = 0; i < c.eng.length && i < h.eng.length; i++) if (h.eng[i] != null && c.eng[i]) c.eng[i].thr = h.eng[i];
   }
+  // G2480: what only the hand writes leaves with it - the toe brakes' split (the pilot clears brakeD every update
+  // anyway, outside the box) and the water rudders' handle (the pilot never knew it: THE RULE again)
+  function handOff(c) { c.brakeD = 0; c.wr = null; }
   function apply(c) {
     const ap = H.ap;
     switch (c.cmd) {
@@ -531,6 +574,7 @@ function makeSimHost(CORE, init, keptWorld) {
         H.manual = !!c.on;
         if (H.manual) H.end.still = 0;           // app.js setManual(true): stillT = 0
         if (!H.manual) {
+          handOff(sim.ctl);                       // app.js setManual(false): the hand's own fields off the aeroplane (G2480)
           if (ap.reEngage) ap.reEngage({ phase: resyncPhase() });
           if (ap.budget) ap.budget = Math.max(ap.budget, ap.t + 300);
         }
@@ -584,6 +628,8 @@ function makeSimHost(CORE, init, keptWorld) {
         if (to && init.place) init.place = Object.assign({}, init.place, { to: c.to });
         break;
       }
+      // G2120 ROUTE-DRAW: a drawn route (app.js routeFly): the pilot's flyRoute, as the page's (null leaves it)
+      case 'route': if (ap.flyRoute) ap.flyRoute(c.route || null); break;
       case 'over':   // the page's flightOver (the card up): the hand's ending stands down; endFlight's outcome (G130) written as the page writes it
         H.end.over = !!c.on;
         if (c.on && c.outcome) { if (!ap.report) ap.report = { verdicts: [], outcome: c.outcome, landing: null }; else if (!ap.report.outcome) ap.report.outcome = c.outcome; }
@@ -681,6 +727,8 @@ function makeSimHost(CORE, init, keptWorld) {
     const HY = sim.hydro;
     const dmgB = simDmgHop(sim, dmgHop, dmgCore);
     if (dmgB) { H.dmgMs += dmgHop.ms; H.dmgSends++; H.dmgBytes += JSON.stringify(dmgB).length; }
+    const drv = simDrvOf(sim);                      // G1826
+    const struct = sim.damage ? sim.damage().structural : null;   // DMG-D4b (train 41): only once damaged (nothing sent for a whole aeroplane)
     return {
       out: simHostPlain(sim.out, 3, ['hydro']),
       eng: simHostPlain(sim.eng, 3),
@@ -691,13 +739,18 @@ function makeSimHost(CORE, init, keptWorld) {
       // came over as arrays of undefined and the page's spray threw on every frame under the worker (the water taxi
       // drew nothing for 16 s). They stay here: the page refills W from the mirrored nodes (ctx.fill), and gets the
       // WET panels the spray reads, flat (simHostPanels)
-      hydro: HY ? { wet: HY.wet, tick: HY.tick, floats: HY.floats.map(fx => ({ side: fx.side, wet: fx.wet, out: simHostPlain(fx.out, 2, ['W', 'dq', 'per', 'd']), per: simHostPanels(fx.out.per), lam: fx.lam.slice() })) } : null,
+      // G2834 (WATER-FX-FIX, objective 5): and h, the float's water level - only the hydro pass writes it (32_hydro.js
+      // hydroSolverCompute), so under the worker the page's was never set and every spray particle and chine sheet was
+      // emitted at y = NaN: no touchdown splash, no spray on float landings (the user, HWCOV's runs)
+      hydro: HY ? { wet: HY.wet, tick: HY.tick, floats: HY.floats.map(fx => ({ side: fx.side, wet: fx.wet, h: fx.h, out: simHostPlain(fx.out, 2, ['W', 'dq', 'per', 'd']), per: simHostPanels(fx.out.per), lam: fx.lam.slice() })) } : null,
       wheels: sim.wheelContacts ? sim.wheelContacts() : null,
       // G2090 (WATER-LOOK): the wet body's contacts (32_hydro.js wetFx), only while any - a dry flight sends nothing
       wet: simHostWet(sim),
       ctl: simHostPlain(sim.ctl, 3),
       ap: A, apNew,
       ...(dmgB ? { dmgB } : {}),   // G1850: only when it changed
+      ...(drv ? { drv } : {}),     // G1826: only once the drivetrain has a state
+      ...(struct && struct.damaged ? { struct } : {}),   // DMG-D4b (train 41): the aeroplane's integrity, once damaged
     };
   };
   // the pilot's rare fields go again after a re-init of the view (a new epoch)

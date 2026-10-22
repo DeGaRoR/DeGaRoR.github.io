@@ -1,0 +1,116 @@
+The targeted battery (DEFORM §11.3), GATES_CORE=1 run_gates --verbose --no-build: this branch (16 gates, --jobs=3) and the base claude/dmg-integration 01e6892f (+ the read-only instruments) for the damage-OFF set and TREECRASH (--jobs=1).
+
+== this branch
+TREEHIT   PASS    49.1 s
+TREECRASH PASS   558.3 s
+DMGMEMBERS PASS    38.2 s
+DMGCERT   PASS   345.4 s
+DMGGEAR   PASS   900.9 s
+DMGWIND   PASS  1090.9 s
+DMGCLUSTERS PASS   478.6 s
+DMGINST   PASS   164.3 s
+DMGFPS    PASS   170.9 s
+DMGINTEGRITY PASS    43.6 s
+BENCH     PASS    48.8 s
+SIMWORKER PASS    60.2 s
+OBSTACLE  PASS    10.9 s
+SOAR      PASS   564.3 s
+FLEX      PASS   191.3 s  [3 shards]
+LOAD      PASS   222.9 s
+BATTERY: PASS
+
+== the base
+TREEHIT   PASS    54.3 s
+TREECRASH PASS   833.9 s
+BENCH     PASS    51.3 s
+SIMWORKER PASS    71.9 s
+OBSTACLE  PASS    12.7 s
+SOAR      PASS   574.8 s
+FLEX      PASS   506.3 s
+LOAD      PASS   221.4 s
+BATTERY: PASS
+
+== each gate's whole output, the base against this branch (FLEX: the base unsharded, this branch in 3 shards - every base line is in this branch's output; the only differences are the shards' own lines, e.g. 26 of 32 = 8+9+9 of 10+11+11)
+TREEHIT    SAME BYTES
+TREECRASH  DIFFERS
+   base: (834 s, 5 builds; the certificate's limits (DMG-D2a, 66_gen_cert.js))
+   mine: (558 s, 5 builds; the certificate's limits (DMG-D2a, 66_gen_cert.js))
+   base:   ok    taxied at 3 m/s into a trunk: a dent (10 members set, 0 of the nose broken, 731 J), no crash; the prop struck, the engine stopped; back 1.18 m from where it stopped
+   mine:   ok    taxied at 3 m/s into a trunk: a dent (5 members set, 0 of the nose broken, 722 J), no crash; the prop struck, the engine stopped; back 0.37 m from where it stopped
+   base:   ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (5156 contacts), 0 members set, no crash
+   mine:   ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (8228 contacts), 0 members set, no crash
+   base:   ok    the centreline: CRASHED (broke up: the fuselage parted (TPB off the core) at 1.32 s), 169 members broken (37 of the wing), 29.9 kJ of plastic work, 24.12 g; finite; the kinetic energy at most 100.0 % of the impac
+   mine:   ok    the centreline: CRASHED (broke up: the fuselage parted (TPB off the core) at 1.32 s), 177 members broken (36 of the wing), 23.7 kJ of plastic work, 21.89 g; finite; the kinetic energy at most 100.0 % of the impac
+   base:   ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.37 s), 121 members broken (41 of the wing), 13.8 kJ of plastic work, 9.39 g; finite; the kinetic energy at most 100.0 % of the impact's
+   mine:   ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.37 s), 118 members broken (32 of the wing), 13.4 kJ of plastic work, 8.53 g; finite; the kinetic energy at most 100.0 % of the impact's
+   base:   ok    after a crash, reset() and the same taxi: the fresh sim's bits (fe182fe64103 / fe182fe64103)
+   mine:   ok    after a crash, reset() and the same taxi: the fresh sim's bits (45581a6b5939 / 45581a6b5939)
+   base:   ok    taxied at 3 m/s into a trunk: a dent (10 members set, 1 of the nose broken, 1120 J), no crash; the prop struck, the engine stopped; back 0.21 m from where it stopped
+   mine:   ok    taxied at 3 m/s into a trunk: a dent (10 members set, 0 of the nose broken, 766 J), no crash; the prop struck, the engine stopped; back 0.23 m from where it stopped
+   base:   ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (6941 contacts), 0 members set, no crash
+   mine:   ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (19656 contacts), 0 members set, no crash
+   base:   ok    the centreline: CRASHED (broke up: the fuselage parted (TPB off the core) at 1.30 s), 204 members broken (32 of the wing), 39.6 kJ of plastic work, 26.08 g; finite; the kinetic energy at most 100.0 % of the impac
+   mine:   ok    the centreline: CRASHED (broke up: the fuselage parted (TPB off the core) at 1.30 s), 197 members broken (33 of the wing), 29.0 kJ of plastic work, 26.24 g; finite; the kinetic energy at most 100.0 % of the impac
+   base:   ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 65 members broken (65 of the wing), 2.0 kJ of plastic work, 6.43 g; finite; the kinetic energy at most 100.0 % of the impact's
+   mine:   ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 153 members broken (66 of the wing), 4.2 kJ of plastic work, 4.84 g; finite; the kinetic energy at most 100.0 % of the impact's
+   base:   ok    after a crash, reset() and the same taxi: the fresh sim's bits (c903ac6134ae / c903ac6134ae)
+   mine:   ok    after a crash, reset() and the same taxi: the fresh sim's bits (4c12527390e5 / 4c12527390e5)
+   base:   ok    taxied at 3 m/s into a trunk: a dent (11 members set, 1 of the nose broken, 929 J), no crash; the prop struck, the engine stopped; back 1.25 m from where it stopped
+   mine:   ok    taxied at 3 m/s into a trunk: a dent (7 members set, 1 of the nose broken, 1012 J), no crash; the prop struck, the engine stopped; back 0.35 m from where it stopped
+BENCH      SAME BYTES
+SIMWORKER  numbers differ only (masked: same)
+   base: the page's world (the whole boot): 6544 ms
+   mine: the page's world (the whole boot): 5010 ms
+   base:   the host: init 6064 ms, the trimmed boot 79.0 MiB
+   mine:   the host: init 4496 ms, the trimmed boot 79.0 MiB
+   base:   ok   stock: every step's FNV(p, v) equal, 0..600 (final f2b3de3f, page 4191 ms)
+   mine:   ok   stock: every step's FNV(p, v) equal, 0..600 (final f2b3de3f, page 3482 ms)
+   base:   ok   cessnaMetal: every step's FNV(p, v) equal, 0..600 (final cbccf99f, page 7968 ms)
+   mine:   ok   cessnaMetal: every step's FNV(p, v) equal, 0..600 (final cbccf99f, page 4978 ms)
+   base:   the page frozen 1.5 s: 15 steps while it was (held), 30 in the half second after; 1 stall, 1.267 s let go
+   mine:   the page frozen 1.5 s: 14 steps while it was (held), 30 in the half second after; 1 stall, 1.269 s let go
+   base:   ok   the worker thread holds through a 1.5 s page freeze (15 steps, <= 21) and goes on after it (30 steps in 0.5 s, 1.267 s let go)
+   mine:   ok   the worker thread holds through a 1.5 s page freeze (14 steps, <= 21) and goes on after it (30 steps in 0.5 s, 1.269 s let go)
+   base:   transport: a 4.6 KB snapshot buffer there and back (transferred) p50 0.026 / p99 6.385 ms
+   mine:   transport: a 4.6 KB snapshot buffer there and back (transferred) p50 0.018 / p99 0.825 ms
+   base:   a snapshot's one-way latency (published -> taken; the render loop is busy 8 ms of each frame) p50 1.625 / p90 3.800 / max 16.278 ms
+   mine:   a snapshot's one-way latency (published -> taken; the render loop is busy 8 ms of each frame) p50 1.996 / p90 8.600 / max 37.437 ms
+   base:   the pose age at the render (now less when the host held the drawn state; interpolated at T - 1 step) p50 43.537 / p90 60.347 ms
+   mine:   the pose age at the render (now less when the host held the drawn state; interpolated at T - 1 step) p50 43.520 / p90 61.510 ms
+   base:   the render thread's physics: take 0.052 / max 1.769 ms a snapshot, frame 0.071 / max 7.951 ms a frame
+   mine:   the render thread's physics: take 0.067 / max 0.238 ms a snapshot, frame 0.070 / max 2.226 ms a frame
+   base:   the host: 251 steps in 3.5 s + the freeze, step 4.815 ms (eased), dilation 0.997, dropped 0.050 s (1 turns), 243 snapshots, buffers allocated 0 (0 after the first second), 235 frames drawn
+   mine:   the host: 252 steps in 3.5 s + the freeze, step 5.061 ms (eased), dilation 0.992, dropped 0.033 s (1 turns), 243 snapshots, buffers allocated 0 (0 after the first second), 235 frames drawn
+   base:   ok   the host's clock ran (251 steps, 243 snapshots)
+   mine:   ok   the host's clock ran (252 steps, 243 snapshots)
+OBSTACLE   SAME BYTES
+SOAR       SAME BYTES
+FLEX       DIFFERS
+   base: FLEX — deflection, torsion, softness and load margin.
+   mine: --- shard 0/3 (191.3 s) ---
+   base: 
+   mine: FLEX — deflection, torsion, softness and load margin.
+   base: REALITY (handbook / static-test class figures, for comparison only):
+   mine: 
+   base:   strut-braced light aircraft, wing tip deflection    ~0.3-1 % of semispan at 1 g
+   mine: REALITY (handbook / static-test class figures, for comparison only):
+   base:                                                       ~2-4 %  at 3.8 g limit load
+   mine:   strut-braced light aircraft, wing tip deflection    ~0.3-1 % of semispan at 1 g
+   base:   glass sailplane (the bendiest certified thing)      ~4-6 %  at 1 g
+   mine:                                                       ~2-4 %  at 3.8 g limit load
+   base:   GA wing torsional twist, root to tip, full aileron  ~1-2 deg
+   mine:   glass sailplane (the bendiest certified thing)      ~4-6 %  at 1 g
+   base:   elastic strain limits: 4130 0.22 %  2024-T3 0.47 %  spruce 0.36 %  carbon 1.1 %  6061-T6 0.40 %
+   mine:   GA wing torsional twist, root to tip, full aileron  ~1-2 deg
+   base: 
+   mine:   elastic strain limits: 4130 0.22 %  2024-T3 0.47 %  spruce 0.36 %  carbon 1.1 %  6061-T6 0.40 %
+   base: GARAGE (generated — `lin` closes to an area, so softness and yield margin follow):
+   mine: 
+   base:   GEN 4130 tube + fabric semispan 5.00 m
+   mine: GARAGE (generated — `lin` closes to an area, so softness and yield margin follow):
+   base:     tip deflection      0.25 % of semispan at 1 g      1.08 % at 3.8 g (EXTRAP)   slope   0.30 %/g   (n measured to 1.7)
+   mine:   GEN 4130 tube + fabric semispan 5.00 m
+LOAD       DIFFERS
+   base: total           2326.6 s
+   base: 
+   base: 

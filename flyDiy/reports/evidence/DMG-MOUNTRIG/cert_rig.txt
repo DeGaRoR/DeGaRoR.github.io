@@ -1,0 +1,99 @@
+== Cub (kappa 0.1)
+  ENGL-ENGR     fus  case (physics) Ft  2.91 impactNoseR  Fc  0.50 drop         floor t/c233.07184.00
+  CGE-ENGL      fus  case (physics) Ft  1.08 dropOne      Fc  3.98 impactNoseR  floor t/c233.07184.00
+  CGE-ENGR      fus  case (physics) Ft  1.08 dropOne      Fc  3.98 impactNoseR  floor t/c233.07184.00
+  MNTTL-CGE     fus  isolator       Ft  4.38 dropOne      Fc 13.39 impactNoseR  floor t/c  5.65  4.46
+  MNTTR-CGE     fus  isolator       Ft  4.38 dropOne      Fc 13.39 impactNoseR  floor t/c  5.65  4.46
+  MNTBL-CGE     fus  isolator       Ft  4.38 dropOne      Fc 13.39 impactNoseR  floor t/c  5.65  4.46
+  MNTBR-CGE     fus  isolator       Ft  4.38 dropOne      Fc 13.39 impactNoseR  floor t/c  5.65  4.46
+  MNTTL-ENGL    fus  isolator       Ft  4.38 dropOne      Fc 13.39 impactNoseR  floor t/c  5.65  4.46
+  MNTBL-ENGL    fus  isolator       Ft  4.38 dropOne      Fc 13.39 impactNoseR  floor t/c  5.65  4.46
+  MNTTR-ENGR    fus  isolator       Ft  4.38 dropOne      Fc 13.39 impactNoseR  floor t/c  5.65  4.46
+  MNTBR-ENGR    fus  isolator       Ft  4.38 dropOne      Fc 13.39 impactNoseR  floor t/c  5.65  4.46
+  MNTTL-S0TL    fus  bearer         Ft  5.28 dropOne      Fc 11.40 impactNoseR  floor t/c  3.99  2.74
+  MNTTL-S0BL    fus  bearer         Ft  5.28 dropOne      Fc 11.40 impactNoseR  floor t/c  3.99  1.35
+  MNTTL-S0TR    fus  bearer         Ft  5.28 dropOne      Fc 11.40 impactNoseR  floor t/c  3.99  1.65
+  MNTTR-S0TR    fus  bearer         Ft  5.28 dropOne      Fc 11.40 impactNoseR  floor t/c  3.99  2.74
+  MNTTR-S0BR    fus  bearer         Ft  5.28 dropOne      Fc 11.40 impactNoseR  floor t/c  3.99  1.35
+  MNTTR-S0TL    fus  bearer         Ft  5.28 dropOne      Fc 11.40 impactNoseR  floor t/c  3.99  1.65
+  MNTBL-S0BL    fus  bearer         Ft  5.28 dropOne      Fc 11.40 impactNoseR  floor t/c  3.99  2.74
+  MNTBL-S0BR    fus  bearer         Ft  5.28 dropOne      Fc 11.40 impactNoseR  floor t/c  3.99  1.62
+  MNTBL-S0TL    fus  bearer         Ft  5.28 dropOne      Fc 11.40 impactNoseR  floor t/c  3.99  1.40
+  MNTBR-S0BR    fus  bearer         Ft  5.28 dropOne      Fc 11.40 impactNoseR  floor t/c  3.99  2.74
+  MNTBR-S0BL    fus  bearer         Ft  5.28 dropOne      Fc 11.40 impactNoseR  floor t/c  3.99  1.62
+  MNTBR-S0TR    fus  bearer         Ft  5.28 dropOne      Fc 11.40 impactNoseR  floor t/c  3.99  1.40
+== Jodel (kappa 0.1)
+  ENGL-ENGR     fus  case (physics) Ft  3.29 impactNoseL  Fc  0.89 drop         floor t/c233.07184.00
+  CGE-ENGL      fus  case (physics) Ft  1.05 drop         Fc  3.84 impactNoseL  floor t/c233.07184.00
+  CGE-ENGR      fus  case (physics) Ft  1.05 drop         Fc  3.84 impactNoseL  floor t/c233.07184.00
+  MNTTL-CGE     fus  isolator       Ft  5.20 dropLevel    Fc 14.52 impactNoseL  floor t/c  5.65  4.46
+  MNTTR-CGE     fus  isolator       Ft  5.20 dropLevel    Fc 14.52 impactNoseL  floor t/c  5.65  4.46
+  MNTBL-CGE     fus  isolator       Ft  5.20 dropLevel    Fc 14.52 impactNoseL  floor t/c  5.65  4.46
+  MNTBR-CGE     fus  isolator       Ft  5.20 dropLevel    Fc 14.52 impactNoseL  floor t/c  5.65  4.46
+  MNTTL-ENGL    fus  isolator       Ft  5.20 dropLevel    Fc 14.52 impactNoseL  floor t/c  5.65  4.46
+  MNTBL-ENGL    fus  isolator       Ft  5.20 dropLevel    Fc 14.52 impactNoseL  floor t/c  5.65  4.46
+  MNTTR-ENGR    fus  isolator       Ft  5.20 dropLevel    Fc 14.52 impactNoseL  floor t/c  5.65  4.46
+  MNTBR-ENGR    fus  isolator       Ft  5.20 dropLevel    Fc 14.52 impactNoseL  floor t/c  5.65  4.46
+  MNTTL-S0TL    fus  bearer         Ft  6.90 dropLevel    Fc 13.47 impactNoseR  floor t/c  3.99  2.74
+  MNTTL-S0BL    fus  bearer         Ft  6.90 dropLevel    Fc 13.47 impactNoseR  floor t/c  3.99  1.32
+  MNTTL-S0TR    fus  bearer         Ft  6.90 dropLevel    Fc 13.47 impactNoseR  floor t/c  3.99  1.09
+  MNTTR-S0TR    fus  bearer         Ft  6.90 dropLevel    Fc 13.47 impactNoseR  floor t/c  3.99  2.74
+  MNTTR-S0BR    fus  bearer         Ft  6.90 dropLevel    Fc 13.47 impactNoseR  floor t/c  3.99  1.32
+  MNTTR-S0TL    fus  bearer         Ft  6.90 dropLevel    Fc 13.47 impactNoseR  floor t/c  3.99  1.09
+  MNTBL-S0BL    fus  bearer         Ft  6.90 dropLevel    Fc 13.47 impactNoseR  floor t/c  3.99  2.74
+  MNTBL-S0BR    fus  bearer         Ft  6.90 dropLevel    Fc 13.47 impactNoseR  floor t/c  3.99  1.10
+  MNTBL-S0TL    fus  bearer         Ft  6.90 dropLevel    Fc 13.47 impactNoseR  floor t/c  3.99  1.29
+  MNTBR-S0BR    fus  bearer         Ft  6.90 dropLevel    Fc 13.47 impactNoseR  floor t/c  3.99  2.74
+  MNTBR-S0BL    fus  bearer         Ft  6.90 dropLevel    Fc 13.47 impactNoseR  floor t/c  3.99  1.10
+  MNTBR-S0TR    fus  bearer         Ft  6.90 dropLevel    Fc 13.47 impactNoseR  floor t/c  3.99  1.29
+== metal Cessna (kappa 0.1)
+  ENGL-ENGR     fus  case (physics) Ft  6.93 impactNoseR  Fc  0.90 flownElevF   floor t/c233.07184.00
+  CGE-ENGL      fus  case (physics) Ft  0.93 gyro371b     Fc  9.57 impactNoseR  floor t/c233.07184.00
+  CGE-ENGR      fus  case (physics) Ft  0.93 gyro371a     Fc  9.57 impactNoseR  floor t/c233.07184.00
+  MNTTL-CGE     fus  isolator       Ft  9.24 dropOne      Fc 25.68 impactNoseR  floor t/c  5.65  4.46
+  MNTTR-CGE     fus  isolator       Ft  9.24 dropOne      Fc 25.68 impactNoseR  floor t/c  5.65  4.46
+  MNTBL-CGE     fus  isolator       Ft  9.24 dropOne      Fc 25.68 impactNoseR  floor t/c  5.65  4.46
+  MNTBR-CGE     fus  isolator       Ft  9.24 dropOne      Fc 25.68 impactNoseR  floor t/c  5.65  4.46
+  MNTTL-ENGL    fus  isolator       Ft  9.24 dropOne      Fc 25.68 impactNoseR  floor t/c  5.65  4.46
+  MNTBL-ENGL    fus  isolator       Ft  9.24 dropOne      Fc 25.68 impactNoseR  floor t/c  5.65  4.46
+  MNTTR-ENGR    fus  isolator       Ft  9.24 dropOne      Fc 25.68 impactNoseR  floor t/c  5.65  4.46
+  MNTBR-ENGR    fus  isolator       Ft  9.24 dropOne      Fc 25.68 impactNoseR  floor t/c  5.65  4.46
+  MNTTL-S0TL    fus  bearer         Ft 11.60 dropOne      Fc 23.36 impactNoseR  floor t/c  6.33  4.35
+  MNTTL-S0BL    fus  bearer         Ft 11.60 dropOne      Fc 23.36 impactNoseR  floor t/c  6.33  2.33
+  MNTTL-S0TR    fus  bearer         Ft 11.60 dropOne      Fc 23.36 impactNoseR  floor t/c  6.33  2.18
+  MNTTR-S0TR    fus  bearer         Ft 11.60 dropOne      Fc 23.36 impactNoseR  floor t/c  6.33  4.35
+  MNTTR-S0BR    fus  bearer         Ft 11.60 dropOne      Fc 23.36 impactNoseR  floor t/c  6.33  2.33
+  MNTTR-S0TL    fus  bearer         Ft 11.60 dropOne      Fc 23.36 impactNoseR  floor t/c  6.33  2.18
+  MNTBL-S0BL    fus  bearer         Ft 11.60 dropOne      Fc 23.36 impactNoseR  floor t/c  6.33  4.35
+  MNTBL-S0BR    fus  bearer         Ft 11.60 dropOne      Fc 23.36 impactNoseR  floor t/c  6.33  2.25
+  MNTBL-S0TL    fus  bearer         Ft 11.60 dropOne      Fc 23.36 impactNoseR  floor t/c  6.33  2.05
+  MNTBR-S0BR    fus  bearer         Ft 11.60 dropOne      Fc 23.36 impactNoseR  floor t/c  6.33  4.35
+  MNTBR-S0BL    fus  bearer         Ft 11.60 dropOne      Fc 23.36 impactNoseR  floor t/c  6.33  2.25
+  MNTBR-S0TR    fus  bearer         Ft 11.60 dropOne      Fc 23.36 impactNoseR  floor t/c  6.33  2.05
+  TW-MNTBL      gear nose leg       Ft  0.28 rudLA        Fc  9.69 drop         floor t/c 21.38 13.65
+  TW-MNTBR      gear nose leg       Ft  0.28 rudLA        Fc  9.69 drop         floor t/c 21.38 13.65
+== Cessna floats (kappa 0.1)
+  ENGL-ENGR     fus  case (physics) Ft  7.39 impactNoseL  Fc  2.33 dropDriftR   floor t/c233.07184.00
+  CGE-ENGL      fus  case (physics) Ft  3.08 dropDriftR   Fc 10.25 impactNoseL  floor t/c233.07184.00
+  CGE-ENGR      fus  case (physics) Ft  3.08 dropDriftR   Fc 10.25 impactNoseL  floor t/c233.07184.00
+  MNTTL-CGE     fus  isolator       Ft 21.45 dropDriftR   Fc 27.90 impactNoseL  floor t/c  5.65  4.46
+  MNTTR-CGE     fus  isolator       Ft 21.45 dropDriftR   Fc 27.90 impactNoseL  floor t/c  5.65  4.46
+  MNTBL-CGE     fus  isolator       Ft 21.45 dropDriftR   Fc 27.90 impactNoseL  floor t/c  5.65  4.46
+  MNTBR-CGE     fus  isolator       Ft 21.45 dropDriftR   Fc 27.90 impactNoseL  floor t/c  5.65  4.46
+  MNTTL-ENGL    fus  isolator       Ft 21.45 dropDriftR   Fc 27.90 impactNoseL  floor t/c  5.65  4.46
+  MNTBL-ENGL    fus  isolator       Ft 21.45 dropDriftR   Fc 27.90 impactNoseL  floor t/c  5.65  4.46
+  MNTTR-ENGR    fus  isolator       Ft 21.45 dropDriftR   Fc 27.90 impactNoseL  floor t/c  5.65  4.46
+  MNTBR-ENGR    fus  isolator       Ft 21.45 dropDriftR   Fc 27.90 impactNoseL  floor t/c  5.65  4.46
+  MNTTL-S0TL    fus  bearer         Ft 25.22 dropDriftL   Fc 24.97 impactNoseR  floor t/c  6.33  4.35
+  MNTTL-S0BL    fus  bearer         Ft 25.22 dropDriftL   Fc 24.97 impactNoseR  floor t/c  6.33  2.33
+  MNTTL-S0TR    fus  bearer         Ft 25.22 dropDriftL   Fc 24.97 impactNoseR  floor t/c  6.33  2.18
+  MNTTR-S0TR    fus  bearer         Ft 25.22 dropDriftL   Fc 24.97 impactNoseR  floor t/c  6.33  4.35
+  MNTTR-S0BR    fus  bearer         Ft 25.22 dropDriftL   Fc 24.97 impactNoseR  floor t/c  6.33  2.33
+  MNTTR-S0TL    fus  bearer         Ft 25.22 dropDriftL   Fc 24.97 impactNoseR  floor t/c  6.33  2.18
+  MNTBL-S0BL    fus  bearer         Ft 25.22 dropDriftL   Fc 24.97 impactNoseR  floor t/c  6.33  4.35
+  MNTBL-S0BR    fus  bearer         Ft 25.22 dropDriftL   Fc 24.97 impactNoseR  floor t/c  6.33  2.25
+  MNTBL-S0TL    fus  bearer         Ft 25.22 dropDriftL   Fc 24.97 impactNoseR  floor t/c  6.33  2.05
+  MNTBR-S0BR    fus  bearer         Ft 25.22 dropDriftL   Fc 24.97 impactNoseR  floor t/c  6.33  4.35
+  MNTBR-S0BL    fus  bearer         Ft 25.22 dropDriftL   Fc 24.97 impactNoseR  floor t/c  6.33  2.25
+  MNTBR-S0TR    fus  bearer         Ft 25.22 dropDriftL   Fc 24.97 impactNoseR  floor t/c  6.33  2.05
+no rig member on its floor

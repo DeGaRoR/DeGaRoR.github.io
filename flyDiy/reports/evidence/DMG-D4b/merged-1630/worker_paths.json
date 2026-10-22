@@ -1,0 +1,151 @@
+{
+ "at": "2026-10-06T14:31:25.895Z",
+ "paths": {
+  "place": {
+   "path": "place",
+   "crash": {
+    "broken": 0,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "why": {
+     "hits": 0,
+     "t": 10.866666666673908,
+     "held": false,
+     "world": true
+    }
+   },
+   "crash0": {
+    "broken": 0,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "why": {
+     "hits": 0,
+     "t": 20.1333333333519,
+     "held": false,
+     "world": true
+    }
+   },
+   "exercised": false,
+   "wreck": {
+    "active": true,
+    "bodies": 10,
+    "gone": [
+     "eng:loose",
+     "spinner:crushed",
+     "cowl:off",
+     "cowl:off",
+     "wheel:off",
+     "wheel:off",
+     "wheel:off",
+     "pane:off",
+     "pane:off",
+     "pane:off",
+     "pane:off",
+     "pane:off"
+    ],
+    "debris": 10,
+    "parts": 1,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 126,
+    "broken": 0,
+    "t": 10.87,
+    "garage": false
+   },
+   "rollIn": "ok",
+   "shed": true,
+   "from": "w2",
+   "set": "w2",
+   "rollOut": "bGo",
+   "world": true,
+   "after": {
+    "active": false,
+    "bodies": 0,
+    "gone": [],
+    "debris": 0,
+    "parts": 7,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 0,
+    "broken": 0,
+    "t": 0,
+    "garage": false
+   },
+   "ok": false,
+   "shots": [
+    "C:\\Users\\denis\\AppData\\Local\\Temp\\claude\\D--Dev-DeGaRoR-github-io\\b3479e2b-6a03-45d0-af42-4316285bb123\\scratchpad\\w_paths\\path_place_after_1.png",
+    "C:\\Users\\denis\\AppData\\Local\\Temp\\claude\\D--Dev-DeGaRoR-github-io\\b3479e2b-6a03-45d0-af42-4316285bb123\\scratchpad\\w_paths\\path_place_after_2.png"
+   ]
+  },
+  "garage": {
+   "path": "garage",
+   "crash": {
+    "broken": 0,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "why": {
+     "hits": 0,
+     "t": 10.833333333340533,
+     "held": false,
+     "world": true
+    }
+   },
+   "crash0": {
+    "broken": 0,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "why": {
+     "hits": 0,
+     "t": 15.083333333345728,
+     "held": false,
+     "world": true
+    }
+   },
+   "exercised": false,
+   "wreck": {
+    "active": true,
+    "bodies": 10,
+    "gone": [
+     "eng:loose",
+     "spinner:crushed",
+     "cowl:crushed",
+     "cowl:crushed",
+     "wheel:off",
+     "wheel:off",
+     "wheel:off",
+     "pane:off",
+     "pane:off",
+     "pane:off",
+     "pane:off",
+     "pane:off"
+    ],
+    "debris": 10,
+    "parts": 1,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 126,
+    "broken": 0,
+    "t": 10.83,
+    "garage": false
+   },
+   "rollIn": "ok",
+   "shed": true,
+   "rollOut": "bGo",
+   "world": true,
+   "after": {
+    "active": false,
+    "bodies": 0,
+    "gone": [],
+    "debris": 0,
+    "parts": 7,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 0,
+    "broken": 0,
+    "t": 0,
+    "garage": false
+   },
+   "ok": false,
+   "shots": [
+    "C:\\Users\\denis\\AppData\\Local\\Temp\\claude\\D--Dev-DeGaRoR-github-io\\b3479e2b-6a03-45d0-af42-4316285bb123\\scratchpad\\w_paths\\path_garage_after_1.png",
+    "C:\\Users\\denis\\AppData\\Local\\Temp\\claude\\D--Dev-DeGaRoR-github-io\\b3479e2b-6a03-45d0-af42-4316285bb123\\scratchpad\\w_paths\\path_garage_after_2.png"
+   ]
+  }
+ }
+}

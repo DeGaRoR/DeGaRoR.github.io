@@ -93,10 +93,11 @@ console.log('GATE GFX');
   ok(Object.keys(G.PRESETS).join(',') === 'laptop,potato,retro,current,gamer,ultra' && G.DEFAULT === 'gamer',
      'six tiers, laptop .. ultra, gamer the default (' + Object.keys(G.PRESETS).join(',') + ')');
   const OLD_MEDIUM = { ground: 'far1', terrain: 1, scale: 1, drawDist: 'vis', aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple', mirror: 'off' };
+  OLD_MEDIUM.mirror = 'auto';   // G2830 (WATER-STEADY, the user 13 Oct: AUTO the default on gamer and ultra - master's behaviour)
   OLD_MEDIUM.cover = 'full'; OLD_MEDIUM.scenery = 'full';   // G570's rows: gamer keeps the whole of both
   OLD_MEDIUM.bloom = 'soft';   // the default look (2026-09-23): the soft bloom from 'current' up
   OLD_MEDIUM.bands = 'mid';   // G1113 'minimum', G1114.2 'mid': gamer's trees whole to 50 m, the light rung to 120 m (TREES-NEAR, the user's call)
-  ok(G.OPTIONS.every(o => G.PRESETS.gamer[o.k] === OLD_MEDIUM[o.k]), 'gamer is the medium of before, option for option (plus the far ground lean, G513; simple water and no mirror since 2026-10-03, the user)');
+  ok(G.OPTIONS.every(o => G.PRESETS.gamer[o.k] === OLD_MEDIUM[o.k]), 'gamer is the medium of before, option for option (plus the far ground lean, G513; simple water since 2026-10-03; the auto mirror since G2830, the user)');
   const w2 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({ preset: 'medium' }, OLD_MEDIUM)) });
   ok(w2.GFX.get().preset === 'gamer', 'a choice saved as medium reads as gamer');
   ok(Object.keys(G.PRESETS).every(p => G.PRESET_LABEL[p]), 'every tier has its label');
@@ -358,13 +359,13 @@ console.log('GATE GFX');
 // 10. POTATO-DEEP (G1520-G1529): THE DESKTOP PRESETS UNTOUCHED, POTATO AND THE LAPTOP RUNG UNDER IT
 {
   // the rows and the build budgets of retro .. ultra as train 31 shipped them (the user: "desktop presets must not change at all")
-  const FROZEN = {"retro":{"ground":"lean","scale":0.85,"cover":"lean","scenery":"lean","drawDist":"vis","terrain":2,"aa":"off","density":100,"bands":"near","shadows":"near","canopy":"off","rails":"on","poles":"off","glare":"on","sway":"off","mist":"on","clouds":"off","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"off","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"current":{"ground":"far1","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":2,"aa":"off","density":128,"bands":"near","shadows":"full","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"on","clouds":"half","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"gamer":{"ground":"far1","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":1,"aa":"msaa","density":128,"bands":"mid","shadows":"full","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"land","clouds":"half","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"ultra":{"ground":"full","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":1,"aa":"full","density":200,"bands":"mid","shadows":"ultra","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"banks","clouds":"full","water":"full","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"}};
+  const FROZEN = {"retro":{"ground":"lean","scale":0.85,"cover":"lean","scenery":"lean","drawDist":"vis","terrain":2,"aa":"off","density":100,"bands":"near","shadows":"near","canopy":"off","rails":"on","poles":"off","glare":"on","sway":"off","mist":"on","clouds":"off","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"off","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"current":{"ground":"far1","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":2,"aa":"off","density":128,"bands":"near","shadows":"full","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"on","clouds":"half","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"gamer":{"ground":"far1","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":1,"aa":"msaa","density":128,"bands":"mid","shadows":"full","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"land","clouds":"half","water":"simple","mirror":"auto","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"ultra":{"ground":"full","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":1,"aa":"full","density":200,"bands":"mid","shadows":"ultra","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"banks","clouds":"full","water":"full","mirror":"auto","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"}};
   // (G1529, A0's call 2026-10-05: retro's BUILD budget moved - no flown bake - after the user's i5-9300H / GTX 1660 Ti laptop loaded
   // the garage in 120.5 s on retro (the bake 38.5 s + 31.3 s at the roll-out); townBoot stays 4000 (1500 streamed houses into the
   // taxi: 217-250 ms hitches); retro's drawn ROWS are untouched, current / gamer / ultra's budgets too)
   const FROZEN_B = {"retro":{"heapMB":1500,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1,"flownBake":false},"current":{"heapMB":1500,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1},"gamer":{"heapMB":2000,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1},"ultra":{"heapMB":2000,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1}};
   const G = boot({}).GFX;
-  ok(['retro', 'current', 'gamer', 'ultra'].every(k => JSON.stringify(G.PRESETS[k]) === JSON.stringify(FROZEN[k])), 'retro, current, gamer, ultra: every row as train 31 shipped it');
+  ok(['retro', 'current', 'gamer', 'ultra'].every(k => JSON.stringify(G.PRESETS[k]) === JSON.stringify(FROZEN[k])), 'retro, current, gamer, ultra: every row as train 31 shipped it (gamer and ultra: the auto mirror, G2830 - the user’s call)');
   ok(['retro', 'current', 'gamer', 'ultra'].every(k => JSON.stringify(G.BUDGETS[k]) === JSON.stringify(FROZEN_B[k])), '...and their build budgets (none of the new levers; retro: G1529 no flown bake - the user’s laptop load)');
   ok(G.PRESETS.potato.ground === 'plain' && G.PRESETS.laptop.ground === 'plain' && G.PRESETS.retro.ground === 'lean', "potato and laptop draw the plain ground; retro keeps 'lean'");
   const BP = G.BUDGETS.potato, BL = G.BUDGETS.laptop;
@@ -375,11 +376,19 @@ console.log('GATE GFX');
   // the pref's pv 8: a player ON potato (saved before this session: the lean ground) reads potato as it is now, not custom
   const old = { preset: 'potato', pv: 7, fps: 30, ground: 'lean', scale: 0.67, cover: 'off', scenery: 'low', terrain: 3 };
   const wp = boot({ 'flydiy.gfx': JSON.stringify(old) });
-  ok(wp.GFX.get().preset === 'potato' && wp.GFX.get().ground === 'plain' && wp.GFX.get().pv === 8, 'a potato saved at pv 7 reads potato, the plain ground (pv 8)');
+  ok(wp.GFX.get().preset === 'potato' && wp.GFX.get().ground === 'plain' && wp.GFX.get().pv >= 8, 'a potato saved at pv 7 reads potato, the plain ground (pv 8)');
   const wg = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({}, FROZEN.gamer, { preset: 'gamer', pv: 7, fps: 30 })) });
   ok(wg.GFX.get().preset === 'gamer' && Object.keys(FROZEN.gamer).every(k => wg.GFX.get()[k] === FROZEN.gamer[k]), '...a gamer saved at pv 7 reads gamer, every row the same');
   const wc = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({}, FROZEN.gamer, { preset: 'custom', pv: 7, fps: 30, shadows: 'off' })) });
   ok(wc.GFX.get().preset === 'custom' && wc.GFX.get().shadows === 'off', '...a custom mix keeps its rows');
+  // pv 9 (G2830, WATER-STEADY): a player ON gamer / ultra saved before the auto mirror takes it; a custom mix keeps its row (a saved ON stays on)
+  { const pre = k => Object.assign({}, FROZEN[k], { preset: k, pv: 8, fps: 30, mirror: 'off' });
+    const g9 = boot({ 'flydiy.gfx': JSON.stringify(pre('gamer')) }).GFX.get(), u9 = boot({ 'flydiy.gfx': JSON.stringify(pre('ultra')) }).GFX.get();
+    const c9 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign(pre('gamer'), { preset: 'custom' })) }).GFX.get();
+    const r9 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({}, FROZEN.retro, { preset: 'retro', pv: 8, fps: 30 })) }).GFX.get();
+    const on9 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign(pre('gamer'), { preset: 'custom', mirror: 'live' })) }).GFX.get();
+    ok(g9.preset === 'gamer' && g9.mirror === 'auto' && u9.preset === 'ultra' && u9.mirror === 'auto' && c9.mirror === 'off' && on9.mirror === 'live' && on9.preset === 'custom' && r9.preset === 'retro' && r9.mirror === 'off' && g9.pv === 9,
+      `...a gamer / ultra saved at pv 8 takes the auto mirror (${g9.preset}/${g9.mirror}, ${u9.preset}/${u9.mirror}); a custom mix keeps its 'off' (${c9.mirror}) and a saved ON stays on (${on9.mirror}); retro stays off (${r9.mirror})`); }
   // the live hooks: the plain ground (the splat's plain()), the shed glass (FLYDIY_SHED), the MSAA cap (FLYDIY_AA.setMsaaCap)
   const hook = q => { const w = makeWindow({}); const calls = { plain: [], msaa: [] };
     let pl = false; calls.reload = 0;   // the splat's plain state (a real page builds it as the budget's row says)
@@ -434,12 +443,13 @@ const modes = async () => {
   vm.runInNewContext(wsrc, Object.assign({ window: ww }, ww));
   const WL = ww.WELCOME, nav = { userAgent: 'Mozilla/5.0 Chrome/141' }, rig = { userAgent: 'Mozilla/5.0 HeadlessChrome/141' };
   const M = (q, host, n) => WL.decideMode(q, n || nav, host);
-  ok(WL.MODES.join() === 'sandbox,career,garage' && WL.READY.sandbox && !WL.READY.career && !WL.READY.garage,
-     'three modes; the sandbox ready, the career and garage-only not yet (CAREER-START; MOBILE-GARAGE M1)');
+  ok(WL.MODES.join() === 'sandbox,career,garage' && WL.READY.sandbox && WL.READY.career && !WL.READY.garage,
+     'three modes; the sandbox and the career ready (G2740 CAREER-ON), garage-only not yet (MOBILE-GARAGE M1)');
   ok(M('', 'degaror.github.io').mode === null && M('?gfx=potato', 'degaror.github.io').mode === null, 'a real host: the menu at every load (?gfx= picks the preset, not the mode)');
   ok(M('?mode=sandbox', 'degaror.github.io').mode === 'sandbox' && M('?a=1&mode=sandbox', 'degaror.github.io').mode === 'sandbox', '?mode=sandbox skips it');
-  ok(['career', 'garage'].every(k => { const r = M('?mode=' + k, 'degaror.github.io'); return r.mode === 'sandbox' && r.asked === k; }),
-     '?mode=career / ?mode=garage, not built yet: the sandbox, the ask kept for the console');
+  ok(M('?mode=career', 'degaror.github.io').mode === 'career', '?mode=career skips the menu into the career (G2740)');
+  ok((r => r.mode === 'sandbox' && r.asked === 'garage')(M('?mode=garage', 'degaror.github.io')),
+     '?mode=garage, not built yet: the sandbox, the ask kept for the console');
   ok(M('?mode=bogus', 'degaror.github.io').mode === null && M('?mode=bogus', 'localhost').mode === 'sandbox', 'an unknown ?mode= is no mode');
   ok(M('', 'localhost').mode === 'sandbox' && M('', '127.0.0.1').mode === 'sandbox' && M('', '[::1]').mode === 'sandbox', 'localhost skips it: implicitly the sandbox');
   ok(M('', 'degaror.github.io', rig).mode === 'sandbox' && M('', 'degaror.github.io', { webdriver: true }).mode === 'sandbox', 'the rigs skip it anywhere: implicitly the sandbox');
@@ -490,13 +500,105 @@ const modes = async () => {
   { const w = await pg('', PAGES, Object.assign({}, seen));
     ok(w.screen() === 'menu' && w.FLYDIY_MODE === null && !!w.FLYDIY_WELCOME, 'Pages, a returning player: the menu first, the load held, the mode not chosen');
     const rows = w.$(x => x.className.split(' ').includes('wmode'));
-    ok(!w.mode('continue') && w.mode('career').disabled && /coming/.test(w.mode('career').textContent) && !w.mode('sandbox').disabled &&
+    ok(!w.mode('continue') && !w.mode('career').disabled && !/coming/.test(w.mode('career').textContent) && !w.mode('sandbox').disabled &&
        w.mode('garage').disabled && !w.mode('settings').disabled && /graphics: gamer/.test(w.mode('settings').textContent),
-       'the rows: no Continue (no career), New career disabled "coming", Sandbox, Garage only disabled, Settings naming the preset');
+       'the rows: no Continue (no career saved), New career LIVE (G2740), Sandbox, Garage only disabled, Settings naming the preset');
     ok(rows.every(b => b.getAttribute('title') === null), 'no row says anything in title= (R17: nothing hover-only)');
     let got = 'unresolved'; w.FLYDIY_WELCOME.then(p => { got = p; });
     w.mode('sandbox').onclick(); await tick(); await tick();
     ok(w.FLYDIY_MODE === 'sandbox' && w.screen() === 'none' && got === null && !w.WELCOME.pick, 'Sandbox: the menu gone, FLYDIY_MODE sandbox, no preset forced (the saved one stands)');
+  }
+  // G3360 (CAREERS): every career its own document flydiy.career.<id>, the index flydiy.careers = { ids, last }; 'main'
+  // migrated in place; Continue = the last played; New career = a NEW id (never over one); the list: Continue / Rename /
+  // Delete (asked inside the menu); a broken document skipped; 'dev' never listed
+  const doc = (name, extra) => JSON.stringify(Object.assign({ mode: 'career', v: 3, sheds: {}, career: Object.assign({ id: 'x', name, started: '2026-10-13' }, extra || {}) }));
+  const IX = st => { try { return JSON.parse(st['flydiy.careers']); } catch (e) { return null; } };
+  { const w = await pg('', PAGES, Object.assign({}, seen));
+    ok(!w.mode('continue') && !w.mode('careers'), 'no career saved: no Continue, no Careers... row');
+    w.mode('career').onclick(); await tick(); await tick();
+    const X = IX(w.store), id = w.FLYDIY_CAREER_ID;
+    ok(w.FLYDIY_MODE === 'career' && w.screen() === 'none' && /^c[0-9a-z]+$/.test(id) && w.FLYDIY_CAREER_NAME === 'your career' && X && X.ids.join() === id && X.last === id && !('flydiy.career.fresh' in w.store),
+       'New career (none saved): FLYDIY_MODE career, a new id ' + id + ' named "your career", listed and the last; no fresh flag');
+  }
+  { const main = doc('your career'), saved = { 'flydiy.career.main': main, 'flydiy.career.fresh': '1' };
+    const w = await pg('', PAGES, Object.assign({}, seen, saved));
+    const X = IX(w.store);
+    ok(!!w.mode('continue') && /“your career” · started 2026-10-13/.test(w.mode('continue').textContent) && !!w.mode('careers') && X && X.ids.join() === 'main' && X.last === 'main' && w.store['flydiy.career.main'] === main,
+       "G2740's career migrated in place: the index's first entry 'main', its key and bytes kept; Continue names it with a line");
+    ok(!('flydiy.career.fresh' in w.store) && !Object.keys(w.store).some(k => /\.prev$/.test(k)), 'the fresh flag retired (cleared), no .prev backup made');
+    w.mode('continue').onclick(); await tick(); await tick();
+    ok(w.FLYDIY_MODE === 'career' && w.FLYDIY_CAREER_ID === 'main' && w.store['flydiy.career.main'] === main, "Continue: the career 'main', its document untouched");
+    const w2 = await pg('', PAGES, Object.assign({}, seen, { 'flydiy.career.main': main }));
+    ok(/beside your other one/.test(w2.mode('career').textContent), 'New career says it starts beside the others (no backup, nothing replaced)');
+    w2.mode('career').onclick(); await tick(); await tick();
+    const X2 = IX(w2.store), id = w2.FLYDIY_CAREER_ID;
+    ok(id !== 'main' && /^c[0-9a-z]+$/.test(id) && w2.FLYDIY_CAREER_NAME === 'your career 2' && X2.ids.join() === 'main,' + id && X2.last === id && w2.store['flydiy.career.main'] === main && !(('flydiy.career.' + id) in w2.store),
+       'New career over a saved one: a NEW id (' + id + '), "your career 2", the old document byte for byte (app.js writes the new one)');
+  }
+  // the last played, the list, a broken document, the dev career, the story's step
+  const many = () => Object.assign({}, seen, {
+    'flydiy.career.main': doc('your career'),
+    'flydiy.career.c1': doc('the floats one', { story: { beat: 'T2', open: false } }),
+    'flydiy.career.c2': '{broken',
+    'flydiy.career.c3': doc('your career 3', { story: { beat: 'open', open: true } }),
+    'flydiy.career.dev': doc('the dev career'),
+    'flydiy.careers': JSON.stringify({ ids: ['main', 'c1', 'c2', 'dev', 'c3', 'c9'], last: 'c1' }) });
+  { const w = await pg('', PAGES, many());
+    ok(/“the floats one” · the story · 3 of 8/.test(w.mode('continue').textContent), 'Continue = the last played (c1), its name and its story step (T2: 3 of 8)');
+    const X = IX(w.store);
+    ok(X.ids.join() === 'main,c1,c2,c3' && X.last === 'c1' && w.store['flydiy.career.c2'] === '{broken', "the index: 'dev' never listed, an id with no document (c9) gone, the broken c2 kept on its key");
+    const said = w.mode('careers').textContent;
+    w.mode('careers').onclick();
+    const ids = w.$(x => x.className === 'wcar').map(x => x.dataset.id);
+    ok(ids.join() === 'main,c1,c3' && /3 careers: continue, rename or delete/.test(said), 'Careers...: one row per career (main, c1, c3): the broken c2 skipped, never a crash; dev not shown', ids.join());
+    const row = id => w.$(x => x.className === 'wcar' && x.dataset.id === id)[0];
+    const act = (id, a) => { const r = row(id); const f = []; const walk = x => { f.push(x); (x.children || []).forEach(walk); }; walk(r); return f.find(x => x.dataset && x.dataset.act === a); };
+    ok(['continue', 'rename', 'delete'].every(a => !!act('c1', a)) && w.$(x => x.className === 'wcar').every(r => r.getAttribute('title') === null), "each row: Continue, Rename and Delete written on it (nothing hover-only)");
+    // rename, inline
+    const before = JSON.parse(w.store['flydiy.career.c3']);
+    act('c3', 'rename').onclick();
+    const inp = w.$(x => x.className === 'wname')[0];
+    ok(inp && inp.value === 'your career 3' && !act('c3', 'delete'), 'Rename: an inline field holding the name');
+    inp.value = '   '; act('c3', 'save').onclick();
+    ok(JSON.parse(w.store['flydiy.career.c3']).career.name === 'your career 3', 'an empty name is refused (the name kept)');
+    act('c3', 'rename').onclick(); w.$(x => x.className === 'wname')[0].value = 'Jolene Air'; w.$(x => x.className === 'wname')[0].onkeydown({ key: 'Escape' });
+    ok(JSON.parse(w.store['flydiy.career.c3']).career.name === 'your career 3' && !w.$(x => x.className === 'wname').length, 'Escape leaves it as it was');
+    act('c3', 'rename').onclick(); w.$(x => x.className === 'wname')[0].value = '  Jolene   Air '; w.$(x => x.className === 'wname')[0].onkeydown({ key: 'Enter' });
+    const after = JSON.parse(w.store['flydiy.career.c3']);
+    ok(after.career.name === 'Jolene Air' && JSON.stringify(Object.assign({}, after, { career: Object.assign({}, after.career, { name: before.career.name }) })) === JSON.stringify(before) && /Jolene Air/.test(row('c3').textContent),
+       'Enter keeps the name (the document\'s career.name, the rest untouched), the row says it');
+    // delete, asked inside the menu
+    act('c1', 'delete').onclick();
+    ok(/Delete “the floats one”\?/.test(row('c1').textContent) && !!act('c1', 'confirm') && 'flydiy.career.c1' in w.store, 'Delete asks inside the row (no confirm()): nothing gone yet');
+    act('c1', 'keep').onclick();
+    ok('flydiy.career.c1' in w.store && !!act('c1', 'delete'), '"Keep it": nothing deleted');
+    act('c1', 'delete').onclick(); act('c1', 'confirm').onclick();
+    const X2 = IX(w.store);
+    ok(!('flydiy.career.c1' in w.store) && X2.ids.join() === 'main,c2,c3' && X2.last === 'c3' && !row('c1') && w.store['flydiy.career.main'] && w.store['flydiy.career.dev'],
+       'confirmed: the document and its index entry gone, the last moved to the newest left (c3); the others and the dev career untouched');
+    act('main', 'continue').onclick(); await tick(); await tick();
+    ok(w.FLYDIY_MODE === 'career' && w.FLYDIY_CAREER_ID === 'main' && IX(w.store).last === 'main' && w.screen() === 'none', "the list's Continue: that career, made the last played");
+  }
+  { const w = await pg('', PAGES, many());
+    w.mode('careers').onclick();
+    w.$(x => x.className === 'wlink' && x.textContent === 'back')[0].onclick(); await tick(); await tick();
+    ok(w.screen() === 'menu' && !!w.mode('continue') && w.FLYDIY_CAREER_ID === undefined, 'the list\'s back: the menu again, nothing chosen');
+  }
+  { const w = await pg('', PAGES, Object.assign({}, seen, { 'flydiy.career.main': '{broken' }));
+    ok(!w.mode('continue') && !w.mode('careers') && !w.mode('career').disabled && w.store['flydiy.career.main'] === '{broken', 'a broken career save: no Continue, the menu still opens, the document kept on its key');
+  }
+  // ?mode=career (no menu): the last played; none -> a new one
+  { const w = await pg('?mode=career', PAGES, many());
+    ok(w.FLYDIY_MODE === 'career' && w.FLYDIY_CAREER_ID === 'c1' && w.screen() === 'none', '?mode=career: the last played career (c1), no menu');
+    const w2 = await pg('?mode=career', PAGES, Object.assign({}, seen));
+    ok(/^c[0-9a-z]+$/.test(w2.FLYDIY_CAREER_ID || '') && IX(w2.store).last === w2.FLYDIY_CAREER_ID, '?mode=career with none saved: a new career');
+    const w3 = await pg('?career=1', PAGES, many());
+    ok(w3.FLYDIY_MODE === 'career' && w3.FLYDIY_CAREER_ID === undefined, '?career=1 (the dev career): nothing chosen here (app.js: flydiy.career.dev)');
+  }
+  // the pure half: two New careers in the same millisecond never share an id
+  { const st = {}, S = { getItem: k => (k in st ? st[k] : null), setItem: (k, v) => { st[k] = String(v); }, removeItem: k => { delete st[k]; } };
+    const a = WL.careers.create(S, 1000), b = WL.careers.create(S, 1000);
+    ok(a.id !== b.id && WL.careers.idOk(a.id) && WL.careers.idOk(b.id) && !WL.careers.idOk('dev') && !WL.careers.idOk('main.prev'), 'two New careers at the same instant: two ids (' + a.id + ', ' + b.id + '); dev and main.prev are no ids');
   }
   // a first visit: the card, then the menu; the card's pick is today's
   { const w = await pg('', PAGES, {});
@@ -536,13 +638,23 @@ const modes = async () => {
   const css = (/const CSS = `([\s\S]*?)`;/.exec(wsrc) || [])[1] || '';
   const mh = /#welcome \.wmode \{[^}]*min-height:(\d+)px/.exec(css);
   ok(mh && +mh[1] >= 48 && /#welcome \.wmodes \{[^}]*gap:(\d+)px/.exec(css)[1] >= 8, 'the rows: min-height ' + (mh && mh[1]) + ' px, 8 px apart (MOBILE-GARAGE R1/R3)');
-  ok(/--w-ink:[^;]+; --w-mid:[^;]+; --w-dim:[^;]+; --w-acc:[^;]+;/.test(css) && /\.wmode \{[^}]*'IBM Plex Sans'/.test(css), 'the menu: three greys and one accent, IBM Plex Sans');
+  // G3360 (CAREERS): the garage's look - the menu reads the --ed-* tokens (editor.css's one token root names #welcome), IBM
+  // Plex Sans upright, no serif, no italics; the careers list's rows 56 px
+  const edcss = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'editor.css'), 'utf8');
+  const menuCss = css.slice(css.indexOf('G2210 THE MODE MENU'));
+  ok(/:is\([^)]*#welcome[^)]*\) \{\s*--ed-panel/.test(edcss) && /\.wmode \{[^}]*var\(--ed-ink\)/.test(css) && /\.wcar \{[^}]*var\(--ed-btn-bg\)/.test(css) && !/--w-[a-z]+/.test(css) &&
+     /\.wmode \{[^}]*'IBM Plex Sans'/.test(css) && !/italic|serif['";,\s]*[;}]|Georgia|Times/.test(menuCss.replace(/sans-serif/g, '')),
+     "the menu: the garage's --ed-* tokens (editor.css's token root names #welcome), IBM Plex Sans upright, no serif, no italics");
+  const ch = /#welcome \.wcar \{[^}]*min-height:(\d+)px/.exec(css);
+  ok(ch && +ch[1] >= 56 && +mh[1] >= 56, 'the menu and the careers list: rows min-height 56 px (' + (mh && mh[1]) + ', ' + (ch && ch[1]) + ')');
   // ONE GLOBAL, ONE WRITER; NO NEW DEVICE TESTS (MOBILE-GARAGE §6: code asks the mode or the profile, never the device)
   const SRC = path.join(__dirname, '..', 'src');
   const files = []; const walk = d => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f); if (fs.statSync(p).isDirectory()) walk(p); else if (/\.js$/.test(f)) files.push(p); } };
   walk(SRC); files.push(path.join(__dirname, 'build.js'));
   const writes = files.filter(f => /FLYDIY_MODE\s*=[^=]/.test(fs.readFileSync(f, 'utf8'))).map(f => path.relative(path.join(__dirname, '..'), f).split(path.sep).join('/'));   // G2203: posix separators (Windows printed srciewer\...)
   ok(writes.join() === 'src/viewer/welcome.js', 'FLYDIY_MODE is written by welcome.js alone (' + writes.join(', ') + ')');
+  const cw = files.filter(f => /FLYDIY_CAREER_(ID|NAME)\s*=[^=]/.test(fs.readFileSync(f, 'utf8'))).map(f => path.relative(path.join(__dirname, '..'), f).split(path.sep).join('/'));
+  ok(cw.join() === 'src/viewer/welcome.js', 'G3360: FLYDIY_CAREER_ID / _NAME are written by welcome.js alone (' + cw.join(', ') + ')');
   // the device tests outside welcome.js, as they stood on 6 Oct: the three rig tests (app.js PACE, update_now.js, gfx_settings.js:
   // the same G528 test) and the two records that only report the browser (flight_recorder.js, diag.js). A new one fails here
   // G2203 (game integration over train 38): gfx_settings.js 2 = the G528 rig test + HW-COVERAGE's localhost skip of the runtime
@@ -552,7 +664,9 @@ const modes = async () => {
   const extra = [];
   for (const f of files) { const r = path.relative(path.join(__dirname, '..'), f).split(path.sep).join('/'); if (r === 'src/viewer/welcome.js' || r === 'tools/build.js') continue;
     const n = (fs.readFileSync(f, 'utf8').replace(/\.uX \{[^}]*\}/g, '').match(DEV) || []).length;
-    const allow = r === 'src/viewer/update_now.js' ? 2 : (KNOWN[r] || 0);   // update_now.js: its rig test + its pill's coarse-pointer CSS
+    // update_now.js: its rig test + its pill's coarse-pointer CSS; storage_ui.js (HANGAR-STORAGE G2690): its phone layout's
+    // coarse-pointer CSS (the study's "phone: tap a card, then a column") - CSS, not a device test in code
+    const allow = r === 'src/viewer/update_now.js' ? 2 : r === 'src/viewer/storage_ui.js' ? 1 : (KNOWN[r] || 0);
     if (n > allow) extra.push(r + ' ' + n + ' > ' + allow); }
   ok(!extra.length, 'no device test outside welcome.js beyond the six of 6 Oct (rigs, records, the pill\'s CSS)' + (extra.length ? ': ' + extra.join('; ') : ''));
 };

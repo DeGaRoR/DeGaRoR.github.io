@@ -1584,7 +1584,11 @@ function finishPlot(vil, plot, house, built) {
   const cat = plot.cat = lotCat(plot, house);
   plot.path = planPath(plot, house, built, vil.road);
   vil.fenced = vil.fenced || new Set();
-  plot.fences = planFencesFor(vil.V, plot, house, rnd, vil.fenced, cat);
+  // (G3007) a plot whose fence is off (the record's zone: rules.fences false / noFence): its fences planned on a set of
+  // its own - the plot's random draws as ever (its path, its outbuilding, its car keep their seeds' order), no side of
+  // it claimed as fenced (a neighbour fences its own side) - and none kept
+  plot.fences = planFencesFor(vil.V, plot, house, rnd, plot.noFence ? new Set() : vil.fenced, cat);
+  if (plot.noFence) plot.fences = [];
   // A BARE CATEGORY (G405): a shed, a landmark, a field or an airport's building stands on the ground as it is -
   // the airport's apron, the sports ground's lawn and the site's fence are the THEME's, not the lot's
   if (cat === 'shed' || cat === 'sports' || cat === 'landmark' || /^airport/.test(cat)) {

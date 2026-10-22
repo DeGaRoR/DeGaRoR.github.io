@@ -69,7 +69,10 @@ function specOf(key, drawnTail) {
   const D = require(path.join(T, '_cage_design.js'));
   if (/\.json$/i.test(key)) {
     const raw = JSON.parse(fs.readFileSync(key, 'utf8'));
-    return { spec: raw.spec || raw, name: raw.name || path.basename(key), tail: 'file' };
+    // G1985 (JOIN-PARITY): a saved build flies AS THE GAME FLIES IT - the page's load chain (tools/_load_build.js:
+    // the join over the drawing, the energy layer's tanks), not the file as written
+    const spec = process.env.FLYDIY_RAW_BUILDS === '1' ? (raw.spec || raw) : require(path.join(T, '_load_build.js')).gameSpec(raw);
+    return { spec, name: raw.name || path.basename(key), tail: 'file' };
   }
   // G630: 'stock' = the garage's default build (GEN_DEFAULT, what GATE PILOT flies)
   if (key === 'stock') return { spec: JSON.parse(JSON.stringify(coreOf().GEN_DEFAULT)), name: 'stock build', tail: 'stock' };
@@ -95,7 +98,7 @@ const ACT_GROUPS = {
   taxi: ['DEPART', 'TAXI', 'LINEUP', 'STOP', 'HOLD'],
   takeoff: ['ROLL', 'LIFTOFF', 'ABORT'],
   climb: ['CLIMB'],
-  legs: ['CROSSWIND', 'ENROUTE', 'INBOUND', 'TURNBACK', 'GOAROUND', 'GLIDE', 'PUTDOWN'],
+  legs: ['CROSSWIND', 'ENROUTE', 'INBOUND', 'TURNBACK', 'GOAROUND', 'GLIDE', 'PUTDOWN', 'ROUTE', 'LOITER'],   // G2120: the drawn route's
   downwind: ['DOWNWIND'], base: ['BASE'], final: ['FINAL'],
   landing: ['FLARE', 'ROLLOUT', 'STOPPED'],
 };
@@ -320,6 +323,10 @@ function runTrace(o) {
     flare: flare,
     track: { xtRms: PX.xt.length ? r1(rms(PX.xt)) : null, n: PX.xt.length },   // G2085: the circuit's cross-track rms on the straights (m)
     bounces: PX.td, pitchMax: r1(PX.pitchMax),
+    // G2460 (PERSONA-2): the stabilised approach (43 PILOT_STAB) - the gate's height, the finals judged, the go-arounds
+    // it called, the unstable final landed once committed (its reason) and the worst of each criterion as a fraction of
+    // its limit (1 = on the limit: the margin the expert keeps)
+    stab: ap.report.stab || null,
     landing: L ? { sink: L.sink, V: L.V, VoverVs: r2(L.V / VsL), pastAim: L.pastAim, off: L.offCentre, run: L.run,
                    three: !!L.three, drift: TD ? r2(TD.drift) : null } : null,
     // G630: reversals per minute per phase group (a group under 30 s is
@@ -394,6 +401,7 @@ if (require.main === module) {
     if (out.landing) console.log('  landing: sink ' + out.landing.sink + ' m/s · ' + out.landing.V + ' m/s = ' + out.landing.VoverVs + ' Vs · ' + out.landing.pastAim + ' m past the aim · ' + out.landing.off + ' m off · run ' + out.landing.run + ' m' + (out.landing.three ? ' · three-point' : ''));
     if (out.activity) console.log('  control reversals /min (da dr de): ' + Object.entries(out.activity).map(([g, a]) => g + ' ' + a.da + ' ' + a.dr + ' ' + a.de).join(' · '));
     if (out.rollout) console.log('  rollout: max heading ' + out.rollout.maxE + ' deg, ' + out.rollout.zeroX + ' reversals, rudder ' + out.rollout.maxDr + ' · ' + out.rollout.xtEnd + ' m off at the stop');
+    if (out.stab) console.log('  stabilised approach: gate ' + out.stab.gateH + ' m, ' + out.stab.finals + ' final' + (out.stab.finals === 1 ? '' : 's') + ' judged, ' + out.stab.ga + ' go-around' + (out.stab.ga === 1 ? '' : 's') + (out.stab.committed ? ', COMMITTED UNSTABLE (' + out.stab.committed + ')' : '') + (out.stab.tolerated ? ', TOLERATED UNSTABLE (' + out.stab.tolerated + ')' : '') + ' · worst / limit ' + Object.entries(out.stab.worst).map(([k, v]) => k + ' ' + v).join(' '));
     for (const v of out.verdicts) console.log('  ! ' + v);
     console.log('  ' + out.outcome + ' at ' + out.t + ' s (' + out.wall + ' s wall)');
   }

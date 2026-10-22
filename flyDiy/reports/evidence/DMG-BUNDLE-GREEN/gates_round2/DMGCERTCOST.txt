@@ -1,0 +1,40 @@
+GATE DMGCERTCOST (G1890-G1892): the certificate's cost, its envelope against the uncut one, the store
+Cub:
+  ok   1. 1807 frames stepped (budget 1809; the uncut certificate 2779)
+  FAIL 1. 83.0 s in node (ceiling 18 s; the uncut 70.2 s; the target ~5 s: 78.0 s over) - static 14.2, settle 12.0, drop 2.1, dropLevel 2.6, dropOne 1.5, drop473 1.4, taxiRough 30.9, ground 1.3, flown 2.8, flownElev 3.7, flownRud 2.3, flownElevF 8.2
+  ok   2. the envelope against the uncut (computed (the stored reference is not this physics: cv, spec, fp)): equal to the bit
+Jodel:
+  ok   1. 1792 frames stepped (budget 1792; the uncut certificate 2764)
+  FAIL 1. 123.5 s in node (ceiling 32 s; the uncut 183.5 s; the target ~5 s: 118.5 s over) - static 11.9, settle 15.4, drop 3.5, dropLevel 2.7, dropOne 13.4, drop473 2.2, taxiRough 38.5, ground 3.0, flown 3.6, flownElev 6.1, flownRud 2.7, flownElevF 20.1
+  ok   2. the envelope against the uncut (computed (the stored reference is not this physics: cv, spec, fp)): equal to the bit
+metal Cessna:
+  FAIL 1. 1831 frames stepped (budget 1797; the uncut certificate 2803)
+  FAIL 1. 130.1 s in node (ceiling 30 s; the uncut 104.0 s; the target ~5 s: 125.1 s over) - static 3.8, settle 20.3, drop 10.9, dropNoseUp 4.1, dropOne 2.3, drop473 11.0, taxiRough 57.1, ground 2.1, flown 5.1, flownElev 5.4, flownRud 3.5, flownElevF 4.6
+  ok   2. the envelope against the uncut (computed (the stored reference is not this physics: cv, spec, fp)): equal to the bit
+Cessna floats:
+  FAIL 1. 1795 frames stepped (budget 1763; the uncut certificate 3055)
+  FAIL 1. 143.3 s in node (ceiling 42 s; the uncut 165.5 s; the target ~5 s: 138.3 s over) - static 9.9, settle 28.0, drop 10.7, bow 4.4, dropStep 5.1, dropOne 3.7, dropDriftR 4.9, dropDriftL 12.4, drop473 11.1, wWeave 24.3, ground 2.1, flown 9.9, flownElev 5.6, flownRud 3.5, flownElevF 7.5
+  ok   2. the envelope against the uncut (computed (the stored reference is not this physics: cv, spec, fp)): equal to the bit
+twin floatplane:
+  ok   1. 1786 frames stepped (budget 1791; the uncut certificate 3046)
+  FAIL 1. 120.2 s in node (ceiling 48 s; the uncut 137.4 s; the target ~5 s: 115.2 s over) - static 12.8, settle 21.0, drop 12.3, bow 6.1, dropStep 10.4, dropOne 4.4, dropDriftR 5.4, dropDriftL 6.6, drop473 5.8, wWeave 15.2, ground 1.6, flown 5.3, flownElev 3.7, flownRud 2.8, flownElevF 6.6
+  ok   2. the envelope against the uncut (computed (the stored reference is not this physics: cv, spec, fp)): equal to the bit
+3. the store (node, an in-memory IndexedDB):
+  ok   a miss reads null
+  ok   kept
+  ok   the second page load stamps from the store in 3.0 ms (< 50), the envelope to the bit
+  ok   a flipped value refused (checksum)
+  ok   another version refused
+  ok   another physics refused
+  ok   another member count refused
+  ok   a NaN refused
+  ok   another key refused
+  ok   the good record passes
+  ok   a corrupt record reads null and is deleted
+3. the store (headless Chromium, the bench worker):
+  ok   page 1: a miss, the worker computed it in 10.5 s and the page kept it
+  ok   the worker's certificate is node's (the same key; worst relative difference 3.2e-8, < 1e-6: the two V8s' last bits)
+  ok   page 2: read from the store and stamped in 2.6 ms (< 50), the same envelope
+  ok   a corrupted record is refused and deleted
+  ok   a stale record (another GEN_CERT_V) is refused and deleted
+GATE DMGCERTCOST: FAIL

@@ -120,12 +120,25 @@ const PAVEMENT = (() => {
   const LOOK_NAMES = { pv: 'paved (concrete, asphalt)', sf: 'soft (gravel, dirt, sand)', gr: 'grass' };
   // G1395: a soft / grass side's spread at -1 is the edge zone's edgeSoft (2.6 m: the old torn edge, reaching ~3 x it out);
   // the paved one's the edge zone's sideW
-  const LOOK_K = ['Bright', 'Hue', 'Tint', 'Wear', 'SideBright', 'SideHue', 'SideTint', 'SideW', 'SideA'];
+  // (G3018, the user 12 Oct: 'the saturation control is missing from the pavement edition') a tenth knob, SAT: the surface's
+  // saturation, a factor on every surface set's own grade saturation (grade[1]) - 1 = the sets as graded (today, byte for
+  // byte), 0 grey; the side keeps its own look
+  const LOOK_K = ['Bright', 'Hue', 'Tint', 'Wear', 'SideBright', 'SideHue', 'SideTint', 'SideW', 'SideA', 'Sat'];
   const LOOK_KEYS = [];
   for (const g in LOOK_GROUPS) for (const k of LOOK_K) {
     LOOK_KEYS.push(g + k);
-    RECIPE[g + k] = { Bright: 1, Hue: 0.12, Tint: 0, Wear: 1, SideBright: 1, SideHue: 0.12, SideTint: 0, SideW: -1, SideA: g === 'pv' ? -1 : 0 }[k];
+    RECIPE[g + k] = { Bright: 1, Hue: 0.12, Tint: 0, Wear: 1, SideBright: 1, SideHue: 0.12, SideTint: 0, SideW: -1, SideA: g === 'pv' ? -1 : 0, Sat: 1 }[k];
   }
+  // THE GRASS STRIP WEARS THE GROUND (GRASS-DENSE G2570; the user, 12 Oct, on the Cub at Skyline Altiport from above: "We really
+  // need to adjust the color of the grassy runway, to something similar to the surrounding colors"). The strip drew its own lawn
+  // (fieldgrass, a flat saturated lime with a soft blurred border: paint laid on the terrain). With `grMatch` (1, the default) a
+  // grass STRIP's lawn gives way to the island's ground under it - its colour, its speckle, its edge at the ground's own scale -
+  // and the mesh keeps only its worn wheel tracks and a faint mown tint (`grMowA`: a lighter, yellower, never more saturated wash);
+  // the short cut grass standing on it is the grass field's (27_premises GRASS_SIDES 'sides', surf). 0 = the strip's own lawn as
+  // before (G1391), with the runway look's grBright / grHue / grTint. Two of the surface type's look keys: live over every grass
+  // strip (the world look's RUNWAY section) and saved with the premises (PAVEMENT section). No new program: two free row slots.
+  LOOK_KEYS.push('grMatch', 'grMowA');
+  RECIPE.grMatch = 1; RECIPE.grMowA = 0.12;
   // what WEAR scales, per surface type: the paved class's ageing, the soft ground's traffic
   const LOOK_WEAR = { pv: ['crackK', 'damageK', 'patchK', 'mossK', 'stainK', 'rubberK'], sf: ['wheelBand', 'coarseK', 'rutDepth', 'treadK'], gr: ['wheelBand', 'coarseK', 'rutDepth', 'treadK'] };
   const groupOf = cls => (cls === 'concrete' || cls === 'asphalt') ? 'pv' : (cls === 'grass' ? 'gr' : 'sf');
@@ -163,7 +176,9 @@ const PAVEMENT = (() => {
     ['sideFade', 'strip sides fade to the ground (0/1)', 0, 1, 1], ['sideW', 'side fade width (m)', 0.5, 10, 0.5], ['sideA', 'side fade from alpha', 0, 1, 0.05], ['roadSide', "roads' sides fade like the strips' (1) / draw their band (0)", 0, 1, 1],
     ['edgeChip', 'edge chipping (m)', 0, 2, 0.05], ['band', 'gravel band (m, -1 = class)', -1, 40, 0.5], ['bandNoise', 'band raggedness', 0, 1, 0.02], ['grassReach', 'grass creeps in over (m)', 0.5, 30, 0.5], ['fadeW', 'fade to terrain over (m)', 0.5, 30, 0.5],
     ...Object.keys(LOOK_GROUPS).flatMap(g => [['— runway look: ' + LOOK_NAMES[g] + ' —'],
+      ...(g === 'gr' ? [['grMatch', 'a grass strip shows the ground under it (1) / its own lawn (0)', 0, 1, 0.05], ['grMowA', 'the mown tint over it (lighter, yellower)', 0, 0.5, 0.01]] : []),
       [g + 'Bright', 'surface brightness', 0.3, 2, 0.02], [g + 'Hue', 'surface tint hue (0 red, .17 yellow, .33 green, .67 blue)', 0, 1, 0.01], [g + 'Tint', 'surface tint amount', 0, 1, 0.02],
+      [g + 'Sat', 'surface saturation (1 = the sets as graded, 0 = grey)', 0, 2, 0.02],
       [g + 'Wear', "wear (x the class's cracks, patches, ruts...)", 0, 2, 0.05],
       [g + 'SideBright', 'side brightness', 0.3, 2, 0.02], [g + 'SideHue', 'side tint hue', 0, 1, 0.01], [g + 'SideTint', 'side tint amount', 0, 1, 0.02],
       [g + 'SideW', g === 'pv' ? "side width (m past the edge zone, -1 = the edge zone's)" : "side spread (m: the torn edge reaches ~3 x it; -1 = edgeSoft)", -1, 12, 0.1], [g + 'SideA', "side starts at alpha (blend into the ground; -1 = the edge zone's)", -1, 1, 0.05]]),
@@ -255,6 +270,9 @@ const PAVEMENT = (() => {
   function opaqueDepth(cls, halfW, recipe, kind) {
     const r = recipe || R;
     if (cls === 'grass' && kind !== 'strip') return Infinity;
+    // G2570: a MATCHED grass strip shows the ground under it, so the ground is not sunk under it (as a grass road: its pre-sink alone).
+    // The patch is built with the world: a live grMatch change re-sinks at the next build (a reload), the look itself is live
+    if (cls === 'grass' && lookOf('grass', r).match > 0) return Infinity;
     return Math.max(r.edgeChip || 0, cls === 'concrete' || cls === 'asphalt' ? 0 : 0.1) + 0.2;
   }
   // (G1542: `dPre`, when given, is the depth the pre-sink reads - a road's dead end holds its deep sink a cell back, not its 7 cm)
@@ -579,12 +597,12 @@ const PAVEMENT = (() => {
       if (TAB.mat && SHARED === L) { const U = TAB.mat.uniforms; U.uPavA.value = L.texA; U.uPavN.value = L.texN; U.uPavOn.value = 1; }   // G925: the one material
       if (old && old.texA && old !== L) { old.texA.dispose(); old.texN.dispose(); }
       for (const w of L.waiters || []) w(L); if (L.waiters) L.waiters.length = 0;   // (headless the library calls back at once, before `waiters`)
-      if (onReady) onReady(L);
+      GC_V++; if (onReady) onReady(L);
     }, old && old.ready ? old : null);   // G911: the old arrays lend the layers they hold (a grow fetches only the new sets)
     lib.waiters = lib.waiters || [];
     // until the new arrays decode, the materials keep the old ones (their layers still valid there)
     if (old && old.ready) { lib.texA = old.texA; lib.texN = old.texN; lib.readyOld = true; }
-    SHARED = lib;
+    SHARED = lib; GC_V++;
     if (lib.ready && TAB.mat) { const U = TAB.mat.uniforms; U.uPavA.value = lib.texA; U.uPavN.value = lib.texN; U.uPavOn.value = 1; }   // (headless: ready at once)
     return lib;
   }
@@ -1176,6 +1194,15 @@ float pvTread(float u, float x, float w, float seed) {
     // (G1391: it kept 45 % of its lawn, over a ground of grass, so only the worn band a third of its width read - the
     // "very thin" grass runway); its colour against the island's grass is the runway look's (grBright / grTint)
     if (grassy && road) { float worn = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0); gPavA *= worn; }
+    // G2570: A GRASS STRIP WEARS THE GROUND (pavement.js grMatch): its lawn gives way to the island's ground under it, the mesh keeping
+    // its worn tracks (their own grass-with-soil colour) and a faint mown wash over its width - the strip's luminance, warmed
+    // (lighter, yellower, less saturated) at uStain.w alpha. uMacro.w 0: the strip's own lawn, as before
+    if (grassy && !road && uMacro.w > 0.0) {
+      float worn = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0);
+      vec3 mown = vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))) * vec3(1.12, 1.06, 0.78) * 1.15;
+      col = mix(col, mown, (1.0 - worn) * uMacro.w);
+      gPavA = mix(gPavA, max(worn * gPavA, uStain.w * wPav), uMacro.w);
+    }
     diffuseColor.rgb = col; diffuseColor.a = gPavA;
     gPavDbg = uPavDbg < 1.5 ? gPavN * 0.5 + 0.5 : uPavDbg < 2.5 ? vec3(gPavR) : uPavDbg < 3.5 ? vec3(wetK, 0.0, 0.0) : uPavDbg < 4.5 ? mk
       : uPavDbg < 5.5 ? vec3(wp, wb, wg) : uPavDbg < 6.5 ? vec3(clamp(dE / 10.0, 0.0, 1.0), clamp(-dE / shW, 0.0, 1.0), gPavA) : uPavDbg < 7.5 ? vec3(fract(laneTone * 4.0), joint, spall)
@@ -1284,8 +1311,8 @@ float pvTread(float u, float x, float w, float seed) {
   function applyAll(THREE) { for (const m of MATS) applyOne(THREE, m); }
   // a set's mean colour graded as the shader grades it (gain, tint, saturation): linear rgb, what the
   // eye sees of that set on average - the far tier's uMean and the cover ring's `col` (v1.17)
-  function gradedMean(key, r, lib) {
-    const g = (r.grade && r.grade[key]) || [1, 1], t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1];
+  function gradedMean(key, r, lib, satK) {
+    const g0 = (r.grade && r.grade[key]) || [1, 1], g = satK === undefined || satK === 1 ? g0 : [g0[0], g0[1] * satK].concat(g0.slice(2)), t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1];
     const mean = (lib && lib.mean[key]) || ((typeof PAVEMENT_TEX_SETS !== 'undefined' && PAVEMENT_TEX_SETS[key] && PAVEMENT_TEX_SETS[key].mean) || [0.2, 0.2, 0.2]);
     const c = [mean[0] * g[0] * t[0], mean[1] * g[0] * t[1], mean[2] * g[0] * t[2]], l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
     return [l + (c[0] - l) * g[1], l + (c[1] - l) * g[1], l + (c[2] - l) * g[1]];
@@ -1293,10 +1320,25 @@ float pvTread(float u, float x, float w, float seed) {
   // groundColor(cls, recipe): the drawn ground's linear colour beside a pavement of this class - its
   // BAND set (the cleared earth, the crushed stone) graded by the recipe (the premises' over the
   // module's); a tuft standing there takes it (the cover ring, v1.17)
+  // REVEAL-HITCH (19 Oct): MEMOISED. The cover ring asks it for every tuft of a cell beside a pavement (render_world coverAt),
+  // and each call deep-copied the whole module recipe (JSON parse + stringify): the first world frame after the roll-out
+  // planted the stand's grass cells at ~100 ms of it, and ~50 ms of the garbage it left. The answer depends on the class, the
+  // recipe given (a premises' pavement: the editor replaces it, never edits it in place - one answer per object), the
+  // module's R, the look overlay LIVE and the shared library's means: GC_V moves whenever one of the last three does.
+  let GC_V = 0;
+  const GC_MEMO = new WeakMap(), GC_NONE = { v: -1, m: new Map() };
   function groundColor(cls, recipe) {
+    let e = recipe && typeof recipe === 'object' ? GC_MEMO.get(recipe) : GC_NONE;
+    if (!e) { e = { v: GC_V, m: new Map() }; GC_MEMO.set(recipe, e); }
+    if (e.v !== GC_V) { e.v = GC_V; e.m.clear(); }
+    if (e.m.has(cls)) return e.m.get(cls);
+    const c = groundColor0(cls, recipe); e.m.set(cls, c); return c;
+  }
+  function groundColor0(cls, recipe) {
     const row = CLASS_DEF[cls]; if (!row) return null;
     const r = recipe ? Object.assign(JSON.parse(JSON.stringify(RECIPE)), recipe, { grade: Object.assign({}, RECIPE.grade, recipe.grade || {}) }) : R;
     const c = gradedMean(row.shoulder, r, SHARED), lk = lookOf(cls, r);
+    if (lk.match > 0.5) return null;   // G2570: a matched grass strip draws the ground itself - a tuft there takes the ground's (the cover ring's meanAt)
     return [c[0] * lk.side[0], c[1] * lk.side[1], c[2] * lk.side[2]];   // G1392: the side's look
   }
   // ---- THE RUNWAY LOOK (G1392) -------------------------------------------------------------------------------
@@ -1309,7 +1351,8 @@ float pvTread(float u, float x, float w, float seed) {
     const r = recipe || R, g = groupOf(cls), q = k => (LIVE && LIVE[g + k] !== undefined ? +LIVE[g + k] : (r[g + k] !== undefined ? +r[g + k] : RECIPE[g + k]));
     const mul = (b, h, k) => tintRGB(h, k).map(c => Math.max(0, c * b));
     const sw = q('SideW'), sa = q('SideA');
-    return { g, surf: mul(q('Bright'), q('Hue'), q('Tint')), side: mul(q('SideBright'), q('SideHue'), q('SideTint')), wear: Math.max(0, q('Wear')),
+    return { g, surf: mul(q('Bright'), q('Hue'), q('Tint')), side: mul(q('SideBright'), q('SideHue'), q('SideTint')), wear: Math.max(0, q('Wear')), sat: isFinite(q('Sat')) ? Math.max(0, q('Sat')) : 1,
+      match: g === 'gr' ? Math.max(0, Math.min(1, q('Match'))) : 0, mowA: g === 'gr' ? Math.max(0, Math.min(1, q('MowA'))) : 0,   // G2570
       sideW: sw >= 0 ? sw : (g === 'pv' ? (r.sideW || 1.2) : (r.edgeSoft || 2.6)), sideA: sa >= 0 ? sa : (r.sideA === undefined ? 0.35 : r.sideA) };
   }
   const KNOB_MAX = {};
@@ -1324,6 +1367,7 @@ float pvTread(float u, float x, float w, float seed) {
   // look(THREE, o): the live overlay - an object of LOOK_KEYS (a key at undefined/null leaves it), null clears it;
   // returns the overlay. Every pavement in the page is re-applied (a row repack each: no rebuild)
   function look(THREE, o) {
+    GC_V++;
     if (o === null) LIVE = null;
     else if (o && typeof o === 'object') {
       const n = Object.assign({}, LIVE);
@@ -1360,7 +1404,8 @@ float pvTread(float u, float x, float w, float seed) {
       const f1 = shW, f0 = Math.max(0, Math.min(Math.min(bandW + 0.3, shW - Math.max(r.fadeW, 0.6)), shW - 0.3));
       a = 1 - ss01(f0, f1, -dE);
     }
-    return { a, surf: wPav, worn: cls === 'grass' && !!o.road };
+    // (a grass road's alpha is its tracks', and so is a MATCHED grass strip's (G2570): the twin keeps the width law, the flag says so)
+    return { a, surf: wPav, worn: cls === 'grass' && (!!o.road || lk.match > 0) };
   }
   function applyOne(THREE, m) {
     const U = m.uniforms, d = m.userData.pav, lib = m.userData.pavLib, cls = CLASS_DEF[d.cls];
@@ -1372,18 +1417,19 @@ float pvTread(float u, float x, float w, float seed) {
     U.uLayer2.value.set(lay('tracks'), lay('moss'), lay('macro'), 0);
     U.uTile.value.set(met('base'), met('damage'), met('shoulder'), met('grass'));
     U.uTile2.value.set(met('tracks'), met('moss'), met('macro'), 0);
-    SLOTS.forEach((s, i) => { const g = (r.grade && r.grade[keyOf(s)]) || [1, 1]; U.uGrade.value[i].set(g[0], g[1], 0, 0); const t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1]; U.uTint.value[i].set(t[0], t[1], t[2], 0); });
+    const SURF = { base: 1, damage: 1, tracks: 1, moss: 1, macro: 1 };   // (G3018: the surface's sets - the side and the grass keep their own)
+    SLOTS.forEach((s, i) => { const g = (r.grade && r.grade[keyOf(s)]) || [1, 1]; U.uGrade.value[i].set(g[0], SURF[s] && lk.sat !== 1 ? g[1] * lk.sat : g[1], 0, 0); const t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1]; U.uTint.value[i].set(t[0], t[1], t[2], 0); });
     U.uClass.value.set(CLASSES.indexOf(d.cls), cls.lanes, cls.rut, d.poly ? 2 : (d.road ? 1 : 0));
     // the base's mean colour, graded exactly as the shader grades the base (gain, tint, saturation)
-    { const c = gradedMean(cls.base, r, lib); U.uMean.value.set(c[0], c[1], c[2], 0.85); }
+    { const c = gradedMean(cls.base, r, lib, lk.sat); U.uMean.value.set(c[0], c[1], c[2], 0.85); }
     U.uHex.value.set(r.hexDepth, r.hexOn, r.hexCells, cls.hexRot * Math.PI / 180 * r.hexRotK);
-    U.uMacro.value.set(r.macroLuma, r.macroHue, r.macroRough, 0);
+    U.uMacro.value.set(r.macroLuma, r.macroHue, r.macroRough, d.road ? 0 : lk.match);   // .w (G2570): a grass STRIP shows the ground (its match)
     U.uLane.value.set(cls.lanes, r.laneW, r.jointW, r.jointDepth);
     U.uLane2.value.set(r.laneTone, r.slabL, r.jointChip, r.jointDirt);
     U.uCrack.value.set(r.crackK, r.crackW, r.crackCell, r.damageK);
     U.uPatch.value.set(r.patchK, r.patchTone, r.patchRough, r.patchLen);
     U.uMoss.value.set(r.mossK, r.mossEdge, r.mossJoint, r.mossScale);
-    U.uStain.value.set(r.stainK, r.stainScale, r.stainRough, 0);
+    U.uStain.value.set(r.stainK, r.stainScale, r.stainRough, lk.mowA);   // .w (G2570): the mown tint over a matched grass strip
     U.uWet.value.set(r.wet, lk.surf[0], lk.surf[1], lk.surf[2]);          // .yzw (the puddles' until 2026-09-23): the runway look's surface multiplier (G1392)
     U.uMark.value.set(r.paintAge, r.paintRough, r.chalk, r.paintOnGrass);
     U.uRubber.value.set(r.rubberStart, r.rubberPeak, r.rubberEnd, r.rubberSpread);
@@ -1689,8 +1735,8 @@ float pvTread(float u, float x, float w, float seed) {
   }
   // the mesh's shoulder for a band: the band, the fade past it, a metre of grass creep
   const shoulderFor = (band, recipe) => Math.max(1, band + (recipe || R).fadeW + 1);
-  function set(THREE, o) { for (const k in o) { if (k === 'grade') Object.assign(R.grade, o.grade); else R[k] = o[k]; } applyAll(THREE); }
-  function reset(THREE) { R = JSON.parse(JSON.stringify(RECIPE)); applyAll(THREE); }
+  function set(THREE, o) { for (const k in o) { if (k === 'grade') Object.assign(R.grade, o.grade); else R[k] = o[k]; } GC_V++; applyAll(THREE); }
+  function reset(THREE) { R = JSON.parse(JSON.stringify(RECIPE)); GC_V++; applyAll(THREE); }
   function debug(v) { DBG.value = v; }
   // ---- THE A/B (G928): `?pave=old` or `?pave=new` at load, PAVE_AB('old' | 'new') live, or a click on the box -----
   // The box (top centre, under PAVTEST's) names what is drawn. Live, each builder that registered a rebuild

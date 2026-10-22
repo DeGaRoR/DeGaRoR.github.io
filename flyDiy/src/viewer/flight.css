@@ -611,6 +611,40 @@ body.rollShot #flActs { display:none !important; }
 
 #mmp.big #mm { width:min(74vmin, 520px); height:min(74vmin, 520px); }
 
+/* ---- G2120 ROUTE-DRAW: THE DRAWING. The map in its draw mode (route_draw.js): the canvas takes every gesture
+   (a point, a drag, a pinch - no page scroll under a finger), and the route's panel hangs under it in the same
+   plate, as wide as the map. ---- */
+#ui #mmp.draw { cursor:default; }
+#ui #mmp.draw #mm { cursor:crosshair; touch-action:none; }
+#rtp { width:min(74vmin, 520px); margin-top:6px; max-height:calc(100vh - min(74vmin, 520px) - 120px); overflow-y:auto; display:flex; flex-direction:column; gap:5px;
+  font:400 11px/1.3 'IBM Plex Sans', sans-serif; color:var(--ed-ink, #f4efe6); cursor:default; }
+#rtp[hidden] { display:none; }
+#rtp .rtHead { display:flex; align-items:center; gap:8px; }
+#rtp .rtHead b { font:600 10px/1 'IBM Plex Mono', monospace; letter-spacing:.08em; color:#f58fd8; }
+#rtp .rtName { flex:1; min-width:0; }
+#rtp input, #rtp select { background:rgba(0,0,0,.32); color:inherit; border:1px solid var(--ed-border, rgba(255,248,236,.14));
+  border-radius:4px; padding:2px 5px; font:inherit; min-width:0; }
+#rtp .rtRow { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+#rtp .rtK { color:var(--ed-faint, #97907f); }
+#rtp .rtSel { flex:1; }
+#rtp .rtEnd, #rtp .rtRef { flex:none; }
+#rtp .rtBtn { background:var(--ed-btn-bg, rgba(255,255,255,.06)); color:inherit; border:1px solid var(--ed-btn-bd, rgba(255,255,255,.18));
+  border-radius:4px; padding:3px 8px; font:500 11px/1 'IBM Plex Sans', sans-serif; cursor:pointer; }
+#rtp .rtBtn.on { border-color:#f58fd8; color:#ffd0f0; }
+#rtp .rtBtn.go { background:#f58fd8; color:#221f1b; border-color:#f58fd8; font-weight:600; letter-spacing:.04em; }
+#rtp .rtX, #rtp .rtDel { padding:2px 6px; }
+#rtp .rtList { max-height:150px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; }
+#rtp .rtPt { display:flex; align-items:center; gap:5px; padding:2px 4px; border-radius:4px; border:1px solid transparent; }
+#rtp .rtPt b { font:600 10px/1 'IBM Plex Mono', monospace; width:30px; color:#f58fd8; }
+#rtp .rtPt.sel { border-color:rgba(245,143,216,.5); background:rgba(245,143,216,.08); }
+#rtp .rtPt.bad b, #rtp .rtWarn { color:#ff8b7c; }
+#rtp .rtAlt { width:62px; } #rtp .rtSpd { width:52px; }
+#rtp .rtU { color:var(--ed-faint, #97907f); flex:1; }
+#rtp .rtProf { width:100%; height:auto; border-radius:4px; display:block; }
+#rtp .rtStat { font:400 10px/1.35 'IBM Plex Mono', monospace; color:var(--ed-dim, #c0b8ac); }
+#rtp .rtMsg { color:var(--ed-dim, #c0b8ac); flex:1; }
+#rtp .rtNote { color:var(--ed-faint, #97907f); font-size:10px; }
+
 /* ---- THE TRACE. Furniture, not chrome: it is at the bottom of the stack
    (see above), it is LIGHTER than the plates that carry a decision — half
    weight, a hairline border, no shadow — and it is the one panel the player
@@ -698,20 +732,40 @@ body.rollShot #flActs { display:none !important; }
 /* ---- THE ARRIVAL CARD: the only panel that APPEARS. On --ed-panel and not
    a plate, because it is a document and not chrome, and in the plaque's own
    two-column grammar so the flight's numbers and the bench's numbers read as
-   the same kind of thing. ---- */
-#arrCard { position:absolute; left:50%; top:50%;
-  transform:translate(-50%,-50%); width:520px; max-width:calc(100% - 44px);
-  max-height:calc(100% - 44px); overflow-y:auto;   /* a short window scrolls the card, never crops its verbs */
-  padding:20px 22px 18px; background:var(--ed-panel);
+   the same kind of thing.
+   G3060 (CARDS-CORNER; the user, 12 Oct: "the certifications, the end of the flight, the crash, all of them should
+   appear in the bottom left, not hide the plane"): EVERY ending's card is in the lower-left corner, compact - its
+   right edge inside the left quarter of the view (240 px floor) and its top below the middle, so the aeroplane at
+   the centre stays in sight; a long card scrolls, never crops its verbs. Its title folds it to the one line.
+   It stands BESIDE the look rail (#flRail: 22 px + a 62 px plate, centred on the height, ~500 px tall), never on it.
+   GATE CARDS holds it (no result card centred; this box in the lower-left quadrant, clear of the rail). ---- */
+#arrCard { position:absolute; left:96px; top:auto; bottom:96px;
+  width:max(260px, min(380px, calc(25vw - 112px))); max-width:calc(100% - 112px);
+  max-height:max(200px, calc(50% - 112px)); overflow-y:auto;
+  padding:14px 16px 12px; background:var(--ed-panel);
   border:1px solid var(--ed-border); border-radius:11px;
-  box-shadow:0 24px 60px rgba(0,0,0,.55); z-index:30; }
+  box-shadow:0 12px 36px rgba(0,0,0,.5); z-index:30; }
+#arrCard #arrHead { cursor:pointer; }
+#arrCard.min #arrRows, #arrCard.min #arrNotes, #arrCard.min #arrBtns { display:none; }
+#arrCard.min #arrHead { border-bottom:0; padding-bottom:0; }
 
 #arrCard[hidden] { display:none; }
 
-#arrHead { display:flex; align-items:baseline; gap:12px; padding-bottom:13px;
+/* G1868 (DMG-D4b; the user: "I want to SEE the crash"): A CRASH'S CARD is small and in the lower-left corner, not over the
+   wreck; its title folds it to the one line (the reason stays on the top bar).
+   (G3060: the corner and the fold are every card's now; the wreck's stays the smaller one) */
+#arrCard.wreck { width:max(220px, min(300px, calc(22vw - 80px))); padding:12px 14px 10px;
+  box-shadow:0 10px 30px rgba(0,0,0,.45); }
+#arrCard.wreck #arrHead { padding-bottom:8px; }
+#arrCard.wreck #arrTitle { font-size:13px; }
+#arrCard.wreck #arrRows div { padding:3px 0; }
+#arrCard.wreck #arrBtns { margin-top:9px; }
+#ui #arrCard.wreck #arrBtns button { padding:8px 0; font-size:10.5px; }
+
+#arrHead { display:flex; align-items:baseline; gap:12px; padding-bottom:10px;
   border-bottom:1px solid var(--ed-hair); }
 
-#arrTitle { font:600 17px/1 'IBM Plex Sans'; letter-spacing:.06em;
+#arrTitle { font:600 15px/1.15 'IBM Plex Sans'; letter-spacing:.06em;
   color:var(--ed-ink); }
 
 #arrTag { margin-left:auto; font:500 10px/1 'IBM Plex Sans';
@@ -721,32 +775,32 @@ body.rollShot #flActs { display:none !important; }
 
 #arrCard.bad #arrTag { color:var(--ed-acc-ink); background:var(--ed-warn); }
 
-#arrRows { display:grid; grid-template-columns:1fr 1fr; gap:0 26px;
+#arrRows { display:grid; grid-template-columns:1fr; gap:0 26px;   /* G3060: one column in the corner */
   margin-top:6px; }
 
 #arrRows div { display:flex; justify-content:space-between;
-  align-items:baseline; gap:10px; padding:6px 0;
+  align-items:baseline; gap:10px; padding:4px 0;
   border-bottom:1px solid var(--ed-hair); }
 
 #arrRows span { font:400 11.5px/1.2 'IBM Plex Sans'; color:var(--ed-dim); }
 
-#arrRows b { font:500 12.5px/1 'IBM Plex Sans'; color:var(--ed-ink); }
+#arrRows b { font:500 12.5px/1.2 'IBM Plex Sans'; color:var(--ed-ink); text-align:right; }
 
 #arrRows b.warn { color:var(--ed-warn); }
 
-#arrNotes { margin-top:12px; font:400 11px/1.65 'IBM Plex Sans';
+#arrNotes { margin-top:10px; font:400 11px/1.65 'IBM Plex Sans';
   color:var(--ed-faint); }
 
 #arrNotes:empty { display:none; }
 
 #arrNotes i { display:block; font-style:normal; }
 
-#arrBtns { display:flex; gap:9px; margin-top:15px; }
+#arrBtns { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
 
-#ui #arrBtns button { flex:1; text-align:center; font:500 12px/1 'IBM Plex Sans';
+#ui #arrBtns button { flex:1 1 40%; text-align:center; font:500 11px/1 'IBM Plex Sans';
   letter-spacing:.1em; text-transform:uppercase; color:var(--ed-ink);
   background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);
-  padding:12px 0; border-radius:8px; cursor:pointer;
+  padding:10px 6px; border-radius:8px; cursor:pointer;
   transition:background .12s ease, border-color .12s ease; }
 
 #ui #arrBtns button:hover { border-color:rgba(255,255,255,.3); }
@@ -809,8 +863,11 @@ body.rollShot #flActs { display:none !important; }
   #mmp { right:12px; }
   #mmp.big #mm { width:min(82vmin, calc(100vw - 40px));
     height:min(82vmin, calc(100vw - 40px)); }
-  #arrCard { width:calc(100% - 24px); padding:16px 16px 14px; }
-  #arrRows { grid-template-columns:1fr; }
+  #rtp { width:min(82vmin, calc(100vw - 40px)); max-height:calc(100vh - min(82vmin, calc(100vw - 40px)) - 110px); }
+  /* G3060: a narrow window's card is a bottom sheet over the verbs, its top below the middle (the aeroplane stays seen),
+     beside the rail (12 px + a 56 px plate) */
+  #arrCard, #arrCard.wreck { left:76px; right:12px; width:auto; max-width:none; bottom:78px;
+    max-height:max(160px, calc(50% - 90px)); padding:12px 14px 10px; }
 }
 
 /* =========================================================================
@@ -957,6 +1014,12 @@ body.premOpen #flFly { display:none; }
 #ui .pr-insp .r > span.v { flex:none; width:48px; text-align:right;
   font:500 11px/1 'IBM Plex Sans'; color:var(--ed-ink); }
 #ui .pr-insp .r > .fsel { flex:1; min-width:0; }
+/* (G3017) the slider's typed value: the readout IS the field (the garage's reference panel), a line under it on hover and focus */
+#ui .pr-insp .r > input.v { flex:none; width:48px; text-align:right; font:500 11px/1 'IBM Plex Sans'; color:var(--ed-ink);
+  background:none; border:0; border-bottom:1px solid transparent; border-radius:0; padding:0 0 1px; margin:0; cursor:text; outline:none; }
+#ui .pr-insp .r > input.v:hover { border-bottom-color:var(--ed-border); }
+#ui .pr-insp .r > input.v:focus { border-bottom-color:var(--ed-acc); }
+#ui .pr-insp .r > input.v.vn { flex:1; width:auto; min-width:0; }   /* (G3018) a typed number with no slider takes the row */
 #ui .pr-insp .r.item { padding:5px 8px; margin:3px 0; border-radius:6px; background:var(--ed-btn-bg); }
 #ui .pr-insp .r.item.on { background:var(--ed-acc-soft); color:var(--ed-ink); }
 #ui .pr-insp .r.item > span.k { width:auto; flex:1; }
@@ -970,6 +1033,11 @@ body.premOpen #flFly { display:none; }
   font:400 11px/1.3 'IBM Plex Sans'; color:var(--ed-ink); background:var(--ed-btn-bg);
   border:1px solid var(--ed-btn-bd); border-radius:5px; cursor:text; }
 #ui .pr-insp .pr-paste { resize:vertical; min-height:56px; }
+/* DROP-JSON (18 Oct): 'drop to import' over the page while a file is dragged onto the scenery editor */
+#ui .pr-drop { position:fixed; inset:12px; z-index:60; display:none; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  border:2px dashed var(--ed-acc); border-radius:10px; background:color-mix(in srgb, var(--ed-panel) 82%, transparent); color:var(--ed-ink); pointer-events:none; }
+#ui .pr-drop b { font:600 15px/1 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; letter-spacing:.06em; }
+#ui .pr-drop span { font:400 12px/1.3 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; color:var(--ed-dim); }
 #ui .pr-insp .pr-name::placeholder, #ui .pr-insp .pr-paste::placeholder { color:var(--ed-faint); }
 /* the inspector's head (G2910): what is selected, on the plate's own band; ✕ lets it go */
 #ui .pr-insp .pr-selhd { position:sticky; top:-4px; z-index:2; display:flex; align-items:center; gap:8px;

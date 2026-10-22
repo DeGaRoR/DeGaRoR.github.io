@@ -1,0 +1,10 @@
+# scripts/twin_wind3.js twinFloats 10 90 on the base (damage on, the certificate): the float roots' cuts
+FLT cuts FLTL/root Mu 20.87 Mv 19.60 T 1.87 kN.m | FLTR/root Mu 14.96 Mv 13.30 T 1.27 kN.m
+9.30 pitch 13.7 roll 3.6 FLTL rb 0.23 rt 0.31 | FLTR rb 0.60 rt 0.86 Mb 9.01 T 1.10
+9.32 pitch 13.6 roll 3.8 FLTL rb 0.41 rt 0.29 | FLTR rb 0.59 rt 1.00 Mb 8.74 T 1.27 DONE
+[{"tag":"FLTR","cut":"root","why":"twist","ratio":1.0007555555681669,"t":9.3116,"grp":"floatR:strut"}]
+# the same, after the mirror (G2366): FLTR peaks rt 0.70 at 9.32 s, nothing parts
+# scripts/twin_wind.js twinFloats 10 270 (the base rig: 3 m/s along the STARTING heading): yaw -92 deg, throttle 0.97-0.99,
+# airspeed 19-23 m/s, pitch -25..+33 deg, 129 yields at 10.0 s, the floats' struts at 11.9 s
+# scripts/twin_wind_own.js (3 m/s along its OWN heading), 10 m/s from 90 / 270 / 0 / 180: throttle 0.07-0.21, pitch within
+# -9..+4 deg, 0 yields, 0 broken

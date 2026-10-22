@@ -1,0 +1,29 @@
+{
+ "crash": [
+  false,
+  false,
+  false,
+  false,
+  false,
+  false
+ ],
+ "brokeUp": true,
+ "crewOff": true,
+ "retry": {
+  "crew": [
+   true,
+   true,
+   true,
+   true,
+   true,
+   true
+  ],
+  "over": false,
+  "structural": {
+   "damaged": false,
+   "broken": 0,
+   "separated": [],
+   "why": null
+  }
+ }
+}

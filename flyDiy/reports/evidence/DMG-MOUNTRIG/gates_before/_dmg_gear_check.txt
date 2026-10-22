@@ -1,0 +1,102 @@
+(3571 s, 5 builds; on the certificate, 66_gen_cert.js)
+Cub:
+1. the bracket (taildragger, bungee)
+  ok    15 gear joints, every one stamped from its own envelope
+  ok    a wheel's gear gives in compression past its limit (F_l,c x 1.18, where its steel sized for the ultimate yields) over its travel (0.04 of a member's length); limits 1.34-7.22 kN
+  ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 1.78-6.32 kN
+  ok    the drop at its FAR 23.473 limit sink (2.13 m/s): no set - set 0 gear / 0 airframe, broken 0 / 0, 1.67 g
+  ok    the drop at 1.2 x the certificate's sink (3.66 m/s, 23.727): the gear holds, just under its yield (1.18 F_l), nothing breaks, the airframe takes no set - set 0 gear / 0 airframe, broken 0 / 0, 2.09 g
+  ok    NASA 172 Test 1 (7 m/s down, 18 m/s forward): it breaks, the gear first (TW-TPT, kink) - set 0 gear / 74 airframe, broken 15 / 85, the first group tw:gear, 1.79 g, a gear member broke
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.29 (gear AXLEL-S0TL, compression)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.38 (gear AXLEL-S0TL, compression)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.13 m/s (the gear's own limit case): the airframe 0.33 (S0BL-S0TL), the gear 0.52 (AXLEL-S0TL)
+  ok    a taxi on grass at 8 m/s: 0.22 (gear AXLER-S0BR, compression)
+  ok    a taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s: 0.30 (gear TW-TPT, compression)
+  ok    a taxi on the rough field at 12 m/s: 0.25 (gear TW-TPT, compression)
+  ok    the circuit (completed, 321 s, touchdown 0.60 m/s): 0.30 (fus S1BL-S1BR, tension, FINAL)
+  ok    a crosswind circuit (3.21 m/s across, 0.2 V_S0) (completed, 328 s, touchdown 0.65 m/s): 0.30 (fus S1BL-S1BR, tension, FINAL)
+3. §7.4's gear rows
+  FAIL  the ground loop (15 m/s, swung 20 deg at 120 deg/s): a main gear folds (none), the low wing strikes (at 4.53 s); the groups in order wing0R:strut > wing0L:strut > stab:attach > eng:mount; a wing member broke
+Jodel:
+1. the bracket (taildragger, oleo)
+  ok    15 gear joints, every one stamped from its own envelope
+  ok    a wheel's gear gives in compression past its limit (F_l,c x 1.18, where its steel sized for the ultimate yields) over its travel (0.1 of a member's length); limits 1.35-9.32 kN
+  ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 1.79-11.10 kN
+  ok    the drop at its FAR 23.473 limit sink (2.17 m/s): no set - set 0 gear / 0 airframe, broken 0 / 0, 1.86 g
+  ok    the drop at 1.2 x the certificate's sink (3.66 m/s, 23.727): the gear holds, just under its yield (1.18 F_l), nothing breaks, the airframe takes no set - set 0 gear / 0 airframe, broken 0 / 0, 2.45 g
+  ok    NASA 172 Test 1 (7 m/s down, 18 m/s forward): it breaks, the gear first (AXLEL-AXLER, ragged) - set 2 gear / 5 airframe, broken 9 / 32, the first group gearL:gear, 1.98 g, a gear member broke
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.34 (gear TW-TPB, compression)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.46 (gear TW-TPB, compression)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.17 m/s (the gear's own limit case): the airframe 0.38 (VSNL-VSNR), the gear 0.63 (TW-TPB)
+  ok    a taxi on grass at 8 m/s: 0.15 (gear AXLEL-S0TL, compression)
+  ok    a taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s: 0.39 (gear AXLEL-S0TL, compression)
+  ok    a taxi on the rough field at 12 m/s: 0.36 (gear AXLEL-S0TL, tension)
+  ok    the circuit (null, 340 s): 0.28 (gear AXLEL-S0BL, compression, ROLLOUT)
+  ok    a crosswind circuit (3.78 m/s across, 0.2 V_S0) (null, 340 s): 0.21 (wing WR-S2BL, compression, FINAL)
+3. §7.4's gear rows
+  --    REPORT the ground loop (15 m/s, swung 20 deg at 120 deg/s): groups none, the lowest wingtip 0.99 m - on flat grass the wheels slide (friction-limited side load)
+metal Cessna:
+1. the bracket (tricycle, spring)
+  ok    15 gear joints, every one stamped from its own envelope
+  ok    a wheel's gear gives in compression past its limit (F_l,c x 1.18, where its steel sized for the ultimate yields) over its travel (0.15 / 0.06 of a member's length); limits 2.58-18.58 kN
+  ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 3.43-13.17 kN
+  ok    the drop at its FAR 23.473 limit sink (2.38 m/s): no set - set 0 gear / 0 airframe, broken 0 / 0, 2.11 g
+  ok    the drop at 1.2 x the certificate's sink (3.66 m/s, 23.727): the gear yields, nothing breaks, the airframe takes no set - set 2 gear / 0 airframe, broken 0 / 0, 2.69 g
+  ok    NASA 172 Test 1 (7 m/s down, 18 m/s forward): it breaks, the gear first (TW-S0BR, kink) - set 0 gear / 50 airframe, broken 15 / 35, the first group tw:gear, 1.62 g, a gear member broke
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.36 (gear TW-S0BR, compression)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.47 (gear TW-S0BR, compression)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.38 m/s (the gear's own limit case): the airframe 0.55 (WR-WR), the gear 0.67 (TW-S0BR)
+  ok    a taxi on grass at 8 m/s: 0.20 (wing WF-WF, tension)
+  FAIL  a taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s: 25.46 (fus CGE-S0BR, tension)
+  FAIL  a taxi on the rough field at 12 m/s: 32.51 (fus VSNL-S0BR, compression)
+  ok    the circuit (null, 340 s): 0.50 (gear AXLEL-S2BL, compression, ROLLOUT)
+  ok    a crosswind circuit (4.49 m/s across, 0.2 V_S0) (null, 340 s): 0.63 (gear AXLEL-S2BL, compression, ROLLOUT)
+3. §7.4's gear rows
+  ok    the porpoise (nose-first at 25 m/s, 5 deg down, the bounces at 3 / 4 / 5 m/s): the nose gear collapses on bounce 3 (the reference: the third) - 1: whole; 2: whole; 3: tw:gear; the prop strikes; a gear member broke
+Cessna floats:
+1. the bracket (floats, spring)
+  ok    20 gear joints, every one stamped from its own envelope
+  ok    a float's struts and spreaders crush at the ultimate (no spring): 12.33-96.92 kN
+  ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 8.48-109.11 kN
+  ok    the drop at its FAR 23.473 limit sink (2.50 m/s): no set - set 0 gear / 0 airframe, broken 0 / 0, 1.65 g
+  ok    the drop at 1.2 x the certificate's sink (3.66 m/s, 23.727): the gear holds (a float installation has no spring), nothing breaks, the airframe takes no set - set 0 gear / 0 airframe, broken 0 / 0, 1.73 g
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  FAIL  a touchdown at the normal sink, 1.0 m/s: 0.96 (fus CGE-S0BL, compression)
+  FAIL  a touchdown at a firm one, 1.5 m/s: 1.00 (fus CGE-S0BR, compression)
+  FAIL  a touchdown at the build's FAR 23.473 limit sink, 2.50 m/s (the gear's own limit case): the airframe 1.29 (CGE-S0BR), the gear 0.49 (FLD-S1BL)
+  ok    a taxi on the water at 4 m/s: 0.15 (fus CGE-S0BR, compression)
+  ok    a taxi on the water at 4 m/s in a light chop (5 m/s of wind): 0.14 (fus CGE-S0BL, compression)
+  ok    the circuit (null, 340 s): 0.33 (wing WB-WF, tension, FINAL)
+  FAIL  a crosswind circuit (4.98 m/s across, 0.2 V_S0) (completed, 324 s, touchdown 3.00 m/s): 1.83 (fus CGE-S0BR, compression, ROLLOUT)
+3. §7.4's gear rows
+  ok    the float nose-in at 90 km/h, 5 m/s, 20 deg (the WATER CASE): nothing breaks (2 set)
+  ok    the float dig-in at 150 km/h, 10 m/s, 60 deg: the floats' strut fittings fail in overload (floatL:strut, floatR:strut) - the first group floatL:strut (FLD-S1BL, root-twist); then floatR:strut, wing0L:strut, fin:attach, wing0R:root, stab:attach, wing0L:root, eng:mount, wing0R:strut; broke up: the fuselage parted (TPB off the core)
+twin floatplane:
+1. the bracket (floats, spring)
+  ok    20 gear joints, every one stamped from its own envelope
+  ok    a float's struts and spreaders crush at the ultimate (no spring): 2.16-38.53 kN
+  ok    in tension every gear joint is its lug, brittle at 1.5 F_l,t m: 1.88-19.97 kN
+  ok    the drop at its FAR 23.473 limit sink (2.13 m/s): no set - set 0 gear / 0 airframe, broken 0 / 0, 1.66 g
+  FAIL  the drop at 1.2 x the certificate's sink (3.66 m/s, 23.727): the gear holds (a float installation has no spring), nothing breaks, the airframe takes no set - set 0 gear / 50 airframe, broken 20 / 115, the first group floatR:strut, 0.71 g, broke up: the fuselage parted (TPB off the core)
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.53 (fus ENGL-WR, compression)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.65 (fus MNTL-WF, compression)
+  FAIL  a touchdown at the build's FAR 23.473 limit sink, 2.13 m/s (the gear's own limit case): the airframe 0.82 (MNTL-WF), the gear 0.34 (FLD-S1BR)
+  ok    a taxi on the water at 4 m/s: 0.19 (fus ENGL-WR, compression)
+  ok    a taxi on the water at 4 m/s in a light chop (5 m/s of wind): 0.27 (fus S1BL-S1TL, tension)
+  ok    the circuit (completed, 302 s, touchdown 1.49 m/s): 0.54 (fus ENGR-WR, compression, ROLLOUT)
+  FAIL  a crosswind circuit (3.31 m/s across, 0.2 V_S0) (completed, 291 s, touchdown 1.59 m/s): 2.00 (gear FLD-FLD, compression, ROLLOUT)
+3. §7.4's gear rows
+  FAIL  the float nose-in at 90 km/h, 5 m/s, 20 deg (the WATER CASE): nothing breaks (1 set)
+  ok    the float dig-in at 150 km/h, 10 m/s, 60 deg: the floats' strut fittings fail in overload (floatR:strut, floatL:strut) - the first group floatR:strut (WF-WF, ragged); then floatL:strut, wing0L:strut, engL:mount, wing0L:root, stab:attach, wing0R:root, engR:mount, fin:attach; broke up: the fuselage parted (TPB off the core)
+THE HEADROOM TABLE (the worst member over its certified yield; the 23.473 row: the airframe):
+  Cub             td 1.0 0.29 | td 1.5 0.38 | td 23.473 0.33 | taxi on grass at 8 m/s 0.22 | taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s 0.30 | taxi on the rough field at 12 m/s 0.25 | circuit 0.30 | crosswind circuit 0.30
+  Jodel           td 1.0 0.34 | td 1.5 0.46 | td 23.473 0.38 | taxi on grass at 8 m/s 0.15 | taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s 0.39 | taxi on the rough field at 12 m/s 0.36 | circuit 0.28 | crosswind circuit 0.21
+  metal Cessna    td 1.0 0.36 | td 1.5 0.47 | td 23.473 0.55 | taxi on grass at 8 m/s 0.20 | taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s 25.46 | taxi on the rough field at 12 m/s 32.51 | circuit 0.50 | crosswind circuit 0.63
+  Cessna floats   td 1.0 0.96 | td 1.5 1.00 | td 23.473 1.29 | taxi on the water at 4 m/s 0.15 | taxi on the water at 4 m/s in a light chop (5 m/s of wind) 0.14 | circuit 0.33 | crosswind circuit 1.83
+  twin floatplane td 1.0 0.53 | td 1.5 0.65 | td 23.473 0.82 | taxi on the water at 4 m/s 0.19 | taxi on the water at 4 m/s in a light chop (5 m/s of wind) 0.27 | circuit 0.54 | crosswind circuit 2.00
+  61/72 checks
+GATE DMGGEAR: FAIL

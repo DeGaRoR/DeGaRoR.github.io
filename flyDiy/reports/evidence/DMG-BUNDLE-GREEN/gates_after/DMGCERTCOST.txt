@@ -1,0 +1,40 @@
+GATE DMGCERTCOST (G1890-G1892): the certificate's cost, its envelope against the uncut one, the store
+Cub:
+  ok   1. 1807 frames stepped (budget 1809; the uncut certificate 2779)
+  ok   1. 10.5 s in node (ceiling 18 s; the uncut 14.8 s; the target ~5 s: 5.5 s over) - static 0.9, settle 1.2, drop 0.6, dropLevel 0.3, dropOne 0.3, drop473 0.3, taxiRough 4.3, ground 0.4, flown 0.6, flownElev 0.7, flownRud 0.4, flownElevF 0.5
+  ok   2. the envelope against the uncut (stored): equal to the bit
+Jodel:
+  ok   1. 1792 frames stepped (budget 1792; the uncut certificate 2764)
+  ok   1. 19.4 s in node (ceiling 32 s; the uncut 29.3 s; the target ~5 s: 14.4 s over) - static 1.8, settle 2.1, drop 0.8, dropLevel 0.7, dropOne 0.7, drop473 0.8, taxiRough 8.1, ground 0.3, flown 0.9, flownElev 1.2, flownRud 0.7, flownElevF 1.1
+  ok   2. the envelope against the uncut (stored): equal to the bit
+metal Cessna:
+  ok   1. 1831 frames stepped (budget 1831; the uncut certificate 2803)
+  ok   1. 16.3 s in node (ceiling 30 s; the uncut 25.9 s; the target ~5 s: 11.3 s over) - static 0.8, settle 1.8, drop 0.7, dropNoseUp 0.5, dropOne 0.5, drop473 0.7, taxiRough 7.0, ground 0.3, flown 1.2, flownElev 1.2, flownRud 0.5, flownElevF 1.0
+  ok   2. the envelope against the uncut (stored): equal to the bit
+Cessna floats:
+  ok   1. 1795 frames stepped (budget 1795; the uncut certificate 3055)
+  ok   1. 25.6 s in node (ceiling 42 s; the uncut 40.2 s; the target ~5 s: 20.6 s over) - static 2.0, settle 3.7, drop 1.9, bow 1.1, dropStep 1.2, dropOne 1.6, dropDriftR 1.3, dropDriftL 1.6, drop473 1.7, wWeave 4.4, ground 0.5, flown 1.4, flownElev 1.4, flownRud 0.6, flownElevF 1.3
+  ok   2. the envelope against the uncut (stored): equal to the bit
+twin floatplane:
+  ok   1. 1786 frames stepped (budget 1791; the uncut certificate 3046)
+  ok   1. 24.6 s in node (ceiling 48 s; the uncut 38.4 s; the target ~5 s: 19.6 s over) - static 2.7, settle 3.9, drop 1.7, bow 0.9, dropStep 1.5, dropOne 1.2, dropDriftR 1.3, dropDriftL 1.1, drop473 1.3, wWeave 4.3, ground 0.5, flown 1.1, flownElev 1.4, flownRud 0.6, flownElevF 1.1
+  ok   2. the envelope against the uncut (stored): equal to the bit
+3. the store (node, an in-memory IndexedDB):
+  ok   a miss reads null
+  ok   kept
+  ok   the second page load stamps from the store in 4.0 ms (< 50), the envelope to the bit
+  ok   a flipped value refused (checksum)
+  ok   another version refused
+  ok   another physics refused
+  ok   another member count refused
+  ok   a NaN refused
+  ok   another key refused
+  ok   the good record passes
+  ok   a corrupt record reads null and is deleted
+3. the store (headless Chromium, the bench worker):
+  ok   page 1: a miss, the worker computed it in 9.8 s and the page kept it
+  ok   the worker's certificate is node's (the same key; worst relative difference 3.2e-8, < 1e-6: the two V8s' last bits)
+  ok   page 2: read from the store and stamped in 3.3 ms (< 50), the same envelope
+  ok   a corrupted record is refused and deleted
+  ok   a stale record (another GEN_CERT_V) is refused and deleted
+GATE DMGCERTCOST: PASS

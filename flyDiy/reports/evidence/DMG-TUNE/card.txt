@@ -1,0 +1,5 @@
+cub        CARD BROKE AT 6.009 wing0R:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WF"}
+jodel      CARD BROKE AT 6.048 wing0L:root fitting first {"seam":"bond","how":"tension","cls":"wing","tags":"WB-WF"}
+metal      CARD BROKE AT 6.017 wing0R:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WB"}
+floats     CARD BROKE AT 6.080 wing0L:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BL-WB"}
+twinFloats CARD BROKE AT 6.032 wing0L:strut fitting first {"seam":"fitting","how":"tension","cls":"wing","tags":"S1BR-WF"}

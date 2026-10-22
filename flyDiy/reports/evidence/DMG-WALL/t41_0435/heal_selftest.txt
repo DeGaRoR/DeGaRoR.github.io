@@ -1,0 +1,7 @@
+DMGHEAL selftest: the heal as it was (held records only) must turn the heal row red
+  crash 1 (the wing strike): {"br":55,"recs":126,"deadRecs":19,"deadTris":13195,"cutIdx":16092,"held":126,"torn":1843,"healLetGo":0}
+  the skin off: {"recs":126,"deadRecs":19,"deadTris":13195,"cutIdx":0,"held":0,"torn":0,"healLetGo":0}
+  the fresh flight, the skin on: {"over":false,"live":true,"br":0,"recs":126,"deadRecs":8,"deadTris":10529,"cutIdx":0,"held":0,"torn":0,"healLetGo":0}
+  path B (crash -> the shed -> roll out): {"sameModel":true,"live":true,"oldRecsStale":0,"rollResets":0,"recs":126,"deadRecs":0,"deadTris":0,"cutIdx":0,"held":0,"torn":0,"healLetGo":0}
+  ok    the fault turned the heal row red: THE LAST CRASH'S TEARS ON THE FRESH FLIGHT: 10529 torn in 8 records, 0 triangles cut from the drawn index
+GATE DMGHEAL-SELFTEST: PASS

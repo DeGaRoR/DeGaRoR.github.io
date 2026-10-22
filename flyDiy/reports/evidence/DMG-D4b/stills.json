@@ -1,0 +1,2192 @@
+{
+ "at": "2026-10-05T16:57:26.308Z",
+ "cases": {
+  "taxi": {
+   "label": "a taxi into a trunk at 3 m/s, the throttle shut (the prop strike: the blades curl)",
+   "shots": [
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "tag": "after",
+     "file": "reports/evidence/DMG-D4b/taxi_1_after.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "tag": "after",
+     "file": "reports/evidence/DMG-D4b/taxi_2_after.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "tag": "skin",
+     "file": "reports/evidence/DMG-D4b/taxi_1_skin.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "tag": "skin",
+     "file": "reports/evidence/DMG-D4b/taxi_2_skin.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "tag": "before",
+     "file": "reports/evidence/DMG-D4b/taxi_1_before.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "tag": "before",
+     "file": "reports/evidence/DMG-D4b/taxi_2_before.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    }
+   ],
+   "intact": [
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     },
+     "file": "reports/evidence/DMG-D4b/taxi_1_intact.jpg"
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    }
+   ],
+   "stage": {
+    "steps": 286,
+    "crashed": true,
+    "over": true,
+    "reason": "a fus member broke",
+    "broken": 10,
+    "brokeUp": false,
+    "frameMed": 53.1,
+    "frameP95": 68.3,
+    "frameMax": 236.7,
+    "wreck": {
+     "on": true,
+     "active": true,
+     "parts": [
+      {
+       "kind": "eng",
+       "gone": false,
+       "why": null,
+       "crush": null
+      },
+      {
+       "kind": "spinner",
+       "gone": false,
+       "why": null,
+       "crush": 0.035
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.079
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.104
+      },
+      {
+       "kind": "wheel",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0.001
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0.001
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0.003
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0.009
+      },
+      {
+       "kind": "pane",
+       "gone": false,
+       "why": null,
+       "crush": 0.003
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -522.48,
+        33.44,
+        28.49
+       ],
+       "tris": 8207
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -522.6,
+        33.39,
+        28.87
+       ],
+       "tris": 5015
+      }
+     ],
+     "strikes": [
+      {
+       "eng": 0,
+       "what": "trunk",
+       "rpm": 950,
+       "V": 3.43,
+       "E": 12685,
+       "pBreak": 0,
+       "breaks": false,
+       "lost": -1,
+       "curl": [
+        0.4,
+        0.48
+       ],
+       "dent": 0.019,
+       "nb": 2,
+       "R": 0.968
+      }
+     ],
+     "eyeCut": null,
+     "eye": null,
+     "cab": {
+      "bay": 0,
+      "d0": 0.163
+     },
+     "ms": {
+      "plan": 4.700000047683716,
+      "release": 9.600000023841858,
+      "frame": 0
+     }
+    },
+    "skin": {
+     "on": true,
+     "recs": 100,
+     "ms": {
+      "records": 94.60000002384186,
+      "event": 42.09999978542328,
+      "frames": 1.7000000476837158,
+      "pose": 46.60000002384186,
+      "recordsT": 95.60000014305115,
+      "eventT": 44.69999980926514,
+      "poseT": 3107.3000000715256,
+      "frameMax": 180.80000007152557,
+      "n": 105
+     },
+     "removed": 1619,
+     "torn": 1166,
+     "tris": 166550,
+     "riding": 499650
+    }
+   },
+   "clip": {
+    "skinTris": 58015,
+    "furnitureOutside": {
+     "sampled": 19110,
+     "past3cm": 157,
+     "share": 0.0082,
+     "worst": 0.205
+    },
+    "debrisInside": {
+     "sampled": 9497,
+     "past3cm": 0,
+     "share": 0,
+     "worst": 0
+    }
+   }
+  },
+  "trunk-0": {
+   "label": "a trunk at 30 m/s, the centreline",
+   "shots": [
+    {
+     "cam": [
+      200,
+      22,
+      14
+     ],
+     "tag": "after",
+     "file": "reports/evidence/DMG-D4b/trunk-0_1_after.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      300,
+      45,
+      20
+     ],
+     "tag": "after",
+     "file": "reports/evidence/DMG-D4b/trunk-0_2_after.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      120,
+      12,
+      10
+     ],
+     "tag": "after",
+     "file": "reports/evidence/DMG-D4b/trunk-0_3_after.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      200,
+      22,
+      14
+     ],
+     "tag": "skin",
+     "file": "reports/evidence/DMG-D4b/trunk-0_1_skin.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      300,
+      45,
+      20
+     ],
+     "tag": "skin",
+     "file": "reports/evidence/DMG-D4b/trunk-0_2_skin.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      120,
+      12,
+      10
+     ],
+     "tag": "skin",
+     "file": "reports/evidence/DMG-D4b/trunk-0_3_skin.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      200,
+      22,
+      14
+     ],
+     "tag": "before",
+     "file": "reports/evidence/DMG-D4b/trunk-0_1_before.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      300,
+      45,
+      20
+     ],
+     "tag": "before",
+     "file": "reports/evidence/DMG-D4b/trunk-0_2_before.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      120,
+      12,
+      10
+     ],
+     "tag": "before",
+     "file": "reports/evidence/DMG-D4b/trunk-0_3_before.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    }
+   ],
+   "intact": [
+    {
+     "cam": [
+      200,
+      22,
+      14
+     ],
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     },
+     "file": "reports/evidence/DMG-D4b/trunk-0_1_intact.jpg"
+    },
+    {
+     "cam": [
+      300,
+      45,
+      20
+     ],
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    },
+    {
+     "cam": [
+      120,
+      12,
+      10
+     ],
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    }
+   ],
+   "stage": {
+    "steps": 1358,
+    "crashed": true,
+    "over": true,
+    "reason": "broke up: the fuselage parted (S0BR off the core)",
+    "broken": 143,
+    "brokeUp": true,
+    "frameMed": 48.4,
+    "frameP95": 83.1,
+    "frameMax": 150.7,
+    "wreck": {
+     "on": true,
+     "active": true,
+     "parts": [
+      {
+       "kind": "eng",
+       "gone": true,
+       "why": "loose",
+       "crush": null
+      },
+      {
+       "kind": "spinner",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.471
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.484
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.484
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.001
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.001
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.001
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.001
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.001
+      },
+      {
+       "kind": "blade",
+       "gone": true,
+       "why": "strike",
+       "crush": null
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -476.87,
+        32.91,
+        66.66
+       ],
+       "tris": 1087
+      },
+      {
+       "kind": "eng",
+       "why": "loose",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -473.48,
+        33,
+        81.14
+       ],
+       "tris": 43173
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -247.97,
+        42.45,
+        358.22
+       ],
+       "tris": 1520
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -488.49,
+        32,
+        61.73
+       ],
+       "tris": 11544
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -473.22,
+        32.66,
+        69.5
+       ],
+       "tris": 751
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -493.05,
+        32.99,
+        60.26
+       ],
+       "tris": 13242
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -477.76,
+        33.13,
+        64.57
+       ],
+       "tris": 13242
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -472.72,
+        32.76,
+        68.17
+       ],
+       "tris": 8324
+      },
+      {
+       "kind": "pane",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -483.26,
+        32.79,
+        60.08
+       ],
+       "tris": 32
+      },
+      {
+       "kind": "pane",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -482.91,
+        32.79,
+        60.49
+       ],
+       "tris": 61
+      }
+     ],
+     "strikes": [
+      {
+       "eng": 0,
+       "what": "trunk",
+       "rpm": 0,
+       "V": 28.7,
+       "E": 190429,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 1,
+       "curl": [
+        0.87,
+        0
+       ],
+       "dent": 0.06,
+       "nb": 2,
+       "R": 0.968
+      }
+     ],
+     "eyeCut": null,
+     "eye": null,
+     "cab": {
+      "bay": 0,
+      "d0": 0.163
+     },
+     "ms": {
+      "plan": 3.3000000715255737,
+      "release": 22.199999928474426,
+      "frame": 0.10000002384185791
+     }
+    },
+    "skin": {
+     "on": true,
+     "recs": 100,
+     "ms": {
+      "records": 94.60000002384186,
+      "event": 49.799999952316284,
+      "frames": 1.7000000476837158,
+      "pose": 49.39999997615814,
+      "recordsT": 103.2000002861023,
+      "eventT": 771.4000000953674,
+      "poseT": 13096.500000834465,
+      "frameMax": 180.80000007152557,
+      "n": 452
+     },
+     "removed": 49753,
+     "torn": 28937,
+     "tris": 166550,
+     "riding": 499650
+    }
+   },
+   "clip": {
+    "skinTris": 44916,
+    "furnitureOutside": {
+     "sampled": 12981,
+     "past3cm": 182,
+     "share": 0.014,
+     "worst": 0.275
+    },
+    "debrisInside": {
+     "sampled": 0,
+     "past3cm": 0,
+     "share": 0,
+     "worst": 0
+    }
+   }
+  },
+  "trunk-2.5": {
+   "label": "a trunk at 30 m/s, the wing 2.5 m out (DMG-D4a's wing still)",
+   "shots": [
+    {
+     "cam": [
+      200,
+      22,
+      16
+     ],
+     "tag": "after",
+     "file": "reports/evidence/DMG-D4b/trunk-2.5_1_after.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      250,
+      55,
+      26
+     ],
+     "tag": "after",
+     "file": "reports/evidence/DMG-D4b/trunk-2.5_2_after.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      200,
+      22,
+      16
+     ],
+     "tag": "skin",
+     "file": "reports/evidence/DMG-D4b/trunk-2.5_1_skin.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      250,
+      55,
+      26
+     ],
+     "tag": "skin",
+     "file": "reports/evidence/DMG-D4b/trunk-2.5_2_skin.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      200,
+      22,
+      16
+     ],
+     "tag": "before",
+     "file": "reports/evidence/DMG-D4b/trunk-2.5_1_before.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      250,
+      55,
+      26
+     ],
+     "tag": "before",
+     "file": "reports/evidence/DMG-D4b/trunk-2.5_2_before.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    }
+   ],
+   "intact": [
+    {
+     "cam": [
+      200,
+      22,
+      16
+     ],
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     },
+     "file": "reports/evidence/DMG-D4b/trunk-2.5_1_intact.jpg"
+    },
+    {
+     "cam": [
+      250,
+      55,
+      26
+     ],
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    }
+   ],
+   "stage": {
+    "steps": 494,
+    "crashed": true,
+    "over": true,
+    "reason": "a wing member broke",
+    "broken": 120,
+    "brokeUp": false,
+    "frameMed": 49.2,
+    "frameP95": 84.5,
+    "frameMax": 94.2,
+    "wreck": {
+     "on": true,
+     "active": true,
+     "parts": [
+      {
+       "kind": "eng",
+       "gone": false,
+       "why": null,
+       "crush": null
+      },
+      {
+       "kind": "spinner",
+       "gone": false,
+       "why": null,
+       "crush": 0.009
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.424
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.372
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": false,
+       "why": null,
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.212
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.212
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.268
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.268
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.268
+      },
+      {
+       "kind": "blade",
+       "gone": true,
+       "why": "strike",
+       "crush": null
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -453.77,
+        32.58,
+        90.67
+       ],
+       "tris": 1153
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -456.1,
+        32.84,
+        88.14
+       ],
+       "tris": 13242
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -465.33,
+        33.03,
+        84.52
+       ],
+       "tris": 8412
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -466.14,
+        32.8,
+        82.39
+       ],
+       "tris": 4890
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -464.3,
+        32.71,
+        81.5
+       ],
+       "tris": 19
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -466.43,
+        32.8,
+        79.02
+       ],
+       "tris": 21
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -464.47,
+        32.84,
+        82.83
+       ],
+       "tris": 34
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -467.76,
+        32.77,
+        79.32
+       ],
+       "tris": 30
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -464.96,
+        32.91,
+        85.32
+       ],
+       "tris": 40
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -466.42,
+        32.56,
+        83.71
+       ],
+       "tris": 13242
+      }
+     ],
+     "strikes": [
+      {
+       "eng": 0,
+       "what": "ground",
+       "rpm": 0,
+       "V": 24.34,
+       "E": 136940,
+       "pBreak": 0.88,
+       "breaks": true,
+       "lost": 0,
+       "curl": [
+        0,
+        0.79
+       ],
+       "dent": 0.056,
+       "nb": 2,
+       "R": 0.968
+      }
+     ],
+     "eyeCut": null,
+     "eye": null,
+     "cab": {
+      "bay": 0,
+      "d0": 0.163
+     },
+     "ms": {
+      "plan": 3,
+      "release": 22.199999928474426,
+      "frame": 0
+     }
+    },
+    "skin": {
+     "on": true,
+     "recs": 100,
+     "ms": {
+      "records": 94.60000002384186,
+      "event": 49.799999952316284,
+      "frames": 1.7000000476837158,
+      "pose": 49.39999997615814,
+      "recordsT": 107.00000059604645,
+      "eventT": 1385.1000002622604,
+      "poseT": 18675.200001597404,
+      "frameMax": 180.80000007152557,
+      "n": 661
+     },
+     "removed": 44808,
+     "torn": 27068,
+     "tris": 166550,
+     "riding": 499650
+    }
+   },
+   "clip": {
+    "skinTris": 48560,
+    "furnitureOutside": {
+     "sampled": 9645,
+     "past3cm": 79,
+     "share": 0.0082,
+     "worst": 0.719
+    },
+    "debrisInside": {
+     "sampled": 37660,
+     "past3cm": 8,
+     "share": 0.0002,
+     "worst": 0.062
+    }
+   }
+  },
+  "nosein": {
+   "label": "a nose-in on the ground (180 km/h, 10 m/s, 60 deg; DMG-D4a's nose-in still)",
+   "shots": [
+    {
+     "cam": [
+      150,
+      20,
+      12
+     ],
+     "tag": "after",
+     "file": "reports/evidence/DMG-D4b/nosein_1_after.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      235,
+      28,
+      14
+     ],
+     "tag": "after",
+     "file": "reports/evidence/DMG-D4b/nosein_2_after.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      150,
+      20,
+      12
+     ],
+     "tag": "skin",
+     "file": "reports/evidence/DMG-D4b/nosein_1_skin.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      235,
+      28,
+      14
+     ],
+     "tag": "skin",
+     "file": "reports/evidence/DMG-D4b/nosein_2_skin.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      150,
+      20,
+      12
+     ],
+     "tag": "before",
+     "file": "reports/evidence/DMG-D4b/nosein_1_before.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      235,
+      28,
+      14
+     ],
+     "tag": "before",
+     "file": "reports/evidence/DMG-D4b/nosein_2_before.jpg",
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     }
+    }
+   ],
+   "intact": [
+    {
+     "cam": [
+      150,
+      20,
+      12
+     ],
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     },
+     "file": "reports/evidence/DMG-D4b/nosein_1_intact.jpg"
+    },
+    {
+     "cam": [
+      235,
+      28,
+      14
+     ],
+     "census": {
+      "px": 0,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 0,
+      "greyOrBlack": 0,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    }
+   ],
+   "stage": {
+    "steps": 556,
+    "crashed": true,
+    "over": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "broken": 144,
+    "brokeUp": true,
+    "frameMed": 48.2,
+    "frameP95": 63,
+    "frameMax": 91.2,
+    "wreck": {
+     "on": true,
+     "active": true,
+     "parts": [
+      {
+       "kind": "eng",
+       "gone": false,
+       "why": null,
+       "crush": null
+      },
+      {
+       "kind": "spinner",
+       "gone": false,
+       "why": null,
+       "crush": 0.01
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.689
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.66
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.003
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.002
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.003
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.003
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.333
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.002
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.312
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.333
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.333
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.144
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.144
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.082
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.082
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.082
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.184
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.169
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.082
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.082
+      },
+      {
+       "kind": "blade",
+       "gone": true,
+       "why": "strike",
+       "crush": null
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -416.2,
+        32.36,
+        120.85
+       ],
+       "tris": 1153
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -511.12,
+        33.02,
+        39.15
+       ],
+       "tris": 8210
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -511.93,
+        32.87,
+        39.73
+       ],
+       "tris": 4186
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -508.9,
+        32.89,
+        39.1
+       ],
+       "tris": 8324
+      },
+      {
+       "kind": "pane",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -511.47,
+        32.95,
+        37.04
+       ],
+       "tris": 20
+      },
+      {
+       "kind": "pane",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -508.4,
+        32.91,
+        41.08
+       ],
+       "tris": 13
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -506.07,
+        32.9,
+        41.61
+       ],
+       "tris": 22
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -504.74,
+        32.93,
+        44.79
+       ],
+       "tris": 17
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -505.56,
+        32.78,
+        42.92
+       ],
+       "tris": 13242
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -507.9,
+        32.82,
+        43.48
+       ],
+       "tris": 13242
+      }
+     ],
+     "strikes": [
+      {
+       "eng": 0,
+       "what": "ground",
+       "rpm": 0,
+       "V": 47.04,
+       "E": 511487,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 0,
+       "curl": [
+        0,
+        0.77
+       ],
+       "dent": 0.06,
+       "nb": 2,
+       "R": 0.968
+      }
+     ],
+     "eyeCut": null,
+     "eye": null,
+     "cab": {
+      "bay": 0,
+      "d0": 0.163
+     },
+     "ms": {
+      "plan": 2,
+      "release": 22.199999928474426,
+      "frame": 0
+     }
+    },
+    "skin": {
+     "on": true,
+     "recs": 100,
+     "ms": {
+      "records": 94.60000002384186,
+      "event": 49.799999952316284,
+      "frames": 1.7000000476837158,
+      "pose": 49.39999997615814,
+      "recordsT": 110.40000081062317,
+      "eventT": 1781.9000005722046,
+      "poseT": 25599.900002360344,
+      "frameMax": 180.80000007152557,
+      "n": 941
+     },
+     "removed": 59504,
+     "torn": 42984,
+     "tris": 166550,
+     "riding": 499650
+    }
+   },
+   "clip": {
+    "skinTris": 40763,
+    "furnitureOutside": {
+     "sampled": 12009,
+     "past3cm": 28,
+     "share": 0.0023,
+     "worst": 0.294
+    },
+    "debrisInside": {
+     "sampled": 0,
+     "past3cm": 0,
+     "share": 0,
+     "worst": 0
+    }
+   }
+  },
+  "cockpit": {
+   "label": "the severe nose-in from the cockpit view (the camera rule)",
+   "shots": [],
+   "intact": [],
+   "stage": {
+    "steps": 900,
+    "crashed": true,
+    "over": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "broken": 144,
+    "brokeUp": true,
+    "frameMed": 48.8,
+    "frameP95": 62.9,
+    "frameMax": 110.7,
+    "wreck": {
+     "on": true,
+     "active": true,
+     "parts": [
+      {
+       "kind": "eng",
+       "gone": false,
+       "why": null,
+       "crush": null
+      },
+      {
+       "kind": "spinner",
+       "gone": false,
+       "why": null,
+       "crush": 0.01
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.689
+      },
+      {
+       "kind": "cowl",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.66
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "wheel",
+       "gone": true,
+       "why": "off",
+       "crush": 0
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.003
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.312
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.002
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.003
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.003
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.333
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "off",
+       "crush": 0.002
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.312
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.333
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.333
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.333
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.144
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.144
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.082
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.082
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.082
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.184
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.169
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.082
+      },
+      {
+       "kind": "pane",
+       "gone": true,
+       "why": "crushed",
+       "crush": 0.082
+      },
+      {
+       "kind": "blade",
+       "gone": true,
+       "why": "strike",
+       "crush": null
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -484.16,
+        32.76,
+        61.77
+       ],
+       "tris": 1153
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -511.3,
+        33.21,
+        38.12
+       ],
+       "tris": 11968
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -488,
+        32.68,
+        60.5
+       ],
+       "tris": 344
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -510.81,
+        32.9,
+        38.65
+       ],
+       "tris": 8324
+      },
+      {
+       "kind": "pane",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -511.16,
+        32.97,
+        36.89
+       ],
+       "tris": 18
+      },
+      {
+       "kind": "pane",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -508.71,
+        33,
+        40.79
+       ],
+       "tris": 10
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -504.11,
+        32.88,
+        43.96
+       ],
+       "tris": 22
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -491.63,
+        32.68,
+        56.25
+       ],
+       "tris": 12
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": false,
+       "sunk": false,
+       "x": [
+        -486.78,
+        32.78,
+        60.25
+       ],
+       "tris": 5
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -505.45,
+        32.78,
+        42.69
+       ],
+       "tris": 13242
+      },
+      {
+       "kind": "wheel",
+       "why": "off",
+       "asleep": true,
+       "sunk": false,
+       "x": [
+        -506.44,
+        32.81,
+        44.78
+       ],
+       "tris": 13242
+      }
+     ],
+     "strikes": [
+      {
+       "eng": 0,
+       "what": "ground",
+       "rpm": 0,
+       "V": 22.87,
+       "E": 120866,
+       "pBreak": 0.74,
+       "breaks": true,
+       "lost": 0,
+       "curl": [
+        0,
+        0.92
+       ],
+       "dent": 0.051,
+       "nb": 2,
+       "R": 0.968
+      }
+     ],
+     "eyeCut": "the cabin parted",
+     "eye": {
+      "depth": 0.236,
+      "vol": 2.351,
+      "why": "the cabin parted"
+     },
+     "cab": {
+      "bay": 0,
+      "d0": 0.163
+     },
+     "ms": {
+      "plan": 4.199999928474426,
+      "release": 22.199999928474426,
+      "frame": 0.10000002384185791
+     }
+    },
+    "skin": {
+     "on": true,
+     "recs": 100,
+     "ms": {
+      "records": 94.60000002384186,
+      "event": 49.799999952316284,
+      "frames": 1.7000000476837158,
+      "pose": 66.80000007152557,
+      "recordsT": 119.20000100135803,
+      "eventT": 2189.100000500679,
+      "poseT": 36979.10000145435,
+      "frameMax": 180.80000007152557,
+      "n": 1391
+     },
+     "removed": 59504,
+     "torn": 43073,
+     "tris": 166550,
+     "riding": 499650
+    }
+   },
+   "camAfter": "chase",
+   "eye": {
+    "cut": "the cabin parted",
+    "eye": {
+     "depth": 0.236,
+     "vol": 2.351,
+     "why": "the cabin parted"
+    },
+    "cab": {
+     "bay": 0,
+     "d0": 0.163
+    }
+   },
+   "clip": {
+    "skinTris": 40763,
+    "furnitureOutside": {
+     "sampled": 12009,
+     "past3cm": 28,
+     "share": 0.0023,
+     "worst": 0.294
+    },
+    "debrisInside": {
+     "sampled": 15,
+     "past3cm": 0,
+     "share": 0,
+     "worst": 0
+    }
+   }
+  }
+ },
+ "standClip": {
+  "skinTris": 72364,
+  "furnitureOutside": {
+   "sampled": 19542,
+   "past3cm": 317,
+   "share": 0.0162,
+   "worst": 0.27
+  },
+  "debrisInside": {
+   "sampled": 0,
+   "past3cm": 0,
+   "share": 0,
+   "worst": 0
+  }
+ }
+}

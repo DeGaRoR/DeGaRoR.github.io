@@ -1,0 +1,264 @@
+{
+ "at": "2026-10-06T15:20:10.502Z",
+ "paths": {
+  "place": {
+   "path": "place",
+   "crash": {
+    "broken": 140,
+    "worker": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "why": {
+     "hits": 0,
+     "t": 19.96666666668503,
+     "held": false,
+     "world": true
+    }
+   },
+   "exercised": true,
+   "wreck": {
+    "active": true,
+    "bodies": 10,
+    "gone": [
+     "cowl:crushed",
+     "cowl:crushed",
+     "wheel:off",
+     "wheel:off",
+     "wheel:off",
+     "pane:off",
+     "pane:off",
+     "pane:crushed",
+     "pane:crushed",
+     "pane:crushed"
+    ],
+    "debris": 10,
+    "parts": 4,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 113,
+    "broken": 140,
+    "t": 19.97,
+    "garage": false
+   },
+   "rollIn": "ok",
+   "shed": true,
+   "from": "w2",
+   "set": "w2",
+   "rollOut": "bGo",
+   "world": true,
+   "after": {
+    "active": false,
+    "bodies": 0,
+    "gone": [],
+    "debris": 0,
+    "parts": 7,
+    "hidden": 0,
+    "collapsed": 0,
+    "skinRecs": 0,
+    "broken": 0,
+    "t": 0,
+    "garage": false
+   },
+   "giant": {
+    "meshes": [
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 3200,
+      "big": 3200,
+      "worst": 26.06,
+      "kind": "static",
+      "material": "MeshStandardMaterial #ffffff"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 2208,
+      "big": 2208,
+      "worst": 110.76,
+      "kind": "static",
+      "material": "ShaderMaterial"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 1216,
+      "big": 1216,
+      "worst": 149.6,
+      "kind": "static",
+      "material": "ShaderMaterial"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < prop:airframe_jodel_wing < prop:airframe_jodel_wing < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 35340,
+      "big": 80,
+      "worst": 2.81,
+      "kind": "static",
+      "material": "matlib:arr #ffffff"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < prop:rug_persian < prop:rug_persian < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 1100,
+      "big": 54,
+      "worst": 3.12,
+      "kind": "static",
+      "material": "matlib:arr #ffffff"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 48,
+      "big": 24,
+      "worst": 5.24,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 5.01,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 5.06,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 5.01,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 5.06,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 4.78,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 4.85,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 4.78,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 4.85,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 4.78,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     },
+     {
+      "scene": "world",
+      "chain": "Mesh < Group < Group < Scene",
+      "inFlightModel": false,
+      "key": null,
+      "sec": null,
+      "tris": 32,
+      "big": 16,
+      "worst": 4.85,
+      "kind": "static",
+      "material": "MeshStandardMaterial #33383e"
+     }
+    ]
+   },
+   "ok": true,
+   "shots": [
+    "C:\\Users\\denis\\AppData\\Local\\Temp\\claude\\D--Dev-DeGaRoR-github-io\\b3479e2b-6a03-45d0-af42-4316285bb123\\scratchpad\\r2_paths\\path_place_after_1.png",
+    "C:\\Users\\denis\\AppData\\Local\\Temp\\claude\\D--Dev-DeGaRoR-github-io\\b3479e2b-6a03-45d0-af42-4316285bb123\\scratchpad\\r2_paths\\path_place_after_2.png"
+   ]
+  }
+ }
+}

@@ -1,0 +1,10 @@
+SWEEP (THE PILOT, the SEA lane, straight across; the whole run judged until CLIMB; no nose-over = pitch on the water >= -20 deg)
+   twin on floats:  wind | water run s | swing deg (any touch) | |x| m (any touch) | pitch on the water min..max deg | skips | balks | power held back s (lowest) | class
+      2.0 |      8.7 |   4.1 (  4.1) |   3.0 (  3.0) |   -0.4 ..   9.8 | 1 | 0 |   0.0 (  - ) | ok
+      5.0 |      8.8 |  12.5 ( 12.5) |   9.0 (  9.0) |   -2.2 ..  13.2 | 2 | 0 |   0.0 (  - ) | ok
+PASS twin on floats: no nose-over at any wind (lowest pitch on the water -2.2 deg, bar -20)
+PASS twin on floats: every take-off completes (the pilot reaches CLIMB)
+PASS twin on floats: the run's swing and lane under 30, GATE SEAPLANE's (worst 12.5 deg, 9.0 m)
+
+(2 runs in 16 s on 2 processes, core /tmp/claude-0/-home-user-DeGaRoR-github-io/2fb7b6c2-75f4-50e2-b6b7-9d6440191365/scratchpad/core_base.js)
+GATE DMGFLOATTO: PASS

@@ -149,7 +149,7 @@ var DAY = (function () {
       const swing = s.diurnalC != null ? +s.diurnalC : 0;
       if (swing > 0) {
         const peak = (d.noonUtc != null ? d.noonUtc : 43200) + 3 * 3600;
-        T += 0.5 * swing * Math.cos(2 * Math.PI * (utc - peak) / 86400);
+        T += 0.5 * swing * CORE_MATH.cos(2 * Math.PI * (utc - peak) / 86400);
       }
       if (d.storm) T += d.storm.dTemp;
       d.oatEff = T;

@@ -57,6 +57,22 @@
 // strip the run card shows for a live test; `stepOf` maps the sim's own
 // phase name onto it.
 // ---------------------------------------------------------------------------
+// G2640: THE DESIGN CHECK, rendered - one line a row, the level's mark, the
+// value, and for a warn or a fail the reason and what to change. Pure (the
+// rows are data: the core makes them, CERT-SLIM reads the same ones).
+function benchDesignHtml(d) {
+  if (!d || !d.rows || !d.rows.length) return '';
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const mark = { pass: '✓', warn: '!', fail: '✗' };
+  const n = k => d.rows.filter(r => r.level === k).length;
+  return '<div class="bDc"><span>design check · ' + n('pass') + ' pass · ' + n('warn') + ' warn · ' + n('fail') + ' fail</span>' +
+    d.rows.map(r => '<div class="bDcR ' + r.level + '" title="' + esc(r.limit) + '">' +
+      '<i>' + mark[r.level] + '</i><b>' + esc(r.label) + '</b><em>' +
+      (r.value == null ? (r.level === 'pass' ? 'stable' : '—') : esc(r.value) + (r.unit ? ' ' + esc(r.unit) : '')) + '</em>' +
+      (r.level !== 'pass' ? '<div>' + esc(r.why) + (r.fix ? '<br>→ ' + esc(r.fix) : '') + '</div>' : '') +
+      '</div>').join('') + '</div>';
+}
+
 const BENCH_TESTS = [
   {
     id: 'shake',
@@ -73,16 +89,31 @@ const BENCH_TESTS = [
       const why = [];
       if ((s.climbRate || 0) < 0.3) why.push('it climbs ' + benchNum(s.climbRate, 2) + ' m/s');
       if ((s.TORun || 0) > 1100) why.push('it needs ' + benchNum(s.TORun, 0) + ' m to take off');
+      // G2640 DESIGN-TRUST: THE DESIGN CHECK rides the bench check (the user:
+      // "the first bench check should be able to detect something bad from the
+      // numbers alone ... deterministic check with real pointers"). The rows
+      // are the core's (64b_gen_design.js, genShakedown's `design`); a FAIL
+      // row withholds the certificate and its fix is the card's fix; a WARN
+      // row is said and certifies.
+      const dsg = s.design && s.design.rows ? {
+        verdict: s.design.verdict,
+        rows: s.design.rows.map(r => ({ id: r.id, group: r.group, label: r.label, level: r.level,
+                                        value: r.value, unit: r.unit, limit: r.limit, why: r.why, fix: r.fix })) } : null;
+      const dFail = dsg ? dsg.rows.filter(r => r.level === 'fail') : [];
+      for (const r of dFail) why.push(r.label.toLowerCase() + ' fails (' + r.value + (r.unit ? ' ' + r.unit : '') + ')');
+      const flies = !!s.flyableCircuit, sound = !dFail.length;
       return {
-        verdict: s.flyableCircuit ? 'FLIES A CIRCUIT' : 'WILL NOT FLY A CIRCUIT',
-        ok: !!s.flyableCircuit,
+        verdict: !flies ? 'WILL NOT FLY A CIRCUIT' : !sound ? 'FLIES, BUT THE DESIGN FAILS' : 'FLIES A CIRCUIT',
+        ok: flies && sound,
+        design: dsg,
         // the plaque is this test's real output; the line here is its headline
         note: benchNum(s.Vs * 3.6, 0) + ' km/h stall · ' +
               benchNum(s.climbRate, 2) + ' m/s climb · ' +
               benchNum(s.TORun, 0) + ' m take-off',
         why: why.join('; '),
-        fix: s.flyableCircuit ? '' : 'power against weight: a bigger engine, a coarser '
-           + 'propeller, less structure, or more wing area. The plaque\'s rows say which.',
+        fix: !flies ? 'power against weight: a bigger engine, a coarser '
+           + 'propeller, less structure, or more wing area. The plaque\'s rows say which.'
+           : dFail.map(r => r.fix).filter(Boolean).join('; '),
         fills: 'plaque',
         // G208: THE TRIM ADVISOR's first reading — the tunnel's stabiliser
         // setting, in degrees; the elevator is neutral at cruise by its
@@ -263,9 +294,13 @@ const BENCH_TESTS = [
       const L = rep.landing || null, T = f.td || null;
       const eventful = (rep.verdicts || []).length > 0;
       const ok = !!f.arrived;
+      // DMG-D4b (train 41): a damaged aeroplane is not certified, and the card says why in plain words (app.js flArrival)
+      const dmg = !ok && f.damaged ? String(f.damaged) : null;
       return {
         verdict: ok ? (f.manual ? 'ARRIVED, BY HAND' : eventful ? 'FLEW THE CIRCUIT, WITH NOTES' : 'FLEW THE CIRCUIT')
+                    : dmg ? 'NOT CERTIFIED'
                     : String(f.outcome || rep.outcome || 'no arrival').toUpperCase().replace(/-/g, ' '),
+        damaged: dmg, wreck: !ok && !!f.wreck,
         ok,
         note: (L ? 'landing run ' + benchNum(L.run, 0) + ' m · touchdown '
                  + benchNum(L.sink, 2) + ' m/s · ' + benchNum(L.pastAim, 0) + ' m past the aim'
@@ -273,7 +308,7 @@ const BENCH_TESTS = [
                : 'no landing')
           + (f.t ? ' · ' + benchNum(f.t / 60, 0) + ' min' : '')
           + (eventful ? ' · ' + rep.verdicts.map(v => v.code).join(', ') : ''),
-        fix: ok ? ''
+        fix: ok ? '' : dmg ? 'Not certified - the aeroplane was damaged: ' + dmg + '.'
            : 'the phase it stopped in names the problem: a rejected take-off is '
            + 'power or field, a climb that never came is power against weight, '
            + 'a broken circuit is control authority.',
@@ -921,6 +956,8 @@ function benchInit(api) {
     // certificate is held — the airworthiness card follows the test's own
     if (!wasPassed && passed()) award(t, r, () => awardMaster(after));
     else award(t, r, after);
+    // G2742 (STORY-PAGE): the page hears the airworthiness certificate land (app.js: the career's story; nobody else sets it)
+    if (!wasPassed && passed() && typeof window.BENCH_CERTIFIED === 'function') { try { window.BENCH_CERTIFIED(); } catch (e) {} }
   }
   // THE AIRWORTHINESS CERTIFICATE (A9, the user: "we need like a master
   // sticker"): one bigger roundel, the registration and the day, worn on
@@ -1406,7 +1443,7 @@ function benchInit(api) {
     if (!U || !r) { done(); return; }
     const M = (window.STICKERS && window.STICKERS.META && window.STICKERS.META[t.id]) || null;
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-    U.aw.className = r.ok ? '' : 'no';
+    U.aw.className = r.ok ? '' : r.wreck ? 'no wreck' : 'no';   // (DMG-D4b: a wreck's card in the corner, bench.css)
     U.aw.innerHTML =
       '<div class="bAk">' + (r.ok ? 'certificate awarded' : 'not awarded') + '</div>' +
       '<div class="bAn">' + esc(t.name) + '</div>' +
@@ -1417,7 +1454,7 @@ function benchInit(api) {
       (!r.ok && (r.why || r.fix) ? '<div class="bAf">' +
         (r.why ? esc(r.why) + '<br>' : '') + (r.fix ? '→ ' + esc(r.fix) : '') + '</div>' : '') +
       (r.warn ? '<div class="bAw">' + esc(r.warn) + '</div>' : '') +
-      adviceHtml(r) + destroyHtml(r) +
+      adviceHtml(r) + destroyHtml(r) + benchDesignHtml(r.design) +
       '<div class="bAd">' + esc(r.when || today()) + (r.ok ? ' · the sticker is on the fuselage' : '') +
       ' · click to close</div>';
     U.aw.hidden = false;
@@ -1546,7 +1583,7 @@ function benchInit(api) {
         (r && !r.ok && !r.stale && !r.running && (r.why || r.fix)
           ? '<div class="bWhy">' + (r.why ? r.why + ' — ' : '') + (r.fix || '') + '</div>' : '') +
         (r && r.warn && !r.stale && !r.running ? '<div class="bWarn">' + r.warn + '</div>' : '') +
-        (r && !r.stale && !r.running ? adviceHtml(r) + destroyHtml(r) : '') +
+        (r && !r.stale && !r.running ? adviceHtml(r) + destroyHtml(r) + benchDesignHtml(r.design) : '') +
         (adv ? '<div class="bAdv">' + adv + '</div>' : '') +
         '</div>');
     }
@@ -1589,4 +1626,4 @@ function benchInit(api) {
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { BENCH_TESTS, BENCH_COSMETIC, BENCH_LOOK, BENCH_STATE_ROWS, BENCH_FP_SCHEME,
                      benchStripCosmetic, benchCanon, benchSame, benchHash, LOAD_TIP_CAP, benchLeverLine, benchDestroyLine,
-                     benchFingerprint, benchFlightStep, benchTrimWords, benchNum };
+                     benchFingerprint, benchFlightStep, benchTrimWords, benchNum, benchDesignHtml };

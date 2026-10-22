@@ -80,7 +80,7 @@ for (const v of F.variants) {
 // ---- 3. the raster, loaded ---------------------------------------------------------------------------------------
 console.log('3. the raster, loaded');
 const fixture = fs.readFileSync(K.fixturePath(ID), 'utf8');
-const recOf = drop => { let r = PG.unwrap(fixture).rec; if (drop.length) r = PG.dropPlaces(r, drop).rec; return r; };
+const recOf = V => K.dropOf(PG, PG.unwrap(fixture).rec, V);   // (METLA-WRAPUP: the variant's own drop, the seaplane base kept)
 const build = r => (GENS[r.gen] ? GENS[r.gen].build(r.P, 0) : null);
 // G995: made with THE VARIANT'S OWN RECORD, as the page's is (app.js makeWorld(0, { premises: premisesPlaced, island })):
 // a world made with PG.DEF() has another base ground under 32 of the 92 cells, and a gate composing there passed a
@@ -90,7 +90,7 @@ function cookWorld(rec) {
   boot.premCook = IN.premCook(ID);
   return C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: PG.envelope(null, rec), catalogue: CAT });
 }
-const VD = K.VARIANTS[0], rec0 = recOf(VD.drop);
+const VD = K.VARIANTS[0], rec0 = recOf(VD);
 const WC = cookWorld(rec0);
 let tq = Date.now(); const OC = WC.premises.set(rec0, { catalogue: CAT, globals: GENS, build, pool: [], raster: true }); const tCook = Date.now() - tq;
 const WL = K.islandWorld(ID, VD);
@@ -140,12 +140,18 @@ console.log('4. a stale cook is detected');
   const r1 = JSON.parse(JSON.stringify(PG.expandAreas(PG.normalise(JSON.parse(JSON.stringify(rec0))))));   // (v1.36: the v1 view - a flatten is an area's terraform in the record)
   const cellOfLocal = (x, z) => [Math.floor(x / S), Math.floor(z / S)];
   const cooked = new Set(mine.map(c => c.c.join(',')));
-  const M = r1.layers.terrain.find(m => m.kind === 'flatten' && m.poly && cooked.has(cellOfLocal(m.poly[0][0], m.poly[0][1]).join(',')));
+  // (G3014: HOME's pad first - with the user's areas folded in, the FIRST flatten under a cooked cell is no longer it, and the one
+  //  found then stales no cell for +1 cm; the row means a flatten whose cell the cook holds)
+  const underCook = m => m.kind === 'flatten' && m.poly && cooked.has(cellOfLocal(m.poly[0][0], m.poly[0][1]).join(','));
+  const M = r1.layers.terrain.find(m => m.id === 't_pad' && underCook(m)) || r1.layers.terrain.find(underCook);
   if (ok(!!M, 'a flatten under a cooked cell (' + (M ? M.id : '-') + ')')) {
     M.level = (+M.level || 0) + 0.01;
     const W1 = cookWorld(rec0), O1 = W1.premises.set(r1, { catalogue: CAT, globals: GENS, build, pool: [], raster: true });
     const r = O1.rasterCooked || { taken: 0, stale: 0 };
-    ok(r.taken > 0 && r.taken < mine.length && r.stale > ISL.raster.cells.length - mine.length, 'the edited cells are refused, the rest load (' + r.taken + ' taken, ' + r.stale + ' refused)');
+    // (G3014: the refused are the unedited load's own (refusedWant - the other variant's cells) plus the edited ones: every cell the
+    //  edit refuses comes off the taken. It was held to cells - mine, which counted the cells of NO variant asked for as refused
+    //  - 89 of them since the user's scenery grew the cook: 649 cells, 448 the default's, 112 the other's)
+    ok(r.taken > 0 && r.taken < mine.length && r.stale > refusedWant && r.taken + r.stale === mine.length + refusedWant, 'the edited cells are refused, the rest load (' + r.taken + ' taken, ' + r.stale + ' refused)');
     const boot = IN.islandBoot(ID, { noCook: true }), WLz = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: PG.envelope(null, rec0), catalogue: CAT });
     WLz.premises.set(r1, { catalogue: CAT, globals: GENS, build, pool: [], raster: true });
     const b = M.poly.reduce((a, p) => [Math.min(a[0], p[0]), Math.min(a[1], p[1]), Math.max(a[2], p[0]), Math.max(a[3], p[1])], [1e9, 1e9, -1e9, -1e9]);

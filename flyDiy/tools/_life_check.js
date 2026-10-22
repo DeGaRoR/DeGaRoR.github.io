@@ -15,6 +15,7 @@
 //      has the LIFE section; the world pack loads it before the renderer; the world ticks the premises for it.
 // node tools/_life_check.js [--verbose]
 'use strict';
+require('./_core_math_global.js');   // (T41b: CORE_MATH before a core file required alone - 00_registry's)
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -190,6 +191,26 @@ const stand = cfg => { L.set(cfg || null); L.standNow(); return L.items(); };
   verdict(L.trafficOf(road) > 0 && a.length > 0, 'the overrides gone, the life is back');
 }
 
+// ---- 2c. TOWN-200 (A0 22 Oct): THE STAND IN PARTS - a house that lands stands its own part over the base (the roads, the
+// aprons, the masts are not stood again); a house at a time gives the items the whole stand gives, and a house taken down
+// takes its part with it ----------------------------------------------------------------------------------------------
+{
+  const full = stand(null), all = [...HOUSES], LANDED = new Map(), was = host.houses;
+  host.houses = () => LANDED;
+  stand(null);                                         // the base, no house landed yet
+  const s1 = L.stats.stands, a1 = L.stats.adds;
+  const run = () => { for (let i = 0; i < 60; i++) L.tick(); };
+  for (const [id, h] of all) { LANDED.set(id, h); L.built(); run(); }
+  const inc = L.items();
+  verdict(L.stats.stands === s1 && L.stats.adds - a1 === all.length && JSON.stringify(inc) === JSON.stringify(full),
+    'houses landing one at a time: ' + (L.stats.adds - a1) + ' parts stood, no whole stand (' + (L.stats.stands - s1) + '), the whole stand\'s items (' + inc.length + ' vs ' + full.length + ')');
+  LANDED.delete('h2'); L.built(); run();
+  const less = L.items(), m = new Map(all.filter(([id]) => id !== 'h2'));
+  host.houses = () => m; const ref = stand(null);
+  verdict(less.length < inc.length && JSON.stringify(less) === JSON.stringify(ref), 'a house taken down takes its part (' + inc.length + ' -> ' + less.length + '), the rest the whole stand\'s without it');
+  host.houses = was; stand(null);
+}
+
 // ---- 3. THE DRAW ---------------------------------------------------------------------------------------------
 {
   stand(null);
@@ -218,7 +239,15 @@ const stand = cfg => { L.set(cfg || null); L.standNow(); return L.items(); };
   verdict(RP.includes('built: h.built || null'), 'each house keeps its generator\'s report (HOUSES[].built)');
   verdict((RP.match(/trafficOf\(rd\)/g) || []).length >= 3, 'the traffic asks it for a road the record left without');
   verdict(/if \(LIFE\) \{ LIFE\.set\(rec\.life\); LIFE\.dirty\(\);/.test(RP), 'a rebuild hands it the record\'s life block');
-  verdict(/k: 'life',\s+label: 'LIFE'/.test(UI) && UI.includes('function lifeRows()') && UI.includes("if (section === 'life') return lifeRows();"), 'the world editor has the LIFE section');
+  verdict(/if \(built && LIFE\) LIFE\.built\(\);/.test(RP), 'a house landing stands its own life part (TOWN-200: LIFE.built, not a whole re-stand)');
+  // (G2910 SCENERY-ED-2 made the tabs ACTION PALETTES: a section's rows moved from the inspector's body into the palette
+  //  drawer under its tab - lifeRows(P) writes into the drawer palette.refresh() hands it. The section is reached when
+  //  its tab is on the rail (SECTIONS), the drawer dispatches 'life' to lifeRows, and lifeRows writes its rows - the
+  //  on/off, the draw distance, a slider a kind; GATE SCENERYED 7 opens the tab headless and finds the section)
+  const palR = (UI.match(/const palette = \{ refresh\(\) \{[\s\S]*?\n  \} \};/) || [''])[0], lifeF = (UI.match(/function lifeRows\(P\) \{[\s\S]*?\n  \}\n/) || [''])[0];
+  verdict(/k: 'life',\s+label: 'LIFE'/.test(UI) && /else if \(section === 'life'\) lifeRows\(d\);/.test(palR)
+    && /rows\.section\(P, 'LIFE'\)/.test(lifeF) && /rows\.pills\(P, 'life'/.test(lifeF) && /rows\.slider\(P, 'draw distance'/.test(lifeF) && /for \(const \[k, lab, mx, why\] of SL\.CATS\)/.test(lifeF),
+    'the world editor has the LIFE section: its tab, the palette drawer\'s dispatch to lifeRows, and its rows (on / off, draw distance, a slider a kind)');
   const iL = B.indexOf("['src/viewer', 'scenery_life.js']"), iR = B.indexOf("['src/viewer', 'render_premises.js']");
   verdict(iL > 0 && iR > iL, 'the world pack loads it before the renderer');
   verdict(RW.includes('premisesR.stats.life)'), 'the world ticks the premises while the life is on');

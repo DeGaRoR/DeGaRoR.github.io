@@ -115,6 +115,25 @@ const PILOT_STYLES = {
   brisk:    { name: 'brisk',    rejectFrac: 0.70, bank: 1.15, VapprK: 0.97, gaHigh: 80,
               gaXT: 20, taxiK: 1.25, hTurnK: 0.75, reserve: 50,  patW: 2.3, needK: 0.9 },
 };
+// G2460 (PERSONA-2): THE STABILISED APPROACH - the criteria every person flies FINAL by (Flight Safety Foundation, ALAR
+// Tool Kit Briefing Note 7.1 'Stabilized Approach'; FAA AC 120-71B, its stabilized-approach criteria): by the gate the
+// aeroplane is on the correct flight path, at a speed not under Vref nor more than Vref + 20 kt, sinking no more than
+// 1000 fpm, in the landing configuration; "an approach that becomes unstabilized below [the gate] requires an
+// immediate go-around". Scaled to a light aeroplane's visual circuit:
+//   gateFt / gateK   the gate: FSF's VMC 500 ft is a transport's (a third of its 1500 ft pattern); a light aeroplane's is
+//                    300 ft, never above 0.6 of this circuit's own height (the Cub's 115 m circuit: 69 m)
+//   vLo / vHi        the speed band about the approach speed asked (Vref + the gust's half): -5 kt / +10 kt (FSF's
+//                    +20 kt on a 140 kt Vref is +14 %; +10 kt on a 50-60 kt light aeroplane is +17-20 %)
+//   devDeg / devMin  the path: off the slope by more than 0.7 deg seen from the aim (a PAPI's full deflection; the
+//                    ILS's 'one dot' is 0.35 deg on a 0.7 deg half-scale), never tighter than the capture's 4 m
+//   sinkK / sinkAdd  the sink: FSF's 1000 fpm is 1.35 x a transport's 3 deg sink at 140 kt; here 1.5 x the slope's own
+//   / sinkMax        rate (the ground speed x the slope) or that rate + 1 m/s, whichever larger, never over 1000 fpm
+//   xtDeg            the centreline: off it by more than 2 deg seen from the aim (the style's gaXT closer in)
+//   dwell            s of instability (accumulated, leaking at half the rate while stable) before the decision - x the
+//                    person's `decisionK` (PILOT_PROFILE_KNOBS: a student goes round sooner, a ham-fist late)
+//   tau              s, the filter on the speed and the sink (a gust is not an unstable approach)
+const PILOT_STAB = { gateFt: 300, gateK: 0.6, vLo: 2.6, vHi: 5.1, devDeg: 0.7, devMin: 4, sinkK: 1.5, sinkAdd: 1.0, sinkMax: 5.08,
+                     xtDeg: 2, dwell: 2, tau: 1 };
 // the rail's labels and the tick each phase sits under (app.js reads this)
 const PILOT_PHASES = {
   DEPART: ['DEPART', 'DEPART'], TAXI: ['TAXI', 'TAXI'], LINEUP: ['LINE UP', 'LINEUP'],
@@ -125,7 +144,16 @@ const PILOT_PHASES = {
   FINAL: ['FINAL', 'APPROACH'], GOAROUND: ['GO-AROUND', 'APPROACH'], GLIDE: ['GLIDE', 'APPROACH'], FLARE: ['FLARE', 'FLARE'],
   ROLLOUT: ['ROLLOUT', 'ROLLOUT'], STOPPED: ['STOPPED', 'STOPPED'],
   BOX: ['AP BOX', 'CRUISE'],
+  ROUTE: ['ROUTE', 'ENROUTE'], LOITER: ['HOLDING', 'ENROUTE'],   // G2120 ROUTE-DRAW: the drawn route, its hold at the end
 };
+// G2520 ALTIPORT-ARRIVAL: THE FLARE NEVER ARMS MORE THAN THIS OVER THE AIM'S GROUND (m; FINAL's sanity guard, nor ever
+// under the strip). The arming height is (A.flareK 1.3) x A.flareAgl x the person's flareK + an altiport's grade x V:
+// the validated aeroplanes' flareAgl (genAP: 3.2 s of the approach's sink) - the Cub 3.94, the Jodel 4.74, the twin
+// on floats 4.86, the metal Cessna 7.56, the Cessna on floats 8.27 m - arm at 5.1 / 6.2 / 6.3 / 9.8 / 10.8 m (expert),
+// 18.0 m at the most (the floats with the custom person's top flareK 1.3 and Skyline Altiport's 10 % at 1.3 VAppr);
+// genAP's own ceiling (flareAgl 12 m) x 1.3 x 1.3 is 20.3 m. 25 m clears all of it; a flare armed higher is a
+// misreading of the height (a ridge before the threshold), not a flare
+const FLARE_ARM_MAX = 25;
 const PILOT_UNITS = {
   kt: v => v * 1.943844, fpm: v => v * 196.8504, ft: h => h * 3.28084, kmh: v => v * 3.6,
   deg: r => ((r * 180 / Math.PI) % 360 + 360) % 360,
@@ -139,22 +167,30 @@ const PILOT_UNITS = {
 //              hamFist   the rms of a deterministic disturbance on de / da / dr (stick units)
 //   quirks     overRotate  rad added to the rotation's attitude target
 //              flareK      x the flare height (< 1: a late flare)
+//              decisionK   x the go-around's dwell (G2460: the stabilised approach's and 'high on the slope'; < 1 decides
+//                          sooner - goes round more; > 1 late)
 //   limits     bankK     x the circuit's bank limit (on top of the style's)
 //              comfortG  the load factor the pilot will pull in a turn (caps the bank: acos(1 / g))
 //   technique  field     null (the pilot's choice) | 'short' | 'normal' - the approach technique forced
 //              slip      true: the forward slip on ANY final high on energy at idle (the expert: short ones only)
 //              stepHold  true: the step-attitude hold on the water (39b servoStepHold)
+// G2510 (train 41, the PILOT COORDINATOR): THE STUDENT'S REACTION 0.45 -> 0.35 s. DMG-DAMP G1885 made the deformation
+// damper honest (it no longer damps the rigid rotation); the student's delayed loop had leaned on that artificial damping:
+// on the Cub at HOME, calm, 8 seeds, 5 of 8 flights gave up after go-arounds, the final's speed rms 0.26-0.40 m/s (master
+// 0.14-0.17), seed 1935 ground-looped on the roll-out. At 0.35 s (the auto grip 0.25 -> 0.30): 8 of 8 completed, rms
+// 0.14-0.18; 0.40 s left it 0.20-0.27, a grip of 0.3 at 0.45 s still gave up once. Still slower than the club (0.25 s),
+// the same over-rotation, late flare, gentle turns and loose hands.
 const PILOT_PROFILES = {
   expert:  { name: 'expert', label: 'Expert', desc: 'the pilot as tuned: no delay, steady hands, the technique each strip asks',
              active: false },
   club:    { name: 'club pilot', label: 'Club', desc: 'a weekend pilot: a beat late, gentle hands, shallow turns, a slightly late flare',
              active: true, skill: { reaction: 0.25, smooth: 0.8, hamFist: 0.005 }, quirks: { flareK: 0.95 }, limits: { bankK: 0.9, comfortG: 1.3 } },
   student: { name: 'student', label: 'Student', desc: 'twenty hours in: slow to react, gentle turns, over-rotates, flares late, a normal approach everywhere',
-             active: true, skill: { reaction: 0.45, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal' } },
+             active: true, skill: { reaction: 0.35, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8, decisionK: 0.5 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal' } },
   bush:    { name: 'bush pilot', label: 'Bush', desc: 'lands in clearings: quick, steeper turns, the short-field technique and a slip on every final',
              active: true, skill: { reaction: 0.15, smooth: 1.1, hamFist: 0.003 }, limits: { bankK: 1.15, comfortG: 1.6 }, technique: { field: 'short', slip: true } },
   hamfist: { name: 'ham-fist', label: 'Ham-fist', desc: 'big snatchy inputs: the stick never still, a little over-rotation - safe, never smooth',
-             active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02 } },
+             active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02, decisionK: 2 } },
 };
 // G2085 (PILOT-PERSONA): THE CUSTOM PERSON'S KNOBS - every hook as a slider (the menu's advanced fold, a saved player's
 // `pilot.custom`), with the range a person can be set to. pilotProfile CLAMPS an object profile to these, so a saved
@@ -168,6 +204,7 @@ const PILOT_PROFILE_KNOBS = [
   { sec: 'skill', k: 'gain', label: 'grip', unit: '×', kind: 'range', lo: 0.3, hi: 1.5, step: 0.05, d: null, nullLabel: 'auto', desc: 'how hard the pilot answers an error (auto: eased to suit the reaction; over 1 over-controls)' },
   { sec: 'quirks', k: 'overRotate', label: 'over-rotation', unit: '°', kind: 'range', lo: 0, hi: 0.07, step: 0.0035, d: 0, toUi: r => r * 180 / Math.PI, desc: 'degrees of extra nose-up at the rotation' },
   { sec: 'quirks', k: 'flareK', label: 'flare height', unit: '×', kind: 'range', lo: 0.6, hi: 1.3, step: 0.05, d: 1, desc: 'under 1 a late flare, over 1 an early one' },
+  { sec: 'quirks', k: 'decisionK', label: 'decisions', unit: '×', kind: 'range', lo: 0.5, hi: 3, step: 0.1, d: 1, desc: 'how long an unstable approach is put up with before going round: under 1 sooner, over 1 late' },
   { sec: 'limits', k: 'bankK', label: 'bank', unit: '×', kind: 'range', lo: 0.5, hi: 1.3, step: 0.05, d: 1, desc: 'the circuit\'s bank against the expert\'s' },
   { sec: 'limits', k: 'comfortG', label: 'comfort g', unit: 'g', kind: 'range', lo: 1.05, hi: 2, step: 0.05, d: null, desc: 'the load factor the pilot will pull in a turn (off: the bank limit alone)' },
   { sec: 'technique', k: 'field', label: 'field technique', kind: 'pick', opts: [null, 'normal', 'short'], d: null, desc: 'the approach flown everywhere (own: the strip decides)' },
@@ -181,7 +218,7 @@ function pilotProfile(p) {
   const g = (sec, k, d) => (P[sec] && P[sec][k] != null) ? P[sec][k] : d;
   const R = { name: P.name, active: !!P.active,
            reaction: g('skill', 'reaction', 0), smooth: g('skill', 'smooth', 1), hamFist: g('skill', 'hamFist', 0), gain: g('skill', 'gain', null),
-           overRotate: g('quirks', 'overRotate', 0), flareK: g('quirks', 'flareK', 1),
+           overRotate: g('quirks', 'overRotate', 0), flareK: g('quirks', 'flareK', 1), decisionK: g('quirks', 'decisionK', 1),
            bankK: g('limits', 'bankK', 1), comfortG: g('limits', 'comfortG', null),
            field: g('technique', 'field', null), slip: !!g('technique', 'slip', false), stepHold: !!g('technique', 'stepHold', false) };
   // G2085: an OBJECT profile (the custom person, a saved player, a link) is clamped to the knobs' ranges - a named
@@ -219,6 +256,7 @@ function makePilot(sim, def, world, opts) {
   const PRF = pilotProfile(opts.profile);
   const PRA = PRF.active;
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const WATER_LEAD = 0.5, WATER_BAND = 0.05;   // G2470: the water's pull leads the nose (ROLL)
   // P0.4 (PILOT-ROADMAP §6.3 rule 5): THE MACHINE SHEET — built lazily (the
   // shakedown behind it costs ~2 s; the garage memoises one, a gate may pass
   // one, `opts.shakedown` is a value or a getter). `opts.sheet` (the flag)
@@ -270,6 +308,16 @@ function makePilot(sim, def, world, opts) {
   // (G396.4: neutral through the hump, the 0.15 ceiling) already say what
   // the stick does; the thrust line is theirs to hold, not this rule's.
   const highThrust = !sim.hydro && THRUST_ARM > (A.highThrustArm ?? 0.30);
+  // G1880 (DMG-FLOATTO): THE THRUST COUPLE'S LEVER - THRUST_ARM x the static thrust over the weight (m): how far
+  // forward full power moves the CG, in effect. The user's twin on floats 0.27 (two 582s 0.54 m over the CG, T/W 0.51),
+  // the Cessna on floats 0.003, the Cub -0.006, the Jodel 0.017. Its water take-off's porpoise law (39b S.porpoise)
+  // arms on it
+  const THRUST_LEVER = (() => {
+    const PP = POWERPLANTS[def.params.powerplant], PR = def.params.prop || (PP && PP.prop);
+    let M = 0;
+    for (const nd of def.nodes) M += nd.m;
+    return PR && M > 0 ? THRUST_ARM * PR.Tstatic * (def.params.nEngines || 1) / (M * 9.81) : 0;
+  })();
   const TW = (() => {
     const N = def.nodes, R = def.refs;
     let Lwb = 4.0;
@@ -294,10 +342,13 @@ function makePilot(sim, def, world, opts) {
   // this pilot flies it with its own laws on (the calm-air course trim, P1.D's
   // ground steer, the aileron into wind, the water's branch and stick top)
   const restH0 = servoRestHeight(def);      // B5: the design pose's CG rest height over the ground
+  // G3077 (TORQUE-RETUNE-66): THE NOSEWHEEL THAT WILL NOT LIFT - past Vr with the stick on the servo's 0.35 top for a second
+  // and the nose not up, the pull goes on to the stick's full travel (ROLL, below); rotStuckT the time it has been so
+  let rotPull = false, rotStuckT = 0;
   const SV = makeServos(sim, def, { pilot: 'pilot', now: () => ap.t, trike, rotateTD, TW, features: {
-    trimCalm: true, groundP1D: true, xwBank: true, water: true,
+    trimCalm: true, groundP1D: true, xwBank: true, water: true, porpoise: true,
     // G396.2 / G970: on the step the stick comes all the way back, through LIFTOFF
-    deTop: (onG) => (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : 0.35 } });
+    deTop: (onG) => (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : (rotPull && ap.phase === 'ROLL') ? (A.deRotateFull ?? 0.70) : 0.35 } });
   const taxiFF = (() => {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
@@ -347,12 +398,12 @@ function makePilot(sim, def, world, opts) {
   // calibrated xAim (-520) is 70 m short of the touchdown target along the
   // landing direction u = (ux, uz). k = which of the pattern's two targets.
   const mkFrame = (a, sx, sz) => {
-    let ux = snap(Math.cos(a.hdg)), uz = snap(Math.sin(a.hdg));
+    let ux = snap(CORE_MATH.cos(a.hdg)), uz = snap(CORE_MATH.sin(a.hdg));
     if (sx !== undefined) {
       const d = ux * sx + uz * sz;
       if (d < 0) { ux = -ux; uz = -uz; }
     } else { ux = -ux; uz = -uz; }
-    const k = (ux * Math.cos(a.hdg) + uz * Math.sin(a.hdg)) > 0 ? 1 : 0;
+    const k = (ux * CORE_MATH.cos(a.hdg) + uz * CORE_MATH.sin(a.hdg)) > 0 ? 1 : 0;
     const PT = ap.patOf(a);
     const td = (PT && PT.approaches && PT.approaches[k]) ? PT.approaches[k].td : a.tdz;
     return { ux, uz, ox: td[0] + 450 * ux, oz: td[1] + 450 * uz, k, td: [td[0], td[1]] };
@@ -392,16 +443,25 @@ function makePilot(sim, def, world, opts) {
     // path L1 follows (null on the ground and in the climb-out). The map, the HUD's plan line and
     // the 3-D legs read THIS - nothing re-derives the plan.
     intent: { phase: 'ROLL', legs: null, legI: 0, to: null, x: null, z: null, h: null, hField: null, hGround: null, vs: 0, vsCmd: null,
-              vsUp: null, vsDn: null, climbMax: null, sinkIdle: null, path: null, pathI: 0, taxi: null },
+              vsUp: null, vsDn: null, climbMax: null, sinkIdle: null, path: null, pathI: 0, taxi: null, route: null },
   };
+  // G1882: the water take-off law's throttle ceiling, readable (GATE DMGFLOATTO): a getter, never a store per frame -
+  // measured, writing a double onto `ap` every update cost the pilot's update 4-8 % on the water
+  Object.defineProperty(ap, 'thrCap', { get: () => SV.thrCap });   // (not enumerable: nothing that copies `ap` sees it)
   const say = (code, note) => {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });
   };
   let phaseT = 0;
+  // G3077 (TORQUE-RETUNE-66): the water rudders held down through a crosswind run's hump (ROLL, below) - the handle given
+  // back to the rule the moment the phase changes; wrUp: raised for good this run (the hull labours)
+  let wrHold = false, wrUp = false, wrLanded = false;   // wrLanded: G3329, the blades lowered on this landing run
   const go = (ph) => {
     if (ph !== ap.phase) ap.report.phases.push({ t: Math.round(ap.t * 10) / 10, phase: ph });
     ap.phase = ph; phaseT = 0;
+    if (wrHold) { sim.ctl.wr = null; wrHold = false; }
+    if (ph === 'ROLLOUT') wrLanded = false;
     piv = null;                                  // G1938: a pivot belongs to the phase that began it
+    { const S_ = ap.afcs.sel; S_.wK = S_.vFloor = S_.toCap = S_.thrFull = S_.flc = S_.thMin = null; if (flcOn) { flcOn = false; SV.IthGain = null; SV.pitchK = 1; } }   // G2125: the climb law's selections are the phase's that set them
   };
   const PATS = {};
   const patOpts = { half: (def.params.gen && def.params.gen.span > 0) ? def.params.gen.span / 2 : null };
@@ -430,6 +490,12 @@ function makePilot(sim, def, world, opts) {
   // floats) - no destination is planned on a surface it may not use (stripLandable: the circuit, else the fallback)
   const gearK = typeof stripGear === 'function' ? stripGear(def && def.spec && def.spec.gear ? def : sim) : 'wheels';
   ap.gear = gearK;
+  // G2450: why `to` is no destination for this aeroplane (a land strip shorter than the sheet's landing run), or null
+  const shortOfRun = (from, to) => {
+    if (!to || to === from || to.surface === 4 || to.water || !(to.len > 0)) return null;
+    const S = sheetOf(), run = S && S.LDGrun;
+    return run > to.len ? (to.name || to.id) + ' has ' + Math.round(to.len) + ' m of strip for a ' + Math.round(run) + ' m landing run' + (S.TORun > to.len ? ' (and a ' + Math.round(S.TORun) + ' m take-off)' : '') + ' - not going there' : null;
+  };
   const landable = (from, to) => {
     if (typeof stripLandable !== 'function') return to;
     const L = stripLandable(gearK, world && world.aerodromes, from, to);
@@ -455,7 +521,7 @@ function makePilot(sim, def, world, opts) {
     const site = (siteOrTaxiOut && !Array.isArray(siteOrTaxiOut)) ? siteOrTaxiOut : null;
     ap.site = site;
     ap.atHold = (opts && opts.atHold) || null;
-    ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; holdN = 0; planN = 0;
+    ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; holdN = 0; planN = 0; ap.pivSpot = null; ap.pivSpotT = null; ap.climbHold = null; ap.toWaitT = null; ap.flareGuard = null; ap.flareGuardN = 0;
     ap.taxiOut = Array.isArray(siteOrTaxiOut) && siteOrTaxiOut.length ? siteOrTaxiOut
                : (site && site.taxiOut) || null;
     to = landable(from, to);
@@ -471,6 +537,12 @@ function makePilot(sim, def, world, opts) {
     // arrival with no go-around left and 'committed' already said)
     rollN = 0; ap.gaN = 0; ap.gaWhy = null; committed = false; committedTO = false;
     ap.budget = Math.max(ap.budget, ap.t + routeBudget(from, to));
+    // G2450 EAST-POINT-DEPART: A STRIP SHORTER THAN THE LANDING RUN IS NOT A DESTINATION. The machine sheet's landing run
+    // (LDGrun: the touchdown speed's stop) over the strip's length: the Jodel (183 m) and the metal Cessna (249 m) sent to
+    // East Point's 150 m went round twice there - the Jodel broke up on the second go-around, the Cessna diverted and
+    // overran Tamgas Hill. The pilot says so and does not go (the outcome 'declined'; the player picks another To)
+    const tooShort = shortOfRun(from, to);
+    if (tooShort) { say('strip-too-short', tooShort); ap.report.outcome = ap.report.outcome || 'declined'; go('STOPPED'); return; }
     go('DEPART');
   };
   // G1945 DEST-TO: THE DESTINATION, CHANGED - like an autopilot's (38b_dest.js says what a flight's To is).
@@ -489,11 +561,12 @@ function makePilot(sim, def, world, opts) {
   ap.nextTo = null;
   let replanReq = false, replanning = false;
   const DEST_KEPT = ['DEPART', 'TAXI', 'LINEUP', 'STOP', 'HOLD', 'ROLL', 'ABORT', 'LIFTOFF', 'PUTDOWN', 'CLIMB', 'GOAROUND', 'BOX'];
-  const DEST_REPLAN = ['CROSSWIND', 'DOWNWIND', 'BASE', 'ENROUTE', 'INBOUND', 'FINAL'];
+  const DEST_REPLAN = ['CROSSWIND', 'DOWNWIND', 'BASE', 'ENROUTE', 'INBOUND', 'FINAL', 'ROUTE', 'LOITER'];   // G2120: off the drawn route too
   ap.setDest = (to) => {
     if (!to || !ap.route) return 'none';
     const from = ap.route.from;
     to = landable(from, to);
+    { const tooShort = shortOfRun(from, to); if (tooShort) { say('strip-too-short', tooShort + ' - keeping ' + (ap.route.to.name || ap.route.to.id)); return 'none'; } }   // G2450
     const ph = ap.phase;
     if (!DEST_KEPT.includes(ph) && !DEST_REPLAN.includes(ph)) { ap.nextTo = to; return 'queued'; }
     ap.nextTo = null;
@@ -505,6 +578,47 @@ function makePilot(sim, def, world, opts) {
     if (DEST_REPLAN.includes(ph)) { replanReq = true; return 'replan'; }
     if (ph === 'GOAROUND') replanReq = true;   // the go-around climbs out first; its first leg is then re-planned the cross-country way
     return 'kept';
+  };
+
+  // G2120 ROUTE-DRAW: THE DRAWN ROUTE (38c_route.js), flown - the user: "can we now draw a trajectory (control points
+  // + altitude) for the autopilots?". ap.flyRoute(record) takes a route record and returns where it stands:
+  //   'armed'   on the ground, in the take-off or the climb-out, the box: the climb-out hands over to the ROUTE phase
+  //             at the circuit's crosswind height instead of planning the arrival
+  //   'now'     on a leg of the arrival, on a route, in its hold: the route begins at the next step, from here
+  //   'queued'  the landing committed or done: armed for whoever departs next (the page chains it)
+  //   'none'    no point to fly; ap.flyRoute(null) leaves a route being flown (the arrival planned from here)
+  // ap.drawn is the state, published as ap.intent.route: { route, legs, state: armed | flying | hold | done | left, i,
+  // cap[i] (the closest pass at each point: d m, dh m over the asked altitude, t s), hold, perf }. The ROUTE phase flies
+  // its legs as the circuit's are flown (filleted at the turn radius - the fly-by - and followed by L1) and the
+  // altitude as the profile has it (the gradient from point to point, read 5 s ahead: TECS's height gain is 0.2 /s,
+  // so the lead IS the gradient's feed-forward), clamped by TECS's own limits; the end is the record's: 'hold'
+  // (LOITER: an orbit through the last point at its altitude), 'home' (the field the flight left, the arrival and its
+  // circuit planned from there), 'land' (the nearest strip this gear lands on with room)
+  ap.drawn = null;
+  let routeGo = false, routePerfV = null;
+  ap.routePerf = () => routePerfV || (routePerfV = (typeof routePerf === 'function' ? routePerf(sheetOf(), A, bankLim) : null));
+  // a drawn leg's speed: the point's own, inside the aeroplane's Vmin..Vmax; none, the cruise (the leg is flown AND
+  // filleted at it - buildAirPath's speedOf)
+  const routeVleg = (L) => { const PF = ap.routePerf(); return L.V != null ? Math.max(PF ? PF.Vmin : 0, Math.min(PF ? PF.Vmax : 200, L.V)) : ap.VCruise; };
+  ap.flyRoute = (record) => {
+    const ph = ap.phase;
+    if (record == null) {
+      const D = ap.drawn;
+      if (!D) return 'none';
+      if (D.state === 'flying' || D.state === 'hold') { D.state = 'left'; replanReq = true; say('route-left', 'off the drawn route - planning the arrival from here'); return 'left'; }
+      ap.drawn = null; routeGo = false; return 'none';
+    }
+    const R = typeof routeNormalise === 'function' ? routeNormalise(record) : null;
+    if (!R || !R.pts.length) return 'none';
+    const legs = routeLegs(R, world);
+    ap.drawn = { route: R, legs, state: 'armed', i: 0, n: legs.length, cap: legs.map(() => ({ d: Infinity, dh: null, t: null })), hold: null,
+                 perf: ap.routePerf(), name: R.name, end: R.end };
+    let len = 0; for (let k = 1; k < R.pts.length; k++) len += Math.hypot(R.pts[k].x - R.pts[k - 1].x, R.pts[k].z - R.pts[k - 1].z);
+    ap.budget = Math.max(ap.budget, ap.t + 900 + 2 * len / Math.max(15, ap.VCruise || A.VCruise || 30));
+    say('route', 'the drawn route ' + R.name + ': ' + R.pts.length + ' point' + (R.pts.length > 1 ? 's' : '') + ', then ' + R.end);
+    if (DEST_REPLAN.includes(ph) && !ap.box.on) { routeGo = true; return 'now'; }
+    if (DEST_KEPT.includes(ph)) return 'armed';
+    return 'queued';
   };
 
   // ---- the servos' state lives in SV (39b_servos.js, G1570) -------------------
@@ -538,13 +652,20 @@ function makePilot(sim, def, world, opts) {
   const wrapPi = servoWrapPi;
   let pendReEng = false;
   let rollS0 = null, rollN = 0, thrRollW = 0, humpStuckT = 0;
+  let capsized = false;   // G3328: the aeroplane has been on its back (the report's outcome says so, whatever came before)
   let humpR = 0, humpPk = 0, humpPast = false;   // G790: the hull's resistance / weight on the water run, filtered; its peak; past it
   let climbMode = true, ceilT = 0, ceilingSaid = false;
+  // G2125 PILOT-PROFILE: the lift-off's level acceleration done; the height held in it; the climb-out corridor's tops
+  // (sampled once a departure, VPROFILE.topAt); the enroute plan's reactive guard engaged / its count
+  let toAccelDone = false, toHoldH = null, depC = null, vpReact = false, toLowT = 0, flcI = 0, flcTh = null, flcVt = null, flcOn = false, flcSet = false, flcSetT = 0, flcRelax = 0;
   let slopeCaptured = false, finalT0 = 0, committed = false, cardAcc = null;
+  let stabT = 0, stabVf = null, stabSf = 0, stabIn = false;   // G2460: the stabilised approach's dwell, its filters, past the gate
+  let stabPk = 0, stabWhy = null;                              // G2460: this final's longest dwell and its reason (the tolerated, named)
   let starvedSaid = false, glideTo = null, glideHdg = 0;      // G435: the forced landing
   // G381: the arc turn in progress, the latched level altitude before the
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let finalLevel = null;
+  let flThr0 = 0, flWI = 0;   // G3079 (FLOATS-FIX, PERSONA-2 G2462's): the water flare's power - the approach throttle at the flare's start, its integrator
   let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false, altG = 0;   // altG: GTRAM, the altiport's grade at the aim
   // G381.1: the power assist on the approach (see apply)
   let pAsst = 0, flLeft = Infinity;
@@ -554,6 +675,9 @@ function makePilot(sim, def, world, opts) {
   // taxi's 0.85 of rudder) and the pivot in progress { hdg, j, thr, t0 }; a trike's nosewheel turns tight enough
   const RgMin = (typeof groundRmin === 'function') ? groundRmin(def, 0.85) : Infinity;
   let piv = null, pivSaid = false, pivN = 0;
+  // G2450: the room a turn on the spot asks from a strip's end - the half-span + 1.5 m (the wing sweeps round the CG),
+  // 6 m at least (the tail's swing behind the mains)
+  const pivRoom = () => Math.max(6, ((def.params.gen && def.params.gen.span > 0) ? def.params.gen.span / 2 : 5) + 1.5);
   // G1943: THE HUMAN IN THE LOOP (a profile's skill; the expert never enters it) - the reaction's delay line on the
   // stick and pedals, the ham-fist's disturbance (an Ornstein-Uhlenbeck sequence, 0.3 s, from a fixed seed: every
   // flight of a profile is the same flight, the gates stay deterministic)
@@ -573,7 +697,7 @@ function makePilot(sim, def, world, opts) {
   // ON THE WHEELS: THE FEET ARE QUICK - the delay 0.10 s at most and the gain whole (the ground steer is the tightest
   // loop the pilot flies): 0.15 s at full gain ground-looped the Jodel, and the eased gain at 0.15 s let the Cub's
   // roll-out swing 37-62 deg; 0.10 s whole: the Jodel's roll 2.5 deg, the Cub's roll-out 0.9 deg
-  const HUM_TG = 0.15, HUM_REF = 1.0, HUM_GCAP = 0.10;
+  const HUM_TG = 0.15, HUM_REF = 1.0, HUM_GCAP = 0.10, HUM_HOLD = 3.0;   // HUM_HOLD: G2463 (deDem, below)
   // THE FLARE IS THE PERSON'S QUICKEST MOMENT: a planned manoeuvre flown with full attention - their delay there is the
   // wheels' (0.10 s at most) and their gain whole (McRuer's easing is the error-correcting loop's). MEASURED over four
   // seeds (pilot_persona --seeds): eased in the flare the pull came out at a fraction (the Wipline C172's water landing
@@ -582,15 +706,69 @@ function makePilot(sim, def, world, opts) {
   // left the Jodel student's balloon-and-drop (2.6-2.9); the wheels' delay whole: the Jodel student 0.93-1.24, the
   // ham-fists 1.09-1.99 on every seed. The person still flares LATE (flareK) with their own hands (smooth, hamFist)
   const humGain = (rx, onG) => (onG > 0 || ap.phase === 'FLARE') ? 1 : PRF.gain != null ? PRF.gain : 1 / (1 + rx / HUM_TG);
-  const humanise = (dt, onG) => {
+  // G3077 (TORQUE-RETUNE-66): A PERSON TRIMS THE BALL AS SLOWLY AS THEY FLY. ENGINE-TORQUE's slip trim (39b rollTo: the slip's
+  // integral, betaI 0.6 /s) is the expert's; behind a person's delay it closed a loop of its own - the student's final on the
+  // Cub archetype weaved bank +-22 deg, heading +-35 deg on a 6 s cycle (the honest solver, DMG-DAMP G1885: no rigid-yaw
+  // damper; with defDampMean it landed) and went round 'off the centreline by 15 m' (GATE PILOTMATRIX cub:HOME:calm:student
+  // gave-up; betaI 0: landed 0.4 m off). The person's trim runs at their own grip (humGain in the air: the student's 0.30 ->
+  // betaI 0.18: landed 0.0 m off, seed 1 0.7 m); the expert's is whole (bit-identical)
+  if (PRA) SV.betaIK = humGain(PRF.reaction, 0);
+  // G2463 (PERSONA-2): WHAT THE ELEVATOR'S STOP IS JUDGED ON - the machine's own adaptations (G975's landing flap
+  // 'the elevator cannot hold it', G399.7's Vref raised 'the elevator cannot hold this speed') read the elevator to
+  // find the AEROPLANE's authority. Under a person they read the person's HAND: the ham-fist's wander (0.05 rms) on
+  // the Wipline C172's approach trim crossed 0.30 again and again, the flap came in 1.00 -> 0.25 in six steps and Vref
+  // was raised - a flapless final 6-7 m/s fast, four seeds of four, the touchdowns 3.0-4.6 m/s. The servo's raw demand
+  // was no better (it answers the hand's pitch: the flap still came in on every seed). A person is judged on the
+  // demand's HELD part (deDem: the command before the person's delay, gain and hand, over HUM_HOLD - the trim the
+  // aeroplane asks, not the hand's swing; over HUM_REF's 1 s the ham-fist's flap still came in on one seed of four and
+  // the climb-out's speed was raised on three); the expert on the elevator, as before
+  let deDem = null, thShortH = 0;
+  const deHeld = () => PRA ? (deDem ?? SV.aDe) : SV.aDe;
+  // G3307 (AP-ADAPT, the user 18 Oct: the autopilot "can't keep it straight" on Rufus B - under a person, 19 Oct): THE
+  // LIFT-OFF IS FLOWN WITH FULL ATTENTION, as the wheels and the flare are. In the air a person flies the whole delay
+  // (the student 0.35 s) at an eased gain about the command's 1 s running mean: ~70 % of every surface a 1 s lag plus the
+  // delay, -82 deg of phase at the 4.5 s period the expert's heading / roll loops never had. Every build weaved right
+  // after the lift-off under the student and the ham-fist - the heading 15-19 deg, the bank 7-12 deg, at 1-30 m (Rufus B
+  // and the Cub alike; the expert 6-10). Through LIFTOFF, and CLIMB while under 30 m and 12 s after the lift-off, the
+  // person flies the wheels' delay (HUM_GCAP) at the whole gain; out of it, both blend back to the person's own over 3 s.
+  // The person's hands (slewK), over-rotation, wander and decisions are untouched; the expert never comes here.
+  // The delay through the window and its blend reads a RING of the person's commands (written every step) at the
+  // window's own delay, so neither the lift-off nor the blend restarts the delay line (a restart is a kick); the line
+  // restarts at the next touch as it always did. `globalThis.FLYDIY_HUM_LIFT === 'B'` (a measurement's, not a setting):
+  // the delay kept whole and the running mean's 1 s shortened to 0.3 s instead (the comparison, G3307's READY)
+  const HUM_LIFT_AGL = 30, HUM_LIFT_S = 12, HUM_LIFT_BLEND = 3;
+  const humanise = (dt, onG, agl) => {
     const c = sim.ctl;   // (the update's own `c` is not in scope here)
+    if (onG > 0) { HUM.liftT = null; HUM.liftOut = null; }
+    else if (ap.phase === 'LIFTOFF' && HUM.liftT == null) HUM.liftT = ap.t;
+    const liftWin = onG === 0 && HUM.liftT != null && HUM.liftOut == null &&
+                    (ap.phase === 'LIFTOFF' || (ap.phase === 'CLIMB' && agl < HUM_LIFT_AGL && ap.t - HUM.liftT < HUM_LIFT_S));
+    if (!liftWin && onG === 0 && HUM.liftT != null && HUM.liftOut == null) HUM.liftOut = ap.t;
+    const att = liftWin ? 1 : (HUM.liftOut != null ? Math.max(0, 1 - (ap.t - HUM.liftOut) / HUM_LIFT_BLEND) : 0);
+    const modeB = typeof globalThis !== 'undefined' && globalThis.FLYDIY_HUM_LIFT === 'B';
+    deDem = deDem == null ? c.de : deDem + (c.de - deDem) * Math.min(1, dt / HUM_HOLD);
     // ON THE WHEELS THE DELAY IS SHORT (G1943: the student's 0.45 s inside the ground steer swerved the stock build 31
     // deg on the roll, a rejected take-off every time; G2085: 0.15 s still ground-looped the Jodel) - a person on the
     // roll watches the centreline and the feet are quick; in the air the delay is whole
-    const rx = (onG > 0 || ap.phase === 'FLARE') ? Math.min(PRF.reaction, HUM_GCAP) : PRF.reaction;
-    const g = humGain(rx, onG);
+    // G2461 (PERSONA-2): ON THE WATER THERE IS NO DELAY. With ENGINE-TORQUE's standing rudder (G2080: the swirl at full
+    // power held on the step) the wheels' 0.10 s inside the water run's steer water-looped the Wipline C172's student
+    // at 10 m/s (the heading +-40 deg, the bank to 172 deg: capsized, 'rejected' at 22 s) and held the club on the hump
+    // (880 m at 8.3 m/s, rejected) on every seed - the base tree's own, before any PERSONA-2 change. Measured (seed 1,
+    // the take-off group's rudder reversals / min): 0.05 s lifted every person off once but dithered the rudder (bush
+    // 286, ham-fist 391); none: student 19, club 6, bush 6, ham-fist 147 (his hand) - the person's gain, hands and
+    // unsteadiness still fly the water, their delay does not
+    let rx = (!!sim.hydro && onG > 0) ? 0 : (onG > 0 || ap.phase === 'FLARE') ? Math.min(PRF.reaction, HUM_GCAP) : PRF.reaction;
+    let g = humGain(rx, onG), hRef = HUM_REF;
+    if (att > 0) {   // G3307: the lift-off's attention, blended
+      if (modeB) hRef = HUM_REF + (0.3 - HUM_REF) * att;
+      else { rx = rx + (Math.min(PRF.reaction, HUM_GCAP) - rx) * att; g = g + (1 - g) * att; }
+    }
+    // G3323 (2) (the Pilot coordinator's floats-person, the same guard): while the person's gain is whole the held part
+    // (HUM.ref) follows the command, so the first eased step after a whole spell (the wheels, the flare, the lift-off's
+    // window) starts from the command, not from a stale one
+    if (g === 1 && HUM.ref) { HUM.ref[0] = c.de; HUM.ref[1] = c.da; HUM.ref[2] = c.dr; }
     if (g !== 1) {
-      const a = Math.min(1, dt / HUM_REF);
+      const a = Math.min(1, dt / hRef);
       if (!HUM.ref) HUM.ref = [c.de, c.da, c.dr];
       const R = HUM.ref;
       R[0] += (c.de - R[0]) * a; R[1] += (c.da - R[1]) * a; R[2] += (c.dr - R[2]) * a;
@@ -602,21 +780,63 @@ function makePilot(sim, def, world, opts) {
       // min on the ham-fist - a vibration, not a coarse hand
       const a = Math.min(1, dt / 0.5), sq = Math.sqrt(2 * a), b = Math.min(1, dt / 0.12);
       for (let k = 0; k < 3; k++) {
-        const w = Math.sqrt(-2 * Math.log(Math.max(1e-12, humRand()))) * Math.cos(2 * Math.PI * humRand());
+        const w = Math.sqrt(-2 * Math.log(Math.max(1e-12, humRand()))) * CORE_MATH.cos(2 * Math.PI * humRand());
         HUM.x[k] += -a * HUM.x[k] + sq * w;
         HUM.y[k] += (HUM.x[k] - HUM.y[k]) * b;
       }
-      const K = PRF.hamFist * 1.12;   // the lag's rms loss (sqrt(1 + 0.12 / 0.5)) given back
-      c.de += K * HUM.y[0]; c.da += K * HUM.y[1]; c.dr += K * HUM.y[2];
+      // G2465 (PERSONA-2): THE LANDING IS THE PERSON'S STEADIEST MOMENT TOO (the delay and the gain are already the
+      // wheels' there, G2085) - the hand's wander halved in the flare and the roll-out: whole, the ham-fist's water
+      // flares met the surface at 2.48, 2.91 and 3.32 m/s (the Wipline C172, three seeds of four, a skip on each; the
+      // 2.91 off a final the stabilised-approach rule had passed); halved in the flare: 0.72-1.55 on the four. The
+      // roll-out: below (G2466)
+      // G3077 (TORQUE-RETUNE-66): ...AND ON THE WATER, THE HULL WET - a planing hull at the hump is flown with the same attention as
+      // a flare. Whole, the student's hand (with their slower hands, smooth 0.7) water-looped the Wipline C172 on the step on one
+      // seed of four (seed 1: the bank 12.7 -> -58 -> -142 deg at 15-17 m/s, 'rejected-takeoff' - pilot_persona's one FINDING;
+      // with the pre-G1885 damper, or the propeller's effects off, it flew); halved: the student and the ham-fist off the water
+      // once on all four seeds
+      const K = PRF.hamFist * 1.12 * ((ap.phase === 'FLARE' || ap.phase === 'ROLLOUT' || (sim.hydro && onG > 0)) ? 0.5 : 1);   // the lag's rms loss (sqrt(1 + 0.12 / 0.5)) given back
+      // G2466 (PERSONA-2): A STICK HELD AGAINST ITS STOP IS NOT WANDERED - the taildragger's roll-out holds the stick
+      // full back (0.35, the stop) and the ham-fist's wander there worked the tailwheel's load: the Cub's roll-out swung
+      // to 28.9 deg at 0.3 Hz, the rudder on +-0.9 (GATE PILOTMATRIX's cub:HOME:calm:hamfist, baseline 2.8; the base tree
+      // 52.3). Measured (seed 1935, the roll-out's worst heading): no rudder hand on the wheels 33.1; the slew whole
+      // 32.9; no elevator hand on the wheels 6.5; THE STOP HOLDS THE STICK 7.5 (seed 1: 3.1); and the hand halved
+      // through the roll-out (G2465) the Cub 5.0 / 3.1, the Jodel 3.3, the C172 3.9
+      const deStop = (sim.hydro && onG > 0) ? (A.deWater ?? 0.70) : 0.35;
+      if (c.de < deStop - 1e-3) c.de += K * HUM.y[0];
+      c.da += K * HUM.y[1]; c.dr += K * HUM.y[2];
     }
+    const drNow = c.dr;
     const N = Math.round(rx / Math.max(1e-3, dt));
-    if (N > 0) {
+    // G3307: the ring of the person's commands, every step (the lift-off's delay line)
+    if (!HUM.ring) {
+      HUM.rs = Math.round(Math.max(PRF.reaction, HUM_GCAP) / Math.max(1e-3, dt)) + 2; HUM.ring = new Float64Array(3 * HUM.rs); HUM.rw = 0;
+      for (let k = 0; k < HUM.rs; k++) { HUM.ring[3 * k] = c.de; HUM.ring[3 * k + 1] = c.da; HUM.ring[3 * k + 2] = c.dr; }
+    }
+    const RG = HUM.ring, RS = HUM.rs, wNow = HUM.rw;
+    RG[3 * wNow] = c.de; RG[3 * wNow + 1] = c.da; RG[3 * wNow + 2] = c.dr; HUM.rw = (wNow + 1) % RS;
+    if (onG === 0 && HUM.liftT != null && !modeB) {
+      // in the air after a lift-off: the ring at this step's delay (continuous through the window and the blend; past
+      // the blend the same N steps the line held), and the line itself restarts at the next touch
+      const r = (wNow - Math.min(N, RS - 1) + RS) % RS;
+      c.de = RG[3 * r]; c.da = RG[3 * r + 1]; c.dr = RG[3 * r + 2];
+      HUM.n = -1;
+    } else if (N > 0) {
       if (!HUM.buf || HUM.n !== N) { HUM.n = N; HUM.buf = new Float64Array(3 * (N + 1)); for (let k = 0; k <= N; k++) { HUM.buf[3 * k] = c.de; HUM.buf[3 * k + 1] = c.da; HUM.buf[3 * k + 2] = c.dr; } HUM.i = 0; }
       const B = HUM.buf, w = HUM.i, r = (w + 1) % (N + 1);
       B[3 * w] = c.de; B[3 * w + 1] = c.da; B[3 * w + 2] = c.dr;
       c.de = B[3 * r]; c.da = B[3 * r + 1]; c.dr = B[3 * r + 2];
       HUM.i = r;
     }
+    // G2464 (PERSONA-2): ON THE WHEELS THE FEET ARE NOT DELAYED - the rudder (and the steer it drives) is the one axis
+    // the delay line does not hold there. The wheels' 0.10 s (G2085) left the roll-out rudder dithering under every
+    // person (the club's landing group 60-70 reversals / min on the Cub, 110-120 on the Jodel at a 2.5 deg swing) and,
+    // with ENGINE-TORQUE's ground trim in the loop, the Cub's roll-out ground-looped on the base tree (the student 64
+    // deg off its heading and 11 m off the centreline, the ham-fist 52 deg). Measured (seed 1935, the landing group's
+    // rudder / the roll-out's worst heading): 0.05 s for every axis - the Cub club 44, the Jodel 114 (no better); the
+    // gain eased to 0.7 - the Cub's roll-out 40 deg; a pedal backlash of 0.015 - the Cub 24 deg; the feet undelayed -
+    // the Cub club 8 / 0.6 deg, the Jodel club 30 / 4.2 deg, the Cub student 16 / 1.5 deg, the Cub ham-fist 50 / 22 deg
+    // (from 52 deg). The stick keeps the person's delay on the wheels (the rotation, the hold-off's touch)
+    if (onG > 0) c.dr = drNow;
   };
   let gearH = null, onGT = 0;             // P0.8: the CG's rest height above the terrain; the contact's duration
   // P0.5 (PILOT-ROADMAP §6.3 rule 1): TECS's own state — the throttle and the
@@ -624,10 +844,14 @@ function makePilot(sim, def, world, opts) {
   // P0.6 (PILOT-ROADMAP §6.3 rules 1 and 3): THE PATH — the circuit as one
   // filleted geometry planned once, followed by one lateral law (L1) with
   // the arc's curvature fed forward; `path: false` keeps the pursuit + arc
-  let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false, vxHeld = false, vxSaid = false;
+  let holdOutLate = false;   // G2450 (ENROUTE's escape, below)
+  let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false, tightSaid = false, vxHeld = false, vxSaid = false, lvCap = false;
   let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
   // G399.7: the speed the ELEVATOR can hold — raised while it sits on its nose-up stop
-  let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false;
+  let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false, tVOkT = 0;   // tVOkT: G3081, the time the elevator has had margin (floats)
+  // G2500 (CESSNA-VREF): the speed the elevator was found to hold kept past a go-around (ap.vHeld), re-seeded on the
+  // next final (heldSeed); the landing that speed makes judged once a final (heldJudged: 'normal' -> 'short' -> refused)
+  let heldSeed = false, heldJudged = null, heldTail = null;
   // G975: the landing flap the ELEVATOR can hold (FINAL, below) - a cap that only comes down, kept for the flight
   let fLandCap = 1, fCapT = 0, deF = 0;
   let abortV0 = null, abortS0 = null, committedTO = false;
@@ -726,7 +950,11 @@ function makePilot(sim, def, world, opts) {
   const siteModelOf = (a) => {
     if (!a || typeof siteRunwayModel !== 'function' || !world || typeof world.terrainH !== 'function') return null;
     const k = a.id || (a.x + ',' + a.z);
-    if (!(k in siteModels)) { try { siteModels[k] = siteRunwayModel(a, world); } catch (e) { siteModels[k] = null; } }
+    // G2125 PILOT-PROFILE: THE RUNWAY MODEL SEES WHAT STANDS THERE - the cone's canopy is the rough perception's
+    // (44_vprofile.js obstAbove: the woodland, the island's canopy map outside the cleared fans, the houses and props, the
+    // trunks the viewer drew), not the woodland's seeds alone; read once per aerodrome, like the model
+    const pw = (typeof VPROFILE === 'object') ? Object.create(world, { canopyH: { value: (x, z, r) => VPROFILE.obstAbove(world, x, z, r) } }) : world;
+    if (!(k in siteModels)) { try { siteModels[k] = siteRunwayModel(a, pw); } catch (e) { siteModels[k] = null; } }
     return siteModels[k];
   };
   // the aeroplane's own limits, off the sheet: the steepest approach it can
@@ -750,20 +978,45 @@ function makePilot(sim, def, world, opts) {
   // not the nose - Jolene's calm day was settled by the stand's heading alone (0.12 points: a 0.4 % grade
   // against the nose), which sent the aeroplane on a 1.7 km taxi when 0.9 km went to the other end
   const TAXI_K = 1.0 / 1000;
+  // G2080 ENGINE-TORQUE: ON THE WATER THE TORQUE CHOOSES THE CROSSWIND'S SIDE. The propeller's reaction torque heels a
+  // floatplane at full power (the Lycoming hand: left float down), and across the wind the downwind float is the one
+  // that buries - the water-loop (FAA-H-8083-23: "right aileron control is usually required to offset the effect of
+  // torque when full power is applied"; torque and crosswind "can either counteract or aggravate" each other). The
+  // user's same-hand twin on floats, 5 m/s across from its right at full power, heeled onto the downwind float with
+  // the aileron already at its stop and capsized at 3 s; from its left it lifts off at 7.3 s, 28 deg of swing. So a
+  // take-off from the water scores the crosswind from the side the NET torque rolls toward: TQ_SIDE_K m/s of headwind
+  // per m/s of such crosswind - a pure crosswind's tie goes that way, any real headwind still wins. A counter-rotating
+  // pair (no net torque) and every land take-off: nothing
+  const TQ_SIDE_K = 0.15;
+  const tqHand = (() => { let s = 0; for (const e of (def.params.engines || [])) s += e.sense === -1 ? -1 : 1; return Math.sign(s); })();
+  // the crosswind FROM THE LEFT of a direction u (m/s; + = from the left), wind velocity w = [x, z] (where it goes)
+  const xwFromLeft = (u, w) => -(w[0] * u[1] - w[1] * u[0]);
+  const tqBonus = (a, u, w, mode) => (mode === 'takeoff' && tqHand && (sim.hydro || a.surface === 4)) ? TQ_SIDE_K * tqHand * xwFromLeft(u, w) : 0;
   const dirAt = (a, px, pz, mode, taxiLen) => {
-    const axx = snap(Math.cos(a.hdg)), axz = snap(Math.sin(a.hdg));
+    const axx = snap(CORE_MATH.cos(a.hdg)), axz = snap(CORE_MATH.sin(a.hdg));
     const w = windAt(a, 30);
     const M = siteModelOf(a);
     if (M && typeof siteScoreDirections === 'function') {
       let pref = [px, pz];
       // G398.3: a ONE-WAY strip (a premises runway with `approach`) names its landing direction
-      if (typeof a.landHdg === 'number') pref = [Math.cos(a.landHdg), Math.sin(a.landHdg)];
+      if (typeof a.landHdg === 'number') pref = [CORE_MATH.cos(a.landHdg), CORE_MATH.sin(a.landHdg)];
       // GTRAM: an ALTIPORT is landed uphill and LEFT DOWNHILL - its one way reverses for the take-off
       if (typeof a.landHdg === 'number' && a.altiport && mode === 'takeoff') pref = [-pref[0], -pref[1]];
       // G527.3: a strip that names its way out (runway `departure`) is left that way in calm air
       const tko = mode === 'takeoff' && typeof a.takeoffHdg === 'number';
-      if (tko) pref = [Math.cos(a.takeoffHdg), Math.sin(a.takeoffHdg)];
-      const sc = siteScoreDirections(M, w, dirLim(mode || 'land'), pref, typeof a.landHdg === 'number' || tko);
+      if (tko) pref = [CORE_MATH.cos(a.takeoffHdg), CORE_MATH.sin(a.takeoffHdg)];
+      // G2450 EAST-POINT-DEPART: A NAMED WAY OUT IS THE SURVEYED ONE. The runway model's climb-out cone is crude (from the
+      // far end, 31 m either side, the tallest tree within 20 m of each sample): at East Point the trees beside the sea
+      // end read as a 92 % climb and refused the named way (-1000) - worse than the one-way rule's -500 - and the Cub was
+      // turned round to roll the closed way, downwind, at the forest (TOUR-REAL in the game; ISLAND-TOUR-2's node to the
+      // metre). The strip's author named it because its climb-out was surveyed (GATE TOUR's census: nothing through the
+      // 1:15 surface); the cone does not refuse it. The wind on it is the roll's to judge (the go / no-go below)
+      let Ms = M;
+      if (tko) Ms = Object.assign({}, M, { dir: M.dir.map(D => (D.u[0] * pref[0] + D.u[1] * pref[1]) > 0 && D.reqClimb > 0 ? Object.assign({}, D, { reqClimb: 0 }) : D) });
+      const sc = siteScoreDirections(Ms, w, dirLim(mode || 'land'), pref, typeof a.landHdg === 'number' || tko);
+      // G2080: the torque's side, in the scorer's points (3 a m/s of headwind, G772's scale)
+      const tq = M.dir.map(D => 3 * tqBonus(a, D.u, w, mode));
+      if (tq[0] || tq[1]) { sc.score = sc.score.map((x, i) => x + tq[i]); sc.k = sc.score[0] >= sc.score[1] ? 0 : 1; }
       if (taxiLen && mode === 'takeoff') {
         const s2 = M.dir.map((D, i) => {
           const L = taxiLen[(D.u[0] * axx + D.u[1] * axz) >= 0 ? 0 : 1];
@@ -776,10 +1029,15 @@ function makePilot(sim, def, world, opts) {
       return M.dir[sc.k].u.slice();
     }
     let dx = px, dz = pz;
-    if (a.altiport && typeof a.landHdg === 'number') { const k = mode === 'takeoff' ? -1 : 1; dx = k * Math.cos(a.landHdg); dz = k * Math.sin(a.landHdg); }   // GTRAM: whatever the wind
-    else if (Math.hypot(w[0], w[1]) > 0.7) { dx = -w[0]; dz = -w[1]; }
-    else if (mode === 'takeoff' && typeof a.takeoffHdg === 'number') { dx = Math.cos(a.takeoffHdg); dz = Math.sin(a.takeoffHdg); }   // G527.3: the named way out, in calm air
-    else if (typeof a.landHdg === 'number') { dx = Math.cos(a.landHdg); dz = Math.sin(a.landHdg); }
+    if (a.altiport && typeof a.landHdg === 'number') { const k = mode === 'takeoff' ? -1 : 1; dx = k * CORE_MATH.cos(a.landHdg); dz = k * CORE_MATH.sin(a.landHdg); }   // GTRAM: whatever the wind
+    else if (Math.hypot(w[0], w[1]) > 0.7) {
+      dx = -w[0]; dz = -w[1];
+      // G2080: the headwind along each way, plus the torque's side on the water; the better way
+      const hw = sg => -(w[0] * axx + w[1] * axz) * sg + tqBonus(a, [axx * sg, axz * sg], w, mode);
+      if (tqBonus(a, [axx, axz], w, mode)) { const sg = hw(1) >= hw(-1) ? 1 : -1; dx = axx * sg; dz = axz * sg; }
+    }
+    else if (mode === 'takeoff' && typeof a.takeoffHdg === 'number') { dx = CORE_MATH.cos(a.takeoffHdg); dz = CORE_MATH.sin(a.takeoffHdg); }   // G527.3: the named way out, in calm air
+    else if (typeof a.landHdg === 'number') { dx = CORE_MATH.cos(a.landHdg); dz = CORE_MATH.sin(a.landHdg); }
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
     return [axx * sg, axz * sg];
   };
@@ -827,6 +1085,17 @@ function makePilot(sim, def, world, opts) {
     if (!world || typeof world.terrainH !== 'function' || !ap.frame) return ap.refAlt;
     const P0 = wp(ap.frame, ap.xAim, 0);
     return groundH(P0[0], P0[1]) + (gearH ?? restH0);
+  };
+  // G2520 ALTIPORT-ARRIVAL: THE STRIP'S OWN GROUND, for the flare's sanity guard (FINAL) - the aim's, and the lowest
+  // from the threshold to the aim (an uphill strip's threshold is its lowest point). Read off the terrain (the water
+  // over it), never the record's elevation: a guard that trusted the arrival's own numbers would share their error
+  const stripGround = () => {
+    if (!world || typeof world.terrainH !== 'function' || !ap.frame || !ap.route || !ap.route.to) return null;
+    const to = ap.route.to, P0 = wp(ap.frame, ap.xAim, 0), aim = groundH(P0[0], P0[1]);
+    const sThr = alongOf(ap.frame, [to.x, 0, to.z]) - to.len / 2;
+    let lo = aim;
+    for (let s = sThr; s < ap.xAim; s += 10) { const q = wp(ap.frame, s, 0); lo = Math.min(lo, groundH(q[0], q[1])); }
+    return { lo, aim };
   };
   const leftOf = (F, cg) => (cg[0] - F.ox) * F.uz - (cg[2] - F.oz) * F.ux;
   const alongOf = (F, cg) => (cg[0] - F.ox) * F.ux + (cg[2] - F.oz) * F.uz;
@@ -922,6 +1191,19 @@ function makePilot(sim, def, world, opts) {
     const D = M ? M.dir[(u[0] * M.dir[1].u[0] + u[1] * M.dir[1].u[1]) > 0 ? 1 : 0] : null;
     ap.gs = D ? clamp(Math.max(A.gs, 1.05 * D.reqGs), A.gs, Math.max(A.gs, gsMax())) : A.gs;
     ap.siteDir = D;
+    // G2125 PILOT-PROFILE: AN APPROACH STILL UNDER ITS OBSTACLE AT THE STEEPEST SLOPE THE AEROPLANE FLIES (the cone's
+    // binding tree or house) CROSSES THE THRESHOLD HIGHER: the aim moves down the strip until the slope from it clears that
+    // obstacle by 15 m - when the strip left past the moved aim still holds 1.3 x the sheet's landing run; else the
+    // direction scoring (the other end, refused past gsMax) and the go-around stand as before
+    if (D && D.obst && D.reqGs > 1.0001 * ap.gs && ap.appr) {
+      const sThr0 = alongOf(F, [to.x, 0, to.z]) - to.len / 2;
+      const aimNeed = (D.obst.h - D.thrH + 15) / ap.gs - D.obst.d;              // metres past the threshold
+      const runNeed = (sheetOf() && sheetOf().LDGrun) || 0;
+      if (aimNeed > ap.xAim - sThr0 && to.len - aimNeed >= 1.3 * runNeed) {
+        ap.xAim = sThr0 + aimNeed; ap.appr.aimIn = Math.round(aimNeed); ap.appr.displaced = Math.round(aimNeed);
+        say('aim-displaced', 'the approach to ' + (to.name || to.id) + ' needs ' + (Math.atan(D.reqGs) * 57.3).toFixed(1) + ' deg over the obstacle ' + D.obst.d + ' m out (' + Math.round(D.obst.h - D.thrH) + ' m); flying ' + (Math.atan(ap.gs) * 57.3).toFixed(1) + ' deg to an aim ' + Math.round(aimNeed) + ' m in');
+      }
+    }
     if (ap.appr) { ap.appr.gs = Math.round(ap.gs * 1000) / 1000; ap.appr.reqGs = D ? Math.round(D.reqGs * 1000) / 1000 : null; }   // G1936: the slope flown, the obstacles'
     // P1 (found on the dn4 fixture, flown uphill for the first time): the
     // slope ends on the AIM'S ground (aimAlt, P0.8) while the level before
@@ -969,7 +1251,15 @@ function makePilot(sim, def, world, opts) {
       const onWater = to.surface === 4 || !!to.water;
       const turnSide = D && D.climbTurn ? -D.climbTurn : 0;
       if (turnSide && !(onWater && (turnSide > 0 ? tL - tR : tR - tL) > 0.25 * hC)) { side = turnSide; sideForced = true; }
-      else side = tR < tL - 0.25 * hC ? -1 : 1;
+      else {
+        side = tR < tL - 0.25 * hC ? -1 : 1;
+        // G2125 PILOT-PROFILE: ...AND THE TURNS KEEP CLEAR OF WHAT STANDS TALL. A side whose obstacles (the houses, the
+        // trees: M.ground, the rough perception) reach above half the circuit height over the strip where the other's do
+        // not is left for the other (the terrain's own choice above is otherwise the rule)
+        const oL = gOf(1, M.ground) - M.hAt(0.5 * M.R.len), oR = gOf(-1, M.ground) - M.hAt(0.5 * M.R.len);
+        const tallL = oL > 0.5 * hC && oR < oL - 0.15 * hC, tallR = oR > 0.5 * hC && oL < oR - 0.15 * hC;
+        if (side > 0 && tallL) side = -1; else if (side < 0 && tallR) side = 1;
+      }
       if (Math.max(tL, tR) - gStrip > 0.5 * hC) sideForced = true;
       const gL = gOf(1, M.ground), gR = gOf(-1, M.ground);
       // THE CIRCUIT HEIGHT over a strip in a valley: the pattern flies at
@@ -1027,6 +1317,7 @@ function makePilot(sim, def, world, opts) {
     let prev = null;
     for (const L of legs) {
       if (!L.A || !L.B) continue;
+      if (L.drawn) { prev = L.hPlan; continue; }   // G2120: a drawn leg's heights are the drawing's (routeStart)
       const dx = L.B[0] - L.A[0], dz = L.B[1] - L.A[1], len = Math.hypot(dx, dz) || 1e-9, ux = dx / len, uz = dz / len;
       L.gB = hasT ? Math.round(groundH(L.B[0], L.B[1])) : ap.altRef;
       if (L.name === 'FINAL') {
@@ -1047,12 +1338,37 @@ function makePilot(sim, def, world, opts) {
         L.hCruiseLeg = Math.round(Math.max(Math.max(ap.route.from.elev + A.hCruise, base), top + (A.hClear ?? 130)));
         L.hPlan = Math.round(Math.max(base, topB + (A.hClear ?? 130)));
         L.hPlanA = L.hCruiseLeg;
+        // G2125 PILOT-PROFILE: THE TRIP'S VERTICAL PROFILE (44_vprofile.js), planned once for the leg - the climb from
+        // here, a cruise that clears the whole leg's highest top (terrain, water, trees, houses) by hClear, the descent
+        // onto the circuit height - and flown (ENROUTE below); the old look-ahead floor is the fallback without a world
+        const vp = vpPlanLeg(L, base);
+        if (vp) {
+          Object.defineProperty(L, 'vp', { value: vp, enumerable: false, configurable: true, writable: true });   // (not cloned with the intent)
+          L.vpSum = { cruise: vp.cruise, toc: vp.toc, tod: vp.tod, minClear: vp.minClear, climbLimited: vp.climbLimited, gClimb: vp.gClimb, endShort: vp.endShort };
+          L.hCruiseLeg = vp.cruise; L.hPlanA = Math.round(vp.h[0]); L.hPlan = Math.round(vp.h[vp.n - 1]);
+        }
       } else {
         L.hPlan = Math.round(Math.max(base, top + Math.max(2 * A.hSafe, 40)));
         L.hPlanA = prev != null ? prev : L.hPlan;
       }
       prev = L.hPlan;
     }
+  };
+  // G2125 PILOT-PROFILE: an enroute leg's profile (VPROFILE.plan, 'trip'): from the aeroplane's height now to the
+  // circuit height `hEnd` at the leg's end; the cruise at least the departure's circuit height (A.hCruise over its
+  // field, the old rule) and hClear (130 m) over the leg's highest top; the climb planned at 0.7 of the measured
+  // gradient, the descent at 5 % (the old rule) - 2.5 x that at most, the hClear easing to the circuit's own
+  // 2 hSafe (40 m at least) over the last 3 km
+  const vpPlanLeg = (L, hEnd) => {
+    if (typeof VPROFILE !== 'object' || !world || typeof world.terrainH !== 'function' || !L || !L.A || !L.B) return null;
+    const S = sheetOf();
+    try {
+      return VPROFILE.plan(world, [{ name: L.name, A: L.A, B: L.B }],
+        { h0: sim.cgPos()[1], hEnd, hMin: Math.max(ap.route.from.elev + A.hCruise, hEnd), margin: A.hClear ?? 130, marginEnd: Math.max(2 * A.hSafe, 40),
+          gClimb: 0.7 * ((S && S.gammaClimb) || 0.08), gDesc: 0.05, gDescMax: 0.125,
+          gClimbMax: gammaGA() },   // G2520: a field above is climbed to at what the aeroplane makes (the escape's 0.8 of the measured)
+        { lookLast: 0, taper: 3000, endLevel: 800 });
+    } catch (e) { return null; }
   };
   const startLegs = (legs) => { ap.legs = legs; ap.legI = 0; ap.trackHold = false; airPath = null; planLegH(legs); };
   // P0.6: THE CIRCUIT AS ONE PATH. The legs' corners become patternPath's
@@ -1067,7 +1383,10 @@ function makePilot(sim, def, world, opts) {
     const bC = Math.min(bankLim, A.bankClimb ?? 0.35);
     const nodes = [], ids = [];
     const add = (x, z, r) => { const id = 'p' + nodes.length; nodes.push({ id, x, z, kind: 'air', r }); ids.push(id); };
-    const speedOf = L => L.V === 'turn' ? VTurnLeg() : L.V === 'climb' ? ap.VClimb : L.V === 'cruise' ? ap.VCruise : ap.VAppr;
+    // G2120: a drawn leg's own speed - and a drawn leg with none is flown at the cruise (case 'ROUTE'), so it is filleted
+    // at the cruise: it fell through to VAppr, and the metal Cessna (49.6 m/s, its turn ~590 m) chased a 178 m fillet
+    // 36-46 deg behind it, the path's stepping target a rudder sawtooth (13.5 reversals / min on the route)
+    const speedOf = L => L.drawn ? routeVleg(L) : typeof L.V === 'number' ? L.V : L.V === 'turn' ? VTurnLeg() : L.V === 'climb' ? ap.VClimb : L.V === 'cruise' ? ap.VCruise : ap.VAppr;
     // P0.8: the fillet is followed over the GROUND (L1 on the ground track),
     // so it is planned at the ground speed a turn can reach — the airspeed
     // plus the wind (the beaver / twin in 2 m/s across crossed the crosswind
@@ -1104,12 +1423,139 @@ function makePilot(sim, def, world, opts) {
     ap.dirX = -1;
     ap.takeoffDir = t;
   };
+  // G2490 ALTIPORT-TAXI: THE TURN-AROUND KEEPS ITS WINGS OFF WHAT STANDS THERE. The game (8 Oct, the user's Cub): landed
+  // uphill at the Skyline altiport, the slope roll-on stopped it on the level part 33 m from the top end - 6 m short of
+  // the U-turn the pattern draws there (l1a, 27 m in) - and the route back down was joined from that pose: a 2.7 m fillet
+  // at l1a and 6.5 m at l1b, for wheels that steer an 11.3 m circle. The follower ran 8 m wide of it and the CG went into
+  // the tram station's corner 4.9 m off the strip's edge (a fus member broke, 13 s into the leg). Nothing measured the
+  // turn against what stands there: the pattern's routes are held to the buildings by GATE TAXICLEAR's census on their
+  // drawn centreline (the U-turn from 27 m in passes the station at 8.96 m, the Cub's need 8.35), never the join from
+  // where a landing stopped, nor the swing of a bend tighter than the wheels. Here, at a turn-around on the strip, the
+  // route is swept as the aeroplane will drive it - the CG's track +- the half-span + 3 m (the user's margin), + the
+  // wheels' shortfall (RgMin - the bend's radius) about every bend tighter than they steer - against the solid things
+  // the world holds (world.obstacles: what the page registered, every column whatever its height). Touching one, the turn
+  // on the spot at the pose is weighed - the airframe's own reach about the CG + the CG's walk in it (the Cub's 2.6 m,
+  // a tricycle's 4.5 m: G1938 / G1949's measures) + 3 m - then the centreline to the route's hold: the clearer of the two
+  // is flown; neither clear is said (taxi-clearance). With nothing near, nothing changes (the route, to the bit)
+  const TURN_MARGIN = 3.0, solidBuf = [];
+  const solidAt = (x, z) => {
+    const R = world && world.obstacles;
+    if (!R || typeof R.near !== 'function' || typeof OBSTACLES === 'undefined' || !OBSTACLES.planDist) return Infinity;
+    R.near(x, z, solidBuf);
+    let m = Infinity;
+    for (const id of solidBuf) {
+      const r = R.get(id);
+      if (!r || !r.shape || Math.hypot(r.x - x, r.z - z) - r.shape.xr > m) continue;
+      const d = OBSTACLES.planDist(r, x, z); if (d < m) m = d;
+    }
+    return m;
+  };
+  // the least of (the solid thing's distance - the band) over a path's points: { d, x, z } (d < 0: inside the band)
+  const sweepOf = (pts, band) => {
+    let w = { d: Infinity, x: NaN, z: NaN };
+    for (let k = 0; k < pts.length; k++) { const q = pts[k], d = solidAt(q.x, q.z) - band(k); if (d < w.d) w = { d, x: q.x, z: q.z }; }
+    return w;
+  };
+  // the bends of a path the wheels cannot steer, and the band its swept wings take: the half-span + the margin, + the
+  // wheels' shortfall over the stretch they run wide of such a bend (a radius before it, two after)
+  const bandOf = (P, half) => {
+    const tight = [];
+    for (let k = 0; k < P.length; k++) if (Math.abs(P[k].kap) > 1 / RgMin) tight.push(k);
+    return k => {
+      let sw = 0;
+      for (const j of tight) if (P[k].s >= P[j].s - RgMin && P[k].s <= P[j].s + 2 * RgMin) sw = Math.max(sw, RgMin - 1 / Math.abs(P[j].kap));
+      return half + TURN_MARGIN + sw;
+    };
+  };
+  // A TURN-AROUND is a route that comes back past 150 deg of the nose in its first 80 m (a U-turn at the pose, the
+  // pattern's own U-turn joined from where the aeroplane stopped). Its alternatives, each swept the same way: the turn on
+  // the spot HERE, or - its wings not clear here - at the first spot ahead along the centreline where they are (rolled
+  // on to, straight, 3 m steps, short of the strip's end by the turn's own reach), then either straight on along the
+  // centreline to the route's hold (when the hold faces the way the turn leaves the aeroplane) or the route's own nodes
+  // after its reversal (the pose's U-turn corners dropped), joined from the spot. The clearest is flown; where several
+  // clear, the turn here before a roll on, and the centreline before the route's nodes.
+  // -> null (no turn-around, or the route clears), else { turn, first (the roll on, or null), then (the path after the
+  // turn), at (the path handed to the follower now), hdg, route, pose, why }
+  const turnAtPose = (cg, nose, from, route, PN, ids) => {
+    const R = world && world.obstacles;
+    if (!R || !(R.count > 0) || !route || !route.pts || route.pts.length < 2 || !isFinite(RgMin)) return null;
+    const P = route.pts, half = patOpts.half || 6, nH = Math.atan2(nose[1], nose[0]);
+    let kR = -1;
+    for (let k = 0; k < P.length && P[k].s < 80; k++) if (Math.abs(wrapPi(P[k].hdg - nH)) > 2.62) { kR = k; break; }
+    if (kR < 0) return null;
+    const wR = sweepOf(P, bandOf(P, half));
+    if (wR.d >= 0) return null;
+    // the strip's axis the way back (the turn's heading), and how far the strip goes on ahead of the nose
+    const ux = CORE_MATH.cos(from.hdg), uz = CORE_MATH.sin(from.hdg), sgN = (nose[0] * ux + nose[1] * uz) >= 0 ? 1 : -1;
+    const back = [-sgN * ux, -sgN * uz], hB = Math.atan2(back[1], back[0]);
+    const sNow = (cg[0] - from.x) * ux + (cg[2] - from.z) * uz;
+    let reach = 0;
+    for (let i = 0; i < sim.n; i++) reach = Math.max(reach, Math.hypot(sim.p[i * 3] - cg[0], sim.p[i * 3 + 2] - cg[2]));
+    const disc = reach + (trike ? 4.5 : 2.6) + TURN_MARGIN;
+    const toEnd = (from.len || 0) / 2 - sgN * sNow;
+    // the route's nodes after the reversal: the first node whose path point lies past where the path heads straight back
+    let kB = kR; while (kB < P.length - 1 && Math.abs(wrapPi(P[kB].hdg - (nH + Math.PI))) > 0.35) kB++;
+    const byId = {}; for (const n of PN.nodes) byId[n.id] = n;
+    let rest = null;
+    { let j0 = 0; const at = [];
+      for (const id of ids) { const n = byId[id]; if (!n) { at.push(-1); continue; } let bi = j0, bd = Infinity; for (let j = j0; j < P.length; j++) { const d = (P[j].x - n.x) ** 2 + (P[j].z - n.z) ** 2; if (d < bd) { bd = d; bi = j; } } at.push(bi); j0 = bi; }
+      const i0 = at.findIndex((k, i) => k >= kB && ids[i][0] !== '@');
+      if (i0 >= 0) rest = ids.slice(i0); }
+    const end = P[P.length - 1], hold = byId[ids[ids.length - 1]];
+    const holdH = hold && typeof hold.hdg === 'number' ? hold.hdg : route.holdHdg;
+    const mk = (nodes, list, frm) => { try { return patternPath(Object.assign({}, PN, { nodes }), list, 1.0, frm); } catch (e) { return null; } };
+    const straight = (A, B, hdg) => mk([{ id: '@p', x: A[0], z: A[1], kind: 'pose' }, { id: '@h', x: B[0], z: B[1], kind: 'hold', hdg }], ['@p', '@h'], null);
+    const cands = [];
+    const tryAt = (L, first) => {
+      const wD = { d: solidAt(L[0], L[1]) - disc, x: L[0], z: L[1] };
+      const w1 = first ? sweepOf(first.pts, () => half + TURN_MARGIN) : { d: Infinity };
+      const add = (then, kind) => {
+        if (!then || !then.pts || then.pts.length < 2) return;
+        const w2 = sweepOf(then.pts, bandOf(then.pts, half));
+        const w = [wD, w1, w2].reduce((m, q) => (q.d < m.d ? q : m));
+        const h0 = then.pts[Math.min(3, then.pts.length - 1)];
+        // THE WAY ROUND: the CG walks ~2.3 m toward the side the nose turns to (the Cub at the altiport: 2.3 m right in a
+        // right turn; a tricycle's 6-7 m, G1949) - the turn goes to the clearer side, the walk away from the nearer thing
+        const lf = [-nose[1], nose[0]], pr = 3;
+        const sg = solidAt(L[0] + lf[0] * pr, L[1] + lf[1] * pr) >= solidAt(L[0] - lf[0] * pr, L[1] - lf[1] * pr) ? 1 : -1;
+        cands.push({ w, first, then, hdg: Math.atan2(h0.z - L[1], h0.x - L[0]), sg, kind, rank: cands.length });
+      };
+      // straight on along the centreline to the hold, the way the turn leaves the aeroplane
+      const sH = (end.x - L[0]) * back[0] + (end.z - L[1]) * back[1];
+      if (sH > 5 && typeof holdH === 'number' && Math.abs(wrapPi(holdH - hB)) < 0.5) add(straight(L, [end.x, end.z], holdH), 'centreline');
+      else if (sH <= 5 && typeof holdH === 'number' && Math.abs(wrapPi(holdH - hB)) < 0.5 && (from.len / 2 + sgN * ((L[0] - from.x) * ux + (L[1] - from.z) * uz)) >= runNeeded())
+        add(straight(L, [L[0] + back[0] * 3, L[1] + back[1] * 3], hB), 'lined');
+      if (rest && rest.length) add(mk(PN.nodes, rest, L), 'route');
+    };
+    tryAt([cg[0], cg[2]], null);
+    if (!cands.some(q => q.w.d >= 0)) {
+      // the first spot ahead where the turn clears (and the roll to it)
+      for (let d = 3; d <= toEnd - reach - 1.5; d += 3) {
+        const L = [cg[0] - back[0] * d, cg[2] - back[1] * d];
+        if (solidAt(L[0], L[1]) - disc < 0) continue;
+        const first = straight([cg[0], cg[2]], L, nH);
+        if (first) tryAt(L, first);
+        if (cands.some(q => q.w.d >= 0)) break;
+      }
+    }
+    if (!cands.length) return null;
+    // the clearest; among the clear ones the first found (here before a roll on; the centreline before the route's nodes)
+    const ok = cands.filter(q => q.w.d >= 0), best = ok.length ? ok[0] : cands.reduce((m, q) => (q.w.d > m.w.d ? q : m));
+    const r1_ = v => Math.round(v * 10) / 10;
+    const turn = best.w.d > wR.d;
+    return { turn, first: turn ? best.first : null, then: best.then, at: turn ? (best.first || best.then) : route, hdg: best.hdg, sg: best.sg, kind: best.kind,
+             route: { d: r1_(wR.d), x: r1_(wR.x), z: r1_(wR.z) }, pose: { d: r1_(best.w.d), x: r1_(best.w.x), z: r1_(best.w.z), disc: r1_(disc), roll: best.first ? r1_(best.first.len) : 0 },
+             why: (turn ? 'turning round ' + (best.first ? Math.round(best.first.len) + ' m on' : 'here') + ' (then ' + (best.kind === 'route' ? 'the route' : 'the centreline') + ')' : 'the turn-around by the route') +
+                  ' - the route\'s swept wings ' + r1_(-wR.d) + ' m into the ' + TURN_MARGIN + ' m margin of a solid thing at (' + Math.round(wR.x) + ', ' + Math.round(wR.z) + '), ' +
+                  (turn ? 'the turn ' : 'the best turn on the spot ') + (best.w.d >= 0 ? 'clear by ' + r1_(best.w.d) + ' m' : r1_(-best.w.d) + ' m into it at (' + Math.round(best.w.x) + ', ' + Math.round(best.w.z) + ')') };
+  };
   const planDeparture = (cg, nose) => {
+    ap.pivAt = null;
     const from = ap.route.from;
     const PAT = ap.patOf(from);
     const half = (from.wid || 30) / 2;
     const need = runNeeded();
-    const d0 = [snap(Math.cos(from.hdg)), snap(Math.sin(from.hdg))];
+    const d0 = [snap(CORE_MATH.cos(from.hdg)), snap(CORE_MATH.sin(from.hdg))];
     const rx = cg[0] - from.x, rz = cg[2] - from.z;
     const along = rx * d0[0] + rz * d0[1];
     const cross = -rx * d0[1] + rz * d0[0];
@@ -1122,7 +1568,7 @@ function makePilot(sim, def, world, opts) {
     const sgN = (nose[0] * d0[0] + nose[1] * d0[1]) >= 0 ? 1 : -1;
     const ahead = from.len / 2 - sgN * along;
     const enough = !onStrip || ahead >= need;                     // the run ahead of the nose suffices
-    if (from.altiport && typeof from.landHdg === 'number') t = [-snap(Math.cos(from.landHdg)), -snap(Math.sin(from.landHdg))];   // GTRAM: an altiport is left downhill, whatever the wind
+    if (from.altiport && typeof from.landHdg === 'number') t = [-snap(CORE_MATH.cos(from.landHdg)), -snap(CORE_MATH.sin(from.landHdg))];   // GTRAM: an altiport is left downhill, whatever the wind
     else if (siteModelOf(from)) {
       // G772: off the strip, each direction's way out is measured (its route from here, as it would be flown)
       let tl = null;
@@ -1133,7 +1579,7 @@ function makePilot(sim, def, world, opts) {
       }
       t = dirAt(from, enough ? nose[0] : -nose[0], enough ? nose[1] : -nose[1], 'takeoff', tl);
     }
-    else if (Math.hypot(w[0], w[1]) > 0.7) t = dirAt(from, nose[0], nose[1]);
+    else if (Math.hypot(w[0], w[1]) > 0.7) t = dirAt(from, nose[0], nose[1], 'takeoff');   // (G2080: a take-off - the torque's side on the water)
     else if (enough) t = [d0[0] * sgN, d0[1] * sgN];
     else t = [-d0[0] * sgN, -d0[1] * sgN];
     const T = (t[0] * d0[0] + t[1] * d0[1]) >= 0 ? 0 : 1;
@@ -1156,6 +1602,16 @@ function makePilot(sim, def, world, opts) {
     // East Point took it 9.1 m off the centreline
     if (onStrip && isFinite(RgMin) && (from.len || 1100) < 300 && Math.abs(cross) <= 4 && runAhead >= 0.75 * (from.len || 1100)) {
       ap.path = null; ap.stopAfterLineup = true;
+      // G2450 EAST-POINT-DEPART: ...BUT NOT SHORT OF THE END. A short strip is left from its very end (the user's Cub at
+      // East Point stopped 37 m from the closed end in the game, turned there and rolled from 37.3 m in, downwind -
+      // 'will not reach Vr', twice). Facing the end the run starts from, a taildragger rolls on along the centreline to
+      // the turn's spot - its half-span + 1.5 m from the end (the wing's sweep stays over the strip) - and turns
+      // there (LINEUP's creep, then the pivot); a tricycle has its own set-up (LINEUP, G1949: 8 m short)
+      ap.pivSpot = null;
+      if (!trike && (nose[0] * t[0] + nose[1] * t[1]) < -0.2) {
+        const spot = pivRoom(), dEnd = sPos + from.len / 2;
+        if (dEnd > spot + 3) ap.pivSpot = { x: from.x - t[0] * (from.len / 2 - spot), z: from.z - t[1] * (from.len / 2 - spot), spot, from: Math.round(dEnd) };
+      }
       return 'LINEUP';
     }
     if (PAT && PAT.routes && typeof patternPath === 'function') {
@@ -1191,6 +1647,8 @@ function makePilot(sim, def, world, opts) {
         }
         const P2 = Object.assign({}, PAT, { nodes });
         ap.path = patternPath(P2, ids, 1.0, [cg[0], cg[2]]);
+        // G2490 ALTIPORT-TAXI: a turn-around on the strip swept against what stands there (turnAtPose, above)
+        if (onStrip) { ap.pivAt = turnAtPose(cg, nose, from, ap.path, P2, ids); if (ap.pivAt) ap.path = ap.pivAt.at; }
         ap.pathI = 0; ap.stopAfterLineup = true;
         return 'TAXI';
       }
@@ -1220,7 +1678,7 @@ function makePilot(sim, def, world, opts) {
                    stopAfterLineup: ap.stopAfterLineup, taxiTgt: ap.taxiTgt, taxiPath: ap.taxiPath };
     try {
       const from = ap.route.from;
-      const ux = Math.cos(from.hdg), uz = Math.sin(from.hdg);
+      const ux = CORE_MATH.cos(from.hdg), uz = CORE_MATH.sin(from.hdg);
       const onC = (x, z) => { const s = (x - from.x) * ux + (z - from.z) * uz; return [from.x + ux * s, from.z + uz * s]; };
       // ALREADY ON THE LINE: a start on the spawn identity (a strip with no stand - the game rolls from it
       // with no taxi at all) is lined up along the nose with HOLD's own run ahead (the need, capped at 0.7
@@ -1360,6 +1818,7 @@ function makePilot(sim, def, world, opts) {
     // target, the wrapped rates, the slow roll / climb / acceleration filters
     SV.sense(dt, e, eA, tgtH, thRaw, phRaw, beta, V, Vg, vcg[1], onG);
     const th = SV.th, ph = SV.ph, q = SV.q, p = SV.p, eR = SV.eR, accF = SV.accF, vsSlow = SV.vsSlow;
+    const waterPull = (thTgt) => (A.deWater ?? 0.70) * clamp((thTgt - (th + q * WATER_LEAD)) / WATER_BAND, 0, 1);
 
     // P0.8: A BUMP IS NOT A TOUCHDOWN — the balk detector wants the wheels
     // on the ground for 0.3 s (a rough strip's contact flickers)
@@ -1379,6 +1838,16 @@ function makePilot(sim, def, world, opts) {
     if (ap.budget && ap.t > ap.budget && !ap.report.outcome && ap.phase !== 'STOPPED') {
       ap.report.outcome = 'gave-up';
       say('gave-up', 'still in ' + ap.phase + ' at t=' + Math.round(ap.t) + ' s — out of patience, not out of sky');
+    }
+    // G3328 (CAPSIZE-VERDICT, 20 Oct - AP-ADAPT's water sweep: the float aeroplanes rolled over in the water roll-out after
+    // a landing the report had already called 'completed', 9-12 times in 86 flights, and every gate that reads the outcome
+    // passed them): ON ITS BACK IS NO ARRIVAL. Past 90 deg of bank, at any phase, on the water or the ground or in the air,
+    // the outcome is 'capsized' - over 'completed' or any other - said once with where and when; the gates read it as a red
+    if (!capsized && Math.abs(phRaw) > Math.PI / 2) {
+      capsized = true;
+      ap.report.capsized = { t: Math.round(ap.t * 10) / 10, phase: ap.phase, bank: Math.round(phRaw * 180 / Math.PI), V: Math.round(V * 10) / 10, onG, was: ap.report.outcome || null };
+      ap.report.outcome = 'capsized';
+      say('capsized', 'on its back in ' + ap.phase + ' at ' + V.toFixed(1) + ' m/s (bank ' + Math.round(phRaw * 180 / Math.PI) + ' deg)' + (ap.report.capsized.was ? ' - after "' + ap.report.capsized.was + '"' : ''));
     }
 
     // ---- THE SERVOS: one module, 39b_servos.js (G1570) ---------------------------
@@ -1420,11 +1889,11 @@ function makePilot(sim, def, world, opts) {
       // damper rang the rudder stop to stop (6 s, the Jolene playtest). The
       // tangent is interpolated between the 5 m samples (a fillet's heading
       // steps 1-2 deg per sample, and the damper differentiates it)
-      const q0 = P[L.i], qd = (cg[0] - q0.x) * Math.cos(q0.hdg) + (cg[2] - q0.z) * Math.sin(q0.hdg);
+      const q0 = P[L.i], qd = (cg[0] - q0.x) * CORE_MATH.cos(q0.hdg) + (cg[2] - q0.z) * CORE_MATH.sin(q0.hdg);
       const qa = qd >= 0 ? q0 : P[Math.max(0, L.i - 1)], qb = qd >= 0 ? P[Math.min(P.length - 1, L.i + 1)] : q0;
       const qf = qb.s > qa.s ? clamp((qd >= 0 ? qd : qd + (qb.s - qa.s)) / (qb.s - qa.s), 0, 1) : 0;
       const hT = qa.hdg + qf * wrapPi(qb.hdg - qa.hdg);
-      ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
+      ap.targetDir = [CORE_MATH.cos(hT), 0, CORE_MATH.sin(hT)];
       let j = L.i;
       const s0 = P[L.i].s;
       while (j < P.length - 1 && P[j].s - s0 < L1) j++;
@@ -1436,7 +1905,7 @@ function makePilot(sim, def, world, opts) {
       // acceleration is NOT added again (a first cut did, and the cub rolled
       // to its limit at the start of every fillet, turned inside the arc and
       // crossed the leg by 67 m on the far side)
-      const aL1 = 2 * Vg2 * Vg2 * Math.sin(eta) / clamp(rl, 20, L1);
+      const aL1 = 2 * Vg2 * Vg2 * CORE_MATH.sin(eta) / clamp(rl, 20, L1);
       const phC = clamp(Math.atan(aL1 / 9.81), -bl, bl);
       rollTo(phC);
       pathDbg = { i: L.i, ey: L.ey, sRem: L.sRem, eta, kap: P[L.i].kap, phC };
@@ -1488,6 +1957,78 @@ function makePilot(sim, def, world, opts) {
     const tecs = (o) => {
       // o: { ias, alt | vs | gs (the slope from the aim), thMax, vsUp, vsDn }
       const g9 = 9.81;
+      // G2125 PILOT-PROFILE: THE CLIMB ON SPEED (o.flc - the take-off's climb on land, LIFTOFF and CLIMB). Full power,
+      // and the pitch whatever holds the climb speed: the trim attitude at this speed (the same 1/V^2 fit TECS flies) +
+      // the climb angle the sheet measured + 1.4 deg per m/s of speed error + the acceleration (the phugoid's damper) + a slow
+      // integrator for the fit's bias; capped (o.toCap: a full-power climb's attitude at the floor speed) and NEVER
+      // nose-up under the floor (o.vFloor, 1.3 Vs as configured). TECS's own climb (a vs reference at the speed weight)
+      // took the Jodel from a level acceleration at 24 m/s to the 17 deg cap and back under the floor: with the weight
+      // on the speed it drops the flight-path term and its integrator (0.10 at most) has to find the 6 deg climb angle.
+      // The TECS state is left to re-latch from the live state when TECS flies again (tOn)
+      if (o.flc) {
+        tOn = false;
+        // the target speed and the attitude command both SLEWED (a climb is rotated into at 2.5 deg/s, a target moved
+        // at 0.3 m/s per s: the cruise climb's Vy + 10 % over the screen height sagged the Jodel 1.5 m in a step)
+        const VtA = Math.max(o.ias || 0, o.vFloor || 0);
+        if (flcVt == null) flcVt = Math.max(VtA, Math.min(V, VtA + 2));
+        flcVt += clamp(VtA - flcVt, -0.5 * dt, 0.3 * dt);
+        const Vt = Math.max(flcVt, o.vFloor || 0);
+        // (the climb angle FED FORWARD from the sheet - the measured full-power gradient - never read back off the flight
+        // path: fed back, the path term drove the phugoid, the Jodel zoomed to 21 deg and 19 m/s)
+        // (and from BELOW: the trim attitude at the TARGET speed + half that climb angle - the 1/V^2 fit of the level
+        // trims read the Jodel's full-power climb 4.6 deg high, the integrator found it at its stop; a climb attitude
+        // reached from under the speed's own correction never zooms. The integrator takes the rest, unhurried)
+        const gam = Math.atan(SH && SH.gammaClimb ? SH.gammaClimb : 0.06);
+        const thFF = tAlphaAt(Vt) + 0.5 * gam + (V > Vt ? 0.015 : 0.025) * (V - Vt) + 0.02 * accF;
+        // (entered BUMPLESS: the integrator starts where the attitude held is - the fit's estimate of the climb attitude
+        // was 4.6 deg high on the Jodel and low on the C172 archetype, whose nose fell to 4 deg at 10 m and it sank)
+        if (flcTh == null) flcI = clamp(th - thFF, -0.12, 0.12);
+        let thF = thFF + flcI;   // (a speed over the target raises the nose gently: the run's acceleration carries it past Vt)
+        // THE CLIMB HAS SETTLED when the speed has been within 1 m/s of the target and the acceleration under 0.3 m/s^2 for
+        // 3 s (the firmer attitude loop below is the transition's only); flcRelax counts the climb's seconds
+        flcSetT = (Math.abs(V - Vt) < 1 && Math.abs(accF) < 0.3) ? flcSetT + dt : 0;
+        flcRelax += dt;
+        if (flcSetT > 3) flcSet = true;
+        // (the transition's hold on the steady climb's estimated attitude is gone with the bumpless entry: the flight-path
+        // limit below is what stops a zoom, whatever the estimate)
+        thF = clamp(thF, A.vsFloor ?? -0.08, o.toCap ?? A.thMax);
+        if (flcTh == null) flcTh = th;
+        const slewing = Math.abs(thF - flcTh) > 0.01;
+        flcTh += clamp(thF - flcTh, -0.07 * dt, 0.044 * dt);
+        if (!slewing && (Math.abs(V - Vt) < 3 || flcRelax > 6)) flcI = clamp(flcI + 0.006 * (V - Vt) * dt, -0.12, 0.12);   // (the bias only, not the transient)
+        thF = flcTh;
+        // THE FLIGHT PATH IS LIMITED TO WHAT THE POWER SUSTAINS: a climb steeper than the sheet's full-power angle
+        // (climbMax / Vt; the path led by the pitch rate) is a zoom - the speed it trades for height is the margin over the
+        // stall. The Jodel leaving the ground effect 1.2 m/s over Vy rose on a 10 deg path for a 5.6 deg climb and lost 4
+        // m/s; the nose comes down by the excess
+        // (1.25 x it once the climb is 10 s old: the sheet's climbMax is measured at Vy and the Cub climbs 6 % better at 1.1 Vy)
+        const gSS = (flcRelax < 10 ? 1 : 1.25) * Math.atan(tClimbMax / Math.max(Vt, 8));
+        { const gAct = Math.atan2(vcg[1], Math.max(V, 8)) + 0.8 * q;
+          if (gAct > gSS) thF = Math.min(thF, th - (gAct - gSS)); }
+        // NEVER A SINK NEAR THE GROUND: under 2 hSafe with the floor speed in hand the climb does not descend (a law on the
+        // speed alone trades height for it - the C172 archetype at 10 m)
+        if (aglG < 2 * A.hSafe && (o.vFloor == null || V >= o.vFloor) && vcg[1] < 0.5) thF = Math.max(thF, th + 0.04 * (0.5 - vcg[1]));
+        // THE TRIM MOVES UNDER A FULL-POWER CLIMB (the nose wants up as the speed comes off): the servo's integrator
+        // winds at 0.25 /s here (the air's pitchI is 0.05: the Cub's nose ran 4 deg over the command with the stick
+        // already forward and fell to 1.13 Vs)
+        // (not while the command is still being rotated toward, nose-up: the lag behind a moving command wound it; a nose
+        // ABOVE the command is always caught quickly)
+        SV.IthGain = (!slewing || th > flcTh + 0.01) ? 0.25 : null; flcOn = true;
+        // ...and until it has settled the attitude loop is FIRMER (P x 1.5, the flare's and the rotation's lever): out of
+        // the ground effect under full power the Jodel is barely speed-stable and its cruise-tuned P (0.68) let the nose
+        // run 5 deg over a held command with the elevator at its trim
+        SV.pitchK = flcSet ? 1 : 1.5;
+        if (o.vFloor != null && V < o.vFloor) thF = flcTh = Math.max(A.vsFloor ?? -0.08, Math.min(thF, th - 0.03 * (o.vFloor - V)));
+        c.thr = 1;
+        holdPitch(thF);
+        // (published: the vertical speed this law lets the power give - up to the flight-path limit; GATE PLAN reads it
+        // against the limits published with it)
+        const fvUp = Math.tan(gSS) * Math.max(V, 8), fvDn = -Math.max(3.0, 1.5 * tSinkIdle);
+        tecsDbg = { hdotC: clamp(vcg[1], fvDn, fvUp), Vc: Vt, STEr: 0, STErC: 0, ff: 1, thr: 1, wK: 2, thC: thF, eB: 0, vsUp: fvUp, vsDn: fvDn };
+        return;
+      }
+      flcTh = flcVt = null;                                  // (G2125: the climb law re-enters from the live attitude)
+      if (flcOn) { flcOn = false; SV.IthGain = null; SV.pitchK = 1; }
       if (!tOn) { tOn = true; tIthr = clamp(c.thr - tThrCruise, -0.3, 0.3); tIpit = 0; tHdot = vcg[1]; tWk = 1; }
       tHdot += 0.5 * (vcg[1] - tHdot);
       // G399.7: A SPEED THE ELEVATOR CANNOT HOLD IS RAISED, NOT CHASED. The
@@ -1510,10 +2051,30 @@ function makePilot(sim, def, world, opts) {
       // 0.24 of elevator, the throttle on its floor - and went around twice
       // for the terrain. The integrator on its clamp with the attitude short
       // of the command is the same "cannot hold this speed"
-      const eSat = (SV.aDe > 0.30 || (SV.Ith >= SV.IthMax - 1e-3 && SV.thCA - th > 0.03)) && V > (o.ias || A.VAppr) + 0.5;
+      // G2463: under a person the attitude's shortfall is judged held too (HUM_HOLD) - the ham-fist's hand left the
+      // integrator on its clamp with the nose short for a moment in the Wipline C172's climb-out (74 s), the speed was
+      // raised there and stayed raised for the flight: every final 6-7 m/s fast
+      thShortH += (SV.thCA - th - thShortH) * Math.min(1, dt / HUM_HOLD);
+      // ...and only on the final (the approach this rule was written for: the Caravan-alike at idle): the servo winds up
+      // behind a person's eased grip at any speed, and the climb-out's 'cannot hold 34.6 m/s' (73-75 s, three seeds of
+      // four) raised every later speed of the flight
+      // G3081 (FLOAT-AP, 18 Oct): ON FLOATS a cap still RAMPING (SV.IthMax < its target, IthMaxRate 0.10 /s) is not the
+      // elevator's limit. The user's float Cessna (bugReports/cessnaFloatsWOrks.json, the game's flight, 8 kt) slowed from the
+      // circuit's 52 m/s onto the final while the cap opened 0.15 -> 0.30: the integrator rode the moving clamp, 1.5 s read as
+      // 'cannot hold', +25 % kept for the flight (34.4 -> 38 m/s on 0.21 of elevator against its 0.35 stop), the touch at
+      // 1.56 Vs and six skips, the bank growing at each (the wing that catches in the game). And the raise RELAXES on floats
+      // once the elevator has margin again (no saturation for 3 s, under 0.25 of its travel). Land aeroplanes as before
+      // (CESSNA-VREF G2500 judges the metal Cessna on its raise - a generic change is train 66's)
+      const capRamp = !!sim.hydro && SV.IthMax < SV.IthMaxT - 0.01;
+      const eSat = (deHeld() > 0.30 || (!capRamp && SV.Ith >= SV.IthMax - 1e-3 && (PRA ? thShortH : SV.thCA - th) > 0.03)) && V > (o.ias || A.VAppr) + 0.5
+                   && (!PRA || ap.phase === 'FINAL');
       tDeSatT = eSat ? tDeSatT + dt : Math.max(0, tDeSatT - dt);
       if (tDeSatT > 1.5) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
+      if (sim.hydro && !eSat) { tVOkT += dt; if (tVOkT > 3 && SV.aDe < 0.25) tVAdapt = Math.max(0, tVAdapt - 0.25 * dt); } else tVOkT = 0;
       if (tVAdapt > 0.5 && !tVAdaptSaid) { tVAdaptSaid = true; say('vref-raised', 'the elevator cannot hold ' + (o.ias || A.VAppr).toFixed(1) + ' m/s at this power — flying the approach faster'); }
+      // G2500 (CESSNA-VREF): THE SPEED THE ELEVATOR HOLDS IS THIS AEROPLANE'S, NOT THIS FINAL'S - kept for the flight (a
+      // go-around zeroes tVAdapt; the next final starts at it, stabilised from its first metre) and on the record
+      if (tVAdapt > 0.5 && ap.phase === 'FINAL') { ap.vHeld = Math.max(ap.vHeld || 0, (o.ias || A.VAppr) + tVAdapt); if (ap.appr) ap.appr.Vheld = Math.round(ap.vHeld * 10) / 10; }
       const Vc = Math.max((o.ias || A.VAppr) + tVAdapt, 1.05 * tVs0);
       // the demands
       const vsUp = o.vsUp ?? tClimbMax, vsDn = o.vsDn ?? -Math.max(3.0, 1.5 * tSinkIdle);
@@ -1545,7 +2106,7 @@ function makePilot(sim, def, world, opts) {
       const raw = ff + kP * eT + tIthr;
       if ((raw > 1 && eT > 0) || (raw < tThrFloor && eT < 0)) { /* held at the stop */ }
       else tIthr = clamp(tIthr + kI * eT * dt, -0.4, 0.4);
-      c.thr = clamp(ff + kP * eT + tIthr, tThrFloor, 1);
+      c.thr = o.thrFull ? 1 : clamp(ff + kP * eT + tIthr, tThrFloor, 1);   // G2125: the lift-off's level acceleration is flown on full power
       // the speed weight: toward the elevator as the throttle saturates or the speed is low
       // the weight when the throttle is on a stop: under 1.1 Vs0 the speed
       // is the elevator's whatever the reference; in a CLIMB (a vs reference,
@@ -1556,24 +2117,63 @@ function makePilot(sim, def, world, opts) {
       // m/s the cub does not have) had it pitch down for a speed it could
       // never reach and fly the circuit into the ground
       const satHi = c.thr >= 0.99, satLo = c.thr <= tThrFloor + 0.005;
-      const wKt = V < 1.1 * tVs0 ? 2
+      let wKt = V < 1.1 * tVs0 ? 2
                 : (o.vs != null && satHi && Vc - V > 1) ? 2
                 : (satHi && Vc - V > 1) ? 0
                 : (satLo && V - Vc > 1 && o.vs == null) ? (o.spdPri && ap.phase === 'FINAL' ? 2 : 0.5)   // G1936: a short final holds its SPEED (the slip takes the height)
                 : 1;
+      // G2125 PILOT-PROFILE: a phase may set the weight outright (o.wK: the land lift-off's run-up flies the height, the
+      // speed on the full throttle - o.thrFull). No other phase sets it: every other TECS flight is the old one to the bit
+      if (o.wK != null) { wKt = o.wK; tWk = o.wK; }
       tWk += clamp(wKt - tWk, -0.5 * dt, 0.5 * dt);
       // the balance: pitch = trim(V) + gamma demanded + P + I on the balance-rate error
       const SEBr = (2 - tWk) * tHdot - tWk * V * accF / g9, SEBrC = (2 - tWk) * hdotC - tWk * V * VdotC / g9;
       const eB = (SEBrC - SEBr) / Math.max(V, 8);
       tIpit = clamp(tIpit + 0.15 * eB * dt, -0.10, 0.10);
       const gammaC = (tWk < 1.99 ? hdotC / Math.max(V, 8) : 0);
-      const thC = clamp(tAlphaAt(V) + gammaC + 0.8 * eB + tIpit, A.vsFloor ?? -0.08, o.thMax ?? A.thMax);
+      let thC = clamp(tAlphaAt(V) + gammaC + 0.8 * eB + tIpit, A.vsFloor ?? -0.08, o.toCap ?? o.thMax ?? A.thMax);
+      if (o.thMin != null && thC < o.thMin) thC = o.thMin;                 // G2125: the lift-off's nose lowered, not dropped
       holdPitch(thC);
       tecsDbg = { hdotC, Vc, STEr, STErC, ff, thr: c.thr, wK: tWk, thC, eB, vsUp, vsDn };
     };
+    // G2125 PILOT-PROFILE: THE TAKE-OFF CLIMB'S SPEEDS (44_vprofile.js climbSpeeds, off the machine sheet): the stall in
+    // the flap as set, the floor 1.3 x it, Vy / Vx raised to the floor, the attitude cap of a full-power climb at the floor
+    // speed (a person's over-rotation on top: the expert's is 0)
+    const climbKit = () => VPROFILE.climbSpeeds(SH, A, { flap: c.flap, flapLdg: FS ? (FS.ldg ?? 1) : 1, alphaAt: tAlphaAt, extra: PRA ? (PRF.overRotate || 0) : 0 });
+    // ...AND WHAT STANDS AHEAD OF THE CLIMB-OUT: the corridor's tops (the terrain or water + trees, houses, the drawn
+    // trunks: VPROFILE.topAt) every 50 m to 2 km along the take-off direction, sampled ONCE a departure and kept; the
+    // steepest gradient they ask from where the aeroplane is now, `clear` metres over them
+    const depNeed = (clear, reach) => {
+      if (!world || typeof world.terrainH !== 'function') return -1;
+      if (!depC) {
+        const ux = F.ux * ap.dirX, uz = F.uz * ap.dirX, pts = [], hw = Math.max(15, ((ap.route.from && ap.route.from.wid) || 30) / 2);
+        for (let d = 0; d <= 2000; d += 50) {
+          let h = -Infinity;
+          for (const k of [-1, 0, 1]) { const px = cg[0] + ux * d - uz * k * hw, pz = cg[2] + uz * d + ux * k * hw; h = Math.max(h, VPROFILE.topAt(world, px, pz, 20)); }
+          pts.push(h);
+        }
+        depC = { x0: cg[0], z0: cg[2], ux, uz, pts };
+      }
+      const al = (cg[0] - depC.x0) * depC.ux + (cg[2] - depC.z0) * depC.uz;
+      let g = -1;
+      for (let k = 0; k < depC.pts.length; k++) { const d = k * 50 - al; if (d < 25 || d > reach) continue; g = Math.max(g, (depC.pts[k] + clear - cg[1]) / d); }
+      return g;
+    };
     const steerK = SV.steerK, groundAil = SV.groundAil;
     const groundSteer = () => { tailUpNow = SV.groundSteer(thRest, F); };
-    const taxi = (Vtgt) => SV.taxi(Vtgt, taxiFF(), Math.min(A.taxiThrMax ?? 0.85, GP.cap));
+    // G3077 (TORQUE-RETUNE-66): IN A TURN THE TAXI POWER IS HALF. Breakaway power (0.85) held through the turn out of a
+    // stand put ENGINE-TORQUE's swirl into the turn: the metal Cessna, 35 deg off its way at HOME's stand, turned at 38
+    // deg/s and overshot 10 deg, the pedals reversing behind it - GATE PILOTACT's taxi rudder on the honest damper 23.6
+    // reversals a minute (the stock build 23.4, the C172 29; limit 20; master, no swirl, 16.2 / 17.5 / 17.5). A pilot
+    // turning on the ground uses the power that keeps it rolling: while the heading is more than 0.10 rad off its way
+    // the throttle is held to 0.5, never under the rolling resistance's share + 0.15 (a soft or uphill taxi still rolls)
+    // ...AND ON THE WATER IT IS HALF ALWAYS (FAA-H-8083-23: the displacement taxi, idle to low power; never near the hump while
+    // manoeuvring): the load door's float Cessna taxiing out of Metlakatla for the return leg took the governor's 0.85 to 5-7
+    // m/s - the plough - and ENGINE-TORQUE's reaction torque heeled it 4.6 -> 17 -> 44 -> 130 deg: capsized, the propeller in the
+    // water (GATE TOUR mk_sea > SEA, t 672.6; G3072 saw it at 680). Held to 0.5 it taxis at 3.5 m/s and flies the leg (lift-off
+    // 174 m, the touch at SEA 0.63 m/s). The water's 0.5 is flat (the land's rolling share is not a hull's)
+    const taxiCap = () => Math.min(A.taxiThrMax ?? 0.85, GP.cap, sim.hydro ? 0.5 : Math.abs(SV.e) > 0.10 ? Math.max(0.5, taxiFF() + 0.15) : 1);
+    const taxi = (Vtgt) => SV.taxi(Vtgt, taxiFF(), taxiCap());
     const vsAgl = v => aglG < A.hSafe ? Math.max(v, 1.0) : v;
     const taxiV = (A.taxiV ?? 5.0) * ST.taxiK;
 
@@ -1643,7 +2243,7 @@ function makePilot(sim, def, world, opts) {
       if (SEL.deadThr) c.thr = 0;
       // lateral
       switch (AF.lat) {
-        case 'HDG': ap.targetDir = [Math.cos(SEL.hdg), 0, Math.sin(SEL.hdg)]; airLateral(SEL.bank ?? bankLim); break;
+        case 'HDG': ap.targetDir = [CORE_MATH.cos(SEL.hdg), 0, CORE_MATH.sin(SEL.hdg)]; airLateral(SEL.bank ?? bankLim); break;
         case 'TRK': {
           const ddx = SEL.trk[0] - cg[0], ddz = SEL.trk[1] - cg[2], dl = Math.hypot(ddx, ddz) || 1e-9;
           ap.targetDir = [ddx / dl, 0, ddz / dl]; airLateral(SEL.bank ?? bankLim); break;
@@ -1747,17 +2347,119 @@ function makePilot(sim, def, world, opts) {
         }
       } else ceilT = 0;
     };
+    // G3304 (AP-ADAPT, the user 18 Oct on the Mosquito: "it struggles a lot maintaining altitude"): THE GROUND THE
+    // AEROPLANE WILL FLY OVER. The circuit legs' floor read the ground 1500 m ahead along the leg's own line whatever was
+    // left of it; on the Mosquito's 41 m/s circuit at w3 the downwind's last kilometre looked past the base turn onto
+    // ground it never flies over - the target climbed 178 -> 505 m, snapped back at BASE, and the final began 70 m high (a
+    // go-around, the leg never finished). The 1500 m are now the PATH: this leg to its end plus one turn radius, then the
+    // next leg's first stretch for what is left of the 1500 (the Pilot coordinator's form: the hill strips keep their
+    // margin where the circuit turns toward the ground). A leg with 1500 m or more left looks as it did, seven samples
+    // the same; the last leg of a list (no next) looks as it did
     const legAlt = (L) => {
       const g = legGeom(L);
       const base = ap.altRef + (L.h != null ? L.h : ap.hCruise);
-      const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, 1500) + Math.max(2 * A.hSafe, 40);
-      return Math.max(base, floor);
+      // G3326: a designed approach's legs (fly.terrainOk) fly the designer's heights - the record vouches for the corridor
+      if (L.designed && ap.route.to && ap.route.to.fly && ap.route.to.fly.terrainOk) return base;
+      const rem = Math.max(0, (L.B[0] - cg[0]) * g.ux + (L.B[1] - cg[2]) * g.uz);
+      const N = (ap.legs && L === ap.legs[ap.legI]) ? ap.legs[ap.legI + 1] : null;
+      let gr;
+      if (rem >= 1500 || !N || !N.A || !N.B) gr = terrainAhead(cg[0], cg[2], g.ux, g.uz, 1500);
+      else {
+        const gN = legGeom(N);
+        gr = Math.max(terrainAhead(cg[0], cg[2], g.ux, g.uz, Math.min(1500, rem + Rturn)),
+                      terrainAhead(N.A[0], N.A[1], gN.ux, gN.uz, 1500 - rem));
+      }
+      return Math.max(base, gr + Math.max(2 * A.hSafe, 40));
     };
     const legSpeed = (L) => L.V === 'turn' ? VTurnLeg() : L.V === 'climb' ? ap.VClimb : ap.VCruise;
+    // G2500 (CESSNA-VREF): THE STRIP LEFT AHEAD of the aeroplane along the landing frame (the roll-out's own)
+    const rollLeft = () => { const t_ = ap.route.to; return (t_.x + F.ux * t_.len / 2 - cg[0]) * F.ux + (t_.z + F.uz * t_.len / 2 - cg[2]) * F.uz; };
+    // G2500 (CESSNA-VREF): THE LANDING THE AEROPLANE CAN MAKE. When the elevator cannot hold Vref (vref-raised: the load
+    // door's metal Cessna, its engine at the drawn station, lands flapless and needs 0.41 of elevator at 28.9 m/s - the
+    // servo stops at 0.35) the approach is flown at the speed it CAN hold, and the flare cannot bleed it either (the stop
+    // from its first second): the touchdown is at that speed, not the sheet's 1.15 Vs0, and the technique was planned
+    // on the sheet's run (249 m for 520: 'normal', the brakes at 22 m/s). Judged on the final, before the flare, on the
+    // pilot's own stop law (the strip's surface, its grade along the landing, the brakes at brakeMax) from that speed,
+    // with 3 s of float past the aim (the flare on the stop floated 0-80 m): room for it past the normal aim with 15 %
+    // to spare -> nothing changes; else SHORT-FIELD (the aim at the short mark while 300 m remain to move it, the brakes
+    // from the touch - G1936's technique); and if the short-field stop does not fit either, THE STRIP IS REFUSED: said
+    // with the numbers, flown round and diverted to the nearest strip this gear lands on that has the room (else
+    // committed, said). Only an approach whose reference was raised is judged: every other aeroplane flies as before.
+    // -> true when the final ended here (a go-around)
+    // G2530 (PILOT-44-REDS): ...AND OVER THE GROUND. The touch, the float and the stop are run over the ground: a TAILWIND
+    // along the landing adds to the speed held. Skyline Altiport is landed one way (uphill) and the game's 8 kt / 250 deg
+    // day blows 4.9 m/s down it: the load door's metal Cessna was judged on 33.3 m/s (short-field stop 238 m, 257 m left -
+    // landed), touched 127 m in at 36.7 m/s over the ground, rolled off the top end at 8 m/s and broke up. The wind along
+    // the landing is read once a final (the mean of five samples over the next 16 s at 10 m over the aim - not a gust);
+    // a headwind is not credited (a strip that fits in calm air fits into the wind: every such judgement as before).
+    // (climate.sample: the full field, never the solver's linearised cache - the flight it judges is not moved by it)
+    const tailOf = (to) => {
+      if (heldTail && heldTail.id === to.id) return heldTail.v;
+      let v = 0;
+      const CL = world && world.climate, wS = CL && typeof CL.sample === 'function' ? (x, y, z, t) => CL.sample(x, y, z, t) : null;
+      if (wS) {
+        const pA = wp(F, ap.xAim, 0), y = groundH(pA[0], pA[1]) + 10;
+        for (let k = 0; k < 5; k++) { const w = wS(pA[0], y, pA[1], ap.t + 4 * k); v += (w[0] * F.ux + w[2] * F.uz) / 5; }
+      }
+      heldTail = { id: to.id, v: Math.max(0, v) };
+      return heldTail.v;
+    };
+    const judgeHeld = (dAim) => {
+      const to = ap.route.to;
+      if (!to || to.surface === 4 || sim.hydro || !world || typeof world.terrainH !== 'function') return false;
+      const Vtd = ap.VAppr * ST.VapprK + tVAdapt, tail = tailOf(to), Vg = Vtd + tail;
+      const sEnd = (to.x - F.ox) * F.ux + (to.z - F.oz) * F.uz + to.len / 2, sThr0 = sEnd - to.len;
+      const stopOn = (a, grade, v) => {
+        const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[a.surface]) || [CRR, MU_BRAKE, 0.8];
+        const aS = A.aStop || 9.81 * ((row[0] ?? CRR) + (A.brakeMax || 0.3) * (row[1] ?? MU_BRAKE)) * 0.8 + 9.81 * grade;
+        return v * v / (2 * Math.max(0.5, aS)) + v * 1.0;
+      };
+      const pT = wp(F, sThr0, 0), pE = wp(F, sEnd, 0);
+      const grade = (groundH(pE[0], pE[1]) - groundH(pT[0], pT[1])) / Math.max(1, to.len);   // + uphill along the landing
+      const need = stopOn(to, grade, Vg), needS = (A.stopShortK ?? 0.84) * need, fl = 3 * Vg;
+      const r0 = v => Math.round(v);
+      if (ap.appr) ap.appr.held = { Vtd: Math.round(Vtd * 10) / 10, tail: Math.round(tail * 10) / 10, need: r0(need), needShort: r0(needS), room: r0(sEnd - ap.xAim - fl), grade: Math.round(grade * 1000) / 1000 };
+      const room0 = sEnd - ap.xAim - fl;
+      if (!ap.shortFld && room0 < 1.15 * need) {
+        ap.shortFld = true;
+        if (ap.appr) { ap.appr.technique = 'short'; ap.appr.heldShort = true; }
+        const aimS = sThr0 + Math.max(10, 0.06 * to.len);
+        // (never before an aim G2125 displaced down the strip for an obstacle - that aim is the approach's clearance)
+        if (dAim > 300 && aimS < ap.xAim && !(ap.appr && ap.appr.displaced)) { ap.xAim = aimS; if (ap.appr) ap.appr.aimIn = r0(aimS - sThr0); }
+        say('held-speed-short-field', 'the elevator holds ' + Vtd.toFixed(1) + ' m/s on this final' + (tail > 0.5 ? ' (' + Vg.toFixed(1) + ' over the ground: ' + tail.toFixed(1) + ' m/s behind)' : '') + ': the stop from it needs ' + r0(need) + ' m, ' +
+            r0(room0) + ' m of ' + (to.name || to.id) + ' are left past the aim and the float - landing short-field (aim ' + r0(ap.xAim - sThr0) + ' m in, the brakes from the touch)');
+      }
+      heldJudged = ap.shortFld ? 'short' : 'normal';
+      const room = sEnd - ap.xAim - fl;
+      if (heldJudged === 'short' && room < needS && dAim > 0) {
+        heldJudged = 'refused';
+        say('strip-too-short', (to.name || to.id) + ': the elevator holds ' + Vtd.toFixed(1) + ' m/s' + (tail > 0.5 ? ' (' + Vg.toFixed(1) + ' over the ground: ' + tail.toFixed(1) + ' m/s of wind behind on its one way in)' : '') + ', the short-field stop from it needs ' + r0(needS) +
+            ' m, ' + r0(Math.max(0, room)) + ' m are left past the aim and the float - not landing there');
+        // the nearest strip this gear lands on with the room (its own surface, its grade unknown: level) - else committed, said
+        let best = null, bd = Infinity;
+        for (const a of (world.aerodromes || [])) {
+          if (a === to || a.surface === 4 || !(a.len > 0)) continue;
+          if (typeof stripAllows === 'function' && !stripAllows(gearK, a).ok) continue;
+          if (a.len - Math.max(60, 0.12 * a.len) - 3 * Vtd < 1.15 * stopOn(a, 0, Vtd)) continue;
+          const dd = Math.hypot(a.x - cg[0], a.z - cg[2]);
+          if (dd < bd) { bd = dd; best = a; }
+        }
+        if (!best) { committed = true; say('committed-landing', 'no strip in reach has the room - landing ' + (to.name || to.id) + ' short-field'); return false; }
+        goAround('the strip is too short for ' + Vtd.toFixed(1) + ' m/s');
+        say('divert', 'diverting to ' + (best.name || best.id) + ' (' + r0(best.len) + ' m, ' + (bd / 1000).toFixed(1) + ' km): ' + (to.name || to.id) + ' is too short for the speed this aeroplane holds');
+        ap.route = { from: ap.route.to, to: best }; ap.xc = true; ap.gaN = 0; committed = false; ap.diverting = true;
+        ap.budget = Math.max(ap.budget, ap.t + routeBudget(ap.route.from, best));
+        return true;
+      }
+      return false;
+    };
     const goAround = why => {
       ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
       say('go-around', why + ' (attempt ' + ap.gaN + ')');
-      go('GOAROUND'); gaT = 0; SV.IthMaxT = 0.15; finalLevel = null; tVAdapt = 0; tDeSatT = 0;
+      go('GOAROUND'); gaT = 0; SV.IthMaxT = 0.15; finalLevel = null; tVAdapt = 0; tDeSatT = 0; heldSeed = !!ap.vHeld; heldJudged = null; heldTail = null;
+      // G2460: A GO-AROUND IS ANOTHER CIRCUIT - the watchdog's patience with it (the Wipline C172's ham-fist went round
+      // twice, unstabilised, and was 'out of patience' at 600 s in BASE of the third circuit it then landed from)
+      ap.budget = Math.max(ap.budget, ap.t + 400);
       SV.thrC = A.thrCruise; thLift0 = th;
       // G1936: TWICE ROUND A SHORT FIELD IS A DIVERSION, NOT A COMMITTED THIRD TRY. The go-around count is capped
       // at two and the third arrival is committed - into the trees past East Point's end on the user's Cub (touched
@@ -1782,6 +2484,7 @@ function makePilot(sim, def, world, opts) {
     // the arrival at the destination, planned from where the aeroplane is now
     const planFromHere = () => {
       const { from, to } = ap.route;
+      ap.climbHold = null;   // G2450 / G2520: a new arrival plan ends a climb hold
       const climbDir = [F.ux * ap.dirX, 0, F.uz * ap.dirX];
       let u;
       // G1945 DEST-TO: a re-plan in the air (ap.setDest) arrives the cross-country way, whatever the To
@@ -1794,6 +2497,40 @@ function makePilot(sim, def, world, opts) {
       const P = planArrival(to, u, from);
       const FL = P.F;
       const sNow = alongOf(FL, cg), cNow = leftOf(FL, cg);
+      // G3326 (CABIN-ARRIVAL, 20 Oct - the cabin probe: Rufus off the Cabin Strip planned a 512 m circuit on the side the
+      // terrain chose, over the valley's ridges, and an 8.7 km final the 240 s rule went round from twice, then diverted):
+      // A DESIGNED APPROACH IS FLOWN AS DESIGNED. A strip whose record draws its approach (fly.appr, ED-2's format: world
+      // metres, outermost first, the last point the threshold) is joined at the drawing's first point: the slope begins
+      // there (the FAF), the level run before it on the extended centreline, and the turn onto it a teardrop on the
+      // record's side (fly.side) one turn-diameter beyond - the aeroplane leaving the tight zone is already on that line,
+      // outbound. Every leg's height is the slope's at the FAF; with fly.terrainOk the legs' terrain floor is the
+      // designer's (legAlt below). A strip without fly.appr: as before, to the bit
+      const DA = !ap.xc && !replanning && to.fly && Array.isArray(to.fly.appr) && to.fly.appr.length >= 2 ? to.fly : null;
+      if (DA) {
+        const a0 = DA.appr[0], sFafD = alongOf(FL, [a0[0], 0, a0[1]]), dFaf = P.sAim - sFafD;
+        if (dFaf > 500) {
+          const sideD = DA.side === -1 ? -1 : DA.side === 1 ? 1 : P.side;
+          P.side = sideD; P.sideForced = true; P.designed = true;
+          P.sFaf = sFafD;
+          P.hC = Math.max(A.hSafe + 10, aimAlt() + ap.gs * dFaf - ap.altRef);
+          P.sIaf = P.sFaf - Math.max(400, 10 * VTurn);
+          const R2 = 2 * Rturn, tlD = Math.hypot(vcg[0], vcg[2]);
+          const RcD = 2 * (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bankLim));
+          const aheadD = tlD > 3 ? [cg[0] + vcg[0] / tlD * RcD, cg[2] + vcg[2] / tlD * RcD] : [cg[0], cg[2]];
+          const outP = wp(FL, P.sIaf - R2, sideD * R2), iaf = wp(FL, P.sIaf, 0);
+          startLegs([{ name: 'ENROUTE', A: aheadD, B: outP, h: P.hC, V: 'cruise', enroute: true, designed: true },
+                     { name: 'BASE', A: outP, B: iaf, h: P.hC, V: 'turn', designed: true },
+                     { name: 'FINAL', A: iaf, B: wp(FL, P.sAim, 0) }]);
+          // (the flight's budget given the drawn approach's own length - at the approach speed, 1.6x, plus the roll: the probe's
+          // game-day flight landed well on the first final and was called 'gave-up' in it at 600 s)
+          { const lenD = Math.hypot(outP[0] - aheadD[0], outP[1] - aheadD[1]) + Math.hypot(iaf[0] - outP[0], iaf[1] - outP[1]) + (P.sAim - P.sIaf);
+            ap.budget = Math.max(ap.budget || 0, ap.t + 1.6 * lenD / Math.max(10, ap.VAppr || A.VAppr || 20) + 120); }
+          if (!ap.designedSaid) { ap.designedSaid = true; say('designed-approach', 'flying the approach drawn for ' + (to.name || to.id) + ': the slope from ' + Math.round(dFaf) + ' m out at ' + Math.round(P.hC) + ' m, turning in on the ' + (sideD > 0 ? 'left' : 'right')); }
+          if (tlD > 3) pathFrom = [cg[0], cg[2]];
+          ap.holdDir = climbDir;
+          return ap.legs[0].name;
+        }
+      }
       // P1: the crosswind form is the CLIMB-OUT's — the aeroplane near the
       // extended centreline; resumed anywhere else (the AP box handed back
       // over the next valley) the arrival is joined the cross-country way
@@ -1812,6 +2549,7 @@ function makePilot(sim, def, world, opts) {
         const sA = sNow + dirS * Rc;
         startLegs([{ name: 'CROSSWIND', A: wp(FL, sA, 0), B: wp(FL, sA, P.side * P.W), h: P.hC, V: 'cruise' }]
           .concat(patternLegs(P, sA, P.side)));
+        ap.holdDir = climbDir;                 // G2125: the escape fan's axis (the crosswind leg's, below)
         return 'CROSSWIND';
       }
       // G1949 (PILOT-ONE-2): A SHORT FIELD'S LONG FINAL DOES NOT TURN A STRAIGHT-IN INTO A CIRCUIT. Its IAF sits 900 m
@@ -1824,7 +2562,7 @@ function makePilot(sim, def, world, opts) {
         return P.join !== 'downwind' && sNow < sI - 300 && (dx * FL.ux + dz * FL.uz) / dl > 0.5; };   // P1.E: a 'downwind' protocol never straight-in
       if (ap.shortFld && P.sIaf < sIafN && !inBy(P.sIaf) && inBy(sIafN)) P.sIaf = sIafN;
       const toIaf = wp(FL, P.sIaf, 0);
-      const straightIn = inBy(P.sIaf);
+      let straightIn = inBy(P.sIaf);
       // P1: the first leg begins two turn radii AHEAD along the track, the
       // path from the aeroplane — the turn onto the leg is a corner the
       // path fillets (a leg through the aeroplane's own position, flown at
@@ -1832,6 +2570,19 @@ function makePilot(sim, def, world, opts) {
       const tl0 = Math.hypot(vcg[0], vcg[2]);
       const Rc2 = 2 * (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bankLim));
       const ahead = tl0 > 3 ? [cg[0] + vcg[0] / tl0 * Rc2, cg[2] + vcg[2] / tl0 * Rc2] : [cg[0], cg[2]];
+      // G2450 EAST-POINT-DEPART: A STRAIGHT-IN THAT CANNOT GET DOWN IS NOT FLOWN. The INBOUND leg's own profile (vpPlanLeg,
+      // the one planner) is asked first: when the ground under it (East Point: a 667 m ridge 3.9 km out of a 21 m strip)
+      // holds its end more than 30 m over the circuit height at the IAF, the final would begin far above its slope (the
+      // Cub's: 593 m at 1.7 km, a go-around every time). The circuit is joined instead - the height lost over the
+      // downwind and the base, the final begun from the base on its slope (the user, 5 Oct: "start from farther away")
+      if (straightIn) {
+        const vpT = vpPlanLeg({ name: 'INBOUND', A: ahead, B: toIaf }, ap.altRef + P.hC);
+        const hEndT = vpT ? vpT.h[vpT.n - 1] : null;
+        if (hEndT != null && hEndT > ap.altRef + P.hC + 30) {
+          straightIn = false;
+          say('no-straight-in', 'the ground before ' + (to.name || to.id) + ' holds the straight-in ' + Math.round(hEndT - ap.altRef - P.hC) + ' m over the circuit at the final\'s start - joining the circuit to come down');
+        }
+      }
       if (straightIn) {
         startLegs([{ name: 'INBOUND', A: ahead, B: toIaf, h: P.hC, V: 'cruise', enroute: true },
                    { name: 'FINAL', A: toIaf, B: wp(FL, P.sAim, 0) }]);
@@ -1846,6 +2597,85 @@ function makePilot(sim, def, world, opts) {
       if (tl0 > 3) pathFrom = [cg[0], cg[2]];
       ap.holdDir = climbDir;
       return ap.legs[0].name;
+    };
+    // G2120 ROUTE-DRAW: THE DRAWN ROUTE BEGINS HERE - its first leg two turn radii ahead on the track, the path from
+    // the aeroplane (planFromHere's own join: the turn onto the route is a corner the path fillets), every leg's
+    // altitude the drawing's (hA at its start - the aeroplane's own for the first -, hB at the point)
+    const routeStart = () => {
+      const D = ap.drawn;
+      D.state = 'flying'; D.i = 0; D.hold = null;
+      const legs = D.legs.map(L => Object.assign({}, L));
+      const tl0 = Math.hypot(vcg[0], vcg[2]);
+      const Rc2 = 2 * (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bankLim));
+      const ahead = tl0 > 3 ? [cg[0] + vcg[0] / tl0 * Rc2, cg[2] + vcg[2] / tl0 * Rc2] : [cg[0], cg[2]];
+      // a first point inside the join (nearer than the point ahead) is joined straight from the aeroplane
+      const B0 = legs[0].B;
+      legs[0].A = Math.hypot(B0[0] - cg[0], B0[1] - cg[2]) > 1.5 * Rc2 ? ahead : [cg[0], cg[2]];
+      for (let k = 0; k < legs.length; k++) {
+        const L = legs[k];
+        L.hA = k ? legs[k - 1].hB : cg[1];
+        L.hPlan = Math.round(L.hB); L.hPlanA = Math.round(L.hA);
+      }
+      // G2125 / G2120: THE ROUTE'S VERTICAL PROFILE IS PILOT-PROFILE'S PLANNER (44_vprofile.js, 'drawn' mode), planned
+      // ONCE here from the aeroplane's height with the strip's own numbers (38c_route.js routeVPerf): the drawing's ramp
+      // raised to each leg's minimum en-route altitude, its climbs moved earlier, its descents held; each leg's hPlan the
+      // height planned at its point (what the map and the plan line show is what is flown)
+      // (D.vp not enumerable: the worker's snapshot mirrors ap.drawn, and the page's strip plans its own from the same numbers)
+      let vp = null; vpReact = false;
+      if (typeof VPROFILE === 'object' && typeof routeVPerf === 'function') {
+        try { vp = VPROFILE.plan(world, legs.map(L => ({ name: L.name, A: L.A, B: L.B, hA: L.hA, hB: L.hB })), routeVPerf(D.route, ap.routePerf(), cg[1]), {}); } catch (e) { vp = null; }
+      }
+      Object.defineProperty(D, 'vp', { value: vp, enumerable: false, configurable: true, writable: true });
+      if (D.vp) for (let k = 0; k < legs.length; k++) { legs[k].hPlan = Math.round(VPROFILE.at(D.vp, D.vp.legs[k].s1)); legs[k].hPlanA = Math.round(VPROFILE.at(D.vp, D.vp.legs[k].s0)); }
+      ap.legs = legs; ap.legI = 0; ap.trackHold = false; airPath = null;
+      pathFrom = tl0 > 3 ? [cg[0], cg[2]] : null;
+      const tl = Math.hypot(vcg[0], vcg[2]);
+      if (tl > 3) ap.holdDir = [vcg[0] / tl, 0, vcg[2] / tl];
+      committed = false; slopeCaptured = false; finalLevel = null; heldOut = false; escapeHdg = null;
+      say('route-start', 'flying the drawn route ' + D.name + ' from here: ' + legs.map(L => L.name + ' ' + L.hPlan + ' m').join(', '));
+      return 'ROUTE';
+    };
+    // ...AND ENDS AS ITS RECORD SAYS
+    const routeEnd = () => {
+      const D = ap.drawn, Lz = ap.legs[ap.legs.length - 1];
+      say('route-done', 'the drawn route flown' + (D.end === 'hold' ? ' - holding over ' + Lz.name : D.end === 'home' ? ' - home' : ' - to the nearest strip'));
+      const tl = Math.hypot(vcg[0], vcg[2]) || 1, ux = vcg[0] / tl, uz = vcg[2] / tl;
+      if (D.end === 'hold') {
+        // the orbit through the last point, tangent to the track there (no reversal), turning the way the route's last
+        // corner turned (+1: the world angle increasing)
+        const Rh = Math.max(300, 1.4 * (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bankLim)));
+        const Ly = ap.legs[ap.legs.length - 2];
+        const g1 = Ly ? legGeom(Ly) : null, g2 = legGeom(Lz);
+        const sg = (g1 && g1.ux * g2.uz - g1.uz * g2.ux < 0) ? -1 : 1;
+        const cx = Lz.B[0] - sg * Rh * uz, cz = Lz.B[1] + sg * Rh * ux;
+        D.hold = { x: cx, z: cz, R: Rh, h: Lz.hB, sg, name: Lz.name };
+        D.state = 'hold'; airPath = null;
+        return 'LOITER';
+      }
+      D.state = 'done';
+      let to = ap.route && ap.route.from;
+      if (D.end === 'land' && world && world.aerodromes) {
+        const need = Math.max(350, 1.4 * ((sheetOf() && sheetOf().LDGrun) || 0));
+        let best = null, bd = Infinity;
+        for (const a of world.aerodromes) {
+          if (a.kind === 'meadow' || !(a.len >= need)) continue;
+          if (typeof stripAllows === 'function' && !stripAllows(gearK, a).ok) continue;
+          const dd = Math.hypot(a.x - cg[0], a.z - cg[2]);
+          if (dd < bd) { bd = dd; best = a; }
+        }
+        if (best) to = best;
+      }
+      if (!to) to = ap.route.to;
+      ap.route = { from: ap.route.from, to };
+      ap.xc = true; airPath = null;
+      ap.budget = Math.max(ap.budget, ap.t + routeBudget({ x: cg[0], z: cg[2] }, to));
+      say('route-arrival', 'arriving at ' + (to.name || to.id));
+      replanning = true;
+      let first;
+      try { first = planFromHere(); } finally { replanning = false; }
+      ap.holdDir = [ux, 0, uz];
+      committed = false; slopeCaptured = false; finalLevel = null; heldOut = false; escapeHdg = null;
+      return first;
     };
     // the far end of the strip along the take-off direction, from the record
     const runwayLeft = () => {
@@ -1948,14 +2778,18 @@ function makePilot(sim, def, world, opts) {
     }
     // G1945 DEST-TO: a To changed on a leg of the arrival is re-planned here, from the aeroplane's own
     // position and track (ap.setDest); the box flies on until it hands back (CLIMB plans then)
+    // G2120: a route drawn in the air begins from here (ap.flyRoute 'now'), the To's re-plan below then leaves it
+    if (routeGo && !BX.on && onG === 0 && DEST_REPLAN.includes(ap.phase) && ap.drawn && !replanReq) { routeGo = false; go(routeStart()); }
     if (replanReq && !BX.on && onG === 0 && DEST_REPLAN.includes(ap.phase)) {
-      replanReq = false; replanning = true;
+      replanReq = false; replanning = true; routeGo = false;
+      if (ap.drawn && (ap.drawn.state === 'flying' || ap.drawn.state === 'hold')) ap.drawn.state = 'left';
       try { go(planFromHere()); } finally { replanning = false; }
       const tl = Math.hypot(vcg[0], vcg[2]);
       if (tl > 3) ap.holdDir = [vcg[0] / tl, 0, vcg[2] / tl];   // the escape fan is about the track flown, not a climb-out
       committed = false; slopeCaptured = false; finalLevel = null; heldOut = false; escapeHdg = null;
     }
     const phRun = ap.phase, legRun = ap.legI;   // G710: the phase and leg this step flies (ap.intent names them, not the next)
+    const legsRun = ap.legs;                    // G2120: ...and the legs (the step that ends a drawn route plans the arrival's)
     if (ap.phase !== 'FINAL') slipK = 0;   // G1936: the slip is the short final's only
     if (!BX.on && c.brakeD) c.brakeD = 0;    // G1938: the differential brake is the pivot's only
     // G1938 (PILOT-ONE, the user: "No autopilot manages to turn sharp for a 180 degrees. Most planes should allow
@@ -1977,7 +2811,7 @@ function makePilot(sim, def, world, opts) {
       let rem = piv.sg * err0; if (rem < -0.6) rem += 2 * Math.PI;
       const err = piv.sg * rem, sg = rem >= 0 ? piv.sg : -piv.sg, r = Math.abs(SV.eR);
       if (!piv.thr) piv.thr = A.pivotThr0 ?? 0.35;
-      ap.targetDir = [Math.cos(hdgT), 0, Math.sin(hdgT)];
+      ap.targetDir = [CORE_MATH.cos(hdgT), 0, CORE_MATH.sin(hdgT)];
       // on the heading within ~9 deg and not swinging fast: the taxi's own steering takes the rest rolling
       // (a TRICYCLE walks round its turn at ~1-1.5 m/s on the nosewheel - G1949: holding it to 1.0 m/s here kept the
       // C172's pivot 'not done' while its own power rolled it 20 m along East Point, 8 m off the centreline, for 40 s)
@@ -2003,6 +2837,38 @@ function makePilot(sim, def, world, opts) {
       c.brakeD = slow ? -sg * k : 0;
       c.brake = slow ? (near && r > 0.15 ? 0.3 : 0) : 0.6;
       c.da = groundAil(0, 0.25);
+      return false;
+    };
+    // G2450 (EAST-POINT-DEPART, reused) / G2520 (ALTIPORT-ARRIVAL): THE CLIMB HOLD - an aeroplane under the height its
+    // final starts from climbs in circles, full power on the climb speed, no flap, to within 20 m of that height
+    // (600 s at most). Armed by the leg that hands over to the final ending under it (below): G2520 - a HOLDING
+    // PATTERN AT THE FIX, the orbit (`orb`) through the leg's end tangent there to the final's course, on the side
+    // whose ground is lower (LOITER's law: the radial error turned in); at the height it leaves the orbit where it
+    // passes the fix on the final's course and the final follows - G2450's free circle re-planned the arrival from
+    // wherever the wind had carried it, and from beside the fix that is a circuit: the user's Cub then flew a
+    // 464 s downwind at Skyline Altiport (gave-up, a go-around). Armed by FINAL's flare guard (an approach found under
+    // its strip): the free climbing turn (the heading 50 deg ahead of the track) and the arrival planned again.
+    // Returns true when the orbit hands over to the final (the leg ends: the caller's own hand-over)
+    const flyClimbHold = () => {
+      const Hd = ap.climbHold, O = Hd.orb;
+      altMode(Hd.h, ap.VClimb || VTurnLeg(), bankLim, 'HDG');
+      let rr = 0;
+      if (O) {
+        rr = Math.hypot(cg[0] - O.x, cg[2] - O.z) || 1e-9;
+        const phA = Math.atan2(cg[2] - O.z, cg[0] - O.x) + Hd.sg * 2 * Math.max(Vg, 8) / O.R;
+        const rx = CORE_MATH.cos(phA), rz = CORE_MATH.sin(phA), kR = clamp(3 * (rr - O.R) / O.R, -1, 1);
+        SEL.hdg = Math.atan2(rx * Hd.sg - kR * rz, -rz * Hd.sg - kR * rx);
+      } else SEL.hdg = Math.atan2(vcg[2], vcg[0]) + Hd.sg * 0.87;
+      flapTgt = 0;
+      ap.budget = Math.max(ap.budget, ap.t + 300);
+      pubH = Hd.h; pubN = 'CLIMB HOLD'; pubX = O ? O.ix : null; pubZ = O ? O.iz : null;
+      const up = Hd.h - cg[1] < 20;
+      setStatus(O ? 'holding at the approach fix, climbing to the final\'s height' : 'circling to climb before the approach', [cond('height', Math.round(cg[1] - ap.altRef), Math.round(Hd.h - ap.altRef), up, 'm')]);
+      if (O && up) {
+        const tl = Math.hypot(vcg[0], vcg[2]) || 1e-9;
+        if (Math.hypot(cg[0] - O.ix, cg[2] - O.iz) < 0.35 * O.R && (vcg[0] * O.ux + vcg[2] * O.uz) / tl > 0.87) { ap.climbHold = null; return true; }
+      }
+      if ((!O && up) || ap.t - Hd.t0 > 600) { ap.climbHold = null; go(planFromHere()); }
       return false;
     };
     if (BX.on) boxFly(); else
@@ -2041,7 +2907,7 @@ function makePilot(sim, def, world, opts) {
         let next;
         if (ap.atHold) {
           const H = ap.atHold; ap.atHold = null;
-          setTakeoffDir([snap(Math.cos(H.hdg)), snap(Math.sin(H.hdg))]);
+          setTakeoffDir([snap(CORE_MATH.cos(H.hdg)), snap(CORE_MATH.sin(H.hdg))]);
           ap.path = null; ap.stopAfterLineup = true; next = 'STOP';
         } else next = planDeparture(cg, nose);
         engage('NONE', 'DE', 'SET', { de: A.taxiDe ?? 0.30, thr: 0 });
@@ -2051,6 +2917,14 @@ function makePilot(sim, def, world, opts) {
       }
 
       case 'TAXI': {
+        // G2490 ALTIPORT-TAXI: the turn-around planDeparture weighed (turnAtPose): said once; the turn on the spot first
+        // (a roll on to the spot first: the turn where that path ends, below)
+        if (ap.pivAt && ap.pivAt.at === ap.path) {
+          const TP = ap.pivAt;
+          if (!TP.said) { TP.said = true; say(TP.turn && TP.pose.d >= 0 ? 'pivot' : 'taxi-clearance', TP.why); }
+          if (!TP.turn || !TP.first) ap.pivAt = null;
+          if (TP.turn && !TP.first && !piv) { piv = { hdg: TP.hdg, j: 0, t0: ap.t, thr: 0, sg: TP.sg }; pivN++; pivSaid = true; }
+        }
         if (ap.path && piv) {
           setStatus('turning on the spot (the inside brake, full rudder)', [cond('heading to go', Math.round(Math.abs(wrapPi(piv.hdg - Math.atan2(nose[1], nose[0]))) * 57.3), 6, false, 'deg')]);
           if (pivotFly(piv.hdg) || ap.t - piv.t0 > 40) { ap.pathI = piv.j; piv = null; SV.relatch(); }
@@ -2093,7 +2967,7 @@ function makePilot(sim, def, world, opts) {
               // centreline first: pivoting where its tight part began (4.4 m off, the CG 3 m from the clinic) put the Cub's
               // wing into the clinic and left it stuck 6 m off the centreline - the follower flies the teardrop clean, as before
               const fr = ap.route.from, fh = fr.hdg || 0;
-              const crB0 = -(P[b0].x - fr.x) * Math.sin(fh) + (P[b0].z - fr.z) * Math.cos(fh);
+              const crB0 = -(P[b0].x - fr.x) * CORE_MATH.sin(fh) + (P[b0].z - fr.z) * CORE_MATH.cos(fh);
               if (Math.abs(turn) > 2.6 && Math.abs(crB0) <= 2) {   // (Rpiv: 13 m at least - the site's lane U-turn is a 12 m arc)
                 // G1949: WHERE THE TURN COMES BACK BY THE AEROPLANE, the pivot resumes there. A teardrop (MILL-TAXI's at
                 // Jumbo Mine: out 6 m one side, round 13 m the other, back on a diagonal) ends its tight part on the far
@@ -2121,7 +2995,7 @@ function makePilot(sim, def, world, opts) {
           // sample of a bend (and as the look-ahead shrinks with the speed):
           // the rudder differentiated every step into a kick
           const hF = SV.taxiHeading(hT);
-          ap.targetDir = [Math.cos(hF), 0, Math.sin(hF)];
+          ap.targetDir = [CORE_MATH.cos(hF), 0, CORE_MATH.sin(hF)];
           { const pe = ap.path.pts[ap.path.pts.length - 1]; if (pe) { pubN = 'HOLD'; pubX = pe.x; pubZ = pe.z; } }
           const drFF = -Math.atan(TW.Lwb * K.kapL) / Math.max(0.05, TW.steer);
           const drMaxG = 0.85 - 0.40 * clamp((Vg - 6) / 4, 0, 1);
@@ -2139,7 +3013,11 @@ function makePilot(sim, def, world, opts) {
           setStatus('following the taxi route to the hold', [
             cond('to the hold', Math.round(L.sRem), 2, L.sRem < 2, 'm'),
             cond('off the line', Math.abs(L.ey), 2.5, Math.abs(L.ey) < 2.5, 'm')]);
-          if (L.sRem < 2.0 || (L.sRem < 6 && Vg < 0.6)) go('STOP');
+          if (L.sRem < 2.0 || (L.sRem < 6 && Vg < 0.6)) {
+            // G2490: the roll on to the turn's spot done - the turn on the spot, then the path after it
+            if (ap.pivAt && ap.pivAt.first === ap.path) { const TP = ap.pivAt; ap.pivAt = null; ap.path = TP.then; ap.pathI = 0; piv = { hdg: TP.hdg, j: 0, t0: ap.t, thr: 0, sg: TP.sg }; pivN++; pivSaid = true; break; }
+            go('STOP');
+          }
           else if (phaseT > tMax) { say('taxi-timeout', 'the route took ' + Math.round(phaseT) + ' s — stopping where it is'); go('STOP'); }
           break;
         }
@@ -2172,6 +3050,19 @@ function makePilot(sim, def, world, opts) {
         // G1949: a TRICYCLE on a strip under 300 m pivots whenever it faces away - its nosewheel's own circle (R 4.4 m,
         // 8.8 m of CG excursion) does not fit a narrow strip's half-width, its pivot (4.3 m) does
         const trikePiv = trike && (ap.route.from.len || 1100) < 300;
+        // G2450: THE ROLL ON TO THE END before the turn (planDeparture's ap.pivSpot): along the centreline at a walking
+        // pace that falls to 1 m/s over the last metres, then the pivot below
+        if (!piv && ap.pivSpot) {
+          const P = ap.pivSpot, dx = P.x - cg[0], dz = P.z - cg[2], dl = Math.hypot(dx, dz) || 1e-9;
+          if (ap.pivSpotT == null) { ap.pivSpotT = ap.t; say('backtrack', 'rolling on to the end of the strip (' + P.from + ' m from it) to turn round ' + Math.round(P.spot) + ' m from it - the whole strip for the take-off'); }
+          if ((dx * nose[0] + dz * nose[1]) > 1.0 && ap.t - ap.pivSpotT < 90) {
+            ap.targetDir = [dx / dl, 0, dz / dl]; ap.trackHold = false;
+            engage('TAXI', 'DE', 'TAXI', { dr: SV.taxiRudder(0, 0.45), de: A.taxiDe ?? 0.30, gsp: clamp(0.35 * dl, 1.0, 3.0) });
+            setStatus('rolling on to the end of the strip to turn round', [cond('to go', Math.round(dl), 1.0, false, 'm')]);
+            break;
+          }
+          ap.pivSpot = null; ap.pivSpotT = null;
+        }
         if ((!trike || trikePiv) && isFinite(RgMin) && (piv || (alig < -0.2 && Vg < 3 && (trikePiv || RgMin > 0.5 * (ap.route.from.wid || 30) - Math.abs(sCr))))) {
           // G1949: A TRICYCLE SETS ITS TURN UP FIRST. Its turn swings the CG ~6.5 m to the inside (above), so turned on the
           // centreline it ends at the strip's edge and walks 30 m of the strip back to the middle (East Point: then 98 m
@@ -2234,7 +3125,7 @@ function makePilot(sim, def, world, opts) {
           const K = pathLook(ap.path, L.i, Vg);
           const hT = K.hdgL;
           const hF = SV.taxiHeading(hT);
-          ap.targetDir = [Math.cos(hF), 0, Math.sin(hF)];
+          ap.targetDir = [CORE_MATH.cos(hF), 0, CORE_MATH.sin(hF)];
           dr = SV.taxiRudder(0, 0.85);
         }
         engage('TAXI', 'DE', 'SET', { dr, de: A.taxiDe ?? 0.30, thr: 0 });
@@ -2259,6 +3150,36 @@ function makePilot(sim, def, world, opts) {
         if (phaseT >= (A.holdS ?? 2.0)) {
           const half = (ap.route.from.wid || 30) / 2;
           const onStrip = Math.abs(sCr) <= half - 1;
+          // G2450 EAST-POINT-DEPART: THE GO / NO-GO AT THE HOLD. The sheet's take-off distance (genTORunAt: measured, to
+          // 2.5 m, in calm air) put on the wind along the run as a pilot's chart puts it - the ground speed at the rotation
+          // squared, ((Vr - headwind) / Vr)^2 - against the strip ahead. Not fitting WITH A TAILWIND, the aeroplane waits at the hold for the
+          // wind (60 s, read again every step) and then declines the take-off, said with its numbers (the player sees why;
+          // the outcome 'declined'). Rolled into instead, it was the roll's call - 'will not reach Vr', the abort past the
+          // end. (Not on the water, not off an altiport: those runs are judged on their own laws.)
+          let noFit = null;
+          {
+            const SH_ = sheetOf(), toRun = SH_ && SH_.TORun, fr = ap.route.from;
+            if (toRun > 0 && !sim.hydro && fr.surface !== 4 && !fr.altiport) {
+              const tD = ap.takeoffDir || [F.ux * ap.dirX, F.uz * ap.dirX];
+              const hw = -((o_.windX || 0) * tD[0] + (o_.windZ || 0) * tD[1]), vr0 = A.VRot || 18;
+              // (0.85 of it: the rotation comes before the sheet's 2.5 m point - runNeeded's and the roll's own arithmetic, so
+              // the hold and the roll never disagree; the whole 2.5 m distance refused the Cub East Point in calm air, where
+              // it lifts off 104 m into the 112 m ahead - G1938, GATE TAKEOFF's turn-around)
+              const needW = 0.85 * toRun * clamp(((vr0 - hw) / vr0) ** 2, 0.3, 4);
+              // (only a TAILWIND makes it a no-go here: in calm air or into wind the roll's own call judges, as before -
+              // the sheet's run is a chart's, conservative against the roll it measures: GATE LINEUP's East Point skip)
+              if (needW > left && hw < -0.5) noFit = { needW, hw, toRun };
+            }
+          }
+          if ((lined || (holdN >= 2 && onStrip && alig > 0.95)) && left >= need && noFit) {
+            if (ap.toWaitT == null) { ap.toWaitT = ap.t; say('takeoff-wait', 'the take-off run needs ' + Math.round(noFit.needW) + ' m ' + (noFit.hw < 0 ? 'with ' + (-noFit.hw).toFixed(1) + ' m/s of tailwind' : 'in ' + noFit.hw.toFixed(1) + ' m/s of headwind') + ' (' + Math.round(0.85 * noFit.toRun) + ' m in calm air), ' + Math.round(left) + ' m ahead - waiting for the wind'); }
+            if (ap.t - ap.toWaitT > 60) {
+              say('takeoff-declined', 'not taking off from ' + (ap.route.from.name || ap.route.from.id) + ': ' + Math.round(noFit.needW) + ' m needed, ' + Math.round(left) + ' m of strip ahead' + (noFit.hw < -0.5 ? ', ' + (-noFit.hw).toFixed(1) + ' m/s of tailwind on the only way out' : ''));
+              ap.report.outcome = ap.report.outcome || 'declined';
+              go('STOPPED');
+            }
+            break;
+          }
           if ((lined || (holdN >= 2 && onStrip && alig > 0.95)) && left >= need) {
             go('ROLL'); ap.t = Math.max(ap.t, 1);
             ap.trackHold = true; thrRoll = GP.cap; thRest = null; rollS0 = null;
@@ -2299,7 +3220,8 @@ function makePilot(sim, def, world, opts) {
         }
         if (thRest === null) thRest = th;
         if (rollS0 === null) {
-          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false;
+          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false; wrUp = false; rotPull = false; rotStuckT = 0;
+          depC = null; toAccelDone = false; toHoldH = null; toLowT = 0; flcI = 0; flcTh = flcVt = null; flcSet = false; flcSetT = 0; flcRelax = 0;   // G2125: a new run, a new climb-out
           // P1.C: THE DEPARTURE PLAN (PILOT-ROADMAP C.3-C.4), the approach
           // plan's twin: 'short' when the strip is under 2 x the sheet's
           // take-off run (an accelerate-stop wants about two runs) — the
@@ -2330,7 +3252,14 @@ function makePilot(sim, def, world, opts) {
         const left = runwayLeft();
         const vr = A.VRot || 18;
         const avail = ap.route.from.len || 1100;
-        const sd = stopDist(V), resv = reserveOf();   // G531: the field's reserve
+        // G2450 EAST-POINT-DEPART: THE STOP AND THE RUN ARE OVER THE GROUND. Both were planned on the airspeed: with a
+        // tailwind along the run the wheels roll faster than the air says (East Point's 4.4 m/s) - the stop that 'fitted'
+        // ran 6.8 m off the far end and the metres to Vr were short by the wind's share. The wind along the run (+ from
+        // behind) is added to every speed the call turns into metres (calm: unchanged to the bit)
+        const tRun = ap.takeoffDir || [F.ux * ap.dirX, F.uz * ap.dirX];
+        const twRun = (o_.windX || 0) * tRun[0] + (o_.windZ || 0) * tRun[1];
+        const gsOf = v => Math.max(0, v + twRun);
+        const sd = stopDist(gsOf(V)), resv = reserveOf();   // G531: the field's reserve
         // THE ACCELERATE-STOP CALL, and V1. While a stop on the strip is still
         // possible (left − sd ≥ reserve) any of five rules rejects, each said
         // with its numbers: the measured acceleration cannot reach Vr in what
@@ -2367,12 +3296,42 @@ function makePilot(sim, def, world, opts) {
           if (humpPk > 0.05 && humpR < (A.humpOff ?? 0.6) * humpPk) humpPast = true;
         }
         const atHump = !!(sim.hydro && (sim.hydro.floats.some(fx => fx.out && fx.out.wetA > 0.2) || !humpPast));
+        // G3077 (TORQUE-RETUNE-66): IN A CROSSWIND THE WATER RUDDERS STAY DOWN THROUGH THE HUMP (FAA-H-8083-23: the water
+        // rudders help hold the heading early in a crosswind run; 32_hydro G451: "a crosswind seaplane keeps its water
+        // rudders down until it is nearly on the step"). The rule raises them at take-off power from 0.6 WR_UP_V (7.2 m/s),
+        // and from there the user's twin on floats in GATE SEAPLANE's 5 m/s across (0.30 Vs0: 24 deg of sideslip on the fin
+        // at 11 m/s) weathercocked with the air rudder on its stop - with the solver's old rigid-yaw damper (DMG-DAMP G1885's
+        // control, defDampMean) the swing levelled at 15 deg; without it the yaw ran on, the hull skipped off at 0.9 Vs and
+        // touched again 30-60 deg crabbed: master 1 of 5 winds 4.6-5.4 m/s (5.0 alone, by 18 deg), the torque bundle 0 of 5
+        // (64.7 deg at 5.0). Held to the hump's end: 7 of 7 winds 3.3-6 m/s, the swing 4-15 deg, 0.7 m off the lane. But
+        // their drag (G396.4: 0.02 W at the hump) is more than a labouring hull can spare - held on the Cessna on floats
+        // (R/W 0.19-0.24 at the hump) it never got over it - so the moment the run's acceleration falls under 0.1 g they
+        // come up for good: the Cessna raises them at 8-10 m/s and lifts off as before (21.9-24.1 s); the twin, accelerating
+        // over 0.1 g to the step, never does. ONLY PAST THE TYPE'S DEMONSTRATED CROSSWIND (FAR 23.233: 0.2 Vs0): held in the game's
+        // 8 kt day the load door's float Cessna (its cross component 0.13 Vs0) ploughed at 8-10 deg of trim with the blades deep,
+        // heeled 4 -> 20 deg and capsized at 9.7 s (GATE TOUR SEA > mk_sea); under 0.2 Vs0 the type holds its run on its air
+        // rudder as it always did (the Cessna's own 3-5 m/s runs, swing 1.5-3.5 deg) and the rule raises them. Over it: the
+        // twin's 3.3-6 m/s (0.20-0.36 Vs0), the Cessna's 7-8 m/s (swing 3.8 / 4.5 deg, raised at the hump). On the wheels: untouched
+        if (sim.hydro && rollS0 !== null) {
+          if (!wrUp && V > 0.6 * (typeof WR_UP_V === 'number' ? WR_UP_V : 12) && SV.accF < 0.1 * 9.81) wrUp = true;
+          const vs0W = sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99;
+          const wr = Math.abs(SV.crossWind(F)) > 0.2 * vs0W && !humpPast && !wrUp;
+          if (wr) { c.wr = 1; wrHold = true; } else if (wrHold) { c.wr = null; wrHold = false; }
+        }
         if (canStopHere) {
           // the prediction waits for the 2 s acceleration filter to settle
           // (three time constants after the throttle opens): at 3 s a slow
           // build read a third of its true acceleration and was condemned —
           // the Tiger Moth-alike on a hot day, 0.10 m/s^2 against 0.3 real
-          if (V < vr && phaseT > 7 && accF > 0.02 && !atHump) {
+          // G2450 EAST-POINT-DEPART: THE LAST POINT A STOP FITS IS A DECISION POINT. The 'will not reach Vr' rule waited
+          // for its 2 s filter (7 s): on a short strip the stop could be gone by then and the call came past it (East Point,
+          // downwind: the abort ran 6.8 m off the far end). A short-field run that is within 0.6 s of losing its stop is
+          // judged THERE, on the run's own average acceleration over the ground when the filter has not settled
+          const shortT0 = (ap.dep && ap.dep.technique === 'short') && !ap.route.from.altiport;
+          const lastChance = shortT0 && phaseT > 2 && runUsed > 5 && left - sd - resv < Math.max(2, 0.6 * gsOf(V));
+          const vgRun = Math.max(0, vcg[0] * tRun[0] + vcg[2] * tRun[1]);
+          if (V < vr && !atHump && ((phaseT > 7 && accF > 0.02) || lastChance)) {
+            const accF = (phaseT > 7 && SV.accF > 0.02) ? SV.accF : Math.max(0.02, vgRun * vgRun / (2 * Math.max(1, runUsed)));   // (the run's average when the filter is not settled)
             // GTRAM: LEFT DOWNHILL, THE SLOPE STILL TO COME PULLS TOO - off an altiport's flat top the measured
             // acceleration is the top's; the grade of the run that is left (less the grade already under the
             // wheels, which accF has) adds g x grade (the C172 was condemned at 12 m/s on the flat with the 10 %
@@ -2383,7 +3342,7 @@ function makePilot(sim, def, world, opts) {
               const gAhead = (groundH(cg[0], cg[2]) - groundH(ex, ez)) / Math.max(20, left);
               accX = 9.81 * Math.max(0, gAhead + gGrade);
             }
-            const dVr = (vr * vr - V * V) / (2 * (accF + accX));
+            const dVr = (gsOf(vr) ** 2 - gsOf(V) ** 2) / (2 * (accF + accX));   // (G2450: over the ground)
             // P1.C short: the take-off must FIT, the stop is not asked (the
             // accelerate-stop is the long strip's luxury; on 340 m of gravel
             // the cub rejected at 7 s a run the sheet says it makes)
@@ -2391,7 +3350,7 @@ function makePilot(sim, def, world, opts) {
             // on 10 % of downhill grass it is longer than the strip, and the cub was condemned needing 33 m of 227)
             const shortT = (ap.dep && ap.dep.technique === 'short') || !!ap.route.from.altiport;
             // GTRAM: an altiport's low end is the mountain falling away, not a fence - the run may use it all
-            if (dVr > left - (shortT ? 0 : stopDist(vr)) - (ap.route.from.altiport ? 0 : resv))
+            if (dVr > left - (shortT ? 0 : stopDist(gsOf(vr))) - (ap.route.from.altiport ? 0 : resv))
               reject = 'will not reach Vr: ' + accF.toFixed(2) + ' m/s^2 needs ' +
                        Math.round(dVr) + ' m more, ' + Math.round(left) + ' m left';
           }
@@ -2432,7 +3391,7 @@ function makePilot(sim, def, world, opts) {
           // not, by definition): the cub on 340 m of gravel was rejected at
           // 17.3 of 18.7 m/s with 217 m left, the C172 at 19.3 of 20.4 with
           // 249 m — both a second from flying
-          const dVr = accF > 0.02 ? (vr * vr - V * V) / (2 * accF) : Infinity;
+          const dVr = accF > 0.02 ? (gsOf(vr) ** 2 - gsOf(V) ** 2) / (2 * accF) : Infinity;   // (G2450: over the ground)
           if (dVr > left - (ap.route.from.altiport ? 0 : resv))   // GTRAM: an altiport's low end falls away (the rule above)
             reject = 'out of runway: ' + Math.round(left) + ' m left, Vr in ' + (isFinite(dVr) ? Math.round(dVr) + ' m' : 'no distance (not accelerating)') +
                      ', V=' + V.toFixed(1) + ' of ' + vr.toFixed(1) + ' needed';
@@ -2467,6 +3426,17 @@ function makePilot(sim, def, world, opts) {
                 : (threePoint || softTO || V < (A.VTailUp ?? 0)) ? ((threePoint || softTO) ? Math.min(thRest, A.liftoffTh) : (A.thTailUp ?? 0.02))
                 : (A.thTailUp ?? 0.02);
         } else if (V > vrT) { vert = 'PITCH'; pitch = (A.thRotate ?? A.liftoffTh) + (PRA ? PRF.overRotate : 0); }
+        // G3077 (TORQUE-RETUNE-66): A NOSEWHEEL THAT WILL NOT LIFT IS PULLED HARDER. The servo's elevator top on the wheels is
+        // 0.35 (the cruise's stop); with ENGINE-TORQUE's propeller on the honest solver the metal Cessna at Jumbo Mine (the load
+        // door's forward CG, the mill's 250 m) held 0.35 from 24 to 30 m/s with the nose at -0.1 deg and ran off the end ('will
+        // not unstick' - GATE TAXICLEAR 9; with the four effects off it rotated at Vr). A pilot whose nose will not come up
+        // past Vr comes back to the stop: on a tricycle, past Vr, after a second on the 0.35 top with the attitude still within
+        // 2 deg of the rest attitude, the top opens to the stick's full travel (deRotateFull, the water's 0.70) until the wheels
+        // leave; the attitude servo still flies the rotation to its target from there
+        if (trike && !sim.hydro && V > vrT && thRest != null) {
+          rotStuckT = (SV.aDe >= 0.34 && th < thRest + 0.035) ? rotStuckT + dt : 0;
+          if (!rotPull && rotStuckT > 1.0) { rotPull = true; say('rotate-pull', 'the nose will not come up at ' + V.toFixed(1) + ' m/s on the stop - full back stick'); }
+        }
         else if (softTO) deRoll = 0.20;                        // P1.C soft, a trike: the nosewheel light through the roll
         // G970: ON THE WATER THE RUN ATTITUDE IS NOT A WHEEL'S. G431's tail-up
         // attitude (liftoffTh - 0.05, the J-3's run a few degrees under its
@@ -2509,9 +3479,31 @@ function makePilot(sim, def, world, opts) {
         // 15 m/s in a 5 m/s crosswind, ballooned it, dropped it back crabbed
         // at 12.5 m/s and water-looped it 140 deg. Pulled at 1.12 Vr it
         // touches once and climbs away (max swing 21 deg).
-        if (sim.hydro && onG > 0) SV.deFloor = V > (A.vWaterStick ?? 1.12) * vr ? (A.deWater ?? 0.70) : 0.02;
+        // G2470 (JODEL-PITCH): ...AND IT LEADS THE NOSE. The full stick was a FLOOR held whatever the nose did until the
+        // hull let go - so the elevator sat at 0.70 the instant the floats unstuck and the aeroplane over-rotated. On the
+        // sea lane (world +z) the Munk body couple's old arm was the rings' VERTICAL offset, ~10x the true couple once
+        // pitched up on the step: that fictitious nose-up couple unstuck the Wipline C172 at 27.7 m/s, 0.1 under the
+        // 1.12 Vr where this pull arms, and it never met the full stick. With the true couple it reaches 1.12 Vr wet,
+        // took the step to 0.69 in 0.4 s and pitched 20.1 deg/s (GATE TAKEOFF's 12). A seaplane pilot eases the back
+        // pressure as the nose comes up to the lift-off attitude: the pull is full while the attitude, LED by its rate
+        // (WATER_LEAD s), is short of the lift-off attitude, and eases to nothing over its last WATER_BAND - the
+        // attitude servo (the rotation's integrator) holds it from there. 10.2 deg/s, 28.4 m/s (1.16 Vs); a hull that
+        // never reaches the attitude (the twin's) keeps the full stick as before
+        if (sim.hydro && onG > 0) SV.deFloor = V > (A.vWaterStick ?? 1.12) * vr ? Math.max(0.02, waterPull(A.thRotate ?? A.liftoffTh)) : 0.02;
         c.brake = 0;
-        if (onG === 0 && V > vr) { go('LIFTOFF'); thLift0 = th; SV.IthMaxT = 0.15; SV.IthGain = null; }
+        if (onG === 0 && V > vr) {
+          go('LIFTOFF'); thLift0 = th; SV.IthMaxT = 0.15; SV.IthGain = null;
+          // G2125 PILOT-PROFILE: THE PULL COMES OFF AS THE WHEELS LEAVE. A taildragger rotates against its tailwheel (the
+          // Jodel's deck is 9.6 deg, its rotation target 13.1): the pitch integrator wound to the ground's 0.30 and, the
+          // wheels gone, the nose went on to 23 deg and the speed to 16.7 m/s (0.89 Vs, alpha 15 deg) - the user's "it will
+          // try and climb so hard that it will almost stall". On land the integrator is the air's at once (the water's and
+          // the high thrust line's lift-offs keep their own, G396 / G435). Clamped to the air's 0.15 it still held the
+          // Jodel's nose at 13 deg against a 1.5 deg command (P 0.68 x 12 deg of error = the 0.15 it was cancelling):
+          // the climb trims at -0.03 of elevator, the 0.15 was the tailwheel's - the wound part is let go
+          // (a TAILDRAGGER's: a tricycle's rotation integrator is what holds its nose up through the lift-off - let go,
+          // the C172 archetype's nose fell from 11 deg to the nosewheel and the take-off was rejected)
+          if (!sim.hydro && !highThrust && !trike) { SV.IthMax = 0.15; SV.Ith = Math.min(SV.Ith, 0); }
+        }
         break;
       }
 
@@ -2558,10 +3550,44 @@ function makePilot(sim, def, world, opts) {
         // and the card skimmed the step 2 s to 115 km/h where full stick
         // unsticks it at 96: the stick stays back while a float is still
         // wet, and the servo takes over once the aeroplane is clear.
-        if (sim.hydro && onG > 0) SV.deFloor = A.deWater ?? 0.70;
+        if (sim.hydro && onG > 0) SV.deFloor = Math.max(0.02, waterPull(A.liftoffTh));
         if (aglL > A.hSafe || (ap.dep && ap.dep.technique === 'soft'))   // P1.C soft: the attitude for speed from the first metre — level in ground effect until Vy
           thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
         engage('LOC', 'PITCH', 'FULL', { pitch: thT, bank: 0.15 });
+        // G2125 PILOT-PROFILE: ON LAND THE CLIMB IS FLOWN ON SPEED, NOT ON AN ATTITUDE. Off the wheels near Vr (0.99 Vs)
+        // the aeroplane is held LEVEL in ground effect (the height it has + 1 m, the speed on the full throttle) until it
+        // reaches the floor (1.3 Vs in the take-off flap), then climbs at Vy - Vx while the climb-out corridor's tops
+        // (sampled once: the terrain, the trees, the houses) stand above it - with the pitch whatever holds that speed,
+        // capped at a full-power climb's attitude at the floor speed, and never nose-up under the floor (TECS vFloor).
+        // The water's and the high thrust line's lift-offs keep the attitude law above (G396, G435)
+        if (!sim.hydro && !highThrust) {
+          const K = climbKit();
+          const Vt = depNeed(15, 1500) > 0 ? K.Vx : K.Vy;
+          // (to the climb speed itself: the ground effect is where the speed is cheap - and where a rotation from 4 to 16
+          // deg at the floor speed sent the Jodel back under it)
+          const obstTO = Vt === K.Vx && K.Vx < K.Vy;
+          if (!toAccelDone && (V >= (obstTO ? Vt : Vt + 0.5) || aglL > A.hSafe)) {
+            toAccelDone = true;
+            // (the level run in ground effect wound the servo's integrator to ITS trim, +0.10 of up elevator on the Jodel;
+            // out of the ground effect that is a nose-up kick - the climb finds its own trim from none)
+            SV.Ith = Math.min(SV.Ith, 0);
+          }
+          if (!toAccelDone) {
+            // THE RUN-UP: TECS on a height - 2 m over the lift-off point, level to the floor speed (rising 0.25 m/s with
+            // obstacles ahead: the Cub out of Jumbo Mine crossed the mine's houses under 30 m), then rising at 0.5 of the
+            // sheet's climb rate (0.6 with obstacles), blended in over the first 1 m/s above the floor - the speed on
+            // the full throttle; the nose lowered off the lift-off attitude at 2 deg/s at most, and only from 1.5 m up (the
+            // trim fit under-reads the attitude near Vs: lowered at once the C172 archetype's nosewheel came back to the
+            // strip). Flown on a vertical speed instead (the VS servo) the Jodel's soft outer loop let it out of the ground
+            // effect at 2.6 m/s and 1.22 Vs; a height that followed the climb let the Cub out at 1.23 Vs
+            const rampV = (obstTO ? 0.25 : 0) + Math.max(0, (obstTO ? 0.6 : 0.5) * tClimbMax - (obstTO ? 0.25 : 0)) * clamp(V - K.Vfloor, 0, 1);
+            toHoldH = toHoldH == null ? cg[1] + 2.0 : toHoldH + rampV * dt;
+            if (aglG >= 1.5) toLowT += dt;
+            engage('LOC', 'TECS', 'TECS', { alt: toHoldH, vs: null, gs: null, vsUp: 0.6 + rampV, vsDn: -0.4, ias: Vt, wK: 0, vFloor: null, toCap: K.cap, thrFull: true,
+                                            thMin: Math.min(K.cap, thLift0) - 0.035 * toLowT, flc: null, bank: 0.15 });
+          } else engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: Vt, wK: null, vFloor: K.Vfloor, toCap: K.cap, thrFull: null, thMin: null, thMax: null, flc: true, bank: 0.15 });
+          ap.climbKit = K;
+        }
         flapTgt = fTO;
         const left = runwayLeft();
         setStatus('climbing out of ground effect', [
@@ -2575,9 +3601,15 @@ function makePilot(sim, def, world, opts) {
         // the game on a marginal build (a 53 s roll to Vr, airborne with
         // 150 m left), the old rule dropped it three seconds after lift-off
         // into the last of the grass, which is the worse of the two ends.
-        const lowStuck = aglL < A.hSafe * 0.6;
+        // (G2125: on land an aeroplane at its floor speed, or still accelerating to it, is not stuck: the climb law has it -
+        // the rule dropped the C172 archetype from 10 m at 5.9 m/s when its climb began with a sink)
+        const lowStuck = aglL < A.hSafe * 0.6 && !(!sim.hydro && !highThrust && ap.climbKit && (accF > 0.2 || V >= ap.climbKit.Vfloor));
         const canStop = left > stopDist(V) + 40;
-        if ((phaseT > 25 && lowStuck) || (lowStuck && vsSlow < 0.3 && canStop && left - stopDist(V) < 160 && phaseT > 3)) {
+        // G2450: PILOT-PROFILE's level run in ground effect (toAccelDone false: held 2 m over the lift-off point until the
+        // climb speed) is not climbing BY DESIGN - read as stuck, it put the Cub back down off Tamgas Hill 3 s after the
+        // lift-off ('still at 9.6 m with 334 m left', the land tour's second leg). There, stuck is also the speed not building
+        const levelRun = !toAccelDone && accF > 0.15;
+        if ((phaseT > 25 && lowStuck) || (lowStuck && vsSlow < 0.3 && !levelRun && canStop && left - stopDist(V) < 160 && phaseT > 3)) {
           say('wont-climb', 'airborne ' + Math.round(phaseT) + ' s and still at ' + agl.toFixed(1) +
               ' m with ' + Math.round(left) + ' m of strip left — cannot climb out, putting it back down');
           go('PUTDOWN');
@@ -2622,14 +3654,39 @@ function makePilot(sim, def, world, opts) {
         // 1.5 km along the climb-out (canopy included, 15 m clear) stands
         // above the aeroplane; Vy / the cruise-climb once it is below
         const climbDir0 = [F.ux * ap.dirX, F.uz * ap.dirX];
-        const obstAhead = sheetOf() && sheetOf().Vx && gradAhead(cg[0], cg[2], climbDir0[0], climbDir0[1], 1500, cg[1], 15) > 0;
-        if (obstAhead !== vxHeld) { vxHeld = obstAhead; if (obstAhead && !vxSaid) { vxSaid = true; say('vx-climb', 'ground ahead above the aeroplane — climbing at Vx ' + sheetOf().Vx.toFixed(1) + ' m/s until clear'); } }
-        const iasC = obstAhead ? sheetOf().Vx : agl > 2 * A.hSafe ? Math.min(ap.VCruise, ap.VClimb * (A.climbCruiseK ?? 1.10)) : ap.VClimb;
-        engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: iasC, bank: bankLim });   // P0.5: full climb = the sheet's climbMax
+        // G2125 PILOT-PROFILE: what stands ahead is the climb-out corridor's (the trees and the houses too, sampled once
+        // a departure - depNeed), Vx is never under the floor (the sheet's 0.87 Vy is 1.2 Vs), the floor and the
+        // attitude cap ride the climb (TECS vFloor / toCap); on the water and with a high thrust line, as before
+        const landTO = !sim.hydro && !highThrust;
+        const K = landTO ? climbKit() : null;
+        const obstAhead = !!(sheetOf() && sheetOf().Vx) && (landTO ? depNeed(15, 1500) > 0 : gradAhead(cg[0], cg[2], climbDir0[0], climbDir0[1], 1500, cg[1], 15) > 0);
+        const VxF = K ? K.Vx : sheetOf() && sheetOf().Vx;
+        if (obstAhead !== vxHeld) { vxHeld = obstAhead; if (obstAhead && !vxSaid) { vxSaid = true; say('vx-climb', 'ground ahead above the aeroplane — climbing at Vx ' + VxF.toFixed(1) + ' m/s until clear'); } }
+        const iasC = obstAhead ? VxF : agl > 2 * A.hSafe ? Math.min(ap.VCruise, ap.VClimb * (A.climbCruiseK ?? 1.10)) : ap.VClimb;
+        engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: K ? Math.max(iasC, K.Vfloor) : iasC, bank: bankLim,
+                                        vFloor: K ? K.Vfloor : null, toCap: K ? K.cap : null, wK: null, thMax: null, flc: K ? true : null });   // P0.5: full climb = the sheet's climbMax
+        // G3332 LEVEL-OFF: THE CAPTURE STARTS WHERE THE HEIGHT LAW ASKS THE CLIMB ALREADY FLOWN. The climb above flies the
+        // sheet's climbMax to hCruise - 8 (the cross-country's hand-over), where TECS's height law (0.2 /s) asked 1.6 m/s of
+        // the 7.6 flown: the metal Cessna ballooned 15.7 m past the plan on HOME -> w3 (APSMOOTH, 21 Oct; the circuit's
+        // CROSSWIND, on the height law from the ground up, captures within 1.3 m). Inside 5 s of the climb under the cruise
+        // height the climb is flown on the height law itself (vsUp the same climbMax), at the climb's speed: the vertical
+        // speed asked is the one flown at the zone's edge and the capture is the law's own exponential; the ground
+        // (obstAhead, the Vx climb) keeps the full climb. LATCHED: on the exponential the gap stays 5 s of the climb, so the
+        // zone is held until the gap opens 30 m past it (a new climb from below)
+        const capH = ap.refAlt + ap.hCruise, capE = capH - cg[1];
+        // NOT ON FLOATS (22 Oct, TOUR): the float Cessna's return to SEA lands at 31-34 m/s, skips and ends on a known prop-strike
+        // (G3079's KNOWN); any change to its climb out of mk_sea moves that landing (with this: a ground-loop, capsized at 16 m/s).
+        // Its climb stays master's until the float landing is fixed (the user's float-fix choice); the land aeroplanes get the capture
+        lvCap = !sim.hydro && !obstAhead && agl > 2 * A.hSafe && (lvCap ? capE < 5 * Math.max(vcg[1], 0) + 30 : vcg[1] > 0.5 && capE < 5 * vcg[1]);
+        if (lvCap)
+          engage('LOC', 'TECS', 'TECS', { alt: capH, vs: null, gs: null, vsUp: null, vsDn: null, ias: K ? Math.max(iasC, K.Vfloor) : iasC, bank: bankLim,
+                                          vFloor: K ? K.Vfloor : null, toCap: K ? K.cap : null, wK: null, thMax: null, flc: null });
+        if (K) ap.climbKit = K;
         flapTgt = agl > 2 * A.hSafe ? 0 : fTO;
         // G381: the crosswind turn at 0.6 of the circuit height (was 0.35 —
         // 45 m on the cub, "it turns really low"), never above hCruise - 15
-        const hTurn = ap.xc ? ap.hCruise - 8
+        const routeArmed = !!(ap.drawn && ap.drawn.state === 'armed');   // G2120: the drawn route takes over at the crosswind turn's height
+        const hTurn = (ap.xc && !routeArmed) ? ap.hCruise - 8
                     : Math.min(ap.hCruise - 15, Math.max(A.hSafe + 10, ST.hTurnK * 0.6 * ap.hCruise));
         pubH = ap.refAlt + hTurn; pubN = ap.xc ? 'CRUISE HEIGHT' : 'CROSSWIND TURN'; pubX = null; pubZ = null;
         const stalled = phaseT > 60 && vsSlow < 0.15, marginal = phaseT > 75 && vsSlow < 0.4;
@@ -2655,8 +3712,17 @@ function makePilot(sim, def, world, opts) {
         const climbDirNow = [F.ux * ap.dirX, F.uz * ap.dirX];
         const terrainTurn = agl > A.hSafe + 10 && gradAhead(cg[0], cg[2], climbDirNow[0], climbDirNow[1], 1500, cg[1], 30) > gammaGA();
         if (terrainTurn && !terrainTurnSaid) { terrainTurnSaid = true; say('terrain-turn', 'the ground ahead climbs faster than the aeroplane — turning at ' + Math.round(agl) + ' m'); }
-        if (agl >= hTurn || stalled || marginal || terrainTurn) {
-          const first = planFromHere();
+        // G3321 CABIN-CIRCUIT (the user, 18 Oct: "the circuit should ensure to pass the tight zone before manoeuvring"): a strip
+        // whose record draws its climb-out (fly.dep - 27_premises hands it in world metres, its last point the tight zone
+        // passed) is climbed out straight on the runway line until the aeroplane is past that point: no crosswind turn, no
+        // terrain-turn, no ceiling's early circuit before it. A strip without fly.dep: as before, to the bit
+        const depFly = ap.route && ap.route.from && ap.route.from.fly, depE = depFly && depFly.dep && depFly.dep.length ? depFly.dep[depFly.dep.length - 1] : null;
+        const tightLeft = depE ? (depE[0] - cg[0]) * climbDirNow[0] + (depE[1] - cg[2]) * climbDirNow[1] : 0;
+        if (tightLeft > 0 && !tightSaid) { tightSaid = true; say('tight-zone', 'climbing straight out until past the tight zone, ' + tightLeft.toFixed(0) + ' m ahead'); }
+        // (the Cabin Strip's is 3.4 km: an ultralight is at its circuit height long before - it levels there on the line)
+        if (tightLeft > 0 && agl >= ap.hCruise - 8) engage('LOC', 'TECS', 'TECS', { alt: ap.refAlt + ap.hCruise, vs: null, gs: null, vsUp: null, vsDn: null, ias: ap.VClimb, bank: bankLim });
+        if (tightLeft <= 0 && (agl >= hTurn || stalled || marginal || terrainTurn)) {
+          const first = routeArmed ? routeStart() : planFromHere();
           go(first); climbMode = !(stalled || marginal); ceilT = 0;
           if (!climbMode) { SV.thrC = A.thrCruise; SV.thcI = 0.04; }
         }
@@ -2687,6 +3753,21 @@ function makePilot(sim, def, world, opts) {
           // above the slope
           const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, Math.max(1500, Math.min(7500, dRem))) + (A.hClear ?? 130);
           hTgt = Math.max(cruise, floor);
+          // G2125 PILOT-PROFILE: THE PLAN IS FLOWN (the user: "it keeps diving and climbing ... A real flight would
+          // probably be scheduled as climbing, target altitude, then descent and approach"). The look-ahead floor
+          // above re-read the highest ground in the next 7.5 km every step - a ridge passed, the floor fell and the
+          // aeroplane dived for the next one: 21 altitude reversals in 402 s of the metal Cessna's cruise to Jumbo
+          // Mine. The leg's profile (vpPlanLeg) is read 5 s ahead (TECS's 0.2 /s height gain: the lead is the
+          // gradient's feed-forward); the ground is watched only as the EXCEPTION - 1.5 km ahead along the leg, 2 hSafe
+          // (40 m at least) over it, a terrain closer than that raises the target and is said (ap.vpReact counts them)
+          if (L.vp) {
+            const hP = VPROFILE.at(L.vp, r.s + 5 * Math.max(Vg, 10));
+            const react = terrainAhead(cg[0], cg[2], g.ux, g.uz, 1500) + Math.max(2 * A.hSafe, 40);
+            if (react > hP + 1) {
+              if (!vpReact) { vpReact = true; ap.vpReact = (ap.vpReact || 0) + 1; say('terrain-react', 'the ground ahead stands within ' + Math.round(Math.max(2 * A.hSafe, 40)) + ' m of the plan on ' + L.name + ' - climbing to ' + Math.round(react) + ' m (planned ' + Math.round(hP) + ')'); }
+              hTgt = react;
+            } else { if (react < hP - 20) vpReact = false; hTgt = hP; }
+          }
         } else hTgt = legAlt(L);
         pubH = hTgt; pubN = L.name; pubX = L.B[0]; pubZ = L.B[1];
         // P1: THE HOLD IS THE OBSTACLE-CLEARANCE CLIMB (PILOT-ROADMAP C.3):
@@ -2702,7 +3783,17 @@ function makePilot(sim, def, world, opts) {
         // the ridge and crossed it by 9 m; held on the climb-out heading it
         // flew A3's k1 departure straight into the hill (aglT 0.5 m)
         let gNeed = -1, holdOut = false;
-        if (L.enroute && ap.legI === 0 && ap.holdDir && phaseT < 150) {
+        // G2125 PILOT-PROFILE: ...AND THE CIRCUIT'S CROSSWIND LEG TOO. A climb-out that turned for the terrain ('terrain-turn')
+        // turned onto the circuit's crosswind, wherever that pointed: out of Jumbo Mine's valley the user's Cub turned into
+        // the valley side (a 40 % slope) and scraped up it at 1.2 m for 40 s, on train 38 as here. The crosswind leg holds
+        // the escape the enroute leg holds, while its ground asks more than the aeroplane climbs (nothing on flat ground)
+        // G2450: ...AND PAST THE FIRST 150 s WHEN THE GROUND 1.5 km AHEAD ON THE LEG ASKS IT. The window closed while the
+        // Cub left East Point for 02/20 (the circuit's crosswind flown first): the leg then ran up a slope rising 25 %
+        // (29 m -> 671 m in 2.5 km) at its 10 % climb, the reactive floor chasing it, into the hillside. A climb the
+        // aeroplane cannot make over the next 1.5 km opens the escape (the fan, the climbing turn) whenever it comes
+        const g0 = L.enroute && ap.legI === 0 && ap.holdDir && phaseT >= 150 ? legGeom(L) : null;
+        const nearSteep = !!g0 && gradAhead(cg[0], cg[2], g0.ux, g0.uz, 1500, cg[1], 30) > gammaGA();
+        if ((L.enroute || L.name === 'CROSSWIND') && ap.legI === 0 && ap.holdDir && (phaseT < 150 || nearSteep || holdOutLate)) {
           const g = legGeom(L);
           gNeed = gradAhead(cg[0], cg[2], g.ux, g.uz, Math.max(1500, Math.min(7500, r.len - r.s)), cg[1], 30);
           if (gNeed > gammaGA()) {
@@ -2711,21 +3802,22 @@ function makePilot(sim, def, world, opts) {
             let best = null;
             for (let k = -3; k <= 3; k++) {
               const h = h0 + k * Math.PI / 6;
-              let gk = gradAhead(cg[0], cg[2], Math.cos(h), Math.sin(h), 1500, cg[1], 30);
-              if (escapeHdg != null && Math.abs(Math.atan2(Math.sin(h - escapeHdg), Math.cos(h - escapeHdg))) < 0.1) gk -= 0.01;
+              let gk = gradAhead(cg[0], cg[2], CORE_MATH.cos(h), CORE_MATH.sin(h), 1500, cg[1], 30);
+              if (escapeHdg != null && Math.abs(Math.atan2(CORE_MATH.sin(h - escapeHdg), CORE_MATH.cos(h - escapeHdg))) < 0.1) gk -= 0.01;
               if (!best || gk < best.g) best = { h, g: gk };
             }
             escapeHdg = best.h; escapeCircle = best.g > gammaGA();
             if (escapeCircle) {
               // no heading can be made: a climbing turn toward the least bad
               // one — the selected heading stays 50 deg ahead of the track
-              const trk = Math.atan2(vcg[2], vcg[0]), toward = Math.atan2(Math.sin(best.h - trk), Math.cos(best.h - trk));
+              const trk = Math.atan2(vcg[2], vcg[0]), toward = Math.atan2(CORE_MATH.sin(best.h - trk), CORE_MATH.cos(best.h - trk));
               escapeHdg = trk + (toward >= 0 ? 0.87 : -0.87);
             }
             ap.escape = { hdg: Math.round(escapeHdg * 57.3), need: Math.round(gNeed * 1000) / 10, best: Math.round(best.g * 1000) / 10, circle: escapeCircle };
           }
         }
         if (!holdOut) { escapeHdg = null; escapeCircle = false; }
+        holdOutLate = holdOut && phaseT >= 150;   // G2450: an escape opened late stays open until the gradient is made
         // P1: the climb-out hold carried the aeroplane kilometres from the
         // enroute leg's start (its own take-off position); when the hold
         // ends the leg begins where the aeroplane is, and the path with it
@@ -2733,7 +3825,7 @@ function makePilot(sim, def, world, opts) {
         // corner the path fillets (a leg through the aeroplane's own
         // position, flown the other way, read 308 m of "overshoot" on the
         // turn-back); the path starts at the aeroplane
-        if (heldOut && !holdOut && L.enroute && ap.legI === 0) {
+        if (heldOut && !holdOut && (L.enroute || L.name === 'CROSSWIND') && ap.legI === 0) {
           const tl = Math.hypot(vcg[0], vcg[2]) || 1, Rc2 = 2 * (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bankLim));
           L.A = [cg[0] + vcg[0] / tl * Rc2, cg[2] + vcg[2] / tl * Rc2]; airPath = null; pathFrom = [cg[0], cg[2]]; planLegH(ap.legs);
         }
@@ -2766,18 +3858,46 @@ function makePilot(sim, def, world, opts) {
             say('cant-hold-speed', 'full throttle holds ' + Math.round(V * 3.6) + ' of the ' + Math.round(cd.V * 3.6) + ' km/h asked');
           }
         }
+        // G2450 EAST-POINT-DEPART (ported by G2520 ALTIPORT-ARRIVAL): A FINAL IS NOT BEGUN FROM BELOW IT. The leg that hands
+        // over to the final (the straight-in's INBOUND, the circuit's BASE) ending more than 60 m under its planned height
+        // - the climb its profile could not fit (44_vprofile's endShort: HOME 31 m > Skyline Altiport 695 m, 8 km; the
+        // Jodel's final began 270 m under the strip in the game, 8 Oct, and FINAL's slope-line flare armed 180 m under
+        // it) - is not ended: the climb hold (flyClimbHold) takes the rest, and the arrival is planned again from there
+        const nextL = ap.legs[ap.legI + 1];
+        if (!ap.climbHold && (r.done || r.rem < 60) && (!nextL || nextL.name === 'FINAL')) {
+          const hNeed = ap.altRef + (L.h != null ? L.h : ap.hCruise);
+          if (hNeed - cg[1] > 60) {
+            // the orbit through the fix (L.B), tangent there to the final's course, on the side whose ground is lower
+            const FN = legGeom(nextL && nextL.A && nextL.B ? nextL : L);
+            const Rh = Math.max(250, 1.4 * (1.05 * Math.max(ap.VClimb || V, 8)) ** 2 / (9.81 * Math.tan(bankLim)));
+            const side = sg => {
+              const x = L.B[0] - sg * Rh * FN.uz, z = L.B[1] + sg * Rh * FN.ux;
+              let g = -1e9;
+              if (world && typeof world.terrainH === 'function') for (let k = 0; k < 16; k++) g = Math.max(g, groundH(x + Rh * CORE_MATH.cos(k * Math.PI / 8), z + Rh * CORE_MATH.sin(k * Math.PI / 8)));
+              return { sg, x, z, g };
+            };
+            const S1 = side(1), S2 = side(-1), O = S1.g <= S2.g ? S1 : S2;
+            ap.climbHold = { h: hNeed, t0: ap.t, sg: O.sg, orb: { x: O.x, z: O.z, R: Rh, ix: L.B[0], iz: L.B[1], ux: FN.ux, uz: FN.uz } };
+            ap.climbHoldN = (ap.climbHoldN || 0) + 1;
+            say('climb-hold', Math.round(hNeed - cg[1]) + ' m under the height the final to ' + (ap.route.to.name || ap.route.to.id) + ' starts from' +
+                (L.vpSum && L.vpSum.endShort > 0 ? ' (the climb planned ' + L.vpSum.endShort + ' m short)' : '') + ' - circling here, climbing, before the approach');
+          }
+        }
+        let holdEnd = false;
+        if (ap.climbHold) { holdEnd = flyClimbHold(); if (!holdEnd) break; }
         const tLeg = r.len / Math.max(8, legSpeed(L) * 0.8) + 40;
         setStatus(L.enroute ? 'enroute to the pattern entry' : 'flying the ' + L.name.toLowerCase() + ' leg', [
           cond('to the turn', Math.round(r.rem), 0, r.done, 'm'),
           cond('height', Math.round(cg[1] - ap.altRef), Math.round(hTgt - ap.altRef), Math.abs(hTgt - cg[1]) < 12, 'm'),
           cond('off track', Math.round(Math.abs(r.xt)), 50, Math.abs(r.xt) < 50, 'm')]);
-        if (r.done || phaseT > 2.5 * tLeg) {
-          if (!r.done) say('leg-timeout', L.name + ' took ' + Math.round(phaseT) + ' s — moving to ' + (next ? next.name : 'FINAL'));
+        if (r.done || holdEnd || phaseT > 2.5 * tLeg) {
+          if (!r.done && !holdEnd) say('leg-timeout', L.name + ' took ' + Math.round(phaseT) + ' s — moving to ' + (next ? next.name : 'FINAL'));
           ap.legI++;
           const N = ap.legs[ap.legI];
           if (!N || N.name === 'FINAL') {
             ap.trackHold = true; ap.dirX = 1;
             slopeCaptured = false; finalT0 = ap.t; SV.thrC = A.thrAppr; deF = SV.aDe;
+            stabT = 0; stabVf = null; stabIn = false; stabPk = 0; stabWhy = null;   // G2460: a new final is judged afresh
             finalLevel = null;                    // G381: latched on entry
             go('FINAL');
           } else go(N.name);
@@ -2785,7 +3905,80 @@ function makePilot(sim, def, world, opts) {
         break;
       }
 
+      case 'ROUTE': {
+        // G2120 ROUTE-DRAW: THE DRAWN ROUTE (routeStart above). Laterally the legs as the circuit's are flown: the
+        // path filleted at each corner's turn radius (the fly-by), L1 on it, a leg passed at navLeg's anticipation;
+        // vertically the profile - hA to hB along the leg, read 5 s ahead (into the next leg past the corner)
+        // - with a floor of last resort (the ground 600 m ahead + 30 m: a drawn profile under it was flagged red when
+        // it was drawn, and is said once if it is ever flown into)
+        const D = ap.drawn, L = ap.legs && ap.legs[ap.legI];
+        if (!D || D.state !== 'flying' || !L || !L.A || !L.drawn) { go(planFromHere()); break; }
+        const next = ap.legs[ap.legI + 1] || null;
+        const r = navLeg(L, lookC, next);
+        if (!airPath) { airPath = buildAirPath(ap.legs, pathFrom); airPathI = 0; pathFrom = null; }
+        // the plan (VPROFILE.at) read 5 s ahead - TECS's 0.2 /s height gain: the lead is the gradient's feed-forward;
+        // without a world (no plan) the point's own height
+        const lead = 5 * Math.max(o_.Vg ?? Vg, 10);
+        let hTgt = D.vp ? VPROFILE.at(D.vp, VPROFILE.legS(D.vp, ap.legI, r.s) + lead) : L.hB;
+        // THE GROUND AS THE EXCEPTION (PILOT-PROFILE's own guard, the enroute leg's): 1.5 km ahead along the leg, 2 hSafe
+        // (40 m at least) over it - a terrain closer than that raises the target and is said (ap.vpReact counts them)
+        const g = legGeom(L);
+        const react = terrainAhead(cg[0], cg[2], g.ux, g.uz, 1500) + Math.max(2 * A.hSafe, 40);
+        if (react > hTgt + 1) {
+          if (!vpReact) { vpReact = true; ap.vpReact = (ap.vpReact || 0) + 1; say('terrain-react', 'the ground ahead stands within ' + Math.round(Math.max(2 * A.hSafe, 40)) + ' m of the plan on ' + L.name + ' - climbing to ' + Math.round(react) + ' m (planned ' + Math.round(hTgt) + ')'); }
+          hTgt = react;
+        } else if (react < hTgt - 20) vpReact = false;
+        const Vleg = routeVleg(L);
+        altMode(hTgt, Vleg, bankLim, airPath ? 'PATH' : 'NAV');
+        flapTgt = 0;
+        pubH = hTgt; pubN = L.name; pubX = L.B[0]; pubZ = L.B[1];
+        // the captures: the closest pass at this point and the last (a fly-by passes it after the switch)
+        for (let k = Math.max(0, ap.legI - 1); k <= ap.legI; k++) {
+          const Lk = ap.legs[k], dk = Math.hypot(Lk.B[0] - cg[0], Lk.B[1] - cg[2]);
+          if (dk < D.cap[k].d) { D.cap[k].d = dk; D.cap[k].dh = cg[1] - Lk.hB; D.cap[k].t = ap.t; }
+        }
+        D.i = ap.legI;
+        ap.budget = Math.max(ap.budget, ap.t + 400);
+        const tLeg = r.len / Math.max(8, Vleg * 0.8) + 60;
+        setStatus('flying the drawn route: ' + L.name + ' of ' + ap.legs.length, [
+          cond('to the point', Math.round(r.rem), 0, r.done, 'm'),
+          cond('height', Math.round(cg[1]), Math.round(L.hB), Math.abs(L.hB - cg[1]) < 15, 'm'),
+          cond('off track', Math.round(Math.abs(r.xt)), 50, Math.abs(r.xt) < 50, 'm')]);
+        if (r.done || phaseT > 2.5 * tLeg) {
+          if (!r.done) say('leg-timeout', L.name + ' took ' + Math.round(phaseT) + ' s - moving on');
+          ap.legI++;
+          if (ap.legI >= ap.legs.length) { ap.legI = ap.legs.length - 1; go(routeEnd()); }
+          else go('ROUTE');
+        }
+        break;
+      }
+
+      case 'LOITER': {
+        // G2120: THE HOLD at the drawn route's end - an orbit through its last point at its altitude, the heading the
+        // circle's tangent with the radial error turned in (45 deg at most), until a new To or route moves it
+        const D = ap.drawn, Hd = D && D.hold;
+        if (!Hd) { go(planFromHere()); break; }
+        // (the tangent read 2 s ahead round the circle: the heading law lags a target that turns V/R all the time)
+        const rr = Math.hypot(cg[0] - Hd.x, cg[2] - Hd.z) || 1e-9;
+        const phA = Math.atan2(cg[2] - Hd.z, cg[0] - Hd.x) + Hd.sg * 2 * Math.max(Vg, 8) / Hd.R;
+        const rx = CORE_MATH.cos(phA), rz = CORE_MATH.sin(phA);
+        const kR = clamp(3 * (rr - Hd.R) / Hd.R, -1, 1);
+        const dx = -rz * Hd.sg - kR * rx, dz = rx * Hd.sg - kR * rz;
+        altMode(Hd.h, Math.min(ap.VCruise, Math.max(VTurn, ap.VClimb || 0)), bankLim, 'HDG');
+        SEL.hdg = Math.atan2(dz, dx);
+        flapTgt = 0;
+        pubH = Hd.h; pubN = 'HOLD ' + Hd.name; pubX = Hd.x; pubZ = Hd.z;
+        const Lz = ap.legs && ap.legs[ap.legs.length - 1];
+        if (Lz && D.cap[Lz.i]) { const dk = Math.hypot(Lz.B[0] - cg[0], Lz.B[1] - cg[2]); if (dk < D.cap[Lz.i].d) { D.cap[Lz.i].d = dk; D.cap[Lz.i].dh = cg[1] - Lz.hB; D.cap[Lz.i].t = ap.t; } }
+        ap.budget = Math.max(ap.budget, ap.t + 300);
+        setStatus('holding over ' + Hd.name + ' at the route\'s end', [
+          cond('height', Math.round(cg[1]), Math.round(Hd.h), Math.abs(Hd.h - cg[1]) < 15, 'm'),
+          cond('off the circle', Math.round(Math.abs(rr - Hd.R)), 60, Math.abs(rr - Hd.R) < 60, 'm')]);
+        break;
+      }
+
       case 'FINAL': {
+        if (ap.climbHold) { flyClimbHold(); break; }   // G2520: the flare guard's climb hold (below)
         // level at the height it has until the slope rises to meet it, then
         // GS on groundspeed feed-forward; flaps go down here; SPD on the
         // throttle at the approach speed
@@ -2806,7 +3999,7 @@ function makePilot(sim, def, world, opts) {
         // P0.6: the last fillet (base -> final) is the path's; LOC takes over
         // once the nose is within 11 deg of the runway and 60 m of the line
         const nS = nose[0] * F.ux + nose[1] * F.uz;
-        const onPathF = !!airPath && !(nS > Math.cos(0.19) && Math.abs(sCr) < 60);
+        const onPathF = !!airPath && !(nS > CORE_MATH.cos(0.19) && Math.abs(sCr) < 60);
         const bF = onPathF ? bankLim : Math.abs(sCr) > 60 ? Math.min(bankLim, 0.30) : 0.18;
         const latF = onPathF ? 'PATH' : 'LOC';
         const bFs = slipK > 0.02 ? Math.max(bF, 0.35) : bF;   // G1936: the slip's bank holds the track
@@ -2816,6 +4009,9 @@ function makePilot(sim, def, world, opts) {
         // up at idle — the elevator on its stop, 3 m/s below a 2.2 deg
         // slope, two terrain go-arounds; GATE ARCHETYPES)
         const iasF = ap.VAppr * ST.VapprK;
+        // G2500 (CESSNA-VREF): a final after a go-around starts at the speed the elevator was found to hold (ap.vHeld) -
+        // the last final raised it there half a metre a second at a time, on the stop, unstabilised the whole way
+        if (heldSeed) { heldSeed = false; if (ap.vHeld > iasF) tVAdapt = Math.min(ap.vHeld - iasF, 0.25 * iasF); }
         // G1936 (PILOT-ONE): THE FORWARD SLIP. A short field's slope is the obstacles' (East Point's trees ask 6 deg)
         // and a clean aeroplane cannot fly it at 1.2 Vs0 at idle: the user's Cub (no flap) came down it with the
         // throttle closed, 4 m over the slope and 2.5 m/s fast, and arrived at the flare at 25 m/s = 1.56 Vs.
@@ -2842,7 +4038,12 @@ function makePilot(sim, def, world, opts) {
         // slope by more than the capture window the target is the SLOPE itself, descended onto at
         // half again the slope's own rate; the latched level is for the aeroplane the slope rises
         // to meet (the branch above)
-        else if (above > 4) engage(latF, 'TECS', 'TECS', { alt: hGS, vs: null, gs: null, ias: iasF, bank: bFs, vsUp: 1.5, vsDn: Math.min(-3.0, -2.4 * V * ap.gs), spdPri: ap.shortFld });
+        // G2500 (CESSNA-VREF): ...ON THE SLOPE'S OWN LAW (gs), not an altitude target sliding down it. TECS's height law
+        // (0.2 x the error) chased the moving hGS with no feed-forward and settled Vg x gs / 0.2 above it - 6.2 m on the
+        // metal Cessna (31 m/s on 0.046), outside the 4 m capture: never captured, the whole final 6 m high, the flare
+        // begun at the aim and the touch 80 m past it (pilot-42's Tamgas Hill: 100 m past the end, train 40 52 m). The
+        // slope law carries the slope's sink and closes the height on top, inside the same steeper vsDn
+        else if (above > 4) engage(latF, 'TECS', 'TECS', { gs: ap.gs, alt: null, vs: null, ias: iasF, bank: bFs, vsUp: 1.5, vsDn: Math.min(-3.0, -2.4 * V * ap.gs), spdPri: ap.shortFld });
         else engage(latF, 'TECS', 'TECS', { alt: finalLevel, vs: null, gs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
         ap.trackHold = !onPathF;
         if (!onPathF) airPath = null;
@@ -2858,9 +4059,9 @@ function makePilot(sim, def, world, opts) {
         // filter) is past the trim budget the build was sized to, and it comes back a stage (0.25,
         // never below the take-off setting) when the elevator sits on its stop; the cap holds for
         // the flight (the flare, the next circuit). No flap, or an elevator inside its budget: as before
-        deF += (SV.aDe - deF) * Math.min(1, dt / 0.5);
+        deF += (deHeld() - deF) * Math.min(1, dt / 0.5);
         if (FS && c.flap < fLDG - 0.01 && c.flap > fTO && deF > 0.18) { fLandCap = c.flap; flapTgt = c.flap; say('flap-limited', 'the elevator holds flap ' + c.flap.toFixed(2) + ' at its trim budget — no more'); }
-        if (FS && c.flap > fTO + 0.01 && SV.aDe > 0.30) {
+        if (FS && c.flap > fTO + 0.01 && deHeld() > 0.30) {
           fCapT += dt;
           if (fCapT > 0.3) { fLandCap = Math.max(fTO, c.flap - 0.25); fCapT = 0; flapTgt = Math.min(flapTgt, fLandCap); say('flap-limited', 'the elevator cannot hold flap ' + c.flap.toFixed(2) + ' — landing on ' + fLandCap.toFixed(2)); }
         } else fCapT = 0;
@@ -2873,13 +4074,14 @@ function makePilot(sim, def, world, opts) {
         // flare's does); a go-around closes it again. An aeroplane that trims inside 0.15 flies as before
         SV.IthMaxT = A.rotateIMax ?? 0.30;
         const canGA = (ap.gaN || 0) < 2 && !committed;
+        if (tVAdapt > 0.5 && heldJudged !== 'refused' && judgeHeld(d)) break;
         setStatus(slopeCaptured ? 'down the slope to the aim point' : 'level, waiting for the slope', [
           cond('to the aim', Math.round(d), 0, d <= 0, 'm'),
           cond('above slope', Math.round(above), ST.gaHigh, above < ST.gaHigh, 'm'),
           cond('off centre', Math.round(Math.abs(sCr)), ST.gaXT, Math.abs(sCr) < ST.gaXT, 'm'),
           cond('flare at', aglG.toFixed(1), A.flareAgl, aglG < A.flareAgl, 'm')]);
         gaT = above > ST.gaHigh && d < 600 ? gaT + dt : 0;
-        if (gaT > 3) { if (canGA) { goAround('high on the slope ' + Math.round(d) + ' m out'); break; }
+        if (gaT > 3 * (PRA ? PRF.decisionK : 1)) { if (canGA) { goAround('high on the slope ' + Math.round(d) + ' m out'); break; }
                        else if (!committed) { committed = true; say('committed-landing', 'high but committed'); } }
         if (d < 250 && d > 0 && Math.abs(sCr) > ST.gaXT) {
           if (canGA) { goAround('off the centreline by ' + Math.round(Math.abs(sCr)) + ' m on short final'); break; }
@@ -2891,23 +4093,102 @@ function makePilot(sim, def, world, opts) {
         // flies again, the same slope over the same ground. The clearance on the slope is the runway
         // model's to plan (its cone, the canopy included); the pilot goes around when it is under 15 m
         // AND more than a third below what the slope leaves over the ground here
-        if (world && d > 400 && canGA && aglT < Math.min(15, 0.67 * (hGS - terrainNow))) { goAround('terrain under the approach'); break; }
+        // G3321 CABIN-CIRCUIT: a strip whose record vouches for its approach (fly.terrainOk - the user's Cabin Strip, through a
+        // mountain gap and over a lake: "you may need to ignore ground proximity warnings") is not gone around from for the
+        // ground under it - the designer's clearance, per strip; every other strip as before
+        if (world && d > 400 && canGA && !(ap.route.to.fly && ap.route.to.fly.terrainOk) && aglT < Math.min(15, 0.67 * (hGS - terrainNow))) { goAround('terrain under the approach'); break; }
         if (d <= -150 && agl > A.flareAgl * 3) {
           if (canGA) { goAround('past the aim at ' + Math.round(agl) + ' m'); break; }
           if (!committed) { committed = true; say('committed-landing', 'past the aim at ' + Math.round(agl) + ' m agl — landing it'); }
         }
-        if (ap.t - finalT0 > 240 && canGA) { goAround('final took ' + Math.round(ap.t - finalT0) + ' s'); break; }
+        // G3326: a designed approach's long final (the Cabin Strip's 5-6 km) is given the time its length asks
+        const finalMax = ap.plan && ap.plan.designed ? Math.max(240, 1.6 * (ap.plan.sAim - ap.plan.sIaf) / Math.max(10, iasF)) : 240;
+        if (ap.t - finalT0 > finalMax && canGA) { goAround('final took ' + Math.round(ap.t - finalT0) + ' s'); break; }
         // G1936: A SHORT FINAL IS STABILIZED OR FLOWN AGAIN - 5 m/s over Vref under 20 m is a float the strip has no
         // room for (the Cub's 25 m/s at the flare touched 213 m into 150 m)
-        if (ap.shortFld && canGA && d > 0 && aglG < 20 && V > iasF + 5) { goAround('fast on the short final: ' + V.toFixed(1) + ' m/s for ' + iasF.toFixed(1)); break; }
+        // (G2500: against the speed the elevator holds - a raised reference is the approach's, not a fast one)
+        if (ap.shortFld && canGA && d > 0 && aglG < 20 && V > iasF + tVAdapt + 5) { goAround('fast on the short final: ' + V.toFixed(1) + ' m/s for ' + (iasF + tVAdapt).toFixed(1)); break; }
+        // G2460 (PERSONA-2): THE STABILISED APPROACH (PILOT_STAB, above: FSF ALAR 7.1 scaled to the light aeroplane). Below
+        // the gate, on the way to the flare, every final is judged on its path, speed, sink, centreline and flap; an
+        // approach that stays outside them for the dwell (x the person's decisionK) is flown again - 68 persona flights
+        // went round none, and the Wipline C172's student and ham-fist flew a water final 51-70 m off track / 8-9 m off
+        // the slope at 1.5-1.7 Vs on down to 2.6-3.9 m/s touchdowns. Twice round and the third is committed (G1936):
+        // then an unstable final is landed and SAID (ap.report.stab.committed)
+        {
+          const S = PILOT_STAB, hAim = cg[1] - aimAlt();
+          const hC = (ap.plan && ap.plan.hC) || ap.hCruise || 150;
+          const hGate = Math.min(S.gateFt * 0.3048, S.gateK * hC);
+          const a = Math.min(1, dt / S.tau);
+          stabVf = stabVf == null ? V : stabVf + (V - stabVf) * a;
+          stabSf += (-vcg[1] - stabSf) * a;
+          const R = ap.report.stab || (ap.report.stab = { gateH: Math.round(hGate), finals: 0, ga: 0, committed: null, worst: { vLo: 0, vHi: 0, dev: 0, sink: 0, xt: 0 } });
+          if (!stabIn && hAim < hGate && d > 0) { stabIn = true; R.finals++; }
+          if (stabIn && d > 0) {
+            const nomSink = Math.hypot(vcg[0], vcg[2]) * ap.gs;
+            const lim = {
+              vLo: S.vLo, vHi: S.vHi,
+              dev: Math.max(S.devMin, d * Math.tan(S.devDeg * Math.PI / 180)),
+              sink: Math.min(S.sinkMax, Math.max(S.sinkK * nomSink, nomSink + S.sinkAdd)),
+              xt: Math.max(ST.gaXT, d * Math.tan(S.xtDeg * Math.PI / 180)) };
+            const have = { vLo: iasF + tVAdapt - stabVf, vHi: stabVf - iasF - tVAdapt, dev: Math.abs(above), sink: stabSf, xt: Math.abs(sCr) };
+            let why = null;
+            for (const k in lim) {
+              const r = have[k] / lim[k];
+              if (r > R.worst[k]) R.worst[k] = Math.round(r * 100) / 100;
+              if (r > 1 && !why) why = k === 'vLo' ? 'slow ' + stabVf.toFixed(1) + ' m/s for ' + (iasF + tVAdapt).toFixed(1)
+                : k === 'vHi' ? 'fast ' + stabVf.toFixed(1) + ' m/s for ' + (iasF + tVAdapt).toFixed(1)
+                : k === 'dev' ? (above > 0 ? 'high ' : 'low ') + Math.abs(above).toFixed(0) + ' m on the slope'
+                : k === 'sink' ? 'sinking ' + stabSf.toFixed(1) + ' m/s'
+                : Math.abs(sCr).toFixed(0) + ' m off the centreline';
+            }
+            if (!why && FS && phaseT > 15 && c.flap < flapTgt - 0.15) why = 'not configured (flap ' + c.flap.toFixed(2) + ' for ' + flapTgt.toFixed(2) + ')';
+            stabT = why ? stabT + dt : Math.max(0, stabT - 0.5 * dt);
+            if (why && stabT > stabPk) { stabPk = stabT; stabWhy = why + ' at ' + Math.round(hAim) + ' m'; }
+            if (why && stabT > S.dwell * (PRA ? PRF.decisionK : 1)) {
+              if (canGA) { R.ga++; goAround('unstabilised approach at ' + Math.round(hAim) + ' m: ' + why); break; }
+              if (!R.committed) { R.committed = why + ' at ' + Math.round(hAim) + ' m'; if (!committed) committed = true; say('committed-unstable', 'unstabilised (' + why + ') but committed - landing it'); }
+            }
+          }
+        }
         // G381: the hold-off begins 1.3x higher than the ramp did — it has a
         // sink to arrest AND a speed to bleed, and the pull takes a second to bite
         // GTRAM: onto an altiport's slope the height is over the SLOPE'S LINE through the aim, and the
         // round-out begins a second of the rising ground earlier - the path turns from down to up
         altG = altiGrade();
         const hFl = altG > 0 ? cg[1] - (aimAlt() + altG * (sAl - ap.xAim)) : aglG;
-        if (hFl < (A.flareK ?? 1.3) * A.flareAgl * (PRA ? PRF.flareK : 1) + altG * V) {
-          go('FLARE'); thFlare0 = th;
+        let flareArm = hFl < (A.flareK ?? 1.3) * A.flareAgl * (PRA ? PRF.flareK : 1) + altG * V;
+        // G2520 ALTIPORT-ARRIVAL: THE FLARE-ARMING SANITY GUARD. The flare is the last metres over the strip: it never
+        // arms with the wheels UNDER the strip (its lowest ground from the threshold to the aim) nor more than
+        // FLARE_ARM_MAX over the aim's ground - whatever height the arming law reads (the altiport's slope line runs on
+        // under the hill: at Skyline Altiport's ~10 % it met the Jodel 1.7 km out, 180 m under the strip, in the
+        // game, 8 Oct - 'floating with 1630 m left', the airframe broken; the ground under a ridge before a
+        // threshold reads low too). Under the strip: the approach is left for the climb hold (to the circuit height
+        // over the strip's highest ground the record or the terrain gives) and planned again - straight ahead
+        // would be the hillside; a second time, a go-around. Over it: not armed, the final flies on (said once)
+        if (flareArm) {
+          const SG = stripGround();
+          const hW = cg[1] - (gearH ?? restH0);
+          if (SG && hW < SG.lo) {
+            flareArm = false;
+            ap.flareGuardN = (ap.flareGuardN || 0) + 1;
+            const ga = ap.flareGuardN > 1 && canGA;
+            say('flare-guard', 'not flaring ' + Math.round(SG.lo - hW) + ' m under the strip of ' + (ap.route.to.name || ap.route.to.id) + ', ' + Math.round(d) + ' m before the aim - ' + (ga ? 'going around' : 'climbing to the circuit before the approach'));
+            if (ga) { goAround('under the strip ' + Math.round(d) + ' m out'); break; }
+            SV.IthMaxT = 0.15; finalLevel = null; SV.thrC = A.thrCruise;
+            const hC = (ap.plan && ap.plan.hC) || ap.hCruise;
+            ap.climbHold = { h: Math.max(ap.altRef, SG.aim, SG.lo) + hC, t0: ap.t, sg: sCr > 0 ? -1 : 1 };
+            ap.climbHoldN = (ap.climbHoldN || 0) + 1;
+            flyClimbHold(); break;
+          } else if (SG && hW - SG.aim > FLARE_ARM_MAX) {
+            flareArm = false;
+            if (!ap.flareGuard) { ap.flareGuard = 'high'; say('flare-guard', 'not flaring ' + Math.round(hW - SG.aim) + ' m over the aim of ' + (ap.route.to.name || ap.route.to.id) + ' (' + FLARE_ARM_MAX + ' m at most) - the final flies on'); }
+          }
+        }
+        if (flareArm) {
+          go('FLARE'); thFlare0 = th; flThr0 = c.thr; flWI = 0;
+          // G2460: A FINAL THE EXPERT WOULD HAVE FLOWN AGAIN, LANDED BY A PERSON WHO DECIDES LATE (decisionK > 1), IS SAID:
+          // its dwell past the expert's (PILOT_STAB.dwell) and the reason
+          if (ap.report.stab && stabPk > PILOT_STAB.dwell && !ap.report.stab.committed) ap.report.stab.tolerated = stabWhy + ' (' + stabPk.toFixed(1) + ' s)';
           // G381: the hold-off's timescale (continuous with the sink it
           // arrives with), its cap (the three-point attitude on a
           // taildragger, thMax on a tricycle), its integrator and filter
@@ -2995,6 +4276,16 @@ function makePilot(sim, def, world, opts) {
           SV.pitchK = A.flarePK ?? 2.0; SV.pitchDK = A.flareDK ?? 1.0;
           SV.IthMaxT = A.rotateIMax ?? 0.30; SV.IthGain = A.flareIth ?? 0.4;
           if (altG > 0) engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SPD', { pitch: thC, bank: 0.10, ias: 0.95 * ap.VAppr });   // GTRAM: the round-out onto the slope is flown on power
+          else if (sim.hydro) {
+            // G3079 (FLOATS-FIX; PERSONA-2 G2462's law, alone): ON THE WATER THE FLARE IS FLOWN ON POWER (FAA-H-8083-23, the
+            // seaplane handbook: the touchdown in a slightly nose-high attitude at a low rate of descent, power controlling
+            // it). The throttle stays where the approach had it and a PI on the sink trims it: closed at the flare's start,
+            // the floats' nose fell, the sink grew and the hull met the water hard - the skip, then the flip
+            // (G3077: ONE water flare - PERSONA-2 G2462's and FLOATS-FIX G3079's are this same law, merged once)
+            const eS = vsC - flVsF;   // > 0: sinking faster than asked
+            flWI = clamp(flWI + (A.flareWaterI ?? 0.10) * eS * dt, -flThr0, 0.4);
+            engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SET', { pitch: thC, bank: 0.10, thr: clamp(flThr0 + (A.flareWaterP ?? 0.25) * eS + flWI, 0, Math.min(1, flThr0 + 0.4)) });
+          }
           else engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: thC, bank: 0.10, idle: A.flareThr ?? 0 });
         }
         if (onG > 0) {
@@ -3014,13 +4305,40 @@ function makePilot(sim, def, world, opts) {
           const dRem = (flatRoll.x - cg[0]) * flatRoll.ux + (flatRoll.z - cg[2]) * flatRoll.uz;
           engage('RWY', 'DE', 'TAXI', { de: A.taxiDe ?? 0.30, gsp: Math.min(0.6 * taxiV, Math.sqrt(2 * 0.5 * Math.max(0, dRem - 1.5))) });
           setStatus('rolling on to the level part of the strip', [cond('to the level part', Math.round(Math.max(0, dRem)), 2, dRem < 2, 'm')]);
-          if (dRem < 2 || (dRem < 6 && Vg < 0.3) || ap.t - flatRoll.t0 > 90) {
+          // G3327: ...and a grade the taxi cannot climb (Vg under 0.3 m/s for 6 s, once the roll has had 5 s to start) is
+          // parked on, the brakes on - a pilot does not sit with the throttle open on a hill the aeroplane will not climb
+          flatRoll.stuckT = (Vg < 0.3 && ap.t - flatRoll.t0 > 5) ? (flatRoll.stuckT || 0) + dt : 0;
+          if (flatRoll.stuckT > 6 && dRem >= 6) { say('slope-parked', 'the grade is too steep to taxi up - parked on the brakes ' + Math.round(dRem) + ' m short of the level part'); c.brake = 1; }
+          if (dRem < 2 || (dRem < 6 && Vg < 0.3) || flatRoll.stuckT > 6 || ap.t - flatRoll.t0 > 90) {
             ap.report.outcome = ap.report.outcome || 'completed';
             go('STOPPED');
           }
           break;
         }
-        if (trike) {
+        // G3329 (AP-ADAPT, t66 capsize): THE PEDALS ARE CENTRED BEFORE THE WATER RUDDERS COME DOWN (the seaplane handbook).
+        // The rule drops the blades the instant the water speed falls under WR_UP_V, at whatever the pedal holds: the float
+        // Cessna's 8 kt roll-out (t66-int) sat on -0.95 of air rudder against the weathercock from 15 to 10 m/s, the blades
+        // bit at full travel, the nose swung 29 deg in 0.9 s and it rolled over. Under WR_UP_V they stay up until the pedal
+        // is inside 0.3 (or the boat walks, 0.25 WR_UP_V), then come down for good; go() gives the handle back to the rule
+        if (sim.hydro) {
+          const wrV = typeof WR_UP_V === 'number' ? WR_UP_V : 12;
+          if (!wrLanded && Vg < wrV && (Math.abs(c.dr || 0) < 0.3 || Vg < 0.25 * wrV)) wrLanded = true;
+          if (!wrLanded) { c.wr = 0; wrHold = true; } else if (wrHold) { c.wr = null; wrHold = false; }
+        }
+        // G3079 (FLOATS-FIX; PERSONA-2 G2462's): ON THE WATER THE ATTITUDE IS HELD WHILE THE HULL PLANES (FAA-H-8083-23: after
+        // the touchdown the back pressure comes in gradually as the seaplane slows off the step) - full back stick the instant
+        // the floats touched threw the Wipline C172 to +16 deg and off the water for 3 s; held to 0.7 Vs0, then the laws below.
+        // On a float Cessna whose sheet rolls out as a trike too (the de-rotation's 2 deg nose-down pinned the bows in)
+        const VsW = sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99;
+        // G3330 (WATER-SKIP, 20 Oct - the float Cessna on the game's 8 kt leg, t66: a touch at 1.46 Vs skipped six times, the hull
+        // a metre clear, the bank 4 -> 32 deg, a float caught and it rolled over; the same touch skipping under 0.45 m survives):
+        // IN A SKIP THE AEROPLANE IS FLYING. Off the water after the touch (no float wet, still over 0.7 Vs0) the wings are flown
+        // LEVEL by the air's roll law (the roll-out's ground law steers a hull, not a wing), the touch attitude held, and a
+        // little power (0.15) cushions the next contact instead of a closed throttle dropping it on a float (FAA-H-8083-23:
+        // a skip is not landed again off its top - the attitude held, power to soften, then idle once settled)
+        if (sim.hydro && onG === 0 && V > 0.7 * VsW) engage('LOC', 'PITCH', 'SET', { thr: A.waterSkipThr ?? 0.15, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap), bank: 0.05 });
+        else if (sim.hydro && V > 0.7 * VsW) engage('RWY', 'PITCH', 'SET', { thr: 0, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
+        else if (trike) {
           // P1.B soft: the nosewheel stays off to 0.7 Vs, then full up
           const soft = ap.appr && ap.appr.technique === 'soft';
           if (V > (soft ? 0.7 * (sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99) : (A.VDerotate ?? 20))) engage('RWY', 'PITCH', 'SET', { pitch: A.rolloutTh ?? 0.035, thr: 0 });
@@ -3037,6 +4355,7 @@ function makePilot(sim, def, world, opts) {
           // the weathercock (+/-9 deg, saturating), and the tail dropped
           // onto a heading 8 deg off — an 88 deg ground loop on the stearman
           // in 2 m/s across. The tailwheel steers from the first second now.
+          // (G3077: PERSONA-2 G2462's water hold is the one above, G3079's - merged once)
           if (V < 1.15 * (A.VRot || 18)) engage('RWY', 'DE', 'SET', { thr: 0, de: 0.35 });
           else engage('RWY', 'PITCH', 'SET', { thr: 0, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
         } else engage('RWY', 'DE', 'SET', { thr: 0, de: V > (A.VTailDown ?? A.VTailUp) ? -0.05
@@ -3062,8 +4381,11 @@ function makePilot(sim, def, world, opts) {
           if (tailRising) brakeRamp = Math.max(0, brakeRamp - 3.0 * dt);
           else if (onG >= 3 || Vg < A.VBrakeOn) brakeRamp = Math.min(brakeRamp + 2 * A.brakeRampRate * dt, brakeShort);
         }
-        else if (Vg < A.VBrakeOn || (trike && onG >= 3 && V < (A.VDerotate ?? 20)))
+        else if (Vg < A.VBrakeOn || (trike && onG >= 3 && (V < (A.VDerotate ?? 20) || rollLeft() < 1.3 * stopDist(Vg))))
           brakeRamp = Math.min(brakeRamp + A.brakeRampRate * dt, A.brakeMax);
+        // (G2500, CESSNA-VREF: ...OR AS SOON AS THE STRIP LEFT IS NOT 1.3 x THE STOP. The load door's metal Cessna touched
+        // Tamgas Hill at 31 m/s and rolled 300 m of its 520 unbraked waiting for VDerotate (22 m/s); on a long runway
+        // nothing changes)
         // G381.1: THROUGH A SKIP THE PILOT KEEPS FLYING IT. A bounce in a
         // crosswind put the wheels back in the air for a second, the ground
         // law's rudder let the nose weathercock 10 deg while nothing steered,
@@ -3100,7 +4422,10 @@ function makePilot(sim, def, world, opts) {
           // it stops where it is, as before; the landing is judged at the
           // first stop either way.
           if (!flatRoll && phaseT <= 120) flatRoll = flatAhead();
-          if (flatRoll) { say('slope', 'stopped on a ' + (Math.abs(gGrade) * 100).toFixed(1) + ' % grade — rolling ' + Math.round(flatRoll.d) + ' m on to the level part'); break; }
+          // G3327 (GRADE-ROLLOUT, 19 Oct: Rufus at the Cabin Strip landed well, 244 m left, then 'gave-up, still in ROLLOUT' -
+          // the flight's budget ran out on the slow roll up the 7.7 % grade): the landing is MADE here - the roll to the level
+          // part is a taxi, given its own time (120 s) past the flight's budget
+          if (flatRoll) { ap.budget = Math.max(ap.budget || 0, ap.t + 120); say('slope', 'stopped on a ' + (Math.abs(gGrade) * 100).toFixed(1) + ' % grade — rolling ' + Math.round(flatRoll.d) + ' m on to the level part'); break; }
           ap.report.outcome = ap.report.outcome || 'completed';
           go('STOPPED');
         }
@@ -3119,7 +4444,11 @@ function makePilot(sim, def, world, opts) {
         if (onG > 0) go('ROLLOUT'); else go('CLIMB');
         break;
     }
-    if (!BX.on) { apply(); flapsTo(flapTgt); if (PRA) humanise(dt, onG); }   // G1943: a profile's hands (the expert's are the servos')
+    if (!BX.on) { apply(); flapsTo(flapTgt); if (PRA) humanise(dt, onG, aglG); }   // G1943: a profile's hands (the expert's are the servos')
+    // G1880 (DMG-FLOATTO): THE PORPOISE DAMPED BY BOTH HANDS on a high thrust line's water take-off (39b S.porpoise):
+    // the run and the lift-off on floats, until CLIMB; the power's ceiling and the stick's damping over what the laws
+    // above set (nothing anywhere else: the base's controls to the bit)
+    SV.porpoise(!BX.on && !!sim.hydro && (ap.phase === 'ROLL' || ap.phase === 'LIFTOFF'), THRUST_LEVER);
     // the servo slew on the axes the pilot owns; a hand-flown axis (the box
     // with that mode released) passes through and the servo tracks it, so
     // nothing jumps when the box takes the axis
@@ -3140,7 +4469,7 @@ function makePilot(sim, def, world, opts) {
               beta, x: cg[0], z: cg[2], onGround: onG, t: ap.t };
     // G710: THE PLAN, published (see ap.intent above)
     const IN_ = ap.intent, TD = AF.vert === 'TECS' ? tecsDbg : null;
-    IN_.phase = phRun; IN_.legs = ap.legs; IN_.legI = legRun;
+    IN_.phase = phRun; IN_.legs = phRun === 'ROUTE' ? legsRun : ap.legs; IN_.legI = legRun;
     IN_.to = pubN; IN_.x = pubX; IN_.z = pubZ;
     IN_.h = pubH; IN_.hField = pubH != null ? pubH - ap.altRef : null;
     IN_.hGround = (pubH != null && pubX != null && world && typeof world.terrainH === 'function') ? pubH - groundH(pubX, pubZ) : IN_.hField;
@@ -3149,6 +4478,7 @@ function makePilot(sim, def, world, opts) {
     IN_.climbMax = tClimbMax; IN_.sinkIdle = tSinkIdle;
     IN_.path = (onG === 0 && ap.legs) ? airPath : null; IN_.pathI = airPathI;
     IN_.taxi = ap.path || null;
+    IN_.route = ap.drawn;   // G2120: the drawn route's state (the record, the legs, the active point, the captures, the hold)
   };
   return ap;
 }

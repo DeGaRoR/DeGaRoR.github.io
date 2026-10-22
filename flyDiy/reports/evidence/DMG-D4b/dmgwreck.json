@@ -1,0 +1,3704 @@
+{
+ "cub": {
+  "key": "cub",
+  "label": "Cub",
+  "cases": [
+   {
+    "id": "trunk-0",
+    "label": "a trunk at 30 m/s, the centreline",
+    "on": {
+     "hash": "b2ff26e0",
+     "bad": false,
+     "crashed": true,
+     "reason": "the airframe crushed (6.7 kJ of plastic work)",
+     "broken": 82,
+     "payloads": 91,
+     "rel": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 1.3
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.404,
+       "t": 1.33
+      },
+      {
+       "kind": "eng",
+       "why": "loose",
+       "crush": null,
+       "t": 1.33
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "crush": 0.238,
+       "t": 1.33
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "crush": 0.154,
+       "t": 1.35
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.26,
+       "clear": 0,
+       "deep": -27.486357049822164,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -74.587,
+        300.04,
+        6.09
+       ],
+       "from": 38.80856827269793
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.23,
+       "clear": 0,
+       "deep": -21.804476418057185,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -63.011,
+        300.32,
+        1.242
+       ],
+       "from": 27.18359024096719
+      },
+      {
+       "kind": "eng",
+       "why": "loose",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.78,
+       "clear": 0,
+       "deep": -39.65377233396178,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -85.681,
+        300.3,
+        0.277
+       ],
+       "from": 49.870010398724745
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.58,
+       "clear": 0,
+       "deep": -31.8692379037467,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -72.357,
+        300.12,
+        -2.848
+       ],
+       "from": 36.95002568550983
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.2,
+       "clear": 5.684341886080802e-14,
+       "deep": -10.745572959653291,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -47.582,
+        300.2,
+        0.335
+       ],
+       "from": 12.016739932003556
+      }
+     ],
+     "strikes": [
+      {
+       "t": 1.2999999999999157,
+       "eng": 0,
+       "info": {
+        "rpm": 1058.7961318257767,
+        "V": 28.509522873720094,
+        "M": 476.19418653168293,
+        "D": 1.91,
+        "nb": 2,
+        "what": "trunk",
+        "eng": 0,
+        "t": 1.2999999999999157
+       },
+       "E": 205188.43014668406,
+       "Espin": 11664.804542159281,
+       "Ehit": 193523.62560452477,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 1,
+       "curl": [
+        1.0037101688794792,
+        0
+       ],
+       "dent": 0.06,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.28110231069753405,
+      "d0": 0.2873052715108403,
+      "vol": 1.1599713799207587,
+      "eye": [
+       -33.76943241196923,
+       300.9310337586461,
+       1.5566107543693568
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.2873052715108403,
+     "stillN": 3
+    },
+    "lowFps": {
+     "hash": "b2ff26e0",
+     "bad": false,
+     "crashed": true,
+     "reason": "the airframe crushed (6.7 kJ of plastic work)",
+     "broken": 82,
+     "payloads": 91,
+     "rel": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 1.3
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.404,
+       "t": 1.33
+      },
+      {
+       "kind": "eng",
+       "why": "loose",
+       "crush": null,
+       "t": 1.33
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "crush": 0.238,
+       "t": 1.33
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "crush": 0.154,
+       "t": 1.35
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.26,
+       "clear": 0,
+       "deep": -27.486357049822164,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -74.587,
+        300.04,
+        6.09
+       ],
+       "from": 38.80856827269793
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.23,
+       "clear": 0,
+       "deep": -21.804476418057185,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -63.011,
+        300.32,
+        1.242
+       ],
+       "from": 27.18359024096719
+      },
+      {
+       "kind": "eng",
+       "why": "loose",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.78,
+       "clear": 0,
+       "deep": -39.65377233396178,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -85.681,
+        300.3,
+        0.277
+       ],
+       "from": 49.870010398724745
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.58,
+       "clear": 0,
+       "deep": -31.8692379037467,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -72.357,
+        300.12,
+        -2.848
+       ],
+       "from": 36.95002568550983
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.2,
+       "clear": 5.684341886080802e-14,
+       "deep": -10.745572959653291,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -47.582,
+        300.2,
+        0.335
+       ],
+       "from": 12.016739932003556
+      }
+     ],
+     "strikes": [
+      {
+       "t": 1.2999999999999157,
+       "eng": 0,
+       "info": {
+        "rpm": 1058.7961318257767,
+        "V": 28.509522873720094,
+        "M": 476.19418653168293,
+        "D": 1.91,
+        "nb": 2,
+        "what": "trunk",
+        "eng": 0,
+        "t": 1.2999999999999157
+       },
+       "E": 205188.43014668406,
+       "Espin": 11664.804542159281,
+       "Ehit": 193523.62560452477,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 1,
+       "curl": [
+        1.0037101688794792,
+        0
+       ],
+       "dent": 0.06,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.28110231069753405,
+      "d0": 0.2873052715108403,
+      "vol": 1.1599713799207587,
+      "eye": [
+       -33.76943241196923,
+       300.9310337586461,
+       1.5566107543693568
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.2873052715108403,
+     "stillN": 3
+    },
+    "bare": {
+     "hash": "b2ff26e0"
+    },
+    "off": {
+     "hash": "c17d2d12",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.2873014681888838,
+      "d0": 0.2873052715108403,
+      "vol": 0.9995598051576028,
+      "eye": [
+       -26.339609543881814,
+       301.4429703735696,
+       -6.670357785360008e-12
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.2873052715108403,
+     "stillN": 7
+    },
+    "offBare": {
+     "hash": "c17d2d12"
+    }
+   },
+   {
+    "id": "trunk-2.5",
+    "label": "a trunk at 30 m/s, the wing 2.5 m out",
+    "on": {
+     "hash": "d0eee56",
+     "bad": false,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 17,
+     "payloads": 26,
+     "rel": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 2.62
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "crush": 0.082,
+       "t": 2.62
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.116,
+       "t": 2.63
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.68,
+       "clear": 0,
+       "deep": -7.581301620389649,
+       "bay": 5,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -104.492,
+        300.04,
+        -6.322
+       ],
+       "from": 13.268830640480312
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.41,
+       "clear": 0,
+       "deep": -2.221321424314384,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -88.481,
+        300.2,
+        -4.299
+       ],
+       "from": 2.896921902140698
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.15,
+       "clear": 0,
+       "deep": -1.342859237171855,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -90.065,
+        300.32,
+        -2.387
+       ],
+       "from": 2.3244828897889307
+      }
+     ],
+     "strikes": [
+      {
+       "t": 2.6166666666666147,
+       "eng": 0,
+       "info": {
+        "rpm": 1010.6262046202024,
+        "V": 22.711067327241626,
+        "M": 476.19370367801014,
+        "D": 1.91,
+        "nb": 2,
+        "what": "ground",
+        "eng": 0,
+        "t": 2.6166666666666147
+       },
+       "E": 133436.1570861654,
+       "Espin": 10627.567790414787,
+       "Ehit": 122808.5892957506,
+       "pBreak": 0.8494196098742308,
+       "breaks": true,
+       "lost": 1,
+       "curl": [
+        0.6848696098953432,
+        0
+       ],
+       "dent": 0.055030847125849616,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.2849436553587297,
+      "d0": 0.2873052715108403,
+      "vol": 0.9969300186866656,
+      "eye": [
+       -92.64444654437341,
+       301.4791890651737,
+       -4.428101170217944
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.2873052715108403,
+     "stillN": 5
+    },
+    "lowFps": {
+     "hash": "d0eee56",
+     "bad": false,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 17,
+     "payloads": 26,
+     "rel": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 2.62
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "crush": 0.082,
+       "t": 2.62
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.116,
+       "t": 2.63
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.68,
+       "clear": 0,
+       "deep": -7.581301620389649,
+       "bay": 5,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -104.492,
+        300.04,
+        -6.322
+       ],
+       "from": 13.268830640480312
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.41,
+       "clear": 0,
+       "deep": -2.221321424314384,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -88.481,
+        300.2,
+        -4.299
+       ],
+       "from": 2.896921902140698
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.15,
+       "clear": 0,
+       "deep": -1.342859237171855,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -90.065,
+        300.32,
+        -2.387
+       ],
+       "from": 2.3244828897889307
+      }
+     ],
+     "strikes": [
+      {
+       "t": 2.6166666666666147,
+       "eng": 0,
+       "info": {
+        "rpm": 1010.6262046202024,
+        "V": 22.711067327241626,
+        "M": 476.19370367801014,
+        "D": 1.91,
+        "nb": 2,
+        "what": "ground",
+        "eng": 0,
+        "t": 2.6166666666666147
+       },
+       "E": 133436.1570861654,
+       "Espin": 10627.567790414787,
+       "Ehit": 122808.5892957506,
+       "pBreak": 0.8494196098742308,
+       "breaks": true,
+       "lost": 1,
+       "curl": [
+        0.6848696098953432,
+        0
+       ],
+       "dent": 0.055030847125849616,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.2849436553587297,
+      "d0": 0.2873052715108403,
+      "vol": 0.9969300186866656,
+      "eye": [
+       -92.64444654437341,
+       301.4791890651737,
+       -4.428101170217944
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.2873052715108403,
+     "stillN": 5
+    },
+    "bare": {
+     "hash": "d0eee56"
+    },
+    "off": {
+     "hash": "c165842b",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.2872945789962853,
+      "d0": 0.2873052715108403,
+      "vol": 0.9998251577557818,
+      "eye": [
+       -43.93086260519378,
+       301.29178139949175,
+       -0.6620714982303593
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.2873052715108403,
+     "stillN": 7
+    },
+    "offBare": {
+     "hash": "c165842b"
+    }
+   },
+   {
+    "id": "taxi",
+    "label": "a taxi into a trunk at 3 m/s, the throttle shut",
+    "on": {
+     "hash": "c63077ed",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 7,
+     "rel": [],
+     "bodies": [],
+     "strikes": [
+      {
+       "t": 3.1833333333335965,
+       "eng": 0,
+       "info": {
+        "rpm": 646.6236175149858,
+        "V": 2.4038698563385665,
+        "M": 476.1935040764099,
+        "D": 1.91,
+        "nb": 2,
+        "what": "trunk",
+        "eng": 0,
+        "t": 3.1833333333335965
+       },
+       "E": 5726.531141448824,
+       "Espin": 4350.66756294194,
+       "Ehit": 1375.8635785068846,
+       "pBreak": 0,
+       "breaks": false,
+       "lost": -1,
+       "curl": [
+        0.41189337968368767,
+        0.44506333464421244
+       ],
+       "dent": 0.016717959342434648,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.2872997219423259,
+      "d0": 0.2873052715108403,
+      "vol": 0.9997899330115436,
+      "eye": [
+       -1.4411477128615473,
+       301.25681809588383,
+       7.958522320614988e-13
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.2873052715108403,
+     "stillN": 7
+    },
+    "lowFps": {
+     "hash": "c63077ed",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 7,
+     "rel": [],
+     "bodies": [],
+     "strikes": [
+      {
+       "t": 3.1833333333335965,
+       "eng": 0,
+       "info": {
+        "rpm": 646.6236175149858,
+        "V": 2.4038698563385665,
+        "M": 476.1935040764099,
+        "D": 1.91,
+        "nb": 2,
+        "what": "trunk",
+        "eng": 0,
+        "t": 3.1833333333335965
+       },
+       "E": 5726.531141448824,
+       "Espin": 4350.66756294194,
+       "Ehit": 1375.8635785068846,
+       "pBreak": 0,
+       "breaks": false,
+       "lost": -1,
+       "curl": [
+        0.41189337968368767,
+        0.44506333464421244
+       ],
+       "dent": 0.016717959342434648,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.2872997219423259,
+      "d0": 0.2873052715108403,
+      "vol": 0.9997899330115436,
+      "eye": [
+       -1.4411477128615473,
+       301.25681809588383,
+       7.958522320614988e-13
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.2873052715108403,
+     "stillN": 7
+    },
+    "bare": {
+     "hash": "c63077ed"
+    },
+    "off": {
+     "hash": "6f4d7e7e",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.2873008220203561,
+      "d0": 0.2873052715108403,
+      "vol": 0.999762636119373,
+      "eye": [
+       -0.20548590508090087,
+       301.2568694632038,
+       8.582381377035553e-13
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.2873052715108403,
+     "stillN": 7
+    },
+    "offBare": {
+     "hash": "6f4d7e7e"
+    }
+   },
+   {
+    "id": "nosein-ground",
+    "label": "a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg)",
+    "on": {
+     "hash": "fc2cccd7",
+     "bad": false,
+     "crashed": true,
+     "reason": "a fus member broke",
+     "broken": 29,
+     "payloads": 22,
+     "rel": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 0.03
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.209,
+       "t": 0.07
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 5.24,
+       "clear": -2.236166980751353e-18,
+       "deep": -27.120662028175385,
+       "bay": 5,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -57.479,
+        0.04,
+        3.405
+       ],
+       "from": 31.34110862318581
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.62,
+       "clear": -8.937891659427377e-18,
+       "deep": -2.835265572983391,
+       "bay": 5,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -31.914,
+        0.32,
+        -0.558
+       ],
+       "from": 5.6060969101329245
+      }
+     ],
+     "strikes": [
+      {
+       "t": 0.03333333333333325,
+       "eng": 0,
+       "info": {
+        "rpm": 1135.3610954000108,
+        "V": 48.40753426968708,
+        "M": 476.1946387375141,
+        "D": 1.91,
+        "nb": 2,
+        "what": "ground",
+        "eng": 0,
+        "t": 0.03333333333333325
+       },
+       "E": 571343.7599255036,
+       "Espin": 13412.841453922783,
+       "Ehit": 557930.9184715808,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 0,
+       "curl": [
+        0,
+        0.8301554013043643
+       ],
+       "dent": 0.06,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.27531231454142996,
+      "d0": 0.2873052715108403,
+      "vol": 0.8063734989788758,
+      "eye": [
+       -24.79895204618398,
+       0.30533948293296553,
+       -0.06463699705022179
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.2873052715108403,
+     "stillN": 6
+    },
+    "lowFps": {
+     "hash": "fc2cccd7",
+     "bad": false,
+     "crashed": true,
+     "reason": "a fus member broke",
+     "broken": 29,
+     "payloads": 22,
+     "rel": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 0.03
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.209,
+       "t": 0.07
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 5.24,
+       "clear": -2.236166980751353e-18,
+       "deep": -27.120662028175385,
+       "bay": 5,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -57.479,
+        0.04,
+        3.405
+       ],
+       "from": 31.34110862318581
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.62,
+       "clear": -8.937891659427377e-18,
+       "deep": -2.835265572983391,
+       "bay": 5,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -31.914,
+        0.32,
+        -0.558
+       ],
+       "from": 5.6060969101329245
+      }
+     ],
+     "strikes": [
+      {
+       "t": 0.03333333333333325,
+       "eng": 0,
+       "info": {
+        "rpm": 1135.3610954000108,
+        "V": 48.40753426968708,
+        "M": 476.1946387375141,
+        "D": 1.91,
+        "nb": 2,
+        "what": "ground",
+        "eng": 0,
+        "t": 0.03333333333333325
+       },
+       "E": 571343.7599255036,
+       "Espin": 13412.841453922783,
+       "Ehit": 557930.9184715808,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 0,
+       "curl": [
+        0,
+        0.8301554013043643
+       ],
+       "dent": 0.06,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.27531231454142996,
+      "d0": 0.2873052715108403,
+      "vol": 0.8063734989788758,
+      "eye": [
+       -24.79895204618398,
+       0.30533948293296553,
+       -0.06463699705022179
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.2873052715108403,
+     "stillN": 6
+    },
+    "bare": {
+     "hash": "fc2cccd7"
+    },
+    "off": {
+     "hash": "ad963d7d",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.2873079209816957,
+      "d0": 0.2873052715108403,
+      "vol": 0.9999444791663581,
+      "eye": [
+       -22.425853426202206,
+       2.5445036304014366,
+       -3.967986568457949e-12
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.2873052715108403,
+     "stillN": 7
+    },
+    "offBare": {
+     "hash": "ad963d7d"
+    }
+   }
+  ],
+  "calm": {
+   "rel": 0,
+   "seized": 0,
+   "payloads": 0,
+   "yields": 0
+  }
+ },
+ "metal": {
+  "key": "metal",
+  "label": "metal Cessna",
+  "cases": [
+   {
+    "id": "trunk-0",
+    "label": "a trunk at 30 m/s, the centreline",
+    "on": {
+     "hash": "85f8f630",
+     "bad": false,
+     "crashed": true,
+     "reason": "the airframe crushed (3.4 kJ of plastic work)",
+     "broken": 107,
+     "payloads": 28,
+     "rel": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 1.28
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.214,
+       "t": 1.32
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "crush": 0.328,
+       "t": 1.33
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "crush": 0.168,
+       "t": 1.35
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.66,
+       "clear": 5.684341886080802e-14,
+       "deep": -40.05848392434974,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -76.62,
+        300.04,
+        1.55
+       ],
+       "from": 40.86022190593868
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.38,
+       "clear": 0,
+       "deep": -16.682924816234078,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -53.056,
+        300.32,
+        2.238
+       ],
+       "from": 17.400795284551457
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 2.12,
+       "clear": 5.684341886080802e-14,
+       "deep": -4.261768466803951,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -40.223,
+        300.2,
+        0.155
+       ],
+       "from": 4.437825401971549
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.43,
+       "clear": -5.684341886080802e-14,
+       "deep": -7.440635240723239,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -33.174,
+        300.12,
+        8.528
+       ],
+       "from": 8.80790666726459
+      }
+     ],
+     "strikes": [
+      {
+       "t": 1.2833333333334869,
+       "eng": 0,
+       "info": {
+        "rpm": 995.4276058290051,
+        "V": 30.34278407855469,
+        "M": 883.4078859976833,
+        "D": 2.06,
+        "nb": 2,
+        "what": "trunk",
+        "eng": 0,
+        "t": 1.2833333333334869
+       },
+       "E": 421158.5290757012,
+       "Espin": 14488.535009391475,
+       "Ehit": 406669.9940663097,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 0,
+       "curl": [
+        0,
+        0.9780855715647341
+       ],
+       "dent": 0.06,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.4696773296040942,
+      "d0": 0.4504263161572745,
+      "vol": 0.9649421984564531,
+      "eye": [
+       -34.0789236565989,
+       301.5606843985453,
+       0.10845346902774933
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 4
+    },
+    "lowFps": {
+     "hash": "85f8f630",
+     "bad": false,
+     "crashed": true,
+     "reason": "the airframe crushed (3.4 kJ of plastic work)",
+     "broken": 107,
+     "payloads": 28,
+     "rel": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 1.28
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.214,
+       "t": 1.32
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "crush": 0.328,
+       "t": 1.33
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "crush": 0.168,
+       "t": 1.35
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.66,
+       "clear": 5.684341886080802e-14,
+       "deep": -40.05848392434974,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -76.62,
+        300.04,
+        1.55
+       ],
+       "from": 40.86022190593868
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.38,
+       "clear": 0,
+       "deep": -16.682924816234078,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -53.056,
+        300.32,
+        2.238
+       ],
+       "from": 17.400795284551457
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 2.12,
+       "clear": 5.684341886080802e-14,
+       "deep": -4.261768466803951,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -40.223,
+        300.2,
+        0.155
+       ],
+       "from": 4.437825401971549
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.43,
+       "clear": -5.684341886080802e-14,
+       "deep": -7.440635240723239,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -33.174,
+        300.12,
+        8.528
+       ],
+       "from": 8.80790666726459
+      }
+     ],
+     "strikes": [
+      {
+       "t": 1.2833333333334869,
+       "eng": 0,
+       "info": {
+        "rpm": 995.4276058290051,
+        "V": 30.34278407855469,
+        "M": 883.4078859976833,
+        "D": 2.06,
+        "nb": 2,
+        "what": "trunk",
+        "eng": 0,
+        "t": 1.2833333333334869
+       },
+       "E": 421158.5290757012,
+       "Espin": 14488.535009391475,
+       "Ehit": 406669.9940663097,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 0,
+       "curl": [
+        0,
+        0.9780855715647341
+       ],
+       "dent": 0.06,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.4696773296040942,
+      "d0": 0.4504263161572745,
+      "vol": 0.9649421984564531,
+      "eye": [
+       -34.0789236565989,
+       301.5606843985453,
+       0.10845346902774933
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 4
+    },
+    "bare": {
+     "hash": "85f8f630"
+    },
+    "off": {
+     "hash": "8bf57b59",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.4503198777941908,
+      "d0": 0.4504263161572745,
+      "vol": 0.9998729335722737,
+      "eye": [
+       -27.49758964460985,
+       301.75908289849446,
+       2.3420239036900236e-12
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 7
+    },
+    "offBare": {
+     "hash": "8bf57b59"
+    }
+   },
+   {
+    "id": "trunk-2.5",
+    "label": "a trunk at 30 m/s, the wing 2.5 m out",
+    "on": {
+     "hash": "2053958d",
+     "bad": false,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 20,
+     "payloads": 4,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.4501851137622375,
+      "d0": 0.4504263161572745,
+      "vol": 1.000632954791587,
+      "eye": [
+       -129.17052125591593,
+       301.6678515474056,
+       -12.467457464344085
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 7
+    },
+    "lowFps": {
+     "hash": "2053958d",
+     "bad": false,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 20,
+     "payloads": 4,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.4501851137622375,
+      "d0": 0.4504263161572745,
+      "vol": 1.000632954791587,
+      "eye": [
+       -129.17052125591593,
+       301.6678515474056,
+       -12.467457464344085
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 7
+    },
+    "bare": {
+     "hash": "2053958d"
+    },
+    "off": {
+     "hash": "baa71be8",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.4507444778142503,
+      "d0": 0.4504263161572745,
+      "vol": 1.000428393585844,
+      "eye": [
+       -40.868866271879384,
+       301.53946488252984,
+       0.2699798901718999
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 7
+    },
+    "offBare": {
+     "hash": "baa71be8"
+    }
+   },
+   {
+    "id": "taxi",
+    "label": "a taxi into a trunk at 3 m/s, the throttle shut",
+    "on": {
+     "hash": "79cd170",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 15,
+     "rel": [],
+     "bodies": [],
+     "strikes": [
+      {
+       "t": 3.2833333333337995,
+       "eng": 0,
+       "info": {
+        "rpm": 721.6114354045073,
+        "V": 2.367163201130205,
+        "M": 883.4052712565506,
+        "D": 2.06,
+        "nb": 2,
+        "what": "trunk",
+        "eng": 0,
+        "t": 3.2833333333337995
+       },
+       "E": 10089.047188141856,
+       "Espin": 7613.983421599236,
+       "Ehit": 2475.06376654262,
+       "pBreak": 0,
+       "breaks": false,
+       "lost": -1,
+       "curl": [
+        0.44081837662591167,
+        0.3687357042461357
+       ],
+       "dent": 0.018026714156442556,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.4507550853336898,
+      "d0": 0.4504263161572745,
+      "vol": 1.0001281560210242,
+      "eye": [
+       -2.1945225299264774,
+       301.5373730873066,
+       6.776030213054948e-15
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 7
+    },
+    "lowFps": {
+     "hash": "79cd170",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 15,
+     "rel": [],
+     "bodies": [],
+     "strikes": [
+      {
+       "t": 3.2833333333337995,
+       "eng": 0,
+       "info": {
+        "rpm": 721.6114354045073,
+        "V": 2.367163201130205,
+        "M": 883.4052712565506,
+        "D": 2.06,
+        "nb": 2,
+        "what": "trunk",
+        "eng": 0,
+        "t": 3.2833333333337995
+       },
+       "E": 10089.047188141856,
+       "Espin": 7613.983421599236,
+       "Ehit": 2475.06376654262,
+       "pBreak": 0,
+       "breaks": false,
+       "lost": -1,
+       "curl": [
+        0.44081837662591167,
+        0.3687357042461357
+       ],
+       "dent": 0.018026714156442556,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.4507550853336898,
+      "d0": 0.4504263161572745,
+      "vol": 1.0001281560210242,
+      "eye": [
+       -2.1945225299264774,
+       301.5373730873066,
+       6.776030213054948e-15
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 7
+    },
+    "bare": {
+     "hash": "79cd170"
+    },
+    "off": {
+     "hash": "cfe3b315",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.4507542280321054,
+      "d0": 0.4504263161572745,
+      "vol": 1.0001216064707128,
+      "eye": [
+       -0.5457603465874302,
+       301.5374638822265,
+       -2.90666858655477e-14
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 7
+    },
+    "offBare": {
+     "hash": "cfe3b315"
+    }
+   },
+   {
+    "id": "nosein-ground",
+    "label": "a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg)",
+    "on": {
+     "hash": "faa18b0b",
+     "bad": false,
+     "crashed": true,
+     "reason": "the airframe crushed (3.0 kJ of plastic work)",
+     "broken": 63,
+     "payloads": 13,
+     "rel": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 0.08
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.158,
+       "t": 0.1
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 5.73,
+       "clear": 4.302927372051846e-18,
+       "deep": -3.9925696583378434,
+       "bay": 3,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -61.114,
+        0.04,
+        0.744
+       ],
+       "from": 6.8707850460773034
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.64,
+       "clear": 0,
+       "deep": -23.849685881377535,
+       "bay": 3,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -34.327,
+        0.32,
+        -0.003
+       ],
+       "from": 33.484071948189204
+      }
+     ],
+     "strikes": [
+      {
+       "t": 0.08333333333333268,
+       "eng": 0,
+       "info": {
+        "rpm": 1046.6057045455889,
+        "V": 42.58918412155495,
+        "M": 883.409428578321,
+        "D": 2.06,
+        "nb": 2,
+        "what": "ground",
+        "eng": 0,
+        "t": 0.08333333333333268
+       },
+       "E": 817197.6984986225,
+       "Espin": 16016.636090442855,
+       "Ehit": 801181.0624081796,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 0,
+       "curl": [
+        0,
+        0.8518556813243777
+       ],
+       "dent": 0.06,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.4503628582370295,
+      "d0": 0.4504263161572745,
+      "vol": 0.9988437986849914,
+      "eye": [
+       -66.34247584223482,
+       2.392050832387329,
+       -0.9163042138470284
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 6
+    },
+    "lowFps": {
+     "hash": "faa18b0b",
+     "bad": false,
+     "crashed": true,
+     "reason": "the airframe crushed (3.0 kJ of plastic work)",
+     "broken": 63,
+     "payloads": 13,
+     "rel": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 0.08
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.158,
+       "t": 0.1
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 5.73,
+       "clear": 4.302927372051846e-18,
+       "deep": -3.9925696583378434,
+       "bay": 3,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -61.114,
+        0.04,
+        0.744
+       ],
+       "from": 6.8707850460773034
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.64,
+       "clear": 0,
+       "deep": -23.849685881377535,
+       "bay": 3,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -34.327,
+        0.32,
+        -0.003
+       ],
+       "from": 33.484071948189204
+      }
+     ],
+     "strikes": [
+      {
+       "t": 0.08333333333333268,
+       "eng": 0,
+       "info": {
+        "rpm": 1046.6057045455889,
+        "V": 42.58918412155495,
+        "M": 883.409428578321,
+        "D": 2.06,
+        "nb": 2,
+        "what": "ground",
+        "eng": 0,
+        "t": 0.08333333333333268
+       },
+       "E": 817197.6984986225,
+       "Espin": 16016.636090442855,
+       "Ehit": 801181.0624081796,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 0,
+       "curl": [
+        0,
+        0.8518556813243777
+       ],
+       "dent": 0.06,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.4503628582370295,
+      "d0": 0.4504263161572745,
+      "vol": 0.9988437986849914,
+      "eye": [
+       -66.34247584223482,
+       2.392050832387329,
+       -0.9163042138470284
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 6
+    },
+    "bare": {
+     "hash": "faa18b0b"
+    },
+    "off": {
+     "hash": "574dacfd",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.4500120844915065,
+      "d0": 0.4504263161572745,
+      "vol": 0.9998954505529496,
+      "eye": [
+       -61.017333489502114,
+       1.8803051930463224,
+       -3.656571565583906e-13
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 7
+    },
+    "offBare": {
+     "hash": "574dacfd"
+    }
+   }
+  ],
+  "calm": {
+   "rel": 0,
+   "seized": 0,
+   "payloads": 0,
+   "yields": 0
+  }
+ },
+ "jodel": {
+  "key": "jodel",
+  "label": "Jodel",
+  "cases": [
+   {
+    "id": "trunk-0",
+    "label": "a trunk at 30 m/s, the centreline",
+    "on": {
+     "hash": "5535f8d9",
+     "bad": false,
+     "crashed": true,
+     "reason": "a fus member broke",
+     "broken": 103,
+     "payloads": 23,
+     "rel": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 1.28
+      },
+      {
+       "kind": "eng",
+       "why": "loose",
+       "crush": null,
+       "t": 1.3
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.565,
+       "t": 1.32
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "crush": 0.145,
+       "t": 1.32
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "crush": 0.217,
+       "t": 1.33
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.87,
+       "clear": 0,
+       "deep": -52.51051574194428,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -82.943,
+        300.04,
+        -2.805
+       ],
+       "from": 46.50250683184271
+      },
+      {
+       "kind": "eng",
+       "why": "loose",
+       "asleep": true,
+       "sunk": false,
+       "age": 5.64,
+       "clear": 0,
+       "deep": -64.55049826094074,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -95.185,
+        300.3,
+        3.403
+       ],
+       "from": 58.75595365291307
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.17,
+       "clear": 5.684341886080802e-14,
+       "deep": -27.079088378600794,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -56.686,
+        300.32,
+        -0.764
+       ],
+       "from": 20.174869547013156
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.53,
+       "clear": 0,
+       "deep": -35.436328059275645,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -65.048,
+        300.12,
+        0.24
+       ],
+       "from": 28.52170945369709
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 2.52,
+       "clear": 0,
+       "deep": -5.236405607264396,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -34.237,
+        300.25,
+        0.817
+       ],
+       "from": 2.422214726768047
+      }
+     ],
+     "strikes": [
+      {
+       "t": 1.2833333333334869,
+       "eng": 0,
+       "info": {
+        "rpm": 994.558001365354,
+        "V": 30.105595680516974,
+        "M": 462.9547159969592,
+        "D": 1.83,
+        "nb": 2,
+        "what": "trunk",
+        "eng": 0,
+        "t": 1.2833333333334869
+       },
+       "E": 218288.49189245736,
+       "Espin": 8489.708069114262,
+       "Ehit": 209798.7838233431,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 0,
+       "curl": [
+        0,
+        0.9046282050479204
+       ],
+       "dent": 0.06,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.31396421638349103,
+      "d0": 0.3139520167368881,
+      "vol": 1.0000166888869142,
+      "eye": [
+       -26.9647384136884,
+       301.27775470066814,
+       0.03750587363509606
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.3139520167368881,
+     "stillN": 3
+    },
+    "lowFps": {
+     "hash": "5535f8d9",
+     "bad": false,
+     "crashed": true,
+     "reason": "a fus member broke",
+     "broken": 103,
+     "payloads": 23,
+     "rel": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 1.28
+      },
+      {
+       "kind": "eng",
+       "why": "loose",
+       "crush": null,
+       "t": 1.3
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.565,
+       "t": 1.32
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "crush": 0.145,
+       "t": 1.32
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "crush": 0.217,
+       "t": 1.33
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.87,
+       "clear": 0,
+       "deep": -52.51051574194428,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -82.943,
+        300.04,
+        -2.805
+       ],
+       "from": 46.50250683184271
+      },
+      {
+       "kind": "eng",
+       "why": "loose",
+       "asleep": true,
+       "sunk": false,
+       "age": 5.64,
+       "clear": 0,
+       "deep": -64.55049826094074,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -95.185,
+        300.3,
+        3.403
+       ],
+       "from": 58.75595365291307
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.17,
+       "clear": 5.684341886080802e-14,
+       "deep": -27.079088378600794,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -56.686,
+        300.32,
+        -0.764
+       ],
+       "from": 20.174869547013156
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.53,
+       "clear": 0,
+       "deep": -35.436328059275645,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -65.048,
+        300.12,
+        0.24
+       ],
+       "from": 28.52170945369709
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 2.52,
+       "clear": 0,
+       "deep": -5.236405607264396,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -34.237,
+        300.25,
+        0.817
+       ],
+       "from": 2.422214726768047
+      }
+     ],
+     "strikes": [
+      {
+       "t": 1.2833333333334869,
+       "eng": 0,
+       "info": {
+        "rpm": 994.558001365354,
+        "V": 30.105595680516974,
+        "M": 462.9547159969592,
+        "D": 1.83,
+        "nb": 2,
+        "what": "trunk",
+        "eng": 0,
+        "t": 1.2833333333334869
+       },
+       "E": 218288.49189245736,
+       "Espin": 8489.708069114262,
+       "Ehit": 209798.7838233431,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 0,
+       "curl": [
+        0,
+        0.9046282050479204
+       ],
+       "dent": 0.06,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.31396421638349103,
+      "d0": 0.3139520167368881,
+      "vol": 1.0000166888869142,
+      "eye": [
+       -26.9647384136884,
+       301.27775470066814,
+       0.03750587363509606
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.3139520167368881,
+     "stillN": 3
+    },
+    "bare": {
+     "hash": "5535f8d9"
+    },
+    "off": {
+     "hash": "3aa51450",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.31390745587842117,
+      "d0": 0.3139520167368881,
+      "vol": 0.9993632724133027,
+      "eye": [
+       8.128329294774602,
+       301.2671738670377,
+       3.577662653667221e-12
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.3139520167368881,
+     "stillN": 7
+    },
+    "offBare": {
+     "hash": "3aa51450"
+    }
+   },
+   {
+    "id": "trunk-2.5",
+    "label": "a trunk at 30 m/s, the wing 2.5 m out",
+    "on": {
+     "hash": "61785757",
+     "bad": false,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 33,
+     "payloads": 17,
+     "rel": [
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.07,
+       "t": 4.17
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 2.05,
+       "clear": 5.684341886080802e-14,
+       "deep": -0.32691071832976115,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -84.06,
+        300.32,
+        -5.742
+       ],
+       "from": 0.719342695145688
+      }
+     ],
+     "strikes": [
+      {
+       "t": 4.083333333333658,
+       "eng": 0,
+       "info": {
+        "rpm": 654.6463533302431,
+        "V": 8.330253156396838,
+        "M": 462.9536956784058,
+        "D": 1.83,
+        "nb": 2,
+        "what": "ground",
+        "eng": 0,
+        "t": 4.083333333333658
+       },
+       "E": 19741.190684183064,
+       "Espin": 3678.2905489049317,
+       "Ehit": 16062.900135278132,
+       "pBreak": 0,
+       "breaks": false,
+       "lost": -1,
+       "curl": [
+        0.3737838345023316,
+        0.4655160327530011
+       ],
+       "dent": 0.02092235720525492,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.3137485508383034,
+      "d0": 0.3139520167368881,
+      "vol": 0.9992292723847872,
+      "eye": [
+       -85.61498813824427,
+       301.0073897032976,
+       -4.223426073257399
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.3139520167368881,
+     "stillN": 6
+    },
+    "lowFps": {
+     "hash": "61785757",
+     "bad": false,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 33,
+     "payloads": 17,
+     "rel": [
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.07,
+       "t": 4.17
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 2.05,
+       "clear": 5.684341886080802e-14,
+       "deep": -0.32691071832976115,
+       "bay": 0,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -84.06,
+        300.32,
+        -5.742
+       ],
+       "from": 0.719342695145688
+      }
+     ],
+     "strikes": [
+      {
+       "t": 4.083333333333658,
+       "eng": 0,
+       "info": {
+        "rpm": 654.6463533302431,
+        "V": 8.330253156396838,
+        "M": 462.9536956784058,
+        "D": 1.83,
+        "nb": 2,
+        "what": "ground",
+        "eng": 0,
+        "t": 4.083333333333658
+       },
+       "E": 19741.190684183064,
+       "Espin": 3678.2905489049317,
+       "Ehit": 16062.900135278132,
+       "pBreak": 0,
+       "breaks": false,
+       "lost": -1,
+       "curl": [
+        0.3737838345023316,
+        0.4655160327530011
+       ],
+       "dent": 0.02092235720525492,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.3137485508383034,
+      "d0": 0.3139520167368881,
+      "vol": 0.9992292723847872,
+      "eye": [
+       -85.61498813824427,
+       301.0073897032976,
+       -4.223426073257399
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.3139520167368881,
+     "stillN": 6
+    },
+    "bare": {
+     "hash": "61785757"
+    },
+    "off": {
+     "hash": "652f9060",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.31389176372545696,
+      "d0": 0.3139520167368881,
+      "vol": 0.9999482417442279,
+      "eye": [
+       -63.11876542504794,
+       301.3009653727565,
+       -4.4927358241104045
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.3139520167368881,
+     "stillN": 7
+    },
+    "offBare": {
+     "hash": "652f9060"
+    }
+   },
+   {
+    "id": "taxi",
+    "label": "a taxi into a trunk at 3 m/s, the throttle shut",
+    "on": {
+     "hash": "7810fc73",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 8,
+     "rel": [],
+     "bodies": [],
+     "strikes": [
+      {
+       "t": 3.2666666666671302,
+       "eng": 0,
+       "info": {
+        "rpm": 645.4781696063955,
+        "V": 2.377269959455615,
+        "M": 462.95399738430604,
+        "D": 1.83,
+        "nb": 2,
+        "what": "trunk",
+        "eng": 0,
+        "t": 3.2666666666671302
+       },
+       "E": 4884.1566193641,
+       "Espin": 3575.9846247217474,
+       "Ehit": 1308.1719946423527,
+       "pBreak": 0,
+       "breaks": false,
+       "lost": -1,
+       "curl": [
+        0.39714561057268094,
+        0.4333897337753248
+       ],
+       "dent": 0.01646524698580923,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.3139166706999382,
+      "d0": 0.3139520167368881,
+      "vol": 0.9995345632910385,
+      "eye": [
+       -2.886626074122093,
+       301.2709916513997,
+       1.4529490263212575e-13
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.3139520167368881,
+     "stillN": 7
+    },
+    "lowFps": {
+     "hash": "7810fc73",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 8,
+     "rel": [],
+     "bodies": [],
+     "strikes": [
+      {
+       "t": 3.2666666666671302,
+       "eng": 0,
+       "info": {
+        "rpm": 645.4781696063955,
+        "V": 2.377269959455615,
+        "M": 462.95399738430604,
+        "D": 1.83,
+        "nb": 2,
+        "what": "trunk",
+        "eng": 0,
+        "t": 3.2666666666671302
+       },
+       "E": 4884.1566193641,
+       "Espin": 3575.9846247217474,
+       "Ehit": 1308.1719946423527,
+       "pBreak": 0,
+       "breaks": false,
+       "lost": -1,
+       "curl": [
+        0.39714561057268094,
+        0.4333897337753248
+       ],
+       "dent": 0.01646524698580923,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.3139166706999382,
+      "d0": 0.3139520167368881,
+      "vol": 0.9995345632910385,
+      "eye": [
+       -2.886626074122093,
+       301.2709916513997,
+       1.4529490263212575e-13
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.3139520167368881,
+     "stillN": 7
+    },
+    "bare": {
+     "hash": "7810fc73"
+    },
+    "off": {
+     "hash": "76eec269",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.3139163986527355,
+      "d0": 0.3139520167368881,
+      "vol": 0.9995318662641747,
+      "eye": [
+       -1.248524236608122,
+       301.2708911553785,
+       3.366996375010656e-14
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.3139520167368881,
+     "stillN": 7
+    },
+    "offBare": {
+     "hash": "76eec269"
+    }
+   },
+   {
+    "id": "nosein-ground",
+    "label": "a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg)",
+    "on": {
+     "hash": "2299b348",
+     "bad": false,
+     "crashed": true,
+     "reason": "a fus member broke",
+     "broken": 27,
+     "payloads": 7,
+     "rel": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 0.03
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.138,
+       "t": 0.05
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "crush": 0.066,
+       "t": 0.12
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "crush": 0.126,
+       "t": 2
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 6.6,
+       "clear": 5.664956351236761e-18,
+       "deep": -35.397226474723496,
+       "bay": 5,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -69.326,
+        0.04,
+        -1.514
+       ],
+       "from": 35.59756585874547
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.22,
+       "clear": 0,
+       "deep": -7.49215763063336,
+       "bay": 5,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -40.189,
+        0.32,
+        -0.082
+       ],
+       "from": 6.466700182201579
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.79,
+       "clear": 6.1257422745431e-18,
+       "deep": -0.7482766961367099,
+       "bay": 2,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -30.282,
+        0.2,
+        -0.41
+       ],
+       "from": 3.8246111732989494
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 2.54,
+       "clear": 2.3174821436877657e-18,
+       "deep": -17.583209129936044,
+       "bay": 5,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -50.45,
+        0.12,
+        -0.395
+       ],
+       "from": 16.69178674483024
+      }
+     ],
+     "strikes": [
+      {
+       "t": 0.0333333333333334,
+       "eng": 0,
+       "info": {
+        "rpm": 1022.7112404290086,
+        "V": 47.607395548380694,
+        "M": 462.95516224353696,
+        "D": 1.83,
+        "nb": 2,
+        "what": "ground",
+        "eng": 0,
+        "t": 0.0333333333333334
+       },
+       "E": 533612.7821944659,
+       "Espin": 8977.152104039309,
+       "Ehit": 524635.6300904265,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 0,
+       "curl": [
+        0,
+        0.8525643193535507
+       ],
+       "dent": 0.06,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.312751163690169,
+      "d0": 0.3139520167368881,
+      "vol": 0.9968915928884059,
+      "eye": [
+       -29.225450552426267,
+       0.3331543639395699,
+       1.5036983299800286
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.3139520167368881,
+     "stillN": 4
+    },
+    "lowFps": {
+     "hash": "2299b348",
+     "bad": false,
+     "crashed": true,
+     "reason": "a fus member broke",
+     "broken": 27,
+     "payloads": 7,
+     "rel": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 0.03
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.138,
+       "t": 0.05
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "crush": 0.066,
+       "t": 0.12
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "crush": 0.126,
+       "t": 2
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 6.6,
+       "clear": 5.664956351236761e-18,
+       "deep": -35.397226474723496,
+       "bay": 5,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -69.326,
+        0.04,
+        -1.514
+       ],
+       "from": 35.59756585874547
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 4.22,
+       "clear": 0,
+       "deep": -7.49215763063336,
+       "bay": 5,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -40.189,
+        0.32,
+        -0.082
+       ],
+       "from": 6.466700182201579
+      },
+      {
+       "kind": "pane",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 3.79,
+       "clear": 6.1257422745431e-18,
+       "deep": -0.7482766961367099,
+       "bay": 2,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -30.282,
+        0.2,
+        -0.41
+       ],
+       "from": 3.8246111732989494
+      },
+      {
+       "kind": "spinner",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": false,
+       "age": 2.54,
+       "clear": 2.3174821436877657e-18,
+       "deep": -17.583209129936044,
+       "bay": 5,
+       "fin": true,
+       "wet": false,
+       "x": [
+        -50.45,
+        0.12,
+        -0.395
+       ],
+       "from": 16.69178674483024
+      }
+     ],
+     "strikes": [
+      {
+       "t": 0.0333333333333334,
+       "eng": 0,
+       "info": {
+        "rpm": 1022.7112404290086,
+        "V": 47.607395548380694,
+        "M": 462.95516224353696,
+        "D": 1.83,
+        "nb": 2,
+        "what": "ground",
+        "eng": 0,
+        "t": 0.0333333333333334
+       },
+       "E": 533612.7821944659,
+       "Espin": 8977.152104039309,
+       "Ehit": 524635.6300904265,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 0,
+       "curl": [
+        0,
+        0.8525643193535507
+       ],
+       "dent": 0.06,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.312751163690169,
+      "d0": 0.3139520167368881,
+      "vol": 0.9968915928884059,
+      "eye": [
+       -29.225450552426267,
+       0.3331543639395699,
+       1.5036983299800286
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.3139520167368881,
+     "stillN": 4
+    },
+    "bare": {
+     "hash": "2299b348"
+    },
+    "off": {
+     "hash": "c48d1a27",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.3140684522543643,
+      "d0": 0.3139520167368881,
+      "vol": 1.0004946765466733,
+      "eye": [
+       -72.93582056670746,
+       1.983424497704653,
+       3.419535710961015e-13
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.3139520167368881,
+     "stillN": 7
+    },
+    "offBare": {
+     "hash": "c48d1a27"
+    }
+   }
+  ],
+  "calm": {
+   "rel": 0,
+   "seized": 0,
+   "payloads": 0,
+   "yields": 0
+  }
+ },
+ "floats": {
+  "key": "floats",
+  "label": "Cessna floats",
+  "cases": [
+   {
+    "id": "nosein-water",
+    "label": "a severe float nose-in (150 km/h, 10 m/s, 60 deg)",
+    "on": {
+     "hash": "7dd7e332",
+     "bad": false,
+     "crashed": true,
+     "reason": "a fus member broke",
+     "broken": 59,
+     "payloads": 20,
+     "rel": [
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.215,
+       "t": 0.18
+      },
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 1.03
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": true,
+       "age": 3.94,
+       "clear": 18.683696366890786,
+       "deep": -14.511940812593378,
+       "bay": 0,
+       "fin": true,
+       "wet": true,
+       "x": [
+        0.012,
+        -0.95,
+        1291.874
+       ],
+       "from": 19.43028038282926
+      },
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 3,
+       "clear": 0,
+       "deep": -9.925219339636238,
+       "bay": 5,
+       "fin": true,
+       "wet": true,
+       "x": [
+        0.114,
+        0.07,
+        1322.957
+       ],
+       "from": 11.654428142924717
+      }
+     ],
+     "strikes": [
+      {
+       "t": 1.0333333333334478,
+       "eng": 0,
+       "info": {
+        "rpm": 721.0270122155771,
+        "V": 33.16715800751313,
+        "M": 1018.1844011223529,
+        "D": 2.06,
+        "nb": 2,
+        "what": "ground",
+        "eng": 0,
+        "t": 1.0333333333334478
+       },
+       "E": 567633.8101583661,
+       "Espin": 7601.655494567587,
+       "Ehit": 560032.1546637985,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 1,
+       "curl": [
+        0.9939075152669102,
+        0
+       ],
+       "dent": 0.06,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.45024885742195125,
+      "d0": 0.4504263161572745,
+      "vol": 0.9996509399200817,
+      "eye": [
+       -0.07367422909854453,
+       -1.5134333487765497,
+       1308.1890617589117
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 3
+    },
+    "lowFps": {
+     "hash": "7dd7e332",
+     "bad": false,
+     "crashed": true,
+     "reason": "a fus member broke",
+     "broken": 59,
+     "payloads": 20,
+     "rel": [
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.215,
+       "t": 0.18
+      },
+      {
+       "kind": "blade",
+       "why": "strike",
+       "crush": null,
+       "t": 1.03
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": true,
+       "age": 3.94,
+       "clear": 18.683696366890786,
+       "deep": -14.511940812593378,
+       "bay": 0,
+       "fin": true,
+       "wet": true,
+       "x": [
+        0.012,
+        -0.95,
+        1291.874
+       ],
+       "from": 19.43028038282926
+      },
+      {
+       "kind": "blade",
+       "why": "strike",
+       "asleep": true,
+       "sunk": false,
+       "age": 3,
+       "clear": 0,
+       "deep": -9.925219339636238,
+       "bay": 5,
+       "fin": true,
+       "wet": true,
+       "x": [
+        0.114,
+        0.07,
+        1322.957
+       ],
+       "from": 11.654428142924717
+      }
+     ],
+     "strikes": [
+      {
+       "t": 1.0333333333334478,
+       "eng": 0,
+       "info": {
+        "rpm": 721.0270122155771,
+        "V": 33.16715800751313,
+        "M": 1018.1844011223529,
+        "D": 2.06,
+        "nb": 2,
+        "what": "ground",
+        "eng": 0,
+        "t": 1.0333333333334478
+       },
+       "E": 567633.8101583661,
+       "Espin": 7601.655494567587,
+       "Ehit": 560032.1546637985,
+       "pBreak": 1,
+       "breaks": true,
+       "lost": 1,
+       "curl": [
+        0.9939075152669102,
+        0
+       ],
+       "dent": 0.06,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.45024885742195125,
+      "d0": 0.4504263161572745,
+      "vol": 0.9996509399200817,
+      "eye": [
+       -0.07367422909854453,
+       -1.5134333487765497,
+       1308.1890617589117
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 3
+    },
+    "bare": {
+     "hash": "7dd7e332"
+    },
+    "off": {
+     "hash": "5f889c39",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.450187127986978,
+      "d0": 0.4504263161572745,
+      "vol": 0.9999426147852045,
+      "eye": [
+       0.0256651086893212,
+       -1.576548537509336,
+       1294.9857132863601
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 4
+    },
+    "offBare": {
+     "hash": "5f889c39"
+    }
+   },
+   {
+    "id": "float-nosein",
+    "label": "the float nose-in (90 km/h, 5 m/s, 20 deg)",
+    "on": {
+     "hash": "db446508",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.45059799213202106,
+      "d0": 0.4504263161572745,
+      "vol": 1.0000920800443704,
+      "eye": [
+       0.0000012828326091624265,
+       1.5914498650790672,
+       1346.185682206691
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 4
+    },
+    "lowFps": {
+     "hash": "db446508",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.45059799213202106,
+      "d0": 0.4504263161572745,
+      "vol": 1.0000920800443704,
+      "eye": [
+       0.0000012828326091624265,
+       1.5914498650790672,
+       1346.185682206691
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 4
+    },
+    "bare": {
+     "hash": "db446508"
+    },
+    "off": {
+     "hash": "db446508",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.45059799213202106,
+      "d0": 0.4504263161572745,
+      "vol": 1.0000920800443704,
+      "eye": [
+       0.0000012828326091624265,
+       1.5914498650790672,
+       1346.185682206691
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.4504263161572745,
+     "stillN": 4
+    },
+    "offBare": {
+     "hash": "db446508"
+    }
+   }
+  ],
+  "calm": {
+   "rel": 0,
+   "seized": 0,
+   "payloads": 0,
+   "yields": 0
+  }
+ },
+ "twinFloats": {
+  "key": "twinFloats",
+  "label": "twin floatplane",
+  "cases": [
+   {
+    "id": "nosein-water",
+    "label": "a severe float nose-in (150 km/h, 10 m/s, 60 deg)",
+    "on": {
+     "hash": "a58028bf",
+     "bad": false,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (TPB off the core)",
+     "broken": 38,
+     "payloads": 14,
+     "rel": [
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.102,
+       "t": 0.12
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.102,
+       "t": 0.12
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": true,
+       "age": 4,
+       "clear": 18.39366554180763,
+       "deep": -10.084898969927815,
+       "bay": 0,
+       "fin": true,
+       "wet": true,
+       "x": [
+        -1.595,
+        -0.95,
+        1290.139
+       ],
+       "from": 16.57229350023227
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": true,
+       "age": 3.99,
+       "clear": 18.490605041312627,
+       "deep": -10.168469044918261,
+       "bay": 0,
+       "fin": true,
+       "wet": true,
+       "x": [
+        1.584,
+        -0.951,
+        1290.136
+       ],
+       "from": 16.578146344399975
+      }
+     ],
+     "strikes": [
+      {
+       "t": 0.98333333333344,
+       "eng": 0,
+       "info": {
+        "rpm": 694.6890092100654,
+        "V": 16.32994558327751,
+        "M": 475.4149848206007,
+        "D": 1.91,
+        "nb": 2,
+        "what": "ground",
+        "eng": 0,
+        "t": 0.98333333333344
+       },
+       "E": 68410.27494038224,
+       "Espin": 5021.501882543289,
+       "Ehit": 63388.773057838946,
+       "pBreak": 0.2582752267307476,
+       "breaks": false,
+       "lost": -1,
+       "curl": [
+        0.6336281909218481,
+        0.5015093349771501
+       ],
+       "dent": 0.035523082482114665,
+       "same": true
+      },
+      {
+       "t": 0.98333333333344,
+       "eng": 1,
+       "info": {
+        "rpm": 694.6890092100654,
+        "V": 18.688988251756108,
+        "M": 475.4149848206007,
+        "D": 1.91,
+        "nb": 2,
+        "what": "ground",
+        "eng": 1,
+        "t": 0.98333333333344
+       },
+       "E": 88047.56642025593,
+       "Espin": 5021.501882543289,
+       "Ehit": 83026.06453771263,
+       "pBreak": 0.43679605836596297,
+       "breaks": false,
+       "lost": -1,
+       "curl": [
+        0.6122266764102589,
+        0.7641331872625589
+       ],
+       "dent": 0.041414269926076774,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.2937992062978553,
+      "d0": 0.29315267330704287,
+      "vol": 0.9863209387662046,
+      "eye": [
+       -0.06817877204078368,
+       -1.476027585980066,
+       1302.1583178237117
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.29315267330704287,
+     "stillN": 5
+    },
+    "lowFps": {
+     "hash": "a58028bf",
+     "bad": false,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (TPB off the core)",
+     "broken": 38,
+     "payloads": 14,
+     "rel": [
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.102,
+       "t": 0.12
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "crush": 0.102,
+       "t": 0.12
+      }
+     ],
+     "bodies": [
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": true,
+       "age": 4,
+       "clear": 18.39366554180763,
+       "deep": -10.084898969927815,
+       "bay": 0,
+       "fin": true,
+       "wet": true,
+       "x": [
+        -1.595,
+        -0.95,
+        1290.139
+       ],
+       "from": 16.57229350023227
+      },
+      {
+       "kind": "cowl",
+       "why": "crushed",
+       "asleep": true,
+       "sunk": true,
+       "age": 3.99,
+       "clear": 18.490605041312627,
+       "deep": -10.168469044918261,
+       "bay": 0,
+       "fin": true,
+       "wet": true,
+       "x": [
+        1.584,
+        -0.951,
+        1290.136
+       ],
+       "from": 16.578146344399975
+      }
+     ],
+     "strikes": [
+      {
+       "t": 0.98333333333344,
+       "eng": 0,
+       "info": {
+        "rpm": 694.6890092100654,
+        "V": 16.32994558327751,
+        "M": 475.4149848206007,
+        "D": 1.91,
+        "nb": 2,
+        "what": "ground",
+        "eng": 0,
+        "t": 0.98333333333344
+       },
+       "E": 68410.27494038224,
+       "Espin": 5021.501882543289,
+       "Ehit": 63388.773057838946,
+       "pBreak": 0.2582752267307476,
+       "breaks": false,
+       "lost": -1,
+       "curl": [
+        0.6336281909218481,
+        0.5015093349771501
+       ],
+       "dent": 0.035523082482114665,
+       "same": true
+      },
+      {
+       "t": 0.98333333333344,
+       "eng": 1,
+       "info": {
+        "rpm": 694.6890092100654,
+        "V": 18.688988251756108,
+        "M": 475.4149848206007,
+        "D": 1.91,
+        "nb": 2,
+        "what": "ground",
+        "eng": 1,
+        "t": 0.98333333333344
+       },
+       "E": 88047.56642025593,
+       "Espin": 5021.501882543289,
+       "Ehit": 83026.06453771263,
+       "pBreak": 0.43679605836596297,
+       "breaks": false,
+       "lost": -1,
+       "curl": [
+        0.6122266764102589,
+        0.7641331872625589
+       ],
+       "dent": 0.041414269926076774,
+       "same": true
+      }
+     ],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.2937992062978553,
+      "d0": 0.29315267330704287,
+      "vol": 0.9863209387662046,
+      "eye": [
+       -0.06817877204078368,
+       -1.476027585980066,
+       1302.1583178237117
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.29315267330704287,
+     "stillN": 5
+    },
+    "bare": {
+     "hash": "a58028bf"
+    },
+    "off": {
+     "hash": "4112d912",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.29333099254250217,
+      "d0": 0.29315267330704287,
+      "vol": 1.000597146305237,
+      "eye": [
+       -0.4216354484228035,
+       -1.5547000650389662,
+       1301.0856455370927
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.29315267330704287,
+     "stillN": 7
+    },
+    "offBare": {
+     "hash": "4112d912"
+    }
+   },
+   {
+    "id": "float-nosein",
+    "label": "the float nose-in (90 km/h, 5 m/s, 20 deg)",
+    "on": {
+     "hash": "b7053bbf",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.29333681983355203,
+      "d0": 0.29315267330704287,
+      "vol": 1.000612209303561,
+      "eye": [
+       0.011651985197747817,
+       -1.5689724190478729,
+       1291.7747951986466
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.29315267330704287,
+     "stillN": 7
+    },
+    "lowFps": {
+     "hash": "b7053bbf",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.29333681983355203,
+      "d0": 0.29315267330704287,
+      "vol": 1.000612209303561,
+      "eye": [
+       0.011651985197747817,
+       -1.5689724190478729,
+       1291.7747951986466
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.29315267330704287,
+     "stillN": 7
+    },
+    "bare": {
+     "hash": "b7053bbf"
+    },
+    "off": {
+     "hash": "b7053bbf",
+     "bad": false,
+     "crashed": false,
+     "reason": null,
+     "broken": 0,
+     "payloads": 0,
+     "rel": [],
+     "bodies": [],
+     "strikes": [],
+     "eye": {
+      "crushed": false,
+      "why": null,
+      "depth": 0.29333681983355203,
+      "d0": 0.29315267330704287,
+      "vol": 1.000612209303561,
+      "eye": [
+       0.011651985197747817,
+       -1.5689724190478729,
+       1291.7747951986466
+      ]
+     },
+     "eyeBay": 1,
+     "eyeD0": 0.29315267330704287,
+     "stillN": 7
+    },
+    "offBare": {
+     "hash": "b7053bbf"
+    }
+   }
+  ],
+  "calm": {
+   "rel": 0,
+   "seized": 0,
+   "payloads": 0,
+   "yields": 0
+  }
+ }
+}

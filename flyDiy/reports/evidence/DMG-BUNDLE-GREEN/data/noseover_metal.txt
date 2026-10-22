@@ -1,0 +1,4 @@
+# scripts/noseover_tw.js / noseover_tw2.js metal (DMGDRIVE's noseOver rig)
+base (disc 2.4 cm in the ground at rest): pitch0 0.0, 2 m/s 'bent' bite 0.188
+engY, the old rig: pitch0 -5.0, the nose wheel 0.148 m IN the ground; 2 m/s: bite 0.037 m (< the 5 cm turf), no strike
+engY, the leg folded (G2367): 2 / 4 / 8 m/s 'stoppage' (bites 0.69 / 0.82 / 0.92 m)

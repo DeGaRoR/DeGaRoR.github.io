@@ -50,6 +50,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   let fineRing = null;                // TERRAIN FOLLOW-UP 2: the disc of fine tiles round the eye (its update, its clear)
   let ringLod = null;                // PERF 2026-09-23: the inner ring drawn in chunks by distance (its update, its rebuild, its stats)
   let farLod = null;                  // PERF 2026-09-23: the island's far terrain, cut to the eye (its update, its dials, its stats)
+  // G3100's ground box, HERE (CABIN-PAD, 21 Oct): declared further down it sat in its TDZ when the premises block - inline in this
+  // build - ran 'premises ground': refreshGroundSteps threw at its first line on every boot since 13 Oct, the catch printed "the
+  // record did not render", and the ring's sink under the patch, the fine ring's clear, the ring's rebuild and the far tier's
+  // resink never ran (the far tier kept the raw DEM over every remote cut: the cabin's field shed buried to the eaves). G570's trap
+  const GBOX = { on: !(typeof location !== 'undefined' && /[?&]groundbox=0(&|$)/.test(location.search || '')), adj: new WeakMap(), last: null };   // ?groundbox=0: the whole ring's normals, as before
   let farSinkOn = false;              // G527: the far terrain sinks under a premises' patch once the patch stands (farLod.resink; premisesR is not declared yet when the first cut is built)
   let rockMap = null, groundU = null; // the rocks' far tier (rock_map.js); the island ground uniforms, hoisted for it
   let cliffs = null;                  // the photoscanned cliff faces (cliffs.js)
@@ -421,6 +426,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         uBarkL = { value: IMPK.barkLit };   // and its own tier gain (in place of uILit)
   // the audit's list of baked impostor sheets (assigned where the atlas cache lives, below)
   let treeAtlases = () => [];
+  let sheetMean = () => null;         // G3180 (CARD-MATCH): an atlas's mean linear albedo, read back (tree block)
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
   // instance outside its band, and the impostor bake draws the same material
   // from thirty metres: an L2 whose band starts at 300 m baked an EMPTY sheet,
@@ -1407,6 +1413,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const h = world.terrainH(x, z);
     return !(h < 1.5 || world.waterH(x, z) > h);
   };
+  // G2935 (BIOME-POLY, the user 12 Oct: "the biome polygon does nothing I can see ... I'd want it to affect the ground
+  // color according to the picked biome, plus the actual trees"): A POLYGON THAT NAMES A MIX PLANTS IT. The premises'
+  // vegAt (27_premises vegPolys: undefined where no polygon speaks, null 'none', else a mix name) opened nothing: the walk
+  // asked the island's cover raster first (forestHere / openHere: FOREST_FLOOR or GRASS), so a biome drawn over a field,
+  // scree or a town's gaps stood no tree. polyMix(x, z): the polygon's word (a known mix, null, or undefined); polyGround:
+  // where a polygon's mix may stand - the aerodromes' blocked ground and the trees' own excludes no, pavement / gravel /
+  // water no, every other ground yes. The ground colour is BIOME-PAINT's (G3040, SCENERY-ED-2).
+  const polyMix = (x, z, BIO) => { if (!BIO || !BIO.over) return undefined; const o = BIO.over(x, z); return o === undefined ? undefined : (o && BIO.mixes[o]) ? o : null; };
+  const polyGround = (x, z) => {
+    if (!islRule || world.treeAeroBlocked(x, z)) return false;
+    const s = world.treeGround(x, z);
+    if (s === world.SURFACE.PAVED || s === world.SURFACE.GRAVEL || s === world.SURFACE.WATER) return false;
+    const h = world.terrainH(x, z);
+    return !(h < 1.5 || world.waterH(x, z) > h);
+  };
   const forestHere = (x, z, sc) => {
     if (islRule) { if (world.treeAeroBlocked(x, z)) return false; }
     else {
@@ -1732,7 +1753,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // to move both the terrain and the trees to see what's best". The baked
     // albedo stays the fallback (and the minimap's). Textures sampled by
     // world position; the tint is sRGB (decoded on sample under r152+).
-    const GROUND = { on: false, overlay: 0.75, shade: 0.7, light: 0.94, sat: 0.94, snow: 890, shore: 1.0, mode: 0 };   // light / sat 0.94: the user's F8 world look, 2026-10-03
+    const GROUND = { on: false, overlay: 0.75, shade: 0.7, light: 1.38, sat: 0.94, snow: 890, shore: 1.0, mode: 0 };   // light / sat 0.94: the user's F8 world look, 2026-10-03
     // THE STACK (G404, the user: "a way to edit the stack, like I did in the
     // bench - every layer, on/off, blend mode, alpha"): five albedo layers in
     // a fixed order, each with the bench's twelve blend modes and an opacity.
@@ -3080,6 +3101,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           for (const k of names) mg.setAttribute(k, new THREE.BufferAttribute(out[k], lakeGeos[0].attributes[k].itemSize));
           mg.setIndex(new THREE.BufferAttribute(idx, 1)); mg.computeBoundingSphere();
           const m = new THREE.Mesh(mg, lakeMat); m.receiveShadow = true; m.matrixAutoUpdate = false; m.name = 'lakes'; scene.add(m);
+          if (typeof WATER !== 'undefined' && WATER.watch) WATER.watch(m, renderer);   // G2830: the mirror's WATER SEEN query (and the rig's timer) round the lakes' draws too
         }
         console.log('island lakes: ' + n + ' surfaces, one quad each in one mesh, the field cuts the edge; ' + seaSkipped + ' on the coast left to the sea, ' + filled + ' filled by the premises');
       }
@@ -3093,14 +3115,18 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (!(mask & 4)) quad(lx - hc, lz + hc, lx + hc, lz + hc + skirt, y);
         if (!(mask & 8)) quad(lx - hc, lz - hc - skirt, lx + hc, lz - hc, y);
       }
-      const wg = new THREE.BufferGeometry();
-      wg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      wg.setIndex(idx);
-      wg.computeVertexNormals();
-      if (WSH) { const nv = pos.length / 3, aw = new Float32Array(nv * 2); for (let i = 0; i < nv; i++) aw[i * 2] = i < riverVerts ? 2 : 1; wg.setAttribute('aWater', new THREE.Float32BufferAttribute(aw, 2)); }
-      const wm = new THREE.Mesh(wg, waterMat);
-      wm.receiveShadow = true;
-      scene.add(wm);
+      // (G2990: the island's default water has no reach and no bake lake cell - no empty mesh then)
+      if (idx.length) {
+        const wg = new THREE.BufferGeometry();
+        wg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        wg.setIndex(idx);
+        wg.computeVertexNormals();
+        if (WSH) { const nv = pos.length / 3, aw = new Float32Array(nv * 2); for (let i = 0; i < nv; i++) aw[i * 2] = i < riverVerts ? 2 : 1; wg.setAttribute('aWater', new THREE.Float32BufferAttribute(aw, 2)); }
+        const wm = new THREE.Mesh(wg, waterMat);
+        wm.receiveShadow = true;
+        if (typeof WATER !== 'undefined' && WATER.watch) WATER.watch(wm, renderer);   // G2830 (as the lakes')
+        scene.add(wm);
+      }
     }
   }
 
@@ -3388,6 +3414,23 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // targets back (TREE-IMPORT.md §6: every one of its six faults presented
     // as "the impostor is wrong" and none looked like its cause).
     treeAtlases = () => { const out = []; ATLAS.forEach(a => out.push(a)); return out; };
+    // G3180 (CARD-MATCH, the user 13 Oct: "a color/value shift has developed between the far cards for the trees and the
+    // impostors ... we also need a mechanism to keep them in sync"): ONE SHEET'S MEAN - the linear albedo of its drawn texels
+    // (alpha at the series' own cut; the bytes are sRGB, decoded here), [r, g, b, texels] or null; one readback (atlas.read),
+    // for the stand cards' level match at their bake and for the audit
+    sheetMean = (key, series) => {
+      const CUT = { rungs: 0.40, stand: 0.15, snag: 0.10 }, lin = v => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+      // the NEWEST sheet of that key (a card rebuilt bakes again under its key; the old one stays in ATLAS - the 18:05 proof's
+      // A/B levelled the merged bake against the composed sheet before it)
+      let pick = null; for (const a of ATLAS.values()) if (a.key === key && a.series === series && a.read && a.N) pick = a;
+      for (const a of pick ? [pick] : []) {
+        const px = new Uint8Array(a.N * a.N * 4); try { a.read(px); } catch (e) { return null; }
+        const cut = 255 * (CUT[series] || 0.4); let rr = 0, gg = 0, bb = 0, n = 0;
+        for (let i = 0; i < px.length; i += 4) if (px[i + 3] >= cut) { rr += lin(px[i]); gg += lin(px[i + 1]); bb += lin(px[i + 2]); n++; }
+        return n ? [rr / n, gg / n, bb / n, n] : null;
+      }
+      return null;
+    };
     let BAKE_RT = null;                    // the shared bake pair (see bakeImpostorAtlasNow)
     // ---- THE SHEETS ARE LAYERS (PERF 2026-09-23) --------------------------------------------------
     // Every impostor sheet was a texture of its own and every (chunk, subject, series) an InstancedMesh
@@ -3649,6 +3692,111 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         renderer.readRenderTargetPixels(R, 0, 0, N, N, px); return px; };
       return atlas;
     }
+    // G3184 (CARD-MATCH, the one source; the user 13 Oct: "we also need a mechanism to keep them in sync"): A STAND CARD
+    // COMPOSED FROM ITS SPECIES' OWN SHEETS. The card was a block of 16 trees' L1 geometry baked as one picture - measured
+    // 0.26x its species' sheets (cardmatch_probe, 13 Oct), and once levelled, bluer and answering a tint differently (its
+    // baked normals are the block's, not the trees'). Here each tree of the block is drawn as ITS IMPOSTOR into the card's
+    // tiles: a quad facing the tile's own direction (the bake camera's, impDir), its species' rungs sheet sampled with the
+    // draw's three-tap octahedral lookup at level 0 - the albedo pass writes the species' texel (x its sheet's level,
+    // G2591), the normal pass the species' normal texel and leaf flag, both un-premultiplied by the albedo's coverage as the
+    // draw does. The card's texels ARE its species' texels: the same albedo, the same normals, so the same answer to the sun,
+    // the sky and every tint. entries: [{ x, z, s, key }] (the block's trees, metres, scale, 'collection|subject');
+    // null while a species' rungs sheet is not baked yet (the caller tries again)
+    let CARD_MAT = null;
+    const cardMat = () => CARD_MAT || (CARD_MAT = new THREE.ShaderMaterial({
+      uniforms: { uCol: IMPA.U.col, uNrm: IMPA.U.nrm, uDir: { value: new THREE.Vector3(0, 1, 0) }, uG: { value: IMP_G }, uTile: { value: IMP_TILE }, uPass: { value: 0 } },
+      vertexShader: [
+        'attribute vec3 aPos;', 'attribute float aS, aL, aCy, aDiam, aLev;', 'uniform vec3 uDir;',
+        'varying vec2 vUvI;', 'flat varying float vL, vLev;',
+        'void main() {',
+        '  vec3 ctr = aPos + vec3(0.0, aCy * aS, 0.0);',
+        '  vec3 upRef = abs(uDir.y) > 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);',
+        '  vec3 rgt = normalize(cross(upRef, uDir)), upv = cross(uDir, rgt);',
+        '  vec3 wp = ctr + (rgt * position.x + upv * position.y) * (aDiam * aS);',
+        '  vUvI = uv; vL = aL; vLev = aLev;',
+        '  gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);',
+        '}'].join('\n'),
+      fragmentShader: [
+        'uniform highp sampler2DArray uCol, uNrm;', 'uniform vec3 uDir;', 'uniform float uG, uTile, uPass;',
+        'varying vec2 vUvI;', 'flat varying float vL, vLev;',
+        'void main() {',
+        '  vec3 dI = uDir;',
+        '  vec2 pp = vec2(dI.x, dI.z) / (abs(dI.x) + abs(dI.z) + max(dI.y, 0.0) + 1e-5);',
+        '  vec2 oc = clamp(vec2(pp.x + pp.y, pp.x - pp.y), -1.0, 1.0);',
+        '  vec2 gp = (oc * 0.5 + 0.5) * (uG - 1.0);',
+        '  vec2 g0 = min(floor(gp), uG - 2.0);',
+        '  vec2 gf = gp - g0;',
+        '  vec2 cB = vec2(1.0, 0.0), cC = vec2(0.0, 1.0), cA; vec3 wB;',
+        '  if (gf.x + gf.y < 1.0) { cA = vec2(0.0); wB = vec3(1.0 - gf.x - gf.y, gf.x, gf.y); }',
+        '  else { cA = vec2(1.0); wB = vec3(gf.x + gf.y - 1.0, 1.0 - gf.y, 1.0 - gf.x); }',
+        '  vec2 qv = (vUvI * (1.0 - 2.0 / uTile) + 1.0 / uTile) / uG;',
+        '  vec2 uvA = (g0 + cA) / uG + qv, uvB = (g0 + cB) / uG + qv, uvC = (g0 + cC) / uG + qv;',
+        '  vec4 t0 = textureLod(uCol, vec3(uvA, vL), 0.0), t1 = textureLod(uCol, vec3(uvB, vL), 0.0), t2 = textureLod(uCol, vec3(uvC, vL), 0.0);',
+        '  float aSol = max(max(t0.a, t1.a), t2.a);',
+        '  if (aSol < 0.5) discard;',
+        '  vec4 tc = t0 * wB.x + t1 * wB.y + t2 * wB.z; float cov = max(tc.a, 1e-4);',
+        '  if (uPass < 0.5) { gl_FragColor = vec4(clamp(tc.rgb / cov * vLev, 0.0, 1.0), 1.0); }',
+        '  else { vec4 n0 = textureLod(uNrm, vec3(uvA, vL), 0.0), n1 = textureLod(uNrm, vec3(uvB, vL), 0.0), n2 = textureLod(uNrm, vec3(uvC, vL), 0.0);',
+        '         vec4 nc = n0 * wB.x + n1 * wB.y + n2 * wB.z; gl_FragColor = vec4(clamp(nc.rgb / cov, 0.0, 1.0), clamp(nc.a / cov, 0.0, 1.0)); }',
+        '  #include <colorspace_fragment>',
+        '}'].join('\n'),
+      side: THREE.DoubleSide, depthTest: true, depthWrite: true, toneMapped: false }));
+    function composeCardAtlas(entries, tag) {
+      if (!canBake || IMPA.stub || !IMPA.col || !THREE.InstancedBufferGeometry || !entries || !entries.length) return null;
+      const sheets = new Map(); for (const a of ATLAS.values()) if (a.series === 'rungs' && a.key && a.layer >= 0) sheets.set(a.key, a);
+      const E = []; for (const e of entries) { const a = sheets.get(e.key); if (!a) return null; E.push({ e, a }); }   // a species' sheet not baked yet
+      // the card's sphere: every quad's (its centre height, its half diagonal), about the block's middle
+      let y0 = Infinity, y1 = -Infinity; for (const { e, a } of E) { const cy = a.cy * e.s, h = a.diam * e.s / 2; y0 = Math.min(y0, cy - h); y1 = Math.max(y1, cy + h); }
+      const cy = (y0 + y1) / 2; let R = 0;
+      for (const { e, a } of E) R = Math.max(R, Math.hypot(e.x, a.cy * e.s - cy, e.z) + a.diam * e.s * Math.SQRT1_2);
+      const M = R * 1.04, N = IMP_G * IMP_TILE, atlas = { cy, diam: 2 * M, tex: null, nrm: null, composed: true };
+      if (tag) { atlas.key = tag.key; atlas.series = tag.series; }
+      if (!BAKE_RT) return null;   // (the trees' own bakes made them: a card comes after its species)
+      const rt = BAKE_RT.rt, rtN = BAKE_RT.rtN;
+      const g = new THREE.InstancedBufferGeometry(), q = new THREE.PlaneGeometry(1, 1);
+      g.index = q.index; g.setAttribute('position', q.attributes.position); g.setAttribute('uv', q.attributes.uv);
+      const n = E.length, P3 = new Float32Array(n * 3), S1 = new Float32Array(n), L1 = new Float32Array(n), C1 = new Float32Array(n), D1 = new Float32Array(n), V1 = new Float32Array(n);
+      E.forEach(({ e, a }, i) => { P3[i * 3] = e.x; P3[i * 3 + 1] = 0; P3[i * 3 + 2] = e.z; S1[i] = e.s; L1[i] = a.layer; C1[i] = a.cy; D1[i] = a.diam; V1[i] = impLevelOf(a.key + '|rungs'); });
+      g.setAttribute('aPos', new THREE.InstancedBufferAttribute(P3, 3)); g.setAttribute('aS', new THREE.InstancedBufferAttribute(S1, 1));
+      g.setAttribute('aL', new THREE.InstancedBufferAttribute(L1, 1)); g.setAttribute('aCy', new THREE.InstancedBufferAttribute(C1, 1));
+      g.setAttribute('aDiam', new THREE.InstancedBufferAttribute(D1, 1)); g.setAttribute('aLev', new THREE.InstancedBufferAttribute(V1, 1));
+      g.instanceCount = n;
+      const mat = cardMat(), mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false;
+      const sc = new THREE.Scene(); sc.add(mesh);
+      if (IMPA.dirtyMips) IMPA.frame();   // the species' layers settled before they are read
+      const cam = new THREE.OrthographicCamera(-M, M, M, -M, 0.1, R * 8), ctr = new THREE.Vector3(0, cy, 0);
+      const pRT = renderer.getRenderTarget(), pAC = renderer.autoClear, pCol = new THREE.Color(), pA = renderer.getClearAlpha();
+      const pVP = renderer.getViewport(new THREE.Vector4()), pSC = renderer.getScissor(new THREE.Vector4());
+      { const gc = renderer.getClearColor(pCol); if (gc && gc !== pCol) pCol.copy(gc); }
+      const pTM = renderer.toneMapping; renderer.toneMapping = THREE.NoToneMapping;
+      const drawAll = (target, pass) => {
+        mat.uniforms.uPass.value = pass;
+        renderer.setRenderTarget(target); renderer.autoClear = false; renderer.setClearColor(0x000000, 0); renderer.clear(true, true, false);
+        renderer.setScissorTest(true);
+        for (let j = 0; j < IMP_G; j++) for (let i = 0; i < IMP_G; i++) {
+          const d = impDir(i, j);
+          mat.uniforms.uDir.value.copy(d);
+          cam.up.set(0, 1, 0); if (Math.abs(d.y) > 0.999) cam.up.set(0, 0, 1);
+          cam.position.copy(ctr).addScaledVector(d, R * 4); cam.lookAt(ctr); cam.updateProjectionMatrix();
+          renderer.setViewport(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE); renderer.setScissor(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE);
+          renderer.clearDepth(); renderer.render(sc, cam);
+        }
+        renderer.setScissorTest(false);
+      };
+      drawAll(rt, 0); drawAll(rtN, 1);
+      renderer.toneMapping = pTM; renderer.setViewport(pVP); renderer.setScissor(pSC); renderer.setRenderTarget(pRT); renderer.autoClear = pAC; renderer.setClearColor(pCol, pA);
+      g.dispose();
+      const layer = IMPA.take(); if (layer < 0) { atlas.refused = true; return atlas; }
+      const at0 = new THREE.Vector3(0, 0, layer);
+      renderer.copyTextureToTexture(rt.texture, IMPA.col, null, at0); renderer.copyTextureToTexture(rtN.texture, IMPA.nrm, null, at0);
+      IMPA.dirtyMips = true;
+      atlas.layer = layer; atlas.tex = IMPA.col; atlas.nrm = IMPA.nrm; atlas.N = N;
+      atlas.read = (px, which) => { const T = which === 'nrm' ? IMPA.nrm : IMPA.col, R2 = which === 'nrm' ? rtN : rt;
+        renderer.copyTextureToTexture(T, R2.texture, new THREE.Box3(new THREE.Vector3(0, 0, atlas.layer), new THREE.Vector3(N, N, atlas.layer + 1)), null);
+        renderer.readRenderTargetPixels(R2, 0, 0, N, N, px); return px; };
+      ATLAS.set('card:' + (tag ? tag.key : n), atlas);   // the audit's and sheetMean's list (WORLD.treeAtlases)
+      return atlas;
+    }
     // One quad geometry per CHUNK SIZE (the cull sphere lives on the geometry —
     // see chunkBounds), one material per source shape.
     const impQuad = half => { const g = new THREE.PlaneGeometry(1, 1); chunkBounds(g, half); return g; };
@@ -3786,7 +3934,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const bk = parts.find(q => q.mat.userData && q.mat.userData.uLeaf && !(q.mat.userData.uLeaf.value > 0.5) && q.mat.userData.uLight);
       return (u && u.uHue) ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight, bark: !leaf, uLightB: (bk ? bk.mat.userData.uLight : u.uLight) } : null;
     };
-    function impostorMat(atlas, far, si, tintU, gain, thinU, nearU, inst) {   // nearU: the stand cards' own inner edge (the ring's edge), else the tree's; inst: the merged chunk mesh's (IMP_INST)
+    function impostorMat(atlas, far, si, tintU, gain, thinU, nearU, inst, rdy) {   // nearU: the stand cards' own inner edge (the ring's edge), else the tree's; inst: the merged chunk mesh's (IMP_INST); rdy: the fill's readiness grid (G2930, the stand cards')
       // AN IMPOSTOR IS AN ORDINARY SURFACE WITH A BAKED NORMAL. Standard at
       // roughness 1, `normal` replaced from the second sheet: that single
       // substitution buys the whole rig - sun, hemisphere, environment, and the
@@ -3803,7 +3951,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       (m.userData = m.userData || {}).atlas = atlas;
       if (!inst && atlas && atlas.layer >= 0) IMPA.set(atlas.layer, atlas.cy, atlas.diam, gain || 6, IMP_CUT[si || 0], tintU, atlas.key ? atlas.key + '|' + atlas.series : null);   // the layer's own numbers, for the merged meshes
       if (inst ? !IMPA.col : !atlas.tex) { if (!inst && atlas.refused) m.visible = false; return m; }   // headless: no GL, no atlas, no shader; a refused bake draws nothing
-      m.customProgramCacheKey = () => 'imp:' + (inst ? 'inst' : 'one');   // two texts, two programs (three keys the cache on the hook's source)
+      m.customProgramCacheKey = () => 'imp:' + (inst ? 'inst' : 'one') + (rdy ? ':rdy' : '');   // three texts, three programs (three keys the cache on the hook's source)
       const LEAF = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.uniforms) ? TREE_LEAF : null;
       m.onBeforeCompile = sh => {
         sh.uniforms.uCam = uCam;
@@ -3813,6 +3961,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uFadeB = { value: FAR_FADE };
         sh.uniforms.uFadeW = uFadeW;
         sh.uniforms.uThin = thinU || U_NOTHIN;
+        if (rdy) { sh.uniforms.uRdy = rdy.tex; sh.uniforms.uRdyG = rdy.g; }
         if (!inst) {
           sh.uniforms.uCy = { value: atlas.cy };
           sh.uniforms.uDiam = { value: atlas.diam };
@@ -3884,6 +4033,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           .replace('#include <common>', '#include <common>\n' +
             'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW;\nuniform vec2 uThin;\nuniform vec4 uWind;\n' +
             'varying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
+            (rdy ? 'uniform highp sampler2D uRdy;\nuniform vec4 uRdyG;\n' : '') +
             (inst ? 'attribute float aLayer;\nuniform highp sampler2D uImpTbl;\nflat varying vec2 vImpP;\nflat varying vec4 vImpT;\nflat varying vec2 vImpB;\nfloat uCy, uDiam;\n' : 'uniform float uCy, uDiam, uLayer;\n'))
           // The quad is built around the instance's own axes, NOT the screen's.
           // Instances carry a random yaw for the 3D tier; impostors ignore it
@@ -3932,7 +4082,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // inside the near band the 3D tier draws these trees for real;
             // the window before it is shared with the last rung (dithered)
             'vImpD = dCam;',
-            'if (dCam < uNearB - uFadeW * 0.5 || fade <= 0.0 || vImpL < 0.0) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
+            // G2930 (TREE-STREAM, the user: "far away everything is OK, then a transition with nothing"): A STAND CARD
+            // STANDS IN for the fill inside the ring's edge until the fill's chunk under it is BUILT. The cell's readiness
+            // (0 nothing built .. 1 built, rising over FILL.rdyS) against the card's own hash: a built chunk dissolves its
+            // cards, an unbuilt one keeps them at any distance; vImpD past the edge so the fragment's window keeps it whole
+            rdy ? ['bool impNear = dCam < uNearB - uFadeW * 0.5;',
+                   'if (impNear) { ivec2 rc = ivec2(floor((iPos.xz + modelMatrix[3].xz) * uRdyG.z)) - ivec2(uRdyG.xy); ivec2 rs = textureSize(uRdy, 0);',
+                   '  float rd = (rc.x >= 0 && rc.y >= 0 && rc.x < rs.x && rc.y < rs.y) ? texelFetch(uRdy, rc, 0).r : 0.0;',
+                   '  if (hT >= rd) { impNear = false; vImpD = max(dCam, uNearB + uFadeW); } }',
+                   'if (impNear || fade <= 0.0 || vImpL < 0.0) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);'].join('\n')
+                 : 'if (dCam < uNearB - uFadeW * 0.5 || fade <= 0.0 || vImpL < 0.0) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
           ].join('\n'));
         sh.uniforms.uWind = (typeof window !== 'undefined' && window.TREE_WIND) ? window.TREE_WIND : { value: new THREE.Vector4(0, 0, 0, 0) };
         sh.fragmentShader = ('#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' + sh.fragmentShader)
@@ -4583,7 +4742,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
 
     // (hoisted above the woodland planter, 2026-09-21: the woodland's stands drew their
     // species from the WHOLE pool - a pine no mix names stood in every stand)
-    const SP_SIZE = {};   // species name -> size multiplier (TREE_FILL.speciesSize, the world rail's tree cards)
+    // species name -> size multiplier (TREE_FILL.speciesSize, the world rail's tree cards); G2939: the user's look of 12 Oct
+    const SP_SIZE = {"cedar_tree.glb": 1.3, "fir_tree_georgeous.glb": 1.3, "larch_tree.glb": 1.4, "realistic_fir_trees_pack_lods_gameready.glb": 1.25, "spruce_tree.glb": 1.2};
     const FILL = { ng: world.island ? 160 : 100,   // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26); an island 6.4 m (G400: "MUCH too sparse")
       // the island's knobs (F8 > trees > from the map): coverage ramps from
       // `from` to `full` metres of canopy; a tree is canopy x gain over the
@@ -4966,6 +5126,54 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // geometry's bounding sphere, and a borrowed atlas would sit 1.2 m high
       const impQuadF = impQuad(CH), hdF = CH * Math.SQRT1_2;
       const chunks = new Map(), queue = [];
+      // ================= G2930-G2934 (TREE-STREAM): NO HOLE, EVER =========
+      // The user (2026-10-11): "far away, everything is OK, then there is a transition with nothing, then the more
+      // detailed trees will load, eventually, per tile, and sometimes after a really long time". Inside the stand cards'
+      // inner edge (stand_cards.js S.near, 4 km from the EYE) only this fill draws trees, and a chunk that was not BUILT
+      // yet was bare ground: the cards were cut by distance alone. Three ways a chunk is unbuilt there: the ring has not
+      // reached it (density 200 is ~40 000 grid points a chunk, the walk and the build ~100-180 ms of a 4 ms/frame budget),
+      // an edit evicted it (every scenery-editor vegetation edit evicted the WHOLE 9 km ring: minutes to grow back), or
+      // the eye is not where the ring was centred (the editor's free camera; the ring followed the aircraft).
+      // RDY: the fill's readiness, one texel per 1 km chunk over the world's square - 1 where the chunk's base is built
+      // AND its complement too wherever the eye can see the complement (uThin.y), 0 elsewhere. The stand cards read it
+      // (impostorMat's `rdy`): an unready cell keeps its cards at ANY distance, a ready one dissolves them over
+      // FILL.rdyS on the card's own hash (the fill is drawn at once: a second of both, never a frame of neither).
+      // A cell going unready shows its cards at once (no ramp down).
+      const RDY = (() => {
+        const B = world.bounds; if (!B) return null;
+        const ox = Math.floor(B.x0 / CH) - 1, oz = Math.floor(B.z0 / CH) - 1;
+        const nx = Math.floor(B.x1 / CH) + 2 - ox, nz = Math.floor(B.z1 / CH) + 2 - oz;
+        const want = new Float32Array(nx * nz), cur = new Float32Array(nx * nz), data = new Uint8Array(nx * nz);
+        let tex = null;
+        if (THREE.DataTexture && THREE.RedFormat !== undefined && THREE.UnsignedByteType !== undefined) {
+          tex = new THREE.DataTexture(data, nx, nz, THREE.RedFormat, THREE.UnsignedByteType);
+          tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false; tex.unpackAlignment = 1;   // rows of nx bytes
+          tex.needsUpdate = true;
+        }
+        const g = THREE.Vector4 ? new THREE.Vector4(ox, oz, 1 / CH, 0) : { x: ox, y: oz, z: 1 / CH, w: 0 };
+        const at = (cx, cz) => { const i = cx - ox, j = cz - oz; return (i < 0 || j < 0 || i >= nx || j >= nz) ? -1 : j * nx + i; };
+        // the least readiness over the cells a world box touches (the stand cards' chunk: 2 x 2 of them); 0 off the grid
+        const minIn = (x0, z0, x1, z1) => { let m = 1;
+          for (let cz = Math.floor(z0 / CH), cz1 = Math.ceil(z1 / CH) - 1; cz <= cz1; cz++) for (let cx = Math.floor(x0 / CH), cx1 = Math.ceil(x1 / CH) - 1; cx <= cx1; cx++) {
+            const i = at(cx, cz); m = Math.min(m, i < 0 ? 0 : cur[i]); }
+          return m; };
+        return { ox, oz, nx, nz, want, cur, data, tex, U: tex ? { tex: { value: tex }, g: { value: g } } : null, t: 0, moving: false, at, minIn };
+      })();
+      FILL.rdyS = FILL.rdyS || 1.2;        // the cards' dissolve over a chunk that just went ready, s
+      FILL.urgentMs = FILL.urgentMs || 8;  // the step's budget while an edited chunk waits or a card stands in near the eye
+      FILL.urgentR = FILL.urgentR || 1200; // ...within this of the eye (the roll-out waits for 1.5 km: never at the reveal)
+      // STALE, NOT EVICTED (G2931): an edit (a vegetation polygon, a mix dial, the density, a species' size) used to evict
+      // every chunk - the trees went at once and grew back over minutes. Now a built part carries the generation it was
+      // walked at (`ep`), an edit raises the generation it needs (ALL_GEN for the ring, c2.need for one chunk), and a
+      // stale part STAYS DRAWN until its replacement is built: the swap is one frame. `hot` (an exclusion drawn over the
+      // chunk) puts it at the head of the queue and on the urgent budget.
+      let GEN = 1, ALL_GEN = 1;
+      const needOf = c2 => Math.max(ALL_GEN, c2.need || 0);
+      const stale = (c2, b) => !b || b.ep < needOf(c2);
+      // G2933: what the ring measures of itself - need -> ready latency (ms and frames) of every part, the worst
+      // and the count of parts that waited past FILL.lateS, the cards standing in now (near the eye, in total)
+      FILL.lateS = FILL.lateS || 20;
+      const LAT = { n: 0, sumMs: 0, maxMs: 0, maxFr: 0, late: 0, nearMaxMs: 0, standIn: 0, standInNear: 0, holes: 0, swaps: 0, frame: 0 };
 
       // ================= W0c.2: the fill draws the STAND rung ============
       // This layer plants a tree every 9 m, and inside the near band that is
@@ -5067,6 +5275,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // 9 km ring crosses from HOME) it takes the analytic composer instead (the raster to 1 cm), never a 1-1.6 ms bake
       // a tree's record in a walk: x, y, z, sp, the hash, the canopy, the mix's snag share (G1975)
       const FILL_REC = 7;
+      const POLY_CAN = 12;   // G2935: a polygon's mix over ground the canopy map calls bare stands this tall (m), the stand cards' tree
       function walk(cx, cz, recs, g0, g1, part) {
         if (!world.buildReads) return walkRows(cx, cz, recs, g0, g1, part);
         world.buildReads(1);
@@ -5081,7 +5290,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (hsh(ix, iz + 31) < 0.1) continue;
           const x = cx * CH + (gx + 0.5) * spc + (hsh(ix + 7, iz) - 0.5) * spc * 1.6;
           const z = cz * CH + (gz + 0.5) * spc + (hsh(ix, iz + 7) - 0.5) * spc * 1.6;
-          if (!forestHere(x, z) && !(BIO && openHere(x, z))) continue;  // the forest's rule (the bake's too), or the biome's open ground
+          const pm = ISLC ? polyMix(x, z, BIO) : undefined;   // G2935: a polygon's own mix (undefined: no polygon speaks)
+          if (!forestHere(x, z) && !(BIO && openHere(x, z)) && !(pm && polyGround(x, z))) continue;  // the forest's rule (the bake's too), the biome's open ground, or a polygon's mix
           if (premTreeEx(x, z)) continue;   // the world editor's "no trees" (G527)
           if (fillPoolAt && ISLC && ISLC.ttype) { const t7 = ttypeAt(x, z); if ((t7 === 3 || t7 === 7) && fillPoolAt(x, z) > 0.5) continue; }   // not in a puddle
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
@@ -5103,13 +5313,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
               // kind, its species the pool (codeAt / biomeAt below - the cover ring's too)
               const tt = ttypeAt(x, z);
               if (BIO) {
-                mixHere = BIO.mixHere(codeAt(x, z, hsh(ix + 21, iz + 23)), x, z);
+                mixHere = pm !== undefined ? pm : BIO.mixAt(codeAt(x, z, hsh(ix + 21, iz + 23)));   // (BIO.mixHere, with the polygon read once)
                 kind = mixHere ? Math.min(1, BIO.density(mixHere) * spc * spc * FILL.island.biomeGain) : 0;
               } else kind = tt === 8 ? 1.0 : tt === 7 ? 0.5 : tt === 3 ? 0.12 : tt === 2 ? 0.04 : 0.0;
-              if (tt === 3 || tt === 2) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted
+              if ((tt === 3 || tt === 2) && !pm) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted (a polygon's mix stands as itself)
               // THE MIX'S OWN FLOOR (2026-09-22, the user's reference picture of the airport: the whole muskeg is
               // dense small conifers the canopy map does not see - it reads 0.1-0.2 m there, under the ramp's 0.5):
               // a mix may say how tall its ground is at least (forest.canopyFloor, m) - the ramp and the size read it
+              // G2935: a polygon's mix is FLOORED - it stands at the mix's own density whatever the map's canopy says there,
+              // as tall as the canopy where the map has one, the mix's floor or POLY_CAN where it has none
+              if (mixHere && pm) { const MF = BIO.mixOf(mixHere).forest; floored = true; can = Math.max(can, (MF && MF.canopyFloor) || 0, POLY_CAN); }
               if (mixHere) { const MF = BIO.mixOf(mixHere).forest; if (MF && MF.canopyFloor > can) { can = MF.canopyFloor; floored = true; }
                 // THE CLUMPS (2026-09-22, the user's aerial of the muskeg: "dense packs of trees on sort of little
                 // islands"): a mix may say forest.clump (the share of its ground left bare, 0..1) and clumpM (the
@@ -5210,7 +5423,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
               m.count = 0; m.visible = false; return m; }); }),
             at: 0 } : null);
           const lay = SH.series.map(S => layerOf(S.imp));   // each series' sheet in the arrays
-          for (const P of perSer) if (P) P.ms = [].concat(...P.byRung);
+          // G2932: a rung's parts share ONE matrix and ONE colour attribute (rungShared), so the build writes each tree once a
+          // RUNG (P.one, its first part), not once a part - the same bytes, a half to a third of the writes
+          for (const P of perSer) if (P) { P.ms = [].concat(...P.byRung); P.one = P.byRung.map(L => L[0]).filter(Boolean); }
           const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
                         buf: bufs,
                         rungs: SH.series.map((S, si) => perSer[si] ? perSer[si].byRung : Array.from({ length: nrOf(S) }, () => [])), x: ox, z: oz,
@@ -5245,7 +5460,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // the matrix is written here too, although the partition will
             // overwrite it: the capacity slot then holds a real tree, which is
             // what GATE WORLDRENDER's cull-sphere check reads
-            for (const mm of P.ms) { mm.setMatrixAt(j, m4); mm.setColorAt(j, c3); }
+            for (const mm of P.one) { mm.setMatrixAt(j, m4); mm.setColorAt(j, c3); }
             MI.setMatrixAt(J, m4); MI.setColorAt(J, c3); MIL[J++] = lay[si];
             const bb = BB[si]; if (pv.x < bb[0]) bb[0] = pv.x; if (pv.y < bb[1]) bb[1] = pv.y; if (pv.z < bb[2]) bb[2] = pv.z;
             if (pv.x > bb[3]) bb[3] = pv.x; if (pv.y > bb[4]) bb[4] = pv.y; if (pv.z > bb[5]) bb[5] = pv.z; bb[6] = Math.max(bb[6], sv.x, sv.y);
@@ -5326,31 +5541,70 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the mix dials (furnished, spread) are dealt at plant time: applying
       // them is a replant of both layers (W0c.31 - "furnished does not seem
       // to work": the dial moved a number nothing re-read)
-      TREE_MIX.apply = () => { plantWoodland(); evictAll(); };
+      TREE_MIX.apply = () => { plantWoodland(); staleAll(); };
       // G2890: THE EXCLUSIONS THE RING WAS WALKED WITH (27_premises.js treeExRegions: key -> world box). exRegrow() reads the
-      // overlay's list now, and every chunk a region added or removed touches goes (its walk and build start again from
-      // the queue, nearest first); returns how many went. The first call only takes the list.
+      // overlay's list now, and every chunk a region added or removed touches is walked again (the queue's head); returns
+      // how many. The first call only takes the list.
       let exPlanted = null;
+      // the regions two lists differ by (a key in one and not the other: added, removed or changed)
+      const regDiff = (was, now) => { const ch = []; for (const [k, r] of now) if (!was.has(k)) ch.push(r); for (const [k, r] of was) if (!now.has(k)) ch.push(r); return ch; };
+      // G2931: every chunk a changed region touches goes STALE, NOT DROPPED - its trees stay until the new walk is built
+      // (the swap is one frame) and it goes first, on the urgent budget
+      const staleRegions = ch => {
+        if (!ch.length) return 0;
+        let n = 0;
+        GEN++;
+        for (const [, c2] of chunks) {
+          const x0 = c2.cx * CH, z0 = c2.cz * CH, x1 = x0 + CH, z1 = z0 + CH;
+          if (!ch.some(r => r.x1 >= x0 && r.x0 <= x1 && r.z1 >= z0 && r.z0 <= z1)) continue;
+          if (cur && cur.c2 === c2) cur = null;
+          staleChunk(c2, true); n++;
+        }
+        return n;
+      };
       const exRegrow = () => {
         const O = world.premises && world.premises.overlay, now = new Map();
         for (const r of (O && O.treeExRegions ? O.treeExRegions() : [])) now.set(r.k, r);
         const was = exPlanted; exPlanted = now;
         if (!was) return 0;
-        const ch = [];
-        for (const [k, r] of now) if (!was.has(k)) ch.push(r);
-        for (const [k, r] of was) if (!now.has(k)) ch.push(r);
-        if (!ch.length) return 0;
-        let n = 0;
-        for (const [k, c2] of chunks) {
-          const x0 = c2.cx * CH, z0 = c2.cz * CH, x1 = x0 + CH, z1 = z0 + CH;
-          if (!ch.some(r => r.x1 >= x0 && r.x0 <= x1 && r.z1 >= z0 && r.z0 <= z1)) continue;
-          if (cur && cur.c2 === c2) cur = null;
-          dropPart(c2.base); dropPart(c2.fill); chunks.delete(k); n++;
-        }
+        const n = staleRegions(regDiff(was, now));
         STAT.exRegrown = (STAT.exRegrown || 0) + n;
         return n;
       };
+      // G2931: THE VEGETATION POLYGONS THE RING WAS WALKED WITH (27_premises.js vegPolys, contract v1.31): key -> world box,
+      // the key carrying the polygon, its word and its own biome. A vegetation edit restales the chunks under the polygons
+      // that changed - it was the WHOLE 9 km ring, evicted, on every edit of any polygon (minutes to grow back at density
+      // 200). null where the overlay names no polygons (an older record): the whole ring then, stale, not evicted.
+      let vegRegPlanted = null;
+      const vegRegions = () => {
+        const O = world.premises && world.premises.overlay, F = O && O.frame;
+        if (!O || !Array.isArray(O.vegPolys) || !F || !F.toWorld) return null;
+        const m = new Map();
+        for (const v of O.vegPolys) {
+          const b = v.bbox; if (!b) return null;
+          const c = [F.toWorld(b.x0 - 2, b.z0 - 2), F.toWorld(b.x1 + 2, b.z0 - 2), F.toWorld(b.x1 + 2, b.z1 + 2), F.toWorld(b.x0 - 2, b.z1 + 2)];
+          const own = v.mix && v.mix[0] === '@' && O.vegMixes ? O.vegMixes[v.mix] : null;
+          m.set(JSON.stringify([v.id, v.poly, v.mix, own]), { x0: Math.min(c[0][0], c[1][0], c[2][0], c[3][0]), z0: Math.min(c[0][1], c[1][1], c[2][1], c[3][1]),
+                                                             x1: Math.max(c[0][0], c[1][0], c[2][0], c[3][0]), z1: Math.max(c[0][1], c[1][1], c[2][1], c[3][1]) });
+        }
+        return m;
+      };
+      try { vegRegPlanted = vegRegions(); } catch (e) { vegRegPlanted = null; }
+      // a chunk's parts want a new walk (`hot`: at the queue's head, on the urgent budget); the queue re-reads it
+      function staleChunk(c2, hot) {
+        c2.need = GEN; if (hot) c2.hot = true;
+        c2.qb = c2.qf = false;
+        if (c2.base) needAt(c2, BASE); if (c2.fill) needAt(c2, FILLP);   // (needAt: below, called at run time only)
+      }
+      // every chunk of the ring wants a new walk (an edit that touches the whole ring: a mix, a biome, the density, a
+      // species' size); what stands stays drawn until its replacement is built
+      const staleAll = () => {
+        GEN++; ALL_GEN = GEN; cur = null; queue.length = 0;
+        for (const [, c2] of chunks) { c2.qb = c2.qf = false; if (c2.base) needAt(c2, BASE); if (c2.fill) needAt(c2, FILLP); }
+      };
       try { exRegrow(); } catch (e) { exPlanted = null; }   // the list the ring is first walked with
+      // the hard eviction: kept for a new SHAPE set only (the payload's arrival, a grown catalogue) - setShapes disposes
+      // the materials the old chunks draw with, so they cannot stay. The stand cards cover the ring while it regrows (RDY)
       const evictAll = () => {
         cur = null;                        // whatever was being walked is gone with the rest
         for (const [k, c2] of chunks) { dropPart(c2.base); dropPart(c2.fill); chunks.delete(k); }
@@ -5373,7 +5627,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // height, so the lakes' test never saw one. The same function, in JS, with the splat's live knobs.
           const poolAt = (x, z) => {
             const GF = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null; if (!GF || !GF.poolAt) return 0;
-            const sp = groundApi.splat ? groundApi.splat() : null; const K = (sp && sp.knobs) ? sp.knobs() : GF.RECIPE.knobs;   // the splat's live knobs (the terrain block's), else the recipe's
+            const sp = groundApi.splat ? groundApi.splat() : null; const K = (sp && sp.knobsLive) ? sp.knobsLive() : (sp && sp.knobs) ? sp.knobs() : GF.RECIPE.knobs;   // the splat's live knobs (the terrain block's), else the recipe's (REVEAL-HITCH: read, never copied - a call a sample)
             if (!(K.pudCover > 0)) return 0;
             let m = GF.poolAt((x + K.pudCell) * K.pudSlope, (z + K.pudCell) * K.pudSlope, K.pudCover, K.pudEdge);
             // A PUDDLE NEEDS A LEVEL PLACE (2026-09-23): the same ramp the shader runs (splat_ground sMat,
@@ -5388,9 +5642,17 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           };
           // G753: nor where WATER IS DRAWN - the drawn lakes' field (the ground is discarded a metre inside it) with its quad over
           // the ground; the physics' waterH alone let the flecks stand on a pond the runway's grade had filled, over the quad
-          const drawnWet = (x, z, h) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z); return wy !== null && Number.isFinite(wy) && wy > h - 0.3; };
-          const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3 || drawnWet(x, z, h)) return false;
+          // THE GRASS TO THE LAKE'S EDGE (GRASS-DENSE G2572; the user, 12 Oct: "the lakes seem to clear the grass within a few metres,
+          // that's undesirable"): a point was refused while the water stood within 0.3 m UNDER its ground - on a lake's gentle bank
+          // (the carve's slope, a few %) that is metres of bare shore. A LAKE now refuses only `lakeMargin` m (the grass field's dial,
+          // 0.03 by default: the ground just above the drawn water); the SEA keeps its 0.3 m (the tide line, the beach - unchanged)
+          // (the grass field's alone: the first ring - its flowers, bushes, rocks, debris and the far rock map - keeps the 0.3 m
+          // everywhere, A0 11 Oct: what else stands on a lake's bank is another call)
+          const lakeM = () => (grassField && grassField.lakeMargin ? grassField.lakeMargin() : 0.3);
+          const wetBy = (x, z, h, lake) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z); return wy !== null && Number.isFinite(wy) && wy > h - (lake && wy > 0.05 ? lakeM() : 0.3); };
+          const landBy = (x, z, lake) => { const h = world.terrainH(x, z), wl = world.waterH(x, z); if (h < 0.3 || wl > h - (lake && wl > 0.05 ? lakeM() : 0.3) || wetBy(x, z, h, lake)) return false;
             const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
+          const okAt = (x, z) => landBy(x, z, false), okLake = (x, z) => landBy(x, z, true);
           // THE COVER'S QUERY (v1.17): the world's coverAt with `col` added - the linear colour the PAVEMENT
           // draws there (the class's base set mean, graded as the shader grades it: what the eye sees), so a
           // tuft on a band or a grass road takes its own ground's colour; null where no pavement is drawn
@@ -5409,7 +5671,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // the field's land test: the cover's, and - under the 'sides' law with `hard` (27_premises GRASS_SIDES, the user's call) - a
           // point the physics calls gravel / paved where nothing hard is drawn (kill under 1: a shoulder polygon, a strip box's margin)
           const PGN = (typeof PREMISES_GEN !== 'undefined') ? PREMISES_GEN : null;
-          const okField = (x, z) => { if (okAt(x, z)) return true;
+          const okField = (x, z) => { if (okLake(x, z)) return true;   // (G2572: to a lake's edge)
             const L = PGN && PGN.grassSides ? PGN.grassSides() : null; if (!L || L.law !== 'sides' || !L.hard) return false;
             const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3) return false;
             const s = world.surface(x, z); if (s !== world.SURFACE.GRAVEL && s !== world.SURFACE.PAVED && s !== world.SURFACE.SAND) return false;
@@ -5420,7 +5682,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
             standCards = STAND_CARDS.make(THREE, { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled });
+                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN, sheetMean, composeCardAtlas });   // composeCardAtlas: G3184, the card from its species' sheets   // sheetMean: G3180, the card matched to its species' sheets   // rdy: G2930, the cards stand in for an unbuilt fill
           // THE ROCK MAP (rock_map.js): the rocks' far tier, on the island's ground programs (gU.uRockMap)
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
@@ -5437,7 +5699,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the catalogue grows, its bins come in, the settle builds its rungs and waits its maps, and the woodland,
       // the fill and the cover ring replant with it. Nothing new, nothing done.
       const reachRefresh = () => {
-        const splatGrew = !!(SPL && SPL.api.reach && SPL.api.reach());   // the splat's sets too (a stamped code's)
+        // G2935: through groundApi - SPL is the ground block's own (a ReferenceError here since G906: every vegetation polygon
+        // edit threw out of vegChanged, the editor's onRebuilt with it, before the ring's replants were all done)
+        const SPA = groundApi && groundApi.splat ? groundApi.splat() : null;
+        const splatGrew = !!(SPA && SPA.reach && SPA.reach());   // the splat's sets too (a stamped code's)
         if (typeof treeReach !== 'function' || typeof treeReachOf !== 'function') return splatGrew;
         const grew = treeReach(treeReachOf(world, BIO));
         if (!grew.length) return splatGrew;
@@ -5449,7 +5714,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
           island: () => Object.assign({}, FILL.island),
-          setIsland: o => { Object.assign(FILL.island, o || {}); evictAll(); return Object.assign({}, FILL.island); },
+          setIsland: o => { Object.assign(FILL.island, o || {}); staleAll(); return Object.assign({}, FILL.island); },
           onIsland: () => !!ISLC,
           // THE BIOMES' HANDLE (G454.12): the code -> mix map, the mixes, the export F8 offers
           biomes: () => BIO,
@@ -5473,7 +5738,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             return { tt, code, name: BIO.names[code] || String(code), mix: BIO.mixHere(code, x, z), canopy, slopeDeg,
                      ndvi: (ISLC.ndvi && k >= 0) ? ISLC.ndvi[k] / 127 - 1 : null };
           },
-          setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); reachRefresh(); return r; },
+          setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); reachRefresh(); return r; },
           reach: () => reachRefresh(),   // G908: re-read what the map can reach (after a premises re-stamp); true when it grew
           // G1385: after a premises edit (app.js onRebuilt) - the cover polygons' vegetation re-read; replants only when it changed
           // G2890 (SCENERY-ED-1): ...and the tree EXCLUSIONS - a polygon removed, shrunk, moved or added, a strip moved or
@@ -5482,19 +5747,41 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           vegChanged: () => {
             const exN = exRegrow();
             if (!BIO) return exN > 0;
-            vegSync(); if (vegSigNow === vegPlanted) return exN > 0;
-            vegPlanted = vegSigNow; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return true; },
+            vegSync(); if (vegSigNow === vegPlanted) { if (!vegRegPlanted) { try { vegRegPlanted = vegRegions(); } catch (e) { vegRegPlanted = null; } } return exN > 0; }   // (the baseline, when the boot had no overlay yet)
+            vegPlanted = vegSigNow; biomePools.clear();
+            // G2931: the polygons that changed, their chunks first; the whole ring (stale) only when the overlay cannot say
+            { let now = null; try { now = vegRegions(); } catch (e) { now = null; }
+              const was = vegRegPlanted; vegRegPlanted = now;
+              if (now && was) { const ch = regDiff(was, now); STAT.vegRegrown = (STAT.vegRegrown || 0) + staleRegions(ch); if (standCards && standCards.restale) standCards.restale(ch); }
+              else { staleAll(); if (standCards && standCards.restale) standCards.restale(null); } }
+            // G3040 (BIOME-PAINT, SCENERY-ED-2): the ground's packed terrain type re-derived after the stamp moved - theirs,
+            // declared with the build's top-level lets; nothing here when it is not (yet) there
+            if (typeof groundTtypeRefresh === 'function') groundTtypeRefresh();
+            if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return true; },
           exRegions: () => Array.from(exPlanted.values()),
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
           // proportion / dead / density / patch / size, or the forest's count / under / rocks /
           // blotch - the fill re-pools and replants, the ring replants; the export carries it
           setMix: (name, path, value) => { if (!BIO) return null; const M = BIO.mixOf(name); if (!M) return null;
             let o = M; for (let i = 0; i < path.length - 1; i++) { if (o[path[i]] === undefined || o[path[i]] === null) o[path[i]] = {}; o = o[path[i]]; }
-            o[path[path.length - 1]] = value; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return value; },
+            o[path[path.length - 1]] = value; biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return value; },
           // the world rail's tree cards: one species' size multiplier over the canopy's (1 = the map's), all biomes; replants
-          speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; evictAll(); } return SP_SIZE[name] || 1; },
+          speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; staleAll(); } return SP_SIZE[name] || 1; },
           speciesSizes: () => Object.assign({}, SP_SIZE),
           stat: () => Object.assign({}, STAT, { queued: queue.length, live: chunks.size, busy: !!cur || queue.length > 0 }),
+          // G2933 (TREE-STREAM): the ring's own clock and census - need -> ready (n, meanMs, maxMs, maxFr, nearMaxMs: a new
+          // part the eye could see the fill of, late: past FILL.lateS), the cards standing in (standIn, standInNear inside
+          // the cards' edge), holes (an unready cell inside the edge whose cards are not built either; null off an island),
+          // holeFrames, oldestMs (the longest a near part is waiting NOW), swaps (stale parts replaced), urgent, stale parts.
+          // reset: true zeroes the clock (a rig's window)
+          stream: reset => { let st = 0; for (const [, c2] of chunks) { if (c2.base && stale(c2, c2.base)) st++; if (c2.fill && stale(c2, c2.fill) && (!lastEye || wantFill(c2, lastEye))) st++; }
+            const o = Object.assign({}, LAT, { meanMs: LAT.n ? LAT.sumMs / LAT.n : 0, urgent: urgentNow, stale: st, queued: queue.length, gen: GEN });
+            if (reset) Object.assign(LAT, { n: 0, sumMs: 0, maxMs: 0, maxFr: 0, late: 0, nearMaxMs: 0, nearMaxFr: 0, swaps: 0, holeFrames: 0, minUnreadyLow: 1e9 });
+            return o; },
+          // the readiness the stand cards read at a point (0..1; -1 outside the grid) - and the target it is moving to
+          rdyAt: (x, z) => { if (!RDY) return -1; const i = RDY.at(Math.floor(x / CH), Math.floor(z / CH)); return i < 0 ? -1 : RDY.cur[i]; },
+          rdyWant: (x, z) => { if (!RDY) return -1; const i = RDY.at(Math.floor(x / CH), Math.floor(z / CH)); return i < 0 ? -1 : RDY.want[i]; },
+          rdyU: () => RDY && RDY.U,   // the grid's uniforms (the stand cards' material)
           // G1091 (GATE RWYTREES): the trees the fill plants in a rectangle - both parts of every chunk it touches, the
           // walk the streamer runs, nothing built or kept - as a flat [x, z, forest, ...] (forest 1: the map's TREE
           // ground, forestHere; 0: the biome's open ground, openHere)
@@ -5511,7 +5798,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             for (let i = 0; i < out.length; i += 3) if (out[i] >= x0 && out[i] <= x1 && out[i + 1] >= z0 && out[i + 1] <= z1) r.push(out[i], out[i + 1], out[i + 2]);
             return r;
           },
-          set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; evictAll(); return NG; },
+          set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; staleAll(); return NG; },
           // the thinning ramp (metres): full density to d0, the base's quarter from d1
           thin: (d0, d1) => { if (d0 !== undefined) uThin.value.set(+d0, Math.max(+d0 + 1, +d1)); return [uThin.value.x, uThin.value.y]; },
           budget: ms => { if (ms !== undefined) FILL.budgetMs = Math.max(0.5, +ms); return FILL.budgetMs; },
@@ -5520,33 +5807,86 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       let tick = 0;
       // the streamer's worst FRAME - a slice, or the build's - is the hitch
       // a player would see; STAT.frameMax keeps it
-      fillUpdate = cg => { const t = performance.now(); fillStep(cg, FILL.budgetMs); STAT.frameMax = Math.max(STAT.frameMax || 0, performance.now() - t); };
+      // G2930: THE RING FOLLOWS THE EYE. Its centre and its order were the aircraft's (cg) while what is SEEN is the
+      // camera's: in the scenery editor's free camera a hillside 3 km from the parked aeroplane waited behind the whole of
+      // the aircraft's ring. The eye (uCam, set before this call in worldUpdate) centres the ring and orders the queue; the
+      // trunks the solver collides with stay the aircraft's (hitPass, cg). The roll-out's prewarm and ringReady keep cg.
+      let eyeFwd = [0, 0, -1], urgentNow = false, rdyDirty = true, rdyLast = 0, lastEye = null;
+      const FRrec = () => (typeof window !== 'undefined' && window.FLIGHT_REC) || null;
+      fillUpdate = cg => {
+        const t = performance.now();
+        const e = uCam.value, eye = (isFinite(e.x) && isFinite(e.z) && (e.x || e.y || e.z)) ? [e.x, e.y, e.z] : cg;
+        const mw = camera.matrixWorld && camera.matrixWorld.elements;
+        if (mw) { const fx = -mw[8], fz = -mw[10], l = Math.hypot(fx, fz); if (l > 1e-3) eyeFwd = [fx / l, 0, fz / l]; }
+        // G2932: THE URGENT BUDGET - while an edited chunk waits, or a card stands in for the fill within FILL.urgentR of
+        // the eye (a teleport, an edit, a free camera flown somewhere new), the step may spend FILL.urgentMs; the reveal
+        // waits for 1.5 km of ring, so a roll-out never starts urgent and a steady flight stays on FILL.budgetMs
+        lastEye = eye;
+        fillStep(eye, urgentNow ? Math.max(FILL.budgetMs, FILL.urgentMs) : FILL.budgetMs, cg);
+        rdyFrame(eye);
+        LAT.frame++;
+        STAT.frameMax = Math.max(STAT.frameMax || 0, performance.now() - t);
+      };
       const keyOf = (cx, cz) => cx * 4096 + cz;
       const d2Of = (c2, cg) => { const ax = (c2.cx + 0.5) * CH - cg[0], az = (c2.cz + 0.5) * CH - cg[2]; return ax * ax + az * az; };
-      // what the ring should hold around cg: every chunk inside R_ACT wants
-      // its base, every chunk inside FILL_ACT wants its complement too
-      const refreshQueue = cg => {
+      // the chunk's nearest ground point from p, horizontal (the shader's 3-D distance is never shorter)
+      const nearOf = (c2, p) => { const nx = Math.max(Math.abs((c2.cx + 0.5) * CH - p[0]) - CH / 2, 0), nz = Math.max(Math.abs((c2.cz + 0.5) * CH - p[2]) - CH / 2, 0); return Math.hypot(nx, nz); };
+      // THE ORDER (G2931): an edited (hot) chunk first; then every chunk INSIDE the stand cards' edge (the ones a card stands
+      // in for), nearest the EYE first, one past 1.5 km and out of the view's half-plane as if 1.5x as far; a complement
+      // 300 m behind its base; then the bases beyond the edge (the cards draw there anyway), nearest first. (The first cut
+      // weighed the view everywhere: after a 5 km jump the front's far bases went before the near ring behind the eye, and
+      // the 4 km ring was whole at 28 s against master's 14 - tools/perf/treestream_probe.js JUMP, 12 Oct)
+      const prio = (c2, part, eye, edge) => {
+        const ax = (c2.cx + 0.5) * CH - eye[0], az = (c2.cz + 0.5) * CH - eye[2], d2 = ax * ax + az * az;
+        let d = Math.sqrt(d2);
+        if (nearOf(c2, eye) > edge) return 1e7 + d;
+        if (d > 1500 && (ax * eyeFwd[0] + az * eyeFwd[2]) / d < 0.2) d *= 1.5;
+        if (part === FILLP) d += 300;
+        return c2.hot ? d - 1e9 : d;
+      };
+      // a part becomes NEEDED (the latency's start): the first time it is queued, or the edit that made it stale
+      const needAt = (c2, part) => { if (part === BASE) { if (!c2.tqb) { c2.tqb = performance.now(); c2.fqb = LAT.frame; } } else if (!c2.tqf) { c2.tqf = performance.now(); c2.fqf = LAT.frame; } };
+      // what the ring should hold around the eye: every chunk inside R_ACT wants
+      // its base, every chunk inside FILL_ACT wants its complement too (G2931: a part missing OR stale)
+      // ...AND THE AIRCRAFT'S TRUNKS (G2930): with the eye away from the aircraft (a free camera), every chunk whose nearest
+      // point is within HIT_ON of the CG is wanted whole too, and never evicted inside HIT_OFF - the solver's trees stay
+      const wantFill = (c2, eye) => d2Of(c2, eye) < FILL_ACT * FILL_ACT;
+      const nearCg = (c2, cg, r) => cg && cg !== lastEye && nearOf(c2, cg) < r;
+      const refreshQueue = (eye, cg) => {
         const R = Math.ceil(R_ACT / CH);
-        const ccx = Math.floor(cg[0] / CH), ccz = Math.floor(cg[2] / CH);
-        for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) {
-          const cx = ccx + dx, cz = ccz + dz;
-          const mx2 = (cx + 0.5) * CH - cg[0], mz2 = (cz + 0.5) * CH - cg[2];
-          const dd = mx2 * mx2 + mz2 * mz2;
-          if (dd > R_ACT * R_ACT) continue;
+        const ccx = Math.floor(eye[0] / CH), ccz = Math.floor(eye[2] / CH);
+        const cells = [];
+        for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) cells.push(ccx + dx, ccz + dz);
+        if (cg && Math.hypot(cg[0] - eye[0], cg[2] - eye[2]) > CH) {
+          const Rh = Math.ceil(HIT_ON / CH) + 1, gx = Math.floor(cg[0] / CH), gz = Math.floor(cg[2] / CH);
+          for (let dz = -Rh; dz <= Rh; dz++) for (let dx = -Rh; dx <= Rh; dx++) cells.push(gx + dx, gz + dz);
+        }
+        for (let ci = 0; ci < cells.length; ci += 2) {
+          const cx = cells[ci], cz = cells[ci + 1];
+          const mx2 = (cx + 0.5) * CH - eye[0], mz2 = (cz + 0.5) * CH - eye[2];
+          let dd = mx2 * mx2 + mz2 * mz2;
+          if (dd > R_ACT * R_ACT) {
+            if (!cg) continue;
+            const nx = Math.max(Math.abs((cx + 0.5) * CH - cg[0]) - CH / 2, 0), nz = Math.max(Math.abs((cz + 0.5) * CH - cg[2]) - CH / 2, 0);
+            if (nx * nx + nz * nz >= HIT_ON * HIT_ON) continue;
+            dd = 0;                          // the aircraft's: whole (its complement too)
+          }
           { const wx = (cx + 0.5) * CH, wz = (cz + 0.5) * CH;
             if (wx < world.bounds.x0 || wx > world.bounds.x1 || wz < world.bounds.z0 || wz > world.bounds.z1) continue; }
           const k = keyOf(cx, cz);
           let c2 = chunks.get(k);
-          if (!c2) { c2 = { cx, cz, base: null, fill: null, qb: false, qf: false }; chunks.set(k, c2); }
-          if (!c2.base && !c2.qb) { c2.qb = true; queue.push({ k, part: BASE }); }
-          if (!c2.fill && !c2.qf && dd < FILL_ACT * FILL_ACT) { c2.qf = true; queue.push({ k, part: FILLP }); }
+          if (!c2) { c2 = { cx, cz, base: null, fill: null, qb: false, qf: false, tqb: 0, tqf: 0, fqb: 0, fqf: 0 }; chunks.set(k, c2); rdyDirty = true; }
+          if (stale(c2, c2.base) && !c2.qb) { c2.qb = true; needAt(c2, BASE); queue.push({ k, part: BASE }); }
+          if (stale(c2, c2.fill) && !c2.qf && dd < FILL_ACT * FILL_ACT) { c2.qf = true; needAt(c2, FILLP); queue.push({ k, part: FILLP }); }
         }
-        // nearest first, the base of a chunk before its complement
+        // what no longer wants a walk leaves the queue; the rest by prio (the base of a chunk before its complement)
+        const edge = standCards && standCards.get ? standCards.get().near : 4000;
         for (let i = queue.length - 1; i >= 0; i--) {
           const c2 = chunks.get(queue[i].k);
-          if (!c2 || (queue[i].part === BASE ? c2.base : c2.fill)) queue.splice(i, 1);
+          if (!c2 || !stale(c2, queue[i].part === BASE ? c2.base : c2.fill)) queue.splice(i, 1);
+          else queue[i].p = prio(c2, queue[i].part, eye, edge);
         }
-        queue.sort((a, b) => (d2Of(chunks.get(a.k), cg) + a.part * 1e5) - (d2Of(chunks.get(b.k), cg) + b.part * 1e5));
+        queue.sort((a, b) => a.p - b.p);
       };
       // G1330 (TREE-HITBOX): THE FILL'S TRUNKS, near the aeroplane only. A built part within HIT_ON of the CG (its
       // chunk's nearest point) registers its trunks (world.treeHits 'fill:cx,cz:part'), and past HIT_OFF drops them:
@@ -5565,33 +5905,59 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       };
       // what the ring no longer holds: past R_DROP the chunk goes whole, past
       // FILL_DROP its complement goes and its base stays - never a regeneration
-      const evictPass = cg => {
+      const evictPass = (eye, cg) => {
         for (const [k, c2] of chunks) {
           hitPass(c2, BASE, c2.base, cg); hitPass(c2, FILLP, c2.fill, cg);
-          const dd = d2Of(c2, cg);
-          if (dd >= R_DROP * R_DROP) {
+          const dd = d2Of(c2, eye);
+          if (dd >= R_DROP * R_DROP && !nearCg(c2, cg, HIT_OFF)) {
             if (cur && cur.c2 === c2) cur = null;
-            dropPart(c2.base); dropPart(c2.fill); chunks.delete(k);
-          } else if (c2.fill && dd >= FILL_DROP * FILL_DROP) {
+            dropPart(c2.base); dropPart(c2.fill); chunks.delete(k); rdyDirty = true;
+          } else if (c2.fill && dd >= FILL_DROP * FILL_DROP && !nearCg(c2, cg, HIT_OFF)) {
             if (cur && cur.c2 === c2 && cur.part === FILLP) cur = null;
-            dropPart(c2.fill); c2.fill = null; c2.qf = false;
-          }
+            dropPart(c2.fill); c2.fill = null; c2.qf = false; c2.tqf = 0; rdyDirty = true;
+          } else if (!c2.fill && c2.tqf && dd >= FILL_ACT * FILL_ACT) c2.tqf = 0;   // a complement no longer wanted is not waiting
         }
+      };
+      // A BUILT PART LANDS (G2931): it replaces the part it was walked to replace in the same frame - the old one stood
+      // until now - its trunks register, and the ring's clock reads how long it was needed (G2933: the recorder's 'tree')
+      const landPart = (c2, part, b, cg, eye) => {
+        const old = part === BASE ? c2.base : c2.fill;
+        if (old) { dropPart(old); LAT.swaps++; }
+        if (part === BASE) { c2.base = b; c2.qb = false; } else { c2.fill = b; c2.qf = false; }
+        const hot = !!c2.hot;
+        if (!c2.qb && !c2.qf) c2.hot = false;   // nothing of it queued any more (a complement past FILL_ACT is not wanted)
+        hitPass(c2, part, b, cg);
+        rdyDirty = true;
+        const tq = part === BASE ? c2.tqb : c2.tqf, fq = part === BASE ? c2.fqb : c2.fqf;
+        if (part === BASE) c2.tqb = 0; else c2.tqf = 0;
+        if (!tq) return;
+        const ms = performance.now() - tq, fr = LAT.frame - fq, d = nearOf(c2, eye);
+        LAT.n++; LAT.sumMs += ms; LAT.maxMs = Math.max(LAT.maxMs, ms); LAT.maxFr = Math.max(LAT.maxFr, fr);
+        if (!old && d < uThin.value.y) { LAT.nearMaxMs = Math.max(LAT.nearMaxMs, ms); LAT.nearMaxFr = Math.max(LAT.nearMaxFr || 0, fr); }
+        if (ms > FILL.lateS * 1000) LAT.late++;
+        // the recorder: every part the eye could see the fill of (inside the complement's reach), every edited one,
+        // every late one - not the far bases' routine
+        const FR = FRrec();
+        if (FR && FR.event && (d < uThin.value.y || hot || ms > FILL.lateS * 1000))
+          FR.event('tree', ms, (part === BASE ? 'base ' : 'fill ') + c2.cx + ',' + c2.cz + ' at ' + Math.round(d) + ' m' + (old ? ' swap' : '') + (hot ? ' hot' : '') +
+                   ' | ' + fr + ' fr, walk+build ' + STAT.lastMs.toFixed(1) + ' ms, queue ' + queue.length + (urgentNow ? ', urgent' : ''));
       };
       // one frame's (or one prewarm tick's) worth of streaming: walk rows of
       // the part under generation until the budget is spent; a finished walk
       // builds at once and, budget permitting, the next queued part starts
-      const fillStep = (cg, budgetMs) => {
+      const fillStep = (eye, budgetMs, cg) => {
+        cg = cg || eye;
         const t0 = performance.now();
         const maint = !(tick++ % 12) || (!cur && queue.length);
-        if (maint) refreshQueue(cg);
+        if (maint) refreshQueue(eye, cg);
         let built = 0;
         for (;;) {
           if (!cur) {
             if (!queue.length) break;
             const q = queue.shift(), c2 = chunks.get(q.k);
-            if (!c2 || (q.part === BASE ? c2.base : c2.fill)) continue;
-            cur = { c2, part: q.part, recs: SHAPE.list.map(() => []), gz: 0, walkMs: 0 };
+            if (!c2 || !stale(c2, q.part === BASE ? c2.base : c2.fill)) continue;
+            // ep: the generation this walk answers (an edit after it starts restales the chunk and drops the walk)
+            cur = { c2, part: q.part, recs: SHAPE.list.map(() => []), gz: 0, walkMs: 0, ep: GEN };
           }
           const t = performance.now();
           // G1194 (METLA-RETURN): up to 8 rows, the budget read after EACH - a row over ground the premises cook does not
@@ -5613,8 +5979,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             fillDeadline = t0 + budgetMs;
             let r; try { r = cur.gen.next(); } finally { fillDeadline = Infinity; }
             if (!r.done) break;            // the rest of the build next frame
-            const b = r.value;
-            if (live()) { if (part === BASE) { c2.base = b; c2.qb = false; } else { c2.fill = b; c2.qf = false; } hitPass(c2, part, b, cg); }   // G1330: its trunks, at once when it is near
+            const b = r.value; b.ep = cur.ep;
+            if (live()) landPart(c2, part, b, cg, eye);   // G1330: its trunks, at once when it is near
             else dropPart(b);              // evicted during its last slices: built, and gone at once
             built++;
             cur = null;
@@ -5622,7 +5988,50 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           }
           if (performance.now() - t0 >= budgetMs) break;
         }
-        if (maint) evictPass(cg);
+        if (maint) evictPass(eye, cg);
+      };
+      // THE READINESS PASS (G2930), once a frame: the cells' targets when anything landed or left (and every 12th frame,
+      // the eye having moved), the cards' dissolve stepped toward them, the texture re-sent when a byte moved. Its census:
+      // the cards standing in now (standIn, standInNear inside the cards' edge), the cells inside the edge with neither
+      // layer (holes: an unready chunk whose stand cards are not built either), the oldest wait among the near ones
+      const rdyFrame = eye => {
+        if (!RDY) return;
+        const now = performance.now(), dt = rdyLast ? Math.min(0.25, (now - rdyLast) / 1000) : 0; rdyLast = now;
+        if (rdyDirty || !(tick % 12)) {
+          RDY.want.fill(0);
+          const thin = uThin.value.y, SC = standCards && standCards.get ? standCards : null, edge = SC ? SC.get().near : 4000;
+          let si = 0, sn = 0, holes = 0, oldest = 0, urg = false, minU = 1e9;
+          for (const [, c2] of chunks) {
+            const i = RDY.at(c2.cx, c2.cz); if (i < 0) continue;
+            const nd = nearOf(c2, eye);
+            if (c2.base && (c2.fill || nd > thin)) RDY.want[i] = 1;
+            else {
+              si++; if (nd < minU) minU = nd;
+              if (nd < edge) {
+                sn++;
+                const w = Math.max(c2.base ? 0 : now - (c2.tqb || now), c2.fill || nd > thin ? 0 : now - (c2.tqf || now)); oldest = Math.max(oldest, w);
+                if (SC && SC.has && !SC.has((c2.cx + 0.5) * CH, (c2.cz + 0.5) * CH)) holes++;
+              }
+              if (nd < FILL.urgentR) urg = true;
+            }
+            if (c2.hot && (c2.qb || c2.qf)) urg = true;
+          }
+          LAT.standIn = si; LAT.standInNear = sn; LAT.minUnreadyM = minU; LAT.minUnreadyLow = Math.min(LAT.minUnreadyLow === undefined ? 1e9 : LAT.minUnreadyLow, minU); LAT.holes = SC ? holes : null; LAT.oldestMs = oldest; urgentNow = urg;
+          RDY.moving = true; rdyDirty = false;
+        }
+        if (LAT.holes) LAT.holeFrames = (LAT.holeFrames || 0) + 1;
+        if (!RDY.moving) return;
+        let mv = false, ch = false;
+        const W = RDY.want, C = RDY.cur, D = RDY.data, up = dt / Math.max(0.05, FILL.rdyS);
+        for (let i = 0; i < W.length; i++) {
+          const w = W[i]; let c = C[i];
+          if (c === w) continue;
+          c = w < c ? w : Math.min(w, c + up); C[i] = c;
+          const v = Math.round(c * 255); if (D[i] !== v) { D[i] = v; ch = true; }
+          if (c !== w) mv = true;
+        }
+        RDY.moving = mv;
+        if (ch && RDY.tex) RDY.tex.needsUpdate = true;
       };
       // THE ROLL-OUT SCREEN'S STEP (S3): a big budget, nobody watching. Returns
       // where the ring stands; done when every chunk inside R_ACT has its base
@@ -5655,7 +6064,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const budget = (o && o.budgetMs) || 60;
         if (TREE_STATE.v === 'pending') return Object.assign({ phase: 'trees', done: false, trees: 'pending' }, ringStat());
         tick = 0;                          // a maintenance pass every tick under the screen
-        fillStep(cg, budget);
+        fillStep(cg, budget, cg);
+        rdyFrame(cg);                      // G2930: the cards hide where the ring stands at the reveal
         const done = ringReady(cg, o && o.reach);
         return Object.assign({ phase: done ? 'done' : 'ring', done, trees: TREE_STATE.v }, ringStat());
       };
@@ -6104,7 +6514,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const had = sideSheds.get(id);
         if (had && had.key === key) continue;
         if (had) dropShed(had.node);
-        const node = shedNodeAt({ x: +q.x, z: +q.z, ry: +q.ry || 0, y: q.y }, q.dims, q.dress || null);
+        // (CABIN-PAD, the cabin's grey roof, 21 Oct: a held side shed without parts drew the builder's plain material - the
+        // dress was laid only when the player had parts. A held shed always wears its shell's skin (HOME's stays undressed)
+        const node = shedNodeAt({ x: +q.x, z: +q.z, ry: +q.ry || 0, y: q.y }, q.dims, q.dress || {});
         node.name = 'shed:' + id; node.userData.premPlot = id;
         sideSheds.set(id, { key, node });
       }
@@ -6467,7 +6879,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // G909: a generator the record names may still be loading (build.js MANIFEST.lazy, asked for by world_boot.js)
       for (let n = 0; window.FLYDIY_LAZY && window.FLYDIY_LAZY.pending && window.FLYDIY_LAZY.pending() && n < 2000; n++) yield 'premises: the generators';
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
-        game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN),
+        game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN), shedDims: () => shedDims,   // (G3096: the main hangar grabbed as drawn)
         // G831: where the town step will build from (app.js's stand, the one loading's) and how far: the house worker is
         // given that same dispatch at the rebuild, to generate while the rest of the world is laid out
         anchor: () => (window.FLYDIY_TOWN_AT ? window.FLYDIY_TOWN_AT() : null), prefetchReach: PREM_BOOT,
@@ -6706,7 +7118,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     }
     // THE PREMISES' STRIPS REPAINTED (v8): after a live edit the decal, the sock and the far patch of
     // every premises strip are taken away and stood again from the registry as it is now
-    repaintStrips = () => {
+    // (G3008) A REPAINT ONLY WHEN A STRIP IS CONCERNED: every edit of the premises (a road's, a site's, an area's) stood
+    // EVERY strip of the island again - its fine ground, its pavement, its lights, its socks, its rocks - and merged them
+    // again. Now: repaintStrips(box) with a world box (a ground edit's) stands them again when a strip's composed record
+    // changed or the box reaches one; repaintStrips(null) (no ground moved) when a record changed; repaintStrips() always
+    let stripSig = null;
+    const stripSigOf = () => { const m = new Map(); for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow' && a.kind !== 'water') { let s; try { s = JSON.stringify(a); } catch (e) { s = String(Math.random()); } m.set(a.id, s); } return m; };
+    repaintStrips = (box) => {
+      if (box !== undefined && stripSig && typeof window !== 'undefined' && window.FLYDIY_STRIPALWAYS !== true) {
+        const now = stripSigOf(); let need = now.size !== stripSig.size;
+        for (const [id, s] of now) { if (stripSig.get(id) !== s) { need = true; break; } }
+        if (!need && box) for (const a of world.aerodromes) { if (!a.premises || !now.has(a.id)) continue; const r = (+a.len || 0) / 2 + 160;
+          if (a.x + r >= box.x0 && a.x - r <= box.x1 && a.z + r >= box.z0 && a.z - r <= box.z1) { need = true; break; } }
+        if (!need) return false;
+      }
+      stripSig = stripSigOf();
       unmergeStrips();
       for (const [id, stood] of stripStood) {
         const a0 = world.aerodromes.find(q => q.id === id);
@@ -6830,6 +7256,40 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (premisesR.ringSink) return premisesR.ringSink(x, z);
     return (premisesR.patchCovers && premisesR.patchCovers(x, z)) ? 4 : 0;
   }
+  // ---- GROUND BOX (G3100) BEGIN ----------------------------------------------------------------------------------------
+  // THE RING'S NORMALS FOR THE EDIT'S BOX ONLY (G3100 EDITOR-PERF; the user's rev 28 timed 13 Oct: every ground edit of the
+  // scenery editor paid the WHOLE ring's computeVertexNormals - 513 x 513 vertices - for a box of a few hundred metres).
+  // The vertices whose normal can change are the moved ones and every vertex of a face touching one; each is summed again
+  // over ALL its faces, in three's own order and arithmetic (BufferGeometry.computeVertexNormals: per face, in index order,
+  // cross(c - b, a - b) in doubles added into the Float32 normal - rounded at each add - then normalizeNormals: x * (1 / len),
+  // len 0 -> 1): the same normals, bit for bit, as the whole call (GATE GROUNDBOX against three itself). groundAdj: the faces
+  // of each vertex in index order (CSR), made once per geometry.
+  function groundAdj(I, nV) {
+    const start = new Uint32Array(nV + 1);
+    for (let k = 0; k < I.length; k++) start[I[k] + 1]++;
+    for (let v = 0; v < nV; v++) start[v + 1] += start[v];
+    const fac = new Uint32Array(I.length), fill = start.slice(0, nV);
+    for (let f = 0; f < I.length; f += 3) { fac[fill[I[f]]++] = f; fac[fill[I[f + 1]]++] = f; fac[fill[I[f + 2]]++] = f; }
+    return { n: I.length, start, fac };
+  }
+  // P positions, N normals (Float32Array, written), I the index, A groundAdj's, moved: the moved vertices -> the count rewritten
+  function groundNormalsBox(P, N, I, A, moved) {
+    const aff = new Set();
+    for (const v of moved) for (let k = A.start[v]; k < A.start[v + 1]; k++) { const f = A.fac[k]; aff.add(I[f]); aff.add(I[f + 1]); aff.add(I[f + 2]); }
+    for (const v of aff) {
+      let x = 0, y = 0, z = 0;
+      for (let k = A.start[v]; k < A.start[v + 1]; k++) {
+        const f = A.fac[k], a = I[f] * 3, b = I[f + 1] * 3, c = I[f + 2] * 3;
+        const hx = P[c] - P[b], hy = P[c + 1] - P[b + 1], hz = P[c + 2] - P[b + 2], dx = P[a] - P[b], dy = P[a + 1] - P[b + 1], dz = P[a + 2] - P[b + 2];
+        x = Math.fround(x + (hy * dz - hz * dy)); y = Math.fround(y + (hz * dx - hx * dz)); z = Math.fround(z + (hx * dy - hy * dx));
+      }
+      const s = 1 / (Math.sqrt(x * x + y * y + z * z) || 1);
+      N[v * 3] = x * s; N[v * 3 + 1] = y * s; N[v * 3 + 2] = z * s;
+    }
+    return aff.size;
+  }
+  // ---- GROUND BOX (G3100) END ------------------------------------------------------------------------------------------
+  // (GBOX is declared at the top of the build - CABIN-PAD: refreshGroundSteps reads it inside the premises block's 'premises ground' step)
   function refreshGround(bb) { const g = refreshGroundSteps(bb); while (!g.next().done); }
   // G995 (A5-LOAD): the same in steps (the roll-out's world build: 2.0-2.4 s in one task at 'premises ground' - the
   // ring's heights under the patch from the raster, then the far tier's re-cut): a yield every 8 k vertices tested
@@ -6837,11 +7297,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     let moved = 0;   // G2063: no ring vertex under the box (the town 9 km out) - no ring to rebuild, the far tier alone
     for (const g of groundGeos) {
       const pa = g.attributes.position; let n = 0;
+      const box = GBOX.on && g.index && g.attributes.normal ? [] : null;   // (G3100) the moved vertices, for their normals alone
       for (let i = 0; i < pa.count; i++) {
         if (i && !(i & 8191)) yield 'ground under the premises';
         const x = pa.getX(i), z = pa.getZ(i); if (x < bb.x0 - 40 || x > bb.x1 + 40 || z < bb.z0 - 40 || z > bb.z1 + 40) continue; pa.setY(i, world.terrainH(x, z) - groundSink(x, z)); n++;
+        if (box) box.push(i);
       }
-      if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); moved += n; }
+      if (n) {
+        pa.needsUpdate = true;
+        if (box && n < pa.count / 4) {
+          let A = GBOX.adj.get(g); if (!A || A.n !== g.index.count) { A = groundAdj(g.index.array, pa.count); GBOX.adj.set(g, A); }
+          const t0 = performance.now(), k = groundNormalsBox(pa.array, g.attributes.normal.array, g.index.array, A, box);
+          g.attributes.normal.needsUpdate = true; GBOX.last = { moved: n, normals: k, ms: +(performance.now() - t0).toFixed(1) };
+        } else g.computeVertexNormals();
+        g.computeBoundingSphere(); moved += n;
+      }
     }
     if (moved || !groundGeos.length) {
       if (fineRing && fineRing.clear) fineRing.clear();   // the tiles carry the ring's heights in their rim: rebuilt on the next frame
@@ -6887,13 +7357,26 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     try { geoStep(GEO_MS, dEye < 2500); } catch (e) { console.warn('premises: the town geometry', e); geoGen = geoRefresh = null; }
     finally { if (FRw) FRw.pop(); }
   }
-  let premTramLast = 0, premStreamTick = 0;
+  let premTramLast = 0, premStreamTick = 0, lotsNearTick = 0;
+  // G3415 (CITY-B) THE TOWN METER: the town's ticks of this update (the stream, the patch and roads, the lots' cut, the premises'
+  // tick) timed as one into the recorder's 'town' column, with the items they visited (render_premises townMeter) and - with
+  // ?townalloc=1 - the KB they allocated (Chrome's heap counter round them: run Chrome with --enable-precise-memory-info, its
+  // own read's cost measured off at the first frames). premisesR.townFrame holds the last frame's [ms, items, KB] for a rig.
+  const TOWN_ALLOC = typeof location !== 'undefined' && /[?&]townalloc=1\b/.test(location.search || '') && typeof performance !== 'undefined' && !!performance.memory;
+  const townHeap = { bias: NaN, cal: [] };
+  const heapNow = () => performance.memory.usedJSHeapSize;
+  function townAllocKB(h0) {
+    const d = heapNow() - h0;
+    if (!(townHeap.bias === townHeap.bias)) { const b0 = heapNow(); townHeap.cal.push(heapNow() - b0); if (townHeap.cal.length >= 16) { townHeap.cal.sort((a, b) => a - b); townHeap.bias = townHeap.cal[8]; } return NaN; }
+    return d < 0 ? NaN : Math.max(0, d - townHeap.bias) / 1024;   // (a GC inside the window: no sample)
+  }
   function worldUpdate(cg) {
     // a live edit's builds one a frame; the premises streamed by the AIRCRAFT's position (G591: it was one item every
     // third frame from anywhere, parked or not - 18-29 ms a frame of the taxi)
     // G620: the flight recorder's pushes (flight_recorder.js; each a no-op outside the game's frame) - the premises' step,
     // the cover ring and the fill timed apart from the rest of this update, and each premises build an event
     const FRw = (typeof window !== 'undefined' && window.FLIGHT_REC) || null;
+    const tTown = premisesR ? performance.now() : 0, hTown = premisesR && TOWN_ALLOC ? heapNow() : 0;
     if (premisesR && premisesR.stats.queued) {
       const tP = FRw ? performance.now() : 0, q0 = premisesR.stats.queued;
       if (FRw) FRw.push(FRw.S.prem);
@@ -6901,8 +7384,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (FRw) { FRw.pop(); const built = q0 - premisesR.stats.queued; if (built > 0) FRw.event('prem', performance.now() - tP, built + ' built, ' + premisesR.stats.queued + ' queued'); }
     }
     if (premisesR && !(typeof window !== 'undefined' && window.PREMISES_HOST_OPEN)) geoTick(cg);   // G2063: the town's patch and roads, near it
+    if (premisesR && premisesR.lotsNear && ++lotsNearTick % 10 === 0) premisesR.lotsNear(camera.position.x, camera.position.z);   // G3210: the plots near the eye only
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
-    if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast && !(typeof window !== 'undefined' && window.FLYDIY_HELD) ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // (G650: not while the player has paused)   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
+    if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.town || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast && !(typeof window !== 'undefined' && window.FLYDIY_HELD) ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // (G650: not while the player has paused)   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)   // .town: the city host (G3417)
+    if (premisesR) {   // G3415: the town's share of this update, into the frame's row
+      const kb = TOWN_ALLOC ? townAllocKB(hTown) : NaN, ms = performance.now() - tTown, n = premisesR.townMeter ? premisesR.townMeter() : 0;
+      const TF = premisesR.townFrame; if (TF) { TF[0] = ms; TF[1] = n; TF[2] = kb; }
+      if (FRw && FRw.town) FRw.town(ms, n, kb);
+    }
     // G586: the frame's own dt (app.js FLYDIY_PACE; 1/60 where there is no clock - a rig, a harness)
     // G650: paused in flight (app.js FLYDIY_HELD) the frame lasts nothing for the sea and the sway
     const fdt = (typeof window !== 'undefined' && window.FLYDIY_HELD) ? 0 : (typeof window !== 'undefined' && window.FLYDIY_PACE) ? window.FLYDIY_PACE.dt : 1 / 60;
@@ -6939,7 +7428,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (coverRing) coverRing.update();
     if (grassField) grassField.update();
     if (FRw) FRw.pop();
-    if (standCards) standCards.update(cg);
+    if (standCards) standCards.update((isFinite(uCam.value.x) && (uCam.value.x || uCam.value.y || uCam.value.z)) ? [uCam.value.x, uCam.value.y, uCam.value.z] : cg);   // G2930: the eye (the fill's ring is the eye's too)
     if (rockMap) rockMap.update();   // the rocks' far tier follows the eye (rock_map.js)
     const gy = world.terrainH(cg[0], cg[2]);
     const agl = Math.max(0, cg[1] - gy);
@@ -7325,7 +7814,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // environment"): one number over the ground (GROUND.light = uGLight, after the splat) and the
   // vegetation (the leaf master light and the impostors' lit term, from their booted base) - the
   // aeroplane, the buildings and the sky untouched. F8 > environment > albedo.
-  const ENV_ALB = { k: 1, base: null };
+  // G2939 (the user's look, 12 Oct): the environment albedo at its baked 1.38 - the ground's light IS k (envAlbedo writes it)
+  // and the leaves' master (trees.js MASTER: 0.42 x 1.38) is base x k; so a slider moved from here moves both from the look
+  const ENV_ALB = { k: 1.38, base: 0.42 };
   const envAlbedo = k => {
     if (k === undefined) return ENV_ALB.k;
     if (ENV_ALB.base === null) ENV_ALB.base = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.master) ? TREE_LEAF.master().light : 1;
@@ -7364,12 +7855,28 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
     // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier
     // asked for this so the WEATHER panel and the pilot's briefing can quote the real one.
-    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, treeShadowed, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(), townGeoFinish: () => geoStep(0, true), get farLod() { return farLod; },   // (G2063: the far tier's cut and patch cache, for a rig)
+    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, treeShadowed, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: (box) => repaintStrips(box), townGeoFinish: () => geoStep(0, true), get farLod() { return farLod; },   // (G2063: the far tier's cut and patch cache, for a rig)
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
     ringReady: (cg, reach, loose) => fillApi ? fillApi.ringReady(cg, reach, loose) : true,   // (B9: the reach passed through - it was dropped here)
     ringStat: () => fillApi ? fillApi.ringStat() : null,
+    // REVEAL-HITCH (19 Oct): the grass field's and the cover ring's cells round each eye [x, y, z, rad], planted now (cover_ring
+    // plantNear; rad in metres, or 'reach': the ring's whole) - app.js hands it the reveal's eyes. `ms` for the call; { built, done }
+    coverPlant: (eyes, ms) => {
+      const t0 = performance.now(); let built = 0;
+      const TF = typeof window !== 'undefined' ? window.TREE_FILL : null;   // (the fill block's handle on its rings - this object's own closure does not reach them)
+      // the GRASS FIELD only (L20d's strict gate: a first-ring cell - 32 m, its shrubs, rocks and debris - inside a 6 ms slice was a
+      // 490 ms task on the Cub's round trip 2; the reveal frame's own cost was the field's cell - the first ring was planted by then)
+      const rings = [TF && TF.grass ? TF.grass() : null];
+      for (const e of eyes || []) for (const R of rings) {
+        if (!R || !R.plantNear) continue;
+        const left = ms - (performance.now() - t0); if (left <= 0) return { built, done: false };
+        const g = R.get(), rad = e[3] === 'reach' ? g.reach + g.cell : (+e[3] || 10);   // (an eye's own radius; 'reach': the ring's whole)
+        const r = R.plantNear(e[0], e[1], e[2], rad, left); built += r.built; if (!r.done) return { built, done: false };
+      }
+      return { built, done: true, ms: Math.round(performance.now() - t0) };
+    },
     treeState: () => fillApi ? fillApi.treeState() : 'fallback',
     rungWarm: () => fillApi && fillApi.rungWarm ? fillApi.rungWarm() : null,   // G730: the parked rungs' stand-ins (app.js rungPrelink)
     treeSettled: () => (treeSettleOf ? treeSettleOf() : Promise.resolve()).catch(() => null),
@@ -7383,7 +7890,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // G591: the roll-out's share of the premises, round the aircraft, in slices (app.js 'town' step)
     premisesPrewarm: (cg, o) => (premisesR && premisesR.prewarm && premisesR.stats.queued ? premisesR.prewarm(cg[0], cg[2], (o && o.reach) || PREM_BOOT, (o && o.budgetMs) || 40) : { done: true, built: 0, near: 0, queued: premisesR ? premisesR.stats.queued : 0 }),
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
-      premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN),
+      premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN), shedDims: () => shedDims,
         ...patchGrounds(),
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath }, eye: () => camera.position, renderer: premRenderer, camera: premCamera,
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)) });

@@ -836,7 +836,7 @@ if (typeof window !== 'undefined') window.CAGE_ENG_APPLY_PRESET = applyEngPreset
 
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
-  const { scene, mesh, P, stat } = ctx;
+  const { P } = ctx;
   // the preset starter fires exactly when the ROW changes — never on a load.
   // AND IT FIRES BEFORE THE REST OF THE CHAIN (2026-09-05): the cowl's post
   // runs inside prevPost and reads the engine's spec off P, so a preset that
@@ -865,8 +865,27 @@ PAGE.post = ctx => {
     }
   }
   if (prevPost) prevPost(ctx);
+  // G2880 (NACELLE-LAG): a unit on the wing (the pylon, the nacelle pair)
+  // stands on CAGE_WING, which the wing layer - later in the chain -
+  // publishes: the placement is handed to the wing's early readers and placed
+  // again, once, over the wing this build publishes (_cage_wing.js
+  // CAGE_WING_EARLY). A nose or pusher engine is placed once, as it was.
+  const EW = window.CAGE_WING_EARLY;
+  if (EW) EW.place('eng', ctx, engPlace, () => {
+    const NF = window.CAGE_NOSE, m = Math.round(+P.engMount || 0);
+    if (!+P.engOn || (m !== 2 && m !== 3) || !NF || !NF.engineFaces) return null;
+    const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+    return JSON.stringify(NF.engineFaces(ctx.mesh, FS, P));
+  });
+  else engPlace(ctx, null);
+};
+// the layer's own build; `prev` is the first pass's units when the wing places
+// it again (G2880) - superseded, their propeller check stands down
+function engPlace(ctx, prev) {
+  const { scene, mesh, P, stat } = ctx;
+  if (prev) prev.superseded = true;
   dispose(group); group = null;
-  if (!P.engOn) return;
+  if (!P.engOn) return null;
 
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
   // THE FACES (2026-09-04): one per engine, from the cowl layer's own
@@ -882,7 +901,7 @@ PAGE.post = ctx => {
      : mountK === 3 || mountK >= 5 ? 'no wing to hang the nacelles on'
      : mountK === 4 ? 'a push-pull needs the pod to end at the aft bulkhead (rod or twin booms)'
      : 'no engine face on this body');
-    return;
+    return null;
   }
   const face = units[0].face;
 
@@ -902,7 +921,7 @@ PAGE.post = ctx => {
   try { M = EM.engMeshBuild(spec); }
   catch (e) {
     if (stat) stat.textContent += '  ·  engine: ' + e.message;
-    return;
+    return null;
   }
   const R = M.resolved;
   const Pm = Object.assign({}, EM.ENGM_DEFAULT, R.P);
@@ -1168,7 +1187,7 @@ PAGE.post = ctx => {
     }
     return unitOut.map(u => u.propFit);
   };
-  if (typeof queueMicrotask === 'function') queueMicrotask(() => { try { propFitCheck(); } catch (e) {} });
+  if (typeof queueMicrotask === 'function') queueMicrotask(() => { if (unitOut.superseded) return; try { propFitCheck(); } catch (e) {} });
 
   window.CAGE_ENG = { name: PRESET_NAMES[Math.round(P.engPreset)],
                       resolved: R, zFw, exhaustAt,
@@ -1188,5 +1207,6 @@ PAGE.post = ctx => {
       (R.cyl ? ' ' + R.cyl : '') + ' · ' + head + ' · ' +
       R.mass.toFixed(0) + ' kg';
   }
-};
+  return unitOut;
+}
 })();

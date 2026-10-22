@@ -1,0 +1,8 @@
+gen rest deltas at reset(0): max 0.0002 mm over 4 stations
+gen strut anchors at reset(0): 6 nodes, max 0.0000 mm
+negative control (rest pitched 1 deg): max 4.43 mm
+gen parked 10 s: in-plane max 2.01 mm, droop max 3.56 mm
+cantilever rest deltas at reset(0): max 0.0002 mm
+still airframe: 16 buckets -> 13 meshes (merged 5 into 2), skipped {"moves":2,"lamp":2,"crew":2,"clear":2,"posed":1}
+
+GATE SKIN: PASS

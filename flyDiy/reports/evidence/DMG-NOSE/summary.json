@@ -1,0 +1,50 @@
+{
+ "cub": {
+  "winds": {
+   "before": 17,
+   "after": 0,
+   "n": 49
+  },
+  "offsets": {
+   "before": 11,
+   "after": 0,
+   "n": 19
+  },
+  "peak": {
+   "before": 1.097,
+   "after": 1.042
+  }
+ },
+ "jodel": {
+  "winds": {
+   "before": 0,
+   "after": 0,
+   "n": 49
+  },
+  "offsets": {
+   "before": 2,
+   "after": 0,
+   "n": 19
+  },
+  "peak": {
+   "before": 1.041,
+   "after": 0.841
+  }
+ },
+ "metal": {
+  "winds": {
+   "before": 4,
+   "after": 0,
+   "n": 49
+  },
+  "offsets": {
+   "before": 8,
+   "after": 0,
+   "n": 19
+  },
+  "peak": {
+   "before": 1.506,
+   "after": 0.734
+  }
+ }
+}

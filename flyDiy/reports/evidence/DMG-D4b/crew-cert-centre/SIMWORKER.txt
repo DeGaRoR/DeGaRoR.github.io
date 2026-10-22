@@ -1,0 +1,56 @@
+1 THE BLOB (simHostSource in a worker-like global)
+  ok   the Blob imports sim_host.js and the built core by URL next to the page, versioned (src/viewer/sim_host.js?v=B1, tools/flight_core.js?v=c0re)
+  ok   the Blob's host flies 120 steps of the analytic world to the page's bits
+1b THE STALL (the Blob's host on a fake clock: a 60 Hz page, a 60 s freeze, the page back)
+  at the freeze: step 359, 3.605 m/s (60 s of that is 216 m); held after 15 steps, 0.906 m on; the page back: 58 steps in its first second (at most 1 a turn), stalls 1, 59.767 s let go
+  ok   a 60 s page freeze: the host HOLDS 250 ms past the last beat (15 steps), the aeroplane 0.906 m from where the page last drew it (< 3; 216 m unheld)
+  ok   the page back: the flight goes on from where it held at real time (58 steps in the first second, at most 1 a turn) - the 59.767 s lost not owed, no teleport
+the page's world (the whole boot): 1708 ms
+2 LOCKSTEP (600 steps a build, Jolene + premises, HOME's stand)
+  the host: init 1577 ms, the trimmed boot 79.0 MiB
+  ok   stock: the host's aeroplane is the page's (97:23941d24, 97 nodes, 70 substeps)
+  ok   stock: every step's FNV(p, v) equal, 0..600 (final 71fa312e, page 1443 ms)
+  ok   stock: the view's p at the newest snapshot is the page's, bit for bit
+  ok   stock: cgPos / cgVel / totalM are the solver's (-138.871, 31.594, 683.566; 496.38 kg)
+  ok   stock: axes and bodyOrigin are the solver's
+  ok   stock: wheels (3) and the strain are the solver's
+  ok   stock: out is the solver's (V 3.485 m/s, thrust 36.076 N)
+  ok   stock: fuel, eng and the levers are the solver's (fuel 32.386 kg, engine running)
+  ok   stock: the pilot's snapshot is the pilot's (TAXI, t 9.500 s)
+  ok   stock: the world-version counter moved with the day (0 -> 1), no command late, step index 600
+  ok   the view interpolates at T less its delay (1.50 steps) in its ring of 5: alpha 0.500 halfway between the two newest, 0.750 between the 4th and 3rd newest 2.25 steps back, clamped to the ring's oldest and the newest snapshot
+  ok   cessnaMetal: the host's aeroplane is the page's (107:913e35e2, 107 nodes, 120 substeps)
+  ok   cessnaMetal: every step's FNV(p, v) equal, 0..600 (final 9958b716, page 2480 ms)
+  ok   cessnaMetal: the view's p at the newest snapshot is the page's, bit for bit
+  ok   cessnaMetal: cgPos / cgVel / totalM are the solver's (-137.912, 31.773, 678.712; 887.93 kg)
+  ok   cessnaMetal: axes and bodyOrigin are the solver's
+  ok   cessnaMetal: wheels (3) and the strain are the solver's
+  ok   cessnaMetal: out is the solver's (V 3.635 m/s, thrust 26.685 N)
+  ok   cessnaMetal: fuel, eng and the levers are the solver's (fuel 20.119 kg, engine running)
+  ok   cessnaMetal: the pilot's snapshot is the pilot's (TAXI, t 9.500 s)
+  ok   cessnaMetal: the world-version counter moved with the day (1 -> 2), no command late, step index 600
+3 REAL TIME (3.5 s on the host's own clock, a 60 Hz render loop busy 8 ms a frame)
+  the page frozen 1.5 s: 14 steps while it was (held), 31 in the half second after; 1 stall, 1.274 s let go
+  ok   the worker thread holds through a 1.5 s page freeze (14 steps, <= 21) and goes on after it (31 steps in 0.5 s, 1.274 s let go)
+  transport: a 4.8 KB snapshot buffer there and back (transferred) p50 0.024 / p99 0.121 ms
+  a snapshot's one-way latency (published -> taken; the render loop is busy 8 ms of each frame) p50 1.033 / p90 6.780 / max 8.260 ms
+  the pose age at the render (now less when the host held the drawn state; interpolated at T - 1 step) p50 26.334 / p90 30.520 ms
+  the render thread's physics: take 0.030 / max 0.058 ms a snapshot, frame 0.033 / max 0.083 ms a frame
+  the host: 255 steps in 3.5 s + the freeze, step 2.599 ms (eased), dilation 0.982, dropped 0.000 s (0 turns), 256 snapshots, buffers allocated 0 (0 after the first second), 202 frames drawn
+  ok   the host's clock ran (255 steps, 256 snapshots)
+  ok   every action applied once and logged with its step (start@18, impulse@60, manual@90, hand@90, manual@138, setDay@168)
+  ok   the view: no stray step, the same aeroplane, not diverged
+  ok   the host's log replayed inline reproduces all 256 published snapshots to the bit
+4 THE BOOT
+  ok   the page's fetch path (the manifest, gzip through DecompressionStream) gives island_node's bytes, key for key (186 ms)
+  NB the page's own boot after its makeWorld: grid.ttype stamped in place (27_premises stampTtype) - never hand the host a boot a world was made on
+  ok   the trimmed boot: the height tree + cover / canopy / coast / lake / ttype, no albedo, tint, ori1, ndvi or far tree
+  decoded: trimmed 79.0 MiB of the whole boot's 180.9 MiB (ARCH §1.6 estimated 70-80 MB)
+5 THE BUILD
+  ok   tools/build.js MANIFEST.viewer.scripts carries sim_host.js and sim_view.js
+  ok   index.html publishes SIM_HOST (the starter, the Blob's source) and SIM_VIEW
+  ok   the host's thread raised nothing
+
+35 checks, 0 failed, 47.2 s
+GATE SIMWORKER: PASS
+== exit 0 57 s

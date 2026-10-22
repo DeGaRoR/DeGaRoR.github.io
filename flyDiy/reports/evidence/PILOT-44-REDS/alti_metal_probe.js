@@ -1,0 +1,20 @@
+// scratch: the metal Cessna HOME > tw_ski in the game's flight, the approach's record (ap.appr) at every phase change
+'use strict';
+const fs = require('fs'), path = require('path');
+const T = path.join(process.env.FD || path.join(__dirname, '..', '..', '..'), 'tools');
+const PT = require(path.join(T, 'pilot_trace.js')); PT.loadPanel();
+const C = require(process.env.PILOT_CORE ? path.resolve(process.env.PILOT_CORE) : path.join(T, 'flight_core.js'));
+const IN = require(path.join(T, 'island_node.js'));
+const TR = require(path.join(T, '_tour_lib.js'));
+const key = process.argv[2] || TR.BUILDS.c172.key, from = process.argv[3] || 'HOME', to = process.argv[4] || 'tw_ski';
+const def = TR.defOf(C, PT, path.resolve(key));
+const TW = TR.tourWorld(C, IN, fs);
+const W = TW.W, A = id => W.aerodromes.find(q => q.id === id);
+const a = A(from), b = A(to);
+const H = TR.gameHost(C, W, def, a, b, process.argv[5] === 'calm' ? { day: null } : {});
+const sim = H.sim;
+const L = TR.flyLeg(C, W, sim, def, a, b, { first: true, host: H, tMax: 1800, log: null });
+console.log(TR.fmtLeg(L));
+console.log('verdicts', L.verdicts.join(' | '));
+console.log('appr', JSON.stringify(H.ap.appr && Object.assign({}, H.ap.appr, { pts: undefined })));
+console.log('faults', JSON.stringify(L.faults));

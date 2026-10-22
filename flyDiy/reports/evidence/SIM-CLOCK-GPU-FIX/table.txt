@@ -1,0 +1,37 @@
+JUMPS fix_c38a5e99 c38a5e99f build 503a32c63d21 rung cpu x3 gpu x6 gfx=retro 1920x1080
+  baseline garage: 30 fps, dt p50 33.3 / p99 33.6 / max 50 ms, over50 0, render p50 23, calls 784
+  baseline stand: 4.1 fps, dt p50 250 / p99 283.3 / max 283.3 ms, over50 26, render p50 234.6, calls 768
+  the held stand drew 16 frames in 2 s
+  where  target   rep ok  call ms  worst (frame#)  first frames            long tasks      prog lut probe back hitch  sun
+  garage dusk     1   y   3.6      100 (1)        [33.4,100,66.7,50,50.1  [107,55,57,50,5 0    0   0     true true   -6.01 deg 22.48 h
+  garage night    1   y   1        83.3 (1)       [33.4,83.3,50.1,49.9,3  [87,51,51]      0    0   0     true true   -11.49 deg 0.81 h
+  garage dawn     1   y   1.5      100 (1)        [33.3,100,33.4,33.3,50  [83]            0    0   0     true true   -5.99 deg 3.13 h
+  garage noon     1   y   0.6      83.4 (1)       [33.3,83.4,33.3,50,33.  [87]            0    0   0     true true   58.4 deg 12.81 h
+  garage dusk     2   y   1.2      83.4 (1)       [33.3,83.4,50,50.1,33.  [95,53,68]      0    0   0     true true   -6.01 deg 22.48 h
+  garage night    2   y   1        83.4 (1)       [33.3,83.4,33.4,49.9,5  [84]            0    0   0     true true   -11.5 deg 0.81 h
+  garage dawn     2   y   1.2      83.5 (1)       [33.3,83.5,33.2,33.4,5  [85,61,59,51]   0    0   0     true true   -5.99 deg 3.14 h
+  garage noon     2   y   1        83.3 (1)       [33.3,83.3,33.4,50,33.  [85,55]         0    0   0     true true   58.38 deg 12.81 h
+  garage fullmoon 1   y   2.4      83.4 (1)       [33.4,83.4,33.3,50,50,  [83,51,51,56]   0    0   0     true true   -6.01 deg 22.46 h
+  stand  night    1   y   1        283.5 (59)     [33.3,50,66.7,50.1,33.  [70,184,213,233 0    0   1     true true   -11.77 deg 0.83 h
+  stand  dawn     1   y   1.2      283.5 (17)     [200.1,200.1,250.2,233  [194,250,232,26 0    0   1     true true   -6 deg 3.21 h
+  stand  noon     1   y   0.7      517 (18)       [166.6,300.4,216.5,250  [295,193,97,55, 5    0   1     true true   58.09 deg 12.84 h
+  stand  dusk     1   y   0.8      383.5 (1)      [216.7,383.5,33.4,66.6  [314,80,78,184, 0    0   1     true true   -6 deg 22.44 h
+  stand  night    2   y   0.5      283.5 (4)      [200.1,216.8,233.4,233  [212,235,231,28 0    0   1     true true   -11.84 deg 0.84 h
+  stand  dawn     2   y   1        366.9 (4)      [200.1,250.1,233.4,250  [247,231,251,36 0    0   1     true true   -6 deg 3.23 h
+  stand  noon     2   y   0.6      316.7 (51)     [250.1,300.1,216.8,200  [310,177,164,26 0    0   1     true true   58.03 deg 12.84 h
+  stand  dusk     2   y   1        300.1 (4)      [250.1,266.8,183.4,250  [265,151,217,27 0    0   1     true true   -6 deg 22.43 h
+  stand  fullmoon 1   y   2.3      300.1 (16)     [250.1,266.8,216.7,283  [260,225,275,20 0    0   1     true true   -6 deg 21.73 h
+  garage: 9 jumps, worst frame 100.0 ms, longest task 107 ms, programs +0, LUT re-bakes 0, probe bakes 0, back to baseline 9/9, HITCHES over the slack: dusk#1 100 ms (tasks 107/55/57/50/51/52), night#1 83.3 ms (tasks 87/51/51), dawn#1 100 ms (tasks 83), noon#1 83.4 ms (tasks 87), dusk#2 83.4 ms (tasks 95/53/68), night#2 83.4 ms (tasks 84), dawn#2 83.5 ms (tasks 85/61/59/51), noon#2 83.3 ms (tasks 85/55), fullmoon#1 83.4 ms (tasks 83/51/51/56)
+  stand: 9 jumps, worst frame 517.0 ms, longest task 517 ms, programs +5, LUT re-bakes 0, probe bakes 9, back to baseline 9/9, HITCHES over the slack: night#1 283.5 ms (tasks 70/184/213/233/217/245/201/251/218/227/216/253/276/219/250/214/266/202/233/266/265/231/203/213/234/212/216), dawn#1 283.5 ms (tasks 194/250/232/269/215/246/251/212/234/254/263/231/234/214/250/231/285/251/212/269/250/212/287/249/245), noon#1 517 ms (tasks 295/193/97/55/145/202/214/229/238/194/260/207/251/249/246/517/229/217/219/215/199/265/220/263/202), dusk#1 383.5 ms (tasks 314/80/78/184/202/244/153/200/217/262/217/250/247/263/268/215/232/184/247/219/215/245/251/251/249/182), night#2 283.5 ms (tasks 212/235/231/284/270/225/251/167/245/203/181/85/223/211/185/217/180/187/179/217/232/215/182/199/186/181/247/248), dawn#2 366.9 ms (tasks 247/231/251/365/247/217/234/247/281/220/247/236/233/251/217/242/234/236/266/198/247/264/203/230/233), noon#2 316.7 ms (tasks 310/177/164/268/219/230/158/211/237/213/251/232/198/248/248/204/231/229/253/263/234/234/216/282/164/246), dusk#2 300.1 ms (tasks 265/151/217/270/190/230/213/220/216/245/250/266/246/236/228/267/248/234/232/251/219/262/247/233/232), fullmoon#1 300.1 ms (tasks 260/225/275/202/216/232/234/216/217/229/204/233/231/245/283/299/186/250/228/220/249/280/234/228/254/248)
+  the LUT re-bake itself (bakeT + bakeMS, CPU): {"T":18.6,"MS":174.3} ms
+DEFAULT PICTURE (no clock set): ref43 f353a0f89 build 4b0778667992  vs  branch c38a5e99f build 503a32c63d21
+  garage: date 2026-06-22, utc 5 / 8, localH 16 / 16, sunEl 42.7 / 42.7, version 1, rate 1, turbidity 2.8, cloudCover 0.25, exposure 0.92, jumps 0
+    light targets sun 9.00443 / 9.00443, hemi 1.82132 / 1.82132, exposure 0.92 / 0.92
+  world: date 2026-06-22, utc 23 / 26, localH 16.01 / 16.01, sunEl 42.66 / 42.66, version 1, rate 1, turbidity 2.8, cloudCover 0.25, exposure 1.12, jumps 0
+    light targets sun 9.00304 / 9.00296, hemi 1.82168 / 1.82164, exposure 0.92 / 0.92
+  at the boot: date 2026-06-22 / 2026-06-22, utc 2 / 4, sunEl 42.71 / 42.7, rate 1 / 1
+PIXELS garage: differ - max 254, mean 1.163 levels, 2.844 % of pixels over 2 levels, 2.152 % over 8; PIXELS world: differ - max 206, mean 0.665 levels, 0.730 % of pixels over 2 levels, 0.618 % over 8
+SUMMARY
+JUMPS garage: 9/9 ok, worst frame 100 ms, longest task 107 ms, programs +0, LUT 0, back 9/9, hitches: dusk 100ms night 83.3ms dawn 100ms noon 83.4ms dusk 83.4ms night 83.4ms dawn 83.5ms noon 83.3ms fullmoon 83.4ms
+JUMPS stand: 9/9 ok, worst frame 517 ms, longest task 517 ms, programs +5, LUT 0, back 9/9, hitches: night 283.5ms dawn 283.5ms noon 517ms dusk 383.5ms night 283.5ms dawn 366.9ms noon 316.7ms dusk 300.1ms fullmoon 300.1ms
+DEFAULT PICTURE (pixel check, no clock set, ref vs branch): garage: differ - max 254, mean 1.163 levels, 2.844 % of pixels over 2 levels, 2.152 % over 8; world: differ - max 206, mean 0.665 levels, 0.730 % of pixels over 2 levels, 0.618 % over 8

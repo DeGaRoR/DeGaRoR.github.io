@@ -1,0 +1,25 @@
+# Validated builds - base (claude/dmg-tune 849058d8, built in a worktree) against this branch, node, the same scenario script (/tmp hash.js: _treecrash_lib atTrunk, sha1 of sim.p then sim.v as float64)
+## damage OFF, the 30 m/s trunk on the centreline
+base:
+{"k":"cub","cs":"trunk0","damage":false,"hash":"62270a8809f9aff6","broken":0,"work":0}
+{"k":"jodel","cs":"trunk0","damage":false,"hash":"09ca080740ccf3b1","broken":0,"work":0}
+{"k":"metal","cs":"trunk0","damage":false,"hash":"717e9ab193d165e6","broken":0,"work":0}
+this branch:
+{"k":"cub","cs":"trunk0","damage":false,"hash":"62270a8809f9aff6","broken":0,"work":0}
+{"k":"jodel","cs":"trunk0","damage":false,"hash":"09ca080740ccf3b1","broken":0,"work":0}
+{"k":"metal","cs":"trunk0","damage":false,"hash":"717e9ab193d165e6","broken":0,"work":0}
+## damage ON, the certificate stamped: the 30 m/s centreline trunk and the nose-over
+base:
+{"k":"cub","cs":"trunk0","damage":true,"hash":"8873243509ec2bb5","broken":169,"work":29862.2}
+{"k":"cub","cs":"noseover","damage":true,"hash":"1915aac44321782f","broken":7,"work":4165.8}
+{"k":"jodel","cs":"trunk0","damage":true,"hash":"a474fbbd6ba2b8fe","broken":204,"work":39568.3}
+{"k":"jodel","cs":"noseover","damage":true,"hash":"0dd60c91416233a8","broken":3,"work":1580.2}
+{"k":"metal","cs":"trunk0","damage":true,"hash":"44b1e9ea5f39a293","broken":208,"work":51335}
+{"k":"metal","cs":"noseover","damage":true,"hash":"eb473c642512f16a","broken":7,"work":3639.7}
+this branch (final solver):
+{"k":"cub","cs":"trunk0","damage":true,"hash":"6cdbccd51bc7883b","broken":125,"work":27397.4}
+{"k":"cub","cs":"noseover","damage":true,"hash":"1915aac44321782f","broken":7,"work":4165.8}
+{"k":"jodel","cs":"trunk0","damage":true,"hash":"4702df076ce1bee8","broken":154,"work":32225.7}
+{"k":"jodel","cs":"noseover","damage":true,"hash":"0dd60c91416233a8","broken":3,"work":1580.2}
+{"k":"metal","cs":"trunk0","damage":true,"hash":"f0cb6d26c56ab4f4","broken":178,"work":65792.9}
+{"k":"metal","cs":"noseover","damage":true,"hash":"eb473c642512f16a","broken":7,"work":3639.7}

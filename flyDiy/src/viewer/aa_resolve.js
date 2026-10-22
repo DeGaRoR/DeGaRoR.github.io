@@ -519,7 +519,8 @@
       renderer.setRenderTarget(S.rt);
       // the auto scale's GPU reading: the scene pass alone (the clouds' and the post passes' own timers are outside it)
       let aq = null;
-      if (AUTO.on && AUTO.ext && AUTO.q.length < 6) { const gl = renderer.getContext(); aq = gl.createQuery(); gl.beginQuery(AUTO.ext.TIME_ELAPSED_EXT, aq); }
+      if (AUTO.on && AUTO.ext && AUTO.q.length < 6 && (typeof FLIGHT_REC === 'undefined' || !FLIGHT_REC.gpuMay || FLIGHT_REC.gpuMay())) {   // (PERF-1 P1: the recorder's arbitration)
+        const gl = renderer.getContext(); aq = gl.createQuery(); gl.beginQuery(AUTO.ext.TIME_ELAPSED_EXT, aq); }
       renderer.render(scene, camera);
       if (aq) { renderer.getContext().endQuery(AUTO.ext.TIME_ELAPSED_EXT); AUTO.q.push(aq); }
       if (S.overlay) S.overlay(renderer, camera, S.rt);     // the clouds' march (reads the target's depth)

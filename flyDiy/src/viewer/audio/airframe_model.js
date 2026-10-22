@@ -61,8 +61,8 @@ var AIRFRAME_MODEL = (function () {
   // the rough rows' tailwheel rattle (GROUND_SURF codes 0..7: grass rock scree forest water paved gravel sand)
   const AF_ROUGH = [0.5, 1.0, 0.9, 0.7, 0, 0.12, 0.8, 0.4];
   const AF_TUNE = {
-    Vref: 50, windExt: 0.08, windCab: 0.1, windOpen: 0.2, windMax: 2.2,
-    gnd: 0.025, gndVref: 12, wat: 0.07, drag: 0.12,
+    Vref: 50, windExt: 0.08, windCab: 0.09, windOpen: 0.2, windMax: 2.2,
+    gnd: 0.025, gndVref: 12, gndHi: 0, wat: 0.07, drag: 0.12,
     warnA: 0.075, settleS: 1.5, flowLo: 0.55, flowSpan: 0.3, VsDef: 20, tdOffS: 0.12, tdVs: 3, chirpV: 12, chirpOffS: 1.0,
   };
   // STALL WARNING KINDS: 0 none, 1 reed (airflow-driven), 2 buzzer (electric)
@@ -158,7 +158,8 @@ var AIRFRAME_MODEL = (function () {
     const onLand = !water && surf >= 0 && surf !== AF_SURF_WATER;
     const cover = ((m0 ? 1 : 0) + (m1 ? 1 : 0) + (tw ? 0.6 : 0)) / 2.6;
     const vr = Math.min(2.5, Math.max(0, Vg / A.gndVref));
-    tg[T.gndL] = onLand ? A.gnd * Math.pow(vr, 1.1) * (0.5 + 0.5 * cover) : 0;
+    // G1726 (SND-MIX-2): past gndVref the roll grows gently (a rollout at idle was +14-17 LU over the engine in the cockpit)
+    tg[T.gndL] = onLand ? A.gnd * (vr <= 1 ? Math.pow(vr, 1.1) : 1 + A.gndHi * (vr - 1)) * (0.5 + 0.5 * cover) : 0;
     tg[T.gndS] = s[SI.lastSurf];
     tg[T.gndV] = Math.min(60, Math.max(0, Vg));
     const ls = s[SI.lastSurf] | 0;

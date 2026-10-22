@@ -1,0 +1,763 @@
+{
+ "tag": "worker",
+ "over": true,
+ "view": [
+  1600,
+  900
+ ],
+ "bound": [
+  400,
+  225,
+  1200,
+  675
+ ],
+ "damage": {
+  "crashed": true,
+  "over": true,
+  "reason": "broke up: the fuselage parted (S0BR off the core)",
+  "at": 6.000000000001294,
+  "brokeUp": {
+   "t": 8.23063063063465,
+   "node": 1,
+   "tag": "S0BR"
+  },
+  "propStrike": true,
+  "members": 129,
+  "breaks": 102
+ },
+ "structural": {
+  "damaged": true,
+  "broken": 96,
+  "separated": [],
+  "why": "the fuselage broke"
+ },
+ "crewOff": true,
+ "brokeUp": true,
+ "crew": [
+  false,
+  false,
+  false,
+  false,
+  false,
+  false
+ ],
+ "arrCard": {
+  "hidden": false,
+  "cls": "bad wreck"
+ },
+ "award": null,
+ "visible": 71,
+ "inCentre": [],
+ "all": [
+  {
+   "id": "select#selPilot",
+   "r": [
+    0,
+    0,
+    107,
+    20
+   ],
+   "text": "Pilot · auto\n      Pilot · cautious\n      Pilot · "
+  },
+  {
+   "id": "select#selPersona",
+   "r": [
+    0,
+    20,
+    63,
+    40
+   ],
+   "text": "ExpertClubStudentBushHam-fistCustom"
+  },
+  {
+   "id": "select#selDest",
+   "r": [
+    0,
+    40,
+    442,
+    60
+   ],
+   "text": "⟳ CircuitJolene AFB 02/20 · concreteJolene AFB 13/"
+  },
+  {
+   "id": "select#selCond",
+   "r": [
+    0,
+    60,
+    262,
+    80
+   ],
+   "text": "Standard day · calm\n      Standard · light breeze "
+  },
+  {
+   "id": "button#bSkin.on",
+   "r": [
+    0,
+    80,
+    31,
+    120
+   ],
+   "text": "Skin ×1"
+  },
+  {
+   "id": "button#flLine.flPlate",
+   "r": [
+    22,
+    18,
+    533,
+    55
+   ],
+   "text": "Garage build\n        Jolene AFB 13/31 → Circuit\n  "
+  },
+  {
+   "id": "b#flLineName",
+   "r": [
+    37,
+    31,
+    119,
+    43
+   ],
+   "text": "Garage build"
+  },
+  {
+   "id": "span#flLineTrip",
+   "r": [
+    140,
+    31,
+    278,
+    42
+   ],
+   "text": "Jolene AFB 13/31 → Circuit"
+  },
+  {
+   "id": "span#flLineDay.faint",
+   "r": [
+    299,
+    31,
+    500,
+    42
+   ],
+   "text": "Standard · light breeze 8 kt · 16:25 AKDT"
+  },
+  {
+   "id": "em",
+   "r": [
+    510,
+    30,
+    518,
+    43
+   ],
+   "text": "▾"
+  },
+  {
+   "id": "div#pfd.flPlate",
+   "r": [
+    580,
+    18,
+    1020,
+    161
+   ],
+   "text": "0km/h gs\n        31m alt\n        -0.0m/s vs\n      "
+  },
+  {
+   "id": "b#r-ias",
+   "r": [
+    595,
+    30,
+    675,
+    61
+   ],
+   "text": "0"
+  },
+  {
+   "id": "i",
+   "r": [
+    595,
+    61,
+    675,
+    72
+   ],
+   "text": "km/h gs"
+  },
+  {
+   "id": "b#r-alt",
+   "r": [
+    689,
+    30,
+    769,
+    61
+   ],
+   "text": "31"
+  },
+  {
+   "id": "i",
+   "r": [
+    689,
+    61,
+    769,
+    72
+   ],
+   "text": "m alt"
+  },
+  {
+   "id": "b#r-vs",
+   "r": [
+    783,
+    30,
+    863,
+    61
+   ],
+   "text": "-0.0"
+  },
+  {
+   "id": "i",
+   "r": [
+    783,
+    61,
+    863,
+    72
+   ],
+   "text": "m/s vs"
+  },
+  {
+   "id": "b#r-nrg",
+   "r": [
+    877,
+    30,
+    989,
+    61
+   ],
+   "text": "27.0"
+  },
+  {
+   "id": "i#r-nrgU",
+   "r": [
+    877,
+    61,
+    989,
+    72
+   ],
+   "text": "L fuel"
+  },
+  {
+   "id": "div#rail",
+   "r": [
+    595,
+    83,
+    1005,
+    108
+   ],
+   "text": "BROKE UP: broke up: the fuselage parted (S0BR off "
+  },
+  {
+   "id": "b#phName",
+   "r": [
+    595,
+    96,
+    819,
+    106
+   ],
+   "text": "BROKE UP: broke up: the fuselage parted (S0BR off "
+  },
+  {
+   "id": "i.done",
+   "r": [
+    829,
+    93,
+    836,
+    110
+   ],
+   "text": ""
+  },
+  {
+   "id": "i.now",
+   "r": [
+    839,
+    93,
+    853,
+    110
+   ],
+   "text": ""
+  },
+  {
+   "id": "i",
+   "r": [
+    856,
+    93,
+    863,
+    110
+   ],
+   "text": ""
+  },
+  {
+   "id": "i",
+   "r": [
+    866,
+    93,
+    873,
+    110
+   ],
+   "text": ""
+  },
+  {
+   "id": "i",
+   "r": [
+    876,
+    93,
+    883,
+    110
+   ],
+   "text": ""
+  },
+  {
+   "id": "i",
+   "r": [
+    886,
+    93,
+    893,
+    110
+   ],
+   "text": ""
+  },
+  {
+   "id": "i",
+   "r": [
+    896,
+    93,
+    903,
+    110
+   ],
+   "text": ""
+  },
+  {
+   "id": "i",
+   "r": [
+    906,
+    93,
+    913,
+    110
+   ],
+   "text": ""
+  },
+  {
+   "id": "i",
+   "r": [
+    916,
+    93,
+    923,
+    110
+   ],
+   "text": ""
+  },
+  {
+   "id": "i",
+   "r": [
+    926,
+    93,
+    933,
+    110
+   ],
+   "text": ""
+  },
+  {
+   "id": "i",
+   "r": [
+    936,
+    93,
+    943,
+    110
+   ],
+   "text": ""
+  },
+  {
+   "id": "i",
+   "r": [
+    946,
+    93,
+    953,
+    110
+   ],
+   "text": ""
+  },
+  {
+   "id": "i",
+   "r": [
+    956,
+    93,
+    963,
+    110
+   ],
+   "text": ""
+  },
+  {
+   "id": "i",
+   "r": [
+    966,
+    93,
+    973,
+    110
+   ],
+   "text": ""
+  },
+  {
+   "id": "button#pfdFold",
+   "r": [
+    991,
+    94,
+    1005,
+    108
+   ],
+   "text": "▾"
+  },
+  {
+   "id": "i#phNext",
+   "r": [
+    595,
+    115,
+    1005,
+    137
+   ],
+   "text": "by hand"
+  },
+  {
+   "id": "button#bSkip.verb",
+   "r": [
+    1227,
+    846,
+    1375,
+    882
+   ],
+   "text": "Skip to line-up"
+  },
+  {
+   "id": "button#bGo.verb.pri",
+   "r": [
+    1384,
+    846,
+    1469,
+    882
+   ],
+   "text": "Fly on"
+  },
+  {
+   "id": "button#bHangar2.verb",
+   "r": [
+    1478,
+    846,
+    1578,
+    882
+   ],
+   "text": "The shed"
+  },
+  {
+   "id": "div#flRail.flPlate",
+   "r": [
+    22,
+    304,
+    86,
+    596
+   ],
+   "text": "flyviewsky & worldgraphicssounddevdev ›"
+  },
+  {
+   "id": "button.flRailBtn",
+   "r": [
+    29,
+    311,
+    79,
+    355
+   ],
+   "text": "fly"
+  },
+  {
+   "id": "svg",
+   "r": [
+    47,
+    319,
+    62,
+    334
+   ],
+   "text": ""
+  },
+  {
+   "id": "span",
+   "r": [
+    47,
+    337,
+    61,
+    347
+   ],
+   "text": "fly"
+  },
+  {
+   "id": "button.flRailBtn",
+   "r": [
+    29,
+    361,
+    79,
+    404
+   ],
+   "text": "view"
+  },
+  {
+   "id": "svg",
+   "r": [
+    47,
+    369,
+    62,
+    384
+   ],
+   "text": ""
+  },
+  {
+   "id": "span",
+   "r": [
+    43,
+    387,
+    65,
+    396
+   ],
+   "text": "view"
+  },
+  {
+   "id": "button.flRailBtn",
+   "r": [
+    29,
+    410,
+    79,
+    464
+   ],
+   "text": "sky & world"
+  },
+  {
+   "id": "svg",
+   "r": [
+    47,
+    418,
+    62,
+    433
+   ],
+   "text": ""
+  },
+  {
+   "id": "span",
+   "r": [
+    31,
+    436,
+    77,
+    456
+   ],
+   "text": "sky & world"
+  },
+  {
+   "id": "button.flRailBtn",
+   "r": [
+    29,
+    470,
+    79,
+    513
+   ],
+   "text": "graphics"
+  },
+  {
+   "id": "svg",
+   "r": [
+    47,
+    478,
+    62,
+    493
+   ],
+   "text": ""
+  },
+  {
+   "id": "span",
+   "r": [
+    32,
+    496,
+    76,
+    505
+   ],
+   "text": "graphics"
+  },
+  {
+   "id": "button.flRailBtn",
+   "r": [
+    29,
+    519,
+    79,
+    563
+   ],
+   "text": "sound"
+  },
+  {
+   "id": "svg",
+   "r": [
+    47,
+    527,
+    62,
+    542
+   ],
+   "text": ""
+  },
+  {
+   "id": "span",
+   "r": [
+    39,
+    545,
+    69,
+    555
+   ],
+   "text": "sound"
+  },
+  {
+   "id": "button.flRailBtn.flRailDev",
+   "r": [
+    29,
+    571,
+    79,
+    589
+   ],
+   "text": "dev ›"
+  },
+  {
+   "id": "div#arrCard.bad.wreck",
+   "r": [
+    16,
+    590,
+    316,
+    804
+   ],
+   "text": "Short of Jolene AFB 13/31broke up\n    outcomebroke"
+  },
+  {
+   "id": "b#arrTitle",
+   "r": [
+    31,
+    606,
+    210,
+    619
+   ],
+   "text": "Short of Jolene AFB 13/31"
+  },
+  {
+   "id": "span#arrTag",
+   "r": [
+    227,
+    603,
+    301,
+    625
+   ],
+   "text": "broke up"
+  },
+  {
+   "id": "span",
+   "r": [
+    31,
+    643,
+    76,
+    657
+   ],
+   "text": "outcome"
+  },
+  {
+   "id": "b",
+   "r": [
+    251,
+    643,
+    301,
+    656
+   ],
+   "text": "broke up"
+  },
+  {
+   "id": "span",
+   "r": [
+    31,
+    664,
+    83,
+    678
+   ],
+   "text": "certificate"
+  },
+  {
+   "id": "b.warn",
+   "r": [
+    93,
+    664,
+    301,
+    689
+   ],
+   "text": "Not certified - the aeroplane was damaged: the fus"
+  },
+  {
+   "id": "span",
+   "r": [
+    31,
+    696,
+    83,
+    710
+   ],
+   "text": "flight time"
+  },
+  {
+   "id": "b",
+   "r": [
+    277,
+    696,
+    301,
+    709
+   ],
+   "text": "17 s"
+  },
+  {
+   "id": "span",
+   "r": [
+    31,
+    717,
+    75,
+    731
+   ],
+   "text": "distance"
+  },
+  {
+   "id": "b",
+   "r": [
+    262,
+    717,
+    301,
+    729
+   ],
+   "text": "0.0 km"
+  },
+  {
+   "id": "span",
+   "r": [
+    31,
+    738,
+    88,
+    752
+   ],
+   "text": "peak strain"
+  },
+  {
+   "id": "b.warn",
+   "r": [
+    238,
+    738,
+    301,
+    750
+   ],
+   "text": "5586.38 %"
+  },
+  {
+   "id": "button#bLog.pri",
+   "r": [
+    31,
+    765,
+    301,
+    793
+   ],
+   "text": "Log the flight"
+  }
+ ]
+}

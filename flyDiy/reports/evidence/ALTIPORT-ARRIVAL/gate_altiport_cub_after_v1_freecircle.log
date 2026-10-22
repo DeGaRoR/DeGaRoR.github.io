@@ -1,0 +1,12 @@
+  the user's Cub: FAIL HOME > tw_ski         1621 s | dep: turned 104.5 deg, roll 108.9 m in, lift-off 113.5 m | final -53.3 m / 155 m, clear 13.5 m (ground) | td sink -0.53 m/s, 17.5 m/s, run 92 m, off 1 m | fuel 23.5 L | warnings gave-up at 1005 s; go-around at 1196.3 s | FAULTS off-strip (the landing roll left tw_ski's box); ground-loop (the nose 30.3 deg off the landing roll on tw_ski at 9.1 m/s) | phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>ENROUTE>DOWNWIND>BASE>FINAL>GOAROUND>CROSSWIND>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED (721 s)
+    verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 21.9 m/s until clear | climb-hold: 133 m under the height the final to Skyline Altiport starts from (the climb planned 124 m short) - circling here, climbing, before the approach | gave-up: still in DOWNWIND at t=1005 s — out of patience, not out of sky | leg-timeout: DOWNWIND took 464 s — moving to BASE | go-around: high on the slope -30 m out (attempt 1) | slope: stopped on a 5.9 % grade — rolling 200 m on to the level part
+    flares [{"low":684.5,"over":5,"d":20.3,"t":1541}]
+    final {"h":806.7,"d":-53.3,"hC":110}
+  ok   2 the user's Cub HOME > tw_ski: the game's flight (the 8 kt / 250 deg day, the page's pilot, the damage on)  ({"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1},"shake":true,"damage":true,"fuel":29,"mass":461})
+  FAIL 2 the user's Cub HOME > tw_skia: stopped at Skyline Altiport with no fault (what the page saw)  (off-strip: the landing roll left tw_ski's box; ground-loop: the nose 30.3 deg off the landing roll on tw_ski at 9.1 m/s)
+  ok   2 the user's Cub HOME > tw_skia: landed on Skyline Altiport  (on tw_ski)
+  ok   2 the user's Cub HOME > tw_skib: the final begun at the field's circuit height (>= 746 m, over the strip's 709 m)  (FINAL at 806.7 m MSL, -53.3 m out (97.9 m over the strip's highest ground; the circuit 110 m))
+  ok   2 the user's Cub HOME > tw_skic: every flare armed over the strip, at most 25 m above it  (5 m over the strip's lowest ground 20.3 m out at 1541 s)
+  ok   2 the user's Cub HOME > tw_skid: the final's lowest node 3 m over the ground and the forest  (13.5 m (ground, 40.3 m out))
+GATE ALTIPORT [shard 1/3]: FAIL (1)
+SHARD 1/3: 1 of 3 heavy jobs

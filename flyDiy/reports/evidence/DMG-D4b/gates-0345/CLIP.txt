@@ -1,0 +1,17 @@
+GATE CLIP — fittings against the drawn skin, at rest and posed
+  stock: 48 fitting objects, 50 skins (fuselage 5184 t, orient 64 flipped/2 turned), 4 poses [rest +full -full flex], 314715 queries — 2115 ms (build 1027, trees 65)
+  rod: 51 fitting objects, 47 skins (fuselage 4928 t, orient 64 flipped/2 turned), 4 poses [rest +full -full flex], 383940 queries — 1824 ms (build 884, trees 40)
+  twin: 63 fitting objects, 68 skins (fuselage 4352 t, orient 0 flipped/0 turned), 6 poses [rest +full -full flex tail+ tail-], 588470 queries — 2154 ms (build 790, trees 74)
+  stock+ifr: 48 fitting objects, 50 skins (fuselage 5184 t, orient 64 flipped/2 turned), 4 poses [rest +full -full flex], 315315 queries — 1629 ms (build 820, trees 40)
+  stock+panel: 48 fitting objects, 50 skins (fuselage 5184 t, orient 64 flipped/2 turned), 4 poses [rest +full -full flex], 337825 queries — 1785 ms (build 902, trees 38)
+  ---- summary ----
+  stock: 0 NEW red, 0 known, 0 declared, worst 0.0 mm
+  rod: 0 NEW red, 0 known, 0 declared, worst 0.0 mm
+  twin: 0 NEW red, 2 known, 0 declared, worst 31.0 mm
+  stock+ifr: 0 NEW red, 4 known, 0 declared, worst 5.2 mm
+  stock+panel: 0 NEW red, 0 known, 0 declared, worst 0.0 mm
+  ok   no NEW fitting inside a skin or another layer at rest, at full travel or under flex (0 new, 6 known in the baseline)
+  wall 9507 ms over 5 builds
+  1/1 checks
+GATE CLIP: PASS
+== exit 0, 10 s

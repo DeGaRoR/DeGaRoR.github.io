@@ -202,7 +202,8 @@ if (!SELF) {
   const home = J.aerodromes.find(a => a.id === 'HOME');
   // B
   if (homeCub && homeCub.roll) toClimb(defCub, homeCub.S, home, 'jolene HOME cub (default): ');
-  const defMetal = C.buildGen(C.genMigrateSpec(JSON.parse(fs.readFileSync(METAL, 'utf8')).spec));
+  // G1985 (JOIN-PARITY): the metal Cessna as the game flies it (tools/_load_build.js)
+  const defMetal = C.buildGen(C.genMigrateSpec(process.env.FLYDIY_RAW_BUILDS === '1' ? JSON.parse(fs.readFileSync(METAL, 'utf8')).spec : require('./_load_build.js').loadBuild(METAL).spec));
   const m = oneStrip(defMetal, J, home, 'jolene HOME cessnaMetal: ');
   if (m.roll) toClimb(defMetal, m.S, home, 'jolene HOME cessnaMetal: ');
   // C

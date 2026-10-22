@@ -30,6 +30,8 @@ Usage (from flyDiy/):  python tools/char_prep.py            # whole table + the 
                        python tools/char_prep.py --report   # inventory only
                        python tools/char_prep.py --budget   # the budget set only
                        python tools/char_prep.py --no-budget
+                       python tools/char_prep.py --cast     # the crowd only (G2970): the cast + its clips,
+                                                            # the crew's manifests and media left alone
 """
 import json
 import os
@@ -41,7 +43,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 from glb_inspect import load, accessor, view_bytes  # noqa: E402
-from media_lib import write_media, prune_media, encode_tex, asset_src, BASE_DECL  # noqa: E402
+from media_lib import write_media, prune_media, prune_media_stems, encode_tex, asset_src, BASE_DECL  # noqa: E402
 CHAR_TEX_MAX = 2048   # the delivered size of a character's maps (LOADING S4)
 import chars_table as TABLE  # noqa: E402
 
@@ -59,7 +61,7 @@ def tex_of(j, tref):
     return 't%d' % j['textures'][tref['index']]['source']
 
 
-def bake(row, report):
+def bake(row, report, lazy=False):
     j, bin_ = load(asset_src(row['glb']))
     nodes = j['nodes']
     # ---- the node tree: parent index per node (the whole scene, joints and
@@ -150,12 +152,20 @@ def bake(row, report):
           % (row['key'], len(joints), len(meshes), nvert, ntri,
              len(buf) / 1048576, tex_bytes / 1048576))
     if report:
-        return None, []
+        return (None, None, []) if lazy else (None, [])
     rel = write_media('geo/chars', row['key'], 'bin', bytes(buf))
     man = {'v': 1, 'key': row['key'], 'label': row['label'],
            'credit': row['credit'], 'src': row['src'],
            'nodes': ntab, 'joints': joints, 'scene': j['scenes'][0]['nodes'],
            'bin': rel, 'texs': texs, 'mats': mats, 'meshes': meshes}
+    if lazy:
+        # THE CAST (G2970): the same manifest, as a content-hashed media file the
+        # crowd fetches (src/viewer/crowd.js castLoad roots bin/texs with the base)
+        man['cast'] = 1
+        man['tris'] = ntri
+        mrel = write_media('chars', row['key'], 'json',
+                           json.dumps(man, separators=(',', ':')).encode('utf8'))
+        return man, mrel, [rel, mrel] + [v for v in texs.values() if isinstance(v, str)]
     body = ('// GENERATED FILE - DO NOT EDIT. Built by tools/char_prep.py from\n'
             '// %s (via tools/fbx_to_glb.py), per the declared table in\n'
             '// tools/chars_table.py. Source: %s.\n'
@@ -186,7 +196,33 @@ def slerp(a, b, t):
     return [x / n for x in q]
 
 
-def bake_anim(row, report):
+def hips_track(j, bin_, a):
+    """The Hips' TRANSLATION in metres, world axes (y up) - the crowd's root
+    motion (G2970). The channel is in the Hips' parent frame (Mixamo: the
+    armature, scale 0.01 and turned y-up), so each sample goes through that
+    parent's world matrix; returns (times, [(x, y, z)]) or None."""
+    from glb_inspect import walk, xform
+    nodes = j['nodes']
+    parent = {}
+    for i, n in enumerate(nodes):
+        for c in n.get('children', []):
+            parent[c] = i
+    W = {ni: w for ni, _, w, _ in walk(j)}
+    for ch in a['channels']:
+        tgt = ch['target']
+        if tgt.get('path') != 'translation':
+            continue
+        if nodes[tgt['node']].get('name', '').split(':')[-1] != 'Hips':
+            continue
+        smp = a['samplers'][ch['sampler']]
+        ts = accessor(j, bin_, smp['input'])
+        ps = accessor(j, bin_, smp['output'])
+        pw = W.get(parent.get(tgt['node'], -1), [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+        return ts, [xform(pw, p) for p in ps]
+    return None
+
+
+def bake_anim(row, report, root=False):
     """One clip -> f32 quats [frames][joints][4] on a uniform grid at row.fps.
     Rotation channels only: the ATD owns the root and the legs, the clip
     lends its upper body — translations would fight the seat."""
@@ -228,12 +264,42 @@ def bake_anim(row, report):
             buf += struct.pack('<4f', *q)
     print('%-9s clip %5.2f s  %3d frames @ %d fps  %2d joints  %.2f MB'
           % (row['key'], t_end, nf, fps, len(joints), len(buf) / 1048576))
+    extra = {}
+    if root:
+        # THE ROOT'S TRAVEL (G2970): forward speed over the clip (first to last
+        # sample, on the ground plane) and the Hips' height per frame about its
+        # mean - the frames themselves stay rotations only (the crowd moves the
+        # person; a walk baked with its travel would carry them off the path)
+        hk = hips_track(j, bin_, a)
+        rootV, bob = 0.0, [0.0] * nf
+        if hk:
+            ts, ps = hk
+            dx, dz = ps[-1][0] - ps[0][0], ps[-1][2] - ps[0][2]
+            rootV = (dx * dx + dz * dz) ** 0.5 / max(1e-6, ts[-1] - ts[0])
+            ys = []
+            for f in range(nf):
+                t = f / fps
+                k = 0
+                while k + 1 < len(ts) and ts[k + 1] <= t:
+                    k += 1
+                if k + 1 >= len(ts) or t <= ts[k]:
+                    ys.append(ps[k][1])
+                else:
+                    u = (t - ts[k]) / (ts[k + 1] - ts[k])
+                    ys.append(ps[k][1] + (ps[k + 1][1] - ps[k][1]) * u)
+            m = sum(ys) / len(ys)
+            bob = [round(y - m, 4) for y in ys]
+        extra = {'role': row.get('role'), 'rootV': round(rootV, 4), 'bob': bob}
+        print('          root %.3f m/s  bob +-%.3f m' % (rootV, max(abs(b) for b in bob)))
     if report:
         return None, []
     rel = write_media('geo/chars', 'anim_' + row['key'], 'bin', bytes(buf))
-    man = {'v': 1, 'key': row['key'], 'label': row['label'], 'credit': row['credit'],
+    man = {'v': 1, 'key': row['key'], 'label': row.get('label', row['key']), 'credit': row['credit'],
            'src': row['src'], 'fps': fps, 'frames': nf, 'dur': (nf - 1) / fps,
            'joints': joints, 'bin': rel, 'len': len(buf)}
+    if root:
+        man.update(extra)
+        return man, [rel]
     body = ('// GENERATED FILE - DO NOT EDIT. Built by tools/char_prep.py from\n'
             '// %s (via tools/fbx_to_glb.py --anim), per tools/chars_table.py ANIMS.\n'
             '// Source: %s. Decoded by src/core/52_char_codec.js (decodeCharAnim);\n'
@@ -266,20 +332,73 @@ def main(argv):
         return budget()
     os.makedirs(OUT_DIR, exist_ok=True)
     files, keep = [], []
-    for row in TABLE.CHARS:
+    # --cast (G2970): the crew's rows are not re-baked (their media and boot
+    # manifests stay byte for byte what is committed); the prune below then
+    # owns only the cast's and the crowd clips' own stems
+    only_cast = '--cast' in argv
+    for row in ([] if only_cast else TABLE.CHARS):
         name, rels = bake(row, report)
         if name:
             files.append(name)
             keep += rels
-    for row in getattr(TABLE, 'ANIMS', []):
+    for row in ([] if only_cast else getattr(TABLE, 'ANIMS', [])):
         name, rels = bake_anim(row, report)
         if name:
             files.append(name)
             keep += rels
+    # THE CAST + THE CROWD'S CLIPS (G2970): lazy - media files named by
+    # src/chars/crowd_pack.json, never a boot manifest
+    cast, clips, cast_keep = [], {}, []
+    for row in getattr(TABLE, 'CAST', []):
+        if row.get('reuse'):
+            assert row['key'] in [r['key'] for r in TABLE.CHARS], row['key'] + ': reuse names no CHARS row'
+            cast.append({'key': row['key'], 'reuse': 1})
+            continue
+        man, mrel, rels = bake(row, report, lazy=True)
+        if man:
+            cast.append({'key': row['key'], 'label': row['label'], 'man': mrel, 'tris': man['tris']})
+            keep += rels
+            cast_keep.append(mrel)
+    for row in getattr(TABLE, 'CROWD_CLIPS', []):
+        man, rels = bake_anim(row, report, root=True)
+        if man:
+            clips[row['key']] = man
+            keep += rels
     if report:
         return
+    roles = {}
+    for row in getattr(TABLE, 'CROWD_CLIPS', []):
+        roles.setdefault(row['role'], []).append(row['key'])
+    roles['sit'] = [getattr(TABLE, 'CROWD_SIT', 'sitidle')]
+    pack = {'note': 'GENERATED by tools/char_prep.py from tools/chars_table.py CAST / CROWD_CLIPS - do not edit. '
+                    'The crowd (src/viewer/crowd.js) fetches this file the first time passengers appear; a cast '
+                    'member is its own media/chars manifest (reuse: a crew manifest already on the page), a clip '
+                    'rides here whole. ktx2: the budget rows of the cast (tools/char_tex_budget.js).',
+            'v': 1, 'cast': cast, 'roles': roles, 'clips': clips,
+            'budget': getattr(TABLE, 'CROWD_BUDGET', {}), 'ktx2': {}}
+    PACK = os.path.join(OUT_DIR, 'crowd_pack.json')
+    try:
+        with open(PACK, encoding='utf8') as f:
+            pack['ktx2'] = {k: v for k, v in json.load(f).get('ktx2', {}).items()
+                            if any(c['key'] == k and not c.get('reuse') for c in cast)}
+    except (OSError, ValueError):
+        pass
+    with open(PACK, 'w', encoding='utf8', newline='\n') as f:
+        f.write(json.dumps(pack, indent=1) + '\n')
+    own_cast = [r for r in getattr(TABLE, 'CAST', []) if not r.get('reuse')]
+    if only_cast:
+        stems = [r['key'] for r in own_cast] + ['anim_' + r['key'] for r in getattr(TABLE, 'CROWD_CLIPS', [])]
+        gone = prune_media_stems('geo/chars', stems, keep) if stems else []
+        gone += prune_media('chars', cast_keep)
+        for row in own_cast:
+            gone += prune_media('tex/chars/' + row['key'], keep)
+        print('--cast: %d member(s), %d clip(s); pruned %d stale file(s)' % (len(own_cast), len(clips), len(gone)))
+        if '--no-budget' not in argv:
+            budget()
+        return
     gone = prune_media('geo/chars', keep)
-    for row in TABLE.CHARS:
+    gone += prune_media('chars', cast_keep)
+    for row in TABLE.CHARS + own_cast:
         gone += prune_media('tex/chars/' + row['key'], keep)
     with open(os.path.join(OUT_DIR, 'chars_index.json'), 'w', encoding='utf8',
               newline='\n') as f:

@@ -570,7 +570,8 @@ part("-- TRIKE-XWIND: the user's pusher across 2 m/s --", () => {
 
 part('-- FLAPS + STATUS: the ultralight fixture from the stand --', () => {
   const FIX = path.join(__dirname, 'fixtures', 'build_v7_ultralight_2026-09-05.json');
-  const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
+  // G1985 (JOIN-PARITY): as the game flies it (tools/_load_build.js)
+  const spec = process.env.FLYDIY_RAW_BUILDS === '1' ? JSON.parse(fs.readFileSync(FIX, 'utf8')).spec : require('./_load_build.js').loadBuild(FIX).spec;
   const def = buildGen(genMigrateSpec(JSON.parse(JSON.stringify(spec))));
   const ul = fly(null, 400, null, { def, stand: true });
   for (const v of ul.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);

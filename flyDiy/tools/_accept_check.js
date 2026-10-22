@@ -44,6 +44,7 @@ const LEGS = ['cub', 'jodel', 'c172', 'metal'];
 const rd = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
 const L = require(path.join(T, '_treecrash_lib.js'));
+const LB = require(path.join(T, '_load_build.js'));   // T41b (JOIN-PARITY): every validated build as the game loads it - the joined spec
 const C0 = L.core();
 const B = require(path.join(ROOT, 'src', 'viewer', 'bench.js'));
 
@@ -75,7 +76,7 @@ const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jod
 function staticFixtures() {
   const D = {};
   for (const k of Object.keys(BUILDS)) {
-    const j = JSON.parse(rd(BUILDS[k])), spec = j.spec || j;
+    const spec = LB.loadBuild(BUILDS[k]).spec;   // (was the file as written: JOIN-PARITY)
     const def = C0.buildGen(C0.genMigrateSpec(spec));
     const sh = C0.genShakedown(def, { corners: false, slim: true });
     D[k] = { def, sh, fp: B.benchFingerprint(spec, null) };
@@ -120,8 +121,10 @@ function runChecks(C, F, D, src, quiet) {
     else ok(e.tankL === S.fuel.litres && e.batteryKWh === 0, k + ': the tank ' + e.tankL + ' L, no pack');
   }
   // the known values the user's builds carry (the PREM-S2 / plaque figures)
-  ok(EV.cub.seats === 2 && EV.cub.occupants === 1 && EV.cub.tankL === 45 && EV.cub.powertrain === 'piston' && EV.cub.spanM === 10.8,
-     'the user\'s Cub: 2 seats (1 aboard), 45 L, piston, 10.8 m across');
+  // T41b (JOIN-PARITY's correction, agreed with GAME 10 Oct): the Cub the game FLIES carries 27 L - its drawn nose tank, the
+  // joined spec (tools/_load_build.js); the 45 L was the build file's number, which the game never flies
+  ok(EV.cub.seats === 2 && EV.cub.occupants === 1 && EV.cub.tankL === 27 && EV.cub.powertrain === 'piston' && EV.cub.spanM === 10.8,
+     'the user\'s Cub: 2 seats (1 aboard), ' + EV.cub.tankL + ' L (the drawn tank, as flown), piston, 10.8 m across');
   ok(EV.cub.emptyKg > 330 && EV.cub.emptyKg < 380, 'the Cub empty ' + EV.cub.emptyKg.toFixed(1) + ' kg (a J-3 is 310-340: the model\'s, in its band)');
   ok(EV.eTrainer.powertrain === 'electric' && EV.eTrainer.batteryKWh === 2, 'the user\'s electric trainer: electric, 2 kWh');
   ok(EV.c172.seats >= 4, 'the C172: ' + EV.c172.seats + ' seats');

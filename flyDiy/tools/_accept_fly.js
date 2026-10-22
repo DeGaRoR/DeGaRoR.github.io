@@ -15,6 +15,7 @@
 const fs = require('fs'), path = require('path');
 const T = __dirname;
 const L = require(path.join(T, '_treecrash_lib.js'));
+const LB = require(path.join(T, '_load_build.js'));   // T41b (JOIN-PARITY): every validated build as the game loads it - the joined spec
 const C = L.core();
 const B = require(path.join(T, '..', 'src', 'viewer', 'bench.js'));
 
@@ -34,8 +35,7 @@ function fly(name) {
   const K = CASES[name];
   if (!K) throw new Error('unknown case ' + name);
   const wall0 = Date.now();
-  const j = JSON.parse(fs.readFileSync(path.join(T, '..', FILES[K.build]), 'utf8'));
-  const spec = j.spec || j;
+  const spec = LB.loadBuild(FILES[K.build]).spec;   // (was the file as written: JOIN-PARITY)
   const fp = B.benchFingerprint(spec, null);
   // the def as GATE DESTTO's library builds one (the saved spec through the migrator and buildGen), the damage model
   // off: an acceptance leg is a cruise, not a crash
@@ -109,7 +109,7 @@ function fly(name) {
 // the plaque's row (and withdrawn under another fingerprint), the contract door (evidence / verdict)
 function flyPage() {
   const wall0 = Date.now(), vm = require('vm');
-  const j = JSON.parse(fs.readFileSync(path.join(T, '..', FILES.cub), 'utf8')), spec = j.spec;
+  const spec = LB.loadBuild(FILES.cub).spec;
   const fp = B.benchFingerprint(spec, null);
   const def0 = C.buildGen(C.genMigrateSpec(spec));
   const def = Object.assign({}, def0, { params: Object.assign({}, def0.params, { damage: false }), cert: null });
@@ -152,7 +152,7 @@ function flyPage() {
 function flyHost() {
   const wall0 = Date.now();
   const SH = require(path.join(T, '..', 'src', 'viewer', 'sim_host.js'));
-  const j = JSON.parse(fs.readFileSync(path.join(T, '..', FILES.cub), 'utf8')), spec = j.spec;
+  const spec = LB.loadBuild(FILES.cub).spec;
   const fp = B.benchFingerprint(spec, null);
   const def0 = C.buildGen(C.genMigrateSpec(spec));
   const def = Object.assign({}, def0, { params: Object.assign({}, def0.params, { damage: false }), cert: null });

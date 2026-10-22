@@ -221,8 +221,17 @@ const C = house(1234, 5, 80, 0.2, P => { P.sag = 0.12; P.dirtH = 1.7; });
   check(i0 > 0 && i1 > i0, '5 the HLOD block found (HLOD .. texMean)');
   const block = RP.slice(i0, i1);
   const run = search => { const c = vm.createContext({ THREE, Math, Object, Map, console, location: search === undefined ? undefined : { search } });
-    vm.runInContext((search === undefined ? 'var location = undefined;\n' : '') + block + '\nthis.X = { HLOD, LOD_U, LOD_DECL, LOD_VDECL, LOD_VDECL_FAR, LOD_VNEAR, LOD_VMID, LOD_E, lodDither, lodMat, bandOf, lod1Bags };', c); return c.X; };
+    vm.runInContext((search === undefined ? 'var location = undefined;\n' : '') + block + '\nthis.X = { HLOD, LOD_U, LOD_DECL, LOD_VDECL, LOD_VDECL_FAR, LOD_VNEAR, LOD_VMID, LOD_E, lodDither, lodMat, bandOf, lod1Bags, farGain: typeof farGain === "function" ? farGain : null };', c); return c.X; };
   const X = run();
+  // 5z G2319.2 THE FAR FIFTH IS THE HOUSES' (the auxiliary hangars' black far walls): a real house finish takes HLOD.gain,
+  // a plain finish (a hangar shell's steel, HANGAR_LIB) HLOD.gainItem, and hlodMerge's colour goes through the rule
+  { const P = HG.randomHouse(4321), F = HG.makeFinish(); HG.applyFinish(P, F);
+    const houseMat = Object.values(F.MAT).find(m => m && m.userData && (m.userData.houseShaded || m.userData.paint));
+    const steel = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.14 });
+    check(!!X.farGain && X.HLOD.gain === 0.2 && X.HLOD.gainItem >= 0.5, '5z the far town has the houses\' fifth and an item gain (G2319.2)', X.HLOD && (X.HLOD.gain + ' / ' + X.HLOD.gainItem));
+    check(!!X.farGain && !!houseMat && X.farGain(houseMat) === X.HLOD.gain, '5z ... a house finish takes the fifth (G559\'s calibration)', houseMat ? Object.keys(houseMat.userData).join(',') : 'no house finish');
+    check(!!X.farGain && X.farGain(steel) === X.HLOD.gainItem && X.farGain(null) === X.HLOD.gainItem, '5z ... a plain finish (a hangar shell\'s steel) takes the item gain - not the fifth that drew it black');
+    check(/col\.multiplyScalar\(farGain\(m\.material\)\)/.test(RP) && !/col\.multiplyScalar\(HLOD\.gain\)/.test(RP), '5z ... and hlodMerge\'s colour goes through it'); }
   // 5a lod 1 as the far town's source: opaque standard bags, the merge's channels only, walls and roof the box
   { const P = HG.randomHouse(4321), F = HG.makeFinish(); HG.applyFinish(P, F);
     const b0 = HG.build(P, 0, F), L = X.lod1Bags(HG, P, F), TL0 = TARR.make(THREE, { HG });

@@ -1,0 +1,32 @@
+== round 1 mine
+GATE DMGCERTCOST (G1890-G1892): the certificate's cost, its envelope against the uncut one, the store
+  FAIL 1. 18.2 s in node (ceiling 18 s; the uncut 22.4 s; the target ~5 s: 13.2 s over)
+  FAIL 1. 34.4 s in node (ceiling 32 s; the uncut 43.7 s; the target ~5 s: 29.4 s over)
+  FAIL 1. 31.7 s in node (ceiling 30 s; the uncut 39.7 s; the target ~5 s: 26.7 s over)
+  ok   1. 39.5 s in node (ceiling 42 s; the uncut 66.5 s; the target ~5 s: 34.5 s over)
+  ok   1. 44.8 s in node (ceiling 48 s; the uncut 74.3 s; the target ~5 s: 39.8 s over)
+GATE DMGCERTCOST: FAIL
+== round 1 base
+GATE DMGCERTCOST (G1890-G1892): the certificate's cost, its envelope against the uncut one, the store
+  FAIL 1. 21.1 s in node (ceiling 18 s; the uncut 22.4 s; the target ~5 s: 16.1 s over)
+  FAIL 1. 36.0 s in node (ceiling 32 s; the uncut 43.7 s; the target ~5 s: 31.0 s over)
+  ok   1. 28.6 s in node (ceiling 30 s; the uncut 39.7 s; the target ~5 s: 23.6 s over)
+  FAIL 1. 43.0 s in node (ceiling 42 s; the uncut 66.5 s; the target ~5 s: 38.0 s over)
+  FAIL 1. 53.6 s in node (ceiling 48 s; the uncut 74.3 s; the target ~5 s: 48.6 s over)
+GATE DMGCERTCOST: FAIL
+== round 2 mine
+GATE DMGCERTCOST (G1890-G1892): the certificate's cost, its envelope against the uncut one, the store
+  FAIL 1. 20.8 s in node (ceiling 18 s; the uncut 22.4 s; the target ~5 s: 15.8 s over)
+  FAIL 1. 37.2 s in node (ceiling 32 s; the uncut 43.7 s; the target ~5 s: 32.2 s over)
+  FAIL 1. 32.0 s in node (ceiling 30 s; the uncut 39.7 s; the target ~5 s: 27.0 s over)
+  FAIL 1. 47.6 s in node (ceiling 42 s; the uncut 66.5 s; the target ~5 s: 42.6 s over)
+  FAIL 1. 53.4 s in node (ceiling 48 s; the uncut 74.3 s; the target ~5 s: 48.4 s over)
+GATE DMGCERTCOST: FAIL
+== round 2 base
+GATE DMGCERTCOST (G1890-G1892): the certificate's cost, its envelope against the uncut one, the store
+  FAIL 1. 18.8 s in node (ceiling 18 s; the uncut 22.4 s; the target ~5 s: 13.8 s over)
+  FAIL 1. 33.0 s in node (ceiling 32 s; the uncut 43.7 s; the target ~5 s: 28.0 s over)
+  ok   1. 28.2 s in node (ceiling 30 s; the uncut 39.7 s; the target ~5 s: 23.2 s over)
+  FAIL 1. 44.6 s in node (ceiling 42 s; the uncut 66.5 s; the target ~5 s: 39.6 s over)
+  FAIL 1. 52.8 s in node (ceiling 48 s; the uncut 74.3 s; the target ~5 s: 47.8 s over)
+GATE DMGCERTCOST: FAIL

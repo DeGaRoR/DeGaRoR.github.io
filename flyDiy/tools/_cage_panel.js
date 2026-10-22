@@ -692,7 +692,7 @@ function aoMaterial() {
 }
 // the backlight: the instrument dimmer, through the light master
 function faceDim(P) {
-  if (!P || !+P.lightOn) return 0;
+  if (!P || !+P.lightOn || !litFitted(P, 'instr')) return 0;
   const v = +P.li_instr;
   return isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
 }
@@ -1358,6 +1358,8 @@ function keyAt(parent, x, y, z, pos) {
 // ---- the build ------------------------------------------------------------------
 const EXT_LIGHTS = ['taxi', 'beacon', 'land', 'nav'];
 const INT_LIGHTS = ['flood', 'instr', 'pedal', 'pax'];
+// G2796: each light fitted on its own (_cage_light.js `li_<k>Fit`, 1 by default)
+const litFitted = (P, k) => !P || P['li_' + k + 'Fit'] == null || !!+P['li_' + k + 'Fit'];
 let LAST = null, fontsWaited = false;
 // THE HOLES (G279): [{ g (the dial's group), r }] as built, resolved by
 // `holesIn(parent)` to centres in the parent's frame once the tree stands
@@ -1384,8 +1386,9 @@ function build(parent, A, P, pilotX) {
     items: R.items, side: R.side, pilotX, radios,
     elec: { hasBus: R.hasBus, altA: R.altA },
     energyKind: R.energyKind,                                 // G442.1: the key's kind (a pack's power key)
-    extLights: lightsOn && +P.lightSw ? EXT_LIGHTS : [],
-    intLights: lightsOn && +P.lightSw ? INT_LIGHTS : [],
+    // G2796: a switch only for a light that is FITTED
+    extLights: lightsOn && +P.lightSw ? EXT_LIGHTS.filter(k => litFitted(P, k)) : [],
+    intLights: lightsOn && +P.lightSw ? INT_LIGHTS.filter(k => litFitted(P, k)) : [],
     flapSwitch: P && Math.round(+P.flapCtl || 0) === 1,      // G335
     swStyle: (SY.look && SY.look.sw) || 'toggle',             // G371
   });

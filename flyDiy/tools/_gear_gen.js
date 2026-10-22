@@ -160,19 +160,51 @@ function drawStub(parent, AF, P) {
 // TUNDRA balloon (fat, low pressure, round-shouldered — the bush tyre)
 // and a SLIM one for a glider or a spatted racer. Everything scales off
 // the radius, so one number sizes the wheel.
+// THE TUNDRA IS A DONUT (G2784, the user, 10 Oct: "the tundra balloon are
+// wrong; their flank goes too high, and the shape is wrong ... more like a
+// donut really"). It was the standard tyre's flank stretched: full width held
+// up to 0.72 R, still 0.81 of it at 0.945 R, then a shoulder — a straight wall
+// with a flat band on top, the buoy the user saw. A bush tyre (the Alaskan
+// Bushwheel family: section height ~ section width on a small hub) is a
+// TORUS: `torus` revolves an ellipse section, widest at mid-height, the bead
+// on its inner side at `beadW` of the half-width — a rim narrower than the
+// tyre, so the donut stands proud of its hub (`faceW`: the inset disc). The
+// half-width comes down from 0.58 R (a section 1.76 x wider than tall) to
+// 0.50 R (1.38: fat, and round). Drawing only: the flight reads R (s1R), and
+// the weathering's wheel record reads hw from this table, as before.
 const TYRE = {
   0: { hw: 0.40, bead: 0.42, bulge: 1.02, bulgeAt: 0.80, crown: 0.035 },
-  1: { hw: 0.58, bead: 0.34, bulge: 1.04, bulgeAt: 0.72, crown: 0.10 },
+  1: { hw: 0.50, bead: 0.34, bulge: 1.04, bulgeAt: 0.72, crown: 0.10,
+       torus: 1, beadW: 0.60, faceW: 0.50 },
   2: { hw: 0.29, bead: 0.46, bulge: 1.00, bulgeAt: 0.84, crown: 0.02 },
 };
+// the torus section, [radius, axial] from one bead round the crown to the
+// other: an ellipse whose outer extremity is R and whose inner side passes
+// the bead seat (radius rb at axial +-zb). Pure, so a gate can measure it.
+function tyreTorus(R, rb, zb, b, grooveAt) {
+  const k = Math.min(0.95, zb / b), s = Math.sqrt(1 - k * k);
+  const a = (R - rb) / (1 + s), rc = R - a;
+  const phB = Math.PI - Math.asin(k);        // the bead's angle off the crown
+  const phs = new Set();
+  const N = 28;
+  for (let i = 0; i <= N; i++) phs.add(-phB + 2 * phB * i / N);
+  for (const z of grooveAt || []) if (Math.abs(z) < b) for (const d of [-0.05, -0.025, 0, 0.025, 0.05]) {
+    const zz = Math.max(-b * 0.999, Math.min(b * 0.999, z + d * b));
+    phs.add(Math.asin(zz / b));
+  }
+  const pts = [...phs].sort((p, q) => p - q).map(ph => [rc + a * Math.cos(ph), b * Math.sin(ph), ph]);
+  return { pts, rc, a, b };
+}
 function wheel(bags, ctr, axis, R, opt) {
   opt = opt || {};
   const P = opt.P || {};
   const prof = TYRE[Math.round(P.whProfile || 0)] || TYRE[0];
   const hw = R * prof.hw, bead = R * prof.bead;
   const half = hw * 0.70;                    // the crown band
-  const beadH = hw * 0.90;                   // where the tyre meets the rim
-  const face = hw * 0.74;                    // THE RIM IS INSET (user)
+  const beadH = hw * (prof.beadW || 0.90);   // where the tyre meets the rim
+  const face = hw * (prof.faceW || 0.74);    // THE RIM IS INSET (user)
+  // the hub's axial stations (barrel, caps, valve) follow the rim face: a torus's narrow rim pulls them in with it
+  const hwHub = prof.torus ? hw * prof.faceW / 0.74 : hw;
   const tread = Math.round(P.whTread == null ? 0 : P.whTread);
   const T = bags.tyre, Hb = bags.hub;
   const ax = nrm(axis);
@@ -222,7 +254,22 @@ function wheel(bags, ctr, axis, R, opt) {
         ts.add(clamp(gp + d, -1, 1));
     }
   const crown = [...ts].sort((p, q) => p - q).map(t => [rAt(t), t * half]);
-  revolve(T, ctr, ax, flank(-1).concat(crown, flank(1).reverse()), 44);
+  // the sidewall at radius r: the torus's own surface, or the drawn flank's
+  // straight wall (where the decorative bead rings below stand)
+  let wallAt = () => hw * 0.90;
+  if (prof.torus) {
+    // G2784: one ellipse, bead to bead; whBulge widens it as it widens the flank
+    const grooves = tread === 0 ? Array.from({ length: ribs }, (_, k) => (-1 + 2 * (k + 0.5) / ribs) * half) : [];
+    const TT = tyreTorus(R, bead * 1.03, beadH, hw * B, grooves);
+    revolve(T, ctr, ax, TT.pts.map(([r, z, ph]) => {
+      if (tread === 0 && Math.cos(ph) > 0) {
+        const t = z / half;
+        for (const gp of grooves) { const d = (t - gp / half) / 0.075; r -= R * 0.052 * Math.exp(-d * d * 3.2) * Math.cos(ph); }
+      }
+      return [r, z];
+    }), 44);
+    wallAt = r => { const u = (r - TT.rc) / TT.a; return Math.abs(u) < 1 ? TT.b * Math.sqrt(1 - u * u) : beadH; };
+  } else revolve(T, ctr, ax, flank(-1).concat(crown, flank(1).reverse()), 44);
   if (tread === 2) {
     const NB = 15;
     for (let row = -1; row <= 1; row += 2)
@@ -237,10 +284,12 @@ function wheel(bags, ctr, axis, R, opt) {
       }
   }
   for (const s of [-1, 1])
-    for (const rr of [0.62, 0.70])
-      revolve(T, ctr, ax, [[R * rr, s * hw * 0.90],
-        [R * (rr + 0.035), s * hw * 0.93], [R * (rr + 0.07), s * hw * 0.90]],
-        36);
+    for (const rr of [0.62, 0.70]) {
+      // on the sidewall: the straight wall's 0.90 hw, or the torus where it is at that radius
+      const w0 = prof.torus ? wallAt(R * rr) : hw * 0.90, w1 = prof.torus ? wallAt(R * (rr + 0.035)) + hw * 0.03 : hw * 0.93,
+            w2 = prof.torus ? wallAt(R * (rr + 0.07)) : hw * 0.90;
+      revolve(T, ctr, ax, [[R * rr, s * w0], [R * (rr + 0.035), s * w1], [R * (rr + 0.07), s * w2]], 36);
+    }
 
   // ---- the rim ----------------------------------------------------------
   const rimK = Math.round(P.whRim == null ? 0 : P.whRim);
@@ -269,8 +318,8 @@ function wheel(bags, ctr, axis, R, opt) {
   loop.push(loop[0].slice());                 // close the section
   revolve(Hb, ctr, ax, loop, 40);
   // hub barrel
-  revolve(Hb, ctr, ax, [[R * 0.11, -hw * 0.92], [R * 0.17, -hw * 0.86],
-    [R * 0.17, hw * 0.86], [R * 0.11, hw * 0.92]], 26);
+  revolve(Hb, ctr, ax, [[R * 0.11, -hwHub * 0.92], [R * 0.17, -hwHub * 0.86],
+    [R * 0.17, hwHub * 0.86], [R * 0.11, hwHub * 0.92]], 26);
   // THE OUTER FACE IS THE RIM STYLE — drawn on both faces, inset
   for (const s of [-1, 1]) {
     const hf = s * face;
@@ -313,15 +362,15 @@ function wheel(bags, ctr, axis, R, opt) {
       const t = i / ND;
       dome.push(cap === 1
         ? [R * 0.165 * Math.cos(t * Math.PI / 2),
-           s * (hw * 0.88 + R * 0.090 * Math.sin(t * Math.PI / 2))]
-        : [R * 0.165 * (1 - t), s * (hw * 0.88 + R * 0.020)]);
+           s * (hwHub * 0.88 + R * 0.090 * Math.sin(t * Math.PI / 2))]
+        : [R * 0.165 * (1 - t), s * (hwHub * 0.88 + R * 0.020)]);
     }
     revolve(bags.alloy, ctr, ax, dome, 26);
   }
   if (P.whValve == null || P.whValve) {
     const an = Math.PI * 0.28;
     const b0 = at(R * 0.345, face * 0.80, an);
-    const b1 = at(R * 0.405, hw * 1.24, an);
+    const b1 = at(R * 0.405, hwHub * 1.24, an);
     taper(bags.dark, b0, b1, R * 0.030, R * 0.022, 8);
     revolve(bags.alloy, b1, nrm(sub(b1, b0)), [[R * 0.023, 0],
       [R * 0.023, R * 0.034], [R * 0.015, R * 0.040]], 10, true);
@@ -1782,7 +1831,7 @@ function legTailwheel(bags, AF, P, st) {
            castor: u };
 }
 
-window.GEAR_GEN = { MAT, TYRE, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
+window.GEAR_GEN = { MAT, TYRE, tyreTorus, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
                     padOn, exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,

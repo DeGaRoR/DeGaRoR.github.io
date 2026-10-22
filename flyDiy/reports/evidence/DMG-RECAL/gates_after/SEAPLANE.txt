@@ -1,0 +1,23 @@
+CIRCUIT (calm, the pilot, SEA -> SEA)
+   lift-off 9.3 s; touch 254.0 s at (0, 2611), water 94.3 m deep; stopped 302.2 s; max |x| on the water 0.1 m; phases: ROLL LIFTOFF CLIMB CROSSWIND DOWNWIND BASE FINAL FLARE ROLLOUT STOPPED
+PASS the circuit stays finite
+PASS off the water inside 25 s (9.3)
+PASS the touch is on the lane's deep water (94.3 m, 0 m off the centreline)
+PASS rolled out to STOPPED (302.2 s)
+PASS never more than 0.1 m off the centreline on the water (bound 30)
+
+CROSSWIND TAKE-OFF (5.0 m/s across the lane = 0.30 V_SO; FAR 23.233 asks 0.2)
+   lift-off 8.9 s (airborne = dry 2 s; 0 skips before it); the run: max |x| 7.2 m, max heading swing 11.2 deg from the roll's -0; phases: ROLL LIFTOFF CLIMB
+PASS off the water inside 25 s (8.9)
+PASS the pilot reaches CLIMB (G1882: ROLL LIFTOFF CLIMB)
+PASS 0 skips before the aeroplane is away (bound 2)
+PASS the run holds the lane: 7.2 m off (bound 30)
+PASS the heading swings 11.2 deg at most (bound 30)
+
+TAXI (5 m/s across, throttle held at idle, 60 s)
+   max |hdg| 9.4 deg, max |x| 0.9 m
+PASS the water rudder holds the heading within 9.4 deg (bound 20)
+PASS the track within 0.9 m (bound 10)
+
+GATE SEAPLANE: PASS
+exit 0 secs 478

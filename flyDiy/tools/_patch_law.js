@@ -22,7 +22,10 @@ module.exports = function patchLaw(O, PG, heightAt) {
   // the vertex law as buildPatchSteps writes it: Y0 = groundB(x, z) - <drop> * r - PATCH_TUCK.tuck * (1 - r) * (1 - r)
   const m = /Y0\[v\] = groundB\(x, z\) - (.+?) \* r - PATCH_TUCK\.tuck \* \(1 - r\) \* \(1 - r\);/.exec(RP);
   if (!m) throw new Error('_patch_law: the patch vertex law moved (render_premises.js buildPatchSteps)');
-  const S = new Function('O', 'PG', 'PCH', 'let patchAct = null;\n' + ext + '\n' + ac + '\n' + laws +
+  // (G3013's lone road's patch: activeChunks reads LONE_OFF (?lonepatch=0) and window.FLYDIY_LONEPATCH - the constant lifted as
+  //  the page declares it, `window` the rig's own when it set one, else an empty one)
+  const lone = lift(RP, '  const LONE_OFF = ', '\n');
+  const S = new Function('O', 'PG', 'PCH', 'let patchAct = null;\nconst window = typeof globalThis.window !== \'undefined\' ? globalThis.window : {};\n' + lone + '\n' + ext + '\n' + ac + '\n' + laws +
     '\nconst b = extentWorld(); patchAct = activeChunks(b); patchB = b;' +
     '\nreturn { patchDepth, ringSink, PATCH_TUCK, act: patchAct, b, dropAt: (x, z) => ' + m[1] + ', patchDrop: typeof patchDrop === "function" ? patchDrop : null };')(O, PG, 64);
   // the pavement's sink under the patch (render_premises sinkOf, G660 / G1001), the kind argument as the page passes it

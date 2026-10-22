@@ -110,9 +110,27 @@ const GEN_CERT = {
 const GEN_CERT_LAND = /^(drop|bow|taxiRough|g[A-Z]|w[A-Z])/;
 // the controls flown (genCertFlownCtl): a member's larger peak certifies it both ways
 const GEN_CERT_RING = /^flown(Elev|Rud)/;
-const GEN_CERT_V = 3;        // the certificate's own version (a cached answer is only valid for the rules that made it);
+// G1895 (DMG-TUNE): THE FLOOR OUTSIDE THE WING. GEN_CERT.kappa (0.1) is the floor D2a's census sized ON THE WING: from 0.2
+// it lifts the wing's strut and root joints off the certificate (the Cub's and the twin's first joint drifts, at 0.3 it
+// jumps to 9 g), so it stays the wing's - the wing's members, its root, strut and interplane joints and their links -
+// where the card's broke-at and the set past the limit live. Everywhere else (the fuselage, the engine mount, the tail,
+// the tanks) no card is read, and the 0.1 made a member a tenth of the material it is billed for: on the five validated
+// builds 40-77 % of the members sat on it (the Cub's 4130 fuselage tubes at 3-4 kN in tension where a 1/2 x 0.035 in
+// tube - the smallest of a Cub's truss, as recalled - yields at ~16 kN; the engine mount's tubes and bolts at 5 kN, so
+// one wing strike's yaw took the engine off). `body`: the floor there is half the member's physics - the smallest real
+// member of a class is about half the section the generator bills the class at (the Cub's 1/2-5/8 in diagonals against
+// its 1 in longerons' 74 mm2, as recalled from the type's tube schedule, not opened), and a mount at 0.5 x its 4130
+// tube's fitting break (~25 kN) is one AN5 bolt in single shear (25.6 kN, the AN bolt table as recalled). Kept apart
+// from GEN_CERT: the envelope (and its cache key, DMGCERTCOST's reference) does not depend on it.
+const GEN_CERT_FLOOR = { body: 0.5 };
+const GEN_CERT_V = 7;        // the certificate's own version (a cached answer is only valid for the rules that made it);
                              // 2: G1835-G1836 (DMG-D2b) - the gear's cases, the ground and water loads, the flaps;
-                             // 3: G1891 (DMG-CERTCOST) - the settle shared, a wheel landing's window 1.2 s (the same envelope)
+                             // 3: G1891 (DMG-CERTCOST) - the settle shared, a wheel landing's window 1.2 s (the same envelope);
+                             // 4: G1826 (DMG-DRIVE) - the engine's torque, side and gyroscopic loads on its mount (23.361 / .363 / .371)
+                             //    (merged after CERTCOST, which had also taken 3: a stored certificate without the drive cases is stale)
+                             // 5: G2014 (DMG-NOSE) - the nose's 9 g reacted at either corner (impactNoseL / R), the mount's mirror pairs alike
+                             // 6: G2361-G2363 (DMG-MOUNTRIG) - the nose engine on a mount ring (new members), its tubes and its isolators each one kind
+                             // 7: G2366 (DMG-BUNDLE-GREEN) - the whole airframe built symmetric (every member and its mirror one envelope)
 
 // is the damage layer on for this def? (30_solver's own DMG_ON: params.damage, else the page's ?damage, else the
 // default) - the page asks before it spends a thread on a certificate
@@ -418,11 +436,11 @@ function genCertProbeSim(def) {
 }
 function genCertAeroLoads(def, sim, o) {
   const n = def.nodes.length, { M, c } = genCertMass(def), W = M * 9.81, V = o.V;
-  const vel = a => [-V * Math.cos(a), -V * Math.sin(a), 0];
+  const vel = a => [-V * CORE_MATH.cos(a), -V * CORE_MATH.sin(a), 0];
   const thr = o.thr == null ? 1 : o.thr;
   sim.ctl.de = o.de || 0; sim.ctl.da = o.da || 0; sim.ctl.dr = o.dr || 0; sim.ctl.flap = o.flap || 0; sim.ctl.thr = thr;
   const pr = a => sim.probe(vel(a), true);
-  const Fn = (a) => { const r = pr(a); return -r.Fx * Math.sin(a) + r.Fy * Math.cos(a); };
+  const Fn = (a) => { const r = pr(a); return -r.Fx * CORE_MATH.sin(a) + r.Fy * CORE_MATH.cos(a); };
   // alpha for the load factor at this elevator (secant; the polar is smooth below the stall)
   const solveA = (target) => {
     let a0 = 0, a1 = 0.05, f0 = Fn(a0) - target, f1 = Fn(a1) - target;
@@ -550,7 +568,7 @@ function genCertDrop(def, sink, world, o, settled, frames) {
   if (o) {
     const [xA, , zR] = sim.axes(), c0 = sim.cgPos();
     let y0 = Infinity; for (let i = 0; i < n; i++) y0 = Math.min(y0, sim.p[i * 3 + 1] - def.nodes[i].r);
-    const turn = (k, th) => { const cs = Math.cos(th), sn = Math.sin(th);
+    const turn = (k, th) => { const cs = CORE_MATH.cos(th), sn = CORE_MATH.sin(th);
       for (let i = 0; i < n; i++) {
         const d = [sim.p[i*3] - c0[0], sim.p[i*3+1] - c0[1], sim.p[i*3+2] - c0[2]], kd = k[0]*d[0] + k[1]*d[1] + k[2]*d[2];
         const cr = [k[1]*d[2] - k[2]*d[1], k[2]*d[0] - k[0]*d[2], k[0]*d[1] - k[1]*d[0]];
@@ -588,7 +606,7 @@ function genCertBow(def, world) {
   const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
   const sim = makeSim(d2, world); sim.reset(0); placeAtAerodrome(sim, sea);
   const n = sim.n, p = sim.p, v = sim.v, ax = sim.axes(), xA = ax[0], k = ax[2], c0 = sim.cgPos();
-  const th = -20 * Math.PI / 180, cs = Math.cos(th), sn = Math.sin(th);
+  const th = -20 * Math.PI / 180, cs = CORE_MATH.cos(th), sn = CORE_MATH.sin(th);
   for (let i = 0; i < n; i++) {
     const d = [p[i*3] - c0[0], p[i*3+1] - c0[1], p[i*3+2] - c0[2]], kd = k[0]*d[0] + k[1]*d[1] + k[2]*d[2];
     const cr = [k[1]*d[2] - k[2]*d[1], k[2]*d[0] - k[0]*d[2], k[0]*d[1] - k[1]*d[0]];
@@ -658,7 +676,7 @@ function genCertGroundLoads(def, nTD) {
     // condition read for a twin-float installation: the step load on one float, the other clear)
     const g = (def.params && def.params.gen) || {}, Vso = (g.VsFlap || g.Vs || 25) / 0.5144, Wlb = W / 4.4482;
     const beta = ((FL[0].P && FL[0].P.beta) || 22) * Math.PI / 180, tb = Math.tan(beta);
-    const nw = Math.max(G.nwMin, G.C1 * Vso * Vso / (Math.pow(tb, 2 / 3) * Math.pow(Wlb, 1 / 3)));
+    const nw = Math.max(G.nwMin, G.C1 * Vso * Vso / (CORE_MATH.pow(tb, 2 / 3) * CORE_MATH.pow(Wlb, 1 / 3)));
     const st = f => [f.K[2], f.DL[2], f.DR[2]];
     const lift = F => { const wl = genCertDist(def, ['wing'], null); if (wl) for (let i = 0; i < n; i++) F[i * 3 + 1] += G.lift * W * wl[i]; };
     const onFloat = (F, f, up, side) => { for (const i of st(f)) add(F, i, 0, up / 3, side / 3); };
@@ -709,7 +727,7 @@ function genCertGroundLoads(def, nTD) {
 // sim under the probe. A world of its own (the ground, no water, no trees: makeWorld is seconds; this is nothing)
 function genCertTaxi(def) {
   const R = GEN_CERT.rough, k1 = 2 * Math.PI / R.lam, k2 = 2 * Math.PI / (0.43 * R.lam);
-  const W = { terrainH: (x, z) => R.A * Math.sin(k1 * x + 0.7) * Math.cos(0.8 * k1 * z) + 0.5 * R.A * Math.sin(k2 * (0.6 * x + 0.8 * z)),
+  const W = { terrainH: (x, z) => R.A * CORE_MATH.sin(k1 * x + 0.7) * CORE_MATH.cos(0.8 * k1 * z) + 0.5 * R.A * CORE_MATH.sin(k2 * (0.6 * x + 0.8 * z)),
               waterH: () => -1e9, trees: [], treesNear: (x, z, q) => { q.length = 0; return q; } };
   const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
   const sim = makeSim(d2, W); sim.reset(0);
@@ -791,7 +809,7 @@ function genCertSink(def) {
   const g = def.params && def.params.gen;
   if (!g || !(g.W > 0) || !(g.Sw > 0)) return 3.05;
   const WS = (g.W / 4.4482) / (g.Sw * 10.7639);
-  return Math.min(10, Math.max(7, 4.4 * Math.pow(WS, 0.25))) * 0.3048;
+  return Math.min(10, Math.max(7, 4.4 * CORE_MATH.pow(WS, 0.25))) * 0.3048;
 }
 
 // genCertify(def, opt) -> the certificate: per member the tension and compression envelopes at limit (N), and per
@@ -840,7 +858,7 @@ function* genCertifySteps(def, opt) {
     let Iz = 0; const { c } = genCertMass(def);
     for (const nd of def.nodes) { const dx = nd.p[0] - c[0], dy = nd.p[1] - c[1]; Iz += nd.m * (dx * dx + dy * dy); }
     for (const [nm, base] of [['pullAq', 'pullA'], ['pullDq', 'pullD']]) {
-      const V = aero[base].V, a0 = aero[base].alpha, vel = [-V * Math.cos(a0), -V * Math.sin(a0), 0];
+      const V = aero[base].V, a0 = aero[base].alpha, vel = [-V * CORE_MATH.cos(a0), -V * CORE_MATH.sin(a0), 0];
       const Mreq = Iz * 39 * L * (L - 1.5) / (V / 0.5144);
       const pm = de => { PS.ctl.de = de; PS.ctl.thr = 1; return PS.probe(vel, true).pitchUp - Mreq; };
       let d0 = aero[base].de, d1 = Math.min(1, d0 + 0.2), m0 = pm(d0), m1 = pm(d1);
@@ -917,7 +935,24 @@ function* genCertifySteps(def, opt) {
         let Mt = 0; for (let i = 0; i < n; i++) { F[i * 3] = def.nodes[i].m * k9; Mt += def.nodes[i].m; }
         for (const i of R) F[i * 3] -= Mt * k9 / R.length;
         put('impactNose', genCertForces(flight, genCertRelieve(def, F)));
+        // G2014 (DMG-NOSE): ...AND AT EITHER CORNER. A trunk is not always met on the centreline: off it (a crosswind's
+        // weathercock, a drift on the roll) the nose meets it at the engine's corner, and the reaction's moment loads the
+        // mount's two sides unequally - at 7.5 m/s from 210 deg the Cub's CGE-S0TR, certified 2.03 kN in compression (no
+        // case had loaded it), gave way where its mirror held (DMG-WINDBREAK open 1). The same 9 g, reacted at the thrust
+        // nodes of ONE side (the engine's corner: z < 0 left, as the generator's L tags; z > 0 right), so the mount
+        // members on both sides are certified for a corner hit
+        if (eng.length >= 2) for (const [nm, sd] of [['impactNoseL', -1], ['impactNoseR', 1]]) {
+          const Rc = eng.filter(i => sd * def.nodes[i].p[2] > 0.01);
+          if (!Rc.length) continue;
+          const F2 = new Float64Array(n * 3);
+          for (let i = 0; i < n; i++) F2[i * 3] = def.nodes[i].m * k9;
+          for (const i of Rc) F2[i * 3] -= Mt * k9 / Rc.length;
+          put(nm, genCertForces(flight, genCertRelieve(def, F2)));
+        }
       }
+      // G1826 (DMG-DRIVE): THE ENGINE'S OWN LOADS ON ITS MOUNT - 23.361's torque, 23.363's side load, 23.371's
+      // gyroscopic couple (33_drive.js; FAR 23 as recalled, A0 to open it) - on the same pinned airframe
+      if (typeof genCertDrive === 'function') for (const [nm, F] of genCertDrive(def, item)) put(nm, genCertForces(sysE, F));
     }
   }
   const tF = (typeof performance !== 'undefined' ? performance : Date).now();
@@ -983,7 +1018,7 @@ function* genCertifySteps(def, opt) {
 // THE ENVELOPE from the cases (each { t, c }: every member's peak at limit, tension and compression), in the cases' own
 // order (byT / byC: the governing case's index in `names`). G1890: its own function - the evidence re-reads it with a
 // case's window cut short
-function genCertCombine(def, cases) {
+function genCertCombine(def, cases, opt) {
   const nb = def.beams.length;
   const Ft = new Float64Array(nb), Fc = new Float64Array(nb), byT = new Int8Array(nb).fill(-1), byC = new Int8Array(nb).fill(-1);
   const names = Object.keys(cases);
@@ -1005,7 +1040,74 @@ function genCertCombine(def, cases) {
     const k = def.beams[bi].cls === 'gear' ? 1 : kL, r = ringC[ci] ? Math.max(C.t[bi], C.c[bi]) : 0;
     const t = Math.max(C.t[bi], r) * k, c = (def.beams[bi].tens ? C.c[bi] : Math.max(C.c[bi], r)) * k;
     if (t > Ft[bi]) { Ft[bi] = t; byT[bi] = ci; } if (c > Fc[bi]) { Fc[bi] = c; byC[bi] = ci; } } });
+  // G2014 (DMG-NOSE): THE MOUNT IS BUILT SYMMETRIC. A member of an engine's mount (an end on its ENG / CGE / MNT nodes)
+  // takes the larger envelope of itself and its mirror (the node across the centreline, to a millimetre): a builder
+  // welds both sides of a mount from one tube, and a case that loads one side only (the one-wheel drop rolls one way,
+  // the engine's torque turns one way) left the Cub's CGE-S0TR at 3.20 kN in tension where CGE-S0TL held 3.93. Only
+  // ever raises a limit
+  // G2366 (DMG-BUNDLE-GREEN): ...AND SO IS THE WHOLE AEROPLANE. The same rule on every member that has a mirror (the
+  // mount's pairs are among them): a builder builds the left float's struts, the left wing's strut fitting and the left
+  // longeron from the right's drawing. Measured without it, the one-sided cases (the one-float drop rolls one way, the
+  // drift drops, the engine's torque) left mirror pairs up to 2.1 x apart (the Cessna on floats' S2BL-S3BL 15.9 / 33.4
+  // kN); the twin's right float's struts 1.7 x under the left's, so its root (a bolt group of them) held 1.27 kN m in
+  // twist against the left's 1.87, and a 10 m/s beam wind on the water twisted it off at 1.0008 of that - at 0.68 of
+  // its mirror's. Only ever raises a limit
+  if (!(opt && opt.mirror === false)) for (const [i, j] of genCertMirrorAll(def)) {   // (opt.mirror false: the rules before, GATE DMGNOSE)
+    if (Ft[j] > Ft[i]) { Ft[i] = Ft[j]; byT[i] = byT[j]; } else if (Ft[i] > Ft[j]) { Ft[j] = Ft[i]; byT[j] = byT[i]; }
+    if (Fc[j] > Fc[i]) { Fc[i] = Fc[j]; byC[i] = byC[j]; } else if (Fc[i] > Fc[j]) { Fc[j] = Fc[i]; byC[j] = byC[i]; }
+  }
+  // G2363 (DMG-MOUNTRIG): A MOUNT IS WELDED FROM ONE TUBE AND HUNG ON ONE KIND OF ISOLATOR. A nose engine's mount
+  // (61_gen_frame's ring) is sized as a builder sizes one: every tube of it - the bearers and the ring - is the tube its
+  // worst member needs, every isolator the part its worst cup needs, and their bolts alike. Each member of a kind takes
+  // the largest envelope of its kind, tension and compression apart. Measured without it: the Cub's lower cross bearers
+  // (MNTBL-S0BR, the bottom V's diagonals) were certified by the engine's gyroscopic case alone, 2.0 kN in tension - on
+  // their floor (kappa x physics, 4.0 kN) - and a 2 m/s taxi into a trunk pulled them to 5.3 kN: the mount's fittings let
+  // go and it was a crash (the lower isolators to the CG sat at 0.97 of theirs). Only ever raises a limit
+  if (!(opt && opt.mount === false)) for (const G of genCertMountKinds(def)) {
+    let t = 0, c = 0, it = -1, ic = -1;
+    for (const bi of G) { if (Ft[bi] > t) { t = Ft[bi]; it = byT[bi]; } if (Fc[bi] > c) { c = Fc[bi]; ic = byC[bi]; } }
+    for (const bi of G) { if (Ft[bi] < t) { Ft[bi] = t; byT[bi] = it; } if (Fc[bi] < c) { Fc[bi] = c; byC[bi] = ic; } }
+  }
   return { Ft, Fc, byT, byC, names };
+}
+// the nose mount's kinds (G2363): [its tubes (a member with an end on a ring cup, MNT TL / TR / BL / BR, that is no
+// isolator), its isolators (parts.dmg.iso)] - none on a build without a ring
+function genCertMountKinds(def) {
+  const N = def.nodes, cup = i => /^MNT[TB][LR]$/.test(N[i].tag || ''), tube = [];
+  const iso = ((def.parts && def.parts.dmg && def.parts.dmg.iso) || []).slice(), isI = new Set(iso);
+  def.beams.forEach((b, bi) => { if (!isI.has(bi) && b.cls !== 'gear' && (cup(b.a) || cup(b.b))) tube.push(bi); });
+  return [tube, iso].filter(G => G.length > 1);
+}
+// the engine mount's mirror pairs [i, j] (G2014): members with an end on an ENG / CGE / MNT node whose mirror (each end's
+// node across z = 0 within a millimetre) is another member; computed once per def. genCertMirrorAll (G2366): every
+// member's
+const GEN_CERT_MIRROR = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+const GEN_CERT_MIRROR_ALL = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+function genCertMirrorAll(def) { return genCertMirror(def, true); }
+function genCertMirror(def, all) {
+  const MC = all ? GEN_CERT_MIRROR_ALL : GEN_CERT_MIRROR;
+  const hit = MC && MC.get(def.beams); if (hit) return hit;
+  const N = def.nodes, n = N.length, mir = new Int32Array(n).fill(-1), key = (a, b) => a < b ? a + ',' + b : b + ',' + a;
+  const grid = new Map(), cell = p => Math.round(p[0] * 1000) + ':' + Math.round(p[1] * 1000) + ':' + Math.round(p[2] * 1000);
+  for (let i = 0; i < n; i++) { const c = cell(N[i].p); if (!grid.has(c)) grid.set(c, []); grid.get(c).push(i); }
+  for (let i = 0; i < n; i++) {
+    const q = N[i].p, want = [q[0], q[1], -q[2]];
+    let best = -1, bd = 1e-3;
+    for (let dx = -1; dx <= 1 && best < 0; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      const c = (Math.round(want[0] * 1000) + dx) + ':' + (Math.round(want[1] * 1000) + dy) + ':' + (Math.round(want[2] * 1000) + dz);
+      for (const j of grid.get(c) || []) { const p = N[j].p, d = Math.hypot(p[0] - want[0], p[1] - want[1], p[2] - want[2]); if (d <= bd) { bd = d; best = j; } }
+    }
+    mir[i] = best;
+  }
+  const at = new Map(); def.beams.forEach((b, bi) => at.set(key(b.a, b.b), bi));
+  const item = i => /^(ENG|CGE|MNT)/.test(N[i].tag || ''), out = [];
+  def.beams.forEach((b, bi) => {
+    if (!(all || item(b.a) || item(b.b)) || mir[b.a] < 0 || mir[b.b] < 0) return;
+    const bj = at.get(key(mir[b.a], mir[b.b]));
+    if (bj != null && bj > bi) out.push([bi, bj]);
+  });
+  if (MC) MC.set(def.beams, out);
+  return out;
 }
 // G1890 (DMG-CERTCOST): THE EVIDENCE'S TAP - `frame(name, f, sim)` after every measured frame of a dynamic case (the
 // case's name, the frame since its window opened, the sim under the probe); null in the game (one compare a frame)
@@ -1014,6 +1116,62 @@ function genCertCombine(def, cases) {
 const GEN_CERT_HOOK = { frame: null, name: '', steps: 0 };
 function genCertTap(sim, f) { if (GEN_CERT_HOOK.frame) GEN_CERT_HOOK.frame(GEN_CERT_HOOK.name, f, sim); }
 function genCertStep(sim) { GEN_CERT_HOOK.steps++; sim.step(1 / 60); }
+// G1826 (DMG-DRIVE): THE ENGINE'S OWN LOADS ON ITS MOUNT, at LIMIT (FAR 23 as recalled - 23.361, 23.363, 23.371; A0 to open
+// them), each engine's item nodes (`item`: ENG / CGE / MNT, each given to the engine whose thrust node is nearest) loaded
+// on the airframe held where it is (the crash cases' pinned system):
+//   torque361 - the LIMIT torque (the mean torque at rated power and rpm through the reduction unit, x 23.361(c)'s factor
+//     by cylinders: 2 for a four, 4 for a two, 1.33 from five) as the engine's reaction to its propeller (the sense the
+//     build's engine turns, spec.engines[].sense), acting with condition A's 3.8 g on the engine (23.361(a)(2): at the
+//     maximum continuous torque with 100 % of A; a piston's take-off and maximum continuous torques are one number here);
+//   side363R / L - 1.33 g sideways on the engine, alone;
+//   gyro371 a-d - the propeller's spin (I w, the blade-as-bar inertia of 33_drive) precessed by a yaw of 2.5 rad/s and
+//     a pitch of 1.0 rad/s, both signs of each (the moment Omega x H on the mount), with 2.5 g and the maximum
+//     continuous (static) thrust.
+// A couple on the item nodes is laid out as a rigid body's angular acceleration would load them (F_i = m_i alpha x r_i,
+// alpha = I_item^-1 M about the item's own centre of mass): a pure moment, no net force.
+function genCertDrive(def, item) {
+  const out = [], n = def.nodes.length, DS = typeof genDriveSpec === 'function' ? genDriveSpec(def) : null;
+  if (!DS || !(DS.Q > 0)) return out;
+  const G = GEN_DRIVE.far, E = (def.refs && def.refs.engine) || [], EO = (def.refs && def.refs.engineOf) || E.map(() => 0);
+  const nE = (def.params && def.params.nEngines) || 1, sense = k => { const S = def.spec && def.spec.engines; return S && S[k] && +S[k].sense === -1 ? -1 : 1; };
+  // each item node to the engine of its nearest thrust node
+  const own = new Int32Array(n).fill(-1);
+  for (let i = 0; i < n; i++) if (item[i]) { let best = Infinity;
+    E.forEach((t, j) => { const a = def.nodes[i].p, b = def.nodes[t].p, d = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); if (d < best) { best = d; own[i] = EO[j] | 0; } }); }
+  const couple = (F, k, M) => {
+    let m = 0, c = [0, 0, 0];
+    for (let i = 0; i < n; i++) if (own[i] === k) { const w = def.nodes[i].m; m += w; for (let j = 0; j < 3; j++) c[j] += w * def.nodes[i].p[j]; }
+    if (!(m > 0)) return;
+    c = c.map(x => x / m);
+    const I = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < n; i++) if (own[i] === k) { const w = def.nodes[i].m, r = [0, 1, 2].map(j => def.nodes[i].p[j] - c[j]), r2 = r[0] * r[0] + r[1] * r[1] + r[2] * r[2];
+      for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) I[a * 3 + b] += w * ((a === b ? r2 : 0) - r[a] * r[b]); }
+    // (a set of nodes in a line has no inertia about it: the least eigen-direction is padded by a millimetre's worth)
+    for (let a = 0; a < 3; a++) I[a * 4] += 1e-6 * m;
+    const Ii = genCertInv(I, 3), al = [0, 1, 2].map(a => Ii[a * 3] * M[0] + Ii[a * 3 + 1] * M[1] + Ii[a * 3 + 2] * M[2]);
+    for (let i = 0; i < n; i++) if (own[i] === k) { const w = def.nodes[i].m, r = [0, 1, 2].map(j => def.nodes[i].p[j] - c[j]);
+      F[i * 3] += w * (al[1] * r[2] - al[2] * r[1]); F[i * 3 + 1] += w * (al[2] * r[0] - al[0] * r[2]); F[i * 3 + 2] += w * (al[0] * r[1] - al[1] * r[0]); }
+  };
+  const gload = (F, ax, gx) => { for (let i = 0; i < n; i++) if (own[i] >= 0) F[i * 3 + ax] += def.nodes[i].m * 9.81 * gx; };
+  // the engine's reaction to the prop it drives: about +x (aft) for a prop turning clockwise from behind (its spin is
+  // along -x, the body's x being aft); the limit torque at the prop shaft (the crank's through the reduction unit)
+  const Qlim = DS.tqK * DS.Qprop;
+  { const F = new Float64Array(n * 3); for (let k = 0; k < nE; k++) couple(F, k, [sense(k) * Qlim, 0, 0]); gload(F, 1, -GEN_CERT.limit); out.push(['torque361', F]); }
+  for (const [nm, sd] of [['side363R', 1], ['side363L', -1]]) { const F = new Float64Array(n * 3); gload(F, 2, sd * G.side); out.push([nm, F]); }
+  // the gyroscopic couple: H = I w along -x sense; the mount carries -(Omega x H) on the engine (the reaction to the
+  // precession it forces): with Omega = (0, q_yaw, q_pitch), Omega x H = (0, Omega_z H_x, -Omega_y H_x)
+  const Hx = -DS.I * DS.omegaR;
+  const T = def.params && def.params.prop ? def.params.prop.Tstatic : 0;
+  [['a', 1, 1], ['b', 1, -1], ['c', -1, 1], ['d', -1, -1]].forEach(([nm, sy, sz]) => {
+    const F = new Float64Array(n * 3), wy = sy * G.yaw, wz = sz * G.pitch;
+    for (let k = 0; k < nE; k++) { const h = sense(k) * Hx; couple(F, k, [0, -(wz * h), wy * h]); }
+    gload(F, 1, -G.gyroNz);
+    // the thrust (maximum continuous: the static thrust) at the thrust nodes, forward (-x)
+    if (T > 0) for (let k = 0; k < nE; k++) { const tn = E.filter((t, j) => (EO[j] | 0) === k); for (const t of tn) F[t * 3] -= T / tn.length; }
+    out.push(['gyro371' + nm, F]);
+  });
+  return out;
+}
 // THE CACHE: one certificate per build (its spec hash), a few builds deep
 const GEN_CERT_CACHE = new Map();
 function genCertAttach(def, opt) {

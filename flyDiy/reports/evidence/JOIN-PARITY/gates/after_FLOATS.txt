@@ -1,0 +1,38 @@
+BUILD
+   127 nodes, 519 beams, gross 489.3 kg; floats: L 4.60 m, beam 0.64 m, scale 1.000, 27.2 kg each, the pair displaces 1448 kg to the deck (2.96 x gross); step at x 1.21, keel y -0.46, track 1.60 m; substeps 105
+PASS two floats, two rigid clusters of 15 nodes (five stations, G451)
+PASS the step keels are the mains' refs, no third wheel
+PASS the pair displaces 2.96 x the gross (bound 1.5; the rule is 1.8)
+PASS the sea at (0, 1600): level 0, bed -44.5 m
+
+SETTLE (dropped from 0.3 m, throttle 0)
+   at rest: L/W 1.001, draft at the step 0.268 m, trim 4.45 deg, roll 0.00 deg (max 0.01 through the drop), max beam strain 0.0029
+PASS the settle stays finite
+PASS the water carries the weight: L/W 1.001 (bound +-3 %)
+PASS draft at the step 0.268 m (bound 0.15-0.40)
+PASS trim 4.45 deg nose-up at rest (bound 0.5-10)
+PASS level in roll: 0.00 deg at rest, 0.01 max
+PASS the frame's max strain 0.0029 (bound 0.06)
+
+TAKEOFF (full throttle from rest, stick back, eased past 14 m/s)
+   hump R/W 0.213 at 13.3 m/s; steps ventilated to 1.00 before lift-off; airborne at 4.7 s, 15.0 m/s; max roll 0.00 deg
+PASS the take-off stays finite
+PASS a hump of R/W 0.213 at 13.3 m/s (bound 0.10-0.45, under 14 m/s)
+PASS on the step: R/W 0.278 at most (at 16.6 m/s; bound 0.35), the trim between 0.1 and 10.7 deg (bound -1..12)
+PASS the steps ventilate before lift-off (1.00)
+PASS airborne inside 30 s (4.7 s)
+PASS roll under 5 deg through the run (0.00)
+
+LANDING (trimmed approach at 1.3 Vs, quarter throttle, 1 m/s down; throttle to idle at the touch)
+   Vs 16.6 -> approach 21.6 m/s; elevator 0.200 trims -1.06 m/s down
+   touch at 16.20 s, sinking 0.12 m/s; the water's lift frame by frame: 0.00 0.00 0.01 0.01 0.02 0.03 0.03 0.04 0.04 0.05 ... first peak 0.063 W after 15 frames; largest one-frame change 0.695 W; peak 1.686 W; 20 s on: V 3.1 m/s
+PASS the landing stays finite
+FAIL the touch at 0.12 m/s down (bound 0.35-1.6)
+PASS the water's lift climbs over 15 frames to its first peak (bound 3)
+FAIL no frame adds more than 0.695 W (bound 0.35)
+PASS the touchdown peaks at 1.686 W (bound 2)
+PASS an idle taxi 20 s after the touch: 3.1 m/s (bound 5)
+
+GATE FLOATS: FAIL (2)
+
+[exit 1 56 s]

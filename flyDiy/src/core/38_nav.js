@@ -48,6 +48,17 @@ function navLegGeom(A, B, x, z) {
   return { ux, uz, len, s, xt, rem: len - s, dtk: navDeg(Math.atan2(uz, ux)) };
 }
 
+// THE RADIO NAVAIDS (ASSETS-OCT G2909, 2026-10-12, PILOT's recipe): data only - no radio sim (the user has the
+// radio at low priority). Each is a waypoint the navigator can fly to, beside the aerodromes; a VOR is NOT a field,
+// so nothing that picks a destination lists it (the To pickers read world.aerodromes, never this list).
+// ANN: the Annette Island VOR/DME, FAA-published 55 03'37.471"N 131 34'42.238"W, elevation 174 ft (H class, DVOR,
+// 117.1 MHz); x / z by tools/geo.py lonlat_to_game at the PUBLISHED point, as a chart gives it (the 3D model,
+// navaid/DVOR-DME, stands at the disc's centre on the imagery, ~8 m from it).
+const NAV_FIXES = [
+  { id: 'ANN', name: 'Annette Island VOR/DME', kind: 'VOR/DME', freq: 117.1, lat: 55.060409, lon: -131.578399,
+    x: -1004.8, z: -1669.4, elev: 53 },
+];
+
 function navMake(opts) {
   opts = opts || {};
   const N = {
@@ -56,7 +67,12 @@ function navMake(opts) {
     last: null, arrived: false,
   };
   const asWp = w => (typeof w === 'string') ? N.find(w) : w;
-  N.add = (wp) => { N.db.push({ id: wp.id, name: wp.name || wp.id, x: wp.x, z: wp.z, elev: wp.elev || 0 }); return N; };
+  N.add = (wp) => {
+    const w = { id: wp.id, name: wp.name || wp.id, x: wp.x, z: wp.z, elev: wp.elev || 0 };
+    if (wp.kind) w.kind = wp.kind;            // a navaid's (NAV_FIXES); an aerodrome carries none
+    if (wp.freq) w.freq = wp.freq;
+    N.db.push(w); return N;
+  };
   if (opts.waypoints) for (const w of opts.waypoints) N.add(w);
   N.find = id => N.db.find(w => w.id === id) || null;
   N.clear = () => { N.fpl = []; N.active = -1; N.origin = null; N.mode = 'OFF'; N.last = null; N.arrived = false; return N; };
@@ -131,5 +147,5 @@ function navMake(opts) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE };
+  module.exports = { navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, NAV_FIXES };
 }

@@ -1,0 +1,12 @@
+  the user's Jodel: FAIL HOME > tw_ski          461 s | dep: turned 103.2 deg, roll 108.9 m in, lift-off 193.6 m | final 3555.7 m / 388.6 m, clear 149 m (ground) | td - | fuel 43.3 L | warnings go-around at 453.1 s | FAULTS crash (the damage ended the flight: the airframe crushed (1.9 kJ of plastic work)); yield (1609 member(s) yielded (first: {"beam":183,"cls":"wing","t":458.110138909246})); break (99 member(s) broke); prop-strike (the propeller struck); dent (the airframe dented) | phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>GOAROUND (670 s)
+    verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 26.2 m/s until clear | go-around: floating with 1623 m left (attempt 1) | vref-raised: the elevator cannot hold 26.1 m/s at this power — flying the approach faster
+    flares [{"low":518.5,"over":-161,"d":1655.4,"t":430.8}]
+    final {"h":423.6,"d":3555.7,"hC":130}
+  ok   1 the user's Jodel HOME > tw_ski: the game's flight (the 8 kt / 250 deg day, the page's pilot, the damage on)  ({"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1},"shake":true,"damage":true,"fuel":45,"mass":463})
+  FAIL 1 the user's Jodel HOME > tw_skia: stopped at Skyline Altiport with no fault (what the page saw)  (crash: the damage ended the flight: the airframe crushed (1.9 kJ of plastic work); yield: 1609 member(s) yielded (first: {"beam":183,"cls":"wing","t":458.110138909246}); break: 99 member(s) broke; prop-strike: the propeller struck; dent: the airframe dented)
+  FAIL 1 the user's Jodel HOME > tw_skia: landed on Skyline Altiport  (on null)
+  FAIL 1 the user's Jodel HOME > tw_skib: the final begun at the field's circuit height (>= 766 m, over the strip's 709 m)  (FINAL at 423.6 m MSL, 3555.7 m out (-285.2 m over the strip's highest ground; the circuit 130 m))
+  FAIL 1 the user's Jodel HOME > tw_skic: every flare armed over the strip, at most 25 m above it  (-161 m over the strip's lowest ground 1655.4 m out at 430.8 s)
+  ok   1 the user's Jodel HOME > tw_skid: the final's lowest node 3 m over the ground and the forest  (149 m (ground, 1254.3 m out))
+GATE ALTIPORT [shard 0/3]: FAIL (4)
+SHARD 0/3: 1 of 3 heavy jobs

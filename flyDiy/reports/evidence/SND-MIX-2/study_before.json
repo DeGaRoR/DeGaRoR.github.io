@@ -1,0 +1,9406 @@
+{
+ "when": "2026-10-13",
+ "sr": 48000,
+ "rows": [
+  {
+   "build": "jodel",
+   "state": "idle",
+   "persp": "cockpit",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -42.2,
+     "peak": -29.7
+    },
+    "prop": {
+     "lufs": null,
+     "peak": -70.8
+    },
+    "airframe": {
+     "lufs": null,
+     "peak": -240
+    },
+    "ambience": {
+     "lufs": -69.1,
+     "peak": -56.7
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -73.5,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -42.2,
+     "peak": -29.7
+    },
+    "master": {
+     "lufs": -41.6,
+     "peak": -29
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -29
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 3,
+   "rpm": 644,
+   "V": 0,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -42.2,
+     "st": -42.1,
+     "stMed": -42.2,
+     "m": -41.7,
+     "peak": -29.7
+    },
+    "airframe": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -69.1,
+     "st": -69,
+     "stMed": -69.8,
+     "m": -68.2,
+     "peak": -56.7
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "idle",
+   "persp": "chase",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -38.6,
+     "peak": -25.5
+    },
+    "prop": {
+     "lufs": null,
+     "peak": -78.9
+    },
+    "airframe": {
+     "lufs": null,
+     "peak": -240
+    },
+    "ambience": {
+     "lufs": -47.7,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": -61.8,
+     "peak": -46.1,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -38.6,
+     "peak": -25.5
+    },
+    "master": {
+     "lufs": -37.5,
+     "peak": -23.7
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -23.7
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 3,
+   "rpm": 644,
+   "V": 0,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -38.6,
+     "st": -38.5,
+     "stMed": -38.6,
+     "m": -38.1,
+     "peak": -25.5
+    },
+    "airframe": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -47.7,
+     "st": -47.1,
+     "stMed": -48,
+     "m": -46.4,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "taxi",
+   "persp": "cockpit",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -27.3,
+     "peak": -22
+    },
+    "prop": {
+     "lufs": -49,
+     "peak": -42.5
+    },
+    "airframe": {
+     "lufs": -42.4,
+     "peak": -23.8
+    },
+    "ambience": {
+     "lufs": -69.1,
+     "peak": -56.7
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -73.5,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -26.8,
+     "peak": -21.9
+    },
+    "master": {
+     "lufs": -26.2,
+     "peak": -17.7
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -17.7
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 3,
+   "rpm": 1500,
+   "V": 5,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -26.8,
+     "st": -26.8,
+     "stMed": -26.8,
+     "m": -26.8,
+     "peak": -21.9
+    },
+    "airframe": {
+     "lufs": -42.4,
+     "st": -41.9,
+     "stMed": -42.6,
+     "m": -40.2,
+     "peak": -23.8
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -69.1,
+     "st": -69,
+     "stMed": -69.8,
+     "m": -68.2,
+     "peak": -56.7
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -42.4,
+     "st": -41.9,
+     "stMed": -42.6,
+     "m": -40.2,
+     "peak": -23.8
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "taxi",
+   "persp": "chase",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -23.9,
+     "peak": -18.2
+    },
+    "prop": {
+     "lufs": -57.9,
+     "peak": -49.2
+    },
+    "airframe": {
+     "lufs": -55.4,
+     "peak": -36.8
+    },
+    "ambience": {
+     "lufs": -47.7,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": -61.8,
+     "peak": -46.1,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -23.9,
+     "peak": -18.2
+    },
+    "master": {
+     "lufs": -23.3,
+     "peak": -16.9
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -16.9
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 3,
+   "rpm": 1500,
+   "V": 5,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -23.9,
+     "st": -23.9,
+     "stMed": -23.9,
+     "m": -23.8,
+     "peak": -18.2
+    },
+    "airframe": {
+     "lufs": -55.4,
+     "st": -54.8,
+     "stMed": -55.5,
+     "m": -53.3,
+     "peak": -36.8
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -47.7,
+     "st": -47.1,
+     "stMed": -48,
+     "m": -46.4,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -55.4,
+     "st": -54.8,
+     "stMed": -55.5,
+     "m": -53.3,
+     "peak": -36.8
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "climb",
+   "persp": "cockpit",
+   "place": {
+    "place": "forest",
+    "x": 421,
+    "z": -1204,
+    "agl": 120
+   },
+   "buses": {
+    "engine": {
+     "lufs": -19.7,
+     "peak": -14.5
+    },
+    "prop": {
+     "lufs": -31,
+     "peak": -25.6
+    },
+    "airframe": {
+     "lufs": -39.7,
+     "peak": -26.2
+    },
+    "ambience": {
+     "lufs": null,
+     "peak": -61.3
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -18.9,
+     "peak": -14
+    },
+    "master": {
+     "lufs": -18.3,
+     "peak": -12.8
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -12.8
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 0,
+   "rpm": 2216,
+   "V": 26.1,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -18.9,
+     "st": -18.9,
+     "stMed": -18.9,
+     "m": -18.9,
+     "peak": -14
+    },
+    "airframe": {
+     "lufs": -39.7,
+     "st": -39.1,
+     "stMed": -40.3,
+     "m": -37.1,
+     "peak": -26.2
+    },
+    "music": null,
+    "ambience": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": -61.3
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -39.7,
+     "st": -39.1,
+     "stMed": -40.3,
+     "m": -37.1,
+     "peak": -26.2
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "climb",
+   "persp": "chase",
+   "place": {
+    "place": "forest",
+    "x": 421,
+    "z": -1204,
+    "agl": 120
+   },
+   "buses": {
+    "engine": {
+     "lufs": -16.5,
+     "peak": -11.5
+    },
+    "prop": {
+     "lufs": -41.7,
+     "peak": -33.8
+    },
+    "airframe": {
+     "lufs": -48.4,
+     "peak": -38.9
+    },
+    "ambience": {
+     "lufs": -52.3,
+     "peak": -40
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -16.4,
+     "peak": -11.3
+    },
+    "master": {
+     "lufs": -15.9,
+     "peak": -10.6
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -10.6
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 0,
+   "rpm": 2216,
+   "V": 26.1,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -16.4,
+     "st": -16.4,
+     "stMed": -16.4,
+     "m": -16.4,
+     "peak": -11.3
+    },
+    "airframe": {
+     "lufs": -48.4,
+     "st": -47.8,
+     "stMed": -48.9,
+     "m": -45.8,
+     "peak": -38.9
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -52.3,
+     "st": -50.8,
+     "stMed": -51.7,
+     "m": -49.1,
+     "peak": -40
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -48.4,
+     "st": -47.8,
+     "stMed": -48.9,
+     "m": -45.8,
+     "peak": -38.9
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "cruise",
+   "persp": "cockpit",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -21,
+     "peak": -16
+    },
+    "prop": {
+     "lufs": -34.7,
+     "peak": -29.1
+    },
+    "airframe": {
+     "lufs": -33.1,
+     "peak": -20
+    },
+    "ambience": {
+     "lufs": null,
+     "peak": -61.3
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": -27.9,
+     "peak": -10.5
+    },
+    "voice": {
+     "lufs": -24.7,
+     "peak": -10.5
+    },
+    "enginePlusProp": {
+     "lufs": -20.7,
+     "peak": -15.7
+    },
+    "master": {
+     "lufs": -19.2,
+     "peak": -8.6
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -8.6
+   },
+   "music": {
+    "id": "fma278391",
+    "title": "Peaceful Royalty Free Guitar - \"I'm Callin' Late\"",
+    "lufs": -19.2,
+    "trim": 1.445
+   },
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 0,
+   "rpm": 2063,
+   "V": 35.3,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -20.7,
+     "st": -20.7,
+     "stMed": -20.7,
+     "m": -20.6,
+     "peak": -15.7
+    },
+    "airframe": {
+     "lufs": -33.1,
+     "st": -32.5,
+     "stMed": -33.7,
+     "m": -30.5,
+     "peak": -20
+    },
+    "music": {
+     "lufs": -27.9,
+     "st": -26.8,
+     "stMed": -27.4,
+     "m": -22.5,
+     "peak": -10.5
+    },
+    "ambience": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": -61.3
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -33.1,
+     "st": -32.5,
+     "stMed": -33.7,
+     "m": -30.5,
+     "peak": -20
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "cruise",
+   "persp": "chase",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -18,
+     "peak": -12.6
+    },
+    "prop": {
+     "lufs": -45.3,
+     "peak": -36.4
+    },
+    "airframe": {
+     "lufs": -40.6,
+     "peak": -31.6
+    },
+    "ambience": {
+     "lufs": -50.4,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": -27.9,
+     "peak": -10.5
+    },
+    "voice": {
+     "lufs": -24.7,
+     "peak": -10.5
+    },
+    "enginePlusProp": {
+     "lufs": -18,
+     "peak": -12.5
+    },
+    "master": {
+     "lufs": -17,
+     "peak": -7.8
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -7.8
+   },
+   "music": {
+    "id": "fma278391",
+    "title": "Peaceful Royalty Free Guitar - \"I'm Callin' Late\"",
+    "lufs": -19.2,
+    "trim": 1.445
+   },
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 0,
+   "rpm": 2063,
+   "V": 35.3,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -18,
+     "st": -17.9,
+     "stMed": -18,
+     "m": -17.9,
+     "peak": -12.5
+    },
+    "airframe": {
+     "lufs": -40.6,
+     "st": -40,
+     "stMed": -41.1,
+     "m": -38,
+     "peak": -31.6
+    },
+    "music": {
+     "lufs": -27.9,
+     "st": -26.8,
+     "stMed": -27.4,
+     "m": -22.5,
+     "peak": -10.5
+    },
+    "ambience": {
+     "lufs": -50.4,
+     "st": -49.8,
+     "stMed": -50.6,
+     "m": -48.8,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -40.6,
+     "st": -40,
+     "stMed": -41.1,
+     "m": -38,
+     "peak": -31.6
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "taxiBrake",
+   "persp": "cockpit",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -27.4,
+     "peak": -22.1
+    },
+    "prop": {
+     "lufs": -49.1,
+     "peak": -42.5
+    },
+    "airframe": {
+     "lufs": -34.1,
+     "peak": -25.9
+    },
+    "ambience": {
+     "lufs": -69.1,
+     "peak": -56.7
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -73.5,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -26.9,
+     "peak": -21.8
+    },
+    "master": {
+     "lufs": -25.6,
+     "peak": -18.3
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -18.3
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 3,
+   "rpm": 1497,
+   "V": 3,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -26.9,
+     "st": -26.9,
+     "stMed": -26.9,
+     "m": -26.8,
+     "peak": -21.8
+    },
+    "airframe": {
+     "lufs": -34.1,
+     "st": -33.4,
+     "stMed": -34.2,
+     "m": -31.7,
+     "peak": -25.9
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -69.1,
+     "st": -69,
+     "stMed": -69.8,
+     "m": -68.2,
+     "peak": -56.7
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -49.3,
+     "st": -48.7,
+     "stMed": -49.5,
+     "m": -47,
+     "peak": -30.1
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": -34.3,
+     "st": -33.5,
+     "stMed": -34.3,
+     "m": -31.8,
+     "peak": -30.8
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "taxiBrake",
+   "persp": "chase",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -24,
+     "peak": -18.1
+    },
+    "prop": {
+     "lufs": -57.9,
+     "peak": -49.2
+    },
+    "airframe": {
+     "lufs": -28.5,
+     "peak": -24.2
+    },
+    "ambience": {
+     "lufs": -47.7,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": -61.8,
+     "peak": -46.1,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -23.9,
+     "peak": -18
+    },
+    "master": {
+     "lufs": -22,
+     "peak": -14.8
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -14.8
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 3,
+   "rpm": 1497,
+   "V": 3,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -23.9,
+     "st": -23.9,
+     "stMed": -23.9,
+     "m": -23.9,
+     "peak": -18
+    },
+    "airframe": {
+     "lufs": -28.5,
+     "st": -27.8,
+     "stMed": -28.6,
+     "m": -25.9,
+     "peak": -24.2
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -47.7,
+     "st": -47.1,
+     "stMed": -48,
+     "m": -46.4,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -62.2,
+     "st": -61.6,
+     "stMed": -62.4,
+     "m": -60,
+     "peak": -43.3
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": -28.5,
+     "st": -27.8,
+     "stMed": -28.6,
+     "m": -25.9,
+     "peak": -24.9
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "pivot",
+   "persp": "cockpit",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -27.4,
+     "peak": -22
+    },
+    "prop": {
+     "lufs": -49.1,
+     "peak": -42.5
+    },
+    "airframe": {
+     "lufs": -37.7,
+     "peak": -30.5
+    },
+    "ambience": {
+     "lufs": -69.1,
+     "peak": -56.7
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -73.5,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -26.9,
+     "peak": -21.6
+    },
+    "master": {
+     "lufs": -26,
+     "peak": -19.4
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -19.4
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 3,
+   "rpm": 1495,
+   "V": 1,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -26.9,
+     "st": -26.9,
+     "stMed": -26.9,
+     "m": -26.8,
+     "peak": -21.6
+    },
+    "airframe": {
+     "lufs": -37.7,
+     "st": -37,
+     "stMed": -37.8,
+     "m": -35.3,
+     "peak": -30.5
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -69.1,
+     "st": -69,
+     "stMed": -69.8,
+     "m": -68.2,
+     "peak": -56.7
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -56.3,
+     "st": -55.8,
+     "stMed": -56.5,
+     "m": -54,
+     "peak": -36.8
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": -37.7,
+     "st": -37,
+     "stMed": -37.8,
+     "m": -35.3,
+     "peak": -34.3
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": -51.2
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "pivot",
+   "persp": "chase",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -24,
+     "peak": -18
+    },
+    "prop": {
+     "lufs": -58,
+     "peak": -49.7
+    },
+    "airframe": {
+     "lufs": -32,
+     "peak": -27.9
+    },
+    "ambience": {
+     "lufs": -47.7,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": -61.8,
+     "peak": -46.1,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -23.9,
+     "peak": -17.9
+    },
+    "master": {
+     "lufs": -22.7,
+     "peak": -15.4
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -15.4
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 3,
+   "rpm": 1495,
+   "V": 1,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -23.9,
+     "st": -23.9,
+     "stMed": -23.9,
+     "m": -23.9,
+     "peak": -17.9
+    },
+    "airframe": {
+     "lufs": -32,
+     "st": -31.2,
+     "stMed": -32.1,
+     "m": -29.4,
+     "peak": -27.9
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -47.7,
+     "st": -47.1,
+     "stMed": -48,
+     "m": -46.4,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -68.5,
+     "st": -68.4,
+     "stMed": -69.1,
+     "m": -66.9,
+     "peak": -49.9
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": -32,
+     "st": -31.2,
+     "stMed": -32.1,
+     "m": -29.4,
+     "peak": -28.4
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "touchdown",
+   "persp": "cockpit",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -38.8,
+     "peak": -29.1
+    },
+    "prop": {
+     "lufs": null,
+     "peak": -66.1
+    },
+    "airframe": {
+     "lufs": -21.7,
+     "peak": -2.2
+    },
+    "ambience": {
+     "lufs": -69.1,
+     "peak": -56.7
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -73.5,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -38.8,
+     "peak": -29
+    },
+    "master": {
+     "lufs": -21,
+     "peak": -1.6
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -1.6
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 3,
+   "rpm": 860,
+   "V": 22.6,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -38.8,
+     "st": -38.7,
+     "stMed": -38.8,
+     "m": -38.4,
+     "peak": -29
+    },
+    "airframe": {
+     "lufs": -21.7,
+     "st": -20.8,
+     "stMed": -22.6,
+     "m": -15.7,
+     "peak": -2.2
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -69.1,
+     "st": -69,
+     "stMed": -69.8,
+     "m": -68.2,
+     "peak": -56.7
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -43,
+     "st": -42.4,
+     "stMed": -43.6,
+     "m": -40.4,
+     "peak": -29.4
+    },
+    "ground": {
+     "lufs": -22.4,
+     "st": -21.8,
+     "stMed": -22.6,
+     "m": -19.4,
+     "peak": -5.2
+    },
+    "rattle": {
+     "lufs": -46.4,
+     "st": -45.3,
+     "stMed": -46.3,
+     "m": -39.6,
+     "peak": -22.1
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": -22.3,
+     "st": -29.9,
+     "stMed": -47.1,
+     "m": -21.3,
+     "peak": -7.8
+    },
+    "chirp": {
+     "lufs": -21.6,
+     "st": -29.4,
+     "stMed": null,
+     "m": -20.6,
+     "peak": -12.3
+    },
+    "thump": {
+     "lufs": -36,
+     "st": -43.7,
+     "stMed": null,
+     "m": -35,
+     "peak": -15.6
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "touchdown",
+   "persp": "chase",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -35.3,
+     "peak": -25
+    },
+    "prop": {
+     "lufs": null,
+     "peak": -70.2
+    },
+    "airframe": {
+     "lufs": -29.3,
+     "peak": -5.5
+    },
+    "ambience": {
+     "lufs": -47.7,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": -61.8,
+     "peak": -46.1,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -35.3,
+     "peak": -25
+    },
+    "master": {
+     "lufs": -28.6,
+     "peak": -5.6
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -5.6
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 3,
+   "rpm": 860,
+   "V": 22.6,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -35.3,
+     "st": -35.2,
+     "stMed": -35.3,
+     "m": -35,
+     "peak": -25
+    },
+    "airframe": {
+     "lufs": -29.3,
+     "st": -26.9,
+     "stMed": -35.1,
+     "m": -18.7,
+     "peak": -5.5
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -47.7,
+     "st": -47.1,
+     "stMed": -48,
+     "m": -46.4,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -53,
+     "st": -52.4,
+     "stMed": -53.6,
+     "m": -50.4,
+     "peak": -43.5
+    },
+    "ground": {
+     "lufs": -35.2,
+     "st": -34.6,
+     "stMed": -35.5,
+     "m": -32.2,
+     "peak": -18.5
+    },
+    "rattle": {
+     "lufs": -54,
+     "st": -52.9,
+     "stMed": -53.8,
+     "m": -47.1,
+     "peak": -29.7
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": -26.7,
+     "st": -34.3,
+     "stMed": -51.4,
+     "m": -25.7,
+     "peak": -11.4
+    },
+    "chirp": {
+     "lufs": -22,
+     "st": -29.8,
+     "stMed": null,
+     "m": -21.1,
+     "peak": -14.4
+    },
+    "thump": {
+     "lufs": -53.8,
+     "st": -61.6,
+     "stMed": null,
+     "m": -52.8,
+     "peak": -34.2
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "turbulence",
+   "persp": "cockpit",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -21,
+     "peak": -16
+    },
+    "prop": {
+     "lufs": -34.7,
+     "peak": -29.1
+    },
+    "airframe": {
+     "lufs": -33,
+     "peak": -20
+    },
+    "ambience": {
+     "lufs": null,
+     "peak": -61.3
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": -27.9,
+     "peak": -10.5
+    },
+    "voice": {
+     "lufs": -24.7,
+     "peak": -10.5
+    },
+    "enginePlusProp": {
+     "lufs": -20.7,
+     "peak": -15.7
+    },
+    "master": {
+     "lufs": -19.2,
+     "peak": -8.6
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -8.6
+   },
+   "music": {
+    "id": "fma278391",
+    "title": "Peaceful Royalty Free Guitar - \"I'm Callin' Late\"",
+    "lufs": -19.2,
+    "trim": 1.445
+   },
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 0,
+   "rpm": 2063,
+   "V": 35.3,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -20.7,
+     "st": -20.7,
+     "stMed": -20.7,
+     "m": -20.6,
+     "peak": -15.7
+    },
+    "airframe": {
+     "lufs": -33,
+     "st": -32.3,
+     "stMed": -33.7,
+     "m": -30,
+     "peak": -20
+    },
+    "music": {
+     "lufs": -27.9,
+     "st": -26.8,
+     "stMed": -27.4,
+     "m": -22.5,
+     "peak": -10.5
+    },
+    "ambience": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": -61.3
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -33.1,
+     "st": -32.5,
+     "stMed": -33.7,
+     "m": -30.5,
+     "peak": -20
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": -41.7,
+     "st": -46.1,
+     "stMed": null,
+     "m": -39.1,
+     "peak": -23.6
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "turbulence",
+   "persp": "chase",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -18,
+     "peak": -12.6
+    },
+    "prop": {
+     "lufs": -45.3,
+     "peak": -36.4
+    },
+    "airframe": {
+     "lufs": -40.6,
+     "peak": -31.6
+    },
+    "ambience": {
+     "lufs": -50.4,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": -27.9,
+     "peak": -10.5
+    },
+    "voice": {
+     "lufs": -24.7,
+     "peak": -10.5
+    },
+    "enginePlusProp": {
+     "lufs": -18,
+     "peak": -12.5
+    },
+    "master": {
+     "lufs": -17,
+     "peak": -7.8
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -7.8
+   },
+   "music": {
+    "id": "fma278391",
+    "title": "Peaceful Royalty Free Guitar - \"I'm Callin' Late\"",
+    "lufs": -19.2,
+    "trim": 1.445
+   },
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 0,
+   "rpm": 2063,
+   "V": 35.3,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -18,
+     "st": -17.9,
+     "stMed": -18,
+     "m": -17.9,
+     "peak": -12.5
+    },
+    "airframe": {
+     "lufs": -40.6,
+     "st": -40,
+     "stMed": -41.1,
+     "m": -38,
+     "peak": -31.6
+    },
+    "music": {
+     "lufs": -27.9,
+     "st": -26.8,
+     "stMed": -27.4,
+     "m": -22.5,
+     "peak": -10.5
+    },
+    "ambience": {
+     "lufs": -50.4,
+     "st": -49.8,
+     "stMed": -50.6,
+     "m": -48.8,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -40.6,
+     "st": -40,
+     "stMed": -41.1,
+     "m": -38,
+     "peak": -31.6
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "stall",
+   "persp": "cockpit",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -31,
+     "peak": -24
+    },
+    "prop": {
+     "lufs": -60.7,
+     "peak": -53
+    },
+    "airframe": {
+     "lufs": -16.1,
+     "peak": -13.3
+    },
+    "ambience": {
+     "lufs": null,
+     "peak": -61.3
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -30.9,
+     "peak": -23.8
+    },
+    "master": {
+     "lufs": -15.4,
+     "peak": -10.9
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -10.9
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 0,
+   "rpm": 1215,
+   "V": 19.7,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -30.9,
+     "st": -30.8,
+     "stMed": -30.9,
+     "m": -30.7,
+     "peak": -23.8
+    },
+    "airframe": {
+     "lufs": -16.1,
+     "st": -16,
+     "stMed": -16,
+     "m": -16,
+     "peak": -13.3
+    },
+    "music": null,
+    "ambience": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": -61.3
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -45.9,
+     "st": -45.3,
+     "stMed": -46.4,
+     "m": -43.3,
+     "peak": -32.2
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": -16.1,
+     "st": -16,
+     "stMed": -16,
+     "m": -16,
+     "peak": -13.5
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "stall",
+   "persp": "chase",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -27.8,
+     "peak": -20.2
+    },
+    "prop": {
+     "lufs": -67,
+     "peak": -58.1
+    },
+    "airframe": {
+     "lufs": -55.5,
+     "peak": -45.8
+    },
+    "ambience": {
+     "lufs": -50.4,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -27.7,
+     "peak": -20.2
+    },
+    "master": {
+     "lufs": -27.1,
+     "peak": -19.1
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -19.1
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 0,
+   "rpm": 1215,
+   "V": 19.7,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -27.7,
+     "st": -27.7,
+     "stMed": -27.7,
+     "m": -27.6,
+     "peak": -20.2
+    },
+    "airframe": {
+     "lufs": -55.5,
+     "st": -54.9,
+     "stMed": -56.1,
+     "m": -52.9,
+     "peak": -45.8
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -50.4,
+     "st": -49.8,
+     "stMed": -50.6,
+     "m": -48.8,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -55.5,
+     "st": -54.9,
+     "stMed": -56.1,
+     "m": -52.9,
+     "peak": -45.8
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "flaps",
+   "persp": "cockpit",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -30.7,
+     "peak": -23.9
+    },
+    "prop": {
+     "lufs": -59.3,
+     "peak": -51.3
+    },
+    "airframe": {
+     "lufs": -20.9,
+     "peak": -12.7
+    },
+    "ambience": {
+     "lufs": null,
+     "peak": -61.3
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -30.5,
+     "peak": -23.7
+    },
+    "master": {
+     "lufs": -24.1,
+     "peak": -10.1
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -10.1
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 0,
+   "rpm": 1269,
+   "V": 24.5,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -30.5,
+     "st": -30.5,
+     "stMed": -30.5,
+     "m": -30.4,
+     "peak": -23.7
+    },
+    "airframe": {
+     "lufs": -20.9,
+     "st": -22,
+     "stMed": -25,
+     "m": -20.2,
+     "peak": -12.7
+    },
+    "music": null,
+    "ambience": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": -61.3
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -41.6,
+     "st": -41,
+     "stMed": -42.1,
+     "m": -39,
+     "peak": -28
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": -21,
+     "st": -22.1,
+     "stMed": -25.1,
+     "m": -20.3,
+     "peak": -16.5
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": -35.4,
+     "st": -44.2,
+     "stMed": null,
+     "m": -35.4,
+     "peak": -16
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "flaps",
+   "persp": "chase",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -27.5,
+     "peak": -20.1
+    },
+    "prop": {
+     "lufs": -65.5,
+     "peak": -56.7
+    },
+    "airframe": {
+     "lufs": -45.6,
+     "peak": -34.8
+    },
+    "ambience": {
+     "lufs": -50.4,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -27.5,
+     "peak": -20.1
+    },
+    "master": {
+     "lufs": -26.8,
+     "peak": -18.4
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -18.4
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 0,
+   "rpm": 1269,
+   "V": 24.5,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -27.5,
+     "st": -27.5,
+     "stMed": -27.5,
+     "m": -27.4,
+     "peak": -20.1
+    },
+    "airframe": {
+     "lufs": -45.6,
+     "st": -42.7,
+     "stMed": -45.1,
+     "m": -41.2,
+     "peak": -34.8
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -50.4,
+     "st": -49.8,
+     "stMed": -50.6,
+     "m": -48.8,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -49.8,
+     "st": -49.2,
+     "stMed": -50.4,
+     "m": -47.2,
+     "peak": -40.3
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": -42.9,
+     "st": -44,
+     "stMed": -47,
+     "m": -42.2,
+     "peak": -38.4
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": -64.6,
+     "st": null,
+     "stMed": null,
+     "m": -64.6,
+     "peak": -44.7
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "grass",
+   "persp": "cockpit",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -27.3,
+     "peak": -22.1
+    },
+    "prop": {
+     "lufs": -48.8,
+     "peak": -42.3
+    },
+    "airframe": {
+     "lufs": -32.1,
+     "peak": -14.8
+    },
+    "ambience": {
+     "lufs": -69.1,
+     "peak": -56.7
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -73.5,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -26.8,
+     "peak": -21.9
+    },
+    "master": {
+     "lufs": -25.1,
+     "peak": -12.2
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -12.2
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 3,
+   "rpm": 1508,
+   "V": 8,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -26.8,
+     "st": -26.8,
+     "stMed": -26.8,
+     "m": -26.7,
+     "peak": -21.9
+    },
+    "airframe": {
+     "lufs": -32.1,
+     "st": -31.6,
+     "stMed": -32.2,
+     "m": -29.7,
+     "peak": -14.8
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -69.1,
+     "st": -69,
+     "stMed": -69.8,
+     "m": -68.2,
+     "peak": -56.7
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -61.4,
+     "st": -60.8,
+     "stMed": -61.9,
+     "m": -58.8,
+     "peak": -47.5
+    },
+    "ground": {
+     "lufs": -33.4,
+     "st": -32.9,
+     "stMed": -33.5,
+     "m": -31.4,
+     "peak": -15.6
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": -42.6,
+     "st": -47.1,
+     "stMed": null,
+     "m": -40.1,
+     "peak": -24.9
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": -36.8,
+     "st": -35.9,
+     "stMed": -36.9,
+     "m": -33,
+     "peak": -15.2
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "grass",
+   "persp": "chase",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -23.9,
+     "peak": -18.1
+    },
+    "prop": {
+     "lufs": -57.7,
+     "peak": -49.1
+    },
+    "airframe": {
+     "lufs": -42.4,
+     "peak": -27.9
+    },
+    "ambience": {
+     "lufs": -47.7,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": -61.8,
+     "peak": -46.1,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -23.8,
+     "peak": -18
+    },
+    "master": {
+     "lufs": -23.2,
+     "peak": -16.2
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -16.2
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 3,
+   "rpm": 1508,
+   "V": 8,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -23.8,
+     "st": -23.8,
+     "stMed": -23.8,
+     "m": -23.7,
+     "peak": -18
+    },
+    "airframe": {
+     "lufs": -42.4,
+     "st": -42.2,
+     "stMed": -42.4,
+     "m": -41.5,
+     "peak": -27.9
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -47.7,
+     "st": -47.1,
+     "stMed": -48,
+     "m": -46.4,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -42.6,
+     "st": -42.4,
+     "stMed": -42.6,
+     "m": -41.7,
+     "peak": -27.9
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": -54.8,
+     "st": -54,
+     "stMed": -54.9,
+     "m": -51,
+     "peak": -34.7
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "gravel",
+   "persp": "cockpit",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -27.3,
+     "peak": -22.1
+    },
+    "prop": {
+     "lufs": -48.8,
+     "peak": -42.3
+    },
+    "airframe": {
+     "lufs": -40.4,
+     "peak": -23.6
+    },
+    "ambience": {
+     "lufs": -69.1,
+     "peak": -56.7
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -73.5,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -26.8,
+     "peak": -21.9
+    },
+    "master": {
+     "lufs": -26,
+     "peak": -17.4
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -17.4
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 3,
+   "rpm": 1508,
+   "V": 8,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -26.8,
+     "st": -26.8,
+     "stMed": -26.8,
+     "m": -26.7,
+     "peak": -21.9
+    },
+    "airframe": {
+     "lufs": -40.4,
+     "st": -39.6,
+     "stMed": -40.7,
+     "m": -37.6,
+     "peak": -23.6
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -69.1,
+     "st": -69,
+     "stMed": -69.8,
+     "m": -68.2,
+     "peak": -56.7
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -61.4,
+     "st": -60.8,
+     "stMed": -61.9,
+     "m": -58.8,
+     "peak": -47.5
+    },
+    "ground": {
+     "lufs": -40.6,
+     "st": -40.1,
+     "stMed": -40.7,
+     "m": -38.8,
+     "peak": -23.6
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": -43.2,
+     "st": -48.4,
+     "stMed": null,
+     "m": -41.6,
+     "peak": -26.9
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "jodel",
+   "state": "gravel",
+   "persp": "chase",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -23.9,
+     "peak": -18.1
+    },
+    "prop": {
+     "lufs": -57.7,
+     "peak": -49.1
+    },
+    "airframe": {
+     "lufs": -42.1,
+     "peak": -29.8
+    },
+    "ambience": {
+     "lufs": -47.7,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": -61.8,
+     "peak": -46.1,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -23.8,
+     "peak": -18
+    },
+    "master": {
+     "lufs": -23.2,
+     "peak": -16.6
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -16.6
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "wood",
+    "insulationDb": 11,
+    "ambienceDb": 9
+   },
+   "emitterCalls": 3,
+   "rpm": 1508,
+   "V": 8,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -23.8,
+     "st": -23.8,
+     "stMed": -23.8,
+     "m": -23.7,
+     "peak": -18
+    },
+    "airframe": {
+     "lufs": -42.1,
+     "st": -41.9,
+     "stMed": -42.2,
+     "m": -41.4,
+     "peak": -29.8
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -47.7,
+     "st": -47.1,
+     "stMed": -48,
+     "m": -46.4,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -42.1,
+     "st": -41.9,
+     "stMed": -42.2,
+     "m": -41.4,
+     "peak": -29.8
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "idle",
+   "persp": "cockpit",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -40.1,
+     "peak": -27.1
+    },
+    "prop": {
+     "lufs": null,
+     "peak": -67.9
+    },
+    "airframe": {
+     "lufs": null,
+     "peak": -240
+    },
+    "ambience": {
+     "lufs": -66.5,
+     "peak": -53.7
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -70.5,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -40.1,
+     "peak": -27.1
+    },
+    "master": {
+     "lufs": -39.5,
+     "peak": -26.4
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -26.4
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 3,
+   "rpm": 644,
+   "V": 0,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -40.1,
+     "st": -40,
+     "stMed": -40.1,
+     "m": -39.7,
+     "peak": -27.1
+    },
+    "airframe": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -66.5,
+     "st": -66,
+     "stMed": -66.8,
+     "m": -65.2,
+     "peak": -53.7
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "idle",
+   "persp": "chase",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -38.6,
+     "peak": -25.5
+    },
+    "prop": {
+     "lufs": null,
+     "peak": -77.8
+    },
+    "airframe": {
+     "lufs": null,
+     "peak": -240
+    },
+    "ambience": {
+     "lufs": -47.7,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": -61.8,
+     "peak": -46.1,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -38.6,
+     "peak": -25.5
+    },
+    "master": {
+     "lufs": -37.5,
+     "peak": -23.7
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -23.7
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 3,
+   "rpm": 644,
+   "V": 0,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -38.6,
+     "st": -38.5,
+     "stMed": -38.6,
+     "m": -38.1,
+     "peak": -25.5
+    },
+    "airframe": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -47.7,
+     "st": -47.1,
+     "stMed": -48,
+     "m": -46.4,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "taxi",
+   "persp": "cockpit",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -25.5,
+     "peak": -19.8
+    },
+    "prop": {
+     "lufs": -45.4,
+     "peak": -38.8
+    },
+    "airframe": {
+     "lufs": -42.1,
+     "peak": -23.4
+    },
+    "ambience": {
+     "lufs": -66.5,
+     "peak": -53.7
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -70.5,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -24.9,
+     "peak": -19.4
+    },
+    "master": {
+     "lufs": -24.3,
+     "peak": -15.8
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -15.8
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 3,
+   "rpm": 1500,
+   "V": 5,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -24.9,
+     "st": -24.9,
+     "stMed": -24.9,
+     "m": -24.8,
+     "peak": -19.4
+    },
+    "airframe": {
+     "lufs": -42.1,
+     "st": -41.5,
+     "stMed": -42.3,
+     "m": -39.9,
+     "peak": -23.4
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -66.5,
+     "st": -66,
+     "stMed": -66.8,
+     "m": -65.2,
+     "peak": -53.7
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -42.1,
+     "st": -41.5,
+     "stMed": -42.3,
+     "m": -39.9,
+     "peak": -23.4
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "taxi",
+   "persp": "chase",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -24,
+     "peak": -18.2
+    },
+    "prop": {
+     "lufs": -56.6,
+     "peak": -47.9
+    },
+    "airframe": {
+     "lufs": -55.4,
+     "peak": -36.8
+    },
+    "ambience": {
+     "lufs": -47.7,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": -61.8,
+     "peak": -46.1,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -23.9,
+     "peak": -18.1
+    },
+    "master": {
+     "lufs": -23.3,
+     "peak": -16.9
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -16.9
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 3,
+   "rpm": 1500,
+   "V": 5,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -23.9,
+     "st": -23.9,
+     "stMed": -23.9,
+     "m": -23.8,
+     "peak": -18.1
+    },
+    "airframe": {
+     "lufs": -55.4,
+     "st": -54.8,
+     "stMed": -55.5,
+     "m": -53.3,
+     "peak": -36.8
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -47.7,
+     "st": -47.1,
+     "stMed": -48,
+     "m": -46.4,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -55.4,
+     "st": -54.8,
+     "stMed": -55.5,
+     "m": -53.3,
+     "peak": -36.8
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "climb",
+   "persp": "cockpit",
+   "place": {
+    "place": "forest",
+    "x": 421,
+    "z": -1204,
+    "agl": 120
+   },
+   "buses": {
+    "engine": {
+     "lufs": -18.1,
+     "peak": -13.1
+    },
+    "prop": {
+     "lufs": -28.1,
+     "peak": -23.1
+    },
+    "airframe": {
+     "lufs": -42.7,
+     "peak": -29.1
+    },
+    "ambience": {
+     "lufs": -69.3,
+     "peak": -58.3
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -16.9,
+     "peak": -12.6
+    },
+    "master": {
+     "lufs": -16.4,
+     "peak": -11.6
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -11.6
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 0,
+   "rpm": 2218,
+   "V": 22.5,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -16.9,
+     "st": -16.9,
+     "stMed": -16.9,
+     "m": -16.9,
+     "peak": -12.6
+    },
+    "airframe": {
+     "lufs": -42.7,
+     "st": -42.1,
+     "stMed": -43.3,
+     "m": -40.1,
+     "peak": -29.1
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -69.3,
+     "st": -69.5,
+     "stMed": -70,
+     "m": -67.7,
+     "peak": -58.3
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -42.7,
+     "st": -42.1,
+     "stMed": -43.3,
+     "m": -40.1,
+     "peak": -29.1
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "climb",
+   "persp": "chase",
+   "place": {
+    "place": "forest",
+    "x": 421,
+    "z": -1204,
+    "agl": 120
+   },
+   "buses": {
+    "engine": {
+     "lufs": -16.6,
+     "peak": -11.5
+    },
+    "prop": {
+     "lufs": -40.5,
+     "peak": -31.8
+    },
+    "airframe": {
+     "lufs": -53.1,
+     "peak": -43.4
+    },
+    "ambience": {
+     "lufs": -52.3,
+     "peak": -40
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -16.4,
+     "peak": -11.3
+    },
+    "master": {
+     "lufs": -15.9,
+     "peak": -10.6
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -10.6
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 0,
+   "rpm": 2218,
+   "V": 22.5,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -16.4,
+     "st": -16.4,
+     "stMed": -16.4,
+     "m": -16.3,
+     "peak": -11.3
+    },
+    "airframe": {
+     "lufs": -53.1,
+     "st": -52.5,
+     "stMed": -53.6,
+     "m": -50.5,
+     "peak": -43.4
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -52.3,
+     "st": -50.8,
+     "stMed": -51.7,
+     "m": -49.1,
+     "peak": -40
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -53.1,
+     "st": -52.5,
+     "stMed": -53.6,
+     "m": -50.5,
+     "peak": -43.4
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "cruise",
+   "persp": "cockpit",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -19.6,
+     "peak": -14.3
+    },
+    "prop": {
+     "lufs": -31.4,
+     "peak": -25.9
+    },
+    "airframe": {
+     "lufs": -35.1,
+     "peak": -21.9
+    },
+    "ambience": {
+     "lufs": -69.3,
+     "peak": -58.3
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": -27.9,
+     "peak": -10.5
+    },
+    "voice": {
+     "lufs": -24.7,
+     "peak": -10.5
+    },
+    "enginePlusProp": {
+     "lufs": -19,
+     "peak": -13.9
+    },
+    "master": {
+     "lufs": -17.8,
+     "peak": -7.6
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -7.6
+   },
+   "music": {
+    "id": "fma278391",
+    "title": "Peaceful Royalty Free Guitar - \"I'm Callin' Late\"",
+    "lufs": -19.2,
+    "trim": 1.445
+   },
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 0,
+   "rpm": 2079,
+   "V": 31.4,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -19,
+     "st": -19,
+     "stMed": -19,
+     "m": -18.9,
+     "peak": -13.9
+    },
+    "airframe": {
+     "lufs": -35.1,
+     "st": -34.5,
+     "stMed": -35.6,
+     "m": -32.5,
+     "peak": -21.9
+    },
+    "music": {
+     "lufs": -27.9,
+     "st": -26.8,
+     "stMed": -27.4,
+     "m": -22.5,
+     "peak": -10.5
+    },
+    "ambience": {
+     "lufs": -69.3,
+     "st": -69.2,
+     "stMed": null,
+     "m": -68,
+     "peak": -58.3
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -35.1,
+     "st": -34.5,
+     "stMed": -35.6,
+     "m": -32.5,
+     "peak": -21.9
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "cruise",
+   "persp": "chase",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -18.1,
+     "peak": -12.7
+    },
+    "prop": {
+     "lufs": -44,
+     "peak": -35
+    },
+    "airframe": {
+     "lufs": -43.4,
+     "peak": -34.2
+    },
+    "ambience": {
+     "lufs": -50.4,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": -27.9,
+     "peak": -10.5
+    },
+    "voice": {
+     "lufs": -24.7,
+     "peak": -10.5
+    },
+    "enginePlusProp": {
+     "lufs": -18,
+     "peak": -12.6
+    },
+    "master": {
+     "lufs": -17,
+     "peak": -6.8
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -6.8
+   },
+   "music": {
+    "id": "fma278391",
+    "title": "Peaceful Royalty Free Guitar - \"I'm Callin' Late\"",
+    "lufs": -19.2,
+    "trim": 1.445
+   },
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 0,
+   "rpm": 2079,
+   "V": 31.4,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -18,
+     "st": -18,
+     "stMed": -18,
+     "m": -17.9,
+     "peak": -12.6
+    },
+    "airframe": {
+     "lufs": -43.4,
+     "st": -42.8,
+     "stMed": -44,
+     "m": -40.9,
+     "peak": -34.2
+    },
+    "music": {
+     "lufs": -27.9,
+     "st": -26.8,
+     "stMed": -27.4,
+     "m": -22.5,
+     "peak": -10.5
+    },
+    "ambience": {
+     "lufs": -50.4,
+     "st": -49.8,
+     "stMed": -50.6,
+     "m": -48.8,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -43.4,
+     "st": -42.8,
+     "stMed": -44,
+     "m": -40.9,
+     "peak": -34.2
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "taxiBrake",
+   "persp": "cockpit",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -25.6,
+     "peak": -19.6
+    },
+    "prop": {
+     "lufs": -45.5,
+     "peak": -38.9
+    },
+    "airframe": {
+     "lufs": -30.7,
+     "peak": -23.7
+    },
+    "ambience": {
+     "lufs": -66.5,
+     "peak": -53.7
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -70.5,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -25,
+     "peak": -19.2
+    },
+    "master": {
+     "lufs": -23.4,
+     "peak": -15.8
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -15.8
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 3,
+   "rpm": 1495,
+   "V": 3,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -25,
+     "st": -25,
+     "stMed": -25,
+     "m": -24.9,
+     "peak": -19.2
+    },
+    "airframe": {
+     "lufs": -30.7,
+     "st": -30,
+     "stMed": -30.8,
+     "m": -28.2,
+     "peak": -23.7
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -66.5,
+     "st": -66,
+     "stMed": -66.8,
+     "m": -65.2,
+     "peak": -53.7
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -49,
+     "st": -48.4,
+     "stMed": -49.1,
+     "m": -46.6,
+     "peak": -29.7
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": -30.8,
+     "st": -30,
+     "stMed": -30.8,
+     "m": -28.2,
+     "peak": -27.3
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "taxiBrake",
+   "persp": "chase",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -24,
+     "peak": -18
+    },
+    "prop": {
+     "lufs": -56.7,
+     "peak": -48.3
+    },
+    "airframe": {
+     "lufs": -28.5,
+     "peak": -24.2
+    },
+    "ambience": {
+     "lufs": -47.7,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": -61.8,
+     "peak": -46.1,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -23.9,
+     "peak": -17.9
+    },
+    "master": {
+     "lufs": -22.1,
+     "peak": -14.6
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -14.6
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 3,
+   "rpm": 1495,
+   "V": 3,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -23.9,
+     "st": -23.9,
+     "stMed": -23.9,
+     "m": -23.9,
+     "peak": -17.9
+    },
+    "airframe": {
+     "lufs": -28.5,
+     "st": -27.8,
+     "stMed": -28.6,
+     "m": -25.9,
+     "peak": -24.2
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -47.7,
+     "st": -47.1,
+     "stMed": -48,
+     "m": -46.4,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -62.2,
+     "st": -61.6,
+     "stMed": -62.4,
+     "m": -60,
+     "peak": -43.3
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": -28.5,
+     "st": -27.8,
+     "stMed": -28.6,
+     "m": -25.9,
+     "peak": -24.9
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "pivot",
+   "persp": "cockpit",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -25.6,
+     "peak": -19.7
+    },
+    "prop": {
+     "lufs": -45.5,
+     "peak": -39.1
+    },
+    "airframe": {
+     "lufs": -34.2,
+     "peak": -28
+    },
+    "ambience": {
+     "lufs": -66.5,
+     "peak": -53.7
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -70.5,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -25,
+     "peak": -19.3
+    },
+    "master": {
+     "lufs": -23.9,
+     "peak": -16.8
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -16.8
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 3,
+   "rpm": 1493,
+   "V": 1,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -25,
+     "st": -25,
+     "stMed": -25,
+     "m": -24.9,
+     "peak": -19.3
+    },
+    "airframe": {
+     "lufs": -34.2,
+     "st": -33.5,
+     "stMed": -34.3,
+     "m": -31.7,
+     "peak": -28
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -66.5,
+     "st": -66,
+     "stMed": -66.8,
+     "m": -65.2,
+     "peak": -53.7
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -56,
+     "st": -55.4,
+     "stMed": -56.2,
+     "m": -53.7,
+     "peak": -36.4
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": -34.2,
+     "st": -33.5,
+     "stMed": -34.3,
+     "m": -31.7,
+     "peak": -30.8
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": -51.2
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "pivot",
+   "persp": "chase",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -24,
+     "peak": -18.1
+    },
+    "prop": {
+     "lufs": -56.8,
+     "peak": -48.5
+    },
+    "airframe": {
+     "lufs": -32,
+     "peak": -27.9
+    },
+    "ambience": {
+     "lufs": -47.7,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": -61.8,
+     "peak": -46.1,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -24,
+     "peak": -18.1
+    },
+    "master": {
+     "lufs": -22.7,
+     "peak": -15.5
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -15.5
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 3,
+   "rpm": 1493,
+   "V": 1,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -24,
+     "st": -23.9,
+     "stMed": -23.9,
+     "m": -23.9,
+     "peak": -18.1
+    },
+    "airframe": {
+     "lufs": -32,
+     "st": -31.2,
+     "stMed": -32.1,
+     "m": -29.4,
+     "peak": -27.9
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -47.7,
+     "st": -47.1,
+     "stMed": -48,
+     "m": -46.4,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -68.5,
+     "st": -68.4,
+     "stMed": -69.1,
+     "m": -66.9,
+     "peak": -49.8
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": -32,
+     "st": -31.2,
+     "stMed": -32.1,
+     "m": -29.4,
+     "peak": -28.4
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "touchdown",
+   "persp": "cockpit",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -36.9,
+     "peak": -26.7
+    },
+    "prop": {
+     "lufs": null,
+     "peak": -63.1
+    },
+    "airframe": {
+     "lufs": -22.7,
+     "peak": -1.8
+    },
+    "ambience": {
+     "lufs": -66.5,
+     "peak": -53.7
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -70.5,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -36.9,
+     "peak": -26.6
+    },
+    "master": {
+     "lufs": -22,
+     "peak": -1.7
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -1.7
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 3,
+   "rpm": 858,
+   "V": 19.2,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -36.9,
+     "st": -36.8,
+     "stMed": -36.9,
+     "m": -36.7,
+     "peak": -26.6
+    },
+    "airframe": {
+     "lufs": -22.7,
+     "st": -21.5,
+     "stMed": -24.2,
+     "m": -15.4,
+     "peak": -1.8
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -66.5,
+     "st": -66,
+     "stMed": -66.8,
+     "m": -65.2,
+     "peak": -53.7
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -45.5,
+     "st": -45,
+     "stMed": -46.1,
+     "m": -42.9,
+     "peak": -31.9
+    },
+    "ground": {
+     "lufs": -23.9,
+     "st": -23.3,
+     "stMed": -24.2,
+     "m": -20.7,
+     "peak": -6.4
+    },
+    "rattle": {
+     "lufs": -45.7,
+     "st": -45.2,
+     "stMed": -46.2,
+     "m": -39.7,
+     "peak": -21
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": -21.4,
+     "st": -29,
+     "stMed": -46,
+     "m": -20.4,
+     "peak": -6.9
+    },
+    "chirp": {
+     "lufs": -21.4,
+     "st": -29.2,
+     "stMed": null,
+     "m": -20.5,
+     "peak": -12.8
+    },
+    "thump": {
+     "lufs": -35.8,
+     "st": -43.5,
+     "stMed": null,
+     "m": -34.8,
+     "peak": -15.4
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "touchdown",
+   "persp": "chase",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -35.3,
+     "peak": -25.1
+    },
+    "prop": {
+     "lufs": null,
+     "peak": -69.8
+    },
+    "airframe": {
+     "lufs": -30.8,
+     "peak": -5.7
+    },
+    "ambience": {
+     "lufs": -47.7,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": -61.8,
+     "peak": -46.1,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -35.3,
+     "peak": -25.1
+    },
+    "master": {
+     "lufs": -29.7,
+     "peak": -5.3
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -5.3
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 3,
+   "rpm": 858,
+   "V": 19.2,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -35.3,
+     "st": -35.3,
+     "stMed": -35.3,
+     "m": -35.1,
+     "peak": -25.1
+    },
+    "airframe": {
+     "lufs": -30.8,
+     "st": -28.3,
+     "stMed": -37,
+     "m": -20.1,
+     "peak": -5.7
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -47.7,
+     "st": -47.1,
+     "stMed": -48,
+     "m": -46.4,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -55.6,
+     "st": -55,
+     "stMed": -56.2,
+     "m": -53,
+     "peak": -45.9
+    },
+    "ground": {
+     "lufs": -37.1,
+     "st": -36.5,
+     "stMed": -37.4,
+     "m": -33.8,
+     "peak": -20.2
+    },
+    "rattle": {
+     "lufs": -54.6,
+     "st": -53.8,
+     "stMed": -54.9,
+     "m": -48.4,
+     "peak": -29.7
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": -26.7,
+     "st": -34.4,
+     "stMed": -51.4,
+     "m": -25.7,
+     "peak": -11.5
+    },
+    "chirp": {
+     "lufs": -24.2,
+     "st": -32,
+     "stMed": null,
+     "m": -23.2,
+     "peak": -17.1
+    },
+    "thump": {
+     "lufs": -53.8,
+     "st": -61.6,
+     "stMed": null,
+     "m": -52.8,
+     "peak": -34.2
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "turbulence",
+   "persp": "cockpit",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -19.6,
+     "peak": -14.3
+    },
+    "prop": {
+     "lufs": -31.4,
+     "peak": -25.9
+    },
+    "airframe": {
+     "lufs": -34.9,
+     "peak": -21.5
+    },
+    "ambience": {
+     "lufs": -69.3,
+     "peak": -58.3
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": -27.9,
+     "peak": -10.5
+    },
+    "voice": {
+     "lufs": -24.7,
+     "peak": -10.5
+    },
+    "enginePlusProp": {
+     "lufs": -19,
+     "peak": -13.9
+    },
+    "master": {
+     "lufs": -17.8,
+     "peak": -7.6
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -7.6
+   },
+   "music": {
+    "id": "fma278391",
+    "title": "Peaceful Royalty Free Guitar - \"I'm Callin' Late\"",
+    "lufs": -19.2,
+    "trim": 1.445
+   },
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 0,
+   "rpm": 2079,
+   "V": 31.4,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -19,
+     "st": -19,
+     "stMed": -19,
+     "m": -18.9,
+     "peak": -13.9
+    },
+    "airframe": {
+     "lufs": -34.9,
+     "st": -34.2,
+     "stMed": -35.6,
+     "m": -31.6,
+     "peak": -21.5
+    },
+    "music": {
+     "lufs": -27.9,
+     "st": -26.8,
+     "stMed": -27.4,
+     "m": -22.5,
+     "peak": -10.5
+    },
+    "ambience": {
+     "lufs": -69.3,
+     "st": -69.2,
+     "stMed": null,
+     "m": -68,
+     "peak": -58.3
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -35.1,
+     "st": -34.5,
+     "stMed": -35.6,
+     "m": -32.5,
+     "peak": -21.9
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": -41.7,
+     "st": -46.1,
+     "stMed": null,
+     "m": -39.1,
+     "peak": -23.6
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "turbulence",
+   "persp": "chase",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -18.1,
+     "peak": -12.7
+    },
+    "prop": {
+     "lufs": -44,
+     "peak": -35
+    },
+    "airframe": {
+     "lufs": -43.4,
+     "peak": -34.2
+    },
+    "ambience": {
+     "lufs": -50.4,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": -27.9,
+     "peak": -10.5
+    },
+    "voice": {
+     "lufs": -24.7,
+     "peak": -10.5
+    },
+    "enginePlusProp": {
+     "lufs": -18,
+     "peak": -12.6
+    },
+    "master": {
+     "lufs": -17,
+     "peak": -6.8
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -6.8
+   },
+   "music": {
+    "id": "fma278391",
+    "title": "Peaceful Royalty Free Guitar - \"I'm Callin' Late\"",
+    "lufs": -19.2,
+    "trim": 1.445
+   },
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 0,
+   "rpm": 2079,
+   "V": 31.4,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -18,
+     "st": -18,
+     "stMed": -18,
+     "m": -17.9,
+     "peak": -12.6
+    },
+    "airframe": {
+     "lufs": -43.4,
+     "st": -42.8,
+     "stMed": -44,
+     "m": -40.9,
+     "peak": -34.2
+    },
+    "music": {
+     "lufs": -27.9,
+     "st": -26.8,
+     "stMed": -27.4,
+     "m": -22.5,
+     "peak": -10.5
+    },
+    "ambience": {
+     "lufs": -50.4,
+     "st": -49.8,
+     "stMed": -50.6,
+     "m": -48.8,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -43.4,
+     "st": -42.8,
+     "stMed": -44,
+     "m": -40.9,
+     "peak": -34.2
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "stall",
+   "persp": "cockpit",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -29.4,
+     "peak": -21.7
+    },
+    "prop": {
+     "lufs": -57.2,
+     "peak": -49
+    },
+    "airframe": {
+     "lufs": -16.1,
+     "peak": -13.4
+    },
+    "ambience": {
+     "lufs": -69.3,
+     "peak": -58.3
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -29.2,
+     "peak": -21.5
+    },
+    "master": {
+     "lufs": -15.3,
+     "peak": -10.5
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -10.5
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 0,
+   "rpm": 1214,
+   "V": 16.8,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -29.2,
+     "st": -29.2,
+     "stMed": -29.2,
+     "m": -29,
+     "peak": -21.5
+    },
+    "airframe": {
+     "lufs": -16.1,
+     "st": -16,
+     "stMed": -16,
+     "m": -16,
+     "peak": -13.4
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -69.3,
+     "st": -69.2,
+     "stMed": null,
+     "m": -68,
+     "peak": -58.3
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -49.7,
+     "st": -49.1,
+     "stMed": -50.3,
+     "m": -47.1,
+     "peak": -36.1
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": -16.1,
+     "st": -16,
+     "stMed": -16,
+     "m": -16,
+     "peak": -13.5
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "stall",
+   "persp": "chase",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -27.8,
+     "peak": -20.1
+    },
+    "prop": {
+     "lufs": -65.9,
+     "peak": -56.3
+    },
+    "airframe": {
+     "lufs": -58.6,
+     "peak": -48.8
+    },
+    "ambience": {
+     "lufs": -50.4,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -27.8,
+     "peak": -20
+    },
+    "master": {
+     "lufs": -27.2,
+     "peak": -19.2
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -19.2
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 0,
+   "rpm": 1214,
+   "V": 16.8,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -27.8,
+     "st": -27.8,
+     "stMed": -27.8,
+     "m": -27.6,
+     "peak": -20
+    },
+    "airframe": {
+     "lufs": -58.6,
+     "st": -58,
+     "stMed": -59.2,
+     "m": -56,
+     "peak": -48.8
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -50.4,
+     "st": -49.8,
+     "stMed": -50.6,
+     "m": -48.8,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -58.6,
+     "st": -58,
+     "stMed": -59.2,
+     "m": -56,
+     "peak": -48.8
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "flaps",
+   "persp": "cockpit",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -29.1,
+     "peak": -21.6
+    },
+    "prop": {
+     "lufs": -55.7,
+     "peak": -47.8
+    },
+    "airframe": {
+     "lufs": -20.8,
+     "peak": -12.8
+    },
+    "ambience": {
+     "lufs": -69.3,
+     "peak": -58.3
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -28.9,
+     "peak": -21.4
+    },
+    "master": {
+     "lufs": -23.6,
+     "peak": -11.5
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -11.5
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 0,
+   "rpm": 1266,
+   "V": 20.8,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -28.9,
+     "st": -28.9,
+     "stMed": -28.9,
+     "m": -28.7,
+     "peak": -21.4
+    },
+    "airframe": {
+     "lufs": -20.8,
+     "st": -22,
+     "stMed": -25,
+     "m": -20.1,
+     "peak": -12.8
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -69.3,
+     "st": -69.2,
+     "stMed": null,
+     "m": -68,
+     "peak": -58.3
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -44.2,
+     "st": -43.6,
+     "stMed": -44.7,
+     "m": -41.6,
+     "peak": -30.5
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": -20.9,
+     "st": -22,
+     "stMed": -25,
+     "m": -20.2,
+     "peak": -16.3
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": -35.4,
+     "st": -44.1,
+     "stMed": null,
+     "m": -35.4,
+     "peak": -15.9
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "flaps",
+   "persp": "chase",
+   "place": {
+    "place": "sea",
+    "x": 967,
+    "z": -3024,
+    "agl": 300
+   },
+   "buses": {
+    "engine": {
+     "lufs": -27.5,
+     "peak": -20.1
+    },
+    "prop": {
+     "lufs": -64.5,
+     "peak": -55.6
+    },
+    "airframe": {
+     "lufs": -46.7,
+     "peak": -36.3
+    },
+    "ambience": {
+     "lufs": -50.4,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -27.5,
+     "peak": -20.1
+    },
+    "master": {
+     "lufs": -26.9,
+     "peak": -18.5
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -18.5
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 0,
+   "rpm": 1266,
+   "V": 20.8,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -27.5,
+     "st": -27.5,
+     "stMed": -27.5,
+     "m": -27.3,
+     "peak": -20.1
+    },
+    "airframe": {
+     "lufs": -46.7,
+     "st": -43.5,
+     "stMed": -46.3,
+     "m": -41.8,
+     "peak": -36.3
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -50.4,
+     "st": -49.8,
+     "stMed": -50.6,
+     "m": -48.8,
+     "peak": -38.9
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -55.3,
+     "st": -54.7,
+     "stMed": -55.9,
+     "m": -52.7,
+     "peak": -45.6
+    },
+    "ground": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": -42.9,
+     "st": -44,
+     "stMed": -47,
+     "m": -42.2,
+     "peak": -38.4
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": -64.6,
+     "st": null,
+     "stMed": null,
+     "m": -64.6,
+     "peak": -45.2
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "grass",
+   "persp": "cockpit",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -25.5,
+     "peak": -19
+    },
+    "prop": {
+     "lufs": -45.1,
+     "peak": -38.5
+    },
+    "airframe": {
+     "lufs": -31.7,
+     "peak": -14.6
+    },
+    "ambience": {
+     "lufs": -66.5,
+     "peak": -53.7
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -70.5,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -24.8,
+     "peak": -18.6
+    },
+    "master": {
+     "lufs": -23.5,
+     "peak": -10.9
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -10.9
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 3,
+   "rpm": 1511,
+   "V": 8,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -24.8,
+     "st": -24.8,
+     "stMed": -24.8,
+     "m": -24.7,
+     "peak": -18.6
+    },
+    "airframe": {
+     "lufs": -31.7,
+     "st": -31.3,
+     "stMed": -31.8,
+     "m": -29.4,
+     "peak": -14.6
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -66.5,
+     "st": -66,
+     "stMed": -66.8,
+     "m": -65.2,
+     "peak": -53.7
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -61.4,
+     "st": -60.8,
+     "stMed": -61.9,
+     "m": -58.8,
+     "peak": -47.5
+    },
+    "ground": {
+     "lufs": -33,
+     "st": -32.5,
+     "stMed": -33.1,
+     "m": -31,
+     "peak": -15.2
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": -42.6,
+     "st": -47.1,
+     "stMed": null,
+     "m": -40.1,
+     "peak": -24.9
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": -36.6,
+     "st": -35.7,
+     "stMed": -36.7,
+     "m": -32.8,
+     "peak": -14.9
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "grass",
+   "persp": "chase",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -23.9,
+     "peak": -17.4
+    },
+    "prop": {
+     "lufs": -56.3,
+     "peak": -47.6
+    },
+    "airframe": {
+     "lufs": -42.5,
+     "peak": -28
+    },
+    "ambience": {
+     "lufs": -47.7,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": -61.8,
+     "peak": -46.1,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -23.8,
+     "peak": -17.3
+    },
+    "master": {
+     "lufs": -23.2,
+     "peak": -16.3
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -16.3
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 3,
+   "rpm": 1511,
+   "V": 8,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -23.8,
+     "st": -23.8,
+     "stMed": -23.8,
+     "m": -23.7,
+     "peak": -17.3
+    },
+    "airframe": {
+     "lufs": -42.5,
+     "st": -42.3,
+     "stMed": -42.5,
+     "m": -41.5,
+     "peak": -28
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -47.7,
+     "st": -47.1,
+     "stMed": -48,
+     "m": -46.4,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -42.6,
+     "st": -42.5,
+     "stMed": -42.6,
+     "m": -41.8,
+     "peak": -28
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": -54.8,
+     "st": -54,
+     "stMed": -54.9,
+     "m": -51,
+     "peak": -34.8
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "gravel",
+   "persp": "cockpit",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -25.5,
+     "peak": -19
+    },
+    "prop": {
+     "lufs": -45.1,
+     "peak": -38.5
+    },
+    "airframe": {
+     "lufs": -39.5,
+     "peak": -23.1
+    },
+    "ambience": {
+     "lufs": -66.5,
+     "peak": -53.7
+    },
+    "emitters": {
+     "lufs": null,
+     "peak": -70.5,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -24.8,
+     "peak": -18.6
+    },
+    "master": {
+     "lufs": -24.1,
+     "peak": -15.7
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -15.7
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 3,
+   "rpm": 1511,
+   "V": 8,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -24.8,
+     "st": -24.8,
+     "stMed": -24.8,
+     "m": -24.7,
+     "peak": -18.6
+    },
+    "airframe": {
+     "lufs": -39.5,
+     "st": -38.8,
+     "stMed": -39.8,
+     "m": -37,
+     "peak": -23.1
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -66.5,
+     "st": -66,
+     "stMed": -66.8,
+     "m": -65.2,
+     "peak": -53.7
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": -61.4,
+     "st": -60.8,
+     "stMed": -61.9,
+     "m": -58.8,
+     "peak": -47.5
+    },
+    "ground": {
+     "lufs": -39.7,
+     "st": -39.2,
+     "stMed": -39.8,
+     "m": -38.1,
+     "peak": -23.2
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": -43.2,
+     "st": -48.4,
+     "stMed": null,
+     "m": -41.6,
+     "peak": -26.9
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  },
+  {
+   "build": "cub",
+   "state": "gravel",
+   "persp": "chase",
+   "place": {
+    "place": "stand",
+    "x": -154,
+    "z": 712,
+    "agl": 1.7
+   },
+   "buses": {
+    "engine": {
+     "lufs": -23.9,
+     "peak": -17.4
+    },
+    "prop": {
+     "lufs": -56.3,
+     "peak": -47.6
+    },
+    "airframe": {
+     "lufs": -42.2,
+     "peak": -29.7
+    },
+    "ambience": {
+     "lufs": -47.7,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": -61.8,
+     "peak": -46.1,
+     "calls": 3,
+     "seconds": 40
+    },
+    "music": {
+     "lufs": null,
+     "peak": -240
+    },
+    "voice": {
+     "lufs": null,
+     "peak": -240
+    },
+    "enginePlusProp": {
+     "lufs": -23.8,
+     "peak": -17.3
+    },
+    "master": {
+     "lufs": -23.2,
+     "peak": -16.6
+    }
+   },
+   "limiter": {
+    "grMaxDb": 0,
+    "grMeanDb": 0,
+    "grOver1dBShare": 0,
+    "makeupDb": 0.57,
+    "peakDb": -16.6
+   },
+   "music": null,
+   "settings": {
+    "master": 0.8,
+    "aircraft": 1,
+    "engine": 1,
+    "environment": 0.8,
+    "music": 0.6,
+    "musicFlight": 0
+   },
+   "trims": {
+    "cabinTonalDb": -10,
+    "engine": 8,
+    "interior": 6,
+    "airframe": 4,
+    "ambience": -6,
+    "ambienceRun": -10,
+    "music": -6
+   },
+   "cabin": {
+    "cls": "fabric",
+    "insulationDb": 8,
+    "ambienceDb": 6
+   },
+   "emitterCalls": 3,
+   "rpm": 1511,
+   "V": 8,
+   "st": {
+    "enginePlusProp": {
+     "lufs": -23.8,
+     "st": -23.8,
+     "stMed": -23.8,
+     "m": -23.7,
+     "peak": -17.3
+    },
+    "airframe": {
+     "lufs": -42.2,
+     "st": -41.9,
+     "stMed": -42.2,
+     "m": -41.4,
+     "peak": -29.7
+    },
+    "music": null,
+    "ambience": {
+     "lufs": -47.7,
+     "st": -47.1,
+     "stMed": -48,
+     "m": -46.4,
+     "peak": -33.4
+    },
+    "emitters": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   },
+   "layers": {
+    "wind": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "ground": {
+     "lufs": -42.2,
+     "st": -41.9,
+     "stMed": -42.2,
+     "m": -41.4,
+     "peak": -29.7
+    },
+    "rattle": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "brake": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "creak": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "stall": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "flapMotor": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "touchdown": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "chirp": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "thump": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    },
+    "lever": {
+     "lufs": null,
+     "st": null,
+     "stMed": null,
+     "m": null,
+     "peak": null
+    }
+   }
+  }
+ ]
+}

@@ -1,0 +1,6 @@
+# scripts/nosein_all.js floats (150 km/h, 10 m/s, 60 deg; the certificate) on the base: nodes past 100 m per frame
+7 huge nodes 0  | groups  cl []
+8 huge nodes 0  | groups floatL:strut,floatR:strut cl ["FLTL/root/twist","FLTR/root/twist"]
+9 huge nodes 134 (every node) | groups ... eng:mount | reason "broke up: the fuselage parted (TPB off the core)"
+# scripts/nosein_hook.js: frame 8, substeps 93-119: a free float keel node (FLK 117) +8.8 m/s per substep, 82 -> 1218 m/s;
+# frame 9: 4e3 -> 3e4 m/s. After G2368: 0 huge nodes, 176 broken, 9 pieces

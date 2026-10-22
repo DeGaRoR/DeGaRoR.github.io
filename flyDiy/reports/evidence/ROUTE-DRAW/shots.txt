@@ -1,0 +1,6 @@
+gestures: {"added":2,"moved":false,"afterRight":1,"afterLong":2} (want added 3, moved true, afterRight 2, afterLong 1)
+drawing: {"on":true,"armed":false,"sel":1,"n":5,"view":{"cx":-1551,"cz":-1279,"range":12000},"msg":""}
+draw status: 16.9 km, lowest 63 m over the ground (margin 60) · plan limits +2.2 / −2.8 m/s
+hill status: ⚠ TERRAIN: the profile clears the ground by -323 m (margin 60)25.5 km, lowest -323 m over the ground (margin 60) · plan limits +2.2 / −2.8 m/s
+armed: {"rd":{"on":true,"armed":true,"sel":-1,"n":5,"view":{"cx":-1551,"cz":-1279,"range":12000},"msg":"Armed: flown after the take-off’s climb-out."},"drawn":"armed","pref":"saved"}
+after 1202 s of flight: ROLL 0

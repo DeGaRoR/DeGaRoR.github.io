@@ -46,11 +46,36 @@ const SC = require(at('src/viewer/audio/space_config.js'));
 const OUT_DIR = at('reports/evidence/SND-MIX');
 const SR = 48000, BLOCK = R.BLOCK;
 const dB = x => 20 * Math.log10(Math.max(1e-12, x));
+// G1727 (GATE MIXLEAD): the sources as a gate holds them in memory (a mutation), by repo path - empty = the files on disk.
+// audio.js, airframe_model.js and airframe_worklet.js are read through it (the engine's voices are SND-ENGINE's, untouched)
+const SRC = {};
+const srcOf = rel => (SRC[rel] != null ? SRC[rel] : fs.readFileSync(at(rel), 'utf8'));
+function setSources(map) {
+  for (const k of Object.keys(SRC)) delete SRC[k];
+  Object.assign(SRC, map || {});
+  PA = null; AW = null; AFM_ = null;
+}
+let AFM_ = null;
+function afModel() {
+  if (AFM_) return AFM_;
+  const rel = 'src/viewer/audio/airframe_model.js';
+  if (SRC[rel] == null) return (AFM_ = require(at(rel)));
+  const m = { exports: {} };
+  vm.runInNewContext(SRC[rel], { module: m, Math, Float64Array, Float32Array, Int32Array, Array, Object, Number, console }, { filename: rel });
+  return (AFM_ = m.exports);
+}
+function afWorklet() {
+  const rel = 'src/viewer/audio/airframe_worklet.js';
+  if (SRC[rel] == null) return AFR.loadAirframe(SR);
+  const f = path.join(require('os').tmpdir(), 'mixlead_airframe_' + process.pid + '.js');
+  fs.writeFileSync(f, SRC[rel]);
+  try { return AFR.loadAirframe(SR, f); } finally { fs.unlinkSync(f); }
+}
 
 // ---- THE PAGE'S SETTINGS: audio.js itself, in a vm (no window: no listener, no context; its defaults) -------------
 function pageAudio() {
   const ctx = { console: { log() {}, info() {}, warn() {} }, Math, Float64Array, Float32Array, URLSearchParams, Object, Array, Number, String, Promise, Date };
-  vm.runInNewContext(fs.readFileSync(at('src/viewer/audio/audio.js'), 'utf8') + '\n;this.__A = AUDIO;', ctx, { filename: 'audio.js' });
+  vm.runInNewContext(srcOf('src/viewer/audio/audio.js') + '\n;this.__A = AUDIO;', ctx, { filename: 'audio.js' });
   return ctx.__A;
 }
 // music.js in a vm (its trimOf, clipK, constants; the catalogue handed in; no AUDIO: no source registered)
@@ -153,13 +178,22 @@ function paramBlock(B, st, interior) {
 
 // ---- THE AIRCRAFT BUSES: engine, prop, airframe - each through the page's space, stereo ----------------------------
 let WK = null, AW = null;
-function aircraftBuses(B, st, interior, seconds) {
-  WK = WK || RP.loadAll(SR); AW = AW || AFR.loadAirframe(SR);
+// o (SND-MIX-2, G1725): { solo: a LAYERS key (only that airframe layer / event sounds; no engine rendered), drive(P, I, t)
+// per block (the state's own motion: a touchdown, turbulence, a flap lever), force(tg, T, t) after the model (a layer
+// these builds never sound, forced to be measured) }. The model's events now reach the voice (SND-MIX never posted them).
+function aircraftBuses(B, st, interior, seconds, o) {
+  const opt = o || {};
+  WK = WK || RP.loadAll(SR); AW = AW || afWorklet();
   const P = paramBlock(B, st, interior), I = P.I;
+  if (st.surf != null) { P.s[I.surf0] = P.s[I.surf1] = P.s[I.surfT] = st.surf; }
+  if (st.ctl) for (const k in st.ctl) P.s[I[k]] = st.ctl[k];
+  const solo = opt.solo ? LAYERS[opt.solo] : null;
+  const gravel = SURF_REC[st.surf] ? recLoop(SURF_REC[st.surf]) : null;   // samples.js's loop when the row's key resolves
   const thr = st.thr(B), V = st.V(B);
-  const ch = RP.makeChain(WK, B, 0, { seed: 1, heat: 0.5, state: { running: true, rpm: B.engRpm(B.propRpm(thr, true, V)) } });
+  const ch = solo ? null : RP.makeChain(WK, B, 0, { seed: 1, heat: 0.5, state: { running: true, rpm: B.engRpm(B.propRpm(thr, true, V)) } });
+  const zb = new Float32Array(BLOCK);
   // the airframe: three outputs as space.js wires it (0 ext mono, 1 interior stereo, 2 interior-only mono)
-  const AFM = require(at('src/viewer/audio/airframe_model.js'));
+  const AFM = afModel();
   const proc = new AW.Processor({ processorOptions: { seed: 7 } });
   const ap = {}; for (const d of AW.Processor.parameterDescriptors) ap[d.name] = new Float32Array([d.defaultValue]);
   const aout = [[new Float32Array(BLOCK)], [new Float32Array(BLOCK), new Float32Array(BLOCK)], [new Float32Array(BLOCK)]];
@@ -180,17 +214,35 @@ function aircraftBuses(B, st, interior, seconds) {
   const F = { engine: mk(), prop: mk(), airframe: mk() };
   const xb = new Float32Array(BLOCK), yb = new Float32Array(BLOCK);
   const p = { thr, V, alpha: P.s[I.alpha], beta: 0, running: 1, starter: 0, interior: interior ? 1 : 0 };
+  let gPos = 0;
+  const gx = new Float32Array(BLOCK);
   for (let b = 0; b < nb; b++) {
-    RP.stepChain(ch, p);
-    const tg = AFM.airframeStep(P, afst, BLOCK / SR); afst.evN[0] = 0;
+    if (ch) RP.stepChain(ch, p);
+    const tb = b * BLOCK / SR;
+    if (st.drive) st.drive(P, I, tb, B);
+    const tg = AFM.airframeStep(P, afst, BLOCK / SR);
+    if (st.force) st.force(tg, AFM.T, tb);
+    if (gravel) tg[AFM.T.duck] = 1;   // the recording covers the ground layer: the procedural one at 30 %
+    if (solo) for (let i = 0; i < names.length; i++) if (LEVELS.includes(names[i]) && !solo.p.includes(names[i])) tg[i] = 0;
+    for (let k = 0; k < afst.evN[0]; k++) {
+      const E = afst.ev, q = k * AFM.EV_W;
+      if (!solo || solo.e.includes(E[q])) proc.message({ t: 'ev', e: E[q], s: E[q + 1], a: E[q + 2], b: E[q + 3], k: 0, d: 0 });
+    }
+    afst.evN[0] = 0;
     for (let i = 0; i < names.length; i++) { cur[i] = Q[names[i]] === 0 ? tg[i] : cur[i] + (tg[i] - cur[i]) * kTau; ap[names[i]][0] = cur[i]; }
     proc.process([], aout, ap);
+    gx.fill(0);
+    if (gravel && (!solo || solo.p.includes('gndL'))) {   // samples.js: the loop's gain = gndL x 6 (src_airframe.js LOOPS)
+      const g = cur[AFM.T.gndL] * 6;
+      for (let i = 0; i < BLOCK; i++) { gx[i] = g * gravel[gPos]; if (++gPos >= gravel.length) gPos = 0; }
+      for (let i = 0; i < BLOCK; i++) aout[0][0][i] += gx[i];
+    }
     const o = b * BLOCK;
-    const e = ch.drv.outputs[0][0], pt = ch.pout[1][0], pb = ch.pout[1][1];
+    const e = ch ? ch.drv.outputs[0][0] : zb, pt = ch ? ch.pout[1][0] : zb, pb = ch ? ch.pout[1][1] : zb;
     const parts = {
       engine: [[e, 0]], prop: [[pt, 1], [pb, 2]], airframe: [[aout[0][0], 3]],
     };
-    for (const bus of ['engine', 'prop', 'airframe']) {
+    for (const bus of solo ? ['airframe'] : ['engine', 'prop', 'airframe']) {
       const f = F[bus], [Lb, Rb] = out[bus], kBus = 1;   // (the volumes and the trims: measureState's bus gains)
       if (!interior) {   // OUTSIDE: directivity by kind -> the group sum -> absorption -> panner -> aircraft.ext
         xb.fill(0); for (const [y, k] of parts[bus]) for (let i = 0; i < BLOCK; i++) xb[i] += gDir[k] * y[i] * kBus;
@@ -209,6 +261,57 @@ function aircraftBuses(B, st, interior, seconds) {
   }
   return { out, P, cab: { cls: cab.cls, insulationDb: cab.insulationDb, ambienceDb: cab.ambienceDb }, geo: { dist, ref, cosT, absHz } };
 }
+
+
+// ---- SND-MIX-2 (G1725): THE AIRFRAME'S OWN VOICES - the states SND-MIX never measured, every layer soloed ----------
+// the user (2026-10-13, train 38): "Your engine is quieter than a metal squeal, very abnormal". The layers (the level
+// params a solo keeps) and the events (AF_EV types a solo lets through); LEVELS: every level param a solo may zero
+const LEVELS = ['windL', 'windI', 'gndL', 'tailR', 'brk', 'watL', 'watSlap', 'watDrag', 'stall', 'creak', 'flapM'];
+const LAYERS = {
+  wind: { p: ['windL', 'windI'], e: [] }, ground: { p: ['gndL'], e: [] }, rattle: { p: ['tailR'], e: [] },
+  brake: { p: ['brk'], e: [] }, creak: { p: ['creak'], e: [] }, stall: { p: ['stall'], e: [] }, flapMotor: { p: ['flapM'], e: [] },
+  touchdown: { p: [], e: [1] }, chirp: { p: [], e: [2] }, thump: { p: [], e: [3] }, lever: { p: [], e: [5] },
+};
+const CONT = ['wind', 'ground', 'rattle', 'brake', 'creak', 'stall', 'flapMotor'], TRANS = ['touchdown', 'chirp', 'thump', 'lever'];
+// the surface rows whose loop has a recording in sfx_catalogue.json (gravel, scree: 'gnd.gravel'; nothing else resolves)
+const SURF_REC = { 6: 'gnd.gravel', 2: 'gnd.gravel' };
+const recCache = {};
+function recLoop(key) {
+  if (recCache[key]) return recCache[key];
+  const cat = JSON.parse(fs.readFileSync(at('src/viewer/audio/sfx_catalogue.json'), 'utf8')), e = cat.find(x => x.key === key);
+  const raw = execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', at(e.file), '-f', 'f32le', '-ac', '1', '-ar', String(SR), 'pipe:1'], { maxBuffer: 1 << 28 });
+  return (recCache[key] = new Float32Array(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.length)));
+}
+const ramp01 = (t, a, b) => (t <= a ? 0 : t >= b ? 1 : (t - a) / (b - a));
+const TD_T = 3.5;   // the touchdown's moment (render time: 2 s into the measured window)
+// the study's states: the ground ones on the stand's place (its ambience), on flat ground of row `surf`
+const STUDY = {
+  taxiBrake: { label: 'taxi, brakes on (3 m/s, paved)', thr: B => B.thrTaxi, V: () => 3, h: 0, vs: 0, pitch: 0, place: 'stand', surf: 5, ctl: { brake: 1 } },
+  pivot: { label: 'pivot turn on the brakes (1 m/s, rudder over)', thr: B => B.thrTaxi, V: () => 1, h: 0, vs: 0, pitch: 0, place: 'stand', surf: 5, ctl: { brake: 1 },
+    drive: (P, I, t) => { P.s[I.dr] = Math.sin(2 * Math.PI * 0.4 * t); } },
+  touchdown: { label: 'touchdown, 2 m/s sink, idle, 1.2 Vs (paved)', thr: () => 0, V: B => 1.2 * (B.def.params.gen.VsMeas || 20), h: 0, vs: 0, pitch: 0.1, place: 'stand', surf: 5,
+    drive: (P, I, t) => { const on = t >= TD_T ? 1 : 0; P.s[I.main0] = P.s[I.main1] = on; P.s[I.tail] = t >= TD_T + 0.6 ? 1 : 0; P.s[I.vs] = on ? 0 : -2; P.s[I.onGround] = on; } },
+  turbulence: { label: 'cruise in moderate turbulence (nz +-0.6, the creak)', thr: () => 0.75, V: B => B.Vc, h: 300, vs: 0, pitch: 0.03, place: 'sea', music: true,
+    drive: (P, I, t) => { P.s[I.nz] = 1 + 0.4 * Math.sin(2 * Math.PI * 1.3 * t) + 0.25 * Math.sin(2 * Math.PI * 3.1 * t + 1); P.s[I.de] = 0.15 * Math.sin(2 * Math.PI * 0.9 * t); P.s[I.da] = 0.2 * Math.sin(2 * Math.PI * 0.7 * t + 2); } },
+  stall: { label: 'the stall warning (FORCED reed: neither build has one), 1.05 Vs', thr: () => 0.2, V: B => 1.05 * (B.def.params.gen.VsMeas || 20), h: 300, vs: -1, pitch: 0.2, place: 'sea',
+    force: (tg, T, t) => { tg[T.stallK] = 1; tg[T.stall] = Math.round(0.8 * ramp01(t, 1, 2) * 100) / 100; } },
+  flaps: { label: 'flaps moving (the lever; the motor FORCED), 1.3 Vs', thr: () => 0.2, V: B => 1.3 * (B.def.params.gen.VsMeas || 20), h: 300, vs: -2, pitch: 0.05, place: 'sea',
+    drive: (P, I, t) => { P.s[I.flap] = 0.5 * ramp01(t, 3, 5); }, force: (tg, T, t) => { tg[T.flapM] = t >= 3 && t < 5 ? 1 : 0; } },
+  grass: { label: 'roll on grass (8 m/s, bumps)', thr: B => B.thrTaxi, V: () => 8, h: 0, vs: 0, pitch: 0, place: 'stand', surf: 0,
+    drive: (P, I, t) => { P.s[I.nz] = 1 + 0.3 * Math.sin(2 * Math.PI * 2.3 * t) + 0.15 * Math.sin(2 * Math.PI * 5.7 * t); } },
+  gravel: { label: 'roll on gravel (8 m/s, the recording)', thr: B => B.thrTaxi, V: () => 8, h: 0, vs: 0, pitch: 0, place: 'stand', surf: 6,
+    drive: (P, I, t) => { P.s[I.nz] = 1 + 0.2 * Math.sin(2 * Math.PI * 3.1 * t) + 0.1 * Math.sin(2 * Math.PI * 7.3 * t); } },
+};
+// ungated K-weighted loudness over sliding windows of `win` s (hop 0.1 s): BS.1770's short-term (3 s) and momentary (0.4 s)
+function slide(chans, win) {
+  const K = chans.map(kWeight), n = K[0].length, W = Math.round(win * SR), H = Math.round(0.1 * SR), v = [];
+  const cs = K.map(k => { const c = new Float64Array(n + 1); for (let i = 0; i < n; i++) c[i + 1] = c[i] + k[i] * k[i]; return c; });
+  for (let a = 0; a + W <= n; a += H) { let s = 0; for (const c of cs) s += (c[a + W] - c[a]) / W; v.push(-0.691 + 10 * Math.log10(Math.max(1e-30, s))); }
+  const so = v.slice().sort((x, y) => x - y);
+  return { max: v.length ? so[so.length - 1] : -Infinity, median: v.length ? so[Math.floor(so.length / 2)] : -Infinity };
+}
+const r1 = x => (isFinite(x) && x > -70 ? +x.toFixed(1) : null);
+function levels(y) { return { lufs: r1(lufs(y)), st: r1(slide(y, 3).max), stMed: r1(slide(y, 3).median), m: r1(slide(y, 0.4).max), peak: r1(peakDb(y)) }; }
 
 // the page's mix trims (audio.js MIX, dB; absent on a tree without them = 0 dB) and settings
 let PA = null;
@@ -348,20 +451,22 @@ function musicBuses(seconds) {
 // o: { music (music in flight on), seconds }
 async function measureState(key, stateKey, interior, o) {
   const opt = o || {}, seconds = opt.seconds || 8, warm = 1.5;
-  const B = buildOf(key), st = STATES[stateKey];
+  const B = buildOf(key), st = STATES[stateKey] || STUDY[stateKey];
   const A = aircraftBuses(B, st, interior, seconds + warm);
   const cut = c => c.map(y => y.subarray(Math.round(warm * SR), Math.round((warm + seconds) * SR)));
   const buses = { engine: cut(A.out.engine), prop: cut(A.out.prop), airframe: cut(A.out.airframe) };
   const open = A.P.s[A.P.I.open] > 0;
-  const amb = await ambienceBuses(st.place, st.h, interior, open, seconds);
+  // (opt.noAmb: no ambience nor emitters - GATE MIXLEAD's states that assert nothing on them)
+  const nz = () => [new Float32Array(Math.round(seconds * SR)), new Float32Array(Math.round(seconds * SR))];
+  const amb = opt.noAmb ? { ambience: nz(), emitters: nz(), where: { place: st.place }, emitterCalls: 0, emitS: seconds } : await ambienceBuses(st.place, st.h, interior, open, seconds);
   buses.ambience = amb.ambience; buses.emitters = amb.emitters;
   const S = settings(), T = mixTrims();
   const flying = 1;   // every state here is out of the shed and past the loading screen
   const mus = musicBuses(seconds);
-  const musicOn = !!opt.music;
+  const musicOn = !!(opt.music || st.music);
   // the bus gains audio.js schedules (applyGains): the viewpoint fader 1 on the side heard, the headset off
   const kAir = S.aircraft != null && S.engine == null ? S.aircraft : 1;   // (the old tree: 'aircraft' scaled every aircraft source)
-  const kEng = S.engine != null ? S.engine : 1, kFrame = S.engine != null ? S.aircraft : 1;
+  const kEng = opt.engine != null ? opt.engine : S.engine != null ? S.engine : 1, kFrame = S.engine != null ? S.aircraft : 1;
   const cabK = interior ? SC.cabinTransfer(B.spec).ambienceK : 1;
   const kAmb = S.environment * cabK * T.ambience * T.ambienceRun;   // (every state here has its engine running)
   const kMus = S.music * (flying && !musicOn ? 0 : 1) * T.music;
@@ -386,8 +491,22 @@ async function measureState(key, stateKey, interior, o) {
   row.buses.master = { lufs: +lufs([lim.L, lim.R]).toFixed(1), peak: +peakDb([lim.L, lim.R]).toFixed(1) };
   row.limiter = { grMaxDb: +lim.grMaxDb.toFixed(2), grMeanDb: +lim.grMeanDb.toFixed(3), grOver1dBShare: +lim.grOver1dBShare.toFixed(4), makeupDb: +lim.makeupDb.toFixed(2) };
   row.music = musicOn ? mus.track : null; row.settings = S; row.trims = T.raw; row.cabin = A.cab; row.emitterCalls = amb.emitterCalls;
-  row.rpm = Math.round(B.engRpm(B.propRpm(st.thr(B), true, st.V(B)))); row.V = +st.V(B).toFixed(1);
+  row.rpm = Math.round(B.engRpm(B.propRpm(st.thr(B), true, st.V(B))));
+  row.limiter.peakDb = row.buses.master.peak; row.V = +st.V(B).toFixed(1);
   row._master = lim;
+  // G1725: the short-term (3 s) and momentary (0.4 s) numbers, and every airframe layer soloed at the bus's own gain
+  if (opt.study) {
+    const gA = G.airframe * S.master, gE = G.engine * S.master;
+    const sc = (c, g) => c.map(x => { const z = new Float32Array(n); for (let i = 0; i < n; i++) z[i] = x[i] * g; return z; });
+    const ep = [0, 1].map(c => { const z = new Float32Array(n); for (let i = 0; i < n; i++) z[i] = (buses.engine[c][i] + buses.prop[c][i]) * gE; return z; });
+    row.st = { enginePlusProp: levels(ep), airframe: levels(sc(buses.airframe, gA)), music: musicOn ? levels(sc(buses.music, G.music * S.master)) : null,
+               ambience: levels(sc(buses.ambience, G.ambience * S.master)), emitters: levels(sc(buses.emitters, G.emitters * S.master)) };
+    row.layers = {};
+    for (const L of opt.layers || CONT.concat(TRANS)) {
+      const y = cut(aircraftBuses(B, st, interior, seconds + warm, { solo: L }).out.airframe);
+      row.layers[L] = levels(sc(y, gA));
+    }
+  }
   return row;
 }
 
@@ -471,7 +590,70 @@ function table(before, after) {
   return lines.join('\n');
 }
 
+// G1725 THE STUDY: every state (SND-MIX's four + the airframe's own) x both views, every layer soloed. --study=before|after
+// writes reports/evidence/SND-MIX-2/study_<tag>.json and the three renders (taxiBrake cockpit, cruise cockpit, touchdown chase)
+const OUT2 = at('reports/evidence/SND-MIX-2');
+const RENDERS2 = { 'taxiBrake 1': 'jodel_cockpit_taxibrake', 'cruise 1': 'jodel_cockpit_cruise', 'touchdown 0': 'jodel_chase_touchdown' };
+async function study(tag, only, states) {
+  fs.mkdirSync(OUT2, { recursive: true });
+  const rows = [];
+  for (const key of BUILDS) {
+    if (only.length && !only.includes(key)) continue;
+    for (const s of states || Object.keys(STATES).concat(Object.keys(STUDY))) for (const inn of [1, 0]) {
+      const r = await measureState(key, s, inn, { music: s === 'cruise', study: true });
+      const rn = RENDERS2[s + ' ' + inn];
+      if (rn && key === 'jodel' && tag) writeOgg(path.join(OUT2, rn + '_' + tag + '.ogg'), r._master.L, r._master.R);
+      delete r._master; rows.push(r);
+      const e = r.st.enginePlusProp.stMed, lay = r.layers, f = x => (x == null ? '   -' : (x - e >= 0 ? '+' : '') + (x - e).toFixed(1));
+      console.log((key + ' ' + s + ' ' + r.persp).padEnd(26) + ' e+p st ' + e + ' | ' + CONT.map(L => L + ' ' + f(lay[L].st)).join(' ') + ' | ' +
+        TRANS.map(L => L + ' ' + f(lay[L].m)).join(' ') + ' | mus ' + f(r.st.music && r.st.music.st) + ' amb ' + f(r.st.ambience.st) + ' emit ' + f(r.st.emitters.st) + ' | GR ' + r.limiter.grMaxDb + ' pk ' + r.buses.master.peak);
+    }
+  }
+  // G1728: the engine slider at its top (200 %): the limiter's work and the peak in every state and view
+  const top = [];
+  if (tag) for (const key of BUILDS) {
+    if (only.length && !only.includes(key)) continue;
+    for (const s of states || Object.keys(STATES).concat(Object.keys(STUDY))) for (const inn of [1, 0]) {
+      const r = await measureState(key, s, inn, { music: s === 'cruise', engine: 2 });
+      top.push({ build: key, state: s, persp: r.persp, peak: r.buses.master.peak, grMaxDb: r.limiter.grMaxDb, grOver1dBShare: r.limiter.grOver1dBShare });
+    }
+    const w = top.filter(r => r.build === key).sort((a, b) => b.peak - a.peak)[0];
+    console.log(key + ' engine 200 %: the loudest peak ' + w.peak + ' dBFS (' + w.state + ' ' + w.persp + '), GR max ' + Math.max(...top.filter(r => r.build === key).map(r => r.grMaxDb)) + ' dB');
+  }
+  if (tag) fs.writeFileSync(path.join(OUT2, 'study_' + tag + '.json'), JSON.stringify({ when: new Date().toISOString().slice(0, 10), sr: SR, rows, engineTop: top.length ? top : undefined }, null, 1) + '\n');
+  return rows;
+}
+
+// G1725 THE COMPACT TABLE (HANDOVER / README): per build x state x view, before -> after, everything against the engine +
+// prop's short-term loudness (3 s median): the loudest continuous source (the airframe's continuous layers summed are
+// the airframe bus minus its events: its 3 s max where no event fires; the layers' own 3 s max otherwise), the loudest
+// airframe texture (soloed), the loudest transient (momentary 0.4 s max, soloed), the music, the ambience, the master's
+// peak and the limiter's GR max
+function table2(before, after) {
+  const key = r => r.build + ' ' + r.state + ' ' + r.persp, B = {}; for (const r of before.rows) B[key(r)] = r;
+  const d = x => (x == null || !isFinite(x) ? '-' : (x >= 0 ? '+' : '') + x.toFixed(1));
+  const top = (r, list, f) => { let best = null; for (const L of list) { const v = r.layers[L] && r.layers[L][f]; if (v != null && (!best || v > best[1])) best = [L, v]; } return best; };
+  const cell = (r, fn) => { const v = fn(r); return v; };
+  const tex = r => { const t = top(r, CONT, 'st'); return t ? t[0] + ' ' + d(t[1] - r.st.enginePlusProp.stMed) : '-'; };
+  const trn = r => { const t = top(r, TRANS, 'm'); return t ? t[0] + ' ' + d(t[1] - r.st.enginePlusProp.stMed) : '-'; };
+  const rel = (r, k) => d(r.st[k] && r.st[k].st != null ? r.st[k].st - r.st.enginePlusProp.stMed : null);
+  const lines = ['| state | e+p (3 s) | loudest texture vs e+p | loudest transient (0.4 s) vs e+p | music | ambience | emitters | peak dBFS | GR max |', '|---|---|---|---|---|---|---|---|---|'];
+  for (const r of after.rows) {
+    const b = B[key(r)], ba = (fn) => (b ? cell(b, fn) + ' → ' : '') + '**' + cell(r, fn) + '**';
+    lines.push('| ' + key(r) + ' | ' + r.st.enginePlusProp.stMed + ' | ' + ba(tex) + ' | ' + ba(trn) + ' | ' + ba(x => rel(x, 'music')) + ' | ' + ba(x => rel(x, 'ambience')) + ' | ' +
+      ba(x => rel(x, 'emitters')) + ' | ' + ba(x => x.buses.master.peak) + ' | ' + ba(x => x.limiter.grMaxDb) + ' |');
+  }
+  return lines.join('\n');
+}
+
 async function main() {
+  if (process.argv.includes('--table2')) {
+    const rd = f => JSON.parse(fs.readFileSync(path.join(OUT2, f), 'utf8'));
+    console.log(table2(rd('study_before.json'), rd('study_after.json'))); return;
+  }
+  { const sa = process.argv.find(a => a.startsWith('--study'));
+    if (sa) { const o = (process.argv.find(a => a.startsWith('--only=')) || '').slice(7).split(',').filter(Boolean), st = (process.argv.find(a => a.startsWith('--states=')) || '').slice(9).split(',').filter(Boolean);
+      await study(sa.split('=')[1] || '', o, st.length ? st : null); return; } }
   if (process.argv.includes('--table')) {
     const rd = f => JSON.parse(fs.readFileSync(path.join(OUT_DIR, f), 'utf8'));
     console.log(table(rd('mix_before.json'), rd('mix_after.json'))); return;
@@ -512,4 +694,4 @@ async function main() {
   fs.writeFileSync(out, JSON.stringify({ when: new Date().toISOString().slice(0, 10), sr: SR, rows, lottery: lot.length ? lot : undefined }, null, 1) + '\n');
 }
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { measureState, lottery, lufs, limiter, kWeight, STATES, BUILDS, pageAudio, mixTrims };
+module.exports = { setSources, measureState, study, STUDY, LAYERS, CONT, TRANS, slide, lottery, lufs, limiter, kWeight, STATES, BUILDS, pageAudio, mixTrims };

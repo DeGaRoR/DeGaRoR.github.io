@@ -1,0 +1,30 @@
+00_registry.js - 6 on CORE_MATH: genShaftRpm  [kept builtin: pow l.846 (pow(x, 2) - every engine agrees)], genEnginePrice pow 6
+05_atmos.js - 6 on CORE_MATH: makeAtmos pow 1, pAt pow 1, layAt pow 1, densityAlt pow 1, pressureAlt pow 1, atmosPropScale pow 1
+06_solar.js - 2 on CORE_MATH: sin sin 1 cos 1
+07_day.js - 1 on CORE_MATH: smf cos 1 [kept builtin: pow l.181 (pow(x, 2) - every engine agrees); pow l.214 (pow(x, 2) - every engine agrees)]
+09_climate.js - 18 on CORE_MATH: bearingToBase sin 1 cos 1, shearK pow 1, windLegacy sin 1, addGust sin 1, setWind sin 1 cos 1, shearOf pow 1, smooth sin 1 cos 1, convNow sin 1, wstarOf pow 1, thermalAt pow 3 [kept builtin: pow l.588 (pow(x, 2) - every engine agrees)], thermals pow 3
+20_world.js - 17 on CORE_MATH: padRamp sin 1 cos 1, coverAt sin 3 cos 1, regSurf sin 1 cos 1, aeroBoxes sin 1 cos 1, waterH cos 1, seaFrom sin 1 cos 2 pow 1 [kept builtin: pow l.856 (pow(x, 2) - every engine agrees); pow l.866 (pow(x, 2) - every engine agrees)], seaApply sin 1 cos 1
+23_world_settle.js - 2 on CORE_MATH: meadowMult sin 1 cos 1
+24_world_aero.js - 10 on CORE_MATH: probe sin 1 cos 1, clean sin 1 cos 1, push sin 3 cos 3
+25_airfield.js - 16 on CORE_MATH: siteRunway sin 1 cos 1, name sin 1 cos 1, runwayLightPoints sin 1 cos 1, hAt sin 1 cos 1, standFor sin 1 cos 1, gpParkedDist sin 1 cos 1, gpParkedOut sin 1 cos 1, onStrip sin 1 cos 1
+27_premises.js - 38 on CORE_MATH: hash2 sin 1, roadFillet sin 4 cos 1, weight sin 1 cos 1, bound sin 1 cos 1, frameOf sin 1 cos 1, runwayEnds sin 1 cos 1, runwayAerodrome sin 2 cos 2, siteFrame sin 1 cos 1, placeSite sin 1 cos 1, siteShelves sin 1 cos 1, solve sin 1 cos 1, smoothPath sin 3 cos 1, codeAt sin 1 cos 1, coverAt sin 1, waterAt sin 1 cos 1, lawnOf sin 1, shelfCovers sin 1 cos 1
+28b_ground_fields.js - 6 on CORE_MATH: poolAt sin 2 cos 2, hueTurn sin 1 cos 1, groundColor  [kept builtin: cos l.299 (shader text); sin l.299 (shader text); sin l.299 (shader text); cos l.299 (shader text); cos l.300 (shader text); sin l.300 (shader text); sin l.300 (shader text); cos l.300 (shader text)]
+29_obstacles.js - 10 on CORE_MATH: side sin 1, ring sin 1 cos 2, lin sin 1 cos 1, add sin 1 cos 1, move sin 1 cos 1
+30_solver.js - 15 on CORE_MATH: rotateRing sin 1 cos 1, extractRotation sin 1 cos 1, driveImb sin 1 cos 1, IDLE_T  [kept builtin: pow l.1759 (pow(x, 2) - every engine agrees)], stance sin 1 cos 1, polar sin 2, aeroPass sin 1 cos 1, blob sin 1, substep sin 1 cos 1
+32_hydro.js - 18 on CORE_MATH: rotExp sin 1 cos 1, rotPitch sin 1 cos 1, keelTable sin 1 cos 1, planF pow 1 [kept builtin: pow l.293 (pow(x, 0.5) - every engine agrees)], sectionOf pow 2, push sin 1, h cos 1, apply sin 1 cos 2, savitskyStatic cos 1 pow 2, wetCompute sin 1
+33_drive.js - 2 on CORE_MATH: genDriveSpec pow 1, genNoseShell pow 1
+38b_dest.js - 2 on CORE_MATH: flightStripGeom sin 1 cos 1
+39_ground_path.js - 6 on CORE_MATH: straight sin 2 cos 2, pathLocate sin 1 cos 1
+40_autopilot.js - 14 on CORE_MATH: snap sin 1 cos 1, clr sin 1 cos 1, mkFrame sin 2 cos 2, vsAgl sin 3 cos 3
+41_test_pilot.js - 10 on CORE_MATH: mkFrame sin 2 cos 2, vsAgl sin 3 cos 3
+43_pilot.js - 42 on CORE_MATH: mkFrame sin 2 cos 2, dirAt sin 6 cos 6, planDeparture sin 3 cos 3, pathFollow sin 3 cos 2, apply sin 1 cos 1, boxFly sin 6 cos 7
+50_model_codec.js - 2 on CORE_MATH: applyHinges sin 1 cos 1
+60_gen_spec.js - 8 on CORE_MATH: genPropSynth pow 2 [kept builtin: pow l.2092 (pow(x, 2) - every engine agrees)], genPropAuto pow 2, genFlapTau sin 1, resolvePlane sin 1 cos 2
+60b_gen_loft.js - 10 on CORE_MATH: genSect sin 1 cos 1 pow 3, genSuper sin 1 cos 1 pow 3
+60c_gen_energy.js - 1 on CORE_MATH: genVesselResolve pow 1
+61_gen_frame.js - 16 on CORE_MATH: finCluster pow 1, rodK pow 1, B pow 1, profAt pow 6, far pow 2, iAft sin 1 cos 1 [kept builtin: pow l.2267 (pow(x, 2) - every engine agrees)], gOf pow 1, furnOf pow 1, genFrame pow 1
+62_gen_aero.js - 9 on CORE_MATH: genThinAirfoil cos 4, genOswald pow 1, genPolar cos 1, washAt sin 1 cos 1 [kept builtin: pow l.171 (pow(x, 2) - every engine agrees)], genNetEig sin 1
+63_gen_wing.js - 33 on CORE_MATH: yt sin 1 cos 2, at sin 1 cos 1, xs cos 3, midX sin 1 cos 2, xsU cos 1, xsL cos 1, genRing cos 1, genTubeInto sin 1 cos 1, genRevolveInto sin 1 cos 1, genBungeeSect cos 1, off sin 2 cos 2, surfSec sin 1, hOf sin 5 cos 4
+64_gen_build.js - 14 on CORE_MATH: genProbeAt sin 4 cos 4, yaw sin 1 cos 1, genClMax sin 2 cos 2
+66_gen_cert.js - 16 on CORE_MATH: vel sin 1 cos 1, Fn sin 1 cos 1, turn sin 1 cos 1, genCertBow sin 1 cos 1, add pow 2, genCertTaxi sin 2 cos 1, genCertSink pow 1, A sin 1 cos 1
+TOTAL: 350 sites on CORE_MATH, 19 kept the builtin, 0 STRAY, 0 pow(x, 2 | 0.5) on CORE_MATH
