@@ -1297,6 +1297,32 @@ if (plots.length) {
   check(['dragenter', 'dragover', 'dragleave', 'drop'].every(k => new RegExp("addEventListener\\('" + k + "', ev => \\{ ?\\n? *if \\(!active \\|\\| !fileDrag\\(ev\\)\\) return;").test(UIs)) && (UIs.match(/stopImmediatePropagation\(\)/g) || []).length >= 4 && /\}, true\);/.test(UIs) &&
         /dropEl\.innerHTML = '<b>drop to import<\/b>/.test(UIs) && /importLook: o => \{ applyLook\(o, true\); saveLook\(\); \}/.test(WRs), '37 the page: capture-phase drag listeners while the editor is open (stopped there), the overlay, the world rail\'s importLook');
 }
+// 38 TOWN-ROAD-SIDES (the user, 22 Oct, Metlakatla's streets: "a smaller side to the road. The same overall width (including the
+//    side), but a higher proportion of the road. The sides should be between a third and a half of their current width"): a street
+//    with its 2 m side traded for carriageway (band 0.8, w + 2.4, `lay` = its old w) DRAWS wider and feels paved there, and nothing
+//    beside it moves - the plots, the houses' fronts, the graded ground and the trees' clearing are the old street's; the shipped
+//    Metlakatla: every street converted, w + 2 band as it was
+{
+  const zone = { id: 'z38', kind: 'residential', poly: [[9900, 9940], [10300, 9940], [10300, 10060], [9900, 10060]] };
+  const street = x => Object.assign({ id: 's38', pts: [[9900, 10000], [10100, 10002], [10300, 10000]], cls: 'paved', look: 'worn', graded: true, falloff: 6, clear: 3 }, x);
+  const recOf = x => PG.normalise({ seed: 38, theme: 'alaska', layers: { roads: [street(x)], zones: [JSON.parse(JSON.stringify(zone))] } });
+  const before = recOf({ w: 4, band: 2 }), after = recOf({ w: 6.4, band: 0.8, lay: 4 });
+  const Ob = PG.compose(before, synth), Oa = PG.compose(after, synth);
+  const plotsOf = O => JSON.stringify((O.records.plots || []).map(q => [q.id, q.poly || q.foot || null, q.front || null, q.road || null]));
+  const nPl = (Ob.records.plots || []).length;
+  check(nPl > 0 && plotsOf(Ob) === plotsOf(Oa), '38 the plots along the street stand where they stood (' + nPl + ' plots)', nPl + ' plots');
+  let dH = 0, dT = 0; for (let x = 9920; x <= 10280; x += 7) for (let z = 9985; z <= 10015; z += 1.5) { const w = Ob.frame.toWorld(x, z); dH = Math.max(dH, Math.abs(Ob.terrainAt(w[0], w[1]) - Oa.terrainAt(w[0], w[1]))); if (!!Ob.excludeAt(w[0], w[1], 'trees') !== !!Oa.excludeAt(w[0], w[1], 'trees')) dT++; }
+  check(dH < 1e-9 && dT === 0, '38 the graded ground and the trees\' clearing are the old street\'s (height ' + dH.toExponential(1) + ' m, clearing ' + dT + ' points differ)');
+  const ra = Oa.roads.find(r => r.id === 's38'), rb = Ob.roads.find(r => r.id === 's38');
+  check(ra && rb && ra.w === 6.4 && rb.w === 4 && ra.lay === 4 && rb.lay === 4 && PG.roadLayW({ w: 5 }) === 5 && PG.roadLayW({ w: 6.4, lay: 4 }) === 4, '38 the carriageway drawn is 2.4 m wider, the layout width the old one');
+  const w2 = Oa.frame.toWorld(10100, 10002 + 2.9);
+  check(Oa.surfaceAt(w2[0], w2[1]) === PG.SURFACE.PAVED, '38 ...and the wheels feel the paved carriageway where the side was (2.9 m out)');
+  // the shipped Metlakatla
+  const JM = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), mk = JM.layers.roads.filter(r => /^mk_/.test(r.id) && +r.lay > 0);
+  check(mk.length >= 60 && mk.every(r => r.band === 0.8 && Math.abs(r.w - r.lay - 2.4) < 1e-6) && !JM.layers.roads.some(r => /^mk_/.test(r.id) && r.band === 2), '38 the shipped Metlakatla: ' + mk.length + ' streets, side 0.8 m, carriageway + 2.4 m (w + 2 band unchanged), the old width in lay');
+  const AU = fs.readFileSync(path.join(TOOLS, 'metlakatla_author.py'), 'utf8');
+  check(/if r\.get\('band'\) == 2:\s*\n\s*r\['lay'\] = r\['w'\]\s*\n\s*r\['w'\] = round\(r\['w'\] \+ 2 \* \(2 - 0\.8\), 3\)\s*\n\s*r\['band'\] = 0\.8/.test(AU), '38 the author makes them so (a re-author keeps the sides)');
+}
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
