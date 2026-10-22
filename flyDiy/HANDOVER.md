@@ -97914,7 +97914,7 @@ The rulings that are mine, to confirm or move (one line each in the table):
   is held row by row, not refused).
 
 **Gates** (22 Oct, cloud; the generated files built locally for the run, then put back - not committed):
-- PASS (34 gates through `node tools/run_gates.js --only=... --jobs=6`, once): TECH (+ `--selftest` PASS, 6 breaks), BUILD, LAZY (its
+- 34 gates through `node tools/run_gates.js --only=... --jobs=6`, once. PASS (31): TECH (+ `--selftest` PASS, 6 breaks), BUILD, LAZY (its
   Chromium boot included), STORY, UISMOKE, UISMOKE-PHONE, PROCURE, GFX, CARDS, STORAGE, STOREDRAW, HONESTY, PARTS, PANEL, VIEW, UILAYER,
   REF, MEDIA, ASSETS, ENERGY, SKINMAT, CLIMATE, INPUT, SHEETWORKER, ROUTES, CONTRACTS, ECON, PILOTS, PLAYER, HANGAR, FREIGHT.
 - RED, none mine: CLOCK (1 of 777) and BENCH ("the phase strip knows all 24 pilot phases - not ROUTE, LOITER") fail identically on
