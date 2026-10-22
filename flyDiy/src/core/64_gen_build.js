@@ -235,7 +235,13 @@ function genTrim(def) {
     // 1.14 Vs, 0.6 m/s, and swings 8.5 / 11.1 / 13.1 deg at 3 / 4 / 5 m/s across. Of every active archetype card and
     // the five validated builds only that Cub moves (the C172-alike sits at -0.153: inside, by 0.001 - flown, its
     // final holds -0.07). The budget a trim de is judged against:
-    const trimBudget = de => 0.18 * (de < 0 ? -SERVO_GAINS.deMin / SERVO_GAINS.deMax : 1);
+    // FLOAT-FAST-WATER (22 Oct): ON FLOATS THE NOSE-UP SIDE IS THE WATER'S. The pilot flies a float aeroplane's final and flare on
+    // the water's stick top (43 floatsLand: SERVO_GAINS.deWater 0.70, not the air's 0.35), so its trim budget is the same half of
+    // THAT stop. Judged on the air's 0.18 the nose-heavy float Cessna (the floats, the load door) was sent in flapless at the clean
+    // stall's approach speed, 'vref-raised' on top: it met the water at 31-39 m/s and skipped (G3079's KNOWN prop strike, the capsize).
+    // The forward side (deMin) and every land aeroplane: as before, to the bit
+    const upTop = sim.hydro ? SERVO_GAINS.deWater / SERVO_GAINS.deMax : 1;
+    const trimBudget = de => 0.18 * (de < 0 ? -SERVO_GAINS.deMin / SERVO_GAINS.deMax : upTop);
     const rat = g.Vs / Math.max(1e-6, g.VsFlap);          // back onto the clean stall
     const landFlapless = () => {
       def.params.flaps.ldg = 0;          // the AP's flap schedule reads this
@@ -268,7 +274,7 @@ function genTrim(def) {
       sim.ctl.flap = ldg;
       const Vtd = 1.10 * g.VsFlap;
       g.deFlare = deAt(Vtd, genAlphaForLift(sim, Vtd, W, aMax));
-      if (g.deFlare > 0.35) {
+      if (g.deFlare > (sim.hydro ? SERVO_GAINS.deWater : 0.35)) {   // (FLOAT-FAST-WATER: the floats' flare has the water's stop)
         sim.ctl.flap = 0;
         const V0 = 1.10 * g.Vs;
         const deF0 = deAt(V0, genAlphaForLift(sim, V0, W, aMax));

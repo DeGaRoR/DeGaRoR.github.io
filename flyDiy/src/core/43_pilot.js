@@ -4068,7 +4068,7 @@ function makePilot(sim, def, world, opts) {
         // never below the take-off setting) when the elevator sits on its stop; the cap holds for
         // the flight (the flare, the next circuit). No flap, or an elevator inside its budget: as before
         deF += (deHeld() - deF) * Math.min(1, dt / 0.5);
-        if (FS && c.flap < fLDG - 0.01 && c.flap > fTO && deF > 0.18) { fLandCap = c.flap; flapTgt = c.flap; say('flap-limited', 'the elevator holds flap ' + c.flap.toFixed(2) + ' at its trim budget — no more'); }
+        if (FS && c.flap < fLDG - 0.01 && c.flap > fTO && deF > (floatsLand() ? 0.36 : 0.18)) { fLandCap = c.flap; flapTgt = c.flap; say('flap-limited', 'the elevator holds flap ' + c.flap.toFixed(2) + ' at its trim budget — no more'); }
         if (FS && c.flap > fTO + 0.01 && deHeld() > deSatAt()) {
           fCapT += dt;
           if (fCapT > 0.3) { fLandCap = Math.max(fTO, c.flap - 0.25); fCapT = 0; flapTgt = Math.min(flapTgt, fLandCap); say('flap-limited', 'the elevator cannot hold flap ' + c.flap.toFixed(2) + ' — landing on ' + fLandCap.toFixed(2)); }
